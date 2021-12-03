@@ -42,7 +42,6 @@ MODULE oce_trc
    USE oce , ONLY :   vv     =>    vv     !: j-horizontal velocity (m s-1)
    USE oce , ONLY :   ww     =>    ww     !: vertical velocity (m s-1)  
    USE oce , ONLY :   ts     =>    ts     !: 4D array contaning ( tn, sn )
-   USE oce , ONLY :   rhop   =>    rhop   !: potential volumic mass (kg m-3) 
    USE oce , ONLY :   rhd    =>    rhd    !: in situ density anomalie rhd=(rho-rho0)/rho0 (no units)
    USE oce , ONLY :   hdiv   =>    hdiv   !: horizontal divergence (1/s)
    USE oce , ONLY :   ssh    =>    ssh    !: sea surface height at t-point [m]   

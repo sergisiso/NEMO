@@ -50,6 +50,10 @@ MODULE dynvor
 
    IMPLICIT NONE
    PRIVATE
+   
+   INTERFACE dyn_vor
+      MODULE PROCEDURE dyn_vor_3D, dyn_vor_RK3
+   END INTERFACE
 
    PUBLIC   dyn_vor        ! routine called by step.F90
    PUBLIC   dyn_vor_init   ! routine called by nemogcm.F90
@@ -73,8 +77,9 @@ MODULE dynvor
    INTEGER, PUBLIC, PARAMETER ::   np_EEN = 4   ! EEN scheme
    INTEGER, PUBLIC, PARAMETER ::   np_MIX = 5   ! MIX scheme
 
-   INTEGER ::   ncor, nrvm, ntot   ! choice of calculated vorticity
-   !                               ! associated indices:
+   !                                    !: choice of calculated vorticity
+   INTEGER, PUBLIC ::   ncor, nrvm, ntot   ! Coriolis, relative vorticity, total vorticity
+   !                                       ! associated indices:
    INTEGER, PUBLIC, PARAMETER ::   np_COR = 1         ! Coriolis (planetary)
    INTEGER, PUBLIC, PARAMETER ::   np_RVO = 2         ! relative vorticity
    INTEGER, PUBLIC, PARAMETER ::   np_MET = 3         ! metric term
@@ -98,12 +103,12 @@ MODULE dynvor
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: dynvor.F90 14834 2021-05-11 09:24:44Z hadcv $
+   !! $Id: dynvor.F90 14547 2021-02-25 17:07:15Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
-
-   SUBROUTINE dyn_vor( kt, Kmm, puu, pvv, Krhs )
+   
+   SUBROUTINE dyn_vor_3D( kt, Kmm, puu, pvv, Krhs )
       !!----------------------------------------------------------------------
       !!
       !! ** Purpose :   compute the lateral ocean tracer physics.
@@ -120,7 +125,7 @@ CONTAINS
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::  ztrdu, ztrdv
       !!----------------------------------------------------------------------
       !
-      IF( ln_timing )   CALL timing_start('dyn_vor')
+      IF( ln_timing )   CALL timing_start('dyn_vor_3D')
       !
       IF( l_trddyn ) THEN     !==  trend diagnostics case : split the added trend in two parts  ==!
          !
@@ -208,9 +213,85 @@ CONTAINS
       IF(sn_cfctl%l_prtctl) CALL prt_ctl( tab3d_1=puu(:,:,:,Krhs), clinfo1=' vor  - Ua: ', mask1=umask,               &
          &                                tab3d_2=pvv(:,:,:,Krhs), clinfo2=       ' Va: ', mask2=vmask, clinfo3='dyn' )
       !
-      IF( ln_timing )   CALL timing_stop('dyn_vor')
+      IF( ln_timing )   CALL timing_stop('dyn_vor_3D')
       !
-   END SUBROUTINE dyn_vor
+   END SUBROUTINE dyn_vor_3D
+
+
+   SUBROUTINE dyn_vor_RK3( kt, Kmm, puu, pvv, Krhs, knoco )
+      !!----------------------------------------------------------------------
+      !!
+      !! ** Purpose :   compute the lateral ocean tracer physics.
+      !!
+      !! ** Action : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now vorticity term trend
+      !!             - save the trends in (ztrdu,ztrdv) in 2 parts (relative
+      !!               and planetary vorticity trends) and send them to trd_dyn
+      !!               for futher diagnostics (l_trddyn=T)
+      !!----------------------------------------------------------------------
+      INTEGER                             , INTENT(in   ) ::   kt          ! ocean time-step index
+      INTEGER                             , INTENT(in   ) ::   Kmm, Krhs   ! ocean time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::   puu, pvv    ! ocean velocity field and RHS of momentum equation
+      INTEGER                             , INTENT(in   ) ::   knoco       ! specified vorticity trend (= np_MET or np_RVO)
+      !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('dyn_vor_RK3')
+      !
+      !              !==  total vorticity trend added to the general trend  ==!
+      !!st WARNING 22/02 !!!!!!!! stoke drift or not stoke drift ? => bar to do later !!!
+      !! stoke drift a garder pas vortex force a priori !!
+      !! ATTENTION déja appelé avec Kbb !!
+      
+         !
+         SELECT CASE ( nvor_scheme )      !==  vorticity trend added to the general trend  ==!
+         CASE( np_ENT )                        !* energy conserving scheme  (T-pts)
+                             CALL vor_enT( kt, Kmm, knoco, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
+            IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
+                             CALL vor_enT( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
+            ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
+                             CALL vor_enT( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
+            ENDIF
+         CASE( np_EET )                        !* energy conserving scheme (een scheme using e3t)
+                             CALL vor_eeT( kt, Kmm, knoco, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
+            IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
+                             CALL vor_eeT( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
+            ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
+                             CALL vor_eeT( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
+            ENDIF
+         CASE( np_ENE )                        !* energy conserving scheme
+                             CALL vor_ene( kt, Kmm, knoco, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
+            IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
+                             CALL vor_ene( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
+            ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
+                             CALL vor_ene( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
+            ENDIF
+         CASE( np_ENS )                        !* enstrophy conserving scheme
+                             CALL vor_ens( kt, Kmm, knoco, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! total vorticity trend
+
+            IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
+                             CALL vor_ens( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! add the Stokes-Coriolis trend
+            ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
+                             CALL vor_ens( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! add the Stokes-Coriolis trend and vortex force
+            ENDIF
+         CASE( np_MIX )                        !* mixed ene-ens scheme
+                             CALL vor_ens( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! relative vorticity or metric trend (ens)
+            IF( ln_stcor )        CALL vor_ene( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )        ! add the Stokes-Coriolis trend
+            IF( ln_vortex_force ) CALL vor_ens( kt, Kmm, nrvm, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add vortex force
+         CASE( np_EEN )                        !* energy and enstrophy conserving scheme
+                             CALL vor_een( kt, Kmm, knoco, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
+            IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
+                             CALL vor_een( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
+            ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
+                             CALL vor_een( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
+            ENDIF
+         END SELECT
+      !
+      !                       ! print sum trends (used for debugging)
+      IF(sn_cfctl%l_prtctl) CALL prt_ctl( tab3d_1=puu(:,:,:,Krhs), clinfo1=' vor  - Ua: ', mask1=umask,               &
+         &                                tab3d_2=pvv(:,:,:,Krhs), clinfo2=       ' Va: ', mask2=vmask, clinfo3='dyn' )
+      !
+      IF( ln_timing )   CALL timing_stop('dyn_vor_RK3')
+      !
+   END SUBROUTINE dyn_vor_RK3
 
 
    SUBROUTINE vor_enT( kt, Kmm, kvor, pu, pv, pu_rhs, pv_rhs )

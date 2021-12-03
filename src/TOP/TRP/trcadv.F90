@@ -7,6 +7,7 @@ MODULE trcadv
    !!            3.0  !  2010-06  (C. Ethe)   Adapted to passive tracers
    !!            3.7  !  2014-05  (G. Madec, C. Ethe)  Add 2nd/4th order cases for CEN and FCT schemes 
    !!            4.0  !  2017-09  (G. Madec)  remove vertical time-splitting option
+   !!            4.5  !  2021-08  (G. Madec, S. Techene) add advective velocities as optional arguments
    !!----------------------------------------------------------------------
 #if defined key_top
    !!----------------------------------------------------------------------
@@ -35,7 +36,7 @@ MODULE trcadv
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trc_adv       ! called by trctrp.F90
+   PUBLIC   trc_adv       ! called by trctrp.F90 and stprk3_stg.F90
    PUBLIC   trc_adv_ini   ! called by trcini.F90
 
    !                            !!* Namelist namtrc_adv *
@@ -44,7 +45,7 @@ MODULE trcadv
    INTEGER ::      nn_cen_h, nn_cen_v   ! =2/4 : horizontal and vertical choices of the order of CEN scheme
    LOGICAL ::   ln_trcadv_fct    ! FCT scheme flag
    INTEGER ::      nn_fct_h, nn_fct_v   ! =2/4 : horizontal and vertical choices of the order of FCT scheme
-   LOGICAL ::   ln_trcadv_mus    ! MUSCL scheme flag
+   LOGICAL, PUBLIC ::   ln_trcadv_mus    ! MUSCL scheme flag
    LOGICAL ::      ln_mus_ups           ! use upstream scheme in vivcinity of river mouths
    LOGICAL ::   ln_trcadv_ubs    ! UBS scheme flag
    INTEGER ::      nn_ubs_v             ! =2/4 : vertical choice of the order of UBS scheme
@@ -58,31 +59,35 @@ MODULE trcadv
    INTEGER, PARAMETER ::   np_MUS     = 3   ! MUSCL scheme
    INTEGER, PARAMETER ::   np_UBS     = 4   ! 3rd order Upstream Biased Scheme
    INTEGER, PARAMETER ::   np_QCK     = 5   ! QUICK scheme
-   
+
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcadv.F90 15073 2021-07-02 14:20:14Z clem $ 
+   !! $Id: trcadv.F90 15510 2021-11-15 15:33:37Z techene $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE trc_adv( kt, Kbb, Kmm, ptr, Krhs  )
+   SUBROUTINE trc_adv( kt, Kbb, Kmm, ptr, Krhs, pau, pav, paw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trc_adv  ***
       !!
       !! ** Purpose :   compute the ocean tracer advection trend.
       !!
-      !! ** Method  : - Update after tracers (tr(Krhs)) with the advection term following nadv
+      !! ** Method  : - Update tr(Krhs) with the advective trend following nadv
       !!----------------------------------------------------------------------
-      INTEGER                                   , INTENT(in)    :: kt   ! ocean time-step index
-      INTEGER                                   , INTENT(in)    :: Kbb, Kmm, Krhs ! time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) :: ptr            ! passive tracers and RHS of tracer equation
+      INTEGER                                     , INTENT(in   ) ::   kt             ! ocean time-step index
+      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Krhs ! time level indices
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw  ! advective velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt)  , INTENT(inout) ::   ptr            ! passive tracers and RHS of tracer equation
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
       CHARACTER (len=22) ::   charout
+      REAL(wp), DIMENSION(:,:,:), POINTER ::   zptu, zptv, zptw
       REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zuu, zvv, zww  ! effective velocity
       !!----------------------------------------------------------------------
       !
@@ -105,21 +110,32 @@ CONTAINS
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             zww(ji,jj,jpk) = 0._wp
          END_2D
+         !
+         IF( PRESENT( pau ) ) THEN                       ! RK3: advective velocity (pau,pav,paw) /= advected velocity (uu,vv,ww)
+            zptu => pau(:,:,:)
+            zptv => pav(:,:,:)
+            zptw => paw(:,:,:)
+         ELSE                                            ! MLF: advective velocity = (uu,vv,ww)
+            zptu => uu(:,:,:,Kmm)
+            zptv => vv(:,:,:,Kmm)
+            zptw => ww(:,:,:    )
+         ENDIF
+         !
          IF( ln_wave .AND. ln_sdw )  THEN
             DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )                            ! eulerian transport + Stokes Drift
-               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + usd(ji,jj,jk) )
-               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + vsd(ji,jj,jk) )
+               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
+               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * ( zptv(ji,jj,jk) + vsd(ji,jj,jk) )
             END_3D
             DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-               zww(ji,jj,jk) = e1e2t(ji,jj)                     * ( ww(ji,jj,jk)     + wsd(ji,jj,jk) )
+               zww(ji,jj,jk) = e1e2t(ji,jj)                     * ( zptw(ji,jj,jk) + wsd(ji,jj,jk) )
             END_3D
          ELSE
             DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * uu(ji,jj,jk,Kmm)           ! eulerian transport
-               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * vv(ji,jj,jk,Kmm)
+               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * zptu(ji,jj,jk)           ! eulerian transport
+               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * zptv(ji,jj,jk)
             END_3D
             DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-               zww(ji,jj,jk) = e1e2t(ji,jj)                     * ww(ji,jj,jk)
+               zww(ji,jj,jk) = e1e2t(ji,jj)                     * zptw(ji,jj,jk)
             END_3D
          ENDIF
          !

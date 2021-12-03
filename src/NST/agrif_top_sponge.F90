@@ -33,7 +33,7 @@ MODULE agrif_top_sponge
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_top_sponge.F90 15437 2021-10-22 12:21:20Z jchanut $
+   !! $Id: agrif_top_sponge.F90 14800 2021-05-06 15:42:46Z jchanut $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -46,9 +46,12 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
 #if defined SPONGE_TOP
+#if defined key_RK3
+      zcoef = REAL(Agrif_Nbstepint(), wp)/REAL(Agrif_rhot())
+#else
       !! Assume persistence:
       zcoef = REAL(Agrif_rhot()-1,wp)/REAL(Agrif_rhot())
-
+#endif
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = .TRUE.
       l_vremap              = ln_vert_remap

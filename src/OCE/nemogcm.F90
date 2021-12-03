@@ -65,7 +65,11 @@ MODULE nemogcm
    USE ice_domain_size, only: nx_global, ny_global
 #endif
 #if defined key_qco   ||   defined key_linssh
+# if defined key_RK3
+   USE stprk3
+# else
    USE stpmlf         ! NEMO time-stepping               (stp_MLF   routine)
+# endif
 #else
    USE step           ! NEMO time-stepping                 (stp     routine)
 #endif
@@ -91,7 +95,7 @@ MODULE nemogcm
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: nemogcm.F90 15267 2021-09-17 09:04:34Z smasson $
+   !! $Id: nemogcm.F90 15532 2021-11-24 11:47:32Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -153,7 +157,11 @@ CONTAINS
       DO WHILE( istp <= nitend .AND. nstop == 0 )
          !
 #  if defined key_qco   ||   defined key_linssh
+#   if defined key_RK3
+         CALL stp_RK3
+#   else
          CALL stp_MLF
+#   endif
 #  else
          CALL stp
 #  endif
@@ -174,7 +182,11 @@ CONTAINS
             ENDIF
             !
 #  if defined key_qco   ||   defined key_linssh
+#   if defined key_RK3
+            CALL stp_RK3( istp )
+#   else
             CALL stp_MLF( istp )
+#   endif
 #  else
             CALL stp    ( istp )
 #  endif
@@ -470,7 +482,11 @@ CONTAINS
                            CALL isf_init( Nbb, Nnn, Naa )
 #if defined key_top
       !                                      ! Passive tracers
+# if defined key_RK3
+                           CALL     trc_init( Nbb, Nbb, Naa )
+# else
                            CALL     trc_init( Nbb, Nnn, Naa )
+# endif
 #endif
       IF( l_ldfslp     )   CALL ldf_slp_init    ! slope of lateral mixing
 

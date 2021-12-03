@@ -34,7 +34,8 @@ MODULE stpmlf
    !!            4.1  !  2019-08  (A. Coward, D. Storkey) rewrite in preparation for new timestepping scheme
    !!            4.x  !  2020-08  (S. Techene, G. Madec)  quasi eulerian coordinate time stepping
    !!----------------------------------------------------------------------
-#if defined key_qco   ||   defined key_linssh
+#if ! defined key_RK3
+# if defined key_qco   ||   defined key_linssh
    !!----------------------------------------------------------------------
    !!   'key_qco'                        Quasi-Eulerian vertical coordinate
    !!                          OR
@@ -91,8 +92,8 @@ CONTAINS
       !!              -7- Compute the diagnostics variables (rd,N2, hdiv,w)
       !!              -8- Outputs and diagnostics
       !!----------------------------------------------------------------------
-      INTEGER ::   ji, jj, jk, jtile   ! dummy loop indice
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zgdept
+      INTEGER ::   ji, jj, jk, jn, jtile   ! dummy loop indice
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)       ::   zgdept
       !! ---------------------------------------------------------------------
 #if defined key_agrif
       IF( nstop > 0 ) RETURN   ! avoid to go further if an error was detected during previous time step (child grid)
@@ -281,7 +282,6 @@ CONTAINS
          IF( ln_zad_Aimp )  CALL wAimp      ( kstp,      Nnn )                      ! Adaptive-implicit vertical advection partitioning
       ENDIF
 
-
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! cool skin
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -316,11 +316,17 @@ CONTAINS
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Active tracers
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                         ts(:,:,:,:,Nrhs) = 0._wp         ! set tracer trends to zero
 
-      IF( ln_tile ) CALL dom_tile_start         ! [tiling] TRA tiling loop (1)
+      IF( ln_tile )   CALL dom_tile_start         ! [tiling] TRA tiling loop (1)
+
       DO jtile = 1, nijtile
-         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+         IF( ln_tile )   CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+
+         DO jn = 1, jpts
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               ts(ji,jj,jk,jn,Nrhs) = 0._wp                               ! set tracer trends to zero
+            END_3D
+         END DO
 
          IF(  lk_asminc .AND. ln_asmiau .AND. &
             & ln_trainc )   CALL tra_asm_inc( kstp, Nbb, Nnn, ts, Nrhs )  ! apply tracer assimilation increment
@@ -542,7 +548,7 @@ CONTAINS
       ! Update after tracer and velocity on domain lateral boundaries
       !
 # if defined key_agrif
-            CALL Agrif_tra                     !* AGRIF zoom boundaries
+            CALL Agrif_tra( kt )               !* AGRIF zoom boundaries
             CALL Agrif_dyn( kt )
 # endif
       !                                        ! local domain boundaries  (T-point, unchanged sign)
@@ -566,10 +572,11 @@ CONTAINS
       !
    END SUBROUTINE finalize_lbc
 
-#else
+# else
    !!----------------------------------------------------------------------
    !!   default option             EMPTY MODULE           qco not activated
    !!----------------------------------------------------------------------
+# endif
 #endif
    
    !!======================================================================

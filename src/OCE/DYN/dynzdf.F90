@@ -44,7 +44,7 @@ MODULE dynzdf
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: dynzdf.F90 14834 2021-05-11 09:24:44Z hadcv $
+   !! $Id: dynzdf.F90 14547 2021-02-25 17:07:15Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -73,14 +73,14 @@ CONTAINS
       INTEGER                             , INTENT( in )  ::  Kbb, Kmm, Krhs, Kaa ! ocean time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv            ! ocean velocities and RHS of momentum equation
       !
-      INTEGER  ::   ji, jj, jk         ! dummy loop indices
-      INTEGER  ::   iku, ikv           ! local integers
-      REAL(wp) ::   zzwi, ze3ua, zdt   ! local scalars
-      REAL(wp) ::   zzws, ze3va        !   -      -
-      REAL(wp) ::   z1_e3ua, z1_e3va   !   -      -
-      REAL(wp) ::   zWu , zWv          !   -      -
-      REAL(wp) ::   zWui, zWvi         !   -      -
-      REAL(wp) ::   zWus, zWvs         !   -      -
+      INTEGER  ::   ji, jj, jk           ! dummy loop indices
+      INTEGER  ::   iku, ikv             ! local integers
+      REAL(wp) ::   zzwi, ze3ua, zDt_2   ! local scalars
+      REAL(wp) ::   zzws, ze3va          !   -      -
+      REAL(wp) ::   z1_e3ua, z1_e3va     !   -      -
+      REAL(wp) ::   zWu , zWv            !   -      -
+      REAL(wp) ::   zWui, zWvi           !   -      -
+      REAL(wp) ::   zWus, zWvs           !   -      -
       REAL(wp), DIMENSION(A2D(nn_hls),jpk)        ::  zwi, zwd, zws   ! 3D workspace
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrdu, ztrdv   !  -      -
       !!---------------------------------------------------------------------
@@ -98,6 +98,9 @@ CONTAINS
             ENDIF
          ENDIF
       ENDIF
+      !
+      zDt_2 = rDt * 0.5_wp
+      !
       !                             !* explicit top/bottom drag case
       IF( .NOT.ln_drgimp )   CALL zdf_drg_exp( kt, Kmm, puu(:,:,:,Kbb), pvv(:,:,:,Kbb), puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! add top/bottom friction trend to (puu(Kaa),pvv(Kaa))
       !
@@ -143,8 +146,8 @@ CONTAINS
                &             + r_vvl   * e3u(ji,jj,iku,Kaa)
             ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,ikv,Kmm)    &
                &             + r_vvl   * e3v(ji,jj,ikv,Kaa)
-            puu(ji,jj,iku,Kaa) = puu(ji,jj,iku,Kaa) + rDt * 0.5*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) * uu_b(ji,jj,Kaa) / ze3ua
-            pvv(ji,jj,ikv,Kaa) = pvv(ji,jj,ikv,Kaa) + rDt * 0.5*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) * vv_b(ji,jj,Kaa) / ze3va
+            puu(ji,jj,iku,Kaa) = puu(ji,jj,iku,Kaa) + zDt_2 *( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) * uu_b(ji,jj,Kaa) / ze3ua
+            pvv(ji,jj,ikv,Kaa) = pvv(ji,jj,ikv,Kaa) + zDt_2 *( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) * vv_b(ji,jj,Kaa) / ze3va
          END_2D
          IF( ln_isfcav.OR.ln_drgice_imp ) THEN    ! Ocean cavities (ISF)
             DO_2D( 0, 0, 0, 0 )
@@ -154,8 +157,8 @@ CONTAINS
                   &             + r_vvl   * e3u(ji,jj,iku,Kaa)
                ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,ikv,Kmm)    &
                   &             + r_vvl   * e3v(ji,jj,ikv,Kaa)
-               puu(ji,jj,iku,Kaa) = puu(ji,jj,iku,Kaa) + rDt * 0.5*( rCdU_top(ji+1,jj)+rCdU_top(ji,jj) ) * uu_b(ji,jj,Kaa) / ze3ua
-               pvv(ji,jj,ikv,Kaa) = pvv(ji,jj,ikv,Kaa) + rDt * 0.5*( rCdU_top(ji,jj+1)+rCdU_top(ji,jj) ) * vv_b(ji,jj,Kaa) / ze3va
+               puu(ji,jj,iku,Kaa) = puu(ji,jj,iku,Kaa) + zDt_2 *( rCdU_top(ji+1,jj)+rCdU_top(ji,jj) ) * uu_b(ji,jj,Kaa) / ze3ua
+               pvv(ji,jj,ikv,Kaa) = pvv(ji,jj,ikv,Kaa) + zDt_2 *( rCdU_top(ji,jj+1)+rCdU_top(ji,jj) ) * vv_b(ji,jj,Kaa) / ze3va
             END_2D
          END IF
       ENDIF
@@ -163,47 +166,46 @@ CONTAINS
       !              !==  Vertical diffusion on u  ==!
       !
       !                    !* Matrix construction
-      zdt = rDt * 0.5
       IF( ln_zad_Aimp ) THEN   !!
          SELECT CASE( nldf_dyn )
          CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzu)
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,jk,Kmm)    &
                   &             + r_vvl   * e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
-               zzwi = - zdt * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) + akzu(ji,jj,jk  ) )   &
+               zzwi = - zDt_2 * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) + akzu(ji,jj,jk  ) )   &
                   &         / ( ze3ua * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
-               zzws = - zdt * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) + akzu(ji,jj,jk+1) )   &
+               zzws = - zDt_2 * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) + akzu(ji,jj,jk+1) )   &
                   &         / ( ze3ua * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
                zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) / ze3ua
                zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) / ze3ua
-               zwi(ji,jj,jk) = zzwi + zdt * MIN( zWui, 0._wp ) 
-               zws(ji,jj,jk) = zzws - zdt * MAX( zWus, 0._wp )
-               zwd(ji,jj,jk) = 1._wp - zzwi - zzws + zdt * ( MAX( zWui, 0._wp ) - MIN( zWus, 0._wp ) )
+               zwi(ji,jj,jk) = zzwi + zDt_2 * MIN( zWui, 0._wp ) 
+               zws(ji,jj,jk) = zzws - zDt_2 * MAX( zWus, 0._wp )
+               zwd(ji,jj,jk) = 1._wp - zzwi - zzws + zDt_2 * ( MAX( zWui, 0._wp ) - MIN( zWus, 0._wp ) )
             END_3D
          CASE DEFAULT               ! iso-level lateral mixing
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,jk,Kmm)    &    ! after scale factor at U-point
                   &             + r_vvl   * e3u(ji,jj,jk,Kaa)
-               zzwi = - zdt * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) )   &
+               zzwi = - zDt_2 * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) )   &
                   &         / ( ze3ua * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
-               zzws = - zdt * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) )   &
+               zzws = - zDt_2 * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) )   &
                   &         / ( ze3ua * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
                zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) / ze3ua
                zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) / ze3ua
-               zwi(ji,jj,jk) = zzwi + zdt * MIN( zWui, 0._wp )
-               zws(ji,jj,jk) = zzws - zdt * MAX( zWus, 0._wp )
-               zwd(ji,jj,jk) = 1._wp - zzwi - zzws + zdt * ( MAX( zWui, 0._wp ) - MIN( zWus, 0._wp ) )
+               zwi(ji,jj,jk) = zzwi + zDt_2 * MIN( zWui, 0._wp )
+               zws(ji,jj,jk) = zzws - zDt_2 * MAX( zWus, 0._wp )
+               zwd(ji,jj,jk) = 1._wp - zzwi - zzws + zDt_2 * ( MAX( zWui, 0._wp ) - MIN( zWus, 0._wp ) )
             END_3D
          END SELECT
          DO_2D( 0, 0, 0, 0 )     !* Surface boundary conditions
             zwi(ji,jj,1) = 0._wp
             ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,1,Kmm)    &
                &             + r_vvl   * e3u(ji,jj,1,Kaa)
-            zzws = - zdt * ( avm(ji+1,jj,2) + avm(ji  ,jj,2) )   &
+            zzws = - zDt_2 * ( avm(ji+1,jj,2) + avm(ji  ,jj,2) )   &
                &         / ( ze3ua * e3uw(ji,jj,2,Kmm) ) * wumask(ji,jj,2)
             zWus = ( wi(ji  ,jj,2) +  wi(ji+1,jj,2) ) / ze3ua
-            zws(ji,jj,1 ) = zzws - zdt * MAX( zWus, 0._wp )
-            zwd(ji,jj,1 ) = 1._wp - zzws - zdt * ( MIN( zWus, 0._wp ) )
+            zws(ji,jj,1 ) = zzws - zDt_2 * MAX( zWus, 0._wp )
+            zwd(ji,jj,1 ) = 1._wp - zzws - zDt_2 * ( MIN( zWus, 0._wp ) )
          END_2D
       ELSE
          SELECT CASE( nldf_dyn )
@@ -211,9 +213,9 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,jk,Kmm)    &
                   &             + r_vvl   * e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
-               zzwi = - zdt * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) + akzu(ji,jj,jk  ) )   &
+               zzwi = - zDt_2 * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) + akzu(ji,jj,jk  ) )   &
                   &         / ( ze3ua * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
-               zzws = - zdt * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) + akzu(ji,jj,jk+1) )   &
+               zzws = - zDt_2 * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) + akzu(ji,jj,jk+1) )   &
                   &         / ( ze3ua * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
                zwi(ji,jj,jk) = zzwi
                zws(ji,jj,jk) = zzws
@@ -223,9 +225,9 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,jk,Kmm)    &
                   &             + r_vvl   * e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
-               zzwi = - zdt * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) )    &
+               zzwi = - zDt_2 * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) )    &
                   &         / ( ze3ua * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
-               zzws = - zdt * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) )    &
+               zzws = - zDt_2 * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) )    &
                   &         / ( ze3ua * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
                zwi(ji,jj,jk) = zzwi
                zws(ji,jj,jk) = zzws
@@ -250,7 +252,7 @@ CONTAINS
             iku = mbku(ji,jj)       ! ocean bottom level at u- and v-points
             ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,iku,Kmm)    &
                &             + r_vvl   * e3u(ji,jj,iku,Kaa)   ! after scale factor at T-point
-            zwd(ji,jj,iku) = zwd(ji,jj,iku) - rDt * 0.5*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) / ze3ua
+            zwd(ji,jj,iku) = zwd(ji,jj,iku) - zDt_2 *( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) / ze3ua
          END_2D
          IF ( ln_isfcav.OR.ln_drgice_imp ) THEN   ! top friction (always implicit)
             DO_2D( 0, 0, 0, 0 )
@@ -258,7 +260,7 @@ CONTAINS
                iku = miku(ji,jj)       ! ocean top level at u- and v-points 
                ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,iku,Kmm)    &
                   &             + r_vvl   * e3u(ji,jj,iku,Kaa)   ! after scale factor at T-point
-               zwd(ji,jj,iku) = zwd(ji,jj,iku) - rDt * 0.5*( rCdU_top(ji+1,jj)+rCdU_top(ji,jj) ) / ze3ua
+               zwd(ji,jj,iku) = zwd(ji,jj,iku) - zDt_2 *( rCdU_top(ji+1,jj)+rCdU_top(ji,jj) ) / ze3ua
             END_2D
          END IF
       ENDIF
@@ -285,7 +287,7 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )             !==  second recurrence:    SOLk = RHSk - Lk / Dk-1  Lk-1  ==!
          ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,1,Kmm)    &
             &             + r_vvl   * e3u(ji,jj,1,Kaa) 
-         puu(ji,jj,1,Kaa) = puu(ji,jj,1,Kaa) + rDt * 0.5_wp * ( utau_b(ji,jj) + utau(ji,jj) )   &
+         puu(ji,jj,1,Kaa) = puu(ji,jj,1,Kaa) + zDt_2 * ( utau_b(ji,jj) + utau(ji,jj) )   &
             &                                      / ( ze3ua * rho0 ) * umask(ji,jj,1) 
       END_2D
       DO_3D( 0, 0, 0, 0, 2, jpkm1 )
@@ -302,47 +304,46 @@ CONTAINS
       !              !==  Vertical diffusion on v  ==!
       !
       !                       !* Matrix construction
-      zdt = rDt * 0.5
       IF( ln_zad_Aimp ) THEN   !!
          SELECT CASE( nldf_dyn )
          CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzv)
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,jk,Kmm)    &
                   &             + r_vvl   * e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
-               zzwi = - zdt * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) + akzv(ji,jj,jk  ) )   &
+               zzwi = - zDt_2 * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) + akzv(ji,jj,jk  ) )   &
                   &         / ( ze3va * e3vw(ji,jj,jk  ,Kmm) ) * wvmask(ji,jj,jk  )
-               zzws = - zdt * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) + akzv(ji,jj,jk+1) )   &
+               zzws = - zDt_2 * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) + akzv(ji,jj,jk+1) )   &
                   &         / ( ze3va * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
                zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) / ze3va
                zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) / ze3va
-               zwi(ji,jj,jk) = zzwi + zdt * MIN( zWvi, 0._wp )
-               zws(ji,jj,jk) = zzws - zdt * MAX( zWvs, 0._wp )
-               zwd(ji,jj,jk) = 1._wp - zzwi - zzws - zdt * ( - MAX( zWvi, 0._wp ) + MIN( zWvs, 0._wp ) )
+               zwi(ji,jj,jk) = zzwi + zDt_2 * MIN( zWvi, 0._wp )
+               zws(ji,jj,jk) = zzws - zDt_2 * MAX( zWvs, 0._wp )
+               zwd(ji,jj,jk) = 1._wp - zzwi - zzws - zDt_2 * ( - MAX( zWvi, 0._wp ) + MIN( zWvs, 0._wp ) )
             END_3D
          CASE DEFAULT               ! iso-level lateral mixing
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,jk,Kmm)    &
                   &             + r_vvl   * e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
-               zzwi = - zdt * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) )    &
+               zzwi = - zDt_2 * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) )    &
                   &         / ( ze3va * e3vw(ji,jj,jk  ,Kmm) ) * wvmask(ji,jj,jk  )
-               zzws = - zdt * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) )    &
+               zzws = - zDt_2 * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) )    &
                   &         / ( ze3va * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
                zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) / ze3va
                zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) / ze3va
-               zwi(ji,jj,jk) = zzwi  + zdt * MIN( zWvi, 0._wp )
-               zws(ji,jj,jk) = zzws  - zdt * MAX( zWvs, 0._wp )
-               zwd(ji,jj,jk) = 1._wp - zzwi - zzws - zdt * ( - MAX( zWvi, 0._wp ) + MIN( zWvs, 0._wp ) )
+               zwi(ji,jj,jk) = zzwi  + zDt_2 * MIN( zWvi, 0._wp )
+               zws(ji,jj,jk) = zzws  - zDt_2 * MAX( zWvs, 0._wp )
+               zwd(ji,jj,jk) = 1._wp - zzwi - zzws - zDt_2 * ( - MAX( zWvi, 0._wp ) + MIN( zWvs, 0._wp ) )
             END_3D
          END SELECT
          DO_2D( 0, 0, 0, 0 )   !* Surface boundary conditions
             zwi(ji,jj,1) = 0._wp
             ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,1,Kmm)    &
                &             + r_vvl   * e3v(ji,jj,1,Kaa)
-            zzws = - zdt * ( avm(ji,jj+1,2) + avm(ji,jj,2) )    &
+            zzws = - zDt_2 * ( avm(ji,jj+1,2) + avm(ji,jj,2) )    &
                &         / ( ze3va * e3vw(ji,jj,2,Kmm) ) * wvmask(ji,jj,2)
             zWvs = ( wi(ji,jj  ,2) +  wi(ji,jj+1,2) ) / ze3va
-            zws(ji,jj,1 ) = zzws - zdt * MAX( zWvs, 0._wp )
-            zwd(ji,jj,1 ) = 1._wp - zzws - zdt * ( MIN( zWvs, 0._wp ) )
+            zws(ji,jj,1 ) = zzws - zDt_2 * MAX( zWvs, 0._wp )
+            zwd(ji,jj,1 ) = 1._wp - zzws - zDt_2 * ( MIN( zWvs, 0._wp ) )
          END_2D
       ELSE
          SELECT CASE( nldf_dyn )
@@ -350,9 +351,9 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,jk,Kmm)    &
                   &             + r_vvl   * e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
-               zzwi = - zdt * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) + akzv(ji,jj,jk  ) )   &
+               zzwi = - zDt_2 * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) + akzv(ji,jj,jk  ) )   &
                   &         / ( ze3va * e3vw(ji,jj,jk  ,Kmm) ) * wvmask(ji,jj,jk  )
-               zzws = - zdt * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) + akzv(ji,jj,jk+1) )   &
+               zzws = - zDt_2 * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) + akzv(ji,jj,jk+1) )   &
                   &         / ( ze3va * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
                zwi(ji,jj,jk) = zzwi
                zws(ji,jj,jk) = zzws
@@ -362,9 +363,9 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,jk,Kmm)    &
                   &             + r_vvl   * e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
-               zzwi = - zdt * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) )    &
+               zzwi = - zDt_2 * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) )    &
                   &         / ( ze3va * e3vw(ji,jj,jk  ,Kmm) ) * wvmask(ji,jj,jk  )
-               zzws = - zdt * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) )    &
+               zzws = - zDt_2 * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) )    &
                   &         / ( ze3va * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
                zwi(ji,jj,jk) = zzwi
                zws(ji,jj,jk) = zzws
@@ -388,14 +389,14 @@ CONTAINS
             ikv = mbkv(ji,jj)       ! (deepest ocean u- and v-points)
             ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,ikv,Kmm)    &
                &             + r_vvl   * e3v(ji,jj,ikv,Kaa)   ! after scale factor at T-point
-            zwd(ji,jj,ikv) = zwd(ji,jj,ikv) - rDt * 0.5*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) / ze3va           
+            zwd(ji,jj,ikv) = zwd(ji,jj,ikv) - zDt_2*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) / ze3va           
          END_2D
          IF ( ln_isfcav.OR.ln_drgice_imp ) THEN
             DO_2D( 0, 0, 0, 0 )
                ikv = mikv(ji,jj)       ! (first wet ocean u- and v-points)
                ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,ikv,Kmm)    &
                   &             + r_vvl   * e3v(ji,jj,ikv,Kaa)   ! after scale factor at T-point
-               zwd(ji,jj,ikv) = zwd(ji,jj,ikv) - rDt * 0.5*( rCdU_top(ji,jj+1)+rCdU_top(ji,jj) ) / ze3va
+               zwd(ji,jj,ikv) = zwd(ji,jj,ikv) - zDt_2*( rCdU_top(ji,jj+1)+rCdU_top(ji,jj) ) / ze3va
             END_2D
          ENDIF
       ENDIF
@@ -422,7 +423,7 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )             !==  second recurrence:    SOLk = RHSk - Lk / Dk-1  Lk-1  ==!
          ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,1,Kmm)    &
             &             + r_vvl   * e3v(ji,jj,1,Kaa) 
-         pvv(ji,jj,1,Kaa) = pvv(ji,jj,1,Kaa) + rDt * 0.5_wp * ( vtau_b(ji,jj) + vtau(ji,jj) )   &
+         pvv(ji,jj,1,Kaa) = pvv(ji,jj,1,Kaa) + zDt_2*( vtau_b(ji,jj) + vtau(ji,jj) )   &
             &                                      / ( ze3va * rho0 ) * vmask(ji,jj,1) 
       END_2D
       DO_3D( 0, 0, 0, 0, 2, jpkm1 )
@@ -437,8 +438,8 @@ CONTAINS
       END_3D
       !
       IF( l_trddyn )   THEN                      ! save the vertical diffusive trends for further diagnostics
-         ztrdu(:,:,:) = ( puu(:,:,:,Kaa) - puu(:,:,:,Kbb) ) / rDt - ztrdu(:,:,:)
-         ztrdv(:,:,:) = ( pvv(:,:,:,Kaa) - pvv(:,:,:,Kbb) ) / rDt - ztrdv(:,:,:)
+         ztrdu(:,:,:) = ( puu(:,:,:,Kaa) - puu(:,:,:,Kbb) )*r1_Dt - ztrdu(:,:,:)
+         ztrdv(:,:,:) = ( pvv(:,:,:,Kaa) - pvv(:,:,:,Kbb) )*r1_Dt - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu, ztrdv, jpdyn_zdf, kt, Kmm )
          DEALLOCATE( ztrdu, ztrdv ) 
       ENDIF

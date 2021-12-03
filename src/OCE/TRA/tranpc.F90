@@ -39,7 +39,7 @@ MODULE tranpc
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: tranpc.F90 14834 2021-05-11 09:24:44Z hadcv $
+   !! $Id: tranpc.F90 14547 2021-02-25 17:07:15Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -68,7 +68,7 @@ CONTAINS
       INTEGER  ::   jiter, ikbot, ikp, ikup, ikdown, ilayer, ik_low   ! local integers
       LOGICAL  ::   l_bottom_reached, l_column_treated
       REAL(wp) ::   zta, zalfa, zsum_temp, zsum_alfa, zaw, zdz, zsum_z
-      REAL(wp) ::   zsa, zbeta, zsum_sali, zsum_beta, zbw, zrw, z1_rDt
+      REAL(wp) ::   zsa, zbeta, zsum_sali, zsum_beta, zbw, zrw
       REAL(wp), PARAMETER ::   zn2_zero = 1.e-14_wp             ! acceptance criteria for neutrality (N2==0)
       REAL(wp), DIMENSION(    jpk     )   ::   zvn2             ! vertical profile of N2 at 1 given point...
       REAL(wp), DIMENSION(    jpk,jpts)   ::   zvts, zvab       ! vertical profile of T & S , and  alpha & betaat 1 given point
@@ -302,9 +302,8 @@ CONTAINS
          END_2D
          !
          IF( l_trdtra ) THEN         ! send the Non penetrative mixing trends for diagnostic
-            z1_rDt = 1._wp / (2._wp * rn_Dt)
-            ztrdt(:,:,:) = ( pts(:,:,:,jp_tem,Kaa) - ztrdt(:,:,:) ) * z1_rDt
-            ztrds(:,:,:) = ( pts(:,:,:,jp_sal,Kaa) - ztrds(:,:,:) ) * z1_rDt
+            ztrdt(:,:,:) = ( pts(:,:,:,jp_tem,Kaa) - ztrdt(:,:,:) ) * r1_Dt
+            ztrds(:,:,:) = ( pts(:,:,:,jp_sal,Kaa) - ztrds(:,:,:) ) * r1_Dt
             CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_npc, ztrdt )
             CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_npc, ztrds )
             DEALLOCATE( ztrdt, ztrds )

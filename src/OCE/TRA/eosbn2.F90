@@ -55,7 +55,7 @@ MODULE eosbn2
 
    !                  !! * Interface
    INTERFACE eos
-      MODULE PROCEDURE eos_insitu, eos_insitu_pot, eos_insitu_2d, eos_insitu_pot_2d
+      MODULE PROCEDURE eos_insitu_New, eos_insitu, eos_insitu_pot, eos_insitu_2d, eos_insitu_pot_2d
    END INTERFACE
    !
    INTERFACE eos_rab
@@ -183,10 +183,117 @@ MODULE eosbn2
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: eosbn2.F90 15136 2021-07-23 10:07:28Z smasson $
+   !! $Id: eosbn2.F90 14547 2021-02-25 17:07:15Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
+
+   SUBROUTINE eos_insitu_New( pts, Knn, prd )
+      !!----------------------------------------------------------------------
+      !!                   ***  ROUTINE eos_insitu  ***
+      !!
+      !! ** Purpose :   Compute the in situ density (ratio rho/rho0) from
+      !!       potential temperature and salinity using an equation of state
+      !!       selected in the nameos namelist
+      !!
+      !! ** Method  :   prd(t,s,z) = ( rho(t,s,z) - rho0 ) / rho0
+      !!         with   prd    in situ density anomaly      no units
+      !!                t      TEOS10: CT or EOS80: PT      Celsius
+      !!                s      TEOS10: SA or EOS80: SP      TEOS10: g/kg or EOS80: psu
+      !!                z      depth                        meters
+      !!                rho    in situ density              kg/m^3
+      !!                rho0   reference density            kg/m^3
+      !!
+      !!     ln_teos10 : polynomial TEOS-10 equation of state is used for rho(t,s,z).
+      !!         Check value: rho = 1028.21993233072 kg/m^3 for z=3000 dbar, ct=3 Celsius, sa=35.5 g/kg
+      !!
+      !!     ln_eos80 : polynomial EOS-80 equation of state is used for rho(t,s,z).
+      !!         Check value: rho = 1028.35011066567 kg/m^3 for z=3000 dbar, pt=3 Celsius, sp=35.5 psu
+      !!
+      !!     ln_seos : simplified equation of state
+      !!              prd(t,s,z) = ( -a0*(1+lambda/2*(T-T0)+mu*z+nu*(S-S0))*(T-T0) + b0*(S-S0) ) / rho0
+      !!              linear case function of T only: rn_alpha<>0, other coefficients = 0
+      !!              linear eos function of T and S: rn_alpha and rn_beta<>0, other coefficients=0
+      !!              Vallis like equation: use default values of coefficients
+      !!
+      !! ** Action  :   compute prd , the in situ density (no units)
+      !!
+      !! References :   Roquet et al, Ocean Modelling, in preparation (2014)
+      !!                Vallis, Atmospheric and Oceanic Fluid Dynamics, 2006
+      !!                TEOS-10 Manual, 2010
+      !!----------------------------------------------------------------------
+      REAL(wp), DIMENSION(:,:,:,:,:), INTENT(in   ) ::   pts   ! T-S
+      INTEGER                     , INTENT(in   ) ::   Knn   ! time-level
+      REAL(wp), DIMENSION(:,:,:  ), INTENT(  out) ::   prd   ! in situ density
+      !
+      INTEGER  ::   ji, jj, jk                ! dummy loop indices
+      REAL(wp) ::   zt , zh , zs , ztm        ! local scalars
+      REAL(wp) ::   zn , zn0, zn1, zn2, zn3   !   -      -
+      !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('eos-insitu')
+      !
+      SELECT CASE( neos )
+      !
+      CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
+         !
+         DO_3D(nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+            !
+            zh  = gdept(ji,jj,jk,Knn) * r1_Z0                                 ! depth
+            zt  = pts (ji,jj,jk,jp_tem,Knn) * r1_T0                           ! temperature
+            zs  = SQRT( ABS( pts(ji,jj,jk,jp_sal,Knn) + rdeltaS ) * r1_S0 )   ! square root salinity
+            ztm = tmask(ji,jj,jk)                                             ! tmask
+            !
+            zn3 = EOS013*zt   &
+               &   + EOS103*zs+EOS003
+               !
+            zn2 = (EOS022*zt   &
+               &   + EOS112*zs+EOS012)*zt   &
+               &   + (EOS202*zs+EOS102)*zs+EOS002
+               !
+            zn1 = (((EOS041*zt   &
+               &   + EOS131*zs+EOS031)*zt   &
+               &   + (EOS221*zs+EOS121)*zs+EOS021)*zt   &
+               &   + ((EOS311*zs+EOS211)*zs+EOS111)*zs+EOS011)*zt   &
+               &   + (((EOS401*zs+EOS301)*zs+EOS201)*zs+EOS101)*zs+EOS001
+               !
+            zn0 = (((((EOS060*zt   &
+               &   + EOS150*zs+EOS050)*zt   &
+               &   + (EOS240*zs+EOS140)*zs+EOS040)*zt   &
+               &   + ((EOS330*zs+EOS230)*zs+EOS130)*zs+EOS030)*zt   &
+               &   + (((EOS420*zs+EOS320)*zs+EOS220)*zs+EOS120)*zs+EOS020)*zt   &
+               &   + ((((EOS510*zs+EOS410)*zs+EOS310)*zs+EOS210)*zs+EOS110)*zs+EOS010)*zt   &
+               &   + (((((EOS600*zs+EOS500)*zs+EOS400)*zs+EOS300)*zs+EOS200)*zs+EOS100)*zs+EOS000
+               !
+            zn  = ( ( zn3 * zh + zn2 ) * zh + zn1 ) * zh + zn0
+            !
+            prd(ji,jj,jk) = (  zn * r1_rho0 - 1._wp  ) * ztm  ! density anomaly (masked)
+            !
+         END_3D
+         !
+      CASE( np_seos )                !==  simplified EOS  ==!
+         !
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+            zt  = pts  (ji,jj,jk,jp_tem,Knn) - 10._wp
+            zs  = pts  (ji,jj,jk,jp_sal,Knn) - 35._wp
+            zh  = gdept(ji,jj,jk,Knn)
+            ztm = tmask(ji,jj,jk)
+            !
+            zn =  - rn_a0 * ( 1._wp + 0.5_wp*rn_lambda1*zt + rn_mu1*zh ) * zt   &
+               &  + rn_b0 * ( 1._wp - 0.5_wp*rn_lambda2*zs - rn_mu2*zh ) * zs   &
+               &  - rn_nu * zt * zs
+               !
+            prd(ji,jj,jk) = zn * r1_rho0 * ztm                ! density anomaly (masked)
+         END_3D
+         !
+      END SELECT
+      !
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=prd, clinfo1=' eos-insitu  : ', kdim=jpk )
+      !
+      IF( ln_timing )   CALL timing_stop('eos-insitu')
+      !
+   END SUBROUTINE eos_insitu_New
+
 
    SUBROUTINE eos_insitu( pts, prd, pdep )
       !!

@@ -54,7 +54,7 @@ MODULE exampl
 #  include "exampl_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: module_example.F90 14842 2021-05-11 13:17:26Z acc $ 
+   !! $Id: module_example.F90 14941 2021-06-03 11:42:27Z acc $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -144,7 +144,7 @@ CONTAINS
       !! ** Action  :   ...  
       !!----------------------------------------------------------------------
       INTEGER ::   ji, jj, jk, jit   ! dummy loop indices
-      INTEGER  ::   ios              ! Local integer output status for namelist read
+      INTEGER ::   ios               ! Local integer output status for namelist read
       !!
       NAMELIST/namexa/ exa_v1, exa_v2, nexa_0, sn_ex     
       !!----------------------------------------------------------------------

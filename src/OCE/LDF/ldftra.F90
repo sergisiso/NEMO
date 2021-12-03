@@ -67,6 +67,8 @@ MODULE ldftra
    !                                    != Use/diagnose eiv =!
    LOGICAL , PUBLIC ::   ln_ldfeiv           !: eddy induced velocity flag
    LOGICAL , PUBLIC ::   ln_ldfeiv_dia       !: diagnose & output eiv streamfunction and velocity (IOM)
+   LOGICAL , PUBLIC ::   l_ldfeiv_dia        !: RK3: modified w.r.t. kstg diagnose & output eiv streamfunction and velocity flag
+
    !                                    != Coefficients =!
    INTEGER , PUBLIC ::   nn_aei_ijk_t        !: choice of time/space variation of the eiv coeff.
    REAL(wp), PUBLIC ::      rn_Ue               !: lateral diffusive velocity  [m/s]
@@ -97,7 +99,7 @@ MODULE ldftra
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: ldftra.F90 15093 2021-07-06 16:20:39Z clem $
+   !! $Id: ldftra.F90 15512 2021-11-15 17:22:03Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -768,7 +770,11 @@ CONTAINS
       END_3D
       !
       !                              ! diagnose the eddy induced velocity and associated heat transport
+#if defined key_RK3
+      IF( l_ldfeiv_dia .AND. cdtype == 'TRA' )   CALL ldf_eiv_dia( zpsi_uw, zpsi_vw, Kmm )
+#else
       IF( ln_ldfeiv_dia .AND. cdtype == 'TRA' )   CALL ldf_eiv_dia( zpsi_uw, zpsi_vw, Kmm )
+#endif
       !
     END SUBROUTINE ldf_eiv_trp
 
@@ -867,7 +873,7 @@ CONTAINS
       CALL iom_put( "veiv_heattr"  , zztmp * zw2d )                  !  heat transport in j-direction
       CALL iom_put( "veiv_heattr3d", zztmp * zw3d )                  !  heat transport in j-direction
       !
-      IF( iom_use( 'sophteiv' ) )   CALL dia_ptr_hst( jp_tem, 'eiv', 0.5 * zw3d )
+      IF( iom_use( 'sophteiv' ) .AND. l_diaptr )   CALL dia_ptr_hst( jp_tem, 'eiv', 0.5 * zw3d )
       !
       zztmp = 0.5_wp * 0.5
       IF( iom_use('ueiv_salttr') .OR. iom_use('ueiv_salttr3d')) THEN
@@ -891,7 +897,7 @@ CONTAINS
       CALL iom_put( "veiv_salttr"  , zztmp * zw2d )                  !  salt transport in j-direction
       CALL iom_put( "veiv_salttr3d", zztmp * zw3d )                  !  salt transport in j-direction
       !
-      IF( iom_use( 'sopsteiv' ) ) CALL dia_ptr_hst( jp_sal, 'eiv', 0.5 * zw3d )
+      IF( iom_use( 'sopsteiv' ) .AND. l_diaptr ) CALL dia_ptr_hst( jp_sal, 'eiv', 0.5 * zw3d )
       !
       !
    END SUBROUTINE ldf_eiv_dia

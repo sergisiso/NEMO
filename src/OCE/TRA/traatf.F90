@@ -60,7 +60,7 @@ MODULE traatf
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: traatf.F90 15004 2021-06-16 10:33:18Z mathiot $
+   !! $Id: traatf.F90 14800 2021-05-06 15:42:46Z jchanut $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -106,7 +106,7 @@ CONTAINS
       ! Update after tracer on domain lateral boundaries
       !
 #if defined key_agrif
-      CALL Agrif_tra                     ! AGRIF zoom boundaries
+      CALL Agrif_tra( kt )                           ! AGRIF zoom boundaries
 #endif
       !                                              ! local domain boundaries  (T-point, unchanged sign)
       CALL lbc_lnk( 'traatf', pts(:,:,:,jp_tem,Kaa), 'T', 1.0_wp, pts(:,:,:,jp_sal,Kaa), 'T', 1.0_wp )

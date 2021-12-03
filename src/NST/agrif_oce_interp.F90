@@ -53,7 +53,7 @@ MODULE agrif_oce_interp
    !! * Substitutions
 #  include "domzgr_substitute.h90"
    !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_oce_interp.F90 15437 2021-10-22 12:21:20Z jchanut $
+   !! $Id: agrif_oce_interp.F90 14800 2021-05-06 15:42:46Z jchanut $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -155,18 +155,36 @@ CONTAINS
    END SUBROUTINE Agrif_istate_ssh
 
 
-   SUBROUTINE Agrif_tra
+   SUBROUTINE Agrif_tra( kt, kstg )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE Agrif_tra  ***
       !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt
+      INTEGER, OPTIONAL, INTENT(in) :: kstg
+      REAL(wp) :: ztindex 
       !
       IF( Agrif_Root() )   RETURN
+      !
+      ! Set time index depending on stage in case of RK3 time stepping:
+      IF ( PRESENT( kstg ) ) THEN
+         ztindex = REAL(Agrif_Nbstepint(), wp)
+         IF     ( kstg == 1 ) THEN
+            ztindex = ztindex + 1._wp / 3._wp
+         ELSEIF ( kstg == 2 ) THEN
+            ztindex = ztindex + 1._wp / 2._wp
+         ELSEIF ( kstg == 3 ) THEN
+            ztindex = ztindex + 1._wp
+         ENDIF
+         ztindex = ztindex / Agrif_Rhot()
+      ELSE
+         ztindex = REAL(Agrif_Nbstepint()+1, wp) / Agrif_Rhot()
+      ENDIF
       !
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = .TRUE.
       l_vremap 		    = ln_vert_remap
       !
-      CALL Agrif_Bc_variable( ts_interp_id, procname=interptsn )
+      CALL Agrif_Bc_variable( ts_interp_id, calledweight=ztindex, procname=interptsn )
       !
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.
@@ -174,18 +192,35 @@ CONTAINS
    END SUBROUTINE Agrif_tra
 
 
-   SUBROUTINE Agrif_dyn( kt )
+   SUBROUTINE Agrif_dyn( kt, kstg )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE Agrif_DYN  ***
       !!----------------------------------------------------------------------  
       INTEGER, INTENT(in) ::   kt
+      INTEGER, OPTIONAL, INTENT(in) :: kstg
       !
       INTEGER ::   ji, jj, jk       ! dummy loop indices
       INTEGER ::   ibdy1, jbdy1, ibdy2, jbdy2
       REAL(wp), DIMENSION(jpi,jpj) ::   zub, zvb
+      REAL(wp) :: ztindex
       !!----------------------------------------------------------------------  
       !
       IF( Agrif_Root() )   RETURN
+      !
+      ! Set time index depending on stage in case of RK3 time stepping:
+      IF ( PRESENT( kstg ) ) THEN
+         ztindex = REAL(Agrif_Nbstepint(), wp)
+         IF     ( kstg == 1 ) THEN
+            ztindex = ztindex + 1._wp / 3._wp
+         ELSEIF ( kstg == 2 ) THEN
+            ztindex = ztindex + 1._wp / 2._wp
+         ELSEIF ( kstg == 3 ) THEN
+            ztindex = ztindex + 1._wp
+         ENDIF
+         ztindex = ztindex / Agrif_Rhot()
+      ELSE
+         ztindex = REAL(Agrif_Nbstepint()+1, wp) / Agrif_Rhot()
+      ENDIF
       !
       Agrif_SpecialValue    = 0.0_wp
       Agrif_UseSpecialValue = ln_spc_dyn
@@ -193,14 +228,14 @@ CONTAINS
       !
       use_sign_north = .TRUE.
       sign_north = -1.0_wp
-      CALL Agrif_Bc_variable( un_interp_id, procname=interpun )
-      CALL Agrif_Bc_variable( vn_interp_id, procname=interpvn )
+      CALL Agrif_Bc_variable( un_interp_id, calledweight=ztindex, procname=interpun )
+      CALL Agrif_Bc_variable( vn_interp_id, calledweight=ztindex, procname=interpvn )
 
       IF( .NOT.ln_dynspg_ts ) THEN ! Get transports
          ubdy(:,:) = 0._wp    ;  vbdy(:,:) = 0._wp
          utint_stage(:,:) = 0 ;  vtint_stage(:,:) = 0
-         CALL Agrif_Bc_variable( unb_interp_id, procname=interpunb )
-         CALL Agrif_Bc_variable( vnb_interp_id, procname=interpvnb )
+         CALL Agrif_Bc_variable( unb_interp_id, calledweight=ztindex, procname=interpunb )
+         CALL Agrif_Bc_variable( vnb_interp_id, calledweight=ztindex, procname=interpvnb )
       ENDIF
 
       use_sign_north = .FALSE.
@@ -598,6 +633,13 @@ CONTAINS
       !!----------------------------------------------------------------------  
       !
       IF( Agrif_Root() )   RETURN
+      !
+#if defined key_RK3
+      Agrif_SpecialValue    = 0._wp
+      Agrif_UseSpecialValue = .TRUE.
+      CALL Agrif_Bc_variable(sshn_id, procname=interpsshn )
+      Agrif_UseSpecialValue = .FALSE.
+#endif
       !
       ll_int_cons = ln_bt_fw ! Assume conservative temporal integration in the forward case only
       !

@@ -38,14 +38,15 @@ MODULE trasbc
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_sbc   ! routine called by step.F90
+   PUBLIC   tra_sbc       ! routine called by step.F90
+   PUBLIC   tra_sbc_RK3   ! routine called by stprk3_stg.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: trasbc.F90 14834 2021-05-11 09:24:44Z hadcv $
+   !! $Id: trasbc.F90 15379 2021-10-15 09:05:45Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -221,6 +222,168 @@ CONTAINS
       IF( ln_timing )   CALL timing_stop('tra_sbc')
       !
    END SUBROUTINE tra_sbc
+    
+
+   SUBROUTINE tra_sbc_RK3 ( kt, Kmm, pts, Krhs, kstg )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE tra_sbc_RK3  ***
+      !!
+      !! ** Purpose :   Compute the tracer surface boundary condition trend of
+      !!      (flux through the interface, concentration/dilution effect)
+      !!      and add it to the general trend of tracer equations.
+      !!
+      !! ** Method :   The (air+ice)-sea flux has two components:
+      !!      (1) Fext, external forcing (i.e. flux through the (air+ice)-sea interface);
+      !!      (2) Fwe , tracer carried with the water that is exchanged with air+ice.
+      !!               The input forcing fields (emp, rnf, sfx) contain Fext+Fwe,
+      !!             they are simply added to the tracer trend (ts(Krhs)).
+      !!               In linear free surface case (ln_linssh=T), the volume of the
+      !!             ocean does not change with the water exchanges at the (air+ice)-sea
+      !!             interface. Therefore another term has to be added, to mimic the
+      !!             concentration/dilution effect associated with water exchanges.
+      !!
+      !! ** Action  : - Update ts(Krhs) with the surface boundary condition trend
+      !!              - send trends to trdtra module for further diagnostics(l_trdtra=T)
+      !!----------------------------------------------------------------------
+      INTEGER                                  , INTENT(in   ) ::   kt, Kmm, Krhs   ! ocean time-step and time-level indices
+      INTEGER                                  , INTENT(in   ) ::   kstg            ! RK3 stage index
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) ::   pts             ! active tracers and RHS of tracer Eq.
+      !
+      INTEGER  ::   ji, jj, jk, jn               ! dummy loop indices
+      REAL(wp) ::   z1_rho0_e3t, zdep, ztim    ! local scalar
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::  ztrdt, ztrds
+      !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('tra_sbc_RK3')
+      !
+      IF( ntile == 0 .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+         !
+         IF( kt == nit000 ) THEN
+            IF(lwp) WRITE(numout,*)
+            IF(lwp) WRITE(numout,*) 'tra_sbc_RK3 : TRAcer Surface Boundary Condition'
+            IF(lwp) WRITE(numout,*) '~~~~~~~~~~~ '
+         ENDIF
+         !
+         IF( l_trdtra ) THEN                    !* Save ta and sa trends
+            ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
+            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
+            ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
+         ENDIF
+         !
+      ENDIF
+      !
+            
+!!gm  This should be moved into sbcmod.F90 module ? (especially now that ln_traqsr is read in namsbc namelist)
+      IF( .NOT.ln_traqsr  .AND. kstg == 1) THEN     ! no solar radiation penetration
+         DO_2D( 0, 0, 0, 0 )
+            qns(ji,jj) = qns(ji,jj) + qsr(ji,jj)         ! total heat flux in qns
+            qsr(ji,jj) = 0._wp                           ! qsr set to zero
+         END_2D
+      ENDIF
+
+      !----------------------------------------
+      !        EMP, SFX and QNS effects
+      !----------------------------------------
+      !                             !==  update tracer trend  ==!
+      SELECT CASE( kstg )
+         !
+      CASE( 1 , 2 )                       !=  stage 1 and 2  =!   only in non linear ssh
+         !
+         IF( .NOT.ln_linssh ) THEN           !* only heat and salt fluxes associated with mass fluxes
+            DO_2D( 0, 0, 0, 0 )
+            z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
+            pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_tem,Kmm) * z1_rho0_e3t
+            pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_sal,Kmm) * z1_rho0_e3t
+            END_2D
+         ENDIF
+         !
+      CASE( 3 )
+         !
+         IF( ln_linssh ) THEN                !* linear free surface
+            DO_2D( 0, 0, 0, 0 )
+               z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
+               pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + (  r1_rcp * qns(ji,jj)   &                                ! non solar heat flux
+                  &                                                +             emp(ji,jj)*pts(ji,jj,1,jp_tem,Kmm)  ) * z1_rho0_e3t  ! add concentration/dilution effect due to constant volume cell
+               pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) + (           sfx(ji,jj)    &                               ! salt flux due to freezing/melting
+                  &                                                +             emp(ji,jj)*pts(ji,jj,1,jp_sal,Kmm)  ) * z1_rho0_e3t  ! add concentration/dilution effect due to constant volume cell
+            END_2D
+            IF( ntile == 0 .OR. ntile == nijtile ) THEN             ! Do only on the last tile
+               IF( iom_use('emp_x_sst') )   CALL iom_put( "emp_x_sst", emp (:,:) * pts(:,:,1,jp_tem,Kmm) )
+               IF( iom_use('emp_x_sss') )   CALL iom_put( "emp_x_sss", emp (:,:) * pts(:,:,1,jp_sal,Kmm) )
+            ENDIF
+         ELSE
+            DO_2D( 0, 0, 0, 0 )
+               z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
+               pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) +  r1_rcp * qns(ji,jj) * z1_rho0_e3t
+               pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) +           sfx(ji,jj) * z1_rho0_e3t
+            END_2D
+         ENDIF
+      END SELECT
+      !
+      !
+      !----------------------------------------
+      !        River Runoff effects
+      !----------------------------------------
+      !
+      IF( ln_rnf ) THEN         ! input of heat and salt due to river runoff
+         DO_2D( 0, 0, 0, 0 )
+            IF( rnf(ji,jj) /= 0._wp ) THEN
+               zdep = 1._wp / h_rnf(ji,jj)
+               DO jk = 1, nk_rnf(ji,jj)
+                                     pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs)  + rnf_tsc(ji,jj,jp_tem) * zdep
+                  IF( ln_rnf_sal )   pts(ji,jj,jk,jp_sal,Krhs) = pts(ji,jj,jk,jp_sal,Krhs)  + rnf_tsc(ji,jj,jp_sal) * zdep
+               END DO
+            ENDIF
+         END_2D
+      ENDIF
+      !
+      IF( ntile == 0 .OR. ntile == nijtile )  THEN                ! Do only on the last tile
+         IF( iom_use('rnf_x_sst') )   CALL iom_put( "rnf_x_sst", rnf*pts(:,:,1,jp_tem,Kmm) )   ! runoff term on sst
+         IF( iom_use('rnf_x_sss') )   CALL iom_put( "rnf_x_sss", rnf*pts(:,:,1,jp_sal,Kmm) )   ! runoff term on sss
+      ENDIF
+
+#if defined key_asminc
+      !
+      !----------------------------------------
+      !        Assmilation effects
+      !----------------------------------------
+      !
+      IF( ln_sshinc .AND. kstg == 3 ) THEN         ! input of heat and salt due to assimilation
+         !
+         IF( ln_linssh ) THEN
+            DO_2D( 0, 0, 0, 0 )
+               ztim = ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm)
+               pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + pts(ji,jj,1,jp_tem,Kmm) * ztim
+               pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) + pts(ji,jj,1,jp_sal,Kmm) * ztim
+            END_2D
+         ELSE
+            DO_2D( 0, 0, 0, 0 )
+               ztim = ssh_iau(ji,jj) / ( ht(ji,jj) + 1. - ssmask(ji, jj) )
+               pts(ji,jj,:,jp_tem,Krhs) = pts(ji,jj,:,jp_tem,Krhs) + pts(ji,jj,:,jp_tem,Kmm) * ztim
+               pts(ji,jj,:,jp_sal,Krhs) = pts(ji,jj,:,jp_sal,Krhs) + pts(ji,jj,:,jp_sal,Kmm) * ztim
+            END_2D
+         ENDIF
+         !
+      ENDIF
+      !
+#endif
+      !
+      IF( l_trdtra )   THEN                      ! save the horizontal diffusive trends for further diagnostics
+         IF( ntile == 0 .OR. ntile == nijtile )  THEN
+            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
+            ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs) - ztrds(:,:,:)
+            CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_nsr, ztrdt )
+            CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_nsr, ztrds )
+            DEALLOCATE( ztrdt , ztrds )
+         ENDIF
+      ENDIF
+      !
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pts(:,:,:,jp_tem,Krhs), clinfo1=' sbc  - Ta: ', mask1=tmask,   &
+         &                                  tab3d_2=pts(:,:,:,jp_sal,Krhs), clinfo2=       ' Sa: ', mask2=tmask, clinfo3='tra' )
+      !
+      IF( ln_timing )   CALL timing_stop('tra_sbc_RK3')
+      !
+   END SUBROUTINE tra_sbc_RK3
 
    !!======================================================================
 END MODULE trasbc

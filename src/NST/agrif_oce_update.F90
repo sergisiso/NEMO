@@ -40,7 +40,7 @@ MODULE agrif_oce_update
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_oce_update.F90 15317 2021-10-01 16:09:36Z jchanut $
+   !! $Id: agrif_oce_update.F90 14800 2021-05-06 15:42:46Z jchanut $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -97,6 +97,7 @@ CONTAINS
       CALL Agrif_Update_Variable(vnb_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updateV2d)  
 # endif
       ! 
+#if ! defined key_RK3
       IF ( ln_dynspg_ts .AND. ln_bt_fw ) THEN
          ! Update time integrated transports
 #  if ! defined DECAL_FEEDBACK_2D
@@ -107,6 +108,7 @@ CONTAINS
          CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updatevb2b)
 #  endif
       END IF
+#endif
 
 # if ! defined DECAL_FEEDBACK
       CALL Agrif_Update_Variable(un_update_id,procname = updateU)
@@ -384,6 +386,7 @@ CONTAINS
                ENDDO
             ENDDO
 
+#if ! defined key_RK3
             IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
                ! Add asselin part
                DO jn = 1,jpts
@@ -402,6 +405,7 @@ CONTAINS
                   END DO
                END DO
             ENDIF
+#endif
             DO jn = 1,jpts
                DO jk = 1, jpkm1
                   DO jj = j1, j2
@@ -418,7 +422,7 @@ CONTAINS
                tabres(i1:i2,j1:j2,k1:k2,jn) =  tabres(i1:i2,j1:j2,k1:k2,jn) * e3t_0(i1:i2,j1:j2,k1:k2) &
                                             & * tmask(i1:i2,j1:j2,k1:k2)
             ENDDO
- 
+#if ! defined key_RK3 
             IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
                ! Add asselin part
                DO jn = 1,jpts
@@ -437,6 +441,7 @@ CONTAINS
                   END DO
                END DO
             ENDIF
+#endif
             DO jn = 1,jpts
                DO jk=k1,k2
                   DO jj=j1,j2
@@ -559,6 +564,7 @@ CONTAINS
          DO jk=1,jpk
             DO jj=j1,j2
                DO ji=i1,i2
+#if ! defined key_RK3
                   IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
                      zub  = uu(ji,jj,jk,Kbb_a) * e3u(ji,jj,jk,Kbb_a)  ! fse3t_b prior update should be used
                      zuno = uu(ji,jj,jk,Kmm_a) * e3u(ji,jj,jk,Krhs_a)
@@ -566,6 +572,7 @@ CONTAINS
                      uu(ji,jj,jk,Kbb_a) = ( zub + rn_atfp * ( zunu - zuno) ) &      
                                     & * umask(ji,jj,jk) / e3u(ji,jj,jk,Kbb_a)
                   ENDIF
+#endif
                   !
                   uu(ji,jj,jk,Kmm_a) = tabres_child(ji,jj,jk) * umask(ji,jj,jk)
                END DO
@@ -706,6 +713,7 @@ CONTAINS
          DO jk=1,jpkm1
             DO jj=j1,j2
                DO ji=i1,i2
+#if ! defined key_RK3
                   IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
                      zvb  = vv(ji,jj,jk,Kbb_a) * e3v(ji,jj,jk,Kbb_a) ! fse3t_b prior update should be used
                      zvno = vv(ji,jj,jk,Kmm_a) * e3v(ji,jj,jk,Krhs_a)
@@ -713,6 +721,7 @@ CONTAINS
                      vv(ji,jj,jk,Kbb_a) = ( zvb + rn_atfp * ( zvnu - zvno) ) &      
                                     & * vmask(ji,jj,jk) / e3v(ji,jj,jk,Kbb_a)
                   ENDIF
+#endif
                   !
                   vv(ji,jj,jk,Kmm_a) = tabres_child(ji,jj,jk) * vmask(ji,jj,jk)
                END DO
@@ -782,12 +791,14 @@ CONTAINS
                tabres(ji,jj) =  tabres(ji,jj) * r1_e2u(ji,jj)  
                !    
                ! Update barotropic velocities:
+#if ! defined key_RK3
                IF ( .NOT.ln_dynspg_ts .OR. (ln_dynspg_ts.AND.(.NOT.ln_bt_fw)) ) THEN
                   IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
                      zcorr = (tabres(ji,jj) - uu_b(ji,jj,Kmm_a) * hu(ji,jj,Krhs_a)) * r1_hu(ji,jj,Kbb_a)
                      uu_b(ji,jj,Kbb_a) = uu_b(ji,jj,Kbb_a) + rn_atfp * zcorr * umask(ji,jj,1)
                   END IF
                ENDIF    
+#endif
                uu_b(ji,jj,Kmm_a) = tabres(ji,jj) * r1_hu(ji,jj,Kmm_a) * umask(ji,jj,1)
                !       
             END DO
@@ -827,12 +838,14 @@ CONTAINS
             DO ji=i1,i2
                tabres(ji,jj) =  tabres(ji,jj) * r1_e1v(ji,jj)  
                ! Update barotropic velocities:
+#if ! defined key_RK3
                IF ( .NOT.ln_dynspg_ts .OR. (ln_dynspg_ts.AND.(.NOT.ln_bt_fw)) ) THEN
                   IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
                      zcorr = (tabres(ji,jj) - vv_b(ji,jj,Kmm_a) * hv(ji,jj,Krhs_a)) * r1_hv(ji,jj,Kbb_a)
                      vv_b(ji,jj,Kbb_a) = vv_b(ji,jj,Kbb_a) + rn_atfp * zcorr * vmask(ji,jj,1)
                   END IF
                ENDIF              
+#endif
                vv_b(ji,jj,Kmm_a) = tabres(ji,jj) * r1_hv(ji,jj,Kmm_a) * vmask(ji,jj,1)
                !       
             END DO
@@ -865,6 +878,7 @@ CONTAINS
             END DO
          END DO
       ELSE
+#if ! defined key_RK3
          IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
             DO jj=j1,j2
                DO ji=i1,i2
@@ -873,6 +887,7 @@ CONTAINS
                END DO
             END DO
          ENDIF
+#endif
          !
          DO jj=j1,j2
             DO ji=i1,i2
@@ -963,14 +978,18 @@ CONTAINS
             DO jj=j1,j2
                zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (ub2_b(i1,jj)-tabres(i1,jj)) 
                ssh(i1  ,jj,Kmm_a) = ssh(i1  ,jj,Kmm_a) + zcor
+#if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i1  ,jj,Kbb_a) = ssh(i1  ,jj,Kbb_a) + rn_atfp * zcor
+#endif
             END DO
          ENDIF
          IF (eastern_side) THEN
             DO jj=j1,j2
                zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (ub2_b(i2,jj)-tabres(i2,jj))
                ssh(i2+1,jj,Kmm_a) = ssh(i2+1,jj,Kmm_a) + zcor
+#if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i2+1,jj,Kbb_a) = ssh(i2+1,jj,Kbb_a) + rn_atfp * zcor
+#endif
             END DO
          ENDIF
          !
@@ -1051,14 +1070,18 @@ CONTAINS
             DO ji=i1,i2
                zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vb2_b(ji,j1)-tabres(ji,j1))
                ssh(ji,j1  ,Kmm_a) = ssh(ji,j1  ,Kmm_a) + zcor
+#if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j1  ,Kbb_a) = ssh(ji,j1,Kbb_a) + rn_atfp * zcor
+#endif
             END DO
          ENDIF
          IF (northern_side) THEN               
             DO ji=i1,i2
                zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vb2_b(ji,j2)-tabres(ji,j2))
                ssh(ji,j2+1,Kmm_a) = ssh(ji,j2+1,Kmm_a) + zcor
+#if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j2+1,Kbb_a) = ssh(ji,j2+1,Kbb_a) + rn_atfp * zcor
+#endif
             END DO
          ENDIF
          ! 
@@ -1204,6 +1227,7 @@ CONTAINS
          ! One should also save e3t(:,:,:,Kbb_a), but lacking of workspace...
 !         hdiv(i1:i2,j1:j2,1:jpkm1)   = e3t(i1:i2,j1:j2,1:jpkm1,Kbb_a)
 
+#if ! defined key_RK3
          IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
             DO jk = 1, jpkm1
                DO jj=j1,j2
@@ -1234,6 +1258,7 @@ CONTAINS
             END DO
             !
          ENDIF        
+#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------

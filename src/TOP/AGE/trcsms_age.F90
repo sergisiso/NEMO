@@ -31,7 +31,7 @@ MODULE trcsms_age
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcsms_age.F90 14173 2020-12-15 12:44:07Z cetlod $
+   !! $Id: trcsms_age.F90 15193 2021-08-13 13:18:24Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -51,14 +51,17 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('trc_sms_age')
       !
-      IF(lwp) WRITE(numout,*)
-      IF(lwp) WRITE(numout,*) ' trc_sms_age:  AGE model'
-      IF(lwp) WRITE(numout,*) ' ~~~~~~~~~~~~~~'
+      IF( kt == nittrc000 ) THEN
+         IF(lwp) WRITE(numout,*)
+         IF(lwp) WRITE(numout,*) ' trc_sms_age:  AGE model'
+         IF(lwp) WRITE(numout,*) ' ~~~~~~~~~~~~~~'
+      ENDIF
 
+#if ! defined key_RK3
       IF( l_1st_euler .OR. ln_top_euler ) THEN
          tr(:,:,:,jp_age,Kbb) = tr(:,:,:,jp_age,Kmm)
       ENDIF
-
+#endif
 
       DO jk = 1, nla_age
          tr(:,:,jk,jp_age,Krhs) = rn_age_kill_rate * tr(:,:,jk,jp_age,Kbb)
@@ -71,7 +74,7 @@ CONTAINS
          tr(:,:,jk,jp_age,Krhs) = tmask(:,:,jk) * rryear
       END DO
       !
-      IF( l_trdtrc ) CALL trd_trc( tr(:,:,:,jp_age,Krhs), jn, jptra_sms, kt, Kmm )   ! save trends
+      IF( l_trdtrc  )   CALL trd_trc( tr(:,:,:,jp_age,Krhs), jn, jptra_sms, kt, Kmm )   ! save trends
       !
       IF( ln_timing )   CALL timing_stop('trc_sms_age')
       !

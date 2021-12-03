@@ -1,7 +1,7 @@
 MODULE traatf_qco
    !!======================================================================
    !!                       ***  MODULE  traatf_qco  ***
-   !! Ocean active tracers:  Asselin time filtering for temperature and salinity
+   !! Ocean active tracers:  MLF, Asselin time filtering for temperature and salinity
    !!======================================================================
    !! History :  OPA  !  1991-11  (G. Madec)  Original code
    !!            7.0  !  1993-03  (M. Guyon)  symetrical conditions
@@ -16,34 +16,39 @@ MODULE traatf_qco
    !!            3.1  !  2009-02  (G. Madec, R. Benshila)  re-introduce the vvl option
    !!            3.3  !  2010-04  (M. Leclair, G. Madec)  semi-implicit hpg with asselin filter + modified LF-RA
    !!             -   !  2010-05  (C. Ethe, G. Madec)  merge TRC-TRA
-   !!            4.1  !  2019-08  (A. Coward, D. Storkey) rename tranxt.F90 -> traatfLF.F90. Now only does time filtering.
+   !!            4.1  !  2019-08  (A. Coward, D. Storkey) rename tranxt.F90 -> traatf.F90. Now only does time filtering.
+   !!            4.2  !  2020-06  (S. Techene, G. Madec) qco version of traatf.F90
    !!----------------------------------------------------------------------
-
+#if defined key_RK3
+   !!----------------------------------------------------------------------
+   !!   'key_RK3'             EMPTY MODULE            3rd order Runge-Kutta 
+   !!----------------------------------------------------------------------
+#else
    !!----------------------------------------------------------------------
    !!   tra_atf       : time filtering on tracers
    !!   tra_atf_fix   : time filtering on tracers : fixed    volume case
    !!   tra_atf_vvl   : time filtering on tracers : variable volume case
    !!----------------------------------------------------------------------
-   USE oce             ! ocean dynamics and tracers variables
-   USE dom_oce         ! ocean space and time domain variables
-   USE sbc_oce         ! surface boundary condition: ocean
-   USE sbcrnf          ! river runoffs
-   USE isf_oce         ! ice shelf melting
-   USE zdf_oce         ! ocean vertical mixing
-   USE domvvl          ! variable volume
-   USE trd_oce         ! trends: ocean variables
-   USE trdtra          ! trends manager: tracers
-   USE traqsr          ! penetrative solar radiation (needed for nksr)
-   USE phycst          ! physical constant
-   USE ldftra          ! lateral physics : tracers
-   USE ldfslp          ! lateral physics : slopes
-   USE bdy_oce  , ONLY : ln_bdy
-   USE bdytra          ! open boundary condition (bdy_tra routine)
+   USE oce            ! ocean dynamics and tracers variables
+   USE dom_oce        ! ocean space and time domain variables
+   USE sbc_oce        ! surface boundary condition: ocean
+   USE sbcrnf         ! river runoffs
+   USE isf_oce        ! ice shelf melting
+   USE zdf_oce        ! ocean vertical mixing
+   USE domvvl         ! variable volume
+   USE trd_oce        ! trends: ocean variables
+   USE trdtra         ! trends manager: tracers
+   USE traqsr         ! penetrative solar radiation (needed for nksr)
+   USE phycst         ! physical constant
+   USE ldftra         ! lateral physics : tracers
+   USE ldfslp         ! lateral physics : slopes
+   USE bdy_oce  , ONLY: ln_bdy
+   USE bdytra         ! open boundary condition (bdy_tra routine)
    !
-   USE in_out_manager  ! I/O manager
-   USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
-   USE prtctl          ! Print control
-   USE timing          ! Timing
+   USE in_out_manager ! I/O manager
+   USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
+   USE prtctl         ! Print control
+   USE timing         ! Timing
 
    IMPLICIT NONE
    PRIVATE
@@ -57,7 +62,7 @@ MODULE traatf_qco
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: traatf_qco.F90 14433 2021-02-11 08:06:49Z smasson $
+   !! $Id: traatf_qco.F90 15028 2021-06-19 08:53:10Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -197,7 +202,8 @@ CONTAINS
       !
       DO jn = 1, kjpt
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+!!st         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
             ztn = pt(ji,jj,jk,jn,Kmm)
             ztd = pt(ji,jj,jk,jn,Kaa) - 2._wp * ztn + pt(ji,jj,jk,jn,Kbb)  ! time laplacian on tracers
             !
@@ -256,13 +262,14 @@ CONTAINS
       !
       IF( ( l_trdtra .AND. cdtype == 'TRA' ) .OR. ( l_trdtrc .AND. cdtype == 'TRC' ) )   THEN
          ALLOCATE( ztrd_atf(jpi,jpj,jpk,kjpt) )
-         ztrd_atf(:,:,:,:) = 0.0_wp
+         ztrd_atf(:,:,:,:) = 0._wp
       ENDIF
       zfact = 1._wp / p2dt
       zfact1 = rn_atfp * p2dt
       zfact2 = zfact1 * r1_rho0
       DO jn = 1, kjpt
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+!!st         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
             ze3t_b = e3t(ji,jj,jk,Kbb)
             ze3t_n = e3t(ji,jj,jk,Kmm)
             ze3t_a = e3t(ji,jj,jk,Kaa)
@@ -286,7 +293,7 @@ CONTAINS
             ! solar penetration (temperature only)
             IF( ll_traqsr .AND. jn == jp_tem .AND. jk <= nksr )                            &
                &     ztc_f  = ztc_f  - zfact1 * ( qsr_hc(ji,jj,jk) - qsr_hc_b(ji,jj,jk) )
-               !
+            !
             !
             IF( ll_rnf .AND. jk <= nk_rnf(ji,jj) )                                          &
                &     ztc_f  = ztc_f  - zfact1 * ( rnf_tsc(ji,jj,jn) - rnf_tsc_b(ji,jj,jn) ) &
@@ -364,6 +371,7 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE tra_atf_qco_lf
-
+#endif
+   
    !!======================================================================
 END MODULE traatf_qco

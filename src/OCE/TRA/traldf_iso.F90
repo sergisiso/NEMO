@@ -44,7 +44,7 @@ MODULE traldf_iso
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: traldf_iso.F90 14834 2021-05-11 09:24:44Z hadcv $
+   !! $Id: traldf_iso.F90 15512 2021-11-15 17:22:03Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -155,9 +155,9 @@ CONTAINS
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                           ! Do only on the first tile
          l_hst = .FALSE.
          l_ptr = .FALSE.
-         IF( cdtype == 'TRA' .AND. ( iom_use( 'sophtldf' ) .OR. iom_use( 'sopstldf' ) ) )     l_ptr = .TRUE.
-         IF( cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
-            &                        iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )   l_hst = .TRUE.
+         IF( l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtldf' ) .OR. iom_use( 'sopstldf' ) ) )      l_ptr = .TRUE.
+         IF( l_iom    .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
+            &                                       iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )   l_hst = .TRUE.
       ENDIF
       !
       ! Define pt_rhs halo points for multi-point haloes in bilaplacian case

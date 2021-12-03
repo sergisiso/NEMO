@@ -49,7 +49,7 @@ MODULE restart
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: restart.F90 15141 2021-07-23 14:20:12Z smasson $
+   !! $Id: restart.F90 15027 2021-06-19 08:14:22Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -167,7 +167,10 @@ CONTAINS
          CALL iom_rstput( kt, nitrst, numrow, 'tb'  , ts(:,:,:,jp_tem,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'sb'  , ts(:,:,:,jp_sal,Kbb) )
          !
-#if ! defined key_RK3
+#if defined key_RK3
+         CALL iom_rstput( kt, nitrst, numrow, 'uu_b'   , uu_b(:,:       ,Kbb) )     ! before fields
+         CALL iom_rstput( kt, nitrst, numrow, 'vv_b'   , vv_b(:,:       ,Kbb) )     ! before fields
+#else
          CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields
          CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kmm) )
@@ -281,10 +284,12 @@ CONTAINS
 #if defined key_RK3
       !                             !*  Read Kbb fields   (NB: in RK3 Kmm = Kbb = Nbb)
       IF(lwp) WRITE(numout,*) '           Kbb u, v and T-S fields read in the restart file'
-      CALL iom_get( numror, jpdom_auto, 'ub', uu(:,:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'vb', vv(:,:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'tb', ts(:,:,:,jp_tem,Kbb) )
-      CALL iom_get( numror, jpdom_auto, 'sb', ts(:,:,:,jp_sal,Kbb) )
+      CALL iom_get( numror, jpdom_auto, 'ub'   , uu(:,:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
+      CALL iom_get( numror, jpdom_auto, 'vb'   , vv(:,:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
+      CALL iom_get( numror, jpdom_auto, 'tb'   , ts(:,:,:,jp_tem,Kbb) )
+      CALL iom_get( numror, jpdom_auto, 'sb'   , ts(:,:,:,jp_sal,Kbb) )
+      CALL iom_get( numror, jpdom_auto, 'uu_b' , uu_b(:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
+      CALL iom_get( numror, jpdom_auto, 'vv_b' , vv_b(:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
 #else
       !                             !*  Read Kmm fields   (MLF only)
       IF(lwp) WRITE(numout,*)    '           Kmm u, v and T-S fields read in the restart file'
@@ -312,15 +317,10 @@ CONTAINS
          IF( iom_varid( numror, 'rhop', ldstop = .FALSE. ) > 0 ) THEN
             CALL iom_get( numror, jpdom_auto, 'rhop'   , rhop )   ! now    potential density
          ELSE
-#if defined key_qco
-            ALLOCATE( zgdept(jpi,jpj,jpk) )
-            DO jk = 1, jpk
-               zgdept(:,:,jk) = gdept(:,:,jk,Kmm)
-            END DO
-            CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, zgdept )
-            DEALLOCATE( zgdept )
+#if defined key_RK3
+            CALL eos( ts, Kbb, rhop )
 #else
-            CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, gdept(:,:,:,Kmm) )
+            CALL eos( ts, Kmm, rhop )
 #endif
          ENDIF
       ENDIF
@@ -413,13 +413,10 @@ CONTAINS
             !
          ENDIF
          !
-#if defined key_RK3
-         ssh(:,:,Kmm) = 0._wp                  !* RK3: set Kmm to 0 for AGRIF
-#else
-         ssh(:,:,Kmm) = ssh(:,:,Kbb)           !* MLF: set now values from to before ones 
-#endif
+         ssh(:,:,Kmm) = ssh(:,:,Kbb)           !* set now values from to before ones 
       ENDIF
       !
+!JC: line below ???
       !                            !==========================!
       ssh(:,:,Kaa) = 0._wp         !==  Set to 0 for AGRIF  ==!
       !                            !==========================!
