@@ -518,7 +518,7 @@ CONTAINS
    INTEGER  ::   ji, jj, jk
    REAL(wp)  ::  zrhd
 
-    DO_3D( 1, 1, 1, 1, 1, jpk )
+    DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
       zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
       p_alknw_inf(ji,jj,jk) =  -tr(ji,jj,jk,jppo4,Kbb) * zrhd - sulfat(ji,jj,jk) &
       &              - fluorid(ji,jj,jk)
