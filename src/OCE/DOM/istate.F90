@@ -162,7 +162,7 @@ CONTAINS
          ! "before" values may have been read from a restart to ensure restartability.
          ! In the non-restart or non-RK3 cases they need to be initialised here:
          uu_b(:,:,Kbb) = 0._wp   ;   vv_b(:,:,Kbb) = 0._wp
-         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
             uu_b(ji,jj,Kbb) = uu_b(ji,jj,Kbb) + e3u(ji,jj,jk,Kbb) * uu(ji,jj,jk,Kbb) * umask(ji,jj,jk)
             vv_b(ji,jj,Kbb) = vv_b(ji,jj,Kbb) + e3v(ji,jj,jk,Kbb) * vv(ji,jj,jk,Kbb) * vmask(ji,jj,jk)
          END_3D
