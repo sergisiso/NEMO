@@ -246,13 +246,6 @@ CONTAINS
       !
       tr(:,:,:,:,Kaa) = 0._wp
       !
-      IF( ln_trcbc .AND. lltrcbc )  THEN 
-        CALL trc_bc_ini ( jptra, Kmm  )            ! set tracers Boundary Conditions
-        CALL trc_bc     ( nit000, Kmm, tr, Kaa )   ! tracers: surface and lateral Boundary Conditions
-      ENDIF
-      !
-      IF( ln_trcais ) CALL trc_ais_ini   ! set tracers from Antarctic Ice Sheet
-      !
       IF( ln_rsttr ) THEN              ! restart from a file
         !
         CALL trc_rst_read( Kbb, Kmm )

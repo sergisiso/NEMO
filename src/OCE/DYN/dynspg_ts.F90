@@ -802,7 +802,7 @@ CONTAINS
          END_2D
 # endif   
          !
-         CALL lbc_lnk_multi( 'dynspg_ts', puu_b, 'U', -1._wp, pvv_b, 'V', -1._wp ) ! Boundary conditions
+         CALL lbc_lnk( 'dynspg_ts', puu_b, 'U', -1._wp, pvv_b, 'V', -1._wp ) ! Boundary conditions
          !
       ENDIF
       !

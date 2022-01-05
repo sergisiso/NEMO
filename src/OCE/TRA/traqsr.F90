@@ -145,13 +145,13 @@ CONTAINS
             ENDIF
          ELSE                                           ! No restart or Euler forward at 1st time step
             z1_2 = 1._wp
-            DO_3D_OVR( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+            DO_3D_OVR( 0, 0, 0, 0, 1, jpk )
                qsr_hc_b(ji,jj,jk) = 0._wp
             END_3D
          ENDIF
       ELSE                             !==  Swap of qsr heat content  ==!
          z1_2 = 0.5_wp
-         DO_3D_OVR( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         DO_3D_OVR( 0, 0, 0, 0, 1, jpk )
             qsr_hc_b(ji,jj,jk) = qsr_hc(ji,jj,jk)
          END_3D
       ENDIF
@@ -207,17 +207,12 @@ CONTAINS
             &                             / e3t(ji,jj,jk,Kmm)
       END_3D
       !
-!!st7-2
       ! sea-ice: store the 1st ocean level attenuation coefficient
-      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF( qsr(ji,jj) /= 0._wp ) THEN   ;   fraqsr_1lev(ji,jj) = qsr_hc(ji,jj,1) / ( r1_rho0_rcp * qsr(ji,jj) )
          ELSE                             ;   fraqsr_1lev(ji,jj) = 1._wp
          ENDIF
       END_2D
-      !                                       !===>>> CAUTION: lbc_lnk is required on fraqsr_lev since sea ice computes on the full domain
-      !                                       !                otherwise restartability and reproducibility are broken 
-      CALL lbc_lnk( 'tra_qsr', fraqsr_1lev(:,:), 'T', 1._wp )
-!!st      CALL lbc_lnk( 'tra_qsr', qsr_hc(:,:,:), 'T', 1._wp )
       !
       IF( iom_use('qsr3d') ) THEN      ! output the shortwave Radiation distribution
          ALLOCATE( zetot(A2D(nn_hls),jpk) )

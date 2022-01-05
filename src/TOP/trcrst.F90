@@ -159,9 +159,6 @@ CONTAINS
       ! prognostic variables 
       ! --------------------
 #if defined key_RK3
-      DO jn = 1, jptra      ! MLF : After time step (before the swap) put in TRN
-         CALL iom_rstput( kt, nitrst, numrtw, 'TRN'//ctrcnm(jn), tr(:,:,:,jn,Kaa) )
-      END DO
       DO jn = 1, jptra      ! RK3 : After time step (before the swap) put in TRB
          CALL iom_rstput( kt, nitrst, numrtw, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kaa) )
       END DO

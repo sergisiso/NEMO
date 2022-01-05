@@ -275,7 +275,7 @@ CONTAINS
             
 !!gm  This should be moved into sbcmod.F90 module ? (especially now that ln_traqsr is read in namsbc namelist)
       IF( .NOT.ln_traqsr  .AND. kstg == 1) THEN     ! no solar radiation penetration
-         DO_2D( 0, 0, 0, 0 )
+         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
             qns(ji,jj) = qns(ji,jj) + qsr(ji,jj)         ! total heat flux in qns
             qsr(ji,jj) = 0._wp                           ! qsr set to zero
          END_2D

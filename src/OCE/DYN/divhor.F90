@@ -83,7 +83,7 @@ CONTAINS
       ! 
       pe3divUh(:,:,:) = 0._wp    !!gm to be applied to the halos only
       !
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                                  
+      DO_3D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
          hdiv(ji,jj,jk) = (   e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * puu(ji  ,jj,jk)      &
             &               - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * puu(ji-1,jj,jk)      &
             &               + e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * pvv(ji,jj  ,jk)      &
@@ -100,16 +100,16 @@ CONTAINS
       !
       IF( ln_isf )   CALL isf_hdiv( kt, Kmm, hdiv )            !==  + ice-shelf mass exchange ==!
       !
-      CALL lbc_lnk( 'divhor', hdiv, 'T', 1._wp )   !   (no sign change)
+      IF( nn_hls==1 )   CALL lbc_lnk( 'divhor', hdiv, 'T', 1._wp )   !   (no sign change)
       !
 !!gm Patch before suppression of hdiv from all modules that use it
 !      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                            !==  e3t * Horizontal divergence  ==!
 !         pe3divUh(ji,jj,jk) = hdiv(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
 !      END_3D
 !JC: over whole domain, and after lbclnk on hdiv to prevent from reproducibility issues
-      DO jk=1, jpkm1
-         pe3divUh(:,:,jk) = hdiv(:,:,jk) * e3t(:,:,jk,Kmm)
-      END DO
+      DO_3D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+         pe3divUh(ji,jj,jk) = hdiv(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
+      END_3D
 !!gm end
       !
       !

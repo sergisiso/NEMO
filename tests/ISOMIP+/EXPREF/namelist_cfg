@@ -193,7 +193,6 @@ rn_Dt = 720.
          !                       ! vel_stab = velocity and stability dependent transfert coeficient (Holland et al. 1999 for a complete description)
          rn_gammat0  = 0.0215    ! gammat coefficient used in blk formula
          rn_gammas0  = 0.614e-3  ! gammas coefficient used in blk formula
-         rn_vtide    = 0.01      ! tidal velocity [m/s]
          !
          rn_htbl     =  20.      ! thickness of the top boundary layer    (Losh et al. 2008)
          !                       ! 0 => thickness of the tbl = thickness of the first wet cell
@@ -279,7 +278,7 @@ rn_Dt = 720.
 &namdrg_top    !   TOP friction                                         (ln_drg_OFF =F & ln_isfcav=T)
 !-----------------------------------------------------------------------
    rn_Cd0      =  2.5e-3   !  drag coefficient [-]
-   rn_ke0      =  0.0e-3   !  background kinetic energy  [m2/s2] (non-linear cases)
+   rn_ke0      =  1.0e-4   !  background kinetic energy  [m2/s2] (non-linear cases)
 /
 !-----------------------------------------------------------------------
 &namdrg_bot    !   BOTTOM friction                                      (ln_drg_OFF =F)

@@ -209,7 +209,7 @@ CONTAINS
       ioptio = 0
       IF( ln_zdfcst ) THEN   ;   ioptio = ioptio + 1   ;    nzdf_phy = np_CST   ;   ENDIF
       IF( ln_zdfric ) THEN   ;   ioptio = ioptio + 1   ;    nzdf_phy = np_RIC   ;   CALL zdf_ric_init          ;   ENDIF
-      IF( ln_zdftke ) THEN   ;   ioptio = ioptio + 1   ;    nzdf_phy = np_TKE   ;   CALL zdf_tke_init( Kmm )   ;   ENDIF
+      IF( ln_zdftke ) THEN   ;   ioptio = ioptio + 1   ;    nzdf_phy = np_TKE   ;   CALL zdf_tke_init          ;   ENDIF
       IF( ln_zdfgls ) THEN   ;   ioptio = ioptio + 1   ;    nzdf_phy = np_GLS   ;   CALL zdf_gls_init          ;   ENDIF
       IF( ln_zdfosm ) THEN   ;   ioptio = ioptio + 1   ;    nzdf_phy = np_OSM   ;   CALL zdf_osm_init( Kmm )   ;   ENDIF
       !
@@ -350,7 +350,7 @@ CONTAINS
       IF( ln_zdfiwm )   CALL zdf_iwm( kt, Kmm, avm, avt, avs )   ! internal wave (de Lavergne et al 2017)
 
       !                                         !* Lateral boundary conditions (sign unchanged)
-      IF(nn_hls==1) THEN
+      IF(nn_hls==1) THEN                                         ! if nn_hls==2 lbc_lnk done in stp routines
          IF( l_zdfsh2 ) THEN
             CALL lbc_lnk( 'zdfphy', avm_k, 'W', 1.0_wp , avt_k, 'W', 1.0_wp,   &
                   &                 avm  , 'W', 1.0_wp , avt  , 'W', 1.0_wp , avs , 'W', 1.0_wp )

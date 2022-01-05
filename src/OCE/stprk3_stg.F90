@@ -21,6 +21,7 @@ MODULE stprk3_stg
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
    USE dynspg_ts, ONLY:   un_adv , vn_adv   ! advective transport from N to N+1
    USE bdydyn         ! ocean open boundary conditions (define bdy_dyn)
+   USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
 # if defined key_top
    USE trc            ! ocean passive tracers variables
    USE trcadv         ! passive tracers advection      (trc_adv routine)
@@ -48,6 +49,8 @@ MODULE stprk3_stg
 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ssha         ! sea-surface height  at N+1
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ua_b, va_b   ! barotropic velocity at N+1
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   r3ta, r3ua, r3va   ! ssh/h_0 ratio at t,u,v-column at N+1
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   r3fb, r3fa   ! ssh/h_0 ratio at f-column at N and N+1
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -117,6 +120,24 @@ CONTAINS
          uu_b(:,:,Kaa) = r2_3 * uu_b(:,:,Kbb) + r1_3 * ua_b(:,:)
          vv_b(:,:,Kaa) = r2_3 * vv_b(:,:,Kbb) + r1_3 * va_b(:,:)
          !
+         !
+         !                     !==  ssh/h0 ratio at Kaa  ==! 
+         !
+         IF( .NOT.lk_linssh ) THEN     ! "after" ssh/h_0 ratio at t,u,v-column
+            !
+            ALLOCATE( r3ta(jpi,jpj) , r3ua(jpi,jpj) , r3va(jpi,jpj) , r3fa(jpi,jpj) , r3fb(jpi,jpj) )
+            !
+            r3fb(:,:) = r3f(:,:)
+            CALL dom_qco_r3c_RK3( ssha, r3ta, r3ua, r3va, r3fa )
+            !
+            CALL lbc_lnk( 'stprk3_stg', r3ua, 'U', 1._wp, r3va, 'V', 1._wp, r3fa, 'F', 1._wp )
+            !
+            r3t(:,:,Kaa) = r2_3 * r3t(:,:,Kbb) + r1_3 * r3ta(:,:)   ! at N+1/3 (Kaa)
+            r3u(:,:,Kaa) = r2_3 * r3u(:,:,Kbb) + r1_3 * r3ua(:,:)
+            r3v(:,:,Kaa) = r2_3 * r3v(:,:,Kbb) + r1_3 * r3va(:,:)
+            ! r3f already properly set up                           ! at N     (Kmm)
+         ENDIF
+         !
          !                 !---------------!
       CASE ( 2 )           !==  Stage 2  ==!   Kbb = N   ;   Kmm = N+1/3   ;   Kaa = N+1/2
          !                 !---------------!
@@ -127,7 +148,14 @@ CONTAINS
          !                             ! set ssh and (uu_b,vv_b) at N+1/2  (Kaa)
          ssh (:,:,Kaa) = r1_2 * ( ssh (:,:,Kbb) + ssha(:,:) )
          uu_b(:,:,Kaa) = r1_2 * ( uu_b(:,:,Kbb) + ua_b(:,:) )
-         vv_b(:,:,Kaa) = r1_2 * ( vv_b(:,:,Kbb) + va_b(:,:) )
+         vv_b(:,:,Kaa) = r1_2 * ( vv_b(:,:,Kbb) + va_b(:,:) ) 
+         !
+         IF( .NOT.lk_linssh ) THEN
+            r3t(:,:,Kaa) = r1_2 * ( r3t(:,:,Kbb) + r3ta(:,:) )   ! at N+1/2 (Kaa)
+            r3u(:,:,Kaa) = r1_2 * ( r3u(:,:,Kbb) + r3ua(:,:) )
+            r3v(:,:,Kaa) = r1_2 * ( r3v(:,:,Kbb) + r3va(:,:) )
+            r3f(:,:)     = r2_3 * r3fb(:,:) + r1_3 * r3fa(:,:)   ! at N+1/3 (Kmm)
+         ENDIF
          !
          !                 !---------------!
       CASE ( 3 )           !==  Stage 3  ==!   Kbb = N   ;   Kmm = N+1/2   ;   Kaa = N+1
@@ -142,22 +170,29 @@ CONTAINS
          !
          DEALLOCATE( ssha , ua_b , va_b )
          !
+         IF( .NOT.lk_linssh ) THEN
+            r3t(:,:,Kaa) = r3ta(:,:)                          ! at N+1   (Kaa)
+            r3u(:,:,Kaa) = r3ua(:,:)
+            r3v(:,:,Kaa) = r3va(:,:)
+            r3f(:,:    ) = r1_2 * ( r3fb(:,:) + r3fa(:,:) )   ! at N+1/2 (Kmm)
+            DEALLOCATE( r3ta, r3ua, r3va, r3fb )              ! deallocate all r3. except r3fa which will be
+            !                                                 ! saved in r3f at the end of the time integration and then deallocated
+            !
+         ENDIF
+         !
       END SELECT
-      !
-      !                     !==  ssh/h0 ratio at Kaa  ==! 
-      !
-      IF( .NOT.lk_linssh )   CALL dom_qco_r3c( ssh(:,:,Kaa), r3t(:,:,Kaa), r3u(:,:,Kaa), r3v(:,:,Kaa), r3f(:,:) )   ! "after" ssh/h_0 ratio at t,u,v-column
-      !
       !
       !                     !==  advective velocity at Kmm  ==!
       !
       !                                            !- horizontal components -!   (zaU,zaV) 
-      zub(:,:) = un_adv(:,:)*r1_hu(:,:,Kmm) - uu_b(:,:,Kmm)    ! barotropic velocity correction
-      zvb(:,:) = vn_adv(:,:)*r1_hv(:,:,Kmm) - vv_b(:,:,Kmm)
-      DO jk = 1, jpkm1                                         ! horizontal advective velocity
-         zaU(:,:,jk) = uu(:,:,jk,Kmm) + zub(:,:)*umask(:,:,jk)
-         zaV(:,:,jk) = vv(:,:,jk,Kmm) + zvb(:,:)*vmask(:,:,jk)
-      END DO
+      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         zub(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
+         zvb(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
+      END_2D
+      DO_3D_OVR( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )               ! horizontal advective velocity
+         zaU(ji,jj,jk) = uu(ji,jj,jk,Kmm) + zub(ji,jj)*umask(ji,jj,jk)
+         zaV(ji,jj,jk) = vv(ji,jj,jk,Kmm) + zvb(ji,jj)*vmask(ji,jj,jk)
+      END_3D
       !                                            !- vertical components -!   ww
                          CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )     ! ww cross-level velocity
 
@@ -223,9 +258,7 @@ CONTAINS
          IF(.NOT. ln_trcadv_mus ) THEN
             !
             DO jn = 1, jptra
-               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               tr(ji,jj,jk,jn,Krhs) = 0._wp                              ! set tracer trends to zero
-               END_3D
+               tr(:,:,:,jn,Krhs) = 0._wp                              ! set tracer trends to zero !!st ::: required because of tra_adv new loops
             END DO
             !                                      !==  advection of passive tracers  ==!
             rDt_trc = rDt
@@ -253,9 +286,7 @@ CONTAINS
          !                 !---------------!
          !
          DO jn = 1, jptra
-            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-            tr(ji,jj,jk,jn,Krhs) = 0._wp                              ! set tracer trends to zero
-            END_3D
+            tr(:,:,:,jn,Krhs) = 0._wp
          END DO
          !                                         !==  advection of passive tracers  ==!
          rDt_trc = rDt
@@ -284,6 +315,7 @@ CONTAINS
          ts(:,:,:,jn,Krhs) = 0._wp
       END DO
 
+      CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0 ) ! now in potential density for tra_mle computation
 !===>>> CAUTION here may be without GM velocity but stokes drift required ! 0 barotropic divergence for GM  != 0 barotropic divergence for SD 
 !!st consistence 2D / 3D - flux de masse 
       CALL tra_adv( kstp, Kbb, Kmm, ts, Krhs, zaU, zaV, ww )       ! hor. + vert. advection	==> RHS
@@ -386,6 +418,9 @@ CONTAINS
                             CALL tra_zdf( kstp, Kbb, Kmm, Krhs, ts    , Kaa  )  ! vertical mixing and after tracer fields
          IF( ln_zdfnpc  )   CALL tra_npc( kstp,      Kmm, Krhs, ts    , Kaa  )  ! update after fields by non-penetrative convection
          !
+         r3f(:,:) = r3fa(:,:)                                         ! save r3fa in r3f before deallocation
+         DEALLOCATE( r3fa )                                           ! (r3f = r3f(Kbb) of the next time step)
+         !
       END SELECT      
       !                                         !==  correction of the barotropic (all stages)  ==!    at Kaa = N+1/3, N+1/2 or N+1
       !                                                           ! barotropic velocity correction
@@ -393,10 +428,9 @@ CONTAINS
       zvb(A2D(0)) = vv_b(A2D(0),Kaa) - SUM( e3v_0(A2D(0),:)*vv(A2D(0),:,Kaa), 3 ) * r1_hv_0(A2D(0))
       !
       DO jk = 1, jpkm1                                            ! corrected horizontal velocity
-         uu(:,:,jk,Kaa) = uu(:,:,jk,Kaa) + zub(:,:)*umask(:,:,jk)
-         vv(:,:,jk,Kaa) = vv(:,:,jk,Kaa) + zvb(:,:)*vmask(:,:,jk)
+         uu(A2D(0),jk,Kaa) = uu(A2D(0),jk,Kaa) + zub(A2D(0))*umask(A2D(0),jk)
+         vv(A2D(0),jk,Kaa) = vv(A2D(0),jk,Kaa) + zvb(A2D(0))*vmask(A2D(0),jk)
       END DO
-!!st pourquoi ne pas mettre A2D(0) ici ? 
          
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -408,8 +442,10 @@ CONTAINS
             CALL Agrif_dyn( kstp, kstg )
 # endif
       !                                              !* local domain boundaries  (T-point, unchanged sign)
-      CALL lbc_lnk_multi( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1., vv(:,:,:       ,Kaa), 'V', -1.   &
-         &                             , ts(:,:,:,jp_tem,Kaa), 'T',  1., ts(:,:,:,jp_sal,Kaa), 'T',  1. )
+      CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1., vv(:,:,:       ,Kaa), 'V', -1.   &
+         &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1., ts(:,:,:,jp_sal,Kaa), 'T',  1. )
+      !
+      IF( nn_hls == 2 .AND. l_zdfsh2 ) CALL lbc_lnk( 'stp_RK3_stg', avm_k, 'W', 1.0_wp )   !  lbc_lnk needed for zdf_sh2 when using nn_hls = 2, moved here to allow tiling in zdf_phy
       !
       !                                              !* BDY open boundaries
       IF( ln_bdy )   THEN

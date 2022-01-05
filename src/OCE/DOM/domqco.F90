@@ -39,6 +39,7 @@ MODULE domqco
    PUBLIC  dom_qco_init       ! called by domain.F90
    PUBLIC  dom_qco_zgr        ! called by isfcpl.F90
    PUBLIC  dom_qco_r3c        ! called by steplf.F90
+   PUBLIC  dom_qco_r3c_RK3    ! called by stprk3_stg.F90
 
    !                                                      !!* Namelist nam_vvl
    LOGICAL , PUBLIC :: ln_vvl_zstar           = .FALSE.    ! zstar  vertical coordinate
@@ -117,7 +118,7 @@ CONTAINS
       !                                ! Horizontal interpolation of e3t
 #if defined key_RK3
       CALL dom_qco_r3c( ssh(:,:,Kbb), r3t(:,:,Kbb), r3u(:,:,Kbb), r3v(:,:,Kbb), r3f(:,:) )
-      CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm)           )
+      CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm)           )  !!st needed for Agrif_Grid call in nemo_gcm
 #else
       CALL dom_qco_r3c( ssh(:,:,Kbb), r3t(:,:,Kbb), r3u(:,:,Kbb), r3v(:,:,Kbb)           )
       CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm), r3f(:,:) )
@@ -152,26 +153,14 @@ CONTAINS
          pr3t(ji,jj) = pssh(ji,jj) * r1_ht_0(ji,jj)   !==  ratio at t-point  ==!
       END_2D
       !
-      !
       !                                      !==  ratio at u-,v-point  ==!
       !
-!!st      IF( ln_dynadv_vec ) THEN                     !- Vector Form   (thickness weighted averaging)
-#if ! defined key_qcoTest_FluxForm
-      !                                ! no 'key_qcoTest_FluxForm' : surface weighted ssh average
       DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
          pr3u(ji,jj) = 0.5_wp * (  e1e2t(ji  ,jj) * pssh(ji  ,jj)  &
             &                    + e1e2t(ji+1,jj) * pssh(ji+1,jj)  ) * r1_hu_0(ji,jj) * r1_e1e2u(ji,jj)
          pr3v(ji,jj) = 0.5_wp * (  e1e2t(ji,jj  ) * pssh(ji,jj  )  &
             &                    + e1e2t(ji,jj+1) * pssh(ji,jj+1)  ) * r1_hv_0(ji,jj) * r1_e1e2v(ji,jj)
-      END_2D
-!!st      ELSE                                         !- Flux Form   (simple averaging)
-#else
-      DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-         pr3u(ji,jj) = 0.5_wp * (  pssh(ji,jj) + pssh(ji+1,jj  )  ) * r1_hu_0(ji,jj)
-         pr3v(ji,jj) = 0.5_wp * (  pssh(ji,jj) + pssh(ji  ,jj+1)  ) * r1_hv_0(ji,jj)
-      END_2D
-!!st      ENDIF
-#endif         
+      END_2D        
       !
       IF( .NOT.PRESENT( pr3f ) ) THEN              !- lbc on ratio at u-, v-points only
          IF (nn_hls==1) CALL lbc_lnk( 'dom_qco_r3c', pr3u, 'U', 1._wp, pr3v, 'V', 1._wp )
@@ -179,39 +168,97 @@ CONTAINS
          !
       ELSE                                   !==  ratio at f-point  ==!
          !
-!!st         IF( ln_dynadv_vec )   THEN                !- Vector Form   (thickness weighted averaging)
-#if ! defined key_qcoTest_FluxForm
-         !                                ! no 'key_qcoTest_FluxForm' : surface weighted ssh average
-
-      DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-         ! round brackets added to fix the order of floating point operations
-         ! needed to ensure halo 1 - halo 2 compatibility
-         pr3f(ji,jj) = 0.25_wp * ( ( e1e2t(ji  ,jj  ) * pssh(ji  ,jj  )   &
-            &                      + e1e2t(ji+1,jj  ) * pssh(ji+1,jj  )   &
-            &                      )                                      & ! bracket for halo 1 - halo 2 compatibility
-            &                     + ( e1e2t(ji  ,jj+1) * pssh(ji  ,jj+1)  &
-            &                       + e1e2t(ji+1,jj+1) * pssh(ji+1,jj+1)  &
-            &                       )                                     & ! bracket for halo 1 - halo 2 compatibility
-            &                    ) * r1_hf_0(ji,jj) * r1_e1e2f(ji,jj)
-      END_2D
-!!st         ELSE                                      !- Flux Form   (simple averaging)
-#else
-      DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-         ! round brackets added to fix the order of floating point operations
-         ! needed to ensure halo 1 - halo 2 compatibility
-         pr3f(ji,jj) = 0.25_wp * ( ( pssh(ji,jj  ) + pssh(ji+1,jj  ) ) &
-            &                    + ( pssh(ji,jj+1) + pssh(ji+1,jj+1)   &
-            &                       )                                  & ! bracket for halo 1 - halo 2 compatibility
-            &                    ) * r1_hf_0(ji,jj)
-      END_2D
-!!st         ENDIF
-#endif
+         DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            ! round brackets added to fix the order of floating point operations
+            ! needed to ensure halo 1 - halo 2 compatibility
+            pr3f(ji,jj) = 0.25_wp * (   (  e1e2t(ji  ,jj  ) * pssh(ji  ,jj  )      &
+               &                         + e1e2t(ji+1,jj  ) * pssh(ji+1,jj  )  )   & ! bracket for halo 1 - halo 2 compatibility
+               &                     +  (  e1e2t(ji  ,jj+1) * pssh(ji  ,jj+1)      &
+               &                         + e1e2t(ji+1,jj+1) * pssh(ji+1,jj+1)  )   & ! bracket for halo 1 - halo 2 compatibility
+               &                    ) * r1_hf_0(ji,jj) * r1_e1e2f(ji,jj)
+         END_2D
          !                                                 ! lbc on ratio at u-,v-,f-points
          IF (nn_hls==1) CALL lbc_lnk( 'dom_qco_r3c', pr3u, 'U', 1._wp, pr3v, 'V', 1._wp, pr3f, 'F', 1._wp )
          !
       ENDIF
       !
    END SUBROUTINE dom_qco_r3c
+
+   
+   SUBROUTINE dom_qco_r3c_RK3( pssh, pr3t, pr3u, pr3v, pr3f )
+      !!---------------------------------------------------------------------
+      !!                   ***  ROUTINE r3c  ***
+      !!
+      !! ** Purpose :   compute the filtered ratio ssh/h_0 at t-,u-,v-,f-points
+      !!
+      !! ** Method  : - compute the ssh at u- and v-points (f-point optional)
+      !!                   Vector Form : surface weighted averaging
+      !!                   Flux   Form : simple           averaging
+      !!              - compute the ratio ssh/h_0 at t-,u-,v-pts, (f-pt optional)
+      !!----------------------------------------------------------------------
+      REAL(wp), DIMENSION(:,:)          , INTENT(in   )  ::   pssh               ! sea surface height   [m]
+      REAL(wp), DIMENSION(:,:)          , INTENT(  out)  ::   pr3t, pr3u, pr3v   ! ssh/h0 ratio at t-, u-, v-,points  [-]
+      REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(  out)  ::   pr3f               ! ssh/h0 ratio at f-point   [-]
+      !
+      INTEGER ::   ji, jj   ! dummy loop indices
+      !!----------------------------------------------------------------------
+      !
+      !
+      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         pr3t(ji,jj) = pssh(ji,jj) * r1_ht_0(ji,jj)   !==  ratio at t-point  ==!
+      END_2D
+      !
+      !
+      !                                      !==  ratio at u-,v-point  ==!
+      !
+!!st      IF( ln_dynadv_vec ) THEN                     !- Vector Form   (thickness weighted averaging)
+#if ! defined key_qcoTest_FluxForm
+      !                                ! no 'key_qcoTest_FluxForm' : surface weighted ssh average
+      DO_2D( 0, 0, 0, 0 )
+         pr3u(ji,jj) = 0.5_wp * (  e1e2t(ji  ,jj) * pssh(ji  ,jj)  &
+            &                    + e1e2t(ji+1,jj) * pssh(ji+1,jj)  ) * r1_hu_0(ji,jj) * r1_e1e2u(ji,jj)
+         pr3v(ji,jj) = 0.5_wp * (  e1e2t(ji,jj  ) * pssh(ji,jj  )  &
+            &                    + e1e2t(ji,jj+1) * pssh(ji,jj+1)  ) * r1_hv_0(ji,jj) * r1_e1e2v(ji,jj)
+      END_2D
+!!st      ELSE                                         !- Flux Form   (simple averaging)
+#else
+      DO_2D( 0, 0, 0, 0 )
+         pr3u(ji,jj) = 0.5_wp * (  pssh(ji,jj) + pssh(ji+1,jj  )  ) * r1_hu_0(ji,jj)
+         pr3v(ji,jj) = 0.5_wp * (  pssh(ji,jj) + pssh(ji  ,jj+1)  ) * r1_hv_0(ji,jj)
+      END_2D
+!!st      ENDIF
+#endif         
+      !
+      IF( PRESENT( pr3f ) ) THEN             !==  ratio at f-point  ==!
+         !
+!!st         IF( ln_dynadv_vec )   THEN                !- Vector Form   (thickness weighted averaging)
+#if ! defined key_qcoTest_FluxForm
+         !                                ! no 'key_qcoTest_FluxForm' : surface weighted ssh average
+
+      DO_2D( 0, 0, 0, 0 )
+         ! round brackets added to fix the order of floating point operations
+         ! needed to ensure halo 1 - halo 2 compatibility
+         pr3f(ji,jj) = 0.25_wp * (   (  e1e2t(ji  ,jj  ) * pssh(ji  ,jj  )      &
+            &                         + e1e2t(ji+1,jj  ) * pssh(ji+1,jj  )  )   & ! bracket for halo 1 - halo 2 compatibility
+            &                     +  (  e1e2t(ji  ,jj+1) * pssh(ji  ,jj+1)      &
+            &                         + e1e2t(ji+1,jj+1) * pssh(ji+1,jj+1)  )   & ! bracket for halo 1 - halo 2 compatibility
+            &                    ) * r1_hf_0(ji,jj) * r1_e1e2f(ji,jj)
+      END_2D
+!!st         ELSE                                      !- Flux Form   (simple averaging)
+#else
+      DO_2D( 0, 0, 0, 0 )
+         ! round brackets added to fix the order of floating point operations
+         ! needed to ensure halo 1 - halo 2 compatibility
+         pr3f(ji,jj) = 0.25_wp * (   (  pssh(ji,jj  ) + pssh(ji+1,jj  )  )   &
+            &                     +  (  pssh(ji,jj+1) + pssh(ji+1,jj+1)  )   & ! bracket for halo 1 - halo 2 compatibility
+            &                    ) * r1_hf_0(ji,jj)
+      END_2D
+!!st         ENDIF
+#endif
+         !
+      ENDIF
+      !
+   END SUBROUTINE dom_qco_r3c_RK3
 
 
    SUBROUTINE qco_ctl

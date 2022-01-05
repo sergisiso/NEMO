@@ -268,6 +268,10 @@ CONTAINS
          ALLOCATE( ztrd_atf(jpi,jpj,jpk,kjpt) )
          ztrd_atf(:,:,:,:) = 0.0_wp
       ENDIF
+      !
+!!st variables only computed in the interior by traqsr
+      IF( ll_traqsr ) CALL lbc_lnk( 'traatf',  qsr_hc_b(:,:,:) , 'T', 1.0_wp, qsr_hc(:,:,:) , 'T', 1.0_wp )
+      !
       zfact = 1._wp / p2dt
       zfact1 = rn_atfp * p2dt
       zfact2 = zfact1 * r1_rho0

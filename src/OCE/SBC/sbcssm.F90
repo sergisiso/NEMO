@@ -64,7 +64,12 @@ CONTAINS
       zts(:,:,jp_tem) = ts(:,:,1,jp_tem,Kmm)
       zts(:,:,jp_sal) = ts(:,:,1,jp_sal,Kmm)
       !
-         !                                                ! ---------------------------------------- !
+      !                                       !===>>> CAUTION: lbc_lnk is required on fraqsr_lev since sea ice computes on the full domain
+      !                                       !                otherwise restartability and reproducibility are broken 
+      !                                       !                computed in traqsr only on the inner domain 
+      CALL lbc_lnk( 'sbc_ssm', fraqsr_1lev(:,:), 'T', 1._wp )
+      !
+      !                                                   ! ---------------------------------------- !
       IF( nn_fsbc == 1 ) THEN                             !      Instantaneous surface fields        !
          !                                                ! ---------------------------------------- !
          ssu_m(:,:) = uu(:,:,1,Kbb)

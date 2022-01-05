@@ -32,6 +32,7 @@ MODULE istate
    USE in_out_manager  ! I/O manager
    USE iom             ! I/O library
    USE lib_mpp         ! MPP library
+   USE lbclnk         ! lateal boundary condition / mpp exchanges
    USE restart         ! restart
 
 #if defined key_agrif
@@ -49,7 +50,7 @@ MODULE istate
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: istate.F90 11423 2019-08-08 14:02:49Z mathiot $
+   !! $Id: istate.F90 15581 2021-12-07 13:08:22Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -59,6 +60,8 @@ CONTAINS
       !!                   ***  ROUTINE istate_init  ***
       !! 
       !! ** Purpose :   Initialization of the dynamics and tracer fields.
+      !!
+      !! ** Method  :   
       !!----------------------------------------------------------------------
       INTEGER, INTENT( in )  ::  Kbb, Kmm, Kaa   ! ocean time level indices
       !
@@ -86,7 +89,7 @@ CONTAINS
 #endif
 
 #if defined key_agrif
-      IF ( (.NOT.Agrif_root()).AND.ln_init_chfrpar ) THEN
+      IF ( .NOT.Agrif_root() .AND. ln_init_chfrpar ) THEN
          numror = 0                           ! define numror = 0 -> no restart file to read
          ln_1st_euler = .true.                ! Set time-step indicator at nit000 (euler forward)
          CALL day_init 
@@ -125,37 +128,50 @@ CONTAINS
                DO jk = 1, jpk
                   zgdept(:,:,jk) = gdept(:,:,jk,Kbb)
                END DO
-               CALL usr_def_istate( zgdept, tmask, ts(:,:,:,:,Kbb), uu(:,:,:,Kbb), vv(:,:,:,Kbb) )         
+               CALL usr_def_istate( zgdept, tmask, ts(:,:,:,:,Kbb), uu(:,:,:,Kbb), vv(:,:,:,Kbb) )
+               ! make sure that periodicities are properly applied 
+               CALL lbc_lnk( 'istate', ts(:,:,:,jp_tem,Kbb), 'T',  1._wp, ts(:,:,:,jp_sal,Kbb), 'T',  1._wp,   &
+                  &                    uu(:,:,:,       Kbb), 'U', -1._wp, vv(:,:,:,       Kbb), 'V', -1._wp )
             ENDIF
             ts  (:,:,:,:,Kmm) = ts (:,:,:,:,Kbb)       ! set now values from to before ones
             uu    (:,:,:,Kmm) = uu   (:,:,:,Kbb)
             vv    (:,:,:,Kmm) = vv   (:,:,:,Kbb)
-
          ENDIF 
 #if defined key_agrif
       ENDIF
 #endif
       ! 
-      ! Initialize "now" and "before" barotropic velocities:
-      ! Do it whatever the free surface method, these arrays being eventually used
+      ! Initialize "now" barotropic velocities:
+      ! Do it whatever the free surface method, these arrays being used eventually 
       !
+!!gm  the use of umask & vmask is not necessary below as uu(:,:,:,Kmm), vv(:,:,:,Kmm), uu(:,:,:,Kbb), vv(:,:,:,Kbb) are always masked
+#if ! defined key_RK3
       uu_b(:,:,Kmm) = 0._wp   ;   vv_b(:,:,Kmm) = 0._wp
-      uu_b(:,:,Kbb) = 0._wp   ;   vv_b(:,:,Kbb) = 0._wp
-      !
-!!gm  the use of umsak & vmask is not necessary below as uu(:,:,:,Kmm), vv(:,:,:,Kmm), uu(:,:,:,Kbb), vv(:,:,:,Kbb) are always masked
       DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
          uu_b(ji,jj,Kmm) = uu_b(ji,jj,Kmm) + e3u(ji,jj,jk,Kmm) * uu(ji,jj,jk,Kmm) * umask(ji,jj,jk)
          vv_b(ji,jj,Kmm) = vv_b(ji,jj,Kmm) + e3v(ji,jj,jk,Kmm) * vv(ji,jj,jk,Kmm) * vmask(ji,jj,jk)
-         !
-         uu_b(ji,jj,Kbb) = uu_b(ji,jj,Kbb) + e3u(ji,jj,jk,Kbb) * uu(ji,jj,jk,Kbb) * umask(ji,jj,jk)
-         vv_b(ji,jj,Kbb) = vv_b(ji,jj,Kbb) + e3v(ji,jj,jk,Kbb) * vv(ji,jj,jk,Kbb) * vmask(ji,jj,jk)
       END_3D
-      !
       uu_b(:,:,Kmm) = uu_b(:,:,Kmm) * r1_hu(:,:,Kmm)
       vv_b(:,:,Kmm) = vv_b(:,:,Kmm) * r1_hv(:,:,Kmm)
+#endif
       !
-      uu_b(:,:,Kbb) = uu_b(:,:,Kbb) * r1_hu(:,:,Kbb)
-      vv_b(:,:,Kbb) = vv_b(:,:,Kbb) * r1_hv(:,:,Kbb)
+#if defined key_RK3
+      IF( .NOT. ln_rstart ) THEN
+#endif
+         ! Initialize "before" barotropic velocities. "now" values are always set but 
+         ! "before" values may have been read from a restart to ensure restartability.
+         ! In the non-restart or non-RK3 cases they need to be initialised here:
+         uu_b(:,:,Kbb) = 0._wp   ;   vv_b(:,:,Kbb) = 0._wp
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+            uu_b(ji,jj,Kbb) = uu_b(ji,jj,Kbb) + e3u(ji,jj,jk,Kbb) * uu(ji,jj,jk,Kbb) * umask(ji,jj,jk)
+            vv_b(ji,jj,Kbb) = vv_b(ji,jj,Kbb) + e3v(ji,jj,jk,Kbb) * vv(ji,jj,jk,Kbb) * vmask(ji,jj,jk)
+         END_3D
+         uu_b(:,:,Kbb) = uu_b(:,:,Kbb) * r1_hu(:,:,Kbb)
+         vv_b(:,:,Kbb) = vv_b(:,:,Kbb) * r1_hv(:,:,Kbb)
+         ! 
+#if defined key_RK3
+      ENDIF
+#endif
       !
    END SUBROUTINE istate_init
 

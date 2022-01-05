@@ -328,40 +328,41 @@ CONTAINS
          DO jk = 1, jpkm1
             ! horizontal divergence of thickness diffusion transport ( velocity multiplied by e3t)
             ! - ML - note: computation already done in dom_vvl_sf_nxt. Could be optimized (not critical and clearer this way)
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
                zhdiv(ji,jj,jk) = r1_e1e2t(ji,jj) * ( un_td(ji,jj,jk) - un_td(ji-1,jj,jk) + vn_td(ji,jj,jk) - vn_td(ji,jj-1,jk) )
             END_2D
          END DO
-         CALL lbc_lnk('sshwzv', zhdiv, 'T', 1.0_wp)  ! - ML - Perhaps not necessary: not used for horizontal "connexions"
+         IF( nn_hls == 1)   CALL lbc_lnk('sshwzv', zhdiv, 'T', 1.0_wp)  ! - ML - Perhaps not necessary: not used for horizontal "connexions"
          !                             ! Is it problematic to have a wrong vertical velocity in boundary cells?
          !                             ! Same question holds for hdiv. Perhaps just for security
-         DO jk = jpkm1, 1, -1                       ! integrate from the bottom the hor. divergence
-            ! computation of w
-            pww(:,:,jk) = pww(:,:,jk+1) - (   ze3div(:,:,jk) + zhdiv(:,:,jk)   &
-               &                            + r1_Dt * (  e3t(:,:,jk,Kaa)       &
-               &                                       - e3t(:,:,jk,Kbb) )   ) * tmask(:,:,jk)
-         END DO
-         !          IF( ln_vvl_layer ) pww(:,:,:) = 0.e0
+         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (   ze3div(ji,jj,jk) + zhdiv(ji,jj,jk)   &
+                 &                            + r1_Dt * (  e3t(ji,jj,jk,Kaa)       &
+                 &                                       - e3t(ji,jj,jk,Kbb) )   ) * tmask(ji,jj,jk)
+         END_3D
+         !
          DEALLOCATE( zhdiv ) 
          !                                            !=================================!
       ELSEIF( ln_linssh )   THEN                      !==  linear free surface cases  ==!
          !                                            !=================================!
-         DO jk = jpkm1, 1, -1                               ! integrate from the bottom the hor. divergence
-            pww(:,:,jk) = pww(:,:,jk+1) - ze3div(:,:,jk)
-         END DO
+         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+            pww(ji,jj,jk) = pww(ji,jj,jk+1) - ze3div(ji,jj,jk) 
+         END_3D
          !                                            !==========================================!
       ELSE                                            !==  Quasi-Eulerian vertical coordinate  ==!   ('key_qco')
          !                                            !==========================================!
-         DO jk = jpkm1, 1, -1                               ! integrate from the bottom the hor. divergence
-            !                                               ! NB: [e3t[a] -e3t[b] ]=e3t_0*[r3t[a]-r3t[b]]
-            pww(:,:,jk) = pww(:,:,jk+1) - (  ze3div(:,:,jk)                            &
-               &                            + r1_Dt * e3t_0(:,:,jk) * ( r3t(:,:,Kaa) - r3t(:,:,Kbb) )  ) * tmask(:,:,jk)
-         END DO
+         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+         !                                                              ! NB: [e3t[a] -e3t[b] ]=e3t_0*[r3t[a]-r3t[b]]
+            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  ze3div(ji,jj,jk)                            &
+               &                               + r1_Dt * e3t_0(ji,jj,jk) * ( r3t(ji,jj,Kaa) - r3t(ji,jj,Kbb) )  ) * tmask(ji,jj,jk)
+         END_3D
       ENDIF
 
       IF( ln_bdy ) THEN
          DO jk = 1, jpkm1
-            pww(:,:,jk) = pww(:,:,jk) * bdytmask(:,:)
+            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
+               pww(ji,jj,jk) = pww(ji,jj,jk) * bdytmask(ji,jj)
+            END_2D
          END DO
       ENDIF
       !

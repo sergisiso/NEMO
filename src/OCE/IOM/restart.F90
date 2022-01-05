@@ -176,7 +176,6 @@ CONTAINS
          CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'tn'  , ts(:,:,:,jp_tem,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'sn'  , ts(:,:,:,jp_sal,Kmm) )
-         IF( .NOT.lk_SWE )   CALL iom_rstput( kt, nitrst, numrow, 'rhop', rhop )
 #endif
       ENDIF
 
@@ -290,6 +289,12 @@ CONTAINS
       CALL iom_get( numror, jpdom_auto, 'sb'   , ts(:,:,:,jp_sal,Kbb) )
       CALL iom_get( numror, jpdom_auto, 'uu_b' , uu_b(:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
       CALL iom_get( numror, jpdom_auto, 'vv_b' , vv_b(:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
+      uu(:,:,:  ,Kmm) = uu(:,:,:  ,Kbb)         ! Kmm values set to Kbb for initialisation (sbc_ssm_init)
+      vv(:,:,:  ,Kmm) = vv(:,:,:  ,Kbb)
+      ts(:,:,:,:,Kmm) = ts(:,:,:,:,Kbb)
+      !
+      uu_b(:,:,Kmm)   = uu_b(:,:,Kbb)           ! Kmm value set to Kbb for initialisation in Agrif_Regrid
+      vv_b(:,:,Kmm)   = vv_b(:,:,Kbb)
 #else
       !                             !*  Read Kmm fields   (MLF only)
       IF(lwp) WRITE(numout,*)    '           Kmm u, v and T-S fields read in the restart file'
@@ -312,18 +317,6 @@ CONTAINS
          CALL iom_get( numror, jpdom_auto, 'sb', ts(:,:,:,jp_sal,Kbb) )
       ENDIF
 #endif
-      !
-      IF( .NOT.lk_SWE ) THEN
-         IF( iom_varid( numror, 'rhop', ldstop = .FALSE. ) > 0 ) THEN
-            CALL iom_get( numror, jpdom_auto, 'rhop'   , rhop )   ! now    potential density
-         ELSE
-#if defined key_RK3
-            CALL eos( ts, Kbb, rhop )
-#else
-            CALL eos( ts, Kmm, rhop )
-#endif
-         ENDIF
-      ENDIF
       !
    END SUBROUTINE rst_read
 
@@ -367,7 +360,7 @@ CONTAINS
          CALL iom_get( numror, jpdom_auto, 'sshb'   , ssh(:,:,Kbb) )
          !
          !                                     !*  RK3: Set ssh at Kmm for AGRIF
-         ssh(:,:,Kmm) = 0._wp
+         ssh(:,:,Kmm) = ssh(:,:,Kbb)
 #else
          !                                     !*  MLF: Read ssh at Kmm
          IF(lwp) WRITE(numout,*)

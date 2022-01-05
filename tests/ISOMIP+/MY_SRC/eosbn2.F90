@@ -16,7 +16,7 @@ MODULE eosbn2
    !!            3.0  ! 2006-08  (G. Madec)  add tfreez function (now eos_fzp function)
    !!            3.3  ! 2010-05  (C. Ethe, G. Madec)  merge TRC-TRA
    !!             -   ! 2010-10  (G. Nurser, G. Madec)  add alpha/beta used in ldfslp
-   !!            3.7  ! 2012-0 3 (F. Roquet, G. Madec)  add primitive of alpha and beta used in PE computation
+   !!            3.7  ! 2012-03  (F. Roquet, G. Madec)  add primitive of alpha and beta used in PE computation
    !!             -   ! 2012-05  (F. Roquet)  add Vallis and original JM95 equation of state
    !!             -   ! 2013-04  (F. Roquet, G. Madec)  add eos_rab, change bn2 computation and reorganize the module
    !!             -   ! 2014-09  (F. Roquet)  add TEOS-10, S-EOS, and modify EOS-80
@@ -294,7 +294,7 @@ CONTAINS
          !
       CASE( np_leos )                !==  linear ISOMIP EOS  ==!
          !
-         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
             zt  = pts  (ji,jj,jk,jp_tem,Knn) - (-1._wp)
             zs  = pts  (ji,jj,jk,jp_sal,Knn) - 34.2_wp
             zh  = gdept(ji,jj,jk,       Knn)
