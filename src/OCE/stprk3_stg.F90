@@ -418,8 +418,10 @@ CONTAINS
                             CALL tra_zdf( kstp, Kbb, Kmm, Krhs, ts    , Kaa  )  ! vertical mixing and after tracer fields
          IF( ln_zdfnpc  )   CALL tra_npc( kstp,      Kmm, Krhs, ts    , Kaa  )  ! update after fields by non-penetrative convection
          !
-         r3f(:,:) = r3fa(:,:)                                         ! save r3fa in r3f before deallocation
-         DEALLOCATE( r3fa )                                           ! (r3f = r3f(Kbb) of the next time step)
+         IF( .NOT.lk_linssh ) THEN
+            r3f(:,:) = r3fa(:,:)                                         ! save r3fa in r3f before deallocation
+            DEALLOCATE( r3fa )                                           ! (r3f = r3f(Kbb) of the next time step)
+         ENDIF
          !
       END SELECT      
       !                                         !==  correction of the barotropic (all stages)  ==!    at Kaa = N+1/3, N+1/2 or N+1
