@@ -155,11 +155,12 @@ function runcmpres(){
   MAIN_DIR=$(dirname $SETTE_DIR)
   quiet=0
   . ./param.cfg
+  USER_INPUT='yes'        # Default: yes => request user input on decisions.
 
   mach=${COMPILER}
 # overwrite revision (later) or compiler
   if [ $# -gt 0 ]; then
-    while getopts r:R:c:v:V:T:qh option; do 
+    while getopts r:R:c:v:V:T:quh option; do 
        case $option in
           c) mach=$OPTARG;;
           r) rev=$OPTARG;;
@@ -174,6 +175,7 @@ function runcmpres(){
              fi
              ;;
           T) TESTD_ROOT=$OPTARG;;
+          u) USER_INPUT='no';;
           h | *) echo ''
                  echo 'sette_eval.sh : ' 
                  echo '     display result for the latest change'
@@ -190,6 +192,7 @@ function runcmpres(){
                  echo ' -V sub_dir2 :'
                  echo '     2nd validation sub-directory below NEMO_VALIDATION_DIR'
                  echo '     if set the comparison is between two subdirectory trees beneath NEMO_VALIDATION_DIR'
+                 echo ' -u to run sette_eval.sh without any user interaction'
                  echo ' -q : Activate quiet mode - only the number of differing results is returned'
                  echo ''
                  exit 42;;
@@ -200,24 +203,41 @@ function runcmpres(){
 # if $1 (remaining arguments)
   if [[ ! -z $1 ]] ; then rev=$1 ; fi
 
+  # Check that git branch is usable
+  git branch --show-current >&/dev/null
+  if [[ $? == 0 ]] ; then
+    # subdirectory below NEMO_VALIDATION_DIR defaults to branchname
+    NAM_MAIN="$(git branch --show-current)"
+  else
+    # subdirectory below NEMO_VALIDATION_DIR defaults to "MAIN"
+    NAM_MAIN="MAIN"
+  fi
   if [ ! -z $SETTE_SUB_VAL ] ; then
    export NEMO_VALIDATION_DIR=$NEMO_VALIDATION_DIR/$SETTE_SUB_VAL
-   if [ -d $NEMO_VALIDATION_REF/$SETTE_SUB_VAL ] && [ -z $SETTE_SUB_VAL2 ] && [ ${quiet} -eq 0 ] ; then
+   if [ -d $NEMO_VALIDATION_REF/$SETTE_SUB_VAL ] && [ -z $SETTE_SUB_VAL2 ] && [ ${USER_INPUT} == "yes" ] ; then
     while true; do
         read -p "$NEMO_VALIDATION_REF/$SETTE_SUB_VAL exists. Do you wish to use it as a reference? " yn
         case $yn in
-            [Yy]* ) export $NEMO_VALIDATION_REF/$SETTE_SUB_VAL; break;;
-            [Nn]* ) echo "Ok, continuing with ${NEMO_VALIDATION_REF}/MAIN as the reference directory"
-                    export NEMO_VALIDATION_REF=${NEMO_VALIDATION_REF}/MAIN
+            [Yy]* ) export NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/$SETTE_SUB_VAL; break;;
+            [Nn]* ) echo "Ok, continuing with ${NEMO_VALIDATION_REF}/${NAM_MAIN} as the reference directory"
+                    export NEMO_VALIDATION_REF=${NEMO_VALIDATION_REF}/${NAM_MAIN}
                     break
                     ;;
             * ) echo "Please answer yes or no.";;
         esac
     done
+   elif [ -d $NEMO_VALIDATION_REF/$SETTE_SUB_VAL ] && [ -z $SETTE_SUB_VAL2 ] ; then
+    # No user input: make a best guess as to intent
+    export NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/$SETTE_SUB_VAL
+   elif [ -z $SETTE_SUB_VAL2 ] ; then
+    # No user input: default to branchname or MAIN
+    export NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/${NAM_MAIN}
    fi
   else
-   export NEMO_VALIDATION_DIR=${NEMO_VALIDATION_DIR}/MAIN
-   export NEMO_VALIDATION_REF=${NEMO_VALIDATION_REF}/MAIN
+   export NEMO_VALIDATION_DIR=${NEMO_VALIDATION_DIR}/${NAM_MAIN}
+   if [ -z $SETTE_SUB_VAL2 ] ; then
+    export NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/${NAM_MAIN}
+   fi
   fi
   NEMO_VALID=${NEMO_VALIDATION_DIR}
   NEMO_VALID_REF=${NEMO_VALIDATION_REF}
@@ -240,14 +260,12 @@ rev_date0=`git log -1 | grep Date | sed -e 's/.*Date: *//' -e's/ +.*$//'`
 rev_date=`${DATE_CONV}"${rev_date0}" +"%y%j"`
 revision=${rev_date}_${revision}
 branchname=`git branch --show-current`
-if [ ${quiet} -eq 0 ] ; then 
- if [ $localchanges > 0 ] ; then
-  echo "Current code is : $branchname @ $revision  ( with local changes )"
-  lastchange=${revision}+
- else
-  echo "Current code is : $branchname @ $revision"
-  lastchange=$revision
- fi
+if [[ $localchanges > 0 ]] ; then
+ if [ ${quiet} -eq 0 ] ; then  echo "Current code is : $branchname @ $revision  ( with local changes )" ; fi
+ lastchange=${revision}+
+else
+ if [ ${quiet} -eq 0 ] ; then echo "Current code is : $branchname @ $revision" ; fi
+ lastchange=$revision
 fi
 
 # by default use the current lastchanged revision
@@ -257,7 +275,7 @@ if [ ${quiet} -eq 0 ] ; then
  echo ""
  echo "SETTE evaluation for : "
  echo ""
- if [ $localchanges > 0 ] ; then
+ if [[ $localchanges > 0 ]] ; then
   echo "       $branchname @ $revision (with local changes)"
  else
   echo "       $branchname @ $revision"

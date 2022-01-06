@@ -339,7 +339,7 @@ CONTAINS
       REAL(wp) ::   zat_v, zvtau_ice, zv_t, zrhoco  !   -      -
       REAL(wp) ::   zflagi                          !   -      -
       !!---------------------------------------------------------------------
-      IF( ln_timing )   CALL timing_start('ice_update')
+      IF( ln_timing )   CALL timing_start('iceupdate')
 
       IF( kt == nit000 .AND. lwp ) THEN
          WRITE(numout,*)
@@ -391,7 +391,7 @@ CONTAINS
       END_2D
       CALL lbc_lnk( 'iceupdate', utau, 'U', -1.0_wp, vtau, 'V', -1.0_wp )   ! lateral boundary condition
       !
-      IF( ln_timing )   CALL timing_stop('ice_update')
+      IF( ln_timing )   CALL timing_stop('iceupdate')
       !
    END SUBROUTINE ice_update_tau
 

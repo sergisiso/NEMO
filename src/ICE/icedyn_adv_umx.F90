@@ -44,8 +44,8 @@ MODULE icedyn_adv_umx
    !                                                 then interpolate T at u/v points using the upstream scheme
    LOGICAL            ::   ll_prelim = .FALSE.  ! prelimiter from: Zalesak(1979) eq. 14 => not well defined in 2D
    !
-   REAL(wp)           ::   z1_6   = 1._wp /   6._wp   ! =1/6
-   REAL(wp)           ::   z1_120 = 1._wp / 120._wp   ! =1/120
+   REAL(wp)           ::   r1_6   = 1._wp /   6._wp   ! =1/6
+   REAL(wp)           ::   r1_120 = 1._wp / 120._wp   ! =1/120
    !
    INTEGER, ALLOCATABLE, DIMENSION(:,:,:) ::   imsk_small, jmsk_small
    !
@@ -936,7 +936,7 @@ CONTAINS
 !!rachid          zdx2 = e1u(ji,jj) * e1t(ji,jj)
                pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (         (                      pt  (ji+1,jj,jl) + pt  (ji,jj,jl)     &
                   &                                                            - zcu   * ( pt  (ji+1,jj,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + z1_6 * zdx2 * ( zcu*zcu - 1._wp ) *    (                      ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
+                  &        + r1_6 * zdx2 * ( zcu*zcu - 1._wp ) *    (                      ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
                   &                                               - SIGN( 1._wp, zcu ) * ( ztu2(ji+1,jj,jl) - ztu2(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -950,7 +950,7 @@ CONTAINS
 !!rachid          zdx2 = e1u(ji,jj) * e1t(ji,jj)
                pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (         (                      pt  (ji+1,jj,jl) + pt  (ji,jj,jl)     &
                   &                                                            - zcu   * ( pt  (ji+1,jj,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + z1_6 * zdx2 * ( zcu*zcu - 1._wp ) *    (                      ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
+                  &        + r1_6 * zdx2 * ( zcu*zcu - 1._wp ) *    (                      ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
                   &                                                   - 0.5_wp * zcu   * ( ztu2(ji+1,jj,jl) - ztu2(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -967,9 +967,9 @@ CONTAINS
                zdx4 = zdx2 * zdx2
                pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (        (                       pt  (ji+1,jj,jl) + pt  (ji,jj,jl)     &
                   &                                                            - zcu   * ( pt  (ji+1,jj,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + z1_6   * zdx2 * ( zcu*zcu - 1._wp ) * (                       ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
+                  &        + r1_6   * zdx2 * ( zcu*zcu - 1._wp ) * (                       ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
                   &                                                   - 0.5_wp * zcu   * ( ztu2(ji+1,jj,jl) - ztu2(ji,jj,jl) ) ) &
-                  &        + z1_120 * zdx4 * ( zcu*zcu - 1._wp ) * ( zcu*zcu - 4._wp ) * ( ztu4(ji+1,jj,jl) + ztu4(ji,jj,jl)     &
+                  &        + r1_120 * zdx4 * ( zcu*zcu - 1._wp ) * ( zcu*zcu - 4._wp ) * ( ztu4(ji+1,jj,jl) + ztu4(ji,jj,jl)     &
                   &                                               - SIGN( 1._wp, zcu ) * ( ztu4(ji+1,jj,jl) - ztu4(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -1072,7 +1072,7 @@ CONTAINS
 !!rachid          zdy2 = e2v(ji,jj) * e2t(ji,jj)
                pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (      (                         pt  (ji,jj+1,jl) + pt  (ji,jj,jl)     &
                   &                                                            - zcv   * ( pt  (ji,jj+1,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + z1_6 * zdy2 * ( zcv*zcv - 1._wp ) * (                         ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
+                  &        + r1_6 * zdy2 * ( zcv*zcv - 1._wp ) * (                         ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
                   &                                               - SIGN( 1._wp, zcv ) * ( ztv2(ji,jj+1,jl) - ztv2(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -1085,7 +1085,7 @@ CONTAINS
 !!rachid          zdy2 = e2v(ji,jj) * e2t(ji,jj)
                pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (      (                         pt  (ji,jj+1,jl) + pt  (ji,jj,jl)     &
                   &                                                            - zcv   * ( pt  (ji,jj+1,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + z1_6 * zdy2 * ( zcv*zcv - 1._wp ) * (                         ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
+                  &        + r1_6 * zdy2 * ( zcv*zcv - 1._wp ) * (                         ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
                   &                                                   - 0.5_wp * zcv   * ( ztv2(ji,jj+1,jl) - ztv2(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -1102,9 +1102,9 @@ CONTAINS
                zdy4 = zdy2 * zdy2
                pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (                              ( pt  (ji,jj+1,jl) + pt  (ji,jj,jl)     &
                   &                                                            - zcv   * ( pt  (ji,jj+1,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + z1_6   * zdy2 * ( zcv*zcv - 1._wp ) * (                       ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
+                  &        + r1_6   * zdy2 * ( zcv*zcv - 1._wp ) * (                       ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
                   &                                                   - 0.5_wp * zcv   * ( ztv2(ji,jj+1,jl) - ztv2(ji,jj,jl) ) ) &
-                  &        + z1_120 * zdy4 * ( zcv*zcv - 1._wp ) * ( zcv*zcv - 4._wp ) * ( ztv4(ji,jj+1,jl) + ztv4(ji,jj,jl)     &
+                  &        + r1_120 * zdy4 * ( zcv*zcv - 1._wp ) * ( zcv*zcv - 4._wp ) * ( ztv4(ji,jj+1,jl) + ztv4(ji,jj,jl)     &
                   &                                               - SIGN( 1._wp, zcv ) * ( ztv4(ji,jj+1,jl) - ztv4(ji,jj,jl) ) ) )
             END_2D
          END DO

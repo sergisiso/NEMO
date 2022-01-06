@@ -183,6 +183,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj) :: znu_a         !: Nu_air, Viscosity of air
       REAL(wp), DIMENSION(jpi,jpj) :: Linv  !: 1/L (inverse of Monin Obukhov length...
       REAL(wp), DIMENSION(jpi,jpj) :: z0, z0t, z0q
+      REAL(wp), DIMENSION(jpi,jpj) :: zrhoa, zpre, zta ! air pressure [Pa], density [kg/m3] & absolute temperature [k]
       !
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zsst  ! to back up the initial bulk SST
       !
@@ -346,12 +347,16 @@ CONTAINS
          func_m = log(zu) - LOG(z0 ) - psi_m_ecmwf(ztmp0) + psi_m_ecmwf(z0 *Linv)
          func_h = log(zu) - LOG(z0t) - psi_h_ecmwf(ztmp0) + psi_h_ecmwf(z0t*Linv)
 
+         IF(( l_use_cs ).OR.( l_use_wl )) THEN
+            zpre(:,:)  = pres_temp( q_zu(:,:), slp(:,:), zu, ptpot=t_zu(:,:), pta=zta(:,:) )
+            zrhoa(:,:) = rho_air( zta(:,:), q_zu(:,:), zpre(:,:) )
+         ENDIF
 
          IF( l_use_cs ) THEN
             !! Cool-skin contribution
 
-            CALL UPDATE_QNSOL_TAU( zu, T_s, q_s, t_zu, q_zu, u_star, t_star, q_star, U_zu, Ubzu, slp, rad_lw, &
-               &                   ztmp1, ztmp0,  Qlat=ztmp2)  ! Qnsol -> ztmp1 / Tau -> ztmp0
+            CALL UPDATE_QNSOL_TAU( zu, T_s, q_s, t_zu, q_zu, u_star, t_star, q_star, U_zu, Ubzu, slp, rad_lw, zrhoa, &
+               &                   ztmp1, ztmp0, Qlat=ztmp2)  ! Qnsol -> ztmp1 / Tau -> ztmp0
 
             CALL CS_ECMWF( Qsw, ztmp1, u_star, zsst )  ! Qnsol -> ztmp1
 
@@ -363,7 +368,7 @@ CONTAINS
 
          IF( l_use_wl ) THEN
             !! Warm-layer contribution
-            CALL UPDATE_QNSOL_TAU( zu, T_s, q_s, t_zu, q_zu, u_star, t_star, q_star, U_zu, Ubzu, slp, rad_lw, &
+            CALL UPDATE_QNSOL_TAU( zu, T_s, q_s, t_zu, q_zu, u_star, t_star, q_star, U_zu, Ubzu, slp, rad_lw, zrhoa, &
                &                   ztmp1, ztmp2)  ! Qnsol -> ztmp1 / Tau -> ztmp2
             CALL WL_ECMWF( Qsw, ztmp1, u_star, zsst )
             !! Updating T_s and q_s !!!

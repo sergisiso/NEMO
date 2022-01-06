@@ -64,12 +64,15 @@ set -o posix
 #-
 
 
-cd ${CONFIG_DIR}
-mkdir -p ${NEW_CONF}/${TEST_NAME}
-
 # PREPARE EXEC_DIR
 #==================
-export EXE_DIR=${CONFIG_DIR}/${NEW_CONF}/${TEST_NAME}
+if [ -z "${CUSTOM_DIR}" ]; then
+  export EXE_DIR=${CONFIG_DIR}/${NEW_CONF}/${TEST_NAME}
+else
+  NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
+  export EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}/${NEW_CONF}/${TEST_NAME}
+fi
+mkdir -p ${EXE_DIR}
 
 cp -RL ${CONFIG_DIR}/${NEW_CONF}/EXP00/* ${EXE_DIR}/.
 #cat ${SETTE_DIR}/iodef_sette.xml | sed -e"s;DEF_SHARED;${CONFIG_DIR0}/SHARED;" > ${EXE_DIR}/iodef.xml
@@ -80,6 +83,7 @@ COMP_KEYS="`cat ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm | sed -e 's/.*fppk
 echo "Summary of sette environment"                                > ./sette_config
 echo "----------------------------"                               >> ./sette_config
 echo "requested by the command          : "$cmd $cmdargs          >> ./sette_config
+echo "on branch                         : "$SETTE_THIS_BRANCH     >> ./sette_config
 printf "%-33s : %s\n" USING_TIMING $USING_TIMING                  >> ./sette_config
 printf "%-33s : %s\n" USING_ICEBERGS $USING_ICEBERGS              >> ./sette_config
 printf "%-33s : %s\n" USING_EXTRA_HALO $USING_EXTRA_HALO          >> ./sette_config
@@ -90,6 +94,7 @@ printf "%-33s : %s\n" USING_LOOP_FUSION $USING_LOOP_FUSION        >> ./sette_con
 printf "%-33s : %s\n" USING_XIOS $USING_XIOS                      >> ./sette_config
 printf "%-33s : %s\n" USING_MPMD $USING_MPMD                      >> ./sette_config
 printf "%-33s : %s\n" USING_RK3 $USING_RK3                        >> ./sette_config
+printf "%-33s : %s\n" USER_INPUT $USER_INPUT                      >> ./sette_config
 printf "%-33s : %s\n" "Common compile keys added" "$ADD_KEYS"     >> ./sette_config
 printf "%-33s : %s\n" "Common compile keys deleted" "$DEL_KEYS"   >> ./sette_config
 printf "%-33s : %s\n" "Compile keys actually used" "${COMP_KEYS}" >> ./sette_config

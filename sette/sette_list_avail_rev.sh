@@ -48,9 +48,9 @@ lst_rev () {
     for rev in $ALLLST
     do
        if [ -d ${VALSUB}/$rev/${CONFIG} ]  ; then
-          printf "%-6s  " $rev
+          printf "%-14s  " $rev
        else
-          printf "%-5s  " "----- " 
+          printf "%-14s  " "------------ " 
        fi
     done
 }
@@ -71,7 +71,7 @@ lst_rev () {
  echo ""
  printf " List of all avail. rev. in   :"${NEMO_VALID}"\n"
  printf "                         is   : "
- for dir in `echo $DIRLIST`; do printf "%-6s  " $dir ; done
+ for dir in `echo $DIRLIST`; do printf "%-14s  " $dir ; done
  printf "\n"
 
  # start checking configuration revision

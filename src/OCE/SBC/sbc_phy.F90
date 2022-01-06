@@ -22,20 +22,25 @@ MODULE sbc_phy
    USE phycst         ! physical constants
 
    IMPLICIT NONE
-   !PRIVATE
-   PUBLIC !! Haleluja that was the solution
+   PUBLIC !! Haleluja that was the solution for AGRIF
 
    INTEGER , PARAMETER, PUBLIC  :: nb_iter0 = 5 ! Default number of itterations in bulk-param algorithms (can be overriden b.m.o `nb_iter` optional argument)
 
    !!  (mainly removed from sbcblk.F90)
-   REAL(wp), PARAMETER, PUBLIC :: rCp_dry = 1005.0_wp   !: Specic heat of dry air, constant pressure      [J/K/kg]
-   REAL(wp), PARAMETER, PUBLIC :: rCp_vap = 1860.0_wp   !: Specic heat of water vapor, constant pressure  [J/K/kg]
-   REAL(wp), PARAMETER, PUBLIC :: R_dry   = 287.05_wp   !: Specific gas constant for dry air              [J/K/kg]
-   REAL(wp), PARAMETER, PUBLIC :: R_vap   = 461.495_wp  !: Specific gas constant for water vapor          [J/K/kg]
-   REAL(wp), PARAMETER, PUBLIC :: reps0   = R_dry/R_vap !: ratio of gas constant for dry air and water vapor => ~ 0.622
-   REAL(wp), PARAMETER, PUBLIC :: rctv0   = R_vap/R_dry - 1._wp  !: for virtual temperature (== (1-eps)/eps) => ~ 0.608
-   REAL(wp), PARAMETER, PUBLIC :: rCp_air = 1000.5_wp   !: specific heat of air (only used for ice fluxes now...)
-   REAL(wp), PARAMETER, PUBLIC :: albo    = 0.066_wp    !: ocean albedo assumed to be constant
+   REAL(wp), PARAMETER, PUBLIC :: rCp_dry = 1005.0_wp             !: Specic heat of dry air, constant pressure       [J/K/kg]
+   REAL(wp), PARAMETER, PUBLIC :: rCp_vap = 1860.0_wp             !: Specic heat of water vapor, constant pressure   [J/K/kg]
+   REAL(wp), PARAMETER, PUBLIC :: R_dry   = 287.05_wp             !: Specific gas constant for dry air               [J/K/kg]
+   REAL(wp), PARAMETER, PUBLIC :: R_vap   = 461.495_wp            !: Specific gas constant for water vapor           [J/K/kg]
+   REAL(wp), PARAMETER, PUBLIC :: reps0   = R_dry/R_vap           !: ratio of gas constant for dry air and water vapor => ~ 0.622
+   REAL(wp), PARAMETER, PUBLIC :: rctv0   = R_vap/R_dry - 1._wp   !: for virtual temperature (== (1-eps)/eps) => ~ 0.608
+   REAL(wp), PARAMETER, PUBLIC :: rCp_air = 1000.5_wp             !: specific heat of air (only used for ice fluxes now...)
+   REAL(wp), PARAMETER, PUBLIC :: albo    = 0.066_wp              !: ocean albedo assumed to be constant
+   REAL(wp), PARAMETER, PUBLIC :: R_gas   = 8.314510_wp           !: Universal molar gas constant                    [J/mol/K] 
+   REAL(wp), PARAMETER, PUBLIC :: rmm_dryair = 28.9647e-3_wp      !: dry air molar mass / molecular weight           [kg/mol]
+   REAL(wp), PARAMETER, PUBLIC :: rmm_water  = 18.0153e-3_wp      !: water   molar mass / molecular weight           [kg/mol]
+   REAL(wp), PARAMETER, PUBLIC :: rmm_ratio  = rmm_water / rmm_dryair
+   REAL(wp), PARAMETER, PUBLIC :: rgamma_dry = R_gas / ( rmm_dryair * rCp_dry )  !: Poisson constant for dry air
+   REAL(wp), PARAMETER, PUBLIC :: rpref      = 1.e5_wp            !: reference air pressure for exner function       [Pa]
    !
    REAL(wp), PARAMETER, PUBLIC :: rho0_a  = 1.2_wp      !: Approx. of density of air                       [kg/m^3]
    REAL(wp), PARAMETER, PUBLIC :: rho0_w  = 1025._wp    !: Density of sea-water  (ECMWF->1025)             [kg/m^3]
@@ -82,6 +87,14 @@ MODULE sbc_phy
       MODULE PROCEDURE virt_temp_vctr, virt_temp_sclr
    END INTERFACE virt_temp
 
+   INTERFACE pres_temp
+      MODULE PROCEDURE pres_temp_vctr, pres_temp_sclr
+   END INTERFACE pres_temp
+
+   INTERFACE theta_exner
+      MODULE PROCEDURE theta_exner_vctr, theta_exner_sclr
+   END INTERFACE theta_exner
+
    INTERFACE visc_air
       MODULE PROCEDURE visc_air_vctr, visc_air_sclr
    END INTERFACE visc_air
@@ -97,6 +110,7 @@ MODULE sbc_phy
    INTERFACE e_sat_ice
       MODULE PROCEDURE e_sat_ice_vctr, e_sat_ice_sclr
    END INTERFACE e_sat_ice
+
    INTERFACE de_sat_dt_ice
       MODULE PROCEDURE de_sat_dt_ice_vctr, de_sat_dt_ice_sclr
    END INTERFACE de_sat_dt_ice
@@ -147,6 +161,8 @@ MODULE sbc_phy
 
 
    PUBLIC virt_temp
+   PUBLIC pres_temp
+   PUBLIC theta_exner
    PUBLIC rho_air
    PUBLIC visc_air
    PUBLIC L_vap
@@ -157,7 +173,7 @@ MODULE sbc_phy
    PUBLIC q_sat
    PUBLIC q_air_rh
    PUBLIC dq_sat_dt_ice
-   !:
+   !
    PUBLIC update_qnsol_tau
    PUBLIC alpha_sw
    PUBLIC bulk_formula
@@ -204,14 +220,140 @@ CONTAINS
       !! with wpa (mixing ration) defined as : pwa = pqa/(1.-pqa)
       !
    END FUNCTION virt_temp_sclr
-   !!
+
    FUNCTION virt_temp_vctr( pta, pqa )
+
       REAL(wp), DIMENSION(jpi,jpj)             :: virt_temp_vctr !: virtual temperature [K]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pta !: absolute or potential air temperature [K]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pqa !: specific humidity of air   [kg/kg]
+
       virt_temp_vctr(:,:) = pta(:,:) * (1._wp + rctv0*pqa(:,:))
+
    END FUNCTION virt_temp_vctr
-   !===============================================================================================
+
+
+   FUNCTION pres_temp_sclr( pqspe, pslp, pz, ptpot, pta, l_ice )
+
+      !!-------------------------------------------------------------------------------
+      !!                           ***  FUNCTION pres_temp  ***
+      !!
+      !! ** Purpose : compute air pressure using barometric equation
+      !!              from either potential or absolute air temperature
+      !! ** Author: G. Samson, Feb 2021
+      !!-------------------------------------------------------------------------------
+
+      REAL(wp)                          :: pres_temp_sclr    ! air pressure              [Pa]
+      REAL(wp), INTENT(in )             :: pqspe             ! air specific humidity     [kg/kg]
+      REAL(wp), INTENT(in )             :: pslp              ! sea-level pressure        [Pa]
+      REAL(wp), INTENT(in )             :: pz                ! height above surface      [m]
+      REAL(wp), INTENT(in )  , OPTIONAL :: ptpot             ! air potential temperature [K]
+      REAL(wp), INTENT(inout), OPTIONAL :: pta               ! air absolute temperature  [K]
+      REAL(wp)                          :: ztpot, zta, zpa, zxm, zmask, zqsat
+      INTEGER                           :: it, niter = 3     ! iteration indice and number
+      LOGICAL , INTENT(in)   , OPTIONAL :: l_ice             ! sea-ice presence
+      LOGICAL                           :: lice              ! sea-ice presence
+
+      IF( PRESENT(ptpot) ) THEN
+        zmask = 1._wp
+        ztpot = ptpot
+        zta   = 0._wp
+      ELSE
+        zmask = 0._wp 
+        ztpot = 0._wp
+        zta   = pta
+      ENDIF
+
+      lice = .FALSE.
+      IF( PRESENT(l_ice) ) lice = l_ice
+
+      zpa = pslp              ! air pressure first guess [Pa]
+      DO it = 1, niter
+         zta   = ztpot * ( zpa / rpref )**rgamma_dry * zmask + (1._wp - zmask) * zta
+         zqsat = q_sat( zta, zpa, l_ice=lice )                                   ! saturation specific humidity [kg/kg]
+         zxm   = (1._wp - pqspe/zqsat) * rmm_dryair + pqspe/zqsat * rmm_water    ! moist air molar mass [kg/mol]
+         zpa   = pslp * EXP( -grav * zxm * pz / ( R_gas * zta ) )
+      END DO
+
+      pres_temp_sclr = zpa
+      IF(( PRESENT(pta) ).AND.( PRESENT(ptpot) )) pta = zta
+
+   END FUNCTION pres_temp_sclr
+
+
+   FUNCTION pres_temp_vctr( pqspe, pslp, pz, ptpot, pta, l_ice )
+
+      !!-------------------------------------------------------------------------------
+      !!                           ***  FUNCTION pres_temp  ***
+      !!
+      !! ** Purpose : compute air pressure using barometric equation
+      !!              from either potential or absolute air temperature
+      !! ** Author: G. Samson, Feb 2021
+      !!-------------------------------------------------------------------------------
+
+      REAL(wp), DIMENSION(jpi,jpj)                          :: pres_temp_vctr    ! air pressure              [Pa]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in )             :: pqspe             ! air specific humidity     [kg/kg]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in )             :: pslp              ! sea-level pressure        [Pa]
+      REAL(wp),                     INTENT(in )             :: pz                ! height above surface      [m]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in )  , OPTIONAL :: ptpot             ! air potential temperature [K]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(inout), OPTIONAL :: pta               ! air absolute temperature  [K]
+      INTEGER                                               :: ji, jj            ! loop indices
+      LOGICAL                     , INTENT(in)   , OPTIONAL :: l_ice             ! sea-ice presence
+      LOGICAL                                               :: lice              ! sea-ice presence
+ 
+      lice = .FALSE.
+      IF( PRESENT(l_ice) ) lice = l_ice
+
+      IF( PRESENT(ptpot) ) THEN
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            pres_temp_vctr(ji,jj) = pres_temp_sclr( pqspe(ji,jj), pslp(ji,jj), pz, ptpot=ptpot(ji,jj), pta=pta(ji,jj), l_ice=lice )
+         END_2D
+      ELSE
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            pres_temp_vctr(ji,jj) = pres_temp_sclr( pqspe(ji,jj), pslp(ji,jj), pz, pta=pta(ji,jj), l_ice=lice )
+         END_2D
+      ENDIF
+
+   END FUNCTION pres_temp_vctr
+
+
+   FUNCTION theta_exner_sclr( pta, ppa )
+
+      !!-------------------------------------------------------------------------------
+      !!                           ***  FUNCTION theta_exner  ***
+      !!
+      !! ** Purpose : compute air/surface potential temperature from absolute temperature
+      !!              and pressure using Exner function
+      !! ** Author: G. Samson, Feb 2021
+      !!-------------------------------------------------------------------------------
+
+      REAL(wp)             :: theta_exner_sclr   ! air/surface potential temperature [K]
+      REAL(wp), INTENT(in) :: pta                ! air/surface absolute temperature  [K]
+      REAL(wp), INTENT(in) :: ppa                ! air/surface pressure              [Pa]
+      
+      theta_exner_sclr = pta * ( rpref / ppa ) ** rgamma_dry
+
+   END FUNCTION theta_exner_sclr
+
+   FUNCTION theta_exner_vctr( pta, ppa )
+
+      !!-------------------------------------------------------------------------------
+      !!                           ***  FUNCTION theta_exner  ***
+      !!
+      !! ** Purpose : compute air/surface potential temperature from absolute temperature
+      !!              and pressure using Exner function
+      !! ** Author: G. Samson, Feb 2021
+      !!-------------------------------------------------------------------------------
+
+      REAL(wp), DIMENSION(jpi,jpj)             :: theta_exner_vctr   ! air/surface potential temperature [K]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pta                ! air/surface absolute temperature  [K]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppa                ! air/surface pressure              [Pa]
+      INTEGER                                  :: ji, jj             ! loop indices
+
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         theta_exner_vctr(ji,jj) = theta_exner_sclr( pta(ji,jj), ppa(ji,jj) )
+      END_2D
+
+   END FUNCTION theta_exner_vctr
 
 
    FUNCTION rho_air_vctr( ptak, pqa, ppa )
@@ -227,7 +369,9 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   ppa      ! pressure in                [Pa]
       REAL(wp), DIMENSION(jpi,jpj)             ::   rho_air_vctr   ! density of moist air   [kg/m^3]
       !!-------------------------------------------------------------------------------
+
       rho_air_vctr = MAX( ppa / (R_dry*ptak * ( 1._wp + rctv0*pqa )) , 0.8_wp )
+
    END FUNCTION rho_air_vctr
 
    FUNCTION rho_air_sclr( ptak, pqa, ppa )
@@ -244,9 +388,8 @@ CONTAINS
       REAL(wp)             :: rho_air_sclr   ! density of moist air   [kg/m^3]
       !!-------------------------------------------------------------------------------
       rho_air_sclr = MAX( ppa / (R_dry*ptak * ( 1._wp + rctv0*pqa )) , 0.8_wp )
+
    END FUNCTION rho_air_sclr
-
-
 
 
    FUNCTION visc_air_sclr(ptak)
@@ -268,12 +411,15 @@ CONTAINS
    END FUNCTION visc_air_sclr
 
    FUNCTION visc_air_vctr(ptak)
+
       REAL(wp), DIMENSION(jpi,jpj)             ::   visc_air_vctr   ! kinetic viscosity (m^2/s)
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   ptak       ! air temperature in (K)
       INTEGER  ::   ji, jj      ! dummy loop indices
+
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      visc_air_vctr(ji,jj) = visc_air_sclr( ptak(ji,jj) )
+         visc_air_vctr(ji,jj) = visc_air_sclr( ptak(ji,jj) )
       END_2D
+
    END FUNCTION visc_air_vctr
 
 
@@ -318,10 +464,12 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, june 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!-------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pqa      ! air specific humidity         [kg/kg]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pqa           ! air specific humidity         [kg/kg]
       REAL(wp), DIMENSION(jpi,jpj)             ::   cp_air_vctr   ! specific heat of moist air   [J/K/kg]
       !!-------------------------------------------------------------------------------
+
       cp_air_vctr = rCp_dry + rCp_vap * pqa
+
    END FUNCTION cp_air_vctr
 
    FUNCTION cp_air_sclr( pqa )
@@ -335,12 +483,12 @@ CONTAINS
       REAL(wp), INTENT(in) :: pqa           ! air specific humidity         [kg/kg]
       REAL(wp)             :: cp_air_sclr   ! specific heat of moist air   [J/K/kg]
       !!-------------------------------------------------------------------------------
+
       cp_air_sclr = rCp_dry + rCp_vap * pqa
+
    END FUNCTION cp_air_sclr
 
 
-
-   !===============================================================================================
    FUNCTION gamma_moist_sclr( ptak, pqa )
       !!----------------------------------------------------------------------------------
       !! ** Purpose : Compute the moist adiabatic lapse-rate.
@@ -365,17 +513,19 @@ CONTAINS
       gamma_moist_sclr = grav * ( 1._wp + zLvap*zwa*ziRT ) / ( rCp_dry + zLvap*zLvap*zwa*reps0*ziRT/zta )
       !!
    END FUNCTION gamma_moist_sclr
-   !!
+
    FUNCTION gamma_moist_vctr( ptak, pqa )
+
       REAL(wp), DIMENSION(jpi,jpj)             ::   gamma_moist_vctr
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   ptak
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pqa
       INTEGER  :: ji, jj
+
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      gamma_moist_vctr(ji,jj) = gamma_moist_sclr( ptak(ji,jj), pqa(ji,jj) )
+         gamma_moist_vctr(ji,jj) = gamma_moist_sclr( ptak(ji,jj), pqa(ji,jj) )
       END_2D
+
    END FUNCTION gamma_moist_vctr
-   !===============================================================================================
 
 
    FUNCTION One_on_L( ptha, pqa, pus, pts, pqs )
@@ -398,17 +548,15 @@ CONTAINS
       !!-------------------------------------------------------------------
       !
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      !
-      zqa = (1._wp + rctv0*pqa(ji,jj))
-      !
-      ! The main concern is to know whether, the vertical turbulent flux of virtual temperature, < u' theta_v' > is estimated with:
-      !  a/  -u* [ theta* (1 + 0.61 q) + 0.61 theta q* ] => this is the one that seems correct! chose this one!
-      !                      or
-      !  b/  -u* [ theta*              + 0.61 theta q* ]
-      !
-      One_on_L(ji,jj) = grav*vkarmn*( pts(ji,jj)*zqa + rctv0*ptha(ji,jj)*pqs(ji,jj) ) &
-         &               / MAX( pus(ji,jj)*pus(ji,jj)*ptha(ji,jj)*zqa , 1.E-9_wp )
-      !
+         zqa = (1._wp + rctv0*pqa(ji,jj))
+         !
+         ! The main concern is to know whether, the vertical turbulent flux of virtual temperature, < u' theta_v' > is estimated with:
+         !  a/  -u* [ theta* (1 + 0.61 q) + 0.61 theta q* ] => this is the one that seems correct! chose this one!
+         !                      or
+         !  b/  -u* [ theta*              + 0.61 theta q* ]
+         !
+         One_on_L(ji,jj) = grav*vkarmn*( pts(ji,jj)*zqa + rctv0*ptha(ji,jj)*pqs(ji,jj) ) &
+            &               / MAX( pus(ji,jj)*pus(ji,jj)*ptha(ji,jj)*zqa , 1.E-9_wp )
       END_2D
       !
       One_on_L = SIGN( MIN(ABS(One_on_L),200._wp), One_on_L ) ! (prevent FPE from stupid values over masked regions...)
@@ -416,7 +564,6 @@ CONTAINS
    END FUNCTION One_on_L
 
 
-   !===============================================================================================
    FUNCTION Ri_bulk_sclr( pz, psst, ptha, pssq, pqa, pub,  pta_layer, pqa_layer )
       !!----------------------------------------------------------------------------------
       !! Bulk Richardson number according to "wide-spread equation"...
@@ -427,7 +574,7 @@ CONTAINS
       !!----------------------------------------------------------------------------------
       REAL(wp)             :: Ri_bulk_sclr
       REAL(wp), INTENT(in) :: pz    ! height above the sea (aka "delta z")  [m]
-      REAL(wp), INTENT(in) :: psst  ! SST                                   [K]
+      REAL(wp), INTENT(in) :: psst  ! potential SST                         [K]
       REAL(wp), INTENT(in) :: ptha  ! pot. air temp. at height "pz"         [K]
       REAL(wp), INTENT(in) :: pssq  ! 0.98*q_sat(SST)                   [kg/kg]
       REAL(wp), INTENT(in) :: pqa   ! air spec. hum. at height "pz"     [kg/kg]
@@ -437,29 +584,20 @@ CONTAINS
       !!
       LOGICAL  :: l_ptqa_l_prvd = .FALSE.
       REAL(wp) :: zqa, zta, zgamma, zdthv, ztv, zsstv  ! local scalars
+      REAL(wp) :: ztptv
       !!-------------------------------------------------------------------
-      IF( PRESENT(pta_layer) .AND. PRESENT(pqa_layer) ) l_ptqa_l_prvd=.TRUE.
+      IF( PRESENT(pta_layer) .AND. PRESENT(pqa_layer) ) l_ptqa_l_prvd = .TRUE.
       !
-      zsstv = virt_temp_sclr( psst, pssq )          ! virtual SST (absolute==potential because z=0!)
+      zsstv = virt_temp_sclr( psst, pssq )   ! virtual potential SST
+      ztptv = virt_temp_sclr( ptha, pqa  )   ! virtual potential air temperature
+      zdthv = ztptv - zsstv                  ! air-sea delta of "virtual potential temperature"
       !
-      zdthv = virt_temp_sclr( ptha, pqa  ) - zsstv  ! air-sea delta of "virtual potential temperature"
-      !
-      !! ztv: estimate of the ABSOLUTE virtual temp. within the layer
-      IF( l_ptqa_l_prvd ) THEN
-         ztv = virt_temp_sclr( pta_layer, pqa_layer )
-      ELSE
-         zqa = 0.5_wp*( pqa  + pssq )                             ! ~ mean q within the layer...
-         zta = 0.5_wp*( psst + ptha - gamma_moist(ptha, zqa)*pz ) ! ~ mean absolute temperature of air within the layer
-         zta = 0.5_wp*( psst + ptha - gamma_moist( zta, zqa)*pz ) ! ~ mean absolute temperature of air within the layer
-         zgamma =  gamma_moist(zta, zqa)                          ! Adiabatic lapse-rate for moist air within the layer
-         ztv = 0.5_wp*( zsstv + virt_temp_sclr( ptha-zgamma*pz, pqa ) )
-      END IF
-      !
-      Ri_bulk_sclr = grav*zdthv*pz / ( ztv*pub*pub )      ! the usual definition of Ri_bulk_sclr
+      Ri_bulk_sclr = grav * zdthv * pz / ( ztptv * pub * pub )      ! the usual definition of Ri_bulk_sclr
       !
    END FUNCTION Ri_bulk_sclr
-   !!
+
    FUNCTION Ri_bulk_vctr( pz, psst, ptha, pssq, pqa, pub,  pta_layer, pqa_layer )
+
       REAL(wp), DIMENSION(jpi,jpj)             :: Ri_bulk_vctr
       REAL(wp)                    , INTENT(in) :: pz    ! height above the sea (aka "delta z")  [m]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: psst  ! SST                                   [K]
@@ -472,19 +610,22 @@ CONTAINS
       !!
       LOGICAL  :: l_ptqa_l_prvd = .FALSE.
       INTEGER  ::   ji, jj
-      IF( PRESENT(pta_layer) .AND. PRESENT(pqa_layer) ) l_ptqa_l_prvd=.TRUE.
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      IF( l_ptqa_l_prvd ) THEN
-         Ri_bulk_vctr(ji,jj) = Ri_bulk_sclr( pz, psst(ji,jj), ptha(ji,jj), pssq(ji,jj), pqa(ji,jj), pub(ji,jj), &
-            &                                pta_layer=pta_layer(ji,jj ),  pqa_layer=pqa_layer(ji,jj ) )
-      ELSE
-         Ri_bulk_vctr(ji,jj) = Ri_bulk_sclr( pz, psst(ji,jj), ptha(ji,jj), pssq(ji,jj), pqa(ji,jj), pub(ji,jj) )
-      END IF
-      END_2D
-   END FUNCTION Ri_bulk_vctr
-   !===============================================================================================
 
-   !===============================================================================================
+      IF( PRESENT(pta_layer) .AND. PRESENT(pqa_layer) ) l_ptqa_l_prvd = .TRUE.
+      IF( l_ptqa_l_prvd ) THEN
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            Ri_bulk_vctr(ji,jj) = Ri_bulk_sclr( pz, psst(ji,jj), ptha(ji,jj), pssq(ji,jj), pqa(ji,jj), pub(ji,jj), &
+               &                                pta_layer=pta_layer(ji,jj ),  pqa_layer=pqa_layer(ji,jj ) )
+         END_2D
+      ELSE
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            Ri_bulk_vctr(ji,jj) = Ri_bulk_sclr( pz, psst(ji,jj), ptha(ji,jj), pssq(ji,jj), pqa(ji,jj), pub(ji,jj) )
+         END_2D
+      END IF
+
+   END FUNCTION Ri_bulk_vctr
+
+
    FUNCTION e_sat_sclr( ptak )
       !!----------------------------------------------------------------------------------
       !!                   ***  FUNCTION e_sat_sclr  ***
@@ -509,7 +650,7 @@ CONTAINS
          &    + 0.42873*10.**(-3)*(10.**(4.76955*(1. - ztmp)) - 1.) + 0.78614) )
       !
    END FUNCTION e_sat_sclr
-   !!
+
    FUNCTION e_sat_vctr(ptak)
       REAL(wp), DIMENSION(jpi,jpj)             :: e_sat_vctr !: vapour pressure at saturation  [Pa]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ptak    !: temperature (K)
@@ -518,9 +659,8 @@ CONTAINS
       e_sat_vctr(ji,jj) = e_sat_sclr(ptak(ji,jj))
       END_2D
    END FUNCTION e_sat_vctr
-   !===============================================================================================
 
-   !===============================================================================================
+
    FUNCTION e_sat_ice_sclr(ptak)
       !!---------------------------------------------------------------------------------
       !! Same as "e_sat" but over ice rather than water!
@@ -536,8 +676,9 @@ CONTAINS
       zle  = rAg_i*(ztmp - 1._wp) + rBg_i*LOG10(ztmp) + rCg_i*(1._wp - zta/rtt0) + rDg_i
       !!
       e_sat_ice_sclr = 100._wp * 10._wp**zle
+   
    END FUNCTION e_sat_ice_sclr
-   !!
+
    FUNCTION e_sat_ice_vctr(ptak)
       !! Same as "e_sat" but over ice rather than water!
       REAL(wp), DIMENSION(jpi,jpj) :: e_sat_ice_vctr !: vapour pressure at saturation in presence of ice [Pa]
@@ -545,10 +686,12 @@ CONTAINS
       INTEGER  :: ji, jj
       !!----------------------------------------------------------------------------------
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      e_sat_ice_vctr(ji,jj) = e_sat_ice_sclr( ptak(ji,jj) )
+         e_sat_ice_vctr(ji,jj) = e_sat_ice_sclr( ptak(ji,jj) )
       END_2D
+
    END FUNCTION e_sat_ice_vctr
-   !!
+
+
    FUNCTION de_sat_dt_ice_sclr(ptak)
       !!---------------------------------------------------------------------------------
       !! d [ e_sat_ice ] / dT   (derivative / temperature)
@@ -566,7 +709,7 @@ CONTAINS
       !!
       de_sat_dt_ice_sclr = LOG(10._wp) * zde * e_sat_ice_sclr(zta)
    END FUNCTION de_sat_dt_ice_sclr
-   !!
+
    FUNCTION de_sat_dt_ice_vctr(ptak)
       !! Same as "e_sat" but over ice rather than water!
       REAL(wp), DIMENSION(jpi,jpj) :: de_sat_dt_ice_vctr !: vapour pressure at saturation in presence of ice [Pa]
@@ -574,15 +717,12 @@ CONTAINS
       INTEGER  :: ji, jj
       !!----------------------------------------------------------------------------------
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      de_sat_dt_ice_vctr(ji,jj) = de_sat_dt_ice_sclr( ptak(ji,jj) )
+         de_sat_dt_ice_vctr(ji,jj) = de_sat_dt_ice_sclr( ptak(ji,jj) )
       END_2D
+
    END FUNCTION de_sat_dt_ice_vctr
 
 
-
-   !===============================================================================================
-
-   !===============================================================================================
    FUNCTION q_sat_sclr( pta, ppa,  l_ice )
       !!---------------------------------------------------------------------------------
       !!                           ***  FUNCTION q_sat_sclr  ***
@@ -606,9 +746,11 @@ CONTAINS
          ze_s = e_sat( pta ) ! Vapour pressure at saturation (Goff) :
       END IF
       q_sat_sclr = reps0*ze_s/(ppa - (1._wp - reps0)*ze_s)
+
    END FUNCTION q_sat_sclr
-   !!
+
    FUNCTION q_sat_vctr( pta, ppa,  l_ice )
+
       REAL(wp), DIMENSION(jpi,jpj) :: q_sat_vctr
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pta  !: absolute temperature of air [K]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppa  !: atmospheric pressure        [Pa]
@@ -619,13 +761,12 @@ CONTAINS
       lice = .FALSE.
       IF( PRESENT(l_ice) ) lice = l_ice
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      q_sat_vctr(ji,jj) = q_sat_sclr( pta(ji,jj) , ppa(ji,jj), l_ice=lice )
+         q_sat_vctr(ji,jj) = q_sat_sclr( pta(ji,jj) , ppa(ji,jj), l_ice=lice )
       END_2D
+
    END FUNCTION q_sat_vctr
-   !===============================================================================================
 
 
-   !===============================================================================================
    FUNCTION dq_sat_dt_ice_sclr( pta, ppa )
       !!---------------------------------------------------------------------------------
       !!     ***  FUNCTION dq_sat_dt_ice_sclr  ***
@@ -646,21 +787,21 @@ CONTAINS
       dq_sat_dt_ice_sclr = reps0*ppa*zde_s_dt / ( ztmp*ztmp )
       !
    END FUNCTION dq_sat_dt_ice_sclr
-   !!
+
    FUNCTION dq_sat_dt_ice_vctr( pta, ppa )
+
       REAL(wp), DIMENSION(jpi,jpj) :: dq_sat_dt_ice_vctr
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pta  !: absolute temperature of air [K]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppa  !: atmospheric pressure        [Pa]
       INTEGER  :: ji, jj
       !!----------------------------------------------------------------------------------
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      dq_sat_dt_ice_vctr(ji,jj) = dq_sat_dt_ice_sclr( pta(ji,jj) , ppa(ji,jj) )
+         dq_sat_dt_ice_vctr(ji,jj) = dq_sat_dt_ice_sclr( pta(ji,jj) , ppa(ji,jj) )
       END_2D
+
    END FUNCTION dq_sat_dt_ice_vctr
-   !===============================================================================================
 
 
-   !===============================================================================================
    FUNCTION q_air_rh(prha, ptak, ppa)
       !!----------------------------------------------------------------------------------
       !! Specific humidity of air out of Relative Humidity
@@ -677,14 +818,14 @@ CONTAINS
       !!----------------------------------------------------------------------------------
       !
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      ze = prha(ji,jj)*e_sat_sclr(ptak(ji,jj))
-      q_air_rh(ji,jj) = ze*reps0/(ppa(ji,jj) - (1. - reps0)*ze)
+         ze = prha(ji,jj)*e_sat_sclr(ptak(ji,jj))
+         q_air_rh(ji,jj) = ze*reps0/(ppa(ji,jj) - (1. - reps0)*ze)
       END_2D
       !
    END FUNCTION q_air_rh
 
 
-   SUBROUTINE UPDATE_QNSOL_TAU( pzu, pTs, pqs, pTa, pqa, pust, ptst, pqst, pwnd, pUb, ppa, prlw, &
+   SUBROUTINE UPDATE_QNSOL_TAU( pzu, pTs, pqs, pTa, pqa, pust, ptst, pqst, pwnd, pUb, ppa, prlw, prhoa, &
       &                         pQns, pTau,  &
       &                         Qlat)
       !!----------------------------------------------------------------------------------
@@ -704,6 +845,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pUb  ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: ppa ! sea-level atmospheric pressure [Pa]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: prlw ! downwelling longwave radiative flux [W/m^2]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: prhoa ! air density [kg/m3]
       !
       REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pQns ! non-solar heat flux to the ocean aka "Qlat + Qsen + Qlw" [W/m^2]]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pTau ! module of the wind stress [N/m^2]
@@ -714,50 +856,53 @@ CONTAINS
       INTEGER  ::   ji, jj     ! dummy loop indices
       !!----------------------------------------------------------------------------------
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      zdt = pTa(ji,jj) - pTs(ji,jj) ;  zdt = SIGN( MAX(ABS(zdt),1.E-6_wp), zdt )
-      zdq = pqa(ji,jj) - pqs(ji,jj) ;  zdq = SIGN( MAX(ABS(zdq),1.E-9_wp), zdq )
-      zz0 = pust(ji,jj)/pUb(ji,jj)
-      zCd = zz0*zz0
-      zCh = zz0*ptst(ji,jj)/zdt
-      zCe = zz0*pqst(ji,jj)/zdq
 
-      CALL BULK_FORMULA( pzu, pTs(ji,jj), pqs(ji,jj), pTa(ji,jj), pqa(ji,jj), zCd, zCh, zCe, &
-         &              pwnd(ji,jj), pUb(ji,jj), ppa(ji,jj), &
-         &              pTau(ji,jj), zQsen, zQlat )
+         zdt = pTa(ji,jj) - pTs(ji,jj) ;  zdt = SIGN( MAX(ABS(zdt),1.E-6_wp), zdt )
+         zdq = pqa(ji,jj) - pqs(ji,jj) ;  zdq = SIGN( MAX(ABS(zdq),1.E-9_wp), zdq )
+         zz0 = pust(ji,jj)/pUb(ji,jj)
+         zCd = zz0*zz0
+         zCh = zz0*ptst(ji,jj)/zdt
+         zCe = zz0*pqst(ji,jj)/zdq
 
-      zQlw = qlw_net_sclr( prlw(ji,jj), pTs(ji,jj) ) ! Net longwave flux
+         CALL BULK_FORMULA( pzu, pTs(ji,jj), pqs(ji,jj), pTa(ji,jj), pqa(ji,jj), zCd, zCh, zCe, &
+            &              pwnd(ji,jj), pUb(ji,jj), ppa(ji,jj), prhoa(ji,jj), &
+            &              pTau(ji,jj), zQsen, zQlat )
 
-      pQns(ji,jj) = zQlat + zQsen + zQlw
+         zQlw = qlw_net_sclr( prlw(ji,jj), pTs(ji,jj) ) ! Net longwave flux
 
-      IF( PRESENT(Qlat) ) Qlat(ji,jj) = zQlat
+         pQns(ji,jj) = zQlat + zQsen + zQlw
+
+         IF( PRESENT(Qlat) ) Qlat(ji,jj) = zQlat
+
       END_2D
+
    END SUBROUTINE UPDATE_QNSOL_TAU
 
 
    SUBROUTINE BULK_FORMULA_SCLR( pzu, pTs, pqs, pTa, pqa, &
       &                          pCd, pCh, pCe,           &
-      &                          pwnd, pUb, ppa,         &
+      &                          pwnd, pUb, ppa, prhoa,   &
       &                          pTau, pQsen, pQlat,      &
-      &                          pEvap, prhoa, pfact_evap )
+      &                          pEvap, pfact_evap        )
       !!----------------------------------------------------------------------------------
-      REAL(wp),                     INTENT(in)  :: pzu  ! height above the sea-level where all this takes place (normally 10m)
-      REAL(wp), INTENT(in)  :: pTs  ! water temperature at the air-sea interface [K]
-      REAL(wp), INTENT(in)  :: pqs  ! satur. spec. hum. at T=pTs   [kg/kg]
-      REAL(wp), INTENT(in)  :: pTa  ! potential air temperature at z=pzu [K]
-      REAL(wp), INTENT(in)  :: pqa  ! specific humidity at z=pzu [kg/kg]
+      REAL(wp), INTENT(in)  :: pzu   ! height above the sea-level where all this takes place (normally 10m)
+      REAL(wp), INTENT(in)  :: pTs   ! water temperature at the air-sea interface [K]
+      REAL(wp), INTENT(in)  :: pqs   ! satur. spec. hum. at T=pTs   [kg/kg]
+      REAL(wp), INTENT(in)  :: pTa   ! potential air temperature at z=pzu [K]
+      REAL(wp), INTENT(in)  :: pqa   ! specific humidity at z=pzu [kg/kg]
       REAL(wp), INTENT(in)  :: pCd
       REAL(wp), INTENT(in)  :: pCh
       REAL(wp), INTENT(in)  :: pCe
-      REAL(wp), INTENT(in)  :: pwnd ! wind speed module at z=pzu [m/s]
-      REAL(wp), INTENT(in)  :: pUb  ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
-      REAL(wp), INTENT(in)  :: ppa ! sea-level atmospheric pressure [Pa]
+      REAL(wp), INTENT(in)  :: pwnd  ! wind speed module at z=pzu [m/s]
+      REAL(wp), INTENT(in)  :: pUb   ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
+      REAL(wp), INTENT(in)  :: ppa   ! sea-level atmospheric pressure [Pa]
+      REAL(wp), INTENT(in)  :: prhoa ! Air density at z=pzu [kg/m^3]
       !!
       REAL(wp), INTENT(out) :: pTau  ! module of the wind stress [N/m^2]
       REAL(wp), INTENT(out) :: pQsen !  [W/m^2]
       REAL(wp), INTENT(out) :: pQlat !  [W/m^2]
       !!
       REAL(wp), INTENT(out), OPTIONAL :: pEvap ! Evaporation [kg/m^2/s]
-      REAL(wp), INTENT(out), OPTIONAL :: prhoa ! Air density at z=pzu [kg/m^3]
       REAL(wp), INTENT(in) , OPTIONAL :: pfact_evap  ! ABOMINATION: corrective factor for evaporation (doing this against my will! /laurent)
       !!
       REAL(wp) :: ztaa, zgamma, zrho, zUrho, zevap, zfact_evap
@@ -766,16 +911,7 @@ CONTAINS
       zfact_evap = 1._wp
       IF( PRESENT(pfact_evap) ) zfact_evap = pfact_evap
 
-      !! Need ztaa, absolute temperature at pzu (formula to estimate rho_air needs absolute temperature, not the potential temperature "pTa")
-      ztaa = pTa ! first guess...
-      DO jq = 1, 4
-         zgamma = gamma_moist( 0.5*(ztaa+pTs) , pqa )  !#LB: why not "0.5*(pqs+pqa)" rather then "pqa" ???
-         ztaa = pTa - zgamma*pzu   ! Absolute temp. is slightly colder...
-      END DO
-      zrho = rho_air(ztaa, pqa, ppa)
-      zrho = rho_air(ztaa, pqa, ppa-zrho*grav*pzu) ! taking into account that we are pzu m above the sea level where SLP is given!
-
-      zUrho = pUb*MAX(zrho, 1._wp)     ! rho*U10
+      zUrho = pUb*MAX(prhoa, 1._wp)     ! rho*U10
 
       pTau = zUrho * pCd * pwnd ! Wind stress module
 
@@ -784,34 +920,33 @@ CONTAINS
       pQlat = L_vap(pTs) * zevap
 
       IF( PRESENT(pEvap) ) pEvap = - zfact_evap * zevap
-      IF( PRESENT(prhoa) ) prhoa = zrho
 
    END SUBROUTINE BULK_FORMULA_SCLR
-   !!
+
    SUBROUTINE BULK_FORMULA_VCTR( pzu, pTs, pqs, pTa, pqa, &
       &                          pCd, pCh, pCe,           &
-      &                          pwnd, pUb, ppa,         &
+      &                          pwnd, pUb, ppa, prhoa,   &
       &                          pTau, pQsen, pQlat,      &
-      &                          pEvap, prhoa, pfact_evap )
+      &                          pEvap, pfact_evap )
       !!----------------------------------------------------------------------------------
-      REAL(wp),                     INTENT(in)  :: pzu  ! height above the sea-level where all this takes place (normally 10m)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTs  ! water temperature at the air-sea interface [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqs  ! satur. spec. hum. at T=pTs   [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTa  ! potential air temperature at z=pzu [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqa  ! specific humidity at z=pzu [kg/kg]
+      REAL(wp),                     INTENT(in)  :: pzu   ! height above the sea-level where all this takes place (normally 10m)
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTs   ! water temperature at the air-sea interface [K]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqs   ! satur. spec. hum. at T=pTs   [kg/kg]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTa   ! potential air temperature at z=pzu [K]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqa   ! specific humidity at z=pzu [kg/kg]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pCd
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pCh
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pCe
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pwnd ! wind speed module at z=pzu [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pUb  ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: ppa ! sea-level atmospheric pressure [Pa]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pwnd  ! wind speed module at z=pzu [m/s]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pUb   ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: ppa   ! sea-level atmospheric pressure [Pa]
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: prhoa ! Air density at z=pzu [kg/m^3] 
       !!
       REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pTau  ! module of the wind stress [N/m^2]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pQsen !  [W/m^2]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pQlat !  [W/m^2]
       !!
       REAL(wp), DIMENSION(jpi,jpj), INTENT(out), OPTIONAL :: pEvap ! Evaporation [kg/m^2/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(out), OPTIONAL :: prhoa ! Air density at z=pzu [kg/m^3]
       REAL(wp),                     INTENT(in) , OPTIONAL :: pfact_evap  ! ABOMINATION: corrective factor for evaporation (doing this against my will! /laurent)
       !!
       REAL(wp) :: ztaa, zgamma, zrho, zUrho, zevap, zfact_evap
@@ -822,15 +957,15 @@ CONTAINS
 
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
 
-      CALL BULK_FORMULA_SCLR( pzu, pTs(ji,jj), pqs(ji,jj), pTa(ji,jj), pqa(ji,jj), &
-         &                    pCd(ji,jj), pCh(ji,jj), pCe(ji,jj),                  &
-         &                    pwnd(ji,jj), pUb(ji,jj), ppa(ji,jj),                &
-         &                    pTau(ji,jj), pQsen(ji,jj), pQlat(ji,jj),             &
-         &                    pEvap=zevap, prhoa=zrho, pfact_evap=zfact_evap       )
+         CALL BULK_FORMULA_SCLR( pzu, pTs(ji,jj), pqs(ji,jj), pTa(ji,jj), pqa(ji,jj), &
+            &                    pCd(ji,jj), pCh(ji,jj), pCe(ji,jj),                  &
+            &                    pwnd(ji,jj), pUb(ji,jj), ppa(ji,jj), prhoa(ji,jj),   &
+            &                    pTau(ji,jj), pQsen(ji,jj), pQlat(ji,jj),             &
+            &                    pEvap=zevap, pfact_evap=zfact_evap                   )
 
-      IF( PRESENT(pEvap) ) pEvap(ji,jj) = zevap
-      IF( PRESENT(prhoa) ) prhoa(ji,jj) = zrho
+         IF( PRESENT(pEvap) ) pEvap(ji,jj) = zevap
       END_2D
+
    END SUBROUTINE BULK_FORMULA_VCTR
 
 
@@ -846,6 +981,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   psst   ! water temperature                [K]
       !!----------------------------------------------------------------------------------
       alpha_sw_vctr = 2.1e-5_wp * MAX(psst(:,:)-rt0 + 3.2_wp, 0._wp)**0.79
+
    END FUNCTION alpha_sw_vctr
 
    FUNCTION alpha_sw_sclr( psst )
@@ -860,10 +996,10 @@ CONTAINS
       REAL(wp), INTENT(in) ::   psst   ! sea-water temperature                   [K]
       !!----------------------------------------------------------------------------------
       alpha_sw_sclr = 2.1e-5_wp * MAX(psst-rt0 + 3.2_wp, 0._wp)**0.79
+
    END FUNCTION alpha_sw_sclr
 
 
-   !===============================================================================================
    FUNCTION qlw_net_sclr( pdwlw, pts,  l_ice )
       !!---------------------------------------------------------------------------------
       !!                           ***  FUNCTION qlw_net_sclr  ***
@@ -886,9 +1022,11 @@ CONTAINS
       END IF
       zt2 = pts*pts
       qlw_net_sclr = zemiss*( pdwlw - stefan*zt2*zt2)  ! zemiss used both as the IR albedo and IR emissivity...
+
    END FUNCTION qlw_net_sclr
-   !!
+
    FUNCTION qlw_net_vctr( pdwlw, pts,  l_ice )
+
       REAL(wp), DIMENSION(jpi,jpj) :: qlw_net_vctr
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pdwlw !: downwelling longwave (aka infrared, aka thermal) radiation [W/m^2]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pts   !: surface temperature [K]
@@ -899,12 +1037,14 @@ CONTAINS
       lice = .FALSE.
       IF( PRESENT(l_ice) ) lice = l_ice
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      qlw_net_vctr(ji,jj) = qlw_net_sclr( pdwlw(ji,jj) , pts(ji,jj), l_ice=lice )
+         qlw_net_vctr(ji,jj) = qlw_net_sclr( pdwlw(ji,jj) , pts(ji,jj), l_ice=lice )
       END_2D
+
    END FUNCTION qlw_net_vctr
-   !===============================================================================================
+
 
    FUNCTION z0_from_Cd( pzu, pCd,  ppsi )
+
       REAL(wp), DIMENSION(jpi,jpj) :: z0_from_Cd        !: roughness length [m]
       REAL(wp)                    , INTENT(in) :: pzu   !: reference height zu [m]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pCd   !: (neutral or non-neutral) drag coefficient []
@@ -920,9 +1060,12 @@ CONTAINS
          !! Cd provided is the neutral-stability Cd, aka CdN :
          z0_from_Cd = pzu * EXP( - vkarmn/SQRT(pCd(:,:)) )            !LB: ok, double-checked!
       END IF
+
    END FUNCTION z0_from_Cd
 
+
    FUNCTION Cd_from_z0( pzu, pz0,  ppsi )
+
       REAL(wp), DIMENSION(jpi,jpj) :: Cd_from_z0        !: (neutral or non-neutral) drag coefficient []
       REAL(wp)                    , INTENT(in) :: pzu   !: reference height zu [m]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pz0   !: roughness length [m]
@@ -939,6 +1082,7 @@ CONTAINS
          Cd_from_z0 = 1._wp /   LOG( pzu / pz0(:,:) )
       END IF
       Cd_from_z0 = vkarmn2 * Cd_from_z0 * Cd_from_z0
+
    END FUNCTION Cd_from_z0
 
 
@@ -964,17 +1108,20 @@ CONTAINS
          &               +      zstab  * 1._wp / ( 1._wp + ram_louis * zts )     ! Stable   Eq.(A7)
       !
    END FUNCTION f_m_louis_sclr
-   !!
+
    FUNCTION f_m_louis_vctr( pzu, pRib, pCdn, pz0 )
+
       REAL(wp), DIMENSION(jpi,jpj)             :: f_m_louis_vctr
       REAL(wp),                     INTENT(in) :: pzu
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pRib
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pCdn
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pz0
       INTEGER  :: ji, jj
+
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      f_m_louis_vctr(ji,jj) = f_m_louis_sclr( pzu, pRib(ji,jj), pCdn(ji,jj), pz0(ji,jj) )
+         f_m_louis_vctr(ji,jj) = f_m_louis_sclr( pzu, pRib(ji,jj), pCdn(ji,jj), pz0(ji,jj) )
       END_2D
+
    END FUNCTION f_m_louis_vctr
 
 
@@ -1000,18 +1147,22 @@ CONTAINS
          &              +       zstab  * 1._wp / ( 1._wp + rah_louis * zts )     ! Stable   Eq.(A7)  !#LB: in paper it's "ram_louis" and not "rah_louis" typo or what????
       !
    END FUNCTION f_h_louis_sclr
-   !!
+
    FUNCTION f_h_louis_vctr( pzu, pRib, pChn, pz0 )
+
       REAL(wp), DIMENSION(jpi,jpj)             :: f_h_louis_vctr
       REAL(wp),                     INTENT(in) :: pzu
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pRib
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pChn
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pz0
       INTEGER  :: ji, jj
+
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-      f_h_louis_vctr(ji,jj) = f_h_louis_sclr( pzu, pRib(ji,jj), pChn(ji,jj), pz0(ji,jj) )
+         f_h_louis_vctr(ji,jj) = f_h_louis_sclr( pzu, pRib(ji,jj), pChn(ji,jj), pz0(ji,jj) )
       END_2D
+
    END FUNCTION f_h_louis_vctr
+
 
    FUNCTION UN10_from_ustar( pzu, pUzu, pus, ppsi )
       !!----------------------------------------------------------------------------------
@@ -1122,5 +1273,5 @@ CONTAINS
    END FUNCTION z0tq_LKB
 
 
-   !!======================================================================
+
 END MODULE sbc_phy

@@ -788,12 +788,17 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER             ::   ji, jj, jl  ! dummy loop indices
       REAL(wp)            ::   z1_3        ! local scalars
-      REAL(wp), DIMENSION(jpi,jpj) ::   zworka           ! temporary array used here
+      REAL(wp), DIMENSION(jpi,jpj) ::   zmsk, zworka           ! temporary array used here
       !!clem
       LOGICAL                   ::   ln_str_R75
       REAL(wp)                  ::   zhi, zcp, rn_pe_rdg
       REAL(wp), DIMENSION(jpij) ::   zstrength, zaksum   ! strength in 1D      
       !!----------------------------------------------------------------------
+      ! prepare the mask
+      at_i(:,:) = SUM( a_i, dim=3 )
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         zmsk(ji,jj) = MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - epsi10  ) ) ! 1 if ice    , 0 if no ice
+      END_2D
       !
       SELECT CASE( nice_str )          !--- Set which ice strength is chosen
 
@@ -805,7 +810,6 @@ CONTAINS
          strength(:,:) = 0._wp
          !
          ! Identify grid cells with ice
-         at_i(:,:) = SUM( a_i, dim=3 )
          npti = 0   ;   nptidx(:) = 0
          DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
             IF ( at_i(ji,jj) > epsi10 ) THEN
@@ -859,10 +863,10 @@ CONTAINS
          ENDIF
          !
       CASE ( np_strh79 )           !== Hibler(1979)'s method ==!
-         strength(:,:) = rn_pstar * SUM( v_i(:,:,:), dim=3 ) * EXP( -rn_crhg * ( 1._wp - SUM( a_i(:,:,:), dim=3 ) ) )
+         strength(:,:) = rn_pstar * SUM( v_i(:,:,:), dim=3 ) * EXP( -rn_crhg * ( 1._wp - at_i(:,:) ) ) * zmsk(:,:)
          !
       CASE ( np_strcst )           !== Constant strength ==!
-         strength(:,:) = rn_str
+         strength(:,:) = rn_str * zmsk(:,:)
          !
       END SELECT
       !
@@ -879,7 +883,7 @@ CONTAINS
          END_2D
 
          DO_2D( 0, 0, 0, 0 )
-            strength(ji,jj) = zworka(ji,jj)
+            strength(ji,jj) = zworka(ji,jj) * zmsk(ji,jj)
          END_2D
          CALL lbc_lnk( 'icedyn_rdgrft', strength, 'T', 1.0_wp )
          !

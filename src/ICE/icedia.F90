@@ -33,7 +33,7 @@ MODULE icedia
    PUBLIC   ice_dia        ! called by icestp.F90
    PUBLIC   ice_dia_init   ! called in icestp.F90
 
-   REAL(wp), SAVE ::   z1_e1e2  ! inverse of the ocean area
+   REAL(wp), SAVE ::   r1_area  ! inverse of the ocean area
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   vol_loc_ini, sal_loc_ini, tem_loc_ini                    ! initial volume, salt and heat contents
    REAL(wp)                              ::   frc_sal, frc_voltop, frc_volbot, frc_temtop, frc_tembot  ! global forcing trends
 
@@ -76,7 +76,7 @@ CONTAINS
       ENDIF
 
       IF( kt == nit000 ) THEN
-         z1_e1e2 = 1._wp / glob_sum( 'icedia', e1e2t(:,:) )
+         r1_area = 1._wp / glob_sum( 'icedia', e1e2t(:,:) )
       ENDIF
 
       ztmp(:,:,:) = 0._wp ! should be better coded
@@ -152,8 +152,8 @@ CONTAINS
       CALL iom_put( 'ibgfrcsal'    , frc_sal    )   ! sal  forcing                      (psu*km3 equivalent ocean water)
       CALL iom_put( 'ibgfrctemtop' , frc_temtop )   ! heat on top of ice/snw/ocean      (1.e20 J)
       CALL iom_put( 'ibgfrctembot' , frc_tembot )   ! heat on top of ocean(below ice)   (1.e20 J)
-      CALL iom_put( 'ibgfrchfxtop' , frc_temtop * z1_e1e2 * 1.e-20 * kt*rn_Dt ) ! heat on top of ice/snw/ocean      (W/m2)
-      CALL iom_put( 'ibgfrchfxbot' , frc_tembot * z1_e1e2 * 1.e-20 * kt*rn_Dt ) ! heat on top of ocean(below ice)   (W/m2)
+      CALL iom_put( 'ibgfrchfxtop' , frc_temtop * r1_area * 1.e-20 * kt*rn_Dt ) ! heat on top of ice/snw/ocean      (W/m2)
+      CALL iom_put( 'ibgfrchfxbot' , frc_tembot * r1_area * 1.e-20 * kt*rn_Dt ) ! heat on top of ocean(below ice)   (W/m2)
 
       CALL iom_put( 'ibgvol_tot'  , zbg(6)  )
       CALL iom_put( 'sbgvol_tot'  , zbg(7)  )

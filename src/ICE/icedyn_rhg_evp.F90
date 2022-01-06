@@ -158,7 +158,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj) ::   ztaux_bi, ztauy_bi              ! ice-OceanBottom stress at U-V points (landfast)
       REAL(wp), DIMENSION(jpi,jpj) ::   ztaux_base, ztauy_base          ! ice-bottom stress at U-V points (landfast)
       !
-      REAL(wp), DIMENSION(jpi,jpj) ::   zmsk00, zmsk15
+      REAL(wp), DIMENSION(jpi,jpj) ::   zmsk, zmsk00, zmsk15
       REAL(wp), DIMENSION(jpi,jpj) ::   zmsk01x, zmsk01y                ! dummy arrays
       REAL(wp), DIMENSION(jpi,jpj) ::   zmsk00x, zmsk00y                ! mask for ice presence
 
@@ -189,6 +189,7 @@ CONTAINS
       ! for diagnostics and convergence tests
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
          zmsk00(ji,jj) = MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - epsi06  ) ) ! 1 if ice    , 0 if no ice
+         zmsk  (ji,jj) = MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - epsi10  ) ) ! 1 if ice    , 0 if no ice
       END_2D
       IF( nn_rhg_chkcvg > 0 ) THEN
          DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
@@ -383,10 +384,10 @@ CONTAINS
             zdt2 = zdt * zdt
 
             ! delta at T points
-            zdelta(ji,jj) = SQRT( zdiv2 + ( zdt2 + zds2 ) * z1_ecc2 )
+            zdelta(ji,jj) = SQRT( zdiv2 + ( zdt2 + zds2 ) * z1_ecc2 ) * zmsk(ji,jj)        ! zmsk is for reducing cpu
 
             ! P/delta at T points
-            zp_delt(ji,jj) = strength(ji,jj) / ( zdelta(ji,jj) + rn_creepl )
+            zp_delt(ji,jj) = strength(ji,jj) / ( zdelta(ji,jj) + rn_creepl ) * zmsk(ji,jj) ! zmsk is for reducing cpu
 
          END_2D
          CALL lbc_lnk( 'icedyn_rhg_evp', zdelta, 'T', 1.0_wp, zp_delt, 'T', 1.0_wp )
@@ -421,8 +422,10 @@ CONTAINS
             ENDIF
 
             ! stress at T points (zkt/=0 if landfast)
-            zs1(ji,jj) = ( zs1(ji,jj)*zalph1 + zp_delt(ji,jj) * ( zdiv*(1._wp + zkt) - zdelta(ji,jj)*(1._wp - zkt) ) ) * z1_alph1
-            zs2(ji,jj) = ( zs2(ji,jj)*zalph2 + zp_delt(ji,jj) * ( zdt * z1_ecc2 * (1._wp + zkt) ) ) * z1_alph2
+            zs1(ji,jj) = ( zs1(ji,jj)*zalph1 + zp_delt(ji,jj) * ( zdiv*(1._wp + zkt) - zdelta(ji,jj)*(1._wp - zkt) ) ) &
+               &         * z1_alph1 * zmsk(ji,jj) ! zmsk is for reducing cpu
+            zs2(ji,jj) = ( zs2(ji,jj)*zalph2 + zp_delt(ji,jj) * ( zdt * z1_ecc2 * (1._wp + zkt) ) ) &
+               &         * z1_alph2 * zmsk(ji,jj) ! zmsk is for reducing cpu
 
          END_2D
 
@@ -449,7 +452,8 @@ CONTAINS
             zp_delf = 0.25_wp * ( (zp_delt(ji,jj) + zp_delt(ji+1,jj)) + (zp_delt(ji,jj+1) + zp_delt(ji+1,jj+1)) )
 
             ! stress at F points (zkt/=0 if landfast)
-            zs12(ji,jj)= ( zs12(ji,jj) * zalph2 + zp_delf * ( zds(ji,jj) * z1_ecc2 * (1._wp + zkt) ) * 0.5_wp ) * z1_alph2
+            zs12(ji,jj)= ( zs12(ji,jj) * zalph2 + zp_delf * ( zds(ji,jj) * z1_ecc2 * (1._wp + zkt) ) * 0.5_wp ) &
+               &         * z1_alph2 * zmsk(ji,jj) ! zmsk is for reducing cpu
 
          END_2D
 
@@ -746,15 +750,15 @@ CONTAINS
             &   ) * 0.25_wp * r1_e1e2t(ji,jj)
 
          ! shear at T points
-         pshear_i(ji,jj) = SQRT( zdt2 + zds2 )
+         pshear_i(ji,jj) = SQRT( zdt2 + zds2 ) * zmsk(ji,jj)
 
          ! divergence at T points
          pdivu_i(ji,jj) = ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj)   &
             &             + e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1)   &
-            &             ) * r1_e1e2t(ji,jj)
+            &             ) * r1_e1e2t(ji,jj) * zmsk(ji,jj)
 
          ! delta at T points
-         zfac            = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) ! delta
+         zfac            = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) * zmsk(ji,jj) ! delta
          rswitch         = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zfac ) ) ! 0 if delta=0
          pdelta_i(ji,jj) = zfac + rn_creepl * rswitch ! delta+creepl
 
@@ -851,8 +855,8 @@ CONTAINS
             zsig2_p(ji,jj)   =   ( zsig_I(ji,jj) - zsig_II(ji,jj) ) * z1_strength
          END_2D
          !
-         CALL iom_put( 'sig1_pnorm' , zsig1_p )
-         CALL iom_put( 'sig2_pnorm' , zsig2_p )
+         CALL iom_put( 'sig1_pnorm' , zsig1_p * zmsk00 )
+         CALL iom_put( 'sig2_pnorm' , zsig2_p * zmsk00 )
 
          DEALLOCATE( zsig1_p , zsig2_p , zsig_I, zsig_II )
 

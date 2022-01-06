@@ -178,6 +178,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj) :: z0, z0t
       REAL(wp), DIMENSION(jpi,jpj) :: zeta_u        ! stability parameter at height zu
       REAL(wp), DIMENSION(jpi,jpj) :: ztmp0, ztmp1, ztmp2
+      REAL(wp), DIMENSION(jpi,jpj) :: zpre, zrhoa, zta ! air pressure [Pa], density [kg/m3] & absolute temperature [k]
       !
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zeta_t  ! stability parameter at height zt
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zsst    ! to back up the initial bulk SST
@@ -310,11 +311,16 @@ CONTAINS
             q_zu = q_zt - q_star/vkarmn*ztmp1
          ENDIF
 
+         IF(( l_use_cs ).OR.( l_use_wl )) THEN
+            zpre(:,:)  = pres_temp( q_zu(:,:), slp(:,:), zu, ptpot=t_zu(:,:), pta=zta(:,:) )
+            zrhoa(:,:) = rho_air( zta(:,:), q_zu(:,:), zpre(:,:) )
+         ENDIF
+
          IF( l_use_cs ) THEN
             !! Cool-skin contribution
 
-            CALL UPDATE_QNSOL_TAU( zu, T_s, q_s, t_zu, q_zu, u_star, t_star, q_star, U_zu, Ubzu, slp, rad_lw, &
-               &                   ztmp1, zeta_u,  Qlat=ztmp2)  ! Qnsol -> ztmp1 / Tau -> zeta_u
+            CALL UPDATE_QNSOL_TAU( zu, T_s, q_s, t_zu, q_zu, u_star, t_star, q_star, U_zu, Ubzu, slp, rad_lw, zrhoa, &
+               &                   ztmp1, zeta_u, Qlat=ztmp2)  ! Qnsol -> ztmp1 / Tau -> zeta_u
 
             CALL CS_COARE( Qsw, ztmp1, u_star, zsst, ztmp2 )  ! ! Qnsol -> ztmp1 / Qlat -> ztmp2
 
@@ -325,7 +331,7 @@ CONTAINS
 
          IF( l_use_wl ) THEN
             !! Warm-layer contribution
-            CALL UPDATE_QNSOL_TAU( zu, T_s, q_s, t_zu, q_zu, u_star, t_star, q_star, U_zu, Ubzu, slp, rad_lw, &
+            CALL UPDATE_QNSOL_TAU( zu, T_s, q_s, t_zu, q_zu, u_star, t_star, q_star, U_zu, Ubzu, slp, rad_lw, zrhoa, &
                &                   ztmp1, zeta_u)  ! Qnsol -> ztmp1 / Tau -> zeta_u
             !! In WL_COARE or , Tau_ac and Qnt_ac must be updated at the final itteration step => add a flag to do this!
             CALL WL_COARE( Qsw, ztmp1, zeta_u, zsst, MOD(nbit,jit) )

@@ -37,6 +37,8 @@ FORCING_DIR=${SETTE_FORCING_DIR:-$WORKDIR/FORCING}
 NEMO_VALIDATION_DIR=${SETTE_NEMO_VALIDATION_DIR:-$MAIN_DIR}/NEMO_VALIDATION
 # input files storing (namelist, iodef ...) (DO NOT CHANGE)
 INPUT_DIR=${CONFIG_DIR}/${NEW_CONF}/EXP00
+# optional custom SETTE tests directory
+#export CUSTOM_DIR=/path/to/custom/sette/tests
 # ------------------------------------------------------------------------------------------
 #
 # RUN setup

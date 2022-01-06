@@ -60,6 +60,7 @@ MODULE par_abl
    REAL(wp), PUBLIC            ::   rn_ltra_min                   !: namelist parameter
    REAL(wp), PUBLIC            ::   rn_ltra_max                   !: namelist parameter
    REAL(wp), PUBLIC            ::   rn_Ric                        !: critical Richardson number 
+   REAL(wp), PUBLIC            ::   rn_vfac                       !: multiplicative factor for ocean/ice velocity
 
    !!---------------------------------------------------------------------
    !! ABL parameters for the vertical profile of the restoring term 

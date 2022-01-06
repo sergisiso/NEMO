@@ -47,9 +47,9 @@ MODULE icectl
 
    ! thresold rates for conservation
    !    these values are changed by the namelist parameter rn_icechk, so that threshold = zchk * rn_icechk
-   REAL(wp), PARAMETER ::   zchk_m   = 2.5e-7   ! kg/m2/s <=> 1e-6 m of ice per hour spuriously gained/lost
-   REAL(wp), PARAMETER ::   zchk_s   = 2.5e-6   ! g/m2/s  <=> 1e-6 m of ice per hour spuriously gained/lost (considering s=10g/kg)
-   REAL(wp), PARAMETER ::   zchk_t   = 7.5e-2   ! W/m2    <=> 1e-6 m of ice per hour spuriously gained/lost (considering Lf=3e5J/kg)
+   REAL(wp), PARAMETER ::   rchk_m   = 2.5e-7   ! kg/m2/s <=> 1e-6 m of ice per hour spuriously gained/lost
+   REAL(wp), PARAMETER ::   rchk_s   = 2.5e-6   ! g/m2/s  <=> 1e-6 m of ice per hour spuriously gained/lost (considering s=10g/kg)
+   REAL(wp), PARAMETER ::   rchk_t   = 7.5e-2   ! W/m2    <=> 1e-6 m of ice per hour spuriously gained/lost (considering Lf=3e5J/kg)
 
    ! for drift outputs
    CHARACTER(LEN=50)   ::   clname="icedrift_diagnostics.ascii"   ! ascii filename
@@ -75,7 +75,7 @@ CONTAINS
       !!
       !! ** Method  : This is an online diagnostics which can be activated with ln_icediachk=true
       !!              It prints in ocean.output if there is a violation of conservation at each time-step
-      !!              The thresholds (zchk_m, zchk_s, zchk_t) determine violations
+      !!              The thresholds (rchk_m, rchk_s, rchk_t) determine violations
       !!              For salt and heat thresholds, ice is considered to have a salinity of 10
       !!              and a heat content of 3e5 J/kg (=latent heat of fusion)
       !!-------------------------------------------------------------------
@@ -145,11 +145,11 @@ CONTAINS
 
          IF( lwp ) THEN
             ! check conservation issues
-            IF( ABS(zdiag_mass) > zchk_m * rn_icechk_glo * zchk3(10) ) &
+            IF( ABS(zdiag_mass) > rchk_m * rn_icechk_glo * zchk3(10) ) &
                &                   WRITE(numout,*)   cd_routine,' : violation mass cons. [kg] = ',zdiag_mass * rDt_ice
-            IF( ABS(zdiag_salt) > zchk_s * rn_icechk_glo * zchk3(10) ) &
+            IF( ABS(zdiag_salt) > rchk_s * rn_icechk_glo * zchk3(10) ) &
                &                   WRITE(numout,*)   cd_routine,' : violation salt cons. [g]  = ',zdiag_salt * rDt_ice
-            IF( ABS(zdiag_heat) > zchk_t * rn_icechk_glo * zchk3(10) ) &
+            IF( ABS(zdiag_heat) > rchk_t * rn_icechk_glo * zchk3(10) ) &
                &                   WRITE(numout,*)   cd_routine,' : violation heat cons. [J]  = ',zdiag_heat * rDt_ice
             ! check negative values
             IF( zchk4(1) < 0. )   WRITE(numout,*)   cd_routine,' : violation v_i  < 0        = ',zchk4(1)
@@ -164,9 +164,9 @@ CONTAINS
             IF( zchk3(7)>MAX(rn_amax_n,rn_amax_s)+epsi10 .AND. cd_routine /= 'icedyn_adv' .AND. cd_routine /= 'icedyn_rdgrft' ) &
                &                  WRITE(numout,*)   cd_routine,' : violation a_i > amax      = ',zchk3(7)
             ! check if advection scheme is conservative
-            IF( ABS(zchk3(8)) > zchk_m * rn_icechk_glo * zchk3(10) .AND. cd_routine == 'icedyn_adv' ) &
+            IF( ABS(zchk3(8)) > rchk_m * rn_icechk_glo * zchk3(10) .AND. cd_routine == 'icedyn_adv' ) &
                &                  WRITE(numout,*)   cd_routine,' : violation adv scheme [kg] = ',zchk3(8) * rDt_ice
-            IF( ABS(zchk3(9)) > zchk_t * rn_icechk_glo * zchk3(10) .AND. cd_routine == 'icedyn_adv' ) &
+            IF( ABS(zchk3(9)) > rchk_t * rn_icechk_glo * zchk3(10) .AND. cd_routine == 'icedyn_adv' ) &
                &                  WRITE(numout,*)   cd_routine,' : violation adv scheme [J]  = ',zchk3(9) * rDt_ice
          ENDIF
          !
@@ -182,7 +182,7 @@ CONTAINS
       !!
       !! ** Method  : This is an online diagnostics which can be activated with ln_icediachk=true
       !!              It prints in ocean.output if there is a violation of conservation at each time-step
-      !!              The thresholds (zchk_m, zchk_s, zchk_t) determine the violations
+      !!              The thresholds (rchk_m, rchk_s, rchk_t) determine the violations
       !!              For salt and heat thresholds, ice is considered to have a salinity of 10
       !!              and a heat content of 3e5 J/kg (=latent heat of fusion)
       !!-------------------------------------------------------------------
@@ -204,11 +204,11 @@ CONTAINS
       zchk(1:4)   = glob_sum_vec( 'icectl', ztmp(:,:,1:4) )
       
       IF( lwp ) THEN
-         IF( ABS(zchk(1)) > zchk_m * rn_icechk_glo * zchk(4) ) &
+         IF( ABS(zchk(1)) > rchk_m * rn_icechk_glo * zchk(4) ) &
             &                   WRITE(numout,*) cd_routine,' : violation mass cons. [kg] = ',zchk(1) * rDt_ice
-         IF( ABS(zchk(2)) > zchk_s * rn_icechk_glo * zchk(4) ) &
+         IF( ABS(zchk(2)) > rchk_s * rn_icechk_glo * zchk(4) ) &
             &                   WRITE(numout,*) cd_routine,' : violation salt cons. [g]  = ',zchk(2) * rDt_ice
-         IF( ABS(zchk(3)) > zchk_t * rn_icechk_glo * zchk(4) ) &
+         IF( ABS(zchk(3)) > rchk_t * rn_icechk_glo * zchk(4) ) &
             &                   WRITE(numout,*) cd_routine,' : violation heat cons. [J]  = ',zchk(3) * rDt_ice
       ENDIF
       !
@@ -259,20 +259,20 @@ CONTAINS
             &         + ( wfx_bog + wfx_bom + wfx_sum + wfx_sni + wfx_opw + wfx_res + wfx_dyn + wfx_lam + wfx_pnd + &
             &             wfx_snw_sni + wfx_snw_sum + wfx_snw_dyn + wfx_snw_sub + wfx_ice_sub + wfx_spr )           &
             &         - pdiag_fv
-         IF( MAXVAL( ABS(zdiag_mass) ) > zchk_m * rn_icechk_cel )   ll_stop_m = .TRUE.
+         IF( MAXVAL( ABS(zdiag_mass) ) > rchk_m * rn_icechk_cel )   ll_stop_m = .TRUE.
          !
          ! -- salt diag -- !
          zdiag_salt =   ( SUM( sv_i * rhoi , dim=3 ) - pdiag_s ) * r1_Dt_ice                                                  &
             &         + ( sfx_bri + sfx_bog + sfx_bom + sfx_sum + sfx_sni + sfx_opw + sfx_res + sfx_dyn + sfx_sub + sfx_lam ) &
             &         - pdiag_fs
-         IF( MAXVAL( ABS(zdiag_salt) ) > zchk_s * rn_icechk_cel )   ll_stop_s = .TRUE.
+         IF( MAXVAL( ABS(zdiag_salt) ) > rchk_s * rn_icechk_cel )   ll_stop_s = .TRUE.
          !
          ! -- heat diag -- !
          zdiag_heat =   ( SUM( SUM( e_i, dim=4 ), dim=3 ) + SUM( SUM( e_s, dim=4 ), dim=3 ) - pdiag_t ) * r1_Dt_ice &
             &         + (  hfx_sum + hfx_bom + hfx_bog + hfx_dif + hfx_opw + hfx_snw                                &
             &            - hfx_thd - hfx_dyn - hfx_res - hfx_sub - hfx_spr )                                        &
             &         - pdiag_ft
-         IF( MAXVAL( ABS(zdiag_heat) ) > zchk_t * rn_icechk_cel )   ll_stop_t = .TRUE.
+         IF( MAXVAL( ABS(zdiag_heat) ) > rchk_t * rn_icechk_cel )   ll_stop_t = .TRUE.
          !
          ! -- other diags -- !
          ! a_i < 0

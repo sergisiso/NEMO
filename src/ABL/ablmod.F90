@@ -82,7 +82,7 @@ CONTAINS
       REAL(wp) , INTENT(in   ), DIMENSION(:,:  ) ::   pcd_du     ! Cd x Du (T-point)
       REAL(wp) , INTENT(inout), DIMENSION(:,:  ) ::   psen       ! Ch x Du
       REAL(wp) , INTENT(inout), DIMENSION(:,:  ) ::   pevp       ! Ce x Du
-      REAL(wp) , INTENT(inout), DIMENSION(:,:  ) ::   pwndm      ! ||uwnd||
+      REAL(wp) , INTENT(inout), DIMENSION(:,:  ) ::   pwndm      ! ||uwnd - uoce||
       REAL(wp) , INTENT(  out), DIMENSION(:,:  ) ::   plat       ! latent heat flux
       REAL(wp) , INTENT(  out), DIMENSION(:,:  ) ::   ptaui      ! taux
       REAL(wp) , INTENT(  out), DIMENSION(:,:  ) ::   ptauj      ! tauy
@@ -103,6 +103,8 @@ CONTAINS
 #endif
       !
       REAL(wp), DIMENSION(1:jpi,1:jpj       )    ::   zwnd_i, zwnd_j
+      REAL(wp), DIMENSION(1:jpi,1:jpj       )    ::   zsspt
+      REAL(wp), DIMENSION(1:jpi,1:jpj       )    ::   ztabs, zpre
       REAL(wp), DIMENSION(1:jpi      ,2:jpka)    ::   zCF
       !
       REAL(wp), DIMENSION(1:jpi      ,1:jpka)    ::   z_elem_a
@@ -140,6 +142,9 @@ CONTAINS
       END_2D
 
       zrough(:,:) = z0_from_Cd( ght_abl(2), pCd_du(:,:) / MAX( pwndm(:,:), 0.5_wp ) ) ! #LB: z0_from_Cd is define in sbc_phy.F90...
+
+      ! sea surface potential temperature [K]
+      zsspt(:,:) = theta_exner( psst(:,:)+rt0, pslp_dta(:,:) )
 
       !
       !                            !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -186,7 +191,7 @@ CONTAINS
             IF(jtra == jp_ta) THEN
                DO ji = 1,jpi  ! surface boundary condition for temperature
                   zztmp1 = psen(ji, jj)
-                  zztmp2 = psen(ji, jj) * ( psst(ji, jj) + rt0 )
+                  zztmp2 = psen(ji, jj) * zsspt(ji, jj)
 #if defined key_si3
                   zztmp1 = zztmp1 * pfrac_oce(ji,jj) + (1._wp - pfrac_oce(ji,jj)) * psen_ice(ji,jj)
                   zztmp2 = zztmp2 * pfrac_oce(ji,jj) + (1._wp - pfrac_oce(ji,jj)) * psen_ice(ji,jj) * ptm_su(ji,jj)
@@ -340,26 +345,26 @@ CONTAINS
 
          DO jk = 3, jpkam1
             DO ji = 1, jpi
-               z_elem_a( ji, jk ) = - rDt_abl * Avm_abl( ji, jj, jk-1 ) / e3w_abl( jk-1 )  ! lower-diagonal
-               z_elem_c( ji, jk ) = - rDt_abl * Avm_abl( ji, jj, jk   ) / e3w_abl( jk   )  ! upper-diagonal
-               z_elem_b( ji, jk ) = e3t_abl(jk) - z_elem_a( ji, jk ) - z_elem_c( ji, jk )  !       diagonal
+               z_elem_a( ji, jk ) = - rDt_abl * Avm_abl( ji, jj, jk-1 ) / e3w_abl( jk-1 )   ! lower-diagonal
+               z_elem_c( ji, jk ) = - rDt_abl * Avm_abl( ji, jj, jk   ) / e3w_abl( jk   )   ! upper-diagonal
+               z_elem_b( ji, jk ) = e3t_abl(jk) - z_elem_a( ji, jk ) - z_elem_c( ji, jk )   !       diagonal
             END DO
          END DO
 
-         DO ji = 2, jpi   ! boundary conditions   (Avm_abl and pcd_du must be available at ji=jpi)
+         DO ji = 2, jpi   ! boundary conditions (Avm_abl and pcd_du must be available at ji=jpi)
             !++ Surface boundary condition
             z_elem_a( ji, 2 ) = 0._wp
             z_elem_c( ji, 2 ) = - rDt_abl * Avm_abl( ji, jj, 2 ) / e3w_abl( 2 )
             !
-            zztmp1  = pcd_du(ji, jj)
-            zztmp2  = 0.5_wp * pcd_du(ji, jj) * ( pssu(ji-1, jj) + pssu(ji,jj) )
+            zztmp1 = pcd_du(ji, jj)
+            zztmp2 = 0.5_wp * pcd_du(ji, jj) * ( pssu(ji-1, jj) + pssu(ji, jj  ) ) * rn_vfac
 #if defined key_si3
             zztmp1 = zztmp1 * pfrac_oce(ji,jj) + (1._wp - pfrac_oce(ji,jj)) * pcd_du_ice(ji, jj)
-            zzice  = 0.5_wp * ( pssu_ice(ji-1, jj) + pssu_ice(ji, jj) )
+            zzice  = 0.5_wp * ( pssu_ice(ji-1, jj) + pssu_ice(ji, jj  ) ) * rn_vfac
             zztmp2 = zztmp2 * pfrac_oce(ji,jj) + (1._wp - pfrac_oce(ji,jj)) * pcd_du_ice(ji, jj) * zzice
 #endif
             z_elem_b( ji,     2       ) = e3t_abl( 2 ) - z_elem_c( ji, 2 ) + rDt_abl * zztmp1
-            u_abl( ji, jj,    2, nt_a ) =      u_abl( ji, jj,    2, nt_a ) + rDt_abl * zztmp2
+            u_abl( ji, jj,    2, nt_a ) =         u_abl( ji, jj, 2, nt_a ) + rDt_abl * zztmp2
 
             ! idealized test cases only
             !IF( ln_topbc_neumann ) THEN
@@ -380,11 +385,10 @@ CONTAINS
          !!
          !! Matrix inversion
          !! ----------------------------------------------------------
-         !DO ji = 2, jpi
-         DO ji = 1, jpi  !!GS: TBI
+         DO ji = 1, jpi  !DO ji = 2, jpi !!GS: TBI
             zcff                 =   1._wp / z_elem_b( ji, 2 )
-            zCF   (ji,   2     ) =  - zcff * z_elem_c( ji, 2 )
-            u_abl (ji,jj,2,nt_a) =    zcff * u_abl(ji,jj,2,nt_a)
+            zCF   (ji,   2     ) =  - zcff * z_elem_c( ji,     2       )
+            u_abl (ji,jj,2,nt_a) =    zcff * u_abl   ( ji, jj, 2, nt_a )
          END DO
 
          DO jk = 3, jpka
@@ -414,9 +418,9 @@ CONTAINS
          !
          DO jk = 3, jpkam1
             DO ji = 1, jpi
-               z_elem_a( ji, jk ) = -rDt_abl * Avm_abl( ji, jj, jk-1 ) / e3w_abl( jk-1 )   ! lower-diagonal
-               z_elem_c( ji, jk ) = -rDt_abl * Avm_abl( ji, jj, jk   ) / e3w_abl( jk   )   ! upper-diagonal
-               z_elem_b( ji, jk ) = e3t_abl(jk) - z_elem_a( ji, jk ) - z_elem_c( ji, jk )                              !       diagonal
+               z_elem_a( ji, jk ) = - rDt_abl * Avm_abl( ji, jj, jk-1 ) / e3w_abl( jk-1 )   ! lower-diagonal
+               z_elem_c( ji, jk ) = - rDt_abl * Avm_abl( ji, jj, jk   ) / e3w_abl( jk   )   ! upper-diagonal
+               z_elem_b( ji, jk ) = e3t_abl(jk) - z_elem_a( ji, jk ) - z_elem_c( ji, jk )   !       diagonal
             END DO
          END DO
 
@@ -426,10 +430,10 @@ CONTAINS
             z_elem_c( ji, 2 ) = - rDt_abl * Avm_abl( ji, jj, 2 ) / e3w_abl( 2 )
             !
             zztmp1 = pcd_du(ji, jj)
-            zztmp2 = 0.5_wp * pcd_du(ji, jj) * ( pssv(ji, jj) + pssv(ji, jj-1) )
+            zztmp2 = 0.5_wp * pcd_du(ji, jj) * ( pssv(ji, jj) + pssv(ji, jj-1) ) * rn_vfac
 #if defined key_si3
             zztmp1 = zztmp1 * pfrac_oce(ji,jj) + (1._wp - pfrac_oce(ji,jj)) * pcd_du_ice(ji, jj)
-            zzice  = 0.5_wp * ( pssv_ice(ji, jj) + pssv_ice(ji, jj-1) )
+            zzice  = 0.5_wp * ( pssv_ice(ji, jj) + pssv_ice(ji, jj-1) ) * rn_vfac
             zztmp2 = zztmp2 * pfrac_oce(ji,jj) + (1._wp - pfrac_oce(ji,jj)) * pcd_du_ice(ji, jj) * zzice
 #endif
             z_elem_b( ji,     2       ) = e3t_abl( 2 ) - z_elem_c( ji, 2 ) + rDt_abl * zztmp1
@@ -455,9 +459,9 @@ CONTAINS
          !! Matrix inversion
          !! ----------------------------------------------------------
          DO ji = 1, jpi
-            zcff                 =  1._wp / z_elem_b( ji, 2 )
-            zCF   (ji,   2     ) =   - zcff * z_elem_c( ji,     2       )
-            v_abl (ji,jj,2,nt_a) =     zcff * v_abl   ( ji, jj, 2, nt_a )
+            zcff                 =   1._wp / z_elem_b( ji, 2 )
+            zCF   (ji,   2     ) =  - zcff * z_elem_c( ji,     2       )
+            v_abl (ji,jj,2,nt_a) =    zcff * v_abl   ( ji, jj, 2, nt_a )
          END DO
 
          DO jk = 3, jpka
@@ -494,8 +498,8 @@ CONTAINS
                zmsk  = msk_abl(ji,jj)
                zcff2 = jp_alp3_dyn * zsig**3 + jp_alp2_dyn * zsig**2   &
                   &  + jp_alp1_dyn * zsig    + jp_alp0_dyn
-               zcff  = (1._wp-zmsk) + zmsk * zcff2 * rn_Dt   ! zcff = 1 for masked points
-                                                             ! rn_Dt = rDt_abl / nn_fsbc
+               zcff  = (1._wp-zmsk) + zmsk * zcff2 * rDt_abl   ! zcff = 1 for masked points
+                                                               ! rn_Dt = rDt_abl / nn_fsbc
                zcff  = zcff * rest_eq(ji,jj)
                u_abl( ji, jj, jk, nt_a ) = (1._wp - zcff ) *  u_abl( ji, jj, jk, nt_a )   &
                   &                               + zcff   * pu_dta( ji, jj, jk       )
@@ -517,8 +521,8 @@ CONTAINS
             zmsk  = msk_abl(ji,jj)
             zcff2 = jp_alp3_tra * zsig**3 + jp_alp2_tra * zsig**2   &
                &  + jp_alp1_tra * zsig    + jp_alp0_tra
-            zcff  = (1._wp-zmsk) + zmsk * zcff2 * rn_Dt   ! zcff = 1 for masked points
-                                                          ! rn_Dt = rDt_abl / nn_fsbc
+            zcff  = (1._wp-zmsk) + zmsk * zcff2 * rDt_abl   ! zcff = 1 for masked points
+                                                            ! rn_Dt = rDt_abl / nn_fsbc
             tq_abl( ji, jj, jk, nt_a, jp_ta ) = (1._wp - zcff ) * tq_abl( ji, jj, jk, nt_a, jp_ta )   &
                &                                       + zcff   * pt_dta( ji, jj, jk )
 
@@ -534,7 +538,7 @@ CONTAINS
       !                            !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
       CALL lbc_lnk( 'ablmod',  u_abl(:,:,:,nt_a      ), 'T', -1._wp,  v_abl(:,:,:,nt_a)      , 'T', -1._wp                            )
-      CALL lbc_lnk( 'ablmod', tq_abl(:,:,:,nt_a,jp_ta), 'T', 1._wp , tq_abl(:,:,:,nt_a,jp_qa), 'T',  1._wp , kfillmode = jpfillnothing )   ! ++++ this should not be needed...
+      !CALL lbc_lnk( 'ablmod', tq_abl(:,:,:,nt_a,jp_ta), 'T',  1._wp, tq_abl(:,:,:,nt_a,jp_qa), 'T',  1._wp, kfillmode = jpfillnothing )   ! ++++ this should not be needed...
       !
 #if defined key_xios
       ! 2D & first ABL level
@@ -553,8 +557,8 @@ CONTAINS
          IF ( iom_use("vz1_geo") ) CALL iom_put ( "vz1_geo", pgv_dta(:,:,2) )
       END IF
       IF( ln_hpgls_frc ) THEN
-         IF ( iom_use("uz1_geo") ) CALL iom_put ( "uz1_geo",  pgu_dta(:,:,2)/MAX(fft_abl(:,:),2.5e-5_wp) )
-         IF ( iom_use("vz1_geo") ) CALL iom_put ( "vz1_geo", -pgv_dta(:,:,2)/MAX(fft_abl(:,:),2.5e-5_wp) )
+         IF ( iom_use("uz1_geo") ) CALL iom_put ( "uz1_geo", -pgv_dta(:,:,2)/MAX( ABS( fft_abl(:,:)), 2.5e-5_wp)*fft_abl(:,:)/ABS(fft_abl(:,:)) )
+         IF ( iom_use("vz1_geo") ) CALL iom_put ( "vz1_geo",  pgu_dta(:,:,2)/MAX( ABS( fft_abl(:,:)), 2.5e-5_wp)*fft_abl(:,:)/ABS(fft_abl(:,:)) )
       END IF
       ! 3D (all ABL levels)
       IF ( iom_use("u_abl"   ) ) CALL iom_put ( "u_abl"   ,    u_abl(:,:,2:jpka,nt_a      ) )
@@ -576,8 +580,8 @@ CONTAINS
          IF ( iom_use("v_geo") ) CALL iom_put ( "v_geo", pgv_dta(:,:,2:jpka) )
       END IF
       IF( ln_hpgls_frc ) THEN
-         IF ( iom_use("u_geo") ) CALL iom_put ( "u_geo",  pgu_dta(:,:,2:jpka)/MAX( RESHAPE( fft_abl(:,:), (/jpi,jpj,jpka-1/), fft_abl(:,:)), 2.5e-5_wp) )
-         IF ( iom_use("v_geo") ) CALL iom_put ( "v_geo", -pgv_dta(:,:,2:jpka)/MAX( RESHAPE( fft_abl(:,:), (/jpi,jpj,jpka-1/), fft_abl(:,:)), 2.5e-5_wp) )
+         IF ( iom_use("u_geo") ) CALL iom_put ( "u_geo", -pgv_dta(:,:,2:jpka)/MAX( ABS( RESHAPE( fft_abl(:,:), (/jpi,jpj,jpka-1/), fft_abl(:,:))), 2.5e-5_wp) * RESHAPE( fft_abl(:,:)/ABS(fft_abl(:,:)), (/jpi,jpj,jpka-1/), fft_abl(:,:)/ABS(fft_abl(:,:))) )
+         IF ( iom_use("v_geo") ) CALL iom_put ( "v_geo",  pgu_dta(:,:,2:jpka)/MAX( ABS( RESHAPE( fft_abl(:,:), (/jpi,jpj,jpka-1/), fft_abl(:,:))), 2.5e-5_wp) * RESHAPE( fft_abl(:,:)/ABS(fft_abl(:,:)), (/jpi,jpj,jpka-1/), fft_abl(:,:)/ABS(fft_abl(:,:))) )
       END IF
 #endif
       !                            !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -585,18 +589,19 @@ CONTAINS
       !                            !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         ztemp          =  tq_abl( ji, jj, 2, nt_a, jp_ta )
-         zhumi          =  tq_abl( ji, jj, 2, nt_a, jp_qa )
-         zcff           = rho_air( ztemp, zhumi, pslp_dta( ji, jj ) )
-         psen( ji, jj ) =    - cp_air(zhumi) * zcff * psen(ji,jj) * ( psst(ji,jj) + rt0 - ztemp )   !GS: negative sign to respect aerobulk convention
-         pevp( ji, jj ) = rn_efac*MAX( 0._wp,  zcff * pevp(ji,jj) * ( pssq(ji,jj)       - zhumi ) )
+         ztemp          = tq_abl( ji, jj, 2, nt_a, jp_ta )
+         zhumi          = tq_abl( ji, jj, 2, nt_a, jp_qa )
+         zpre( ji, jj ) = pres_temp( zhumi, pslp_dta(ji,jj), ght_abl(2), ptpot=ztemp, pta=ztabs( ji, jj ) )
+         zcff           = rho_air( ztabs( ji, jj ), zhumi, zpre( ji, jj ) )
+         psen( ji, jj ) =    - cp_air(zhumi) * zcff * psen(ji,jj) * ( zsspt(ji,jj) - ztemp )         !GS: negative sign to respect aerobulk convention
+         pevp( ji, jj ) = rn_efac*MAX( 0._wp,  zcff * pevp(ji,jj) * ( pssq(ji,jj)  - zhumi ) )
          plat( ji, jj ) = - L_vap( psst(ji,jj) ) * pevp( ji, jj )
          rhoa( ji, jj ) = zcff
       END_2D
 
       DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
-         zwnd_i(ji,jj) = u_abl(ji  ,jj,2,nt_a) - 0.5_wp * ( pssu(ji  ,jj) + pssu(ji-1,jj) )
-         zwnd_j(ji,jj) = v_abl(ji,jj  ,2,nt_a) - 0.5_wp * ( pssv(ji,jj  ) + pssv(ji,jj-1) )
+         zwnd_i(ji,jj) = u_abl(ji  ,jj,2,nt_a) - 0.5_wp * ( pssu(ji  ,jj) + pssu(ji-1,jj) ) * rn_vfac
+         zwnd_j(ji,jj) = v_abl(ji,jj  ,2,nt_a) - 0.5_wp * ( pssv(ji,jj  ) + pssv(ji,jj-1) ) * rn_vfac
       END_2D
       !
       CALL lbc_lnk( 'ablmod', zwnd_i(:,:) , 'T', -1.0_wp, zwnd_j(:,:) , 'T', -1.0_wp )
@@ -638,16 +643,17 @@ CONTAINS
       ! ------------------------------------------------------------ !
       !    Wind stress relative to the moving ice ( U10m - U_ice )   !
       ! ------------------------------------------------------------ !
-      DO_2D( 0, 0, 0, 0 )
-         ptaui_ice(ji,jj) = 0.5_wp * ( rhoa(ji+1,jj) * pCd_du_ice(ji+1,jj) + rhoa(ji,jj) * pCd_du_ice(ji,jj)      )   &
-            &                      * ( 0.5_wp * ( u_abl(ji+1,jj,2,nt_a) + u_abl(ji,jj,2,nt_a) ) - pssu_ice(ji,jj) )
-         ptauj_ice(ji,jj) = 0.5_wp * ( rhoa(ji,jj+1) * pCd_du_ice(ji,jj+1) + rhoa(ji,jj) * pCd_du_ice(ji,jj)      )   &
-            &                      * ( 0.5_wp * ( v_abl(ji,jj+1,2,nt_a) + v_abl(ji,jj,2,nt_a) ) - pssv_ice(ji,jj) )
-      END_2D
-      CALL lbc_lnk( 'ablmod', ptaui_ice, 'U', -1.0_wp, ptauj_ice, 'V', -1.0_wp )
-      !
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab2d_1=ptaui_ice  , clinfo1=' abl_stp: putaui : '   &
-         &                                , tab2d_2=ptauj_ice  , clinfo2='          pvtaui : ' )
+      !DO_2D( 0, 0, 0, 0 )
+      !   ptaui_ice(ji,jj) = 0.5_wp * ( rhoa(ji+1,jj) * pCd_du_ice(ji+1,jj) + rhoa(ji,jj) * pCd_du_ice(ji,jj)      )   &
+      !      &                      * ( 0.5_wp * ( u_abl(ji+1,jj,2,nt_a) + u_abl(ji,jj,2,nt_a) ) - pssu_ice(ji,jj) )
+      !   ptauj_ice(ji,jj) = 0.5_wp * ( rhoa(ji,jj+1) * pCd_du_ice(ji,jj+1) + rhoa(ji,jj) * pCd_du_ice(ji,jj)      )   &
+      !      &                      * ( 0.5_wp * ( v_abl(ji,jj+1,2,nt_a) + v_abl(ji,jj,2,nt_a) ) - pssv_ice(ji,jj) )
+      !END_2D
+      !CALL lbc_lnk( 'ablmod', ptaui_ice, 'U', -1.0_wp, ptauj_ice, 'V', -1.0_wp )
+      !!
+      !IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab2d_1=ptaui_ice  , clinfo1=' abl_stp: putaui : '   &
+      !   &                                , tab2d_2=ptauj_ice  , clinfo2='          pvtaui : ' )
+
       ! ------------------------------------------------------------ !
       !    Wind stress relative to the moving ice ( U10m - U_ice )   !
       ! ------------------------------------------------------------ !
@@ -658,10 +664,10 @@ CONTAINS
 
          ptaui_ice(ji,jj) = 0.5_wp * (  rhoa(ji+1,jj) * pCd_du_ice(ji+1,jj)             &
             &                      +    rhoa(ji  ,jj) * pCd_du_ice(ji  ,jj)  )          &
-            &         * ( zztmp1 - pssu_ice(ji,jj) )
+            &         * ( zztmp1 - pssu_ice(ji,jj) * rn_vfac )
          ptauj_ice(ji,jj) = 0.5_wp * (  rhoa(ji,jj+1) * pCd_du_ice(ji,jj+1)             &
             &                      +    rhoa(ji,jj  ) * pCd_du_ice(ji,jj  )  )          &
-            &         * ( zztmp2 - pssv_ice(ji,jj) )
+            &         * ( zztmp2 - pssv_ice(ji,jj) * rn_vfac )
       END_2D
       CALL lbc_lnk( 'ablmod', ptaui_ice, 'U', -1.0_wp, ptauj_ice,'V', -1.0_wp )
       !

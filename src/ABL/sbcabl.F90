@@ -71,7 +71,7 @@ CONTAINS
          &                 ln_hpgls_frc, ln_geos_winds, nn_dyn_restore,           &
          &                 rn_ldyn_min , rn_ldyn_max, rn_ltra_min, rn_ltra_max,   &
          &                 nn_amxl, rn_Cm, rn_Ct, rn_Ce, rn_Ceps, rn_Rod, rn_Ric, &
-         &                 ln_smth_pblh
+         &                 rn_vfac, ln_smth_pblh
       !!---------------------------------------------------------------------
 
                                         ! Namelist namsbc_abl in reference namelist : ABL parameters
@@ -217,8 +217,8 @@ CONTAINS
          &    + jp_alp1_dyn * jp_bmax    + jp_alp0_dyn ) * rDt_abl
       IF(lwp) THEN
          IF(nn_dyn_restore > 0) THEN
-            WRITE(numout,*) ' ABL Minimum value for dynamics restoring = ',zcff
-            WRITE(numout,*) ' ABL Maximum value for dynamics restoring = ',zcff1
+            WRITE(numout,*) ' Minimum value for ABL dynamics restoring = ',zcff
+            WRITE(numout,*) ' Maximum value for ABL dynamics restoring = ',zcff1
             ! Check that restoring coefficients are between 0 and 1
             IF( zcff1 - nn_fsbc > 0.001_wp .OR. zcff1 < 0._wp )   &
                &                   CALL ctl_stop( 'abl_init : wrong value for rn_ldyn_max' )
@@ -235,8 +235,8 @@ CONTAINS
       zcff1 = ( jp_alp3_tra * jp_bmax**3 + jp_alp2_tra * jp_bmax**2   &
          &    + jp_alp1_tra * jp_bmax    + jp_alp0_tra ) * rDt_abl
       IF(lwp) THEN
-         WRITE(numout,*) ' ABL Minimum value for tracers restoring = ',zcff
-         WRITE(numout,*) ' ABL Maximum value for tracers restoring = ',zcff1
+         WRITE(numout,*) ' Minimum value for ABL tracers restoring = ',zcff
+         WRITE(numout,*) ' Maximum value for ABL tracers restoring = ',zcff1
          ! Check that restoring coefficients are between 0 and 1
          IF( zcff1 - nn_fsbc > 0.001_wp .OR. zcff1 < 0._wp )   &
             &                   CALL ctl_stop( 'abl_init : wrong value for rn_ltra_max' )
@@ -369,6 +369,7 @@ CONTAINS
             &            , utau_ice, vtau_ice                                  &   !   =>> out
 #endif
             &                                                                  )
+
          !!-------------------------------------------------------------------------------------------
          !! 4 - Finalize flux computation using ABL variables at (n+1), nt_n corresponds to (n+1) since
          !!                                                                time swap is done in abl_stp

@@ -30,11 +30,26 @@ export USING_XIOS='yes'        # Default: yes => add key_xios           ; use -X
 #
 export USING_MPMD='yes'        # Default: yes => run with detached XIOS servers ; use -A to run in attached (SPMD) mode
                                #    Note: yes also ensures key_xios but -A will not remove it
-export SETTE_SUB_VAL="MAIN"    # Default subdirectory below NEMO_VALIDATION_DIR
+export USER_INPUT='yes'        # Default: yes => request user input on decisions. For example:
+                               #                 1. regarding mismatched options
+                               #                 2. regardin incompatible options
+                               #                 3. regarding creation of directories
+#
+# Check that git branch is usable
+git branch --show-current >& /dev/null
+if [[ $? == 0 ]] ; then
+  # subdirectory below NEMO_VALIDATION_DIR defaults to branchname
+  export SETTE_SUB_VAL="$(git branch --show-current)"
+  export SETTE_THIS_BRANCH=${SETTE_SUB_VAL}
+else
+  # subdirectory below NEMO_VALIDATION_DIR defaults to "MAIN"
+  export SETTE_SUB_VAL="MAIN"
+  export SETTE_THIS_BRANCH="Unknown"
+fi
 
 # Parse command-line arguments
 if [ $# -gt 0 ]; then
-  while getopts n:x:v:g:cdrshTqQteiACFNX option; do 
+  while getopts n:x:v:g:cdrshTqQteiACFNXu option; do 
      case $option in
         c) export SETTE_CLEAN_CONFIGS='yes'
            export SETTE_SYNC_CONFIGS='yes'
@@ -104,6 +119,9 @@ if [ $# -gt 0 ]; then
         A) export USING_MPMD='no'
            echo "-A: Tasks will be run in attached (SPMD) mode"
            echo "";;
+        u) export USER_INPUT='no'
+           echo "-u: sette.sh will not expect any user interaction == no safety net!" 
+           echo "";;
         h | *) echo 'sette.sh with no arguments (in this case all configuration will be tested with default options)'
                echo '-T to set ln_timing false for all non-AGRIF configurations (default: true)'
                echo '-t set ln_tile false in all tests that support it (default: true)'
@@ -125,7 +143,9 @@ if [ $# -gt 0 ]; then
                echo '-r to execute without waiting to run sette_rpt.sh at the end (useful for chaining sette.sh invocations)'
                echo '-d to perform a dryrun to simply report what settings will be used'
                echo '-c to clean each configuration'
-               echo '-s to synchronise the sette MY_SRC and EXP00 with the reference MY_SRC and EXPREF'; exit 42 ;;
+               echo '-s to synchronise the sette MY_SRC and EXP00 with the reference MY_SRC and EXPREF'
+               echo '-u to run sette.sh without any user interaction. This means no checks on creating'
+               echo '          directories etc. i.e. no safety net!' ; exit 42 ;;
      esac
   done
   shift $((OPTIND - 1))
@@ -135,26 +155,38 @@ fi
 #
 if [ ${USING_TILING} == "yes" ] ; then 
  if [ ${USING_EXTRA_HALO} == "no" ] ; then
-  while true; do
-      read -p "Tiling requires the extra halo but you have used -e to deselect it. Would you like to reselect it? (y/n)?: " yn
-      case $yn in
-          [Yy]* ) echo "Ok, ignoring the -e option"; USING_EXTRA_HALO="yes"; break;;
-          [Nn]* ) echo "Ok, exiting instead"; exit 42;;
-          * ) echo "Please answer yes or no.";;
-      esac
-  done
+  if [ ${USER_INPUT} == "yes" ] ; then
+   while true; do
+       read -p "Tiling requires the extra halo but you have used -e to deselect it. Would you like to reselect it? (y/n)?: " yn
+       case $yn in
+           [Yy]* ) echo "Ok, ignoring the -e option"; USING_EXTRA_HALO="yes"; break;;
+           [Nn]* ) echo "Ok, exiting instead"; exit 42;;
+           * ) echo "Please answer yes or no.";;
+       esac
+   done
+  else
+   # Without user input, the best option is to disable tiling
+   echo "Tiling requires the extra halo but you have used -e to deselect it. Tiling will not be used."
+   USING_TILING="no"
+  fi
  fi
 fi
 if [ ${USING_LOOP_FUSION} == "yes" ] ; then 
  if [ ${USING_EXTRA_HALO} == "no" ] ; then
-  while true; do
-      read -p "Loop fusion requires the extra halo but you have used -e to deselect it. Would you like to reselect it? (y/n)?: " yn
-      case $yn in
-          [Yy]* ) echo "Ok, ignoring the -e option"; USING_EXTRA_HALO="yes"; break;;
-          [Nn]* ) echo "Ok, exiting instead"; exit 42;;
-          * ) echo "Please answer yes or no.";;
-      esac
-  done
+  if [ ${USER_INPUT} == "yes" ] ; then
+   while true; do
+       read -p "Loop fusion requires the extra halo but you have used -e to deselect it. Would you like to reselect it? (y/n)?: " yn
+       case $yn in
+           [Yy]* ) echo "Ok, ignoring the -e option"; USING_EXTRA_HALO="yes"; break;;
+           [Nn]* ) echo "Ok, exiting instead"; exit 42;;
+           * ) echo "Please answer yes or no.";;
+       esac
+   done
+  else
+   # Without user input, the best option is to disable loop fusion
+   echo "Loop fusion requires the extra halo but you have used -e to deselect it. Loop fusion will not be used."
+   USING_LOOP_FUSION="no"
+  fi
  fi
 fi
 #
@@ -182,14 +214,20 @@ if [ ${USING_RK3} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_RK3 " ; fi
 #
 if [ ! -d $NEMO_VALIDATION_DIR ] ; then
  if [ ${dry_run} -eq 0 ] ; then
-  while true; do
-      read -p "$NEMO_VALIDATION_DIR does not exist. Do you wish to create it? " yn
-      case $yn in
-          [Yy]* ) echo "Ok, creating $NEMO_VALIDATION_DIR"; mkdir $NEMO_VALIDATION_DIR; break;;
-          [Nn]* ) echo "Ok, exiting instead"; exit 42;;
-          * ) echo "Please answer yes or no.";;
-      esac
-  done
+  if [ ${USER_INPUT} == "yes" ] ; then
+   while true; do
+       read -p "$NEMO_VALIDATION_DIR does not exist. Do you wish to create it? " yn
+       case $yn in
+           [Yy]* ) echo "Ok, creating $NEMO_VALIDATION_DIR"; mkdir $NEMO_VALIDATION_DIR; break;;
+           [Nn]* ) echo "Ok, exiting instead"; exit 42;;
+           * ) echo "Please answer yes or no.";;
+       esac
+   done
+  else
+       # Without user input, carry on regardless
+       echo "$NEMO_VALIDATION_DIR does not exist. It will be created"
+       mkdir $NEMO_VALIDATION_DIR
+  fi
  else
   echo "$NEMO_VALIDATION_DIR does not exist"
   echo "but this is a dry run so it will not be created"
@@ -206,6 +244,7 @@ if [ ${#SETTE_TEST_CONFIGS[@]} -eq 0 ]; then
 fi
 echo "Carrying out the following tests  : ${TEST_TYPES[@]}"
 echo "requested by the command          : "$cmd $cmdargs
+echo "on branch                         : "$SETTE_THIS_BRANCH
 printf "%-33s : %s\n" USING_TIMING $USING_TIMING
 printf "%-33s : %s\n" USING_ICEBERGS $USING_ICEBERGS
 printf "%-33s : %s\n" USING_EXTRA_HALO $USING_EXTRA_HALO
@@ -217,6 +256,7 @@ printf "%-33s : %s\n" USING_LOOP_FUSION $USING_LOOP_FUSION
 printf "%-33s : %s\n" USING_XIOS $USING_XIOS
 printf "%-33s : %s\n" USING_MPMD $USING_MPMD
 printf "%-33s : %s\n" USING_RK3 $USING_RK3
+printf "%-33s : %s\n" USER_INPUT $USER_INPUT
 printf "%-33s : %s\n" "Common compile keys to be added" "$ADD_KEYS"
 printf "%-33s : %s\n" "Common compile keys to be deleted" "$DEL_KEYS"
 echo "Validation records to appear under: "$NEMO_VALIDATION_DIR

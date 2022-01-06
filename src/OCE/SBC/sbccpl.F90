@@ -53,7 +53,7 @@ MODULE sbccpl
    USE mod_oasis, ONLY : OASIS_Sent, OASIS_ToRest, OASIS_SentOut, OASIS_ToRestOut
 #endif
 
-   USE sbc_phy, ONLY : pp_cldf
+   USE sbc_phy, ONLY : pp_cldf, rpref
 
    IMPLICIT NONE
    PRIVATE
@@ -219,9 +219,6 @@ MODULE sbccpl
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   a_i_last_couple !: Ice fractional area at last coupling time
 #endif
 
-   REAL(wp) ::   rpref = 101000._wp   ! reference atmospheric pressure[N/m2]
-   REAL(wp) ::   r1_grau              ! = 1.e0 / (grav * rho0)
-
    INTEGER , ALLOCATABLE, SAVE, DIMENSION(:) ::   nrcvinfo           ! OASIS info argument
 
    !! Substitution
@@ -229,7 +226,7 @@ MODULE sbccpl
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: sbccpl.F90 15004 2021-06-16 10:33:18Z mathiot $
+   !! $Id: sbccpl.F90 15551 2021-11-28 20:19:36Z gsamson $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -1188,6 +1185,7 @@ CONTAINS
       REAL(wp) ::   zrhoa  = 1.22          ! Air density kg/m3
       REAL(wp) ::   zcdrag = 1.5e-3        ! drag coefficient
       REAL(wp) ::   zzx, zzy               ! temporary variables
+      REAL(wp) ::   r1_grau                ! = 1.e0 / (grav * rho0)
       REAL(wp), DIMENSION(jpi,jpj) ::   ztx, zty, zmsk, zemp, zqns, zqsr, zcloud_fra
       !!----------------------------------------------------------------------
       !
