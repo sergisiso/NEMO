@@ -33,6 +33,9 @@ MODULE trctrp
 
 #if defined key_agrif
    USE agrif_top_sponge ! tracers sponges
+# if defined key_RK3
+   USE agrif_top_interp
+# endif
 #endif
 
    IMPLICIT NONE
