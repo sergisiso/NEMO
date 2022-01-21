@@ -28,7 +28,11 @@
       !!----------------------------------------------------------------------
       !
       CALL nemo_init       !* Initializations of each fine grid
+# if defined key_RK3
+      Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs
+# else
       Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+# endif
       !
       !                    !* Agrif initialization
       CALL Agrif_InitValues_cont

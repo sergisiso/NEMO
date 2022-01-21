@@ -74,7 +74,7 @@ CONTAINS
 #if defined key_agrif
       IF( nstop > 0 )   RETURN   ! avoid to go further if an error was detected during previous time step (child grid)
       kstp = nit000 + Agrif_Nb_Step()
-      Kbb_a = Nbb   ; Kmm_a = Nnn   ;   Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+      Kbb_a = Nbb   ; Kmm_a = Nbb   ;   Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
       IF( lk_agrif_debug ) THEN
          IF( Agrif_Root() .AND. lwp)   WRITE(*,*) '---'
          IF(lwp)   WRITE(*,*) 'Grid Number', Agrif_Fixed(),' time step ', kstp, 'int tstep', Agrif_NbStepint()

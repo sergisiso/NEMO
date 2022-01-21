@@ -118,7 +118,9 @@ CONTAINS
       !                                ! Horizontal interpolation of e3t
 #if defined key_RK3
       CALL dom_qco_r3c( ssh(:,:,Kbb), r3t(:,:,Kbb), r3u(:,:,Kbb), r3v(:,:,Kbb), r3f(:,:) )
-      CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm)           )  !!st needed for Agrif_Grid call in nemo_gcm
+      r3t(:,:,Kmm) = r3t(:,:,Kbb)                            !!st r3 at Kmm needed to be initialised for Agrid_Grid call in nemo_gcm        
+      r3u(:,:,Kmm) = r3u(:,:,Kbb)                            !!             maybe we only need zeros ??? 
+      r3v(:,:,Kmm) = r3v(:,:,Kbb)      
 #else
       CALL dom_qco_r3c( ssh(:,:,Kbb), r3t(:,:,Kbb), r3u(:,:,Kbb), r3v(:,:,Kbb)           )
       CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm), r3f(:,:) )
