@@ -184,7 +184,7 @@ CONTAINS
       !  RK3 : single first external mode computation
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-      CALL stp_2D( kstp, Nbb, Nbb, Naa, Nrhs )   ! out: ssh, (uu_b,vv_b) and (un_adv,vn_adv) at Naa
+      CALL stp_2D( kstp, Nbb, Nbb, Naa, Nrhs )   ! out: ssh, (uu_b,vv_b) at Naa and (un_adv,vn_adv) between Nbb and Naa
 
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

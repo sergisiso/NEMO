@@ -208,13 +208,13 @@ CONTAINS
       ! 		!==  Net water flux forcing  ==!  (applied to a water column)
       !
       IF (ln_bt_fw) THEN                          ! FORWARD integration: use kt+1/2 fluxes (NOW+1/2)
-         sshe_rhs(:,:) = r1_rho0 * ( emp(:,:) - rnf(:,:) + fwfisf_cav(:,:) + fwfisf_par(:,:) )
+         sshe_rhs(:,:) = r1_rho0 * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) )
       ELSE                                        ! CENTRED integration: use kt-1/2 + kt+1/2 fluxes (NOW)
          zztmp = r1_rho0 * r1_2
          sshe_rhs(:,:) = zztmp * (   emp(:,:)        + emp_b(:,:)          &
             &                      - rnf(:,:)        - rnf_b(:,:)          &
-            &                      + fwfisf_cav(:,:) + fwfisf_cav_b(:,:)   &
-            &                      + fwfisf_par(:,:) + fwfisf_par_b(:,:)   )
+            &                      - fwfisf_cav(:,:) - fwfisf_cav_b(:,:)   &
+            &                      - fwfisf_par(:,:) - fwfisf_par_b(:,:)   )
       ENDIF
       !
       ! 		!==  Stokes drift divergence  ==!   (if exist)

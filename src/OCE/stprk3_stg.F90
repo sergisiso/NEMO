@@ -123,7 +123,7 @@ CONTAINS
          !
          !                     !==  ssh/h0 ratio at Kaa  ==! 
          !
-         IF( .NOT.lk_linssh ) THEN     ! "after" ssh/h_0 ratio at t,u,v-column
+         IF( .NOT.lk_linssh ) THEN     ! "after" ssh/h_0 ratio at t,u,v-column computed at N+1 stored in r3.a 
             !
             ALLOCATE( r3ta(jpi,jpj) , r3ua(jpi,jpj) , r3va(jpi,jpj) , r3fa(jpi,jpj) , r3fb(jpi,jpj) )
             !
@@ -131,7 +131,7 @@ CONTAINS
             CALL dom_qco_r3c_RK3( ssha, r3ta, r3ua, r3va, r3fa )
             !
             CALL lbc_lnk( 'stprk3_stg', r3ua, 'U', 1._wp, r3va, 'V', 1._wp, r3fa, 'F', 1._wp )
-            !
+            !                          ! 
             r3t(:,:,Kaa) = r2_3 * r3t(:,:,Kbb) + r1_3 * r3ta(:,:)   ! at N+1/3 (Kaa)
             r3u(:,:,Kaa) = r2_3 * r3u(:,:,Kbb) + r1_3 * r3ua(:,:)
             r3v(:,:,Kaa) = r2_3 * r3v(:,:,Kbb) + r1_3 * r3va(:,:)
@@ -194,7 +194,12 @@ CONTAINS
          zaV(ji,jj,jk) = vv(ji,jj,jk,Kmm) + zvb(ji,jj)*vmask(ji,jj,jk)
       END_3D
       !                                            !- vertical components -!   ww
-                         CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )     ! ww cross-level velocity
+      !
+      IF( ln_dynadv_vec ) THEN                                            ! ww cross-level velocity consistent with uu/vv at Kmm
+                         CALL wzv  ( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww )
+      ELSE                                                                ! ww cross-level velocity consistent with zaU/zaV
+                         CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )
+      ENDIF
 
 !!st      IF( ln_zad_Aimp )  CALL wAimp( kstp, ww, wi       )     ! Adaptive-implicit vertical advection partitioning
       !                                                            !==>>>  implicite for stages 1 & 2 ????
@@ -209,7 +214,11 @@ CONTAINS
       !
 !===>>>>>> Modify dyn_adv_... dyn_keg routines so that Krhs to zero useless
       !                                         ! advection (VF or FF)	==> RHS
-      CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs, zaU, zaV, ww )
+      IF( ln_dynadv_vec ) THEN                                            ! uu and vv used for momentum advection
+         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs)
+      ELSE                                                                ! advective velocity used for momentum advection
+         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs, zaU, zaV, ww )
+      ENDIF
       !                                         ! Coriolis / vorticity  ==> RHS
       CALL dyn_vor( kstp,      Kmm      , uu, vv, Krhs )
       !
@@ -219,11 +228,7 @@ CONTAINS
 
 !===>>>>>> Modify dyn_hpg & dyn_hpg_...  routines : rhd computed in dyn_hpg and pass in argument to dyn_hpg_...
 
-!!st      IF( kstg == 3 ) THEN
-!         CALL eos    ( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0 ) ! now in situ density for hpg computation
-!      ELSE
-         CALL eos    ( ts, Kmm, rhd )              ! Kmm in situ density anomaly for hpg computation
-!      ENDIF
+      CALL eos    ( ts, Kmm, rhd )              ! Kmm in situ density anomaly for hpg computation
 
 !!gm end
       CALL dyn_hpg( kstp,      Kmm      , uu, vv, Krhs )
@@ -237,13 +242,15 @@ CONTAINS
 !         vv(ji,jj,jk,Krhs) = vv(ji,jj,jk,Krhs) - grav * ( ssh(ji  ,jj+1,Kmm) - ssh(ji,jj,Kmm) )
 !      END_3D
 !!gm      
-      
+
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! RHS of tracers : ADV only using (zaU,zaV,ww)
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-# if defined key_top
       !
+      !                                            ! Advective velocity needed for tracers advection - already computed if ln_dynadv_vec=F
+      IF( ln_dynadv_vec )   CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )
+      !
+# if defined key_top
       !                       !==  Passive Tracer  ==!
       !
       SELECT CASE( kstg )
@@ -308,11 +315,7 @@ CONTAINS
 
 !===>>>>>> Modify tra_adv_...  routines so that Krhs to zero useless
       DO jn = 1, jpts
-!!st does not work due to lbc_lnk north fold : need to be merged with the trunk LBC pb changes for the namelist 
-!!         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-!!            ts(ji,jj,jk,jn,Krhs) = 0._wp                                    ! set tracer trends to zero
-!!         END_3D
-         ts(:,:,:,jn,Krhs) = 0._wp
+         ts(:,:,:,jn,Krhs) = 0._wp                                   ! set tracer trends to zero (:,:,:) needed otherwise it does not work (?)
       END DO
 
       CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0 ) ! now in potential density for tra_mle computation

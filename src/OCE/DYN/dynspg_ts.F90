@@ -911,7 +911,7 @@ CONTAINS
       ENDIF
             
       CALL iom_put(  "ubar", un_adv(:,:)*r1_hu(:,:,Kmm) )    ! barotropic i-current
-      CALL iom_put(  "vbar", vn_adv(:,:)*r1_hv(:,:,Kmm) )    ! barotropic i-current
+      CALL iom_put(  "vbar", vn_adv(:,:)*r1_hv(:,:,Kmm) )    ! barotropic j-current
 
       !                    !==  END Phase 3 for MLF time integration  ==!
 #endif
