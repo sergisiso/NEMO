@@ -247,10 +247,24 @@ CONTAINS
       zCdU_v  (:,:) = CdU_v   (:,:)
 
 !!gm ==>>> !!ts    ISSUe her on en discute    changer les cas ENS ENE  et triad ?
+      !
+      !                                   !=  remove 2D Coriolis trend  =!
+      !                                   !  --------------------------  !
+      !
       IF( kt == nit000 .OR. .NOT. ln_linssh )   CALL dyn_cor_2D_init( Kmm )   ! Set zwz, the barotropic Coriolis force coefficient
       !                      ! recompute zwz = f/depth  at every time step for (.NOT.ln_linssh) as the water colomn height changes
       !
-      
+      zhU(:,:) = puu_b(:,:,Kmm) * hu(:,:,Kmm) * e2u(:,:)        ! now fluxes 
+      zhV(:,:) = pvv_b(:,:,Kmm) * hv(:,:,Kmm) * e1v(:,:)        ! NB: FULL domain : put a value in last row and column
+      !
+      CALL dyn_cor_2D( ht(:,:), hu(:,:,Kmm), hv(:,:,Kmm), puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zhU, zhV,  &   ! <<== in
+         &                                                                          zu_trd, zv_trd   )   ! ==>> out
+      !
+      DO_2D( 0, 0, 0, 0 )                          ! Remove coriolis term (and possibly spg) from barotropic trend
+         zu_frc(ji,jj) = zu_frc(ji,jj) - zu_trd(ji,jj) * ssumask(ji,jj)
+         zv_frc(ji,jj) = zv_frc(ji,jj) - zv_trd(ji,jj) * ssvmask(ji,jj)
+      END_2D
+
 #else
       !                    !========================================!
       !                    !==  Phase 1 for MLF time integration  ==!

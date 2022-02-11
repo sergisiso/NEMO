@@ -109,16 +109,12 @@ CONTAINS
       uu(:,:,:,Krhs) = 0._wp        ! set dynamics trends to zero
       vv(:,:,:,Krhs) = 0._wp
       !
-      !                             !*  compute advection  *!
+      !                             !*  compute advection + coriolis *!
       !
-      CALL dyn_adv( kstp, Kbb, Kbb      , uu, vv, Krhs)     !- vector form KEG+ZAD 
+      CALL dyn_adv( kt, Kbb, Kbb      , uu, vv, Krhs)       !- vector form KEG+ZAD 
       !                                                     !- flux   form ADV
-      SELECT CASE( n_dynadv )
-      CASE( np_VEC_c2  )                                    !- vector form (add relative vorticity term)
-         CALL dyn_vor( kt,            Kbb, uu, vv, Krhs, np_RVO )
-      CASE( np_FLX_c2 , np_FLX_ubs )                        !-  flux  form (add metric term)
-         CALL dyn_vor     ( kt      , Kbb, uu, vv, Krhs, np_MET )
-      END SELECT
+      CALL dyn_vor( kt,            Kbb, uu, vv, Krhs )      !- vector form COR+RVO
+      !                                                     !- flux   form COR+MET
       !
       !                             !*  lateral viscosity  *!
       CALL dyn_ldf( kt,   Kbb, Kbb, uu, vv, Krhs )
@@ -145,7 +141,6 @@ CONTAINS
       CALL dyn_drg_init( Kbb, Kbb, uu, vv, uu_b, vv_b, Ue_rhs, Ve_rhs, CdU_u, CdU_v )
       !
       !                             !* wind forcing *!
-!!st ATTENTION stoke drift !!
       IF( ln_bt_fw ) THEN
          DO_2D( 0, 0, 0, 0 )
             Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + r1_rho0 * utau(ji,jj) * r1_hu(ji,jj,Kbb)
