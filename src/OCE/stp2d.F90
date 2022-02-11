@@ -108,17 +108,16 @@ CONTAINS
 
       uu(:,:,:,Krhs) = 0._wp        ! set dynamics trends to zero
       vv(:,:,:,Krhs) = 0._wp
-
-      SELECT CASE( n_dynadv )       !*  compute horizontal advection  only  *!
-      CASE( np_VEC_c2  )                                    !- vector form  ( HADV = KEG + VOR )
-         CALL dyn_keg( kt, nn_dynkeg, Kbb, uu, vv, Krhs )                  ! grad_h(KE)
-         CALL dyn_vor( kt,            Kbb, uu, vv, Krhs, np_RVO )          ! relative vorticity
-      CASE( np_FLX_c2  )                                    !-  flux form   ( HADV = ADV_h + MET )
-         CALL dyn_adv_cen2( kt      , Kbb, uu, vv, Krhs, no_zad = 1 )      ! 2nd order centered scheme
-         CALL dyn_vor     ( kt      , Kbb, uu, vv, Krhs, np_MET )          ! metric term
-      CASE( np_FLX_ubs )  
-         CALL dyn_adv_ubs ( kt      , Kbb, Kbb, uu, vv, Krhs, no_zad = 1)  ! 3rd order UBS scheme (UP3)
-         CALL dyn_vor     ( kt      , Kbb, uu, vv, Krhs, np_MET )          ! metric term
+      !
+      !                             !*  compute advection  *!
+      !
+      CALL dyn_adv( kstp, Kbb, Kbb      , uu, vv, Krhs)     !- vector form KEG+ZAD 
+      !                                                     !- flux   form ADV
+      SELECT CASE( n_dynadv )
+      CASE( np_VEC_c2  )                                    !- vector form (add relative vorticity term)
+         CALL dyn_vor( kt,            Kbb, uu, vv, Krhs, np_RVO )
+      CASE( np_FLX_c2 , np_FLX_ubs )                        !-  flux  form (add metric term)
+         CALL dyn_vor     ( kt      , Kbb, uu, vv, Krhs, np_MET )
       END SELECT
       !
       !                             !*  lateral viscosity  *!
@@ -136,8 +135,7 @@ CONTAINS
       !                             !*  vertical averaging  *!
       Ue_rhs(:,:) = SUM( e3u_0(:,:,:) * uu(:,:,:,Krhs) * umask(:,:,:), DIM=3 ) * r1_hu_0(:,:)
       Ve_rhs(:,:) = SUM( e3v_0(:,:,:) * vv(:,:,:,Krhs) * vmask(:,:,:), DIM=3 ) * r1_hv_0(:,:)
-      !
-      !
+
       !                       !===========================!
       !                       !==  external 2D forcing  ==!
       !                       !===========================!
@@ -200,7 +198,7 @@ CONTAINS
             Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + ( bhd_wave(ji,jj+1) - bhd_wave(ji,jj) ) * r1_e1u(ji,jj)
          END_2D
       ENDIF
-      !
+
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !   RHS of see surface height  Eq.
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -239,8 +237,7 @@ CONTAINS
       !                 !==  AGRIF : fill boundary data arrays (on both )
          IF( .NOT.Agrif_Root() )   CALL agrif_dta_ts( kt )
 #endif
-      !
-      !
+
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !             Compute ssh and (uu_b,vv_b)  at N+1  (Kaa)
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
