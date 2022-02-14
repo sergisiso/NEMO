@@ -23,17 +23,17 @@ The time evolution of any passive tracer $C$ is given by the transport equation,
 \label{Eq_tracer}
 \end{equation}
 
-where expressions of $D^{lC}$ and $D^{vC}$ depend on the choice for the lateral and vertical subgrid scale parameterizations (see Equations 5.10 and 5.11 in \cite{nemo_manual}).
+where expressions of $D^{lC}$ and $D^{vC}$ depend on the choice for the lateral and vertical subgrid scale parameterizations (see sections 4.2 and 4.3 in \cite{nemo_manual}).
 
 {S(C)}, the first term on the right hand side of \autoref{Eq_tracer}, is the SMS - Sources Minus Sinks - inherent to the tracer.
 In the case of a biological tracer such as phytoplankton, {S(C)} is the balance between phytoplankton growth and its loss through mortality and grazing.
 In the case of a tracer comprising carbon,  {S(C)} accounts for gas exchange, river discharge, flux to the sediments, gravitational sinking and other biogeochemical processes.
 In the case of a radioactive tracer, {S(C)} is simply the loss due to radioactive decay.
 
-The second term (within brackets) represents the advection of the tracer in the three directions.
+The second term (within brackets) represents the advection of the tracer in three dimensions.
 It can be interpreted as the budget between the incoming and outgoing tracer fluxes in a volume $T$-cells $b_t= e_{1t}\,e_{2t}\,e_{3t}$
 
-The third term  represents the change due to lateral diffusion.
+The third term represents the change due to lateral diffusion.
 
 The fourth term denotes the change due to vertical diffusion, parameterized as eddy diffusion to represent vertical turbulent fluxes :
 
@@ -50,22 +50,22 @@ where $A^{vT}$ is the vertical eddy diffusivity coefficient of active tracers.
 TOP is the NEMO hardwired interface toward biogeochemical models, which provides the physical constraints/boundaries for oceanic tracers.
 It consists of a modular framework to handle multiple ocean tracers, including also a variety of built-in modules.
 
-This component of the NEMO framework allows one to exploit available modules  and further develop a range of applications, spanning from the implementation of a dye passive tracer to evaluate dispersion processes (by means of MY\_TRC), track water masses age (AGE module), assess the ocean interior penetration of persistent chemical compounds (e.g., gases like CFC or even PCBs), up to the full set of equations to simulate marine biogeochemical cycles.
+This component of the NEMO framework allows one to exploit available modules and further develop a range of applications, spanning from the implementation of a dye passive tracer to evaluate dispersion processes (by means of MY\_TRC), track water masses age (AGE module), assess the ocean interior penetration of persistent chemical compounds (e.g., gases like CFC or even PCBs), up to the full set of equations to simulate marine biogeochemical cycles.
 
 TOP interface has the following location in the code repository : \path{<repository>/src/TOP/}
 
 and the following modules are available:
 
-% -----------  tableau  ------------------------------------
+%-----------  tableau  ------------------------------------
 \begin{itemize}
-        \item \textbf{TRP}    	    :    Interface to NEMO physical core for computing tracers transport
-        \item \textbf{CFC}	    :    Inert tracers (CFC11,CFC12, SF6)
-        \item \textbf{C14}	    :    Radiocarbon passive tracer
-        \item \textbf{AGE}	    :    Water age tracking
-        \item \textbf{MY\_TRC}  :	Template for creation of new modules and external BGC models coupling
-        \item \textbf{PISCES}    :	 Built in BGC model. See \cite{aumont_2015} for a complete description
+        \item \textbf{TRP}    	 :    Interface to NEMO physical core for computing tracers transport
+        \item \textbf{CFC}	 :    Inert tracers (CFC11,CFC12, SF6)
+        \item \textbf{C14}	 :    Radiocarbon passive tracer
+        \item \textbf{AGE}	 :    Water age tracking
+        \item \textbf{MY\_TRC}   :    Template for creation of new modules and external BGC models coupling
+        \item \textbf{PISCES}    :    Built in BGC model. See \cite{aumont_2015} for a complete description
 \end{itemize}
-%  ----------------------------------------------------------
+%----------------------------------------------------------
 
 \section{The transport component : TRP}
 
@@ -73,63 +73,52 @@ The passive tracer transport component shares the same advection/diffusion routi
 
 \subsection{Advection}
 
-The advection schemes used for the passive tracers are the same as those used for $T$ and $S$. They are described in section 5.1 of \cite{nemo_manual}.
+The advection schemes used for the passive tracers are the same as those used for $T$ and $S$. They are described in section 4.1 of the NEMO Manual \citep{nemo_manual}.
 The choice of an advection scheme can be selected independently and can differ from the ones used for active tracers.
-This choice is made in \textit{namelist\_to}p (ref or cfg) in the namelist block \textit{namtrc\_adv}, by setting to \textit{true} one and only one of the logicals \textit{ln\_trcadv\_xxx}, the same way of what is done for dynamics.
-cen2, MUSCL2, and UBS are not \textit{positive} schemes meaning that negative values can appear in an initially strictly positive tracer field which is advected, implying that artificial extrema are permitted. Their use is not recommended for passive tracers.
+This choice is made in \textit{namelist\_top} (ref or cfg) in the namelist block \textit{namtrc\_adv}, by setting to \textit{true} one and only one of the logicals \textit{ln\_trcadv\_xxx}, as it is done for the active tracers counterparts.
+
+Note that Centred (cen), Flux Corrected Transport (fct), Upstream-Biased (ubs), and QuiCKest (qck) parameterizations are not \textit{positive} schemes meaning that negative values can appear in an initially strictly positive tracer field which is advected, implying that artificial extrema are permitted. Their use is not recommended for passive tracers.
 
 %------------------------------------------namtrc_adv----------------------------------------------------
 \nlst{namtrc_adv}
-%----------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
 
 \subsection{Lateral diffusion}
 
-In NEMO v4.0, diffusion of passive tracers has necessarily the same form as the active tracer diffusion, meaning that the numerical scheme must be the same.
+After NEMO v4.0, the lateral diffusion of passive tracers uses exactly the same form of active tracers, meaning that the numerical scheme is inherited from the physical setup and forced to be the same.
 However the passive tracer mixing coefficient can be chosen as a multiple of the active ones by changing the value of \textit{rn\_ldf\_multi} in namelist \textit{namtrc\_ldf}.
-The choice of the numerical scheme is then set in the \forcode{&namtra_ldf} namelist section for the dynamic described in section 5.2 of \cite{nemo_manual}.
+The choice of the numerical scheme is then set in the \forcode{&namtra_ldf} namelist section for the dynamic described in section 4.2 of NEMO Manual \citep{nemo_manual}.
 
-rn\_fact\_lap is a factor used to increase zonal equatorial diffusion for depths beyond 200 m. It can be useful to achieve a better representation of Oxygen Minimum Zone (OMZ) in some biogeochemical models, especially at coarse resolution \citep{getzlaff_2013}.
+\textit{rn\_fact\_lap} is a factor used to increase zonal equatorial diffusion for depths beyond 200 m. It can be useful to achieve a better representation of Oxygen Minimum Zone (OMZ) in some biogeochemical models, especially at coarse resolution \citep{getzlaff_2013}.
 
 %------------------------------------------namtrc_ldf----------------------------------------------------
 \nlst{namtrc_ldf}
-%---------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
 
-%-----------------We also offers the possibility to increase zonal equatorial diffusion for passive tracers by introducing an enhanced zonal diffusivity coefficent in the equatorial domain which can be defined by the equation below :
+%-----------------The code allows also to increase zonal equatorial diffusion for passive tracers by introducing an enhanced zonal diffusivity coefficent in the equatorial domain which can be defined by the equation below :
 %-----------------\begin{equation} \label{eq:traqsr_iradiance}
 %-----------------Aht  = Aht *  rn_fact_lap * \exp( - \max( 0., z -1000  ) / 1000}  \quad \text{for $L=1$ to $N$}
 %-----------------\end{equation}
 
-\subsection{Tracer damping}
-
-The use of newtonian damping  to climatological fields or observations is also coded, sharing the same routine as that of active tracers.
-Boolean variables are defined in the namelist\_top\_ref to select the tracers on which restoring is applied.
-Options are defined through the \textit{\&namtrc\_dmp} namelist variables.
-The restoring term is added when the namelist parameter \textit{ln\_trcdmp} is set to \textit{true}.
-The restoring coefficient is a three-dimensional array read in a file, whose name is specified by the namelist variable \textit{cn\_resto\_tr}.
-This netcdf file can be generated using the DMP\_TOOLS tool.
-
-%------------------------------------------namtrc_dmp----------------------------------------------------
-\nlst{namtrc_dmp}
-%-----------------------------------------------------------------------------------------------------------
-
 \subsection{Tracer positivity}
 
-Some numerical schemes can generate negative values of passive tracers concentration, which is obviously unrealistic.
-For example,  isopycnal diffusion can created local extrema, meaning that negative concentrations can be generated.
-The trcrad routine artificially corrects negative concentrations with a very crude solution that either sets negative concentrations to zero without adjusting the tracer budget (CFCs or C14 chemical coumpounds), or by removing negative concentrations while computing the corresponding tracer content that is added and then, adjusting the tracer concentration using a multiplicative factor so that the total tracer concentration is preserved (PISCES model). 
-The treatment of negative concentrations is an option and can be selected in the namelist \textit{\&namtrc\_rad} by setting the parameter \textit{ln\_trcrad}  to true.
+Some numerical schemes can generate negative values of passive tracers concentration, thus leading to unrealistic features.
+For example, isopycnal diffusion can created local extrema, meaning that negative concentrations are allowed to generate.
+
+The trcrad routine artificially corrects negative concentrations with a very crude solution that either sets negative concentrations to zero without adjusting the tracer budget (CFCs or C14 chemical coumpounds), or by removing negative concentrations while computing the corresponding tracer content that is added and then, adjusting the tracer concentration using a multiplicative factor so that the total tracer concentration is preserved (e.g., in PISCES).
+The treatment of negative concentrations is an option and can be selected in the namelist \textit{\&namtrc\_rad} by setting the parameter \textit{ln\_trcrad} to \textit{true}.
 
 %------------------------------------------namtrc_rad----------------------------------------------------
 \nlst{namtrc_rad}
-%----------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
 
 \subsection{Tracer boundary conditions}
 
-In NEMO, different types of boundary conditions can be specified for biogeochemical tracers. For every single variable, it is possible to define a field of surface boundary conditions, such as deposition of dust or nitrogen, which is then interpolated to the grid and timestep using the fld\_read function. The same facility is available to include river inputs or coastal erosion (coastal boundary conditions) and the treatment of open boundary conditions. For lateral boundary conditions, spatial interpolation should not be activated.
+In TOP, different types of boundary conditions can be specified for biogeochemical tracers. For every single variable, it is possible to define a field of surface boundary conditions, such as deposition of dust or nitrogen, which is then interpolated to the grid and timestep using the fld\_read function. Through the same facility one can apply coastal inputs/loads (coastal boundary conditions) and to specify the treatment of lateral open boundary conditions. For the latter, the spatial interpolation functionality should not be activated. The entire set of boundary conditions is activated with the paramter \textit{ln\_trcbc} to \textit{true}
 
 %------------------------------------------namtrc_bc----------------------------------------------------
 \nlst{namtrc_cfg}
-%---------------------------------------------------------------------------------------------------------
+%-------------------------------------------------------------------------------------------------------
 
 \subsubsection{Surface and lateral boundaries}
 
@@ -137,10 +126,10 @@ The namelist \textit{\&namtrc\_bc}  is in file \textit{namelist\_top\_cfg}  and 
 
 %------------------------------------------namtrc_bc----------------------------------------------------
 \nlst{namtrc_bc}
-%---------------------------------------------------------------------------------------------------------
-\subsubsection{Open boundaries}
+%-------------------------------------------------------------------------------------------------------
+\subsubsection{Lateral open boundaries}
 
-The BDY for passive tracer are set together with the physical oceanic variables (lnbdy  =.true.). Boundary conditions are set in the structure used to define the passive tracer properties in the « cbc » column. These boundary conditions are applied on the segments defined for the physical core of NEMO (see BDY description in the User Manual).
+The BDY for passive tracer are set together with the physical oceanic variables (ln?bdy  =.true.). Boundary conditions are set in the structure used to define the passive tracer properties in the « obc » column. These boundary conditions are applied on the segments defined for the physical system, as described in the BDY section of NEMO Manual.
 \begin{itemize}
 	\item cn\_trc\_dflt : the type of OBC applied to all the tracers
 	\item cn\_trc :  the boundary condition used for tracers with data file
@@ -148,15 +137,17 @@ The BDY for passive tracer are set together with the physical oceanic variables 
 
 %------------------------------------------namtrc_bdy----------------------------------------------------
 \nlst{namtrc_bdy}
-%----------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
 
-\subsubsection{Sedimentation of particles}
+\subsection{Vertical sinking of particles}
 
-This module computes the vertical flux of particulate matter due to gravitational sinking. It also offers a temporary solution for the problem that may arise in specific situation where the CFL criterion is broken for vertical sedimentation of particles. To avoid this, a time splitting algorithm has been coded. The number of iterations niter necessary to respect the CFL criterion is dynamically computed. A specific maximum number of iterations nitermax may be specified in the namelist. This is to avoid a very large number of iterations when explicit free surface is used, for instance. If niter is larger than the prescribed nitermax, sinking speeds are clipped so that the CFL criterion is respected. The numerical scheme used to compute sedimentation is based on the MUSCL advection scheme.
+The module \textit{trc\_sink} computes the vertical flux of tracers that undergo to gravitational sinking (e.g., particulated matter). It also offers a temporary solution for the problem that may arise in specific situation where the CFL criterion is broken for vertical sedimentation of particles. To avoid this, a time splitting algorithm has been coded. The number of iterations (niter) necessary to respect the CFL criterion is dynamically computed. A specific maximum number of iterations (\textit{nitermax}) can be specified in the namelist. This allows to avoid a very large number of iterations when explicit free surface is used, for instance. If niter is larger than the prescribed nitermax, sinking speeds are clipped so that the CFL criterion is respected. The numerical scheme used to compute sedimentation is based on the MUSCL advection scheme.
 
 %------------------------------------------namtrc_bdy----------------------------------------------------
 \nlst{namtrc_snk}
-%----------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
+
+\subsection{Sea-ice interface}
 
 \subsubsection{Sea-ice growth and melt effect}
 
@@ -164,13 +155,13 @@ NEMO provides three options for the specification of tracer concentrations in se
 
 %------------------------------------------namtrc_ice----------------------------------------------------
 \nlst{namtrc_ice}
-%---------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
 
 \subsubsection{Antartic Ice Sheet tracer supply}
 
-The external input of biogeochemical tracers from the Antarctic Ice Sheet (AIS) is represented by associating a tracer content with the freshwater flux from icebergs and ice shelves \citep{person_sensitivity_2019}. This supply is currently implemented only for dissolved Fe (\autoref{img_icbisf}) and is effective in model configurations with south-extended grids (eORCA1 and eORCA025). As the ORCA2 grid does not extend south into Antarctica, the external source of tracers from the AIS cannot be enabled in this configuration. 
+The external input of biogeochemical tracers from the Antarctic Ice Sheet (AIS) is represented by associating a tracer content with the freshwater flux from icebergs and ice shelves \citep{person_sensitivity_2019}. This supply is currently implemented only for dissolved Fe (\autoref{img_icbisf}) and is effective in model configurations with south-extended grids (e.g., eORCA1 and eORCA025). As the ORCA2 grid does not extend south into Antarctica, the external source of tracers from the AIS cannot be enabled in this configuration. 
 
-For icebergs, a homogeneous distribution of biogeochemical tracers is applied from the surface to a depth that can be defined in \textit{\&namtrc\_ais}, currently set at 120 m. It should be noted that the freshwater flux from icebergs affects only the ocean properties at the surface. For ice shelves, biogeochemical tracers follow the explicit or parameterized representation of freshwater flux distribution modeled in NEMO. The AIS tracer supply is activated by setting \textit{ln\_trcais} to \textit{true} in the \textit{\&namtrc} section.
+For icebergs, a homogeneous distribution of biogeochemical tracers is applied from the surface to a depth that can be defined in \textit{\&namtrc\_ais}, with a default values of 120 m. It should be noted that the freshwater flux from icebergs affects only the ocean properties at the surface. For ice shelves, biogeochemical tracers follow the explicit or parameterized representation of freshwater flux distribution modeled by the NEMO physical core. The AIS tracer supply is activated by setting \textit{ln\_trcais} to \textit{true} in the \textit{\&namtrc} section.
 
 \begin{figure}[!h]
 	\centering
@@ -181,19 +172,32 @@ For icebergs, a homogeneous distribution of biogeochemical tracers is applied fr
 
 %------------------------------------------namtrc_ais----------------------------------------------------
 \nlst{namtrc_ais}
-%---------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
+
+\subsection{Tracer damping}
+
+The use of newtonian damping  to climatological fields or observations is also coded, sharing the same routine as that of active tracers.
+Boolean variables are defined in \textit{namelist\_top\_ref} to specify which tracers are affected by the restoring procedure.
+Options are defined through the \textit{\&namtrc\_dmp} namelist variables.
+The restoring term is added when the namelist parameter \textit{ln\_trcdmp} is set to \textit{true}.
+The restoring coefficient is a three-dimensional array read in a file, whose name is specified by the namelist variable \textit{cn\_resto\_tr}.
+This netcdf file can be generated using the \textit{DMP\_TOOLS} tool.
+
+%------------------------------------------namtrc_dmp----------------------------------------------------
+\nlst{namtrc_dmp}
+%--------------------------------------------------------------------------------------------------------
 
 \section{The SMS modules}
 
 \label{SMS_models}
 %------------------------------------------namtrc_sms----------------------------------------------------
 %\nlst{namtrc}
-%-------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
 
 \subsection{Ideal Age}
-%------------------------------------------namage----------------------------------------------------
+%---------------------------------------------namage-----------------------------------------------------
 \nlst{namage}
-%----------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
 
 An `ideal age' tracer is integrated online in TOP when \textit{ln\_age} = \texttt{.true.} in namelist \textit{namtrc}.
 This tracer marks the duration in units of years that fluid has spent in the interior of the ocean, insulated from exposure to the atmosphere  (\autoref{img_ageatl} and \autoref{img_age200}).
@@ -232,7 +236,7 @@ Since this relaxation is applied explicitly, the relaxation rate should in princ
 
 Currently the 1-dimensional reference depth of the grid boxes is used rather than the dynamically evolving depth to determine whether the age tracer is incremented or relaxed to zero.
 This means that the age tracer module only works correctly in z-coordinates.
-To ensure that the forcing is independent of the level thicknesses, where the tracer cell at level $k$ has its upper face $z=-depw(k)$ above the depth $-H_{\mathrm{Age}}$, but its lower face $z=-depw(k+1)$ below that depth, then the age source is computed as:
+To ensure that the forcing is independent from the level thicknesses, where the tracer cell at level $k$ has its upper face $z=-depw(k)$ above the depth $-H_{\mathrm{Age}}$, but its lower face $z=-depw(k+1)$ below that depth, then the age source is computed as:
 
 \begin{equation}
   \label{eq:TOP-age-mixed}
@@ -255,7 +259,7 @@ This implementation was first used in the CORE-II intercomparison runs described
 \nlst{namcfc}
 %----------------------------------------------------------------------------------------------------------
 
-Chlorofluorocarbons 11 and 12 (CFC-11 and CFC-12), and sulfur hexafluoride (SF6), are synthetic chemicals manufactured for industrial and domestic applications from the early 20th century onwards.
+Chlorofluorocarbons 11 and 12 (CFC-11 and CFC-12) and sulfur hexafluoride (SF6) are synthetic chemicals manufactured for industrial and domestic applications from the early 20th century onwards.
 CFC-11 (CCl$_{3}$F) is a volatile liquid at room temperature, and was widely used in refrigeration.
 CFC-12 (CCl$_{2}$F$_{2}$) is a gas at room temperature, and, like CFC-11, was widely used as a refrigerant,
 and additionally as an aerosol propellant.
@@ -266,16 +270,6 @@ As can be seen in the figure, while the concentration of SF6 continues to rise t
 These declines have been driven by the Montreal Protocol (effective since August 1989), which has banned the production of CFC-11 and CFC-12 (as well as other CFCs) because of their role in the depletion of
 stratospheric ozone (O$_{3}$), critical in decreasing the flux of ultraviolet radiation to the Earth's surface. All three chemicals are also  significantly more potent greenhouse gases
 than CO$_{2}$ (especially SF6), although their relatively low atmospheric concentrations limit their role in climate change. \\
-
-% Chlorofluorocarbons 11 and 12 (CFC-11 and CFC-12), and sulfur hexafluoride (SF6),
-% are greenhouse gases that have been released into the atmosphere by human activities.
-% In the case of CFC-11 and CFC-12, this release began in the 1930s, and atmospheric
-% concentrations increased until around the late 1990s afterwhich they began to decline in
-% response to the Montreal Protocol.
-% In the case of SF6, release began in the 1950s
-% This release began in the 1930s for CFC-11 and CFC-12, and the 1950s for SF6, and
-% regularly increasing their atmospheric concentration until the 1090s, 2000s for respectively CFC11, CFC12,
-% and is still increasing, and SF6 (see Figure \autoref{img_cfcatm}).  \\
 
 The ocean is a notable sink for all three gases, and their relatively recent occurrence in the atmosphere, coupled to the ease of making high precision measurements of their dissolved concentrations, has made them
 valuable in oceanography. % for tracking interior ventilation and mixing.
@@ -346,8 +340,7 @@ Sc =  a0 + (a1 \, \cdot \, T) + (a2  \, \cdot \, T^2) + (a3 \, \cdot \, T^3) + (
 
 The solubility, $Sol$, used in Equation \autoref{equ_C_sat} is calculated in mol~l$^{-1}$~atm$^{-1}$,
 and is specific for each gas.
-It has been experimentally estimated by \citet{warner_1985} as a function of temperature
-and salinity:
+It has been experimentally estimated by \citet{warner_1985} as a function of temperature and salinity:
 
 % AXY: this equation looks both weird and possibly wrong; it doesn't look like the one in the
 % code version that I have to hand, although this might be out of date; in any case, I'dag
@@ -779,12 +772,12 @@ See e.g. the correspondent PISCES subroutine.
 It is possible to place here the output of additional variables produced by the model, if not done elsewhere in the code, using the call to \textit{iom\_put}.
 \end{itemize}
 
-\section{The Offline Option}
+\section{Offline coupling}
 \label{Offline}
 
-Coupling passive tracers offline with NEMO requires precomputed physical fields
- from OGCM. Those fields are read in files and interpolated on-the-fly at each model
- time step. There are two sets of fields to perform offline simulations :
+Coupling passive tracers offline with NEMO requires precomputed physical fields from OGCM. 
+Those fields are read in files and interpolated on-the-fly at each model time step. 
+There are two sets of fields to perform offline simulations :
 
 \begin{itemize}
 	\item linear free surface ( ln\_linssh = .true. )  where the vertical scale factor is constant with time. At least, the following dynamical parameters should be absolutely passed
@@ -793,7 +786,7 @@ Coupling passive tracers offline with NEMO requires precomputed physical fields
 	%------------------------------------------namtrc_sms----------------------------------------------------
 	\nlst{namdta_dyn_linssh}
 	%-----------------------------------------------------------------------------------------------------------
-	\item non linear free surface ( ln\_linssh = .false. or key\_qco ) : the same fields than the ones in the linear free surface case. In addition, the horizontal divergence transport is needed to  recompute the time evolution of the sea surface heigth and the vertical scale factor and depth, and thus the time evolution of the vertical transport velocity.
+	\item non linear free surface ( ln\_linssh = .false. or key\_qco ): the same fields than the ones in the linear free surface case. In addition, the horizontal divergence transport is needed to  recompute the time evolution of the sea surface heigth and the vertical scale factor and depth, and thus the time evolution of the vertical transport velocity.
 	%------------------------------------------namtrc_sms----------------------------------------------------
 	\nlst{namdta_dyn_nolinssh}
 	%-----------------------------------------------------------------------------------------------------------
@@ -804,8 +797,7 @@ Additionally, temperature, salinity, and mixed layer depth are needed to compute
 The so-called offline mode is useful since it has lower computational costs for example to perform very longer simulations – about 3000 years - to reach equilibrium of CO$_{2}$ sinks for climate-carbon studies.
 
 The offline interface is located in the code repository : <repository>/src/OFF/. It is activated by adding the\textit{ key\_offline} CPP key to the CPP keys list. 
-There are
-two specifics routines for the offline code :
+There are two specifics routines for the offline code :
 \begin{itemize}
 	\item dtadyn.F90 : this module reads and computes the dynamical fields at
 each model time-step

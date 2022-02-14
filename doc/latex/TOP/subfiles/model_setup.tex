@@ -30,7 +30,7 @@ As a reminder, the revisited structure of TOP interface now counts for five diff
 
 \begin{itemize}
         \item \textbf{PISCES}, default BGC model
-        \item \textbf{MY\_TRC}, template for creation of new modules couplings (maybe run a single passive tracer)
+        \item \textbf{MY\_TRC}, template for creation of new modules couplings (see section 3.2) or user defined passive tracer dynamics
         \item \textbf{CFC}, inert tracers dynamics (CFC$_{11}$,CFC$_{12}$,SF$_{6}$) updated based on OMIP-BGC guidelines (Orr et al, 2016)
         \item \textbf{C14}, radiocarbon passive tracer
         \item \textbf{AGE}, water age tracking
@@ -46,7 +46,7 @@ The modular approach was also implemented in the definition of the total number 
 \section{ TOP Tracer Initialization}
 
 Two main types of data structure are used within TOP interface to initialize tracer properties and to provide related initial and boundary conditions. 
-In addition to providing name and metadata for tracers, the use of initial and boundary conditions is also defined here (sn\_tracer).
+In addition to providing name and metadata for tracers, the use of initial and boundary conditions is also defined here (\textit{sn\_tracer}).
 The data structure is internally initialized by the code with dummy names and all initialization/forcing logical fields are set to \textit{false} .
 Below are listed some features/options of the TOP interface accessible through the \textit{namelist\_top\_ref} and modifiable by means of \textit{namelist\_top\_cfg} (as for NEMO physical ones).
 
