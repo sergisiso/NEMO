@@ -209,8 +209,10 @@ CONTAINS
       CALL stp_RK3_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
       !
       Nrhs = Nbb   ;   Nbb  = Naa   ;   Naa  = Nrhs    ! Swap: Nnn unchanged, Nbb <==> Naa
-    
-      ! Swap time levels 
+
+      ! linear extrapolation of ssh to compute ww at the beginning of the next time-step
+      ! ssh(n+1) = 2*ssh(n) - ssh(n-1)    
+      ssh(:,:,Naa) = 2*ssh(:,:,Nbb) - ssh(:,:,Naa)
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! diagnostics and outputs
@@ -241,7 +243,7 @@ CONTAINS
 !!jc: That would be better, but see comment above
 !!
 !!====>>>> to be modified for RK3
-      IF( lrst_oce   )   CALL rst_write    ( kstp, Nbb, Nnn )   ! write output ocean restart file
+      IF( lrst_oce   )   CALL rst_write    ( kstp, Nbb, Nnn, Naa )   ! write output ocean restart file
       IF( ln_sto_eos )   CALL sto_rst_write( kstp )   ! write restart file for stochastic parameters
 
 #if defined key_agrif
