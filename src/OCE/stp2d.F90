@@ -19,10 +19,8 @@ MODULE stp2d
    !!----------------------------------------------------------------------
    USE step_oce       ! time stepping used modules
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
-   USE dynadv_cen2    ! centred flux form advection    (dyn_adv_cen2 routine)
-   USE dynadv_ubs     ! UBS flux form advection        (dyn_adv_ubs  routine)
-   USE dynkeg         ! kinetic energy gradient        (dyn_keg      routine)
    USE dynspg_ts      ! 2D mode integration
+   USE sshwzv         ! vertical speed
    USE sbc_ice , ONLY : snwice_mass, snwice_mass_b
    USE sbcapr         ! surface boundary condition: atmospheric pressure
    USE sbcwave,  ONLY : bhd_wave
@@ -110,6 +108,10 @@ CONTAINS
       vv(:,:,:,Krhs) = 0._wp
       !
       !                             !*  compute advection + coriolis *!
+      !
+      r3t(:,:,Kaa) =  ssh(:,:,Kaa) * r1_ht_0(:,:)                           ! ratio at t-point at Kaa (n-1)
+      !
+      CALL wzv    ( kt, Kbb, Kbb, Kaa , uu(:,:,:,Kbb), vv(:,:,:,Kbb), ww )  ! ww guess at Kbb (n)
       !
       CALL dyn_adv( kt, Kbb, Kbb      , uu, vv, Krhs)       !- vector form KEG+ZAD 
       !                                                     !- flux   form ADV
