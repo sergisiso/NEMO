@@ -140,7 +140,7 @@ CONTAINS
    END SUBROUTINE rst_opn
 
 
-   SUBROUTINE rst_write( kt, Kbb, Kmm )
+   SUBROUTINE rst_write( kt, Kbb, Kmm, Kaa )
       !!---------------------------------------------------------------------
       !!                   ***  ROUTINE rstwrite  ***
       !!
@@ -154,6 +154,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt         ! ocean time-step
       INTEGER, INTENT(in) ::   Kbb, Kmm   ! ocean time level indices
+      INTEGER, OPTIONAL, INTENT(in) ::   Kaa        ! ocean time level index required for RK3
       !!----------------------------------------------------------------------
       !
          CALL iom_rstput( kt, nitrst, numrow, 'rdt'    , rn_Dt       )   ! dynamics time step
@@ -170,8 +171,9 @@ CONTAINS
 #if defined key_RK3
          CALL iom_rstput( kt, nitrst, numrow, 'uu_b'   , uu_b(:,:       ,Kbb) )     ! before fields
          CALL iom_rstput( kt, nitrst, numrow, 'vv_b'   , vv_b(:,:       ,Kbb) )     ! before fields
+         CALL iom_rstput( kt, nitrst, numrow, 'ssha '  , ssh(:,:        ,Kaa) )     ! after field post swap (n-1)
 #else
-         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields
+         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields : n
          CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'tn'  , ts(:,:,:,jp_tem,Kmm) )
@@ -361,6 +363,9 @@ CONTAINS
          !
          !                                     !*  RK3: Set ssh at Kmm for AGRIF
          ssh(:,:,Kmm) = ssh(:,:,Kbb)
+         !
+         !                                     !*  RK3: Set ssh at Kaa (n-1) for ww computation
+         CALL iom_get( numror, jpdom_auto, 'ssha'   , ssh(:,:,Kaa) )
 #else
          !                                     !*  MLF: Read ssh at Kmm
          IF(lwp) WRITE(numout,*)
@@ -408,11 +413,17 @@ CONTAINS
          !
          ssh(:,:,Kmm) = ssh(:,:,Kbb)           !* set now values from to before ones 
       ENDIF
-      !
+      ! 
 !JC: line below ???
+#if defined key_RK3
+      IF(.NOT. ln_rstart ) THEN
+#endif
       !                            !==========================!
       ssh(:,:,Kaa) = 0._wp         !==  Set to 0 for AGRIF  ==!
       !                            !==========================!
+#if defined key_RK3
+      ENDIF
+#endif
       !
    END SUBROUTINE rst_read_ssh
 
