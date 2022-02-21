@@ -48,9 +48,9 @@ where $A^{vT}$ is the vertical eddy diffusivity coefficient of active tracers.
 \label{sec:TopInt}
 
 TOP is the NEMO hardwired interface toward biogeochemical models, which provides the physical constraints/boundaries for oceanic tracers.
-It consists of a modular framework to handle multiple ocean tracers, including also a variety of built-in modules.
+It consists of a modular framework to handle multiple ocean tracers, including also a variety of built-in modules. \\
 
-This component of the NEMO framework allows one to exploit available modules and further develop a range of applications, spanning from the implementation of a dye passive tracer to evaluate dispersion processes (by means of MY\_TRC), track water masses age (AGE module), assess the ocean interior penetration of persistent chemical compounds (e.g., gases like CFC or even PCBs), up to the full set of equations to simulate marine biogeochemical cycles.
+This component of the NEMO framework allows one to exploit available modules and further develop a range of applications, spanning from the implementation of a dye passive tracer to evaluate dispersion processes (by means of MY\_TRC), track water masses age (AGE module), assess the ocean interior penetration of persistent chemical compounds (e.g., gases like CFC or even PCBs), up to the full set of equations to simulate marine biogeochemical cycles. \\
 
 TOP interface has the following location in the code repository : \path{<repository>/src/TOP/}
 
@@ -66,6 +66,17 @@ and the following modules are available:
         \item \textbf{PISCES}    :    Built in BGC model. See \cite{aumont_2015} for a complete description
 \end{itemize}
 %----------------------------------------------------------
+
+\begin{figure}[ht]
+\begin{center}
+\vspace{0cm}
+\includegraphics[width=0.80\textwidth]{Fig_TOP_design}
+\caption{Schematic view of the TOP interface within NEMO framework}
+\label{topdesign}
+\end{center}
+\end{figure}
+
+\pagebreak
 
 \section{The transport component : TRP}
 
@@ -99,6 +110,27 @@ The choice of the numerical scheme is then set in the \forcode{&namtra_ldf} name
 %-----------------\begin{equation} \label{eq:traqsr_iradiance}
 %-----------------Aht  = Aht *  rn_fact_lap * \exp( - \max( 0., z -1000  ) / 1000}  \quad \text{for $L=1$ to $N$}
 %-----------------\end{equation}
+
+\subsection{Vertical sinking of particles}
+
+The module \textit{trc\_sink} computes the vertical flux of tracers that undergo to gravitational sinking (e.g., particulated matter). It also offers a temporary solution for the problem that may arise in specific situation where the CFL criterion is broken for vertical sedimentation of particles. To avoid this, a time splitting algorithm has been coded. The number of iterations (niter) necessary to respect the CFL criterion is dynamically computed. A specific maximum number of iterations (\textit{nitermax}) can be specified in the namelist. This allows to avoid a very large number of iterations when explicit free surface is used, for instance. If niter is larger than the prescribed nitermax, sinking speeds are clipped so that the CFL criterion is respected. The numerical scheme used to compute sedimentation is based on the MUSCL advection scheme.
+
+%------------------------------------------namtrc_bdy----------------------------------------------------
+\nlst{namtrc_snk}
+%--------------------------------------------------------------------------------------------------------
+
+\subsection{Tracer damping}
+
+The use of newtonian damping  to climatological fields or observations is also coded, sharing the same routine as that of active tracers.
+Boolean variables are defined in \textit{namelist\_top\_ref} to specify which tracers are affected by the restoring procedure.
+Options are defined through the \textit{\&namtrc\_dmp} namelist variables.
+The restoring term is added when the namelist parameter \textit{ln\_trcdmp} is set to \textit{true}.
+The restoring coefficient is a three-dimensional array read in a file, whose name is specified by the namelist variable \textit{cn\_resto\_tr}.
+This netcdf file can be generated using the \textit{DMP\_TOOLS} tool.
+
+%------------------------------------------namtrc_dmp----------------------------------------------------
+\nlst{namtrc_dmp}
+%--------------------------------------------------------------------------------------------------------
 
 \subsection{Tracer positivity}
 
@@ -139,14 +171,6 @@ The BDY for passive tracer are set together with the physical oceanic variables 
 \nlst{namtrc_bdy}
 %--------------------------------------------------------------------------------------------------------
 
-\subsection{Vertical sinking of particles}
-
-The module \textit{trc\_sink} computes the vertical flux of tracers that undergo to gravitational sinking (e.g., particulated matter). It also offers a temporary solution for the problem that may arise in specific situation where the CFL criterion is broken for vertical sedimentation of particles. To avoid this, a time splitting algorithm has been coded. The number of iterations (niter) necessary to respect the CFL criterion is dynamically computed. A specific maximum number of iterations (\textit{nitermax}) can be specified in the namelist. This allows to avoid a very large number of iterations when explicit free surface is used, for instance. If niter is larger than the prescribed nitermax, sinking speeds are clipped so that the CFL criterion is respected. The numerical scheme used to compute sedimentation is based on the MUSCL advection scheme.
-
-%------------------------------------------namtrc_bdy----------------------------------------------------
-\nlst{namtrc_snk}
-%--------------------------------------------------------------------------------------------------------
-
 \subsection{Sea-ice interface}
 
 \subsubsection{Sea-ice growth and melt effect}
@@ -172,19 +196,6 @@ For icebergs, a homogeneous distribution of biogeochemical tracers is applied fr
 
 %------------------------------------------namtrc_ais----------------------------------------------------
 \nlst{namtrc_ais}
-%--------------------------------------------------------------------------------------------------------
-
-\subsection{Tracer damping}
-
-The use of newtonian damping  to climatological fields or observations is also coded, sharing the same routine as that of active tracers.
-Boolean variables are defined in \textit{namelist\_top\_ref} to specify which tracers are affected by the restoring procedure.
-Options are defined through the \textit{\&namtrc\_dmp} namelist variables.
-The restoring term is added when the namelist parameter \textit{ln\_trcdmp} is set to \textit{true}.
-The restoring coefficient is a three-dimensional array read in a file, whose name is specified by the namelist variable \textit{cn\_resto\_tr}.
-This netcdf file can be generated using the \textit{DMP\_TOOLS} tool.
-
-%------------------------------------------namtrc_dmp----------------------------------------------------
-\nlst{namtrc_dmp}
 %--------------------------------------------------------------------------------------------------------
 
 \section{The SMS modules}
