@@ -1,0 +1,123 @@
+\documentclass[../main/TOP_manual]{subfiles}
+
+\begin{document}
+
+\chapter{TOP structure and workflow}
+\label{chap:ModDes}
+
+TOP is the NEMO hardwired interface toward biogeochemical models, which provides the physical constraints/boundaries for oceanic tracers (Fig. ~\ref{fig:topstructure}).
+
+Based on a modular structure, this component allows one to exploit available built-in modules and further develop a range of applications, spanning from the implementation of a dye passive tracer to evaluate dispersion processes (by means of MY\_TRC), track water masses age (AGE module), assess the ocean interior penetration of persistent chemical compounds (e.g., gases like CFC or even PCBs), up to the full set of equations to simulate marine biogeochemical cycles.
+
+TOP interface has the following location in the code repository : \path{<nemo-repository>/src/TOP/}
+
+and the following modules are available:
+
+%-----------  tableau  ------------------------------------
+\begin{itemize}
+        \item \textbf{TRP}    	 :    Interface to NEMO physical core for computing tracers transport
+        \item \textbf{CFC}	 :    Inert tracers (CFC11,CFC12, SF6)
+        \item \textbf{C14}	 :    Radiocarbon passive tracer
+        \item \textbf{AGE}	 :    Water age tracking
+        \item \textbf{MY\_TRC}   :    Template for creation of new modules and external BGC models coupling
+        \item \textbf{PISCES}    :    Built in BGC model. See \cite{aumont_2015} for a complete description
+\end{itemize}
+%----------------------------------------------------------
+
+\begin{figure}[ht]
+\begin{center}
+\vspace{0cm}
+\includegraphics[width=0.70\textwidth]{Fig_TOP_design}
+\caption{Schematic view of the TOP interface within NEMO framework}
+\label{fig:topstructure}
+\end{center}
+\end{figure}
+
+\pagebreak
+
+The workflow of the TOP interface within the NEMO framework is organized around two main blocks of the code, the initialization (trc\_ini) and time marching (trc\_stp) procedures, as in the following
+
+\begin{minted}{bash}
+nemogcm
+    !
+    nemo_ini            !   NEMO General Initialisations
+         !
+         trc_ini                               ! TOP  Initialisations
+    !
+    stp()                   !   NEMO Time-stepping
+        !
+        trc_stp()                            ! TOP time-stepping
+            !
+            trc_wri()           ! I/O manager : Output of passive tracers
+            trc_sms()           ! Sinks and sources program manager
+            trc_trp()            ! Transport of passive tracers
+            trc_rst_wri()      ! Write tracer restart file
+            trd_mxl_trc()     ! trends: Mixed-layer
+\end{minted}
+
+\subsection*{Model initialization (./src/TOP/trcini.F90)}
+
+This module consists on inital set up of passive tracers variables and parameters  : read the namelist, set initial tracer fields (either read restart or read data or analytical formulation and  specific initailisation in each SMS module  ( analytical initialisation of tracers or constant values )
+
+\begin{minted}{bash}
+trc_init                              ! TOP  Initialisations
+    !
+    IF( PISCES )    trc_ini_pisces()     !  PISCES bio model
+    IF( MY_TRC)    trc_ini_my_trc()    !  MY_TRC model
+    IF( CFCs     )    trc_ini_cfc   ()       !  CFCs
+    IF( C14       )    trc_ini_c14   ()       !  C14 model
+    IF( AGE      )    trc_ini_age   ()       !  AGE tracer
+    !
+    IF( REST   )    trc_rst_read()         ! Restart from a file
+    ELSE            trc_dta()                   ! Initialisation from data
+\end{minted}
+
+\subsection*{BGC trends computation (./src/TOP/trcsms.F90)}
+
+This is the main module where the passive tracers source minus sinks of each TOP sub-module is managed.
+
+\begin{minted}{bash}
+trc_sms()                               ! Sinks and sources prooram manager
+    !
+    IF( PISCES  )    trc_sms_pisces()         ! main program of PISCES
+    IF( CFCs     )    trc_sms_cfc()               ! surface fluxes of CFC
+    IF( C14       )    trc_sms_c14()               ! surface fluxes of C14
+    IF( AGE       )    trc_sms_age()              ! Age tracer
+    IF( MY_TRC)    trc_sms_my_trc()         ! MY_TRC  tracers
+\end{minted}
+
+\subsection*{Physical trends computation (./src/TOP/TRP/trctrp.F90)}
+
+This is the main module where the passive tracers transport is managed. All the physical trends is calculated ( advective \& diffusive trends, surface BC from freshwater or external inputs )
+
+\begin{minted}{bash}
+trc_trp()       ! Transport of passive tracers
+    !
+    trc_sbc()         ! Surface boundary condition of freshwater flux
+    trc_bc()           ! Surface and lateral Boundary Conditions
+    trc_ais()          ! Tracers from Antarctic Ice Sheet (icb, isf)
+    trc_bbl()          ! Advective (and/or diffusive) bottom boundary layer scheme
+    trc_dmp()        ! Internal damping trends
+    trc_bdy()         ! BDY damping trends
+    trc_adv()         ! Horizontal & Vertical advection
+    trc_ldf()           ! Lateral mixing
+    trc_zdf()          ! Vert. mixing & after tracer
+    trc_atf()           ! Time filtering of "now" tracer fields
+    trc_rad()         ! Correct artificial negative concentrations
+\end{minted}
+
+\subsection*{Outputs  (./src/TOP/TRP/trcwri.F90)}
+
+This is the main module where the passive tracer outputs of each TOP sub-module is managed using the I/O library XIOS.
+
+\begin{minted}{bash}
+trc_wri()                               ! I/O manager : Output of passive tracers
+!
+IF( PISCES   )    trc_wri_pisces()      ! Output of PISCES diagnostics
+IF( CFCs      )    trc_wri_cfc()            ! Output of Cfcs diagnostics
+IF( C14         )    trc_wri_c14()           ! surface fluxes of C14
+IF( AGE        )    trc_wri_age()           ! Age tracer
+IF( MY_TRC )    trc_wri_my_trc()      ! MY_TRC  tracers
+\end{minted}
+
+\end{document}
