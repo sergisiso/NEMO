@@ -13,7 +13,7 @@
 \label{chap:ModDes}
 %\chaptertoc
 
-\section{Basics}
+\section{The transport-reaction equation}
 \label{sec:Bas}
 
 The time evolution of any passive tracer $C$ is given by the transport equation, which is similar to that of active tracer - temperature or salinity :
@@ -44,43 +44,9 @@ D^{vC} =  \frac{1}{e_{3t}} \frac{\partial}{\partial k} \left[  A^{vT} \frac{\par
 
 where $A^{vT}$ is the vertical eddy diffusivity coefficient of active tracers.
 
-\section{The NEMO-TOP interface}
-\label{sec:TopInt}
+\section{Physical transport component (TRP)}
 
-TOP is the NEMO hardwired interface toward biogeochemical models, which provides the physical constraints/boundaries for oceanic tracers.
-It consists of a modular framework to handle multiple ocean tracers, including also a variety of built-in modules. \\
-
-This component of the NEMO framework allows one to exploit available modules and further develop a range of applications, spanning from the implementation of a dye passive tracer to evaluate dispersion processes (by means of MY\_TRC), track water masses age (AGE module), assess the ocean interior penetration of persistent chemical compounds (e.g., gases like CFC or even PCBs), up to the full set of equations to simulate marine biogeochemical cycles. \\
-
-TOP interface has the following location in the code repository : \path{<repository>/src/TOP/}
-
-and the following modules are available:
-
-%-----------  tableau  ------------------------------------
-\begin{itemize}
-        \item \textbf{TRP}    	 :    Interface to NEMO physical core for computing tracers transport
-        \item \textbf{CFC}	 :    Inert tracers (CFC11,CFC12, SF6)
-        \item \textbf{C14}	 :    Radiocarbon passive tracer
-        \item \textbf{AGE}	 :    Water age tracking
-        \item \textbf{MY\_TRC}   :    Template for creation of new modules and external BGC models coupling
-        \item \textbf{PISCES}    :    Built in BGC model. See \cite{aumont_2015} for a complete description
-\end{itemize}
-%----------------------------------------------------------
-
-\begin{figure}[ht]
-\begin{center}
-\vspace{0cm}
-\includegraphics[width=0.80\textwidth]{Fig_TOP_design}
-\caption{Schematic view of the TOP interface within NEMO framework}
-\label{topdesign}
-\end{center}
-\end{figure}
-
-\pagebreak
-
-\section{The transport component : TRP}
-
-The passive tracer transport component shares the same advection/diffusion routines with the dynamics, with specific treatment of some features like the surface boundary conditions, or the positivity of passive tracers concentrations.
+The passive tracer transport component shares the same advection/diffusion routines with the dynamics, with specific treatment of some features like the damping or the positivity of passive tracers concentrations.
 
 \subsection{Advection}
 
@@ -144,7 +110,40 @@ The treatment of negative concentrations is an option and can be selected in the
 \nlst{namtrc_rad}
 %--------------------------------------------------------------------------------------------------------
 
-\subsection{Tracer boundary conditions}
+\section{Offline coupling mode}
+\label{Offline}
+
+Coupling passive tracers offline with NEMO requires precomputed physical fields from OGCM.
+Those fields are read in files and interpolated on-the-fly at each model time step.
+There are two sets of fields to perform offline simulations :
+
+\begin{itemize}
+        \item linear free surface ( ln\_linssh = .true. )  where the vertical scale factor is constant with time. At least, the following dynamical parameters should be absolutely passed
+        to transport : the effective ocean transport velocities (eulerian plus the eddy induced plus all others parameterizations), vertical diffusion coefficient and the freshwater flux
+.
+        %------------------------------------------namtrc_sms----------------------------------------------------
+        \nlst{namdta_dyn_linssh}
+        %-----------------------------------------------------------------------------------------------------------
+        \item non linear free surface ( ln\_linssh = .false. or key\_qco ): the same fields than the ones in the linear free surface case. In addition, the horizontal divergence transport is needed to  recompute the time evolution of the sea surface heigth and the vertical scale factor and depth, and thus the time evolution of the vertical transport velocity.
+        %------------------------------------------namtrc_sms----------------------------------------------------
+        \nlst{namdta_dyn_nolinssh}
+        %-----------------------------------------------------------------------------------------------------------
+\end{itemize}
+
+Additionally, temperature, salinity, and mixed layer depth are needed to compute slopes for isopycnal diffusion. Some ecosystem models like PISCES need sea ice concentration, short-wave radiation at the ocean surface, and wind speed (or at least, wind stress).
+
+The so-called offline mode is useful since it has lower computational costs for example to perform very longer simulations – about 3000 years - to reach equilibrium of CO$_{2}$ sinks for climate-carbon studies.
+
+The offline interface is located in the code repository : <repository>/src/OFF/. It is activated by adding the\textit{ key\_offline} CPP key to the CPP keys list.
+There are two specifics routines for the offline code :
+\begin{itemize}
+        \item dtadyn.F90 : this module reads and computes the dynamical fields at
+each model time-step
+        \item nemogcm.F90 : a degraded version of the main nemogcm.F90 code of NEMO to
+manage the time-stepping
+\end{itemize}
+
+\section{Forcing and Boundary conditions (BC)}
 
 In TOP, different types of boundary conditions can be specified for biogeochemical tracers. For every single variable, it is possible to define a field of surface boundary conditions, such as deposition of dust or nitrogen, which is then interpolated to the grid and timestep using the fld\_read function. Through the same facility one can apply coastal inputs/loads (coastal boundary conditions) and to specify the treatment of lateral open boundary conditions. For the latter, the spatial interpolation functionality should not be activated. The entire set of boundary conditions is activated with the paramter \textit{ln\_trcbc} to \textit{true}
 
@@ -152,14 +151,14 @@ In TOP, different types of boundary conditions can be specified for biogeochemic
 \nlst{namtrc_cfg}
 %-------------------------------------------------------------------------------------------------------
 
-\subsubsection{Surface and lateral boundaries}
+\subsection{Surface and lateral boundaries}
 
 The namelist \textit{\&namtrc\_bc}  is in file \textit{namelist\_top\_cfg}  and allows to specify the name of the files, the frequency of the input and the time and space interpolation as done for any other field using the fld\_read interface.
 
 %------------------------------------------namtrc_bc----------------------------------------------------
 \nlst{namtrc_bc}
 %-------------------------------------------------------------------------------------------------------
-\subsubsection{Lateral open boundaries}
+\subsection{Lateral open boundaries}
 
 The BDY for passive tracer are set together with the physical oceanic variables (ln?bdy  =.true.). Boundary conditions are set in the structure used to define the passive tracer properties in the « obc » column. These boundary conditions are applied on the segments defined for the physical system, as described in the BDY section of NEMO Manual.
 \begin{itemize}
@@ -173,7 +172,7 @@ The BDY for passive tracer are set together with the physical oceanic variables 
 
 \subsection{Sea-ice interface}
 
-\subsubsection{Sea-ice growth and melt effect}
+\subsubsection*{Sea-ice growth and melt effect}
 
 NEMO provides three options for the specification of tracer concentrations in sea ice: (-1) identical tracer concentrations in sea ice and ocean, which corresponds to no concentration/dilution effect upon ice growth and melt; (0) zero concentrations in sea ice, which gives the largest concentration-dilution effect upon ice growth and melt; (1) specified concentrations in sea ice, which gives a possibly more realistic effect of sea ice on tracers. Option (-1) and (0) work for all tracers, but (1) is currently only available for PISCES.
 
@@ -181,7 +180,7 @@ NEMO provides three options for the specification of tracer concentrations in se
 \nlst{namtrc_ice}
 %--------------------------------------------------------------------------------------------------------
 
-\subsubsection{Antartic Ice Sheet tracer supply}
+\subsubsection*{Antartic Ice Sheet tracer supply}
 
 The external input of biogeochemical tracers from the Antarctic Ice Sheet (AIS) is represented by associating a tracer content with the freshwater flux from icebergs and ice shelves \citep{person_sensitivity_2019}. This supply is currently implemented only for dissolved Fe (\autoref{img_icbisf}) and is effective in model configurations with south-extended grids (e.g., eORCA1 and eORCA025). As the ORCA2 grid does not extend south into Antarctica, the external source of tracers from the AIS cannot be enabled in this configuration. 
 
@@ -198,7 +197,7 @@ For icebergs, a homogeneous distribution of biogeochemical tracers is applied fr
 \nlst{namtrc_ais}
 %--------------------------------------------------------------------------------------------------------
 
-\section{The SMS modules}
+\section{“Source minus Sinks” modules (SMS)}
 
 \label{SMS_models}
 %------------------------------------------namtrc_sms----------------------------------------------------
