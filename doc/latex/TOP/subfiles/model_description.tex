@@ -110,7 +110,7 @@ The treatment of negative concentrations is an option and can be selected in the
 \nlst{namtrc_rad}
 %--------------------------------------------------------------------------------------------------------
 
-\section{Offline coupling mode}
+\subsection{Offline transport mode}
 \label{Offline}
 
 Coupling passive tracers offline with NEMO requires precomputed physical fields from OGCM.
@@ -180,7 +180,7 @@ NEMO provides three options for the specification of tracer concentrations in se
 \nlst{namtrc_ice}
 %--------------------------------------------------------------------------------------------------------
 
-\subsubsection*{Antartic Ice Sheet tracer supply}
+\subsubsection*{Antarctic Ice Sheet tracer supply}
 
 The external input of biogeochemical tracers from the Antarctic Ice Sheet (AIS) is represented by associating a tracer content with the freshwater flux from icebergs and ice shelves \citep{person_sensitivity_2019}. This supply is currently implemented only for dissolved Fe (\autoref{img_icbisf}) and is effective in model configurations with south-extended grids (e.g., eORCA1 and eORCA025). As the ORCA2 grid does not extend south into Antarctica, the external source of tracers from the AIS cannot be enabled in this configuration. 
 
@@ -780,39 +780,6 @@ IMPORTANT: the routines to compute light penetration along the water column and 
 See e.g. the correspondent PISCES subroutine.
  \item \textit{trcwri\_my\_trc.F90} : This routine performs the output of the model tracers using IOM module (see Manual Chapter Output and Diagnostics).
 It is possible to place here the output of additional variables produced by the model, if not done elsewhere in the code, using the call to \textit{iom\_put}.
-\end{itemize}
-
-\section{Offline coupling}
-\label{Offline}
-
-Coupling passive tracers offline with NEMO requires precomputed physical fields from OGCM. 
-Those fields are read in files and interpolated on-the-fly at each model time step. 
-There are two sets of fields to perform offline simulations :
-
-\begin{itemize}
-	\item linear free surface ( ln\_linssh = .true. )  where the vertical scale factor is constant with time. At least, the following dynamical parameters should be absolutely passed
-	to transport : the effective ocean transport velocities (eulerian plus the eddy induced plus all others parameterizations), vertical diffusion coefficient and the freshwater flux
-.
-	%------------------------------------------namtrc_sms----------------------------------------------------
-	\nlst{namdta_dyn_linssh}
-	%-----------------------------------------------------------------------------------------------------------
-	\item non linear free surface ( ln\_linssh = .false. or key\_qco ): the same fields than the ones in the linear free surface case. In addition, the horizontal divergence transport is needed to  recompute the time evolution of the sea surface heigth and the vertical scale factor and depth, and thus the time evolution of the vertical transport velocity.
-	%------------------------------------------namtrc_sms----------------------------------------------------
-	\nlst{namdta_dyn_nolinssh}
-	%-----------------------------------------------------------------------------------------------------------
-\end{itemize}
-
-Additionally, temperature, salinity, and mixed layer depth are needed to compute slopes for isopycnal diffusion. Some ecosystem models like PISCES need sea ice concentration, short-wave radiation at the ocean surface, and wind speed (or at least, wind stress). 
-
-The so-called offline mode is useful since it has lower computational costs for example to perform very longer simulations – about 3000 years - to reach equilibrium of CO$_{2}$ sinks for climate-carbon studies.
-
-The offline interface is located in the code repository : <repository>/src/OFF/. It is activated by adding the\textit{ key\_offline} CPP key to the CPP keys list. 
-There are two specifics routines for the offline code :
-\begin{itemize}
-	\item dtadyn.F90 : this module reads and computes the dynamical fields at
-each model time-step
-	\item nemogcm.F90 : a degraded version of the main nemogcm.F90 code of NEMO to
-manage the time-stepping
 \end{itemize}
 
 
