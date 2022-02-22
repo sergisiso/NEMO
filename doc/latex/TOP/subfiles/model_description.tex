@@ -23,7 +23,7 @@ The time evolution of any passive tracer $C$ is given by the transport equation,
 \label{Eq_tracer}
 \end{equation}
 
-where expressions of $D^{lC}$ and $D^{vC}$ depend on the choice for the lateral and vertical subgrid scale parameterizations (see sections 4.2 and 4.3 in \cite{nemo_manual}).
+where expressions of $D^{lC}$ and $D^{vC}$ depend on the choice for the lateral and vertical subgrid scale parameterizations (see sections 4.2 and 4.3 in NEMO manual).
 
 {S(C)}, the first term on the right hand side of \autoref{Eq_tracer}, is the SMS - Sources Minus Sinks - inherent to the tracer.
 In the case of a biological tracer such as phytoplankton, {S(C)} is the balance between phytoplankton growth and its loss through mortality and grazing.
@@ -50,7 +50,7 @@ The passive tracer transport component shares the same advection/diffusion routi
 
 \subsection{Advection}
 
-The advection schemes used for the passive tracers are the same as those used for $T$ and $S$. They are described in section 4.1 of the NEMO Manual \citep{nemo_manual}.
+The advection schemes used for the passive tracers are the same as those used for $T$ and $S$. They are described in section 4.1 of the NEMO manual.
 The choice of an advection scheme can be selected independently and can differ from the ones used for active tracers.
 This choice is made in \textit{namelist\_top} (ref or cfg) in the namelist block \textit{namtrc\_adv}, by setting to \textit{true} one and only one of the logicals \textit{ln\_trcadv\_xxx}, as it is done for the active tracers counterparts.
 
@@ -64,7 +64,7 @@ Note that Centred (cen), Flux Corrected Transport (fct), Upstream-Biased (ubs), 
 
 After NEMO v4.0, the lateral diffusion of passive tracers uses exactly the same form of active tracers, meaning that the numerical scheme is inherited from the physical setup and forced to be the same.
 However the passive tracer mixing coefficient can be chosen as a multiple of the active ones by changing the value of \textit{rn\_ldf\_multi} in namelist \textit{namtrc\_ldf}.
-The choice of the numerical scheme is then set in the \forcode{&namtra_ldf} namelist section for the dynamic described in section 4.2 of NEMO Manual \citep{nemo_manual}.
+The choice of the numerical scheme is then set in the \forcode{&namtra_ldf} namelist section for the dynamic described in section 4.2 of NEMO manual.
 
 \textit{rn\_fact\_lap} is a factor used to increase zonal equatorial diffusion for depths beyond 200 m. It can be useful to achieve a better representation of Oxygen Minimum Zone (OMZ) in some biogeochemical models, especially at coarse resolution \citep{getzlaff_2013}.
 
@@ -113,7 +113,7 @@ The treatment of negative concentrations is an option and can be selected in the
 \subsection{Offline transport mode}
 \label{Offline}
 
-Coupling passive tracers offline with NEMO requires precomputed physical fields from OGCM.
+Coupling passive tracers offline with NEMO requires a set of physical fields computed in a previous ocean simulation.
 Those fields are read in files and interpolated on-the-fly at each model time step.
 There are two sets of fields to perform offline simulations :
 
@@ -145,22 +145,22 @@ manage the time-stepping
 
 \section{Forcing and Boundary conditions (BC)}
 
-In TOP, different types of boundary conditions can be specified for biogeochemical tracers. For every single variable, it is possible to define a field of surface boundary conditions, such as deposition of dust or nitrogen, which is then interpolated to the grid and timestep using the fld\_read function. Through the same facility one can apply coastal inputs/loads (coastal boundary conditions) and to specify the treatment of lateral open boundary conditions. For the latter, the spatial interpolation functionality should not be activated. The entire set of boundary conditions is activated with the paramter \textit{ln\_trcbc} to \textit{true}
+\subsection{Tracer boundary conditions}
 
-%------------------------------------------namtrc_bc----------------------------------------------------
-\nlst{namtrc_cfg}
-%-------------------------------------------------------------------------------------------------------
+In TOP, different types of boundary conditions can be specified for biogeochemical tracers. For every single variable, it is possible to define a field of surface boundary conditions, such as deposition of dust or nitrogen, which is then interpolated to the grid and timestep using the fld\_read function (see also Sec. 6.2 of NEMO manual). Through the same facility one can apply coastal inputs/loads (coastal boundary conditions) and to specify the treatment of lateral open boundary conditions. For the latter, the spatial interpolation functionality should not be activated. 
 
-\subsection{Surface and lateral boundaries}
+The entire set of boundary conditions is activated with the paramter \forcode{ln_trcbc = .true.} in namtrc\_cfg (more details in Model Setup section).
+
+\subsection*{Surface and lateral boundaries}
 
 The namelist \textit{\&namtrc\_bc}  is in file \textit{namelist\_top\_cfg}  and allows to specify the name of the files, the frequency of the input and the time and space interpolation as done for any other field using the fld\_read interface.
 
 %------------------------------------------namtrc_bc----------------------------------------------------
 \nlst{namtrc_bc}
 %-------------------------------------------------------------------------------------------------------
-\subsection{Lateral open boundaries}
+\subsection*{Lateral open boundaries}
 
-The BDY for passive tracer are set together with the physical oceanic variables (ln?bdy  =.true.). Boundary conditions are set in the structure used to define the passive tracer properties in the « obc » column. These boundary conditions are applied on the segments defined for the physical system, as described in the BDY section of NEMO Manual.
+The BDY for passive tracer are set together with the physical oceanic variables (ln?bdy  =.true.). Boundary conditions are set in the structure used to define the passive tracer properties in the « obc » column. These boundary conditions are applied on the segments defined for the physical system, as described in the BDY section of NEMO manual.
 \begin{itemize}
 	\item cn\_trc\_dflt : the type of OBC applied to all the tracers
 	\item cn\_trc :  the boundary condition used for tracers with data file
@@ -172,7 +172,7 @@ The BDY for passive tracer are set together with the physical oceanic variables 
 
 \subsection{Sea-ice interface}
 
-\subsubsection*{Sea-ice growth and melt effect}
+\subsection*{Sea-ice growth and melt effect}
 
 NEMO provides three options for the specification of tracer concentrations in sea ice: (-1) identical tracer concentrations in sea ice and ocean, which corresponds to no concentration/dilution effect upon ice growth and melt; (0) zero concentrations in sea ice, which gives the largest concentration-dilution effect upon ice growth and melt; (1) specified concentrations in sea ice, which gives a possibly more realistic effect of sea ice on tracers. Option (-1) and (0) work for all tracers, but (1) is currently only available for PISCES.
 
@@ -180,7 +180,7 @@ NEMO provides three options for the specification of tracer concentrations in se
 \nlst{namtrc_ice}
 %--------------------------------------------------------------------------------------------------------
 
-\subsubsection*{Antarctic Ice Sheet tracer supply}
+\subsection*{Antarctic Ice Sheet tracer supply}
 
 The external input of biogeochemical tracers from the Antarctic Ice Sheet (AIS) is represented by associating a tracer content with the freshwater flux from icebergs and ice shelves \citep{person_sensitivity_2019}. This supply is currently implemented only for dissolved Fe (\autoref{img_icbisf}) and is effective in model configurations with south-extended grids (e.g., eORCA1 and eORCA025). As the ORCA2 grid does not extend south into Antarctica, the external source of tracers from the AIS cannot be enabled in this configuration. 
 
@@ -196,6 +196,26 @@ For icebergs, a homogeneous distribution of biogeochemical tracers is applied fr
 %------------------------------------------namtrc_ais----------------------------------------------------
 \nlst{namtrc_ais}
 %--------------------------------------------------------------------------------------------------------
+
+\subsection{Vertical light penetration}
+
+A dedicated module (\forcode{trcopt}) allows to compute form the sea surface solar radiation the amount of light that penetrate into the ocean interior depending on the chlorophyll field. 
+The visible part of solar radiation is used to derive the photosynthetic available radiation (PAR) using a simplified version of the model by \cite{morel_1988}, as described in \cite{lengaigne_2007}. 
+
+In a nutshell, visible light is split into three wavebands (blue: 400–500 nm, green: 500–600 nm, red: 600–700 nm) and for each one the chlorophyll-dependent attenuation coefficients are fitted 
+to the coefficients computed from the full spectral model of \cite{morel_1988} (as modified in \cite{morel_2001}) assuming the same power-law expression. 
+
+The available light is then converted to PAR using a time-space constant value (\forcode{parlux}) or 
+by prescribing a spatially variable distribution of the fraction of the downwelling shortwave radiation (\forcode{sn_par}), 
+as specified with the logical parameter \forcode{ln_varpar}.
+
+The \forcode{light_loc} parameter allows to select the way that light is computed within the gridcell volume, namely as the mean value at the cell center (\forcode{'center'}) or integrated within the cell (\forcode{'integral'}).
+
+
+%--------------------------------------------namopt------------------------------------------------------
+\nlst{namopt}
+%--------------------------------------------------------------------------------------------------------
+
 
 \section{“Source minus Sinks” modules (SMS)}
 
@@ -384,13 +404,13 @@ This property, when divided by the surface CFC concentration, estimates the loca
 % The standard outputs of the CFC module are the CFCs concentration in the sea water, and the records of the outputs-frequency-averaged as well as the total air-sea fluxes.
 % Using XIOS, it is also possible to ask for the CFCs vertical inventory in the output file (see Figure cfc inventory example ?).
 
-\subsubsection{Notes}
+\subsubsection*{Notes}
 
 In comparison to the OMIP protocol, the CFC module in NEMO has several differences:
 
 % AXY: consider an itemized list here if you've got a list of differences
 
-For instance, C$_{sat}$ is calculated for a fixed surface pressure of 1atm. This may be corrected in a future version of the module.
+For instance, C$_{sat}$ is calculated for a fixed surface pressure of 1atm. This may be corrected in a future version of the module.\\
 
 
 \begin{table}[!t]
@@ -433,21 +453,21 @@ SF6    & & 3177.5  & -200.57 & 6.8865 & -0.13335 & 0.0010877   \\
 
 \begin{figure}[!h]
 \centering
-\includegraphics[width=0.80\textwidth]{CFC-atm-evol}
+\includegraphics[width=0.70\textwidth]{CFC-atm-evol}
   \caption{Atmospheric CFC11, CFC12 and SF6 partial pressure evolution in both hemispheres.}
 \label{img_cfcatm}
 \end{figure}
 
 \begin{figure}[!h]
 \centering
-\includegraphics[width=0.80\textwidth]{CFC_solub}
+\includegraphics[width=0.70\textwidth]{CFC_solub}
   \caption{CFC11 solubility in mol m$^{-3}$ pptv$^{-1}$, calculated from the World Ocean Atlas 2013 temperature and salinity annual climatology.}
 \label{img_cfcsol}
 \end{figure}
 
 \begin{figure}[!h]
 \centering
-\includegraphics[width=0.80\textwidth]{CFC_inventory}
+\includegraphics[width=0.70\textwidth]{CFC_inventory}
   \caption{CFC11 vertical inventory in $\mu$mol m$^{-2}$, from one of the UK Earth System Model 1 model (UKESM1 - which uses NEMO as ocean component, with TOP for the passive tracers) historical run at year 2000.}
 \label{img_cfcinv}
 \end{figure}
@@ -465,7 +485,7 @@ SF6    & & 3177.5  & -200.57 & 6.8865 & -0.13335 & 0.0010877   \\
 The C14 package has been implemented in NEMO by Anne Mouchet $\Dcq$.
 It offers several possibilities: $\Dcq$ as a physical tracer of the ocean ventilation (natural $\cq$), assessment of bomb radiocarbon uptake, as well as transient studies of paleo-historical ocean radiocarbon distributions.
 
-\subsubsection{Method}
+\subsection*{Method}
 
 Let  $\Rq$ represent the ratio of $\cq$ atoms to the total number of carbon atoms in the sample, i.e. $\cq/\mathrm{C}$.
 Then, radiocarbon anomalies are reported as:
@@ -554,7 +574,7 @@ The following parameters intervening in the air-sea exchange rate are set in \te
 It should be adjusted so that the globally averaged $\cd$ piston velocity is $\kappa_\cd = 16.5\pm 3.2$ cm/h \citep{naegler_2009}.
 %The sensitivity to this parametrization is discussed in section \autoref{sec:result}.
 %
-\item Chemical enhancement (term $b$  in Eq. \autoref{eq:wanchem}) may be set on/off by means of the logical variable \forcode{ln\_chemh}.
+\item Chemical enhancement (term $b$  in Eq. \autoref{eq:wanchem}) may be set on/off by means of the logical variable \forcode{ln_chemh}.
 \end{itemize}
 
 %
@@ -600,7 +620,7 @@ Time on x-axis is in simulation year.\label{fig:drift} }
 The $\Dcq$ is illustrated for the three zonal bands (upper, middle, and lower curves correspond to latitudes $> 20$N, $\in [20\mathrm{S},20\mathrm{N}]$, and $< 20$S, respectively.} \label{fig:bomb}
 \end{figure}
 
-Performing this type of experiment requires that a pre-industrial equilibrium run has been performed beforehand (\forcode{ln\_rsttr} should be set to \texttt{.TRUE.}).
+Performing this type of experiment requires that a pre-industrial equilibrium run has been performed beforehand (\forcode{ln_rsttr} should be set to \texttt{.TRUE.}).
 
 An exception to this rule is when performing a perturbation bomb experiment as was possible with the package \texttt{C14b}.
 It is still possible to easily set-up that type of transient experiment for which no previous run is needed.
@@ -616,13 +636,13 @@ Dates in these forcing files are expressed as yr AD.
 To ensure that the atmospheric forcing is applied properly as well as that output files contain consistent dates and inventories, the experiment should be set up carefully:
 
 \begin{itemize}
-\item Specify the starting date of the experiment: \forcode{nn\_date0} in \texttt{namelist}.  \forcode{nn\_date0} is written as Year0101 where Year may take any positive value (AD).
-\item Then the parameters \forcode{nn\_rstctl} in  \texttt{namelist} (on-line) and \forcode{nn\_rsttr} in \texttt{namelist\_top} (off-line)  must be \textbf{set to 0} at the start of the experiment (force the date to \forcode{nn\_date0} for the \textbf{first} experiment year).
-\item These two parameters (\forcode{nn\_rstctl} and \forcode{nn\_rsttr}) have then to be \textbf{set to 2} for the following years (the date must be read in the restart file).
+\item Specify the starting date of the experiment: \forcode{nn_date0} in \texttt{namelist}.  \forcode{nn_date0} is written as Year0101 where Year may take any positive value (AD).
+\item Then the parameters \forcode{nn_rstctl} in  \texttt{namelist} (on-line) and \forcode{nn_rsttr} in \texttt{namelist\_top} (off-line)  must be \textbf{set to 0} at the start of the experiment (force the date to \forcode{nn_date0} for the \textbf{first} experiment year).
+\item These two parameters (\forcode{nn_rstctl} and \forcode{nn_rsttr}) have then to be \textbf{set to 2} for the following years (the date must be read in the restart file).
 \end{itemize}
 
 If the experiment date is outside the data time span, the first or last atmospheric concentrations are then prescribed depending on whether the date is earlier or later.
-	Note that \forcode{tyrc14\_beg} (\texttt{namelist\_c14}) is not used in this context.
+	Note that \forcode{tyrc14_beg} (\texttt{namelist\_c14}) is not used in this context.
 
 %
 \textbf{Transient: Past}
@@ -649,9 +669,9 @@ These atmospheric values are reproduced in Fig. \autoref{fig:paleo}.
 Dates in these files are expressed as yr BP.
 
 To ensure that the atmospheric forcing is applied properly as well as that output files contain consistent dates and inventories the experiment should be set up carefully.
-The true experiment starting date is given by \forcode{tyrc14\_beg} (in yr BP) in \texttt{namelist\_c14}.
-In consequence, \forcode{nn\_date0} in \texttt{namelist} MUST be set to 00010101.\\
-Then the parameters \forcode{nn\_rstctl} in  \texttt{namelist} (on-line) and \forcode{nn\_rsttr} in \texttt{namelist\_top} (off-line)  must be set to 0 at the start of the experiment (force the date to \forcode{nn\_date0} for the first experiment year).
+The true experiment starting date is given by \forcode{tyrc14_beg} (in yr BP) in \texttt{namelist\_c14}.
+In consequence, \forcode{nn_date0} in \texttt{namelist} MUST be set to 00010101.\\
+Then the parameters \forcode{nn_rstctl} in  \texttt{namelist} (on-line) and \forcode{nn_rsttr} in \texttt{namelist\_top} (off-line)  must be set to 0 at the start of the experiment (force the date to \forcode{nn_date0} for the first experiment year).
 These two parameters have then to be set to 2 for the following years (read the date in the restart file). \\
 If the experiment date is outside the data time span then the first or last atmospheric concentrations are prescribed depending on whether the date is earlier or later.
 
@@ -712,7 +732,7 @@ N_A \Rq_\mathrm{oxa} \overline{\Ct} \left( \int_\Omega \Rq d\Omega \right) /10^{
 where $N_A$ is the Avogadro's number ($N_A=6.022\times10^{23}$ at/mol), $\Rq_\mathrm{oxa}$ is the oxalic acid radiocarbon standard \cite[$\Rq_\mathrm{oxa}=1.176\times10^{-12}$;][]{stuiver_1977}, and $\Omega$ is the ocean volume.
 Bomb $\cq$ inventories are traditionally reported in units of $10^{26}$ atoms, hence the denominator in \autoref{eq:inv}.
 
-All transformations from second to year, and inversely, are performed with the help of the physical constant \forcode{rsiyea} the sideral year length expressed in seconds\footnote{The variable (\forcode{nyear\_len}) which reports the length in days of the previous/current/future year (see \textrm{oce\_trc.F90}) is not a constant. }.
+All transformations from second to year, and inversely, are performed with the help of the physical constant \forcode{rsiyea} the sideral year length expressed in seconds\footnote{The variable (\forcode{nyear_len}) which reports the length in days of the previous/current/future year (see \textrm{oce\_trc.F90}) is not a constant. }.
 
 The global transfer velocities represent time-averaged\footnote{the actual duration is set in \texttt{iodef.xml}} global integrals of the transfer rates:
 
@@ -778,7 +798,7 @@ Be aware that lateral boundary conditions are applied in trcnxt routine.
 IMPORTANT: the routines to compute light penetration along the water column and the tracer vertical sinking should be defined/called in here, as generalized modules are still missing in the code.
  \item \textit{trcice\_my\_trc.F90} : Here it is possible to prescribe the tracers concentrations in sea ice that will be used as boundary conditions when ice formation and melting occurs (nn\_ice\_tr =1 in namtrc\_ice).
 See e.g. the correspondent PISCES subroutine.
- \item \textit{trcwri\_my\_trc.F90} : This routine performs the output of the model tracers using IOM module (see Manual Chapter Output and Diagnostics).
+ \item \textit{trcwri\_my\_trc.F90} : This routine performs the output of the model tracers using IOM module (see NEMO manual Chapter on Output and Diagnostics).
 It is possible to place here the output of additional variables produced by the model, if not done elsewhere in the code, using the call to \textit{iom\_put}.
 \end{itemize}
 

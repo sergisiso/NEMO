@@ -19,7 +19,7 @@
    !
    jp_dia3d      = 0         ! Number of 3D diagnostic variables
    jp_dia2d      = 0         ! Number of 2D diagnostic variables
-   !_____________!___________!_________________________________________!____________!________________!
+
    !             !    name   !           title of the field            !   units    ! init from file ! 
 !  sn_tracer(1)  = 'tracer  ', 'Tracer  Concentration                 ',   ' - '    ,   .false.
 /
