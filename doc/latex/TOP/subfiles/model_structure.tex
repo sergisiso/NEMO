@@ -96,7 +96,7 @@ physical transport (advective \& diffusive, forcing and boundary conditions) and
 % stepping workflow
 %
 
-\newcommand*{\connectorHH}[2]{
+\renewcommand*{\connectorH}[2]{
   \draw[arrow] (#1) -- ++(2.cm,0) |-  (#2);
 }
 
@@ -137,12 +137,12 @@ physical transport (advective \& diffusive, forcing and boundary conditions) and
 \draw [arrow] (main.south) |-  (trp.west);
 \draw [arrow] (main.south) |-  (rst.west);
 
-\connectorHH{trp.east}{ini1.west}
-\connectorHH{trp.east}{ini2.west}
-\connectorHH{trp.east}{ini3.west}
-\connectorHH{trp.east}{ini4.west}
-\connectorHH{trp.east}{ini5.west}
-\connectorHH{trp.east}{ini6.west}
+\connectorH{trp.east}{ini1.west}
+\connectorH{trp.east}{ini2.west}
+\connectorH{trp.east}{ini3.west}
+\connectorH{trp.east}{ini4.west}
+\connectorH{trp.east}{ini5.west}
+\connectorH{trp.east}{ini6.west}
 
 \end{tikzpicture}
 
