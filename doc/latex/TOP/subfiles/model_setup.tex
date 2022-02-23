@@ -24,7 +24,7 @@ There are only two entry points in the NEMOGCM model for passive tracers :
 \section{ Setting up a passive tracer configuration}
 %------------------------------------------namtrc_int----------------------------------------------------
 \nlst{namtrc}
-%-------------------------------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------------------------
 
 As a reminder, the revisited structure of TOP interface now counts for five different modules handled in namelist\_top :
 
@@ -38,10 +38,10 @@ As a reminder, the revisited structure of TOP interface now counts for five diff
 
 For inert, C14, and Age tracers, all variables settings (\textit{sn\_tracer} definitions) are hard-coded in \textit{trc\_nam\_*} routines. For instance, for Age tracer:
 %------------------------------------------namtrc_int----------------------------------------------------
-\nlst{nam_trc_age}
-%---------------------------------------------------------------------------------------------------------
+\nlstlocal{nam_trc_age}
+%--------------------------------------------------------------------------------------------------------
 
-The modular approach was also implemented in the definition of the total number of passive tracers (jptra) which is specified by the user in  \textit{namtrc}
+The modular approach was also implemented in the definition of the total number of passive tracers (jptra) which is specified by the user in \textit{namtrc}.
 
 \section{ TOP Tracer Initialization}
 
@@ -55,12 +55,12 @@ There are three options to initialize TOP tracers in the \textit{namelist\_top }
 In the following, an example of the full structure definition is given for four tracers (DIC, Fe, NO$_{3}$, PHY) with initial conditions and different surface boundary and coastal forcings for DIC, Fe, and NO$_{3}$: 
 
 %------------------------------------------namtrc_int----------------------------------------------------
-\nlst{namtrc_cfg}
-%---------------------------------------------------------------------------------------------------------
+\nlstlocal{namtrc_cfg}
+%--------------------------------------------------------------------------------------------------------
 
 You have to activate which tracers (\textit{sn\_tracer}) you want to initialize by setting them to \texttt{true} in the  column. 
 
-\nlst{namtrc_dta_cfg}
+\nlstlocal{namtrc_dta_cfg}
 
 In \textit{namtrc\_dta}, you prescribe from which files the tracer are initialized (\textit{sn\_trcdta}). 
 A multiplicative factor can also be set for each tracer (\textit{rn\_trfac}). 
@@ -73,7 +73,7 @@ A multiplicative factor can also be set for each tracer (\textit{rn\_trfac}).
 Lateral and surface boundary conditions for passive tracers are prescribed in \textit{namtrc\_bc} as well as whether temporal interpolation of these files is enabled. Here we show the cases of Fe and NO$_{3}$ from dust and rivers with different output frequencies.
  
 %------------------------------------------namtrc_bc----------------------------------------------------
-\nlst{namtrc_bc_cfg}
+\nlstlocal{namtrc_bc_cfg}
 %---------------------------------------------------------------------------------------------------------
 
 \subsection{Antarctic Ice Sheet tracer supply}
@@ -89,13 +89,13 @@ You have to choose between two options depending whether the cavities under ice 
 \end{itemize}
 
 %------------------------------------------namisf----------------------------------------------------
-\nlst{namisf_cfg_eORCA1}
+\nlstlocal{namisf_cfg_eORCA1}
 %-----------------------------------------------------------------------------------------------------
 
 Runoff from icebergs is activated by setting \textit{ln\_rnf\_icb} to \textit{true} in the \textit{\&namsbc\_rnf} section of \textit{namelist\_cfg}.
 
 %------------------------------------------namsbc_rnf--------------------------------------------------
-\nlst{namsbc_rnf_cfg_eORCA1}
+\nlstlocal{namsbc_rnf_cfg_eORCA1}
 %---------------------------------------------------------------------------------------------------------
 
 The freshwater flux from ice shelves and icebergs is based on observations and modeled climatologies and is available for eORCA1 and eORCA025 grids :
@@ -105,7 +105,7 @@ The freshwater flux from ice shelves and icebergs is based on observations and m
 \end{itemize}
 
 %------------------------------------------namtrc_ais----------------------------------------------------
-\nlst{namtrc_ais_cfg}
+\nlstlocal{namtrc_ais_cfg}
 %---------------------------------------------------------------------------------------------------------
 
 Two options for tracer concentrations in iceberg and ice shelf can be set with the namelist parameter \textit{nn\_ais\_tr}:

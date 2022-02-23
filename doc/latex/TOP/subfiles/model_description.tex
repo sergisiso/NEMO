@@ -122,11 +122,11 @@ There are two sets of fields to perform offline simulations :
         to transport : the effective ocean transport velocities (eulerian plus the eddy induced plus all others parameterizations), vertical diffusion coefficient and the freshwater flux
 .
         %------------------------------------------namtrc_sms----------------------------------------------------
-        \nlst{namdta_dyn_linssh}
+        \nlstlocal{namdta_dyn_linssh}
         %-----------------------------------------------------------------------------------------------------------
         \item non linear free surface ( ln\_linssh = .false. or key\_qco ): the same fields than the ones in the linear free surface case. In addition, the horizontal divergence transport is needed to  recompute the time evolution of the sea surface heigth and the vertical scale factor and depth, and thus the time evolution of the vertical transport velocity.
         %------------------------------------------namtrc_sms----------------------------------------------------
-        \nlst{namdta_dyn_nolinssh}
+        \nlstlocal{namdta_dyn_nolinssh}
         %-----------------------------------------------------------------------------------------------------------
 \end{itemize}
 
