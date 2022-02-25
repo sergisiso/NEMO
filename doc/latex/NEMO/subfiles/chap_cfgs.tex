@@ -41,13 +41,13 @@ Configuration is defined manually through the \nam{cfg}{cfg} namelist variables.
 \end{listing}
 
 %% =================================================================================================
-\section[C1D: 1D Water column model (\texttt{\textbf{key\_c1d}})]{C1D: 1D Water column model (\protect\key{c1d})}
+\section[C1D: 1D Water column model]{C1D: 1D Water column model}
 \label{sec:CFGS_c1d}
 
 The 1D model option simulates a stand alone water column within the 3D \NEMO\ system.
 It can be applied to the ocean alone or to the ocean-ice system and can include passive tracers or a biogeochemical model.
 It is set up by defining the position of the 1D water column in the grid
-(see \path{./cfgs/SHARED/namelist\_ref}).
+(see \path{./cfgs/SHARED/namelist_ref}).
 The 1D model is a very useful tool
 \textit{(a)} to learn about the physics and numerical treatment of vertical mixing processes;
 \textit{(b)} to investigate suitable parameterisations of unresolved turbulence
@@ -61,7 +61,7 @@ a 3x3 domain with 75 vertical levels.
 
 The 1D model has some specifies. First, all the horizontal derivatives are assumed to be zero,
 and second, the two components of the velocity are moved on a $T$-point.
-Therefore, defining \key{c1d} changes some things in the code behaviour:
+Therefore, defining \np{ln_c1d = .true.} changes some things in the code behaviour:
 \begin{enumerate}
 \item a simplified \rou{stp} routine is used (\rou{stp\_c1d}, see \mdl{step\_c1d} module) in which
   both lateral tendancy terms and lateral physics are not called;
@@ -84,7 +84,7 @@ the SI3 model (ORCA-ICE) and possibly with PISCES biogeochemical model (ORCA-ICE
 An appropriate namelist is available in \path{./cfgs/ORCA2_ICE_PISCES/EXPREF/namelist_cfg} for ORCA2.
 The domain of ORCA2 configuration is defined in \textit{ORCA\_R2\_zps\_domcfg.nc} file,
 this file is available in tar file on the \NEMO\ community zenodo platform: \\
-https://doi.org/10.5281/zenodo.2640723
+https://doi.org/10.5281/zenodo.3767939
 
 In this namelist\_cfg the name of domain input file is set in \nam{cfg}{cfg} block of namelist.
 
@@ -202,11 +202,10 @@ This \citet{large.yeager_trpt04} dataset is available through
 the \href{http://nomads.gfdl.noaa.gov/nomads/forms/mom4/CORE.html}{GFDL web site}.
 The "normal year" of \citet{large.yeager_trpt04} has been chosen of the \NEMO\ distribution since release v3.3.
 
-ORCA\_R2 pre-defined configuration can also be run with multiply online nested zooms (\ie\ with AGRIF, \key{agrif} defined).
-This is available as the AGRIF\_DEMO configuration that can be found in the \path{./cfgs/AGRIF_DEMO/} directory.
-
-A regional Arctic or peri-Antarctic configuration is extracted from an ORCA\_R2 or R05 configurations using
-sponge layers at open boundaries.
+ORCA\_R2 pre-defined configuration can also be run with multiple online nested zooms, \ie\ using AGRIF with \key{agrif} defined.
+This is available in the AGRIF\_DEMO configuration (located in \path{./cfgs/AGRIF_DEMO/} directory) that
+accounts for two nested refinements over the Arctic region and a third zoom over the central Pacific area 
+using a two-ways coupling procedure.
 
 %% =================================================================================================
 \section{GYRE family: double gyre basin}
