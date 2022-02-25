@@ -15,10 +15,10 @@ Usage:
 ------
 ./manual_build.sh [-p] [-r version ] manual
 Mandatory
-          Chose one model manual among ${manuals} or all
+          Chose one model manual among ${manuals} or all (if not provided compile "NEMO")
 Optional
    -p     Produce manual with figures and disable draft watermark
-   -r     Specify the release version number of the manual(s)
+   -r     Specify the release version number of the manual(s) instead of the branch name
 EOF
                                  exit 0 ;;
             ('p') x_p=0        ; shift  ;;
@@ -47,7 +47,7 @@ else
 fi
 
 # Version
-version=`git symbolic-ref -q --short HEAD || git describe --tags --exact-match || "trunk"`
+version=`git symbolic-ref -q --short HEAD || git describe --tags --exact-match || "orphan"`
 if [ "x${VER_NUM}" != 'x' ] ; then
     version=${VER_NUM}
 fi
