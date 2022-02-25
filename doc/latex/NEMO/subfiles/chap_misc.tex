@@ -198,8 +198,8 @@ open ocean wet points in the non-isf bathymetry for this set is row 42 (\fortran
 then the formally correct setting for \np{open_ocean_jstart}{open\_ocean\_jstart} is 41.  Using this value as
 the first row to be read will result in a 362x292 domain which is the same size as the
 original ORCA1 domain.  Thus the extended domain configuration file can be used with all
-the original input files for ORCA1 if the ice cavities are not active (\np{ln\_isfcav =
-.false.}).  Full instructions for achieving this are:
+the original input files for ORCA1 if the ice cavities are not active (\np{ln_isfcav =
+.false.}). Full instructions for achieving this are:
 
 \begin{itemize}
 \item Add the new attribute to any input files requiring a j-row offset, i.e:

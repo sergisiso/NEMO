@@ -1058,32 +1058,6 @@ the filter \autoref{eq:DYN_spg_ts_sshf} was found to be more conservative, and s
 }            %%end gm comment (copy of griffies book)
 
 %% =================================================================================================
-\subsection{Filtered free surface (\forcode{dynspg_flt?})}
-\label{subsec:DYN_spg_fltp}
-
-The filtered formulation follows the \citet{roullet.madec_JGR00} implementation.
-The extra term introduced in the equations (see \autoref{subsec:MB_free_surface}) is solved implicitly.
-The elliptic solvers available in the code are documented in \autoref{chap:MISC}.
-
-%% gm %%======>>>>   given here the discrete eqs provided to the solver
-\cmtgm{               %%% copy from chap-model basics
-  \[
-    % \label{eq:DYN_spg_flt}
-    \frac{\partial {\mathrm {\mathbf U}}_h }{\partial t}= {\mathrm {\mathbf M}}
-    - g \nabla \left( \tilde{\rho} \ \eta \right)
-    - g \ T_c \nabla \left( \widetilde{\rho} \ \partial_t \eta \right)
-  \]
-  where $T_c$, is a parameter with dimensions of time which characterizes the force,
-  $\widetilde{\rho} = \rho / \rho_o$ is the dimensionless density,
-  and $\mathrm {\mathbf M}$ represents the collected contributions of the Coriolis, hydrostatic pressure gradient,
-  non-linear and viscous terms in \autoref{eq:MB_dyn}.
-}   %end cmtgm
-
-Note that in the linear free surface formulation (\texttt{vvl?} not defined),
-the ocean depth is time-independent and so is the matrix to be inverted.
-It is computed once and for all and applies to all ocean time steps.
-
-%% =================================================================================================
 \section[Lateral diffusion term and operators (\textit{dynldf.F90})]{Lateral diffusion term and operators (\protect\mdl{dynldf})}
 \label{sec:DYN_ldf}
 

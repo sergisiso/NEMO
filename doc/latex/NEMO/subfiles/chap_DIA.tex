@@ -1464,7 +1464,7 @@ In particular, options associated with \np{ln_dyn_mxl}{ln\_dyn\_mxl}, \np{ln_vor
 and none of the options have been tested with variable volume (\ie\ \np[=.true.]{ln_linssh}{ln\_linssh}).
 
 %% =================================================================================================
-\section[FLO: On-Line Floats trajectories (\texttt{\textbf{key\_floats}})]{FLO: On-Line Floats trajectories (\protect\key{floats})}
+\section[FLO: On-Line Floats trajectories]{FLO: On-Line Floats trajectories}
 \label{sec:DIA_FLO}
 
 \begin{listing}
@@ -1475,7 +1475,8 @@ and none of the options have been tested with variable volume (\ie\ \np[=.true.]
 
 The on-line computation of floats advected either by the three dimensional velocity field or constraint to
 remain at a given depth ($w = 0$ in the computation) have been introduced in the system during the CLIPPER project.
-Options are defined by \nam{flo}{flo} namelist variables.
+Options are defined by \nam{flo}{flo} namelist variables and the interface is activated by setting \np{ln_float = .true.}.
+
 The algorithm used is based either on the work of \cite{blanke.raynaud_JPO97} (default option),
 or on a $4^th$ Runge-Hutta algorithm (\np[=.true.]{ln_flork4}{ln\_flork4}).
 Note that the \cite{blanke.raynaud_JPO97} algorithm have the advantage of providing trajectories which
@@ -1567,7 +1568,7 @@ Here it is an example of specification to put in files description section:
 \end{xmllines}
 
 %% =================================================================================================
-\section[Transports across sections (\texttt{\textbf{key\_diadct}})]{Transports across sections (\protect\key{diadct})}
+\section[Transports across sections]{Transports across sections}
 \label{sec:DIA_diag_dct}
 
 \begin{listing}
@@ -1577,7 +1578,7 @@ Here it is an example of specification to put in files description section:
 \end{listing}
 
 A module is available to compute the transport of volume, heat and salt through sections.
-This diagnostic is actived with \key{diadct}.
+This diagnostic is actived with \np{ln_diadct = .true.}.
 
 Each section is defined by the coordinates of its 2 extremities.
 The pathways between them are contructed using tools which can be found in \texttt{tools/SECTIONS\_DIADCT}

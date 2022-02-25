@@ -1004,7 +1004,7 @@ When an external wave model (see \autoref{sec:SBC_wave}) is used in the coupled 
 
 
 The namelist above allows control of various aspects of the coupling fields (particularly for vectors) and
-now allows for any coupling fields to have multiple sea ice categories (as required by LIM3 and CICE).
+now allows for any coupling fields to have multiple sea ice categories (as required by SI3).
 When indicating a multi-category coupling field in \nam{sbc_cpl}{sbc\_cpl}, the number of categories will be determined by
 the number used in the sea ice model.
 In some limited cases, it may be possible to specify single category coupling fields even when
@@ -2034,44 +2034,10 @@ the value of the \np{nn_ice}{nn\_ice} namelist parameter found in \nam{sbc}{sbc}
   This model computes the ice-ocean fluxes,
   that are combined with the air-sea fluxes using the ice fraction of each model cell to
   provide the surface averaged ocean fluxes.
-  Note that the activation of a sea-ice model is done by defining a CPP key (\key{si3} or \key{cice}).
+  Note that the activation of a sea-ice model is done by defining a CPP key (\key{si3}).
   The activation automatically overwrites the read value of nn\_ice to its appropriate value
-  (\ie\ $2$ for SI3 or $3$ for CICE).
+  (\ie\ $2$ for SI3).
 \end{description}
-
-% {Description of Ice-ocean interface to be added here or in LIM 2 and 3 doc ?}
-%GS: ocean-ice (SI3) interface is not located in SBC directory anymore, so it should be included in SI3 doc
-
-%% =================================================================================================
-\subsection[Interface to CICE (\textit{sbcice\_cice.F90})]{Interface to CICE (\protect\mdl{sbcice\_cice})}
-\label{subsec:SBC_cice}
-
-It is possible to couple a regional or global \NEMO\ configuration (without AGRIF)
-to the CICE sea-ice model by using \key{cice}.
-The CICE code can be obtained from \href{http://oceans11.lanl.gov/trac/CICE/}{LANL} and
-the additional 'hadgem3' drivers will be required, even with the latest code release.
-Input grid files consistent with those used in \NEMO\ will also be needed,
-and CICE CPP keys \textbf{ORCA\_GRID}, \textbf{CICE\_IN\_NEMO} and \textbf{coupled} should be used
-(seek advice from UKMO if necessary).
-Currently, the code is only designed to work when using the NCAR forcing option for \NEMO\ %GS: still true ?
-(with \textit{calc\_strair}\forcode{=.true.} and \textit{calc\_Tsfc}\forcode{=.true.} in the CICE name-list),
-or alternatively when \NEMO\ is coupled to the HadGAM3 atmosphere model
-(with \textit{calc\_strair}\forcode{=.false.} and \textit{calc\_Tsfc}\forcode{=false}).
-The code is intended to be used with \np{nn_fsbc}{nn\_fsbc} set to 1
-(although coupling ocean and ice less frequently should work,
-it is possible the calculation of some of the ocean-ice fluxes needs to be modified slightly -
-the user should check that results are not significantly different to the standard case).
-
-There are two options for the technical coupling between \NEMO\ and CICE.
-The standard version allows complete flexibility for the domain decompositions in the individual models,
-but this is at the expense of global gather and scatter operations in the coupling which
-become very expensive on larger numbers of processors.
-The alternative option (using \key{nemocice\_decomp} for both \NEMO\ and CICE) ensures that
-the domain decomposition is identical in both models (provided domain parameters are set appropriately,
-and \textit{processor\_shape~=~square-ice} and \textit{distribution\_wght~=~block} in the CICE name-list) and
-allows much more efficient direct coupling on individual processors.
-This solution scales much better although it is at the expense of having more idle CICE processors in areas where
-there is no sea ice.
 
 %% =================================================================================================
 \subsection[Freshwater budget control (\textit{sbcfwb.F90})]{Freshwater budget control (\protect\mdl{sbcfwb})}
