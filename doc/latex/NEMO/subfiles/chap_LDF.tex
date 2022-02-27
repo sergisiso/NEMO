@@ -485,8 +485,8 @@ the horizontal divergence for operators acting along model-surfaces are no longe
     Except in global ORCA  $0.5^{\circ}$ runs with \key{traldf\_eiv},
     where $A_l$ is set like $A_e$ but with a minimum vale of $100\;\mathrm{m}^2\;\mathrm{s}^{-1}$
   }.
-  In idealised setups with \key{traldf\_c2d}, $A_e$ is reduced similarly, but if \key{traldf\_eiv} is set in
-  the global configurations with \key{traldf\_c2d}, a horizontally varying $A_e$ is instead set from
+  In idealised setups with (\protect\np[=-20]{nn_aht_ijk_t}{nn\_aht\_ijk\_t}), $A_e$ is reduced similarly, but if \np[=.true.]{ln_ldfeiv}{ln\_ldfeiv} also is set in
+  the global configurations a horizontally varying $A_e$ is instead set from
   the Held-Larichev parameterisation
   \footnote{
     In this case, $A_e$ at low latitudes $|\theta|<20^{\circ}$ is further reduced by a factor $|f/f_{20}|$,
