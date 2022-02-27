@@ -793,11 +793,11 @@ so that the update of the next velocities is done in module \mdl{dynspg\_flt} an
 
 The form of the surface pressure gradient term depends on how the user wants to
 handle the fast external gravity waves that are a solution of the analytical equation (\autoref{sec:MB_hor_pg}).
-Three formulations are available, all controlled by a CPP key (ln\_dynspg\_xxx):
+Two formulations are available, all controlled by a CPP key (ln\_dynspg\_<method>):
 an explicit formulation which requires a small time step;
-a filtered free surface formulation which allows a larger time step by
-adding a filtering term into the momentum equation;
-and a split-explicit free surface formulation, described below, which also allows a larger time step.
+%a filtered free surface formulation which allows a larger time step by
+%adding a filtering term into the momentum equation;
+a split-explicit free surface formulation which also allows a larger time step.
 
 The extra term introduced in the filtered method is calculated implicitly, so that a solver is used to compute it.
 As a consequence the update of the $next$ velocities is done in module \mdl{dynspg\_flt} and not in \mdl{dynnxt}.
