@@ -1221,11 +1221,11 @@ no corresponding heat and salt addition and so as happens in the lower boxes the
 boxes below means the surface box has a large increase in volume, whilst all other boxes remain the same size)
 
 In trasbc the addition of heat and salt due to the river runoff is added.
-This is done in the same way for both vvl and non-vvl.
+This is done in the same way for both linear and non-linear free surface.
 The temperature and salinity are increased through the specified depth according to
 the heat and salt content of the river.
 
-In the non-linear free surface case (vvl),
+In the non-linear free surface case (\np[=.false.]{ln_linssh}{ln\_linssh}),
 near the end of the time step the change in sea surface height is redistrubuted through the grid boxes,
 so that the original ratios of grid box heights are restored.
 In doing this water is moved into boxes below, throughout the water column,

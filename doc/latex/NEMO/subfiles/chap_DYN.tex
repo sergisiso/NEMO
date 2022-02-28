@@ -147,7 +147,7 @@ taking into account the change of the thickness of the levels:
   \right.
 \end{equation}
 
-In the case of a non-linear free surface (\texttt{vvl?}), the top vertical velocity is $-\textit{emp}/\rho_w$,
+In the case of a non-linear free surface (\np[=.false.]{ln_linssh}{ln\_linssh}), the top vertical velocity is $-\textit{emp}/\rho_w$,
 as changes in the divergence of the barotropic transport are absorbed into the change of the level thicknesses,
 re-orientated downward.
 \cmtgm{not sure of this...  to be modified with the change in emp setting}
@@ -594,9 +594,6 @@ for $1<k<km$ (interior layer)
 
 Note that the $1/2$ factor in (\autoref{eq:DYN_hpg_zco_surf}) is adequate because of the definition of $e_{3w}$ as
 the vertical derivative of the scale factor at the surface level ($z=0$).
-Note also that in case of variable volume level (\texttt{vvl?} defined),
-the surface pressure gradient is included in \autoref{eq:DYN_hpg_zco_surf} and
-\autoref{eq:DYN_hpg_zco} through the space and time variations of the vertical scale factor $e_{3w}$.
 
 %% =================================================================================================
 \subsection[Partial step $Z$-coordinate (\forcode{ln_dynhpg_zps})]{Partial step $Z$-coordinate (\protect\np{ln_dynhpg_zps}{ln\_dynhpg\_zps})}
@@ -662,8 +659,8 @@ Density Jacobian with cubic polynomial scheme (DJC) (\np[=.true.]{ln_hpg_djc}{ln
 quasi-sigma) coordinates but not for ice shelf cavities.
 \end{itemize}
 
-Note that expression \autoref{eq:DYN_hpg_sco} is commonly used when the variable volume formulation is activated
-(\texttt{vvl?}) because in that case, even with a flat bottom,
+Note that expression \autoref{eq:DYN_hpg_sco} is commonly used when the non-linear free surface formulation is activated
+(\np[=.false.]{ln_linssh}{ln\_linssh}) because in that case, even with a flat bottom,
 the coordinate surfaces are not horizontal but follow the free surface \citep{levier.treguier.ea_trpt07}.
 At version 4.2 the density field used by dyn\_hpg is the density anomaly field rhd rather than $1+\mathrm{rhd}$. 
 The calculation of the source term for the free surface has been adjusted to take this into account. 
@@ -672,7 +669,7 @@ with depth for water with a potential temperature of $4^{\circ}$C and salinity o
 (see (13) and (14) of \citet{roquet.madec.ea_OM15}).        
 
 The pressure Jacobian scheme (\np[=.true.]{ln_hpg_prj}{ln\_hpg\_prj}) is available as
-an option to \np[=.true.]{ln_hpg_sco}{ln\_hpg\_sco} when \texttt{vvl?} is active.
+an option to \np[=.true.]{ln_hpg_sco}{ln\_hpg\_sco} when \np[=.false.]{ln_linssh}{ln\_linssh}.
 It works well for moderately steep slopes but produces large velocities in the SEAMOUNT test case 
 when the slopes are steep. It uses a constrained cubic spline to
 reconstruct the vertical density profile within a water column.
@@ -1533,11 +1530,11 @@ The general framework for dynamics time stepping is a leap-frog scheme,
 \ie\ a three level centred time scheme associated with an Asselin time filter (cf. \autoref{chap:TD}).
 The scheme is applied to the velocity, except when
 using the flux form of momentum advection (cf. \autoref{sec:DYN_adv_cor_flux})
-in the variable volume case (\texttt{vvl?} defined),
+in the variable volume case (\np[=.false.]{ln_linssh}{ln\_linssh}),
 where it has to be applied to the thickness weighted velocity (see \autoref{sec:SCOORD_momentum})
 
 $\bullet$ vector invariant form or linear free surface
-(\np[=.true.]{ln_dynhpg_vec}{ln\_dynhpg\_vec} ; \texttt{vvl?} not defined):
+(\np[=.true.]{ln_dynhpg_vec}{ln\_dynhpg\_vec} or \np[=.true.]{ln_linssh}{ln\_linssh}):
 \[
   % \label{eq:DYN_nxt_vec}
   \left\{
@@ -1549,7 +1546,7 @@ $\bullet$ vector invariant form or linear free surface
 \]
 
 $\bullet$ flux form and nonlinear free surface
-(\np[=.false.]{ln_dynhpg_vec}{ln\_dynhpg\_vec} ; \texttt{vvl?} defined):
+(\np[=.false.]{ln_dynhpg_vec}{ln\_dynhpg\_vec} and \np[=.false.]{ln_linssh}{ln\_linssh}):
 \[
   % \label{eq:DYN_nxt_flux}
   \left\{
@@ -1566,10 +1563,6 @@ $\gamma$ is initialized as \np{nn_atfp}{nn\_atfp} (namelist parameter).
 Its default value is \np[=10.e-3]{nn_atfp}{nn\_atfp}.
 In both cases, the modified Asselin filter is not applied since perfect conservation is not an issue for
 the momentum equations.
-
-Note that with the filtered free surface,
-the update of the \textit{after} velocities is done in the \mdl{dynsp\_flt} module,
-and only array swapping and Asselin filtering is done in \mdl{dynnxt}.
 
 \subinc{\input{../../global/epilogue}}
 
