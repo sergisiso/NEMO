@@ -778,29 +778,16 @@ The pressure gradient due to ocean load is computed using the expression \autore
 
 Options are defined through the \nam{dyn_spg}{dyn\_spg} namelist variables.
 The surface pressure gradient term is related to the representation of the free surface (\autoref{sec:MB_hor_pg}).
-The main distinction is between the fixed volume case (linear free surface) and
-the variable volume case (nonlinear free surface, \texttt{vvl?} is defined).
+The main distinction is between the fixed volume case (linear free surface, \ie\ \np[=.true.]{ln_linssh}{ln\_linssh}) and
+the variable volume case (nonlinear free surface, \np[=.false.]{ln_linssh}{ln\_linssh}).
 In the linear free surface case (\autoref{subsec:MB_free_surface})
 the vertical scale factors $e_{3}$ are fixed in time,
 while they are time-dependent in the nonlinear case (\autoref{subsec:MB_free_surface}).
 With both linear and nonlinear free surface, external gravity waves are allowed in the equations,
-which imposes a very small time step when an explicit time stepping is used.
-Two methods are proposed to allow a longer time step for the three-dimensional equations:
-the filtered free surface, which is a modification of the continuous equations \iffalse (see \autoref{eq:MB_flt?}) \fi
-and the split-explicit free surface described below.
-The extra term introduced in the filtered method is calculated implicitly,
-so that the update of the next velocities is done in module \mdl{dynspg\_flt} and not in \mdl{dynnxt}.
-
-The form of the surface pressure gradient term depends on how the user wants to
-handle the fast external gravity waves that are a solution of the analytical equation (\autoref{sec:MB_hor_pg}).
-Two formulations are available, all controlled by a CPP key (ln\_dynspg\_<method>):
-an explicit formulation which requires a small time step;
-%a filtered free surface formulation which allows a larger time step by
-%adding a filtering term into the momentum equation;
-a split-explicit free surface formulation which also allows a larger time step.
-
-The extra term introduced in the filtered method is calculated implicitly, so that a solver is used to compute it.
-As a consequence the update of the $next$ velocities is done in module \mdl{dynspg\_flt} and not in \mdl{dynnxt}.
+which imposes a very small time step when an explicit time stepping is used (\np[=.true.]{ln_dynspg_exp}{ln\_dynspg\_exp}).
+To allow a longer time step for the three-dimensional equations, one can use a split-explicit free surface 
+(\np[=.true.]{ln_dynspg_ts}{ln\_dynspg\_ts}). In that case, only a quasi-linear
+ form of 2d barotropic equations is substepped with a small time increment.
 
 %% =================================================================================================
 \subsection[Explicit free surface (\forcode{ln_dynspg_exp})]{Explicit free surface (\protect\np{ln_dynspg_exp}{ln\_dynspg\_exp})}
@@ -821,11 +808,6 @@ is thus simply given by :
   \right.
 \end{equation}
 
-Note that in the non-linear free surface case (\ie\ \texttt{vvl?} defined),
-the surface pressure gradient is already included in the momentum tendency through
-the level thickness variation allowed in the computation of the hydrostatic pressure gradient.
-Thus, nothing is done in the \mdl{dynspg\_exp} module.
-
 %% =================================================================================================
 \subsection[Split-explicit free surface (\forcode{ln_dynspg_ts})]{Split-explicit free surface (\protect\np{ln_dynspg_ts}{ln\_dynspg\_ts})}
 \label{subsec:DYN_spg_ts}
@@ -837,7 +819,7 @@ The general idea is to solve the free surface equation and the associated barotr
 a smaller time step than $\rdt$, the time step used for the three dimensional prognostic variables
 (\autoref{fig:DYN_spg_ts}).
 The size of the small time step, $\rdt_e$ (the external mode or barotropic time step) is provided through
-the \np{nn_baro}{nn\_baro} namelist parameter as: $\rdt_e = \rdt / nn\_baro$.
+the \np{nn_e}{nn\_e} namelist parameter as: $\rdt_e = \rdt / nn\_e$.
 This parameter can be optionally defined automatically (\np[=.true.]{ln_bt_nn_auto}{ln\_bt\_nn\_auto}) considering that
 the stability of the barotropic system is essentially controled by external waves propagation.
 Maximum Courant number is in that case time independent, and easily computed online from the input bathymetry.
@@ -874,8 +856,8 @@ AB3-AM4 coefficients used in \NEMO\ follow the second-order accurate,
     Schematic of the split-explicit time stepping scheme for the external and internal modes.
     Time increases to the right.
     In this particular exemple,
-    a boxcar averaging window over \np{nn_baro}{nn\_baro} barotropic time steps is used
-    (\np[=1]{nn_bt_flt}{nn\_bt\_flt}) and \np[=5]{nn_baro}{nn\_baro}.
+    a boxcar averaging window over \np{nn_e}{nn\_e} barotropic time steps is used
+    (\np[=1]{nn_bt_flt}{nn\_bt\_flt}) and \np[=5]{nn_e}{nn\_e}.
     Internal mode time steps (which are also the model time steps) are denoted by
     $t-\rdt$, $t$ and $t+\rdt$.
     Variables with $k$ superscript refer to instantaneous barotropic variables,
@@ -904,7 +886,7 @@ Since external mode equations written at baroclinic time steps finally follow a 
 asselin filtering is not applied to barotropic quantities.\\
 Alternatively, one can choose to integrate barotropic equations starting from \textit{before} time step
 (\np[=.false.]{ln_bt_fw}{ln\_bt\_fw}).
-Although more computationaly expensive ( \np{nn_baro}{nn\_baro} additional iterations are indeed necessary),
+Although more computationaly expensive ( \np{nn_e}{nn\_e} additional iterations are indeed necessary),
 the baroclinic to barotropic forcing term given at \textit{now} time step become centred in
 the middle of the integration window.
 It can easily be shown that this property removes part of splitting errors between modes,
@@ -929,14 +911,10 @@ One can eventually choose to feedback instantaneous values by not using any time
 (\np[=.false.]{ln_bt_av}{ln\_bt\_av}).
 In that case, external mode equations are continuous in time,
 \ie\ they are not re-initialized when starting a new sub-stepping sequence.
-This is the method used so far in the POM model, the stability being maintained by
+This is the method used in the POM model for example, the stability being maintained by
 refreshing at (almost) each barotropic time step advection and horizontal diffusion terms.
 Since the latter terms have not been added in \NEMO\ for computational efficiency,
-removing time filtering is not recommended except for debugging purposes.
-This may be used for instance to appreciate the damping effect of the standard formulation on
-external gravity waves in idealized or weakly non-linear cases.
-Although the damping is lower than for the filtered free surface,
-it is still significant as shown by \citet{levier.treguier.ea_trpt07} in the case of an analytical barotropic Kelvin wave.
+removing time filtering would be inevitably unstable. One can however add some dissipation, but in the time domain, by slightly modifying the barotropic time stepping coefficients (\citet{demange_JCP19}). This is implemented here through an additional parameter (\np{rn_bt_alpha}{rn\_bt\_alpha}), which controls the amount of temporal diffusion.
 
 \cmtgm{               %%% copy from griffies Book
 
