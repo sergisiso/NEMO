@@ -16,7 +16,6 @@ MODULE cpl_oasis3
 
    !!----------------------------------------------------------------------
    !!   'key_oasis3'                    coupled Ocean/Atmosphere via OASIS3-MCT
-   !!   'key_oa3mct_v3'                 to be added for OASIS3-MCT version 3
    !!----------------------------------------------------------------------
    !!   cpl_init     : initialization of coupled mode communication
    !!   cpl_define   : definition of grid and fields

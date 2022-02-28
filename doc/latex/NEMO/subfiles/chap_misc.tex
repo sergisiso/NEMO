@@ -301,31 +301,6 @@ See \mdl{closea} module for an example.
 Note also that this implementation may be sensitive to the optimization level.
 
 %% =================================================================================================
-\subsection{MPP scalability}
-\label{subsec:MISC_mppsca}
-
-The default method of communicating values across the north-fold in distributed memory applications (\key{mpp\_mpi})
-uses a \textsc{MPI\_ALLGATHER} function to exchange values from each processing region in
-the northern row with every other processing region in the northern row.
-This enables a global width array containing the top 4 rows to be collated on every northern row processor and then
-folded with a simple algorithm.
-Although conceptually simple, this "All to All" communication will hamper performance scalability for
-large numbers of northern row processors.
-From version 3.4 onwards an alternative method is available which only performs direct "Peer to Peer" communications
-between each processor and its immediate "neighbours" across the fold line.
-This is achieved by using the default \textsc{MPI\_ALLGATHER} method during initialisation to
-help identify the "active" neighbours.
-Stored lists of these neighbours are then used in all subsequent north-fold exchanges to
-restrict exchanges to those between associated regions.
-The collated global width array for each region is thus only partially filled but is guaranteed to
-be set at all the locations actually required by each individual for the fold operation.
-This alternative method should give identical results to the default \textsc{ALLGATHER} method and
-is recommended for large values of \np{jpni}{jpni}.
-The new method is activated by setting \np{ln_nnogather}{ln\_nnogather} to be true (\nam{mpp}{mpp}).
-The reproducibility of results using the two methods should be confirmed for each new,
-non-reference configuration.
-
-%% =================================================================================================
 \section{Model optimisation, control print and benchmark}
 \label{sec:MISC_opt}
 

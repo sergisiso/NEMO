@@ -1651,7 +1651,7 @@ The amount of information is controlled by two integer parameters:
 Iceberg trajectories can also be written out and this is enabled by setting \np{nn_sample_rate}{nn\_sample\_rate}~$>$~0.
 A non-zero value represents how many timesteps between writes of information into the output file.
 These output files are in NETCDF format.
-When \key{mpp\_mpi} is defined, each output file contains only those icebergs in the corresponding processor.
+When running with multiple processes, each output file contains only those icebergs in the corresponding processor.
 Trajectory points are written out in the order of their parent iceberg in the model's "linked list" of icebergs.
 So care is needed to recreate data for individual icebergs,
 since its trajectory data may be spread across multiple files.

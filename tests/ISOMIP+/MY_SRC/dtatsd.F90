@@ -153,7 +153,6 @@ CONTAINS
       !!
       !! ** Method  : - call fldread routine
       !!              - ORCA_R2: add some hand made alteration to read data
-      !!              - 'key_orca_lev10' interpolates on 10 times more levels
       !!              - s- or mixed z-s coordinate: vertical interpolation on model mesh
       !!              - ln_tsd_dmp=F: deallocates the T-S data structure
       !!                as T-S data are no are used
