@@ -66,7 +66,7 @@ of the use of this I/O server is presented in the next section.
 
 
 %% =================================================================================================
-\section{Standard model output (\rou{iom\_put})}
+\section{Standard model output (\textt{iom\_put})}
 \label{sec:DIA_iom}
 
 Since version 3.2, \rou{iom\_put} is the \NEMO\ output interface of choice.
@@ -80,7 +80,7 @@ The two main purposes of \rou{iom\_put} are:
   all diagnostic output related tasks to dedicated processes.
 \end{enumerate}
 
-The first functionality allows the user to specify, without code changes or recompilation,
+\noindent The first functionality allows the user to specify, without code changes or recompilation,
 aspects of the diagnostic output stream, such as:
 
 \begin{itemize}
@@ -94,12 +94,12 @@ aspects of the diagnostic output stream, such as:
 \item Control over the compression and/or precision of output fields (subject to certain conditions)
 \end{itemize}
 
-In addition, \rou{iom\_put}  allows the user to add in the code the output of any new
+\noindent In addition, \rou{iom\_put}  allows the user to add in the code the output of any new
 variable (scalar, 1D, 2D or 3D) in a very easy way.  All details of \rou{iom\_put}
 functionalities are listed in the following subsections.  An example of the main XML file
 that control the outputs can be found in \path{cfgs/ORCA2_ICE_PISCES/EXPREF/iodef.xml}.\\
 
-The second functionality targets output performance when running in parallel.  XIOS
+\noindent The second functionality targets output performance when running in parallel.  XIOS
 provides the possibility to specify N dedicated I/O processes (in addition to the \NEMO\
 processes) to collect and write the outputs.  With an appropriate choice of N by the user,
 the bottleneck associated with the writing of the output files can be greatly reduced.
@@ -156,9 +156,9 @@ context):
 <variable id="recv_field_timeout"        type="double">1800</variable>
 \end{xmllines}
 
-\noident This variable sets timeout for reading.
+\noindent This variable sets timeout for reading.
 
-If XIOS is to be used to read restart from files generated with an earlier \NEMO\ version (3.6 for instance),
+\noindent If XIOS is to be used to read restart from files generated with an earlier \NEMO\ version (3.6 for instance),
 dimension \forcode{z} defined in restart file must be renamed to \forcode{nav_lev}.\\
 
 XIOS can also be used to write \NEMO\ restarts. A namelist parameter
@@ -192,8 +192,8 @@ Key settings in the iodef.xml file are the tags associated with each defined fil
 
 The \texttt{using\_server} setting determines whether or not the server will be used in
 \textit{attached mode}
-(as a library) [\texttt{> false <}] or in \textit{detached mode}
-(as an external executable on N additional, dedicated cpus) [\texttt{ > true <}].
+(as a library) [\texttt{.false.}] or in \textit{detached mode}
+(as an external executable on N additional, dedicated cpus) [\texttt{.true.}].
 The \textit{attached mode} is simpler to use but much less efficient for
 massively parallel applications.
 The type of each file can be either ''multiple\_file'' or ''one\_file''.
@@ -267,7 +267,7 @@ See the XML basics section below for more details on XML syntax and rules.
   \end{tabularx}
 \end{table}
 
-The rest of the XML controls and definitions for XIOS-\NEMO interaction are contained in a series of 
+The rest of the XML controls and definitions for XIOS-\NEMO\  interaction are contained in a series of 
 XML files included via the \file{context\_nemo.xml} file which, is itself, included in iodef.xml. E.g.:
 \begin{xmllines}
 iodef.xml:           <context id="nemo" src="./context_nemo.xml"/>           <!--  NEMO                -->
@@ -519,13 +519,14 @@ example 1: Direct inheritance.
 </field_definition>
 \end{xmllines}
 
-The field ''sst'' which is part (or a child) of the field\_definition will inherit the value ''average'' of
+\noindent The field ''sst'' which is part (or a child) of the field\_definition will inherit the value ''average'' of
 the attribute ''operation'' from its parent.
 Note that a child can overwrite the attribute definition inherited from its parents.
 In the example above, the field ''sss'' will for example output instantaneous values instead of average values.
 \\
 \\
-example 2: Inheritance by reference.
+example 2: Inheritance by reference: inherit (and overwrite, if needed) the attributes of a tag you are refering to:
+
 
 \begin{xmllines}
 <field_definition>
@@ -539,8 +540,6 @@ example 2: Inheritance by reference.
    </file>
 </file_definition>
 \end{xmllines}
-
-Inherit (and overwrite, if needed) the attributes of a tag you are refering to.
 
 %% =================================================================================================
 \subsubsection{Use of groups}
@@ -560,7 +559,7 @@ Note that for the field ''toce'', we overwrite the grid definition inherited fro
    ...
 \end{xmllines}
 
-Secondly, the group can be used to replace a list of elements.
+\noindent Secondly, the group can be used to replace a list of elements.
 Several examples of groups of fields are proposed at the end of the XML field files (
 \path{cfgs/SHARED/field_def_nemo-oce.xml},
 \path{cfgs/SHARED/field_def_nemo-pisces.xml} and
@@ -575,7 +574,7 @@ For example, a short list of the usual variables related to the U grid:
 </field_group>
 \end{xmllines}
 
-that can be directly included in a file through the following syntax:
+\noindent that can be directly included in a file through the following syntax:
 
 \begin{xmllines}
 <file id="myfile_U" output_freq="1d" />
@@ -587,7 +586,7 @@ that can be directly included in a file through the following syntax:
 %% =================================================================================================
 \subsection{Detailed functionalities}
 
-The file \path{NEMOGCM/CONFIG/ORCA2_LIM/iodef_demo.xml} provides several examples of the use of
+The files \path{cfgs/ORCA2_ICE_PISCES/EXPREF/*.xml} provide several examples of the use of
 the new functionalities offered by the XML interface of XIOS.
 
 %% =================================================================================================
@@ -613,7 +612,7 @@ For example:
 </file>
 \end{xmllines}
 
-Moorings are seen as an extrem case corresponding to a 1 by 1 subdomain.
+\noindent Moorings are seen as an extreme case corresponding to a 1 by 1 subdomain.
 The Equatorial section, the TAO, RAMA and PIRATA moorings are already registered in the code and
 can therefore be outputted without taking care of their (i,j) position in the grid.
 These predefined domains can be activated by the use of specific domain\_ref:
@@ -626,7 +625,7 @@ the mooring position for TAO, RAMA and PIRATA followed by ''T'' (for example: ''
 </file>
 \end{xmllines}
 
-Note that if the domain decomposition used in XIOS cuts the subdomain in several parts and if
+\noindent Note that if the domain decomposition used in XIOS cuts the subdomain in several parts and if
 you use the ''multiple\_file'' type for your output files,
 you will end up with several files you will need to rebuild using unprovided tools (like ncpdq and ncrcat,
 \href{http://nco.sourceforge.net/nco.html#Concatenation}{see nco manual}).
@@ -647,7 +646,7 @@ For example, in \path{cfgs/ORCA2_ICE_PISCES/EXPREF/axis_def_nemo.xml}, we provid
 </axis>
 \end{xmllines}
 
-The use of this vertical zoom is done through the definition of a new grid in \file{grid_def_nemo.xml}:
+\noindent The use of this vertical zoom is done through the definition of a new grid in \file{grid_def_nemo.xml}:
 
 \begin{xmllines}
 <grid id="grid_T_zoom_300">
@@ -656,14 +655,14 @@ The use of this vertical zoom is done through the definition of a new grid in \f
 </grid>
 \end{xmllines}
 
-and subsequent application in a field definition (e.g. \file{field_def_nemo-oce.xml}):
+\noindent and subsequent application in a field definition (e.g. \file{field_def_nemo-oce.xml}):
 
 \begin{xmllines}
 <field id="toce_e3t_300"    field_ref="toce_e3t"          unit="degree_C"     
                             grid_ref="grid_T_zoom_300"    detect_missing_value="true" />
 \end{xmllines}
 
-\noident This variable can then be added to a file_definition for actual output.
+\noindent This variable can then be added to a file_definition for actual output.
 
 %% =================================================================================================
 \subsubsection{Control of the output file names}
@@ -748,7 +747,7 @@ By convention, these attributes are defined to ''auto'' (for string) or ''0000''
 (but this is not necessary).
 \\
 
-Here is the list of these attributes:
+There is the list of these attributes in the previous table.
 \\
 
 \begin{table}
