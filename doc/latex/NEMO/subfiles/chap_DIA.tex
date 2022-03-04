@@ -66,7 +66,7 @@ of the use of this I/O server is presented in the next section.
 
 
 %% =================================================================================================
-\section{Standard model output (\textt{iom\_put})}
+\section{Standard model output (\texttt{iom\_put})}
 \label{sec:DIA_iom}
 
 Since version 3.2, \rou{iom\_put} is the \NEMO\ output interface of choice.
@@ -268,7 +268,7 @@ See the XML basics section below for more details on XML syntax and rules.
 \end{table}
 
 The rest of the XML controls and definitions for XIOS-\NEMO\  interaction are contained in a series of 
-XML files included via the \file{context\_nemo.xml} file which, is itself, included in iodef.xml. E.g.:
+XML files included via the \texttt{context\_nemo.xml} file which, is itself, included in iodef.xml. E.g.:
 \begin{xmllines}
 iodef.xml:           <context id="nemo" src="./context_nemo.xml"/>           <!--  NEMO                -->
 context_nemo.xml:    <field_definition  src="./field_def_nemo-oce.xml"/>     <!--  NEMO ocean dynamics -->
@@ -646,7 +646,7 @@ For example, in \path{cfgs/ORCA2_ICE_PISCES/EXPREF/axis_def_nemo.xml}, we provid
 </axis>
 \end{xmllines}
 
-\noindent The use of this vertical zoom is done through the definition of a new grid in \file{grid_def_nemo.xml}:
+\noindent The use of this vertical zoom is done through the definition of a new grid in \texttt{grid\_def\_nemo.xml}:
 
 \begin{xmllines}
 <grid id="grid_T_zoom_300">
@@ -655,14 +655,14 @@ For example, in \path{cfgs/ORCA2_ICE_PISCES/EXPREF/axis_def_nemo.xml}, we provid
 </grid>
 \end{xmllines}
 
-\noindent and subsequent application in a field definition (e.g. \file{field_def_nemo-oce.xml}):
+\noindent and subsequent application in a field definition (e.g. \texttt{field\_def\_nemo-oce.xml}):
 
 \begin{xmllines}
 <field id="toce_e3t_300"    field_ref="toce_e3t"          unit="degree_C"     
                             grid_ref="grid_T_zoom_300"    detect_missing_value="true" />
 \end{xmllines}
 
-\noindent This variable can then be added to a file_definition for actual output.
+\noindent This variable can then be added to a file\_definition for actual output.
 
 %% =================================================================================================
 \subsubsection{Control of the output file names}
@@ -726,7 +726,9 @@ the following part of the name and the name\_suffix (that can be inherited) will
 \end{table}
 
 \noindent For example,
-\xmlline|<file id="myfile_hzoom" name="myfile_@expname@_@startdate@_freq@freq@" output_freq="1d" >|
+\begin{xmllines}
+<file id="myfile_hzoom" name="myfile_@expname@_@startdate@_freq@freq@" output_freq="1d" >
+\end{xmllines}
 
 \noindent with the namelist:
 \begin{forlines}
@@ -749,13 +751,15 @@ By convention, these attributes are defined to ''auto'' (for string) or ''0000''
 
 There is the list of these attributes in the previous table.
 \\
-
 \begin{table}
-  \begin{tabularx}{\textwidth}{|X|X|X|}
+  \begin{tabular}{|l|c|c|}
     \hline
-    tag ids affected by automatic definition of some of their attributes &
+    tag ids affected by automatic definition &
     name attribute                                                       &
     attribute value                                                      \\
+    of some of their attributes &
+                                                           &
+                                                          \\
     \hline
     \hline
     field\_definition                                                    &
@@ -788,7 +792,7 @@ There is the list of these attributes in the previous table.
     name\_suffix                                                         &
                                                                          \\
     \hline
-  \end{tabularx}
+  \end{tabular}
 \end{table}
 
 %% =================================================================================================
