@@ -21,11 +21,11 @@ Optional
    -r     Specify the release version number of the manual(s) instead of the branch name
 EOF
                                  exit 0 ;;
-            ('p') x_p=0        ; shift  ;;
-            ('r') x_r=${OPTARG}; shift 2;;
+            ('p') x_p=0                 ;;
+            ('r') x_r=${OPTARG}         ;;
         esac
 done
-shift $(($OPTIND));
+shift $(( $OPTIND - 1 ));
 
 VER_NUM=${x_r}
 DRAFT=${x_p}
