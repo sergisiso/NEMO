@@ -3,8 +3,8 @@
 #
 # NCDF_INC    netcdf4 include file
 # NCDF_LIB    netcdf4 library
-# XIOS_INC    xios include file    (taken into accound only if key_iomput is activated)
-# XIOS_LIB    xios library         (taken into accound only if key_iomput is activated)
+# XIOS_INC    xios include file    (taken into accound only if key_xios is activated)
+# XIOS_LIB    xios library         (taken into accound only if key_xios is activated)
 #
 # CPP         Pre-processor
 # FC          Fortran compiler command
