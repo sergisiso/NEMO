@@ -39,6 +39,7 @@ MODULE sbcmod
    USE sbcice_if      ! surface boundary condition: ice-if sea-ice model
 #if defined key_si3
    USE icestp         ! surface boundary condition: SI3 sea-ice model
+   USE ice
 #endif
    USE sbcice_cice    ! surface boundary condition: CICE sea-ice model
    USE sbccpl         ! surface boundary condition: coupled formulation
@@ -325,8 +326,14 @@ CONTAINS
       IF( ln_apr_dyn )    CALL sbc_apr_init              ! Atmo Pressure Forcing initialization
       !
 #if defined key_si3
-      IF( lk_agrif .AND. nn_ice == 0 ) THEN            ! allocate ice arrays in case agrif + ice-model + no-ice in child grid
-                          IF( sbc_ice_alloc() /= 0 )   CALL ctl_stop('STOP', 'sbc_ice_alloc : unable to allocate arrays' )
+      IF( nn_ice == 0 ) THEN
+#if defined key_agrif
+         ! allocate ice arrays in case agrif + ice-model + no-ice in child grid
+         jpl = 1 ; nlay_i = 1 ; nlay_s = 1
+         IF( sbc_ice_alloc() /= 0 )   CALL ctl_stop('STOP', 'sbc_ice_alloc : unable to allocate arrays' )
+         CALL Agrif_Declare_Var_ice  !  "      "   "   "      "  Sea ice
+#endif
+
       ELSEIF( nn_ice == 2 ) THEN
                           CALL ice_init( Kbb, Kmm, Kaa )         ! ICE initialization
       ENDIF
