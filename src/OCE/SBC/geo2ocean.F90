@@ -163,71 +163,71 @@ CONTAINS
          !                  
          zlam = plamt(ji,jj)     ! north pole direction & modulous (at t-point)
          zphi = pphit(ji,jj)
-         zxnpt = 0. - 2. * COS( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )
-         zynpt = 0. - 2. * SIN( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )
+         zxnpt = 0._wp- 2._wp* COS( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)
+         zynpt = 0._wp- 2._wp* SIN( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)
          znnpt = zxnpt*zxnpt + zynpt*zynpt
          !
          zlam = plamu(ji,jj)     ! north pole direction & modulous (at u-point)
          zphi = pphiu(ji,jj)
-         zxnpu = 0. - 2. * COS( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )
-         zynpu = 0. - 2. * SIN( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )
+         zxnpu = 0._wp- 2._wp* COS( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)
+         zynpu = 0._wp- 2._wp* SIN( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)
          znnpu = zxnpu*zxnpu + zynpu*zynpu
          !
          zlam = plamv(ji,jj)     ! north pole direction & modulous (at v-point)
          zphi = pphiv(ji,jj)
-         zxnpv = 0. - 2. * COS( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )
-         zynpv = 0. - 2. * SIN( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )
+         zxnpv = 0._wp- 2._wp* COS( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)
+         zynpv = 0._wp- 2._wp* SIN( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)
          znnpv = zxnpv*zxnpv + zynpv*zynpv
          !
          zlam = plamf(ji,jj)     ! north pole direction & modulous (at f-point)
          zphi = pphif(ji,jj)
-         zxnpf = 0. - 2. * COS( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )
-         zynpf = 0. - 2. * SIN( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )
+         zxnpf = 0._wp- 2._wp* COS( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)
+         zynpf = 0._wp- 2._wp* SIN( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)
          znnpf = zxnpf*zxnpf + zynpf*zynpf
          !
          zlam = plamv(ji,jj  )   ! j-direction: v-point segment direction (around t-point)
          zphi = pphiv(ji,jj  )
          zlan = plamv(ji,jj-1)
          zphh = pphiv(ji,jj-1)
-         zxvvt =  2. * COS( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )   &
-            &  -  2. * COS( rad*zlan ) * TAN( rpi/4. - rad*zphh/2. )
-         zyvvt =  2. * SIN( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )   &
-            &  -  2. * SIN( rad*zlan ) * TAN( rpi/4. - rad*zphh/2. )
+         zxvvt =  2._wp* COS( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)   &
+            &  -  2._wp* COS( rad*zlan ) * TAN( rpi/4._wp- rad*zphh/2._wp)
+         zyvvt =  2._wp* SIN( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)   &
+            &  -  2._wp* SIN( rad*zlan ) * TAN( rpi/4._wp- rad*zphh/2._wp)
          znvvt = SQRT( znnpt * ( zxvvt*zxvvt + zyvvt*zyvvt )  )
-         znvvt = MAX( znvvt, 1.e-14 )
+         znvvt = MAX( znvvt, 1.e-14_wp )
          !
          zlam = plamf(ji,jj  )   ! j-direction: f-point segment direction (around u-point)
          zphi = pphif(ji,jj  )
          zlan = plamf(ji,jj-1)
          zphh = pphif(ji,jj-1)
-         zxffu =  2. * COS( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )   &
-            &  -  2. * COS( rad*zlan ) * TAN( rpi/4. - rad*zphh/2. )
-         zyffu =  2. * SIN( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )   &
-            &  -  2. * SIN( rad*zlan ) * TAN( rpi/4. - rad*zphh/2. )
+         zxffu =  2._wp* COS( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)   &
+            &  -  2._wp* COS( rad*zlan ) * TAN( rpi/4._wp- rad*zphh/2._wp)
+         zyffu =  2._wp* SIN( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)   &
+            &  -  2._wp* SIN( rad*zlan ) * TAN( rpi/4._wp- rad*zphh/2._wp)
          znffu = SQRT( znnpu * ( zxffu*zxffu + zyffu*zyffu )  )
-         znffu = MAX( znffu, 1.e-14 )
+         znffu = MAX( znffu, 1.e-14_wp )
          !
          zlam = plamf(ji  ,jj)   ! i-direction: f-point segment direction (around v-point)
          zphi = pphif(ji  ,jj)
          zlan = plamf(ji-1,jj)
          zphh = pphif(ji-1,jj)
-         zxffv =  2. * COS( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )   &
-            &  -  2. * COS( rad*zlan ) * TAN( rpi/4. - rad*zphh/2. )
-         zyffv =  2. * SIN( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )   &
-            &  -  2. * SIN( rad*zlan ) * TAN( rpi/4. - rad*zphh/2. )
+         zxffv =  2._wp* COS( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)   &
+            &  -  2._wp* COS( rad*zlan ) * TAN( rpi/4._wp- rad*zphh/2._wp)
+         zyffv =  2._wp* SIN( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)   &
+            &  -  2._wp* SIN( rad*zlan ) * TAN( rpi/4._wp- rad*zphh/2._wp)
          znffv = SQRT( znnpv * ( zxffv*zxffv + zyffv*zyffv )  )
-         znffv = MAX( znffv, 1.e-14 )
+         znffv = MAX( znffv, 1.e-14_wp )
          !
          zlam = plamu(ji,jj+1)   ! j-direction: u-point segment direction (around f-point)
          zphi = pphiu(ji,jj+1)
          zlan = plamu(ji,jj  )
          zphh = pphiu(ji,jj  )
-         zxuuf =  2. * COS( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )   &
-            &  -  2. * COS( rad*zlan ) * TAN( rpi/4. - rad*zphh/2. )
-         zyuuf =  2. * SIN( rad*zlam ) * TAN( rpi/4. - rad*zphi/2. )   &
-            &  -  2. * SIN( rad*zlan ) * TAN( rpi/4. - rad*zphh/2. )
+         zxuuf =  2._wp* COS( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)   &
+            &  -  2._wp* COS( rad*zlan ) * TAN( rpi/4._wp- rad*zphh/2._wp)
+         zyuuf =  2._wp* SIN( rad*zlam ) * TAN( rpi/4._wp- rad*zphi/2._wp)   &
+            &  -  2._wp* SIN( rad*zlan ) * TAN( rpi/4._wp- rad*zphh/2._wp)
          znuuf = SQRT( znnpf * ( zxuuf*zxuuf + zyuuf*zyuuf )  )
-         znuuf = MAX( znuuf, 1.e-14 )
+         znuuf = MAX( znuuf, 1.e-14_wp )
          !
          !                       ! cosinus and sinus using dot and cross products
          gsint(ji,jj) = ( zxnpt*zyvvt - zynpt*zxvvt ) / znvvt
@@ -249,21 +249,21 @@ CONTAINS
       ! =============== !
 
       DO_2D( 0, 1, 0, 0 )
-         IF( MOD( ABS( plamv(ji,jj) - plamv(ji,jj-1) ), 360. ) < 1.e-8 ) THEN
-            gsint(ji,jj) = 0.
-            gcost(ji,jj) = 1.
+         IF( MOD( ABS( plamv(ji,jj) - plamv(ji,jj-1) ), 360._wp) < 1.e-8_wp ) THEN
+            gsint(ji,jj) = 0._wp
+            gcost(ji,jj) = 1._wp
          ENDIF
-         IF( MOD( ABS( plamf(ji,jj) - plamf(ji,jj-1) ), 360. ) < 1.e-8 ) THEN
-            gsinu(ji,jj) = 0.
-            gcosu(ji,jj) = 1.
+         IF( MOD( ABS( plamf(ji,jj) - plamf(ji,jj-1) ), 360._wp) < 1.e-8_wp ) THEN
+            gsinu(ji,jj) = 0._wp
+            gcosu(ji,jj) = 1._wp
          ENDIF
-         IF(      ABS( pphif(ji,jj) - pphif(ji-1,jj) )         < 1.e-8 ) THEN
-            gsinv(ji,jj) = 0.
+         IF(      ABS( pphif(ji,jj) - pphif(ji-1,jj) )           < 1.e-8_wp ) THEN
+            gsinv(ji,jj) = 0._wp
             gcosv(ji,jj) = 1.
          ENDIF
-         IF( MOD( ABS( plamu(ji,jj) - plamu(ji,jj+1) ), 360. ) < 1.e-8 ) THEN
-            gsinf(ji,jj) = 0.
-            gcosf(ji,jj) = 1.
+         IF( MOD( ABS( plamu(ji,jj) - plamu(ji,jj+1) ), 360._wp) < 1.e-8_wp ) THEN
+            gsinf(ji,jj) = 0._wp
+            gcosf(ji,jj) = 1._wp
          ENDIF
       END_2D
 
@@ -367,8 +367,8 @@ CONTAINS
       CHARACTER(len=1)            , INTENT( IN    ) ::  cgrid
       REAL(wp), DIMENSION(jpi,jpj), INTENT(   OUT ) ::  pxx , pyy , pzz
       !!
-      REAL(wp), PARAMETER :: rpi = 3.141592653E0
-      REAL(wp), PARAMETER :: rad = rpi / 180.e0
+      REAL(wp), PARAMETER :: rpi = 3.141592653e0_wp
+      REAL(wp), PARAMETER :: rad = rpi / 180.e0_wp
       INTEGER ::   ig     !
       INTEGER ::   ierr   ! local integer
       !!----------------------------------------------------------------------
