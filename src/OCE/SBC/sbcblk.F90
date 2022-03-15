@@ -369,6 +369,8 @@ CONTAINS
                sf(jfpr)%fnow(:,:,1:ipka) = 101325._wp   ! use standard pressure in Pa
             ELSEIF( jfpr == jp_prec .OR. jfpr == jp_snow .OR. jfpr == jp_uoatm .OR. jfpr == jp_voatm ) THEN
                sf(jfpr)%fnow(:,:,1:ipka) = 0._wp        ! no precip or no snow or no surface currents
+            ELSEIF( jfpr == jp_wndi .OR. jfpr == jp_wndj ) THEN
+               sf(jfpr)%fnow(:,:,1:ipka) = 0._wp
             ELSEIF( jfpr == jp_hpgi .OR. jfpr == jp_hpgj ) THEN
                IF( .NOT. ln_abl ) THEN
                   DEALLOCATE( sf(jfpr)%fnow )   ! deallocate as not used in this case
