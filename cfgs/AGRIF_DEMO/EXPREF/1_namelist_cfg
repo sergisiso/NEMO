@@ -361,9 +361,10 @@
 !-----------------------------------------------------------------------
 &namzdf_tke    !   turbulent eddy kinetic dependent vertical diffusion  (ln_zdftke =T)
 !-----------------------------------------------------------------------
-   ln_mxl0     = .true.    !  surface mixing length scale = F(wind stress) (T) or not (F)
-      nn_mxlice    = 0        ! type of scaling under sea-ice
+      nn_mxlice = 0           ! type of scaling under sea-ice
       !                       !    = 0 no scaling under sea-ice
+      !                       !    = 1 scaling with constant sea-ice thickness
+      !                       !    = 2 scaling with mean sea-ice thickness ( only with SI3 sea-ice model )
 /
 !!======================================================================
 !!                  ***  Diagnostics namelists  ***                   !!

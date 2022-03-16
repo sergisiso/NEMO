@@ -967,10 +967,12 @@ CONTAINS
             CASE( 2 )   ;   WRITE(numout,*) '   ==>>>   scaling with mean     sea-ice thickness'
             CASE( 3 )   ;   WRITE(numout,*) '   ==>>>   scaling with max      sea-ice thickness'
             CASE DEFAULT
-               CALL ctl_stop( 'zdf_tke_init: wrong value for nn_mxlice, should be 0,1,2,3 ')
+               CALL ctl_stop( 'zdf_gls_init: wrong value for nn_mxlice, should be 0,1,2,3 ')
          END SELECT
-         IF ( (nn_mxlice>1).AND.(nn_ice<2) ) THEN
-            CALL ctl_stop( 'zdf_tke_init: with no ice model, nn_mxlice must be 0 or 1')
+         IF     ( (nn_mxlice>0).AND.(nn_ice==0) ) THEN
+            CALL ctl_stop( 'zdf_gls_init: with no ice at all, nn_mxlice must be 0 ') 
+         ELSEIF ( (nn_mxlice>1).AND.(nn_ice==1) ) THEN
+            CALL ctl_stop( 'zdf_gls_init: with no ice model, nn_mxlice must be 0 or 1')
          ENDIF
          WRITE(numout,*)
       ENDIF

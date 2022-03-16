@@ -1199,7 +1199,7 @@
    !                       !                 = 2 first vertical derivative of mixing length bounded by 1
    !                       !                 = 3 as =2 with distinct dissipative an mixing length scale
    ln_mxl0     = .true.    !  surface mixing length scale = F(wind stress) (T) or not (F)
-      nn_mxlice    = 2        ! type of scaling under sea-ice
+      nn_mxlice    = 0        ! type of scaling under sea-ice
       !                       !    = 0 no scaling under sea-ice
       !                       !    = 1 scaling with constant sea-ice thickness
       !                       !    = 2 scaling with mean sea-ice thickness ( only with SI3 sea-ice model )
@@ -1245,7 +1245,7 @@
    !                       !           = 1 roughness uses rn_hsri and is weigthed by 1-TANH(10*fr_i)
    !                       !           = 2 roughness uses rn_hsri and is weighted by 1-fr_i
    !                       !           = 3 roughness uses rn_hsri and is weighted by 1-MIN(1,4*fr_i)
-   nn_mxlice     =     1   !  mixing under sea ice
+   nn_mxlice     =     0   !  mixing under sea ice
                            !     = 0 No scaling under sea-ice
                            !     = 1 scaling with constant Ice-ocean roughness (rn_hsri)
                            !     = 2 scaling with mean sea-ice thickness
