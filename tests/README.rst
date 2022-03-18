@@ -266,3 +266,7 @@ SWG
 | Square bassin blown with an analytical wind. Vertical structure allows only one mode
   associated with reduced gravity to develop. This configuration is based on Adcroft & Marshall 1998.
   Also run with RK3 time stepping. 
+
+ADIAB_WAVE
+----------
+| The purpose of this test case is to validate the implementation of the Generalized Lagrangian Mean equations for the coupling of NEMO with waves. This test case was first proposed by Ardhuin et al. (2008) and was successively detailed by Bennis et al (2011).

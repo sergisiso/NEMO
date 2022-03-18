@@ -30,13 +30,14 @@
 !-----------------------------------------------------------------------
    ln_linssh   = .false.   !  =T  linear free surface  ==>>  model level are fixed in time
    !
-   rn_Dt      = 450.     !  time step for the dynamics (and tracer if nn_acc=0)
+   rn_Dt      = 450.       !  time step for the dynamics (and tracer if nn_acc=0)
+   ln_meshmask = .false.   !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: user defined GYRE)
 !-----------------------------------------------------------------------
    ln_read_cfg = .true.    !  (=T) read the domain configuration file
-      cn_domcfg = "ORCA_R017_zps_domcfg_agrif"    ! domain configuration filename
+      cn_domcfg = "domain_cfg.nc"    ! domain configuration filename
 /
 !-----------------------------------------------------------------------
 &namtile        !   parameters of the tiling
@@ -154,6 +155,7 @@
 &namagrif      !  AGRIF zoom                                            ("key_agrif")
 !-----------------------------------------------------------------------
    ln_init_chfrpar = .true. !  initialize child grids from parent
+   ln_vert_remap   = .true. !  vertical remapping
 /
 !-----------------------------------------------------------------------
 &namdrg        !   top/bottom drag coefficient                          (default: NO selection)

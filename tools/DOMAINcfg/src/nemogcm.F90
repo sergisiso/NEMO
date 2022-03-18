@@ -103,11 +103,11 @@ CONTAINS
 #if defined key_agrif    
       CALL Agrif_Regrid()
       
-!      CALL Agrif_Step_Child(agrif_boundary_connections)
+      CALL Agrif_Step_Child(agrif_boundary_connections)
+
+      CALL Agrif_Step_Child(agrif_recompute_scalefactors)
       
       CALL Agrif_Step_Child_adj(agrif_update_all)
-
-!      CALL Agrif_Step_Child(agrif_recompute_scalefactors)
       
       CALL Agrif_Step_Child(cfg_write)
 #endif
@@ -155,7 +155,7 @@ CONTAINS
       !!
       NAMELIST/namctl/ sn_cfctl, ln_timing, ln_diacfl,                                &
          &             nn_isplt,  nn_jsplt,  nn_ictls, nn_ictle, nn_jctls, nn_jctle  
-      NAMELIST/namcfg/ ln_e3_dep,                                &
+      NAMELIST/namcfg/ ln_e3_dep, ln_dept_mid,                                         &
          &             cp_cfg, cp_cfz, jp_cfg, jpidta, jpjdta, jpkdta, Ni0glo, Nj0glo, &
          &             jpkglo, jperio, ln_use_jattr, ln_domclo
       !!----------------------------------------------------------------------
@@ -293,7 +293,7 @@ CONTAINS
  !        jpi = ( jpiglo     -2*jpreci + (jpni-1) ) / jpni + 2*jpreci    ! first  dim.
  !        jpj = ( jpjglo     -2*jprecj + (jpnj-1) ) / jpnj + 2*jprecj    ! second dim.
  !     ENDIF
-         jpk = jpkdta                                             ! third dim
+         jpk = jpkglo                                             ! third dim
          jpim1 = jpi-1                                            ! inner domain indices
          jpjm1 = jpj-1                                            !   "           "
          jpkm1 = jpk-1                                            !   "           "

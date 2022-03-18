@@ -320,8 +320,8 @@ CONTAINS
       CALL lbc_lnk( 'ldfslp', uslp , 'U', -1.0_wp , vslp , 'V', -1.0_wp , wslpi, 'W', -1.0_wp, wslpj, 'W', -1.0_wp )
 
       IF(sn_cfctl%l_prtctl) THEN
-         CALL prt_ctl(tab3d_1=uslp , clinfo1=' slp  - u : ', tab3d_2=vslp,  clinfo2=' v : ', kdim=jpk)
-         CALL prt_ctl(tab3d_1=wslpi, clinfo1=' slp  - wi: ', tab3d_2=wslpj, clinfo2=' wj: ', kdim=jpk)
+         CALL prt_ctl(tab3d_1=uslp , clinfo1=' slp  - u : ', tab3d_2=vslp,  clinfo2=' v : ')
+         CALL prt_ctl(tab3d_1=wslpi, clinfo1=' slp  - wi: ', tab3d_2=wslpj, clinfo2=' wj: ')
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('ldf_slp')

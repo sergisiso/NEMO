@@ -53,7 +53,7 @@ CONTAINS
       zcoef = REAL(Agrif_rhot()-1,wp)/REAL(Agrif_rhot())
 #endif
       Agrif_SpecialValue    = 0._wp
-      Agrif_UseSpecialValue = .TRUE.
+      Agrif_UseSpecialValue = l_spc_top
       l_vremap              = ln_vert_remap
       tabspongedone_trn     = .FALSE.
       !
@@ -89,7 +89,7 @@ CONTAINS
       !
       IF( before ) THEN
          DO jn = 1, jptra
-            DO jk=k1,k2
+            DO jk=k1,k2-1
                DO jj=j1,j2
                   DO ji=i1,i2
                      tabres(ji,jj,jk,jn) = tr(ji,jj,jk,jn,Kbb_a) * tmask(ji,jj,jk) 
@@ -104,10 +104,10 @@ CONTAINS
             ! Warning: these are masked, hence extrapolated prior interpolation.
             DO jj=j1,j2
                DO ji=i1,i2
-                  tabres(ji,jj,k1,jptra+1) = 0.5_wp * tmask(ji,jj,k1) * e3t(ji,jj,k1,Kbb_a)
-                  DO jk=k1+1,k2
+                  tabres(ji,jj,k1,jptra+1) = 0.5_wp * tmask(ji,jj,k1) * e3w(ji,jj,k1,Kbb_a)
+                  DO jk=k1+1,k2-1
                      tabres(ji,jj,jk,jptra+1) = tmask(ji,jj,jk) * &
-                        & ( tabres(ji,jj,jk-1,jptra+1) + 0.5_wp * (e3t(ji,jj,jk-1,Kbb_a)+e3t(ji,jj,jk,Kbb_a)) )
+                        & ( tabres(ji,jj,jk-1,jptra+1) + e3w(ji,jj,jk,Kbb_a) )
                   END DO
                END DO
             END DO
@@ -122,8 +122,13 @@ CONTAINS
       ELSE 
          !
          IF ( l_vremap ) THEN
+            
+            IF (ln_linssh) THEN
+               tabres(i1:i2,j1:j2,k2,n2) = 0._wp
 
-            IF (ln_linssh) tabres(i1:i2,j1:j2,k2,n2) = 0._wp
+            ELSE ! Assuming parent volume follows child:
+               tabres(i1:i2,j1:j2,k2,n2) = ssh(i1:i2,j1:j2,Kbb_a)
+            ENDIF
 
             DO jj=j1,j2
                DO ji=i1,i2
@@ -154,9 +159,9 @@ CONTAINS
                   DO jk=1,N_out
                      h_out(jk) = e3t(ji,jj,jk,Kbb_a)
                   END DO
-                  z_out(1) = 0.5_wp * h_out(1)
+                  z_out(1) = 0.5_wp * e3w(ji,jj,1,Kbb_a) 
                   DO jk=2,N_out
-                     z_out(jk) = z_out(jk-1) + 0.5_wp * ( h_out(jk)+h_out(jk-1) )
+                     z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Kbb_a) 
                   END DO
                   IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Kbb_a)
 
@@ -167,8 +172,10 @@ CONTAINS
                      h_in_i(1)= h_in_i(1) - ( sum(h_in_i(1:N_in))-sum(h_out(1:N_out)) )
                   END IF
                   IF (N_in*N_out > 0) THEN
-                     CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),tabin_i(1:N_in,1:jptra),z_in_i(1:N_in),N_in,N_in,jptra)
-                     CALL reconstructandremap(tabin_i(1:N_in,1:jptra),h_in_i(1:N_in),tabres_child(ji,jj,1:N_out,1:jptra),h_out(1:N_out),N_in,N_out,jptra)
+! jc: disable "two steps" vertical remapping
+!     since this would require e3w0_parent to be available
+!                     CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),tabin_i(1:N_in,1:jptra),z_in_i(1:N_in),N_in,N_in,jptra)
+                     CALL reconstructandremap(tabin(1:N_in,1:jptra),h_in_i(1:N_in),tabres_child(ji,jj,1:N_out,1:jptra),h_out(1:N_out),N_in,N_out,jptra)
 !                     CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),tabres_child(ji,jj,1:N_out,1:jptra),z_out(1:N_in),N_in,N_out,jptra)  
                   ENDIF
                END DO
@@ -199,9 +206,9 @@ CONTAINS
                      END DO 
                      IF (.NOT.ln_linssh) z_in(1:N_in) = z_in(1:N_in) - tabres(ji,jj,k2,n2)
 
-                     z_out(1) = 0.5_wp * e3t(ji,jj,1,Kbb_a)
+                     z_out(1) = 0.5_wp * e3w(ji,jj,1,Kbb_a)
                      DO jk=2, N_out
-                        z_out(jk) = z_out(jk-1) + 0.5_wp * (e3t(ji,jj,jk-1,Kbb_a) + e3t(ji,jj,jk,Kbb_a)) 
+                        z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Kbb_a) 
                      END DO 
                      IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Kbb_a)
 

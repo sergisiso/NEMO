@@ -107,7 +107,7 @@ CONTAINS
       ! for an explicit diurnal cycle
       ! (2) no diurnal cycle of SW is active and in that case, QSR is used.
       ! --------------------------------------------
-      IF( l_trcdm2dc ) THEN                     !  diurnal cycle
+      IF( ln_trcdc2dm ) THEN                     !  diurnal cycle
          IF ( ln_p4z_dcyc ) THEN   ! Diurnal cycle in PISCES
             !
             !

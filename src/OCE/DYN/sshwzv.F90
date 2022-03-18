@@ -116,7 +116,11 @@ CONTAINS
       ! compute the vertical velocity which can be used to compute the non-linear terms of the momentum equations.
       ! 
       DO_2D_OVR( 1, nn_hls, 1, nn_hls )                ! Loop bounds limited by hdiv definition in div_hor
-         pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( zcoef * ( emp_b(ji,jj) + emp(ji,jj) ) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
+#if defined key_RK3
+      pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( r1_rho0 * emp(ji,jj) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
+#else
+      pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( zcoef * ( emp_b(ji,jj) + emp(ji,jj) ) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
+#endif
       END_2D
       ! pssh must be defined everywhere (true for dyn_spg_ts, not for dyn_spg_exp)
       IF ( .NOT. ln_dynspg_ts .AND. nn_hls == 2 ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )
@@ -129,13 +133,11 @@ CONTAINS
       IF ( .NOT.ln_dynspg_ts ) THEN
          IF( ln_bdy ) THEN
             IF (nn_hls==1) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )    ! Not sure that's necessary
-            CALL bdy_ssh( pssh(:,:,Kaa) )             ! Duplicate sea level across open boundaries
+            CALL bdy_ssh( pssh(:,:,Kaa) )              ! Duplicate sea level across open boundaries
          ENDIF
       ENDIF
-      !                                           !------------------------------!
-      !                                           !           outputs            !
-      !                                           !------------------------------!
       !
+      !                                                ! Control print
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab2d_1=pssh(:,:,Kaa), clinfo1=' pssh(:,:,Kaa)  - : ', mask1=tmask )
       !
       IF( ln_timing )   CALL timing_stop('ssh_nxt')

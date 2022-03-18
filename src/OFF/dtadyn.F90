@@ -195,14 +195,14 @@ CONTAINS
       CALL eos( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
       !
       IF(sn_cfctl%l_prtctl) THEN                 ! print control
-         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask,  kdim=jpk   )
-         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_sal,Kmm), clinfo1=' sn      - : ', mask1=tmask,  kdim=jpk   )
-         CALL prt_ctl(tab3d_1=uu(:,:,:,Kmm)               , clinfo1=' uu(:,:,:,Kmm)      - : ', mask1=umask,  kdim=jpk   )
-         CALL prt_ctl(tab3d_1=vv(:,:,:,Kmm)               , clinfo1=' vv(:,:,:,Kmm)      - : ', mask1=vmask,  kdim=jpk   )
-         CALL prt_ctl(tab3d_1=ww               , clinfo1=' ww      - : ', mask1=tmask,  kdim=jpk   )
-         CALL prt_ctl(tab3d_1=avt              , clinfo1=' kz      - : ', mask1=tmask,  kdim=jpk   )
-         CALL prt_ctl(tab3d_1=uslp             , clinfo1=' slp  - u : ', tab3d_2=vslp, clinfo2=' v : ', kdim=jpk)
-         CALL prt_ctl(tab3d_1=wslpi            , clinfo1=' slp  - wi: ', tab3d_2=wslpj, clinfo2=' wj: ', kdim=jpk)
+         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask )
+         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_sal,Kmm), clinfo1=' sn      - : ', mask1=tmask )
+         CALL prt_ctl(tab3d_1=uu(:,:,:,Kmm)               , clinfo1=' uu(:,:,:,Kmm)      - : ', mask1=umask )
+         CALL prt_ctl(tab3d_1=vv(:,:,:,Kmm)               , clinfo1=' vv(:,:,:,Kmm)      - : ', mask1=vmask )
+         CALL prt_ctl(tab3d_1=ww               , clinfo1=' ww      - : ', mask1=tmask )
+         CALL prt_ctl(tab3d_1=avt              , clinfo1=' kz      - : ', mask1=tmask )
+         CALL prt_ctl(tab3d_1=uslp             , clinfo1=' slp  - u : ', tab3d_2=vslp, clinfo2=' v : ' )
+         CALL prt_ctl(tab3d_1=wslpi            , clinfo1=' slp  - wi: ', tab3d_2=wslpj, clinfo2=' wj: ' )
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop( 'dta_dyn')
@@ -358,6 +358,8 @@ CONTAINS
         CALL dta_dyn_sf_interp( nit000, Kbb )
 #endif
       ENDIF
+      !
+      ncpl_qsr_freq = sf_dyn(jf_qsr)%freqh  * 3600   !  Get qsr frequency ( needed if diurnal cycle in TOP
       !
       CALL dta_dyn_rnf_init( Kmm )
       !
@@ -728,8 +730,8 @@ CONTAINS
       CALL eos    ( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
 
       IF(sn_cfctl%l_prtctl) THEN                     ! print control
-         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask,  kdim=jpk   )
-         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_sal,Kmm), clinfo1=' sn      - : ', mask1=tmask,  kdim=jpk   )
+         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask )
+         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_sal,Kmm), clinfo1=' sn      - : ', mask1=tmask )
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop( 'dta_dyn_sed')

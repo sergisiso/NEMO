@@ -16,4 +16,9 @@
    sn_ssh      = 'sas_grid_T'            ,       120.        , 'sossheig',   .true.    , .true. , 'yearly'  ,    ''            ,    ''    ,    ''
    sn_e3t      = 'sas_grid_T'            ,       120.        , 'e3t_m'   ,   .true.    , .true. , 'yearly'  ,    ''            ,    ''    ,    ''
    sn_frq      = 'sas_grid_T'            ,       120.        , 'frq_m'   ,   .true.    , .true. , 'yearly'  ,    ''            ,    ''    ,    ''
+   !!
+   !! Following only needed with STATION_ASF compiled with "sea-ice" support: "key_si3" (ice fraction, ice surface temperature and sea-ice albedo:
+   sn_ifr  = 'NOT USED'                  , 1.         , 'siconc'  ,   .true.    , .false. , 'yearly'  ,    ''            ,    ''    ,    ''
+   sn_tic  = 'NOT USED'                  , 1.         , 'istl1'   ,   .true.    , .false. , 'yearly'  ,    ''            ,    ''    ,    ''
+   sn_ial  = 'NOT USED'                  , 1.         , 'fal'     ,   .true.    , .false. , 'yearly'  ,    ''            ,    ''    ,    ''
 /

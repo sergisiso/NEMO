@@ -692,7 +692,7 @@
    ln_agrif_2way   = .true.  !  activate two way nesting
    ln_init_chfrpar = .false. !  initialize child grids from parent
    ln_vert_remap   = .false. !  use vertical remapping
-   ln_spc_dyn      = .true.  !  use 0 as special value for dynamics
+   ln_spc_dyn      = .false. !  use 0 as special value for dynamics
    ln_chk_bathy    = .true.  !  =T  check the parent bathymetry
    rn_sponge_tra   = 0.002   !  coefficient for tracer   sponge layer []
    rn_sponge_dyn   = 0.002   !  coefficient for dynamics sponge layer []
@@ -1008,6 +1008,10 @@
    rn_lf_cutoff  =  5.0             !  cutoff frequency for low-pass filter  [days]
    rn_zdef_max   =  0.9             !  maximum fractional e3t deformation
    ln_vvl_dbg    = .false.          !  debug prints    (T/F)
+   nn_vvl_interp =  2               !  interpolation method of scale factor anomalies at U/V/F points
+                                    !  =0 linear even at the bottom (old)
+                                    !  =1 linear with bottom correction
+                                    !  =2 proportionnal to scale factors at rest ("qco" like)
 /
 !-----------------------------------------------------------------------
 &namdyn_adv    !   formulation of the momentum advection                (default: NO selection)
@@ -1538,6 +1542,20 @@
 !-----------------------------------------------------------------------
 &namsto        ! Stochastic parametrization of EOS                      (default: OFF)
 !-----------------------------------------------------------------------
+   ln_sto_ldf  = .false.   ! stochastic lateral diffusion
+   rn_ldf_std  =  0.1      ! lateral diffusion standard deviation (in percent)
+   rn_ldf_tcor =  1440.    ! lateral diffusion correlation timescale (in timesteps)
+   ln_sto_hpg  = .false.   ! stochastic pressure gradient
+   rn_hpg_std  =  0.1      ! density gradient standard deviation (in percent)
+   rn_hpg_tcor =  1440.    ! density gradient correlation timescale (in timesteps)
+   ln_sto_pstar  = .false. ! stochastic ice strength
+   rn_pstar_std  =  0.1    ! ice strength standard deviation (in percent)
+   rn_pstar_tcor =  1440.  ! ice strength correlation timescale (in timesteps)
+   nn_pstar_ord  =  1      ! order of autoregressive processes
+   nn_pstar_flt  =  0      ! passes of Laplacian filter
+   ln_sto_trd  = .false.   ! stochastic model trend
+   rn_trd_std  =  0.1      ! trend standard deviation (in percent)
+   rn_trd_tcor =  1440.    ! trend correlation timescale (in timesteps)
    ln_sto_eos  = .false.   ! stochastic equation of state
    nn_sto_eos  = 1         ! number of independent random walks
    rn_eos_stdxy = 1.4       ! random walk horz. standard deviation (in grid points)
@@ -1546,6 +1564,14 @@
    nn_eos_ord  = 1         ! order of autoregressive processes
    nn_eos_flt  = 0         ! passes of Laplacian filter
    rn_eos_lim  = 2.0       ! limitation factor (default = 3.0)
+   ln_sto_trc  = .false.   ! stochastic tracer dynamics
+   nn_sto_trc  = 1         ! number of independent random walks
+   rn_trc_stdxy = 1.4      ! random walk horz. standard deviation (in grid points)
+   rn_trc_stdz = 0.7       ! random walk vert. standard deviation (in grid points)
+   rn_trc_tcor = 1440.     ! random walk time correlation (in timesteps)
+   nn_trc_ord  = 1         ! order of autoregressive processes
+   nn_trc_flt  = 0         ! passes of Laplacian filter
+   rn_trc_lim  = 3.0       ! limitation factor (default = 3.0)
    ln_rststo   = .false.   ! start from mean parameter (F) or from restart file (T)
    ln_rstseed  = .true.    ! read seed of RNG from restart file
    cn_storst_in  = "restart_sto" !  suffix of stochastic parameter restart file (input)

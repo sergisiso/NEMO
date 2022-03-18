@@ -3,7 +3,7 @@
 !------------------------------------------------------------------------------
    jpl              =   5             !  number of ice  categories
    nlay_i           =   2             !  number of ice  layers
-   nlay_s           =   1             !  number of snow layers (only 1 is working)
+   nlay_s           =   2             !  number of snow layers
    ln_virtual_itd   =   .false.       !  virtual ITD mono-category parameterization (jpl=1 only)
                                       !     i.e. enhanced thermal conductivity & virtual thin ice melting
    ln_icedyn        = .true.          !  ice dynamics (T) or not (F)

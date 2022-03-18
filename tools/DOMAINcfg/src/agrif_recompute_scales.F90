@@ -19,6 +19,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       INTEGER :: ji, jj, jk, ikb, ikt
+      REAL(wp), DIMENSION(jpi,jpj) ::   zk   ! workspace
+
+
+      IF ( ln_sco ) RETURN
 
       ! Scale factors and depth at U-, V-, UW and VW-points
       DO jk = 1, jpk                        ! initialisation to z-scale factors
@@ -99,6 +103,23 @@ CONTAINS
       IF( MINVAL( gdept_0(:,:,:) ) <  0._wp )   CALL ctl_stop( '    zgr_zps :   e r r o r   gdept_0 <  0' )
       IF( MINVAL( gdepw_0(:,:,:) ) <  0._wp )   CALL ctl_stop( '    zgr_zps :   e r r o r   gdepw_0 <  0' )
       ! 
+      ! since these are read, re-compute mbku, mbkv, mbkf
+      DO jj = 1, jpjm1
+         DO ji = 1, jpim1
+            mbku(ji,jj) = MIN(  mbkt(ji+1,jj  ) , mbkt(ji  ,jj  )  )
+            mbkv(ji,jj) = MIN(  mbkt(ji  ,jj+1) , mbkt(ji  ,jj  )  )
+            mbkf(ji,jj) = MIN(  mbkt(ji  ,jj+1) , mbkt(ji  ,jj  ), & 
+                        &       mbkt(ji+1,jj  ) , mbkt(ji+1,jj+1) )
+         END DO
+      END DO
+      !
+      zk(:,:)   = REAL( mbku(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'U', 1.)
+      mbku(:,:) = MAX( NINT( zk(:,:) ), 1 )
+      zk(:,:)   = REAL( mbkv(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'V', 1.)
+      mbkv(:,:) = MAX( NINT( zk(:,:) ), 1 )
+      zk(:,:)   = REAL( mbkf(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'F', 1.)
+      mbkf(:,:) = MAX( NINT( zk(:,:) ), 1 )
+      !
    END SUBROUTINE agrif_recompute_scalefactors
 #else
    SUBROUTINE agrif_recompute_scalefactors

@@ -158,7 +158,7 @@ CONTAINS
       !                                                   ! ===============
       !
       IF(sn_cfctl%l_prtctl) THEN
-         CALL prt_ctl(tab3d_1=avt , clinfo1=' ddm  - t: ', tab3d_2=avs , clinfo2=' s: ', kdim=jpk)
+         CALL prt_ctl(tab3d_1=avt , clinfo1=' ddm  - t: ', tab3d_2=avs , clinfo2=' s: ')
       ENDIF
       !
    END SUBROUTINE zdf_ddm

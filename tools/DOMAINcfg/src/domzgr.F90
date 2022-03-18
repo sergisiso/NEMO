@@ -44,8 +44,11 @@ MODULE domzgr
    USE lib_fortran
    USE dombat
    USE domisf
+
+#if defined key_agrif
    USE agrif_connect
    USE agrif_domzgr
+#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -56,7 +59,7 @@ MODULE domzgr
    LOGICAL  ::   ln_s_sh94         ! use hybrid s-sig Song and Haidvogel 1994 stretching function fssig1 (ln_sco=T)
    LOGICAL  ::   ln_s_sf12         ! use hybrid s-z-sig Siddorn and Furner 2012 stretching function fgamma (ln_sco=T)
    !
-   REAL(wp) ::   rn_sbot_min       ! minimum depth of s-bottom surface (>0) (m)
+   REAL(wp), PUBLIC ::   rn_sbot_min       ! minimum depth of s-bottom surface (>0) (m)
    REAL(wp) ::   rn_sbot_max       ! maximum depth of s-bottom surface (= ocean depth) (>0) (m)
    REAL(wp) ::   rn_rmax           ! maximum cut-off r-value allowed (0<rn_rmax<1)
    REAL(wp) ::   rn_hc             ! Critical depth for transition from sigma to stretched coordinates
@@ -106,9 +109,8 @@ CONTAINS
       INTEGER ::   ioptio, ibat   ! local integer
       INTEGER ::   ios
       !
-      INTEGER :: jk
+      INTEGER :: ji,jj,jk
       REAL(wp) ::   zrefdep             ! depth of the reference level (~10m)
-
 
       NAMELIST/namzgr/ ln_zco, ln_zps, ln_sco, ln_isfcav
       !!----------------------------------------------------------------------
@@ -122,6 +124,15 @@ CONTAINS
       READ  ( numnam_cfg, namzgr, IOSTAT = ios, ERR = 902 )
 902   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namzgr in configuration namelist')
       IF(lwm) WRITE ( numond, namzgr )
+
+#if defined key_agrif
+      IF (.NOT.Agrif_root()) THEN
+         IF (.NOT.(ln_dept_mid.AND.ln_e3_dep).OR. &
+          &  .NOT.(Agrif_Parent(ln_dept_mid).AND.Agrif_Parent(ln_e3_dep)) ) THEN 
+          CALL ctl_stop( 'STOP', 'namcfg: with AGRIF zooms, set ln_dept_mid = ln_e3_dep = T' )
+         ENDIF
+      ENDIF
+#endif
 
       IF(ln_read_cfg) THEN
          IF(lwp) WRITE(numout,*)
@@ -202,6 +213,35 @@ CONTAINS
                           k_top = mikt
                           WHERE( bathy(:,:) <= 0._wp )  k_top(:,:) = 0  ! set k_top to zero over land
       ENDIF
+      !
+#if defined key_agrif
+      IF ( Agrif_root() ) THEN
+#endif
+         IF ( ln_read_cfg.AND.ln_e3_dep.AND.ln_dept_mid ) THEN 
+            ! Define depths at cell centers
+            DO jk = 1, jpkm1
+               gdept_1d(jk) = 0.5_wp * (gdepw_1d(jk)+gdepw_1d(jk+1))
+            END DO
+            DO jk = 2, jpk
+               e3w_1d(jk) = gdept_1d(jk) - gdept_1d(jk-1)
+            END DO
+            e3w_1d(1  ) = 2._wp * (gdept_1d(1) - gdepw_1d(1))
+
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )   
+               gdept_0(ji,jj,jk) = 0.5_wp * ( gdepw_0(ji,jj,jk) +  gdepw_0(ji,jj,jk+1) ) 
+            END_3D
+            e3w_0(:,:,1) = e3t_0(:,:,1)   
+            e3uw_0(:,:,1) = e3u_0(:,:,1)   
+            e3vw_0(:,:,1) = e3v_0(:,:,1)   
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpk )   
+               e3w_0(ji,jj,jk) = 0.5_wp * (e3t_0(ji,jj,jk)+e3t_0(ji,jj,jk-1))  
+               e3uw_0(ji,jj,jk) = 0.5_wp * (e3u_0(ji,jj,jk)+e3u_0(ji,jj,jk-1))  
+               e3vw_0(ji,jj,jk) = 0.5_wp * (e3v_0(ji,jj,jk)+e3v_0(ji,jj,jk-1))  
+            END_3D
+         ENDIF
+#if defined key_agrif
+      ENDIF
+#endif
       !
       IF( lwp )   THEN
          WRITE(numout,*) ' MIN val k_top   ', MINVAL(   k_top(:,:) ), ' MAX ', MAXVAL( k_top(:,:) )
@@ -331,9 +371,9 @@ CONTAINS
       !! ** Action  :   mikt, miku, mikv :   vertical indices of the shallowest 
       !!                                     ocean level at t-, u- & v-points
       !!                                     (min value = 1)
-      !! ** Action  :   mbkt, mbku, mbkv :   vertical indices of the deeptest 
-      !!                                     ocean level at t-, u- & v-points
-      !!                                     (min value = 1 over land)
+      !! ** Action  :   mbkt, mbku, mbkv, mbkf :   vertical indices of the deeptest 
+      !!                                           ocean level at t-, u-, v- & f-points
+      !!                                           (min value = 1 over land)
       !!----------------------------------------------------------------------
       INTEGER , DIMENSION(:,:), INTENT(in) ::   k_top, k_bot   ! top & bottom ocean level indices
       !
@@ -359,6 +399,7 @@ CONTAINS
             !
             mbku(ji,jj) = MIN(  mbkt(ji+1,jj  ) , mbkt(ji,jj)  )
             mbkv(ji,jj) = MIN(  mbkt(ji  ,jj+1) , mbkt(ji,jj)  )
+            mbkf(ji,jj) = MIN(  mbkt(ji  ,jj+1) , mbkt(ji,jj), mbkt(ji+1,jj  ), mbkt(ji+1,jj+1)  )
          END DO
       END DO
       ! converte into REAL to use lbc_lnk ; impose a min value of 1 as a zero can be set in lbclnk 
@@ -368,6 +409,7 @@ CONTAINS
       !
       zk(:,:) = REAL( mbku(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'U', 1. )   ;   mbku(:,:) = MAX( NINT( zk(:,:) ), 1 )
       zk(:,:) = REAL( mbkv(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'V', 1. )   ;   mbkv(:,:) = MAX( NINT( zk(:,:) ), 1 )
+      zk(:,:) = REAL( mbkf(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'F', 1. )   ;   mbkf(:,:) = MAX( NINT( zk(:,:) ), 1 )
       !
    END SUBROUTINE zgr_top_bot
 
@@ -457,7 +499,7 @@ CONTAINS
 
 
 
-         za1 = zhmax / FLOAT(jpk-1) 
+         za1 = zhmax / FLOAT(jpkdta-1) 
 
          DO jk = 1, jpk
             zw = FLOAT( jk )
@@ -502,6 +544,11 @@ CONTAINS
          END DO
          e3t_1d(jpk) = e3t_1d(jpk-1)   ! we don't care because this level is masked in NEMO
 
+         IF ( ln_dept_mid ) THEN 
+            DO jk = 1, jpkm1
+               gdept_1d(jk) = 0.5_wp * (gdepw_1d(jk)+gdepw_1d(jk+1)) 
+            END DO
+         ENDIF
          DO jk = 2, jpk
             e3w_1d(jk) = gdept_1d(jk) - gdept_1d(jk-1) 
          END DO
@@ -567,6 +614,7 @@ CONTAINS
       REAL(wp) ::   r_bump , h_bump , h_oce   ! bump characteristics 
       REAL(wp) ::   zi, zj, zh, zhmin         ! local scalars
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zrand, zbatv 
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztemp
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
@@ -617,7 +665,6 @@ CONTAINS
             IF ( cp_cfg=='DOME' ) THEN
                ALLOCATE(zbatv(jpi,jpj))
                zbatv(:,:) = MIN(3600._wp, MAX( 600._wp,  600._wp -gphiv(:,:)*1.e3*0.01 ))
-               bathy(:,1) = 0._wp
                DO jj =2,jpj
                   bathy(:,jj) = 0.5_wp*(zbatv(:,jj) + zbatv(:,jj-1))
                END DO 
@@ -645,7 +692,7 @@ CONTAINS
          misfdep(:,:)=1
          !
          !                                            ! ================ !
-      ELSEIF( ntopo == 1 .OR. ntopo ==2 ) THEN                       !   read in file   ! (over the local domain)
+      ELSEIF( ntopo > 0 ) THEN                       !   read in file   ! (over the local domain)
          !                                            ! ================ !
          !
          IF( ln_zco )   THEN                          ! zco : read level bathymetry 
@@ -696,9 +743,15 @@ CONTAINS
 #if defined key_agrif
             ELSE
                IF( ntopo == 1) THEN
-                  CALL agrif_create_bathy_meter()
-               ELSE 
-                  CALL dom_bat 
+                   CALL iom_open ( cn_topo, inum )
+                   CALL iom_get  ( inum, jpdom_auto, cn_bath, bathy )
+                   CALL iom_close( inum )
+               ELSE
+                  IF( ntopo == 3) THEN
+                     CALL agrif_create_bathy_meter() 
+                  ELSE
+                     CALL dom_bat
+                  ENDIF
                ENDIF    
             ENDIF
 #endif
@@ -755,7 +808,17 @@ CONTAINS
          IF(lwp) write(numout,*) 'Minimum ocean depth: ', zhmin, ' minimum number of ocean levels : ', ik
       ENDIF
 #if defined key_agrif
-      IF ( .NOT.Agrif_Root() ) CALL agrif_bathymetry_connect
+!      IF (Agrif_Root()) THEN
+!      IF (Agrif_level()==1) THEN
+!         ALLOCATE(ztemp(jpi,jpj))
+!         CALL smooth_bat_negative(bathy, ztemp, 0.1_wp, 10._wp)
+!         WHERE (bathy/=0._wp) bathy(:,:) = ztemp(:,:)
+!         DEALLOCATE(ztemp)
+!      ENDIF   
+      IF (( .NOT.ln_sco).AND.(.NOT.Agrif_Root() )) THEN
+         CALL agrif_bathymetry_connect
+         IF ( ln_remove_closedseas ) CALL remove_closedseas 
+      ENDIF
 #endif
       !
    END SUBROUTINE zgr_bat
@@ -836,13 +899,15 @@ CONTAINS
 
       IF( jperio == 0 ) THEN
          IF(lwp) WRITE(numout,*) ' mbathy set to 0 along east and west boundary: jperio = ', jperio
-         IF( ln_zco .OR. ln_zps ) THEN
+!         IF( ln_zco .OR. ln_zps ) THEN
            mbathy(  mi0(     1+nn_hls):mi1(     1+nn_hls),:) = 0
            mbathy(  mi0(jpiglo-nn_hls):mi1(jpiglo-nn_hls),:) = 0
-         ELSE
-           mbathy(  mi0(     1+nn_hls):mi1(     1+nn_hls),:) = jpkm1
-           mbathy(  mi0(jpiglo-nn_hls):mi1(jpiglo-nn_hls),:) = jpkm1
-         ENDIF
+           mbathy(:,  mj0(     1+nn_hls):mj1(     1+nn_hls)) = 0
+           mbathy(:,  mj0(jpjglo-nn_hls):mj1(jpjglo-nn_hls)) = 0
+!         ELSE
+!           mbathy(  mi0(     1+nn_hls):mi1(     1+nn_hls),:) = jpkm1
+!           mbathy(  mi0(jpiglo-nn_hls):mi1(jpiglo-nn_hls),:) = jpkm1
+!         ENDIF
       ELSEIF( jperio == 1 .OR. jperio == 4 .OR. jperio ==  6 ) THEN
          IF(lwp) WRITE(numout,*)' east-west cyclic boundary conditions on mbathy: jperio = ', jperio
 !         mbathy( 1 ,:) = mbathy(jpim1,:)
@@ -911,11 +976,13 @@ CONTAINS
          DO ji = 1, jpim1
             mbku(ji,jj) = MIN(  mbkt(ji+1,jj  ) , mbkt(ji,jj)  )
             mbkv(ji,jj) = MIN(  mbkt(ji  ,jj+1) , mbkt(ji,jj)  )
+            mbkf(ji,jj) = MIN(  mbkt(ji  ,jj+1) , mbkt(ji,jj), mbkt(ji+1,jj  ), mbkt(ji+1,jj+1)  )
          END DO
       END DO
       ! converte into REAL to use lbc_lnk ; impose a min value of 1 as a zero can be set in lbclnk 
       zmbk(:,:) = REAL( mbku(:,:), wp )   ;   CALL lbc_lnk('domzgr',zmbk,'U',1.)   ;   mbku  (:,:) = MAX( INT( zmbk(:,:) ), 1 )
       zmbk(:,:) = REAL( mbkv(:,:), wp )   ;   CALL lbc_lnk('domzgr',zmbk,'V',1.)   ;   mbkv  (:,:) = MAX( INT( zmbk(:,:) ), 1 )
+      zmbk(:,:) = REAL( mbkf(:,:), wp )   ;   CALL lbc_lnk('domzgr',zmbk,'F',1.)   ;   mbkf  (:,:) = MAX( INT( zmbk(:,:) ), 1 )
       !
       DEALLOCATE( zmbk )
       !
@@ -1097,11 +1164,16 @@ CONTAINS
                   ze3wp = 0.5_wp * e3w_1d(ik) * ( 1._wp + ( ze3tp/e3t_1d(ik) ) )
                   e3t_0(ji,jj,ik  ) = ze3tp
                   e3t_0(ji,jj,ik+1) = ze3tp
-                  e3w_0(ji,jj,ik  ) = ze3wp
+                  IF ( ln_e3_dep.AND.ln_dept_mid ) THEN
+                     gdept_0(ji,jj,ik) = gdepw_1d(ik) + 0.5_wp * ze3tp
+                     e3w_0(ji,jj,ik  ) = gdept_0(ji,jj,ik) - gdept_0(ji,jj,ik-1) 
+                  ELSE
+                     gdept_0(ji,jj,ik) = gdept_1d(ik-1) + ze3wp
+                     e3w_0(ji,jj,ik  ) = ze3wp
+                  ENDIF
+                  gdept_0(ji,jj,ik+1) = gdept_0(ji,jj,ik) + ze3tp
                   e3w_0(ji,jj,ik+1) = ze3tp
                   gdepw_0(ji,jj,ik+1) = zdepwp
-                  gdept_0(ji,jj,ik  ) = gdept_1d(ik-1) + ze3wp
-                  gdept_0(ji,jj,ik+1) = gdept_0(ji,jj,ik) + ze3tp
                   !
                ELSE                         ! standard case
                   IF( bathy(ji,jj) <= gdepw_1d(ik+1) ) THEN  ;   gdepw_0(ji,jj,ik+1) = bathy(ji,jj)
@@ -1109,13 +1181,18 @@ CONTAINS
                   ENDIF
 !gm Bug?  check the gdepw_1d
                   !       ... on ik
-                  gdept_0(ji,jj,ik) = gdepw_1d(ik) + ( gdepw_0(ji,jj,ik+1) - gdepw_1d(ik) )   &
-                     &                             * ((gdept_1d(     ik  ) - gdepw_1d(ik) )   &
-                     &                             / ( gdepw_1d(     ik+1) - gdepw_1d(ik) ))
                   e3t_0  (ji,jj,ik) = e3t_1d  (ik) * ( gdepw_0 (ji,jj,ik+1) - gdepw_1d(ik) )   & 
                      &                             / ( gdepw_1d(      ik+1) - gdepw_1d(ik) ) 
-                  e3w_0(ji,jj,ik) = 0.5_wp * ( gdepw_0(ji,jj,ik+1) + gdepw_1d(ik+1) - 2._wp * gdepw_1d(ik) )   &
-                     &                     * ( e3w_1d(ik) / ( gdepw_1d(ik+1) - gdepw_1d(ik) ) )
+                  IF ( ln_e3_dep.AND.ln_dept_mid ) THEN
+                     gdept_0(ji,jj,ik) = gdepw_1d(ik) + 0.5_wp * e3t_0(ji,jj,ik)
+                     e3w_0(ji,jj,ik) = gdept_0(ji,jj,ik) - gdept_0(ji,jj,ik-1)
+                  ELSE
+                     gdept_0(ji,jj,ik) = gdepw_1d(ik) + ( gdepw_0(ji,jj,ik+1) - gdepw_1d(ik) )   &
+                        &                             * ((gdept_1d(     ik  ) - gdepw_1d(ik) )   &
+                        &                             / ( gdepw_1d(     ik+1) - gdepw_1d(ik) ))
+                     e3w_0(ji,jj,ik) = 0.5_wp * ( gdepw_0(ji,jj,ik+1) + gdepw_1d(ik+1) - 2._wp * gdepw_1d(ik) )   &
+                        &                     * ( e3w_1d(ik) / ( gdepw_1d(ik+1) - gdepw_1d(ik) ) )
+                  ENDIF
                   !       ... on ik+1
                   e3w_0  (ji,jj,ik+1) = e3t_0  (ji,jj,ik)
                   e3t_0  (ji,jj,ik+1) = e3t_0  (ji,jj,ik)
@@ -1318,6 +1395,13 @@ CONTAINS
       hiff(:,:) = rn_sbot_min
 
       !                                        ! set maximum ocean depth
+#if defined key_agrif
+      ! Set boundary conditions prior filtering from parent:
+      IF (.NOT.Agrif_Root()) THEN
+         CALL agrif_bathymetry_connect
+         IF ( ln_remove_closedseas ) CALL remove_closedseas
+      ENDIF 
+#endif
       bathy(:,:) = MIN( rn_sbot_max, bathy(:,:) )
 
          DO jj = 1, jpj
@@ -1328,103 +1412,14 @@ CONTAINS
       !                                        ! =============================
       !                                        ! Define the envelop bathymetry   (hbatt)
       !                                        ! =============================
-      ! use r-value to create hybrid coordinates
-      zenv(:,:) = bathy(:,:)
-      !
-      ! set first land point adjacent to a wet cell to sbot_min as this needs to be included in smoothing
-         DO jj = 1, jpj
-            DO ji = 1, jpi
-               IF( bathy(ji,jj) == 0._wp ) THEN
-                  iip1 = MIN( ji+1, jpi )
-                  ijp1 = MIN( jj+1, jpj )
-                  iim1 = MAX( ji-1, 1 )
-                  ijm1 = MAX( jj-1, 1 )
-!!gm BUG fix see ticket #1617
-                  IF( ( + bathy(iim1,ijm1) + bathy(ji,ijp1) + bathy(iip1,ijp1)              &
-                     &  + bathy(iim1,jj  )                  + bathy(iip1,jj  )              &
-                     &  + bathy(iim1,ijm1) + bathy(ji,ijm1) + bathy(iip1,ijp1)  ) > 0._wp ) &
-                     &    zenv(ji,jj) = rn_sbot_min
-!!gm
-!!gm               IF( ( bathy(iip1,jj  ) + bathy(iim1,jj  ) + bathy(ji,ijp1  ) + bathy(ji,ijm1) +         &
-!!gm                  &  bathy(iip1,ijp1) + bathy(iim1,ijm1) + bathy(iip1,ijp1) + bathy(iim1,ijm1)) > 0._wp ) THEN
-!!gm               zenv(ji,jj) = rn_sbot_min
-!!gm             ENDIF
-!!gm end
-              ENDIF
-            END DO
-         END DO
-
-      ! apply lateral boundary condition   CAUTION: keep the value when the lbc field is zero
-      CALL lbc_lnk( 'domzgr',zenv, 'T', 1._wp, kfillmode=jpfillnothing )
       ! 
       ! smooth the bathymetry (if required)
       scosrf(:,:) = 0._wp             ! ocean surface depth (here zero: no under ice-shelf sea)
       scobot(:,:) = bathy(:,:)        ! ocean bottom  depth
       !
-      jl = 0
-      zrmax = 1._wp
-      !   
-      !     
-      ! set scaling factor used in reducing vertical gradients
-      zrfact = ( 1._wp - rn_rmax ) / ( 1._wp + rn_rmax )
-      !
-      ! initialise temporary evelope depth arrays
-      ztmpi1(:,:) = zenv(:,:)
-      ztmpi2(:,:) = zenv(:,:)
-      ztmpj1(:,:) = zenv(:,:)
-      ztmpj2(:,:) = zenv(:,:)
-      !
-      ! initialise temporary r-value arrays
-      zri(:,:) = 1._wp
-      zrj(:,:) = 1._wp
-      !                                                            ! ================ !
-      DO WHILE( jl <= 10000 .AND. ( zrmax - rn_rmax ) > 1.e-8_wp ) !  Iterative loop  !
-         !                                                         ! ================ !
-         jl = jl + 1
-         zrmax = 0._wp
-         ! we set zrmax from previous r-values (zri and zrj) first
-         ! if set after current r-value calculation (as previously)
-         ! we could exit DO WHILE prematurely before checking r-value
-         ! of current zenv
-          DO_2D( 0, 0, 0, 0 )
-               zrmax = MAX( zrmax, ABS(zri(ji,jj)), ABS(zrj(ji,jj)) )
-         END_2D
-         zri(:,:) = 0._wp
-         zrj(:,:) = 0._wp
-          DO_2D( 0, 0, 0, 0 )
-               iip1 = MIN( ji+1, jpi )      ! force zri = 0 on last line (ji=ncli+1 to jpi)
-               ijp1 = MIN( jj+1, jpj )      ! force zrj = 0 on last raw  (jj=nclj+1 to jpj)
-               IF( (zenv(ji,jj) > 0._wp) .AND. (zenv(iip1,jj) > 0._wp)) THEN
-                  zri(ji,jj) = ( zenv(iip1,jj  ) - zenv(ji,jj) ) / ( zenv(iip1,jj  ) + zenv(ji,jj) )
-               END IF
-               IF( (zenv(ji,jj) > 0._wp) .AND. (zenv(ji,ijp1) > 0._wp)) THEN
-                  zrj(ji,jj) = ( zenv(ji  ,ijp1) - zenv(ji,jj) ) / ( zenv(ji  ,ijp1) + zenv(ji,jj) )
-               END IF
-               IF( zri(ji,jj) >  rn_rmax )   ztmpi1(ji  ,jj  ) = zenv(iip1,jj  ) * zrfact
-               IF( zri(ji,jj) < -rn_rmax )   ztmpi2(iip1,jj  ) = zenv(ji  ,jj  ) * zrfact
-               IF( zrj(ji,jj) >  rn_rmax )   ztmpj1(ji  ,jj  ) = zenv(ji  ,ijp1) * zrfact
-               IF( zrj(ji,jj) < -rn_rmax )   ztmpj2(ji  ,ijp1) = zenv(ji  ,jj  ) * zrfact
-         END_2D
-  !       IF( lk_mpp )   CALL mpp_max( zrmax )   ! max over the global domain
-         !
-         IF(lwp)WRITE(numout,*) 'zgr_sco :   iter= ',jl, ' rmax= ', zrmax
-         !
-         DO_2D( 0, 0, 0, 0 )
-               zenv(ji,jj) = MAX(zenv(ji,jj), ztmpi1(ji,jj), ztmpi2(ji,jj), ztmpj1(ji,jj), ztmpj2(ji,jj) )
-         END_2D
-         ! apply lateral boundary condition   CAUTION: keep the value when the lbc field is zero
-         CALL lbc_lnk( 'toto',zenv, 'T', 1._wp, kfillmode=jpfillnothing)
-         !                                                  ! ================ !
-      END DO                                                !     End loop     !
-      !                                                     ! ================ !
-      DO jj = 1, jpj
-         DO ji = 1, jpi
-            zenv(ji,jj) = MAX( zenv(ji,jj), rn_sbot_min ) ! set all points to avoid undefined scale value warnings
-         END DO
-      END DO
-      !
       ! Envelope bathymetry saved in hbatt
-      hbatt(:,:) = zenv(:,:) 
+      CALL smooth_bat_negative(bathy, hbatt, rn_rmax, rn_sbot_min)
+
       IF ((ntopo>0).AND.MINVAL( gphit(:,:) ) * MAXVAL( gphit(:,:) ) <= 0._wp ) THEN
          CALL ctl_warn( ' s-coordinates are tapered in vicinity of the Equator' )
          DO jj = 1, jpj
@@ -1434,6 +1429,18 @@ CONTAINS
             END DO
          END DO
       ENDIF
+
+#if defined key_agrif
+      IF (.NOT.Agrif_Root()) THEN
+         WHERE (bathy(:,:)>0._wp )  bathy(:,:) = hbatt(:,:)
+         CALL agrif_bathymetry_connect
+         IF ( ln_remove_closedseas ) CALL remove_closedseas
+         ! Discard the enveloppe in the agrif case
+         hbatt(:,:) = bathy(:,:) 
+         WHERE ( bathy(:,:) == 0._wp ) hbatt(:,:) = rn_sbot_min
+         scobot(:,:) = bathy(:,:)
+      ENDIF 
+#endif
       !
       !                                        ! ==============================
       !                                        !   hbatu, hbatv, hbatf fields
@@ -1588,16 +1595,16 @@ CONTAINS
                   &                                 e3t_0 (ji,jj,jk) , e3w_0 (ji,jj,jk) , jk=1,jpk )
             END DO
          END DO
-         DO jj = mj0(74), mj1(74)
-            DO ji = mi0(10), mi1(10)
-               WRITE(numout,*)
-               WRITE(numout,*) ' domzgr: vertical coordinates : point (10,74,k)   bathy = ', bathy(ji,jj), hbatt(ji,jj)
-               WRITE(numout,*) ' ~~~~~~  --------------------'
-               WRITE(numout,"(9x,' level  gdept_0   gdepw_0   e3t_0    e3w_0')")
-               WRITE(numout,"(10x,i4,4f9.2)") ( jk, gdept_0(ji,jj,jk), gdepw_0(ji,jj,jk),     &
-                  &                                 e3t_0 (ji,jj,jk) , e3w_0 (ji,jj,jk) , jk=1,jpk )
-            END DO
-         END DO
+!         DO jj = mj0(74), mj1(74)
+!            DO ji = mi0(10), mi1(10)
+!               WRITE(numout,*)
+!               WRITE(numout,*) ' domzgr: vertical coordinates : point (10,74,k)   bathy = ', bathy(ji,jj), hbatt(ji,jj)
+!               WRITE(numout,*) ' ~~~~~~  --------------------'
+!               WRITE(numout,"(9x,' level  gdept_0   gdepw_0   e3t_0    e3w_0')")
+!               WRITE(numout,"(10x,i4,4f9.2)") ( jk, gdept_0(ji,jj,jk), gdepw_0(ji,jj,jk),     &
+!                  &                                 e3t_0 (ji,jj,jk) , e3w_0 (ji,jj,jk) , jk=1,jpk )
+!            END DO
+!         END DO
       ENDIF
       !
       !================================================================================
@@ -1692,7 +1699,12 @@ CONTAINS
                DO jk = 1, jpk
                   z_gsigw3(ji,jj,jk) =   REAL(jk-1,wp)            / REAL(jpk-1,wp)
                   z_gsigt3(ji,jj,jk) = ( REAL(jk-1,wp) + 0.5_wp ) / REAL(jpk-1,wp)
-                  END DO
+               END DO
+            ENDIF
+            IF ( ln_e3_dep.AND.ln_dept_mid ) THEN
+               DO jk = 1, jpkm1
+                  z_gsigt3(ji,jj,jk) = 0.5_wp * (z_gsigw3(ji,jj,jk) +z_gsigw3(ji,jj,jk+1)) 
+               END DO
             ENDIF
             !
             DO jk = 1, jpkm1
@@ -1832,6 +1844,12 @@ CONTAINS
 
           ENDIF
 
+          IF ( ln_e3_dep.AND.ln_dept_mid ) THEN
+             DO jk = 1, jpkm1
+                z_gsigt3(ji,jj,jk) = 0.5_wp * (z_gsigw3(ji,jj,jk) +z_gsigw3(ji,jj,jk+1)) 
+             END DO
+          ENDIF
+
           DO jk = 1, jpkm1
              z_esigt3(ji,jj,jk) = z_gsigw3(ji,jj,jk+1) - z_gsigw3(ji,jj,jk)
              z_esigw3(ji,jj,jk+1) = z_gsigt3(ji,jj,jk+1) - z_gsigt3(ji,jj,jk)
@@ -1942,6 +1960,13 @@ CONTAINS
         z_gsigw(jk) = -fssig( REAL(jk,wp)-0.5_wp )
         z_gsigt(jk) = -fssig( REAL(jk,wp)        )
       END DO
+
+      IF ( ln_e3_dep.AND.ln_dept_mid ) THEN
+         DO jk = 1, jpkm1
+            z_gsigt(jk) = 0.5_wp * (z_gsigw(jk)+z_gsigw(jk+1))  
+         END DO
+      ENDIF
+
       IF( lwp )   WRITE(numout,*) 'z_gsigw 1 jpk    ', z_gsigw(1), z_gsigw(jpk)
       !
       ! Coefficients for vertical scale factors at w-, t- levels
@@ -2083,5 +2108,108 @@ CONTAINS
       !
    END FUNCTION fgamma
 
+   SUBROUTINE smooth_bat_negative(batin, batout, rmax, batmin)
+      !!----------------------------------------------------------------------
+      !!              ***  ROUTINE smooth_bat_negative *** 
+      !!                     
+      !! ** Purpose :   Smooth bathymetry according to rmax factor
+      !!                such that the result is greater than the input 
+      !!                bathymetry
+      !!
+      !! ** Method  :   
+      !!
+      !! Reference  : 
+      !!----------------------------------------------------------------------
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: batin 
+      REAL(wp), DIMEnSION(jpi,jpj), INTENT(out) :: batout
+      REAL(wp)                    , INTENT(in)  :: rmax, batmin
+      INTEGER                      :: ji, jj, jl       ! dummy loop argument
+      INTEGER                      :: iip1, ijp1, iim1, ijm1
+      REAL(wp)                     :: zrmax, zrfact
+      REAL(wp), DIMENSION(jpi,jpj) :: ztmpi1, ztmpi2, ztmpj1, ztmpj2, zri, zrj
+      !!----------------------------------------------------------------------
+      !
+      batout(:,:) = batin(:,:)
+      !
+      ! set first land point adjacent to a wet cell to sbot_min as this needs to be included in smoothing
+      DO jj = 1, jpj
+         DO ji = 1, jpi
+            IF( batin(ji,jj) == 0._wp ) THEN
+               iip1 = MIN( ji+1, jpi )
+               ijp1 = MIN( jj+1, jpj )
+               iim1 = MAX( ji-1, 1 )
+               ijm1 = MAX( jj-1, 1 )
+               IF( ( + batin(iim1,ijm1) + batin(ji,ijp1) + batin(iip1,ijp1)              &
+                  &  + batin(iim1,jj  )                  + batin(iip1,jj  )              &
+                  &  + batin(iim1,ijm1) + batin(ji,ijm1) + batin(iip1,ijp1)  ) > 0._wp ) &
+                  &    batout(ji,jj) = batmin
+            ENDIF
+         END DO
+      END DO
+      !
+      ! apply lateral boundary condition   CAUTION: keep the value when the lbc field is zero
+      CALL lbc_lnk( 'domzgr',batout, 'T', 1._wp, kfillmode=jpfillnothing ) 
+      !
+      jl = 0
+      zrmax = 1._wp
+      !     
+      ! set scaling factor used in reducing vertical gradients
+      zrfact = ( 1._wp - rmax ) / ( 1._wp + rmax )
+      !
+      ! initialise temporary evelope depth arrays
+      ztmpi1(:,:) = batout(:,:)
+      ztmpi2(:,:) = batout(:,:)
+      ztmpj1(:,:) = batout(:,:)
+      ztmpj2(:,:) = batout(:,:)
+      !
+      ! initialise temporary r-value arrays
+      zri(:,:) = 1._wp
+      zrj(:,:) = 1._wp
+      !                                                         ! ================ !
+      DO WHILE( jl <= 10000 .AND. ( zrmax - rmax ) > 1.e-8_wp ) !  Iterative loop  !
+         !                                                      ! ================ !
+         jl = jl + 1
+         zrmax = 0._wp
+         ! we set zrmax from previous r-values (zri and zrj) first
+         ! if set after current r-value calculation (as previously)
+         ! we could exit DO WHILE prematurely before checking r-value
+         ! of current batout
+         DO_2D( 0, 0, 0, 0 )
+            zrmax = MAX( zrmax, ABS(zri(ji,jj)), ABS(zrj(ji,jj)) )
+         END_2D
+         zri(:,:) = 0._wp
+         zrj(:,:) = 0._wp
+         DO_2D( 0, 0, 0, 0 )
+            iip1 = MIN( ji+1, jpi )      ! force zri = 0 on last line (ji=ncli+1 to jpi)
+            ijp1 = MIN( jj+1, jpj )      ! force zrj = 0 on last raw  (jj=nclj+1 to jpj)
+            IF( (batout(ji,jj) > 0._wp) .AND. (batout(iip1,jj) > 0._wp)) THEN
+               zri(ji,jj) = ( batout(iip1,jj  ) - batout(ji,jj) ) / ( batout(iip1,jj  ) + batout(ji,jj) )
+            END IF
+            IF( (batout(ji,jj) > 0._wp) .AND. (batout(ji,ijp1) > 0._wp)) THEN
+               zrj(ji,jj) = ( batout(ji  ,ijp1) - batout(ji,jj) ) / ( batout(ji  ,ijp1) + batout(ji,jj) )
+            END IF
+            IF( zri(ji,jj) >  rmax )   ztmpi1(ji  ,jj  ) = batout(iip1,jj  ) * zrfact
+            IF( zri(ji,jj) < -rmax )   ztmpi2(iip1,jj  ) = batout(ji  ,jj  ) * zrfact
+            IF( zrj(ji,jj) >  rmax )   ztmpj1(ji  ,jj  ) = batout(ji  ,ijp1) * zrfact
+            IF( zrj(ji,jj) < -rmax )   ztmpj2(ji  ,ijp1) = batout(ji  ,jj  ) * zrfact
+         END_2D
+         !
+         IF(lwp)WRITE(numout,*) 'smooth_bat_negative:   iter= ',jl, ' rmax= ', zrmax
+         !
+         DO_2D( 0, 0, 0, 0 )
+            batout(ji,jj) = MAX(batout(ji,jj), ztmpi1(ji,jj), ztmpi2(ji,jj), ztmpj1(ji,jj), ztmpj2(ji,jj) )
+         END_2D
+         ! apply lateral boundary condition   CAUTION: keep the value when the lbc field is zero
+         CALL lbc_lnk( 'smooth_bat_negative',batout, 'T', 1._wp, kfillmode=jpfillnothing)
+         !                                                  ! ================ !
+      END DO                                                !     End loop     !
+      !                                                     ! ================ !
+      DO jj = 1, jpj
+         DO ji = 1, jpi
+            batout(ji,jj) = MAX( batout(ji,jj), batmin ) ! set all points to avoid undefined scale value warnings
+         END DO
+      END DO
+      !
+   END SUBROUTINE smooth_bat_negative
    !!======================================================================
 END MODULE domzgr

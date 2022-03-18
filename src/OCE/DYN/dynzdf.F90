@@ -286,9 +286,14 @@ CONTAINS
       !
       DO_2D( 0, 0, 0, 0 )             !==  second recurrence:    SOLk = RHSk - Lk / Dk-1  Lk-1  ==!
          ze3ua =  ( 1._wp - r_vvl ) * e3u(ji,jj,1,Kmm)    &
-            &             + r_vvl   * e3u(ji,jj,1,Kaa) 
+            &             + r_vvl   * e3u(ji,jj,1,Kaa)
+#if defined key_RK3
+         !                                  ! RK3: use only utau (not utau_b)
+         puu(ji,jj,1,Kaa) = puu(ji,jj,1,Kaa) + rDt * utau(ji,jj) / ( ze3ua * rho0 ) * umask(ji,jj,1)
+#else
          puu(ji,jj,1,Kaa) = puu(ji,jj,1,Kaa) + zDt_2 * ( utau_b(ji,jj) + utau(ji,jj) )   &
-            &                                      / ( ze3ua * rho0 ) * umask(ji,jj,1) 
+              &                                      / ( ze3ua * rho0 ) * umask(ji,jj,1)
+#endif
       END_2D
       DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          puu(ji,jj,jk,Kaa) = puu(ji,jj,jk,Kaa) - zwi(ji,jj,jk) / zwd(ji,jj,jk-1) * puu(ji,jj,jk-1,Kaa)
@@ -422,9 +427,14 @@ CONTAINS
       !
       DO_2D( 0, 0, 0, 0 )             !==  second recurrence:    SOLk = RHSk - Lk / Dk-1  Lk-1  ==!
          ze3va =  ( 1._wp - r_vvl ) * e3v(ji,jj,1,Kmm)    &
-            &             + r_vvl   * e3v(ji,jj,1,Kaa) 
+            &             + r_vvl   * e3v(ji,jj,1,Kaa)
+#if defined key_RK3
+         !                                  ! RK3: use only vtau (not vtau_b)
+         pvv(ji,jj,1,Kaa) = pvv(ji,jj,1,Kaa) + rDt * vtau(ji,jj) / ( ze3va * rho0 ) * vmask(ji,jj,1)
+#else
          pvv(ji,jj,1,Kaa) = pvv(ji,jj,1,Kaa) + zDt_2*( vtau_b(ji,jj) + vtau(ji,jj) )   &
-            &                                      / ( ze3va * rho0 ) * vmask(ji,jj,1) 
+              &                                      / ( ze3va * rho0 ) * vmask(ji,jj,1)
+#endif
       END_2D
       DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          pvv(ji,jj,jk,Kaa) = pvv(ji,jj,jk,Kaa) - zwi(ji,jj,jk) / zwd(ji,jj,jk-1) * pvv(ji,jj,jk-1,Kaa)

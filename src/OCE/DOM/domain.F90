@@ -550,7 +550,7 @@ CONTAINS
       REAL(wp)                    ::   zglmin, zglmax, zgpmin, zgpmax, ze1min, ze1max, ze2min, ze2max
       !!----------------------------------------------------------------------
       !
-      llmsk = tmask_h(:,:) == 1._wp
+      llmsk = tmask_i(:,:) == 1._wp
       !
       CALL mpp_minloc( 'domain', glamt(:,:), llmsk, zglmin, imil )
       CALL mpp_minloc( 'domain', gphit(:,:), llmsk, zgpmin, imip )

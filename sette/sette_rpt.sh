@@ -567,11 +567,31 @@ function identictest(){
 #
 echo ""
 localchanges=`git status --short -uno | wc -l`
-revision=`git rev-list --abbrev-commit origin | head -1l`
+# Check that git branch is usable and use it to detect detached HEADs
+git branch --show-current >& /dev/null
+if [[ $? == 0 ]] ; then
+  branchname="$(git branch --show-current)"
+  if [ -z $branchname ] ; then
+   # Probabably on a detached HEAD (possibly testing an old commit).
+   # Verify this and try to recover original commit
+   MORE_INFO="$(git branch -a | head -1l | sed -e's/.*(//' -e 's/)//' )"
+   if [[ "${MORE_INFO}" == *"detached"* ]] ; then
+     revision=$( echo \\${MORE_INFO} | awk '{print $NF}' )
+     # There is no robust way to recover a branch name in a detached state
+     # so just use the commit with a prefix
+     branchname="detached_"${revision}
+   else
+     branchname="Unknown"
+   fi
+  else
+   revision=`git rev-list --abbrev-commit origin | head -1l`
+  fi
+else
+  branchname="Unknown"
+fi
 rev_date0=`git log -1 | grep Date | sed -e 's/.*Date: *//' -e's/ +.*$//'`
 rev_date=`${DATE_CONV}"${rev_date0}" +"%y%j"`
 revision=${rev_date}_${revision}
-branchname=`git branch --show-current`
 if [[ $localchanges > 0 ]] ; then
  echo "Current code is : $branchname @ $revision  ( with local changes )"
  lastchange=${revision}+

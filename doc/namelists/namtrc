@@ -14,10 +14,12 @@
    ln_trcdta     =  .false.  !  Initialisation from data input file (T) or not (F)
    ln_trcdmp     =  .false.  !  add a damping termn (T) or not (F)
    ln_trcdmp_clo =  .false.  !  damping term (T) or not (F) on closed seas
+   ln_trcbc      =  .false.  !  Surface, Lateral or Open Boundaries conditions
+   ln_trcais     =  .false.  !  Antarctic Ice Sheet nutrient supply
    !
    jp_dia3d      = 0         ! Number of 3D diagnostic variables
    jp_dia2d      = 0         ! Number of 2D diagnostic variables
-   !_____________!___________!_________________________________________!____________!________________!
+
    !             !    name   !           title of the field            !   units    ! init from file ! 
 !  sn_tracer(1)  = 'tracer  ', 'Tracer  Concentration                 ',   ' - '    ,   .false.
 /

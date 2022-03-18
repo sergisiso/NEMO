@@ -213,7 +213,7 @@
                IF( c_NFtype == 'F' .AND. iig == 1 ) THEN
                   ij1 = jpj - khls     ! j-index in the receiving array
                   ij2 = 1              ! only 1 line in the buffer
-                  DO ji = mi0(khls), mi1(khls)
+                  DO ji = mi0(khls), mi1(khls)               ! change because of EW periodicity as we also change jpiglo-khls
                      iib = nfd_jisnd(mi0(       khls),iig)   ! i-index in the buffer
                      iin = nfd_rksnd(mi0(       khls),iig)   ! neigbhour-index in the buffer
                      IF( nfd_rknei(iin) == -1 .AND. kfillmode == jpfillnothing )   CYCLE

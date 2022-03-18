@@ -407,7 +407,7 @@ CONTAINS
          !
       END SELECT
       !
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=prd, clinfo1=' eos-insitu  : ', kdim=jpk )
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=prd, clinfo1=' eos-insitu  : ' )
       !
       IF( ln_timing )   CALL timing_stop('eos-insitu')
       !
@@ -575,8 +575,7 @@ CONTAINS
          !
       END SELECT
       !
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=prd, clinfo1=' eos-pot: ', &
-         &                                  tab3d_2=prhop, clinfo2=' pot : ', kdim=jpk )
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=prd, clinfo1=' eos-pot: ', tab3d_2=prhop, clinfo2=' pot : ' )
       !
       IF( ln_timing )   CALL timing_stop('eos-pot')
       !
@@ -876,7 +875,7 @@ CONTAINS
       END SELECT
       !
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pab(:,:,:,jp_tem), clinfo1=' rab_3d_t: ', &
-         &                                  tab3d_2=pab(:,:,:,jp_sal), clinfo2=' rab_3d_s : ', kdim=jpk )
+         &                                  tab3d_2=pab(:,:,:,jp_sal), clinfo2=' rab_3d_s : ' )
       !
       IF( ln_timing )   CALL timing_stop('rab_3d')
       !
@@ -1148,7 +1147,7 @@ CONTAINS
             &            / e3w(ji,jj,jk,Kmm) * wmask(ji,jj,jk)
       END_3D
       !
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pn2, clinfo1=' bn2  : ', kdim=jpk )
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pn2, clinfo1=' bn2  : ' )
       !
       IF( ln_timing )   CALL timing_stop('bn2')
       !

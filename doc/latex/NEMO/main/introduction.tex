@@ -55,12 +55,12 @@ Full step or partial step $z$-coordinate or $s$- (terrain-following) coordinate 
 linear free surface (level position are then fixed in time).
 In non-linear free surface, the corresponding rescaled height coordinate formulation
 (\zstar or \sstar) is used
-(the level position then vary in time as a function of the sea surface heigh).
+(the level position then vary in time as a function of the sea surface height).
 \item [\nameref{chap:TRA} and \nameref{chap:DYN}] describe the discretisation of
 the prognostic equations for the active \textbf{TRA}cers (potential temperature and salinity) and
 the momentum (\textbf{DYN}amic).
-Explicit, split-explicit and filtered free surface formulations are implemented.
-A number of numerical schemes are available for momentum advection,
+Explicit and split-explicit free surface formulations are implemented.
+A number of numerical schemes are available for momentum advection (according to "flux" or "vector" formulations),
 for the computation of the pressure gradients, as well as for the advection of tracers
 (second or higher order advection schemes, including positive ones).
 \item [\nameref{chap:SBC}] can be implemented as prescribed fluxes,
@@ -73,8 +73,6 @@ Interactive coupling to Atmospheric models is possible via the \OASIS\ coupler.
 Two-way nesting is also available through an interface to the \AGRIF\ package,
 \ie\ \textbf{A}daptative \textbf{G}rid \textbf{R}efinement in \textbf{F}ortran
 \citep{debreu.vouland.ea_CG08}.
-The interface code for coupling to an alternative sea ice model (\CICE) has now been upgraded so that
-it works for both global and regional domains.
 \item [\nameref{chap:LBC}] presents the \textbf{L}ateral
 \textbf{B}oun\textbf{D}ar\textbf{Y} \textbf{C}onditions.
 Global configurations of the model make use of the ORCA tripolar grid,

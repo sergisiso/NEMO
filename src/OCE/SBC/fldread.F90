@@ -355,6 +355,7 @@ CONTAINS
       INTEGER ::   iw       ! index into wgts array
       INTEGER ::   idvar    ! variable ID
       INTEGER ::   idmspc   ! number of spatial dimensions
+      REAL(wp)                            ::   zsgn        ! sign used in the call to lbc_lbk called by iom_get
       REAL(wp), DIMENSION(:,:,:), POINTER ::   dta_alias   ! short cut
       !!---------------------------------------------------------------------
       iaa = sdjf%naa
@@ -364,19 +365,23 @@ CONTAINS
       ENDIF
       ipk = SIZE( dta_alias, 3 )
       !
+      IF( LEN_TRIM(sdjf%vcomp) > 0 ) THEN   ;   zsgn = 1._wp        ! geographical vectors -> sign change done later when rotating
+      ELSE                                  ;   zsgn = sdjf%zsgn
+      ENDIF
+      !
       IF( ASSOCIATED(sdjf%imap) ) THEN              ! BDY case 
          CALL fld_map( sdjf%num, sdjf%clvar, dta_alias(:,:,:), sdjf%nrec(1,iaa),   &
             &          sdjf%imap, sdjf%igrd, sdjf%ibdy, sdjf%ltotvel, sdjf%lzint, Kmm )
       ELSE IF( LEN(TRIM(sdjf%wgtname)) > 0 ) THEN   ! On-the-fly interpolation
          CALL wgt_list( sdjf, iw )
          CALL fld_interp( sdjf%num, sdjf%clvar, iw, ipk, dta_alias(:,:,:), sdjf%nrec(1,iaa), sdjf%lsmname )
-         CALL lbc_lnk( 'fldread', dta_alias(:,:,:), sdjf%cltype, sdjf%zsgn, kfillmode = jpfillcopy )
+         CALL lbc_lnk( 'fldread', dta_alias(:,:,:), sdjf%cltype, zsgn, kfillmode = jpfillcopy )
       ELSE                                          ! default case
          idvar  = iom_varid( sdjf%num, sdjf%clvar )
          idmspc = iom_file ( sdjf%num )%ndims( idvar )
          IF( iom_file( sdjf%num )%luld( idvar ) )   idmspc = idmspc - 1   ! id of the last spatial dimension
          CALL iom_get( sdjf%num,  jpdom_global, sdjf%clvar, dta_alias(:,:,:), sdjf%nrec(1,iaa),   &
-            &          sdjf%cltype, sdjf%zsgn, kfill = jpfillcopy )
+            &          sdjf%cltype, zsgn, kfill = jpfillcopy )
       ENDIF
       !
       sdjf%rotn(iaa) = .false.   ! vector not yet rotated

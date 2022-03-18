@@ -49,7 +49,7 @@
 
 %CPP                 cpp -Dkey_nosignedzero
 %FC                  mpif90 -c -cpp
-%FCFLAGS             -fdefault-real-8 -O0 -g -fbacktrace -ftree-vectorize -funroll-all-loops -march=skylake-avx512 -ffree-line-length-none -fcheck=all -finit-real=nan -Wno-missing-include-dirs
+%FCFLAGS             -fdefault-real-8 -O0 -g -fbacktrace -ftree-vectorize -funroll-all-loops -march=skylake-avx512 -ffree-line-length-none -fcheck=all -finit-real=snan -Wno-missing-include-dirs -ffpe-trap=invalid,zero,overflow
 %FFLAGS              %FCFLAGS
 %LD                  mpif90
 %LDFLAGS             -lstdc++

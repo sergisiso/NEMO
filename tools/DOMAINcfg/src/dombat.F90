@@ -17,6 +17,11 @@ MODULE dombat
    PRIVATE
 
    PUBLIC   dom_bat        ! called by dom_zgr.F90
+#if defined key_agrif
+   PUBLIC   remove_closedseas        ! called by dom_zgr.F90
+
+#endif   
+
 
 CONTAINS
 
@@ -25,7 +30,6 @@ CONTAINS
       INTEGER :: inum, id, ji, jj,ji1,jj1
       INTEGER :: iimin,iimax,jjmin,jjmax
       INTEGER :: tabdim1, tabdim2, nxhr, nyhr, nxyhr
-      INTEGER :: nbadd, istart, iend, jstart, jend
       INTEGER, DIMENSION(2) :: ddims
       INTEGER, DIMENSION(3) :: status
       INTEGER, DIMENSION(1) :: i_min,i_max
@@ -411,78 +415,11 @@ CONTAINS
       ENDIF
       CALL lbc_lnk( 'dom_bat', bathy, 'T', 1.,kfillmode = jpfillcopy)
 
-#if defined key_agrif
-      IF (ln_remove_closedseas.AND.(.NOT.Agrif_Root())) THEN
-         ALLOCATE(bathy_test(jpi,jpj))
-         bathy_test(:,:) = 0._wp 
-         !
-         ! --- West --- !
-         IF(lk_west) THEN
-            istart = nn_hls + 2
-            iend   = nn_hls + nbghostcells 
-            DO ji = mi0(istart), mi1(iend)
-               DO jj = 1, jpj
-                  IF ( bathy (ji,jj)/=0._wp )   bathy_test(ji,jj) = 1._wp
-               END DO
-            END DO
-         ENDIF
-         !
-         ! --- East --- !
-         IF(lk_east) THEN
-            istart = jpiglo - ( nn_hls + nbghostcells -1 ) 
-            iend   = jpiglo - ( nn_hls + 1 )
-            DO ji = mi0(istart), mi1(iend)
-               DO jj = 1, jpj
-                  IF ( bathy (ji,jj)/=0._wp )   bathy_test(ji,jj) = 1._wp
-               END DO
-            END DO
-         ENDIF
-         !
-         ! --- South --- !
-         IF(lk_south) THEN
-            jstart = nn_hls + 2
-            jend   = nn_hls + nbghostcells
-            DO jj = mj0(jstart), mj1(jend)
-               DO ji = 1, jpi
-                  IF ( bathy (ji,jj)/=0._wp )   bathy_test(ji,jj) = 1._wp
-               END DO
-            END DO
-         ENDIF
-         !
-         ! --- North --- !
-         IF(lk_north) THEN
-            jstart = jpjglo - ( nn_hls + nbghostcells -1 )
-            jend   = jpjglo - ( nn_hls + 1 )
-            DO jj = mj0(jstart), mj1(jend)
-               DO ji = 1, jpi
-                  IF ( bathy (ji,jj)/=0._wp )  bathy_test(ji,jj) = 1._wp
-               END DO
-            END DO
-         ENDIF
-         
-         nbadd = 1
-         DO WHILE ( nbadd/=0 )
-            nbadd = 0
-            DO ji = 1+nn_hls, jpi-nn_hls
-               DO jj = 1+nn_hls, jpj-nn_hls           
-                  IF (bathy(ji,jj) > 0._wp) THEN
-                     IF (MAX(bathy_test(ji,jj+1),bathy_test(ji,jj-1), & 
-                     &       bathy_test(ji-1,jj),bathy_test(ji+1,jj))==1._wp)  THEN
-                        IF (bathy_test(ji,jj)/=1._wp) nbadd = nbadd + 1
-                        bathy_test(ji,jj)=1._wp
-                     ENDIF
-                  ENDIF
-               END DO
-            END DO
-            IF( lk_mpp )   CALL mpp_sum('dom_bat', nbadd )
-            CALL lbc_lnk( 'dom_bat', bathy_test, 'T', 1.,kfillmode = jpfillcopy)
-
-         END DO
-
-         WHERE(bathy_test==0._wp) bathy = 0._wp
-         DEALLOCATE(bathy_test)
-      ENDIF
-#endif
+!#if defined key_agrif
+!      IF (ln_remove_closedseas.AND.(.NOT.Agrif_Root())) THEN
+!         CALL remove_closedseas
+!      ENDIF
+!#endif
 
 
        ! Correct South and North
@@ -516,5 +453,85 @@ CONTAINS
 
 
    END SUBROUTINE dom_bat
+
+#if defined key_agrif
+   SUBROUTINE remove_closedseas
+
+      INTEGER :: ji, jj
+      INTEGER :: nbadd, istart, iend, jstart, jend
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: bathy_test
+
+
+      ALLOCATE(bathy_test(jpi,jpj))
+      bathy_test(:,:) = 0._wp 
+      !
+      ! --- West --- !
+      IF(lk_west) THEN
+         istart = nn_hls + 2
+         iend   = nn_hls + nbghostcells 
+         DO ji = mi0(istart), mi1(iend)
+            DO jj = 1, jpj
+               IF ( bathy (ji,jj)/=0._wp )   bathy_test(ji,jj) = 1._wp
+            END DO
+         END DO
+      ENDIF
+      !
+      ! --- East --- !
+      IF(lk_east) THEN
+         istart = jpiglo - ( nn_hls + nbghostcells -1 ) 
+         iend   = jpiglo - ( nn_hls + 1 )
+         DO ji = mi0(istart), mi1(iend)
+            DO jj = 1, jpj
+               IF ( bathy (ji,jj)/=0._wp )   bathy_test(ji,jj) = 1._wp
+            END DO
+         END DO
+      ENDIF
+      !
+      ! --- South --- !
+      IF(lk_south) THEN
+         jstart = nn_hls + 2
+         jend   = nn_hls + nbghostcells
+         DO jj = mj0(jstart), mj1(jend)
+            DO ji = 1, jpi
+               IF ( bathy (ji,jj)/=0._wp )   bathy_test(ji,jj) = 1._wp
+            END DO
+         END DO
+      ENDIF
+      !
+      ! --- North --- !
+      IF(lk_north) THEN
+         jstart = jpjglo - ( nn_hls + nbghostcells -1 )
+         jend   = jpjglo - ( nn_hls + 1 )
+         DO jj = mj0(jstart), mj1(jend)
+            DO ji = 1, jpi
+               IF ( bathy (ji,jj)/=0._wp )  bathy_test(ji,jj) = 1._wp
+            END DO
+         END DO
+      ENDIF
+         
+      nbadd = 1
+      DO WHILE ( nbadd/=0 )
+         nbadd = 0
+         DO ji = 1+nn_hls, jpi-nn_hls
+            DO jj = 1+nn_hls, jpj-nn_hls           
+               IF (bathy(ji,jj) > 0._wp) THEN
+                  IF (MAX(bathy_test(ji,jj+1),bathy_test(ji,jj-1), & 
+                  &       bathy_test(ji-1,jj),bathy_test(ji+1,jj))==1._wp)  THEN
+                     IF (bathy_test(ji,jj)/=1._wp) nbadd = nbadd + 1
+                     bathy_test(ji,jj)=1._wp
+                  ENDIF
+               ENDIF
+            END DO
+         END DO
+         IF( lk_mpp )   CALL mpp_sum('remove_closedseas', nbadd )
+         CALL lbc_lnk( 'dom_bat', bathy_test, 'T', 1.,kfillmode = jpfillcopy)
+
+      END DO
+
+      WHERE(bathy_test==0._wp) bathy = 0._wp
+      DEALLOCATE(bathy_test)
+
+   END SUBROUTINE remove_closedseas
+#endif
 
 END MODULE dombat

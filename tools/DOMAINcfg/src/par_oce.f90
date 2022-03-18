@@ -22,6 +22,7 @@ MODULE par_oce
    INTEGER       ::   jpjdta           !: 2nd    "         "    ( >= jpj )
    INTEGER       ::   jpkdta           !: number of levels      ( >= jpk )
    LOGICAL       ::   ln_e3_dep        ! e3. definition flag
+   LOGICAL       ::   ln_dept_mid      !: set cell depths at cell centers 
    REAL(wp)      ::   pp_not_used       = 999999._wp   !: vertical grid parameter
    REAL(wp)      ::   pp_to_be_computed = 999999._wp   !:    -      -       -
    !!----------------------------------------------------------------------

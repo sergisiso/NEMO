@@ -36,6 +36,7 @@ MODULE sbcblk
    USE phycst         ! physical constants
    USE fldread        ! read input fields
    USE sbc_oce        ! Surface boundary condition: ocean fields
+   USE trc_oce         ! share SMS/Ocean variables
    USE cyclone        ! Cyclone 10m wind form trac of cyclone centres
    USE sbcdcy         ! surface boundary condition: diurnal cycle
    USE sbcwave , ONLY :   cdn_wave ! wave module
@@ -590,6 +591,18 @@ CONTAINS
          sprecip(:,:)  = sf(jp_snow)%fnow(:,:,1) * rn_pfac
          wndi_ice(:,:) = sf(jp_wndi)%fnow(:,:,1)
          wndj_ice(:,:) = sf(jp_wndj)%fnow(:,:,1)
+      ENDIF
+#endif
+
+#if defined key_top
+      IF( ln_trcdc2dm )  THEN      !  diurnal cycle in TOP
+         IF( MOD( kt - 1, nn_fsbc ) == 0 ) THEN
+            IF( ln_dm2dc )  THEN
+                qsr_mean(:,:) = ( 1. - albo )  * sf(jp_qsr)%fnow(:,:,1)  * tmask(:,:,1)
+            ELSE
+                ncpl_qsr_freq = sf(jp_qsr)%freqh * 3600 !   qsr_mean will be computed in TOP
+            ENDIF
+         ENDIF
       ENDIF
 #endif
       !

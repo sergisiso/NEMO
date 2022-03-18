@@ -145,7 +145,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj) ::   v_oceU, u_oceV, v_iceU, u_iceV  ! ocean/ice u/v component on V/U points
       !
       REAL(wp), DIMENSION(jpi,jpj) ::   zds                             ! shear
-      REAL(wp), DIMENSION(jpi,jpj) ::   zten_i                          ! tension
+      REAL(wp), DIMENSION(jpi,jpj) ::   zten_i, zshear                  ! tension, shear
       REAL(wp), DIMENSION(jpi,jpj) ::   zs1, zs2, zs12                  ! stress tensor components
       REAL(wp), DIMENSION(jpi,jpj) ::   zsshdyn                         ! array used for the calculation of ice surface slope:
       !                                                                 !    ocean surface (ssh_m) if ice is not embedded
@@ -453,7 +453,7 @@ CONTAINS
 
             ! stress at F points (zkt/=0 if landfast)
             zs12(ji,jj)= ( zs12(ji,jj) * zalph2 + zp_delf * ( zds(ji,jj) * z1_ecc2 * (1._wp + zkt) ) * 0.5_wp ) &
-               &         * z1_alph2 * zmsk(ji,jj) ! zmsk is for reducing cpu
+               &         * z1_alph2
 
          END_2D
 
@@ -749,8 +749,11 @@ CONTAINS
             &   + zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1)  &
             &   ) * 0.25_wp * r1_e1e2t(ji,jj)
 
-         ! shear at T points
-         pshear_i(ji,jj) = SQRT( zdt2 + zds2 ) * zmsk(ji,jj)
+         ! maximum shear rate at T points (includes tension, output only)
+         pshear_i(ji,jj) = SQRT( zdt2 + zds2 ) * zmsk(ji,jj) ! 
+
+         ! shear at T-points
+         zshear(ji,jj)   = SQRT( zds2 ) * zmsk(ji,jj)
 
          ! divergence at T points
          pdivu_i(ji,jj) = ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj)   &
@@ -758,21 +761,25 @@ CONTAINS
             &             ) * r1_e1e2t(ji,jj) * zmsk(ji,jj)
 
          ! delta at T points
-         zfac            = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) * zmsk(ji,jj) ! delta
-         rswitch         = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zfac ) ) ! 0 if delta=0
-         pdelta_i(ji,jj) = zfac + rn_creepl * rswitch ! delta+creepl
+         zdelta(ji,jj)   = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) * zmsk(ji,jj) ! delta
+
+         ! delta* at T points (pdelta_i)
+         rswitch         = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zdelta(ji,jj) ) ) ! 0 if delta=0
+         pdelta_i(ji,jj) = zdelta(ji,jj) + rn_creepl * rswitch  
+                           ! it seems that deformation used for advection and mech redistribution is delta*
+                           ! MV in principle adding creep limit is a regularization for viscosity not for delta
+                           ! delta_star should not (in my view) be used in a replacement for delta
 
       END_2D
+
       CALL lbc_lnk( 'icedyn_rhg_evp', pshear_i, 'T', 1._wp, pdivu_i, 'T', 1._wp, pdelta_i, 'T', 1._wp, zten_i, 'T', 1._wp, &
-         &                            zs1     , 'T', 1._wp, zs2    , 'T', 1._wp, zs12    , 'F', 1._wp )
+         &                            zshear  , 'T', 1._wp, zdelta , 'T', 1._wp, zs1     , 'T', 1._wp, zs2   , 'T', 1._wp, zs12, 'F', 1._wp )
 
       ! --- Store the stress tensor for the next time step --- !
       pstress1_i (:,:) = zs1 (:,:)
       pstress2_i (:,:) = zs2 (:,:)
       pstress12_i(:,:) = zs12(:,:)
       !
-
-      !------------------------------------------------------------------------------!
       ! 5) diagnostics
       !------------------------------------------------------------------------------!
       ! --- ice-ocean, ice-atm. & ice-oceanbottom(landfast) stresses --- !
@@ -795,7 +802,7 @@ CONTAINS
       IF( iom_use('icediv') )   CALL iom_put( 'icediv' , pdivu_i  * zmsk00 )   ! divergence
       IF( iom_use('iceshe') )   CALL iom_put( 'iceshe' , pshear_i * zmsk00 )   ! shear
       IF( iom_use('icestr') )   CALL iom_put( 'icestr' , strength * zmsk00 )   ! strength
-      IF( iom_use('icedlt') )   CALL iom_put( 'icedlt' , pdelta_i * zmsk00 )   ! delta
+      IF( iom_use('icedlt') )   CALL iom_put( 'icedlt' , zdelta   * zmsk00 )   ! delta
 
       ! --- Stress tensor invariants (SIMIP diags) --- !
       IF( iom_use('normstr') .OR. iom_use('sheastr') ) THEN
@@ -805,21 +812,19 @@ CONTAINS
          DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
 
             ! Ice stresses
-            ! sigma1, sigma2, sigma12 are some useful recombination of the stresses (Hunke and Dukowicz MWR 2002, Bouillon et al., OM2013)
-            ! These are NOT stress tensor components, neither stress invariants, neither stress principal components
-            ! I know, this can be confusing...
-            zfac             =   strength(ji,jj) / ( pdelta_i(ji,jj) + rn_creepl )
-            zsig1            =   zfac * ( pdivu_i(ji,jj) - pdelta_i(ji,jj) )
+            ! sigma1, sigma2, sigma12 are some recombination of the stresses (HD MWR002, Bouillon et al., OM2013)
+            ! not to be confused with stress tensor components, stress invariants, or stress principal components
+            zfac             =   strength(ji,jj) / ( zdelta(ji,jj) + rn_creepl )          ! viscosity
+            zsig1            =   zfac * ( pdivu_i(ji,jj) - zdelta(ji,jj) )
             zsig2            =   zfac * z1_ecc2 * zten_i(ji,jj)
-            zsig12           =   zfac * z1_ecc2 * pshear_i(ji,jj)
+            zsig12           =   zfac * z1_ecc2 * zshear(ji,jj) * 0.5_wp
 
             ! Stress invariants (sigma_I, sigma_II, Coon 1974, Feltham 2008)
-            zsig_I (ji,jj)   =   zsig1 * 0.5_wp                                      ! 1st stress invariant, aka average normal stress, aka negative pressure
-            zsig_II(ji,jj)   =   SQRT ( zsig2 * zsig2 * 0.25_wp + zsig12 * zsig12 )  ! 2nd  ''       ''    , aka maximum shear stress
+            zsig_I (ji,jj)   =   0.5_wp * zsig1 
+            zsig_II(ji,jj)   =   0.5_wp * SQRT ( zsig2 * zsig2 + 4._wp * zsig12 * zsig12 )
 
          END_2D
          !
-         ! Stress tensor invariants (normal and shear stress N/m) - SIMIP diags - definitions following Coon (1974) and Feltham (2008)
          IF( iom_use('normstr') )   CALL iom_put( 'normstr', zsig_I (:,:) * zmsk00(:,:) ) ! Normal stress
          IF( iom_use('sheastr') )   CALL iom_put( 'sheastr', zsig_II(:,:) * zmsk00(:,:) ) ! Maximum shear stress
 
@@ -830,24 +835,23 @@ CONTAINS
       ! --- Normalized stress tensor principal components --- !
       ! This are used to plot the normalized yield curve, see Lemieux & Dupont, 2020
       ! Recommendation 1 : we use ice strength, not replacement pressure
-      ! Recommendation 2 : need to use deformations at PREVIOUS iterate for viscosities
+      ! Recommendation 2 : for EVP, no need to use viscosities at last iteration (stress is properly iterated)
       IF( iom_use('sig1_pnorm') .OR. iom_use('sig2_pnorm') ) THEN
          !
          ALLOCATE( zsig1_p(jpi,jpj) , zsig2_p(jpi,jpj) , zsig_I(jpi,jpj) , zsig_II(jpi,jpj) )
          !
          DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
 
-            ! Ice stresses computed with **viscosities** (delta, p/delta) at **previous** iterates
-            !                        and **deformations** at current iterates
+            ! For EVP solvers, ice stresses at current iterates can be used
             !                        following Lemieux & Dupont (2020)
-            zfac             =   zp_delt(ji,jj)
-            zsig1            =   zfac * ( pdivu_i(ji,jj) - ( zdelta(ji,jj) + rn_creepl ) )
+            zfac             =   strength(ji,jj) / ( zdelta(ji,jj) + rn_creepl )
+            zsig1            =   zfac * ( pdivu_i(ji,jj) - zdelta(ji,jj) )
             zsig2            =   zfac * z1_ecc2 * zten_i(ji,jj)
-            zsig12           =   zfac * z1_ecc2 * pshear_i(ji,jj)
+            zsig12           =   zfac * z1_ecc2 * zshear(ji,jj) * 0.5_wp
 
             ! Stress invariants (sigma_I, sigma_II, Coon 1974, Feltham 2008), T-point
-            zsig_I(ji,jj)    =   zsig1 * 0.5_wp                                       ! 1st stress invariant, aka average normal stress, aka negative pressure
-            zsig_II(ji,jj)   =   SQRT ( zsig2 * zsig2 * 0.25_wp + zsig12 * zsig12 )   ! 2nd  ''       ''    , aka maximum shear stress
+            zsig_I(ji,jj)    =   0.5_wp * zsig1                                         ! normal stress
+            zsig_II(ji,jj)   =   0.5_wp * SQRT ( zsig2 * zsig2 + 4._wp * zsig12 * zsig12 ) ! max shear stress
 
             ! Normalized  principal stresses (used to display the ellipse)
             z1_strength      =   1._wp / MAX( 1._wp, strength(ji,jj) )

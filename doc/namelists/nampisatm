@@ -3,7 +3,7 @@
 !-----------------------------------------------------------------------
 !              !  file name   ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
 !              !              !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
-   sn_patm     = 'presatm'    ,     -1.           , 'patm'    ,  .true.      , .true. , 'yearly'  , ''       , ''       , ''
+   sn_patm     = 'presatm.orca2'    ,     24.           , 'presatm'    ,  .true.      , .true. , 'yearly'  , ''       , ''       , ''
    sn_atmco2   = 'presatmco2' ,     -1.           , 'xco2'    ,  .true.      , .true. , 'yearly'  , ''       , ''       , ''
    cn_dir      = './'     !  root directory for the location of the dynamical files
 !

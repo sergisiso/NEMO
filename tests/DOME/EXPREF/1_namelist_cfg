@@ -7,6 +7,7 @@
 &namagrif      !  AGRIF zoom                                            ("key_agrif")
 !-----------------------------------------------------------------------
    ln_vert_remap   = .true. !  use vertical remapping
+   rn_sponge_tra   = 0.0    !  coefficient for tracer   sponge layer []
 /
 !-----------------------------------------------------------------------
 &namusr_def    !   User defined :   OVERFLOW configuration
@@ -205,7 +206,7 @@
 !-----------------------------------------------------------------------
 &namzdf        !   vertical physics                                     (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_zad_Aimp = .false.       !  Courant number dependent scheme (Shchepetkin 2015)
+   ln_zad_Aimp = .true.       !  Courant number dependent scheme (Shchepetkin 2015)
    !                       ! type of vertical closure (required)
    ln_zdfcst   = .false.      !  constant mixing
    ln_zdfric   = .false.      !  local Richardson dependent formulation (T =>   fill namzdf_ric)

@@ -1292,6 +1292,7 @@ ENDIF
       REAL(wp), DIMENSION(jpi,jpj,2,4) ::   zinfo
       INTEGER , DIMENSION(10) ::   irknei ! too many elements but safe...
       INTEGER                 ::   ji, jj, jg, jn   ! dummy loop indices
+      INTEGER                 ::   iitmp
       LOGICAL                 ::   lnew
       !!----------------------------------------------------------------------
       !
@@ -1361,8 +1362,13 @@ ENDIF
             ALLOCATE( nfd_rknei(nfd_nbnei) )
             nfd_rknei(:) = irknei(1:nfd_nbnei)
             ! re-number nfd_rksnd according to the indexes of nfd_rknei
-            DO jn = 1, nfd_nbnei
-               WHERE( nfd_rksnd == nfd_rknei(jn) )   nfd_rksnd = jn
+            DO jg = 1, 4
+               DO ji = 1, jpi
+                  iitmp = nfd_rksnd(ji,jg)   ! must store a copy of nfd_rksnd(ji,jg) to make sure we don't change it twice
+                  DO jn = 1, nfd_nbnei
+                     IF( iitmp == nfd_rknei(jn) )   nfd_rksnd(ji,jg) = jn
+                  END DO
+               END DO
             END DO
             
             IF( ldwrtlay ) THEN

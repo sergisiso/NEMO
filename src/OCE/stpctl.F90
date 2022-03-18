@@ -76,8 +76,8 @@ CONTAINS
       IF( nstop > 0 .AND. ngrdstop > -1 )   RETURN   !   stpctl was already called by a child grid
       !
       ll_wrtstp  = ( MOD( kt-nit000, sn_cfctl%ptimincr ) == 0 ) .OR. ( kt == nitend )
-      ll_colruns = ll_wrtstp .AND. sn_cfctl%l_runstat .AND. jpnij > 1
-      ll_wrtruns = ( ll_colruns .OR. jpnij == 1 ) .AND. lwm
+      ll_colruns = sn_cfctl%l_runstat .AND. ll_wrtstp .AND. jpnij > 1
+      ll_wrtruns = sn_cfctl%l_runstat .AND. ll_wrtstp .AND. lwm
       !
       IF( kt == nit000 ) THEN
          !
@@ -174,6 +174,7 @@ CONTAINS
       !                                   !==  done only by 1st subdomain at writting timestep  ==!
       IF( ll_wrtruns ) THEN
          WRITE(numrun,9500) kt, zmax(1:jptst)
+         IF( jpnij == 1 ) CALL FLUSH(numrun)
          DO ji = 1, jpvar - 2 * COUNT( .NOT. (/ln_zad_Aimp/) )
             istatus = NF90_PUT_VAR( nrunid, nvarid(ji), (/zmax(ji)/), (/kt/), (/1/) )
          END DO

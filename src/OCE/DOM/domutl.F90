@@ -60,10 +60,10 @@ CONTAINS
       IF ( PRESENT(kkk) ) ik=kkk
       !
       SELECT CASE( cdgrid )
-      CASE( 'U' ) ;   zglam(:,:) = glamu(:,:)   ;   zgphi(:,:) = gphiu(:,:)   ;   llmsk(:,:) = tmask_h(:,:) * umask(:,:,ik) == 1._wp
-      CASE( 'V' ) ;   zglam(:,:) = glamv(:,:)   ;   zgphi(:,:) = gphiv(:,:)   ;   llmsk(:,:) = tmask_h(:,:) * vmask(:,:,ik) == 1._wp
-      CASE( 'F' ) ;   zglam(:,:) = glamf(:,:)   ;   zgphi(:,:) = gphif(:,:)   ;   llmsk(:,:) = tmask_h(:,:) * fmask(:,:,ik) == 1._wp
-      CASE DEFAULT;   zglam(:,:) = glamt(:,:)   ;   zgphi(:,:) = gphit(:,:)   ;   llmsk(:,:) = tmask_h(:,:) * tmask(:,:,ik) == 1._wp
+      CASE( 'U' ) ;   zglam(:,:) = glamu(:,:)   ;   zgphi(:,:) = gphiu(:,:)   ;   llmsk(:,:) = tmask_i(:,:) * umask(:,:,ik) == 1._wp
+      CASE( 'V' ) ;   zglam(:,:) = glamv(:,:)   ;   zgphi(:,:) = gphiv(:,:)   ;   llmsk(:,:) = tmask_i(:,:) * vmask(:,:,ik) == 1._wp
+      CASE( 'F' ) ;   zglam(:,:) = glamf(:,:)   ;   zgphi(:,:) = gphif(:,:)   ;   llmsk(:,:) = tmask_i(:,:) * fmask(:,:,ik) == 1._wp
+      CASE DEFAULT;   zglam(:,:) = glamt(:,:)   ;   zgphi(:,:) = gphit(:,:)   ;   llmsk(:,:) = tmask_i(:,:) * tmask(:,:,ik) == 1._wp
       END SELECT
       !
       zlon       = MOD( plon       + 720., 360. )                                     ! plon between    0 and 360

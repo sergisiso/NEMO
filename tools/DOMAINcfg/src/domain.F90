@@ -475,6 +475,13 @@ CONTAINS
       !                             !==  ocean top and bottom level  ==!
       !
       CALL iom_rstput( 0, 0, inum, 'bottom_level' , REAL( mbkt, wp )*ssmask , ktype = jp_i4 )   ! nb of ocean T-points
+#if defined key_agrif
+!!      IF ( Agrif_level() /= Agrif_maxlevel() ) THEN
+         CALL iom_rstput( 0, 0, inum, 'mbku'         , REAL( mbku, wp )*ssumask, ktype = jp_i4 )   ! nb of ocean U-points
+         CALL iom_rstput( 0, 0, inum, 'mbkv'         , REAL( mbkv, wp )*ssvmask, ktype = jp_i4 )   ! nb of ocean V-points
+         CALL iom_rstput( 0, 0, inum, 'mbkf'         , REAL( mbkf, wp )*ssfmask, ktype = jp_i4 )   ! nb of ocean F-points
+!!      ENDIF
+#endif
       CALL iom_rstput( 0, 0, inum, 'top_level'    , REAL( mikt, wp )*ssmask , ktype = jp_i4 )   ! nb of ocean T-points (ISF)
       CALL iom_rstput( 0, 0, inum, 'isf_draft'    , risfdep , ktype = jp_r8 )
       DO jj = 1,jpj

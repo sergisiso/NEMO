@@ -16,9 +16,9 @@
           l) get_lite=1;;
           h | *) echo ''
                  echo 'sette_fetch_inputs.sh : ' 
-                 echo '     Fetch 4.2_RC input files from remote store'
+                 echo '     Fetch 4.2.0 input files from remote store'
                  echo ' -l '
-                 echo '     Fetch the alternative, 4.2_RC_LITE input files from remote store'
+                 echo '     Fetch the alternative, 4.2.0_LITE input files from remote store'
                  exit 42;;
        esac
     done
@@ -40,9 +40,9 @@
   cd ${FORCING_DIR}
 #
   if [ $get_lite == 0 ] ; then
-   suff="4.2_RC"
+   suff="4.2.0"
   else
-   suff="4.2_RC_LITE"
+   suff="4.2.0_LITE"
   fi
 #
   for file in AGRIF_DEMO AMM12 ICE_AGRIF ISOMIP+ ORCA2_ICE ORCA2_OFF SAS WED025 ORCA2_ABL

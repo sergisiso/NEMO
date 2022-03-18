@@ -24,7 +24,7 @@
 #
 %NCDF_HOME           /opt/local
 %HDF5_HOME           /opt/local
-%XIOS_HOME           /Users/$( whoami )/xios-2.5
+%XIOS_HOME           /Users/$( whoami )/xios-trunk
 %OASIS_HOME          /not/defined
 
 %NCDF_INC            -I%NCDF_HOME/include -I%HDF5_HOME/include

@@ -48,11 +48,18 @@
        <!-- rheology -->
        <field field_ref="icediv"           name="sidive"  />
        <field field_ref="iceshe"           name="sishea"  />
+       <field field_ref="icedlt"           name="sidelt"  />
        <field field_ref="icestr"           name="sistre"  />
        <field field_ref="normstr"          name="normstr" />
        <field field_ref="sheastr"          name="sheastr" />
        <field field_ref="sig1_pnorm"       name="sig1_pnorm"/>
        <field field_ref="sig2_pnorm"       name="sig2_pnorm"/>
+
+       <field field_ref="velo_res"         name="velo_res"  />
+       <field field_ref="velo_ero"         name="velo_ero"  />
+       <field field_ref="uice_eri"         name="uice_eri"  />
+       <field field_ref="vice_eri"         name="vice_eri"  />
+       <field field_ref="uice_cvg"         name="uice_cvg"  />
        
        <!-- heat fluxes -->
        <field field_ref="qt_oce_ai"        name="qt_oce_ai"  />
@@ -64,7 +71,7 @@
        <field field_ref="qns_ice"          name="qns_ice"    />
        <field field_ref="qemp_ice"         name="qemp_ice"   />
        <field field_ref="albedo"           name="albedo"     />
-       
+
        <field field_ref="hfxcndtop"        name="hfxcndtop"  />
        <field field_ref="hfxcndbot"        name="hfxcndbot"  />
        <field field_ref="hfxsensib"        name="hfxsensib"  />

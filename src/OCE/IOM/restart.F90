@@ -30,6 +30,9 @@ MODULE restart
    USE usrdef_istate, ONLY : usr_def_istate_ssh   ! user defined ssh initial state 
    USE trdmxl_oce     ! ocean active mixed layer tracers trends variables
    USE diu_bulk       ! ???
+#if defined key_agrif
+   USE agrif_oce_interp
+#endif
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O module
@@ -171,7 +174,7 @@ CONTAINS
 #if defined key_RK3
          CALL iom_rstput( kt, nitrst, numrow, 'uu_b'   , uu_b(:,:       ,Kbb) )     ! before fields
          CALL iom_rstput( kt, nitrst, numrow, 'vv_b'   , vv_b(:,:       ,Kbb) )     ! before fields
-         CALL iom_rstput( kt, nitrst, numrow, 'ssha '  , ssh(:,:        ,Kaa) )     ! after field post swap (n-1)
+!!st-10/03         CALL iom_rstput( kt, nitrst, numrow, 'ssha '  , ssh(:,:        ,Kaa) )     ! after field post swap (n-1)
 #else
          CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields : n
          CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kmm) )
@@ -265,6 +268,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER          , INTENT(in) ::   Kbb, Kmm   ! ocean time level indices
       INTEGER  ::   jk
+      INTEGER  ::   id1 
       REAL(wp), DIMENSION(jpi, jpj, jpk) :: w3d
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   :: zgdept       ! 3D workspace for QCO
       !!----------------------------------------------------------------------
@@ -289,8 +293,20 @@ CONTAINS
       CALL iom_get( numror, jpdom_auto, 'vb'   , vv(:,:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
       CALL iom_get( numror, jpdom_auto, 'tb'   , ts(:,:,:,jp_tem,Kbb) )
       CALL iom_get( numror, jpdom_auto, 'sb'   , ts(:,:,:,jp_sal,Kbb) )
-      CALL iom_get( numror, jpdom_auto, 'uu_b' , uu_b(:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'vv_b' , vv_b(:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
+      id1 = iom_varid( numror, 'uu_b', ldstop = .FALSE. )  !*  check presence
+      IF( id1 > 0 ) THEN
+         CALL iom_get( numror, jpdom_auto, 'uu_b' , uu_b(:,:,Kbb), cd_type = 'U', psgn = -1._wp )
+         CALL iom_get( numror, jpdom_auto, 'vv_b' , vv_b(:,:,Kbb), cd_type = 'V', psgn = -1._wp )
+      ELSE
+         uu_b(:,:,Kbb) = uu(:,:,1,Kbb)*e3u_0(:,:,1)*umask(:,:,1)
+         vv_b(:,:,Kbb) = vv(:,:,1,Kbb)*e3v_0(:,:,1)*vmask(:,:,1)
+         DO jk = 2, jpkm1
+            uu_b(:,:,Kbb) =  uu_b(:,:,Kbb) + uu(:,:,jk,Kbb)*e3u_0(:,:,jk)*umask(:,:,jk)
+            vv_b(:,:,Kbb) =  vv_b(:,:,Kbb) + vv(:,:,jk,Kbb)*e3v_0(:,:,jk)*vmask(:,:,jk)
+         END DO
+         uu_b(:,:,Kbb) = uu_b(:,:,Kbb) * r1_hu_0(:,:)
+         vv_b(:,:,Kbb) = vv_b(:,:,Kbb) * r1_hv_0(:,:)
+      ENDIF
       uu(:,:,:  ,Kmm) = uu(:,:,:  ,Kbb)         ! Kmm values set to Kbb for initialisation (sbc_ssm_init)
       vv(:,:,:  ,Kmm) = vv(:,:,:  ,Kbb)
       ts(:,:,:,:,Kmm) = ts(:,:,:,:,Kbb)
@@ -364,8 +380,8 @@ CONTAINS
          !                                     !*  RK3: Set ssh at Kmm for AGRIF
          ssh(:,:,Kmm) = ssh(:,:,Kbb)
          !
-         !                                     !*  RK3: Set ssh at Kaa (n-1) for ww computation
-         CALL iom_get( numror, jpdom_auto, 'ssha'   , ssh(:,:,Kaa) )
+!!st-10/03         !                                     !*  RK3: Set ssh at Kaa (n-1) for ww computation
+!!st         CALL iom_get( numror, jpdom_auto, 'ssha'   , ssh(:,:,Kaa) )
 #else
          !                                     !*  MLF: Read ssh at Kmm
          IF(lwp) WRITE(numout,*)
@@ -376,6 +392,10 @@ CONTAINS
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '      Euler first time step : ssh(Kbb) = ssh(Kmm)'
             ssh(:,:,Kbb) = ssh(:,:,Kmm)
+#if defined key_agrif
+            ! Set ghosts points from parent 
+            IF (.NOT.Agrif_Root()) CALL Agrif_istate_ssh( Kbb, Kmm, Kaa, .true. )
+#endif
             !
          ELSE                                  !*  MLF: read ssh at Kbb
             IF(lwp) WRITE(numout,*)
@@ -410,11 +430,14 @@ CONTAINS
             CALL usr_def_istate_ssh( tmask, ssh(:,:,Kbb) )
             !
          ENDIF
+#if defined key_agrif
+         ! Set ghosts points from parent 
+         IF (.NOT.Agrif_Root()) CALL Agrif_istate_ssh( Kbb, Kmm, Kaa, .true. )
+#endif
          !
-         ssh(:,:,Kmm) = ssh(:,:,Kbb)           !* set now values from to before ones 
+         ssh(:,:,Kmm) = ssh(:,:,Kbb)              !* set now values from to before ones
       ENDIF
-      ! 
-!JC: line below ???
+      !
 #if defined key_RK3
       IF(.NOT. ln_rstart ) THEN
 #endif

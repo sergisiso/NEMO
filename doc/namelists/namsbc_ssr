@@ -8,6 +8,10 @@
       rn_deds     =  -166.67  !  magnitude of the damping on salinity   [mm/day]
       ln_sssr_bnd =  .true.   !  flag to bound erp term (associated with nn_sssr=2)
       rn_sssr_bnd =   4.e0    !  ABS(Max/Min) value of the damping erp term [mm/day]
+      nn_sssr_ice =   1       ! control of sea surface restoring under sea-ice
+                              ! 0 = no restoration under ice : * (1-icefrac)
+                              ! 1 = restoration everywhere 
+                              ! >1 = enhanced restoration under ice : 1+(nn_icedmp-1)*icefrac
 
    cn_dir      = './'      !  root directory for the SST/SSS data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!

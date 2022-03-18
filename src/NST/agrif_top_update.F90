@@ -42,7 +42,7 @@ CONTAINS
       IF (Agrif_Root()) RETURN 
       !
       l_vremap                      = ln_vert_remap
-      Agrif_UseSpecialValueInUpdate = .NOT.l_vremap
+      Agrif_UseSpecialValueInUpdate = .FALSE.
       Agrif_SpecialValueFineGrid    = 0._wp
 
       ! 
@@ -66,7 +66,7 @@ CONTAINS
       LOGICAL, INTENT(in) :: before
       !!
       INTEGER :: ji,jj,jk,jn
-      REAL(wp) :: ztb, ztnu, ztno
+      REAL(wp) :: ztb, ztnu, ztno, ze3b
       REAL(wp) :: h_in(k1:k2)
       REAL(wp) :: h_out(1:jpk)
       INTEGER  :: N_in, N_out
@@ -75,34 +75,25 @@ CONTAINS
       REAL(wp), DIMENSION(i1:i2,j1:j2,1:jpk,1:jptra) :: tabres_child
 
       IF (before) THEN
-         IF ( l_vremap ) THEN
-            DO jn = n1,n2-1
-               DO jk=k1,k2
-                  DO jj=j1,j2
-                     DO ji=i1,i2
-                        tabres(ji,jj,jk,jn) = tr(ji,jj,jk,jn,Kmm_a) * e3t(ji,jj,jk,Kmm_a)
-                     END DO
-                  END DO
-               END DO
-            END DO
+         DO jn = n1,n2-1
             DO jk=k1,k2
                DO jj=j1,j2
                   DO ji=i1,i2
-                     tabres(ji,jj,jk,n2) = tmask(ji,jj,jk) * e3t(ji,jj,jk,Kmm_a)
+                     tabres(ji,jj,jk,jn) = tr(ji,jj,jk,jn,Kmm_a) * e3t(ji,jj,jk,Kmm_a) &
+                                         & * e1e2t_frac(ji,jj)
                   END DO
                END DO
             END DO
-         ELSE
-            DO jn = 1,jptra
-               DO jk=k1,k2
-                  DO jj=j1,j2
-                     DO ji=i1,i2
-                        tabres(ji,jj,jk,jn) = tr(ji,jj,jk,jn,Kmm_a)  * e3t(ji,jj,jk,Kmm_a) / e3t_0(ji,jj,jk)
-                     END DO
+         END DO
+         IF ( l_vremap ) THEN
+            DO jk=k1,k2
+               DO jj=j1,j2
+                  DO ji=i1,i2
+                     tabres(ji,jj,jk,n2) = tmask(ji,jj,jk) * e3t(ji,jj,jk,Kmm_a) &
+                                         & * e1e2t_frac(ji,jj)
                   END DO
                END DO
             END DO
-
          ENDIF
       ELSE
          IF ( l_vremap ) THEN
@@ -114,7 +105,9 @@ CONTAINS
                   DO jk=k1,k2 !k2 = jpk of child grid
                      IF (tabres(ji,jj,jk,n2) <= 1.e-6_wp  ) EXIT
                      N_in = N_in + 1
-                     tabin(jk,:) = tabres(ji,jj,jk,n1:n2-1)/tabres(ji,jj,jk,n2)
+                     DO jn=n1,n2-1
+                        tabin(jk,jn) = tabres(ji,jj,jk,jn)/tabres(ji,jj,jk,n2)
+                     END DO
                      h_in(N_in) = tabres(ji,jj,jk,n2)
                   ENDDO
                   N_out = 0
@@ -136,7 +129,9 @@ CONTAINS
                      DO jj = j1, j2
                         DO ji = i1, i2
                            IF( tabres_child(ji,jj,jk,jn) /= 0._wp ) THEN
-                              ztb  = tr(ji,jj,jk,jn,Kbb_a) * e3t(ji,jj,jk,Kbb_a) ! fse3t_b prior update should be used
+                              ze3b = e3t(ji,jj,jk,Kbb_a) & ! Recover e3tb before update
+                                   & - rn_atfp * ( e3t(ji,jj,jk,Kmm_a) - e3t(ji,jj,jk,Krhs_a) )
+                              ztb  = tr(ji,jj,jk,jn,Kbb_a) * ze3b
                               ztnu = tabres_child(ji,jj,jk,jn) * e3t(ji,jj,jk,Kmm_a)
                               ztno = tr(ji,jj,jk,jn,Kmm_a) * e3t(ji,jj,jk,Krhs_a)
                               tr(ji,jj,jk,jn,Kbb_a) = ( ztb + rn_atfp * ( ztnu - ztno) )  &
@@ -161,8 +156,10 @@ CONTAINS
             END DO
          ELSE
             DO jn = 1,jptra
-               tabres(i1:i2,j1:j2,k1:k2,jn) =  tabres(i1:i2,j1:j2,k1:k2,jn) * e3t_0(i1:i2,j1:j2,k1:k2) &
-                                            & * tmask(i1:i2,j1:j2,k1:k2)
+               DO jk = k1, k2
+                  tabres(i1:i2,j1:j2,jk,jn) =  tabres(i1:i2,j1:j2,jk,jn) &
+                                            & * tmask(i1:i2,j1:j2,jk)
+               END DO
             ENDDO
 #if ! defined key_RK3
             IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
@@ -172,7 +169,9 @@ CONTAINS
                      DO jj = j1, j2
                         DO ji = i1, i2
                            IF( tabres(ji,jj,jk,jn) /= 0._wp ) THEN
-                              ztb  = tr(ji,jj,jk,jn,Kbb_a) * e3t(ji,jj,jk,Kbb_a) ! fse3t_b prior update should be used
+                              ze3b = e3t(ji,jj,jk,Kbb_a) & ! Recover e3tb before update
+                                   & - rn_atfp * ( e3t(ji,jj,jk,Kmm_a) - e3t(ji,jj,jk,Krhs_a) )
+                              ztb  = tr(ji,jj,jk,jn,Kbb_a) * ze3b
                               ztnu = tabres(ji,jj,jk,jn)
                               ztno = tr(ji,jj,jk,jn,Kmm_a) * e3t(ji,jj,jk,Krhs_a)
                               tr(ji,jj,jk,jn,Kbb_a) = ( ztb + rn_atfp * ( ztnu - ztno) )  &

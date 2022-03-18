@@ -1,5 +1,4 @@
 #undef UPD_HIGH   /* MIX HIGH UPDATE */
-#define DIV_CONS   /* DIVERGENCE CONS */
 #if defined key_agrif
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -93,11 +92,23 @@
       ind1 = MAX(nbghostcellsfine_tot_x, nbghostcellsfine_tot_y)
       imaxrho = MAX(Agrif_irhox(), Agrif_irhoy())
 
-      CALL agrif_declare_variable((/2,2,0  /),(/ind2  ,ind3,0    /),(/'x','y','N'    /),(/1,1,1  /),(/jpi,jpj,jpk    /),        e3t_id)
-      CALL agrif_declare_variable((/2,2,0  /),(/ind2  ,ind3,0    /),(/'x','y','N'    /),(/1,1,1  /),(/jpi,jpj,jpk    /),e3t0_interp_id)
+      CALL agrif_declare_variable((/2,2,0  /),(/ind2  ,ind3,  0  /),(/'x','y','N'    /),(/1,1,1  /),(/jpi,jpj,jpk    /),        e3t_id)
+      CALL agrif_declare_variable((/1,2,0  /),(/ind2-1,ind3,  0  /),(/'x','y','N'    /),(/1,1,1  /),(/jpi,jpj,jpk    /),        e3u_id)
+      CALL agrif_declare_variable((/2,1,0  /),(/ind2  ,ind3-1,0  /),(/'x','y','N'    /),(/1,1,1  /),(/jpi,jpj,jpk    /),        e3v_id)
+      CALL agrif_declare_variable((/1,1,0  /),(/ind2-1,ind3-1,0  /),(/'x','y','N'    /),(/1,1,1  /),(/jpi,jpj,jpk    /),        e3f_id)
+#if defined key_qco
+      CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),        r3t_id)
+      CALL agrif_declare_variable((/1,2    /),(/ind2-1,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),        r3u_id)
+      CALL agrif_declare_variable((/2,1    /),(/ind2  ,ind3-1    /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),        r3v_id)
+      CALL agrif_declare_variable((/1,1    /),(/ind2-1,ind3-1    /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),        r3f_id)
+#endif
+      CALL agrif_declare_variable((/2,2,0  /),(/ind2  ,ind3  ,0  /),(/'x','y','N'    /),(/1,1,1  /),(/jpi,jpj,jpk    /),e3t0_interp_id)
       CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),       mbkt_id)
       CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),        ht0_id)
-   
+      CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /), e1e2t_frac_id)   
+      CALL agrif_declare_variable((/1,2    /),(/ind2-1,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),   e2u_frac_id)   
+      CALL agrif_declare_variable((/2,1    /),(/ind2  ,ind3-1    /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),   e1v_frac_id)   
+
       ! Initial or restart velues
       its = jpts+1
       CALL agrif_declare_variable((/2,2,0,0/),(/ind2  ,ind3  ,0,0/),(/'x','y','N','N'/),(/1,1,1,1/),(/jpi,jpj,jpk,its/), tsini_id)
@@ -105,18 +116,32 @@
       CALL agrif_declare_variable((/2,1,0,0/),(/ind2  ,ind3-1,0,0/),(/'x','y','N','N'/),(/1,1,1,1/),(/jpi,jpj,jpk,2  /),  vini_id)
       CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),sshini_id)
       ! 
-      ! Update location
-      CALL agrif_declare_variable((/2,2/),(/ind2  ,ind3  /),(/'x','y'/),(/1,1/),(/jpi,jpj/), batupd_id)
      
       ! 2. Type of interpolation
       !-------------------------
       CALL Agrif_Set_bcinterp(        e3t_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp(        e3u_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp(        e3v_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp(        e3f_id,interp =AGRIF_constant)
+#if defined key_qco
+      CALL Agrif_Set_bcinterp(        r3t_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp(        r3u_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp(        r3v_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp(        r3f_id,interp =AGRIF_constant)
+#endif
       CALL Agrif_Set_bcinterp(e3t0_interp_id,interp =AGRIF_linear  )
       CALL Agrif_Set_interp  (e3t0_interp_id,interp =AGRIF_linear  )
       CALL Agrif_Set_bcinterp(       mbkt_id,interp =AGRIF_constant)
       CALL Agrif_Set_interp  (       mbkt_id,interp =AGRIF_constant)
       CALL Agrif_Set_bcinterp(        ht0_id,interp =AGRIF_constant)
       CALL Agrif_Set_interp  (        ht0_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp( e1e2t_frac_id,interp =AGRIF_constant)
+      CALL Agrif_Set_interp  ( e1e2t_frac_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp(   e2u_frac_id,interp =AGRIF_constant)
+      CALL Agrif_Set_interp  (   e2u_frac_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp(   e1v_frac_id,interp =AGRIF_constant)
+      CALL Agrif_Set_interp  (   e1v_frac_id,interp =AGRIF_constant)
+
 
       ! Initial fields
       CALL Agrif_Set_bcinterp( tsini_id,interp =AGRIF_linear  )
@@ -125,30 +150,57 @@
       CALL Agrif_Set_interp  (  uini_id,interp =AGRIF_linear  )
       CALL Agrif_Set_bcinterp(  vini_id,interp =AGRIF_linear  )
       CALL Agrif_Set_interp  (  vini_id,interp =AGRIF_linear  )
-      CALL Agrif_Set_bcinterp(sshini_id,interp =AGRIF_linear  )
+      IF ( lk_div_cons ) THEN
+         CALL Agrif_Set_bcinterp(sshini_id,interp =AGRIF_constant)
+      ELSE
+         CALL Agrif_Set_bcinterp(sshini_id,interp =AGRIF_linear  )
+      ENDIF
       CALL Agrif_Set_interp  (sshini_id,interp =AGRIF_linear  )
 
        ! 3. Location of interpolation
       !-----------------------------
       CALL Agrif_Set_bc(  e3t_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )  
-
+      CALL Agrif_Set_bc(  e3u_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )  
+      CALL Agrif_Set_bc(  e3v_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )  
+      CALL Agrif_Set_bc(  e3f_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )  
+#if defined key_qco
+      CALL Agrif_Set_bc(  r3t_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )  
+      CALL Agrif_Set_bc(  r3u_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )  
+      CALL Agrif_Set_bc(  r3v_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )  
+      CALL Agrif_Set_bc(  r3f_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )  
+#endif      
       ! extend the interpolation zone by 1 more point than necessary:
       ! RB check here
       CALL Agrif_Set_bc( e3t0_interp_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
       CALL Agrif_Set_bc(        mbkt_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
       CALL Agrif_Set_bc(         ht0_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
+      CALL Agrif_Set_bc(  e1e2t_frac_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
+      CALL Agrif_Set_bc(    e2u_frac_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
+      CALL Agrif_Set_bc(    e1v_frac_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
 
       CALL Agrif_Set_bc(       tsini_id, (/0,ind1-1/) ) ! if west,  rhox=3 and nbghost=3: columns 2 to 4
       CALL Agrif_Set_bc(        uini_id, (/0,ind1-1/) ) 
       CALL Agrif_Set_bc(        vini_id, (/0,ind1-1/) )
-      CALL Agrif_Set_bc(      sshini_id, (/0,ind1-1/) )
+      CALL Agrif_Set_bc(      sshini_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
 
       ! 4. Update type
       !--------------- 
 # if defined UPD_HIGH
-      CALL Agrif_Set_Updatetype(batupd_id, update = Agrif_Update_Full_Weighting)
+      CALL Agrif_Set_Updatetype(e3t0_interp_id, update = Agrif_Update_Full_Weighting)
+#if defined key_qco
+      CALL Agrif_Set_Updatetype(        r3t_id,update  = Agrif_Update_Full_Weighting)
+      CALL Agrif_Set_Updatetype(        r3u_id,update1 = Agrif_Update_Average       , update2 = Agrif_Update_Full_Weighting)
+      CALL Agrif_Set_Updatetype(        r3v_id,update1 = Agrif_Update_Full_Weighting, update2 = Agrif_Update_Average       )
+      CALL Agrif_Set_Updatetype(        r3f_id,update  = Agrif_Update_Copy          )
+#endif
 #else
-      CALL Agrif_Set_Updatetype(batupd_id, update = Agrif_Update_Average)
+      CALL Agrif_Set_Updatetype(e3t0_interp_id, update = Agrif_Update_Average)
+#if defined key_qco
+      CALL Agrif_Set_Updatetype(        r3t_id,update  = AGRIF_Update_Average)
+      CALL Agrif_Set_Updatetype(        r3u_id,update1 = Agrif_Update_Copy   , update2 = Agrif_Update_Average)
+      CALL Agrif_Set_Updatetype(        r3v_id,update1 = Agrif_Update_Average, update2 = Agrif_Update_Copy   )
+      CALL Agrif_Set_Updatetype(        r3f_id,update  = Agrif_Update_Copy   )
+#endif 
 #endif      
 
       CALL Agrif_Set_ExternalMapping(nemo_mapping)
@@ -190,14 +242,17 @@
 
       ! Build consistent parent bathymetry and number of levels
       ! on the child grid 
-      Agrif_UseSpecialValue = .FALSE.
+      Agrif_UseSpecialValue = .TRUE.
       ht0_parent( :,:) = 0._wp
       mbkt_parent(:,:) = 0
       !
 !     CALL Agrif_Bc_variable(ht0_id ,calledweight=1.,procname=interpht0 )
 !     CALL Agrif_Bc_variable(mbkt_id,calledweight=1.,procname=interpmbkt)
-      CALL Agrif_Init_Variable(ht0_id , procname=interpht0 )
-      CALL Agrif_Init_Variable(mbkt_id, procname=interpmbkt)
+      CALL Agrif_Init_Variable(ht0_id,        procname=interpht0 )
+      CALL Agrif_Init_Variable(mbkt_id,       procname=interpmbkt)
+      CALL Agrif_Init_variable(e1e2t_frac_id, procname=interp_e1e2t_frac) 
+      CALL Agrif_Init_variable(  e2u_frac_id, procname=interp_e2u_frac) 
+      CALL Agrif_Init_variable(  e1v_frac_id, procname=interp_e1v_frac) 
       !
       ! Assume step wise change of bathymetry near interface
       ! TODO: Switch to linear interpolation of bathymetry in the s-coordinate case
@@ -321,7 +376,7 @@
       ! 2. First interpolations of potentially non zero fields
       !-------------------------------------------------------
       Agrif_SpecialValue    = 0._wp
-      Agrif_UseSpecialValue = .TRUE.
+      Agrif_UseSpecialValue = l_spc_tra 
       l_vremap              = ln_vert_remap
       CALL Agrif_Bc_variable(ts_interp_id,calledweight=1.,procname=interptsn)
       CALL Agrif_Sponge
@@ -354,7 +409,7 @@
       uu(:,:,:,Krhs_a) = 0._wp
       vv(:,:,:,Krhs_a) = 0._wp
 
-      Agrif_UseSpecialValue = .TRUE.
+      Agrif_UseSpecialValue = l_spc_ssh 
       CALL Agrif_Bc_variable(sshn_id,calledweight=1., procname=interpsshn )
       hbdy(:,:) = 0._wp
       ssh(:,:,Krhs_a) = 0._wp
@@ -453,6 +508,7 @@
       CALL agrif_declare_variable((/2,1,0,0/),(/ind2,ind3-1,0,0/),(/'x','y','N','N'/),(/1,1,1,1/),(/jpi,jpj,jpk,2/),vn_sponge_id)
 
       CALL agrif_declare_variable((/2,2/),(/ind2,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/)  ,sshn_id)
+      CALL agrif_declare_variable((/2,2/),(/ind2,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/)  ,sshn_frc_id)
       CALL agrif_declare_variable((/1,2/),(/ind2-1,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/), unb_interp_id)
       CALL agrif_declare_variable((/2,1/),(/ind2,ind3-1/),(/'x','y'/),(/1,1/),(/jpi,jpj/), vnb_interp_id)
       CALL agrif_declare_variable((/1,2/),(/ind2-1,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/),ub2b_interp_id)
@@ -477,33 +533,55 @@
      
       ! 2. Type of interpolation
       !-------------------------
-      CALL Agrif_Set_bcinterp( ts_interp_id,interp =AGRIF_linear)
-      CALL Agrif_Set_bcinterp( ts_sponge_id,interp =AGRIF_linear)
+      l_spc_tra = .TRUE. ! No extrapolation
+      CALL Agrif_Set_bcinterp( ts_interp_id,interp =AGRIF_constant)
+      CALL Agrif_Set_bcinterp( ts_sponge_id,interp =AGRIF_constant)
+!      l_spc_tra = .TRUE. ! Use extrapolation
+!      CALL Agrif_Set_bcinterp( ts_interp_id,interp =AGRIF_linear)
+!      CALL Agrif_Set_bcinterp( ts_sponge_id,interp =AGRIF_linear)
 
-#if defined DIV_CONS
-      lk_tint2d_notinterp = .TRUE.
-      CALL Agrif_Set_bcinterp(sshn_id,interp=AGRIF_constant)
-      CALL Agrif_Set_bcinterp(ub2b_cor_id,interp=AGRIF_constant)
-      CALL Agrif_Set_bcinterp(vb2b_cor_id,interp=AGRIF_constant)
-      CALL Agrif_Set_bcinterp(ub2b_interp_id,interp1=Agrif_linear,interp2=AGRIF_linearconserv)
-      CALL Agrif_Set_bcinterp(vb2b_interp_id,interp1=AGRIF_linearconserv,interp2=Agrif_linear)
-#else
-      lk_tint2d_notinterp = .FALSE.
-      CALL Agrif_Set_bcinterp(sshn_id,interp =AGRIF_linear)
-      CALL Agrif_Set_bcinterp(ub2b_interp_id,interp1=Agrif_linear,interp2=AGRIF_ppm) 
-      CALL Agrif_Set_bcinterp(vb2b_interp_id,interp1=AGRIF_ppm,interp2=Agrif_linear)
-#endif
+      IF ( lk_div_cons ) THEN
+         l_spc_ssh = .FALSE.
+         CALL Agrif_Set_bcinterp(sshn_id,interp=AGRIF_constant)
+         CALL Agrif_Set_bcinterp(ub2b_cor_id,interp=AGRIF_constant)
+         CALL Agrif_Set_bcinterp(vb2b_cor_id,interp=AGRIF_constant)
+! JC: Disable this until we found a workaround for masked corners:
+! Revert to zero order interpolation meanwhile
+!      CALL Agrif_Set_bcinterp(ub2b_interp_id,interp1=Agrif_linear,interp2=AGRIF_linearconserv)
+!      CALL Agrif_Set_bcinterp(vb2b_interp_id,interp1=AGRIF_linearconserv,interp2=Agrif_linear)
+         CALL Agrif_Set_bcinterp(ub2b_interp_id,interp1=Agrif_linear,interp2=AGRIF_constant)
+         CALL Agrif_Set_bcinterp(vb2b_interp_id,interp1=AGRIF_constant,interp2=Agrif_linear)
 
-      CALL Agrif_Set_bcinterp(unb_interp_id,interp1=Agrif_linear,interp2=AGRIF_ppm   )
-      CALL Agrif_Set_bcinterp(vnb_interp_id,interp1=AGRIF_ppm   ,interp2=Agrif_linear)
-      CALL Agrif_Set_bcinterp(unb_sponge_id,interp1=Agrif_linear,interp2=AGRIF_ppm   )
-      CALL Agrif_Set_bcinterp(vnb_sponge_id,interp1=AGRIF_ppm   ,interp2=Agrif_linear)
+         CALL Agrif_Set_bcinterp(unb_interp_id,interp1=Agrif_linear,interp2=AGRIF_constant )
+         CALL Agrif_Set_bcinterp(vnb_interp_id,interp1=AGRIF_constant,interp2=Agrif_linear )
+         CALL Agrif_Set_bcinterp(unb_sponge_id,interp1=Agrif_linear,interp2=AGRIF_constant )
+         CALL Agrif_Set_bcinterp(vnb_sponge_id,interp1=AGRIF_constant,interp2=Agrif_linear )
+
+         CALL Agrif_Set_bcinterp(sshn_frc_id,interp=AGRIF_constant)
+         
+      ELSE
+         l_spc_ssh = .TRUE.
+         CALL Agrif_Set_bcinterp(sshn_id,interp =AGRIF_linear)
+         CALL Agrif_Set_bcinterp(ub2b_interp_id,interp1=Agrif_linear,interp2=AGRIF_ppm) 
+         CALL Agrif_Set_bcinterp(vb2b_interp_id,interp1=AGRIF_ppm,interp2=Agrif_linear)
+
+         CALL Agrif_Set_bcinterp(unb_interp_id,interp1=Agrif_linear,interp2=AGRIF_ppm   )
+         CALL Agrif_Set_bcinterp(vnb_interp_id,interp1=AGRIF_ppm   ,interp2=Agrif_linear)
+         CALL Agrif_Set_bcinterp(unb_sponge_id,interp1=Agrif_linear,interp2=AGRIF_ppm   )
+         CALL Agrif_Set_bcinterp(vnb_sponge_id,interp1=AGRIF_ppm   ,interp2=Agrif_linear)
+      ENDIF
 
       CALL Agrif_Set_bcinterp(un_interp_id,interp1=Agrif_linear,interp2=AGRIF_ppm   )
       CALL Agrif_Set_bcinterp(vn_interp_id,interp1=AGRIF_ppm   ,interp2=Agrif_linear)
 
       CALL Agrif_Set_bcinterp(un_sponge_id,interp1=Agrif_linear,interp2=AGRIF_ppm   )
       CALL Agrif_Set_bcinterp(vn_sponge_id,interp1=AGRIF_ppm   ,interp2=Agrif_linear)
+
+!      CALL Agrif_Set_bcinterp(un_interp_id,interp1=Agrif_linear,interp2=AGRIF_constant   )
+!      CALL Agrif_Set_bcinterp(vn_interp_id,interp1=AGRIF_constant   ,interp2=Agrif_linear)
+
+!      CALL Agrif_Set_bcinterp(un_sponge_id,interp1=Agrif_linear,interp2=AGRIF_constant   )
+!      CALL Agrif_Set_bcinterp(vn_sponge_id,interp1=AGRIF_constant   ,interp2=Agrif_linear)
 
       IF( ln_zdftke.OR.ln_zdfgls )  CALL Agrif_Set_bcinterp( avm_id, interp=AGRIF_linear )
     
@@ -522,6 +600,7 @@
       CALL Agrif_Set_bc(  vn_sponge_id, (/-nn_sponge_len*imaxrho-1,0/) )  ! columns 4 to 11
 
       CALL Agrif_Set_bc(       sshn_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
+      CALL Agrif_Set_bc(   sshn_frc_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
       CALL Agrif_Set_bc( unb_interp_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
       CALL Agrif_Set_bc( vnb_interp_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
       CALL Agrif_Set_bc(ub2b_interp_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
@@ -547,7 +626,11 @@
       CALL Agrif_Set_Updatetype(ub2b_update_id,update1 = Agrif_Update_Average       , update2 = Agrif_Update_Full_Weighting)
       CALL Agrif_Set_Updatetype(vb2b_update_id,update1 = Agrif_Update_Full_Weighting, update2 = Agrif_Update_Average       )
       CALL Agrif_Set_Updatetype(       sshn_id,update  = Agrif_Update_Full_Weighting)
+      CALL Agrif_Set_Updatetype(   sshn_frc_id,update  = Agrif_Update_Full_Weighting)
       CALL Agrif_Set_Updatetype(        e3t_id,update  = Agrif_Update_Full_Weighting)
+      CALL Agrif_Set_Updatetype(        e3u_id,update1 = Agrif_Update_Average       , update2 = Agrif_Update_Full_Weighting)
+      CALL Agrif_Set_Updatetype(        e3v_id,update1 = Agrif_Update_Full_Weighting, update2 = Agrif_Update_Average       )
+      CALL Agrif_Set_Updatetype(        e3f_id,update  = Agrif_Update_Copy          )
 
   !    IF( ln_zdftke.OR.ln_zdfgls ) THEN
 !         CALL Agrif_Set_Updatetype( en_id, update = AGRIF_Update_Full_Weighting)
@@ -565,7 +648,11 @@
       CALL Agrif_Set_Updatetype(ub2b_update_id,update1 = Agrif_Update_Copy   , update2 = Agrif_Update_Average)
       CALL Agrif_Set_Updatetype(vb2b_update_id,update1 = Agrif_Update_Average, update2 = Agrif_Update_Copy   )
       CALL Agrif_Set_Updatetype(       sshn_id,update  = AGRIF_Update_Average)
+      CALL Agrif_Set_Updatetype(   sshn_frc_id,update  = AGRIF_Update_Average)
       CALL Agrif_Set_Updatetype(        e3t_id,update  = AGRIF_Update_Average)
+      CALL Agrif_Set_Updatetype(        e3u_id,update1 = Agrif_Update_Copy   , update2 = Agrif_Update_Average)
+      CALL Agrif_Set_Updatetype(        e3v_id,update1 = Agrif_Update_Average, update2 = Agrif_Update_Copy   )
+      CALL Agrif_Set_Updatetype(        e3f_id,update  = Agrif_Update_Copy   )
 
  !     IF( ln_zdftke.OR.ln_zdfgls ) THEN
 !         CALL Agrif_Set_Updatetype( en_id, update = AGRIF_Update_Average)
@@ -719,8 +806,8 @@
 
       ! 2. First interpolations of potentially non zero fields
       !-------------------------------------------------------
-      Agrif_SpecialValue=0._wp
-      Agrif_UseSpecialValue = .TRUE.
+      Agrif_SpecialValue    = 0._wp
+      Agrif_UseSpecialValue = l_spc_top 
       l_vremap              = ln_vert_remap
       CALL Agrif_Bc_variable(trn_id,calledweight=1.,procname=interptrn)
       CALL Agrif_Sponge
@@ -795,8 +882,12 @@
 
       ! 2. Type of interpolation
       !-------------------------
-      CALL Agrif_Set_bcinterp(trn_id,interp=AGRIF_linear)
-      CALL Agrif_Set_bcinterp(trn_sponge_id,interp=AGRIF_linear)
+!      l_spc_top = .TRUE.
+!      CALL Agrif_Set_bcinterp(trn_id,interp=AGRIF_linear)
+!      CALL Agrif_Set_bcinterp(trn_sponge_id,interp=AGRIF_linear)
+      l_spc_top = .FALSE.
+      CALL Agrif_Set_bcinterp(trn_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bcinterp(trn_sponge_id,interp=AGRIF_constant)
 
       ! 3. Location of interpolation
       !-----------------------------

@@ -149,7 +149,7 @@ CONTAINS
       ! --------------------------------- !
       ! 2 -  Content variations with ssh  !
       ! --------------------------------- !
-      ! glob_sum_full is needed because you keep the full interior domain to compute the sum (iscpl)
+      ! glob_sum is needed because you keep only the interior domain to compute the sum (iscpl)
       !
       !                    ! volume variation (calculated with ssh)
       ztmp(:,:,11) = surf(:,:)*ssh(:,:,Kmm) - surf_ini(:,:)*ssh_ini(:,:)
@@ -170,7 +170,7 @@ CONTAINS
       ENDIF
 
       ! global sum
-      zbg(11:13) = glob_sum_full_vec( 'dia_hsb', ztmp(:,:,11:13) )
+      zbg(11:13) = glob_sum_vec( 'dia_hsb', ztmp(:,:,11:13) )
       
       zdiff_v1 = zbg(11)
       !                    ! heat & salt content variation (associated with ssh)
@@ -182,7 +182,7 @@ CONTAINS
       ! --------------------------------- !
       ! 3 -  Content variations with e3t  !
       ! --------------------------------- !
-      ! glob_sum_full is needed because you keep the full interior domain to compute the sum (iscpl)
+      ! glob_sum is needed because you keep only the interior domain to compute the sum (iscpl)
       !
       DO jk = 1, jpkm1           ! volume
          ztmpk(:,:,jk,1) =   surf    (:,:) * e3t(:,:,jk,Kmm)*tmask(:,:,jk)   &
@@ -201,9 +201,9 @@ CONTAINS
       END DO
       
       ! global sum
-      zbg(14:17) = glob_sum_full_vec( 'dia_hsb', ztmpk(:,:,:,1:4) )
+      zbg(14:17) = glob_sum_vec( 'dia_hsb', ztmpk(:,:,:,1:4) )
       
-      zdiff_v2 = zbg(14)     ! glob_sum_full needed as tmask and tmask_ini could be different
+      zdiff_v2 = zbg(14)     ! glob_sum needed as tmask and tmask_ini could be different
       zdiff_hc = zbg(15)
       zdiff_sc = zbg(16)
       zvol_tot = zbg(17)

@@ -276,21 +276,37 @@
       CALL agrif_declare_variable((/2,1/),(/ind2,ind3-1/),(/'x','y'/),(/1,1/),(/jpi,jpj/),e2v_id)
       CALL agrif_declare_variable((/1,1/),(/ind2-1,ind3-1/),(/'x','y'/),(/1,1/),(/jpi,jpj/),e2f_id)
 
+      CALL agrif_declare_variable((/2,2,0/),(/ind2,ind3,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,3/),e1e2t_upd_id)
+
+      CALL agrif_declare_variable((/2,2/),(/ind2,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/),e1e2t_frac_id)
+      CALL agrif_declare_variable((/1,2/),(/ind2-1,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/),e2u_frac_id)
+      CALL agrif_declare_variable((/2,1/),(/ind2,ind3-1/),(/'x','y'/),(/1,1/),(/jpi,jpj/),e1v_frac_id)
+
       ! Bathymetry
 
       CALL agrif_declare_variable((/2,2/),(/ind2,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/),bathy_id)
+      CALL agrif_declare_variable((/2,2/),(/ind2,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/),ht0_id)
 
       ! Vertical scale factors
       CALL agrif_declare_variable((/2,2,0/),(/ind2,ind3,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3t_id)
       CALL agrif_declare_variable((/2,2,0/),(/ind2,ind3,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3t_copy_id)
       CALL agrif_declare_variable((/2,2,0/),(/ind2,ind3,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk+1/),e3t_connect_id)
 
-      CALL agrif_declare_variable((/1,2,0/),(/ind2-1,ind3,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3u_id)
-      CALL agrif_declare_variable((/2,1,0/),(/ind2,ind3-1,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3v_id)
+      CALL agrif_declare_variable((/2,2,0/),(/ind2,ind3,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3w_id)
+
+      CALL agrif_declare_variable((/1,2,0/),(/ind2-1,ind3  ,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3u_id)
+      CALL agrif_declare_variable((/2,1,0/),(/ind2  ,ind3-1,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3v_id)
+      CALL agrif_declare_variable((/1,1,0/),(/ind2-1,ind3-1,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3f_id)
+
+      CALL agrif_declare_variable((/1,2,0/),(/ind2-1,ind3  ,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3uw_id)
+      CALL agrif_declare_variable((/2,1,0/),(/ind2  ,ind3-1,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,jpk/),e3vw_id)
 
       ! Bottom level
 
-      CALL agrif_declare_variable((/2,2/),(/ind2,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/),bottom_level_id)
+      CALL agrif_declare_variable((/2,2/),(/ind2,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/),mbkt_id)
+      CALL agrif_declare_variable((/1,2/),(/ind2-1,ind3/),(/'x','y'/),(/1,1/),(/jpi,jpj/),mbku_id)
+      CALL agrif_declare_variable((/2,1/),(/ind2,ind3-1/),(/'x','y'/),(/1,1/),(/jpi,jpj/),mbkv_id)
+      CALL agrif_declare_variable((/1,1/),(/ind2-1,ind3-1/),(/'x','y'/),(/1,1/),(/jpi,jpj/),mbkf_id)
 
       CALL Agrif_Set_bcinterp(glamt_id,interp=AGRIF_linear)
       CALL Agrif_Set_interp(glamt_id,interp=AGRIF_linear)
@@ -323,12 +339,12 @@
       CALL Agrif_Set_bcinterp(gphif_id,interp=AGRIF_linear)
       CALL Agrif_Set_interp(gphif_id,interp=AGRIF_linear)
       CALL Agrif_Set_bc( gphif_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)/) )
-
       !
 
-      CALL Agrif_Set_bcinterp(e1t_id,interp=AGRIF_ppm)
+!      CALL Agrif_Set_bcinterp(e1t_id,interp=AGRIF_ppm)
+      CALL Agrif_Set_bcinterp(e1t_id,interp=AGRIF_constant)
       CALL Agrif_Set_interp(e1t_id,interp=AGRIF_ppm)
-      CALL Agrif_Set_bc( e1t_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_bc( e1t_id, (/-MAX(Agrif_irhox(), Agrif_irhoy())*npt_shift_bar,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
 
       CALL Agrif_Set_bcinterp(e1u_id, interp1=Agrif_linear, interp2=AGRIF_ppm)
       CALL Agrif_Set_interp(e1u_id, interp1=Agrif_linear, interp2=AGRIF_ppm)
@@ -337,18 +353,21 @@
       CALL Agrif_Set_bcinterp(e1v_id,interp1=AGRIF_ppm, interp2=Agrif_linear)
       CALL Agrif_Set_interp(e1v_id, interp1=AGRIF_ppm, interp2=Agrif_linear)
       CALL Agrif_Set_bc( e1v_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)/) )
+      CALL Agrif_Set_Updatetype(e1v_id,update1 = Agrif_Update_Average, update2 = Agrif_Update_Copy)
 
       CALL Agrif_Set_bcinterp(e1f_id,interp=AGRIF_linear)
       CALL Agrif_Set_interp(e1f_id,interp=AGRIF_linear)
       CALL Agrif_Set_bc( e1f_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)/) )
 
-      CALL Agrif_Set_bcinterp(e2t_id,interp=AGRIF_ppm)
+!      CALL Agrif_Set_bcinterp(e2t_id,interp=AGRIF_ppm)
+      CALL Agrif_Set_bcinterp(e2t_id,interp=AGRIF_constant)
       CALL Agrif_Set_interp(e2t_id,interp=AGRIF_ppm)
-      CALL Agrif_Set_bc( e2t_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_bc( e2t_id, (/-MAX(Agrif_irhox(), Agrif_irhoy())*npt_shift_bar,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
 
       CALL Agrif_Set_bcinterp(e2u_id,interp1=Agrif_linear, interp2=AGRIF_ppm)
       CALL Agrif_Set_interp(e2u_id,interp1=Agrif_linear, interp2=AGRIF_ppm)
       CALL Agrif_Set_bc( e2u_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)/) )
+      CALL Agrif_Set_Updatetype(e2u_id,update1 = Agrif_Update_Copy, update2 = Agrif_Update_Average)
 
       CALL Agrif_Set_bcinterp(e2v_id,interp1=AGRIF_ppm, interp2=Agrif_linear)
       CALL Agrif_Set_interp(e2v_id,interp1=AGRIF_ppm, interp2=Agrif_linear)
@@ -358,13 +377,31 @@
       CALL Agrif_Set_interp(e2f_id,interp=AGRIF_linear)
       CALL Agrif_Set_bc( e2f_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)/) )
 
+      CALL Agrif_Set_bcinterp(e1e2t_frac_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(e1e2t_frac_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc(e1e2t_frac_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)/) )
+
+      CALL Agrif_Set_bcinterp(e2u_frac_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(e2u_frac_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc(e2u_frac_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)/) )
+
+      CALL Agrif_Set_bcinterp(e1v_frac_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(e1v_frac_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc(e1v_frac_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)/) )
+
+      CALL Agrif_Set_Updatetype(e1e2t_upd_id, update = AGRIF_Update_Average)
+
       CALL Agrif_Set_bcinterp(bathy_id,interp=AGRIF_linear)
       CALL Agrif_Set_interp(bathy_id,interp=AGRIF_linear)
-      CALL Agrif_Set_bc( bathy_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_bc(bathy_id, (/0, max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+
+      CALL Agrif_Set_bcinterp(ht0_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(  ht0_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc( ht0_id, (/-npt_copy*MAX(Agrif_irhox(), Agrif_irhoy())-2, max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
 
       ! Vertical scale factors
-      CALL Agrif_Set_bcinterp(e3t_id,interp=AGRIF_ppm)
-      CALL Agrif_Set_interp(e3t_id,interp=AGRIF_ppm)
+      CALL Agrif_Set_bcinterp(e3t_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(e3t_id,interp=AGRIF_constant)
       CALL Agrif_Set_bc( e3t_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
       CALL Agrif_Set_Updatetype( e3t_id, update = AGRIF_Update_Average)
 
@@ -381,23 +418,59 @@
       CALL Agrif_Set_bc( e3t_connect_id, &
       & (/-(npt_copy+npt_connect)*iraf-1,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/))
 
+      CALL Agrif_Set_bcinterp(e3w_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(e3w_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc( e3w_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_Updatetype( e3w_id, update = AGRIF_Update_Average)
+
       CALL Agrif_Set_bcinterp(e3u_id, interp1=Agrif_linear, interp2=AGRIF_ppm)
       CALL Agrif_Set_interp(e3u_id, interp1=Agrif_linear, interp2=AGRIF_ppm)
-      CALL Agrif_Set_bc( e3u_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_bc( e3u_id, (/-npt_copy*MAX(Agrif_irhox(), Agrif_irhoy()),max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
       CALL Agrif_Set_Updatetype(e3u_id,update1 = Agrif_Update_Copy, update2 = Agrif_Update_Average)
 
-      CALL Agrif_Set_bcinterp(e3v_id,interp1=AGRIF_ppm, interp2=Agrif_linear)
+      CALL Agrif_Set_bcinterp(e3v_id,interp1=AGRIF_linear, interp2=Agrif_linear)
       CALL Agrif_Set_interp(e3v_id, interp1=AGRIF_ppm, interp2=Agrif_linear)
-      CALL Agrif_Set_bc( e3v_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_bc( e3v_id, (/-npt_copy*MAX(Agrif_irhox(), Agrif_irhoy()),max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
       CALL Agrif_Set_Updatetype(e3v_id,update1 = Agrif_Update_Average, update2 = Agrif_Update_Copy)
 
-      ! Bottom level
-      CALL Agrif_Set_bcinterp(bottom_level_id,interp=AGRIF_constant)
-      CALL Agrif_Set_interp(bottom_level_id,interp=AGRIF_constant)
-      CALL Agrif_Set_bc( bottom_level_id, (/-npt_copy*iraf-1,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/))
-      CALL Agrif_Set_Updatetype( bottom_level_id, update = AGRIF_Update_Max)
+      CALL Agrif_Set_bcinterp(e3f_id,interp1=AGRIF_ppm, interp2=Agrif_linear)
+      CALL Agrif_Set_interp(e3f_id, interp1=AGRIF_ppm, interp2=Agrif_linear)
+      CALL Agrif_Set_bc( e3f_id, (/-npt_copy*MAX(Agrif_irhox(), Agrif_irhoy()),max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_Updatetype(e3f_id,update = Agrif_Update_Copy)
+
+      CALL Agrif_Set_bcinterp(e3uw_id, interp1=Agrif_linear, interp2=AGRIF_ppm)
+      CALL Agrif_Set_interp(e3uw_id, interp1=Agrif_linear, interp2=AGRIF_ppm)
+      CALL Agrif_Set_bc( e3uw_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_Updatetype(e3uw_id,update1 = Agrif_Update_Copy, update2 = Agrif_Update_Average)
+
+      CALL Agrif_Set_bcinterp(e3vw_id,interp1=AGRIF_ppm, interp2=Agrif_linear)
+      CALL Agrif_Set_interp(e3vw_id, interp1=AGRIF_ppm, interp2=Agrif_linear)
+      CALL Agrif_Set_bc( e3vw_id, (/0,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/) )
+      CALL Agrif_Set_Updatetype(e3vw_id,update1 = Agrif_Update_Average, update2 = Agrif_Update_Copy)
+
+      ! Bottom levels
+      CALL Agrif_Set_bcinterp(mbkt_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(mbkt_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc( mbkt_id, (/-npt_copy*iraf-1,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/))
+      CALL Agrif_Set_Updatetype( mbkt_id, update = AGRIF_Update_Max)
+
+      CALL Agrif_Set_bcinterp(mbku_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(mbku_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc( mbku_id, (/-npt_copy*iraf-1,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/))
+      CALL Agrif_Set_Updatetype( mbku_id, update1 = Agrif_Update_Copy,  update2 = AGRIF_Update_Max)
+
+      CALL Agrif_Set_bcinterp(mbkv_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(mbkv_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc( mbkv_id, (/-npt_copy*iraf-1,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/))
+      CALL Agrif_Set_Updatetype( mbkv_id, update1 = Agrif_Update_Max,  update2 = AGRIF_Update_Copy)
+
+      CALL Agrif_Set_bcinterp(mbkf_id,interp=AGRIF_constant)
+      CALL Agrif_Set_interp(mbkf_id,interp=AGRIF_constant)
+      CALL Agrif_Set_bc( mbkf_id, (/-npt_copy*iraf-1,max(nbghostcellsfine_tot_x,nbghostcellsfine_tot_y)-1/))
+      CALL Agrif_Set_Updatetype( mbkf_id, update = Agrif_Update_Copy)
 
       CALL Agrif_Set_ExternalMapping(nemo_mapping)
+
 
    END SUBROUTINE agrif_declare_var
 

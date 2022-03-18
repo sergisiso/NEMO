@@ -709,6 +709,8 @@ CONTAINS
       NAMELIST/namitd/ ln_cat_hfn, rn_himean, ln_cat_usr, rn_catbnd, rn_himin, rn_himax
       !!------------------------------------------------------------------
       !
+      rn_catbnd(:) =  0._wp ! Circumvent possible initialization by compiler
+                            ! to prevent from errors when writing output
       READ  ( numnam_ice_ref, namitd, IOSTAT = ios, ERR = 901)
 901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namitd in reference namelist' )
       READ  ( numnam_ice_cfg, namitd, IOSTAT = ios, ERR = 902 )

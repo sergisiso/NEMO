@@ -59,7 +59,7 @@ MODULE diahsb
    !Device data associate to PUBLIC arrays
    REAL(8), DIMENSION(:,:,:,:) , ALLOCATABLE, DEVICE :: d_e3t !
    REAL(8), DIMENSION(:,:,:) , ALLOCATABLE, DEVICE :: d_tmask !
-   REAL(8), DIMENSION(:,:) , ALLOCATABLE, DEVICE :: d_tmask_h !
+   REAL(8), DIMENSION(:,:) , ALLOCATABLE, DEVICE :: d_tmask_i !
    REAL(8), DIMENSION(:,:,:) , ALLOCATABLE, DEVICE :: d_tmask_ini !
    REAL(8), DIMENSION(:,:,:,:,:), ALLOCATABLE, DEVICE :: d_ts !
    !Device data associate to LOCAL/DEVICE arrays
@@ -237,10 +237,10 @@ CONTAINS
       & d_ts, d_hc_loc_ini, d_sc_loc_ini, d_tmask, d_tmask_ini, d_zwrkv, d_zwrkh, d_zwrks, d_zwrk, jpi, jpj, jpk, jpt, Kmm)
 
 
-      CALL filter_cuda<<<dimGrid, dimBlock, 0, str>>>(d_zwrkv , d_tmask_h , jpi, jpj, jpk)
-      CALL filter_cuda<<<dimGrid, dimBlock, 0, str>>>(d_zwrkh , d_tmask_h , jpi, jpj, jpk)
-      CALL filter_cuda<<<dimGrid, dimBlock, 0, str>>>(d_zwrks , d_tmask_h , jpi, jpj, jpk)
-      CALL filter_cuda<<<dimGrid, dimBlock, 0, str>>>(d_zwrk , d_tmask_h , jpi, jpj, jpk)
+      CALL filter_cuda<<<dimGrid, dimBlock, 0, str>>>(d_zwrkv , d_tmask_i , jpi, jpj, jpk)
+      CALL filter_cuda<<<dimGrid, dimBlock, 0, str>>>(d_zwrkh , d_tmask_i , jpi, jpj, jpk)
+      CALL filter_cuda<<<dimGrid, dimBlock, 0, str>>>(d_zwrks , d_tmask_i , jpi, jpj, jpk)
+      CALL filter_cuda<<<dimGrid, dimBlock, 0, str>>>(d_zwrk , d_tmask_i , jpi, jpj, jpk)
 
       ztmpv = 0.e0
       ztmph = 0.e0
@@ -597,7 +597,7 @@ CONTAINS
       ALLOCATE(d_e3t (jpi,jpj,jpk,jpt) ) !
       ALLOCATE(d_tmask (jpi,jpj,jpk) ) !
       ALLOCATE(d_tmask_ini (jpi,jpj,jpk) ) !
-      ALLOCATE(d_tmask_h (jpi,jpj) ) !
+      ALLOCATE(d_tmask_i (jpi,jpj) ) !
       ALLOCATE(d_ts (jpi,jpj,jpk,2,jpj) ) !
       !Device data associate to LOCAL/DEVICE arrays !
       ALLOCATE(d_surf (jpi,jpj) ) !
@@ -647,7 +647,7 @@ CONTAINS
        d_e3t_ini = e3t_ini
        d_tmask = tmask
        d_tmask_ini = tmask_ini
-       d_tmask_h = tmask_h
+       d_tmask_i = tmask_i
        h_ztmp = 0.0
 
       IF( ln_bdy ) CALL ctl_warn( 'dia_hsb_init: heat/salt budget does not consider open boundary fluxes' )

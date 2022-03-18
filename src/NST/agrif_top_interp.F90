@@ -62,7 +62,7 @@ CONTAINS
       ENDIF
       !
       Agrif_SpecialValue    = 0._wp
-      Agrif_UseSpecialValue = .TRUE.
+      Agrif_UseSpecialValue = l_spc_top 
       l_vremap              = ln_vert_remap
       !
       CALL Agrif_Bc_variable( trn_id,calledweight=ztindex, procname=interptrn )
@@ -86,7 +86,7 @@ CONTAINS
       ! vertical interpolation:
       REAL(wp) :: zhtot, zwgt
       REAL(wp), DIMENSION(k1:k2,1:jptra) :: tabin, tabin_i
-      REAL(wp), DIMENSION(k1:k2) :: z_in, h_in_i, z_in_i
+      REAL(wp), DIMENSION(k1:k2) :: z_in, h_in
       REAL(wp), DIMENSION(1:jpk) :: h_out, z_out
       !!----------------------------------------------------------------------
 
@@ -96,7 +96,7 @@ CONTAINS
          IF( l_ini_child )   Kmm_a = Kbb_a  
 
          DO jn = 1,jptra
-            DO jk=k1,k2
+            DO jk=k1,k2-1
                DO jj=j1,j2
                  DO ji=i1,i2
                        ptab(ji,jj,jk,jn) = tr(ji,jj,jk,jn,Kmm_a)
@@ -110,10 +110,10 @@ CONTAINS
             ! Warning: these are masked, hence extrapolated prior interpolation.
             DO jj=j1,j2
                DO ji=i1,i2
-                  ptab(ji,jj,k1,jptra+1) = 0.5_wp * tmask(ji,jj,k1) * e3t(ji,jj,k1,Kmm_a)
-                  DO jk=k1+1,k2
+                  ptab(ji,jj,k1,jptra+1) = 0.5_wp * tmask(ji,jj,k1) * e3w(ji,jj,k1,Kmm_a)
+                  DO jk=k1+1,k2-1
                      ptab(ji,jj,jk,jptra+1) = tmask(ji,jj,jk) * &
-                        & ( ptab(ji,jj,jk-1,jptra+1) + 0.5_wp * (e3t(ji,jj,jk-1,Kmm_a)+e3t(ji,jj,jk,Kmm_a)) )
+                        & ( ptab(ji,jj,jk-1,jptra+1) + e3w(ji,jj,jk,Kmm_a) )
                   END DO
                END DO
             END DO
@@ -130,52 +130,65 @@ CONTAINS
          IF( l_ini_child )   Krhs_a = Kbb_a  
 
          IF( l_vremap .OR. l_ini_child ) THEN
-            IF (ln_linssh) ptab(i1:i2,j1:j2,k2,n2) = 0._wp 
+            IF (ln_linssh) THEN
+               ptab(i1:i2,j1:j2,k2,n2) = 0._wp 
+
+            ELSE ! Assuming parent volume follows child:
+               ptab(i1:i2,j1:j2,k2,n2) = ssh(i1:i2,j1:j2,Krhs_a)          
+            ENDIF
                
             DO jj=j1,j2
                DO ji=i1,i2
                   tr(ji,jj,:,:,Krhs_a) = 0.  
                   !
                   ! Build vertical grids:
-                  N_in = mbkt_parent(ji,jj)
-                  N_out = mbkt(ji,jj)
+                  ! N_in = mbkt_parent(ji,jj)
+                  ! Input grid (account for partial cells if any):
+                  N_in = k2-1
+                  z_in(1) = ptab(ji,jj,1,n2) - ptab(ji,jj,k2,n2)
+                  DO jk=2,k2
+                     z_in(jk) = ptab(ji,jj,jk,n2) - ptab(ji,jj,k2,n2)
+                     IF (( z_in(jk) <= z_in(jk-1) ).OR.(z_in(jk)>ht_0(ji,jj))) EXIT
+                  END DO
+                  N_in = jk-1
+                  DO jk=1, N_in
+                     tabin(jk,1:jptra) = ptab(ji,jj,jk,1:jptra)
+                  END DO
+
+                  IF (ssmask(ji,jj)==1._wp) THEN
+                     N_out = mbkt(ji,jj)
+                  ELSE
+                     N_out = 0
+                  ENDIF
+
                   IF (N_in*N_out > 0) THEN
-                     ! Input grid (account for partial cells if any):
-                     DO jk=1,N_in
-                        z_in(jk) = ptab(ji,jj,jk,n2) - ptab(ji,jj,k2,n2)
-                        tabin(jk,1:jptra) = ptab(ji,jj,jk,1:jptra)
-                     END DO
-                  
-                     ! Intermediate grid:
                      IF ( l_vremap ) THEN
                         DO jk = 1, N_in
-                           h_in_i(jk) = e3t0_parent(ji,jj,jk) * & 
+                           h_in(jk) = e3t0_parent(ji,jj,jk) * & 
                              &       (1._wp + ptab(ji,jj,k2,n2)/(ht0_parent(ji,jj)*ssmask(ji,jj) + 1._wp - ssmask(ji,jj)))
                         END DO
-                        z_in_i(1) = 0.5_wp * h_in_i(1)
+                        z_in(1) = 0.5_wp * h_in(1)
                         DO jk=2,N_in
-                           z_in_i(jk) = z_in_i(jk-1) + 0.5_wp * ( h_in_i(jk) + h_in_i(jk-1) )
+                           z_in(jk) = z_in(jk-1) + 0.5_wp * ( h_in(jk) + h_in(jk-1) )
                         END DO
-                        z_in_i(1:N_in) = z_in_i(1:N_in)  - ptab(ji,jj,k2,n2)
-                     ENDIF
+                        z_in(1:N_in) = z_in(1:N_in)  - ptab(ji,jj,k2,n2)
+                     ENDIF                              
 
                      ! Output (Child) grid:
                      DO jk=1,N_out
                         h_out(jk) = e3t(ji,jj,jk,Krhs_a)
                      END DO
-                     z_out(1) = 0.5_wp * h_out(1)
+                     z_out(1) = 0.5_wp * e3w(ji,jj,1,Krhs_a) 
                      DO jk=2,N_out
-                        z_out(jk) = z_out(jk-1) + 0.5_wp * ( h_out(jk)+h_out(jk-1) )
+                        z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Krhs_a) 
                      END DO
-                     IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Krhs_a)               
+                     IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Krhs_a)            
 
                      IF( l_ini_child ) THEN
-                        CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),tr(ji,jj,1:N_out,1:jptra,Krhs_a),          &
+                        CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),tr(ji,jj,1:N_out,1:jptra,Krhs_a),        &
                                       &   z_out(1:N_out),N_in,N_out,jptra)  
-                     ELSE  
-                        CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),tabin_i(1:N_in,1:jptra),                     &
-                                     &   z_in_i(1:N_in),N_in,N_in,jptra)
-                        CALL reconstructandremap(tabin_i(1:N_in,1:jptra),h_in_i(1:N_in),tr(ji,jj,1:N_out,1:jptra,Krhs_a), &
+                     ELSE     
+                        CALL reconstructandremap(tabin(1:N_in,1:jptra),h_in(1:N_in),tr(ji,jj,1:N_out,1:jptra,Krhs_a), &
                                       &   h_out(1:N_out),N_in,N_out,jptra)   
                      ENDIF
                   ENDIF
@@ -199,9 +212,9 @@ CONTAINS
                         tabin(jk,1:jptra) = ptab(ji,jj,jk,1:jptra)
                      END DO
                      IF (.NOT.ln_linssh) z_in(1:N_in) = z_in(1:N_in) - ptab(ji,jj,k2,n2)
-                     z_out(1) = 0.5_wp * e3t(ji,jj,1,Krhs_a)
+                     z_out(1) = 0.5_wp * e3w(ji,jj,1,Krhs_a)
                      DO jk=2, N_out
-                        z_out(jk) = z_out(jk-1) + 0.5_wp * (e3t(ji,jj,jk-1,Krhs_a) + e3t(ji,jj,jk,Krhs_a))
+                        z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Krhs_a)
                      END DO
                      IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Krhs_a)
                      CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),ptab(ji,jj,1:N_out,1:jptra), &
@@ -212,7 +225,7 @@ CONTAINS
             ENDIF
 
             DO jn=1, jptra
-                tr(i1:i2,j1:j2,1:jpk,jn,Krhs_a)=ptab(i1:i2,j1:j2,1:jpk,jn)*tmask(i1:i2,j1:j2,1:jpk) 
+                tr(i1:i2,j1:j2,1:jpkm1,jn,Krhs_a)=ptab(i1:i2,j1:j2,1:jpkm1,jn)*tmask(i1:i2,j1:j2,1:jpkm1) 
             END DO
          ENDIF
 

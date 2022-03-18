@@ -9,8 +9,8 @@
    bresp      =  0.033    ! Basal respiration rate
    chlcnm     =  0.033    ! Maximum Chl/C in nanophytoplankton
    chlcdm     =  0.05     ! Maximum Chl/C in diatoms
-   chlcmin    =  0.004    ! Minimum Chl/c in phytoplankton
-   fecnm      =  40E-6    ! Maximum Fe/C in nanophytoplankton
-   fecdm      =  40E-6    ! Maximum Fe/C in diatoms
-   grosip     =  0.159    ! mean Si/C ratio
+   chlcmin    =  0.003    ! Minimum Chl/c in phytoplankton
+   fecnm      =  60E-6    ! Maximum Fe/C in nanophytoplankton
+   fecdm      =  60E-6    ! Maximum Fe/C in diatoms
+   grosip     =  0.13     ! mean Si/C ratio
 /

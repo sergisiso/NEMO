@@ -760,11 +760,11 @@ CONTAINS
       !-------------------------------------------------------------
 ! *** AY note: ssh(ji,jj,Kmm) + gde3w(ji,jj,1) = e3w(ji,jj,1,Kmm)
       DO_2D( 0, 1, 0, 1)
-         z_rho_k(ji,jj,1) =  grav * ( ssh(ji,jj,Kmm) + gde3w(ji,jj,1) )                        & 
-            &                     * (  rhd(ji,jj,1)                                        &
-            &                     + 0.5_wp * (   rhd    (ji,jj,2) - rhd    (ji,jj,1) ) &
-            &                              * (   ssh   (ji,jj,Kmm) + gde3w(ji,jj,1) )          &
-            &                              / ( - gde3w(ji,jj,2) + gde3w(ji,jj,1) )  )
+         z_rho_k(ji,jj,1) =  grav * gdept(ji,jj,1,Kmm)                             & 
+            &                     * (             rhd(ji,jj,1)                     &
+            &                         -0.5_wp * ( rhd(ji,jj,2) - rhd(ji,jj,1) )    &
+            &                              * gdept(ji,jj,1,Kmm) / e3w(ji,jj,2,Kmm) &
+            &                       )
       END_2D
 
       !--------------------------------------------------------------

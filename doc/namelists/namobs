@@ -35,12 +35,12 @@
    cn_sstbiasfiles = 'sstbias.nc'    ! SST bias input file name
    cn_gridsearchfile ='gridsearch.nc' ! Grid search file name
    rn_gridsearchres = 0.5            ! Grid search resolution
+   rn_default_avglamscl = 0.         ! Default E/W diameter of observation footprint (metres/degrees)
+   rn_default_avgphiscl = 0.         ! Default N/S diameter of observation footprint (metres/degrees)
    rn_mdtcorr  = 1.61                ! MDT  correction
    rn_mdtcutoff = 65.0               ! MDT cutoff for computed correction
    rn_dobsini  = 00010101.000000     ! Initial date in window YYYYMMDD.HHMMSS
    rn_dobsend  = 00010102.000000     ! Final date in window YYYYMMDD.HHMMSS
-   rn_default_avglamscl = 0.         ! Default E/W diameter of observation footprint (metres/degrees)
-   rn_default_avgphiscl = 0.         ! Default N/S diameter of observation footprint (metres/degrees)
    rn_sla_avglamscl = 0.             ! E/W diameter of SLA observation footprint (metres/degrees)
    rn_sla_avgphiscl = 0.             ! N/S diameter of SLA observation footprint (metres/degrees)
    rn_sst_avglamscl = 0.             ! E/W diameter of SST observation footprint (metres/degrees)

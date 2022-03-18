@@ -129,9 +129,9 @@ CONTAINS
          ssu_m(:,:) = 0._wp
          ssv_m(:,:) = 0._wp
          ssh_m(:,:) = 0._wp
-         IF( .NOT. ln_linssh ) e3t_m(:,:) = e3t_0(:,:,1) !clem: necessary at least for sas2D
+         e3t_m(:,:) = e3t_0(:,:,1)                       !clem: necessary at least for sas2D
          frq_m(:,:) = 1._wp                              !              - -
-         ssh  (:,:,Kmm) = 0._wp                              !              - -
+         ssh  (:,:,Kmm) = 0._wp                          !              - -
       ENDIF
 
       IF ( nn_ice == 1 ) THEN
@@ -159,7 +159,7 @@ CONTAINS
          CALL iom_put( 'sst_m', sst_m )
          CALL iom_put( 'sss_m', sss_m )
          CALL iom_put( 'ssh_m', ssh_m )
-         IF( .NOT.ln_linssh )   CALL iom_put( 'e3t_m', e3t_m )
+         CALL iom_put( 'e3t_m', e3t_m )
          IF( ln_read_frq    )   CALL iom_put( 'frq_m', frq_m )
       ENDIF
       !

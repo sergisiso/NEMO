@@ -31,12 +31,13 @@
    ln_linssh   = .false.   !  =T  linear free surface  ==>>  model level are fixed in time
    !
    rn_Dt      = 1350.     !  time step for the dynamics (and tracer if nn_acc=0)
+   ln_meshmask = .false.  !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: user defined GYRE)
 !-----------------------------------------------------------------------
    ln_read_cfg = .true.    !  (=T) read the domain configuration file
-      cn_domcfg = "ORCA_R05_zps_domcfg_agrif"    ! domain configuration filename
+      cn_domcfg = "domain_cfg.nc"    ! domain configuration filename
 /
 !-----------------------------------------------------------------------
 &namtile        !   parameters of the tiling

@@ -216,15 +216,14 @@ INTEGER             ::   kstp   ! ocean time-step index
 
 \subsection{F90 Standard}
 
-\NEMO\ software adheres to the \fninety language standard and does not rely on any specific language or
-vendor extensions.
+\NEMO\ software adheres to the \fninety language standard (specifically, the Fortran 2003
+standard) and does not rely on any specific language or vendor extensions.
 
 \subsection{Free-Form Source}
 
-Free-form source will be used.
-The F90/95 standard allows lines of up to 132 characters, but a self-imposed limit of 80 should enhance readability,
-or print source files with two columns per page.
-Multi-line comments that extend to column 100 are unacceptable.
+Free-form source will be used.  The F90/95 standard allows lines of up to 132 characters,
+but a self-imposed limit of 80 should enhance readability, or print source files with two
+columns per page.  Multi-line comments that extend to column 100 are unacceptable.
 
 \subsection{Indentation}
 
@@ -375,8 +374,8 @@ allow FORTRAN \forcode{IF} tests in the code and
 a FORTRAN module with the same name ($i.e.$ \textit{optionname.F90}) should be defined.
 This module is the only place where a \``\#if defined'' command appears, selecting either the whole FORTRAN code or
 a dummy module.
-For example, the TKE vertical physics, the module name is \textit{zdftke.F90},
-the CPP key is \textit{key\_zdftke} and the associated logical is \textit{lk\_zdftke}.
+For example, the assimilation increments module name is \textit{asminc.F90},
+the CPP key is \textit{key\_asminc} and the associated logical is \textit{lk\_asminc}.
 
 The following syntax:
 
@@ -398,20 +397,94 @@ Tests on cpp keys included in \NEMO\ at compilation step:
   If a change occurs in the CPP keys used for a given experiment, the whole compilation phase is done again.
 \end{itemize}
 
+\section{DO LOOP macros}
+
+Another aspect of the preprocessor is the use of macros to substitute code elements. In some cases these are used
+to reduce unnecessary array dimensions. A good example are the substitutions introduced by the \key{qco} key:
+
+\begin{clines}
+#if defined key_qco
+#   define  e3t(i,j,k,t)   (e3t_0(i,j,k)*(1._wp+r3t(i,j,t)*tmask(i,j,k)))
+...
+#elif defined key_linssh
+#   define  e3t(i,j,k,t)   e3t_0(i,j,k)
+...
+#endif
+\end{clines}
+
+which are used to reduce 4-d arrays to a 3-d functional form or an invariant, 3-d array depending on other
+options. Such macros should be located in files with \texttt{\_substitute.h90} endings to their names (e.g. \texttt{domzgr\_substitute.h90}).
+
+From 4.2, a more pervasive use of macros has been introduced in the form of DO LOOP macros. These macros
+have replaced standard nested, loops over the spatial dimensions. In particular:
+
+\begin{verbatim}
+                                       DO jk = ....
+   DO jj = ....                           DO jj = ...
+      DO ji = ....                           DO ji = ...
+         .                   OR                 .
+         .                                      .
+     END DO                                  END DO
+   END DO                                 END DO
+                                       END DO
+\end{verbatim}
+
+and white-space variants thereof.
+
+The macro naming convention takes the form: \forcode{DO_2D( L, R, B, T)} where:
+\begin{itemize}
+\item \forcode{ L } is the Left   offset from the PE's inner domain
+\item \forcode{ R } is the Right  offset from the PE's inner domain
+\item \forcode{ B } is the Bottom offset from the PE's inner domain
+\item \forcode{ T } is the Top    offset from the PE's inner domain
+\end{itemize}
+
+So, given an inner domain of \forcode{2,jpim1 and 2,jpjm1}, a typical example would replace:
+\begin{forlines}
+   DO jj = 2, jpj
+      DO ji = 1, jpim1
+         .
+         .
+      END DO
+   END DO
+\end{forlines}
+
+with:
+
+\begin{forlines}
+   DO_2D( 1, 0, 0, 1 )
+      .
+      .
+   END_2D
+\end{forlines}
+
+similar conventions apply to the 3D loops macros. \forcode{jk} loop limits are retained through macro arguments
+and are not restricted. This includes the possibility of strides for which an extra set of \forcode{DO_3DS}
+macros are defined.
+
+The purpose of these macros is to enable support for extra-width halos. The width of the halo is determined by 
+the value of the namelist parameter:\forcode{nn_hls}. Version 4.2 will work with either \forcode{nn_hls=1} or
+\forcode{nn_hls=2} but there is currently a performance penalty to using \forcode{nn_hls=2} since more development
+is needed before any benefits are realised. Code developers should consider whether or not loops need to be over:
+
+\begin{itemize}
+\item The inner domain only (e.g. \forcode{DO_2D( 0, 0, 0, 0 )}) 
+\item The entire domain (e.g. \forcode{DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )}) 
+\item All but the outer halo (e.g. \forcode{DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )})
+\item A mixture on different boundaries (e.g. \forcode{DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )})
+\end{itemize}
+
+The correct use of these macros will eventually lead to performance gains through the removal of 
+unnecessary computation and a reduction in communications.
+
 \section{Content rules}
 
 \subsection{Configurations}
 
-The configuration defines the domain and the grid on which \NEMO\ is running.
-It may be useful to associate a CPP key and some variables to a given configuration, although
-the part of the code changed under each of those keys should be minimized.
-As an example, the "ORCA2" configuration (global ocean, 2 degrees grid size) is associated with
-the cpp key \texttt{key\_orca2} for which
-
-\begin{forlines}
-cp_cfg = "orca"
-jp_cfg = 2
-\end{forlines}
+The configuration defines the domain and the grid on which \NEMO\ is running.  From 4.2
+onwards, all configuration-specific settings should be read from variables in, or
+attributes of, the domain configuration file (or set in \texttt{usrdef} supplied
+subroutines). See \autoref{subsec:DOM_config} for more details.
 
 \subsection{Constants}
 
@@ -501,17 +574,18 @@ FORTRAN 95 compilers can automatically provide explicit interface blocks for rou
 
 \subsection{I/O Error Conditions}
 
-I/O statements which need to check an error condition will use the \texttt{iostat=<integer variable>} construct
-instead of the outmoded \texttt{end=} and \forcode{err=}. \\
-Note that a 0 value means success, a positive value means an error has occurred, and
-a negative value means the end of record or end of file was encountered.
+I/O statements which need to check an error condition will use the \texttt{iostat=<integer
+variable>} construct instead of the outmoded \texttt{end=} and \forcode{err=}. \\ Note
+that a 0 value means success, a positive value means an error has occurred, and a negative
+value means the end of record or end of file was encountered.
 
 \subsection{PRINT - ASCII output files}
 
-Output listing and errors are directed to \texttt{numout} logical unit =6 and
-produces a file called \textit{ocean.output} (use \texttt{ln\_prt} to have one output per process in MPP).
-Logical \texttt{lwp} variable allows for less verbose outputs.
-To output an error from a routine, one can use the following template:
+Output listing and errors are directed to \texttt{numout} logical unit =6 and produces a
+file called \textit{ocean.output}. Usually, this is produced by only the first ranked
+process in an MPP environment. This process will have the \texttt{lwp} logical variable
+set and this can be used to restrict output. For example: to output an error from a
+routine, one can use the following template:
 
 \begin{forlines}
 IF( nstop /= 0 .AND. lwp ) THEN   ! error print
@@ -520,19 +594,19 @@ IF( nstop /= 0 .AND. lwp ) THEN   ! error print
 ENDIF
 \end{forlines}
 
+At run-time, the user can use \texttt{sn\_cfctl} options to have output from more processes in MPP.
+
 \subsection{Precision}
 
-Parameterizations should not rely on vendor-supplied flags to supply a default floating point precision or
-integer size.
-The F95 \forcode{KIND} feature should be used instead.
-In order to improve portability between 32 and 64 bit platforms,
-it is necessary to make use of kinds by using a specific module \path{./src/OCE/par_kind.F90}
-declaring the "kind definitions" to obtain the required numerical precision and range as well as
-the size of \forcode{INTEGER}.
-It should be noted that numerical constants need to have a suffix of \texttt{\_kindvalue} to
-have the according size. \\
-Thus \forcode{wp} being the "working precision" as declared in \path{./src/OCE/par_kind.F90},
-declaring real array \forcode{zpc} will take the form:
+Parameterizations should not rely on vendor-supplied flags to supply a default floating
+point precision or integer size.  The F95 \forcode{KIND} feature should be used instead.
+In order to improve portability between 32 and 64 bit platforms, it is necessary to make
+use of kinds by using a specific module \path{./src/OCE/par_kind.F90} declaring the "kind
+definitions" to obtain the required numerical precision and range as well as the size of
+\forcode{INTEGER}.  It should be noted that numerical constants need to have a suffix of
+\texttt{\_kindvalue} to have the corresponding size. \\ Thus \forcode{wp} being the
+"working precision" as declared in \path{./src/OCE/par_kind.F90}, declaring real array
+\forcode{zpc} will take the form:
 
 \begin{forlines}
 REAL(wp), DIMENSION(jpi,jpj,jpk) ::  zpc      ! power consumption
@@ -563,8 +637,7 @@ Missing rule on structure name??
 
 \subsection{Bounds checking}
 
-\NEMO\ is able to run when an array bounds checking option is enabled
-(provided the cpp key \texttt{key\_vectopt\_loop} is not defined). \\
+\NEMO\ is able to run when an array bounds checking option is enabled. \\
 Thus, constructs of the following form are disallowed:
 
 \begin{forlines}
@@ -599,129 +672,50 @@ see \textit{stpctl.F90}.
 
 \subsection{Memory management}
 
-The main action is to identify and declare which arrays are \forcode{PUBLIC} and which are \forcode{PRIVATE}. \\
-As of version 3.3.1 of \NEMO, the use of static arrays (size fixed at compile time) has been deprecated.
-All module arrays are now declared \forcode{ALLOCATABLE} and
-allocated in either the \texttt{<module\_name>\_alloc()} or \texttt{<module\_name>\_init()} routines.
-The success or otherwise of each \forcode{ALLOCATE} must be checked using
-the \texttt{stat=<integer\ variable>} optional argument. \\
+The main action is to identify and declare which arrays are \forcode{PUBLIC} and which are
+\forcode{PRIVATE}. \\ As of version 3.3.1 of \NEMO, the use of static arrays (size fixed
+at compile time) has been deprecated.  All module arrays are now declared
+\forcode{ALLOCATABLE} and allocated in either the \texttt{<module\_name>\_alloc()} or
+\texttt{<module\_name>\_init()} routines.  The success or otherwise of each
+\forcode{ALLOCATE} must be checked using the \texttt{stat=<integer\ variable>} optional
+argument. \\
 
-In addition to arrays contained within modules, many routines in \NEMO\ require local, ``workspace'' arrays to
-hold the intermediate results of calculations.
-In previous versions of \NEMO, these arrays were declared in such a way as to be automatically allocated on
-the stack when the routine was called.
-An example of an automatic array is:
+In addition to arrays contained within modules, many routines in \NEMO\ require local,
+``workspace'' arrays to hold the intermediate results of calculations.  These arrays are
+mostly declared in such a way as to be automatically allocated on the stack when the
+routine is called.  Examples of an automatic arrays are:
 
 \begin{forlines}
 SUBROUTINE sub(n)
-   REAL :: a(n)
+   REAL(wp) :: za(n)
+   REAL(wp), DIMENSION(jpi,jpj) ::   zhdiv   ! 2D workspace
    ...
 END SUBROUTINE sub
 \end{forlines}
 
-The downside of this approach is that the program will crash if it runs out of stack space and
-the reason for the crash might not be obvious to the user.
-
-Therefore, as of version 3.3.1, the use of automatic arrays is deprecated.
-Instead, a new module, \textit{wrk\_nemo.F90}, has been introduced which
-contains 1-,2-,3- and 4-dimensional workspace arrays for use in subroutines.
-These workspace arrays should be used in preference to declaring new, local (allocatable) arrays whenever possible.
-The only exceptions to this are when workspace arrays with lower bounds other than 1 and/or
-with extent(s) greater than those in the \textit{wrk\_nemo.F90} module are required. \\
-
-The 2D, 3D and 4D workspace arrays in \textit{wrk\_nemo.F90} have extents \texttt{jpi}, \texttt{jpj},
-\texttt{jpk} and \texttt{jpts} ($x$, $y$, $z$ and tracers) in the first, second, third and fourth dimensions,
-respectively.
-The 1D arrays are allocated with extent MAX($jpi \times jpj, jpk \times jpj, jpi \times jpk$). \\
-
-The \forcode{REAL (KIND = wp)} workspace arrays in \textit{wrk\_nemo.F90}
-are named $e.g.$ \texttt{wrk\_1d\_1, wrk\_4d\_2} etc. and
-should be accessed by USE'ing the \textit{wrk\_nemo.F90} module.
-Since these arrays are available to any routine,
-some care must be taken that a given workspace array is not already being used somewhere up the call stack.
-To help with this, \textit{wrk\_nemo.F90} also contains some utility routines;
-\texttt{wrk\_in\_use()} and \texttt{wrk\_not\_released()}.
-The former first checks that the requested arrays are not already in use and then sets internal flags to show that
-they are now in use.
-The \texttt{wrk\_not\_released()} routine un-sets those internal flags.
-A subroutine using this functionality for two, 3D workspace arrays named \texttt{zwrk1} and
-\texttt{zwrk2} will look something like:
+Sometimes these local arrays are only required for specific options selected at run-time.
+Allocatable arrays should be used to avoid unnecessary use of stack storage in these
+cases. For example:
 
 \begin{forlines}
-SUBROUTINE sub()
-   USE wrk_nemo, ONLY: wrk_in_use, wrk_not_released
-   USE wrk_nemo, ONLY: zwrk1 => wrk_3d_5, zwrk2 => wrk_3d_6
-   !
-   IF(wrk_in_use(3, 5,6)THEN
-      CALL ctl_stop('sub: requested workspace arrays unavailable.')
-      RETURN
-   END IF
+SUBROUTINE wzv(...)
    ...
+   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zhdiv   ! 3D workspace
    ...
-   IF(wrk_not_released(3, 5,6)THEN
-      CALL ctl_stop('sub: failed to release workspace arrays.')
-   END IF
-   !
+   IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN
+      ALLOCATE( zhdiv(jpi,jpj,jpk) )
+      ...
+      DEALLOCATE( zhdiv )
+   ELSEIF
+      ...
 END SUBROUTINE sub
 \end{forlines}
-
-The first argument to each of the utility routines is the dimensionality of the required workspace (1--4).
-Following this there must be one or more integers identifying which workspaces are to be used/released.
-Note that, in the interests of keeping the code as simple as possible,
-there is no use of \forcode{POINTER}s etc. in the \textit{wrk\_nemo.F90} module.
-Therefore it is the responsibility of the developer to ensure that the arguments to \texttt{wrk\_in\_use()} and
-\texttt{wrk\_not\_released()} match the workspace arrays actually being used by the subroutine. \\
-
-If a workspace array is required that has extent(s) less than those of the arrays in
-the \textit{wrk\_nemo.F90} module then the advantages of implicit loops and bounds checking may be retained by
-defining a pointer to a sub-array as follows:
-
-\begin{forlines}
-SUBROUTINE sub()
-   USE wrk_nemo, ONLY: wrk_in_use, wrk_not_released
-   USE wrk_nemo, ONLY: wrk_3d_5
-   !
-   REAL(wp), DIMENSION(:,:,:), POINTER :: zwrk1
-   !
-   IF(wrk_in_use(3, 5)THEN
-      CALL ctl_stop('sub: requested workspace arrays unavailable.')
-      RETURN
-   END IF
-   !
-   zwrk1 => wrk_3d_5(1:10,1:10,1:10)
-   ...
-END SUBROUTINE sub
-\end{forlines}
-
-Here, instead of ``use associating'' the variable \texttt{zwrk1} with the array \texttt{wrk\_3d\_5}
-(as in the first example), it is explicitly declared as a pointer to a 3D array.
-It is then associated with a sub-array of \texttt{wrk\_3d\_5} once the call to
-\texttt{wrk\_in\_use()} has completed successfully.
-Note that in F95 (to which \NEMO\ conforms) it is not possible for either the upper or lower array bounds of
-the pointer object to differ from those of the target array. \\
-
-In addition to the \forcode{REAL (KIND = wp)} workspace arrays,
-\textit{wrk\_nemo.F90} also contains 2D integer arrays and 2D REAL arrays with extent (\texttt{jpi}, \texttt{jpk}),
-$i.e.$ $xz$.
-The utility routines for the integer workspaces are \texttt{iwrk\_in\_use()} and \texttt{iwrk\_not\_released()} while
-those for the $xz$ workspaces are \texttt{wrk\_in\_use\_xz()} and \texttt{wrk\_not\_released\_xz()}.
-
-Should a call to one of the \texttt{wrk\_in\_use()} family of utilities fail,
-an error message is printed along with a table showing which of the workspace arrays are currently in use.
-This should enable the developer to choose alternatives for use in the subroutine being worked on. \\
-
-When compiling \NEMO\ for production runs,
-the calls to {\texttt{wrk\_in\_use()} / \texttt{wrk\_not\_released()} can be reduced to stubs that just
-return \forcode{.false.} by setting the cpp key \texttt{key\_no\_workspace\_check}.
-These stubs may then be in-lined (and thus effectively removed altogether) by setting appropriate compiler flags
-($e.g.$ ``-finline'' for the Intel compiler or ``-Q'' for the IBM compiler).
 
 \subsection{Optimisation}
 
-Considering the new computer architecture, optimisation cannot be considered independently from the computer type.
-In \NEMO, portability is a priority, before any too specific optimisation.
-
-Some tools are available to help: for vector computers, \texttt{key\_vectopt\_loop} allows to unroll a loop
+Considering the new computer architecture, optimisation cannot be considered independently
+from the computer type.  In \NEMO, portability is a priority, before any too specific
+optimisation.
 
 \subsection{Package attribute: \forcode{PRIVATE}, \forcode{PUBLIC}, \forcode{USE}, \forcode{ONLY}}
 
@@ -732,14 +726,16 @@ defined in a module are to be made available to the using routine.
 
 \subsection{Parallelism using MPI}
 
-\NEMO\ is written in order to be able to run on one processor, or on one or more using MPI
-($i.e.$ activating the cpp key $key\_mpp\_mpi$).
+\NEMO\ is written in order to be able to run on one processor, or on one or more using MPI.
+From 4.2, this is the default assumption but a non-MPI, single processor executable can be
+compiled by activating the cpp key: \key{mpi\_off}.  
+
 The domain decomposition divides the global domain in cubes (see \NEMO\ reference manual).
-Whilst coding a new development, the MPI compatibility has to be taken in account
-(see \path{./src/LBC/lib_mpp.F90}) and should be tested.
-By default, the $x$-$z$ part of the decomposition is chosen to be as square as possible.
-However, this may be overriden by specifying the number of sub-domains in latitude and longitude in
-the \texttt{nammpp} section of the namelist file.
+Whilst coding a new development, the MPI compatibility has to be taken in account (see
+\path{./src/LBC/lib_mpp.F90}) and should be tested.  By default, the $x$-$z$ part of the
+decomposition is chosen to be as square as possible.  However, this may be overriden by
+specifying the number of sub-domains in latitude and longitude in the \texttt{nammpp}
+section of the namelist file.
 
 \section{Features to be avoided}
 

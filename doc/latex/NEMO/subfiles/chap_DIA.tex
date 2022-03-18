@@ -32,35 +32,46 @@
 \section{Model output}
 \label{sec:DIA_io_old}
 
-The model outputs are of three types: the restart file, the output listing, and the diagnostic output file(s).
-The restart file is used internally by the code when the user wants to start the model with
-initial conditions defined by a previous simulation.
-It contains all the information that is necessary in order for there to be no changes in the model results
-(even at the computer precision) between a run performed with several restarts and
-the same run performed in one step.
-It should be noted that this requires that the restart file contains two consecutive time steps for
-all the prognostic variables.
+The model outputs are of three types: the restart file; the output log/progress listings;
+and the diagnostic output file(s).  
 
-The output listing and file(s) are predefined but should be checked and eventually adapted to the user's needs.
-The output listing is stored in the \textit{ocean.output} file.
-The information is printed from within the code on the logical unit \texttt{numout}.
-To locate these prints, use the UNIX command "\textit{grep -i numout}" in the source code directory.
+The restart file is used by the code when the user wants to start the model with initial
+conditions defined by a previous simulation.  Restart files are NetCDF files containing
+all the information that is necessary in order for there to be no changes in the model
+results (even at the computer precision) between a run performed with several stops and
+restarts and the same run performed in one continuous integration step.  It should be
+noted that this requires that the restart file contains two consecutive time steps for all
+the prognostic variables. The default behaviour of \NEMO\ is to generate a restart file
+for each MPP region. These files will be read in by the same regions on restarting.
+However, if a change in MPP decomposition is required, then the invidual restart files
+must first be combined into a whole domain restart file. This can be done using the
+\forcode{REBUILD_NEMO} tool.  Alternatively, users may experiment with the new options in
+4.2 to write restarts via XIOS (see \autoref{subsec:XIOS_restarts}) with which it is possible to
+write a whole domain restart file from a running model.
 
-By default, diagnostic output files are written in NetCDF format.
-Since version 3.2, when defining \key{iomput}, an I/O server has been added which
-provides more flexibility in the choice of the fields to be written as well as how
-the writing work is distributed over the processors in massively parallel computing.
-A complete description of the use of this I/O server is presented in the next section.
+The output listing and file(s) are predefined but should be checked and eventually adapted
+to the user's needs.  The output listing is stored in the \textit{ocean.output} file.  The
+information is printed from within the code on the logical unit \texttt{numout}.  To
+locate these prints, use the UNIX command "\textit{grep -i numout}" in the source code
+directory. The \textit{ocean.output} file is the first place to check if something appears
+to have gone wrong with the model since any detectable errors will be reported here.
+Additional progress information can be requested using the options explained in
+\autoref{subsec:MISC_statusinfo}.
 
-%\cmtgm{                    % start of gmcomment
+Diagnostic output files are written in NetCDF format.  When compiled with \key{xios},
+\NEMO\ can employ the full capability of an I/O server (XIOS)  which provides flexibility
+in the choice of the fields to be written as well as how the writing tasks are distributed
+over the processors in a massively parallel computing environment.  A complete description
+of the use of this I/O server is presented in the next section.
+
 
 %% =================================================================================================
-\section{Standard model output (IOM)}
+\section{Standard model output (\texttt{iom\_put})}
 \label{sec:DIA_iom}
 
-Since version 3.2, iomput is the \NEMO\ output interface of choice.
+Since version 3.2, \rou{iom\_put} is the \NEMO\ output interface of choice.
 It has been designed to be simple to use, flexible and efficient.
-The two main purposes of iomput are:
+The two main purposes of \rou{iom\_put} are:
 
 \begin{enumerate}
 \item The complete and flexible control of the output files through external XML files adapted by
@@ -69,7 +80,7 @@ The two main purposes of iomput are:
   all diagnostic output related tasks to dedicated processes.
 \end{enumerate}
 
-The first functionality allows the user to specify, without code changes or recompilation,
+\noindent The first functionality allows the user to specify, without code changes or recompilation,
 aspects of the diagnostic output stream, such as:
 
 \begin{itemize}
@@ -80,68 +91,91 @@ aspects of the diagnostic output stream, such as:
 \item The possibility to extract a vertical or an horizontal subdomain.
 \item The choice of the temporal operation to perform, \eg: average, accumulate, instantaneous, min, max and once.
 \item Control over metadata via a large XML "database" of possible output fields.
+\item Control over the compression and/or precision of output fields (subject to certain conditions)
 \end{itemize}
 
-In addition, iomput allows the user to add in the code the output of any new variable (scalar, 2D or 3D)
-in a very easy way.
-All details of iomput functionalities are listed in the following subsections.
-Examples of the XML files that control the outputs can be found in:
-\path{cfgs/ORCA2_ICE_PISCES/EXPREF/iodef.xml},
-\path{cfgs/SHARED/field_def_nemo-oce.xml},
-\path{cfgs/SHARED/field_def_nemo-pisces.xml},
-\path{cfgs/SHARED/field_def_nemo-ice.xml} and \path{cfgs/SHARED/domain_def_nemo.xml}. \\
+\noindent In addition, \rou{iom\_put}  allows the user to add in the code the output of any new
+variable (scalar, 1D, 2D or 3D) in a very easy way.  All details of \rou{iom\_put}
+functionalities are listed in the following subsections.  An example of the main XML file
+that control the outputs can be found in \path{cfgs/ORCA2_ICE_PISCES/EXPREF/iodef.xml}.\\
 
-The second functionality targets output performance when running in parallel (\key{mpp\_mpi}).
-Iomput provides the possibility to specify N dedicated I/O processes (in addition to the \NEMO\ processes)
-to collect and write the outputs.
-With an appropriate choice of N by the user, the bottleneck associated with the writing of
-the output files can be greatly reduced.
+\noindent The second functionality targets output performance when running in parallel.  XIOS
+provides the possibility to specify N dedicated I/O processes (in addition to the \NEMO\
+processes) to collect and write the outputs.  With an appropriate choice of N by the user,
+the bottleneck associated with the writing of the output files can be greatly reduced.
 
-In version 3.6, the \rou{iom\_put} interface depends on
-an external code called \href{https://forge.ipsl.jussieu.fr/ioserver/browser/XIOS/branchs/xios-2.5}{XIOS-2.5}
+In version 4.2, the \rou{iom\_put} interface depends on
+an external code called \href{https://forge.ipsl.jussieu.fr/ioserver/browser/XIOS/trunk}{XIOS}
+which is developed independently and has its own repository and support pages. Further details
+are available in the \href{https://sites.nemo-ocean.io/user-guide/}{NEMO User guide}. Note that
+version 4.2. requires the trunk version of XIOS; this is a change from earlier versions which
+recommended the tagged XIOS2.5 release.
 %(use of revision 618 or higher is required).
-This new IO server can take advantage of the parallel I/O functionality of NetCDF4 to
-create a single output file and therefore to bypass the rebuilding phase.
+
+The IO server can also take advantage of the parallel I/O functionality of NetCDF4 to
+create a single output file and therefore to bypass any rebuilding phase. This facility is ideal for
+small to moderate size configurations but can be problematic with large models due to the large memory
+requirements and the inability to use NetCDF4's compression capabilities in this "one\_file" mode.
+XIOS now has the option of using two levels of I/O servers so it may be possible, in some circumstances,
+to use a single I/O server at the second level to enable compression. In many cases. though, it is
+often more robust to use "multiple\_file" mode (where each XIOS server writes its own file) and to
+recombine these files as a post-processing step. The \forcode{REBUILD_NEMO} tool in the \forcode{tools}
+directory is provided for this purpose.
+
 Note that writing in parallel into the same NetCDF files requires that your NetCDF4 library is linked to
 an HDF5 library that has been correctly compiled (\ie\ with the configure option $--$enable-parallel).
-Note that the files created by iomput through XIOS are incompatible with NetCDF3.
+Note that the files created by \rou{iom\_put} through XIOS are incompatible with NetCDF3.
 All post-processsing and visualization tools must therefore be compatible with NetCDF4 and not only NetCDF3.
 
-Even if not using the parallel I/O functionality of NetCDF4, using N dedicated I/O servers,
-where N is typically much less than the number of \NEMO\ processors, will reduce the number of output files created.
-This can greatly reduce the post-processing burden usually associated with using large numbers of \NEMO\ processors.
-Note that for smaller configurations, the rebuilding phase can be avoided,
-even without a parallel-enabled NetCDF4 library, simply by employing only one dedicated I/O server.
+Even when not using the "one\_file" functionality of NetCDF4, using N dedicated I/O
+servers, where N is typically much less than the number of \NEMO\ processors, will reduce
+the number of output files created.  This can greatly reduce the post-processing burden
+otherwise associated with using large numbers of \NEMO\ processors.  Note that for smaller
+configurations, the rebuilding phase can be avoided, even without a parallel-enabled
+NetCDF4 library, simply by employing only one dedicated I/O server.
 
 %% =================================================================================================
 \subsection{XIOS: Reading and writing restart file}
+\label{subsec:XIOS_restarts}
 
-XIOS may be used to read single file restart produced by \NEMO. The variables written to
-file \forcode{numror} (OCE), \forcode{numrir} (SI3), \forcode{numrtr} (TOP), \forcode{numrsr} (SED) can be handled by XIOS. 
-To activate restart reading using XIOS, set \np[=.true. ]{ln_xios_read}{ln\_xios\_read}
-in \textit{namelist\_cfg}. This setting will be ignored when multiple restart files are present, and default \NEMO
-functionality will be used for reading. There is no need to change iodef.xml file to use XIOS to read
-restart, all definitions are done within the \NEMO\ code. For high resolution configuration, however,
-there may be a need to add the following line in iodef.xml (xios context):
+
+New from 4.2, XIOS may be used to read from a single file restart produced by \NEMO. 
+This does not add a new functionality (since NEMO has long had the capability for all
+processes to read their patch from a single, combined restart file) but it may be advantageous 
+on systems which struggle with too many simultaneous accesses to one file.  The
+variables written to file \forcode{numror} (OCE), \forcode{numrir} (SI3), \forcode{numrtr}
+(TOP), \forcode{numrsr} (SED) can be handled by XIOS.  To activate restart reading using
+XIOS, set \np[=.true. ]{ln_xios_read}{ln\_xios\_read} in \textit{namelist\_cfg}. This
+setting will be ignored when multiple restart files are present, and default \NEMO
+functionality will be used for reading. There is no need to change iodef.xml file to use
+XIOS to read restart, all definitions are done within the \NEMO\ code. For high resolution
+configurations, however, there may be a need to add the following line in iodef.xml (xios
+context):
 
 \begin{xmllines}
 <variable id="recv_field_timeout"        type="double">1800</variable>
 \end{xmllines}
 
-This variable sets timeout for reading.
+\noindent This variable sets timeout for reading.
 
-If XIOS is to be used to read restart from file generated with an earlier \NEMO\ version (3.6 for instance),
+\noindent If XIOS is to be used to read restart from files generated with an earlier \NEMO\ version (3.6 for instance),
 dimension \forcode{z} defined in restart file must be renamed to \forcode{nav_lev}.\\
 
-XIOS can also be used to write \NEMO\ restart. A namelist parameter \np{nn_wxios}{nn\_wxios} is used to determine the
-type of restart \NEMO\ will write. If it is set to 0, default \NEMO\ functionality will be used - each
-processor writes its own restart file; if it is set to 1 XIOS will write restart into a single file;
-for \np[=2]{nn_wxios}{nn\_wxios} the restart will be written by XIOS into multiple files, one for each XIOS server.
-Note, however, that \textbf{\NEMO\ will not read restart generated by XIOS when \np[=2]{nn_wxios}{nn\_wxios}}. The restart will
-have to be rebuild before continuing the run. This option aims to reduce number of restart files generated by \NEMO\ only,
-and may be useful when there is a need to change number of processors used to run simulation.
+XIOS can also be used to write \NEMO\ restarts. A namelist parameter
+\np{nn_wxios}{nn\_wxios} is used to determine the type of restart \NEMO\ will write. If it
+is set to 0, default \NEMO\ functionality will be used - each processor writes its own
+restart file; if it is set to 1 XIOS will write restart into a single file; for
+\np[=2]{nn_wxios}{nn\_wxios} the restart will be written by XIOS into multiple files, one
+for each XIOS server.  Note, however, that \textbf{\NEMO\ will not read restart generated
+by XIOS when \np[=2]{nn_wxios}{nn\_wxios}}. The restart will have to be rebuilt before
+continuing the run. This option aims to reduce number of restart files generated by \NEMO\
+only, and may be useful when there is a need to change number of processors used to run
+simulation.
 
-An older versions of XIOS do not support reading functionality. It's recommended to use at least XIOS2@1451.
+The use of XIOS to read and write restart files is in preparation of NEMO for exascale
+computing platforms. There may not be any performance gains on current clusters but it
+should reduce file system bottlenecks in any future attempts to run NEMO on hundreds of
+thousands of cores.
 
 %% =================================================================================================
 \subsection{XIOS: XML Inputs-Outputs Server}
@@ -149,7 +183,7 @@ An older versions of XIOS do not support reading functionality. It's recommended
 %% =================================================================================================
 \subsubsection{Attached or detached mode?}
 
-Iomput is based on \href{http://forge.ipsl.jussieu.fr/ioserver/wiki}{XIOS},
+\rou{iom\_put} is based on \href{http://forge.ipsl.jussieu.fr/ioserver/wiki}{XIOS},
 the io\_server developed by Yann Meurdesoif from IPSL.
 The behaviour of the I/O subsystem is controlled by settings in the external XML files listed above.
 Key settings in the iodef.xml file are the tags associated with each defined file.
@@ -158,8 +192,8 @@ Key settings in the iodef.xml file are the tags associated with each defined fil
 
 The \texttt{using\_server} setting determines whether or not the server will be used in
 \textit{attached mode}
-(as a library) [\texttt{> false <}] or in \textit{detached mode}
-(as an external executable on N additional, dedicated cpus) [\texttt{ > true <}].
+(as a library) [\texttt{.false.}] or in \textit{detached mode}
+(as an external executable on N additional, dedicated cpus) [\texttt{.true.}].
 The \textit{attached mode} is simpler to use but much less efficient for
 massively parallel applications.
 The type of each file can be either ''multiple\_file'' or ''one\_file''.
@@ -184,17 +218,19 @@ The following subsection provides a typical example but the syntax will vary in 
 %% =================================================================================================
 \subsubsection{Number of cpu used by XIOS in detached mode}
 
-The number of cores used by the XIOS is specified when launching the model.
-The number of cores dedicated to XIOS should be from \texttildelow1/10 to \texttildelow1/50 of the number of
-cores dedicated to \NEMO.
-Some manufacturers suggest using O($\sqrt{N}$) dedicated IO processors for N processors but
-this is a general recommendation and not specific to \NEMO.
-It is difficult to provide precise recommendations because the optimal choice will depend on
-the particular hardware properties of the target system
-(parallel filesystem performance, available memory, memory bandwidth etc.)
-and the volume and frequency of data to be created.
-Here is an example of 2 cpus for the io\_server and 62 cpu for nemo using mpirun:
-\cmd|mpirun -np 62 ./nemo.exe : -np 2 ./xios_server.exe|
+The number of cores used by the XIOS is specified when launching the model.  The number of
+cores dedicated to XIOS should be from \texttildelow1/10 to \texttildelow1/50 of the
+number of cores dedicated to \NEMO.  Some manufacturers suggest using O($\sqrt{N}$)
+dedicated IO processors for N processors but this is a general recommendation and not
+specific to \NEMO.  It is difficult to provide precise recommendations because the optimal
+choice will depend on the particular hardware properties of the target system (parallel
+filesystem performance, available memory, memory bandwidth etc.) and the volume and
+frequency of data to be created.  Here is an example of 2 cpus for the io\_server and 62
+cpu for nemo using mpirun:
+
+\begin{cmds}
+  mpirun -np 62 ./nemo.exe : -np 2 ./xios_server.exe
+\end{cmds}
 
 %% =================================================================================================
 \subsubsection{Control of XIOS: the context in iodef.xml}
@@ -210,17 +246,6 @@ See the XML basics section below for more details on XML syntax and rules.
     description                                                             &
     example  \\
     \hline
-    \hline
-    buffer\_size                                                            &
-    buffer size used by XIOS to send data from \NEMO\ to XIOS.
-    Larger is more efficient.
-    Note that needed/used buffer sizes are summarized at the end of the job &
-    25000000 \\
-    \hline
-    buffer\_server\_factor\_size                                            &
-    ratio between \NEMO\ and XIOS buffer size.
-    Should be 2.                                                            &
-    2        \\
     \hline
     info\_level                                                             &
     verbosity level (0 to 100)                                              &
@@ -242,6 +267,23 @@ See the XML basics section below for more details on XML syntax and rules.
   \end{tabularx}
 \end{table}
 
+The rest of the XML controls and definitions for XIOS-\NEMO\  interaction are contained in a series of 
+XML files included via the \texttt{context\_nemo.xml} file which, is itself, included in iodef.xml. E.g.:
+\begin{xmllines}
+iodef.xml:           <context id="nemo" src="./context_nemo.xml"/>           <!--  NEMO                -->
+context_nemo.xml:    <field_definition  src="./field_def_nemo-oce.xml"/>     <!--  NEMO ocean dynamics -->
+context_nemo.xml:    <field_definition  src="./field_def_nemo-ice.xml"/>     <!--  NEMO sea-ice model  -->
+context_nemo.xml:    <field_definition  src="./field_def_nemo-pisces.xml"/>  <!--  NEMO ocean biology  -->
+context_nemo.xml:    <file_definition   src="./file_def_nemo-oce.xml"/>      <!--  NEMO ocean dynamics -->
+context_nemo.xml:    <file_definition   src="./file_def_nemo-ice.xml"/>      <!--  NEMO sea-ice model  -->
+context_nemo.xml:    <file_definition   src="./file_def_nemo-pisces.xml"/>   <!--  NEMO ocean biology  -->
+context_nemo.xml:    <axis_definition   src="./axis_def_nemo.xml"/>
+context_nemo.xml:    <domain_definition src="./domain_def_nemo.xml"/>
+context_nemo.xml:    <grid_definition   src="./grid_def_nemo.xml"/>
+\end{xmllines}
+which shows the hierarchy of XML files in use by the ORCA2\_ICE\_PISCES reference configuration. This nesting
+of XML files will be explained further in later sections.
+
 %% =================================================================================================
 \subsection{Practical issues}
 
@@ -257,46 +299,53 @@ The \href{https://forge.ipsl.jussieu.fr/nemo/chrome/site/doc/NEMO/guide/html/ins
 %% =================================================================================================
 \subsubsection{Add your own outputs}
 
-It is very easy to add your own outputs with iomput.
+It is very easy to add your own outputs with iom\_put.
 Many standard fields and diagnostics are already prepared (\ie, steps 1 to 3 below have been done) and
 simply need to be activated by including the required output in a file definition in iodef.xml (step 4).
 To add new output variables, all 4 of the following steps must be taken.
 
 \begin{enumerate}
-\item in \NEMO\ code, add a \forcode{CALL iom_put( 'identifier', array )} where you want to output a 2D or 3D array.
-\item If necessary, add \forcode{USE iom ! I/O manager library} to the list of used modules in
-  the upper part of your module.
-\item in the field\_def.xml file, add the definition of your variable using the same identifier you used in the f90 code
-  (see subsequent sections for a details of the XML syntax and rules).
-  For example:
+\item in \NEMO\ code, add a \forcode{CALL iom_put( 'identifier', array )} where you want
+to output an array. In most cases, this will be in a part of the code which is executed
+only once per timestep and after the array has been updated for that timestep. Note,
+adding this call enables the possibility of outputing this array; whether or not and at
+which frequency the values are actually written will be determined but the content of
+associated XML files.
+\item If necessary, add \forcode{USE iom ! I/O manager library} to the list of used
+modules in the upper part of your module.
+\item in the appropriate \path{cfgs/SHARED/field_def_nemo-....xml} files, add the
+definition of your variable using the same identifier you used in the f90 code (see
+subsequent sections for a details of the XML syntax and rules).  For example:
 \begin{xmllines}
-<field_definition>
-	<field_group id="grid_T" grid_ref="grid_T_3D"> <!-- T grid -->
-	...
-		<field id="identifier" long_name="blabla" ... />
-		...
-</field_definition>
+   <field_definition>
+         <field_group id="grid_T" grid_ref="grid_T_3D"> <!-- T grid -->
+         ...
+                  <field id="identifier" long_name="blabla" ... />
+                  ...
+   </field_definition>
 \end{xmllines}
-Note your definition must be added to the field\_group whose reference grid is consistent with the size of
-the array passed to iomput.
-The grid\_ref attribute refers to definitions set in iodef.xml which, in turn,
-reference grids and axes either defined in the code
-(iom\_set\_domain\_attr and iom\_set\_axis\_attr in \mdl{iom}) or defined in the domain\_def.xml file.
-\eg:
+Note your definition must be added to the field\_group whose reference grid is consistent
+with the size of the array passed to \rou{iom\_put}. The grid\_ref attribute refers to
+definitions set in grid\_def\_nemo.xml which, in turn, reference domains and axes either
+defined in the code (iom\_set\_domain\_attr and iom\_set\_axis\_attr in \mdl{iom}) or
+defined in the domain\_def\_nemo.xml and axis\_def\_nemo.xml files.  \eg:
 \begin{xmllines}
-<grid id="grid_T_3D" domain_ref="grid_T" axis_ref="deptht"/>
+  <grid id="grid_T_3D" >
+    <domain domain_ref="grid_T" />
+    <axis axis_ref="deptht" />
+  </grid>
 \end{xmllines}
-Note, if your array is computed within the surface module each \np{nn_fsbc}{nn\_fsbc} time\_step,
-add the field definition within the field\_group defined with the id "SBC":
-\xmlcode{<field_group id="SBC" ...>} which has been defined with the correct frequency of operations
-(iom\_set\_field\_attr in \mdl{iom})
-\item add your field in one of the output files defined in iodef.xml
-  (again see subsequent sections for syntax and rules)
+Note, if your array is computed within the surface module each \np{nn_fsbc}{nn\_fsbc}
+time\_step, add the field definition within the field\_group defined with the id "SBC":
+\xmlcode{<field_group id="SBC" ...>} which has been defined with the correct frequency of
+operations (iom\_set\_field\_attr in \mdl{iom}) \item Finally, to activate actual output,
+add your field in one or more of the output files defined in file\_def\_nemo-*.xml (again
+see subsequent sections for syntax and rules)
 \begin{xmllines}
-<file id="file1" .../>
+<file id="file1" ... />
 ...
-	<field field_ref="identifier" />
-	...
+   <field field_ref="identifier" />
+   ...
 </file>
 \end{xmllines}
 \end{enumerate}
@@ -425,16 +474,31 @@ In \NEMO, we used the following contexts (that can be defined in any order):
 
 The XML file can be split in different parts to improve its readability and facilitate its use.
 The inclusion of XML files into the main XML file can be done through the attribute src:
-\xmlline|<context src="./nemo_def.xml" />|
-
-\noindent In \NEMO, by default, the field definition is done in 3 separate files (
-\path{cfgs/SHARED/field_def_nemo-oce.xml},
-\path{cfgs/SHARED/field_def_nemo-pisces.xml} and
-\path{cfgs/SHARED/field_def_nemo-ice.xml} ) and the  domain definition is done in another file ( \path{cfgs/SHARED/domain_def_nemo.xml} )
-that
-are included in the main iodef.xml file through the following commands:
 \begin{xmllines}
 <context id="nemo" src="./context_nemo.xml"/>
+\end{xmllines}
+
+\noindent In \NEMO, by default, the field definition is done in 4 separate files (
+\path{cfgs/SHARED/field_def_nemo-oce.xml},
+\path{cfgs/SHARED/field_def_nemo-pisces.xml}, \path{cfgs/SHARED/field_def_nemo-innerttrc.xml} and
+\path{cfgs/SHARED/field_def_nemo-ice.xml} ) and the grid definition is done in another 3 files (\path{cfgs/SHARED/grid_def_nemo.xml}, \path{cfgs/SHARED/axis_def_nemo.xml} and \path{cfgs/SHARED/domain_def_nemo.xml})
+that
+are included in each context\_nemo.xml file through the following commands:
+\begin{xmllines}
+<!-- Fields definition -->
+    <field_definition src="./field_def_nemo-oce.xml"      />   <!--  NEMO ocean dynamics               -->
+    <field_definition src="./field_def_nemo-ice.xml"      />   <!--  NEMO ocean sea ice                -->
+    <field_definition src="./field_def_nemo-pisces.xml"   />   <!--  NEMO ocean biogeochemical         -->
+    <field_definition src="./field_def_nemo-innerttrc.xml"/>   <!--  NEMO ocean inert passive tracer   -->
+
+<!-- Files definition -->
+    <file_definition src="./file_def_nemo-oce.xml"/>       <!--  NEMO ocean dynamics                   -->
+    <file_definition src="./file_def_nemo-ice.xml"/>       <!--  NEMO ocean sea ice                    -->
+    <file_definition src="./file_def_nemo-innerttrc.xml"/> <!--  NEMO ocean inert passive tracer       -->
+
+    <axis_definition src="./axis_def_nemo.xml"/>           <!-- Axis definition -->
+    <domain_definition src="./domain_def_nemo.xml"/>       <!-- Domain definition -->
+    <grid_definition   src="./grid_def_nemo.xml"/>         <!-- Grids definition -->
 \end{xmllines}
 
 %% =================================================================================================
@@ -450,33 +514,32 @@ example 1: Direct inheritance.
 
 \begin{xmllines}
 <field_definition operation="average" >
-	<field id="sst"                    />   <!-- averaged      sst -->
-	<field id="sss" operation="instant"/>   <!-- instantaneous sss -->
+     <field id="sst"                    />   <!-- averaged      sst -->
+     <field id="sss" operation="instant"/>   <!-- instantaneous sss -->
 </field_definition>
 \end{xmllines}
 
-The field ''sst'' which is part (or a child) of the field\_definition will inherit the value ''average'' of
+\noindent The field ''sst'' which is part (or a child) of the field\_definition will inherit the value ''average'' of
 the attribute ''operation'' from its parent.
 Note that a child can overwrite the attribute definition inherited from its parents.
 In the example above, the field ''sss'' will for example output instantaneous values instead of average values.
 \\
 \\
-example 2: Inheritance by reference.
+example 2: Inheritance by reference: inherit (and overwrite, if needed) the attributes of a tag you are refering to:
+
 
 \begin{xmllines}
 <field_definition>
-	<field id="sst" long_name="sea surface temperature" />
-	<field id="sss" long_name="sea surface salinity"    />
+   <field id="sst" long_name="sea surface temperature" />
+   <field id="sss" long_name="sea surface salinity"    />
 </field_definition>
 <file_definition>
-	<file id="myfile" output_freq="1d" />
-		<field field_ref="sst"                            />  <!-- default def -->
-		<field field_ref="sss" long_name="my description" />  <!-- overwrite   -->
-	</file>
+   <file id="myfile" output_freq="1d" />
+      <field field_ref="sst"                            />  <!-- default def -->
+      <field field_ref="sss" long_name="my description" />  <!-- overwrite   -->
+   </file>
 </file_definition>
 \end{xmllines}
-
-Inherit (and overwrite, if needed) the attributes of a tag you are refering to.
 
 %% =================================================================================================
 \subsubsection{Use of groups}
@@ -488,15 +551,15 @@ In the following example, we define a group of field that will share a common gr
 Note that for the field ''toce'', we overwrite the grid definition inherited from the group by ''grid\_T\_3D''.
 
 \begin{xmllines}
-<field_group id="grid_T" grid_ref="grid_T_2D">
-	<field id="toce" long_name="temperature"             unit="degC" grid_ref="grid_T_3D"/>
-	<field id="sst"  long_name="sea surface temperature" unit="degC"                     />
-	<field id="sss"  long_name="sea surface salinity"    unit="psu"                      />
-	<field id="ssh"  long_name="sea surface height"      unit="m"                        />
-	...
+   <field_group id="grid_T" grid_ref="grid_T_2D">
+   <field id="toce" long_name="temperature"             unit="degC" grid_ref="grid_T_3D"/>
+   <field id="sst"  long_name="sea surface temperature" unit="degC"                     />
+   <field id="sss"  long_name="sea surface salinity"    unit="psu"                      />
+   <field id="ssh"  long_name="sea surface height"      unit="m"                        />
+   ...
 \end{xmllines}
 
-Secondly, the group can be used to replace a list of elements.
+\noindent Secondly, the group can be used to replace a list of elements.
 Several examples of groups of fields are proposed at the end of the XML field files (
 \path{cfgs/SHARED/field_def_nemo-oce.xml},
 \path{cfgs/SHARED/field_def_nemo-pisces.xml} and
@@ -505,31 +568,31 @@ For example, a short list of the usual variables related to the U grid:
 
 \begin{xmllines}
 <field_group id="groupU" >
-	<field field_ref="uoce"  />
-	<field field_ref="ssu" />
-	<field field_ref="utau"  />
+   <field field_ref="uoce"  />
+   <field field_ref="ssu" />
+   <field field_ref="utau"  />
 </field_group>
 \end{xmllines}
 
-that can be directly included in a file through the following syntax:
+\noindent that can be directly included in a file through the following syntax:
 
 \begin{xmllines}
 <file id="myfile_U" output_freq="1d" />
-	<field_group group_ref="groupU" />
-	<field field_ref="uocetr_eff"   />  <!-- add another field -->
+   <field_group group_ref="groupU" />
+   <field field_ref="uocetr_eff"   />  <!-- add another field -->
 </file>
 \end{xmllines}
 
 %% =================================================================================================
 \subsection{Detailed functionalities}
 
-The file \path{NEMOGCM/CONFIG/ORCA2_LIM/iodef_demo.xml} provides several examples of the use of
+The files \path{cfgs/ORCA2_ICE_PISCES/EXPREF/*.xml} provide several examples of the use of
 the new functionalities offered by the XML interface of XIOS.
 
 %% =================================================================================================
 \subsubsection{Define horizontal subdomains}
 
-Horizontal subdomains are defined through the attributs zoom\_ibegin, zoom\_jbegin, zoom\_ni, zoom\_nj of
+Horizontal subdomains are defined through the attributes zoom\_ibegin, zoom\_jbegin, zoom\_ni, zoom\_nj of
 the tag family domain.
 It must therefore be done in the domain part of the XML file.
 For example, in \path{cfgs/SHARED/domain_def.xml}, we provide the following example of a definition of
@@ -537,7 +600,7 @@ a 5 by 5 box with the bottom left corner at point (10,10).
 
 \begin{xmllines}
 <domain id="myzoomT" domain_ref="grid_T">
-	<zoom_domain ibegin="10" jbegin="10" ni="5" nj="5" />
+    <zoom_domain ibegin="10" jbegin="10" ni="5" nj="5" />
 \end{xmllines}
 
 The use of this subdomain is done through the redefinition of the attribute domain\_ref of the tag family field.
@@ -545,11 +608,11 @@ For example:
 
 \begin{xmllines}
 <file id="myfile_vzoom" output_freq="1d" >
-	<field field_ref="toce" domain_ref="myzoomT"/>
+   <field field_ref="toce" domain_ref="myzoomT"/>
 </file>
 \end{xmllines}
 
-Moorings are seen as an extrem case corresponding to a 1 by 1 subdomain.
+\noindent Moorings are seen as an extreme case corresponding to a 1 by 1 subdomain.
 The Equatorial section, the TAO, RAMA and PIRATA moorings are already registered in the code and
 can therefore be outputted without taking care of their (i,j) position in the grid.
 These predefined domains can be activated by the use of specific domain\_ref:
@@ -558,39 +621,48 @@ the mooring position for TAO, RAMA and PIRATA followed by ''T'' (for example: ''
 
 \begin{xmllines}
 <file id="myfile_vzoom" output_freq="1d" >
-	<field field_ref="toce" domain_ref="0n180wT"/>
+   <field field_ref="toce" domain_ref="0n180wT"/>
 </file>
 \end{xmllines}
 
-Note that if the domain decomposition used in XIOS cuts the subdomain in several parts and if
+\noindent Note that if the domain decomposition used in XIOS cuts the subdomain in several parts and if
 you use the ''multiple\_file'' type for your output files,
-you will endup with several files you will need to rebuild using unprovided tools (like ncpdq and ncrcat,
+you will end up with several files you will need to rebuild using unprovided tools (like ncpdq and ncrcat,
 \href{http://nco.sourceforge.net/nco.html#Concatenation}{see nco manual}).
 We are therefore advising to use the ''one\_file'' type in this case.
 
 %% =================================================================================================
 \subsubsection{Define vertical zooms}
 
-Vertical zooms are defined through the attributs zoom\_begin and zoom\_n of the tag family axis.
+Vertical zooms are defined through the attributes begin and n of the zoom\_axis tag family.
 It must therefore be done in the axis part of the XML file.
-For example, in \path{cfgs/ORCA2_ICE_PISCES/EXPREF/iodef_demo.xml}, we provide the following example:
+For example, in \path{cfgs/ORCA2_ICE_PISCES/EXPREF/axis_def_nemo.xml}, we provide the following example:
 
 \begin{xmllines}
 <axis_definition>
-	<axis id="deptht" long_name="Vertical T levels" unit="m" positive="down" />
-	<axis id="deptht_zoom" azix_ref="deptht" >
-		<zoom_axis zoom_begin="1" zoom_n="10" />
-	</axis>
+   <axis id="deptht" long_name="Vertical T levels" unit="m" positive="down" />
+   <axis id="deptht300" azix_ref="deptht" >
+     <zoom_axis begin="1" n="19" />
+</axis>
 \end{xmllines}
 
-The use of this vertical zoom is done through the redefinition of the attribute axis\_ref of the tag family field.
-For example:
+\noindent The use of this vertical zoom is done through the definition of a new grid in \texttt{grid\_def\_nemo.xml}:
 
 \begin{xmllines}
-<file id="myfile_hzoom" output_freq="1d" >
-	<field field_ref="toce" axis_ref="deptht_myzoom"/>
-</file>
+<grid id="grid_T_zoom_300">
+   <domain domain_ref="grid_T" />
+   <axis axis_ref="deptht300" />
+</grid>
 \end{xmllines}
+
+\noindent and subsequent application in a field definition (e.g. \texttt{field\_def\_nemo-oce.xml}):
+
+\begin{xmllines}
+<field id="toce_e3t_300"    field_ref="toce_e3t"          unit="degree_C"     
+                            grid_ref="grid_T_zoom_300"    detect_missing_value="true" />
+\end{xmllines}
+
+\noindent This variable can then be added to a file\_definition for actual output.
 
 %% =================================================================================================
 \subsubsection{Control of the output file names}
@@ -600,12 +672,12 @@ For example:
 
 \begin{xmllines}
 <file_group id="1d" output_freq="1d" name="myfile_1d" >
-	<file id="myfileA" name_suffix="_AAA" > <!-- will create file "myfile_1d_AAA"  -->
-		...
-	</file>
-	<file id="myfileB" name_suffix="_BBB" > <!-- will create file "myfile_1d_BBB" -->
-		...
-	</file>
+   <file id="myfileA" name_suffix="_AAA" > <!-- will create file "myfile_1d_AAA"  -->
+   ...
+   </file>
+   <file id="myfileB" name_suffix="_BBB" > <!-- will create file "myfile_1d_BBB" -->
+   ...
+   </file>
 </file_group>
 \end{xmllines}
 
@@ -654,7 +726,9 @@ the following part of the name and the name\_suffix (that can be inherited) will
 \end{table}
 
 \noindent For example,
-\xmlline|<file id="myfile_hzoom" name="myfile_@expname@_@startdate@_freq@freq@" output_freq="1d" >|
+\begin{xmllines}
+<file id="myfile_hzoom" name="myfile_@expname@_@startdate@_freq@freq@" output_freq="1d" >
+\end{xmllines}
 
 \noindent with the namelist:
 \begin{forlines}
@@ -675,15 +749,17 @@ By convention, these attributes are defined to ''auto'' (for string) or ''0000''
 (but this is not necessary).
 \\
 
-Here is the list of these attributes:
+There is the list of these attributes in the previous table.
 \\
-
 \begin{table}
   \begin{tabular}{|l|c|c|}
     \hline
-    tag ids affected by automatic definition of some of their attributes &
+    tag ids affected by automatic definition &
     name attribute                                                       &
     attribute value                                                      \\
+    of some of their attributes &
+                                                           &
+                                                          \\
     \hline
     \hline
     field\_definition                                                    &
@@ -731,7 +807,7 @@ Here is the list of these attributes:
 
 \begin{xmllines}
 <field field_ref="sst"  name="tosK"  unit="degK" > sst + 273.15 </field>
-<field field_ref="taum" name="taum2" unit="N2/m4" long_name="square of wind stress module" >	taum * taum </field>
+<field field_ref="taum" name="taum2" unit="N2/m4" long_name="square of wind stress module" >   taum * taum </field>
 <field field_ref="qt"   name="stupid_check" > qt - qsr - qns </field>
 \end{xmllines}
 
@@ -769,14 +845,14 @@ Forcing double precision outputs with prec="8" (for example in the field\_defini
 
 \begin{xmllines}
 <file_group id="1d" output_freq="1d" output_level="10" enabled=".true."> <!-- 1d files -->
-	<file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
-		<field field_ref="sst" name="tos" >
-			<variable id="my_attribute1" type="string"  > blabla </variable>
-			<variable id="my_attribute2" type="integer" > 3      </variable>
-			<variable id="my_attribute3" type="float"   > 5.0    </variable>
-		</field>
-		<variable id="my_global_attribute" type="string" > blabla_global </variable>
-	</file>
+   <file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
+      <field field_ref="sst" name="tos" >
+         <variable id="my_attribute1" type="string"  > blabla </variable>
+         <variable id="my_attribute2" type="integer" > 3      </variable>
+         <variable id="my_attribute3" type="float"   > 5.0    </variable>
+      </field>
+      <variable id="my_global_attribute" type="string" > blabla_global </variable>
+   </file>
 </file_group>
 \end{xmllines}
 
@@ -792,9 +868,9 @@ Forcing double precision outputs with prec="8" (for example in the field\_defini
 
 \begin{xmllines}
 <file_group id="5d" output_freq="5d"  output_level="10" enabled=".true." >  <!-- 5d files -->
-	<file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
-		<field field_ref="toce" operation="instant" freq_op="5d" > @toce_e3t / @e3t </field>
-	</file>
+   <file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
+      <field field_ref="toce" operation="instant" freq_op="5d" > @toce_e3t / @e3t </field>
+   </file>
 </file_group>
 \end{xmllines}
 
@@ -820,12 +896,12 @@ Note that in this case, freq\_op must be equal to the file output\_freq.
 
 \begin{xmllines}
 <file_group id="1m" output_freq="1m"  output_level="10" enabled=".true." >  <!-- 1m files -->
-	<file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
-		<field field_ref="ssh" name="sshstd" long_name="sea_surface_temperature_standard_deviation"
-		operation="instant" freq_op="1m" >
-			sqrt( @ssh2 - @ssh * @ssh )
-		</field>
-	</file>
+   <file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
+      <field field_ref="ssh" name="sshstd" long_name="sea_surface_temperature_standard_deviation"
+                        operation="instant" freq_op="1m" >
+                        sqrt( @ssh2 - @ssh * @ssh )
+      </field>
+   </file>
 </file_group>
 \end{xmllines}
 
@@ -843,19 +919,19 @@ Note that in this case, freq\_op must be equal to the file output\_freq.
  - define 2 new variables in field\_definition
 
 \begin{xmllines}
-<field id="sstmax" field_ref="sst" long_name="max of sea surface temperature" operation="maximum" />
-<field id="sstmin" field_ref="sst" long_name="min of sea surface temperature" operation="minimum" />
+   <field id="sstmax" field_ref="sst" long_name="max of sea surface temperature" operation="maximum" />
+   <field id="sstmin" field_ref="sst" long_name="min of sea surface temperature" operation="minimum" />
 \end{xmllines}
 
  - use these 2 new variables when defining your file.
 
 \begin{xmllines}
 <file_group id="1m" output_freq="1m"  output_level="10" enabled=".true." >  <!-- 1m files -->
-	<file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
-		<field field_ref="sst" name="sstdcy" long_name="amplitude of sst diurnal cycle" operation="average" freq_op="1d" >
-			@sstmax - @sstmin
-		</field>
-	</file>
+   <file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
+      <field field_ref="sst" name="sstdcy" long_name="amplitude of sst diurnal cycle" operation="average" freq_op="1d" >
+                        @sstmax - @sstmin
+      </field>
+   </file>
 </file_group>
 \end{xmllines}
 
@@ -1313,22 +1389,59 @@ the namelist parameter \np{ln_cfmeta}{ln\_cfmeta} in the \nam{run}{run} namelist
 This must be set to true if these metadata are to be included in the output files.
 
 %% =================================================================================================
+\subsection{Enabling NetCDF4 compression with XIOS}
+
+XIOS supports the use of gzip compression when compiled with NetCDF4 libraries but is subject to the
+same restrictions as the underlying HDF5 component. That is, compression is not availiable when the
+IO servers are writing in parallel to shared output files. Thus, compression can only be applied in
+multiple\_file mode only or with two-levels of servers with multiple servers feeding a single server.
+The XML tag to activate compression is:
+
+\begin{xmllines}
+   compression_level="n"
+\end{xmllines}
+
+where n is an integer between 0 and 9. A value of 2 is normally recommended as a suitable trade-off between
+algorithm performance and compression levels. This tag can be applied either at file level or to indivdual
+fields, e.g.:
+
+\begin{xmllines}
+   <file_definition>
+      <file name="output" output_freq="1ts" compression_level="2">
+         <field id="field_A" grid_ref="grid_A" operation="average" compression_level=" 4" />
+         <field id="field_B" grid_ref="grid_A" operation="average" compression_level=" 0" />
+         <field id="field_C" grid_ref="grid_A" operation="average" />
+      </file> 
+   </file_definition>
+\end{xmllines}
+
+It is unclear how XIOS decides on suitable chunking parameters before applying compression so it may
+be necessary to rechunk data whilst combining multiple\_file output. \forcode{REBUILD_NEMO} is capable
+of doing this.
+
 \section[NetCDF4 support (\texttt{\textbf{key\_netcdf4}})]{NetCDF4 support (\protect\key{netcdf4})}
 \label{sec:DIA_nc4}
 
-Since version 3.3, support for NetCDF4 chunking and (loss-less) compression has been included.
-These options build on the standard NetCDF output and allow the user control over the size of the chunks via
-namelist settings.
-Chunking and compression can lead to significant reductions in file sizes for a small runtime overhead.
-For a fuller discussion on chunking and other performance issues the reader is referred to
-the NetCDF4 documentation found \href{https://www.unidata.ucar.edu/software/netcdf/docs/netcdf_perf_chunking.html}{here}.
+Since version 3.3, support for NetCDF4 chunking and (loss-less) compression has been
+included.  These options build on the standard NetCDF output and allow the user control
+over the size of the chunks via namelist settings.  Chunking and compression can lead to
+significant reductions in file sizes for a small runtime overhead.  For a fuller
+discussion on chunking and other performance issues the reader is referred to the NetCDF4
+documentation found
+\href{https://www.unidata.ucar.edu/software/netcdf/docs/netcdf_perf_chunking.html}{here}.
 
-The new features are only available when the code has been linked with a NetCDF4 library
-(version 4.1 onwards, recommended) which has been built with HDF5 support (version 1.8.4 onwards, recommended).
-Datasets created with chunking and compression are not backwards compatible with NetCDF3 "classic" format but
-most analysis codes can be relinked simply with the new libraries and will then read both NetCDF3 and NetCDF4 files.
-\NEMO\ executables linked with NetCDF4 libraries can be made to produce NetCDF3 files by
-setting the \np{ln_nc4zip}{ln\_nc4zip} logical to false in the \nam{nc4}{nc4} namelist:
+This section only applies to the NetCDF output written directly by \NEMO; i.e. restart
+files and mean files produced via the old IOIPSL interface when \key{xios} is not being
+used. As such it has limited use since chunking and compression can be applied at the
+rebuilding phase of such output.
+
+The features are only available when the code has been linked with a NetCDF4 library
+(version 4.1 onwards, recommended) which has been built with HDF5 support (version 1.8.4
+onwards, recommended).  Datasets created with chunking and compression are not backwards
+compatible with NetCDF3 "classic" format but most analysis codes can be relinked simply
+with the new libraries and will then read both NetCDF3 and NetCDF4 files.  \NEMO\
+executables linked with NetCDF4 libraries can be made to produce NetCDF3 files by setting
+the \np{ln_nc4zip}{ln\_nc4zip} logical to false in the \nam{nc4}{nc4} namelist:
 
 \begin{listing}
   \nlst{namnc4}
@@ -1336,27 +1449,27 @@ setting the \np{ln_nc4zip}{ln\_nc4zip} logical to false in the \nam{nc4}{nc4} na
   \label{lst:namnc4}
 \end{listing}
 
-If \key{netcdf4} has not been defined, these namelist parameters are not read.
-In this case, \np{ln_nc4zip}{ln\_nc4zip} is set false and dummy routines for a few NetCDF4-specific functions are defined.
-These functions will not be used but need to be included so that compilation is possible with NetCDF3 libraries.
+If \key{netcdf4} has not been defined, these namelist parameters are not read.  In this
+case, \np{ln_nc4zip}{ln\_nc4zip} is set false and dummy routines for a few
+NetCDF4-specific functions are defined.  These functions will not be used but need to be
+included so that compilation is possible with NetCDF3 libraries.
 
 When using NetCDF4 libraries, \key{netcdf4} should be defined even if the intention is to
-create only NetCDF3-compatible files.
-This is necessary to avoid duplication between the dummy routines and the actual routines present in the library.
-Most compilers will fail at compile time when faced with such duplication.
-Thus when linking with NetCDF4 libraries the user must define \key{netcdf4} and
-control the type of NetCDF file produced via the namelist parameter.
+create only NetCDF3-compatible files.  This is necessary to avoid duplication between the
+dummy routines and the actual routines present in the library.  Most compilers will fail
+at compile time when faced with such duplication.  Thus when linking with NetCDF4
+libraries the user must define \key{netcdf4} and control the type of NetCDF file produced
+via the namelist parameter.
 
-Chunking and compression is applied only to 4D fields and
-there is no advantage in chunking across more than one time dimension since
-previously written chunks would have to be read back and decompressed before being added to.
-Therefore, user control over chunk sizes is provided only for the three space dimensions.
-The user sets an approximate number of chunks along each spatial axis.
-The actual size of the chunks will depend on global domain size for mono-processors or, more likely,
-the local processor domain size for distributed processing.
-The derived values are subject to practical minimum values (to avoid wastefully small chunk sizes) and
-cannot be greater than the domain size in any dimension.
-The algorithm used is:
+Chunking and compression is applied only to 4D fields and there is no advantage in
+chunking across more than one time dimension since previously written chunks would have to
+be read back and decompressed before being added to.  Therefore, user control over chunk
+sizes is provided only for the three space dimensions.  The user sets an approximate
+number of chunks along each spatial axis.  The actual size of the chunks will depend on
+global domain size for mono-processors or, more likely, the local processor domain size
+for distributed processing.  The derived values are subject to practical minimum values
+(to avoid wastefully small chunk sizes) and cannot be greater than the domain size in any
+dimension.  The algorithm used is:
 
 \begin{forlines}
 ichunksz(1) = MIN(idomain_size, MAX((idomain_size-1) / nn_nchunks_i + 1 ,16 ))
@@ -1415,15 +1528,6 @@ each processing region.
   \label{tab:DIA_NC4}
 \end{table}
 
-When \key{iomput} is activated with \key{netcdf4} chunking and compression parameters for fields produced via
-\rou{iom\_put} calls are set via an equivalent and identically named namelist to \nam{nc4}{nc4} in
-\textit{xmlio\_server.def}.
-Typically this namelist serves the mean files whilst the \nam{nc4}{nc4} in the main namelist file continues to
-serve the restart files.
-This duplication is unfortunate but appropriate since, if using io\_servers, the domain sizes of
-the individual files produced by the io\_server processes may be different to those produced by
-the invidual processing regions and different chunking choices may be desired.
-
 %% =================================================================================================
 \section[Tracer/Dynamics trends (\forcode{&namtrd})]{Tracer/Dynamics trends (\protect\nam{trd}{trd})}
 \label{sec:DIA_trd}
@@ -1438,7 +1542,7 @@ Each trend of the dynamics and/or temperature and salinity time evolution equati
 \mdl{trddyn} and/or \mdl{trdtra} modules (see TRD directory) just after their computation
 (\ie\ at the end of each \textit{dyn....F90} and/or \textit{tra....F90} routines).
 This capability is controlled by options offered in \nam{trd}{trd} namelist.
-Note that the output are done with XIOS, and therefore the \key{iomput} is required.
+Note that the output are done with XIOS, and therefore the \key{xios} is required.
 
 What is done depends on the \nam{trd}{trd} logical set to \forcode{.true.}:
 
@@ -1464,7 +1568,7 @@ In particular, options associated with \np{ln_dyn_mxl}{ln\_dyn\_mxl}, \np{ln_vor
 and none of the options have been tested with variable volume (\ie\ \np[=.true.]{ln_linssh}{ln\_linssh}).
 
 %% =================================================================================================
-\section[FLO: On-Line Floats trajectories (\texttt{\textbf{key\_floats}})]{FLO: On-Line Floats trajectories (\protect\key{floats})}
+\section[FLO: On-Line Floats trajectories]{FLO: On-Line Floats trajectories}
 \label{sec:DIA_FLO}
 
 \begin{listing}
@@ -1475,7 +1579,8 @@ and none of the options have been tested with variable volume (\ie\ \np[=.true.]
 
 The on-line computation of floats advected either by the three dimensional velocity field or constraint to
 remain at a given depth ($w = 0$ in the computation) have been introduced in the system during the CLIPPER project.
-Options are defined by \nam{flo}{flo} namelist variables.
+Options are defined by \nam{flo}{flo} namelist variables and the interface is activated by setting \np{ln_float = .true.}.
+
 The algorithm used is based either on the work of \cite{blanke.raynaud_JPO97} (default option),
 or on a $4^th$ Runge-Hutta algorithm (\np[=.true.]{ln_flork4}{ln\_flork4}).
 Note that the \cite{blanke.raynaud_JPO97} algorithm have the advantage of providing trajectories which
@@ -1549,25 +1654,25 @@ Output data can be written in ascii files (\np[=.true.]{ln_flo_ascii}{ln\_flo\_a
 In that case, output filename is trajec\_float.
 
 Another possiblity of writing format is Netcdf (\np[=.false.]{ln_flo_ascii}{ln\_flo\_ascii}) with
-\key{iomput} and outputs selected in iodef.xml.
+\key{xios} and outputs selected in iodef.xml.
 Here it is an example of specification to put in files description section:
 
 \begin{xmllines}
-<group id="1d_grid_T" name="auto" description="ocean T grid variables" >   }
-	<file id="floats"  description="floats variables"> }
-		<field ref="traj_lon"   name="floats_longitude"   freq_op="86400" />}
-		<field ref="traj_lat"   name="floats_latitude"    freq_op="86400" />}
-		<field ref="traj_dep"   name="floats_depth"       freq_op="86400" />}
-		<field ref="traj_temp"  name="floats_temperature" freq_op="86400" />}
-		<field ref="traj_salt"  name="floats_salinity"    freq_op="86400" />}
-		<field ref="traj_dens"  name="floats_density"     freq_op="86400" />}
-		<field ref="traj_group" name="floats_group"       freq_op="86400" />}
-	</file>}
-</group>}
+<group id="1d_grid_T" name="auto" description="ocean T grid variables" >
+   <file id="floats"  description="floats variables">
+      <field ref="traj_lon"   name="floats_longitude"   freq_op="86400" />
+      <field ref="traj_lat"   name="floats_latitude"    freq_op="86400" />
+      <field ref="traj_dep"   name="floats_depth"       freq_op="86400" />
+      <field ref="traj_temp"  name="floats_temperature" freq_op="86400" />
+      <field ref="traj_salt"  name="floats_salinity"    freq_op="86400" />
+      <field ref="traj_dens"  name="floats_density"     freq_op="86400" />
+      <field ref="traj_group" name="floats_group"       freq_op="86400" />
+   </file>
+</group>
 \end{xmllines}
 
 %% =================================================================================================
-\section[Transports across sections (\texttt{\textbf{key\_diadct}})]{Transports across sections (\protect\key{diadct})}
+\section[Transports across sections]{Transports across sections}
 \label{sec:DIA_diag_dct}
 
 \begin{listing}
@@ -1577,7 +1682,7 @@ Here it is an example of specification to put in files description section:
 \end{listing}
 
 A module is available to compute the transport of volume, heat and salt through sections.
-This diagnostic is actived with \key{diadct}.
+This diagnostic is actived with \np{ln_diadct = .true.}.
 
 Each section is defined by the coordinates of its 2 extremities.
 The pathways between them are contructed using tools which can be found in \texttt{tools/SECTIONS\_DIADCT}

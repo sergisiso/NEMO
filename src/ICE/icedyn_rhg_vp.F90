@@ -45,7 +45,7 @@ MODULE icedyn_rhg_vp
    REAL(wp) ::   zrelaxu_vp=0.95     ! U-relaxation factor (MV: can probably be merged with V-factor once ok)
    REAL(wp) ::   zrelaxv_vp=0.95     ! V-relaxation factor 
    REAL(wp) ::   zuerr_max_vp=0.80   ! maximum velocity error, above which a forcing error is considered and solver is stopped
-   REAL(wp) ::   zuerr_min_vp=1.e-04 ! minimum velocity error, beyond which convergence is assumed
+   REAL(wp) ::   zuerr_min_vp=1.e-06 ! minimum velocity error, beyond which convergence is assumed
 
    !! for convergence tests
    INTEGER ::   ncvgid        ! netcdf file id
@@ -148,20 +148,21 @@ CONTAINS
       REAL(wp) ::   zkt                                                 ! isotropic tensile strength for landfast ice
       REAL(wp) ::   zm1, zm2, zm3, zmassU, zmassV                       ! ice/snow mass and volume
       REAL(wp) ::   zds2, zdt, zdt2, zdiv, zdiv2                        ! temporary scalars
-      REAL(wp) ::   zp_delstar_f                                        ! 
+      REAL(wp) ::   zvisc_f                                        ! 
       REAL(wp) ::   zu_cV, zv_cU                                        ! 
       REAL(wp) ::   zfac, zfac1, zfac2, zfac3
       REAL(wp) ::   zt12U, zt11U, zt22U, zt21U, zt122U, zt121U
       REAL(wp) ::   zt12V, zt11V, zt22V, zt21V, zt122V, zt121V
       REAL(wp) ::   zAA3, zw, ztau, zuerr_max, zverr_max
       !
-      REAL(wp), DIMENSION(jpi,jpj) ::   za_iU  , za_iV                      ! ice fraction on U/V points
+      REAL(wp), DIMENSION(jpi,jpj) ::   za_iU  , za_iV                  ! ice fraction on U/V points
       REAL(wp), DIMENSION(jpi,jpj) ::   zmU_t, zmV_t                    ! Acceleration term contribution to RHS
       REAL(wp), DIMENSION(jpi,jpj) ::   zmassU_t, zmassV_t              ! Mass per unit area divided by time step
       !
-      REAL(wp), DIMENSION(jpi,jpj) ::   zdeltat, zdelstar_t             ! Delta & Delta* at T-points
-      REAL(wp), DIMENSION(jpi,jpj) ::   ztens, zshear                   ! Tension, shear
-      REAL(wp), DIMENSION(jpi,jpj) ::   zp_delstar_t                    ! P/delta* at T points
+      REAL(wp), DIMENSION(jpi,jpj) ::   zdelta                          ! Delta at T-points      (now value)
+      REAL(wp), DIMENSION(jpi,jpj) ::   zten_i, zshear                  ! Tension, shear
+      REAL(wp), DIMENSION(jpi,jpj) ::   zvisc_t                         ! Bulk viscosity (P/delta*) at T points
+      REAL(wp), DIMENSION(jpi,jpj) ::   zvisc_t_prev                    ! Bulk viscosity (next to last iterate) - for yield curve diag
       REAL(wp), DIMENSION(jpi,jpj) ::   zzt, zet                        ! Viscosity pre-factors at T points
       REAL(wp), DIMENSION(jpi,jpj) ::   zef                             ! Viscosity pre-factor at F point
       !
@@ -171,6 +172,8 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj) ::   zu_c, zv_c                      ! "current" ice velocity (m/s), average of previous two OL iterates
       REAL(wp), DIMENSION(jpi,jpj) ::   zu_b, zv_b                      ! velocity at previous sub-iterate
       REAL(wp), DIMENSION(jpi,jpj) ::   zuerr, zverr                    ! absolute U/Vvelocity difference between current and previous sub-iterates
+      REAL(wp), DIMENSION(jpi,jpj) ::   zvel_res                        ! Residual of the linear system at last iteration
+      REAL(wp), DIMENSION(jpi,jpj) ::   zvel_diff                       ! Absolute velocity difference @last outer iteration
       !
       REAL(wp), DIMENSION(jpi,jpj) ::   zds                             ! shear
       REAL(wp), DIMENSION(jpi,jpj) ::   zsshdyn                         ! array used for the calculation of ice surface slope:
@@ -192,7 +195,7 @@ CONTAINS
 !!!      REAL(wp), DIMENSION(jpi,jpj) ::   ztaux_bi, ztauy_bi              ! ice-OceanBottom stress at U-V points (landfast)
 !!!      REAL(wp), DIMENSION(jpi,jpj) ::   ztaux_base, ztauy_base          ! ice-bottom stress at U-V points (landfast)
      !
-      REAL(wp), DIMENSION(jpi,jpj) ::   zmsk00
+      REAL(wp), DIMENSION(jpi,jpj) ::   zmsk, zmsk00
       REAL(wp), DIMENSION(jpi,jpj) ::   zmsk01x, zmsk01y                ! mask for lots of ice (1), little ice (0)
       REAL(wp), DIMENSION(jpi,jpj) ::   zmsk00x, zmsk00y                ! mask for ice presence (1), no ice (0)
       !
@@ -200,16 +203,13 @@ CONTAINS
       REAL(wp), PARAMETER          ::   zmmin  = 1._wp                  ! ice mass (kg/m2)  below which ice velocity becomes very small
       REAL(wp), PARAMETER          ::   zamin  = 0.001_wp               ! ice concentration below which ice velocity becomes very small
       !! --- diags
-      REAL(wp)                     ::   zsig1, zsig2, zsig12, zdelta, z1_strength, zfac_x, zfac_y
+      REAL(wp)                     ::   zsig1, zsig2, zsig12, z1_strength, zfac_x, zfac_y
       REAL(wp), DIMENSION(jpi,jpj) ::   zs1, zs2, zs12, zs12f           ! stress tensor components
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zsig_I, zsig_II, zsig1_p, zsig2_p
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztaux_oi, ztauy_oi
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zdiag_xmtrp_ice, zdiag_ymtrp_ice ! X/Y-component of ice mass transport (kg/s, SIMIP)
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zdiag_xmtrp_snw, zdiag_ymtrp_snw ! X/Y-component of snow mass transport (kg/s, SIMIP)
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zdiag_xatrp, zdiag_yatrp         ! X/Y-component of area transport (m2/s, SIMIP)
-
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zvel_res                         ! Residual of the linear system at last iteration
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zvel_diff                        ! Absolute velocity difference @last outer iteration
                         
       
       !!----------------------------------------------------------------------------------------------------------------------
@@ -222,53 +222,25 @@ CONTAINS
       ! --- Initialization
       !
       !------------------------------------------------------------------------------!
-      
-      ! for diagnostics and convergence tests
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         zmsk00(ji,jj) = MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - epsi06  ) ) ! 1 if ice    , 0 if no ice
-      END_2D
-      
       IF ( lp_zebra_vp ) THEN; nn_zebra_vp = 2
                          ELSE; nn_zebra_vp = 1; ENDIF 
 
+         !!clem
+         nn_zebra_vp=1
+         !!clem
+         
       nn_nvp = nn_vp_nout * nn_vp_ninn ! maximum number of iterations
 
       IF( lwp )   WRITE(numout,*) ' lp_zebra_vp : ', lp_zebra_vp
       IF( lwp )   WRITE(numout,*) ' nn_zebra_vp : ', nn_zebra_vp
       IF( lwp )   WRITE(numout,*) ' nn_nvp      : ', nn_nvp
       
-      zrhoco = rho0 * rn_cio 
 
-      ! ecc2: square of yield ellipse eccentricity
-      ecc2    = rn_ecc * rn_ecc
-      z1_ecc2 = 1._wp / ecc2
-               
-      ! Initialise convergence checks
-      IF( nn_rhg_chkcvg /= 0 ) THEN
-      
-         ! ice area for global mean kinetic energy (m2)
-         zglob_area = glob_sum( 'ice_rhg_vp', at_i(:,:) * e1e2t(:,:) * tmask(:,:,1) )
-         
-      ENDIF
-
-      ! Landfast param from Lemieux(2016): add isotropic tensile strength (following Konig Beatty and Holland, 2010)
-      ! MV: Not working yet...
-      IF( ln_landfast_L16 ) THEN   ;   zkt = rn_lf_tensile
-      ELSE                         ;   zkt = 0._wp
-      ENDIF
-
-      zs1_rhsu(:,:) = 0._wp; zs2_rhsu(:,:) = 0._wp; zs1_rhsv(:,:) = 0._wp; zs2_rhsv(:,:) = 0._wp
-      zrhsu  (:,:)  = 0._wp; zrhsv  (:,:)  = 0._wp; zf_rhsu(:,:)  = 0._wp; zf_rhsv(:,:)  = 0._wp
-      zAU(:,:) = 0._wp; zBU(:,:) = 0._wp; zCU(:,:) = 0._wp; zDU(:,:) = 0._wp; zEU(:,:) = 0._wp
-      zAV(:,:) = 0._wp; zBV(:,:) = 0._wp; zCV(:,:) = 0._wp; zDV(:,:) = 0._wp; zEV(:,:) = 0._wp
-
-      !------------------------------------------------------------------------------!
-      !
-      ! --- Time-independent quantities
-      !
-      !------------------------------------------------------------------------------!
-      
-      CALL ice_strength ! strength at T points
+      ! for diagnostics and convergence tests
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         zmsk00(ji,jj) = MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - epsi06  ) ) ! 1 if ice    , 0 if no ice
+         zmsk  (ji,jj) = MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - epsi10  ) ) ! 1 if ice    , 0 if no ice
+      END_2D
       
       !---------------------------
       ! -- F-mask (code from EVP)
@@ -293,10 +265,36 @@ CONTAINS
                      &                                          vmask(ji,jj,1), vmask(ji+1,jj,1) ) )
                ENDIF
             END_2D
-         ENDIF
-         
+         ENDIF       
          CALL lbc_lnk( 'icedyn_rhg_vp', fimask, 'F', 1._wp )
       ENDIF
+
+      ! Initialise convergence checks
+      IF( nn_rhg_chkcvg /= 0 ) THEN     
+         ! ice area for global mean kinetic energy (m2)
+         zglob_area = glob_sum( 'ice_rhg_vp', at_i(:,:) * e1e2t(:,:) * tmask(:,:,1) )
+      ENDIF
+
+      ! Landfast param from Lemieux(2016): add isotropic tensile strength (following Konig Beatty and Holland, 2010)
+      ! MV: Not working yet...
+      IF( ln_landfast_L16 ) THEN   ;   zkt = rn_lf_tensile
+      ELSE                         ;   zkt = 0._wp
+      ENDIF
+
+      !------------------------------------------------------------------------------!
+      !
+      ! --- Time-independent quantities
+      !
+      !------------------------------------------------------------------------------!
+      zrhoco = rho0 * rn_cio 
+
+      ! ecc2: square of yield ellipse eccentricity
+      ecc2    = rn_ecc * rn_ecc
+      z1_ecc2 = 1._wp / ecc2
+               
+      
+      CALL ice_strength ! strength at T points
+      
       
       !----------------------------------------------------------------------------------------------------------
       ! -- Time-independent pre-factors for acceleration, ocean drag, coriolis, atmospheric drag, surface tilt
@@ -313,46 +311,73 @@ CONTAINS
          zmf(ji,jj) = zmt(ji,jj) * ff_t(ji,jj)                      ! Coriolis factor at T points (m*f)
       END_2D
       
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+      DO_2D( nn_hls, nn_hls-1, nn_hls-1, nn_hls )
 
          ! Ice fraction at U-V points
          za_iU(ji,jj)    = 0.5_wp * ( at_i(ji,jj) * e1e2t(ji,jj) + at_i(ji+1,jj) * e1e2t(ji+1,jj) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
-         za_iV(ji,jj)    = 0.5_wp * ( at_i(ji,jj) * e1e2t(ji,jj) + at_i(ji,jj+1) * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
 
          ! Snow and ice mass at U-V points
          zm1             = zmt(ji,jj)
          zm2             = zmt(ji+1,jj)
-         zm3             = zmt(ji,jj+1)
          zmassU          = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm2 * e1e2t(ji+1,jj) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
-         zmassV          = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm3 * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
          
          ! Mass per unit area divided by time step
          zmassU_t(ji,jj) = zmassU * r1_Dt_ice
-         zmassV_t(ji,jj) = zmassV * r1_Dt_ice
          
          ! Acceleration term contribution to RHS (depends on velocity at previous time step)            
          zmU_t(ji,jj)    = zmassU_t(ji,jj) * u_ice(ji,jj)
-         zmV_t(ji,jj)    = zmassV_t(ji,jj) * v_ice(ji,jj)
          
          ! Ocean currents at U-V points
-         v_oceU(ji,jj)   = 0.25_wp * ( v_oce(ji,jj) + v_oce(ji,jj-1) + v_oce(ji+1,jj) + v_oce(ji+1,jj-1) ) * umask(ji,jj,1)
-         u_oceV(ji,jj)   = 0.25_wp * ( u_oce(ji,jj) + u_oce(ji-1,jj) + u_oce(ji,jj+1) + u_oce(ji-1,jj+1) ) * vmask(ji,jj,1)
+         ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+         v_oceU(ji,jj)   = 0.25_wp * ( (v_oce(ji,jj) + v_oce(ji,jj-1)) + (v_oce(ji+1,jj) + v_oce(ji+1,jj-1)) ) * umask(ji,jj,1)
          
          ! Wind stress
          ztaux_ai(ji,jj) = za_iU(ji,jj) * utau_ice(ji,jj)
-         ztauy_ai(ji,jj) = za_iV(ji,jj) * vtau_ice(ji,jj)
          
          ! Force due to sea surface tilt(- m*g*GRAD(ssh))
          zspgU(ji,jj)    = - zmassU * grav * ( zsshdyn(ji+1,jj) - zsshdyn(ji,jj) ) * r1_e1u(ji,jj)
-         zspgV(ji,jj)    = - zmassV * grav * ( zsshdyn(ji,jj+1) - zsshdyn(ji,jj) ) * r1_e2v(ji,jj)
+         !!spgU(ji,jj)    = - grav * ( zsshdyn(ji,jj) ) * r1_e1u(ji,jj)
          
          ! Mask for ice presence (1) or absence (0)
          zmsk00x(ji,jj)  = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zmassU ) )  ! 0 if no ice
-         zmsk00y(ji,jj)  = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zmassV ) )  ! 0 if no ice
          
          ! Mask for lots of ice (1) or little ice (0)
          IF ( zmassU <= zmmin .AND. za_iU(ji,jj) <= zamin ) THEN   ;   zmsk01x(ji,jj) = 0._wp
          ELSE                                                      ;   zmsk01x(ji,jj) = 1._wp   ;   ENDIF
+
+      END_2D      
+         
+            
+      DO_2D( nn_hls-1, nn_hls, nn_hls, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+
+         ! Ice fraction at U-V points
+         za_iV(ji,jj)    = 0.5_wp * ( at_i(ji,jj) * e1e2t(ji,jj) + at_i(ji,jj+1) * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
+
+         ! Snow and ice mass at U-V points
+         zm1             = zmt(ji,jj)
+         zm3             = zmt(ji,jj+1)
+         zmassV          = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm3 * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
+         
+         ! Mass per unit area divided by time step
+         zmassV_t(ji,jj) = zmassV * r1_Dt_ice
+         
+         ! Acceleration term contribution to RHS (depends on velocity at previous time step)            
+         zmV_t(ji,jj)    = zmassV_t(ji,jj) * v_ice(ji,jj)
+         
+         ! Ocean currents at U-V points
+         ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+         u_oceV(ji,jj)   = 0.25_wp * ( (u_oce(ji,jj) + u_oce(ji-1,jj)) + (u_oce(ji,jj+1) + u_oce(ji-1,jj+1)) ) * vmask(ji,jj,1)
+         
+         ! Wind stress
+         ztauy_ai(ji,jj) = za_iV(ji,jj) * vtau_ice(ji,jj)
+         
+         ! Force due to sea surface tilt(- m*g*GRAD(ssh))
+         zspgV(ji,jj)    = - zmassV * grav * ( zsshdyn(ji,jj+1) - zsshdyn(ji,jj) ) * r1_e2v(ji,jj)
+         
+         ! Mask for ice presence (1) or absence (0)
+         zmsk00y(ji,jj)  = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zmassV ) )  ! 0 if no ice
+         
+         ! Mask for lots of ice (1) or little ice (0)
          IF ( zmassV <= zmmin .AND. za_iV(ji,jj) <= zamin ) THEN   ;   zmsk01y(ji,jj) = 0._wp
          ELSE                                                      ;   zmsk01y(ji,jj) = 1._wp   ;   ENDIF              
 
@@ -401,9 +426,7 @@ CONTAINS
 
          END_2D
 
-         CALL lbc_lnk( 'icedyn_rhg_vp', zds, 'F', 1. ) ! necessary, zds2 uses jpi/jpj values for zds 
-
-         DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls ) ! 2 -> jpj; 2,jpi !!! CHECK !!!
+         DO_2D( 0, 0, 0, 0 )
             ! loop to jpi,jpj to avoid making a communication for zs1,zs2,zs12
 
             ! shear**2 at T points (doc eq. A16)
@@ -412,8 +435,9 @@ CONTAINS
                &    ) * 0.25_wp * r1_e1e2t(ji,jj)
               
             ! divergence at T points
-            zdiv  = ( e2u(ji,jj) * zu_c(ji,jj) - e2u(ji-1,jj) * zu_c(ji-1,jj)   &
-               &    + e1v(ji,jj) * zv_c(ji,jj) - e1v(ji,jj-1) * zv_c(ji,jj-1)   &
+            ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+            zdiv  = ( (e2u(ji,jj) * zu_c(ji,jj) - e2u(ji-1,jj) * zu_c(ji-1,jj))   &
+               &    + (e1v(ji,jj) * zv_c(ji,jj) - e1v(ji,jj-1) * zv_c(ji,jj-1))   &
                &    ) * r1_e1e2t(ji,jj)
             zdiv2 = zdiv * zdiv
                
@@ -424,61 +448,75 @@ CONTAINS
             zdt2  = zdt * zdt
                
             ! delta at T points
-            zdeltat(ji,jj)        = SQRT( zdiv2 + ( zdt2 + zds2 ) * z1_ecc2 )  
+            zdelta(ji,jj)  = SQRT( zdiv2 + ( zdt2 + zds2 ) * z1_ecc2 ) * zmsk(ji,jj) 
                
-            ! delta* at T points (following Lemieux and Dupont, GMD 2020)
-            zdelstar_t(ji,jj)     = zdeltat(ji,jj) + rn_creepl ! OPT zdelstar_t can be totally removed and put into next line directly. Could change results
-              
-            ! P/delta* at T-points
-            zp_delstar_t(ji,jj)   = strength(ji,jj) / zdelstar_t(ji,jj)
-               
+            ! P/delta at T points
+            zvisc_t(ji,jj) = strength(ji,jj) / ( zdelta(ji,jj) + rn_creepl ) * zmsk(ji,jj)
+
             ! Temporary zzt and zet factors at T-points
-            zzt(ji,jj)            = zp_delstar_t(ji,jj) * r1_e1e2t(ji,jj)
-            zet(ji,jj)            = zzt(ji,jj)     * z1_ecc2 
+            zzt(ji,jj)     = zvisc_t(ji,jj) * r1_e1e2t(ji,jj)
+            zet(ji,jj)     = zzt(ji,jj)     * z1_ecc2 
                           
          END_2D
+         CALL lbc_lnk( 'icedyn_rhg_vp', zdelta, 'T', 1.0_wp, zvisc_t, 'T', 1.0_wp, zzt, 'T', 1.0_wp, zet, 'T', 1.0_wp )
          
-         CALL lbc_lnk( 'icedyn_rhg_vp', zp_delstar_t , 'T', 1. ) ! necessary, used for ji = 1 and jj = 1
+         ! Store bulk viscosity at last outer iteration for yield curve diagnostic
+         IF ( i_out == nn_vp_nout .AND. ( iom_use('sig1_pnorm') .OR. iom_use('sig2_pnorm') ) ) THEN
+            zvisc_t_prev(:,:) = zvisc_t(:,:)
+         ENDIF
 
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )! 1-> jpj-1; 1->jpi-1
          
-               ! P/delta* at F points
-               zp_delstar_f = 0.25_wp * ( zp_delstar_t(ji,jj) + zp_delstar_t(ji+1,jj) + zp_delstar_t(ji,jj+1) + zp_delstar_t(ji+1,jj+1) )
-               
-               ! Temporary zef factor at F-point
-               zef(ji,jj)      = zp_delstar_f * r1_e1e2f(ji,jj) * z1_ecc2 * fimask(ji,jj) * 0.5_wp
-               
+            ! P/delta* at F points
+            ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+            zvisc_f = 0.25_wp * ( (zvisc_t(ji,jj) + zvisc_t(ji+1,jj)) + (zvisc_t(ji,jj+1) + zvisc_t(ji+1,jj+1)) )
+            
+            ! Temporary zef factor at F-point
+            zef(ji,jj) = zvisc_f * r1_e1e2f(ji,jj) * z1_ecc2 * fimask(ji,jj) * 0.5_wp
+            
          END_2D
          
          !---------------------------------------------------
          ! -- Ocean-ice drag and Coriolis RHS contributions
          !---------------------------------------------------
 
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( nn_hls, nn_hls-1, nn_hls-1, nn_hls )
          
             !--- ice u-velocity @V points, v-velocity @U points (for non-linear drag computation)
-            zu_cV            = 0.25_wp * ( zu_c(ji,jj) + zu_c(ji-1,jj) + zu_c(ji,jj+1) + zu_c(ji-1,jj+1) ) * vmask(ji,jj,1)
-            zv_cU            = 0.25_wp * ( zv_c(ji,jj) + zv_c(ji,jj-1) + zv_c(ji+1,jj) + zv_c(ji+1,jj-1) ) * umask(ji,jj,1)
+            ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+            zv_cU            = 0.25_wp * ( (zv_c(ji,jj) + zv_c(ji,jj-1)) + (zv_c(ji+1,jj) + zv_c(ji+1,jj-1)) ) * umask(ji,jj,1)
                 
             !--- non-linear drag coefficients (need to be updated at each outer loop, see Lemieux and Tremblay JGR09, p.3, beginning of Section 3)
             zCwU(ji,jj)          = za_iU(ji,jj) * zrhoco * SQRT( ( zu_c (ji,jj) - u_oce (ji,jj) ) * ( zu_c (ji,jj) - u_oce (ji,jj) )  &
               &                                                + ( zv_cU - v_oceU(ji,jj) ) * ( zv_cU - v_oceU(ji,jj) ) )
+                 
+            !--- Ocean-ice drag contributions to RHS 
+            ztaux_oi_rhsu(ji,jj) = zCwU(ji,jj) * u_oce(ji,jj)
+                
+            !--- U-component of Coriolis Force (energy conserving formulation)
+            zCorU(ji,jj)         =   0.25_wp * r1_e1u(ji,jj) *  &
+                       &             ( (zmf(ji  ,jj) * ( e1v(ji  ,jj) * zv_c(ji  ,jj) + e1v(ji  ,jj-1) * zv_c(ji  ,jj-1) ))  &
+                       &             + (zmf(ji+1,jj) * ( e1v(ji+1,jj) * zv_c(ji+1,jj) + e1v(ji+1,jj-1) * zv_c(ji+1,jj-1) )) )
+                           
+         END_2D
+
+         DO_2D( nn_hls-1, nn_hls, nn_hls, nn_hls-1 )
+         
+            !--- ice u-velocity @V points, v-velocity @U points (for non-linear drag computation)
+            ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+            zu_cV            = 0.25_wp * ( (zu_c(ji,jj) + zu_c(ji-1,jj)) + (zu_c(ji,jj+1) + zu_c(ji-1,jj+1)) ) * vmask(ji,jj,1)
+                
+            !--- non-linear drag coefficients (need to be updated at each outer loop, see Lemieux and Tremblay JGR09, p.3, beginning of Section 3)
             zCwV(ji,jj)          = za_iV(ji,jj) * zrhoco * SQRT( ( zv_c (ji,jj) - v_oce (ji,jj) ) * ( zv_c (ji,jj) - v_oce (ji,jj) )  &
               &                                                + ( zu_cV - u_oceV(ji,jj) ) * ( zu_cV - u_oceV(ji,jj) ) )
                  
             !--- Ocean-ice drag contributions to RHS 
-            ztaux_oi_rhsu(ji,jj) = zCwU(ji,jj) * u_oce(ji,jj)
             ztauy_oi_rhsv(ji,jj) = zCwV(ji,jj) * v_oce(ji,jj)
                 
-            !--- U-component of Coriolis Force (energy conserving formulation)
-            zCorU(ji,jj)         =   0.25_wp * r1_e1u(ji,jj) *  &
-                       &             ( zmf(ji  ,jj) * ( e1v(ji  ,jj) * zv_c(ji  ,jj) + e1v(ji  ,jj-1) * zv_c(ji  ,jj-1) )  &
-                       &             + zmf(ji+1,jj) * ( e1v(ji+1,jj) * zv_c(ji+1,jj) + e1v(ji+1,jj-1) * zv_c(ji+1,jj-1) ) )
-                           
             !--- V-component of Coriolis Force (energy conserving formulation)
             zCorV(ji,jj)         = - 0.25_wp * r1_e2v(ji,jj) *  &
-                       &             ( zmf(ji,jj  ) * ( e2u(ji,jj  ) * zu_c(ji,jj  ) + e2u(ji-1,jj  ) * zu_c(ji-1,jj  ) )  &
-                       &             + zmf(ji,jj+1) * ( e2u(ji,jj+1) * zu_c(ji,jj+1) + e2u(ji-1,jj+1) * zu_c(ji-1,jj+1) ) )
+                       &             ( (zmf(ji,jj  ) * ( e2u(ji,jj  ) * zu_c(ji,jj  ) + e2u(ji-1,jj  ) * zu_c(ji-1,jj  ) ))  &
+                       &             + (zmf(ji,jj+1) * ( e2u(ji,jj+1) * zu_c(ji,jj+1) + e2u(ji-1,jj+1) * zu_c(ji-1,jj+1) )) )
 
          END_2D
          
@@ -487,20 +525,20 @@ CONTAINS
          !-------------------------------------
 
          ! --- Stress contributions at T-points
-         DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls ) ! 2 -> jpj; 2,jpi !!! CHECK !!!
-         
-         ! loop to jpi,jpj to avoid making a communication for zs1 & zs2
-            
+         DO_2D( nn_hls, nn_hls, nn_hls-1, nn_hls ) ! 2 -> jpj; 2,jpi !!! CHECK !!!
+                     
             ! sig1 contribution to RHS of U-equation at T-points
             zs1_rhsu(ji,jj) =   zzt(ji,jj) * ( e1v(ji,jj)    * zv_c(ji,jj) - e1v(ji,jj-1)    * zv_c(ji,jj-1) )   &
-                            &                - zp_delstar_t(ji,jj) * zdeltat(ji,jj)
+                            &                - zvisc_t(ji,jj) * zdelta(ji,jj)
                                             
             ! sig2 contribution to RHS of U-equation at T-points            
             zs2_rhsu(ji,jj) = - zet(ji,jj) * ( r1_e1v(ji,jj) * zv_c(ji,jj) - r1_e1v(ji,jj-1) * zv_c(ji,jj-1) ) * e1t(ji,jj) * e1t(ji,jj) 
-
+         END_2D
+         
+         DO_2D( nn_hls-1, nn_hls, nn_hls, nn_hls ) ! 2 -> jpj; 2,jpi !!! CHECK !!!
             ! sig1 contribution to RHS of V-equation at T-points
             zs1_rhsv(ji,jj) =   zzt(ji,jj) * ( e2u(ji,jj)    * zu_c(ji,jj) - e2u(ji-1,jj)    * zu_c(ji-1,jj) )   & 
-                            &                - zp_delstar_t(ji,jj) * zdeltat(ji,jj)
+                            &                - zvisc_t(ji,jj) * zdelta(ji,jj)
 
             ! sig2 contribution to RHS of V-equation  at T-points
             zs2_rhsv(ji,jj) =   zet(ji,jj) * ( r1_e2u(ji,jj) * zu_c(ji,jj) - r1_e2u(ji-1,jj) * zu_c(ji-1,jj) ) * e2t(ji,jj) * e2t(ji,jj)
@@ -523,32 +561,35 @@ CONTAINS
          
          ! --- Internal force contributions to RHS, taken as divergence of stresses (Appendix C of Hunke and Dukowicz, 2002)
          ! OPT: merge with next loop and use intermediate scalars for zf_rhsu
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( nn_hls, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
          
-               ! --- U component of internal force contribution to RHS at U points
-               zf_rhsu(ji,jj) = 0.5_wp * r1_e1e2u(ji,jj) * & 
-                              (    e2u(ji,jj)    * ( zs1_rhsu(ji+1,jj) - zs1_rhsu(ji,jj) )                                                                 &
-                  &      +         r1_e2u(ji,jj) * ( e2t(ji+1,jj) * e2t(ji+1,jj) * zs2_rhsu(ji+1,jj) - e2t(ji,jj)   * e2t(ji,jj)   * zs2_rhsu(ji,jj) )     &
-                  &      + 2._wp * r1_e1u(ji,jj) * ( e1f(ji,jj)   * e1f(ji,jj)   * zs12_rhsu(ji,jj)  - e1f(ji,jj-1) * e1f(ji,jj-1) * zs12_rhsu(ji,jj-1) ) )
-                  
-               ! --- V component of internal force contribution to RHS at V points
-               zf_rhsv(ji,jj) = 0.5_wp * r1_e1e2v(ji,jj) * &
-                  &           (    e1v(ji,jj)    * ( zs1_rhsv(ji,jj+1) - zs1_rhsv(ji,jj) )                                                                 &
-                  &      -         r1_e1v(ji,jj) * ( e1t(ji,jj+1) * e1t(ji,jj+1) * zs2_rhsv(ji,jj+1) - e1t(ji,jj)   * e1t(ji,jj)   * zs2_rhsv(ji,jj) )     &
-                  &      + 2._wp * r1_e2v(ji,jj) * ( e2f(ji,jj)   * e2f(ji,jj)   * zs12_rhsv(ji,jj)  - e2f(ji-1,jj) * e2f(ji-1,jj) * zs12_rhsv(ji-1,jj) ) )
+            ! --- U component of internal force contribution to RHS at U points
+            zf_rhsu(ji,jj) = 0.5_wp * r1_e1e2u(ji,jj) * & 
+               (    e2u(ji,jj)    * ( zs1_rhsu(ji+1,jj) - zs1_rhsu(ji,jj) )                                                                 &
+               &      +         r1_e2u(ji,jj) * ( e2t(ji+1,jj) * e2t(ji+1,jj) * zs2_rhsu(ji+1,jj) - e2t(ji,jj)   * e2t(ji,jj)   * zs2_rhsu(ji,jj) )     &
+               &      + 2._wp * r1_e1u(ji,jj) * ( e1f(ji,jj)   * e1f(ji,jj)   * zs12_rhsu(ji,jj)  - e1f(ji,jj-1) * e1f(ji,jj-1) * zs12_rhsu(ji,jj-1) ) )
+         END_2D
+         
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+            
+            ! --- V component of internal force contribution to RHS at V points
+            zf_rhsv(ji,jj) = 0.5_wp * r1_e1e2v(ji,jj) * &
+               &           (    e1v(ji,jj)    * ( zs1_rhsv(ji,jj+1) - zs1_rhsv(ji,jj) )                                                                 &
+               &      -         r1_e1v(ji,jj) * ( e1t(ji,jj+1) * e1t(ji,jj+1) * zs2_rhsv(ji,jj+1) - e1t(ji,jj)   * e1t(ji,jj)   * zs2_rhsv(ji,jj) )     &
+               &      + 2._wp * r1_e2v(ji,jj) * ( e2f(ji,jj)   * e2f(ji,jj)   * zs12_rhsv(ji,jj)  - e2f(ji-1,jj) * e2f(ji-1,jj) * zs12_rhsv(ji-1,jj) ) )
 
          END_2D
          
          !---------------------------
          ! -- Sum RHS contributions
          !---------------------------
-         !
          ! OPT: could use intermediate scalars to reduce memory access
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
-                     
+         DO_2D( nn_hls, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
             zrhsu(ji,jj) = zmU_t(ji,jj) + ztaux_ai(ji,jj) + ztaux_oi_rhsu(ji,jj) + zspgU(ji,jj) + zCorU(ji,jj) + zf_rhsu(ji,jj)
+         END_2D
+         
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
             zrhsv(ji,jj) = zmV_t(ji,jj) + ztauy_ai(ji,jj) + ztauy_oi_rhsv(ji,jj) + zspgV(ji,jj) + zCorV(ji,jj) + zf_rhsv(ji,jj)
-
          END_2D
          
          !---------------------------------------------------------------------------------------!
@@ -568,7 +609,7 @@ CONTAINS
          ! MV Note 2: "T" factor calculations can be optimized by putting things out of the loop 
          !         only zzt and zet are iteration-dependent, other only depend on scale factors
                   
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( nn_hls, nn_hls-1, nn_hls-1, nn_hls-1 )
          
             !-------------------------------------
             ! -- Internal forces LHS contribution
@@ -595,13 +636,24 @@ CONTAINS
             !
             ! Linear system coefficients
             !
-            zAU(ji,jj) = -   zt11U           * e2u(ji-1,jj) -   zt21U           * r1_e2u(ji-1,jj)
             zBU(ji,jj) =   ( zt11U + zt12U ) * e2u(ji,jj)   + ( zt21U + zt22U ) * r1_e2u(ji,jj)   + ( zt121U + zt122U ) * r1_e1u(ji,jj)
             zCU(ji,jj) = -   zt12U           * e2u(ji+1,jj) -   zt22U           * r1_e2u(ji+1,jj)
          
             zDU(ji,jj) =     zt121U * r1_e1u(ji,jj-1)
             zEU(ji,jj) =     zt122U * r1_e1u(ji,jj+1)
-              
+ 
+            !-----------------------------------------------------
+            ! -- Ocean-ice drag and acceleration LHS contribution
+            !-----------------------------------------------------
+            zBU(ji,jj) = zBU(ji,jj) + zCwU(ji,jj) + zmassU_t(ji,jj)
+         
+         END_2D
+         
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls, nn_hls-1 )
+         
+            !-------------------------------------
+            ! -- Internal forces LHS contribution
+            !-------------------------------------
             !
             ! --- V-component
             !
@@ -624,7 +676,6 @@ CONTAINS
             !
             ! Linear system coefficients
             !
-            zAV(ji,jj) = -   zt11V           * e1v(ji,jj-1) -   zt21V           * r1_e1v(ji,jj-1)
             zBV(ji,jj) =   ( zt11V + zt12V ) * e1v(ji,jj)   + ( zt21V + zt22V ) * r1_e1v(ji,jj)   + ( zt122V + zt121V ) * r1_e2v(ji,jj)
             zCV(ji,jj) = -   zt12V           * e1v(ji,jj+1) -   zt22V           * r1_e1v(ji,jj+1)
 
@@ -634,16 +685,38 @@ CONTAINS
             !-----------------------------------------------------
             ! -- Ocean-ice drag and acceleration LHS contribution
             !-----------------------------------------------------
-            zBU(ji,jj) = zBU(ji,jj) + zCwU(ji,jj) + zmassU_t(ji,jj)
             zBV(ji,jj) = zBV(ji,jj) + zCwV(ji,jj) + zmassV_t(ji,jj)
          
          END_2D
+
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            ! **U**
+            zfac       = 0.5_wp * r1_e1e2u(ji,jj)
+            zfac1      =         zfac * e2u(ji,jj)
+            zfac2      =         zfac * r1_e2u(ji,jj)
+            zt11U      =   zfac1 * zzt(ji,jj)
+            zt21U      =   zfac2 * zet(ji,jj)   * e2t(ji,jj)   * e2t(ji,jj)   * e2t(ji,jj)   * e2t(ji,jj)
+            !
+            zAU(ji,jj) = -   zt11U           * e1u(ji-1,jj) -   zt21U           * r1_e1u(ji-1,jj) !!clem: because of this fuck we need to start at jpi=2
+
+            ! **V**
+            zfac       = 0.5_wp * r1_e1e2v(ji,jj)
+            zfac1      =         zfac * e1v(ji,jj)
+            zfac2      =         zfac * r1_e1v(ji,jj)
+            zt11V      =   zfac1 * zzt(ji,jj)
+            zt21V      =   zfac2 * zet(ji,jj)   * e1t(ji,jj)   * e1t(ji,jj)   * e1t(ji,jj)   * e1t(ji,jj)
+            !
+            zAV(ji,jj) = -   zt11V           * e1v(ji,jj-1) -   zt21V           * r1_e1v(ji,jj-1) !!clem: because of this fuck we need to start at jpj=2
+         END_2D
+
+!!         CALL lbc_lnk( 'icedyn_rhg_vp', zAU, 'U', -1._wp, zBU, 'U', -1._wp, zCU, 'U', -1._wp, zDU, 'U', -1._wp, zEU, 'U', -1._wp, &
+!!            &                           zAV, 'V', -1._wp, zBV, 'V', -1._wp, zCV, 'V', -1._wp, zDV, 'V', -1._wp, zEV, 'V', -1._wp )
          
-      !------------------------------------------------------------------------------!
-      !
-      ! --- Inner loop: solve linear system, check convergence
-      !
-      !------------------------------------------------------------------------------!
+         !------------------------------------------------------------------------------!
+         !
+         ! --- Inner loop: solve linear system, check convergence
+         !
+         !------------------------------------------------------------------------------!
                
          ! Inner loop solves the linear problem .. requires 1500 iterations
          ll_u_iterate = .TRUE.
@@ -653,7 +726,7 @@ CONTAINS
 
             !--- mitgcm computes initial value of residual here...
 
-            i_inn_tot             = i_inn_tot + 1
+            i_inn_tot  = i_inn_tot + 1
             ! l_full_nf_update = i_inn_tot == nn_nvp   ! false: disable full North fold update (performances) for iter = 1 to nn_nevp-1
 
             zu_b(:,:)       = u_ice(:,:) ! velocity at previous inner-iterate
@@ -669,31 +742,32 @@ CONTAINS
       
                   ! Thomas Algorithm  for tridiagonal solver
                   ! A*u(i-1,j)+B*u(i,j)+C*u(i+1,j) = F
-
-                  zFU(:,:)       = 0._wp ; zFU_prime(:,:) = 0._wp ; zBU_prime(:,:) = 0._wp; 
                   
                   DO jn = 1, nn_zebra_vp ! "zebra" loop (! red-black-sor!!! )
                   
                      ! OPT: could be even better optimized with a true red-black SOR
       
-                     IF ( jn == 1 ) THEN   ;   jj_min = 2 
-                     ELSE                  ;   jj_min = 3
+                     IF ( jn == 1 ) THEN   ;   jj_min = ntsj-(nn_hls-1)
+                     ELSE                  ;   jj_min = ntsj-(nn_hls-1)+1
                      ENDIF
 
                      DO jj = jj_min, jpj - 1, nn_zebra_vp
-                     
+!!                     DO jj = jj_min, ntej+(nn_hls-1), nn_zebra_vp
+                        
                         !------------------------
                         ! Independent term (zFU)
                         !------------------------
-                        DO ji = 2, jpi - 1    
+                        !!                        DO ji = ntsi-(nn_hls), ntei+(nn_hls-1)
+                        DO ji = 1, jpi-1
+                           
                            ! note: these are key lines linking information between processors
                            ! u_ice/v_ice need to be lbc_linked
 
                            ! sub-domain boundary condition substitution
                            ! see Zhang and Hibler, 1997, Appendix B
                            zAA3 = 0._wp
-                           IF ( ji == 2 )         zAA3 = zAA3 - zAU(ji,jj) * u_ice(ji-1,jj)
-                           IF ( ji == jpi - 1 )   zAA3 = zAA3 - zCU(ji,jj) * u_ice(ji+1,jj)
+!!$                           IF ( ji == 2 )         zAA3 = zAA3 - zAU(ji,jj) * u_ice(ji-1,jj)
+!!$                           IF ( ji == jpi - 1 )   zAA3 = zAA3 - zCU(ji,jj) * u_ice(ji+1,jj)
 
                            ! right hand side
                            zFU(ji,jj) = ( zrhsu(ji,jj) &                                      ! right-hand side terms
@@ -705,15 +779,18 @@ CONTAINS
 
                      END DO
                      
+                     !!CALL lbc_lnk( 'icedyn_rhg_vp', zFU, 'U', -1._wp )
                      !---------------
                      ! Forward sweep
                      !---------------   
                      DO jj = jj_min, jpj - 1, nn_zebra_vp
+                        !!                     DO jj = jj_min, ntej+(nn_hls-1), nn_zebra_vp
       
-                        zBU_prime(2,jj)     = zBU(2,jj)
-                        zFU_prime(2,jj)     = zFU(2,jj)
+!!$                        zBU_prime(2,jj)     = zBU(2,jj)
+!!$                        zFU_prime(2,jj)     = zFU(2,jj)
 
-                        DO ji = 3, jpi - 1
+                        DO ji = 2, jpi-1
+                           !!                        DO ji = ntsi-(nn_hls-1), ntei+(nn_hls-1)
 
                            zfac             = SIGN( 1._wp , zBU(ji-1,jj) ) * MAX( 0._wp , SIGN( 1._wp , ABS( zBU(ji-1,jj) ) - epsi20 ) )
                            zw               = zfac * zAU(ji,jj) / MAX ( ABS( zBU(ji-1,jj) ) , epsi20 ) 
@@ -729,15 +806,19 @@ CONTAINS
                      !-----------------------------
 
                      DO jj = jj_min, jpj - 1, nn_zebra_vp
+                        !!DO jj = jj_min, ntej+(nn_hls-1), nn_zebra_vp
                     
                         ! --- Backward sweep 
 
                         ! last row 
-                        zfac = SIGN( 1._wp , zBU_prime(jpi-1,jj) ) * MAX( 0._wp , SIGN( 1._wp , ABS( zBU_prime(jpi-1,jj) ) - epsi20 ) )
-                        u_ice(jpi-1,jj)    = zfac * zFU_prime(jpi-1,jj) / MAX( ABS ( zBU_prime(jpi-1,jj) ) , epsi20 ) & 
-                                           &            * umask(jpi-1,jj,1)
+!!$                        zfac = SIGN( 1._wp , zBU_prime(jpi-1,jj) ) * MAX( 0._wp , SIGN( 1._wp , ABS( zBU_prime(jpi-1,jj) ) - epsi20 ) )
+!!$                        u_ice(jpi-1,jj)    = zfac * zFU_prime(jpi-1,jj) / MAX( ABS ( zBU_prime(jpi-1,jj) ) , epsi20 ) & 
+!!$                                           &            * umask(jpi-1,jj,1)
 
-                        DO ji = jpi - 2 , 2, -1 ! all other rows    !  ---> original backward loop
+                        !!clem => should be backward but then no repro!!!
+                        !!DO ji = jpi - 1 , 2, -1 ! all other rows    !  ---> original backward loop
+                        !!DO ji = ntei+(nn_hls-1), ntsi-(nn_hls-1), -1
+                        DO ji = 2, jpi - 1 ! all other rows    ! 
                            zfac = SIGN( 1._wp , zBU_prime(ji,jj) ) * MAX( 0._wp , SIGN( 1._wp , ABS( zBU_prime(ji,jj) ) - epsi20 ) )
                            u_ice(ji,jj)    = zfac * ( zFU_prime(ji,jj) - zCU(ji,jj) * u_ice(ji+1,jj) ) * umask(ji,jj,1)   & 
                                            &                  / MAX ( ABS ( zBU_prime(ji,jj) ) , epsi20 ) 
@@ -745,6 +826,7 @@ CONTAINS
 
                         !--- Relaxation and masking (for low-ice/no-ice cases)
                         DO ji = 2, jpi - 1    
+                           !!DO ji = ntsi-(nn_hls-1), ntei+(nn_hls-1)
                         
                            u_ice(ji,jj) = zu_b(ji,jj) + zrelaxu_vp * ( u_ice(ji,jj) - zu_b(ji,jj) ) ! relaxation
                            
@@ -755,8 +837,6 @@ CONTAINS
                         END DO
 
                      END DO ! jj
-
-                     CALL lbc_lnk( 'icedyn_rhg_vp', u_ice, 'U', -1. )
                      
                   END DO ! zebra loop
 
@@ -772,11 +852,9 @@ CONTAINS
                   ! It is intentional to have a ji then jj loop for V-velocity
                   !!! ZH97 explain it is critical for convergence speed
 
-                  zFV(:,:)       = 0._wp ; zFV_prime(:,:) = 0._wp ; zBV_prime(:,:) = 0._wp; 
-
                   DO jn = 1, nn_zebra_vp ! "zebra" loop
       
-                     IF ( jn == 1 ) THEN   ;   ji_min = 2 
+                     IF ( jn == 1 ) THEN   ;   ji_min = 2
                      ELSE                  ;   ji_min = 3
                      ENDIF
 
@@ -785,13 +863,13 @@ CONTAINS
                         !------------------------
                         ! Independent term (zFV)
                         !------------------------
-                        DO jj = 2, jpj - 1
+                        DO jj = 1, jpj - 1
 
                            ! subdomain boundary condition substitution (check it is correctly applied !!!)
                            ! see Zhang and Hibler, 1997, Appendix B
                            zAA3 = 0._wp
-                           IF ( jj == 2 )       zAA3 = zAA3 - zAV(ji,jj) * v_ice(ji,jj-1)
-                           IF ( jj == jpj - 1 ) zAA3 = zAA3 - zCV(ji,jj) * v_ice(ji,jj+1)
+!!$                           IF ( jj == 2 )       zAA3 = zAA3 - zAV(ji,jj) * v_ice(ji,jj-1)
+!!$                           IF ( jj == jpj - 1 ) zAA3 = zAA3 - zCV(ji,jj) * v_ice(ji,jj+1)
      
                            ! right hand side
                            zFV(ji,jj) = ( zrhsv(ji,jj) &                                   ! right-hand side terms
@@ -808,10 +886,10 @@ CONTAINS
                      !---------------
                      DO ji = ji_min, jpi - 1, nn_zebra_vp 
                      
-                        zBV_prime(ji,2)     = zBV(ji,2)
-                        zFV_prime(ji,2)     = zFV(ji,2)
+!!$                        zBV_prime(ji,2)     = zBV(ji,2)
+!!$                        zFV_prime(ji,2)     = zFV(ji,2)
 
-                        DO jj = 3, jpj - 1 
+                        DO jj = 2, jpj - 1 
 
                            zfac             = SIGN( 1._wp , zBV(ji,jj-1) ) * MAX( 0._wp , SIGN( 1._wp , ABS( zBV(ji,jj-1) ) - epsi20 ) )
                            zw               = zfac * zAV(ji,jj) / MAX ( ABS( zBV(ji,jj-1) ) , epsi20 )
@@ -828,13 +906,15 @@ CONTAINS
                      DO ji = ji_min, jpi - 1, nn_zebra_vp 
                     
                         ! --- Backward sweep 
-                        ! last row
-                        zfac = SIGN( 1._wp , zBV_prime(ji,jpj-1) ) * MAX( 0._wp , SIGN( 1._wp , ABS( zBV_prime(ji,jpj-1) ) - epsi20 ) )
-                        v_ice(ji,jpj-1)  = zfac * zFV_prime(ji,jpj-1) / MAX ( ABS(zBV_prime(ji,jpj-1) ) , epsi20 ) & 
-                                         &         * vmask(ji,jpj-1,1)  ! last row
+!!$                        ! last row
+!!$                        zfac = SIGN( 1._wp , zBV_prime(ji,jpj-1) ) * MAX( 0._wp , SIGN( 1._wp , ABS( zBV_prime(ji,jpj-1) ) - epsi20 ) )
+!!$                        v_ice(ji,jpj-1)  = zfac * zFV_prime(ji,jpj-1) / MAX ( ABS(zBV_prime(ji,jpj-1) ) , epsi20 ) & 
+!!$                                         &         * vmask(ji,jpj-1,1)  ! last row
 
                         ! other rows
-                        DO jj = jpj-2, 2, -1 ! original back loop
+                        !!clem => should be backward but then no repro!!!
+                        !!DO jj = jpj-1, 2, -1 ! original back loop
+                        DO jj = 2, jpj-1
                            zfac = SIGN( 1._wp , zBV_prime(ji,jj) ) * MAX( 0._wp , SIGN( 1._wp , ABS( zBV_prime(ji,jj) ) - epsi20 ) )
                            v_ice(ji,jj)   = zfac * ( zFV_prime(ji,jj) - zCV(ji,jj) * v_ice(ji,jj+1) ) * vmask(ji,jj,1) &
                                           &  / MAX ( ABS( zBV_prime(ji,jj) ) , epsi20 )       
@@ -853,11 +933,12 @@ CONTAINS
                         
                      END DO ! ji
 
-                     CALL lbc_lnk( 'icedyn_rhg_vp', v_ice, 'V', -1. )
                      
                   END DO ! zebra loop
                                     
                ENDIF !   ll_v_iterate
+
+               CALL lbc_lnk( 'icedyn_rhg_vp', u_ice, 'U', -1._wp, v_ice, 'V', -1._wp )
 
                ! I suspect the communication should go into the zebra loop if we want reproducibility
                               
@@ -876,14 +957,14 @@ CONTAINS
 
                   ! - Maximum U-velocity difference               
                   zuerr(:,:) = 0._wp
-                  DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+                  DO_2D( 0, 0, 0, 0 )
                   
                      zuerr(ji,jj) = ABS ( ( u_ice(ji,jj) - zu_b(ji,jj) ) ) * umask(ji,jj,1) 
                   
                   END_2D
          
                   zuerr_max = MAXVAL( zuerr )
-                  CALL mpp_max( 'icedyn_rhg_evp', zuerr_max )   ! max over the global domain - damned!
+                  CALL mpp_max( 'icedyn_rhg_vp', zuerr_max )   ! max over the global domain - damned!
 
                   ! - Stop if max error is too large ("safeguard against bad forcing" of original Zhang routine)
                   IF ( i_inn > 1 .AND. zuerr_max > zuerr_max_vp ) THEN
@@ -908,14 +989,14 @@ CONTAINS
                
                   ! - Maximum V-velocity difference
                   zverr(:,:)   = 0._wp   
-                  DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
-                  
+                  DO_2D( 0, 0, 0, 0 )
+                 
                         zverr(ji,jj) = ABS ( ( v_ice(ji,jj) - zv_b(ji,jj) ) ) * vmask(ji,jj,1)
                   
                   END_2D
                            
                   zverr_max = MAXVAL( zverr )
-                  CALL mpp_max( 'icedyn_rhg_evp', zverr_max )   ! max over the global domain - damned!
+                  CALL mpp_max( 'icedyn_rhg_vp', zverr_max )   ! max over the global domain - damned!
                   
                   ! - Stop if error is too large ("safeguard against bad forcing" of original Zhang routine)
                   IF ( i_inn > 1 .AND. zverr_max > zuerr_max_vp ) THEN
@@ -959,8 +1040,6 @@ CONTAINS
          IF( iom_use('velo_ero') )   CALL iom_put( 'velo_ero', zvel_diff )   ! abs velocity difference @last outer iteration
          IF( iom_use('uice_eri') )   CALL iom_put( 'uice_eri', zuerr     )   ! abs velocity difference @last inner iteration
          IF( iom_use('vice_eri') )   CALL iom_put( 'vice_eri', zverr     )   ! abs velocity difference @last inner iteration
-
-         DEALLOCATE( zvel_res , zvel_diff )
         
       ENDIF ! nn_rhg_chkcvg
 
@@ -970,8 +1049,7 @@ CONTAINS
       !
       !------------------------------------------------------------------------------!
       !
-      ! MV OPT: subroutinize ?
-      DO_2D( nn_hls, nn_hls, nn_hls-1, nn_hls-1 ) ! 1->jpj-1; 1->jpi-1
+      DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 ) ! 1->jpj-1; 1->jpi-1
 
             ! shear at F points
             zds(ji,jj) = ( ( u_ice(ji,jj+1) * r1_e1u(ji,jj+1) - u_ice(ji,jj) * r1_e1u(ji,jj) ) * e1f(ji,jj) * e1f(ji,jj)   &
@@ -980,7 +1058,12 @@ CONTAINS
 
       END_2D      
       
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+      DO_2D( 0, 0, 0, 0 ) ! 2->jpj-1; 2->jpi-1
+            
+            ! shear**2 at T points (doc eq. A16)
+            zds2 = ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  )  &
+               &   + zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1)  &
+               &   ) * 0.25_wp * r1_e1e2t(ji,jj)
             
             ! tension**2 at T points
             zdt  = ( ( u_ice(ji,jj) * r1_e2u(ji,jj) - u_ice(ji-1,jj) * r1_e2u(ji-1,jj) ) * e2t(ji,jj) * e2t(ji,jj)   &
@@ -988,35 +1071,70 @@ CONTAINS
                &   ) * r1_e1e2t(ji,jj)
             zdt2 = zdt * zdt
             
-            ztens(ji,jj)    = zdt
+            zten_i(ji,jj) = zdt * zmsk(ji,jj)
             
-            ! shear**2 at T points (doc eq. A16)
-            zds2 = ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  )  &
-               &   + zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1)  &
-               &   ) * 0.25_wp * r1_e1e2t(ji,jj)
+            ! maximum shear rate at T points (includes tension, output only)
+            pshear_i(ji,jj) = SQRT( zdt2 + zds2 ) * zmsk(ji,jj)
             
-            ! maximum shear rate at T points (includees tension, output only)
-            pshear_i(ji,jj) = SQRT( zdt2 + zds2 ) ! i think this is maximum shear rate and not actual shear --- i'm not totally sure here
-
             ! shear at T-points
-            zshear(ji,jj)   = SQRT( zds2 )
+            zshear(ji,jj)   = SQRT( zds2 ) * zmsk(ji,jj)
 
             ! divergence at T points
             pdivu_i(ji,jj) = ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj)   &
                &             + e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1)   &
-               &             ) * r1_e1e2t(ji,jj)
-
-            zdiv2          =  pdivu_i(ji,jj) *  pdivu_i(ji,jj)
+               &             ) * r1_e1e2t(ji,jj) * zmsk(ji,jj)
             
             ! delta at T points
-            zdelta         = SQRT( zdiv2 + ( zdt2 + zds2 ) * z1_ecc2 )
-            rswitch        = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zdelta ) ) ! 0 if delta=0
-
-            pdelta_i(ji,jj) = zdelta + rn_creepl ! * rswitch
-
+            zfac               = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) * zmsk(ji,jj) ! delta
+            zdelta(ji,jj)      = zfac
+            
+            ! delta* at T points
+            rswitch            =   1._wp - MAX( 0._wp, SIGN( 1._wp, -zfac ) ) ! 0 if delta=0
+            pdelta_i(ji,jj)    = zfac + rn_creepl ! * rswitch
+           
       END_2D
+
+      CALL lbc_lnk( 'icedyn_rhg_vp', pshear_i, 'T', 1._wp, pdivu_i, 'T', 1._wp, pdelta_i, 'T', 1._wp, &
+              &                      zdelta  , 'T', 1._wp, zten_i , 'T', 1._wp, zshear  , 'T', 1._wp )
+
+      ! --- Sea ice stresses at T-points --- !
+      IF ( iom_use('normstr')    .OR. iom_use('sheastr')    .OR. &
+     &     iom_use('intstrx')    .OR. iom_use('intstry')    .OR. &
+     &     iom_use('sig1_pnorm') .OR. iom_use('sig2_pnorm') ) THEN
       
-      CALL lbc_lnk( 'icedyn_rhg_vp', pshear_i, 'T', 1., pdivu_i, 'T', 1., pdelta_i, 'T', 1. )
+         ! sigma1, sigma2, sigma12 are some recombination of the stresses (HD MWR002, Bouillon et al., OM2013)
+         ! not to be confused with stress tensor components, stress invariants, or stress principal components
+
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls ) ! 2->jpj-1; 2->jpi-1
+
+            zvisc_t(ji,jj)     =   strength(ji,jj) / pdelta_i(ji,jj) ! update viscosity
+            zfac               =   zvisc_t(ji,jj)
+            zs1(ji,jj)         =   zfac * ( pdivu_i(ji,jj) - zdelta(ji,jj) )
+            zs2(ji,jj)         =   zfac * z1_ecc2 * zten_i(ji,jj)
+            zs12(ji,jj)        =   zfac * z1_ecc2 * zshear(ji,jj) * 0.5_wp 
+
+         END_2D
+
+!!$         CALL lbc_lnk( 'icedyn_rhg_vp', zs1, 'T', 1., zs2, 'T', 1., zs12, 'T', 1. )
+      
+      ENDIF
+      
+      ! --- Shear (s12) at F-points --- !
+      IF ( iom_use('intstrx') .OR. iom_use('intstry') ) THEN
+
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 ) ! 1->jpj-1; 1->jpi-1
+            
+               ! P/delta* at F points
+               zvisc_f = 0.25_wp * ( zvisc_t(ji,jj) + zvisc_t(ji+1,jj) + zvisc_t(ji,jj+1) + zvisc_t(ji+1,jj+1) )
+               
+               ! s12 at F-points 
+               zs12f(ji,jj) = zvisc_f * z1_ecc2 * zds(ji,jj)
+               
+         END_2D
+
+         CALL lbc_lnk( 'icedyn_rhg_vp', zs12f, 'F', 1. )
+         
+      ENDIF
       
       !------------------------------------------------------------------------------!
       !
@@ -1024,53 +1142,7 @@ CONTAINS
       !
       !------------------------------------------------------------------------------!
       !
-      ! MV OPT: subroutinize ?
-      !
-      !----------------------------------
-      ! --- Recompute stresses if needed 
-      !----------------------------------
-      !
-      ! ---- Sea ice stresses at T-points
-      IF ( iom_use('normstr')    .OR. iom_use('sheastr')    .OR. &
-     &     iom_use('intstrx')    .OR. iom_use('intstry')    .OR. &
-     &     iom_use('sig1_pnorm') .OR. iom_use('sig2_pnorm') ) THEN
-      
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
-         
-               zp_delstar_t(ji,jj)     =   strength(ji,jj) / pdelta_i(ji,jj) 
-               zfac                    =   zp_delstar_t(ji,jj) 
-               zs1(ji,jj)              =   zfac * ( pdivu_i(ji,jj) - pdelta_i(ji,jj) )
-               zs2(ji,jj)              =   zfac * z1_ecc2 * ztens(ji,jj)
-               zs12(ji,jj)             =   zfac * z1_ecc2 * zshear(ji,jj) * 0.5_wp ! Bug 12 nov
 
-         END_2D
-
-         CALL lbc_lnk( 'icedyn_rhg_vp', zs1, 'T', 1., zs2, 'T', 1., zs12, 'T', 1. )
-      
-      ENDIF
-      
-      ! ---- s12 at F-points      
-      IF ( iom_use('intstrx') .OR. iom_use('intstry') ) THEN
-
-         DO_2D( nn_hls, nn_hls, nn_hls-1, nn_hls-1 ) ! 1->jpj-1; 1->jpi-1
-            
-               ! P/delta* at F points
-               zp_delstar_f = 0.25_wp * ( zp_delstar_t(ji,jj) + zp_delstar_t(ji+1,jj) + zp_delstar_t(ji,jj+1) + zp_delstar_t(ji+1,jj+1) )
-               
-               ! s12 at F-points 
-               zs12f(ji,jj) = zp_delstar_f * z1_ecc2 * zds(ji,jj)
-               
-         END_2D
-
-         CALL lbc_lnk( 'icedyn_rhg_vp', zs12f, 'F', 1. )
-         
-      ENDIF
-
-      !
-      !-----------------------
-      ! --- Store diagnostics
-      !-----------------------
-      !
       ! --- Ice-ocean, ice-atm. & ice-ocean bottom (landfast) stresses --- !
       IF(  iom_use('utau_oi') .OR. iom_use('vtau_oi') .OR. iom_use('utau_ai') .OR. iom_use('vtau_ai') .OR. &
          & iom_use('utau_bi') .OR. iom_use('vtau_bi') ) THEN
@@ -1114,27 +1186,21 @@ CONTAINS
       ! --- Divergence, shear and strength --- !
       IF( iom_use('icediv') )   CALL iom_put( 'icediv' , pdivu_i  * zmsk00 )   ! divergence
       IF( iom_use('iceshe') )   CALL iom_put( 'iceshe' , pshear_i * zmsk00 )   ! maximum shear rate
-      IF( iom_use('icedlt') )   CALL iom_put( 'icedlt' , pdelta_i * zmsk00 )   ! delta
+      IF( iom_use('icedlt') )   CALL iom_put( 'icedlt' , zdelta   * zmsk00 )   ! delta
       IF( iom_use('icestr') )   CALL iom_put( 'icestr' , strength * zmsk00 )   ! strength
 
       ! --- Stress tensor invariants (SIMIP diags) --- !
       IF( iom_use('normstr') .OR. iom_use('sheastr') ) THEN
          !
-         ! Stress tensor invariants (normal and shear stress N/m) - SIMIP diags.
-         ! Definitions following Coon (1974) and Feltham (2008)
-         !
-         ! sigma1, sigma2, sigma12 are useful (Hunke and Dukowicz MWR 2002, Bouillon et al., OM2013)
-         ! however these are NOT stress tensor components, neither stress invariants, nor stress principal components
-         !
          ALLOCATE( zsig_I(jpi,jpj) , zsig_II(jpi,jpj) )
          !         
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
-               ! Stress invariants
-               zsig_I(ji,jj)    =   zs1(ji,jj) * 0.5_wp   ! 1st invariant, aka average normal stress aka negative pressure
-               zsig_II(ji,jj)   =   0.5_wp * SQRT ( zs2(ji,jj) * zs2(ji,jj) + 4. * zs12(ji,jj) * zs12(ji,jj) )   ! 2nd invariant, aka maximum shear stress               
+         ! Stress invariants (sigma_I, sigma_II, Coon 1974, Feltham 2008)
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls ) ! 2->jpj-1; 2->jpi-1
+            zsig_I(ji,jj)    =   0.5_wp * zs1(ji,jj)
+            zsig_II(ji,jj)   =   0.5_wp * SQRT ( zs2(ji,jj) * zs2(ji,jj) + 4. * zs12(ji,jj) * zs12(ji,jj) )
          END_2D
 
-         CALL lbc_lnk( 'icedyn_rhg_vp', zsig_I, 'T', 1., zsig_II, 'T', 1.)
+!!$         CALL lbc_lnk( 'icedyn_rhg_vp', zsig_I, 'T', 1., zsig_II, 'T', 1.)
          
          IF( iom_use('normstr') )   CALL iom_put( 'normstr' ,   zsig_I(:,:)  * zmsk00(:,:) ) ! Normal stress
          IF( iom_use('sheastr') )   CALL iom_put( 'sheastr' ,   zsig_II(:,:) * zmsk00(:,:) ) ! Maximum shear stress
@@ -1154,19 +1220,19 @@ CONTAINS
          !
          ALLOCATE( zsig1_p(jpi,jpj) , zsig2_p(jpi,jpj) , zsig_I(jpi,jpj) , zsig_II(jpi,jpj) )
          !         
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( 0, 0, 0, 0 ) ! clem: check bounds
          
-               ! Ice stresses computed with **viscosities** (delta, p/delta) at **previous** iterates 
+               ! Ice stresses computed with **viscosities** (P/delta) at **previous** iterates 
                !                        and **deformations** at current iterates
                !                        following Lemieux & Dupont (2020)
-               zfac             =   zp_delstar_t(ji,jj)
-               zsig1            =   zfac * ( pdivu_i(ji,jj) - zdeltat(ji,jj) )
-               zsig2            =   zfac * z1_ecc2 * ztens(ji,jj)
-               zsig12           =   zfac * z1_ecc2 * zshear(ji,jj) * 0.5_wp ! Bugfix 12 Nov
+               zfac             =   zvisc_t_prev(ji,jj)
+               zsig1            =   zfac * ( pdivu_i(ji,jj) - zdelta(ji,jj) )  
+               zsig2            =   zfac * z1_ecc2 * zten_i(ji,jj)
+               zsig12           =   zfac * z1_ecc2 * zshear(ji,jj) * 0.5_wp
                
                ! Stress invariants (sigma_I, sigma_II, Coon 1974, Feltham 2008), T-point
-               zsig_I(ji,jj)    =   zsig1 * 0.5_wp                                       ! 1st invariant
-               zsig_II(ji,jj)   =   0.5_wp * SQRT ( zsig2 * zsig2 + 4. *zsig12 * zsig12 )   ! 2nd invariant
+               zsig_I(ji,jj)    =   0.5_wp * zsig1                                          ! normal stress
+               zsig_II(ji,jj)   =   0.5_wp * SQRT ( zsig2 * zsig2 + 4. *zsig12 * zsig12 )   ! max shear stress
 
                ! Normalized  principal stresses (used to display the ellipse)
                z1_strength      =   1._wp / MAX ( 1._wp , strength(ji,jj) )
@@ -1175,7 +1241,7 @@ CONTAINS
                
          END_2D
          !
-         CALL lbc_lnk( 'icedyn_rhg_vp', zsig1_p, 'T', 1., zsig2_p, 'T', 1.)
+         ! CALL lbc_lnk( 'icedyn_rhg_vp', zsig1_p, 'T', 1., zsig2_p, 'T', 1.)
          !
          CALL iom_put( 'sig1_pnorm' , zsig1_p ) 
          CALL iom_put( 'sig2_pnorm' , zsig2_p ) 
@@ -1189,7 +1255,7 @@ CONTAINS
          & iom_use('corstrx') .OR. iom_use('corstry') ) THEN
 
          ! --- Recalculate Coriolis stress at last inner iteration
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( 0, 0, 0, 0 ) ! clem: check bounds
                 ! --- U-component 
                 zCorU(ji,jj)         =   0.25_wp * r1_e1u(ji,jj) *  &
                            &             ( zmf(ji  ,jj) * ( e1v(ji  ,jj) * v_ice(ji  ,jj) + e1v(ji  ,jj-1) * v_ice(ji  ,jj-1) )  &
@@ -1212,7 +1278,7 @@ CONTAINS
       IF ( iom_use('intstrx') .OR. iom_use('intstry') ) THEN
 
          ! Recalculate internal forces (divergence of stress tensor) at last inner iteration
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( 0, 0, 0, 0 ) ! clem: check bounds
 
                zfU(ji,jj) = 0.5_wp * ( ( zs1(ji+1,jj) - zs1(ji,jj) ) * e2u(ji,jj)                                             &
                   &                  + ( zs2(ji+1,jj) * e2t(ji+1,jj) * e2t(ji+1,jj) - zs2(ji,jj) * e2t(ji,jj) * e2t(ji,jj)    &
@@ -1244,7 +1310,7 @@ CONTAINS
          ALLOCATE( zdiag_xmtrp_ice(jpi,jpj) , zdiag_ymtrp_ice(jpi,jpj) , &
             &      zdiag_xmtrp_snw(jpi,jpj) , zdiag_ymtrp_snw(jpi,jpj) , zdiag_xatrp(jpi,jpj) , zdiag_yatrp(jpi,jpj) )
          !
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1               ! 2D ice mass, snow mass, area transport arrays (X, Y)
+         DO_2D( 0, 0, 0, 0 ) ! clem: check bounds
 
                zfac_x = 0.5 * u_ice(ji,jj) * e2u(ji,jj) * zmsk00(ji,jj)
                zfac_y = 0.5 * v_ice(ji,jj) * e1v(ji,jj) * zmsk00(ji,jj)
@@ -1406,25 +1472,15 @@ CONTAINS
       !----------------------------------------------
       !
       ! U
-      zu_diff(:,:) = 0._wp
       
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+      DO_2D( 0, 0, 0, 0 ) !clem check bounds
       
-         zu_diff(ji,jj) = ABS ( ( pu(ji,jj) - pub(ji,jj) ) ) * e1e2u(ji,jj) * pat_iu(ji,jj) * umask(ji,jj,1) * z1_pglob_area
-      
-      END_2D
-      
-      ! V
-      zv_diff(:,:)   = 0._wp
-      
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
-      
+         zu_diff(ji,jj) = ABS ( ( pu(ji,jj) - pub(ji,jj) ) ) * e1e2u(ji,jj) * pat_iu(ji,jj) * umask(ji,jj,1) * z1_pglob_area     
          zv_diff(ji,jj) = ABS ( ( pv(ji,jj) - pvb(ji,jj) ) ) * e1e2v(ji,jj) * pat_iv(ji,jj) * vmask(ji,jj,1) * z1_pglob_area
       
       END_2D
 
       ! global sum & U-V average
-      CALL lbc_lnk( 'icedyn_rhg_cvg_vp', zu_diff,  'U',  1., zv_diff , 'V',  1. )
       zu_mad   = glob_sum( 'icedyn_rhg_vp : ', zu_diff )
       zv_mad   = glob_sum( 'icedyn_rhg_vp : ', zv_diff )
 
@@ -1438,29 +1494,16 @@ CONTAINS
       !-----------------------------------------------
       !
       IF ( kitinn == kitinnmax ) THEN ! only work at the end of outer iterates 
-
-         ! * U
-         zu_diff(:,:) = 0._wp
          
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( 0, 0, 0, 0 ) !clem check bounds
          
             zu_diff(ji,jj) = ABS ( ( pu(ji,jj) - pub_outer(ji,jj) ) ) * e1e2u(ji,jj) * pat_iu(ji,jj) * umask(ji,jj,1) * &
-                              &    z1_pglob_area
-                              
-         END_2D
-         
-         ! * V
-         zv_diff(:,:)   = 0._wp
-         
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
-         
+                              &    z1_pglob_area            
             zv_diff(ji,jj) = ABS ( ( pv(ji,jj) - pvb_outer(ji,jj) ) ) * e1e2v(ji,jj) * pat_iv(ji,jj) * vmask(ji,jj,1) * &
-                              &    z1_pglob_area
-         
+                              &    z1_pglob_area         
          END_2D
          
          ! Global ice-concentration, grid-cell-area weighted mean
-         CALL lbc_lnk( 'icedyn_rhg_cvg_vp', zu_diff,  'U',  1., zv_diff , 'V',  1. ) ! abs behaves as a scalar no ?
 
          zu_mad_outer   = glob_sum( 'icedyn_rhg_vp : ', zu_diff )
          zv_mad_outer   = glob_sum( 'icedyn_rhg_vp : ', zv_diff )
@@ -1475,10 +1518,7 @@ CONTAINS
 
       IF ( kitinntot == kitinntotmax) THEN
 
-         zu_diff(:,:) = 0._wp
-         zv_diff(:,:) = 0._wp
-
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( 0, 0, 0, 0 ) !clem check bounds
 
                zu_diff(ji,jj) = ( ABS ( ( pu(ji-1,jj) - pub_outer(ji-1,jj) ) ) * umask(ji-1,jj,1) &
     &                           + ABS ( ( pu(ji,jj  ) - pub_outer(ji,jj)   ) ) * umask(ji,jj,1) ) &
@@ -1488,11 +1528,10 @@ CONTAINS
     &                           + ABS ( ( pv(ji,jj  ) - pvb_outer(ji,jj)     ) ) * vmask(ji,jj,1)   &
     &                           / ( vmask(ji,jj-1,1) + vmask(ji,jj,1) ) )
      
-   
-         END_2D
-         
-         CALL lbc_lnk( 'icedyn_rhg_cvg_vp', zu_diff,  'T',  1., zv_diff , 'T',  1. )
-         pvel_diff(:,:) = 0.5_wp * ( zu_diff(:,:) + zv_diff(:,:) )
+               pvel_diff(ji,jj) = 0.5_wp * ( zu_diff(ji,jj) + zv_diff(ji,jj) )
+  
+         END_2D    
+         CALL lbc_lnk( 'icedyn_rhg_cvg_vp', pvel_diff,  'T',  1._wp )
 
       ELSE
 
@@ -1520,9 +1559,8 @@ CONTAINS
          ! We define it as in mitgcm: global area-weighted mean of square-root residual
          ! Local residual r = Ax - B expresses to which extent the momentum balance is verified 
          ! i.e., how close we are to a solution
-         zu_res(:,:) = 0._wp; zv_res(:,:) = 0._wp
          
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( 0, 0, 0, 0 ) !clem check bounds
 
                zu_res(ji,jj)  = ( prhsu(ji,jj) + pDU(ji,jj) * pu(ji,jj-1) + pEU(ji,jj) * pu(ji,jj+1)               &
                   &             - pAU(ji,jj) * pu(ji-1,jj) - pBU(ji,jj) * pu(ji,jj) - pCU(ji,jj) * pu(ji+1,jj) )
@@ -1537,9 +1575,7 @@ CONTAINS
    
          END_2D
          
-         ! Global ice-concentration, grid-cell-area weighted mean
-         CALL lbc_lnk( 'icedyn_rhg_cvg_vp', zu_res,  'U', 1., zv_res , 'V', 1. )
-   
+         ! Global ice-concentration, grid-cell-area weighted mean   
          zu_res_mean   = glob_sum( 'ice_rhg_vp', zu_res(:,:) )
          zv_res_mean   = glob_sum( 'ice_rhg_vp', zv_res(:,:) )
          zvel_res_mean = 0.5_wp * ( zu_res_mean + zv_res_mean )
@@ -1547,8 +1583,8 @@ CONTAINS
          ! --- Global mean kinetic energy per unit area (J/m2)
          zvel2(:,:) = 0._wp
 
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
-                  
+         DO_2D( 0, 0, 0, 0 ) !clem check bounds
+                 
                zu     = 0.5_wp * ( pu(ji-1,jj) + pu(ji,jj) ) ! u-vel at T-point
                zv     = 0.5_wp * ( pv(ji,jj-1) + pv(ji,jj) )
                zvel2(ji,jj)  = zu*zu + zv*zv              ! square of ice velocity at T-point  
@@ -1564,7 +1600,7 @@ CONTAINS
 
       IF ( kitinntot == kitinntotmax) THEN
 
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
 
                zu_res(ji,jj)  = ( prhsu(ji,jj) + pDU(ji,jj) * pu(ji,jj-1) + pEU(ji,jj) * pu(ji,jj+1)               &
                   &             - pAU(ji,jj) * pu(ji-1,jj) - pBU(ji,jj) * pu(ji,jj) - pCU(ji,jj) * pu(ji+1,jj) )
@@ -1576,10 +1612,10 @@ CONTAINS
 
          END_2D
          
-         CALL lbc_lnk( 'icedyn_rhg_cvg_vp', zu_res,  'U',  1., zv_res , 'V',  1. )
+         IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_rhg_cvg_vp', zu_res,  'U',  1., zv_res , 'V',  1. )
 
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
-         
+         DO_2D( 0, 0, 0, 0 ) !clem check bounds
+        
                pvel_res(ji,jj) = 0.25_wp * ( zu_res(ji-1,jj) + zu_res(ji,jj) + zv_res(ji,jj-1) + zv_res(ji,jj) )
          
          END_2D

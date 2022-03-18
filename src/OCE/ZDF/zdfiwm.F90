@@ -145,7 +145,9 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       !                       !* Initialize appropriately certain variables
-      zav_ratio(:,:,:) = 1._wp * wmask(:,:,:)  ! important to set it to 1 here 
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+         zav_ratio(ji,jj,jk) = 1._wp * wmask(ji,jj,jk)  ! important to set it to 1 here 
+      END_3D
       IF( iom_use("emix_iwm") )                         zemx_iwm (:,:,:) = 0._wp
       IF( iom_use("av_wave") .OR. sn_cfctl%l_prtctl )   zav_wave (:,:,:) = 0._wp
       !
@@ -297,7 +299,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl(tab3d_1=zav_wave , clinfo1=' iwm - av_wave: ', tab3d_2=avt, clinfo2=' avt: ', kdim=jpk)
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl(tab3d_1=zav_wave , clinfo1=' iwm - av_wave: ', tab3d_2=avt, clinfo2=' avt: ')
       !
    END SUBROUTINE zdf_iwm
 

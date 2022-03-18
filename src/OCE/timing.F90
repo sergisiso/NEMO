@@ -387,15 +387,16 @@ CONTAINS
          WRITE(numtime,*) '    warning: includes restarts writing time if output before nitend... '
          WRITE(numtime,*) ' '
          DO ji = 1, jpnij
+            zperc = 0._wp ; zsypd = 0._wp
             ztot = SUM( timing_glob(4*ji-3:4*ji-1) )
             WRITE(numtime,'(A28,F11.6,            A34,I8)') 'Computing       time : ',timing_glob(4*ji-3), ' on MPI rank : ', ji
-            IF ( ztot /= 0. ) zperc = timing_glob(4*ji-2) / ztot * 100.
+            IF ( ztot /= 0._wp ) zperc = timing_glob(4*ji-2) / ztot * 100.
             WRITE(numtime,'(A28,F11.6,A2, F4.1,A3,A25,I8)') 'Waiting lbc_lnk time : ',timing_glob(4*ji-2)   &
                &                                                         , ' (',      zperc,' %)',   ' on MPI rank : ', ji
-            IF ( ztot /= 0. ) zperc = timing_glob(4*ji-1) / ztot * 100.
+            IF ( ztot /= 0._wp ) zperc = timing_glob(4*ji-1) / ztot * 100.
             WRITE(numtime,'(A28,F11.6,A2, F4.1,A3,A25,I8)') 'Waiting  global time : ',timing_glob(4*ji-1)   &
                &                                                         , ' (',      zperc,' %)',   ' on MPI rank : ', ji
-            zsypd = rn_Dt * REAL(nitend-nit000-1, wp) / (timing_glob(4*ji) * 365.)
+            IF ( timing_glob(4*ji) /= 0._wp ) zsypd = rn_Dt * REAL(nitend-nit000-1, wp) / (timing_glob(4*ji) * 365.)
             WRITE(numtime,'(A28,F11.6,A7,F10.3,A2,A15,I8)') 'Total           time : ',timing_glob(4*ji  )   &
                &                                                         , ' (SYPD: ', zsypd, ')',   ' on MPI rank : ', ji
          END DO

@@ -667,16 +667,23 @@ within the OSBL are part of the model, while instabilities below the
 ML are handled by the Ri \# dependent scheme.
 
 \subsubsection{Depth and velocity scales}
-The model supposes a boundary layer of thickness $h_{\mathrm{bl}}$ enclosing a well-mixed layer of thickness $h_{\mathrm{ml}}$ and a relatively thin pycnocline at the base of thickness $\Delta h$; \autoref{fig:OSBL_structure} shows typical (a) buoyancy structure and (b) turbulent buoyancy flux profile for the unstable boundary layer (losing buoyancy at the surface; e.g.\ cooling).
+
+The model supposes a boundary layer of thickness $h_{\mathrm{bl}}$ enclosing a well-mixed
+layer of thickness $h_{\mathrm{ml}}$ and a relatively thin pycnocline at the base of
+thickness $\Delta h$; \autoref{fig:OSBL_structure} shows typical (a) buoyancy structure
+and (b) turbulent buoyancy flux profile for the unstable boundary layer (losing buoyancy
+at the surface; e.g.\ cOoling).
+
 \begin{figure}[!t]
   \begin{center}
-    %\includegraphics[width=0.7\textwidth]{ZDF_OSM_structure_of_OSBL}
+    \includegraphics[width=0.7\textwidth]{ZDF_OSM_structure_of_OSBL}
     \caption{
       \protect\label{fig:OSBL_structure}
      The structure of the entraining  boundary layer. (a) Mean buoyancy profile. (b) Profile of the buoyancy flux.
     }
   \end{center}
 \end{figure}
+
 The pycnocline in the OSMOSIS scheme is assumed to have a finite thickness, and may include a number of model levels. This means that the OSMOSIS scheme must parametrize both the thickness of the pycnocline, and the turbulent fluxes within the pycnocline.
 
 Consideration of the power input by wind acting on the Stokes drift suggests that the Langmuir turbulence has velocity scale:

@@ -37,8 +37,8 @@
       INTEGER  ::   jl   ! dummy loop indices
       INTEGER  ::   imigr, iihom, ijhom        ! local integers
       INTEGER  ::   ipreci, iprecj             !   -       -
-      INTEGER  ::   ml_req1, ml_req2, ml_err   ! for key_mpi_isend
-      INTEGER, DIMENSION(MPI_STATUS_SIZE) ::   ml_stat   ! for key_mpi_isend
+      INTEGER  ::   ml_req1, ml_req2, ml_err   ! for mpi_isend
+      INTEGER, DIMENSION(MPI_STATUS_SIZE) ::   ml_stat   ! for mpi_isend
       !!
       REAL(PRECISION), DIMENSION(1-kexti:jpi+kexti,nn_hls+kextj,2) ::   r2dns, r2dsn
       REAL(PRECISION), DIMENSION(1-kextj:jpj+kextj,nn_hls+kexti,2) ::   r2dwe, r2dew

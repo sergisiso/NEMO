@@ -4,7 +4,7 @@
    !                       ! =T  read T-S fields for:
    ln_tsd_init = .false.         !  ocean initialisation
    ln_tsd_dmp  = .false.         !  T-S restoring   (see namtra_dmp)
-   
+
    cn_dir      = './'      !  root directory for the T-S data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !

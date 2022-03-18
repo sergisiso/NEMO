@@ -198,8 +198,8 @@ open ocean wet points in the non-isf bathymetry for this set is row 42 (\fortran
 then the formally correct setting for \np{open_ocean_jstart}{open\_ocean\_jstart} is 41.  Using this value as
 the first row to be read will result in a 362x292 domain which is the same size as the
 original ORCA1 domain.  Thus the extended domain configuration file can be used with all
-the original input files for ORCA1 if the ice cavities are not active (\np{ln\_isfcav =
-.false.}).  Full instructions for achieving this are:
+the original input files for ORCA1 if the ice cavities are not active (\np{ln_isfcav =
+.false.}). Full instructions for achieving this are:
 
 \begin{itemize}
 \item Add the new attribute to any input files requiring a j-row offset, i.e:
@@ -301,31 +301,6 @@ See \mdl{closea} module for an example.
 Note also that this implementation may be sensitive to the optimization level.
 
 %% =================================================================================================
-\subsection{MPP scalability}
-\label{subsec:MISC_mppsca}
-
-The default method of communicating values across the north-fold in distributed memory applications (\key{mpp\_mpi})
-uses a \textsc{MPI\_ALLGATHER} function to exchange values from each processing region in
-the northern row with every other processing region in the northern row.
-This enables a global width array containing the top 4 rows to be collated on every northern row processor and then
-folded with a simple algorithm.
-Although conceptually simple, this "All to All" communication will hamper performance scalability for
-large numbers of northern row processors.
-From version 3.4 onwards an alternative method is available which only performs direct "Peer to Peer" communications
-between each processor and its immediate "neighbours" across the fold line.
-This is achieved by using the default \textsc{MPI\_ALLGATHER} method during initialisation to
-help identify the "active" neighbours.
-Stored lists of these neighbours are then used in all subsequent north-fold exchanges to
-restrict exchanges to those between associated regions.
-The collated global width array for each region is thus only partially filled but is guaranteed to
-be set at all the locations actually required by each individual for the fold operation.
-This alternative method should give identical results to the default \textsc{ALLGATHER} method and
-is recommended for large values of \np{jpni}{jpni}.
-The new method is activated by setting \np{ln_nnogather}{ln\_nnogather} to be true (\nam{mpp}{mpp}).
-The reproducibility of results using the two methods should be confirmed for each new,
-non-reference configuration.
-
-%% =================================================================================================
 \section{Model optimisation, control print and benchmark}
 \label{sec:MISC_opt}
 
@@ -338,18 +313,8 @@ non-reference configuration.
 Options are defined through the  \nam{ctl}{ctl} namelist variables.
 
 %% =================================================================================================
-\subsection{Vector optimisation}
-
-\key{vectopt\_loop} enables the internal loops to collapse.
-This is very a very efficient way to increase the length of vector calculations and thus
-to speed up the model on vector computers.
-
-% Add here also one word on NPROMA technique that has been found useless, since compiler have made significant progress during the last decade.
-
-% Add also one word on NEC specific optimisation (Novercheck option for example)
-
-%% =================================================================================================
 \subsection{Status and debugging information output}
+\label{subsec:MISC_statusinfo}
 
 
 NEMO can produce a range of text information output either: in the main output
@@ -366,46 +331,33 @@ on-off switches this structure also allows selection of a range of processors fo
 individual reporting (where appropriate) and a time-increment option to restrict
 globally collected values to specified time-step increments.
 
-Most options within the structure are influenced by the top-level switches shown here
+Options within the structure are selected by the top-level switches shown here
 with their default settings:
 
 \begin{forlines}
-   sn_cfctl%l_allon  = .FALSE.    ! IF T activate all options. If F deactivate all unless l_config is T
-     sn_cfctl%l_config = .TRUE.     ! IF .true. then control which reports are written with the following
+   sn_cfctl%l_runstat = .TRUE.    ! switches and which areas produce reports with the proc integer settings.
+   sn_cfctl%l_trcstat = .FALSE.   ! The default settings for the proc integers should ensure
+   sn_cfctl%l_oceout  = .FALSE.   ! that  all areas report.
+   sn_cfctl%l_layout  = .FALSE.   !
+   sn_cfctl%l_prtctl  = .FALSE.   !
+   sn_cfctl%l_prttrc  = .FALSE.   !
+   sn_cfctl%l_oasout  = .FALSE.   !
+   sn_cfctl%procmin   = 0         ! Minimum area number for reporting [default:0]
+   sn_cfctl%procmax   = 1000000   ! Maximum area number for reporting [default:1000000]
+   sn_cfctl%procincr  = 1         ! Increment for optional subsetting of areas [default:1]
+   sn_cfctl%ptimincr  = 1         ! Timestep increment for writing time step progress info
 \end{forlines}
 
-The first switch is a convenience option which can be used to switch on and off all
-sub-options. However, if it is false then switching off all sub-options is only done
-if \forcode{sn_cfctl%l\_config} is also false. Specifically, the logic is:
+Details of the suboptions follow: 
 
-\begin{forlines}
-  IF ( sn_cfctl%l_allon ) THEN
-    set all suboptions .TRUE.
-    and set procmin, procmax and procincr so that all regions are selected ([0,10000000,1], respectively)
-  ELSEIF ( sn_cfctl%l_config ) THEN
-    honour individual settings of the suboptions from the namelist
-  ELSE
-    set all suboptions .FALSE.
-  ENDIF
-\end{forlines}
-
-Details of the suboptions follow but first an explanation of the stand-alone option:
-\forcode{sn_cfctl%l_glochk}.  This option modifies the action of the early warning checks
-carried out in \texttt{stpctl.F90}. These checks detect probable numerical instabilites
-by searching for excessive sea surface heights or velocities and salinity values
-outside a sensible physical range. If breaches are detected then the default behaviour
-is to locate and report the local indices of the grid-point in breach. These indices
-are included in the error message that precedes the model shutdown. When true,
-\forcode{sn_cfctl%l_glochk} modifies this action by performing a global location of
-the various minimum and maximum values and the global indices are reported. This has
-some value in locating the most severe error in cases where the first detected error
-may not be the worst culprit.
-
-\subsubsection{Control print suboptions}
+\subsection{Control print suboptions}
 
 The options that can be individually selected fall into three categories:
 
-\begin{enumerate} \item{Time step progress information} This category includes
+\begin{enumerate} 
+\item{Time step progress information} 
+
+This category includes
 \texttt{run.stat} and \texttt{tracer.stat} files which record certain physical and
 passive tracer metrics (respectively). Typical contents of \texttt{run.stat} include
 global maximums of ssh, velocity; and global minimums and maximums of temperature
@@ -414,9 +366,9 @@ produced with the same time-series data and this can easily be expanded to inclu
 extra monitoring information.  \texttt{tracer.stat} contains the volume-weighted
 average tracer value for each passive tracer. Collecting these metrics involves
 global communications and will impact on model efficiency so both these options are
-disabled by default by setting the respective options, \forcode{sn\_cfctl%runstat} and
-\forcode{sn\_cfctl%trcstat} to false. A compromise can be made by activating either or
-both of these options and setting the \forcode{sn\_cfctl%timincr} entry to an integer
+disabled by default by setting the respective options, \forcode{sn_cfctl%runstat} and
+\forcode{sn_cfctl%trcstat} to false. A compromise can be made by activating either or
+both of these options and setting the \forcode{sn_cfctl%timincr} entry to an integer
 value greater than one. This increment determines the time-step frequency at which
 the global metrics are collected and reported.  This increment also applies to the
 time.step file which is otherwise updated every timestep.
@@ -427,19 +379,20 @@ produced by the first ocean process. This includes the \texttt{ocean.output} fil
 which reports on all the namelist options read by the model and remains open to catch
 any warning or error messages generated during execution. A \texttt{layout.dat}
 file is also produced which details the MPI-decomposition used by the model. The
-suboptions: \forcode{sn\_cfctl%oceout} and \forcode{sn\_cfctl%layout} can be used
+suboptions: \forcode{sn_cfctl%oceout} and \forcode{sn_cfctl%layout} can be used
 to activate the creation of these files by all ocean processes.  For example,
-when \forcode{sn\_cfctl%oceout} is true all processors produce their own version of
+when \forcode{sn_cfctl%oceout} is true all processors produce their own version of
 \texttt{ocean.output}.  All files, beyond the the normal reporting processor (narea == 1), are
-named with a \_XXXX extension to their name, where XXXX is a 4-digit area number (with
-leading zeros, if required). This is useful as a debugging aid since all processes can
+named with a \_XXXX extension to their name, where XXXX is a zero-padded, 4-digit area number
+(more than 4 digits will be used if the processor count exceeds 9999). This is useful as 
+a debugging aid since all processes can
 report their local conditions. Note though that these files are buffered on most UNIX
 systems so bug-hunting efforts using this facility should also utilise the \fortran:
 
 \forline|CALL FLUSH(numout)|
 
 statement after any additional write statements to ensure that file contents reflect
-the last model state. Associated with the \forcode{sn\_cfctl%oceout} option is the
+the last model state. Associated with the \forcode{sn_cfctl%oceout} option is the
 additional \forcode{sn\_cfctl%oasout} suboption. This does not activate its own output
 file but rather activates the writing of addition information regarding the OASIS
 configuration when coupling via oasis and the sbccpl routine. This information is
@@ -452,36 +405,21 @@ useful for this purpose when dealing with configurations that can be run
 on a single processor. The full details can be found in this report: \href{
 http://forge.ipsl.jussieu.fr/nemo/attachment/wiki/Documentation/prtctl_NEMO_doc_v2.pdf}{The
 control print option in NEMO} The switches to activate production of the control sums
-of trends for either the physics or passive tracers are the \forcode{sn\_cfctl%prtctl}
-and \forcode{sn\_cfctl%prttrc} suboptions, respectively. Although, perhaps, of limited use for its
+of trends for either the physics or passive tracers are the \forcode{sn_cfctl%prtctl}
+and \forcode{sn_cfctl%prttrc} suboptions, respectively. Although, perhaps, of limited use for its
 original intention, the ability to produce these control sums of trends in specific
-areas provides another tool for diagnosing model behaviour.  If only the output from a
+areas provides another tool for diagnosing model behaviour.  
+
+If only the output from a
 select few regions is required then additional options are available to activate options
-for only a simple subset of processing regions. These are: \forcode{sn\_cfctl%procmin},
-\forcode{sn\_cfctl%procmax} and \forcode{sn\_cfctl%procincr} which can be used to specify
+for only a simple subset of processing regions. These are: \forcode{sn_cfctl%procmin},
+\forcode{sn_cfctl%procmax} and \forcode{sn_cfctl%procincr} which can be used to specify
 the minimum and maximum active areas and the increment. The default values are set
 such that all regions will be active. Note this subsetting can also be used to limit
 which additional \texttt{ocean.output} and \texttt{layout.dat} files are produced if
 those suboptions are active.
 
 \end{enumerate}
-
-\begin{forlines}
-   sn_cfctl%l_glochk  = .false. ! Range sanity checks are local (F) or global (T). Set T for debugging only
-   sn_cfctl%l_allon   = .false. ! IF T activate all options. If F deactivate all unless l_config is T
-   sn_cfctl%l_config  = .true.  ! IF .true. then control which reports are written with the following
-   sn_cfctl%l_runstat = .false. ! switches and which areas produce reports with the proc integer settings.
-   sn_cfctl%l_trcstat = .false. ! The default settings for the proc integers should ensure
-   sn_cfctl%l_oceout  = .false. ! that  all areas report.
-   sn_cfctl%l_layout  = .false. !
-   sn_cfctl%l_prtctl  = .false. !
-   sn_cfctl%l_prttrc  = .false. !
-   sn_cfctl%l_oasout  = .false. !
-   sn_cfctl%procmin   = 0       ! Minimum area number for reporting [default:0]
-   sn_cfctl%procmax   = 1000000 ! Maximum area number for reporting [default:1000000]
-   sn_cfctl%procincr  = 1       ! Increment for optional subsetting of areas [default:1]
-   sn_cfctl%ptimincr  = 1       ! Timestep increment for writing time step progress info
-\end{forlines}
 
 \subinc{\input{../../global/epilogue}}
 

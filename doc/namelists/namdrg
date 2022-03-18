@@ -7,5 +7,5 @@
    ln_loglayer = .false.   !  logarithmic drag: Cd = vkarmn/log(z/z0) |U|
    !
    ln_drgimp   = .true.    !  implicit top/bottom friction flag
-      ln_drgice_imp = .false. ! implicit ice-ocean drag
+      ln_drgice_imp = .true. ! implicit ice-ocean drag
 /

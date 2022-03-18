@@ -891,8 +891,8 @@ CONTAINS
       p_avt(A2D(nn_hls),1) = 0._wp
       !
       IF(sn_cfctl%l_prtctl) THEN
-         CALL prt_ctl( tab3d_1=en   , clinfo1=' gls  - e: ', tab3d_2=p_avt, clinfo2=' t: ', kdim=jpk)
-         CALL prt_ctl( tab3d_1=p_avm, clinfo1=' gls  - m: ', kdim=jpk )
+         CALL prt_ctl( tab3d_1=en   , clinfo1=' gls  - e: ', tab3d_2=p_avt, clinfo2=' t: ' )
+         CALL prt_ctl( tab3d_1=p_avm, clinfo1=' gls  - m: ' )
       ENDIF
       !
    END SUBROUTINE zdf_gls

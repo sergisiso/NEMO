@@ -12,7 +12,7 @@
    ln_phioc    = .false.       !  TKE flux from wave model
    ln_bern_srfc= .false.       !  wave induced pressure. Bernoulli head J term
    ln_breivikFV_2016 = .false. !  breivik 2016 vertical stokes profile
-   ln_vortex_force = .false.   !  Vortex Force term
+   ln_vortex_force = .false.   !  Vortex Force term 
    ln_stshear  = .false.       !  include stokes shear in EKE computation
 !
    cn_dir      = './'      !  root directory for the waves data location

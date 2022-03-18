@@ -204,6 +204,7 @@ CONTAINS
       ssmask (:,:) = MAXVAL( tmask(:,:,:), DIM=3 )
       ssumask(:,:) = MAXVAL( umask(:,:,:), DIM=3 )
       ssvmask(:,:) = MAXVAL( vmask(:,:,:), DIM=3 )
+      ssfmask(:,:) = MAXVAL( fmask(:,:,:), DIM=3 )
 
       ! Interior domain mask  (used for global sum)
       ! --------------------

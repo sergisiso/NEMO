@@ -15,8 +15,10 @@
 &namdom        !   space and time domain (bathymetry, mesh, timestep)
 !-----------------------------------------------------------------------
    ln_read_cfg = .true.
-   nn_bathy    =    1      !  compute analyticaly (=0) or read (=1) the bathymetry file
-                           !  or compute (2) from external bathymetry
+   nn_bathy    =    1      ! = 0 compute analyticaly
+                           ! = 1 read the bathymetry file
+                           ! = 2 compute from external bathymetry
+                           ! = 3 compute from parent (if "key_agrif")
    nn_interp   =    1                          ! type of interpolation (nn_bathy =2)
    cn_domcfg   =  'ORCA_R2_zps_domcfg.nc'                
    cn_topo     =  'bathymetry_ORCA12_V3.3.nc'  ! external topo file (nn_bathy =2)
@@ -52,6 +54,8 @@
    !                       !      ===>>> will become the only possibility in v4.0
    !                       ! =F : e3 analytical derivative of depth function
    !                       !      only there for backward compatibility test with v3.6
+      !                      ! if ln_e3_dep = T
+      ln_dept_mid = .false.  ! =T : set T points in the middle of cells
    !                       !
    cp_cfg      =  "orca"   !  name of the configuration
    jp_cfg      =       2   !  resolution of the configuration

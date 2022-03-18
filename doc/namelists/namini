@@ -27,16 +27,16 @@
    rn_hld_ini_n     =   0.0           !  initial pond lid depth      (m), North
    rn_hld_ini_s     =   0.0           !        "            "             South
    ! -- for nn_iceini_file = 1
-   sn_hti = 'Ice_initialization'    , -12 ,'hti'   ,  .false.  , .true., 'yearly'  , '' , '', ''
-   sn_hts = 'Ice_initialization'    , -12 ,'hts'   ,  .false.  , .true., 'yearly'  , '' , '', ''
-   sn_ati = 'Ice_initialization'    , -12 ,'ati'   ,  .false.  , .true., 'yearly'  , '' , '', ''
-   sn_smi = 'Ice_initialization'    , -12 ,'smi'   ,  .false.  , .true., 'yearly'  , '' , '', ''
-   sn_tmi = 'Ice_initialization'    , -12 ,'tmi'   ,  .false.  , .true., 'yearly'  , '' , '', ''
-   sn_tsu = 'Ice_initialization'    , -12 ,'tsu'   ,  .false.  , .true., 'yearly'  , '' , '', ''
-   sn_tms = 'NOT USED'              , -12 ,'tms'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_hti = 'Ice_initialization'    , -12. ,'hti'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_hts = 'Ice_initialization'    , -12. ,'hts'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_ati = 'Ice_initialization'    , -12. ,'ati'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_smi = 'Ice_initialization'    , -12. ,'smi'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_tmi = 'Ice_initialization'    , -12. ,'tmi'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_tsu = 'Ice_initialization'    , -12. ,'tsu'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_tms = 'NOT USED'              , -12. ,'tms'   ,  .false.  , .true., 'yearly'  , '' , '', ''
    !      melt ponds (be careful, sn_apd is the pond concentration (not fraction), so it differs from rn_apd)
-   sn_apd = 'NOT USED'              , -12 ,'apd'   ,  .false.  , .true., 'yearly'  , '' , '', ''
-   sn_hpd = 'NOT USED'              , -12 ,'hpd'   ,  .false.  , .true., 'yearly'  , '' , '', ''
-   sn_hld = 'NOT USED'              , -12 ,'hld'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_apd = 'NOT USED'              , -12. ,'apd'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_hpd = 'NOT USED'              , -12. ,'hpd'   ,  .false.  , .true., 'yearly'  , '' , '', ''
+   sn_hld = 'NOT USED'              , -12. ,'hld'   ,  .false.  , .true., 'yearly'  , '' , '', ''
    cn_dir='./'
 /

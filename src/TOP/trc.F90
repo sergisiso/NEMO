@@ -45,7 +45,6 @@ MODULE trc
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::  gtrv           !: hor. gradient at v-points at bottom ocean level
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::  gtrui          !: hor. gradient at u-points at top    ocean level
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::  gtrvi          !: hor. gradient at v-points at top    ocean level
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::  qsr_mean        !: daily mean qsr
    
    !! passive tracers  (input and output)
    !! ------------------------------------------  
@@ -167,7 +166,7 @@ CONTAINS
          &      neln(jpi,jpj)         , heup(jpi,jpj)         , heup_01(jpi,jpj)      ,       &
          &      etot(jpi,jpj,jpk)     , etot_ndcy(jpi,jpj,jpk)                        ,       &
          &      sbc_trc_b(jpi,jpj,jptra), sbc_trc(jpi,jpj,jptra)                      ,       &  
-         &      cvol(jpi,jpj,jpk)     , trai(jptra)           , qsr_mean(jpi,jpj)     ,       &
+         &      cvol(jpi,jpj,jpk)     , trai(jptra)                                   ,       &
          &      ctrcnm(jptra)         , ctrcln(jptra)         , ctrcun(jptra)         ,       &
          &      ln_trc_ini(jptra)     ,                                                       &
          &      ln_trc_sbc(jptra)     , ln_trc_cbc(jptra)     , ln_trc_obc(jptra)     ,       &

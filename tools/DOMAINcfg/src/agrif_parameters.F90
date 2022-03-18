@@ -11,9 +11,16 @@ MODULE agrif_parameters
                                  ! constant bathymetry inside child zoom: should equal the sponge length
 	INTEGER :: npt_connect   ! area (in coarse grid points) of coarse/child
                                  ! bathymetry blending
-	REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   ztabramp
-	LOGICAL,  PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e3t_interp_done
+        INTEGER, PARAMETER :: npt_shift_bar = 2
 
+	REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   ztabramp
+        REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e1e2t_frac
+        REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e2u_frac
+        REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e1v_frac
+	LOGICAL,  PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e3t_interp_done
+!$AGRIF_DO_NOT_TREAT
+        LOGICAL, PUBLIC :: l_set_hmin    = .FALSE.
+!$AGRIF_END_DO_NOT_TREAT
 #endif
 
 END MODULE agrif_parameters

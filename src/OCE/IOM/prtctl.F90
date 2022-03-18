@@ -247,6 +247,7 @@ CONTAINS
 
             END DO
          ENDIF
+         IF( jpnij == 1 ) CALL FLUSH(inum)
       END DO
       !
    END SUBROUTINE prt_ctl_t

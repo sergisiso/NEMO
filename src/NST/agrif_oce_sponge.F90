@@ -58,7 +58,7 @@ CONTAINS
 #endif
 
       Agrif_SpecialValue    = 0._wp
-      Agrif_UseSpecialValue = .TRUE.
+      Agrif_UseSpecialValue = l_spc_tra 
       l_vremap              = ln_vert_remap
       tabspongedone_tsn     = .FALSE.
       !
@@ -248,9 +248,9 @@ CONTAINS
       !
       ! Remove vertical interpolation where not needed:
       ! (A null value in mbkx arrays does the job)
-      WHERE (fspu(:,:) == 0._wp) mbku_parent(:,:) = 0
-      WHERE (fspv(:,:) == 0._wp) mbkv_parent(:,:) = 0
-      WHERE (fspt(:,:) == 0._wp) mbkt_parent(:,:) = 0
+      WHERE (ssumask(:,:) == 0._wp) mbku_parent(:,:) = 0
+      WHERE (ssvmask(:,:) == 0._wp) mbkv_parent(:,:) = 0
+      WHERE (ssmask(:,:) == 0._wp) mbkt_parent(:,:) = 0
       !
 #endif
       !
@@ -407,7 +407,7 @@ CONTAINS
       !
       IF( before ) THEN
          DO jn = 1, jpts
-            DO jk=k1,k2
+            DO jk=k1,k2-1
                DO jj=j1,j2
                   DO ji=i1,i2
                      ! JC: masking is mandatory here: before tracer field seems 
@@ -424,10 +424,10 @@ CONTAINS
             ! Warning: these are masked, hence extrapolated prior interpolation.
             DO jj=j1,j2
                DO ji=i1,i2
-                  tabres(ji,jj,k1,jpts+1) = 0.5_wp * tmask(ji,jj,k1) * e3t(ji,jj,k1,Kbb_a)
-                  DO jk=k1+1,k2
+                  tabres(ji,jj,k1,jpts+1) = 0.5_wp * tmask(ji,jj,k1) * e3w(ji,jj,k1,Kbb_a)
+                  DO jk=k1+1,k2-1
                      tabres(ji,jj,jk,jpts+1) = tmask(ji,jj,jk) * &
-                        & ( tabres(ji,jj,jk-1,jpts+1) + 0.5_wp * (e3t(ji,jj,jk-1,Kbb_a)+e3t(ji,jj,jk,Kbb_a)) )
+                        & ( tabres(ji,jj,jk-1,jpts+1) + e3w(ji,jj,jk,Kbb_a) )
                   END DO
                END DO
             END DO
@@ -443,7 +443,12 @@ CONTAINS
          !
          IF ( l_vremap ) THEN
 
-            IF (ln_linssh) tabres(i1:i2,j1:j2,k2,n2) = 0._wp
+            IF (ln_linssh) THEN
+               tabres(i1:i2,j1:j2,k2,n2) = 0._wp
+
+            ELSE ! Assuming parent volume follows child:
+               tabres(i1:i2,j1:j2,k2,n2) = ssh(i1:i2,j1:j2,Kbb_a)
+            ENDIF
 
             DO jj=j1,j2
                DO ji=i1,i2
@@ -474,9 +479,9 @@ CONTAINS
                   DO jk=1,N_out
                      h_out(jk) = e3t(ji,jj,jk,Kbb_a)
                   END DO
-                  z_out(1) = 0.5_wp * h_out(1)
+                  z_out(1) = 0.5_wp * e3w(ji,jj,1,Kbb_a) 
                   DO jk=2,N_out
-                     z_out(jk) = z_out(jk-1) + 0.5_wp * ( h_out(jk)+h_out(jk-1) )
+                     z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Kbb_a) 
                   END DO
                   IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Kbb_a)
 
@@ -487,8 +492,11 @@ CONTAINS
                      h_in_i(1)= h_in_i(1) - ( sum(h_in_i(1:N_in))-sum(h_out(1:N_out)) )
                   END IF
                   IF (N_in*N_out > 0) THEN
-                     CALL remap_linear(tabin(1:N_in,1:jpts),z_in(1:N_in),tabin_i(1:N_in,1:jpts),z_in_i(1:N_in),N_in,N_in,jpts)
-                     CALL reconstructandremap(tabin_i(1:N_in,1:jpts),h_in_i(1:N_in),tabres_child(ji,jj,1:N_out,1:jpts),h_out(1:N_out),N_in,N_out,jpts)
+! jc: disable "two steps" vertical remapping
+!     since this would require e3w0_parent to be available
+!                     CALL remap_linear(tabin(1:N_in,1:jpts),z_in(1:N_in),tabin_i(1:N_in,1:jpts),z_in_i(1:N_in),N_in,N_in,jpts)
+!                     CALL reconstructandremap(tabin_i(1:N_in,1:jpts),h_in_i(1:N_in),tabres_child(ji,jj,1:N_out,1:jpts),h_out(1:N_out),N_in,N_out,jpts)
+                     CALL reconstructandremap(tabin(1:N_in,1:jpts),h_in_i(1:N_in),tabres_child(ji,jj,1:N_out,1:jpts),h_out(1:N_out),N_in,N_out,jpts)
 !                     CALL remap_linear(tabin(1:N_in,1:jpts),z_in(1:N_in),tabres_child(ji,jj,1:N_out,1:jpts),z_out(1:N_in),N_in,N_out,jpts)  
                   ENDIF
                END DO
@@ -519,9 +527,9 @@ CONTAINS
                      END DO 
                      IF (.NOT.ln_linssh) z_in(1:N_in) = z_in(1:N_in) - tabres(ji,jj,k2,n2)
 
-                     z_out(1) = 0.5_wp * e3t(ji,jj,1,Kbb_a)
+                     z_out(1) = 0.5_wp * e3w(ji,jj,1,Kbb_a)
                      DO jk=2, N_out
-                        z_out(jk) = z_out(jk-1) + 0.5_wp * (e3t(ji,jj,jk-1,Kbb_a) + e3t(ji,jj,jk,Kbb_a)) 
+                        z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Kbb_a) 
                      END DO 
                      IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Kbb_a)
 
@@ -616,102 +624,64 @@ CONTAINS
       INTEGER  :: ji,jj,jk,jmax
       INTEGER  :: ind1
       ! sponge parameters 
-      REAL(wp) :: ze2u, ze1v, zua, zva, zbtr, zhtot
+      REAL(wp) :: ze2u, ze1v, zua, zva, zbtr, zrhoy
+      REAL(wp), DIMENSION(i1:i2,j1:j2) :: zsshu
       REAL(wp), DIMENSION(i1:i2,j1:j2,1:jpk) :: ubdiff
       REAL(wp), DIMENSION(i1:i2,j1:j2,1:jpk) :: rotdiff, hdivdiff
       ! vertical interpolation:
       REAL(wp), DIMENSION(i1:i2,j1:j2,1:jpk) :: tabres_child
       REAL(wp), DIMENSION(k1:k2) :: tabin, h_in
       REAL(wp), DIMENSION(1:jpk) :: h_out
-      INTEGER ::N_in, N_out
+      INTEGER :: N_in, N_out
       !!---------------------------------------------    
       !
       IF( before ) THEN
-         DO jk=k1,k2
+         DO jk=k1,k2-1
             DO jj=j1,j2
                DO ji=i1,i2
-                  tabres(ji,jj,jk,m1) = uu(ji,jj,jk,Kbb_a) * umask(ji,jj,jk)
+                  tabres(ji,jj,jk,m1) = e2u(ji,jj) * e3u(ji,jj,jk,Kbb_a) * uu(ji,jj,jk,Kbb_a) * umask(ji,jj,jk)
                END DO
             END DO
          END DO
 
-         IF ( l_vremap ) THEN
-
-            DO jk=k1,k2
-               DO jj=j1,j2
-                  DO ji=i1,i2
-                     tabres(ji,jj,jk,m2) = e3u(ji,jj,jk,Kbb_a)*umask(ji,jj,jk)
-                  END DO
-               END DO
-            END DO
-
-            ! Extrapolate thicknesses in partial bottom cells:
-            ! Set them to Agrif_SpecialValue (0.). Correct bottom thicknesses are retrieved later on
-            IF (ln_zps) THEN
-               DO jj=j1,j2
-                  DO ji=i1,i2
-                     jk = mbku(ji,jj)
-                     tabres(ji,jj,jk,m2) = 0._wp
-                  END DO
-               END DO           
-            END IF
-            ! Save ssh at last level:
-            tabres(i1:i2,j1:j2,k2,m2) = 0._wp
-            IF (.NOT.ln_linssh) THEN
-               ! This vertical sum below should be replaced by the sea-level at U-points (optimization):
-               DO jk=1,jpk
-                  tabres(i1:i2,j1:j2,k2,m2) = tabres(i1:i2,j1:j2,k2,m2) + e3u(i1:i2,j1:j2,jk,Kbb_a) * umask(i1:i2,j1:j2,jk)
-               END DO
-               tabres(i1:i2,j1:j2,k2,m2) = tabres(i1:i2,j1:j2,k2,m2) - hu_0(i1:i2,j1:j2)
-            END IF 
-         END IF
-
       ELSE
+         zrhoy = Agrif_rhoy()
 
          IF ( l_vremap ) THEN
 
-            IF (ln_linssh) tabres(i1:i2,j1:j2,k2,m2) = 0._wp
+            IF ( ln_linssh ) THEN
+               zsshu(i1:i2,j1:j2) = 0._wp  
+            ELSE
+               zsshu(i1:i2,j1:j2) = hu(i1:i2,j1:j2,Kbb_a) - hu_0(i1:i2,j1:j2)   
+            ENDIF
 
             DO jj=j1,j2
                DO ji=i1,i2
                   tabres_child(ji,jj,:) = 0._wp
-                  N_in = mbku_parent(ji,jj)
+                  N_in  = mbku_parent(ji,jj)
                   N_out = mbku(ji,jj)
                   IF (N_in * N_out > 0) THEN
-                     zhtot = 0._wp
                      DO jk=1,N_in
-                        !IF (jk==N_in) THEN
-                        !   h_in(jk) = hu0_parent(ji,jj) + tabres(ji,jj,k2,m2) - zhtot
-                        !ELSE
-                        !   h_in(jk) = tabres(ji,jj,jk,m2)
-                        !ENDIF
-                        h_in(jk) = e3u0_parent(ji,jj,jk)
-                        zhtot = zhtot + h_in(jk)
-                        tabin(jk) = tabres(ji,jj,jk,m1)
+                        h_in(jk)  = e3u0_parent(ji,jj,jk) * & 
+                             &       (1._wp + zsshu(ji,jj)/(hu0_parent(ji,jj)*ssumask(ji,jj) + 1._wp - ssumask(ji,jj)))
+                        tabin(jk) = tabres(ji,jj,jk,1) / (e2u(ji,jj)*zrhoy*h_in(jk))
                      END DO
                      !         
                      DO jk=1,N_out
                         h_out(jk) = e3u(ji,jj,jk,Kbb_a)
                      END DO
-
-                     ! Account for small differences in free-surface
-                     IF ( sum(h_out(1:N_out)) > sum(h_in(1:N_in) )) THEN
-                        h_out(1) = h_out(1) - ( sum(h_out(1:N_out))-sum(h_in(1:N_in)) )
-                     ELSE
-                        h_in(1)   = h_in(1)   - (sum(h_in(1:N_in))-sum(h_out(1:N_out)) )
-                     ENDIF
                   
                      CALL reconstructandremap(tabin(1:N_in),h_in(1:N_in),tabres_child(ji,jj,1:N_out),h_out(1:N_out),N_in,N_out,1)
                   ENDIF 
                END DO
             END DO
-
-            ubdiff(i1:i2,j1:j2,1:jpk) = (uu(i1:i2,j1:j2,1:jpk,Kbb_a) - tabres_child(i1:i2,j1:j2,1:jpk))*umask(i1:i2,j1:j2,1:jpk)
          ELSE
-
-            ubdiff(i1:i2,j1:j2,1:jpk) = (uu(i1:i2,j1:j2,1:jpk,Kbb_a) - tabres(i1:i2,j1:j2,1:jpk,1))*umask(i1:i2,j1:j2,1:jpk)
-  
+            DO jk=1,jpkm1
+               tabres_child(i1:i2,j1:j2,jk) = tabres(i1:i2,j1:j2,jk,1)/(e2u(i1:i2,j1:j2)*zrhoy*e3u(i1:i2,j1:j2,jk,Kbb_a))
+            END DO
          ENDIF
+         !
+         ubdiff(i1:i2,j1:j2,1:jpkm1) = (uu(i1:i2,j1:j2,1:jpkm1,Kbb_a) - tabres_child(i1:i2,j1:j2,1:jpkm1))*umask(i1:i2,j1:j2,1:jpkm1)
          !
          DO jk = 1, jpkm1                                 ! Horizontal slab
             !                                             ! ===============
@@ -801,7 +771,8 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, imax
       INTEGER  :: ind1
-      REAL(wp) ::   ze2u, ze1v, zua, zva, zbtr, zhtot
+      REAL(wp) ::   ze2u, ze1v, zua, zva, zbtr, zrhox
+      REAL(wp), DIMENSION(i1:i2,j1:j2) :: zsshv
       REAL(wp), DIMENSION(i1:i2,j1:j2,1:jpk) :: vbdiff
       REAL(wp), DIMENSION(i1:i2,j1:j2,1:jpk) :: rotdiff, hdivdiff
       ! vertical interpolation:
@@ -812,90 +783,53 @@ CONTAINS
       !!--------------------------------------------- 
       
       IF( before ) THEN 
-         DO jk=k1,k2
+         DO jk=k1,k2-1
             DO jj=j1,j2
                DO ji=i1,i2
-                  tabres(ji,jj,jk,m1) = vv(ji,jj,jk,Kbb_a) * vmask(ji,jj,jk)
+                  tabres(ji,jj,jk,m1) = e1v(ji,jj) * e3v(ji,jj,jk,Kbb_a) * vv(ji,jj,jk,Kbb_a) * vmask(ji,jj,jk)
                END DO
             END DO
          END DO
 
-         IF ( l_vremap ) THEN
-
-            DO jk=k1,k2
-               DO jj=j1,j2
-                  DO ji=i1,i2
-                     tabres(ji,jj,jk,m2) = vmask(ji,jj,jk) * e3v(ji,jj,jk,Kbb_a)
-                  END DO
-               END DO
-            END DO
-            ! Extrapolate thicknesses in partial bottom cells:
-            ! Set them to Agrif_SpecialValue (0.). Correct bottom thicknesses are retrieved later on
-            IF (ln_zps) THEN
-               DO jj=j1,j2
-                  DO ji=i1,i2
-                     jk = mbkv(ji,jj)
-                     tabres(ji,jj,jk,m2) = 0._wp
-                  END DO
-               END DO           
-            END IF
-            ! Save ssh at last level:
-            tabres(i1:i2,j1:j2,k2,m2) = 0._wp
-            IF (.NOT.ln_linssh) THEN
-               ! This vertical sum below should be replaced by the sea-level at V-points (optimization):
-               DO jk=1,jpk
-                  tabres(i1:i2,j1:j2,k2,m2) = tabres(i1:i2,j1:j2,k2,m2) + e3v(i1:i2,j1:j2,jk,Kbb_a) * vmask(i1:i2,j1:j2,jk)
-               END DO
-               tabres(i1:i2,j1:j2,k2,m2) = tabres(i1:i2,j1:j2,k2,m2) - hv_0(i1:i2,j1:j2)
-            END IF
-
-         END IF 
-
       ELSE
+         zrhox = Agrif_rhox()
 
          IF ( l_vremap ) THEN
-            IF (ln_linssh) tabres(i1:i2,j1:j2,k2,m2) = 0._wp
+            
+            IF ( ln_linssh ) THEN
+               zsshv(i1:i2,j1:j2) = 0._wp  
+            ELSE
+               zsshv(i1:i2,j1:j2) = hv(i1:i2,j1:j2,Kbb_a) - hv_0(i1:i2,j1:j2)   
+            ENDIF 
+
             DO jj=j1,j2
                DO ji=i1,i2
                   tabres_child(ji,jj,:) = 0._wp
                   N_in = mbkv_parent(ji,jj)
                   N_out = mbkv(ji,jj)
                   IF (N_in * N_out > 0) THEN
-                     zhtot = 0._wp
                      DO jk=1,N_in
-                        !IF (jk==N_in) THEN
-                        !   h_in(jk) = hv0_parent(ji,jj) + tabres(ji,jj,k2,m2) - zhtot
-                        !ELSE
-                        !   h_in(jk) = tabres(ji,jj,jk,m2)
-                        !ENDIF
-                        h_in(jk) = e3v0_parent(ji,jj,jk)
-                        zhtot = zhtot + h_in(jk)
-                        tabin(jk) = tabres(ji,jj,jk,m1)
+                        h_in(jk)  = e3v0_parent(ji,jj,jk) * & 
+                             &       (1._wp + zsshv(ji,jj)/(hv0_parent(ji,jj)*ssvmask(ji,jj) + 1._wp - ssvmask(ji,jj)))
+                        tabin(jk) = tabres(ji,jj,jk,1) / (e1v(ji,jj)*zrhox*h_in(jk))
                      END DO
-                     !          
+                     !         
                      DO jk=1,N_out
                         h_out(jk) = e3v(ji,jj,jk,Kbb_a)
                      END DO
 
-                     ! Account for small differences in free-surface
-                     IF ( sum(h_out(1:N_out)) > sum(h_in(1:N_in) )) THEN
-                        h_out(1) = h_out(1) - ( sum(h_out(1:N_out))-sum(h_in(1:N_in)) )
-                     ELSE
-                        h_in(1)   = h_in(1) - (  sum(h_in(1:N_in))-sum(h_out(1:N_out)) )
-                     ENDIF
-         
                      CALL reconstructandremap(tabin(1:N_in),h_in(1:N_in),tabres_child(ji,jj,1:N_out),h_out(1:N_out),N_in,N_out,1)
 
                   ENDIF
                END DO
             END DO
-
-            vbdiff(i1:i2,j1:j2,1:jpk) = (vv(i1:i2,j1:j2,1:jpk,Kbb_a) - tabres_child(i1:i2,j1:j2,1:jpk))*vmask(i1:i2,j1:j2,1:jpk)  
          ELSE
-
-            vbdiff(i1:i2,j1:j2,1:jpk) = (vv(i1:i2,j1:j2,1:jpk,Kbb_a) - tabres(i1:i2,j1:j2,1:jpk,1))*vmask(i1:i2,j1:j2,1:jpk)
-
+            DO jk=1,jpkm1
+               tabres_child(i1:i2,j1:j2,jk) = tabres(i1:i2,j1:j2,jk,1)/(e1v(i1:i2,j1:j2)*zrhox*e3v(i1:i2,j1:j2,jk,Kbb_a))
+            END DO
          ENDIF
+         !
+         vbdiff(i1:i2,j1:j2,1:jpkm1) = (vv(i1:i2,j1:j2,1:jpkm1,Kbb_a) - tabres_child(i1:i2,j1:j2,1:jpkm1))*vmask(i1:i2,j1:j2,1:jpkm1)
          !
          DO jk = 1, jpkm1                                 ! Horizontal slab
             !                                             ! ===============

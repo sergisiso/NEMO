@@ -18,7 +18,7 @@
       !
       ln_isfcav_mlt = .false.    ! ice shelf melting into the cavity (need ln_isfcav = .true. in domain_cfg.nc)
          cn_isfcav_mlt = '3eq'   ! ice shelf melting formulation (spe/2eq/3eq/oasis)
-         !                       ! spe = fwfisf is read from a forcing field
+         !                       ! spe = fwfisf is read from a forcing field ( melt > 0; freezing < 0 )
          !                       ! 2eq = ISOMIP  like: 2 equations formulation (Hunter et al., 2006 for a short description)
          !                       ! 3eq = ISOMIP+ like: 3 equations formulation (Asay-Davis et al., 2016 for a short description)
          !                       ! oasis = fwfisf is given by oasis and pattern by file sn_isfcav_fwf
@@ -43,9 +43,14 @@
       !
       ln_isfpar_mlt = .false.   ! ice shelf melting parametrised
          cn_isfpar_mlt = 'spe'  ! ice shelf melting parametrisation (spe/bg03/oasis)
-         !                      ! spe   = fwfisf is read from a forcing field
+         !                      ! spe   = fwfisf is read from a forcing field ( melt > 0; freezing < 0 )
          !                      ! bg03  = melt computed using Beckmann and Goosse parametrisation
          !                      ! oasis = fwfisf is given by oasis and pattern by file sn_isfpar_fwf
+         !
+         !* bg03 case
+         rn_isfpar_bg03_gt0 = 1.0e-4 ! gamma coeficient used in bg03 paper [m/s]
+         !
+         !*** File definition ***
          !
          !* all cases
          !___________!_____________!___________________!___________!_____________!_________!___________!__________!__________!_______________!
@@ -53,9 +58,12 @@
          !           !             !  (if <0  months)  !   name    !  (logical)  !  (T/F)  ! 'monthly' ! filename ! pairing  ! filename      !
          sn_isfpar_zmax = 'isfmlt_par',       0.       ,'sozisfmax',  .false.    , .true.  , 'yearly'  ,    ''    ,   ''     ,    ''
          sn_isfpar_zmin = 'isfmlt_par',       0.       ,'sozisfmin',  .false.    , .true.  , 'yearly'  ,    ''    ,   ''     ,    ''
+         !
          !* 'spe' and 'oasis' case
          sn_isfpar_fwf = 'isfmlt_par' ,      -12.      ,'sofwfisf' ,  .false.    , .true.  , 'yearly'  ,    ''    ,   ''     ,    ''
+         !
          !* 'bg03' case
+         !* Leff is in [km]
          sn_isfpar_Leff = 'isfmlt_par',       0.       ,'Leff'     ,  .false.    , .true.  , 'yearly'  ,    ''    ,   ''     ,    ''
       !
       ! ---------------- ice sheet coupling -------------------------------

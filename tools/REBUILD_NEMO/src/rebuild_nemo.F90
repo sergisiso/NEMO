@@ -172,7 +172,7 @@ PROGRAM rebuild_nemo
    NAMELIST/nam_rebuild/ filebase, ndomain, dims, nslicesize, l_maskout, deflate_level, &
                        & nc4_xchunk, nc4_ychunk, nc4_zchunk, nc4_tchunk, fchunksize         
 
-   external      :: getarg
+   !external      :: getarg
 
    !End of definitions 
 
@@ -199,14 +199,14 @@ PROGRAM rebuild_nemo
 
 !1.1 Get the namelist path
    !Determine the number of arguments on the command line
-   nargs=iargc()
+   nargs=COMMAND_ARGUMENT_COUNT()
    !Check that the required argument is present, if it is not then set it to the default value: nam_rebuild
    IF (nargs == 0) THEN
       WRITE(numout,*)
       WRITE(numout,*) 'W A R N I N G : Namelist path not supplied as command line argument. Using default, nam_rebuild.'
       cnampath='nam_rebuild'
    ELSE IF (nargs == 1) THEN
-      CALL getarg(1, cnampath)
+      CALL GET_COMMAND_ARGUMENT(1, cnampath)
    ELSE 
       WRITE(numerr,*) 'E R R O R ! : Incorrect number of command line arguments. Please supply only'
       WRITE(numerr,*) '         the path to the namelist file, or no arguments to use default value'

@@ -1195,8 +1195,6 @@ CONTAINS
          IF( ln_dm2dc .AND. ncpl_qsr_freq /= 86400 )   &
             &   CALL ctl_stop( 'sbc_cpl_rcv: diurnal cycle reconstruction (ln_dm2dc) needs daily couping for solar radiation' )
 
-         IF( ncpl_qsr_freq /= 0) ncpl_qsr_freq = 86400 / ncpl_qsr_freq ! used by top
-
          IF ( ln_wave .AND. nn_components == 0 ) THEN
             ncpl_qsr_freq = 1;
             WRITE(numout,*) 'ncpl_qsr_freq is set to 1 when coupling NEMO with wave (without SAS) '

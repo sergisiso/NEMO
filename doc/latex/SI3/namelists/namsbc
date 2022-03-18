@@ -15,7 +15,7 @@
                                       !     = 2  Redistribute a single flux over categories
    ln_cndflx        = .false.         !  Use conduction flux as surface boundary conditions (i.e. for Jules coupling)
       ln_cndemulate = .false.         !     emulate conduction flux (if not provided in the inputs)
-   nn_qtrice        =   1             !  Solar flux transmitted thru the surface scattering layer:
+   nn_qtrice        =   0             !  Solar flux transmitted thru the surface scattering layer:
                                       !     = 0  Grenfell and Maykut 1977 (depends on cloudiness and is 0 when there is snow) 
                                       !     = 1  Lebrun 2019 (equals 0.3 anytime with different melting/dry snw conductivities)
 /

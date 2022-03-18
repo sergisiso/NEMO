@@ -466,7 +466,7 @@ CONTAINS
 
       ! l_diaptr is defined with iom_use
       !   --> dia_ptr_init must be done after the call to iom_init
-      !   --> cannot be .TRUE. without cpp key: key_iom -->  nbasin define by iom_init is initialized
+      !   --> cannot be .TRUE. without cpp key: key_xios -->  nbasin define by iom_init is initialized
       l_diaptr = iom_use( 'zomsf'    ) .OR. iom_use( 'zotem'    ) .OR. iom_use( 'zosal'    ) .OR.  &
          &       iom_use( 'zosrf'    ) .OR. iom_use( 'sopstove' ) .OR. iom_use( 'sophtove' ) .OR.  &
          &       iom_use( 'sopstbtr' ) .OR. iom_use( 'sophtbtr' ) .OR. iom_use( 'sophtadv' ) .OR.  &

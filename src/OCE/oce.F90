@@ -34,7 +34,8 @@ MODULE oce
 
    !! free surface
    !! ------------
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   ssh, uu_b,  vv_b   !: SSH [m] and barotropic velocities [m/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   ssh, uu_b,  vv_b           !: SSH [m] and barotropic velocities [m/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   ssh_frc                    !: Forcing term in external mode for SSH [m/s] 
 
    !! Arrays at barotropic time step:                   ! befbefore! before !  now   ! after  !
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ubb_e  ,  ub_e  ,  un_e  , ua_e   !: u-external velocity
@@ -96,6 +97,7 @@ CONTAINS
          &      rhd  (jpi,jpj,jpk)      , rhop (jpi,jpj,jpk)               , STAT=ierr(1) )
          !
       ALLOCATE( ssh (jpi,jpj,jpt)  , uu_b(jpi,jpj,jpt) , vv_b(jpi,jpj,jpt) ,     &
+         &      ssh_frc(jpi,jpj)                                           ,     &
          &      gtsu(jpi,jpj,jpts) , gtsv(jpi,jpj,jpts)                    ,     &
          &      gru (jpi,jpj)      , grv (jpi,jpj)                         ,     &
          &      gtui(jpi,jpj,jpts) , gtvi(jpi,jpj,jpts)                    ,     &

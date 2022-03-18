@@ -14,8 +14,8 @@ from matplotlib.animation import FuncAnimation
 #
 # Parent grid data:
 ncid = Dataset('DOME_grid_T.nc')
-lon0 = ncid.variables['nav_lon'][:, :]
-lat0 = ncid.variables['nav_lat'][:, :]
+lon0 = ncid.variables['nav_lon_grid_T'][:, :]
+lat0 = ncid.variables['nav_lat_grid_T'][:, :]
 work = ncid.variables['btra'][:, :, :]
 zos = ncid.variables['zos'][:, :, :]
 ncid.close()
@@ -27,8 +27,8 @@ tra0 = np.ma.array(work, mask=mask, hard_mask=True)
 #
 # Child grid data:
 ncid = Dataset('1_DOME_grid_T.nc')
-lon1 = ncid.variables['nav_lon'][:, :]
-lat1 = ncid.variables['nav_lat'][:, :]
+lon1 = ncid.variables['nav_lon_grid_T'][:, :]
+lat1 = ncid.variables['nav_lat_grid_T'][:, :]
 work = ncid.variables['btra'][:, :, :]
 zos = ncid.variables['zos'][:, :, :]
 sp = ncid.variables['Agrif_sponge'][:, :, :]

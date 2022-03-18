@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------
-&namc1d_uvd    !   data: U & V currents                                 ("key_c1d" default: OFF)
+&namc1d_uvd    !   data: U & V currents                                 (ln_c1d =T default: OFF)
 !-----------------------------------------------------------------------
    !                       !  =T read U-V fields for:
    ln_uvd_init   = .false.       !  ocean initialisation

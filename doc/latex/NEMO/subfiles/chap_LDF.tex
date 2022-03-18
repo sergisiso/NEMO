@@ -479,14 +479,14 @@ the horizontal divergence for operators acting along model-surfaces are no longe
   Values of iso-neutral diffusivity and GM coefficient are set as described in \autoref{sec:LDF_coef}.
   If none of the keys \key{traldf\_cNd}, N=1,2,3 is set (the default), spatially constant iso-neutral $A_l$ and
   GM diffusivity $A_e$ are directly set by \np{rn_aeih_0}{rn\_aeih\_0} and \np{rn_aeiv_0}{rn\_aeiv\_0}.
-  If 2D-varying coefficients are set with \key{traldf\_c2d} then $A_l$ is reduced in proportion with horizontal
+  If 2D-varying coefficients are set with (\protect\np[=20]{nn_aht_ijk_t}{nn\_aht\_ijk\_t}) then $A_l$ is reduced in proportion with horizontal
   scale factor according to \autoref{eq:title}
   \footnote{
     Except in global ORCA  $0.5^{\circ}$ runs with \key{traldf\_eiv},
     where $A_l$ is set like $A_e$ but with a minimum vale of $100\;\mathrm{m}^2\;\mathrm{s}^{-1}$
   }.
-  In idealised setups with \key{traldf\_c2d}, $A_e$ is reduced similarly, but if \key{traldf\_eiv} is set in
-  the global configurations with \key{traldf\_c2d}, a horizontally varying $A_e$ is instead set from
+  In idealised setups with (\protect\np[=20]{nn_aht_ijk_t}{nn\_aht\_ijk\_t}), $A_e$ is reduced similarly, but if \np[=.true.]{ln_ldfeiv}{ln\_ldfeiv} also is set in
+  the global configurations a horizontally varying $A_e$ is instead set from
   the Held-Larichev parameterisation
   \footnote{
     In this case, $A_e$ at low latitudes $|\theta|<20^{\circ}$ is further reduced by a factor $|f/f_{20}|$,

@@ -142,12 +142,17 @@ CONTAINS
       CALL lbc_lnk( 'usrdef_zgr', zmsk, 'T', 1. )             ! set halos
       k_top(:,:) = k_top(:,:) * NINT( zmsk(:,:) )
       !
-!!gm to be remove when removing the OLD definition of e3 scale factors so that gde3w disappears
+#if ! defined key_qco && ! defined key_linssh
+      ! OLD implementation of coordinate (not with 'key_qco' or 'key_linssh')
+      ! gde3w_0 has to be defined
+!!gm to be remove when removing the OLD definition of e3 scale factors so that gde3w_0=gdept_0
+!!gm therefore gde3w_0 disappears 
       ! Compute gde3w_0 (vertical sum of e3w)
       gde3w_0(:,:,1) = 0.5_wp * e3w_0(:,:,1)
       DO jk = 2, jpk
          gde3w_0(:,:,jk) = gde3w_0(:,:,jk-1) + e3w_0(:,:,jk)
       END DO
+#endif
       !
       ! Any closed seas (defined by closea_mask > 0 in domain_cfg file) to be filled 
       ! in at runtime if ln_closea=.false.
@@ -200,14 +205,20 @@ CONTAINS
          WRITE(numout,*) ' MIN val k_top   ', MINVAL(   k_top(:,:) ), ' MAX ', MAXVAL( k_top(:,:) )
          WRITE(numout,*) ' MIN val k_bot   ', MINVAL(   k_bot(:,:) ), ' MAX ', MAXVAL( k_bot(:,:) )
          WRITE(numout,*) ' MIN val depth t ', MINVAL( gdept_0(:,:,:) ),   &
-            &                          ' w ', MINVAL( gdepw_0(:,:,:) ), '3w ', MINVAL( gde3w_0(:,:,:) )
+#if ! defined key_qco && ! defined key_linssh
+            &                          '3w ', MINVAL( gde3w_0(:,:,:) ),   &
+#endif
+            &                          ' w ', MINVAL( gdepw_0(:,:,:) )
          WRITE(numout,*) ' MIN val e3    t ', MINVAL(   e3t_0(:,:,:) ), ' f ', MINVAL(   e3f_0(:,:,:) ),  &
             &                          ' u ', MINVAL(   e3u_0(:,:,:) ), ' u ', MINVAL(   e3v_0(:,:,:) ),  &
             &                          ' uw', MINVAL(  e3uw_0(:,:,:) ), ' vw', MINVAL(  e3vw_0(:,:,:)),   &
             &                          ' w ', MINVAL(   e3w_0(:,:,:) )
 
          WRITE(numout,*) ' MAX val depth t ', MAXVAL( gdept_0(:,:,:) ),   &
-            &                          ' w ', MAXVAL( gdepw_0(:,:,:) ), '3w ', MAXVAL( gde3w_0(:,:,:) )
+#if ! defined key_qco && ! defined key_linssh
+            &                          '3w ', MINVAL( gde3w_0(:,:,:) ),   &
+#endif
+            &                          ' w ', MINVAL( gdepw_0(:,:,:) )
          WRITE(numout,*) ' MAX val e3    t ', MAXVAL(   e3t_0(:,:,:) ), ' f ', MAXVAL(   e3f_0(:,:,:) ),  &
             &                          ' u ', MAXVAL(   e3u_0(:,:,:) ), ' u ', MAXVAL(   e3v_0(:,:,:) ),  &
             &                          ' uw', MAXVAL(  e3uw_0(:,:,:) ), ' vw', MAXVAL(  e3vw_0(:,:,:) ),  &
@@ -282,19 +293,6 @@ CONTAINS
       CALL iom_get( inum, jpdom_global, 'bottom_level' , z2d   )   ! last wet T-points
       k_bot(:,:) = NINT( z2d(:,:) )
       !
-      IF( iom_varid( inum, 'mbku', ldstop = .FALSE. ) > 0 ) THEN
-         IF(lwp) WRITE(numout,*) '          mbku, mbkv & mbkf read in ', TRIM(cn_domcfg), ' file'
-         CALL iom_get( inum, jpdom_global, 'mbku', z2d )
-         k_bot_u(:,:) = NINT( z2d(:,:) )
-         CALL iom_get( inum, jpdom_global, 'mbkv', z2d )
-         k_bot_v(:,:) = NINT( z2d(:,:) )
-         CALL iom_get( inum, jpdom_global, 'mbkf', z2d )
-         k_bot_f(:,:) = NINT( z2d(:,:) )
-         k_mbkuvf = 1
-      ELSE
-         k_mbkuvf = 0
-      ENDIF
-      !
       !                          !* vertical scale factors
       CALL iom_get( inum, jpdom_unknown, 'e3t_1d'  , pe3t_1d  )                     ! 1D reference coordinate
       CALL iom_get( inum, jpdom_unknown, 'e3w_1d'  , pe3w_1d  )
@@ -338,6 +336,19 @@ CONTAINS
             WRITE(numout, "(9x,' level  gdept_1d  gdepw_1d  e3t_1d   e3w_1d  ')" )
             WRITE(numout, "(10x, i4, 4f9.2)" ) ( jk, pdept_1d(jk), pdepw_1d(jk), pe3t_1d(jk), pe3w_1d(jk), jk = 1, jpk )
          ENDIF
+      ENDIF
+      !
+      IF( iom_varid( inum, 'mbku', ldstop = .FALSE. ) > 0 ) THEN
+         IF(lwp) WRITE(numout,*) '          mbku, mbkv & mbkf read in ', TRIM(cn_domcfg), ' file'
+         CALL iom_get( inum, jpdom_global, 'mbku', z2d, cd_type = 'U', psgn = 1._wp, kfill = jpfillcopy )
+         k_bot_u(:,:) = NINT( z2d(:,:) )
+         CALL iom_get( inum, jpdom_global, 'mbkv', z2d, cd_type = 'V', psgn = 1._wp, kfill = jpfillcopy )
+         k_bot_v(:,:) = NINT( z2d(:,:) )
+         CALL iom_get( inum, jpdom_global, 'mbkf', z2d, cd_type = 'F', psgn = 1._wp, kfill = jpfillcopy )
+         k_bot_f(:,:) = NINT( z2d(:,:) )
+         k_mbkuvf = 1
+      ELSE
+         k_mbkuvf = 0
       ENDIF
       !
       ! reference depth for negative bathy (wetting and drying only)

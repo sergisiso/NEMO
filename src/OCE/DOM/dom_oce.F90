@@ -152,13 +152,12 @@ MODULE dom_oce
    !                                                        !  reference depths of cells
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gdept_0  !: t- depth              [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gdepw_0  !: w- depth              [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gde3w_0  !: w- depth (sum of e3w) [m]
    
    !                                                        !  time-dependent depths of cells   (domvvl)
 #if defined key_qco || defined key_linssh
 #else
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::  gdept, gdepw
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::  gde3w
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gde3w_0, gde3w !: w- depth (sum of e3w) [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   gdept, gdepw
 #endif
    !                                                        !  reference heights of ocean water column and its inverse
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   ht_0, r1_ht_0   !: t-depth        [m] and [1/m]
@@ -191,8 +190,7 @@ MODULE dom_oce
 !   INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mbk_t, mbk_u, mbk_v   !: bottom last  wet T-, U-, and V-level
 !!gm
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mbkt, mbku, mbkv, mbkf   !: bottom last wet T-, U-, V- and F-level
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tmask_i                  !: interior domain T-point mask
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tmask_h            !: internal domain T-point mask (Figure 8.5 NEMO book)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tmask_i                  !: interior (excluding halos+duplicated points) domain T-point mask
 
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mikt, miku, mikv, mikf   !: top first wet T-, U-, V-, F-level           (ISF)
 
@@ -200,6 +198,7 @@ MODULE dom_oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:), TARGET ::   tmask, umask, vmask, wmask, fmask   !: land/ocean mask at T-, U-, V-, W- and F-pts
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:), TARGET ::   wumask, wvmask                      !: land/ocean mask at WU- and WV-pts
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:), TARGET ::   fe3mask                             !: land/ocean mask at F-pts
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) :: tmask_upd, umask_upd, vmask_upd                 !: land/ocean mask at F-pts
 
    !!----------------------------------------------------------------------
    !! calendar variables
@@ -286,7 +285,7 @@ CONTAINS
          &      ff_f (jpi,jpj) ,    ff_t (jpi,jpj)                                     , STAT=ierr(ii) )
          !
       ii = ii+1
-      ALLOCATE( gdept_0 (jpi,jpj,jpk) , gdepw_0 (jpi,jpj,jpk) , gde3w_0(jpi,jpj,jpk) ,     &
+      ALLOCATE( gdept_0 (jpi,jpj,jpk) , gdepw_0 (jpi,jpj,jpk) ,     &
          &      gdept_1d(        jpk) , gdepw_1d(        jpk)                        , STAT=ierr(ii) )
          !
       ii = ii+1
@@ -311,7 +310,8 @@ CONTAINS
 #else
          ! vvl : time varation for all vertical coordinate variables
       ii = ii+1
-      ALLOCATE( gdept  (jpi,jpj,jpk,jpt) , gdepw  (jpi,jpj,jpk,jpt) , gde3w  (jpi,jpj,jpk) , STAT=ierr(ii) )
+      ALLOCATE( gdept  (jpi,jpj,jpk,jpt) , gdepw  (jpi,jpj,jpk,jpt) ,     &
+         &      gde3w_0(jpi,jpj,jpk)     , gde3w  (jpi,jpj,jpk)     , STAT=ierr(ii) )
          !
       ii = ii+1
       ALLOCATE( e3t(jpi,jpj,jpk,jpt) , e3u (jpi,jpj,jpk,jpt) , e3v (jpi,jpj,jpk,jpt) , e3f(jpi,jpj,jpk) ,      &
@@ -326,7 +326,7 @@ CONTAINS
       ALLOCATE( risfdep(jpi,jpj) , bathy(jpi,jpj) , STAT=ierr(ii)  )
          !
       ii = ii+1
-      ALLOCATE( tmask_i(jpi,jpj) , tmask_h(jpi,jpj) ,                                           &
+      ALLOCATE( tmask_i(jpi,jpj) ,                                                              &
          &      ssmask (jpi,jpj) , ssumask(jpi,jpj) , ssvmask(jpi,jpj) , ssfmask(jpi,jpj) ,     &
          &      mbkt   (jpi,jpj) , mbku   (jpi,jpj) , mbkv   (jpi,jpj) , mbkf(jpi,jpj)    , STAT=ierr(ii) )
          !
@@ -339,6 +339,11 @@ CONTAINS
          !
       ii = ii+1
       ALLOCATE( wmask(jpi,jpj,jpk) , wumask(jpi,jpj,jpk), wvmask(jpi,jpj,jpk) , STAT=ierr(ii) )
+         !
+#if defined key_agrif
+      ii = ii+1
+      ALLOCATE( tmask_upd(jpi,jpj) , umask_upd(jpi,jpj), vmask_upd(jpi,jpj) , STAT=ierr(ii) )
+#endif
       !
       dom_oce_alloc = MAXVAL(ierr)
       !

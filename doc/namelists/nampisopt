@@ -7,4 +7,5 @@
    cn_dir      = './'      !  root directory for the location of the dynamical files
    ln_varpar   =  .true.   ! boolean for PAR variable
    parlux      =  0.43      ! Fraction of shortwave as PAR
+   ln_p4z_dcyc =  .false.  ! Diurnal cycle in PISCES
 / 

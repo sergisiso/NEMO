@@ -691,8 +691,8 @@ CONTAINS
       ENDIF
       !
       IF(sn_cfctl%l_prtctl) THEN
-         CALL prt_ctl( tab3d_1=en   , clinfo1=' tke  - e: ', tab3d_2=p_avt, clinfo2=' t: ', kdim=jpk)
-         CALL prt_ctl( tab3d_1=p_avm, clinfo1=' tke  - m: ', kdim=jpk )
+         CALL prt_ctl( tab3d_1=en   , clinfo1=' tke  - e: ', tab3d_2=p_avt, clinfo2=' t: ' )
+         CALL prt_ctl( tab3d_1=p_avm, clinfo1=' tke  - m: ' )
       ENDIF
       !
    END SUBROUTINE tke_avn

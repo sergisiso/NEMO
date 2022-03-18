@@ -14,7 +14,7 @@ MODULE isfutils
    USE iom           , ONLY: iom_open, iom_get, iom_close, jpdom_global      ! read input file
    USE lib_fortran   , ONLY: glob_sum, glob_min, glob_max                    ! compute global value
    USE par_oce       , ONLY: jpi,jpj,jpk, jpnij, Nis0, Nie0, Njs0, Nje0      ! domain size
-   USE dom_oce       , ONLY: narea, tmask_h, tmask_i                         ! local domain
+   USE dom_oce       , ONLY: narea                                           ! local domain
    USE in_out_manager, ONLY: i8, wp, lwp, numout                             ! miscelenious
    USE lib_mpp
 

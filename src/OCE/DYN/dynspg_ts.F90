@@ -161,7 +161,7 @@ CONTAINS
       REAL(wp) ::   zztmp, zldg               !   -      -
       REAL(wp) ::   zhu_bck, zhv_bck, zhdiv   !   -      -
       REAL(wp) ::   zun_save, zvn_save        !   -      -
-      REAL(wp), DIMENSION(jpi,jpj) :: zu_trd, zu_frc, zu_spg, zssh_frc
+      REAL(wp), DIMENSION(jpi,jpj) :: zu_trd, zu_frc, zu_spg !!st tests , zssh_frc
       REAL(wp), DIMENSION(jpi,jpj) :: zv_trd, zv_frc, zv_spg
       REAL(wp), DIMENSION(jpi,jpj) :: zsshu_a, zhup2_e, zhtp2_e
       REAL(wp), DIMENSION(jpi,jpj) :: zsshv_a, zhvp2_e, zsshp2_e
@@ -240,7 +240,8 @@ CONTAINS
       ENDIF
       !
       !                          ! set values computed in RK3_ssh
-      zssh_frc(:,:) = sshe_rhs(:,:)
+       ssh_frc(:,:) = sshe_rhs(:,:)
+!!st      zssh_frc(:,:) = sshe_rhs(:,:)
         zu_frc(:,:) =   Ue_rhs(:,:)
         zv_frc(:,:) =   Ve_rhs(:,:)
       zCdU_u  (:,:) = CdU_u   (:,:)
@@ -354,17 +355,17 @@ CONTAINS
       !                                   !=  Net water flux forcing applied to a water column  =!
       !                                   ! ---------------------------------------------------  !
       IF (ln_bt_fw) THEN                          ! FORWARD integration: use kt+1/2 fluxes (NOW+1/2)
-         zssh_frc(:,:) = r1_rho0 * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) )
+         ssh_frc(:,:) = r1_rho0 * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) )
       ELSE                                        ! CENTRED integration: use kt-1/2 + kt+1/2 fluxes (NOW)
          zztmp = r1_rho0 * r1_2
-         zssh_frc(:,:) = zztmp * (   emp(:,:)        + emp_b(:,:)          &
-            &                      - rnf(:,:)        - rnf_b(:,:)          &
-            &                      - fwfisf_cav(:,:) - fwfisf_cav_b(:,:)   &
-            &                      - fwfisf_par(:,:) - fwfisf_par_b(:,:)   )
+         ssh_frc(:,:) = zztmp * (   emp(:,:)        + emp_b(:,:)          &
+            &                     - rnf(:,:)        - rnf_b(:,:)          &
+            &                     - fwfisf_cav(:,:) - fwfisf_cav_b(:,:)   &
+            &                     - fwfisf_par(:,:) - fwfisf_par_b(:,:)   )
       ENDIF
       !                                   !=  Add Stokes drift divergence  =!   (if exist)
       IF( ln_sdw ) THEN                   !  -----------------------------  !
-         zssh_frc(:,:) = zssh_frc(:,:) + div_sd(:,:)
+         ssh_frc(:,:) = ssh_frc(:,:) + div_sd(:,:)
       ENDIF
       !
       !                                         ! ice sheet coupling
@@ -372,12 +373,12 @@ CONTAINS
          !
          ! ice sheet coupling
          IF( ln_rstart .AND. kt == nit000 ) THEN
-            zssh_frc(:,:) = zssh_frc(:,:) + risfcpl_ssh(:,:)
+            ssh_frc(:,:) = ssh_frc(:,:) + risfcpl_ssh(:,:)
          END IF
          !
          ! conservation option
          IF( ln_isfcpl_cons ) THEN
-            zssh_frc(:,:) = zssh_frc(:,:) + risfcpl_cons_ssh(:,:)
+            ssh_frc(:,:) = ssh_frc(:,:) + risfcpl_cons_ssh(:,:)
          END IF
          !
       END IF
@@ -386,7 +387,7 @@ CONTAINS
       !                                   !=  Add the IAU weighted SSH increment  =!
       !                                   !  ------------------------------------  !
       IF( lk_asminc .AND. ln_sshinc .AND. ln_asmiau ) THEN
-         zssh_frc(:,:) = zssh_frc(:,:) - ssh_iau(:,:)
+         ssh_frc(:,:) = ssh_frc(:,:) - ssh_iau(:,:)
       ENDIF
 # endif
 
@@ -547,9 +548,9 @@ CONTAINS
          !
 #if defined key_agrif
          ! Set fluxes during predictor step to ensure volume conservation
-         IF( .NOT.Agrif_Root() .AND. ln_bt_fw ) CALL agrif_dyn_ts_flux( jn, zhU, zhV )
+         IF( ln_bt_fw )   CALL agrif_dyn_ts_flux( jn, zhU, zhV )
 #endif
-         IF( ln_wd_il )   CALL wad_lmt_bt(zhU, zhV, sshn_e, zssh_frc, rDt_e)    !!gm wad_lmt_bt use of lbc_lnk on zhU, zhV
+         IF( ln_wd_il )   CALL wad_lmt_bt(zhU, zhV, sshn_e, ssh_frc, rDt_e)    !!gm wad_lmt_bt use of lbc_lnk on zhU, zhV
 
          IF( ln_wd_dl ) THEN           ! un_e and vn_e are set to zero at faces where 
             !                          ! the direction of the flow is from dry cells
@@ -564,7 +565,7 @@ CONTAINS
          !-------------------------------------------------------------------------!
          DO_2D( 0, 0, 0, 0 )
             zhdiv = (   zhU(ji,jj) - zhU(ji-1,jj) + zhV(ji,jj) - zhV(ji,jj-1)   ) * r1_e1e2t(ji,jj)
-            ssha_e(ji,jj) = (  sshn_e(ji,jj) - rDt_e * ( zssh_frc(ji,jj) + zhdiv )  ) * ssmask(ji,jj)
+            ssha_e(ji,jj) = (  sshn_e(ji,jj) - rDt_e * ( ssh_frc(ji,jj) + zhdiv )  ) * ssmask(ji,jj)
          END_2D
          !
          CALL lbc_lnk( 'dynspg_ts', ssha_e, 'T', 1._wp,  zhU, 'U', -1._wp,  zhV, 'V', -1._wp )
@@ -572,7 +573,7 @@ CONTAINS
          ! Duplicate sea level across open boundaries (this is only cosmetic if linssh=T)
          IF( ln_bdy )   CALL bdy_ssh( ssha_e )
 #if defined key_agrif
-         IF( .NOT.Agrif_Root() )   CALL agrif_ssh_ts( jn )
+         CALL agrif_ssh_ts( jn )
 #endif
          !
          !                             ! Sum over sub-time-steps to compute advective velocities
@@ -737,7 +738,7 @@ CONTAINS
          !                                                 ! open boundaries
          IF( ln_bdy )   CALL bdy_dyn2d( jn, ua_e, va_e, un_e, vn_e, hur_e, hvr_e, ssha_e )
 #if defined key_agrif                                                           
-         IF( .NOT.Agrif_Root() )  CALL agrif_dyn_ts( jn )  ! Agrif
+         CALL agrif_dyn_ts( jn )  ! Agrif
 #endif
          !                                             !* Swap
          !                                             !  ----

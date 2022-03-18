@@ -337,12 +337,12 @@ the value of the \np{cn_domcfg}{cn\_domcfg} parameter in namelist \nam{cfg}{cfg}
 
 If \np{ln_read_cfg}{ln\_read\_cfg} is set to \forcode{.false.},
 the domain-specific parameters and fields can be provided (\eg\ analytically computed) by
-subroutines \mdl{usrdef\_hgr} and \mdl{usrdef\_zgr}.
-These subroutines can be supplied in the \path{MY_SRC} directory of the configuration,
+routines \mdl{usrdef\_nam}, \mdl{usrdef\_hgr} and \mdl{usrdef\_zgr}.
+These routines can be supplied in the \path{MY_SRC} directory of the configuration,
 and default versions that configure the spatial domain for the GYRE reference configuration are
 present in the \path{./src/OCE/USR} directory.
 
-In version 4.0 there are no longer any options for reading complex bathymetries and
+From version 4.0 there are no longer any options for reading complex bathymetries and
 performing a vertical discretisation at run-time.
 Whilst it is occasionally convenient to have a common bathymetry file and, for example,
 to run similar models with and without partial bottom boxes and/or sigma-coordinates,
@@ -356,7 +356,7 @@ The next subsections summarise the parameter and fields related to
 the configuration of the whole model domain.
 These represent the minimum information that must be provided either via
 the \np{cn_domcfg}{cn\_domcfg} file or
-set by code inserted into user-supplied versions of the \texttt{usrdef\_*} subroutines.
+set by code inserted into user-supplied versions of the \texttt{usrdef\_*} routines.
 The requirements are presented in three sections:
 the domain size (\autoref{subsec:DOM_size}), the horizontal mesh (\autoref{subsec:DOM_hgr}),
 and the vertical grid (\autoref{subsec:DOM_zgr}).
@@ -365,20 +365,34 @@ and the vertical grid (\autoref{subsec:DOM_zgr}).
 \subsection{Domain size}
 \label{subsec:DOM_size}
 
-The total size of the computational domain is set by the parameters \texttt{jpiglo}, \texttt{jpjglo} and
-\texttt{jpkglo} for the $i$, $j$ and $k$ directions, respectively.
-Note, that the variables \texttt{jpi} and \texttt{jpj} refer to
-the size of each processor subdomain when the code is run in parallel using domain decomposition
-(\key{mpp\_mpi} defined, see \autoref{sec:LBC_mpp}).
+The total size of the computational domain is set by the parameters \forcode{Ni0glo},
+\forcode{NjOglo} and \forcode{jpkglo} for the $i$, $j$ and $k$ directions,
+respectively. Note that \forcode{Ni0glo} and \forcode{NjOglo} do not contain any
+additional MPI or boundary halos, see \autoref{sec:LBC_mpp}. 
 
-The name of the configuration is set through parameter \np{cn_cfg}{cn\_cfg},
-and the nominal resolution through parameter \np{nn_cfg}{nn\_cfg}
-(unless in the input file both of variables \texttt{ORCA} and \texttt{ORCA\_index} are present,
-in which case \np{cn_cfg}{cn\_cfg} and \np{nn_cfg}{nn\_cfg} are set from these values accordingly).
+The name of the configuration is set through the optional parameter \np{cn_cfg}{cn\_cfg},
+and the nominal resolution through the optional parameter \np{nn_cfg}{nn\_cfg}.
+The way all these variables are defined will differ accoring to the value of
+\np{ln_read_cfg}{ln\_read\_cfg} parameter in namelist \nam{cfg}{cfg}, whose usage is
+detailed in \autoref{subsec:DOM_config}.
 
-The global lateral boundary condition type is selected from 8 options using parameters \texttt{l\_Iperio}, \texttt{l\_Jperio}, \texttt{l\_NFold} and \texttt{c\_NFtype}.
+\begin{itemize}
+\item If \np[=.false.]{ln_read_cfg}{ln\_read\_cfg} the user must define 
+      \forcode{cn_cfg, nn_cfg, Ni0glo, Nj0glo, jpkglo} through the routine \mdl{usrdef\_nam}. 
+\item If \np[=.true.]{ln_read_cfg}{ln\_read\_cfg} they will be defined from the NetCDF domain 
+      configuration file defined by the value of the \np{cn_domcfg}{cn\_domcfg} parameter 
+      set in namelist \nam{cfg}{cfg}. 
+  \begin{itemize}
+   \item \forcode{Ni0glo, Nj0glo, jpkglo} do not need to be set explicitly but are, instead, 
+         inferred from the dimensions of the \texttt{e3t\_0} array.
+   \item \forcode{cn_cfg, nn_cfg} are defined by the global attributes named \texttt{CfgName} 
+         and \texttt{CfgIndex}.
+  \end{itemize}
+\end{itemize}
+
+The global lateral boundary condition type is selected by using parameters \forcode{l_Iperio}, \forcode{l_Jperio}, \forcode{l_NFold} and \forcode{c_NFtype}.
 See \autoref{sec:LBC_jperio} for details on the available options and
-the corresponding values for \texttt{l\_Iperio}, \texttt{l\_Jperio}, \texttt{l\_NFold} and \texttt{c\_NFtype}.
+the corresponding values for \forcode{l_Iperio}, \forcode{l_Jperio}, \forcode{l_NFold} and \forcode{c_NFtype}.
 
 %% =================================================================================================
 \subsection[Horizontal grid mesh (\textit{domhgr.F90}]{Horizontal grid mesh (\protect\mdl{domhgr})}
@@ -392,16 +406,16 @@ The explicit specification of a range of mesh-related fields are required for
 the definition of a configuration.
 These include:
 
-\begin{clines}
+\begin{forlines}
 integer   Ni0glo, NjOglo, jpkglo       /* global domain sizes (without MPI halos)                */
-logical   l\_Iperio, l\_Jperio         /* lateral global domain b.c.: i- j-periodicity           */
-logical   l\_NFold                     /* lateral global domain b.c.: North Pole folding         */
-char(1)   c\_NFtype                    /*    type of North pole Folding: T or F point            */
+logical   l_Iperio, l_Jperio           /* lateral global domain b.c.: i- j-periodicity           */
+logical   l_NFold                      /* lateral global domain b.c.: North Pole folding         */
+char(1)   c_NFtype                     /*    type of North pole Folding: T or F point            */
 real      glamt, glamu, glamv, glamf   /* geographic longitude (t,u,v and f points respectively) */
 real      gphit, gphiu, gphiv, gphif   /* geographic latitude                                    */
 real      e1t, e1u, e1v, e1f           /* horizontal scale factors                               */
 real      e2t, e2u, e2v, e2f           /* horizontal scale factors                               */
-\end{clines}
+\end{forlines}
 
 The values of the geographic longitude and latitude arrays at indices $i,j$ correspond to
 the analytical expressions of the longitude $\lambda$ and latitude $\varphi$ as a function of $(i,j)$,
@@ -413,12 +427,13 @@ evaluated for the same arguments as $\lambda$ and $\varphi$.
 %% =================================================================================================
 \subsubsection{Optional fields}
 
-\begin{clines}
+\begin{forlines}
                         /* Optional:                                                 */
-int    ORCA, ORCA_index /* configuration name, configuration resolution              */
+char(256) cn_cfg        /* name of the configuration                                 */
+integer   nn_cfg        /* nominal resolution of the configuration                   */
 double e1e2u, e1e2v     /* U and V surfaces (if grid size reduction in some straits) */
-double ff_f, ff_t       /* Coriolis parameter (if not on the sphere)                 */
-\end{clines}
+double ff_f, ffW_t      /* Coriolis parameter (if not on the sphere)                 */
+\end{forlines}
 
 \NEMO\ can support the local reduction of key strait widths by
 altering individual values of e2u or e1v at the appropriate locations.
@@ -431,22 +446,22 @@ Doing otherwise can lead to numerical instability issues.
 In normal operation the surface areas are computed from $e1u * e2u$ and $e1v * e2v$ but
 in cases where a gridsize reduction is required,
 the unaltered surface areas at $u$ and $v$ grid points
-(\texttt{e1e2u} and \texttt{e1e2v}, respectively) must be read or pre-computed in \mdl{usrdef\_hgr}.
+(\forcode{e1e2u} and \forcode{e1e2v}, respectively) must be read or pre-computed in \mdl{usrdef\_hgr}.
 If these arrays are present in the \np{cn_domcfg}{cn\_domcfg} file they are read and
 the internal computation is suppressed.
-Versions of \mdl{usrdef\_hgr} which set their own values of \texttt{e1e2u} and \texttt{e1e2v} should
+Versions of \mdl{usrdef\_hgr} which set their own values of \forcode{e1e2u} and \forcode{e1e2v} should
 set the surface-area computation flag:
-\texttt{ie1e2u\_v} to a non-zero value to suppress their re-computation.
+\forcode{ie1e2u_v} to a non-zero value to suppress their re-computation.
 
 \smallskip
 Similar logic applies to the other optional fields:
-\texttt{ff\_f} and \texttt{ff\_t} which can be used to
+\forcode{ff_f} and \forcode{ff_t} which can be used to
 provide the Coriolis parameter at F- and T-points respectively if the mesh is not on a sphere.
 If present these fields will be read and used and
 the normal calculation ($2 * \Omega * \sin(\varphi)$) suppressed.
-Versions of \mdl{usrdef\_hgr} which set their own values of \texttt{ff\_f} and \texttt{ff\_t} should
+Versions of \mdl{usrdef\_hgr} which set their own values of \forcode{ff_f} and \forcode{ff_t} should
 set the Coriolis computation flag:
-\texttt{iff} to a non-zero value to suppress their re-computation.
+\forcode{iff} to a non-zero value to suppress their re-computation.
 
 Note that longitudes, latitudes, and scale factors at $w$ points are exactly equal to
 those of $t$ points, thus no specific arrays are defined at $w$ points.
@@ -464,7 +479,7 @@ those of $t$ points, thus no specific arrays are defined at $w$ points.
 In the vertical, the model mesh is determined by four things:
 \begin{enumerate}
 \item the bathymetry given in meters;
-\item the number of levels of the model (\texttt{jpk});
+\item the number of levels of the model (\forcode{jpk});
 \item the analytical transformation $z(i,j,k)$ and the vertical scale factors
   (derivatives of the transformation); and
 \item the masking system,
@@ -560,7 +575,7 @@ The explicit specification of a range of fields related to the vertical grid are
 the definition of a configuration.
 These include:
 
-\begin{clines}
+\begin{forlines}
 int    ln_zco, ln_zps, ln_sco            /* flags for z-coord, z-coord with partial steps and s-coord    */
 int    ln_isfcav                         /* flag  for ice shelf cavities                                 */
 double e3t_1d, e3w_1d                    /* reference vertical scale factors at T and W points           */
@@ -569,13 +584,13 @@ double e3uw_0, e3vw_0                    /* vertical scale factors 3D coordinate
 int    bottom_level, top_level           /* last wet T-points, 1st wet T-points (for ice shelf cavities) */
                                          /* For reference:                                               */
 float  bathy_metry                       /* bathymetry used in setting top and bottom levels             */
-\end{clines}
+\end{forlines}
 
 This set of vertical metrics is sufficient to describe the initial depth and thickness of
 every gridcell in the model regardless of the choice of vertical coordinate.
 With constant z-levels, e3 metrics will be uniform across each horizontal level.
-In the partial step case each e3 at the \texttt{bottom\_level}
-(and, possibly, \texttt{top\_level} if ice cavities are present)
+In the partial step case each e3 at the \forcode{bottom_level}
+(and, possibly, \forcode{top_level} if ice cavities are present)
 may vary from its horizontal neighbours.
 And, in s-coordinates, variations can occur throughout the water column.
 With the non-linear free-surface, all the coordinates behave more like the s-coordinate in that
@@ -584,16 +599,16 @@ These variations are typically much smaller than those arising from bottom fitte
 The values for vertical metrics supplied in the domain configuration file can be considered as
 those arising from a flat sea surface with zero elevation.
 
-The \texttt{bottom\_level} and \texttt{top\_level} 2D arrays define
-the \texttt{bottom\_level} and top wet levels in each grid column.
-Without ice cavities, \texttt{top\_level} is essentially a land mask (0 on land; 1 everywhere else).
-With ice cavities, \texttt{top\_level} determines the first wet point below the overlying ice shelf.
+The \forcode{bottom_level} and \forcode{top_level} 2D arrays define
+the \forcode{bottom_level} and top wet levels in each grid column.
+Without ice cavities, \forcode{top_level} is essentially a land mask (0 on land; 1 everywhere else).
+With ice cavities, \forcode{top_level} determines the first wet point below the overlying ice shelf.
 
 %% =================================================================================================
 \subsubsection{Level bathymetry and mask}
 \label{subsec:DOM_msk}
 
-From \texttt{top\_level} and \texttt{bottom\_level} fields, the mask fields are defined as follows:
+From \forcode{top_level} and \forcode{bottom_level} fields, the mask fields are defined as follows:
 \begin{align*}
   tmask(i,j,k) &=
   \begin{cases}
@@ -637,13 +652,6 @@ optionally decide on the fate of any freshwater imbalance over the area.
 The options are explained in \autoref{sec:MISC_closea} but
 it should be noted here that a successful use of these options requires
 appropriate mask fields to be present in the domain configuration file.
-Among the possibilities are:
-
-\begin{clines}
-int closea_mask     /* non-zero values in closed sea areas for optional masking                */
-int closea_mask_rnf /* non-zero values in closed sea areas with runoff locations (precip only) */
-int closea_mask_emp /* non-zero values in closed sea areas with runoff locations (total emp)   */
-\end{clines}
 
 %% =================================================================================================
 \subsection{Output grid files}
@@ -655,7 +663,7 @@ namelist parameter \np{ln_write_cfg}{ln\_write\_cfg} (namelist \nam{cfg}{cfg}) i
 \forcode{.true.};
 the output filename is set through parameter \np{cn_domcfg_out}{cn\_domcfg\_out}.
 This is only really useful if
-the fields are computed in subroutines \mdl{usrdef\_hgr} or \mdl{usrdef\_zgr} and
+the fields are computed in routines \mdl{usrdef\_hgr} or \mdl{usrdef\_zgr} and
 checking or confirmation is required.
 
 Alternatively, all the arrays relating to a particular ocean model configuration

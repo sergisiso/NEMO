@@ -1377,7 +1377,7 @@ CONTAINS
             RETURN
          ENDIF
          !
-      ELSE        ! read using XIOS. Only if KEY_IOMPUT is defined
+      ELSE        ! read using XIOS. Only if key_xios is defined
 #if defined key_xios
 !would be good to be able to check which context is active and swap only if current is not restart
          idvar = iom_varid( kiomid, cdvar )

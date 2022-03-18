@@ -1,98 +1,129 @@
-.. todo::
-
-
-
-NEMO_ for *Nucleus for European Modelling of the Ocean* is a state-of-the-art modelling framework for
-research activities and forecasting services in ocean and climate sciences,
-developed in a sustainable way by a European consortium since 2008.
+**Contents**
 
 .. contents::
    :local:
 
-Overview
-========
 
-The NEMO ocean model has 3 major components:
 
-- |OCE| models the ocean {thermo}dynamics and solves the primitive equations
-  (:file:`./src/OCE`)
-- |ICE| simulates sea-ice {thermo}dynamics, brine inclusions and
-  subgrid-scale thickness variations (:file:`./src/ICE`)
-- |MBG| models the {on,off}line oceanic tracers transport and biogeochemical processes
-  (:file:`./src/TOP`)
 
-These physical core engines are described in
-their respective `reference publications <#project-documentation>`_ that
-must be cited for any work related to their use (see :doc:`cite`).
+.. _`Former web platform forge`: https://forge.ipsl.jussieu.fr/nemo
+.. _`NEMO users' guide`: https://sites.nemo-ocean.io/user-guide
+.. _`Migration Guide`: https://sites.nemo-ocean.io/user-guide/migration.html
+.. _`Change list`: https://sites.nemo-ocean.io/user-guide/changes.html
+.. _`Test case repository`: https://github.com/NEMO-ocean/NEMO-examples
+.. _`How to cite`: https://www.nemo-ocean.eu/bibliography/how-to-cite/
+.. _`NEMO forums`: https://nemo-ocean.discourse.group
+.. _`NEMO newsletter`: https://listes.ipsl.fr/sympa/subscribe/nemo-newsletter
+.. _`NEMO publications`: https://www.nemo-ocean.eu/bibliography/publications/add
+.. _`NEMO projects`: https://www.nemo-ocean.eu/projects/add
+.. _`Special Issue`: https://gmd.copernicus.org/articles/special_issue40.html
+.. _`NEMO System Team wiki`: https://forge.nemo-ocean.eu/developers/home/-/wikis/Home
+.. _`NEMO ocean engine`: https://zenodo.org/record/1464816
+.. _`NEMO Tracers engine` : https://zenodo.org/record/1471700
+.. _`NEMO Sea Ice engine`: https://zenodo.org/record/1471689
 
-Assets and solutions
-====================
 
-Not only does the NEMO framework model the ocean circulation,
-it offers various features to enable
+**Welcome to NEMO home page!**
+  
+NEMO (*Nucleus for European Modelling of the Ocean*) is a state-of-the-art modelling
+framework for research activities and forecasting services in ocean and climate sciences,
+developed in a sustainable way by the NEMO European consortium since 2008.
 
-- Create :doc:`embedded zooms<zooms>` seamlessly thanks to 2-way nesting package AGRIF_.
-- Opportunity to integrate an :doc:`external biogeochemistry model<tracers>`
-- Versatile :doc:`data assimilation<da>`
-- Generation of :doc:`diagnostics<diags>` through effective XIOS_ system
-- Roll-out Earth system modeling with :doc:`coupling interface<cplg>` based on OASIS_
+This page intends to help you to get started using the NEMO platform and to introduce you
+to the different levels of information available. It starts here with NEMO release 4.2.0.
 
-Several :doc:`built-in configurations<cfgs>` are provided to
-evaluate the skills and performances of the model which
-can be used as templates for setting up a new configurations (:file:`./cfgs`).
+Reminder: Our `Former web platform forge`_ (SVN+Trac) contains the previous documentation
+and releases made available from the beginning of the project up to of NEMO 4.0.
 
-The user can also checkout available :doc:`idealized test cases<tests>` that
-address specific physical processes (:file:`./tests`).
+Getting started
+===============
 
-A set of :doc:`utilities <tools>` is also provided to {pre,post}process your data (:file:`./tools`).
+Getting your hands on NEMO: the first steps are described in detail in the 
+`NEMO users' guide`_ . This explains how to download the code, build the environment, 
+create the executable, and perform a first integration.
+
+If you are already using a previous release of NEMO, please refer to the 
+`Migration Guide`_ which aims to help you to make the move to 4.2.0.
+
+The above users guides cover in detail what is available from gitlab and supported by NEMO
+System Team. Aside from this web platform, a set of test cases is also available from the
+`Test case repository`_ . These test cases can be useful for students, outreach, and
+exploring specific aspects of NEMO with light configurations. The web page also allows you
+to submit test cases you have developed and want to share with the community. Feel free to
+contribute!
+
 
 Project documentation
 =====================
 
-A walkthrough tutorial illustrates how to get code dependencies, compile and execute NEMO
-(:file:`./INSTALL.rst`).
+Reference manuals fully describing NEMO  for the three main component
 
-Reference manuals and quick start guide can be build from source and
-exported to HTML or PDF formats (:file:`./doc`) or
-downloaded directly from the :forge:`development platform<wiki/Documentations>`.
+* |OCE| models the ocean {thermo}dynamics and solves the primitive equations (`./src/OCE <./src/OCE>`_)
 
-============ ================== ===================
- Component    Reference Manual   Quick Start Guide
-============ ================== ===================
- |NEMO-OCE|   |DOI man OCE|_     |DOI qsg|
- |NEMO-ICE|   |DOI man ICE|
- |NEMO-MBG|   |DOI man MBG|
-============ ================== ===================
+* |ICE| simulates sea-ice {thermo}dynamics, brine inclusions and subgrid-scale thickness 
+  variations (`./src/ICE <./src/ICE>`_)
 
-Since 2014 the project has a `Special Issue`_ in the open-access journal
-Geoscientific Model Development (GMD) from the European Geosciences Union (EGU_).
+* |MBG| models the {on,off}line oceanic tracers transport and biogeochemical processes 
+  (`./src/TOP <./src/TOP>`_)
+are available from Zenodo:
+
+============ ======================== =====
+ Component    Reference Manual         DOI
+============ ======================== =====
+ |NEMO-OCE|   `NEMO ocean engine`_    .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.6334656.svg
+                                         :target: https://doi.org/10.5281/zenodo.6334656                        
+ |NEMO-ICE|   `NEMO Sea Ice engine`_  *not yet available*
+ |NEMO-MBG|   `NEMO Tracers engine`_  .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1471700.svg
+                                         :target: https://doi.org/10.5281/zenodo.1471700
+============ ======================== =====
+
+These reference manuals are the publications that should be cited in your own
+publications. Please visit `How to cite`_? for details.
+
+New features of 4.2.0 release are described in the `Change list`_ section of the `NEMO users' guide`_
+
+
+Asking questions, and exchanging information
+============================================
+- Register once for all and use the `NEMO forums`_ on discourse to share and discuss with the NEMO community.
+
+- Register once for all and receive by mail the `NEMO newsletter`_ : recommended for all
+  users to receive the major announcements from the project (new releases, open meetings and
+  main informations). Low traffic: about ten messages a year.
+
+
+Contributing to NEMO visibility: projects and publications
+==========================================================
+Please help us justifying the NEMO development efforts by
+
+-  Adding your publications using NEMO and its outputs to the `NEMO publications`_ page
+
+-  Describing your project using NEMO on the `NEMO projects`_ page
+
+NEMO also has a `Special Issue`_ in the open-access journal
+Geoscientific Model Development (GMD) from the European Geosciences Union
 The main scope is to collect relevant manuscripts covering various topics and
 to provide a single portal to assess the model potential and evolution.
 
-Used by a wide audience,
-numerous :website:`associated projects<projects>` have been carried out and
-extensive :website:`bibliography<bibliography/publications>` published.
 
-Development board
-=================
 
-The NEMO Consortium pulling together 5 European institutes
-(CMCC_, CNRS_, MOI_, `Met Office`_ and NERC_) plans the sustainable development in order to
-keep a reliable evolving framework since 2008.
+Contributing to NEMO development
+================================
 
-It defines the |DOI dev stgy|_ that is implemented by the System Team on a yearly basis
-in order to release a new version almost every four years.
+NEMO strives to be written in a way which allows the easy incorporation of developments.
+You are welcome to contribute to the development of the NEMO Shared reference.  NEMO
+development is driven by  NEMO Consortium planning and producing NEMO's sustainable
+development in order to keep a reliable evolving framework.  Development is organised and
+scheduled through a five years development strategy, Working groups and the activities of
+the development team (named NEMO System Team) in a yearly workplan. More information is
+available on the `NEMO System Team wiki`_
 
-When the need arises, :forge:`working groups<wiki/WorkingGroups>` are created or resumed to
-gather the community expertise for advising on the development activities.
-
-.. |DOI dev stgy| replace:: multi-year development strategy
 
 Disclaimer
 ==========
 
 The NEMO source code is freely available and distributed under
-:download:`CeCILL v2.0 license <../../../LICENSE>` (GNU GPL compatible).
+`CeCILL v2.0 license <./LICENSE>`_ (GNU GPL compatible).
 
 You can use, modify and/or redistribute the software under its terms,
 but users are provided only with a limited warranty and the software's authors and

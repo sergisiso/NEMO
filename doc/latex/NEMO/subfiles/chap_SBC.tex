@@ -41,11 +41,12 @@ The ocean needs seven fields as surface boundary condition:
 \item the atmospheric pressure at the ocean surface $\left( p_a \right)$
 \end{itemize}
 
-Four different ways are available to provide the seven fields to the ocean. They are controlled by
+Five different ways are available to provide these fields to the ocean. They are controlled by
 namelist \nam{sbc}{sbc} variables:
 
 \begin{itemize}
 \item a bulk formulation (\np[=.true.]{ln_blk}{ln\_blk}), featuring a selection of four bulk parameterization algorithms,
+\item an atmospheric boundary layer model (\np[=.true.]{ln_abl}{ln\_abl}) associated with the bulk formulation,
 \item a flux formulation (\np[=.true.]{ln_flx}{ln\_flx}),
 \item a coupled or mixed forced/coupled formulation (exchanges with a atmospheric model via the OASIS coupler),
 (\np{ln_cpl}{ln\_cpl} or \np[=.true.]{ln_mixcpl}{ln\_mixcpl}),
@@ -54,7 +55,7 @@ namelist \nam{sbc}{sbc} variables:
 
 The frequency at which the forcing fields have to be updated is given by the \np{nn_fsbc}{nn\_fsbc} namelist parameter.
 
-When the fields are supplied from data files (bulk, flux and mixed formulations),
+When the fields are supplied from data files (bulk, abl, flux and mixed formulations),
 the input fields do not need to be supplied on the model grid.
 Instead, a file of coordinates and weights can be supplied to map the data from the input fields grid to
 the model points (so called "Interpolation on the Fly", see \autoref{subsec:SBC_iof}).
@@ -84,7 +85,7 @@ These options control:
 \end{itemize}
 
 In this chapter, we first discuss where the surface boundary conditions appear in the model equations.
-Then we present the three ways of providing the surface boundary conditions,
+Then we present the four ways of providing the surface boundary conditions,
 followed by the description of the atmospheric pressure and the river runoff.
 Next, the scheme for interpolation on the fly is described.
 Finally, the different options that further modify the fluxes applied to the ocean are discussed.
@@ -748,6 +749,40 @@ respectively (found in \textit{sbcblk\_skin\_coare.F90}).
 % surface layer (hereafter ASL), and hence, depend on $U_B$, $T_s$, $T_z$, $q_s$
 % and $q_z$.
 
+%% =================================================================================================
+\subsection{Ice-Atmosphere Bulk formulae}
+\label{subsec:SBC_blk_ice}
+
+\texttt{\#out\_of\_place:}
+ For sea-ice, three possibilities can be selected:
+a constant transfer coefficient (1.4e-3; default
+value), \citet{lupkes.gryanik.ea_JGRA12} (\np{ln_Cd_L12}{ln\_Cd\_L12}),
+and \citet{lupkes.gryanik_JGR15} (\np{ln_Cd_L15}{ln\_Cd\_L15}) parameterizations
+\texttt{\#out\_of\_place.}
+
+Surface turbulent fluxes between sea-ice and the atmosphere can be computed in three different ways:
+
+\begin{itemize}
+\item Constant value (\forcode{Cd_ice=1.4e-3}):
+  default constant value used for momentum and heat neutral transfer coefficients
+\item \citet{lupkes.gryanik.ea_JGRA12} (\np[=.true.]{ln_Cd_L12}{ln\_Cd\_L12}):
+  This scheme adds a dependency on edges at leads, melt ponds and flows
+  of the constant neutral air-ice drag. After some approximations,
+  this can be resumed to a dependency on ice concentration (A).
+  This drag coefficient has a parabolic shape (as a function of ice concentration)
+  starting at 1.5e-3 for A=0, reaching 1.97e-3 for A=0.5 and going down 1.4e-3 for A=1.
+  It is theoretically applicable to all ice conditions (not only MIZ).
+\item \citet{lupkes.gryanik_JGR15} (\np[=.true.]{ln_Cd_L15}{ln\_Cd\_L15}):
+  Alternative turbulent transfer coefficients formulation between sea-ice
+  and atmosphere with distinct momentum and heat coefficients depending
+  on sea-ice concentration and atmospheric stability (no melt-ponds effect for now).
+  The parameterization is adapted from ECHAM6 atmospheric model.
+  Compared to Lupkes2012 scheme, it considers specific skin and form drags
+  to compute neutral transfer coefficients for both heat and momentum fluxes.
+  Atmospheric stability effect on transfer coefficient is also taken into account.
+\end{itemize}
+
+%% =================================================================================================
 \subsection{Prescribed near-surface atmospheric state}
 
 The atmospheric fields used depend on the bulk formulae used.  In forced mode,
@@ -822,60 +857,120 @@ Air humidity can be provided as three different parameters: specific humidity
 parameters)...
 
 %% =================================================================================================
-%\subsection[Ocean-Atmosphere Bulk formulae (\textit{sbcblk\_algo\_coare3p0.F90, sbcblk\_algo\_coare3p6.F90, %sbcblk\_algo\_ecmwf.F90, sbcblk\_algo\_ncar.F90})]{Ocean-Atmosphere Bulk formulae (\mdl{sbcblk\_algo\_coare3p0}, %\mdl{sbcblk\_algo\_coare3p6}, \mdl{sbcblk\_algo\_ecmwf}, \mdl{sbcblk\_algo\_ncar})}
-%\label{subsec:SBC_blk_ocean}
+\section[Atmospheric Boundary Layer (ABL) model (\textit{sbcabl.F90})]{Atmospheric Boundary Layer (ABL) model (\protect\mdl{sbcabl})}
+\label{sec:SBC_abl}
 
-%Four different bulk algorithms are available to compute surface turbulent momentum and heat fluxes over the ocean.
-%COARE 3.0, COARE 3.6 and ECMWF schemes mainly differ by their roughness lenghts computation and consequently
-%their neutral transfer coefficients relationships with neutral wind.
-%\begin{itemize}
-%\item NCAR (\np[=.true.]{ln_NCAR}{ln\_NCAR}): The NCAR bulk formulae have been developed by \citet{large.yeager_trpt04}.
-%  They have been designed to handle the NCAR forcing, a mixture of NCEP reanalysis and satellite data.
-%  They use an inertial dissipative method to compute the turbulent transfer coefficients
-%  (momentum, sensible heat and evaporation) from the 10m wind speed, air temperature and specific humidity.
-%  This \citet{large.yeager_trpt04} dataset is available through
-%  the \href{http://nomads.gfdl.noaa.gov/nomads/forms/mom4/NCAR.html}{GFDL web site}.
-%  Note that substituting ERA40 to NCEP reanalysis fields does not require changes in the bulk formulea themself.
-%  This is the so-called DRAKKAR Forcing Set (DFS) \citep{brodeau.barnier.ea_OM10}.
-%\item COARE 3.0 (\np[=.true.]{ln_COARE_3p0}{ln\_COARE\_3p0}): See \citet{fairall.bradley.ea_JC03} for more details
-%\item COARE 3.6 (\np[=.true.]{ln_COARE_3p6}{ln\_COARE\_3p6}): See \citet{edson.jampana.ea_JPO13} for more details
-%\item ECMWF (\np[=.true.]{ln_ECMWF}{ln\_ECMWF}): Based on \href{https://www.ecmwf.int/node/9204}{IFS (Cy40r1)} %implementation and documentation.
-%  Surface roughness lengths needed for the Obukhov length are computed
-%  following \citet{beljaars_QJRMS95}.
-%\end{itemize}
+An atmospheric boundary layer (ABL) model is available as an alternative choice to the prescribed near-surface atmospheric forcings.
+It computes the wind, air potential temperature and specific humidity evolutions in the lower atmosphere following a single-column approach
+on the same horizontal grid as the ocean component. It represents the adjustement of the air column between the large-scale
+atmospheric forcing and the surface boundary conditions over both ocean and sea-ice through vertical turbulent mixing.
+This 1D implementation of the ABL model (ABL1D) and its validation are described in details in \citet{lemarie.samson.ea_GMD21}.
 
-%% =================================================================================================
-\subsection{Ice-Atmosphere Bulk formulae}
-\label{subsec:SBC_blk_ice}
+\subsection{ABL1D pre-processing}
 
-\texttt{\#out\_of\_place:}
- For sea-ice, three possibilities can be selected:
-a constant transfer coefficient (1.4e-3; default
-value), \citet{lupkes.gryanik.ea_JGRA12} (\np{ln_Cd_L12}{ln\_Cd\_L12}),
-and \citet{lupkes.gryanik_JGR15} (\np{ln_Cd_L15}{ln\_Cd\_L15}) parameterizations
-\texttt{\#out\_of\_place.}
+To use it, an atmospheric vertical grid and specific atmospheric forcing files must be provided to ABL1D.
+This is because the model expects atmospheric data on its vertical grid and not only near the surface as usually done.
+Another specificity of ABL1D is that it can be dynamically driven by geostrophic wind or horizontal air pressure gradient,
+instead of being classicaly relaxed toward the large-scale wind forcing.
 
-Surface turbulent fluxes between sea-ice and the atmosphere can be computed in three different ways:
+To generate the ABL1D vertical grid and atmospheric forcings, specific tools and an associated namelist are provided in the ABL\_TOOLS directory.
+They have been developed specifically to deal with ECMWF atmospheric products (such as ERA-Interim, ERA5 and IFS) on their native vertical eta-coordinates.
+The namelist is used to setup the ABL1D vertical grid (\forcode{&nml_dom}), atmospheric forcing options (\forcode{&nml_opt}),
+input atmospheric filenames (\forcode{&nml_fld}) and outputs filenames (\forcode{&nml_out}).
+
+\begin{listing}
+  \nlst{namelist_abl_tools}
+  \label{lst:namelist_abl_tools}
+\end{listing}
+
+Each of the three steps needed to generate the atmospheric forcings corresponds to a tool:
 
 \begin{itemize}
-\item Constant value (\forcode{Cd_ice=1.4e-3}):
-  default constant value used for momentum and heat neutral transfer coefficients
-\item \citet{lupkes.gryanik.ea_JGRA12} (\np[=.true.]{ln_Cd_L12}{ln\_Cd\_L12}):
-  This scheme adds a dependency on edges at leads, melt ponds and flows
-  of the constant neutral air-ice drag. After some approximations,
-  this can be resumed to a dependency on ice concentration (A).
-  This drag coefficient has a parabolic shape (as a function of ice concentration)
-  starting at 1.5e-3 for A=0, reaching 1.97e-3 for A=0.5 and going down 1.4e-3 for A=1.
-  It is theoretically applicable to all ice conditions (not only MIZ).
-\item \citet{lupkes.gryanik_JGR15} (\np[=.true.]{ln_Cd_L15}{ln\_Cd\_L15}):
-  Alternative turbulent transfer coefficients formulation between sea-ice
-  and atmosphere with distinct momentum and heat coefficients depending
-  on sea-ice concentration and atmospheric stability (no melt-ponds effect for now).
-  The parameterization is adapted from ECHAM6 atmospheric model.
-  Compared to Lupkes2012 scheme, it considers specific skin and form drags
-  to compute neutral transfer coefficients for both heat and momentum fluxes.
-  Atmospheric stability effect on transfer coefficient is also taken into account.
+\item main\_uvg\_hpg (optional):\\
+  geostrophic wind or horizontal pressure gradient computation on ECMWF eta-levels
+\item main\_vinterp:\\
+  air potential temperature computation and vertical interpolation from ECWMF vertical eta-levels to ABL z-levels
+\item main\_hdrown:\\
+  3D-fields horizontal drowning (extrapolation over land totally inspired from SOSIE by L. Brodeau)
 \end{itemize}
+
+\subsection{ABL1D namelist}
+
+\begin{listing}
+  \nlst{namsbc_abl}
+  \caption{\forcode{&namsbc_abl}}
+  \label{lst:namsbc_abl}
+\end{listing}
+
+ABL1D model is activated by adding ABL sources directory to the sources list file (\*\_cfgs.txt) and
+by setting \np[=.true.]{ln_abl}{ln\_abl} (and \np[=.false.]{ln_blk}{ln\_bkl}) in \nam{sbc}{sbc}. \\
+It is fully compatible with Nemo Standalone Surface module and can be consequently forced by sea surface temperature and currents external data.\\
+
+Atmospheric forcing files needed by ABL1D must be specified directly using the \np{sn_wndi}{sn\_wndi}, \np{sn_wndj}{sn\_wndj},
+\np{sn_tair}{sn\_tair} and \np{sn_humi}{sn\_humi} parameters from the \nam{sbc_blk}{sbc\_blk}.\\
+When using geostrophic wind (\np[=.true.]{ln_geos_winds}{ln\_geos\_winds})
+or horizontal air pressure gradient (\np[=.true.]{ln_hpgls_frc}{ln\_hpgls\_frc}) as dynamical guide, additional \np{sn_hpgi}{sn\_hpgi}
+and \np{sn_hpgj}{sn\_hpgj} parameters must be provided using geostrophic wind/pressure gradient i/j-components files generated during the pre-processing steps.\\
+Note that due to fldread limitations, the interpolation weight filenames must be different between 2D and
+3D atmospheric forcings (even if it is the same weight file).
+
+\subsubsection{Tracers and Dynamics relaxation time}
+
+ABL1D tracers needs to be relaxed toward atmospheric temperature (\np{sn_tair}{sn\_tair})
+and humidity (\np{sn_humi}{sn\_humi}) forcings to provide a top boundary condition to the model and to avoid the formation of biases due to the lack
+of representation of some important atmopheric processes such as advection and convection.
+This relaxation time can be setup independently inside the ABL and above the ABL and it is expressed in hours.\\
+The recommanded values for the tracers relaxation time is typically 3 times the ocean model timestep inside the ABL (\np{rn_ltra_min}{rn\_ltra\_min})
+and 1 ocean model timestep above the ABL (\np{rn_ltra_max}{rn\_ltra\_max}).\\
+\\
+The dynamical relaxation time inside (\np{rn_ldyn_min}{rn\_ldyn\_min}) and above (\np{rn_ldyn_max}{rn\_ldyn\_max}) the ABL is only needed in two cases:
+\begin{itemize}
+  \item when geostrophic wind / horizontal pressure gradient options are not used.
+  \item when geostrophic wind / horizontal pressure gradient options are used and the geographical domain includes the equatorial band
+  where the geostrophic equilibrium is too weak to contrain efficiently ABL1D dynamics.
+\end{itemize}
+The recommanded minimum and maximum dynamical relaxation values are identical to the tracers relaxation times.\\
+
+\subsubsection{Turbulent vertical mixing lenght and constants}
+
+The ABL1D turbulence scheme used to compute eddy diffusivities for momentum and scalars relies on a TKE pronostic equation (following \citet{cuxart.bougeault_QJRMS00})
+which depends on mixing lenght scales and turbulent constants.
+To address the ABL1D sensitivity to these parameters, various mixing lenght formulations and turbulent constants sets are provided in namelist:
+
+\begin{itemize}
+
+  \item Three different mixing length scales can be selected using \np{nn_amxl}{nn\_amxl}:\\
+    (0) \citet{deardorff.ea_BLM80}\\
+    (1) PBL height distance function (as in Nemo TKE scheme)\\
+    (2) \citet{bougeault.lacarrere_MWR89}\\
+  \item Three different sets of turbulent constants are proposed:\\
+    \citet{cuxart.bougeault_QJRMS00}, \citet{cheng.canuto.ea_JAS02} and \citet{lac.chaboureau.ea_GMD18}\\
+
+  \begin{table}[htbp]
+    \centering
+    \begin{tabular}{|l|c|c|c|}
+      \hline
+               & CBR00  & CCH02  & MNH54  \\
+      \hline
+      rn\_Cm   & 0.0667 & 0.1260 & 0.1260 \\
+      \hline
+      rn\_Ct   & 0.1667 & 0.1430 & 0.1430 \\
+      \hline
+      rn\_Ce   & 0.40   & 0.34   & 0.40   \\
+      \hline
+      rn\_Ceps & 0.700  & 0.845  & 0.850  \\
+      \hline
+      rn\_Ric  & 0.139  & 0.143  &   ?    \\
+      \hline
+      rn\_Rod  & 0.15   & 0.15   & 0.15   \\
+      \hline
+      \end{tabular}
+  \end{table}
+
+\end{itemize}
+
+More details about the turbulence scheme parameters and their effect on ABL properties can be found in \citet{lemarie.samson.ea_GMD21}. 
+
 
 %% =================================================================================================
 \section[Coupled formulation (\textit{sbccpl.F90})]{Coupled formulation (\protect\mdl{sbccpl})}
@@ -909,7 +1004,7 @@ When an external wave model (see \autoref{sec:SBC_wave}) is used in the coupled 
 
 
 The namelist above allows control of various aspects of the coupling fields (particularly for vectors) and
-now allows for any coupling fields to have multiple sea ice categories (as required by LIM3 and CICE).
+now allows for any coupling fields to have multiple sea ice categories (as required by SI3).
 When indicating a multi-category coupling field in \nam{sbc_cpl}{sbc\_cpl}, the number of categories will be determined by
 the number used in the sea ice model.
 In some limited cases, it may be possible to specify single category coupling fields even when
@@ -1126,11 +1221,11 @@ no corresponding heat and salt addition and so as happens in the lower boxes the
 boxes below means the surface box has a large increase in volume, whilst all other boxes remain the same size)
 
 In trasbc the addition of heat and salt due to the river runoff is added.
-This is done in the same way for both vvl and non-vvl.
+This is done in the same way for both linear and non-linear free surface.
 The temperature and salinity are increased through the specified depth according to
 the heat and salt content of the river.
 
-In the non-linear free surface case (vvl),
+In the non-linear free surface case (\np[=.false.]{ln_linssh}{ln\_linssh}),
 near the end of the time step the change in sea surface height is redistrubuted through the grid boxes,
 so that the original ratios of grid box heights are restored.
 In doing this water is moved into boxes below, throughout the water column,
@@ -1556,7 +1651,7 @@ The amount of information is controlled by two integer parameters:
 Iceberg trajectories can also be written out and this is enabled by setting \np{nn_sample_rate}{nn\_sample\_rate}~$>$~0.
 A non-zero value represents how many timesteps between writes of information into the output file.
 These output files are in NETCDF format.
-When \key{mpp\_mpi} is defined, each output file contains only those icebergs in the corresponding processor.
+When running with multiple processes, each output file contains only those icebergs in the corresponding processor.
 Trajectory points are written out in the order of their parent iceberg in the model's "linked list" of icebergs.
 So care is needed to recreate data for individual icebergs,
 since its trajectory data may be spread across multiple files.
@@ -1939,44 +2034,10 @@ the value of the \np{nn_ice}{nn\_ice} namelist parameter found in \nam{sbc}{sbc}
   This model computes the ice-ocean fluxes,
   that are combined with the air-sea fluxes using the ice fraction of each model cell to
   provide the surface averaged ocean fluxes.
-  Note that the activation of a sea-ice model is done by defining a CPP key (\key{si3} or \key{cice}).
+  Note that the activation of a sea-ice model is done by defining a CPP key (\key{si3}).
   The activation automatically overwrites the read value of nn\_ice to its appropriate value
-  (\ie\ $2$ for SI3 or $3$ for CICE).
+  (\ie\ $2$ for SI3).
 \end{description}
-
-% {Description of Ice-ocean interface to be added here or in LIM 2 and 3 doc ?}
-%GS: ocean-ice (SI3) interface is not located in SBC directory anymore, so it should be included in SI3 doc
-
-%% =================================================================================================
-\subsection[Interface to CICE (\textit{sbcice\_cice.F90})]{Interface to CICE (\protect\mdl{sbcice\_cice})}
-\label{subsec:SBC_cice}
-
-It is possible to couple a regional or global \NEMO\ configuration (without AGRIF)
-to the CICE sea-ice model by using \key{cice}.
-The CICE code can be obtained from \href{http://oceans11.lanl.gov/trac/CICE/}{LANL} and
-the additional 'hadgem3' drivers will be required, even with the latest code release.
-Input grid files consistent with those used in \NEMO\ will also be needed,
-and CICE CPP keys \textbf{ORCA\_GRID}, \textbf{CICE\_IN\_NEMO} and \textbf{coupled} should be used
-(seek advice from UKMO if necessary).
-Currently, the code is only designed to work when using the NCAR forcing option for \NEMO\ %GS: still true ?
-(with \textit{calc\_strair}\forcode{=.true.} and \textit{calc\_Tsfc}\forcode{=.true.} in the CICE name-list),
-or alternatively when \NEMO\ is coupled to the HadGAM3 atmosphere model
-(with \textit{calc\_strair}\forcode{=.false.} and \textit{calc\_Tsfc}\forcode{=false}).
-The code is intended to be used with \np{nn_fsbc}{nn\_fsbc} set to 1
-(although coupling ocean and ice less frequently should work,
-it is possible the calculation of some of the ocean-ice fluxes needs to be modified slightly -
-the user should check that results are not significantly different to the standard case).
-
-There are two options for the technical coupling between \NEMO\ and CICE.
-The standard version allows complete flexibility for the domain decompositions in the individual models,
-but this is at the expense of global gather and scatter operations in the coupling which
-become very expensive on larger numbers of processors.
-The alternative option (using \key{nemocice\_decomp} for both \NEMO\ and CICE) ensures that
-the domain decomposition is identical in both models (provided domain parameters are set appropriately,
-and \textit{processor\_shape~=~square-ice} and \textit{distribution\_wght~=~block} in the CICE name-list) and
-allows much more efficient direct coupling on individual processors.
-This solution scales much better although it is at the expense of having more idle CICE processors in areas where
-there is no sea ice.
 
 %% =================================================================================================
 \subsection[Freshwater budget control (\textit{sbcfwb.F90})]{Freshwater budget control (\protect\mdl{sbcfwb})}

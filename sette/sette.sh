@@ -36,10 +36,25 @@ export USER_INPUT='yes'        # Default: yes => request user input on decisions
                                #                 3. regarding creation of directories
 #
 # Check that git branch is usable
+export DETACHED_HEAD="no"
 git branch --show-current >& /dev/null
 if [[ $? == 0 ]] ; then
   # subdirectory below NEMO_VALIDATION_DIR defaults to branchname
   export SETTE_SUB_VAL="$(git branch --show-current)"
+  if [ -z $SETTE_SUB_VAL ] ; then
+   # Probabably on a detached HEAD (possibly testing an old commit).
+   # Verify this and try to recover original commit
+   MORE_INFO="$(git branch -a | head -1l | sed -e's/.*(//' -e 's/)//' )"
+   if [[ "${MORE_INFO}" == *"detached"* ]] ; then
+     export DETACHED_HEAD="yes"
+     export DETACHED_CMIT=$( echo \\${MORE_INFO} | awk '{print $NF}' )
+     # There is no robust way to recover a branch name in a detached state
+     # so just use the commit with a prefix
+     export SETTE_SUB_VAL="detached_"${DETACHED_CMIT}
+   else
+     export SETTE_SUB_VAL="Unknown"
+   fi
+  fi
   export SETTE_THIS_BRANCH=${SETTE_SUB_VAL}
 else
   # subdirectory below NEMO_VALIDATION_DIR defaults to "MAIN"

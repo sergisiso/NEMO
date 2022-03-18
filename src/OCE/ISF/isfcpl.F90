@@ -732,7 +732,7 @@ CONTAINS
       IF ( PRESENT(kfind) ) THEN
          ifind = kfind
       ELSE
-         ifind = ( 1 - tmask_h(ki,kj) ) * tmask(ki,kj,kk)
+         ifind = ( 1 - tmask_i(ki,kj) ) * tmask(ki,kj,kk)
       END IF
       !
       ! update isfpts structure

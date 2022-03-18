@@ -239,7 +239,7 @@ MODULE dom_oce
 !!gm
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mbathy             !: number of ocean level (=0, 1, ... , jpk-1)
    REAL(wp) , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   bathy             !: number of ocean level (=0, 1, ... , jpk-1)
-   INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mbkt, mbku, mbkv   !: bottom last wet T-, U- and V-level
+   INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mbkt, mbku, mbkv, mbkf   !: bottom last wet T-, U- and V-level
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tmask_i            !: interior domain T-point mask
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tmask_h            !: internal domain T-point mask (Figure 8.5 NEMO book)
 
@@ -247,7 +247,7 @@ MODULE dom_oce
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mikt, miku, mikv, mikf  !: top first wet T-, U-, V-, F-level (ISF)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   risfdep                 !: Iceshelf draft                    (ISF)
 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ssmask, ssumask, ssvmask             !: surface mask at T-,U-, V- and F-pts
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ssmask, ssumask, ssvmask, ssfmask    !: surface mask at T-,U-, V- and F-pts
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:), TARGET :: tmask, umask, vmask, fmask   !: land/ocean mask at T-, U-, V- and F-pts
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:), TARGET :: wmask                        !: land/ocean mask at W- pts               
 
@@ -367,8 +367,8 @@ CONTAINS
       ALLOCATE( gdept_1d(jpk) , e3tp (jpi,jpj), e3wp(jpi,jpj) ,gdepw_1d(jpk) , e3t_1d(jpk) , e3w_1d(jpk) , STAT=ierr(6) )
          !
       ALLOCATE( bathy(jpi,jpj),mbathy(jpi,jpj), tmask_i(jpi,jpj) , tmask_h(jpi,jpj) ,                        &
-         &      ssmask (jpi,jpj) , ssumask(jpi,jpj) , ssvmask(jpi,jpj) ,     &
-         &      mbkt   (jpi,jpj) , mbku   (jpi,jpj) , mbkv   (jpi,jpj) , STAT=ierr(7) )
+         &      ssmask (jpi,jpj) , ssfmask(jpi,jpj), ssumask(jpi,jpj) , ssvmask(jpi,jpj) ,                   &
+         &      mbkt   (jpi,jpj) , mbku   (jpi,jpj) , mbkv   (jpi,jpj), mbkf(jpi,jpj) , STAT=ierr(7) )
          !
       ALLOCATE( misfdep(jpi,jpj) , mikt(jpi,jpj) , miku(jpi,jpj) ,     &
          &      risfdep(jpi,jpj) , mikv(jpi,jpj) , mikf(jpi,jpj) , STAT=ierr(8) )

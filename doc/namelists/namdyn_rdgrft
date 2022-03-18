@@ -2,10 +2,18 @@
 &namdyn_rdgrft  !   Ice ridging/rafting
 !------------------------------------------------------------------------------
           ! -- ice_rdgrft_strength -- !
-   ln_str_H79       = .true.          !  ice strength param.: Hibler_79   => P = pstar*<h>*exp(-c_rhg*A)                      
+   ln_str_H79       = .true.          !  ice strength param.: Hibler_79   => P = pstar*<h>*exp(-c_rhg*A)
       rn_pstar      =   2.0e+04       !     ice strength thickness parameter [N/m2]
-      rn_crhg       =   20.0          !     ice strength conc. parameter (-)
+      rn_crhg       =  20.0           !     ice strength conc. parameter (-)
+   ln_str_R75       = .false.         !  ice strength param.: Rothrock_75 => P = fn of potential energy
+      rn_pe_rdg     =  17.0           !     coef accouting for frictional dissipation
+   ln_str_CST       = .false.         !  ice strength param.: Constant
+      rn_str        =   0.0           !     ice strength value
+   ln_str_smooth    = .true.          !  spatial smoothing of the ice strength
                    ! -- ice_rdgrft -- !
+   ln_distf_lin     = .true.          !  redistribution function of ridged ice: linear (Hibler 1980)
+   ln_distf_exp     = .false.         !  redistribution function of ridged ice: exponential => not coded yet
+      rn_murdg      =   3.0           !     e-folding scale of ridged ice (m**.5)
    rn_csrdg         =   0.5           !  fraction of shearing energy contributing to ridging
               ! -- ice_rdgrft_prep -- !
    ln_partf_lin     = .false.         !  Linear ridging participation function (Thorndike et al, 1975)

@@ -75,9 +75,9 @@ Evaluating this quantity as,
 at the boundaries, since mask$_{u}$ is zero at solid boundaries which in this case are defined at $u$-points
 (normal velocity $u$ remains zero at the coast) (\autoref{fig:LBC_uv}).
 
-\begin{figure}[!t]
+\begin{figure}[h]
   \centering
-  \includegraphics[width=0.66\textwidth]{LBC_uv}
+  \includegraphics[width=0.33\textwidth]{LBC_uv}
   \caption[Lateral boundary at $T$-level]{
     Lateral boundary (thick line) at T-level.
     The velocity normal to the boundary is set to zero.}
@@ -100,9 +100,9 @@ controlled by the value of the \np{rn_shlat}{rn\_shlat} namelist parameter
 (The value of the mask$_{f}$ array along the coastline is set equal to this parameter).
 These are:
 
-\begin{figure}[!p]
+\begin{figure}[h]
   \centering
-  \includegraphics[width=0.66\textwidth]{LBC_shlat}
+  \includegraphics[width=0.33\textwidth]{LBC_shlat}
   \caption[Lateral boundary conditions]{
     Lateral boundary conditions
     (a) free-slip                       (\protect\np[=0]{rn_shlat}{rn\_shlat});
@@ -167,42 +167,32 @@ bi-cyclic east-west and north-fold.
 The north-fold boundary condition is associated with the 3-pole ORCA mesh.
 
 %% =================================================================================================
-\subsection{Closed, cyclic (\forcode{l_Iperio,l_jperio})}
+\subsection{Closed, cyclic (\forcode{l_Iperio,l_Jperio})}
 \label{subsec:LBC_jperio012}
 
-The choice of closed or cyclic model domain boundary condition is made by
-setting \forcode{l_Iperio,l_jperio} to true or false in namelist \nam{cfg}{cfg}.
-Each time such a boundary condition is needed, it is set by a call to routine \mdl{lbclnk}.
-The computation of momentum and tracer trends proceeds from $i=2$ to $i=jpi-1$ and from $j=2$ to $j=jpj-1$,
-\ie\ in the model interior.
-To choose a lateral model boundary condition is to specify the first and last rows and columns of
-the model variables.
+The choice of closed or cyclic model domain boundary condition is controled by
+setting the internal code variables \forcode{l_Iperio,l_Jperio} to true or false.
+The way these variables are defined will differ accoring to the value of \np{ln_read_cfg}{ln\_read\_cfg} parameter in
+namelist \nam{cfg}{cfg}, which usage is detailed in \autoref{subsec:DOM_config}. If \np[=.false.]{ln_read_cfg}{ln\_read\_cfg} the user must define \forcode{l_Iperio,l_Jperio} trough the routine \mdl{usrdef\_nam}. If \np[=.true.]{ln_read_cfg}{ln\_read\_cfg}, \forcode{l_Iperio,l_Jperio} will be defined according to the values of the global attributes (\texttt{Iperio,Jperio} = 0 or 1) in the NetCDF domain configuration file defined by \np{cn_domcfg}{cn\_domcfg} parameter in namelist \nam{cfg}{cfg}.
+Each time such a boundary condition is needed, it is set by a call to routine \rou{lbc\_lnk} routine (found in \mdl{lbclnk} module).
 
 \begin{description}
 
-\item [For closed boundary (\forcode{l_Iperio = .false.,l_jperio = .false.})], solid walls are imposed at all model boundaries:
-  first and last rows and columns are set to zero.
+\item [For closed boundary (\forcode{l_Iperio = .false.,l_Jperio = .false.})], solid walls are imposed at all model boundaries: first and last rows and columns the the domain must be set to zero and will be forced to 0 if nedeed.
 
-\item [For cyclic east-west boundary (\forcode{l_Iperio = .true.,l_jperio = .false.})], first and last rows are set to zero (closed) whilst the first column is set to
-  the value of the last-but-one column and the last column to the value of the second one
-  (\autoref{fig:LBC_jperio}-a).
-  Whatever flows out of the eastern (western) end of the basin enters the western (eastern) end.
+\item [For cyclic east-west boundary (\forcode{l_Iperio = .true.,l_Jperio = .false.})], first and last rows are set to zero (closed). The first \np{nn_hls}{nn\_hls} columns (left side halo) are defined with the last \np{nn_hls}{nn\_hls} columns of the orginal global domain (without halos). The last \np{nn_hls}{nn\_hls} columns (right side halo) are defined with the first \np{nn_hls}{nn\_hls} columns of the orginal global domain (without halos). Whatever flows out of the eastern (western) end of the basin enters the western (eastern) end.
 
-\item [For cyclic north-south boundary (\forcode{l_Iperio = .false.,l_jperio = .true.})], first and last columns are set to zero (closed) whilst the first row is set to
-  the value of the last-but-one row and the last row to the value of the second one
-  (\autoref{fig:LBC_jperio}-a).
-  Whatever flows out of the northern (southern) end of the basin enters the southern (northern) end.
+\item [For cyclic north-south boundary (\forcode{l_Iperio = .false.,l_Jperio = .true.})], first and last columns are set to zero (closed). Whatever flows out of the northern (southern) end of the basin enters the southern (northern) end.
 
-\item [Bi-cyclic east-west and north-south boundary (\forcode{l_Iperio = .true.,l_jperio = .true.})] combines cases 1 and 2.
+\item [Bi-cyclic east-west and north-south boundary (\forcode{l_Iperio = .true.,l_Jperio = .true.})] combines cases 1 and 2.
 
 \end{description}
 
 \begin{figure}[!t]
   \centering
-  \includegraphics[width=0.66\textwidth]{LBC_jperio}
-  \caption[Setting of east-west cyclic and symmetric across the Equator boundary conditions]{
-    Setting of (a) east-west cyclic (b) symmetric across the Equator boundary conditions}
-  \label{fig:LBC_jperio}
+  \includegraphics[width=0.5\textwidth]{LBC_Iperio}
+  \caption{Setting of east-west cyclic boundary conditions for \np[=2]{nn_hls}{nn\_hls}. The orginal global domain (without halos) is delimited by the thick lines.}
+  \label{fig:LBC_Iperio}
 \end{figure}
 
 %% =================================================================================================
@@ -212,21 +202,11 @@ the model variables.
 The north fold boundary condition has been introduced in order to handle the north boundary of
 a three-polar ORCA grid.
 Such a grid has two poles in the northern hemisphere (\autoref{fig:CFGS_ORCA_msh},
-and thus requires a specific treatment illustrated in \autoref{fig:LBC_North_Fold_T}.
-Further information can be found in \mdl{lbcnfd} module which applies the north fold boundary condition.
-
-\begin{figure}[!t]
-  \centering
-  \includegraphics[width=0.66\textwidth]{LBC_North_Fold_T}
-  \caption[North fold boundary in ORCA 2\deg, 1/4\deg and 1/12\deg]{
-    North fold boundary with a $T$-point pivot and cyclic east-west boundary condition ($c\_NFtype='T'$),
-    as used in ORCA 2\deg, 1/4\deg and 1/12\deg.
-    Pink shaded area corresponds to the inner domain mask (see text).}
-  \label{fig:LBC_North_Fold_T}
-\end{figure}
+and thus requires a specific treatment to ensure the proper boundary conditions at the northern edge of the domain.
+Further information can be found in \autoref{apdx:NFOLD} and in \mdl{lbcnfd} module which applies the north fold boundary condition.
 
 %% =================================================================================================
-\section[Exchange with neighbouring processors (\textit{lbclnk.F90}, \textit{lib\_mpp.F90})]{Exchange with neighbouring processors (\protect\mdl{lbclnk}, \protect\mdl{lib\_mpp})}
+\section[Exchange with neighbouring processes (\textit{lbclnk.F90}, \textit{lib\_mpp.F90})]{Exchange with neighbouring processes (\protect\mdl{lbclnk}, \protect\mdl{lib\_mpp})}
 \label{sec:LBC_mpp}
 
 \begin{listing}
@@ -235,104 +215,83 @@ Further information can be found in \mdl{lbcnfd} module which applies the north 
   \label{lst:nammpp}
 \end{listing}
 
-For massively parallel processing (mpp), a domain decomposition method is used.
-The basic idea of the method is to split the large computation domain of a numerical experiment into several smaller domains and
-solve the set of equations by addressing independent local problems.
-Each processor has its own local memory and computes the model equation over a subdomain of the whole model domain.
-The subdomain boundary conditions are specified through communications between processors which are organized by
-explicit statements (message passing method).
+For massively parallel processing (mpp), a horizontal domain decomposition method is used, see \autoref{fig:LBC_3x3}.
+The basic idea of the method is to split the large computation domain of a numerical experiment into several smaller domains and solve the set of equations by addressing independent local problems.
+Each process has its own local memory and computes the model equation over a subdomain of the whole model domain.
 The present implementation is largely inspired by Guyon's work [Guyon 1995].
 
-The parallelization strategy is defined by the physical characteristics of the ocean model.
-Second order finite difference schemes lead to local discrete operators that
-depend at the very most on one neighbouring point.
-The only non-local computations concern the vertical physics
-(implicit diffusion, turbulent closure scheme, ...).
-Therefore, a pencil strategy is used for the data sub-structuration:
-the 3D initial domain is laid out on local processor memories following a 2D horizontal topological splitting.
-Each sub-domain computes its own surface and bottom boundary conditions and
-has a side wall overlapping interface which defines the lateral boundary conditions for
-computations in the inner sub-domain.
-The overlapping area consists of the two rows at each edge of the sub-domain.
-After a computation, a communication phase starts:
-each processor sends to its neighbouring processors the update values of the points corresponding to
-the interior overlapping area to its neighbouring sub-domain (\ie\ the innermost of the two overlapping rows).
-Communications are first done according to the east-west direction and next according to the north-south direction.
-There is no specific communications for the corners.
-The communication is done through the Message Passing Interface (MPI) and requires \key{mpp\_mpi}.
-Use also \key{mpi2} if MPI3 is not available on your computer.
-The data exchanges between processors are required at the very place where
-lateral domain boundary conditions are set in the mono-domain computation:
-the \rou{lbc\_lnk} routine (found in \mdl{lbclnk} module) which manages such conditions is interfaced with
-routines found in \mdl{lib\_mpp} module.
-The output file \textit{communication\_report.txt} provides the list of which routines do how
-many communications during 1 time step of the model.\\
-
-\begin{figure}[!t]
+\begin{figure}[h]
   \centering
-  \includegraphics[width=0.66\textwidth]{LBC_mpp}
-  \caption{Positioning of a sub-domain when massively parallel processing is used}
-  \label{fig:LBC_mpp}
+  \includegraphics[width=0.66\textwidth]{LBC_3x3}
+  \caption{Horizontal domain decomposition in $3 \times 3$ subdomains. The thick line on the left panel delimits the original domain (without halos). Subdomains numbering starts at 1 from the bottom-left subdomain, as shown on the right panel. Communications of the subdomain 4 with its neighbours are represented by the blue arrows.}
+  \label{fig:LBC_3x3}
 \end{figure}
+
+Each subdomain computes its own inner subdomain. The subdomain boundary conditions, also called halos, are overlapping with neighbouring subdomains as show on the left panel of \autoref{fig:LBC_3x3}. The \rou{lbc\_lnk} routine (found in \mdl{lbclnk} module) is next used to fill the halos either by doing a communication with a neighbour or locally by applying a cyclic or closed boundary condition. The halos, consist of \np{nn_hls}{nn\_hls} (namelist \nam{mpp}{mpp}) rows/columns at each side of the subdomain.
+
+When doing a communication, a process sends to its neighbouring processes the update values of the points corresponding to
+the interior overlapping area to its neighbouring sub-domain (\ie\ the \np{nn_hls}{nn\_hls} innermost of the 2*\np{nn_hls}{nn\_hls} overlapping rows/columns, see blue arrows in \autoref{fig:LBC_3x3}).
+The communication is done through the Message Passing Interface (MPI) which is activated by default since NEMO 4.2.
+Use \key{mpi\_off} if MPI is not available on your computer or use \key{mpi2} if the MPI version of your computer is older than v3.
+From the NEMO 4.2 release, a new communication strategy has been introduced to preserve performance efficiency
+by reducing communication time, namely the MPI3 neighborhood collective communications.
+It provides a way to have sub-communicators used to perform collective communications only among neighborhood.
+A single MPI message is needed to be built for all neighbours instead of 4 different messages before calling the collective.
+The new communication approach can be selected by setting the value of \np{nn_comm}{nn\_comm} parameter, defined in \nam{mpp}{mpp} namelist. \np[=1]{nn_comm}{nn\_comm} activates the point to point communications that was originally coded in NEMO and further optimized in NEMO 4.2. \np[=2]{nn_comm}{nn\_comm} selects the new collective communications.
+The output file \textit{communication\_report.txt} provides the list of which routines do how
+many communications during 1 time step of the model.
 
 In \NEMO, the splitting is regular and arithmetic.
 The total number of subdomains corresponds to the number of MPI processes allocated to \NEMO\ when the model is launched
 (\ie\ mpirun -np x ./nemo will automatically give x subdomains).
 The i-axis is divided by \np{jpni}{jpni} and the j-axis by \np{jpnj}{jpnj}.
 These parameters are defined in \nam{mpp}{mpp} namelist.
-If \np{jpni}{jpni} and \np{jpnj}{jpnj} are < 1, they will be automatically redefined in the code to give the best domain decomposition
-(see bellow).
+If \np{jpni}{jpni} and \np{jpnj}{jpnj} are < 1, they will be automatically redefined in the code to give the best domain decomposition see bellow and \citep{Irrmann2022}. 
 
-Each processor is independent and without message passing or synchronous process, programs run alone and access just its own local memory.
-For this reason,
-the main model dimensions are now the local dimensions of the subdomain (pencil) that are named \texttt{jpi}, \texttt{jpj}, \texttt{jpk}.
-These dimensions include the internal domain and the overlapping rows.
-The number of rows to exchange (known as the halo) is usually set to one (\forcode{nn_hls=1}, in \mdl{par\_oce},
-and must be kept to one until further notice).
-The whole domain dimensions are named \texttt{jpiglo}, \texttt{jpjglo} and \texttt{jpk}.
-The relationship between the whole domain and a sub-domain is:
-\begin{gather*}
-  jpi = ( jpiglo-2\times nn\_hls + (jpni-1) ) / jpni + 2\times nn\_hls \\
-  jpj = ( jpjglo-2\times nn\_hls + (jpnj-1) ) / jpnj + 2\times nn\_hls
-\end{gather*}
-
-One also defines variables nldi and nlei which correspond to the internal domain bounds, and the variables nimpp and njmpp which are the position of the (1,1) grid-point in the global domain (\autoref{fig:LBC_mpp}). Note that since the version 4, there is no more extra-halo area as defined in \autoref{fig:LBC_mpp} so \texttt{jpi} is now always equal to nlci and \texttt{jpj} equal to nlcj.
-
-An element of $T_{l}$, a local array (subdomain) corresponds to an element of $T_{g}$,
-a global array (whole domain) by the relationship:
-\[
-  % \label{eq:LBC_nimpp}
-  T_{g} (i+nimpp-1,j+njmpp-1,k) = T_{l} (i,j,k),
-\]
-with $1 \leq i \leq jpi$, $1  \leq j \leq jpj $ , and  $1  \leq k \leq jpk$.
-
-The 1-d arrays $mig(1:\texttt{jpi})$ and $mjg(1:\texttt{jpj})$, defined in \rou{dom\_glo} routine (\mdl{domain} module), should be used to get global domain indices from local domain indices. The 1-d arrays, $mi0(1:\texttt{jpiglo})$, $mi1(1:\texttt{jpiglo})$ and $mj0(1:\texttt{jpjglo})$, $mj1(1:\texttt{jpjglo})$ have the reverse purpose and should be used to define loop indices expressed in global domain indices (see examples in \mdl{dtastd} module).\\
-
-The \NEMO\ model computes equation terms with the help of mask arrays (0 on land points and 1 on sea points). It is therefore possible that an MPI subdomain contains only land points. To save ressources, we try to supress from the computational domain as much land subdomains as possible. For example if $N_{mpi}$ processes are allocated to NEMO, the domain decomposition will be given by the following equation:
-\[
-  N_{mpi} = jpni \times jpnj - N_{land} + N_{useless}
-\]
-$N_{land}$ is the total number of land subdomains in the domain decomposition defined by \np{jpni}{jpni} and \np{jpnj}{jpnj}. $N_{useless}$ is the number of land subdomains that are kept in the compuational domain in order to make sure that $N_{mpi}$ MPI processes are indeed allocated to a given subdomain. The values of $N_{mpi}$, \np{jpni}{jpni}, \np{jpnj}{jpnj},  $N_{land}$ and $N_{useless}$ are printed in the output file \texttt{ocean.output}. $N_{useless}$ must, of course, be as small as possible to limit the waste of ressources. A warning is issued in  \texttt{ocean.output} if $N_{useless}$ is not zero. Note that non-zero value of $N_{useless}$ is uselly required when using AGRIF as, up to now, the parent grid and each of the child grids must use all the $N_{mpi}$ processes.
-
-If the domain decomposition is automatically defined (when \np{jpni}{jpni} and \np{jpnj}{jpnj} are < 1), the decomposition chosen by the model will minimise the sub-domain size (defined as $max_{all domains}(jpi \times jpj)$) and maximize the number of eliminated land subdomains. This means that no other domain decomposition (a set of \np{jpni}{jpni} and \np{jpnj}{jpnj} values) will use less processes than $(jpni  \times  jpnj - N_{land})$ and get a smaller subdomain size.
-In order to specify $N_{mpi}$ properly (minimize $N_{useless}$), you must run the model once with \np{ln_list}{ln\_list} activated. In this case, the model will start the initialisation phase, print the list of optimum decompositions ($N_{mpi}$, \np{jpni}{jpni} and \np{jpnj}{jpnj}) in \texttt{ocean.output} and directly abort. The maximum value of $N_{mpi}$ tested in this list is given by $max(N_{MPI\_tasks}, jpni \times jpnj)$. For example, run the model on 40 nodes with ln\_list activated and $jpni = 10000$ and $jpnj = 1$, will print the list of optimum domains decomposition from 1 to about 10000.
-
-Processors are numbered from 0 to $N_{mpi} - 1$. Subdomains containning some ocean points are numbered first from 0 to $jpni * jpnj - N_{land} -1$. The remaining $N_{useless}$ land subdomains are numbered next, which means that, for a given (\np{jpni}{jpni}, \np{jpnj}{jpnj}), the numbers attributed to he ocean subdomains do not vary with $N_{useless}$.
-
-When land processors are eliminated, the value corresponding to these locations in the model output files is undefined. \np{ln_mskland}{ln\_mskland} must be activated in order avoid Not a Number values in output files. Note that it is better to not eliminate land processors when creating a meshmask file (\ie\ when setting a non-zero value to \np{nn_msh}{nn\_msh}).
-
-\begin{figure}[!ht]
+\begin{figure}[h]
   \centering
   \includegraphics[width=0.66\textwidth]{LBC_mppini2}
   \caption[Atlantic domain defined for the CLIPPER projet]{
     Example of Atlantic domain defined for the CLIPPER projet.
     Initial grid is composed of 773 x 1236 horizontal points.
-    (a) the domain is split onto 9 $times$ 20 subdomains (jpni=9, jpnj=20).
-    52 subdomains are land areas.
-    (b) 52 subdomains are eliminated (white rectangles) and
-    the resulting number of processors really used during the computation is jpnij=128.}
+    (a) the domain is split onto 9 $times$ 20 subdomains (jpni=9, jpnj=20). Subdomains with ocean points are numbered first starting from bottom-left. The 52 subdomains that are land areas are next numbered starting also from bottom-left (in yellow).
+    (b) The 52 subdomains are eliminated (white rectangles) and
+    the resulting number of processors really used during the computation is 128. Note that the subdomains with ocean points have the same number in both cases.}
   \label{fig:LBC_mppini2}
 \end{figure}
+
+The \NEMO\ model computes equation terms with the help of mask arrays (0 on land points and 1 on sea points). It is therefore possible that an MPI subdomain contains only land points, see \autoref{fig:LBC_mppini2}. To save ressources, we try to supress from the computational domain as much land subdomains as possible. For example if $N_{mpi}$ processes are allocated to NEMO, the domain decomposition will be given by the following equation:
+\[
+  N_{mpi} = jpni \times jpnj - N_{land} + N_{useless}
+\]
+$N_{land}$ is the total number of land subdomains in the domain decomposition defined by \np{jpni}{jpni} and \np{jpnj}{jpnj}. $N_{useless}$ is the number of land subdomains that are kept in the compuational domain in order to make sure that $N_{mpi}$ MPI processes are indeed allocated to a given subdomain. The values of $N_{mpi}$, \np{jpni}{jpni}, \np{jpnj}{jpnj},  $N_{land}$ and $N_{useless}$ are printed in the output file \texttt{ocean.output}. $N_{useless}$ must, of course, be as small as possible to limit the waste of ressources. A warning is issued in  \texttt{ocean.output} if $N_{useless}$ is not zero. Note that non-zero value of $N_{useless}$ is uselly required when using AGRIF as, up to now, the parent grid and each of the child grids must use all the $N_{mpi}$ processes.
+
+If the domain decomposition is automatically defined (when \np{jpni}{jpni} and \np{jpnj}{jpnj} are < 1), the decomposition chosen by the model will minimise the horizontal subdomain size (defined as $max_{all domains}(subdomain size)$) and maximize the number of eliminated land subdomains. This means that no other domain decomposition (a set of \np{jpni}{jpni} and \np{jpnj}{jpnj} values) will use less processes than $(jpni  \times  jpnj - N_{land})$ and get a smaller subdomain size.
+In order to specify $N_{mpi}$ properly (minimize $N_{useless}$), you must run the model once with \np{ln_list}{ln\_list} activated. In this case, the model will start the initialisation phase, print the list of optimum decompositions ($N_{mpi}$, \np{jpni}{jpni} and \np{jpnj}{jpnj}) in \texttt{ocean.output} and directly abort. The maximum value of $N_{mpi}$ tested in this list is given by $max(N_{MPI\_tasks}, jpni \times jpnj)$. For example, run NEMO on 1 process with \np[=.true.]{ln_listonly}{ln\_listonly}, \np[=1000]{jpni}{jpni} and \np[=1]{jpnj}{jpnj} will print the list of optimum domains decomposition from 1 to about 10000.
+
+Processors are numbered from 0 to $N_{mpi} - 1$. Subdomains containning some ocean points are numbered first from 0 to $jpni * jpnj - N_{land} -1$, starting from the bottom-left subdomains, see \autoref{fig:LBC_mppini2}. The remaining $N_{useless}$ land subdomains are numbered next starting from bottom-left (yellow numbers in \autoref{fig:LBC_mppini2}a), which means that, for a given (\np{jpni}{jpni}, \np{jpnj}{jpnj}), the numbers attributed to he ocean subdomains do not vary with $N_{useless}$.
+
+When land processors are eliminated, the value corresponding to these locations in the model output files is undefined. \np{ln_mskland}{ln\_mskland} must be activated in order avoid Not a Number values in output files. Note that it is better to not eliminate land processors when creating a meshmask file (\ie\ when setting a non-zero value to \np{nn_msh}{nn\_msh}).
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.66\textwidth]{LBC_mpp}
+  \caption{Positioning of a sub-domain when massively parallel processing is used}
+  \label{fig:LBC_mpp}
+\end{figure}
+
+Each processor is independent and without message passing or synchronous process, programs run alone and access just its own local memory. For this reason, the main model dimensions are the local dimensions of the subdomain that are named \forcode{jpi}, \forcode{jpj}, \forcode{jpk}. As detailed in \citet{Irrmann2022}, \forcode{jpi} and \forcode{jpj} can differ between subdomains. Note that if the configuration requires the North Pole folding (\forcode{l_NFold} = .True.), \forcode{jpj} of the processes involved in the folding is minimized in order to compensate the extra coast of the North Pole folding.
+As show in \autoref{fig:LBC_mpp}, \forcode{jpi} and \forcode{jpj} include the inner or internal domain and the overlapping rows/columns. \forcode{Nis0} and \forcode{Nie0} are use to specify the inner domain.
+
+As detailed in \autoref{fig:LBC_mpp}, several variables are defined to address indices from the local subdomain and the global domain (with or without halos). The whole domain dimensions are named \forcode{jpiglo}, \forcode{jpjglo} and \forcode{jpk}. \forcode{Ni0glo} and \forcode{Ni0glo} correspond to the original domain size, as seen in the input and output files, without any halo. The 1-d arrays $mig(1:jpi)$ and $mjg(1:jpj)$, defined in \rou{init\_locglo} routine (\mdl{mppini} module), should be used to get global domain (with halos) indices from local domain indices. An element of $T_{l}$, a local array (subdomain) corresponds to an element of $T_{g}$, a global array (whole domain including halos) by the relationship:
+\[
+  % \label{eq:LBC_nimpp}
+  T_{g} (mig(i),mjg(j),k) = T_{l} (i,j,k),
+\]
+with $1 \leq i \leq jpi$, $1  \leq j \leq jpj $ , and  $1  \leq k \leq jpk$.
+The 1-d arrays $mig0(1:jpi)$ and $mjg0(1:jpj)$ are used to get original global domain (without halos) indices from local domain indices. The 1-d arrays, $mi0(1:jpiglo)$, $mi1(1:jpiglo)$ and $mj0(1:jpjglo)$, $mj1(1:jpjglo)$ have the reverse purpose and should be used to define loop indices expressed in global domain indices (see examples in \mdl{dtastd} module).\\
+
 
 %% =================================================================================================
 \section{Unstructured open boundary conditions (BDY)}

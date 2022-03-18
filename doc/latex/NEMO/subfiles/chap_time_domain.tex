@@ -318,7 +318,7 @@ This is done simply by keeping the leapfrog environment
 setting all $x^0$ (\textit{before}) and $x^1$ (\textit{now}) fields equal at the first time step and
 using half the value of a leapfrog time step ($2 \rdt$).
 
-It is also possible to restart from a previous computation, by using a restart file.
+It is also possible to restart from a previous computation, by using a restart file and setting \np[=.true.]{ln_restart}{ln\_restart}.
 The restart strategy is designed to ensure perfect restartability of the code:
 the user should obtain the same results to machine precision either by
 running the model for $2N$ time steps in one go,
@@ -335,15 +335,18 @@ setting the namelist variable \np[=0]{nn_euler}{nn\_euler}.
 Other options to control the time integration of the model are defined through
 the \nam{run}{run} namelist variables.
 
-\cmtgm{
-add here how to force the restart to contain only one time step for operational purposes
+The consistency between the provided input restart file(s) (\np{cn_ocerst_in}{cn\_ocerst\_in}) and 
+the namelist settings is handled with the parameter \np{nn_rstctl}{nn\_rstctl}, as detailed in \nam{run}{run}.
 
-add also the idea of writing several restart for seasonal forecast : how is it done ?
+Restart files are created through the legacy interface, which allows to specify the root name
+of the output restart file (\np{cn_ocerst_out}{cn\_ocerst\_out}) and the timestep frequency at which restart file is created (\np{nn_stock}{nn\_stock}).
+Similarly the parameter \np{nn_write}{nn\_write} control the creation of output files.
+It is also possible to save restart files at specific timesteps during the model execution, 
+by setting \np[=.true.]{ln_rst_list}{ln\_rst\_list} and filling up the restart dump times in \np{nn_stocklist}{nn\_stocklist} (always requires 10 values).
 
-verify that all namelist parameters are truly described
+Since version 4.2 it is possible to use the XIOS interface to directly write (\np{nn_wxios}{nn\_wxios}) 
+and read (\np{ln_xios_read}{ln\_xios\_read}) the restart files, as detailed in \autoref{subsec:XIOS_restarts}.
 
-a word on the check of restart  .....
-}
 
 \cmtgm{       % add a subsection here
 

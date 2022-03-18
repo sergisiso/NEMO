@@ -49,6 +49,12 @@ MODULE domqco
    LOGICAL , PUBLIC :: ln_vvl_zstar_at_eqtor  = .FALSE.    ! ztilde vertical coordinate
    LOGICAL , PUBLIC :: ln_vvl_kepe            = .FALSE.    ! kinetic/potential energy transfer
    !                                                       ! conservation: not used yet
+   !
+   INTEGER          :: nn_vvl_interp = 0                   ! scale factors anomaly interpolation method at U-V-F points
+                                                           ! =0 linear with no bottom correction over steps (old)
+                                                           ! =1 linear with bottom correction over steps
+                                                           ! =2 "qco like", i.e. proportional to thicknesses at rest
+   !
    REAL(wp)         :: rn_ahe3                             ! thickness diffusion coefficient
    REAL(wp)         :: rn_rst_e3t                          ! ztilde to zstar restoration timescale [days]
    REAL(wp)         :: rn_lf_cutoff                        ! cutoff frequency for low-pass filter  [days]
@@ -274,7 +280,8 @@ CONTAINS
       !!
       NAMELIST/nam_vvl/ ln_vvl_zstar, ln_vvl_ztilde, ln_vvl_layer, ln_vvl_ztilde_as_zstar, &
          &              ln_vvl_zstar_at_eqtor      , rn_ahe3     , rn_rst_e3t            , &
-         &              rn_lf_cutoff               , rn_zdef_max , ln_vvl_dbg                ! not yet implemented: ln_vvl_kepe
+         &              rn_lf_cutoff               , rn_zdef_max , ln_vvl_dbg            , &  ! not yet implemented: ln_vvl_kepe
+         &              nn_vvl_interp
       !!----------------------------------------------------------------------
       !
       READ  ( numnam_ref, nam_vvl, IOSTAT = ios, ERR = 901)

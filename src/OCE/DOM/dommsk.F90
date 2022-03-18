@@ -77,9 +77,7 @@ CONTAINS
       !!               fmask   : land/ocean mask at f-point (=0., or =1., or 
       !!                         =rn_shlat along lateral boundaries)
       !!               ssmask , ssumask, ssvmask, ssfmask : 2D ocean mask, i.e. at least 1 wet cell in the vertical
-      !!               tmask_h : halo mask at t-point, i.e. excluding all duplicated rows/lines
-      !!                         due to cyclic or North Fold boundaries as well as MPP halos.
-      !!               tmask_i : ssmask * tmask_h
+      !!               tmask_i : ssmask * ( excludes halo+duplicated points (NP folding) )
       !!----------------------------------------------------------------------
       INTEGER, DIMENSION(:,:), INTENT(in) ::   k_top, k_bot   ! first and last ocean level
       !
@@ -192,13 +190,11 @@ CONTAINS
       ENDIF
       fe3mask(:,:,:) = fmask(:,:,:)
 
-      ! Interior domain mask  (used for global sum)
+      ! Interior domain mask  (used for global sum) : 2D ocean mask x (halo+duplicated points) mask 
       ! --------------------
       !
-      CALL dom_uniq( tmask_h, 'T' )
-      !
-      !                          ! interior mask : 2D ocean mask x halo mask 
-      tmask_i(:,:) = ssmask(:,:) * tmask_h(:,:)
+      CALL dom_uniq( tmask_i, 'T' )
+      tmask_i(:,:) = ssmask(:,:) * tmask_i(:,:)
 
       ! Lateral boundary conditions on velocity (modify fmask)
       ! ---------------------------------------  
@@ -220,6 +216,16 @@ CONTAINS
       ! -------------------------------- 
       !
       CALL usr_def_fmask( cn_cfg, nn_cfg, fmask )
+      !
+#if defined key_agrif
+      ! Reset masks defining updated points over parent grids
+      !  = 1 : updated point from child(s)
+      !  = 0 : point not updated
+      ! 
+      tmask_upd(:,:) = 0._wp
+      umask_upd(:,:) = 0._wp
+      vmask_upd(:,:) = 0._wp
+#endif     
       !
    END SUBROUTINE dom_msk
    

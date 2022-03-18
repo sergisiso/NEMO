@@ -23,8 +23,10 @@
 &namdom        !   space and time domain (bathymetry, mesh, timestep)
 !-----------------------------------------------------------------------
    ln_read_cfg = .false.   !  Read from a domain_cfg file
-   nn_bathy    =    1      !  compute analyticaly (=0) or read (=1) the bathymetry file
-                           !  or compute (2) from external bathymetry
+   nn_bathy    =    1      ! = 0 compute analyticaly
+                           ! = 1 read the bathymetry file
+                           ! = 2 compute from external bathymetry
+                           ! = 3 compute from parent (if "key_agrif")
    nn_interp   =    1                          ! type of interpolation (nn_bathy =2)
    cn_domcfg   = ' '       ! Name of the domain_cfg input file
    cn_fcoord   =  'coordinates.nc'             ! external coordinates file (jphgr_msh = 0)
@@ -36,6 +38,7 @@
    cn_visfd    =  'isf_draft'                  ! isf draft variable (nn_bathy =1 and ln_isfcav = .true.)
    cn_lon      =  'nav_lon'                    ! lon  name in file  (nn_bathy =2)
    cn_lat      =  'nav_lat'                    ! lat  name in file  (nn_bathy =2)
+   rn_scale    =    1.     !  multiplicative factor to account for possibly negative input bathymetry (agrif only) 
    rn_bathy    =    0.     !  value of the bathymetry. if (=0) bottom flat at jpkm1
    nn_msh      =    0      !  create (=1) a mesh file or not (=0)
    rn_hmin     =   -3.     !  min depth of the ocean (>0) or min number of ocean level (<0)
@@ -78,6 +81,10 @@
    !                       ! =F : e3 analytical derivative of depth function
    !                       !      only there for backward compatibility test with v3.6
    !                       !
+      !                       ! if ln_e3_dep = T 
+      ln_dept_mid = .false.   ! =T : set T points in the middle of cells 
+      !                       ! =F : e3 analytical depth function
+      !                       !
    cp_cfg      =  "orca"   !  name of the configuration
    jp_cfg      =       2   !  resolution of the configuration
    jpidta      =     180   !  1st lateral dimension ( >= jpi )
@@ -173,7 +180,7 @@
    ln_remove_closedseas = .true. ! Fill lakes inside zoom
    ln_vert_remap = .false. ! volume conserving update 
    npt_connect   = 2
-   npt_copy      = 2
+   npt_copy      = 4 
 /
 !-----------------------------------------------------------------------
 &nammpp        !   Massively Parallel Processing                        ("key_mpp_mpi")

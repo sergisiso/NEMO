@@ -104,7 +104,7 @@
 !-----------------------------------------------------------------------
 &namagrif      !  AGRIF zoom                                            ("key_agrif")
 !-----------------------------------------------------------------------
-   ln_init_chfrpar = .true.  !  initialize child grids from parent
+   ln_chk_bathy    = .false.  !  =T  check the parent bathymetry
 /
 !!======================================================================
 !!                ***  Top/Bottom boundary condition  ***             !!

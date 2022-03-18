@@ -35,6 +35,12 @@ MODULE domvvl
    LOGICAL , PUBLIC :: ln_vvl_ztilde_as_zstar = .FALSE.    ! ztilde vertical coordinate
    LOGICAL , PUBLIC :: ln_vvl_zstar_at_eqtor  = .FALSE.    ! ztilde vertical coordinate
    LOGICAL , PUBLIC :: ln_vvl_kepe            = .FALSE.    ! kinetic/potential energy transfer
+   !
+   INTEGER          :: nn_vvl_interp = 0                   ! scale factors anomaly interpolation method at U-V-F points
+                                                           ! =0 linear with no bottom correction over steps (old)
+                                                           ! =1 linear with bottom correction over steps
+                                                           ! =2 "qco like", i.e. proportional to thicknesses at rest
+   !
    !                                                       ! conservation: not used yet
    REAL(wp)         :: rn_ahe3                             ! thickness diffusion coefficient
    REAL(wp)         :: rn_rst_e3t                          ! ztilde to zstar restoration timescale [days]
@@ -537,6 +543,15 @@ CONTAINS
          IF( lwp    ) WRITE(numout, *) kt,' MAXVAL(abs(ssh(:,:,Kaa)))) =', z_tmax
       END IF
 
+#if defined key_agrif
+      ! *********************************** !
+      ! After scale factors at w- points    !
+      ! *********************************** !
+      ! At some point, "after" depths at T-points may be required 
+      ! for AGRIF vertical remap. To prevent from saving an
+      ! additional array, re-compute depths from e3w when needed
+      CALL dom_vvl_interpol( e3t(:,:,:,Kaa), e3w(:,:,:,Kaa), 'W'  )
+#endif
       ! *********************************** !
       ! After scale factors at u- v- points !
       ! *********************************** !
@@ -684,6 +699,7 @@ CONTAINS
       INTEGER ::   ji, jj, jk                                       ! dummy loop indices
       INTEGER ::   iku, ikum1, ikv, ikvm1, ikf, ikfm1
       REAL(wp) ::  zlnwd                                            ! =1./0. when ln_wd_il = T/F
+      REAL(wp), DIMENSION(jpi,jpj) :: zssh                          ! work array to retrieve ssh (nn_vvl_interp > 1)
       !!----------------------------------------------------------------------
       !
       IF(ln_wd_il) THEN
@@ -695,64 +711,134 @@ CONTAINS
       SELECT CASE ( pout )    !==  type of interpolation  ==!
          !
       CASE( 'U' )                   !* from T- to U-point : hor. surface weighted mean
-         DO_3D( 1, 0, 1, 0, 1, jpk )
-            pe3_out(ji,jj,jk) = 0.5_wp * (  umask(ji,jj,jk) * (1.0_wp - zlnwd) + zlnwd ) * r1_e1e2u(ji,jj)   &
-               &                       * (   e1e2t(ji  ,jj) * ( pe3_in(ji  ,jj,jk) - e3t_0(ji  ,jj,jk) )     &
-               &                           + e1e2t(ji+1,jj) * ( pe3_in(ji+1,jj,jk) - e3t_0(ji+1,jj,jk) ) )
-         END_3D
+         SELECT CASE ( nn_vvl_interp )
+         CASE ( 0 ) 
+            !
+            DO_3D( 1, 0, 1, 0, 1, jpk )
+               pe3_out(ji,jj,jk) = 0.5_wp * (  umask(ji,jj,jk) * (1.0_wp - zlnwd) + zlnwd ) * r1_e1e2u(ji,jj)   &
+                  &                       * (   e1e2t(ji  ,jj) * ( pe3_in(ji  ,jj,jk) - e3t_0(ji  ,jj,jk) )     &
+                  &                           + e1e2t(ji+1,jj) * ( pe3_in(ji+1,jj,jk) - e3t_0(ji+1,jj,jk) ) )
+            END_3D
+            !
+         CASE ( 1 )
+            !
+            DO_3D( 1, 0, 1, 0, 1, jpk )
+               pe3_out(ji,jj,jk) = 0.5_wp * (  umask(ji,jj,jk) * (1.0_wp - zlnwd) + zlnwd ) * r1_e1e2u(ji,jj)   &
+                  &                       * (   e1e2t(ji  ,jj) * ( pe3_in(ji  ,jj,jk) - e3t_0(ji  ,jj,jk) )     &
+                  &                           + e1e2t(ji+1,jj) * ( pe3_in(ji+1,jj,jk) - e3t_0(ji+1,jj,jk) ) )
+            END_3D
+            !
+            ! Bottom correction:
+            DO_2D( 1, 0, 1, 0 )
+               iku    = mbku(ji  ,jj)
+               ikum1  = iku - 1
+               pe3_out(ji,jj,iku) = ( umask(ji,jj,iku) * (1.0_wp - zlnwd) + zlnwd )    & 
+                  &     * ( 0.5_wp *  r1_e1e2u(ji,jj)                                  &
+                  &     * (    e1e2t(ji  ,jj) * ( SUM(tmask(ji  ,jj,:)*(pe3_in(ji  ,jj,:) - e3t_0(ji  ,jj,:))) )   &               
+                  &          + e1e2t(ji+1,jj) * ( SUM(tmask(ji+1,jj,:)*(pe3_in(ji+1,jj,:) - e3t_0(ji+1,jj,:))) ) ) &
+                  &     - SUM(pe3_out(ji,jj,1:ikum1)))
+            END_2D
+            !
+         CASE ( 2 ) 
+            zssh(:,:) = SUM(tmask(:,:,:)*(pe3_in(:,:,:)-e3t_0(:,:,:)), DIM=3)
+            !
+            DO_3D( 1, 0, 1, 0, 1, jpk )
+               pe3_out(ji,jj,jk) = 0.5_wp * (  umask(ji,jj,jk) * (1.0_wp - zlnwd) + zlnwd ) * r1_e1e2u(ji,jj)    &
+                  &                       * (   e1e2t(ji  ,jj) * zssh(ji  ,jj) + e1e2t(ji+1,jj) * zssh(ji+1,jj)) &
+                  &                       * e3u_0(ji,jj,jk) / ( hu_0(ji,jj) + 1._wp - ssumask(ji,jj) )
+            END_3D   
+            !
+         END SELECT
          !
-         ! Bottom correction:
-         DO_2D( 1, 0, 1, 0 )
-            iku    = mbku(ji  ,jj)
-            ikum1  = iku - 1
-            pe3_out(ji,jj,iku) = ( umask(ji,jj,iku) * (1.0_wp - zlnwd) + zlnwd )    & 
-               &     * ( 0.5_wp *  r1_e1e2u(ji,jj)                                  &
-               &     * (    e1e2t(ji  ,jj) * ( SUM(tmask(ji  ,jj,:)*(pe3_in(ji  ,jj,:) - e3t_0(ji  ,jj,:))) )   &               
-               &          + e1e2t(ji+1,jj) * ( SUM(tmask(ji+1,jj,:)*(pe3_in(ji+1,jj,:) - e3t_0(ji+1,jj,:))) ) ) &
-               &     - SUM(pe3_out(ji,jj,1:ikum1)))
-         END_2D
-         
          CALL lbc_lnk( 'domvvl', pe3_out(:,:,:), 'U', 1._wp )
          pe3_out(:,:,:) = pe3_out(:,:,:) + e3u_0(:,:,:)
          !
       CASE( 'V' )                   !* from T- to V-point : hor. surface weighted mean
-         DO_3D( 1, 0, 1, 0, 1, jpk )
-            pe3_out(ji,jj,jk) = 0.5_wp * ( vmask(ji,jj,jk)  * (1.0_wp - zlnwd) + zlnwd ) * r1_e1e2v(ji,jj)   &
-               &                       * (   e1e2t(ji,jj  ) * ( pe3_in(ji,jj  ,jk) - e3t_0(ji,jj  ,jk) )     &
-               &                           + e1e2t(ji,jj+1) * ( pe3_in(ji,jj+1,jk) - e3t_0(ji,jj+1,jk) ) )
-         END_3D
+         SELECT CASE ( nn_vvl_interp )
+         CASE ( 0 ) 
+            !
+            DO_3D( 1, 0, 1, 0, 1, jpk )
+               pe3_out(ji,jj,jk) = 0.5_wp * ( vmask(ji,jj,jk)  * (1.0_wp - zlnwd) + zlnwd ) * r1_e1e2v(ji,jj)   &
+                  &                       * (   e1e2t(ji,jj  ) * ( pe3_in(ji,jj  ,jk) - e3t_0(ji,jj  ,jk) )     &
+                  &                           + e1e2t(ji,jj+1) * ( pe3_in(ji,jj+1,jk) - e3t_0(ji,jj+1,jk) ) )
+            END_3D
+            !
+         CASE ( 1 )
+                        !
+            DO_3D( 1, 0, 1, 0, 1, jpk )
+               pe3_out(ji,jj,jk) = 0.5_wp * ( vmask(ji,jj,jk)  * (1.0_wp - zlnwd) + zlnwd ) * r1_e1e2v(ji,jj)   &
+                  &                       * (   e1e2t(ji,jj  ) * ( pe3_in(ji,jj  ,jk) - e3t_0(ji,jj  ,jk) )     &
+                  &                           + e1e2t(ji,jj+1) * ( pe3_in(ji,jj+1,jk) - e3t_0(ji,jj+1,jk) ) )
+            END_3D
+            !
+            ! Bottom correction:
+            DO_2D( 1, 0, 1, 0 )
+               ikv    = mbkv(ji  ,jj)
+               ikvm1  = ikv - 1
+               pe3_out(ji,jj,ikv) = ( vmask(ji,jj,ikv) * (1.0_wp - zlnwd) + zlnwd )    & 
+                  &     * ( 0.5_wp *  r1_e1e2v(ji,jj)                                  &
+                  &     * (    e1e2t(ji,jj  ) * ( SUM(tmask(ji,jj  ,:)*(pe3_in(ji,jj  ,:) - e3t_0(ji,jj  ,:))) )   &               
+                  &          + e1e2t(ji,jj+1) * ( SUM(tmask(ji,jj+1,:)*(pe3_in(ji,jj+1,:) - e3t_0(ji,jj+1,:))) ) ) &
+                  &     - SUM(pe3_out(ji,jj,1:ikvm1)))
+            END_2D
+            !
+            CASE ( 2 ) 
+            zssh(:,:) = SUM(tmask(:,:,:)*(pe3_in(:,:,:)-e3t_0(:,:,:)), DIM=3)
+            !
+            DO_3D( 1, 0, 1, 0, 1, jpk )
+               pe3_out(ji,jj,jk) = 0.5_wp * (  vmask(ji,jj,jk) * (1.0_wp - zlnwd) + zlnwd ) * r1_e1e2v(ji,jj)    &
+                  &                       * (   e1e2t(ji  ,jj) * zssh(ji  ,jj) + e1e2t(ji,jj+1) * zssh(ji,jj+1)) &
+                  &                       * e3v_0(ji,jj,jk) / ( hv_0(ji,jj) + 1._wp - ssvmask(ji,jj) )
+            END_3D 
+            !
+         END SELECT
          !
-         ! Bottom correction:
-         DO_2D( 1, 0, 1, 0 )
-            ikv    = mbkv(ji  ,jj)
-            ikvm1  = ikv - 1
-            pe3_out(ji,jj,ikv) = ( vmask(ji,jj,ikv) * (1.0_wp - zlnwd) + zlnwd )    & 
-               &     * ( 0.5_wp *  r1_e1e2v(ji,jj)                                  &
-               &     * (    e1e2t(ji,jj  ) * ( SUM(tmask(ji,jj  ,:)*(pe3_in(ji,jj  ,:) - e3t_0(ji,jj  ,:))) )   &               
-               &          + e1e2t(ji,jj+1) * ( SUM(tmask(ji,jj+1,:)*(pe3_in(ji,jj+1,:) - e3t_0(ji,jj+1,:))) ) ) &
-               &     - SUM(pe3_out(ji,jj,1:ikvm1)))
-         END_2D
          CALL lbc_lnk( 'domvvl', pe3_out(:,:,:), 'V', 1._wp )
          pe3_out(:,:,:) = pe3_out(:,:,:) + e3v_0(:,:,:)
          !
       CASE( 'F' )                   !* from U-point to F-point : hor. surface weighted mean
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-            pe3_out(ji,jj,jk) = 0.5_wp * (  umask(ji,jj,jk) * umask(ji,jj+1,jk) * (1.0_wp - zlnwd) + zlnwd ) &
-               &                       *    r1_e1e2f(ji,jj)                                                  &
-               &                       * (   e1e2u(ji,jj  ) * ( pe3_in(ji,jj  ,jk) - e3u_0(ji,jj  ,jk) )     &
-               &                           + e1e2u(ji,jj+1) * ( pe3_in(ji,jj+1,jk) - e3u_0(ji,jj+1,jk) ) )
-         END_3D
+         SELECT CASE ( nn_vvl_interp )
+         CASE ( 0 )
+            !
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               pe3_out(ji,jj,jk) = 0.5_wp * (  umask(ji,jj,jk) * umask(ji,jj+1,jk) * (1.0_wp - zlnwd) + zlnwd ) &
+                  &                       *    r1_e1e2f(ji,jj)                                                  &
+                  &                       * (   e1e2u(ji,jj  ) * ( pe3_in(ji,jj  ,jk) - e3u_0(ji,jj  ,jk) )     &
+                  &                           + e1e2u(ji,jj+1) * ( pe3_in(ji,jj+1,jk) - e3u_0(ji,jj+1,jk) ) )
+            END_3D
+            !
+         CASE ( 1 )
+            !
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               pe3_out(ji,jj,jk) = 0.5_wp * (  umask(ji,jj,jk) * umask(ji,jj+1,jk) * (1.0_wp - zlnwd) + zlnwd ) &
+                  &                       *    r1_e1e2f(ji,jj)                                                  &
+                  &                       * (   e1e2u(ji,jj  ) * ( pe3_in(ji,jj  ,jk) - e3u_0(ji,jj  ,jk) )     &
+                  &                           + e1e2u(ji,jj+1) * ( pe3_in(ji,jj+1,jk) - e3u_0(ji,jj+1,jk) ) )
+            END_3D
+            !
+            ! Bottom correction:
+            DO_2D( 0, 0, 0, 0 )
+               ikf    = MIN(mbku(ji  ,jj),mbku(ji,jj+1))
+               ikfm1  = ikf - 1
+               pe3_out(ji,jj,ikf) = ( umask(ji,jj,ikf) * umask(ji,jj+1,ikf) * (1.0_wp - zlnwd) + zlnwd )           & 
+                  &     * ( 0.5_wp *  r1_e1e2f(ji,jj)                                                              &
+                  &     * (    e1e2u(ji,jj  ) * ( SUM(umask(ji,jj  ,:)*(pe3_in(ji,jj  ,:) - e3u_0(ji,jj  ,:))) )   &               
+                  &          + e1e2u(ji,jj+1) * ( SUM(umask(ji,jj+1,:)*(pe3_in(ji,jj+1,:) - e3u_0(ji,jj+1,:))) ) ) &
+                  &     - SUM(pe3_out(ji,jj,1:ikfm1)))
+            END_2D
+            !
+         CASE ( 2 ) 
+            zssh(:,:) = SUM(umask(:,:,:)*(pe3_in(:,:,:)-e3u_0(:,:,:)), DIM=3)
+            !
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               pe3_out(ji,jj,jk) =  (  umask(ji,jj,jk)* umask(ji,jj+1,jk) * (1.0_wp - zlnwd) + zlnwd )   &
+                  &                 * 0.5_wp * r1_e1e2f(ji,jj)                                           &
+                  &                 * (e1e2u(ji  ,jj) * zssh(ji  ,jj) + e1e2u(ji,jj+1) * zssh(ji,jj+1))  &
+                  &                 * e3f_0(ji,jj,jk) / ( hf_0(ji,jj) + 1._wp - ssumask(ji,jj)*ssumask(ji,jj+1) )
+            END_3D
+            !
+         END SELECT
          !
-         ! Bottom correction:
-         DO_2D( 0, 0, 0, 0 )
-            ikf    = MIN(mbku(ji  ,jj),mbku(ji,jj+1))
-            ikfm1  = ikf - 1
-            pe3_out(ji,jj,ikf) = ( umask(ji,jj,ikf) * umask(ji,jj+1,ikf) * (1.0_wp - zlnwd) + zlnwd )           & 
-               &     * ( 0.5_wp *  r1_e1e2f(ji,jj)                                                              &
-               &     * (    e1e2u(ji,jj  ) * ( SUM(umask(ji,jj  ,:)*(pe3_in(ji,jj  ,:) - e3u_0(ji,jj  ,:))) )   &               
-               &          + e1e2u(ji,jj+1) * ( SUM(umask(ji,jj+1,:)*(pe3_in(ji,jj+1,:) - e3u_0(ji,jj+1,:))) ) ) &
-               &     - SUM(pe3_out(ji,jj,1:ikfm1)))
-         END_2D
          CALL lbc_lnk( 'domvvl', pe3_out(:,:,:), 'F', 1._wp )
          pe3_out(:,:,:) = pe3_out(:,:,:) + e3f_0(:,:,:)
          !
@@ -822,7 +908,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in) ::   cdrw      ! "READ"/"WRITE" flag
       !
       INTEGER ::   ji, jj, jk      ! dummy loop indices
-      INTEGER ::   id3, id4, id5   ! local integers
+      INTEGER ::   id2, id3, id4, id5   ! local integers
       !!----------------------------------------------------------------------
       !
       !                                      !=====================!
@@ -836,16 +922,25 @@ CONTAINS
             !                                         ! all cases !
             !                                         ! --------- !
             !
-            id3 = iom_varid( numror, 'tilde_e3t_b', ldstop = .FALSE. )  !*  check presence
+            id2 = iom_varid( numror, 'e3t_n'      , ldstop = .FALSE. )  !*  check presence
+            id3 = iom_varid( numror, 'tilde_e3t_b', ldstop = .FALSE. )
             id4 = iom_varid( numror, 'tilde_e3t_n', ldstop = .FALSE. )
             id5 = iom_varid( numror, 'hdiv_lf'    , ldstop = .FALSE. )
             !
             !                                                           !*  scale factors
-            IF(lwp) WRITE(numout,*)    '          Kmm scale factor read in the restart file'
-            CALL iom_get( numror, jpdom_auto, 'e3t_n', e3t(:,:,:,Kmm) )
-            WHERE ( tmask(:,:,:) == 0.0_wp )
-               e3t(:,:,:,Kmm) = e3t_0(:,:,:)
-            END WHERE
+            !  hot restart case with zstar coordinate:
+            IF ( id2 > 0 ) THEN
+               IF(lwp) WRITE(numout,*)    '          Kmm scale factor read in the restart file'
+               CALL iom_get( numror, jpdom_auto, 'e3t_n', e3t(:,:,:,Kmm) )
+               WHERE ( tmask(:,:,:) == 0.0_wp )
+                  e3t(:,:,:,Kmm) = e3t_0(:,:,:)
+               END WHERE
+            ELSE
+               DO jk = 1, jpk
+                  e3t(:,:,jk,Kmm) =  e3t_0(:,:,jk) * ( 1._wp + ssh(:,:,Kmm) * r1_ht_0(:,:) * tmask(:,:,jk) )
+               END DO
+            ENDIF
+
             IF( l_1st_euler ) THEN                       ! euler
                IF(lwp) WRITE(numout,*) '          Euler first time step : e3t(Kbb) = e3t(Kmm)'
                e3t(:,:,:,Kbb) = e3t(:,:,:,Kmm)
@@ -942,7 +1037,8 @@ CONTAINS
       !!
       NAMELIST/nam_vvl/ ln_vvl_zstar, ln_vvl_ztilde, ln_vvl_layer, ln_vvl_ztilde_as_zstar, &
          &              ln_vvl_zstar_at_eqtor      , rn_ahe3     , rn_rst_e3t            , &
-         &              rn_lf_cutoff               , rn_zdef_max , ln_vvl_dbg                ! not yet implemented: ln_vvl_kepe
+         &              rn_lf_cutoff               , rn_zdef_max , ln_vvl_dbg            , &  ! not yet implemented: ln_vvl_kepe
+         &              nn_vvl_interp
       !!----------------------------------------------------------------------
       !
       READ  ( numnam_ref, nam_vvl, IOSTAT = ios, ERR = 901)
@@ -976,6 +1072,7 @@ CONTAINS
             WRITE(numout,*) '      z-tilde cutoff frequency of low-pass filter (days)   rn_lf_cutoff = ', rn_lf_cutoff
          ENDIF
          WRITE(numout,*) '         debug prints flag                                 ln_vvl_dbg   = ', ln_vvl_dbg
+         WRITE(numout,*) '         Method to compute scale factors anomaly at U/V/F points  nn_vvl_interp   = ', nn_vvl_interp
       ENDIF
       !
       ioptio = 0                      ! Parameter control
@@ -985,6 +1082,8 @@ CONTAINS
       IF( ln_vvl_layer           )   ioptio = ioptio + 1
       !
       IF( ioptio /= 1 )   CALL ctl_stop( 'Choose ONE vertical coordinate in namelist nam_vvl' )
+      !
+      IF( .NOT. ln_vvl_zstar .AND. (nn_vvl_interp==2 ) )  CALL ctl_stop( 'nn_vvl_interp must be < 2 if ln_vvl_zstar=F' )
       !
       IF(lwp) THEN                   ! Print the choice
          WRITE(numout,*)

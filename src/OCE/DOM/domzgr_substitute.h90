@@ -48,6 +48,6 @@
 #   define  r1_hv(i,j,t)   r1_hv_0(i,j)
 #   define  gdept(i,j,k,t) gdept_0(i,j,k)
 #   define  gdepw(i,j,k,t) gdepw_0(i,j,k)
-#   define  gde3w(i,j,k)   (gdept_0(i,j,k)-ssh(i,j,Kmm))
+#   define  gde3w(i,j,k)   gdept_0(i,j,k)
 #endif
 !!----------------------------------------------------------------------

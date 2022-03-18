@@ -556,6 +556,7 @@ CONTAINS
       LOGICAL               :: lchunk               ! logical switch to activate chunking and compression
       !                                             ! when appropriate (currently chunking is applied to 4d fields only)
       INTEGER               :: idlv                 ! local variable
+      CHARACTER(LEN=256)    :: ccname               ! local variable
       !---------------------------------------------------------------------
       !
       clinfo = '          iom_nf90_rp0123d, file: '//TRIM(iom_file(kiomid)%name)//', var: '//TRIM(cdvar)
@@ -571,7 +572,10 @@ CONTAINS
          ! define the dimension variables if it is not already done
          DO jd = 1, 2
             CALL iom_nf90_check(NF90_INQUIRE_DIMENSION(if90id,jd,iom_file(kiomid)%cn_var(jd),iom_file(kiomid)%dimsz(jd,jd)),clinfo)
-            CALL iom_nf90_check(NF90_DEF_VAR( if90id, TRIM(iom_file(kiomid)%cn_var(jd)), NF90_FLOAT , (/ 1, 2 /),   &
+            ccname = TRIM(iom_file(kiomid)%cn_var(jd))
+            IF ( ccname == 'x') ccname = 'nav_lon'
+            IF ( ccname == 'y') ccname = 'nav_lat'
+            CALL iom_nf90_check(NF90_DEF_VAR( if90id, ccname, NF90_FLOAT , (/ 1, 2 /),   &
                &                              iom_file(kiomid)%nvid(jd) ), clinfo)
          END DO
          iom_file(kiomid)%dimsz(2,1) = iom_file(kiomid)%dimsz(2,2)   ! second dim of first  variable

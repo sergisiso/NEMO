@@ -18,6 +18,7 @@
    ln_zdfnpc   = .false.      !  Non-Penetrative Convective algorithm
       nn_npc      =    1         ! frequency of application of npc
       nn_npcp     =  365         ! npc control print frequency
+   ln_zdfmfc   = .false.      !  Mass Flux Convection
    !
    ln_zdfddm   = .false.   ! double diffusive mixing
       rn_avts  =    1.e-4     !  maximum avs (vertical mixing on salinity)

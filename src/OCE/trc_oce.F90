@@ -26,9 +26,11 @@ MODULE trc_oce
    LOGICAL , PUBLIC ::   l_co2cpl  = .false.   !: atmospheric pco2 recieved from oasis
    LOGICAL , PUBLIC ::   l_offline = .false.   !: offline passive tracers flag
    REAL(wp), PUBLIC ::   r_si2                 !: largest depth of extinction (blue & 0.01 mg.m-3)  (RGB)
+   LOGICAL , PUBLIC ::   ln_trcdc2dm           !: Diurnal cycle for TOP
    !
    REAL(wp), PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:,:,:) ::   etot3     !: light absortion coefficient
    REAL(wp), PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:,:)   ::   oce_co2   !: ocean carbon flux
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   qsr_mean  !: daily mean qsr
 
 #if defined key_top 
    !!----------------------------------------------------------------------
@@ -52,7 +54,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                  ***  trc_oce_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( etot3(jpi,jpj,jpk), oce_co2(jpi,jpj), STAT=trc_oce_alloc )
+      ALLOCATE( etot3(jpi,jpj,jpk), oce_co2(jpi,jpj), qsr_mean(jpi,jpj), STAT=trc_oce_alloc )
+
       IF( trc_oce_alloc /= 0 )   CALL ctl_warn('trc_oce_alloc: failed to allocate etot3 array')
       !
    END FUNCTION trc_oce_alloc

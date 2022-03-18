@@ -30,12 +30,13 @@
    ln_linssh   = .false.   !  =T  linear free surface  ==>>  model level are fixed in time
    !
    rn_Dt      = 5400.     !  time step for the dynamics and tracer
+   ln_meshmask = .false.  !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)
 !-----------------------------------------------------------------------
    ln_read_cfg = .true.    !  (=T) read the domain configuration file
-      cn_domcfg = "ORCA_R2_zps_domcfg_agrif"    ! domain configuration filename
+      cn_domcfg = "domain_cfg.nc"    ! domain configuration filename
       !
       ln_closea    = .false.    !  F => suppress closed seas (defined by closea_mask field) 
       !                         !       from the bathymetry at runtime.

@@ -171,7 +171,11 @@ clean_config() {
 
 # define validation dir
 set_valid_dir () {
-    REVISION_NB=`git -C ${MAIN_DIR} rev-list --abbrev-commit origin | head -1l`
+    if [ ${DETACHED_HEAD} == "no" ] ; then
+      REVISION_NB=`git -C ${MAIN_DIR} rev-list --abbrev-commit origin | head -1l`
+    else
+      REVISION_NB=${DETACHED_CMIT}
+    fi
     REV_DATE0="`git -C ${MAIN_DIR} log -1 | grep Date | sed -e 's/.*Date: *//' -e's/ +.*$//'`"
     REV_DATE=`${DATE_CONV}"${REV_DATE0}" +"%y%j"`
     REVISION_NB=${REV_DATE}_${REVISION_NB}

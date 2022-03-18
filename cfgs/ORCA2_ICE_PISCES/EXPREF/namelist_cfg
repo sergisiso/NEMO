@@ -403,15 +403,15 @@
    ln_tsdiff   = .true.    !  account for differential T/S mixing (T) or not (F)
 
    cn_dir      = './'      !  root directory for the iwm data location
-   !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
-   !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
-   !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
-   sn_mpb      = 'zdfiwm_forcing'              , -12.              , 'power_bot' , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_mpc      = 'zdfiwm_forcing'              , -12.              , 'power_cri' , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_mpn      = 'zdfiwm_forcing'              , -12.              , 'power_nsq' , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_mps      = 'zdfiwm_forcing'              , -12.              , 'power_sho' , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_dsb      = 'zdfiwm_forcing'              , -12.              , 'scale_bot' , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_dsc      = 'zdfiwm_forcing'              , -12.              , 'scale_cri' , .false.  , .true. , 'yearly' , '' , ''  , ''
+   !___________!_________________________!___________________!_____________!_____________!________!___________!__________________!__________!_______________!
+   !           !        file name        ! frequency (hours) ! variable    ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
+   !           !                         !  (if <0  months)  !   name      !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
+   sn_mpb      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'power_bot' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_mpc      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'power_cri' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_mpn      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'power_nsq' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_mps      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'power_sho' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_dsb      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'scale_bot' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_dsc      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'scale_cri' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
 /
 !!======================================================================
 !!                  ***  Diagnostics namelists  ***                   !!
