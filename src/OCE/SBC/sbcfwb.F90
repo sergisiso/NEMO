@@ -104,11 +104,11 @@ CONTAINS
          ! isf cavities are excluded because it can feedback to the melting with generation of inhibition of plumes
          ! and in case of no melt, it can generate HSSW.
          !
-#if ! defined key_si3 && ! defined key_cice
-         snwice_mass_b(:,:) = 0.e0               ! no sea-ice model is being used : no snow+ice mass
-         snwice_mass  (:,:) = 0.e0
-         snwice_fmass (:,:) = 0.e0
-#endif
+         IF( nn_ice == 0 ) THEN
+            snwice_mass_b(:,:) = 0.e0               ! no sea-ice model is being used : no snow+ice mass
+            snwice_mass  (:,:) = 0.e0
+            snwice_fmass (:,:) = 0.e0
+         ENDIF
          !
       ENDIF
 
