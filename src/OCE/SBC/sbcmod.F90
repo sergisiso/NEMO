@@ -327,10 +327,10 @@ CONTAINS
       !
 #if defined key_si3
       IF( nn_ice == 0 ) THEN
-#if defined key_agrif
          ! allocate ice arrays in case agrif + ice-model + no-ice in child grid
          jpl = 1 ; nlay_i = 1 ; nlay_s = 1
          IF( sbc_ice_alloc() /= 0 )   CALL ctl_stop('STOP', 'sbc_ice_alloc : unable to allocate arrays' )
+#if defined key_agrif
          CALL Agrif_Declare_Var_ice  !  "      "   "   "      "  Sea ice
 #endif
 
