@@ -109,7 +109,13 @@ CONTAINS
       !
       !                             !*  compute advection + coriolis *!
       !
-      r3t(:,:,Kaa) =  ssh(:,:,Kaa) * r1_ht_0(:,:)                           ! ratio at t-point at Kaa (n-1)
+      CALL ssh_nxt( kt, Kbb, Kbb, ssh, Kaa )
+      !
+      IF( .NOT.lk_linssh ) THEN
+         DO_2D_OVR( 1, nn_hls, 1, nn_hls )      ! loop bounds limited by ssh definition in ssh_nxt
+            r3t(ji,jj,Kaa) =  ssh(ji,jj,Kaa) * r1_ht_0(ji,jj)               ! "after" ssh/h_0 ratio guess at t-column at Kaa (n+1)
+         END_2D
+      ENDIF
       !
       CALL wzv    ( kt, Kbb, Kbb, Kaa , uu(:,:,:,Kbb), vv(:,:,:,Kbb), ww )  ! ww guess at Kbb (n)
       !

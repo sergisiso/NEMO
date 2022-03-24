@@ -349,9 +349,9 @@ CONTAINS
          END_2D
       ENDIF  
       !
-      !              !----------------!
-      !              !==  sssh_frc  ==!   Right-Hand-Side of the barotropic ssh equation   (over the FULL domain)
-      !              !----------------!
+      !              !---------------!
+      !              !==  ssh_frc  ==!   Right-Hand-Side of the barotropic ssh equation   (over the FULL domain)
+      !              !---------------!
       !                                   !=  Net water flux forcing applied to a water column  =!
       !                                   ! ---------------------------------------------------  !
       IF (ln_bt_fw) THEN                          ! FORWARD integration: use kt+1/2 fluxes (NOW+1/2)
@@ -424,7 +424,8 @@ CONTAINS
          zhtp2_e(:,:) = ht_0(:,:)
       ENDIF
       !
-      IF( ln_bt_fw ) THEN                 ! FORWARD integration: start from NOW fields                    
+      IF( ln_bt_fw ) THEN                 ! FORWARD integration: start from NOW fields
+         !                                   ! RK3: Kmm = Kbb when calling dynspg_ts
          sshn_e(:,:) =    pssh (:,:,Kmm)            
          un_e  (:,:) =    puu_b(:,:,Kmm)            
          vn_e  (:,:) =    pvv_b(:,:,Kmm)
@@ -821,10 +822,6 @@ CONTAINS
          !
       ENDIF
       !
-      ! advective transport from N to N+1 (i.e. Kbb to Kaa) 
-      ub2_b(:,:) = un_adv(:,:)      ! Save integrated transport for next computation (NOT USED)
-      vb2_b(:,:) = vn_adv(:,:)
-      ! 
       IF( iom_use("ubar") ) THEN    ! RK3 single first: hu[N+1/2] = 1/2 ( hu[N] + hu[N+1] ) 
          ALLOCATE( z2d(jpi,jpj) )
          z2d(:,:) = 2._wp / ( hu_e(:,:) + hu(:,:,Kbb) + 1._wp - ssumask(:,:) ) 
@@ -933,6 +930,12 @@ CONTAINS
 
       !
 #if defined key_agrif
+# if defined key_RK3
+      ! advective transport from N to N+1 (i.e. Kbb to Kaa) 
+      ub2_b(:,:) = un_adv(:,:)      ! Save integrated transport for AGRIF
+      vb2_b(:,:) = vn_adv(:,:)
+# endif
+      !
       ! Save time integrated fluxes during child grid integration
       ! (used to update coarse grid transports at next time step)
       !
@@ -946,9 +949,11 @@ CONTAINS
          ub2_i_b(:,:) = ub2_i_b(:,:) + za1 * ub2_b(:,:)
          vb2_i_b(:,:) = vb2_i_b(:,:) + za1 * vb2_b(:,:)
       ENDIF
-#endif      
-      !                                   !* write time-spliting arrays in the restart
-      IF( lrst_oce .AND.ln_bt_fw )   CALL ts_rst( kt, 'WRITE' )
+#endif
+#if ! defined key_RK3
+      !                                   !* MLF: write time-spliting arrays in the restart
+      IF( lrst_oce .AND.ln_bt_fw )   CALL ts_rst_MLF( kt, 'WRITE' )
+#endif
       !
       IF( ln_wd_il )   DEALLOCATE( zcpx, zcpy )
       IF( ln_wd_dl )   DEALLOCATE( ztwdmask, zuwdmask, zvwdmask, zuwdav2, zvwdav2 )
@@ -1037,9 +1042,9 @@ CONTAINS
    END SUBROUTINE ts_wgt
 
 
-   SUBROUTINE ts_rst( kt, cdrw )
+   SUBROUTINE ts_rst_MLF( kt, cdrw )
       !!---------------------------------------------------------------------
-      !!                   ***  ROUTINE ts_rst  ***
+      !!                   ***  ROUTINE ts_rst_MLF  ***
       !!
       !! ** Purpose : Read or write time-splitting arrays in restart file
       !!----------------------------------------------------------------------
@@ -1071,12 +1076,14 @@ CONTAINS
                ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
             ENDIF
 #endif
-         ELSE                                   !* Start from rest
+         ELSE
+            !                      !* Start from rest or use RK3 time-step
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '   ==>>>   start from rest: set barotropic values to 0'
             ub2_b  (:,:) = 0._wp   ;   vb2_b  (:,:) = 0._wp   ! used in the 1st interpol of agrif
             un_adv (:,:) = 0._wp   ;   vn_adv (:,:) = 0._wp   ! used in the 1st interpol of agrif
             un_bf  (:,:) = 0._wp   ;   vn_bf  (:,:) = 0._wp   ! used in the 1st update   of agrif
+
 #if defined key_agrif
             ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
 #endif
@@ -1084,7 +1091,7 @@ CONTAINS
          !
       ELSEIF( TRIM(cdrw) == 'WRITE' ) THEN   ! Create restart file
          !                                   ! -------------------
-         IF(lwp) WRITE(numout,*) '---- ts_rst ----'
+         IF(lwp) WRITE(numout,*) '---- ts_rst_MLF ----'
          CALL iom_rstput( kt, nitrst, numrow, 'ub2_b'   , ub2_b  (:,:) )
          CALL iom_rstput( kt, nitrst, numrow, 'vb2_b'   , vb2_b  (:,:) )
          CALL iom_rstput( kt, nitrst, numrow, 'un_bf'   , un_bf  (:,:) )
@@ -1107,7 +1114,7 @@ CONTAINS
 #endif
       ENDIF
       !
-   END SUBROUTINE ts_rst
+   END SUBROUTINE ts_rst_MLF
 
 
    SUBROUTINE dyn_spg_ts_init
@@ -1193,8 +1200,20 @@ CONTAINS
       !                             ! Allocate time-splitting arrays
       IF( dyn_spg_ts_alloc() /= 0    )   CALL ctl_stop('STOP', 'dyn_spg_init: failed to allocate dynspg_ts  arrays' )
       !
-      !                             ! read restart when needed
-      CALL ts_rst( nit000, 'READ' )
+#if defined key_RK3
+      !                      !* RK3: no restart
+# if defined key_agrif
+      IF(lwp) WRITE(numout,*)
+      IF(lwp) WRITE(numout,*) '   ==>>>   RK3: set barotropic values to 0'
+      ub2_b  (:,:) = 0._wp   ;   vb2_b  (:,:) = 0._wp   ! used in the 1st interpol of agrif
+      un_adv (:,:) = 0._wp   ;   vn_adv (:,:) = 0._wp   ! used in the 1st interpol of agrif
+      un_bf  (:,:) = 0._wp   ;   vn_bf  (:,:) = 0._wp   ! used in the 1st update   of agrif
+# endif
+#else
+      !                      !* MLF: restart/initialise
+      !
+      CALL ts_rst_MLF( nit000, 'READ' )
+#endif
       !
    END SUBROUTINE dyn_spg_ts_init
 

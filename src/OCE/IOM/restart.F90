@@ -174,7 +174,6 @@ CONTAINS
 #if defined key_RK3
          CALL iom_rstput( kt, nitrst, numrow, 'uu_b'   , uu_b(:,:       ,Kbb) )     ! before fields
          CALL iom_rstput( kt, nitrst, numrow, 'vv_b'   , vv_b(:,:       ,Kbb) )     ! before fields
-!!st-10/03         CALL iom_rstput( kt, nitrst, numrow, 'ssha '  , ssh(:,:        ,Kaa) )     ! after field post swap (n-1)
 #else
          CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields : n
          CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kmm) )
@@ -380,8 +379,6 @@ CONTAINS
          !                                     !*  RK3: Set ssh at Kmm for AGRIF
          ssh(:,:,Kmm) = ssh(:,:,Kbb)
          !
-!!st-10/03         !                                     !*  RK3: Set ssh at Kaa (n-1) for ww computation
-!!st         CALL iom_get( numror, jpdom_auto, 'ssha'   , ssh(:,:,Kaa) )
 #else
          !                                     !*  MLF: Read ssh at Kmm
          IF(lwp) WRITE(numout,*)
@@ -438,15 +435,9 @@ CONTAINS
          ssh(:,:,Kmm) = ssh(:,:,Kbb)              !* set now values from to before ones
       ENDIF
       !
-#if defined key_RK3
-      IF(.NOT. ln_rstart ) THEN
-#endif
       !                            !==========================!
       ssh(:,:,Kaa) = 0._wp         !==  Set to 0 for AGRIF  ==!
       !                            !==========================!
-#if defined key_RK3
-      ENDIF
-#endif
       !
    END SUBROUTINE rst_read_ssh
 

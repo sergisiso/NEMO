@@ -126,9 +126,9 @@ CONTAINS
       !                            !-----------------------!
 #if defined key_agrif
 # if defined key_RK3
-      Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+      Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs   ! RK3: agrif_oce module copies of time level indices
 # else
-      Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+      Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! MLF: agrif_oce module copies of time level indices
 # endif
       CALL Agrif_Declare_Var       !  "      "   "   "      "  DYN/TRA
 # if defined key_top
@@ -155,9 +155,9 @@ CONTAINS
       !
       ! Recursive update from highest nested level to lowest:
 # if defined key_RK3
-      Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+      Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs   ! RK3: agrif_oce module copies of time level indices
 # else
-      Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+      Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! MLF: agrif_oce module copies of time level indices
 # endif
       CALL Agrif_step_child_adj(Agrif_Update_All)
       CALL Agrif_step_child_adj(Agrif_Check_parent_bat)
@@ -412,9 +412,9 @@ CONTAINS
       Nbb = 1   ;   Nnn = 2   ;   Naa = 3   ;   Nrhs = Naa
 #if defined key_agrif
 # if defined key_RK3
-      Kbb_a = Nbb   ;   Kmm_a = Nbb   ;   Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+      Kbb_a = Nbb   ;   Kmm_a = Nbb   ;   Krhs_a = Nrhs   ! RK3: agrif_oce module copies of time level indices
 # else
-      Kbb_a = Nbb   ;   Kmm_a = Nnn   ;   Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+      Kbb_a = Nbb   ;   Kmm_a = Nnn   ;   Krhs_a = Nrhs   ! MLF: agrif_oce module copies of time level indices
 # endif
 #endif
       !                             !-------------------------------!
