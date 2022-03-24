@@ -855,6 +855,7 @@ CONTAINS
          IF(lwp) THEN
             WRITE(numout,*)
             WRITE(numout,*)  '  -----------------------------------------------------------'
+            CALL FLUSH(numout)
          ENDIF
          CALL mppsync
          CALL mppstop( ld_abort = .TRUE. )
