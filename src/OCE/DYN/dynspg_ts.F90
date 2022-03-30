@@ -241,7 +241,6 @@ CONTAINS
       !
       !                          ! set values computed in RK3_ssh
        ssh_frc(:,:) = sshe_rhs(:,:)
-!!st      zssh_frc(:,:) = sshe_rhs(:,:)
         zu_frc(:,:) =   Ue_rhs(:,:)
         zv_frc(:,:) =   Ve_rhs(:,:)
       zCdU_u  (:,:) = CdU_u   (:,:)
@@ -1200,16 +1199,7 @@ CONTAINS
       !                             ! Allocate time-splitting arrays
       IF( dyn_spg_ts_alloc() /= 0    )   CALL ctl_stop('STOP', 'dyn_spg_init: failed to allocate dynspg_ts  arrays' )
       !
-#if defined key_RK3
-      !                      !* RK3: no restart
-# if defined key_agrif
-      IF(lwp) WRITE(numout,*)
-      IF(lwp) WRITE(numout,*) '   ==>>>   RK3: set barotropic values to 0'
-      ub2_b  (:,:) = 0._wp   ;   vb2_b  (:,:) = 0._wp   ! used in the 1st interpol of agrif
-      un_adv (:,:) = 0._wp   ;   vn_adv (:,:) = 0._wp   ! used in the 1st interpol of agrif
-      un_bf  (:,:) = 0._wp   ;   vn_bf  (:,:) = 0._wp   ! used in the 1st update   of agrif
-# endif
-#else
+#if ! defined key_RK3
       !                      !* MLF: restart/initialise
       !
       CALL ts_rst_MLF( nit000, 'READ' )
