@@ -44,10 +44,8 @@ MODULE eosbn2
    USE stopts         ! Stochastic T/S fluctuations
    !
    USE in_out_manager ! I/O manager
-   USE lib_mpp        ! MPP library
-   USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
+   USE lib_mpp        ! for ctl_stop
    USE prtctl         ! Print control
-   USE lbclnk         ! ocean lateral boundary conditions
    USE timing         ! Timing
 
    IMPLICIT NONE

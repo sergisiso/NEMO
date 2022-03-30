@@ -617,10 +617,10 @@ CONTAINS
 !!gm
 
             IF( ln_zps .AND. .NOT. ln_c1d .AND. .NOT. ln_isfcav)           &
-               &  CALL zps_hde    ( kt, Kmm, jpts, pts(:,:,:,:,Kbb), gtsu, gtsv,        &  ! Partial steps: before horizontal gradient
+               &  CALL zps_hde    ( kt, jpts, pts(:,:,:,:,Kbb), gtsu, gtsv,        &  ! Partial steps: before horizontal gradient
                &                              rhd, gru , grv               )  ! of t, s, rd at the last ocean level
             IF( ln_zps .AND. .NOT. ln_c1d .AND.       ln_isfcav)                       &
-               &  CALL zps_hde_isf( nit000, Kmm, jpts, pts(:,:,:,:,Kbb), gtsu, gtsv, gtui, gtvi,    &  ! Partial steps for top cell (ISF)
+               &  CALL zps_hde_isf( nit000, jpts, pts(:,:,:,:,Kbb), gtsu, gtsv, gtui, gtvi,    &  ! Partial steps for top cell (ISF)
                &                                  rhd, gru , grv , grui, grvi          )  ! of t, s, rd at the last ocean level
 
             DEALLOCATE( t_bkginc )

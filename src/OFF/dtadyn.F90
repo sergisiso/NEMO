@@ -675,10 +675,10 @@ CONTAINS
 
       ! Partial steps: before Horizontal DErivative
       IF( ln_zps  .AND. .NOT. ln_isfcav)                            &
-         &            CALL zps_hde    ( kt, Kmm, jpts, pts, gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
+         &            CALL zps_hde    ( kt, jpts, pts, gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
          &                                        rhd, gru , grv    )  ! of t, s, rd at the last ocean level
       IF( ln_zps .AND.        ln_isfcav)                            &
-         &            CALL zps_hde_isf( kt, Kmm, jpts, pts, gtsu, gtsv, gtui, gtvi, &  ! Partial steps for top cell (ISF)
+         &            CALL zps_hde_isf( kt, jpts, pts, gtsu, gtsv, gtui, gtvi, &  ! Partial steps for top cell (ISF)
          &                                        rhd, gru , grv , grui, grvi )  ! of t, s, rd at the first ocean level
 
          rn2b(:,:,:) = rn2(:,:,:)                ! needed for zdfmxl

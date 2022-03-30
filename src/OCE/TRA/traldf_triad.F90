@@ -21,7 +21,6 @@ MODULE traldf_triad
    USE traldf_iso     ! lateral diffusion (Madec operator)         (tra_ldf_iso routine)
    USE diaptr         ! poleward transport diagnostics
    USE diaar5         ! AR5 diagnostics
-   USE zpshde         ! partial step: hor. derivative     (zps_hde routine)
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O library
