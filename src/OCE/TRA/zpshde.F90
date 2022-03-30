@@ -40,11 +40,9 @@ MODULE zpshde
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE zps_hde( kt, Kmm, kjpt, pta, pgtu, pgtv,  &
-      &                               prd, pgru, pgrv )
+   SUBROUTINE zps_hde( kt, kjpt, pta, pgtu, pgtv, prd, pgru, pgrv )
       !!
       INTEGER                     , INTENT(in   )           ::  kt          ! ocean time-step index
-      INTEGER                     , INTENT(in   )           ::  Kmm         ! ocean time level index
       INTEGER                     , INTENT(in   )           ::  kjpt        ! number of tracers
       REAL(wp), DIMENSION(:,:,:,:), INTENT(in   )           ::  pta         ! 4D tracers fields
       REAL(wp), DIMENSION(:,:,:)  , INTENT(  out)           ::  pgtu, pgtv  ! hor. grad. of ptra at u- & v-pts
@@ -56,13 +54,13 @@ CONTAINS
       IF( PRESENT(prd)  ) THEN ; itrd = is_tile(prd)  ; ELSE ; itrd = 0 ; ENDIF
       IF( PRESENT(pgru) ) THEN ; itgr = is_tile(pgru) ; ELSE ; itgr = 0 ; ENDIF
 
-      CALL zps_hde_t( kt, Kmm, kjpt, pta, is_tile(pta), pgtu, pgtv, is_tile(pgtu), &
-         &                           prd, itrd,         pgru, pgrv, itgr )
+      CALL zps_hde_t( kt, kjpt, pta, is_tile(pta), pgtu, pgtv, is_tile(pgtu), &
+         &                      prd, itrd,         pgru, pgrv, itgr )
    END SUBROUTINE zps_hde
 
 
-   SUBROUTINE zps_hde_t( kt, Kmm, kjpt, pta, ktta, pgtu, pgtv, ktgt,   &
-      &                                 prd, ktrd, pgru, pgrv, ktgr )
+   SUBROUTINE zps_hde_t( kt, kjpt, pta, ktta, pgtu, pgtv, ktgt,   &
+      &                            prd, ktrd, pgru, pgrv, ktgr )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE zps_hde  ***
       !!
@@ -87,13 +85,13 @@ CONTAINS
       !!                  |   |____                ____|   |
       !!              ___ |   |   |           ___  |   |   |
       !!
-      !!      case 1->   e3w(i+1,:,:,Kmm) >= e3w(i,:,:,Kmm) ( and e3w(:,j+1,:,Kmm) >= e3w(:,j,:,Kmm) ) then
-      !!          t~ = t(i+1,j  ,k) + (e3w(i+1,j,k,Kmm) - e3w(i,j,k,Kmm)) * dk(Ti+1)/e3w(i+1,j,k,Kmm)
-      !!        ( t~ = t(i  ,j+1,k) + (e3w(i,j+1,k,Kmm) - e3w(i,j,k,Kmm)) * dk(Tj+1)/e3w(i,j+1,k,Kmm)  )
+      !!      case 1->   e3w_0(i+1,:,:) >= e3w_0(i,:,:) ( and e3w_0(:,j+1,:) >= e3w_0(:,j,:) ) then
+      !!          t~ = t(i+1,j  ,k) + (e3w_0(i+1,j,k) - e3w_0(i,j,k)) * dk(Ti+1)/e3w_0(i+1,j,k)
+      !!        ( t~ = t(i  ,j+1,k) + (e3w_0(i,j+1,k) - e3w_0(i,j,k)) * dk(Tj+1)/e3w_0(i,j+1,k)  )
       !!          or
-      !!      case 2->   e3w(i+1,:,:,Kmm) <= e3w(i,:,:,Kmm) ( and e3w(:,j+1,:,Kmm) <= e3w(:,j,:,Kmm) ) then
-      !!          t~ = t(i,j,k) + (e3w(i,j,k,Kmm) - e3w(i+1,j,k,Kmm)) * dk(Ti)/e3w(i,j,k,Kmm)
-      !!        ( t~ = t(i,j,k) + (e3w(i,j,k,Kmm) - e3w(i,j+1,k,Kmm)) * dk(Tj)/e3w(i,j,k,Kmm) )
+      !!      case 2->   e3w_0(i+1,:,:) <= e3w_0(i,:,:) ( and e3w_0(:,j+1,:) <= e3w_0(:,j,:) ) then
+      !!          t~ = t(i,j,k) + (e3w_0(i,j,k) - e3w_0(i+1,j,k)) * dk(Ti)/e3w_0(i,j,k)
+      !!        ( t~ = t(i,j,k) + (e3w_0(i,j,k) - e3w_0(i,j+1,k)) * dk(Tj)/e3w_0(i,j,k) )
       !!          Idem for di(s) and dj(s)
       !!
       !!      For rho, we call eos which will compute rd~(t~,s~) at the right
@@ -107,7 +105,6 @@ CONTAINS
       !!              - pgru, pgrv: horizontal gradient of rho (if present) at u- & v-points
       !!----------------------------------------------------------------------
       INTEGER                                , INTENT(in   )           ::  kt          ! ocean time-step index
-      INTEGER                                , INTENT(in   )           ::  Kmm         ! ocean time level index
       INTEGER                                , INTENT(in   )           ::  kjpt        ! number of tracers
       INTEGER                                , INTENT(in   )           ::  ktta, ktgt, ktrd, ktgr
       REAL(wp), DIMENSION(A2D_T(ktta),JPK,KJPT), INTENT(in   )           ::  pta         ! 4D tracers fields
@@ -132,19 +129,18 @@ CONTAINS
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )              ! Gradient of density at the last level
             iku = mbku(ji,jj)   ;   ikum1 = MAX( iku - 1 , 1 )    ! last and before last ocean level at u- & v-points
             ikv = mbkv(ji,jj)   ;   ikvm1 = MAX( ikv - 1 , 1 )    ! if level first is a p-step, ik.m1=1
-!!gm BUG ? when applied to before fields, e3w(:,:,k,Kbb) should be used....
-            ze3wu = e3w(ji+1,jj  ,iku,Kmm) - e3w(ji,jj,iku,Kmm)
-            ze3wv = e3w(ji  ,jj+1,ikv,Kmm) - e3w(ji,jj,ikv,Kmm)
+            ze3wu = e3w_0(ji+1,jj  ,iku) - e3w_0(ji,jj,iku)
+            ze3wv = e3w_0(ji  ,jj+1,ikv) - e3w_0(ji,jj,ikv)
             !
             ! i- direction
             IF( ze3wu >= 0._wp ) THEN      ! case 1
-               zmaxu =  ze3wu / e3w(ji+1,jj,iku,Kmm)
+               zmaxu =  ze3wu / e3w_0(ji+1,jj,iku)
                ! interpolated values of tracers
                zti (ji,jj,jn) = pta(ji+1,jj,iku,jn) + zmaxu * ( pta(ji+1,jj,ikum1,jn) - pta(ji+1,jj,iku,jn) )
                ! gradient of  tracers
                pgtu(ji,jj,jn) = umask(ji,jj,1) * ( zti(ji,jj,jn) - pta(ji,jj,iku,jn) )
             ELSE                           ! case 2
-               zmaxu = -ze3wu / e3w(ji,jj,iku,Kmm)
+               zmaxu = -ze3wu / e3w_0(ji,jj,iku)
                ! interpolated values of tracers
                zti (ji,jj,jn) = pta(ji,jj,iku,jn) + zmaxu * ( pta(ji,jj,ikum1,jn) - pta(ji,jj,iku,jn) )
                ! gradient of tracers
@@ -153,13 +149,13 @@ CONTAINS
             !
             ! j- direction
             IF( ze3wv >= 0._wp ) THEN      ! case 1
-               zmaxv =  ze3wv / e3w(ji,jj+1,ikv,Kmm)
+               zmaxv =  ze3wv / e3w_0(ji,jj+1,ikv)
                ! interpolated values of tracers
                ztj (ji,jj,jn) = pta(ji,jj+1,ikv,jn) + zmaxv * ( pta(ji,jj+1,ikvm1,jn) - pta(ji,jj+1,ikv,jn) )
                ! gradient of tracers
                pgtv(ji,jj,jn) = vmask(ji,jj,1) * ( ztj(ji,jj,jn) - pta(ji,jj,ikv,jn) )
             ELSE                           ! case 2
-               zmaxv =  -ze3wv / e3w(ji,jj,ikv,Kmm)
+               zmaxv =  -ze3wv / e3w_0(ji,jj,ikv)
                ! interpolated values of tracers
                ztj (ji,jj,jn) = pta(ji,jj,ikv,jn) + zmaxv * ( pta(ji,jj,ikvm1,jn) - pta(ji,jj,ikv,jn) )
                ! gradient of tracers
@@ -176,13 +172,13 @@ CONTAINS
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             iku = mbku(ji,jj)
             ikv = mbkv(ji,jj)
-            ze3wu  = e3w(ji+1,jj  ,iku,Kmm) - e3w(ji,jj,iku,Kmm)
-            ze3wv  = e3w(ji  ,jj+1,ikv,Kmm) - e3w(ji,jj,ikv,Kmm)
-            IF( ze3wu >= 0._wp ) THEN   ;   zhi(ji,jj) = gdept(ji  ,jj,iku,Kmm)     ! i-direction: case 1
-            ELSE                        ;   zhi(ji,jj) = gdept(ji+1,jj,iku,Kmm)     ! -     -      case 2
+            ze3wu  = e3w_0(ji+1,jj  ,iku) - e3w_0(ji,jj,iku)
+            ze3wv  = e3w_0(ji  ,jj+1,ikv) - e3w_0(ji,jj,ikv)
+            IF( ze3wu >= 0._wp ) THEN   ;   zhi(ji,jj) = gdept_0(ji  ,jj,iku)     ! i-direction: case 1
+            ELSE                        ;   zhi(ji,jj) = gdept_0(ji+1,jj,iku)     ! -     -      case 2
             ENDIF
-            IF( ze3wv >= 0._wp ) THEN   ;   zhj(ji,jj) = gdept(ji,jj  ,ikv,Kmm)     ! j-direction: case 1
-            ELSE                        ;   zhj(ji,jj) = gdept(ji,jj+1,ikv,Kmm)     ! -     -      case 2
+            IF( ze3wv >= 0._wp ) THEN   ;   zhj(ji,jj) = gdept_0(ji,jj  ,ikv)     ! j-direction: case 1
+            ELSE                        ;   zhj(ji,jj) = gdept_0(ji,jj+1,ikv)     ! -     -      case 2
             ENDIF
          END_2D
          !
@@ -192,8 +188,8 @@ CONTAINS
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )              ! Gradient of density at the last level
             iku = mbku(ji,jj)
             ikv = mbkv(ji,jj)
-            ze3wu  = e3w(ji+1,jj  ,iku,Kmm) - e3w(ji,jj,iku,Kmm)
-            ze3wv  = e3w(ji  ,jj+1,ikv,Kmm) - e3w(ji,jj,ikv,Kmm)
+            ze3wu  = e3w_0(ji+1,jj  ,iku) - e3w_0(ji,jj,iku)
+            ze3wv  = e3w_0(ji  ,jj+1,ikv) - e3w_0(ji,jj,ikv)
             IF( ze3wu >= 0._wp ) THEN   ;   pgru(ji,jj) = umask(ji,jj,1) * ( zri(ji  ,jj    ) - prd(ji,jj,iku) )   ! i: 1
             ELSE                        ;   pgru(ji,jj) = umask(ji,jj,1) * ( prd(ji+1,jj,iku) - zri(ji,jj    ) )   ! i: 2
             ENDIF
@@ -210,11 +206,10 @@ CONTAINS
    END SUBROUTINE zps_hde_t
 
 
-   SUBROUTINE zps_hde_isf( kt, Kmm, kjpt, pta, pgtu, pgtv, pgtui, pgtvi,  &
-      &                                   prd, pgru, pgrv, pgrui, pgrvi )
+   SUBROUTINE zps_hde_isf( kt, kjpt, pta, pgtu, pgtv, pgtui, pgtvi,  &
+      &                              prd, pgru, pgrv, pgrui, pgrvi )
       !!
       INTEGER                     , INTENT(in   )           ::  kt           ! ocean time-step index
-      INTEGER                     , INTENT(in   )           ::  Kmm          ! ocean time level index
       INTEGER                     , INTENT(in   )           ::  kjpt         ! number of tracers
       REAL(wp), DIMENSION(:,:,:,:), INTENT(in   )           ::  pta          ! 4D tracers fields
       REAL(wp), DIMENSION(:,:,:)  , INTENT(  out)           ::  pgtu, pgtv   ! hor. grad. of ptra at u- & v-pts
@@ -229,13 +224,13 @@ CONTAINS
       IF( PRESENT(pgru)  ) THEN ; itgr  = is_tile(pgru)  ; ELSE ; itgr  = 0 ; ENDIF
       IF( PRESENT(pgrui) ) THEN ; itgri = is_tile(pgrui) ; ELSE ; itgri = 0 ; ENDIF
 
-      CALL zps_hde_isf_t( kt, Kmm, kjpt, pta, is_tile(pta), pgtu, pgtv, is_tile(pgtu), pgtui, pgtvi, is_tile(pgtui),  &
-      &                                  prd, itrd,         pgru, pgrv, itgr,          pgrui, pgrvi, itgri )
+      CALL zps_hde_isf_t( kt, kjpt, pta, is_tile(pta), pgtu, pgtv, is_tile(pgtu), pgtui, pgtvi, is_tile(pgtui),  &
+      &                             prd, itrd,         pgru, pgrv, itgr,          pgrui, pgrvi, itgri )
    END SUBROUTINE zps_hde_isf
 
 
-   SUBROUTINE zps_hde_isf_t( kt, Kmm, kjpt, pta, ktta, pgtu, pgtv, ktgt, pgtui, pgtvi, ktgti,  &
-      &                                     prd, ktrd, pgru, pgrv, ktgr, pgrui, pgrvi, ktgri )
+   SUBROUTINE zps_hde_isf_t( kt, kjpt, pta, ktta, pgtu, pgtv, ktgt, pgtui, pgtvi, ktgti,  &
+      &                                prd, ktrd, pgru, pgrv, ktgr, pgrui, pgrvi, ktgri )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE zps_hde_isf  ***
       !!
@@ -261,13 +256,13 @@ CONTAINS
       !!                  |   |____                ____|   |
       !!              ___ |   |   |           ___  |   |   |
       !!
-      !!      case 1->   e3w(i+1,j,k,Kmm) >= e3w(i,j,k,Kmm) ( and e3w(i,j+1,k,Kmm) >= e3w(i,j,k,Kmm) ) then
-      !!          t~ = t(i+1,j  ,k) + (e3w(i+1,j  ,k,Kmm) - e3w(i,j,k,Kmm)) * dk(Ti+1)/e3w(i+1,j  ,k,Kmm)
-      !!        ( t~ = t(i  ,j+1,k) + (e3w(i  ,j+1,k,Kmm) - e3w(i,j,k,Kmm)) * dk(Tj+1)/e3w(i  ,j+1,k,Kmm)  )
+      !!      case 1->   e3w_0(i+1,j,k) >= e3w_0(i,j,k) ( and e3w_0(i,j+1,k) >= e3w_0(i,j,k) ) then
+      !!          t~ = t(i+1,j  ,k) + (e3w_0(i+1,j  ,k) - e3w_0(i,j,k)) * dk(Ti+1)/e3w_0(i+1,j  ,k)
+      !!        ( t~ = t(i  ,j+1,k) + (e3w_0(i  ,j+1,k) - e3w_0(i,j,k)) * dk(Tj+1)/e3w_0(i  ,j+1,k)  )
       !!          or
-      !!      case 2->   e3w(i+1,j,k,Kmm) <= e3w(i,j,k,Kmm) ( and e3w(i,j+1,k,Kmm) <= e3w(i,j,k,Kmm) ) then
-      !!          t~ = t(i,j,k) + (e3w(i,j,k,Kmm) - e3w(i+1,j  ,k,Kmm)) * dk(Ti)/e3w(i,j,k,Kmm)
-      !!        ( t~ = t(i,j,k) + (e3w(i,j,k,Kmm) - e3w(i  ,j+1,k,Kmm)) * dk(Tj)/e3w(i,j,k,Kmm) )
+      !!      case 2->   e3w_0(i+1,j,k) <= e3w_0(i,j,k) ( and e3w_0(i,j+1,k) <= e3w_0(i,j,k) ) then
+      !!          t~ = t(i,j,k) + (e3w_0(i,j,k) - e3w_0(i+1,j  ,k)) * dk(Ti)/e3w_0(i,j,k)
+      !!        ( t~ = t(i,j,k) + (e3w_0(i,j,k) - e3w_0(i  ,j+1,k)) * dk(Tj)/e3w_0(i,j,k) )
       !!          Idem for di(s) and dj(s)
       !!
       !!      For rho, we call eos which will compute rd~(t~,s~) at the right
@@ -283,7 +278,6 @@ CONTAINS
       !!              - pgru, pgrv, pgrui, pgtvi: horizontal gradient of rho (if present) at u- & v-points
       !!----------------------------------------------------------------------
       INTEGER                                , INTENT(in   )           ::  kt           ! ocean time-step index
-      INTEGER                                , INTENT(in   )           ::  Kmm          ! ocean time level index
       INTEGER                                , INTENT(in   )           ::  kjpt         ! number of tracers
       INTEGER                                , INTENT(in   )           ::  ktta, ktgt, ktgti, ktrd, ktgr, ktgri
       REAL(wp), DIMENSION(A2D_T(ktta),JPK,KJPT), INTENT(in   )           ::  pta          ! 4D tracers fields
@@ -313,18 +307,18 @@ CONTAINS
 
             iku = mbku(ji,jj); ikum1 = MAX( iku - 1 , 1 )    ! last and before last ocean level at u- & v-points
             ikv = mbkv(ji,jj); ikvm1 = MAX( ikv - 1 , 1 )    ! if level first is a p-step, ik.m1=1
-            ze3wu = gdept(ji+1,jj,iku,Kmm) - gdept(ji,jj,iku,Kmm)
-            ze3wv = gdept(ji,jj+1,ikv,Kmm) - gdept(ji,jj,ikv,Kmm)
+            ze3wu = gdept_0(ji+1,jj,iku) - gdept_0(ji,jj,iku)
+            ze3wv = gdept_0(ji,jj+1,ikv) - gdept_0(ji,jj,ikv)
             !
             ! i- direction
             IF( ze3wu >= 0._wp ) THEN      ! case 1
-               zmaxu =  ze3wu / e3w(ji+1,jj,iku,Kmm)
+               zmaxu =  ze3wu / e3w_0(ji+1,jj,iku)
                ! interpolated values of tracers
                zti (ji,jj,jn) = pta(ji+1,jj,iku,jn) + zmaxu * ( pta(ji+1,jj,ikum1,jn) - pta(ji+1,jj,iku,jn) )
                ! gradient of  tracers
                pgtu(ji,jj,jn) = ssumask(ji,jj) * ( zti(ji,jj,jn) - pta(ji,jj,iku,jn) )
             ELSE                           ! case 2
-               zmaxu = -ze3wu / e3w(ji,jj,iku,Kmm)
+               zmaxu = -ze3wu / e3w_0(ji,jj,iku)
                ! interpolated values of tracers
                zti (ji,jj,jn) = pta(ji,jj,iku,jn) + zmaxu * ( pta(ji,jj,ikum1,jn) - pta(ji,jj,iku,jn) )
                ! gradient of tracers
@@ -333,13 +327,13 @@ CONTAINS
             !
             ! j- direction
             IF( ze3wv >= 0._wp ) THEN      ! case 1
-               zmaxv =  ze3wv / e3w(ji,jj+1,ikv,Kmm)
+               zmaxv =  ze3wv / e3w_0(ji,jj+1,ikv)
                ! interpolated values of tracers
                ztj (ji,jj,jn) = pta(ji,jj+1,ikv,jn) + zmaxv * ( pta(ji,jj+1,ikvm1,jn) - pta(ji,jj+1,ikv,jn) )
                ! gradient of tracers
                pgtv(ji,jj,jn) = ssvmask(ji,jj) * ( ztj(ji,jj,jn) - pta(ji,jj,ikv,jn) )
             ELSE                           ! case 2
-               zmaxv =  -ze3wv / e3w(ji,jj,ikv,Kmm)
+               zmaxv =  -ze3wv / e3w_0(ji,jj,ikv)
                ! interpolated values of tracers
                ztj (ji,jj,jn) = pta(ji,jj,ikv,jn) + zmaxv * ( pta(ji,jj,ikvm1,jn) - pta(ji,jj,ikv,jn) )
                ! gradient of tracers
@@ -359,14 +353,14 @@ CONTAINS
 
             iku = mbku(ji,jj)
             ikv = mbkv(ji,jj)
-            ze3wu = gdept(ji+1,jj,iku,Kmm) - gdept(ji,jj,iku,Kmm)
-            ze3wv = gdept(ji,jj+1,ikv,Kmm) - gdept(ji,jj,ikv,Kmm)
+            ze3wu = gdept_0(ji+1,jj,iku) - gdept_0(ji,jj,iku)
+            ze3wv = gdept_0(ji,jj+1,ikv) - gdept_0(ji,jj,ikv)
             !
-            IF( ze3wu >= 0._wp ) THEN   ;   zhi(ji,jj) = gdept(ji  ,jj,iku,Kmm)    ! i-direction: case 1
-            ELSE                        ;   zhi(ji,jj) = gdept(ji+1,jj,iku,Kmm)    ! -     -      case 2
+            IF( ze3wu >= 0._wp ) THEN   ;   zhi(ji,jj) = gdept_0(ji  ,jj,iku)    ! i-direction: case 1
+            ELSE                        ;   zhi(ji,jj) = gdept_0(ji+1,jj,iku)    ! -     -      case 2
             ENDIF
-            IF( ze3wv >= 0._wp ) THEN   ;   zhj(ji,jj) = gdept(ji,jj  ,ikv,Kmm)    ! j-direction: case 1
-            ELSE                        ;   zhj(ji,jj) = gdept(ji,jj+1,ikv,Kmm)    ! -     -      case 2
+            IF( ze3wv >= 0._wp ) THEN   ;   zhj(ji,jj) = gdept_0(ji,jj  ,ikv)    ! j-direction: case 1
+            ELSE                        ;   zhj(ji,jj) = gdept_0(ji,jj+1,ikv)    ! -     -      case 2
             ENDIF
 
          END_2D
@@ -379,8 +373,8 @@ CONTAINS
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             iku = mbku(ji,jj)
             ikv = mbkv(ji,jj)
-            ze3wu = gdept(ji+1,jj,iku,Kmm) - gdept(ji,jj,iku,Kmm)
-            ze3wv = gdept(ji,jj+1,ikv,Kmm) - gdept(ji,jj,ikv,Kmm)
+            ze3wu = gdept_0(ji+1,jj,iku) - gdept_0(ji,jj,iku)
+            ze3wv = gdept_0(ji,jj+1,ikv) - gdept_0(ji,jj,ikv)
 
             IF( ze3wu >= 0._wp ) THEN   ;   pgru(ji,jj) = ssumask(ji,jj) * ( zri(ji  ,jj    ) - prd(ji,jj,iku) )   ! i: 1
             ELSE                        ;   pgru(ji,jj) = ssumask(ji,jj) * ( prd(ji+1,jj,iku) - zri(ji,jj    ) )   ! i: 2
@@ -404,20 +398,20 @@ CONTAINS
             !
             ! (ISF) case partial step top and bottom in adjacent cell in vertical
             ! cannot used e3w because if 2 cell water column, we have ps at top and bottom
-            ! in this case e3w(i,j,k,Kmm) - e3w(i,j+1,k,Kmm) is not the distance between Tj~ and Tj
+            ! in this case e3w_0(i,j,k) - e3w_0(i,j+1,k) is not the distance between Tj~ and Tj
             ! the only common depth between cells (i,j) and (i,j+1) is gdepw_0
-            ze3wu  =  gdept(ji,jj,iku,Kmm) - gdept(ji+1,jj,iku,Kmm)
-            ze3wv  =  gdept(ji,jj,ikv,Kmm) - gdept(ji,jj+1,ikv,Kmm)
+            ze3wu  =  gdept_0(ji,jj,iku) - gdept_0(ji+1,jj,iku)
+            ze3wv  =  gdept_0(ji,jj,ikv) - gdept_0(ji,jj+1,ikv)
 
             ! i- direction
             IF( ze3wu >= 0._wp ) THEN      ! case 1
-               zmaxu = ze3wu / e3w(ji+1,jj,ikup1,Kmm)
+               zmaxu = ze3wu / e3w_0(ji+1,jj,ikup1)
                ! interpolated values of tracers
                zti(ji,jj,jn) = pta(ji+1,jj,iku,jn) + zmaxu * ( pta(ji+1,jj,ikup1,jn) - pta(ji+1,jj,iku,jn) )
                ! gradient of tracers
                pgtui(ji,jj,jn) = ssumask(ji,jj) * ( zti(ji,jj,jn) - pta(ji,jj,iku,jn) )
             ELSE                           ! case 2
-               zmaxu = - ze3wu / e3w(ji,jj,ikup1,Kmm)
+               zmaxu = - ze3wu / e3w_0(ji,jj,ikup1)
                ! interpolated values of tracers
                zti(ji,jj,jn) = pta(ji,jj,iku,jn) + zmaxu * ( pta(ji,jj,ikup1,jn) - pta(ji,jj,iku,jn) )
                ! gradient of  tracers
@@ -426,13 +420,13 @@ CONTAINS
             !
             ! j- direction
             IF( ze3wv >= 0._wp ) THEN      ! case 1
-               zmaxv =  ze3wv / e3w(ji,jj+1,ikvp1,Kmm)
+               zmaxv =  ze3wv / e3w_0(ji,jj+1,ikvp1)
                ! interpolated values of tracers
                ztj(ji,jj,jn) = pta(ji,jj+1,ikv,jn) + zmaxv * ( pta(ji,jj+1,ikvp1,jn) - pta(ji,jj+1,ikv,jn) )
                ! gradient of tracers
                pgtvi(ji,jj,jn) = ssvmask(ji,jj) * ( ztj(ji,jj,jn) - pta(ji,jj,ikv,jn) )
             ELSE                           ! case 2
-               zmaxv =  - ze3wv / e3w(ji,jj,ikvp1,Kmm)
+               zmaxv =  - ze3wv / e3w_0(ji,jj,ikvp1)
                ! interpolated values of tracers
                ztj(ji,jj,jn) = pta(ji,jj,ikv,jn) + zmaxv * ( pta(ji,jj,ikvp1,jn) - pta(ji,jj,ikv,jn) )
                ! gradient of tracers
@@ -451,15 +445,15 @@ CONTAINS
 
             iku = miku(ji,jj)
             ikv = mikv(ji,jj)
-            ze3wu  =  gdept(ji,jj,iku,Kmm) - gdept(ji+1,jj,iku,Kmm)
-            ze3wv  =  gdept(ji,jj,ikv,Kmm) - gdept(ji,jj+1,ikv,Kmm)
+            ze3wu  =  gdept_0(ji,jj,iku) - gdept_0(ji+1,jj,iku)
+            ze3wv  =  gdept_0(ji,jj,ikv) - gdept_0(ji,jj+1,ikv)
             !
-            IF( ze3wu >= 0._wp ) THEN   ;   zhi(ji,jj) = gdept(ji  ,jj,iku,Kmm)    ! i-direction: case 1
-            ELSE                        ;   zhi(ji,jj) = gdept(ji+1,jj,iku,Kmm)    ! -     -      case 2
+            IF( ze3wu >= 0._wp ) THEN   ;   zhi(ji,jj) = gdept_0(ji  ,jj,iku)    ! i-direction: case 1
+            ELSE                        ;   zhi(ji,jj) = gdept_0(ji+1,jj,iku)    ! -     -      case 2
             ENDIF
 
-            IF( ze3wv >= 0._wp ) THEN   ;   zhj(ji,jj) = gdept(ji,jj  ,ikv,Kmm)    ! j-direction: case 1
-            ELSE                        ;   zhj(ji,jj) = gdept(ji,jj+1,ikv,Kmm)    ! -     -      case 2
+            IF( ze3wv >= 0._wp ) THEN   ;   zhj(ji,jj) = gdept_0(ji,jj  ,ikv)    ! j-direction: case 1
+            ELSE                        ;   zhj(ji,jj) = gdept_0(ji,jj+1,ikv)    ! -     -      case 2
             ENDIF
 
          END_2D
@@ -470,8 +464,8 @@ CONTAINS
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             iku = miku(ji,jj)
             ikv = mikv(ji,jj)
-            ze3wu  =  gdept(ji,jj,iku,Kmm) - gdept(ji+1,jj,iku,Kmm)
-            ze3wv  =  gdept(ji,jj,ikv,Kmm) - gdept(ji,jj+1,ikv,Kmm)
+            ze3wu  =  gdept_0(ji,jj,iku) - gdept_0(ji+1,jj,iku)
+            ze3wv  =  gdept_0(ji,jj,ikv) - gdept_0(ji,jj+1,ikv)
 
             IF( ze3wu >= 0._wp ) THEN ; pgrui(ji,jj) = ssumask(ji,jj) * ( zri(ji  ,jj      ) - prd(ji,jj,iku) ) ! i: 1
             ELSE                      ; pgrui(ji,jj) = ssumask(ji,jj) * ( prd(ji+1,jj  ,iku) - zri(ji,jj    ) ) ! i: 2

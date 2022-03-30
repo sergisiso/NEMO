@@ -1308,7 +1308,7 @@ CONTAINS
       IF(sn_cfctl%l_prtctl) THEN
          ALLOCATE(zmsk(jpi,jpj,jpl))
          DO jl = 1, jpl
-            zmsk(:,:,jpl) = tmask(:,:,1)
+            zmsk(:,:,jl) = tmask(:,:,1)
          END DO
          CALL prt_ctl(tab3d_1=qla_ice , clinfo1=' blk_ice: qla_ice  : ', mask1=zmsk,   &
             &         tab3d_2=z_qsb   , clinfo2=' z_qsb    : '         , mask2=zmsk, kdim=jpl)
