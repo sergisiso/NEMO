@@ -751,7 +751,7 @@ CONTAINS
       ! =============
       clname   = trim(cdname)
       IF ( .NOT. Agrif_Root() .AND. .NOT. lliof ) THEN
-         iln    = INDEX(clname,'/')
+         iln    = INDEX(clname,'/', BACK=.TRUE.)
          cltmpn = clname(1:iln)
          clname = clname(iln+1:LEN_TRIM(clname))
          clname=TRIM(cltmpn)//TRIM(Agrif_CFixed())//'_'//TRIM(clname)
