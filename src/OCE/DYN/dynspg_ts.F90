@@ -69,8 +69,6 @@ MODULE dynspg_ts
    PUBLIC dyn_spg_ts_init   !    -    - dyn_spg_init
    PUBLIC dyn_drg_init      ! called by stp2d
 
-   !! Time filtered arrays at baroclinic time step:
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   un_adv , vn_adv   !: Advection vel. at "now" barocl. step
    !
    INTEGER, SAVE :: icycle      ! Number of barotropic sub-steps for each internal step nn_e <= 2.5 nn_e
    REAL(wp),SAVE :: rDt_e       ! Barotropic time step
@@ -103,7 +101,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                  ***  routine dyn_spg_ts_alloc  ***
       !!----------------------------------------------------------------------
-      INTEGER :: ierr(3)
+      INTEGER :: ierr(2)
       !!----------------------------------------------------------------------
       ierr(:) = 0
       !
@@ -111,7 +109,6 @@ CONTAINS
       IF( ln_dynvor_een .OR. ln_dynvor_eeT )   &
          &     ALLOCATE( ftnw(jpi,jpj) , ftne(jpi,jpj) , ftsw(jpi,jpj) , ftse(jpi,jpj), STAT=ierr(2)   )
          !
-      ALLOCATE( un_adv(jpi,jpj), vn_adv(jpi,jpj)                    , STAT=ierr(3) )
       !
       dyn_spg_ts_alloc = MAXVAL( ierr(:) )
       !
@@ -929,30 +926,29 @@ CONTAINS
 
       !
 #if defined key_agrif
-# if defined key_RK3
-      ! advective transport from N to N+1 (i.e. Kbb to Kaa) 
-      ub2_b(:,:) = un_adv(:,:)      ! Save integrated transport for AGRIF
-      vb2_b(:,:) = vn_adv(:,:)
-# endif
       !
       ! Save time integrated fluxes during child grid integration
       ! (used to update coarse grid transports at next time step)
       !
-      IF( .NOT.Agrif_Root() .AND. ln_bt_fw .AND. ln_agrif_2way ) THEN
+      IF( .NOT.Agrif_Root() .AND. ln_agrif_2way ) THEN
          IF( Agrif_NbStepint() == 0 ) THEN
             ub2_i_b(:,:) = 0._wp
             vb2_i_b(:,:) = 0._wp
          END IF
          !
          za1 = 1._wp / REAL(Agrif_rhot(), wp)
+# if defined key_RK3
+         ub2_i_b(:,:) = ub2_i_b(:,:) + za1 * un_adv(:,:)
+         vb2_i_b(:,:) = vb2_i_b(:,:) + za1 * vn_adv(:,:)
+# else
          ub2_i_b(:,:) = ub2_i_b(:,:) + za1 * ub2_b(:,:)
          vb2_i_b(:,:) = vb2_i_b(:,:) + za1 * vb2_b(:,:)
+
+# endif
       ENDIF
 #endif
-#if ! defined key_RK3
-      !                                   !* MLF: write time-spliting arrays in the restart
-      IF( lrst_oce .AND.ln_bt_fw )   CALL ts_rst_MLF( kt, 'WRITE' )
-#endif
+      !                                   !: write time-spliting arrays in the restart
+      IF( lrst_oce )   CALL ts_rst( kt, 'WRITE' )
       !
       IF( ln_wd_il )   DEALLOCATE( zcpx, zcpy )
       IF( ln_wd_dl )   DEALLOCATE( ztwdmask, zuwdmask, zvwdmask, zuwdav2, zvwdav2 )
@@ -1041,9 +1037,9 @@ CONTAINS
    END SUBROUTINE ts_wgt
 
 
-   SUBROUTINE ts_rst_MLF( kt, cdrw )
+   SUBROUTINE ts_rst( kt, cdrw )
       !!---------------------------------------------------------------------
-      !!                   ***  ROUTINE ts_rst_MLF  ***
+      !!                   ***  ROUTINE ts_rst  ***
       !!
       !! ** Purpose : Read or write time-splitting arrays in restart file
       !!----------------------------------------------------------------------
@@ -1053,11 +1049,15 @@ CONTAINS
       !
       IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise 
          !                                   ! ---------------
-         IF( ln_rstart .AND. ln_bt_fw .AND. .NOT.l_1st_euler ) THEN    !* Read the restart file
-            CALL iom_get( numror, jpdom_auto, 'ub2_b'  , ub2_b  (:,:), cd_type = 'U', psgn = -1._wp )   
-            CALL iom_get( numror, jpdom_auto, 'vb2_b'  , vb2_b  (:,:), cd_type = 'V', psgn = -1._wp ) 
-            CALL iom_get( numror, jpdom_auto, 'un_bf'  , un_bf  (:,:), cd_type = 'U', psgn = -1._wp )   
-            CALL iom_get( numror, jpdom_auto, 'vn_bf'  , vn_bf  (:,:), cd_type = 'V', psgn = -1._wp ) 
+         IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN    !* Read the restart file
+# if ! defined key_RK3
+            IF ( ln_bt_fw ) THEN
+               CALL iom_get( numror, jpdom_auto, 'ub2_b'  , ub2_b  (:,:), cd_type = 'U', psgn = -1._wp )   
+               CALL iom_get( numror, jpdom_auto, 'vb2_b'  , vb2_b  (:,:), cd_type = 'V', psgn = -1._wp ) 
+               CALL iom_get( numror, jpdom_auto, 'un_bf'  , un_bf  (:,:), cd_type = 'U', psgn = -1._wp )   
+               CALL iom_get( numror, jpdom_auto, 'vn_bf'  , vn_bf  (:,:), cd_type = 'V', psgn = -1._wp ) 
+            ENDIF
+# endif
             IF( .NOT.ln_bt_av ) THEN
                CALL iom_get( numror, jpdom_auto, 'sshbb_e'  , sshbb_e(:,:), cd_type = 'T', psgn =  1._wp )   
                CALL iom_get( numror, jpdom_auto, 'ubb_e'    ,   ubb_e(:,:), cd_type = 'U', psgn = -1._wp )   
@@ -1074,15 +1074,21 @@ CONTAINS
             ELSE
                ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
             ENDIF
+# if defined key_RK3
+            CALL iom_get( numror, jpdom_auto, 'un_adv'      ,  un_adv(:,:), cd_type = 'U', psgn = -1._wp )   
+            CALL iom_get( numror, jpdom_auto, 'vn_adv'      ,  vn_adv(:,:), cd_type = 'V', psgn = -1._wp )
+# endif
 #endif
          ELSE
             !                      !* Start from rest or use RK3 time-step
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '   ==>>>   start from rest: set barotropic values to 0'
+# if ! defined key_RK3
             ub2_b  (:,:) = 0._wp   ;   vb2_b  (:,:) = 0._wp   ! used in the 1st interpol of agrif
-            un_adv (:,:) = 0._wp   ;   vn_adv (:,:) = 0._wp   ! used in the 1st interpol of agrif
             un_bf  (:,:) = 0._wp   ;   vn_bf  (:,:) = 0._wp   ! used in the 1st update   of agrif
-
+#else
+            un_adv (:,:) = 0._wp   ;   vn_adv (:,:) = 0._wp   ! used in the 1st interpol of agrif
+#endif
 #if defined key_agrif
             ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
 #endif
@@ -1090,11 +1096,15 @@ CONTAINS
          !
       ELSEIF( TRIM(cdrw) == 'WRITE' ) THEN   ! Create restart file
          !                                   ! -------------------
-         IF(lwp) WRITE(numout,*) '---- ts_rst_MLF ----'
-         CALL iom_rstput( kt, nitrst, numrow, 'ub2_b'   , ub2_b  (:,:) )
-         CALL iom_rstput( kt, nitrst, numrow, 'vb2_b'   , vb2_b  (:,:) )
-         CALL iom_rstput( kt, nitrst, numrow, 'un_bf'   , un_bf  (:,:) )
-         CALL iom_rstput( kt, nitrst, numrow, 'vn_bf'   , vn_bf  (:,:) )
+         IF(lwp) WRITE(numout,*) '---- ts_rst ----'
+# if ! defined key_RK3
+         IF ( ln_bt_fw ) THEN
+            CALL iom_rstput( kt, nitrst, numrow, 'ub2_b'   , ub2_b  (:,:) )
+            CALL iom_rstput( kt, nitrst, numrow, 'vb2_b'   , vb2_b  (:,:) )
+            CALL iom_rstput( kt, nitrst, numrow, 'un_bf'   , un_bf  (:,:) )
+            CALL iom_rstput( kt, nitrst, numrow, 'vn_bf'   , vn_bf  (:,:) )
+         ENDIF
+# endif
          !
          IF (.NOT.ln_bt_av) THEN
             CALL iom_rstput( kt, nitrst, numrow, 'sshbb_e'  , sshbb_e(:,:) ) 
@@ -1110,10 +1120,14 @@ CONTAINS
             CALL iom_rstput( kt, nitrst, numrow, 'ub2_i_b'  , ub2_i_b(:,:) )
             CALL iom_rstput( kt, nitrst, numrow, 'vb2_i_b'  , vb2_i_b(:,:) )
          ENDIF
+# if defined key_RK3
+         CALL iom_rstput( kt, nitrst, numrow, 'un_adv'      ,  un_adv(:,:) )
+         CALL iom_rstput( kt, nitrst, numrow, 'vn_adv'      ,  vn_adv(:,:) )
+# endif
 #endif
       ENDIF
       !
-   END SUBROUTINE ts_rst_MLF
+   END SUBROUTINE ts_rst
 
 
    SUBROUTINE dyn_spg_ts_init
@@ -1160,11 +1174,16 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '     ln_bt_av =.false. => No time averaging of barotropic variables '
       ENDIF
       !
+# if !  defined key_RK3
       IF(ln_bt_fw) THEN
          IF(lwp) WRITE(numout,*) '     ln_bt_fw=.true.  => Forward integration of barotropic variables '
       ELSE
          IF(lwp) WRITE(numout,*) '     ln_bt_fw =.false.=> Centred integration of barotropic variables '
       ENDIF
+# else
+      ! Enforce ln_bt_fw = T with RK3
+      ln_bt_fw = .true.
+# endif
       !
 #if defined key_agrif
       ! Restrict the use of Agrif to the forward case only
@@ -1199,11 +1218,8 @@ CONTAINS
       !                             ! Allocate time-splitting arrays
       IF( dyn_spg_ts_alloc() /= 0    )   CALL ctl_stop('STOP', 'dyn_spg_init: failed to allocate dynspg_ts  arrays' )
       !
-#if ! defined key_RK3
-      !                      !* MLF: restart/initialise
-      !
-      CALL ts_rst_MLF( nit000, 'READ' )
-#endif
+      !                      !: restart/initialise
+      CALL ts_rst( nit000, 'READ' )
       !
    END SUBROUTINE dyn_spg_ts_init
 

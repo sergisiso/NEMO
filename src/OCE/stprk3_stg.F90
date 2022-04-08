@@ -19,7 +19,6 @@ MODULE stprk3_stg
    !!----------------------------------------------------------------------
    USE step_oce       ! time stepping used modules
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
-   USE dynspg_ts, ONLY:   un_adv , vn_adv   ! advective transport from N to N+1
    USE bdydyn         ! ocean open boundary conditions (define bdy_dyn)
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
 # if defined key_top

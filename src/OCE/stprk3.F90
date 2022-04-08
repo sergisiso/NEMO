@@ -21,7 +21,6 @@ MODULE stprk3
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
    USE stprk3_stg     ! RK3 stages
    USE stp2d          ! external mode solver
-   USE dynspg_ts, ONLY: un_adv, vn_adv   ! updated Kmm barotropic transport
    USE trd_oce        ! trends: ocean variables
    USE diaptr
    USE ldftra
@@ -311,7 +310,6 @@ CONTAINS
       !! ** Action :   puu(Kmm),pvv(Kmm)   updated now horizontal velocity (ln_bt_fw=F)
       !!               puu(Kaa),pvv(Kaa)   after horizontal velocity
       !!----------------------------------------------------------------------
-      USE dynspg_ts, ONLY : un_adv, vn_adv   ! updated Kmm barotropic transport 
       !!
       INTEGER                             , INTENT(in   ) ::   Kmm, Kaa   ! before and after time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::   puu, pvv   ! velocities

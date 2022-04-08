@@ -28,7 +28,6 @@ MODULE agrif_oce_interp
    USE zdf_oce
    USE agrif_oce
    USE phycst
-!!!   USE dynspg_ts, ONLY: un_adv, vn_adv
    !
    USE in_out_manager
    USE agrif_oce_sponge
@@ -1441,10 +1440,11 @@ CONTAINS
       !!----------------------------------------------------------------------  
       IF( before ) THEN
 !         IF ( ln_bt_fw ) THEN
+# if defined key_RK3
+            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2)
+# else
             ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * ub2_b(i1:i2,j1:j2)
-!         ELSE
-!            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2)
-!         ENDIF
+# endif
       ELSE
          zrhot = Agrif_rhot()
          ! Time indexes bounds for integration
@@ -1473,12 +1473,13 @@ CONTAINS
       REAL(wp) :: zrhoy
       !!----------------------------------------------------------------------  
       IF( before ) THEN
-!         IF ( ln_bt_fw ) THEN
+# if defined key_RK3
+            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2) &
+                                * umask(i1:i2,j1:j2,1)
+# else
             ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * ub2_b(i1:i2,j1:j2) &
                                 * umask(i1:i2,j1:j2,1)
-!         ELSE
-!            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2)
-!         ENDIF
+# endif
       ELSE
          zrhoy = Agrif_Rhoy()
          !
@@ -1508,12 +1509,21 @@ CONTAINS
          jmin = MAX(j1, 2) ; jmax = MIN(j2, jpj-1)
          DO ji=imin,imax
             DO jj=jmin,jmax
+# if defined key_RK3
+               ptab(ji,jj) = 0.25_wp *(vmask(ji,jj  ,1)                        & 
+                           &       * ( vn_adv(ji+1,jj  )*e1v(ji+1,jj  )        & 
+                           &          -vn_adv(ji-1,jj  )*e1v(ji-1,jj  ) )      &
+                           &          -vmask(ji,jj-1,1)                        & 
+                           &       * ( vn_adv(ji+1,jj-1)*e1v(ji+1,jj-1)        &
+                           &          -vn_adv(ji-1,jj-1)*e1v(ji-1,jj-1) ) )      
+# else
                ptab(ji,jj) = 0.25_wp *(vmask(ji,jj  ,1)                        & 
                            &       * ( vb2_b(ji+1,jj  )*e1v(ji+1,jj  )         & 
                            &          -vb2_b(ji-1,jj  )*e1v(ji-1,jj  ) )       &
                            &          -vmask(ji,jj-1,1)                        & 
                            &       * ( vb2_b(ji+1,jj-1)*e1v(ji+1,jj-1)         &
                            &          -vb2_b(ji-1,jj-1)*e1v(ji-1,jj-1) ) )      
+# endif
             END DO
          END DO 
       ELSE
@@ -1549,11 +1559,11 @@ CONTAINS
       !!----------------------------------------------------------------------  
       !
       IF( before ) THEN
-!         IF ( ln_bt_fw ) THEN
+# if defined key_RK3
+            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2)
+# else
             ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vb2_b(i1:i2,j1:j2)
-!         ELSE
-!            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2)
-!         ENDIF
+# endif
       ELSE      
          zrhot = Agrif_rhot()
          ! Time indexes bounds for integration
@@ -1583,12 +1593,13 @@ CONTAINS
       REAL(wp) :: zrhox
       !!----------------------------------------------------------------------  
       IF( before ) THEN
-!         IF ( ln_bt_fw ) THEN
+# if defined key_RK3
+            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2) &
+                                * vmask(i1:i2,j1:j2,1)
+# else
             ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vb2_b(i1:i2,j1:j2) &
                                 * vmask(i1:i2,j1:j2,1)
-!         ELSE
-!            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2)
-!         ENDIF
+# endif
       ELSE
          zrhox = Agrif_Rhox()
          !
@@ -1618,12 +1629,21 @@ CONTAINS
          jmin = MAX(j1, 2) ; jmax = MIN(j2, jpj-1)
          DO ji=imin,imax
             DO jj=jmin,jmax
+# if defined key_RK3
+               ptab(ji,jj) = 0.25_wp *(umask(ji  ,jj,1)                      & 
+                           &       * ( un_adv(ji  ,jj+1)*e2u(ji  ,jj+1)      & 
+                           &          -un_adv(ji  ,jj-1)*e2u(ji  ,jj-1) )    &
+                           &          -umask(ji-1,jj,1)                      & 
+                           &       * ( un_adv(ji-1,jj+1)*e2u(ji-1,jj+1)      &
+                           &          -un_adv(ji-1,jj-1)*e2u(ji-1,jj-1) ) )   
+# else
                ptab(ji,jj) = 0.25_wp *(umask(ji  ,jj,1)                      & 
                            &       * ( ub2_b(ji  ,jj+1)*e2u(ji  ,jj+1)       & 
                            &          -ub2_b(ji  ,jj-1)*e2u(ji  ,jj-1) )     &
                            &          -umask(ji-1,jj,1)                      & 
                            &       * ( ub2_b(ji-1,jj+1)*e2u(ji-1,jj+1)       &
                            &          -ub2_b(ji-1,jj-1)*e2u(ji-1,jj-1) ) )   
+# endif
             END DO
          END DO 
       ELSE

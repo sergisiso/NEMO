@@ -96,9 +96,9 @@ CONTAINS
       CALL Agrif_Update_Variable(vnb_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updateV2d)  
 # endif
       ! 
-#if ! defined key_RK3
       IF ( ln_dynspg_ts .AND. ln_bt_fw ) THEN
          ! Update time integrated transports
+#  if ! defined key_RK3
 #  if ! defined DECAL_FEEDBACK_2D
          CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updateub2b)
          CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updatevb2b)
@@ -106,12 +106,12 @@ CONTAINS
          CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/),procname = updateub2b)
          CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updatevb2b)
 #  endif
+#  endif
          IF (lk_agrif_fstep) THEN
             CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc-1,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc  ,-2/),procname = updateumsk)
             CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc  ,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc-1,-2/),procname = updatevmsk)
          ENDIF
       END IF
-#endif
 
 # if ! defined DECAL_FEEDBACK
       CALL Agrif_Update_Variable(un_update_id,procname = updateU)
@@ -989,7 +989,7 @@ CONTAINS
       !
    END SUBROUTINE updatevmsk
 
-
+# if ! defined key_RK3
    SUBROUTINE updateub2b( tabres, i1, i2, j1, j2, before )
       !!----------------------------------------------------------------------
       !!                      *** ROUTINE updateub2b ***
@@ -1025,6 +1025,7 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE updateub2b
+# endif
 
    SUBROUTINE reflux_sshu( tabres, i1, i2, j1, j2, before, nb, ndir )
       !!---------------------------------------------
@@ -1053,7 +1054,11 @@ CONTAINS
          !
          IF (western_side) THEN
             DO jj=j1,j2
+# if defined key_RK3
+               zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (un_adv(i1,jj)-tabres(i1,jj)) 
+# else
                zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (ub2_b(i1,jj)-tabres(i1,jj)) 
+# endif
                ssh(i1  ,jj,Kmm_a) = ssh(i1  ,jj,Kmm_a) + zcor
 #if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i1  ,jj,Kbb_a) = ssh(i1  ,jj,Kbb_a) + rn_atfp * zcor
@@ -1062,7 +1067,11 @@ CONTAINS
          ENDIF
          IF (eastern_side) THEN
             DO jj=j1,j2
+# if defined key_RK3
+               zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (un_adv(i2,jj)-tabres(i2,jj))
+# else
                zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (ub2_b(i2,jj)-tabres(i2,jj))
+# endif
                ssh(i2+1,jj,Kmm_a) = ssh(i2+1,jj,Kmm_a) + zcor
 #if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i2+1,jj,Kbb_a) = ssh(i2+1,jj,Kbb_a) + rn_atfp * zcor
@@ -1074,6 +1083,7 @@ CONTAINS
       !
    END SUBROUTINE reflux_sshu
 
+# if ! defined key_RK3
    SUBROUTINE updatevb2b( tabres, i1, i2, j1, j2, before )
       !!----------------------------------------------------------------------
       !!                      *** ROUTINE updatevb2b ***
@@ -1109,6 +1119,7 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE updatevb2b
+# endif
 
    SUBROUTINE reflux_sshv( tabres, i1, i2, j1, j2, before, nb, ndir )
       !!---------------------------------------------
@@ -1137,7 +1148,11 @@ CONTAINS
          !
          IF (southern_side) THEN
             DO ji=i1,i2
+# if defined key_RK3
+               zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vn_adv(ji,j1)-tabres(ji,j1))
+# else
                zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vb2_b(ji,j1)-tabres(ji,j1))
+# endif
                ssh(ji,j1  ,Kmm_a) = ssh(ji,j1  ,Kmm_a) + zcor
 #if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j1  ,Kbb_a) = ssh(ji,j1,Kbb_a) + rn_atfp * zcor
@@ -1146,7 +1161,11 @@ CONTAINS
          ENDIF
          IF (northern_side) THEN               
             DO ji=i1,i2
+# if defined key_RK3
+               zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vn_adv(ji,j2)-tabres(ji,j2))
+# else
                zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vb2_b(ji,j2)-tabres(ji,j2))
+# endif
                ssh(ji,j2+1,Kmm_a) = ssh(ji,j2+1,Kmm_a) + zcor
 #if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j2+1,Kbb_a) = ssh(ji,j2+1,Kbb_a) + rn_atfp * zcor

@@ -45,10 +45,13 @@ MODULE oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::                              hv_e   !: external v-depth
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::                              hur_e  !: inverse of u-depth
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::                              hvr_e  !: inverse of v-depth
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   un_adv, vn_adv                    !: Advective barotropic fluxes 
+#if ! defined key_RK3
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_b  , vb2_b           !: Half step fluxes (ln_bt_fw=T)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   un_bf  , vn_bf           !: Asselin filtered half step fluxes (ln_bt_fw=T)
+#endif
 #if defined key_agrif
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_i_b, vb2_i_b         !: Half step time integrated fluxes 
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_i_b, vb2_i_b         !: agrif time integrated fluxes 
 #endif
 
    !! interpolated gradient (only used in zps case)
@@ -115,23 +118,18 @@ CONTAINS
       ALLOCATE( ssha_e(jpi,jpj),  sshn_e(jpi,jpj), sshb_e(jpi,jpj), sshbb_e(jpi,jpj), &
          &        ua_e(jpi,jpj),    un_e(jpi,jpj),   ub_e(jpi,jpj),   ubb_e(jpi,jpj), &
          &        va_e(jpi,jpj),    vn_e(jpi,jpj),   vb_e(jpi,jpj),   vbb_e(jpi,jpj), &
-         &        hu_e(jpi,jpj),   hur_e(jpi,jpj),   hv_e(jpi,jpj),   hvr_e(jpi,jpj), STAT=ierr(ii) )
+         &        hu_e(jpi,jpj),   hur_e(jpi,jpj),   hv_e(jpi,jpj),   hvr_e(jpi,jpj), & 
+         &      un_adv(jpi,jpj),  vn_adv(jpi,jpj)                                   , STAT=ierr(ii) )
          !
-#if defined key_RK3
-# if defined key_agrif
-      ii = ii+1                             ! RK3+AGRIF: ???
-      ALLOCATE( ub2_b(jpi,jpj), vb2_b(jpi,jpj)                                      , STAT=ierr(ii) )
-# endif
-#else
+#if ! defined key_RK3
       ii = ii+1                             ! MLF: arrays related to Asselin filter + ???
       ALLOCATE( un_bf(jpi,jpj), vn_bf(jpi,jpj), ub2_b(jpi,jpj), vb2_b(jpi,jpj)      , STAT=ierr(ii) )
 #endif
-
 #if defined key_agrif
       ii = ii+1                             ! AGRIF: ???
       ALLOCATE( ub2_i_b(jpi,jpj), vb2_i_b(jpi,jpj)                                  , STAT=ierr(ii) )
 #endif
-         !
+      !
       oce_alloc = MAXVAL( ierr )
       IF( oce_alloc /= 0 )   CALL ctl_stop( 'STOP', 'oce_alloc: failed to allocate arrays' )
       !

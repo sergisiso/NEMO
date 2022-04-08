@@ -479,7 +479,6 @@ CONTAINS
       !! ** Action :   puu(Kmm),pvv(Kmm)   updated now horizontal velocity (ln_bt_fw=F)
       !!               puu(Kaa),pvv(Kaa)   after horizontal velocity
       !!----------------------------------------------------------------------
-      USE dynspg_ts, ONLY : un_adv, vn_adv   ! updated Kmm barotropic transport 
       !!
       INTEGER                             , INTENT(in   ) ::   Kmm, Kaa   ! before and after time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::   puu, pvv   ! velocities
