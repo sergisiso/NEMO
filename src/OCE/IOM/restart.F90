@@ -165,17 +165,23 @@ CONTAINS
       IF( .NOT.lwxios )   CALL iom_delay_rst( 'WRITE', 'OCE', numrow )   ! save only ocean delayed global communication variables
       !
       IF( .NOT.ln_diurnal_only ) THEN
+         !
+#if defined key_RK3
+         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kbb) )     ! before fields
+         CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kbb) )
+         CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kbb) )
+         CALL iom_rstput( kt, nitrst, numrow, 'tn'  , ts(:,:,:,jp_tem,Kbb) )
+         CALL iom_rstput( kt, nitrst, numrow, 'sn'  , ts(:,:,:,jp_sal,Kbb) )
+         CALL iom_rstput( kt, nitrst, numrow, 'uu_n'   , uu_b(:,:    ,Kbb) )     
+         CALL iom_rstput( kt, nitrst, numrow, 'vv_n'   , vv_b(:,:    ,Kbb) )     
+#else
          CALL iom_rstput( kt, nitrst, numrow, 'sshb', ssh(:,:        ,Kbb) )     ! before fields
          CALL iom_rstput( kt, nitrst, numrow, 'ub'  , uu(:,:,:       ,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'vb'  , vv(:,:,:       ,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'tb'  , ts(:,:,:,jp_tem,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'sb'  , ts(:,:,:,jp_sal,Kbb) )
-         !
-#if defined key_RK3
-         CALL iom_rstput( kt, nitrst, numrow, 'uu_b'   , uu_b(:,:       ,Kbb) )     ! before fields
-         CALL iom_rstput( kt, nitrst, numrow, 'vv_b'   , vv_b(:,:       ,Kbb) )     ! before fields
-#else
-         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields : n
+
+         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields 
          CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'tn'  , ts(:,:,:,jp_tem,Kmm) )
@@ -288,14 +294,14 @@ CONTAINS
 #if defined key_RK3
       !                             !*  Read Kbb fields   (NB: in RK3 Kmm = Kbb = Nbb)
       IF(lwp) WRITE(numout,*) '           Kbb u, v and T-S fields read in the restart file'
-      CALL iom_get( numror, jpdom_auto, 'ub'   , uu(:,:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'vb'   , vv(:,:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'tb'   , ts(:,:,:,jp_tem,Kbb) )
-      CALL iom_get( numror, jpdom_auto, 'sb'   , ts(:,:,:,jp_sal,Kbb) )
-      id1 = iom_varid( numror, 'uu_b', ldstop = .FALSE. )  !*  check presence
+      CALL iom_get( numror, jpdom_auto, 'un'   , uu(:,:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
+      CALL iom_get( numror, jpdom_auto, 'vn'   , vv(:,:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
+      CALL iom_get( numror, jpdom_auto, 'tn'   , ts(:,:,:,jp_tem,Kbb) )
+      CALL iom_get( numror, jpdom_auto, 'sn'   , ts(:,:,:,jp_sal,Kbb) )
+      id1 = iom_varid( numror, 'uu_n', ldstop = .FALSE. )  !*  check presence
       IF( id1 > 0 ) THEN
-         CALL iom_get( numror, jpdom_auto, 'uu_b' , uu_b(:,:,Kbb), cd_type = 'U', psgn = -1._wp )
-         CALL iom_get( numror, jpdom_auto, 'vv_b' , vv_b(:,:,Kbb), cd_type = 'V', psgn = -1._wp )
+         CALL iom_get( numror, jpdom_auto, 'uu_n' , uu_b(:,:,Kbb), cd_type = 'U', psgn = -1._wp )
+         CALL iom_get( numror, jpdom_auto, 'vv_n' , vv_b(:,:,Kbb), cd_type = 'V', psgn = -1._wp )
       ELSE
          uu_b(:,:,Kbb) = uu(:,:,1,Kbb)*e3u_0(:,:,1)*umask(:,:,1)
          vv_b(:,:,Kbb) = vv(:,:,1,Kbb)*e3v_0(:,:,1)*vmask(:,:,1)
@@ -374,7 +380,7 @@ CONTAINS
          !                                     !*  RK3: Read ssh at Kbb
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*)    '      Kbb sea surface height read in the restart file'
-         CALL iom_get( numror, jpdom_auto, 'sshb'   , ssh(:,:,Kbb) )
+         CALL iom_get( numror, jpdom_auto, 'sshn'   , ssh(:,:,Kbb) )
          !
          !                                     !*  RK3: Set ssh at Kmm for AGRIF
          ssh(:,:,Kmm) = ssh(:,:,Kbb)
