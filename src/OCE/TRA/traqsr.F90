@@ -363,14 +363,6 @@ CONTAINS
          !
       END DO
       !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*) 'nk0+1= ', nk0+1, ' qsr IR max = ' , MAXVAL(ze0(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(ze0(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nk0+1, ' qsr R max = ' , MAXVAL(zeR(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeR(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nk0+1, ' qsr G max = ' , MAXVAL(zeG(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeG(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nk0+1, ' qsr B max = ' , MAXVAL(zeB(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeB(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nk0+1, ' qsr T max = ' , MAXVAL(zeT(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeT(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-      ENDIF
-      !
       DO jk = nk0+1, nkR                  !* down to Red extinction *!   (< ~71 meters : RGB , IR removed from calculation)
           DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
@@ -409,13 +401,6 @@ CONTAINS
          END_2D
       END DO
       !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*) 'nkR+1= ', nkR+1, ' qsr R max = ' , MAXVAL(zeR(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeR(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkR+1, ' qsr G max = ' , MAXVAL(zeG(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeG(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkR+1, ' qsr B max = ' , MAXVAL(zeB(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeB(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkR+1, ' qsr T max = ' , MAXVAL(zeT(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeT(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-      ENDIF
-      !
       DO jk = nkR+1, nkG                  !* down to Green extinction *!   (< ~350 m : GB , IR+R removed from calculation)
           DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
@@ -451,12 +436,6 @@ CONTAINS
          END_2D
       END DO
       !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*) 'nkG+1= ', nkG+1, ' qsr G max = ' , MAXVAL(zeG(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeG(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkG+1, ' qsr B max = ' , MAXVAL(zeB(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeB(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkG+1, ' qsr T max = ' , MAXVAL(zeT(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeT(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-      ENDIF
-      !
       DO jk = nkG+1, nkB                  !* down to Blue extinction *!   (< ~1300 m : B , IR+RG removed from calculation)
           DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
@@ -490,10 +469,6 @@ CONTAINS
             zeT(ji,jj) = zzeT                                  ! total  -        -      -
          END_2D
       END DO
-      !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*) 'nkB+1= ', nkB+1, ' qsr T max = ' , MAXVAL(zeT), ' W/m2' , MAXVAL(zeT(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)), ' K/s'
-      ENDIF
       !
    END SUBROUTINE qsr_RGBc
 
@@ -570,14 +545,6 @@ CONTAINS
 !!stbug         ENDIF
       END DO
       !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*) 'nk0+1= ', nk0+1, ' qsr IR max = ' , MAXVAL(ze0(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(ze0(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nk0+1, ' qsr R max = ' , MAXVAL(zeR(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeR(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nk0+1, ' qsr G max = ' , MAXVAL(zeG(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeG(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nk0+1, ' qsr B max = ' , MAXVAL(zeB(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeB(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nk0+1, ' qsr T max = ' , MAXVAL(zeT(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeT(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-      ENDIF
-      !
       DO jk = nk0+1, nkR                  !* down to Red extinction *!   (< ~71 meters : RGB , IR removed from calculation)
           DO_2D( 0, 0, 0, 0 )
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -598,13 +565,6 @@ CONTAINS
          END_2D
       END DO
       !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*) 'nkR+1= ', nkR+1, ' qsr R max = ' , MAXVAL(zeR(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeR(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkR+1, ' qsr G max = ' , MAXVAL(zeG(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeG(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkR+1, ' qsr B max = ' , MAXVAL(zeB(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeB(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkR+1, ' qsr T max = ' , MAXVAL(zeT(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeT(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-      ENDIF
-      !
       DO jk = nkR+1, nkG                  !* down to Green extinction *!   (< ~350 m : GB , IR+R removed from calculation)
          DO_2D( 0, 0, 0, 0 )
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -622,12 +582,6 @@ CONTAINS
          END_2D
       END DO
       !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*) 'nkG+1= ', nkG+1, ' qsr G max = ' , MAXVAL(zeG(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeG(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkG+1, ' qsr B max = ' , MAXVAL(zeB(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeB(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-         IF(lwp) WRITE(numout,*) '       ', nkG+1, ' qsr T max = ' , MAXVAL(zeT(:,:)*wmask(:,:,jk)), ' W/m2' , MAXVAL(zeT(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)*wmask(:,:,jk)), ' K/s'
-      ENDIF
-      !
       DO jk = nkG+1, nkB                  !* down to Blue extinction *!   (< ~1300 m : B , IR+RG removed from calculation)
          DO_2D( 0, 0, 0, 0 )
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -644,10 +598,6 @@ CONTAINS
             zeT(ji,jj) = zzeT                                     ! total  -        -      -
          END_2D
       END DO
-      !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*) 'nkB+1= ', nkB+1, ' qsr T max = ' , MAXVAL(zeT), ' W/m2' , MAXVAL(zeT(:,:)*r1_rho0_rcp/e3t(:,:,nk0+1,Kmm)), ' K/s'
-      ENDIF
       !
    END SUBROUTINE qsr_RGB
 
