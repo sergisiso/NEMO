@@ -120,7 +120,7 @@
       !                   !                    ip0i ip1i        im1i im0i
       !
       iwewe(:) = (/ jpwe,jpea,jpwe,jpea /)   ;   issnn(:) = (/ jpso,jpso,jpno,jpno /)
-      !cd     sides:     west  east south north      ;   corners: so-we, so-ea, no-we, no-ea
+      !     sides:     west  east south north      ;   corners: so-we, so-ea, no-we, no-ea
       isizei(1:4) = (/ ihls, ihls,  ipi,  ipi /)   ;   isizei(5:8) = ihls              ! i- count
       isizej(1:4) = (/ Nj_0, Nj_0, ihls, ihls /)   ;   isizej(5:8) = ihls              ! j- count
       ishtSi(1:4) = (/ ip1i, im1i, ip0i, ip0i /)   ;   ishtSi(5:8) = ishtSi( iwewe )   ! i- shift send data

@@ -395,6 +395,10 @@
       !                       !        = 2 add a tke source just at the base of the ML
       !                       !        = 3 as = 1 applied on HF part of the stress           (ln_cpl=T)
       ln_mxhsw    = .false.   !  surface mixing length scale = F(wave height)
+      nn_mxlice = 2           ! type of scaling under sea-ice
+      !                       !    = 0 no scaling under sea-ice
+      !                       !    = 1 scaling with constant sea-ice thickness
+      !                       !    = 2 scaling with mean sea-ice thickness ( only with SI3 sea-ice model )
 /
 !-----------------------------------------------------------------------
 &namzdf_iwm    !    internal wave-driven mixing parameterization        (ln_zdfiwm =T)

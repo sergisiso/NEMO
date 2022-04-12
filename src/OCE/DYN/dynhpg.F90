@@ -328,7 +328,7 @@ CONTAINS
       ENDIF
 
       ! Partial steps: Compute NOW horizontal gradient of t, s, rd at the last ocean level
-      CALL zps_hde( kt, Kmm, jpts, ts(:,:,:,:,Kmm), zgtsu, zgtsv, rhd, zgru , zgrv )
+      CALL zps_hde( kt, jpts, ts(:,:,:,:,Kmm), zgtsu, zgtsv, rhd, zgru , zgrv )
 
       ! Local constant initialization
       zcoef0 = - grav * 0.5_wp

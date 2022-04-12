@@ -369,6 +369,8 @@ CONTAINS
                sf(jfpr)%fnow(:,:,1:ipka) = 101325._wp   ! use standard pressure in Pa
             ELSEIF( jfpr == jp_prec .OR. jfpr == jp_snow .OR. jfpr == jp_uoatm .OR. jfpr == jp_voatm ) THEN
                sf(jfpr)%fnow(:,:,1:ipka) = 0._wp        ! no precip or no snow or no surface currents
+            ELSEIF( jfpr == jp_wndi .OR. jfpr == jp_wndj ) THEN
+               sf(jfpr)%fnow(:,:,1:ipka) = 0._wp
             ELSEIF( jfpr == jp_hpgi .OR. jfpr == jp_hpgj ) THEN
                IF( .NOT. ln_abl ) THEN
                   DEALLOCATE( sf(jfpr)%fnow )   ! deallocate as not used in this case
@@ -866,11 +868,11 @@ CONTAINS
          CALL iom_put( "vtau_oce", ztau_j(:,:)*tmask(:,:,1) )  ! vtau at T-points!
 
          IF(sn_cfctl%l_prtctl) THEN
-            CALL prt_ctl( tab2d_1=pssq   , clinfo1=' blk_oce_1: pssq   : ')
-            CALL prt_ctl( tab2d_1=wndm   , clinfo1=' blk_oce_1: wndm   : ')
+            CALL prt_ctl( tab2d_1=pssq   , clinfo1=' blk_oce_1: pssq   : ', mask1=tmask )
+            CALL prt_ctl( tab2d_1=wndm   , clinfo1=' blk_oce_1: wndm   : ', mask1=tmask )
             CALL prt_ctl( tab2d_1=utau   , clinfo1=' blk_oce_1: utau   : ', mask1=umask,   &
                &          tab2d_2=vtau   , clinfo2='            vtau   : ', mask2=vmask )
-            CALL prt_ctl( tab2d_1=zcd_oce, clinfo1=' blk_oce_1: Cd     : ')
+            CALL prt_ctl( tab2d_1=zcd_oce, clinfo1=' blk_oce_1: Cd     : ', mask1=tmask )
          ENDIF
          !
       ENDIF ! ln_blk / ln_abl
@@ -943,8 +945,10 @@ CONTAINS
       qns(:,:) = qns(:,:) * tmask(:,:,1)
       !
 #if defined key_si3
-      qns_oce(:,:) = zqlw(:,:) + psen(:,:) + plat(:,:)                             ! non solar without emp (only needed by SI3)
-      qsr_oce(:,:) = qsr(:,:)
+      IF ( nn_ice == 2 ) THEN
+         qns_oce(:,:) = zqlw(:,:) + psen(:,:) + plat(:,:)                  ! non solar without emp (only needed by SI3)
+         qsr_oce(:,:) = qsr(:,:)
+      ENDIF
 #endif
       !
       CALL iom_put( "rho_air"  , rhoa*tmask(:,:,1) )       ! output air density [kg/m^3]
@@ -965,11 +969,11 @@ CONTAINS
       ENDIF
       !
       IF(sn_cfctl%l_prtctl) THEN
-         CALL prt_ctl(tab2d_1=zqlw , clinfo1=' blk_oce_2: zqlw  : ')
-         CALL prt_ctl(tab2d_1=psen , clinfo1=' blk_oce_2: psen  : ' )
-         CALL prt_ctl(tab2d_1=plat , clinfo1=' blk_oce_2: plat  : ' )
-         CALL prt_ctl(tab2d_1=qns  , clinfo1=' blk_oce_2: qns   : ' )
-         CALL prt_ctl(tab2d_1=emp  , clinfo1=' blk_oce_2: emp   : ')
+         CALL prt_ctl(tab2d_1=zqlw , clinfo1=' blk_oce_2: zqlw  : ', mask1=tmask )
+         CALL prt_ctl(tab2d_1=psen , clinfo1=' blk_oce_2: psen  : ', mask1=tmask )
+         CALL prt_ctl(tab2d_1=plat , clinfo1=' blk_oce_2: plat  : ', mask1=tmask )
+         CALL prt_ctl(tab2d_1=qns  , clinfo1=' blk_oce_2: qns   : ', mask1=tmask )
+         CALL prt_ctl(tab2d_1=emp  , clinfo1=' blk_oce_2: emp   : ', mask1=tmask )
       ENDIF
       !
    END SUBROUTINE blk_oce_2
@@ -1092,8 +1096,8 @@ CONTAINS
          END_2D
          CALL lbc_lnk( 'sbcblk', putaui, 'U', -1._wp, pvtaui, 'V', -1._wp )
          !
-         IF(sn_cfctl%l_prtctl)  CALL prt_ctl( tab2d_1=putaui  , clinfo1=' blk_ice: putaui : '   &
-            &                               , tab2d_2=pvtaui  , clinfo2='          pvtaui : ' )
+         IF(sn_cfctl%l_prtctl)  CALL prt_ctl( tab2d_1=putaui  , clinfo1=' blk_ice: putaui : ', mask1=umask   &
+            &                               , tab2d_2=pvtaui  , clinfo2='          pvtaui : ', mask2=vmask )
       ELSE ! ln_abl
 
          DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
@@ -1105,7 +1109,7 @@ CONTAINS
 
       ENDIF ! ln_blk  / ln_abl
       !
-      IF(sn_cfctl%l_prtctl)  CALL prt_ctl(tab2d_1=wndm_ice  , clinfo1=' blk_ice: wndm_ice : ')
+      IF(sn_cfctl%l_prtctl)  CALL prt_ctl(tab2d_1=wndm_ice  , clinfo1=' blk_ice: wndm_ice : ', mask1=tmask )
       !
    END SUBROUTINE blk_ice_1
 
@@ -1137,6 +1141,7 @@ CONTAINS
       REAL(wp) ::   zst, zst3, zsq, zsipt    ! local variable
       REAL(wp) ::   zcoef_dqlw, zcoef_dqla   !   -      -
       REAL(wp) ::   zztmp, zzblk, zztmp1, z1_rLsub   !   -      -
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zmsk   ! temporary mask for prt_ctl
       REAL(wp), DIMENSION(jpi,jpj,jpl) ::   z_qlw         ! long wave heat flux over ice
       REAL(wp), DIMENSION(jpi,jpj,jpl) ::   z_qsb         ! sensible  heat flux over ice
       REAL(wp), DIMENSION(jpi,jpj,jpl) ::   z_dqlw        ! long wave heat sensitivity over ice
@@ -1301,12 +1306,23 @@ CONTAINS
       ENDIF
       !
       IF(sn_cfctl%l_prtctl) THEN
-         CALL prt_ctl(tab3d_1=qla_ice , clinfo1=' blk_ice: qla_ice  : ', tab3d_2=z_qsb   , clinfo2=' z_qsb    : ', kdim=jpl)
-         CALL prt_ctl(tab3d_1=z_qlw   , clinfo1=' blk_ice: z_qlw    : ', tab3d_2=dqla_ice, clinfo2=' dqla_ice : ', kdim=jpl)
-         CALL prt_ctl(tab3d_1=z_dqsb  , clinfo1=' blk_ice: z_dqsb   : ', tab3d_2=z_dqlw  , clinfo2=' z_dqlw   : ', kdim=jpl)
-         CALL prt_ctl(tab3d_1=dqns_ice, clinfo1=' blk_ice: dqns_ice : ', tab3d_2=qsr_ice , clinfo2=' qsr_ice  : ', kdim=jpl)
-         CALL prt_ctl(tab3d_1=ptsu    , clinfo1=' blk_ice: ptsu     : ', tab3d_2=qns_ice , clinfo2=' qns_ice  : ', kdim=jpl)
-         CALL prt_ctl(tab2d_1=tprecip , clinfo1=' blk_ice: tprecip  : ', tab2d_2=sprecip , clinfo2=' sprecip  : ')
+         ALLOCATE(zmsk(jpi,jpj,jpl))
+         DO jl = 1, jpl
+            zmsk(:,:,jl) = tmask(:,:,1)
+         END DO
+         CALL prt_ctl(tab3d_1=qla_ice , clinfo1=' blk_ice: qla_ice  : ', mask1=zmsk,   &
+            &         tab3d_2=z_qsb   , clinfo2=' z_qsb    : '         , mask2=zmsk, kdim=jpl)
+         CALL prt_ctl(tab3d_1=z_qlw   , clinfo1=' blk_ice: z_qlw    : ', mask1=zmsk,   &
+            &         tab3d_2=dqla_ice, clinfo2=' dqla_ice : '         , mask2=zmsk, kdim=jpl)
+         CALL prt_ctl(tab3d_1=z_dqsb  , clinfo1=' blk_ice: z_dqsb   : ', mask1=zmsk,   &
+            &         tab3d_2=z_dqlw  , clinfo2=' z_dqlw   : '         , mask2=zmsk, kdim=jpl)
+         CALL prt_ctl(tab3d_1=dqns_ice, clinfo1=' blk_ice: dqns_ice : ', mask1=zmsk,   &
+            &         tab3d_2=qsr_ice , clinfo2=' qsr_ice  : '         , mask2=zmsk, kdim=jpl)
+         CALL prt_ctl(tab3d_1=ptsu    , clinfo1=' blk_ice: ptsu     : ', mask1=zmsk,   &
+            &         tab3d_2=qns_ice , clinfo2=' qns_ice  : '         , mask2=zmsk, kdim=jpl)
+         CALL prt_ctl(tab2d_1=tprecip , clinfo1=' blk_ice: tprecip  : ', mask1=tmask,   &
+            &         tab2d_2=sprecip , clinfo2=' sprecip  : '         , mask2=tmask         )
+         DEALLOCATE(zmsk)
       ENDIF
 
       !#LB:

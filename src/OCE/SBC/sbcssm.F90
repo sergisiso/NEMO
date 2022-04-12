@@ -239,7 +239,7 @@ CONTAINS
             !
             IF( zf_sbc /= REAL( nn_fsbc, wp ) ) THEN      ! nn_fsbc has changed between 2 runs
                IF(lwp) WRITE(numout,*) '   restart with a change in the frequency of mean from ', zf_sbc, ' to ', nn_fsbc
-               zcoef = REAL( nn_fsbc - 1, wp ) / zf_sbc
+               zcoef = REAL( nn_fsbc - 1, wp ) / ( zf_sbc - 1._wp )   ! zf_sbc /= 1 as it was written in the restart
                ssu_m(:,:) = zcoef * ssu_m(:,:)
                ssv_m(:,:) = zcoef * ssv_m(:,:)
                sst_m(:,:) = zcoef * sst_m(:,:)

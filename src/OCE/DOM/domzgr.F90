@@ -324,9 +324,9 @@ CONTAINS
 #if defined key_qco && key_isf
          DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpk )        ! vertical sum at partial cell xxxx other level  
             IF( jk == k_top(ji,jj) ) THEN                               ! first ocean point : partial cell
-               gdept_0(ji,jj,jk) = gdepw_0(ji,jj,jk  ) + 0.5_wp * e3w_0(ji,jj,jk)   ! = risfdep + 1/2 e3w_0(mikt)
+               pdept(ji,jj,jk) = pdepw(ji,jj,jk  ) + 0.5_wp * pe3w(ji,jj,jk)   ! = risfdep + 1/2 e3w_0(mikt)
             ELSE                                                        !  other levels
-               gdept_0(ji,jj,jk) = gdept_0(ji,jj,jk-1) +          e3w_0(ji,jj,jk) 
+               pdept(ji,jj,jk) = pdept(ji,jj,jk-1) +          pe3w(ji,jj,jk) 
             ENDIF
          END_3D
 #endif

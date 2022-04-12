@@ -175,6 +175,7 @@ CONTAINS
          ENDIF
             WRITE(numout,*) '      avoid use of mpi_allgather at the north fold  ln_nnogather = ', ln_nnogather
             WRITE(numout,*) '      halo width (applies to both rows and columns)       nn_hls = ', nn_hls
+            WRITE(numout,*) '      choice of communication method                     nn_comm = ', nn_comm
       ENDIF
       !
       IF(lwm)   WRITE( numond, nammpp )
@@ -854,6 +855,7 @@ CONTAINS
          IF(lwp) THEN
             WRITE(numout,*)
             WRITE(numout,*)  '  -----------------------------------------------------------'
+            CALL FLUSH(numout)
          ENDIF
          CALL mppsync
          CALL mppstop( ld_abort = .TRUE. )
@@ -1152,11 +1154,11 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER ::   inumsave
-      INTEGER ::   jh
+      INTEGER ::   ji,jj,jh
       INTEGER ::   ipi, ipj
       INTEGER ::   iiwe, iiea, iist, iisz 
       INTEGER ::   ijso, ijno, ijst, ijsz 
-      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zmsk
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zmsk0, zmsk
       LOGICAL , DIMENSION(Ni_0,Nj_0,1)      ::   lloce
       !!----------------------------------------------------------------------
       !
@@ -1175,13 +1177,21 @@ CONTAINS
          ipi = Ni_0 + 2*jh   ! local domain size
          ipj = Nj_0 + 2*jh
          !
-         ALLOCATE( zmsk(ipi,ipj) )
-         zmsk(jh+1:jh+Ni_0,jh+1:jh+Nj_0) = REAL(COUNT(lloce, dim = 3), wp)   ! define inner domain -> need REAL to use lbclnk
-         CALL lbc_lnk('mppini', zmsk, 'T', 1._wp, khls = jh)                 ! fill halos
-         ! Beware, coastal F points can be used in the code -> we may need communications for these points F points even if tmask = 0
-         ! -> the mask we must use here is equal to 1 as soon as one of the 4 neighbours is oce (sum of the mask, not multiplication)
-         zmsk(jh+1:jh+Ni_0,jh+1:jh+Nj_0) = zmsk(jh+1:jh+Ni_0,jh+1  :jh+Nj_0  ) + zmsk(jh+1+1:jh+Ni_0+1,jh+1  :jh+Nj_0  )   &
-            &                            + zmsk(jh+1:jh+Ni_0,jh+1+1:jh+Nj_0+1) + zmsk(jh+1+1:jh+Ni_0+1,jh+1+1:jh+Nj_0+1)
+         ALLOCATE( zmsk0(ipi,ipj), zmsk(ipi,ipj) )
+         zmsk0(jh+1:jh+Ni_0,jh+1:jh+Nj_0) = REAL(COUNT(lloce, dim = 3), wp)   ! define inner domain -> need REAL to use lbclnk
+         CALL lbc_lnk('mppini', zmsk0, 'T', 1._wp, khls = jh)                 ! fill halos
+         ! Beware about the mask we must use here :
+         DO jj = jh+1, jh+Nj_0
+            DO ji = jh+1, jh+Ni_0
+               zmsk(ji,jj) = zmsk0(ji,jj)   &
+                  !  1) dynvor may use scale factors on i+1 (e2v for di_e2v_2e1e2f) and j+1 (e1u for dj_e1u_2e1e2f) even if land
+                  ! -> the mask must be > 1 if south/west neighbours is oce as we may need to send these arrays to these neighbours
+                  &        + zmsk0(ji-1,jj) + zmsk0(ji,jj-1)   &
+                  !  2) coastal F points can be used, so we may need communications for these points F points even IF tmask = 0
+                  ! -> the mask must be > 1 as soon as one of the 3 neighbours is oce: (i,j+1) (i+1,j) (i+1,j+1)
+                  &        + zmsk0(ji+1,jj) + zmsk0(ji,jj+1) + zmsk0(ji+1,jj+1)
+            END DO
+         END DO
          CALL lbc_lnk('mppini', zmsk, 'T', 1._wp, khls = jh)                 ! fill halos again!
          !        
          iiwe = jh   ;   iiea = Ni_0   ! bottom-left corner - 1 of the sent data
@@ -1206,7 +1216,7 @@ IF( nn_comm == 1 ) THEN       ! SM: NOT WORKING FOR NEIGHBOURHOOD COLLECTIVE COM
          !
          iiwe = iiwe-jh   ;   iiea = iiea+jh   ! bottom-left corner - 1 of the received data
          ijso = ijso-jh   ;   ijno = ijno+jh
-         ! do not send if we send only land points
+         ! do not recv if we recv only land points
          IF( NINT(SUM( zmsk(iiwe+1:iiwe+jh  ,ijst+1:ijst+ijsz) )) == 0 )   mpiRnei(jh,jpwe) = -1
          IF( NINT(SUM( zmsk(iiea+1:iiea+jh  ,ijst+1:ijst+ijsz) )) == 0 )   mpiRnei(jh,jpea) = -1
          IF( NINT(SUM( zmsk(iist+1:iist+iisz,ijso+1:ijso+jh  ) )) == 0 )   mpiRnei(jh,jpso) = -1
@@ -1225,7 +1235,7 @@ ENDIF
             IF( mpiRnei(jh,jpno) > -1 )   mpiRnei(jh, (/jpnw,jpne/) ) = -1   ! NW and NE corners will be received through North nei
         ENDIF
          !
-         DEALLOCATE( zmsk )
+         DEALLOCATE( zmsk0, zmsk )
          !
          CALL mpp_ini_nc(jh)    ! Initialize/Update communicator for neighbourhood collective communications
          !

@@ -70,8 +70,8 @@ CONTAINS
          !
          !                                                         ! Partial top/bottom cell: GRADh( trb )  
          IF( ln_zps ) THEN
-            IF( ln_isfcav ) THEN ; CALL zps_hde_isf( kt, Kmm, jptra, tr(:,:,:,:,Kbb), pgtu=gtru, pgtv=gtrv, pgtui=gtrui, pgtvi=gtrvi )  ! both top & bottom
-            ELSE                 ; CALL zps_hde    ( kt, Kmm, jptra, tr(:,:,:,:,Kbb), gtru, gtrv )                                      !  only bottom
+            IF( ln_isfcav ) THEN ; CALL zps_hde_isf( kt, jptra, tr(:,:,:,:,Kbb), pgtu=gtru, pgtv=gtrv, pgtui=gtrui, pgtvi=gtrvi )  ! both top & bottom
+            ELSE                 ; CALL zps_hde    ( kt, jptra, tr(:,:,:,:,Kbb), gtru, gtrv )                                      !  only bottom
             ENDIF
          ENDIF
          !

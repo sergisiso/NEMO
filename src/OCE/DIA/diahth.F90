@@ -106,12 +106,13 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('dia_hth')
 
       IF( kt == nit000 ) THEN
-         l_hth = .FALSE.
-         IF(   iom_use( 'mlddzt'   ) .OR. iom_use( 'mldr0_3'  ) .OR. iom_use( 'mldr0_1'  )    .OR.  & 
-            &  iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' )    .OR.  &    
-            &  iom_use( '20d'      ) .OR. iom_use( '26d'      ) .OR. iom_use( '28d'      )    .OR.  &    
-            &  iom_use( 'hc300'    ) .OR. iom_use( 'hc700'    ) .OR. iom_use( 'hc2000'   )    .OR.  &    
-            &  iom_use( 'pycndep'  ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )  ) l_hth = .TRUE.
+         !
+         l_hth = iom_use( 'mlddzt'   ) .OR. iom_use( 'mldr0_3'  ) .OR. iom_use( 'mldr0_1'  )    .OR.  & 
+            &    iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' )    .OR.  &    
+            &    iom_use( '20d'      ) .OR. iom_use( '26d'      ) .OR. iom_use( '28d'      )    .OR.  &    
+            &    iom_use( 'hc300'    ) .OR. iom_use( 'hc700'    ) .OR. iom_use( 'hc2000'   )    .OR.  &    
+            &    iom_use( 'pycndep'  ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )
+         !
          !                                      ! allocate dia_hth array
          IF( l_hth ) THEN 
             IF( dia_hth_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'dia_hth : unable to allocate standard arrays' )
@@ -124,11 +125,12 @@ CONTAINS
 
       IF( l_hth ) THEN
          !
-         IF( iom_use( 'mlddzt' ) .OR. iom_use( 'mldr0_3' ) .OR. iom_use( 'mldr0_1' ) ) THEN
-            ! initialization
-            ztinv  (:,:) = 0._wp  
-            zdepinv(:,:) = 0._wp  
-            zmaxdzT(:,:) = 0._wp  
+         ! initialization
+         IF( iom_use( 'tinv'   ) )   ztinv  (:,:) = 0._wp  
+         IF( iom_use( 'depti'  ) )   zdepinv(:,:) = 0._wp  
+         IF( iom_use( 'mlddzt' ) )   zmaxdzT(:,:) = 0._wp  
+         IF( iom_use( 'mlddzt' ) .OR. iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' )   &
+            &                    .OR. iom_use( 'mldr10_3' ) .OR. iom_use( 'pycndep'  ) ) THEN
             DO_2D( 1, 1, 1, 1 )
                zztmp = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) 
                hth     (ji,jj) = zztmp
@@ -137,6 +139,8 @@ CONTAINS
                zrho10_3(ji,jj) = zztmp
                zpycn   (ji,jj) = zztmp
             END_2D
+         ENDIF
+         IF( iom_use( 'mldr0_3' ) .OR. iom_use( 'mldr0_1' ) ) THEN
             IF( nla10 > 1 ) THEN 
                DO_2D( 1, 1, 1, 1 )
                   zztmp = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) 
@@ -144,25 +148,9 @@ CONTAINS
                   zrho0_1(ji,jj) = zztmp
                END_2D
             ENDIF
-      
-            ! Preliminary computation
-            ! computation of zdelr = (dr/dT)(T,S,10m)*(-0.2 degC)
-            DO_2D( 1, 1, 1, 1 )
-               IF( tmask(ji,jj,nla10) == 1. ) THEN
-                  zu  =  1779.50 + 11.250 * ts(ji,jj,nla10,jp_tem,Kmm) - 3.80   * ts(ji,jj,nla10,jp_sal,Kmm)  &
-                     &           - 0.0745 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_tem,Kmm)   &
-                     &           - 0.0100 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_sal,Kmm)
-                  zv  =  5891.00 + 38.000 * ts(ji,jj,nla10,jp_tem,Kmm) + 3.00   * ts(ji,jj,nla10,jp_sal,Kmm)  &
-                     &           - 0.3750 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_tem,Kmm)
-                  zut =    11.25 -  0.149 * ts(ji,jj,nla10,jp_tem,Kmm) - 0.01   * ts(ji,jj,nla10,jp_sal,Kmm)
-                  zvt =    38.00 -  0.750 * ts(ji,jj,nla10,jp_tem,Kmm)
-                  zw  = (zu + 0.698*zv) * (zu + 0.698*zv)
-                  zdelr(ji,jj) = ztem2 * (1000.*(zut*zv - zvt*zu)/zw)
-               ELSE
-                  zdelr(ji,jj) = 0._wp
-               ENDIF
-            END_2D
-
+         ENDIF
+     
+         IF( iom_use( 'mlddzt' ) .OR. iom_use( 'mldr0_3' ) .OR. iom_use( 'mldr0_1' ) ) THEN
             ! ------------------------------------------------------------- !
             ! thermocline depth: strongest vertical gradient of temperature !
             ! turbocline depth (mixing layer depth): avt = zavt5            !
@@ -198,6 +186,25 @@ CONTAINS
          !
          IF(  iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' ) .OR.  &    
             &  iom_use( 'pycndep' ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )  ) THEN
+            !
+            ! Preliminary computation
+            ! computation of zdelr = (dr/dT)(T,S,10m)*(-0.2 degC)
+            DO_2D( 1, 1, 1, 1 )
+               IF( tmask(ji,jj,nla10) == 1. ) THEN
+                  zu  =  1779.50 + 11.250 * ts(ji,jj,nla10,jp_tem,Kmm) - 3.80   * ts(ji,jj,nla10,jp_sal,Kmm)  &
+                     &           - 0.0745 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_tem,Kmm)   &
+                     &           - 0.0100 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_sal,Kmm)
+                  zv  =  5891.00 + 38.000 * ts(ji,jj,nla10,jp_tem,Kmm) + 3.00   * ts(ji,jj,nla10,jp_sal,Kmm)  &
+                     &           - 0.3750 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_tem,Kmm)
+                  zut =    11.25 -  0.149 * ts(ji,jj,nla10,jp_tem,Kmm) - 0.01   * ts(ji,jj,nla10,jp_sal,Kmm)
+                  zvt =    38.00 -  0.750 * ts(ji,jj,nla10,jp_tem,Kmm)
+                  zw  = (zu + 0.698*zv) * (zu + 0.698*zv)
+                  zdelr(ji,jj) = ztem2 * (1000.*(zut*zv - zvt*zu)/zw)
+               ELSE
+                  zdelr(ji,jj) = 0._wp
+               ENDIF
+            END_2D
+            !
             ! ------------------------------------------------------------- !
             ! MLD: abs( tn - tn(10m) ) = ztem2                              !
             ! Top of thermocline: tn = tn(10m) - ztem2                      !

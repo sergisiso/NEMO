@@ -193,11 +193,11 @@ CONTAINS
       IF( ln_zps .OR. l_ldfslp ) CALL eos( ts(:,:,:,:,Nbb), rhd, gdept_0(:,:,:) )               ! before in situ density
 
       IF( ln_zps .AND. .NOT. ln_isfcav)                                    &
-            &            CALL zps_hde    ( kstp, Nnn, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
+            &            CALL zps_hde    ( kstp, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
             &                                          rhd, gru , grv    )       ! of t, s, rd at the last ocean level
 
       IF( ln_zps .AND.       ln_isfcav)                                                &
-            &            CALL zps_hde_isf( kstp, Nnn, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv, gtui, gtvi,  &  ! Partial steps for top cell (ISF)
+            &            CALL zps_hde_isf( kstp, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv, gtui, gtvi,  &  ! Partial steps for top cell (ISF)
             &                                          rhd, gru , grv , grui, grvi   )       ! of t, s, rd at the first ocean level
 
       IF( l_ldfslp ) THEN                             ! slope of lateral mixing

@@ -154,20 +154,20 @@ CONTAINS
       !  VERTICAL PHYSICS
 !!st                         CALL zdf_phy( kstp, Nbb, Nnn, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
                          CALL zdf_phy( kstp, Nbb, Nbb, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
-!!gm
+!!gm gdep
       !  LATERAL  PHYSICS
       !
-      IF( l_ldfslp ) THEN                             ! slope of lateral mixing
-!!gm gdep
-                         CALL eos( ts(:,:,:,:,Nbb), rhd, gdept_0(:,:,:) )               ! before in situ density
+      IF( ln_zps .OR. l_ldfslp ) CALL eos( ts(:,:,:,:,Nbb), rhd, gdept_0(:,:,:) )               ! before in situ density
 
-         IF( ln_zps .AND. .NOT. ln_isfcav)                                    &
-            &            CALL zps_hde    ( kstp, Nbb, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
+      IF( ln_zps .AND. .NOT. ln_isfcav)                                    &
+            &            CALL zps_hde    ( kstp, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
             &                                          rhd, gru , grv    )       ! of t, s, rd at the last ocean level
 
-         IF( ln_zps .AND.       ln_isfcav)                                                &
-            &            CALL zps_hde_isf( kstp, Nbb, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv, gtui, gtvi,  &  ! Partial steps for top cell (ISF)
+      IF( ln_zps .AND.       ln_isfcav)                                                &
+            &            CALL zps_hde_isf( kstp, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv, gtui, gtvi,  &  ! Partial steps for top cell (ISF)
             &                                          rhd, gru , grv , grui, grvi   )       ! of t, s, rd at the first ocean level
+
+      IF( l_ldfslp ) THEN                             ! slope of lateral mixing
          IF( ln_traldf_triad ) THEN
                          CALL ldf_slp_triad( kstp, Nbb, Nbb )             ! before slope for triad operator
          ELSE

@@ -240,8 +240,8 @@ CONTAINS
       !
       IF (nn_hls==1) CALL lbc_lnk( 'traldf_lap_blp', zlap(:,:,:,:) , 'T', 1.0_wp )     ! Lateral boundary conditions (unchanged sign)
       !                                               ! Partial top/bottom cell: GRADh( zlap )
-      IF( ln_isfcav .AND. ln_zps ) THEN   ;   CALL zps_hde_isf( kt, Kmm, kjpt, zlap, zglu, zglv, zgui, zgvi )  ! both top & bottom
-      ELSEIF(             ln_zps ) THEN   ;   CALL zps_hde    ( kt, Kmm, kjpt, zlap, zglu, zglv )              ! only bottom
+      IF( ln_isfcav .AND. ln_zps ) THEN   ;   CALL zps_hde_isf( kt, kjpt, zlap, zglu, zglv, zgui, zgvi )  ! both top & bottom
+      ELSEIF(             ln_zps ) THEN   ;   CALL zps_hde    ( kt, kjpt, zlap, zglu, zglv )              ! only bottom
       ENDIF
       !
       SELECT CASE ( kldf )       !==  2nd laplacian applied to zlap (output in pt_rhs)  ==!

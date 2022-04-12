@@ -27,7 +27,6 @@
 
 <!-- Files definition -->
     <file_definition src="./file_def_nemo-oce.xml"/>     <!--  NEMO ocean dynamics                     -->
-    <file_definition src="./file_def_nemo-ice.xml"/>     <!--  NEMO ocean sea ice                      -->
     <file_definition src="./file_def_nemo-innerttrc.xml"/> <!--  NEMO ocean inert passive tracer           -->
 
 <!-- Axis definition -->
