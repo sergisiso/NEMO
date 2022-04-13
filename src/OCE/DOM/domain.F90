@@ -410,6 +410,8 @@ CONTAINS
          IF( nn_wxios > 0 )   lwxios = .TRUE.           !* set output file type for XIOS based on NEMO namelist
          nxioso = nn_wxios
       ENDIF
+      !
+#if ! defined key_RK3
       !                                        !==  Check consistency between ln_rstart and ln_1st_euler  ==!   (i.e. set l_1st_euler)
       l_1st_euler = ln_1st_euler
       !
@@ -445,6 +447,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*)'           an Euler initial time step is used : l_1st_euler is forced to .true. '
          l_1st_euler = .TRUE.
       ENDIF
+#endif
       !
       !                                        !==  control of output frequency  ==!
       !
