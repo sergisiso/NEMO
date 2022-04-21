@@ -20,7 +20,7 @@ MODULE trcatf
    !!            3.3  !  2010-06  (C. Ethe, G. Madec) Merge TRA-TRC
    !!            4.1  !  2019-08  (A. Coward, D. Storkey) rename trcnxt.F90 -> trcatf.F90. Now only does time filtering.
    !!----------------------------------------------------------------------
-#if defined key_top
+#if defined key_top   &&   ! defined key_RK3
    !!----------------------------------------------------------------------
    !!   'key_top'                                                TOP models
    !!----------------------------------------------------------------------
@@ -57,7 +57,7 @@ MODULE trcatf
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcatf.F90 15090 2021-07-06 14:25:18Z cetlod $ 
+   !! $Id: trcatf.F90 15373 2021-10-14 17:01:57Z techene $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -99,7 +99,7 @@ CONTAINS
       ENDIF
       !
 #if defined key_agrif
-      CALL Agrif_trc                   ! AGRIF zoom boundaries
+      CALL Agrif_trc( kt )                ! AGRIF zoom boundaries
 #endif
       ! Update after tracer on domain lateral boundaries
       CALL lbc_lnk( 'trcatf', ptr(:,:,:,:,Kaa), 'T', 1._wp )   

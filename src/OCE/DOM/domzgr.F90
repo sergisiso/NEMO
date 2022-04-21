@@ -46,7 +46,7 @@ MODULE domzgr
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: domzgr.F90 15556 2021-11-29 15:23:06Z jchanut $
+   !! $Id: domzgr.F90 15157 2021-07-29 08:28:32Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS       
@@ -142,12 +142,17 @@ CONTAINS
       CALL lbc_lnk( 'usrdef_zgr', zmsk, 'T', 1. )             ! set halos
       k_top(:,:) = k_top(:,:) * NINT( zmsk(:,:) )
       !
-!!gm to be remove when removing the OLD definition of e3 scale factors so that gde3w disappears
+#if ! defined key_qco && ! defined key_linssh
+      ! OLD implementation of coordinate (not with 'key_qco' or 'key_linssh')
+      ! gde3w_0 has to be defined
+!!gm to be remove when removing the OLD definition of e3 scale factors so that gde3w_0=gdept_0
+!!gm therefore gde3w_0 disappears 
       ! Compute gde3w_0 (vertical sum of e3w)
       gde3w_0(:,:,1) = 0.5_wp * e3w_0(:,:,1)
       DO jk = 2, jpk
          gde3w_0(:,:,jk) = gde3w_0(:,:,jk-1) + e3w_0(:,:,jk)
       END DO
+#endif
       !
       ! Any closed seas (defined by closea_mask > 0 in domain_cfg file) to be filled 
       ! in at runtime if ln_closea=.false.
@@ -200,14 +205,20 @@ CONTAINS
          WRITE(numout,*) ' MIN val k_top   ', MINVAL(   k_top(:,:) ), ' MAX ', MAXVAL( k_top(:,:) )
          WRITE(numout,*) ' MIN val k_bot   ', MINVAL(   k_bot(:,:) ), ' MAX ', MAXVAL( k_bot(:,:) )
          WRITE(numout,*) ' MIN val depth t ', MINVAL( gdept_0(:,:,:) ),   &
-            &                          ' w ', MINVAL( gdepw_0(:,:,:) ), '3w ', MINVAL( gde3w_0(:,:,:) )
+#if ! defined key_qco && ! defined key_linssh
+            &                          '3w ', MINVAL( gde3w_0(:,:,:) ),   &
+#endif
+            &                          ' w ', MINVAL( gdepw_0(:,:,:) )
          WRITE(numout,*) ' MIN val e3    t ', MINVAL(   e3t_0(:,:,:) ), ' f ', MINVAL(   e3f_0(:,:,:) ),  &
             &                          ' u ', MINVAL(   e3u_0(:,:,:) ), ' u ', MINVAL(   e3v_0(:,:,:) ),  &
             &                          ' uw', MINVAL(  e3uw_0(:,:,:) ), ' vw', MINVAL(  e3vw_0(:,:,:)),   &
             &                          ' w ', MINVAL(   e3w_0(:,:,:) )
 
          WRITE(numout,*) ' MAX val depth t ', MAXVAL( gdept_0(:,:,:) ),   &
-            &                          ' w ', MAXVAL( gdepw_0(:,:,:) ), '3w ', MAXVAL( gde3w_0(:,:,:) )
+#if ! defined key_qco && ! defined key_linssh
+            &                          '3w ', MINVAL( gde3w_0(:,:,:) ),   &
+#endif
+            &                          ' w ', MINVAL( gdepw_0(:,:,:) )
          WRITE(numout,*) ' MAX val e3    t ', MAXVAL(   e3t_0(:,:,:) ), ' f ', MAXVAL(   e3f_0(:,:,:) ),  &
             &                          ' u ', MAXVAL(   e3u_0(:,:,:) ), ' u ', MAXVAL(   e3v_0(:,:,:) ),  &
             &                          ' uw', MAXVAL(  e3uw_0(:,:,:) ), ' vw', MAXVAL(  e3vw_0(:,:,:) ),  &

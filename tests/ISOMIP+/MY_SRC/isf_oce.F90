@@ -37,7 +37,6 @@ MODULE isf_oce
    LOGICAL           , PUBLIC :: ln_isfcav_mlt   !: logical for the use of ice shelf parametrisation
    REAL(wp)          , PUBLIC :: rn_gammat0      !: temperature exchange coeficient    []
    REAL(wp)          , PUBLIC :: rn_gammas0      !: salinity    exchange coeficient    []
-   REAL(wp)          , PUBLIC :: rn_vtide        !: tidal background velocity (can be different to what is used in the 
    REAL(wp)          , PUBLIC :: rn_htbl         !: Losch top boundary layer thickness [m]
    REAL(wp)          , PUBLIC :: rn_isfload_T    !: 
    REAL(wp)          , PUBLIC :: rn_isfload_S    !: 

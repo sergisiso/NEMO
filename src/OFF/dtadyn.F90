@@ -101,7 +101,7 @@ MODULE dtadyn
    
    !!----------------------------------------------------------------------
    !! NEMO/OFF 4.0 , NEMO Consortium (2018)
-   !! $Id: dtadyn.F90 15090 2021-07-06 14:25:18Z cetlod $
+   !! $Id: dtadyn.F90 15532 2021-11-24 11:47:32Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -175,7 +175,7 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      CALL eos    ( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0(:,:,:) ) ! In any case, we need rhop
+      CALL eos    ( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
       CALL eos_rab( ts(:,:,:,:,Kmm), rab_n, Kmm )       ! now    local thermal/haline expension ratio at T-points
       CALL bn2    ( ts(:,:,:,:,Kmm), rab_n, rn2, Kmm )  ! before Brunt-Vaisala frequency need for zdfmxl
 
@@ -192,7 +192,7 @@ CONTAINS
       ENDIF
       !
       !
-      CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0(:,:,:) ) ! In any case, we need rhop
+      CALL eos( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
       !
       IF(sn_cfctl%l_prtctl) THEN                 ! print control
          CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask )
@@ -669,7 +669,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       !
       IF( l_ldfslp .AND. .NOT.ln_c1d ) THEN    ! Computes slopes (here avt is used as workspace)
-         CALL eos    ( pts, rhd, rhop, gdept_0(:,:,:) )
+         CALL eos    ( pts, rhd, gdept_0(:,:,:) )
          CALL eos_rab( pts, rab_n, Kmm )       ! now local thermal/haline expension ratio at T-points
          CALL bn2    ( pts, rab_n, rn2, Kmm  ) ! now    Brunt-Vaisala
 
@@ -727,7 +727,7 @@ CONTAINS
       ts(:,:,:,jp_tem,Kmm) = sf_dyn(jf_tem)%fnow(:,:,:)  * tmask(:,:,:)    ! temperature
       ts(:,:,:,jp_sal,Kmm) = sf_dyn(jf_sal)%fnow(:,:,:)  * tmask(:,:,:)    ! salinity
       !
-      CALL eos    ( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0(:,:,:) ) ! In any case, we need rhop
+      CALL eos    ( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
 
       IF(sn_cfctl%l_prtctl) THEN                     ! print control
          CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask )

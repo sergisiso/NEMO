@@ -38,7 +38,7 @@ MODULE isfstp
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: isfstp.F90 11876 2019-11-08 11:26:42Z mathiot $
+   !! $Id: isfstp.F90 15574 2021-12-03 19:32:50Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -194,6 +194,11 @@ CONTAINS
          WRITE(numout,*)
          !
          IF ( ln_isf ) THEN
+#if key_qco 
+# if ! defined key_isf 
+            CALL ctl_stop( 'STOP', 'isf_ctl: ice shelf requires both ln_isf=T AND key_isf activated' ) 
+# endif 
+#endif
             WRITE(numout,*) '      Add debug print in isf module           ln_isfdebug     = ', ln_isfdebug
             WRITE(numout,*)
             WRITE(numout,*) '      melt inside the cavity                  ln_isfcav_mlt   = ', ln_isfcav_mlt
@@ -204,7 +209,7 @@ CONTAINS
                IF ( TRIM(cn_gammablk) .NE. 'spe' ) THEN 
                   WRITE(numout,*) '         gammat coefficient                       rn_gammat0   = ', rn_gammat0  
                   WRITE(numout,*) '         gammas coefficient                       rn_gammas0   = ', rn_gammas0  
-                  WRITE(numout,*) '         top background ke used (from namdrg_top) rn_vtide**2  = ', rn_vtide**2
+                  WRITE(numout,*) '         top background ke used (from namdrg_top) rn_ke0       = ', r_ke0_top
                   WRITE(numout,*) '         top drag coef.    used (from namdrg_top) rn_Cd0       = ', r_Cdmin_top
                END IF
             END IF
@@ -299,7 +304,7 @@ CONTAINS
          &             ln_isfcav_mlt , cn_isfcav_mlt , sn_isfcav_fwf ,                           &
          &             ln_isfpar_mlt , cn_isfpar_mlt , sn_isfpar_fwf ,                           &
          &             sn_isfpar_zmin, sn_isfpar_zmax, sn_isfpar_Leff,                           &
-         &             ln_isfcpl     , nn_drown      , ln_isfcpl_cons, ln_isfdebug, rn_vtide,    &
+         &             ln_isfcpl     , nn_drown      , ln_isfcpl_cons, ln_isfdebug,              &
          &             cn_isfload    , rn_isfload_T  , rn_isfload_S  , cn_isfdir  ,              &
          &             rn_isfpar_bg03_gt0
       !!----------------------------------------------------------------------

@@ -152,13 +152,12 @@ MODULE dom_oce
    !                                                        !  reference depths of cells
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gdept_0  !: t- depth              [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gdepw_0  !: w- depth              [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gde3w_0  !: w- depth (sum of e3w) [m]
    
    !                                                        !  time-dependent depths of cells   (domvvl)
 #if defined key_qco || defined key_linssh
 #else
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::  gdept, gdepw
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::  gde3w
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gde3w_0, gde3w !: w- depth (sum of e3w) [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   gdept, gdepw
 #endif
    !                                                        !  reference heights of ocean water column and its inverse
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   ht_0, r1_ht_0   !: t-depth        [m] and [1/m]
@@ -286,7 +285,7 @@ CONTAINS
          &      ff_f (jpi,jpj) ,    ff_t (jpi,jpj)                                     , STAT=ierr(ii) )
          !
       ii = ii+1
-      ALLOCATE( gdept_0 (jpi,jpj,jpk) , gdepw_0 (jpi,jpj,jpk) , gde3w_0(jpi,jpj,jpk) ,     &
+      ALLOCATE( gdept_0 (jpi,jpj,jpk) , gdepw_0 (jpi,jpj,jpk) ,     &
          &      gdept_1d(        jpk) , gdepw_1d(        jpk)                        , STAT=ierr(ii) )
          !
       ii = ii+1
@@ -311,7 +310,8 @@ CONTAINS
 #else
          ! vvl : time varation for all vertical coordinate variables
       ii = ii+1
-      ALLOCATE( gdept  (jpi,jpj,jpk,jpt) , gdepw  (jpi,jpj,jpk,jpt) , gde3w  (jpi,jpj,jpk) , STAT=ierr(ii) )
+      ALLOCATE( gdept  (jpi,jpj,jpk,jpt) , gdepw  (jpi,jpj,jpk,jpt) ,     &
+         &      gde3w_0(jpi,jpj,jpk)     , gde3w  (jpi,jpj,jpk)     , STAT=ierr(ii) )
          !
       ii = ii+1
       ALLOCATE( e3t(jpi,jpj,jpk,jpt) , e3u (jpi,jpj,jpk,jpt) , e3v (jpi,jpj,jpk,jpt) , e3f(jpi,jpj,jpk) ,      &

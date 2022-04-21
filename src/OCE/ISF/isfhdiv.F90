@@ -71,6 +71,7 @@ CONTAINS
       !
    END SUBROUTINE isf_hdiv
 
+
    SUBROUTINE isf_hdiv_mlt(ktop, kbot, phtbl, pfrac, pfwf, pfwf_b, phdiv)
       !!----------------------------------------------------------------------
       !!                  ***  SUBROUTINE sbc_isf_div  ***
@@ -97,7 +98,11 @@ CONTAINS
       !
       ! compute integrated divergence correction
       DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
+#if defined key_RK3
+         zhdiv(ji,jj) = pfwf(ji,jj) * r1_rho0 / phtbl(ji,jj)
+#else
          zhdiv(ji,jj) = 0.5_wp * ( pfwf(ji,jj) + pfwf_b(ji,jj) ) * r1_rho0 / phtbl(ji,jj)
+#endif
       END_2D
       !
       ! update divergence at each level affected by ice shelf top boundary layer

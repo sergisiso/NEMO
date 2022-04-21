@@ -50,7 +50,7 @@ MODULE trcbc
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcbc.F90 15446 2021-10-26 14:34:38Z cetlod $
+   !! $Id: trcbc.F90 15511 2021-11-15 15:46:44Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -416,7 +416,11 @@ CONTAINS
          IF( ln_rnf_ctl .AND. .NOT.ln_trc_cbc(jn) ) THEN
             DO_2D( 0, 0, 0, 1 )
                DO jk = 1, nk_rnf(ji,jj)
+#if defined key_RK3
+                  zrnf =  rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)
+#else
                   zrnf = (rnf(ji,jj) + rnf_b(ji,jj)) * 0.5_wp * r1_rho0 / h_rnf(ji,jj)
+#endif
                   ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs)  + (ptr(ji,jj,jk,jn,Kmm) * zrnf)
                END DO
             END_2D

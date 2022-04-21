@@ -1,13 +1,15 @@
 MODULE traisf
-   !!==============================================================================
-   !!                       ***  MODULE  traisf  ***
+   !!======================================================================
+   !!                     ***  MODULE  traisf  ***
    !! Ocean active tracers:  ice shelf boundary condition
-   !!==============================================================================
-   !! History :    4.0  !  2019-09  (P. Mathiot) original file
+   !!======================================================================
+   !! History :  4.0  !  2019-09  (P. Mathiot) original file
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
    !!   tra_isf       : update the tracer trend at ocean surface
+   !!       isf_mlt   : temperature trend due to the ice shelf melting
+   !!       isf_cpl   : T-S         trend due to the ice shelf coupling
    !!----------------------------------------------------------------------
    USE isf_oce                                     ! Ice shelf variables
    USE par_oce , ONLY : nijtile, ntile, ntsi, ntei, ntsj, ntej
@@ -31,18 +33,18 @@ MODULE traisf
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_isf ( kt, Kmm, pts, Krhs )
-      !!----------------------------------------------------------------------
+   SUBROUTINE tra_isf( kt, Kmm, pts, Krhs )
+      !!-------------------------------------------------------------------
       !!                  ***  ROUTINE tra_isf  ***
       !!
       !! ** Purpose :  Compute the temperature trend due to the ice shelf melting (qhoce + qhc)
       !!
       !! ** Action  : - update pts(:,:,:,:,Krhs) for cav, par and cpl case
-      !!----------------------------------------------------------------------
+      !!-------------------------------------------------------------------
       INTEGER                                  , INTENT(in   ) :: kt        ! ocean time step
       INTEGER                                  , INTENT(in   ) :: Kmm, Krhs ! ocean time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) :: pts       ! active tracers and RHS of tracer equation
-      !!----------------------------------------------------------------------
+      !!-------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('tra_isf')
       !
@@ -55,10 +57,10 @@ CONTAINS
       ENDIF
       !
       ! cavity case
-      IF ( ln_isfcav_mlt ) CALL tra_isf_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, risf_cav_tsc, risf_cav_tsc_b, pts(:,:,:,:,Krhs))
+      IF ( ln_isfcav_mlt ) CALL isf_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, risf_cav_tsc, risf_cav_tsc_b, pts(:,:,:,:,Krhs))
       !
       ! parametrisation case
-      IF ( ln_isfpar_mlt ) CALL tra_isf_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, risf_par_tsc, risf_par_tsc_b, pts(:,:,:,:,Krhs))
+      IF ( ln_isfpar_mlt ) CALL isf_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, risf_par_tsc, risf_par_tsc_b, pts(:,:,:,:,Krhs))
       !
       ! ice sheet coupling case
       IF ( ln_isfcpl ) THEN
@@ -69,11 +71,11 @@ CONTAINS
          ! half of it at nit000+1 (leap frog time step).
          ! in accordance to this, the heat content flux due to injected water need to be added in the temperature and salt trend
          ! at time step nit000 and nit000+1
-         IF ( kt == nit000  ) CALL tra_isf_cpl(Kmm, risfcpl_tsc       , pts(:,:,:,:,Krhs))
-         IF ( kt == nit000+1) CALL tra_isf_cpl(Kmm, risfcpl_tsc*0.5_wp, pts(:,:,:,:,Krhs))
+         IF ( kt == nit000  ) CALL isf_cpl(Kmm, risfcpl_tsc       , pts(:,:,:,:,Krhs))
+         IF ( kt == nit000+1) CALL isf_cpl(Kmm, risfcpl_tsc*0.5_wp, pts(:,:,:,:,Krhs))
          !
          ! ensure 0 trend due to unconservation of the ice shelf coupling
-         IF ( ln_isfcpl_cons ) CALL tra_isf_cpl(Kmm, risfcpl_cons_tsc, pts(:,:,:,:,Krhs))
+         IF ( ln_isfcpl_cons ) CALL isf_cpl(Kmm, risfcpl_cons_tsc, pts(:,:,:,:,Krhs))
          !
       END IF
       !
@@ -87,25 +89,25 @@ CONTAINS
       IF( ln_timing )   CALL timing_stop('tra_isf')
       !
    END SUBROUTINE tra_isf
-   !
-   SUBROUTINE tra_isf_mlt(ktop, kbot, phtbl, pfrac, ptsc, ptsc_b, pts)
+
+   
+   SUBROUTINE isf_mlt( ktop, kbot, phtbl, pfrac, ptsc, ptsc_b, pts )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tra_isf_mlt  ***
+      !!                  ***  ROUTINE isf_mlt  ***
       !!
       !! *** Purpose :  Compute the temperature trend due to the ice shelf melting (qhoce + qhc) for cav or par case
       !!
       !! *** Action :: Update pts(:,:,:,:,Krhs) with the surface boundary condition trend
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(inout) :: pts
-      !!----------------------------------------------------------------------
-      INTEGER , DIMENSION(jpi,jpj)     , INTENT(in   ) :: ktop , kbot
-      REAL(wp), DIMENSION(jpi,jpj)     , INTENT(in   ) :: phtbl, pfrac
-      REAL(wp), DIMENSION(jpi,jpj,jpts), INTENT(in   ) :: ptsc , ptsc_b
-      !!----------------------------------------------------------------------
-      INTEGER                      :: ji,jj,jk  ! loop index
-      INTEGER                      :: ikt, ikb  ! top and bottom level of the tbl
-      REAL(wp), DIMENSION(A2D(nn_hls))     :: ztc       ! total ice shelf tracer trend
+      INTEGER , DIMENSION(jpi,jpj)         , INTENT(in   ) ::   ktop , kbot
+      REAL(wp), DIMENSION(jpi,jpj)         , INTENT(in   ) ::   phtbl, pfrac
+      REAL(wp), DIMENSION(jpi,jpj,jpts)    , INTENT(in   ) ::   ptsc , ptsc_b
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(inout) ::   pts
+      !!
+      INTEGER ::   ji,jj,jk   ! dummy loop index
+      INTEGER ::   ikt, ikb   ! top and bottom level of the tbl
+      REAL(wp), DIMENSION(A2D(nn_hls)) ::   ztc   ! total ice shelf tracer trend
       !!----------------------------------------------------------------------
       !
       ! compute 2d total trend due to isf
@@ -129,21 +131,21 @@ CONTAINS
          !
       END_2D
       !
-   END SUBROUTINE tra_isf_mlt
-   !
-   SUBROUTINE tra_isf_cpl( Kmm, ptsc, ptsa )
+   END SUBROUTINE isf_mlt
+
+
+   SUBROUTINE isf_cpl( Kmm, ptsc, ptsa )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tra_isf_cpl  ***
+      !!                  ***  ROUTINE isf_cpl  ***
       !!
       !! *** Action :: Update pts(:,:,:,:,Krhs) with the ice shelf coupling trend
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(inout) :: ptsa
-      !!----------------------------------------------------------------------
-      INTEGER                              , INTENT(in   ) :: Kmm   ! ocean time level index
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(in   ) :: ptsc
-      !!----------------------------------------------------------------------
-      INTEGER :: ji, jj, jk
+      INTEGER                              , INTENT(in   ) ::   Kmm   ! ocean time-level index
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(in   ) ::   ptsc
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(inout) ::   ptsa
+      !!
+      INTEGER ::   ji, jj, jk   ! dummy loop index
       !!----------------------------------------------------------------------
       !
       DO_3D( 0, 0, 0, 0, 1, jpk )
@@ -151,6 +153,7 @@ CONTAINS
          ptsa(ji,jj,jk,jp_sal) = ptsa(ji,jj,jk,jp_sal) + ptsc(ji,jj,jk,jp_sal) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
       END_3D
       !
-   END SUBROUTINE tra_isf_cpl
-   !
+   END SUBROUTINE isf_cpl
+   
+   !!======================================================================
 END MODULE traisf

@@ -1,14 +1,16 @@
-MODULE trcstp
+MODULE trcstp_rk3
    !!======================================================================
-   !!                       ***  MODULE trcstp  ***
+   !!                       ***  MODULE trcstp_rk3  ***
    !! Time-stepping    : time loop of opa for passive tracer
    !!======================================================================
    !! History :  1.0  !  2004-03  (C. Ethe)  Original
    !!            4.1  !  2019-08  (A. Coward, D. Storkey) rewrite in preparation for new timestepping scheme
+   !!            4.x  !  2021-08  (S. Techene, G. Madec) preparation and finalisation for RK3 time-stepping only
    !!----------------------------------------------------------------------
-#if defined key_top && ! defined key_RK3
+#if defined key_top
    !!----------------------------------------------------------------------
-   !!   trc_stp       : passive tracer system time-stepping
+   !!   trc_stp_start : prepare  passive tracer system time-stepping
+   !!   trc_stp_end   : finalise passive tracer system time-stepping
    !!----------------------------------------------------------------------
    USE par_trc        ! need jptra, number of passive tracers
    USE oce_trc        ! ocean dynamics and active tracers variables
@@ -29,9 +31,11 @@ MODULE trcstp
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trc_stp    ! called by step or stpmlf
+   PUBLIC   trc_stp_start   ! called by stprk3_stg
+   PUBLIC   trc_stp_end     ! called by stprk3_stg
 
    LOGICAL  ::   llnew                   ! ???
+   LOGICAL  ::   l_trcstat               ! flag for tracer statistics
    REAL(wp) ::   rdt_sampl               ! ???
    INTEGER  ::   nb_rec_per_day, ktdcy   ! ???
    REAL(wp) ::   rsecfst, rseclast       ! ???
@@ -40,40 +44,33 @@ MODULE trcstp
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcstp.F90 15191 2021-08-13 13:09:12Z techene $ 
+   !! $Id: trcstp.F90 14086 2020-12-04 11:37:14Z cetlod $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
-
-   SUBROUTINE trc_stp( kt, Kbb, Kmm, Krhs, Kaa )
+  
+   SUBROUTINE trc_stp_start( kt, Kbb, Kmm, Krhs, Kaa )
       !!-------------------------------------------------------------------
-      !!                     ***  ROUTINE trc_stp  ***
+      !!                     ***  ROUTINE trc_stp_start  ***
       !!                      
-      !! ** Purpose :   Time loop of opa for passive tracer
+      !! ** Purpose :   Prepare time loop of opa for passive tracer
       !! 
       !! ** Method  :   Compute the passive tracers trends 
       !!                Update the passive tracers
+      !!                Manage restart file
       !!-------------------------------------------------------------------
       INTEGER, INTENT( in ) :: kt                  ! ocean time-step index
       INTEGER, INTENT( in ) :: Kbb, Kmm, Krhs, Kaa ! time level indices
       !
       INTEGER ::   jk, jn   ! dummy loop indices
-      REAL(wp)::   ztrai    ! local scalar
-      LOGICAL ::   ll_trcstat ! local logical
       CHARACTER (len=25) ::   charout   !
       !!-------------------------------------------------------------------
       !
-      IF( ln_timing )   CALL timing_start('trc_stp')
+      IF( ln_timing )   CALL timing_start('trc_stp_start')
       !
-      IF( l_1st_euler .OR. ln_top_euler ) THEN     ! at nittrc000
-         rDt_trc =  rn_Dt           ! = rn_Dt (use or restarting with Euler time stepping)
-      ELSEIF( kt <= nittrc000 + 1 ) THEN                                     ! at nittrc000 or nittrc000+1 
-         rDt_trc = 2. * rn_Dt       ! = 2 rn_Dt (leapfrog) 
-      ENDIF
+      l_trcstat  = ( sn_cfctl%l_trcstat ) .AND. &
+           &       ( ( MOD( kt, sn_cfctl%ptimincr ) == 0 ) .OR. ( kt == nitend ) )
       !
-      ll_trcstat  = ( sn_cfctl%l_trcstat ) .AND. &
-     &              ( ( MOD( kt, sn_cfctl%ptimincr ) == 0 ) .OR. ( kt == nitend ) )
-
       IF( kt == nittrc000 )                      CALL trc_stp_ctl   ! control 
       IF( kt == nittrc000 .AND. lk_trdmxl_trc )  CALL trd_mxl_trc_init    ! trends: Mixed-layer
       !
@@ -81,30 +78,44 @@ CONTAINS
          DO jk = 1, jpk
             cvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
          END DO
-         IF ( ll_trcstat .OR. kt == nitrst .OR. ( ln_check_mass .AND. kt == nitend )   &
-            & .OR. iom_use( "pno3tot" ) .OR. iom_use( "ppo4tot" ) .OR. iom_use( "psiltot" )   &
-            & .OR. iom_use( "palktot" ) .OR. iom_use( "pfertot" ) )                           &
+         IF( l_trcstat .OR. kt == nitrst .OR. ( ln_check_mass .AND. kt == nitend ) )   &
             &     areatot = glob_sum( 'trcstp', cvol(:,:,:) )
       ENDIF
       !
       IF( l_trcdm2dc )   CALL trc_mean_qsr( kt )
       !    
-      !
       IF(sn_cfctl%l_prttrc) THEN
          WRITE(charout,FMT="('kt =', I4,'  d/m/y =',I2,I2,I4)") kt, nday, nmonth, nyear
          CALL prt_ctl_info( charout, cdcomp = 'top' )
       ENDIF
       !
-      tr(:,:,:,:,Krhs) = 0._wp
-      !
       CALL trc_rst_opn  ( kt )                            ! Open tracer restart file 
       IF( lrst_trc )  CALL trc_rst_cal  ( kt, 'WRITE' )   ! calendar
-      CALL trc_wri      ( kt,      Kmm            )       ! output of passive tracers with iom I/O manager
-      CALL trc_sms      ( kt, Kbb, Kmm, Krhs      )       ! tracers: sinks and sources
-#if ! defined key_sed_off
-      CALL trc_trp      ( kt, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers
-#endif
-           !
+      !
+      IF( ln_timing )   CALL timing_stop('trc_stp_start')
+      !
+   END SUBROUTINE trc_stp_start
+
+
+   SUBROUTINE trc_stp_end( kt, Kbb, Kmm, Kaa )
+      !!-------------------------------------------------------------------
+      !!                     ***  ROUTINE trc_stp_end  ***
+      !!                      
+      !! ** Purpose :   Finalise time loop of opa for passive tracer
+      !! 
+      !! ** Method  :   Write restart and outputs 
+      !!-------------------------------------------------------------------
+      INTEGER, INTENT( in ) :: kt                  ! ocean time-step index
+      INTEGER, INTENT( in ) :: Kbb, Kmm, Kaa ! time level indices
+      !
+      INTEGER ::   jk, jn   ! dummy loop indices
+      REAL(wp)::   ztrai    ! local scalar
+      CHARACTER (len=25) ::   charout   !
+      !!-------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('trc_stp_end')
+      !
+      !
            ! Note passive tracers have been time-filtered in trc_trp but the time level
            ! indices will not be swapped until after tra_atf/dyn_atf/ssh_atf in stp. Subsequent calls here
            ! anticipate this update which will be: Nrhs= Nbb ; Nbb = Nnn ; Nnn = Naa ; Naa = Nrhs
@@ -115,39 +126,35 @@ CONTAINS
          IF(lrxios) CALL iom_context_finalize(      cr_toprst_cxt          )
          IF(lwm) CALL FLUSH( numont )                     ! flush namelist output
       ENDIF
-      IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kbb, Kmm, Kaa  )       ! write tracer restart file
-!     IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kmm, Kaa, Kbb  )       ! write tracer restart file
-
-      IF( lk_trdmxl_trc  )      CALL trd_mxl_trc  ( kt,      Kaa       )       ! trends: Mixed-layer
+      IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kbb, Kmm, Kaa )       ! write tracer restart file
+      IF( lk_trdmxl_trc  )      CALL trd_mxl_trc  ( kt,           Kaa )       ! trends: Mixed-layer
       !
-      IF( ln_top_euler ) THEN 
-         ! For Euler timestepping for TOP we need to copy the "after" to the "now" fields 
-         ! here then after the (leapfrog) swapping of the time-level indices in OCE/step.F90 we have 
-         ! "before" fields = "now" fields.
-         tr(:,:,:,:,Kmm) = tr(:,:,:,:,Kaa)
-      ENDIF
-      !
-      IF (ll_trcstat) THEN
-         ztrai = 0._wp                                                   !  content of all tracers
+      IF (l_trcstat) THEN
+         ztrai = 0._wp                                    !  content of all tracers
          DO jn = 1, jptra
-            ztrai = ztrai + glob_sum( 'trcstp', tr(:,:,:,jn,Kaa) * cvol(:,:,:)   )
+            ztrai = ztrai + glob_sum( 'trcstp_rk3', tr(:,:,:,jn,Kaa) * cvol(:,:,:)   ) !!st cvol@Kmm weird !!
          END DO
          IF( lwm ) WRITE(numstr,9300) kt,  ztrai / areatot
       ENDIF
+      !
 9300  FORMAT(i10,D23.16)
       !
-      IF( ln_timing )   CALL timing_stop('trc_stp')
+      CALL trc_wri      ( kt,      Kaa            )       ! output of passive tracers with iom I/O manager before time level swap 
       !
-   END SUBROUTINE trc_stp
+      IF( ln_timing )   CALL timing_stop('trc_stp_end')
+      !
+   END SUBROUTINE trc_stp_end
 
 
    SUBROUTINE trc_stp_ctl
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE trc_stp_ctl  ***
+      !! ** Purpose :        Control  + ocean volume
       !!----------------------------------------------------------------------
       !
       ! Define logical parameter ton control dirunal cycle in TOP
-      l_trcdm2dc = ( ln_trcdc2dm .AND. .NOT. ln_dm2dc  ) 
+      l_trcdm2dc = ln_dm2dc .OR. ( ln_cpl .AND. ncpl_qsr_freq /= 1 .AND. ncpl_qsr_freq /= 0 )
+      l_trcdm2dc = l_trcdm2dc .AND. .NOT. l_offline
       !
       IF( l_trcdm2dc .AND. lwp )   CALL ctl_warn( 'Coupling with passive tracers and used of diurnal cycle.',   &
          &                           'Computation of a daily mean shortwave for some biogeochemical models ' )
@@ -178,9 +185,13 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('trc_mean_qsr')
       !
       IF( kt == nittrc000 ) THEN
-         !
-         rdt_sampl = REAL( ncpl_qsr_freq )
-         nb_rec_per_day = INT( rday / ncpl_qsr_freq )
+         IF( ln_cpl )  THEN  
+            rdt_sampl = rday / ncpl_qsr_freq
+            nb_rec_per_day = ncpl_qsr_freq
+         ELSE  
+            rdt_sampl = MAX( 3600., rn_Dt )
+            nb_rec_per_day = INT( rday / rdt_sampl )
+         ENDIF
          !
          IF(lwp) THEN
             WRITE(numout,*) 
@@ -213,7 +224,7 @@ CONTAINS
             ELSE
                DO jn = 1, nb_rec_per_day
                   qsr_arr(:,:,jn) = qsr_mean(:,:)
-               ENDDO
+               END DO
             ENDIF
          ELSE                                         !* no restart: set from nit000 values
             IF(lwp) WRITE(numout,*) 'trc_qsr_mean:   qsr_mean set to nit000 values'
@@ -229,7 +240,7 @@ CONTAINS
       !
       rseclast = kt * rn_Dt
       !
-      llnew   = ( rseclast - rsecfst ) .ge.  rdt_sampl    !   new shortwave to store
+      llnew   = ( rseclast - rsecfst ) >=  rdt_sampl    !   new shortwave to store
       IF( llnew ) THEN
           ktdcy = kt
           IF( lwp .AND. kt < nittrc000 + 100 ) WRITE(numout,*) ' New shortwave to sample for TOP at time kt = ', ktdcy, &
@@ -237,7 +248,7 @@ CONTAINS
           rsecfst = rseclast
           DO jn = 1, nb_rec_per_day - 1
              qsr_arr(:,:,jn) = qsr_arr(:,:,jn+1)
-          ENDDO
+          END DO
           qsr_arr (:,:,nb_rec_per_day) = qsr(:,:)
           qsr_mean(:,:                ) = SUM( qsr_arr(:,:,:), 3 ) / nb_rec_per_day
       ENDIF
@@ -277,4 +288,4 @@ CONTAINS
 #endif
 
    !!======================================================================
-END MODULE trcstp
+END MODULE trcstp_rk3

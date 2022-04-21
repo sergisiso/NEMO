@@ -45,12 +45,12 @@ MODULE dynadv
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: dynadv.F90 14053 2020-12-03 13:48:38Z techene $
+   !! $Id: dynadv.F90 14419 2021-02-09 12:22:16Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE dyn_adv( kt, Kbb, Kmm, puu, pvv, Krhs )
+   SUBROUTINE dyn_adv( kt, Kbb, Kmm, puu, pvv, Krhs, pau, pav, paw, no_zad )
       !!---------------------------------------------------------------------
       !!                  ***  ROUTINE dyn_adv  ***
       !!                
@@ -63,21 +63,22 @@ CONTAINS
       !!      it is the relative vorticity which is added to coriolis term
       !!      (see dynvor module).
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT( in )  ::  kt               ! ocean time-step index
-      INTEGER                             , INTENT( in )  ::  Kbb, Kmm, Krhs   ! ocean time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv         ! ocean velocities and RHS of momentum equation
+      INTEGER                                     , INTENT(in   ) ::   kt , Kbb, Kmm, Krhs   ! ocean time step and level indices
+      INTEGER                   , OPTIONAL        , INTENT(in   ) ::   no_zad                ! no vertical advection compotation
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw         ! advective velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), TARGET, INTENT(inout) ::   puu, pvv              ! ocean velocities and RHS of momentum Eq.
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start( 'dyn_adv' )
       !
       SELECT CASE( n_dynadv )    !==  compute advection trend and add it to general trend  ==!
-      CASE( np_VEC_c2  )     
-         CALL dyn_keg     ( kt, nn_dynkeg,      Kmm, puu, pvv, Krhs )    ! vector form : horizontal gradient of kinetic energy
-         CALL dyn_zad     ( kt,                 Kmm, puu, pvv, Krhs )    ! vector form : vertical advection
-      CASE( np_FLX_c2  ) 
-         CALL dyn_adv_cen2( kt,                 Kmm, puu, pvv, Krhs )    ! 2nd order centered scheme
+      CASE( np_VEC_c2  )                                                         != vector form =!
+         CALL dyn_keg     ( kt, nn_dynkeg     , Kmm, puu, pvv, Krhs )                          ! horizontal gradient of kinetic energy
+         CALL dyn_zad     ( kt                , Kmm, puu, pvv, Krhs )                          ! vertical advection
+      CASE( np_FLX_c2  )                                                         !=  flux form  =!
+         CALL dyn_adv_cen2( kt                , Kmm, puu, pvv, Krhs, pau, pav, paw, no_zad )   ! 2nd order centered scheme
       CASE( np_FLX_ubs )   
-         CALL dyn_adv_ubs ( kt,            Kbb, Kmm, puu, pvv, Krhs )    ! 3rd order UBS      scheme (UP3)
+         CALL dyn_adv_ubs ( kt           , Kbb, Kmm, puu, pvv, Krhs, pau, pav, paw, no_zad )   ! 3rd order UBS      scheme (UP3)
       END SELECT
       !
       IF( ln_timing )   CALL timing_stop( 'dyn_adv' )

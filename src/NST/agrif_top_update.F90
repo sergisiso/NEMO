@@ -29,7 +29,7 @@ MODULE agrif_top_update
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_top_update.F90 15265 2021-09-16 11:13:13Z jchanut $
+   !! $Id: agrif_top_update.F90 14800 2021-05-06 15:42:46Z jchanut $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -121,7 +121,7 @@ CONTAINS
                   ENDIF
                ENDDO
             ENDDO
-
+#if ! defined key_RK3
             IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
                ! Add asselin part
                DO jn = 1,jptra
@@ -142,6 +142,7 @@ CONTAINS
                   END DO
                END DO
             ENDIF
+#endif
             DO jn = 1,jptra
                DO jk = 1, jpkm1
                   DO jj = j1, j2
@@ -160,6 +161,7 @@ CONTAINS
                                             & * tmask(i1:i2,j1:j2,jk)
                END DO
             ENDDO
+#if ! defined key_RK3
             IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
                ! Add asselin part
                DO jn = 1,jptra
@@ -180,6 +182,7 @@ CONTAINS
                   END DO
                END DO
             ENDIF
+#endif
             DO jn = 1,jptra
                DO jk=k1,k2
                   DO jj=j1,j2

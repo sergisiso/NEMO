@@ -99,9 +99,13 @@ CONTAINS
            &                                  uu_b(:,:, Kbb_a), 'U',-1._wp, &
            &                                  vv_b(:,:, Kmm_a), 'V',-1._wp, &
            &                                  vv_b(:,:, Kbb_a), 'V',-1._wp, &
+# if ! defined key_RK3
            &                                  ub2_b(:,:),   'U',-1._wp,     &
-           &                                  ub2_i_b(:,:), 'U',-1._wp,     &
+           &                                  un_bf(:,:),   'U',-1._wp,     &
            &                                  vb2_b(:,:),   'V',-1._wp,     &
+           &                                  vn_bf(:,:),   'V',-1._wp,     &
+# endif
+           &                                  ub2_i_b(:,:), 'U',-1._wp,     &
            &                                  vb2_i_b(:,:), 'V',-1._wp      ) 
 
 #if defined key_qco

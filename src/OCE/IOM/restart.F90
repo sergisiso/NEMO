@@ -52,7 +52,7 @@ MODULE restart
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: restart.F90 15141 2021-07-23 14:20:12Z smasson $
+   !! $Id: restart.F90 15027 2021-06-19 08:14:22Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -143,7 +143,7 @@ CONTAINS
    END SUBROUTINE rst_opn
 
 
-   SUBROUTINE rst_write( kt, Kbb, Kmm )
+   SUBROUTINE rst_write( kt, Kbb, Kmm, Kaa )
       !!---------------------------------------------------------------------
       !!                   ***  ROUTINE rstwrite  ***
       !!
@@ -157,6 +157,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt         ! ocean time-step
       INTEGER, INTENT(in) ::   Kbb, Kmm   ! ocean time level indices
+      INTEGER, OPTIONAL, INTENT(in) ::   Kaa        ! ocean time level index required for RK3
       !!----------------------------------------------------------------------
       !
          CALL iom_rstput( kt, nitrst, numrow, 'rdt'    , rn_Dt       )   ! dynamics time step
@@ -164,19 +165,27 @@ CONTAINS
       IF( .NOT.lwxios )   CALL iom_delay_rst( 'WRITE', 'OCE', numrow )   ! save only ocean delayed global communication variables
       !
       IF( .NOT.ln_diurnal_only ) THEN
+         !
+#if defined key_RK3
+         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kbb) )     ! before fields
+         CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kbb) )
+         CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kbb) )
+         CALL iom_rstput( kt, nitrst, numrow, 'tn'  , ts(:,:,:,jp_tem,Kbb) )
+         CALL iom_rstput( kt, nitrst, numrow, 'sn'  , ts(:,:,:,jp_sal,Kbb) )
+         CALL iom_rstput( kt, nitrst, numrow, 'uu_n'   , uu_b(:,:    ,Kbb) )     
+         CALL iom_rstput( kt, nitrst, numrow, 'vv_n'   , vv_b(:,:    ,Kbb) )     
+#else
          CALL iom_rstput( kt, nitrst, numrow, 'sshb', ssh(:,:        ,Kbb) )     ! before fields
          CALL iom_rstput( kt, nitrst, numrow, 'ub'  , uu(:,:,:       ,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'vb'  , vv(:,:,:       ,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'tb'  , ts(:,:,:,jp_tem,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'sb'  , ts(:,:,:,jp_sal,Kbb) )
-         !
-#if ! defined key_RK3
-         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields
+
+         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields 
          CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'tn'  , ts(:,:,:,jp_tem,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'sn'  , ts(:,:,:,jp_sal,Kmm) )
-         IF( .NOT.lk_SWE )   CALL iom_rstput( kt, nitrst, numrow, 'rhop', rhop )
 #endif
       ENDIF
 
@@ -264,6 +273,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER          , INTENT(in) ::   Kbb, Kmm   ! ocean time level indices
       INTEGER  ::   jk
+      INTEGER  ::   id1 
       REAL(wp), DIMENSION(jpi, jpj, jpk) :: w3d
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   :: zgdept       ! 3D workspace for QCO
       !!----------------------------------------------------------------------
@@ -284,10 +294,30 @@ CONTAINS
 #if defined key_RK3
       !                             !*  Read Kbb fields   (NB: in RK3 Kmm = Kbb = Nbb)
       IF(lwp) WRITE(numout,*) '           Kbb u, v and T-S fields read in the restart file'
-      CALL iom_get( numror, jpdom_auto, 'ub', uu(:,:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'vb', vv(:,:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'tb', ts(:,:,:,jp_tem,Kbb) )
-      CALL iom_get( numror, jpdom_auto, 'sb', ts(:,:,:,jp_sal,Kbb) )
+      CALL iom_get( numror, jpdom_auto, 'un'   , uu(:,:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
+      CALL iom_get( numror, jpdom_auto, 'vn'   , vv(:,:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
+      CALL iom_get( numror, jpdom_auto, 'tn'   , ts(:,:,:,jp_tem,Kbb) )
+      CALL iom_get( numror, jpdom_auto, 'sn'   , ts(:,:,:,jp_sal,Kbb) )
+      id1 = iom_varid( numror, 'uu_n', ldstop = .FALSE. )  !*  check presence
+      IF( id1 > 0 ) THEN
+         CALL iom_get( numror, jpdom_auto, 'uu_n' , uu_b(:,:,Kbb), cd_type = 'U', psgn = -1._wp )
+         CALL iom_get( numror, jpdom_auto, 'vv_n' , vv_b(:,:,Kbb), cd_type = 'V', psgn = -1._wp )
+      ELSE
+         uu_b(:,:,Kbb) = uu(:,:,1,Kbb)*e3u_0(:,:,1)*umask(:,:,1)
+         vv_b(:,:,Kbb) = vv(:,:,1,Kbb)*e3v_0(:,:,1)*vmask(:,:,1)
+         DO jk = 2, jpkm1
+            uu_b(:,:,Kbb) =  uu_b(:,:,Kbb) + uu(:,:,jk,Kbb)*e3u_0(:,:,jk)*umask(:,:,jk)
+            vv_b(:,:,Kbb) =  vv_b(:,:,Kbb) + vv(:,:,jk,Kbb)*e3v_0(:,:,jk)*vmask(:,:,jk)
+         END DO
+         uu_b(:,:,Kbb) = uu_b(:,:,Kbb) * r1_hu_0(:,:)
+         vv_b(:,:,Kbb) = vv_b(:,:,Kbb) * r1_hv_0(:,:)
+      ENDIF
+      uu(:,:,:  ,Kmm) = uu(:,:,:  ,Kbb)         ! Kmm values set to Kbb for initialisation (sbc_ssm_init)
+      vv(:,:,:  ,Kmm) = vv(:,:,:  ,Kbb)
+      ts(:,:,:,:,Kmm) = ts(:,:,:,:,Kbb)
+      !
+      uu_b(:,:,Kmm)   = uu_b(:,:,Kbb)           ! Kmm value set to Kbb for initialisation in Agrif_Regrid
+      vv_b(:,:,Kmm)   = vv_b(:,:,Kbb)
 #else
       !                             !*  Read Kmm fields   (MLF only)
       IF(lwp) WRITE(numout,*)    '           Kmm u, v and T-S fields read in the restart file'
@@ -310,23 +340,6 @@ CONTAINS
          CALL iom_get( numror, jpdom_auto, 'sb', ts(:,:,:,jp_sal,Kbb) )
       ENDIF
 #endif
-      !
-      IF( .NOT.lk_SWE ) THEN
-         IF( iom_varid( numror, 'rhop', ldstop = .FALSE. ) > 0 ) THEN
-            CALL iom_get( numror, jpdom_auto, 'rhop'   , rhop )   ! now    potential density
-         ELSE
-#if defined key_qco
-            ALLOCATE( zgdept(jpi,jpj,jpk) )
-            DO jk = 1, jpk
-               zgdept(:,:,jk) = gdept(:,:,jk,Kmm)
-            END DO
-            CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, zgdept )
-            DEALLOCATE( zgdept )
-#else
-            CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, gdept(:,:,:,Kmm) )
-#endif
-         ENDIF
-      ENDIF
       !
    END SUBROUTINE rst_read
 
@@ -367,10 +380,11 @@ CONTAINS
          !                                     !*  RK3: Read ssh at Kbb
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*)    '      Kbb sea surface height read in the restart file'
-         CALL iom_get( numror, jpdom_auto, 'sshb'   , ssh(:,:,Kbb) )
+         CALL iom_get( numror, jpdom_auto, 'sshn'   , ssh(:,:,Kbb) )
          !
          !                                     !*  RK3: Set ssh at Kmm for AGRIF
-         ssh(:,:,Kmm) = 0._wp
+         ssh(:,:,Kmm) = ssh(:,:,Kbb)
+         !
 #else
          !                                     !*  MLF: Read ssh at Kmm
          IF(lwp) WRITE(numout,*)
@@ -420,14 +434,11 @@ CONTAINS
             !
          ENDIF
 #if defined key_agrif
-            ! Set ghosts points from parent 
-            IF (.NOT.Agrif_Root()) CALL Agrif_istate_ssh( Kbb, Kmm, Kaa, .true. )
+         ! Set ghosts points from parent 
+         IF (.NOT.Agrif_Root()) CALL Agrif_istate_ssh( Kbb, Kmm, Kaa, .true. )
 #endif
-#if defined key_RK3
-         ssh(:,:,Kmm) = 0._wp                  !* RK3: set Kmm to 0 for AGRIF
-#else
-         ssh(:,:,Kmm) = ssh(:,:,Kbb)           !* MLF: set now values from to before ones 
-#endif
+         !
+         ssh(:,:,Kmm) = ssh(:,:,Kbb)              !* set now values from to before ones
       ENDIF
       !
       !                            !==========================!

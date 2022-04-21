@@ -41,6 +41,7 @@ MODULE diaptr
    END INTERFACE
 
    PUBLIC   dia_ptr        ! call in step module
+   PUBLIC   dia_ptr_init   ! call in stprk3 module
    PUBLIC   dia_ptr_hst    ! called from tra_ldf/tra_adv routines
 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   hstr_adv, hstr_ldf, hstr_eiv   !: Heat/Salt TRansports(adv, diff, Bolus.)
@@ -65,7 +66,7 @@ MODULE diaptr
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: diaptr.F90 14834 2021-05-11 09:24:44Z hadcv $
+   !! $Id: diaptr.F90 15513 2021-11-15 17:31:29Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -82,7 +83,9 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('dia_ptr')
 
+#if ! defined key_RK3
       IF( kt == nit000 .AND. ll_init )   CALL dia_ptr_init    ! -> will define l_diaptr and nbasin
+#endif
       !
       IF( l_diaptr ) THEN
          ! Calculate zonal integrals

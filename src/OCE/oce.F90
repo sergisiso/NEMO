@@ -20,8 +20,8 @@ MODULE oce
 
    !! dynamics and tracer fields
    !! --------------------------                            
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:)   ::   uu   ,  vv     !: horizontal velocities        [m/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)     ::   ww             !: vertical velocity            [m/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:), TARGET   ::   uu   ,  vv     !: horizontal velocities        [m/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  , TARGET   ::   ww             !: vertical velocity            [m/s]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)     ::   wi             !: vertical vel. (adaptive-implicit) [m/s]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)     ::   hdiv           !: horizontal divergence        [s-1]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:,:) ::   ts             !: 4D T-S fields                  [Celsius,psu] 
@@ -45,10 +45,13 @@ MODULE oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::                              hv_e   !: external v-depth
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::                              hur_e  !: inverse of u-depth
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::                              hvr_e  !: inverse of v-depth
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   un_adv, vn_adv                    !: Advective barotropic fluxes 
+#if ! defined key_RK3
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_b  , vb2_b           !: Half step fluxes (ln_bt_fw=T)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   un_bf  , vn_bf           !: Asselin filtered half step fluxes (ln_bt_fw=T)
+#endif
 #if defined key_agrif
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_i_b, vb2_i_b         !: Half step time integrated fluxes 
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_i_b, vb2_i_b         !: agrif time integrated fluxes 
 #endif
 
    !! interpolated gradient (only used in zps case)
@@ -76,7 +79,7 @@ MODULE oce
    
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: oce.F90 15556 2021-11-29 15:23:06Z jchanut $ 
+   !! $Id: oce.F90 14381 2021-02-03 12:36:25Z techene $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -85,37 +88,48 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                   ***  FUNCTION oce_alloc  ***
       !!----------------------------------------------------------------------
-      INTEGER :: ierr(6)
+      INTEGER               ::   ii
+      INTEGER, DIMENSION(7) :: ierr
       !!----------------------------------------------------------------------
       !
-      ierr(:) = 0 
+      ii = 0   ;   ierr(:) = 0 
+      !
+      ii = ii+1
       ALLOCATE( uu   (jpi,jpj,jpk,jpt)  , vv   (jpi,jpj,jpk,jpt)           ,     &          
          &      ww   (jpi,jpj,jpk)      , hdiv(jpi,jpj,jpk)                ,     &
          &      ts   (jpi,jpj,jpk,jpts,jpt)                                ,     &
          &      rab_b(jpi,jpj,jpk,jpts) , rab_n(jpi,jpj,jpk,jpts)          ,     &
          &      rn2b (jpi,jpj,jpk)      , rn2  (jpi,jpj,jpk)               ,     &
-         &      rhd  (jpi,jpj,jpk)      , rhop (jpi,jpj,jpk)               , STAT=ierr(1) )
+         &      rhd  (jpi,jpj,jpk)      , rhop (jpi,jpj,jpk)               , STAT=ierr(ii) )
          !
+      ii = ii+1
       ALLOCATE( ssh (jpi,jpj,jpt)  , uu_b(jpi,jpj,jpt) , vv_b(jpi,jpj,jpt) ,     &
          &      ssh_frc(jpi,jpj)                                           ,     &
          &      gtsu(jpi,jpj,jpts) , gtsv(jpi,jpj,jpts)                    ,     &
          &      gru (jpi,jpj)      , grv (jpi,jpj)                         ,     &
          &      gtui(jpi,jpj,jpts) , gtvi(jpi,jpj,jpts)                    ,     &
          &      grui(jpi,jpj)      , grvi(jpi,jpj)                         ,     &
-         &      riceload(jpi,jpj)                                          , STAT=ierr(2) )
+         &      riceload(jpi,jpj)                                          , STAT=ierr(ii) )
          !
-      ALLOCATE( fraqsr_1lev(jpi,jpj) , STAT=ierr(3) )
+      ii = ii+1
+      ALLOCATE( fraqsr_1lev(jpi,jpj)                                       , STAT=ierr(ii) )
          !
+      ii = ii+1
       ALLOCATE( ssha_e(jpi,jpj),  sshn_e(jpi,jpj), sshb_e(jpi,jpj), sshbb_e(jpi,jpj), &
          &        ua_e(jpi,jpj),    un_e(jpi,jpj),   ub_e(jpi,jpj),   ubb_e(jpi,jpj), &
          &        va_e(jpi,jpj),    vn_e(jpi,jpj),   vb_e(jpi,jpj),   vbb_e(jpi,jpj), &
-         &        hu_e(jpi,jpj),   hur_e(jpi,jpj),   hv_e(jpi,jpj),   hvr_e(jpi,jpj), STAT=ierr(4) )
+         &        hu_e(jpi,jpj),   hur_e(jpi,jpj),   hv_e(jpi,jpj),   hvr_e(jpi,jpj), & 
+         &      un_adv(jpi,jpj),  vn_adv(jpi,jpj)                                   , STAT=ierr(ii) )
          !
-      ALLOCATE( ub2_b(jpi,jpj), vb2_b(jpi,jpj), un_bf(jpi,jpj), vn_bf(jpi,jpj)      , STAT=ierr(5) )
-#if defined key_agrif
-      ALLOCATE( ub2_i_b(jpi,jpj), vb2_i_b(jpi,jpj)                                  , STAT=ierr(6) )
+#if ! defined key_RK3
+      ii = ii+1                             ! MLF: arrays related to Asselin filter + ???
+      ALLOCATE( un_bf(jpi,jpj), vn_bf(jpi,jpj), ub2_b(jpi,jpj), vb2_b(jpi,jpj)      , STAT=ierr(ii) )
 #endif
-         !
+#if defined key_agrif
+      ii = ii+1                             ! AGRIF: ???
+      ALLOCATE( ub2_i_b(jpi,jpj), vb2_i_b(jpi,jpj)                                  , STAT=ierr(ii) )
+#endif
+      !
       oce_alloc = MAXVAL( ierr )
       IF( oce_alloc /= 0 )   CALL ctl_stop( 'STOP', 'oce_alloc: failed to allocate arrays' )
       !

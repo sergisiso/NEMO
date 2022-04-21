@@ -27,7 +27,11 @@
       !!----------------------------------------------------------------------
       !
       CALL nemo_init       !* Initializations of each fine grid
+# if defined key_RK3
+      Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs
+# else
       Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
+# endif
       !
       !                    !* Agrif initialization
       CALL Agrif_InitValues_cont
@@ -410,29 +414,17 @@
       hbdy(:,:) = 0._wp
       ssh(:,:,Krhs_a) = 0._wp
 
-      IF ( ln_dynspg_ts ) THEN
-         Agrif_UseSpecialValue = ln_spc_dyn
-         use_sign_north = .TRUE.
-         sign_north = -1.
-         CALL Agrif_Bc_variable(ub2b_interp_id,calledweight=1.,procname=interpub2b)   ! must be called before unb_id to define ubdy
-         CALL Agrif_Bc_variable(vb2b_interp_id,calledweight=1.,procname=interpvb2b)   ! must be called before vnb_id to define vbdy
-         CALL Agrif_Bc_variable( unb_interp_id,calledweight=1.,procname=interpunb )
-         CALL Agrif_Bc_variable( vnb_interp_id,calledweight=1.,procname=interpvnb )
-         use_sign_north = .FALSE.
-         ubdy(:,:) = 0._wp
-         vbdy(:,:) = 0._wp
-      ELSEIF ( ln_dynspg_EXP ) THEN 
-         Agrif_UseSpecialValue = ln_spc_dyn
-         use_sign_north = .TRUE.
-         sign_north = -1.
-         ubdy(:,:) = 0._wp
-         vbdy(:,:) = 0._wp
-         CALL Agrif_Bc_variable( unb_interp_id,calledweight=1.,procname=interpunb )
-         CALL Agrif_Bc_variable( vnb_interp_id,calledweight=1.,procname=interpvnb )
-         use_sign_north = .FALSE.
-         ubdy(:,:) = 0._wp
-         vbdy(:,:) = 0._wp
-      ENDIF
+      Agrif_UseSpecialValue = ln_spc_dyn
+      use_sign_north = .TRUE.
+      sign_north = -1.
+      ubdy(:,:) = 0._wp
+      vbdy(:,:) = 0._wp
+      CALL Agrif_Bc_variable( unb_interp_id,calledweight=1.,procname=interpunb )
+      CALL Agrif_Bc_variable( vnb_interp_id,calledweight=1.,procname=interpvnb )
+      use_sign_north = .FALSE.
+      ubdy(:,:) = 0._wp
+      vbdy(:,:) = 0._wp
+
       Agrif_UseSpecialValue = .FALSE. 
       l_vremap              = .FALSE.
 

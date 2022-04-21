@@ -28,7 +28,6 @@ MODULE agrif_oce_interp
    USE zdf_oce
    USE agrif_oce
    USE phycst
-!!!   USE dynspg_ts, ONLY: un_adv, vn_adv
    !
    USE in_out_manager
    USE agrif_oce_sponge
@@ -167,18 +166,36 @@ CONTAINS
    END SUBROUTINE Agrif_istate_ssh
 
 
-   SUBROUTINE Agrif_tra
+   SUBROUTINE Agrif_tra( kt, kstg )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE Agrif_tra  ***
       !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt
+      INTEGER, OPTIONAL, INTENT(in) :: kstg
+      REAL(wp) :: ztindex 
       !
       IF( Agrif_Root() )   RETURN
+      !
+      ! Set time index depending on stage in case of RK3 time stepping:
+      IF ( PRESENT( kstg ) ) THEN
+         ztindex = REAL(Agrif_Nbstepint(), wp)
+         IF     ( kstg == 1 ) THEN
+            ztindex = ztindex + 1._wp / 3._wp
+         ELSEIF ( kstg == 2 ) THEN
+            ztindex = ztindex + 1._wp / 2._wp
+         ELSEIF ( kstg == 3 ) THEN
+            ztindex = ztindex + 1._wp
+         ENDIF
+         ztindex = ztindex / Agrif_Rhot()
+      ELSE
+         ztindex = REAL(Agrif_Nbstepint()+1, wp) / Agrif_Rhot()
+      ENDIF
       !
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = l_spc_tra
       l_vremap 		    = ln_vert_remap
       !
-      CALL Agrif_Bc_variable( ts_interp_id, procname=interptsn )
+      CALL Agrif_Bc_variable( ts_interp_id, calledweight=ztindex, procname=interptsn )
       !
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.
@@ -186,20 +203,37 @@ CONTAINS
    END SUBROUTINE Agrif_tra
 
 
-   SUBROUTINE Agrif_dyn( kt )
+   SUBROUTINE Agrif_dyn( kt, kstg )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE Agrif_DYN  ***
       !!----------------------------------------------------------------------  
       INTEGER, INTENT(in) ::   kt
+      INTEGER, OPTIONAL, INTENT(in) :: kstg
       !
       INTEGER  ::   ji, jj, jk       ! dummy loop indices
       INTEGER  ::   ibdy1, jbdy1, ibdy2, jbdy2
       REAL(wp) ::   zflag  
       REAL(wp), DIMENSION(jpi,jpj) ::   zub, zvb
       REAL(wp), DIMENSION(jpi,jpj) ::   zhub, zhvb
+      REAL(wp) :: ztindex
       !!----------------------------------------------------------------------  
       !
       IF( Agrif_Root() )   RETURN
+      !
+      ! Set time index depending on stage in case of RK3 time stepping:
+      IF ( PRESENT( kstg ) ) THEN
+         ztindex = REAL(Agrif_Nbstepint(), wp)
+         IF     ( kstg == 1 ) THEN
+            ztindex = ztindex + 1._wp / 3._wp
+         ELSEIF ( kstg == 2 ) THEN
+            ztindex = ztindex + 1._wp / 2._wp
+         ELSEIF ( kstg == 3 ) THEN
+            ztindex = ztindex + 1._wp
+         ENDIF
+         ztindex = ztindex / Agrif_Rhot()
+      ELSE
+         ztindex = REAL(Agrif_Nbstepint()+1, wp) / Agrif_Rhot()
+      ENDIF
       !
       Agrif_SpecialValue    = 0.0_wp
       Agrif_UseSpecialValue = ln_spc_dyn
@@ -207,14 +241,14 @@ CONTAINS
       !
       use_sign_north = .TRUE.
       sign_north = -1.0_wp
-      CALL Agrif_Bc_variable( un_interp_id, procname=interpun )
-      CALL Agrif_Bc_variable( vn_interp_id, procname=interpvn )
+      CALL Agrif_Bc_variable( un_interp_id, calledweight=ztindex, procname=interpun )
+      CALL Agrif_Bc_variable( vn_interp_id, calledweight=ztindex, procname=interpvn )
 
       IF( .NOT.ln_dynspg_ts ) THEN ! Get transports
          ubdy(:,:) = 0._wp    ;  vbdy(:,:) = 0._wp
          utint_stage(:,:) = 0 ;  vtint_stage(:,:) = 0
-         CALL Agrif_Bc_variable( unb_interp_id, procname=interpunb )
-         CALL Agrif_Bc_variable( vnb_interp_id, procname=interpvnb )
+         CALL Agrif_Bc_variable( unb_interp_id, calledweight=ztindex, procname=interpunb )
+         CALL Agrif_Bc_variable( vnb_interp_id, calledweight=ztindex, procname=interpvnb )
       ENDIF
 
       use_sign_north = .FALSE.
@@ -674,6 +708,13 @@ CONTAINS
       !!----------------------------------------------------------------------  
       !
       IF( Agrif_Root() )   RETURN
+      !
+#if defined key_RK3
+      Agrif_SpecialValue    = 0._wp
+      Agrif_UseSpecialValue = .TRUE.
+      CALL Agrif_Bc_variable(sshn_id, procname=interpsshn )
+      Agrif_UseSpecialValue = .FALSE.
+#endif
       !
       ll_int_cons = ln_bt_fw ! Assume conservative temporal integration in the forward case only
       !
@@ -1399,10 +1440,11 @@ CONTAINS
       !!----------------------------------------------------------------------  
       IF( before ) THEN
 !         IF ( ln_bt_fw ) THEN
+# if defined key_RK3
+            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2)
+# else
             ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * ub2_b(i1:i2,j1:j2)
-!         ELSE
-!            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2)
-!         ENDIF
+# endif
       ELSE
          zrhot = Agrif_rhot()
          ! Time indexes bounds for integration
@@ -1431,12 +1473,13 @@ CONTAINS
       REAL(wp) :: zrhoy
       !!----------------------------------------------------------------------  
       IF( before ) THEN
-!         IF ( ln_bt_fw ) THEN
+# if defined key_RK3
+            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2) &
+                                * umask(i1:i2,j1:j2,1)
+# else
             ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * ub2_b(i1:i2,j1:j2) &
                                 * umask(i1:i2,j1:j2,1)
-!         ELSE
-!            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2)
-!         ENDIF
+# endif
       ELSE
          zrhoy = Agrif_Rhoy()
          !
@@ -1466,12 +1509,21 @@ CONTAINS
          jmin = MAX(j1, 2) ; jmax = MIN(j2, jpj-1)
          DO ji=imin,imax
             DO jj=jmin,jmax
+# if defined key_RK3
+               ptab(ji,jj) = 0.25_wp *(vmask(ji,jj  ,1)                        & 
+                           &       * ( vn_adv(ji+1,jj  )*e1v(ji+1,jj  )        & 
+                           &          -vn_adv(ji-1,jj  )*e1v(ji-1,jj  ) )      &
+                           &          -vmask(ji,jj-1,1)                        & 
+                           &       * ( vn_adv(ji+1,jj-1)*e1v(ji+1,jj-1)        &
+                           &          -vn_adv(ji-1,jj-1)*e1v(ji-1,jj-1) ) )      
+# else
                ptab(ji,jj) = 0.25_wp *(vmask(ji,jj  ,1)                        & 
                            &       * ( vb2_b(ji+1,jj  )*e1v(ji+1,jj  )         & 
                            &          -vb2_b(ji-1,jj  )*e1v(ji-1,jj  ) )       &
                            &          -vmask(ji,jj-1,1)                        & 
                            &       * ( vb2_b(ji+1,jj-1)*e1v(ji+1,jj-1)         &
                            &          -vb2_b(ji-1,jj-1)*e1v(ji-1,jj-1) ) )      
+# endif
             END DO
          END DO 
       ELSE
@@ -1507,11 +1559,11 @@ CONTAINS
       !!----------------------------------------------------------------------  
       !
       IF( before ) THEN
-!         IF ( ln_bt_fw ) THEN
+# if defined key_RK3
+            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2)
+# else
             ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vb2_b(i1:i2,j1:j2)
-!         ELSE
-!            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2)
-!         ENDIF
+# endif
       ELSE      
          zrhot = Agrif_rhot()
          ! Time indexes bounds for integration
@@ -1541,12 +1593,13 @@ CONTAINS
       REAL(wp) :: zrhox
       !!----------------------------------------------------------------------  
       IF( before ) THEN
-!         IF ( ln_bt_fw ) THEN
+# if defined key_RK3
+            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2) &
+                                * vmask(i1:i2,j1:j2,1)
+# else
             ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vb2_b(i1:i2,j1:j2) &
                                 * vmask(i1:i2,j1:j2,1)
-!         ELSE
-!            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2)
-!         ENDIF
+# endif
       ELSE
          zrhox = Agrif_Rhox()
          !
@@ -1576,12 +1629,21 @@ CONTAINS
          jmin = MAX(j1, 2) ; jmax = MIN(j2, jpj-1)
          DO ji=imin,imax
             DO jj=jmin,jmax
+# if defined key_RK3
+               ptab(ji,jj) = 0.25_wp *(umask(ji  ,jj,1)                      & 
+                           &       * ( un_adv(ji  ,jj+1)*e2u(ji  ,jj+1)      & 
+                           &          -un_adv(ji  ,jj-1)*e2u(ji  ,jj-1) )    &
+                           &          -umask(ji-1,jj,1)                      & 
+                           &       * ( un_adv(ji-1,jj+1)*e2u(ji-1,jj+1)      &
+                           &          -un_adv(ji-1,jj-1)*e2u(ji-1,jj-1) ) )   
+# else
                ptab(ji,jj) = 0.25_wp *(umask(ji  ,jj,1)                      & 
                            &       * ( ub2_b(ji  ,jj+1)*e2u(ji  ,jj+1)       & 
                            &          -ub2_b(ji  ,jj-1)*e2u(ji  ,jj-1) )     &
                            &          -umask(ji-1,jj,1)                      & 
                            &       * ( ub2_b(ji-1,jj+1)*e2u(ji-1,jj+1)       &
                            &          -ub2_b(ji-1,jj-1)*e2u(ji-1,jj-1) ) )   
+# endif
             END DO
          END DO 
       ELSE

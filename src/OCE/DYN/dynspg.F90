@@ -51,12 +51,12 @@ MODULE dynspg
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: dynspg.F90 14225 2020-12-19 14:58:39Z smasson $
+   !! $Id: dynspg.F90 14547 2021-02-25 17:07:15Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE dyn_spg( kt, Kbb, Kmm, Krhs, puu, pvv, pssh, puu_b, pvv_b, Kaa, k_only_ADV )
+   SUBROUTINE dyn_spg( kt, Kbb, Kmm, Krhs, puu, pvv, pssh, puu_b, pvv_b, Kaa )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE dyn_spg  ***
       !!
@@ -78,10 +78,9 @@ CONTAINS
       INTEGER                             , INTENT( in )  ::  Kbb, Kmm, Krhs, Kaa ! ocean time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv            ! ocean velocities and RHS of momentum equation
       REAL(wp), DIMENSION(jpi,jpj,jpt)    , INTENT(inout) ::  pssh, puu_b, pvv_b  ! SSH and barotropic velocities at main time levels
-      INTEGER , OPTIONAL                  , INTENT( in )  ::  k_only_ADV          ! only Advection in the RHS
       !
       INTEGER  ::   ji, jj, jk                   ! dummy loop indices
-      REAL(wp) ::   z2dt, zg_2, zintp, zgrho0r, zld   ! local scalars
+      REAL(wp) ::   zg_2, zintp, zgrho0r, zld    ! local scalars
       REAL(wp)             , DIMENSION(jpi,jpj) ::   zpgu, zpgv   ! 2D workspace
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)     ::   zpice
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   ztrdu, ztrdv
@@ -150,8 +149,8 @@ CONTAINS
          !
          IF( ln_wave .and. ln_bern_srfc ) THEN          !== Add J terms: depth-independent Bernoulli head
             DO_2D( 0, 0, 0, 0 )
-               zpgu(ji,jj) = zpgu(ji,jj) + ( bhd_wave(ji+1,jj) - bhd_wave(ji,jj) ) / e1u(ji,jj)   !++ bhd_wave from wave model in m2/s2 [BHD parameters in WW3]
-               zpgv(ji,jj) = zpgv(ji,jj) + ( bhd_wave(ji,jj+1) - bhd_wave(ji,jj) ) / e2v(ji,jj)
+               zpgu(ji,jj) = zpgu(ji,jj) + ( bhd_wave(ji+1,jj) - bhd_wave(ji,jj) ) * r1_e1u(ji,jj)   !++ bhd_wave from wave model in m2/s2 [BHD parameters in WW3]
+               zpgv(ji,jj) = zpgv(ji,jj) + ( bhd_wave(ji,jj+1) - bhd_wave(ji,jj) ) * r1_e2v(ji,jj)
             END_2D
          ENDIF
          !
@@ -166,7 +165,7 @@ CONTAINS
       !
       SELECT CASE ( nspg )                   !== surface pressure gradient computed and add to the general trend ==!
       CASE ( np_EXP )   ;   CALL dyn_spg_exp( kt,      Kmm,       puu, pvv, Krhs )                    ! explicit
-      CASE ( np_TS  )   ;   CALL dyn_spg_ts ( kt, Kbb, Kmm, Krhs, puu, pvv, pssh, puu_b, pvv_b, Kaa, k_only_ADV ) ! time-splitting
+      CASE ( np_TS  )   ;   CALL dyn_spg_ts ( kt, Kbb, Kmm, Krhs, puu, pvv, pssh, puu_b, pvv_b, Kaa ) ! time-splitting
       END SELECT
       !
       IF( l_trddyn )   THEN                  ! save the surface pressure gradient trends for further diagnostics

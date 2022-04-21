@@ -9,6 +9,7 @@ MODULE traadv
    !!            3.7  !  2014-05  (G. Madec)  Add 2nd/4th order cases for CEN and FCT schemes
    !!             -   !  2014-12  (G. Madec) suppression of cross land advection option
    !!            3.6  !  2015-06  (E. Clementi) Addition of Stokes drift in case of wave coupling
+   !!            4.5  !  2021-04  (G. Madec, S. Techene) add advective velocities as optional arguments
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -43,7 +44,7 @@ MODULE traadv
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_adv        ! called by step.F90
+   PUBLIC   tra_adv        ! called by step.F90, stpmlf.F90 and stprk3_stg.F90
    PUBLIC   tra_adv_init   ! called by nemogcm.F90
 
    !                            !!* Namelist namtra_adv *
@@ -58,43 +59,45 @@ MODULE traadv
    INTEGER ::      nn_ubs_v             ! =2/4 : vertical choice of the order of UBS scheme
    LOGICAL ::   ln_traadv_qck    ! QUICKEST scheme flag
 
-   INTEGER, PUBLIC ::   nadv             ! choice of the type of advection scheme
+   INTEGER ::   nadv             ! choice of the type of advection scheme
    !                             ! associated indices:
-   INTEGER, PARAMETER, PUBLIC ::   np_NO_adv  = 0   ! no T-S advection
-   INTEGER, PARAMETER, PUBLIC ::   np_CEN     = 1   ! 2nd/4th order centered scheme
-   INTEGER, PARAMETER, PUBLIC ::   np_FCT     = 2   ! 2nd/4th order Flux Corrected Transport scheme
-   INTEGER, PARAMETER, PUBLIC ::   np_MUS     = 3   ! MUSCL scheme
-   INTEGER, PARAMETER, PUBLIC ::   np_UBS     = 4   ! 3rd order Upstream Biased Scheme
-   INTEGER, PARAMETER, PUBLIC ::   np_QCK     = 5   ! QUICK scheme
+   INTEGER, PARAMETER ::   np_NO_adv  = 0   ! no T-S advection
+   INTEGER, PARAMETER ::   np_CEN     = 1   ! 2nd/4th order centered scheme
+   INTEGER, PARAMETER ::   np_FCT     = 2   ! 2nd/4th order Flux Corrected Transport scheme
+   INTEGER, PARAMETER ::   np_MUS     = 3   ! MUSCL scheme
+   INTEGER, PARAMETER ::   np_UBS     = 4   ! 3rd order Upstream Biased Scheme
+   INTEGER, PARAMETER ::   np_QCK     = 5   ! QUICK scheme
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: traadv.F90 15073 2021-07-02 14:20:14Z clem $
+   !! $Id: traadv.F90 15514 2021-11-16 08:58:22Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv( kt, Kbb, Kmm, pts, Krhs )
+   SUBROUTINE tra_adv( kt, Kbb, Kmm, pts, Krhs, pau, pav, paw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv  ***
       !!
       !! ** Purpose :   compute the ocean tracer advection trend.
       !!
-      !! ** Method  : - Update (uu(:,:,:,Krhs),vv(:,:,:,Krhs)) with the advection term following nadv
+      !! ** Method  : - Update ts(Krhs) with the advective trend following nadv
       !!----------------------------------------------------------------------
-      INTEGER                                  , INTENT(in)    :: kt             ! ocean time-step index
-      INTEGER                                  , INTENT(in)    :: Kbb, Kmm, Krhs ! time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) :: pts            ! active tracers and RHS of tracer equation
+      INTEGER                                     , INTENT(in   ) ::   kt             ! ocean time-step index
+      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Krhs ! time level indices
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw  ! advective velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)   , INTENT(inout) ::   pts            ! active tracers and RHS of tracer equation
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
+      REAL(wp), DIMENSION(:,:,:), POINTER ::   zptu, zptv, zptw
       ! TEMP: [tiling] This change not necessary and can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE, SAVE :: zuu, zvv, zww   ! 3D workspace
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: ztrdt, ztrds
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE, SAVE ::   zuu, zvv, zww   ! 3D workspace
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE       ::   ztrdt, ztrds
       ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      LOGICAL :: lskip
+      LOGICAL ::   lskip
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('tra_adv')
@@ -114,23 +117,35 @@ CONTAINS
             lskip = .TRUE.
          ENDIF
       ENDIF
+      !
       IF( .NOT. lskip ) THEN
-         !                                         !==  effective transport  ==!
+         !                                         !==  effective advective transport  ==!
+         !
+         IF( PRESENT( pau ) ) THEN     ! RK3: advective velocity (pau,pav,paw) /= advected velocity (uu,vv,ww)
+            zptu => pau(:,:,:)
+            zptv => pav(:,:,:)
+            zptw => paw(:,:,:)
+         ELSE                          ! MLF: advective velocity = (uu,vv,ww)
+            zptu => uu(:,:,:,Kmm)
+            zptv => vv(:,:,:,Kmm)
+            zptw => ww(:,:,:    )
+         ENDIF
+         !
          IF( ln_wave .AND. ln_sdw )  THEN
             DO_3D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + usd(ji,jj,jk) )
-               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + vsd(ji,jj,jk) )
+               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
+               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * ( zptv(ji,jj,jk) + vsd(ji,jj,jk) )
             END_3D
             DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-               zww(ji,jj,jk) = e1e2t(ji,jj)                     * ( ww(ji,jj,jk)     + wsd(ji,jj,jk) )
+               zww(ji,jj,jk) = e1e2t(ji,jj)                     * ( zptw(ji,jj,jk) + wsd(ji,jj,jk) )
             END_3D
          ELSE
             DO_3D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * uu(ji,jj,jk,Kmm)               ! eulerian transport only
-               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * vv(ji,jj,jk,Kmm)
+               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * zptu(ji,jj,jk)               ! eulerian transport only
+               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * zptv(ji,jj,jk)
             END_3D
             DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-               zww(ji,jj,jk) = e1e2t(ji,jj)                     * ww(ji,jj,jk)
+               zww(ji,jj,jk) = e1e2t(ji,jj)                     * zptw(ji,jj,jk)
             END_3D
          ENDIF
          !
@@ -142,7 +157,7 @@ CONTAINS
          ENDIF
          !
          DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            zuu(ji,jj,jpk) = 0._wp                                                      ! no transport trough the bottom
+            zuu(ji,jj,jpk) = 0._wp                                                      ! no transport trough the bottom 
             zvv(ji,jj,jpk) = 0._wp
             zww(ji,jj,jpk) = 0._wp
          END_2D
@@ -153,15 +168,17 @@ CONTAINS
          IF( ln_mle    )   CALL tra_mle_trp( kt, nit000, zuu, zvv, zww, 'TRA', Kmm       )   ! add the mle transport (if necessary)
          !
          ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-         IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
-            CALL iom_put( "uocetr_eff", zuu )                                        ! output effective transport
-            CALL iom_put( "vocetr_eff", zvv )
-            CALL iom_put( "wocetr_eff", zww )
+         IF( l_iom ) THEN
+            IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
+               CALL iom_put( "uocetr_eff", zuu )                                        ! output effective transport
+               CALL iom_put( "vocetr_eff", zvv )
+               CALL iom_put( "wocetr_eff", zww )
+            ENDIF
          ENDIF
          !
 !!gm ???
          ! TEMP: [tiling] This copy-in not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-         CALL dia_ptr( kt, Kmm, zvv(A2D(nn_hls),:) )                                    ! diagnose the effective MSF
+         IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zvv(A2D(nn_hls),:) )                                    ! diagnose the effective MSF
 !!gm ???
          !
 
@@ -245,8 +262,8 @@ CONTAINS
          WRITE(numout,*) '   Namelist namtra_adv : chose a advection scheme for tracers'
          WRITE(numout,*) '      No advection on T & S                     ln_traadv_OFF = ', ln_traadv_OFF
          WRITE(numout,*) '      centered scheme                           ln_traadv_cen = ', ln_traadv_cen
-         WRITE(numout,*) '            horizontal 2nd/4th order               nn_cen_h   = ', nn_fct_h
-         WRITE(numout,*) '            vertical   2nd/4th order               nn_cen_v   = ', nn_fct_v
+         WRITE(numout,*) '            horizontal 2nd/4th order               nn_cen_h   = ', nn_cen_h
+         WRITE(numout,*) '            vertical   2nd/4th order               nn_cen_v   = ', nn_cen_v
          WRITE(numout,*) '      Flux Corrected Transport scheme           ln_traadv_fct = ', ln_traadv_fct
          WRITE(numout,*) '            horizontal 2nd/4th order               nn_fct_h   = ', nn_fct_h
          WRITE(numout,*) '            vertical   2nd/4th order               nn_fct_v   = ', nn_fct_v

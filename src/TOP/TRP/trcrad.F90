@@ -34,7 +34,7 @@ MODULE trcrad
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcrad.F90 13324 2020-07-17 19:47:48Z acc $ 
+   !! $Id: trcrad.F90 15561 2021-11-30 13:25:02Z techene $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -148,9 +148,14 @@ CONTAINS
      IF( l_trdtrc )   ALLOCATE( ztrtrd(jpi,jpj,jpk) )
      zs2rdt = 1. / ( 2. * rn_Dt )
      !
+#if ! defined key_RK3
      DO jt = 1,2  ! Loop over time indices since exactly the same fix is applied to "now" and "after" fields
         IF( jt == 1 ) itime = Kbb
         IF( jt == 2 ) itime = Kmm
+#else
+     DO jt = 1,1  ! Loop over time indices since exactly the same fix is applied to "now" and "after" fields
+        IF( jt == 1 ) itime = Kmm
+#endif
 
         IF( PRESENT( cpreserv )  ) THEN     !==  total tracer concentration is preserved  ==!
            !

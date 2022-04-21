@@ -16,7 +16,9 @@ MODULE sshwzv
    !!----------------------------------------------------------------------
    !!   ssh_nxt       : after ssh
    !!   ssh_atf       : time filter the ssh arrays
-   !!   wzv           : compute now vertical velocity
+   !!   wzv           : generic interface of vertical velocity calculation
+   !!   wzv_MLF       : MLF: compute NOW vertical velocity
+   !!   wzv_RK3       : RK3: Compute a vertical velocity
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers variables
    USE isf_oce        ! ice shelf
@@ -43,6 +45,10 @@ MODULE sshwzv
    
    IMPLICIT NONE
    PRIVATE
+   !                  !! * Interface
+   INTERFACE wzv
+      MODULE PROCEDURE wzv_MLF, wzv_RK3
+   END INTERFACE
 
    PUBLIC   ssh_nxt        ! called by step.F90
    PUBLIC   wzv            ! called by step.F90
@@ -54,7 +60,7 @@ MODULE sshwzv
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: sshwzv.F90 15150 2021-07-27 10:38:24Z smasson $
+   !! $Id: sshwzv.F90 14618 2021-03-19 14:42:32Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -76,10 +82,11 @@ CONTAINS
       INTEGER                         , INTENT(in   ) ::   kt             ! time step
       INTEGER                         , INTENT(in   ) ::   Kbb, Kmm, Kaa  ! time level index
       REAL(wp), DIMENSION(jpi,jpj,jpt), INTENT(inout) ::   pssh           ! sea-surface height
-      ! 
+      !
       INTEGER  ::   ji, jj, jk      ! dummy loop index
       REAL(wp) ::   zcoef   ! local scalar
       REAL(wp), DIMENSION(jpi,jpj) ::   zhdiv   ! 2D workspace
+      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   z3d   ! 3D workspace
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('ssh_nxt')
@@ -91,12 +98,11 @@ CONTAINS
       ENDIF
       !
       zcoef = 0.5_wp * r1_rho0
-
       !                                           !------------------------------!
       !                                           !   After Sea Surface Height   !
       !                                           !------------------------------!
       IF(ln_wd_il) THEN
-         CALL wad_lmt(pssh(:,:,Kbb), zcoef * (emp_b(:,:) + emp(:,:)), rDt, Kmm, uu, vv )
+         CALL wad_lmt( pssh(:,:,Kbb), zcoef * (emp_b(:,:) + emp(:,:)), rDt, Kmm, uu, vv )
       ENDIF
 
       CALL div_hor( kt, Kbb, Kmm )                     ! Horizontal divergence
@@ -110,7 +116,11 @@ CONTAINS
       ! compute the vertical velocity which can be used to compute the non-linear terms of the momentum equations.
       ! 
       DO_2D_OVR( 1, nn_hls, 1, nn_hls )                ! Loop bounds limited by hdiv definition in div_hor
-         pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( zcoef * ( emp_b(ji,jj) + emp(ji,jj) ) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
+#if defined key_RK3
+      pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( r1_rho0 * emp(ji,jj) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
+#else
+      pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( zcoef * ( emp_b(ji,jj) + emp(ji,jj) ) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
+#endif
       END_2D
       ! pssh must be defined everywhere (true for dyn_spg_ts, not for dyn_spg_exp)
       IF ( .NOT. ln_dynspg_ts .AND. nn_hls == 2 ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )
@@ -123,23 +133,21 @@ CONTAINS
       IF ( .NOT.ln_dynspg_ts ) THEN
          IF( ln_bdy ) THEN
             IF (nn_hls==1) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )    ! Not sure that's necessary
-            CALL bdy_ssh( pssh(:,:,Kaa) )             ! Duplicate sea level across open boundaries
+            CALL bdy_ssh( pssh(:,:,Kaa) )              ! Duplicate sea level across open boundaries
          ENDIF
       ENDIF
-      !                                           !------------------------------!
-      !                                           !           outputs            !
-      !                                           !------------------------------!
       !
+      !                                                ! Control print
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab2d_1=pssh(:,:,Kaa), clinfo1=' pssh(:,:,Kaa)  - : ', mask1=tmask )
       !
       IF( ln_timing )   CALL timing_stop('ssh_nxt')
       !
    END SUBROUTINE ssh_nxt
 
-   
-   SUBROUTINE wzv( kt, Kbb, Kmm, Kaa, pww )
+
+   SUBROUTINE wzv_MLF( kt, Kbb, Kmm, Kaa, pww )
       !!----------------------------------------------------------------------
-      !!                ***  ROUTINE wzv  ***
+      !!                ***  ROUTINE wzv_MLF  ***
       !!                   
       !! ** Purpose :   compute the now vertical velocity
       !!
@@ -160,12 +168,12 @@ CONTAINS
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zhdiv
       !!----------------------------------------------------------------------
       !
-      IF( ln_timing )   CALL timing_start('wzv')
+      IF( ln_timing )   CALL timing_start('wzv_MLF')
       !
       IF( kt == nit000 ) THEN
          IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'wzv : now vertical velocity '
-         IF(lwp) WRITE(numout,*) '~~~~~ '
+         IF(lwp) WRITE(numout,*) 'wzv_MLF : now vertical velocity '
+         IF(lwp) WRITE(numout,*) '~~~~~~~'
          !
          pww(:,:,jpk) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
       ENDIF
@@ -198,7 +206,7 @@ CONTAINS
                &                                             - e3t(ji,jj,jk,Kbb) )   ) * tmask(ji,jj,jk)
          END_3D
          !          IF( ln_vvl_layer ) pww(:,:,:) = 0.e0
-         DEALLOCATE( zhdiv ) 
+         DEALLOCATE( zhdiv )
          !                                            !=================================!
       ELSEIF( ln_linssh )   THEN                      !==  linear free surface cases  ==!
          !                                            !=================================!
@@ -209,9 +217,15 @@ CONTAINS
       ELSE                                            !==  Quasi-Eulerian vertical coordinate  ==!   ('key_qco')
          !                                            !==========================================!
          DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+#if defined key_qco
+!!gm slightly faster
+            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)    &
+                 &                               + r1_Dt * e3t_0(ji,jj,jk) * ( r3t(ji,jj,Kaa) - r3t(ji,jj,Kbb) )  ) * tmask(ji,jj,jk)
+#else
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)    &
                &                                 + r1_Dt * (  e3t(ji,jj,jk,Kaa)        &
                &                                            - e3t(ji,jj,jk,Kbb)  )   ) * tmask(ji,jj,jk)
+#endif
          END_3D
       ENDIF
 
@@ -263,9 +277,140 @@ CONTAINS
       ENDIF 
 #endif
       !
-      IF( ln_timing )   CALL timing_stop('wzv')
+      IF( ln_timing )   CALL timing_stop('wzv_MLF')
       !
-   END SUBROUTINE wzv
+   END SUBROUTINE wzv_MLF
+
+
+   SUBROUTINE wzv_RK3( kt, Kbb, Kmm, Kaa, puu, pvv, pww )
+      !!----------------------------------------------------------------------
+      !!                ***  ROUTINE wzv_RK3  ***
+      !!                   
+      !! ** Purpose :   compute the now vertical velocity
+      !!
+      !! ** Method  : - Using the incompressibility hypothesis, the vertical 
+      !!      velocity is computed by integrating the horizontal divergence  
+      !!      from the bottom to the surface minus the scale factor evolution.
+      !!        The boundary conditions are w=0 at the bottom (no flux) and.
+      !!
+      !! ** action  :   pww      : now vertical velocity
+      !!
+      !! Reference  : Leclair, M., and G. Madec, 2009, Ocean Modelling.
+      !!----------------------------------------------------------------------
+      INTEGER                         , INTENT(in   ) ::   kt             ! time step
+      INTEGER                         , INTENT(in   ) ::   Kbb, Kmm, Kaa  ! time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   puu, pvv       ! horizontal velocity at Kmm
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::             pww  ! vertical velocity at Kmm
+      !
+      INTEGER  ::   ji, jj, jk   ! dummy loop indices
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zhdiv
+      REAL(wp)             , DIMENSION(jpi,jpj,jpk) ::   ze3div
+      !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('wzv_RK3')
+      !
+      IF( kt == nit000 ) THEN
+         IF(lwp) WRITE(numout,*)
+         IF(lwp) WRITE(numout,*) 'wzv_RK3 : now vertical velocity '
+         IF(lwp) WRITE(numout,*) '~~~~~ '
+         !
+         pww(:,:,jpk) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
+      ENDIF
+      !
+      CALL div_hor( kt, Kbb, Kmm, puu, pvv, ze3div )
+      !                                           !------------------------------!
+      !                                           !     Now Vertical Velocity    !
+      !                                           !------------------------------!
+      !
+      !                                               !===============================!
+      IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN      !==  z_tilde and layer cases  ==!
+         !                                            !===============================!
+         ALLOCATE( zhdiv(jpi,jpj,jpk) ) 
+         !
+         DO jk = 1, jpkm1
+            ! horizontal divergence of thickness diffusion transport ( velocity multiplied by e3t)
+            ! - ML - note: computation already done in dom_vvl_sf_nxt. Could be optimized (not critical and clearer this way)
+            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
+               zhdiv(ji,jj,jk) = r1_e1e2t(ji,jj) * ( un_td(ji,jj,jk) - un_td(ji-1,jj,jk) + vn_td(ji,jj,jk) - vn_td(ji,jj-1,jk) )
+            END_2D
+         END DO
+         IF( nn_hls == 1)   CALL lbc_lnk('sshwzv', zhdiv, 'T', 1.0_wp)  ! - ML - Perhaps not necessary: not used for horizontal "connexions"
+         !                             ! Is it problematic to have a wrong vertical velocity in boundary cells?
+         !                             ! Same question holds for hdiv. Perhaps just for security
+         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (   ze3div(ji,jj,jk) + zhdiv(ji,jj,jk)   &
+                 &                            + r1_Dt * (  e3t(ji,jj,jk,Kaa)       &
+                 &                                       - e3t(ji,jj,jk,Kbb) )   ) * tmask(ji,jj,jk)
+         END_3D
+         !
+         DEALLOCATE( zhdiv ) 
+         !                                            !=================================!
+      ELSEIF( ln_linssh )   THEN                      !==  linear free surface cases  ==!
+         !                                            !=================================!
+         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+            pww(ji,jj,jk) = pww(ji,jj,jk+1) - ze3div(ji,jj,jk) 
+         END_3D
+         !                                            !==========================================!
+      ELSE                                            !==  Quasi-Eulerian vertical coordinate  ==!   ('key_qco')
+         !                                            !==========================================!
+         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+         !                                                              ! NB: [e3t[a] -e3t[b] ]=e3t_0*[r3t[a]-r3t[b]]
+            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  ze3div(ji,jj,jk)                            &
+               &                               + r1_Dt * e3t_0(ji,jj,jk) * ( r3t(ji,jj,Kaa) - r3t(ji,jj,Kbb) )  ) * tmask(ji,jj,jk)
+         END_3D
+      ENDIF
+
+      IF( ln_bdy ) THEN
+         DO jk = 1, jpkm1
+            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
+               pww(ji,jj,jk) = pww(ji,jj,jk) * bdytmask(ji,jj)
+            END_2D
+         END DO
+      ENDIF
+      !
+#if defined key_agrif
+      IF( .NOT. AGRIF_Root() ) THEN
+         !
+         ! Mask vertical velocity at first/last columns/row 
+         ! inside computational domain (cosmetic) 
+         DO jk = 1, jpkm1
+            IF( lk_west ) THEN                             ! --- West --- !
+               DO ji = mi0(2+nn_hls), mi1(2+nn_hls)
+                  DO jj = 1, jpj
+                     pww(ji,jj,jk) = 0._wp 
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_east ) THEN                             ! --- East --- !
+               DO ji = mi0(jpiglo-1-nn_hls), mi1(jpiglo-1-nn_hls)
+                  DO jj = 1, jpj
+                     pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_south ) THEN                            ! --- South --- !
+               DO jj = mj0(2+nn_hls), mj1(2+nn_hls)
+                  DO ji = 1, jpi
+                     pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_north ) THEN                            ! --- North --- !
+               DO jj = mj0(jpjglo-1-nn_hls), mj1(jpjglo-1-nn_hls)
+                  DO ji = 1, jpi
+                     pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            !
+         END DO
+         !
+      ENDIF 
+#endif
+      !
+      IF( ln_timing )   CALL timing_stop('wzv_RK3')
+      !
+   END SUBROUTINE wzv_RK3
 
 
    SUBROUTINE ssh_atf( kt, Kbb, Kmm, Kaa, pssh )

@@ -64,7 +64,7 @@ MODULE domain
 #  include "do_loop_substitute.h90"
    !!-------------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: domain.F90 15270 2021-09-17 14:27:55Z smasson $
+   !! $Id: domain.F90 14547 2021-02-25 17:07:15Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!-------------------------------------------------------------------------
 CONTAINS
@@ -88,7 +88,6 @@ CONTAINS
       !
       INTEGER ::   ji, jj, jk, jt   ! dummy loop indices
       INTEGER ::   iconf = 0    ! local integers
-      REAL(wp)::   zrdt
       CHARACTER (len=64) ::   cform = "(A12, 3(A13, I7))"
       INTEGER , DIMENSION(jpi,jpj) ::   ik_top , ik_bot       ! top and bottom ocean level
       REAL(wp), DIMENSION(jpi,jpj) ::   z1_hu_0, z1_hv_0
@@ -310,8 +309,27 @@ CONTAINS
       ENDIF
       !
       ! set current model timestep rDt = 2*rn_Dt if MLF or rDt = rn_Dt if RK3
+#if defined key_RK3
+      rDt   =         rn_Dt
+      r1_Dt = 1._wp / rDt
+      !
+      IF(lwp) THEN
+         WRITE(numout,*)
+         WRITE(numout,*) '           ===>>>   Runge Kutta 3rd order (RK3) :   rDt = ', rDt
+         WRITE(numout,*)
+      ENDIF
+      !
+#else
       rDt   = 2._wp * rn_Dt
       r1_Dt = 1._wp / rDt
+      !
+      IF(lwp) THEN
+         WRITE(numout,*)
+         WRITE(numout,*) '           ===>>>   Modified Leap-Frog (MLF) :   rDt = ', rDt
+         WRITE(numout,*)
+      ENDIF
+      !
+#endif
       !
       IF( l_SAS .AND. .NOT.ln_linssh ) THEN
          CALL ctl_warn( 'SAS requires linear ssh : force ln_linssh = T' )
@@ -392,6 +410,8 @@ CONTAINS
          IF( nn_wxios > 0 )   lwxios = .TRUE.           !* set output file type for XIOS based on NEMO namelist
          nxioso = nn_wxios
       ENDIF
+      !
+#if ! defined key_RK3
       !                                        !==  Check consistency between ln_rstart and ln_1st_euler  ==!   (i.e. set l_1st_euler)
       l_1st_euler = ln_1st_euler
       !
@@ -427,6 +447,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*)'           an Euler initial time step is used : l_1st_euler is forced to .true. '
          l_1st_euler = .TRUE.
       ENDIF
+#endif
       !
       !                                        !==  control of output frequency  ==!
       !

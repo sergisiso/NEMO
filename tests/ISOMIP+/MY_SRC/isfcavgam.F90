@@ -94,9 +94,9 @@ CONTAINS
          pgt(:,:) = rn_gammat0
          pgs(:,:) = rn_gammas0
       CASE ( 'vel' ) ! gamma is proportional to u*
-         CALL gammats_vel      (                   zutbl, zvtbl, rCd0_top, rn_vtide**2,                    pgt, pgs )
+         CALL gammats_vel      (                   zutbl, zvtbl, rCd0_top, r_ke0_top,                    pgt, pgs )
       CASE ( 'vel_stab' ) ! gamma depends of stability of boundary layer and u*
-         CALL gammats_vel_stab (Kmm, pttbl, pstbl, zutbl, zvtbl, rCd0_top, rn_vtide**2, pqoce, pqfwf, pRc, pgt, pgs )
+         CALL gammats_vel_stab (Kmm, pttbl, pstbl, zutbl, zvtbl, rCd0_top, r_ke0_top, pqoce, pqfwf, pRc, pgt, pgs )
       CASE DEFAULT
          CALL ctl_stop('STOP','method to compute gamma (cn_gammablk) is unknown (should not see this)')
       END SELECT

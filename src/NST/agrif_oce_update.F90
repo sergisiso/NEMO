@@ -41,7 +41,7 @@ MODULE agrif_oce_update
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_oce_update.F90 15317 2021-10-01 16:09:36Z jchanut $
+   !! $Id: agrif_oce_update.F90 14800 2021-05-06 15:42:46Z jchanut $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -98,12 +98,14 @@ CONTAINS
       ! 
       IF ( ln_dynspg_ts .AND. ln_bt_fw ) THEN
          ! Update time integrated transports
+#  if ! defined key_RK3
 #  if ! defined DECAL_FEEDBACK_2D
          CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updateub2b)
          CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updatevb2b)
 #  else
          CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/),procname = updateub2b)
          CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updatevb2b)
+#  endif
 #  endif
          IF (lk_agrif_fstep) THEN
             CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc-1,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc  ,-2/),procname = updateumsk)
@@ -544,6 +546,7 @@ CONTAINS
          DO jk=1,jpkm1
             DO jj=j1,j2
                DO ji=i1,i2
+#if ! defined key_RK3
                   IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
                      ze3b = e3u(ji,jj,jk,Kbb_a) & ! Recover e3ub before update
                           & - rn_atfp * ( e3u(ji,jj,jk,Kmm_a) - e3u(ji,jj,jk,Krhs_a) )
@@ -553,6 +556,7 @@ CONTAINS
                      uu(ji,jj,jk,Kbb_a) = ( zub + rn_atfp * ( zunu - zuno) ) &      
                                     & * umask(ji,jj,jk) / e3u(ji,jj,jk,Kbb_a)
                   ENDIF
+#endif
                   !
                   uu(ji,jj,jk,Kmm_a) = tabres_child(ji,jj,jk) * umask(ji,jj,jk)
                END DO
@@ -693,6 +697,7 @@ CONTAINS
          DO jk=1,jpkm1
             DO jj=j1,j2
                DO ji=i1,i2
+#if ! defined key_RK3
                   IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
                      ze3b = e3v(ji,jj,jk,Kbb_a) & ! Recover e3vb before update
                           & - rn_atfp * ( e3v(ji,jj,jk,Kmm_a) - e3v(ji,jj,jk,Krhs_a) )
@@ -702,6 +707,7 @@ CONTAINS
                      vv(ji,jj,jk,Kbb_a) = ( zvb + rn_atfp * ( zvnu - zvno) ) &      
                                     & * vmask(ji,jj,jk) / e3v(ji,jj,jk,Kbb_a)
                   ENDIF
+#endif
                   !
                   vv(ji,jj,jk,Kmm_a) = tabres_child(ji,jj,jk) * vmask(ji,jj,jk)
                END DO
@@ -768,12 +774,14 @@ CONTAINS
             DO ji=i1,i2
                !    
                ! Update barotropic velocities:
+#if ! defined key_RK3
                IF ( .NOT.ln_dynspg_ts .OR. (ln_dynspg_ts.AND.(.NOT.ln_bt_fw)) ) THEN
                   IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
                      zcorr = (tabres(ji,jj) - uu_b(ji,jj,Kmm_a) * hu(ji,jj,Krhs_a)) * r1_hu(ji,jj,Kbb_a)
                      uu_b(ji,jj,Kbb_a) = uu_b(ji,jj,Kbb_a) + rn_atfp * zcorr * umask(ji,jj,1)
                   END IF
                ENDIF    
+#endif
                uu_b(ji,jj,Kmm_a) = tabres(ji,jj) * r1_hu(ji,jj,Kmm_a) * umask(ji,jj,1)
                !       
             END DO
@@ -838,12 +846,14 @@ CONTAINS
          DO jj=j1,j2
             DO ji=i1,i2
                ! Update barotropic velocities:
+#if ! defined key_RK3
                IF ( .NOT.ln_dynspg_ts .OR. (ln_dynspg_ts.AND.(.NOT.ln_bt_fw)) ) THEN
                   IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
                      zcorr = (tabres(ji,jj) - vv_b(ji,jj,Kmm_a) * hv(ji,jj,Krhs_a)) * r1_hv(ji,jj,Kbb_a)
                      vv_b(ji,jj,Kbb_a) = vv_b(ji,jj,Kbb_a) + rn_atfp * zcorr * vmask(ji,jj,1)
                   END IF
                ENDIF              
+#endif
                vv_b(ji,jj,Kmm_a) = tabres(ji,jj) * r1_hv(ji,jj,Kmm_a) * vmask(ji,jj,1)
                !       
             END DO
@@ -903,6 +913,7 @@ CONTAINS
          END DO
       ELSE
          !
+#if ! defined key_RK3
          IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
             DO jj=j1,j2
                DO ji=i1,i2
@@ -911,6 +922,7 @@ CONTAINS
                END DO
             END DO
          ENDIF
+#endif
          !
          DO jj=j1,j2
             DO ji=i1,i2
@@ -977,7 +989,7 @@ CONTAINS
       !
    END SUBROUTINE updatevmsk
 
-
+# if ! defined key_RK3
    SUBROUTINE updateub2b( tabres, i1, i2, j1, j2, before )
       !!----------------------------------------------------------------------
       !!                      *** ROUTINE updateub2b ***
@@ -1013,6 +1025,7 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE updateub2b
+# endif
 
    SUBROUTINE reflux_sshu( tabres, i1, i2, j1, j2, before, nb, ndir )
       !!---------------------------------------------
@@ -1041,16 +1054,28 @@ CONTAINS
          !
          IF (western_side) THEN
             DO jj=j1,j2
+# if defined key_RK3
+               zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (un_adv(i1,jj)-tabres(i1,jj)) 
+# else
                zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (ub2_b(i1,jj)-tabres(i1,jj)) 
+# endif
                ssh(i1  ,jj,Kmm_a) = ssh(i1  ,jj,Kmm_a) + zcor
+#if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i1  ,jj,Kbb_a) = ssh(i1  ,jj,Kbb_a) + rn_atfp * zcor
+#endif
             END DO
          ENDIF
          IF (eastern_side) THEN
             DO jj=j1,j2
+# if defined key_RK3
+               zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (un_adv(i2,jj)-tabres(i2,jj))
+# else
                zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (ub2_b(i2,jj)-tabres(i2,jj))
+# endif
                ssh(i2+1,jj,Kmm_a) = ssh(i2+1,jj,Kmm_a) + zcor
+#if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i2+1,jj,Kbb_a) = ssh(i2+1,jj,Kbb_a) + rn_atfp * zcor
+#endif
             END DO
          ENDIF
          !
@@ -1058,6 +1083,7 @@ CONTAINS
       !
    END SUBROUTINE reflux_sshu
 
+# if ! defined key_RK3
    SUBROUTINE updatevb2b( tabres, i1, i2, j1, j2, before )
       !!----------------------------------------------------------------------
       !!                      *** ROUTINE updatevb2b ***
@@ -1093,6 +1119,7 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE updatevb2b
+# endif
 
    SUBROUTINE reflux_sshv( tabres, i1, i2, j1, j2, before, nb, ndir )
       !!---------------------------------------------
@@ -1121,16 +1148,28 @@ CONTAINS
          !
          IF (southern_side) THEN
             DO ji=i1,i2
+# if defined key_RK3
+               zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vn_adv(ji,j1)-tabres(ji,j1))
+# else
                zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vb2_b(ji,j1)-tabres(ji,j1))
+# endif
                ssh(ji,j1  ,Kmm_a) = ssh(ji,j1  ,Kmm_a) + zcor
+#if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j1  ,Kbb_a) = ssh(ji,j1,Kbb_a) + rn_atfp * zcor
+#endif
             END DO
          ENDIF
          IF (northern_side) THEN               
             DO ji=i1,i2
+# if defined key_RK3
+               zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vn_adv(ji,j2)-tabres(ji,j2))
+# else
                zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vb2_b(ji,j2)-tabres(ji,j2))
+# endif
                ssh(ji,j2+1,Kmm_a) = ssh(ji,j2+1,Kmm_a) + zcor
+#if ! defined key_RK3
                IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j2+1,Kbb_a) = ssh(ji,j2+1,Kbb_a) + rn_atfp * zcor
+#endif
             END DO
          ENDIF
          ! 
@@ -1232,6 +1271,7 @@ CONTAINS
          ! of prognostic variables
          e3t(i1:i2,j1:j2,1:jpkm1,Krhs_a) = e3t(i1:i2,j1:j2,1:jpkm1,Kmm_a)
 
+#if ! defined key_RK3
          IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
             DO jk = 1, jpkm1
                DO jj=j1,j2
@@ -1262,6 +1302,7 @@ CONTAINS
             END DO
             !
          ENDIF        
+#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------

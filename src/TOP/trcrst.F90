@@ -7,6 +7,7 @@ MODULE trcrst
    !!             1.0  !  2005-03 (O. Aumont, A. El Moussaoui) F90
    !!              -   !  2005-10 (C. Ethe) print control
    !!             2.0  !  2005-10 (C. Ethe, G. Madec) revised architecture
+   !!             4.x  !  2021-08 (S. Techene, G. Madec) RK3  time-stepping only deals with before read/write
    !!----------------------------------------------------------------------
 #if defined key_top
    !!----------------------------------------------------------------------
@@ -36,7 +37,7 @@ MODULE trcrst
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcrst.F90 14239 2020-12-23 08:57:16Z smasson $
+   !! $Id: trcrst.F90 15321 2021-10-04 10:24:15Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -129,44 +130,50 @@ CONTAINS
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~'
 
       ! READ prognostic variables and computes diagnostic variable
-      DO jn = 1, jptra
+#if ! defined key_RK3
+      DO jn = 1, jptra      ! MLF only : Now time step
          CALL iom_get( numrtr, jpdom_auto, 'TRN'//ctrcnm(jn), tr(:,:,:,jn,Kmm) )
       END DO
-
-      DO jn = 1, jptra
+#endif
+      DO jn = 1, jptra      ! RK3 and MLF : Before time step
          CALL iom_get( numrtr, jpdom_auto, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kbb) )
       END DO
       !
       IF(.NOT.lrxios) CALL iom_delay_rst( 'READ', 'TOP', numrtr )   ! read only TOP delayed global communication variables
    END SUBROUTINE trc_rst_read
 
-   SUBROUTINE trc_rst_wri( kt, Kbb, Kmm, Krhs )
+
+   SUBROUTINE trc_rst_wri( kt, Kbb, Kmm, Kaa )
       !!----------------------------------------------------------------------
       !!                    ***  trc_rst_wri  ***
       !!
       !! ** purpose  :   write passive tracer fields in restart files
       !!----------------------------------------------------------------------
       INTEGER, INTENT( in ) ::   kt              ! ocean time-step index
-      INTEGER, INTENT( in ) ::   Kbb, Kmm, Krhs  ! time level indices
+      INTEGER, INTENT( in ) ::   Kbb, Kmm, Kaa   ! time level indices
       !!
       INTEGER  :: jn
       !!----------------------------------------------------------------------
       !
       CALL iom_rstput( kt, nitrst, numrtw, 'rdttrc1', rn_Dt )   ! passive tracer time step (= ocean time step)
       ! prognostic variables 
-      ! -------------------- 
-      DO jn = 1, jptra
-         CALL iom_rstput( kt, nitrst, numrtw, 'TRN'//ctrcnm(jn), tr(:,:,:,jn,Kmm) )
+      ! --------------------
+#if defined key_RK3
+      DO jn = 1, jptra      ! RK3 : After time step (before the swap) put in TRB
+         CALL iom_rstput( kt, nitrst, numrtw, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kaa) )
       END DO
-
-      DO jn = 1, jptra
-         CALL iom_rstput( kt, nitrst, numrtw, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kbb) )
+#else
+      DO jn = 1, jptra      ! MLF : After time step (before the swap) put in TRN
+         CALL iom_rstput( kt, nitrst, numrtw, 'TRN'//ctrcnm(jn), tr(:,:,:,jn,Kaa) )
       END DO
-
+      DO jn = 1, jptra      ! MLF : Now   time step (before the swap) put in TRB
+         CALL iom_rstput( kt, nitrst, numrtw, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kmm) )
+      END DO
+#endif
       IF( .NOT. lwxios ) CALL iom_delay_rst( 'WRITE', 'TOP', numrtw )   ! save only TOP delayed global communication variables
     
       IF( kt == nitrst ) THEN
-          CALL trc_rst_stat( Kmm, Krhs )             ! statistics
+          CALL trc_rst_stat( Kaa, Kbb )             ! statistics Kaa et Kbb
           IF(lwxios) THEN
              CALL iom_context_finalize(      cw_toprst_cxt          )
              iom_file(numrtw)%nfid       = 0
@@ -394,7 +401,7 @@ CONTAINS
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcrst.F90 14239 2020-12-23 08:57:16Z smasson $
+   !! $Id: trcrst.F90 15321 2021-10-04 10:24:15Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!======================================================================
 END MODULE trcrst

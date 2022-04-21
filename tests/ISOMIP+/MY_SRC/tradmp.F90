@@ -23,7 +23,6 @@ MODULE tradmp
    !!----------------------------------------------------------------------
    USE oce            ! ocean: variables
    USE dom_oce        ! ocean: domain variables
-   USE c1d            ! 1D vertical configuration
    USE trd_oce        ! trends: ocean variables
    USE trdtra         ! trends manager: tracers
    USE zdf_oce        ! ocean: vertical physics
@@ -55,7 +54,7 @@ MODULE tradmp
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: tradmp.F90 10425 2018-12-19 21:54:16Z smasson $ 
+   !! $Id: tradmp.F90 15574 2021-12-03 19:32:50Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -96,15 +95,19 @@ CONTAINS
       !
       INTEGER ::   ji, jj, jk, jn   ! dummy loop indices
       REAL(wp), DIMENSION(A2D(nn_hls),jpk,jpts)     ::  zts_dta
-      REAL(wp), DIMENSION(jpi,jpj,jpk)              ::  ze3t
+      REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE ::  zwrk
       REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE ::  ztrdts
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('tra_dmp')
       !
       IF( l_trdtra .OR. iom_use('hflx_dmp_cea') .OR. iom_use('sflx_dmp_cea') ) THEN   !* Save ta and sa trends
-         ALLOCATE( ztrdts(jpi,jpj,jpk,jpts) )
-         ztrdts(:,:,:,:) = pts(:,:,:,:,Krhs)
+         ALLOCATE( ztrdts(A2D(nn_hls),jpk,jpts) )
+         DO jn = 1, jpts
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+               ztrdts(ji,jj,jk,jn) = pts(ji,jj,jk,jn,Krhs)
+            END_3D
+         END DO
       ENDIF
       !                           !==  input T-S data at kt  ==!
       CALL dta_tsd( kt, 'dmp', zts_dta )            ! read and interpolates T-S data at kt
@@ -142,16 +145,25 @@ CONTAINS
       END SELECT
       !
       ! outputs (clem trunk)
-      DO jk = 1, jpk
-         ze3t(:,:,jk) = e3t(:,:,jk,Kmm)
-      END DO      
-      !
-      IF( iom_use('hflx_dmp_cea') )       &
-         &   CALL iom_put('hflx_dmp_cea', &
-         &   SUM( ( pts(:,:,:,jp_tem,Krhs) - ztrdts(:,:,:,jp_tem) ) * ze3t(:,:,:), dim=3 ) * rcp * rho0 ) ! W/m2
-      IF( iom_use('sflx_dmp_cea') )       &
-         &   CALL iom_put('sflx_dmp_cea', &
-         &   SUM( ( pts(:,:,:,jp_sal,Krhs) - ztrdts(:,:,:,jp_sal) ) * ze3t(:,:,:), dim=3 ) * rho0 )       ! g/m2/s
+      IF( iom_use('hflx_dmp_cea') .OR. iom_use('sflx_dmp_cea') ) THEN
+         ALLOCATE( zwrk(A2D(nn_hls),jpk) )          ! Needed to handle expressions containing e3t when using key_qco or key_linssh
+         zwrk(:,:,:) = 0._wp
+
+         IF( iom_use('hflx_dmp_cea') ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               zwrk(ji,jj,jk) = ( pts(ji,jj,jk,jp_tem,Krhs) - ztrdts(ji,jj,jk,jp_tem) ) * e3t(ji,jj,jk,Kmm)
+            END_3D
+            CALL iom_put('hflx_dmp_cea', SUM( zwrk(:,:,:), dim=3 ) * rcp * rho0 ) ! W/m2
+         ENDIF
+         IF( iom_use('sflx_dmp_cea') ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               zwrk(ji,jj,jk) = ( pts(ji,jj,jk,jp_sal,Krhs) - ztrdts(ji,jj,jk,jp_sal) ) * e3t(ji,jj,jk,Kmm)
+            END_3D
+            CALL iom_put('sflx_dmp_cea', SUM( zwrk(:,:,:), dim=3 ) * rho0 )       ! g/m2/s
+         ENDIF
+
+         DEALLOCATE( zwrk )
+      ENDIF
       !
       IF( l_trdtra )   THEN       ! trend diagnostic
          ztrdts(:,:,:,:) = pts(:,:,:,:,Krhs) - ztrdts(:,:,:,:)

@@ -11,6 +11,7 @@ MODULE p4zche
    !!             2.0  !  2007-12  (C. Ethe, G. Madec)  F90
    !!                  !  2011-02  (J. Simeon, J.Orr ) update O2 solubility constants
    !!             3.6  !  2016-03  (O. Aumont) Change chemistry to MOCSY standards
+   !!             4.2  !  2020     (J. ORR )  rhop is replaced by "in situ  density" rhd
    !!----------------------------------------------------------------------
    !!   p4z_che      :  Sea water chemistry computed following OCMIP protocol
    !!----------------------------------------------------------------------
@@ -134,7 +135,7 @@ MODULE p4zche
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: p4zche.F90 15459 2021-10-29 08:19:18Z cetlod $ 
+   !! $Id: p4zche.F90 15532 2021-11-24 11:47:32Z techene $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -194,9 +195,21 @@ CONTAINS
          zsal  = salinprac(ji,jj,1) + ( 1.- tmask(ji,jj,1) ) * 35.
          !                             ! LN(K0) OF SOLUBILITY OF CO2 (EQ. 12, WEISS, 1980)
          !                             !     AND FOR THE ATMOSPHERE FOR NON IDEAL GAS
+         ! J. ORR: The previous code has been modified. It computed CO2 solubility in mol/(kg*atm), then converted that to mol/(L*atm).
+         ! But Weiss (1974) provides sets of coefficients for each of those 2 units.
+         ! Thus I have changed the code to use the coefficients for mol*L/atm.
+         ! Hence I've eliminated using the conversion (which used the variable rhop)
+         ! OLD - Coefficients for CO2 soulbility in mol/(kg*atm) (Weiss,1974, Table 1, column 2)
+         !zcek1 = 9345.17/ztkel - 60.2409 + 23.3585 * LOG(zt) + zsal*(0.023517 - 0.00023656*ztkel    &
+         !&       + 0.0047036e-4*ztkel**2)
+         ! NEW - Coefficients for CO2 soulbility in mol/(L*atm) (Weiss, 1974, Table 1, column 1)
          zcek1 = 9050.69/ztkel - 58.0931 + 22.2940 * LOG(zt) + zsal*(0.027766 - 0.00025888*ztkel    &
-         &       + 0.0050578e-4*ztkel**2)
-         chemc(ji,jj,1) = EXP( zcek1 ) * 1E-6    ! mol/(L atm)
+                 &       + 0.0050578e-4*ztkel**2)
+         !
+         ! OLD:  chemc(ji,jj,1) = EXP( zcek1 ) * 1E-6 * rhop(ji,jj,1) / 1000. ! mol/(L atm)
+         ! The units indicated in the above line are wrong. They are actually "mol/(L*uatm)"
+         ! NEW:
+         chemc(ji,jj,1) = EXP( zcek1 ) * 1E-6 ! mol/(L * uatm)
          chemc(ji,jj,2) = -1636.75 + 12.0408*ztkel - 0.0327957*ztkel**2 + 0.0000316528*ztkel**3
          chemc(ji,jj,3) = 57.7 - 0.118*ztkel
       END_2D
@@ -444,15 +457,16 @@ CONTAINS
       INTEGER  ::   ji, jj, jk
       REAL(wp)  ::  zca1, zba1
       REAL(wp)  ::  zd, zsqrtd, zhmin
-      REAL(wp)  ::  za2, za1, za0
+      REAL(wp)  ::  za2, za1, za0, zrhd
       REAL(wp)  ::  p_dictot, p_bortot, p_alkcb 
       !!---------------------------------------------------------------------
 
       IF( ln_timing )  CALL timing_start('ahini_for_at')
       !
       DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
-      p_alkcb  = tr(ji,jj,jk,jptal,Kbb) * 1000. / (rhop(ji,jj,jk) + rtrn)
-      p_dictot = tr(ji,jj,jk,jpdic,Kbb) * 1000. / (rhop(ji,jj,jk) + rtrn)
+      zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
+      p_alkcb  = tr(ji,jj,jk,jptal,Kbb) * zrhd
+      p_dictot = tr(ji,jj,jk,jpdic,Kbb) * zrhd
       p_bortot = borat(ji,jj,jk)
       IF (p_alkcb <= 0.) THEN
           p_hini(ji,jj,jk) = 1.e-3
@@ -501,11 +515,16 @@ CONTAINS
    REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(OUT) :: p_alknw_inf
    REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(OUT) :: p_alknw_sup
    INTEGER,                          INTENT(in)  ::  Kbb      ! time level indices
+   INTEGER  ::   ji, jj, jk
+   REAL(wp)  ::  zrhd
 
-   p_alknw_inf(:,:,:) =  -tr(:,:,:,jppo4,Kbb) * 1000. / (rhop(:,:,:) + rtrn) - sulfat(:,:,:)  &
-   &              - fluorid(:,:,:)
-   p_alknw_sup(:,:,:) =   (2. * tr(:,:,:,jpdic,Kbb) + 2. * tr(:,:,:,jppo4,Kbb) + tr(:,:,:,jpsil,Kbb) )    &
-   &               * 1000. / (rhop(:,:,:) + rtrn) + borat(:,:,:) 
+    DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
+      p_alknw_inf(ji,jj,jk) =  -tr(ji,jj,jk,jppo4,Kbb) * zrhd - sulfat(ji,jj,jk) &
+      &              - fluorid(ji,jj,jk)
+      p_alknw_sup(ji,jj,jk) =   (2. * tr(ji,jj,jk,jpdic,Kbb) + 2. * tr(ji,jj,jk,jppo4,Kbb) + tr(ji,jj,jk,jpsil,Kbb) )    &
+      &               * zrhd + borat(ji,jj,jk)
+    END_3D
 
    END SUBROUTINE anw_infsup
 
@@ -535,7 +554,7 @@ CONTAINS
    REAL(wp)  ::  znumer_so4, zdnumer_so4, zdenom_so4, zalk_so4, zdalk_so4
    REAL(wp)  ::  znumer_flu, zdnumer_flu, zdenom_flu, zalk_flu, zdalk_flu
    REAL(wp)  ::  zalk_wat, zdalk_wat
-   REAL(wp)  ::  zfact, p_alktot, zdic, zbot, zpt, zst, zft, zsit
+   REAL(wp)  ::  zrhd, p_alktot, zdic, zbot, zpt, zst, zft, zsit
    LOGICAL   ::  l_exitnow
    REAL(wp), PARAMETER :: pz_exp_threshold = 1.0
    REAL(wp), DIMENSION(jpi,jpj,jpk) :: zalknw_inf, zalknw_sup, rmask, zh_min, zh_max, zeqn_absmin
@@ -550,7 +569,8 @@ CONTAINS
    ! TOTAL H+ scale: conversion factor for Htot = aphscale * Hfree
    DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
       IF (rmask(ji,jj,jk) == 1.) THEN
-         p_alktot = tr(ji,jj,jk,jptal,Kbb) * 1000. / (rhop(ji,jj,jk) + rtrn)
+         zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
+         p_alktot = tr(ji,jj,jk,jptal,Kbb) * zrhd
          aphscale = 1. + sulfat(ji,jj,jk)/aks3(ji,jj,jk)
          zh_ini = p_hini(ji,jj,jk)
 
@@ -579,12 +599,12 @@ CONTAINS
    DO jn = 1, jp_maxniter_atgen 
       DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
       IF (rmask(ji,jj,jk) == 1.) THEN
-         zfact = rhop(ji,jj,jk) / 1000. + rtrn
-         p_alktot = tr(ji,jj,jk,jptal,Kbb) / zfact
-         zdic  = tr(ji,jj,jk,jpdic,Kbb) / zfact
+         zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
+         p_alktot = tr(ji,jj,jk,jptal,Kbb) * zrhd
+         zdic  = tr(ji,jj,jk,jpdic,Kbb) * zrhd
          zbot  = borat(ji,jj,jk)
-         zpt = tr(ji,jj,jk,jppo4,Kbb) / zfact * po4r
-         zsit = tr(ji,jj,jk,jpsil,Kbb) / zfact
+         zpt = tr(ji,jj,jk,jppo4,Kbb) * zrhd * po4r
+         zsit = tr(ji,jj,jk,jpsil,Kbb) * zrhd
          zst = sulfat (ji,jj,jk)
          zft = fluorid(ji,jj,jk)
          aphscale = 1. + sulfat(ji,jj,jk)/aks3(ji,jj,jk)

@@ -30,23 +30,42 @@ MODULE agrif_top_interp
 #  include "domzgr_substitute.h90"
   !!----------------------------------------------------------------------
    !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_top_interp.F90 14218 2020-12-18 16:44:52Z jchanut $
+   !! $Id: agrif_top_interp.F90 14800 2021-05-06 15:42:46Z jchanut $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE Agrif_trc
+   SUBROUTINE Agrif_trc( kt, kstg )
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE Agrif_trc  ***
       !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt
+      INTEGER, OPTIONAL, INTENT(in) :: kstg
+      !
+      REAL(wp) :: ztindex
       !
       IF( Agrif_Root() )   RETURN
+      !
+      ! Set time index depending on stage in case of RK3 time stepping:
+      IF ( PRESENT( kstg ) ) THEN
+         ztindex = REAL(Agrif_Nbstepint(), wp)
+         IF     ( kstg == 1 ) THEN
+            ztindex = ztindex + 1._wp / 3._wp
+         ELSEIF ( kstg == 2 ) THEN
+            ztindex = ztindex + 1._wp / 2._wp
+         ELSEIF ( kstg == 3 ) THEN
+            ztindex = ztindex + 1._wp
+         ENDIF
+         ztindex = ztindex / Agrif_Rhot()
+      ELSE
+         ztindex = REAL(Agrif_Nbstepint()+1, wp) / Agrif_Rhot()
+      ENDIF
       !
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = l_spc_top 
       l_vremap              = ln_vert_remap
       !
-      CALL Agrif_Bc_variable( trn_id, procname=interptrn )
+      CALL Agrif_Bc_variable( trn_id,calledweight=ztindex, procname=interptrn )
       !
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.

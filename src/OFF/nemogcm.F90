@@ -82,7 +82,7 @@ MODULE nemogcm
 
    !!----------------------------------------------------------------------
    !! NEMO/OFF 4.0 , NEMO Consortium (2018)
-   !! $Id: nemogcm.F90 15446 2021-10-26 14:34:38Z cetlod $
+   !! $Id: nemogcm.F90 14255 2021-01-04 11:35:00Z cetlod $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -517,7 +517,6 @@ CONTAINS
       ts  (:,:,:,:,Kmm) = 0._wp   !                       !
       !
       rhd  (:,:,:) = 0.e0
-      rhop (:,:,:) = 0.e0
       rn2  (:,:,:) = 0.e0
       !
    END SUBROUTINE istate_init

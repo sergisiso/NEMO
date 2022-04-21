@@ -221,7 +221,7 @@ if [ ${USING_LOOP_FUSION} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_loop
 if [ ${USING_QCO} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_qco " ; fi
 if [ ${USING_QCO} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_qco key_linssh " ; fi
 #
-if [ ${USING_RK3} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_qco key_RK3 " ; fi
+if [ ${USING_RK3} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_RK3 " ; fi
 if [ ${USING_RK3} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_RK3 " ; fi
 
 #

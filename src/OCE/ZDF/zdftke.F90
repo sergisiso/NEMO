@@ -698,7 +698,7 @@ CONTAINS
    END SUBROUTINE tke_avn
 
 
-   SUBROUTINE zdf_tke_init( Kmm )
+   SUBROUTINE zdf_tke_init
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE zdf_tke_init  ***
       !!
@@ -714,7 +714,6 @@ CONTAINS
       !!----------------------------------------------------------------------
       USE zdf_oce , ONLY : ln_zdfiwm   ! Internal Wave Mixing flag
       !!
-      INTEGER, INTENT(in) ::   Kmm          ! time level index
       INTEGER             ::   ji, jj, jk   ! dummy loop indices
       INTEGER             ::   ios
       !!

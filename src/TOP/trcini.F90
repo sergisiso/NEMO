@@ -35,7 +35,7 @@ MODULE trcini
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcini.F90 15446 2021-10-26 14:34:38Z cetlod $ 
+   !! $Id: trcini.F90 15514 2021-11-16 08:58:22Z techene $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -243,6 +243,8 @@ CONTAINS
       !
       IF( ln_trcdta )   CALL trc_dta_ini( jptra )           ! set initial tracers values
       !
+      tr(:,:,:,:,Kaa) = 0._wp
+      !
       IF( ln_rsttr ) THEN              ! restart from a file
         !
         CALL trc_rst_read( Kbb, Kmm )
@@ -262,8 +264,6 @@ CONTAINS
         tr(:,:,:,:,Kbb) = tr(:,:,:,:,Kmm)
         ! 
       ENDIF
-      !
-      tr(:,:,:,:,Kaa) = 0._wp
       !
       IF( ln_trcbc .AND. lltrcbc )  THEN
         CALL trc_bc_ini ( jptra, Kmm  )            ! set tracers Boundary Conditions

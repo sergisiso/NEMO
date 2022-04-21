@@ -11,6 +11,7 @@ MODULE p4zlys
    !!                  !  2011-02  (J. Simeon, J. Orr)  Calcon salinity dependence
    !!             3.4  !  2011-06  (O. Aumont, C. Ethe) Improvment of calcite dissolution
    !!             3.6  !  2015-05  (O. Aumont) PISCES quota
+   !!             4.2  !  2020     (J. ORR )  rhop is replaced by "in situ density" rhd
    !!----------------------------------------------------------------------
    !!   p4z_lys        :   Compute the CaCO3 dissolution 
    !!   p4z_lys_init   :   Read the namelist parameters
@@ -32,13 +33,17 @@ MODULE p4zlys
    REAL(wp), PUBLIC ::   nca    !: order of reaction for calcite dissolution
 
    INTEGER  ::   rmtss              ! number of seconds per month 
-   REAL(wp) ::   calcon = 1.03E-2   ! mean calcite concentration [Ca2+] in sea water [mole/kg solution]
- 
+
+   !! * Module variables
+   REAL(wp) :: calcon = 1.03E-2           !: mean calcite concentration [Ca2+]  in sea water [mole/kg solution]
+   ! J. ORR: Made consistent with mocsy's choice based on literature review from Munhoven
+!   REAL(wp) :: calcon = 1.0287E-2           !: mean calcite concentration [Ca2+] in sea water [mole/kg solution]
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: p4zlys.F90 15287 2021-09-24 11:11:02Z cetlod $ 
+   !! $Id: p4zlys.F90 15532 2021-11-24 11:47:32Z techene $ 
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -58,7 +63,7 @@ CONTAINS
       INTEGER, INTENT(in)  ::  Kbb, Krhs ! time level indices
       !
       INTEGER  ::   ji, jj, jk, jn
-      REAL(wp) ::   zdispot, zfact, zcalcon
+      REAL(wp) ::   zdispot, zrhd, zcalcon
       REAL(wp) ::   zomegaca, zexcess, zexcess0, zkd
       CHARACTER (len=25) ::   charout
       REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zco3, zcaldiss, zhinit, zhi, zco3sat
@@ -66,7 +71,8 @@ CONTAINS
       !
       IF( ln_timing )  CALL timing_start('p4z_lys')
       !
-      zhinit  (:,:,:) = hi(:,:,:) * 1000. / ( rhop(:,:,:) + rtrn )
+
+      zhinit  (:,:,:) = hi(:,:,:) / ( rhd(:,:,:) + 1._wp )
       !
       !     -------------------------------------------
       !     COMPUTE [CO3--] and [H+] CONCENTRATIONS
@@ -76,7 +82,7 @@ CONTAINS
       DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
          zco3(ji,jj,jk) = tr(ji,jj,jk,jpdic,Kbb) * ak13(ji,jj,jk) * ak23(ji,jj,jk) / (zhi(ji,jj,jk)**2   &
             &             + ak13(ji,jj,jk) * zhi(ji,jj,jk) + ak13(ji,jj,jk) * ak23(ji,jj,jk) + rtrn )
-         hi  (ji,jj,jk) = zhi(ji,jj,jk) * rhop(ji,jj,jk) / 1000.
+         hi  (ji,jj,jk) = zhi(ji,jj,jk) * ( rhd(ji,jj,jk) + 1._wp )
       END_3D
 
       !     ---------------------------------------------------------
@@ -88,11 +94,11 @@ CONTAINS
       DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
 
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
-         ! Salinity dependance in zomegaca and divide by rhop/1000 to have good units
+         ! Salinity dependance in zomegaca and divide by rhd to have good units
          zcalcon  = calcon * ( salinprac(ji,jj,jk) / 35._wp )
-         zfact    = rhop(ji,jj,jk) / 1000._wp
-         zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zfact + rtrn )
-         zco3sat(ji,jj,jk) = aksp(ji,jj,jk) * zfact / ( zcalcon + rtrn )
+         zrhd    = rhd(ji,jj,jk) + 1._wp
+         zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zrhd + rtrn )
+         zco3sat(ji,jj,jk) = aksp(ji,jj,jk) * zrhd / ( zcalcon + rtrn )
 
          ! SET DEGREE OF UNDER-/SUPERSATURATION
          excess(ji,jj,jk) = 1._wp - zomegaca

@@ -74,7 +74,7 @@ MODULE sbcrnf
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: sbcrnf.F90 15190 2021-08-13 12:52:50Z gsamson $
+   !! $Id: sbcrnf.F90 14993 2021-06-14 22:35:18Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -206,13 +206,17 @@ CONTAINS
       REAL(wp) ::   zfact     ! local scalar
       !!----------------------------------------------------------------------
       !
-      zfact = 0.5_wp
+      zfact = 0.5_wp * r1_rho0
       !
       IF( ln_rnf_depth .OR. ln_rnf_depth_ini ) THEN      !==   runoff distributed over several levels   ==!
          IF( ln_linssh ) THEN    !* constant volume case : just apply the runoff input flow
             DO_2D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
                DO jk = 1, nk_rnf(ji,jj)
-                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact * r1_rho0 / h_rnf(ji,jj)
+#if defined key_RK3
+                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
+#else
+                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact / h_rnf(ji,jj)   ! MLF: rnf forcing at Kmm (n)
+#endif
                END DO
             END_2D
          ELSE                    !* variable volume case
@@ -224,7 +228,11 @@ CONTAINS
             END_2D
             DO_2D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls )         ! apply the runoff input flow
                DO jk = 1, nk_rnf(ji,jj)
-                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact * r1_rho0 / h_rnf(ji,jj)
+#if defined key_RK3
+                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
+#else
+                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact / h_rnf(ji,jj)   ! MLF: rnf forcing at Kmm (n)
+#endif
                END DO
             END_2D
          ENDIF
@@ -233,7 +241,11 @@ CONTAINS
             h_rnf (ji,jj)   = e3t(ji,jj,1,Kmm)        ! update h_rnf to be depth of top box
          END_2D
          DO_2D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
-            phdivn(ji,jj,1) = phdivn(ji,jj,1) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact * r1_rho0 / e3t(ji,jj,1,Kmm)
+#if defined key_RK3
+            phdivn(ji,jj,1) = phdivn(ji,jj,1) - rnf(ji,jj) * r1_rho0 / e3t(ji,jj,1,Kmm)                    ! RK3: rnf forcing at n+1/2
+#else
+            phdivn(ji,jj,1) = phdivn(ji,jj,1) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact / e3t(ji,jj,1,Kmm)   ! MLF: rnf forcing at Kmm (n)
+#endif
          END_2D
       ENDIF
       !
