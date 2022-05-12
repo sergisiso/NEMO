@@ -684,6 +684,11 @@ CONTAINS
       ALLOCATE( ah_wslp2(jpi,jpj,jpk) , akz(jpi,jpj,jpk) , STAT=ierr )
       IF( ierr > 0 )   CALL ctl_stop( 'STOP', 'ldf_slp_init : unable to allocate ah_slp2 or akz' )
       !
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+         akz     (ji,jj,jk) = 0._wp
+         ah_wslp2(ji,jj,jk) = 0._wp
+      END_3D
+      !
       IF( ln_traldf_triad ) THEN        ! Griffies operator : triad of slopes
          IF(lwp) WRITE(numout,*) '   ==>>>   triad) operator (Griffies)'
          ALLOCATE( triadi_g(jpi,jpj,jpk,0:1,0:1) , triadj_g(jpi,jpj,jpk,0:1,0:1) ,     &

@@ -148,11 +148,6 @@ CONTAINS
       !
       IF( kpass == 1 ) THEN         !==  first pass only  and whatever the tracer is  ==!
          !
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
-            akz     (ji,jj,jk) = 0._wp
-            ah_wslp2(ji,jj,jk) = 0._wp
-         END_3D
-         !
          DO kp = 0, 1                            ! i-k triads
             DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                ze3wr = 1._wp / e3w(ji,jj,jk+kp,Kmm)
