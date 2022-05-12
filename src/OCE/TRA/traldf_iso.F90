@@ -145,11 +145,6 @@ CONTAINS
             IF(lwp) WRITE(numout,*) 'tra_ldf_iso : rotated laplacian diffusion operator on ', cdtype
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
          ENDIF
-         !
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
-            akz     (ji,jj,jk) = 0._wp
-            ah_wslp2(ji,jj,jk) = 0._wp
-         END_3D
       ENDIF
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                           ! Do only on the first tile
