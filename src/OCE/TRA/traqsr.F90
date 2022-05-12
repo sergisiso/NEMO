@@ -156,7 +156,7 @@ CONTAINS
          END_3D
       ENDIF
 #endif
-      
+
       !                       !----------------------------!
       SELECT CASE( nqsr )     !  qsr induced heat content  !
       !                       !----------------------------!
@@ -881,6 +881,8 @@ CONTAINS
          !
       CASE( np_2BD )                   !==  2 bands light attenuation (IR+ visible light) ==!
          !
+         !
+         IF( lk_top ) CALL trc_oce_rgb( rkrgb )      ! tabulated attenuation coef.
          !
          r1_si1 = 1._wp / rn_si1                     ! inverse of visible light attenuation
          zVlp =  ( 1._wp - rn_abs )                  ! visible light partition
