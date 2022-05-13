@@ -42,7 +42,7 @@ MODULE sbcblk_algo_ice_cdn
 CONTAINS
 
 
-   FUNCTION CdN10_f_LU12( pfrice, pz0w,  pSc, phf, pDi  )
+   FUNCTION CdN10_f_LU12( pfrice, pz0w,  pSc2, phf, pDi  )
       !!----------------------------------------------------------------------
       !!                      ***  ROUTINE  CdN10_f_LU12  ***
       !!
@@ -60,17 +60,17 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(jpi,jpj)                       ::   CdN10_f_LU12  ! neutral FORM drag coefficient contribution over sea-ice
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc, phf and pDi all provided...
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pz0w   ! roughness length over water  [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pSc    ! shletering function [0-1] (Sc->1 for large distance between floes, ->0 for small distances)
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pSc2   ! squared shletering function [0-1] (Sc->1 for large distance between floes, ->0 for small distances)
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   phf    ! mean freeboard of floes    [m]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pDi    ! cross wind dimension of the floe (aka effective edge length for form drag)   [m]
       !!----------------------------------------------------------------------
-      LOGICAL  ::   l_known_Sc=.FALSE., l_known_hf=.FALSE., l_known_Di=.FALSE.
-      REAL(wp) ::   ztmp, zrlog, zfri, zfrw, zSc, zhf, zDi
+      LOGICAL  ::   l_known_Sc2=.FALSE., l_known_hf=.FALSE., l_known_Di=.FALSE.
+      REAL(wp) ::   ztmp, zrlog, zfri, zfrw, zSc2, zhf, zDi
       INTEGER  ::   ji, jj
       !!----------------------------------------------------------------------
-      l_known_Sc    = PRESENT(pSc)
+      l_known_Sc2   = PRESENT(pSc2)
       l_known_hf    = PRESENT(phf)
       l_known_Di    = PRESENT(pDi)
 
@@ -79,11 +79,11 @@ CONTAINS
          zfri = pfrice(ji,jj)
          zfrw = (1._wp - zfri)
          
-         IF(l_known_Sc) THEN
-            zSc = pSc(ji,jj)
+         IF(l_known_Sc2) THEN
+            zSc2 = pSc2(ji,jj)
          ELSE
-            !! Sc parameterized in terms of A (ice fraction):
-            zSc = zfrw**(1._wp / ( 10._wp * rBeta_0 ))   ! Eq.(31)
+            !! Sc**2 parameterized in terms of A (ice fraction):
+            zSc2 = zfrw**(1._wp / ( 10._wp * rBeta_0 ))   ! Eq.(31)
          END IF
          
          IF(l_known_hf) THEN
@@ -104,7 +104,7 @@ CONTAINS
          ztmp  = 1._wp/pz0w(ji,jj)
          zrlog = LOG(zhf*ztmp) / LOG(10._wp*ztmp)
 
-         CdN10_f_LU12(ji,jj) = 0.5_wp* 0.3_wp * zrlog*zrlog * zSc*zSc * zhf/zDi * zfri  ! Eq.(22)
+         CdN10_f_LU12(ji,jj) = 0.5_wp* 0.3_wp * zrlog*zrlog * zSc2 * zhf/zDi * zfri  ! Eq.(22)
          !!                    1/2      Ce
 
       END_2D
@@ -115,7 +115,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(jpi,jpj)             ::   CdN_f_LU12_eq36 ! neutral FORM drag coefficient contribution over sea-ice
       REAL(wp),                     INTENT(in) ::   pzu    ! reference height                       [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc, phf and pDi all provided...
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
       !!----------------------------------------------------------------------
       REAL(wp) :: ztmp, zrlog, zfri, zhf, zDi
       INTEGER  :: ji, jj
@@ -186,7 +186,7 @@ CONTAINS
    END FUNCTION CdN10_f_LU13
 
 
-   FUNCTION CdN_f_LG15( pzu, pfrice, pz0i,  pSc, phf, pDi  )
+   FUNCTION CdN_f_LG15( pzu, pfrice, pz0i,  pSc2, phf, pDi  )
       !!----------------------------------------------------------------------
       !!                      ***  ROUTINE  CdN_f_LG15  ***
       !!
@@ -205,17 +205,17 @@ CONTAINS
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(jpi,jpj)                       ::   CdN_f_LG15  ! neutral FORM drag coefficient contribution over sea-ice
       REAL(wp),                     INTENT(in )          ::   pzu    ! reference height                       [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc, phf and pDi all provided...
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pz0i   ! roughness length over ICE  [m] (in LU12, it's over water ???)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pSc    ! shletering function [0-1] (Sc->1 for large distance between floes, ->0 for small distances)
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pSc2   ! squared shletering function [0-1] (Sc->1 for large distance between floes, ->0 for small distances)
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   phf    ! mean freeboard of floes    [m]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pDi    ! cross wind dimension of the floe (aka effective edge length for form drag)   [m]
       !!----------------------------------------------------------------------
-      LOGICAL  ::   l_known_Sc=.FALSE., l_known_hf=.FALSE., l_known_Di=.FALSE.
-      REAL(wp) ::   ztmp, zrlog, zfri, zfrw, zSc, zhf, zDi
+      LOGICAL  ::   l_known_Sc2=.FALSE., l_known_hf=.FALSE., l_known_Di=.FALSE.
+      REAL(wp) ::   ztmp, zrlog, zfri, zfrw, zSc2, zhf, zDi
       INTEGER  ::   ji, jj
       !!----------------------------------------------------------------------
-      l_known_Sc    = PRESENT(pSc)
+      l_known_Sc2   = PRESENT(pSc2)
       l_known_hf    = PRESENT(phf)
       l_known_Di    = PRESENT(pDi)
 
@@ -224,11 +224,11 @@ CONTAINS
          zfri = pfrice(ji,jj)
          zfrw = (1._wp - zfri)
          
-         IF(l_known_Sc) THEN
-            zSc = pSc(ji,jj)
+         IF(l_known_Sc2) THEN
+            zSc2 = pSc2(ji,jj)
          ELSE
-            !! Sc parameterized in terms of A (ice fraction):
-            zSc = zfrw**(1._wp / ( 10._wp * rBeta_0 ))   ! Eq.(31)
+            !! Sc**2 parameterized in terms of A (ice fraction):
+            zSc2 = zfrw**(1._wp / ( 10._wp * rBeta_0 ))   ! Eq.(31)
          END IF
          
          IF(l_known_hf) THEN
@@ -249,7 +249,7 @@ CONTAINS
          ztmp  = 1._wp/pz0i(ji,jj)
          zrlog = LOG(zhf*ztmp/2.718_wp) / LOG(pzu*ztmp)  !LOLO: adding number "e" !!!
          
-         CdN_f_LG15(ji,jj) = 0.5_wp* 0.4_wp * zrlog*zrlog * zSc*zSc * zhf/zDi * zfri  ! Eq.(21) Lukes & Gryanik (2015)
+         CdN_f_LG15(ji,jj) = 0.5_wp* 0.4_wp * zrlog*zrlog * zSc2 * zhf/zDi * zfri  ! Eq.(21) Lukes & Gryanik (2015)
          !!                   1/2      Ce
          
       END_2D
