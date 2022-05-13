@@ -411,8 +411,15 @@ CONTAINS
          nxioso = nn_wxios
       ENDIF
       !
-#if ! defined key_RK3
-      !                                        !==  Check consistency between ln_rstart and ln_1st_euler  ==!   (i.e. set l_1st_euler)
+#if defined key_RK3
+      !                                        !==  RK3: Open the restart file  ==!
+      IF( ln_rstart ) THEN
+         IF(lwp) WRITE(numout,*)
+         IF(lwp) WRITE(numout,*) '   open the restart file'
+         CALL rst_read_open 
+      ENDIF
+#else
+      !                                        !==  MLF: Check consistency between ln_rstart and ln_1st_euler  ==!   (i.e. set l_1st_euler)
       l_1st_euler = ln_1st_euler
       !
       IF( ln_rstart ) THEN                              !*  Restart case
