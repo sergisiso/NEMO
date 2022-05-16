@@ -354,6 +354,9 @@ CONTAINS
       IF( .NOT. Agrif_Root() ) THEN
             nn_it000 = (Agrif_Parent(nn_it000)-1)*Agrif_IRhot() + 1
             nn_itend =  Agrif_Parent(nn_itend)   *Agrif_IRhot()
+            nn_date0 =  Agrif_Parent(nn_date0)
+            nn_time0 =  Agrif_Parent(nn_time0)
+            nn_leapy =  Agrif_Parent(nn_leapy)
       ENDIF
 #endif
       !
