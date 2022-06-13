@@ -17,6 +17,8 @@ MODULE traisf
    USE isfutils, ONLY : debug                      ! debug option
    USE timing  , ONLY : timing_start, timing_stop  ! Timing
    USE in_out_manager                              ! I/O manager
+   !
+   USE prtctl                                      ! print control
 
    IMPLICIT NONE
    PRIVATE
@@ -56,11 +58,19 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      ! cavity case
-      IF ( ln_isfcav_mlt ) CALL isf_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, risf_cav_tsc, risf_cav_tsc_b, pts(:,:,:,:,Krhs))
+#if defined key_RK3
+      ! cavity case (RK3)
+      IF ( ln_isfcav_mlt ) CALL isf_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, risf_cav_tsc, pts(:,:,:,:,Krhs))
       !
-      ! parametrisation case
-      IF ( ln_isfpar_mlt ) CALL isf_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, risf_par_tsc, risf_par_tsc_b, pts(:,:,:,:,Krhs))
+      ! parametrisation case (RK3)
+      IF ( ln_isfpar_mlt ) CALL isf_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, risf_par_tsc, pts(:,:,:,:,Krhs))
+#else
+      ! cavity case (MLF)
+      IF ( ln_isfcav_mlt ) CALL isf_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, risf_cav_tsc, pts(:,:,:,:,Krhs), risf_cav_tsc_b)
+      !
+      ! parametrisation case (MLF)
+      IF ( ln_isfpar_mlt ) CALL isf_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, risf_par_tsc, pts(:,:,:,:,Krhs), risf_par_tsc_b)
+#endif
       !
       ! ice sheet coupling case
       IF ( ln_isfcpl ) THEN
@@ -86,12 +96,15 @@ CONTAINS
          ENDIF
       END IF
       !
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pts(:,:,:,jp_tem,Krhs), clinfo1=' isf  - Ta: ', mask1=tmask,   &
+         &                                  tab3d_2=pts(:,:,:,jp_sal,Krhs), clinfo2=       ' Sa: ', mask2=tmask, clinfo3='tra' )
+      !
       IF( ln_timing )   CALL timing_stop('tra_isf')
       !
    END SUBROUTINE tra_isf
 
    
-   SUBROUTINE isf_mlt( ktop, kbot, phtbl, pfrac, ptsc, ptsc_b, pts )
+   SUBROUTINE isf_mlt( ktop, kbot, phtbl, pfrac, ptsc, pts, ptsc_b )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE isf_mlt  ***
       !!
@@ -100,10 +113,11 @@ CONTAINS
       !! *** Action :: Update pts(:,:,:,:,Krhs) with the surface boundary condition trend
       !!
       !!----------------------------------------------------------------------
-      INTEGER , DIMENSION(jpi,jpj)         , INTENT(in   ) ::   ktop , kbot
-      REAL(wp), DIMENSION(jpi,jpj)         , INTENT(in   ) ::   phtbl, pfrac
-      REAL(wp), DIMENSION(jpi,jpj,jpts)    , INTENT(in   ) ::   ptsc , ptsc_b
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(inout) ::   pts
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts)          , INTENT(inout) ::   pts
+      INTEGER , DIMENSION(jpi,jpj)                   , INTENT(in   ) ::   ktop , kbot
+      REAL(wp), DIMENSION(jpi,jpj)                   , INTENT(in   ) ::   phtbl, pfrac
+      REAL(wp), DIMENSION(jpi,jpj,jpts)              , INTENT(in   ) ::   ptsc
+      REAL(wp), DIMENSION(:,:,:)           , OPTIONAL, INTENT(in   ) ::   ptsc_b
       !!
       INTEGER ::   ji,jj,jk   ! dummy loop index
       INTEGER ::   ikt, ikb   ! top and bottom level of the tbl
@@ -112,7 +126,11 @@ CONTAINS
       !
       ! compute 2d total trend due to isf
       DO_2D( 0, 0, 0, 0 )
+#if defined key_RK3
+         ztc(ji,jj) = ptsc(ji,jj,jp_tem) / phtbl(ji,jj)
+#else
          ztc(ji,jj) = 0.5_wp * ( ptsc(ji,jj,jp_tem) + ptsc_b(ji,jj,jp_tem) ) / phtbl(ji,jj)
+#endif
       END_2D
       !
       ! update pts(:,:,:,:,Krhs)

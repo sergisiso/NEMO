@@ -74,11 +74,14 @@ CONTAINS
       !
       IF ( ln_isfcav_mlt ) THEN
          !
+#if ! defined key_RK3
+         ! MLF : need risf_cav_tsc_b update
          ! 1.1: before time step 
          IF ( kt /= nit000 ) THEN 
             risf_cav_tsc_b (:,:,:) = risf_cav_tsc (:,:,:)
             fwfisf_cav_b(:,:)      = fwfisf_cav(:,:)
          END IF
+#endif
          !
          ! 1.2: compute misfkb, rhisf_tbl, rfrac (deepest level, thickness, fraction of deepest cell affected by tbl)
          rhisf_tbl_cav(:,:) = rn_htbl * mskisf_cav(:,:)
@@ -102,11 +105,14 @@ CONTAINS
       !
       IF ( ln_isfpar_mlt ) THEN
          !
+#if ! defined key_RK3
+         ! MLF : need risf_par_tsc_b update
          ! 2.1: before time step 
          IF ( kt /= nit000 ) THEN 
             risf_par_tsc_b(:,:,:) = risf_par_tsc(:,:,:)
             fwfisf_par_b  (:,:)   = fwfisf_par  (:,:)
          END IF
+#endif
          !
          ! 2.2: compute misfkb, rhisf_tbl, rfrac (deepest level, thickness, fraction of deepest cell affected by tbl)
          ! by simplicity, we assume the top level where param applied do not change with time (done in init part)

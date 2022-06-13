@@ -93,9 +93,11 @@ CONTAINS
       ! output fluxes
       CALL isf_diags_flx( Kmm, misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, 'par', pqfwf, zqoce, zqlat, zqhc)
       !
-      ! write restart variables (qoceisf, qhcisf, fwfisf for now and before)
+#if ! defined key_RK3
+      ! MLF: write restart variables (qoceisf, qhcisf, fwfisf for now and before)
       IF (lrst_oce) CALL isfrst_write(kt, 'par', ptsc, pqfwf)
       !
+#endif
       IF ( ln_isfdebug ) THEN
          IF(lwp) WRITE(numout,*)
          CALL debug('isf_par: ptsc T',ptsc(:,:,1))
@@ -155,8 +157,10 @@ CONTAINS
          mskisf_par(:,:) = 1._wp
       END WHERE
       !
-      ! read par variable from restart
+#if ! defined key_RK3
+      ! MLF: read par variable from restart
       IF ( ln_rstart ) CALL isfrst_read('par', risf_par_tsc, fwfisf_par, risf_par_tsc_b, fwfisf_par_b)
+#endif
       !
       SELECT CASE ( TRIM(cn_isfpar_mlt) )
          !
