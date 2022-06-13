@@ -444,8 +444,8 @@ CONTAINS
       !
       IF( ln_wave .AND. ln_tauoc )  THEN            ! Wave stress reduction
          DO_2D( 0, 0, 0, 0)
-            utau(ji,jj) = utau(ji,jj) * ( tauoc_wave(ji,jj) + tauoc_wave(ji-1,jj) ) * 0.5_wp
-            vtau(ji,jj) = vtau(ji,jj) * ( tauoc_wave(ji,jj) + tauoc_wave(ji,jj-1) ) * 0.5_wp
+            utau(ji,jj) = utau(ji,jj) * ( tauoc_wave(ji,jj) + tauoc_wave(ji+1,jj) ) * 0.5_wp
+            vtau(ji,jj) = vtau(ji,jj) * ( tauoc_wave(ji,jj) + tauoc_wave(ji,jj+1) ) * 0.5_wp
          END_2D
          !
          CALL lbc_lnk( 'sbcwave', utau, 'U', -1. )
