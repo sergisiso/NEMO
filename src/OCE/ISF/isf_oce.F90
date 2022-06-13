@@ -80,8 +80,8 @@ MODULE isf_oce
    !
    ! 2.2 -------- ice shelf cavity melt namelist parameter -------------
    INTEGER  , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   :: mskisf_cav                    !:
-   INTEGER  , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   :: misfkt_cav   , misfkb_cav     !: 
-   REAL(wp) , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   :: rhisf_tbl_cav, rfrac_tbl_cav  !: 
+   INTEGER  , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   :: misfkt_cav   , misfkb_cav     !: shallowest and deepest level of the ice shelf
+   REAL(wp) , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   :: rhisf_tbl_cav, rfrac_tbl_cav  !: thickness and fraction of deepest cell affected by the ice shelf
    REAL(wp) , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   :: fwfisf_cav   , fwfisf_cav_b   !: before and now net fwf from the ice shelf        [kg/m2/s]
    REAL(wp) , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: risf_cav_tsc , risf_cav_tsc_b !: before and now T & S isf contents [K.m/s & PSU.m/s]  
    TYPE(FLD), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)     :: sf_isfcav_fwf                 !:
@@ -237,16 +237,27 @@ CONTAINS
       !
       ierr = 0       ! set to zero if no array to be allocated
       !
-      ALLOCATE( fwfisf_par  (jpi,jpj) , fwfisf_par_b(jpi,jpj) ,     &
-         &      fwfisf_cav  (jpi,jpj) , fwfisf_cav_b(jpi,jpj) ,     &
+      ALLOCATE( fwfisf_par  (jpi,jpj) , fwfisf_cav  (jpi,jpj) ,     &
          &      fwfisf_oasis(jpi,jpj)                         , STAT=ialloc )
       ierr = ierr + ialloc
       !
-      ALLOCATE( risf_par_tsc(jpi,jpj,jpts) , risf_par_tsc_b(jpi,jpj,jpts) , STAT=ialloc )
+      ALLOCATE( risf_par_tsc(jpi,jpj,jpts) , STAT=ialloc )
       ierr = ierr + ialloc
       !
-      ALLOCATE( risf_cav_tsc(jpi,jpj,jpts) , risf_cav_tsc_b(jpi,jpj,jpts) , STAT=ialloc )
+      ALLOCATE( risf_cav_tsc(jpi,jpj,jpts) , STAT=ialloc )
       ierr = ierr + ialloc
+      !
+#if ! defined key_RK3
+      ! MLF : need to allocate before arrays
+      ALLOCATE( fwfisf_par_b(jpi,jpj) , fwfisf_cav_b(jpi,jpj) , STAT=ialloc )
+      ierr = ierr + ialloc
+      !
+      ALLOCATE( risf_par_tsc_b(jpi,jpj,jpts) , STAT=ialloc )
+      ierr = ierr + ialloc
+      !
+      ALLOCATE( risf_cav_tsc_b(jpi,jpj,jpts) , STAT=ialloc )
+      ierr = ierr + ialloc
+#endif
       !
       ALLOCATE( risfload(jpi,jpj) , STAT=ialloc )
       ierr = ierr + ialloc
@@ -260,10 +271,17 @@ CONTAINS
       ! initalisation of fwf and tsc array to 0
       risfload    (:,:)   = 0._wp
       fwfisf_oasis(:,:)   = 0._wp
+#if defined key_RK3
+      fwfisf_par  (:,:)   = 0._wp
+      fwfisf_cav  (:,:)   = 0._wp
+      risf_cav_tsc(:,:,:) = 0._wp
+      risf_par_tsc(:,:,:) = 0._wp
+#else
       fwfisf_par  (:,:)   = 0._wp   ;   fwfisf_par_b  (:,:)   = 0._wp
       fwfisf_cav  (:,:)   = 0._wp   ;   fwfisf_cav_b  (:,:)   = 0._wp
       risf_cav_tsc(:,:,:) = 0._wp   ;   risf_cav_tsc_b(:,:,:) = 0._wp
       risf_par_tsc(:,:,:) = 0._wp   ;   risf_par_tsc_b(:,:,:) = 0._wp
+#endif
       !
    END SUBROUTINE isf_alloc
    

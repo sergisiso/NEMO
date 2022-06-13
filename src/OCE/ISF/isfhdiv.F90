@@ -5,6 +5,7 @@ MODULE isfhdiv
    !!                   with the ice shelf melt and coupling correction
    !!======================================================================
    !! History :  4.0  !  2019-09  (P. Mathiot) Original code
+   !!            4.2  !  2022-05  (S. Techene) Update wrt RK3 time-stepping
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -45,11 +46,19 @@ CONTAINS
       !
       IF ( ln_isf ) THEN
          !
-         ! ice shelf cavity contribution
-         IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, fwfisf_cav, fwfisf_cav_b, phdiv)
+#if defined key_RK3
+         ! ice shelf cavity contribution (RK3)
+         IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, fwfisf_cav, phdiv)
          !
-         ! ice shelf parametrisation contribution
-         IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, fwfisf_par, fwfisf_par_b, phdiv)
+         ! ice shelf parametrisation contribution (RK3)
+         IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, fwfisf_par, phdiv)
+#else
+         ! ice shelf cavity contribution (MLF)
+         IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, fwfisf_cav, phdiv, fwfisf_cav_b)
+         !
+         ! ice shelf parametrisation contribution (MLF)
+         IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, fwfisf_par, phdiv, fwfisf_par_b)
+#endif
          !
          ! ice sheet coupling contribution
          IF ( ln_isfcpl .AND. kt /= 0 ) THEN
@@ -72,7 +81,7 @@ CONTAINS
    END SUBROUTINE isf_hdiv
 
 
-   SUBROUTINE isf_hdiv_mlt(ktop, kbot, phtbl, pfrac, pfwf, pfwf_b, phdiv)
+   SUBROUTINE isf_hdiv_mlt(ktop, kbot, phtbl, pfrac, pfwf, phdiv, pfwf_b)
       !!----------------------------------------------------------------------
       !!                  ***  SUBROUTINE sbc_isf_div  ***
       !!       
@@ -83,11 +92,12 @@ CONTAINS
       !!
       !! ** Action  :   phdivn   increased by the ice shelf outflow
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) :: phdiv
+      REAL(wp), DIMENSION(jpi,jpj,jpk)      , INTENT(inout) :: phdiv
       !!----------------------------------------------------------------------
-      INTEGER , DIMENSION(jpi,jpj), INTENT(in   ) :: ktop , kbot
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pfrac, phtbl
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pfwf , pfwf_b
+      INTEGER , DIMENSION(jpi,jpj)          , INTENT(in   ) :: ktop , kbot
+      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) :: pfrac, phtbl
+      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) :: pfwf
+      REAL(wp), DIMENSION(:,:)    , OPTIONAL, INTENT(in   ) :: pfwf_b
       !!----------------------------------------------------------------------
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   ikt, ikb 
@@ -118,6 +128,7 @@ CONTAINS
       END_2D
       !
    END SUBROUTINE isf_hdiv_mlt
+
 
    SUBROUTINE isf_hdiv_cpl(Kmm, pqvol, phdiv)
       !!----------------------------------------------------------------------

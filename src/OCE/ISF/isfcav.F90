@@ -174,8 +174,10 @@ CONTAINS
       ! output fluxes
       CALL isf_diags_flx( Kmm, misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, 'cav', pqfwf, zqoce, zqlat, zqhc)
       !
-      ! write restart variables (qoceisf, qhcisf, fwfisf for now and before)
+#if ! defined key_RK3
+      ! MLF: write restart variables (qoceisf, qhcisf, fwfisf for now and before)
       IF (lrst_oce) CALL isfrst_write(kt, 'cav', ptsc, pqfwf)
+#endif
       !
       IF ( ln_isfdebug ) THEN
          IF(lwp) WRITE(numout,*) ''
@@ -215,6 +217,8 @@ CONTAINS
       !
       ! cavity mask
       mskisf_cav(:,:)    = (1._wp - tmask(:,:,1)) * ssmask(:,:)
+      !
+#if ! defined key_RK3
       !================
       ! 2: activate restart
       !================
@@ -223,9 +227,10 @@ CONTAINS
       ! 3: read restart
       !================
       !
-      ! read cav variable from restart
+      ! MLF: read cav variable from restart
       IF ( ln_rstart ) CALL isfrst_read('cav', risf_cav_tsc, fwfisf_cav, risf_cav_tsc_b, fwfisf_cav_b)
       !
+#endif
       !==========================================
       ! 3: specific allocation and initialisation (depending of scheme choice)
       !==========================================
