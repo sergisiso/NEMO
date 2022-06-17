@@ -95,12 +95,16 @@
       IF( PRESENT(psgn28) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt28, cdna28, psgn28, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
       IF( PRESENT(psgn29) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt29, cdna29, psgn29, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
       IF( PRESENT(psgn30) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt30, cdna30, psgn30, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
-      !     
+      !
+#if ! defined key_mpi2     
       IF( nn_comm == 1 ) THEN 
          CALL lbc_lnk_pt2pt(   cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, khls, lsend, lrecv, ld4only )
       ELSE
          CALL lbc_lnk_neicoll( cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, khls, lsend, lrecv, ld4only )
       ENDIF
+#else
+      CALL lbc_lnk_pt2pt(   cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, khls, lsend, lrecv, ld4only )
+#endif
       !
    END SUBROUTINE lbc_lnk_call_/**/XD/**/_/**/PRECISION
 
