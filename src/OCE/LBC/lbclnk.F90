@@ -38,9 +38,11 @@ MODULE lbclnk
       MODULE PROCEDURE   lbc_lnk_pt2pt_sp, lbc_lnk_pt2pt_dp
    END INTERFACE
 
+#if ! defined key_mpi2
    INTERFACE lbc_lnk_neicoll
       MODULE PROCEDURE   lbc_lnk_neicoll_sp ,lbc_lnk_neicoll_dp
    END INTERFACE
+#endif
    !
    INTERFACE lbc_lnk_icb
       MODULE PROCEDURE mpp_lnk_2d_icb_dp, mpp_lnk_2d_icb_sp
@@ -132,7 +134,9 @@ CONTAINS
 #  define BUFFSND buffsnd_sp
 #  define BUFFRCV buffrcv_sp
 #  include "lbc_lnk_pt2pt_generic.h90"
+#if ! defined key_mpi2
 #  include "lbc_lnk_neicoll_generic.h90"
+#endif
 #  undef MPI_TYPE
 #  undef BUFFSND
 #  undef BUFFRCV
@@ -145,7 +149,9 @@ CONTAINS
 #  define BUFFSND buffsnd_dp
 #  define BUFFRCV buffrcv_dp
 #  include "lbc_lnk_pt2pt_generic.h90"
+#if ! defined key_mpi2
 #  include "lbc_lnk_neicoll_generic.h90"
+#endif
 #  undef MPI_TYPE
 #  undef BUFFSND
 #  undef BUFFRCV
