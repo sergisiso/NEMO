@@ -41,15 +41,9 @@
 #
 # modules to load
 module purge
-module load gcc/9.2.0 intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2
+module use /home/ext/mr/smer/samsong/modules
+module load gcc/9.2.0 intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2 xios/trunk/rev2320-impi
 #module load xios-2.5_rev1903
-export XIOS_DIR="/home/ext/mr/smer/samsong/SRC/XIOS/trunk/BEL_INTEL18_r2134"
-export XIOS_BIN="${XIOS_DIR}/bin"
-export XIOS_BIN_DIR=${XIOS_BIN}
-export XIOS_INC="${XIOS_DIR}/inc"
-export XIOS_INC_DIR=${XIOS_INC}
-export XIOS_LIB="${XIOS_DIR}/lib"
-export XIOS_LIB_DIR=${XIOS_LIB}
 export XIO_HOME=${XIOS_DIR}
 
 # Don't remove neither change the following line
