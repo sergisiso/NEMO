@@ -90,16 +90,16 @@ CONTAINS
       zsedcal (:,:) = 0.e0
       zsedc   (:,:) = 0.e0
 
-      IF( .NOT.lk_sed ) THEN
-         ! OA: Warning, the following part is necessary to avoid CFL problems above the sediments
-         ! --------------------------------------------------------------------
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-            ikt  = mbkt(ji,jj)
-            zdep = e3t(ji,jj,ikt,Kmm) / xstep
-            zwsbio4(ji,jj) = MIN( 0.99 * zdep, wsbio4(ji,jj,ikt) )
-            zwsbio3(ji,jj) = MIN( 0.99 * zdep, wsbio3(ji,jj,ikt) )
-         END_2D
+      ! OA: Warning, the following part is necessary to avoid CFL problems above the sediments
+      ! --------------------------------------------------------------------
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         ikt  = mbkt(ji,jj)
+         zdep = e3t(ji,jj,ikt,Kmm) / xstep
+         zwsbio4(ji,jj) = MIN( 0.99 * zdep, wsbio4(ji,jj,ikt) )
+         zwsbio3(ji,jj) = MIN( 0.99 * zdep, wsbio3(ji,jj,ikt) )
+      END_2D
 
+      IF( .NOT.lk_sed ) THEN
          ! Computation of the sediment denitrification proportion: The metamodel from midlleburg (2006) is being used
          ! Computation of the fraction of organic matter that is permanently buried from Dunne's model
          ! -------------------------------------------------------
@@ -226,7 +226,7 @@ CONTAINS
          DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
             !                      ! Potential nitrogen fixation dependant on temperature and iron
             ztemp = ts(ji,jj,jk,jp_tem,Kmm)
-            zmudia = MAX( 0.,-0.001096*ztemp**2 + 0.057*ztemp -0.637 ) * 7.625
+            zmudia = MAX( 0.,-0.001096*ztemp**2 + 0.057*ztemp -0.637 ) / rno3
             !       Potential nitrogen fixation dependant on temperature and iron
             xdianh4 = tr(ji,jj,jk,jpnh4,Kbb) / ( concnnh4 + tr(ji,jj,jk,jpnh4,Kbb) )
             xdiano3 = tr(ji,jj,jk,jpno3,Kbb) / ( concnno3 + tr(ji,jj,jk,jpno3,Kbb) ) * (1. - xdianh4)

@@ -5,6 +5,7 @@ MODULE sedsfc
    !!=====================================================================
    !! * Modules used
    USE sed     ! sediment global variable
+   USE sedini
    USE sedarr
    USE seddta
 
@@ -53,11 +54,11 @@ CONTAINS
          IF ( tmask(ji,jj,ikt) == 1 ) THEN
             tr(ji,jj,ikt,jptal,Kbb) = trc_data(ji,jj,1)
             tr(ji,jj,ikt,jpdic,Kbb) = trc_data(ji,jj,2)
-            tr(ji,jj,ikt,jpno3,Kbb) = trc_data(ji,jj,3) * 7.625
-            tr(ji,jj,ikt,jppo4,Kbb) = trc_data(ji,jj,4) * 122.
+            tr(ji,jj,ikt,jpno3,Kbb) = trc_data(ji,jj,3) * redC / redNo3
+            tr(ji,jj,ikt,jppo4,Kbb) = trc_data(ji,jj,4) * redC
             tr(ji,jj,ikt,jpoxy,Kbb) = trc_data(ji,jj,5)
             tr(ji,jj,ikt,jpsil,Kbb) = trc_data(ji,jj,6)
-            tr(ji,jj,ikt,jpnh4,Kbb) = trc_data(ji,jj,7) * 7.625
+            tr(ji,jj,ikt,jpnh4,Kbb) = trc_data(ji,jj,7) * redC / redNo3
             tr(ji,jj,ikt,jpfer,Kbb) = trc_data(ji,jj,8)
          ENDIF
       END_2D
