@@ -1,10 +1,16 @@
 # compiler options for BELENOS/TARANIS (using INTEL compiler)
 #
-# INTEL_IMPI (XIOS-2.5)
-# intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2 xios-2.5_rev1903
+# --------------------------------
+# INTEL_IMPI (NEMO 4.0 + XIOS-2.5)
+# --------------------------------
+# module use /home/ext/mr/smer/samsong/modules
+# module load intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2 xios/2.5/rev1903
 #
-# INTEL_IMPI (XIOS-TRUNK must be compiled)
-# gcc/9.2.0 intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2
+# ----------------------------------
+# INTEL_IMPI (NEMO 4.2 + XIOS-TRUNK)
+# ----------------------------------
+# module use /home/ext/mr/smer/samsong/modules
+# module load gcc/9.2.0 intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2 xios/trunk/rev2134
 #
 #
 # NCDF_INC    netcdf4 include file
@@ -44,7 +50,7 @@
 %NCDF_LIB            -L${NETCDF_LIB} -lnetcdff -lnetcdf -L${PHDF5_LIB_DIR} -lhdf5_hl -lhdf5
 %XIOS_INC            -I${XIOS_INC}
 %XIOS_LIB            -L${XIOS_LIB} -lxios -lstdc++
-%OASIS_INC           -I${OASIS_DIR}/build/lib/mct -I${OASIS_DIR}/build/lib/psmile.MPI1
+%OASIS_INC           -I${OASIS_DIR}/include
 %OASIS_LIB           -L${OASIS_DIR}/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 
 %CPP                 cpp

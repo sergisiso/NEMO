@@ -1,10 +1,16 @@
-# compiler options for BELENOS/TARANIS (using INTEL compiler)
+# compiler options for BELENOS/TARANIS (using INTEL compiler + Open MPI)
 #
-# INTEL_OMPI (XIOS-2.5)
-# intel/2018.5.274 openmpi/intel/4.0.2.2 hdf5-1.8.18-ompi netcdf-4.7.1-ompi_V2 xios-2.5_rev1903-ompi
+# --------------------------------
+# INTEL_OMPI (NEMO 4.0 + XIOS-2.5)
+# --------------------------------
+# module use /home/ext/mr/smer/samsong/modules
+# module load intel/2018.5.274 openmpi/intel/4.0.2.2 hdf5-1.8.18-ompi netcdf-4.7.1-ompi_V2 xios/2.5/rev1903-ompi
 #
-# INTEL_MVAPICH2 (XIOS-2.5)
-# intel/2018.5.274 mvapich2-2.3.5 hdf5-1.8.18-mvapich2 netcdf-4.7.1-mvapich2 xios-2.5_rev1903-mvapich2
+# ----------------------------------
+# INTEL_OMPI (NEMO 4.2 + XIOS-TRUNK)
+# ----------------------------------
+# module use /home/ext/mr/smer/samsong/modules
+# module load gcc/9.2.0 intel/2018.5.274 openmpi/intel/4.0.2.2 hdf5-1.8.18-ompi netcdf-4.7.1-ompi_V2 xios/trunk/rev2134-ompi
 #
 #
 # NCDF_INC    netcdf4 include file
