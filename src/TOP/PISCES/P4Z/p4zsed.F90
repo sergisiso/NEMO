@@ -149,8 +149,8 @@ CONTAINS
             zcaloss = tr(ji,jj,ikt,jpcal,Kbb) * zwsc
             tr(ji,jj,ikt,jpsil,Krhs) = tr(ji,jj,ikt,jpsil,Krhs) + zsiloss * zrivsil 
             !
-            zfactcal = MIN( excess(ji,jj,ikt), 0.2 )
-            zfactcal = MIN( 1., 1.3 * ( 0.2 - zfactcal ) / ( 0.4 - zfactcal ) )
+            zfactcal = MAX(-0.1, MIN( excess(ji,jj,ikt), 0.2 ) )
+            zfactcal = 0.3 + 0.7 * MIN( 1., (0.1 + zfactcal) / ( 0.5 - zfactcal ) )
             zrivalk  = sedcalfrac * zfactcal
             tr(ji,jj,ikt,jptal,Krhs) =  tr(ji,jj,ikt,jptal,Krhs) + zcaloss * zrivalk * 2.0
             tr(ji,jj,ikt,jpdic,Krhs) =  tr(ji,jj,ikt,jpdic,Krhs) + zcaloss * zrivalk
@@ -363,7 +363,7 @@ CONTAINS
       r1_rday  = 1. / rday
       !
       sedsilfrac = 0.03     ! percentage of silica loss in the sediments
-      sedcalfrac = 0.6      ! percentage of calcite loss in the sediments
+      sedcalfrac = 0.99     ! percentage of calcite loss in the sediments
       !
       lk_sed = ln_sediment .AND. ln_sed_2way 
       !
