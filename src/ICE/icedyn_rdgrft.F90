@@ -51,6 +51,7 @@ MODULE icedyn_rdgrft
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   apartf          ! participation function; fraction of ridging/closing associated w/ category n
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   hrmin           ! minimum ridge thickness
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   hrmax           ! maximum ridge thickness
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   hrexp           ! e-folding ridge thickness
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   hraft           ! thickness of rafted ice
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   hi_hrdg         ! thickness of ridging ice / mean ridge thickness
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   aridge          ! participating ice ridging
@@ -59,7 +60,7 @@ MODULE icedyn_rdgrft
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   ze_s_2d
    !
    REAL(wp), PARAMETER ::   hrdg_hi_min = 1.1_wp    ! min ridge thickness multiplier: min(hrdg/hi)
-   REAL(wp), PARAMETER ::   hi_hrft     = 0.5_wp    ! rafting multipliyer: (hi/hraft)
+   REAL(wp), PARAMETER ::   hi_hrft     = 0.5_wp    ! rafting multiplier: (hi/hraft)
    !
    ! ** namelist (namdyn_rdgrft) **
    LOGICAL  ::   ln_str_R75       ! ice strength parameterization: Rothrock 75
@@ -68,7 +69,7 @@ MODULE icedyn_rdgrft
    REAL(wp) ::   rn_str           !    constant value of ice strength
    LOGICAL  ::   ln_str_smooth    ! ice strength spatial smoothing
    LOGICAL  ::   ln_distf_lin     ! redistribution of ridged ice: linear (Hibler 1980)
-   LOGICAL  ::   ln_distf_exp     ! redistribution of ridged ice: exponential
+   LOGICAL  ::   ln_distf_exp     ! redistribution of ridged ice: exponential (Lipscomb et al 2017)
    REAL(wp) ::   rn_murdg         !    gives e-folding scale of ridged ice (m^.5)
    REAL(wp) ::   rn_csrdg         ! fraction of shearing energy contributing to ridging
    LOGICAL  ::   ln_partf_lin     ! participation function linear (Thorndike et al. (1975))
@@ -99,9 +100,9 @@ CONTAINS
       !!-------------------------------------------------------------------
       !!                ***  ROUTINE ice_dyn_rdgrft_alloc ***
       !!-------------------------------------------------------------------
-      ALLOCATE( closing_net(jpij)  , opning(jpij)      , closing_gross(jpij) ,               &
-         &      apartf(jpij,0:jpl) , hrmin  (jpij,jpl) , hraft(jpij,jpl) , aridge(jpij,jpl), &
-         &      hrmax (jpij,jpl)   , hi_hrdg(jpij,jpl) , araft(jpij,jpl) ,                   &
+      ALLOCATE( closing_net(jpij) , opning(jpij)    , closing_gross(jpij),                   &
+         &      apartf(jpij,0:jpl), hrmin (jpij,jpl), hraft(jpij,jpl)    , aridge(jpij,jpl), &
+         &      hrmax (jpij,jpl)  , hrexp (jpij,jpl), hi_hrdg(jpij,jpl)  , araft(jpij,jpl) , &
          &      ze_i_2d(jpij,nlay_i,jpl), ze_s_2d(jpij,nlay_s,jpl), STAT=ice_dyn_rdgrft_alloc )
 
       CALL mpp_sum ( 'icedyn_rdgrft', ice_dyn_rdgrft_alloc )
@@ -353,7 +354,7 @@ CONTAINS
       zGsum(1:npti,-1) = 0._wp
       zGsum(1:npti,0 ) = pato_i(1:npti) * z1_asum(1:npti)
       DO jl = 1, jpl
-         zGsum(1:npti,jl) = ( pato_i(1:npti) + SUM( pa_i(1:npti,1:jl), dim=2 ) ) * z1_asum(1:npti)  ! sum(1:jl) is ok (and not jpl)
+         zGsum(1:npti,jl) = ( pato_i(1:npti) + SUM( pa_i(1:npti,1:jl), dim=2 ) ) * z1_asum(1:npti)  ! sum(1:jl) is correct (and not jpl)
       END DO
       !
       IF( ln_partf_lin ) THEN          !--- Linear formulation (Thorndike et al., 1975)
@@ -420,8 +421,10 @@ CONTAINS
 
       ! 2) Transfer function
       !-----------------------------------------------------------------
+      ! If assuming ridged ice is uniformly distributed between hrmin and  
+      ! hrmax (ln_distf_lin):
+      !
       ! Compute max and min ridged ice thickness for each ridging category.
-      ! Assume ridged ice is uniformly distributed between hrmin and hrmax.
       !
       ! This parameterization is a modified version of Hibler (1980).
       ! The mean ridging thickness, zhmean, is proportional to hi^(0.5)
@@ -436,9 +439,37 @@ CONTAINS
       ! These modifications have the effect of reducing the ice strength
       ! (relative to the Hibler formulation) when very thick ice is ridging.
       !
-      ! zaksum = net area removed/ total area removed
-      ! where total area removed = area of ice that ridges
-      !         net area removed = total area removed - area of new ridges
+      !-----------------------------------------------------------------
+      ! If assuming ridged ice ITD is a negative exponential 
+      ! (ln_distf_exp) and following CICE implementation: 
+      ! 
+      !  g(h) ~ exp[-(h-hrmin)/hrexp], h >= hrmin 
+      ! 
+      ! where hrmin is the minimum thickness of ridging ice and 
+      ! hrexp is the e-folding thickness.
+      ! 
+      ! Here, assume as above that hrmin = min(2*hi, hi+maxraft).
+      ! That is, the minimum ridge thickness results from rafting,
+      !  unless the ice is thicker than maxraft.
+      !
+      ! Also, assume that hrexp = mu_rdg*sqrt(hi).
+      ! The parameter mu_rdg is tuned to give e-folding scales mostly
+      !  in the range 2-4 m as observed by upward-looking sonar.
+      !
+      ! Values of mu_rdg in the right column give ice strengths
+      !  roughly equal to values of Hstar in the left column
+      !  (within ~10 kN/m for typical ITDs):
+      !
+      !   Hstar     mu_rdg
+      !
+      !     25        3.0
+      !     50        4.0
+      !     75        5.0
+      !    100        6.0
+      !
+      ! zaksum = net area removed/ total area participating
+      ! where total area participating = area of ice that ridges
+      !         net area removed = total area participating - area of new ridges
       !-----------------------------------------------------------------
       zfac = 1._wp / hi_hrft
       zaksum(1:npti) = apartf(1:npti,0)
@@ -448,9 +479,16 @@ CONTAINS
             IF ( apartf(ji,jl) > 0._wp ) THEN
                zhmean         = MAX( SQRT( rn_hstar * zhi(ji,jl) ), zhi(ji,jl) * hrdg_hi_min )
                hrmin  (ji,jl) = MIN( 2._wp * zhi(ji,jl), 0.5_wp * ( zhmean + zhi(ji,jl) ) )
-               hrmax  (ji,jl) = 2._wp * zhmean - hrmin(ji,jl)
                hraft  (ji,jl) = zhi(ji,jl) * zfac
-               hi_hrdg(ji,jl) = zhi(ji,jl) / MAX( zhmean, epsi20 )
+               !
+               IF( ln_distf_lin ) THEN
+                  hrmax  (ji,jl) = 2._wp * zhmean - hrmin(ji,jl)
+                  hi_hrdg(ji,jl) = zhi(ji,jl) / MAX( zhmean, epsi20 )
+               ELSEIF( ln_distf_exp ) THEN
+                  hrexp  (ji,jl) = rn_murdg * SQRT( zhi(ji,jl) )
+                  hi_hrdg(ji,jl) = zhi(ji,jl) / ( hrmin(ji,jl) + hrexp(ji,jl) )
+                  !!clem: set a mini for zhi??
+               ENDIF
                !
                ! Normalization factor : zaksum, ensures mass conservation
                zaksum(ji) = zaksum(ji) + aridge(ji,jl) * ( 1._wp - hi_hrdg(ji,jl) )    &
@@ -458,8 +496,10 @@ CONTAINS
             ELSE
                hrmin  (ji,jl) = 0._wp
                hrmax  (ji,jl) = 0._wp
+               hrexp  (ji,jl) = 0._wp
                hraft  (ji,jl) = 0._wp
                hi_hrdg(ji,jl) = 1._wp
+               !!clem zaksum(ji,jl) = 0._wp
             ENDIF
          END DO
       END DO
@@ -513,6 +553,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jl, jl1, jl2, jk   ! dummy loop indices
       REAL(wp) ::   hL, hR, farea              ! left and right limits of integration and new area going to jl2
+      REAL(wp) ::   expL, expR                 ! exponentials involving hL, hR
       REAL(wp) ::   vsw                        ! vol of water trapped into ridges
       REAL(wp) ::   afrdg, afrft               ! fraction of category area ridged/rafted
       REAL(wp)                  ::   airdg1, oirdg1, aprdg1, virdg1, sirdg1
@@ -694,18 +735,50 @@ CONTAINS
                IF( ll_shift(ji) ) THEN
 
                   ! Compute the fraction of ridged ice area and volume going to thickness category jl2
-                  IF( hrmin(ji,jl1) <= hi_max(jl2) .AND. hrmax(ji,jl1) > hi_max(jl2-1) ) THEN
-                     hL = MAX( hrmin(ji,jl1), hi_max(jl2-1) )
-                     hR = MIN( hrmax(ji,jl1), hi_max(jl2)   )
-                     farea    = ( hR      - hL      ) / ( hrmax(ji,jl1)                 - hrmin(ji,jl1)                 )
-                     fvol(ji) = ( hR * hR - hL * hL ) / ( hrmax(ji,jl1) * hrmax(ji,jl1) - hrmin(ji,jl1) * hrmin(ji,jl1) )
+                  IF( ln_distf_lin ) THEN ! Hibler (1980) linear formulation
                      !
-                     itest_rdg(ji) = 1   ! test for conservation
-                  ELSE
-                     farea    = 0._wp
-                     fvol(ji) = 0._wp
-                  ENDIF
-
+                     IF( hrmin(ji,jl1) <= hi_max(jl2) .AND. hrmax(ji,jl1) > hi_max(jl2-1) ) THEN
+                        hL = MAX( hrmin(ji,jl1), hi_max(jl2-1) )
+                        hR = MIN( hrmax(ji,jl1), hi_max(jl2)   )
+                        farea    = ( hR      - hL      ) / ( hrmax(ji,jl1)                 - hrmin(ji,jl1)                 )
+                        fvol(ji) = ( hR * hR - hL * hL ) / ( hrmax(ji,jl1) * hrmax(ji,jl1) - hrmin(ji,jl1) * hrmin(ji,jl1) )
+                        !
+                        itest_rdg(ji) = 1   ! test for conservation
+                     ELSE
+                        farea    = 0._wp
+                        fvol(ji) = 0._wp
+                     ENDIF
+                     !
+                  ELSEIF( ln_distf_exp ) THEN ! Lipscomb et al. (2007) exponential formulation                      
+                     !
+                     IF( jl2 < jpl ) THEN
+                        !
+                        IF( hrmin(ji,jl1) <= hi_max(jl2) ) THEN
+                           hL       = MAX( hrmin(ji,jl1), hi_max(jl2-1) )
+                           hR       = hi_max(jl2)
+                           expL     = EXP( -( hL - hrmin(ji,jl1) ) / hrexp(ji,jl1) )
+                           expR     = EXP( -( hR - hrmin(ji,jl1) ) / hrexp(ji,jl1) )
+                           farea    = expL - expR
+                           fvol(ji) = ( ( hL + hrexp(ji,jl1) ) * expL  &
+                              - ( hR + hrexp(ji,jl1) ) * expR ) / ( hrmin(ji,jl1) + hrexp(ji,jl1) )
+                        ELSE
+                           farea    = 0._wp
+                           fvol(ji) = 0._wp
+                        END IF
+                        !                 
+                     ELSE             ! jl2 = jpl
+                        !
+                        hL       = MAX( hrmin(ji,jl1), hi_max(jl2-1) )
+                        expL     = EXP(-( hL - hrmin(ji,jl1) ) / hrexp(ji,jl1) )
+                        farea    = expL
+                        fvol(ji) = ( hL + hrexp(ji,jl1) ) * expL / ( hrmin(ji,jl1) + hrexp(ji,jl1) )
+                        !
+                     END IF            ! jl2 < jpl
+                     ! 
+                     itest_rdg(ji) = 1   ! test for conservation => clem: I am not sure about that
+                     !
+                  END IF             ! ridge redistribution
+                     
                   ! Compute the fraction of rafted ice area and volume going to thickness category jl2
                   IF( hraft(ji,jl1) <= hi_max(jl2) .AND. hraft(ji,jl1) >  hi_max(jl2-1) ) THEN
                      zswitch(ji) = 1._wp
@@ -780,18 +853,20 @@ CONTAINS
       !!
       !! ** Purpose :   computes ice strength used in dynamics routines of ice thickness
       !!
-      !! ** Method  :   Compute the strength of the ice pack, defined as the energy (J m-2)
+      !! ** Method  :   Compute the strength of the ice pack, defined as the energy (J m-2) 
       !!              dissipated per unit area removed from the ice pack under compression,
       !!              and assumed proportional to the change in potential energy caused
-      !!              by ridging. Note that only Hibler's formulation is stable and that
-      !!              ice strength has to be smoothed
+      !!              by ridging. Note that ice strength using Hibler's formulation must be
+      !!              smoothed.
       !!----------------------------------------------------------------------
       INTEGER             ::   ji, jj, jl  ! dummy loop indices
       REAL(wp)            ::   z1_3        ! local scalars
       REAL(wp), DIMENSION(jpi,jpj) ::   zmsk, zworka           ! temporary array used here
-      !!clem
-      LOGICAL                   ::   ln_str_R75
-      REAL(wp)                  ::   zhi, zcp, rn_pe_rdg
+      !!
+      LOGICAL             ::   ln_str_R75
+      REAL(wp)            ::   zhi, zcp
+      REAL(wp)            ::   h2rdg                     ! mean value of h^2 for new ridge
+      REAL(wp), PARAMETER ::   zmax_strength = 200.e3_wp ! Richter-Menge and Elder (1998) estimate maximum in Beaufort Sea in wintertime of the order 150 kN/m
       REAL(wp), DIMENSION(jpij) ::   zstrength, zaksum   ! strength in 1D      
       !!----------------------------------------------------------------------
       ! prepare the mask
@@ -804,7 +879,7 @@ CONTAINS
 
       CASE ( np_strr75 )           !== Rothrock(1975)'s method ==!
 
-         ! these 2 param should be defined once for all at the 1st time step
+         ! this should be defined once for all at the 1st time step
          zcp = 0.5_wp * grav * (rho0-rhoi) * rhoi * r1_rho0   ! proport const for PE
          !
          strength(:,:) = 0._wp
@@ -842,21 +917,41 @@ CONTAINS
                   !
                   IF( apartf(ji,jl) > 0._wp ) THEN
                      !
+                     IF( ln_distf_lin ) THEN       ! Uniform redistribution of ridged ice               
+                        h2rdg = z1_3 * ( hrmax(ji,jl) * hrmax(ji,jl) +     & ! (a**3-b**3)/(a-b) = a*a+ab+b*b
+                           &             hrmin(ji,jl) * hrmin(ji,jl) +     &
+                           &             hrmax(ji,jl) * hrmin(ji,jl) )
+                        !
+                     ELSEIF( ln_distf_exp ) THEN   ! Exponential redistribution of ridged ice
+                        h2rdg =          hrmin(ji,jl) * hrmin(ji,jl)   &
+                           &   + 2._wp * hrmin(ji,jl) * hrexp(ji,jl)   &
+                           &   + 2._wp * hrexp(ji,jl) * hrexp(ji,jl)
+                     END IF
+                     !
                      IF( a_i_2d(ji,jl) > epsi10 ) THEN   ;   zhi = v_i_2d(ji,jl) / a_i_2d(ji,jl)
                      ELSE                                ;   zhi = 0._wp
                      ENDIF
-                     zstrength(ji) = zstrength(ji) -         apartf(ji,jl) * zhi * zhi                  ! PE loss from deforming ice
-                     zstrength(ji) = zstrength(ji) + 2._wp * araft (ji,jl) * zhi * zhi                  ! PE gain from rafting ice
-                     zstrength(ji) = zstrength(ji) +         aridge(ji,jl) * hi_hrdg(ji,jl) * z1_3 *  & ! PE gain from ridging ice
-                        &                                   ( hrmax(ji,jl) * hrmax(ji,jl) +           & ! (a**3-b**3)/(a-b) = a*a+ab+b*b
-                        &                                     hrmin(ji,jl) * hrmin(ji,jl) +           &
-                        &                                     hrmax(ji,jl) * hrmin(ji,jl) )
+!!$                     zstrength(ji) = zstrength(ji) -         apartf(ji,jl) * zhi * zhi                  ! PE loss from deforming ice
+!!$                     zstrength(ji) = zstrength(ji) + 2._wp * araft (ji,jl) * zhi * zhi                  ! PE gain from rafting ice
+!!$                     zstrength(ji) = zstrength(ji) +         aridge(ji,jl) * hi_hrdg(ji,jl) * z1_3 *  & ! PE gain from ridging ice
+!!$                        &                                   ( hrmax(ji,jl) * hrmax(ji,jl) +           & ! (a**3-b**3)/(a-b) = a*a+ab+b*b
+!!$                        &                                     hrmin(ji,jl) * hrmin(ji,jl) +           &
+!!$                        &                                     hrmax(ji,jl) * hrmin(ji,jl) )
+                     zstrength(ji) = zstrength(ji) - apartf(ji,jl) * zhi * zhi                  ! PE loss
+                     zstrength(ji) = zstrength(ji) + 2._wp * araft(ji,jl) * zhi * zhi           ! PE gain (rafting)
+                     zstrength(ji) = zstrength(ji) + aridge(ji,jl) * h2rdg *  hi_hrdg(ji,jl)    ! PE gain (ridging)
+                     
                   ENDIF
                   !
                END DO
             END DO
             !
             zstrength(1:npti) = rn_pe_rdg * zcp * zstrength(1:npti) / zaksum(1:npti)
+            !
+            ! Enforce a maximum for strength
+            ! Richter-Menge and Elder (1998) estimate maximum in Beaufort Sea in wintertime of the order 150 kN/m
+            WHERE( zstrength(1:npti) > zmax_strength ) ; zstrength(1:npti) = zmax_strength
+            ENDWHERE
             !
             CALL tab_1d_2d( npti, nptidx(1:npti), zstrength(1:npti), strength )
             !
@@ -1009,7 +1104,7 @@ CONTAINS
          WRITE(numout,*) '            ice strength value                                 rn_str       = ', rn_str
          WRITE(numout,*) '      spatial smoothing of the strength                        ln_str_smooth= ', ln_str_smooth
          WRITE(numout,*) '      redistribution of ridged ice: linear (Hibler 1980)       ln_distf_lin = ', ln_distf_lin
-         WRITE(numout,*) '      redistribution of ridged ice: exponential                ln_distf_exp = ', ln_distf_exp
+         WRITE(numout,*) '      redistribution of ridged ice: exponential(Lipscomb 2017) ln_distf_exp = ', ln_distf_exp
          WRITE(numout,*) '            e-folding scale of ridged ice                      rn_murdg     = ', rn_murdg
          WRITE(numout,*) '      Fraction of shear energy contributing to ridging         rn_csrdg     = ', rn_csrdg
          WRITE(numout,*) '      linear ridging participation function                    ln_partf_lin = ', ln_partf_lin
@@ -1034,11 +1129,13 @@ CONTAINS
       IF( ln_str_CST    ) THEN   ;   ioptio = ioptio + 1   ;   nice_str = np_strcst       ;   ENDIF
       IF( ioptio /= 1 )    CALL ctl_stop( 'ice_dyn_rdgrft_init: one and only one ice strength option has to be defined ' )
       !
+      IF ( ( ln_str_H79 .AND. ln_str_R75 ) .OR. ( .NOT.ln_str_H79 .AND. .NOT.ln_str_R75 ) ) THEN
+         CALL ctl_stop( 'ice_dyn_rdgrft_init: choose one and only one ice strength formulation (ln_str_H79 or ln_str_R75)' )
+      ENDIF
+      !
       IF ( ( ln_distf_lin .AND. ln_distf_exp ) .OR. ( .NOT.ln_distf_lin .AND. .NOT.ln_distf_exp ) ) THEN
          CALL ctl_stop( 'ice_dyn_rdgrft_init: choose one and only one redistribution function (ln_distf_lin or ln_distf_exp)' )
       ENDIF
-      !!clem
-      IF( ln_distf_exp ) CALL ctl_stop( 'ice_dyn_rdgrft_init: exponential redistribution function not coded yet (ln_distf_exp)' )
       !
       IF ( ( ln_partf_lin .AND. ln_partf_exp ) .OR. ( .NOT.ln_partf_lin .AND. .NOT.ln_partf_exp ) ) THEN
          CALL ctl_stop( 'ice_dyn_rdgrft_init: choose one and only one participation function (ln_partf_lin or ln_partf_exp)' )
