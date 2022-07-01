@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 ###################################
 ## Definitions for batch system
 #SBATCH -A omr@cpu                 # Accounting information
@@ -11,10 +12,12 @@
 #SBATCH --output=cpltestcase_%j    # Name of output listing file
 #SBATCH --error=cpltestcase_%j     # Name of error listing file (the same)
 ###################################
+set -x
+ulimit -s unlimited
 ##
 ## CONFIG_DIR is submission directory
 ##
-CONFIG_DIR=${SLURM_SUBMIT_DIR}
+CONFIG_DIR=${SLURM_SUBMIT_DIR:-$(pwd)}
 #
 cd ${CONFIG_DIR}
 pwd
@@ -52,6 +55,7 @@ done
 ##
 cp $CONFIG_DIR/nemo nemo.exe  || exit 5
 cp $TOYATM_DIR/toyatm.exe . || exit 5
+cp $XIOS_DIR/bin/xios_server.exe . || exit 5
 ##
 ## Get script generating summary report
 cp $CONFIG_DIR/gen_report.sh .
@@ -62,12 +66,13 @@ echo '(3) Prepare launch of the run'
 echo '----------------'
 export MPIRUN="srun --mpi=pmi2 --cpu-bind=cores -K1"
 NB_PROCS_NEMO=28
-NB_PROCS_OASIS=1
 NB_PROCS_TOYATM=1
+NB_PROCS_XIOS=1
 date  
 touch ./run_file
 echo 0-27 ./nemo.exe >>./run_file
 echo 28 ./toyatm.exe >>./run_file
+echo 29 ./xios_server.exe >>./run_file
 echo run_file
 cat ./run_file
 ##
