@@ -83,8 +83,9 @@
                      ! Type of air-sea fluxes 
    ln_cpl      = .true.     !  atmosphere coupled   formulation          ( requires key_oasis3 )
                      ! Sea-ice :
-   nn_ice      = 2         !  =2 or 3 automatically for SI3 or CICE    ("key_si3" or "key_cice")
-                           !          except in AGRIF zoom where it has to be specified
+   nn_ice      = 2         !  =0 no ice boundary condition
+      !                    !  =1 use observed ice-cover                 (  => fill namsbc_iif )
+      !                    !  =2 or 3 for SI3 and CICE, respectively
                      ! Misc. options of sbc : 
    ln_traqsr   = .true.    !  Light penetration in the ocean            (T => fill namtra_qsr)
    ln_ssr      = .true.    !  Sea Surface Restoring on T and/or S       (T => fill namsbc_ssr)
@@ -92,15 +93,6 @@
    nn_fwb      = 2         !  FreshWater Budget: 
    !                       !    =2 annual global mean of e-p-r set to zero
    ln_wave     = .false.   !  Activate coupling with wave  (T => fill namsbc_wave)
-   ln_cdgw     = .false.   !  Neutral drag coefficient read from wave model (T => ln_wave=.true. & fill namsbc_wave)
-   ln_sdw      = .false.   !  Read 2D Surf Stokes Drift & Computation of 3D stokes drift (T => ln_wave=.true. & fill namsbc_wave) 
-   nn_sdrift   =  0        !  Parameterization for the calculation of 3D-Stokes drift from the surface Stokes drift
-      !                    !   = 0 Breivik 2015 parameterization: v_z=v_0*[exp(2*k*z)/(1-8*k*z)]
-      !                    !   = 1 Phillips:                      v_z=v_o*[exp(2*k*z)-beta*sqrt(-2*k*pi*z)*erfc(sqrt(-2*k*z))]
-      !                    !   = 2 Phillips as (1) but using the wave frequency from a wave model
-   ln_tauwoc   = .false.   !  Activate ocean stress modified by external wave induced stress (T => ln_wave=.true. & fill namsbc_wave)
-   ln_tauw     = .false.   !  Activate ocean stress components from wave model
-   ln_stcor    = .false.   !  Activate Stokes Coriolis term (T => ln_wave=.true. & ln_sdw=.true. & fill namsbc_wave)
 /
 !-----------------------------------------------------------------------
 &namsbc_blk    !   namsbc_blk  generic Bulk formula                     (ln_blk =T)
@@ -112,41 +104,41 @@
    !___________!_________________________!___________________!___________!_____________!________!___________!______________________________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ !          weights filename            ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                                      ! pairing  !    filename   !
-   sn_wndi     = 'u_10.15JUNE2009_fill'       ,    6.        , 'U_10_MOD',   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bicubic_noc.nc'  , 'Uwnd'   , ''
-   sn_wndj     = 'v_10.15JUNE2009_fill'       ,    6.        , 'V_10_MOD',   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bicubic_noc.nc'  , 'Vwnd'   , ''
-   sn_qsr      = 'ncar_rad.15JUNE2009_fill'   ,   24.        , 'SWDN_MOD',   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bilinear_noc.nc' , ''       , ''
-   sn_qlw      = 'ncar_rad.15JUNE2009_fill'   ,   24.        , 'LWDN_MOD',   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bilinear_noc.nc' , ''       , ''
-   sn_tair     = 't_10.15JUNE2009_fill'       ,    6.        , 'T_10_MOD',   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bilinear_noc.nc' , ''       , ''
-   sn_humi     = 'q_10.15JUNE2009_fill'       ,    6.        , 'Q_10_MOD',   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bilinear_noc.nc' , ''       , ''
-   sn_prec     = 'ncar_precip.15JUNE2009_fill',   -1.        , 'PRC_MOD1',   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bilinear_noc.nc' , ''       , ''
-   sn_snow     = 'ncar_precip.15JUNE2009_fill',   -1.        , 'SNOW'    ,   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bilinear_noc.nc' , ''       , ''
-   sn_slp      = 'slp.15JUNE2009_fill'        ,    6.        , 'SLP'     ,   .false.   , .true. , 'yearly'  , 'weights_core_orca2_bilinear_noc.nc' , ''       , ''
+   sn_wndi     = 'u_10.15JUNE2009_fill'       ,    6.        , 'U_10_MOD',   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bicub'  , 'Uwnd'   , ''
+   sn_wndj     = 'v_10.15JUNE2009_fill'       ,    6.        , 'V_10_MOD',   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bicub'  , 'Vwnd'   , ''
+   sn_qsr      = 'ncar_rad.15JUNE2009_fill'   ,   24.        , 'SWDN_MOD',   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bilin' , ''       , ''
+   sn_qlw      = 'ncar_rad.15JUNE2009_fill'   ,   24.        , 'LWDN_MOD',   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bilin' , ''       , ''
+   sn_tair     = 't_10.15JUNE2009_fill'       ,    6.        , 'T_10_MOD',   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bilin' , ''       , ''
+   sn_humi     = 'q_10.15JUNE2009_fill'       ,    6.        , 'Q_10_MOD',   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bilin' , ''       , ''
+   sn_prec     = 'ncar_precip.15JUNE2009_fill',   -1.        , 'PRC_MOD1',   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bilin' , ''       , ''
+   sn_snow     = 'ncar_precip.15JUNE2009_fill',   -1.        , 'SNOW'    ,   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bilin' , ''       , ''
+   sn_slp      = 'slp.15JUNE2009_fill'        ,    6.        , 'SLP'     ,   .false.   , .true. , 'yearly'  , 'weights_core2_orca2_bilin' , ''       , ''
 /
+!-----------------------------------------------------------------------
 &namsbc_cpl    !   coupled ocean/atmosphere model                       ("key_oasis3")
 !-----------------------------------------------------------------------
-   nn_cplmodel   =     1   !  Maximum number of models to/from which NEMO is potentially sending/receiving data
-   ln_usecplmask = .false. !  use a coupling mask file to merge data received from several models
-   !                       !   -> file cplmask.nc with the float variable called cplmask (jpi,jpj,nn_cplmodel)
-   nn_cats_cpl   =     5   !  Number of sea ice categories over which coupling is to be carried out (if not 1)
-
+   nn_cplmodel       =     1   !  Maximum number of models to/from which NEMO is potentially sending/receiving data
+   ln_usecplmask     = .false. !  use a coupling mask file to merge data received from several models
+   !                           !   -> file cplmask.nc with the float variable called cplmask (jpi,jpj,nn_cplmodel)
+   ln_scale_ice_flux = .false. !  use ice fluxes that are already "ice weighted" ( i.e. multiplied ice concentration)
+   nn_cats_cpl       =     5   !  Number of sea ice categories over which coupling is to be carried out (if not 1)
    !_____________!__________________________!____________!_____________!______________________!________!
    !             !        description       !  multiple  !    vector   !       vector         ! vector !
    !             !                          ! categories !  reference  !     orientation      ! grids  !
 !***   send    ***
-!!   sn_snd_temp   =   'weighted oce and ice' ,    'no'    ,     ''      ,         ''           ,   ''
    sn_snd_temp   =   'mixed oce-ice'        ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_snd_ttilyr =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_snd_alb    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_snd_thick  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_snd_ifrac  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_snd_crt    =   'none'                 ,    'no'    , 'spherical' , 'eastward-northward' ,  'T'
    sn_snd_co2    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_snd_crtw   =   'none'                 ,    'no'    ,     ''      ,         ''           , 'U,V'
+   sn_snd_ifrac  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_snd_wlev   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_snd_cond   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_snd_thick1 =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_snd_mpnd   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_snd_sstfrz =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_snd_crtw   =   'none'                 ,    'no'    ,     ''      ,         ''           , 'U,V'
-   sn_snd_wlev   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_snd_thick1 =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_snd_ttilyr =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
 !***  receive  ***
    sn_rcv_w10m   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_taumod =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
@@ -157,22 +149,25 @@
    sn_rcv_emp    =   'conservative'         ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_rnf    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_cal    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_icb    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_isf    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_iceflx =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_co2    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_hsig   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_phioc  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_sdrfx  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_sdrfy  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_wper   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_wnum   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_wfreq  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_tauwoc =   'none'                 ,    'no'    ,     ''      ,         ''          ,   ''
-   sn_rcv_tauw   =   'none'                 ,    'no'    ,     ''      ,         ''          ,   ''
-   sn_rcv_wdrag  =   'none'                 ,    'no'    ,     ''      ,         ''          ,   ''
-   sn_rcv_ts_ice =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_rcv_iceflx =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_mslp   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_rcv_ts_ice =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_rcv_isf    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_rcv_icb    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_rcv_hsig   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_phioc  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_sdrfx  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_sdrfy  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_wper   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_wnum   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_wstrf  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_wdrag  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_charn  =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_taw    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'U,V'
+   sn_rcv_bhd    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_tusd   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
+   sn_rcv_tvsd   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   'T'
 /
 !-----------------------------------------------------------------------
 &namtra_qsr    !   penetrative solar radiation                          (ln_traqsr =T)
@@ -365,6 +360,7 @@
 !-----------------------------------------------------------------------
    ln_dynadv_vec = .true.  !  vector form - 2nd centered scheme
      nn_dynkeg     = 0        ! grad(KE) scheme: =0   C2  ;  =1   Hollingsworth correction
+   ln_dynadv_cen2 = .false. !  flux form - 2nd order centered scheme
 /
 !-----------------------------------------------------------------------
 &namdyn_vor    !   Vorticity / Coriolis scheme                          (default: NO selection)
@@ -424,27 +420,27 @@
       !                       !                 = 2 first vertical derivative of mixing length bounded by 1
       !                       !                 = 3 as =2 with distinct dissipative an mixing length scale
       nn_etau     =   1       !  penetration of tke below the mixed layer (ML) due to NIWs
-                               !        = 0 none ; = 1 add a tke source below the ML
-                               !        = 2 add a tke source just at the base of the ML
-                               !        = 3 as = 1 applied on HF part of the stress           (ln_cpl=T)
-      rn_eice     =   0       !  below sea ice: =0 ON ; =4 OFF when ice fraction > 1/4   
+      !                       !        = 0 none ; = 1 add a tke source below the ML
+      !                       !        = 2 add a tke source just at the base of the ML
+      !                       !        = 3 as = 1 applied on HF part of the stress           (ln_cpl=T)
+      ln_mxhsw    = .false.   !  surface mixing length scale = F(wave height)
 /
 !-----------------------------------------------------------------------
 &namzdf_iwm    !    internal wave-driven mixing parameterization        (ln_zdfiwm =T)
 !-----------------------------------------------------------------------
-   nn_zpyc     = 2         !  pycnocline-intensified dissipation scales as N (=1) or N^2 (=2)
    ln_mevar    = .true.    !  variable (T) or constant (F) mixing efficiency
    ln_tsdiff   = .true.    !  account for differential T/S mixing (T) or not (F)
 
-   cn_dir      = './'      !  root directory for the iwm data location                                                                           
-   !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
-   !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
-   !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
-   sn_mpb      = 'mixing_power_bot'      , -12               , 'field'   , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_mpp      = 'mixing_power_pyc'      , -12               , 'field'   , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_mpc      = 'mixing_power_cri'      , -12               , 'field'   , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_dsb      = 'decay_scale_bot'       , -12               , 'field'   , .false.  , .true. , 'yearly' , '' , ''  , ''
-   sn_dsc      = 'decay_scale_cri'       , -12               , 'field'   , .false.  , .true. , 'yearly' , '' , ''  , ''
+   cn_dir      = './'      !  root directory for the iwm data location
+   !___________!_________________________!___________________!_____________!_____________!________!___________!__________________!__________!_______________!
+   !           !        file name        ! frequency (hours) ! variable    ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
+   !           !                         !  (if <0  months)  !   name      !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
+   sn_mpb      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'power_bot' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_mpc      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'power_cri' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_mpn      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'power_nsq' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_mps      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'power_sho' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_dsb      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'scale_bot' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
+   sn_dsc      = 'zdfiwm_forcing_orca2'  ,       -12.        , 'scale_cri' ,   .false.   , .true. , 'yearly' , '' , ''  , ''
 /
 !!======================================================================
 !!                  ***  Diagnostics namelists  ***                   !!

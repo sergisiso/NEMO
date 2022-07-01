@@ -15,7 +15,7 @@ function ncmdn { ncap2 -O -C -v -s "foo=gsl_stats_median_from_sorted_data(${1}.s
 ## Variables which may need to be adapted to your experiment:
 ##
 #  RUNDIR = directory where the test case is executed: contains all outputs
-RUNDIR=/gpfswork/rech/omr/romr001/OUT/CPLTESTCASE/2020-03-31120816
+RUNDIR=`pwd`
 #  NB_NEMO_IT = expected total number of NEMO iterations
 NB_NEMO_IT=160
 #  NB_OASIS_OUTFILES = number of debug.root.0* OASIS output files
