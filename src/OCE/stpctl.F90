@@ -160,9 +160,9 @@ CONTAINS
       IF( ll_colruns ) THEN
          zmaxlocal(:) = zmax(1:jptst)
          CALL mpp_max( "stpctl", zmax )          ! max over the global domain: ok even of ll_0oce = .true. 
-         nstop = NINT( zmax(jpvar+1) )           ! update nstop indicator (now sheared among all local domains)
+         nstop = NINT( zmax(jpvar+1) )           ! update nstop indicator (now shared among all local domains)
       ELSE
-         ! if no ocean point: MAXVAL returns -HUGE => we must overwrite this value to avoid error handling bellow.
+         ! if no ocean point: MAXVAL returns -HUGE => we must overwrite this value to avoid error handling below.
          IF( ll_0oce )   zmax(1:jptst) = (/ 0._wp, 0._wp, -1._wp, 1._wp /)   ! default "valid" values...
       ENDIF
       !
@@ -250,10 +250,12 @@ CONTAINS
          CALL dia_wri_state( Kmm, 'output.abort' )     ! create an output.abort file
          !
          IF( ll_colruns .OR. jpnij == 1 ) THEN   ! all processes synchronized -> use lwp to print in opened ocean.output files
+            IF(lwp .AND. ln_zad_Aimp) WRITE(numout,*) 'CFL, wi max ',zmax(7), zmax(8)
             IF(lwp) THEN   ;   CALL ctl_stop( ctmp1, ' ', ctmp2, ctmp3, ctmp4, ctmp5, ' ', ctmp6 )
             ELSE           ;   nstop = MAX(1, nstop)   ! make sure nstop > 0 (automatically done when calling ctl_stop)
             ENDIF
          ELSE                                    ! only mpi subdomains with errors are here -> STOP now
+            IF(ln_zad_Aimp) WRITE(*,*) 'CFL, wi max ',narea, zmax(7), zmax(8)
             CALL ctl_stop( 'STOP', ctmp1, ' ', ctmp2, ctmp3, ctmp4, ctmp5, ' ', ctmp6 )
          ENDIF
          !
