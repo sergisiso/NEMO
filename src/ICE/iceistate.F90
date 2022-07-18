@@ -436,11 +436,7 @@ CONTAINS
          ! Override ssh adjustment in nested domains by the root-domain ssh adjustment;
          ! store the adjustment value in a global module variable to make it retrievable in nested domains
          IF( .NOT.Agrif_Root() ) THEN
-            IF  (.NOT.ln_init_chfrpar ) THEN   ! child is not initialized from the parent
-               zsshadj = Agrif_Parent(rsshadj)
-            ELSE                               ! child is     initialized from the parent
-               zsshadj = 0._wp                 ! => 0 since ssh adjustement is already done
-            ENDIF
+            zsshadj = Agrif_Parent(rsshadj)
          ELSE
             rsshadj = zsshadj
          ENDIF
@@ -463,10 +459,10 @@ CONTAINS
 #else
          DO jk = 1, jpk
             DO_2D( nn_hls, nn_hls, nn_hls, nn_hls)
-               IF( snwice_mass(ji,jj) /= 0._wp ) THEN
+!               IF( snwice_mass(ji,jj) /= 0._wp ) THEN
                   e3t(ji,jj,jk,Kmm) = e3t_0(ji,jj,jk) * ( 1._wp + ssh(ji,jj,Kmm) * r1_ht_0(ji,jj) * tmask(ji,jj,jk) )
                   e3t(ji,jj,jk,Kbb) = e3t_0(ji,jj,jk) * ( 1._wp + ssh(ji,jj,Kbb) * r1_ht_0(ji,jj) * tmask(ji,jj,jk) )
-               ENDIF
+!               ENDIF
             END_2D
          END DO
          !

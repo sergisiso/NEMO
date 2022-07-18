@@ -151,8 +151,8 @@ CONTAINS
          ENDIF
       END_2D
       !
-      IF( PRESENT(l_mask) .AND. l_mask ) THEN
-         zqsrout(:,:) = float(imask_night(:,:))
+      IF( PRESENT(l_mask) ) THEN
+         IF ( l_mask ) zqsrout(:,:) = float(imask_night(:,:))
       ENDIF
       !
    END FUNCTION sbc_dcy

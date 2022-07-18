@@ -164,7 +164,7 @@ CONTAINS
          END_2D
       END DO
       !
-      IF (nn_hls==1) CALL lbc_lnk( 'zpshde', pgtu(:,:,:), 'U', -1.0_wp , pgtv(:,:,:), 'V', -1.0_wp )   ! Lateral boundary cond.
+      IF (nn_hls==1) CALL lbc_lnk( 'zpshde', pgtu, 'U', -1.0_wp , pgtv, 'V', -1.0_wp )   ! Lateral boundary cond.
       !
       IF( PRESENT( prd ) ) THEN    !==  horizontal derivative of density anomalies (rd)  ==!    (optional part)
          pgru(:,:) = 0._wp
@@ -343,7 +343,7 @@ CONTAINS
          END_2D
       END DO
       !
-      IF (nn_hls==1) CALL lbc_lnk( 'zpshde', pgtu(:,:,:), 'U', -1.0_wp , pgtv(:,:,:), 'V', -1.0_wp )   ! Lateral boundary cond.
+      IF (nn_hls==1) CALL lbc_lnk( 'zpshde', pgtu, 'U', -1.0_wp , pgtv, 'V', -1.0_wp )   ! Lateral boundary cond.
 
       ! horizontal derivative of density anomalies (rd)
       IF( PRESENT( prd ) ) THEN         ! depth of the partial step level
@@ -436,7 +436,7 @@ CONTAINS
          END_2D
          !
       END DO
-      IF (nn_hls==1) CALL lbc_lnk( 'zpshde', pgtui(:,:,:), 'U', -1.0_wp , pgtvi(:,:,:), 'V', -1.0_wp )   ! Lateral boundary cond.
+      IF (nn_hls==1) CALL lbc_lnk( 'zpshde', pgtui, 'U', -1.0_wp , pgtvi, 'V', -1.0_wp )   ! Lateral boundary cond.
 
       IF( PRESENT( prd ) ) THEN    !==  horizontal derivative of density anomalies (rd)  ==!    (optional part)
          !

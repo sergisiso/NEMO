@@ -34,7 +34,11 @@ MODULE agrif_oce_interp
    USE lib_mpp
    USE vremap
    USE lbclnk
- 
+#if defined key_si3
+   USE iceistate, ONLY: rsshadj, nn_iceini_file
+   USE sbc_oce  , ONLY: ln_ice_embd
+   USE sbc_ice  , ONLY: snwice_mass
+#endif 
    IMPLICIT NONE
    PRIVATE
 
@@ -1108,7 +1112,21 @@ CONTAINS
       !!----------------------------------------------------------------------  
       !
       IF( before) THEN
+#if defined key_si3
+         IF (l_ini_child.AND.(.NOT.(ln_rstart .OR. nn_iceini_file == 2))) THEN
+            IF( ln_ice_embd ) THEN  
+               ptab(i1:i2,j1:j2) = ssh(i1:i2,j1:j2,Kmm_a)  &
+                    &              + snwice_mass(i1:i2,j1:j2) * r1_rho0
+            ELSE
+               ptab(i1:i2,j1:j2) = ssh(i1:i2,j1:j2,Kmm_a)  &
+                    &              + rsshadj * tmask(i1:i2,j1:j2,1)
+            ENDIF
+         ELSE
+            ptab(i1:i2,j1:j2) = ssh(i1:i2,j1:j2,Kmm_a)
+         ENDIF
+#else
          ptab(i1:i2,j1:j2) = ssh(i1:i2,j1:j2,Kmm_a)
+#endif
       ELSE
          IF( l_ini_child ) THEN
             ssh(i1:i2,j1:j2,Krhs_a) = ptab(i1:i2,j1:j2) * tmask(i1:i2,j1:j2,1)
