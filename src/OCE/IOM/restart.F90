@@ -30,10 +30,6 @@ MODULE restart
    USE usrdef_istate, ONLY : usr_def_istate_ssh   ! user defined ssh initial state 
    USE trdmxl_oce     ! ocean active mixed layer tracers trends variables
    USE diu_bulk       ! ???
-#if defined key_si3
-   USE iceistate, ONLY: rsshadj, nn_iceini_file
-   USE sbc_oce, ONLY: ln_ice_embd
-#endif
 #if defined key_agrif
    USE agrif_oce_interp
 #endif
@@ -439,21 +435,7 @@ CONTAINS
          ENDIF
 #if defined key_agrif
          ! Set ghosts points from parent 
-         IF (.NOT.Agrif_Root()) THEN 
-            CALL Agrif_istate_ssh( Kbb, Kmm, Kaa, .true. ) 
-#if defined key_si3
-            IF ( (nn_ice/=2).AND.((Agrif_Parent(nn_ice)==2).AND.                 &
-                              &   (.NOT.(Agrif_Parent(ln_rstart)                 & 
-                              &     .OR.(Agrif_Parent(nn_iceini_file)==2))).AND. &
-                              &   (.NOT.Agrif_Parent(ln_ice_embd))               &
-                              &  )) THEN
-               WHERE( ssmask(:,:) == 1._wp )
-                  ssh(:,:,Kmm) = ssh(:,:,Kmm) - Agrif_Parent(rsshadj)
-                  ssh(:,:,Kbb) = ssh(:,:,Kbb) - Agrif_Parent(rsshadj) 
-               ENDWHERE
-            ENDIF
-         ENDIF
-#endif
+         IF (.NOT.Agrif_Root()) CALL Agrif_istate_ssh( Kbb, Kmm, Kaa, .true. )
 #endif
          !
          ssh(:,:,Kmm) = ssh(:,:,Kbb)              !* set now values from to before ones
