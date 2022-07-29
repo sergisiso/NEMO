@@ -378,7 +378,7 @@ end type Agrif_Variables_List
     integer               :: Agrif_Regridding = 10
     integer               :: Agrif_Minwidth
     real                  :: Agrif_Efficiency = 0.7
-    integer               :: MaxSearch = 10 
+    integer               :: MaxSearch = 3 
     real(kind=8), dimension(3)    :: Agrif_mind
 !> @}
 !> \name parameters for the interpolation of the child grids

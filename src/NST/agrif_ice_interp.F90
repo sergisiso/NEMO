@@ -57,6 +57,7 @@ CONTAINS
       ! Set a_i, v_i, v_s, sv_i, oa_i, a_ip, v_ip, t_su, e_s, e_i:
       Agrif_SpecialValue    = -9999.
       Agrif_UseSpecialValue = .TRUE.
+      CALL Agrif_Set_MaskMaxSearch(10)
       CALL Agrif_init_variable(tra_iceini_id,procname=interp_tra_ice)
       !
       CALL lbc_lnk( 'agrif_istate_ice',  a_i,'T',1._wp,  v_i,'T',1._wp, &
@@ -78,6 +79,7 @@ CONTAINS
       CALL Agrif_init_variable(v_iceini_id  ,procname=interp_v_ice)
       use_sign_north = .FALSE.
       Agrif_UseSpecialValue = .FALSE.
+      CALL Agrif_Set_MaskMaxSearch(3)
       ! 
       CALL lbc_lnk( 'agrif_istate_ice', u_ice, 'U', -1._wp, v_ice, 'V', -1._wp )
       !
