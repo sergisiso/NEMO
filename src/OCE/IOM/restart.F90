@@ -452,8 +452,8 @@ CONTAINS
                   ssh(:,:,Kbb) = ssh(:,:,Kbb) - Agrif_Parent(rsshadj) 
                ENDWHERE
             ENDIF
-         ENDIF
 #endif
+         ENDIF
 #endif
          !
          ssh(:,:,Kmm) = ssh(:,:,Kbb)              !* set now values from to before ones
