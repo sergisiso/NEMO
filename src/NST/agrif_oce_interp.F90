@@ -87,6 +87,7 @@ CONTAINS
       Agrif_SpecialValue    = 0.0_wp
       Agrif_UseSpecialValue = .TRUE.
       l_vremap              = ln_vert_remap
+      CALL Agrif_Set_MaskMaxSearch(10)
 
       ts(:,:,:,:,Kbb) = 0.0_wp
       uu(:,:,:,Kbb)   = 0.0_wp
@@ -106,6 +107,7 @@ CONTAINS
       Agrif_UseSpecialValue = .FALSE.
       l_ini_child           = .FALSE.
       l_vremap              = .FALSE. 
+      CALL Agrif_Set_MaskMaxSearch(3)
 
       Krhs_a = Kaa   ;   Kmm_a = Kmm
 
