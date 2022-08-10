@@ -60,7 +60,7 @@ if [ "$MYFILE" == "agrif2model.f90" ];then
    if [ -d ${MYDIR}/${NEW_CONF}/WORK ]; then
       \cp ${MYDIR}/${NEW_CONF}/WORK/${MYFILE/.f90/.F90} ${MYDIR}/${NEW_CONF}/NEMOFILES/obj/$MYFILE
    else
-      \cp ${MYDIR}/${NEW_CONF}/src/${MYFILE/.f90/.F90} ${MYDIR}/${NEW_CONF}/NEMOFILES/obj/$MYFILE
+      \cp ${CONFIG_DIR}/${NEW_CONF}/WORK/${MYFILE/.f90/.F90} ${MYDIR}/${NEW_CONF}/NEMOFILES/obj/$MYFILE
    fi   
 else
 cd ${MYDIR}/${NEW_CONF}/NEMOFILES/ppsrc/nemo ; ${MYDIR}/${NEW_CONF}/NEMOFILES/conv ${MYDIR}/${NEW_CONF}/NEMOFILES/agrif_oce.in -rm -incdir ${MYDIR}/${NEW_CONF}/NEMOFILES/inc -comdirout ${MYDIR}/${NEW_CONF}/NEMOFILES/obj -convfile ${MYFILE} > /dev/null 
