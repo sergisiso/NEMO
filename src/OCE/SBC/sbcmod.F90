@@ -417,32 +417,27 @@ CONTAINS
       !
       !                                            !==  sbc formulation  ==!
       !
+      IF( ln_blk .OR. ln_abl ) THEN
+         IF( ll_sas  )         CALL sbc_cpl_rcv ( kt, nn_fsbc, nn_ice, Kbb, Kmm )   ! OCE-SAS coupling: SAS receiving fields from OCE
+         IF( ln_wave ) THEN
+            IF ( lk_oasis )    CALL sbc_cpl_rcv ( kt, nn_fsbc, nn_ice, Kbb, Kmm )   ! OCE-wave coupling
+                               CALL sbc_wave ( kt, Kmm )
+         ENDIF
+      ENDIF
       !
       SELECT CASE( nsbc )                                ! Compute ocean surface boundary condition
       !                                                  ! (i.e. utau,vtau, qns, qsr, emp, sfx)
-      CASE( jp_usr   )     ;   CALL usrdef_sbc_oce( kt, Kbb )                        ! user defined formulation
+      CASE( jp_usr     )   ;   CALL usrdef_sbc_oce( kt, Kbb )                        ! user defined formulation
       CASE( jp_flx     )   ;   CALL sbc_flx       ( kt )                             ! flux formulation
-      CASE( jp_blk     )
-         IF( ll_sas    )       CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )   ! OCE-SAS coupling: SAS receiving fields from OCE
-!!!!!!!!!!! ATTENTION:ln_wave is not only used for oasis coupling !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         IF( ln_wave )   THEN
-             IF ( lk_oasis )  CALL sbc_cpl_rcv ( kt, nn_fsbc, nn_ice, Kbb, Kmm )   ! OCE-wave coupling
-             CALL sbc_wave ( kt, Kmm )
-         ENDIF
-                               CALL sbc_blk       ( kt )                    ! bulk formulation for the ocean
-                               !
-      CASE( jp_abl     )
-         IF( ll_sas    )       CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )   ! OCE-SAS coupling: SAS receiving fields from OCE
-                               CALL sbc_abl       ( kt )                    ! ABL  formulation for the ocean
-                               !
-      CASE( jp_purecpl )   ;   CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )   ! pure coupled formulation
+      CASE( jp_blk     )   ;   CALL sbc_blk       ( kt )                             ! bulk formulation for the ocean
+      CASE( jp_abl     )   ;   CALL sbc_abl       ( kt )                             ! ABL  formulation for the ocean
+      CASE( jp_purecpl )   ;   CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )  ! pure coupled formulation
       CASE( jp_none    )
          IF( ll_opa    )       CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )  ! OCE-SAS coupling: OCE receiving fields from SAS
       END SELECT
-      !
       IF( ln_mixcpl )          CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )  ! forced-coupled mixed formulation after forcing
       !
-      IF( ln_wave .AND. ln_tauoc )  THEN            ! Wave stress reduction
+      IF( ln_wave .AND. ln_tauoc ) THEN            ! Wave stress reduction
          DO_2D( 0, 0, 0, 0)
             utau(ji,jj) = utau(ji,jj) * ( tauoc_wave(ji,jj) + tauoc_wave(ji+1,jj) ) * 0.5_wp
             vtau(ji,jj) = vtau(ji,jj) * ( tauoc_wave(ji,jj) + tauoc_wave(ji,jj+1) ) * 0.5_wp
