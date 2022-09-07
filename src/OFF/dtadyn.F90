@@ -24,7 +24,7 @@ MODULE dtadyn
    USE dom_oce         ! ocean domain: variables
 #if defined key_qco 
    USE domqco          ! variable volume
-#else
+#elif ! defined key_linssh
    USE domvvl
 #endif
    USE zdf_oce         ! ocean vertical physics: variables
@@ -53,7 +53,7 @@ MODULE dtadyn
    PUBLIC   dta_dyn_init       ! called by nemo_init
    PUBLIC   dta_dyn            ! called by nemo_gcm
    PUBLIC   dta_dyn_atf        ! called by nemo_gcm
-#if ! defined key_qco
+#if ! defined key_qco && ! defined key_linssh
    PUBLIC   dta_dyn_sf_interp  ! called by nemo_gcm
 #endif
 #if defined key_sed_off
@@ -345,6 +345,7 @@ CONTAINS
            CALL iom_close( inum )                                        ! close file
         ENDIF
         !
+#if ! defined key_linssh
 #if defined key_qco
         CALL dom_qco_r3c( ssh(:,:,Kbb), r3t(:,:,Kbb), r3u(:,:,Kbb), r3v(:,:,Kbb) )
         CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm) )
@@ -356,6 +357,7 @@ CONTAINS
 
         CALL dta_dyn_sf_interp( nit000, Kmm )
         CALL dta_dyn_sf_interp( nit000, Kbb )
+#endif
 #endif
       ENDIF
       !
@@ -390,7 +392,7 @@ CONTAINS
    END SUBROUTINE dta_dyn_atf
    
    
-#if ! defined key_qco  
+#if ! defined key_qco && ! defined key_linssh
 
    SUBROUTINE dta_dyn_sf_interp( kt, Kmm )
       !!---------------------------------------------------------------------
