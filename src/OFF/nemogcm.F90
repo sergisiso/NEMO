@@ -62,7 +62,7 @@ MODULE nemogcm
    USE prtctl         ! Print control                    (prt_ctl_init routine)
    USE timing         ! Timing
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
-#if defined key_qco
+#if defined key_qco || defined key_linssh
    USE stpmlf , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
 #else
    USE step    , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
@@ -150,7 +150,7 @@ CONTAINS
          Nnn  = Naa
          Naa  = Nrhs
          !
-# if ! defined key_qco
+# if ! defined key_qco && ! defined key_linssh
          IF( .NOT.ln_linssh )   CALL dta_dyn_sf_interp( istp, Nnn )  ! calculate now grid parameters
 # endif  
 
