@@ -86,6 +86,7 @@ echo "requested by the command          : "$cmd $cmdargs          >> ./sette_con
 echo "on branch                         : "$SETTE_THIS_BRANCH     >> ./sette_config
 printf "%-33s : %s\n" USING_TIMING $USING_TIMING                  >> ./sette_config
 printf "%-33s : %s\n" USING_ICEBERGS $USING_ICEBERGS              >> ./sette_config
+printf "%-33s : %s\n" USING_ABL $USING_ABL                        >> ./sette_config
 printf "%-33s : %s\n" USING_EXTRA_HALO $USING_EXTRA_HALO          >> ./sette_config
 printf "%-33s : %s\n" USING_TILING $USING_TILING                  >> ./sette_config
 printf "%-33s : %s\n" USING_COLLECTIVES $USING_COLLECTIVES        >> ./sette_config
