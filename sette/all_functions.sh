@@ -153,12 +153,12 @@ clean_config() {
       echo '-------------------------------------------------------------------------------'
       echo '                         CLEANING CONFIGURATION                                '
       echo ''
-      echo "./makenemo -n $lCFG -a/-r $lREF clean"
+      echo "./makenemo -n $lCFG -a/-r $lREF -t ${CMP_DIR:-${CONFIG_DIR0}} clean"
       echo ''
       if [ ${lTYP} == 'tests' ]; then
-         ./makenemo -n $lCFG -a $lREF clean
+         ./makenemo -n $lCFG -t ${CMP_DIR:-${CONFIG_DIR0}} -a $lREF clean
       elif [ ${lTYP} == 'cfgs' ]; then
-         ./makenemo -n $lCFG -r $lREF clean
+         ./makenemo -n $lCFG -t ${CMP_DIR:-${CONFIG_DIR0}} -r $lREF clean
       else
          echo 'ERROR in the cleaning process'; exit 42
       fi
@@ -172,7 +172,7 @@ clean_config() {
 # define validation dir
 set_valid_dir () {
     if [ ${DETACHED_HEAD} == "no" ] ; then
-      REVISION_NB=`git -C ${MAIN_DIR} rev-list --abbrev-commit origin | head -1l`
+      REVISION_NB=`git -C ${MAIN_DIR} rev-list --abbrev-commit HEAD | head -1l`
     else
       REVISION_NB=${DETACHED_CMIT}
     fi

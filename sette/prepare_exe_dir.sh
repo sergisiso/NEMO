@@ -69,7 +69,6 @@ set -o posix
 if [ -z "${CUSTOM_DIR}" ]; then
   export EXE_DIR=${CONFIG_DIR}/${NEW_CONF}/${TEST_NAME}
 else
-  NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
   export EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}/${NEW_CONF}/${TEST_NAME}
 fi
 mkdir -p ${EXE_DIR}
