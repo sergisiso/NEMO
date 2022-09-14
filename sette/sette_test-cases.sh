@@ -111,6 +111,10 @@ fi
 CONFIG_DIR0=${MAIN_DIR}/cfgs
 TOOLS_DIR=${MAIN_DIR}/tools
 
+if [ -n "${CUSTOM_DIR}" ]; then
+  NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
+  CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}
+fi
 CMP_NAM=${1:-$COMPILER}
 # Copy job_batch_COMPILER file for specific compiler into job_batch_template
 cd ${SETTE_DIR}
@@ -149,7 +153,7 @@ if [ ${config} == "OVERFLOW" ] ;  then
     #
     sync_config  OVERFLOW ${SETTE_CONFIG} 'tests'
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "OVERFLOW" ] && [ ${DO_RESTART} == "1" ] ;  then
     ## Restartability tests for OVERFLOW
@@ -266,7 +270,7 @@ if [ ${config} == "LOCK_EXCHANGE" ] ;  then
     #
     sync_config  LOCK_EXCHANGE ${SETTE_CONFIG} 'tests'
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_RESTART} == "1" ] ;  then
     ## Restartability tests for LOCK_EXCHANGE
@@ -385,7 +389,7 @@ if [ ${config} == "VORTEX" ] ;  then
     #
     sync_config  VORTEX ${SETTE_CONFIG} 'tests'
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for VORTEX
@@ -580,7 +584,7 @@ if [ ${config} == "ICE_AGRIF" ] ;  then
     sync_config  ICE_AGRIF ${SETTE_CONFIG} 'tests'
     #
     # ICE_AGRIF uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF -j ${CMPL_CORES}  add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES}  add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for ICE_AGRIF
@@ -778,7 +782,7 @@ if [ ${config} == "ISOMIP+" ] ;  then
     sync_config  ISOMIP+ ${SETTE_CONFIG} 'tests'
     #
     # ISOMIP+ uses ln_hpg_isf so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ISOMIP+" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests
@@ -922,7 +926,7 @@ if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
     #
     sync_config  SWG ${SETTE_CONFIG} 'tests'
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "SWG" ] && [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
 ## Restartability tests for SWG
