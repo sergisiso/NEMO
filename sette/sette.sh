@@ -12,6 +12,7 @@ NO_REPORT=0
 #
 export USING_TIMING='yes'      # Default: yes => set ln_timing=.true.   ; use -T to disable
 export USING_ICEBERGS='yes'    # Default: yes => set ln_icebergs=.true. ; use -i to disable
+export USING_ABL='no'          # Default: no  => set ln_abl=.false.     ; use -a to set ln_abl=.true.
 export USING_EXTRA_HALO='yes'  # Default: yes => set nn_hls=2           ; use -e to set nn_hls=1
 export USING_COLLECTIVES='yes' # Default: yes => set nn_comm=2          ; use -C to set nn_comm=1
 export USING_NOGATHER='yes'    # Default: yes => set ln_nnogather=.true.; use -N to set ln_nnogather=.false.
@@ -64,7 +65,7 @@ fi
 
 # Parse command-line arguments
 if [ $# -gt 0 ]; then
-  while getopts n:x:v:g:cdrshTqQteiACFNXu option; do 
+  while getopts n:x:v:g:cdrshTqQteiACFNXua option; do 
      case $option in
         c) export SETTE_CLEAN_CONFIGS='yes'
            export SETTE_SYNC_CONFIGS='yes'
@@ -112,6 +113,9 @@ if [ $# -gt 0 ]; then
         i) export USING_ICEBERGS='no'
            echo "-i: ln_icebergs will be set to false"
            echo "";;
+        a) export USING_ABL='yes'
+           echo "-a: ln_abl will be set to true"
+           echo "";;
         C) export USING_COLLECTIVES='no'
            echo "-C: nn_comm will be set to 1"
            echo "";;
@@ -142,6 +146,7 @@ if [ $# -gt 0 ]; then
                echo '-t set ln_tile false in all tests that support it (default: true)'
                echo '-e set nn_hls=1 (default: nn_hls=2)'
                echo '-i set ln_icebergs false (default: true)'
+               echo '-a set ln_abl true (default: false)'
                echo '-C set nn_comm=1 (default: nn_comm=2 ==> use MPI3 collective comms)'
                echo '-N set ln_nnogather false for ORCA2 configurations (default: true)'
                echo '-q to remove the key_qco key (default: added)'
@@ -262,6 +267,7 @@ echo "requested by the command          : "$cmd $cmdargs
 echo "on branch                         : "$SETTE_THIS_BRANCH
 printf "%-33s : %s\n" USING_TIMING $USING_TIMING
 printf "%-33s : %s\n" USING_ICEBERGS $USING_ICEBERGS
+printf "%-33s : %s\n" USING_ABL $USING_ABL
 printf "%-33s : %s\n" USING_EXTRA_HALO $USING_EXTRA_HALO
 printf "%-33s : %s\n" USING_TILING $USING_TILING
 printf "%-33s : %s\n" USING_COLLECTIVES $USING_COLLECTIVES

@@ -321,6 +321,20 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg ln_cdgw .false.
     set_namelist namelist_cfg ln_sdw  .true.
     set_namelist namelist_cfg ln_stcor .true.
+    if [ ${USING_ABL} == "yes" ]; then
+      set_namelist namelist_cfg nn_date0 20130101
+      set_namelist namelist_cfg ln_blk .false.
+      set_namelist namelist_cfg ln_abl .true.
+      set_namelist namelist_cfg ln_tair_pot .true.
+      sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
+              /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg 
+      sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
+              /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg 
+      sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
+              /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg 
+      sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
+              /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg 
+    fi
     #
     set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
@@ -356,6 +370,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
     set_namelist namelist_cfg ln_rstart .true.
+    set_namelist namelist_cfg ln_rstart_abl .true.
     set_namelist namelist_cfg nn_rstctl 2
     set_namelist namelist_cfg jpni 4
     set_namelist namelist_cfg jpnj 8
@@ -366,6 +381,20 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg ln_cdgw .false.
     set_namelist namelist_cfg ln_sdw  .true.
     set_namelist namelist_cfg ln_stcor .true.
+    if [ ${USING_ABL} == "yes" ]; then
+        set_namelist namelist_cfg nn_date0 20130101
+        set_namelist namelist_cfg ln_blk .false.
+        set_namelist namelist_cfg ln_abl .true.
+        set_namelist namelist_cfg ln_tair_pot .true.
+        sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
+                /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg 
+        sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
+                /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg 
+        sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
+                /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg 
+        sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
+                /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg 
+    fi
     #
     set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
@@ -381,6 +410,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg cn_icbrst_in \"O2L3P_LONG_${ITRST}_restart_icb\"
     set_namelist namelist_top_cfg cn_trcrst_in \"O2L3P_LONG_${ITRST}_restart_trc\"
     set_namelist namelist_ice_cfg cn_icerst_in \"O2L3P_LONG_${ITRST}_restart_ice\"
+    set_namelist namelist_cfg cn_ablrst_in \"O2L3P_LONG_${ITRST}_restart_abl\"
     set_namelist namelist_top_cfg ln_trcbc  .false.
     # put ln_ironsed, ln_hydrofe to false
     # if not you need input files, and for tests is not necessary
@@ -396,6 +426,9 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
         ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_${L_NPROC}.nc .
         ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_trc_${L_NPROC}.nc .
         ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_ice_${L_NPROC}.nc .
+        if [ ${USING_ABL} == "yes" ]; then
+            ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_abl_${L_NPROC}.nc .
+        fi
         if [ ${USING_ICEBERGS} == "yes" ]
             then
              ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_icb_${L_NPROC}.nc O2L3P_LONG_${ITRST}_restart_icb_${L_NPROC}.nc
@@ -433,7 +466,20 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg ln_cdgw .false.
     set_namelist namelist_cfg ln_sdw  .true.
     set_namelist namelist_cfg ln_stcor .true.
-
+    if [ ${USING_ABL} == "yes" ]; then
+        set_namelist namelist_cfg nn_date0 20130101
+        set_namelist namelist_cfg ln_blk .false.
+        set_namelist namelist_cfg ln_abl .true.
+        set_namelist namelist_cfg ln_tair_pot .true.
+        sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
+                /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg 
+        sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
+                /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg 
+        sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
+                /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg 
+        sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
+                /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg 
+    fi
     set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -478,6 +524,20 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg ln_cdgw .false.
     set_namelist namelist_cfg ln_sdw  .true.
     set_namelist namelist_cfg ln_stcor .true.
+    if [ ${USING_ABL} == "yes" ]; then
+        set_namelist namelist_cfg nn_date0 20130101
+        set_namelist namelist_cfg ln_blk .false.
+        set_namelist namelist_cfg ln_abl .true.
+        set_namelist namelist_cfg ln_tair_pot .true.
+        sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
+                /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg 
+        sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
+                /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg 
+        sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
+                /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg 
+        sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
+                /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg 
+    fi
 
     set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
