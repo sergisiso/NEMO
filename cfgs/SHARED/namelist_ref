@@ -326,6 +326,7 @@
    nn_dyn_restore = 0         ! restoring option for dynamical ABL variables: = 0 no restoring
                               !                                               = 1 equatorial restoring
                               !                                               = 2 global restoring
+   rn_vfac       = 0.
    rn_ldyn_min   =  4.5       ! dynamics nudging magnitude inside the ABL [hour] (~3 rn_Dt)
    rn_ldyn_max   =  1.5       ! dynamics nudging magnitude above  the ABL [hour] (~1 rn_Dt)
    rn_ltra_min   =  4.5       ! tracers  nudging magnitude inside the ABL [hour] (~3 rn_Dt)

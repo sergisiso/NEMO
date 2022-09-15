@@ -270,6 +270,11 @@ CONTAINS
       nt_n = 1; nt_a = 2
 
       ! initialize ABL from data or restart
+      u_abl  (:,:,:,nt_a     ) = 0._wp
+      v_abl  (:,:,:,nt_a     ) = 0._wp
+      tq_abl (:,:,:,nt_a,:   ) = 0._wp
+      tke_abl(:,:,:,nt_a     ) = 0._wp
+
       IF( ln_rstart_abl ) THEN
          CALL abl_rst_read
       ELSE
@@ -279,16 +284,10 @@ CONTAINS
           v_abl(:,:,:,nt_n      ) = sf(jp_wndj)%fnow(:,:,:)
          tq_abl(:,:,:,nt_n,jp_ta) = sf(jp_tair)%fnow(:,:,:)
          tq_abl(:,:,:,nt_n,jp_qa) = sf(jp_humi)%fnow(:,:,:)
-
          tke_abl(:,:,:,nt_n     ) = tke_min
          avm_abl(:,:,:          ) = avm_bak
          avt_abl(:,:,:          ) = avt_bak
          pblh   (:,:            ) = ghw_abl( 3 )  !<-- assume that the pbl contains 3 grid points
-         u_abl  (:,:,:,nt_a     ) = 0._wp
-         v_abl  (:,:,:,nt_a     ) = 0._wp
-         tq_abl (:,:,:,nt_a,:   ) = 0._wp
-         tke_abl(:,:,:,nt_a     ) = 0._wp
-
          mxlm_abl(:,:,:         ) = mxl_min
          mxld_abl(:,:,:         ) = mxl_min
       ENDIF

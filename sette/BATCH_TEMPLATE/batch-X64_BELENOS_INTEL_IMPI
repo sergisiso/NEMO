@@ -42,7 +42,7 @@
 # modules to load
 module purge
 module use /home/ext/mr/smer/samsong/modules
-module load gcc/9.2.0 intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2 xios/3.0/r2399_intel-impi
+module load gcc/9.2.0 intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2 xios/trunk/rev2320-impi
 export XIO_HOME=${XIOS_DIR}
 
 # Don't remove neither change the following line
