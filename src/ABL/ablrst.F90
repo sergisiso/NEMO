@@ -200,15 +200,15 @@ CONTAINS
          &                   '   control of time parameter  nrstdt' )
 
       ! --- mandatory fields --- ! 
-      CALL iom_get( numrar, jpdom_auto,   'u_abl',   u_abl(:,:,:,nt_n      ), cd_type = 'U', psgn = -1._wp )
-      CALL iom_get( numrar, jpdom_auto,   'v_abl',   v_abl(:,:,:,nt_n      ), cd_type = 'V', psgn = -1._wp )
-      CALL iom_get( numrar, jpdom_auto,   't_abl',  tq_abl(:,:,:,nt_n,jp_ta) )
+      CALL iom_get( numrar, jpdom_auto,   'u_abl',   u_abl(:,:,:,nt_n      ), cd_type = 'T', psgn = -1._wp )
+      CALL iom_get( numrar, jpdom_auto,   'v_abl',   v_abl(:,:,:,nt_n      ), cd_type = 'T', psgn = -1._wp )
+      CALL iom_get( numrar, jpdom_auto,   't_abl',  tq_abl(:,:,:,nt_n,jp_ta), kfill = jpfillcopy )
       CALL iom_get( numrar, jpdom_auto,   'q_abl',  tq_abl(:,:,:,nt_n,jp_qa) )
       CALL iom_get( numrar, jpdom_auto, 'tke_abl', tke_abl(:,:,:,nt_n      ) )
-      CALL iom_get( numrar, jpdom_auto, 'avm_abl', avm_abl(:,:,:           ) )
+      CALL iom_get( numrar, jpdom_auto, 'avm_abl', avm_abl(:,:,:           ), kfill = jpfillcopy )
       CALL iom_get( numrar, jpdom_auto, 'avt_abl', avt_abl(:,:,:           ) )
-      CALL iom_get( numrar, jpdom_auto,'mxld_abl',mxld_abl(:,:,:           ) )
-      CALL iom_get( numrar, jpdom_auto,    'pblh',    pblh(:,:             ) )
+      CALL iom_get( numrar, jpdom_auto,'mxld_abl',mxld_abl(:,:,:           ), kfill = jpfillcopy )
+      CALL iom_get( numrar, jpdom_auto,    'pblh',    pblh(:,:             ), kfill = jpfillcopy )
 
       IF(.NOT.lrxios) CALL iom_delay_rst( 'READ', 'ABL', numrar )   ! read only abl delayed global communication variables
 
