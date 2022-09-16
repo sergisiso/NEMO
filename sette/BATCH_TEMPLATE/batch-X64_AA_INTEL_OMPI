@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+
+#SBATCH -J sette
+#SBATCH -o sette.%j.out
+#SBATCH -e sette.%j.err
+#SBATCH -N 1
+#SBATCH --time=0-00:20:00
+#SBATCH --account=frtomerc
+#SBATCH --partition=par
+#SBATCH --qos=np
+##SBATCH --ntasks=NPROCS
+#SBATCH --ntasks=TOTAL_NPROCS
+
+set -x
+
+# Test specific settings. Do not hand edit these lines; the fcm_job.sh script will set these
+# (via sed operating on this template job file). 
+#
+  echo " ";
+  OCORES=NPROCS
+  XCORES=NXIOPROCS
+  O_PER_NODE=32
+  X_PER_NODE=8
+  if [ $XCORES -le $X_PER_NODE ]; then X_PER_NODE=$XCORES; fi
+  if [ $OCORES -le $O_PER_NODE ]; then O_PER_NODE=$OCORES; fi
+  export SETTE_DIR=DEF_SETTE_DIR
+
+###############################################################
+#
+export MPIRUN="srun"
+#
+# load sette functions (only post_test_tidyup needed)
+#
+  . ${SETTE_DIR}/all_functions.sh
+###############################################################
+#
+# modules to load
+module purge &> /dev/null
+module use /home/ar5/modules
+module load prgenv/intel intel/2021.4.0 openmpi/4.1.1.1 hdf5-parallel/1.10.6 netcdf4-parallel/4.7.4 xios/trunk/r2320_intel-ompi
+module list
+
+# Don't remove neither change the following line
+# BODY
+#
+# Test specific settings. Do not hand edit these lines; the fcm_job.sh script will set these
+# (via sed operating on this template job file). Note that the number of compute nodes required
+# is also set by the fcm_job.sh on the PBS select header line above.
+#
+# These variables are needed by post_test_tidyup function in all_functions.sh
+#
+  export XIO_HOME=${XIOS_DIR}
+  export INPUT_DIR=DEF_INPUT_DIR
+  export CONFIG_DIR=DEF_CONFIG_DIR
+  export TOOLS_DIR=DEF_TOOLS_DIR
+  export NEMO_VALIDATION_DIR=DEF_NEMO_VALIDATION
+  export NEW_CONF=DEF_NEW_CONF
+  export CMP_NAM=DEF_CMP_NAM
+  export TEST_NAME=DEF_TEST_NAME
+  export EXE_DIR=DEF_EXE_DIR
+  ulimit -a
+  ulimit -s unlimited
+#
+# end of set up
+###############################################################
+#
+# change to the working directory 
+#
+  cd ${EXE_DIR}
+  echo Running on host `hostname`
+  echo Time is `date`
+  echo Directory is `pwd`
+  sed -i "s/one_file/multiple_file/" file_def_nemo-*.xml
+# 
+#  Run the parallel MPI executable 
+#
+  echo "Running time ${MPIRUN} ./nemo"
+#
+  if [ $XCORES -gt 0 ]; then
+#
+#  Run MPMD case
+#
+     #XIOS will run on a separate node so will run in parallel queue
+     if [ ! -f ./xios_server.exe ] && [ -f ${XIO_HOME}/bin/xios_server.exe ]; then
+        cp ${XIO_HOME}/bin/xios_server.exe .
+     fi
+     if [ ! -f ./xios_server.exe ]; then
+        echo "./xios_server.exe not found"
+        echo "run aborted"
+        exit
+     fi
+      cat > ./config.file <<-EOF
+0-$((OCORES-1)) ./nemo
+${OCORES}-$((TOTAL_NPROCS-1)) ./xios_server.exe
+EOF
+     $MPIRUN --ntasks=TOTAL_NPROCS --multi-prog config.file
+  else
+#
+# Run SPMD case
+#
+    time ./nemo
+  fi
+#
+
+#
+  post_test_tidyup
+
+# END_BODY
+# Don't remove neither change the previous line
+  exit
