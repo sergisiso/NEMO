@@ -36,6 +36,9 @@ MODULE domain
 #endif
 #if defined key_agrif
    USE agrif_oce_interp, ONLY : Agrif_istate_ssh ! ssh interpolated from parent
+#if defined key_si3
+   USE agrif_ice_interp, ONLY : agrif_istate_icevol ! ssh increment from ice
+#endif
 #endif
    USE sbc_oce        ! surface boundary condition: ocean
    USE trc_oce        ! shared ocean & passive tracers variab
@@ -176,6 +179,11 @@ CONTAINS
       ELSEIF( .NOT.Agrif_root() .AND.    &
          &     ln_init_chfrpar ) THEN        !* Interpolate initial ssh from parent
          CALL Agrif_istate_ssh( Kbb, Kmm, Kaa )
+#if defined key_si3
+         ! Possibly add ssh increment from parent grid
+         ! only if there is no ice model in the child grid
+         CALL Agrif_istate_icevol( Kbb, Kmm, Kaa ) 
+#endif
 #endif
       ELSE                                   !* Read in restart file or set by user
          CALL rst_read_ssh( Kbb, Kmm, Kaa )
