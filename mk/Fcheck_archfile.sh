@@ -74,7 +74,8 @@ EOF
     done < $1
 }
 # cleaning related to the old version
-rm -f $( find ${COMPIL_DIR} -type l -name $1 -print )
+rm -f $( find ${COMPIL_DIR} -type f -name $1 -print )
+
 #
 if [ ${#3} -eq 0 ]; then # arch not specified
     if [ ! -f ${COMPIL_DIR}/arch.history ]; then
@@ -213,3 +214,18 @@ do
     fi
 done
 
+# Nemo debug ?
+if [ -n "${NEMO_DBG}" ]; then
+    if [ $( grep -c "^%DEBUG_FCFLAGS" ${COMPIL_DIR}/$1 ) -eq 0 ]; then
+       echo "ERROR: You must defined '%DEBUG_FCFLAGS' in your arch file if you want to compile Nemo in debug mode using '-d' option"
+       exit 1
+    fi
+    # duplicate the lines starting with %DEBUG_XXX and replace, in the duplicated line, %DEBUG_XXX by %XXX
+    sed -i "/^%DEBUG_/{p;s/^%DEBUG_\([^ ]*\)/%\1/;}" ${COMPIL_DIR}/$1
+else
+    if [ $( grep -q "^%PROD_FCFLAGS" ${COMPIL_DIR}/$1 ) -eq 0 ]; then
+        echo "WARNING: '%PROD_FCFLAGS' not defined in your arch file, makenemo will use '%FCFLAGS' instead"
+    fi
+    # duplicate the lines starting with %PROD_XXX and replace, in the duplicated line, %PROD_XXX by %XXX
+    sed -i "/^%PROD_/{p;s/^%PROD_\([^ ]*\)/%\1/;}" ${COMPIL_DIR}/$1
+fi

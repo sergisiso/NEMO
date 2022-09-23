@@ -55,7 +55,8 @@
 
 %CPP                 cpp
 %FC                  mpiifort -c -cpp
-%FCFLAGS             -march=core-avx2 -i4 -r8 -O3 -fp-model strict -fno-alias -align array64byte
+%PROD_FCFLAGS        -march=core-avx2 -i4 -r8 -O3 -fp-model strict -fno-alias -align array64byte
+%DEBUG_FCFLAGS       -march=core-avx2 -i4 -r8 -g -O0 -debug all -traceback -fp-model strict -ftrapuv -check all,noarg_temp_created -fpe-all0 -ftz -init=arrays,snan,huge
 %FFLAGS              %FCFLAGS
 %LD                  mpiifort
 %LDFLAGS             

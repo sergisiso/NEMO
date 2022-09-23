@@ -195,7 +195,11 @@ set_valid_dir () {
     fi
     # remove last _ST followed by zero or more alphanumeric characters
     NEW_CONF1=$( echo $NEW_CONF | sed -e 's/_ST\([0-9a-zA-Z]*\)$//' )
-    export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}
+    if [[ -n "${NEMO_DEBUG}" && ! ${CMP_NAM,,} =~ ("debug"|"dbg") ]]; then
+      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}_DEBUG/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}
+    else
+      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}
+    fi
 }
 
 # clean valid dir (move old ocean_output/run.stat and tracer to avoid checking them in case something wrong happen.

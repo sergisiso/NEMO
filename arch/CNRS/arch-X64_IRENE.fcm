@@ -30,7 +30,8 @@
 #  - unix variables "$..." are accpeted and will be evaluated before calling fcm.
 #  - fcm variables are starting with a % (and not a $)
 #
-%XIOS_HOME           $CCCWORKDIR/xios-trunk
+%PROD_XIOS_HOME      $CCCWORKDIR/xios-trunk
+%DEBUG_XIOS_HOME     %{PROD_XIOS_HOME}_debug
 %OASIS_HOME          $CCCWORKDIR/now/models/oa3mct
 
 %NCDF_INC            -I$NETCDFFORTRAN_INCDIR -I$NETCDF_INCDIR
@@ -43,7 +44,8 @@
 
 %CPP	             cpp
 %FC                  mpif90 -c -cpp
-%FCFLAGS             -i4 -r8 -O3 -fp-model strict -xCORE-AVX512 -fno-alias
+%PROD_FCFLAGS        -i4 -r8 -O3 -fp-model strict -xCORE-AVX512 -fno-alias
+%DEBUG_FCFLAGS       -i4 -r8 -g -O0 -debug all -traceback -fp-model strict -ftrapuv -check all,noarg_temp_created -fpe-all0 -ftz -init=arrays,snan,huge
 %FFLAGS              %FCFLAGS
 %LD                  mpif90
 %LDFLAGS             

@@ -1,10 +1,12 @@
 #!/bin/sh
+#set -x
 # initialise user dependent variable
 export cmd=$0 ; export cmdargs=$@
 SETTE_DIR=$(cd $(dirname "$0"); pwd)
 MAIN_DIR=$(dirname $SETTE_DIR)
 export CMPL_CORES=8            # Number of threads to use for compiling
 export SETTE_STG="_ST"         # Base suffix to append to configuration name
+NEMO_DEBUG=""
 dry_run=0
 NO_REPORT=0
 #
@@ -65,13 +67,15 @@ fi
 
 # Parse command-line arguments
 if [ $# -gt 0 ]; then
-  while getopts n:x:v:g:cdrshTqQteiACFNXua option; do 
+  while getopts n:x:v:g:cybrshTqQteiACFNXua option; do
      case $option in
         c) export SETTE_CLEAN_CONFIGS='yes'
            export SETTE_SYNC_CONFIGS='yes'
            echo "-c: Configuration ${SETTE_TEST_CONFIGS[@]} will be cleaned; this option enforces also synchronisation"
            echo "";;
-        d) dry_run=1
+        y) dry_run=1
+           echo "";;
+        b) NEMO_DEBUG="-b"
            echo "";;
         r) NO_REPORT=1
            echo "";;
@@ -161,7 +165,8 @@ if [ $# -gt 0 ]; then
                echo '-g "group_suffix" single character suffix to be appended to the standard _ST suffix used'
                echo '                  for SETTE-built configurations (needed if sette.sh invocations may overlap)'
                echo '-r to execute without waiting to run sette_rpt.sh at the end (useful for chaining sette.sh invocations)'
-               echo '-d to perform a dryrun to simply report what settings will be used'
+               echo '-y to perform a dryrun to simply report what settings will be used'
+               echo '-d to compile Nemo with debug options (only if %DEBUG_FCFLAGS if defined in your arch file)'
                echo '-c to clean each configuration'
                echo '-s to synchronise the sette MY_SRC and EXP00 with the reference MY_SRC and EXPREF'
                echo '-u to run sette.sh without any user interaction. This means no checks on creating'
@@ -328,7 +333,7 @@ while [[ $NRUN -ne 0 && $nit -le 1080 ]]; do
       printf "%-3d %s\r" $NRUN 'nemo_sette runs still in queue or running ...';
    else
       printf "%-50s\n" " "
-      . ./sette_rpt.sh
+      ./sette_rpt.sh ${NEMO_DEBUG}
       exit
    fi
    sleep 10
