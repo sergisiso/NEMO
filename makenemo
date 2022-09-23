@@ -101,7 +101,7 @@ MAIN_DIR=${MAIN_DIR%/ext*}
 MAIN_DIR=${MAIN_DIR%/arch*}
 export MAIN_DIR
 #
-export CONFIG_DIR=${MAIN_DIR}/cfgs
+export CFGS_DIR=${MAIN_DIR}/cfgs
 export TESTS_DIR=${MAIN_DIR}/tests
 export TOOLS_DIR=${MAIN_DIR}/tools
 export COMPIL_DIR=${MAIN_DIR}/mk
@@ -109,7 +109,6 @@ export NEMO_DIR=${MAIN_DIR}/${x_s}
 export AGRIFUSE='10'
 list_key='0'; chk_key='1'
 list_add_key=''; list_def_key=''; list_del_key=''
-conf_file=ref_cfgs.txt
 #-
 #- FCM and functions location ---
 export PATH=${MAIN_DIR}/ext/FCM/bin:$PATH
@@ -224,7 +223,7 @@ done
 
 if [ -n "$x_name" ]   # is the configuration existing in cfgs or tests? or is it a new conf?
 then
-    incfg=$( find $CONFIG_DIR -type d -name $x_name | wc -l )   # this configuration exists in CONFIG_DIR
+    incfg=$( find $CFGS_DIR -type d -name $x_name | wc -l )   # this configuration exists in CFGS_DIR
     intst=$( find $TESTS_DIR  -type d -name $x_name | wc -l )   # this configuration exists in TESTS_DIR
     [[ $incfg -eq 0 && $intst -eq 0 ]] && x_n=$x_name   # this is a new configuration       -> dedine/overwrite x_n
     [[ $incfg -eq 1 &&    -z "$x_r" ]] && x_r=$x_name   # this is a reference configuration -> dedine/overwrite x_r
@@ -237,20 +236,19 @@ CMP_NAM=${x_m}
 NEM_SUBDIR=${x_d}
 REF_CONF=${x_r}
 DEMO_CONF=${x_a}
-TML_CONF=${REF_CONF}
 export NEMO_DIR=${MAIN_DIR}/${x_s}
 NEMO_DBG=${x_b}
 
 [ "${CMP_NAM}" == 'all' ] && . ${COMPIL_DIR}/Flist_archfile.sh all && exit
 
 
-## No ref. cfg, demo case, nor remote cfg selected
+## No ref. cfg or demo selected
 if [[ -z "${REF_CONF}" && -z "${DEMO_CONF}" ]]; then
 
 		## Reuse last configuration compiled if any (existing 'work_cfgs.txt')
 #		if [[ $( find ./cfgs ./tests -name work_cfgs.txt ) ]]; then
-#			CONFIG_DIR=${MAIN_DIR}/$( ls -rt */work_cfgs.txt | awk -F/ 'END{ print $1}' )
-#			TML_CONF=$( tail -1 ${CONFIG_DIR}/work_cfgs.txt | awk '{ print $1 }' )
+#			CFGS_DIR=${MAIN_DIR}/$( ls -rt */work_cfgs.txt | awk -F/ 'END{ print $1}' )
+#			TML_CONF=$( tail -1 ${CFGS_DIR}/work_cfgs.txt | awk '{ print $1 }' )
 #		else
 			## No ${REF_CONF}, ${DEMO_CONF} nor ${NEM_SUBDIR} and 1st compilation => exit
 #			echo -e "\033[0;33m\nNo previous build found!"
@@ -259,52 +257,51 @@ if [[ -z "${REF_CONF}" && -z "${DEMO_CONF}" ]]; then
 			${COMPIL_DIR}/Flist_cfgs.sh
 			exit 2
 #		fi
-
-## At least one config has been requested
-else
-
-	## 'all' arg: list all available configurations
-	if [[ "${REF_CONF}" == 'all' || "${DEMO_CONF}" == 'all' ]]; then
-		${COMPIL_DIR}/Flist_cfgs.sh
-		exit 2
-   ## Probably useless but who knows?
-	elif [[ -n "${REF_CONF}" && -n "${DEMO_CONF}" ]]; then
-		echo -e "\033[0;31m\nYou have to choose whether you work with:"
-		echo -e "  - LTS configurations in ./cfgs  ('-r') or"
-		echo -e "  - Unsupported cases  in ./tests ('-a')\033[0m\n"
-		exit 2
-	fi
-
-	## Demo case
-	if [ -n "${DEMO_CONF}" ]; then
-		conf_file=demo_cfgs.txt; CONFIG_DIR=${MAIN_DIR}/tests; TML_CONF=${DEMO_CONF}
-	fi
-
 fi
+## At least one config has been requested
+
+## 'all' arg: list all available configurations
+if [[ "${REF_CONF}" == 'all' || "${DEMO_CONF}" == 'all' ]]; then
+    ${COMPIL_DIR}/Flist_cfgs.sh
+    exit 2
+    ## Probably useless but who knows?
+elif [[ -n "${REF_CONF}" && -n "${DEMO_CONF}" ]]; then
+    echo -e "\033[0;31m\nYou have to choose whether you work with:"
+    echo -e "  - LTS configurations in ./cfgs  ('-r') or"
+    echo -e "  - Unsupported cases  in ./tests ('-a')\033[0m\n"
+    exit 2
+elif [ -n "${REF_CONF}" ]; then
+    conf_file=ref_cfgs.txt ; export CONFIG_DIR=${CFGS_DIR} ; TML_CONF=${REF_CONF}
+elif [ -n "${DEMO_CONF}" ]; then
+    conf_file=demo_cfgs.txt; export CONFIG_DIR=${TESTS_DIR}; TML_CONF=${DEMO_CONF}
+fi
+ 
+## Reuse a working cfg
+grep -q "${TML_CONF} " ${CONFIG_DIR}/work_cfgs.txt 2>/dev/null && conf_file=work_cfgs.txt
 
 ## Test if ref. cfg or demo case does exist
-if [[ ! $( grep "${TML_CONF} " ${CONFIG_DIR}/*_cfgs.txt ) ]]; then
-	echo -e "\033[0;31m\nThe reference configuration ('-r'), demonstration case ('-a') or "
-	echo -e "remote configuration ('-u') selected is not available!!!"
-	echo -e "Check the option used and the available items in .txt files\033[0m"
-	${COMPIL_DIR}/Flist_cfgs.sh
-	exit 2
+if (! grep -q "${TML_CONF} " ${CONFIG_DIR}/$conf_file ); then
+    echo -e "\033[0;31m\nThe reference configuration ('-r') or "
+    echo -e "demonstration case ('-a') selected is not available!!!"
+    echo -e "Check the option used and the available items in .txt files\033[0m"
+    ${COMPIL_DIR}/Flist_cfgs.sh
+    exit 2
+fi
 
+## If new cfg exists, work in it
+if [ -n "${NEW_CONF}" ]
+then
+    echo
+    printf "\nYou are installing a new configuration %s from %s " ${NEW_CONF} ${TML_CONF}
+    printf  "with sub-components: %s\n"  "${NEM_SUBDIR}"
+    echo
 else
+    NEW_CONF=${TML_CONF}
+fi
 
-	## Reuse a working cfg
-	if [[ -f ${CONFIG_DIR}/work_cfgs.txt && $( grep "${TML_CONF} " ${CONFIG_DIR}/work_cfgs.txt ) ]]; then
-		conf_file=work_cfgs.txt
-	fi
-
-	## If new cfg exists, work in it
-	[ -z "${NEW_CONF}" ] && NEW_CONF=${TML_CONF}
-
-	## Update sub-comps if needed
-	if [ -z "${NEM_SUBDIR}" ]; then
-			NEM_SUBDIR=$( grep "${TML_CONF} " ${CONFIG_DIR}/${conf_file}  | awk '{$1 = ""; print $0}' )
-	fi
-
+## Update sub-comps if needed
+if [ -z "${NEM_SUBDIR}" ]; then
+    NEM_SUBDIR=$( grep "${TML_CONF} " ${CONFIG_DIR}/${conf_file}  | awk '{$1 = ""; print $0}' )
 fi
 
 export NEMO_TDIR=${x_t:-$CONFIG_DIR}
@@ -315,14 +312,6 @@ export NEM_SUBDIR="${NEM_SUBDIR}" NEW_CONF="${NEW_CONF}"
 echo ${NEW_CONF} "${NEM_SUBDIR}" >> ${CONFIG_DIR}/work_cfgs.txt
 
 cd ${CONFIG_DIR}
-
-if [ -n "${NEW_CONF}" ]
-then
-    echo
-    printf "\nYou are installing a new configuration %s from %s " ${NEW_CONF} ${TML_CONF}
-    printf  "with sub-components: %s\n"  "${NEM_SUBDIR}"
-    echo
-fi
 
 ## Create new config even in existing one (mkdir with -p option, cp with -n)
 ${COMPIL_DIR}/Fmake_config.sh ${NEW_CONF} ${TML_CONF}
