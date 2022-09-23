@@ -216,14 +216,14 @@ done
 
 # Nemo debug ?
 if [ -n "${NEMO_DBG}" ]; then
-    if [ $( grep -c "^%DEBUG_FCFLAGS" ${COMPIL_DIR}/$1 ) -eq 0 ]; then
+    if (! grep -q "^%DEBUG_FCFLAGS" ${COMPIL_DIR}/$1 ); then
        echo "ERROR: You must defined '%DEBUG_FCFLAGS' in your arch file if you want to compile Nemo in debug mode using '-d' option"
        exit 1
     fi
     # duplicate the lines starting with %DEBUG_XXX and replace, in the duplicated line, %DEBUG_XXX by %XXX
     sed -i "/^%DEBUG_/{p;s/^%DEBUG_\([^ ]*\)/%\1/;}" ${COMPIL_DIR}/$1
 else
-    if [ $( grep -q "^%PROD_FCFLAGS" ${COMPIL_DIR}/$1 ) -eq 0 ]; then
+    if (! grep -q "^%PROD_FCFLAGS" ${COMPIL_DIR}/$1 ); then
         echo "WARNING: '%PROD_FCFLAGS' not defined in your arch file, makenemo will use '%FCFLAGS' instead"
     fi
     # duplicate the lines starting with %PROD_XXX and replace, in the duplicated line, %PROD_XXX by %XXX

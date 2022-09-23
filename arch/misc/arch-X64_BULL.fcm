@@ -20,7 +20,7 @@
 %FFLAGS              %FCFLAGS
 %LD                  scorep-mpiifort
 %LDFLAGS             -lstdc++
-%FPPFLAGS            -P -C -traditional -std=c99
+%FPPFLAGS            -P -traditional -std=c99
 %AR                  ar
 %ARFLAGS             rs
 %MK                  gmake

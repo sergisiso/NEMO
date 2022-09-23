@@ -21,7 +21,7 @@
 %FFLAGS              %FCFLAGS
 %LD                  pgf90
 %LDFLAGS
-%FPPFLAGS            -P -C -traditional
+%FPPFLAGS            -P -traditional
 %AR                  ar
 %ARFLAGS             -rs
 %MK                  gmake
