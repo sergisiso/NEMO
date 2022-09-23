@@ -48,7 +48,7 @@
 %FFLAGS              %FCFLAGS
 %LD                  ftn
 %LDFLAGS             
-%FPPFLAGS            -P -C -traditional
+%FPPFLAGS            -P -traditional
 %AR                  ar
 %ARFLAGS             rs
 %MK                  gmake
