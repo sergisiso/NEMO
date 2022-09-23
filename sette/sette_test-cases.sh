@@ -113,7 +113,11 @@ TOOLS_DIR=${MAIN_DIR}/tools
 
 if [ -n "${CUSTOM_DIR}" ]; then
   NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
-  CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}
+  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]; then
+    export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG
+  else
+    export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}
+  fi
 fi
 CMP_NAM=${1:-$COMPILER}
 # Copy job_batch_COMPILER file for specific compiler into job_batch_template
@@ -139,7 +143,7 @@ do
 # ---------
 if [ ${config} == "OVERFLOW" ] ;  then
     SETTE_CONFIG="OVERFLOW"${SETTE_STG}
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -153,7 +157,7 @@ if [ ${config} == "OVERFLOW" ] ;  then
     #
     sync_config  OVERFLOW ${SETTE_CONFIG} 'tests'
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "OVERFLOW" ] && [ ${DO_RESTART} == "1" ] ;  then
     ## Restartability tests for OVERFLOW
@@ -211,7 +215,7 @@ fi
 if [ ${config} == "OVERFLOW" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
     ## Test for all advection, vert. coordinates, vector form, flux form: test runability and complete all time steps
     ## Needed namelist-xxxx for every type of run tested
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -255,7 +259,7 @@ fi
 # --------------
 if [ ${config} == "LOCK_EXCHANGE" ] ;  then
     SETTE_CONFIG="LOCK_EXCHANGE"${SETTE_STG}
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -270,7 +274,7 @@ if [ ${config} == "LOCK_EXCHANGE" ] ;  then
     #
     sync_config  LOCK_EXCHANGE ${SETTE_CONFIG} 'tests'
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_RESTART} == "1" ] ;  then
     ## Restartability tests for LOCK_EXCHANGE
@@ -327,7 +331,7 @@ fi
 if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
     ## Test for all advection, vector form, flux form: test runability and complete all time steps
     ## Needed namelist-xxxx for every type of run tested
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -373,7 +377,7 @@ fi
 # ---------
 if [ ${config} == "VORTEX" ] ;  then
     SETTE_CONFIG="VORTEX"${SETTE_STG}
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -389,7 +393,7 @@ if [ ${config} == "VORTEX" ] ;  then
     #
     sync_config  VORTEX ${SETTE_CONFIG} 'tests'
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for VORTEX
@@ -567,7 +571,7 @@ fi
 # ---------
 if [ ${config} == "ICE_AGRIF" ] ;  then
     SETTE_CONFIG="ICE_AGRIF"${SETTE_STG}
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=10
     else
@@ -584,7 +588,7 @@ if [ ${config} == "ICE_AGRIF" ] ;  then
     sync_config  ICE_AGRIF ${SETTE_CONFIG} 'tests'
     #
     # ICE_AGRIF uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES}  add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for ICE_AGRIF
@@ -766,7 +770,7 @@ fi
 # ------
 if [ ${config} == "ISOMIP+" ] ;  then
     SETTE_CONFIG="ISOMIP+"${SETTE_STG}
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -782,7 +786,7 @@ if [ ${config} == "ISOMIP+" ] ;  then
     sync_config  ISOMIP+ ${SETTE_CONFIG} 'tests'
     #
     # ISOMIP+ uses ln_hpg_isf so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ISOMIP+" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests
@@ -846,7 +850,7 @@ fi
 
 if [ ${config} == "ISOMIP+" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -911,7 +915,7 @@ fi
 # ---------
 if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
     SETTE_CONFIG="SWG"${SETTE_STG}
-    if [ $( echo ${CMP_NAM} | grep -ic debug ) -eq 1 ]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -926,7 +930,7 @@ if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
     #
     sync_config  SWG ${SETTE_CONFIG} 'tests'
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "SWG" ] && [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
 ## Restartability tests for SWG

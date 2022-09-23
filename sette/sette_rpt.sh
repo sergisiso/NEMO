@@ -1,5 +1,4 @@
 #!/bin/bash -f
-# set -vx
 # simple SETTE report generator.
 #
 # This version should be run in the SETTE directory. 
@@ -477,7 +476,7 @@ function identictest(){
   mach=${COMPILER}
 # overwrite revision (later) or compiler
   if [ $# -gt 0 ]; then
-    while getopts r:R:c:v:V:uh option; do 
+    while getopts r:R:c:v:V:ubh option; do
        case $option in
           c) mach=$OPTARG;;
           r) rev=$OPTARG;;
@@ -491,6 +490,8 @@ function identictest(){
              fi
              ;;
           u) USER_INPUT='no';;
+          b) mach=${mach//_DEBUG}_DEBUG
+             DEBUG="with DEBUG (-b) option";;
           h | *) echo ''
                  echo 'sette_rpt.sh : ' 
                  echo '     display result for the latest change'
@@ -506,6 +507,7 @@ function identictest(){
                  echo '     2nd validation sub-directory below NEMO_VALIDATION_DIR'
                  echo '     if set the comparison is between two subdirectory trees beneath NEMO_VALIDATION_DIR'
                  echo ' -u to run sette_rpt.sh without any user interaction'
+                 echo ' -b to check DEBUG directory of COMPILER_name'
                  echo ''
                  exit 42;;
        esac
@@ -584,7 +586,7 @@ if [[ $? == 0 ]] ; then
      branchname="Unknown"
    fi
   else
-   revision=`git rev-list --abbrev-commit origin | head -1l`
+   revision=`git rev-list --abbrev-commit HEAD | head -1l`
   fi
 else
   branchname="Unknown"
@@ -612,7 +614,7 @@ else
  echo "       $branchname @ $revision"
 fi
 echo ""
-echo "       on $COMPILER arch file"
+echo "       on $COMPILER arch file $DEBUG"
 echo ""
 
 #

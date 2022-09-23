@@ -84,9 +84,8 @@ set -o posix
 
 #-
 ##- Initialization of the options ---
-x_d=''; x_h=''; x_n=''; x_r='';
-x_u=''; x_a=''; x_m=''; x_t='';
-x_c='';
+x_d=''; x_h=''; x_n=''; x_r=''; x_c='';
+x_u=''; x_a=''; x_m=''; x_t=''; x_b='';
 x_j='1'; x_e='none'; x_s='src'; x_v='1'
 
 ##- Local variables ---
@@ -112,7 +111,7 @@ export PATH=${MAIN_DIR}/ext/FCM/bin:$PATH
 
 #-
 #- Choice of the options ---
-while getopts :hd:n:r:u:a:m:j:e:s:v:t:k: option; do
+while getopts :hd:n:r:u:a:m:j:e:s:v:t:k:b option; do
 
 	case $option in
 		('h') cat <<EOF
@@ -132,6 +131,7 @@ Mandatory
 
 Optional
    -d    New set of sub-components (subfolders from ./src directory)
+   -b    Compile Nemo in debug mode (if %DEBUG_FCFLAGS is defined in arch file)
    -e    Path for alter patch  location (default: 'MY_SRC' in configuration folder)
    -h    Print this help
    -j    Number of processes to compile (0: dry run with no build)
@@ -151,12 +151,12 @@ Examples
         Removal        : ./makenemo -n ... clean_config
 EOF
 				exit 0       ;;
-	  	('d') x_d=${OPTARG};; ('n') x_n=${OPTARG};; ('r') x_r=${OPTARG};; ('u') x_u=${OPTARG};;
-		('a') x_a=${OPTARG};; ('m') x_m=${OPTARG};; ('j') x_j=${OPTARG};; ('t') x_t=${OPTARG};;
-		('e') x_e=(${OPTARG});; ('s') x_s=${OPTARG};; ('v') x_v=${OPTARG}                      ;;
-		('k') chk_key=${OPTARG}                                                              ;;
-		(':') echo ${b_n}" : -"${OPTARG}" option : missing value" 1>&2;	exit 2             ;;
-		('?') echo ${b_n}" : -"${OPTARG}" option : not supported" 1>&2;	exit 2             ;;
+		('b') x_b="True"   ;;   ('n') x_n=${OPTARG};; ('r') x_r=${OPTARG};; ('u') x_u=${OPTARG};;
+		('a') x_a=${OPTARG};;   ('m') x_m=${OPTARG};; ('j') x_j=${OPTARG};; ('t') x_t=${OPTARG};;
+		('e') x_e=(${OPTARG});; ('s') x_s=${OPTARG};; ('v') x_v=${OPTARG};; ('d') x_d=${OPTARG};;
+		('k') chk_key=${OPTARG}                                                                ;;
+		(':') echo ${b_n}" : -"${OPTARG}" option : missing value" 1>&2;	exit 2                 ;;
+		('?') echo ${b_n}" : -"${OPTARG}" option : not supported" 1>&2;	exit 2                 ;;
 	esac
 
 done
@@ -189,6 +189,7 @@ DEMO_CONF=${x_a}
 RMT_CONF=${x_u}
 TML_CONF=${REF_CONF}
 export NEMO_DIR=${MAIN_DIR}/${x_s}
+NEMO_DBG=${x_b}
 
 [ "${CMP_NAM}" == 'all' ] && . ${COMPIL_DIR}/Flist_archfile.sh all && exit
 

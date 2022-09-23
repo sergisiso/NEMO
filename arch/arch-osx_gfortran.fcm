@@ -35,7 +35,8 @@
 
 %CPP	             cpp -Dkey_nosignedzero 
 %FC	             mpif90 
-%FCFLAGS             -fdefault-real-8 -O3 -funroll-all-loops -fcray-pointer -ffree-line-length-none  -fallow-argument-mismatch 
+%PROD_FCFLAGS        -fdefault-real-8 -O3 -funroll-all-loops -fcray-pointer -ffree-line-length-none  -fallow-argument-mismatch 
+%DEBUG_FCFLAGS       -fdefault-real-8 -O0 -g -fbacktrace -funroll-all-loops -fcray-pointer -ffree-line-length-none -fcheck=all -finit-real=nan
 %FFLAGS              %FCFLAGS
 %LD                  %FC
 %LDFLAGS             
