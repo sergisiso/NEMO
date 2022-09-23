@@ -26,6 +26,9 @@ MODULE cpl_oasis3
 #if defined key_oasis3
    USE mod_oasis                    ! OASIS3-MCT module
 #endif
+#if defined key_xios
+   USE xios                         ! I/O server
+#endif
    USE par_oce                      ! ocean parameters
    USE dom_oce                      ! ocean space and time domain
    USE in_out_manager               ! I/O manager
@@ -137,8 +140,9 @@ CONTAINS
       !
       INTEGER :: id_part
       INTEGER :: paral(5)       ! OASIS3 box partition
-      INTEGER :: ishape(4)    ! shape of arrays passed to PSMILe
+      INTEGER :: ishape(4)      ! shape of arrays passed to PSMILe
       INTEGER :: ji,jc,jm       ! local loop indicees
+      LOGICAL :: llenddef       ! should we call xios_oasis_enddef and oasis_enddef?
       CHARACTER(LEN=64) :: zclname
       CHARACTER(LEN=2) :: cli2
       !!--------------------------------------------------------------------
@@ -292,14 +296,21 @@ CONTAINS
       !------------------------------------------------------------------
       !
 #if defined key_agrif
-      ! Warning: Agrif_Nb_Fine_Grids not yet defined at this stage for Agrif_Root -> must use Agrif_Root_Only()
-      IF( Agrif_Root_Only() .OR. agrif_fixed() == Agrif_Nb_Fine_Grids() ) THEN
-#endif
-      CALL oasis_enddef(nerror)
-      IF( nerror /= OASIS_Ok )   CALL oasis_abort ( ncomp_id, 'cpl_define', 'Failure in oasis_enddef')
-#if defined key_agrif
+      IF( Agrif_Root() ) THEN   ! Warning: Agrif_Nb_Fine_Grids not yet defined -> must use Agrif_Root_Only()
+         llenddef = Agrif_Root_Only()   ! true of no nested grid
+      ELSE                      ! Is it the last nested grid?
+         llenddef = agrif_fixed() == Agrif_Nb_Fine_Grids()
       ENDIF
+#else
+      llenddef = .TRUE.
 #endif
+      IF( llenddef ) THEN
+#if defined key_xios
+         CALL xios_oasis_enddef()   ! see "Joint_usage_OASIS3-MCT_XIOS.pdf" on XIOS wiki page
+#endif
+         CALL oasis_enddef(nerror)
+         IF( nerror /= OASIS_Ok )   CALL oasis_abort ( ncomp_id, 'cpl_define', 'Failure in oasis_enddef')
+      ENDIF
       !
    END SUBROUTINE cpl_define
 
