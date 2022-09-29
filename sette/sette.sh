@@ -166,7 +166,7 @@ if [ $# -gt 0 ]; then
                echo '                  for SETTE-built configurations (needed if sette.sh invocations may overlap)'
                echo '-r to execute without waiting to run sette_rpt.sh at the end (useful for chaining sette.sh invocations)'
                echo '-y to perform a dryrun to simply report what settings will be used'
-               echo '-d to compile Nemo with debug options (only if %DEBUG_FCFLAGS if defined in your arch file)'
+               echo '-b to compile Nemo with debug options (only if %DEBUG_FCFLAGS if defined in your arch file)'
                echo '-c to clean each configuration'
                echo '-s to synchronise the sette MY_SRC and EXP00 with the reference MY_SRC and EXPREF'
                echo '-u to run sette.sh without any user interaction. This means no checks on creating'
