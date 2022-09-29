@@ -223,11 +223,23 @@ done
 
 if [ -n "$x_name" ]   # is the configuration existing in cfgs or tests? or is it a new conf?
 then
-    incfg=$( find $CFGS_DIR -type d -name $x_name | wc -l )   # this configuration exists in CFGS_DIR
+    incfg=$( find $CFGS_DIR   -type d -name $x_name | wc -l )   # this configuration exists in CFGS_DIR
     intst=$( find $TESTS_DIR  -type d -name $x_name | wc -l )   # this configuration exists in TESTS_DIR
-    [[ $incfg -eq 0 && $intst -eq 0 ]] && x_n=$x_name   # this is a new configuration       -> dedine/overwrite x_n
-    [[ $incfg -eq 1 &&    -z "$x_r" ]] && x_r=$x_name   # this is a reference configuration -> dedine/overwrite x_r
-    [[ $intst -eq 1 &&    -z "$x_a" ]] && x_a=$x_name   # this is a test configuration      -> dedine/overwrite x_a
+    if [ $(( $incfg + $intst )) -eq 2 ] ; then
+	echo -e "\033[0;31m\nERROR: the $x_name directory is found twice: in $CFGS_DIR and in $TESTS_DIR\033[0m\n"
+	exit 4
+    fi
+    if [ $(( $incfg + $intst )) -gt 0 ] ; then
+	[ -n "$x_r" ] && echo -e "\nWARNING: $x_name configuration is already existing, we ignore \"-r $x_r\"\n"
+	[ -n "$x_a" ] && echo -e "\nWARNING: $x_name configuration is already existing, we ignore \"-a $x_a\"\n"
+    fi
+    if   [ $incfg -eq 1 ] ; then
+	x_r=$x_name ; x_a=''  # reference configuration existing -> define/overwrite x_r
+    elif [ $intst -eq 1 ] ; then
+	x_a=$x_name ; x_r=''   # test      configuration existing -> define/overwrite x_a
+    else
+	x_n=$x_name            # this is a new configuration      -> define
+    fi
 fi
 
 export NEW_CONF=${x_n}
