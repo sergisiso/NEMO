@@ -86,6 +86,7 @@ set -o posix
 x_d=''; x_h=''; x_n=''; x_r=''; x_c='';
 x_u=''; x_a=''; x_m=''; x_t=''; x_b='';
 x_j='1'; x_e='none'; x_s='src'; x_v='1'
+x_c_cfg=0
 x_nocdf=0
 x_name=''
 
@@ -115,34 +116,42 @@ export PATH=${MAIN_DIR}/ext/FCM/bin:$PATH
 
 #-
 #- Choice of the options ---
-## Get clean, clean_config options
 while [ ${#1} -gt 0 ]; do
     
     case "$1" in
 	-h|--help) cat <<EOF
 Usage:
 ------
-./makenemo -[arn] CONFIG -m ARCH [-[...] ...] [{list_key,clean,clean_config}]
+./makenemo -[arn] CONFIG -m ARCH [-[...] ...] 
 
 Mandatory
    -m, --mach, --machine, --arch <machine_name>
-            Computing architecture, will use the file arch_<machine_name>.fcm located in ./arch (sub)directory(ies)
+            Computing architecture, will use the file arch_<machine_name>.fcm located
+            in ./arch (sub)directory(ies)
 
    -n, --name <config_name>
             Name of the configuration to compile
 
- and, if -n defines a new configuration, one of the following option (use 'all' arg to list available items):
+ and, if -n defines a new configuration, one of the following option (use 'all' arg to
+ list available items):
 
    -r, --ref <ref_config_name>  
-            To specify which reference configuration (./cfgs) must be used to buit the new configuration
+            To specify which reference configuration (./cfgs) must be used to buit the
+            new configuration
    -a, --test <test_config_name>  
-            To specify which academic test case (./tests) must be used to buit the new configuration
+            To specify which academic test case (./tests) must be used to buit the new
+            configuration
 
 Optional
    --add_key, key_add, add_key "<list of keys>"
             list of cpp keys to be added in cpp_<config_name>.fcm file
    -b, --dbg, --debug    
             add it to compile in debug mode
+   --clean, --clean_compil, clean
+            Clean all files and directories used for  compilation + the REPRO_* and
+            the SHORT directories
+   --clean_config, clean_config
+            Completly delete a configuration 
    -d, --dirs, --comp <sub-components>  
             New set of sub-components (subfolders from ./src directory) to be used
    --def_key, key_def, def_key "<list of keys>"
@@ -156,8 +165,10 @@ Optional
    -j, --jobs <nb_job>
             Number of processes to compile (0: dry run with no build)
    -k, --chkkey <O/1>
-            Set to 0 to bypass the check of the cpp keys (takes time at the beginning of makenemo).
-            Default is 1
+            Set to 0 to bypass the check of the cpp keys (takes time at the beginning
+            of makenemo). Default is 1
+   --list_key, --key_list, list_key
+            List all existing cpp keys in the configuration and exit without compiling 
    --nonc, --nocdf, --nonetcdf, --no_nc, --no_cdf, --no_netcdf 
             Compile without the NetCDF Library
    -s, --srcpath, --src_path  <path>   
@@ -173,9 +184,9 @@ Examples
         Copy           : ./makenemo -n ...  -[ar] ... [...]
    ¤ Configuration management
         List CPP keys  : ./makenemo -n ... list_key
-        Add-Remove keys: ./makenemo -n ... add_key '...' del_key '...'
-        Fresh start    : ./makenemo -n ... clean
-        Removal        : ./makenemo -n ... clean_config
+        Add-Remove keys: ./makenemo -n ... --add_key '...' --del_key '...'
+        Fresh start    : ./makenemo -n ... --clean
+        Removal        : ./makenemo -n ... --clean_config
 
 EOF
 	    exit 0       ;;
@@ -204,18 +215,15 @@ EOF
 	    chk_key=${2} ; shift ;;
 	--nonc|--nocdf|--nonetcdf|--no_nc|--no_cdf|--no_netcdf)
 	    x_nocdf=1  ;;
-	--clean|clean)
-	    x_c="--$1"  ;;
+	--clean|--clean_compil|clean)
+	    x_c="--clean"  ;;
 	--clean_config|clean_config)
-	    . ${COMPIL_DIR}/Fclean_config.sh; exit   ;;
-	## Checking if argument has anything other than whitespace
+	    x_c_cfg=1  ;;
 	--add_key|--key_add|add_key     ) [[ ! "$2" =~ ^\ +$ ]] && list_add_key=$2; shift;;
 	--def_key|--key_def|def_key     ) [[ ! "$2" =~ ^\ +$ ]] && list_def_key=$2; shift;;
 	--del_key|--key_del|del_key     ) [[ ! "$2" =~ ^\ +$ ]] && list_del_key=$2; shift;;
-	--list_key|list_key   ) list_key='1'                                   ;;
-	'*'           ) echo " \"$1\" BAD OPTION"; exit 2              ;;
-	':') echo ${b_n}" : -"${1}" option : missing value" 1>&2;	exit 2             ;;
-	'?') echo ${b_n}" : -"${1}" option : not supported" 1>&2;	exit 2             ;;
+	--list_key|--key_list|list_key) list_key='1'                                   ;;
+	*) echo -e "\033[0;31m\n \"$1\" BAD OPTION\033[0m\n"; exit 2              ;;
     esac
     
     shift
@@ -230,6 +238,11 @@ then
 	exit 4
     fi
     if [ $(( $incfg + $intst )) -gt 0 ] ; then
+	if [ $x_c_cfg -eq 1 ] ; then   # if we just want to clean the config (do it here as it must exist)
+	    x_n=$x_name                # must define x_n as it is used in Fclean_config.sh
+	    . ${COMPIL_DIR}/Fclean_config.sh
+	    exit 0
+	fi
 	[ -n "$x_r" ] && echo -e "\nWARNING: $x_name configuration is already existing, we ignore \"-r $x_r\"\n"
 	[ -n "$x_a" ] && echo -e "\nWARNING: $x_name configuration is already existing, we ignore \"-a $x_a\"\n"
     fi
@@ -238,6 +251,8 @@ then
     elif [ $intst -eq 1 ] ; then
 	x_a=$x_name ; x_r=''   # test      configuration existing -> define/overwrite x_a
     else
+	[  ${#x_c} -ne 0 ] && echo -e "\nWARNING: Compilation cleaning of a non-existing configuration, we ignore\n" && exit 0
+	[ $x_c_cfg -eq 1 ] && echo -e "\nWARNING: Configuration cleaning of a non-existing configuration, we ignore\n" && exit 0
 	x_n=$x_name            # this is a new configuration      -> define
     fi
 fi
@@ -256,19 +271,10 @@ NEMO_DBG=${x_b}
 
 ## No ref. cfg or demo selected
 if [[ -z "${REF_CONF}" && -z "${DEMO_CONF}" ]]; then
-
-		## Reuse last configuration compiled if any (existing 'work_cfgs.txt')
-#		if [[ $( find ./cfgs ./tests -name work_cfgs.txt ) ]]; then
-#			CFGS_DIR=${MAIN_DIR}/$( ls -rt */work_cfgs.txt | awk -F/ 'END{ print $1}' )
-#			TML_CONF=$( tail -1 ${CFGS_DIR}/work_cfgs.txt | awk '{ print $1 }' )
-#		else
-			## No ${REF_CONF}, ${DEMO_CONF} nor ${NEM_SUBDIR} and 1st compilation => exit
-#			echo -e "\033[0;33m\nNo previous build found!"
-			echo -e "\033[0;31m\nAt least a reference configuration ('-r'), a test case ('-a'), "
-			echo -e "a remote configuration ('-u') has to be choosen!!!\033[0m"
-			${COMPIL_DIR}/Flist_cfgs.sh
-			exit 2
-#		fi
+    echo -e "\033[0;31m\nAt least a reference configuration ('-r'), a test case ('-a'), "
+    echo -e "a remote configuration ('-u') has to be choosen to build a new configuration!!!\033[0m"
+    ${COMPIL_DIR}/Flist_cfgs.sh
+    exit 2
 fi
 ## At least one config has been requested
 
@@ -339,15 +345,13 @@ ${COMPIL_DIR}/Fmake_config.sh ${NEW_CONF} ${TML_CONF}
 . ${COMPIL_DIR}/Fmake_bld.sh ${CONFIG_DIR} ${NEW_CONF} ${NEMO_TDIR} || exit 3
 
 # build the complete list of the cpp keys of this configuration
-if [ ${chk_key} -eq 1 ] ; then
-
-	for i in $( grep "^ *#.* key_" ${NEW_CONF}/WORK/* ); do
-		echo $i | grep key_ | sed -e "s/=.*//"
-	done \
+if [[ ${chk_key} -eq 1 || ${list_key} -eq 1 ]] ; then
+    for i in $( grep "^ *#.* key_" ${NEW_CONF}/WORK/* ); do
+	echo $i | grep key_ | sed -e "s/=.*//"
+    done \
 	| sort -d | uniq > ${COMPIL_DIR}/full_key_list.txt
-
-	[ ${list_key} -eq 1 ] && cat ${COMPIL_DIR}/full_key_list.txt && exit 0
-
+    
+    [ ${list_key} -eq 1 ] && echo && cat ${COMPIL_DIR}/full_key_list.txt && exit 0
 fi
 
 #- At this stage new configuration has been added, we add or remove keys
@@ -357,24 +361,18 @@ fi
 
 #- check that all keys are really existing...
 if [ $chk_key -eq 1 ] ; then
-
-	for kk in $( cat ${NEW_CONF}/cpp_${NEW_CONF}.fcm ); do
-
-		if [ "$( echo $kk | cut -c 1-4 )" == "key_" ]; then
-			kk=${kk/=*/}
-
-			if [ ! $( grep -w $kk ${COMPIL_DIR}/full_key_list.txt ) ]; then
-				echo
-				echo "E R R O R : key "$kk" is not found in ${NEW_CONF}/WORK routines..."
-				echo "we stop..."
-				echo
-				exit 1
-			fi
-
-		fi
-
-	done
-
+    for kk in $( cat ${NEW_CONF}/cpp_${NEW_CONF}.fcm ); do
+	if [ "$( echo $kk | cut -c 1-4 )" == "key_" ]; then
+	    kk=${kk/=*/}
+	    if [ ! $( grep -w $kk ${COMPIL_DIR}/full_key_list.txt ) ]; then
+		echo
+		echo "E R R O R : key "$kk" is not found in ${NEW_CONF}/WORK routines..."
+		echo "we stop..."
+		echo
+		exit 1
+	    fi
+	fi
+    done  
 fi
 
 #- At this stage cpp keys have been updated. we can check the arch file
@@ -397,39 +395,35 @@ grep key_agrif ${COMPIL_DIR}/cpp.fcm && export AGRIFUSE=1 && export USEBLD=${USE
 #- Compile ---
 
 if [ "${NBR_PRC}" -gt 0 ]; then
-	cd ${NEMO_TDIR}/${NEW_CONF} || cd -
+    cd ${NEMO_TDIR}/${NEW_CONF} || cd -
 
-	## if AGRIF we do a first preprocessing
-	if [[ ${#x_c} -eq 0 && "$AGRIFUSE" -eq 1 ]]; then
-		fcm build --ignore-lock -j 1 ${COMPIL_DIR}/bld_preproagr.cfg ||{ cd - ; exit 1 ;}
-		echo ''
-		echo "---------------------------------"
-		echo "CONV preprocessing successfull !!"
-		echo "---------------------------------"
-		echo ''
-	fi
+    ## if AGRIF we do a first preprocessing
+    if [[ ${#x_c} -eq 0 && "$AGRIFUSE" -eq 1 ]]; then
+	fcm build --ignore-lock -j 1 ${COMPIL_DIR}/bld_preproagr.cfg ||{ cd - ; exit 1 ;}
+	echo ''
+	echo "---------------------------------"
+	echo "CONV preprocessing successfull !!"
+	echo "---------------------------------"
+	echo ''
+    fi
+    
+    fcm build ${x_c} --ignore-lock -v ${x_v} -j ${NBR_PRC} ${COMPIL_DIR}/$USEBLD ||{ cd - ; exit 1 ;}
 
-	fcm build ${x_c} --ignore-lock -v ${x_v} -j ${NBR_PRC} ${COMPIL_DIR}/$USEBLD ||{ cd - ; exit 1 ;}
+    if [ -f ${NEMO_TDIR}/${NEW_CONF}/BLD/bin/nemo.exe ]; then
+	ln -sf ${NEMO_TDIR}/${NEW_CONF}/BLD/bin/nemo.exe  ${CONFIG_DIR}/${NEW_CONF}/EXP00/nemo
+    fi
 
-	if [ -f ${NEMO_TDIR}/${NEW_CONF}/BLD/bin/nemo.exe ]; then
-		ln -sf ${NEMO_TDIR}/${NEW_CONF}/BLD/bin/nemo.exe  ${CONFIG_DIR}/${NEW_CONF}/EXP00/nemo
-	fi
-
-	## add remove for clean option
-	if [ ${#x_c} -ne 0 ]; then
-
-		echo 'Cleaning in '${NEW_CONF}' the building folders'
-
-      for dir in AGRIFLIB BLD LONG NEMOFILES REPRO_* SHORT WORK; do
-         rm -rf ${NEMO_TDIR}/${NEW_CONF}/$dir
-      done
-
-      for file in cpp.history cpp.fcm full_key_list.txt; do
-         rm -f  ${COMPIL_DIR}/$file
-      done
-
-   fi
-
+    ## add remove for clean option
+    if [ ${#x_c} -ne 0 ]; then
+	echo -e '\nCleaning '${NEW_CONF}' building directories and variables\n'
+	for dir in AGRIFLIB BLD LONG NEMOFILES REPRO_* SHORT WORK; do
+	    rm -rf ${NEMO_TDIR}/${NEW_CONF}/$dir
+	done
+	for file in cpp.history cpp.fcm full_key_list.txt; do
+	    rm -f ${COMPIL_DIR}/$file
+	done
+    fi
+    
 fi
 
 #- Come back to original directory ---

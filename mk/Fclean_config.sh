@@ -69,6 +69,7 @@ if [ ${#NEW_CONF} -eq 0 ] ; then
 	echo " "
 	echo "No configuration specified, please use makenemo -n CONFIG clean_config "
 else
+	echo " "
 	echo "Are you sure that you want to remove this directory $NEW_CONF? [y/n] "
 	read answer
 	answer=`echo $answer | sed 's/^[y].*$/y/'`
