@@ -72,7 +72,7 @@ PROGRAM rebuild_nemo
    INTEGER :: ndomain, ifile, ndomain_file, nslicesize, deflate_level
    INTEGER :: ncid, outid, idim, istop
    INTEGER :: natts, attid, xtype, varid, rbdims 
-   INTEGER :: jv, ndims, nvars, dimlen, dimids(4)
+   INTEGER :: jv, ndims, nvars, dimlen, dimids(5)
    INTEGER :: dimid, unlimitedDimId, di, dj, dr
    INTEGER :: nmax_unlimited, nt, ntslice 
    INTEGER :: fchunksize = 32000000  ! NetCDF global file chunk cache size
@@ -103,30 +103,35 @@ PROGRAM rebuild_nemo
    INTEGER(i1), ALLOCATABLE, SAVE, DIMENSION(:,:) :: localdata_2d_i1
    INTEGER(i1), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: localdata_3d_i1
    INTEGER(i1), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: localdata_4d_i1
+   INTEGER(i1), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:,:) :: localdata_5d_i1
 
    ! NF90_SHORT local data arrays
    INTEGER(i2), ALLOCATABLE, SAVE, DIMENSION(:) :: localdata_1d_i2
    INTEGER(i2), ALLOCATABLE, SAVE, DIMENSION(:,:) :: localdata_2d_i2
    INTEGER(i2), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: localdata_3d_i2
    INTEGER(i2), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: localdata_4d_i2
+   INTEGER(i2), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:,:) :: localdata_5d_i2
 
    ! NF90_INT local data arrays
    INTEGER(i4), ALLOCATABLE, SAVE, DIMENSION(:) :: localdata_1d_i4
    INTEGER(i4), ALLOCATABLE, SAVE, DIMENSION(:,:) :: localdata_2d_i4
    INTEGER(i4), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: localdata_3d_i4
    INTEGER(i4), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: localdata_4d_i4
+   INTEGER(i4), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:,:) :: localdata_5d_i4
 
    ! NF90_FLOAT local data arrays
    REAL(sp), ALLOCATABLE, SAVE, DIMENSION(:) :: localdata_1d_sp
    REAL(sp), ALLOCATABLE, SAVE, DIMENSION(:,:) :: localdata_2d_sp
    REAL(sp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: localdata_3d_sp
    REAL(sp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: localdata_4d_sp
+   REAL(sp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:,:) :: localdata_5d_sp
 
    ! NF90_DOUBLE local data arrays
    REAL(dp), ALLOCATABLE, SAVE, DIMENSION(:) :: localdata_1d_dp
    REAL(dp), ALLOCATABLE, SAVE, DIMENSION(:,:) :: localdata_2d_dp
    REAL(dp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: localdata_3d_dp
    REAL(dp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: localdata_4d_dp
+   REAL(sp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:,:) :: localdata_5d_dp
 
    ! NF90_BYTE global data arrays
    INTEGER(i1) :: globaldata_0d_i1
@@ -134,6 +139,7 @@ PROGRAM rebuild_nemo
    INTEGER(i1), ALLOCATABLE, DIMENSION(:,:) :: globaldata_2d_i1
    INTEGER(i1), ALLOCATABLE, DIMENSION(:,:,:) :: globaldata_3d_i1
    INTEGER(i1), ALLOCATABLE, DIMENSION(:,:,:,:) :: globaldata_4d_i1
+   INTEGER(i1), ALLOCATABLE, DIMENSION(:,:,:,:,:) :: globaldata_5d_i1
 
    ! NF90_SHORT global data arrays
    INTEGER(i2) :: globaldata_0d_i2
@@ -141,6 +147,7 @@ PROGRAM rebuild_nemo
    INTEGER(i2), ALLOCATABLE, DIMENSION(:,:) :: globaldata_2d_i2
    INTEGER(i2), ALLOCATABLE, DIMENSION(:,:,:) :: globaldata_3d_i2
    INTEGER(i2), ALLOCATABLE, DIMENSION(:,:,:,:) :: globaldata_4d_i2
+   INTEGER(i2), ALLOCATABLE, DIMENSION(:,:,:,:,:) :: globaldata_5d_i2
 
    ! NF90_INT global data arrays
    INTEGER(i4) :: globaldata_0d_i4
@@ -148,6 +155,7 @@ PROGRAM rebuild_nemo
    INTEGER(i4), ALLOCATABLE, DIMENSION(:,:) :: globaldata_2d_i4
    INTEGER(i4), ALLOCATABLE, DIMENSION(:,:,:) :: globaldata_3d_i4
    INTEGER(i4), ALLOCATABLE, DIMENSION(:,:,:,:) :: globaldata_4d_i4
+   INTEGER(i4), ALLOCATABLE, DIMENSION(:,:,:,:,:) :: globaldata_5d_i4
  
    ! NF90_FLOAT global data arrays
    REAL(sp) :: globaldata_0d_sp
@@ -155,6 +163,7 @@ PROGRAM rebuild_nemo
    REAL(sp), ALLOCATABLE, DIMENSION(:,:) :: globaldata_2d_sp
    REAL(sp), ALLOCATABLE, DIMENSION(:,:,:) :: globaldata_3d_sp
    REAL(sp), ALLOCATABLE, DIMENSION(:,:,:,:) :: globaldata_4d_sp
+   REAL(sp), ALLOCATABLE, DIMENSION(:,:,:,:,:) :: globaldata_5d_sp
 
    ! NF90_DOUBLE global data arrays
    REAL(dp) :: globaldata_0d_dp
@@ -162,6 +171,7 @@ PROGRAM rebuild_nemo
    REAL(dp), ALLOCATABLE, DIMENSION(:,:) :: globaldata_2d_dp
    REAL(dp), ALLOCATABLE, DIMENSION(:,:,:) :: globaldata_3d_dp
    REAL(dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: globaldata_4d_dp
+   REAL(dp), ALLOCATABLE, DIMENSION(:,:,:,:,:) :: globaldata_5d_dp
 
    LOGICAL :: l_valid     = .false.
    LOGICAL :: l_noRebuild = .false.
@@ -388,7 +398,7 @@ PROGRAM rebuild_nemo
            if( INDEX(TRIM(cdimlst),TRIM(cdim)) > 0 ) &
     &                             chunksizes(idim) = min(outdimlens(dimids(idim)), max(nc4_ychunk,1))
 
-           cdimlst='|z|deptht|depthu|depthv|depthw|depth|nav_lev|'
+           cdimlst='|z|deptht|depthu|depthv|depthw|depth|nav_lev|basin|'
            if( INDEX(TRIM(cdimlst),TRIM(cdim)) > 0 ) &
     &                             chunksizes(idim) = min(outdimlens(dimids(idim)), max(nc4_zchunk,1))
 
@@ -613,6 +623,35 @@ PROGRAM rebuild_nemo
                   STOP 4
             END SELECT
 
+         ELSEIF( ndims == 5 ) THEN
+
+            SELECT CASE( xtype )
+               CASE( NF90_BYTE )
+                  ALLOCATE(globaldata_5d_i1(indimlens(dimids(1)),indimlens(dimids(2)),       &
+                     &                      indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                  CALL check_nf90( nf90_get_var( ncid, jv, globaldata_5d_i1, start=(/1,1,1,1,nt/) ) )
+               CASE( NF90_SHORT )
+                  ALLOCATE(globaldata_5d_i2(indimlens(dimids(1)),indimlens(dimids(2)),       &
+                     &                      indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                  CALL check_nf90( nf90_get_var( ncid, jv, globaldata_5d_i2, start=(/1,1,1,1,nt/) ) )
+               CASE( NF90_INT )
+                  ALLOCATE(globaldata_5d_i4(indimlens(dimids(1)),indimlens(dimids(2)),       &
+                     &                      indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                  CALL check_nf90( nf90_get_var( ncid, jv, globaldata_5d_i4, start=(/1,1,1,1,nt/) ) )
+               CASE( NF90_FLOAT )
+                  ALLOCATE(globaldata_5d_sp(indimlens(dimids(1)),indimlens(dimids(2)),       &
+                     &                      indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                  CALL check_nf90( nf90_get_var( ncid, jv, globaldata_5d_sp, start=(/1,1,1,1,nt/) ) )
+               CASE( NF90_DOUBLE )
+                  ALLOCATE(globaldata_5d_dp(indimlens(dimids(1)),indimlens(dimids(2)),       &
+                     &                      indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                  CALL check_nf90( nf90_get_var( ncid, jv, globaldata_5d_dp, start=(/1,1,1,1,nt/) ) )
+
+               CASE DEFAULT
+                  WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                  STOP 4
+            END SELECT
+
          ENDIF
 
       ELSE  ! l_noRebuild = .false.
@@ -644,7 +683,7 @@ PROGRAM rebuild_nemo
                   ALLOCATE(globaldata_1d_dp(outdimlens(dimids(1))))
                   IF (l_maskout) globaldata_1d_dp(:)=mdiVals(jv)
                CASE DEFAULT
-                  WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                  WRITE(numerr,*) '1d alloc unknown nf90 type: ', xtype
                   STOP 4
             END SELECT
 
@@ -667,7 +706,7 @@ PROGRAM rebuild_nemo
                   ALLOCATE(globaldata_2d_dp(outdimlens(dimids(1)),outdimlens(dimids(2))))
                   IF (l_maskout) globaldata_2d_dp(:,:)=mdiVals(jv)
                CASE DEFAULT
-                  WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                  WRITE(numerr,*) '2d alloc unknown nf90 type: ', xtype
                   STOP 4
             END SELECT
 
@@ -695,7 +734,7 @@ PROGRAM rebuild_nemo
                      &                      outdimlens(dimids(3))))
                   IF (l_maskout) globaldata_3d_dp(:,:,:)=mdiVals(jv)
                CASE DEFAULT
-                  WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                  WRITE(numerr,*) '3d alloc unknown nf90 type: ', xtype
                   STOP 4
             END SELECT
 
@@ -723,11 +762,40 @@ PROGRAM rebuild_nemo
                      &                      outdimlens(dimids(3)),ntslice))
                   IF (l_maskout) globaldata_4d_dp(:,:,:,:)=mdiVals(jv)
                CASE DEFAULT
-                  WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                  WRITE(numerr,*) '4d alloc unknown nf90 type: ', xtype
+                  STOP 4
+            END SELECT
+
+         ELSEIF( ndims == 5 ) THEN
+
+            SELECT CASE( xtype )
+               CASE( NF90_BYTE )
+                  ALLOCATE(globaldata_5d_i1(outdimlens(dimids(1)),outdimlens(dimids(2)),     &
+                     &                      outdimlens(dimids(3)),outdimlens(dimids(4)),ntslice))
+                  IF (l_maskout) globaldata_5d_i1(:,:,:,:,:)=mdiVals(jv)
+               CASE( NF90_SHORT )
+                  ALLOCATE(globaldata_5d_i2(outdimlens(dimids(1)),outdimlens(dimids(2)),     &
+                     &                      outdimlens(dimids(3)),outdimlens(dimids(4)),ntslice))
+                  IF (l_maskout) globaldata_5d_i2(:,:,:,:,:)=mdiVals(jv)
+               CASE( NF90_INT )
+                  ALLOCATE(globaldata_5d_i4(outdimlens(dimids(1)),outdimlens(dimids(2)),     &
+                     &                      outdimlens(dimids(3)),outdimlens(dimids(4)),ntslice))
+                  IF (l_maskout) globaldata_5d_i4(:,:,:,:,:)=mdiVals(jv)
+               CASE( NF90_FLOAT )
+                  ALLOCATE(globaldata_5d_sp(outdimlens(dimids(1)),outdimlens(dimids(2)),     &
+                     &                      outdimlens(dimids(3)),outdimlens(dimids(4)),ntslice))
+                  IF (l_maskout) globaldata_5d_sp(:,:,:,:,:)=mdiVals(jv)
+               CASE( NF90_DOUBLE )
+                  ALLOCATE(globaldata_5d_dp(outdimlens(dimids(1)),outdimlens(dimids(2)),     &
+                     &                      outdimlens(dimids(3)),outdimlens(dimids(4)),ntslice))
+                  IF (l_maskout) globaldata_5d_dp(:,:,:,:,:)=mdiVals(jv)
+
+               CASE DEFAULT
+                  WRITE(numerr,*) '5d alloc unknown nf90 type: ', xtype
                   STOP 4
             END SELECT
          ELSE
-            WRITE(numerr,*) 'ERROR! : A netcdf variable has more than 4 dimensions which is not taken into account'
+            WRITE(numerr,*) 'ERROR! : A netcdf variable has more than 5 dimensions which is not taken into account'
             STOP 4
          ENDIF
 
@@ -834,7 +902,7 @@ PROGRAM rebuild_nemo
                      END DO
                      DEALLOCATE(localdata_1d_dp)
                   CASE DEFAULT
-                     WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                     WRITE(numerr,*) '1d mapping unknown nf90 type: ', xtype
                      istop = istop + 1
                END SELECT
 
@@ -887,7 +955,7 @@ PROGRAM rebuild_nemo
                      END DO
                      DEALLOCATE(localdata_2d_dp) 
                   CASE DEFAULT
-                     WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                     WRITE(numerr,*) '2d mapping unknown nf90 type: ', xtype
                      istop = istop + 1
                END SELECT
 
@@ -942,9 +1010,7 @@ PROGRAM rebuild_nemo
                      ! TG: Would like to find a better assumption for this.
                      IF ( trim(indimnames(dimids(1))) /= dims(1) .AND. indimnames(dimids(1)) .NE. 'lon' ) THEN 
                         ALLOCATE(localdata_3d_sp(indimlens(dimids(1)),local_sizes(di),local_sizes(dj)))
-                        WRITE(*,*) 'test', ifile, jv, indimlens(dimids(1)),local_sizes(di),local_sizes(dj)
                         CALL check_nf90( nf90_get_var( ncid, jv, localdata_3d_sp ), istop )
-                        WRITE(*,*) 'test2'
                         DO jj = jdomain(1), jdomain(2)
                            DO ji = idomain(1), idomain(2)
                               DO jk = 1, indimlens(dimids(1))
@@ -994,7 +1060,7 @@ PROGRAM rebuild_nemo
                      ENDIF
                      DEALLOCATE(localdata_3d_dp)
                   CASE DEFAULT
-                     WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                     WRITE(numerr,*) '3d mapping unknown nf90 type: ', xtype
                      istop = istop + 1
                END SELECT
       
@@ -1097,9 +1163,130 @@ PROGRAM rebuild_nemo
 !$OMP END PARALLEL
                      DEALLOCATE(localdata_4d_dp)
                   CASE DEFAULT
-                     WRITE(numerr,*) 'Unknown nf90 type: ', xtype
+                     WRITE(numerr,*) '4d mapping unknown nf90 type: ', xtype
                      istop = istop + 1
                END SELECT
+
+
+            ELSEIF (ndims == 5) THEN
+
+               SELECT CASE( xtype )
+
+                  CASE( NF90_BYTE )
+                     ALLOCATE(localdata_5d_i1(local_sizes(di),local_sizes(dj),               &
+                         &                     indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                     CALL check_nf90( nf90_get_var( ncid, jv, localdata_5d_i1, start=(/1,1,1,1,nt/) ), istop )
+!$OMP  PARALLEL DEFAULT(NONE) PRIVATE(ji,jj,jk,jr,jl)   &
+!$OMP& SHARED(idomain,jdomain,indimlens,dimids,start_pos,globaldata_5d_i1,localdata_5d_i1,di,dj,nt,ntslice)
+                     DO jl = 1, ntslice
+!$OMP DO
+                       DO jr = 1, indimlens(dimids(4))
+                          DO jk = 1, indimlens(dimids(3))
+                             DO jj = jdomain(1), jdomain(2)
+                                DO ji = idomain(1), idomain(2)
+                                   globaldata_5d_i1(start_pos(di) + ji - 1, start_pos(dj) + jj - 1, jk, jr, jl) = localdata_5d_i1(ji,jj,jk,jr,jl)
+                                END DO
+                             END DO
+                          END DO
+                       END DO
+!$OMP END DO nowait
+                     END DO
+!$OMP END PARALLEL
+                     DEALLOCATE(localdata_5d_i1)
+
+                  CASE( NF90_SHORT )
+                     ALLOCATE(localdata_5d_i2(local_sizes(di),local_sizes(dj),               &
+                        &                     indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                     CALL check_nf90( nf90_get_var( ncid, jv, localdata_5d_i2, start=(/1,1,1,1,nt/) ), istop )
+!$OMP  PARALLEL DEFAULT(NONE) PRIVATE(ji,jj,jk,jr,jl)   &
+!$OMP& SHARED(idomain,jdomain,indimlens,dimids,start_pos,globaldata_5d_i2,localdata_5d_i2,di,dj,nt,ntslice)
+                     DO jl = 1, ntslice
+!$OMP DO
+                       DO jr = 1, indimlens(dimids(4))
+                          DO jk = 1, indimlens(dimids(3))
+                             DO jj = jdomain(1), jdomain(2)
+                                DO ji = idomain(1), idomain(2)
+                                   globaldata_5d_i2(start_pos(di) + ji - 1, start_pos(dj) + jj - 1, jk, jr, jl) = localdata_5d_i2(ji,jj,jk,jr,jl)
+                                END DO
+                             END DO
+                          END DO
+                       END DO
+!$OMP END DO nowait
+                     END DO
+!$OMP END PARALLEL
+                     DEALLOCATE(localdata_5d_i2)
+
+                  CASE( NF90_INT )
+                     ALLOCATE(localdata_5d_i4(local_sizes(di),local_sizes(dj),               &
+                        &                     indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                     CALL check_nf90( nf90_get_var( ncid, jv, localdata_5d_i4, start=(/1,1,1,1,nt/) ), istop )
+!$OMP  PARALLEL DEFAULT(NONE) PRIVATE(ji,jj,jk,jr,jl)   &
+!$OMP& SHARED(idomain,jdomain,indimlens,dimids,start_pos,globaldata_5d_i4,localdata_5d_i4,di,dj,nt,ntslice)
+                     DO jl = 1, ntslice
+!$OMP DO
+                       DO jr = 1, indimlens(dimids(4))
+                          DO jk = 1, indimlens(dimids(3))
+                             DO jj = jdomain(1), jdomain(2)
+                                DO ji = idomain(1), idomain(2)
+                                   globaldata_5d_i4(start_pos(di) + ji - 1, start_pos(dj) + jj - 1, jk, jr, jl) = localdata_5d_i4(ji,jj,jk,jr,jl)
+                                END DO
+                             END DO
+                          END DO
+                       END DO
+!$OMP END DO nowait
+                     END DO
+!$OMP END PARALLEL
+                     DEALLOCATE(localdata_5d_i4)
+
+                  CASE( NF90_FLOAT )
+                     ALLOCATE(localdata_5d_sp(local_sizes(di),local_sizes(dj),               &
+                        &                     indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                     CALL check_nf90( nf90_get_var( ncid, jv, localdata_5d_sp, start=(/1,1,1,1,nt/) ), istop )
+!$OMP  PARALLEL DEFAULT(NONE) PRIVATE(ji,jj,jk,jr,jl)   &
+!$OMP& SHARED(idomain,jdomain,indimlens,dimids,start_pos,globaldata_5d_sp,localdata_5d_sp,di,dj,nt,ntslice)
+                     DO jl = 1, ntslice
+!$OMP DO
+                       DO jr = 1, indimlens(dimids(4))
+                          DO jk = 1, indimlens(dimids(3))
+                             DO jj = jdomain(1), jdomain(2)
+                                DO ji = idomain(1), idomain(2)
+                                   globaldata_5d_sp(start_pos(di) + ji - 1, start_pos(dj) + jj - 1, jk, jr, jl) = localdata_5d_sp(ji,jj,jk,jr,jl)
+                                END DO
+                             END DO
+                          END DO
+                       END DO
+!$OMP END DO nowait
+                     END DO
+!$OMP END PARALLEL
+                     DEALLOCATE(localdata_5d_sp)
+
+                  CASE( NF90_DOUBLE )
+                     ALLOCATE(localdata_5d_dp(local_sizes(di),local_sizes(dj),               &
+                        &                     indimlens(dimids(3)),indimlens(dimids(4)),ntslice))
+                     CALL check_nf90( nf90_get_var( ncid, jv, localdata_5d_dp, start=(/1,1,1,1,nt/) ), istop )
+!$OMP  PARALLEL DEFAULT(NONE) PRIVATE(ji,jj,jk,jr,jl)   &
+!$OMP& SHARED(idomain,jdomain,indimlens,dimids,start_pos,globaldata_5d_dp,localdata_5d_dp,di,dj,nt,ntslice)
+                     DO jl = 1, ntslice
+!$OMP DO
+                       DO jr = 1, indimlens(dimids(4))
+                          DO jk = 1, indimlens(dimids(3))
+                             DO jj = jdomain(1), jdomain(2)
+                                DO ji = idomain(1), idomain(2)
+                                   globaldata_5d_dp(start_pos(di) + ji - 1, start_pos(dj) + jj - 1, jk, jr, jl) = localdata_5d_dp(ji,jj,jk,jr,jl)
+                                END DO
+                             END DO
+                          END DO
+                       END DO
+!$OMP END DO nowait
+                     END DO
+!$OMP END PARALLEL
+                     DEALLOCATE(localdata_5d_dp)
+
+                  CASE DEFAULT
+                     WRITE(numerr,*) '5d mapping unknown nf90 type: ', xtype
+                     istop = istop + 1
+               END SELECT
+
 
             ENDIF ! l_noRebuild false
 
@@ -1171,7 +1358,7 @@ PROGRAM rebuild_nemo
             CASE( NF90_DOUBLE )
                CALL check_nf90( nf90_put_var( outid, jv, globaldata_0d_dp ) )
             CASE DEFAULT   
-               WRITE(numerr,*) '0d Unknown nf90 type: ', xtype
+               WRITE(numerr,*) '0d write Unknown nf90 type: ', xtype
                STOP 4
          END SELECT
 
@@ -1194,7 +1381,7 @@ PROGRAM rebuild_nemo
                CALL check_nf90( nf90_put_var( outid, jv, globaldata_1d_dp ) )
                DEALLOCATE(globaldata_1d_dp)
             CASE DEFAULT   
-               WRITE(numerr,*) '1d Unknown nf90 type: ', xtype
+               WRITE(numerr,*) '1d write Unknown nf90 type: ', xtype
                STOP 4
          END SELECT
 
@@ -1217,7 +1404,7 @@ PROGRAM rebuild_nemo
                CALL check_nf90( nf90_put_var( outid, jv, globaldata_2d_dp ) )
                DEALLOCATE(globaldata_2d_dp)
             CASE DEFAULT   
-               WRITE(numerr,*) '2d Unknown nf90 type: ', xtype
+               WRITE(numerr,*) '2d write unknown nf90 type: ', xtype
                STOP 4
          END SELECT     
                       
@@ -1240,7 +1427,7 @@ PROGRAM rebuild_nemo
                CALL check_nf90( nf90_put_var( outid, jv, globaldata_3d_dp ) )
                DEALLOCATE(globaldata_3d_dp)
             CASE DEFAULT   
-               WRITE(numerr,*) '3d Unknown nf90 type: ', xtype
+               WRITE(numerr,*) '3d write unknown nf90 type: ', xtype
                STOP 4
          END SELECT     
     
@@ -1263,9 +1450,34 @@ PROGRAM rebuild_nemo
                CALL check_nf90( nf90_put_var( outid, jv, globaldata_4d_dp, start=(/1,1,1,nt/) ) )
                DEALLOCATE(globaldata_4d_dp)
             CASE DEFAULT   
-               WRITE(numerr,*) '4d Unknown nf90 type: ', xtype
+               WRITE(numerr,*) '4d write unknown nf90 type: ', xtype
                STOP 4
          END SELECT     
+         ! why only for big data set, test the cost.
+         CALL check_nf90( nf90_sync( outid ) )    ! flush buffers to disk after writing big 4D datasets
+
+      ELSEIF( ndims == 5 ) THEN
+
+         SELECT CASE( xtype )
+            CASE( NF90_BYTE )
+               CALL check_nf90( nf90_put_var( outid, jv, globaldata_5d_i1, start=(/1,1,1,1,nt/) ) )
+               DEALLOCATE(globaldata_5d_i1)
+            CASE( NF90_SHORT )
+               CALL check_nf90( nf90_put_var( outid, jv, globaldata_5d_i2, start=(/1,1,1,1,nt/) ) )
+               DEALLOCATE(globaldata_5d_i2)
+            CASE( NF90_INT )
+               CALL check_nf90( nf90_put_var( outid, jv, globaldata_5d_i4, start=(/1,1,1,1,nt/) ) )
+               DEALLOCATE(globaldata_5d_i4)
+            CASE( NF90_FLOAT )
+               CALL check_nf90( nf90_put_var( outid, jv, globaldata_5d_sp, start=(/1,1,1,1,nt/) ) )
+               DEALLOCATE(globaldata_5d_sp)
+            CASE( NF90_DOUBLE )
+               CALL check_nf90( nf90_put_var( outid, jv, globaldata_5d_dp, start=(/1,1,1,1,nt/) ) )
+               DEALLOCATE(globaldata_5d_dp)
+            CASE DEFAULT
+               WRITE(numerr,*) '5d write unknown nf90 type: ', xtype
+               STOP 4
+         END SELECT
          ! why only for big data set, test the cost.
          CALL check_nf90( nf90_sync( outid ) )    ! flush buffers to disk after writing big 4D datasets
     
@@ -1290,7 +1502,7 @@ PROGRAM rebuild_nemo
 
 !5.2 Close output file
 
-   IF (l_verbose) WRITE(numout,*) 'Closing output file...'
+   IF (l_verbose) WRITE(numout,*) 'Closing output file '//TRIM(filebase)//'.nc'
    CALL check_nf90( nf90_close( outid ) )
 
    IF (l_verbose) WRITE(numout,*) 'NEMO rebuild completed successfully'
