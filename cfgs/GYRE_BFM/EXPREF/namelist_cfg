@@ -19,13 +19,14 @@
 !-----------------------------------------------------------------------
 &namrun        !   parameters of the run
 !-----------------------------------------------------------------------
-   cn_exp      =  "GYRE"   !  experience name
-   nn_it000    =       1   !  first time step
-   nn_itend    =    4320   !  last  time step
-   nn_leapy    =      30   !  Leap year calendar (1) or not (0)
-   nn_stock    =    4320   !  frequency of creation of a restart file (modulo referenced to 1)
-   nn_write    =      60   !  frequency of write in the output file   (modulo referenced to nn_it000)
-   nn_istate   =       0   !  output the initial state (1) or not (0)
+   cn_exp      =  "GYRE_BFM"   !  experience name
+   nn_date0    =  20000101  !  date at nit_0000 (format yyyymmdd) used if ln_rstart=F or (ln_rstart=T and nn_rstctl=0 or 1)
+   nn_it000    =        1   !  first time step
+   nn_itend    =     4320   !  last  time step
+   nn_leapy    =       30   !  Leap year calendar (1) or not (0)
+   nn_stock    =     4320   !  frequency of creation of a restart file (modulo referenced to 1)
+   nn_write    =       60   !  frequency of write in the output file   (modulo referenced to nn_it000)
+   nn_istate   =        0   !  output the initial state (1) or not (0)
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: user defined GYRE)
@@ -49,6 +50,8 @@
    ln_linssh   = .true.    !  =T  linear free surface  ==>>  model level are fixed in time
    !
    rn_Dt      = 7200.     !  time step for the dynamics
+   !
+   ln_meshmask = .false.   !  =T create a mesh file
 /
 
 !!======================================================================
@@ -245,10 +248,14 @@
 !-----------------------------------------------------------------------
 &nammpp        !   Massively Parallel Processing
 !-----------------------------------------------------------------------
+   nn_hls      =   1       !  halo width (applies to both rows and columns)
+   nn_comm     =   1       !  comm choice
 /
 !-----------------------------------------------------------------------
 &namctl        !   Control prints                                       (default: OFF)
 !-----------------------------------------------------------------------
+   sn_cfctl%l_runstat = .FALSE.    ! switches and which areas produce reports with the proc integer settings.
+   ln_timing   = .false.          !  timing by routine write out in timing.output file
 /
 !-----------------------------------------------------------------------
 &namsto        ! Stochastic parametrization of EOS                      (default: OFF)
