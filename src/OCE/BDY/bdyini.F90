@@ -95,6 +95,7 @@ CONTAINS
       rn_time_dmp_out(2:jp_bdy) = rn_time_dmp_out(1)
       cn_ice         (2:jp_bdy) = cn_ice         (1)
       nn_ice_dta     (2:jp_bdy) = nn_ice_dta     (1)
+      nn_rimwidth    (2:jp_bdy) = nn_rimwidth    (1)
       READ  ( numnam_cfg, nambdy, IOSTAT = ios, ERR = 902 )
 902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nambdy in configuration namelist' )
       IF(lwm) WRITE ( numond, nambdy )

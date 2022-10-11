@@ -164,6 +164,8 @@
                              !  = 0 NO damping of tracers at open boudaries
                              !  = 1 Only for tracers forced with external data
                              !  = 2 Damping applied to all tracers
+   ln_zintobc    = .false.   ! T if a vertical interpolation is required. Variables gdep[t] and e3[t] must exist in the file 
+                             !  automatically defined to T if the number of vertical levels in bdy dta /= jpk
 /
 !-----------------------------------------------------------------------
 &namtrc_ais      !  Representation of Antarctic Ice Sheet tracers supply
