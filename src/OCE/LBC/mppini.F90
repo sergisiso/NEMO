@@ -86,6 +86,7 @@ CONTAINS
       l_IdoNFold = l_NFold                         ! is this process doing North fold?
       !
       CALL init_doloop                       ! set start/end indices or do-loop depending on the halo width value (nn_hls)
+      CALL init_locglo                       ! define now functions needed to convert indices from/to global to/from local domains
       !
       IF(lwp) THEN
          WRITE(numout,*)
