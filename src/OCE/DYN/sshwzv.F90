@@ -478,6 +478,12 @@ CONTAINS
                &                             ) * z1_e3t
          END_3D
       CALL iom_put("Courant",Cu_adv)
+      IF( iom_use("Aimp_Cmx") )   THEN
+         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values to use as temporary store
+         Cu_adv(:,:,jpk) = MAXVAL(Cu_adv, DIM=3)        ! Use seabed points to hold temporary maximums
+         CALL iom_put('Aimp_Cmx',Cu_adv(:,:,jpk))       ! to record activation locations at each stage
+         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values for possible o/p of Cu_adv in stpctl
+      ENDIF
       !
       IF( MAXVAL( Cu_adv(:,:,:) ) > Cu_min ) THEN       ! Quick check if any breaches anywhere
          DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 2, -1 )    ! or scan Courant criterion and partition ! w where necessary
@@ -514,8 +520,11 @@ CONTAINS
       CALL iom_put("wimp",wi)
       CALL iom_put("wi_cff",Cu_adv)
       CALL iom_put("wexp",ww)
-      WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,1) = 1._wp
-      CALL iom_put("Aimp_loc",Cu_adv(:,:,1))
+      IF( iom_use("Aimp_loc") )   THEN
+         WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,1) = 1._wp
+         CALL iom_put("Aimp_loc",Cu_adv(:,:,1))
+         Cu_adv(:,:,1) = 0._wp
+      ENDIF
       !
       IF( ln_timing )   CALL timing_stop('wAimp')
       !
@@ -619,12 +628,10 @@ CONTAINS
             ENDIF
             zcff = MIN(1._wp, zcff)
             Cu_adv(ji,jj,jk) = zcff               ! Reuse array to output coefficient below and in stp_ctl
-            !!zcff = 0._wp ! Disable aimp but record CFL
             !
             pwi(ji,jj,jk) =           zcff   * pww(ji,jj,jk)
             pww(ji,jj,jk) = ( 1._wp - zcff ) * pww(ji,jj,jk)
             !
-!!          Cu_adv(ji,jj,jk) = zcff               ! Reuse array to output coefficient below and in stp_ctl
          END_3D
          Cu_adv(:,:,1) = 0._wp
       ELSE
@@ -633,9 +640,10 @@ CONTAINS
          pwi    (:,:,:) = 0._wp
       ENDIF
       IF( kstage == 3 ) CALL iom_put("wimp",pwi)
-      write( clmname, '(a,i1)' ) 'Aimp_loc_', kstage                 ! Output field name depends on stage
+      !write( clmname, '(a,i1)' ) 'Aimp_loc_', kstage                ! Output field name depends on stage
+      clmname = 'Aimp_loc'
       WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,1) = 1._wp   ! Use surface points to hold temporary indicators
-      CALL iom_put(clmname,Cu_adv(:,:,1))                            ! to record activation locations at each stage
+      CALL iom_put(TRIM(clmname),Cu_adv(:,:,1))                            ! to record activation locations at each stage
       Cu_adv(:,:,1) = 0._wp                                          ! reset surface values for possible o/p of Cu_adv in stpctl
       !
       IF( ln_timing )   CALL timing_stop('wAimp')

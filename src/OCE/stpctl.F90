@@ -251,10 +251,12 @@ CONTAINS
          !
          IF( ll_colruns .OR. jpnij == 1 ) THEN   ! all processes synchronized -> use lwp to print in opened ocean.output files
             IF(lwp .AND. ln_zad_Aimp) WRITE(numout,*) 'CFL, wi max ',zmax(7), zmax(8)
+            IF( .NOT. ll_colruns .AND. lwm )   istatus = NF90_CLOSE(nrunid)
             IF(lwp) THEN   ;   CALL ctl_stop( ctmp1, ' ', ctmp2, ctmp3, ctmp4, ctmp5, ' ', ctmp6 )
             ELSE           ;   nstop = MAX(1, nstop)   ! make sure nstop > 0 (automatically done when calling ctl_stop)
             ENDIF
          ELSE                                    ! only mpi subdomains with errors are here -> STOP now
+            IF( lwm )   istatus = NF90_CLOSE(nrunid)
             IF(ln_zad_Aimp) WRITE(*,*) 'CFL, wi max ',narea, zmax(7), zmax(8)
             CALL ctl_stop( 'STOP', ctmp1, ' ', ctmp2, ctmp3, ctmp4, ctmp5, ' ', ctmp6 )
          ENDIF

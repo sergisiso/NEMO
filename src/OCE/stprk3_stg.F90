@@ -196,10 +196,22 @@ CONTAINS
       !
       IF( ln_dynadv_vec ) THEN                                                                       ! ww cross-level velocity consistent with uu/vv at Kmm
           CALL wzv  ( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww )
-          IF( ln_zad_Aimp )  CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, kstg )     ! Adaptive-implicit vertical advection partitioning
+          IF( ln_zad_Aimp )  THEN
+             IF( kstg == 3 )  THEN
+                CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, kstg )     ! Adaptive-implicit vertical advection partitioning
+             ELSE
+                wi(:,:,:) = 0.0_wp
+             ENDIF
+          ENDIF
       ELSE                                                                                           ! ww cross-level velocity consistent with zaU/zaV
           CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )
-          IF( ln_zad_Aimp )  CALL wAimp( kstp, Kmm, zaU, zaV, ww, wi, kstg )                         ! Adaptive-implicit vertical advection partitioning
+          IF( ln_zad_Aimp )  THEN
+             IF( kstg == 3 )  THEN
+                CALL wAimp( kstp, Kmm, zaU, zaV, ww, wi, kstg )                         ! Adaptive-implicit vertical advection partitioning
+             ELSE
+                wi(:,:,:) = 0.0_wp
+             ENDIF
+          ENDIF
       ENDIF
       !
 
@@ -247,7 +259,13 @@ CONTAINS
       !
       !                                            ! Advective velocity needed for tracers advection - already computed if ln_dynadv_vec=F
       IF( ln_dynadv_vec )   CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )
-      IF( ln_dynadv_vec .AND. ln_zad_Aimp )     CALL wAimp( kstp, Kmm, zaU, zaV, ww, wi, kstg )     ! Adaptive-implicit vertical advection partitioning
+      IF( ln_dynadv_vec .AND. ln_zad_Aimp )  THEN
+         IF( kstg == 3 )  THEN
+            CALL wAimp( kstp, Kmm, zaU, zaV, ww, wi, kstg )                         ! Adaptive-implicit vertical advection partitioning
+         ELSE
+            wi(:,:,:) = 0.0_wp
+         ENDIF
+      ENDIF
       !
 # if defined key_top
       !                       !==  Passive Tracer  ==!
@@ -361,8 +379,6 @@ CONTAINS
                   &                       / e3v(ji,jj,jk,Kaa) * vmask(ji,jj,jk)
             END_3D
          ENDIF
-         !
-         IF( ln_zad_Aimp ) CALL dyn_adv_imp    ( kstp, Kbb, Kmm, Krhs, uu(:,:,:,Kaa), vv(:,:,:,Kaa), wi, Kaa )
          !
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             ze3Tb = e3t(ji,jj,jk,Kbb) * ts(ji,jj,jk,jp_tem,Kbb )
