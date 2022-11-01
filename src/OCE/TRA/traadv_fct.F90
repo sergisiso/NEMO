@@ -32,7 +32,6 @@ MODULE traadv_fct
    PRIVATE
 
    PUBLIC   tra_adv_fct        ! called by traadv.F90
-   PUBLIC   tridia_solver      ! called by dynadv_imp.F90
    PUBLIC   interp_4th_cpt     ! called by traadv_cen.F90
 
    LOGICAL  ::   l_trd   ! flag to compute trends
