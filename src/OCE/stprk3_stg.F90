@@ -20,7 +20,6 @@ MODULE stprk3_stg
    USE step_oce       ! time stepping used modules
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
    USE bdydyn         ! ocean open boundary conditions (define bdy_dyn)
-   USE dynimp         ! implicit verticl advection solver (ln_zad_Aimp=T)
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
 # if defined key_top
    USE trc            ! ocean passive tracers variables
