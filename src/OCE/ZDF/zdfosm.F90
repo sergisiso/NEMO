@@ -920,7 +920,7 @@ CONTAINS
             ! Stokes drift set by assumimg onstant La#=0.3 (=0) or Pierson-Moskovitz spectrum (=1)
          CASE(0:1)
             CALL zdf_osm_iomput( "us_x", tmask(A2D(0),1) * sustke(A2D(0)) * scos_wind(A2D(0)) )   ! x surface Stokes drift
-            CALL zdf_osm_iomput( "us_y", tmask(A2D(0),1) * sustke(A2D(0)) * scos_wind(A2D(0)) )   ! y surface Stokes drift
+            CALL zdf_osm_iomput( "us_y", tmask(A2D(0),1) * sustke(A2D(0)) * ssin_wind(A2D(0)) )   ! y surface Stokes drift
             CALL zdf_osm_iomput( "wind_wave_abs_power", 1000.0_wp * rho0 * tmask(A2D(0),1) * sustar(A2D(0))**2 * sustke(A2D(0)) )
             ! Stokes drift read in from sbcwave  (=2).
          CASE(2:3)
@@ -938,8 +938,8 @@ CONTAINS
          END SELECT
          CALL zdf_osm_iomput( "zwth0",           tmask(A2D(0),1) * swth0(A2D(0))     )      ! <Tw_0>
          CALL zdf_osm_iomput( "zws0",            tmask(A2D(0),1) * sws0(A2D(0))      )      ! <Sw_0>
-         CALL zdf_osm_iomput( "zwb0",            tmask(A2D(0),1) * swb0(A2D(0))      )      ! <Sw_0>
-         CALL zdf_osm_iomput( "zwbav",           tmask(A2D(0),1) * swth0(A2D(0))     )      ! Upward BL-avged turb buoyancy flux
+         CALL zdf_osm_iomput( "zwb0",            tmask(A2D(0),1) * swb0(A2D(0))      )      ! <bw_0>
+         CALL zdf_osm_iomput( "zwbav",           tmask(A2D(0),1) * swbav(A2D(0))     )      ! Upward BL-avged turb buoyancy flux
          CALL zdf_osm_iomput( "ibld",            tmask(A2D(0),1) * nbld(A2D(0))      )      ! Boundary-layer max k
          CALL zdf_osm_iomput( "zdt_bl",          tmask(A2D(0),1) * av_dt_bl(A2D(0))  )      ! dt at ml base
          CALL zdf_osm_iomput( "zds_bl",          tmask(A2D(0),1) * av_ds_bl(A2D(0))  )      ! ds at ml base
@@ -988,7 +988,7 @@ CONTAINS
          CALL zdf_osm_iomput( "dbdx_mle",        umask(A2D(0),1) * dbdx_mle(A2D(0))  )      ! FK dbdx at u-pt
          CALL zdf_osm_iomput( "dbdy_mle",        vmask(A2D(0),1) * dbdy_mle(A2D(0))  )      ! FK dbdy at v-pt
          CALL zdf_osm_iomput( "zdiff_mle",       tmask(A2D(0),1) * zdiff_mle(A2D(0)) )      ! FK diff in MLE at t-pt
-         CALL zdf_osm_iomput( "zvel_mle",        tmask(A2D(0),1) * zdiff_mle(A2D(0)) )      ! FK diff in MLE at t-pt
+         CALL zdf_osm_iomput( "zvel_mle",        tmask(A2D(0),1) * zvel_mle(A2D(0)) )       ! FK velocity in MLE at t-pt
       END IF
       !
       ! Lateral boundary conditions on ghamu and ghamv, currently on W-grid (sign unchanged), needed to caclulate gham[uv] on u and
@@ -3450,7 +3450,7 @@ CONTAINS
             osmdia2d(A2D(0)) = posmdia2d(:,:)
             CALL iom_put( cdname, osmdia2d(A2D(nn_hls)) )
          ELSE   ! Halo present
-            CALL iom_put( cdname, osmdia2d )
+            CALL iom_put( cdname, posmdia2d )
          END IF
       END IF
       !
@@ -3473,7 +3473,7 @@ CONTAINS
             osmdia3d(A2D(0),:) = posmdia3d(:,:,:)
             CALL iom_put( cdname, osmdia3d(A2D(nn_hls),:) )
          ELSE   ! Halo present
-            CALL iom_put( cdname, osmdia3d )
+            CALL iom_put( cdname, posmdia3d )
          END IF
       END IF
       !

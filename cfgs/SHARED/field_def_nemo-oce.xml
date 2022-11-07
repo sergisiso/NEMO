@@ -330,7 +330,12 @@ that are available in the tidal-forcing implementation (see
     <field id="zustar"              long_name="friction velocity"                        unit="m/s"     />
     <field id="zwstrl"              long_name="langmuir velocity scale"                  unit="m/s"     />
     <field id="zvstr"               long_name="mixed velocity scale"                     unit="m/s"     />
-    <field id="zla"                 long_name="langmuir number"                          unit="m/s"     />
+    <field id="zla"                 long_name="langmuir number"                          unit="#"       />
+    <field id="wmp"                 long_name="wave mean period"                         unit="s"       />
+    <field id="hsw"                 long_name="significant wave height"                  unit="m"       />
+    <field id="wmp_NP"              long_name="wave mean period from NP spectrum"        unit="s"       />
+    <field id="hsw_NP"              long_name="significant wave height from NP spectrum" unit="m"       />
+    <field id="wndm"                long_name="U_10"                                     unit="m/s"     />
     <field id="wind_wave_abs_power" long_name="\rho |U_s| x u*^2"                        unit="mW"      />
     <field id="wind_wave_power"     long_name="U_s \dot  tau"                            unit="mW"      />
     <field id="wind_power"          long_name="\rho  u*^3"                               unit="mW"      />
