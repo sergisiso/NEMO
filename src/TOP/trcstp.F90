@@ -59,7 +59,7 @@ CONTAINS
       !
       INTEGER ::   jk, jn   ! dummy loop indices
       REAL(wp)::   ztrai    ! local scalar
-      LOGICAL ::   ll_trcstat ! local logical
+      LOGICAL ::   ll_trcstat, ll_trcpis ! local logical
       CHARACTER (len=25) ::   charout   !
       !!-------------------------------------------------------------------
       !
@@ -82,11 +82,14 @@ CONTAINS
             cvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
          END DO
          IF( ln_pisces )  THEN
-            IF ( ll_trcstat .OR. kt == nitrst .OR. ( ln_check_mass .AND. kt == nitend )   &
-               & .OR. iom_use( "pno3tot" ) .OR. iom_use( "ppo4tot" ) .OR. iom_use( "psiltot" )   &
-               & .OR. iom_use( "palktot" ) .OR. iom_use( "pfertot" ) )                           &
-               &     areatot = glob_sum( 'trcstp', cvol(:,:,:) )
+            IF ( iom_use( "pno3tot" ) .OR. iom_use( "ppo4tot" ) .OR. iom_use( "psiltot" ) &
+               &  .OR. iom_use( "palktot" ) .OR. iom_use( "pfertot" ) ) &
+               & ll_trcpis = .TRUE.
+         ELSE
+            ll_trcpis = .FALSE.
          ENDIF
+         IF ( ll_trcstat .OR. kt == nitrst .OR. ( ln_check_mass .AND. kt == nitend ) .OR. ll_trcpis ) &
+            &     areatot = glob_sum( 'trcstp', cvol(:,:,:) )
       ENDIF
       !
       IF( l_trcdm2dc )   CALL trc_mean_qsr( kt )
