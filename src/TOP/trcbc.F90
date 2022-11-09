@@ -178,6 +178,7 @@ CONTAINS
       END DO
 
       ! Print summmary of Boundary Conditions
+      IF( .NOT.ln_rnf .OR. .NOT.ln_linssh )   ln_rnf_ctl = .FALSE.
       IF( lwp ) THEN
          WRITE(numout,*)
          WRITE(numout,'(a,i3)') '   Total tracers to be initialized with SURFACE BCs data:', nb_trcsbc
@@ -198,7 +199,6 @@ CONTAINS
             END DO
          ENDIF
          WRITE(numout,'(2a)') '   COASTAL BC data repository : ', TRIM(cn_dir_cbc)
-         IF( .NOT.ln_rnf .OR. .NOT.ln_linssh )   ln_rnf_ctl = .FALSE.
          IF( ln_rnf_ctl )  WRITE(numout,'(a)') &
               &            ' -> Remove runoff dilution effect on tracers with absent river load (ln_rnf_ctl = .TRUE.)'
          WRITE(numout,*)
