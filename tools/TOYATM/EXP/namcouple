@@ -6,7 +6,7 @@
 # Any line beginning with # is ignored. Blank lines are not allowed
 ####################################################################
  $NFIELDS 
-12
+13
  $END
 ############################################
  $RUNTIME 
@@ -86,6 +86,15 @@ P 0 P 2
 CHECKIN BLASOLD SCRIPR CHECKOUT 
 INT=1
 0.  0
+BILINEAR LR SCALAR LATLON 1
+INT=1
+#
+ATSOLFLX O_MSLP 1 5400 4 rst.nc EXPOUT
+180 90 180 148 lmdz torc
+P 0 P 2
+CHECKIN BLASOLD SCRIPR CHECKOUT
+INT=1
+100000.  0
 BILINEAR LR SCALAR LATLON 1
 INT=1
 #
