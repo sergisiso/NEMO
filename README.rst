@@ -63,8 +63,8 @@ Reference manuals fully describing NEMO  for the three main component
 * |ICE| simulates sea-ice {thermo}dynamics, brine inclusions and subgrid-scale thickness 
   variations (`./src/ICE <./src/ICE>`_)
 
-* |MBG| models the {on,off}line oceanic tracers transport and biogeochemical processes 
-  (`./src/TOP <./src/TOP>`_)
+* |MBG| models the {on,off}line oceanic tracers transport  
+  (`./src/TOP <./src/TOP>`_) and PISCES biogeochemical processes
 are available from Zenodo:
 
 ============ ======================== =====
@@ -72,7 +72,8 @@ are available from Zenodo:
 ============ ======================== =====
  |NEMO-OCE|   `NEMO ocean engine`_    .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.6334656.svg
                                          :target: https://doi.org/10.5281/zenodo.6334656                        
- |NEMO-ICE|   `NEMO Sea Ice engine`_  *not yet available*
+ |NEMO-ICE|   `NEMO Sea Ice engine`_  .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3878122.svg
+                                         :target: https://doi.org/10.5281/zenodo.3878122
  |NEMO-MBG|   `NEMO Tracers engine`_  .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1471700.svg
                                          :target: https://doi.org/10.5281/zenodo.1471700
 ============ ======================== =====
