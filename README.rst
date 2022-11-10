@@ -21,6 +21,7 @@
 .. _`NEMO ocean engine`: https://zenodo.org/record/1464816
 .. _`NEMO Tracers engine` : https://zenodo.org/record/1471700
 .. _`NEMO Sea Ice engine`: https://zenodo.org/record/1471689
+.. _`PISCES`: https://www.pisces-community.org/index.php/model-description/
 
 
 **Welcome to NEMO home page!**
@@ -64,7 +65,8 @@ Reference manuals fully describing NEMO  for the three main component
   variations (`./src/ICE <./src/ICE>`_)
 
 * |MBG| models the {on,off}line oceanic tracers transport  
-  (`./src/TOP <./src/TOP>`_) and PISCES biogeochemical processes
+  (`./src/TOP <./src/TOP>`_) ; and `PISCES`_ models the biogeochemical processes (`.src/TOP/PISCES <.src/TOP/PISCES>`_)
+
 are available from Zenodo:
 
 ============ ======================== =====
