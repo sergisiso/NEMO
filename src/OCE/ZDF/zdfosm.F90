@@ -1665,7 +1665,7 @@ CONTAINS
                      &                   e3w(ji,jj,jm,Kmm) )
                   
                   !                    zhbl_s = MIN(zhbl_s, gdepw(ji,jj, mbkt(ji,jj) + 1,Kmm) - depth_tol)
-                  IF ( zhbl_s >= mbkt(ji,jj) + 1 ) THEN
+                  IF ( zhbl_s >= gdepw(ji,jj,mbkt(ji,jj) + 1,Kmm) ) THEN
                      zhbl_s      = MIN( zhbl_s,  gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) - depth_tol )
                      l_pyc(ji,jj) = .FALSE.
                   ENDIF
