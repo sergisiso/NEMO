@@ -191,9 +191,6 @@ CONTAINS
          ahv_bbl(:,:) = sf_dyn(jf_vbl)%fnow(:,:,1) * vmask(:,:,1)
       ENDIF
       !
-      !
-      CALL eos( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
-      !
       IF(sn_cfctl%l_prtctl) THEN                 ! print control
          CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask )
          CALL prt_ctl(tab3d_1=ts(:,:,:,jp_sal,Kmm), clinfo1=' sn      - : ', mask1=tmask )

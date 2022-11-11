@@ -202,7 +202,7 @@ CONTAINS
                  IF( gainmass(jn,1) > 0. ) THEN
                     ztotmass = glob_sum( 'trcrad', ptr(:,:,:,jn,itime) * cvol(:,:,:) )
                     IF(lwp) WRITE(numout, '(a, i2, a, D23.16, a, D23.16)') 'trcrad ptrb, traceur ', jn  &
-                         &        , ' total mass : ', ztotmass, ', mass gain : ',  gainmass(jn,1)
+                         &        , ' total mass : ', ztotmass, ', mass gain : ',  gainmass(jn,2)
                  END IF
               END DO
            ENDIF
