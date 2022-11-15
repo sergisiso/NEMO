@@ -520,7 +520,7 @@ sub catfile {
   my $path  = shift @names;
 
   for my $name (@names) {
-    $path .= '/' . $name if $name;
+    $path .= '/' . $name if (length $name);
   }
 
   return $path;
