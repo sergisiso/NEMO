@@ -193,24 +193,28 @@ CONTAINS
       END_3D
       !                                            !- vertical components -!   ww
       !
-      IF( ln_dynadv_vec ) THEN                                                                       ! ww cross-level velocity consistent with uu/vv at Kmm
-          CALL wzv  ( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww )
-          IF( ln_zad_Aimp )  THEN
-             IF( kstg == 3 )  THEN
-                CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, kstg )     ! Adaptive-implicit vertical advection partitioning
-             ELSE
-                wi(:,:,:) = 0.0_wp
-             ENDIF
-          ENDIF
-      ELSE                                                                                           ! ww cross-level velocity consistent with zaU/zaV
-          CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )
-          IF( ln_zad_Aimp )  THEN
-             IF( kstg == 3 )  THEN
-                CALL wAimp( kstp, Kmm, zaU, zaV, ww, wi, kstg )                         ! Adaptive-implicit vertical advection partitioning
-             ELSE
-                wi(:,:,:) = 0.0_wp
-             ENDIF
-          ENDIF
+      ! Always need:                               ! ww cross-level velocity consistent with zaU/zaV
+      !
+      CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww_T )
+      !
+      !                                            ! Adaptive-implicit vertical advection partitioning
+      IF( ln_zad_Aimp )  wi_T(:,:,:) = 0.0_wp                                                    ! ensure it is zero for stages 1 and 2
+      IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, zaU, zaV, ww_T, wi_T, kstg )     ! Partition at stage 3 only
+      !
+      IF( ln_dynadv_vec ) THEN
+         ! Also need:                              ! ww cross-level velocity consistent with uu/vv at Kmm
+         CALL wzv  ( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww_U )
+         !
+         !                                         ! Adaptive-implicit vertical advection partitioning
+         IF( ln_zad_Aimp )  wi_U(:,:,:) = 0.0_wp                                                                      ! ensure it is zero for stages 1 and 2
+         IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww_U, wi_U, kstg )   ! partition at stage 3 only
+         !
+         !                                         ! use ww cross-level velocity consistent with uu/vv at Kmm
+         IF( ln_zad_Aimp ) wi = wi_U
+         ww = ww_U
+      ELSE                                         ! use ww cross-level velocity consistent with zaU/zaV for momentum
+         IF( ln_zad_Aimp ) wi = wi_T
+         ww = ww_T
       ENDIF
       !
 
@@ -224,16 +228,13 @@ CONTAINS
 !===>>>>>> Modify dyn_adv_... dyn_keg routines so that Krhs to zero useless
       !                                         ! advection (VF or FF)	==> RHS
       IF( ln_dynadv_vec ) THEN                                            ! uu and vv used for momentum advection
-         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs)
+         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs )
       ELSE                                                                ! advective velocity used for momentum advection
          CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs, zaU, zaV, ww )
       ENDIF
       !                                         ! Coriolis / vorticity  ==> RHS
       CALL dyn_vor( kstp,      Kmm      , uu, vv, Krhs )
       !
-!!gm à appeler que pour ln_zad_Aimp=T   et en ne faisant que wi  par zdf
-!!                                              ! ZAD (implicit part)   ==> RHS
-!!    CALL dyn_zdf    ( kstp, Kbb, Kmm, Krhs, uu, vv, Kaa  )
 
 !===>>>>>> Modify dyn_hpg & dyn_hpg_...  routines : rhd computed in dyn_hpg and pass in argument to dyn_hpg_...
 
@@ -256,14 +257,10 @@ CONTAINS
       ! RHS of tracers : ADV only using (zaU,zaV,ww)
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
-      !                                            ! Advective velocity needed for tracers advection - already computed if ln_dynadv_vec=F
-      IF( ln_dynadv_vec )   CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )
-      IF( ln_dynadv_vec .AND. ln_zad_Aimp )  THEN
-         IF( kstg == 3 )  THEN
-            CALL wAimp( kstp, Kmm, zaU, zaV, ww, wi, kstg )                         ! Adaptive-implicit vertical advection partitioning
-         ELSE
-            wi(:,:,:) = 0.0_wp
-         ENDIF
+      !                                            ! Advective velocity needed for tracers advection - already in use if ln_dynadv_vec=F
+      IF( ln_dynadv_vec )  THEN
+         ww(:,:,:) = ww_T(:,:,:)
+         IF( ln_zad_Aimp ) wi(:,:,:) = wi_T(:,:,:)
       ENDIF
       !
 # if defined key_top
@@ -433,7 +430,12 @@ CONTAINS
          !
          !                                      !==  DYN & TRA time integration + ZDF  ==!   ∆t = rDt
          !
+         IF( ln_dynadv_vec ) THEN 
+                             ww = ww_U
+                             IF( ln_zad_Aimp ) wi = wi_U
+         ENDIF 
                             CALL dyn_zdf( kstp, Kbb, Kmm, Krhs, uu, vv, Kaa  )  ! vertical diffusion and time integration
+         IF( ln_dynadv_vec .AND. ln_zad_Aimp )  wi = wi_T
                             CALL tra_zdf( kstp, Kbb, Kmm, Krhs, ts    , Kaa  )  ! vertical mixing and after tracer fields
          IF( ln_zdfnpc  )   CALL tra_npc( kstp,      Kmm, Krhs, ts    , Kaa  )  ! update after fields by non-penetrative convection
          !

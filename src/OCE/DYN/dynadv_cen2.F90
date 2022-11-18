@@ -26,8 +26,8 @@ MODULE dynadv_cen2
 
    PUBLIC   dyn_adv_cen2   ! routine called by step.F90
 #if defined key_RK3
-   REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_dync2 = 0.15_wp  ! starting Courant number threshold for adaptive implicit vertical advection
-   REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_dync2 = 0.85_wp  ! stability constraint for cen2 with RK3 (=1.73 in Lemarie et al 2015)
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_dync2 = 1.25_wp  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_dync2 = 1.70_wp  ! stability constraint for cen2 with RK3 (=1.73 in Lemarie et al 2015)
 #else
    REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_dync2 = 0.15_wp  ! starting Courant number threshold for adaptive implicit vertical advection
    REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_dync2 = 0.85_wp  ! stability constraint for cen2 with MLF (=0.904 in Lemarie et al 2015)

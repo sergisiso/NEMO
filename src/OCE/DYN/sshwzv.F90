@@ -53,7 +53,7 @@ MODULE sshwzv
       MODULE PROCEDURE wzv_MLF, wzv_RK3
    END INTERFACE
    INTERFACE wAimp
-      MODULE PROCEDURE wAimp_MLF, wAimp_RK3
+      MODULE PROCEDURE wAimp_MLF, wAimp_RK3, wAimp_RK3_alt
    END INTERFACE
 
    PUBLIC   ssh_nxt        ! called by step.F90
@@ -568,11 +568,12 @@ CONTAINS
          Cu_cut = r_stb_cstra_dyn
          Cu_mid = 0.5_wp*(Cu_cut + Cu_min)
          Fcu    = (Cu_cut*Cu_cut-Cu_min*Cu_min)
+         IF(lwp) WRITE(numout,*) 'Partitioning parameters: ', Cu_min, Cu_cut, Cu_mid, Fcu
       ENDIF
       !
       ! Calculate Courant numbers
       !
-      zdt = rDt                              ! RK3: stage-dependent timestep
+      zdt = 1._wp * rn_Dt                    ! RK3: 3rd stage timestep
       !
       IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN
          DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
@@ -606,6 +607,12 @@ CONTAINS
          END_3D
       ENDIF
       CALL iom_put("Courant",Cu_adv)
+      IF( iom_use("Aimp_Cmx") )   THEN
+         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values to use as temporary store
+         Cu_adv(:,:,jpk) = MAXVAL(Cu_adv, DIM=3)        ! Use seabed points to hold temporary maximums
+         CALL iom_put('Aimp_Cmx',Cu_adv(:,:,jpk))       ! to record activation locations at each stage
+         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values for possible o/p of Cu_adv in stpctl
+      ENDIF
       !
       IF( MAXVAL( Cu_adv(:,:,:) ) > Cu_min ) THEN       ! Quick check if any breaches anywhere
          DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 2, -1 )    ! or scan Courant criterion and partition ! w where necessary
@@ -640,14 +647,151 @@ CONTAINS
          pwi    (:,:,:) = 0._wp
       ENDIF
       IF( kstage == 3 ) CALL iom_put("wimp",pwi)
-      !write( clmname, '(a,i1)' ) 'Aimp_loc_', kstage                ! Output field name depends on stage
-      clmname = 'Aimp_loc'
-      WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,1) = 1._wp   ! Use surface points to hold temporary indicators
-      CALL iom_put(TRIM(clmname),Cu_adv(:,:,1))                            ! to record activation locations at each stage
-      Cu_adv(:,:,1) = 0._wp                                          ! reset surface values for possible o/p of Cu_adv in stpctl
+      IF( iom_use("Aimp_loc") )   THEN
+         WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,jpk) = 1._wp
+         CALL iom_put("Aimp_loc",Cu_adv(:,:,jpk))
+         Cu_adv(:,:,jpk) = 0._wp
+      ENDIF
       !
       IF( ln_timing )   CALL timing_stop('wAimp')
       !
    END SUBROUTINE wAimp_RK3
+
+   SUBROUTINE wAimp_RK3_alt( kt, Kmm, puu, pvv, pww, pwi, kstage, kalt )
+      !!----------------------------------------------------------------------
+      !!                ***  ROUTINE wAimp  ***
+      !!
+      !! ** Purpose :   compute the Courant number and partition vertical velocity
+      !!                if a proportion needs to be treated implicitly
+      !!
+      !! ** Method  : -
+      !!
+      !! ** action  :   ww      : now vertical velocity (to be handled explicitly)
+      !!            :   wi      : now vertical velocity (for implicit treatment)
+      !!
+      !! Reference  : Shchepetkin, A. F. (2015): An adaptive, Courant-number-dependent
+      !!              implicit scheme for vertical advection in oceanic modeling.
+      !!              Ocean Modelling, 91, 38-69.
+      !!
+      !!              Wicker, L. J. and W. C. Skamarock (2020): An Implicit-Explicit
+      !!              Vertical Transport Scheme for Convection-Allowing Models.
+      !!              Monthly Weather Review, 148:9, 3893-S3910.
+      !!              https://doi.org/10.1175/MWR-D-20-0055.1
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt   ! time step
+      INTEGER, INTENT(in) ::   Kmm  ! time level index
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(out  ) ::   pwi            !  vertical velocity at Kmm (implicit part)
+      INTEGER, INTENT(in) ::   kstage                                     !  RK3 stage indictor
+      INTEGER, INTENT(in) ::   kalt                                       !  Alternative partitioning indictor
+      !
+      INTEGER  ::   ji, jj, jk   ! dummy loop indices
+      REAL(wp)             ::   zcff, z1_e3t, z1_e3w, zdt, zCu_h, zCu_v   !  local scalars
+      REAL(wp)             ::   zCu_min, zCu_max, zCu_cut                 !  local scalars
+      REAL(wp) , PARAMETER ::   Cu_min_v = 0.8_wp           ! minimum Courant number for transitioning
+      REAL(wp) , PARAMETER ::   Cu_max_v = 0.9_wp           ! maximum allowable vertical Courant number
+      !REAL(wp) , PARAMETER ::   Cu_max_h = 0.9_wp           ! maximum allowable horizontal Courant number
+      REAL(wp) , PARAMETER ::   Cu_max_h = 4.0_wp           ! maximum allowable horizontal Courant number
+      CHARACTER(LEN=10) :: clmname
+      !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('wAimp')
+      !
+      IF( kt == nit000 ) THEN
+         IF(lwp) WRITE(numout,*)
+         IF(lwp) WRITE(numout,*) 'wAimp_RK3_alt : Courant number-based partitioning of now vertical velocity '
+         IF(lwp) WRITE(numout,*) '~~~~~ '
+         Cu_min = r_stb_thres_dyn
+         Cu_cut = r_stb_cstra_dyn
+         Cu_mid = 0.5_wp*(Cu_cut + Cu_min)
+         Fcu    = (Cu_cut*Cu_cut-Cu_min*Cu_min)
+         IF(lwp) WRITE(numout,*) 'Partitioning parameters: ', Cu_min, Cu_cut, Cu_mid, Fcu
+      ENDIF
+      !
+      ! Calculate Courant numbers
+      !
+      zdt = 1._wp * rn_Dt                    ! RK3: 3rd stage timestep
+      !
+      ! Sort of horizontal Courant number:
+      ! JC: Is it still worth saving into a 3d array ? I don't believe.
+      IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN
+         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
+            Cu_adv(ji,jj,jk) =   zdt *                                                                          &
+               &  ( ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk) + un_td(ji  ,jj,jk), 0._wp ) -   &
+               &      MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk) + un_td(ji-1,jj,jk), 0._wp ) )   &
+               &  + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk) + vn_td(ji,jj  ,jk), 0._wp ) -   &
+               &      MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk) + vn_td(ji,jj-1,jk), 0._wp ) )   &
+               &                             ) * z1_e3t * r1_e1e2t(ji,jj)
+         END_3D
+      ELSE
+         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
+            Cu_adv(ji,jj,jk) =   zdt *                                                      &
+               &  ( ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk), 0._wp ) -   &
+               &      MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk), 0._wp ) )   &
+               &  + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk), 0._wp ) -   &
+               &      MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk), 0._wp ) )   &
+               &                             ) * z1_e3t * r1_e1e2t(ji,jj)
+         END_3D
+      ENDIF
+      !
+      ! JC: Warning: this is the horizontal Courant number this time
+      ! not the total as in previous versions of the scheme.
+      CALL iom_put("Courant",Cu_adv)
+      !
+      IF( iom_use("Aimp_Cmx") )   THEN
+         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values to use as temporary store
+         Cu_adv(:,:,jpk) = MAXVAL(Cu_adv, DIM=3)        ! Use seabed points to hold temporary maximums
+         CALL iom_put('Aimp_Cmx',Cu_adv(:,:,jpk))       ! to record activation locations at each stage
+         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values for possible o/p of Cu_adv in stpctl
+      ENDIF
+      !
+      pwi(:,:,:) = 0.0_wp
+      DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 2, -1 )
+         !
+         IF ( pww(ji,jj,jk) > 0._wp ) THEN
+            zCu_h =  Cu_adv(ji,jj,jk  )
+         ELSE
+            zCu_h =  Cu_adv(ji,jj,jk-1)
+         ENDIF
+         ! Vertical Courant Number:
+         z1_e3w = 1._wp / e3w(ji,jj,jk,Kmm)
+         zCu_v = zdt * z1_e3w * ABS (pww(ji,jj,jk))
+         !
+         zCu_min = Cu_min_v * (1._wp - zCu_h / Cu_max_h)
+         zCu_max = Cu_max_v * (1._wp - zCu_h / Cu_max_h)
+         zCu_cut = 2._wp * zCu_max - zCu_min
+         !
+         IF( zCu_v <= zCu_min ) THEN            !<-- Fully explicit
+            zcff = 0._wp
+         ELSEIF( zCu_v < zCu_cut ) THEN         !<-- Mixed explicit
+            zcff = ( zCu_v - zCu_min )**2
+            zcff = zcff / (4._wp * zCu_max * (zCu_max - zCu_min))
+         ELSE                                   !<-- Mostly implicit
+            zcff = ( zCu_v - zCu_max ) / zCu_max
+         ENDIF
+         zcff = MIN(1._wp, zcff)
+         zcff = MAX(0._wp, zcff)
+         !
+         ! Split vertical velocity:
+         pwi(ji,jj,jk) =           zcff   * pww(ji,jj,jk)
+         pww(ji,jj,jk) = ( 1._wp - zcff ) * pww(ji,jj,jk)
+         !
+         Cu_adv(ji,jj,jk) = zcff               ! Reuse array to output coefficient below and in stp_ctl
+      END_3D
+      Cu_adv(:,:,1) = 0._wp
+      !
+      IF( kstage == 3 ) CALL iom_put("wimp",pwi)
+      IF( iom_use("Aimp_loc") )   THEN
+         WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,1) = 1._wp
+         CALL iom_put("Aimp_loc",Cu_adv(:,:,1))
+         Cu_adv(:,:,1) = 0._wp
+      ENDIF
+      !
+      IF( ln_timing )   CALL timing_stop('wAimp')
+      !
+   END SUBROUTINE wAimp_RK3_alt
    !!======================================================================
 END MODULE sshwzv
