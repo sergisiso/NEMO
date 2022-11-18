@@ -78,7 +78,7 @@ MODULE traadv
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv( kt, Kbb, Kmm, Kaa, pts, Krhs, pau, pav, paw )
+   SUBROUTINE tra_adv( kt, Kbb, Kmm, Kaa, pts, Krhs, pau, pav, paw, kstg )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv  ***
       !!
@@ -88,6 +88,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
       INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
+      INTEGER,                            OPTIONAL, INTENT(in   ) ::   kstg                ! optional stage indicator
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw       ! advective velocity
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)   , INTENT(inout) ::   pts                 ! active tracers and RHS of tracer equation
       !
@@ -97,11 +98,18 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: ztrdt, ztrds
       ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       LOGICAL ::   lskip
+      LOGICAL ::   ll_dofct
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('tra_adv')
       !
       lskip = .FALSE.
+      ll_dofct = .TRUE.
+
+      ! FCT at last stage only with RK3
+      IF (PRESENT(kstg)) THEN
+         IF (kstg/=3) ll_dofct = .FALSE.
+      ENDIF
 
       ! TEMP: [tiling] These changes not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       IF( ln_tile .AND. nadv == np_FCT )  THEN
@@ -177,7 +185,11 @@ CONTAINS
          CASE ( np_CEN )                                 ! Centered scheme : 2nd / 4th order
             CALL tra_adv_cen( kt, nit000, 'TRA',      zuu, zvv, zww,      Kmm,      pts, jpts, Krhs, nn_cen_h, nn_cen_v )
          CASE ( np_FCT )                                 ! FCT scheme      : 2nd / 4th order
-            CALL tra_adv_fct( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, Kaa, pts, jpts, Krhs, nn_fct_h, nn_fct_v )
+            IF ( ll_dofct ) THEN
+               CALL tra_adv_fct ( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, Kaa, pts, jpts, Krhs, nn_fct_h, nn_fct_v )
+            ELSE
+               CALL tra_adv_cen ( kt, nit000, 'TRA',      zuu, zvv, zww, Kmm, pts, jpts, Krhs, nn_fct_h, nn_fct_v      )
+            ENDIF
          CASE ( np_MUS )                                 ! MUSCL
             CALL tra_adv_mus( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm,      pts, jpts, Krhs, ln_mus_ups         )
          CASE ( np_UBS )                                 ! UBS

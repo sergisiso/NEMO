@@ -334,7 +334,7 @@ CONTAINS
       CALL eos( ts, Kmm, rhd, rhop ) ! now in potential density for tra_mle computation
 !===>>> CAUTION here may be without GM velocity but stokes drift required ! 0 barotropic divergence for GM  != 0 barotropic divergence for SD 
 !!st consistence 2D / 3D - flux de masse 
-      CALL tra_adv( kstp, Kbb, Kmm, Kaa, ts, Krhs, zaU, zaV, ww )       ! hor. + vert. advection	==> RHS
+      CALL tra_adv( kstp, Kbb, Kmm, Kaa, ts, Krhs, zaU, zaV, ww, kstg )       ! hor. + vert. advection	==> RHS
 
 !===>>>>>> stg1&2:  Verify the necessity of these trends (we may need it as there are in the RHS of dynspg_ts ?)
 !!gm ====>>>>   needed for heat and salt fluxes associated with mass/volume flux
