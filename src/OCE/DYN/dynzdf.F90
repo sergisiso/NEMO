@@ -282,7 +282,7 @@ CONTAINS
             puu(ji,jj,jk,Kaa) = puu(ji,jj,jk,Kaa) - zwi(ji,jk) / zwd(ji,jk-1) * puu(ji,jj,jk-1,Kaa)
          END_2D
          !
-         DO_1Di( 0, 0 )                    !==  thrid recurrence : SOLk = ( Lk - Uk * Ek+1 ) / Dk  ==!
+         DO_1Di( 0, 0 )                    !==  third recurrence : SOLk = ( Lk - Uk * Ek+1 ) / Dk  ==!
             puu(ji,jj,jpkm1,Kaa) = puu(ji,jj,jpkm1,Kaa) / zwd(ji,jpkm1)
          END_1D
          DO_2Dik( 0, 0,    jpk-2, 1, -1 )
