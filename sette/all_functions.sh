@@ -296,7 +296,8 @@ set_namelist () {
 
 # Add $VARNAME in namelist file ${EXE_DIR}/$1 in namelist group $NAMGRP
 # on mac osx, replace sed --posix by gsed (available with mac port)
-                sed --posix "/${NAMGRP} /a\ ${VAR_NAME} " ${EXE_DIR}/$1 > ${EXE_DIR}/$1.tmp || gsed --posix "/${NAMGRP} /a\ ${VAR_NAME} " ${EXE_DIR}/$1 > ${EXE_DIR}/$1.tmp
+                sed    --posix -e "/${NAMGRP}[ !]/a\ ${VAR_NAME} " -e "/${NAMGRP}$/a\ ${VAR_NAME} " ${EXE_DIR}/$1 > ${EXE_DIR}/$1.tmp || \
+                  gsed --posix -e "/${NAMGRP}[ !]/a\ ${VAR_NAME} " -e "/${NAMGRP}$/a\ ${VAR_NAME} " ${EXE_DIR}/$1 > ${EXE_DIR}/$1.tmp
 
 # if file not empty replace ${EXE_DIR}/$1
                if [ -s ${EXE_DIR}/$1.tmp ] ; then
