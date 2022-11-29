@@ -789,7 +789,7 @@ CONTAINS
 #if defined key_RK3
       !                                                !*  RK3 case
       !
-      IF(.NOT.ln_dynadv_vec .AND. ln_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
+      IF( (.NOT.(ln_dynadv_vec .OR. ln_linssh)) .AND. ln_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
          !
 # if defined key_qcoTest_FluxForm
          !                                       ! 'key_qcoTest_FluxForm' : simple ssh average
