@@ -104,13 +104,7 @@ CONTAINS
          IF(lwp) write(numout,*) '    PISCES  Biology time step    rfact2 = ', rfact2
          IF(lwp) WRITE(numout,*)
       ENDIF
-
-      IF( l_1st_euler .OR. ln_top_euler ) THEN
-         DO jn = jp_pcs0, jp_pcs1              !   SMS on tracer without Asselin time-filter
-            tr(:,:,:,jn,Kbb) = tr(:,:,:,jn,Kmm)
-         END DO
-      ENDIF
-
+      !
       DO jn = jp_pcs0, jp_pcs1              !   Store the tracer concentrations before entering PISCES
          ztrbbio(:,:,:,jn) = tr(:,:,:,jn,Kbb)
       END DO

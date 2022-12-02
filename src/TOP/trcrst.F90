@@ -130,14 +130,23 @@ CONTAINS
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~'
 
       ! READ prognostic variables and computes diagnostic variable
-#if ! defined key_RK3
+#if defined key_RK3
+      DO jn = 1, jptra      ! RK3: Before time step
+         CALL iom_get( numrtr, jpdom_auto, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kbb) )
+      END DO
+#else
       DO jn = 1, jptra      ! MLF only : Now time step
          CALL iom_get( numrtr, jpdom_auto, 'TRN'//ctrcnm(jn), tr(:,:,:,jn,Kmm) )
       END DO
+      IF( l_1st_euler .OR. ln_top_euler ) THEN
+         IF(lwp) WRITE(numout,*) '              + adjustment for forward Euler time stepping'
+         tr(:,:,:,1:jptra,Kbb) = tr(:,:,:,1:jptra,Kmm)
+      ELSE                  ! MLF only : Before time step
+         DO jn = 1, jptra
+            CALL iom_get( numrtr, jpdom_auto, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kbb) )
+         END DO
+      END IF
 #endif
-      DO jn = 1, jptra      ! RK3 and MLF : Before time step
-         CALL iom_get( numrtr, jpdom_auto, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kbb) )
-      END DO
       !
       IF(.NOT.lrxios) CALL iom_delay_rst( 'READ', 'TOP', numrtr )   ! read only TOP delayed global communication variables
    END SUBROUTINE trc_rst_read
