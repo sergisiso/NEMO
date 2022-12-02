@@ -155,6 +155,9 @@ function runcmpres(){
   MAIN_DIR=$(dirname $SETTE_DIR)
   quiet=0
   . ./param.cfg
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]:-${TEST_CONFIGS[@]}}     # workaround for some dated param.cfgs files
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/ SAS / ORCA2_SAS_ICE }   # workaround for some dated param.cfgs files
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/ AGRIF / AGRIF_DEMO }    # workaround for some dated param.cfgs files
   USER_INPUT='yes'        # Default: yes => request user input on decisions.
 
   mach=${COMPILER}
@@ -327,8 +330,7 @@ fi
       echo "REFERENCE directory : $NEMO_VALID_REF at rev $NEMO_REV_REF"
       echo ''
      fi
-     checklist=(GYRE_PISCES ORCA2_ICE_PISCES ORCA2_OFF_PISCES AMM12 ORCA2_SAS_ICE ORCA2_ICE_OBS AGRIF_DEMO WED025 ISOMIP+ VORTEX ICE_AGRIF OVERFLOW LOCK_EXCHANGE SWG) 
-     for repro_test in ${checklist[@]}
+     for repro_test in ${TEST_CONFIGS_AVAILABLE[@]}
      do
         runcmpres $NEMO_VALID $repro_test $NEMO_VALID_REF $NEMO_REV_REF $quiet
      done
