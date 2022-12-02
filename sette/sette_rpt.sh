@@ -266,10 +266,12 @@ function runcmpres(){
 
 #
   if [ -d $vdir/$mach/$dorv/$nam ]; then
-    f1s=$vdir/$mach/$dorv/$nam/LONG/run.stat
-    f1t=$vdir/$mach/$dorv/$nam/LONG/tracer.stat
-    f2s=$vdirref/$mach/$dorvref/$nam/LONG/run.stat
-    f2t=$vdirref/$mach/$dorvref/$nam/LONG/tracer.stat
+    # Selection of the test run used for the comparison (LONG or one of the reproducibility-test runs)
+    TESTD=$(ls -1 ${vdir}/${mach}/${dorv}/${nam}/ | grep -m 1 -e '^LONG$' -e '^REPRO_'); TESTD=${TESTD:-LONG}
+    f1s=$vdir/$mach/$dorv/${nam}/${TESTD}/run.stat
+    f1t=$vdir/$mach/$dorv/${nam}/${TESTD}/tracer.stat
+    f2s=$vdirref/$mach/$dorvref/${nam}/${TESTD}/run.stat
+    f2t=$vdirref/$mach/$dorvref/${nam}/${TESTD}/tracer.stat
     if  [ ! -f $f1s ] && [ ! -f $f1t ] ; then
       printf "%-20s %s\n" $nam " incomplete test";
       return;
@@ -285,11 +287,11 @@ function runcmpres(){
       cmp -s $f1s $f2s
       if [ $? == 0 ]; then
         if [ $pass == 0 ]; then
-          printf "%-20s %s %s\n" $nam  " run.stat    files are identical "
+          printf "%-20s %s (%s)\n" $nam  " run.stat    files are identical " ${TESTD}
         fi
       else
         get_ktdiff $f1s $f2s
-        printf "%-20s %s %s %-5s %s\n" $nam  " run.stat    files are DIFFERENT (results are different after " $ktdiff " time steps)"
+        printf "%-20s %s %s %-5s (%s)\n" $nam  " run.stat    files are DIFFERENT (results are different after " $ktdiff " time steps) " ${TESTD}
 #
 # Offer view of differences on the second pass
 #
@@ -309,11 +311,11 @@ function runcmpres(){
       cmp -s $f1t $f2t
       if [ $? == 0 ]; then
         if [ $pass == 0 ]; then          
-          printf "%-20s %s %s\n" $nam  " tracer.stat files are identical "
+          printf "%-20s %s (%s)\n" $nam  " tracer.stat files are identical " ${TESTD}
         fi
       else
         get_ktdiff2 $f1t $f2t
-        printf "%-20s %s %s %-5s %s\n" $nam  " tracer.stat files are DIFFERENT (results are different after " $ktdiff " time steps) "
+        printf "%-20s %s %s %-5s (%s)\n" $nam  " tracer.stat files are DIFFERENT (results are different after " $ktdiff " time steps) " ${TESTD}
 #
 # Offer view of differences on the second pass
 #
@@ -350,8 +352,10 @@ function runcmptim(){
 
 #
   if [ -d $vdir/$mach/$dorv/$nam ]; then
-    f1a=$vdir/$mach/$dorv/$nam/LONG/timing.output
-    f2a=$vdirref/$mach/$dorvref/$nam/LONG/timing.output
+    # Selection of the test run used for the comparison (LONG or one of the reproducibility-test runs)
+    TESTD=$(ls -1 ${vdir}/${mach}/${dorv}/${nam}/ | grep -m 1 -e '^LONG$' -e '^REPRO_'); TESTD=${TESTD:-LONG}
+    f1a=$vdir/$mach/$dorv/${nam}/${TESTD}/timing.output
+    f2a=$vdirref/$mach/$dorvref/${nam}/${TESTD}/timing.output
 #
 # Report average CPU time differences (if available)
 #
@@ -470,6 +474,9 @@ function identictest(){
   SETTE_DIR=$(cd $(dirname "$0"); pwd)
   MAIN_DIR=$(dirname $SETTE_DIR)
   . ./param.cfg
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]:-${TEST_CONFIGS[@]}}     # Workaround for some dated param.cfgs files
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/ SAS / ORCA2_SAS_ICE }   # Workaround for some dated param.cfgs files
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/ AGRIF / AGRIF_DEMO }    # Workaround for some dated param.cfgs files
   if [ -z $USER_INPUT ] ; then USER_INPUT='yes' ; fi        # Default: yes => request user input on decisions.
                                                             # (but may br inherited/imported from sette.sh)
 
@@ -636,17 +643,17 @@ do
 # Restartability test
  echo ""
  echo "   !----restart----!   "
- for restart_test in GYRE_PISCES ORCA2_ICE_PISCES ORCA2_OFF_PISCES AMM12 ORCA2_SAS_ICE AGRIF_DEMO WED025 ISOMIP+ OVERFLOW LOCK_EXCHANGE VORTEX ICE_AGRIF SWG
+ for restart_test in ${TEST_CONFIGS_AVAILABLE[@]}
  do
-   resttest $NEMO_VALID $restart_test $pass
+   [ "${restart_test}" != "ORCA2_ICE_OBS" ] && resttest $NEMO_VALID $restart_test $pass
  done
 #
 # Reproducibility tests
  echo ""
  echo "   !----repro----!   "
- for repro_test in GYRE_PISCES ORCA2_ICE_PISCES ORCA2_OFF_PISCES AMM12 ORCA2_SAS_ICE ORCA2_ICE_OBS AGRIF_DEMO WED025 ISOMIP+ VORTEX ICE_AGRIF SWG
+ for repro_test in ${TEST_CONFIGS_AVAILABLE[@]}
  do
-   reprotest $NEMO_VALID $repro_test $pass
+   [ "${repro_test}" != "OVERFLOW" -a "${repro_test}" != "LOCK_EXCHANGE" ] && reprotest $NEMO_VALID $repro_test $pass
  done
 
 # AGRIF special check to ensure results are unchanged with and without key_agrif
@@ -671,14 +678,13 @@ do
      echo 'and'
      echo "REFERENCE directory : $NEMO_VALID_REF at rev $NEMO_REV_REF"
      echo ''
-     checklist=(GYRE_PISCES ORCA2_ICE_PISCES ORCA2_OFF_PISCES AMM12 ORCA2_SAS_ICE AGRIF_DEMO WED025 ISOMIP+ VORTEX ICE_AGRIF OVERFLOW LOCK_EXCHANGE SWG)
-     for repro_test in ${checklist[@]}
+     for runcmp_test in ${TEST_CONFIGS_AVAILABLE[@]}
      do
-       runcmpres $NEMO_VALID $repro_test $NEMO_VALID_REF $NEMO_REV_REF $pass
+       runcmpres $NEMO_VALID $runcmp_test $NEMO_VALID_REF $NEMO_REV_REF $pass
      done
      echo ''
      echo 'Report timing differences between REFERENCE and VALID (if available) :'
-     for repro_test in ${checklist[@]}
+     for repro_test in ${TEST_CONFIGS_AVAILABLE[@]}
      do
        runcmptim $NEMO_VALID $repro_test $NEMO_VALID_REF $NEMO_REV_REF $pass
      done

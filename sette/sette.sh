@@ -263,6 +263,8 @@ if [ ! -d $NEMO_VALIDATION_DIR/$SETTE_SUB_VAL ] && [ ${dry_run} -eq 0 ] ; then
 fi
 export NEMO_VALIDATION_DIR=$NEMO_VALIDATION_DIR/$SETTE_SUB_VAL
 
+TEST_CONFIGS="${TEST_CONFIGS/ORCA2_SAS_ICE/SAS}"   # Shortening of 'ORCA2_SAS_ICE' to 'SAS'
+TEST_CONFIGS="${TEST_CONFIGS/AGRIF_DEMO/AGRIF}"    # Shortening of 'AGRIF_DEMO' to 'AGRIF'
 if [ ${#SETTE_TEST_CONFIGS[@]} -eq 0 ]; then
    echo "=================================="
    echo "Configurations $TEST_CONFIGS will be tested if they are available"
