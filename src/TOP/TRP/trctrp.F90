@@ -89,7 +89,7 @@ CONTAINS
 #endif
 #if ! defined key_RK3
          !                                                 ! MLF only: add the advection trend to the RHS
-                                CALL trc_adv    ( kt, Kbb, Kmm, tr, Krhs )      ! horizontal & vertical advection
+                                CALL trc_adv    ( kt, Kbb, Kmm, Kaa, tr, Krhs )   ! horizontal & vertical advection
 #endif
                                 CALL trc_ldf    ( kt, Kbb, Kmm,       tr, Krhs )  ! lateral mixing
                                 CALL trc_zdf    ( kt, Kbb, Kmm, Krhs, tr, Kaa  )  ! vert. mixing & after tracer	==> after
