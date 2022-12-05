@@ -78,7 +78,7 @@ MODULE traadv
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv( kt, Kbb, Kmm, pts, Krhs, pau, pav, paw )
+   SUBROUTINE tra_adv( kt, Kbb, Kmm, Kaa, pts, Krhs, pau, pav, paw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv  ***
       !!
@@ -86,10 +86,10 @@ CONTAINS
       !!
       !! ** Method  : - Update ts(Krhs) with the advective trend following nadv
       !!----------------------------------------------------------------------
-      INTEGER                                     , INTENT(in   ) ::   kt             ! ocean time-step index
-      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Krhs ! time level indices
-      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw  ! advective velocity
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)   , INTENT(inout) ::   pts            ! active tracers and RHS of tracer equation
+      INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
+      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw       ! advective velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)   , INTENT(inout) ::   pts                 ! active tracers and RHS of tracer equation
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
       REAL(wp), DIMENSION(:,:,:), POINTER ::   zptu, zptv, zptw
@@ -193,7 +193,7 @@ CONTAINS
          CASE ( np_CEN )                                 ! Centered scheme : 2nd / 4th order
             CALL tra_adv_cen    ( kt, nit000, 'TRA',      zuu, zvv, zww, Kmm, pts, jpts, Krhs, nn_cen_h, nn_cen_v      )
          CASE ( np_FCT )                                 ! FCT scheme      : 2nd / 4th order
-               CALL tra_adv_fct ( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, pts, jpts, Krhs, nn_fct_h, nn_fct_v )
+               CALL tra_adv_fct ( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, Kaa, pts, jpts, Krhs, nn_fct_h, nn_fct_v )
          CASE ( np_MUS )                                 ! MUSCL
                 CALL tra_adv_mus( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, pts, jpts, Krhs, ln_mus_ups         )
          CASE ( np_UBS )                                 ! UBS

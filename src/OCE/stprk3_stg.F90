@@ -271,7 +271,7 @@ CONTAINS
             !
             CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
             !
-            CALL trc_adv    ( kstp, Kbb, Kmm, tr, Krhs, zaU, zaV, ww )      ! horizontal & vertical advection
+            CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zaU, zaV, ww ) ! horizontal & vertical advection
             !
             !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
             DO jn = 1, jptra
@@ -299,7 +299,7 @@ CONTAINS
          !
          CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
          !
-         CALL trc_adv    ( kstp, Kbb, Kmm, tr, Krhs, zaU, zaV, ww )      ! horizontal & vertical advection
+         CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zaU, zaV, ww ) ! horizontal & vertical advection
          !
          CALL trc_sms    ( kstp, Kbb, Kbb, Krhs      )       ! tracers: sinks and sources
          CALL trc_trp    ( kstp, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers (without advection)
@@ -320,7 +320,7 @@ CONTAINS
       CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0 ) ! now in potential density for tra_mle computation
 !===>>> CAUTION here may be without GM velocity but stokes drift required ! 0 barotropic divergence for GM  != 0 barotropic divergence for SD 
 !!st consistence 2D / 3D - flux de masse 
-      CALL tra_adv( kstp, Kbb, Kmm, ts, Krhs, zaU, zaV, ww )       ! hor. + vert. advection	==> RHS
+      CALL tra_adv( kstp, Kbb, Kmm, Kaa, ts, Krhs, zaU, zaV, ww )       ! hor. + vert. advection	==> RHS
 
 !===>>>>>> stg1&2:  Verify the necessity of these trends (we may need it as there are in the RHS of dynspg_ts ?)
 !!gm ====>>>>   needed for heat and salt fluxes associated with mass/volume flux

@@ -54,7 +54,7 @@ MODULE traadv_fct
 CONTAINS
 
    SUBROUTINE tra_adv_fct( kt, kit000, cdtype, p2dt, pU, pV, pW,       &
-      &                    Kbb, Kmm, pt, kjpt, Krhs, kn_fct_h, kn_fct_v )
+      &                    Kbb, Kmm, Kaa, pt, kjpt, Krhs, kn_fct_h, kn_fct_v )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_fct  ***
       !!
@@ -70,8 +70,8 @@ CONTAINS
       !!             - send trends to trdtra module for further diagnostics (l_trdtra=T)
       !!             - poleward advective heat and salt transport (ln_diaptr=T)
       !!----------------------------------------------------------------------
-      INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
-      INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
+      INTEGER                                  , INTENT(in   ) ::   kt                   ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs  ! ocean time level indices
       INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
@@ -93,7 +93,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
 #if defined key_loop_fusion
-      CALL tra_adv_fct_lf ( kt, nit000, cdtype, p2dt, pU, pV, pW, Kbb, Kmm, pt, kjpt, Krhs, kn_fct_h, kn_fct_v )
+      CALL tra_adv_fct_lf ( kt, nit000, cdtype, p2dt, pU, pV, pW, Kbb, Kmm, Kaa, pt, kjpt, Krhs, kn_fct_h, kn_fct_v )
 #else
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == kit000 )  THEN
@@ -143,9 +143,9 @@ CONTAINS
          ALLOCATE(zwdia(A2D(nn_hls),jpk), zwinf(A2D(nn_hls),jpk), zwsup(A2D(nn_hls),jpk))
          DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
             zwdia(ji,jj,jk) =  1._wp + p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
-            &                               / e3t(ji,jj,jk,Krhs)
-            zwinf(ji,jj,jk) =  p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Krhs)
-            zwsup(ji,jj,jk) = -p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Krhs)
+            &                               / e3t(ji,jj,jk,Kaa)
+            zwinf(ji,jj,jk) =  p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Kaa)
+            zwsup(ji,jj,jk) = -p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Kaa)
          END_3D
       END IF
       !
@@ -189,7 +189,7 @@ CONTAINS
             pt(ji,jj,jk,jn,Krhs) =                   pt(ji,jj,jk,jn,Krhs) +       ztra   &
                &                                  / e3t(ji,jj,jk,Kmm ) * tmask(ji,jj,jk)
             zwi(ji,jj,jk)    = ( e3t(ji,jj,jk,Kbb) * pt(ji,jj,jk,jn,Kbb) + p2dt * ztra ) &
-               &                                  / e3t(ji,jj,jk,Krhs) * tmask(ji,jj,jk)
+               &                                  / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
          END_3D
 
          IF ( ll_zAimp ) THEN
@@ -309,7 +309,7 @@ CONTAINS
                ztra = - (  zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
                   &      + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  )   &
                   &      + zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) * r1_e1e2t(ji,jj)
-               ztw(ji,jj,jk) = zwi(ji,jj,jk) + p2dt * ztra / e3t(ji,jj,jk,Krhs) * tmask(ji,jj,jk)
+               ztw(ji,jj,jk) = zwi(ji,jj,jk) + p2dt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
             END_3D
             !
             CALL tridia_solver( zwdia, zwsup, zwinf, ztw, ztw , 0 )
@@ -323,7 +323,7 @@ CONTAINS
          !
          !        !==  monotonicity algorithm  ==!
          !
-         CALL nonosc( Kmm, pt(:,:,:,jn,Kbb), zwx, zwy, zwz, zwi, p2dt )
+         CALL nonosc( Kaa, pt(:,:,:,jn,Kbb), zwx, zwy, zwz, zwi, p2dt )
          !
          !        !==  final trend with corrected fluxes  ==!
          !
@@ -332,7 +332,7 @@ CONTAINS
                &      + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  )   &
                &      + zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) * r1_e1e2t(ji,jj)
             pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) + ztra / e3t(ji,jj,jk,Kmm)
-            zwi(ji,jj,jk) = zwi(ji,jj,jk) + p2dt * ztra / e3t(ji,jj,jk,Krhs) * tmask(ji,jj,jk)
+            zwi(ji,jj,jk) = zwi(ji,jj,jk) + p2dt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
          END_3D
          !
          IF ( ll_zAimp ) THEN
@@ -384,7 +384,7 @@ CONTAINS
    END SUBROUTINE tra_adv_fct
 
 
-   SUBROUTINE nonosc( Kmm, pbef, paa, pbb, pcc, paft, p2dt )
+   SUBROUTINE nonosc( Kaa, pbef, paa, pbb, pcc, paft, p2dt )
       !!---------------------------------------------------------------------
       !!                    ***  ROUTINE nonosc  ***
       !!
@@ -397,7 +397,7 @@ CONTAINS
       !!       drange (1995) multi-dimensional forward-in-time and upstream-
       !!       in-space based differencing for fluid
       !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in   ) ::   Kmm             ! time level index
+      INTEGER                         , INTENT(in   ) ::   Kaa             ! time level index
       REAL(wp)                        , INTENT(in   ) ::   p2dt            ! tracer time-step
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pbef            ! before field
       REAL(wp), DIMENSION(A2D(nn_hls)    ,jpk), INTENT(in   ) ::   paft            ! after field
@@ -451,7 +451,7 @@ CONTAINS
                & + MAX( 0., pcc(ji  ,jj  ,jk  ) ) - MIN( 0., pcc(ji  ,jj  ,jk+1) )
 
             ! up & down beta terms
-            zbt = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) / p2dt
+            zbt = e1e2t(ji,jj) * e3t(ji,jj,jk,Kaa) / p2dt
             zbetup(ji,jj,jk) = ( zup            - paft(ji,jj,jk) ) / ( zpos + zrtrn ) * zbt
             zbetdo(ji,jj,jk) = ( paft(ji,jj,jk) - zdo            ) / ( zneg + zrtrn ) * zbt
          END_2D
@@ -689,7 +689,7 @@ CONTAINS
         out = 0.5 * ( zfp * pt(ji,jj,jk,jn,Kbb) + zfm * pt(ji,jj+1,jk,jn,Kbb) )
 
    SUBROUTINE tra_adv_fct_lf( kt, kit000, cdtype, p2dt, pU, pV, pW,       &
-      &                    Kbb, Kmm, pt, kjpt, Krhs, kn_fct_h, kn_fct_v )
+      &                    Kbb, Kmm, Kaa, pt, kjpt, Krhs, kn_fct_h, kn_fct_v )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_fct  ***
       !!
@@ -705,8 +705,8 @@ CONTAINS
       !!             - send trends to trdtra module for further diagnostics (l_trdtra=T)
       !!             - poleward advective heat and salt transport (ln_diaptr=T)
       !!----------------------------------------------------------------------
-      INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
-      INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
+      INTEGER                                  , INTENT(in   ) ::   kt                   ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs  ! ocean time level indices
       INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
@@ -766,9 +766,9 @@ CONTAINS
          ALLOCATE(zwdia(jpi,jpj,jpk), zwinf(jpi,jpj,jpk),zwsup(jpi,jpj,jpk))
          DO_3D( 1, 1, 1, 1, 1, jpkm1 )
             zwdia(ji,jj,jk) =  1._wp + p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
-            &                               / e3t(ji,jj,jk,Krhs)
-            zwinf(ji,jj,jk) =  p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Krhs)
-            zwsup(ji,jj,jk) = -p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Krhs)
+            &                               / e3t(ji,jj,jk,Kaa)
+            zwinf(ji,jj,jk) =  p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Kaa)
+            zwsup(ji,jj,jk) = -p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Kaa)
          END_3D
       END IF
       !
@@ -813,7 +813,7 @@ CONTAINS
                pt(ji,jj,jk,jn,Krhs) =                   pt(ji,jj,jk,jn,Krhs) +       ztra   &
                   &                                  / e3t(ji,jj,jk,Kmm ) * tmask(ji,jj,jk)
                zwi(ji,jj,jk)    = ( e3t(ji,jj,jk,Kbb) * pt(ji,jj,jk,jn,Kbb) + p2dt * ztra ) &
-                  &                                  / e3t(ji,jj,jk,Krhs) * tmask(ji,jj,jk)
+                  &                                  / e3t(ji,jj,jk,Kaa ) * tmask(ji,jj,jk)
             END_2D
          END DO
 
@@ -929,7 +929,7 @@ CONTAINS
                ztra = - (  zwx_3d(ji,jj,jk) - zwx_3d(ji-1,jj  ,jk  )   &
                   &      + zwy_3d(ji,jj,jk) - zwy_3d(ji  ,jj-1,jk  )   &
                   &      + zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) * r1_e1e2t(ji,jj)
-               ztw(ji,jj,jk) = zwi(ji,jj,jk) + p2dt * ztra / e3t(ji,jj,jk,Krhs) * tmask(ji,jj,jk)
+               ztw(ji,jj,jk) = zwi(ji,jj,jk) + p2dt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
             END_3D
             !
             CALL tridia_solver( zwdia, zwsup, zwinf, ztw, ztw , 0 )
@@ -943,7 +943,7 @@ CONTAINS
          !
          !        !==  monotonicity algorithm  ==!
          !
-         CALL nonosc( Kmm, pt(:,:,:,jn,Kbb), zwx_3d, zwy_3d, zwz, zwi, p2dt )
+         CALL nonosc( Kaa, pt(:,:,:,jn,Kbb), zwx_3d, zwy_3d, zwz, zwi, p2dt )
          !
          !        !==  final trend with corrected fluxes  ==!
          !
@@ -952,7 +952,7 @@ CONTAINS
                &      + zwy_3d(ji,jj,jk) - zwy_3d(ji  ,jj-1,jk  )   &
                &      + zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) * r1_e1e2t(ji,jj)
             pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) + ztra / e3t(ji,jj,jk,Kmm)
-            zwi(ji,jj,jk) = zwi(ji,jj,jk) + p2dt * ztra / e3t(ji,jj,jk,Krhs) * tmask(ji,jj,jk)
+            zwi(ji,jj,jk) = zwi(ji,jj,jk) + p2dt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
          END_3D
          !
          IF ( ll_zAimp ) THEN

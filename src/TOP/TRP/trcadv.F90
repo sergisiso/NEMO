@@ -72,7 +72,7 @@ MODULE trcadv
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE trc_adv( kt, Kbb, Kmm, ptr, Krhs, pau, pav, paw )
+   SUBROUTINE trc_adv( kt, Kbb, Kmm, Kaa, ptr, Krhs, pau, pav, paw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trc_adv  ***
       !!
@@ -81,7 +81,7 @@ CONTAINS
       !! ** Method  : - Update tr(Krhs) with the advective trend following nadv
       !!----------------------------------------------------------------------
       INTEGER                                     , INTENT(in   ) ::   kt             ! ocean time-step index
-      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Krhs ! time level indices
+      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw  ! advective velocity
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt)  , INTENT(inout) ::   ptr            ! passive tracers and RHS of tracer equation
       !
@@ -158,7 +158,7 @@ CONTAINS
       CASE ( np_CEN )                                 ! Centered : 2nd / 4th order
          CALL tra_adv_cen   ( kt, nittrc000,'TRC',          zuu, zvv, zww,      Kmm, ptr, jptra, Krhs, nn_cen_h, nn_cen_v )
       CASE ( np_FCT )                                 ! FCT      : 2nd / 4th order
-            CALL tra_adv_fct( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm, ptr, jptra, Krhs, nn_fct_h, nn_fct_v )
+            CALL tra_adv_fct( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm, Kaa, ptr, jptra, Krhs, nn_fct_h, nn_fct_v )
       CASE ( np_MUS )                                 ! MUSCL
             CALL tra_adv_mus( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm, ptr, jptra, Krhs, ln_mus_ups         )
       CASE ( np_UBS )                                 ! UBS
