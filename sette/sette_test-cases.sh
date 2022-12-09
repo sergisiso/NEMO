@@ -113,13 +113,15 @@ TOOLS_DIR=${MAIN_DIR}/tools
 
 if [ -n "${CUSTOM_DIR}" ]; then
   NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
-  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]; then
+  CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
+  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG
   else
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}
   fi
 fi
 CMP_NAM=${1:-$COMPILER}
+CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
 # Copy job_batch_COMPILER file for specific compiler into job_batch_template
 cd ${SETTE_DIR}
 cp BATCH_TEMPLATE/${JOB_PREFIX}-${COMPILER} job_batch_template || exit
@@ -143,7 +145,7 @@ do
 # ---------
 if [ ${config} == "OVERFLOW" ] ;  then
     SETTE_CONFIG="OVERFLOW"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -215,7 +217,7 @@ fi
 if [ ${config} == "OVERFLOW" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
     ## Test for all advection, vert. coordinates, vector form, flux form: test runability and complete all time steps
     ## Needed namelist-xxxx for every type of run tested
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -259,7 +261,7 @@ fi
 # --------------
 if [ ${config} == "LOCK_EXCHANGE" ] ;  then
     SETTE_CONFIG="LOCK_EXCHANGE"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -331,7 +333,7 @@ fi
 if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
     ## Test for all advection, vector form, flux form: test runability and complete all time steps
     ## Needed namelist-xxxx for every type of run tested
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -377,7 +379,7 @@ fi
 # ---------
 if [ ${config} == "VORTEX" ] ;  then
     SETTE_CONFIG="VORTEX"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -571,7 +573,7 @@ fi
 # ---------
 if [ ${config} == "ICE_AGRIF" ] ;  then
     SETTE_CONFIG="ICE_AGRIF"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=10
     else
@@ -770,7 +772,7 @@ fi
 # ------
 if [ ${config} == "ISOMIP+" ] ;  then
     SETTE_CONFIG="ISOMIP+"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -850,7 +852,7 @@ fi
 
 if [ ${config} == "ISOMIP+" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -915,7 +917,7 @@ fi
 # ---------
 if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
     SETTE_CONFIG="SWG"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else

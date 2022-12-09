@@ -112,13 +112,15 @@ CONFIG_DIR0=${MAIN_DIR}/cfgs
 TOOLS_DIR=${MAIN_DIR}/tools
 if [ -n "${CUSTOM_DIR}" ]; then
   NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
-  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]; then
+  CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
+  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG
   else
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}
   fi
 fi
 CMP_NAM=${1:-$COMPILER}
+CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
 
 # Copy job_batch_COMPILER file for specific compiler into job_batch_template
 cd ${SETTE_DIR}
@@ -143,7 +145,7 @@ do
 # -----------
 if [ ${config} == "GYRE_PISCES" ] ;  then
     SETTE_CONFIG="GYRE_PISCES"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12    # 1 day
     else
@@ -290,7 +292,7 @@ fi
 # -----------------
 if [ ${config} == "ORCA2_ICE_PISCES" ] ;  then
     SETTE_CONFIG="ORCA2_ICE_PISCES"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16   # 1 day
     else
@@ -577,7 +579,7 @@ fi
 # ----------------
 if [ ${config} == "ORCA2_OFF_PISCES" ] ;  then
     SETTE_CONFIG="ORCA2_OFF_PISCES"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16   # 4 days
     else
@@ -754,7 +756,7 @@ fi
 # -----
 if [ ${config} == "AMM12" ] ;  then
     SETTE_CONFIG="AMM12"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12   # 3 h
     else
@@ -888,7 +890,7 @@ fi
 # ---------
 if [ ${config} == "SAS" ] ;  then
     SETTE_CONFIG="ORCA2_SAS_ICE"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16   # 1 day
     else
@@ -969,7 +971,7 @@ fi
 
 if [ ${config} == "SAS" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16  # 1 day
     else
@@ -1037,7 +1039,7 @@ fi
 if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
     SETTE_CONFIG="ORCA2_ICE_OBS"${SETTE_STG}
 ## Reproducibility tests
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16  # 1 day
     else
@@ -1157,7 +1159,7 @@ fi
 # -----------
 if [ ${config} == "AGRIF" ] ;  then
     SETTE_CONFIG="AGRIF_DEMO"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=4   # 6h
     else
@@ -1440,7 +1442,7 @@ fi
 
 if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
 ## test code corruption with AGRIF (phase 1) ==> Compile with key_agrif but run with no zoom
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16   # 1d
     else
@@ -1525,7 +1527,7 @@ fi
 # -------
 if [ ${config} == "WED025" ] ;  then
     SETTE_CONFIG="WED025"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12   # 4h
     else
