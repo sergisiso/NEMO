@@ -335,7 +335,7 @@ while [[ $NRUN -ne 0 && $nit -le 1080 ]]; do
       printf "%-3d %s\r" $NRUN 'nemo_sette runs still in queue or running ...';
    else
       printf "%-50s\n" " "
-      ./sette_rpt.sh ${NEMO_DEBUG}
+      . ./sette_rpt.sh ${NEMO_DEBUG}
       exit
    fi
    sleep 10

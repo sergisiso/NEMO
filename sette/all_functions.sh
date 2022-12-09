@@ -195,7 +195,8 @@ set_valid_dir () {
     fi
     # remove last _ST followed by zero or more alphanumeric characters
     NEW_CONF1=$( echo $NEW_CONF | sed -e 's/_ST\([0-9a-zA-Z]*\)$//' )
-    if [[ -n "${NEMO_DEBUG}" && ! ${CMP_NAM,,} =~ ("debug"|"dbg") ]]; then
+    CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
+    if [[ -n "${NEMO_DEBUG}" && ! ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
       export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}_DEBUG/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}
     else
       export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}

@@ -69,7 +69,8 @@ set -o posix
 if [ -z "${CUSTOM_DIR}" ]; then
   export EXE_DIR=${CONFIG_DIR}/${NEW_CONF}/${TEST_NAME}
 else
-  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]; then
+  CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
+  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
     export EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG/${NEW_CONF}/${TEST_NAME}
   else
     export EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}/${NEW_CONF}/${TEST_NAME}
