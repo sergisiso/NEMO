@@ -580,20 +580,18 @@ localchanges=`git status --short -uno | wc -l`
 git branch --show-current >& /dev/null
 if [[ $? == 0 ]] ; then
   branchname="$(git branch --show-current)"
+  revision=`git rev-parse --short HEAD`
   if [ -z $branchname ] ; then
    # Probabably on a detached HEAD (possibly testing an old commit).
    # Verify this and try to recover original commit
    MORE_INFO="$(git branch -a | head -1l | sed -e's/.*(//' -e 's/)//' )"
    if [[ "${MORE_INFO}" == *"detached"* ]] ; then
-     revision=$( echo \\${MORE_INFO} | awk '{print $NF}' )
      # There is no robust way to recover a branch name in a detached state
      # so just use the commit with a prefix
      branchname="detached_"${revision}
    else
      branchname="Unknown"
    fi
-  else
-   revision=`git rev-list --abbrev-commit HEAD | head -1l`
   fi
 else
   branchname="Unknown"
