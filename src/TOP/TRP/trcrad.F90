@@ -28,7 +28,7 @@ MODULE trcrad
    PUBLIC trc_rad_ini  
 
    LOGICAL , PUBLIC ::   ln_trcrad           !: flag to artificially correct negative concentrations
-   REAL(wp), DIMENSION(:,:), ALLOCATABLE::   gainmass
+   REAL(wp), DIMENSION(:), ALLOCATABLE::   gainmass
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -109,8 +109,8 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      ALLOCATE( gainmass(jptra,2) )
-      gainmass(:,:) = 0.
+      ALLOCATE( gainmass(jptra) )
+      gainmass(:) = 0.
       !
    END SUBROUTINE trc_rad_ini
 
@@ -181,7 +181,7 @@ CONTAINS
                        zcoef = 1. + ztrneg(ji,jj,jn) / ztrpos(ji,jj,jn)       ! ztrpos > 0 as ptr > 0
                        ptr(ji,jj,jk,jn,itime) = ptr(ji,jj,jk,jn,itime) * zcoef
                        IF( zcoef < 0. ) THEN                                  ! if the compensation exceed the positive value
-                          gainmass(jn,1) = gainmass(jn,1) - ptr(ji,jj,jk,jn,itime) * cvol(ji,jj,jk)   ! we are adding mass...
+                          gainmass(jn) = gainmass(jn) - ptr(ji,jj,jk,jn,itime) * cvol(ji,jj,jk)   ! we are adding mass...
                           ptr(ji,jj,jk,jn,itime) = 0.                         ! limit the compensation to keep positive value
                        ENDIF
                     ENDIF
@@ -197,12 +197,12 @@ CONTAINS
            END DO
 
            IF( kt == nitend ) THEN
-              CALL mpp_sum( 'trcrad', gainmass(:,1) )
+              CALL mpp_sum( 'trcrad', gainmass(:) )
               DO jn = jp_sms0, jp_sms1
-                 IF( gainmass(jn,1) > 0. ) THEN
+                 IF( gainmass(jn) > 0. ) THEN
                     ztotmass = glob_sum( 'trcrad', ptr(:,:,:,jn,itime) * cvol(:,:,:) )
                     IF(lwp) WRITE(numout, '(a, i2, a, D23.16, a, D23.16)') 'trcrad ptrb, traceur ', jn  &
-                         &        , ' total mass : ', ztotmass, ', mass gain : ',  gainmass(jn,2)
+                         &        , ' total mass : ', ztotmass, ', mass gain : ',  gainmass(jn)
                  END IF
               END DO
            ENDIF
