@@ -287,7 +287,7 @@ CONTAINS
                   jl = n_trc_indobc(jn)
                   sf_trcobc(jl,ib)%imap => idx_bdy(ib)%nbmap(1:idx_bdy(ib)%nblen(igrd),igrd)
                   sf_trcobc(jl,ib)%igrd  = igrd
-                  sf_trcobc(jl,ib)%igrd  = ib
+                  sf_trcobc(jl,ib)%ibdy  = ib
                   sf_trcobc(jl,ib)%lzint = ln_zintobc(ib) ! vertical interpolation
                ENDIF
             END DO
