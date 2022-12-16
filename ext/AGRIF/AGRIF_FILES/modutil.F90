@@ -540,9 +540,9 @@ recursive subroutine Agrif_Integrate_Parallel ( g, procname )
     integer                     :: i, k, is
 !
 !   Instanciation of the variables of the current grid
-    if ( g % fixedrank /= 0 ) then
+!    if ( g % fixedrank /= 0 ) then
         call Agrif_Instance(g)
-    endif
+!    endif
 !
 ! One step on the current grid
     call procname ()
@@ -632,6 +632,8 @@ recursive subroutine Agrif_Integrate_ChildGrids ( procname )
     else
 ! Continue only if the grid has defined sequences of child integrations.
     if ( .not. associated(save_grid % child_seq) ) return
+
+!    if (Agrif_GlobProcRank == 0) print *,'number of sequences = ',save_grid % child_seq % nb_seqs
 !
     do is = 1, save_grid % child_seq % nb_seqs
 !
@@ -653,10 +655,10 @@ recursive subroutine Agrif_Integrate_ChildGrids ( procname )
 !
     enddo
     endif
-#endif 
+#endif
 
     call Agrif_Instance(save_grid)
-    
+
 !---------------------------------------------------------------------------------------------------
 end subroutine Agrif_Integrate_ChildGrids
 !===================================================================================================
@@ -722,7 +724,7 @@ recursive subroutine Agrif_Integrate_Child_Parallel ( g, procname )
 !
 !     For each sequence, a given processor does integrate only on grid.
         gridp => Agrif_seq_select_child(g,is)
-        call Agrif_Integrate_Child_Parallel(gridp % gr, procname)
+        if (associated(gridp)) call Agrif_Integrate_Child_Parallel(gridp % gr, procname)
 !
     enddo
 !
@@ -775,7 +777,7 @@ subroutine Agrif_Init_Grids ( procname1, procname2 )
        coarse_timeref(1:Agrif_Probdim) = rhot
     endif
     close(nunit)
-    
+
     Agrif_UseSpecialValue = .FALSE.
     Agrif_UseSpecialValueFineGrid = .FALSE.
     Agrif_SpecialValue = 0.
@@ -844,7 +846,7 @@ subroutine Agrif_Init_Grids ( procname1, procname2 )
 !
 !   Total number of fixed grids
     Agrif_nbfixedgrids = 0
-    
+
 ! If a grand mother grid is declared
 
     if (agrif_coarse) then
@@ -852,7 +854,7 @@ subroutine Agrif_Init_Grids ( procname1, procname2 )
 
       Agrif_Coarsegrid % ngridstep = 0
       Agrif_Coarsegrid % grid_id   = -9999
-      
+
     do i = 1, Agrif_Probdim
         Agrif_Coarsegrid%spaceref(i) = coarse_spaceref(i)
         Agrif_Coarsegrid%timeref(i) = coarse_timeref(i)
@@ -864,13 +866,13 @@ subroutine Agrif_Init_Grids ( procname1, procname2 )
         Agrif_Coarsegrid % NearRootBorder(i) = .true.
         Agrif_Coarsegrid % DistantRootBorder(i) = .true.
         Agrif_Coarsegrid % nb(i) =Agrif_mygrid%nb(i) / coarse_spaceref(i)
-    enddo      
+    enddo
 
 !   The root coarse grid is a fixed grid
     Agrif_Coarsegrid % fixed = .TRUE.
 !   Level of the root grid
     Agrif_Coarsegrid % level = -1
-    
+
     Agrif_Coarsegrid % grand_mother_grid = .true.
 
 !   Number of the grid pointed by Agrif_Mygrid (root coarse grid)
@@ -878,17 +880,17 @@ subroutine Agrif_Init_Grids ( procname1, procname2 )
 !
 !   Number of the root grid as a fixed grid
     Agrif_Coarsegrid % fixedrank = -9999
-    
+
       Agrif_Mygrid%parent => Agrif_Coarsegrid
-      
+
 ! Not used but required to prevent seg fault
       Agrif_Coarsegrid%parent => Agrif_Mygrid
-      
+
       call Agrif_Create_Var(Agrif_Coarsegrid)
 
 ! Reset to null
       Nullify(Agrif_Coarsegrid%parent)
-      
+
       Agrif_Coarsegrid%child_list%nitems = 1
       allocate(Agrif_Coarsegrid%child_list%first)
       allocate(Agrif_Coarsegrid%child_list%last)
@@ -896,7 +898,7 @@ subroutine Agrif_Init_Grids ( procname1, procname2 )
       Agrif_Coarsegrid%child_list%last%gr => Agrif_Mygrid
 
     endif
-    
+
     return
 
 98  INQUIRE(FILE='AGRIF_FixedGrids.in',EXIST=BEXIST)
@@ -907,7 +909,7 @@ subroutine Agrif_Init_Grids ( procname1, procname2 )
         print*,'Error opening file AGRIF_FixedGrids.in'
         STOP
     endif
-    
+
 !---------------------------------------------------------------------------------------------------
 end subroutine Agrif_Init_Grids
 !===================================================================================================
@@ -1104,7 +1106,11 @@ subroutine Agrif_Step_Child_adj ( procname )
 !---------------------------------------------------------------------------------------------------
     procedure(step_proc)        :: procname !< Subroutine to call on each grid
 !
-    call Agrif_Integrate_Child_adj(Agrif_Mygrid,procname)
+    if (Agrif_Parallel_sisters) then
+      call Agrif_Integrate_Child_Parallel_adj(Agrif_Mygrid,procname)
+    else
+      call Agrif_Integrate_Child_adj(Agrif_Mygrid,procname)
+    endif
 !
     if ( Agrif_Mygrid % child_list % nitems > 0 ) call Agrif_Instance(Agrif_Mygrid)
 !
@@ -1142,6 +1148,36 @@ recursive subroutine Agrif_Integrate_Child_adj ( g, procname )
     call procname()
 !---------------------------------------------------------------------------------------------------
 end subroutine Agrif_Integrate_Child_adj
+!===================================================================================================
+!> Manages the backward time integration of the grid hierarchy (Parallel sisters case)
+!! Recursive subroutine and call on subroutines Agrif_Init::Agrif_Instance & Agrif_Step_adj.
+!---------------------------------------------------------------------------------------------------
+recursive subroutine Agrif_Integrate_Child_Parallel_adj ( g, procname )
+!---------------------------------------------------------------------------------------------------
+    type(Agrif_Grid),pointer   :: g          !< Pointer on the current grid
+    procedure(step_proc)       :: procname   !< Subroutine to call on each grid
+
+    type(Agrif_PGrid), pointer  :: gridp    ! Pointer for the recursive procedure
+    integer :: is, ierr
+!
+!
+    if (associated(g % child_seq) ) then
+!
+      do is = 1, g % child_seq % nb_seqs
+!
+!     For each sequence, a given processor does integrate only on grid.
+        gridp => Agrif_seq_select_child(g,is)
+        if (associated(gridp)) call Agrif_Integrate_Child_Parallel_adj(gridp % gr, procname)
+!
+      enddo
+    endif
+!
+    call Agrif_Instance(g)
+!
+!   One step on the current grid
+    call procname()
+!---------------------------------------------------------------------------------------------------
+end subroutine Agrif_Integrate_Child_Parallel_adj
 !===================================================================================================
 !
 !===================================================================================================

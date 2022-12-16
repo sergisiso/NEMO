@@ -1149,6 +1149,12 @@ CONTAINS
          zcu(ji,jj) = SQRT( grav * MAX(ht_0(ji,jj),0._wp) * (zxr2 + zyr2) )
       END_2D
       !
+#if defined key_agrif
+     ! Discard points that are not stepped by 2d mode:
+     zcu(Nis0:Nie0,Njs0:Nje0) = zcu(Nis0:Nie0,Njs0:Nje0) &
+                              & * (1._wp - tmask_upd(Nis0:Nie0,Njs0:Nje0))
+#endif
+      !
       zcmax = MAXVAL( zcu(Nis0:Nie0,Njs0:Nje0) )
       CALL mpp_max( 'dynspg_ts', zcmax )
 

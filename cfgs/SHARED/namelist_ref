@@ -667,8 +667,13 @@
 &namsbc_fwb    !   freshwater-budget adjustment                         (nn_fwb > 0)
 !-----------------------------------------------------------------------
    rn_fwb0     = 0.0          ! Initial freshwater adjustment flux [kg/m2/s] (nn_fwb = 2)
+   nn_fwb_voltype = 1         ! = 1 : Control ICE+OCEAN volume
+      !                       ! = 2 : Control     OCEAN volume
+   ln_hvolg_var = .false.     ! = T : Set an analytical variation of volume:
+      rn_hvolg_amp = 17.e-3      ! Peak to peak seasonnal variation (m)
+      rn_hvolg_trd =  0.0        ! Trend (m/s)
+      nn_hvolg_mth = 8           ! Month when volume anomaly crosses 0 (1-12)
 /
-
 !!======================================================================
 !!               ***  Lateral boundary condition  ***                 !!
 !!                                                                    !!

@@ -158,6 +158,15 @@ CONTAINS
       ! In case of a coarsened grid, account her for possibly aditionnal  
       ! masked points; these have been read in the mesh file and stored in mbku, mbkv, mbkf
       DO_2D( 0, 0, 0, 0 )
+         ! Ugly patch to accomodate batropic case (jpk=2)
+         ! but with possible masked faces in the coarsening case
+         ! A better way would be to keep track of mbku/v/f=0 until here
+         ! but these have been assigned a minimum of 1. TBC
+         IF (jpk>2) THEN   
+            IF (mbku(ji,jj)==1) umask(ji,jj,:) = 0._wp
+            IF (mbkv(ji,jj)==1) vmask(ji,jj,:) = 0._wp
+            IF (mbkf(ji,jj)==1) fmask(ji,jj,:) = 0._wp
+         ENDIF
          IF ( MAXVAL(umask(ji,jj,:))/=0._wp )  umask(ji,jj,mbku(ji,jj)+1:jpk) = 0._wp
          IF ( MAXVAL(vmask(ji,jj,:))/=0._wp )  vmask(ji,jj,mbkv(ji,jj)+1:jpk) = 0._wp
          IF ( MAXVAL(fmask(ji,jj,:))/=0._wp )  fmask(ji,jj,mbkf(ji,jj)+1:jpk) = 0._wp
@@ -225,6 +234,10 @@ CONTAINS
       tmask_upd(:,:) = 0._wp
       umask_upd(:,:) = 0._wp
       vmask_upd(:,:) = 0._wp
+      !
+      ! Reset mask defining actual computationnal domain
+      ! e.g. excluding ghosts and updated cells.
+      tmask_agrif(:,:) = 1._wp
 #endif     
       !
    END SUBROUTINE dom_msk

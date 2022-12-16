@@ -795,6 +795,7 @@ that are available in the tidal-forcing implementation (see
     <field id="sshtot"     long_name="global mean ssh"                              standard_name="global_average_sea_level_change"                unit="m"    />
     <field id="sshsteric"  long_name="global mean ssh steric"                       standard_name="global_average_steric_sea_level_change"         unit="m"    />
     <field id="sshthster"  long_name="global mean ssh thermosteric"                 standard_name="global_average_thermosteric_sea_level_change"   unit="m"    />
+    <field id="sshice"     long_name="global mean ssh equivalent for ice and snow"  standard_name="global_average_ice_snow_sea_level_change"       unit="m"    />
     <field id="masstot"    long_name="global total mass"                            standard_name="sea_water_mass"                                 unit="kg"   />
     <field id="temptot"    long_name="global mean temperature"                      standard_name="sea_water_potential_temperature"                unit="degC" />
     <field id="saltot"     long_name="global mean salinity"                         standard_name="sea_water_salinity"                             unit="1e-3" />
