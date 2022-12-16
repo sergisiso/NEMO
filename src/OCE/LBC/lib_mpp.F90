@@ -135,9 +135,7 @@ MODULE lib_mpp
 
    INTEGER, PUBLIC ::   mppsize        ! number of process
    INTEGER, PUBLIC ::   mpprank        ! process number  [ 0 - size-1 ]
-!$AGRIF_DO_NOT_TREAT
    INTEGER, PUBLIC ::   mpi_comm_oce   ! opa local communicator
-!$AGRIF_END_DO_NOT_TREAT
 
    INTEGER :: MPI_SUMDD
 
@@ -261,17 +259,17 @@ CONTAINS
             mpi_comm_oce = localComm
          ENDIF
       ELSE
-         CALL mpi_comm_dup( mpi_comm_world, mpi_comm_oce, ierr)
-         IF( ierr /= MPI_SUCCESS ) CALL ctl_stop( 'STOP', ' lib_mpp: Error in routine mpi_comm_dup' )
-      ENDIF
-
 # if defined key_agrif
-      IF( Agrif_Root() ) THEN
-         CALL Agrif_MPI_Init(mpi_comm_oce)
-      ELSE
-         CALL Agrif_MPI_set_grid_comm(mpi_comm_oce)
-      ENDIF
+          IF( Agrif_Root() ) THEN
 # endif
+              CALL mpi_comm_dup( mpi_comm_world, mpi_comm_oce, ierr)
+              IF( ierr /= MPI_SUCCESS ) CALL ctl_stop( 'STOP', ' lib_mpp: Error in routine mpi_comm_dup' )
+# if defined key_agrif
+          ELSE
+              mpi_comm_oce = Agrif_MPI_get_grid_comm()
+          ENDIF
+# endif
+      ENDIF
 
       CALL mpi_comm_rank( mpi_comm_oce, mpprank, ierr )
       CALL mpi_comm_size( mpi_comm_oce, mppsize, ierr )

@@ -42,6 +42,11 @@ CONTAINS
       !
       IF (lwp.AND.lk_agrif_debug) Write(*,*) ' --> START AGRIF UPDATE from grid Number',Agrif_Fixed()
       !
+      ! Update computionnal domain mask once:
+      IF (lk_agrif_fstep) THEN
+         CALL Agrif_Update_Variable(tmask_id,locupdate=(/ nn_shift_bar,-2/), procname = update_tmask_agrif)
+      ENDIF
+      !
       CALL Agrif_Update_ssh()                      ! Update sea level
       !
       IF (.NOT.ln_linssh) CALL Agrif_Update_vvl()  ! Update scale factors

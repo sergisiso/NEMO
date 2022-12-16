@@ -38,6 +38,9 @@ module Agrif_Mpp
     integer, private :: Agrif_MPI_prec
 !
     private :: Agrif_get_proc_info
+
+    integer :: Agrif_GlobProcRank
+    integer :: Agrif_totalprocs
 !
 contains
 !
@@ -76,6 +79,11 @@ subroutine Agrif_MPI_Init ( comm )
     else
         call Agrif_MPI_switch_comm(MPI_COMM_WORLD)
     endif
+
+! Global rank
+    Agrif_GlobProcRank = Agrif_ProcRank    
+! Total number of cores
+    Agrif_totalprocs = Agrif_Nbprocs
 !
     Agrif_Mygrid % communicator = Agrif_mpi_comm
 !

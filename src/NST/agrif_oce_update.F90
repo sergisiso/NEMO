@@ -36,6 +36,7 @@ MODULE agrif_oce_update
 
    PUBLIC   Agrif_Update_Tra, Agrif_Update_Dyn, Agrif_Update_vvl, Agrif_Update_ssh
    PUBLIC   Agrif_Check_parent_bat
+   PUBLIC   update_tmask_agrif
 
    !! * Substitutions
 #  include "domzgr_substitute.h90"
@@ -1944,6 +1945,24 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE check_parent_e3v0
+
+
+   SUBROUTINE update_tmask_agrif( tabres, i1, i2, j1, j2, before )
+      !!----------------------------------------------------------------------
+      !!                   *** ROUTINE updatetmsk ***
+      !!----------------------------------------------------------------------
+      INTEGER                         , INTENT(in   ) ::   i1, i2, j1, j2
+      REAL(wp), DIMENSION(i1:i2,j1:j2), INTENT(inout) ::   tabres
+      LOGICAL                         , INTENT(in   ) ::   before
+      !!
+      !!----------------------------------------------------------------------
+      ! 
+      IF( .NOT.before ) THEN
+         tmask_agrif(i1:i2,j1:j2)  = 0._wp 
+      ENDIF
+      !
+   END SUBROUTINE update_tmask_agrif
+
 #else
    !!----------------------------------------------------------------------
    !!   Empty module                                          no AGRIF zoom

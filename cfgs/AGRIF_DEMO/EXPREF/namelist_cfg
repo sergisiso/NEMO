@@ -93,7 +93,7 @@
    ln_traqsr   = .true.    !  Light penetration in the ocean            (T => fill namtra_qsr)
    ln_ssr      = .true.    !  Sea Surface Restoring on T and/or S       (T => fill namsbc_ssr)
    ln_rnf      = .true.    !  runoffs                                   (T => fill namsbc_rnf)
-   nn_fwb      = 0         !  FreshWater Budget: =0 unchecked
+   nn_fwb      = 1         !  FreshWater Budget: =0 unchecked
 /
 !-----------------------------------------------------------------------
 &namsbc_blk    !   namsbc_blk  generic Bulk formula                     (ln_blk =T)

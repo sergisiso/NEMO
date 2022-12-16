@@ -74,7 +74,7 @@ MODULE histcom
 !-
 ! Fixed parameter
 !-
-  INTEGER,PARAMETER :: nb_files_max=20,nb_var_max=400, &
+  INTEGER,PARAMETER :: nb_files_max=100,nb_var_max=400, &
  &                     nb_hax_max=5,nb_zax_max=10,nbopp_max=10
   REAL,PARAMETER :: missing_val=nf90_fill_real
   INTEGER,PARAMETER,PUBLIC :: &

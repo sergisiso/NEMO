@@ -10,7 +10,9 @@ MODULE agrif_dom_update
    PRIVATE
 
    REAL(wp), PARAMETER :: rminfrac = 0.98_wp ! Should be < 1
-   LOGICAL             :: l_match_area=.FALSE.   
+!$AGRIF_DO_NOT_TREAT
+   LOGICAL             :: l_match_area=.FALSE.
+!$AGRIF_END_DO_NOT_TREAT
 
    PUBLIC agrif_update_all
 
@@ -25,6 +27,15 @@ CONTAINS
       !
 
       IF( Agrif_Root() ) return
+      !
+      IF ( l_match_area ) THEN
+         l_match_area = .FALSE.
+         ! Fill land with values unweighted by surface mask:
+         CALL agrif_update_variable(e1e2t_upd_id, procname = update_e1e2t)
+         CALL agrif_update_variable(e2u_id,   locupdate1=(/-1,-2/) , procname = update_e2u)
+         CALL agrif_update_variable(e1v_id,   locupdate2=(/-1,-2/) , procname = update_e1v)
+         l_match_area = .TRUE.
+      ENDIF
       !
       ! Update e1t and e2t (set grid cell area as over child grid):
       CALL agrif_update_variable(e1e2t_upd_id, procname = update_e1e2t)
@@ -152,7 +163,10 @@ CONTAINS
          mbku(i1:i2,j1:j2) = nint(ptab(i1:i2,j1:j2))
          
          WHERE ( mbku(i1:i2,j1:j2) .EQ. 0 )
+            ssumask(i1:i2,j1:j2) = 0._wp
             mbku(i1:i2,j1:j2)    = 1
+         ELSEWHERE
+            ssumask(i1:i2,j1:j2) = 1._wp
          END WHERE 
       ENDIF
       !
@@ -175,8 +189,11 @@ CONTAINS
          mbkv(i1:i2,j1:j2) = nint(ptab(i1:i2,j1:j2))
          
          WHERE ( mbkv(i1:i2,j1:j2) .EQ. 0 )
+            ssvmask(i1:i2,j1:j2) = 0._wp
             mbkv(i1:i2,j1:j2)    = 1
-         END WHERE 
+         ELSEWHERE
+            ssvmask(i1:i2,j1:j2) = 1._wp
+         END WHERE
       ENDIF
       !
    END SUBROUTINE update_mbkv

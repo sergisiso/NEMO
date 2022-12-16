@@ -35,6 +35,9 @@ MODULE mppini
    PUBLIC   mpp_getnum     ! called by prtctl
    PUBLIC   mpp_basesplit  ! called by prtctl
    PUBLIC   mpp_is_ocean   ! called by prtctl
+#ifdef key_agrif
+   PUBLIC bestpartition    ! called by Agrif_estimate_parallel_cost
+#endif
 
    INTEGER ::   numbot = -1   ! 'bottom_level' local logical unit
    INTEGER ::   numbdy = -1   ! 'bdy_msk'      local logical unit
@@ -730,22 +733,36 @@ CONTAINS
 #else
          iszitst = ( Ni0glo + (ji-1) ) / ji + 2*nn_hls   ! max subdomain i-size
 #endif
-         IF( iszitst < isziref .AND. iszitst >= iszimin ) THEN
-            isziref = iszitst
-            inbimax = inbimax + 1
-            inbi0(inbimax) = ji
-            iszi0(inbimax) = isziref
+         IF( iszitst >= iszimin ) THEN
+#ifdef key_agrif
+            IF (((.Not.Agrif_Root()).AND.(Agrif_Parallel_Sisters).AND.(iszitst <= isziref)) &
+                  .OR.(iszitst < isziref)) THEN
+#else
+            IF (iszitst < isziref) THEN
+#endif
+               isziref = iszitst
+               inbimax = inbimax + 1
+               inbi0(inbimax) = ji
+               iszi0(inbimax) = isziref
+            ENDIF
          ENDIF
 #if defined key_nemocice_decomp
          iszjtst = ( ny_global+2-2*nn_hls + (ji-1) ) / ji + 2*nn_hls    ! first  dim.
 #else
          iszjtst = ( Nj0glo + (ji-1) ) / ji + 2*nn_hls   ! max subdomain j-size
 #endif
-         IF( iszjtst < iszjref .AND. iszjtst >= iszjmin ) THEN
-            iszjref = iszjtst
-            inbjmax = inbjmax + 1
-            inbj0(inbjmax) = ji
-            iszj0(inbjmax) = iszjref
+         IF( iszjtst >= iszjmin ) THEN
+#ifdef key_agrif
+            IF (((.Not.Agrif_Root()).AND.(Agrif_Parallel_Sisters).AND.(iszjtst <= iszjref)) &
+                  .OR.(iszjtst < iszjref)) THEN
+#else
+            IF (iszjtst < iszjref) THEN
+#endif
+               iszjref = iszjtst
+               inbjmax = inbjmax + 1
+               inbj0(inbjmax) = ji
+               iszj0(inbjmax) = iszjref
+            ENDIF
          ENDIF
       END DO
       IF( inbimax == 0 ) THEN
@@ -805,7 +822,13 @@ CONTAINS
       iszij = jpiglo*jpjglo+1                                   ! default: larger than global domain
       DO WHILE( inbij <= inbijmax )                             ! if we did not reach the max of inbij1
          ii = MINLOC(iszij1, mask = inbij1 == inbij, dim = 1)   ! warning: send back the first occurence if multiple results
-         IF ( iszij1(ii) < iszij ) THEN
+         IF ( ( iszij1(ii) < iszij )    &
+#ifdef key_agrif
+            ! if key_agrif is defined, we keep the partition if the number of cores is correct
+            ! even if the perimeter is larger than the best partition
+            .OR.(Agrif_Parallel_Sisters.AND.(inbij == knbij))  &
+#endif
+            ) THEN
             ii = MINLOC( iszi1+iszj1, mask = iszij1 == iszij1(ii) .AND. inbij1 == inbij, dim = 1)  ! select the smaller perimeter if multiple min
             isz0 = isz0 + 1
             indexok(isz0) = ii

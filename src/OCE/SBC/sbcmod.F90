@@ -126,6 +126,10 @@ CONTAINS
 #if ! defined key_si3
       IF( nn_ice == 2 )    nn_ice = 0  ! without key key_si3 you cannot use si3...
 #endif
+#if defined key_agrif
+      ! In case of an agrif zoom, the freshwater water budget is determined by parent:
+      IF (.NOT.Agrif_Root()) nn_fwb = Agrif_Parent(nn_fwb) 
+#endif
       !
       !
       IF(lwp) THEN                  !* Control print

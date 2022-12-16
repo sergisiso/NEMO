@@ -21,6 +21,8 @@ MODULE diaar5
    USE iom            ! I/O manager library
    USE fldread        ! type FLD_N
    USE timing         ! preformance summary
+   USE sbc_oce , ONLY : nn_ice
+   USE sbc_ice , ONLY : snwice_mass, snwice_mass_b
 
    IMPLICIT NONE
    PRIVATE
@@ -73,7 +75,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, iks, ikb                      ! dummy loop arguments
       REAL(wp) ::   zvolssh, zvol, zssh_steric, zztmp, zarho, ztemp, zsal, zmass, zsst
-      REAL(wp) ::   zaw, zbw, zrw
+      REAL(wp) ::   zaw, zbw, zrw, ztf
       !
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)     :: zarea_ssh , zbotpres       ! 2D workspace
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)     :: z2d, zpe                   ! 2D workspace
@@ -123,6 +125,20 @@ CONTAINS
          CALL iom_put( 'voltot', zvol               )
          CALL iom_put( 'sshtot', zvolssh / area_tot )
          CALL iom_put( 'sshdyn', ssh(:,:,Kmm) - (zvolssh / area_tot) )
+         !
+      ENDIF
+
+      IF( iom_use( 'sshice' ) ) THEN
+         !                                         ! total volume of ice+snow 
+         IF( nn_ice == 0 ) THEN
+            zvolssh = 0._wp
+         ELSE
+            ztf = REAL(MOD( kt-1, nn_fsbc ), wp) / REAL(nn_fsbc, wp)
+            z2d = ztf * snwice_mass(:,:) + (1._wp - ztf) * snwice_mass_b(:,:)
+            zvolssh = glob_sum( 'diaar5', e1e2t(:,:) * z2d(:,:) * r1_rho0 )
+         ENDIF
+
+         CALL iom_put( 'sshice', zvolssh / area_tot )
          !
       ENDIF
 
@@ -371,7 +387,7 @@ CONTAINS
          &  iom_use( 'uadv_salttr' ) .OR. iom_use( 'udiff_salttr' ) .OR. &
          &  iom_use( 'vadv_heattr' ) .OR. iom_use( 'vdiff_heattr' ) .OR. &
          &  iom_use( 'vadv_salttr' ) .OR. iom_use( 'vdiff_salttr' ) .OR. &
-         &  iom_use( 'rhop' )  ) L_ar5 = .TRUE.
+         &  iom_use( 'rhop' ) .OR. iom_use( 'sshice' )  ) L_ar5 = .TRUE.
 
       IF( l_ar5 ) THEN
          !

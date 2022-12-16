@@ -5,6 +5,8 @@ module Agrif_seq
     use Agrif_Arrays
 !
     implicit none
+
+    integer, private, parameter :: subdomain_minwidth = 6
 !
 contains
 !
@@ -108,6 +110,10 @@ subroutine Agrif_seq_build_required_proclist ( grid )
         proc_rect => proc_rect % next
 !
     enddo
+    if (agrif_debug_parallel_sisters) then
+        if (Agrif_GlobProcRank == 0) print *,'Grid ',grid%fixedrank,' requires'
+        if (Agrif_GlobProcRank == 0) call Agrif_pl_print(grid % required_proc_list)
+    endif
 !---------------------------------------------------------------------------------------------------
 end subroutine Agrif_seq_build_required_proclist
 !===================================================================================================
@@ -175,10 +181,18 @@ subroutine Agrif_seq_create_proc_sequences ( grid )
 ! Create sequence structure
     cur_seq = 0
     grid % child_seq => Agrif_seq_allocate_list(nb_seqs)
+    if (agrif_debug_parallel_sisters) then
+        if (Agrif_GlobProcRank == 0) print *,'GRILLE SEQ = ',grid%fixedrank,nb_seqs
+    endif
     child_p => sorted_child_list % first
     do while ( associated(child_p) )
         if ( cur_seq /= child_p % gr % seq_num ) then
             cur_seq = child_p % gr % seq_num
+        endif
+        if (agrif_debug_parallel_sisters) then
+            if (Agrif_GlobProcRank == 0) then
+                print *,'Grille = ',child_p % gr %fixedrank,' Seq = ',child_p % gr % seq_num
+            endif
         endif
         call Agrif_seq_add_grid(grid % child_seq,cur_seq,child_p% gr)
         child_p => child_p % next
@@ -446,13 +460,24 @@ subroutine Agrif_seq_allocate_procs_to_childs ( coarse_grid )
     type(Agrif_Proc),      pointer  :: proc
     type(Agrif_Proc_p),    pointer  :: pp
     type(Agrif_Proc), dimension(:), allocatable, target :: procarray
-    type(Agrif_Grid), dimension(:), allocatable         :: gridarray
+    type(Agrif_PGrid), dimension(:), allocatable         :: gridarray
     type(Agrif_Sequence_List), pointer :: seqlist
-    real,dimension(:),allocatable :: grid_costs
+    real,dimension(:),allocatable :: grid_costs, grid_sizes
+    real :: total_grid_sizes
     integer,dimension(:), allocatable :: nbprocs_per_grid
-    integer :: i1, i2, j1, j2
+    logical,dimension(:), allocatable :: proc_was_required
+    integer :: i1, i2, j1, j2, i, j
     real :: max_cost
     integer :: max_index
+    integer,dimension(2) :: closest_nb_procs
+    integer :: number_of_procs_toremove, number_of_procs_toadd, add_possible, number_of_procs_added, nproc
+    logical,dimension(:,:),allocatable :: ispossibletoadd
+    logical :: inform_possible_nbprocs
+    type(Agrif_Grid)                    , pointer :: save_grid
+    integer :: maximum_number_of_procs_to_add, ip2, ip3
+    integer :: imax, jmax, deltaij
+
+
 !
     seqlist => coarse_grid % child_seq
     if ( .not. associated(seqlist) ) return
@@ -466,6 +491,11 @@ subroutine Agrif_seq_allocate_procs_to_childs ( coarse_grid )
 !
 ! For each sequence...
     do is = 1,seqlist % nb_seqs
+        if (agrif_debug_parallel_sisters) then
+            if (Agrif_GlobProcRank == 0) then
+                print *,'Sequence = ',is
+            endif
+        endif
 !
         proclist => seqlist % sequences(is) % proclist
         gridlist => seqlist % sequences(is) % gridlist
@@ -478,6 +508,7 @@ subroutine Agrif_seq_allocate_procs_to_childs ( coarse_grid )
         ngrids = gridlist % nitems
         allocate(gridarray(1:ngrids))
         allocate(grid_costs(1:ngrids))
+        allocate(grid_sizes(1:ngrids))
         allocate(nbprocs_per_grid(1:ngrids))
 
       nbprocs_per_grid = 0
@@ -487,7 +518,7 @@ subroutine Agrif_seq_allocate_procs_to_childs ( coarse_grid )
         ig = 0
         do while ( associated(gp) )
             grid => gp % gr
-            ig = ig+1 ; gridarray(ig) = grid
+            ig = ig+1 ; gridarray(ig)%gr => grid
             pp => grid % required_proc_list % first
             do while ( associated(pp) )
                 procarray( pp % proc % pn+1 ) % grid_id = grid % fixedrank
@@ -503,13 +534,32 @@ subroutine Agrif_seq_allocate_procs_to_childs ( coarse_grid )
 
 ! Estimate current costs
 
+        total_grid_sizes = 0.
         do ig = 1, ngrids
-          i1 = gridarray(ig)%ix(1)
-          i2 = gridarray(ig)%ix(1)+gridarray(ig)%nb(1)/gridarray(ig)%spaceref(1)-1
-          j1 = gridarray(ig)%ix(2)
-          j2 = gridarray(ig)%ix(2)+gridarray(ig)%nb(2)/gridarray(ig)%spaceref(2)-1
+          i1 = gridarray(ig)%gr%ix(1)
+          i2 = gridarray(ig)%gr%ix(1)+gridarray(ig)%gr%nb(1)/gridarray(ig)%gr%spaceref(1)-1
+          j1 = gridarray(ig)%gr%ix(2)
+          j2 = gridarray(ig)%gr%ix(2)+gridarray(ig)%gr%nb(2)/gridarray(ig)%gr%spaceref(2)-1
+
+          grid_sizes(ig) = (i2-i1+1)*(j2-j1+1)
+          total_grid_sizes = total_grid_sizes + grid_sizes(ig)
+
+          save_grid => Agrif_Curgrid
+          Call Agrif_instance(gridarray(ig)%gr)
+
           Call Agrif_estimate_parallel_cost(i1,i2,j1,j2,nbprocs_per_grid(ig),grid_costs(ig))
-          grid_costs(ig) = grid_costs(ig) * gridarray(ig)%timeref(1)
+
+          Call Agrif_instance(save_grid)
+
+          grid_costs(ig) = grid_costs(ig) * gridarray(ig)%gr%timeref(1)
+        enddo
+
+        allocate(proc_was_required(proclist%nitems))
+        proc_was_required = .TRUE.
+        do ip = 1,proclist%nitems
+            if ( procarray( ip ) % grid_id == 0 ) then
+                proc_was_required(ip) = .FALSE.
+            endif
         enddo
 
         ig = 1
@@ -526,18 +576,220 @@ subroutine Agrif_seq_allocate_procs_to_childs ( coarse_grid )
               enddo
 
               ig = max_index
-              procarray( ip ) % grid_id = gridarray(ig) % fixedrank
 
-              nbprocs_per_grid(ig) =  nbprocs_per_grid(ig) + 1
-              i1 = gridarray(ig)%ix(1)
-              i2 = gridarray(ig)%ix(1)+gridarray(ig)%nb(1)/gridarray(ig)%spaceref(1)-1
-              j1 = gridarray(ig)%ix(2)
-              j2 = gridarray(ig)%ix(2)+gridarray(ig)%nb(2)/gridarray(ig)%spaceref(2)-1
+
+              i1 = gridarray(ig)%gr%ix(1)
+              i2 = gridarray(ig)%gr%ix(1)+gridarray(ig)%gr%nb(1)/gridarray(ig)%gr%spaceref(1)-1
+              j1 = gridarray(ig)%gr%ix(2)
+              j2 = gridarray(ig)%gr%ix(2)+gridarray(ig)%gr%nb(2)/gridarray(ig)%gr%spaceref(2)-1
+              if (agrif_debug_parallel_sisters) then
+                  if (Agrif_GlobProcRank == 0) then
+                      print *,'Grid = ',ig,' Cost = ',grid_costs(ig)
+                      print *,'Total number of procs = ',nbprocs_per_grid(ig) + 1
+                      print *,'Size = ',gridarray(ig)%gr%nb(1),gridarray(ig)%gr%nb(2),(i2-i1+1)*(j2-j1+1)
+                      print *,'Total Size = ',nint(total_grid_sizes)
+                  endif
+              endif
+
+              maximum_number_of_procs_to_add = 1
+              do ip2=ip+1,proclist%nitems
+                 if (procarray(ip2)%grid_id == 0) then
+                         maximum_number_of_procs_to_add = maximum_number_of_procs_to_add + 1
+                 endif
+              enddo
+
+              if (agrif_debug_parallel_sisters) then
+                  if (Agrif_GlobProcRank == 0) then
+                         print *,'Number of procs remaining = ',maximum_number_of_procs_to_add
+                  endif
+              endif
+
+              maximum_number_of_procs_to_add =                          &
+                      max(maximum_number_of_procs_to_add/               &
+                      (nint(2.*total_grid_sizes/grid_sizes(ig))),1)
+
+              ip3 = 0
+              ip2 = ip
+              do while (ip3 < maximum_number_of_procs_to_add)
+                 if (procarray(ip2)%grid_id == 0) then
+                       ip3 = ip3 + 1
+                       procarray( ip2 ) % grid_id = gridarray(ig) %gr % fixedrank
+                 endif 
+                 ip2 = ip2 + 1
+              enddo
+              if (agrif_debug_parallel_sisters) then
+                  if (Agrif_GlobProcRank == 0) then
+                         print *,'Number of procs added = ',maximum_number_of_procs_to_add
+                  endif
+              endif
+
+              !procarray( ip ) % grid_id = gridarray(ig) %gr % fixedrank
+
+              !nbprocs_per_grid(ig) =  nbprocs_per_grid(ig) + 1
+              nbprocs_per_grid(ig) =  nbprocs_per_grid(ig) + maximum_number_of_procs_to_add
+
+              save_grid => Agrif_Curgrid
+              Call Agrif_instance(gridarray(ig)%gr)
+
               Call Agrif_estimate_parallel_cost(i1,i2,j1,j2,nbprocs_per_grid(ig),grid_costs(ig))
-              grid_costs(ig) = grid_costs(ig) * gridarray(ig)%timeref(1)
+
+              Call Agrif_instance(save_grid)
+
+              grid_costs(ig) = grid_costs(ig) * gridarray(ig)%gr%timeref(1)
+              if (agrif_debug_parallel_sisters) then
+                  if (Agrif_GlobProcRank == 0) then
+                         print *,'Current grid costs = ',grid_costs(1:ngrids)
+                  endif
+              endif
 
             endif
         enddo
+
+! Adjust the number of processors per grid
+              if (agrif_debug_parallel_sisters) then
+                  if (Agrif_GlobProcRank == 0) then
+                         print *,'Now adjust the number of procs'
+                  endif
+              endif
+        do ig = 1,ngrids
+            imax = gridarray(ig)%gr%nb(1)/subdomain_minwidth
+            jmax = gridarray(ig)%gr%nb(2)/subdomain_minwidth
+            closest_nb_procs=-1
+            deltaij=huge(1)
+            do j=1,jmax
+              do i=1,min(imax,nbprocs_per_grid(ig)/j)
+                if ((nbprocs_per_grid(ig)-i*j) < deltaij) then
+                        deltaij = nbprocs_per_grid(ig)-i*j
+                        closest_nb_procs(1)=i
+                        closest_nb_procs(2)=j
+                endif
+              enddo
+            enddo
+
+            if (agrif_debug_parallel_sisters) then
+                if (Agrif_GlobProcRank == 0) then
+                    print *,'The grid ',ig,' has ',nbprocs_per_grid(ig),' procs'
+                    print *,'The closest decomposition is ',closest_nb_procs(1)*closest_nb_procs(2), &
+                           closest_nb_procs(1),closest_nb_procs(2)
+                endif
+            endif
+            number_of_procs_toremove = nbprocs_per_grid(ig) - closest_nb_procs(1)*closest_nb_procs(2)
+            do while (number_of_procs_toremove > 0)
+                do ip = 1,proclist%nitems
+                  if ((procarray( ip ) % grid_id == gridarray(ig)%gr % fixedrank).AND.(.NOT. proc_was_required(ip))) then
+                    procarray( ip ) % grid_id = 0
+                    number_of_procs_toremove = number_of_procs_toremove - 1
+                    nbprocs_per_grid(ig) = nbprocs_per_grid(ig) - 1
+                    exit
+                  endif
+                enddo
+            enddo
+            if (agrif_debug_parallel_sisters) then
+                if (Agrif_GlobProcRank == 0) then
+                    print *,'After correction : The grid ',ig,' has ',nbprocs_per_grid(ig),' procs'
+                endif
+            endif
+        enddo
+
+! Now add the remaining procs
+        ! Count the number of procs to add
+        number_of_procs_toadd = 0
+        do ip = 1,proclist%nitems
+            if ( procarray( ip ) % grid_id == 0 ) then
+                number_of_procs_toadd = number_of_procs_toadd + 1
+            endif
+        enddo
+
+        inform_possible_nbprocs = .FALSE.
+
+        if (number_of_procs_toadd > 0) then
+            ! allocate(ispossibletoadd(ngrids,-2*number_of_procs_toadd:2*number_of_procs_toadd))
+            ! ispossibletoadd = .FALSE.
+            ! do ig=1,ngrids
+            !     mask_possible_procs = .TRUE.
+            !     do j = 1,Agrif_maxprocs1D
+            !         if (gridarray(ig)%nb(2)/j < subdomain_minwidth) mask_possible_procs(:,j) = .FALSE.
+            !     enddo
+            !     do i = 1, Agrif_maxprocs1D
+            !         if (gridarray(ig)%nb(1)/i < subdomain_minwidth) mask_possible_procs(i,:) = .FALSE.
+            !     enddo
+            !     do j=-2*number_of_procs_toadd,2*number_of_procs_toadd
+            !         add_possible=minval(abs(possible_procs-(nbprocs_per_grid(ig)+j)),mask=mask_possible_procs)
+            !         ispossibletoadd(ig,j) = add_possible == 0
+            !     enddo
+            ! enddo
+
+            
+            ! if (Agrif_GlobProcRank==0) then
+            !     print *,'Possible add'
+            ! do ig=1,ngrids
+              
+            !   do j=-2*number_of_procs_toadd,2*number_of_procs_toadd
+            !     if (ispossibletoadd(ig,j)) then
+            !         print *,'On grid = ',ig,' , ',j,' is ok'
+            !     endif
+            !   enddo
+            ! enddo
+            ! endif
+            !deallocate(ispossibletoadd)
+
+
+
+        do while (number_of_procs_toadd > 0)
+            donproc: do nproc = number_of_procs_toadd, 1, -1
+                number_of_procs_added = 0
+                do ig = 1,ngrids
+                ! test the possiblity to add to grid ig
+                    imax = gridarray(ig)%gr%nb(1)/subdomain_minwidth
+                    jmax = gridarray(ig)%gr%nb(2)/subdomain_minwidth
+                    add_possible=1
+                    externj: do j=1,jmax
+                      do i=1,imax
+                        if (i*j == nbprocs_per_grid(ig)+nproc) then
+                          add_possible = 0
+                          exit externj
+                        endif
+                      enddo
+                    enddo externj
+                    if (add_possible == 0) then
+                        do ip = 1,proclist%nitems
+                            if ( procarray( ip ) % grid_id == 0 ) then
+                                procarray( ip ) % grid_id =gridarray(ig)%gr % fixedrank
+                                nbprocs_per_grid(ig) = nbprocs_per_grid(ig) + 1
+                                number_of_procs_added = number_of_procs_added + 1
+                                if (agrif_debug_parallel_sisters) then
+                                    if (Agrif_GlobProcRank == 0) then
+                                        print *,'The proc can be added to the grid ',ig
+                                    endif
+                                endif
+                                if (number_of_procs_added == nproc) exit donproc
+                            endif
+                        enddo
+                        exit
+                    endif
+                enddo
+            end do donproc
+            if (number_of_procs_added == 0) then
+                inform_possible_nbprocs = .TRUE.
+                exit
+            endif
+            number_of_procs_toadd = number_of_procs_toadd - nproc
+            if (agrif_debug_parallel_sisters) then
+                if (Agrif_GlobProcRank == 0) then
+                    print *,'Remaining number of procs to add = ',number_of_procs_toadd
+                endif
+            endif
+        enddo
+        endif
+
+        if (inform_possible_nbprocs) then
+            if (agrif_debug_parallel_sisters) then
+                if (Agrif_GlobProcRank == 0) then
+                    print *,'Impossible to add more procs'
+                endif
+                stop
+            endif
+        endif
 !
 !     Allocate proc nums to each grid
         gp => gridlist % first
@@ -553,7 +805,13 @@ subroutine Agrif_seq_allocate_procs_to_childs ( coarse_grid )
         enddo
 !
 !     Clean up
-        deallocate(procarray, gridarray, grid_costs, nbprocs_per_grid)
+        deallocate(procarray, gridarray, grid_costs, grid_sizes, nbprocs_per_grid, proc_was_required)
+
+              if (agrif_debug_parallel_sisters) then
+                  if (Agrif_GlobProcRank == 0) then
+                         print *, 'sortie de modseq'
+                  endif
+              endif
 !
     enddo
 !---------------------------------------------------------------------------------------------------
@@ -571,15 +829,20 @@ subroutine Agrif_seq_create_communicators ( grid )
     type(Agrif_Proc),  pointer          :: proc
     integer     :: i, ierr
     integer     :: current_comm, comm_seq, color_seq
+    integer, parameter :: color_seq_not_used = 100000000
+    integer, parameter :: color_seq_not_initialized = -100
 !
     seqlist => grid % child_seq
     if ( .not. associated(seqlist) ) return
 !
     current_comm = grid % communicator
-    color_seq = MPI_COMM_NULL
+    
 !
 ! For each sequence, split the current communicator into as many groups as needed.
     do i = 1,seqlist % nb_seqs
+        color_seq = color_seq_not_initialized ! color_seq should be positive
+                                              ! Initialize it to color_seq_not_initialized (<0)
+                                              ! for MPI_COMM_SPLIT to raise error if needed
 !
 !     Loop over each proclist to give a color to the current process
         gridp => seqlist % sequences(i) % gridlist % first
@@ -599,8 +862,20 @@ subroutine Agrif_seq_create_communicators ( grid )
             gridp => gridp % next
         enddo grid_loop
 !
-        call MPI_COMM_SPLIT(current_comm, color_seq, Agrif_ProcRank, comm_seq, ierr)
-        gridp % gr % communicator = comm_seq
+        if (color_seq == color_seq_not_initialized) then
+            if (agrif_debug_parallel_sisters) then
+                print *,'The proc ',Agrif_Procrank,' is not integrating sequence ',i
+            endif
+            color_seq = color_seq_not_used ! color for non working processors
+        endif
+      !  print *,'sequnce = ',i,' current_comm = ',current_comm, 'color_seq = ',color_seq
+        if (color_seq /= color_seq_not_used) then
+           call MPI_COMM_SPLIT(current_comm, color_seq, Agrif_ProcRank, comm_seq, ierr)
+       !    print *,'la grille ',gridp % gr % fixedrank,' a le communcateur ',comm_seq
+             gridp % gr % communicator = comm_seq
+        else
+            call MPI_COMM_SPLIT(current_comm, MPI_UNDEFINED, Agrif_ProcRank, comm_seq, ierr)
+        endif
 !
     enddo
 !---------------------------------------------------------------------------------------------------
@@ -626,6 +901,10 @@ function Agrif_seq_select_child ( g, is ) result ( gridp )
         endif
         gridp => gridp % next
     enddo
+    if (.not.associated(gridp)) then
+        nullify(gridp) ! may happen if not all the processors are in the current sequence
+        return
+    endif
     write(*,'("### Error Agrif_seq_select_child : no grid found in sequence ",i0," (mother G",i0,") for P",i0)')&
         is, g%fixedrank, Agrif_Procrank
     stop

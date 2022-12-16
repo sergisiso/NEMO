@@ -119,7 +119,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
 #if defined key_agrif
-      CALL Agrif_Init_Grids()      ! AGRIF: set the meshes
+#if defined key_agrif_psisters
+      Agrif_Parallel_sisters = .TRUE.  ! Activate parallel sisters
+#endif
+      CALL Agrif_Init_Grids()          ! AGRIF: set the meshes
 #endif
       !                            !-----------------------!
       CALL nemo_init               !==  Initialisations  ==!
@@ -525,6 +528,13 @@ CONTAINS
       !
       IF( ln_timing    )   CALL timing_stop( 'nemo_init')
       !
+
+# if defined key_agrif
+      IF( Agrif_Root() ) THEN
+          CALL Agrif_MPI_Init(mpi_comm_oce)
+      ENDIF
+# endif
+
    END SUBROUTINE nemo_init
 
 

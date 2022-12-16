@@ -52,6 +52,7 @@ MODULE agrif_oce_interp
    PUBLIC   interp_e1e2t_frac, interp_e2u_frac, interp_e1v_frac
    PUBLIC   agrif_istate_oce, agrif_istate_ssh   ! called by icestate.F90 and domvvl.F90
    PUBLIC   agrif_check_bat
+   PUBlIC   interp_tmask_agrif
 
    INTEGER ::   bdy_tinterp = 0
 
@@ -1157,6 +1158,26 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE interpsshn_frc
+
+
+   SUBROUTINE interp_tmask_agrif( ptab, i1, i2, j1, j2, before )
+      !!----------------------------------------------------------------------
+      !!               ***  ROUTINE interp_tmask_agrif  ***
+      !!
+      !!               set tmask_agrif = 0 over ghost points 
+      !!
+      !!----------------------------------------------------------------------  
+      INTEGER                         , INTENT(in   ) ::   i1, i2, j1, j2
+      REAL(wp), DIMENSION(i1:i2,j1:j2), INTENT(inout) ::   ptab
+      LOGICAL                         , INTENT(in   ) ::   before
+      !
+      !!----------------------------------------------------------------------  
+      !
+      IF(.NOT.before) THEN
+         tmask_agrif(i1:i2,j1:j2) = 0._wp 
+      ENDIF
+      !
+   END SUBROUTINE interp_tmask_agrif
 
 
    SUBROUTINE interpun( ptab, i1, i2, j1, j2, k1, k2, m1, m2, before )

@@ -433,6 +433,7 @@ end type Agrif_Variables_List
     logical :: agrif_debug = .false.        ! may be activaded in users subroutine for debugging purposes
     logical :: agrif_debug_interp = .false. ! may be activaded in users subroutine for debugging interpolations
     logical :: agrif_debug_update = .false. ! may be activaded in users subroutine for debugging updates
+    logical :: agrif_debug_parallel_sisters = .true. ! may be activaded in users subroutine for debugging Paralllel_Sisters
 
 ! If a grand mother grid is present
     logical :: agrif_coarse = .false.

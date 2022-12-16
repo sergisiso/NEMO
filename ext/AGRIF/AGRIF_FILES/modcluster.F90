@@ -1179,6 +1179,8 @@ recursive subroutine Agrif_Init_Hierarchy_Parallel_2 ( g, procname )
     do is = 1, g % child_seq % nb_seqs
 !
         parcours => Agrif_seq_select_child(g,is)
+
+        if (.not.associated(parcours)) cycle
 !
 !     Instanciation of the variables of the current grid
         call Agrif_Instance(parcours % gr)
