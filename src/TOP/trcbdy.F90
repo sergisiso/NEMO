@@ -26,8 +26,9 @@ MODULE trcbdy
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC trc_bdy      ! routine called in trcnxt.F90 
-   PUBLIC trc_bdy_dmp  ! routine called in trcstp.F90 
+   PUBLIC trc_bdy_ini   ! routine called in trcini.F90
+   PUBLIC trc_bdy       ! routine called in trcnxt.F90 
+   PUBLIC trc_bdy_dmp   ! routine called in trcstp.F90 
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -35,6 +36,90 @@ MODULE trcbdy
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
+
+   SUBROUTINE trc_bdy_ini( ntrc )
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE trc_bdy_ini  ***
+      !!
+      !! ** Purpose :   initialisation of the passive-tracer open boundary
+      !!                conditions
+      !!
+      !! ** Action  :   reading in of the namtrc_bdy namelist
+      !!
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   ntrc   ! number of tracers
+      !!
+      INTEGER ::   jn, ib   ! loop indices
+      INTEGER ::   ios      ! namelist input status
+      !!
+      NAMELIST/namtrc_bdy/ cn_trc_dflt, cn_trc, nn_trcdmp_bdy, ln_zintobc
+      !!----------------------------------------------------------------------
+      !
+      IF(lwp) THEN
+         WRITE(numout,*)
+         WRITE(numout,*) 'trc_bdy_ini : passive-tracer open boundary conditions'
+         WRITE(numout,*) '~~~~~~~~~~~'
+      END IF
+      !
+      READ( numnat_ref, namtrc_bdy, IOSTAT = ios, ERR = 903 )
+903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_bdy in reference namelist'     )
+      ! make sure that all elements of the namelist variables have a default definition from namelist_top_ref
+      cn_trc       (2:jp_bdy) = cn_trc       (1)
+      cn_trc_dflt  (2:jp_bdy) = cn_trc_dflt  (1)
+      nn_trcdmp_bdy(2:jp_bdy) = nn_trcdmp_bdy(1)
+      READ( numnat_cfg, namtrc_bdy, IOSTAT = ios, ERR = 904 )
+904   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_bdy in configuration namelist' )
+      IF(lwm) WRITE ( numont, namtrc_bdy )
+      ! setup up preliminary information for BDY structure
+      DO jn = 1, ntrc
+         DO ib = 1, nb_bdy
+            ! set type of obc in BDY data structure
+            IF ( ln_trc_obc(jn) ) THEN
+               trcdta_bdy(jn,ib)%cn_obc = TRIM( cn_trc     (ib) )
+            ELSE
+               trcdta_bdy(jn,ib)%cn_obc = TRIM( cn_trc_dflt(ib) )
+            ENDIF
+            ! set damping use in BDY data structure
+            trcdta_bdy(jn,ib)%dmp = .FALSE.
+            IF(nn_trcdmp_bdy(ib) == 1 .AND. ln_trc_obc(jn) )   trcdta_bdy(jn,ib)%dmp = .TRUE.
+            IF(nn_trcdmp_bdy(ib) == 2                      )   trcdta_bdy(jn,ib)%dmp = .TRUE.
+            IF(trcdta_bdy(jn,ib)%cn_obc == 'frs' .AND. nn_trcdmp_bdy(ib) /= 0 )   &
+                & CALL ctl_stop( 'trc_bc_ini: use FRS OR relaxation' )
+            IF( .NOT. ( 0 <= nn_trcdmp_bdy(ib)   .AND. nn_trcdmp_bdy(ib) <= 2 ) ) &
+                & CALL ctl_stop( 'trc_bc_ini: not a valid option for nn_trcdmp_bdy (0, 1, or 2)' )
+         END DO
+      END DO
+      !
+      IF(lwp) THEN
+         WRITE(numout,*) '   #trc        NAME        Boundary     Mult.Fact.   OBC Settings'
+         DO jn = 1, ntrc
+            IF (       ln_trc_obc(jn) )  WRITE(numout, 9001) jn, TRIM(ctrcnm(jn)), 'OBC',                   &
+                 &                                           (trcdta_bdy(jn,ib)%cn_obc,ib=1,nb_bdy)
+            IF ( .NOT. ln_trc_obc(jn) )  WRITE(numout, 9002) jn, TRIM(ctrcnm(jn)), 'Boundary data from IC', &
+                 &                                           (trcdta_bdy(jn,ib)%cn_obc,ib=1,nb_bdy)
+         END DO
+         WRITE(numout,*) ' '
+         DO ib = 1, nb_bdy
+            IF(nn_trcdmp_bdy(ib) == 0) WRITE(numout,9003) '   Boundary ', ib, &
+               &                                          ' -> NO damping of tracers'
+            IF(nn_trcdmp_bdy(ib) == 1) WRITE(numout,9003) '   Boundary ', ib, &
+               &                                          ' -> damping ONLY for tracers with external data provided'
+            IF(nn_trcdmp_bdy(ib) == 2) WRITE(numout,9003) '   Boundary ', ib, &
+               &                                          ' -> damping of ALL tracers'
+            IF(nn_trcdmp_bdy(ib) >  0) THEN
+                WRITE(numout,9003) '     USE damping parameters from nambdy for boundary ', ib,' : '
+                WRITE(numout,'(a,f10.2,a)') '     - Inflow damping time scale  : ',rn_time_dmp    (ib),' days'
+                WRITE(numout,'(a,f10.2,a)') '     - Outflow damping time scale : ',rn_time_dmp_out(ib),' days'
+            ENDIF
+         END DO
+         !
+         WRITE(numout,*) ' '
+         WRITE(numout,*) '  Vertical interpolation on segment(s) : ', (ln_zintobc(ib),ib=1,nb_bdy) 
+      END IF
+9001  FORMAT(2x, i5, 3x, a15, 3x, a5, 21x, 10a13)
+9002  FORMAT(2x, i5, 3x, a15, 3x, a22, 4x, 10a13)
+9003  FORMAT(a,  i5, a)
+   END SUBROUTINE trc_bdy_ini
 
    SUBROUTINE trc_bdy( kt, Kbb, Kmm, Krhs )
       !!----------------------------------------------------------------------

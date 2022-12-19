@@ -84,7 +84,6 @@ CONTAINS
       !!
       NAMELIST/namtrc_bc/ cn_dir_obc, sn_trcobc, rn_trofac, cn_dir_sbc, sn_trcsbc, rn_trsfac, & 
                         & cn_dir_cbc, sn_trccbc, rn_trcfac, ln_rnf_ctl, rn_sbc_time, rn_cbc_time
-      NAMELIST/namtrc_bdy/ cn_trc_dflt, cn_trc, nn_trcdmp_bdy, ln_zintobc
       !!----------------------------------------------------------------------
       !
       IF( lwp ) THEN
@@ -131,38 +130,7 @@ CONTAINS
 902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_bc in configuration namelist' )
       IF(lwm) WRITE ( numont, namtrc_bc )
 
-      IF ( ln_bdy ) THEN
-         READ  ( numnat_ref, namtrc_bdy, IOSTAT = ios, ERR = 903)
-903      IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_bdy in reference namelist' )
-         ! make sure that all elements of the namelist variables have a default definition from namelist_ref
-         cn_trc     (2:jp_bdy) = cn_trc     (1)
-         cn_trc_dflt(2:jp_bdy) = cn_trc_dflt(1)
-         nn_trcdmp_bdy(2:jp_bdy) = nn_trcdmp_bdy(1)
-         READ  ( numnat_cfg, namtrc_bdy, IOSTAT = ios, ERR = 904 )
-904      IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_bdy in configuration namelist' )
-         IF(lwm) WRITE ( numont, namtrc_bdy )
       
-         ! setup up preliminary informations for BDY structure
-         DO jn = 1, ntrc
-            DO ib = 1, nb_bdy
-               ! Set type of obc in BDY data structure (around here we may plug user override of obc type from nml)
-               IF ( ln_trc_obc(jn) ) THEN   ;   trcdta_bdy(jn,ib)%cn_obc = TRIM( cn_trc     (ib) )
-               ELSE                         ;   trcdta_bdy(jn,ib)%cn_obc = TRIM( cn_trc_dflt(ib) )
-               ENDIF
-               ! set damping use in BDY data structure
-               trcdta_bdy(jn,ib)%dmp = .false.
-               IF(nn_trcdmp_bdy(ib) == 1 .AND. ln_trc_obc(jn) )   trcdta_bdy(jn,ib)%dmp = .true.
-               IF(nn_trcdmp_bdy(ib) == 2                      )   trcdta_bdy(jn,ib)%dmp = .true.
-               IF(trcdta_bdy(jn,ib)%cn_obc == 'frs' .AND. nn_trcdmp_bdy(ib) /= 0 )  &
-                   & CALL ctl_stop( 'trc_bc_ini: Use FRS OR relaxation' )
-               IF(  .NOT.( 0 <= nn_trcdmp_bdy(ib)  .AND.  nn_trcdmp_bdy(ib) <= 2 )  )   &
-                   & CALL ctl_stop( 'trc_bc_ini: Not a valid option for nn_trcdmp_bdy. Allowed: 0,1,2.' )
-            END DO
-         END DO
-      ELSE
-         ! Force all tracers OBC to false if bdy not used
-         ln_trc_obc = .false.
-      ENDIF
 
       ! compose BC data indexes
       DO jn = 1, ntrc
@@ -203,39 +171,15 @@ CONTAINS
               &            ' -> Remove runoff dilution effect on tracers with absent river load (ln_rnf_ctl = .TRUE.)'
          WRITE(numout,*)
          WRITE(numout,'(a,i3)') '   Total tracers to be initialized with OPEN BCs data:', nb_trcobc
-
-         IF( ln_bdy .AND. nb_trcobc > 0 ) THEN
-            WRITE(numout,*) '   #trc        NAME        Boundary     Mult.Fact.   OBC Settings'
+         IF( nb_trcobc > 0 ) THEN
+            WRITE(numout,*) '   #trc        NAME        Boundary     Mult.Fact. '
             DO jn = 1, ntrc
-               IF (       ln_trc_obc(jn) )  WRITE(numout, 9001) jn, TRIM(ctrcnm(jn)), 'OBC', rn_trofac(jn), &
-                    &                                           (trcdta_bdy(jn,ib)%cn_obc,ib=1,nb_bdy)
-               IF ( .NOT. ln_trc_obc(jn) )  WRITE(numout, 9002) jn, TRIM(ctrcnm(jn)), 'Boundary data from IC'       , &
-                    &                                           (trcdta_bdy(jn,ib)%cn_obc,ib=1,nb_bdy)
+               IF ( ln_trc_obc(jn) ) WRITE(numout, 9001) jn, TRIM( ctrcnm(jn) ), 'OBC', rn_trofac(jn)
             END DO
-            WRITE(numout,*) ' '
-            DO ib = 1, nb_bdy
-               IF(nn_trcdmp_bdy(ib) == 0) WRITE(numout,9003) '   Boundary ', ib, &
-                  &                                          ' -> NO damping of tracers'
-               IF(nn_trcdmp_bdy(ib) == 1) WRITE(numout,9003) '   Boundary ', ib, &
-                  &                                          ' -> damping ONLY for tracers with external data provided'
-               IF(nn_trcdmp_bdy(ib) == 2) WRITE(numout,9003) '   Boundary ', ib, &
-                  &                                          ' -> damping of ALL tracers'
-               IF(nn_trcdmp_bdy(ib) >  0) THEN
-                   WRITE(numout,9003) '     USE damping parameters from nambdy for boundary ', ib,' : '
-                   WRITE(numout,'(a,f10.2,a)') '     - Inflow damping time scale  : ',rn_time_dmp    (ib),' days'
-                   WRITE(numout,'(a,f10.2,a)') '     - Outflow damping time scale : ',rn_time_dmp_out(ib),' days'
-               ENDIF
-            END DO
-         ENDIF
-         !
-         WRITE(numout,*) ' '
-         WRITE(numout,*) '  Vertical interpolation on segment(s) : ', (ln_zintobc(ib),ib=1,nb_bdy) 
-         WRITE(numout,*) ' '
+         END IF
          WRITE(numout,'(2a)') '   OPEN BC data repository : ', TRIM(cn_dir_obc)
       ENDIF
 9001  FORMAT(2x,i5, 3x, a15, 3x, a5, 6x, e11.3, 4x, 10a13)
-9002  FORMAT(2x,i5, 3x, a15, 3x, a22, 4x, 10a13)
-9003  FORMAT(a, i5, a)
       !
       !
       ! OPEN Lateral boundary conditions
