@@ -92,7 +92,7 @@ CONTAINS
                jl = n_trc_index(jn) 
                CALL trc_dta( kt, jl, ztrcdta )   ! read tracer data at nit000
                !
-               DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               DO_2D( 0, 0, 0, 0 )
                   ikt = mbkt(ji,jj)
                   tr(ji,jj,ikt,jn,Kbb) = ztrcdta(ji,jj,ikt) + ( tr(ji,jj,ikt,jn,Kbb) -  ztrcdta(ji,jj,ikt) )     &
                   &                  * exp( -restosed(ji,jj,ikt) * dtsed )

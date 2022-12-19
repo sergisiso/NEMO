@@ -62,9 +62,9 @@ CONTAINS
       !!              - read/set ocean depth and ocean levels (bathy, mbathy)
       !!              - vertical coordinate (gdep., e3.) depending on the 
       !!                coordinate chosen :
-      !!                   ln_zco=T   z-coordinate   
-      !!                   ln_zps=T   z-coordinate with partial steps
-      !!                   ln_zco=T   s-coordinate 
+      !!                   l_zco=T   z-coordinate   
+      !!                   l_zps=T   z-coordinate with partial steps
+      !!                   l_zco=T   s-coordinate 
       !!
       !! ** Action  :   define gdep., e3., mbathy and bathy
       !!----------------------------------------------------------------------
@@ -72,10 +72,12 @@ CONTAINS
       !
       INTEGER  ::   ji,jj,jk            ! dummy loop index
       INTEGER  ::   ikt, ikb            ! top/bot index
-      INTEGER  ::   ioptio, ibat, ios   ! local integer
+      INTEGER  ::   ioptio, inum, iatt  ! local integer
       INTEGER  ::   is_mbkuvf           ! ==0 if mbku, mbkv, mbkf to be computed
       REAL(wp) ::   zrefdep             ! depth of the reference level (~10m)
-      REAL(wp), DIMENSION(jpi,jpj  ) ::   zmsk
+      REAL(WP) ::   z_zco, z_zps, z_sco, z_cav
+      CHARACTER(len=7) ::   catt        ! 'zco', 'zps, 'sco' or 'UNKNOWN'
+      REAL(wp), DIMENSION(jpi,jpj)   ::   zmsk, z2d
       REAL(wp), DIMENSION(jpi,jpj,2) ::   ztopbot
       !!----------------------------------------------------------------------
       !
@@ -83,40 +85,192 @@ CONTAINS
          WRITE(numout,*)
          WRITE(numout,*) 'dom_zgr : vertical coordinate'
          WRITE(numout,*) '~~~~~~~'
+         IF( ln_linssh ) WRITE(numout,*) '          linear free surface: the vertical mesh does not change in time'
       ENDIF
-
-      IF( ln_linssh .AND. lwp) WRITE(numout,*) '   linear free surface: the vertical mesh does not change in time'
-
-
-      IF( ln_read_cfg ) THEN        !==  read in mesh_mask.nc file  ==!
+CALL FLUSH(numout)
+      !                             !==============================!
+      IF( ln_read_cfg ) THEN        !==  read in domcfg.nc file  ==!
+         !                          !==============================!
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   ==>>>   Read vertical mesh in ', TRIM( cn_domcfg ), ' file'
+         is_mbkuvf = 0         
          !
-         CALL zgr_read   ( ln_zco  , ln_zps  , ln_sco, ln_isfcav,   & 
-            &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   ,   &    ! 1D gridpoints depth
-            &              gdept_0 , gdepw_0                    ,   &    ! gridpoints depth 
-            &              e3t_0   , e3u_0   , e3v_0 , e3f_0    ,   &    ! vertical scale factors
-            &              e3w_0   , e3uw_0  , e3vw_0           ,   &    ! vertical scale factors
-            &              k_top   , k_bot                      ,   &    ! 1st & last ocean level
-            &              is_mbkuvf, mbku, mbkv, mbkf )                 ! U/V/F points bottom levels
+         CALL iom_open( cn_domcfg, inum )    ! open domcfg file
+         !
+!!st set ln_isfcav
+         IF( lk_isf ) THEN 
+            CALL iom_getatt( inum,    'IsfCav', iatt )   ! returns -999 if not found
+            ln_isfcav = iatt == 1           ! default = .false.
             !
+            ! ------- keep compatibility with OLD VERSION... start -------
+            IF( iatt == -999 ) THEN
+               CALL iom_get( inum, 'ln_isfcav', z_cav )   ;   ln_isfcav = z_cav /= 0._wp
+            ENDIF
+         ENDIF
+         !                                         !* type of vertical coordinate
+         CALL iom_getatt( inum, 'VertCoord', catt )   ! returns 'UNKNOWN' if not found
+         l_zco = catt == 'zco'          ! default = .false.
+         l_zps = catt == 'zps'          ! default = .false.
+         l_sco = catt == 'sco'          ! default = .false.
+         !
+         ! ------- keep compatibility with OLD VERSION... start -------
+         IF( catt == 'UNKNOWN' ) THEN
+            CALL iom_get( inum,    'ln_zco', z_zco )   ;   l_zco = z_zco /= 0._wp
+            CALL iom_get( inum,    'ln_zps', z_zps )   ;   l_zps = z_zps /= 0._wp
+            CALL iom_get( inum,    'ln_sco', z_sco )   ;   l_sco = z_sco /= 0._wp
+         ENDIF
+         !                                !------------------------------!
+         !                                !--  all coordinate systems  --!   1D depth and e3   (needed in netcdf files)
+         !                                !------------------------------!
+         !
+         CALL iom_get( inum, jpdom_unknown, 'e3t_1d'  , e3t_1d  )   ! 1D reference coordinate
+         CALL iom_get( inum, jpdom_unknown, 'e3w_1d'  , e3w_1d  )
+         CALL e3_to_depth( e3t_1d, e3w_1d, gdept_1d, gdepw_1d )     ! 1D reference depth deduced from e3
+!!st NEED to deduce e3 from gdep 
+!!st         CALL iom_get( inum, jpdom_unknown, 'gdept_1d', gdept_1d )   ! 1D depth read
+!!st         CALL iom_get( inum, jpdom_unknown, 'gdepw_1d', gdepw_1d )
+!!st         CALL depth_to_e3( gdept_1d, gdepw_1d, e3t_1d, e3w_1d )      ! 1D e3 deduced from depth
+         !
+         !                                   !- ocean top and bottom k-indices
+         CALL iom_get( inum, jpdom_global, 'top_level'    , z2d(:,:)   )   ! 1st wet T-points (ISF)
+         k_top(:,:) = NINT( z2d(:,:) )
+         CALL iom_get( inum, jpdom_global, 'bottom_level' , z2d(:,:)   )   ! last wet T-points
+         k_bot(:,:) = NINT( z2d(:,:) )
+         !
+         !                                !--------------------!
+         IF(     lk_vco_1d ) THEN         !--  z-coordinate  --!   use only 1D arrays for all gdep and e3 fields
+            !                             !--------------------!
+            l_zco = .TRUE.                     ! old logical   ==> to be removed
+            l_zps = .FALSE.
+            l_sco = .FALSE.
+            !
+            !                             !-----------------------!
+         ELSEIF( lk_vco_1d3d ) THEN       !--  z-partial cells  --!   use 3D t-level e3
+            !                             !-----------------------!
+            l_zco = .TRUE.
+            l_zps = .FALSE.                    ! old logical   ==> to be removed
+            l_sco = .FALSE.
+            !
+            !                                   ! t-level: 3D reference   (include partial cell)
+            CALL iom_get( inum, jpdom_global, 'e3t_0'  , e3t_3d, cd_type = 'T', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3u_0'  , e3u_3d, cd_type = 'U', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3v_0'  , e3v_3d, cd_type = 'V', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3f_0'  , e3f_3d, cd_type = 'F', psgn = 1._wp, kfill = jpfillcopy )
+            !
+            !                             !--------------------!               
+         ELSEIF( lk_vco_3d ) THEN         !--  s-coordinate  --!   use 3D for all gdep and e3 fields
+            !                             !--------------------!
+            l_zco = .FALSE.
+            l_zps = .FALSE.
+            l_sco = .TRUE.                     ! old logical   ==> to be removed
+            !
+            !                                   !* depth         : 3D reference   (without partial cell)
+!!st no gdep._0 in ORCA_domcfg.nc from sette
+!!st            CALL iom_get( inum, jpdom_global , 'gdept_0' , gdept_0, kfill = jpfillcopy )
+!!st            CALL iom_get( inum, jpdom_global , 'gdepw_0' , gdepw_0, kfill = jpfillcopy )
+            !
+            !                                   !* scale factors : 3D reference   (can include partial cell)
+            CALL iom_get( inum, jpdom_global, 'e3t_0'  , e3t_3d , cd_type = 'T', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3u_0'  , e3u_3d , cd_type = 'U', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3v_0'  , e3v_3d , cd_type = 'V', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3f_0'  , e3f_3d , cd_type = 'F', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3w_0'  , e3w_3d , cd_type = 'W', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3uw_0' , e3uw_3d, cd_type = 'U', psgn = 1._wp, kfill = jpfillcopy )
+            CALL iom_get( inum, jpdom_global, 'e3vw_0' , e3vw_3d, cd_type = 'V', psgn = 1._wp, kfill = jpfillcopy )
+            !
+!!st PATCH for ORCA see above no gdep._0 in ORCA_domcfg.nc
+            IF(  iom_varid( inum, 'gdept_0' , ldstop = .FALSE. ) > 0  .AND.  &
+               & iom_varid( inum, 'gdepw_0' , ldstop = .FALSE. ) > 0    ) THEN
+               CALL ctl_warn( 'zgr_read : old definition of depths and scale factors used ', & 
+                  &           '           depths at t- and w-points read in the domain configuration file')
+               CALL iom_get( inum, jpdom_global , 'gdept_0' , gdept_3d, kfill = jpfillcopy )
+               CALL iom_get( inum, jpdom_global , 'gdepw_0' , gdepw_3d, kfill = jpfillcopy )
+               !
+            ELSE                                !- depths computed from e3. scale factors
+               CALL e3_to_depth( e3t_3d   , e3w_3d   , gdept_3d   , gdepw_3d    )    ! 3D depths
+            ENDIF
+!!st
+            !                                   !* reference depth for negative bathy (wetting and drying only)
+            IF( ll_wd )   CALL iom_get( inum,  'rn_wd_ref_depth' , ssh_ref   )
+            !
+            !                             !----------------------!               
+         ELSEIF( lk_ALE ) THEN            !--  ALE-coordinate  --!   combine time & space variations
+            !                             !----------------------!               
+            !!gm 
+            !    to be done : no restart read the 3D ref coord in domcfg to set coordinate at Nbb (and Nnn in MLF case) 
+            !               :    restart read the 3D ref coord when restart at Nbb (and Nnn in MLF case) 
+            !
+            ! Initialisation only (NO restart)
+            !                                   !* depth         :  4D fields   (without partial cell)
+!             CALL iom_get( inum, jpdom_global , 'gdept' , gdept(:,:,:,Kbb), kfill = jpfillcopy )
+!             CALL iom_get( inum, jpdom_global , 'gdepw' , gdepw, kfill = jpfillcopy )
+!             !
+!             !                                 !* scale factors :  4D fields   (can include partial cell)
+!             CALL iom_get( inum, jpdom_global, 'e3t_0'  ,  e3t(:,:,:,Kbb), cd_type = 'T', psgn = 1._wp, kfill = jpfillcopy )
+!             CALL iom_get( inum, jpdom_global, 'e3u_0'  ,  e3u(:,:,:,Kbb), cd_type = 'U', psgn = 1._wp, kfill = jpfillcopy )
+!             CALL iom_get( inum, jpdom_global, 'e3v_0'  ,  e3v(:,:,:,Kbb), cd_type = 'V', psgn = 1._wp, kfill = jpfillcopy )
+!             CALL iom_get( inum, jpdom_global, 'e3f_0'  ,  e3f(:,:,:,Kbb), cd_type = 'F', psgn = 1._wp, kfill = jpfillcopy )
+!             CALL iom_get( inum, jpdom_global, 'e3w_0'  ,  e3w(:,:,:,Kbb), cd_type = 'W', psgn = 1._wp, kfill = jpfillcopy )
+!             CALL iom_get( inum, jpdom_global, 'e3uw_0' , e3uw(:,:,:,Kbb), cd_type = 'U', psgn = 1._wp, kfill = jpfillcopy )
+!             CALL iom_get( inum, jpdom_global, 'e3vw_0' , e3vw(:,:,:,Kbb), cd_type = 'V', psgn = 1._wp, kfill = jpfillcopy )
+            !!gm
+         ENDIF
+         !
+         CALL iom_close( inum )        ! close domcfg file
+         !
+         !                          !==================================!
       ELSE                          !==  User defined configuration  ==!
+         !                          !==================================!
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '          User defined vertical mesh (usr_def_zgr)'
          is_mbkuvf = 0
          !
-         CALL usr_def_zgr( ln_zco  , ln_zps  , ln_sco, ln_isfcav,   & 
-            &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   ,   &    ! 1D gridpoints depth
-            &              gdept_0 , gdepw_0                    ,   &    ! gridpoints depth 
-            &              e3t_0   , e3u_0   , e3v_0 , e3f_0    ,   &    ! vertical scale factors
-            &              e3w_0   , e3uw_0  , e3vw_0           ,   &    ! vertical scale factors
-            &              k_top   , k_bot            )                  ! 1st & last ocean level
-         !
-         ! make sure that periodicities are properly applied 
-         CALL lbc_lnk( 'dom_zgr', gdept_0, 'T', 1._wp, gdepw_0, 'W', 1._wp,                                         &
-            &                       e3t_0, 'T', 1._wp,   e3u_0, 'U', 1._wp,  e3v_0, 'V', 1._wp, e3f_0, 'F', 1._wp,   &
-            &                       e3w_0, 'W', 1._wp,  e3uw_0, 'U', 1._wp, e3vw_0, 'V', 1._wp,   &   
-            &                     kfillmode = jpfillcopy )   ! do not put 0 over closed boundaries
+         IF( lk_linssh .OR. lk_qco ) THEN
+            !                                !--------------------!
+            IF( lk_vco_1d ) THEN             !--  z-coordinate  --!   use only 1D arrays for all gdep and e3 fields
+               !                             !--------------------!
+               l_zco = .TRUE.                     ! old logical   ==> to be removed
+               l_zps = .FALSE.
+               l_sco = .FALSE.
+               !
+               CALL usr_def_zgr( l_zco  , l_zps  , l_sco, ln_isfcav,   &
+                  &              k_top   , k_bot                      ,   &    ! 1st & last ocean level
+                  &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   )        ! 1D gridpoints depth
+               !                             !-----------------------!
+            ELSEIF( lk_vco_1d3d ) THEN       !--  z-partial cells  --!   use 3D t-level e3
+               !                             !-----------------------!
+               l_zco = .FALSE.                     ! old logical   ==> to be removed
+               l_zps = .TRUE.
+               l_sco = .FALSE.
+               !
+               CALL usr_def_zgr( l_zco  , l_zps  , l_sco, ln_isfcav,   &
+                  &              k_top   , k_bot                      ,   &    ! 1st & last ocean level
+                  &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   ,   &    ! 1D gridpoints depth
+                  &              e3t_3d  , e3u_3d  , e3v_3d, e3f_3d    )        ! vertical scale factors
+               !
+               ! make sure that periodicities are properly applied 
+               CALL lbc_lnk( 'dom_zgr', e3t_3d, 'T', 1._wp,   e3u_3d, 'U', 1._wp,  e3v_3d, 'V', 1._wp, e3f_3d, 'F', 1._wp,   &
+                    &                     kfillmode = jpfillcopy )   ! do not put 0 over closed boundaries
+
+               !                             !--------------------!               
+            ELSEIF( lk_vco_3d ) THEN         !--  s-coordinate  --!   use 3D for all gdep and e3 fields
+               !                             !--------------------!
+               l_zco = .FALSE.                     ! old logical   ==> to be removed
+               l_zps = .FALSE.
+               l_sco = .TRUE.
+               !
+               CALL usr_def_zgr( l_zco  , l_zps  , l_sco, ln_isfcav,   &
+               &              k_top   , k_bot                      ,   &    ! 1st & last ocean level
+               &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   ,   &    ! 1D gridpoints depth
+               &              e3t_3d  , e3u_3d  , e3v_3d, e3f_3d    ,   &    ! vertical scale factors
+               &              gdept_3d, gdepw_3d                    ,   &    ! gridpoints depth 
+               &              e3w_3d  , e3uw_3d , e3vw_3d           )        ! vertical scale factors
+               CALL lbc_lnk( 'dom_zgr', gdept_3d, 'T', 1._wp, gdepw_3d, 'W', 1._wp,                                          &
+               &                          e3t_3d, 'T', 1._wp,   e3u_3d, 'U', 1._wp,  e3v_3d, 'V', 1._wp, e3f_3d, 'F', 1._wp,   &
+               &                          e3w_3d, 'W', 1._wp,  e3uw_3d, 'U', 1._wp, e3vw_3d, 'V', 1._wp,   &   
+               &                     kfillmode = jpfillcopy )   ! do not put 0 over closed boundaries
+            ENDIF
+         ENDIF
          ztopbot(:,:,1) = REAL(k_top, wp)
          ztopbot(:,:,2) = REAL(k_bot, wp)
          CALL lbc_lnk( 'dom_zgr', ztopbot, 'T', 1._wp, kfillmode = jpfillcopy )   ! do not put 0 over closed boundaries
@@ -130,29 +284,17 @@ CONTAINS
       !
       zmsk(:,:) = 1._wp                                       ! default: no closed boundaries
       IF( .NOT. l_Iperio ) THEN                                    ! E-W closed:
-         zmsk(  mi0(     1+nn_hls):mi1(     1+nn_hls),:) = 0._wp   ! first column of inner global domain at 0
-         zmsk(  mi0(jpiglo-nn_hls):mi1(jpiglo-nn_hls),:) = 0._wp   ! last  column of inner global domain at 0 
+         zmsk(  mi0(     1+nn_hls,nn_hls):mi1(     1+nn_hls,nn_hls),:) = 0._wp   ! first column of inner global domain at 0
+         zmsk(  mi0(jpiglo-nn_hls,nn_hls):mi1(jpiglo-nn_hls,nn_hls),:) = 0._wp   ! last  column of inner global domain at 0 
       ENDIF
       IF( .NOT. l_Jperio ) THEN                                    ! S closed:
-         zmsk(:,mj0(     1+nn_hls):mj1(     1+nn_hls)  ) = 0._wp   ! first   line of inner global domain at 0
+         zmsk(:,mj0(     1+nn_hls,nn_hls):mj1(     1+nn_hls,nn_hls)  ) = 0._wp   ! first   line of inner global domain at 0
       ENDIF
       IF( .NOT. ( l_Jperio .OR. l_NFold ) ) THEN                   ! N closed:
-         zmsk(:,mj0(jpjglo-nn_hls):mj1(jpjglo-nn_hls)  ) = 0._wp   ! last    line of inner global domain at 0
+         zmsk(:,mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)  ) = 0._wp   ! last    line of inner global domain at 0
       ENDIF
       CALL lbc_lnk( 'usrdef_zgr', zmsk, 'T', 1. )             ! set halos
       k_top(:,:) = k_top(:,:) * NINT( zmsk(:,:) )
-      !
-#if ! defined key_qco && ! defined key_linssh
-      ! OLD implementation of coordinate (not with 'key_qco' or 'key_linssh')
-      ! gde3w_0 has to be defined
-!!gm to be remove when removing the OLD definition of e3 scale factors so that gde3w_0=gdept_0
-!!gm therefore gde3w_0 disappears 
-      ! Compute gde3w_0 (vertical sum of e3w)
-      gde3w_0(:,:,1) = 0.5_wp * e3w_0(:,:,1)
-      DO jk = 2, jpk
-         gde3w_0(:,:,jk) = gde3w_0(:,:,jk-1) + e3w_0(:,:,jk)
-      END DO
-#endif
       !
       ! Any closed seas (defined by closea_mask > 0 in domain_cfg file) to be filled 
       ! in at runtime if ln_closea=.false.
@@ -170,29 +312,39 @@ CONTAINS
       IF(lwp) THEN                     ! Control print
          WRITE(numout,*)
          WRITE(numout,*) '   Type of vertical coordinate (read in ', TRIM( cn_domcfg ), ' file or set in userdef_nam) :'
-         WRITE(numout,*) '      z-coordinate - full steps      ln_zco    = ', ln_zco
-         WRITE(numout,*) '      z-coordinate - partial steps   ln_zps    = ', ln_zps
-         WRITE(numout,*) '      s- or hybrid z-s-coordinate    ln_sco    = ', ln_sco
+         WRITE(numout,*) '      z-coordinate - full steps      l_zco    = ', l_zco
+         WRITE(numout,*) '      z-coordinate - partial steps   l_zps    = ', l_zps
+         WRITE(numout,*) '      s- or hybrid z-s-coordinate    l_sco    = ', l_sco
          WRITE(numout,*) '      ice shelf cavities             ln_isfcav = ', ln_isfcav
       ENDIF
 
       ioptio = 0                       ! Check Vertical coordinate options
-      IF( ln_zco      )   ioptio = ioptio + 1
-      IF( ln_zps      )   ioptio = ioptio + 1
-      IF( ln_sco      )   ioptio = ioptio + 1
+      IF( l_zco      )   ioptio = ioptio + 1
+      IF( l_zps      )   ioptio = ioptio + 1
+      IF( l_sco      )   ioptio = ioptio + 1
       IF( ioptio /= 1 )   CALL ctl_stop( ' none or several vertical coordinate options used' )
 
 
       !                                ! top/bottom ocean level indices for t-, u- and v-points (f-point also for top)
       CALL zgr_top_bot( k_top, k_bot, is_mbkuvf )      ! with a minimum value set to 1
       !
-      !                                ! ice shelf draft and bathymetry
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         ikt = mikt(ji,jj)
-         ikb = mbkt(ji,jj)
-         bathy  (ji,jj) = gdepw_0(ji,jj,ikb+1)
-         risfdep(ji,jj) = gdepw_0(ji,jj,ikt  )
-      END_2D
+      IF( lk_vco_3d ) THEN
+         !                                ! ice shelf draft and bathymetry
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            ikt = mikt(ji,jj)
+            ikb = mbkt(ji,jj)
+            bathy  (ji,jj) = gdepw_3d(ji,jj,ikb+1)
+            risfdep(ji,jj) = gdepw_3d(ji,jj,ikt  )
+         END_2D
+      ELSE
+         !                                ! ice shelf draft and bathymetry
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            ikt = mikt(ji,jj)
+            ikb = mbkt(ji,jj)
+            bathy  (ji,jj) = gdepw_1d(ikb+1)
+            risfdep(ji,jj) = gdepw_1d(ikt  )
+         END_2D
+      ENDIF
       !
       !                                ! deepest/shallowest W level Above/Below ~10m
 !!gm BUG in s-coordinate this does not work!
@@ -204,25 +356,25 @@ CONTAINS
       IF( lwp )   THEN
          WRITE(numout,*) ' MIN val k_top   ', MINVAL(   k_top(:,:) ), ' MAX ', MAXVAL( k_top(:,:) )
          WRITE(numout,*) ' MIN val k_bot   ', MINVAL(   k_bot(:,:) ), ' MAX ', MAXVAL( k_bot(:,:) )
-         WRITE(numout,*) ' MIN val depth t ', MINVAL( gdept_0(:,:,:) ),   &
-#if ! defined key_qco && ! defined key_linssh
-            &                          '3w ', MINVAL( gde3w_0(:,:,:) ),   &
-#endif
-            &                          ' w ', MINVAL( gdepw_0(:,:,:) )
-         WRITE(numout,*) ' MIN val e3    t ', MINVAL(   e3t_0(:,:,:) ), ' f ', MINVAL(   e3f_0(:,:,:) ),  &
-            &                          ' u ', MINVAL(   e3u_0(:,:,:) ), ' u ', MINVAL(   e3v_0(:,:,:) ),  &
-            &                          ' uw', MINVAL(  e3uw_0(:,:,:) ), ' vw', MINVAL(  e3vw_0(:,:,:)),   &
-            &                          ' w ', MINVAL(   e3w_0(:,:,:) )
-
-         WRITE(numout,*) ' MAX val depth t ', MAXVAL( gdept_0(:,:,:) ),   &
-#if ! defined key_qco && ! defined key_linssh
-            &                          '3w ', MINVAL( gde3w_0(:,:,:) ),   &
-#endif
-            &                          ' w ', MINVAL( gdepw_0(:,:,:) )
-         WRITE(numout,*) ' MAX val e3    t ', MAXVAL(   e3t_0(:,:,:) ), ' f ', MAXVAL(   e3f_0(:,:,:) ),  &
-            &                          ' u ', MAXVAL(   e3u_0(:,:,:) ), ' u ', MAXVAL(   e3v_0(:,:,:) ),  &
-            &                          ' uw', MAXVAL(  e3uw_0(:,:,:) ), ' vw', MAXVAL(  e3vw_0(:,:,:) ),  &
-            &                          ' w ', MAXVAL(   e3w_0(:,:,:) )
+         IF( lk_vco_1d3d ) THEN
+            WRITE(numout,*) ' MIN val e3    t ', MINVAL(   e3t_3d(:,:,:) ), ' f ', MINVAL(   e3f_3d(:,:,:) ),  &
+               &                          ' u ', MINVAL(   e3u_3d(:,:,:) ), ' u ', MINVAL(   e3v_3d(:,:,:) )
+            WRITE(numout,*) ' MAX val e3    t ', MAXVAL(   e3t_3d(:,:,:) ), ' f ', MAXVAL(   e3f_3d(:,:,:) ),  &
+               &                          ' u ', MAXVAL(   e3u_3d(:,:,:) ), ' u ', MAXVAL(   e3v_3d(:,:,:) )
+         ELSEIF( lk_vco_3d ) THEN
+            WRITE(numout,*) ' MIN val depth t ', MINVAL( gdept_3d(:,:,:) ),   &
+               &                          ' w ', MINVAL( gdepw_3d(:,:,:) )
+            WRITE(numout,*) ' MIN val e3    t ', MINVAL(   e3t_3d(:,:,:) ), ' f ', MINVAL(   e3f_3d(:,:,:) ),  &
+               &                          ' u ', MINVAL(   e3u_3d(:,:,:) ), ' u ', MINVAL(   e3v_3d(:,:,:) ),  &
+               &                          ' uw', MINVAL(  e3uw_3d(:,:,:) ), ' vw', MINVAL(  e3vw_3d(:,:,:)),   &
+               &                          ' w ', MINVAL(   e3w_3d(:,:,:) )
+            WRITE(numout,*) ' MAX val depth t ', MAXVAL( gdept_3d(:,:,:) ),   &
+               &                          ' w ', MINVAL( gdepw_3d(:,:,:) )
+            WRITE(numout,*) ' MAX val e3    t ', MAXVAL(   e3t_3d(:,:,:) ), ' f ', MAXVAL(   e3f_3d(:,:,:) ),  &
+               &                          ' u ', MAXVAL(   e3u_3d(:,:,:) ), ' u ', MAXVAL(   e3v_3d(:,:,:) ),  &
+               &                          ' uw', MAXVAL(  e3uw_3d(:,:,:) ), ' vw', MAXVAL(  e3vw_3d(:,:,:) ),  &
+               &                          ' w ', MAXVAL(   e3w_3d(:,:,:) )
+         ENDIF
       ENDIF
       !
    END SUBROUTINE dom_zgr

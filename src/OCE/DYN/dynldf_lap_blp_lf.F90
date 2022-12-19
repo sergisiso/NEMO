@@ -13,7 +13,7 @@ MODULE dynldf_lap_blp_lf
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers
    USE dom_oce        ! ocean space and time domain
-   USE domutl, ONLY : is_tile
+   USE domutl, ONLY : lbnd_ij
    USE ldfdyn         ! lateral diffusion: eddy viscosity coef.
    USE ldfslp         ! iso-neutral slopes 
    USE zdf_oce        ! ocean vertical physics
@@ -45,7 +45,7 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pu, pv           ! before velocity  [m/s]
       REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pu_rhs, pv_rhs   ! velocity trend   [m/s2]
       !!
-      CALL dyn_ldf_lap_lf_t( kt, Kbb, Kmm, pu, pv, is_tile(pu), pu_rhs, pv_rhs, is_tile(pu_rhs), kpass )
+      CALL dyn_ldf_lap_lf_t( kt, Kbb, Kmm, pu, pv, lbnd_ij(pu), pu_rhs, pv_rhs, lbnd_ij(pu_rhs), kpass )
 
    END SUBROUTINE dyn_ldf_lap_lf
   
@@ -63,12 +63,12 @@ CONTAINS
       !!
       !! Reference : S.Griffies, R.Hallberg 2000 Mon.Wea.Rev., DOI:/ 
       !!----------------------------------------------------------------------
-      INTEGER                                 , INTENT(in   ) ::   kt         ! ocean time-step index
-      INTEGER                                 , INTENT(in   ) ::   Kbb, Kmm   ! ocean time level indices
-      INTEGER                                 , INTENT(in   ) ::   kpass      ! =1/2 first or second passage
-      INTEGER                                 , INTENT(in   ) ::   ktuv, ktuv_rhs
-      REAL(wp), DIMENSION(A2D_T(ktuv)    ,JPK), INTENT(in   ) ::   pu, pv ! before velocity  [m/s]
-      REAL(wp), DIMENSION(A2D_T(ktuv_rhs),JPK), INTENT(inout) ::   pu_rhs, pv_rhs   ! velocity trend   [m/s2]
+      INTEGER                                , INTENT(in   ) ::   kt         ! ocean time-step index
+      INTEGER                                , INTENT(in   ) ::   Kbb, Kmm   ! ocean time level indices
+      INTEGER                                , INTENT(in   ) ::   kpass      ! =1/2 first or second passage
+      INTEGER, DIMENSION(2)                  , INTENT(in   ) ::   ktuv, ktuv_rhs
+      REAL(wp), DIMENSION(AB2D(ktuv)    ,JPK), INTENT(in   ) ::   pu, pv ! before velocity  [m/s]
+      REAL(wp), DIMENSION(AB2D(ktuv_rhs),JPK), INTENT(inout) ::   pu_rhs, pv_rhs   ! velocity trend   [m/s2]
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   iij
@@ -203,7 +203,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pu, pv     ! before velocity fields
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pu_rhs, pv_rhs   ! momentum trend
       !
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zulap, zvlap   ! laplacian at u- and v-point
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zulap, zvlap   ! laplacian at u- and v-point
       !!----------------------------------------------------------------------
       !
       IF( kt == nit000 )  THEN

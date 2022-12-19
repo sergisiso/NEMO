@@ -26,9 +26,6 @@ MODULE traadv_qck
    USE lib_mpp         ! distribued memory computing
    USE lbclnk          ! ocean lateral boundary condition (or mpp link)
    USE lib_fortran     ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
-#if defined key_loop_fusion
-   USE traadv_qck_lf   ! QCK    scheme            (tra_adv_qck  routine - loop fusion version)
-#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -93,14 +90,10 @@ CONTAINS
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
-      ! TEMP: [tiling] This can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(jpi,jpj,jpk         ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !!----------------------------------------------------------------------
       !
-#if defined key_loop_fusion
-      CALL tra_adv_qck_lf ( kt, kit000, cdtype, p2dt, pU, pV, pW, Kbb, Kmm, pt, kjpt, Krhs )
-#else
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == kit000 )  THEN
             IF(lwp) WRITE(numout,*)
@@ -122,7 +115,6 @@ CONTAINS
       !        ! vertical fluxes are computed with the 2nd order centered scheme
       CALL tra_adv_cen2_k( kt, cdtype, pW, Kmm, pt, kjpt, Krhs )
       !
-#endif
    END SUBROUTINE tra_adv_qck
 
 
@@ -130,18 +122,17 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!
       !!----------------------------------------------------------------------
-      INTEGER                                  , INTENT(in   ) ::   kt         ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
-      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
-      INTEGER                                  , INTENT(in   ) ::   kjpt       ! number of tracers
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt       ! tracer time-step
-      ! TEMP: [tiling] This can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(jpi,jpj,jpk         ), INTENT(in   ) ::   pU        ! i-velocity components
+      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
+      INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
+      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU              ! i-velocity components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! active tracers and RHS of tracer equation
       !!
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
       REAL(wp) ::   ztra, zbtr, zdir, zdx, zmsk   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zwx, zfu, zfc, zfd
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zwx, zfu, zfc, zfd
       !----------------------------------------------------------------------
       !
       !                                                          ! ===========
@@ -215,18 +206,17 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!
       !!----------------------------------------------------------------------
-      INTEGER                                  , INTENT(in   ) ::   kt         ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
-      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
-      INTEGER                                  , INTENT(in   ) ::   kjpt       ! number of tracers
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt       ! tracer time-step
-      ! TEMP: [tiling] This can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(jpi,jpj,jpk         ), INTENT(in   ) ::   pV        ! j-velocity components
+      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
+      INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
+      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pV              ! j-velocity components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! active tracers and RHS of tracer equation
       !!
       INTEGER  :: ji, jj, jk, jn                ! dummy loop indices
       REAL(wp) :: ztra, zbtr, zdir, zdx, zmsk   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zwy, zfu, zfc, zfd   ! 3D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zwy, zfu, zfc, zfd   ! 3D workspace
       !----------------------------------------------------------------------
       !
       !                                                          ! ===========
@@ -312,16 +302,15 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!
       !!----------------------------------------------------------------------
-      INTEGER                                  , INTENT(in   ) ::   kt       ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   kt         ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kmm, Krhs  ! ocean time level indices
-      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype   ! =TRA or TRC (tracer indicator)
-      INTEGER                                  , INTENT(in   ) ::   kjpt     ! number of tracers
-      ! TEMP: [tiling] This can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(jpi,jpj,jpk         ), INTENT(in   ) ::   pW      ! vertical velocity
-      REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! active tracers and RHS of tracer equation
+      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
+      INTEGER                                  , INTENT(in   ) ::   kjpt       ! number of tracers
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pW         ! vertical velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt         ! active tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zwz   ! 3D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zwz   ! 3D workspace
       !!----------------------------------------------------------------------
       !
       zwz(:,:, 1 ) = 0._wp       ! surface & bottom values set to zero for all tracers
@@ -365,10 +354,10 @@ CONTAINS
       !!
       !! ** Method :
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(in   ) ::   pfu   ! second upwind point
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(in   ) ::   pfd   ! first douwning point
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(in   ) ::   pfc   ! the central point (or the first upwind point)
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   puc   ! input as Courant number ; output as flux
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   pfu   ! second upwind point
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   pfd   ! first douwning point
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   pfc   ! the central point (or the first upwind point)
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   puc   ! input as Courant number ; output as flux
       !!
       INTEGER  ::  ji, jj, jk               ! dummy loop indices
       REAL(wp) ::  zcoef1, zcoef2, zcoef3   ! local scalars

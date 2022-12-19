@@ -15,6 +15,7 @@ MODULE isfhdiv
 
    USE isf_oce                ! ice shelf
 
+   USE par_oce                ! ocean space and time domain
    USE dom_oce                ! time and space domain
    USE phycst , ONLY: r1_rho0 ! physical constant
    USE in_out_manager         !
@@ -24,10 +25,10 @@ MODULE isfhdiv
    PRIVATE
 
    PUBLIC isf_hdiv
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
-
 CONTAINS
 
    SUBROUTINE isf_hdiv( kt, Kmm, phdiv )
@@ -39,25 +40,29 @@ CONTAINS
       !!                 increment)
       !!
       !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt
+      INTEGER, INTENT(in) ::   Kmm      !  ocean time level index
       REAL(wp), DIMENSION(:,:,:), INTENT( inout ) ::   phdiv   ! horizontal divergence
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in) :: kt
-      INTEGER, INTENT(in) :: Kmm      !  ocean time level index
       !
       IF ( ln_isf ) THEN
          !
 #if defined key_RK3
          ! ice shelf cavity contribution (RK3)
-         IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, fwfisf_cav, phdiv)
+         IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, &
+            &                                                                             fwfisf_cav, phdiv)
          !
          ! ice shelf parametrisation contribution (RK3)
-         IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, fwfisf_par, phdiv)
+         IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, &
+                                                                                          fwfisf_par, phdiv)
 #else
          ! ice shelf cavity contribution (MLF)
-         IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, fwfisf_cav, phdiv, fwfisf_cav_b)
+         IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, &
+            &                                                                             fwfisf_cav, phdiv, fwfisf_cav_b)
          !
          ! ice shelf parametrisation contribution (MLF)
-         IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, fwfisf_par, phdiv, fwfisf_par_b)
+         IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, &
+                                                                                          fwfisf_par, phdiv, fwfisf_par_b)
 #endif
          !
          ! ice sheet coupling contribution
@@ -81,7 +86,7 @@ CONTAINS
    END SUBROUTINE isf_hdiv
 
 
-   SUBROUTINE isf_hdiv_mlt(ktop, kbot, phtbl, pfrac, pfwf, phdiv, pfwf_b)
+   SUBROUTINE isf_hdiv_mlt( ktop, kbot, phtbl, pfrac, pfwf, phdiv, pfwf_b )
       !!----------------------------------------------------------------------
       !!                  ***  SUBROUTINE sbc_isf_div  ***
       !!       
@@ -92,45 +97,42 @@ CONTAINS
       !!
       !! ** Action  :   phdivn   increased by the ice shelf outflow
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpk)      , INTENT(inout) :: phdiv
-      !!----------------------------------------------------------------------
-      INTEGER , DIMENSION(jpi,jpj)          , INTENT(in   ) :: ktop , kbot
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) :: pfrac, phtbl
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) :: pfwf
-      REAL(wp), DIMENSION(:,:)    , OPTIONAL, INTENT(in   ) :: pfwf_b
+      INTEGER , DIMENSION(A2D(0))           , INTENT(in   ) ::   ktop , kbot
+      REAL(wp), DIMENSION(A2D(0))           , INTENT(in   ) ::   pfrac, phtbl
+      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) ::   pfwf
+      REAL(wp), DIMENSION(jpi,jpj,jpk)      , INTENT(inout) ::   phdiv
+      REAL(wp), DIMENSION(:,:)    , OPTIONAL, INTENT(in   ) ::   pfwf_b
       !!----------------------------------------------------------------------
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   ikt, ikb 
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zhdiv
+      REAL(wp) ::   zhdiv
       !!----------------------------------------------------------------------
       !
       !==   fwf distributed over several levels   ==!
       !
-      ! compute integrated divergence correction
-      DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
-#if defined key_RK3
-         zhdiv(ji,jj) = pfwf(ji,jj) * r1_rho0 / phtbl(ji,jj)
-#else
-         zhdiv(ji,jj) = 0.5_wp * ( pfwf(ji,jj) + pfwf_b(ji,jj) ) * r1_rho0 / phtbl(ji,jj)
-#endif
-      END_2D
-      !
       ! update divergence at each level affected by ice shelf top boundary layer
-      DO_2D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
+         ! compute integrated divergence correction
+#if defined key_RK3
+         zhdiv = pfwf(ji,jj) * r1_rho0 / phtbl(ji,jj)
+#else
+         zhdiv = 0.5_wp * ( pfwf(ji,jj) + pfwf_b(ji,jj) ) * r1_rho0 / phtbl(ji,jj)
+#endif
+         !
          ikt = ktop(ji,jj)
          ikb = kbot(ji,jj)
          ! level fully include in the ice shelf boundary layer
          DO jk = ikt, ikb - 1
-            phdiv(ji,jj,jk) = phdiv(ji,jj,jk) - zhdiv(ji,jj)
+            phdiv(ji,jj,jk) = phdiv(ji,jj,jk) - zhdiv
          END DO
          ! level partially include in ice shelf boundary layer 
-         phdiv(ji,jj,ikb) = phdiv(ji,jj,ikb) - zhdiv(ji,jj) * pfrac(ji,jj)
+         phdiv(ji,jj,ikb) = phdiv(ji,jj,ikb) - zhdiv * pfrac(ji,jj)
       END_2D
       !
    END SUBROUTINE isf_hdiv_mlt
 
 
-   SUBROUTINE isf_hdiv_cpl(Kmm, pqvol, phdiv)
+   SUBROUTINE isf_hdiv_cpl( Kmm, pqvol, phdiv )
       !!----------------------------------------------------------------------
       !!                  ***  SUBROUTINE isf_hdiv_cpl  ***
       !!       
@@ -143,17 +145,15 @@ CONTAINS
       !! ** Action  :   phdivn   increased by the ice shelf outflow
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) :: phdiv
+      INTEGER,                          INTENT(in)    ::   Kmm     ! ocean time level index
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pqvol
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   phdiv
       !!----------------------------------------------------------------------
-      INTEGER,                          INTENT(in)    :: Kmm     ! ocean time level index
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) :: pqvol
-      !!----------------------------------------------------------------------
-      INTEGER :: ji, jj, jk
+      INTEGER ::   ji, jj, jk
       !!----------------------------------------------------------------------
       !
-      DO_3D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpk )
-         phdiv(ji,jj,jk) =  phdiv(ji,jj,jk) + pqvol(ji,jj,jk) * r1_e1e2t(ji,jj)   &
-            &                             / e3t(ji,jj,jk,Kmm)
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         phdiv(ji,jj,jk) = phdiv(ji,jj,jk) + pqvol(ji,jj,jk) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
       END_3D
       !
    END SUBROUTINE isf_hdiv_cpl

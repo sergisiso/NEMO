@@ -68,9 +68,9 @@ CONTAINS
       !!----------------------------------------------------------------------------
       !!                  ***  ROUTINE trd_vor_alloc  ***
       !!----------------------------------------------------------------------------
-      ALLOCATE( vor_avr   (jpi,jpj) , vor_avrb(jpi,jpj) , vor_avrbb (jpi,jpj) ,   &
-         &      vor_avrbn (jpi,jpj) , rotot   (jpi,jpj) , vor_avrtot(jpi,jpj) ,   &
-         &      vor_avrres(jpi,jpj) , vortrd  (jpi,jpj,jpltot_vor) ,              &
+      ALLOCATE( vor_avr   (T2D(0)) , vor_avrb(T2D(0)) , vor_avrbb (T2D(0)) ,   &
+         &      vor_avrbn (T2D(0)) , rotot   (T2D(0)) , vor_avrtot(T2D(0)) ,   &
+         &      vor_avrres(T2D(0)) , vortrd  (T2D(0),jpltot_vor) ,              &
          &      ndexvor1  (jpi*jpj)                                ,   STAT= trd_vor_alloc )
          !
       CALL mpp_sum ( 'trdvor', trd_vor_alloc )
@@ -105,9 +105,9 @@ CONTAINS
       CASE( jpdyn_zad )   ;   CALL trd_vor_zint( putrd, pvtrd, jpvor_zad, Kmm )   ! Vertical Advection 
       CASE( jpdyn_spg )   ;   CALL trd_vor_zint( putrd, pvtrd, jpvor_spg, Kmm )   ! Surface Pressure Grad. 
       CASE( jpdyn_zdf )                                                           ! Vertical Diffusion 
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )                                                               ! wind stress trends
-            ztswu(ji,jj) = 0.5 * ( utau_b(ji,jj) + utau(ji,jj) ) / ( e3u(ji,jj,1,Kmm) * rho0 )
-            ztswv(ji,jj) = 0.5 * ( vtau_b(ji,jj) + vtau(ji,jj) ) / ( e3v(ji,jj,1,Kmm) * rho0 )
+         DO_2D( 0, 1, 0, 1 )                                                      ! wind stress trends
+            ztswu(ji,jj) = 0.5 * ( utau_b(ji,jj) + utauU(ji,jj) ) / ( e3u(ji,jj,1,Kmm) * rho0 )
+            ztswv(ji,jj) = 0.5 * ( vtau_b(ji,jj) + vtauV(ji,jj) ) / ( e3v(ji,jj,1,Kmm) * rho0 )
          END_2D
          CALL trd_vor_zint( putrd, pvtrd, jpvor_zdf, Kmm )                             ! zdf trend including surf./bot. stresses 
          CALL trd_vor_zint( ztswu, ztswv, jpvor_swf, Kmm )                             ! surface wind stress 
@@ -165,7 +165,7 @@ CONTAINS
       SELECT CASE( ktrd ) 
       !
       CASE( jpvor_bfr )        ! bottom friction
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 1, 0, 1 )
             ikbu = mbkv(ji,jj)
             ikbv = mbkv(ji,jj)            
             zudpvor(ji,jj) = putrdvor(ji,jj) * e3u(ji,jj,ikbu,Kmm) * e1u(ji,jj) * umask(ji,jj,ikbu)
@@ -173,14 +173,18 @@ CONTAINS
          END_2D
          !
       CASE( jpvor_swf )        ! wind stress
-         zudpvor(:,:) = putrdvor(:,:) * e3u(:,:,1,Kmm) * e1u(:,:) * umask(:,:,1)
-         zvdpvor(:,:) = pvtrdvor(:,:) * e3v(:,:,1,Kmm) * e2v(:,:) * vmask(:,:,1)
+         DO_2D( 0, 1, 0, 1 )
+            zudpvor(ji,jj) = putrdvor(ji,jj) * e3u(ji,jj,1,Kmm) * e1u(ji,jj) * umask(ji,jj,1)
+            zvdpvor(ji,jj) = pvtrdvor(ji,jj) * e3v(ji,jj,1,Kmm) * e2v(ji,jj) * vmask(ji,jj,1)
+         END_2D
          !
       END SELECT
 
       ! Average except for Beta.V
-      zudpvor(:,:) = zudpvor(:,:) * r1_hu(:,:,Kmm)
-      zvdpvor(:,:) = zvdpvor(:,:) * r1_hv(:,:,Kmm)
+      DO_2D( 0, 1, 0, 1 )
+         zudpvor(ji,jj) = zudpvor(ji,jj) * r1_hu(ji,jj,Kmm)
+         zvdpvor(ji,jj) = zvdpvor(ji,jj) * r1_hv(ji,jj,Kmm)
+      END_2D
    
       ! Curl
       DO_2D( 0, 0, 0, 0 )
@@ -238,10 +242,11 @@ CONTAINS
       !  I vertical integration of 3D trends
       !  =====================================
       ! putrdvor and pvtrdvor terms
-      DO jk = 1,jpk
-        zudpvor(:,:) = zudpvor(:,:) + putrdvor(:,:,jk) * e3u(:,:,jk,Kmm) * e1u(:,:) * umask(:,:,jk)
-        zvdpvor(:,:) = zvdpvor(:,:) + pvtrdvor(:,:,jk) * e3v(:,:,jk,Kmm) * e2v(:,:) * vmask(:,:,jk)
-      END DO
+      zudpvor(:,:) = 0._wp ; zvdpvor(:,:) = 0._wp
+      DO_3D( 0, 1, 0, 1, 1, jpk )
+        zudpvor(ji,jj) = zudpvor(ji,jj) + putrdvor(ji,jj,jk) * e3u(ji,jj,jk,Kmm) * e1u(ji,jj) * umask(ji,jj,jk)
+        zvdpvor(ji,jj) = zvdpvor(ji,jj) + pvtrdvor(ji,jj,jk) * e3v(ji,jj,jk,Kmm) * e2v(ji,jj) * vmask(ji,jj,jk)
+      END_3D
 
       ! Planetary vorticity: 2nd computation (Beta.V term) store the vertical sum
       ! as Beta.V term need intergration, not average
@@ -254,8 +259,10 @@ CONTAINS
       ENDIF
       !
       ! Average 
-      zudpvor(:,:) = zudpvor(:,:) * r1_hu(:,:,Kmm)
-      zvdpvor(:,:) = zvdpvor(:,:) * r1_hv(:,:,Kmm)
+      DO_2D( 0, 1, 0, 1 )
+         zudpvor(ji,jj) = zudpvor(ji,jj) * r1_hu(ji,jj,Kmm)
+         zvdpvor(ji,jj) = zvdpvor(ji,jj) * r1_hv(ji,jj,Kmm)
+      END_2D
       !
       ! Curl
       DO_2D( 0, 0, 0, 0 )
@@ -367,10 +374,6 @@ CONTAINS
          ! ---------------------
          zmean = 1._wp / REAL( nmoydpvor, wp )
          vor_avrres(:,:) = vor_avrtot(:,:) - rotot(:,:) / zmean
-
-         ! Boundary conditions
-         CALL lbc_lnk( 'trdvor', vor_avrtot, 'F', 1.0_wp , vor_avrres, 'F', 1.0_wp )
-
 
          ! III.3 time evolution array swap
          ! ------------------------------

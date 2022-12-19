@@ -38,7 +38,7 @@ CONTAINS
       CHARACTER (len=20)           :: cltra
       REAL(wp)                     :: zfact
       INTEGER                      :: ji, jj, jk, jn
-      REAL(wp), DIMENSION(jpi,jpj) :: zdic, zo2min, zdepo2min
+      REAL(wp), DIMENSION(A2D(0)) :: zdic, zo2min, zdepo2min
       !!---------------------------------------------------------------------
  
       ! write the tracer concentrations in the file
@@ -60,15 +60,19 @@ CONTAINS
          IF( iom_use( "INTDIC" ) ) THEN                     !   DIC content in kg/m2
             zdic(:,:) = 0.
             DO jk = 1, jpkm1
-               zdic(:,:) = zdic(:,:) + tr(:,:,jk,jpdic,Kmm) * e3t(:,:,jk,Kmm) * tmask(:,:,jk) * 12.
+               DO_2D( 0, 0, 0, 0 )
+                 zdic(ji,jj) = zdic(ji,jj) + tr(ji,jj,jk,jpdic,Kmm) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * 12.
+               END_2D
             ENDDO
-            CALL iom_put( 'INTDIC', zdic )     
+            CALL iom_put( 'INTDIC', zdic )
          ENDIF
          !
-         IF( iom_use( "O2MIN" ) .OR. iom_use ( "ZO2MIN" ) ) THEN  ! Oxygen minimum concentration and depth 
-            zo2min   (:,:) = tr(:,:,1,jpoxy,Kmm) * tmask(:,:,1)
-            zdepo2min(:,:) = gdepw(:,:,1,Kmm)   * tmask(:,:,1)
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpkm1 ) 
+         IF( iom_use( "O2MIN" ) .OR. iom_use ( "ZO2MIN" ) ) THEN  ! Oxygen minimum concentration and depth
+            DO_2D( 0, 0, 0, 0 )
+               zo2min   (ji,jj) = tr(ji,jj,1,jpoxy,Kmm) * tmask(ji,jj,1)
+               zdepo2min(ji,jj) = gdepw(ji,jj,1,Kmm)    * tmask(ji,jj,1)
+            END_2D
+            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
                IF( tmask(ji,jj,jk) == 1 ) then
                   IF( tr(ji,jj,jk,jpoxy,Kmm) < zo2min(ji,jj) ) then
                      zo2min   (ji,jj) = tr(ji,jj,jk,jpoxy,Kmm)

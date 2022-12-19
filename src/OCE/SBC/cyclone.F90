@@ -54,9 +54,9 @@ CONTAINS
       !! ** Action  : - open TC data, find TCs for the current timestep
       !!              - for each potential TC, add the winds on the grid
       !!----------------------------------------------------------------------
-      INTEGER , INTENT(in)                      ::   kt       ! time step index 
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj) ::   pwnd_i   ! wind speed i-components at T-point ORCA direction
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj) ::   pwnd_j   ! wind speed j-components at T-point ORCA direction
+      INTEGER , INTENT(in)                     ::   kt       ! time step index 
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)) ::   pwnd_i   ! wind speed i-components at T-point ORCA direction
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)) ::   pwnd_j   ! wind speed j-components at T-point ORCA direction
       ! 
       !!
       INTEGER  ::   ji, jj , jtc        ! loop arguments
@@ -79,7 +79,7 @@ CONTAINS
       REAL(wp) ::   zwnd_r, zwnd_t      ! radial and tangential components of the wind
       REAL(wp) ::   zvmax               ! timestep interpolated vmax
       REAL(wp) ::   zrlon, zrlat        ! temporary 
-      REAL(wp), DIMENSION(jpi,jpj) ::   zwnd_x, zwnd_y   ! zonal and meridional components of the wind
+      REAL(wp), DIMENSION(A2D(0))  ::   zwnd_x, zwnd_y   ! zonal and meridional components of the wind
       REAL(wp), DIMENSION(14,5)    ::   ztct                ! tropical cyclone track data at kt
       !
       CHARACTER(len=100) ::  cn_dir            ! Root directory for location of files
@@ -146,7 +146,7 @@ CONTAINS
             ! fitted B parameter (Willoughby 2004)
             zb = 2.
 
-            DO_2D( 1, 1, 1, 1 )
+            DO_2D( 0, 0, 0, 0 )
 
                ! calc distance between TC center and any point following great circle
                ! source : http://www.movable-type.co.uk/scripts/latlong.html
@@ -207,7 +207,7 @@ CONTAINS
                zA=0
             ENDIF           
         
-            DO_2D( 1, 1, 1, 1 )
+            DO_2D( 0, 0, 0, 0 )
                                
                zzrglam = rad * glamt(ji,jj) - zrlon
                zzrgphi = rad * gphit(ji,jj)

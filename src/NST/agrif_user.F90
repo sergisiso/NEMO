@@ -270,7 +270,7 @@
          mbku_parent(ji,jj) = MIN( mbkt_parent(ji+1,jj  ), mbkt_parent(ji,jj) )
          mbkv_parent(ji,jj) = MIN( mbkt_parent(ji  ,jj+1), mbkt_parent(ji,jj) )
       END_2D
-      IF ( ln_sco.AND.Agrif_Parent(ln_sco) ) THEN 
+      IF ( l_sco.AND.Agrif_Parent(l_sco) ) THEN 
          DO_2D( 1, 0, 1, 0 )
             hu0_parent(ji,jj) = 0.5_wp * ( ht0_parent(ji,jj)+ht0_parent(ji+1,jj) ) * ssumask(ji,jj)
             hv0_parent(ji,jj) = 0.5_wp * ( ht0_parent(ji,jj)+ht0_parent(ji,jj+1) ) * ssvmask(ji,jj)
@@ -313,7 +313,7 @@
       END_3D
 
       ! Assume a step at the bottom except if (pure) s-coordinates
-      IF ( .NOT.Agrif_Parent(ln_sco) ) THEN 
+      IF ( .NOT.Agrif_Parent(l_sco) ) THEN 
          DO_2D( 1, 0, 1, 0 )
             jk = mbku_parent(ji,jj)
             e3u0_parent(ji,jj,jk) = MIN(e3t0_parent(ji,jj,jk), e3t0_parent(ji+1,jj  ,jk))
@@ -1104,8 +1104,8 @@
       !!----------------------------------------------------------------------
       !
       SELECT CASE( i )
-      CASE(1)        ;   indglob = mig(indloc)
-      CASE(2)        ;   indglob = mjg(indloc)
+      CASE(1)        ;   indglob = mig(indloc,nn_hls)
+      CASE(2)        ;   indglob = mjg(indloc,nn_hls)
       CASE DEFAULT   ;   indglob = indloc
       END SELECT
       !
@@ -1124,10 +1124,10 @@
       INTEGER, INTENT(out) :: jmin, jmax
       !!----------------------------------------------------------------------
       !
-      imin = mig( 1 )
-      jmin = mjg( 1 )
-      imax = mig(jpi)
-      jmax = mjg(jpj)
+      imin = mig( 1 ,nn_hls)
+      jmin = mjg( 1 ,nn_hls)
+      imax = mig(jpi,nn_hls)
+      jmax = mjg(jpj,nn_hls)
       ! 
    END SUBROUTINE Agrif_get_proc_info
 

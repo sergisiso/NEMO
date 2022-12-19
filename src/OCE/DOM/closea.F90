@@ -51,6 +51,8 @@ MODULE closea
    INTEGER, PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:,:) :: mask_csrnf , mask_csgrprnf !: mask of integers defining closed seas rnf mappings
    INTEGER, PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:,:) :: mask_csemp , mask_csgrpemp !: mask of integers defining closed seas empmr mappings
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: closea.F90 13558 2020-10-02 15:30:22Z smasson $
@@ -173,17 +175,17 @@ CONTAINS
       !! ** Action  :   update (p_)mskrnf (set 1 at closed sea outflow)
       !!----------------------------------------------------------------------
       !! subroutine parameter
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(inout) ::   p_rnfmsk   ! river runoff mask (rnfmsk array)
-      !!
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   p_rnfmsk   ! river runoff mask (rnfmsk array)
       !! local variables
-      REAL(wp), DIMENSION(jpi,jpj) :: zmsk
+      INTEGER ::   ji, jj
+      INTEGER ::   zmsk
       !!----------------------------------------------------------------------
       !
       ! zmsk > 0 where cs river mouth defined (case rnf and emp)
-      zmsk(:,:) = ( mask_csgrprnf (:,:) + mask_csgrpemp(:,:) ) * mask_opnsea(:,:)
-      WHERE( zmsk(:,:) > 0 )
-         p_rnfmsk(:,:) = 1.0_wp
-      END WHERE
+      DO_2D( 0, 0, 0, 0 )
+         zmsk = ( mask_csgrprnf(ji,jj) + mask_csgrpemp(ji,jj) ) * mask_opnsea(ji,jj)
+         IF( zmsk > 0 )   p_rnfmsk(ji,jj) = 1.0_wp
+      END_2D
       !
    END SUBROUTINE clo_rnf
       

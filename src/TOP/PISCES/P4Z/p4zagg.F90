@@ -70,7 +70,7 @@ CONTAINS
       ! PISCES part
       IF( ln_p4z ) THEN
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             !
             zfact = xstep * xdiss(ji,jj,jk)
             ! Part I : Coagulation dependent on turbulence
@@ -117,7 +117,7 @@ CONTAINS
       ELSE    ! ln_p5z
         ! PISCES-QUOTA part
         !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             !
             zfact = xstep * xdiss(ji,jj,jk)
             !  Part I : Coagulation dependent on turbulence

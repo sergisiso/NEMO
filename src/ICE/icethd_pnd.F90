@@ -84,7 +84,7 @@ CONTAINS
       INTEGER ::   ji, jj, jl        ! loop indices
       !!-------------------------------------------------------------------
 
-      ALLOCATE( diag_dvpn_mlt(jpi,jpj), diag_dvpn_lid(jpi,jpj), diag_dvpn_drn(jpi,jpj), diag_dvpn_rnf(jpi,jpj) )
+      ALLOCATE( diag_dvpn_mlt(A2D(0)) , diag_dvpn_lid(A2D(0)) , diag_dvpn_drn(A2D(0)) , diag_dvpn_rnf(A2D(0))  )
       ALLOCATE( diag_dvpn_mlt_1d(jpij), diag_dvpn_lid_1d(jpij), diag_dvpn_drn_1d(jpij), diag_dvpn_rnf_1d(jpij) )
       !
       diag_dvpn_mlt (:,:) = 0._wp   ;   diag_dvpn_drn (:,:) = 0._wp
@@ -98,7 +98,7 @@ CONTAINS
       at_i(:,:) = SUM( a_i, dim=3 )
       !
       DO jl = 1, jpl
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF( v_i(ji,jj,jl) < epsi10 .OR. at_i(ji,jj) < epsi10 ) THEN
                wfx_pnd  (ji,jj)    = wfx_pnd(ji,jj) + ( v_ip(ji,jj,jl) + v_il(ji,jj,jl) ) * rhow * r1_Dt_ice
                a_ip     (ji,jj,jl) = 0._wp
@@ -115,7 +115,7 @@ CONTAINS
       !  Identify grid cells with ice
       !------------------------------
       npti = 0   ;   nptidx(:) = 0
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF( at_i(ji,jj) >= epsi10 ) THEN
             npti = npti + 1
             nptidx( npti ) = (jj - 1) * jpi + ji
@@ -136,6 +136,8 @@ CONTAINS
             !
          END SELECT
       ENDIF
+
+      ! the following fields need to be updated in the halos (done in icethd): a_ip, v_ip, v_il, h_ip, h_il
 
       !------------------------------------
       !  Diagnostics
@@ -529,7 +531,7 @@ CONTAINS
          zv_pnd  , &     ! volume of meltwater contributing to ponds
          zv_mlt          ! total amount of meltwater produced
 
-      REAL(wp), DIMENSION(jpi,jpj) ::   zvolp_ini , &   !! total melt pond water available before redistribution and drainage
+      REAL(wp), DIMENSION(A2D(0)) ::   zvolp_ini , &   !! total melt pond water available before redistribution and drainage
                                         zvolp     , &   !! total melt pond water volume
                                         zvolp_res       !! remaining melt pond water available after drainage
 
@@ -589,7 +591,7 @@ CONTAINS
       zvolp(:,:) = 0._wp
 
       DO jl = 1, jpl
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
 
                IF ( a_i(ji,jj,jl) > epsi10 ) THEN
 
@@ -637,7 +639,7 @@ CONTAINS
 
       IF( ln_pnd_lids ) THEN
 
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
 
             IF ( at_i(ji,jj) > 0.01 .AND. hm_i(ji,jj) > rn_himin .AND. zvolp_ini(ji,jj) > zvp_min * at_i(ji,jj) ) THEN
 
@@ -764,7 +766,7 @@ CONTAINS
 
       DO jl = 1, jpl
 
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
 
 !              ! zap lids on small ponds
 !              IF ( a_i(ji,jj,jl) > epsi10 .AND. v_ip(ji,jj,jl) < epsi10 &
@@ -826,7 +828,7 @@ CONTAINS
        !!
        !!------------------------------------------------------------------
 
-       REAL (wp), DIMENSION(jpi,jpj), INTENT(INOUT) :: &
+       REAL (wp), DIMENSION(A2D(0)), INTENT(INOUT) :: &
           zvolp,                                       &  ! total available pond water
           zdvolp                                          ! remaining meltwater after redistribution
 
@@ -865,10 +867,10 @@ CONTAINS
 
       INTEGER  ::   ji, jj, jk, jl                    ! loop indices
 
-       a_ip(:,:,:) = 0._wp
-       h_ip(:,:,:) = 0._wp
+       a_ip(A2D(0),:) = 0._wp
+       h_ip(A2D(0),:) = 0._wp
 
-       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+       DO_2D( 0, 0, 0, 0 )
 
              IF ( at_i(ji,jj) > 0.01 .AND. hm_i(ji,jj) > rn_himin .AND. zvolp(ji,jj) > zvp_min * at_i(ji,jj) ) THEN
 

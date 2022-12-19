@@ -32,7 +32,7 @@ MODULE icedyn_adv_umx
 
    PUBLIC   ice_dyn_adv_umx   ! called by icedyn_adv.F90
    !
-   INTEGER, PARAMETER ::   np_advS = 1         ! advection for S and T:    dVS/dt = -div(      uVS     ) => np_advS = 1
+   INTEGER, PARAMETER ::   np_advS = 2         ! advection for S and T:    dVS/dt = -div(      uVS     ) => np_advS = 1
    !                                                                    or dVS/dt = -div( uA * uHS / u ) => np_advS = 2
    !                                                                    or dVS/dt = -div( uV * uS  / u ) => np_advS = 3
    INTEGER, PARAMETER ::   np_limiter = 1      ! limiter: 1 = nonosc
@@ -92,9 +92,10 @@ CONTAINS
       INTEGER  ::   icycle                  ! number of sub-timestep for the advection
       REAL(wp) ::   zamsk                   ! 1 if advection of concentration, 0 if advection of other tracers
       REAL(wp) ::   zdt, z1_dt, zvi_cen
+      REAL(wp) ::   zati2
       REAL(wp), DIMENSION(1)                  ::   zcflprv, zcflnow   ! for global communication
       REAL(wp), DIMENSION(jpi,jpj)            ::   zudy, zvdx, zcu_box, zcv_box
-      REAL(wp), DIMENSION(jpi,jpj)            ::   zati1, zati2
+      REAL(wp), DIMENSION(jpi,jpj)            ::   zati1
       REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   zu_cat, zv_cat
       REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   zua_ho, zva_ho, zua_ups, zva_ups
       REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   z1_ai , z1_aip, zhvar
@@ -104,7 +105,7 @@ CONTAINS
       !
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zuv_ho, zvv_ho, zuv_ups, zvv_ups, z1_vi, z1_vs
       !! diagnostics
-      REAL(wp), DIMENSION(jpi,jpj)            ::   zdiag_adv_mass, zdiag_adv_salt, zdiag_adv_heat
+      REAL(wp), DIMENSION(A2D(0))             ::   zdiag_adv_mass, zdiag_adv_salt, zdiag_adv_heat
       !!----------------------------------------------------------------------
       !
       IF( kt == nit000 .AND. lwp )   WRITE(numout,*) '-- ice_dyn_adv_umx: Ultimate-Macho advection scheme'
@@ -114,10 +115,10 @@ CONTAINS
       WHERE( pv_i(:,:,:) >= epsi10 ) ; zs_i(:,:,:) = psv_i(:,:,:) / pv_i(:,:,:)
       ELSEWHERE                      ; zs_i(:,:,:) = 0._wp
       END WHERE
-      CALL icemax3D( ph_i , zhi_max )
-      CALL icemax3D( ph_s , zhs_max )
-      CALL icemax3D( ph_ip, zhip_max)
-      CALL icemax3D( zs_i , zsi_max )
+      CALL icemax3D_umx( ph_i , zhi_max )
+      CALL icemax3D_umx( ph_s , zhs_max )
+      CALL icemax3D_umx( ph_ip, zhip_max)
+      CALL icemax3D_umx( zs_i , zsi_max )
       CALL lbc_lnk( 'icedyn_adv_umx', zhi_max, 'T', 1._wp, zhs_max, 'T', 1._wp, zhip_max, 'T', 1._wp, zsi_max, 'T', 1._wp )
       !
       ! enthalpies
@@ -131,10 +132,9 @@ CONTAINS
          ELSEWHERE                      ; ze_s(:,:,jk,:) = 0._wp
          END WHERE
       END DO
-      CALL icemax4D( ze_i , zei_max )
-      CALL icemax4D( ze_s , zes_max )
-      CALL lbc_lnk( 'icedyn_adv_umx', zei_max, 'T', 1._wp )
-      CALL lbc_lnk( 'icedyn_adv_umx', zes_max, 'T', 1._wp )
+      CALL icemax4D_umx( ze_i , zei_max )
+      CALL icemax4D_umx( ze_s , zes_max )
+      CALL lbc_lnk( 'icedyn_adv_umx', zei_max, 'T', 1._wp, zes_max, 'T', 1._wp )
       !
       !
       ! --- If ice drift is too fast, use  subtime steps for advection (CFL test for stability) --- !
@@ -146,9 +146,13 @@ CONTAINS
       ! non-blocking global communication send zcflnow and receive zcflprv
       CALL mpp_delay_max( 'icedyn_adv_umx', 'cflice', zcflnow(:), zcflprv(:), kt == nitend - nn_fsbc + 1 )
 
-      IF( zcflprv(1) > .5 ) THEN   ;   icycle = 2
-      ELSE                         ;   icycle = 1
+      IF    ( zcflprv(1) > 1.5 ) THEN   ;   icycle = 3
+      ELSEIF( zcflprv(1) >  .5 ) THEN   ;   icycle = 2
+      ELSE                              ;   icycle = 1
       ENDIF
+!!$      !!test clem
+!!$      icycle=3
+!!$      !!test clem
       zdt = rDt_ice / REAL(icycle)
       z1_dt = 1._wp / zdt
 
@@ -181,13 +185,6 @@ CONTAINS
       !---------------!
       DO jt = 1, icycle
 
-         ! diagnostics
-         zdiag_adv_mass(:,:) =   SUM( pv_i (:,:,:) , dim=3 ) * rhoi + SUM( pv_s (:,:,:) , dim=3 ) * rhos &
-            &                  + SUM( pv_ip(:,:,:) , dim=3 ) * rhow + SUM( pv_il(:,:,:) , dim=3 ) * rhow
-         zdiag_adv_salt(:,:) =   SUM( psv_i(:,:,:) , dim=3 ) * rhoi
-         zdiag_adv_heat(:,:) = - SUM(SUM( pe_i(:,:,1:nlay_i,:) , dim=4 ), dim=3 ) &
-            &                  - SUM(SUM( pe_s(:,:,1:nlay_s,:) , dim=4 ), dim=3 )
-
          ! record at_i before advection (for open water)
          zati1(:,:) = SUM( pa_i(:,:,:), dim=3 )
 
@@ -216,6 +213,14 @@ CONTAINS
                END_2D
             END DO
          ENDIF
+         !
+         ! diagnostics
+         DO_2D( 0, 0, 0, 0 )
+            zdiag_adv_mass(ji,jj) =   SUM( pv_i (ji,jj,:) ) * rhoi + SUM( pv_s (ji,jj,:) ) * rhos &
+               &                    + SUM( pv_ip(ji,jj,:) ) * rhow + SUM( pv_il(ji,jj,:) ) * rhow
+            zdiag_adv_salt(ji,jj) =   SUM( psv_i(ji,jj,:) ) * rhoi
+            zdiag_adv_heat(ji,jj) = - SUM( SUM( pe_i(ji,jj,1:nlay_i,:), dim=2 ) ) - SUM( SUM( pe_s(ji,jj,1:nlay_s,:), dim=2 ) )            
+         END_2D
          !
          ! ----------------------- !
          ! ==> start advection <== !
@@ -360,49 +365,53 @@ CONTAINS
             ENDIF
          ENDIF
 
-         ! --- Lateral boundary conditions --- !
-         IF    ( ( ln_pnd_LEV .OR. ln_pnd_TOPO ) .AND. ln_pnd_lids ) THEN
-            CALL lbc_lnk( 'icedyn_adv_umx', pa_i,'T',1._wp, pv_i,'T',1._wp, pv_s,'T',1._wp, psv_i,'T',1._wp, poa_i,'T',1._wp &
-               &                          , pa_ip,'T',1._wp, pv_ip,'T',1._wp, pv_il,'T',1._wp )
-         ELSEIF( ( ln_pnd_LEV .OR. ln_pnd_TOPO ) .AND. .NOT.ln_pnd_lids ) THEN
-            CALL lbc_lnk( 'icedyn_adv_umx', pa_i,'T',1._wp, pv_i,'T',1._wp, pv_s,'T',1._wp, psv_i,'T',1._wp, poa_i,'T',1._wp &
-               &                          , pa_ip,'T',1._wp, pv_ip,'T',1._wp )
-         ELSE
-            CALL lbc_lnk( 'icedyn_adv_umx', pa_i,'T',1._wp, pv_i,'T',1._wp, pv_s,'T',1._wp, psv_i,'T',1._wp, poa_i,'T',1._wp )
-         ENDIF
-         CALL lbc_lnk( 'icedyn_adv_umx', pe_i, 'T', 1._wp )
-         CALL lbc_lnk( 'icedyn_adv_umx', pe_s, 'T', 1._wp )
-         !
          !== Open water area ==!
-         zati2(:,:) = SUM( pa_i(:,:,:), dim=3 )
          DO_2D( 0, 0, 0, 0 )
-            pato_i(ji,jj) = pato_i(ji,jj) - ( zati2(ji,jj) - zati1(ji,jj) ) &
-               &                          - ( zudy(ji,jj) - zudy(ji-1,jj) + zvdx(ji,jj) - zvdx(ji,jj-1) ) * r1_e1e2t(ji,jj) * zdt
+            zati2 = SUM( pa_i(ji,jj,:) )
+            pato_i(ji,jj) = pato_i(ji,jj) - ( zati2 - zati1(ji,jj) )            &
+               &                          - (   ( zudy(ji,jj) - zudy(ji-1,jj) ) &   ! ad () for NP repro
+               &                              + ( zvdx(ji,jj) - zvdx(ji,jj-1) )   ) * r1_e1e2t(ji,jj) * zdt
          END_2D
-         CALL lbc_lnk( 'icedyn_adv_umx', pato_i, 'T',  1._wp )
-         !
+
          ! --- diagnostics --- !
-         diag_adv_mass(:,:) = diag_adv_mass(:,:) + (   SUM( pv_i (:,:,:) , dim=3 ) * rhoi + SUM( pv_s (:,:,:) , dim=3 ) * rhos &
-            &                                        + SUM( pv_ip(:,:,:) , dim=3 ) * rhow + SUM( pv_il(:,:,:) , dim=3 ) * rhow &
-            &                                        - zdiag_adv_mass(:,:) ) * z1_dt
-         diag_adv_salt(:,:) = diag_adv_salt(:,:) + (   SUM( psv_i(:,:,:) , dim=3 ) * rhoi &
-            &                                        - zdiag_adv_salt(:,:) ) * z1_dt
-         diag_adv_heat(:,:) = diag_adv_heat(:,:) + ( - SUM(SUM( pe_i(:,:,1:nlay_i,:) , dim=4 ), dim=3 ) &
-            &                                        - SUM(SUM( pe_s(:,:,1:nlay_s,:) , dim=4 ), dim=3 ) &
-            &                                        - zdiag_adv_heat(:,:) ) * z1_dt
-         !
+         DO_2D( 0, 0, 0, 0 )
+            diag_adv_mass(ji,jj) = diag_adv_mass(ji,jj) + (   SUM( pv_i (ji,jj,:) ) * rhoi + SUM( pv_s (ji,jj,:) ) * rhos &
+               &                                            + SUM( pv_ip(ji,jj,:) ) * rhow + SUM( pv_il(ji,jj,:) ) * rhow &
+               &                                          - zdiag_adv_mass(ji,jj) ) * z1_dt
+            diag_adv_salt(ji,jj) = diag_adv_salt(ji,jj) + (   SUM( psv_i(ji,jj,:) ) * rhoi &
+               &                                          - zdiag_adv_salt(ji,jj) ) * z1_dt
+            diag_adv_heat(ji,jj) = diag_adv_heat(ji,jj) + ( - SUM(SUM( pe_i(ji,jj,1:nlay_i,:) , dim=2 ) ) &
+               &                                            - SUM(SUM( pe_s(ji,jj,1:nlay_s,:) , dim=2 ) ) &
+               &                                          - zdiag_adv_heat(ji,jj) ) * z1_dt
+         END_2D
+
          ! --- Ensure non-negative fields and in-bound thicknesses --- !
          ! Remove negative values (conservation is ensured)
          !    (because advected fields are not perfectly bounded and tiny negative values can occur, e.g. -1.e-20)
-         CALL ice_var_zapneg( zdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i )
+         CALL ice_var_zapneg( 0, zdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i )
          !
          ! --- Make sure ice thickness is not too big --- !
          !     (because ice thickness can be too large where ice concentration is very small)
-         CALL Hbig( zdt, zhi_max, zhs_max, zhip_max, zsi_max, zes_max, zei_max, &
+         CALL Hbig_umx( zdt, zhi_max, zhs_max, zhip_max, zsi_max, zes_max, zei_max, &
             &            pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i )
          !
          ! --- Ensure snow load is not too big --- !
-         CALL Hsnow( zdt, pv_i, pv_s, pa_i, pa_ip, pe_s )
+         CALL Hsnow_umx( zdt, pv_i, pv_s, pa_i, pa_ip, pe_s )
+         !
+         ! --- Lateral boundary conditions --- !
+         IF( jt /= icycle ) THEN ! only if we have 2 cycles and we are at the 1st one
+            IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+               CALL lbc_lnk( 'icedyn_adv_umx', pa_i , 'T', 1._wp, pv_i , 'T', 1._wp, pv_s , 'T', 1._wp, &
+                  &                            psv_i, 'T', 1._wp, poa_i, 'T', 1._wp, &
+                  &                            pa_ip, 'T', 1._wp, pv_ip, 'T', 1._wp, pv_il, 'T', 1._wp )
+            ELSE
+               CALL lbc_lnk( 'icedyn_adv_umx', pa_i , 'T', 1._wp, pv_i , 'T', 1._wp, pv_s , 'T', 1._wp, &
+                  &                            psv_i, 'T', 1._wp, poa_i, 'T', 1._wp )
+            ENDIF
+            CALL lbc_lnk( 'icedyn_adv_umx', pe_i, 'T', 1._wp, pe_s, 'T', 1._wp )
+            CALL lbc_lnk( 'icedyn_adv_umx', pato_i, 'T',  1._wp )
+         ENDIF
+         !
          !
       END DO
       !
@@ -518,7 +527,8 @@ CONTAINS
          ! thus we calculate the upstream solution and apply a limiter again
          DO jl = 1, jpl
             DO_2D( 0, 0, 0, 0 )
-               ztra = - ( zfu_ups(ji,jj,jl) - zfu_ups(ji-1,jj,jl) + zfv_ups(ji,jj,jl) - zfv_ups(ji,jj-1,jl) )
+               ztra = - (  ( zfu_ups(ji,jj,jl) - zfu_ups(ji-1,jj,jl) ) &   ! add () for NP repro
+                  &      + ( zfv_ups(ji,jj,jl) - zfv_ups(ji,jj-1,jl) ) )
                !
                zt_ups(ji,jj,jl) = ( ptc(ji,jj,jl) + ztra * r1_e1e2t(ji,jj) * pdt ) * tmask(ji,jj,1)
             END_2D
@@ -553,7 +563,8 @@ CONTAINS
       ! ---------------------------------
       DO jl = 1, jpl
          DO_2D( 0, 0, 0, 0 )
-            ztra = - ( zfu_ho(ji,jj,jl) - zfu_ho(ji-1,jj,jl) + zfv_ho(ji,jj,jl) - zfv_ho(ji,jj-1,jl) )
+            ztra = - (  ( zfu_ho(ji,jj,jl) - zfu_ho(ji-1,jj,jl) ) &   ! add () for NP repro
+               &      + ( zfv_ho(ji,jj,jl) - zfv_ho(ji,jj-1,jl) ) )
             !
             ptc(ji,jj,jl) = ( ptc(ji,jj,jl) + ztra * r1_e1e2t(ji,jj) * pdt ) * tmask(ji,jj,1)
          END_2D
@@ -645,10 +656,10 @@ CONTAINS
       !
       DO jl = 1, jpl                    !-- after tracer with upstream scheme
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            ztra = - (   pfu_ups(ji,jj,jl) - pfu_ups(ji-1,jj  ,jl)   &
-               &       + pfv_ups(ji,jj,jl) - pfv_ups(ji  ,jj-1,jl) ) &
-               &   + (   pu     (ji,jj   ) - pu     (ji-1,jj     )   &
-               &       + pv     (ji,jj   ) - pv     (ji  ,jj-1   ) ) * pt(ji,jj,jl) * (1.-pamsk)
+            ztra = - (   ( pfu_ups(ji,jj,jl) - pfu_ups(ji-1,jj  ,jl) )   &   ! add () for NP repro
+               &       + ( pfv_ups(ji,jj,jl) - pfv_ups(ji  ,jj-1,jl) ) ) &
+               &   + (   ( pu     (ji,jj   ) - pu     (ji-1,jj     ) )   &
+               &       + ( pv     (ji,jj   ) - pv     (ji  ,jj-1   ) ) ) * pt(ji,jj,jl) * (1.-pamsk)
             !
             pt_ups(ji,jj,jl) = ( pt(ji,jj,jl) + ztra * pdt * r1_e1e2t(ji,jj) ) * tmask(ji,jj,1)
          END_2D
@@ -912,7 +923,7 @@ CONTAINS
          !
          DO jl = 1, jpl
             DO_2D( 1, 0, kloop, kloop )
-               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (                                pt(ji+1,jj,jl) + pt(ji,jj,jl)   &
+               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (                              ( pt(ji+1,jj,jl) + pt(ji,jj,jl) ) &
                   &                                         - SIGN( 1._wp, pu(ji,jj) ) * ( pt(ji+1,jj,jl) - pt(ji,jj,jl) ) )
             END_2D
          END DO
@@ -922,7 +933,7 @@ CONTAINS
          DO jl = 1, jpl
             DO_2D( 1, 0, kloop, kloop )
                zcu  = pu(ji,jj) * r1_e2u(ji,jj) * pdt * r1_e1u(ji,jj)
-               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (                                pt(ji+1,jj,jl) + pt(ji,jj,jl)   &
+               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (                              ( pt(ji+1,jj,jl) + pt(ji,jj,jl) )  &
                   &                                                            - zcu   * ( pt(ji+1,jj,jl) - pt(ji,jj,jl) ) )
             END_2D
          END DO
@@ -934,9 +945,9 @@ CONTAINS
                zcu  = pu(ji,jj) * r1_e2u(ji,jj) * pdt * r1_e1u(ji,jj)
                zdx2 = e1u(ji,jj) * e1u(ji,jj)
 !!rachid          zdx2 = e1u(ji,jj) * e1t(ji,jj)
-               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (         (                      pt  (ji+1,jj,jl) + pt  (ji,jj,jl)     &
+               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (         (                    ( pt  (ji+1,jj,jl) + pt  (ji,jj,jl) )   &
                   &                                                            - zcu   * ( pt  (ji+1,jj,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + r1_6 * zdx2 * ( zcu*zcu - 1._wp ) *    (                      ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
+                  &        + r1_6 * zdx2 * ( zcu*zcu - 1._wp ) *    (                    ( ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl) )   &
                   &                                               - SIGN( 1._wp, zcu ) * ( ztu2(ji+1,jj,jl) - ztu2(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -948,9 +959,9 @@ CONTAINS
                zcu  = pu(ji,jj) * r1_e2u(ji,jj) * pdt * r1_e1u(ji,jj)
                zdx2 = e1u(ji,jj) * e1u(ji,jj)
 !!rachid          zdx2 = e1u(ji,jj) * e1t(ji,jj)
-               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (         (                      pt  (ji+1,jj,jl) + pt  (ji,jj,jl)     &
+               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (         (                    ( pt  (ji+1,jj,jl) + pt  (ji,jj,jl) )   &
                   &                                                            - zcu   * ( pt  (ji+1,jj,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + r1_6 * zdx2 * ( zcu*zcu - 1._wp ) *    (                      ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
+                  &        + r1_6 * zdx2 * ( zcu*zcu - 1._wp ) *    (                    ( ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl) )   &
                   &                                                   - 0.5_wp * zcu   * ( ztu2(ji+1,jj,jl) - ztu2(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -965,11 +976,11 @@ CONTAINS
                zdx2 = e1u(ji,jj) * e1u(ji,jj)
 !!rachid          zdx2 = e1u(ji,jj) * e1t(ji,jj)
                zdx4 = zdx2 * zdx2
-               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (        (                       pt  (ji+1,jj,jl) + pt  (ji,jj,jl)     &
+               pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (        (                     ( pt  (ji+1,jj,jl) + pt  (ji,jj,jl) )   &
                   &                                                            - zcu   * ( pt  (ji+1,jj,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + r1_6   * zdx2 * ( zcu*zcu - 1._wp ) * (                       ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl)     &
+                  &        + r1_6   * zdx2 * ( zcu*zcu - 1._wp ) * (                     ( ztu2(ji+1,jj,jl) + ztu2(ji,jj,jl) )   &
                   &                                                   - 0.5_wp * zcu   * ( ztu2(ji+1,jj,jl) - ztu2(ji,jj,jl) ) ) &
-                  &        + r1_120 * zdx4 * ( zcu*zcu - 1._wp ) * ( zcu*zcu - 4._wp ) * ( ztu4(ji+1,jj,jl) + ztu4(ji,jj,jl)     &
+                  &        + r1_120 * zdx4 * ( zcu*zcu - 1._wp ) * ( zcu*zcu - 4._wp ) * ((ztu4(ji+1,jj,jl) + ztu4(ji,jj,jl) )   &
                   &                                               - SIGN( 1._wp, zcu ) * ( ztu4(ji+1,jj,jl) - ztu4(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -983,7 +994,7 @@ CONTAINS
          DO jl = 1, jpl
             DO_2D( 1, 0, kloop, kloop )
                IF( pt_u(ji,jj,jl) < 0._wp .OR. ( imsk_small(ji,jj,jl) == 0 .AND. pamsk == 0. ) ) THEN
-                  pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (                                pt(ji+1,jj,jl) + pt(ji,jj,jl)   &
+                  pt_u(ji,jj,jl) = 0.5_wp * umask(ji,jj,1) * (                              ( pt(ji+1,jj,jl) + pt(ji,jj,jl) ) &
                      &                                         - SIGN( 1._wp, pu(ji,jj) ) * ( pt(ji+1,jj,jl) - pt(ji,jj,jl) ) )
                ENDIF
             END_2D
@@ -1050,7 +1061,7 @@ CONTAINS
       CASE( 1 )                                                !==  1st order central TIM  ==! (Eq. 21)
          DO jl = 1, jpl
             DO_2D( kloop, kloop, 1, 0 )
-               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (                                pt(ji,jj+1,jl) + pt(ji,jj,jl)   &
+               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (                              ( pt(ji,jj+1,jl) + pt(ji,jj,jl) ) &
                   &                                         - SIGN( 1._wp, pv(ji,jj) ) * ( pt(ji,jj+1,jl) - pt(ji,jj,jl) ) )
             END_2D
          END DO
@@ -1059,7 +1070,7 @@ CONTAINS
          DO jl = 1, jpl
             DO_2D( kloop, kloop, 1, 0 )
                zcv  = pv(ji,jj) * r1_e1v(ji,jj) * pdt * r1_e2v(ji,jj)
-               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (                                pt(ji,jj+1,jl) + pt(ji,jj,jl)   &
+               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (                              ( pt(ji,jj+1,jl) + pt(ji,jj,jl) ) &
                   &                                                            - zcv *   ( pt(ji,jj+1,jl) - pt(ji,jj,jl) ) )
             END_2D
          END DO
@@ -1070,9 +1081,9 @@ CONTAINS
                zcv  = pv(ji,jj) * r1_e1v(ji,jj) * pdt * r1_e2v(ji,jj)
                zdy2 = e2v(ji,jj) * e2v(ji,jj)
 !!rachid          zdy2 = e2v(ji,jj) * e2t(ji,jj)
-               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (      (                         pt  (ji,jj+1,jl) + pt  (ji,jj,jl)     &
+               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (      (                       ( pt  (ji,jj+1,jl) + pt  (ji,jj,jl) )   &
                   &                                                            - zcv   * ( pt  (ji,jj+1,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + r1_6 * zdy2 * ( zcv*zcv - 1._wp ) * (                         ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
+                  &        + r1_6 * zdy2 * ( zcv*zcv - 1._wp ) * (                       ( ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl) )   &
                   &                                               - SIGN( 1._wp, zcv ) * ( ztv2(ji,jj+1,jl) - ztv2(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -1083,9 +1094,9 @@ CONTAINS
                zcv  = pv(ji,jj) * r1_e1v(ji,jj) * pdt * r1_e2v(ji,jj)
                zdy2 = e2v(ji,jj) * e2v(ji,jj)
 !!rachid          zdy2 = e2v(ji,jj) * e2t(ji,jj)
-               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (      (                         pt  (ji,jj+1,jl) + pt  (ji,jj,jl)     &
+               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (      (                       ( pt  (ji,jj+1,jl) + pt  (ji,jj,jl) )   &
                   &                                                            - zcv   * ( pt  (ji,jj+1,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + r1_6 * zdy2 * ( zcv*zcv - 1._wp ) * (                         ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
+                  &        + r1_6 * zdy2 * ( zcv*zcv - 1._wp ) * (                       ( ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl) )   &
                   &                                                   - 0.5_wp * zcv   * ( ztv2(ji,jj+1,jl) - ztv2(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -1100,11 +1111,11 @@ CONTAINS
                zdy2 = e2v(ji,jj) * e2v(ji,jj)
 !!rachid          zdy2 = e2v(ji,jj) * e2t(ji,jj)
                zdy4 = zdy2 * zdy2
-               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (                              ( pt  (ji,jj+1,jl) + pt  (ji,jj,jl)     &
+               pt_v(ji,jj,jl) = 0.5_wp * vmask(ji,jj,1) * (        (                     ( pt  (ji,jj+1,jl) + pt  (ji,jj,jl) )   &
                   &                                                            - zcv   * ( pt  (ji,jj+1,jl) - pt  (ji,jj,jl) ) ) &
-                  &        + r1_6   * zdy2 * ( zcv*zcv - 1._wp ) * (                       ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl)     &
+                  &        + r1_6   * zdy2 * ( zcv*zcv - 1._wp ) * (                     ( ztv2(ji,jj+1,jl) + ztv2(ji,jj,jl) )   &
                   &                                                   - 0.5_wp * zcv   * ( ztv2(ji,jj+1,jl) - ztv2(ji,jj,jl) ) ) &
-                  &        + r1_120 * zdy4 * ( zcv*zcv - 1._wp ) * ( zcv*zcv - 4._wp ) * ( ztv4(ji,jj+1,jl) + ztv4(ji,jj,jl)     &
+                  &        + r1_120 * zdy4 * ( zcv*zcv - 1._wp ) * ( zcv*zcv - 4._wp ) * ((ztv4(ji,jj+1,jl) + ztv4(ji,jj,jl) )   &
                   &                                               - SIGN( 1._wp, zcv ) * ( ztv4(ji,jj+1,jl) - ztv4(ji,jj,jl) ) ) )
             END_2D
          END DO
@@ -1244,10 +1255,10 @@ CONTAINS
             zneg = MAX( 0._wp, pfu_ho(ji  ,jj  ,jl) ) - MIN( 0._wp, pfu_ho(ji-1,jj  ,jl) ) &
                & + MAX( 0._wp, pfv_ho(ji  ,jj  ,jl) ) - MIN( 0._wp, pfv_ho(ji  ,jj-1,jl) )
             !
-            zpos = zpos - (pt(ji,jj,jl) * MIN( 0., pu(ji,jj) - pu(ji-1,jj) ) + pt(ji,jj,jl) * MIN( 0., pv(ji,jj) - pv(ji,jj-1) ) &
-               &          ) * ( 1. - pamsk )
-            zneg = zneg + (pt(ji,jj,jl) * MAX( 0., pu(ji,jj) - pu(ji-1,jj) ) + pt(ji,jj,jl) * MAX( 0., pv(ji,jj) - pv(ji,jj-1) ) &
-               &          ) * ( 1. - pamsk )
+            zpos = zpos - (  pt(ji,jj,jl) * MIN( 0., pu(ji,jj) - pu(ji-1,jj) )   &
+               &           + pt(ji,jj,jl) * MIN( 0., pv(ji,jj) - pv(ji,jj-1) ) ) * ( 1. - pamsk )
+            zneg = zneg + (  pt(ji,jj,jl) * MAX( 0., pu(ji,jj) - pu(ji-1,jj) )   &
+               &           + pt(ji,jj,jl) * MAX( 0., pv(ji,jj) - pv(ji,jj-1) ) ) * ( 1. - pamsk )
             !
             !                                  ! up & down beta terms
             ! clem: zbetup and zbetdo must be 0 for zpos>1.e-10 & zneg>1.e-10 (do not put 0 instead of 1.e-10 !!!)
@@ -1481,10 +1492,10 @@ CONTAINS
    END SUBROUTINE limiter_y
 
 
-   SUBROUTINE Hbig( pdt, phi_max, phs_max, phip_max, psi_max, pes_max, pei_max, &
+   SUBROUTINE Hbig_umx( pdt, phi_max, phs_max, phip_max, psi_max, pes_max, pei_max, &
       &                  pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i )
       !!-------------------------------------------------------------------
-      !!                  ***  ROUTINE Hbig  ***
+      !!                  ***  ROUTINE Hbig_umx  ***
       !!
       !! ** Purpose : Thickness correction in case advection scheme creates
       !!              abnormally tick ice or snow
@@ -1511,7 +1522,7 @@ CONTAINS
       z1_dt = 1._wp / pdt
       !
       DO jl = 1, jpl
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
                !
                !                               ! -- check h_ip -- !
@@ -1558,7 +1569,7 @@ CONTAINS
       !
       !                                           ! -- check e_i/v_i -- !
       DO jl = 1, jpl
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nlay_i )
+         DO_3D( 0, 0, 0, 0, 1, nlay_i )
             IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
                ! if e_i/v_i is larger than the surrounding 9 pts => put the heat excess in the ocean
                zei = pe_i(ji,jj,jk,jl) / pv_i(ji,jj,jl)
@@ -1572,7 +1583,7 @@ CONTAINS
       END DO
       !                                           ! -- check e_s/v_s -- !
       DO jl = 1, jpl
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nlay_s )
+         DO_3D( 0, 0, 0, 0, 1, nlay_s )
             IF ( pv_s(ji,jj,jl) > 0._wp ) THEN
                ! if e_s/v_s is larger than the surrounding 9 pts => put the heat excess in the ocean
                zes = pe_s(ji,jj,jk,jl) / pv_s(ji,jj,jl)
@@ -1585,12 +1596,12 @@ CONTAINS
          END_3D
       END DO
       !
-   END SUBROUTINE Hbig
+   END SUBROUTINE Hbig_umx
 
 
-   SUBROUTINE Hsnow( pdt, pv_i, pv_s, pa_i, pa_ip, pe_s )
+   SUBROUTINE Hsnow_umx( pdt, pv_i, pv_s, pa_i, pa_ip, pe_s )
       !!-------------------------------------------------------------------
-      !!                  ***  ROUTINE Hsnow  ***
+      !!                  ***  ROUTINE Hsnow_umx  ***
       !!
       !! ** Purpose : 1- Check snow load after advection
       !!              2- Correct pond concentration to avoid a_ip > a_i
@@ -1615,7 +1626,7 @@ CONTAINS
       !
       ! -- check snow load -- !
       DO jl = 1, jpl
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
                !
                zvs_excess = MAX( 0._wp, pv_s(ji,jj,jl) - pv_i(ji,jj,jl) * (rho0-rhoi) * r1_rhos )
@@ -1637,11 +1648,11 @@ CONTAINS
       !-- correct pond concentration to avoid a_ip > a_i -- !
       WHERE( pa_ip(:,:,:) > pa_i(:,:,:) )   pa_ip(:,:,:) = pa_i(:,:,:)
       !
-   END SUBROUTINE Hsnow
+   END SUBROUTINE Hsnow_umx
 
-   SUBROUTINE icemax3D( pice , pmax )
+   SUBROUTINE icemax3D_umx( pice , pmax )
       !!---------------------------------------------------------------------
-      !!                   ***  ROUTINE icemax3D ***
+      !!                   ***  ROUTINE icemax3D_umx ***
       !! ** Purpose :  compute the max of the 9 points around
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(:,:,:), INTENT(in ) ::   pice   ! input
@@ -1672,11 +1683,11 @@ CONTAINS
             zmax2(ji) = zmax3
          END_2D
       END DO
-   END SUBROUTINE icemax3D
+   END SUBROUTINE icemax3D_umx
 
-   SUBROUTINE icemax4D( pice , pmax )
+   SUBROUTINE icemax4D_umx( pice , pmax )
       !!---------------------------------------------------------------------
-      !!                   ***  ROUTINE icemax4D ***
+      !!                   ***  ROUTINE icemax4D_umx ***
       !! ** Purpose :  compute the max of the 9 points around
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(:,:,:,:), INTENT(in ) ::   pice   ! input
@@ -1712,7 +1723,7 @@ CONTAINS
             END_2D
          END DO
       END DO
-   END SUBROUTINE icemax4D
+   END SUBROUTINE icemax4D_umx
 
 #else
    !!----------------------------------------------------------------------

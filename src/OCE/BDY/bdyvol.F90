@@ -99,14 +99,16 @@ CONTAINS
             ii = idx%nbi(jb,jgrd)
             ij = idx%nbj(jb,jgrd)
             IF( ii == 1 .OR. ii == jpi .OR. ij == 1 .OR. ij == jpj )  CYCLE   ! sum : else halo couted twice
-            zubtpecor = zubtpecor + idx%flagu(jb,jgrd) * pua2d(ii,ij) * e2u(ii,ij) * phu(ii,ij) * tmask_i(ii,ij) * tmask_i(ii+1,ij)
+            zubtpecor = zubtpecor + idx%flagu(jb,jgrd) * pua2d(ii,ij) * e2u(ii,ij) * phu(ii,ij)   &
+               &                                       * ( tmask_i(ii,ij) * tmask_i(ii+1,ij) )
          END DO
          jgrd = 3                               ! then add v component contribution
          DO jb = 1, idx%nblenrim(jgrd)
             ii = idx%nbi(jb,jgrd)
             ij = idx%nbj(jb,jgrd)
             IF( ii == 1 .OR. ii == jpi .OR. ij == 1 .OR. ij == jpj )  CYCLE   ! sum : else halo couted twice
-            zubtpecor = zubtpecor + idx%flagv(jb,jgrd) * pva2d(ii,ij) * e1v(ii,ij) * phv(ii,ij) * tmask_i(ii,ij) * tmask_i(ii,ij+1)
+            zubtpecor = zubtpecor + idx%flagv(jb,jgrd) * pva2d(ii,ij) * e1v(ii,ij) * phv(ii,ij)   &
+               &                                       * ( tmask_i(ii,ij) * tmask_i(ii,ij+1) )
          END DO
          !
       END DO
@@ -128,14 +130,14 @@ CONTAINS
                ii = idx%nbi(jb,jgrd)
                ij = idx%nbj(jb,jgrd)
                !IF( ii == 1 .OR. ii == jpi .OR. ij == 1 .OR. ij == jpj )  CYCLE   ! to remove ?
-               pua2d(ii,ij) = pua2d(ii,ij) - idx%flagu(jb,jgrd) * zubtpecor * tmask_i(ii,ij) * tmask_i(ii+1,ij)
+               pua2d(ii,ij) = pua2d(ii,ij) - idx%flagu(jb,jgrd) * zubtpecor * ( tmask_i(ii,ij) * tmask_i(ii+1,ij) )
          END DO
          jgrd = 3                              ! correct v component
          DO jb = 1, idx%nblenrim(jgrd)
                ii = idx%nbi(jb,jgrd)
                ij = idx%nbj(jb,jgrd)
                !IF( ii == 1 .OR. ii == jpi .OR. ij == 1 .OR. ij == jpj )  CYCLE   ! to remove ?
-               pva2d(ii,ij) = pva2d(ii,ij) - idx%flagv(jb,jgrd) * zubtpecor * tmask_i(ii,ij) * tmask_i(ii,ij+1)
+               pva2d(ii,ij) = pva2d(ii,ij) - idx%flagv(jb,jgrd) * zubtpecor * ( tmask_i(ii,ij) * tmask_i(ii,ij+1) )
          END DO
          !
       END DO
@@ -154,14 +156,16 @@ CONTAINS
                   ii = idx%nbi(jb,jgrd)
                   ij = idx%nbj(jb,jgrd)
                   IF( ii == 1 .OR. ii == jpi .OR. ij == 1 .OR. ij == jpj )  CYCLE
-                  ztranst = ztranst + idx%flagu(jb,jgrd) * pua2d(ii,ij) * e2u(ii,ij) * phu(ii,ij) * tmask_i(ii,ij) * tmask_i(ii+1,ij)
+                  ztranst = ztranst + idx%flagu(jb,jgrd) * pua2d(ii,ij) * e2u(ii,ij) * phu(ii,ij)   &
+                     &                                   * ( tmask_i(ii,ij) * tmask_i(ii+1,ij) )
             END DO
             jgrd = 3                              ! correct v component
             DO jb = 1, idx%nblenrim(jgrd)
                   ii = idx%nbi(jb,jgrd)
                   ij = idx%nbj(jb,jgrd)
                   IF( ii == 1 .OR. ii == jpi .OR. ij == 1 .OR. ij == jpj )  CYCLE
-                  ztranst = ztranst + idx%flagv(jb,jgrd) * pva2d(ii,ij) * e1v(ii,ij) * phv(ii,ij) * tmask_i(ii,ij) * tmask_i(ii,ij+1)
+                  ztranst = ztranst + idx%flagv(jb,jgrd) * pva2d(ii,ij) * e1v(ii,ij) * phv(ii,ij)   &
+                     &                                   * ( tmask_i(ii,ij) * tmask_i(ii,ij+1) )
             END DO
             !
          END DO
@@ -204,7 +208,7 @@ CONTAINS
             zflagu => idx_bdy(ib_bdy)%flagu(ib,igrd)
             bdy_segs_surf = bdy_segs_surf + phu(nbi, nbj)                              &
                &                            * e2u(nbi, nbj) * ABS( zflagu )            &
-               &                            * tmask_i(nbi, nbj) * tmask_i(nbi+1, nbj)
+               &                            * ( tmask_i(nbi, nbj) * tmask_i(nbi+1, nbj) )
          END DO
       END DO
 
@@ -217,7 +221,7 @@ CONTAINS
             zflagv => idx_bdy(ib_bdy)%flagv(ib,igrd)
             bdy_segs_surf = bdy_segs_surf + phv(nbi, nbj)                              &
                &                            * e1v(nbi, nbj) * ABS( zflagv )            &
-               &                            * tmask_i(nbi, nbj) * tmask_i(nbi, nbj+1)
+               &                            * ( tmask_i(nbi, nbj) * tmask_i(nbi, nbj+1) )
          END DO
       END DO
       !

@@ -223,9 +223,9 @@ CONTAINS
 
    FUNCTION virt_temp_vctr( pta, pqa )
 
-      REAL(wp), DIMENSION(jpi,jpj)             :: virt_temp_vctr !: virtual temperature [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pta !: absolute or potential air temperature [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pqa !: specific humidity of air   [kg/kg]
+      REAL(wp), DIMENSION(A2D(0))             :: virt_temp_vctr !: virtual temperature [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pta !: absolute or potential air temperature [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pqa !: specific humidity of air   [kg/kg]
 
       virt_temp_vctr(:,:) = pta(:,:) * (1._wp + rctv0*pqa(:,:))
 
@@ -290,25 +290,25 @@ CONTAINS
       !! ** Author: G. Samson, Feb 2021
       !!-------------------------------------------------------------------------------
 
-      REAL(wp), DIMENSION(jpi,jpj)                          :: pres_temp_vctr    ! air pressure              [Pa]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in )             :: pqspe             ! air specific humidity     [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in )             :: pslp              ! sea-level pressure        [Pa]
-      REAL(wp),                     INTENT(in )             :: pz                ! height above surface      [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in )  , OPTIONAL :: ptpot             ! air potential temperature [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(inout), OPTIONAL :: pta               ! air absolute temperature  [K]
-      INTEGER                                               :: ji, jj            ! loop indices
-      LOGICAL                     , INTENT(in)   , OPTIONAL :: l_ice             ! sea-ice presence
-      LOGICAL                                               :: lice              ! sea-ice presence
+      REAL(wp), DIMENSION(A2D(0))                          :: pres_temp_vctr    ! air pressure              [Pa]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in )             :: pqspe             ! air specific humidity     [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in )             :: pslp              ! sea-level pressure        [Pa]
+      REAL(wp),                    INTENT(in )             :: pz                ! height above surface      [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in )  , OPTIONAL :: ptpot             ! air potential temperature [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout), OPTIONAL :: pta               ! air absolute temperature  [K]
+      INTEGER                                              :: ji, jj            ! loop indices
+      LOGICAL                    , INTENT(in)   , OPTIONAL :: l_ice             ! sea-ice presence
+      LOGICAL                                              :: lice              ! sea-ice presence
  
       lice = .FALSE.
       IF( PRESENT(l_ice) ) lice = l_ice
 
       IF( PRESENT(ptpot) ) THEN
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             pres_temp_vctr(ji,jj) = pres_temp_sclr( pqspe(ji,jj), pslp(ji,jj), pz, ptpot=ptpot(ji,jj), pta=pta(ji,jj), l_ice=lice )
          END_2D
       ELSE
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             pres_temp_vctr(ji,jj) = pres_temp_sclr( pqspe(ji,jj), pslp(ji,jj), pz, pta=pta(ji,jj), l_ice=lice )
          END_2D
       ENDIF
@@ -344,12 +344,12 @@ CONTAINS
       !! ** Author: G. Samson, Feb 2021
       !!-------------------------------------------------------------------------------
 
-      REAL(wp), DIMENSION(jpi,jpj)             :: theta_exner_vctr   ! air/surface potential temperature [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pta                ! air/surface absolute temperature  [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppa                ! air/surface pressure              [Pa]
-      INTEGER                                  :: ji, jj             ! loop indices
+      REAL(wp), DIMENSION(A2D(0))             :: theta_exner_vctr   ! air/surface potential temperature [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pta                ! air/surface absolute temperature  [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ppa                ! air/surface pressure              [Pa]
+      INTEGER                                 :: ji, jj             ! loop indices
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          theta_exner_vctr(ji,jj) = theta_exner_sclr( pta(ji,jj), ppa(ji,jj) )
       END_2D
 
@@ -364,10 +364,10 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, June 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!-------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   ptak      ! air temperature             [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pqa       ! air specific humidity   [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   ppa      ! pressure in                [Pa]
-      REAL(wp), DIMENSION(jpi,jpj)             ::   rho_air_vctr   ! density of moist air   [kg/m^3]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   ptak      ! air temperature             [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pqa       ! air specific humidity   [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   ppa      ! pressure in                [Pa]
+      REAL(wp), DIMENSION(A2D(0))             ::   rho_air_vctr   ! density of moist air   [kg/m^3]
       !!-------------------------------------------------------------------------------
 
       rho_air_vctr = MAX( ppa / (R_dry*ptak * ( 1._wp + rctv0*pqa )) , 0.8_wp )
@@ -412,11 +412,11 @@ CONTAINS
 
    FUNCTION visc_air_vctr(ptak)
 
-      REAL(wp), DIMENSION(jpi,jpj)             ::   visc_air_vctr   ! kinetic viscosity (m^2/s)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   ptak       ! air temperature in (K)
+      REAL(wp), DIMENSION(A2D(0))             ::   visc_air_vctr   ! kinetic viscosity (m^2/s)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   ptak       ! air temperature in (K)
       INTEGER  ::   ji, jj      ! dummy loop indices
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          visc_air_vctr(ji,jj) = visc_air_sclr( ptak(ji,jj) )
       END_2D
 
@@ -431,8 +431,8 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, june 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             ::   L_vap_vctr   ! latent heat of vaporization   [J/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   psst   ! water temperature                [K]
+      REAL(wp), DIMENSION(A2D(0))             ::   L_vap_vctr   ! latent heat of vaporization   [J/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   psst   ! water temperature                [K]
       !!----------------------------------------------------------------------------------
       !
       L_vap_vctr = (  2.501_wp - 0.00237_wp * ( psst(:,:) - rt0)  ) * 1.e6_wp
@@ -464,8 +464,8 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, june 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!-------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pqa           ! air specific humidity         [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj)             ::   cp_air_vctr   ! specific heat of moist air   [J/K/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pqa           ! air specific humidity         [kg/kg]
+      REAL(wp), DIMENSION(A2D(0))             ::   cp_air_vctr   ! specific heat of moist air   [J/K/kg]
       !!-------------------------------------------------------------------------------
 
       cp_air_vctr = rCp_dry + rCp_vap * pqa
@@ -516,12 +516,12 @@ CONTAINS
 
    FUNCTION gamma_moist_vctr( ptak, pqa )
 
-      REAL(wp), DIMENSION(jpi,jpj)             ::   gamma_moist_vctr
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   ptak
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pqa
+      REAL(wp), DIMENSION(A2D(0))             ::   gamma_moist_vctr
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   ptak
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pqa
       INTEGER  :: ji, jj
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          gamma_moist_vctr(ji,jj) = gamma_moist_sclr( ptak(ji,jj), pqa(ji,jj) )
       END_2D
 
@@ -537,17 +537,17 @@ CONTAINS
       !! Author: L. Brodeau, June 2019 / AeroBulk
       !!         (https://github.com/brodeau/aerobulk/)
       !!------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             :: One_on_L     !: 1./(Obukhov length) [m^-1]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ptha         !: reference potential temperature of air [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pqa          !: reference specific humidity of air   [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pus          !: u*: friction velocity [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pts, pqs     !: \theta* and q* friction aka turb. scales for temp. and spec. hum.
+      REAL(wp), DIMENSION(A2D(0))             :: One_on_L     !: 1./(Obukhov length) [m^-1]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ptha         !: reference potential temperature of air [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pqa          !: reference specific humidity of air   [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pus          !: u*: friction velocity [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pts, pqs     !: \theta* and q* friction aka turb. scales for temp. and spec. hum.
       !
       INTEGER  ::   ji, jj         ! dummy loop indices
       REAL(wp) ::     zqa          ! local scalar
       !!-------------------------------------------------------------------
       !
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          zqa = (1._wp + rctv0*pqa(ji,jj))
          !
          ! The main concern is to know whether, the vertical turbulent flux of virtual temperature, < u' theta_v' > is estimated with:
@@ -598,27 +598,27 @@ CONTAINS
 
    FUNCTION Ri_bulk_vctr( pz, psst, ptha, pssq, pqa, pub,  pta_layer, pqa_layer )
 
-      REAL(wp), DIMENSION(jpi,jpj)             :: Ri_bulk_vctr
-      REAL(wp)                    , INTENT(in) :: pz    ! height above the sea (aka "delta z")  [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: psst  ! SST                                   [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ptha  ! pot. air temp. at height "pz"         [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pssq  ! 0.98*q_sat(SST)                   [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pqa   ! air spec. hum. at height "pz"     [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pub   ! bulk wind speed                     [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL :: pta_layer ! when possible, a better guess of absolute temperature WITHIN the layer [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL :: pqa_layer ! when possible, a better guess of specific humidity    WITHIN the layer [kg/kg]
+      REAL(wp), DIMENSION(A2D(0))             :: Ri_bulk_vctr
+      REAL(wp)                   , INTENT(in) :: pz    ! height above the sea (aka "delta z")  [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: psst  ! SST                                   [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ptha  ! pot. air temp. at height "pz"         [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pssq  ! 0.98*q_sat(SST)                   [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pqa   ! air spec. hum. at height "pz"     [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pub   ! bulk wind speed                     [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL :: pta_layer ! when possible, a better guess of absolute temperature WITHIN the layer [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL :: pqa_layer ! when possible, a better guess of specific humidity    WITHIN the layer [kg/kg]
       !!
       LOGICAL  :: l_ptqa_l_prvd = .FALSE.
       INTEGER  ::   ji, jj
 
       IF( PRESENT(pta_layer) .AND. PRESENT(pqa_layer) ) l_ptqa_l_prvd = .TRUE.
       IF( l_ptqa_l_prvd ) THEN
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             Ri_bulk_vctr(ji,jj) = Ri_bulk_sclr( pz, psst(ji,jj), ptha(ji,jj), pssq(ji,jj), pqa(ji,jj), pub(ji,jj), &
                &                                pta_layer=pta_layer(ji,jj ),  pqa_layer=pqa_layer(ji,jj ) )
          END_2D
       ELSE
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             Ri_bulk_vctr(ji,jj) = Ri_bulk_sclr( pz, psst(ji,jj), ptha(ji,jj), pssq(ji,jj), pqa(ji,jj), pub(ji,jj) )
          END_2D
       END IF
@@ -652,10 +652,10 @@ CONTAINS
    END FUNCTION e_sat_sclr
 
    FUNCTION e_sat_vctr(ptak)
-      REAL(wp), DIMENSION(jpi,jpj)             :: e_sat_vctr !: vapour pressure at saturation  [Pa]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ptak    !: temperature (K)
+      REAL(wp), DIMENSION(A2D(0))             :: e_sat_vctr !: vapour pressure at saturation  [Pa]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ptak    !: temperature (K)
       INTEGER  ::   ji, jj         ! dummy loop indices
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
       e_sat_vctr(ji,jj) = e_sat_sclr(ptak(ji,jj))
       END_2D
    END FUNCTION e_sat_vctr
@@ -681,11 +681,11 @@ CONTAINS
 
    FUNCTION e_sat_ice_vctr(ptak)
       !! Same as "e_sat" but over ice rather than water!
-      REAL(wp), DIMENSION(jpi,jpj) :: e_sat_ice_vctr !: vapour pressure at saturation in presence of ice [Pa]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ptak
+      REAL(wp), DIMENSION(A2D(0)) :: e_sat_ice_vctr !: vapour pressure at saturation in presence of ice [Pa]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ptak
       INTEGER  :: ji, jj
       !!----------------------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          e_sat_ice_vctr(ji,jj) = e_sat_ice_sclr( ptak(ji,jj) )
       END_2D
 
@@ -712,11 +712,11 @@ CONTAINS
 
    FUNCTION de_sat_dt_ice_vctr(ptak)
       !! Same as "e_sat" but over ice rather than water!
-      REAL(wp), DIMENSION(jpi,jpj) :: de_sat_dt_ice_vctr !: vapour pressure at saturation in presence of ice [Pa]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ptak
+      REAL(wp), DIMENSION(A2D(0)) :: de_sat_dt_ice_vctr !: vapour pressure at saturation in presence of ice [Pa]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ptak
       INTEGER  :: ji, jj
       !!----------------------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          de_sat_dt_ice_vctr(ji,jj) = de_sat_dt_ice_sclr( ptak(ji,jj) )
       END_2D
 
@@ -751,16 +751,16 @@ CONTAINS
 
    FUNCTION q_sat_vctr( pta, ppa,  l_ice )
 
-      REAL(wp), DIMENSION(jpi,jpj) :: q_sat_vctr
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pta  !: absolute temperature of air [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppa  !: atmospheric pressure        [Pa]
+      REAL(wp), DIMENSION(A2D(0)) :: q_sat_vctr
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pta  !: absolute temperature of air [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ppa  !: atmospheric pressure        [Pa]
       LOGICAL,  INTENT(in), OPTIONAL :: l_ice  !: we are above ice
       LOGICAL  :: lice
       INTEGER  :: ji, jj
       !!----------------------------------------------------------------------------------
       lice = .FALSE.
       IF( PRESENT(l_ice) ) lice = l_ice
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          q_sat_vctr(ji,jj) = q_sat_sclr( pta(ji,jj) , ppa(ji,jj), l_ice=lice )
       END_2D
 
@@ -790,12 +790,12 @@ CONTAINS
 
    FUNCTION dq_sat_dt_ice_vctr( pta, ppa )
 
-      REAL(wp), DIMENSION(jpi,jpj) :: dq_sat_dt_ice_vctr
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pta  !: absolute temperature of air [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppa  !: atmospheric pressure        [Pa]
+      REAL(wp), DIMENSION(A2D(0)) :: dq_sat_dt_ice_vctr
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pta  !: absolute temperature of air [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ppa  !: atmospheric pressure        [Pa]
       INTEGER  :: ji, jj
       !!----------------------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          dq_sat_dt_ice_vctr(ji,jj) = dq_sat_dt_ice_sclr( pta(ji,jj) , ppa(ji,jj) )
       END_2D
 
@@ -808,16 +808,16 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, june 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             :: q_air_rh
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: prha        !: relative humidity      [fraction, not %!!!]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ptak        !: air temperature        [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppa        !: atmospheric pressure   [Pa]
+      REAL(wp), DIMENSION(A2D(0))             :: q_air_rh
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: prha        !: relative humidity      [fraction, not %!!!]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ptak        !: air temperature        [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ppa        !: atmospheric pressure   [Pa]
       !
       INTEGER  ::   ji, jj      ! dummy loop indices
       REAL(wp) ::   ze      ! local scalar
       !!----------------------------------------------------------------------------------
       !
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          ze = prha(ji,jj)*e_sat_sclr(ptak(ji,jj))
          q_air_rh(ji,jj) = ze*reps0/(ppa(ji,jj) - (1. - reps0)*ze)
       END_2D
@@ -833,29 +833,29 @@ CONTAINS
       !!          and the module of the wind stress => pTau = Tau
       !! ** Author: L. Brodeau, Sept. 2019 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp),                     INTENT(in)  :: pzu  ! height above the sea-level where all this takes place (normally 10m)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTs  ! water temperature at the air-sea interface [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqs  ! satur. spec. hum. at T=pTs   [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTa  ! potential air temperature at z=pzu [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqa  ! specific humidity at z=pzu [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pust ! u*
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: ptst ! t*
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqst ! q*
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pwnd ! wind speed module at z=pzu [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pUb  ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: ppa ! sea-level atmospheric pressure [Pa]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: prlw ! downwelling longwave radiative flux [W/m^2]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: prhoa ! air density [kg/m3]
+      REAL(wp),                    INTENT(in)  :: pzu  ! height above the sea-level where all this takes place (normally 10m)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pTs  ! water temperature at the air-sea interface [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pqs  ! satur. spec. hum. at T=pTs   [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pTa  ! potential air temperature at z=pzu [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pqa  ! specific humidity at z=pzu [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pust ! u*
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: ptst ! t*
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pqst ! q*
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pwnd ! wind speed module at z=pzu [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pUb  ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: ppa ! sea-level atmospheric pressure [Pa]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: prlw ! downwelling longwave radiative flux [W/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: prhoa ! air density [kg/m3]
       !
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pQns ! non-solar heat flux to the ocean aka "Qlat + Qsen + Qlw" [W/m^2]]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pTau ! module of the wind stress [N/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out) :: pQns ! non-solar heat flux to the ocean aka "Qlat + Qsen + Qlw" [W/m^2]]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out) :: pTau ! module of the wind stress [N/m^2]
       !
-      REAL(wp), DIMENSION(jpi,jpj), OPTIONAL, INTENT(out) :: Qlat
+      REAL(wp), DIMENSION(A2D(0)), OPTIONAL, INTENT(out) :: Qlat
       !
       REAL(wp) :: zdt, zdq, zCd, zCh, zCe, zz0, zQlat, zQsen, zQlw
       INTEGER  ::   ji, jj     ! dummy loop indices
       !!----------------------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
 
          zdt = pTa(ji,jj) - pTs(ji,jj) ;  zdt = SIGN( MAX(ABS(zdt),1.E-6_wp), zdt )
          zdq = pqa(ji,jj) - pqs(ji,jj) ;  zdq = SIGN( MAX(ABS(zdq),1.E-9_wp), zdq )
@@ -929,25 +929,25 @@ CONTAINS
       &                          pTau, pQsen, pQlat,      &
       &                          pEvap, pfact_evap )
       !!----------------------------------------------------------------------------------
-      REAL(wp),                     INTENT(in)  :: pzu   ! height above the sea-level where all this takes place (normally 10m)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTs   ! water temperature at the air-sea interface [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqs   ! satur. spec. hum. at T=pTs   [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTa   ! potential air temperature at z=pzu [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pqa   ! specific humidity at z=pzu [kg/kg]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pCd
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pCh
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pCe
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pwnd  ! wind speed module at z=pzu [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pUb   ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: ppa   ! sea-level atmospheric pressure [Pa]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: prhoa ! Air density at z=pzu [kg/m^3] 
+      REAL(wp),                    INTENT(in)  :: pzu   ! height above the sea-level where all this takes place (normally 10m)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pTs   ! water temperature at the air-sea interface [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pqs   ! satur. spec. hum. at T=pTs   [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pTa   ! potential air temperature at z=pzu [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pqa   ! specific humidity at z=pzu [kg/kg]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pCd
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pCh
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pCe
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pwnd  ! wind speed module at z=pzu [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pUb   ! bulk wind speed at z=pzu (inc. pot. effect of gustiness etc) [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: ppa   ! sea-level atmospheric pressure [Pa]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: prhoa ! Air density at z=pzu [kg/m^3] 
       !!
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pTau  ! module of the wind stress [N/m^2]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pQsen !  [W/m^2]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pQlat !  [W/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out) :: pTau  ! module of the wind stress [N/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out) :: pQsen !  [W/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out) :: pQlat !  [W/m^2]
       !!
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(out), OPTIONAL :: pEvap ! Evaporation [kg/m^2/s]
-      REAL(wp),                     INTENT(in) , OPTIONAL :: pfact_evap  ! ABOMINATION: corrective factor for evaporation (doing this against my will! /laurent)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out), OPTIONAL :: pEvap ! Evaporation [kg/m^2/s]
+      REAL(wp),                    INTENT(in) , OPTIONAL :: pfact_evap  ! ABOMINATION: corrective factor for evaporation (doing this against my will! /laurent)
       !!
       REAL(wp) :: ztaa, zgamma, zrho, zUrho, zevap, zfact_evap
       INTEGER  :: ji, jj
@@ -955,7 +955,7 @@ CONTAINS
       zfact_evap = 1._wp
       IF( PRESENT(pfact_evap) ) zfact_evap = pfact_evap
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
 
          CALL BULK_FORMULA_SCLR( pzu, pTs(ji,jj), pqs(ji,jj), pTa(ji,jj), pqa(ji,jj), &
             &                    pCd(ji,jj), pCh(ji,jj), pCe(ji,jj),                  &
@@ -977,8 +977,8 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, june 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             ::   alpha_sw_vctr   ! thermal expansion coefficient of sea-water [1/K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   psst   ! water temperature                [K]
+      REAL(wp), DIMENSION(A2D(0))             ::   alpha_sw_vctr   ! thermal expansion coefficient of sea-water [1/K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   psst   ! water temperature                [K]
       !!----------------------------------------------------------------------------------
       alpha_sw_vctr = 2.1e-5_wp * MAX(psst(:,:)-rt0 + 3.2_wp, 0._wp)**0.79
 
@@ -1027,16 +1027,16 @@ CONTAINS
 
    FUNCTION qlw_net_vctr( pdwlw, pts,  l_ice )
 
-      REAL(wp), DIMENSION(jpi,jpj) :: qlw_net_vctr
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pdwlw !: downwelling longwave (aka infrared, aka thermal) radiation [W/m^2]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pts   !: surface temperature [K]
+      REAL(wp), DIMENSION(A2D(0)) :: qlw_net_vctr
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pdwlw !: downwelling longwave (aka infrared, aka thermal) radiation [W/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pts   !: surface temperature [K]
       LOGICAL,  INTENT(in), OPTIONAL :: l_ice  !: we are above ice
       LOGICAL  :: lice
       INTEGER  :: ji, jj
       !!----------------------------------------------------------------------------------
       lice = .FALSE.
       IF( PRESENT(l_ice) ) lice = l_ice
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          qlw_net_vctr(ji,jj) = qlw_net_sclr( pdwlw(ji,jj) , pts(ji,jj), l_ice=lice )
       END_2D
 
@@ -1045,10 +1045,10 @@ CONTAINS
 
    FUNCTION z0_from_Cd( pzu, pCd,  ppsi )
 
-      REAL(wp), DIMENSION(jpi,jpj) :: z0_from_Cd        !: roughness length [m]
-      REAL(wp)                    , INTENT(in) :: pzu   !: reference height zu [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pCd   !: (neutral or non-neutral) drag coefficient []
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL :: ppsi !: "Psi_m(pzu/L)" stability correction profile for momentum []
+      REAL(wp), DIMENSION(A2D(0)) :: z0_from_Cd        !: roughness length [m]
+      REAL(wp)                   , INTENT(in) :: pzu   !: reference height zu [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pCd   !: (neutral or non-neutral) drag coefficient []
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL :: ppsi !: "Psi_m(pzu/L)" stability correction profile for momentum []
       !!
       !! If pCd is the NEUTRAL-STABILITY drag coefficient then ppsi must be 0 or not given
       !! If pCd is the drag coefficient (in stable or unstable conditions) then pssi must be provided
@@ -1066,10 +1066,10 @@ CONTAINS
 
    FUNCTION Cd_from_z0( pzu, pz0,  ppsi )
 
-      REAL(wp), DIMENSION(jpi,jpj) :: Cd_from_z0        !: (neutral or non-neutral) drag coefficient []
-      REAL(wp)                    , INTENT(in) :: pzu   !: reference height zu [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pz0   !: roughness length [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL :: ppsi !: "Psi_m(pzu/L)" stability correction profile for momentum []
+      REAL(wp), DIMENSION(A2D(0)) :: Cd_from_z0        !: (neutral or non-neutral) drag coefficient []
+      REAL(wp)                   , INTENT(in) :: pzu   !: reference height zu [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pz0   !: roughness length [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL :: ppsi !: "Psi_m(pzu/L)" stability correction profile for momentum []
       !!
       !! If we want to return the NEUTRAL-STABILITY drag coefficient then ppsi must be 0 or not given
       !! If we want to return the stability-corrected Cd (i.e. in stable or unstable conditions) then pssi must be provided
@@ -1111,14 +1111,14 @@ CONTAINS
 
    FUNCTION f_m_louis_vctr( pzu, pRib, pCdn, pz0 )
 
-      REAL(wp), DIMENSION(jpi,jpj)             :: f_m_louis_vctr
-      REAL(wp),                     INTENT(in) :: pzu
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pRib
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pCdn
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pz0
+      REAL(wp), DIMENSION(A2D(0))             :: f_m_louis_vctr
+      REAL(wp),                    INTENT(in) :: pzu
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pRib
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pCdn
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pz0
       INTEGER  :: ji, jj
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          f_m_louis_vctr(ji,jj) = f_m_louis_sclr( pzu, pRib(ji,jj), pCdn(ji,jj), pz0(ji,jj) )
       END_2D
 
@@ -1150,14 +1150,14 @@ CONTAINS
 
    FUNCTION f_h_louis_vctr( pzu, pRib, pChn, pz0 )
 
-      REAL(wp), DIMENSION(jpi,jpj)             :: f_h_louis_vctr
-      REAL(wp),                     INTENT(in) :: pzu
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pRib
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pChn
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pz0
+      REAL(wp), DIMENSION(A2D(0))             :: f_h_louis_vctr
+      REAL(wp),                    INTENT(in) :: pzu
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pRib
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pChn
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pz0
       INTEGER  :: ji, jj
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          f_h_louis_vctr(ji,jj) = f_h_louis_sclr( pzu, pRib(ji,jj), pChn(ji,jj), pz0(ji,jj) )
       END_2D
 
@@ -1168,11 +1168,11 @@ CONTAINS
       !!----------------------------------------------------------------------------------
       !!  Provides the neutral-stability wind speed at 10 m
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             :: UN10_from_ustar  !: neutral stability wind speed at 10m [m/s]
-      REAL(wp),                     INTENT(in) :: pzu   !: measurement heigh of wind speed   [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pUzu  !: bulk wind speed at height pzu m   [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pus   !: friction velocity                 [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppsi !: "Psi_m(pzu/L)" stability correction profile for momentum []
+      REAL(wp), DIMENSION(A2D(0))             :: UN10_from_ustar  !: neutral stability wind speed at 10m [m/s]
+      REAL(wp),                    INTENT(in) :: pzu   !: measurement heigh of wind speed   [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pUzu  !: bulk wind speed at height pzu m   [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pus   !: friction velocity                 [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ppsi !: "Psi_m(pzu/L)" stability correction profile for momentum []
       !!----------------------------------------------------------------------------------
       UN10_from_ustar(:,:) = pUzu(:,:) - pus(:,:)/vkarmn * ( LOG(pzu/10._wp) - ppsi(:,:) )
       !!
@@ -1183,11 +1183,11 @@ CONTAINS
       !!----------------------------------------------------------------------------------
       !!  Provides the neutral-stability wind speed at 10 m
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             :: UN10_from_CD  !: [m/s]
-      REAL(wp),                     INTENT(in) :: pzu  !: measurement heigh of bulk wind speed
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pUb  !: bulk wind speed at height pzu m   [m/s]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pCd  !: drag coefficient
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: ppsi !: "Psi_m(pzu/L)" stability correction profile for momentum []
+      REAL(wp), DIMENSION(A2D(0))             :: UN10_from_CD  !: [m/s]
+      REAL(wp),                    INTENT(in) :: pzu  !: measurement heigh of bulk wind speed
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pUb  !: bulk wind speed at height pzu m   [m/s]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pCd  !: drag coefficient
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: ppsi !: "Psi_m(pzu/L)" stability correction profile for momentum []
       !!----------------------------------------------------------------------------------
       !! Reminder: UN10 = u*/vkarmn * log(10/z0)
       !!     and: u* = sqrt(Cd) * Ub
@@ -1214,10 +1214,10 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, April 2020 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             :: z0tq_LKB
-      INTEGER,                      INTENT(in) :: iflag     !: 1 => dealing with temperature; 2 => dealing with humidity
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pRer      !: roughness Reynolds number  [z_0 u*]/Nu_{air}
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pz0       !: roughness length (for momentum) [m]
+      REAL(wp), DIMENSION(A2D(0))             :: z0tq_LKB
+      INTEGER,                     INTENT(in) :: iflag     !: 1 => dealing with temperature; 2 => dealing with humidity
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pRer      !: roughness Reynolds number  [z_0 u*]/Nu_{air}
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pz0       !: roughness length (for momentum) [m]
       !-------------------------------------------------------------------
       ! Scalar Re_r relation from Liu et al.
       REAL(wp), DIMENSION(8,2), PARAMETER :: &
@@ -1250,7 +1250,7 @@ CONTAINS
 
       z0tq_LKB(:,:) = -999._wp
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
 
       zrr    = pRer(ji,jj)
       lfound = .FALSE.

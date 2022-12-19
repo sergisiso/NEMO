@@ -280,9 +280,9 @@ CONTAINS
          ! Add various grids here.
          DO jj = 1, jpj
             DO ji = 1, jpi
-               zlamg(mig(ji),mjg(jj)) = glamt(ji,jj)
-               zphig(mig(ji),mjg(jj)) = gphit(ji,jj)
-               zmskg(mig(ji),mjg(jj)) = tmask(ji,jj,1)
+               zlamg(mig(ji,nn_hls),mjg(jj,nn_hls)) = glamt(ji,jj)
+               zphig(mig(ji,nn_hls),mjg(jj,nn_hls)) = gphit(ji,jj)
+               zmskg(mig(ji,nn_hls),mjg(jj,nn_hls)) = tmask(ji,jj,1)
             END DO
          END DO
          CALL mpp_global_max( zlamg )

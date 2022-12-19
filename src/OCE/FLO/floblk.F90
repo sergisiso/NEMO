@@ -105,10 +105,10 @@ CONTAINS
       iloop = 0
 222   DO jfl = 1, jpnfl
 # if ! defined key_mpi_off
-         IF( iil(jfl) >= mig(Nis0) .AND. iil(jfl) <= mig(Nie0) .AND.   &
-             ijl(jfl) >= mjg(Njs0) .AND. ijl(jfl) <= mjg(Nje0)   ) THEN
-            iiloc(jfl) = iil(jfl) - mig(1) + 1
-            ijloc(jfl) = ijl(jfl) - mjg(1) + 1
+         IF( iil(jfl) >= mig(Nis0,nn_hls) .AND. iil(jfl) <= mig(Nie0,nn_hls) .AND.   &
+             ijl(jfl) >= mjg(Njs0,nn_hls) .AND. ijl(jfl) <= mjg(Nje0,nn_hls)   ) THEN
+            iiloc(jfl) = iil(jfl) - mig(1,nn_hls) + 1
+            ijloc(jfl) = ijl(jfl) - mjg(1,nn_hls) + 1
 # else 
             iiloc(jfl) = iil(jfl)
             ijloc(jfl) = ijl(jfl)

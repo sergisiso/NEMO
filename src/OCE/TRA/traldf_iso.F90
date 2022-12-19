@@ -9,7 +9,9 @@ MODULE traldf_iso
    !!            1.0  ! 2005-11  (G. Madec)  merge traldf and trazdf :-)
    !!            3.3  ! 2010-09  (C. Ethe, G. Madec) Merge TRA-TRC
    !!            3.7  ! 2014-01  (G. Madec, S. Masson)  restructuration/simplification of aht/aeiv specification
-   !!             -   ! 2014-02  (F. Lemarie, G. Madec)  triad operator (Griffies) + Method of Stabilizing Correction
+   !!             -   ! 2014-02  (F. Lemarie, G. Madec)  Standard and triad operator with Method of Stabilizing Correction
+   !!            4.5  ! 2022-06  (S. Techene, G, Madec)  refactorization to reduce local memory usage + add tra_ldf_iso_a33 &
+   !!                 !                                  traldf_iso_blp routines and traldf_iso_scheme.h90 file
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -18,7 +20,7 @@ MODULE traldf_iso
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and active tracers
    USE dom_oce        ! ocean space and time domain
-   USE domutl, ONLY : is_tile
+   USE domutl, ONLY : lbnd_ij
    USE trc_oce        ! share passive tracers/Ocean variables
    USE zdf_oce        ! ocean vertical physics
    USE ldftra         ! lateral diffusion: tracer eddy coefficients
@@ -34,10 +36,10 @@ MODULE traldf_iso
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_ldf_iso   ! routine called by step.F90
-
-   LOGICAL  ::   l_ptr   ! flag to compute poleward transport
-   LOGICAL  ::   l_hst   ! flag to compute heat transport
+   PUBLIC   traldf_iso_lap   ! routine called by traadv.F90
+   PUBLIC   traldf_iso_blp   ! routine called by traadv.F90
+   PUBLIC   traldf_iso_a33   ! routine called by traldf_iso.F90    !!gm: to be move in traadv.F90 ???
+!!gm                                                               !!gm: to be extended to 13 and 23 ???)
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -49,34 +51,11 @@ MODULE traldf_iso
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_ldf_iso( kt, Kmm, kit000, cdtype, pahu, pahv,             &
-      &                                             pgu , pgv , pgui, pgvi, &
-      &                                             pt, pt2, pt_rhs, kjpt, kpass )
-      !!
-      INTEGER                     , INTENT(in   ) ::   kt         ! ocean time-step index
-      INTEGER                     , INTENT(in   ) ::   kit000     ! first time step index
-      CHARACTER(len=3)            , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
-      INTEGER                     , INTENT(in   ) ::   kjpt       ! number of tracers
-      INTEGER                     , INTENT(in   ) ::   kpass      ! =1/2 first or second passage
-      INTEGER                     , INTENT(in   ) ::   Kmm        ! ocean time level index
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pahu, pahv ! eddy diffusivity at u- and v-points  [m2/s]
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pgu, pgv   ! tracer gradient at pstep levels
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pgui, pgvi ! tracer gradient at top   levels
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pt         ! tracer (kpass=1) or laplacian of tracer (kpass=2)
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pt2        ! tracer (only used in kpass=2)
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pt_rhs     ! tracer trend
-      !!
-      CALL tra_ldf_iso_t( kt, Kmm, kit000, cdtype, pahu, pahv, is_tile(pahu),                             &
-         &                                         pgu , pgv , is_tile(pgu) , pgui, pgvi, is_tile(pgui),  &
-         &                                         pt, is_tile(pt), pt2, is_tile(pt2), pt_rhs, is_tile(pt_rhs), kjpt, kpass )
-   END SUBROUTINE tra_ldf_iso
-
-
-  SUBROUTINE tra_ldf_iso_t( kt, Kmm, kit000, cdtype, pahu, pahv, ktah,                    &
-      &                                              pgu , pgv , ktg , pgui, pgvi, ktgi,  &
-      &                                              pt, ktt, pt2, ktt2, pt_rhs, ktt_rhs, kjpt, kpass )
+   SUBROUTINE traldf_iso_lap( kt, Kbb, Kmm, pt, Krhs, ld_ptr, ld_hst )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tra_ldf_iso  ***
+      !!                  ***  ROUTINE traldf_iso_iso  ***
+      !!
+      !!                   ——    nn_hls =2 or more  ——
       !!
       !! ** Purpose :   Compute the before horizontal tracer (t & s) diffusive
       !!      trend for a laplacian tensor (ezxcept the dz[ dz[.] ] term) and
@@ -88,316 +67,348 @@ CONTAINS
       !!      It is computed using before fields (forward in time) and isopyc-
       !!      nal or geopotential slopes computed in routine ldfslp.
       !!
-      !!      1st part :  masked horizontal derivative of T  ( di[ t ] )
-      !!      ========    with partial cell update if ln_zps=T
-      !!                  with top     cell update if ln_isfcav
+      !!                        (  A11   0   A13  )
+      !!      rotation matrix = (   0   A22  A23  )
+      !!                        (  A31  A32  A33  )
       !!
-      !!      2nd part :  horizontal fluxes of the lateral mixing operator
-      !!      ========
-      !!         zftu =  pahu e2u*e3u/e1u di[ tb ]
-      !!               - pahu e2u*uslp    dk[ mi(mk(tb)) ]
-      !!         zftv =  pahv e1v*e3v/e2v dj[ tb ]
-      !!               - pahv e2u*vslp    dk[ mj(mk(tb)) ]
+      !!      • masked horizontal derivative of T  ( di[ t ] )
+      !!
+      !!      •  horizontal fluxes of the lateral mixing operator
+      !!         zfu =  A11 di[ tb ] + A13  dk[ mi(mk(tb)) ]
+      !!         zfv =  ahtv e1v*e3v/e2v dj[ tb ]
+      !!              - ahtv e2u*vslp    dk[ mj(mk(tb)) ]
+      !!        with  A11 = ahtu e2u*e3u/e1u  ;  A13 = - ahtu e2u*uslp
+      !!              A22 = ahtv e1v*e3v/e1v  ;  A23 = - ahtv e1v*vslp
       !!      take the horizontal divergence of the fluxes:
-      !!         difft = 1/(e1e2t*e3t) {  di-1[ zftu ] +  dj-1[ zftv ]  }
+      !!         difft = 1/(e1e2t*e3t) {  di-1[ zfu ] +  dj-1[ zfv ]  }
       !!      Add this trend to the general trend (ta,sa):
       !!         ta = ta + difft
       !!
-      !!      3rd part: vertical trends of the lateral mixing operator
-      !!      ========  (excluding the vertical flux proportional to dk[t] )
+      !!      • vertical trends of the lateral mixing operator
+      !!       (excluding the implicit part of vertical flux proportional to dk[t] )
       !!      vertical fluxes associated with the rotated lateral mixing:
-      !!         zftw = - {  mi(mk(pahu)) * e2t*wslpi di[ mi(mk(tb)) ]
-      !!                   + mj(mk(pahv)) * e1t*wslpj dj[ mj(mk(tb)) ]  }
+      !!         zfw = - {  mi(mk(ahtu)) * e2t*wslpi di[ mi(mk(tb)) ]
+      !!                  + mj(mk(ahtv)) * e1t*wslpj dj[ mj(mk(tb)) ]  }
       !!      take the horizontal divergence of the fluxes:
-      !!         difft = 1/(e1e2t*e3t) dk[ zftw ]
+      !!         difft = 1/(e1e2t*e3t) dk[ zfw ]
       !!      Add this trend to the general trend (ta,sa):
       !!         pt_rhs = pt_rhs + difft
       !!
       !! ** Action :   Update pt_rhs arrays with the before rotated diffusion
       !!----------------------------------------------------------------------
-      INTEGER                                   , INTENT(in   ) ::   kt         ! ocean time-step index
-      INTEGER                                   , INTENT(in   ) ::   kit000     ! first time step index
-      CHARACTER(len=3)                          , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
-      INTEGER                                   , INTENT(in   ) ::   kjpt       ! number of tracers
-      INTEGER                                   , INTENT(in   ) ::   kpass      ! =1/2 first or second passage
-      INTEGER                                   , INTENT(in   ) ::   Kmm        ! ocean time level index
-      INTEGER                                   , INTENT(in   ) ::   ktah, ktg, ktgi, ktt, ktt2, ktt_rhs
-      REAL(wp), DIMENSION(A2D_T(ktah)   ,JPK)     , INTENT(in   ) ::   pahu, pahv ! eddy diffusivity at u- and v-points  [m2/s]
-      REAL(wp), DIMENSION(A2D_T(ktg)        ,KJPT), INTENT(in   ) ::   pgu, pgv   ! tracer gradient at pstep levels
-      REAL(wp), DIMENSION(A2D_T(ktgi)       ,KJPT), INTENT(in   ) ::   pgui, pgvi ! tracer gradient at top   levels
-      REAL(wp), DIMENSION(A2D_T(ktt)    ,JPK,KJPT), INTENT(in   ) ::   pt         ! tracer (kpass=1) or laplacian of tracer (kpass=2)
-      REAL(wp), DIMENSION(A2D_T(ktt2)   ,JPK,KJPT), INTENT(in   ) ::   pt2        ! tracer (only used in kpass=2)
-      REAL(wp), DIMENSION(A2D_T(ktt_rhs),JPK,KJPT), INTENT(inout) ::   pt_rhs     ! tracer trend
+      INTEGER                       , INTENT(in   ) ::   kt, Kbb, Kmm, Krhs   ! ocean time-step and time-level indices
+      LOGICAL , OPTIONAL            , INTENT(in   ) ::   ld_hst, ld_ptr       ! T-S diagnostic flags
+      REAL(wp), DIMENSION(:,:,:,:,:), INTENT(inout) ::   pt                   ! tracers, in: at kbb ; out: at Krhs
+      !!
+      INTEGER  ::   ji, jj, jk, jn     ! dummy loop indices
+      INTEGER  ::   inn                ! inner domain index
+      INTEGER  ::   itra               ! number of tracers
+      INTEGER  ::   ik, ikp1, iis      ! swap  indices
       !
-      INTEGER  ::  ji, jj, jk, jn   ! dummy loop indices
-      INTEGER  ::  ikt
-      INTEGER  ::  ierr, iij        ! local integer
-      REAL(wp) ::  zmsku, zahu_w, zabe1, zcof1, zcoef3   ! local scalars
-      REAL(wp) ::  zmskv, zahv_w, zabe2, zcof2, zcoef4   !   -      -
-      REAL(wp) ::  zcoef0, ze3w_2, zsign                 !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zdkt, zdk1t, z2d
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zdit, zdjt, zftu, zftv, ztfw
+      REAL(wp) ::   zmsku, zahu_w      ! local scalars
+      REAL(wp) ::   zmskv, zahv_w      !   -      -
+      REAL(wp) ::   zfw_kp1            !   -      -
+      REAL(wp) ::   zA11      , zA13   !)
+      REAL(wp) ::         zA22, zA23   !) elements of the rotation matrix
+      REAL(wp) ::   zA31, zA32, zA33   !)
+      !
+      REAL(wp), DIMENSION(T2D(1),0:1) ::   zdit, zdjt   ! INNER + 1 domain at level jk and jk+1
+      REAL(wp), DIMENSION(T2D(1),0:1) ::   zdkt         ! INNER + 1 domain at level jk and jk+1
+      REAL(wp), DIMENSION(T2D(1)    ) ::   zfu , zfv    ! INNER + 1 domain
+      REAL(wp), DIMENSION(T2D(0)    ) ::   zfw          ! INNER     domain
+      !
+!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
+!      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zdia_i , zdia_j    ! used for some diagnostics
+!!!gm end
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zdia_i , zdia_j    ! used for some diagnostics
       !!----------------------------------------------------------------------
       !
-      IF( kpass == 1 .AND. kt == kit000 )  THEN
-         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) 'tra_ldf_iso : rotated laplacian diffusion operator on ', cdtype
-            IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
+!!gm OPTIMIZATION : This part does not depends on tracer  ===>>> put in a routine
+!!                  possibility of moving it in tra_ldf routine (shared between TRA and TRC at least in RK3 case).
+!!gm idea:  define A13 and A23 as 2D arrays that do not depends on tracers in tra_ldf_iso_a33 routine which
+!!gm        will be renamed : tra_ldf_iso_a13_23_33    ===>> 2x3D additional arrays but much less calculation...
+!!gm idea 2 : even better: explore the possibility to compute matrix element instead of slopes in ldfslp ....
+!!gm                                                   ===>> same memory print but much less calculation !!
+!!            caution: the gm velocity have also to be calculated as they use the slopes....
+!!gm idea
+      !
+      CALL traldf_iso_a33( Kmm, ah_wslp2, akz )   ! calculate  a33 element   (ah_wslp2 and akz)
+      !
+!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
+!       IF( ld_ptr .OR. ld_hst ) THEN
+!          ALLOCATE( zdia_i(A2D(0)) , zdia_j(A2D(0)) )
+!       ENDIF
+      IF( PRESENT(ld_ptr) .OR. PRESENT(ld_hst) ) THEN
+         IF( ld_ptr .OR. ld_hst ) THEN
+            ALLOCATE( zdia_i(T2D(0),jpk) , zdia_j(T2D(0),jpk) )
+            zdia_i(:,:,jpk) = 0._wp   ;   zdia_j(:,:,jpk) = 0._wp
          ENDIF
       ENDIF
+!!gm end
       !
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                           ! Do only on the first tile
-         l_hst = .FALSE.
-         l_ptr = .FALSE.
-         IF( l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtldf' ) .OR. iom_use( 'sopstldf' ) ) )      l_ptr = .TRUE.
-         IF( l_iom    .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
-            &                                       iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )   l_hst = .TRUE.
-      ENDIF
+      itra = SIZE( pt, dim = 4 )                   ! number of tracers
       !
-      ! Define pt_rhs halo points for multi-point haloes in bilaplacian case
-      IF( nldf_tra == np_blp_i .AND. kpass == 1 ) THEN ; iij = nn_hls
-      ELSE                                             ; iij = 1
-      ENDIF
+      DO jn = 1, itra                     !==  tracer loop  ==!
+         !
+!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
+!       IF( ld_ptr .OR. ld_hst ) THEN
+!          zdia_i(:,:) = 0._wp   ;   zdia_j(:,:) = 0._wp
+!       ENDIF
+!!gm end
 
-      !
-      IF( kpass == 1 ) THEN   ;   zsign =  1._wp      ! bilaplacian operator require a minus sign (eddy diffusivity >0)
-      ELSE                    ;   zsign = -1._wp
-      ENDIF
+         DO jk = 1, jpkm1                       !=  ij slab  =!
+            !
+            !                                      !* iso-neutral laplacian applied on pt over the INNER domain
+#           define   iso_lap
+#           define   INN                0
+#           define   pt_in(i,j,k,n,t)   pt(i,j,k,n,t)
 
-      !!----------------------------------------------------------------------
-      !!   0 - calculate  ah_wslp2 and akz
-      !!----------------------------------------------------------------------
-      !
-      IF( kpass == 1 ) THEN                  !==  first pass only  ==!
-         !
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
-            !
-            zmsku = wmask(ji,jj,jk) / MAX(   umask(ji  ,jj,jk-1) + umask(ji-1,jj,jk)          &
-               &                           + umask(ji-1,jj,jk-1) + umask(ji  ,jj,jk) , 1._wp  )
-            zmskv = wmask(ji,jj,jk) / MAX(   vmask(ji,jj  ,jk-1) + vmask(ji,jj-1,jk)          &
-               &                           + vmask(ji,jj-1,jk-1) + vmask(ji,jj  ,jk) , 1._wp  )
-               !
-            ! round brackets added to fix the order of floating point operations
-            ! needed to ensure halo 1 - halo 2 compatibility
-            zahu_w = ( (  pahu(ji  ,jj,jk-1) + pahu(ji-1,jj,jk)                    &
-               &       )                                                           & ! bracket for halo 1 - halo 2 compatibility
-               &       + ( pahu(ji-1,jj,jk-1) + pahu(ji  ,jj,jk)                   &
-               &         )                                                         & ! bracket for halo 1 - halo 2 compatibility
-               &     ) * zmsku
-            zahv_w = ( (  pahv(ji,jj  ,jk-1) + pahv(ji,jj-1,jk)                    &
-               &       )                                                           & ! bracket for halo 1 - halo 2 compatibility
-               &       + ( pahv(ji,jj-1,jk-1) + pahv(ji,jj  ,jk)                   &
-               &         )                                                         & ! bracket for halo 1 - halo 2 compatibility
-               &     ) * zmskv
-               !
-            ah_wslp2(ji,jj,jk) = zahu_w * wslpi(ji,jj,jk) * wslpi(ji,jj,jk)   &
-               &               + zahv_w * wslpj(ji,jj,jk) * wslpj(ji,jj,jk)
-         END_3D
-         !
-         IF( ln_traldf_msc ) THEN                ! stabilizing vertical diffusivity coefficient
-            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
-               ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               akz(ji,jj,jk) = 0.25_wp * (                                                                     &
-                  &            ( ( pahu(ji  ,jj,jk) + pahu(ji  ,jj,jk-1) ) / ( e1u(ji  ,jj) * e1u(ji  ,jj) )   &
-                  &            + ( pahu(ji-1,jj,jk) + pahu(ji-1,jj,jk-1) ) / ( e1u(ji-1,jj) * e1u(ji-1,jj) )   &
-                  &            )                                                                               & ! bracket for halo 1 - halo 2 compatibility
-                  &            + ( ( pahv(ji,jj  ,jk) + pahv(ji,jj  ,jk-1) ) / ( e2v(ji,jj  ) * e2v(ji,jj  ) ) &
-                  &              + ( pahv(ji,jj-1,jk) + pahv(ji,jj-1,jk-1) ) / ( e2v(ji,jj-1) * e2v(ji,jj-1) ) &
-                  &              )                                                                             & ! bracket for halo 1 - halo 2 compatibility
-                  &                      )
-            END_3D
-            !
-            IF( ln_traldf_blp ) THEN                ! bilaplacian operator
-               DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
-                  akz(ji,jj,jk) = 16._wp   &
-                     &   * ah_wslp2   (ji,jj,jk)   &
-                     &   * (  akz     (ji,jj,jk)   &
-                     &      + ah_wslp2(ji,jj,jk)   &
-                     &        / ( e3w(ji,jj,jk,Kmm) * e3w(ji,jj,jk,Kmm) )  )
-               END_3D
-            ELSEIF( ln_traldf_lap ) THEN              ! laplacian operator
-               DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
-                  ze3w_2 = e3w(ji,jj,jk,Kmm) * e3w(ji,jj,jk,Kmm)
-                  zcoef0 = rDt * (  akz(ji,jj,jk) + ah_wslp2(ji,jj,jk) / ze3w_2  )
-                  akz(ji,jj,jk) = MAX( zcoef0 - 0.5_wp , 0._wp ) * ze3w_2 * r1_Dt
-               END_3D
-           ENDIF
-           !
-         ELSE                                    ! 33 flux set to zero with akz=ah_wslp2 ==>> computed in full implicit
-            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
-               akz(ji,jj,jk) = ah_wslp2(ji,jj,jk)
-            END_3D
-         ENDIF
-      ENDIF
-      !
-      !                                                          ! ===========
-      DO jn = 1, kjpt                                            ! tracer loop
-         !                                                       ! ===========
-         !
-         !!----------------------------------------------------------------------
-         !!   I - masked horizontal derivative
-         !!----------------------------------------------------------------------
-         zdit(:,:,:) = 0._wp
-         zdjt(:,:,:) = 0._wp
+#           include   "traldf_iso_scheme.h90"
 
-         ! Horizontal tracer gradient
-         DO_3D( iij, iij-1, iij, iij-1, 1, jpkm1 )
-            zdit(ji,jj,jk) = ( pt(ji+1,jj  ,jk,jn) - pt(ji,jj,jk,jn) ) * umask(ji,jj,jk)
-            zdjt(ji,jj,jk) = ( pt(ji  ,jj+1,jk,jn) - pt(ji,jj,jk,jn) ) * vmask(ji,jj,jk)
-         END_3D
-         IF( ln_zps ) THEN      ! botton and surface ocean correction of the horizontal gradient
-            DO_2D( iij, iij-1, iij, iij-1 )            ! bottom correction (partial bottom cell)
-               zdit(ji,jj,mbku(ji,jj)) = pgu(ji,jj,jn)
-               zdjt(ji,jj,mbkv(ji,jj)) = pgv(ji,jj,jn)
-            END_2D
-            IF( ln_isfcav ) THEN      ! first wet level beneath a cavity
-               DO_2D( iij, iij-1, iij, iij-1 )
-                  IF( miku(ji,jj) > 1 )   zdit(ji,jj,miku(ji,jj)) = pgui(ji,jj,jn)
-                  IF( mikv(ji,jj) > 1 )   zdjt(ji,jj,mikv(ji,jj)) = pgvi(ji,jj,jn)
-               END_2D
-            ENDIF
-         ENDIF
-         !
-         !!----------------------------------------------------------------------
-         !!   II - horizontal trend  (full)
-         !!----------------------------------------------------------------------
-         !
-         DO jk = 1, jpkm1                                 ! Horizontal slab
-            !
-            DO_2D( iij, iij, iij, iij )
-               !                             !== Vertical tracer gradient
-               zdk1t(ji,jj) = ( pt(ji,jj,jk,jn) - pt(ji,jj,jk+1,jn) ) * wmask(ji,jj,jk+1)     ! level jk+1
-               !
-               IF( jk == 1 ) THEN   ;   zdkt(ji,jj) = zdk1t(ji,jj)                            ! surface: zdkt(jk=1)=zdkt(jk=2)
-               ELSE                 ;   zdkt(ji,jj) = ( pt(ji,jj,jk-1,jn) - pt(ji,jj,jk,jn) ) * wmask(ji,jj,jk)
+#           undef    iso_lap
+#           undef    INN
+#           undef    pt_in
+!!gm ld_ptr,ld_hst:
+!             IF( ld_ptr .OR. ld_hst ) THEN       ! vertically cumulated fluxes (minus sign by convention in the output)
+!                zdia_i(:,:) = zdia_i(:,:) - zfu(A2D(0))
+!                zdia_j(:,:) = zdia_j(:,:) - zfv(A2D(0))
+!             ENDIF
+            IF( PRESENT(ld_ptr) .OR. PRESENT(ld_hst) ) THEN        ! store fluxes for diagnostics (minus sign by convention in the output)
+               IF( ld_ptr .OR. ld_hst ) THEN
+                  zdia_i(:,:,jk) = - zfu(T2D(0))
+                  zdia_j(:,:,jk) = - zfv(T2D(0))
                ENDIF
-            END_2D
+            ENDIF
+!!gm end
             !
-            DO_2D( iij, iij-1, iij, iij-1 )           !==  Horizontal fluxes
-               zabe1 = pahu(ji,jj,jk) * e2_e1u(ji,jj) * e3u(ji,jj,jk,Kmm)
-               zabe2 = pahv(ji,jj,jk) * e1_e2v(ji,jj) * e3v(ji,jj,jk,Kmm)
-               !
-               zmsku = 1. / MAX(  wmask(ji+1,jj,jk  ) + wmask(ji,jj,jk+1)   &
-                  &             + wmask(ji+1,jj,jk+1) + wmask(ji,jj,jk  ), 1. )
-               !
-               zmskv = 1. / MAX(  wmask(ji,jj+1,jk  ) + wmask(ji,jj,jk+1)   &
-                  &             + wmask(ji,jj+1,jk+1) + wmask(ji,jj,jk  ), 1. )
-               !
-               zcof1 = - pahu(ji,jj,jk) * e2u(ji,jj) * uslp(ji,jj,jk) * zmsku
-               zcof2 = - pahv(ji,jj,jk) * e1v(ji,jj) * vslp(ji,jj,jk) * zmskv
-               !
-               ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               zftu(ji,jj,jk ) = (  zabe1 * zdit(ji,jj,jk)                       &
-                  &               + zcof1 * ( ( zdkt (ji+1,jj) + zdk1t(ji,jj)    &
-                  &                           )                                  & ! bracket for halo 1 - halo 2 compatibility
-                  &                         + ( zdk1t(ji+1,jj) + zdkt (ji,jj)    &
-                  &                           )                                  & ! bracket for halo 1 - halo 2 compatibility
-                  &                         ) ) * umask(ji,jj,jk)
-               zftv(ji,jj,jk) = (  zabe2 * zdjt(ji,jj,jk)                        &
-                  &              + zcof2 * ( ( zdkt (ji,jj+1) + zdk1t(ji,jj)     &
-                  &                           )                                  & ! bracket for halo 1 - halo 2 compatibility
-                  &                         + ( zdk1t(ji,jj+1) + zdkt (ji,jj)    &
-                  &                           )                                  & ! bracket for halo 1 - halo 2 compatibility
-                  &                         ) ) * vmask(ji,jj,jk)
-            END_2D
-            !
-            DO_2D( iij-1, iij-1, iij-1, iij-1 )           !== horizontal divergence and add to pta
-               ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               pt_rhs(ji,jj,jk,jn) = pt_rhs(ji,jj,jk,jn)                         &
-                  &       + zsign * ( ( zftu(ji,jj,jk) - zftu(ji-1,jj,jk)        &
-                  &                   )                                          & ! bracket for halo 1 - halo 2 compatibility
-                  &                 + ( zftv(ji,jj,jk) - zftv(ji,jj-1,jk)        &
-                  &                   )                                          & ! bracket for halo 1 - halo 2 compatibility
-                  &                 ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
-            END_2D
-         END DO                                        !   End of slab
-
-         !!----------------------------------------------------------------------
-         !!   III - vertical trend (full)
-         !!----------------------------------------------------------------------
+         END DO                             !=  end ij slab  =!
          !
-         ! Vertical fluxes
-         ! ---------------
-         !                          ! Surface and bottom vertical fluxes set to zero
-         ztfw(:,:, 1 ) = 0._wp      ;      ztfw(:,:,jpk) = 0._wp
-
-         DO_3D( iij-1, iij-1, iij-1, iij-1, 2, jpkm1 )    ! interior (2=<jk=<jpk-1)
-            !
-            zmsku = wmask(ji,jj,jk) / MAX(   umask(ji  ,jj,jk-1) + umask(ji-1,jj,jk)          &
-               &                           + umask(ji-1,jj,jk-1) + umask(ji  ,jj,jk) , 1._wp  )
-            zmskv = wmask(ji,jj,jk) / MAX(   vmask(ji,jj  ,jk-1) + vmask(ji,jj-1,jk)          &
-               &                           + vmask(ji,jj-1,jk-1) + vmask(ji,jj  ,jk) , 1._wp  )
-               !
-            zahu_w = (   pahu(ji  ,jj,jk-1) + pahu(ji-1,jj,jk)    &
-               &       + pahu(ji-1,jj,jk-1) + pahu(ji  ,jj,jk)  ) * zmsku
-            zahv_w = (   pahv(ji,jj  ,jk-1) + pahv(ji,jj-1,jk)    &
-               &       + pahv(ji,jj-1,jk-1) + pahv(ji,jj  ,jk)  ) * zmskv
-               !
-            zcoef3 = - zahu_w * e2t(ji,jj) * zmsku * wslpi (ji,jj,jk)   !wslpi & j are already w-masked
-            zcoef4 = - zahv_w * e1t(ji,jj) * zmskv * wslpj (ji,jj,jk)
-            !
-            ! round brackets added to fix the order of floating point operations
-            ! needed to ensure halo 1 - halo 2 compatibility
-            ztfw(ji,jj,jk) = zcoef3 * ( ( zdit(ji  ,jj  ,jk-1) + zdit(ji-1,jj  ,jk)    &
-                  &                     )                                              & ! bracket for halo 1 - halo 2 compatibility
-                  &                   + ( zdit(ji-1,jj  ,jk-1) + zdit(ji  ,jj  ,jk)    &
-                  &                     )                                              & ! bracket for halo 1 - halo 2 compatibility
-                  &                   )                                                &
-                  &        + zcoef4 * ( ( zdjt(ji  ,jj  ,jk-1) + zdjt(ji  ,jj-1,jk)    &
-                  &                     )                                              & ! bracket for halo 1 - halo 2 compatibility
-                  &                   + ( zdjt(ji  ,jj-1,jk-1) + zdjt(ji  ,jj  ,jk)    &
-                  &                     )                                              & ! bracket for halo 1 - halo 2 compatibility
-                  &                   )
-         END_3D
-         !                                !==  add the vertical 33 flux  ==!
-         IF( ln_traldf_lap ) THEN               ! laplacian case: eddy coef = ah_wslp2 - akz
-            DO_3D( iij-1, iij-1, iij-1, iij-1, 2, jpkm1 )
-               ztfw(ji,jj,jk) = ztfw(ji,jj,jk) + e1e2t(ji,jj) / e3w(ji,jj,jk,Kmm) * wmask(ji,jj,jk)   &
-                  &                            * ( ah_wslp2(ji,jj,jk) - akz(ji,jj,jk) )               &
-                  &                            * (  pt(ji,jj,jk-1,jn) -  pt(ji,jj,jk,jn) )
-            END_3D
-            !
-         ELSE                                   ! bilaplacian
-            SELECT CASE( kpass )
-            CASE(  1  )                            ! 1st pass : eddy coef = ah_wslp2
-               DO_3D( iij-1, iij-1, iij-1, iij-1, 2, jpkm1 )
-                  ztfw(ji,jj,jk) =   &
-                     &  ztfw(ji,jj,jk) + ah_wslp2(ji,jj,jk) * e1e2t(ji,jj)   &
-                     &           * ( pt(ji,jj,jk-1,jn) - pt(ji,jj,jk,jn) ) / e3w(ji,jj,jk,Kmm) * wmask(ji,jj,jk)
-               END_3D
-            CASE(  2  )                         ! 2nd pass : eddy flux = ah_wslp2 and akz applied on pt  and pt2 gradients, resp.
-               DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-                  ztfw(ji,jj,jk) = ztfw(ji,jj,jk) + e1e2t(ji,jj) / e3w(ji,jj,jk,Kmm) * wmask(ji,jj,jk)                  &
-                     &                            * (  ah_wslp2(ji,jj,jk) * ( pt (ji,jj,jk-1,jn) - pt (ji,jj,jk,jn) )   &
-                     &                            +         akz(ji,jj,jk) * ( pt2(ji,jj,jk-1,jn) - pt2(ji,jj,jk,jn) )   )
-               END_3D
-            END SELECT
+         !                                  !=  "Poleward" diffusive heat or salt transports  =!
+         IF( PRESENT(ld_ptr) )  THEN
+            IF( ld_ptr)  CALL dia_ptr_hst( jn, 'ldf'        , zdia_j )
+         ENDIF
+         IF( PRESENT(ld_hst) )  THEN
+            IF( ld_hst)  CALL dia_ar5_hst( jn, 'ldf', zdia_i, zdia_j )
          ENDIF
          !
-         DO_3D( iij-1, iij-1, iij-1, iij-1, 1, jpkm1 )    !==  Divergence of vertical fluxes added to pta  ==!
-            pt_rhs(ji,jj,jk,jn) = pt_rhs(ji,jj,jk,jn) + zsign * (  ztfw (ji,jj,jk) - ztfw(ji,jj,jk+1)  ) * r1_e1e2t(ji,jj)   &
-               &                                             / e3t(ji,jj,jk,Kmm)
+      END DO                          !==  end tracer loop  ==!
+      !
+   END SUBROUTINE traldf_iso_lap
+
+
+   SUBROUTINE traldf_iso_blp( kt, Kbb, Kmm, pt, Krhs, ld_ptr, ld_hst )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE tra_ldf_iso_blp  ***
+      !!
+      !!                   ——    nn_hls =2 or more  ——
+      !!
+      !!----------------------------------------------------------------------
+      INTEGER                       , INTENT(in   ) ::   kt, Kbb, Kmm, Krhs   ! ocean time-step and time-level indices
+      LOGICAL , OPTIONAL            , INTENT(in   ) ::   ld_hst, ld_ptr       ! T-S diagnostic flags
+      REAL(wp), DIMENSION(:,:,:,:,:), INTENT(inout) ::   pt                   ! tracers, in: at kbb ; out: at Krhs
+      !!
+      INTEGER  ::   ji, jj, jk, jn     ! dummy loop indices
+      INTEGER  ::   inn                ! inner domain index
+      INTEGER  ::   itra               ! number of tracers
+      INTEGER  ::   ik, ikp1, iis      ! swap  indices
+      !
+      REAL(wp) ::   zmsku, zahu_w      ! local scalars
+      REAL(wp) ::   zmskv, zahv_w      !   -      -
+      REAL(wp) ::   zfw_kp1            !   -      -
+      REAL(wp) ::   zA11      , zA13   !)
+      REAL(wp) ::         zA22, zA23   !) elements of the rotation matrix
+      REAL(wp) ::   zA31, zA32, zA33   !)
+      !
+      REAL(wp), DIMENSION(T2D(2),0:1)   ::   zdit, zdjt   ! INNER + 2 domain at level jk and jk+1
+      REAL(wp), DIMENSION(T2D(2),0:1)   ::   zdkt         ! INNER + 2 domain at level jk and jk+1
+      REAL(wp), DIMENSION(T2D(2)    )   ::   zfu , zfv    ! INNER + 2 domain
+      REAL(wp), DIMENSION(T2D(1)    )   ::   zfw          ! INNER + 1 domain
+      REAL(wp), DIMENSION(T2D(1),jpkm1) ::   zlap         ! INNER + 1 doamin (3D laplacian at t-point)
+      !
+!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
+!      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zdia_i , zdia_j    ! used for some diagnostics
+!!!gm end
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zdia_i , zdia_j    ! used for some diagnostics
+      !!----------------------------------------------------------------------
+      !
+      CALL traldf_iso_a33( Kmm, ah_wslp2, akz )   ! calculate  a33 element   (ah_wslp2 and akz)
+      !
+      itra = SIZE( pt, dim = 4 )                   ! number of tracers
+      !
+!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
+!      IF( ld_ptr .OR. ld_hst ) THEN
+!         ALLOCATE( zdia_i(A2D(0)) , zdia_j(A2D(0)) )
+!      ENDIF
+      IF( PRESENT(ld_ptr) .OR. PRESENT(ld_hst) ) THEN
+         IF( ld_ptr .OR. ld_hst ) THEN
+            ALLOCATE( zdia_i(T2D(0),jpk) , zdia_j(T2D(0),jpk) )
+            zdia_i(:,:,jpk) = 0._wp   ;   zdia_j(:,:,jpk) = 0._wp
+         ENDIF
+      ENDIF
+!!gm end
+      !
+      DO jn = 1, itra                     !==  tracer loop  ==!
+         !                  !
+!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
+!         IF( ld_ptr .OR. ld_hst ) THEN
+!            zdia_i(:,:) = 0._wp   ;   zdia_j(:,:) = 0._wp
+!         ENDIF
+!!gm end
+         !
+         DO jk = 1, jpkm1                       !=  ij slab  =!
+            !
+            !                                      !* 1st pass : iso-neutral laplacian of pt
+            !                                                    computed over the INNER + 1 domain
+#           define   iso_blp_p1
+#           define   INN                1
+#           define   pt_in(i,j,k,n,t)   pt(i,j,k,n,t)
+!
+#           include "traldf_iso_scheme.h90"
+!
+#           undef    iso_blp_p1
+#           undef    INN
+#           undef    pt_in
+            !
+            !                                      !* 2nd pass : bilaplacian = laplacian of 1st pass (zlap)
+            !                                                    computed over the INNER domain
+#           define   iso_blp_p2
+#           define   INN                0
+#           define   pt_in(i,j,k,n,t)   zlap(i,j,k)
+!
+#           include "traldf_iso_scheme.h90"
+!
+#           undef    iso_blp_p2
+#           undef    INN
+#           undef    pt_in
+            !
+!!gm ld_ptr,ld_hst:
+!             IF( ld_ptr .OR. ld_hst ) THEN       ! vertically cumulated fluxes (minus sign by convention in the output)
+!                zdia_i(:,:) = zdia_i(:,:) - zfu(A2D(0))
+!                zdia_j(:,:) = zdia_j(:,:) - zfv(A2D(0))
+!             ENDIF
+            IF( PRESENT(ld_ptr) .OR. PRESENT(ld_hst) ) THEN
+               IF( ld_ptr .OR. ld_hst ) THEN       ! store fluxes for diagnostics (minus sign by convention in the output)
+                  zdia_i(:,:,jk) = - zfu(T2D(0))
+                  zdia_j(:,:,jk) = - zfv(T2D(0))
+               ENDIF
+            ENDIF
+!!gm end
+            !
+         END DO                             !=  end ij slab  =!
+         !
+         !                                  !=  "Poleward" diffusive heat or salt transports  =!
+         IF( PRESENT(ld_ptr) )  THEN
+            IF( ld_ptr )   CALL dia_ptr_hst( jn, 'ldf'        , zdia_j )
+         ENDIF
+         IF( PRESENT(ld_hst) )  THEN
+            IF( ld_hst )   CALL dia_ar5_hst( jn, 'ldf', zdia_i, zdia_j )
+         ENDIF
+         !
+      END DO                          !==  end tracer loop  ==!
+      !
+   END SUBROUTINE traldf_iso_blp
+
+
+   SUBROUTINE traldf_iso_a33( Kmm, pah_wslp2, pakz )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE traldf_iso_a33  ***
+      !!
+      !!                   ——    nn_hls =2 or more  ——
+      !!
+      !! ** Purpose :   Compute the a33 element of the rotation  matrix and,
+      !!              if ln_traldf_msc=T, its split into explicit and implicit
+      !!              time-integration.
+      !!
+      !! ** Method  :
+      !!
+      !! ** Action :   pah_wslp2, pakz
+      !!----------------------------------------------------------------------
+      INTEGER                   , INTENT(in   ) ::   Kmm         ! ocean time level index
+      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pah_wslp2   ! implicit a33 element (ln_traldf_msc= false)
+      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pakz        ! implicit a33 element (ln_traldf_msc= true )
+      !
+      INTEGER  ::  ji, jj, jk      ! dummy loop indices
+      INTEGER  ::  inn             ! local integer
+      REAL(wp) ::  zmsku, zahu_w   ! local scalars
+      REAL(wp) ::  zmskv, zahv_w   !   -      -
+      REAL(wp) ::  zcoef0, ze3w_2  !   -      -
+      !!----------------------------------------------------------------------
+      !
+      SELECT CASE( nldf_tra )             ! set inner domain index
+      CASE( np_lap_i  )   ;   inn  = 0
+      CASE( np_blp_i  )   ;   inn  = 1
+      CASE DEFAULT        ;   CALL ctl_stop( 'STOP', 'traldf_iso_a33 routine should not be called  ' )
+      END SELECT
+      !
+      ! CAUTION:   round brackets are required for halo size and north fold compatibility
+      !
+      !
+      DO_3D( inn , inn , inn , inn ,   2, jpkm1 )
+         !
+         zmsku = wmask(ji,jj,jk) / MAX(   ( umask(ji  ,jj,jk-1) + umask(ji-1,jj,jk) )          &
+            &                           + ( umask(ji-1,jj,jk-1) + umask(ji  ,jj,jk) ) , 1._wp  )
+         zmskv = wmask(ji,jj,jk) / MAX(   ( vmask(ji,jj  ,jk-1) + vmask(ji,jj-1,jk) )          &
+            &                           + ( vmask(ji,jj-1,jk-1) + vmask(ji,jj  ,jk) ) , 1._wp  )
+            !
+         !                                   ! round brackets required to ensure halo size compatibility with north fold boundary condition
+         zahu_w = (  ( ahtu(ji  ,jj,jk-1) + ahtu(ji-1,jj,jk) )    &
+            &      + ( ahtu(ji-1,jj,jk-1) + ahtu(ji  ,jj,jk) )  ) * zmsku
+         zahv_w = (  ( ahtv(ji,jj  ,jk-1) + ahtv(ji,jj-1,jk) )    &
+            &      + ( ahtv(ji,jj-1,jk-1) + ahtv(ji,jj  ,jk) )  ) * zmskv
+!!st need to do something for dia...
+!!st            !                             ! "Poleward" diffusive heat or salt transports (T-S case only)
+!!st               ! note sign is reversed to give down-gradient diffusive transports )
+!!st            IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(A2D(0),:)  )
+!!st            !                          ! Diffusive heat transports
+!!st            IF( l_hst )  CALL dia_ar5_hst( jn, 'ldf', -zftu(:,:,:), -zftv(:,:,:) )
+            !
+         pah_wslp2(ji,jj,jk) = zahu_w * wslpi(ji,jj,jk) * wslpi(ji,jj,jk)   &
+            &                + zahv_w * wslpj(ji,jj,jk) * wslpj(ji,jj,jk)
+      END_3D
+      !
+!!gm size allocate for ah_wslp2 and akz should be A2D(0) in lap case and A2D(1) in bilap case
+
+
+!!gm  NB:   ah_wslp2 and akz can be defined on A2D(0) or A2D(1) (lap, or bilap) and aver 2:jpkm1 in all cases
+!!gm        moreover, without ln_traldf_msc=T  only ah_wslp2 is required  +  akz can be set as a local array
+!!gm        if ah_wslp2 is set to a proper value at the end of tra_ldf in iso case
+
+
+!!gm  Question:  here is it really Kmm that should be used and not Kbb  ?
+
+
+!!gm BUG ?:  below akz calculation should use zmsku/v instead of * 0.25_wp
+!!gm        ===>>>  introduce ah_wspl2 calculation in all cases !
+
+      IF( ln_traldf_msc ) THEN               ! stabilizing vertical diffusivity coefficient (compute akz)
+         DO_3D( inn , inn , inn , inn ,   2, jpkm1 )
+            !                                ! round brackets required to ensure halo size compatibility with north fold boundary condition
+            pakz(ji,jj,jk) = (   (  ( ahtu(ji  ,jj,jk) + ahtu(ji  ,jj,jk-1) ) / ( e1u(ji  ,jj) * e1u(ji  ,jj) )      &
+               &                  + ( ahtu(ji-1,jj,jk) + ahtu(ji-1,jj,jk-1) ) / ( e1u(ji-1,jj) * e1u(ji-1,jj) )  )   &
+               &               + (  ( ahtv(ji,jj  ,jk) + ahtv(ji,jj  ,jk-1) ) / ( e2v(ji,jj  ) * e2v(ji,jj  ) )      &
+               &                  + ( ahtv(ji,jj-1,jk) + ahtv(ji,jj-1,jk-1) ) / ( e2v(ji,jj-1) * e2v(ji,jj-1) )  )   ) * 0.25_wp
          END_3D
          !
-         IF( ( kpass == 1 .AND. ln_traldf_lap ) .OR.  &     !==  first pass only (  laplacian)  ==!
-             ( kpass == 2 .AND. ln_traldf_blp ) ) THEN      !==  2nd   pass      (bilaplacian)  ==!
-            !
-            !                             ! "Poleward" diffusive heat or salt transports (T-S case only)
-               ! note sign is reversed to give down-gradient diffusive transports )
-            IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-            !                          ! Diffusive heat transports
-            IF( l_hst )  CALL dia_ar5_hst( jn, 'ldf', -zftu(:,:,:), -zftv(:,:,:) )
-            !
-         ENDIF                                                    !== end pass selection  ==!
-         !
-         !                                                        ! ===============
-      END DO                                                      ! end tracer loop
+         IF( ln_traldf_blp ) THEN            ! bilaplacian operator
+            DO_3D( inn , inn , inn , inn , 2, jpkm1 )
+               ze3w_2 = e3w(ji,jj,jk,Kmm) * e3w(ji,jj,jk,Kmm)
+               pakz(ji,jj,jk) = 16._wp * ah_wslp2(ji,jj,jk) * (  akz(ji,jj,jk) + ah_wslp2(ji,jj,jk) / ze3w_2  )
+            END_3D
+         ELSEIF( ln_traldf_lap ) THEN        ! laplacian operator
+            DO_3D( inn , inn , inn , inn ,   2, jpkm1 )
+               ze3w_2 = e3w(ji,jj,jk,Kmm) * e3w(ji,jj,jk,Kmm)
+               zcoef0 = rDt * (  akz(ji,jj,jk) + ah_wslp2(ji,jj,jk) / ze3w_2  )
+               pakz(ji,jj,jk) = MAX( zcoef0 - 0.5_wp , 0._wp ) * ze3w_2 * r1_Dt
+            END_3D
+        ENDIF
+        !
+      ELSE                                    ! A33 flux set to zero with akz=ah_wslp2 ==>> computed in full implicit
+         DO_3D( inn , inn , inn , inn ,   1, jpk )
+            pakz(ji,jj,jk) = pah_wslp2(ji,jj,jk)
+         END_3D
+      ENDIF
       !
-   END SUBROUTINE tra_ldf_iso_t
+   END SUBROUTINE traldf_iso_a33
 
    !!==============================================================================
 END MODULE traldf_iso

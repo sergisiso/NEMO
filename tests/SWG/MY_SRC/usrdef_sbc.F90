@@ -61,7 +61,7 @@ CONTAINS
       REAL(wp) ::   ztauu, ztauv          ! wind intensity projeted
       REAL(wp) ::   zrhoa  = 1.22         ! Air density kg/m3
       REAL(wp) ::   zcdrag = 1.5e-3       ! drag coefficient
-      REAL(wp) ::   ztx, zty, zmod, zcoef ! temporary variables
+      REAL(wp) ::   zmod, zcoef           ! temporary variables
       !!---------------------------------------------------------------------
 
       ! ---------------------------- !
@@ -86,22 +86,19 @@ CONTAINS
       ztauu =   REAL( rn_tau, wp ) * COS( rn_theta * rad )   ! N.m-2
       ztauv = - REAL( rn_tau, wp ) * SIN( rn_theta * rad )   ! N.m-2
       
+      zcoef = 1. / ( zrhoa * zcdrag ) 
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
          ! length of the domain : 2000km x 2000km 
-         utau(ji,jj) = - ztauu * COS( rpi * gphiu(ji,jj) / 2000000._wp)
-         vtau(ji,jj) = - ztauv * COS( rpi * gphiv(ji,jj) / 2000000._wp)
+         utau(ji,jj) = - ztauu * COS( rpi * gphit(ji,jj) / 2000000._wp)
+         vtau(ji,jj) = - ztauv * COS( rpi * gphit(ji,jj) / 2000000._wp)
       END_2D
       
       ! module of wind stress and wind speed at T-point
-      zcoef = 1. / ( zrhoa * zcdrag ) 
       DO_2D( 0, 0, 0, 0 )
-         ztx = utau(ji-1,jj  ) + utau(ji,jj) 
-         zty = vtau(ji  ,jj-1) + vtau(ji,jj) 
-         zmod = 0.5 * SQRT( ztx * ztx + zty * zty )
-         taum(ji,jj) = zmod
+         zmod = SQRT( utau(ji,jj) * utau(ji,jj) + vtau(ji,jj) * vtau(ji,jj) )
+         taum(ji,jj) = zmod      
          wndm(ji,jj) = SQRT( zmod * zcoef )
       END_2D
-      CALL lbc_lnk( 'usrdef_sbc', taum(:,:), 'T', 1. , wndm(:,:), 'T', 1. )
       !
    END SUBROUTINE usrdef_sbc_oce
 

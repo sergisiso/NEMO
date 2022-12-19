@@ -58,12 +58,14 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt, knt   ! ocean time step
       INTEGER, INTENT(in) ::   Kbb, Kmm  ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in) ::   zchl  ! chlorophyll field
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(out) :: ze1, ze2, ze3 ! PAR for individual wavelength
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(out) :: ze1, ze2, ze3 ! PAR for individual wavelength
       !
       INTEGER  ::   ji, jj, jk, irgb
       REAL(wp) ::   ztmp
-      REAL(wp), DIMENSION(jpi,jpj    ) :: parsw, zqsr100, zqsr_corr
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze0
+      REAL(wp), DIMENSION(A2D(0)    ) :: parsw, zqsr100, zqsr_corr
+      REAL(wp), DIMENSION(A2D(0),jpk) :: ze0
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zw2d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_opt')
@@ -85,7 +87,7 @@ CONTAINS
 
       !     Attenuation coef. function of Chlorophyll and wavelength (RGB)
       !     --------------------------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          ztmp = ( zchl(ji,jj,jk) + rtrn ) * 1.e6
          ztmp = MIN(  10. , MAX( 0.05, ztmp )  )
          irgb = NINT( 41 + 20.* LOG10( ztmp ) + rtrn )
@@ -99,54 +101,63 @@ CONTAINS
       !     -----------------------------------------------
       IF( ln_qsr_bio ) THEN
          !
-         zqsr_corr(:,:) = parsw(:,:) * qsr(:,:)
+         DO_2D( 0, 0, 0, 0 )
+            zqsr_corr(ji,jj) = parsw(ji,jj) * qsr(ji,jj)
+         END_2D
          !
-         ze0(:,:,1) = (1._wp - 3._wp * parsw(:,:)) * qsr(:,:)  !  ( 1 - 3 * alpha ) * q
+         DO_2D( 0, 0, 0, 0 )
+            ze0(ji,jj,1) = (1._wp - 3._wp * parsw(ji,jj)) * qsr(ji,jj)  !  ( 1 - 3 * alpha ) * q
+         END_2D
          ze1(:,:,1) = zqsr_corr(:,:)
          ze2(:,:,1) = zqsr_corr(:,:)
          ze3(:,:,1) = zqsr_corr(:,:)
          !
-         DO jk = 2, nksrp + 1
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-                  ze0(ji,jj,jk) = ze0(ji,jj,jk-1) * EXP( -e3t(ji,jj,jk-1,Kmm) * (1. / rn_si0) )
-                  ze1(ji,jj,jk) = ze1(ji,jj,jk-1) * EXP( -ekb  (ji,jj,jk-1 )        )
-                  ze2(ji,jj,jk) = ze2(ji,jj,jk-1) * EXP( -ekg  (ji,jj,jk-1 )        )
-                  ze3(ji,jj,jk) = ze3(ji,jj,jk-1) * EXP( -ekr  (ji,jj,jk-1 )        )
-            END_2D
-         END DO
+         DO_3D( 0, 0, 0, 0, 2, nksrp + 1 )
+            ze0(ji,jj,jk) = ze0(ji,jj,jk-1) * EXP( -e3t(ji,jj,jk-1,Kmm) * (1. / rn_si0) )
+            ze1(ji,jj,jk) = ze1(ji,jj,jk-1) * EXP( -ekb  (ji,jj,jk-1 )        )
+            ze2(ji,jj,jk) = ze2(ji,jj,jk-1) * EXP( -ekg  (ji,jj,jk-1 )        )
+            ze3(ji,jj,jk) = ze3(ji,jj,jk-1) * EXP( -ekr  (ji,jj,jk-1 )        )
+         END_3D
          !
-         etot3(:,:,1) = qsr(:,:) * tmask(:,:,1)
-         DO jk = 2, nksrp + 1
-            etot3(:,:,jk) =  ( ze0(:,:,jk) + ze1(:,:,jk) + ze2(:,:,jk) + ze3(:,:,jk) ) * tmask(:,:,jk)
-         END DO
+         DO_2D( 0, 0, 0, 0 )
+            etot3(ji,jj,1) =  qsr(ji,jj) * tmask(ji,jj,1)
+         END_2D
+         DO_3D( 0, 0, 0, 0, 2, nksrp+1 )
+            etot3(ji,jj,jk) =  ( ze0(ji,jj,jk) + ze1(ji,jj,jk) + ze2(ji,jj,jk) + ze3(ji,jj,jk) ) * tmask(ji,jj,jk)
+         END_3D
          !                                     !  ------------------------
       ENDIF
 
       !     Photosynthetically Available Radiation (PAR)
       !     --------------------------------------------
-      zqsr_corr(:,:) = parsw(:,:) * qsr(:,:) / ( 1.-fr_i(:,:) + rtrn )
+      DO_2D( 0, 0, 0, 0 )
+         zqsr_corr(ji,jj) = parsw(ji,jj) * qsr(ji,jj) / ( 1.-fr_i(ji,jj) + rtrn )
+      END_2D
       !
       CALL trc_opt_par( kt, zqsr_corr, ze1, ze2, ze3 )
       !
-      DO jk = 1, nksrp
-         etot (:,:,jk) = ze1(:,:,jk) + ze2(:,:,jk) + ze3(:,:,jk)
-      ENDDO
+      DO_3D( 0, 0, 0, 0, 1, nksr )
+         etot(ji,jj,jk) = ze1(ji,jj,jk) + ze2(ji,jj,jk) + ze3(ji,jj,jk)
+      END_3D
 
       ! No Diurnal cycle PAR
       IF( l_trcdm2dc ) THEN
-         zqsr_corr(:,:) = parsw(:,:) * qsr_mean(:,:) / ( 1.-fr_i(:,:) + rtrn )
+         DO_2D( 0, 0, 0, 0 )
+            zqsr_corr(ji,jj) = parsw(ji,jj) * qsr_mean(ji,jj) / ( 1.-fr_i(ji,jj) + rtrn )
+         END_2D
          !
          CALL trc_opt_par( kt, zqsr_corr, ze1, ze2, ze3 )
-         DO jk = 1, nksrp
-            etot_ndcy(:,:,jk) = ze1(:,:,jk) + ze2(:,:,jk) + ze3(:,:,jk)
-         END DO
+         !
+         DO_3D( 0, 0, 0, 0, 1, nksr )
+            etot_ndcy(ji,jj,jk) = ze1(ji,jj,jk) + ze2(ji,jj,jk) + ze3(ji,jj,jk)
+         END_3D
       ELSE
          etot_ndcy(:,:,:) = etot(:,:,:)
       ENDIF
 
       !     Weighted broadband attenuation coefficient
       !     ------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          ztmp = ze1(ji,jj,jk)* ekb(ji,jj,jk) + ze2(ji,jj,jk) * ekg(ji,jj,jk) + ze3(ji,jj,jk) * ekr(ji,jj,jk)
          zeps(ji,jj,jk) = ztmp / e3t(ji,jj,jk,Kmm) / (etot(ji,jj,jk) + rtrn)
       END_3D
@@ -154,26 +165,24 @@ CONTAINS
 
       !     Light at the euphotic depth
       !     ---------------------------
-      zqsr100 = 0.01 * 3. * zqsr_corr(:,:)
+      zqsr100(:,:) = 0.01 * 3. * zqsr_corr(:,:)
 
       !     Euphotic depth and level
       !     ------------------------
-      neln   (:,:) = 1
-      heup   (:,:) = gdepw(:,:,2,Kmm)
-      heup_01(:,:) = gdepw(:,:,2,Kmm)
-      !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, nksrp )
+      DO_2D( 0, 0, 0, 0 )
+         neln   (ji,jj) = 1
+         heup   (ji,jj) = gdepw(ji,jj,2,Kmm)
+         heup_01(ji,jj) = gdepw(ji,jj,2,Kmm)
+      END_2D
+
+      DO_3D( 0, 0, 0, 0, 2, nksr)
         IF( etot_ndcy(ji,jj,jk) * tmask(ji,jj,jk) >=  zqsr100(ji,jj) )  THEN
-           ! Euphotic level (1st T-level strictly below Euphotic layer)
-           ! NOTE: ensure compatibility with nmld_trc definition in trdmxl_trc
-           neln(ji,jj) = jk+1
-           !
-           ! Euphotic layer depth
-           heup(ji,jj) = gdepw(ji,jj,jk+1,Kmm)
+           neln(ji,jj) = jk+1                    ! Euphotic level : 1rst T-level strictly below Euphotic layer
+           !                                     ! nb: ensure the compatibility with nmld_trc definition in trd_mld_trc_zint
+           heup(ji,jj) = gdepw(ji,jj,jk+1,Kmm)     ! Euphotic layer depth
         ENDIF
-        ! Euphotic layer depth (light level definition)
-        IF( etot_ndcy(ji,jj,jk) * tmask(ji,jj,jk) >= 0.50 )  THEN
-           heup_01(ji,jj) = gdepw(ji,jj,jk+1,Kmm)
+        IF( etot_ndcy(ji,jj,jk) * tmask(ji,jj,jk) >= 0.10 )  THEN
+           heup_01(ji,jj) = gdepw(ji,jj,jk+1,Kmm)  ! Euphotic layer depth (light level definition)
         ENDIF
       END_3D
       !
@@ -181,8 +190,18 @@ CONTAINS
       heup_01(:,:) = MIN( 300., heup_01(:,:) )
       !
       IF( lk_iomput ) THEN
-         CALL iom_put( "xbla" , zeps(:,:,:) * tmask(:,:,:) )
-         CALL iom_put( "Heup" , heup(:,:  ) * tmask(:,:,1) )
+        IF( iom_use( "Heup" ) ) THEN
+           ALLOCATE( zw2d(A2D(0)) )
+           zw2d(A2D(0)) = heup(A2D(0)) * tmask(A2D(0),1)
+           CALL iom_put( "Heup", zw2d )  ! Euphotic layer depth
+           DEALLOCATE( zw2d )
+        ENDIF
+        IF( iom_use( "xbla" ) ) THEN
+           ALLOCATE( zw3d(A2D(0),jpk))   ;    zw3d(A2D(0),jpk) = 0._wp
+           zw3d(A2D(0),1:jpkm1) = zeps(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+           CALL iom_put( "xbla", zw3d )  ! Euphotic layer depth
+           DEALLOCATE( zw3d )
+        ENDIF
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('trc_opt')
@@ -199,11 +218,11 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER                         , INTENT(in)      ::   kt                ! ocean time-step
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in)      ::   zqsr              ! real shortwave
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(out)     ::   pe1 , pe2 , pe3   ! PAR (R-G-B)
+      REAL(wp), DIMENSION(A2D(0))    , INTENT(in)      ::   zqsr              ! real shortwave
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(out)     ::   pe1 , pe2 , pe3   ! PAR (R-G-B)
       !
       INTEGER                       ::   ji, jj, jk        ! dummy loop indices
-      REAL(wp), DIMENSION(jpi,jpj)  ::   we1, we2, we3     ! PAR (R-G-B) at w-level
+      REAL(wp), DIMENSION(A2D(0))  ::   we1, we2, we3     ! PAR (R-G-B) at w-level
       !!----------------------------------------------------------------------
       pe1(:,:,:) = 0. ; pe2(:,:,:) = 0. ; pe3(:,:,:) = 0.
       !
@@ -213,7 +232,7 @@ CONTAINS
          pe2(:,:,1) = zqsr(:,:) * EXP( -0.5 * ekg(:,:,1) )
          pe3(:,:,1) = zqsr(:,:) * EXP( -0.5 * ekr(:,:,1) )
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, nksrp )
+         DO_3D( 0, 0, 0, 0, 2, nksrp )
             pe1(ji,jj,jk) = pe1(ji,jj,jk-1) * EXP( -0.5 * ( ekb(ji,jj,jk-1) + ekb(ji,jj,jk) ) )
             pe2(ji,jj,jk) = pe2(ji,jj,jk-1) * EXP( -0.5 * ( ekg(ji,jj,jk-1) + ekg(ji,jj,jk) ) )
             pe3(ji,jj,jk) = pe3(ji,jj,jk-1) * EXP( -0.5 * ( ekr(ji,jj,jk-1) + ekr(ji,jj,jk) ) )
@@ -225,7 +244,7 @@ CONTAINS
          we2(:,:) = zqsr(:,:)
          we3(:,:) = zqsr(:,:)
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nksrp )
+         DO_3D( 0, 0, 0, 0, 1, nksrp )
             ! integrate PAR over current t-level
             pe1(ji,jj,jk) = we1(ji,jj) / (ekb(ji,jj,jk) + rtrn) * (1. - EXP( -ekb(ji,jj,jk) ))
             pe2(ji,jj,jk) = we2(ji,jj) / (ekg(ji,jj,jk) + rtrn) * (1. - EXP( -ekg(ji,jj,jk) ))
@@ -266,7 +285,9 @@ CONTAINS
       IF( ln_varpar ) THEN
          IF( kt == nittrc000 .OR. ( kt /= nittrc000 .AND. ntimes_par > 1 ) ) THEN
             CALL fld_read( kt, 1, sf_par )
-            par_varsw(:,:) = ( sf_par(1)%fnow(:,:,1) ) / 3.0
+            DO_2D( 0, 0, 0, 0 )
+               par_varsw(ji,jj) = ( sf_par(1)%fnow(ji,jj,1) ) / 3.0
+            END_2D
          ENDIF
       ENDIF
       !
@@ -348,8 +369,8 @@ CONTAINS
       !!                     ***  ROUTINE trc_opt_alloc  ***
       !!----------------------------------------------------------------------
       !
-      ALLOCATE( ekb(jpi,jpj,jpk), ekr(jpi,jpj,jpk),  &
-                ekg(jpi,jpj,jpk),zeps(jpi,jpj,jpk),  STAT= trc_opt_alloc  ) 
+      ALLOCATE( ekb(A2D(0),jpk),ekr(A2D(0),jpk),  &
+                ekg(A2D(0),jpk),zeps(A2D(0),jpk),  STAT= trc_opt_alloc  ) 
       !
       IF( trc_opt_alloc /= 0 ) CALL ctl_stop( 'STOP', 'trc_opt_alloc : failed to allocate arrays.' )
       !

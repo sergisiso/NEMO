@@ -98,7 +98,7 @@ EOF
 #
 # Run SPMD case
 #
-    time ./nemo
+    $MPIRUN --ntasks=TOTAL_NPROCS ./nemo
   fi
 #
 

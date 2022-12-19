@@ -491,10 +491,10 @@ CONTAINS
       ! Find lenght of boundaries and rim on local mpi domain
       !------------------------------------------------------
       !
-      iwe = mig(1)
-      ies = mig(jpi)
-      iso = mjg(1) 
-      ino = mjg(jpj) 
+      iwe = mig(  1,nn_hls)
+      ies = mig(jpi,nn_hls)
+      iso = mjg(  1,nn_hls) 
+      ino = mjg(jpj,nn_hls) 
       !
       DO ib_bdy = 1, nb_bdy
          DO igrd = 1, jpbgrd
@@ -554,8 +554,8 @@ CONTAINS
                      & nbrdta(ib,igrd,ib_bdy) == ir  ) THEN
                      !
                      icount = icount  + 1
-                     idx_bdy(ib_bdy)%nbi(icount,igrd)   = nbidta(ib,igrd,ib_bdy) - mig(1) + 1   ! global to local indexes
-                     idx_bdy(ib_bdy)%nbj(icount,igrd)   = nbjdta(ib,igrd,ib_bdy) - mjg(1) + 1   ! global to local indexes
+                     idx_bdy(ib_bdy)%nbi(icount,igrd)   = nbidta(ib,igrd,ib_bdy) - mig(1,nn_hls) + 1   ! global to local indexes
+                     idx_bdy(ib_bdy)%nbj(icount,igrd)   = nbjdta(ib,igrd,ib_bdy) - mjg(1,nn_hls) + 1   ! global to local indexes
                      idx_bdy(ib_bdy)%nbr(icount,igrd)   = nbrdta(ib,igrd,ib_bdy)
                      idx_bdy(ib_bdy)%nbmap(icount,igrd) = ib
                   ENDIF
@@ -1014,7 +1014,7 @@ CONTAINS
                DO ib = 1, idx_bdy(ib_bdy)%nblenrim(igrd)
                   ii = idx_bdy(ib_bdy)%nbi(ib,igrd)
                   ij = idx_bdy(ib_bdy)%nbj(ib,igrd)
-                  IF(  mig0(ii) > 2 .AND. mig0(ii) < Ni0glo-2 .AND. mjg0(ij) > 2 .AND. mjg0(ij) < Nj0glo-2  ) THEN
+                  IF(  mig(ii,0) > 2 .AND. mig(ii,0) < Ni0glo-2 .AND. mjg(ij,0) > 2 .AND. mjg(ij,0) < Nj0glo-2  ) THEN
                      WRITE(ctmp1,*) ' Orlanski is not safe when the open boundaries are on the interior of the computational domain'
                      CALL ctl_stop( ctmp1 )
                   END IF
@@ -1090,7 +1090,7 @@ CONTAINS
                ! This error check only works if you are using the bdyXmask arrays (which are set to 0 on rims)
                IF( i_offset == 1 .and. zefl + zwfl == 2._wp ) THEN
                   icount = icount + 1
-                  IF(lwp) WRITE(numout,*) 'Problem with igrd = ',igrd,' at (global) nbi, nbj : ',mig(ii),mjg(ij)
+                  IF(lwp) WRITE(numout,*) 'Problem with igrd = ',igrd,' at (global) nbi, nbj : ',mig(ii,nn_hls),mjg(ij,nn_hls)
                ELSE
                   ztmp(ii,ij) = -zwfl + zefl
                ENDIF
@@ -1130,7 +1130,7 @@ CONTAINS
                znfl = zmask(ii,ij+j_offset  )
                ! This error check only works if you are using the bdyXmask arrays (which are set to 0 on rims)
                IF( j_offset == 1 .and. znfl + zsfl == 2._wp ) THEN
-                  IF(lwp) WRITE(numout,*) 'Problem with igrd = ',igrd,' at (global) nbi, nbj : ',mig(ii),mjg(ij)
+                  IF(lwp) WRITE(numout,*) 'Problem with igrd = ',igrd,' at (global) nbi, nbj : ',mig(ii,nn_hls),mjg(ij,nn_hls)
                   icount = icount + 1
                ELSE
                   ztmp(ii,ij) = -zsfl + znfl
@@ -1594,8 +1594,8 @@ CONTAINS
          ztestmask(1:2)=0.
          DO ji = 1, jpi
             DO jj = 1, jpj             
-              IF( mig0(ji) == jpiwob(ib) .AND. mjg0(jj) == jpjwdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mig0(ji) == jpiwob(ib) .AND. mjg0(jj) == jpjwft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+              IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+              IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
             END DO
          END DO
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
@@ -1630,8 +1630,8 @@ CONTAINS
          ztestmask(1:2)=0.
          DO ji = 1, jpi
             DO jj = 1, jpj             
-              IF( mig0(ji) == jpieob(ib)+1 .AND. mjg0(jj) == jpjedt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mig0(ji) == jpieob(ib)+1 .AND. mjg0(jj) == jpjeft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+              IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjedt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+              IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjeft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
             END DO
          END DO
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
@@ -1666,8 +1666,8 @@ CONTAINS
          ztestmask(1:2)=0.
          DO ji = 1, jpi
             DO jj = 1, jpj             
-              IF( mjg0(jj) == jpjsob(ib) .AND. mig0(ji) == jpisdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mjg0(jj) == jpjsob(ib) .AND. mig0(ji) == jpisft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+              IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+              IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
             END DO
          END DO
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
@@ -1688,8 +1688,8 @@ CONTAINS
          ztestmask(1:2)=0.
          DO ji = 1, jpi
             DO jj = 1, jpj             
-               IF( mjg0(jj) == jpjnob(ib)+1 .AND. mig0(ji) == jpindt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-               IF( mjg0(jj) == jpjnob(ib)+1 .AND. mig0(ji) == jpinft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+               IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpindt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+               IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpinft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
             END DO
          END DO
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain

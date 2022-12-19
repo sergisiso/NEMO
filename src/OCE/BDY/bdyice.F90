@@ -62,7 +62,7 @@ CONTAINS
       ! controls
       IF( ln_timing )   CALL timing_start('bdy_ice_thd')   ! timing
       !
-      CALL ice_var_glo2eqv
+      CALL ice_var_glo2eqv(2)
       !
       llsend1(:) = .false.   ;   llrecv1(:) = .false.
       DO ir = 1, 0, -1   ! treat rim 1 before rim 0
@@ -96,14 +96,19 @@ CONTAINS
                &                 , a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp                                     &
                &                 , kfillmode=jpfillnothing ,lsend=llsend1, lrecv=llrecv1 )
             ! exchange 4d arrays :   third dimension = 1   and then   third dimension = jpk
-            CALL lbc_lnk('bdyice', t_s , 'T', 1._wp, e_s , 'T', 1._wp, kfillmode=jpfillnothing ,lsend=llsend1, lrecv=llrecv1 )
-            CALL lbc_lnk('bdyice', t_i , 'T', 1._wp, e_i , 'T', 1._wp, kfillmode=jpfillnothing ,lsend=llsend1, lrecv=llrecv1 )
+            CALL lbc_lnk('bdyice', t_s , 'T', 1._wp, e_s , 'T', 1._wp, t_i , 'T', 1._wp, e_i , 'T', 1._wp, &
+               &                                     kfillmode=jpfillnothing ,lsend=llsend1, lrecv=llrecv1 )
          END IF
       END DO   ! ir
       !
       CALL ice_cor( kt , 0 )      ! -- In case categories are out of bounds, do a remapping
       !                           !    i.e. inputs have not the same ice thickness distribution (set by rn_himean)
       !                           !         than the regional simulation
+      !                           ! -- lbc_lnk needed because of iceitd_reb that is called in icecor.F90
+      CALL lbc_lnk( 'bdyice', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
+         &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp )
+      CALL lbc_lnk( 'bdyice', e_i , 'T', 1._wp, e_s , 'T', 1._wp )
+      !
       CALL ice_var_agg(1)
       !
       ! controls

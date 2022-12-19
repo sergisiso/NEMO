@@ -105,7 +105,7 @@ CONTAINS
            END DO
          END DO
 
-         IF( l_vremap .OR. l_ini_child .OR. ln_zps ) THEN
+         IF( l_vremap .OR. l_ini_child .OR. l_zps ) THEN
             ! Fill cell depths (i.e. gdept) to be interpolated
             ! Warning: these are masked, hence extrapolated prior interpolation.
             DO jj=j1,j2
@@ -198,7 +198,7 @@ CONTAINS
  
          ELSE
 
-            IF ( Agrif_Parent(ln_zps) ) THEN ! Account for partial cells 
+            IF ( Agrif_Parent(l_zps) ) THEN ! Account for partial cells 
                                              ! linear vertical interpolation
                DO jj=j1,j2
                   DO ji=i1,i2

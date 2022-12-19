@@ -74,7 +74,7 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('p4z_mort_nano')
       !
       prodcal(:,:,:) = 0._wp   ! calcite production variable set to zero
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompaph = MAX( ( tr(ji,jj,jk,jpphy,Kbb) - 1e-9 ), 0.e0 )
 
          ! Quadratic mortality of nano due to aggregation during
@@ -152,7 +152,7 @@ CONTAINS
       ! This is due to the production of EPS by stressed cells
       ! -------------------------------------------------------------
 
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
 
          zcompadi = MAX( ( tr(ji,jj,jk,jpdia,Kbb) - 1e-9), 0. )
 

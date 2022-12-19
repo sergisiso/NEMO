@@ -16,7 +16,7 @@
   -->
 
 
-  <field_group id="inerttrc" grid_ref="grid_T_2D">
+  <field_group id="inerttrc" grid_ref="grid_T_2D_inner">
 
     <!-- CFC11 : variables available with ln_cfc11 -->
     <field id="CFC11"        long_name="Chlorofluoro carbon11 Concentration"      unit="umol/m3"   grid_ref="grid_T_3D" />
@@ -39,8 +39,8 @@
     <!-- C14 : variables available with ln_c14 -->
     <field id="RC14"         long_name="Radiocarbon ratio"                        unit="-"         grid_ref="grid_T_3D"  />
     <field id="RC14_e3t"     long_name="RC14 * e3t"                               unit="m"         grid_ref="grid_T_3D"   > RC14 * e3t </field >
-    <field id="DeltaC14"     long_name="Delta C14"                                unit="permil"    grid_ref="grid_T_3D"  />
-    <field id="C14Age"       long_name="Radiocarbon age"                          unit="yr"        grid_ref="grid_T_3D"  />
+    <field id="DeltaC14"     long_name="Delta C14"                                unit="permil"    grid_ref="grid_T_3D_inner"  />
+    <field id="C14Age"       long_name="Radiocarbon age"                          unit="yr"        grid_ref="grid_T_3D_inner"  />
     <field id="RAge"         long_name="Reservoir Age"                            unit="yr"       />
     <field id="qtr_c14"      long_name="Air-sea flux of C14"                      unit="1/m2/s"   />
     <field id="qint_c14"     long_name="Cumulative air-sea flux of C14"           unit="1/m2"     />
@@ -52,7 +52,7 @@
 
     <!-- AGE : variables available with ln_age -->
     <field id="Age"          long_name="Sea water age since surface contact"      unit="yr"        grid_ref="grid_T_3D"  />
-    <field id="Age_e3t"      long_name="Age * e3t"                                unit="yr * m"   grid_ref="grid_T_3D"    > Age * e3t </field >
+    <field id="Age_e3t"      long_name="Age * e3t"                                unit="yr * m"    grid_ref="grid_T_3D"    > Age * e3t </field >
 
   </field_group>
 

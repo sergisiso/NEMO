@@ -179,10 +179,10 @@ CONTAINS
          IF( tmask(ji,jj,1)        < 0.5_wp )   CYCLE    ! we don't care about land cells
          IF( ht_0(ji,jj) - ssh_ref > zdepwd )   CYCLE    ! and cells which are unlikely to dry
          !
-         zflxp(ji,jj) = MAX( zflxu(ji,jj) , 0._wp ) - MIN( zflxu(ji-1,jj  ) , 0._wp )   &
-            &         + MAX( zflxv(ji,jj) , 0._wp ) - MIN( zflxv(ji,  jj-1) , 0._wp ) 
-         zflxn(ji,jj) = MIN( zflxu(ji,jj) , 0._wp ) - MAX( zflxu(ji-1,jj  ) , 0._wp )   &
-            &         + MIN( zflxv(ji,jj) , 0._wp ) - MAX( zflxv(ji,  jj-1) , 0._wp ) 
+         zflxp(ji,jj) = ( MAX( zflxu(ji,jj) , 0._wp ) - MIN( zflxu(ji-1,jj  ) , 0._wp ) )   &   ! add () for NP repro
+            &         + ( MAX( zflxv(ji,jj) , 0._wp ) - MIN( zflxv(ji,  jj-1) , 0._wp ) ) 
+         zflxn(ji,jj) = ( MIN( zflxu(ji,jj) , 0._wp ) - MAX( zflxu(ji-1,jj  ) , 0._wp ) )   &   ! add () for NP repro
+            &         + ( MIN( zflxv(ji,jj) , 0._wp ) - MAX( zflxv(ji,  jj-1) , 0._wp ) ) 
          !
          zdep2 = ht_0(ji,jj) + psshb1(ji,jj) - rn_wdmin1
          IF( zdep2 <= 0._wp ) THEN     ! add more safty, but not necessary
@@ -217,10 +217,10 @@ CONTAINS
             !
             ztmp = e1e2t(ji,jj)
             !
-            zzflxp = MAX( zflxu1(ji,jj) , 0._wp ) - MIN( zflxu1(ji-1,jj  ) , 0._wp)   &
-               &   + MAX( zflxv1(ji,jj) , 0._wp ) - MIN( zflxv1(ji,  jj-1) , 0._wp) 
-            zzflxn = MIN( zflxu1(ji,jj) , 0._wp ) - MAX( zflxu1(ji-1,jj  ) , 0._wp)   &
-               &   + MIN( zflxv1(ji,jj) , 0._wp ) - MAX( zflxv1(ji,  jj-1) , 0._wp) 
+            zzflxp = ( MAX( zflxu1(ji,jj) , 0._wp ) - MIN( zflxu1(ji-1,jj  ) , 0._wp) )   &   ! add () for NP repro
+               &   + ( MAX( zflxv1(ji,jj) , 0._wp ) - MIN( zflxv1(ji,  jj-1) , 0._wp) ) 
+            zzflxn = ( MIN( zflxu1(ji,jj) , 0._wp ) - MAX( zflxu1(ji-1,jj  ) , 0._wp) )   &   ! add () for NP repro
+               &   + ( MIN( zflxv1(ji,jj) , 0._wp ) - MAX( zflxv1(ji,  jj-1) , 0._wp) ) 
             !
             zdep1 = (zzflxp + zzflxn) * z2dt / ztmp
             zdep2 = ht_0(ji,jj) + psshb1(ji,jj) - rn_wdmin1 - z2dt * psshemp(ji,jj)
@@ -312,10 +312,10 @@ CONTAINS
          IF( tmask(ji, jj, 1 ) < 0.5_wp) CYCLE   ! we don't care about land cells
          IF( ht_0(ji,jj) > zdepwd )      CYCLE   ! and cells which are unlikely to dry
          !
-         zflxp(ji,jj) = MAX( zflxu(ji,jj) , 0._wp ) - MIN( zflxu(ji-1,jj  ) , 0._wp )   &
-            &         + MAX( zflxv(ji,jj) , 0._wp ) - MIN( zflxv(ji,  jj-1) , 0._wp ) 
-         zflxn(ji,jj) = MIN( zflxu(ji,jj) , 0._wp ) - MAX( zflxu(ji-1,jj  ) , 0._wp )   &
-            &         + MIN( zflxv(ji,jj) , 0._wp ) - MAX( zflxv(ji,  jj-1) , 0._wp ) 
+         zflxp(ji,jj) = ( MAX( zflxu(ji,jj) , 0._wp ) - MIN( zflxu(ji-1,jj  ) , 0._wp ) )   &   ! add () for NP repro
+            &         + ( MAX( zflxv(ji,jj) , 0._wp ) - MIN( zflxv(ji,  jj-1) , 0._wp ) )
+         zflxn(ji,jj) = ( MIN( zflxu(ji,jj) , 0._wp ) - MAX( zflxu(ji-1,jj  ) , 0._wp ) )   &   ! add () for NP repro
+            &         + ( MIN( zflxv(ji,jj) , 0._wp ) - MAX( zflxv(ji,  jj-1) , 0._wp ) ) 
          !
          zdep2 = ht_0(ji,jj) + sshn_e(ji,jj) - rn_wdmin1
          IF( zdep2 <= 0._wp ) THEN  !add more safety, but not necessary
@@ -340,10 +340,10 @@ CONTAINS
             !
             ztmp = e1e2t(ji,jj)
             !
-            zzflxp = max(zflxu1(ji,jj), 0._wp) - min(zflxu1(ji-1,jj),   0._wp)   &
-               &   + max(zflxv1(ji,jj), 0._wp) - min(zflxv1(ji,  jj-1), 0._wp) 
-            zzflxn = min(zflxu1(ji,jj), 0._wp) - max(zflxu1(ji-1,jj),   0._wp)   &
-               &   + min(zflxv1(ji,jj), 0._wp) - max(zflxv1(ji,  jj-1), 0._wp) 
+            zzflxp = ( MAX(zflxu1(ji,jj), 0._wp) - MIN(zflxu1(ji-1,jj),   0._wp) )   &   ! add () for NP repro
+               &   + ( MAX(zflxv1(ji,jj), 0._wp) - MIN(zflxv1(ji,  jj-1), 0._wp) ) 
+            zzflxn = ( MIN(zflxu1(ji,jj), 0._wp) - MAX(zflxu1(ji-1,jj),   0._wp) )   &   ! add () for NP repro
+               &   + ( MIN(zflxv1(ji,jj), 0._wp) - MAX(zflxv1(ji,  jj-1), 0._wp) ) 
        
             zdep1 = (zzflxp + zzflxn) * z2dt / ztmp
             zdep2 = ht_0(ji,jj) + sshn_e(ji,jj) - rn_wdmin1 - z2dt * zssh_frc(ji,jj)

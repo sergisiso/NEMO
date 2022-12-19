@@ -75,10 +75,9 @@ CONTAINS
          CALL usrdef_sbc_ice_tau( kt )                 ! user defined formulation
          !
       CASE( jp_blk     )
-         CALL blk_ice_1( sf(jp_wndi)%fnow(:,:,1), sf(jp_wndj)%fnow(:,:,1),   &
-            &                                      theta_air_zt(:,:), q_air_zt(:,:),   &   ! #LB: known from "sbc_oce" module...
-            &                                      sf(jp_slp )%fnow(:,:,1), u_ice, v_ice, tm_su    ,   &   ! inputs
-            &                                      putaui = utau_ice, pvtaui = vtau_ice            )       ! outputs
+         CALL blk_ice_1( sf(jp_wndi)%fnow(:,:,1), sf(jp_wndj)%fnow(:,:,1), theta_air_zt(:,:), q_air_zt(:,:), & ! <<== in
+            &            sf(jp_slp )%fnow(:,:,1), tm_su(:,:),                                                & ! <<== in
+            &            putaui=utau_ice(A2D(0)), pvtaui=vtau_ice(A2D(0)) )                                    ! ==>> out
          !        CASE( jp_abl     )    utau_ice & vtau_ice are computed in ablmod
       CASE( jp_purecpl )
          CALL sbc_cpl_ice_tau( utau_ice , vtau_ice )   ! Coupled      formulation
@@ -152,13 +151,13 @@ CONTAINS
             &                sf(jp_slp)%fnow(:,:,1), sf(jp_qlw)%fnow(:,:,1), &
             &                sf(jp_prec)%fnow(:,:,1), sf(jp_snow)%fnow(:,:,1) )
          !
-         IF( ln_mixcpl        )   CALL sbc_cpl_ice_flx( picefr=at_i_b, palbi=alb_ice, psst=sst_m, pist=t_su, phs=h_s, phi=h_i )
+         IF( ln_mixcpl        )   CALL sbc_cpl_ice_flx( kt, picefr=at_i_b, palbi=alb_ice, psst=sst_m, pist=t_su, phs=h_s, phi=h_i )
          IF( nn_flxdist /= -1 )   CALL ice_flx_dist   ( t_su, alb_ice, qns_ice, qsr_ice, dqns_ice, evap_ice, devap_ice, nn_flxdist )
          !                        !    compute conduction flux and surface temperature (as in Jules surface module)
          IF( ln_cndflx .AND. .NOT.ln_cndemulate ) &
             &                     CALL blk_ice_qcn    ( ln_virtual_itd, t_su, t_bo, h_s, h_i )
       CASE ( jp_purecpl )         !--- coupled formulation
-         CALL sbc_cpl_ice_flx( picefr=at_i_b, palbi=alb_ice, psst=sst_m, pist=t_su, phs=h_s, phi=h_i )
+         CALL sbc_cpl_ice_flx( kt, picefr=at_i_b, palbi=alb_ice, psst=sst_m, pist=t_su, phs=h_s, phi=h_i )
          IF( nn_flxdist /= -1 )   CALL ice_flx_dist   ( t_su, alb_ice, qns_ice, qsr_ice, dqns_ice, evap_ice, devap_ice, nn_flxdist )
       END SELECT
 

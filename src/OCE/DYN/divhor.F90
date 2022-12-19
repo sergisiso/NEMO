@@ -78,17 +78,16 @@ CONTAINS
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) 'div_hor_RK3 : thickness weighted horizontal divergence '
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
-         hdiv    (:,:,:) = 0._wp    ! initialize hdiv & pe3divUh for the halos and jpk level at the first time step
+         hdiv(:,:,:) = 0._wp    ! initialize hdiv & pe3divUh for the halos and jpk level at the first time step
+         pe3divUh(:,:,jpk) = 0._wp
       ENDIF
       ! 
-      pe3divUh(:,:,:) = 0._wp    !!gm to be applied to the halos only
-      !
-      DO_3D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
-         hdiv(ji,jj,jk) = (   e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * puu(ji  ,jj,jk)      &
-            &               - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * puu(ji-1,jj,jk)      &
-            &               + e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * pvv(ji,jj  ,jk)      &
-            &               - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * pvv(ji,jj-1,jk)  )   &
-            &            * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         hdiv(ji,jj,jk) = (  (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * puu(ji  ,jj,jk)       &   ! add () for NP repro
+            &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * puu(ji-1,jj,jk) )     &
+            &              + (  e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * pvv(ji,jj  ,jk)       &
+            &                 - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * pvv(ji,jj-1,jk) )     &
+            &             ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
       END_3D
       !
       IF( ln_rnf )   CALL sbc_rnf_div( hdiv, Kmm )             !==  + runoffs divergence  ==!
@@ -100,7 +99,7 @@ CONTAINS
       !
       IF( ln_isf )   CALL isf_hdiv( kt, Kmm, hdiv )            !==  + ice-shelf mass exchange ==!
       !
-      IF( nn_hls==1 )   CALL lbc_lnk( 'divhor', hdiv, 'T', 1._wp )   !   (no sign change)
+      CALL lbc_lnk( 'divhor', hdiv, 'T', 1._wp )   !   (no sign change)
       !
 !!gm Patch before suppression of hdiv from all modules that use it
 !      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                            !==  e3t * Horizontal divergence  ==!
@@ -143,22 +142,17 @@ CONTAINS
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'div_hor : horizontal velocity divergence '
             IF(lwp) WRITE(numout,*) '~~~~~~~   '
+
+            hdiv(:,:,:) = 0._wp    ! initialize hdiv for the halos at the first time step
          ENDIF
-         DO_3D_OVR( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
-            hdiv(ji,jj,jk) = 0._wp    ! initialize hdiv for the halos at the first time step
-         END_3D
       ENDIF
       !
-      DO_3D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )                                          !==  Horizontal divergence  ==!
-         ! round brackets added to fix the order of floating point operations
-         ! needed to ensure halo 1 - halo 2 compatibility
-         hdiv(ji,jj,jk) = (  ( e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * uu(ji  ,jj,jk,Kmm)     &
-            &                - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * uu(ji-1,jj,jk,Kmm)     &
-            &                )                                                             & ! bracket for halo 1 - halo 2 compatibility
-            &              + ( e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vv(ji,jj  ,jk,Kmm)     &
-            &                - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * vv(ji,jj-1,jk,Kmm)     &
-            &                )                                                             & ! bracket for halo 1 - halo 2 compatibility
-            &             )  * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                          !==  Horizontal divergence  ==!
+         hdiv(ji,jj,jk) = (  (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * uu(ji  ,jj,jk,Kmm)     &   ! add () for NP repro
+            &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * uu(ji-1,jj,jk,Kmm) )   &
+            &              + (  e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vv(ji,jj  ,jk,Kmm)     &
+            &                 - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * vv(ji,jj-1,jk,Kmm) )   &
+            &             ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
       END_3D
       !
       IF( ln_rnf )   CALL sbc_rnf_div( hdiv, Kmm )                               !==  runoffs    ==!   (update hdiv field)
@@ -167,10 +161,14 @@ CONTAINS
       IF( ln_sshinc .AND. ln_asmiau )   CALL ssh_asm_div( kt, Kbb, Kmm, hdiv )   !==  SSH assimilation  ==!   (update hdiv field)
       ! 
 #endif
-      IF( ln_isf )                      CALL isf_hdiv( kt, Kmm, hdiv )           !==  ice shelf         ==!   (update hdiv field)
+      IF( ln_isf )   CALL isf_hdiv( kt, Kmm, hdiv )                              !==  ice shelf  ==!   (update hdiv field)
       !
-      IF( nn_hls==1 )   CALL lbc_lnk( 'divhor', hdiv, 'T', 1.0_wp )   !   (no sign change)
-      !                                                               ! needed for ww in sshwzv
+      ! hdiv is needed on haloes by wzv and ssh_nxt, but these are not called in the same tiling
+      ! loop as div_hor, so we can keep this lbc_lnk here and call it after all tiles are finished
+      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                           ! Do only on the last tile
+         CALL lbc_lnk( 'divhor', hdiv, 'T', 1.0_wp )   ! needed for ww in sshwzv  (no sign change)
+      ENDIF
+      ! 
       IF( ln_timing )   CALL timing_stop('div_hor')
       !
    END SUBROUTINE div_hor_old

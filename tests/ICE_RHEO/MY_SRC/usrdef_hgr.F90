@@ -98,17 +98,17 @@ CONTAINS
 !! ==> EITHER 1) variable scale factors
 !! clem: This can be used with a 1proc simulation but I think it breaks repro when >1procs are used      
 !!         DO_2D( 1, 1, 1, 1 )
-!!               !!pe1t(ji,jj) = rn_dx * EXP( -0.8/REAL(jpiglo**2) * (mi0(ji)-REAL(jpiglo+1)*0.5)**2 )  ! gaussian shape
-!!               !!pe2t(ji,jj) = rn_dy * EXP( -0.8/REAL(jpjglo**2) * (mj0(jj)-REAL(jpjglo+1)*0.5)**2 )  ! gaussian shape
-!!               pe1t(ji,jj) = rn_dx * ( 1. -0.1 * ABS(REAL(mi0(ji))-REAL(jpiglo+1)*0.5) / (1.-REAL(jpiglo+1)*0.5) ) ! linear shape
-!!               pe2t(ji,jj) = rn_dy * ( 1. -0.1 * ABS(REAL(mj0(jj))-REAL(jpjglo+1)*0.5) / (1.-REAL(jpjglo+1)*0.5) ) ! linear shape
+!!               !!pe1t(ji,jj) = rn_dx * EXP( -0.8/REAL(jpiglo**2) * (mi0(ji,nn_hls)-REAL(jpiglo+1)*0.5)**2 )  ! gaussian shape
+!!               !!pe2t(ji,jj) = rn_dy * EXP( -0.8/REAL(jpjglo**2) * (mj0(jj,nn_hls)-REAL(jpjglo+1)*0.5)**2 )  ! gaussian shape
+!!               pe1t(ji,jj) = rn_dx * ( 1. -0.1 * ABS(REAL(mi0(ji,nn_hls))-REAL(jpiglo+1)*0.5) / (1.-REAL(jpiglo+1)*0.5) ) ! linear shape
+!!               pe2t(ji,jj) = rn_dy * ( 1. -0.1 * ABS(REAL(mj0(jj,nn_hls))-REAL(jpjglo+1)*0.5) / (1.-REAL(jpjglo+1)*0.5) ) ! linear shape
 !!         END_2D
 !!#if defined key_agrif 
 !!         IF( .NOT. Agrif_Root() ) THEN ! only works if the zoom is positioned at the center of the parent grid
 !!            DO_2D( 1, 1, 1, 1 )
-!!                  pe1t(ji,jj) = rn_dx * ( 1. -0.1 * ABS(REAL(mi0(ji))-REAL(jpiglo+1)*0.5) / (1.-REAL(jpiglo+1)*0.5)  &
+!!                  pe1t(ji,jj) = rn_dx * ( 1. -0.1 * ABS(REAL(mi0(ji,nn_hls))-REAL(jpiglo+1)*0.5) / (1.-REAL(jpiglo+1)*0.5)  &
 !!                     &                            * REAL(jpiglo) / REAL(Agrif_Parent(jpiglo) * Agrif_Rhox()) )       ! factor to match parent grid
-!!                  pe2t(ji,jj) = rn_dy * ( 1. -0.1 * ABS(REAL(mj0(jj))-REAL(jpjglo+1)*0.5) / (1.-REAL(jpjglo+1)*0.5)  &
+!!                  pe2t(ji,jj) = rn_dy * ( 1. -0.1 * ABS(REAL(mj0(jj,nn_hls))-REAL(jpjglo+1)*0.5) / (1.-REAL(jpjglo+1)*0.5)  &
 !!                     &                            * REAL(jpjglo) / REAL(Agrif_Parent(jpjglo) * Agrif_Rhoy()) )       ! factor to match parent grid
 !!            END_2D
 !!         ENDIF

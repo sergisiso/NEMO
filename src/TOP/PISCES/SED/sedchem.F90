@@ -138,7 +138,7 @@ CONTAINS
       IF (ln_sediment_offline) THEN
          CALL sed_chem_cst
       ELSE
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             ikt = mbkt(ji,jj) 
             IF ( tmask(ji,jj,ikt) == 1 ) THEN
                zchem_data(ji,jj,1) = ak13  (ji,jj,ikt)

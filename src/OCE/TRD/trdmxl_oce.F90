@@ -80,6 +80,8 @@ MODULE trdmxl_oce
       smltrd_csum_ln,               & !:    ( idem for salinity )
       smltrd_csum_ub                  !: 
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: trdmxl_oce.F90 10425 2018-12-19 21:54:16Z smasson $ 
@@ -101,29 +103,29 @@ CONTAINS
 
      ierr(:) = 0
 
-     ALLOCATE( nmxl (jpi,jpj)    , nbol (jpi,jpj),    &
-        &      wkx  (jpi,jpj,jpk), hmxl (jpi,jpj),    & 
-        &      tml  (jpi,jpj)    , sml  (jpi,jpj),    & 
-        &      tmlb (jpi,jpj)    , smlb (jpi,jpj),    &
-        &      tmlbb(jpi,jpj)    , smlbb(jpi,jpj), STAT = ierr(1) )
+     ALLOCATE( nmxl (T2D(0))    , nbol (T2D(0)),    &
+        &      wkx  (T2D(0),jpk), hmxl (T2D(0)),    &
+        &      tml  (T2D(0))    , sml  (T2D(0)),    &
+        &      tmlb (T2D(0))    , smlb (T2D(0)),    &
+        &      tmlbb(T2D(0))    , smlbb(T2D(0)), STAT = ierr(1) )
 
-     ALLOCATE( tmlbn(jpi,jpj)  , smlbn(jpi,jpj),   &
-        &      tmltrdm(jpi,jpj), smltrdm(jpi,jpj), &
-        &      tml_sum(jpi,jpj), tml_sumb(jpi,jpj),&
-        &      tmltrd_atf_sumb(jpi,jpj)           , STAT=ierr(2) )
+     ALLOCATE( tmlbn(T2D(0))  , smlbn(T2D(0)),   &
+        &      tmltrdm(T2D(0)), smltrdm(T2D(0)), &
+        &      tml_sum(T2D(0)), tml_sumb(T2D(0)),&
+        &      tmltrd_atf_sumb(T2D(0))           , STAT=ierr(2) )
 
-     ALLOCATE( sml_sum(jpi,jpj), sml_sumb(jpi,jpj), &
-        &      smltrd_atf_sumb(jpi,jpj),            &
-        &      hmxl_sum(jpi,jpj), hmxlbn(jpi,jpj),  &
-        &      tmlatfb(jpi,jpj), tmlatfn(jpi,jpj), STAT = ierr(3) )
+     ALLOCATE( sml_sum(T2D(0)), sml_sumb(T2D(0)), &
+        &      smltrd_atf_sumb(T2D(0)),           &
+        &      hmxl_sum(T2D(0)), hmxlbn(T2D(0)),  &
+        &      tmlatfb(T2D(0)), tmlatfn(T2D(0)), STAT = ierr(3) )
 
-     ALLOCATE( smlatfb(jpi,jpj), smlatfn(jpi,jpj), & 
-        &      tmlatfm(jpi,jpj), smlatfm(jpi,jpj), &
-        &      tmltrd(jpi,jpj,jpltrd),   smltrd(jpi,jpj,jpltrd), STAT=ierr(4))
+     ALLOCATE( smlatfb(T2D(0)), smlatfn(T2D(0)), &
+        &      tmlatfm(T2D(0)), smlatfm(T2D(0)), &
+        &      tmltrd(T2D(0),jpltrd),   smltrd(T2D(0),jpltrd), STAT=ierr(4))
 
-     ALLOCATE( tmltrd_sum(jpi,jpj,jpltrd),tmltrd_csum_ln(jpi,jpj,jpltrd),      &
-        &      tmltrd_csum_ub(jpi,jpj,jpltrd), smltrd_sum(jpi,jpj,jpltrd),     &
-        &      smltrd_csum_ln(jpi,jpj,jpltrd), smltrd_csum_ub(jpi,jpj,jpltrd), STAT=ierr(5) )
+     ALLOCATE( tmltrd_sum(T2D(0),jpltrd),tmltrd_csum_ln(T2D(0),jpltrd),      &
+        &      tmltrd_csum_ub(T2D(0),jpltrd), smltrd_sum(T2D(0),jpltrd),     &
+        &      smltrd_csum_ln(T2D(0),jpltrd), smltrd_csum_ub(T2D(0),jpltrd), STAT=ierr(5) )
       !
       trdmxl_oce_alloc = MAXVAL( ierr )
       CALL mpp_sum ( 'trdmxl_oce', trdmxl_oce_alloc )

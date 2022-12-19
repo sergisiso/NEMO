@@ -88,7 +88,7 @@ CONTAINS
       !
       !                       !==  z-coordinate  ==!   (step-like topography)
       !                                !* bottom ocean compute from the depth of grid-points
-      jpkm1 = jpk
+      !!jpkm1 = jpk
       k_bot(:,:) = 1    ! here use k_top as a land mask
       !                                !* horizontally uniform coordinate (reference z-co everywhere)
       DO jk = 1, jpk

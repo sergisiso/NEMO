@@ -79,32 +79,32 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, June 2019 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), INTENT(in   )                     ::   zt       ! height for t_zt and q_zt                    [m]
-      REAL(wp), INTENT(in   )                     ::   zu       ! height for U_zu                             [m]
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj) ::   sst      ! sea surface temperature                [Kelvin]
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj) ::   t_zt     ! potential air temperature              [Kelvin]
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj) ::   ssq      ! sea surface specific humidity           [kg/kg]
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj) ::   q_zt     ! specific air humidity at zt             [kg/kg]
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj) ::   U_zu     ! relative wind module at zu                [m/s]
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   Cd       ! transfer coefficient for momentum         (tau)
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   Ch       ! transfer coefficient for sensible heat (Q_sens)
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   Ce       ! transfert coefficient for evaporation   (Q_lat)
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   t_zu     ! pot. air temp. adjusted at zu               [K]
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   q_zu     ! spec. humidity adjusted at zu           [kg/kg]
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   Ubzu    ! bulk wind speed at zu                     [m/s]
+      REAL(wp), INTENT(in   )                    ::   zt       ! height for t_zt and q_zt                    [m]
+      REAL(wp), INTENT(in   )                    ::   zu       ! height for U_zu                             [m]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   sst      ! sea surface temperature                [Kelvin]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   t_zt     ! potential air temperature              [Kelvin]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   ssq      ! sea surface specific humidity           [kg/kg]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   q_zt     ! specific air humidity at zt             [kg/kg]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   U_zu     ! relative wind module at zu                [m/s]
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   Cd       ! transfer coefficient for momentum         (tau)
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   Ch       ! transfer coefficient for sensible heat (Q_sens)
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   Ce       ! transfert coefficient for evaporation   (Q_lat)
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   t_zu     ! pot. air temp. adjusted at zu               [K]
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   q_zu     ! spec. humidity adjusted at zu           [kg/kg]
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   Ubzu     ! bulk wind speed at zu                     [m/s]
       !
-      INTEGER , INTENT(in   ), OPTIONAL                     :: nb_iter  ! number of iterations
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   CdN
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   ChN
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   CeN
+      INTEGER , INTENT(in   ), OPTIONAL                    :: nb_iter  ! number of iterations
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   CdN
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   ChN
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   CeN
       !
       INTEGER :: nbit, jit                    ! iterations...
       LOGICAL :: l_zt_equal_zu = .FALSE.      ! if q and t are given at same height as U
       !
-      REAL(wp), DIMENSION(jpi,jpj) ::   zCdN, zCeN, zChN        ! 10m neutral latent/sensible coefficient
-      REAL(wp), DIMENSION(jpi,jpj) ::   zsqrt_Cd, zsqrt_CdN   ! root square of Cd and Cd_neutral
-      REAL(wp), DIMENSION(jpi,jpj) ::   zeta_u        ! stability parameter at height zu
-      REAL(wp), DIMENSION(jpi,jpj) ::   ztmp0, ztmp1, ztmp2
+      REAL(wp), DIMENSION(A2D(0)) ::   zCdN, zCeN, zChN        ! 10m neutral latent/sensible coefficient
+      REAL(wp), DIMENSION(A2D(0)) ::   zsqrt_Cd, zsqrt_CdN   ! root square of Cd and Cd_neutral
+      REAL(wp), DIMENSION(A2D(0)) ::   zeta_u        ! stability parameter at height zu
+      REAL(wp), DIMENSION(A2D(0)) ::   ztmp0, ztmp1, ztmp2
       !!----------------------------------------------------------------------------------
       nbit = nb_iter0
       IF( PRESENT(nb_iter) ) nbit = nb_iter
@@ -119,7 +119,7 @@ CONTAINS
 
       !! Neutral coefficients at 10m:
       IF( ln_cdgw ) THEN      ! wave drag case
-         cdn_wave(:,:) = cdn_wave(:,:) + rsmall * ( 1._wp - tmask(:,:,1) )
+         cdn_wave(:,:) = cdn_wave(:,:) + rsmall * ( 1._wp - smask0(:,:) )
          zCdN   (:,:) = cdn_wave(:,:)
       ELSE
       zCdN = cd_n10_ncar( Ubzu )
@@ -231,14 +231,14 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, june 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pw10           ! scalar wind speed at 10m (m/s)
-      REAL(wp), DIMENSION(jpi,jpj)             :: cd_n10_ncar
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pw10           ! scalar wind speed at 10m (m/s)
+      REAL(wp), DIMENSION(A2D(0))             :: cd_n10_ncar
       !
       INTEGER  ::     ji, jj     ! dummy loop indices
       REAL(wp) :: zgt33, zw, zw6 ! local scalars
       !!----------------------------------------------------------------------------------
       !
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
             !
             zw  = pw10(ji,jj)
             zw6 = zw*zw*zw
@@ -264,9 +264,9 @@ CONTAINS
       !! Origin: Large & Yeager 2008, Eq. (9) and (12)
 
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             :: ch_n10_ncar
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: psqrtcdn10 ! sqrt( CdN10 )
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pstab      ! stable ABL => 1 / unstable ABL => 0
+      REAL(wp), DIMENSION(A2D(0))             :: ch_n10_ncar
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: psqrtcdn10 ! sqrt( CdN10 )
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pstab      ! stable ABL => 1 / unstable ABL => 0
       !!----------------------------------------------------------------------------------
       IF( ANY(pstab < -0.00001) .OR. ANY(pstab >  1.00001) ) THEN
          PRINT *, 'ERROR: ch_n10_ncar@mod_blk_ncar.f90: pstab ='
@@ -283,8 +283,8 @@ CONTAINS
       !! Estimate of the neutral heat transfer coefficient at 10m      !!
       !! Origin: Large & Yeager 2008, Eq. (9) and (13)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             :: ce_n10_ncar
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: psqrtcdn10 ! sqrt( CdN10 )
+      REAL(wp), DIMENSION(A2D(0))             :: ce_n10_ncar
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: psqrtcdn10 ! sqrt( CdN10 )
       !!----------------------------------------------------------------------------------
       ce_n10_ncar = MAX( 1.e-3_wp * ( 34.6_wp * psqrtcdn10 ) , Cx_min )
       !
@@ -301,13 +301,13 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, June 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj) :: psi_m_ncar
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pzeta
+      REAL(wp), DIMENSION(A2D(0)) :: psi_m_ncar
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pzeta
       !
       INTEGER  ::   ji, jj    ! dummy loop indices
       REAL(wp) :: zta, zx2, zx, zpsi_unst, zpsi_stab,  zstab   ! local scalars
       !!----------------------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
             zta = pzeta(ji,jj)
             !
             zx2 = SQRT( ABS(1._wp - 16._wp*zta) )  ! (1 - 16z)^0.5
@@ -339,14 +339,14 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, June 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj) :: psi_h_ncar
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pzeta
+      REAL(wp), DIMENSION(A2D(0)) :: psi_h_ncar
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pzeta
       !
       INTEGER  ::   ji, jj     ! dummy loop indices
       REAL(wp) :: zta, zx2, zpsi_unst, zpsi_stab, zstab  ! local scalars
       !!----------------------------------------------------------------------------------
       !
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
             !
             zta = pzeta(ji,jj)
             !

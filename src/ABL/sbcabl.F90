@@ -44,6 +44,8 @@ MODULE sbcabl
    PUBLIC   sbc_abl_init       ! routine called in sbcmod module
    PUBLIC   sbc_abl            ! routine called in sbcmod module
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.7 , NEMO-consortium (2014)
    !! $Id: sbcabl.F90 6416 2016-04-01 12:22:17Z clem $
@@ -259,7 +261,7 @@ CONTAINS
          rest_eq(:,:) = 1._wp
       END IF
       ! T-mask
-      msk_abl(:,:) = tmask(:,:,1)
+      msk_abl(:,:) = tmask(A2D(0),1)
 
       !!-------------------------------------------------------------------------------------------
 
@@ -307,8 +309,8 @@ CONTAINS
       !!              - Perform 1 time-step of the ABL model
       !!              - Finalize flux computation in blk_oce_2
       !!
-      !! ** Outputs : - utau    : i-component of the stress at U-point  (N/m2)
-      !!              - vtau    : j-component of the stress at V-point  (N/m2)
+      !! ** Outputs : - utau    : i-component of the stress at T-point  (N/m2)
+      !!              - vtau    : j-component of the stress at T-point  (N/m2)
       !!              - taum    : Wind stress module at T-point         (N/m2)
       !!              - wndm    : Wind speed module at T-point          (m/s)
       !!              - qsr     : Solar heat flux over the ocean        (W/m2)
@@ -318,9 +320,11 @@ CONTAINS
       !!---------------------------------------------------------------------
       INTEGER ,         INTENT(in) ::   kt   ! ocean time step
       !!
-      REAL(wp), DIMENSION(jpi,jpj) ::   zssq, zcd_du, zsen, zlat, zevp
+      !REAL(wp), DIMENSION(jpi,jpj) ::   zssq, zcd_du, zsen, zlat, zevp
+      REAL(wp), DIMENSION(A2D(0))  ::   zssq, zcd_du, zsen, zlat, zevp
 #if defined key_si3
-      REAL(wp), DIMENSION(jpi,jpj) ::   zssqi, zcd_dui, zseni, zevpi
+      !REAL(wp), DIMENSION(jpi,jpj) ::   zssqi, zcd_dui, zseni, zevpi
+      REAL(wp), DIMENSION(A2D(0))  ::   zssqi, zcd_dui, zseni, zevpi
 #endif
       INTEGER                      ::   jbak, jbak_dta, ji, jj
       !!---------------------------------------------------------------------
@@ -339,7 +343,7 @@ CONTAINS
 
          CALL blk_oce_1( kt,  u_abl(:,:,2,nt_n      ),  v_abl(:,:,2,nt_n      ),   &   !   <<= in
             &                tq_abl(:,:,2,nt_n,jp_ta), tq_abl(:,:,2,nt_n,jp_qa),   &   !   <<= in
-            &                sf(jp_slp )%fnow(:,:,1) , sst_m, ssu_m, ssv_m     ,   &   !   <<= in
+            &                sf(jp_slp )%fnow(:,:,1) , sst_m(A2D(0)), ssu_m(A2D(0)), ssv_m(A2D(0)),   &   !   <<= in
             &                sf(jp_uoatm)%fnow(:,:,1), sf(jp_voatm)%fnow(:,:,1),   &   !   <<= in
             &                sf(jp_qsr )%fnow(:,:,1) , sf(jp_qlw )%fnow(:,:,1) ,   &   !   <<= in
             &                tsk_m, zssq, zcd_du, zsen, zlat, zevp                 )   !   =>> out
@@ -347,7 +351,7 @@ CONTAINS
 #if defined key_si3
          CALL blk_ice_1(  u_abl(:,:,2,nt_n      ),  v_abl(:,:,2,nt_n      ),    &   !   <<= in
             &            tq_abl(:,:,2,nt_n,jp_ta), tq_abl(:,:,2,nt_n,jp_qa),    &   !   <<= in
-            &            sf(jp_slp)%fnow(:,:,1)  ,  u_ice, v_ice, tm_su    ,    &   !   <<= in
+            &            sf(jp_slp)%fnow(:,:,1)  ,  tm_su(:,:)             ,    &   !   <<= in
             &            pseni=zseni, pevpi=zevpi, pssqi=zssqi, pcd_dui=zcd_dui )   !   <<= out
 #endif
 
@@ -355,7 +359,7 @@ CONTAINS
          !! 3 - Advance ABL variables from now (n) to after (n+1)
          !!-------------------------------------------------------------------------------------------
 
-         CALL abl_stp( kt, tsk_m, ssu_m, ssv_m, zssq,                          &   !   <<= in
+         CALL abl_stp( kt, tsk_m(A2D(0)), ssu_m, ssv_m, zssq,                  &   !   <<= in
             &              sf(jp_wndi)%fnow(:,:,:), sf(jp_wndj)%fnow(:,:,:),   &   !   <<= in
             &              sf(jp_tair)%fnow(:,:,:), sf(jp_humi)%fnow(:,:,:),   &   !   <<= in
             &              sf(jp_slp )%fnow(:,:,1),                            &   !   <<= in
@@ -364,7 +368,7 @@ CONTAINS
             &              zlat, wndm, utau, vtau, taum                        &   !   =>> out
 #if defined key_si3
             &            , tm_su, u_ice, v_ice, zssqi, zcd_dui                 &   !   <<= in
-            &            , zseni, zevpi, wndm_ice, ato_i                       &   !   <<= in
+            &            , zseni, zevpi, wndm_ice, ato_i(A2D(0))               &   !   <<= in
             &            , utau_ice, vtau_ice                                  &   !   =>> out
 #endif
             &                                                                  )

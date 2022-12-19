@@ -56,13 +56,14 @@ CONTAINS
       !!
       !! ** Action  :   avt, avm   enhanced where static instability occurs
       !!----------------------------------------------------------------------
-      INTEGER                    , INTENT(in   ) ::   kt             ! ocean time-step indexocean time step
-      INTEGER                    , INTENT(in   ) ::   Kmm, Krhs      ! time level indices
-      REAL(wp), DIMENSION(:,:,:) , INTENT(inout) ::   p_avm, p_avt   !  momentum and tracer Kz (w-points)
+      INTEGER                         , INTENT(in   ) ::   kt             ! ocean time-step indexocean time step
+      INTEGER                         , INTENT(in   ) ::   Kmm, Krhs      ! time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt          ! vertical eddy diffusivity (w-points)
       !
       INTEGER ::   ji, jj, jk   ! dummy loop indices
-      ! NOTE: [tiling] use a SAVE array to store diagnostics, then send after all tiles are finished. This is necessary because p_avt/p_avm are modified on adjacent tiles when using nn_hls > 1. zavt_evd/zavm_evd are then zero on some points when subsequently calculated for these tiles.
-      REAL(wp), SAVE, ALLOCATABLE, DIMENSION(:,:,:) ::   zavt_evd, zavm_evd
+      REAL(wp), DIMENSION(T2D(0),jpk)             ::   zavt_evd
+      REAL(wp), DIMENSION(:,:,:),     ALLOCATABLE ::   zavm_evd
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -72,13 +73,10 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '~~~~~~~ '
             IF(lwp) WRITE(numout,*)
          ENDIF
-
-         ALLOCATE( zavt_evd(jpi,jpj,jpk) )
-         IF( nn_evdm == 1 ) ALLOCATE( zavm_evd(jpi,jpj,jpk) )
       ENDIF
       !
       !
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          zavt_evd(ji,jj,jk) = p_avt(ji,jj,jk)         ! set avt prior to evd application
       END_3D
       !
@@ -86,7 +84,8 @@ CONTAINS
       !
       CASE ( 1 )           !==  enhance tracer & momentum Kz  ==!   (if rn2<-1.e-12)
          !
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+         ALLOCATE( zavm_evd(T2D(0),jpk) )
+         DO_3D( 0, 0, 0, 0, 1, jpk )
             zavm_evd(ji,jj,jk) = p_avm(ji,jj,jk)      ! set avm prior to evd application
          END_3D
          !
@@ -96,20 +95,18 @@ CONTAINS
 !            p_avm(2:jpi,2:jpj,2:jpkm1) = rn_evd * wmask(2:jpi,2:jpj,2:jpkm1)
 !         END WHERE
          !
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             IF(  MIN( rn2(ji,jj,jk), rn2b(ji,jj,jk) ) <= -1.e-12 ) THEN
                p_avt(ji,jj,jk) = rn_evd * wmask(ji,jj,jk)
                p_avm(ji,jj,jk) = rn_evd * wmask(ji,jj,jk)
             ENDIF
          END_3D
          !
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+         DO_3D( 0, 0, 0, 0, 1, jpk )
             zavm_evd(ji,jj,jk) = p_avm(ji,jj,jk) - zavm_evd(ji,jj,jk)   ! change in avm due to evd
          END_3D
-         IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
-            CALL iom_put( "avm_evd", zavm_evd )                ! output this change
-            DEALLOCATE( zavm_evd )
-         ENDIF
+         CALL iom_put( "avm_evd", zavm_evd )                ! output this change
+         DEALLOCATE( zavm_evd )
          !
       CASE DEFAULT         !==  enhance tracer Kz  ==!   (if rn2<-1.e-12) 
 !! change last digits results
@@ -117,23 +114,18 @@ CONTAINS
 !            p_avt(2:jpi,2:jpj,2:jpkm1) = rn_evd * wmask(2:jpi,2:jpj,2:jpkm1)
 !         END WHERE
 
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             IF(  MIN( rn2(ji,jj,jk), rn2b(ji,jj,jk) ) <= -1.e-12 )   &
                p_avt(ji,jj,jk) = rn_evd * wmask(ji,jj,jk)
          END_3D
          !
       END SELECT 
       !
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          zavt_evd(ji,jj,jk) = p_avt(ji,jj,jk) - zavt_evd(ji,jj,jk)   ! change in avt due to evd
       END_3D
-      !
+      CALL iom_put( "avt_evd", zavt_evd )              ! output this change
       IF( l_trdtra ) CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_evd, zavt_evd )
-      !
-      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
-         CALL iom_put( "avt_evd", zavt_evd )              ! output this change
-         DEALLOCATE( zavt_evd )
-      ENDIF
       !
    END SUBROUTINE zdf_evd
 

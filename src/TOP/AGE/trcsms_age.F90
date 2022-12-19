@@ -46,7 +46,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt              ! ocean time-step index
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! ocean time level
-      INTEGER ::   jn, jk   ! dummy loop index
+      INTEGER ::   jk   ! dummy loop index
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_sms_age')
@@ -68,7 +68,7 @@ CONTAINS
          tr(:,:,jk,jp_age,Krhs) = tmask(:,:,jk) * rryear
       END DO
       !
-      IF( l_trdtrc  )   CALL trd_trc( tr(:,:,:,jp_age,Krhs), jn, jptra_sms, kt, Kmm )   ! save trends
+      IF( l_trdtrc  )   CALL trd_trc( tr(:,:,:,jp_age,Krhs), jp_age, jptra_sms, kt, Kmm )   ! save trends
       !
       IF( ln_timing )   CALL timing_stop('trc_sms_age')
       !

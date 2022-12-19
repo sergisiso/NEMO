@@ -104,12 +104,19 @@ CONTAINS
       ! define unique value on each point. z2d ranging from 0.05 to -0.05
       !
       DO_2D( 0, 0, 0, 0 )
-         zztmp = 0.1 * ( 0.5 - REAL( mig0(ji) + (mjg0(jj)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) )
+         zztmp = 0.1 * ( 0.5 - REAL( mig(ji,0) + (mjg(jj,0)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) )
          utau_ice(ji,jj) = 0.1_wp + zztmp
          vtau_ice(ji,jj) = 0.1_wp + zztmp
       END_2D
 
-      CALL lbc_lnk( 'usrdef_sbc', utau_ice, 'U', -1., vtau_ice, 'V', -1. )
+      IF( l_NFold .AND. c_NFtype == 'T' ) THEN   ! force 0 at the folding points
+         utau_ice(mi0(jpiglo/2+1,nn_hls):mi1(jpiglo/2+1,nn_hls),mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)) = 0._wp
+         vtau_ice(mi0(jpiglo/2+1,nn_hls):mi1(jpiglo/2+1,nn_hls),mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)) = 0._wp
+         utau_ice(mi0(  nn_hls+1,nn_hls):mi1(  nn_hls+1,nn_hls),mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)) = 0._wp
+         vtau_ice(mi0(  nn_hls+1,nn_hls):mi1(  nn_hls+1,nn_hls),mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)) = 0._wp
+      ENDIF
+
+      CALL lbc_lnk( 'usrdef_sbc', utau_ice, 'T', -1., vtau_ice, 'T', -1., ldfull = .TRUE. )
 #endif
       !
    END SUBROUTINE usrdef_sbc_ice_tau
@@ -125,7 +132,7 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), INTENT(in)  ::   phs    ! snow thickness
       REAL(wp), DIMENSION(:,:,:), INTENT(in)  ::   phi    ! ice thickness
       !!
-      REAL(wp), DIMENSION(jpi,jpj) ::   zsnw   ! snw distribution after wind blowing
+      REAL(wp), DIMENSION(A2D(0)) ::   zsnw   ! snw distribution after wind blowing
       !!---------------------------------------------------------------------
 #if defined key_si3
       !
@@ -150,9 +157,9 @@ CONTAINS
       emp_ice  (:,:)   = SUM( a_i_b(:,:,:) * evap_ice(:,:,:), dim=3 ) - sprecip(:,:) * zsnw(:,:)
       emp_oce  (:,:)   = emp_oce(:,:) - sprecip(:,:) * (1._wp - zsnw(:,:) )
       qevap_ice(:,:,:) =   0._wp
-      qprec_ice(:,:)   =   rhos * ( sst_m(:,:) * rcpi - rLfus ) * tmask(:,:,1) !  in J/m3
-      qemp_oce (:,:)   = - emp_oce(:,:) * sst_m(:,:) * rcp
-      qemp_ice (:,:)   =   sprecip(:,:) * zsnw * ( sst_m(:,:) * rcpi - rLfus ) * tmask(:,:,1) ! solid precip (only)
+      qprec_ice(:,:)   =   rhos * ( sst_m(A2D(0)) * rcpi - rLfus ) * smask0(:,:) !  in J/m3
+      qemp_oce (:,:)   = - emp_oce(:,:) * sst_m(A2D(0)) * rcp
+      qemp_ice (:,:)   =   sprecip(:,:) * zsnw * ( sst_m(A2D(0)) * rcpi - rLfus ) * smask0(:,:) ! solid precip (only)
 
       ! total fluxes
       emp_tot (:,:) = emp_ice  + emp_oce

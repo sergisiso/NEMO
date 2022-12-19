@@ -57,15 +57,23 @@ CONTAINS
       !! ** Purpose :   Rotate the Repere: Change vector componantes between
       !!                geographic grid <--> stretched coordinates grid.
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) ::   pxin, pyin   ! vector componantes
-      CHARACTER(len=1),             INTENT(in   ) ::   cd_type      ! define the nature of pt2d array grid-points
-      CHARACTER(len=5),             INTENT(in   ) ::   cdtodo       ! type of transpormation:
-      !                                                             ! 'en->i' = east-north to i-component
-      !                                                             ! 'en->j' = east-north to j-component
-      !                                                             ! 'ij->e' = (i,j) components to east
-      !                                                             ! 'ij->n' = (i,j) components to north
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) ::   prot      
+      REAL(wp), DIMENSION(:,:), INTENT(in   ) ::   pxin, pyin   ! vector componantes
+      CHARACTER(len=1),         INTENT(in   ) ::   cd_type      ! define the nature of pt2d array grid-points
+      CHARACTER(len=5),         INTENT(in   ) ::   cdtodo       ! type of transpormation:
+      !                                                         ! 'en->i' = east-north to i-component
+      !                                                         ! 'en->j' = east-north to j-component
+      !                                                         ! 'ij->e' = (i,j) components to east
+      !                                                         ! 'ij->n' = (i,j) components to north
+      REAL(wp), DIMENSION(:,:), INTENT(  out) ::   prot      
+      !
+      INTEGER ::   ipi, ipj, iipi, ijpj
+      INTEGER ::   iisht, ijsht
+      INTEGER ::   ii, ij, ii1, ij1
       !!----------------------------------------------------------------------
+      ipi = SIZE(pxin, 1)         ;   ipj = SIZE(pxin, 2)
+      iisht = ( jpi - ipi ) / 2   ;   ijsht = ( jpj - ipj ) / 2
+      ii1  =   1 + iisht          ;   ij1  =   1 + iisht
+      iipi = ipi + iisht          ;   ijpj = ipj + ijsht
       !
       IF( lmust_init ) THEN      ! at 1st call only: set  gsin. & gcos.
          IF(lwp) WRITE(numout,*)
@@ -80,34 +88,50 @@ CONTAINS
       !
       CASE( 'en->i' )                  ! east-north to i-component
          SELECT CASE (cd_type)
-         CASE ('T')   ;   prot(:,:) = pxin(:,:) * gcost(:,:) + pyin(:,:) * gsint(:,:)
-         CASE ('U')   ;   prot(:,:) = pxin(:,:) * gcosu(:,:) + pyin(:,:) * gsinu(:,:)
-         CASE ('V')   ;   prot(:,:) = pxin(:,:) * gcosv(:,:) + pyin(:,:) * gsinv(:,:)
-         CASE ('F')   ;   prot(:,:) = pxin(:,:) * gcosf(:,:) + pyin(:,:) * gsinf(:,:)
+         CASE ('T')   ;   prot(1:ipi,1:ipj) = pxin(1:ipi,1:ipj) * gcost(ii1:iipi,ij1:ijpj)   &
+            &                               + pyin(1:ipi,1:ipj) * gsint(ii1:iipi,ij1:ijpj)
+         CASE ('U')   ;   prot(1:ipi,1:ipj) = pxin(1:ipi,1:ipj) * gcosu(ii1:iipi,ij1:ijpj)   &
+            &                               + pyin(1:ipi,1:ipj) * gsinu(ii1:iipi,ij1:ijpj)
+         CASE ('V')   ;   prot(1:ipi,1:ipj) = pxin(1:ipi,1:ipj) * gcosv(ii1:iipi,ij1:ijpj)   &
+            &                               + pyin(1:ipi,1:ipj) * gsinv(ii1:iipi,ij1:ijpj)
+         CASE ('F')   ;   prot(1:ipi,1:ipj) = pxin(1:ipi,1:ipj) * gcosf(ii1:iipi,ij1:ijpj)   &
+            &                               + pyin(1:ipi,1:ipj) * gsinf(ii1:iipi,ij1:ijpj)
          CASE DEFAULT   ;   CALL ctl_stop( 'Only T, U, V and F grid points are coded' )
          END SELECT
       CASE ('en->j')                   ! east-north to j-component
          SELECT CASE (cd_type)
-         CASE ('T')   ;   prot(:,:) = pyin(:,:) * gcost(:,:) - pxin(:,:) * gsint(:,:)
-         CASE ('U')   ;   prot(:,:) = pyin(:,:) * gcosu(:,:) - pxin(:,:) * gsinu(:,:)
-         CASE ('V')   ;   prot(:,:) = pyin(:,:) * gcosv(:,:) - pxin(:,:) * gsinv(:,:)   
-         CASE ('F')   ;   prot(:,:) = pyin(:,:) * gcosf(:,:) - pxin(:,:) * gsinf(:,:)   
+         CASE ('T')   ;   prot(1:ipi,1:ipj) = pyin(1:ipi,1:ipj) * gcost(ii1:iipi,ij1:ijpj)   &
+            &                               - pxin(1:ipi,1:ipj) * gsint(ii1:iipi,ij1:ijpj)
+         CASE ('U')   ;   prot(1:ipi,1:ipj) = pyin(1:ipi,1:ipj) * gcosu(ii1:iipi,ij1:ijpj)   &
+            &                               - pxin(1:ipi,1:ipj) * gsinu(ii1:iipi,ij1:ijpj)
+         CASE ('V')   ;   prot(1:ipi,1:ipj) = pyin(1:ipi,1:ipj) * gcosv(ii1:iipi,ij1:ijpj)   &
+            &                               - pxin(1:ipi,1:ipj) * gsinv(ii1:iipi,ij1:ijpj)   
+         CASE ('F')   ;   prot(1:ipi,1:ipj) = pyin(1:ipi,1:ipj) * gcosf(ii1:iipi,ij1:ijpj)   &
+            &                               - pxin(1:ipi,1:ipj) * gsinf(ii1:iipi,ij1:ijpj)   
          CASE DEFAULT   ;   CALL ctl_stop( 'Only T, U, V and F grid points are coded' )
          END SELECT
       CASE ('ij->e')                   ! (i,j)-components to east
          SELECT CASE (cd_type)
-         CASE ('T')   ;   prot(:,:) = pxin(:,:) * gcost(:,:) - pyin(:,:) * gsint(:,:)
-         CASE ('U')   ;   prot(:,:) = pxin(:,:) * gcosu(:,:) - pyin(:,:) * gsinu(:,:)
-         CASE ('V')   ;   prot(:,:) = pxin(:,:) * gcosv(:,:) - pyin(:,:) * gsinv(:,:)
-         CASE ('F')   ;   prot(:,:) = pxin(:,:) * gcosf(:,:) - pyin(:,:) * gsinf(:,:)
+         CASE ('T')   ;   prot(1:ipi,1:ipj) = pxin(1:ipi,1:ipj) * gcost(ii1:iipi,ij1:ijpj)   &
+            &                               - pyin(1:ipi,1:ipj) * gsint(ii1:iipi,ij1:ijpj)
+         CASE ('U')   ;   prot(1:ipi,1:ipj) = pxin(1:ipi,1:ipj) * gcosu(ii1:iipi,ij1:ijpj)   &
+            &                               - pyin(1:ipi,1:ipj) * gsinu(ii1:iipi,ij1:ijpj)
+         CASE ('V')   ;   prot(1:ipi,1:ipj) = pxin(1:ipi,1:ipj) * gcosv(ii1:iipi,ij1:ijpj)   &
+            &                               - pyin(1:ipi,1:ipj) * gsinv(ii1:iipi,ij1:ijpj)
+         CASE ('F')   ;   prot(1:ipi,1:ipj) = pxin(1:ipi,1:ipj) * gcosf(ii1:iipi,ij1:ijpj)   &
+            &                               - pyin(1:ipi,1:ipj) * gsinf(ii1:iipi,ij1:ijpj)
          CASE DEFAULT   ;   CALL ctl_stop( 'Only T, U, V and F grid points are coded' )
          END SELECT
       CASE ('ij->n')                   ! (i,j)-components to north 
          SELECT CASE (cd_type)
-         CASE ('T')   ;   prot(:,:) = pyin(:,:) * gcost(:,:) + pxin(:,:) * gsint(:,:)
-         CASE ('U')   ;   prot(:,:) = pyin(:,:) * gcosu(:,:) + pxin(:,:) * gsinu(:,:)
-         CASE ('V')   ;   prot(:,:) = pyin(:,:) * gcosv(:,:) + pxin(:,:) * gsinv(:,:)
-         CASE ('F')   ;   prot(:,:) = pyin(:,:) * gcosf(:,:) + pxin(:,:) * gsinf(:,:)
+         CASE ('T')   ;   prot(1:ipi,1:ipj) = pyin(1:ipi,1:ipj) * gcost(ii1:iipi,ij1:ijpj)   &
+            &                               + pxin(1:ipi,1:ipj) * gsint(ii1:iipi,ij1:ijpj)
+         CASE ('U')   ;   prot(1:ipi,1:ipj) = pyin(1:ipi,1:ipj) * gcosu(ii1:iipi,ij1:ijpj)   &
+            &                               + pxin(1:ipi,1:ipj) * gsinu(ii1:iipi,ij1:ijpj)
+         CASE ('V')   ;   prot(1:ipi,1:ipj) = pyin(1:ipi,1:ipj) * gcosv(ii1:iipi,ij1:ijpj)   &
+            &                               + pxin(1:ipi,1:ipj) * gsinv(ii1:iipi,ij1:ijpj)
+         CASE ('F')   ;   prot(1:ipi,1:ipj) = pyin(1:ipi,1:ipj) * gcosf(ii1:iipi,ij1:ijpj)   &
+            &                               + pxin(1:ipi,1:ipj) * gsinf(ii1:iipi,ij1:ijpj)
          CASE DEFAULT   ;   CALL ctl_stop( 'Only T, U, V and F grid points are coded' )
          END SELECT
       CASE DEFAULT   ;   CALL ctl_stop( 'rot_rep: Syntax Error in the definition of cdtodo' )
@@ -286,14 +310,17 @@ CONTAINS
       !! ** Method  :   Change a vector from geocentric to east/north 
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) ::  pxx, pyy, pzz
-      CHARACTER(len=1)            , INTENT(in   ) ::  cgrid
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) ::  pte, ptn
+      REAL(wp), DIMENSION(:,:), INTENT(in   ) ::  pxx, pyy, pzz
+      CHARACTER(len=1)        , INTENT(in   ) ::  cgrid
+      REAL(wp), DIMENSION(:,:), INTENT(  out) ::  pte, ptn
       !
       REAL(wp), PARAMETER :: rpi = 3.141592653e0
       REAL(wp), PARAMETER :: rad = rpi / 180.e0
       INTEGER ::   ig     !
       INTEGER ::   ierr   ! local integer
+      INTEGER ::   ipi, ipj, iipi, ijpj
+      INTEGER ::   iisht, ijsht
+      INTEGER ::   ii, ij, ii1, ij1
       !!----------------------------------------------------------------------
       !
       IF( .NOT. ALLOCATED( gsinlon ) ) THEN
@@ -345,10 +372,16 @@ CONTAINS
          CALL ctl_stop( ctmp1 )
       END SELECT
       !
-      pte = - gsinlon(:,:,ig) * pxx + gcoslon(:,:,ig) * pyy
-      ptn = - gcoslon(:,:,ig) * gsinlat(:,:,ig) * pxx    &
-         &  - gsinlon(:,:,ig) * gsinlat(:,:,ig) * pyy    &
-         &  + gcoslat(:,:,ig) * pzz
+      ipi = SIZE(pxx, 1)          ;   ipj = SIZE(pxx, 2)
+      iisht = ( jpi - ipi ) / 2   ;   ijsht = ( jpj - ipj ) / 2
+      ii1  =   1 + iisht          ;   ij1  =   1 + iisht
+      iipi = ipi + iisht          ;   ijpj = ipj + ijsht
+      !
+      pte(1:ipi,1:ipj) = - gsinlon(ii1:iipi,ij1:ijpj,ig) * pxx(1:ipi,1:ipj)   &
+         &               + gcoslon(ii1:iipi,ij1:ijpj,ig) * pyy(1:ipi,1:ipj)
+      ptn(1:ipi,1:ipj) = - gcoslon(ii1:iipi,ij1:ijpj,ig) * gsinlat(ii1:iipi,ij1:ijpj,ig) * pxx(1:ipi,1:ipj)    &
+         &               - gsinlon(ii1:iipi,ij1:ijpj,ig) * gsinlat(ii1:iipi,ij1:ijpj,ig) * pyy(1:ipi,1:ipj)    &
+         &                                               + gcoslat(ii1:iipi,ij1:ijpj,ig) * pzz(1:ipi,1:ipj)
       !
    END SUBROUTINE geo2oce
 
@@ -371,6 +404,9 @@ CONTAINS
       REAL(wp), PARAMETER :: rad = rpi / 180.e0_wp
       INTEGER ::   ig     !
       INTEGER ::   ierr   ! local integer
+      INTEGER ::   ipi, ipj, iipi, ijpj
+      INTEGER ::   iisht, ijsht
+      INTEGER ::   ii, ij, ii1, ij1
       !!----------------------------------------------------------------------
 
       IF( .NOT. ALLOCATED( gsinlon ) ) THEN
@@ -422,9 +458,16 @@ CONTAINS
             CALL ctl_stop( ctmp1 )
       END SELECT
       !
-      pxx = - gsinlon(:,:,ig) * pte - gcoslon(:,:,ig) * gsinlat(:,:,ig) * ptn 
-      pyy =   gcoslon(:,:,ig) * pte - gsinlon(:,:,ig) * gsinlat(:,:,ig) * ptn
-      pzz =   gcoslat(:,:,ig) * ptn
+      ipi = SIZE(pte, 1)          ;   ipj = SIZE(pte, 2)
+      iisht = ( jpi - ipi ) / 2   ;   ijsht = ( jpj - ipj ) / 2
+      ii1  =   1 + iisht          ;   ij1  =   1 + iisht
+      iipi = ipi + iisht          ;   ijpj = ipj + ijsht
+      !
+      pxx(1:ipi,1:ipj) = - gsinlon(ii1:iipi,ij1:ijpj,ig)                                 * pte(1:ipi,1:ipj)   &
+         &               - gcoslon(ii1:iipi,ij1:ijpj,ig) * gsinlat(ii1:iipi,ij1:ijpj,ig) * ptn(1:ipi,1:ipj) 
+      pyy(1:ipi,1:ipj) =   gcoslon(ii1:iipi,ij1:ijpj,ig)                                 * pte(1:ipi,1:ipj)    &
+         &               - gsinlon(ii1:iipi,ij1:ijpj,ig) * gsinlat(ii1:iipi,ij1:ijpj,ig) * ptn(1:ipi,1:ipj)
+      pzz(1:ipi,1:ipj) =   gcoslat(ii1:iipi,ij1:ijpj,ig)                                 * ptn(1:ipi,1:ipj)
       !
    END SUBROUTINE oce2geo
 

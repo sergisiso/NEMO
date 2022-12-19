@@ -69,16 +69,16 @@
 	  <field field_ref="qt"           name="sohefldo"  />
 	  <field field_ref="mldr10_1"     name="somxl010"  />
 	  <field field_ref="mldkz5"       name="somixhgt"  />
+          <field field_ref="utau"         name="sozotaux"  />
+          <field field_ref="vtau"         name="sometauy"  /> 
     </file>
 	
 	<file id="file2" name_suffix="_grid_U" description="ocean U grid variables" >
           <field field_ref="uoce"         name="vozocrtx"  />
-          <field field_ref="utau"         name="sozotaux"  />
     </file>
 	
 	<file id="file3" name_suffix="_grid_V" description="ocean V grid variables" >
           <field field_ref="voce"         name="vomecrty"  /> 
-          <field field_ref="vtau"         name="sometauy"  /> 
     </file>
 	
 	<file id="file4" name_suffix="_grid_W" description="ocean W grid variables" >

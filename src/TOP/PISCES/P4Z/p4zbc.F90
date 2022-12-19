@@ -13,6 +13,7 @@ MODULE p4zbc
    USE sms_pisces      !  PISCES Source Minus Sink variables
    USE iom             !  I/O manager
    USE fldread         !  time interpolation
+   USE prtctl          !  print control for debugging
    USE trcbc
 
    IMPLICIT NONE
@@ -36,7 +37,6 @@ MODULE p4zbc
    LOGICAL , PUBLIC ::   ll_river     !: boolean for river input of nutrients
    LOGICAL , PUBLIC ::   ll_ndepo     !: boolean for atmospheric deposition of N
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_dust      ! structure of input dust
-   TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_ironsed   ! structure of input iron from sediment
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_hydrofe   ! structure of input iron from sediment
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   dust    !: dust fields
@@ -74,6 +74,8 @@ CONTAINS
       REAL(wp) ::  zcoef, zwdust, zrivdin, zdustdep, zndep
       !
       CHARACTER (len=25) :: charout
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zw2d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_bc')
@@ -84,7 +86,9 @@ CONTAINS
       IF( ll_dust )  THEN
          !
          CALL fld_read( kt, 1, sf_dust )
-         dust(:,:) = MAX( rtrn, sf_dust(1)%fnow(:,:,1) )
+         DO_2D( 0, 0, 0, 0 )
+            dust(ji,jj) = MAX( rtrn, sf_dust(1)%fnow(ji,jj,1) )
+         END_2D
          !
          ! Iron solubilization of particles in the water column
          ! dust in kg/m2/s ---> 1/55.85 to put in mol/Fe ;  wdust in m/d
@@ -99,7 +103,7 @@ CONTAINS
 
          ! Atmospheric input of Iron dissolves in the water column
          IF ( ln_trc_sbc(jpfer) ) THEN
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpkm1 )
+            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
                zdustdep = dust(ji,jj) * zwdust * rfact * EXP( -gdept(ji,jj,jk,Kmm) /( 250. * wdust ) )
                !
                tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + zdustdep * mfrac / mMass_Fe 
@@ -107,16 +111,18 @@ CONTAINS
 
             IF( lk_iomput ) THEN
                 ! surface downward dust depo of iron
+                ALLOCATE( zw2d(A2D(0)) ) 
                 jl = n_trc_indsbc(jpfer)
-                CALL iom_put( "Irondep", ( rf_trsfac(jl) * sf_trcsbc(jl)%fnow(:,:,1) / rn_sbc_time ) * 1.e+3 * tmask(:,:,1) )
-
+                zw2d(A2D(0)) = rf_trsfac(jl) * ( sf_trcsbc(jl)%fnow(A2D(0),1) / rn_sbc_time ) * 1.e+3 * tmask(A2D(0),1)
+                CALL iom_put( "Irondep", zw2d )
+                DEALLOCATE( zw2d )
             ENDIF
 
          ENDIF
 
          ! Atmospheric input of PO4 dissolves in the water column
          IF ( ln_trc_sbc(jppo4) ) THEN
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpkm1 )
+            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
                zdustdep = dust(ji,jj) * zwdust * rfact * EXP( -gdept(ji,jj,jk,Kmm) /( 250. * wdust ) )
                !
                tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zdustdep * 1.e-3 / mMass_P
@@ -125,7 +131,7 @@ CONTAINS
 
          ! Atmospheric input of Si dissolves in the water column
          IF ( ln_trc_sbc(jpsil) ) THEN
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpkm1 )
+            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
                zdustdep = dust(ji,jj) * zwdust * rfact * EXP( -gdept(ji,jj,jk,Kmm) /( 250. * wdust ) )
                !
                tr(ji,jj,jk,jpsil,Krhs) = tr(ji,jj,jk,jpsil,Krhs) + zdustdep * 0.269 / mMass_Si
@@ -135,7 +141,10 @@ CONTAINS
          !
          IF( lk_iomput ) THEN
              ! dust concentration at surface
-             CALL iom_put( "pdust"  , dust(:,:) / ( wdust / rday ) * tmask(:,:,1) ) ! dust concentration at surface
+             ALLOCATE( zw2d(A2D(0)) )
+             zw2d(A2D(0)) = dust(A2D(0)) / ( wdust / rday ) * tmask(A2D(0),1)
+             CALL iom_put( "pdust", zw2d )
+             DEALLOCATE( zw2d )
          ENDIF
       ENDIF
 
@@ -144,7 +153,7 @@ CONTAINS
       ! ----------------------------------------------------------
       IF( ll_river ) THEN
           jl = n_trc_indcbc(jpno3)
-          DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+          DO_2D( 0, 0, 0, 0 )
              DO jk = 1, nk_rnf(ji,jj)
                 zcoef = rn_rfact / ( e1e2t(ji,jj) * h_rnf(ji,jj) * rn_cbc_time ) * tmask(ji,jj,1)
                 zrivdin = rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zcoef
@@ -158,14 +167,14 @@ CONTAINS
       IF( ll_ndepo ) THEN
          IF( ln_trc_sbc(jpno3) ) THEN
             jl = n_trc_indsbc(jpno3)
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( 0, 0, 0, 0 )
                zndep = rf_trsfac(jl) * sf_trcsbc(jl)%fnow(ji,jj,1) / e3t(ji,jj,1,Kmm) / rn_sbc_time
                tr(ji,jj,1,jptal,Krhs) = tr(ji,jj,1,jptal,Krhs) - rno3 * zndep * rfact
             END_2D
          ENDIF
          IF( ln_trc_sbc(jpnh4) ) THEN
             jl = n_trc_indsbc(jpnh4)
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( 0, 0, 0, 0 )
                zndep = rf_trsfac(jl) * sf_trcsbc(jl)%fnow(ji,jj,1) / e3t(ji,jj,1,Kmm) / rn_sbc_time
                tr(ji,jj,1,jptal,Krhs) = tr(ji,jj,1,jptal,Krhs) + rno3 * zndep * rfact
             END_2D
@@ -183,41 +192,71 @@ CONTAINS
          ! Simple parameterization assuming a fixed constant concentration in
          ! sea-ice (icefeinput)
          ! ------------------------------------------------------------------         
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             zdep     = rfact / e3t(ji,jj,1,Kmm)
-            zwflux   = fmmflx(ji,jj) / 1000._wp
-            zironice =  MAX( -0.99 * tr(ji,jj,1,jpfer,Kbb), -zwflux * icefeinput * zdep )
+            zwflux   = fwfice(ji,jj) / 1000._wp
+            zironice =  MAX( -0.99 * tr(ji,jj,1,jpfer,Kbb), zwflux * icefeinput * zdep )
             tr(ji,jj,1,jpfer,Krhs) = tr(ji,jj,1,jpfer,Krhs) + zironice
          END_2D
          !
-         ! iron flux from ice
-         IF( lk_iomput ) &
-         & CALL iom_put( "Ironice", MAX( -0.99 * tr(:,:,1,jpfer,Kbb), (-1.*fmmflx(:,:)/1000._wp )*icefeinput*1.e+3*tmask(:,:,1)) )
+         IF( lk_iomput ) THEN
+            ! iron flux from ice
+            ALLOCATE( zw2d(A2D(0)) )
+            zw2d(A2D(0)) = MAX( -0.99 * tr(A2D(0),1,jpfer,Kbb), (fwfice(:,:)/1000._wp )*icefeinput*1.e+3*tmask(A2D(0),1))
+            CALL iom_put( "Ironice", zw2d )
+            DEALLOCATE( zw2d )
+         ENDIF
          !
       ENDIF
 
       ! Add the external input of iron from sediment mobilization
       ! ------------------------------------------------------
       IF( ln_ironsed .AND. .NOT.lk_sed ) THEN
-          tr(:,:,:,jpfer,Krhs) = tr(:,:,:,jpfer,Krhs) + ironsed(:,:,:) * rfact
-          !
-          IF( lk_iomput )  CALL iom_put( "Ironsed", ironsed(:,:,:) * 1.e+3 * tmask(:,:,:) ) 
+          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+             tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + ironsed(ji,jj,jk) * rfact
+         END_3D
+         !
+         IF( lk_iomput ) THEN
+            ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+            zw3d(A2D(0),1:jpkm1) = ironsed(A2D(0),1:jpkm1) * 1.e+3 * tmask(A2D(0),1:jpkm1)
+            CALL iom_put( "Ironsed", zw3d )
+            DEALLOCATE( zw3d )
+         ENDIF
       ENDIF
 
       ! Add the external input of iron from hydrothermal vents
       ! ------------------------------------------------------
       IF( ln_hydrofe ) THEN
          CALL fld_read( kt, 1, sf_hydrofe )
-         DO jk = 1, jpk
-            hydrofe(:,:,jk) = ( MAX( rtrn, sf_hydrofe(1)%fnow(:,:,jk) ) * hratio ) &
-              &              / ( e1e2t(:,:) * e3t(:,:,jk,Kmm) * ryyss + rtrn ) / 1000._wp &
-              &              * tmask(:,:,jk)
-         ENDDO
-                         tr(:,:,:,jpfer,Krhs) = tr(:,:,:,jpfer,Krhs) + hydrofe(:,:,:) * rfact
-         IF( ln_ligand ) tr(:,:,:,jplgw,Krhs) = tr(:,:,:,jplgw,Krhs) + ( hydrofe(:,:,:) * lgw_rath ) * rfact
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            hydrofe(ji,jj,jk) = ( MAX( rtrn, sf_hydrofe(1)%fnow(ji,jj,jk) ) * hratio ) &
+              &              / ( e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) * ryyss + rtrn ) / 1000._wp &
+              &              * tmask(ji,jj,jk)
+         END_3D
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+              tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + hydrofe(ji,jj,jk) * rfact
+         END_3D
+         IF( ln_ligand ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + ( hydrofe(ji,jj,jk) * lgw_rath ) * rfact
+            END_3D
+         ENDIF
          !
-         IF( lk_iomput ) CALL iom_put( "HYDR", hydrofe(:,:,:) * 1.e+3 * tmask(:,:,:) ) ! hydrothermal iron input
+         IF( lk_iomput ) THEN
+            ! hydrothermal iron input
+            ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+            zw3d(A2D(0),1:jpkm1) = hydrofe(A2D(0),1:jpkm1) * 1.e+3 * tmask(A2D(0),1:jpkm1)
+            CALL iom_put( "HYDR", zw3d )
+            DEALLOCATE( zw3d )
+         ENDIF
       ENDIF
+      !
+      IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
+         WRITE(charout, FMT="('bc')")
+         CALL prt_ctl_info( charout, cdcomp = 'top' )
+         CALL prt_ctl(tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm)
+      ENDIF
+      !
       IF( ln_timing )  CALL timing_stop('p4z_bc')
       !
    END SUBROUTINE p4z_bc
@@ -303,7 +342,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '    initialize dust input from atmosphere '
          IF(lwp) WRITE(numout,*) '    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
          !
-         ALLOCATE( dust(jpi,jpj) ) 
+         ALLOCATE( dust(A2D(0)) ) 
          !
          ALLOCATE( sf_dust(1), STAT=ierr )           !* allocate and fill sf_sst (forcing structure) with sn_sst
          IF( ierr > 0 )   CALL ctl_stop( 'STOP', 'p4z_bc_init: unable to allocate sf_dust structure' )
@@ -321,7 +360,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   ==>>>   ln_ironsed=T , computation of an island mask to enhance coastal supply of iron'
          !
-         ALLOCATE( ironsed(jpi,jpj,jpk) )    ! allocation
+         ALLOCATE( ironsed(A2D(0),jpk) )    ! allocation
          !
          CALL iom_open ( TRIM( sn_ironsed%clname ), numiron )
          ALLOCATE( zcmask(jpi,jpj,jpk) )
@@ -350,7 +389,7 @@ CONTAINS
          !
          CALL lbc_lnk( 'p4zbc', zcmask , 'T', 1.0_wp )      ! lateral boundary conditions on cmask   (sign unchanged)
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             zexpide   = MIN( 8.,( gdept(ji,jj,jk,Kmm) / 500. )**(-1.5) )
             zdenitide = -0.9543 + 0.7662 * LOG( zexpide ) - 0.235 * LOG( zexpide )**2
             zcmask(ji,jj,jk) = zcmask(ji,jj,jk) * MIN( 1., EXP( zdenitide ) / 0.5 )
@@ -358,9 +397,9 @@ CONTAINS
          ! Coastal supply of iron
          ! -------------------------
          ironsed(:,:,jpk) = 0._wp
-         DO jk = 1, jpkm1
-            ironsed(:,:,jk) = sedfeinput * zcmask(:,:,jk) / ( e3t_0(:,:,jk) * rday )
-         END DO
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            ironsed(ji,jj,jk) = sedfeinput * zcmask(ji,jj,jk) / ( e3t_0(ji,jj,jk) * rday )
+         END_3D
          DEALLOCATE( zcmask)
       ENDIF
       !
@@ -371,7 +410,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   ==>>>   ln_hydrofe=T , Input of iron from hydrothermal vents'
          !
-         ALLOCATE( hydrofe(jpi,jpj,jpk) )    ! allocation
+         ALLOCATE( hydrofe(A2D(0),jpk) )    ! allocation
          !
          ALLOCATE( sf_hydrofe(1), STAT=ierr )           !* allocate and fill sf_sst (forcing structure) with sn_sst
          IF( ierr > 0 )   CALL ctl_stop( 'STOP', 'p4z_bc_init: unable to allocate sf_hydro structure' )

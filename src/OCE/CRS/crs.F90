@@ -124,7 +124,8 @@ MODULE crs
       REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:)  ::  avs_crs           !: salinity    vertical diffusivity coeff. [m2/s] at w-point
 
       ! Mixing and Mixed Layer Depth
-      INTEGER,  PUBLIC, ALLOCATABLE, DIMENSION(:,:)    ::  nmln_crs, hmld_crs, hmlp_crs, hmlpt_crs                       
+      INTEGER,  PUBLIC, ALLOCATABLE, DIMENSION(:,:)    ::  nmln_crs
+      REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)    ::  hmld_crs, hmlp_crs
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -207,8 +208,8 @@ CONTAINS
      ALLOCATE( tsn_crs(jpi_crs,jpj_crs,jpk,jpts), avt_crs(jpi_crs,jpj_crs,jpk),   &
          &                                        avs_crs(jpi_crs,jpj_crs,jpk), STAT=ierr(13) )
 
-      ALLOCATE( nmln_crs(jpi_crs,jpj_crs) , hmld_crs(jpi_crs,jpj_crs) , &
-         &      hmlp_crs(jpi_crs,jpj_crs) , hmlpt_crs(jpi_crs,jpj_crs) , STAT=ierr(14) )
+      ALLOCATE( nmln_crs(jpi_crs,jpj_crs), hmld_crs(jpi_crs,jpj_crs) , &
+         &                                 hmlp_crs(jpi_crs,jpj_crs), STAT=ierr(14) )
          
 !!$      ALLOCATE( nimppt_crs (jpnij) , jpiall_crs (jpnij) , nis0all_crs (jpnij) , nie0all_crs (jpnij),   &
 !!$         &      nimppt_full(jpnij) , jpiall_full(jpnij) , nis0all_full(jpnij) , nie0all_full(jpnij),   &

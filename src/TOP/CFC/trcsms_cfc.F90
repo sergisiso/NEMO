@@ -124,9 +124,9 @@ CONTAINS
                &           +  atm_cfc(iyear_end, jm, jl) * REAL(im2, wp) ) / 12.
          END DO
          
-         !                                                         !------------!
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )                   !  i-j loop  !
-            !                                                      !------------!
+         !                                     !------------!
+         DO_2D( 0, 0, 0, 0 )                   !  i-j loop  !
+            !                                  !------------!
             ! space interpolation
             zpp_cfc  =       xphem(ji,jj)   * zpatm(1,jl)   &
                &     + ( 1.- xphem(ji,jj) ) * zpatm(2,jl)
@@ -309,8 +309,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE trc_sms_cfc_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( xphem   (jpi,jpj)        , atm_cfc(jpyear,jphem,jp_cfc)  ,    &
-         &      qtr_cfc (jpi,jpj,jp_cfc) , qint_cfc(jpi,jpj,jp_cfc)      ,    &
+      ALLOCATE( xphem   (A2D(0))        , atm_cfc(jpyear,jphem,jp_cfc)  ,    &
+         &      qtr_cfc (A2D(0),jp_cfc) , qint_cfc(A2D(0),jp_cfc)      ,    &
          &      soa(4,jp_cfc)    ,  sob(3,jp_cfc)   ,  sca(5,jp_cfc)     ,    &
          &      STAT=trc_sms_cfc_alloc )
          !

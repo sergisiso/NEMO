@@ -58,7 +58,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) ::   utau_ice, vtau_ice   ! air-ice stress   [N/m2]
       !!
       INTEGER  ::   ji, jj                 ! dummy loop index
-      REAL(wp), DIMENSION(jpi,jpj) ::   zutau_ice, zvtau_ice
+      REAL(wp), DIMENSION(A2D(0)) ::   zutau_ice, zvtau_ice
       !!-------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('icesbc')
@@ -70,24 +70,37 @@ CONTAINS
       ENDIF
       !
       SELECT CASE( ksbc )
-         CASE( jp_usr     )   ;    CALL usrdef_sbc_ice_tau( kt )                 ! user defined formulation
-      CASE( jp_blk     )
-         CALL blk_ice_1( sf(jp_wndi)%fnow(:,:,1), sf(jp_wndj)%fnow(:,:,1),   &
-            &                                      theta_air_zt(:,:), q_air_zt(:,:),   &   ! #LB: known from "sbc_oce" module...
-            &                                      sf(jp_slp )%fnow(:,:,1), u_ice, v_ice, tm_su    ,   &   ! inputs
-            &                                      putaui = utau_ice, pvtaui = vtau_ice            )       ! outputs
- !        CASE( jp_abl     )    utau_ice & vtau_ice are computed in ablmod
-         CASE( jp_purecpl )   ;    CALL sbc_cpl_ice_tau( utau_ice , vtau_ice )   ! Coupled      formulation
+         !
+      CASE( jp_usr     )                 !--- User defined formulation
+         !
+         CALL usrdef_sbc_ice_tau( kt )
+         !
+      CASE( jp_blk     )                 !--- Forced formulation
+         !
+         CALL blk_ice_1( sf(jp_wndi)%fnow(:,:,1), sf(jp_wndj)%fnow(:,:,1), theta_air_zt(:,:), q_air_zt(:,:), & ! <<== in
+            &            sf(jp_slp )%fnow(:,:,1), tm_su(:,:),                                                & ! <<== in
+            &            putaui=utau_ice(A2D(0)), pvtaui=vtau_ice(A2D(0)) )                                    ! ==>> out
+         !
+         !CASE( jp_abl    )              !--- ABL formulation (utau_ice & vtau_ice are computed in ablmod)
+         !
+      CASE( jp_purecpl )                 !--- Coupled formulation
+         !
+         CALL sbc_cpl_ice_tau( utau_ice(A2D(0)) , vtau_ice(A2D(0)) )
+         !
       END SELECT
       !
-      IF( ln_mixcpl) THEN                                                        ! Case of a mixed Bulk/Coupled formulation
-                                   CALL sbc_cpl_ice_tau( zutau_ice , zvtau_ice )
+      IF( ln_mixcpl) THEN                !--- Case of a mixed Bulk/Coupled formulation
+         !
+         CALL sbc_cpl_ice_tau( zutau_ice , zvtau_ice )
+         !
          DO_2D( 0, 0, 0, 0 )
             utau_ice(ji,jj) = utau_ice(ji,jj) * xcplmask(ji,jj,0) + zutau_ice(ji,jj) * ( 1. - xcplmask(ji,jj,0) )
             vtau_ice(ji,jj) = vtau_ice(ji,jj) * xcplmask(ji,jj,0) + zvtau_ice(ji,jj) * ( 1. - xcplmask(ji,jj,0) )
          END_2D
-         CALL lbc_lnk( 'icesbc', utau_ice, 'U', -1.0_wp, vtau_ice, 'V', -1.0_wp )
+         !
       ENDIF
+      !
+      CALL lbc_lnk( 'icesbc', utau_ice, 'T', -1.0_wp, vtau_ice, 'T', -1.0_wp )
       !
       IF( ln_timing )   CALL timing_stop('icesbc')
       !
@@ -129,26 +142,49 @@ CONTAINS
          WRITE(numout,*)'~~~~~~~~~~~~~~~'
       ENDIF
       !                     !== ice albedo ==!
-      CALL ice_alb( t_su, h_i, h_s, ln_pnd_alb, a_ip_eff, h_ip, cloud_fra, alb_ice )
+      CALL ice_alb( ln_pnd_alb, t_su(A2D(0),:), h_i(A2D(0),:), h_s(A2D(0),:), a_ip_eff(:,:,:), h_ip(A2D(0),:), cloud_fra(:,:), & ! <<== in
+         &                                                                                                      alb_ice(:,:,:) ) ! ==>> out
       !
       SELECT CASE( ksbc )   !== fluxes over sea ice ==!
       !
       CASE( jp_usr )              !--- user defined formulation
+         !
                                   CALL usrdef_sbc_ice_flx( kt, h_s, h_i )
+         !
       CASE( jp_blk, jp_abl )      !--- bulk formulation & ABL formulation
-                                  CALL blk_ice_2    ( t_su, h_s, h_i, alb_ice, &
-            &                                         theta_air_zt(:,:), q_air_zt(:,:),    &   ! #LB: known from "sbc_oce" module...
-            &                                         sf(jp_slp)%fnow(:,:,1), sf(jp_qlw)%fnow(:,:,1), &
-            &                                         sf(jp_prec)%fnow(:,:,1), sf(jp_snow)%fnow(:,:,1) )
-         IF( ln_mixcpl        )   CALL sbc_cpl_ice_flx( kt, picefr=at_i_b, palbi=alb_ice, psst=sst_m, pist=t_su, phs=h_s, phi=h_i )
-         IF( nn_flxdist /= -1 )   CALL ice_flx_dist   ( t_su, alb_ice, qns_ice, qsr_ice, dqns_ice, evap_ice, devap_ice, nn_flxdist )
+         !
+                                  CALL blk_ice_2( t_su(A2D(0),:), h_s(A2D(0),:), h_i(A2D(0),:),       &   ! <<== in 
+                                     &            alb_ice(:,:,:), theta_air_zt(:,:), q_air_zt(:,:),   &   ! <<== in
+                                     &            sf(jp_slp)%fnow(:,:,1), sf(jp_qlw)%fnow(:,:,1),     &   ! <<== in
+                                     &            sf(jp_prec)%fnow(:,:,1), sf(jp_snow)%fnow(:,:,1) )      ! <<== in
+                                  !
+         IF( ln_mixcpl        )   CALL sbc_cpl_ice_flx( kt, picefr=at_i_b(:,:), palbi=alb_ice(:,:,:), &
+                                     &                      psst=sst_m(A2D(0)), pist=t_su(A2D(0),:),  &
+                                     &                      phs=h_s(A2D(0),:), phi=h_i(A2D(0),:) )
+         !
+         IF( nn_flxdist /= -1 )   CALL ice_flx_dist( nn_flxdist, at_i(A2D(0)), a_i(A2D(0),:), t_su(A2D(0),:), alb_ice(:,:,:), &   ! <<== in
+            &                                                    qns_ice(:,:,:), qsr_ice(:,:,:), dqns_ice(:,:,:),             &   ! ==>> inout
+            &                                                    evap_ice(:,:,:), devap_ice(:,:,:) )                              ! ==>> inout
+         !
          !                        !    compute conduction flux and surface temperature (as in Jules surface module)
-         IF( ln_cndflx .AND. .NOT.ln_cndemulate ) &
-            &                     CALL blk_ice_qcn    ( ln_virtual_itd, t_su, t_bo, h_s, h_i )
+         IF( ln_cndflx .AND. .NOT.ln_cndemulate ) THEN
+                                  CALL blk_ice_qcn( ln_virtual_itd, t_bo(:,:), h_s(A2D(0),:), h_i(A2D(0),:), &   ! <<== in
+                                     &                              qcn_ice(:,:,:), qml_ice(:,:,:),          &   ! ==>> out
+                                     &                              qns_ice(:,:,:), t_su(A2D(0),:) )             ! ==>> inout
+         ENDIF
+         !
       CASE ( jp_purecpl )         !--- coupled formulation
-                                  CALL sbc_cpl_ice_flx( kt, picefr=at_i_b, palbi=alb_ice, psst=sst_m, pist=t_su, phs=h_s, phi=h_i )
-         IF( nn_flxdist /= -1 )   CALL ice_flx_dist   ( t_su, alb_ice, qns_ice, qsr_ice, dqns_ice, evap_ice, devap_ice, nn_flxdist )
+         !
+                                  CALL sbc_cpl_ice_flx( kt, picefr=at_i_b(:,:), palbi=alb_ice(:,:,:), psst=sst_m(A2D(0)), &
+                                     &                      pist=t_su(A2D(0),:), phs=h_s(A2D(0),:), phi=h_i(A2D(0),:) )
+                                  !
+         IF( nn_flxdist /= -1 )   CALL ice_flx_dist( nn_flxdist, at_i(A2D(0)), a_i(A2D(0),:), t_su(A2D(0),:), alb_ice(:,:,:), &   ! <<== in
+            &                                                    qns_ice(:,:,:), qsr_ice(:,:,:), dqns_ice(:,:,:),             &   ! ==>> inout
+            &                                                    evap_ice(:,:,:), devap_ice(:,:,:) )                              ! ==>> inout
+         !
       END SELECT
+!!$      CALL lbc_lnk( 'icesbc', t_su, 'T', 1.0_wp ) ! clem: t_su is needed for Met-Office only => necessary?
+      !
       !                     !== some fluxes at the ice-ocean interface and in the leads
       CALL ice_flx_other
       !
@@ -157,7 +193,8 @@ CONTAINS
    END SUBROUTINE ice_sbc_flx
 
 
-   SUBROUTINE ice_flx_dist( ptn_ice, palb_ice, pqns_ice, pqsr_ice, pdqn_ice, pevap_ice, pdevap_ice, k_flxdist )
+   SUBROUTINE ice_flx_dist( k_flxdist, pat_i, pa_i, ptn_ice, palb_ice, &
+      &                                pqns_ice, pqsr_ice, pdqn_ice, pevap_ice, pdevap_ice )
       !!-------------------------------------------------------------------
       !!                  ***  ROUTINE ice_flx_dist  ***
       !!
@@ -173,18 +210,20 @@ CONTAINS
       !!                                                 using T-ice and albedo sensitivity
       !!                =  2  Redistribute a single flux over categories
       !!-------------------------------------------------------------------
-      INTEGER                   , INTENT(in   ) ::   k_flxdist  ! redistributor
-      REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   ptn_ice    ! ice surface temperature
-      REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   palb_ice   ! ice albedo
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pqns_ice   ! non solar flux
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pqsr_ice   ! net solar flux
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pdqn_ice   ! non solar flux sensitivity
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pevap_ice  ! sublimation
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pdevap_ice ! sublimation sensitivity
+      INTEGER                        , INTENT(in   ) ::   k_flxdist  ! redistributor
+      REAL(wp), DIMENSION(A2D(0))    , INTENT(in   ) ::   pat_i      ! ice concentration
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   pa_i       ! ice concentration
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   ptn_ice    ! ice surface temperature
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   palb_ice   ! ice albedo
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pqns_ice   ! non solar flux
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pqsr_ice   ! net solar flux
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pdqn_ice   ! non solar flux sensitivity
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pevap_ice  ! sublimation
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pdevap_ice ! sublimation sensitivity
       !
       INTEGER  ::   jl      ! dummy loop index
       !
-      REAL(wp), DIMENSION(jpi,jpj) ::   z1_at_i   ! inverse of concentration
+      REAL(wp), DIMENSION(A2D(0)) ::   z1_at_i   ! inverse of concentration
       !
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   z_qsr_m   ! Mean solar heat flux over all categories
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   z_qns_m   ! Mean non solar heat flux over all categories
@@ -195,7 +234,7 @@ CONTAINS
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztem_m    ! Mean temperature over all categories
       !!----------------------------------------------------------------------
       !
-      WHERE ( at_i (:,:) > 0._wp )   ; z1_at_i(:,:) = 1._wp / at_i (:,:)
+      WHERE ( pat_i(:,:) > 0._wp )   ; z1_at_i(:,:) = 1._wp / pat_i(:,:)
       ELSEWHERE                      ; z1_at_i(:,:) = 0._wp
       END WHERE
 
@@ -203,13 +242,13 @@ CONTAINS
       !
       CASE( 0 , 1 )
          !
-         ALLOCATE( z_qns_m(jpi,jpj), z_qsr_m(jpi,jpj), z_dqn_m(jpi,jpj), z_evap_m(jpi,jpj), z_devap_m(jpi,jpj) )
+         ALLOCATE( z_qns_m(A2D(0)), z_qsr_m(A2D(0)), z_dqn_m(A2D(0)), z_evap_m(A2D(0)), z_devap_m(A2D(0)) )
          !
-         z_qns_m  (:,:) = SUM( a_i(:,:,:) * pqns_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
-         z_qsr_m  (:,:) = SUM( a_i(:,:,:) * pqsr_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
-         z_dqn_m  (:,:) = SUM( a_i(:,:,:) * pdqn_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
-         z_evap_m (:,:) = SUM( a_i(:,:,:) * pevap_ice (:,:,:) , dim=3 ) * z1_at_i(:,:)
-         z_devap_m(:,:) = SUM( a_i(:,:,:) * pdevap_ice(:,:,:) , dim=3 ) * z1_at_i(:,:)
+         z_qns_m  (:,:) = SUM( pa_i(:,:,:) * pqns_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
+         z_qsr_m  (:,:) = SUM( pa_i(:,:,:) * pqsr_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
+         z_dqn_m  (:,:) = SUM( pa_i(:,:,:) * pdqn_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
+         z_evap_m (:,:) = SUM( pa_i(:,:,:) * pevap_ice (:,:,:) , dim=3 ) * z1_at_i(:,:)
+         z_devap_m(:,:) = SUM( pa_i(:,:,:) * pdevap_ice(:,:,:) , dim=3 ) * z1_at_i(:,:)
          DO jl = 1, jpl
             pqns_ice  (:,:,jl) = z_qns_m (:,:)
             pqsr_ice  (:,:,jl) = z_qsr_m (:,:)
@@ -226,10 +265,10 @@ CONTAINS
       !
       CASE( 1 , 2 )
          !
-         ALLOCATE( zalb_m(jpi,jpj), ztem_m(jpi,jpj) )
+         ALLOCATE( zalb_m(A2D(0)), ztem_m(A2D(0)) )
          !
-         zalb_m(:,:) = SUM( a_i(:,:,:) * palb_ice(:,:,:) , dim=3 ) * z1_at_i(:,:)
-         ztem_m(:,:) = SUM( a_i(:,:,:) * ptn_ice (:,:,:) , dim=3 ) * z1_at_i(:,:)
+         zalb_m(:,:) = SUM( pa_i(:,:,:) * palb_ice(:,:,:) , dim=3 ) * z1_at_i(:,:)
+         ztem_m(:,:) = SUM( pa_i(:,:,:) * ptn_ice (:,:,:) , dim=3 ) * z1_at_i(:,:)
          DO jl = 1, jpl
             pqns_ice (:,:,jl) = pqns_ice (:,:,jl) + pdqn_ice  (:,:,jl) * ( ptn_ice(:,:,jl) - ztem_m(:,:) )
             pevap_ice(:,:,jl) = pevap_ice(:,:,jl) + pdevap_ice(:,:,jl) * ( ptn_ice(:,:,jl) - ztem_m(:,:) )
@@ -255,9 +294,10 @@ CONTAINS
       !!-----------------------------------------------------------------------
       INTEGER  ::   ji, jj             ! dummy loop indices
       REAL(wp) ::   zfric_u, zqld, zqfr, zqfr_neg, zqfr_pos, zu_io, zv_io, zu_iom1, zv_iom1
+      REAL(wp) ::   zswitch
       REAL(wp), PARAMETER ::   zfric_umin = 0._wp       ! lower bound for the friction velocity (cice value=5.e-04)
       REAL(wp), PARAMETER ::   zch        = 0.0057_wp   ! heat transfer coefficient
-      REAL(wp), DIMENSION(jpi,jpj) ::  zfric, zvel      ! ice-ocean velocity (m/s) and frictional velocity (m2/s2)
+      REAL(wp), DIMENSION(A2D(0)) ::  zfric, zvel       ! ice-ocean velocity (m/s) and frictional velocity (m2/s2)
       !!-----------------------------------------------------------------------
       !
       ! computation of friction velocity at T points
@@ -268,47 +308,47 @@ CONTAINS
             zv_io   = v_ice(ji  ,jj  ) - ssv_m(ji  ,jj  )
             zv_iom1 = v_ice(ji  ,jj-1) - ssv_m(ji  ,jj-1)
             !
-            zfric(ji,jj) = rn_cio * ( 0.5_wp * ( zu_io*zu_io + zu_iom1*zu_iom1 + zv_io*zv_io + zv_iom1*zv_iom1 ) ) * tmask(ji,jj,1)
+            zfric(ji,jj) = rn_cio * ( 0.5_wp * (  ( zu_io*zu_io + zu_iom1*zu_iom1 )   &   ! add () for NP repro
+               &                                + ( zv_io*zv_io + zv_iom1*zv_iom1 ) ) ) * smask0(ji,jj)
             zvel (ji,jj) = 0.5_wp * SQRT( ( u_ice(ji-1,jj  ) + u_ice(ji,jj) ) * ( u_ice(ji-1,jj  ) + u_ice(ji,jj) ) + &
                &                          ( v_ice(ji  ,jj-1) + v_ice(ji,jj) ) * ( v_ice(ji  ,jj-1) + v_ice(ji,jj) ) )
          END_2D
       ELSE      !  if no ice dynamics => transfer directly the atmospheric stress to the ocean
          DO_2D( 0, 0, 0, 0 )
-            zfric(ji,jj) = r1_rho0 * SQRT( 0.5_wp *  &
-               &                         (  utau(ji,jj) * utau(ji,jj) + utau(ji-1,jj) * utau(ji-1,jj)   &
-               &                          + vtau(ji,jj) * vtau(ji,jj) + vtau(ji,jj-1) * vtau(ji,jj-1) ) ) * tmask(ji,jj,1)
-            zvel(ji,jj) = 0._wp
+            zfric(ji,jj) = r1_rho0 * SQRT( utau(ji,jj)*utau(ji,jj) + vtau(ji,jj)*vtau(ji,jj) ) * smask0(ji,jj)
+            zvel (ji,jj) = 0._wp
          END_2D
       ENDIF
-      CALL lbc_lnk( 'icesbc', zfric, 'T',  1.0_wp, zvel, 'T', 1.0_wp )
       !
       !--------------------------------------------------------------------!
       ! Partial computation of forcing for the thermodynamic sea ice model
       !--------------------------------------------------------------------!
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )   ! needed for qlead
-         rswitch  = tmask(ji,jj,1) * MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - epsi10 ) ) ! 0 if no ice
+      DO_2D( 0, 0, 0, 0 )   ! needed for qlead
+         IF( at_i(ji,jj) >= epsi10 ) THEN ; zswitch = smask0(ji,jj)
+         ELSE                             ; zswitch = 0._wp
+         ENDIF
          !
          ! --- Energy received in the lead from atm-oce exchanges, zqld is defined everywhere (J.m-2) --- !
-         zqld =  tmask(ji,jj,1) * rDt_ice *  &
+         zqld =  smask0(ji,jj) * rDt_ice *  &
             &    ( ( 1._wp - at_i_b(ji,jj) ) * qsr_oce(ji,jj) * frq_m(ji,jj) +  &
             &      ( 1._wp - at_i_b(ji,jj) ) * qns_oce(ji,jj) + qemp_oce(ji,jj) )
 
          ! --- Energy needed to bring ocean surface layer until its freezing, zqfr is defined everywhere (J.m-2) --- !
          !     (mostly<0 but >0 if supercooling)
-         zqfr     = rho0 * rcp * e3t_m(ji,jj) * ( t_bo(ji,jj) - ( sst_m(ji,jj) + rt0 ) ) * tmask(ji,jj,1)  ! both < 0 (t_bo < sst) and > 0 (t_bo > sst)
-         zqfr_neg = MIN( zqfr , 0._wp )                                                                    ! only < 0
-         zqfr_pos = MAX( zqfr , 0._wp )                                                                    ! only > 0
+         zqfr     = rho0 * rcp * e3t_m(ji,jj) * ( t_bo(ji,jj) - ( sst_m(ji,jj) + rt0 ) ) * smask0(ji,jj)  ! both < 0 (t_bo < sst) and > 0 (t_bo > sst)
+         zqfr_neg = MIN( zqfr , 0._wp )                                                                   ! only < 0
+         zqfr_pos = MAX( zqfr , 0._wp )                                                                   ! only > 0
 
          ! --- Sensible ocean-to-ice heat flux (W/m2) --- !
          !     (mostly>0 but <0 if supercooling)
          zfric_u            = MAX( SQRT( zfric(ji,jj) ), zfric_umin )
-         qsb_ice_bot(ji,jj) = rswitch * rho0 * rcp * zch * zfric_u * ( ( sst_m(ji,jj) + rt0 ) - t_bo(ji,jj) )
+         qsb_ice_bot(ji,jj) = zswitch * rho0 * rcp * zch * zfric_u * ( ( sst_m(ji,jj) + rt0 ) - t_bo(ji,jj) )
 
          ! upper bound for qsb_ice_bot: the heat retrieved from the ocean must be smaller than the heat necessary to reach
          !                              the freezing point, so that we do not have SST < T_freeze
          !                              This implies: qsb_ice_bot(ji,jj) * at_i(ji,jj) * rtdice <= - zqfr_neg
          !                              The following formulation is ok for both normal conditions and supercooling
-         qsb_ice_bot(ji,jj) = rswitch * MIN( qsb_ice_bot(ji,jj), - zqfr_neg * r1_Dt_ice / MAX( at_i(ji,jj), epsi10 ) )
+         qsb_ice_bot(ji,jj) = zswitch * MIN( qsb_ice_bot(ji,jj), - zqfr_neg * r1_Dt_ice / MAX( at_i(ji,jj), epsi10 ) )
 
          ! If conditions are always supercooled (such as at the mouth of ice-shelves), then ice grows continuously
          ! ==> stop ice formation by artificially setting up the turbulent fluxes to 0 when volume > 20m (arbitrary)
@@ -327,7 +367,7 @@ CONTAINS
             !                        but we have to make sure that this heat will not make the sst drop below the freezing point
             !                        so the max heat that can be pulled out of the ocean is zqld - qsb - zqfr_pos
             !                        The following formulation is ok for both normal conditions and supercooling
-            fhld (ji,jj) = rswitch * MAX( 0._wp, ( zqld - zqfr_pos ) * r1_Dt_ice / MAX( at_i(ji,jj), epsi10 ) &  ! divided by at_i since this is (re)multiplied by a_i in icethd_dh.F90
+            fhld (ji,jj) = zswitch * MAX( 0._wp, ( zqld - zqfr_pos ) * r1_Dt_ice / MAX( at_i(ji,jj), epsi10 ) &  ! divided by at_i since this is (re)multiplied by a_i in icethd_dh.F90
                &                                 - qsb_ice_bot(ji,jj) )
             qlead(ji,jj) = 0._wp
          ELSE

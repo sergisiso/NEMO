@@ -11,7 +11,6 @@ MODULE diacfl
    !!----------------------------------------------------------------------
    USE oce             ! ocean dynamics and active tracers
    USE dom_oce         ! ocean space and time domain
-   USE domvvl          ! 
    !
    USE lib_mpp         ! distribued memory computing
    USE lbclnk          ! ocean lateral boundary condition (or mpp link)
@@ -51,19 +50,19 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt   ! ocean time-step index
       INTEGER, INTENT(in) ::   Kmm  ! ocean time level index
       !
-      INTEGER                          ::   ji, jj, jk                       ! dummy loop indices
-      REAL(wp)                         ::   zCu_max, zCv_max, zCw_max        ! local scalars
-      INTEGER , DIMENSION(3)           ::   iloc_u , iloc_v , iloc_w , iloc  ! workspace
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zCu_cfl, zCv_cfl, zCw_cfl        ! workspace
-      LOGICAL , DIMENSION(jpi,jpj,jpk) ::   llmsk
+      INTEGER                         ::   ji, jj, jk                       ! dummy loop indices
+      REAL(wp)                        ::   zCu_max, zCv_max, zCw_max        ! local scalars
+      INTEGER , DIMENSION(3)          ::   iloc_u , iloc_v , iloc_w , iloc  ! workspace
+      REAL(wp), DIMENSION(A2D(0),jpk) ::   zCu_cfl, zCv_cfl, zCw_cfl        ! workspace
+      LOGICAL , DIMENSION(A2D(0),jpk) ::   llmsk
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('dia_cfl')
       !
-      llmsk(     1:nn_hls,:,:) = .FALSE.   ! exclude halos from the checked region
-      llmsk(Nie0+1:   jpi,:,:) = .FALSE.
-      llmsk(:,     1:nn_hls,:) = .FALSE.
-      llmsk(:,Nje0+1:   jpj,:) = .FALSE.
+      !llmsk(     1:nn_hls,:,:) = .FALSE.   ! exclude halos from the checked region
+      !llmsk(Nie0+1:   jpi,:,:) = .FALSE.
+      !llmsk(:,     1:nn_hls,:) = .FALSE.
+      !llmsk(:,Nje0+1:   jpj,:) = .FALSE.
       !
       DO_3D( 0, 0, 0, 0, 1, jpk )      ! calculate Courant numbers
          zCu_cfl(ji,jj,jk) = ABS( uu(ji,jj,jk,Kmm) ) * rDt / e1u  (ji,jj)      ! for i-direction

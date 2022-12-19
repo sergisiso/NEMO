@@ -75,15 +75,15 @@ CONTAINS
       ! define unique value on each point of the inner global domain. z2d ranging from 0.05 to -0.05
       !
       DO_2D( 0, 0, 0, 0 )   !  +/- 0.5
-         z2d(ji,jj) = 0.5 - REAL( mig0(ji) + (mjg0(jj)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp )
+         z2d(ji,jj) = 0.5 - REAL( mig(ji,0) + (mjg(jj,0)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp )
       END_2D
       !
       ! Position coordinates (in grid points)
       !                          ==========
       DO_2D( 0, 0, 0, 0 )
          
-         zti = REAL( mig0(ji), wp ) - 0.5_wp   ! start at i=0.5 in the global grid without halos
-         ztj = REAL( mjg0(jj), wp ) - 0.5_wp   ! start at j=0.5 in the global grid without halos
+         zti = REAL( mig(ji,0), wp ) - 0.5_wp   ! start at i=0.5 in the global grid without halos
+         ztj = REAL( mjg(jj,0), wp ) - 0.5_wp   ! start at j=0.5 in the global grid without halos
          
          plamt(ji,jj) =   zti            * (1. + 1.0e-5 * z2d(ji,jj) )
          plamu(ji,jj) = ( zti + 0.5_wp ) * (1. + 2.0e-5 * z2d(ji,jj) )

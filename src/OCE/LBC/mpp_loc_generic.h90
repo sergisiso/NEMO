@@ -47,6 +47,7 @@
       !
       INTEGER  ::   ierror, ii, idim
       INTEGER  ::   index0
+      INTEGER  ::   ihls, ipiglo, ipjglo
       INTEGER , DIMENSION(:), ALLOCATABLE  ::   ilocs
       REAL(PRECISION) ::   zmin     ! local minimum
       REAL(PRECISION), DIMENSION(2,1) ::   zain, zaout
@@ -60,6 +61,9 @@
       ENDIF
       !
       idim = SIZE(kindex)
+      ihls = ( SIZE(ARRAY_IN(:,:,:), 1) - Ni_0 ) / 2
+      ipiglo = Ni0glo + 2*ihls
+      ipjglo = Nj0glo + 2*ihls
       !
       IF ( ANY( MASK_IN(:,:,:) ) ) THEN   ! there is at least 1 valid point...
          !
@@ -68,9 +72,9 @@
          ilocs = LOC_OPERATION( ARRAY_IN(:,:,:) , mask= MASK_IN(:,:,:) )
          zmin  = ARRAY_IN(ilocs(1),ilocs(2),ilocs(3))
          !
-         kindex(1) = mig( ilocs(1) )
+         kindex(1) = mig( ilocs(1), ihls )
 #if defined DIM_2d || defined DIM_3d    /* avoid warning when kindex has 1 element */
-         kindex(2) = mjg( ilocs(2) )
+         kindex(2) = mjg( ilocs(2), ihls )
 #endif
 #if defined DIM_3d                      /* avoid warning when kindex has 2 elements */
          kindex(3) = ilocs(3)
@@ -80,10 +84,10 @@
          !
          index0 = kindex(1)-1   ! 1d index starting at 0
 #if defined DIM_2d || defined DIM_3d   /* avoid warning when kindex has 1 element */
-         index0 = index0 + jpiglo * (kindex(2)-1)
+         index0 = index0 + ipiglo * (kindex(2)-1)
 #endif
 #if defined DIM_3d                     /* avoid warning when kindex has 2 elements */
-         index0 = index0 + jpiglo * jpjglo * (kindex(3)-1)
+         index0 = index0 + ipiglo * ipjglo * (kindex(3)-1)
 #endif
       ELSE
          ! special case for land processors
@@ -105,20 +109,20 @@
       pmin      = zaout(1,1)
       index0    = NINT( zaout(2,1) )
 #if defined DIM_3d                     /* avoid warning when kindex has 2 elements */
-      kindex(3) = index0 / (jpiglo*jpjglo)
-      index0    = index0 - kindex(3) * (jpiglo*jpjglo)
+      kindex(3) = index0 / (ipiglo*ipjglo)
+      index0    = index0 - kindex(3) * (ipiglo*ipjglo)
 #endif
 #if defined DIM_2d || defined DIM_3d   /* avoid warning when kindex has 1 element */
-      kindex(2) = index0 / jpiglo
-      index0 = index0 - kindex(2) * jpiglo
+      kindex(2) = index0 / ipiglo
+      index0 = index0 - kindex(2) * ipiglo
 #endif
       kindex(1) = index0
       kindex(:) = kindex(:) + 1   ! start indices at 1
 
       IF( .NOT. llhalo ) THEN
-         kindex(1)  = kindex(1) - nn_hls
+         kindex(1)  = kindex(1) - ihls
 #if defined DIM_2d || defined DIM_3d   /* avoid warning when kindex has 1 element */
-         kindex(2)  = kindex(2) - nn_hls
+         kindex(2)  = kindex(2) - ihls
 #endif
       ENDIF
       

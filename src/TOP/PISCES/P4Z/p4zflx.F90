@@ -52,6 +52,9 @@ MODULE p4zflx
 
    REAL(wp) ::   xconv  = 0.01_wp / 3600._wp   !: coefficients for conversion 
 
+   LOGICAL  :: l_dia_cflx, l_dia_tcflx
+   LOGICAL  :: l_dia_oflx, l_dia_kg
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
@@ -83,11 +86,20 @@ CONTAINS
       REAL(wp) ::   zph, zdic, zsch_o2, zsch_co2
       REAL(wp) ::   zyr_dec, zdco2dt
       CHARACTER (len=25) ::   charout
-      REAL(wp), DIMENSION(jpi,jpj) ::   zkgco2, zkgo2, zh2co3, zoflx,  zpco2atm, zpco2oce  
+      REAL(wp), DIMENSION(A2D(0)) ::   zkgco2, zkgo2, zh2co3, zoflx,  zpco2atm, zpco2oce  
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zw2d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_flx')
       !
+      IF( kt == nittrc000 )  THEN
+         l_dia_cflx  = iom_use( "Cflx"    ) .OR. iom_use( "Dpco2" )  &
+            &     .OR. iom_use( "pCO2sea" ) .OR. iom_use( "AtmCo2" )
+         l_dia_oflx  = iom_use( "Oflx"    ) .OR. iom_use( "Dpo2" )  
+         l_dia_tcflx = iom_use( "tcflx"   ) .OR. iom_use( "tcflxcum" )
+         l_dia_kg    = iom_use( "Kg"   ) 
+      ENDIF
+      
       ! SURFACE CHEMISTRY (PCO2 AND [H+] IN
       !     SURFACE LAYER); THE RESULT OF THIS CALCULATION
       !     IS USED TO COMPUTE AIR-SEA FLUX OF CO2
@@ -108,9 +120,13 @@ CONTAINS
          satmco2(:,:) = atcco2 
       ENDIF
 
-      IF( l_co2cpl )   satmco2(:,:) = atm_co2(:,:)
+      IF( l_co2cpl ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            satmco2(ji,jj) = atm_co2(ji,jj)
+         END_2D
+      ENDIF
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          ! DUMMY VARIABLES FOR DIC, H+, AND BORATE
          zrhd = rhd(ji,jj,1) + 1._wp
          zdic  = tr(ji,jj,1,jpdic,Kbb)
@@ -126,7 +142,7 @@ CONTAINS
       ! FIRST COMPUTE GAS EXCHANGE COEFFICIENTS
       ! -------------------------------------------
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          ztc  = MIN( 35., ts(ji,jj,1,jp_tem,Kmm) )
          ztc2 = ztc * ztc
          ztc3 = ztc * ztc2 
@@ -145,7 +161,7 @@ CONTAINS
       END_2D
 
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          ztkel = tempis(ji,jj,1) + 273.15
          zsal  = salinprac(ji,jj,1) + ( 1.- tmask(ji,jj,1) ) * 35.
          zvapsw    = EXP(24.4543 - 67.4509*(100.0/ztkel) - 4.8489*LOG(ztkel/100) - 0.000544*zsal)
@@ -170,12 +186,16 @@ CONTAINS
          tr(ji,jj,1,jpoxy,Krhs) = tr(ji,jj,1,jpoxy,Krhs) + zoflx(ji,jj) * rfact2 / e3t(ji,jj,1,Kmm)
       END_2D
 
-      IF( iom_use("tcflx") .OR. iom_use("tcflxcum") .OR. kt == nitrst   &
-         &                 .OR. (ln_check_mass .AND. kt == nitend) )    &
-         t_oce_co2_flx  = glob_sum( 'p4zflx', oce_co2(:,:) * e1e2t(:,:) * 1000. )                    !  Total Flux of Carbon
-      t_oce_co2_flx_cum = t_oce_co2_flx_cum + t_oce_co2_flx       !  Cumulative Total Flux of Carbon
-!      t_atm_co2_flx     = glob_sum( 'p4zflx', satmco2(:,:) * e1e2t(:,:) )       ! Total atmospheric pCO2
-      t_atm_co2_flx     =  atcco2      ! Total atmospheric pCO2
+      IF( l_dia_tcflx .OR. kt == nitrst   &
+         &           .OR. (ln_check_mass .AND. kt == nitend) )  THEN
+         ALLOCATE( zw2d(A2D(0)) )
+         zw2d(A2D(0)) = oce_co2(A2D(0)) * e1e2t(A2D(0)) * 1000._wp
+         t_oce_co2_flx  = glob_sum( 'p4zflx',  zw2d(:,:) )                    !  Total Flux of Carbon
+         t_oce_co2_flx_cum = t_oce_co2_flx_cum + t_oce_co2_flx       !  Cumulative Total Flux of Carbon
+!        t_atm_co2_flx     = glob_sum( 'p4zflx', satmco2(:,:) * e1e2t(:,:) )       ! Total atmospheric pCO2
+         t_atm_co2_flx     =  atcco2      ! Total atmospheric pCO2
+         DEALLOCATE( zw2d )
+      ENDIF
  
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
          WRITE(charout, FMT="('flx ')")
@@ -184,15 +204,47 @@ CONTAINS
       ENDIF
 
       IF( lk_iomput .AND. knt == nrdttrc ) THEN
-         CALL iom_put( "AtmCo2"  , satmco2(:,:) * tmask(:,:,1) )   ! Atmospheric CO2 concentration
-         CALL iom_put( "Cflx"    , oce_co2(:,:) * 1000. ) 
-         CALL iom_put( "Oflx"    , zoflx(:,:) * 1000.  )
-         CALL iom_put( "Kg"      , zkgco2(:,:) * tmask(:,:,1)  )
-         CALL iom_put( "Dpco2"   , ( zpco2atm(:,:) - zpco2oce(:,:) ) * tmask(:,:,1) )
-         CALL iom_put( "pCO2sea" , zpco2oce(:,:) * tmask(:,:,1) )
-         CALL iom_put( "Dpo2"    , ( atcox * patm(:,:) - atcox * tr(:,:,1,jpoxy,Kbb) / ( chemo2(:,:,1) + rtrn ) ) * tmask(:,:,1) )
-         CALL iom_put( "tcflx"   , t_oce_co2_flx     )   ! molC/s
-         CALL iom_put( "tcflxcum", t_oce_co2_flx_cum )   ! molC
+        !
+        IF( l_dia_cflx ) THEN
+           ALLOCATE( zw2d(A2D(0)) ) 
+           ! Atmospheric CO2 concentration
+           zw2d(A2D(0)) = satmco2(A2D(0)) * tmask(A2D(0),1)
+           CALL iom_put( "AtmCo2", zw2d )
+           ! Carbon flux
+           zw2d(A2D(0)) = oce_co2(A2D(0)) * 1000._wp
+           CALL iom_put( "Cflx", zw2d )
+           ! atmospheric Dpco2 
+           zw2d(A2D(0)) =  ( zpco2atm(A2D(0)) - zpco2oce(A2D(0)) ) * tmask(A2D(0),1)
+           CALL iom_put( "Dpco2", zw2d )
+           ! oceanic Dpco2 
+           zw2d(A2D(0)) =  zpco2oce(A2D(0)) * tmask(A2D(0),1)
+           CALL iom_put( "pCO2sea", zw2d )
+           !
+           DEALLOCATE( zw2d )
+        ENDIF
+        !
+        IF( l_dia_oflx ) THEN
+           ALLOCATE( zw2d(A2D(0)) ) 
+           !  oxygen flux 
+           CALL iom_put( "Oflx", zoflx * 1000._wp )
+           !  Dpo2 
+           zw2d(A2D(0)) =  ( atcox * patm(A2D(0)) - atcox * tr(A2D(0),1,jpoxy,Kbb) &
+                            / ( chemo2(A2D(0),1) + rtrn ) ) * tmask(A2D(0),1) 
+           CALL iom_put( "Dpo2", zw2d )
+           DEALLOCATE( zw2d )
+        ENDIF
+        !
+        IF( l_dia_kg ) THEN
+           ALLOCATE( zw2d(A2D(0)) ) 
+           zw2d(A2D(0)) = zkgco2(A2D(0)) * tmask(A2D(0),1)
+           CALL iom_put( "Kg", zw2d )
+           DEALLOCATE( zw2d )
+        ENDIF
+        IF( l_dia_tcflx ) THEN
+          CALL iom_put( "tcflx"   , t_oce_co2_flx )    ! global flux of carbon
+          CALL iom_put( "tcflxcum", t_oce_co2_flx_cum )   !  Cumulative flux of carbon
+        ENDIF
+        !
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('p4z_flx')
@@ -267,7 +319,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '    Spatialized Atmospheric pCO2 from an external file'
       ENDIF
       !
-      oce_co2(:,:)  = 0._wp                ! Initialization of Flux of Carbon
+!      oce_co2(:,:)  = 0._wp                ! Initialization of Flux of Carbon
       t_oce_co2_flx = 0._wp
       t_atm_co2_flx = 0._wp
       !
@@ -288,6 +340,7 @@ CONTAINS
       CHARACTER(len=100) ::   cn_dir      ! Root directory for location of ssr files
       TYPE(FLD_N)        ::   sn_patm     ! informations about the fields to be read
       TYPE(FLD_N)        ::   sn_atmco2   ! informations about the fields to be read
+      INTEGER  :: ji, jj
       !!
       NAMELIST/nampisatm/ ln_presatm, ln_presatmco2, sn_patm, sn_atmco2, cn_dir
       !!----------------------------------------------------------------------
@@ -337,12 +390,16 @@ CONTAINS
       !
       IF( ln_presatm ) THEN
          CALL fld_read( kt, 1, sf_patm )               !* input Patm provided at kt + 1/2
-         patm(:,:) = sf_patm(1)%fnow(:,:,1)/101325.0     ! atmospheric pressure
+         DO_2D( 0, 0, 0, 0 )
+            patm(ji,jj) = sf_patm(1)%fnow(ji,jj,1)/101325.0     ! atmospheric pressure
+         END_2D
       ENDIF
       !
       IF( ln_presatmco2 ) THEN
          CALL fld_read( kt, 1, sf_atmco2 )               !* input atmco2 provided at kt + 1/2
-         satmco2(:,:) = sf_atmco2(1)%fnow(:,:,1)                        ! atmospheric pressure
+         DO_2D( 0, 0, 0, 0 )
+            satmco2(ji,jj) = sf_atmco2(1)%fnow(ji,jj,1)                        ! atmospheric pressure
+         END_2D
       ELSE
          satmco2(:,:) = atcco2    ! Initialize atmco2 if no reading from a file
       ENDIF
@@ -354,7 +411,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE p4z_flx_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( satmco2(jpi,jpj), patm(jpi,jpj), STAT=p4z_flx_alloc )
+      ALLOCATE( satmco2(A2D(0)), patm(A2D(0)), STAT=p4z_flx_alloc )
       !
       IF( p4z_flx_alloc /= 0 )   CALL ctl_stop( 'STOP', 'p4z_flx_alloc : failed to allocate arrays' )
       !

@@ -109,7 +109,7 @@ CONTAINS
 
       ztrp= - 40.e0        ! retroaction term on heat fluxes (W/m2/K)
       zconv = 3.16e-5      ! convertion factor: 1 m/yr => 3.16e-5 mm/s
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )   ! emp and rnf used in sshwzv over the whole domain
+      DO_2D( 0, 0, 0, 0 )
          ! domain from 15 deg to 50 deg between 27 and 28  degC at 15N, -3
          ! and 13 degC at 50N 53.5 + or - 11 = 1/4 period :
          ! 64.5 in summer, 42.5 in winter
@@ -119,6 +119,8 @@ CONTAINS
          ! 23.5 deg : tropics
          qsr (ji,jj) =  230 * COS( 3.1415 * ( gphit(ji,jj) - 23.5 * zcos_sais1 ) / ( 0.9 * 180 ) )
          qns (ji,jj) = ztrp * ( ts(ji,jj,1,jp_tem,Kbb) - t_star ) - qsr(ji,jj)
+      END_2D
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )   ! emp and rnf used in sshwzv over the whole domain
          IF( gphit(ji,jj) >= 14.845 .AND. 37.2 >= gphit(ji,jj) ) THEN    ! zero at 37.8 deg, max at 24.6 deg
             emp  (ji,jj) =   zemp_S * zconv   &
                &         * SIN( rpi / 2 * (gphit(ji,jj) - 37.2) / (24.6 - 37.2) )  &
@@ -137,6 +139,8 @@ CONTAINS
       ! freshwater (mass flux) and update of qns with heat content of emp
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )   ! emp used in sshwzv over the whole domain
          emp (ji,jj) = emp(ji,jj) - zsumemp * tmask(ji,jj,1)          ! freshwater flux (=0 in domain average)
+      END_2D
+      DO_2D( 0, 0, 0, 0 )
          sfx (ji,jj) = 0.0_wp                                         ! no salt flux
          qns (ji,jj) = qns(ji,jj) - emp(ji,jj) * sst_m(ji,jj) * rcp   ! evap and precip are at SST
       END_2D
@@ -166,19 +170,17 @@ CONTAINS
       ! seasonal oscillation intensity
       ztau_sais = 0.015
       ztaun = ztau - ztau_sais * COS( (ztime - ztimemax) / (ztimemin - ztimemax) * rpi )
-      DO_2D( 1, 1, 1, 1 )
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
         ! domain from 15deg to 50deg and 1/2 period along 14deg
         ! so 5/4 of half period with seasonal cycle
-        utau(ji,jj) = - ztaun * SIN( rpi * (gphiu(ji,jj) - 15.) / (29.-15.) )
-        vtau(ji,jj) =   ztaun * SIN( rpi * (gphiv(ji,jj) - 15.) / (29.-15.) )
+        utau(ji,jj) = - ztaun * SIN( rpi * (gphit(ji,jj) - 15.) / (29.-15.) )
+        vtau(ji,jj) =   ztaun * SIN( rpi * (gphit(ji,jj) - 15.) / (29.-15.) )
       END_2D
 
       ! module of wind stress and wind speed at T-point
       zcoef = 1. / ( zrhoa * zcdrag ) 
       DO_2D( 0, 0, 0, 0 )
-         ztx = utau(ji-1,jj  ) + utau(ji,jj) 
-         zty = vtau(ji  ,jj-1) + vtau(ji,jj) 
-         zmod = 0.5 * SQRT( ztx * ztx + zty * zty )
+         zmod = SQRT( utau(ji,jj) * utau(ji,jj) + vtau(ji,jj) * vtau(ji,jj) )
          taum(ji,jj) = zmod
          wndm(ji,jj) = SQRT( zmod * zcoef )
       END_2D

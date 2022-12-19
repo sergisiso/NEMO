@@ -232,7 +232,7 @@ CONTAINS
             iloc(1:3,3) = MINLOC(       ts(:,:,:,jp_sal,Kmm) , mask = llmsk(:,:,:) )
             iloc(1:3,4) = MAXLOC(       ts(:,:,:,jp_sal,Kmm) , mask = llmsk(:,:,:) )
             DO ji = 1, jptst   ! local domain indices ==> global domain indices, excluding halos
-               iloc(1:2,ji) = (/ mig0(iloc(1,ji)), mjg0(iloc(2,ji)) /)
+               iloc(1:2,ji) = (/ mig(iloc(1,ji),0), mjg(iloc(2,ji),0) /)
             END DO
             iareamin(:) = narea   ;   iareamax(:) = narea   ;   iareasum(:) = 1         ! this is local information
          ENDIF

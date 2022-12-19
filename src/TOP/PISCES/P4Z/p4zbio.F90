@@ -72,7 +72,7 @@ CONTAINS
       ! OF PHYTOPLANKTON AND DETRITUS. Shear rate is supposed to equal 1
       ! in the mixed layer and 0.1 below the mixed layer.
       xdiss(:,:,:) = 1.
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          IF( gdepw(ji,jj,jk+1,Kmm) > hmld(ji,jj) )   xdiss(ji,jj,jk) = 0.01
       END_3D
 

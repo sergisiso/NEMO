@@ -53,17 +53,17 @@ CONTAINS
       !!               
       !! reference : Qiao et al. GRL, 2004
       !!---------------------------------------------------------------------
-      INTEGER                    , INTENT(in   ) ::   kt             ! ocean time step
-      INTEGER                    , INTENT(in   ) ::   Kmm            ! time level index
-      REAL(wp), DIMENSION(:,:,:) , INTENT(inout) ::   p_avm          ! momentum Kz (w-points)
-      REAL(wp), DIMENSION(:,:,:) , INTENT(inout) ::   p_avt, p_avs   ! tracer   Kz (w-points)
+      INTEGER                         , INTENT(in   ) ::   kt             ! ocean time step
+      INTEGER                         , INTENT(in   ) ::   Kmm            ! time level index
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt, p_avs   ! vertical eddy diffusivity (w-points)
       !
       INTEGER ::   ji, jj, jk   ! dummy loop indices
       REAL(wp)::   zcoef, zqb   ! local scalar
       !!---------------------------------------------------------------------
       !
       zcoef = 1._wp * 0.353553_wp
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          zqb = zcoef * hsw(ji,jj) * tsd2d(ji,jj) * EXP( -3. * wnum(ji,jj) * gdepw(ji,jj,jk,Kmm) ) * wmask(ji,jj,jk)
          !
          p_avt(ji,jj,jk) = p_avt(ji,jj,jk) + zqb

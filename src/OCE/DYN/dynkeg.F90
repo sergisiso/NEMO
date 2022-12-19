@@ -6,7 +6,8 @@ MODULE dynkeg
    !! History :  1.0  !  1987-09  (P. Andrich, M.-A. Foujols)  Original code
    !!            7.0  !  1997-05  (G. Madec)  Split dynber into dynkeg and dynhpg
    !!  NEMO      1.0  !  2002-07  (G. Madec)  F90: Free form and module
-   !!            3.6  !  2015-05  (N. Ducousso, G. Madec)  add Hollingsworth scheme as an option 
+   !!            3.6  !  2015-05  (N. Ducousso, G. Madec)  add Hollingsworth scheme as an option
+   !!            4.5  !  2022-06  (S. Techene, G, Madec) refactorization to reduce local memory usage
    !!----------------------------------------------------------------------
    
    !!----------------------------------------------------------------------
@@ -27,7 +28,7 @@ MODULE dynkeg
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dyn_keg    ! routine called by step module
+   PUBLIC   dyn_keg        ! routine called by step module
    
    INTEGER, PARAMETER, PUBLIC  ::   nkeg_C2  = 0   !: 2nd order centered scheme (standard scheme)
    INTEGER, PARAMETER, PUBLIC  ::   nkeg_HW  = 1   !: Hollingsworth et al., QJRMS, 1983
@@ -70,15 +71,15 @@ CONTAINS
       !! ** References : Arakawa, A., International Geophysics 2001.
       !!                 Hollingsworth et al., Quart. J. Roy. Meteor. Soc., 1983.
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT( in )  ::  kt               ! ocean time-step index
-      INTEGER                             , INTENT( in )  ::  kscheme          ! =0/1   type of KEG scheme 
-      INTEGER                             , INTENT( in )  ::  Kmm, Krhs        ! ocean time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv         ! ocean velocities and RHS of momentum equation
+      INTEGER                             , INTENT(in   ) ::   kt          ! ocean time-step index
+      INTEGER                             , INTENT(in   ) ::   kscheme     ! =0/1   type of KEG scheme 
+      INTEGER                             , INTENT(in   ) ::   Kmm, Krhs   ! ocean time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::   puu, pvv    ! ocean velocities and RHS of momentum equation
       !
-      INTEGER  ::   ji, jj, jk             ! dummy loop indices
-      REAL(wp) ::   zu, zv                   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk)    ::   zhke
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrdu, ztrdv 
+      INTEGER  ::   ji, jj, jk   ! dummy loop indices
+      REAL(wp) ::   zu, zv       ! local scalars
+      REAL(wp), DIMENSION(:,:  ) , ALLOCATABLE ::   zhke
+      REAL(wp), DIMENSION(:,:,:) , ALLOCATABLE ::   zu_trd, zv_trd
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('dyn_keg')
@@ -90,56 +91,66 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '~~~~~~~'
          ENDIF
       ENDIF
-
-      IF( l_trddyn ) THEN           ! Save the input trends
-         ALLOCATE( ztrdu(jpi,jpj,jpk) , ztrdv(jpi,jpj,jpk) )
-         ztrdu(:,:,:) = puu(:,:,:,Krhs) 
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs) 
+      !
+      IF( l_trddyn ) THEN                       ! Save the input trends
+         ALLOCATE( zu_trd(A2D(0),jpk), zv_trd(A2D(0),jpk) )
+         zu_trd(A2D(0),:) = puu(A2D(0),:,Krhs)
+         zv_trd(A2D(0),:) = pvv(A2D(0),:,Krhs)
       ENDIF
-      
-      zhke(:,:,jpk) = 0._wp
-
-      SELECT CASE ( kscheme )             !== Horizontal kinetic energy at T-point  ==!
       !
-      CASE ( nkeg_C2 )                          !--  Standard scheme  --!
-         DO_3D( 0, 1, 0, 1, 1, jpkm1 )
-            zu =    puu(ji-1,jj  ,jk,Kmm) * puu(ji-1,jj  ,jk,Kmm)   &
-               &  + puu(ji  ,jj  ,jk,Kmm) * puu(ji  ,jj  ,jk,Kmm)
-            zv =    pvv(ji  ,jj-1,jk,Kmm) * pvv(ji  ,jj-1,jk,Kmm)   &
-               &  + pvv(ji  ,jj  ,jk,Kmm) * pvv(ji  ,jj  ,jk,Kmm)
-            zhke(ji,jj,jk) = 0.25_wp * ( zv + zu )
-         END_3D
-      CASE ( nkeg_HW )                          !--  Hollingsworth scheme  --!
-         DO_3D( 0, nn_hls-1, 0, nn_hls-1, 1, jpkm1 )
-            ! round brackets added to fix the order of floating point operations
-            ! needed to ensure halo 1 - halo 2 compatibility
-            zu = 8._wp * ( puu(ji-1,jj  ,jk,Kmm) * puu(ji-1,jj  ,jk,Kmm)    &
-               &         + puu(ji  ,jj  ,jk,Kmm) * puu(ji  ,jj  ,jk,Kmm) )  &
-               &   +     ( ( puu(ji-1,jj-1,jk,Kmm) + puu(ji-1,jj+1,jk,Kmm) ) * ( puu(ji-1,jj-1,jk,Kmm) + puu(ji-1,jj+1,jk,Kmm) )   &
-               &   +       ( puu(ji  ,jj-1,jk,Kmm) + puu(ji  ,jj+1,jk,Kmm) ) * ( puu(ji  ,jj-1,jk,Kmm) + puu(ji  ,jj+1,jk,Kmm) )   &
-               &         )                                                               ! bracket for halo 1 - halo 2 compatibility
-               !
-            zv = 8._wp * ( pvv(ji  ,jj-1,jk,Kmm) * pvv(ji  ,jj-1,jk,Kmm)    &
-               &         + pvv(ji  ,jj  ,jk,Kmm) * pvv(ji  ,jj  ,jk,Kmm) )  &
-               &  +      ( ( pvv(ji-1,jj-1,jk,Kmm) + pvv(ji+1,jj-1,jk,Kmm) ) * ( pvv(ji-1,jj-1,jk,Kmm) + pvv(ji+1,jj-1,jk,Kmm) )  &
-               &  +        ( pvv(ji-1,jj  ,jk,Kmm) + pvv(ji+1,jj  ,jk,Kmm) ) * ( pvv(ji-1,jj  ,jk,Kmm) + pvv(ji+1,jj  ,jk,Kmm) )  &
-               &         )                                                               ! bracket for halo 1 - halo 2 compatibility
-            zhke(ji,jj,jk) = r1_48 * ( zv + zu )
-         END_3D
-         IF (nn_hls==1) CALL lbc_lnk( 'dynkeg', zhke, 'T', 1.0_wp )
+      SELECT CASE ( kscheme )
+      !
+      CASE ( nkeg_C2 )                    !==  Standard scheme  ==!
+         ALLOCATE( zhke(T2D(1)) )
+         DO jk = 1, jpkm1
+            DO_2D( 0, 1, 0, 1 )                 !* Horizontal kinetic energy at T-point
+               zu =    puu(ji-1,jj  ,jk,Kmm) * puu(ji-1,jj  ,jk,Kmm)   &
+                  &  + puu(ji  ,jj  ,jk,Kmm) * puu(ji  ,jj  ,jk,Kmm)
+               zv =    pvv(ji  ,jj-1,jk,Kmm) * pvv(ji  ,jj-1,jk,Kmm)   &
+                  &  + pvv(ji  ,jj  ,jk,Kmm) * pvv(ji  ,jj  ,jk,Kmm)
+               zhke(ji,jj) = 0.25_wp * ( zv + zu )
+            END_2D
+            !
+            DO_2D( 0, 0, 0, 0 )                  !* grad( KE ) added to the general momentum trends
+               puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - ( zhke(ji+1,jj  ) - zhke(ji,jj) ) * r1_e1u(ji,jj)
+               pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zhke(ji  ,jj+1) - zhke(ji,jj) ) * r1_e2v(ji,jj)
+            END_2D
+         END DO
+         DEALLOCATE( zhke )
          !
-      END SELECT 
+      CASE ( nkeg_HW )                           !* Hollingsworth scheme
+         ALLOCATE( zhke(T2D(1)) )
+         DO jk = 1, jpkm1
+            DO_2D( 0, 1, 0, 1 )
+               ! round brackets added to fix the order of floating point operations
+               ! needed to ensure halo 1 - halo 2 compatibility
+               zu =   (   puu(ji-1,jj  ,jk,Kmm) * puu(ji-1,jj  ,jk,Kmm)               &
+                  &     + puu(ji  ,jj  ,jk,Kmm) * puu(ji  ,jj  ,jk,Kmm)   ) * 8._wp   &
+                  & + ( ( puu(ji-1,jj-1,jk,Kmm) + puu(ji-1,jj+1,jk,Kmm) ) * ( puu(ji-1,jj-1,jk,Kmm) + puu(ji-1,jj+1,jk,Kmm) )   &
+                  & +   ( puu(ji  ,jj-1,jk,Kmm) + puu(ji  ,jj+1,jk,Kmm) ) * ( puu(ji  ,jj-1,jk,Kmm) + puu(ji  ,jj+1,jk,Kmm) )   &
+                  &   )                                                    ! bracket for halo 1 - halo 2 compatibility
+               zv =   (   pvv(ji  ,jj-1,jk,Kmm) * pvv(ji  ,jj-1,jk,Kmm)               &
+                  &     + pvv(ji  ,jj  ,jk,Kmm) * pvv(ji  ,jj  ,jk,Kmm)   ) * 8._wp   &
+                  & + ( ( pvv(ji-1,jj-1,jk,Kmm) + pvv(ji+1,jj-1,jk,Kmm) ) * ( pvv(ji-1,jj-1,jk,Kmm) + pvv(ji+1,jj-1,jk,Kmm) )   &
+                  & +   ( pvv(ji-1,jj  ,jk,Kmm) + pvv(ji+1,jj  ,jk,Kmm) ) * ( pvv(ji-1,jj  ,jk,Kmm) + pvv(ji+1,jj  ,jk,Kmm) )   &
+                  &   )                                                    ! bracket for halo 1 - halo 2 compatibility
+               zhke(ji,jj) = r1_48 * ( zv + zu )
+            END_2D
+            !
+            DO_2D( 0, 0, 0, 0 )                  !* grad( KE ) added to the general momentum trends
+               puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - ( zhke(ji+1,jj  ) - zhke(ji,jj) ) * r1_e1u(ji,jj)
+               pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zhke(ji  ,jj+1) - zhke(ji,jj) ) * r1_e2v(ji,jj)
+            END_2D
+         END DO
+         DEALLOCATE( zhke )
+         !
+      END SELECT
       !
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )       !==  grad( KE ) added to the general momentum trends  ==!
-         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - ( zhke(ji+1,jj  ,jk) - zhke(ji,jj,jk) ) / e1u(ji,jj)
-         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zhke(ji  ,jj+1,jk) - zhke(ji,jj,jk) ) / e2v(ji,jj)
-      END_3D
-      !
-      IF( l_trddyn ) THEN                 ! save the Kinetic Energy trends for diagnostic
-         ztrdu(:,:,:) = puu(:,:,:,Krhs) - ztrdu(:,:,:)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs) - ztrdv(:,:,:)
-         CALL trd_dyn( ztrdu, ztrdv, jpdyn_keg, kt, Kmm )
-         DEALLOCATE( ztrdu , ztrdv )
+      IF( l_trddyn ) THEN                        ! save the Kinetic Energy trends for diagnostic
+         zu_trd(A2D(0),:) = puu(A2D(0),:,Krhs) - zu_trd(A2D(0),:)
+         zv_trd(A2D(0),:) = pvv(A2D(0),:,Krhs) - zv_trd(A2D(0),:)
+         CALL trd_dyn( zu_trd, zv_trd, jpdyn_keg, kt, Kmm )
+         DEALLOCATE( zu_trd, zv_trd )
       ENDIF
       !
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=puu(:,:,:,Krhs), clinfo1=' keg  - Ua: ', mask1=umask,   &

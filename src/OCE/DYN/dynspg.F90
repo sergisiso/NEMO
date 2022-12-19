@@ -107,10 +107,10 @@ CONTAINS
          IF( ln_apr_dyn .AND. .NOT.ln_dynspg_ts ) THEN   !==  Atmospheric pressure gradient (added later in time-split case) ==!
             zg_2 = grav * 0.5
             DO_2D( 0, 0, 0, 0 )                       ! gradient of Patm using inverse barometer ssh
-               zpgu(ji,jj) = zpgu(ji,jj) + zg_2 * (  ssh_ib (ji+1,jj) - ssh_ib (ji,jj)    &
-                  &                                + ssh_ibb(ji+1,jj) - ssh_ibb(ji,jj)  ) * r1_e1u(ji,jj)
-               zpgv(ji,jj) = zpgv(ji,jj) + zg_2 * (  ssh_ib (ji,jj+1) - ssh_ib (ji,jj)    &
-                  &                                + ssh_ibb(ji,jj+1) - ssh_ibb(ji,jj)  ) * r1_e2v(ji,jj)
+               zpgu(ji,jj) = zpgu(ji,jj) + zg_2 * (  ( ssh_ib (ji+1,jj) - ssh_ib (ji,jj) )    &   ! add () for NP repro
+                  &                                + ( ssh_ibb(ji+1,jj) - ssh_ibb(ji,jj) )  ) * r1_e1u(ji,jj)
+               zpgv(ji,jj) = zpgv(ji,jj) + zg_2 * (  ( ssh_ib (ji,jj+1) - ssh_ib (ji,jj) )    &   ! add () for NP repro
+                  &                                + ( ssh_ibb(ji,jj+1) - ssh_ibb(ji,jj) )  ) * r1_e2v(ji,jj)
             END_2D
          ENDIF
          !

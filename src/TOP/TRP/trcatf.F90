@@ -19,6 +19,7 @@ MODULE trcatf
    !!            3.1  !  2009-02  (G. Madec, R. Benshila)  re-introduce the vvl option
    !!            3.3  !  2010-06  (C. Ethe, G. Madec) Merge TRA-TRC
    !!            4.1  !  2019-08  (A. Coward, D. Storkey) rename trcnxt.F90 -> trcatf.F90. Now only does time filtering.
+   !!            4.x  !  2022-12  (S. Techene, G.Madec) remove vvl use qco exclusively 
    !!----------------------------------------------------------------------
 #if defined key_top   &&   ! defined key_RK3
    !!----------------------------------------------------------------------
@@ -33,8 +34,6 @@ MODULE trcatf
    USE trdtra
 # if defined key_qco   ||   defined key_linssh
    USE traatf_qco     ! tracer : Asselin filter (qco)
-# else
-   USE traatf         ! tracer : Asselin filter (vvl)
 # endif
    USE bdy_oce   , ONLY: ln_bdy
    USE trcbdy         ! BDY open boundaries
@@ -156,13 +155,8 @@ CONTAINS
          !
       ELSE     
          IF( .NOT. l_offline ) THEN ! Leap-Frog + Asselin filter time stepping
-# if defined key_qco   ||   defined key_linssh
             IF( ln_linssh ) THEN   ;   CALL tra_atf_fix_lf( kt, Kbb, Kmm, Kaa, nittrc000,        'TRC', ptr, jptra )                     !     linear ssh
             ELSE                   ;   CALL tra_atf_qco_lf( kt, Kbb, Kmm, Kaa, nittrc000, rn_Dt, 'TRC', ptr, sbc_trc, sbc_trc_b, jptra ) ! non-linear ssh
-# else
-            IF( ln_linssh ) THEN   ;   CALL tra_atf_fix( kt, Kbb, Kmm, Kaa, nittrc000,         'TRC', ptr, jptra )                       !     linear ssh
-            ELSE                   ;   CALL tra_atf_vvl( kt, Kbb, Kmm, Kaa, nittrc000, rn_Dt, 'TRC', ptr, sbc_trc, sbc_trc_b, jptra )    ! non-linear ssh
-# endif
             ENDIF
          ELSE
                                        CALL trc_atf_off( kt, Kbb, Kmm, Kaa, ptr )       ! offline 

@@ -100,7 +100,7 @@ CONTAINS
       !
 !!gm  This should be moved into sbcmod.F90 module ? (especially now that ln_traqsr is read in namsbc namelist)
       IF( .NOT.ln_traqsr ) THEN     ! no solar radiation penetration
-         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             qns(ji,jj) = qns(ji,jj) + qsr(ji,jj)      ! total heat flux in qns
             qsr(ji,jj) = 0._wp                        ! qsr set to zero
          END_2D
@@ -121,24 +121,24 @@ CONTAINS
             ENDIF
          ELSE                                             ! No restart or restart not found: Euler forward time stepping
             zfact = 1._wp
-            DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( 0, 0, 0, 0 )
                sbc_tsc(ji,jj,:) = 0._wp
                sbc_tsc_b(ji,jj,:) = 0._wp
             END_2D
          ENDIF
       ELSE                                !* other time-steps: swap of forcing fields
          zfact = 0.5_wp
-         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             sbc_tsc_b(ji,jj,:) = sbc_tsc(ji,jj,:)
          END_2D
       ENDIF
       !                             !==  Now sbc tracer content fields  ==!
-      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          sbc_tsc(ji,jj,jp_tem) = r1_rho0_rcp * qns(ji,jj)   ! non solar heat flux
          sbc_tsc(ji,jj,jp_sal) = r1_rho0     * sfx(ji,jj)   ! salt flux due to freezing/melting
       END_2D
       IF( ln_linssh ) THEN                !* linear free surface
-         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )                    !==>> add concentration/dilution effect due to constant volume cell
+         DO_2D( 0, 0, 0, 0 )                    !==>> add concentration/dilution effect due to constant volume cell
             sbc_tsc(ji,jj,jp_tem) = sbc_tsc(ji,jj,jp_tem) + r1_rho0 * emp(ji,jj) * pts(ji,jj,1,jp_tem,Kmm)
             sbc_tsc(ji,jj,jp_sal) = sbc_tsc(ji,jj,jp_sal) + r1_rho0 * emp(ji,jj) * pts(ji,jj,1,jp_sal,Kmm)
          END_2D                                 !==>> output c./d. term
@@ -198,7 +198,7 @@ CONTAINS
             END_2D
          ELSE
             DO_2D( 0, 0, 0, 0 )
-               ztim = ssh_iau(ji,jj) / ( ht(ji,jj) + 1. - ssmask(ji, jj) )
+               ztim = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1. - ssmask(ji, jj) )
                pts(ji,jj,:,jp_tem,Krhs) = pts(ji,jj,:,jp_tem,Krhs) + pts(ji,jj,:,jp_tem,Kmm) * ztim
                pts(ji,jj,:,jp_sal,Krhs) = pts(ji,jj,:,jp_sal,Krhs) + pts(ji,jj,:,jp_sal,Kmm) * ztim
             END_2D
@@ -275,7 +275,7 @@ CONTAINS
             
 !!gm  This should be moved into sbcmod.F90 module ? (especially now that ln_traqsr is read in namsbc namelist)
       IF( .NOT.ln_traqsr  .AND. kstg == 1) THEN     ! no solar radiation penetration
-         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             qns(ji,jj) = qns(ji,jj) + qsr(ji,jj)         ! total heat flux in qns
             qsr(ji,jj) = 0._wp                           ! qsr set to zero
          END_2D
@@ -358,7 +358,7 @@ CONTAINS
             END_2D
          ELSE
             DO_2D( 0, 0, 0, 0 )
-               ztim = ssh_iau(ji,jj) / ( ht(ji,jj) + 1. - ssmask(ji, jj) )
+               ztim = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1. - ssmask(ji, jj) )
                pts(ji,jj,:,jp_tem,Krhs) = pts(ji,jj,:,jp_tem,Krhs) + pts(ji,jj,:,jp_tem,Kmm) * ztim
                pts(ji,jj,:,jp_sal,Krhs) = pts(ji,jj,:,jp_sal,Krhs) + pts(ji,jj,:,jp_sal,Kmm) * ztim
             END_2D

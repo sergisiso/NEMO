@@ -27,7 +27,7 @@ MODULE traatf_qco
    !!----------------------------------------------------------------------
    !!   tra_atf       : time filtering on tracers
    !!   tra_atf_fix   : time filtering on tracers : fixed    volume case
-   !!   tra_atf_vvl   : time filtering on tracers : variable volume case
+   !!   tra_atf_qco   : time filtering on tracers : variable volume case
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers variables
    USE dom_oce        ! ocean space and time domain variables
@@ -35,7 +35,6 @@ MODULE traatf_qco
    USE sbcrnf         ! river runoffs
    USE isf_oce        ! ice shelf melting
    USE zdf_oce        ! ocean vertical mixing
-   USE domvvl         ! variable volume
    USE trd_oce        ! trends: ocean variables
    USE trdtra         ! trends manager: tracers
    USE traqsr         ! penetrative solar radiation (needed for nksr)
@@ -136,8 +135,8 @@ CONTAINS
 
       IF( l_1st_euler ) THEN       ! Euler time-stepping
          !
-         IF (l_trdtra .AND. .NOT. ln_linssh ) THEN   ! Zero Asselin filter contribution must be explicitly written out since for vvl
-            !                                        ! Asselin filter is output by tra_atf_vvl that is not called on this time step
+         IF (l_trdtra .AND. .NOT. ln_linssh ) THEN   ! Zero Asselin filter contribution must be explicitly written out since for quasi-Eulerian
+            !                                        ! Asselin filter is output by tra_atf_qco that is not called on this time step
             ztrdt(:,:,:) = 0._wp
             ztrds(:,:,:) = 0._wp
             CALL trd_tra( kt, Kmm, Kaa, 'TRA', jp_tem, jptra_atf, ztrdt )
@@ -150,7 +149,7 @@ CONTAINS
          ELSE                    ;   CALL tra_atf_qco_lf( kt, Kbb, Kmm, Kaa, nit000, rn_Dt, 'TRA', pts, sbc_tsc, sbc_tsc_b, jpts )  ! non-linear free surface
          ENDIF
          !
-         CALL lbc_lnk( 'traatfqco', pts(:,:,:,jp_tem,Kmm) , 'T', 1._wp, pts(:,:,:,jp_sal,Kmm) , 'T', 1._wp )
+         CALL lbc_lnk( 'traatf_qco', pts(:,:,:,jp_tem,Kmm) , 'T', 1._wp, pts(:,:,:,jp_sal,Kmm) , 'T', 1._wp )
          !
       ENDIF
       !
@@ -203,7 +202,6 @@ CONTAINS
       DO jn = 1, kjpt
          !
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-!!st         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
             ztn = pt(ji,jj,jk,jn,Kmm)
             ztd = pt(ji,jj,jk,jn,Kaa) - 2._wp * ztn + pt(ji,jj,jk,jn,Kbb)  ! time laplacian on tracers
             !
@@ -217,7 +215,7 @@ CONTAINS
 
    SUBROUTINE tra_atf_qco_lf( kt, Kbb, Kmm, Kaa, kit000, p2dt, cdtype, pt, psbc_tc, psbc_tc_b, kjpt )
       !!----------------------------------------------------------------------
-      !!                   ***  ROUTINE tra_atf_vvl  ***
+      !!                   ***  ROUTINE tra_atf_qco  ***
       !!
       !! ** Purpose :   Time varying volume: apply the Asselin time filter
       !!
@@ -234,8 +232,8 @@ CONTAINS
       CHARACTER(len=3)                         , INTENT(in   ) ::  cdtype    ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::  kjpt      ! number of tracers
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::  pt        ! tracer fields
-      REAL(wp), DIMENSION(jpi,jpj    ,kjpt)    , INTENT(in   ) ::  psbc_tc   ! surface tracer content
-      REAL(wp), DIMENSION(jpi,jpj    ,kjpt)    , INTENT(in   ) ::  psbc_tc_b ! before surface tracer content
+      REAL(wp), DIMENSION(A2D(0)     ,kjpt)    , INTENT(in   ) ::  psbc_tc   ! surface tracer content
+      REAL(wp), DIMENSION(A2D(0)     ,kjpt)    , INTENT(in   ) ::  psbc_tc_b ! before surface tracer content
       !
       LOGICAL  ::   ll_traqsr, ll_rnf, ll_isf   ! local logical
       INTEGER  ::   ji, jj, jk, jn              ! dummy loop indices
@@ -264,12 +262,12 @@ CONTAINS
          ALLOCATE( ztrd_atf(jpi,jpj,jpk,kjpt) )
          ztrd_atf(:,:,:,:) = 0._wp
       ENDIF
+      !
       zfact = 1._wp / p2dt
       zfact1 = rn_atfp * p2dt
       zfact2 = zfact1 * r1_rho0
       DO jn = 1, kjpt
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-!!st         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
             ze3t_b = e3t(ji,jj,jk,Kbb)
             ze3t_n = e3t(ji,jj,jk,Kmm)
             ze3t_a = e3t(ji,jj,jk,Kaa)

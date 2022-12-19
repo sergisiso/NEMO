@@ -1608,7 +1608,7 @@ fi
 
 if [ ${config} == "WED025" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
-    export TEST_NAME="REPRO_5_6"
+    export TEST_NAME="REPRO_6_7"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -1618,7 +1618,7 @@ if [ ${config} == "WED025" ] && [ ${DO_REPRO} == "1" ] ;  then
     NPROC=32
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"WED025_56\"
+    set_namelist namelist_cfg cn_exp \"WED025_67\"
     set_namelist namelist_cfg nn_it000 1
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg nn_date0 20000115

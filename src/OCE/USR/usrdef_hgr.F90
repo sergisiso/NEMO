@@ -115,8 +115,8 @@ CONTAINS
       ENDIF
       !   
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         zim1 = REAL( mig0(ji), wp ) - 1.   ;   zim05 = REAL( mig0(ji), wp ) - 1.5
-         zjm1 = REAL( mjg0(jj), wp ) - 1.   ;   zjm05 = REAL( mjg0(jj), wp ) - 1.5
+         zim1 = REAL( mig(ji,0), wp ) - 1.   ;   zim05 = REAL( mig(ji,0), wp ) - 1.5
+         zjm1 = REAL( mjg(jj,0), wp ) - 1.   ;   zjm05 = REAL( mjg(jj,0), wp ) - 1.5
          !   
          !glamt(i,j) longitude at T-point
          !gphit(i,j) latitude at T-point  

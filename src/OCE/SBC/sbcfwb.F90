@@ -18,8 +18,8 @@ MODULE sbcfwb
    USE oce            ! ocean dynamics and tracers
    USE dom_oce        ! ocean space and time domain
    USE sbc_oce        ! surface ocean boundary condition
-   USE isf_oce , ONLY : fwfisf_cav, fwfisf_par                    ! ice shelf melting contribution
-   USE sbc_ice , ONLY : snwice_mass_b, snwice_fmass
+   USE isf_oce , ONLY : fwfisf_cav, fwfisf_par, ln_isfcpl, ln_isfcpl_cons, risfcpl_cons_ssh ! ice shelf melting contribution
+   USE sbc_ice , ONLY : snwice_mass, snwice_mass_b, snwice_fmass
    USE phycst         ! physical constants
    USE sbcrnf         ! ocean runoffs
    USE sbcssr         ! Sea-Surface damping terms
@@ -57,6 +57,8 @@ MODULE sbcfwb
 !$AGRIF_END_DO_NOT_TREAT
 #endif
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcfwb.F90 15439 2021-10-22 17:53:09Z clem $
@@ -168,8 +170,8 @@ CONTAINS
          IF ( Agrif_Root() ) THEN
 #if defined key_agrif
             ALLOCATE(agrif_tmp(Agrif_nb_fine_grids()+1))
-            agrif_tmp(:) = 1.e+40_dp                     ! Initialize to a big value
-            agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:)) ! Coarse grid value
+            agrif_tmp(:) = HUGE(1._wp)                     ! Initialize to a big value
+            agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) ) ! Coarse grid value
             CALL Agrif_step_child_adj(glob_sum_area_agrif)                    ! Get value over child grids
             CALL mpp_min('sbcfwb', agrif_tmp(:)) ! Required with // sisters to populate the value of each grid on each processor
             area = SUM(agrif_tmp)                ! Sum over all grids
@@ -178,7 +180,7 @@ CONTAINS
                IF (lwp) WRITE(numout,*) '                                        ', igrid, agrif_tmp(igrid)/1000._wp/1000._wp
             END DO
 #else
-            area = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask(:,:,1))         ! interior global domain surface
+            area = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * smask0(:,:) )         ! interior global domain surface
 #endif
             IF (lwp) WRITE(numout,*) 'Total Domain area (km**2):', area/1000._wp/1000._wp
             !
@@ -230,15 +232,15 @@ CONTAINS
                IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
                   SELECT CASE (nn_fwb_voltype)
                   CASE( 1 )
-                     z_fwfprv(1) = glob_sum( 'sbcfwb', e1e2t(:,:) * (  emp(:,:) - rnf(:,:)                & 
-                               &                                      - fwfisf_cav(:,:) - fwfisf_par(:,:) & 
-                               &                                      - snwice_fmass(:,:) ) )
-                     !y_fwfnow(1) = local_sum( e1e2t(:,:) * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) - snwice_fmass(:,:) ) )
+                     z_fwfprv(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * (  emp(A2D(0)) - rnf(A2D(0))                & 
+                               &                                      - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) & 
+                               &                                      - snwice_fmass(A2D(0)) ) )
+                     !y_fwfnow(1) = local_sum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) - snwice_fmass(A2D(0)) ) )
                      !CALL mpp_delay_sum( 'sbcfwb', 'fwb', y_fwfnow(:), z_fwfprv(:), kt == nitend - nn_fsbc + 1 )
                   CASE( 2 )
-                     z_fwfprv(1)  = glob_sum( 'sbcfwb', e1e2t(:,:) * (  emp(:,:) - rnf(:,:)                & 
-                                &                                      - fwfisf_cav(:,:) - fwfisf_par(:,:) ))
-                     !y_fwfnow(1) = local_sum( e1e2t(:,:) * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:)  ) )
+                     z_fwfprv(1)  = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * (  emp(A2D(0)) - rnf(A2D(0))                & 
+                                &                                      - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ))
+                     !y_fwfnow(1) = local_sum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0))  ) )
                      !CALL mpp_delay_sum( 'sbcfwb', 'fwb', y_fwfnow(:), z_fwfprv(:), kt == nitend - nn_fsbc + 1 )
                   END SELECT
               ENDIF
@@ -271,12 +273,12 @@ CONTAINS
                !
                IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
                   a_fwb_b   = a_fwb                            ! time swap
-                  agrif_tmp(:) = 1.e+40_dp                     ! Initialize to a big value
+                  agrif_tmp(:) = HUGE(1._wp)                   ! Initialize to a big value
                   SELECT CASE (nn_fwb_voltype)
                   CASE( 1 )
-                     agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ( ssh(:,:,Kmm) + snwice_mass_b(:,:) * r1_rho0 ))
+                     agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ))
                   CASE( 2 )
-                     agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ssh(:,:,Kmm))
+                     agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ssh(A2D(0),Kmm))
                   END SELECT
                   CALL Agrif_step_child_adj(glob_sum_volume_agrif) ! Get value over child grids
                   CALL mpp_min('sbcfwb', agrif_tmp(:)) ! Required with // sisters to populate the value of each grid on each processor
@@ -295,8 +297,8 @@ CONTAINS
 #endif
          !
          IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN        ! correct the freshwater fluxes on all grids
-            emp(:,:) = emp(:,:) + emp_corr * tmask(:,:,1)
-            qns(:,:) = qns(:,:) - emp_corr * rcp * sst_m(:,:) * tmask(:,:,1) ! account for change to the heat budget due to fw correction
+            emp(A2D(0)) = emp(A2D(0)) + emp_corr                       * smask0(:,:)
+            qns(:,:)    = qns(:,:)    - emp_corr * rcp * sst_m(A2D(0)) * smask0(:,:) ! account for change to the heat budget due to fw correction
          ENDIF
 
          IF ( Agrif_Root() ) THEN
@@ -316,8 +318,8 @@ CONTAINS
 
          ! outputs
          IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
-            IF( iom_use('hflx_fwb_cea') )  CALL iom_put( 'hflx_fwb_cea', -emp_corr * rcp * sst_m(:,:) * tmask(:,:,1) )
-            IF( iom_use('vflx_fwb_cea') )  CALL iom_put( 'vflx_fwb_cea', -emp_corr * tmask(:,:,1) )
+            IF( iom_use('hflx_fwb_cea') )  CALL iom_put( 'hflx_fwb_cea', -emp_corr * rcp * sst_m(A2D(0)) * smask0(:,:) )
+            IF( iom_use('vflx_fwb_cea') )  CALL iom_put( 'vflx_fwb_cea', -emp_corr                       * smask0(:,:) )
          ENDIF   
          !
       CASE ( 2 )                             !==  set volume annual trend  ==!
@@ -350,12 +352,12 @@ CONTAINS
                a_fwb_b = a_fwb
                ! mean sea level taking into account ice+snow
 #if defined key_agrif
-               agrif_tmp(:) = 1.e+40_dp                     ! Initialize to a big value
+               agrif_tmp(:) = HUGE(1._wp)                     ! Initialize to a big value
                SELECT CASE (nn_fwb_voltype)
                CASE( 1 )
-                  agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ( ssh(:,:,Kmm) + snwice_mass_b(:,:) * r1_rho0 ))
+                  agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ))
                CASE( 2 )
-                  agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ssh(:,:,Kmm) )
+                  agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ssh(A2D(0),Kmm) )
                END SELECT
                CALL Agrif_step_child_adj(glob_sum_volume_agrif) ! Get value over child grids
                CALL mpp_min('sbcfwb', agrif_tmp(:)) ! Required with // sisters to populate the value of each grid on each processor
@@ -363,9 +365,9 @@ CONTAINS
 #else          
                SELECT CASE (nn_fwb_voltype)
                CASE( 1 )     
-                  a_fwb   = glob_sum( 'sbcfwb', e1e2t(:,:) * ( ssh(:,:,Kmm) + snwice_mass_b(:,:) * r1_rho0 ) )
+                  a_fwb   = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ) )
                CASE( 2 )
-                  a_fwb   = glob_sum( 'sbcfwb', e1e2t(:,:) * ssh(:,:,Kmm)  )
+                  a_fwb   = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ssh(A2D(0),Kmm)  )
                END SELECT
 #endif
                a_fwb = a_fwb * rho0 / area - hvolg_n * rho0
@@ -374,7 +376,7 @@ CONTAINS
                ! hence namelist rn_fwb0 still rules
                IF ( a_fwb_b == 999._wp ) a_fwb_b = a_fwb
                !
-               emp_corr = ( a_fwb - a_fwb_b ) / ( rday * REAL(nyear_len(0), wp) ) + emp_corr
+               emp_corr = ( a_fwb - a_fwb_b ) / ( rday * REAL(nyear_len(1), wp) ) + emp_corr
                IF(lwp)   WRITE(numout,*)
                IF(lwp)   WRITE(numout,*)'sbc_fwb : Compute new global mass at step = ', kt
                IF(lwp)   WRITE(numout,*)'sbc_fwb : New      averaged liquid height (ocean + snow + ice) = ',    a_fwb * r1_rho0, 'm'
@@ -390,11 +392,11 @@ CONTAINS
          ENDIF
          !
          IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN         ! correct the freshwater fluxes
-            emp(:,:) = emp(:,:) + emp_corr * tmask(:,:,1)
-            qns(:,:) = qns(:,:) - emp_corr * rcp * sst_m(:,:) * tmask(:,:,1) ! account for change to the heat budget due to fw correction
+            emp(A2D(0)) = emp(A2D(0)) + emp_corr * smask0(:,:)
+            qns(:,:)    = qns(:,:)    - emp_corr * rcp * sst_m(A2D(0)) * smask0(:,:) ! account for change to the heat budget due to fw correction
             ! outputs
-            IF( iom_use('hflx_fwb_cea') )  CALL iom_put( 'hflx_fwb_cea', -emp_corr * rcp * sst_m(:,:) * tmask(:,:,1) )
-            IF( iom_use('vflx_fwb_cea') )  CALL iom_put( 'vflx_fwb_cea', -emp_corr * tmask(:,:,1) )
+            IF( iom_use('hflx_fwb_cea') )  CALL iom_put( 'hflx_fwb_cea', -emp_corr * rcp * sst_m(A2D(0)) * smask0(:,:) )
+            IF( iom_use('vflx_fwb_cea') )  CALL iom_put( 'vflx_fwb_cea', -emp_corr                       * smask0(:,:) )
          ENDIF
 
          IF ( Agrif_Root() ) THEN
@@ -417,58 +419,55 @@ CONTAINS
          !
       CASE ( 3 )                   !==  set volume at each time step and spread out the correction over erp area  ==!
          !
-         ALLOCATE( ztmsk_neg(jpi,jpj) , ztmsk_pos(jpi,jpj) , ztmsk_tospread(jpi,jpj) , z_wgt(jpi,jpj) , zerp_cor(jpi,jpj) )
+         ALLOCATE( ztmsk_neg(A2D(0)) , ztmsk_pos(A2D(0)) , ztmsk_tospread(A2D(0)) , z_wgt(A2D(0)) , zerp_cor(A2D(0)) )
          !
          IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
-            ztmsk_pos(:,:) = tmask_i(:,:)                      ! Select <0 and >0 area of erp
+            ztmsk_pos(:,:) = smask0_i(:,:)                      ! Select <0 and >0 area of erp
             WHERE( erp < 0._wp )   ztmsk_pos = 0._wp
-            ztmsk_neg(:,:) = tmask_i(:,:) - ztmsk_pos(:,:)
+            ztmsk_neg(:,:) = smask0_i(:,:) - ztmsk_pos(:,:)
             !                                                  ! fwf global mean (excluding ocean to ice/snow exchanges)
             SELECT CASE (nn_fwb_voltype)
             CASE( 1 )  
-               z_fwf     = -emp_ext + glob_sum( 'sbcfwb', e1e2t(:,:) * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) - snwice_fmass(:,:) ) ) / area
+               z_fwf     = -emp_ext + glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) - snwice_fmass(A2D(0)) ) ) / area
             CASE( 2 )
-               z_fwf     = -emp_ext + glob_sum( 'sbcfwb', e1e2t(:,:) * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) ) ) / area
+               z_fwf     = -emp_ext + glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ) ) / area
             END SELECT
             !            
             IF( z_fwf < 0._wp ) THEN         ! spread out over >0 erp area to increase evaporation
-               zsurf_pos = glob_sum( 'sbcfwb', e1e2t(:,:)*ztmsk_pos(:,:) )
+               zsurf_pos = glob_sum( 'sbcfwb', e1e2t(A2D(0))*ztmsk_pos(:,:) )
                zsurf_tospread      = zsurf_pos
                ztmsk_tospread(:,:) = ztmsk_pos(:,:)
             ELSE                             ! spread out over <0 erp area to increase precipitation
-               zsurf_neg = glob_sum( 'sbcfwb', e1e2t(:,:)*ztmsk_neg(:,:) )  ! Area filled by <0 and >0 erp 
+               zsurf_neg = glob_sum( 'sbcfwb', e1e2t(A2D(0))*ztmsk_neg(:,:) )  ! Area filled by <0 and >0 erp 
                zsurf_tospread      = zsurf_neg
                ztmsk_tospread(:,:) = ztmsk_neg(:,:)
             ENDIF
             !
-            zsum_fwf   = glob_sum( 'sbcfwb', e1e2t(:,:) * z_fwf )         ! fwf global mean over <0 or >0 erp area
+            zsum_fwf   = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * z_fwf )         ! fwf global mean over <0 or >0 erp area
 !!gm :  zsum_fwf   = z_fwf * area   ???  it is right?  I think so....
             z_fwf_nsrf =  zsum_fwf / ( zsurf_tospread + rsmall )
             !                                                  ! weight to respect erp field 2D structure 
-            zsum_erp   = glob_sum( 'sbcfwb', ztmsk_tospread(:,:) * erp(:,:) * e1e2t(:,:) )
+            zsum_erp   = glob_sum( 'sbcfwb', ztmsk_tospread(:,:) * erp(:,:) * e1e2t(A2D(0)) )
             z_wgt(:,:) = ztmsk_tospread(:,:) * erp(:,:) / ( zsum_erp + rsmall )
             !                                                  ! final correction term to apply
             zerp_cor(:,:) = -1. * z_fwf_nsrf * zsurf_tospread * z_wgt(:,:)
             !
-!!gm   ===>>>>  lbc_lnk should be useless as all the computation is done over the whole domain !
-            CALL lbc_lnk( 'sbcfwb', zerp_cor, 'T', 1.0_wp )
-            !
-            emp(:,:) = emp(:,:) + zerp_cor(:,:)
-            qns(:,:) = qns(:,:) - zerp_cor(:,:) * rcp * sst_m(:,:)  ! account for change to the heat budget due to fw correction
-            erp(:,:) = erp(:,:) + zerp_cor(:,:)
+            emp(A2D(0)) = emp(A2D(0)) + zerp_cor(:,:)
+            qns(:,:)    = qns(:,:)    - zerp_cor(:,:) * rcp * sst_m(A2D(0))  ! account for change to the heat budget due to fw correction
+            erp(:,:)    = erp(:,:)    + zerp_cor(:,:)
             ! outputs
-            IF( iom_use('hflx_fwb_cea') )  CALL iom_put( 'hflx_fwb_cea', -zerp_cor(:,:) * rcp * sst_m(:,:) )
+            IF( iom_use('hflx_fwb_cea') )  CALL iom_put( 'hflx_fwb_cea', -zerp_cor(:,:) * rcp * sst_m(A2D(0)) )
             IF( iom_use('vflx_fwb_cea') )  CALL iom_put( 'vflx_fwb_cea', -zerp_cor(:,:) )
             !
             IF( lwp ) THEN                   ! control print
                IF( z_fwf < 0._wp ) THEN
                   WRITE(numout,*)'   z_fwf < 0'
-                  WRITE(numout,*)'   SUM(erp+)     = ', SUM( ztmsk_tospread(:,:)*erp(:,:)*e1e2t(:,:) )*1.e-9,' Sv'
+                  WRITE(numout,*)'   SUM(erp+)     = ', SUM( ztmsk_tospread(:,:)*erp(:,:)*e1e2t(A2D(0)) )*1.e-9,' Sv'
                ELSE
                   WRITE(numout,*)'   z_fwf >= 0'
-                  WRITE(numout,*)'   SUM(erp-)     = ', SUM( ztmsk_tospread(:,:)*erp(:,:)*e1e2t(:,:) )*1.e-9,' Sv'
+                  WRITE(numout,*)'   SUM(erp-)     = ', SUM( ztmsk_tospread(:,:)*erp(:,:)*e1e2t(A2D(0)) )*1.e-9,' Sv'
                ENDIF
-               WRITE(numout,*)'   SUM(empG)     = ', SUM( z_fwf*e1e2t(:,:) )*1.e-9,' Sv'
+               WRITE(numout,*)'   SUM(empG)     = ', SUM( z_fwf*e1e2t(A2D(0)) )*1.e-9,' Sv'
                WRITE(numout,*)'   z_fwf         = ', z_fwf      ,' Kg/m2/s'
                WRITE(numout,*)'   z_fwf_nsrf    = ', z_fwf_nsrf ,' Kg/m2/s'
                WRITE(numout,*)'   MIN(zerp_cor) = ', MINVAL(zerp_cor) 
@@ -476,6 +475,37 @@ CONTAINS
             ENDIF
          ENDIF
          DEALLOCATE( ztmsk_neg , ztmsk_pos , ztmsk_tospread , z_wgt , zerp_cor )
+         !
+      CASE ( 4 )                             !==  global mean fwf set to zero (ISOMIP case) ==!
+         !
+         IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
+            !                                                  ! fwf global mean (excluding ocean to ice/snow exchanges) 
+            emp_corr = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
+               &                                                      - snwice_fmass(A2D(0)) ) ) / area
+            ! clem: use y_fwfnow instead to improve performance? 
+            !y_fwfnow(1) = local_sum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
+            !   &                                                   - snwice_fmass(A2D(0)) ) )
+            ! correction for ice sheet coupling testing (ie remove the excess through the surface)
+            ! test impact on the melt as conservation correction made in depth
+            ! test conservation level as sbcfwb is conserving
+            ! avoid the model to blow up for large ssh drop (isomip OCEAN3 with melt switch off and uniform T/S)
+            IF (ln_isfcpl .AND. ln_isfcpl_cons) THEN
+               emp_corr = emp_corr + glob_sum( 'sbcfwb',  e1e2t(A2D(0)) * risfcpl_cons_ssh(A2D(0)) * rho0 ) / area
+            !   y_fwfnow(1) = y_fwfnow(1) + local_sum( e1e2t(A2D(0)) * risfcpl_cons_ssh(A2D(0)) * rho0 )
+            END IF
+            !CALL mpp_delay_sum( 'sbcfwb', 'fwb', y_fwfnow(:), z_fwfprv(:), kt == nitend - nn_fsbc + 1 )
+            !emp_corr = z_fwfprv(1) / area
+            !
+            emp(A2D(0)) = emp(A2D(0)) - emp_corr                       * smask0(:,:) ! (Eq. 34 AD2015)
+            qns(:,:)    = qns(:,:)    + emp_corr * rcp * sst_m(A2D(0)) * smask0(:,:) ! (Eq. 35 AD2015) ! use sst_m to avoid generation of any bouyancy fluxes
+            sfx(:,:)    = sfx(:,:)    + emp_corr       * sss_m(A2D(0)) * smask0(:,:) ! (Eq. 36 AD2015) ! use sss_m to avoid generation of any bouyancy fluxes
+            !
+            IF( iom_use('hflx_fwb_cea') )  CALL iom_put( 'hflx_fwb_cea', emp_corr * rcp * sst_m(A2D(0)) * smask0(:,:) )
+            IF( iom_use('vflx_fwb_cea') )  CALL iom_put( 'vflx_fwb_cea', emp_corr                       * smask0(:,:) )
+         ENDIF
+         !
+      CASE DEFAULT                           !==  you should never be there  ==!
+         CALL ctl_stop( 'sbc_fwb : wrong nn_fwb value for the FreshWater Budget correction, choose either 1, 2 or 3' )
          !
       END SELECT
       !

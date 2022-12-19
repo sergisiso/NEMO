@@ -91,8 +91,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       INTEGER                                  , INTENT(in   ) ::   kn_ubs_v        ! number of tracers
       REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
-      ! TEMP: [tiling] This can be A2D(nn_hls) if using XIOS (subdomain support)
-      REAL(wp), DIMENSION(jpi,jpj,jpk         ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
@@ -103,7 +102,7 @@ CONTAINS
       REAL(wp) ::   zztu, zztu_im1, zztu_ip1
       REAL(wp) ::   zztv, zztv_jm1, zztv_jp1
       REAL(wp) ::   zzltu, zzltu_ip1, zzltv, zzltv_jp1
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   ztu, ztv, zltu, zltv, zti, ztw     ! 3D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   ztu, ztv, zltu, zltv, zti, ztw     ! 3D workspace
       !!----------------------------------------------------------------------
       !
       IF( ntile == 0 .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -290,13 +289,13 @@ CONTAINS
       INTEGER , INTENT(in   )                         ::   Kmm    ! time level index
       REAL(wp), INTENT(in   )                         ::   p2dt   ! tracer time-step
       REAL(wp),                DIMENSION(jpi,jpj,jpk) ::   pbef   ! before field
-      REAL(wp), INTENT(inout), DIMENSION(A2D(nn_hls)    ,jpk) ::   paft   ! after field
-      REAL(wp), INTENT(inout), DIMENSION(A2D(nn_hls)    ,jpk) ::   pcc    ! monotonic flux in the k direction
+      REAL(wp), INTENT(inout), DIMENSION(T2D(nn_hls)    ,jpk) ::   paft   ! after field
+      REAL(wp), INTENT(inout), DIMENSION(T2D(nn_hls)    ,jpk) ::   pcc    ! monotonic flux in the k direction
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   ikm1         ! local integer
       REAL(wp) ::   zpos, zneg, zbt, za, zb, zc, zbig, zrtrn   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zbetup, zbetdo         ! 3D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zbetup, zbetdo         ! 3D workspace
       !!----------------------------------------------------------------------
       !
       zbig  = 1.e+38_wp

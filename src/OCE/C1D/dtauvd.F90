@@ -150,7 +150,7 @@ CONTAINS
       pud(:,:,:) = sf_uvd(1)%fnow(:,:,:)                 ! NO mask
       pvd(:,:,:) = sf_uvd(2)%fnow(:,:,:) 
       !
-      IF( ln_sco ) THEN                   !==   s- or mixed s-zps-coordinate   ==!
+      IF( l_sco ) THEN                   !==   s- or mixed s-zps-coordinate   ==!
          !
          ALLOCATE( zup(jpk), zvp(jpk) )
          !
@@ -192,17 +192,6 @@ CONTAINS
          !                             
          pud(:,:,:) = pud(:,:,:) * umask(:,:,:)       ! apply mask
          pvd(:,:,:) = pvd(:,:,:) * vmask(:,:,:)
-         !
-         IF( ln_zps ) THEN                ! zps-coordinate (partial steps) interpolation at the last ocean level
-            DO_2D( 1, 1, 1, 1 )
-               ik = mbkt(ji,jj) 
-               IF( ik > 1 ) THEN
-                  zl = ( gdept_1d(ik) - gdept_0(ji,jj,ik) ) / ( gdept_1d(ik) - gdept_1d(ik-1) )
-                  pud(ji,jj,ik) = (1.-zl) * pud(ji,jj,ik) + zl * pud(ji,jj,ik-1)
-                  pvd(ji,jj,ik) = (1.-zl) * pvd(ji,jj,ik) + zl * pvd(ji,jj,ik-1)
-               ENDIF
-            END_2D
-         ENDIF
          !
       ENDIF
       !

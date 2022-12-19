@@ -180,9 +180,9 @@ CONTAINS
             ! round brackets added to fix the order of floating point operations
             ! needed to ensure halo 1 - halo 2 compatibility
             pr3f(ji,jj) = 0.25_wp * (   (  e1e2t(ji  ,jj  ) * pssh(ji  ,jj  )      &
-               &                         + e1e2t(ji+1,jj  ) * pssh(ji+1,jj  )  )   & ! bracket for halo 1 - halo 2 compatibility
+               &                         + e1e2t(ji+1,jj  ) * pssh(ji+1,jj  )  )   & ! add () for  NP reproducibility
                &                     +  (  e1e2t(ji  ,jj+1) * pssh(ji  ,jj+1)      &
-               &                         + e1e2t(ji+1,jj+1) * pssh(ji+1,jj+1)  )   & ! bracket for halo 1 - halo 2 compatibility
+               &                         + e1e2t(ji+1,jj+1) * pssh(ji+1,jj+1)  )   & ! add () for NP reproducibility
                &                    ) * r1_hf_0(ji,jj) * r1_e1e2f(ji,jj)
          END_2D
          !                                                 ! lbc on ratio at u-,v-,f-points
@@ -247,9 +247,9 @@ CONTAINS
          ! round brackets added to fix the order of floating point operations
          ! needed to ensure halo 1 - halo 2 compatibility
          pr3f(ji,jj) = 0.25_wp * (   (  e1e2t(ji  ,jj  ) * pssh(ji  ,jj  )      &
-            &                         + e1e2t(ji+1,jj  ) * pssh(ji+1,jj  )  )   & ! bracket for halo 1 - halo 2 compatibility
+            &                         + e1e2t(ji+1,jj  ) * pssh(ji+1,jj  )  )   & ! add () for  NP reproducibility
             &                     +  (  e1e2t(ji  ,jj+1) * pssh(ji  ,jj+1)      &
-            &                         + e1e2t(ji+1,jj+1) * pssh(ji+1,jj+1)  )   & ! bracket for halo 1 - halo 2 compatibility
+            &                         + e1e2t(ji+1,jj+1) * pssh(ji+1,jj+1)  )   & ! add () for  NP reproducibility
             &                    ) * r1_hf_0(ji,jj) * r1_e1e2f(ji,jj)
       END_2D
 !!st         ELSE                                      !- Flux Form   (simple averaging)
@@ -258,7 +258,7 @@ CONTAINS
          ! round brackets added to fix the order of floating point operations
          ! needed to ensure halo 1 - halo 2 compatibility
          pr3f(ji,jj) = 0.25_wp * (   (  pssh(ji,jj  ) + pssh(ji+1,jj  )  )   &
-            &                     +  (  pssh(ji,jj+1) + pssh(ji+1,jj+1)  )   & ! bracket for halo 1 - halo 2 compatibility
+            &                     +  (  pssh(ji,jj+1) + pssh(ji+1,jj+1)  )   & ! add () for  NP reproducibility
             &                    ) * r1_hf_0(ji,jj)
       END_2D
 !!st         ENDIF

@@ -22,7 +22,6 @@ MODULE sbcwave
    USE dom_oce        ! ocean domain variables
    USE sbc_oce        ! Surface boundary condition: ocean fields
    USE bdy_oce        ! open boundary condition variables
-   USE domvvl         ! domain: variable volume layers
    USE zdf_oce,  ONLY : ln_zdfswm ! Qiao wave enhanced mixing 
    !
    USE iom            ! I/O manager library
@@ -115,14 +114,13 @@ CONTAINS
       INTEGER  ::   jj, ji, jk   ! dummy loop argument
       INTEGER  ::   ik           ! local integer
       REAL(wp) ::  ztransp, zfac, ztemp, zsp0, zsqrt, zbreiv16_w
-      REAL(wp) ::  zdep_u, zdep_v, zkh_u, zkh_v, zda_u, zda_v, sdtrp
+      REAL(wp) ::  zdep_u, zdep_v, zkh_u, zkh_v, zda_u, zda_v, sdtrp, zInt_w0, zInt_w1
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE ::   zk_t, zk_u, zk_v, zu0_sd, zv0_sd ! 2D workspace
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ze3divh, zInt_w                  ! 3D workspace
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ze3divh                          ! 3D workspace
       !!---------------------------------------------------------------------
       !
       ALLOCATE( ze3divh(jpi,jpj,jpkm1) ) ! jpkm1 -> avoid lbc_lnk on jpk that is not defined
-      ALLOCATE( zInt_w(jpi,jpj,jpk) )
-      ALLOCATE( zk_t(jpi,jpj), zk_u(jpi,jpj), zk_v(jpi,jpj), zu0_sd(jpi,jpj), zv0_sd(jpi,jpj) )
+      ALLOCATE( zk_t(A2D(1)), zk_u(A2D(0)), zk_v(A2D(0)), zu0_sd(A2D(1)), zv0_sd(A2D(1)) )
       zk_t    (:,:) = 0._wp
       zk_u    (:,:) = 0._wp
       zk_v    (:,:) = 0._wp
@@ -138,7 +136,7 @@ CONTAINS
       !                sdtrp is the norm of Stokes transport
       !
          zfac = 0.166666666667_wp
-         DO_2D( 1, 1, 1, 1 ) ! In the deep-water limit we have ke = ||ust0||/( 6 * ||transport|| )
+         DO_2D( 0, 1, 0, 1 ) ! In the deep-water limit we have ke = ||ust0||/( 6 * ||transport|| )
             zsp0          = SQRT( ut0sd(ji,jj)*ut0sd(ji,jj) + vt0sd(ji,jj)*vt0sd(ji,jj) ) !<-- norm of Surface Stokes drift
             tsd2d(ji,jj)  = zsp0
             IF( cpl_tusd .AND. cpl_tvsd ) THEN  !stokes transport is provided in coupled mode
@@ -150,35 +148,40 @@ CONTAINS
             ENDIF
             zk_t (ji,jj)  = zfac * zsp0 / MAX ( sdtrp, 0.0000001_wp ) !<-- ke = ||ust0||/( 6 * ||transport|| )
          END_2D
-      !# define zInt_w ze3divh
-         DO_3D( 1, 1, 1, 1, 1, jpk ) ! Compute the primitive of Breivik 2016 function at W-points
-            zfac             = - 2._wp * zk_t (ji,jj) * gdepw(ji,jj,jk,Kmm)  !<-- zfac should be negative definite
-            ztemp            = EXP ( zfac )
-            zsqrt            = SQRT( -zfac )
-            zbreiv16_w       = ztemp - SQRT(rpi)*zsqrt*ERFC(zsqrt) !Eq. 16 Breivik 2016
-            zInt_w(ji,jj,jk) = ztemp - 4._wp * zk_t (ji,jj) * gdepw(ji,jj,jk,Kmm) * zbreiv16_w
-         END_3D
-!
+         !
          DO jk = 1, jpkm1
             zfac = 0.166666666667_wp
-            DO_2D( 1, 1, 1, 1 ) !++ Compute the FV Breivik 2016 function at T-points
+            DO_2D( 0, 1, 0, 1 ) !++ Compute the FV Breivik 2016 function at T-points
+               ! zInt at jk
+               zfac       = - 2._wp * zk_t (ji,jj) * gdepw(ji,jj,jk,Kmm)  !<-- zfac should be negative definite
+               ztemp      = EXP ( zfac )
+               zsqrt      = SQRT( -zfac )
+               zbreiv16_w = ztemp - SQRT(rpi)*zsqrt*ERFC(zsqrt) !Eq. 16 Breivik 2016
+               zInt_w0    = ztemp - 4._wp * zk_t (ji,jj) * gdepw(ji,jj,jk,Kmm) * zbreiv16_w
+               ! zInt at jk+1
+               zfac       = - 2._wp * zk_t (ji,jj) * gdepw(ji,jj,jk+1,Kmm)  !<-- zfac should be negative definite
+               ztemp      = EXP ( zfac )
+               zsqrt      = SQRT( -zfac )
+               zbreiv16_w = ztemp - SQRT(rpi)*zsqrt*ERFC(zsqrt) !Eq. 16 Breivik 2016
+               zInt_w1    = ztemp - 4._wp * zk_t (ji,jj) * gdepw(ji,jj,jk+1,Kmm) * zbreiv16_w
+               !
+               !
                zsp0          = zfac / MAX(zk_t (ji,jj),0.0000001_wp)
-               ztemp         = zInt_w(ji,jj,jk) - zInt_w(ji,jj,jk+1)
+               ztemp         = zInt_w0 - zInt_w1
                zu0_sd(ji,jj) = ut0sd(ji,jj) * zsp0 * ztemp * tmask(ji,jj,jk)
                zv0_sd(ji,jj) = vt0sd(ji,jj) * zsp0 * ztemp * tmask(ji,jj,jk)
             END_2D
-            DO_2D( 1, 0, 1, 0 ) ! ++ Interpolate at U/V points
+            DO_2D( 0, 0, 0, 0 ) ! ++ Interpolate at U/V points
                zfac          =  1.0_wp / e3u(ji  ,jj,jk,Kmm)
                usd(ji,jj,jk) =  0.5_wp * zfac * ( zu0_sd(ji,jj)+zu0_sd(ji+1,jj) ) * umask(ji,jj,jk)
                zfac          =  1.0_wp / e3v(ji  ,jj,jk,Kmm)
                vsd(ji,jj,jk) =  0.5_wp * zfac * ( zv0_sd(ji,jj)+zv0_sd(ji,jj+1) ) * vmask(ji,jj,jk)
             END_2D
          ENDDO
-      !# undef zInt_w
-      !
+         !
       ELSE
          zfac = 2.0_wp * rpi / 16.0_wp
-         DO_2D( 1, 1, 1, 1 )
+         DO_2D( 0, 1, 0, 1 )
             ! Stokes drift velocity estimated from Hs and Tmean
             ztransp = zfac * hsw(ji,jj)*hsw(ji,jj) / MAX( wmp(ji,jj), 0.0000001_wp )
             ! Stokes surface speed
@@ -186,7 +189,7 @@ CONTAINS
             ! Wavenumber scale
             zk_t(ji,jj) = ABS( tsd2d(ji,jj) ) / MAX( ABS( 5.97_wp*ztransp ), 0.0000001_wp )
          END_2D
-         DO_2D( 1, 0, 1, 0 )          ! exp. wave number & Stokes drift velocity at u- & v-points
+         DO_2D( 0, 0, 0, 0 )          ! exp. wave number & Stokes drift velocity at u- & v-points
             zk_u(ji,jj) = 0.5_wp * ( zk_t(ji,jj) + zk_t(ji+1,jj) )
             zk_v(ji,jj) = 0.5_wp * ( zk_t(ji,jj) + zk_t(ji,jj+1) )
             !
@@ -217,11 +220,10 @@ CONTAINS
       !                       !==  vertical Stokes Drift 3D velocity  ==!
       !
       DO_3D( 0, 1, 0, 1, 1, jpkm1 )    ! Horizontal e3*divergence
-         ze3divh(ji,jj,jk) = (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * usd(ji  ,jj,jk)    &
-            &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * usd(ji-1,jj,jk)    &
-            &                 + e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vsd(ji,jj  ,jk)    &
-            &                 - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * vsd(ji,jj-1,jk)  ) &
-            &                * r1_e1e2t(ji,jj)
+         ze3divh(ji,jj,jk) = (  ( e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * usd(ji  ,jj,jk)     &   ! add () for NP repro
+            &                   - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * usd(ji-1,jj,jk) )   &
+            &                 + ( e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vsd(ji,jj  ,jk)     &
+            &                   - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * vsd(ji,jj-1,jk) ) ) * r1_e1e2t(ji,jj)
       END_3D
       !
       CALL lbc_lnk( 'sbcwave', ze3divh, 'T', 1.0_wp )
@@ -248,7 +250,7 @@ CONTAINS
       CALL iom_put( "vstokes",  vsd  )
       CALL iom_put( "wstokes",  wsd  )
 !      !
-      DEALLOCATE( ze3divh, zInt_w )
+      DEALLOCATE( ze3divh )
       DEALLOCATE( zk_t, zk_u, zk_v, zu0_sd, zv0_sd )
       !
    END SUBROUTINE sbc_stokes
@@ -274,12 +276,12 @@ CONTAINS
       !
       IF( ln_cdgw .AND. .NOT. cpl_wdrag ) THEN     !==  Neutral drag coefficient  ==!
          CALL fld_read( kt, nn_fsbc, sf_cd )             ! read from external forcing
-         cdn_wave(:,:) = sf_cd(1)%fnow(:,:,1) * tmask(:,:,1)
+         cdn_wave(:,:) = sf_cd(1)%fnow(:,:,1) * smask0(:,:)
       ENDIF
 
       IF( ln_tauoc .AND. .NOT. cpl_wstrf ) THEN    !==  Wave induced stress  ==!
          CALL fld_read( kt, nn_fsbc, sf_tauoc )          ! read stress reduction factor due to wave from external forcing
-         tauoc_wave(:,:) = sf_tauoc(1)%fnow(:,:,1) * tmask(:,:,1)
+         tauoc_wave(:,:) = sf_tauoc(1)%fnow(:,:,1) * smask0(:,:)
       ELSEIF ( ln_taw .AND. cpl_taw ) THEN
          IF (kt < 1) THEN ! The first fields gave by OASIS have very high erroneous values ....
             twox(:,:)=0._wp
@@ -315,7 +317,7 @@ CONTAINS
          ! coupling routines
          IF( ln_zdfswm .AND. .NOT. cpl_wnum ) THEN     !==wavenumber==!
             CALL fld_read( kt, nn_fsbc, sf_wn )             ! read wave parameters from external forcing
-            wnum(:,:) = sf_wn(1)%fnow(:,:,1) * tmask(:,:,1)
+            wnum(:,:) = sf_wn(1)%fnow(:,:,1) * smask0(:,:)
          ENDIF
  
          !
@@ -391,10 +393,10 @@ CONTAINS
       !                             !==  Allocate wave arrays  ==!
       ALLOCATE( ut0sd (jpi,jpj)    , vt0sd (jpi,jpj) )
       ALLOCATE( hsw   (jpi,jpj)    , wmp   (jpi,jpj) )
-      ALLOCATE( wnum  (jpi,jpj) )
       ALLOCATE( tsd2d (jpi,jpj)    , div_sd(jpi,jpj)    , bhd_wave(jpi,jpj)     )
       ALLOCATE( usd   (jpi,jpj,jpk), vsd   (jpi,jpj,jpk), wsd     (jpi,jpj,jpk) )
-      ALLOCATE( tusd  (jpi,jpj)    , tvsd  (jpi,jpj)    , ZMX     (jpi,jpj,jpk) )
+      ALLOCATE( tusd  (jpi,jpj)    , tvsd  (jpi,jpj) )
+      ALLOCATE( wnum  (A2D(0))     , ZMX   (A2D(0),jpk) )
       usd   (:,:,:) = 0._wp
       vsd   (:,:,:) = 0._wp
       wsd   (:,:,:) = 0._wp
@@ -422,30 +424,30 @@ CONTAINS
                ALLOCATE( sf_cd(1), STAT=ierror )               !* allocate and fill sf_wave with sn_cdg
                IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_wave_init: unable to allocate sf_wave structure' )
                !
-                                      ALLOCATE( sf_cd(1)%fnow(jpi,jpj,1)   )
-               IF( sn_cdg%ln_tint )   ALLOCATE( sf_cd(1)%fdta(jpi,jpj,1,2) )
+                                      ALLOCATE( sf_cd(1)%fnow(A2D(0),1)   )
+               IF( sn_cdg%ln_tint )   ALLOCATE( sf_cd(1)%fdta(A2D(0),1,2) )
                CALL fld_fill( sf_cd, (/ sn_cdg /), cn_dir, 'sbc_wave_init', 'Wave module ', 'namsbc_wave' )
             ENDIF
-            ALLOCATE( cdn_wave(jpi,jpj) )
+            ALLOCATE( cdn_wave(A2D(0)) )
             cdn_wave(:,:) = 0._wp
          ENDIF
          IF( ln_charn ) THEN                     ! wave drag
             IF( .NOT. cpl_charn ) THEN
                CALL ctl_stop( 'STOP', 'Charnock based wind stress can be used in coupled mode only' )
             ENDIF
-            ALLOCATE( charn(jpi,jpj) )
+            ALLOCATE( charn(A2D(0)) )
             charn(:,:) = 0._wp
          ENDIF
          IF( ln_taw ) THEN                     ! wind stress
             IF( .NOT. cpl_taw ) THEN
                CALL ctl_stop( 'STOP', 'wind stress from wave model can be used in coupled mode only, use ln_cdgw instead' )
             ENDIF
-            ALLOCATE( tawx(jpi,jpj) )
-            ALLOCATE( tawy(jpi,jpj) )
-            ALLOCATE( twox(jpi,jpj) )
-            ALLOCATE( twoy(jpi,jpj) )
-            ALLOCATE( tauoc_wavex(jpi,jpj) )
-            ALLOCATE( tauoc_wavey(jpi,jpj) )
+            ALLOCATE( tawx(A2D(0)) )
+            ALLOCATE( tawy(A2D(0)) )
+            ALLOCATE( twox(A2D(0)) )
+            ALLOCATE( twoy(A2D(0)) )
+            ALLOCATE( tauoc_wavex(A2D(0)) )
+            ALLOCATE( tauoc_wavey(A2D(0)) )
             tawx(:,:) = 0._wp
             tawy(:,:) = 0._wp
             twox(:,:) = 0._wp
@@ -458,7 +460,7 @@ CONTAINS
             IF( .NOT. cpl_phioc ) THEN
                 CALL ctl_stop( 'STOP', 'phioc can be used in coupled mode only' )
             ENDIF
-            ALLOCATE( phioc(jpi,jpj) )
+            ALLOCATE( phioc(A2D(0)) )
             phioc(:,:) = 0._wp
          ENDIF
 
@@ -467,11 +469,11 @@ CONTAINS
                ALLOCATE( sf_tauoc(1), STAT=ierror )           !* allocate and fill sf_wave with sn_tauoc
                IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_wave_init: unable to allocate sf_tauoc structure' )
                !
-                                       ALLOCATE( sf_tauoc(1)%fnow(jpi,jpj,1)   )
-               IF( sn_tauoc%ln_tint )  ALLOCATE( sf_tauoc(1)%fdta(jpi,jpj,1,2) )
+                                       ALLOCATE( sf_tauoc(1)%fnow(A2D(0),1)   )
+               IF( sn_tauoc%ln_tint )  ALLOCATE( sf_tauoc(1)%fdta(A2D(0),1,2) )
                CALL fld_fill( sf_tauoc, (/ sn_tauoc /), cn_dir, 'sbc_wave_init', 'Wave module', 'namsbc_wave' )
             ENDIF
-            ALLOCATE( tauoc_wave(jpi,jpj) )
+            ALLOCATE( tauoc_wave(A2D(0)) )
             tauoc_wave(:,:) = 0._wp
          ENDIF
 
@@ -518,8 +520,8 @@ CONTAINS
             IF( .NOT. cpl_wnum ) THEN
                ALLOCATE( sf_wn(1), STAT=ierror )           !* allocate and fill sf_wave with sn_wnum
                IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_wave_init: unable to allocate sf_wn structure' )
-                                      ALLOCATE( sf_wn(1)%fnow(jpi,jpj,1)   )
-               IF( sn_wnum%ln_tint )  ALLOCATE( sf_wn(1)%fdta(jpi,jpj,1,2) )
+                                      ALLOCATE( sf_wn(1)%fnow(A2D(0),1)   )
+               IF( sn_wnum%ln_tint )  ALLOCATE( sf_wn(1)%fdta(A2D(0),1,2) )
                CALL fld_fill( sf_wn, (/ sn_wnum /), cn_dir, 'sbc_wave', 'Wave module', 'namsbc_wave' )
             ENDIF
             !

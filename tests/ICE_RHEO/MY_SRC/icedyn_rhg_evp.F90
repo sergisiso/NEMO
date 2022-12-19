@@ -525,7 +525,7 @@ CONTAINS
                      &            )  * zmsk00y(ji,jj)
                ENDIF
 !extra code for test case boundary conditions
-               IF (mjg(jj)<25 .or. mjg(jj)>975 .or. mig(ji)<25 .or. mig(ji)>975) THEN
+               IF (mjg(jj,nn_hls)<25 .or. mjg(jj,nn_hls)>975 .or. mig(ji,nn_hls)<25 .or. mig(ji,nn_hls)>975) THEN
                   v_ice(ji,jj) = zinvw*(ztauy_ai(ji,jj) + zCorV(ji,jj) + zspgV(ji,jj) + ztauy_oi(ji,jj))
                END IF
             END_2D
@@ -581,7 +581,7 @@ CONTAINS
                      &           )   * zmsk00x(ji,jj)
                ENDIF
 !extra code for test case boundary conditions
-               IF (mjg(jj)<25 .or. mjg(jj)>975 .or. mig(ji)<25 .or. mig(ji)>975) THEN
+               IF (mjg(jj,nn_hls)<25 .or. mjg(jj,nn_hls)>975 .or. mig(ji,nn_hls)<25 .or. mig(ji,nn_hls)>975) THEN
                   u_ice(ji,jj) = zinvw*(ztaux_ai(ji,jj) + zCorU(ji,jj) + zspgU(ji,jj) + ztaux_oi(ji,jj))
                END IF
             END_2D
@@ -639,7 +639,7 @@ CONTAINS
                      &           )   * zmsk00x(ji,jj)
                ENDIF
 !extra code for test case boundary conditions
-               IF (mjg(jj)<25 .or. mjg(jj)>975 .or. mig(ji)<25 .or. mig(ji)>975) THEN
+               IF (mjg(jj,nn_hls)<25 .or. mjg(jj,nn_hls)>975 .or. mig(ji,nn_hls)<25 .or. mig(ji,nn_hls)>975) THEN
                   u_ice(ji,jj) = zinvw*(ztaux_ai(ji,jj) + zCorU(ji,jj) + zspgU(ji,jj) + ztaux_oi(ji,jj))
                END IF
             END_2D
@@ -695,7 +695,7 @@ CONTAINS
                      &           )   * zmsk00y(ji,jj)
                ENDIF
 !extra code for test case boundary conditions
-               IF (mjg(jj)<25 .or. mjg(jj)>975 .or. mig(ji)<25 .or. mig(ji)>975) THEN
+               IF (mjg(jj,nn_hls)<25 .or. mjg(jj,nn_hls)>975 .or. mig(ji,nn_hls)<25 .or. mig(ji,nn_hls)>975) THEN
                   v_ice(ji,jj) = zinvw*(ztauy_ai(ji,jj) + zCorV(ji,jj) + zspgV(ji,jj) + ztauy_oi(ji,jj))
                END IF
             END_2D
@@ -978,7 +978,7 @@ CONTAINS
          zresm = 0._wp
          DO_2D( 0, 0, 0, 0 )
             ! cut of the boundary of the box (forced velocities)
-            IF (mjg0(jj)>30 .AND. mjg0(jj)<=970 .AND. mig0(ji)>30 .AND. mig0(ji)<=970) THEN
+            IF (mjg(jj,0)>30 .AND. mjg(jj,0)<=970 .AND. mig(ji,0)>30 .AND. mig(ji,0)<=970) THEN
                zresm = MAX( zresm, MAX( ABS( pu(ji,jj) - pub(ji,jj) ) * umask(ji,jj,1), &
                   &                     ABS( pv(ji,jj) - pvb(ji,jj) ) * vmask(ji,jj,1) ) * pmsk15(ji,jj) )
             ENDIF

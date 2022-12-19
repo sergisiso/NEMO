@@ -92,7 +92,7 @@
 
       ! 2. North-Fold boundary conditions
       ! ----------------------------------
-      CALL lbc_nfd( ztab_e(:,1-kextj:ipj+kextj), cd_type, psgn, kextj )
+      CALL lbc_nfd_ext( ztab_e(:,1-kextj:ipj+kextj), cd_type, psgn, kextj )
 
       ij = 1 - kextj
       !! Scatter back to pt2d

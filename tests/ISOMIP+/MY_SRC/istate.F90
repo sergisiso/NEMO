@@ -25,7 +25,6 @@ MODULE istate
    USE daymod         ! calendar
    USE dtatsd         ! data temperature and salinity   (dta_tsd routine)
    USE dtauvd         ! data: U & V current             (dta_uvd routine)
-   USE domvvl          ! varying vertical mesh
    USE wet_dry         ! wetting and drying (needed for wad_istate)
    USE usrdef_istate   ! User defined initial state
    !
@@ -50,7 +49,7 @@ MODULE istate
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: istate.F90 15581 2021-12-07 13:08:22Z techene $
+   !! $Id: istate.F90 14991 2021-06-14 19:52:31Z techene $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -79,10 +78,12 @@ CONTAINS
       CALL dta_tsd_init                 ! Initialisation of T & S input data
       IF( ln_c1d) CALL dta_uvd_init     ! Initialisation of U & V input data (c1d only)
 
-      rhd  (:,:,:      ) = 0._wp   ;   rhop (:,:,:  ) = 0._wp      ! set one for all to 0 at level jpk
-      rn2b (:,:,:      ) = 0._wp   ;   rn2  (:,:,:  ) = 0._wp      ! set one for all to 0 at levels 1 and jpk
-      ts   (:,:,:,:,Kaa) = 0._wp                                   ! set one for all to 0 at level jpk
-      rab_b(:,:,:,:    ) = 0._wp   ;   rab_n(:,:,:,:) = 0._wp      ! set one for all to 0 at level jpk
+      ts   (:,:,:,:,Kaa) = 0._wp   ;   rn2  (:,:,:  ) = 0._wp         ! set one for all to 0 at levels 1 and jpk
+      IF ( ALLOCATED( rhd ) ) THEN                                    ! SWE, for example, will not have allocated these
+         rhd  (:,:,:      ) = 0._wp   ;   rhop (:,:,:  ) = 0._wp      ! set one for all to 0 at level jpk
+         rn2b (:,:,:      ) = 0._wp                                   ! set one for all to 0 at level jpk
+         rab_b(:,:,:,:    ) = 0._wp   ;   rab_n(:,:,:,:) = 0._wp      ! set one for all to 0 at level jpk
+      ENDIF
 #if defined key_agrif
       uu   (:,:,:  ,Kaa) = 0._wp   ! used in agrif_oce_sponge at initialization
       vv   (:,:,:  ,Kaa) = 0._wp   ! used in agrif_oce_sponge at initialization    
@@ -113,7 +114,7 @@ CONTAINS
             !                                    ! Initialization of ocean to zero
             !
             IF( ln_tsd_init ) THEN               
-               CALL dta_tsd( nit000, 'ini', ts(:,:,:,:,Kbb) )       ! read 3D T and S data at nit000
+               CALL dta_tsd( nit000, ts(:,:,:,:,Kbb), 'ini' )                     ! read 3D T and S data at nit000
             ENDIF
             !
             IF( ln_uvd_init .AND. ln_c1d ) THEN               
@@ -141,20 +142,6 @@ CONTAINS
       ENDIF
 #endif
       ! 
-      ! Initialize "now" barotropic velocities:
-      ! Do it whatever the free surface method, these arrays being used eventually 
-      !
-!!gm  the use of umask & vmask is not necessary below as uu(:,:,:,Kmm), vv(:,:,:,Kmm), uu(:,:,:,Kbb), vv(:,:,:,Kbb) are always masked
-#if ! defined key_RK3
-      uu_b(:,:,Kmm) = 0._wp   ;   vv_b(:,:,Kmm) = 0._wp
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
-         uu_b(ji,jj,Kmm) = uu_b(ji,jj,Kmm) + e3u(ji,jj,jk,Kmm) * uu(ji,jj,jk,Kmm) * umask(ji,jj,jk)
-         vv_b(ji,jj,Kmm) = vv_b(ji,jj,Kmm) + e3v(ji,jj,jk,Kmm) * vv(ji,jj,jk,Kmm) * vmask(ji,jj,jk)
-      END_3D
-      uu_b(:,:,Kmm) = uu_b(:,:,Kmm) * r1_hu(:,:,Kmm)
-      vv_b(:,:,Kmm) = vv_b(:,:,Kmm) * r1_hv(:,:,Kmm)
-#endif
-      !
 #if defined key_RK3
       IF( .NOT. ln_rstart ) THEN
 #endif
@@ -171,6 +158,25 @@ CONTAINS
          ! 
 #if defined key_RK3
       ENDIF
+#endif
+      !
+      ! Initialize "now" barotropic velocities:
+      ! Do it whatever the free surface method, these arrays being used eventually 
+      !
+#if  defined key_RK3
+      IF( .NOT. ln_rstart ) THEN
+         uu_b(:,:,Kmm)   = uu_b(:,:,Kbb)   ! Kmm value set to Kbb for initialisation in Agrif_Regrid in namo_gcm
+         vv_b(:,:,Kmm)   = vv_b(:,:,Kbb)
+      ENDIF
+#else
+!!gm  the use of umask & vmask is not necessary below as uu(:,:,:,Kmm), vv(:,:,:,Kmm), uu(:,:,:,Kbb), vv(:,:,:,Kbb) are always masked
+      uu_b(:,:,Kmm) = 0._wp   ;   vv_b(:,:,Kmm) = 0._wp
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         uu_b(ji,jj,Kmm) = uu_b(ji,jj,Kmm) + e3u(ji,jj,jk,Kmm) * uu(ji,jj,jk,Kmm) * umask(ji,jj,jk)
+         vv_b(ji,jj,Kmm) = vv_b(ji,jj,Kmm) + e3v(ji,jj,jk,Kmm) * vv(ji,jj,jk,Kmm) * vmask(ji,jj,jk)
+      END_3D
+      uu_b(:,:,Kmm) = uu_b(:,:,Kmm) * r1_hu(:,:,Kmm)
+      vv_b(:,:,Kmm) = vv_b(:,:,Kmm) * r1_hv(:,:,Kmm)
 #endif
       !
    END SUBROUTINE istate_init

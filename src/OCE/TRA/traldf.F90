@@ -8,6 +8,8 @@ MODULE traldf
    !!            3.7  ! 2013-12  (G. Madec) remove the optional computation from T & S anomaly profiles and traldf_bilapg
    !!             -   ! 2013-12  (F. Lemarie, G. Madec)  triad operator (Griffies) + Method of Stabilizing Correction
    !!             -   ! 2014-01  (G. Madec, S. Masson)  restructuration/simplification of lateral diffusive operators
+   !!            4.5  ! 2022-08  (G, Madec, S. Techene)  refactorization to reduce local memory usage
+   !!                 !                                + add tra_ldf_iso_a33 routine and traldf_iso_h/z.h90 files
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -19,14 +21,15 @@ MODULE traldf
    USE phycst         ! physical constants
    USE ldftra         ! lateral diffusion: eddy diffusivity & EIV coeff.
    USE ldfslp         ! lateral diffusion: iso-neutral slope
-   USE traldf_lap_blp ! lateral diffusion: laplacian iso-level            operator  (tra_ldf_lap/_blp   routines)
-   USE traldf_iso     ! lateral diffusion: laplacian iso-neutral standard operator  (tra_ldf_iso        routine )
-   USE traldf_triad   ! lateral diffusion: laplacian iso-neutral triad    operator  (tra_ldf_triad      routine )
+   USE traldf_iso     ! lateral diffusion: laplacian iso-neutral standard operator  (traldf_iso_lap/_blp  routines)
+   USE traldf_lev     ! lateral diffusion: laplacian iso-level            operator  (traldf_lap/_blp      routines)
+   USE traldf_triad   ! lateral diffusion: laplacian iso-neutral triad    operator  (tra_ldf_triad(_blp)  routines)
    USE trd_oce        ! trends: ocean variables
    USE trdtra         ! ocean active tracers trends
    !
    USE prtctl         ! Print control
    USE in_out_manager ! I/O manager
+   USE iom            ! I/O library
    USE lib_mpp        ! distribued memory computing library
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE timing         ! Timing
@@ -36,6 +39,9 @@ MODULE traldf
 
    PUBLIC   tra_ldf        ! called by step.F90
    PUBLIC   tra_ldf_init   ! called by nemogcm.F90
+
+   LOGICAL  ::   l_ptr   ! flag to compute the diffusive part of poleward heat & salt transport
+   LOGICAL  ::   l_hst   ! flag to compute the diffusive part of heat and salt transport
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -54,34 +60,57 @@ CONTAINS
       INTEGER,                                   INTENT(in   ) :: Kbb, Kmm, Krhs  ! ocean time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) :: pts             ! active tracers and RHS of tracer equation
       !!
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrdt, ztrds
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zTtrd, zStrd
       !!----------------------------------------------------------------------
+      !
+      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+         IF( kt == nit000 .AND. lwp )  THEN
+            WRITE(numout,*)
+            SELECT CASE ( nldf_tra )   !* compute lateral mixing trend and add it to the general trend
+               CASE ( np_lap    )   ;   WRITE(numout,*) 'traldf_lev_lap   : iso-level laplacian diffusive operator'
+               CASE ( np_lap_i  )   ;   WRITE(numout,*) 'traldf_iso_lap   : iso-neutral standard laplacian diffusive operator'
+               CASE ( np_lap_it )   ;   WRITE(numout,*) 'traldf_triad_lap : iso-neutral triad laplacian diffusive operator'
+               CASE ( np_blp    )   ;   WRITE(numout,*) 'traldf_lev_blp   : iso-level bilaplacian diffusive operator'
+               CASE ( np_blp_i  )   ;   WRITE(numout,*) 'traldf_iso_blp   : iso-neutral bilaplacian diffusive operator'
+               CASE ( np_blp_it )   ;   WRITE(numout,*) 'traldf_triad_blp : iso-neutral triad bilaplacian diffusive operator'
+            END SELECT
+            WRITE(numout,*) '~~~~~~~~~~~~~~~~ '
+         ENDIF
+      ENDIF
       !
       IF( ln_timing )   CALL timing_start('tra_ldf')
       !
       IF( l_trdtra )   THEN                    !* Save ta and sa trends
-         ALLOCATE( ztrdt(jpi,jpj,jpk) , ztrds(jpi,jpj,jpk) )
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
-         ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
+         ALLOCATE( zTtrd(jpi,jpj,jpk) , zStrd(jpi,jpj,jpk) )
+         zTtrd(:,:,:) = pts(:,:,:,jp_tem,Krhs)
+         zStrd(:,:,:) = pts(:,:,:,jp_sal,Krhs)
       ENDIF
       !
-      SELECT CASE ( nldf_tra )                 !* compute lateral mixing trend and add it to the general trend
-      CASE ( np_lap   )                                  ! laplacian: iso-level operator
-         CALL tra_ldf_lap  ( kt, Kmm, nit000,'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, pts(:,:,:,:,Kbb), pts(:,:,:,:,Krhs),                   jpts,  1 )
-      CASE ( np_lap_i )                                  ! laplacian: standard iso-neutral operator (Madec)
-         CALL tra_ldf_iso  ( kt, Kmm, nit000,'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, pts(:,:,:,:,Kbb), pts(:,:,:,:,Kbb), pts(:,:,:,:,Krhs), jpts,  1 )
-      CASE ( np_lap_it )                                 ! laplacian: triad iso-neutral operator (griffies)
-         CALL tra_ldf_triad( kt, Kmm, nit000,'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, pts(:,:,:,:,Kbb), pts(:,:,:,:,Kbb), pts(:,:,:,:,Krhs), jpts,  1 )
-      CASE ( np_blp , np_blp_i , np_blp_it )             ! bilaplacian: iso-level & iso-neutral operators
-         CALL tra_ldf_blp  ( kt, Kmm, nit000,'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, pts(:,:,:,:,Kbb), pts(:,:,:,:,Krhs),             jpts, nldf_tra )
+      SELECT CASE ( nldf_tra )   !* compute lateral mixing trend and add it to the general trend
+      !                                !-  laplacian  - !
+      CASE ( np_lap    )                     ! level operator
+         CALL traldf_lev_lap  ( kt, Kbb, Kmm, pts, Krhs, l_ptr, l_hst )
+      CASE ( np_lap_i  )                     ! standard iso-neutral operator
+         CALL traldf_iso_lap  ( kt, Kbb, Kmm, pts, Krhs, l_ptr, l_hst )
+      CASE ( np_lap_it )                     ! laplacian: triad iso-neutral operator
+         CALL traldf_triad_lap( kt, Kmm, nit000,'TRA', ahtu, ahtv, pts(:,:,:,:,Kbb),    &
+            &                                    pts(:,:,:,:,Kbb), pts(:,:,:,:,Krhs), jpts,  1 )
+      !                                !- bilaplacian - !
+      CASE ( np_blp    )                     ! iso-level operators
+         CALL traldf_lev_blp   ( kt, Kbb, Kmm, pts, Krhs, l_ptr, l_hst )
+      CASE ( np_blp_i  )                     ! standard iso-neutral operator
+         CALL traldf_iso_blp   ( kt, Kbb, Kmm, pts, Krhs, l_ptr, l_hst )
+      CASE ( np_blp_it )                     ! bilaplacian: iso-level & iso-neutral operators
+         CALL traldf_triad_blp( kt, Kmm, nit000,'TRA', ahtu, ahtv, pts(:,:,:,:,Kbb),    &
+            &                                     pts(:,:,:,:,Krhs),             jpts )
       END SELECT
       !
       IF( l_trdtra )   THEN                    !* save the horizontal diffusive trends for further diagnostics
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
-         ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs) - ztrds(:,:,:)
-         CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_ldf, ztrdt )
-         CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_ldf, ztrds )
-         DEALLOCATE( ztrdt, ztrds )
+         zTtrd(:,:,:) = pts(:,:,:,jp_tem,Krhs) - zTtrd(:,:,:)
+         zStrd(:,:,:) = pts(:,:,:,jp_sal,Krhs) - zStrd(:,:,:)
+         CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_ldf, zTtrd )
+         CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_ldf, zStrd )
+         DEALLOCATE( zTtrd, zStrd )
       ENDIF
       !                                        !* print mean trends (used for debugging)
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pts(:,:,:,jp_tem,Krhs), clinfo1=' ldf  - Ta: ', mask1=tmask, &
@@ -121,6 +150,12 @@ CONTAINS
          CASE( np_blp_it )   ;   WRITE(numout,*) '   ==>>>   Rotated bilaplacian operator (triad)'
          END SELECT
       ENDIF
+      !
+      l_ptr = .FALSE.                        ! set flag for heat & salt diffusive diagnostics
+      l_hst = .FALSE.
+      IF(   ( iom_use( 'sophtldf'  ) .OR. iom_use(  'sopstldf' )  )   )   l_ptr = .TRUE.   ! diffusive poleward transport
+      IF(   ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &                 
+         &    iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  )   )   l_hst = .TRUE.   ! vertically cumulated diffusive fluxes
       !
    END SUBROUTINE tra_ldf_init
 

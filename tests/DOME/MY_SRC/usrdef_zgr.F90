@@ -14,8 +14,7 @@ MODULE usrdef_zgr
    !!       zgr_z1d   : reference 1D z-coordinate 
    !!---------------------------------------------------------------------
    USE oce            ! ocean variables
-   USE dom_oce ,  ONLY: mi0, mi1          ! ocean space and time domain
-   USE dom_oce ,  ONLY: glamt, gphit      ! ocean space and time domain
+   USE dom_oce        ! ocean space and time domain
    USE usrdef_nam     ! User defined : namelist variables
    !
    USE in_out_manager ! I/O manager

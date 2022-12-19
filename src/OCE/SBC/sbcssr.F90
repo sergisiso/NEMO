@@ -97,8 +97,8 @@ CONTAINS
             erp(:,:) = 0._wp
             !
             IF( nn_sstr == 1 ) THEN                                   !* Temperature restoring term
-               DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-                  zqrp = rn_dqdt * ( sst_m(ji,jj) - sf_sst(1)%fnow(ji,jj,1) ) * tmask(ji,jj,1)
+               DO_2D( 0, 0, 0, 0 )
+                  zqrp = rn_dqdt * ( sst_m(ji,jj) - sf_sst(1)%fnow(ji,jj,1) ) * smask0(ji,jj)
                   qns(ji,jj) = qns(ji,jj) + zqrp
                   qrp(ji,jj) = zqrp
                END_2D
@@ -107,7 +107,7 @@ CONTAINS
             IF( nn_sssr /= 0 .AND. nn_sssr_ice /= 1 ) THEN
               ! use fraction of ice ( fr_i ) to adjust relaxation under ice if nn_sssr_ice .ne. 1
               ! n.b. coefice is initialised and fixed to 1._wp if nn_sssr_ice = 1
-               DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               DO_2D( 0, 0, 0, 0 )
                   SELECT CASE ( nn_sssr_ice )
                     CASE ( 0 )    ;  coefice(ji,jj) = 1._wp - fr_i(ji,jj)              ! no/reduced damping under ice
                     CASE  DEFAULT ;  coefice(ji,jj) = 1._wp + ( nn_sssr_ice - 1 ) * fr_i(ji,jj) ! reinforced damping (x nn_sssr_ice) under ice )
@@ -117,10 +117,10 @@ CONTAINS
             !
             IF( nn_sssr == 1 ) THEN                                   !* Salinity damping term (salt flux only (sfx))
                zsrp = rn_deds / rday                                  ! from [mm/day] to [kg/m2/s]
-               DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               DO_2D( 0, 0, 0, 0 )
                   zerp = zsrp * ( 1. - 2.*rnfmsk(ji,jj) )   &      ! No damping in vicinity of river mouths
                      &        *   coefice(ji,jj)            &      ! Optional control of damping under sea-ice
-                     &        * ( sss_m(ji,jj) - sf_sss(1)%fnow(ji,jj,1) ) * tmask(ji,jj,1)
+                     &        * ( sss_m(ji,jj) - sf_sss(1)%fnow(ji,jj,1) ) * smask0(ji,jj)
                   sfx(ji,jj) = sfx(ji,jj) + zerp                 ! salt flux
                   erp(ji,jj) = zerp / MAX( sss_m(ji,jj), 1.e-20 ) ! converted into an equivalent volume flux (diagnostic only)
                END_2D
@@ -128,21 +128,21 @@ CONTAINS
             ELSEIF( nn_sssr == 2 ) THEN                               !* Salinity damping term (volume flux (emp) and associated heat flux (qns)
                zsrp = rn_deds / rday                                  ! from [mm/day] to [kg/m2/s]
                zerp_bnd = rn_sssr_bnd / rday                          !       -              -    
-               DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               DO_2D( 0, 0, 0, 0 )
                   zerp = zsrp * ( 1. - 2.*rnfmsk(ji,jj) )   &      ! No damping in vicinity of river mouths
                      &        *   coefice(ji,jj)            &      ! Optional control of damping under sea-ice
                      &        * ( sss_m(ji,jj) - sf_sss(1)%fnow(ji,jj,1) )   &
-                     &        / MAX(  sss_m(ji,jj), 1.e-20   ) * tmask(ji,jj,1)
+                     &        / MAX(  sss_m(ji,jj), 1.e-20   ) * smask0(ji,jj)
                   IF( ln_sssr_bnd )   zerp = SIGN( 1.0_wp, zerp ) * MIN( zerp_bnd, ABS(zerp) )
-                  emp(ji,jj) = emp (ji,jj) + zerp
-                  qns(ji,jj) = qns(ji,jj) - zerp * rcp * sst_m(ji,jj)
                   erp(ji,jj) = zerp
-                  qrp(ji,jj) = qrp(ji,jj) - zerp * rcp * sst_m(ji,jj)
+                  emp(ji,jj) = emp(ji,jj) + erp(ji,jj)
+                  qns(ji,jj) = qns(ji,jj) - erp(ji,jj) * rcp * sst_m(ji,jj)
+                  qrp(ji,jj) = qrp(ji,jj) - erp(ji,jj) * rcp * sst_m(ji,jj)
                END_2D
             ENDIF
             ! outputs
             CALL iom_put( 'hflx_ssr_cea', qrp(:,:) )
-            IF( nn_sssr == 1 )   CALL iom_put( 'sflx_ssr_cea',  erp(:,:) * sss_m(:,:) )
+            IF( nn_sssr == 1 )   CALL iom_put( 'sflx_ssr_cea',  erp(:,:) * sss_m(A2D(0)) )
             IF( nn_sssr == 2 )   CALL iom_put( 'vflx_ssr_cea', -erp(:,:) )
             !
          ENDIF
@@ -207,12 +207,12 @@ CONTAINS
          !
          ALLOCATE( sf_sst(1), STAT=ierror )
          IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_ssr: unable to allocate sf_sst structure' )
-         ALLOCATE( sf_sst(1)%fnow(jpi,jpj,1), STAT=ierror )
+         ALLOCATE( sf_sst(1)%fnow(A2D(0),1), STAT=ierror )
          IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_ssr: unable to allocate sf_sst now array' )
          !
          ! fill sf_sst with sn_sst and control print
          CALL fld_fill( sf_sst, (/ sn_sst /), cn_dir, 'sbc_ssr', 'SST restoring term toward SST data', 'namsbc_ssr', no_print )
-         IF( sf_sst(1)%ln_tint )   ALLOCATE( sf_sst(1)%fdta(jpi,jpj,1,2), STAT=ierror )
+         IF( sf_sst(1)%ln_tint )   ALLOCATE( sf_sst(1)%fdta(A2D(0),1,2), STAT=ierror )
          IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_ssr: unable to allocate sf_sst data array' )
          !
       ENDIF
@@ -221,12 +221,12 @@ CONTAINS
          !
          ALLOCATE( sf_sss(1), STAT=ierror )
          IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_ssr: unable to allocate sf_sss structure' )
-         ALLOCATE( sf_sss(1)%fnow(jpi,jpj,1), STAT=ierror )
+         ALLOCATE( sf_sss(1)%fnow(A2D(0),1), STAT=ierror )
          IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_ssr: unable to allocate sf_sss now array' )
          !
          ! fill sf_sss with sn_sss and control print
          CALL fld_fill( sf_sss, (/ sn_sss /), cn_dir, 'sbc_ssr', 'SSS restoring term toward SSS data', 'namsbc_ssr', no_print )
-         IF( sf_sss(1)%ln_tint )   ALLOCATE( sf_sss(1)%fdta(jpi,jpj,1,2), STAT=ierror )
+         IF( sf_sss(1)%ln_tint )   ALLOCATE( sf_sss(1)%fdta(A2D(0),1,2), STAT=ierror )
          IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_ssr: unable to allocate sf_sss data array' )
          !
       ENDIF
@@ -244,7 +244,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       sbc_ssr_alloc = 0       ! set to zero if no array to be allocated
       IF( .NOT. ALLOCATED( erp ) ) THEN
-         ALLOCATE( qrp(jpi,jpj), erp(jpi,jpj), coefice(jpi,jpj), STAT= sbc_ssr_alloc )
+         ALLOCATE( qrp(A2D(0)), erp(A2D(0)), coefice(A2D(0)), STAT= sbc_ssr_alloc )
          !
          IF( lk_mpp                  )   CALL mpp_sum ( 'sbcssr', sbc_ssr_alloc )
          IF( sbc_ssr_alloc /= 0 )   CALL ctl_warn('sbc_ssr_alloc: failed to allocate arrays.')

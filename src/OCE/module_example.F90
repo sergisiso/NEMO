@@ -88,17 +88,17 @@ CONTAINS
       !! References :   Author et al., Short_name_review, Year
       !!                Give references if exist otherwise suppress these lines
       !!----------------------------------------------------------------------
-      INTEGER , INTENT(in   )                     ::   kt      ! short description 
-      INTEGER , INTENT(inout)                     ::   pvar1   !   -         -
-      REAL(wp), INTENT(  out)                     ::   pvar2   !   -         -
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   pvar2   !   -         -
+      INTEGER , INTENT(in   )                         ::   kt      ! short description
+      INTEGER , INTENT(inout)                         ::   pvar1   !   -         -
+      REAL(wp), INTENT(  out)                         ::   pvar2   !   -         -
+      REAL(wp), INTENT(  out), DIMENSION(A2D(nn_hls)) ::   pvar2   !   -         -
       !!
       INTEGER  ::   ji, jj, jk       ! dummy loop arguments  (DOCTOR : start with j, but not jp)
       INTEGER  ::   itoto, itata     ! temporary integers    (DOCTOR : start with i
       REAL(wp) ::   zmlmin, zbbrho   ! temporary scalars     (DOCTOR : start with z)
       REAL(wp) ::   zfact1, zfact2   ! do not use continuation lines in declaration
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zwrk_2d   ! 2D workspace
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zwrk_3d   ! 3D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls))     ::   zwrk_2d   ! 2D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zwrk_3d   ! 3D workspace
       !!--------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile

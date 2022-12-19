@@ -51,12 +51,12 @@ CONTAINS
       !!      * concentration/dilution effect:
       !!            The surface freshwater flux modify the ocean volume
       !!         and thus the concentration of a tracer as :
-      !!            tr(Krhs) = tr(Krhs) + emp * tr(Kmm) / e3t_ + fmmflx * tri / e3t   for k=1
+      !!            tr(Krhs) = tr(Krhs) + emp * tr(Kmm) / e3t_ + fwfice * tri / e3t   for k=1
       !!          - tr(Kmm) , the concentration of tracer in the ocean
       !!          - tri, the concentration of tracer in the sea-ice
-      !!          - emp, the surface freshwater budget (evaporation minus precipitation + fmmflx)
+      !!          - emp, the surface freshwater budget (evaporation minus precipitation + fwfice)
       !!            given in kg/m2/s is divided by 1035 kg/m3 (density of ocean water) to obtain m/s.
-      !!          - fmmflx, the flux asscociated to freezing-melting of sea-ice 
+      !!          - fwfice, the flux asscociated to freezing-melting of sea-ice 
       !!            In linear free surface case (ln_linssh=T), the volume of the
       !!            ocean does not change with the water exchanges at the (air+ice)-sea
       !!
@@ -115,14 +115,14 @@ CONTAINS
       CASE ( -1 ) ! ! No tracers in sea ice ( trc_i = 0 )
          !
          DO jn = 1, jptra
-            DO_2D( 0, 0, 0, 1 )
+            DO_2D( 0, 0, 0, 0 )
                sbc_trc(ji,jj,jn) = 0._wp
             END_2D
          END DO
          !
          IF( ln_linssh ) THEN  !* linear free surface  
             DO jn = 1, jptra
-               DO_2D( 0, 0, 0, 1 )
+               DO_2D( 0, 0, 0, 0 )
                   sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
                END_2D
             END DO
@@ -131,14 +131,14 @@ CONTAINS
       CASE ( 0 )  ! Same concentration in sea ice and in the ocean ( trc_i = ptr(...,Kmm)  )
          !
          DO jn = 1, jptra
-            DO_2D( 0, 0, 0, 1 )
-               sbc_trc(ji,jj,jn) = - fmmflx(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
+            DO_2D( 0, 0, 0, 0 )
+               sbc_trc(ji,jj,jn) = fwfice(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
             END_2D
          END DO
          !
          IF( ln_linssh ) THEN  !* linear free surface  
             DO jn = 1, jptra
-               DO_2D( 0, 0, 0, 1 )
+               DO_2D( 0, 0, 0, 0 )
                   sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
                END_2D
             END DO
@@ -147,21 +147,21 @@ CONTAINS
       CASE ( 1 )  ! Specific treatment of sea ice fluxes with an imposed concentration in sea ice 
          !
          DO jn = 1, jptra
-            DO_2D( 0, 0, 0, 1 )
-               sbc_trc(ji,jj,jn) = - fmmflx(ji,jj) * r1_rho0 * trc_i(ji,jj,jn)
+            DO_2D( 0, 0, 0, 0 )
+               sbc_trc(ji,jj,jn) = fwfice(ji,jj) * r1_rho0 * trc_i(ji,jj,jn)
             END_2D
          END DO
          !
          IF( ln_linssh ) THEN  !* linear free surface  
             DO jn = 1, jptra
-               DO_2D( 0, 0, 0, 1 )
+               DO_2D( 0, 0, 0, 0 )
                   sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
                END_2D
             END DO
          ENDIF
          !
          DO jn = 1, jptra
-            DO_2D( 0, 0, 0, 1 )
+            DO_2D( 0, 0, 0, 0 )
                zse3t = rDt_trc / e3t(ji,jj,1,Kmm)
                zdtra = ptr(ji,jj,1,jn,Kmm) + sbc_trc(ji,jj,jn) * zse3t 
                IF( zdtra < 0. ) sbc_trc(ji,jj,jn) = MAX( zdtra, -ptr(ji,jj,1,jn,Kmm) / zse3t  ) ! avoid negative concentration that can occurs if trc_i > ptr 
@@ -176,7 +176,7 @@ CONTAINS
          !
          IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs)  ! save trends
          !
-         DO_2D( 0, 0, 0, 1 )
+         DO_2D( 0, 0, 0, 0 )
             zse3t = zfact / e3t(ji,jj,1,Kmm)
             ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + ( sbc_trc_b(ji,jj,jn) + sbc_trc(ji,jj,jn) ) * zse3t
          END_2D
@@ -259,7 +259,7 @@ CONTAINS
          !
          IF( .NOT.ln_linssh ) THEN           !* only passive tracer fluxes associated with mass fluxes
             !                                        ! no passive tracer concentration modification due to ssh variation
-!!st emp includes fmm see iceupdate.F90
+!!st emp includes fwfice see iceupdate.F90
 !!not sure about trc_i case... (1)
             DO jn = 1, jptra
                DO_2D( 0, 0, 0, 0 )              !!st WHY 1 : exterior here ? 
@@ -292,12 +292,12 @@ CONTAINS
                   END_2D
                END DO
                !
-            CASE ( 0 )  ! Same concentration in sea ice and in the ocean fmm contribution to concentration/dilution effect has to be removed
+            CASE ( 0 )  ! Same concentration in sea ice and in the ocean fwfice contribution to concentration/dilution effect has to be removed
                !
                DO jn = 1, jptra
-                  DO_2D( 0, 0, 0, 1 )
+                  DO_2D( 0, 0, 0, 0 )
                      z1_rho0_e3t = r1_rho0  / e3t(ji,jj,1,Kmm)
-                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + ( emp(ji,jj) - fmmflx(ji,jj) ) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
+                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + ( emp(ji,jj) + fwfice(ji,jj) ) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
                   END_2D
                END DO
                !
@@ -307,13 +307,13 @@ CONTAINS
                   DO_2D( 0, 0, 0, 0 )
                      z1_rho0_e3t = r1_rho0  / e3t(ji,jj,1,Kmm)
                      ! tracer flux at the ice/ocean interface (tracer/m2/s)
-                     zftra = - trc_i(ji,jj,jn) * fmmflx(ji,jj) ! uptake of tracer in the sea ice
-                     !                                         ! only used in the levitating sea ice case
+                     zftra = trc_i(ji,jj,jn) * fwfice(ji,jj) ! uptake of tracer in the sea ice
+                     !                                       ! only used in the levitating sea ice case
                      ! tracer flux only       : add concentration dilution term in net tracer flux, no F-M in volume flux
                      ! tracer and mass fluxes : no concentration dilution term in net tracer flux, F-M term in volume flux
                      ztfx  = zftra                        ! net tracer flux
                      !
-                     zdtra = r1_rho0 * ( ztfx +  ( emp(ji,jj) - fmmflx(ji,jj) ) * ptr(ji,jj,1,jn,Kmm) ) 
+                     zdtra = r1_rho0 * ( ztfx +  ( emp(ji,jj) + fwfice(ji,jj) ) * ptr(ji,jj,1,jn,Kmm) ) 
                      IF ( zdtra < 0. ) THEN
                         zdtra  = MAX(zdtra, -ptr(ji,jj,1,jn,Kmm) * e3t(ji,jj,1,Kmm) / rDt_trc )   ! avoid negative concentrations to arise
                      ENDIF
@@ -331,9 +331,9 @@ CONTAINS
             CASE ( 0 )  ! Same concentration in sea ice and in the ocean : correct concentration/dilution effect due to "freezing - melting"
                !
                DO jn = 1, jptra
-                  DO_2D( 0, 0, 0, 1 )
+                  DO_2D( 0, 0, 0, 0 )
                      z1_rho0_e3t = r1_rho0  / e3t(ji,jj,1,Kmm)
-                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) - fmmflx(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
+                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + fwfice(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
                   END_2D
                END DO
                !
@@ -342,13 +342,13 @@ CONTAINS
                DO jn = 1, jptra
                   DO_2D( 0, 0, 0, 0 )
                      ! tracer flux at the ice/ocean interface (tracer/m2/s)
-                     zftra = - trc_i(ji,jj,jn) * fmmflx(ji,jj) ! uptake of tracer in the sea ice
-                     !                                         ! only used in the levitating sea ice case
+                     zftra = trc_i(ji,jj,jn) * fwfice(ji,jj) ! uptake of tracer in the sea ice
+                     !                                       ! only used in the levitating sea ice case
                      ! tracer flux only       : add concentration dilution term in net tracer flux, no F-M in volume flux
                      ! tracer and mass fluxes : no concentration dilution term in net tracer flux, F-M term in volume flux
                      ztfx  = zftra                        ! net tracer flux
                      !
-                     zdtra = r1_rho0 * ( ztfx -  fmmflx(ji,jj) * ptr(ji,jj,1,jn,Kmm) ) 
+                     zdtra = r1_rho0 * ( ztfx + fwfice(ji,jj) * ptr(ji,jj,1,jn,Kmm) ) 
                      IF ( zdtra < 0. ) THEN
                         zdtra  = MAX(zdtra, -ptr(ji,jj,1,jn,Kmm) * e3t(ji,jj,1,Kmm) / rDt_trc )   ! avoid negative concentrations to arise
                      ENDIF

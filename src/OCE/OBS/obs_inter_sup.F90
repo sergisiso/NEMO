@@ -279,8 +279,8 @@ CONTAINS
       ! Pack interpolation data to be sent
 
       DO ji = 1, itot
-         ii = mi1(igrdij_recv(2*ji-1))
-         ij = mj1(igrdij_recv(2*ji))
+         ii = mi1(igrdij_recv(2*ji-1),nn_hls)
+         ij = mj1(igrdij_recv(2*ji  ),nn_hls)
          DO jk = 1, kpk
             zsend(jk,ji) = pval(ii,ij,jk)
          END DO

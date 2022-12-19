@@ -7,12 +7,13 @@ MODULE isfdynatf
    !!-------------------------------------------------------------------------
   
    !!-------------------------------------------------------------------------
-   !!   isfnxt       : apply correction needed for the ice shelf to ensure conservation
+   !!   isfdynatf       : apply correction needed for the ice shelf to ensure conservation
    !!-------------------------------------------------------------------------
 
    USE isf_oce
 
    USE phycst , ONLY: r1_rho0         ! physical constant
+   USE par_oce                        ! ocean space and time domain
    USE dom_oce                        ! time and space domain
    USE oce, ONLY : ssh                ! sea-surface height for qco substitution
 
@@ -26,66 +27,52 @@ MODULE isfdynatf
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
-
 CONTAINS
 
-   SUBROUTINE isf_dynatf ( kt, Kmm, pe3t_f, pcoef )
+   SUBROUTINE isf_dynatf ( kt, Kmm, pe3t_f )
       !!--------------------------------------------------------------------
       !!                  ***  ROUTINE isf_dynatf  ***
       !!
       !! ** Purpose : compute the ice shelf volume filter correction for cavity, param, ice sheet coupling case
       !!
       !!-------------------------- OUT -------------------------------------
-      INTEGER                         , INTENT(in   ) :: kt       ! ocean time step
-      INTEGER                         , INTENT(in   ) :: Kmm      ! ocean time level index
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) :: pe3t_f   ! time filtered scale factor to be corrected
-      !
-      REAL(wp)                        , INTENT(in   ) :: pcoef    ! rn_atfp * rn_Dt * r1_rho0
+      INTEGER                         , INTENT(in   ) ::   kt       ! ocean time step
+      INTEGER                         , INTENT(in   ) ::   Kmm      ! ocean time level index
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pe3t_f   ! time filtered scale factor to be corrected
       !!--------------------------------------------------------------------
-      INTEGER :: jk  ! loop index
+      INTEGER  ::   ji, jj, jk  ! loop index
+      REAL(wp) ::   ztmp
       !!--------------------------------------------------------------------
       !
       ! ice shelf cavity
-      IF ( ln_isfcav_mlt ) CALL isf_dynatf_mlt(Kmm, pe3t_f, misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, fwfisf_cav, fwfisf_cav_b, pcoef)
+      IF( ln_isfcav_mlt ) THEN
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            ztmp = rn_atfp * rn_Dt * ( fwfisf_cav_b(ji,jj) - fwfisf_cav(ji,jj) ) / ( ht(ji,jj,Kmm) + 1._wp - ssmask(ji,jj) ) * r1_rho0
+            !
+            DO jk = 1, jpkm1
+               pe3t_f(ji,jj,jk) = pe3t_f(ji,jj,jk) + tmask(ji,jj,jk) * ztmp * e3t(ji,jj,jk,Kmm)
+            END DO
+         END_2D
+      ENDIF
       !
       ! ice shelf parametrised
-      IF ( ln_isfpar_mlt ) CALL isf_dynatf_mlt(Kmm, pe3t_f, misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, fwfisf_par, fwfisf_par_b, pcoef)
+      IF( ln_isfpar_mlt ) THEN
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            ztmp = rn_atfp * rn_Dt * ( fwfisf_par_b(ji,jj) - fwfisf_par(ji,jj) ) / ( ht(ji,jj,Kmm) + 1._wp - ssmask(ji,jj) ) * r1_rho0
+            !
+            DO jk = 1, jpkm1
+               pe3t_f(ji,jj,jk) = pe3t_f(ji,jj,jk) + tmask(ji,jj,jk) * ztmp * e3t(ji,jj,jk,Kmm)
+            END DO
+         END_2D
+      ENDIF
       !
-      IF ( ln_isfcpl .AND. ln_rstart .AND. kt == nit000+1 ) THEN
-         DO jk = 1, jpkm1
-            pe3t_f(:,:,jk) =   pe3t_f(:,:,jk) - pcoef * risfcpl_vol(:,:,jk) * r1_e1e2t(:,:)
-         END DO
+      ! if coupled
+      IF( ln_isfcpl .AND. ln_rstart .AND. kt == nit000+1 ) THEN
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+            pe3t_f(ji,jj,jk) = pe3t_f(ji,jj,jk) - rn_atfp * rn_Dt * risfcpl_vol(ji,jj,jk) * r1_e1e2t(ji,jj)
+         END_3D
       END IF
       !
    END SUBROUTINE isf_dynatf
-
-   SUBROUTINE isf_dynatf_mlt ( Kmm, pe3t_f, ktop, kbot, phtbl, pfrac, pfwf, pfwf_b, pcoef )
-      !!--------------------------------------------------------------------
-      !!                  ***  ROUTINE isf_dynatf_mlt  ***
-      !!
-      !! ** Purpose : compute the ice shelf volume filter correction for cavity or param
-      !!
-      !!-------------------------- IN  -------------------------------------
-      INTEGER                         , INTENT(in   ) :: Kmm             ! ocean time level index
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) :: pe3t_f          ! time-filtered scale factor to be corrected
-      INTEGER , DIMENSION(jpi,jpj)    , INTENT(in   ) :: ktop , kbot     ! top and bottom level of tbl
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in   ) :: pfrac, phtbl    ! fraction of bottom cell included in tbl, tbl thickness
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in   ) :: pfwf , pfwf_b   ! now/before fwf
-      REAL(wp),                         INTENT(in   ) :: pcoef           ! rn_atfp * rn_Dt * r1_rho0
-      !!----------------------------------------------------------------------
-      INTEGER :: ji,jj,jk
-      REAL(wp), DIMENSION(jpi,jpj) :: zfwfinc
-      !!----------------------------------------------------------------------
-      !
-      ! compute fwf conservation correction
-      zfwfinc(:,:) = pcoef * ( pfwf_b(:,:) - pfwf(:,:) ) / ( ht(:,:) + 1._wp - ssmask(:,:) ) * r1_rho0
-      !
-      ! add the increment
-      DO jk = 1, jpkm1
-         pe3t_f(:,:,jk) = pe3t_f(:,:,jk) + tmask(:,:,jk) * zfwfinc(:,:)   &
-            &                              * e3t(:,:,jk,Kmm)
-      END DO
-      !
-   END SUBROUTINE isf_dynatf_mlt
 
 END MODULE isfdynatf

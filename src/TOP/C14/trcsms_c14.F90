@@ -80,7 +80,7 @@ CONTAINS
       !  CO2 solubility (Weiss, 1974; Wanninkhof, 2014) 
       ! -------------------------------------------------------------------
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF( tmask(ji,jj,1) >  0. ) THEN
             !
             zt   = MIN( 40. , ts(ji,jj,1,jp_tem,Kmm) )
@@ -121,21 +121,21 @@ CONTAINS
       !
       ! Flux of C-14 from air-to-sea; units: (C14/C ratio) x m/s
       !                               already masked
-      qtr_c14(:,:) = exch_c14(:,:) * ( c14sbc(:,:) - tr(:,:,1,jp_c14,Kbb) )
+      DO_2D( 0, 0, 0, 0 )
+         qtr_c14(ji,jj) = exch_c14(ji,jj) * ( c14sbc(ji,jj) - tr(ji,jj,1,jp_c14,Kbb) )
+      END_2D
             
       ! cumulation of air-to-sea flux at each time step
       qint_c14(:,:) = qint_c14(:,:) + qtr_c14(:,:) * rn_Dt
       !
       ! Add the surface flux to the trend of jp_c14
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          tr(ji,jj,1,jp_c14,Krhs) = tr(ji,jj,1,jp_c14,Krhs) + qtr_c14(ji,jj) / e3t(ji,jj,1,Kmm) 
       END_2D
       !
       ! Computation of decay effects on jp_c14
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
-         !
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          tr(ji,jj,jk,jp_c14,Krhs) = tr(ji,jj,jk,jp_c14,Krhs) - rlam14 * tr(ji,jj,jk,jp_c14,Kbb) * tmask(ji,jj,jk) 
-         !
       END_3D
       !
       IF( lrst_trc ) THEN

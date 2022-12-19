@@ -13,8 +13,7 @@ MODULE usrdef_istate
    !!----------------------------------------------------------------------
    !!  usr_def_istate : initial state in Temperature and salinity
    !!----------------------------------------------------------------------
-   USE par_oce        ! ocean space and time domain
-   USE dom_oce , ONLY : mi0, mig, mjg, glamt, gphit, ht_0
+   USE dom_oce        ! ocean space and time domain
    USE phycst         ! physical constants
    USE wet_dry        ! Wetting and drying
    !
@@ -44,7 +43,7 @@ CONTAINS
       !! ** Purpose :   Initialization of the dynamics and tracers
       !!                Here WAD_TEST_CASES configuration 
       !!
-q      !! ** Method  : - set temprature field
+      !! ** Method  : - set temprature field
       !!              - set salinity   field
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(jpi,jpj,jpk)     , INTENT(in   ) ::   pdept   ! depth of t-point               [m]
@@ -116,7 +115,7 @@ q      !! ** Method  : - set temprature field
             IF(lwp) WRITE(numout,*) 'usr_def_istate : WAD Parobolic EW channel with gaussian ridge' 
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~'
             !
-            DO ji = mi0(jpiglo/2), mi0(jpiglo)
+            DO ji = mi0(jpiglo/2,nn_hls), mi1(jpiglo,nn_hls)
                pts(ji,:,:,jp_sal) = 30._wp
             END DO
             !
@@ -230,7 +229,7 @@ q      !! ** Method  : - set temprature field
                pssh(ji,:) = ( -2.5_wp + 5.5_wp*(50._wp-glamt(ji,1))/50._wp)*ptmask(ji,:,1)
             END DO
             !
-            DO ji = mi0(jpiglo/2), mi0(jpiglo)
+            DO ji = mi0(jpiglo/2,nn_hls), mi1(jpiglo,nn_hls)
                pssh(ji,:) = -0.1*ptmask(ji,:,1)
             END DO
             !

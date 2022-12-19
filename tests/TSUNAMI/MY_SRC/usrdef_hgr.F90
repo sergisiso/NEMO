@@ -88,8 +88,8 @@ CONTAINS
 #endif
          
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )         
-         zti = REAL( mig0(ji)-ii0, wp )   ! =0 at i=ii0 in the global grid without halos
-         ztj = REAL( mjg0(jj)-ij0, wp )   ! =0 at i=ij0 in the global grid without halos
+         zti = REAL( mig(ji,0)-ii0, wp )   ! =0 at i=ii0 in the global grid without halos
+         ztj = REAL( mjg(jj,0)-ij0, wp )   ! =0 at i=ij0 in the global grid without halos
          
          plamt(ji,jj) = rn_dx *   zti
          plamu(ji,jj) = rn_dx * ( zti + 0.5_wp ) 

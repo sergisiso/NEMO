@@ -168,9 +168,13 @@ CONTAINS
       ! practical salinity
       ! -------------------------------------------------------------
       IF (neos == -1) THEN
-         salinprac(:,:,:) = ts(:,:,:,jp_sal,Kmm) * 35.0 / 35.16504
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            salinprac(ji,jj,jk) = ts(ji,jj,jk,jp_sal,Kmm) * 35.0 / 35.16504
+         END_3D
       ELSE
-         salinprac(:,:,:) = ts(:,:,:,jp_sal,Kmm)
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            salinprac(ji,jj,jk) = ts(ji,jj,jk,jp_sal,Kmm)
+         END_3D
       ENDIF
 
       !
@@ -179,7 +183,7 @@ CONTAINS
       ! potential temperature to in situ temperature. The errors is less than 
       ! 0.04°C relative to an exact computation
       ! ---------------------------------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          zpres = gdept(ji,jj,jk,Kmm) / 1000.
          za1 = 0.04 * ( 1.0 + 0.185 * ts(ji,jj,jk,jp_tem,Kmm) + 0.035 * (salinprac(ji,jj,jk) - 35.0) )
          za2 = 0.0075 * ( 1.0 - ts(ji,jj,jk,jp_tem,Kmm) / 30.0 )
@@ -188,7 +192,7 @@ CONTAINS
       !
       ! CHEMICAL CONSTANTS - SURFACE LAYER
       ! ----------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          !                             ! SET ABSOLUTE TEMPERATURE
          ztkel = tempis(ji,jj,1) + 273.15
          zt    = ztkel * 0.01
@@ -216,7 +220,7 @@ CONTAINS
 
       ! OXYGEN SOLUBILITY - DEEP OCEAN
       ! -------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          ztkel = tempis(ji,jj,jk) + 273.15
          zsal  = salinprac(ji,jj,jk) + ( 1.- tmask(ji,jj,jk) ) * 35.
          zsal2 = zsal * zsal
@@ -235,7 +239,7 @@ CONTAINS
 
       ! CHEMICAL CONSTANTS - DEEP OCEAN
       ! -------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
           ! SET PRESSION ACCORDING TO SAUNDER (1980)
           zplat   = SIN ( ABS(gphit(ji,jj)*3.141592654/180.) )
           zc1 = 5.92E-3 + zplat**2 * 5.25E-3
@@ -452,7 +456,7 @@ CONTAINS
       !!                    and the 2nd order approximation does not have 
       !!                    a solution
       !!---------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(OUT)  ::  p_hini
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(OUT)  ::  p_hini
       INTEGER,                          INTENT(in)   ::  Kbb      ! time level indices
       INTEGER  ::   ji, jj, jk
       REAL(wp)  ::  zca1, zba1
@@ -463,7 +467,7 @@ CONTAINS
 
       IF( ln_timing )  CALL timing_start('ahini_for_at')
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
       zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
       p_alkcb  = tr(ji,jj,jk,jptal,Kbb) * zrhd
       p_dictot = tr(ji,jj,jk,jpdic,Kbb) * zrhd
@@ -512,13 +516,13 @@ CONTAINS
    ! inf(TA - [OH-] + [H+]) and sup(TA - [OH-] + [H+])
 
    ! Argument variables
-   REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(OUT) :: p_alknw_inf
-   REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(OUT) :: p_alknw_sup
+   REAL(wp), DIMENSION(A2D(0),jpk), INTENT(OUT) :: p_alknw_inf
+   REAL(wp), DIMENSION(A2D(0),jpk), INTENT(OUT) :: p_alknw_sup
    INTEGER,                          INTENT(in)  ::  Kbb      ! time level indices
    INTEGER  ::   ji, jj, jk
    REAL(wp)  ::  zrhd
 
-    DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+    DO_3D( 0, 0, 0, 0, 1, jpk )
       zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
       p_alknw_inf(ji,jj,jk) =  -tr(ji,jj,jk,jppo4,Kbb) * zrhd - sulfat(ji,jj,jk) &
       &              - fluorid(ji,jj,jk)
@@ -536,8 +540,8 @@ CONTAINS
 
    ! Argument variables
    !--------------------
-   REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(IN)   :: p_hini
-   REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(OUT)  :: zhi
+   REAL(wp), DIMENSION(A2D(0),jpk), INTENT(IN)   :: p_hini
+   REAL(wp), DIMENSION(A2D(0),jpk), INTENT(OUT)  :: zhi
    INTEGER,                          INTENT(in)   :: Kbb  ! time level indices
 
    ! Local variables
@@ -557,17 +561,17 @@ CONTAINS
    REAL(wp)  ::  zrhd, p_alktot, zdic, zbot, zpt, zst, zft, zsit
    LOGICAL   ::  l_exitnow
    REAL(wp), PARAMETER :: pz_exp_threshold = 1.0
-   REAL(wp), DIMENSION(jpi,jpj,jpk) :: zalknw_inf, zalknw_sup, rmask, zh_min, zh_max, zeqn_absmin
+   REAL(wp), DIMENSION(A2D(0),jpk) :: zalknw_inf, zalknw_sup, rmask, zh_min, zh_max, zeqn_absmin
 
    IF( ln_timing )  CALL timing_start('solve_at_general')
 
    CALL anw_infsup( zalknw_inf, zalknw_sup, Kbb )
 
-   rmask(:,:,:) = tmask(:,:,:)
+   rmask(A2D(0),1:jpk) = tmask(A2D(0),1:jpk)
    zhi(:,:,:)   = 0.
 
    ! TOTAL H+ scale: conversion factor for Htot = aphscale * Hfree
-   DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+   DO_3D( 0, 0, 0, 0, 1, jpk )
       IF (rmask(ji,jj,jk) == 1.) THEN
          zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
          p_alktot = tr(ji,jj,jk,jptal,Kbb) * zrhd
@@ -597,7 +601,7 @@ CONTAINS
    zeqn_absmin(:,:,:) = HUGE(1._wp)
 
    DO jn = 1, jp_maxniter_atgen 
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
       IF (rmask(ji,jj,jk) == 1.) THEN
          zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
          p_alktot = tr(ji,jj,jk,jptal,Kbb) * zrhd
@@ -797,17 +801,17 @@ CONTAINS
 
       ierr(:) = 0
 
-      ALLOCATE( sio3eq(jpi,jpj,jpk), fekeq(jpi,jpj,jpk), chemc(jpi,jpj,3), chemo2(jpi,jpj,jpk), STAT=ierr(1) )
+      ALLOCATE( sio3eq(A2D(0),jpk), fekeq(A2D(0),jpk), chemc(A2D(0),3), chemo2(A2D(0),jpk), STAT=ierr(1) )
 
-      ALLOCATE( akb3(jpi,jpj,jpk)     , tempis(jpi, jpj, jpk),       &
-         &      akw3(jpi,jpj,jpk)     , borat (jpi,jpj,jpk)  ,       &
-         &      aks3(jpi,jpj,jpk)     , akf3(jpi,jpj,jpk)    ,       &
-         &      ak1p3(jpi,jpj,jpk)    , ak2p3(jpi,jpj,jpk)   ,       &
-         &      ak3p3(jpi,jpj,jpk)    , aksi3(jpi,jpj,jpk)   ,       &
-         &      fluorid(jpi,jpj,jpk)  , sulfat(jpi,jpj,jpk)  ,       &
-         &      salinprac(jpi,jpj,jpk),                 STAT=ierr(2) )
+      ALLOCATE( akb3(A2D(0),jpk)     , tempis(A2D(0),jpk),       &
+         &      akw3(A2D(0),jpk)     , borat (A2D(0),jpk)  ,       &
+         &      aks3(A2D(0),jpk)     , akf3(A2D(0),jpk)    ,       &
+         &      ak1p3(A2D(0),jpk)    , ak2p3(A2D(0),jpk)   ,       &
+         &      ak3p3(A2D(0),jpk)    , aksi3(A2D(0),jpk)   ,       &
+         &      fluorid(A2D(0),jpk)  , sulfat(A2D(0),jpk)  ,       &
+         &      salinprac(A2D(0),jpk),                 STAT=ierr(2) )
 
-      ALLOCATE( fesol(jpi,jpj,jpk,5), STAT=ierr(3) )
+      ALLOCATE( fesol(A2D(0),jpk,5), STAT=ierr(3) )
 
       !* Variable for chemistry of the CO2 cycle
       p4z_che_alloc = MAXVAL( ierr )

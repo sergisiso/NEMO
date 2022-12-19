@@ -116,7 +116,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       IF( l_log_not_linssh ) THEN     !==  "log layer"  ==!   compute Cd and -Cd*|U|
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             imk = k_mk(ji,jj)          ! ocean bottom level at t-points
             zut = uu(ji,jj,imk,Kmm) + uu(ji-1,jj,imk,Kmm)     ! 2 x velocity at t-point
             zvt = vv(ji,jj,imk,Kmm) + vv(ji,jj-1,imk,Kmm)
@@ -128,7 +128,7 @@ CONTAINS
             pCdU(ji,jj) = - zcd * SQRT(  0.25 * ( zut*zut + zvt*zvt ) + pke0  )
          END_2D
       ELSE                                            !==  standard Cd  ==!
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             imk = k_mk(ji,jj)    ! ocean bottom level at t-points
             zut = uu(ji,jj,imk,Kmm) + uu(ji-1,jj,imk,Kmm)     ! 2 x velocity at t-point
             zvt = vv(ji,jj,imk,Kmm) + vv(ji,jj-1,imk,Kmm)

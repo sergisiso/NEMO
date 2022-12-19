@@ -50,12 +50,12 @@ CONTAINS
       INTEGER , INTENT(in)  :: Kbb, Kmm
       INTEGER , INTENT(in)  :: jp_tra    ! tracer index index      
       REAL(wp), INTENT(in)  :: rsfact    ! time step duration
-      REAL(wp), INTENT(in)   , DIMENSION(jpi,jpj,jpk) :: pwsink
-      REAL(wp), INTENT(inout), DIMENSION(jpi,jpj,jpk) :: psinkflx
+      REAL(wp), INTENT(in)   , DIMENSION(A2D(0),jpk) :: pwsink
+      REAL(wp), INTENT(inout), DIMENSION(A2D(0),jpk) :: psinkflx
       INTEGER  ::   ji, jj, jk
-      INTEGER, DIMENSION(jpi, jpj) ::   iiter
+      INTEGER, DIMENSION(A2D(0)) ::   iiter
       REAL(wp) ::   zfact, zwsmax, zmax
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zwsink
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zwsink
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_sink')
@@ -73,7 +73,7 @@ CONTAINS
       IF( nitermax == 1 ) THEN
          iiter(:,:) = 1
       ELSE
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             iiter(ji,jj) = 1
             DO jk = 1, jpkm1
                IF( tmask(ji,jj,jk) == 1.0 ) THEN
@@ -85,14 +85,9 @@ CONTAINS
          iiter(:,:) = MIN( iiter(:,:), nitermax )
       ENDIF
 
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
-         IF( tmask(ji,jj,jk) == 1.0 ) THEN
-           zwsmax = 0.5 * e3t(ji,jj,jk,Kmm) * rday / rsfact
-           zwsink(ji,jj,jk) = MIN( pwsink(ji,jj,jk), zwsmax * REAL( iiter(ji,jj), wp ) )
-         ELSE
-           ! provide a default value so there is no use of undefinite value in trc_sink2 for zwsink2 initialization
-           zwsink(ji,jj,jk) = 0.
-         ENDIF
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         zwsmax = 0.5 * e3t(ji,jj,jk,Kmm) * rday / rsfact
+         zwsink(ji,jj,jk+1) = -MIN( pwsink(ji,jj,jk), zwsmax * REAL( iiter(ji,jj), wp ) ) / rday
       END_3D
 
       !  Initializa to zero all the sinking arrays 
@@ -121,23 +116,18 @@ CONTAINS
       INTEGER,  INTENT(in   )                         ::   Kbb, Kmm  ! time level indices
       INTEGER,  INTENT(in   )                         ::   jp_tra    ! tracer index index      
       REAL(wp), INTENT(in   )                         ::   rsfact    ! duration of time step
-      INTEGER,  INTENT(in   ), DIMENSION(jpi,jpj)     ::   kiter     ! number of iterations for time-splitting 
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj,jpk) ::   pwsink    ! sinking speed
-      REAL(wp), INTENT(inout), DIMENSION(jpi,jpj,jpk) ::   psinkflx  ! sinking fluxe
+      INTEGER,  INTENT(in   ), DIMENSION(A2D(0))     ::   kiter     ! number of iterations for time-splitting 
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpk) ::   pwsink    ! sinking speed
+      REAL(wp), INTENT(inout), DIMENSION(A2D(0),jpk) ::   psinkflx  ! sinking fluxe
       !
       INTEGER  ::   ji, jj, jk, jn, jt
-      REAL(wp) ::   zigma,zew,zign, zflx, zstep
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ztraz, zakz, zwsink2, ztrb, psinking 
+      REAL(wp) ::   zigma,z0w,zign, zflx, zstep, zzwx, zzwy, zalpha
+      REAL(wp), DIMENSION(A2D(0),jpk) :: ztraz, zakz, ztrb, zsinking 
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_sink2')
       !
-      DO jk = 1, jpkm1
-         zwsink2(:,:,jk+1) = -pwsink(:,:,jk) / rday * tmask(:,:,jk+1) 
-      END DO
-      zwsink2(:,:,1) = 0.e0
-
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          ! Vertical advective flux
          zstep = rsfact / REAL( kiter(ji,jj), wp ) / 2.
          DO jt = 1, kiter(ji,jj)
@@ -166,27 +156,28 @@ CONTAINS
       
                ! vertical advective flux
                DO jk = 1, jpkm1
-                  zigma = zwsink2(ji,jj,jk+1) * zstep / e3w(ji,jj,jk+1,Kmm)
-                  zew   = zwsink2(ji,jj,jk+1)
-                  psinking(ji,jj,jk+1) = -zew * ( tr(ji,jj,jk,jp_tra,Kbb) - 0.5 * ( 1 + zigma ) * zakz(ji,jj,jk) ) * zstep
+                  z0w    = SIGN( 0.5_wp, pwsink(ji,jj,jk+1) )
+                  zalpha = 0.5 + z0w 
+                  zigma  = z0w - 0.5 * pwsink(ji,jj,jk+1) * zstep / e3w(ji,jj,jk+1,Kmm)
+                  zzwx   = tr(ji,jj,jk+1,jp_tra,Kbb) + zigma * zakz(ji,jj,jk+1)
+                  zzwy   = tr(ji,jj,jk,jp_tra,Kbb) + zigma * zakz(ji,jj,jk)
+                  zsinking(ji,jj,jk+1) = -pwsink(ji,jj,jk+1) * ( zalpha * zzwx + (1.0 - zalpha) * zzwy ) * zstep
                END DO
                !
                ! Boundary conditions
-               psinking(ji,jj,1  ) = 0.e0
-               psinking(ji,jj,jpk) = 0.e0
-      
+               zsinking(ji,jj,1  ) = 0.e0
                DO jk = 1, jpkm1
-                  zflx = ( psinking(ji,jj,jk) - psinking(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
-                  tr(ji,jj,jk,jp_tra,Kbb) = tr(ji,jj,jk,jp_tra,Kbb) + zflx
+                  zflx = ( zsinking(ji,jj,jk) - zsinking(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
+                  tr(ji,jj,jk,jp_tra,Kbb) = tr(ji,jj,jk,jp_tra,Kbb) + zflx * tmask(ji,jj,jk)
                END DO
             END DO
             DO jk = 1, jpkm1
-               zflx = ( psinking(ji,jj,jk) - psinking(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
-               ztrb(ji,jj,jk) = ztrb(ji,jj,jk) + 2. * zflx
+               zflx = ( zsinking(ji,jj,jk) - zsinking(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
+               ztrb(ji,jj,jk) = ztrb(ji,jj,jk) + 2. * zflx * tmask(ji,jj,jk)
             END DO
 
             tr(ji,jj,:,jp_tra,Kbb) = ztrb(ji,jj,:)
-            psinkflx(ji,jj,:)   = psinkflx(ji,jj,:) + 2. * psinking(ji,jj,:)
+            psinkflx(ji,jj,:)   = psinkflx(ji,jj,:) + 2. * zsinking(ji,jj,:)
          END DO
       END_2D
       !

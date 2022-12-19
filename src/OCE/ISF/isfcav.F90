@@ -14,18 +14,19 @@ MODULE isfcav
    !!----------------------------------------------------------------------
    USE isf_oce        ! ice shelf public variables
    !
-   USE isfrst   , ONLY: isfrst_write, isfrst_read ! ice shelf restart read/write subroutine
+   USE isfrst   , ONLY: isfrst_read    ! ice shelf restart read/write subroutine
    USE isfutils , ONLY: debug          ! ice shelf debug subroutine
-   USE isftbl   , ONLY: isf_tbl        ! ice shelf top boundary layer properties subroutine
+   USE isftbl                          ! ice shelf top boundary layer properties subroutine
    USE isfcavmlt, ONLY: isfcav_mlt     ! ice shelf melt formulation subroutine
    USE isfcavgam, ONLY: isfcav_gammats ! ice shelf melt exchange coeficient subroutine
    USE isfdiags , ONLY: isf_diags_flx  ! ice shelf diags subroutine
+   USE zdfdrg   , ONLY: rCd0_top, r_ke0_top ! vertical physics: top/bottom drag coef.
    !
    USE oce      , ONLY: ts, uu, vv, rn2                 ! ocean dynamics and tracers
    USE dom_oce                                          ! ocean space and time domain
-   USE par_oce  , ONLY: jpi,jpj                         ! ocean space and time domain
-   USE phycst   , ONLY: grav,rho0,rho0_rcp,r1_rho0_rcp  ! physical constants
-   USE eosbn2   , ONLY: ln_teos10                       ! use ln_teos10 or not
+   USE par_oce                                          ! ocean space and time domain
+   USE phycst                                           ! physical constants
+   USE eosbn2   , ONLY: eos_fzp, ln_teos10              ! equation of state & use ln_teos10 or not
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O library
@@ -49,7 +50,7 @@ MODULE isfcav
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE isf_cav( kt, Kmm, ptsc, pqfwf )
+   SUBROUTINE isf_cav( kt, Kmm, ptsc, pfwf )
       !!---------------------------------------------------------------------
       !!                     ***  ROUTINE isf_cav  ***
       !!
@@ -67,123 +68,183 @@ CONTAINS
       !! ** Convention : all fluxes are from isf to oce
       !!
       !!---------------------------------------------------------------------
-      !!-------------------------- OUT --------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)     , INTENT(inout) :: pqfwf  ! ice shelf fwf
-      REAL(wp), DIMENSION(jpi,jpj,jpts), INTENT(inout) :: ptsc   ! T & S ice shelf cavity contents
-      !!-------------------------- IN  --------------------------------------
-      INTEGER, INTENT(in) ::   Kmm  ! ocean time level index
       INTEGER, INTENT(in) ::   kt   ! ocean time step
+      INTEGER, INTENT(in) ::   Kmm  ! ocean time level index
+      REAL(wp), DIMENSION(A2D(0),jpts), INTENT(inout) ::   ptsc   ! T & S ice shelf cavity contents
+      REAL(wp), DIMENSION(A2D(0))     , INTENT(inout) ::   pfwf   ! ice shelf fwf
+      !!
+      INTEGER  ::   iconv, ji, jj, jk, ikt
+      REAL(wp) ::   zerr
+      REAL(wp) ::   zcoef, zdku, zdkv
+      INTEGER , PARAMETER ::   iconv_max = 100
+      LOGICAL , DIMENSION(A2D(0)) ::   l_converged              ! true when melting converges (per grid point)
+      REAL(wp), DIMENSION(A2D(0)) ::   ztfrz                    ! tbl freezing temperature
+      REAL(wp), DIMENSION(A2D(0)) ::   zqlat, zqoce, zqhc       ! heat fluxes
+      REAL(wp), DIMENSION(A2D(0)) ::   zqh_b, zRc               !
+      REAL(wp), DIMENSION(A2D(0)) ::   zgammat, zgammas         ! exchange coeficient
+      REAL(wp), DIMENSION(A2D(0)) ::   zttbl, zstbl             ! temp. and sal. in top boundary layer
+      REAL(wp), DIMENSION(A2D(0)) ::   zustar                   ! u*
+      REAL(wp), DIMENSION(A2D(0)) ::   zutbl, zvtbl             ! top boundary layer velocity
+      REAL(wp), DIMENSION(A2D(0),jpk) ::   zvel, ze3            ! u and v at T points and e3t
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   ztmp           ! temporary array
       !!---------------------------------------------------------------------
-      LOGICAL :: lit
-      INTEGER :: nit, ji, jj, ikt
-      REAL(wp) :: zerr
-      REAL(wp) :: zcoef, zdku, zdkv
-      REAL(wp), DIMENSION(jpi,jpj) :: zqlat, zqoce, zqhc, zqh  ! heat fluxes
-      REAL(wp), DIMENSION(jpi,jpj) :: zqh_b, zRc               !
-      REAL(wp), DIMENSION(jpi,jpj) :: zgammat, zgammas         ! exchange coeficient
-      REAL(wp), DIMENSION(jpi,jpj) :: zttbl, zstbl             ! temp. and sal. in top boundary layer
-      !!---------------------------------------------------------------------
       !
-      ! compute T/S/U/V for the top boundary layer
-      CALL isf_tbl(Kmm, ts(:,:,:,jp_tem,Kmm), zttbl(:,:),'T', misfkt_cav, rhisf_tbl_cav, misfkb_cav, rfrac_tbl_cav )
-      CALL isf_tbl(Kmm, ts(:,:,:,jp_sal,Kmm), zstbl(:,:),'T', misfkt_cav, rhisf_tbl_cav, misfkb_cav, rfrac_tbl_cav )
+      DO_3D( 0 ,0, 0, 0, 1, jpk )
+         ze3(ji,jj,jk) = e3t(ji,jj,jk,Kmm)
+      END_3D
       !
-      ! output T/S/U/V for the top boundary layer
-      CALL iom_put('ttbl_cav',zttbl(:,:) * mskisf_cav(:,:))
-      CALL iom_put('stbl'    ,zstbl(:,:) * mskisf_cav(:,:))
+      !===============================
+      ! 1.: compute T and S in the tbl
+      !===============================
+      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(:,:,:,jp_tem,Kmm), & ! <<== in
+         &                                                                                           zttbl  )    ! ==>> out
       !
-      ! initialisation
+      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(:,:,:,jp_sal,Kmm), & ! <<== in
+         &                                                                                           zstbl  )    ! ==>> out
+      !
+      !==========================================
+      ! 2.: compute velocity in the tbl if needed
+      !==========================================
+      IF ( TRIM(cn_gammablk) == 'vel_stab' .OR. TRIM(cn_gammablk) == 'vel' ) THEN
+         ! compute velocity in tbl
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            zvel(ji,jj,jk) = 0.5_wp * ( uu(ji-1,jj,jk,Kmm) + uu(ji,jj,jk,Kmm) )
+         END_3D
+         CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, zvel, & ! <<== in
+            &                                                                        zutbl  )    ! ==>> out
+         !
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            zvel(ji,jj,jk) = 0.5_wp * ( vv(ji,jj-1,jk,Kmm) + vv(ji,jj,jk,Kmm) )
+         END_3D
+         CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, zvel, & ! <<== in
+            &                                                                        zvtbl  )    ! ==>> out
+         !
+         ! compute ustar (AD15 eq. 27)
+         DO_2D( 0, 0, 0, 0 )         
+            zustar(ji,jj) = SQRT( rCd0_top(ji,jj) * ( ( zutbl(ji,jj)*zutbl(ji,jj) + zvtbl(ji,jj)*zvtbl(ji,jj) ) + r_ke0_top ) &
+               &                ) * mskisf_cav(ji,jj)
+         END_2D
+         !
+         !
+      ELSE
+         zustar(:,:) = 0._wp ! not used
+      ENDIF
+      !
+      !==============================
+      ! 3.: compute ice shelf melting
+      !==============================
+      ! --- initialisation --- !
       IF ( TRIM(cn_gammablk) == 'vel_stab' ) THEN
-         zqoce(:,:) = -pqfwf(:,:) * rLfusisf ! 
-         zqh_b(:,:) =  ptsc(:,:,jp_tem) * rho0_rcp ! last time step total heat fluxes (to speed up convergence)
-
+         !
          DO_2D( 0, 0, 0, 0 )
+            zqoce(ji,jj) = -pfwf(ji,jj) * rLfusisf        * mskisf_cav(ji,jj)
+            zqh_b(ji,jj) =  ptsc(ji,jj,jp_tem) * rho0_rcp * mskisf_cav(ji,jj) ! last time step total heat fluxes (to speed up convergence)
+
             ikt = mikt(ji,jj)
             ! compute Rc number (as done in zdfric.F90)
 !!gm better to do it like in the new zdfric.F90   i.e. avm weighted Ri computation
             zcoef = 0.5_wp / e3w(ji,jj,ikt+1,Kmm)
             !                                            ! shear of horizontal velocity
-            zdku = zcoef * (  uu(ji-1,jj  ,ikt  ,Kmm) + uu(ji,jj,ikt  ,Kmm)  &
-               &             -uu(ji-1,jj  ,ikt+1,Kmm) - uu(ji,jj,ikt+1,Kmm)  )
-            zdkv = zcoef * (  vv(ji  ,jj-1,ikt  ,Kmm) + vv(ji,jj,ikt  ,Kmm)  &
-               &             -vv(ji  ,jj-1,ikt+1,Kmm) - vv(ji,jj,ikt+1,Kmm)  )
+            zdku = zcoef * (  ( uu(ji-1,jj  ,ikt  ,Kmm) + uu(ji,jj,ikt  ,Kmm) )  &   ! add () for NP repro
+               &            - ( uu(ji-1,jj  ,ikt+1,Kmm) + uu(ji,jj,ikt+1,Kmm) )  )
+            zdkv = zcoef * (  ( vv(ji  ,jj-1,ikt  ,Kmm) + vv(ji,jj,ikt  ,Kmm) )  &   ! add () for NP repro
+               &            - ( vv(ji  ,jj-1,ikt+1,Kmm) + vv(ji,jj,ikt+1,Kmm) )  )
             !                                            ! richardson number (minimum value set to zero)
-            zRc(ji,jj) = MAX(rn2(ji,jj,ikt+1), 1.e-20_wp) / MAX( zdku*zdku + zdkv*zdkv, 1.e-20_wp )
+            zRc(ji,jj) = MAX( rn2(ji,jj,ikt+1), 1.e-20_wp ) / MAX( zdku*zdku + zdkv*zdkv, 1.e-20_wp )
          END_2D
-         CALL lbc_lnk( 'isfmlt', zRc, 'T', 1._wp )
+         !
       ENDIF
       !
-      ! compute ice shelf melting
-      nit = 1 ; lit = .TRUE.
-      DO WHILE ( lit )    ! maybe just a constant number of iteration as in blk_core is fine
+      ! Calculate freezing temperature (overwritten only in case cn_isfcav_mlt="3eq")
+      CALL eos_fzp( zstbl(:,:), ztfrz(:,:), risfdep(:,:), kbnd=0 )
+      !
+      ! --- iteration loop --- !
+      iconv = 0
+      l_converged(:,:) = .FALSE.
+      ! Convergence calculated until all sub-domain grid points have converged
+      ! Calculations keep going for all grid points until sub-domain convergence (vectorisation optimisation)
+      ! but values are not taken into account (results independant of MPI partitioning)
+      !
+      DO WHILE ( ( .NOT. ALL (l_converged(:,:)) ) .AND. iconv < iconv_max )
+         iconv = iconv + 1
          !
-         ! compute gammat everywhere (2d)
-         ! useless if melt specified
+         ! compute gammat everywhere (2d) - useless if melt specified
          IF ( TRIM(cn_isfcav_mlt) .NE. 'spe' ) THEN
-            CALL isfcav_gammats( Kmm, zttbl, zstbl, zqoce  , pqfwf, zRc,  &
-               &                                    zgammat, zgammas )
+            CALL isfcav_gammats( Kmm, l_converged, zustar, zttbl, zstbl, zqoce, pfwf, zRc,  & ! <<== in
+               &                                                          zgammat, zgammas  ) ! ==>> inout
          END IF
          !
          ! compute tfrz, latent heat and melt (2d)
-         CALL isfcav_mlt(kt, zgammat, zgammas, zttbl, zstbl, &
-            &                         zqhc   , zqoce, pqfwf  )
+         CALL isfcav_mlt( kt, l_converged, zgammat, zgammas, zttbl, zstbl, & ! <<== in
+            &                                    zqhc, zqoce, pfwf, ztfrz  ) ! ==>> inout
          !
          ! define if we need to iterate
          SELECT CASE ( cn_gammablk )
-         CASE ( 'spe','vel' )
-            ! no convergence needed
-            lit = .FALSE.
+         CASE ( 'spe', 'vel' )
+            l_converged(:,:) = .TRUE.                ! no convergence needed
          CASE ( 'vel_stab' )
-            ! compute error between 2 iterations
-            zerr = 0._wp
-            DO_2D( 0, 0, 0, 0 )
-               zerr = MAX( zerr, ABS(zqhc(ji,jj)+zqoce(ji,jj) - zqh_b(ji,jj)) )
+            DO_2D( 0, 0, 0, 0 )                      ! compute error between 2 iterations
+               IF ( .NOT. l_converged(ji,jj) ) THEN
+                  zerr = ABS( zqhc(ji,jj) + zqoce(ji,jj) - zqh_b(ji,jj) )
+                  IF( zerr <= 0.01_wp ) THEN         ! convergence is reached
+                     l_converged(ji,jj) = .TRUE.
+                  ELSE                               ! converge is not yet reached
+                     l_converged(ji,jj) = .FALSE.
+                     zqh_b(ji,jj) = zqhc(ji,jj) + zqoce(ji,jj)
+                  ENDIF
+               ENDIF
             END_2D
-            CALL mpp_max( 'isfcav', zerr )   ! max over the global domain
             !
-            ! define if iteration needed
-            IF (nit >= 100) THEN              ! too much iteration
-               CALL ctl_stop( 'STOP', 'isf_cav: vel_stab gamma formulation had too many iterations ...' )
-            ELSE IF ( zerr <= 0.01_wp ) THEN  ! convergence is achieve
-               lit = .FALSE.
-            ELSE                              ! converge is not yet achieve
-               nit = nit + 1
-               zqh_b(:,:) = zqhc(:,:)+zqoce(:,:)
-            END IF
          END SELECT
          !
       END DO
+      IF( iconv == iconv_max )   CALL ctl_stop( 'STOP', 'isf_cav: vel_stab gamma formulation had too many iterations ...' )   ! too many iterations
       !
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         ! compute heat and water flux ( > 0 from isf to oce)
-         pqfwf(ji,jj) = pqfwf(ji,jj) * mskisf_cav(ji,jj)
-         zqoce(ji,jj) = zqoce(ji,jj) * mskisf_cav(ji,jj)
-         zqhc (ji,jj) = zqhc(ji,jj)  * mskisf_cav(ji,jj)
-         !
+      !
+      DO_2D( 0, 0, 0, 0 )
          ! compute heat content flux ( > 0 from isf to oce)
-         zqlat(ji,jj) = - pqfwf(ji,jj) * rLfusisf    ! 2d latent heat flux (W/m2)
-         !
-         ! total heat flux ( > 0 from isf to oce)
-         zqh(ji,jj) = ( zqhc (ji,jj) + zqoce(ji,jj) )
+         zqlat(ji,jj) = - pfwf(ji,jj) * rLfusisf    ! 2d latent heat flux (W/m2)
          !
          ! set temperature content
-         ptsc(ji,jj,jp_tem) = zqh(ji,jj) * r1_rho0_rcp
+         ptsc(ji,jj,jp_tem) = ( zqhc(ji,jj) + zqoce(ji,jj) ) * r1_rho0_rcp
       END_2D
-      CALL lbc_lnk( 'isfmlt', pqfwf, 'T', 1.0_wp)
       !
       ! output fluxes
-      CALL isf_diags_flx( Kmm, misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, 'cav', pqfwf, zqoce, zqlat, zqhc)
+      CALL isf_diags_flx( Kmm, misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, 'cav', pfwf, zqoce, zqlat, zqhc )
       !
-#if ! defined key_RK3
-      ! MLF: write restart variables (qoceisf, qhcisf, fwfisf for now and before)
-      IF (lrst_oce) CALL isfrst_write(kt, 'cav', ptsc, pqfwf)
-#endif
+      ! --- output --- !
+      CALL iom_put( 'ttbl_cav' , zttbl  (:,:) * mskisf_cav(:,:) )
+      CALL iom_put( 'stbl'     , zstbl  (:,:) * mskisf_cav(:,:) )
+      CALL iom_put( 'isfgammat', zgammat(:,:) * mskisf_cav(:,:) )
+      CALL iom_put( 'isfgammas', zgammas(:,:) * mskisf_cav(:,:) )
+      IF ( TRIM(cn_gammablk) == 'vel_stab' .OR. TRIM(cn_gammablk) == 'vel' ) THEN
+         CALL iom_put( 'isfustar', zustar              )
+         CALL iom_put( 'utbl'    , zutbl  * mskisf_cav )
+         CALL iom_put( 'vtbl'    , zvtbl  * mskisf_cav )
+      ENDIF
       !
+      CALL iom_put('isftfrz_cav'    ,                ztfrz(:,:)   * mskisf_cav(:,:) )   ! freezing point at the interface
+      CALL iom_put('isfthermald_cav', ( zttbl(:,:) - ztfrz(:,:) ) * mskisf_cav(:,:) )   ! thermal driving at the interface
+      !
+      IF( cn_isfcav_mlt == '3eq' ) THEN                                                 ! conductive heat flux through the ice
+         ALLOCATE( ztmp(A2D(0)) )
+         DO_2D( 0, 0, 0, 0 )
+            ztmp(ji,jj) = rhoisf * rcpisf * rkappa / MAX( risfdep(ji,jj), 1.e-20 ) * ( ztfrz(ji,jj) - rtsurf ) * mskisf_cav(ji,jj)
+         END_2D
+         CALL iom_put('qconisf', ztmp )
+         DEALLOCATE( ztmp )
+      ENDIF
+      !
+      ! --- debug --- !
       IF ( ln_isfdebug ) THEN
          IF(lwp) WRITE(numout,*) ''
-         CALL debug('isf_cav: ptsc T',ptsc(:,:,1))
-         CALL debug('isf_cav: ptsc S',ptsc(:,:,2))
-         CALL debug('isf_cav: pqfwf fwf',pqfwf(:,:))
+         CALL debug( 'isfcav: gammaT ', zgammat(:,:) )
+         CALL debug( 'isfcav: gammaS ', zgammas(:,:) )
+         CALL debug( 'isfcav: ptsc T ', ptsc(:,:,1)  )
+         CALL debug( 'isfcav: ptsc S ', ptsc(:,:,2)  )
+         CALL debug( 'isfcav: qhc    ', zqhc (:,:)   )
+         CALL debug( 'isfcav: qoce   ', zqoce(:,:)   )
+         CALL debug( 'isfcav: fwf    ', pfwf (:,:)   )
          IF(lwp) WRITE(numout,*) ''
       END IF
       !
@@ -196,27 +257,31 @@ CONTAINS
       !! ** Purpose : initialisation of variable needed to compute melt under an ice shelf
       !!
       !!----------------------------------------------------------------------
-      INTEGER :: ierr
+      INTEGER ::   ierr
+      INTEGER ::   ji, jj     ! dummy loop indices
       !!---------------------------------------------------------------------
       !
       !==============
       ! 0: allocation
       !==============
-      !
       CALL isf_alloc_cav()
       !
       !==================
       ! 1: initialisation
       !==================
-      !
-      ! top and bottom level of the 'top boundary layer'
-      misfkt_cav(:,:)    = mikt(:,:) ; misfkb_cav(:,:)    = 1
-      !
-      ! thickness of 'tbl' and fraction of bottom cell affected by 'tbl'
-      rhisf_tbl_cav(:,:) = 0.0_wp    ; rfrac_tbl_cav(:,:) = 0.0_wp
-      !
-      ! cavity mask
-      mskisf_cav(:,:)    = (1._wp - tmask(:,:,1)) * ssmask(:,:)
+      DO_2D( 0, 0, 0, 0 )
+         ! top and bottom level of the 'top boundary layer'
+         misfkt_cav(ji,jj)    = mikt(ji,jj)
+         misfkb_cav(ji,jj)    = 1
+         !
+         ! thickness of 'tbl' and fraction of bottom cell affected by 'tbl'
+         rhisf_tbl_cav(ji,jj) = 0.0_wp
+         rfrac_tbl_cav(ji,jj) = 0.0_wp
+         !
+         ! cavity mask
+         mskisf_cav(ji,jj) = ( 1._wp - tmask(ji,jj,1) ) * ssmask(ji,jj)
+         !
+      END_2D
       !
 #if ! defined key_RK3
       !================
@@ -239,7 +304,7 @@ CONTAINS
       CASE( 'spe' )
 
          ALLOCATE( sf_isfcav_fwf(1), STAT=ierr )
-         ALLOCATE( sf_isfcav_fwf(1)%fnow(jpi,jpj,1), sf_isfcav_fwf(1)%fdta(jpi,jpj,1,2) )
+         ALLOCATE( sf_isfcav_fwf(1)%fnow(A2D(0),1), sf_isfcav_fwf(1)%fdta(A2D(0),1,2) )
          CALL fld_fill( sf_isfcav_fwf, (/ sn_isfcav_fwf /), cn_isfdir, 'isf_cav_init', 'read fresh water flux isf data', 'namisf' )
 
          IF(lwp) WRITE(numout,*)

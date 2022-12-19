@@ -118,6 +118,17 @@
 &namsbc_abl    !   Atmospheric Boundary Layer formulation           (ln_abl = T)
 !-----------------------------------------------------------------------
    cn_dom           = 'dom_cfg_abl_L25Z10'
+
+   nn_dyn_restore = 2         ! restoring option for dynamical ABL variables: = 0 no restoring
+                              !                                               = 1 equatorial restoring
+                              !                                               = 2 global restoring
+                              !                                               = 1 equatorial restoring
+                              !                                               = 2 global restoring
+   rn_ldyn_min   = 24.        ! dynamics nudging magnitude inside the ABL [hour] (~3 rn_Dt)
+   rn_ldyn_max   =  6.        ! dynamics nudging magnitude above  the ABL [hour] (~1 rn_Dt)
+   rn_ltra_min   = 24.        ! tracers  nudging magnitude inside the ABL [hour] (~3 rn_Dt)
+   rn_ltra_max   =  6.        ! tracers  nudging magnitude above  the ABL [hour] (~1 rn_Dt)
+   rn_vfac       =  1.
 /
 !-----------------------------------------------------------------------
 &namtra_qsr    !   penetrative solar radiation                          (ln_traqsr =T)

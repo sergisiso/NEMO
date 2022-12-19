@@ -132,8 +132,8 @@ CONTAINS
                   !
                   newpt%lon = glamt(ji,jj)         ! at t-point (centre of the cell)
                   newpt%lat = gphit(ji,jj)
-                  newpt%xi  = REAL( mig(ji), wp ) - ( nn_hls - 1 )
-                  newpt%yj  = REAL( mjg(jj), wp ) - ( nn_hls - 1 )
+                  newpt%xi  = REAL( mig(ji,nn_hls), wp ) - ( nn_hls - 1 )
+                  newpt%yj  = REAL( mjg(jj,nn_hls), wp ) - ( nn_hls - 1 )
                   !
                   newpt%uvel = 0._wp               ! initially at rest
                   newpt%vvel = 0._wp

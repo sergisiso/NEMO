@@ -36,7 +36,9 @@ MODULE p4zopt
    INTEGER  :: ntimes_par                ! number of time steps in a file
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   par_varsw      ! PAR fraction of shortwave
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   ekb, ekg, ekr  ! wavelength (Red-Green-Blue)
-   
+ 
+   LOGICAL  :: l_dia_heup, l_dia_par 
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
@@ -63,21 +65,28 @@ CONTAINS
       INTEGER  ::   irgb
       REAL(wp) ::   zchl
       REAL(wp) ::   zc0 , zc1 , zc2, zc3, z1_dep
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zetmp5
-      REAL(wp), DIMENSION(jpi,jpj    ) :: zdepmoy, zetmp1, zetmp2, zetmp3, zetmp4
-      REAL(wp), DIMENSION(jpi,jpj    ) :: zqsr100, zqsr_corr
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zpar, ze0, ze1, ze2, ze3
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zetmp5
+      REAL(wp), DIMENSION(A2D(0)    ) :: zdepmoy, zetmp1, zetmp2, zetmp3, zetmp4
+      REAL(wp), DIMENSION(A2D(0)    ) :: zqsr100, zqsr_corr
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zpar, ze0, ze1, ze2, ze3
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zw2d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_opt')
+
+      IF( kt == nittrc000 )  THEN
+         l_dia_heup = iom_use( "Heup") 
+         l_dia_par  = iom_use( "PAR" ) 
+      ENDIF
 
       IF( knt == 1 .AND. ln_varpar )   CALL p4z_opt_sbc( kt )
 
       !     Initialisation of variables used to compute PAR
       !     -----------------------------------------------
-      ze1(:,:,:) = 0._wp
-      ze2(:,:,:) = 0._wp
-      ze3(:,:,:) = 0._wp
+!      ze1(:,:,:) = 0._wp
+!      ze2(:,:,:) = 0._wp
+!      ze3(:,:,:) = 0._wp
 
       !
       ! Attenuation coef. function of Chlorophyll and wavelength (Red-Green-Blue)
@@ -88,7 +97,7 @@ CONTAINS
       !
       ! Computation of the light attenuation parameters based on a 
       ! look-up table
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zchl =  ( tr(ji,jj,jk,jpnch,Kbb) + tr(ji,jj,jk,jpdch,Kbb) + rtrn ) * 1.e6
          IF( ln_p5z )   zchl = zchl + tr(ji,jj,jk,jppch,Kbb) * 1.e6
          zchl = MIN(  10. , MAX( 0.05, zchl )  )
@@ -116,36 +125,40 @@ CONTAINS
             ! not fully correct with LIM3 and SI3 but no information is 
             ! currently available to do a better job. SHould be improved in the 
             ! (near) future.
-            zqsr_corr(:,:) = qsr_mean(:,:) / ( 1.-fr_i(:,:) + rtrn )
+            DO_2D( 0, 0, 0, 0 )
+               zqsr_corr(ji,jj) = qsr_mean(ji,jj) / ( 1.-fr_i(ji,jj) + rtrn )
+            END_2D
             !
             CALL p4z_opt_par( kt, Kmm, zqsr_corr, ze1, ze2, ze3, pqsr100 = zqsr100 )
             !
             ! Used PAR is computed for each phytoplankton species
             ! etot_ndcy is PAR at level jk averaged over 24h.
             ! Due to their size, they have different light absorption characteristics
-            DO jk = 1, nksr
-               etot_ndcy(:,:,jk) =        ze1(:,:,jk) +        ze2(:,:,jk) +       ze3(:,:,jk)
-            END DO
+            DO_3D( 0, 0, 0, 0, 1, nksr )
+               etot_ndcy(ji,jj,jk) = ze1(ji,jj,jk) + ze2(ji,jj,jk) + ze3(ji,jj,jk)
+            END_3D
             !
             ! SW over the ice free zone of the grid cell. This assumes that
             ! SW is zero below sea ice which is a very crude assumption that is 
             ! not fully correct with LIM3 and SI3 but no information is 
             ! currently available to do a better job. SHould be improved in the 
             ! (near) future.
-            zqsr_corr(:,:) = qsr(:,:) / ( 1.-fr_i(:,:) + rtrn )
+            DO_2D( 0, 0, 0, 0 )
+               zqsr_corr(ji,jj) = qsr(ji,jj) / ( 1.-fr_i(ji,jj) + rtrn )
+            END_2D
             !
             CALL p4z_opt_par( kt, Kmm, zqsr_corr, ze1, ze2, ze3 )
             !
             ! Total PAR computation at level jk that includes the diurnal cycle
-            DO jk = 1, nksr
-               etot (:,:,jk) =  ze1(:,:,jk) + ze2(:,:,jk) + ze3(:,:,jk)
-               enano(:,:,jk) =  1.85 * ze1(:,:,jk) + 0.69 * ze2(:,:,jk) + 0.46 * ze3(:,:,jk)
-               ediat(:,:,jk) =  1.62 * ze1(:,:,jk) + 0.74 * ze2(:,:,jk) + 0.63 * ze3(:,:,jk)
-            END DO
+            DO_3D( 0, 0, 0, 0, 1, nksr )
+               etot (ji,jj,jk) =         ze1(ji,jj,jk) +        ze2(ji,jj,jk) +        ze3(ji,jj,jk)
+               enano(ji,jj,jk) =  1.85 * ze1(ji,jj,jk) + 0.69 * ze2(ji,jj,jk) + 0.46 * ze3(ji,jj,jk)
+               ediat(ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
+            END_3D
             IF( ln_p5z ) THEN
-               DO jk = 1, nksr
-                  epico  (:,:,jk) =  1.94 * ze1(:,:,jk) + 0.66 * ze2(:,:,jk) + 0.4 * ze3(:,:,jk)
-               END DO
+               DO_3D( 0, 0, 0, 0, 1, nksr )
+                  epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk)
+               END_3D
             ENDIF
 
          ELSE ! No diurnal cycle in PISCES
@@ -157,22 +170,24 @@ CONTAINS
             ! not fully correct with LIM3 and SI3 but no information is 
             ! currently available to do a better job. SHould be improved in the 
             ! (near) future.
-            zqsr_corr(:,:) = qsr_mean(:,:) / ( 1.-fr_i(:,:) + rtrn )
+            DO_2D( 0, 0, 0, 0 )
+               zqsr_corr(ji,jj) = qsr_mean(ji,jj) / ( 1.-fr_i(ji,jj) + rtrn )
+            END_2D
             !
             CALL p4z_opt_par( kt, Kmm, zqsr_corr, ze1, ze2, ze3, pqsr100 = zqsr100 ) 
             !
             ! Used PAR is computed for each phytoplankton species
             ! etot_ndcy is PAR at level jk averaged over 24h.
             ! Due to their size, they have different light absorption characteristics
-            DO jk = 1, nksr      
-               etot_ndcy(:,:,jk) =        ze1(:,:,jk) +        ze2(:,:,jk) +       ze3(:,:,jk)
-               enano    (:,:,jk) =  1.85 * ze1(:,:,jk) + 0.69 * ze2(:,:,jk) + 0.46 * ze3(:,:,jk)
-               ediat    (:,:,jk) =  1.62 * ze1(:,:,jk) + 0.74 * ze2(:,:,jk) + 0.63 * ze3(:,:,jk)
-            END DO
+            DO_3D( 0, 0, 0, 0, 1, nksr )
+               etot_ndcy(ji,jj,jk) =         ze1(ji,jj,jk) +        ze2(ji,jj,jk) +        ze3(ji,jj,jk)
+               enano    (ji,jj,jk) =  1.85 * ze1(ji,jj,jk) + 0.69 * ze2(ji,jj,jk) + 0.46 * ze3(ji,jj,jk)
+               ediat    (ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
+            END_3D
             IF( ln_p5z ) THEN
-               DO jk = 1, nksr      
-                  epico  (:,:,jk) =  1.94 * ze1(:,:,jk) + 0.66 * ze2(:,:,jk) + 0.4 * ze3(:,:,jk)
-               END DO
+               DO_3D( 0, 0, 0, 0, 1, nksr )
+                  epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk)
+               END_3D
             ENDIF
             !
             ! SW over the ice free zone of the grid cell. This assumes that
@@ -180,14 +195,16 @@ CONTAINS
             ! not fully correct with LIM3 and SI3 but no information is 
             ! currently available to do a better job. SHould be improved in the 
             ! (near) future.
-            zqsr_corr(:,:) = qsr(:,:) / ( 1.-fr_i(:,:) + rtrn )
+            DO_2D( 0, 0, 0, 0 )
+               zqsr_corr(ji,jj) = qsr(ji,jj) / ( 1.-fr_i(ji,jj) + rtrn )
+            END_2D
             !
             CALL p4z_opt_par( kt, Kmm, zqsr_corr, ze1, ze2, ze3 ) 
             !
             ! Total PAR computation at level jk that includes the diurnal cycle
-            DO jk = 1, nksr      
-               etot(:,:,jk) =  ze1(:,:,jk) + ze2(:,:,jk) + ze3(:,:,jk)
-            END DO
+            DO_3D( 0, 0, 0, 0, 1, nksr )
+               etot(ji,jj,jk) = ze1(ji,jj,jk) + ze2(ji,jj,jk) + ze3(ji,jj,jk)
+            END_3D
          ENDIF
          !
       ELSE   ! no diurnal cycle
@@ -198,22 +215,24 @@ CONTAINS
          ! not fully correct with LIM3 and SI3 but no information is 
          ! currently available to do a better job. SHould be improved in the 
          ! (near) future.
-         zqsr_corr(:,:) = qsr(:,:) / ( 1.-fr_i(:,:) + rtrn )
+         DO_2D( 0, 0, 0, 0 )
+            zqsr_corr(ji,jj) = qsr(ji,jj) / ( 1.-fr_i(ji,jj) + rtrn )
+         END_2D
          !
          CALL p4z_opt_par( kt, Kmm, zqsr_corr, ze1, ze2, ze3, pqsr100 = zqsr100  ) 
          !
 
          ! Used PAR is computed for each phytoplankton species
          ! Due to their size, they have different light absorption characteristics
-         DO jk = 1, nksr      
-            etot (:,:,jk) =        ze1(:,:,jk) +        ze2(:,:,jk) +       ze3(:,:,jk)    ! Total PAR
-            enano(:,:,jk) =  1.85 * ze1(:,:,jk) + 0.69 * ze2(:,:,jk) + 0.46 * ze3(:,:,jk)  ! Nanophytoplankton
-            ediat(:,:,jk) =  1.62 * ze1(:,:,jk) + 0.74 * ze2(:,:,jk) + 0.63 * ze3(:,:,jk)  ! Diatoms
-         END DO
+         DO_3D( 0, 0, 0, 0, 1, nksr )
+            etot (ji,jj,jk) =         ze1(ji,jj,jk) +        ze2(ji,jj,jk) +        ze3(ji,jj,jk)
+            enano(ji,jj,jk) =  1.85 * ze1(ji,jj,jk) + 0.69 * ze2(ji,jj,jk) + 0.46 * ze3(ji,jj,jk)
+            ediat(ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
+         END_3D
          IF( ln_p5z ) THEN
-            DO jk = 1, nksr      
-              epico(:,:,jk) =  1.94 * ze1(:,:,jk) + 0.66 * ze2(:,:,jk) + 0.4 * ze3(:,:,jk)  ! Picophytoplankton (PISCES-QUOTA)
-            END DO
+            DO_3D( 0, 0, 0, 0, 1, nksr )
+               epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk) ! Picophytoplankton (PISCES-QUOTA)
+            END_3D
          ENDIF
          etot_ndcy(:,:,:) =  etot(:,:,:) 
       ENDIF
@@ -224,10 +243,12 @@ CONTAINS
          !                                     !  ------------------------
          CALL p4z_opt_par( kt, Kmm, qsr, ze1, ze2, ze3, pe0=ze0 )
          !
-         etot3(:,:,1) =  qsr(:,:) * tmask(:,:,1)
-         DO jk = 2, nksr + 1
-            etot3(:,:,jk) =  ( ze0(:,:,jk) + ze1(:,:,jk) + ze2(:,:,jk) + ze3(:,:,jk) ) * tmask(:,:,jk)
-         END DO
+         DO_2D( 0, 0, 0, 0 )
+            etot3(ji,jj,1) =  qsr(ji,jj) * tmask(ji,jj,1)
+         END_2D
+         DO_3D( 0, 0, 0, 0, 2, nksr+1 )
+            etot3(ji,jj,jk) =  ( ze0(ji,jj,jk) + ze1(ji,jj,jk) + ze2(ji,jj,jk) + ze3(ji,jj,jk) ) * tmask(ji,jj,jk)
+         END_3D
          !                                     !  ------------------------
       ENDIF
       
@@ -236,11 +257,13 @@ CONTAINS
       ! (1) The classical definition based on the relative threshold value
       ! (2) An alternative definition based on a absolute threshold value.
       ! -------------------------------------------------------------------
-      neln(:,:) = 1
-      heup   (:,:) = gdepw(:,:,2,Kmm)
-      heup_01(:,:) = gdepw(:,:,2,Kmm)
+      DO_2D( 0, 0, 0, 0 )
+         neln   (ji,jj) = 1
+         heup   (ji,jj) = gdepw(ji,jj,2,Kmm)
+         heup_01(ji,jj) = gdepw(ji,jj,2,Kmm)
+      END_2D
 
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, nksr)
+      DO_3D( 0, 0, 0, 0, 2, nksr)
         IF( etot_ndcy(ji,jj,jk) * tmask(ji,jj,jk) >=  zqsr100(ji,jj) )  THEN
            neln(ji,jj) = jk+1                    ! Euphotic level : 1rst T-level strictly below Euphotic layer
            !                                     ! nb: ensure the compatibility with nmld_trc definition in trd_mld_trc_zint
@@ -261,7 +284,7 @@ CONTAINS
       zetmp1 (:,:)   = 0.e0
       zetmp2 (:,:)   = 0.e0
 
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nksr)
+      DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
             zetmp1 (ji,jj) = zetmp1 (ji,jj) + etot     (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Actual PAR for remineralisation
             zetmp2 (ji,jj) = zetmp2 (ji,jj) + etot_ndcy(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Par averaged over 24h for production
@@ -272,7 +295,7 @@ CONTAINS
       emoy(:,:,:) = etot(:,:,:)       ! remineralisation
       zpar(:,:,:) = etot_ndcy(:,:,:)  ! diagnostic : PAR with no diurnal cycle 
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nksr)
+      DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
             z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
             emoy (ji,jj,jk) = zetmp1(ji,jj) * z1_dep
@@ -286,7 +309,7 @@ CONTAINS
       zetmp3 (:,:)   = 0.e0
       zetmp4 (:,:)   = 0.e0
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nksr)
+      DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
             zetmp3 (ji,jj) = zetmp3 (ji,jj) + enano    (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Nanophytoplankton
             zetmp4 (ji,jj) = zetmp4 (ji,jj) + ediat    (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Diatoms
@@ -296,7 +319,7 @@ CONTAINS
       enanom(:,:,:) = enano(:,:,:)
       ediatm(:,:,:) = ediat(:,:,:)
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nksr)
+      DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
             z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
             enanom(ji,jj,jk) = zetmp3(ji,jj) * z1_dep
@@ -306,8 +329,8 @@ CONTAINS
       !
       IF( ln_p5z ) THEN
          ! Picophytoplankton when using PISCES-QUOTA
-         ALLOCATE( zetmp5(jpi,jpj) )  ;   zetmp5 (:,:) = 0.e0
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nksr)
+         ALLOCATE( zetmp5(A2D(0)) )  ;   zetmp5 (:,:) = 0.e0
+         DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
                zetmp5(ji,jj)  = zetmp5 (ji,jj) + epico(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
             ENDIF
@@ -315,7 +338,7 @@ CONTAINS
          !
          epicom(:,:,:) = epico(:,:,:)
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nksr)
+         DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
                z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
                epicom(ji,jj,jk) = zetmp5(ji,jj) * z1_dep
@@ -325,10 +348,24 @@ CONTAINS
       ENDIF
       !
       IF( lk_iomput .AND.  knt == nrdttrc ) THEN
-         CALL iom_put( "Heup" , heup(:,:  ) * tmask(:,:,1) )  ! euphotic layer deptht
-         IF( iom_use( "PAR" ) ) THEN
-            zpar(:,:,1) = zpar(:,:,1) * ( 1._wp - fr_i(:,:) )
-            CALL iom_put( "PAR", zpar(:,:,:) * tmask(:,:,:) )  ! Photosynthetically Available Radiation
+         IF( l_dia_heup ) THEN
+           ALLOCATE( zw2d(A2D(0)) ) 
+           DO_2D( 0, 0, 0, 0 )
+             zw2d(ji,jj) = heup(ji,jj) * tmask(ji,jj,1)
+           END_2D
+           CALL iom_put( "Heup", zw2d )  ! Euphotic layer depth
+           DEALLOCATE( zw2d ) 
+        ENDIF
+        IF( l_dia_par ) THEN
+           ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+           DO_2D( 0, 0, 0, 0 )
+              zw3d(ji,jj,1) = zpar(ji,jj,1) * ( 1._wp - fr_i(ji,jj) ) * tmask(ji,jj,1)
+           END_2D
+           DO_3D( 0, 0, 0, 0, 2, jpkm1)
+              zw3d(ji,jj,jk) = zpar(ji,jj,jk) * tmask(ji,jj,jk)
+           END_3D
+           CALL iom_put( "PAR", zw3d )  ! Photosynthetically Available Radiation
+           DEALLOCATE( zw3d ) 
          ENDIF
       ENDIF
       !
@@ -345,15 +382,15 @@ CONTAINS
       !!                for a given shortwave radiation
       !!
       !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in)              ::   kt                ! ocean time-step
-      INTEGER                         , INTENT(in)              ::   Kmm               ! ocean time-index
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in   )           ::   pqsr              ! shortwave
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout)           ::   pe1 , pe2 , pe3   ! PAR ( R-G-B)
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout), OPTIONAL ::   pe0               !
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(  out), OPTIONAL ::   pqsr100           !
+      INTEGER                        , INTENT(in)              ::   kt                ! ocean time-step
+      INTEGER                        , INTENT(in)              ::   Kmm               ! ocean time-index
+      REAL(wp), DIMENSION(A2D(0))    , INTENT(in   )           ::   pqsr              ! shortwave
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(inout)           ::   pe1 , pe2 , pe3   ! PAR ( R-G-B)
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(inout), OPTIONAL ::   pe0               !
+      REAL(wp), DIMENSION(A2D(0))    , INTENT(  out), OPTIONAL ::   pqsr100           !
       !
       INTEGER    ::   ji, jj, jk     ! dummy loop indices
-      REAL(wp), DIMENSION(jpi,jpj) ::  zqsr   ! shortwave
+      REAL(wp), DIMENSION(A2D(0)) ::  zqsr   ! shortwave
       !!----------------------------------------------------------------------
 
       !  Real shortwave
@@ -371,7 +408,7 @@ CONTAINS
          pe2(:,:,1) = zqsr(:,:)
          pe3(:,:,1) = zqsr(:,:)
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, nksr + 1)
+         DO_3D( 0, 0, 0, 0, 2, nksr + 1)
             pe0(ji,jj,jk) = pe0(ji,jj,jk-1) * EXP( -e3t(ji,jj,jk-1,Kmm) * xsi0r )
             pe1(ji,jj,jk) = pe1(ji,jj,jk-1) * EXP( -ekb  (ji,jj,jk-1 )        )
             pe2(ji,jj,jk) = pe2(ji,jj,jk-1) * EXP( -ekg  (ji,jj,jk-1 )        )
@@ -384,7 +421,7 @@ CONTAINS
         pe2(:,:,1) = zqsr(:,:) * EXP( -0.5 * ekg(:,:,1) )
         pe3(:,:,1) = zqsr(:,:) * EXP( -0.5 * ekr(:,:,1) )
         !
-        DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, nksr)
+        DO_3D( 0, 0, 0, 0, 2, nksr)
            pe1(ji,jj,jk) = pe1(ji,jj,jk-1) * EXP( -0.5 * ( ekb(ji,jj,jk-1) + ekb(ji,jj,jk) ) )
            pe2(ji,jj,jk) = pe2(ji,jj,jk-1) * EXP( -0.5 * ( ekg(ji,jj,jk-1) + ekg(ji,jj,jk) ) )
            pe3(ji,jj,jk) = pe3(ji,jj,jk-1) * EXP( -0.5 * ( ekr(ji,jj,jk-1) + ekr(ji,jj,jk) ) )
@@ -419,7 +456,9 @@ CONTAINS
       IF( ln_varpar ) THEN
          IF( kt == nit000 .OR. ( kt /= nit000 .AND. ntimes_par > 1 ) ) THEN
             CALL fld_read( kt, 1, sf_par )
-            par_varsw(:,:) = ( sf_par(1)%fnow(:,:,1) ) / 3.0
+            DO_2D( 0, 0, 0, 0 )
+               par_varsw(ji,jj) = ( sf_par(1)%fnow(ji,jj,1) ) / 3.0
+            END_2D
          ENDIF
       ENDIF
       !
@@ -479,7 +518,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   ==>>>   initialize variable par fraction (ln_varpar=T)'
          !
-         ALLOCATE( par_varsw(jpi,jpj) )
+         ALLOCATE( par_varsw(A2D(0)) )
          !
          ALLOCATE( sf_par(1), STAT=ierr )           !* allocate and fill sf_sst (forcing structure) with sn_sst
          IF( ierr > 0 )   CALL ctl_stop( 'STOP', 'p4z_opt_init: unable to allocate sf_par structure' )
@@ -510,8 +549,7 @@ CONTAINS
       !!                     ***  ROUTINE p4z_opt_alloc  ***
       !!----------------------------------------------------------------------
       !
-      ALLOCATE( ekb(jpi,jpj,jpk), ekr(jpi,jpj,jpk),  &
-                ekg(jpi,jpj,jpk), STAT= p4z_opt_alloc  ) 
+      ALLOCATE( ekb(A2D(0),jpk), ekr(A2D(0),jpk), ekg(A2D(0),jpk), STAT= p4z_opt_alloc  ) 
       !
       IF( p4z_opt_alloc /= 0 ) CALL ctl_stop( 'STOP', 'p4z_opt_alloc : failed to allocate arrays.' )
       !

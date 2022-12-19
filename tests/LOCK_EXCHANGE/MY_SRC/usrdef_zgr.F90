@@ -14,6 +14,7 @@ MODULE usrdef_zgr
    !!       zgr_z1d   : reference 1D z-coordinate 
    !!---------------------------------------------------------------------
    USE oce            ! ocean variables
+   USE dom_oce        ! 
    USE usrdef_nam     ! User defined : namelist variables
    !
    USE in_out_manager ! I/O manager
@@ -31,14 +32,14 @@ MODULE usrdef_zgr
    !! $Id: usrdef_zgr.F90 14433 2021-02-11 08:06:49Z smasson $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
-CONTAINS             
-
+CONTAINS
+   
    SUBROUTINE usr_def_zgr( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,    &   ! type of vertical coordinate
+      &                    k_top   , k_bot                        ,    &   ! top & bottom ocean level
       &                    pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,    &   ! 1D reference vertical coordinate
+      &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! vertical scale factors
       &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
-      &                    pe3t  , pe3u  , pe3v , pe3f ,               &   ! vertical scale factors
-      &                    pe3w  , pe3uw , pe3vw,                      &   !     -      -      -
-      &                    k_top  , k_bot    )                             ! top & bottom ocean level
+      &                    pe3w  , pe3uw , pe3vw                       )   ! vertical scale factors
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE usr_def_zgr  ***
       !!
@@ -47,12 +48,12 @@ CONTAINS
       !!----------------------------------------------------------------------
       LOGICAL                   , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
       LOGICAL                   , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
+      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
       REAL(wp), DIMENSION(:)    , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
       REAL(wp), DIMENSION(:)    , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
-      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
       !
       INTEGER  ::   jk   ! dummy indices
       REAL(wp), DIMENSION(jpi,jpj) ::   z2d   ! 2D workspace
@@ -93,18 +94,19 @@ CONTAINS
       !
       !                                !* bottom ocean compute from the depth of grid-points
       k_bot(:,:) = jpkm1 * k_top(:,:)     ! here use k_top as a land mask
-      !                                !* horizontally uniform coordinate (reference z-co everywhere)
-      DO jk = 1, jpk
-         pdept(:,:,jk) = pdept_1d(jk)
-         pdepw(:,:,jk) = pdepw_1d(jk)
-         pe3t (:,:,jk) = pe3t_1d (jk)
-         pe3u (:,:,jk) = pe3t_1d (jk)
-         pe3v (:,:,jk) = pe3t_1d (jk)
-         pe3f (:,:,jk) = pe3t_1d (jk)
-         pe3w (:,:,jk) = pe3w_1d (jk)
-         pe3uw(:,:,jk) = pe3w_1d (jk)
-         pe3vw(:,:,jk) = pe3w_1d (jk)
-      END DO
+      IF( lk_vco_3d ) THEN          !* horizontally uniform coordinate (reference z-co everywhere)
+         DO jk = 1, jpk
+            pdept(:,:,jk) = pdept_1d(jk)
+            pdepw(:,:,jk) = pdepw_1d(jk)
+            pe3t (:,:,jk) = pe3t_1d (jk)
+            pe3u (:,:,jk) = pe3t_1d (jk)
+            pe3v (:,:,jk) = pe3t_1d (jk)
+            pe3f (:,:,jk) = pe3t_1d (jk)
+            pe3w (:,:,jk) = pe3w_1d (jk)
+            pe3uw(:,:,jk) = pe3w_1d (jk)
+            pe3vw(:,:,jk) = pe3w_1d (jk)
+         END DO
+      ENDIF
       !
    END SUBROUTINE usr_def_zgr
 

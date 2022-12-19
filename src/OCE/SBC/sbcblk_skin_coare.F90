@@ -79,16 +79,16 @@ CONTAINS
       !!     *pSST*       bulk SST (taken at depth gdept_1d(1))          [K]
       !!     *pQlat*      surface latent heat flux                       [K]
       !!------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pQsw   ! net solar a.k.a shortwave radiation into the ocean (after albedo) [W/m^2]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pQnsol ! non-solar heat flux to the ocean [W/m^2]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pustar  ! friction velocity, temperature and humidity (u*,t*,q*)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pSST ! bulk SST [K]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pQlat  ! latent heat flux [W/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pQsw   ! net solar a.k.a shortwave radiation into the ocean (after albedo) [W/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pQnsol ! non-solar heat flux to the ocean [W/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pustar  ! friction velocity, temperature and humidity (u*,t*,q*)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pSST ! bulk SST [K]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pQlat  ! latent heat flux [W/m^2]
       !!---------------------------------------------------------------------
       INTEGER  :: ji, jj, jc
       REAL(wp) :: zQabs, zdlt, zfr, zalfa, zqlat, zus
       !!---------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
 
          zQabs = pQnsol(ji,jj) ! first guess of heat flux absorbed within the viscous sublayer of thicknes delta,
          !                     !   => we DO not miss a lot assuming 0 solar flux absorbed in the tiny layer of thicknes zdlt...
@@ -129,11 +129,11 @@ CONTAINS
       !!     *pSST*       bulk SST  (taken at depth gdept_1d(1))         [K]
       !!     *iwait*      if /= 0 then wait before updating accumulated fluxes, we are within a converging itteration loop...
       !!---------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pQsw     ! surface net solar radiation into the ocean [W/m^2]     => >= 0 !
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pQnsol   ! surface net non-solar heat flux into the ocean [W/m^2] => normally < 0 !
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pTau     ! wind stress [N/m^2]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  :: pSST     ! bulk SST at depth gdept_1d(1) [K]
-      INTEGER ,                     INTENT(in)  :: iwait    ! if /= 0 then wait before updating accumulated fluxes
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pQsw     ! surface net solar radiation into the ocean [W/m^2]     => >= 0 !
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pQnsol   ! surface net non-solar heat flux into the ocean [W/m^2] => normally < 0 !
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pTau     ! wind stress [N/m^2]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  :: pSST     ! bulk SST at depth gdept_1d(1) [K]
+      INTEGER ,                    INTENT(in)  :: iwait    ! if /= 0 then wait before updating accumulated fluxes
       !!
       INTEGER :: ji,jj
       !
@@ -155,7 +155,7 @@ CONTAINS
 
       ztime = REAL(nsec_day,wp)/(24._wp*3600._wp) ! time of current time step since 00:00 for current day (UTC) -> ztime = 0 -> 00:00 / ztime = 0.5 -> 12:00 ...
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
 
          l_exit       = .FALSE.
          l_destroy_wl = .FALSE.

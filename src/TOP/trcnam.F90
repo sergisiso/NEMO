@@ -254,7 +254,12 @@ CONTAINS
          WRITE(numout,*) '   Namelist : namtrc_dcy                    '
          WRITE(numout,*) '      Diurnal cycle for TOP ln_trcdc2dm    = ', ln_trcdc2dm
       ENDIF
-
+      !      ! Define logical parameter ton control dirunal cycle in TOP
+      l_trcdm2dc = ( ln_trcdc2dm .AND. .NOT. ln_dm2dc  ) 
+      !
+      IF( l_trcdm2dc .AND. lwp )   CALL ctl_warn( 'Coupling with passive tracers and used of diurnal cycle.',   &
+         &                           'Computation of a daily mean shortwave for some biogeochemical models ' )
+      !
    END SUBROUTINE trc_nam_dcy
 
    SUBROUTINE trc_nam_trd

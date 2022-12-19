@@ -43,6 +43,9 @@ MODULE trc_oce
    !!----------------------------------------------------------------------
    LOGICAL, PUBLIC, PARAMETER ::   lk_top     = .FALSE.   !: TOP model
 #endif
+
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: trc_oce.F90 13286 2020-07-09 15:48:29Z smasson $ 
@@ -54,7 +57,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                  ***  trc_oce_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( etot3(jpi,jpj,jpk), oce_co2(jpi,jpj), qsr_mean(jpi,jpj), STAT=trc_oce_alloc )
+      ALLOCATE( etot3(A2D(0),jpk), oce_co2(A2D(0)), qsr_mean(A2D(0)), STAT=trc_oce_alloc )
 
       IF( trc_oce_alloc /= 0 )   CALL ctl_warn('trc_oce_alloc: failed to allocate etot3 array')
       !
@@ -247,7 +250,11 @@ CONTAINS
       pjl = jpkm1
       DO jk = jpkm1, 1, -1
          IF(SUM(tmask(:,:,jk)) > 0 ) THEN
-            zem = MAXVAL( gdepw_0(:,:,jk+1) * tmask(:,:,jk) )
+#if defined key_vco_3d
+            zem = MAXVAL( gdepw_3d(:,:,jk+1) * tmask(:,:,jk) )
+#else
+            zem = MAXVAL( gdepw_1d(jk+1) * tmask(:,:,jk) )
+#endif
             IF( zem >= zhext )   pjl = jk                       ! last T-level reached by Qsr
          ELSE
             pjl = jk                                            ! or regional sea-bed depth 

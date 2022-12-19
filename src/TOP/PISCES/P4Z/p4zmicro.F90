@@ -44,6 +44,8 @@ MODULE p4zmicro
    REAL(wp), PUBLIC ::   xsigma      !: Width of the grazing window
    REAL(wp), PUBLIC ::   xsigmadel   !: Maximum additional width of the grazing window at low food density 
 
+   LOGICAL          :: l_dia_fezoo, l_dia_graz1, l_dia_lprodz
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
@@ -78,20 +80,35 @@ CONTAINS
       REAL(wp) :: zrespz, ztortz, zgrasratf, zgrasratn
       REAL(wp) :: zgraznc, zgrazpoc, zgrazdc, zgrazpof, zgrazdf, zgraznf
       REAL(wp) :: zsigma, zdiffdn, ztmp1, ztmp2, ztmp3, ztmptot, zproport
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgrazing, zfezoo
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zzligprod
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zgrazing, zfezoo, zzligprod
       CHARACTER (len=25) :: charout
 
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_micro')
       !
-      IF (ln_ligand) THEN
-         ALLOCATE( zzligprod(jpi,jpj,jpk) )
-         zzligprod(:,:,:) = 0._wp
+      IF( kt == nittrc000 )  THEN
+         l_dia_graz1  = iom_use( "GRAZ1" )
+         l_dia_fezoo  = iom_use( "FEZOO" )
+         l_dia_lprodz = ln_ligand .AND. iom_use( "LPRODZ" )
+      ENDIF
+      IF( l_dia_lprodz ) THEN
+         ALLOCATE( zzligprod(A2D(0),jpk) ) 
+         DO_3D( 0, 0, 0, 0, 1, jpk)
+            zzligprod(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
+         END_3D
+      ENDIF
+      IF( l_dia_fezoo ) THEN
+         ALLOCATE( zfezoo(A2D(0),jpk) ) 
+         DO_3D( 0, 0, 0, 0, 1, jpk)
+            zfezoo(ji,jj,jk) = tr(ji,jj,jk,jpfer,Krhs)
+         END_3D
+      ENDIF
+      IF( l_dia_graz1 ) THEN
+         ALLOCATE( zgrazing(A2D(0),jpk) ) 
       ENDIF
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompaz = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - 1.e-9 ), 0.e0 )
          zfact   = xstep * tgfunc2(ji,jj,jk) * zcompaz
 
@@ -170,13 +187,11 @@ CONTAINS
          zgrazdf   = zgrazdc  * tr(ji,jj,jk,jpdfe,Kbb) / (tr(ji,jj,jk,jpdia,Kbb) + rtrn)
          !
          ! Total ingestion rate in C, Fe, N units
-         zgraztotc = zgraznc + zgrazpoc + zgrazdc
+         zgraztotc = zgraznc + zgrazpoc + zgrazdc   ! grazing by microzooplankton
+         IF( l_dia_graz1 )   zgrazing(ji,jj,jk) = zgraztotc
+
          zgraztotf = zgraznf + zgrazdf  + zgrazpof 
          zgraztotn = zgraznc * quotan(ji,jj,jk) + zgrazpoc + zgrazdc * quotad(ji,jj,jk)
-
-         ! Grazing by microzooplankton
-         zgrazing(ji,jj,jk) = zgraztotc
-
 
          ! Microzooplankton efficiency. 
          ! We adopt a formulation proposed by Mitra et al. (2007)
@@ -215,12 +230,10 @@ CONTAINS
          !
          IF( ln_ligand ) THEN
             tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + (zgrarem - zgrarsig) * ldocz
-            zzligprod(ji,jj,jk) = (zgrarem - zgrarsig) * ldocz
          ENDIF
          !
          tr(ji,jj,jk,jpoxy,Krhs) = tr(ji,jj,jk,jpoxy,Krhs) - o2ut * zgrarsig
          tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + zgrafer
-         zfezoo(ji,jj,jk)    = zgrafer
          tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + zgrapoc
          prodpoc(ji,jj,jk)   = prodpoc(ji,jj,jk) + zgrapoc
          tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zgraztotf * unass
@@ -257,15 +270,36 @@ CONTAINS
       END_3D
       !
       IF( lk_iomput .AND. knt == nrdttrc ) THEN
-        IF( iom_use("GRAZ1") ) THEN  !   Total grazing of phyto by zooplankton
-           zgrazing(:,:,jpk) = 0._wp   ; CALL iom_put( "GRAZ1" , zgrazing(:,:,:) * 1.e+3  * rfact2r * tmask(:,:,:) ) 
-         ENDIF
-         IF( iom_use("FEZOO") ) THEN  
-           zfezoo (:,:,jpk) = 0._wp    ; CALL iom_put( "FEZOO", zfezoo(:,:,:) * 1e9 * 1.e+3 * rfact2r * tmask(:,:,:) )
-         ENDIF
-         IF( ln_ligand ) THEN
-            zzligprod(:,:,jpk) = 0._wp ; CALL iom_put( "LPRODZ", zzligprod(:,:,:) * 1e9 * 1.e+3 * rfact2r * tmask(:,:,:))
-         ENDIF
+        !
+        IF( l_dia_graz1 ) THEN  !   Total grazing of phyto by zooplankton
+            zgrazing(A2D(0),jpk) = 0._wp
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               zgrazing(ji,jj,jk) = zgrazing(ji,jj,jk) *  1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in mol/m2/s
+            END_3D
+            CALL iom_put( "GRAZ1" , zgrazing )
+            DEALLOCATE( zgrazing )
+        ENDIF
+        !
+        IF( l_dia_fezoo ) THEN
+            zfezoo(A2D(0),jpk) = 0._wp
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               zfezoo(ji,jj,jk) = ( tr(ji,jj,jk,jpfer,Krhs) - zfezoo(ji,jj,jk) ) &
+                  &              * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in nmol/m2/s
+            END_3D
+           CALL iom_put( "FEZOO", zfezoo )
+           DEALLOCATE( zfezoo )
+        ENDIF
+        !
+        IF( l_dia_lprodz ) THEN
+            zzligprod(A2D(0),jpk) = 0._wp
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               zzligprod(ji,jj,jk) = ( tr(ji,jj,jk,jplgw,Krhs) - zzligprod(ji,jj,jk) ) &
+                   &                * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in nmol/m2/s
+            END_3D
+           CALL iom_put( "LPRODZ", zzligprod )
+           DEALLOCATE( zzligprod )
+        ENDIF
+        !
       ENDIF
       !
       IF(sn_cfctl%l_prttrc) THEN      ! print mean trends (used for debugging)

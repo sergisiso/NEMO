@@ -140,7 +140,7 @@ CONTAINS
 
       DO_2D( 1, 1, 1, 1 )
          src_calving_hflx(ji,jj) = narea
-         src_calving     (ji,jj) = nicbpack * mjg(jj) + mig(ji)
+         src_calving     (ji,jj) = nicbpack * mjg(jj,nn_hls) + mig(ji,nn_hls)
       END_2D
       CALL lbc_lnk( 'icbini', src_calving_hflx, 'T', 1._wp )
       CALL lbc_lnk( 'icbini', src_calving     , 'T', 1._wp )
@@ -156,7 +156,7 @@ CONTAINS
          i2 = INT( i3/nicbpack )
          i1 = i3 - i2*nicbpack
          i3 = INT( src_calving_hflx(ji,jj) )
-         IF( i1 == mig(ji) .AND. i3 == narea ) THEN
+         IF( i1 == mig(ji,nn_hls) .AND. i3 == narea ) THEN
             IF( nicbdi < 0 ) THEN   ;   nicbdi = ji
             ELSE                    ;   nicbei = ji
             ENDIF
@@ -172,7 +172,7 @@ CONTAINS
          i2 = INT( i3/nicbpack )
          i1 = i3 - i2*nicbpack
          i3 = INT( src_calving_hflx(ji,jj) )
-         IF( i2 == mjg(jj) .AND. i3 == narea ) THEN
+         IF( i2 == mjg(jj,nn_hls) .AND. i3 == narea ) THEN
             IF( nicbdj < 0 ) THEN   ;   nicbdj = jj
             ELSE                    ;   nicbej = jj
             ENDIF
@@ -361,8 +361,8 @@ CONTAINS
                 rn_test_box(1) < glamt(ji,jj) .AND. glamt(ji,jj) < rn_test_box(2) .AND.   &
                 rn_test_box(3) < gphit(ji,jj) .AND. gphit(ji,jj) < rn_test_box(4) ) THEN
                localberg%mass_scaling = rn_mass_scaling(iberg)
-               localpt%xi = REAL( mig(ji) - (nn_hls-1), wp )
-               localpt%yj = REAL( mjg(jj) - (nn_hls-1), wp )
+               localpt%xi = REAL( mig(ji,nn_hls) - (nn_hls-1), wp )
+               localpt%yj = REAL( mjg(jj,nn_hls) - (nn_hls-1), wp )
                CALL icb_utl_interp( localpt%xi, localpt%yj, plat=localpt%lat, plon=localpt%lon )   
                localpt%mass      = rn_initial_mass     (iberg)
                localpt%thickness = rn_initial_thickness(iberg)
