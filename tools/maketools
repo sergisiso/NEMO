@@ -146,24 +146,24 @@ export NEMO_TDIR=${NEMO_TDIR:-$TOOLS_DIR}
 
 #- Choose a default tool if needed ---
 #- REBUILD or last one used ---
-. ${COMPIL_DIR}/Fcheck_config.sh tools.txt ${NEW_CONF} || exit
+. ${COMPIL_DIR}/Fcheck_config.sh ${TOOLS_DIR}/tools.txt ${NEW_CONF} || exit
 
 #- Save new configuration ---
-echo "${NEW_CONF} "  > ${COMPIL_DIR}/tools.txt
+echo "${NEW_CONF} "  > ${TOOLS_DIR}/tools.txt
 
 #- Make the building directory
 . ${COMPIL_DIR}/Fmake_tools_bld.sh ${TOOLS_DIR} ${NEW_CONF} ${NEMO_TDIR} || exit
 
 #- At this stage cpp keys have been updated. we can check the arch file
 #- When used for the first time, choose a compiler ---
-. ${COMPIL_DIR}/Fcheck_archfile.sh arch_tools.fcm cpp_tools.fcm ${CMP_NAM} || exit
+. ${COMPIL_DIR}/Fcheck_archfile.sh ${TOOLS_DIR}/${NEW_CONF}/BLD/arch_tools.fcm ${TOOLS_DIR}/${NEW_CONF}/BLD/cpp_tools.fcm ${CMP_NAM} || exit
 
 #- At this stage the configuration has beeen chosen
 #- We coose the default light file
 export USEBLD=bldxag_tools.cfg
 
 #- We look after agrif
-grep key_agrif ${COMPIL_DIR}/cpp_tools.fcm && export AGRIFUSE=1 && export USEBLD=${USEBLD/xag/}
+grep key_agrif ${TOOLS_DIR}/${NEW_CONF}/BLD/cpp_tools.fcm && export AGRIFUSE=1 && export USEBLD=${USEBLD/xag/}
 
 
 . ${COMPIL_DIR}/Fprep_agrif.sh ${NEW_CONF} ${TOOLS_DIR} arch_tools.fcm|| exit 3

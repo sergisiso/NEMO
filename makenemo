@@ -88,18 +88,17 @@ x_u=''; x_a=''; x_m=''; x_t=''; x_b='';
 x_j='1'; x_e='none'; x_s='src'; x_v='1'
 x_c_cfg=0
 x_nocdf=0
-x_name=''
 
 ##- Local variables ---
 b_n=$(basename ${0})
 OPTIND='1'
 MAIN_DIR=$(cd $(dirname "$0"); pwd)
-MAIN_DIR=${MAIN_DIR%/sette*}
-MAIN_DIR=${MAIN_DIR%/tools*}
-MAIN_DIR=${MAIN_DIR%/cfgs*}
-MAIN_DIR=${MAIN_DIR%/tests*}
-MAIN_DIR=${MAIN_DIR%/ext*}
-MAIN_DIR=${MAIN_DIR%/arch*}
+MAIN_DIR=${MAIN_DIR%/sette}
+MAIN_DIR=${MAIN_DIR%/tools}
+MAIN_DIR=${MAIN_DIR%/cfgs}
+MAIN_DIR=${MAIN_DIR%/tests}
+MAIN_DIR=${MAIN_DIR%/ext}
+MAIN_DIR=${MAIN_DIR%/arch}
 export MAIN_DIR
 #
 export CFGS_DIR=${MAIN_DIR}/cfgs
@@ -195,7 +194,7 @@ EOF
 	-d|--dirs|--comp)
 	    x_d=${2} ; shift ;;
 	-n|--name)
-	    x_name=${2} ; shift ;;
+	    x_n=${2} ; shift ;;
 	-r|--ref)
 	    x_r=${2} ; shift ;;
 	-a|--academic|--test)
@@ -229,34 +228,6 @@ EOF
     shift
 done
 
-if [ -n "$x_name" ]   # is the configuration existing in cfgs or tests? or is it a new conf?
-then
-    incfg=$( find $CFGS_DIR   -type d -name $x_name | wc -l )   # this configuration exists in CFGS_DIR
-    intst=$( find $TESTS_DIR  -type d -name $x_name | wc -l )   # this configuration exists in TESTS_DIR
-    if [ $(( $incfg + $intst )) -eq 2 ] ; then
-	echo -e "\033[0;31m\nERROR: the $x_name directory is found twice: in $CFGS_DIR and in $TESTS_DIR\033[0m\n"
-	exit 4
-    fi
-    if [ $(( $incfg + $intst )) -gt 0 ] ; then
-	if [ $x_c_cfg -eq 1 ] ; then   # if we just want to clean the config (do it here as it must exist)
-	    x_n=$x_name                # must define x_n as it is used in Fclean_config.sh
-	    . ${COMPIL_DIR}/Fclean_config.sh
-	    exit 0
-	fi
-	[ -n "$x_r" ] && echo -e "\nWARNING: $x_name configuration is already existing, we ignore \"-r $x_r\"\n"
-	[ -n "$x_a" ] && echo -e "\nWARNING: $x_name configuration is already existing, we ignore \"-a $x_a\"\n"
-    fi
-    if   [ $incfg -eq 1 ] ; then
-	x_r=$x_name ; x_a=''  # reference configuration existing -> define/overwrite x_r
-    elif [ $intst -eq 1 ] ; then
-	x_a=$x_name ; x_r=''   # test      configuration existing -> define/overwrite x_a
-    else
-	[  ${#x_c} -ne 0 ] && echo -e "\nWARNING: Compilation cleaning of a non-existing configuration, we ignore\n" && exit 0
-	[ $x_c_cfg -eq 1 ] && echo -e "\nWARNING: Configuration cleaning of a non-existing configuration, we ignore\n" && exit 0
-	x_n=$x_name            # this is a new configuration      -> define
-    fi
-fi
-
 export NEW_CONF=${x_n}
 NBR_PRC=${x_j}
 CMP_NAM=${x_m}
@@ -268,21 +239,10 @@ NEMO_DBG=${x_b}
 
 [ "${CMP_NAM}" == 'all' ] && . ${COMPIL_DIR}/Flist_archfile.sh all && exit
 
-
-## No ref. cfg or demo selected
-if [[ -z "${REF_CONF}" && -z "${DEMO_CONF}" ]]; then
-    echo -e "\033[0;31m\nAt least a reference configuration ('-r'), a test case ('-a'), "
-    echo -e "a remote configuration ('-u') has to be choosen to build a new configuration!!!\033[0m"
-    ${COMPIL_DIR}/Flist_cfgs.sh
-    exit 2
-fi
-## At least one config has been requested
-
 ## 'all' arg: list all available configurations
 if [[ "${REF_CONF}" == 'all' || "${DEMO_CONF}" == 'all' ]]; then
     ${COMPIL_DIR}/Flist_cfgs.sh
     exit 2
-    ## Probably useless but who knows?
 elif [[ -n "${REF_CONF}" && -n "${DEMO_CONF}" ]]; then
     echo -e "\033[0;31m\nYou have to choose whether you work with:"
     echo -e "  - LTS configurations in ./cfgs  ('-r') or"
@@ -292,29 +252,73 @@ elif [ -n "${REF_CONF}" ]; then
     conf_file=ref_cfgs.txt ; export CONFIG_DIR=${CFGS_DIR} ; TML_CONF=${REF_CONF}
 elif [ -n "${DEMO_CONF}" ]; then
     conf_file=demo_cfgs.txt; export CONFIG_DIR=${TESTS_DIR}; TML_CONF=${DEMO_CONF}
-fi
- 
-## Reuse a working cfg
-grep -q "${TML_CONF} " ${CONFIG_DIR}/work_cfgs.txt 2>/dev/null && conf_file=work_cfgs.txt
-
-## Test if ref. cfg or demo case does exist
-if (! grep -q "${TML_CONF} " ${CONFIG_DIR}/$conf_file ); then
+elif [ $( grep -l "^${NEW_CONF} " */work_cfgs.txt 2> /dev/null | wc -l ) -eq 1 ]; then
+    conf_file=$( grep -l "^${NEW_CONF} " ${CFGS_DIR}/work_cfgs.txt ${TESTS_DIR}/work_cfgs.txt )
+    export CONFIG_DIR=$( dirname $conf_file ); conf_file=$( basename $conf_file )
+    TML_CONF=${NEW_CONF}
+elif [ $( grep -l "^${NEW_CONF} " */work_cfgs.txt 2> /dev/null | wc -l ) -eq 2 ]; then
+    echo -e "\033[0;31m\nUser configuration is present in both"
+    echo -e "cfgs/work_cfgs.txt and tests/work_cfgs.txt files"
+    echo -e "Please choose only one \033[0m"
+    exit 2
+elif ! grep -q "^${NEW_CONF} " ${CFGS_DIR}/work_cfgs.txt ${TESTS_DIR}/work_cfgs.txt 2> /dev/null; then
     echo -e "\033[0;31m\nThe reference configuration ('-r') or "
     echo -e "demonstration case ('-a') selected is not available!!!"
     echo -e "Check the option used and the available items in .txt files\033[0m"
     ${COMPIL_DIR}/Flist_cfgs.sh
     exit 2
+else
+    exit 2
 fi
 
-## If new cfg exists, work in it
-if [ -n "${NEW_CONF}" ]
-then
-    echo
-    printf "\nYou are installing a new configuration %s from %s " ${NEW_CONF} ${TML_CONF}
-    printf  "with sub-components: %s\n"  "${NEM_SUBDIR}"
-    echo
-else
-    NEW_CONF=${TML_CONF}
+if [ -z "${NEW_CONF}" ]; then NEW_CONF=$TML_CONF; fi
+export NEMO_TDIR=${x_t:-$CONFIG_DIR}
+
+
+# check configuration existence & clean it if asked
+incfg=$( find $NEMO_TDIR -type d -maxdepth 1 -name ${NEW_CONF} 2>/dev/null | wc -l )   # this configuration exists in CFGS_DIR
+if [ $incfg -eq 1 ] ; then
+    # CLEANING
+    if [ $x_c_cfg -eq 1 ] ; then
+        . ${COMPIL_DIR}/Fclean_config.sh
+        exit 0
+    elif [ ${#x_c} -ne 0 ]; then
+        read -p "Are you sure that you want to clean $NEW_CONF configuration ? " -n 1 -r; echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            # We coose the default light file
+            [ $x_nocdf -eq 1 ] && export USEBLD=bldxagxcdf.cfg || export USEBLD=bldxag.cfg
+            # We look after agrif
+            grep key_agrif ${NEMO_TDIR}/BLD/cpp.fcm 2>/dev/null && export AGRIFUSE=1 && export USEBLD=${USEBLD/xag/}
+            # fcm clean
+            fcm build ${x_c} --ignore-lock -v ${x_v} -j ${NBR_PRC} ${COMPIL_DIR}/$USEBLD || exit 1
+            # add remove for clean option
+            echo -e '\nCleaning '${NEW_CONF}' building directories and variables\n'
+            for dir in AGRIFLIB BLD LONG NEMOFILES REPRO_* SHORT WORK; do
+               rm -rf ${NEMO_TDIR}/${NEW_CONF}/$dir
+            done
+            for file in cpp.history cpp.fcm full_key_list.txt; do
+               rm -f ${NEMO_TDIR}/${NEW_CONF}/BLD/$file
+            done
+            exit 0
+        else
+            echo "cleaning cancelled"
+            exit 2
+        fi
+    fi
+    if [[ -n "$x_n" && -n "$REF_CONF"  ]]; then echo -e "\nWARNING: $x_n configuration is already existing, we ignore \"-r $REF_CONF\"\n"; REF_CONF=""; fi
+    if [[ -n "$x_n" && -n "$DEMO_CONF" ]]; then echo -e "\nWARNING: $x_n configuration is already existing, we ignore \"-a $DEMO_CONF\"\n"; DEMO_CONF=""; fi
+elif [ $incfg -eq 0 ]; then
+    [ $x_c_cfg -eq 1 ] && echo -e "\nWARNING: Configuration cleaning of a non-existing configuration, we ignore\n" && exit 0
+    [  ${#x_c} -ne 0 ] && echo -e "\nWARNING: Compilation cleaning of a non-existing configuration, we ignore\n" && exit 0
+fi
+
+
+## No ref. cfg or demo selected
+if [[ -z "${REF_CONF}" && -z "${DEMO_CONF}" && $incfg -eq 0 ]]; then
+    echo -e "\033[0;31m\nAt least a reference configuration ('-r'), a test case ('-a'), "
+    echo -e "a remote configuration ('-u') has to be choosen to build a new configuration!!!\033[0m"
+    ${COMPIL_DIR}/Flist_cfgs.sh
+    exit 2
 fi
 
 ## Update sub-comps if needed
@@ -322,20 +326,22 @@ if [ -z "${NEM_SUBDIR}" ]; then
     NEM_SUBDIR=$( grep "${TML_CONF} " ${CONFIG_DIR}/${conf_file}  | awk '{$1 = ""; print $0}' )
 fi
 
-export NEMO_TDIR=${x_t:-$CONFIG_DIR}
 export NEM_SUBDIR="${NEM_SUBDIR}" NEW_CONF="${NEW_CONF}"
 
+## If new cfg exists, work in it
+if [ ${TML_CONF} != ${NEW_CONF} ]; then
+    echo
+    printf "\nYou are installing a new configuration %s from %s " ${NEW_CONF} ${TML_CONF}
+    if [ -n "${NEM_SUBDIR}" ]; then printf  "with sub-components: %s\n"  "${NEM_SUBDIR}"; fi
+    echo
+fi
+
 ## Save new configuration with sub-components set in work_cfgs.txt
-[ -f ${CONFIG_DIR}/work_cfgs.txt ] && sed -i "/${NEW_CONF} /d" ${CONFIG_DIR}/work_cfgs.txt
+[ -f ${CONFIG_DIR}/work_cfgs.txt ] && sed -i "/^${NEW_CONF} /d" ${CONFIG_DIR}/work_cfgs.txt
 echo ${NEW_CONF} "${NEM_SUBDIR}" >> ${CONFIG_DIR}/work_cfgs.txt
 
-cd ${CONFIG_DIR}
-
 ## Create new config even in existing one (mkdir with -p option, cp with -n)
-${COMPIL_DIR}/Fmake_config.sh ${NEW_CONF} ${TML_CONF}
-
-## create EXP00 if needed
-[ ! -d ${CONFIG_DIR}/${NEW_CONF}/EXP00 ] && \cp -R -n ${CONFIG_DIR}/${NEW_CONF}/EXPREF ${CONFIG_DIR}/${NEW_CONF}/EXP00
+${COMPIL_DIR}/Fmake_config.sh ${NEMO_TDIR}/${NEW_CONF} ${CONFIG_DIR}/${TML_CONF}
 
 #- Create the WORK ---
 #- Clean links and librairies ---
@@ -346,12 +352,12 @@ ${COMPIL_DIR}/Fmake_config.sh ${NEW_CONF} ${TML_CONF}
 
 # build the complete list of the cpp keys of this configuration
 if [[ ${chk_key} -eq 1 || ${list_key} -eq 1 ]] ; then
-    for i in $( grep "^ *#.* key_" ${NEW_CONF}/WORK/* ); do
+    for i in $( grep "^ *#.* key_" ${NEMO_TDIR}/${NEW_CONF}/WORK/* ); do
 	echo $i | grep key_ | sed -e "s/=.*//"
     done \
-	| sort -d | uniq > ${COMPIL_DIR}/full_key_list.txt
+	| sort -d | uniq > ${NEMO_TDIR}/${NEW_CONF}/BLD/full_key_list.txt
     
-    [ ${list_key} -eq 1 ] && echo && cat ${COMPIL_DIR}/full_key_list.txt && exit 0
+    [ ${list_key} -eq 1 ] && echo && cat ${NEMO_TDIR}/${NEW_CONF}/BLD/full_key_list.txt && exit 0
 fi
 
 #- At this stage new configuration has been added, we add or remove keys
@@ -361,12 +367,12 @@ fi
 
 #- check that all keys are really existing...
 if [ $chk_key -eq 1 ] ; then
-    for kk in $( cat ${NEW_CONF}/cpp_${NEW_CONF}.fcm ); do
+    for kk in $( cat ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm ); do
 	if [ "$( echo $kk | cut -c 1-4 )" == "key_" ]; then
 	    kk=${kk/=*/}
-	    if [ ! $( grep -w $kk ${COMPIL_DIR}/full_key_list.txt ) ]; then
+	    if [ ! $( grep -w $kk ${NEMO_TDIR}/${NEW_CONF}/BLD/full_key_list.txt ) ]; then
 		echo
-		echo "E R R O R : key "$kk" is not found in ${NEW_CONF}/WORK routines..."
+		echo "E R R O R : key "$kk" is not found in ${NEMO_TDIR}/${NEW_CONF}/WORK routines..."
 		echo "we stop..."
 		echo
 		exit 1
@@ -377,16 +383,7 @@ fi
 
 #- At this stage cpp keys have been updated. we can check the arch file
 #- When used for the first time, choose a compiler ---
-. ${COMPIL_DIR}/Fcheck_archfile.sh arch_nemo.fcm cpp.fcm ${CMP_NAM} || exit 3
-
-#- At this stage the configuration has beeen chosen
-#- We coose the default light file
-[ $x_nocdf -eq 1 ] && export USEBLD=bldxagxcdf.cfg || export USEBLD=bldxag.cfg
-
-#- We look after agrif
-grep key_agrif ${COMPIL_DIR}/cpp.fcm && export AGRIFUSE=1 && export USEBLD=${USEBLD/xag/}
-. ${COMPIL_DIR}/Fprep_agrif.sh ${NEW_CONF} ${NEMO_TDIR} arch_nemo.fcm || exit 3
-
+. ${COMPIL_DIR}/Fcheck_archfile.sh ${NEMO_TDIR}/${NEW_CONF}/BLD/arch_nemo.fcm ${NEMO_TDIR}/${NEW_CONF}/BLD/cpp.fcm ${CMP_NAM} || exit 3
 #-
 #_ END OF CONFIGURATION PHASE
 #_
@@ -395,40 +392,32 @@ grep key_agrif ${COMPIL_DIR}/cpp.fcm && export AGRIFUSE=1 && export USEBLD=${USE
 #- Compile ---
 
 if [ "${NBR_PRC}" -gt 0 ]; then
-    cd ${NEMO_TDIR}/${NEW_CONF} || cd -
 
+    # We coose the default light file
+    [ $x_nocdf -eq 1 ] && export USEBLD=bldxagxcdf.cfg || export USEBLD=bldxag.cfg
+
+    # We look after agrif
+    grep key_agrif ${NEMO_TDIR}/${NEW_CONF}/BLD/cpp.fcm 2>/dev/null && export AGRIFUSE=1 && export USEBLD=${USEBLD/xag/}
+    . ${COMPIL_DIR}/Fprep_agrif.sh ${NEW_CONF} ${NEMO_TDIR} arch_nemo.fcm || exit 3
+    
     ## if AGRIF we do a first preprocessing
     if [[ ${#x_c} -eq 0 && "$AGRIFUSE" -eq 1 ]]; then
-	fcm build --ignore-lock -j 1 ${COMPIL_DIR}/bld_preproagr.cfg ||{ cd - ; exit 1 ;}
+	fcm build --ignore-lock -j 1 ${COMPIL_DIR}/bld_preproagr.cfg || exit 1
 	echo ''
 	echo "---------------------------------"
 	echo "CONV preprocessing successfull !!"
 	echo "---------------------------------"
 	echo ''
     fi
-    
-    fcm build ${x_c} --ignore-lock -v ${x_v} -j ${NBR_PRC} ${COMPIL_DIR}/$USEBLD ||{ cd - ; exit 1 ;}
+
+    fcm build ${x_c} --ignore-lock -v ${x_v} -j ${NBR_PRC} ${COMPIL_DIR}/$USEBLD || exit 1
 
     if [ -f ${NEMO_TDIR}/${NEW_CONF}/BLD/bin/nemo.exe ]; then
-	ln -sf ${NEMO_TDIR}/${NEW_CONF}/BLD/bin/nemo.exe  ${CONFIG_DIR}/${NEW_CONF}/EXP00/nemo
+	ln -sf ${NEMO_TDIR}/${NEW_CONF}/BLD/bin/nemo.exe  ${NEMO_TDIR}/${NEW_CONF}/EXP00/nemo
     fi
 
-    ## add remove for clean option
-    if [ ${#x_c} -ne 0 ]; then
-	echo -e '\nCleaning '${NEW_CONF}' building directories and variables\n'
-	for dir in AGRIFLIB BLD LONG NEMOFILES REPRO_* SHORT WORK; do
-	    rm -rf ${NEMO_TDIR}/${NEW_CONF}/$dir
-	done
-	for file in cpp.history cpp.fcm full_key_list.txt; do
-	    rm -f ${COMPIL_DIR}/$file
-	done
-    fi
     
 fi
 
-#- Come back to original directory ---
-cd -
-
-#-
 #- Unset variables
 ${COMPIL_DIR}/Fclean_var.sh

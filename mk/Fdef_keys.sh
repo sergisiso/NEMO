@@ -58,6 +58,6 @@ set -o posix
 
 echo "Defining keys in : ${NEW_CONF}"
 
-echo " bld::tool::fppkeys ${list_def_key}" > ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
+echo " bld::tool::fppkeys ${list_def_key}" > ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
 
 unset -v list_def_key

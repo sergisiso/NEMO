@@ -64,14 +64,14 @@ set -o posix
 #
 #-
 declare ZSRC=${@}
-ZCONF=${NEW_CONF}
+ZCONF=${NEMO_TDIR}/${NEW_CONF}
 ZTAB=${NEM_SUBDIR[@]}
 declare NDIR=${#ZTAB[@]}
 
-echo 'Creating '${ZCONF}'/WORK = '${ZTAB[*]}' for '${ZCONF}
+echo 'Creating '${ZCONF}'/WORK = '${ZTAB[*]}' for '${ZCONF##*/}
 
-[ ! -d ${ZCONF}/MY_SRC ] && \mkdir ${ZCONF}/MY_SRC
-[   -d ${ZCONF}/WORK   ] || \mkdir ${ZCONF}/WORK
+[ ! -d ${ZCONF}/MY_SRC ] && \mkdir -p ${ZCONF}/MY_SRC
+[   -d ${ZCONF}/WORK   ] || \mkdir -p ${ZCONF}/WORK
 
 for comp in ${ZTAB[*]}; do
 	find ${NEMO_DIR}/$comp -name *.[Ffh]90 -exec ln -sf {} ${ZCONF}/WORK \;

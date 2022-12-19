@@ -57,8 +57,7 @@ set -o posix
 #   * creation
 #
 #-
-[ ! -d ${3}/${2}     ] && \mkdir ${3}/${2}
-[ ! -d ${3}/${2}/BLD ] && \mkdir ${3}/${2}/BLD
-[ ! -d ${1}/${2}/BLD ] && ln -sf ${3}/${2}/BLD ${1}/${2}/BLD
-[ -f ${1}/${NEW_CONF}/cpp_${NEW_CONF}.fcm ] && ln -sf ${1}/${NEW_CONF}/cpp_${NEW_CONF}.fcm ${COMPIL_DIR}/cpp.fcm
-rm -f  ${1}/${NEW_CONF}/BLD/fcm.bld.lock
+[ ! -d ${3}/${2}     ] && \mkdir -p ${3}/${2}
+[ ! -d ${3}/${2}/BLD ] && \mkdir -p ${3}/${2}/BLD
+[ -f ${3}/${2}/cpp_${2}.fcm ] && ln -sf ${3}/${2}/cpp_${2}.fcm ${3}/${2}/BLD/cpp.fcm
+rm -f  ${1}/${2}/BLD/fcm.bld.lock

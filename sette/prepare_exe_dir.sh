@@ -67,23 +67,25 @@ set -o posix
 # PREPARE EXEC_DIR
 #==================
 if [ -z "${CUSTOM_DIR}" ]; then
-  export EXE_DIR=${CONFIG_DIR}/${NEW_CONF}/${TEST_NAME}
+  EXE_DIR=${CONFIG_DIR}/${NEW_CONF}
 else
   CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
   if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
     export EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG/${NEW_CONF}/${TEST_NAME}
   else
-    export EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}/${NEW_CONF}/${TEST_NAME}
+    EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}/${NEW_CONF}
   fi
 fi
-mkdir -p ${EXE_DIR}
+mkdir -p ${EXE_DIR}/${TEST_NAME}
 
-cp -RL ${CONFIG_DIR}/${NEW_CONF}/EXP00/* ${EXE_DIR}/.
-#cat ${SETTE_DIR}/iodef_sette.xml | sed -e"s;DEF_SHARED;${CONFIG_DIR0}/SHARED;" > ${EXE_DIR}/iodef.xml
+#cp -RL ${EXE_DIR:-${CONFIG_DIR}/${NEW_CONF}}/EXP00/* ${EXE_DIR}/${TEST_NAME}/.
+cp -an ${EXE_DIR:-${CONFIG_DIR}/${NEW_CONF}}/EXP00/* ${EXE_DIR}/${TEST_NAME}/.
+COMP_KEYS="`cat ${EXE_DIR}/cpp_${NEW_CONF}.fcm | sed -e 's/.*fppkeys *//'`"
+
+export EXE_DIR=${EXE_DIR}/${TEST_NAME}
 cd ${EXE_DIR}
 #
 # Add summary of the sette.sh set-up used and the current list of keys added or deleted
-COMP_KEYS="`cat ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm | sed -e 's/.*fppkeys *//'`"
 echo "Summary of sette environment"                                > ./sette_config
 echo "----------------------------"                               >> ./sette_config
 echo "requested by the command          : "$cmd $cmdargs          >> ./sette_config

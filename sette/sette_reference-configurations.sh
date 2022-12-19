@@ -155,11 +155,11 @@ if [ ${config} == "GYRE_PISCES" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  GYRE_PISCES ${SETTE_CONFIG} 'cfgs'
-    clean_config GYRE_PISCES ${SETTE_CONFIG} 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # GYRE uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "GYRE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for GYRE_PISCES
@@ -302,10 +302,10 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  ORCA2_ICE_PISCES ${SETTE_CONFIG} 'cfgs'
-    clean_config ORCA2_ICE_PISCES ${SETTE_CONFIG} 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for ORCA2_ICE_PISCES
@@ -589,11 +589,11 @@ if [ ${config} == "ORCA2_OFF_PISCES" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  ${SETTE_CONFIG} ORCA2_OFF_PISCES_ST 'cfgs'
-    clean_config ${SETTE_CONFIG} ORCA2_OFF_PISCES_ST 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ORCA2_OFF_PISCES uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ORCA2_OFF_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for ORCA2_OFF_PISCES
@@ -766,10 +766,10 @@ if [ ${config} == "AMM12" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  AMM12 ${SETTE_CONFIG} 'cfgs'
-    clean_config AMM12 ${SETTE_CONFIG} 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "AMM12" ] && [ ${DO_RESTART} == "1" ] ;  then
     ## Restartability tests for AMM12
@@ -900,11 +900,11 @@ if [ ${config} == "SAS" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  ORCA2_SAS_ICE ${SETTE_CONFIG} 'cfgs'
-    clean_config ORCA2_SAS_ICE ${SETTE_CONFIG} 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ORCA2_SAS_ICE uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests
@@ -1048,10 +1048,10 @@ if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  ORCA2_ICE_PISCES ${SETTE_CONFIG} 'cfgs'
-    clean_config ORCA2_ICE_PISCES ${SETTE_CONFIG} 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}"
 fi
 if [ ${config} == "ORCA2_ICE_OBS" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Reproducibility tests
@@ -1172,12 +1172,12 @@ if [ ${config} == "AGRIF" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  AGRIF_DEMO ${SETTE_CONFIG} 'cfgs'
-    clean_config AGRIF_DEMO ${SETTE_CONFIG} 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # AGRIF_DEMO does not yet support nn_hls=2 => key_loop_fusion can not be used
 #    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO -j ${CMPL_CORES} add_key "${ADD_KEYS/key_loop_fusion}" del_key "${DEL_KEYS}"
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests
@@ -1489,11 +1489,11 @@ if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  AGRIF_DEMO ${SETTE_CONFIG} 'cfgs'
-    clean_config AGRIF_DEMO ${SETTE_CONFIG} 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # AGRIF_DEMO does not yet support nn_hls=2 => key_loop_fusion can not be used
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_loop_fusion}" del_key "key_agrif ${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_loop_fusion}" del_key "key_agrif ${DEL_KEYS}"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
     set_valid_dir
@@ -1537,11 +1537,11 @@ if [ ${config} == "WED025" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    sync_config  WED025 ${SETTE_CONFIG} 'cfgs'
-    clean_config WED025 ${SETTE_CONFIG} 'cfgs'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # WED025 uses ln_hpg_isf so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "WED025" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests

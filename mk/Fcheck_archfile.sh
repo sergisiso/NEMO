@@ -73,19 +73,20 @@ EOF
 	eval "echo \"$line\" >> $2"
     done < $1
 }
+
 # cleaning related to the old version
-rm -f $( find ${COMPIL_DIR} -type f -name $1 -print )
+rm -f $( find $(dirname $1) -type f -name $(basename $1) -print )
 
 #
 if [ ${#3} -eq 0 ]; then # arch not specified
-    if [ ! -f ${COMPIL_DIR}/arch.history ]; then
+    if [ ! -f $(dirname $1)/arch.history ]; then
 	echo "Warning !!!"
 	echo "NO compiler chosen"
 	echo "Try makenemo -h for help"
 	echo "EXITING..."
 	exit 1 
     else # use the arch file defined in arch.history
-	myarch=$( cat ${COMPIL_DIR}/arch.history )	
+	myarch=$( cat $(dirname $1)/arch.history )
 	if [ ! -f $myarch ]; then
 	    echo "Warning !!!"
 	    echo "previously used arch file no more found:"
@@ -93,26 +94,26 @@ if [ ${#3} -eq 0 ]; then # arch not specified
 	    echo "EXITING..."
 	    exit 1 
 	else
-	    if [ -f ${COMPIL_DIR}/$1 ]; then
-		if [ "$2" != "nocpp" ] 
+	    if [ -f $1 ]; then
+		if [[ ! "$2" =~ "nocpp" ]]
 		then
 		    # has the cpp keys file been changed since we copied the arch file in ${COMPIL_DIR}?
-		    mycpp=$( ls -l ${COMPIL_DIR}/$2 | sed -e "s/.* -> //" )
-		    if [ "$mycpp" != "$( cat ${COMPIL_DIR}/cpp.history )" ]; then
-			echo $mycpp > ${COMPIL_DIR}/cpp.history
-			cpeval ${myarch} ${COMPIL_DIR}/$1
+		    mycpp=$( ls -l $2 | sed -e "s/.* -> //" )
+		    if [ "$mycpp" != "$( cat $(dirname $2)/cpp.history )" ]; then
+			echo $mycpp > $(dirname $2)/cpp.history
+			cpeval ${myarch} $1
 		    fi
 		    # has the cpp keys file been updated since we copied the arch file in ${COMPIL_DIR}?
-		    mycpp=$( find -L ${COMPIL_DIR} -cnewer ${COMPIL_DIR}/$1 -name $2 -print )
-		    [ ${#mycpp} -ne 0 ] && cpeval ${myarch} ${COMPIL_DIR}/$1
+		    mycpp=$( find -L $(dirname $2) -cnewer $(basename $1) -name $(basename $2) -print )
+		    [ ${#mycpp} -ne 0 ] && cpeval ${myarch} $1
 		fi
 		# has myarch file been updated since we copied it in ${COMPIL_DIR}?
 		myarchdir=$( dirname ${myarch} )
 		myarchname=$( basename ${myarch} )
-		myarch=$( find -L $myarchdir -cnewer ${COMPIL_DIR}/$1 -name $myarchname -print )
-		[ ${#myarch} -ne 0 ] && cpeval ${myarch} ${COMPIL_DIR}/$1
+		myarch=$( find -L $myarchdir -cnewer $(basename $1) -name $myarchname -print )
+		[ ${#myarch} -ne 0 ] && cpeval ${myarch} $1
 	    else
-		cpeval ${myarch} ${COMPIL_DIR}/$1
+		cpeval ${myarch} $1
 	    fi
 	fi
     fi
@@ -135,68 +136,68 @@ else
     fi
     myarch=$( find ${MAIN_DIR}/arch -name arch-${3}.fcm -print )
     # we were already using this arch file ?
-    if [ "$myarch" == "$( cat ${COMPIL_DIR}/arch.history )" ]; then 
-	if [ -f ${COMPIL_DIR}/$1 ]; then
-	    if [ "$2" != "nocpp" ] 
+    if [ "$myarch" == "$( cat $(dirname $1)/arch.history 2>/dev/null)" ]; then 
+	if [ -f $1 ]; then
+	    if [[ ! "$2" =~ "nocpp" ]]
 	    then
 		# has the cpp keys file been changed since we copied the arch file in ${COMPIL_DIR}?
-		mycpp=$( ls -l ${COMPIL_DIR}/$2 | sed -e "s/.* -> //" )
-		if [ "$mycpp" != "$( cat ${COMPIL_DIR}/cpp.history )" ]; then
-		    echo $mycpp > ${COMPIL_DIR}/cpp.history
-		    cpeval ${myarch} ${COMPIL_DIR}/$1
+		mycpp=$( ls -l $2 | sed -e "s/.* -> //" )
+		if [ "$mycpp" != "$( cat $(dirname $2)/cpp.history )" ]; then
+		    echo $mycpp > $(dirname $2)/cpp.history
+		    cpeval ${myarch} $1
 		fi
 		# has the cpp keys file been updated since we copied the arch file in ${COMPIL_DIR}?
-		mycpp=$( find -L ${COMPIL_DIR} -cnewer ${COMPIL_DIR}/$1 -name $2 -print )
-		[ ${#mycpp} -ne 0 ] && cpeval ${myarch} ${COMPIL_DIR}/$1
+		mycpp=$( find -L $(dirname $2) -cnewer $(basename $1) -name $(basename $2) -print )
+		[ ${#mycpp} -ne 0 ] && cpeval ${myarch} $1
 	    fi
 	    # has myarch file been updated since we copied it in ${COMPIL_DIR}?
-	    myarch=$( find -L ${MAIN_DIR}/arch -cnewer ${COMPIL_DIR}/$1 -name arch-${3}.fcm -print )
-	    [ ${#myarch} -ne 0 ] && cpeval ${myarch} ${COMPIL_DIR}/$1
+	    myarch=$( find -L ${MAIN_DIR}/arch -cnewer $(basename $1) -name arch-${3}.fcm -print )
+	    [ ${#myarch} -ne 0 ] && cpeval ${myarch} $1
 	else
-	    cpeval ${myarch} ${COMPIL_DIR}/$1
+	    cpeval ${myarch} $1
 	fi
     else
-	if [ "$2" != "nocpp" ] 
+	if [[ ! "$2" =~ "nocpp" ]]
 	then
-	    ls -l ${COMPIL_DIR}/$2 | sed -e "s/.* -> //" > ${COMPIL_DIR}/cpp.history
+	    ls -l $2 | sed -e "s/.* -> //" > $(dirname $2)/cpp.history
 	fi
-	echo ${myarch} > ${COMPIL_DIR}/arch.history
-	cpeval ${myarch} ${COMPIL_DIR}/$1
+	echo ${myarch} > $(dirname $1)/arch.history
+	cpeval ${myarch} $1
     fi
 fi
 
 #- do we need xios library?
 #- 2 cases: 
 #- in CONFIG directory looking for key_xios or key_iomput
-if [ "$1" == "arch_nemo.fcm" ]
+if [ "$(basename $1)" == "arch_nemo.fcm" ]
 then
-    if [ "$2" != "nocpp" ] 
+    if [[ ! "$2" =~ "nocpp" ]]
     then
-        use_iom=$( sed -e "s/#.*$//" ${COMPIL_DIR}/$2 | grep -c "key_xios\|key_iomput" )
+        use_iom=$( sed -e "s/#.*$//" $2 | grep -c "key_xios\|key_iomput" )
     else
         use_iom=0
     fi
-    have_lxios=$( sed -e "s/#.*$//" ${COMPIL_DIR}/$1 | grep -c "\-lxios" )
+    have_lxios=$( sed -e "s/#.*$//" $1 | grep -c "\-lxios" )
     if [[ ( $use_iom -eq 0 ) && ( $have_lxios -ge 1 ) ]]
     then 
-        sed -e "s/-lxios//g" ${COMPIL_DIR}/$1 > ${COMPIL_DIR}/tmp$$
-        mv -f ${COMPIL_DIR}/tmp$$ ${COMPIL_DIR}/$1
+        sed -e "s/-lxios//g" $1 > $(dirname $1)/tmp$$
+        mv -f $(dirname $1)/tmp$$ $1
     fi
 #- in TOOLS directory looking for USE xios
 else
-    use_iom=$( egrep --exclude-dir=.svn -r USE ${NEW_CONF}/src/* | grep -c xios )
-    have_lxios=$( sed -e "s/#.*$//" ${COMPIL_DIR}/$1 | grep -c "\-lxios" )
+    use_iom=$( egrep --exclude-dir=.svn -r USE ${MAIN_DIR}/src/* | grep -c xios )
+    have_lxios=$( sed -e "s/#.*$//" $1 | grep -c "\-lxios" )
     if [[ ( $use_iom -eq 0 ) || ( $have_lxios != 1 ) ]]
     then 
-        sed -e "s/-lxios//g" ${COMPIL_DIR}/$1 > ${COMPIL_DIR}/tmp$$
-        mv -f ${COMPIL_DIR}/tmp$$ ${COMPIL_DIR}/$1
+        sed -e "s/-lxios//g" $1 > $(dirname $1)/tmp$$
+        mv -f $(dirname $1)/tmp$$ $1
     fi
 fi
 
 #- do we need oasis libraries?
-if [ "$2" != "nocpp" ] 
+if [[ ! "$2" =~ "nocpp" ]]
 then
-    use_oasis=$( sed -e "s/#.*$//" ${COMPIL_DIR}/$2 | grep -c key_oasis3 )
+    use_oasis=$( sed -e "s/#.*$//" $2 | grep -c key_oasis3 )
 else
     use_oasis=0
 fi
@@ -206,26 +207,26 @@ if [[ ! -z "$XIOS_OASIS" ]]; then
 fi 
 for liboa in psmile.MPI1 mct mpeu scrip mpp_io
 do
-    have_liboa=$( sed -e "s/#.*$//" ${COMPIL_DIR}/$1 | grep -c "\-l${liboa}" )
+    have_liboa=$( sed -e "s/#.*$//" $1 | grep -c "\-l${liboa}" )
     if [[ ( $use_oasis -eq 0 ) && ( $have_liboa -ge 1 ) ]]
     then 
-	sed -e "s/-l${liboa}//g" ${COMPIL_DIR}/$1 > ${COMPIL_DIR}/tmp$$
-	mv -f ${COMPIL_DIR}/tmp$$ ${COMPIL_DIR}/$1
+	sed -e "s/-l${liboa}//g" $1 > $(dirname $1)/tmp$$
+	mv -f $(dirname $1)/tmp$$ $1
     fi
 done
 
 # Nemo debug ?
 if [ -n "${NEMO_DBG}" ]; then
-    if (! grep -q "^%DEBUG_FCFLAGS" ${COMPIL_DIR}/$1 ); then
+    if (! grep -q "^%DEBUG_FCFLAGS" $1 ); then
        echo "ERROR: You must defined '%DEBUG_FCFLAGS' in your arch file if you want to compile Nemo in debug mode using '-d' option"
        exit 1
     fi
     # duplicate the lines starting with %DEBUG_XXX and replace, in the duplicated line, %DEBUG_XXX by %XXX
-    sed -i "/^%DEBUG_/{p;s/^%DEBUG_\([^ ]*\)/%\1/;}" ${COMPIL_DIR}/$1
+    sed -i "/^%DEBUG_/{p;s/^%DEBUG_\([^ ]*\)/%\1/;}" $1
 else
-    if (! grep -q "^%PROD_FCFLAGS" ${COMPIL_DIR}/$1 ); then
+    if (! grep -q "^%PROD_FCFLAGS" $1 ); then
         echo "WARNING: '%PROD_FCFLAGS' not defined in your arch file, makenemo will use '%FCFLAGS' instead"
     fi
     # duplicate the lines starting with %PROD_XXX and replace, in the duplicated line, %PROD_XXX by %XXX
-    sed -i "/^%PROD_/{p;s/^%PROD_\([^ ]*\)/%\1/;}" ${COMPIL_DIR}/$1
+    sed -i "/^%PROD_/{p;s/^%PROD_\([^ ]*\)/%\1/;}" $1
 fi
