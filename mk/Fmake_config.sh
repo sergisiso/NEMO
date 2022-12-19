@@ -59,8 +59,9 @@ set -o posix
 \mkdir -p ${1}
 \mkdir -p ${1}/EXP00
 \mkdir -p ${1}/MY_SRC
-\cp -R -n ${2}/cpp_${2}.fcm ${1}/cpp_${1}.fcm
-\cp -R -n ${2}/EXPREF/*namelist* ${1}/EXP00/.
-\cp -R -n ${2}/EXPREF/*.xml ${1}/EXP00/.
-[ -f ${2}/EXPREF/AGRIF_FixedGrids.in ] &&  \cp -R -n ${2}/EXPREF/AGRIF_FixedGrids.in ${1}/EXP00/.
-[ -d    ${2}/MY_SRC ] && \cp -n ${2}/MY_SRC/* ${1}/MY_SRC/. 2> /dev/null
+[ "${2}/cpp_${2##*/}.fcm" != "${1}/cpp_${1##*/}.fcm" ] && \cp -R -n ${2}/cpp_${2##*/}.fcm ${1}/cpp_${1##*/}.fcm
+for f in ${2}/EXPREF/*.xml ${2}/EXPREF/*namelist*; do
+  if [ -L ${f} ]; then ln -sf $(readlink -f ${f}) ${1}/EXP00/$(basename ${f}); else cp -R -n ${f} ${1}/EXP00/.; fi
+done
+[ -f ${2}/EXPREF/AGRIF_FixedGrids.in ] && \cp -a -n ${2}/EXPREF/AGRIF_FixedGrids.in ${1}/EXP00/.
+[ -d    ${2}/MY_SRC ] && \cp -an ${2}/MY_SRC/* ${1}/MY_SRC/. 2> /dev/null

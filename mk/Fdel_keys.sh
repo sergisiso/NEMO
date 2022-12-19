@@ -65,14 +65,14 @@ echo "Removing keys in : ${NEW_CONF}"
 for i in ${list_del_key} ; do
 
      if [ "$(echo ${i} | grep -c key_nproc )" -ne 0                                      ]; then
-        sed -e "s/key_nproc[ij]=.* //" ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm \
-	    >  ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp
-        mv ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
+        sed -e "s/key_nproc[ij]=.* //" ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm \
+	    >  ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp
+        mv ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
         echo " "
-     elif [ "$(cat ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm | grep -c "$i" )" -ne 0 ]; then
-         sed -e "s/\b${i}\b//" ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm \
-	     >  ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp
-         mv ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
+     elif [ "$(cat ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm | grep -c "$i" )" -ne 0 ]; then
+         sed -e "s/\b${i}\b//" ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm \
+	     >  ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp
+         mv ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
          echo "deleted key $i in ${NEW_CONF}"
      fi
 

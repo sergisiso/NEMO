@@ -62,5 +62,5 @@ set -o posix
 [ ! -d ${1}/${2}/BLD ] && ln -sf ${3}/${2}/BLD ${1}/${2}/BLD
 # enforce presence of cpp_tools.fcm (write a blank one if not present in the tools directory)
 # cp instead of ln to avoid overwiting previous tool cpp_XXX.fcm file when compiling a file without cpp_YYY.fcm file.
-[ -f ${1}/${NEW_CONF}/cpp_${NEW_CONF}.fcm ] && cp -f ${1}/${NEW_CONF}/cpp_${NEW_CONF}.fcm ${COMPIL_DIR}/cpp_tools.fcm || echo 'bld::tool::fppkeys ' > ${COMPIL_DIR}/cpp_tools.fcm
+[ -f ${3}/${2}/cpp_${2}.fcm ] && ln -sf -f ${3}/${2}/cpp_${2}.fcm ${3}/${2}/BLD/cpp_tools.fcm || echo 'bld::tool::fppkeys ' > ${3}/${2}/BLD/cpp_tools.fcm
 rm -f  ${1}/${NEW_CONF}/BLD/fcm.bld.lock

@@ -94,8 +94,8 @@ usage=" if value is a string ths is neede syntax : ./set_namelist namelist_name 
 sync_config() {
    if [ ${SYNC_CONFIGS} == "yes" ]; then
 
-      lREF=$3/$1    # reference 
-      lCFG=$3/$2    # target
+      lREF=$1    # reference
+      lCFG=$2    # target
 
       echo '-------------------------------------------------------------------------------'
       echo '                    SOURCE AND CONFIG FILES SYNCHRONISATION                    '
@@ -146,24 +146,16 @@ sync_config() {
 # clean _STg config (input CFG CFG_STg TYPE (test or ref))
 clean_config() {
    if [ ${CLEAN_CONFIGS} == "yes" ]; then
-      lREF=$1
-      lCFG=$2
-      lTYP=$3
+      lCFG=$1
       echo ''
       echo '-------------------------------------------------------------------------------'
       echo '                         CLEANING CONFIGURATION                                '
       echo ''
-      echo "./makenemo -n $lCFG -a/-r $lREF -t ${CMP_DIR:-${CONFIG_DIR0}} clean"
+      echo "./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean"
       echo ''
-      if [ ${lTYP} == 'tests' ]; then
-         ./makenemo -n $lCFG -t ${CMP_DIR:-${CONFIG_DIR0}} -a $lREF clean
-      elif [ ${lTYP} == 'cfgs' ]; then
-         ./makenemo -n $lCFG -t ${CMP_DIR:-${CONFIG_DIR0}} -r $lREF clean
-      else
-         echo 'ERROR in the cleaning process'; exit 42
-      fi
+      ./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean
       echo ''
-      echo "$lCFG configuration has been cleaned"
+      echo "$(basename $lCFG) configuration has been cleaned"
       echo ''
       echo '-------------------------------------------------------------------------------'
    fi
