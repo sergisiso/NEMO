@@ -81,9 +81,12 @@ CONTAINS
       REAL(wp)   , DIMENSION(jpmaxtrc) :: rn_trofac    ! multiplicative factor for tracer values
       REAL(wp)   , DIMENSION(jpmaxtrc) :: rn_trsfac    ! multiplicative factor for tracer values
       REAL(wp)   , DIMENSION(jpmaxtrc) :: rn_trcfac    ! multiplicative factor for tracer values
+      CHARACTER(len=lca), DIMENSION(jpmaxtrc) ::   cn_tronam   ! tracer- to variable-name translation
       !!
-      NAMELIST/namtrc_bc/ cn_dir_obc, sn_trcobc, rn_trofac, cn_dir_sbc, sn_trcsbc, rn_trsfac, & 
-                        & cn_dir_cbc, sn_trccbc, rn_trcfac, ln_rnf_ctl, rn_sbc_time, rn_cbc_time
+      NAMELIST/namtrc_bc/ cn_dir_obc, sn_trcobc, rn_trofac, cn_tronam, &
+                        & cn_dir_sbc, sn_trcsbc, rn_trsfac,            &
+                        & cn_dir_cbc, sn_trccbc, rn_trcfac,            &
+                        & ln_rnf_ctl, rn_sbc_time, rn_cbc_time
       !!----------------------------------------------------------------------
       !
       IF( lwp ) THEN
@@ -106,6 +109,9 @@ CONTAINS
       nb_trcobc       = 0
       n_trc_indobc(:) = 0
       rn_trofac(:)    = 1._wp
+      DO jn = 1, ntrc
+         cn_tronam(jn) = TRIM( ctrcnm(jn) )   ! Default variable name of open-boundary input data
+      END DO
       !
       ALLOCATE( n_trc_indsbc(ntrc), STAT=ierr0 )
       IF( ierr0 > 0 ) THEN
@@ -174,7 +180,7 @@ CONTAINS
          IF( nb_trcobc > 0 ) THEN
             WRITE(numout,*) '   #trc        NAME        Boundary     Mult.Fact. '
             DO jn = 1, ntrc
-               IF ( ln_trc_obc(jn) ) WRITE(numout, 9001) jn, TRIM( ctrcnm(jn) ), 'OBC', rn_trofac(jn)
+               IF ( ln_trc_obc(jn) ) WRITE(numout, 9001) jn, TRIM( cn_tronam(jn) ), 'OBC', rn_trofac(jn)
             END DO
          END IF
          WRITE(numout,'(2a)') '   OPEN BC data repository : ', TRIM(cn_dir_obc)
@@ -200,7 +206,7 @@ CONTAINS
                IF( ln_trc_obc(jn) ) THEN     !* Initialise from external data *!
                   jl = n_trc_indobc(jn)
                   slf_i(jl)    = sn_trcobc(ib)
-                  slf_i(jl)%clvar = TRIM(ctrcnm(jn))
+                  slf_i(jl)%clvar = TRIM(cn_tronam(jn))
                   rf_trofac(jl) = rn_trofac(jn)
                                                 ALLOCATE( sf_trcobc(jl,ib)%fnow(nblen,1,jpk)   , STAT=ierr2 )
                   IF( sn_trcobc(jn)%ln_tint )   ALLOCATE( sf_trcobc(jl,ib)%fdta(nblen,1,jpk,2) , STAT=ierr3 )
