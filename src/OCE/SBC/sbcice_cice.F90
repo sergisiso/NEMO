@@ -12,9 +12,9 @@ MODULE sbcice_cice
    USE oce             ! ocean dynamics and tracers
    USE dom_oce         ! ocean space and time domain
 # if defined key_qco
-   USE domqco         ! Variable volume
-# else
-   USE domvvl         ! Variable volume
+   USE domqco          ! Variable volume
+# elif defined key_linssh
+   !                   ! Fix in time volume
 # endif
    USE phycst, only : rcp, rho0, r1_rho0, rhos, rhoi
    USE in_out_manager  ! I/O manager
@@ -238,41 +238,8 @@ CONTAINS
 !!gm especially here it is assumed zstar coordinate, but it can be ztilde....
 #if defined key_qco
             IF( .NOT.ln_linssh )   CALL dom_qco_zgr( Kbb, Kmm )   ! interpolation scale factor, depth and water column
-#else
-            IF( .NOT.ln_linssh ) THEN
-               !
-               DO jk = 1,jpkm1                     ! adjust initial vertical scale factors
-                  e3t(:,:,jk,Kmm) = e3t_0(:,:,jk)*( 1._wp + ssh(:,:,Kmm)*r1_ht_0(:,:)*tmask(:,:,jk) )
-                  e3t(:,:,jk,Kbb) = e3t_0(:,:,jk)*( 1._wp + ssh(:,:,Kbb)*r1_ht_0(:,:)*tmask(:,:,jk) )
-               ENDDO
-               e3t(:,:,:,Krhs) = e3t(:,:,:,Kbb)
-               ! Reconstruction of all vertical scale factors at now and before time-steps
-               ! =============================================================================
-               ! Horizontal scale factor interpolations
-               ! --------------------------------------
-               CALL dom_vvl_interpol( e3t(:,:,:,Kbb), e3u(:,:,:,Kbb), 'U' )
-               CALL dom_vvl_interpol( e3t(:,:,:,Kbb), e3v(:,:,:,Kbb), 'V' )
-               CALL dom_vvl_interpol( e3t(:,:,:,Kmm), e3u(:,:,:,Kmm), 'U' )
-               CALL dom_vvl_interpol( e3t(:,:,:,Kmm), e3v(:,:,:,Kmm), 'V' )
-               CALL dom_vvl_interpol( e3u(:,:,:,Kmm), e3f(:,:,:), 'F' )
-               ! Vertical scale factor interpolations
-               ! ------------------------------------
-               CALL dom_vvl_interpol( e3t(:,:,:,Kmm), e3w (:,:,:,Kmm), 'W'  )
-               CALL dom_vvl_interpol( e3u(:,:,:,Kmm), e3uw(:,:,:,Kmm), 'UW' )
-               CALL dom_vvl_interpol( e3v(:,:,:,Kmm), e3vw(:,:,:,Kmm), 'VW' )
-               CALL dom_vvl_interpol( e3u(:,:,:,Kbb), e3uw(:,:,:,Kbb), 'UW' )
-               CALL dom_vvl_interpol( e3v(:,:,:,Kbb), e3vw(:,:,:,Kbb), 'VW' )
-               ! t- and w- points depth
-               ! ----------------------
-               gdept(:,:,1,Kmm) = 0.5_wp * e3w(:,:,1,Kmm)
-               gdepw(:,:,1,Kmm) = 0.0_wp
-               gde3w(:,:,1)     = gdept(:,:,1,Kmm) - ssh(:,:,Kmm)
-               DO jk = 2, jpk
-                  gdept(:,:,jk,Kmm) = gdept(:,:,jk-1,Kmm) + e3w(:,:,jk,Kmm)
-                  gdepw(:,:,jk,Kmm) = gdepw(:,:,jk-1,Kmm) + e3t(:,:,jk-1,Kmm)
-                  gde3w(:,:,jk)     = gdept(:,:,jk  ,Kmm) - sshn   (:,:)
-               END DO
-            ENDIF
+#elif defined key_linssh
+            !
 #endif
          ENDIF
       ENDIF
@@ -566,7 +533,7 @@ taum(:,:)=(1.0-fr_i(:,:))*taum(:,:)+fr_i(:,:)*SQRT(ztmp1*ztmp1 + ztmp2*ztmp2)
       WHERE (ztmp1(:,:).lt.0.0) ztmp2(:,:)=MAX(ztmp2(:,:),ztmp1(:,:)*sss_m(:,:)/1000.0)
       sfx(:,:)=ztmp2(:,:)*1000.0
       emp(:,:)=emp(:,:)-ztmp1(:,:)
-      fmmflx(:,:) = ztmp1(:,:) !!Joakim edit
+      fwfice(:,:) = -ztmp1(:,:) !!Joakim edit
       
       CALL lbc_lnk( 'sbcice_cice', emp , 'T', 1.0_wp, sfx , 'T', 1.0_wp )
 

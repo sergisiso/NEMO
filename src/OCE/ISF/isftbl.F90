@@ -15,20 +15,21 @@ MODULE isftbl
 
    USE isf_oce ! ice shelf variables
 
+   USE par_oce ! ocean space and time domain
    USE dom_oce ! vertical scale factor and depth
+   USE domutl, ONLY : lbnd_ij
 
    IMPLICIT NONE
 
    PRIVATE
 
-   PUBLIC isf_tbl, isf_tbl_avg, isf_tbl_lvl, isf_tbl_ktop, isf_tbl_kbot
+   PUBLIC isf_tbl_avg, isf_tbl_lvl, isf_tbl_ktop
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
-
 CONTAINS
 
-   SUBROUTINE isf_tbl( Kmm, pvarin, pvarout, cd_ptin, ktop, phtbl, kbot, pfrac )
+   SUBROUTINE isf_tbl( Kmm, pvarin, cd_ptin, ktop, phtbl, pvarout, kbot, pfrac )
       !!--------------------------------------------------------------------
       !!                  ***  SUBROUTINE isf_tbl  ***
       !!
@@ -39,83 +40,87 @@ CONTAINS
       !! ** Reference : inspired from : Losch, Modeling ice shelf cavities in a z coordinate ocean general circulation model
       !!                https://doi.org/10.1029/2007JC004368 , 2008
       !!
-      !!-------------------------- OUT -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(  out) :: pvarout ! 2d average of pvarin
-      !!-------------------------- IN  -------------------------------------
-      INTEGER                               , INTENT(in   ) :: Kmm           ! ocean time level index
-      CHARACTER(len=1)                      , INTENT(in   ) :: cd_ptin       ! point of variable in/out
-      REAL(wp), DIMENSION(jpi,jpj,jpk)      , INTENT(in   ) :: pvarin        ! 3d variable to average over the tbl
-      INTEGER,  DIMENSION(jpi,jpj)          , INTENT(in   ) :: ktop          ! top level
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) :: phtbl         ! tbl thickness
-      !!-------------------------- IN OPTIONAL -----------------------------
-      INTEGER,  DIMENSION(jpi,jpj), OPTIONAL, INTENT(in   ) :: kbot          ! bottom level
-      REAL(wp), DIMENSION(jpi,jpj), OPTIONAL, INTENT(in   ) :: pfrac         ! fraction of bottom cell affected by tbl
       !!--------------------------------------------------------------------
-      INTEGER ::   ji, jj                     ! loop index
-      INTEGER , DIMENSION(jpi,jpj) :: ikbot   ! bottom level of the tbl
-      REAL(wp), DIMENSION(jpi,jpj) :: zvarout ! 2d average of pvarin
-      REAL(wp), DIMENSION(jpi,jpj) :: zhtbl   ! thickness of the tbl
-      REAL(wp), DIMENSION(jpi,jpj) :: zfrac   ! thickness of the tbl
-      INTEGER :: jk                            ! loop index
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze3t,ze3u,ze3v ! e3 
+      INTEGER                              , INTENT(in ) ::   Kmm           ! ocean time level index
+      REAL(wp), DIMENSION(A2D(0),jpk)      , INTENT(in ) ::   pvarin        ! 3d variable to average over the tbl
+      CHARACTER(len=1)                     , INTENT(in ) ::   cd_ptin       ! point of variable in/out
+      INTEGER,  DIMENSION(A2D(0))          , INTENT(in ) ::   ktop          ! top level
+      REAL(wp), DIMENSION(A2D(0))          , INTENT(in ) ::   phtbl         ! tbl thickness
+      REAL(wp), DIMENSION(A2D(0))          , INTENT(out) ::   pvarout       ! 2d average of pvarin
+      INTEGER,  DIMENSION(A2D(0)), OPTIONAL, INTENT(in ) ::   kbot          ! bottom level
+      REAL(wp), DIMENSION(A2D(0)), OPTIONAL, INTENT(in ) ::   pfrac         ! fraction of bottom cell affected by tbl
+      !!--------------------------------------------------------------------
+      INTEGER ::   ji, jj, jk, ikt             ! loop index
+      REAL(wp), DIMENSION(A2D(0)) ::   zhtbl   ! temporary array for thickness
+      INTEGER , DIMENSION(A2D(0)) ::   ikbot   ! bottom level of the tbl
+      REAL(wp), DIMENSION(A2D(0)) ::   zfrac   ! thickness of the tbl
+      REAL(wp), DIMENSION(A2D(0),jpk) ::   ze3 ! e3 
       !!--------------------------------------------------------------------
       ! 
       SELECT CASE ( cd_ptin )
       CASE ( 'U' )
          !
-         ! copy phtbl (phtbl is INTENT in as we don't want to change it)
-         zhtbl = phtbl
+         DO_3D( 0 ,0, 0, 0, 1, jpk )
+            ze3(ji,jj,jk) = e3u(ji,jj,jk,Kmm)
+         END_3D 
          !
-         DO jk = 1, jpk
-            ze3u(:,:,jk) = e3u(:,:,jk,Kmm)
-         END DO 
          ! compute tbl lvl and thickness
-         CALL isf_tbl_lvl( hu(:,:,Kmm), ze3u, ktop, ikbot, zhtbl, zfrac )
+         DO_2D( 0 ,0, 0, 0 )
+            ikt = ktop(ji,jj)  ! tbl top indices
+            zhtbl(ji,jj) = MAX( MIN( phtbl(ji,jj), hu(ji,jj,Kmm) ), ze3(ji,jj,ikt) )
+         END_2D
+         CALL isf_tbl_lvl( ze3, ktop, zhtbl, & ! <<== in
+            &                   ikbot, zfrac ) ! ==>> out
          !
          ! compute tbl property at U point
-         CALL isf_tbl_avg( miku, ikbot, zhtbl, zfrac, ze3u, pvarin, zvarout )
+         CALL isf_tbl_avg( miku(A2D(0)), ikbot, zhtbl, zfrac, ze3, pvarin, & ! <<== in
+            &                                                      pvarout ) ! ==>> out
          !
-         ! compute tbl property at T point
-         pvarout(1,:) = 0._wp
-         DO_2D( nn_hls-1, nn_hls, nn_hls, nn_hls )
-            pvarout(ji,jj) = 0.5_wp * (zvarout(ji,jj) + zvarout(ji-1,jj))
-         END_2D
-         ! lbclnk not needed as a final communication is done after the computation of fwf
-         ! 
       CASE ( 'V' )
          !
-         ! copy phtbl (phtbl is INTENT in as we don't want to change it)
-         zhtbl = phtbl
+         DO_3D( 0 ,0, 0, 0, 1, jpk )
+            ze3(ji,jj,jk) = e3v(ji,jj,jk,Kmm)
+         END_3D 
          !
-         DO jk = 1, jpk
-            ze3v(:,:,jk) = e3v(:,:,jk,Kmm)
-         END DO 
          ! compute tbl lvl and thickness
-         CALL isf_tbl_lvl( hv(:,:,Kmm), ze3v, ktop, ikbot, zhtbl, zfrac )
+         DO_2D( 0 ,0, 0, 0 )
+            ikt = ktop(ji,jj)  ! tbl top indices
+            zhtbl(ji,jj) = MAX( MIN( phtbl(ji,jj), hv(ji,jj,Kmm) ), ze3(ji,jj,ikt) )
+         END_2D
+         CALL isf_tbl_lvl( ze3, ktop, zhtbl, & ! <<== in
+            &                   ikbot, zfrac ) ! ==>> out
          !
          ! compute tbl property at V point
-         CALL isf_tbl_avg( mikv, ikbot, zhtbl, zfrac, ze3v, pvarin, zvarout )
-         !
-         ! pvarout is an averaging of wet point
-         pvarout(:,1) = 0._wp
-         DO_2D( nn_hls, nn_hls, nn_hls-1, nn_hls )
-            pvarout(ji,jj) = 0.5_wp * (zvarout(ji,jj) + zvarout(ji,jj-1))
-         END_2D
-         ! lbclnk not needed as a final communication is done after the computation of fwf
+         CALL isf_tbl_avg( mikv(A2D(0)), ikbot, zhtbl, zfrac, ze3, pvarin, & ! <<== in
+            &                                                      pvarout ) ! ==>> out
          !
       CASE ( 'T' )
          !
+         DO_3D( 0 ,0, 0, 0, 1, jpk )
+            ze3(ji,jj,jk) = e3t(ji,jj,jk,Kmm)
+         END_3D
+         !
          ! compute tbl property at T point
-         DO jk = 1, jpk
-            ze3t(:,:,jk) = e3t(:,:,jk,Kmm)
-         END DO 
-         CALL isf_tbl_avg( ktop, kbot, phtbl, pfrac, ze3t, pvarin, pvarout )
+         CALL isf_tbl_avg( ktop, kbot, phtbl, pfrac, ze3, pvarin, & ! <<== in
+            &                                             pvarout ) ! ==>> out
          !
       END SELECT
       !
    END SUBROUTINE isf_tbl
 
    SUBROUTINE isf_tbl_avg( ktop, kbot, phtbl, pfrac, pe3, pvarin, pvarout )
+      !!--------------------------------------------------------------------
+      INTEGER,  DIMENSION(:,:)       , INTENT(in ) ::   ktop         ! top level of the top boundary layer
+      INTEGER,  DIMENSION(A2D(0))    , INTENT(in ) ::   kbot         ! bottom level of the top boundary layer
+      REAL(wp), DIMENSION(A2D(0))    , INTENT(in ) ::   phtbl, pfrac ! fraction of bottom level to be affected by the tbl
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(in ) ::   pe3          ! vertical scale factor
+      REAL(wp), DIMENSION(:,:,:)     , INTENT(in ) ::   pvarin       ! tbl property to average between ktop, kbot over phtbl
+      REAL(wp), DIMENSION(:,:)       , INTENT(out) ::   pvarout      ! tbl property averaged over phtbl between level ktop and kbot
+      !!--------------------------------------------------------------------
+      CALL isf_tbl_avg_t( ktop, lbnd_ij(ktop), kbot, phtbl, pfrac, pe3, pvarin, lbnd_ij(pvarin), pvarout, lbnd_ij(pvarout) )
+   END SUBROUTINE isf_tbl_avg
+
+   SUBROUTINE isf_tbl_avg_t( ktop, ktktop, kbot, phtbl, pfrac, pe3, pvarin, ktvarin, pvarout, ktvarout )
       !!--------------------------------------------------------------------
       !!                  ***  ROUTINE isf_tbl_avg  ***
       !!
@@ -124,20 +129,21 @@ CONTAINS
       !! ** Method  : Depth average is made between the top level ktop and the bottom level kbot
       !!              over a thickness phtbl. The bottom level is partially counted (pfrac).
       !!
-      !!-------------------------- OUT -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(  out) :: pvarout      ! tbl property averaged over phtbl between level ktop and kbot
-      !!-------------------------- IN  -------------------------------------
-      INTEGER,  DIMENSION(jpi,jpj)    , INTENT(in   ) :: ktop, kbot   ! top and bottom level of the top boundary layer
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in   ) :: phtbl, pfrac ! fraction of bottom level to be affected by the tbl
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) :: pe3          ! vertical scale factor
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) :: pvarin       ! tbl property to average between ktop, kbot over phtbl
       !!--------------------------------------------------------------------
-      INTEGER  :: ji,jj,jk                    ! loop indices
-      INTEGER  :: ikt, ikb                    ! top and bottom levels
+      INTEGER,  DIMENSION(2)                , INTENT(in ) ::   ktvarin, ktktop, ktvarout
+      INTEGER,  DIMENSION(AB2D(ktktop))     , INTENT(in ) ::   ktop         ! top level of the top boundary layer
+      INTEGER,  DIMENSION(A2D(0))           , INTENT(in ) ::   kbot         ! bottom level of the top boundary layer
+      REAL(wp), DIMENSION(A2D(0))           , INTENT(in ) ::   phtbl, pfrac ! fraction of bottom level to be affected by the tbl
+      REAL(wp), DIMENSION(A2D(0),jpk)       , INTENT(in ) ::   pe3          ! vertical scale factor
+      REAL(wp), DIMENSION(AB2D(ktvarin),JPK), INTENT(in ) ::   pvarin       ! tbl property to average between ktop, kbot over phtbl
+      REAL(wp), DIMENSION(AB2D(ktvarout))   , INTENT(out) ::   pvarout      ! tbl property averaged over phtbl between level ktop and kbot
+      !!--------------------------------------------------------------------
+      INTEGER  ::   ji, jj                        ! loop indices
+      INTEGER  ::   ikt, ikb                      ! top and bottom levels
       !!--------------------------------------------------------------------
       !
       ! compute tbl top.bottom level and thickness
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          !
          ! tbl top/bottom indices initialisation
          ikt = ktop(ji,jj) ; ikb = kbot(ji,jj)
@@ -150,9 +156,9 @@ CONTAINS
          !
       END_2D
 
-   END SUBROUTINE isf_tbl_avg
+   END SUBROUTINE isf_tbl_avg_t
 
-   SUBROUTINE isf_tbl_lvl( phw, pe3, ktop, kbot, phtbl, pfrac )
+   SUBROUTINE isf_tbl_lvl( pe3, ktop, phtbl, kbot, pfrac )
       !!--------------------------------------------------------------------
       !!                  ***  ROUTINE isf_tbl_lvl  ***
       !!
@@ -160,96 +166,48 @@ CONTAINS
       !!              - thickness of the top boundary layer
       !!              - fraction of the bottom level affected by the tbl
       !!
-      !!-------------------------- OUT --------------------------------------
-      INTEGER,  DIMENSION(jpi,jpj)    , INTENT(  out) :: kbot   ! bottom level of the top boundary layer
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(  out) :: pfrac  ! fraction of bottom level in the tbl
-      !!-------------------------- IN  --------------------------------------
-      INTEGER,  DIMENSION(jpi,jpj)    , INTENT(in   ) :: ktop   ! top level of the top boundary layer
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in   ) :: phw    ! water column thickness
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) :: pe3    ! vertical scale factor
-      !!-------------------------- INOUT ------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(inout) :: phtbl  ! top boundary layer thickness
+      !!--------------------------------------------------------------------
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(in ) ::   pe3    ! vertical scale factor
+      INTEGER,  DIMENSION(A2D(0))    , INTENT(in ) ::   ktop   ! top level of the top boundary layer
+      REAL(wp), DIMENSION(A2D(0))    , INTENT(in ) ::   phtbl  ! top boundary layer thickness
+      INTEGER,  DIMENSION(A2D(0))    , INTENT(out) ::   kbot   ! bottom level of the top boundary layer
+      REAL(wp), DIMENSION(A2D(0))    , INTENT(out) ::   pfrac  ! fraction of bottom level in the tbl
       !!---------------------------------------------------------------------
-      INTEGER :: ji,jj,jk
-      INTEGER :: ikt, ikb
+      INTEGER ::   ji, jj
+      INTEGER ::   ikt, ikb
       !!---------------------------------------------------------------------
       !
-      ! get htbl
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          !
-         ! tbl top/bottom indices initialisation
-         ikt = ktop(ji,jj)
+         ikt = ktop(ji,jj)  ! tbl top indices initialisation
          !
-         ! limit the tbl to water thickness.
-         phtbl(ji,jj) = MIN( phtbl(ji,jj), phw(ji,jj) )
+         ! --- get kbot --- !
+         !                  ! determine the deepest level influenced by the boundary layer
+         ikb = ikt+1
+         DO WHILE( SUM( pe3(ji,jj,ikt:ikb-1) ) < phtbl(ji,jj ) ) ;  ikb = ikb + 1 ;  END DO
+         kbot(ji,jj) = ikb - 1
          !
-         ! thickness of boundary layer must be at least the top level thickness
-         phtbl(ji,jj) = MAX( phtbl(ji,jj), pe3(ji,jj,ikt) )
+         ikb = kbot(ji,jj)   ! tbl bottom indices initialisation
          !
-      END_2D
-      !
-      ! get ktbl
-      CALL isf_tbl_kbot(ktop, phtbl, pe3, kbot)
-      !
-      ! get pfrac
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         !
-         ! tbl top/bottom indices initialisation
-         ikt = ktop(ji,jj) ; ikb = kbot(ji,jj)
-         !
-         ! proportion of the bottom cell included in ice shelf boundary layer 
+         ! --- get pfrac --- !
+         !                   ! proportion of the bottom cell included in ice shelf boundary layer 
          pfrac(ji,jj) = ( phtbl(ji,jj) - SUM( pe3(ji,jj,ikt:ikb-1) ) ) / pe3(ji,jj,ikb)
          !
       END_2D
       !
    END SUBROUTINE isf_tbl_lvl
    !
-   SUBROUTINE isf_tbl_kbot(ktop, phtbl, pe3, kbot)
-      !!--------------------------------------------------------------------
-      !!                  ***  ROUTINE isf_tbl_bot  ***
-      !!
-      !! ** Purpose : compute bottom level of the isf top boundary layer
-      !!
-      !!-------------------------- OUT -------------------------------------
-      INTEGER,  DIMENSION(jpi,jpj)    , INTENT(  out) :: kbot   ! bottom level of the top boundary layer
-      !!-------------------------- IN  -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in   ) :: phtbl  ! top boundary layer thickness
-      INTEGER,  DIMENSION(jpi,jpj)    , INTENT(in   ) :: ktop   ! top level of the top boundary layer
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) :: pe3    ! vertical scale factor
-      !!--------------------------------------------------------------------
-      INTEGER :: ji, jj
-      INTEGER :: ikt, ikb
-      !!--------------------------------------------------------------------
-      !
-      ! phtbl need to be bounded by water column thickness before
-      ! test: if htbl = water column thickness, should return mbathy
-      ! test: if htbl = 0 should return ktop (phtbl cap to pe3t(ji,jj,1))
-      !
-      ! get ktbl
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         !
-         ! determine the deepest level influenced by the boundary layer
-         ikt = ktop(ji,jj)
-         ikb = ikt
-         DO WHILE ( SUM(pe3(ji,jj,ikt:ikb-1)) < phtbl(ji,jj ) ) ;  ikb = ikb + 1 ;  END DO
-         kbot(ji,jj) = ikb - 1
-         !
-      END_2D
-      !
-   END SUBROUTINE isf_tbl_kbot
-      !
-   SUBROUTINE isf_tbl_ktop(pdep, ktop)
+   SUBROUTINE isf_tbl_ktop( pdep, ktop )
       !!--------------------------------------------------------------------
       !!                  ***  ROUTINE isf_tbl_top  ***
       !!
       !! ** Purpose : compute top level of the isf top boundary layer in case of an ice shelf parametrisation
       !!
-      !!-------------------------- OUT -------------------------------------
-      INTEGER,  DIMENSION(jpi,jpj), INTENT(  out) :: ktop        ! top level affected by the ice shelf parametrisation
-      !!-------------------------- IN  -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(inout) :: pdep        ! top depth of the parametrisation influence
       !!--------------------------------------------------------------------
-      INTEGER :: ji,jj
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) :: pdep        ! top depth of the parametrisation influence
+      INTEGER,  DIMENSION(A2D(0)), INTENT(  out) :: ktop        ! top level affected by the ice shelf parametrisation
+      !!--------------------------------------------------------------------
+      INTEGER :: ji, jj
       INTEGER :: ikt
       !!--------------------------------------------------------------------
       !
@@ -260,14 +218,15 @@ CONTAINS
       ! test: this routine run on isfdraft should return mikt
       ! test: this routine run with pdep = 0 should return 1
       !
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          ! comput ktop
          ikt = 2
-         DO WHILE ( gdepw_0(ji,jj,ikt) <= pdep(ji,jj ) ) ;  ikt = ikt + 1 ;  END DO
+         DO WHILE ( gdepw_0(ji,jj,ikt) <= pdep(ji,jj) ) ;  ikt = ikt + 1 ;  END DO
          ktop(ji,jj) = ikt - 1
          !
          ! update pdep
-         pdep(ji,jj) = gdepw_0(ji,jj,ktop(ji,jj))
+         ikt=ktop(ji,jj)
+         pdep(ji,jj) = gdepw_0(ji,jj,ikt)
       END_2D
       !
    END SUBROUTINE isf_tbl_ktop

@@ -75,20 +75,20 @@ CONTAINS
       ! 1 - Allocate memory !
       ! ------------------- !
       !                                ! ocean arrays
-      ALLOCATE( tn_25h (A2D(0),jpk), sn_25h (A2D(0),jpk), sshn_25h(A2D(0))  ,     &
-         &      un_25h (A2D(0),jpk), vn_25h (A2D(0),jpk), wn_25h(A2D(0),jpk),     &
-         &      avt_25h(A2D(0),jpk), avm_25h(A2D(0),jpk),                      STAT=ierror )
+      ALLOCATE( tn_25h (T2D(0),jpk), sn_25h (T2D(0),jpk), sshn_25h(T2D(0))  ,     &
+         &      un_25h (T2D(0),jpk), vn_25h (T2D(0),jpk), wn_25h(T2D(0),jpk),     &
+         &      avt_25h(T2D(0),jpk), avm_25h(T2D(0),jpk),                      STAT=ierror )
       IF( ierror > 0 ) THEN
          CALL ctl_stop( 'dia_25h: unable to allocate ocean arrays' )   ;   RETURN
       ENDIF
       IF( ln_zdftke ) THEN             ! TKE physics
-         ALLOCATE( en_25h(A2D(0),jpk), STAT=ierror )
+         ALLOCATE( en_25h(T2D(0),jpk), STAT=ierror )
          IF( ierror > 0 ) THEN
             CALL ctl_stop( 'dia_25h: unable to allocate en_25h' )   ;   RETURN
          ENDIF
       ENDIF
       IF( ln_zdfgls ) THEN             ! GLS physics
-         ALLOCATE( en_25h(A2D(0),jpk), rmxln_25h(A2D(0),jpk), STAT=ierror )
+         ALLOCATE( en_25h(T2D(0),jpk), rmxln_25h(T2D(0),jpk), STAT=ierror )
          IF( ierror > 0 ) THEN
             CALL ctl_stop( 'dia_25h: unable to allocate en_25h and rmxln_25h' )   ;   RETURN
          ENDIF
@@ -142,9 +142,9 @@ CONTAINS
       LOGICAL ::   ll_print = .FALSE.    ! =T print and flush numout
       REAL(wp)                         ::   zsto, zout, zmax, zjulian, zmdi   ! local scalars
       INTEGER                          ::   i_steps                           ! no of timesteps per hour
-      REAL(wp), DIMENSION(A2D(0)    )  ::   zw2d, un_dm, vn_dm                ! workspace
-      REAL(wp), DIMENSION(A2D(0),jpk)  ::   zw3d                              ! workspace
-      REAL(wp), DIMENSION(A2D(0),3)    ::   zwtmb                             ! workspace
+      REAL(wp), DIMENSION(T2D(0)    )  ::   zw2d, un_dm, vn_dm                ! workspace
+      REAL(wp), DIMENSION(T2D(0),jpk)  ::   zw3d                              ! workspace
+      REAL(wp), DIMENSION(T2D(0),3)    ::   zwtmb                             ! workspace
       !!----------------------------------------------------------------------
 
       ! 0. Initialisation

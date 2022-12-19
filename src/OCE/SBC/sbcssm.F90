@@ -31,6 +31,7 @@ MODULE sbcssm
 
    LOGICAL, SAVE ::   l_ssm_mean = .FALSE.   ! keep track of whether means have been read from restart file
 
+#  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -58,6 +59,7 @@ CONTAINS
       INTEGER  ::   ji, jj               ! loop index
       REAL(wp) ::   zcoef, zf_sbc       ! local scalar
       REAL(wp), DIMENSION(jpi,jpj,jpts) :: zts
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: ztc    ! Working array for conservative temperature calculation
       !!---------------------------------------------------------------------
       !
       !                                        !* surface T-, U-, V- ocean level variables (T, S, depth, velocity)
@@ -74,7 +76,7 @@ CONTAINS
          !                                                ! ---------------------------------------- !
          ssu_m(:,:) = uu(:,:,1,Kbb)
          ssv_m(:,:) = vv(:,:,1,Kbb)
-         IF( l_useCT )  THEN    ;   sst_m(:,:) = eos_pt_from_ct( zts(:,:,jp_tem), zts(:,:,jp_sal) )
+         IF( l_useCT )  THEN    ;   CALL eos_pt_from_ct( zts(:,:,jp_tem), zts(:,:,jp_sal), sst_m(:,:) )
          ELSE                   ;   sst_m(:,:) = zts(:,:,jp_tem)
          ENDIF
          sss_m(:,:) = zts(:,:,jp_sal)
@@ -92,6 +94,8 @@ CONTAINS
          frq_m(:,:) = fraqsr_1lev(:,:)
          !
       ELSE
+         IF( l_useCT ) ALLOCATE( ztc(A2D(nn_hls)) )
+         !
          !                                                ! ----------------------------------------------- !
          IF( kt == nit000 .AND. .NOT. l_ssm_mean ) THEN   !   Initialisation: 1st time-step, no input means !
             !                                             ! ----------------------------------------------- !
@@ -101,8 +105,11 @@ CONTAINS
             zcoef = REAL( nn_fsbc - 1, wp )
             ssu_m(:,:) = zcoef * uu(:,:,1,Kbb)
             ssv_m(:,:) = zcoef * vv(:,:,1,Kbb)
-            IF( l_useCT   )  THEN   ;   sst_m(:,:) = zcoef * eos_pt_from_ct( zts(:,:,jp_tem), zts(:,:,jp_sal) )
-            ELSE                    ;   sst_m(:,:) = zcoef * zts(:,:,jp_tem)
+            IF( l_useCT   )  THEN
+               CALL eos_pt_from_ct( zts(:,:,jp_tem), zts(:,:,jp_sal), ztc(:,:) )
+               sst_m(:,:) = zcoef * ztc(:,:)
+            ELSE
+               sst_m(:,:) = zcoef * zts(:,:,jp_tem)
             ENDIF
             sss_m(:,:) = zcoef * zts(:,:,jp_sal)
             !                          ! removed inverse barometer ssh when Patm forcing is used (for sea-ice dynamics)
@@ -133,8 +140,11 @@ CONTAINS
          !                                                ! ---------------------------------------- !
          ssu_m(:,:) = ssu_m(:,:) + uu(:,:,1,Kbb)
          ssv_m(:,:) = ssv_m(:,:) + vv(:,:,1,Kbb)
-         IF( l_useCT )  THEN     ;   sst_m(:,:) = sst_m(:,:) + eos_pt_from_ct( zts(:,:,jp_tem), zts(:,:,jp_sal) )
-         ELSE                    ;   sst_m(:,:) = sst_m(:,:) + zts(:,:,jp_tem)
+         IF( l_useCT )  THEN
+            CALL eos_pt_from_ct( zts(:,:,jp_tem), zts(:,:,jp_sal), ztc(:,:) )
+            sst_m(:,:) = sst_m(:,:) + ztc(:,:)
+         ELSE
+            sst_m(:,:) = sst_m(:,:) + zts(:,:,jp_tem)
          ENDIF
          sss_m(:,:) = sss_m(:,:) + zts(:,:,jp_sal)
          !                          ! removed inverse barometer ssh when Patm forcing is used (for sea-ice dynamics)
@@ -181,6 +191,8 @@ CONTAINS
             CALL iom_rstput( kt, nitrst, numrow, 'frq_m'  , frq_m  )
             !
          ENDIF
+         !
+         IF( l_useCT ) DEALLOCATE( ztc )
          !
       ENDIF
       !
@@ -258,7 +270,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '   default initialisation of ss._m arrays'
          ssu_m(:,:) = uu(:,:,1,Kbb)
          ssv_m(:,:) = vv(:,:,1,Kbb)
-         IF( l_useCT )  THEN    ;   sst_m(:,:) = eos_pt_from_ct( ts(:,:,1,jp_tem,Kmm), ts(:,:,1,jp_sal,Kmm) )
+         IF( l_useCT )  THEN    ;   CALL eos_pt_from_ct( ts(:,:,1,jp_tem,Kmm), ts(:,:,1,jp_sal,Kmm), sst_m(:,:) )
          ELSE                   ;   sst_m(:,:) = ts(:,:,1,jp_tem,Kmm)
          ENDIF
          sss_m(:,:) = ts  (:,:,1,jp_sal,Kmm)

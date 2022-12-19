@@ -82,22 +82,21 @@ CONTAINS
       !! References: Fox-Kemper et al., JPO, 38, 1145-1165, 2008
       !!             Fox-Kemper and Ferrari, JPO, 38, 1166-1179, 2008
       !!----------------------------------------------------------------------
-      INTEGER                     , INTENT(in   ) ::   kt         ! ocean time-step index
-      INTEGER                     , INTENT(in   ) ::   kit000     ! first time step index
-      INTEGER                     , INTENT(in   ) ::   Kmm        ! ocean time level index
-      CHARACTER(len=3)            , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
-      ! TEMP: [tiling] Can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pu         ! in : 3 ocean transport components
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pv         ! out: same 3  transport components
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pw         !   increased by the MLE induced transport
+      INTEGER                             , INTENT(in   ) ::   kt         ! ocean time-step index
+      INTEGER                             , INTENT(in   ) ::   kit000     ! first time step index
+      INTEGER                             , INTENT(in   ) ::   Kmm        ! ocean time level index
+      CHARACTER(len=3)                    , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pu         ! in : 3 ocean transport components
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pv         ! out: same 3  transport components
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pw         !   increased by the MLE induced transport
       !
       INTEGER  ::   ji, jj, jk          ! dummy loop indices
       INTEGER  ::   ii, ij, ik, ikmax   ! local integers
       REAL(wp) ::   zcuw, zmuw, zc      ! local scalar
       REAL(wp) ::   zcvw, zmvw          !   -      -
-      INTEGER , DIMENSION(A2D(nn_hls))     :: inml_mle
-      REAL(wp), DIMENSION(A2D(nn_hls))     :: zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) :: zpsi_uw, zpsi_vw
+      INTEGER , DIMENSION(T2D(nn_hls))     :: inml_mle
+      REAL(wp), DIMENSION(T2D(nn_hls))     :: zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) :: zpsi_uw, zpsi_vw
       !!----------------------------------------------------------------------
       !
       !
@@ -211,10 +210,10 @@ CONTAINS
          ELSEIF( nn_mle == 1 ) THEN       ! New formulation (Lf = 5km fo/ff with fo=Coriolis parameter at latitude rn_lat)
             DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
                zpsim_u(ji,jj) = rc_f *   zhu(ji,jj)   * zhu(ji,jj)   * e2_e1u(ji,jj)               &
-                    &                  * ( zbm(ji+1,jj) - zbm(ji,jj) ) * MIN( 111.e3_wp , e1u(ji,jj) )
+                    &                * ( zbm(ji+1,jj) - zbm(ji,jj) ) * MIN( 111.e3_wp , e1u(ji,jj) )
                !
                zpsim_v(ji,jj) = rc_f *   zhv(ji,jj)   * zhv(ji,jj)   * e1_e2v(ji,jj)               &
-                    &                  * ( zbm(ji,jj+1) - zbm(ji,jj) ) * MIN( 111.e3_wp , e2v(ji,jj) )
+                    &                * ( zbm(ji,jj+1) - zbm(ji,jj) ) * MIN( 111.e3_wp , e2v(ji,jj) )
             END_2D
          ENDIF
          !
@@ -250,13 +249,13 @@ CONTAINS
       !
       !                                      !==  transport increased by the MLE induced transport ==!
       DO jk = 1, ikmax
-         DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            pu(ji,jj,jk) = pu(ji,jj,jk) + ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji,jj,jk+1) )
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            pu(ji,jj,jk) = pu(ji,jj,jk) + ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji,jj,jk+1) )         ! add () for NO repro
             pv(ji,jj,jk) = pv(ji,jj,jk) + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj,jk+1) )
          END_2D
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            pw(ji,jj,jk) = pw(ji,jj,jk) - ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj,jk)   &
-               &                          + zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj-1,jk) ) * wmask(ji,jj,1)
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            pw(ji,jj,jk) = pw(ji,jj,jk) - ( ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj,jk) )   &   ! add () for NO repro
+               &                          + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj-1,jk) ) ) * wmask(ji,jj,1)
          END_2D
       END DO
 

@@ -19,7 +19,8 @@ MODULE trcldf
    USE oce_trc        ! ocean dynamics and active tracers
    USE ldftra         ! lateral diffusion: eddy diffusivity & EIV coeff.
    USE ldfslp         ! Lateral diffusion: slopes of neutral surfaces
-   USE traldf_lap_blp ! lateral diffusion: lap/bilaplacian iso-level      operator  (tra_ldf_lap/_blp   routine)
+   USE traldf_lev     ! lateral diffusion: laplacian iso-level            operator  (traldf_lap/_blp      routines)
+!!st   USE traldf_lap_blp ! lateral diffusion: lap/bilaplacian iso-level      operator  (tra_ldf_lap/_blp   routine)
    USE traldf_iso     ! lateral diffusion: laplacian iso-neutral standard operator  (tra_ldf_iso        routine)
    USE traldf_triad   ! lateral diffusion: laplacian iso-neutral triad    operator  (tra_ldf_     triad routine)
    USE trd_oce        ! trends: ocean variables
@@ -90,19 +91,23 @@ CONTAINS
       END_3D
       !
       SELECT CASE ( nldf_trc )                 !* compute lateral mixing trend and add it to the general trend
-      !
-      CASE ( np_lap   )                                                                                    ! iso-level laplacian
-         CALL tra_ldf_lap  ( kt, Kmm, nittrc000,'TRC', zahu, zahv, gtru, gtrv, gtrui, gtrvi,            &
-           &                     ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Krhs),                   jptra, 1 )
-      CASE ( np_lap_i )                                                                                    ! laplacian : standard iso-neutral operator (Madec)
-         CALL tra_ldf_iso  ( kt, Kmm, nittrc000,'TRC', zahu, zahv, gtru, gtrv, gtrui, gtrvi,            &
-           &                     ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Krhs), jptra, 1 )
-      CASE ( np_lap_it )                                                                                   ! laplacian : triad iso-neutral operator (griffies)
-         CALL tra_ldf_triad( kt, Kmm, nittrc000,'TRC', zahu, zahv, gtru, gtrv, gtrui, gtrvi,            &
-           &                     ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Krhs), jptra, 1 )
-      CASE ( np_blp , np_blp_i , np_blp_it )                                                               ! bilaplacian: all operator (iso-level, -neutral)
-         CALL tra_ldf_blp  ( kt, Kmm, nittrc000,'TRC', zahu, zahv, gtru, gtrv, gtrui, gtrvi,            &
-           &                     ptr(:,:,:,:,Kbb) , ptr(:,:,:,:,Krhs),                 jptra, nldf_trc )
+      !                                !-  laplacian  - !
+      CASE ( np_lap    )                     ! level operator
+         CALL traldf_lev_lap  ( kt, Kbb, Kmm, ptr, Krhs )
+      CASE ( np_lap_i  )                     ! standard iso-neutral operator
+         CALL traldf_iso_lap  ( kt, Kbb, Kmm, ptr, Krhs )
+      CASE ( np_lap_it )                     ! laplacian: triad iso-neutral operator
+         CALL traldf_triad_lap( kt, Kmm, nittrc000,'TRC', zahu, zahv,    &
+            &                       ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Krhs), jptra,  1 )
+      !                                !- bilaplacian - !
+      CASE ( np_blp    )                     ! iso-level operators
+         CALL traldf_lev_blp  ( kt, Kbb, Kmm, ptr, Krhs )
+      CASE ( np_blp_i  )                     ! standard iso-neutral operator
+         CALL traldf_iso_blp  ( kt, Kbb, Kmm, ptr, Krhs )
+      CASE ( np_blp_it )                     ! bilaplacian: iso-level & iso-neutral operators
+         CALL traldf_triad_blp( kt, Kmm, nittrc000,'TRC', zahu, zahv,    &
+              &                     ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Krhs),                   jptra     )
+         !
       END SELECT
       !
       IF( l_trdtrc )   THEN                    ! send the trends for further diagnostics

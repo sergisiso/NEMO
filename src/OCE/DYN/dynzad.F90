@@ -60,7 +60,7 @@ CONTAINS
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp) ::   zWf, zWfi, zzWfu, zzWdzU   ! local scalars
       REAL(wp) ::        zWfj, zzWfv, zzWdzV   !   -      -
-      REAL(wp), DIMENSION(A2D(0))             ::   zWdzU, zWdzV   ! 2D inner workspace
+      REAL(wp), DIMENSION(T2D(0))             ::   zWdzU, zWdzV   ! 2D inner workspace
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrdu, ztrdv   ! 3D workspace
       !!----------------------------------------------------------------------
       !
@@ -81,8 +81,8 @@ CONTAINS
       !
       !                                !==  vertical momentum advection ==!   at u- and v-points
       !
-      zWdzU(A2D(0)) = 0._wp                  ! set surface (jk=1) vertical advection to zero
-      zWdzV(A2D(0)) = 0._wp
+      zWdzU(T2D(0)) = 0._wp                  ! set surface (jk=1) vertical advection to zero
+      zWdzV(T2D(0)) = 0._wp
       !        
       DO_3D( 0, 0, 0, 0 , 1, jpk-2 )   !=  surface to jpk-2 vertical advection
          !                                ! vertical transport at jk+1 uw/vw-level (x2): 2*mi/j[e1e2t*(We)]

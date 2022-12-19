@@ -324,7 +324,7 @@
    sn_mld      = 'dyna_grid_T'           ,       120.        , 'mldr10_1'  ,    .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_emp      = 'dyna_grid_T'           ,       120.        , 'wfo'       ,    .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_empb     = 'dyna_grid_T'           ,       120.        , 'wfob'      ,    .true.   , .true. , 'yearly'  , ''               , ''       , ''
-   sn_fmf      = 'dyna_grid_T'           ,       120.        , 'fmmflx'    ,    .true.   , .true. , 'yearly'  , ''               , ''       , ''
+   sn_fwf      = 'dyna_grid_T'           ,       120.        , 'iowaflup'  ,    .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_rnf      = 'dyna_grid_T'           ,       120.        , 'runoffs'   ,    .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_ice      = 'dyna_grid_T'           ,       120.        , 'siconc'    ,    .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_qsr      = 'dyna_grid_T'           ,       120.        , 'rsntds'    ,    .true.   , .true. , 'yearly'  , ''               , ''       , ''

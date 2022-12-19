@@ -71,8 +71,8 @@ CONTAINS
 
          !ij0 = 1   ;   ij1 = 25                       ! set boundary condition
          !ii0 = 975   ;   ii1 = 1000
-         !DO jj = mj0(ij0), mj1(ij1)
-         !   DO ji = mi0(ii0), mi1(ii1)
+         !DO jj = mj0(ij0,nn_hls), mj1(ij1,nn_hls)
+         !   DO ji = mi0(ii0,nn_hls), mi1(ii1,nn_hls)
          !      utau(ji,jj) = -utau_ice(ji,jj) 
          !      vtau(ji,jj) = -vtau_ice(ji,jj)
          !   END DO
@@ -108,7 +108,7 @@ CONTAINS
 
       REAL(wp) ::   zwndi_f , zwndj_f, zwnorm_f       ! relative wind module and components at F-point
       REAL(wp) ::   zwndi_t , zwndj_t                 ! relative wind components at T-point
-      REAL(wp), DIMENSION(jpi,jpj) ::   windu, windv  ! wind components (idealised forcing)
+      REAL(wp), DIMENSION(A2D(0)) ::   windu, windv   ! wind components (idealised forcing)
       REAL(wp), PARAMETER ::   r_vfac = 1._wp         ! relative velocity (make 0 for absolute velocity) 
       REAL(wp), PARAMETER ::   Rwind = -0.8_wp        ! ratio of wind components
       REAL(wp), PARAMETER ::   Umax = 15._wp          ! maximum wind speed (m/s)
@@ -122,40 +122,26 @@ CONTAINS
 
       DO_2D( 0, 0, 0, 0 )
          ! wind spins up over 6 hours, factor 1000 to balance the units
-         windu(ji,jj) = Umax/sqrt(d*1000)*(d-2*mig(ji)*res)/((d-2*mig(ji)*res)**2+(d-2*mjg(jj)*res)**2*Rwind**2)**(1/4)*min(kt*30./21600,1.)
-         windv(ji,jj) = Umax/sqrt(d*1000)*(d-2*mjg(jj)*res)/((d-2*mig(ji)*res)**2+(d-2*mjg(jj)*res)**2*Rwind**2)**(1/4)*Rwind*min(kt*30./21600,1.)
+         windu(ji,jj) = Umax/SQRT(d*1000)*(d-2*mig(ji,nn_hls)*res) /   &
+            &           ((d-2*mig(ji,nn_hls)*res)**2+(d-2*mjg(jj,nn_hls)*res)**2*Rwind**2)**(1/4)*MIN(kt*30./21600,1.)
+         windv(ji,jj) = Umax/SQRT(d*1000)*(d-2*mjg(jj,nn_hls)*res) /   &
+            &           ((d-2*mig(ji,nn_hls)*res)**2+(d-2*mjg(jj,nn_hls)*res)**2*Rwind**2)**(1/4)*Rwind*MIN(kt*30./21600,1.)
       END_2D
-      CALL lbc_lnk( 'usrdef_sbc', windu, 'U', -1., windv, 'V', -1. )
-
-      wndm_ice(:,:) = 0._wp      !!gm brutal....
 
       ! ------------------------------------------------------------ !
-      !    Wind module relative to the moving ice ( U10m - U_ice )   !
+      !    Wind module and stress relative to the moving ice ( U10m - U_ice )   !
       ! ------------------------------------------------------------ !
-      ! C-grid ice dynamics :   U & V-points (same as ocean)
       DO_2D( 0, 0, 0, 0 )
-         zwndi_t = (  windu(ji,jj) - r_vfac * 0.5 * ( u_ice(ji-1,jj  ) + u_ice(ji,jj) )  )
+         zwndi_t = (  windu(ji,jj) - r_vfac * 0.5 * ( u_ice(ji-1,jj) + u_ice(ji,jj) )  )
          zwndj_t = (  windv(ji,jj) - r_vfac * 0.5 * ( v_ice(ji,jj-1) + v_ice(ji,jj) )  )
+         !
          wndm_ice(ji,jj) = SQRT( zwndi_t * zwndi_t + zwndj_t * zwndj_t ) * tmask(ji,jj,1)
+         !
+         utau_ice(ji,jj) = zrhoa * Cd_atm * wndm_ice(ji,jj) * zwndi_t
+         vtau_ice(ji,jj) = zrhoa * Cd_atm * wndm_ice(ji,jj) * zwndj_t
       END_2D
-      CALL lbc_lnk( 'usrdef_sbc', wndm_ice, 'T',  1. )
+      CALL lbc_lnk( 'usrdef_sbc', utau_ice, 'T', -1., vtau_ice, 'T', -1., ldfull = .TRUE. )
 
-      !!gm brutal....
-      utau_ice  (:,:) = 0._wp
-      vtau_ice  (:,:) = 0._wp
-      !!gm end
-
-      ! ------------------------------------------------------------ !
-      !    Wind stress relative to the moving ice ( U10m - U_ice )   !
-      ! ------------------------------------------------------------ !
-      ! C-grid ice dynamics :   U & V-points (same as ocean)
-      DO_2D( 0, 0, 0, 0 )
-         utau_ice(ji,jj) = 0.5 * zrhoa * Cd_atm * ( wndm_ice(ji+1,jj  ) + wndm_ice(ji,jj) )            &
-            &          * ( 0.5 * (windu(ji+1,jj) + windu(ji,jj) ) - r_vfac * u_ice(ji,jj) )
-         vtau_ice(ji,jj) = 0.5 * zrhoa * Cd_atm * ( wndm_ice(ji,jj+1  ) + wndm_ice(ji,jj) )            &
-            &          * ( 0.5 * (windv(ji,jj+1) + windv(ji,jj) ) - r_vfac * v_ice(ji,jj) )
-      END_2D
-      CALL lbc_lnk( 'usrdef_sbc', utau_ice, 'U', -1., vtau_ice, 'V', -1. )
       !
    END SUBROUTINE usrdef_sbc_ice_tau
 
@@ -170,7 +156,7 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), INTENT(in) ::   phi    ! ice thickness
       !!
       REAL(wp) ::   zfr1, zfr2                 ! local variables
-      REAL(wp), DIMENSION(jpi,jpj) ::   zsnw   ! snw distribution after wind blowing
+      REAL(wp), DIMENSION(A2D(0)) ::   zsnw   ! snw distribution after wind blowing
       !!---------------------------------------------------------------------
       !
       IF( kt==nit000 .AND. lwp)   WRITE(numout,*)' usrdef_sbc_ice : ICE_RHEO case: NO flux forcing'
@@ -194,9 +180,9 @@ CONTAINS
       emp_ice  (:,:)   = SUM( a_i_b(:,:,:) * evap_ice(:,:,:), dim=3 ) - sprecip(:,:) * zsnw(:,:)
       emp_oce  (:,:)   = emp_oce(:,:) - sprecip(:,:) * (1._wp - zsnw(:,:) )
       qevap_ice(:,:,:) =   0._wp
-      qprec_ice(:,:)   =   rhos * ( sst_m(:,:) * rcpi - rLfus ) * tmask(:,:,1) !  in J/m3
-      qemp_oce (:,:)   = - emp_oce(:,:) * sst_m(:,:) * rcp
-      qemp_ice (:,:)   =   sprecip(:,:) * zsnw * ( sst_m(:,:) * rcpi - rLfus ) * tmask(:,:,1) ! solid precip (only)
+      qprec_ice(:,:)   =   rhos * ( sst_m(A2D(0)) * rcpi - rLfus ) * smask0(:,:) !  in J/m3
+      qemp_oce (:,:)   = - emp_oce(:,:) * sst_m(A2D(0)) * rcp
+      qemp_ice (:,:)   =   sprecip(:,:) * zsnw * ( sst_m(A2D(0)) * rcpi - rLfus ) * smask0(:,:) ! solid precip (only)
 
       ! total fluxes
       emp_tot (:,:) = emp_ice  + emp_oce
@@ -207,11 +193,11 @@ CONTAINS
       zfr1 = ( 0.18 * ( 1.0 - pp_cldf ) + 0.35 * pp_cldf )            ! transmission when hi>10cm
       zfr2 = ( 0.82 * ( 1.0 - pp_cldf ) + 0.65 * pp_cldf )            ! zfr2 such that zfr1 + zfr2 to equal 1
       !
-      WHERE    ( phs(:,:,:) <= 0._wp .AND. phi(:,:,:) <  0.1_wp )       ! linear decrease from hi=0 to 10cm  
-         qtr_ice_top(:,:,:) = qsr_ice(:,:,:) * ( zfr1 + zfr2 * ( 1._wp - phi(:,:,:) * 10._wp ) )
-      ELSEWHERE( phs(:,:,:) <= 0._wp .AND. phi(:,:,:) >= 0.1_wp )       ! constant (zfr1) when hi>10cm
+      WHERE    ( phs(A2D(0),:) <= 0._wp .AND. phi(A2D(0),:) <  0.1_wp )       ! linear decrease from hi=0 to 10cm  
+         qtr_ice_top(:,:,:) = qsr_ice(:,:,:) * ( zfr1 + zfr2 * ( 1._wp - phi(A2D(0),:) * 10._wp ) )
+      ELSEWHERE( phs(A2D(0),:) <= 0._wp .AND. phi(A2D(0),:) >= 0.1_wp )       ! constant (zfr1) when hi>10cm
          qtr_ice_top(:,:,:) = qsr_ice(:,:,:) * zfr1
-      ELSEWHERE                                                         ! zero when hs>0
+      ELSEWHERE                                                               ! zero when hs>0
          qtr_ice_top(:,:,:) = 0._wp 
       END WHERE
           

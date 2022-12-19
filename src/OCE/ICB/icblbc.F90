@@ -90,9 +90,9 @@ CONTAINS
          this => first_berg
          DO WHILE( ASSOCIATED(this) )
             pt => this%current_point
-            IF( pt%xi > REAL(mig(nicbei),wp) + 0.5_wp ) THEN
+            IF( pt%xi > REAL(mig(nicbei,nn_hls),wp) + 0.5_wp ) THEN
                pt%xi = ricb_right + MOD(pt%xi, 1._wp ) - 1._wp
-            ELSE IF( pt%xi < REAL(mig(nicbdi),wp) - 0.5_wp ) THEN
+            ELSE IF( pt%xi < REAL(mig(nicbdi,nn_hls),wp) - 0.5_wp ) THEN
                pt%xi = ricb_left + MOD(pt%xi, 1._wp )
             ENDIF
             this => this%next
@@ -125,10 +125,10 @@ CONTAINS
       DO WHILE( ASSOCIATED(this) )
          pt => this%current_point
          ijne = INT( pt%yj + 0.5 )
-         IF( pt%yj > REAL(mjg(nicbej),wp) + 0.5_wp ) THEN
+         IF( pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp ) THEN
             !
             iine = INT( pt%xi + 0.5 )
-            ipts  = nicbfldpts (mi1(iine))
+            ipts  = nicbfldpts (mi1(iine,nn_hls))
             !
             ! moving across the cut line means both position and
             ! velocity must change
@@ -228,7 +228,7 @@ CONTAINS
          this => first_berg
          DO WHILE (ASSOCIATED(this))
             pt => this%current_point
-            IF( ipe_E >= 0 .AND. pt%xi > REAL(mig(nicbei),wp) + 0.5_wp - (nn_hls-1) ) THEN
+            IF( ipe_E >= 0 .AND. pt%xi > REAL(mig(nicbei,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
                tmpberg => this
                this => this%next
                ibergs_to_send_e = ibergs_to_send_e + 1
@@ -241,7 +241,7 @@ CONTAINS
                ! now pack it into buffer and delete from list
                CALL icb_pack_into_buffer( tmpberg, obuffer_e, ibergs_to_send_e)
                CALL icb_utl_delete(first_berg, tmpberg)
-            ELSE IF( ipe_W >= 0 .AND. pt%xi < REAL(mig(nicbdi),wp) - 0.5_wp - (nn_hls-1) ) THEN
+            ELSE IF( ipe_W >= 0 .AND. pt%xi < REAL(mig(nicbdi,nn_hls),wp) - 0.5_wp - (nn_hls-1) ) THEN
                tmpberg => this
                this => this%next
                ibergs_to_send_w = ibergs_to_send_w + 1
@@ -320,7 +320,7 @@ CONTAINS
          this => first_berg
          DO WHILE (ASSOCIATED(this))
             pt => this%current_point
-            IF( ipe_N >= 0 .AND. pt%yj > REAL(mjg(nicbej),wp) + 0.5_wp - (nn_hls-1) ) THEN
+            IF( ipe_N >= 0 .AND. pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
                tmpberg => this
                this => this%next
                ibergs_to_send_n = ibergs_to_send_n + 1
@@ -330,7 +330,7 @@ CONTAINS
                ENDIF
                CALL icb_pack_into_buffer( tmpberg, obuffer_n, ibergs_to_send_n)
                CALL icb_utl_delete(first_berg, tmpberg)
-            ELSE IF( ipe_S >= 0 .AND. pt%yj < REAL(mjg(nicbdj),wp) - 0.5_wp - (nn_hls-1) ) THEN
+            ELSE IF( ipe_S >= 0 .AND. pt%yj < REAL(mjg(nicbdj,nn_hls),wp) - 0.5_wp - (nn_hls-1) ) THEN
                tmpberg => this
                this => this%next
                ibergs_to_send_s = ibergs_to_send_s + 1
@@ -441,10 +441,10 @@ CONTAINS
          this => first_berg
          DO WHILE (ASSOCIATED(this))
             pt => this%current_point
-            IF( pt%xi < REAL(mig(nicbdi),wp) - 0.5_wp - (nn_hls-1) .OR. &
-                pt%xi > REAL(mig(nicbei),wp) + 0.5_wp - (nn_hls-1) .OR. &
-                pt%yj < REAL(mjg(nicbdj),wp) - 0.5_wp - (nn_hls-1) .OR. &
-                pt%yj > REAL(mjg(nicbej),wp) + 0.5_wp - (nn_hls-1) ) THEN
+            IF( pt%xi < REAL(mig(nicbdi,nn_hls),wp) - 0.5_wp - (nn_hls-1) .OR. &
+                pt%xi > REAL(mig(nicbei,nn_hls),wp) + 0.5_wp - (nn_hls-1) .OR. &
+                pt%yj < REAL(mjg(nicbdj,nn_hls),wp) - 0.5_wp - (nn_hls-1) .OR. &
+                pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
                i = i + 1
                WRITE(numicb,*) 'berg lost in halo: ', this%number(:)
                WRITE(numicb,*) '                   ', nimpp, njmpp
@@ -514,8 +514,8 @@ CONTAINS
                DO WHILE (ASSOCIATED(this))
                   pt => this%current_point
                   iine = INT( pt%xi + 0.5 ) + (nn_hls-1)
-                  iproc = nicbflddest(mi1(iine))
-                  IF( pt%yj > REAL(mjg(nicbej),wp) + 0.5_wp - (nn_hls-1) ) THEN
+                  iproc = nicbflddest(mi1(iine,nn_hls))
+                  IF( pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
                      IF( iproc == ifldproc ) THEN
                         !
                         IF( iproc /= narea ) THEN
@@ -593,9 +593,9 @@ CONTAINS
                   pt => this%current_point
                   iine = INT( pt%xi + 0.5 ) + (nn_hls-1)
                   ijne = INT( pt%yj + 0.5 ) + (nn_hls-1)
-                  ipts  = nicbfldpts (mi1(iine))
-                  iproc = nicbflddest(mi1(iine))
-                  IF( pt%yj > REAL(mjg(nicbej),wp) + 0.5_wp - (nn_hls-1) ) THEN
+                  ipts  = nicbfldpts (mi1(iine,nn_hls))
+                  iproc = nicbflddest(mi1(iine,nn_hls))
+                  IF( pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
                      IF( iproc == ifldproc ) THEN
                         !
                         ! moving across the cut line means both position and

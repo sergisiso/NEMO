@@ -90,8 +90,8 @@ CONTAINS
             ii = INT( localpt%xi + 0.5 ) + ( nn_hls-1 )
             ij = INT( localpt%yj + 0.5 ) + ( nn_hls-1 )
             ! Only proceed if this iceberg is on the local processor (excluding halos).
-            IF ( ii >= mig(Nis0) .AND. ii <= mig(Nie0) .AND.   &
-           &     ij >= mjg(Njs0) .AND. ij <= mjg(Nje0) ) THEN           
+            IF ( ii >= mig(Nis0,nn_hls) .AND. ii <= mig(Nie0,nn_hls) .AND.   &
+           &     ij >= mjg(Njs0,nn_hls) .AND. ij <= mjg(Nje0,nn_hls) ) THEN           
 
                CALL iom_get( ncid, jpdom_unknown, 'number', zdata(:) , ktime=jn, kstart=(/1/), kcount=(/nkounts/) )
                localberg%number(:) = INT(zdata(:))
@@ -244,16 +244,16 @@ CONTAINS
          ! global attributes
          IF( lk_mpp ) THEN
             ! Set domain parameters (assume jpdom_local_full)
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_number_total'   , jpnij                        )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_number'         , narea-1                      )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_dimensions_ids' , (/ 1         , 2          /) )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_size_global'    , (/ Ni0glo    , Nj0glo     /) )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_size_local'     , (/ Ni_0      , Nj_0       /) )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_position_first' , (/ mig0(Nis0), mjg0(Njs0) /) )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_position_last'  , (/ mig0(Nie0), mjg0(Nje0) /) )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_halo_size_start', (/ 0         , 0          /) )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_halo_size_end'  , (/ 0         , 0          /) )
-            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_type'           , 'BOX'                        )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_number_total'   , jpnij                          )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_number'         , narea-1                        )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_dimensions_ids' , (/ 1          , 2           /) )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_size_global'    , (/ Ni0glo     , Nj0glo      /) )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_size_local'     , (/ Ni_0       , Nj_0        /) )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_position_first' , (/ mig(Nis0,0), mjg(Njs0,0) /) )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_position_last'  , (/ mig(Nie0,0), mjg(Nje0,0) /) )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_halo_size_start', (/ 0          , 0           /) )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_halo_size_end'  , (/ 0          , 0           /) )
+            nret = NF90_PUT_ATT( ncid, NF90_GLOBAL, 'DOMAIN_type'           , 'BOX'                          )
          ENDIF
          
          IF (associated(first_berg)) then

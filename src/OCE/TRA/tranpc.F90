@@ -70,10 +70,10 @@ CONTAINS
       REAL(wp) ::   zta, zalfa, zsum_temp, zsum_alfa, zaw, zdz, zsum_z
       REAL(wp) ::   zsa, zbeta, zsum_sali, zsum_beta, zbw, zrw
       REAL(wp), PARAMETER ::   zn2_zero = 1.e-14_wp             ! acceptance criteria for neutrality (N2==0)
-      REAL(wp), DIMENSION(    jpk     )   ::   zvn2             ! vertical profile of N2 at 1 given point...
-      REAL(wp), DIMENSION(    jpk,jpts)   ::   zvts, zvab       ! vertical profile of T & S , and  alpha & betaat 1 given point
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk     )   ::   zn2              ! N^2
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk,jpts)   ::   zab              ! alpha and beta
+      REAL(wp), DIMENSION(       jpk     )    ::   zvn2         ! vertical profile of N2 at 1 given point...
+      REAL(wp), DIMENSION(       jpk,jpts)    ::   zvts, zvab   ! vertical profile of T & S , and  alpha & betaat 1 given point
+      REAL(wp), DIMENSION(T2D(0),jpk     )    ::   zn2          ! N^2
+      REAL(wp), DIMENSION(T2D(0),jpk,jpts)    ::   zab          ! alpha and beta
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrdt, ztrds ! 3D workspace
       !
       LOGICAL, PARAMETER :: l_LB_debug = .FALSE. ! set to true if you want to follow what is
@@ -98,12 +98,12 @@ CONTAINS
             klc1 =  mbkt(ilc1,jlc1) ! bottom of the ocean for debug point...
          ENDIF
          !
-         CALL eos_rab( pts(:,:,:,:,Kaa), zab, Kmm )         ! after alpha and beta (given on T-points)
-         CALL bn2    ( pts(:,:,:,:,Kaa), zab, zn2, Kmm )    ! after Brunt-Vaisala  (given on W-points)
+         CALL eos_rab( pts(:,:,:,:,Kaa), zab, Kmm, kbnd=0 )         ! after alpha and beta (given on T-points)
+         CALL bn2    ( pts(:,:,:,:,Kaa), zab, zn2, Kmm, kbnd=0 )    ! after Brunt-Vaisala  (given on W-points)
          !
          IF( .NOT. l_istiled .OR. ntile == 1 ) nnpcc = 0         ! Do only on the first tile
          !
-         DO_2D_OVR( 0, 0, 0, 0 )                        ! interior column only
+         DO_2D( 0, 0, 0, 0 )                        ! interior column only
             !
             IF( tmask(ji,jj,2) == 1 ) THEN      ! At least 2 ocean points
                !                                     ! consider one ocean column

@@ -25,10 +25,8 @@ MODULE asminc
    USE oce             ! Dynamics and active tracers defined in memory
    USE par_oce         ! Ocean space and time domain variables
    USE dom_oce         ! Ocean space and time domain
-   USE domvvl          ! domain: variable volume level
    USE ldfdyn          ! lateral diffusion: eddy viscosity coefficients
    USE eosbn2          ! Equation of state - in situ and potential density
-   USE zpshde          ! Partial step : Horizontal Derivative
    USE asmpar          ! Parameters for the assmilation interface
    USE asmbkg          !
    USE c1d             ! 1D initialization
@@ -519,17 +517,8 @@ CONTAINS
       INTEGER  :: ji, jj, jk
       INTEGER  :: it
       REAL(wp) :: zincwgt  ! IAU weight for current time step
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) :: fzptnz ! 3d freezing point values
+      REAL(wp), DIMENSION(:,:),   ALLOCATABLE :: fzptnz, zdep2d ! freezing point values
       !!----------------------------------------------------------------------
-      !
-      ! freezing point calculation taken from oc_fz_pt (but calculated for all depths)
-      ! used to prevent the applied increments taking the temperature below the local freezing point
-      IF( ln_temnofreeze ) THEN
-         DO jk = 1, jpkm1
-           CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), fzptnz(:,:,jk), gdept(:,:,jk,Kmm) )
-         END DO
-      ENDIF
-         !
          !                             !--------------------------------------
       IF ( ln_asmiau ) THEN            ! Incremental Analysis Updating
          !                             !--------------------------------------
@@ -547,13 +536,21 @@ CONTAINS
                ENDIF
             ENDIF
             !
+            IF( ln_temnofreeze ) ALLOCATE( fzptnz(T2D(0)), zdep2d(T2D(0)) )
+            !
             ! Update the tracer tendencies
             DO jk = 1, jpkm1
                IF (ln_temnofreeze) THEN
                   ! Do not apply negative increments if the temperature will fall below freezing
-                  WHERE(t_bkginc(A2D(0),jk) > 0.0_wp .OR. &
-                     &   pts(A2D(0),jk,jp_tem,Kmm) + pts(A2D(0),jk,jp_tem,Krhs) + t_bkginc(A2D(0),jk) * wgtiau(it) > fzptnz(:,:,jk) )
-                     pts(A2D(0),jk,jp_tem,Krhs) = pts(A2D(0),jk,jp_tem,Krhs) + t_bkginc(A2D(0),jk) * zincwgt
+                  ! NOTE: @sibylle- I kept this using the old eos_fzp because with the new I have to specify pts(:,:,jk,:,:), which creates a temporary array. I moved the eos_fzp call here (and below in the ln_asmdin part) because then we only need a 2D fzptnz
+                  DO_2D( 0, 0, 0, 0 )
+                     zdep2d(ji,jj) = gdept(ji,jj,jk,Kmm)   ! better solution: define an interface for eos_fzp when gdept(ji,jj,jk,Kmm) is a scalar
+                  END_2D
+                  CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), fzptnz(:,:), zdep2d(:,:), kbnd=0 )
+                  !
+                  WHERE(t_bkginc(T2D(0),jk) > 0.0_wp .OR. &
+                     &   pts(T2D(0),jk,jp_tem,Kmm) + pts(T2D(0),jk,jp_tem,Krhs) + t_bkginc(T2D(0),jk) * wgtiau(it) > fzptnz(:,:) )
+                     pts(T2D(0),jk,jp_tem,Krhs) = pts(T2D(0),jk,jp_tem,Krhs) + t_bkginc(T2D(0),jk) * zincwgt
                   END WHERE
                ELSE
                   DO_2D( 0, 0, 0, 0 )
@@ -563,9 +560,9 @@ CONTAINS
                IF (ln_salfix) THEN
                   ! Do not apply negative increments if the salinity will fall below a specified
                   ! minimum value salfixmin
-                  WHERE(s_bkginc(A2D(0),jk) > 0.0_wp .OR. &
-                     &   pts(A2D(0),jk,jp_sal,Kmm) + pts(A2D(0),jk,jp_sal,Krhs) + s_bkginc(A2D(0),jk) * wgtiau(it) > salfixmin )
-                     pts(A2D(0),jk,jp_sal,Krhs) = pts(A2D(0),jk,jp_sal,Krhs) + s_bkginc(A2D(0),jk) * zincwgt
+                  WHERE(s_bkginc(T2D(0),jk) > 0.0_wp .OR. &
+                     &   pts(T2D(0),jk,jp_sal,Kmm) + pts(T2D(0),jk,jp_sal,Krhs) + s_bkginc(T2D(0),jk) * wgtiau(it) > salfixmin )
+                     pts(T2D(0),jk,jp_sal,Krhs) = pts(T2D(0),jk,jp_sal,Krhs) + s_bkginc(T2D(0),jk) * zincwgt
                   END WHERE
                ELSE
                   DO_2D( 0, 0, 0, 0 )
@@ -573,6 +570,8 @@ CONTAINS
                   END_2D
                ENDIF
             END DO
+            !
+            IF( ln_temnofreeze ) DEALLOCATE( fzptnz, zdep2d )
             !
          ENDIF
          !
@@ -593,9 +592,20 @@ CONTAINS
             ! Initialize the now fields with the background + increment
             IF (ln_temnofreeze) THEN
                ! Do not apply negative increments if the temperature will fall below freezing
-               WHERE( t_bkginc(:,:,:) > 0.0_wp .OR. pts(:,:,:,jp_tem,Kmm) + t_bkginc(:,:,:) > fzptnz(:,:,:) )
-                  pts(:,:,:,jp_tem,Kmm) = t_bkg(:,:,:) + t_bkginc(:,:,:)
-               END WHERE
+               ALLOCATE( fzptnz(A2D(nn_hls)), zdep2d(T2D(nn_hls)) )
+               !
+               DO jk = 1, jpkm1
+                  DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+                     zdep2d(ji,jj) = gdept(ji,jj,jk,Kmm)   ! better solution: define an interface for eos_fzp when gdept(ji,jj,jk,Kmm) is a scalar
+                  END_2D
+                  CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), fzptnz(:,:), zdep2d(:,:) )
+                  !
+                  WHERE( t_bkginc(:,:,jk) > 0.0_wp .OR. pts(:,:,jk,jp_tem,Kmm) + t_bkginc(:,:,jk) > fzptnz(:,:) )
+                     pts(:,:,jk,jp_tem,Kmm) = t_bkg(:,:,jk) + t_bkginc(:,:,jk)
+                  END WHERE
+               END DO
+               !
+               DEALLOCATE( fzptnz, zdep2d )
             ELSE
                pts(:,:,:,jp_tem,Kmm) = t_bkg(:,:,:) + t_bkginc(:,:,:)
             ENDIF
@@ -610,18 +620,7 @@ CONTAINS
             ENDIF
 
             pts(:,:,:,:,Kbb) = pts(:,:,:,:,Kmm)                 ! Update before fields
-
-            CALL eos( pts(:,:,:,:,Kbb), rhd, rhop, gdept_0(:,:,:) )  ! Before potential and in situ densities
-!!gm  fabien
-!            CALL eos( pts(:,:,:,:,Kbb), rhd, rhop )                ! Before potential and in situ densities
-!!gm
-
-            IF( ln_zps .AND. .NOT. ln_c1d .AND. .NOT. ln_isfcav)           &
-               &  CALL zps_hde    ( kt, jpts, pts(:,:,:,:,Kbb), gtsu, gtsv,        &  ! Partial steps: before horizontal gradient
-               &                              rhd, gru , grv               )  ! of t, s, rd at the last ocean level
-            IF( ln_zps .AND. .NOT. ln_c1d .AND.       ln_isfcav)                       &
-               &  CALL zps_hde_isf( nit000, jpts, pts(:,:,:,:,Kbb), gtsu, gtsv, gtui, gtvi,    &  ! Partial steps for top cell (ISF)
-               &                                  rhd, gru , grv , grui, grvi          )  ! of t, s, rd at the last ocean level
+            CALL eos( pts, Kbb, rhd, rhop )                     ! Before potential and in situ densities
 
             DEALLOCATE( t_bkginc )
             DEALLOCATE( s_bkginc )
@@ -781,7 +780,7 @@ CONTAINS
             ssh(:,:,Kmm) = ssh_bkg(:,:) + ssh_bkginc(:,:)   ! Initialize the now fields the background + increment
             !
             ssh(:,:,Kbb) = ssh(:,:,Kmm)                        ! Update before fields
-#if ! defined key_qco
+#if ! defined key_qco && ! defined key_linssh
             e3t(:,:,:,Kbb) = e3t(:,:,:,Kmm)
 #endif
 !!gm why not e3u(:,:,:,Kbb), e3v(:,:,:,Kbb), gdept(:,:,:,Kbb) ????
@@ -821,13 +820,13 @@ CONTAINS
       CALL ssh_asm_inc( kt, Kbb, Kmm ) !==   (calculate increments)
       !
       IF( ln_linssh ) THEN
-         DO_2D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             phdivn(ji,jj,1) = phdivn(ji,jj,1) - ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm) * tmask(ji,jj,1)
          END_2D
       ELSE
-         ALLOCATE( ztim(A2D(nn_hls)) )
-         DO_2D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
-            ztim(ji,jj) = ssh_iau(ji,jj) / ( ht(ji,jj) + 1.0 - ssmask(ji,jj) )
+         ALLOCATE( ztim(T2D(0)) )
+         DO_2D( 0, 0, 0, 0 )
+            ztim(ji,jj) = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1.0 - ssmask(ji,jj) )
             DO jk = 1, jpkm1
                phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ztim(ji,jj) * tmask(ji,jj,jk)
             END DO
@@ -858,7 +857,7 @@ CONTAINS
       INTEGER  ::   it
       REAL(wp) ::   zincwgt   ! IAU weight for current time step
 #if defined key_si3
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   zofrld, zohicif, zseaicendg, zhicifinc
+      REAL(wp), DIMENSION(T2D(0)) ::   zofrld, zohicif, zseaicendg, zhicifinc
       REAL(wp) ::   zhicifmin = 0.5_wp      ! ice minimum depth in metres
 #endif
       !!----------------------------------------------------------------------
@@ -896,8 +895,8 @@ CONTAINS
             END_2D
             !
             ! Nudge sea ice depth to bring it up to a required minimum depth
-            WHERE( zseaicendg(:,:) > 0.0_wp .AND. hm_i(A2D(0)) < zhicifmin )
-               zhicifinc(:,:) = (zhicifmin - hm_i(A2D(0))) * zincwgt
+            WHERE( zseaicendg(:,:) > 0.0_wp .AND. hm_i(T2D(0)) < zhicifmin )
+               zhicifinc(:,:) = (zhicifmin - hm_i(T2D(0))) * zincwgt
             ELSEWHERE
                zhicifinc(:,:) = 0.0_wp
             END WHERE
@@ -956,8 +955,8 @@ CONTAINS
             END_2D
             !
             ! Nudge sea ice depth to bring it up to a required minimum depth
-            WHERE( zseaicendg(:,:) > 0.0_wp .AND. hm_i(A2D(0)) < zhicifmin )
-               zhicifinc(:,:) = zhicifmin - hm_i(A2D(0))
+            WHERE( zseaicendg(:,:) > 0.0_wp .AND. hm_i(T2D(0)) < zhicifmin )
+               zhicifinc(:,:) = zhicifmin - hm_i(T2D(0))
             ELSEWHERE
                zhicifinc(:,:) = 0.0_wp
             END WHERE

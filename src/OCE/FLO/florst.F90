@@ -97,10 +97,10 @@ CONTAINS
          !
          IF( lk_mpp ) THEN
             DO jfl = 1, jpnfl
-               IF( (INT(tpifl(jfl)) >= mig(Nis0)) .AND.   &
-                  &(INT(tpifl(jfl)) <= mig(Nie0)) .AND.   &
-                  &(INT(tpjfl(jfl)) >= mjg(Njs0)) .AND.   &
-                  &(INT(tpjfl(jfl)) <= mjg(Nje0)) ) THEN
+               IF( (INT(tpifl(jfl)) >= mig(Nis0,nn_hls)) .AND.   &
+                  &(INT(tpifl(jfl)) <= mig(Nie0,nn_hls)) .AND.   &
+                  &(INT(tpjfl(jfl)) >= mjg(Njs0,nn_hls)) .AND.   &
+                  &(INT(tpjfl(jfl)) <= mjg(Nje0,nn_hls)) ) THEN
                   iperproc(narea) = iperproc(narea)+1
                ENDIF
             END DO

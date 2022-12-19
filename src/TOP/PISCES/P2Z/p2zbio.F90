@@ -104,7 +104,6 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('p2z_bio')
       !
-      IF( lk_iomput )   ALLOCATE( zw2d(jpi,jpj,17), zw3d(jpi,jpj,jpk,3) )
 
       IF( kt == nittrc000 ) THEN
          IF(lwp) WRITE(numout,*)
@@ -112,18 +111,18 @@ CONTAINS
          IF(lwp) WRITE(numout,*) ' ~~~~~~~'
       ENDIF
 
-      xksi(:,:) = 0.e0        ! zooplakton closure ( fbod)
       IF( lk_iomput ) THEN
-         zw2d  (:,:,:) = 0._wp
-         zw3d(:,:,:,:) = 0._wp
+         ALLOCATE( zw3d(A2D(0),jpk,3) )   ;   zw3d(:,:,jpk,:) = 0._wp
+         ALLOCATE( zw2d(A2D(0),17) )      ;   zw2d(:,:,:) = 0._wp
       ENDIF
+      !
+      xksi(:,:) = 0.e0        ! zooplakton closure ( fbod)
 
       !                                      ! -------------------------- !
-      DO jk = 1, jpkbm1                      !  Upper ocean (bio-layers)  !
+      DO_3D( 0, 0, 0, 0, 1, jpkbm1 )         !  Upper ocean (bio-layers)  !
          !                                   ! -------------------------- !
-         DO_2D( 0, 0, 0, 0 )
-            ! trophic variables( det, zoo, phy, no3, nh4, dom)
-            ! ------------------------------------------------
+         ! trophic variables( det, zoo, phy, no3, nh4, dom)
+         ! ------------------------------------------------
 
             ! negative trophic variables DO not contribute to the fluxes
             zdet = MAX( 0.e0, tr(ji,jj,jk,jpdet,Kmm) )
@@ -235,13 +234,11 @@ CONTAINS
                zw3d(ji,jj,jk,3) = znh4no3 * 86400   
                 ! 
              ENDIF
-         END_2D
-      END DO
+      END_3D
 
       !                                      ! -------------------------- !
-      DO jk = jpkb, jpkm1                    !  Upper ocean (bio-layers)  !
+      DO_3D( 0, 0, 0, 0, jpkb, jpkm1 )       !  Upper ocean (bio-layers)  !
          !                                   ! -------------------------- !
-         DO_2D( 0, 0, 0, 0 )
             ! remineralisation of all quantities towards nitrate 
 
             !    trophic variables( det, zoo, phy, no3, nh4, dom)
@@ -334,12 +331,9 @@ CONTAINS
                zw3d(ji,jj,jk,3) = znh4no3 * 86400._wp
                !
             ENDIF
-         END_2D
-      END DO
+      END_3D
       !
       IF( lk_iomput ) THEN
-         CALL lbc_lnk( 'p2zbio', zw2d(:,:,:),'T', 1.0_wp )
-         CALL lbc_lnk( 'p2zbio', zw3d(:,:,:,1),'T', 1.0_wp, zw3d(:,:,:,2),'T', 1.0_wp, zw3d(:,:,:,3),'T', 1.0_wp )
          ! Save diagnostics
          CALL iom_put( "TNO3PHY", zw2d(:,:,1) )
          CALL iom_put( "TNH4PHY", zw2d(:,:,2) )
@@ -362,6 +356,8 @@ CONTAINS
          CALL iom_put( "FNH4PHY", zw3d(:,:,:,2) )
          CALL iom_put( "FNH4NO3", zw3d(:,:,:,3) )
          !
+         DEALLOCATE( zw2d, zw3d )
+         !
       ENDIF
 
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
@@ -369,8 +365,6 @@ CONTAINS
          CALL prt_ctl_info( charout, cdcomp = 'top' )
          CALL prt_ctl(tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm)
       ENDIF
-      !
-      IF( lk_iomput )   DEALLOCATE( zw2d, zw3d )
       !
       IF( ln_timing )  CALL timing_stop('p2z_bio')
       !

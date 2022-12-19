@@ -80,14 +80,14 @@ CONTAINS
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
 !      DO_2D( 1, 1, 1, 1 )
          !                       ! longitude
-         plamt(ji,jj) = zfact * (          REAL( mig0(ji)-1 , wp )  )
-         plamu(ji,jj) = zfact * (    0.5 + REAL( mig0(ji)-1 , wp )  )
+         plamt(ji,jj) = zfact * (          REAL( mig(ji,0)-1 , wp )  )
+         plamu(ji,jj) = zfact * (    0.5 + REAL( mig(ji,0)-1 , wp )  )
          plamv(ji,jj) = plamt(ji,jj)
          plamf(ji,jj) = plamu(ji,jj)
          !                       ! latitude
-         pphit(ji,jj) = zfact2 * (          REAL( mjg0(jj)-1 , wp )  )
+         pphit(ji,jj) = zfact2 * (          REAL( mjg(jj,0)-1 , wp )  )
          pphiu(ji,jj) = pphit(ji,jj)
-         pphiv(ji,jj) = zfact2 * (    0.5 + REAL( mjg0(jj)-1 , wp )  )
+         pphiv(ji,jj) = zfact2 * (    0.5 + REAL( mjg(jj,0)-1 , wp )  )
          pphif(ji,jj) = pphiv(ji,jj)
       END_2D
       !

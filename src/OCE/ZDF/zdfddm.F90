@@ -70,9 +70,9 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in   ) ::   kt       ! ocean time-step index
       INTEGER, INTENT(in   ) ::   Kmm      ! ocean time level index
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   p_avm   !  Kz on momentum    (w-points)
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   p_avt   !  Kz on temperature (w-points)
-      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   p_avs   !  Kz on salinity    (w-points)
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm   !  Kz on momentum    (w-points)
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt   !  Kz on temperature (w-points)
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(  out) ::   p_avs   !  Kz on salinity    (w-points)
       !
       INTEGER  ::   ji, jj , jk     ! dummy loop indices
       REAL(wp) ::   zaw, zbw, zrw   ! local scalars
@@ -82,7 +82,7 @@ CONTAINS
       REAL(wp) ::   zavft           !   -      -
       REAL(dp) ::          zavfs    !   -      -
       REAL(wp) ::   zavdt, zavds    !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   zrau, zmsks, zmskf, zmskd1, zmskd2, zmskd3
+      REAL(wp), DIMENSION(T2D(0)) ::   zrau, zmsks, zmskf, zmskd1, zmskd2, zmskd3
       !!----------------------------------------------------------------------
       !
       !                                                ! ===============
@@ -94,7 +94,7 @@ CONTAINS
 !!gm                     ==>>>  test in the loop instead of use of mask arrays
 !!gm                            and many acces in memory
          
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )           !==  R=zrau = (alpha / beta) (dk[t] / dk[s])  ==!
+         DO_2D( 0, 0, 0, 0 )           !==  R=zrau = (alpha / beta) (dk[t] / dk[s])  ==!
             zrw =   ( gdepw(ji,jj,jk  ,Kmm) - gdept(ji,jj,jk,Kmm) )   &
 !!gm please, use e3w at Kmm below 
                &  / ( gdept(ji,jj,jk-1,Kmm) - gdept(ji,jj,jk,Kmm) ) 
@@ -110,7 +110,7 @@ CONTAINS
             zrau(ji,jj) = MAX(  1.e-20, zdt / zds  )    ! only retains positive value of zrau
          END_2D
 
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )           !==  indicators  ==!
+         DO_2D( 0, 0, 0, 0 )           !==  indicators  ==!
             ! stability indicator: msks=1 if rn2>0; 0 elsewhere
             IF( rn2(ji,jj,jk) + 1.e-12  <= 0. ) THEN   ;   zmsks(ji,jj) = 0._wp
             ELSE                                       ;   zmsks(ji,jj) = 1._wp * wmask(ji,jj,jk)   ! mask so avt and avs masked
@@ -137,7 +137,7 @@ CONTAINS
          ! Update avt and avs
          ! ------------------
          ! Constant eddy coefficient: reset to the background value
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             zinr = 1._wp / zrau(ji,jj)
             ! salt fingering
             zrr = zrau(ji,jj) / rn_hsbfr

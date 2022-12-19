@@ -25,7 +25,6 @@ MODULE icedyn_adv
    USE lib_mpp        ! MPP library
    USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
    USE timing         ! Timing
-   USE prtctl         ! Print control
 
    IMPLICIT NONE
    PRIVATE
@@ -41,6 +40,8 @@ MODULE icedyn_adv
    ! ** namelist (namdyn_adv) **
    INTEGER         ::   nn_UMx       ! order of the UMx advection scheme   
    !
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icedyn_adv.F90 13472 2020-09-16 13:05:19Z smasson $
@@ -92,11 +93,11 @@ CONTAINS
       !------------
       ! diagnostics
       !------------
-      diag_trp_ei(:,:) = SUM(SUM( e_i (:,:,1:nlay_i,:) - e_i_b (:,:,1:nlay_i,:), dim=4 ), dim=3 ) * r1_Dt_ice
-      diag_trp_es(:,:) = SUM(SUM( e_s (:,:,1:nlay_s,:) - e_s_b (:,:,1:nlay_s,:), dim=4 ), dim=3 ) * r1_Dt_ice
-      diag_trp_sv(:,:) = SUM(     sv_i(:,:,:)          - sv_i_b(:,:,:)                  , dim=3 ) * r1_Dt_ice
-      diag_trp_vi(:,:) = SUM(     v_i (:,:,:)          - v_i_b (:,:,:)                  , dim=3 ) * r1_Dt_ice
-      diag_trp_vs(:,:) = SUM(     v_s (:,:,:)          - v_s_b (:,:,:)                  , dim=3 ) * r1_Dt_ice
+      diag_trp_ei(:,:) = SUM(SUM( e_i (A2D(0),1:nlay_i,:) - e_i_b (A2D(0),1:nlay_i,:), dim=4 ), dim=3 ) * r1_Dt_ice
+      diag_trp_es(:,:) = SUM(SUM( e_s (A2D(0),1:nlay_s,:) - e_s_b (A2D(0),1:nlay_s,:), dim=4 ), dim=3 ) * r1_Dt_ice
+      diag_trp_sv(:,:) = SUM(     sv_i(A2D(0),:)          - sv_i_b(A2D(0),:)                  , dim=3 ) * r1_Dt_ice
+      diag_trp_vi(:,:) = SUM(     v_i (A2D(0),:)          - v_i_b (A2D(0),:)                  , dim=3 ) * r1_Dt_ice
+      diag_trp_vs(:,:) = SUM(     v_s (A2D(0),:)          - v_s_b (A2D(0),:)                  , dim=3 ) * r1_Dt_ice
       IF( iom_use('icemtrp') )   CALL iom_put( 'icemtrp' ,  diag_trp_vi * rhoi          )   ! ice mass transport
       IF( iom_use('snwmtrp') )   CALL iom_put( 'snwmtrp' ,  diag_trp_vs * rhos          )   ! snw mass transport
       IF( iom_use('salmtrp') )   CALL iom_put( 'salmtrp' ,  diag_trp_sv * rhoi * 1.e-03 )   ! salt mass transport (kg/m2/s)
@@ -106,6 +107,8 @@ CONTAINS
       ! controls
       IF( ln_icediachk )   CALL ice_cons_hsm(1, 'icedyn_adv', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft) ! conservation
       IF( ln_icectl    )   CALL ice_prt     (kt, iiceprt, jiceprt,-1, ' - ice dyn & trp - ')                           ! prints
+      IF( sn_cfctl%l_prtctl )   &
+         &                 CALL ice_prt3D('icedyn_adv')                                                                ! prints
       IF( ln_timing    )   CALL timing_stop ('icedyn_adv')                                                             ! timing
       !
    END SUBROUTINE ice_dyn_adv

@@ -38,7 +38,7 @@ MODULE eosbn2
    !!   eos_init      : set eos parameters (namelist)
    !!----------------------------------------------------------------------
    USE dom_oce        ! ocean space and time domain
-   USE domutl, ONLY : is_tile
+   USE domutl, ONLY : lbnd_ij
    USE phycst         ! physical constants
    USE stopar         ! Stochastic T/S fluctuations
    USE stopts         ! Stochastic T/S fluctuations
@@ -53,7 +53,7 @@ MODULE eosbn2
 
    !                  !! * Interface
    INTERFACE eos
-      MODULE PROCEDURE eos_insitu_New, eos_insitu, eos_insitu_pot, eos_insitu_2d, eos_insitu_pot_2d
+      MODULE PROCEDURE eos_insitu_New, eos_insitu_pot_New, eos_insitu, eos_insitu_pot, eos_insitu_2d, eos_insitu_pot_2d
    END INTERFACE
    !
    INTERFACE eos_rab
@@ -61,7 +61,7 @@ MODULE eosbn2
    END INTERFACE
    !
    INTERFACE eos_fzp
-      MODULE PROCEDURE eos_fzp_2d, eos_fzp_0d
+      MODULE PROCEDURE eos_fzp_3d, eos_fzp_2d, eos_fzp_0d, eos_fzp_3d_New
    END INTERFACE
    !
    PUBLIC   eos            ! called by step, istate, tranpc and zpsgrd modules
@@ -83,9 +83,11 @@ MODULE eosbn2
 
    INTEGER , PARAMETER ::   np_teos10 = -1  ! parameter for using TEOS10
    INTEGER , PARAMETER ::   np_eos80  =  0  ! parameter for using EOS80
-   INTEGER , PARAMETER ::   np_seos   = 1   ! parameter for using Simplified Equation of state
+   INTEGER , PARAMETER ::   np_seos   =  1  ! parameter for using Simplified Equation of state
 
    !                               !!!  simplified eos coefficients (default value: Vallis 2006)
+   REAL(wp), PUBLIC ::   rn_T0      = 10._wp           ! reference temperature
+   REAL(wp), PUBLIC ::   rn_S0      = 35._wp           ! reference salinity
    REAL(wp), PUBLIC ::   rn_a0      = 1.6550e-1_wp     ! thermal expansion coeff.
    REAL(wp), PUBLIC ::   rn_b0      = 7.6554e-1_wp     ! saline  expansion coeff.
    REAL(wp) ::   rn_lambda1 = 5.9520e-2_wp     ! cabbeling coeff. in T^2
@@ -186,7 +188,23 @@ MODULE eosbn2
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE eos_insitu_New( pts, Knn, prd )
+   SUBROUTINE eos_insitu_New( pts, Knn, prd, kbnd )
+      !!
+      REAL(wp), DIMENSION(:,:,:,:,:), INTENT(in   ) ::   pts   ! T-S
+      INTEGER                       , INTENT(in   ) ::   Knn   ! time-level
+      REAL(wp), DIMENSION(:,:,:  )  , INTENT(  out) ::   prd   ! in situ density
+      INTEGER, OPTIONAL,              INTENT(in   ) ::   kbnd  ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
+      !!
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+
+      CALL eos_insitu_New_t( pts, lbnd_ij(pts), Knn, prd, lbnd_ij(prd), ibnd )
+   END SUBROUTINE eos_insitu_New
+
+
+   SUBROUTINE eos_insitu_New_t( pts, ktts, Knn, prd, ktrd, kbnd )
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE eos_insitu  ***
       !!
@@ -220,9 +238,11 @@ CONTAINS
       !!                Vallis, Atmospheric and Oceanic Fluid Dynamics, 2006
       !!                TEOS-10 Manual, 2010
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:,:,:), INTENT(in   ) ::   pts   ! T-S
-      INTEGER                     , INTENT(in   ) ::   Knn   ! time-level
-      REAL(wp), DIMENSION(:,:,:  ), INTENT(  out) ::   prd   ! in situ density
+      INTEGER,  DIMENSION(2),                       INTENT(in   ) ::   ktts, ktrd
+      INTEGER,                                      INTENT(in   ) ::   kbnd  ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktts),JPK,JPTS,JPT), INTENT(in   ) ::   pts   ! T-S
+      INTEGER,                                      INTENT(in   ) ::   Knn   ! time-level
+      REAL(wp), DIMENSION(AB2D(ktrd),JPK     ),     INTENT(  out) ::   prd   ! in situ density
       !
       INTEGER  ::   ji, jj, jk                ! dummy loop indices
       REAL(wp) ::   zt , zh , zs , ztm        ! local scalars
@@ -235,7 +255,7 @@ CONTAINS
       !
       CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
          !
-         DO_3D(nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
             !
             zh  = gdept(ji,jj,jk,Knn) * r1_Z0                                 ! depth
             zt  = pts (ji,jj,jk,jp_tem,Knn) * r1_T0                           ! temperature
@@ -271,9 +291,9 @@ CONTAINS
          !
       CASE( np_seos )                !==  simplified EOS  ==!
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
-            zt  = pts  (ji,jj,jk,jp_tem,Knn) - 10._wp
-            zs  = pts  (ji,jj,jk,jp_sal,Knn) - 35._wp
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+            zt  = pts  (ji,jj,jk,jp_tem,Knn) - rn_T0
+            zs  = pts  (ji,jj,jk,jp_sal,Knn) - rn_S0
             zh  = gdept(ji,jj,jk,Knn)
             ztm = tmask(ji,jj,jk)
             !
@@ -290,20 +310,265 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_stop('eos-insitu')
       !
-   END SUBROUTINE eos_insitu_New
+   END SUBROUTINE eos_insitu_New_t
 
 
-   SUBROUTINE eos_insitu( pts, prd, pdep )
+   SUBROUTINE eos_fzp_3d_New( pts, Knn, ptf, kbnd )
+      !!
+      INTEGER                       , INTENT(in   )           ::   Knn
+      REAL(wp), DIMENSION(:,:,:,:,:), INTENT(in   )           ::   pts   ! temperature and salinity
+      REAL(wp), DIMENSION(:,:,:)    , INTENT(  out)           ::   ptf   ! freezing temperature [Celsius]
+      INTEGER                       , INTENT(in   ), OPTIONAL ::   kbnd  ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
+      !!
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+      CALL eos_fzp_3d_New_t( pts, lbnd_ij(pts), Knn, ptf, lbnd_ij(ptf), ibnd )
+   END SUBROUTINE eos_fzp_3d_New
+
+
+   SUBROUTINE eos_fzp_3d_New_t( pts, ktts, Knn, ptf, kttf, kbnd )
+      !!----------------------------------------------------------------------
+      !!                 ***  ROUTINE eos_fzp  ***
+      !!
+      !! ** Purpose :   Compute the freezing point temperature [Celsius]
+      !!
+      !! ** Method  :   UNESCO freezing point (ptf) in Celsius is given by
+      !!       ptf(t,z) = (-.0575+1.710523e-3*sqrt(abs(s))-2.154996e-4*s)*s - 7.53e-4*z
+      !!       checkvalue: tf=-2.588567 Celsius for s=40psu, z=500m
+      !!
+      !! Reference  :   UNESCO tech. papers in the marine science no. 28. 1978
+      !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                      , INTENT(in   ) ::   ktts, kttf
+      INTEGER                                     , INTENT(in   ) ::   kbnd  ! number of halo points to calculate
+      INTEGER                                     , INTENT(in   ) ::   Knn
+      REAL(wp), DIMENSION(AB2D(ktts),JPK,JPTS,JPT), INTENT(in   ) ::   pts   ! temperature and salinity
+      REAL(wp), DIMENSION(AB2D(kttf),JPK         ), INTENT(  out) ::   ptf   ! freezing temperature [Celsius]
+      !
+      INTEGER  ::   ji, jj, jk      ! dummy loop indices
+      REAL(wp) ::   zt, zs, z1_S0   ! local scalars
+      !!----------------------------------------------------------------------
+      !
+      ptf(:,:,jpk) = 0._wp
+      !
+      SELECT CASE ( neos )
+      !
+      CASE ( np_teos10, np_seos )      !==  CT,SA (TEOS-10 and S-EOS formulations) ==!
+         !
+         z1_S0 = 1._wp / 35.16504_wp
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+            zs= SQRT( ABS( pts(ji,jj,jk,jp_sal,Knn) ) * z1_S0 )           ! square root salinity
+            ptf(ji,jj,jk) = ((((1.46873e-03_wp*zs-9.64972e-03_wp)*zs+2.28348e-02_wp)*zs                &
+                 &                               -3.12775e-02_wp)*zs+2.07679e-02_wp)*zs-5.87701e-02_wp &
+                 &        * pts(ji,jj,jk,jp_sal,Knn) - 7.53e-4 * gdept(ji,jj,jk,Knn)
+         END_3D
+         !
+      CASE ( np_eos80 )                !==  PT,SP (UNESCO formulation)  ==!
+         !
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+            ptf(ji,jj,jk) = ( - 0.0575_wp + 1.710523e-3_wp * SQRT( pts(ji,jj,jk,jp_sal,Knn) )                              &
+               &                          - 2.154996e-4_wp *       pts(ji,jj,jk,jp_sal,Knn) ) * pts(ji,jj,jk,jp_sal,Knn)   &
+               &          - 7.53e-4 * gdept(ji,jj,jk,Knn)
+         END_3D
+         !
+      CASE DEFAULT
+         WRITE(ctmp1,*) '          bad flag value for neos = ', neos
+         CALL ctl_stop( 'eos_fzp_3d_New:', ctmp1 )
+         !
+      END SELECT
+      !
+   END SUBROUTINE eos_fzp_3d_New_t
+
+
+   SUBROUTINE eos_insitu_pot_New( pts, Knn, prd, prhop, kbnd )
+      !!
+      REAL(wp), DIMENSION(:,:,:,:,:), INTENT(in   )           ::   pts    ! temperature salinity
+      INTEGER                       , INTENT(in   )           ::   Knn
+      REAL(wp), DIMENSION(:,:,:)    , INTENT(  out)           ::   prd    ! in situ density            [-]
+      REAL(wp), DIMENSION(:,:,:)    , INTENT(  out)           ::   prhop  ! potential density (surface referenced)
+      INTEGER                       , INTENT(in   ), OPTIONAL ::   kbnd   ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
+      !!
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+      CALL eos_insitu_pot_New_t( pts, lbnd_ij(pts), Knn, prd, lbnd_ij(prd), prhop, lbnd_ij(prhop), ibnd )
+   END SUBROUTINE eos_insitu_pot_New
+
+
+   SUBROUTINE eos_insitu_pot_New_t( pts, ktts, Knn, prd, ktrd, prhop, ktrhop, kbnd )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE eos_insitu_pot  ***
+      !!
+      !! ** Purpose :   Compute the in situ density (ratio rho/rho0) and the
+      !!      potential volumic mass (Kg/m3) from potential temperature and
+      !!      salinity fields using an equation of state selected in the
+      !!     namelist.
+      !!
+      !! ** Action  : - prd  , the in situ density (no units)
+      !!              - prhop, the potential volumic mass (Kg/m3)
+      !!
+      !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                        , INTENT(in   ) ::   ktts, ktrd, ktrhop
+      REAL(wp), DIMENSION(AB2D(ktts)  ,JPK,JPTS,JPT), INTENT(in   ) ::   pts    ! temperature salinity
+      INTEGER                                       , INTENT(in   ) ::   kbnd   ! number of halo points to calculate
+      INTEGER                                       , INTENT(in   ) ::   Knn
+      REAL(wp), DIMENSION(AB2D(ktrd)  ,JPK         ), INTENT(  out) ::   prd    ! in situ density            [-]
+      REAL(wp), DIMENSION(AB2D(ktrhop),JPK         ), INTENT(  out) ::   prhop  ! potential density (surface referenced)
+      !
+      INTEGER  ::   ji, jj, jk, jsmp             ! dummy loop indices
+      INTEGER  ::   jdof
+      REAL(wp) ::   zt , zh , zstemp, zs , ztm   ! local scalars
+      REAL(wp) ::   zn , zn0, zn1, zn2, zn3      !   -      -
+      REAL(wp), DIMENSION(:), ALLOCATABLE :: zn0_sto, zn_sto, zsign    ! local vectors
+      !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('eos-pot')
+      !
+      SELECT CASE ( neos )
+      !
+      CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
+         !
+         ! Stochastic equation of state
+         IF ( ln_sto_eos ) THEN
+            ALLOCATE(zn0_sto(1:2*nn_sto_eos))
+            ALLOCATE(zn_sto(1:2*nn_sto_eos))
+            ALLOCATE(zsign(1:2*nn_sto_eos))
+            DO jsmp = 1, 2*nn_sto_eos, 2
+              zsign(jsmp)   = 1._wp
+              zsign(jsmp+1) = -1._wp
+            END DO
+            !
+            DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+               !
+               ! compute density (2*nn_sto_eos) times:
+               ! (1) for t+dt, s+ds (with the random TS fluctutation computed in sto_pts)
+               ! (2) for t-dt, s-ds (with the opposite fluctuation)
+               DO jsmp = 1, nn_sto_eos*2
+                  jdof   = (jsmp + 1) / 2
+                  zh     = gdept(ji,jj,jk,Knn) * r1_Z0                                  ! depth
+                  zt     = (pts (ji,jj,jk,jp_tem,Knn) + pts_ran(ji,jj,jk,jp_tem,jdof) * zsign(jsmp)) * r1_T0    ! temperature
+                  zstemp = pts  (ji,jj,jk,jp_sal,Knn) + pts_ran(ji,jj,jk,jp_sal,jdof) * zsign(jsmp)
+                  zs     = SQRT( ABS( zstemp + rdeltaS ) * r1_S0 )   ! square root salinity
+                  ztm    = tmask(ji,jj,jk)                                         ! tmask
+                  !
+                  zn3 = EOS013*zt   &
+                     &   + EOS103*zs+EOS003
+                     !
+                  zn2 = (EOS022*zt   &
+                     &   + EOS112*zs+EOS012)*zt   &
+                     &   + (EOS202*zs+EOS102)*zs+EOS002
+                     !
+                  zn1 = (((EOS041*zt   &
+                     &   + EOS131*zs+EOS031)*zt   &
+                     &   + (EOS221*zs+EOS121)*zs+EOS021)*zt   &
+                     &   + ((EOS311*zs+EOS211)*zs+EOS111)*zs+EOS011)*zt   &
+                     &   + (((EOS401*zs+EOS301)*zs+EOS201)*zs+EOS101)*zs+EOS001
+                     !
+                  zn0_sto(jsmp) = (((((EOS060*zt   &
+                     &   + EOS150*zs+EOS050)*zt   &
+                     &   + (EOS240*zs+EOS140)*zs+EOS040)*zt   &
+                     &   + ((EOS330*zs+EOS230)*zs+EOS130)*zs+EOS030)*zt   &
+                     &   + (((EOS420*zs+EOS320)*zs+EOS220)*zs+EOS120)*zs+EOS020)*zt   &
+                     &   + ((((EOS510*zs+EOS410)*zs+EOS310)*zs+EOS210)*zs+EOS110)*zs+EOS010)*zt   &
+                     &   + (((((EOS600*zs+EOS500)*zs+EOS400)*zs+EOS300)*zs+EOS200)*zs+EOS100)*zs+EOS000
+                     !
+                  zn_sto(jsmp)  = ( ( zn3 * zh + zn2 ) * zh + zn1 ) * zh + zn0_sto(jsmp)
+               END DO
+               !
+               ! compute stochastic density as the mean of the (2*nn_sto_eos) densities
+               prhop(ji,jj,jk) = 0._wp ; prd(ji,jj,jk) = 0._wp
+               DO jsmp = 1, nn_sto_eos*2
+                  prhop(ji,jj,jk) = prhop(ji,jj,jk) + zn0_sto(jsmp)                      ! potential density referenced at the surface
+                  !
+                  prd(ji,jj,jk) = prd(ji,jj,jk) + (  zn_sto(jsmp) * r1_rho0 - 1._wp  )   ! density anomaly (masked)
+               END DO
+               prhop(ji,jj,jk) = 0.5_wp * prhop(ji,jj,jk) * ztm / nn_sto_eos
+               prd  (ji,jj,jk) = 0.5_wp * prd  (ji,jj,jk) * ztm / nn_sto_eos
+            END_3D
+            DEALLOCATE(zn0_sto,zn_sto,zsign)
+         ! Non-stochastic equation of state
+         ELSE
+            DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+               !
+               zh  = gdept(ji,jj,jk,Knn) * r1_Z0                                  ! depth
+               zt  = pts (ji,jj,jk,jp_tem,Knn) * r1_T0                           ! temperature
+               zs  = SQRT( ABS( pts(ji,jj,jk,jp_sal,Knn) + rdeltaS ) * r1_S0 )   ! square root salinity
+               ztm = tmask(ji,jj,jk)                                         ! tmask
+               !
+               zn3 = EOS013*zt   &
+                  &   + EOS103*zs+EOS003
+                  !
+               zn2 = (EOS022*zt   &
+                  &   + EOS112*zs+EOS012)*zt   &
+                  &   + (EOS202*zs+EOS102)*zs+EOS002
+                  !
+               zn1 = (((EOS041*zt   &
+                  &   + EOS131*zs+EOS031)*zt   &
+                  &   + (EOS221*zs+EOS121)*zs+EOS021)*zt   &
+                  &   + ((EOS311*zs+EOS211)*zs+EOS111)*zs+EOS011)*zt   &
+                  &   + (((EOS401*zs+EOS301)*zs+EOS201)*zs+EOS101)*zs+EOS001
+                  !
+               zn0 = (((((EOS060*zt   &
+                  &   + EOS150*zs+EOS050)*zt   &
+                  &   + (EOS240*zs+EOS140)*zs+EOS040)*zt   &
+                  &   + ((EOS330*zs+EOS230)*zs+EOS130)*zs+EOS030)*zt   &
+                  &   + (((EOS420*zs+EOS320)*zs+EOS220)*zs+EOS120)*zs+EOS020)*zt   &
+                  &   + ((((EOS510*zs+EOS410)*zs+EOS310)*zs+EOS210)*zs+EOS110)*zs+EOS010)*zt   &
+                  &   + (((((EOS600*zs+EOS500)*zs+EOS400)*zs+EOS300)*zs+EOS200)*zs+EOS100)*zs+EOS000
+                  !
+               zn  = ( ( zn3 * zh + zn2 ) * zh + zn1 ) * zh + zn0
+               !
+               prhop(ji,jj,jk) = zn0 * ztm                           ! potential density referenced at the surface
+               !
+               prd(ji,jj,jk) = (  zn * r1_rho0 - 1._wp  ) * ztm      ! density anomaly (masked)
+            END_3D
+         ENDIF
+
+      CASE( np_seos )                !==  simplified EOS  ==!
+         !
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+            zt  = pts  (ji,jj,jk,jp_tem,Knn) - rn_T0
+            zs  = pts  (ji,jj,jk,jp_sal,Knn) - rn_S0
+            zh  = gdept(ji,jj,jk,Knn)
+            ztm = tmask(ji,jj,jk)
+            !                                                     ! potential density referenced at the surface
+            zn =  - rn_a0 * ( 1._wp + 0.5_wp*rn_lambda1*zt ) * zt   &
+               &  + rn_b0 * ( 1._wp - 0.5_wp*rn_lambda2*zs ) * zs   &
+               &  - rn_nu * zt * zs
+            prhop(ji,jj,jk) = ( rho0 + zn ) * ztm
+            !                                                     ! density anomaly (masked)
+            zn = zn - ( rn_a0 * rn_mu1 * zt + rn_b0 * rn_mu2 * zs ) * zh
+            prd(ji,jj,jk) = zn * r1_rho0 * ztm
+            !
+         END_3D
+         !
+      END SELECT
+      !
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=prd, clinfo1=' eos-pot: ', tab3d_2=prhop, clinfo2=' pot : ' )
+      !
+      IF( ln_timing )   CALL timing_stop('eos-pot')
+      !
+   END SUBROUTINE eos_insitu_pot_New_t
+
+
+   SUBROUTINE eos_insitu( pts, prd, pdep, kbnd )
       !!
       REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pts   ! 1 : potential temperature  [Celsius]
       !                                                      ! 2 : salinity               [psu]
       REAL(wp), DIMENSION(:,:,:)  , INTENT(  out) ::   prd   ! in situ density            [-]
       REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pdep  ! depth                      [m]
+      INTEGER, OPTIONAL,            INTENT(in   ) ::   kbnd  ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
       !!
-      CALL eos_insitu_t( pts, is_tile(pts), prd, is_tile(prd), pdep, is_tile(pdep) )
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+      CALL eos_insitu_t( pts, lbnd_ij(pts), prd, lbnd_ij(prd), pdep, lbnd_ij(pdep), ibnd )
    END SUBROUTINE eos_insitu
 
-   SUBROUTINE eos_insitu_t( pts, ktts, prd, ktrd, pdep, ktdep )
+   SUBROUTINE eos_insitu_t( pts, ktts, prd, ktrd, pdep, ktdep, kbnd )
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE eos_insitu  ***
       !!
@@ -337,11 +602,12 @@ CONTAINS
       !!                Vallis, Atmospheric and Oceanic Fluid Dynamics, 2006
       !!                TEOS-10 Manual, 2010
       !!----------------------------------------------------------------------
-      INTEGER                                 , INTENT(in   ) ::   ktts, ktrd, ktdep
-      REAL(wp), DIMENSION(A2D_T(ktts) ,JPK,JPTS), INTENT(in   ) ::   pts   ! 1 : potential temperature  [Celsius]
-      !                                                                  ! 2 : salinity               [psu]
-      REAL(wp), DIMENSION(A2D_T(ktrd) ,JPK     ), INTENT(  out) ::   prd   ! in situ density            [-]
-      REAL(wp), DIMENSION(A2D_T(ktdep),JPK     ), INTENT(in   ) ::   pdep  ! depth                      [m]
+      INTEGER,  DIMENSION(2)                   , INTENT(in   ) ::   ktts, ktrd, ktdep
+      INTEGER                                  , INTENT(in   ) ::   kbnd  ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktts) ,JPK,JPTS), INTENT(in   ) ::   pts   ! 1 : potential temperature  [Celsius]
+      !                                                                   ! 2 : salinity               [psu]
+      REAL(wp), DIMENSION(AB2D(ktrd) ,JPK     ), INTENT(  out) ::   prd   ! in situ density            [-]
+      REAL(wp), DIMENSION(AB2D(ktdep),JPK     ), INTENT(in   ) ::   pdep  ! depth                      [m]
       !
       INTEGER  ::   ji, jj, jk                ! dummy loop indices
       REAL(wp) ::   zt , zh , zs , ztm        ! local scalars
@@ -354,7 +620,7 @@ CONTAINS
       !
       CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
             !
             zh  = pdep(ji,jj,jk) * r1_Z0                                  ! depth
             zt  = pts (ji,jj,jk,jp_tem) * r1_T0                           ! temperature
@@ -390,9 +656,9 @@ CONTAINS
          !
       CASE( np_seos )                !==  simplified EOS  ==!
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
-            zt  = pts  (ji,jj,jk,jp_tem) - 10._wp
-            zs  = pts  (ji,jj,jk,jp_sal) - 35._wp
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+            zt  = pts  (ji,jj,jk,jp_tem) - rn_T0
+            zs  = pts  (ji,jj,jk,jp_sal) - rn_S0
             zh  = pdep (ji,jj,jk)
             ztm = tmask(ji,jj,jk)
             !
@@ -412,19 +678,25 @@ CONTAINS
    END SUBROUTINE eos_insitu_t
 
 
-   SUBROUTINE eos_insitu_pot( pts, prd, prhop, pdep )
+   SUBROUTINE eos_insitu_pot( pts, prd, prhop, pdep, kbnd )
       !!
       REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pts    ! 1 : potential temperature  [Celsius]
       !                                                       ! 2 : salinity               [psu]
       REAL(wp), DIMENSION(:,:,:)  , INTENT(  out) ::   prd    ! in situ density            [-]
       REAL(wp), DIMENSION(:,:,:)  , INTENT(  out) ::   prhop  ! potential density (surface referenced)
       REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pdep   ! depth                      [m]
+      INTEGER, OPTIONAL,            INTENT(in   ) ::   kbnd   ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
       !!
-      CALL eos_insitu_pot_t( pts, is_tile(pts), prd, is_tile(prd), prhop, is_tile(prhop), pdep, is_tile(pdep) )
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+      CALL eos_insitu_pot_t( pts, lbnd_ij(pts), prd, lbnd_ij(prd), &
+         &                   prhop, lbnd_ij(prhop), pdep, lbnd_ij(pdep), ibnd )
    END SUBROUTINE eos_insitu_pot
 
 
-   SUBROUTINE eos_insitu_pot_t( pts, ktts, prd, ktrd, prhop, ktrhop, pdep, ktdep )
+   SUBROUTINE eos_insitu_pot_t( pts, ktts, prd, ktrd, prhop, ktrhop, pdep, ktdep, kbnd )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE eos_insitu_pot  ***
       !!
@@ -437,12 +709,13 @@ CONTAINS
       !!              - prhop, the potential volumic mass (Kg/m3)
       !!
       !!----------------------------------------------------------------------
-      INTEGER                                  , INTENT(in   ) ::   ktts, ktrd, ktrhop, ktdep
-      REAL(wp), DIMENSION(A2D_T(ktts)  ,JPK,JPTS), INTENT(in   ) ::   pts    ! 1 : potential temperature  [Celsius]
+      INTEGER,  DIMENSION(2)                    , INTENT(in   ) ::   ktts, ktrd, ktrhop, ktdep
+      INTEGER                                   , INTENT(in   ) ::   kbnd   ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktts)  ,JPK,JPTS), INTENT(in   ) ::   pts    ! 1 : potential temperature  [Celsius]
       !                                                                    ! 2 : salinity               [psu]
-      REAL(wp), DIMENSION(A2D_T(ktrd)  ,JPK     ), INTENT(  out) ::   prd    ! in situ density            [-]
-      REAL(wp), DIMENSION(A2D_T(ktrhop),JPK     ), INTENT(  out) ::   prhop  ! potential density (surface referenced)
-      REAL(wp), DIMENSION(A2D_T(ktdep) ,JPK     ), INTENT(in   ) ::   pdep   ! depth                      [m]
+      REAL(wp), DIMENSION(AB2D(ktrd)  ,JPK     ), INTENT(  out) ::   prd    ! in situ density            [-]
+      REAL(wp), DIMENSION(AB2D(ktrhop),JPK     ), INTENT(  out) ::   prhop  ! potential density (surface referenced)
+      REAL(wp), DIMENSION(AB2D(ktdep) ,JPK     ), INTENT(in   ) ::   pdep   ! depth                      [m]
       !
       INTEGER  ::   ji, jj, jk, jsmp             ! dummy loop indices
       INTEGER  ::   jdof
@@ -467,7 +740,7 @@ CONTAINS
               zsign(jsmp+1) = -1._wp
             END DO
             !
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+            DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
                !
                ! compute density (2*nn_sto_eos) times:
                ! (1) for t+dt, s+ds (with the random TS fluctutation computed in sto_pts)
@@ -517,7 +790,7 @@ CONTAINS
             DEALLOCATE(zn0_sto,zn_sto,zsign)
          ! Non-stochastic equation of state
          ELSE
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+            DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
                !
                zh  = pdep(ji,jj,jk) * r1_Z0                                  ! depth
                zt  = pts (ji,jj,jk,jp_tem) * r1_T0                           ! temperature
@@ -555,9 +828,9 @@ CONTAINS
 
       CASE( np_seos )                !==  simplified EOS  ==!
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
-            zt  = pts  (ji,jj,jk,jp_tem) - 10._wp
-            zs  = pts  (ji,jj,jk,jp_sal) - 35._wp
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+            zt  = pts  (ji,jj,jk,jp_tem) - rn_T0
+            zs  = pts  (ji,jj,jk,jp_sal) - rn_S0
             zh  = pdep (ji,jj,jk)
             ztm = tmask(ji,jj,jk)
             !                                                     ! potential density referenced at the surface
@@ -580,18 +853,23 @@ CONTAINS
    END SUBROUTINE eos_insitu_pot_t
 
 
-   SUBROUTINE eos_insitu_2d( pts, pdep, prd )
+   SUBROUTINE eos_insitu_2d( pts, pdep, prd, kbnd )
       !!
       REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pts   ! 1 : potential temperature  [Celsius]
       !                                                    ! 2 : salinity               [psu]
       REAL(wp), DIMENSION(:,:)  , INTENT(in   ) ::   pdep  ! depth                      [m]
       REAL(wp), DIMENSION(:,:)  , INTENT(  out) ::   prd   ! in situ density
+      INTEGER, OPTIONAL,          INTENT(in   ) ::   kbnd  ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
       !!
-      CALL eos_insitu_2d_t( pts, is_tile(pts), pdep, is_tile(pdep), prd, is_tile(prd) )
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+      CALL eos_insitu_2d_t( pts, lbnd_ij(pts), pdep, lbnd_ij(pdep), prd, lbnd_ij(prd), ibnd )
    END SUBROUTINE eos_insitu_2d
 
 
-   SUBROUTINE eos_insitu_2d_t( pts, ktts, pdep, ktdep, prd, ktrd )
+   SUBROUTINE eos_insitu_2d_t( pts, ktts, pdep, ktdep, prd, ktrd, kbnd )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE eos_insitu_2d  ***
       !!
@@ -602,11 +880,12 @@ CONTAINS
       !! ** Action  : - prd , the in situ density (no units) (unmasked)
       !!
       !!----------------------------------------------------------------------
-      INTEGER                            , INTENT(in   ) ::   ktts, ktdep, ktrd
-      REAL(wp), DIMENSION(A2D_T(ktts),JPTS), INTENT(in   ) ::   pts   ! 1 : potential temperature  [Celsius]
-      !                                                             ! 2 : salinity               [psu]
-      REAL(wp), DIMENSION(A2D_T(ktdep)    ), INTENT(in   ) ::   pdep  ! depth                      [m]
-      REAL(wp), DIMENSION(A2D_T(ktrd)     ), INTENT(  out) ::   prd   ! in situ density
+      INTEGER,  DIMENSION(2)              , INTENT(in   ) ::   ktts, ktdep, ktrd
+      INTEGER                             , INTENT(in   ) ::   kbnd  ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktts),JPTS), INTENT(in   ) ::   pts   ! 1 : potential temperature  [Celsius]
+      !                                                              ! 2 : salinity               [psu]
+      REAL(wp), DIMENSION(AB2D(ktdep)    ), INTENT(in   ) ::   pdep  ! depth                      [m]
+      REAL(wp), DIMENSION(AB2D(ktrd)     ), INTENT(  out) ::   prd   ! in situ density
       !
       INTEGER  ::   ji, jj, jk                ! dummy loop indices
       REAL(wp) ::   zt , zh , zs              ! local scalars
@@ -621,7 +900,7 @@ CONTAINS
       !
       CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
          !
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( kbnd, kbnd, kbnd, kbnd )
             !
             zh  = pdep(ji,jj) * r1_Z0                                  ! depth
             zt  = pts (ji,jj,jp_tem) * r1_T0                           ! temperature
@@ -656,10 +935,10 @@ CONTAINS
          !
       CASE( np_seos )                !==  simplified EOS  ==!
          !
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( kbnd, kbnd, kbnd, kbnd )
             !
-            zt    = pts  (ji,jj,jp_tem)  - 10._wp
-            zs    = pts  (ji,jj,jp_sal)  - 35._wp
+            zt    = pts  (ji,jj,jp_tem)  - rn_T0
+            zs    = pts  (ji,jj,jp_sal)  - rn_S0
             zh    = pdep (ji,jj)                         ! depth at the partial step level
             !
             zn =  - rn_a0 * ( 1._wp + 0.5_wp*rn_lambda1*zt + rn_mu1*zh ) * zt   &
@@ -679,17 +958,22 @@ CONTAINS
    END SUBROUTINE eos_insitu_2d_t
 
 
-   SUBROUTINE eos_insitu_pot_2d( pts, prhop )
+   SUBROUTINE eos_insitu_pot_2d( pts, prhop, kbnd )
       !!
       REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pts    ! 1 : potential temperature  [Celsius]
       !                                                     ! 2 : salinity               [psu]
       REAL(wp), DIMENSION(:,:)  , INTENT(  out) ::   prhop  ! potential density (surface referenced)
+      INTEGER, OPTIONAL,          INTENT(in   ) ::   kbnd   ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
       !!
-      CALL eos_insitu_pot_2d_t( pts, is_tile(pts), prhop, is_tile(prhop) )
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+      CALL eos_insitu_pot_2d_t( pts, lbnd_ij(pts), prhop, lbnd_ij(prhop), ibnd )
    END SUBROUTINE eos_insitu_pot_2d
 
 
-   SUBROUTINE eos_insitu_pot_2d_t( pts, ktts, prhop, ktrhop )
+   SUBROUTINE eos_insitu_pot_2d_t( pts, ktts, prhop, ktrhop, kbnd )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE eos_insitu_pot  ***
       !!
@@ -702,10 +986,11 @@ CONTAINS
       !!              - prhop, the potential volumic mass (Kg/m3)
       !!
       !!----------------------------------------------------------------------
-      INTEGER                              , INTENT(in   ) ::   ktts, ktrhop
-      REAL(wp), DIMENSION(A2D_T(ktts),JPTS), INTENT(in   ) ::   pts    ! 1 : potential temperature  [Celsius]
-      !                                                                ! 2 : salinity               [psu]
-      REAL(wp), DIMENSION(A2D_T(ktrhop)   ), INTENT(  out) ::   prhop  ! potential density (surface referenced)
+      INTEGER,  DIMENSION(2)              , INTENT(in   ) ::   ktts, ktrhop
+      INTEGER                             , INTENT(in   ) ::   kbnd   ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktts),JPTS), INTENT(in   ) ::   pts    ! 1 : potential temperature  [Celsius]
+      !                                                               ! 2 : salinity               [psu]
+      REAL(wp), DIMENSION(AB2D(ktrhop)   ), INTENT(  out) ::   prhop  ! potential density (surface referenced)
       !
       INTEGER  ::   ji, jj, jk, jsmp             ! dummy loop indices
       INTEGER  ::   jdof
@@ -720,7 +1005,7 @@ CONTAINS
       !
       CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
          !
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( kbnd, kbnd, kbnd, kbnd )
             !
             zt  = pts (ji,jj,jp_tem) * r1_T0                           ! temperature
             zs  = SQRT( ABS( pts(ji,jj,jp_sal) + rdeltaS ) * r1_S0 )   ! square root salinity
@@ -741,9 +1026,9 @@ CONTAINS
 
       CASE( np_seos )                !==  simplified EOS  ==!
          !
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-            zt  = pts  (ji,jj,jp_tem) - 10._wp
-            zs  = pts  (ji,jj,jp_sal) - 35._wp
+         DO_2D( kbnd, kbnd, kbnd, kbnd )
+            zt  = pts  (ji,jj,jp_tem) - rn_T0
+            zs  = pts  (ji,jj,jp_sal) - rn_S0
             ztm = tmask(ji,jj,1)
             !                                                     ! potential density referenced at the surface
             zn =  - rn_a0 * ( 1._wp + 0.5_wp*rn_lambda1*zt ) * zt   &
@@ -763,17 +1048,23 @@ CONTAINS
    END SUBROUTINE eos_insitu_pot_2d_t
 
 
-   SUBROUTINE rab_3d( pts, pab, Kmm )
+   SUBROUTINE rab_3d( pts, pab, Kmm, kbnd )
       !!
-      INTEGER                     , INTENT(in   ) ::   Kmm   ! time level index
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pts   ! pot. temperature & salinity
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(  out) ::   pab   ! thermal/haline expansion ratio
+      INTEGER                     , INTENT(in   )           ::   Kmm   ! time level index
+      REAL(wp), DIMENSION(:,:,:,:), INTENT(in   )           ::   pts   ! pot. temperature & salinity
+      REAL(wp), DIMENSION(:,:,:,:), INTENT(  out)           ::   pab   ! thermal/haline expansion ratio
+      INTEGER,                      INTENT(in   ), OPTIONAL ::   kbnd  ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
       !!
-      CALL rab_3d_t( pts, is_tile(pts), pab, is_tile(pab), Kmm )
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+
+      CALL rab_3d_t( pts, lbnd_ij(pts), pab, lbnd_ij(pab), Kmm, ibnd )
    END SUBROUTINE rab_3d
 
 
-   SUBROUTINE rab_3d_t( pts, ktts, pab, ktab, Kmm )
+   SUBROUTINE rab_3d_t( pts, ktts, pab, ktab, Kmm, kbnd )
       !!----------------------------------------------------------------------
       !!                 ***  ROUTINE rab_3d  ***
       !!
@@ -783,10 +1074,11 @@ CONTAINS
       !!
       !! ** Action  : - pab     : thermal/haline expansion ratio at T-points
       !!----------------------------------------------------------------------
-      INTEGER                                , INTENT(in   ) ::   Kmm   ! time level index
-      INTEGER                                , INTENT(in   ) ::   ktts, ktab
-      REAL(wp), DIMENSION(A2D_T(ktts),JPK,JPTS), INTENT(in   ) ::   pts   ! pot. temperature & salinity
-      REAL(wp), DIMENSION(A2D_T(ktab),JPK,JPTS), INTENT(  out) ::   pab   ! thermal/haline expansion ratio
+      INTEGER                                 , INTENT(in   ) ::   Kmm   ! time level index
+      INTEGER,  DIMENSION(2)                  , INTENT(in   ) ::   ktts, ktab
+      INTEGER,                                  INTENT(in   ) ::   kbnd  ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktts),JPK,JPTS), INTENT(in   ) ::   pts   ! pot. temperature & salinity
+      REAL(wp), DIMENSION(AB2D(ktab),JPK,JPTS), INTENT(  out) ::   pab   ! thermal/haline expansion ratio
       !
       INTEGER  ::   ji, jj, jk                ! dummy loop indices
       REAL(wp) ::   zt , zh , zs , ztm        ! local scalars
@@ -799,7 +1091,7 @@ CONTAINS
       !
       CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
             !
             zh  = gdept(ji,jj,jk,Kmm) * r1_Z0                                ! depth
             zt  = pts (ji,jj,jk,jp_tem) * r1_T0                           ! temperature
@@ -852,9 +1144,9 @@ CONTAINS
          !
       CASE( np_seos )                  !==  simplified EOS  ==!
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
-            zt  = pts (ji,jj,jk,jp_tem) - 10._wp   ! pot. temperature anomaly (t-T0)
-            zs  = pts (ji,jj,jk,jp_sal) - 35._wp   ! abs. salinity anomaly (s-S0)
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
+            zt  = pts (ji,jj,jk,jp_tem) - rn_T0   ! pot. temperature anomaly (t-T0)
+            zs  = pts (ji,jj,jk,jp_sal) - rn_S0   ! abs. salinity anomaly (s-S0)
             zh  = gdept(ji,jj,jk,Kmm)                ! depth in meters at t-point
             ztm = tmask(ji,jj,jk)                  ! land/sea bottom mask = surf. mask
             !
@@ -880,18 +1172,24 @@ CONTAINS
    END SUBROUTINE rab_3d_t
 
 
-   SUBROUTINE rab_2d( pts, pdep, pab, Kmm )
+   SUBROUTINE rab_2d( pts, pdep, pab, Kmm, kbnd )
       !!
-      INTEGER                   , INTENT(in   ) ::   Kmm   ! time level index
-      REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pts    ! pot. temperature & salinity
-      REAL(wp), DIMENSION(:,:)  , INTENT(in   ) ::   pdep   ! depth                  [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pab    ! thermal/haline expansion ratio
+      INTEGER                   , INTENT(in   )           ::   Kmm   ! time level index
+      REAL(wp), DIMENSION(:,:,:), INTENT(in   )           ::   pts   ! pot. temperature & salinity
+      REAL(wp), DIMENSION(:,:)  , INTENT(in   )           ::   pdep  ! depth                  [m]
+      REAL(wp), DIMENSION(:,:,:), INTENT(  out)           ::   pab   ! thermal/haline expansion ratio
+      INTEGER,                    INTENT(in   ), OPTIONAL ::   kbnd  ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
       !!
-      CALL rab_2d_t(pts, is_tile(pts), pdep, is_tile(pdep), pab, is_tile(pab), Kmm)
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+
+      CALL rab_2d_t( pts, lbnd_ij(pts), pdep, lbnd_ij(pdep), pab, lbnd_ij(pab), Kmm, ibnd )
    END SUBROUTINE rab_2d
 
 
-   SUBROUTINE rab_2d_t( pts, ktts, pdep, ktdep, pab, ktab, Kmm )
+   SUBROUTINE rab_2d_t( pts, ktts, pdep, ktdep, pab, ktab, Kmm, kbnd )
       !!----------------------------------------------------------------------
       !!                 ***  ROUTINE rab_2d  ***
       !!
@@ -899,11 +1197,12 @@ CONTAINS
       !!
       !! ** Action  : - pab     : thermal/haline expansion ratio at T-points
       !!----------------------------------------------------------------------
-      INTEGER                            , INTENT(in   ) ::   Kmm   ! time level index
-      INTEGER                            , INTENT(in   ) ::   ktts, ktdep, ktab
-      REAL(wp), DIMENSION(A2D_T(ktts),JPTS), INTENT(in   ) ::   pts    ! pot. temperature & salinity
-      REAL(wp), DIMENSION(A2D_T(ktdep)    ), INTENT(in   ) ::   pdep   ! depth                  [m]
-      REAL(wp), DIMENSION(A2D_T(ktab),JPTS), INTENT(  out) ::   pab    ! thermal/haline expansion ratio
+      INTEGER                             , INTENT(in   ) ::   Kmm    ! time level index
+      INTEGER,  DIMENSION(2)              , INTENT(in   ) ::   ktts, ktdep, ktab
+      INTEGER,                              INTENT(in   ) ::   kbnd   ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktts),JPTS), INTENT(in   ) ::   pts    ! pot. temperature & salinity
+      REAL(wp), DIMENSION(AB2D(ktdep)    ), INTENT(in   ) ::   pdep   ! depth                  [m]
+      REAL(wp), DIMENSION(AB2D(ktab),JPTS), INTENT(  out) ::   pab    ! thermal/haline expansion ratio
       !
       INTEGER  ::   ji, jj, jk                ! dummy loop indices
       REAL(wp) ::   zt , zh , zs              ! local scalars
@@ -918,7 +1217,7 @@ CONTAINS
       !
       CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
          !
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( kbnd, kbnd, kbnd, kbnd )
             !
             zh  = pdep(ji,jj) * r1_Z0                                  ! depth
             zt  = pts (ji,jj,jp_tem) * r1_T0                           ! temperature
@@ -971,11 +1270,11 @@ CONTAINS
          !
       CASE( np_seos )                  !==  simplified EOS  ==!
          !
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( kbnd, kbnd, kbnd, kbnd )
             !
-            zt    = pts  (ji,jj,jp_tem) - 10._wp   ! pot. temperature anomaly (t-T0)
-            zs    = pts  (ji,jj,jp_sal) - 35._wp   ! abs. salinity anomaly (s-S0)
-            zh    = pdep (ji,jj)                   ! depth at the partial step level
+            zt    = pts  (ji,jj,jp_tem) - rn_T0   ! pot. temperature anomaly (t-T0)
+            zs    = pts  (ji,jj,jp_sal) - rn_S0   ! abs. salinity anomaly (s-S0)
+            zh    = pdep (ji,jj)                  ! depth at the partial step level
             !
             zn  = rn_a0 * ( 1._wp + rn_lambda1*zt + rn_mu1*zh ) + rn_nu*zs
             pab(ji,jj,jp_tem) = zn * r1_rho0   ! alpha
@@ -1075,9 +1374,9 @@ CONTAINS
          !
       CASE( np_seos )                  !==  simplified EOS  ==!
          !
-         zt    = pts(jp_tem) - 10._wp   ! pot. temperature anomaly (t-T0)
-         zs    = pts(jp_sal) - 35._wp   ! abs. salinity anomaly (s-S0)
-         zh    = pdep                   ! depth at the partial step level
+         zt    = pts(jp_tem) - rn_T0   ! pot. temperature anomaly (t-T0)
+         zs    = pts(jp_sal) - rn_S0   ! abs. salinity anomaly (s-S0)
+         zh    = pdep                  ! depth at the partial step level
          !
          zn  = rn_a0 * ( 1._wp + rn_lambda1*zt + rn_mu1*zh ) + rn_nu*zs
          pab(jp_tem) = zn * r1_rho0   ! alpha
@@ -1096,18 +1395,24 @@ CONTAINS
    END SUBROUTINE rab_0d
 
 
-   SUBROUTINE bn2( pts, pab, pn2, Kmm )
+   SUBROUTINE bn2( pts, pab, pn2, Kmm, kbnd )
       !!
-      INTEGER                              , INTENT(in   ) ::  Kmm   ! time level index
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(in   ) ::  pts   ! pot. temperature and salinity   [Celsius,psu]
-      REAL(wp), DIMENSION(:,:,:,:)         , INTENT(in   ) ::  pab   ! thermal/haline expansion coef.  [Celsius-1,psu-1]
-      REAL(wp), DIMENSION(:,:,:)           , INTENT(  out) ::  pn2   ! Brunt-Vaisala frequency squared [1/s^2]
+      INTEGER                              , INTENT(in   )           ::  Kmm   ! time level index
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(in   )           ::  pts   ! pot. temperature and salinity   [Celsius,psu]
+      REAL(wp), DIMENSION(:,:,:,:)         , INTENT(in   )           ::  pab   ! thermal/haline expansion coef.  [Celsius-1,psu-1]
+      REAL(wp), DIMENSION(:,:,:)           , INTENT(  out)           ::  pn2   ! Brunt-Vaisala frequency squared [1/s^2]
+      INTEGER,                               INTENT(in   ), OPTIONAL ::  kbnd  ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
       !!
-      CALL bn2_t( pts, pab, is_tile(pab), pn2, is_tile(pn2), Kmm )
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+
+      CALL bn2_t( pts, pab, lbnd_ij(pab), pn2, lbnd_ij(pn2), Kmm, ibnd )
    END SUBROUTINE bn2
 
 
-   SUBROUTINE bn2_t( pts, pab, ktab, pn2, ktn2, Kmm )
+   SUBROUTINE bn2_t( pts, pab, ktab, pn2, ktn2, Kmm, kbnd )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE bn2  ***
       !!
@@ -1121,11 +1426,12 @@ CONTAINS
       !! ** Action  :   pn2 : square of the brunt-vaisala frequency at w-point
       !!
       !!----------------------------------------------------------------------
-      INTEGER                                , INTENT(in   ) ::  Kmm   ! time level index
-      INTEGER                                , INTENT(in   ) ::  ktab, ktn2
-      REAL(wp), DIMENSION(jpi,jpj,  jpk,jpts), INTENT(in   ) ::  pts   ! pot. temperature and salinity   [Celsius,psu]
-      REAL(wp), DIMENSION(A2D_T(ktab),JPK,JPTS), INTENT(in   ) ::  pab   ! thermal/haline expansion coef.  [Celsius-1,psu-1]
-      REAL(wp), DIMENSION(A2D_T(ktn2),JPK     ), INTENT(  out) ::  pn2   ! Brunt-Vaisala frequency squared [1/s^2]
+      INTEGER                                 , INTENT(in   ) ::  Kmm   ! time level index
+      INTEGER,  DIMENSION(2)                  , INTENT(in   ) ::  ktab, ktn2
+      INTEGER,                                  INTENT(in   ) ::  kbnd  ! number of halo points to calculate
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts)   , INTENT(in   ) ::  pts   ! pot. temperature and salinity   [Celsius,psu]
+      REAL(wp), DIMENSION(AB2D(ktab),JPK,JPTS), INTENT(in   ) ::  pab   ! thermal/haline expansion coef.  [Celsius-1,psu-1]
+      REAL(wp), DIMENSION(AB2D(ktn2),JPK     ), INTENT(  out) ::  pn2   ! Brunt-Vaisala frequency squared [1/s^2]
       !
       INTEGER  ::   ji, jj, jk      ! dummy loop indices
       REAL(wp) ::   zaw, zbw, zrw   ! local scalars
@@ -1133,7 +1439,7 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('bn2')
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpkm1 )      ! interior points only (2=< jk =< jpkm1 ); surface and bottom value set to zero one for all in istate.F90
+      DO_3D( kbnd, kbnd, kbnd, kbnd, 2, jpkm1 )      ! interior points only (2=< jk =< jpkm1 ); surface and bottom value set to zero one for all in istate.F90
          zrw =   ( gdepw(ji,jj,jk  ,Kmm) - gdept(ji,jj,jk,Kmm) )   &
             &  / ( gdept(ji,jj,jk-1,Kmm) - gdept(ji,jj,jk,Kmm) )
             !
@@ -1152,7 +1458,23 @@ CONTAINS
    END SUBROUTINE bn2_t
 
 
-   FUNCTION eos_pt_from_ct( ctmp, psal ) RESULT( ptmp )
+   SUBROUTINE eos_pt_from_ct( ctmp, psal, ptmp, kbnd )
+      !!
+      REAL(wp), DIMENSION(:,:), INTENT(in )           ::   ctmp   ! Cons. Temp   [Celsius]
+      REAL(wp), DIMENSION(:,:), INTENT(in )           ::   psal   ! salinity     [psu]
+      REAL(wp), DIMENSION(:,:), INTENT(out)           ::   ptmp   ! Pot. Temp    [Celsius]
+      INTEGER,                  INTENT(in ), OPTIONAL ::   kbnd   ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
+      !!
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+
+      CALL eos_pt_from_ct_t( ctmp, psal, lbnd_ij(psal), ptmp, lbnd_ij(ptmp), ibnd )
+   END SUBROUTINE eos_pt_from_ct
+
+
+   SUBROUTINE eos_pt_from_ct_t( ctmp, psal, ktpsal, ptmp, ktptmp, kbnd )
       !!----------------------------------------------------------------------
       !!                 ***  ROUTINE eos_pt_from_ct  ***
       !!
@@ -1164,10 +1486,11 @@ CONTAINS
       !! Reference  :   TEOS-10, UNESCO
       !!                Rational approximation to TEOS10 algorithm (rms error on WOA13 values: 4.0e-5 degC)
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) ::   ctmp   ! Cons. Temp   [Celsius]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) ::   psal   ! salinity     [psu]
-      ! Leave result array automatic rather than making explicitly allocated
-      REAL(wp), DIMENSION(jpi,jpj) ::   ptmp   ! potential temperature [Celsius]
+      INTEGER,  DIMENSION(2),            INTENT(in ) ::   ktpsal, ktptmp
+      INTEGER,                           INTENT(in ) ::   kbnd   ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktpsal)), INTENT(in ) ::   ctmp   ! Cons. Temp   [Celsius]
+      REAL(wp), DIMENSION(AB2D(ktpsal)), INTENT(in ) ::   psal   ! salinity     [psu]
+      REAL(wp), DIMENSION(AB2D(ktptmp)), INTENT(out) ::   ptmp   ! Pot. Temp    [Celsius]
       !
       INTEGER  ::   ji, jj               ! dummy loop indices
       REAL(wp) ::   zt , zs , ztm        ! local scalars
@@ -1181,7 +1504,7 @@ CONTAINS
       z1_S0   = 0.875_wp/35.16504_wp
       z1_T0   = 1._wp/40._wp
       !
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( kbnd, kbnd, kbnd, kbnd )
          !
          zt  = ctmp   (ji,jj) * z1_T0
          zs  = SQRT( ABS( psal(ji,jj) + zdeltaS ) * z1_S0 )
@@ -1206,20 +1529,28 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_stop('eos_pt_from_ct')
       !
-   END FUNCTION eos_pt_from_ct
+   END SUBROUTINE eos_pt_from_ct_t
 
 
-   SUBROUTINE eos_fzp_2d( psal, ptf, pdep )
+   SUBROUTINE eos_fzp_3d( psal, ptf, pdep, kbnd )
       !!
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   )           ::   psal   ! salinity   [psu]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ), OPTIONAL ::   pdep   ! depth      [m]
-      REAL(wp), DIMENSION(:,:)    , INTENT(out  )           ::   ptf    ! freezing temperature [Celsius]
+      REAL(wp), DIMENSION(:,:,:), INTENT(in   )           ::   psal   ! salinity   [psu]
+      REAL(wp), DIMENSION(:,:,:), INTENT(in   ), OPTIONAL ::   pdep   ! depth      [m]
+      REAL(wp), DIMENSION(:,:,:), INTENT(  out)           ::   ptf    ! freezing temperature [Celsius]
+      INTEGER,                    INTENT(in   ), OPTIONAL ::   kbnd   ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
+      INTEGER, DIMENSION(2) :: itdep
       !!
-      CALL eos_fzp_2d_t( psal, ptf, is_tile(ptf), pdep )
-   END SUBROUTINE eos_fzp_2d
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+      IF( PRESENT(pdep) ) THEN ; itdep = lbnd_ij(pdep)  ; ELSE ; itdep(:) = 1 ; ENDIF
+
+      CALL eos_fzp_3d_t( psal, lbnd_ij(psal), ptf, lbnd_ij(ptf), pdep, itdep, ibnd )
+   END SUBROUTINE eos_fzp_3d
 
 
-   SUBROUTINE  eos_fzp_2d_t( psal, ptf, kttf, pdep )
+   SUBROUTINE eos_fzp_3d_t( psal, ktsal, ptf, kttf, pdep, ktdep, kbnd )
       !!----------------------------------------------------------------------
       !!                 ***  ROUTINE eos_fzp  ***
       !!
@@ -1231,13 +1562,14 @@ CONTAINS
       !!
       !! Reference  :   UNESCO tech. papers in the marine science no. 28. 1978
       !!----------------------------------------------------------------------
-      INTEGER                       , INTENT(in   )           ::   kttf
-      REAL(wp), DIMENSION(jpi,jpj)  , INTENT(in   )           ::   psal   ! salinity   [psu]
-      REAL(wp), DIMENSION(jpi,jpj)  , INTENT(in   ), OPTIONAL ::   pdep   ! depth      [m]
-      REAL(wp), DIMENSION(A2D_T(kttf)), INTENT(out  )           ::   ptf    ! freezing temperature [Celsius]
+      INTEGER,  DIMENSION(2),               INTENT(in   )           ::   ktsal, kttf, ktdep
+      INTEGER,                              INTENT(in   )           ::   kbnd   ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktsal),JPK), INTENT(in   )           ::   psal   ! salinity   [psu]
+      REAL(wp), DIMENSION(AB2D(ktdep),JPK), INTENT(in   ), OPTIONAL ::   pdep   ! depth      [m]
+      REAL(wp), DIMENSION(AB2D(kttf ),JPK), INTENT(  out)           ::   ptf    ! freezing temperature [Celsius]
       !
-      INTEGER  ::   ji, jj          ! dummy loop indices
-      REAL(wp) ::   zt, zs, z1_S0   ! local scalars
+      INTEGER  ::   ji, jj, jk          ! dummy loop indices
+      REAL(wp) ::   zs, z1_S0       ! local scalars
       !!----------------------------------------------------------------------
       !
       SELECT CASE ( neos )
@@ -1245,21 +1577,113 @@ CONTAINS
       CASE ( np_teos10, np_seos )      !==  CT,SA (TEOS-10 and S-EOS formulations) ==!
          !
          z1_S0 = 1._wp / 35.16504_wp
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-            zs= SQRT( ABS( psal(ji,jj) ) * z1_S0 )           ! square root salinity
-            ptf(ji,jj) = ((((1.46873e-03_wp*zs-9.64972e-03_wp)*zs+2.28348e-02_wp)*zs &
-               &          - 3.12775e-02_wp)*zs+2.07679e-02_wp)*zs-5.87701e-02_wp
-         END_2D
-         ptf(:,:) = ptf(:,:) * psal(:,:)
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpk )
+            zs= SQRT( ABS( psal(ji,jj,jk) ) * z1_S0 )           ! square root salinity
+            ptf(ji,jj,jk) = ((((1.46873e-03_wp * zs - 9.64972e-03_wp)                        &
+               &                               * zs + 2.28348e-02_wp) * zs - 3.12775e-02_wp) &
+               &                               * zs + 2.07679e-02_wp) * zs - 5.87701e-02_wp
+            ptf(ji,jj,jk) = ptf(ji,jj,jk) * psal(ji,jj,jk)
+         END_3D
          !
-         IF( PRESENT( pdep ) )   ptf(:,:) = ptf(:,:) - 7.53e-4 * pdep(:,:)
+         IF( PRESENT( pdep ) ) THEN
+            DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpk )
+               ptf(ji,jj,jk) = ptf(ji,jj,jk) - 7.53e-4 * pdep(ji,jj,jk)
+            END_3D
+         ENDIF
          !
       CASE ( np_eos80 )                !==  PT,SP (UNESCO formulation)  ==!
          !
-         ptf(:,:) = ( - 0.0575_wp + 1.710523e-3_wp * SQRT( psal(:,:) )   &
-            &                     - 2.154996e-4_wp *       psal(:,:)   ) * psal(:,:)
-            !
-         IF( PRESENT( pdep ) )   ptf(:,:) = ptf(:,:) - 7.53e-4 * pdep(:,:)
+         DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpk )
+            ptf(ji,jj,jk) = ( - 0.0575_wp + 1.710523e-3_wp * SQRT( psal(ji,jj,jk) )   &
+               &                          - 2.154996e-4_wp *       psal(ji,jj,jk)   ) * psal(ji,jj,jk)
+         END_3D
+         !
+         IF( PRESENT( pdep ) ) THEN
+            DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpk )
+               ptf(ji,jj,jk) = ptf(ji,jj,jk) - 7.53e-4 * pdep(ji,jj,jk)
+            END_3D
+         ENDIF
+         !
+      CASE DEFAULT
+         WRITE(ctmp1,*) '          bad flag value for neos = ', neos
+         CALL ctl_stop( 'eos_fzp_3d:', ctmp1 )
+         !
+      END SELECT
+      !
+   END SUBROUTINE eos_fzp_3d_t
+
+
+   SUBROUTINE eos_fzp_2d( psal, ptf, pdep, kbnd )
+      !!
+      REAL(wp), DIMENSION(:,:), INTENT(in   )           ::   psal   ! salinity   [psu]
+      REAL(wp), DIMENSION(:,:), INTENT(in   ), OPTIONAL ::   pdep   ! depth      [m]
+      REAL(wp), DIMENSION(:,:), INTENT(  out)           ::   ptf    ! freezing temperature [Celsius]
+      INTEGER,                  INTENT(in   ), OPTIONAL ::   kbnd   ! number of halo points to calculate
+      !
+      INTEGER  ::   ibnd
+      INTEGER, DIMENSION(2) :: itdep
+      !!
+      ibnd = nn_hls
+      IF( PRESENT(kbnd) ) ibnd = kbnd
+      IF( PRESENT(pdep) ) THEN ; itdep = lbnd_ij(pdep)  ; ELSE ; itdep(:) = 1 ; ENDIF
+
+      CALL eos_fzp_2d_t( psal, lbnd_ij(psal), ptf, lbnd_ij(ptf), pdep, itdep, ibnd )
+   END SUBROUTINE eos_fzp_2d
+
+
+   SUBROUTINE eos_fzp_2d_t( psal, ktsal, ptf, kttf, pdep, ktdep, kbnd )
+      !!----------------------------------------------------------------------
+      !!                 ***  ROUTINE eos_fzp  ***
+      !!
+      !! ** Purpose :   Compute the freezing point temperature [Celsius]
+      !!
+      !! ** Method  :   UNESCO freezing point (ptf) in Celsius is given by
+      !!       ptf(t,z) = (-.0575+1.710523e-3*sqrt(abs(s))-2.154996e-4*s)*s - 7.53e-4*z
+      !!       checkvalue: tf=-2.588567 Celsius for s=40psu, z=500m
+      !!
+      !! Reference  :   UNESCO tech. papers in the marine science no. 28. 1978
+      !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2),           INTENT(in   )           ::   ktsal, kttf, ktdep
+      INTEGER,                          INTENT(in   )           ::   kbnd   ! number of halo points to calculate
+      REAL(wp), DIMENSION(AB2D(ktsal)), INTENT(in   )           ::   psal   ! salinity   [psu]
+      REAL(wp), DIMENSION(AB2D(ktdep)), INTENT(in   ), OPTIONAL ::   pdep   ! depth      [m]
+      REAL(wp), DIMENSION(AB2D(kttf)),  INTENT(  out)           ::   ptf    ! freezing temperature [Celsius]
+      !
+      INTEGER  ::   ji, jj          ! dummy loop indices
+      REAL(wp) ::   zs, z1_S0   ! local scalars
+      !!----------------------------------------------------------------------
+      !
+      SELECT CASE ( neos )
+      !
+      CASE ( np_teos10, np_seos )      !==  CT,SA (TEOS-10 and S-EOS formulations) ==!
+         !
+         z1_S0 = 1._wp / 35.16504_wp
+         DO_2D( kbnd, kbnd, kbnd, kbnd )
+            zs = SQRT( ABS( psal(ji,jj) ) * z1_S0 )           ! square root salinity
+            ptf(ji,jj) = ((((1.46873e-03_wp * zs - 9.64972e-03_wp)                        &
+               &                            * zs + 2.28348e-02_wp) * zs - 3.12775e-02_wp) &
+               &                            * zs + 2.07679e-02_wp) * zs - 5.87701e-02_wp
+            ptf(ji,jj) = ptf(ji,jj) * psal(ji,jj)
+         END_2D
+         !
+         IF( PRESENT( pdep ) ) THEN
+            DO_2D( kbnd, kbnd, kbnd, kbnd )
+               ptf(ji,jj) = ptf(ji,jj) - 7.53e-4 * pdep(ji,jj)
+            END_2D
+         ENDIF
+         !
+      CASE ( np_eos80 )                !==  PT,SP (UNESCO formulation)  ==!
+         !
+         DO_2D( kbnd, kbnd, kbnd, kbnd )
+            ptf(ji,jj) = ( - 0.0575_wp + 1.710523e-3_wp * SQRT( psal(ji,jj) )   &
+               &                       - 2.154996e-4_wp *       psal(ji,jj)   ) * psal(ji,jj)
+         END_2D
+         !
+         IF( PRESENT( pdep ) ) THEN
+            DO_2D( kbnd, kbnd, kbnd, kbnd )
+               ptf(ji,jj) = ptf(ji,jj) - 7.53e-4 * pdep(ji,jj)
+            END_2D
+         ENDIF
          !
       CASE DEFAULT
          WRITE(ctmp1,*) '          bad flag value for neos = ', neos
@@ -1267,10 +1691,10 @@ CONTAINS
          !
       END SELECT
       !
-  END SUBROUTINE eos_fzp_2d_t
+   END SUBROUTINE eos_fzp_2d_t
 
 
-  SUBROUTINE eos_fzp_0d( psal, ptf, pdep )
+   SUBROUTINE eos_fzp_0d( psal, ptf, pdep )
       !!----------------------------------------------------------------------
       !!                 ***  ROUTINE eos_fzp  ***
       !!
@@ -1336,10 +1760,10 @@ CONTAINS
       !!                    pab_pe(:,:,:,jp_tem) is alpha_pe
       !!                    pab_pe(:,:,:,jp_sal) is beta_pe
       !!----------------------------------------------------------------------
-      INTEGER                              , INTENT(in   ) ::   Kmm   ! time level index
+      INTEGER                              , INTENT(in   ) ::   Kmm     ! time level index
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(in   ) ::   pts     ! pot. temperature & salinity
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(  out) ::   pab_pe  ! alpha_pe and beta_pe
-      REAL(wp), DIMENSION(jpi,jpj,jpk)     , INTENT(  out) ::   ppen     ! potential energy anomaly
+      REAL(wp), DIMENSION(T2D(0),jpk,jpts) , INTENT(  out) ::   pab_pe  ! alpha_pe and beta_pe
+      REAL(wp), DIMENSION(T2D(0),jpk)      , INTENT(  out) ::   ppen    ! potential energy anomaly
       !
       INTEGER  ::   ji, jj, jk                ! dummy loop indices
       REAL(wp) ::   zt , zh , zs , ztm        ! local scalars
@@ -1352,7 +1776,7 @@ CONTAINS
       !
       CASE( np_teos10, np_eos80 )                !==  polynomial TEOS-10 / EOS-80 ==!
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             !
             zh  = gdept(ji,jj,jk,Kmm) * r1_Z0                                ! depth
             zt  = pts (ji,jj,jk,jp_tem) * r1_T0                           ! temperature
@@ -1411,11 +1835,11 @@ CONTAINS
          !
       CASE( np_seos )                !==  Vallis (2006) simplified EOS  ==!
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
-            zt  = pts(ji,jj,jk,jp_tem) - 10._wp  ! temperature anomaly (t-T0)
-            zs = pts (ji,jj,jk,jp_sal) - 35._wp  ! abs. salinity anomaly (s-S0)
-            zh  = gdept(ji,jj,jk,Kmm)              ! depth in meters  at t-point
-            ztm = tmask(ji,jj,jk)                ! tmask
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zt  = pts  (ji,jj,jk,jp_tem) - rn_T0  ! temperature anomaly (t-T0)
+            zs  = pts  (ji,jj,jk,jp_sal) - rn_S0  ! abs. salinity anomaly (s-S0)
+            zh  = gdept(ji,jj,jk,Kmm)             ! depth in meters  at t-point
+            ztm = tmask(ji,jj,jk)                 ! tmask
             zn  = 0.5_wp * zh * r1_rho0 * ztm
             !                                    ! Potential Energy
             ppen(ji,jj,jk) = ( rn_a0 * rn_mu1 * zt + rn_b0 * rn_mu2 * zs ) * zn
@@ -1447,8 +1871,8 @@ CONTAINS
       INTEGER  ::   ios   ! local integer
       INTEGER  ::   ioptio   ! local integer
       !!
-      NAMELIST/nameos/ ln_TEOS10, ln_EOS80, ln_SEOS, rn_a0, rn_b0, rn_lambda1, rn_mu1,   &
-         &                                             rn_lambda2, rn_mu2, rn_nu
+      NAMELIST/nameos/ ln_TEOS10, ln_EOS80, ln_SEOS, rn_T0, rn_S0, rn_a0, rn_b0, rn_lambda1, rn_mu1, &
+         &                                           rn_lambda2, rn_mu2, rn_nu
       !!----------------------------------------------------------------------
       !
       READ  ( numnam_ref, nameos, IOSTAT = ios, ERR = 901 )
@@ -1869,9 +2293,11 @@ CONTAINS
          IF(lwp) THEN
             WRITE(numout,*)
             WRITE(numout,*) '   ==>>>   use of simplified eos:    '
-            WRITE(numout,*) '              rhd(dT=T-10,dS=S-35,Z) = [-a0*(1+lambda1/2*dT+mu1*Z)*dT '
-            WRITE(numout,*) '                                       + b0*(1+lambda2/2*dT+mu2*Z)*dS - nu*dT*dS] / rho0'
+            WRITE(numout,*) '              rhd(dT=T-rn_T0,dS=S-rn_S0,Z) = [-a0*(1+lambda1/2*dT+mu1*Z)*dT '
+            WRITE(numout,*) '                                             + b0*(1+lambda2/2*dT+mu2*Z)*dS - nu*dT*dS] / rho0'
             WRITE(numout,*) '              with the following coefficients :'
+            WRITE(numout,*) '                 reference temperature rn_T0      = ', rn_T0
+            WRITE(numout,*) '                 reference salinity    rn_S0      = ', rn_S0
             WRITE(numout,*) '                 thermal exp. coef.    rn_a0      = ', rn_a0
             WRITE(numout,*) '                 saline  cont. coef.   rn_b0      = ', rn_b0
             WRITE(numout,*) '                 cabbeling coef.       rn_lambda1 = ', rn_lambda1

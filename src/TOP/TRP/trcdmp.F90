@@ -57,7 +57,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE trc_dmp_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( restotr(jpi,jpj,jpk) , STAT=trc_dmp_alloc )
+      ALLOCATE( restotr(A2D(0),jpk) , STAT=trc_dmp_alloc )
       !
       IF( trc_dmp_alloc /= 0 )   CALL ctl_warn('trc_dmp_alloc: failed to allocate array')
       !
@@ -329,11 +329,11 @@ CONTAINS
          ! convert the position in local domain indices
          ! --------------------------------------------
          DO jc = 1, npncts
-            nctsi1(jc)   = mi0( nctsi1(jc) )
-            nctsj1(jc)   = mj0( nctsj1(jc) )
+            nctsi1(jc)   = mi0( nctsi1(jc), nn_hls )
+            nctsj1(jc)   = mj0( nctsj1(jc), nn_hls )
             !
-            nctsi2(jc)   = mi1( nctsi2(jc) )
-            nctsj2(jc)   = mj1( nctsj2(jc) )
+            nctsi2(jc)   = mi1( nctsi2(jc), nn_hls )
+            nctsj2(jc)   = mj1( nctsj2(jc), nn_hls )
          END DO
          !
       ENDIF

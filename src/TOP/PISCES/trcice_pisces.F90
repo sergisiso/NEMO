@@ -19,6 +19,8 @@ MODULE trcice_pisces
 
    PUBLIC   trc_ice_ini_pisces ! called by trcini.F90 module
 
+      !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcice_pisces.F90 10794 2019-03-22 09:25:28Z cetlod $ 
@@ -283,15 +285,15 @@ CONTAINS
       ENDIF
 ! 
       DO jn = jp_pcs0, jp_pcs1
-         IF( cn_trc_o(jn) == 'GL ' ) trc_o(:,:,jn) = zpisc(jn,1)  ! Global case
+         IF( cn_trc_o(jn) == 'GL ' ) trc_o(A2D(0),jn) = zpisc(jn,1)  ! Global case
          IF( cn_trc_o(jn) == 'AA ' ) THEN 
-            WHERE( gphit(:,:) >= 0._wp ) ; trc_o(:,:,jn) = zpisc(jn,2) ; END WHERE ! Arctic 
-            WHERE( gphit(:,:) <  0._wp ) ; trc_o(:,:,jn) = zpisc(jn,3) ; END WHERE ! Antarctic 
+            WHERE( gphit(A2D(0)) >= 0._wp ) ; trc_o(A2D(0),jn) = zpisc(jn,2) ; END WHERE ! Arctic 
+            WHERE( gphit(A2D(0)) <  0._wp ) ; trc_o(A2D(0),jn) = zpisc(jn,3) ; END WHERE ! Antarctic 
          ENDIF
          IF( cn_cfg == "orca" .OR. cn_cfg == "ORCA" ) THEN     !  Baltic Sea particular case for ORCA configurations
-             WHERE( 14._wp <= glamt(:,:) .AND. glamt(:,:) <= 32._wp .AND.    &
-                    54._wp <= gphit(:,:) .AND. gphit(:,:) <= 66._wp )
-                    trc_o(:,:,jn) = zpisc(jn,4)
+             WHERE( 14._wp <= glamt(A2D(0)) .AND. glamt(A2D(0)) <= 32._wp .AND.    &
+                    54._wp <= gphit(A2D(0)) .AND. gphit(A2D(0)) <= 66._wp )
+                    trc_o(A2D(0),jn) = zpisc(jn,4)
             END WHERE
          ENDIF 
       ENDDO
@@ -321,16 +323,16 @@ CONTAINS
       DO jn = jp_pcs0, jp_pcs1
          !-- Everywhere but in the Baltic
          IF ( trc_ice_ratio(jn) >= -1._wp ) THEN ! no prescribed conc. ; typically everything but iron) 
-            trc_i(:,:,jn) = zratio(jn,1) * trc_o(:,:,jn) 
+            trc_i(A2D(0),jn) = zratio(jn,1) * trc_o(A2D(0),jn) 
          ELSE                                    ! prescribed concentration
-            trc_i(:,:,jn) = trc_ice_prescr(jn)
+            trc_i(A2D(0),jn) = trc_ice_prescr(jn)
          ENDIF
          !-- Baltic
          IF( cn_cfg == "orca" .OR. cn_cfg == "ORCA" ) THEN     
             IF ( trc_ice_ratio(jn) >= - 1._wp ) THEN ! no prescribed conc. ; typically everything but iron) 
-               WHERE( 14._wp <= glamt(:,:) .AND. glamt(:,:) <= 32._wp .AND.    &
-                      54._wp <= gphit(:,:) .AND. gphit(:,:) <= 66._wp )
-                     trc_i(:,:,jn) = zratio(jn,2) * trc_o(:,:,jn) 
+               WHERE( 14._wp <= glamt(A2D(0)) .AND. glamt(A2D(0)) <= 32._wp .AND.    &
+                      54._wp <= gphit(A2D(0)) .AND. gphit(A2D(0)) <= 66._wp )
+                     trc_i(A2D(0),jn) = zratio(jn,2) * trc_o(A2D(0),jn) 
                END WHERE
             ENDIF
          ENDIF

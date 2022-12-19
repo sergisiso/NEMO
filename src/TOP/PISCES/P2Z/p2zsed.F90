@@ -61,10 +61,11 @@ CONTAINS
       INTEGER, INTENT( in ) ::   kt         ! ocean time-step index      
       INTEGER, INTENT( in ) ::   Kmm, Krhs  ! time level indices
       !
-      INTEGER  ::   ji, jj, jk, jl, ierr
+      INTEGER  ::   ji, jj, jk
       CHARACTER (len=25) :: charout
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zw2d
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zwork, ztra
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zwork
+      REAL(wp) :: ztra
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p2z_sed')
@@ -83,22 +84,26 @@ CONTAINS
       zwork(:,:,jpk) = 0.e0      ! bottom value  set to zero
 
       ! tracer flux at w-point: we use -vsed (downward flux)  with simplification : no e1*e2
-      DO jk = 2, jpkm1
-         zwork(:,:,jk) = -vsed * tr(:,:,jk-1,jpdet,Kmm)
-      END DO
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 ) 
+         zwork(ji,jj,jk) = -vsed * tr(ji,jj,jk-1,jpdet,Kmm)
+      END_3D
 
       ! tracer flux divergence at t-point added to the general trend
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 ) 
-         ztra(ji,jj,jk)  = - ( zwork(ji,jj,jk) - zwork(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
-         tr(ji,jj,jk,jpdet,Krhs) = tr(ji,jj,jk,jpdet,Krhs) + ztra(ji,jj,jk) 
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 ) 
+         ztra  = - ( zwork(ji,jj,jk) - zwork(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
+         tr(ji,jj,jk,jpdet,Krhs) = tr(ji,jj,jk,jpdet,Krhs) + ztra
       END_3D
 
       IF( lk_iomput )  THEN
          IF( iom_use( "TDETSED" ) ) THEN
-            ALLOCATE( zw2d(jpi,jpj) )
-            zw2d(:,:) =  ztra(:,:,1) * e3t(:,:,1,Kmm) * 86400._wp
+            ALLOCATE( zw2d(A2D(0)) )
+            DO_2D( 0, 0, 0, 0 ) 
+               zw2d(ji,jj)  = - ( zwork(ji,jj,1) - zwork(ji,jj,2) ) * 86400._wp
+            END_2D
             DO jk = 2, jpkm1
-               zw2d(:,:) = zw2d(:,:) + ztra(:,:,jk) * e3t(:,:,jk,Kmm) * 86400._wp
+               DO_2D( 0, 0, 0, 0 ) 
+                  zw2d(ji,jj) = zw2d(ji,jj) - ( zwork(ji,jj,jk) - zwork(ji,jj,jk+1) ) * 86400._wp
+               END_2D
             END DO
             CALL iom_put( "TDETSED", zw2d )
             DEALLOCATE( zw2d )

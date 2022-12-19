@@ -142,6 +142,7 @@ CONTAINS
       INTEGER ::   nn_zebra_vp         ! number of zebra steps
 
       !
+      REAL(wp) ::   zswitch
       REAL(wp) ::   zrhoco                                              ! rho0 * rn_cio
       REAL(wp) ::   ecc2, z1_ecc2                                       ! square of yield ellipse eccenticity
       REAL(wp) ::   zglob_area                                          ! global ice area for diagnostics
@@ -328,11 +329,14 @@ CONTAINS
          zmU_t(ji,jj)    = zmassU_t(ji,jj) * u_ice(ji,jj)
          
          ! Ocean currents at U-V points
-         ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+         ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
          v_oceU(ji,jj)   = 0.25_wp * ( (v_oce(ji,jj) + v_oce(ji,jj-1)) + (v_oce(ji+1,jj) + v_oce(ji+1,jj-1)) ) * umask(ji,jj,1)
          
          ! Wind stress
-         ztaux_ai(ji,jj) = za_iU(ji,jj) * utau_ice(ji,jj)
+         !     Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines
+         !      and the use of MAX(tmask(i,j),tmask(i+1,j) is to mask tau over ice shelves
+         ztaux_ai(ji,jj) = za_iU(ji,jj) * 0.5_wp * ( utau_ice(ji,jj) + utau_ice(ji+1,jj) ) * &
+            &                                      ( 2. - umask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji+1,jj,1) )
          
          ! Force due to sea surface tilt(- m*g*GRAD(ssh))
          zspgU(ji,jj)    = - zmassU * grav * ( zsshdyn(ji+1,jj) - zsshdyn(ji,jj) ) * r1_e1u(ji,jj)
@@ -365,11 +369,14 @@ CONTAINS
          zmV_t(ji,jj)    = zmassV_t(ji,jj) * v_ice(ji,jj)
          
          ! Ocean currents at U-V points
-         ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+         ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
          u_oceV(ji,jj)   = 0.25_wp * ( (u_oce(ji,jj) + u_oce(ji-1,jj)) + (u_oce(ji,jj+1) + u_oce(ji-1,jj+1)) ) * vmask(ji,jj,1)
          
          ! Wind stress
-         ztauy_ai(ji,jj) = za_iV(ji,jj) * vtau_ice(ji,jj)
+         !     Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines
+         !      and the use of MAX(tmask(i,j),tmask(i+1,j) is to mask tau over ice shelves
+         ztauy_ai(ji,jj) = za_iV(ji,jj) * 0.5_wp * ( vtau_ice(ji,jj) + vtau_ice(ji,jj+1) ) * &
+            &                                      ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) )
          
          ! Force due to sea surface tilt(- m*g*GRAD(ssh))
          zspgV(ji,jj)    = - zmassV * grav * ( zsshdyn(ji,jj+1) - zsshdyn(ji,jj) ) * r1_e2v(ji,jj)
@@ -430,14 +437,15 @@ CONTAINS
             ! loop to jpi,jpj to avoid making a communication for zs1,zs2,zs12
 
             ! shear**2 at T points (doc eq. A16)
-            zds2  = ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  )  &
-               &    + zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1)  &
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
+            zds2  = ( ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  ) )  &
+               &    + ( zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1) )  &
                &    ) * 0.25_wp * r1_e1e2t(ji,jj)
               
             ! divergence at T points
-            ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
-            zdiv  = ( (e2u(ji,jj) * zu_c(ji,jj) - e2u(ji-1,jj) * zu_c(ji-1,jj))   &
-               &    + (e1v(ji,jj) * zv_c(ji,jj) - e1v(ji,jj-1) * zv_c(ji,jj-1))   &
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
+            zdiv  = ( ( e2u(ji,jj) * zu_c(ji,jj) - e2u(ji-1,jj) * zu_c(ji-1,jj) )   &
+               &    + ( e1v(ji,jj) * zv_c(ji,jj) - e1v(ji,jj-1) * zv_c(ji,jj-1) )   &
                &    ) * r1_e1e2t(ji,jj)
             zdiv2 = zdiv * zdiv
                
@@ -468,7 +476,7 @@ CONTAINS
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )! 1-> jpj-1; 1->jpi-1
          
             ! P/delta* at F points
-            ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
             zvisc_f = 0.25_wp * ( (zvisc_t(ji,jj) + zvisc_t(ji+1,jj)) + (zvisc_t(ji,jj+1) + zvisc_t(ji+1,jj+1)) )
             
             ! Temporary zef factor at F-point
@@ -483,7 +491,7 @@ CONTAINS
          DO_2D( nn_hls, nn_hls-1, nn_hls-1, nn_hls )
          
             !--- ice u-velocity @V points, v-velocity @U points (for non-linear drag computation)
-            ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
             zv_cU            = 0.25_wp * ( (zv_c(ji,jj) + zv_c(ji,jj-1)) + (zv_c(ji+1,jj) + zv_c(ji+1,jj-1)) ) * umask(ji,jj,1)
                 
             !--- non-linear drag coefficients (need to be updated at each outer loop, see Lemieux and Tremblay JGR09, p.3, beginning of Section 3)
@@ -503,7 +511,7 @@ CONTAINS
          DO_2D( nn_hls-1, nn_hls, nn_hls, nn_hls-1 )
          
             !--- ice u-velocity @V points, v-velocity @U points (for non-linear drag computation)
-            ! (brackets added to fix the order of floating point operations for halo 1 - halo 2 compatibility)
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
             zu_cV            = 0.25_wp * ( (zu_c(ji,jj) + zu_c(ji-1,jj)) + (zu_c(ji,jj+1) + zu_c(ji-1,jj+1)) ) * vmask(ji,jj,1)
                 
             !--- non-linear drag coefficients (need to be updated at each outer loop, see Lemieux and Tremblay JGR09, p.3, beginning of Section 3)
@@ -727,7 +735,6 @@ CONTAINS
             !--- mitgcm computes initial value of residual here...
 
             i_inn_tot  = i_inn_tot + 1
-            ! l_full_nf_update = i_inn_tot == nn_nvp   ! false: disable full North fold update (performances) for iter = 1 to nn_nevp-1
 
             zu_b(:,:)       = u_ice(:,:) ! velocity at previous inner-iterate
             zv_b(:,:)       = v_ice(:,:)
@@ -1061,8 +1068,9 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 ) ! 2->jpj-1; 2->jpi-1
             
             ! shear**2 at T points (doc eq. A16)
-            zds2 = ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  )  &
-               &   + zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1)  &
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
+            zds2 = ( ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  ) )  &
+               &   + ( zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1) )  &
                &   ) * 0.25_wp * r1_e1e2t(ji,jj)
             
             ! tension**2 at T points
@@ -1080,8 +1088,9 @@ CONTAINS
             zshear(ji,jj)   = SQRT( zds2 ) * zmsk(ji,jj)
 
             ! divergence at T points
-            pdivu_i(ji,jj) = ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj)   &
-               &             + e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1)   &
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
+            pdivu_i(ji,jj) = ( ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj) )  &
+               &             + ( e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1) )  &
                &             ) * r1_e1e2t(ji,jj) * zmsk(ji,jj)
             
             ! delta at T points
@@ -1089,8 +1098,8 @@ CONTAINS
             zdelta(ji,jj)      = zfac
             
             ! delta* at T points
-            rswitch            =   1._wp - MAX( 0._wp, SIGN( 1._wp, -zfac ) ) ! 0 if delta=0
-            pdelta_i(ji,jj)    = zfac + rn_creepl ! * rswitch
+            zswitch            =   1._wp - MAX( 0._wp, SIGN( 1._wp, -zfac ) ) ! 0 if delta=0
+            pdelta_i(ji,jj)    = zfac + rn_creepl ! * zswitch
            
       END_2D
 
@@ -1152,22 +1161,22 @@ CONTAINS
          !--- Recalculate oceanic stress at last inner iteration
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) ! 2->jpj-1; 2->jpi-1
 
-                !--- ice u-velocity @V points, v-velocity @U points (for non-linear drag computation)
-                zu_cV            = 0.25_wp * ( u_ice(ji,jj) + u_ice(ji-1,jj) + u_ice(ji,jj+1) + u_ice(ji-1,jj+1) ) * vmask(ji,jj,1)
-                zv_cU            = 0.25_wp * ( v_ice(ji,jj) + v_ice(ji,jj-1) + v_ice(ji+1,jj) + v_ice(ji+1,jj-1) ) * umask(ji,jj,1)
-                
-                !--- non-linear drag coefficients (need to be updated at each outer loop, see Lemieux and Tremblay JGR09, p.3, beginning of Section 3)
-                zCwU(ji,jj)          = za_iU(ji,jj) * zrhoco * SQRT( ( u_ice(ji,jj) - u_oce (ji,jj) ) * ( u_ice(ji,jj) - u_oce (ji,jj) )  &
-                  &                                                + ( zv_cU - v_oceU(ji,jj) ) * ( zv_cU - v_oceU(ji,jj) ) )
-                zCwV(ji,jj)          = za_iV(ji,jj) * zrhoco * SQRT( ( v_ice(ji,jj) - v_oce (ji,jj) ) * ( v_ice(ji,jj) - v_oce (ji,jj) )  &
-                  &                                                + ( zu_cV - u_oceV(ji,jj) ) * ( zu_cV - u_oceV(ji,jj) ) )
-                 
-                !--- Ocean-ice stress
-                ztaux_oi(ji,jj) = zCwU(ji,jj) * ( u_oce(ji,jj) - u_ice(ji,jj) )
-                ztauy_oi(ji,jj) = zCwV(ji,jj) * ( v_oce(ji,jj) - v_ice(ji,jj) )
-                
+            !--- ice u-velocity @V points, v-velocity @U points (for non-linear drag computation)
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
+            zu_cV = 0.25_wp * ( ( u_ice(ji,jj) + u_ice(ji-1,jj) ) + ( u_ice(ji,jj+1) + u_ice(ji-1,jj+1) ) ) * vmask(ji,jj,1)
+            zv_cU = 0.25_wp * ( ( v_ice(ji,jj) + v_ice(ji,jj-1) ) + ( v_ice(ji+1,jj) + v_ice(ji+1,jj-1) ) ) * umask(ji,jj,1)
+            
+            !--- non-linear drag coefficients (need to be updated at each outer loop, see Lemieux and Tremblay JGR09, p.3, beginning of Section 3)
+            zCwU(ji,jj) = za_iU(ji,jj) * zrhoco * SQRT( ( u_ice(ji,jj) - u_oce (ji,jj) ) * ( u_ice(ji,jj) - u_oce (ji,jj) )  &
+               &                                             + ( zv_cU - v_oceU(ji,jj) ) * ( zv_cU - v_oceU(ji,jj) ) )
+            zCwV(ji,jj) = za_iV(ji,jj) * zrhoco * SQRT( ( v_ice(ji,jj) - v_oce (ji,jj) ) * ( v_ice(ji,jj) - v_oce (ji,jj) )  &
+               &                                             + ( zu_cV - u_oceV(ji,jj) ) * ( zu_cV - u_oceV(ji,jj) ) )
+            
+            !--- Ocean-ice stress
+            ztaux_oi(ji,jj) = zCwU(ji,jj) * ( u_oce(ji,jj) - u_ice(ji,jj) )
+            ztauy_oi(ji,jj) = zCwV(ji,jj) * ( v_oce(ji,jj) - v_ice(ji,jj) )
+            
          END_2D
-         
          !
          CALL lbc_lnk( 'icedyn_rhg_vp', ztaux_oi, 'U', -1., ztauy_oi, 'V', -1., ztaux_ai, 'U', -1., ztauy_ai, 'V', -1. ) !, &
 !            &                          ztaux_bi, 'U', -1., ztauy_bi, 'V', -1. )
@@ -1562,17 +1571,18 @@ CONTAINS
          
          DO_2D( 0, 0, 0, 0 ) !clem check bounds
 
-               zu_res(ji,jj)  = ( prhsu(ji,jj) + pDU(ji,jj) * pu(ji,jj-1) + pEU(ji,jj) * pu(ji,jj+1)               &
-                  &             - pAU(ji,jj) * pu(ji-1,jj) - pBU(ji,jj) * pu(ji,jj) - pCU(ji,jj) * pu(ji+1,jj) )
-               zv_res(ji,jj)  = ( prhsv(ji,jj) + pDV(ji,jj) * pv(ji-1,jj) + pEV(ji,jj) * pv(ji+1,jj)               &
-                  &             - pAV(ji,jj) * pv(ji,jj-1) - pBV(ji,jj) * pv(ji,jj) - pCV(ji,jj) * pv(ji,jj+1) )
-
-!              zu_res(ji,jj)  = pFU(ji,jj) - pAU(ji,jj) * pu(ji-1,jj) - pBU(ji,jj) * pu(ji,jj) - pCU(ji,jj) * pu(ji+1,jj)
-!              zv_res(ji,jj)  = pFV(ji,jj) - pAV(ji,jj) * pv(ji,jj-1) - pBV(ji,jj) * pv(ji,jj) - pCV(ji,jj) * pv(ji,jj+1)
-   
-               zu_res(ji,jj)  = SQRT( zu_res(ji,jj) * zu_res(ji,jj) ) * umask(ji,jj,1) * pat_iu(ji,jj) * e1e2u(ji,jj) * z1_pglob_area
-               zv_res(ji,jj)  = SQRT( zv_res(ji,jj) * zv_res(ji,jj) ) * vmask(ji,jj,1) * pat_iv(ji,jj) * e1e2v(ji,jj) * z1_pglob_area
-   
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
+            zu_res(ji,jj)  = prhsu(ji,jj)             + ( pDU(ji,jj) * pu(ji  ,jj-1) + pEU(ji,jj) * pu(ji  ,jj+1) )   &
+               &             - pBU(ji,jj) * pu(ji,jj) - ( pAU(ji,jj) * pu(ji-1,jj  ) + pCU(ji,jj) * pu(ji+1,jj  ) )
+            zv_res(ji,jj)  = prhsv(ji,jj)             + ( pDV(ji,jj) * pv(ji-1,jj  ) + pEV(ji,jj) * pv(ji+1,jj  ) )   &
+               &             - pBV(ji,jj) * pv(ji,jj) - ( pAV(ji,jj) * pv(ji  ,jj-1) + pCV(ji,jj) * pv(ji  ,jj+1) )
+            
+            ! zu_res(ji,jj)  = pFU(ji,jj) - pAU(ji,jj) * pu(ji-1,jj) - pBU(ji,jj) * pu(ji,jj) - pCU(ji,jj) * pu(ji+1,jj)
+            ! zv_res(ji,jj)  = pFV(ji,jj) - pAV(ji,jj) * pv(ji,jj-1) - pBV(ji,jj) * pv(ji,jj) - pCV(ji,jj) * pv(ji,jj+1)
+            
+            zu_res(ji,jj)  = SQRT( zu_res(ji,jj) * zu_res(ji,jj) ) * umask(ji,jj,1) * pat_iu(ji,jj) * e1e2u(ji,jj) * z1_pglob_area
+            zv_res(ji,jj)  = SQRT( zv_res(ji,jj) * zv_res(ji,jj) ) * vmask(ji,jj,1) * pat_iv(ji,jj) * e1e2v(ji,jj) * z1_pglob_area
+            
          END_2D
          
          ! Global ice-concentration, grid-cell-area weighted mean   
@@ -1602,21 +1612,22 @@ CONTAINS
 
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
 
-               zu_res(ji,jj)  = ( prhsu(ji,jj) + pDU(ji,jj) * pu(ji,jj-1) + pEU(ji,jj) * pu(ji,jj+1)               &
-                  &             - pAU(ji,jj) * pu(ji-1,jj) - pBU(ji,jj) * pu(ji,jj) - pCU(ji,jj) * pu(ji+1,jj) )
-               zv_res(ji,jj)  = ( prhsv(ji,jj) + pDV(ji,jj) * pv(ji-1,jj) + pEV(ji,jj) * pv(ji+1,jj)               &
-                  &             - pAV(ji,jj) * pv(ji,jj-1) - pBV(ji,jj) * pv(ji,jj) - pCV(ji,jj) * pv(ji,jj+1) )
-
-               zu_res(ji,jj)  = SQRT( zu_res(ji,jj) * zu_res(ji,jj) ) * umask(ji,jj,1) 
-               zv_res(ji,jj)  = SQRT( zv_res(ji,jj) * zv_res(ji,jj) ) * vmask(ji,jj,1) 
-
+            ! (brackets added to fix the order of floating point operations for the North Pole reproducibility
+            zu_res(ji,jj)  = prhsu(ji,jj)             + ( pDU(ji,jj) * pu(ji  ,jj-1) + pEU(ji,jj) * pu(ji  ,jj+1) )   &
+               &             - pBU(ji,jj) * pu(ji,jj) - ( pAU(ji,jj) * pu(ji-1,jj  ) + pCU(ji,jj) * pu(ji+1,jj  ) )
+            zv_res(ji,jj)  = prhsv(ji,jj)             + ( pDV(ji,jj) * pv(ji-1,jj  ) + pEV(ji,jj) * pv(ji+1,jj  ) )   &
+               &             - pBV(ji,jj) * pv(ji,jj) - ( pAV(ji,jj) * pv(ji  ,jj-1) + pCV(ji,jj) * pv(ji  ,jj+1) )
+            
+            zu_res(ji,jj)  = SQRT( zu_res(ji,jj) * zu_res(ji,jj) ) * umask(ji,jj,1) 
+            zv_res(ji,jj)  = SQRT( zv_res(ji,jj) * zv_res(ji,jj) ) * vmask(ji,jj,1) 
+            
          END_2D
          
          IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_rhg_cvg_vp', zu_res,  'U',  1., zv_res , 'V',  1. )
 
          DO_2D( 0, 0, 0, 0 ) !clem check bounds
         
-               pvel_res(ji,jj) = 0.25_wp * ( zu_res(ji-1,jj) + zu_res(ji,jj) + zv_res(ji,jj-1) + zv_res(ji,jj) )
+               pvel_res(ji,jj) = 0.25_wp * ( ( zu_res(ji-1,jj) + zu_res(ji,jj) ) + ( zv_res(ji,jj-1) + zv_res(ji,jj) ) )
          
          END_2D
          CALL lbc_lnk( 'icedyn_rhg_cvg_vp', pvel_res, 'T', 1. )

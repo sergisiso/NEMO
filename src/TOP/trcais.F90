@@ -169,7 +169,7 @@ CONTAINS
             DO jn = 1, jptra
                IF( ln_trc_ais(jn) ) THEN
                   jl = n_trc_indais(jn)
-                  DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+                  DO_2D( 0, 0, 0, 0 )
                      zfact = 1. / e3t(ji,jj,1,Kmm)
                      ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + fwficb(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm) * zfact
                   END_2D
@@ -181,7 +181,7 @@ CONTAINS
             DO jn = 1, jptra
                IF( ln_trc_ais(jn) ) THEN
                   jl = n_trc_indais(jn)
-                  DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+                  DO_2D( 0, 0, 0, 0 )
                      IF( ln_isfpar_mlt ) THEN
                         zcalv = fwfisf_par(ji,jj) * r1_rho0 / rhisf_tbl_par(ji,jj)
                         ikt = misfkt_par(ji,jj)
@@ -213,7 +213,7 @@ CONTAINS
             DO jn = 1, jptra
                IF( ln_trc_ais(jn) ) THEN
                   jl = n_trc_indais(jn)
-                  DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+                  DO_2D( 0, 0, 0, 0 )
                      DO jk = 1, icblev
                         zcalv  =  fwficb(ji,jj) * r1_rho0 
                         ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs) + rf_trafac(jl) * zcalv / gdepw(ji,jj,icblev+1,Kmm)
@@ -228,7 +228,7 @@ CONTAINS
             DO jn = 1, jptra
                IF( ln_trc_ais(jn) ) THEN
                   jl = n_trc_indais(jn)
-                  DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+                  DO_2D( 0, 0, 0, 0 )
                      IF( ln_isfpar_mlt ) THEN
                         zcalv = - fwfisf_par(ji,jj) * r1_rho0 / rhisf_tbl_par(ji,jj)
                         ikt = misfkt_par(ji,jj)

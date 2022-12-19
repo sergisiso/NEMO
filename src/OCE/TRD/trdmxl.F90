@@ -45,20 +45,7 @@ MODULE trdmxl
    PUBLIC   trd_mxl_init   ! routine called by opa.F90
    PUBLIC   trd_mxl_zint   ! routine called by tracers routines
 
-   INTEGER ::   nkstp       ! current time step 
-
-!!gm  to be moved from trdmxl_oce
-!   REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   hml                ! ML depth (sum of e3t over nmln-1 levels) [m] 
-!   REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   tml    , sml       ! now ML averaged T & S 
-!   REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   tmlb_nf, smlb_nf   ! not filtered before ML averaged T & S
-!
-!
-!   REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   hmlb, hmln         ! before, now, and after Mixed Layer depths [m]
-!   
-!   REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   tb_mlb, tb_mln     ! before (not filtered) tracer averaged over before and now ML 
-!
-!   REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   tn_mln             ! now tracer averaged over now ML
-!!gm end   
+   INTEGER ::   nkstp      ! current time step 
    
    CHARACTER (LEN=40) ::  clhstnam         ! name of the trends NetCDF file
    INTEGER ::   nh_t, nmoymltrd
@@ -111,44 +98,41 @@ CONTAINS
       IF ( kt /= nkstp ) THEN   !=  1st call at kt time step  =!
          !                      !==============================!
          nkstp = kt
-         
-         
          !                          !==  reset trend arrays to zero  ==!
-         tmltrd(:,:,:) = 0._wp    ;    smltrd(:,:,:) = 0._wp    
-         
-         
+         DO_3D( 0, 0, 0, 0, 1, jpktrd )
+            tmltrd(ji,jj,jk) = 0._wp
+            smltrd(ji,jj,jk) = 0._wp
+         END_3D
          !
-         wkx(:,:,:) = 0._wp         !==  now ML weights for vertical averaging  ==!
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpktrd )  ! initialize wkx with vertical scale factor in mixed-layer
+         !                          !==  now ML weights for vertical averaging  ==!
+         DO_3D( 0, 0, 0, 0, 1, jpktrd )  ! initialize wkx with vertical scale factor in mixed-layer
             IF( jk - kmxln(ji,jj) < 0 )   THEN
                wkx(ji,jj,jk) = e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
+            ELSE
+               wkx(ji,jj,jk) = 0._wp
             ENDIF
          END_3D
+         !
          hmxl(:,:) = 0._wp               ! NOW mixed-layer depth
-         DO jk = 1, jpktrd
-            hmxl(:,:) = hmxl(:,:) + wkx(:,:,jk)
-         END DO
-         DO jk = 1, jpktrd               ! integration weights
-            wkx(:,:,jk) = wkx(:,:,jk) / MAX( 1.e-20_wp, hmxl(:,:) ) * tmask(:,:,1)
-         END DO
-         
-         
+         DO_3D( 0, 0, 0, 0, 1, jpktrd )
+            hmxl(ji,jj)    = hmxl(ji,jj) + wkx(ji,jj,jk)
+            wkx (ji,jj,jk) = wkx (ji,jj,jk) / MAX( 1.e-20_wp, hmxl(ji,jj) ) * tmask(ji,jj,1)
+         END_3D
          !
          !                          !==  Vertically averaged T and S  ==!
          tml(:,:) = 0._wp   ;   sml(:,:) = 0._wp
-         DO jk = 1, jpktrd
-            tml(:,:) = tml(:,:) + wkx(:,:,jk) * ts(:,:,jk,jp_tem,Kmm)
-            sml(:,:) = sml(:,:) + wkx(:,:,jk) * ts(:,:,jk,jp_sal,Kmm)
-         END DO
+         DO_3D( 0, 0, 0, 0, 1, jpktrd )
+            tml(ji,jj) = tml(ji,jj) + wkx(ji,jj,jk) * ts(ji,jj,jk,jp_tem,Kmm)
+            sml(ji,jj) = sml(ji,jj) + wkx(ji,jj,jk) * ts(ji,jj,jk,jp_sal,Kmm)
+         END_3D
          !
       ENDIF
 
-
-
       ! mean now trends over the now ML 
-      tmltrd(:,:,ktrd) = tmltrd(:,:,ktrd) + ptrdx(:,:,jk) * wkx(:,:,jk)   ! temperature
-      smltrd(:,:,ktrd) = smltrd(:,:,ktrd) + ptrdy(:,:,jk) * wkx(:,:,jk)   ! salinity
- 
+      DO_2D( 0, 0, 0, 0 )
+         tmltrd(ji,jj,ktrd) = tmltrd(ji,jj,ktrd) + ptrdx(ji,jj,jk) * wkx(ji,jj,jk)   ! temperature
+         smltrd(ji,jj,ktrd) = smltrd(ji,jj,ktrd) + ptrdy(ji,jj,jk) * wkx(ji,jj,jk)   ! salinity
+      END_2D
 
  
 !!gm to be put juste before the output !
@@ -249,11 +233,11 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                         , INTENT( in ) ::   ktrd       ! ocean trend index
       CHARACTER(len=2)                , INTENT( in ) ::   ctype      ! 2D surface/bottom or 3D interior physics
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT( in ) ::   pttrdmxl   ! temperature trend 
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT( in ) ::   pstrdmxl   ! salinity trend 
+      REAL(wp), DIMENSION(T2D(0),jpk), INTENT( in ) ::   pttrdmxl   ! temperature trend
+      REAL(wp), DIMENSION(T2D(0),jpk), INTENT( in ) ::   pstrdmxl   ! salinity trend
       !
       INTEGER ::   ji, jj, jk, isum
-      REAL(wp), DIMENSION(jpi,jpj)  :: zvlmsk 
+      REAL(wp), DIMENSION(T2D(0))  :: zvlmsk
       !!----------------------------------------------------------------------
 
       ! I. Definition of control surface and associated fields
@@ -268,11 +252,13 @@ CONTAINS
 
          
          ! ... Set nmxl(ji,jj) = index of first T point below control surf. or outside mixed-layer
-         IF( nn_ctls == 0 ) THEN       ! * control surface = mixed-layer with density criterion 
-            nmxl(:,:) = nmln(:,:)    ! array nmln computed in zdfmxl.F90
-         ELSEIF( nn_ctls == 1 ) THEN   ! * control surface = read index from file 
+         IF( nn_ctls == 0 ) THEN         ! * control surface = mixed-layer with density criterion 
+            DO_2D( 0, 0, 0, 0 )
+               nmxl(ji,jj) = nmln(ji,jj) !   array nmln computed in zdfmxl.F90
+            END_2D
+         ELSEIF( nn_ctls == 1 ) THEN     ! * control surface = read index from file 
             nmxl(:,:) = nbol(:,:)
-         ELSEIF( nn_ctls >= 2 ) THEN   ! * control surface = model level
+         ELSEIF( nn_ctls >= 2 ) THEN     ! * control surface = model level
             nn_ctls = MIN( nn_ctls, jpktrd - 1 )
             nmxl(:,:) = nn_ctls + 1
          ENDIF
@@ -335,9 +321,9 @@ CONTAINS
       REAL(wp) :: zavt, zfn, zfn2
       !                                              ! z(ts)mltot : dT/dt over the anlysis window (including Asselin)
       !                                              ! z(ts)mlres : residual = dh/dt entrainment term
-      REAL(wp), DIMENSION(jpi,jpj  )   ::  ztmltot , zsmltot , ztmlres , zsmlres , ztmlatf , zsmlatf
-      REAL(wp), DIMENSION(jpi,jpj  )   ::  ztmltot2, zsmltot2, ztmlres2, zsmlres2, ztmlatf2, zsmlatf2, ztmltrdm2, zsmltrdm2  
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::  ztmltrd2, zsmltrd2   ! only needed for mean diagnostics
+      REAL(wp), DIMENSION(T2D(0)  )   ::  ztmltot , zsmltot , ztmlres , zsmlres , ztmlatf , zsmlatf
+      REAL(wp), DIMENSION(T2D(0)  )   ::  ztmltot2, zsmltot2, ztmlres2, zsmlres2, ztmlatf2, zsmlatf2, ztmltrdm2, zsmltrdm2
+      REAL(wp), DIMENSION(T2D(0),jpk) ::  ztmltrd2, zsmltrd2   ! only needed for mean diagnostics
       !!----------------------------------------------------------------------
   
       ! ======================================================================
@@ -446,12 +432,7 @@ CONTAINS
       itmod = kt - nit000 + 1
 
       MODULO_NTRD : IF( MOD( itmod, nn_trd ) == 0 ) THEN        ! nitend MUST be multiple of nn_trd
-         !
-         ztmltot (:,:) = 0.e0   ;   zsmltot (:,:) = 0.e0   ! reset arrays to zero
-         ztmlres (:,:) = 0.e0   ;   zsmlres (:,:) = 0.e0
-         ztmltot2(:,:) = 0.e0   ;   zsmltot2(:,:) = 0.e0
-         ztmlres2(:,:) = 0.e0   ;   zsmlres2(:,:) = 0.e0
-      
+         !      
          zfn  = REAL( nmoymltrd, wp )   ;   zfn2 = zfn * zfn
          
          ! III.1 Prepare fields for output ("instantaneous" diagnostics) 
@@ -469,25 +450,18 @@ CONTAINS
          ztmlatf(:,:) = tmlatfm(:,:) - tmlatfn(:,:) + tmlatfb(:,:)
          zsmlatf(:,:) = smlatfm(:,:) - smlatfn(:,:) + smlatfb(:,:)
          
-         !-- Lateral boundary conditions
-         !         ... temperature ...                    ... salinity ...
-         CALL lbc_lnk( 'trdmxl', ztmltot , 'T', 1.0_wp, zsmltot , 'T', 1.0_wp, &
-            &                    ztmlres , 'T', 1.0_wp, zsmlres , 'T', 1.0_wp, &
-            &                    ztmlatf , 'T', 1.0_wp, zsmlatf , 'T', 1.0_wp )
-
-
          ! III.2 Prepare fields for output ("mean" diagnostics) 
          ! ----------------------------------------------------
          
          !-- Update the ML depth time sum (to build the Leap-Frog time mean)
-         hmxl_sum(:,:) = hmxlbn(:,:) + 2 * ( hmxl_sum(:,:) - hmxl(:,:) ) + hmxl(:,:)
+         hmxl_sum(:,:) = hmxlbn(:,:) + 2._wp * ( hmxl_sum(:,:) - hmxl(:,:) ) + hmxl(:,:)
 
          !-- Compute temperature total trends
-         tml_sum (:,:) = tmlbn(:,:) + 2 * ( tml_sum(:,:) - tml(:,:) ) + tml(:,:)
+         tml_sum (:,:) = tmlbn(:,:) + 2._wp * ( tml_sum(:,:) - tml(:,:) ) + tml(:,:)
          ztmltot2(:,:) = ( tml_sum(:,:) - tml_sumb(:,:) ) / p2dt    ! now in degC/s
          
          !-- Compute salinity total trends
-         sml_sum (:,:) = smlbn(:,:) + 2 * ( sml_sum(:,:) - sml(:,:) ) + sml(:,:)
+         sml_sum (:,:) = smlbn(:,:) + 2._wp * ( sml_sum(:,:) - sml(:,:) ) + sml(:,:)
          zsmltot2(:,:) = ( sml_sum(:,:) - sml_sumb(:,:) ) / p2dt    ! now in psu/s
          
          !-- Compute temperature residuals
@@ -495,7 +469,7 @@ CONTAINS
             ztmltrd2(:,:,jl) = tmltrd_csum_ub(:,:,jl) + tmltrd_csum_ln(:,:,jl)
          END DO
 
-         ztmltrdm2(:,:) = 0.e0
+         ztmltrdm2(:,:) = 0._wp
          DO jl = 1, jpltrd
             ztmltrdm2(:,:) = ztmltrdm2(:,:) + ztmltrd2(:,:,jl)
          END DO
@@ -508,7 +482,7 @@ CONTAINS
             zsmltrd2(:,:,jl) = smltrd_csum_ub(:,:,jl) + smltrd_csum_ln(:,:,jl)
          END DO
 
-         zsmltrdm2(:,:) = 0.
+         zsmltrdm2(:,:) = 0._wp
          DO jl = 1, jpltrd
             zsmltrdm2(:,:) = zsmltrdm2(:,:) + zsmltrd2(:,:,jl)
          END DO
@@ -519,13 +493,6 @@ CONTAINS
          !-- Diagnose Asselin trend over the analysis window
          ztmlatf2(:,:) = ztmltrd2(:,:,jpmxl_atf) - tmltrd_sum(:,:,jpmxl_atf) + tmltrd_atf_sumb(:,:)
          zsmlatf2(:,:) = zsmltrd2(:,:,jpmxl_atf) - smltrd_sum(:,:,jpmxl_atf) + smltrd_atf_sumb(:,:)
-
-         !-- Lateral boundary conditions
-         !         ... temperature ...                    ... salinity ...
-         CALL lbc_lnk( 'trdmxl', ztmltot2, 'T', 1.0_wp, zsmltot2, 'T', 1.0_wp, &
-            &                    ztmlres2, 'T', 1.0_wp, zsmlres2, 'T', 1.0_wp )
-         !
-         CALL lbc_lnk( 'trdmxl', ztmltrd2(:,:,:), 'T', 1.0_wp, zsmltrd2(:,:,:), 'T', 1.0_wp ) ! /  in the NetCDF trends file
          
          ! III.3 Time evolution array swap
          ! -------------------------------
@@ -622,6 +589,8 @@ CONTAINS
       ! ======================================================================
 
       !-- Write the trends for T/S instantaneous diagnostics 
+
+      ! clem => these fields do not exist in field_def
       
       IF( ln_trdmxl_instant ) THEN           
 

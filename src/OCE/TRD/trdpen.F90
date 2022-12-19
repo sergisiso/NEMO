@@ -35,6 +35,7 @@ MODULE trdpen
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   rab_pe   ! partial derivatives of PE anomaly with respect to T and S
 
    !! * Substitutions
+#  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -48,7 +49,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       !!                  ***  FUNCTION trd_tra_alloc  ***
       !!---------------------------------------------------------------------
-      ALLOCATE( rab_pe(jpi,jpj,jpk,jpts) , STAT= trd_pen_alloc )
+      ALLOCATE( rab_pe(T2D(0),jpk,jpts) , STAT= trd_pen_alloc )
       !
       CALL mpp_sum ( 'trdpen', trd_pen_alloc )
       IF( trd_pen_alloc /= 0 )   CALL ctl_stop( 'STOP',  'trd_pen_alloc: failed to allocate arrays'  )
@@ -69,37 +70,40 @@ CONTAINS
       INTEGER                   , INTENT(in) ::   Kmm            ! time level index
       REAL(wp)                  , INTENT(in) ::   pdt            ! time step [s]
       !
-      INTEGER ::   jk                                            ! dummy loop indices
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:)      ::   z2d            ! 2D workspace 
-      REAL(wp), DIMENSION(jpi,jpj,jpk)           ::   zpe            ! 3D workspace 
+      INTEGER ::   ji, jj, jk                                            ! dummy loop indices
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)  ::   z2d            ! 2D workspace 
+      REAL(wp), DIMENSION(T2D(0),jpk)        ::   zpe            ! 3D workspace
       !!----------------------------------------------------------------------
       !
-      zpe(:,:,:) = 0._wp
+      zpe(T2D(0),:) = 0._wp
       !
       IF( kt /= nkstp ) THEN     ! full eos: set partial derivatives at the 1st call of kt time step
          nkstp = kt
-         CALL eos_pen( ts(:,:,:,:,Kmm), rab_PE, zpe, Kmm )
+         CALL eos_pen( ts(:,:,:,:,Kmm), rab_pe, zpe, Kmm )
          CALL iom_put( "alphaPE", rab_pe(:,:,:,jp_tem) )
          CALL iom_put( "betaPE" , rab_pe(:,:,:,jp_sal) )
          CALL iom_put( "PEanom" , zpe )
       ENDIF
       !
-      zpe(:,:,jpk) = 0._wp
-      DO jk = 1, jpkm1
-         zpe(:,:,jk) = ( - ( rab_n(:,:,jk,jp_tem) + rab_pe(:,:,jk,jp_tem) ) * ptrdx(:,:,jk)   &
-            &            + ( rab_n(:,:,jk,jp_sal) + rab_pe(:,:,jk,jp_sal) ) * ptrdy(:,:,jk)  )
-      END DO
+      zpe(T2D(0),jpk) = 0._wp
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         zpe(ji,jj,jk) = ( - ( rab_n(ji,jj,jk,jp_tem) + rab_pe(ji,jj,jk,jp_tem) ) * ptrdx(ji,jj,jk)   &
+            &              + ( rab_n(ji,jj,jk,jp_sal) + rab_pe(ji,jj,jk,jp_sal) ) * ptrdy(ji,jj,jk)  )
+      END_3D
 
       SELECT CASE ( ktrd )
       CASE ( jptra_xad  )   ;   CALL iom_put( "petrd_xad", zpe )   ! zonal    advection
       CASE ( jptra_yad  )   ;   CALL iom_put( "petrd_yad", zpe )   ! merid.   advection
       CASE ( jptra_zad  )   ;   CALL iom_put( "petrd_zad", zpe )   ! vertical advection
                                 IF( ln_linssh ) THEN                   ! cst volume : adv flux through z=0 surface
-                                   ALLOCATE( z2d(jpi,jpj) )
-                                   z2d(:,:) = ww(:,:,1) * ( &
-                                     &   - ( rab_n(:,:,1,jp_tem) + rab_pe(:,:,1,jp_tem) ) * ts(:,:,1,jp_tem,Kmm)    &
-                                     &   + ( rab_n(:,:,1,jp_sal) + rab_pe(:,:,1,jp_sal) ) * ts(:,:,1,jp_sal,Kmm)    &
-                                     & ) / e3t(:,:,1,Kmm)
+                                   ALLOCATE( z2d(T2D(0)) )
+                                   DO_2D( 0, 0, 0, 0 )
+                                      z2d(ji,jj) = ww(ji,jj,1) * ( &
+                                        &   - ( rab_n(ji,jj,1,jp_tem) + rab_pe(ji,jj,1,jp_tem) ) * ts(ji,jj,1,jp_tem,Kmm)    &
+                                        &   + ( rab_n(ji,jj,1,jp_sal) + rab_pe(ji,jj,1,jp_sal) ) * ts(ji,jj,1,jp_sal,Kmm)    &
+                                        & ) / e3t(ji,jj,1,Kmm)
+                                   END_2D
                                    CALL iom_put( "petrd_sad" , z2d )
                                    DEALLOCATE( z2d )
                                 ENDIF

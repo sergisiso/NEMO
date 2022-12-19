@@ -25,9 +25,6 @@ MODULE traadv_ubs
    USE lib_mpp        ! massively parallel library
    USE lbclnk         ! ocean lateral boundary condition (or mpp link)
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
-#if defined key_loop_fusion
-   USE traadv_ubs_lf  ! UBS      scheme            (tra_adv_ubs  routine - loop fusion version)
-#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -94,20 +91,16 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       INTEGER                                  , INTENT(in   ) ::   kn_ubs_v        ! number of tracers
       REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
-      ! TEMP: [tiling] This can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(jpi,jpj,jpk         ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
       REAL(wp) ::   ztra, zbtr, zcoef                       ! local scalars
       REAL(wp) ::   zfp_ui, zfm_ui, zcenut, ztak, zfp_wk, zfm_wk   !   -      -
       REAL(wp) ::   zfp_vj, zfm_vj, zcenvt, zeeu, zeev, z_hdivn    !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   ztu, ztv, zltu, zltv, zti, ztw     ! 3D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   ztu, ztv, zltu, zltv, zti, ztw     ! 3D workspace
       !!----------------------------------------------------------------------
       !
-#if defined key_loop_fusion
-      CALL tra_adv_ubs_lf    ( kt, kit000, cdtype, p2dt, pU, pV, pW, Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v )
-#else
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == kit000 )  THEN
             IF(lwp) WRITE(numout,*)
@@ -156,8 +149,8 @@ CONTAINS
             zcenut = pU(ji,jj,jk) * ( pt(ji,jj,jk,jn,Kmm) + pt(ji+1,jj  ,jk,jn,Kmm) )
             zcenvt = pV(ji,jj,jk) * ( pt(ji,jj,jk,jn,Kmm) + pt(ji  ,jj+1,jk,jn,Kmm) )
             !                                                  ! UBS advective fluxes
-            ztu(ji,jj,jk) = 0.5 * ( zcenut - zfp_ui * zltu(ji,jj,jk) - zfm_ui * zltu(ji+1,jj,jk) )
-            ztv(ji,jj,jk) = 0.5 * ( zcenvt - zfp_vj * zltv(ji,jj,jk) - zfm_vj * zltv(ji,jj+1,jk) )
+            ztu(ji,jj,jk) = 0.5 * ( zcenut - ( zfp_ui * zltu(ji,jj,jk) + zfm_ui * zltu(ji+1,jj,jk) ) )   ! add () for NP repro
+            ztv(ji,jj,jk) = 0.5 * ( zcenvt - ( zfp_vj * zltv(ji,jj,jk) + zfm_vj * zltv(ji,jj+1,jk) ) )
          END_3D
          !
          DO_3D( 0, 0, 0, 0, 1, jpk )
@@ -166,9 +159,9 @@ CONTAINS
          !
          DO jk = 1, jpkm1        !==  add the horizontal advective trend  ==!
             DO_2D( 0, 0, 0, 0 )
-               pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs)                        &
-                  &             - (  ztu(ji,jj,jk) - ztu(ji-1,jj  ,jk)    &
-                  &                + ztv(ji,jj,jk) - ztv(ji  ,jj-1,jk)  ) &
+               pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs)                    &
+                  &             - (  ( ztu(ji,jj,jk) - ztu(ji-1,jj  ,jk) )    & ! add () for NP repro
+                  &                + ( ztv(ji,jj,jk) - ztv(ji  ,jj-1,jk) )  ) &
                   &                * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
             END_2D
             !
@@ -265,7 +258,6 @@ CONTAINS
          !
       END DO
       !
-#endif
    END SUBROUTINE tra_adv_ubs
 
 
@@ -285,13 +277,13 @@ CONTAINS
       INTEGER , INTENT(in   )                         ::   Kmm    ! time level index
       REAL(wp), INTENT(in   )                         ::   p2dt   ! tracer time-step
       REAL(wp),                DIMENSION(jpi,jpj,jpk) ::   pbef   ! before field
-      REAL(wp), INTENT(inout), DIMENSION(A2D(nn_hls)    ,jpk) ::   paft   ! after field
-      REAL(wp), INTENT(inout), DIMENSION(A2D(nn_hls)    ,jpk) ::   pcc    ! monotonic flux in the k direction
+      REAL(wp), INTENT(inout), DIMENSION(T2D(nn_hls)    ,jpk) ::   paft   ! after field
+      REAL(wp), INTENT(inout), DIMENSION(T2D(nn_hls)    ,jpk) ::   pcc    ! monotonic flux in the k direction
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   ikm1         ! local integer
       REAL(wp) ::   zpos, zneg, zbt, za, zb, zc, zbig, zrtrn   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zbetup, zbetdo         ! 3D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zbetup, zbetdo         ! 3D workspace
       !!----------------------------------------------------------------------
       !
       zbig  = 1.e+38_wp

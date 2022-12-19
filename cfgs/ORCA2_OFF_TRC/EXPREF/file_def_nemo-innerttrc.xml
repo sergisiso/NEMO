@@ -36,12 +36,23 @@
            <field field_ref="ssh"    name="zos"  />
          </file>
 
-	 <file id="file1" name_suffix="_trc" description="passive tracers variables" >
+	 <file id="file2" name_suffix="_trc" description="passive tracers variables" >
            <field field_ref="Age"     name="Age"     operation="average" freq_op="1y"  > @Age_e3t / @e3t   </field>		      
            <field field_ref="CFC11"   name="CFC11"   operation="average" freq_op="1y"  > @CFC11_e3t / @e3t </field>
            <field field_ref="CFC12"   name="CFC12"   operation="average" freq_op="1y"  > @CFC12_e3t / @e3t </field>
            <field field_ref="SF6"     name="SF6"     operation="average" freq_op="1y"  > @SF6_e3t / @e3t   </field>
-           <field field_ref="RC14"    name="RC14"    operation="average" freq_op="1y"  > @RC14_e3t / @e3t  </field>
+	   <field field_ref="RC14"    name="RC14"    operation="average" freq_op="1y"  > @RC14_e3t / @e3t  </field>
+           <field field_ref="qtr_CFC11"    />
+           <field field_ref="qint_CFC11"   />
+           <field field_ref="qtr_CFC12"    />
+           <field field_ref="qint_CFC12"  />
+           <field field_ref="qtr_SF6"     />
+           <field field_ref="qint_SF6"    />
+           <field field_ref="qtr_c14"    />
+           <field field_ref="qint_c14"  />
+           <field field_ref="DeltaC14"    />
+           <field field_ref="C14Age"      />
+           <field field_ref="RAge"       />
          </file>
 
       </file_group>

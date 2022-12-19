@@ -64,7 +64,7 @@ CONTAINS
       
       IF( ln_diurnal ) THEN      
          !         
-         ALLOCATE( x_dsst(jpi,jpj), x_solfrac(jpi,jpj) )
+         ALLOCATE( x_dsst(A2D(0)), x_solfrac(A2D(0)) )
          !
          x_solfrac = 0._wp         ! Initialise the solar fraction
          x_dsst    = 0._wp
@@ -92,25 +92,25 @@ CONTAINS
       !! ** Reference : Refinements to a prognostic scheme of skin sea surface
       !!                temperature, Takaya et al, JGR, 2010 
       !!----------------------------------------------------------------------
-      INTEGER                               , INTENT(in) ::   kt             ! time step
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in) ::   psolflux       ! solar flux (Watts)
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in) ::   pqflux         ! heat (non-solar) flux (Watts)
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in) ::   ptauflux       ! wind stress  (kg/ m s^2)
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in) ::   prho           ! water density  (kg/m^3)
-      REAL(wp)                              , INTENT(in) ::   p_rdt          ! time-step
-      REAL(wp), DIMENSION(jpi,jpj), OPTIONAL, INTENT(in) ::   pLa            ! Langmuir number
-      REAL(wp), DIMENSION(jpi,jpj), OPTIONAL, INTENT(in) ::   pthick         ! warm layer thickness (m)
-      REAL(wp), DIMENSION(jpi,jpj), OPTIONAL, INTENT(in) ::   pcoolthick     ! cool skin thickness (m)
-      REAL(wp), DIMENSION(jpi,jpj), OPTIONAL, INTENT(in) ::   pmu            ! mu parameter
-      REAL(wp), DIMENSION(jpi,jpj), OPTIONAL, INTENT(in) ::   p_hflux_bkginc ! increment to the heat flux
-      REAL(wp), DIMENSION(jpi,jpj), OPTIONAL, INTENT(in) ::   p_fvel_bkginc  ! increment to the friction velocity
+      INTEGER                              , INTENT(in) ::   kt             ! time step
+      REAL(wp), DIMENSION(A2D(0))          , INTENT(in) ::   psolflux       ! solar flux (Watts)
+      REAL(wp), DIMENSION(A2D(0))          , INTENT(in) ::   pqflux         ! heat (non-solar) flux (Watts)
+      REAL(wp), DIMENSION(A2D(0))          , INTENT(in) ::   ptauflux       ! wind stress  (kg/ m s^2)
+      REAL(wp), DIMENSION(jpi,jpj)         , INTENT(in) ::   prho           ! water density  (kg/m^3)
+      REAL(wp)                             , INTENT(in) ::   p_rdt          ! time-step
+      REAL(wp), DIMENSION(A2D(0)), OPTIONAL, INTENT(in) ::   pLa            ! Langmuir number
+      REAL(wp), DIMENSION(A2D(0)), OPTIONAL, INTENT(in) ::   pthick         ! warm layer thickness (m)
+      REAL(wp), DIMENSION(A2D(0)), OPTIONAL, INTENT(in) ::   pcoolthick     ! cool skin thickness (m)
+      REAL(wp), DIMENSION(A2D(0)), OPTIONAL, INTENT(in) ::   pmu            ! mu parameter
+      REAL(wp), DIMENSION(A2D(0)), OPTIONAL, INTENT(in) ::   p_hflux_bkginc ! increment to the heat flux
+      REAL(wp), DIMENSION(A2D(0)), OPTIONAL, INTENT(in) ::   p_fvel_bkginc  ! increment to the friction velocity
       !
       INTEGER :: ji,jj
       LOGICAL  :: ll_calcfrac
-      REAL(wp), DIMENSION(jpi,jpj) :: z_fvel              ! friction velocity     
-      REAL(wp), DIMENSION(jpi,jpj) :: zthick, zcoolthick, zmu, zla
-      REAL(wp), DIMENSION(jpi,jpj) :: z_abflux            ! absorbed flux           
-      REAL(wp), DIMENSION(jpi,jpj) :: z_fla               ! Langmuir function value 
+      REAL(wp), DIMENSION(A2D(0)) :: z_fvel              ! friction velocity     
+      REAL(wp), DIMENSION(A2D(0)) :: zthick, zcoolthick, zmu, zla
+      REAL(wp), DIMENSION(A2D(0)) :: z_abflux            ! absorbed flux           
+      REAL(wp), DIMENSION(A2D(0)) :: z_fla               ! Langmuir function value 
       !!----------------------------------------------------------------------
 
       ! Set optional arguments to their defaults
@@ -129,14 +129,14 @@ CONTAINS
       
       ! If not done already, calculate the solar fraction
       IF ( kt==nit000 ) THEN
-         DO_2D( 1, 1, 1, 1 )
-            IF(  ( x_solfrac(ji,jj) == 0._wp ) .AND. ( tmask(ji,jj,1) == 1._wp ) ) &
+         DO_2D( 0, 0, 0, 0 )
+            IF(  ( x_solfrac(ji,jj) == 0._wp ) .AND. ( smask0(ji,jj) == 1._wp ) ) &
                &   x_solfrac(ji,jj) = solfrac( zcoolthick(ji,jj),zthick(ji,jj) )
          END_2D
       ENDIF   
 
       ! convert solar flux and heat flux to absorbed flux   
-      WHERE ( tmask(:,:,1) == 1._wp) 
+      WHERE ( smask0(:,:) == 1._wp) 
          z_abflux(:,:) = (  x_solfrac(:,:) *  psolflux (:,:)) + pqflux(:,:)     
       ELSEWHERE
          z_abflux(:,:) = 0._wp
@@ -147,8 +147,8 @@ CONTAINS
       ENDWHERE 
       
       ! Calculate the friction velocity
-      WHERE ( (ptauflux /= 0) .AND. ( tmask(:,:,1) == 1.) )   
-         z_fvel(:,:) = SQRT( ptauflux(:,:) / prho(:,:) )
+      WHERE ( (ptauflux(:,:) /= 0) .AND. ( smask0(:,:) == 1.) )   
+         z_fvel(:,:) = SQRT( ptauflux(:,:) / prho(A2D(0)) )
       ELSEWHERE
          z_fvel(:,:) = 0._wp
       ENDWHERE
@@ -157,7 +157,7 @@ CONTAINS
        
        
       ! Calculate the Langmuir function value
-      WHERE ( tmask(:,:,1) == 1.)
+      WHERE ( smask0(:,:) == 1.)
          z_fla(:,:) = MAX( 1._wp, zla(:,:)**( -2._wp / 3._wp ) )  
       ELSEWHERE
          z_fla(:,:) = 0._wp
@@ -176,16 +176,16 @@ CONTAINS
       IMPLICIT NONE
       
       ! Function definition
-      REAL(wp), DIMENSION(jpi,jpj) :: t_imp
+      REAL(wp), DIMENSION(A2D(0)) :: t_imp
       ! Dummy variables
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(IN) :: p_dsst     ! Delta SST
-      REAL(wp), INTENT(IN)                     :: p_rdt      ! Time-step
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(IN) :: p_abflux   ! Heat forcing
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(IN) :: p_fvel     ! Friction velocity
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(IN) :: p_fla      ! Langmuir number
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(IN) :: pmu        ! Structure parameter
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(IN) :: pthick     ! Layer thickness
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(IN) :: prho       ! Water density
+      REAL(wp), DIMENSION(A2D(0)), INTENT(IN) :: p_dsst     ! Delta SST
+      REAL(wp), INTENT(IN)                    :: p_rdt      ! Time-step
+      REAL(wp), DIMENSION(A2D(0)), INTENT(IN) :: p_abflux   ! Heat forcing
+      REAL(wp), DIMENSION(A2D(0)), INTENT(IN) :: p_fvel     ! Friction velocity
+      REAL(wp), DIMENSION(A2D(0)), INTENT(IN) :: p_fla      ! Langmuir number
+      REAL(wp), DIMENSION(A2D(0)), INTENT(IN) :: pmu        ! Structure parameter
+      REAL(wp), DIMENSION(A2D(0)), INTENT(IN) :: pthick     ! Layer thickness
+      REAL(wp), DIMENSION(jpi,jpj),INTENT(IN) :: prho       ! Water density
    
       ! Local variables
       REAL(wp) :: z_olength          ! Obukhov length
@@ -198,10 +198,10 @@ CONTAINS
        
       INTEGER :: ji,jj
                      
-      DO_2D( 1, 1, 1, 1 )
+      DO_2D( 0, 0, 0, 0 )
          
          ! Only calculate outside tmask
-         IF ( tmask(ji,jj,1) /= 1._wp ) THEN
+         IF ( smask0(ji,jj) /= 1._wp ) THEN
             t_imp(ji,jj) = 0._wp
             CYCLE   
          END IF

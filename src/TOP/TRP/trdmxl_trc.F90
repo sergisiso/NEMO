@@ -112,7 +112,13 @@ CONTAINS
          SELECT CASE ( nn_ctls_trc )                                ! choice of the control surface
             CASE ( -2  )   ;   CALL ctl_stop( 'STOP', 'trdmxl_trc : not ready ' )     !     -> isopycnal surface (see ???)
             CASE ( -1  )   ;   nmld_trc(:,:) = neln(:,:)          !     -> euphotic layer with light criterion
-            CASE (  0  )   ;   nmld_trc(:,:) = nmln(:,:)          !     -> ML with density criterion (see zdfmxl)
+            CASE (  0  )
+               ! nmln calculation in zdfmxl is only on internal points
+               DO_2D( 0, 0, 0, 0 )
+                  zvlmsk(ji,jj) = REAL( nmln(ji,jj), wp )
+               END_2D
+               CALL lbc_lnk( 'trdmxl_trc', zvlmsk, 'T', 1.0_wp, kfillmode=jpfillcopy )  ! No 0 over closed boundaries
+               nmld_trc(:,:) = NINT( zvlmsk(:,:) )                    !     -> ML with density criterion (see zdfmxl)
             CASE (  1  )   ;   nmld_trc(:,:) = nbol_trc(:,:)          !     -> read index from file
             CASE (  2: )   ;   nn_ctls_trc = MIN( nn_ctls_trc, jpktrd_trc - 1 )
                                nmld_trc(:,:) = nn_ctls_trc + 1      !     -> model level
@@ -258,7 +264,7 @@ CONTAINS
       IF( ln_trcldf_iso ) THEN
          !
          DO jn = 1, jptra
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )                    ! description ???
+            DO_2D( 0, 0, 0, 0 )                    ! description ???
                ik = nmld_trc(ji,jj)
                IF( ln_trdtrc(jn) )    &
                tmltrd_trc(ji,jj,jpmxl_trc_zdf,jn) = - avs(ji,jj,ik) / e3w(ji,jj,ik,Kmm) * tmask(ji,jj,ik)  &

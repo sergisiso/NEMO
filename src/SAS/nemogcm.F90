@@ -124,6 +124,7 @@ CONTAINS
 #endif
       !
       DO WHILE( istp <= nitend .AND. nstop == 0 )
+         ncom_stp = istp
          CALL stp
          istp = istp + 1
       END DO
@@ -217,7 +218,6 @@ CONTAINS
       IF( lk_oasis ) THEN   ;   cxios_context = 'sas'    ! when coupling SAS to OCE
       ELSE                  ;   cxios_context = 'nemo'   ! 
       ENDIF
-      nn_hls = 1
       !
       l_SAS = .TRUE.   ! used in domain:dom_nam
       !
@@ -350,12 +350,6 @@ CONTAINS
       !                             !-----------------------------------------!
       CALL mpp_init
 
-#if defined key_loop_fusion
-      IF( nn_hls == 1 ) THEN
-         CALL ctl_stop( 'STOP', 'nemogcm : Loop fusion can be used only with extra-halo' )
-      ENDIF
-#endif
-
       CALL halo_mng_init()
       ! Now we know the dimensions of the grid and numout has been set: we can allocate arrays
       CALL nemo_alloc()
@@ -390,6 +384,7 @@ CONTAINS
 
 #if defined key_agrif
       uu(:,:,:,:) = 0.0_wp   ;   vv(:,:,:,:) = 0.0_wp   ;   ts(:,:,:,:,:) = 0.0_wp   ! needed for interp done at initialization phase
+      uu_b(:,:,:) = 0.0_wp   ;   vv_b(:,:,:) = 0.0_wp
 #endif 
       !                                      ! external forcing 
                            CALL sbc_init( Nbb, Nnn, Naa )  ! Forcings : surface module 

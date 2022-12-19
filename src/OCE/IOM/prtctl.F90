@@ -7,7 +7,7 @@ MODULE prtctl
    !!            3.4  !  11-11  (C. Harris) decomposition changes for running with CICE
    !!----------------------------------------------------------------------
    USE dom_oce          ! ocean space and time domain variables
-   USE domutl, ONLY : is_tile
+   USE domutl, ONLY : lbnd_ij
    USE in_out_manager   ! I/O manager
    USE mppini           ! distributed memory computing
    USE lib_mpp          ! distributed memory computing
@@ -50,39 +50,49 @@ CONTAINS
       CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo2
       CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo3
       INTEGER                             , INTENT(in), OPTIONAL ::   kdim
+      INTEGER,          DIMENSION(2)                             ::   ibndg, ibndm1, ibndm2
       !
+      ibndg(1) = Nis0 ; ibndg(2) = Njs0
+      IF( PRESENT(mask1) ) THEN ; ibndm1 = lbnd_ij(mask1) ; ELSE ; ibndm1 = ibndg ; ENDIF
+      IF( PRESENT(mask2) ) THEN ; ibndm2 = lbnd_ij(mask2) ; ELSE ; ibndm2 = ibndg ; ENDIF
+
       IF(     PRESENT(tab2d_2) ) THEN
-         CALL prt_ctl_t(ktab2d_1 = is_tile(tab2d_1), ktab3d_1 = 0, ktab4d_1 = 0, ktab2d_2 = is_tile(tab2d_2), ktab3d_2 = 0,   &
-            &            tab2d_1 =    REAL(tab2d_1, 2*wp),                        tab2d_2 =    REAL(tab2d_2, 2*wp),           &
-            &           mask1 = mask1, mask2 = mask2, &
-            &           clinfo = clinfo, clinfo1 = clinfo1, clinfo2 = clinfo2, clinfo3 = clinfo3 )
-      ELSEIF( PRESENT(tab3d_2) ) THEN     
-         CALL prt_ctl_t(ktab2d_1 = 0, ktab3d_1 = is_tile(tab3d_1), ktab4d_1 = 0, ktab2d_2 = 0, ktab3d_2 = is_tile(tab3d_2),       &
-            &                          tab3d_1 = REAL(tab3d_1, 2*wp),                           tab3d_2 =    REAL(tab3d_2, 2*wp), &
-            &           mask1 = mask1, mask2 = mask2, &
-            &           clinfo = clinfo, clinfo1 = clinfo1, clinfo2 = clinfo2, clinfo3 = clinfo3, kdim = kdim )
-      ELSEIF( PRESENT(tab2d_1) ) THEN     
-         CALL prt_ctl_t(ktab2d_1 = is_tile(tab2d_1), ktab3d_1 = 0, ktab4d_1 = 0, ktab2d_2 = 0, ktab3d_2 = 0,   &
-            &           tab2d_1 = REAL(tab2d_1,2*wp),  &
-            &           mask1 = mask1,  &
-            &           clinfo = clinfo, clinfo1 = clinfo1, clinfo3 = clinfo3 )
-      ELSEIF( PRESENT(tab3d_1) ) THEN     
-         CALL prt_ctl_t(ktab2d_1 = 0, ktab3d_1 = is_tile(tab3d_1), ktab4d_1 = 0, ktab2d_2 = 0, ktab3d_2 = 0,   &
-            &                          tab3d_1 =    REAL(tab3d_1, 2*wp),  &
-            &           mask1 = mask1,  &
-            &           clinfo = clinfo, clinfo1 = clinfo1, clinfo3 = clinfo3, kdim = kdim )
+         CALL prt_ctl_t(ktab2d_1=lbnd_ij(tab2d_1), ktab3d_1=ibndg, ktab4d_1=ibndg, &
+            &           ktab2d_2=lbnd_ij(tab2d_2), ktab3d_2=ibndg,                 &
+            &           tab2d_1=REAL(tab2d_1, 2*wp), tab2d_2=REAL(tab2d_2, 2*wp),  &
+            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1, mask2=mask2,    &
+            &           clinfo=clinfo, clinfo1=clinfo1, clinfo2=clinfo2, clinfo3=clinfo3 )
+      ELSEIF( PRESENT(tab3d_2) ) THEN
+         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=lbnd_ij(tab3d_1), ktab4d_1=ibndg, &
+            &           ktab2d_2=ibndg, ktab3d_2=lbnd_ij(tab3d_2),                 &
+            &           tab3d_1=REAL(tab3d_1, 2*wp), tab3d_2=REAL(tab3d_2, 2*wp),  &
+            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1, mask2=mask2,    &
+            &           clinfo=clinfo, clinfo1=clinfo1, clinfo2=clinfo2, clinfo3=clinfo3, kdim=kdim )
+      ELSEIF( PRESENT(tab2d_1) ) THEN
+         CALL prt_ctl_t(ktab2d_1=lbnd_ij(tab2d_1), ktab3d_1=ibndg, ktab4d_1=ibndg, &
+            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
+            &           tab2d_1=REAL(tab2d_1, 2*wp),                               &
+            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1,                 &
+            &           clinfo=clinfo, clinfo1=clinfo1, clinfo3=clinfo3 )
+      ELSEIF( PRESENT(tab3d_1) ) THEN
+         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=lbnd_ij(tab3d_1), ktab4d_1=ibndg, &
+            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
+            &           tab3d_1=REAL(tab3d_1, 2*wp),                               &
+            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1,                 &
+            &           clinfo=clinfo, clinfo1=clinfo1, clinfo3=clinfo3, kdim=kdim )
       ELSEIF( PRESENT(tab4d_1) ) THEN     
-         CALL prt_ctl_t(ktab2d_1 = 0, ktab3d_1 = 0, ktab4d_1 = is_tile(tab4d_1), ktab2d_2 = 0, ktab3d_2 = 0,   &
-            &                                        tab4d_1 =    REAL(tab4d_1, 2*wp),  &
-            &           mask1 = mask1,  &
-            &           clinfo = clinfo, clinfo1 = clinfo1, clinfo3 = clinfo3, kdim = kdim )
+         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=ibndg, ktab4d_1=lbnd_ij(tab4d_1), &
+            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
+            &           tab4d_1=REAL(tab4d_1, 2*wp),                               &
+            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1,                 &
+            &           clinfo=clinfo, clinfo1=clinfo1, clinfo3=clinfo3, kdim=kdim )
       ENDIF
 
    END SUBROUTINE prt_ctl
 
 
    SUBROUTINE prt_ctl_t (tab2d_1, ktab2d_1, tab3d_1, ktab3d_1, tab4d_1, ktab4d_1, tab2d_2, ktab2d_2, tab3d_2, ktab3d_2,  &
-      &                  mask1, mask2, clinfo, clinfo1, clinfo2, clinfo3, kdim )
+      &                  mask1, kmask1, mask2, kmask2, clinfo, clinfo1, clinfo2, clinfo3, kdim )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE prt_ctl  ***
       !!
@@ -118,22 +128,23 @@ CONTAINS
       !!                    kdim    : k- direction for 3D arrays
       !!                    clinfo3 : additional information
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT(in)           ::   ktab2d_1, ktab3d_1, ktab4d_1, ktab2d_2, ktab3d_2
-      REAL(2*wp),         DIMENSION(A2D_T(ktab2d_1))    , INTENT(in), OPTIONAL ::   tab2d_1
-      REAL(2*wp),         DIMENSION(A2D_T(ktab3d_1),:)  , INTENT(in), OPTIONAL ::   tab3d_1
-      REAL(2*wp),         DIMENSION(A2D_T(ktab4d_1),:,:), INTENT(in), OPTIONAL ::   tab4d_1
-      REAL(2*wp),         DIMENSION(A2D_T(ktab2d_2))    , INTENT(in), OPTIONAL ::   tab2d_2
-      REAL(2*wp),         DIMENSION(A2D_T(ktab3d_2),:)  , INTENT(in), OPTIONAL ::   tab3d_2
-      REAL(wp),           DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   mask1
-      REAL(wp),           DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   mask2
+      INTEGER, DIMENSION(2), INTENT(in) :: ktab2d_1, ktab3d_1, ktab4d_1, ktab2d_2, ktab3d_2, kmask1, kmask2
+      REAL(2*wp),         DIMENSION(AB2D(ktab2d_1))     , INTENT(in), OPTIONAL ::   tab2d_1
+      REAL(2*wp),         DIMENSION(AB2D(ktab3d_1),:)   , INTENT(in), OPTIONAL ::   tab3d_1
+      REAL(2*wp),         DIMENSION(AB2D(ktab4d_1),:,:) , INTENT(in), OPTIONAL ::   tab4d_1
+      REAL(2*wp),         DIMENSION(AB2D(ktab2d_2))     , INTENT(in), OPTIONAL ::   tab2d_2
+      REAL(2*wp),         DIMENSION(AB2D(ktab3d_2),:)   , INTENT(in), OPTIONAL ::   tab3d_2
+      REAL(wp),           DIMENSION(AB2D(kmask1),:)     , INTENT(in), OPTIONAL ::   mask1
+      REAL(wp),           DIMENSION(AB2D(kmask2),:)     , INTENT(in), OPTIONAL ::   mask2
       CHARACTER(len=*), DIMENSION(:)      , INTENT(in), OPTIONAL ::   clinfo    ! information about the tab3d array
       CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo1
       CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo2
       CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo3
       INTEGER                             , INTENT(in), OPTIONAL ::   kdim
       !
-      CHARACTER(len=30) :: cl1, cl2
+      CHARACTER(len=30) :: cl1, cl2, cl3
       CHARACTER(len=6) :: clfmt
+      CHARACTER(len=1) :: cli1
       INTEGER ::  jn, jl, kdir
       INTEGER ::  iis, iie, jjs, jje
       INTEGER ::  itra, inum
@@ -158,7 +169,6 @@ CONTAINS
       ! Loop over each sub-domain, i.e. the total number of processors ijsplt
       DO jl = 1, SIZE(nall_ictls)
 
-         ! define shoter names...
          iis = MAX( nall_ictls(jl), ntsi )
          iie = MIN( nall_ictle(jl), ntei )
          jjs = MAX( nall_jctls(jl), ntsj )
@@ -168,7 +178,9 @@ CONTAINS
          ELSE                         ;   inum = numprt_oce(jl)
          ENDIF
 
-         ! Compute the sum control only where the tile domain and control print area overlap
+         ! Compute the sum control only where the inner domain and control print area overlap.
+         ! Note that if tiling is enabled and currently active, the inner domain is that of the current tile.
+         ! Otherwise, the inner domain is that of the current MPI domain (i.e. Nis0:Nie0, Njs0:Nje0)
          IF( iie >= iis .AND. jje >= jjs ) THEN
             DO jn = 1, itra
 
@@ -188,32 +200,32 @@ CONTAINS
 
                ! 2D arrays
                IF( PRESENT(tab2d_1) ) THEN
-                  IF( PRESENT(mask1) ) THEN   ;   zsum1 = SUM( tab2d_1(iis:iie,jjs:jje) * mask1(iis:iie,jjs:jje,1) )
-                  ELSE                        ;   zsum1 = SUM( tab2d_1(iis:iie,jjs:jje)                            )
+                  IF( PRESENT(mask1) ) THEN ; zsum1 = SUM( tab2d_1(iis:iie,jjs:jje) * mask1(iis:iie,jjs:jje,1) )
+                  ELSE                      ; zsum1 = SUM( tab2d_1(iis:iie,jjs:jje)                            )
                   ENDIF
                ENDIF
                IF( PRESENT(tab2d_2) ) THEN
-                  IF( PRESENT(mask2) ) THEN   ;   zsum2 = SUM( tab2d_2(iis:iie,jjs:jje) * mask2(iis:iie,jjs:jje,1) )
-                  ELSE                        ;   zsum2 = SUM( tab2d_2(iis:iie,jjs:jje)                            )
+                  IF( PRESENT(mask2) ) THEN ; zsum2 = SUM( tab2d_2(iis:iie,jjs:jje) * mask2(iis:iie,jjs:jje,1) )
+                  ELSE                      ; zsum2 = SUM( tab2d_2(iis:iie,jjs:jje)                            )
                   ENDIF
                ENDIF
 
                ! 3D arrays
                IF( PRESENT(tab3d_1) ) THEN
-                  IF( PRESENT(mask1) ) THEN   ;   zsum1 = SUM( tab3d_1(iis:iie,jjs:jje,1:kdir) * mask1(iis:iie,jjs:jje,1:kdir) )
-                  ELSE                        ;   zsum1 = SUM( tab3d_1(iis:iie,jjs:jje,1:kdir)                                 )
+                  IF( PRESENT(mask1) ) THEN ; zsum1 = SUM( tab3d_1(iis:iie,jjs:jje,1:kdir) * mask1(iis:iie,jjs:jje,1:kdir) )
+                  ELSE                      ; zsum1 = SUM( tab3d_1(iis:iie,jjs:jje,1:kdir)                                 )
                   ENDIF
                ENDIF
                IF( PRESENT(tab3d_2) ) THEN
-                  IF( PRESENT(mask2) ) THEN   ;   zsum2 = SUM( tab3d_2(iis:iie,jjs:jje,1:kdir) * mask2(iis:iie,jjs:jje,1:kdir) )
-                  ELSE                        ;   zsum2 = SUM( tab3d_2(iis:iie,jjs:jje,1:kdir)                                 )
+                  IF( PRESENT(mask2) ) THEN ; zsum2 = SUM( tab3d_2(iis:iie,jjs:jje,1:kdir) * mask2(iis:iie,jjs:jje,1:kdir) )
+                  ELSE                      ; zsum2 = SUM( tab3d_2(iis:iie,jjs:jje,1:kdir)                                 )
                   ENDIF
                ENDIF
 
                ! 4D arrays
                IF( PRESENT(tab4d_1) ) THEN
-                  IF( PRESENT(mask1) ) THEN   ;   zsum1 = SUM( tab4d_1(iis:iie,jjs:jje,1:kdir,jn) * mask1(iis:iie,jjs:jje,1:kdir) )
-                  ELSE                        ;   zsum1 = SUM( tab4d_1(iis:iie,jjs:jje,1:kdir,jn)                                 )
+                  IF( PRESENT(mask1) ) THEN ; zsum1 = SUM( tab4d_1(iis:iie,jjs:jje,1:kdir,jn) * mask1(iis:iie,jjs:jje,1:kdir) )
+                  ELSE                      ; zsum1 = SUM( tab4d_1(iis:iie,jjs:jje,1:kdir,jn)                                 )
                   ENDIF
                ENDIF
 
@@ -243,8 +255,31 @@ CONTAINS
                   WRITE(inum, "(3x,a,' : ',"//clfmt//",3x,a,' : ',"//clfmt//")") cl1, zsum1, cl2, zsum2
                ELSE
                   WRITE(inum, "(3x,a,' : ',"//clfmt//"                       )") cl1, zsum1
-               ENDIF
 
+               ENDIF
+               ! replace .false. by .true. to switch on theses prints of the last inner line
+               IF( .FALSE. .AND. l_IdoNFold .AND. jje == Nje0 ) THEN
+                  IF( PRESENT(tab2d_1) ) THEN
+                     WRITE(cli1, '(i1)') INT(LOG10(REAL(iie-iis+1,wp))) + 1            ! how many digits to we need to write ?
+                     WRITE(cl3, "(i"//cli1//")") iie-iis+1
+                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl1)//' ', tab2d_1(iis:iie,jje)
+                  ENDIF
+                  IF( PRESENT(tab3d_1) ) THEN
+                     WRITE(cli1, '(i1)') INT(LOG10(REAL((iie-iis+1)*kdir,wp))) + 1     ! how many digits to we need to write ?
+                     WRITE(cl3, "(i"//cli1//")") (iie-iis+1)*kdir
+                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl1)//' ', tab3d_1(iis:iie,jje,1:kdir)
+                  ENDIF
+                  IF( PRESENT(tab2d_2) ) THEN
+                     WRITE(cli1, '(i1)') INT(LOG10(REAL(iie-iis+1,wp))) + 1            ! how many digits to we need to write ?
+                     WRITE(cl3, "(i"//cli1//")") iie-iis+1
+                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl2)//' ', tab2d_2(iis:iie,jje)
+                  ENDIF
+                  IF( PRESENT(tab3d_2) ) THEN
+                     WRITE(cli1, '(i1)') INT(LOG10(REAL((iie-iis+1)*kdir,wp))) + 1     ! how many digits to we need to write ?
+                     WRITE(cl3, "(i"//cli1//")") (iie-iis+1)*kdir
+                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl2)//' ', tab3d_2(iis:iie,jje,1:kdir)
+                  ENDIF
+               ENDIF
             END DO
          ENDIF
          IF( jpnij == 1 ) CALL FLUSH(inum)
@@ -460,22 +495,22 @@ CONTAINS
          !
          idg = MAXVAL( (/ nall_ictls(jl), nall_ictle(jl), nall_jctls(jl), nall_jctle(jl) /) )   ! temporary use of idg
          idg = INT(LOG10(REAL(idg,wp))) + 1                                                     ! how many digits do we use?
-         idg2 = MAXVAL( (/ mig0(nall_ictls(jl)), mig0(nall_ictle(jl)), mjg0(nall_jctls(jl)), mjg0(nall_jctle(jl)) /) )
+         idg2 = MAXVAL( (/ mig(nall_ictls(jl),0), mig(nall_ictle(jl),0), mjg(nall_jctls(jl),0), mjg(nall_jctle(jl),0) /) )
          idg2 = INT(LOG10(REAL(idg2,wp))) + 1                                                   ! how many digits do we use?
          WRITE(clfmt2, "('(18x, 13a1, a9, i', i1, ', a2, i',i1,', a2, 13a1)')") idg, idg2
          WRITE(clfmt3, "('(18x, a1, ', i2,'x, a1)')") 13+9+idg+2+idg2+2+13 - 2
          WRITE(clfmt4, "('(', i2,'x, a9, i', i1,', a2, i', i1,', a2, ', i2,'x, a9, i', i1,', a2, i', i1,', a2)')") &
             &          18-7, idg, idg2, 13+9+idg+2+idg2+2+13 - (2+idg+2+idg2+2+8), idg, idg2
-         WRITE(inum,clfmt2) ('-', ji=1,13), ' jctle = ', nall_jctle(jl), ' (', mjg0(nall_jctle(jl)), ') ', ('-', ji=1,13)
+         WRITE(inum,clfmt2) ('-', ji=1,13), ' jctle = ', nall_jctle(jl), ' (', mjg(nall_jctle(jl),0), ') ', ('-', ji=1,13)
          WRITE(inum,clfmt3) '|', '|'
          WRITE(inum,clfmt3) '|', '|'
          WRITE(inum,clfmt3) '|', '|'
-         WRITE(inum,clfmt4)                 ' ictls = ', nall_ictls(jl), ' (', mig0(nall_ictls(jl)), ') ',   &
-            &                               ' ictle = ', nall_ictle(jl), ' (', mig0(nall_ictle(jl)), ') '
+         WRITE(inum,clfmt4)                 ' ictls = ', nall_ictls(jl), ' (', mig(nall_ictls(jl),0), ') ',   &
+            &                               ' ictle = ', nall_ictle(jl), ' (', mig(nall_ictle(jl),0), ') '
          WRITE(inum,clfmt3) '|', '|'
          WRITE(inum,clfmt3) '|', '|'
          WRITE(inum,clfmt3) '|', '|'
-         WRITE(inum,clfmt2) ('-', ji=1,13), ' jctls = ', nall_jctls(jl), ' (', mjg0(nall_jctls(jl)), ') ', ('-', ji=1,13)
+         WRITE(inum,clfmt2) ('-', ji=1,13), ' jctls = ', nall_jctls(jl), ' (', mjg(nall_jctls(jl),0), ') ', ('-', ji=1,13)
          WRITE(inum,*)
          WRITE(inum,*)
          !

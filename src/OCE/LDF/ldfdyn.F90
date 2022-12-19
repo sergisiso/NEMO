@@ -185,35 +185,25 @@ CONTAINS
          !                             ! Set nldf_dyn, the type of lateral diffusion, from ln_dynldf_... logicals
          ierr = 0
          IF( ln_dynldf_lap ) THEN         ! laplacian operator
-            IF( ln_zco ) THEN                   ! z-coordinate
-               IF ( ln_dynldf_lev )   nldf_dyn = np_lap     ! iso-level = horizontal (no rotation)
-               IF ( ln_dynldf_hor )   nldf_dyn = np_lap     ! iso-level = horizontal (no rotation)
-               IF ( ln_dynldf_iso )   nldf_dyn = np_lap_i   ! iso-neutral            (   rotation)
+            IF( l_zco .OR. l_zps ) THEN        ! z-coordinate with or without partial step
+               IF( ln_dynldf_lev )   nldf_dyn = np_lap     ! iso-level = horizontal (no rotation)
+               IF( ln_dynldf_hor )   nldf_dyn = np_lap     ! iso-level = horizontal (no rotation)
+               IF( ln_dynldf_iso )   nldf_dyn = np_lap_i   ! iso-neutral            (   rotation)
             ENDIF
-            IF( ln_zps ) THEN                   ! z-coordinate with partial step
-               IF ( ln_dynldf_lev )   nldf_dyn = np_lap     ! iso-level              (no rotation)
-               IF ( ln_dynldf_hor )   nldf_dyn = np_lap     ! iso-level              (no rotation)
-               IF ( ln_dynldf_iso )   nldf_dyn = np_lap_i   ! iso-neutral            (   rotation)
-            ENDIF
-            IF( ln_sco ) THEN                   ! s-coordinate
-               IF ( ln_dynldf_lev )   nldf_dyn = np_lap     ! iso-level = horizontal (no rotation)
-               IF ( ln_dynldf_hor )   nldf_dyn = np_lap_i   ! horizontal             (   rotation)
-               IF ( ln_dynldf_iso )   nldf_dyn = np_lap_i   ! iso-neutral            (   rotation)
+            IF( l_sco ) THEN                   ! s-coordinate
+               IF( ln_dynldf_lev )   nldf_dyn = np_lap     ! iso-level = horizontal (no rotation)
+               IF( ln_dynldf_hor )   nldf_dyn = np_lap_i   ! horizontal             (   rotation)
+               IF( ln_dynldf_iso )   nldf_dyn = np_lap_i   ! iso-neutral            (   rotation)
             ENDIF
          ENDIF
          !
          IF( ln_dynldf_blp ) THEN         ! bilaplacian operator
-            IF( ln_zco ) THEN                   ! z-coordinate
+            IF( l_zco .OR. l_zps ) THEN        ! z-coordinate with or without partial step
                IF( ln_dynldf_lev )   nldf_dyn = np_blp   ! iso-level = horizontal (no rotation)
                IF( ln_dynldf_hor )   nldf_dyn = np_blp   ! iso-level = horizontal (no rotation)
                IF( ln_dynldf_iso )   ierr = 2            ! iso-neutral            (   rotation)
             ENDIF
-            IF( ln_zps ) THEN                   ! z-coordinate with partial step
-               IF( ln_dynldf_lev )   nldf_dyn = np_blp   ! iso-level              (no rotation)
-               IF( ln_dynldf_hor )   nldf_dyn = np_blp   ! iso-level              (no rotation)
-               IF( ln_dynldf_iso )   ierr = 2            ! iso-neutral            (   rotation)
-            ENDIF
-            IF( ln_sco ) THEN                   ! s-coordinate
+            IF( l_sco ) THEN                   ! s-coordinate
                IF( ln_dynldf_lev )   nldf_dyn = np_blp   ! iso-level              (no rotation)
                IF( ln_dynldf_hor )   ierr = 2            ! horizontal             (   rotation)
                IF( ln_dynldf_iso )   ierr = 2            ! iso-neutral            (   rotation)
@@ -321,10 +311,10 @@ CONTAINS
             l_ldfdyn_time = .TRUE.     ! will be calculated by call to ldf_dyn routine in step.F90
             !
             !                          ! allocate arrays used in ldf_dyn. 
-            ALLOCATE( dtensq(jpi,jpj,jpk) , dshesq(jpi,jpj,jpk) , esqt(jpi,jpj) , esqf(jpi,jpj) , STAT=ierr )
+            ALLOCATE( dtensq(A2D(1),jpk) , dshesq(A2D(1),jpk) , esqt(A2D(0)) , esqf(A2D(0)) , STAT=ierr )
             IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'ldf_dyn_init: failed to allocate Smagorinsky arrays')
             !
-            DO_2D( 1, 1, 1, 1 )        ! Set local gridscale values
+            DO_2D( 0, 0, 0, 0 )        ! Set local gridscale values
                esqt(ji,jj) = ( 2._wp * e1e2t(ji,jj) / ( e1t(ji,jj) + e2t(ji,jj) ) )**2 
                esqf(ji,jj) = ( 2._wp * e1e2f(ji,jj) / ( e1f(ji,jj) + e2f(ji,jj) ) )**2 
             END_2D
@@ -419,25 +409,19 @@ CONTAINS
             !                                                                       ! of |U|L^3/16 in blp case
             DO jk = 1, jpkm1
                !
-               DO_2D( 0, 0, 0, 0 )
-                  zdb =    ( uu(ji,jj,jk,Kbb) * r1_e2u(ji,jj) -  uu(ji-1,jj,jk,Kbb) * r1_e2u(ji-1,jj) )  &
-                       &                      * r1_e1t(ji,jj) * e2t(ji,jj)                           &
-                       & - ( vv(ji,jj,jk,Kbb) * r1_e1v(ji,jj) -  vv(ji,jj-1,jk,Kbb) * r1_e1v(ji,jj-1) )  &
-                       &                      * r1_e2t(ji,jj) * e1t(ji,jj)
+               DO_2D( 0, 1, 0, 1 )
+                  zdb =   ( uu(ji,jj,jk,Kbb) * r1_e2u(ji,jj) - uu(ji-1,jj,jk,Kbb) * r1_e2u(ji-1,jj) ) * r1_e1t(ji,jj) * e2t(ji,jj) &
+                     &  - ( vv(ji,jj,jk,Kbb) * r1_e1v(ji,jj) - vv(ji,jj-1,jk,Kbb) * r1_e1v(ji,jj-1) ) * r1_e2t(ji,jj) * e1t(ji,jj)
                   dtensq(ji,jj,jk) = zdb * zdb * tmask(ji,jj,jk)
                END_2D
                !
                DO_2D( 1, 0, 1, 0 )
-                  zdb =   (  uu(ji,jj+1,jk,Kbb) * r1_e1u(ji,jj+1) -  uu(ji,jj,jk,Kbb) * r1_e1u(ji,jj) )  &
-                       &                        * r1_e2f(ji,jj)   * e1f(ji,jj)                       &
-                       & + ( vv(ji+1,jj,jk,Kbb) * r1_e2v(ji+1,jj) -  vv(ji,jj,jk,Kbb) * r1_e2v(ji,jj) )  &
-                       &                        * r1_e1f(ji,jj)   * e2f(ji,jj)
+                  zdb =   ( uu(ji,jj+1,jk,Kbb) * r1_e1u(ji,jj+1) - uu(ji,jj,jk,Kbb) * r1_e1u(ji,jj) ) * r1_e2f(ji,jj) * e1f(ji,jj) &
+                     &  + ( vv(ji+1,jj,jk,Kbb) * r1_e2v(ji+1,jj) - vv(ji,jj,jk,Kbb) * r1_e2v(ji,jj) ) * r1_e1f(ji,jj) * e2f(ji,jj)
                   dshesq(ji,jj,jk) = zdb * zdb * fmask(ji,jj,jk)
                END_2D
                !
             END DO
-            !
-            CALL lbc_lnk( 'ldfdyn', dtensq, 'T', 1.0_wp )  ! lbc_lnk on dshesq not needed
             !
             DO jk = 1, jpkm1
               !
@@ -447,23 +431,23 @@ CONTAINS
                   zu2pv2_ij_m1 = uu(ji-1,jj  ,jk,Kbb) * uu(ji-1,jj  ,jk,Kbb) + vv(ji  ,jj-1,jk,Kbb) * vv(ji  ,jj-1,jk,Kbb)
                   !
                   zdelta         = zcmsmag * esqt(ji,jj)                                        ! L^2 * (C_smag/pi)^2
-                  ahmt(ji,jj,jk) = zdelta * SQRT(          dtensq(ji  ,jj,jk) +                         &
-                     &                            r1_4 * ( dshesq(ji  ,jj,jk) + dshesq(ji  ,jj-1,jk) +  &
-                     &                                     dshesq(ji-1,jj,jk) + dshesq(ji-1,jj-1,jk) ) )
+                  ahmt(ji,jj,jk) = zdelta * SQRT(            dtensq(ji  ,jj,jk) +                           &
+                     &                            r1_4 * ( ( dshesq(ji  ,jj,jk) + dshesq(ji  ,jj-1,jk) ) +  & ! add () for NP repro
+                     &                                     ( dshesq(ji-1,jj,jk) + dshesq(ji-1,jj-1,jk) ) ) )
                   ahmt(ji,jj,jk) = MAX( ahmt(ji,jj,jk), SQRT( (zu2pv2_ij + zu2pv2_ij_m1) * zdelta * zstabf_lo ) ) ! Impose lower limit == minfac  * |U|L/2
                   ahmt(ji,jj,jk) = MIN( ahmt(ji,jj,jk),                                    zdelta * zstabf_up )   ! Impose upper limit == maxfac  * L^2/(4*2dt)
                   !
                END_2D
                !
-               DO_2D( 1, 0, 1, 0 )                                   ! F-point value
+               DO_2D( 0, 0, 0, 0 )                                   ! F-point value
                   !
-                  zu2pv2_ij_p1 = uu(ji  ,jj+1,jk, kbb) * uu(ji  ,jj+1,jk, kbb) + vv(ji+1,jj  ,jk, kbb) * vv(ji+1,jj  ,jk, kbb)
-                  zu2pv2_ij    = uu(ji  ,jj  ,jk, kbb) * uu(ji  ,jj  ,jk, kbb) + vv(ji  ,jj  ,jk, kbb) * vv(ji  ,jj  ,jk, kbb)
+                  zu2pv2_ij_p1 = uu(ji  ,jj+1,jk,kbb) * uu(ji  ,jj+1,jk,kbb) + vv(ji+1,jj  ,jk,kbb) * vv(ji+1,jj  ,jk,kbb)
+                  zu2pv2_ij    = uu(ji  ,jj  ,jk,kbb) * uu(ji  ,jj  ,jk,kbb) + vv(ji  ,jj  ,jk,kbb) * vv(ji  ,jj  ,jk,kbb)
                   !
                   zdelta         = zcmsmag * esqf(ji,jj)                                        ! L^2 * (C_smag/pi)^2
-                  ahmf(ji,jj,jk) = zdelta * SQRT(          dshesq(ji  ,jj,jk) +                         &
-                     &                            r1_4 * ( dtensq(ji  ,jj,jk) + dtensq(ji  ,jj+1,jk) +  &
-                     &                                     dtensq(ji+1,jj,jk) + dtensq(ji+1,jj+1,jk) ) )
+                  ahmf(ji,jj,jk) = zdelta * SQRT(            dshesq(ji  ,jj,jk) +                           &
+                     &                            r1_4 * ( ( dtensq(ji  ,jj,jk) + dtensq(ji  ,jj+1,jk) ) +  & ! add () for NP repro
+                     &                                     ( dtensq(ji+1,jj,jk) + dtensq(ji+1,jj+1,jk) ) ) )
                   ahmf(ji,jj,jk) = MAX( ahmf(ji,jj,jk), SQRT( (zu2pv2_ij + zu2pv2_ij_p1) * zdelta * zstabf_lo ) ) ! Impose lower limit == minfac  * |U|L/2
                   ahmf(ji,jj,jk) = MIN( ahmf(ji,jj,jk),                                    zdelta * zstabf_up )   ! Impose upper limit == maxfac  * L^2/(4*2dt)
                   !

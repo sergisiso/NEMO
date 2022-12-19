@@ -317,7 +317,7 @@ CONTAINS
          ts(:,:,:,jn,Krhs) = 0._wp                                   ! set tracer trends to zero (:,:,:) needed otherwise it does not work (?)
       END DO
 
-      CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0 ) ! now in potential density for tra_mle computation
+      CALL eos( ts, Kmm, rhd, rhop ) ! now in potential density for tra_mle computation
 !===>>> CAUTION here may be without GM velocity but stokes drift required ! 0 barotropic divergence for GM  != 0 barotropic divergence for SD 
 !!st consistence 2D / 3D - flux de masse 
       CALL tra_adv( kstp, Kbb, Kmm, Kaa, ts, Krhs, zaU, zaV, ww )       ! hor. + vert. advection	==> RHS
@@ -428,14 +428,15 @@ CONTAINS
       END SELECT      
       !                                         !==  correction of the barotropic (all stages)  ==!    at Kaa = N+1/3, N+1/2 or N+1
       !                                                           ! barotropic velocity correction
-      zub(A2D(0)) = uu_b(A2D(0),Kaa) - SUM( e3u_0(A2D(0),:)*uu(A2D(0),:,Kaa), 3 ) * r1_hu_0(A2D(0))
-      zvb(A2D(0)) = vv_b(A2D(0),Kaa) - SUM( e3v_0(A2D(0),:)*vv(A2D(0),:,Kaa), 3 ) * r1_hv_0(A2D(0))
+      DO_2D( 0, 0, 0, 0 )
+         zub(ji,jj) = uu_b(ji,jj,Kaa) - SUM( e3u_0(ji,jj,:)*uu(ji,jj,:,Kaa) ) * r1_hu_0(ji,jj)
+         zvb(ji,jj) = vv_b(ji,jj,Kaa) - SUM( e3v_0(ji,jj,:)*vv(ji,jj,:,Kaa) ) * r1_hv_0(ji,jj)
+      END_2D
       !
       DO jk = 1, jpkm1                                            ! corrected horizontal velocity
-         uu(A2D(0),jk,Kaa) = uu(A2D(0),jk,Kaa) + zub(A2D(0))*umask(A2D(0),jk)
-         vv(A2D(0),jk,Kaa) = vv(A2D(0),jk,Kaa) + zvb(A2D(0))*vmask(A2D(0),jk)
+         uu(T2D(0),jk,Kaa) = uu(T2D(0),jk,Kaa) + zub(T2D(0))*umask(T2D(0),jk)
+         vv(T2D(0),jk,Kaa) = vv(T2D(0),jk,Kaa) + zvb(T2D(0))*vmask(T2D(0),jk)
       END DO
-         
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Set boundary conditions

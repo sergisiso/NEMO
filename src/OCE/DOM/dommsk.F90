@@ -144,7 +144,8 @@ CONTAINS
             tmask(ji,jj,jk) = tmask(ji,jj,jk) * bdytmask(ji,jj)
          END_3D
       ENDIF
-         
+      smask0(:,:) = tmask(A2D(0),1)
+      
       !  Ocean/land mask at u-, v-, and f-points   (computed from tmask)
       ! ----------------------------------------
       ! NB: at this point, fmask is designed for free slip lateral boundary condition
@@ -203,7 +204,8 @@ CONTAINS
       ! --------------------
       !
       CALL dom_uniq( tmask_i, 'T' )
-      tmask_i(:,:) = ssmask(:,:) * tmask_i(:,:)
+      tmask_i (:,:) = ssmask(:,:) * tmask_i(:,:)
+      smask0_i(:,:) = tmask_i(A2D(0))
 
       ! Lateral boundary conditions on velocity (modify fmask)
       ! ---------------------------------------  

@@ -40,10 +40,10 @@ export USER_INPUT='yes'        # Default: yes => request user input on decisions
 #
 # Check that git branch is usable
 export DETACHED_HEAD="no"
-git branch --show-current >& /dev/null
+git -C ${MAIN_DIR} branch --show-current >& /dev/null
 if [[ $? == 0 ]] ; then
   # subdirectory below NEMO_VALIDATION_DIR defaults to branchname
-  export SETTE_SUB_VAL="$(git branch --show-current)"
+  export SETTE_SUB_VAL="$(git -C ${MAIN_DIR} branch --show-current)"
   if [ -z $SETTE_SUB_VAL ] ; then
    # Probabably on a detached HEAD (possibly testing an old commit).
    # Verify this and try to recover original commit
@@ -76,6 +76,7 @@ if [ $# -gt 0 ]; then
         y) dry_run=1
            echo "";;
         b) NEMO_DEBUG="-b"
+           echo "-b: Nemo will be compiled with DEBUG options"
            echo "";;
         r) NO_REPORT=1
            echo "";;

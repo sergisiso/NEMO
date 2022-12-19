@@ -25,7 +25,6 @@ MODULE icethd
    USE icethd_dh      ! sea-ice: ice-snow growth and melt
    USE icethd_da      ! sea-ice: lateral melting
    USE icethd_sal     ! sea-ice: salinity
-   USE icethd_ent     ! sea-ice: enthalpy redistribution
    USE icethd_do      ! sea-ice: growth in open water
    USE icethd_pnd     ! sea-ice: melt ponds
    USE iceitd         ! sea-ice: remapping thickness distribution
@@ -72,7 +71,6 @@ CONTAINS
       !!                - call ice_thd_zdf  for vertical heat diffusion
       !!                - call ice_thd_dh   for vertical ice growth and melt
       !!                - call ice_thd_pnd  for melt ponds
-      !!                - call ice_thd_ent  for enthalpy remapping
       !!                - call ice_thd_sal  for ice desalination
       !!                - call ice_thd_temp to  retrieve temperature from ice enthalpy
       !!                - call ice_thd_mono for extra lateral ice melt if active virtual thickness distribution
@@ -85,6 +83,7 @@ CONTAINS
       !
       INTEGER  :: ji, jj, jk, jl   ! dummy loop indices
       !!-------------------------------------------------------------------
+
       ! controls
       IF( ln_timing    )   CALL timing_start('icethd')                                                             ! timing
       IF( ln_icediachk )   CALL ice_cons_hsm(0, 'icethd', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft) ! conservation
@@ -98,7 +97,7 @@ CONTAINS
 
       ! convergence tests
       IF( ln_zdf_chkcvg ) THEN
-         ALLOCATE( ztice_cvgerr(jpi,jpj,jpl) , ztice_cvgstp(jpi,jpj,jpl) )
+         ALLOCATE( ztice_cvgerr(A2D(0),jpl) , ztice_cvgstp(A2D(0),jpl) )
          ztice_cvgerr = 0._wp ; ztice_cvgstp = 0._wp
       ENDIF
       !
@@ -111,7 +110,7 @@ CONTAINS
 
          ! select ice covered grid points
          npti = 0 ; nptidx(:) = 0
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF ( a_i(ji,jj,jl) > epsi10 ) THEN
                npti         = npti  + 1
                nptidx(npti) = (jj - 1) * jpi + ji
@@ -131,8 +130,7 @@ CONTAINS
                               CALL ice_thd_zdf                      ! --- Ice-Snow temperature --- !
             !
             IF( ln_icedH ) THEN                                     ! --- Growing/Melting --- !
-                              CALL ice_thd_dh                           ! Ice-Snow thickness
-                              CALL ice_thd_ent( e_i_1d(1:npti,:) )      ! Ice enthalpy remapping
+                              CALL ice_thd_dh
             ENDIF
                               CALL ice_thd_sal( ln_icedS )          ! --- Ice salinity --- !
             !
@@ -161,8 +159,14 @@ CONTAINS
       !
                               CALL ice_cor( kt , 2 )                ! --- Corrections --- !
       !
-      oa_i(:,:,:) = oa_i(:,:,:) + a_i(:,:,:) * rDt_ice              ! --- Ice natural aging incrementation
+      oa_i(A2D(0),:) = oa_i(A2D(0),:) + a_i(A2D(0),:) * rDt_ice     ! --- Ice natural aging incrementation
       !
+      !                                                             ! --- LBC for the halos --- !
+      CALL lbc_lnk( 'icethd', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
+         &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp )
+      CALL lbc_lnk( 'icethd', e_i , 'T', 1._wp, e_s , 'T', 1._wp )
+      !
+      at_i(:,:) = SUM( a_i, dim=3 )
       DO_2D( 0, 0, 0, 0 )                                           ! --- Ice velocity corrections
          IF( at_i(ji,jj) == 0._wp ) THEN   ! if ice has melted
             IF( at_i(ji+1,jj) == 0._wp )   u_ice(ji  ,jj) = 0._wp   ! right side
@@ -202,15 +206,15 @@ CONTAINS
       ! Recover ice temperature
       DO jk = 1, nlay_i
          DO ji = 1, npti
-            ztmelts       = -rTmlt * sz_i_1d(ji,jk)
-            ! Conversion q(S,T) -> T (second order equation)
-            zbbb          = ( rcp - rcpi ) * ztmelts + e_i_1d(ji,jk) * r1_rhoi - rLfus
-            zccc          = SQRT( MAX( zbbb * zbbb - 4._wp * rcpi * rLfus * ztmelts, 0._wp ) )
-            t_i_1d(ji,jk) = rt0 - ( zbbb + zccc ) * 0.5_wp * r1_rcpi
-
-            ! mask temperature
-            rswitch       = 1._wp - MAX( 0._wp , SIGN( 1._wp , - h_i_1d(ji) ) )
-            t_i_1d(ji,jk) = rswitch * t_i_1d(ji,jk) + ( 1._wp - rswitch ) * rt0
+            IF( h_i_1d(ji) > 0._wp ) THEN
+               ztmelts       = -rTmlt * sz_i_1d(ji,jk)
+               ! Conversion q(S,T) -> T (second order equation)
+               zbbb          = ( rcp - rcpi ) * ztmelts + e_i_1d(ji,jk) * r1_rhoi - rLfus
+               zccc          = SQRT( MAX( zbbb * zbbb - 4._wp * rcpi * rLfus * ztmelts, 0._wp ) )
+               t_i_1d(ji,jk) = rt0 - ( zbbb + zccc ) * 0.5_wp * r1_rcpi
+            ELSE
+               t_i_1d(ji,jk) = rt0
+            ENDIF
          END DO
       END DO
       !
@@ -237,8 +241,7 @@ CONTAINS
             zvs          = a_i_1d(ji) * h_s_1d(ji)
             ! lateral melting = concentration change
             zhi_bef     = h_i_1d(ji) - zdh_mel
-            rswitch     = MAX( 0._wp , SIGN( 1._wp , zhi_bef - epsi20 ) )
-            zda_mel     = rswitch * a_i_1d(ji) * zdh_mel / ( 2._wp * MAX( zhi_bef, epsi20 ) )
+            zda_mel     = MAX( -a_i_1d(ji) , a_i_1d(ji) * zdh_mel / ( 2._wp * MAX( zhi_bef, epsi20 ) ) )
             a_i_1d(ji)  = MAX( epsi20, a_i_1d(ji) + zda_mel )
             ! adjust thickness
             h_i_1d(ji) = zvi / a_i_1d(ji)

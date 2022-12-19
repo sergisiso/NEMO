@@ -162,8 +162,8 @@ CONTAINS
       !
       IF( .NOT.ln_usr ) THEN     ! the model calendar needs some specificities (except in user defined case)
          IF( MOD( rday , rn_Dt ) /= 0. )   CALL ctl_stop( 'the time step must devide the number of second of in a day' )
-         IF( MOD( rday , 2.  ) /= 0. )   CALL ctl_stop( 'the number of second of in a day must be an even number'    )
-         IF( MOD( rn_Dt  , 2.  ) /= 0. )   CALL ctl_stop( 'the time step (in second) must be an even number'           )
+         IF( MOD( rday , 2.    ) /= 0. )   CALL ctl_stop( 'the number of second of in a day must be an even number'    )
+         IF( MOD( rn_Dt, 2.    ) /= 0. )   CALL ctl_stop( 'the time step (in second) must be an even number'           )
       ENDIF
       !                       !**  check option consistency
       !
@@ -232,7 +232,7 @@ CONTAINS
       ENDIF
       !
       sfx   (:,:) = 0._wp           !* salt flux due to freezing/melting
-      fmmflx(:,:) = 0._wp           !* freezing minus melting flux
+      fwfice(:,:) = 0._wp           !* ice-ocean freshwater flux
       cloud_fra(:,:) = pp_cldf      !* cloud fraction over sea ice (used in si3)
 
       taum(:,:) = 0._wp             !* wind stress module (needed in GLS in case of reduced restart)
@@ -378,7 +378,7 @@ CONTAINS
       !!
       !! ** Action  : - set the ocean surface boundary condition at before and now
       !!                time step, i.e.
-      !!                utau_b, vtau_b, qns_b, qsr_b, emp_n, sfx_b, qrp_b, erp_b
+      !!                utau_b, vtau_b, qns_b, qsr_b, emp_b, sfx_b
       !!                utau  , vtau  , qns  , qsr  , emp  , sfx  , qrp  , erp
       !!              - updte the ice fraction : fr_i
       !!----------------------------------------------------------------------
@@ -386,12 +386,10 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm   ! ocean time level indices
       INTEGER  ::   jj, ji          ! dummy loop argument
       !
-      LOGICAL ::   ll_sas, ll_opa   ! local logical
+      LOGICAL  ::   ll_sas, ll_opa  ! local logical
       !
-      REAL(wp) ::     zthscl        ! wd  tanh scale
-      REAL(wp), DIMENSION(jpi,jpj) ::  zwdht, zwght  ! wd dep over wd limit, wgt
-      REAL(wp), DIMENSION(jpi,jpj) ::  z2d           ! temporary array used for iom_put
-
+      REAL(wp) ::  zthscl        ! wd  tanh scale
+      REAL(wp) ::  zwdht, zwght  ! wd dep over wd limit, wgt
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('sbc')
@@ -399,20 +397,22 @@ CONTAINS
       !                                            ! ---------------------------------------- !
       IF( kt /= nit000 ) THEN                      !          Swap of forcing fields          !
          !                                         ! ---------------------------------------- !
-         utau_b(:,:) = utau(:,:)                         ! Swap the ocean forcing fields
-         vtau_b(:,:) = vtau(:,:)                         ! (except at nit000 where before fields
-         qns_b (:,:) = qns (:,:)                         !  are set at the end of the routine)
-         emp_b (:,:) = emp (:,:)
-         sfx_b (:,:) = sfx (:,:)
+         utau_b(:,:) = utauU(:,:)                        ! Swap the ocean forcing fields
+         vtau_b(:,:) = vtauV(:,:)                        ! (except at nit000 where before fields
+         qns_b (:,:) = qns  (:,:)                        !  are set at the end of the routine)
+         emp_b (:,:) = emp  (:,:)
+         sfx_b (:,:) = sfx  (:,:)
          IF( ln_rnf ) THEN
             rnf_b    (:,:  ) = rnf    (:,:  )
             rnf_tsc_b(:,:,:) = rnf_tsc(:,:,:)
          ENDIF
-        !
+         !
       ENDIF
       !                                            ! ---------------------------------------- !
       !                                            !        forcing field computation         !
       !                                            ! ---------------------------------------- !
+      ! most of the following routines update fields only in the interior
+      ! with the exception of sbcssm, sbcrnf and sbcwave modules
       !
       ll_sas = nn_components == jp_iam_sas               ! component flags
       ll_opa = nn_components == jp_iam_oce
@@ -437,66 +437,75 @@ CONTAINS
       CASE( jp_abl     )   ;   CALL sbc_abl       ( kt )                             ! ABL  formulation for the ocean
       CASE( jp_purecpl )   ;   CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )  ! pure coupled formulation
       CASE( jp_none    )
-         IF( ll_opa    )       CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )  ! OCE-SAS coupling: OCE receiving fields from SAS
+         IF( ll_opa    )       CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )   ! OCE-SAS coupling: OCE receiving fields from SAS
       END SELECT
-      IF( ln_mixcpl )          CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )  ! forced-coupled mixed formulation after forcing
       !
-      IF( ln_wave .AND. ln_tauoc ) THEN            ! Wave stress reduction
-         DO_2D( 0, 0, 0, 0)
-            utau(ji,jj) = utau(ji,jj) * ( tauoc_wave(ji,jj) + tauoc_wave(ji+1,jj) ) * 0.5_wp
-            vtau(ji,jj) = vtau(ji,jj) * ( tauoc_wave(ji,jj) + tauoc_wave(ji,jj+1) ) * 0.5_wp
+      IF( ln_mixcpl )          CALL sbc_cpl_rcv   ( kt, nn_fsbc, nn_ice, Kbb, Kmm )   ! forced-coupled mixed formulation after forcing
+      !
+      IF( ln_wave .AND. ln_tauoc ) THEN             ! Wave stress reduction
+         !
+         DO_2D( 0, 0, 0, 0 )
+            utau(ji,jj) = utau(ji,jj) * tauoc_wave(ji,jj)
+            vtau(ji,jj) = vtau(ji,jj) * tauoc_wave(ji,jj)
+            taum(ji,jj) = taum(ji,jj) * tauoc_wave(ji,jj)
          END_2D
-         !
-         CALL lbc_lnk( 'sbcwave', utau, 'U', -1. )
-         CALL lbc_lnk( 'sbcwave', vtau, 'V', -1. )
-         !
-         taum(:,:) = taum(:,:)*tauoc_wave(:,:)
          !
          IF( kt == nit000 )   CALL ctl_warn( 'sbc: You are subtracting the wave stress to the ocean.',   &
             &                                'If not requested select ln_tauoc=.false.' )
          !
-      ELSEIF( ln_wave .AND. ln_taw ) THEN                  ! Wave stress reduction
-         utau(:,:) = utau(:,:) - tawx(:,:) + twox(:,:)
-         vtau(:,:) = vtau(:,:) - tawy(:,:) + twoy(:,:)
-         CALL lbc_lnk( 'sbcwave', utau, 'U', -1. )
-         CALL lbc_lnk( 'sbcwave', vtau, 'V', -1. )
-         !
-         DO_2D( 0, 0, 0, 0)
-             taum(ji,jj) = sqrt((.5*(utau(ji-1,jj)+utau(ji,jj)))**2 + (.5*(vtau(ji,jj-1)+vtau(ji,jj)))**2)
+      ELSEIF( ln_wave .AND. ln_taw ) THEN           ! Wave stress reduction
+         DO_2D( 0, 0, 0, 0 )
+            utau(ji,jj) = utau(ji,jj) - ( tawx(ji,jj) - twox(ji,jj) )
+            vtau(ji,jj) = vtau(ji,jj) - ( tawy(ji,jj) - twoy(ji,jj) )
+            taum(ji,jj) = SQRT( utau(ji,jj)*utau(ji,jj) + vtau(ji,jj)*vtau(ji,jj) )
          END_2D
          !
          IF( kt == nit000 )   CALL ctl_warn( 'sbc: You are subtracting the wave stress to the ocean.',   &
             &                                'If not requested select ln_taw=.false.' )
          !
       ENDIF
-      CALL lbc_lnk( 'sbcmod', taum(:,:), 'T', 1. )
+      !
+      !clem: these calls are needed for sbccpl only => only for SAS I think?
+      IF( ll_sas .OR. ll_opa )   CALL lbc_lnk( 'sbcmod', sst_m, 'T', 1.0_wp, sss_m, 'T', 1.0_wp, ssh_m, 'T', 1.0_wp, &
+         &                                               frq_m, 'T', 1.0_wp, e3t_m, 'T', 1.0_wp, fr_i , 'T', 1.0_wp )
+      !clem : these calls are needed for sbccpl => it needs an IF statement but it's complicated
+      IF( ln_rnf .AND. l_rnfcpl )     CALL lbc_lnk( 'sbcmod', rnf, 'T', 1.0_wp )
       !
       IF( ln_icebergs ) THEN  ! save pure stresses (with no ice-ocean stress) for use by icebergs
-         utau_icb(:,:) = utau(:,:) ; vtau_icb(:,:) = vtau(:,:) 
+         !     Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines
+         !      and the use of MAX(tmask(i,j),tmask(i+1,j) is to mask tau over ice shelves
+         CALL lbc_lnk( 'sbcmod', utau, 'T', -1.0_wp, vtau, 'T', -1.0_wp )
+         DO_2D( 0, 0, 0, 0 )
+            utau_icb(ji,jj) = 0.5_wp * ( utau(ji,jj) + utau(ji+1,jj) ) * &
+               &                       ( 2. - umask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji+1,jj,1) )
+            vtau_icb(ji,jj) = 0.5_wp * ( vtau(ji,jj) + vtau(ji,jj+1) ) * &
+               &                       ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) )
+         END_2D
+         CALL lbc_lnk( 'sbcmod', utau_icb, 'U', -1.0_wp, vtau_icb, 'V', -1.0_wp )
       ENDIF
       !
       !                                            !==  Misc. Options  ==!
       !
-      SELECT CASE( nn_ice )                                       ! Update heat and freshwater fluxes over sea-ice areas
-      CASE(  1 )   ;         CALL sbc_ice_if   ( kt, Kbb, Kmm )   ! Ice-cover climatology ("Ice-if" model)
+      SELECT CASE( nn_ice )                                            ! Update heat and freshwater fluxes over sea-ice areas
+      CASE(  1 )   ;         CALL sbc_ice_if   ( kt, Kbb, Kmm )        ! Ice-cover climatology ("Ice-if" model)
 #if defined key_si3
-      CASE(  2 )   ;         CALL ice_stp  ( kt, Kbb, Kmm, nsbc ) ! SI3 ice model
+      CASE(  2 )   ;         CALL ice_stp  ( kt, Kbb, Kmm, nsbc )      ! SI3 ice model
 #endif
-      CASE(  3 )   ;         CALL sbc_ice_cice ( kt, nsbc )       ! CICE ice model
+      CASE(  3 )   ;         CALL sbc_ice_cice ( kt, nsbc )            ! CICE ice model
       END SELECT
-
-      IF( ln_icebergs    )   CALL icb_stp( kt, Kmm )              ! compute icebergs
+      !==> clem: from here on, the following fields are ok on the halos: snwice_mass, snwice_mass_b, snwice_fmass
+      !                        but not utau, vtau, emp (must be done later on)
+      
+      IF( ln_icebergs    )   CALL icb_stp( kt, Kmm )                   ! compute icebergs
 
       ! Icebergs do not melt over the haloes.
       ! So emp values over the haloes are no more consistent with the inner domain values.
       ! A lbc_lnk is therefore needed to ensure reproducibility and restartability.
       ! see ticket #2113 for discussion about this lbc_lnk.
-      ! The lbc_lnk is also needed for SI3 with nn_hls > 1 as emp is not yet defined for these points in iceupdate.F90
-      IF( (ln_icebergs .AND. .NOT. ln_passive_mode) .OR. (nn_ice == 2 .AND. nn_hls == 2) ) THEN
-         CALL lbc_lnk( 'sbcmod', emp, 'T', 1.0_wp )
-      ENDIF
-
-      IF( ln_rnf         )   CALL sbc_rnf( kt )                   ! add runoffs to fresh water fluxes
+!!$      IF( ln_icebergs .AND. .NOT. ln_passive_mode )   CALL lbc_lnk( 'sbcmod', emp, 'T', 1.0_wp )
+      !clem: not needed anymore since lbc is done afterwards
+      
+      IF( ln_rnf         )   CALL sbc_rnf( kt )                        ! add runoffs to fresh water fluxes
 
       IF( ln_ssr         )   CALL sbc_ssr( kt )                        ! add SST/SSS damping term
 
@@ -506,33 +515,49 @@ CONTAINS
       ! Should not be run if ln_diurnal_only
       IF( l_sbc_clo      )   CALL sbc_clo( kt )
 
-!!$!RBbug do not understand why see ticket 667
-!!$!clem: it looks like it is necessary for the north fold (in certain circumstances). Don't know why.
-!!$      CALL lbc_lnk( 'sbcmod', emp, 'T', 1.0_wp )
       IF( ll_wd ) THEN     ! If near WAD point limit the flux for now
          zthscl = atanh(rn_wd_sbcfra)                     ! taper frac default is .999
-         zwdht(:,:) = ssh(:,:,Kmm) + ht_0(:,:) - rn_wdmin1   ! do this calc of water
-                                                     ! depth above wd limit once
-         WHERE( zwdht(:,:) <= 0.0 )
-            taum(:,:) = 0.0
-            utau(:,:) = 0.0
-            vtau(:,:) = 0.0
-            qns (:,:) = 0.0
-            qsr (:,:) = 0.0
-            emp (:,:) = min(emp(:,:),0.0) !can allow puddles to grow but not shrink
-            sfx (:,:) = 0.0
-         END WHERE
-         zwght(:,:) = tanh(zthscl*zwdht(:,:))
-         WHERE( zwdht(:,:) > 0.0  .and. zwdht(:,:) < rn_wd_sbcdep ) !  5 m hard limit here is arbitrary
-            qsr  (:,:) =  qsr(:,:)  * zwght(:,:)
-            qns  (:,:) =  qns(:,:)  * zwght(:,:)
-            taum (:,:) =  taum(:,:) * zwght(:,:)
-            utau (:,:) =  utau(:,:) * zwght(:,:)
-            vtau (:,:) =  vtau(:,:) * zwght(:,:)
-            sfx  (:,:) =  sfx(:,:)  * zwght(:,:)
-            emp  (:,:) =  emp(:,:)  * zwght(:,:)
-         END WHERE
+         DO_2D( 0, 0, 0, 0 )
+            zwdht = ssh(ji,jj,Kmm) + ht_0(ji,jj) - rn_wdmin1   ! do this calc of water depth above wd limit once
+            zwght = TANH(zthscl*zwdht)
+            IF( zwdht <= 0.0 ) THEN
+               taum(ji,jj) = 0.0
+               utau(ji,jj) = 0.0
+               vtau(ji,jj) = 0.0
+               qns (ji,jj) = 0.0
+               qsr (ji,jj) = 0.0
+               emp (ji,jj) = MIN(emp(ji,jj),0.0) !can allow puddles to grow but not shrink
+               sfx (ji,jj) = 0.0
+            ELSEIF( zwdht > 0.0  .AND. zwdht < rn_wd_sbcdep ) THEN !  5 m hard limit here is arbitrary
+               qsr  (ji,jj) =  qsr(ji,jj)  * zwght
+               qns  (ji,jj) =  qns(ji,jj)  * zwght
+               taum (ji,jj) =  taum(ji,jj) * zwght
+               utau (ji,jj) =  utau(ji,jj) * zwght
+               vtau (ji,jj) =  vtau(ji,jj) * zwght
+               sfx  (ji,jj) =  sfx(ji,jj)  * zwght
+               emp  (ji,jj) =  emp(ji,jj)  * zwght
+            ENDIF
+         END_2D
       ENDIF
+
+      ! clem: these should be the only fields that are needed over the entire domain
+      !       (in addition to snwice_mass)
+      IF( ln_rnf ) THEN
+         CALL lbc_lnk( 'sbcmod', utau, 'T', -1.0_wp, vtau  , 'T', -1.0_wp, emp, 'T', 1.0_wp, &
+            &                    rnf , 'T',  1.0_wp )
+      ELSE
+         CALL lbc_lnk( 'sbcmod', utau, 'T', -1.0_wp, vtau  , 'T', -1.0_wp, emp, 'T', 1.0_wp )
+      ENDIF
+      ! --- calculate utau and vtau on U,V-points --- !
+      !     Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines
+      !      and the use of MAX(tmask(i,j),tmask(i+1,j) is to mask tau over ice shelves
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         utauU  (ji,jj) = 0.5_wp * ( utau(ji,jj) + utau(ji+1,jj) ) * &
+            &                      ( 2. - umask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji+1,jj,1) )
+         vtauV  (ji,jj) = 0.5_wp * ( vtau(ji,jj) + vtau(ji,jj+1) ) * &
+            &                      ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) )
+      END_2D
+      IF( nn_hls == 1 )   CALL lbc_lnk( 'sbcmod', utauU, 'U', -1.0_wp, vtauV, 'V', -1.0_wp )
       !
       IF( kt == nit000 ) THEN                          !   set the forcing field at nit000 - 1    !
          !                                             ! ---------------------------------------- !
@@ -542,26 +567,27 @@ CONTAINS
          IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN            !* MLF: Restart: read in restart file
 #endif
             IF(lwp) WRITE(numout,*) '          nit000-1 surface forcing fields read in the restart file'
-            CALL iom_get( numror, jpdom_auto, 'utau_b', utau_b )   ! i-stress
-            CALL iom_get( numror, jpdom_auto, 'vtau_b', vtau_b )   ! j-stress
-            CALL iom_get( numror, jpdom_auto,  'qns_b',  qns_b )   ! non solar heat flux
-            CALL iom_get( numror, jpdom_auto,  'emp_b',  emp_b )   ! freshwater flux
+            CALL iom_get( numror, jpdom_auto, 'utau_b', utau_b, cd_type = 'U', psgn = -1._wp )   ! i-stress
+            CALL iom_get( numror, jpdom_auto, 'vtau_b', vtau_b, cd_type = 'V', psgn = -1._wp )   ! j-stress
+            CALL iom_get( numror, jpdom_auto,  'qns_b',  qns_b, cd_type = 'T', psgn =  1._wp )   ! non solar heat flux
+            CALL iom_get( numror, jpdom_auto,  'emp_b',  emp_b, cd_type = 'T', psgn =  1._wp )   ! freshwater flux
             ! NB: The 3D heat content due to qsr forcing (qsr_hc_b) is treated in traqsr
             ! To ensure restart capability with 3.3x/3.4 restart files    !! to be removed in v3.6
             IF( iom_varid( numror, 'sfx_b', ldstop = .FALSE. ) > 0 ) THEN
-               CALL iom_get( numror, jpdom_auto, 'sfx_b', sfx_b )  ! before salt flux (T-point)
+               CALL iom_get( numror, jpdom_auto, 'sfx_b', sfx_b, cd_type = 'T', psgn = 1._wp )   ! before salt flux (T-point)
             ELSE
                sfx_b (:,:) = sfx(:,:)
             ENDIF
          ELSE                                                   !* no restart: set from nit000 values
             IF(lwp) WRITE(numout,*) '          nit000-1 surface forcing fields set to nit000'
-            utau_b(:,:) = utau(:,:)
-            vtau_b(:,:) = vtau(:,:)
+            utau_b(:,:) = utauU(:,:)
+            vtau_b(:,:) = vtauV(:,:)
             qns_b (:,:) = qns (:,:)
             emp_b (:,:) = emp (:,:)
             sfx_b (:,:) = sfx (:,:)
          ENDIF
       ENDIF
+      !
       !
 #if defined key_RK3
       !                                                ! ---------------------------------------- !
@@ -577,41 +603,26 @@ CONTAINS
          IF(lwp) WRITE(numout,*) 'sbc : ocean surface forcing fields written in ocean restart file ',   &
             &                    'at it= ', kt,' date= ', ndastp
          IF(lwp) WRITE(numout,*) '~~~~'
-         CALL iom_rstput( kt, nitrst, numrow, 'utau_b' , utau )
-         CALL iom_rstput( kt, nitrst, numrow, 'vtau_b' , vtau )
-         CALL iom_rstput( kt, nitrst, numrow, 'qns_b'  , qns  )
+         CALL iom_rstput( kt, nitrst, numrow, 'utau_b' , utauU )
+         CALL iom_rstput( kt, nitrst, numrow, 'vtau_b' , vtauV )
+         CALL iom_rstput( kt, nitrst, numrow, 'qns_b'  , qns   )
          ! The 3D heat content due to qsr forcing is treated in traqsr
          ! CALL iom_rstput( kt, nitrst, numrow, 'qsr_b'  , qsr  )
-         CALL iom_rstput( kt, nitrst, numrow, 'emp_b'  , emp  )
-         CALL iom_rstput( kt, nitrst, numrow, 'sfx_b'  , sfx  )
+         CALL iom_rstput( kt, nitrst, numrow, 'emp_b'  , emp   )
+         CALL iom_rstput( kt, nitrst, numrow, 'sfx_b'  , sfx   )
       ENDIF
       !                                                ! ---------------------------------------- !
       !                                                !        Outputs and control print         !
       !                                                ! ---------------------------------------- !
       IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN
-         IF( iom_use("empmr") ) THEN
-            DO_2D( 0, 0, 0, 0 )
-               z2d(ji,jj) =  emp(ji,jj) - rnf(ji,jj)
-            END_2D
-            CALL iom_put( "empmr"  , z2d      )                ! upward water flux
-         ENDIF
-         IF( iom_use("empbmr") ) THEN
-            DO_2D( 0, 0, 0, 0 )
-               z2d(ji,jj) =  emp_b(ji,jj) - rnf(ji,jj)
-            END_2D
-            CALL iom_put( "empbmr" , z2d      )                ! before upward water flux ( needed to recalculate the time evolution of ssh in offline )
-         ENDIF
-         CALL iom_put( "saltflx", sfx         )                ! downward salt flux (includes virtual salt flux beneath ice in linear free surface case)
-         CALL iom_put( "fmmflx" , fmmflx      )                ! Freezing-melting water flux
-         IF( iom_use("qt") ) THEN
-            DO_2D( 0, 0, 0, 0 )
-               z2d(ji,jj) =  qns(ji,jj) + qsr(ji,jj)
-            END_2D
-            CALL iom_put( "qt"  , z2d         )                ! total heat flux
-         ENDIF
+         CALL iom_put( "empmr"  , emp(A2D(0))-rnf(A2D(0))     )                ! upward water flux
+         CALL iom_put( "empbmr" , emp_b(A2D(0))-rnf(A2D(0))   )                ! before upward water flux (for ssh in offline )
+         CALL iom_put( "saltflx", sfx         )                ! downward salt flux
+         CALL iom_put( "fwfice" , fwfice      )                ! ice-ocean freshwater flux
+         CALL iom_put( "qt"     , qns+qsr     )                ! total heat flux
          CALL iom_put( "qns"    , qns         )                ! solar heat flux
          CALL iom_put( "qsr"    , qsr         )                ! solar heat flux
-         IF( nn_ice > 0 .OR. ll_opa )   CALL iom_put( "ice_cover", fr_i )   ! ice fraction
+         IF( nn_ice > 0 .OR. ll_opa )   CALL iom_put( "ice_cover", fr_i(:,:) )   ! ice fraction
          CALL iom_put( "taum"   , taum        )                ! wind stress module
          CALL iom_put( "wspd"   , wndm        )                ! wind speed  module over free ocean or leads in presence of sea-ice
          CALL iom_put( "qrp"    , qrp         )                ! heat flux damping
@@ -621,14 +632,14 @@ CONTAINS
       IF(sn_cfctl%l_prtctl) THEN     ! print mean trends (used for debugging)
          CALL prt_ctl(tab2d_1=fr_i                , clinfo1=' fr_i     - : ', mask1=tmask )
          CALL prt_ctl(tab2d_1=(emp-rnf)           , clinfo1=' emp-rnf  - : ', mask1=tmask )
-         CALL prt_ctl(tab2d_1=(sfx-rnf)           , clinfo1=' sfx-rnf  - : ', mask1=tmask )
+         CALL prt_ctl(tab2d_1=(sfx-rnf(A2D(0)))   , clinfo1=' sfx-rnf  - : ', mask1=tmask )
          CALL prt_ctl(tab2d_1=qns                 , clinfo1=' qns      - : ', mask1=tmask )
          CALL prt_ctl(tab2d_1=qsr                 , clinfo1=' qsr      - : ', mask1=tmask )
          CALL prt_ctl(tab3d_1=tmask               , clinfo1=' tmask    - : ', mask1=tmask, kdim=jpk )
-         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' sst      - : ', mask1=tmask, kdim=1   )
-         CALL prt_ctl(tab3d_1=ts(:,:,:,jp_sal,Kmm), clinfo1=' sss      - : ', mask1=tmask, kdim=1   )
-         CALL prt_ctl(tab2d_1=utau                , clinfo1=' utau     - : ', mask1=umask,                      &
-            &         tab2d_2=vtau                , clinfo2=' vtau     - : ', mask2=vmask )
+         CALL prt_ctl(tab2d_1=sst_m               , clinfo1=' sst      - : ', mask1=tmask )
+         CALL prt_ctl(tab2d_1=sss_m               , clinfo1=' sss      - : ', mask1=tmask )
+         CALL prt_ctl(tab2d_1=utau                , clinfo1=' utau     - : ', mask1=tmask,                      &
+            &         tab2d_2=vtau                , clinfo2=' vtau     - : ', mask2=tmask )
       ENDIF
 
       IF( kt == nitend )   CALL sbc_final         ! Close down surface module if necessary

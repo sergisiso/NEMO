@@ -59,6 +59,13 @@ CONTAINS
       !
       tyrc14_now = 0._wp   ! initialize
       !
+      IF( kc14typ == 0) THEN
+         co2sbc=pco2at
+         DO_2D( 0, 0, 0, 0 )
+            c14sbc(ji,jj) = rc14at
+         END_2D
+      ENDIF
+      !
       IF(kc14typ >= 1) THEN  ! Transient atmospheric forcing: CO2
       !
          clfile = TRIM( cfileco2 )
@@ -116,10 +123,10 @@ CONTAINS
        ! Linear  interpolation of the C-14 source fonction
        ! in linear latitude bands  (20N,40N) and (20S,40S)
        !------------------------------------------------------
-            ALLOCATE( fareaz  (jpi,jpj ,nc14zon) , STAT=ierr3 )
+            ALLOCATE( fareaz(A2D(0) ,nc14zon) , STAT=ierr3 )
             IF( ierr3 /= 0 )   CALL ctl_stop( 'STOP', 'trc_atm_c14_ini: unable to allocate fareaz' )
       !
-            DO_2D( 1, 1, 1, 1 )                 ! from C14b package
+            DO_2D( 0, 0, 0, 0 )                 ! from C14b package
               IF( gphit(ji,jj) >= yn40 ) THEN
                  fareaz(ji,jj,1) = 0.
                  fareaz(ji,jj,2) = 0.
@@ -205,9 +212,9 @@ CONTAINS
       !! ** Action  :   atmospheric values interpolated at time-step kt
       !!----------------------------------------------------------------------
       INTEGER                 , INTENT(in   )   ::   kt       ! ocean time-step
-      REAL(wp), DIMENSION(:,:), INTENT(  out)   ::   c14sbc   ! atm c14 ratio
+      REAL(wp), DIMENSION(A2D(0)), INTENT(  out)   ::   c14sbc   ! atm c14 ratio
       REAL(wp),                 INTENT(  out)   ::   co2sbc   ! atm co2 p
-      INTEGER                                   ::   jz       ! dummy loop indice
+      INTEGER                                   ::   ji, jj, jz       ! dummy loop indice
       REAL(wp)                              ::   zdint,zint   ! work
       REAL(wp), DIMENSION(nc14zon)              ::   zonbc14  ! work
       !
@@ -215,10 +222,6 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('trc_atm_c14')
       !
-      IF( kc14typ == 0) THEN
-         co2sbc=pco2at
-         c14sbc(:,:)=rc14at
-      ENDIF
       !
       IF(kc14typ >= 1) THEN  ! Transient C14 & CO2
       !

@@ -71,7 +71,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       IF( l_use_wl ) THEN
          ierr = 0
-         ALLOCATE ( Tau_ac(jpi,jpj) , Qnt_ac(jpi,jpj), dT_wl(jpi,jpj), Hz_wl(jpi,jpj), STAT=ierr )
+         ALLOCATE ( Tau_ac(A2D(0)) , Qnt_ac(A2D(0)), dT_wl(A2D(0)), Hz_wl(A2D(0)), STAT=ierr )
          IF( ierr > 0 ) CALL ctl_stop( ' SBCBLK_ALGO_COARE3P0_INIT => allocation of Tau_ac, Qnt_ac, dT_wl & Hz_wl failed!' )
          Tau_ac(:,:) = 0._wp
          Qnt_ac(:,:) = 0._wp
@@ -80,7 +80,7 @@ CONTAINS
       ENDIF
       IF( l_use_cs ) THEN
          ierr = 0
-         ALLOCATE ( dT_cs(jpi,jpj), STAT=ierr )
+         ALLOCATE ( dT_cs(A2D(0)), STAT=ierr )
          IF( ierr > 0 ) CALL ctl_stop( ' SBCBLK_ALGO_COARE3P0_INIT => allocation of dT_cs failed!' )
          dT_cs(:,:) = -0.25_wp  ! First guess of skin correction
       ENDIF
@@ -151,44 +151,44 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, June 2019 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      INTEGER,  INTENT(in   )                     ::   kt       ! current time step
-      REAL(wp), INTENT(in   )                     ::   zt       ! height for t_zt and q_zt                    [m]
-      REAL(wp), INTENT(in   )                     ::   zu       ! height for U_zu                             [m]
-      REAL(wp), INTENT(inout), DIMENSION(jpi,jpj) ::   T_s      ! sea surface temperature                [Kelvin]
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj) ::   t_zt     ! potential air temperature              [Kelvin]
-      REAL(wp), INTENT(inout), DIMENSION(jpi,jpj) ::   q_s      ! sea surface specific humidity           [kg/kg]
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj) ::   q_zt     ! specific air humidity at zt             [kg/kg]
-      REAL(wp), INTENT(in   ), DIMENSION(jpi,jpj) ::   U_zu     ! relative wind module at zu                [m/s]
-      LOGICAL , INTENT(in   )                     ::   l_use_cs ! use the cool-skin parameterization
-      LOGICAL , INTENT(in   )                     ::   l_use_wl ! use the warm-layer parameterization
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   Cd       ! transfer coefficient for momentum         (tau)
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   Ch       ! transfer coefficient for sensible heat (Q_sens)
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   Ce       ! transfert coefficient for evaporation   (Q_lat)
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   t_zu     ! pot. air temp. adjusted at zu               [K]
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   q_zu     ! spec. humidity adjusted at zu           [kg/kg]
-      REAL(wp), INTENT(  out), DIMENSION(jpi,jpj) ::   Ubzu    ! bulk wind speed at zu                     [m/s]
+      INTEGER,  INTENT(in   )                    ::   kt       ! current time step
+      REAL(wp), INTENT(in   )                    ::   zt       ! height for t_zt and q_zt                    [m]
+      REAL(wp), INTENT(in   )                    ::   zu       ! height for U_zu                             [m]
+      REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   T_s      ! sea surface temperature                [Kelvin]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   t_zt     ! potential air temperature              [Kelvin]
+      REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   q_s      ! sea surface specific humidity           [kg/kg]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   q_zt     ! specific air humidity at zt             [kg/kg]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   U_zu     ! relative wind module at zu                [m/s]
+      LOGICAL , INTENT(in   )                    ::   l_use_cs ! use the cool-skin parameterization
+      LOGICAL , INTENT(in   )                    ::   l_use_wl ! use the warm-layer parameterization
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   Cd       ! transfer coefficient for momentum         (tau)
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   Ch       ! transfer coefficient for sensible heat (Q_sens)
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   Ce       ! transfert coefficient for evaporation   (Q_lat)
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   t_zu     ! pot. air temp. adjusted at zu               [K]
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   q_zu     ! spec. humidity adjusted at zu           [kg/kg]
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   Ubzu     ! bulk wind speed at zu                     [m/s]
       !
-      INTEGER , INTENT(in   ), OPTIONAL                     :: nb_iter  ! number of iterations
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   CdN
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   ChN
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   CeN
-      REAL(wp), INTENT(in   ), OPTIONAL, DIMENSION(jpi,jpj) ::   Qsw      !             [W/m^2]
-      REAL(wp), INTENT(in   ), OPTIONAL, DIMENSION(jpi,jpj) ::   rad_lw   !             [W/m^2]
-      REAL(wp), INTENT(in   ), OPTIONAL, DIMENSION(jpi,jpj) ::   slp      !             [Pa]
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   pdT_cs
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   pdT_wl   !             [K]
-      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(jpi,jpj) ::   pHz_wl   !             [m]
+      INTEGER , INTENT(in   ), OPTIONAL                    :: nb_iter    ! number of iterations
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   CdN
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   ChN
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   CeN
+      REAL(wp), INTENT(in   ), OPTIONAL, DIMENSION(A2D(0)) ::   Qsw      !             [W/m^2]
+      REAL(wp), INTENT(in   ), OPTIONAL, DIMENSION(A2D(0)) ::   rad_lw   !             [W/m^2]
+      REAL(wp), INTENT(in   ), OPTIONAL, DIMENSION(A2D(0)) ::   slp      !             [Pa]
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   pdT_cs
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   pdT_wl   !             [K]
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   pHz_wl   !             [m]
       !
       INTEGER :: nbit, jit
       LOGICAL :: l_zt_equal_zu = .FALSE.      ! if q and t are given at same height as U
       !
-      REAL(wp), DIMENSION(jpi,jpj) :: u_star, t_star, q_star
-      REAL(wp), DIMENSION(jpi,jpj) :: dt_zu, dq_zu
-      REAL(wp), DIMENSION(jpi,jpj) :: znu_a         !: Nu_air, Viscosity of air
-      REAL(wp), DIMENSION(jpi,jpj) :: z0, z0t
-      REAL(wp), DIMENSION(jpi,jpj) :: zeta_u        ! stability parameter at height zu
-      REAL(wp), DIMENSION(jpi,jpj) :: ztmp0, ztmp1, ztmp2
-      REAL(wp), DIMENSION(jpi,jpj) :: zpre, zrhoa, zta ! air pressure [Pa], density [kg/m3] & absolute temperature [k]
+      REAL(wp), DIMENSION(A2D(0)) :: u_star, t_star, q_star
+      REAL(wp), DIMENSION(A2D(0)) :: dt_zu, dq_zu
+      REAL(wp), DIMENSION(A2D(0)) :: znu_a         !: Nu_air, Viscosity of air
+      REAL(wp), DIMENSION(A2D(0)) :: z0, z0t
+      REAL(wp), DIMENSION(A2D(0)) :: zeta_u        ! stability parameter at height zu
+      REAL(wp), DIMENSION(A2D(0)) :: ztmp0, ztmp1, ztmp2
+      REAL(wp), DIMENSION(A2D(0)) :: zpre, zrhoa, zta ! air pressure [Pa], density [kg/m3] & absolute temperature [k]
       !
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zeta_t  ! stability parameter at height zt
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zsst    ! to back up the initial bulk SST
@@ -201,7 +201,7 @@ CONTAINS
       IF( PRESENT(nb_iter) ) nbit = nb_iter
 
       l_zt_equal_zu = ( ABS(zu - zt) < 0.01_wp ) ! testing "zu == zt" is risky with double precision
-      IF( .NOT. l_zt_equal_zu )  ALLOCATE( zeta_t(jpi,jpj) )
+      IF( .NOT. l_zt_equal_zu )  ALLOCATE( zeta_t(A2D(0)) )
 
       !! Initializations for cool skin and warm layer:
       IF( l_use_cs .AND. (.NOT.(PRESENT(Qsw) .AND. PRESENT(rad_lw) .AND. PRESENT(slp))) ) &
@@ -211,7 +211,7 @@ CONTAINS
          &   CALL ctl_stop( '['//TRIM(crtnm)//'] => ' , 'you need to provide Qsw, rad_lw & slp to use warm-layer param!' )
 
       IF( l_use_cs .OR. l_use_wl ) THEN
-         ALLOCATE ( zsst(jpi,jpj) )
+         ALLOCATE ( zsst(A2D(0)) )
          zsst = T_s ! backing up the bulk SST
          IF( l_use_cs ) T_s = T_s - 0.25_wp   ! First guess of correction
          q_s    = rdct_qsat_salt*q_sat(MAX(T_s, 200._wp), slp) ! First guess of q_s
@@ -334,8 +334,8 @@ CONTAINS
 
             CALL CS_COARE( Qsw, ztmp1, u_star, zsst, ztmp2 )  ! ! Qnsol -> ztmp1 / Qlat -> ztmp2
 
-            T_s(:,:) = zsst(:,:) + dT_cs(:,:)*tmask(:,:,1)
-            IF( l_use_wl ) T_s(:,:) = T_s(:,:) + dT_wl(:,:)*tmask(:,:,1)
+            T_s(:,:) = zsst(:,:) + dT_cs(:,:)*smask0(:,:)
+            IF( l_use_wl ) T_s(:,:) = T_s(:,:) + dT_wl(:,:)*smask0(:,:)
             q_s(:,:) = rdct_qsat_salt*q_sat(MAX(T_s(:,:), 200._wp), slp(:,:))
          ENDIF
 
@@ -347,8 +347,8 @@ CONTAINS
             CALL WL_COARE( Qsw, ztmp1, zeta_u, zsst, MOD(nbit,jit) )
 
             !! Updating T_s and q_s !!!
-            T_s(:,:) = zsst(:,:) + dT_wl(:,:)*tmask(:,:,1)
-            IF( l_use_cs ) T_s(:,:) = T_s(:,:) + dT_cs(:,:)*tmask(:,:,1)
+            T_s(:,:) = zsst(:,:) + dT_wl(:,:)*smask0(:,:)
+            IF( l_use_cs ) T_s(:,:) = T_s(:,:) + dT_cs(:,:)*smask0(:,:)
             q_s(:,:) = rdct_qsat_salt*q_sat(MAX(T_s(:,:), 200._wp), slp(:,:))
          ENDIF
 
@@ -392,13 +392,13 @@ CONTAINS
       !!
       !! Author: L. Brodeau, June 2016 / AeroBulk  (https://github.com/brodeau/aerobulk/)
       !!-------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj) :: charn_coare3p0
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pwnd   ! wind speed
+      REAL(wp), DIMENSION(A2D(0)) :: charn_coare3p0
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pwnd   ! wind speed
       !
       INTEGER  ::   ji, jj         ! dummy loop indices
       REAL(wp) :: zw, zgt10, zgt18
       !!-------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
             !
             zw = pwnd(ji,jj)   ! wind speed
             !
@@ -426,13 +426,13 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, June 2016 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj) :: psi_m_coare
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pzeta
+      REAL(wp), DIMENSION(A2D(0)) :: psi_m_coare
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pzeta
       !
       INTEGER  ::   ji, jj    ! dummy loop indices
       REAL(wp) :: zta, zphi_m, zphi_c, zpsi_k, zpsi_c, zf, zc, zstab
       !!----------------------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
             !
             zta = pzeta(ji,jj)
             !
@@ -474,13 +474,13 @@ CONTAINS
       !! Author: L. Brodeau, June 2016 / AeroBulk
       !!         (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj) :: psi_h_coare
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: pzeta
+      REAL(wp), DIMENSION(A2D(0)) :: psi_h_coare
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pzeta
       !
       INTEGER  ::   ji, jj     ! dummy loop indices
       REAL(wp) :: zta, zphi_h, zphi_c, zpsi_k, zpsi_c, zf, zc, zstab
       !!----------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
             !
             zta = pzeta(ji,jj)
             !

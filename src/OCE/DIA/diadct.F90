@@ -32,7 +32,6 @@ MODULE diadct
 #if defined key_si3
    USE ice
 #endif
-   USE domvvl
    USE timing          ! preformance summary
 
    IMPLICIT NONE
@@ -414,9 +413,9 @@ CONTAINS
               !verify if the point is on the local domain:(1,Nie0)*(1,Nje0)
               IF( iiloc >= 1 .AND. iiloc <= Nie0 .AND. &
                   ijloc >= 1 .AND. ijloc <= Nje0       )THEN
-                 iptloc = iptloc + 1                                                 ! count local points
-                 secs(jsec)%listPoint(iptloc) = POINT_SECTION(mi0(iiglo),mj0(ijglo)) ! store local coordinates
-                 secs(jsec)%direction(iptloc) = directemp(jpt)                       ! store local direction
+                 iptloc = iptloc + 1                                                               ! count local points
+                 secs(jsec)%listPoint(iptloc) = POINT_SECTION(mi0(iiglo,nn_hls),mj0(ijglo,nn_hls)) ! store local coordinates
+                 secs(jsec)%direction(iptloc) = directemp(jpt)                                     ! store local direction
               ENDIF
               !
            END DO
@@ -1198,7 +1197,7 @@ CONTAINS
 
   ENDIF
 
-  IF( ln_sco )THEN   ! s-coordinate case
+  IF( l_sco )THEN   ! s-coordinate case
 
      zdepu = ( gdept(ii1,ij1,kk,Kmm) +  gdept(ii2,ij2,kk,Kmm) ) * 0.5_wp 
      zdep1 = gdept(ii1,ij1,kk,Kmm) - zdepu

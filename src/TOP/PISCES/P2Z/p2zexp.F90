@@ -65,7 +65,7 @@ CONTAINS
       !!
       INTEGER  ::   ji, jj, jk, jl, ikt
       REAL(wp) ::   zgeolpoc, zfact, zwork, ze3t, zsedpocd, zmaskt
-      REAL(wp), DIMENSION(jpi,jpj)   ::  zsedpoca
+      REAL(wp), DIMENSION(A2D(0))   ::  zsedpoca
       CHARACTER (len=25) :: charout
       !!---------------------------------------------------------------------
       !
@@ -106,7 +106,7 @@ CONTAINS
          tr(ji,jj,1,jpno3,Krhs) = tr(ji,jj,1,jpno3,Krhs) + zgeolpoc * cmask(ji,jj) / areacot / e3t(ji,jj,1,Kmm)
       END_2D
 
-      CALL lbc_lnk( 'p2zexp', sedpocn, 'T', 1.0_wp )
+!      CALL lbc_lnk( 'p2zexp', sedpocn, 'T', 1.0_wp )
  
       ! Oa & Ek: diagnostics depending on jpdia2d !          left as example
       IF( lk_iomput )  CALL iom_put( "SEDPOC" , sedpocn )
@@ -120,7 +120,7 @@ CONTAINS
         !                                              
       ELSE
         !
-        DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+        DO_2D( 0, 0, 0, 0 )
            zsedpocd = zsedpoca(ji,jj) - 2. * sedpocn(ji,jj) + sedpocb(ji,jj)      ! time laplacian on tracers
            sedpocb(ji,jj) = sedpocn(ji,jj) + rn_atfp * zsedpocd                     ! sedpocb <-- filtered sedpocn
            sedpocn(ji,jj) = zsedpoca(ji,jj)                                       ! sedpocn <-- sedpoca
@@ -156,8 +156,8 @@ CONTAINS
       INTEGER, INTENT(in)  ::  Kmm      ! time level index
       INTEGER  ::   ji, jj, jk
       REAL(wp) ::   zmaskt, zfluo, zfluu
-      REAL(wp), DIMENSION(jpi,jpj    ) :: zrro
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdm0
+      REAL(wp), DIMENSION(A2D(0)    ) :: zrro, zarea
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zdm0
       !!---------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -171,9 +171,9 @@ CONTAINS
       ! Calculate vertical distribution of newly formed biogenic poc
       ! in the water column in the case of max. possible bottom depth
       ! ------------------------------------------------------------
-      zdm0 = 0._wp
-      zrro = 1._wp
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, jpkb, jpkm1 )
+      zdm0(:,:,:) = 0._wp
+      zrro(:,:) = 1._wp
+      DO_3D( 0, 0, 0, 0, jpkb, jpkm1 )
          zfluo = ( gdepw(ji,jj,jk  ,Kmm) / gdepw(ji,jj,jpkb,Kmm) )**xhr
          zfluu = ( gdepw(ji,jj,jk+1,Kmm) / gdepw(ji,jj,jpkb,Kmm) )**xhr
          IF( zfluo.GT.1. )   zfluo = 1._wp
@@ -190,14 +190,14 @@ CONTAINS
       ! ----------------------------------------------------------------------
       dminl(:,:)   = 0._wp
       dmin3(:,:,:) = zdm0
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          IF( tmask(ji,jj,jk) == 0._wp ) THEN
             dminl(ji,jj) = dminl(ji,jj) + dmin3(ji,jj,jk)
             dmin3(ji,jj,jk) = 0._wp
          ENDIF
       END_3D
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF( tmask(ji,jj,1) == 0 )   dmin3(ji,jj,1) = 0._wp
       END_2D
 
@@ -209,8 +209,11 @@ CONTAINS
             IF( zmaskt == 0. )   cmask(ji,jj) = 1._wp
          END IF
       END_2D
-      CALL lbc_lnk( 'p2zexp', cmask , 'T', 1.0_wp )      ! lateral boundary conditions on cmask   (sign unchanged)
-      areacot = glob_sum( 'p2zexp', e1e2t(:,:) * cmask(:,:) )
+!      CALL lbc_lnk( 'p2zexp', cmask , 'T', 1.0_wp )      ! lateral boundary conditions on cmask   (sign unchanged)
+      DO_2D( 0, 0, 0, 0 )
+         zarea(ji,jj) = e1e2t(ji,jj) * cmask(ji,jj)  
+      END_2D
+      areacot = glob_sum( 'p2zexp', zarea(:,:) )
       !
       IF( ln_rsttr ) THEN
          CALL iom_get( numrtr, jpdom_auto, 'SEDB'//ctrcnm(jpdet), sedpocb(:,:) )
@@ -226,8 +229,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE p2z_exp_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( cmask(jpi,jpj) , dminl(jpi,jpj) , dmin3(jpi,jpj,jpk), &
-         &      sedpocb(jpi,jpj) , sedpocn(jpi,jpj),   STAT=p2z_exp_alloc )
+      ALLOCATE( cmask(A2D(0)) , dminl(A2D(0)) , dmin3(A2D(0),jpk), &
+         &      sedpocb(A2D(0)) , sedpocn(A2D(0)),   STAT=p2z_exp_alloc )
       IF( p2z_exp_alloc /= 0 ) CALL ctl_stop( 'STOP', 'p2z_exp_alloc : failed to allocate arrays.' )
       !
    END FUNCTION p2z_exp_alloc

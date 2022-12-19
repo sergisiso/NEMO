@@ -70,8 +70,8 @@ CONTAINS
       REAL(wp) ::   zpig                ! log of the total pigment
       REAL(wp) ::   zkr, zkg            ! total absorption coefficient in red and green
       REAL(wp) ::   zcoef               ! temporary scalar
-      REAL(wp), DIMENSION(jpi,jpj    ) :: zpar100, zpar0m
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zparr, zparg
+      REAL(wp), DIMENSION(A2D(0)    ) :: zpar100, zpar0m
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zparr, zparg
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p2z_opt')
@@ -85,8 +85,14 @@ CONTAINS
 
       !                                          ! surface irradiance
       !                                          ! ------------------
-      IF( ln_dm2dc ) THEN   ;   zpar0m(:,:) = qsr_mean(:,:) * 0.43
-      ELSE                  ;   zpar0m(:,:) = qsr     (:,:) * 0.43
+      IF( ln_dm2dc ) THEN  
+         DO_2D( 0, 0, 0, 0 )
+            zpar0m(ji,jj) = qsr_mean(ji,jj) * 0.43
+         END_2D
+      ELSE  
+         DO_2D( 0, 0, 0, 0 )
+            zpar0m(ji,jj) = qsr(ji,jj) * 0.43
+         END_2D
       ENDIF
       zpar100(:,:)   = zpar0m(:,:) * 0.01
       zparr  (:,:,1) = zpar0m(:,:) * 0.5
@@ -94,14 +100,14 @@ CONTAINS
 
       !                                          ! Photosynthetically Available Radiation (PAR)
       zcoef = 12 * redf / rcchl / rpig           ! --------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpk )
+      DO_3D( 0, 0, 0, 0, 2, jpk )
          zpig = LOG(  MAX( TINY(0.), tr(ji,jj,jk-1,jpphy,Kmm) ) * zcoef  )
          zkr  = xkr0 + xkrp * EXP( xlr * zpig )
          zkg  = xkg0 + xkgp * EXP( xlg * zpig )
          zparr(ji,jj,jk) = zparr(ji,jj,jk-1) * EXP( -zkr * e3t(ji,jj,jk-1,Kmm) )
          zparg(ji,jj,jk) = zparg(ji,jj,jk-1) * EXP( -zkg * e3t(ji,jj,jk-1,Kmm) )
       END_3D
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 ) ! mean par at t-levels
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 ) ! mean par at t-levels
          zpig = LOG(  MAX( TINY(0.), tr(ji,jj,jk,jpphy,Kmm) ) * zcoef  )
          zkr  = xkr0 + xkrp * EXP( xlr * zpig )
          zkg  = xkg0 + xkgp * EXP( xlg * zpig )
@@ -113,11 +119,11 @@ CONTAINS
       !                                          ! Euphotic layer
       !                                          ! --------------
       neln(:,:) = 1                                   ! euphotic layer level
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )  ! (i.e. 1rst T-level strictly below EL bottom)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )  ! (i.e. 1rst T-level strictly below EL bottom)
         IF( etot(ji,jj,jk) >= zpar100(ji,jj) )   neln(ji,jj) = jk + 1 
       END_3D
       !                                               ! Euphotic layer depth
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls ) 
+      DO_2D( 0, 0, 0, 0 ) 
          heup(ji,jj) = gdepw(ji,jj,neln(ji,jj),Kmm)
       END_2D
 

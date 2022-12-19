@@ -6,7 +6,7 @@ MODULE diamlr
    !! History :  4.0  !  2019  (S. Mueller)   Original code
    !!----------------------------------------------------------------------
 
-   USE par_oce        , ONLY :   wp, jpi, jpj
+   USE par_oce        , ONLY :   wp, jpi, jpj, ntsi, ntei, ntsj, ntej 
    USE phycst         , ONLY :   rpi
    USE dom_oce        , ONLY :   adatrj
    USE tide_mod
@@ -407,8 +407,9 @@ CONTAINS
       !! ** Purpose : update time used in multiple-linear-regression analysis
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj) ::   zadatrj2d
+      REAL(wp), DIMENSION(T2D(0)) ::   zadatrj2d
       !!----------------------------------------------------------------------
+      INTEGER ::   ji, jj
 
       IF( ln_timing )   CALL timing_start('dia_mlr')
 
@@ -417,7 +418,9 @@ CONTAINS
       !
       ! A 2-dimensional field of constant value is sent, and subsequently used directly 
       ! or transformed to a scalar or a constant 3-dimensional field as required.
-      zadatrj2d(:,:) = adatrj*86400.0_wp
+      DO_2D( 0, 0, 0, 0 )
+         zadatrj2d(ji,jj) = adatrj*86400.0_wp
+      END_2D
       IF ( iom_use('diamlr_time') ) CALL iom_put('diamlr_time', zadatrj2d)
       !
       IF( ln_timing )   CALL timing_stop('dia_mlr')

@@ -34,6 +34,8 @@
 	  <field field_ref="qt_oce"       name="qt_oce"   />
 	  <field field_ref="saltflx"      name="sfx"      />
 	  <field field_ref="taum"         name="taum"     />
+	  <field field_ref="utau"         name="tauuo"    />
+	  <field field_ref="vtau"         name="tauvo"    />
 	  <field field_ref="wspd"         name="windsp"   />
 	  <field field_ref="precip"       name="precip"   />
 	  <!-- ice and snow -->
@@ -44,7 +46,6 @@
 	  <field field_ref="e3u" />
 	  <field field_ref="ssu"          name="uos"      />
 	  <field field_ref="uoce"         name="uo"       operation="instant" freq_op="5d" > @uoce_e3u / @e3u </field>
-	  <field field_ref="utau"         name="tauuo"    />
           <field field_ref="uocetr_eff"   name="uocetr_eff"  />
           <!-- available with diaar5 -->
 	  <field field_ref="u_masstr"     name="vozomatr" />
@@ -56,7 +57,6 @@
 	  <field field_ref="e3v" />
 	  <field field_ref="ssv"          name="vos"      />
 	  <field field_ref="voce"         name="vo"       operation="instant" freq_op="5d" > @voce_e3v / @e3v </field>
-	  <field field_ref="vtau"         name="tauvo"    />
           <field field_ref="vocetr_eff"   name="vocetr_eff"  />
           <!-- available with diaar5 -->
 	  <field field_ref="v_masstr"     name="vomematr" />

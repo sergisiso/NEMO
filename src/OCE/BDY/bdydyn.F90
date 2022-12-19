@@ -22,7 +22,6 @@ MODULE bdydyn
    USE bdydyn3d        ! open boundary conditions for baroclinic velocities
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
    USE in_out_manager  !
-   USE domvvl          ! variable volume
 
    IMPLICIT NONE
    PRIVATE

@@ -36,6 +36,9 @@ MODULE stpctl
    INTEGER, PARAMETER         ::   jpvar = 3
    INTEGER                    ::   nrunid   ! netcdf file id
    INTEGER, DIMENSION(jpvar)  ::   nvarid   ! netcdf variable id
+
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/SAS 4.0 , NEMO Consortium (2018)
    !! $Id: stpctl.F90 14433 2021-02-11 08:06:49Z smasson $
@@ -77,8 +80,8 @@ CONTAINS
       IF( nstop > 0 .AND. ngrdstop > -1 )   RETURN   !   stpctl was already called by a child grid
       !
       ll_wrtstp  = ( MOD( kt-nit000, sn_cfctl%ptimincr ) == 0 ) .OR. ( kt == nitend )
-      ll_colruns = ll_wrtstp .AND. sn_cfctl%l_runstat .AND. jpnij > 1
-      ll_wrtruns = ( ll_colruns .OR. jpnij == 1 ) .AND. lwm
+      ll_colruns = sn_cfctl%l_runstat .AND. ll_wrtstp .AND. jpnij > 1
+      ll_wrtruns = sn_cfctl%l_runstat .AND. ll_wrtstp .AND. lwm
       !
       IF( kt == nit000 ) THEN
          !
@@ -132,7 +135,7 @@ CONTAINS
       !
       zmax(1) = MAXVAL(      vt_i (:,:)      , mask = llmsk )                   ! max ice thickness
       zmax(2) = MAXVAL( ABS( u_ice(:,:) )    , mask = llmsk )                   ! max ice velocity (zonal only)
-      zmax(3) = MAXVAL(     -tm_i (:,:) + rt0, mask = llmsk )                   ! min ice temperature (in degC)
+      zmax(3) = MAXVAL(     -tm_i (:,:) + rt0, mask = llmsk(A2D(0)) )           ! min ice temperature (in degC)
       zmax(jpvar+1) = REAL( nstop, wp )                                         ! stop indicator
       !
       !                                   !==               get global extrema             ==!
@@ -172,9 +175,9 @@ CONTAINS
             ! first: close the netcdf file, so we can read it
             IF( lwm .AND. kt /= nitend )   istatus = NF90_CLOSE(nrunid)
             ! get global loc on the min/max
-            CALL mpp_maxloc( 'stpctl',      vt_i(:,:)      , llmsk, zzz, iloc(1:2,1) )   ! mpp_maxloc ok if mask = F 
-            CALL mpp_maxloc( 'stpctl',ABS( u_ice(:,:) )    , llmsk, zzz, iloc(1:2,2) )
-            CALL mpp_minloc( 'stpctl',      tm_i(:,:) - rt0, llmsk, zzz, iloc(1:2,3) )
+            CALL mpp_maxloc( 'stpctl',      vt_i(:,:)      , llmsk        , zzz, iloc(1:2,1) )   ! mpp_maxloc ok if mask = F 
+            CALL mpp_maxloc( 'stpctl',ABS( u_ice(:,:) )    , llmsk        , zzz, iloc(1:2,2) )
+            CALL mpp_minloc( 'stpctl',      tm_i(:,:) - rt0, llmsk(A2D(0)), zzz, iloc(1:2,3) )
             ! find which subdomain has the max.
             iareamin(:) = jpnij+1   ;   iareamax(:) = 0   ;   iareasum(:) = 0
             DO ji = 1, jptst
@@ -187,11 +190,11 @@ CONTAINS
             CALL mpp_sum( "stpctl", iareasum )         ! sum over the global domain
          ELSE                    ! find local min and max locations:
             ! if we are here, this means that the subdomain contains some oce points -> no need to test the mask used in maxloc
-            iloc(1:2,1) = MAXLOC(       vt_i(:,:)      , mask = llmsk )
-            iloc(1:2,2) = MAXLOC( ABS( u_ice(:,:) )    , mask = llmsk )
-            iloc(1:2,3) = MINLOC(       tm_i(:,:) - rt0, mask = llmsk )
+            iloc(1:2,1) = MAXLOC(       vt_i(:,:)      , mask = llmsk         )
+            iloc(1:2,2) = MAXLOC( ABS( u_ice(:,:) )    , mask = llmsk         )
+            iloc(1:2,3) = MINLOC(       tm_i(:,:) - rt0, mask = llmsk(A2D(0)) )
             DO ji = 1, jptst   ! local domain indices ==> global domain indices, excluding halos
-               iloc(1:2,ji) = (/ mig0(iloc(1,ji)), mjg0(iloc(2,ji)) /)
+               iloc(1:2,ji) = (/ mig(iloc(1,ji),0), mjg(iloc(2,ji),0) /)
             END DO
             iareamin(:) = narea   ;   iareamax(:) = narea   ;   iareasum(:) = 1         ! this is local information
          ENDIF
@@ -209,11 +212,11 @@ CONTAINS
          CALL dia_wri_state( Kmm, 'output.abort' )     ! create an output.abort file
          !
          IF( ll_colruns .OR. jpnij == 1 ) THEN   ! all processes synchronized -> use lwp to print in opened ocean.output files
-            IF(lwp) THEN   ;   CALL ctl_stop( ctmp1, ' ', ctmp2, ctmp3, ctmp4, ctmp5, ' ', ctmp6 )
+            IF(lwp) THEN   ;   CALL ctl_stop( ctmp1, ' ', ctmp2, ctmp3, ctmp4, ' ', ctmp6 )
             ELSE           ;   nstop = MAX(1, nstop)   ! make sure nstop > 0 (automatically done when calling ctl_stop)
             ENDIF
          ELSE                                    ! only mpi subdomains with errors are here -> STOP now
-            CALL ctl_stop( 'STOP', ctmp1, ' ', ctmp2, ctmp3, ctmp4, ctmp5, ' ', ctmp6 )
+            CALL ctl_stop( 'STOP', ctmp1, ' ', ctmp2, ctmp3, ctmp4, ' ', ctmp6 )
          ENDIF
          !
       ENDIF

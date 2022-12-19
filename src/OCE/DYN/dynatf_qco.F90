@@ -32,11 +32,6 @@ MODULE dynatf_qco
    USE phycst         ! physical constants
    USE dynadv         ! dynamics: vector invariant versus flux form
    USE dynspg_ts      ! surface pressure gradient: split-explicit scheme
-   USE domvvl         ! variable volume
-   USE bdy_oce   , ONLY: ln_bdy
-   USE bdydta         ! ocean open boundary conditions
-   USE bdydyn         ! ocean open boundary conditions
-   USE bdyvol         ! ocean open boundary condition (bdy_vol routines)
    USE trd_oce        ! trends: ocean variables
    USE trddyn         ! trend manager: dynamics
    USE trdken         ! trend manager: kinetic energy
@@ -78,9 +73,7 @@ CONTAINS
       !!             estimate (ln_dynspg_ts=T)
       !!
       !!              * Apply lateral boundary conditions on after velocity
-      !!             at the local domain boundaries through lbc_lnk call,
-      !!             at the one-way open boundaries (ln_bdy=T),
-      !!             at the AGRIF zoom   boundaries (lk_agrif=T)
+      !!             at the local domain boundaries through lbc_lnk call
       !!
       !!              * Apply the Asselin time filter to the now fields
       !!             arrays to start the next time step:
@@ -245,10 +238,11 @@ CONTAINS
       !
       IF ( iom_use("utau") ) THEN
          IF ( ln_drgice_imp.OR.ln_isfcav ) THEN
-            ALLOCATE(zutau(jpi,jpj))
+            ! TEMP: Declared with halo points so there is a consistent shape for XIOS
+            ALLOCATE(zutau(A2D(nn_hls)))
             DO_2D( 0, 0, 0, 0 )
                jk = miku(ji,jj)
-               zutau(ji,jj) = utau(ji,jj) + 0.5_wp * rho0 * ( rCdU_top(ji+1,jj)+rCdU_top(ji,jj) ) * puu(ji,jj,jk,Kaa)
+               zutau(ji,jj) = utau(ji,jj) + 0.5_wp * rho0 * rCdU_top(ji,jj) * ( puu(ji-1,jj,jk,Kaa) + puu(ji,jj,jk,Kaa) )
             END_2D
             CALL iom_put(  "utau", zutau(:,:) )
             DEALLOCATE(zutau)
@@ -259,10 +253,11 @@ CONTAINS
       !
       IF ( iom_use("vtau") ) THEN
          IF ( ln_drgice_imp.OR.ln_isfcav ) THEN
-            ALLOCATE(zvtau(jpi,jpj))
+            ! TEMP: Declared with halo points so there is a consistent shape for XIOS
+            ALLOCATE(zvtau(A2D(nn_hls)))
             DO_2D( 0, 0, 0, 0 )
                jk = mikv(ji,jj)
-               zvtau(ji,jj) = vtau(ji,jj) + 0.5_wp * rho0 * ( rCdU_top(ji,jj+1)+rCdU_top(ji,jj) ) * pvv(ji,jj,jk,Kaa)
+               zvtau(ji,jj) = vtau(ji,jj) + 0.5_wp * rho0 * rCdU_top(ji,jj) * ( pvv(ji,jj-1,jk,Kaa) + pvv(ji,jj,jk,Kaa) )
             END_2D
             CALL iom_put(  "vtau", zvtau(:,:) )
             DEALLOCATE(zvtau)

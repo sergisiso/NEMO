@@ -23,8 +23,11 @@ MODULE lbcnfd
    PRIVATE
 
    INTERFACE lbc_nfd            ! called by mpp_nfd, lbc_lnk_pt2pt or lbc_lnk_neicoll
-      MODULE PROCEDURE   lbc_nfd_sp, lbc_nfd_ext_sp
-      MODULE PROCEDURE   lbc_nfd_dp, lbc_nfd_ext_dp
+      MODULE PROCEDURE   lbc_nfd_sp, lbc_nfd_dp
+   END INTERFACE
+
+   INTERFACE lbc_nfd_ext        ! called by mpp_lnk_2d_icb
+      MODULE PROCEDURE   lbc_nfd_ext_sp, lbc_nfd_ext_dp
    END INTERFACE
 
    INTERFACE mpp_nfd            ! called by lbc_lnk_pt2pt or lbc_lnk_neicoll
@@ -33,11 +36,13 @@ MODULE lbcnfd
    
    PUBLIC   mpp_nfd            ! mpi north fold conditions
    PUBLIC   lbc_nfd            ! north fold conditions
+   PUBLIC   lbc_nfd_ext        ! north fold conditions, called by mpp_lnk_2d_icb
 
-   INTEGER, PUBLIC                               :: nfd_nbnei
-   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION (:  ) :: nfd_rknei
-   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION (:,:) :: nfd_rksnd
-   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION (:,:) :: nfd_jisnd
+   INTEGER, PUBLIC                                 :: nfd_nbnei
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION (:    ) :: nfd_rknei
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION (:,:,:) :: nfd_rksnd
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION (:,:,:) :: nfd_jisnd
+   LOGICAL, PUBLIC, ALLOCATABLE, DIMENSION (:,:  ) :: lnfd_same
    
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)

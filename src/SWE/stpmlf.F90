@@ -114,9 +114,9 @@ CONTAINS
          zrhs_u =        - grav * ( ssh(ji+1,jj,Nnn) - ssh(ji,jj,Nnn) ) * r1_e1u(ji,jj)
          zrhs_v =        - grav * ( ssh(ji,jj+1,Nnn) - ssh(ji,jj,Nnn) ) * r1_e2v(ji,jj)
          !                                                              ! wind stress and layer friction
-         zrhs_u = zrhs_u + z1_2rho0 * ( utau_b(ji,jj) + utau(ji,jj) ) / e3u(ji,jj,jk,Nnn)   &
+         zrhs_u = zrhs_u + z1_2rho0 * ( utau_b(ji,jj) + utauU(ji,jj) ) / e3u(ji,jj,jk,Nnn)   &
             &                                  - rn_rfr * uu(ji,jj,jk,Nbb)
-         zrhs_v = zrhs_v + z1_2rho0 * ( vtau_b(ji,jj) + vtau(ji,jj) ) / e3v(ji,jj,jk,Nnn)   &
+         zrhs_v = zrhs_v + z1_2rho0 * ( vtau_b(ji,jj) + vtauV(ji,jj) ) / e3v(ji,jj,jk,Nnn)   &
             &                                  - rn_rfr * vv(ji,jj,jk,Nbb)
          !                                                              ! ==> RHS
          uu(ji,jj,jk,Nrhs) = uu(ji,jj,jk,Nrhs) + zrhs_u

@@ -85,8 +85,8 @@ CONTAINS
 
          ALLOCATE( sf_ice(1), STAT=ierror )
          IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_ice_if: unable to allocate sf_ice structure' )
-         ALLOCATE( sf_ice(1)%fnow(jpi,jpj,1) )
-         IF( sn_ice%ln_tint )   ALLOCATE( sf_ice(1)%fdta(jpi,jpj,1,2) )
+         ALLOCATE( sf_ice(1)%fnow(A2D(0),1) )
+         IF( sn_ice%ln_tint )   ALLOCATE( sf_ice(1)%fdta(A2D(0),1,2) )
 
          ! fill sf_ice with sn_ice and control print
          CALL fld_fill( sf_ice, (/ sn_ice /), cn_dir, 'sbc_ice_if', 'ice-if sea-ice model', 'namsbc_iif' )
@@ -108,16 +108,18 @@ CONTAINS
          IF( ln_cpl )   a_i(:,:,1) = fr_i(:,:)         
 
          ! Flux and ice fraction computation
-         DO_2D( 1, 1, 1, 1 )
-            !
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            zt_fzp  = fr_i(ji,jj)                        ! freezing point temperature
+            ts(ji,jj,1,jp_tem,Kmm) = MAX( ts(ji,jj,1,jp_tem,Kmm), zt_fzp )     ! avoid over-freezing point temperature
+         END_2D
+
+         DO_2D( 0, 0, 0, 0 )
             zt_fzp  = fr_i(ji,jj)                        ! freezing point temperature
             zfr_obs = sf_ice(1)%fnow(ji,jj,1)            ! observed ice cover
             !                                            ! ocean ice fraction (0/1) from the freezing point temperature
             IF( sst_m(ji,jj) <= zt_fzp ) THEN   ;   fr_i(ji,jj) = 1.e0
             ELSE                                ;   fr_i(ji,jj) = 0.e0
             ENDIF
-
-            ts(ji,jj,1,jp_tem,Kmm) = MAX( ts(ji,jj,1,jp_tem,Kmm), zt_fzp )     ! avoid over-freezing point temperature
 
             qsr(ji,jj) = ( 1. - zfr_obs ) * qsr(ji,jj)   ! solar heat flux : zero below observed ice cover
 
@@ -127,7 +129,7 @@ CONTAINS
             zqri = ztrp * ( ts(ji,jj,1,jp_tem,Kbb) - ( zt_fzp - 1.) )
             zqrj = ztrp * MIN( 0., ts(ji,jj,1,jp_tem,Kbb) - zt_fzp )
             zqrp = ( zfr_obs * ( (1. - fr_i(ji,jj) ) * zqri    &
-              &                 +      fr_i(ji,jj)   * zqrj ) ) * tmask(ji,jj,1)
+              &                 +      fr_i(ji,jj)   * zqrj ) ) * smask0(ji,jj)
 
             !                                            ! non-solar heat flux 
             !      # qns unchanged              if no climatological ice              (zfr_obs=0)
@@ -136,7 +138,7 @@ CONTAINS
             !                                   (-2=arctic, -4=antarctic)   
             zqi = -3. + SIGN( 1._wp, ff_f(ji,jj) )
             qns(ji,jj) = ( ( 1.- zfr_obs ) * qns(ji,jj)                             &
-               &          +      zfr_obs   * fr_i(ji,jj) * zqi ) * tmask(ji,jj,1)   &
+               &          +      zfr_obs   * fr_i(ji,jj) * zqi ) * smask0(ji,jj)   &
                &       + zqrp
          END_2D
          !

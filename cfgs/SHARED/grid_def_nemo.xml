@@ -184,9 +184,21 @@
       <extract_axis position="0" />
     </scalar>
   </grid>
+  <grid id="grid_T_SFC_inner">
+    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <scalar>
+      <extract_axis position="0" />
+    </scalar>
+  </grid>
 
   <grid id="grid_T_vsum">
     <domain domain_ref="grid_T"/>
+    <scalar>
+      <reduce_axis operation="sum" />
+    </scalar>
+  </grid>
+  <grid id="grid_T_vsum_inner">
+    <domain domain_ref="grid_T_inner" name="grid_T"/>
     <scalar>
       <reduce_axis operation="sum" />
     </scalar>
@@ -230,6 +242,10 @@
 
   <grid id="grid_T_zoom_300">
     <domain domain_ref="grid_T" />
+    <axis axis_ref="deptht300" />
+  </grid>
+  <grid id="grid_T_zoom_300_inner">
+    <domain domain_ref="grid_T_inner" name="grid_T" />
     <axis axis_ref="deptht300" />
   </grid>
 
@@ -318,14 +334,14 @@
 
   <!-- ABL grid definition -->
   <grid id="grid_TA_2D">
-    <domain domain_ref="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" />
   </grid>
   <grid id="grid_TA_3D">
-    <domain domain_ref="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" />
     <axis  id="ght_abl" />
   </grid>
   <grid id="grid_WA_3D">
-    <domain domain_ref="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" />
     <axis  id="ghw_abl" />
   </grid>
   <!--  -->
@@ -336,41 +352,44 @@
     <scalar />
   </grid>
   <grid id="diamlr_grid_T_2D" >
-    <domain domain_ref="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" />
     <scalar />
   </grid>
+  <grid id="diamlr_grid_T_2D_inner" >
+    <domain domain_ref="grid_T_inner" name="grid_T" />
+  </grid>
   <grid id="diamlr_grid_U_2D" >
-    <domain domain_ref="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" />
     <scalar />
   </grid>
   <grid id="diamlr_grid_V_2D" >
-    <domain domain_ref="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" />
     <scalar />
   </grid>
   <grid id="diamlr_grid_W_2D" >
-    <domain domain_ref="grid_W" />
+    <domain domain_ref="grid_W_inner" name="grid_W" />
     <scalar />
   </grid>
   <grid id="diamlr_grid_2D_to_grid_T_3D" >
-    <domain domain_ref="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" />
     <axis axis_ref="deptht">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diamlr_grid_2D_to_grid_U_3D" >
-    <domain domain_ref="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" />
     <axis axis_ref="depthu">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diamlr_grid_2D_to_grid_V_3D" >
-    <domain domain_ref="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" />
     <axis axis_ref="depthv">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diamlr_grid_2D_to_grid_W_3D" >
-    <domain domain_ref="grid_W" />
+    <domain domain_ref="grid_W_inner" name="grid_W" />
     <axis axis_ref="depthw">
       <duplicate_scalar />
     </axis>
@@ -383,37 +402,37 @@
   </grid>
   <!-- grid definitions for the computation of daily detided model diagnostics (diadetide) -->
   <grid id="diadetide_grid_T_2D" >
-    <domain domain_ref="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" />
     <scalar />
   </grid>
   <grid id="diadetide_grid_U_2D" >
-    <domain domain_ref="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" />
     <scalar />
   </grid>
   <grid id="diadetide_grid_V_2D" >
-    <domain domain_ref="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" />
     <scalar />
   </grid>
   <grid id="diadetide_grid_2D_to_grid_T_3D" >
-    <domain domain_ref="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" />
     <axis axis_ref="deptht">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diadetide_grid_2D_to_grid_U_3D" >
-    <domain domain_ref="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" />
     <axis axis_ref="depthu">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diadetide_grid_2D_to_grid_V_3D" >
-    <domain domain_ref="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" />
     <axis axis_ref="depthv">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diadetide_grid_2D_to_grid_W_3D" >
-    <domain domain_ref="grid_W" />
+    <domain domain_ref="grid_W_inner" name="grid_W" />
     <axis axis_ref="depthw">
       <duplicate_scalar />
     </axis>

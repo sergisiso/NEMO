@@ -145,18 +145,19 @@ CONTAINS
       !! References : Pacanowski & Philander 1981, JPO, 1441-1451.
       !!              PFJ Lermusiaux 2001.
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT(in   ) ::   kt             ! ocean time-step
-      INTEGER                             , INTENT(in   ) ::   Kmm            ! ocean time level index
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(in   ) ::   p_sh2          ! shear production term
-      REAL(wp), DIMENSION(:,:,:)          , INTENT(inout) ::   p_avm, p_avt   ! momentum and tracer Kz (w-points)
+      INTEGER                         , INTENT(in   ) ::   kt             ! ocean time-step
+      INTEGER                         , INTENT(in   ) ::   Kmm            ! ocean time level index
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(in   ) ::   p_sh2          ! shear production term
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt          ! vertical eddy diffusivity (w-points)
       !!
       INTEGER  ::   ji, jj, jk                  ! dummy loop indices
       REAL(wp) ::   zcfRi, zav, zustar, zhek    ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   zh_ekm  ! 2D workspace
+      REAL(wp), DIMENSION(T2D(0)) ::   zh_ekm  ! 2D workspace
       !!----------------------------------------------------------------------
       !
       !                       !==  avm and avt = F(Richardson number)  ==!
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )       ! coefficient = F(richardson number) (avm-weighted Ri)
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )       ! coefficient = F(richardson number) (avm-weighted Ri)
          zcfRi = 1._wp / (  1._wp + rn_alp * MAX(  0._wp , avm(ji,jj,jk) * rn2(ji,jj,jk) / ( p_sh2(ji,jj,jk) + 1.e-20 ) )  )
          zav   = rn_avmri * zcfRi**nn_ric
          !                          ! avm and avt coefficients
@@ -169,12 +170,12 @@ CONTAINS
       !
       IF( ln_mldw ) THEN      !==  set a minimum value in the Ekman layer  ==!
          !
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 ) 
+         DO_2D( 0, 0, 0, 0 )
             zustar = SQRT( taum(ji,jj) * r1_rho0 )
             zhek   = rn_ekmfc * zustar / ( ABS( ff_t(ji,jj) ) + rsmall )   ! Ekman depth
             zh_ekm(ji,jj) = MAX(  rn_mldmin , MIN( zhek , rn_mldmax )  )   ! set allowed range
          END_2D
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )   !* minimum mixing coeff. within the Ekman layer
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )   !* minimum mixing coeff. within the Ekman layer
             IF( gdept(ji,jj,jk,Kmm) < zh_ekm(ji,jj) ) THEN
                p_avm(ji,jj,jk) = MAX(  p_avm(ji,jj,jk), rn_wvmix  ) * wmask(ji,jj,jk)
                p_avt(ji,jj,jk) = MAX(  p_avt(ji,jj,jk), rn_wtmix  ) * wmask(ji,jj,jk)

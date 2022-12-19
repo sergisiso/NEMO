@@ -116,8 +116,6 @@ CONTAINS
       CALL p4z_che(     Kbb, Kmm       ) ! computation of chemical constants
       CALL p4z_int( kt, Kbb, Kmm       ) ! computation of various rates for biogeochemistry
       !
-      IF( nn_hls > 1 ) CALL lbc_lnk( 'p4zsms', hmld(:,:), 'T', 1._wp )  ! hmld defined only on first halo in zdfmxl
-      !
       DO jnt = 1, nrdttrc          ! Potential time splitting if requested
          !
          CALL p4z_bio( kt, jnt, Kbb, Kmm, Krhs )   ! Biology
@@ -134,7 +132,7 @@ CONTAINS
          ! ------------------------------------------------------------------
          xnegtr(:,:,:) = 1.e0
          DO jn = jp_pcs0, jp_pcs1
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk)
+            DO_3D( 0, 0, 0, 0, 1, jpk)
                IF( ( tr(ji,jj,jk,jn,Kbb) + tr(ji,jj,jk,jn,Krhs) ) < 0.e0 ) THEN
                   ztra             = ABS( tr(ji,jj,jk,jn,Kbb) ) / ( ABS( tr(ji,jj,jk,jn,Krhs) ) + rtrn )
                   xnegtr(ji,jj,jk) = MIN( xnegtr(ji,jj,jk),  ztra )
@@ -151,45 +149,56 @@ CONTAINS
         IF(  iom_use( 'INTdtAlk' ) .OR. iom_use( 'INTdtDIC' ) .OR. iom_use( 'INTdtFer' ) .OR.  &
           &  iom_use( 'INTdtDIN' ) .OR. iom_use( 'INTdtDIP' ) .OR. iom_use( 'INTdtSil' ) )  THEN
           !
-          ALLOCATE( zw3d(jpi,jpj,jpk), zw2d(jpi,jpj) )
-          zw3d(:,:,jpk) = 0.
-          DO jk = 1, jpkm1
-              zw3d(:,:,jk) = xnegtr(:,:,jk) * xfact * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
-          ENDDO
+          ALLOCATE( zw3d(A2D(0),jpk), zw2d(A2D(0)) )
+          DO_3D( 0, 0, 0, 0, 1, jpkm1)
+             zw3d(ji,jj,jk) = xnegtr(ji,jj,jk) * xfact * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
+          END_3D
           !
           zw2d(:,:) = 0.
           DO jk = 1, jpkm1
-             zw2d(:,:) = zw2d(:,:) + zw3d(:,:,jk) * tr(:,:,jk,jptal,Krhs)
+             DO_2D( 0, 0, 0, 0 )
+                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jptal,Krhs) 
+             END_2D
           ENDDO
           CALL iom_put( 'INTdtAlk', zw2d )
           !
           zw2d(:,:) = 0.
           DO jk = 1, jpkm1
-             zw2d(:,:) = zw2d(:,:) + zw3d(:,:,jk) * tr(:,:,jk,jpdic,Krhs)
+             DO_2D( 0, 0, 0, 0 )
+                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpdic,Krhs) 
+             END_2D
           ENDDO
           CALL iom_put( 'INTdtDIC', zw2d )
           !
           zw2d(:,:) = 0.
           DO jk = 1, jpkm1
-             zw2d(:,:) = zw2d(:,:) + zw3d(:,:,jk) * rno3 * ( tr(:,:,jk,jpno3,Krhs) + tr(:,:,jk,jpnh4,Krhs) )
+             DO_2D( 0, 0, 0, 0 )
+                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) * rno3 * ( tr(ji,jj,jk,jpno3,Krhs) + tr(ji,jj,jk,jpnh4,Krhs) ) 
+             END_2D
           ENDDO
           CALL iom_put( 'INTdtDIN', zw2d )
           !
           zw2d(:,:) = 0.
           DO jk = 1, jpkm1
-             zw2d(:,:) = zw2d(:,:) + zw3d(:,:,jk) * po4r * tr(:,:,jk,jppo4,Krhs)
+             DO_2D( 0, 0, 0, 0 )
+                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) * po4r * tr(ji,jj,jk,jppo4,Krhs) 
+             END_2D
           ENDDO
           CALL iom_put( 'INTdtDIP', zw2d )
           !
           zw2d(:,:) = 0.
           DO jk = 1, jpkm1
-             zw2d(:,:) = zw2d(:,:) + zw3d(:,:,jk) * tr(:,:,jk,jpfer,Krhs)
+             DO_2D( 0, 0, 0, 0 )
+                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpfer,Krhs) 
+             END_2D
           ENDDO
           CALL iom_put( 'INTdtFer', zw2d )
           !
           zw2d(:,:) = 0.
           DO jk = 1, jpkm1
-             zw2d(:,:) = zw2d(:,:) + zw3d(:,:,jk) * tr(:,:,jk,jpsil,Krhs)
+             DO_2D( 0, 0, 0, 0 )
+                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpsil,Krhs) 
+             END_2D
           ENDDO
           CALL iom_put( 'INTdtSil', zw2d )
           !
@@ -516,8 +525,9 @@ CONTAINS
       INTEGER, INTENT( in ) ::   Kmm     ! time level indices
       REAL(wp)             ::  zrdenittot, zsdenittot, znitrpottot
       CHARACTER(LEN=100)   ::   cltxt
-      INTEGER :: jk
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zwork
+      INTEGER :: ji, jj, jk
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zw2d
       !!----------------------------------------------------------------------
       !
       IF( kt == nittrc000 ) THEN 
@@ -536,82 +546,113 @@ CONTAINS
 
       ! Compute the budget of NO3
       IF( iom_use( "pno3tot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
+         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
          IF( ln_p4z ) THEN
-            zwork(:,:,:) =    tr(:,:,:,jpno3,Kmm) + tr(:,:,:,jpnh4,Kmm)                      &
-               &          +   tr(:,:,:,jpphy,Kmm) + tr(:,:,:,jpdia,Kmm)                      &
-               &          +   tr(:,:,:,jppoc,Kmm) + tr(:,:,:,jpgoc,Kmm)  + tr(:,:,:,jpdoc,Kmm)  &        
-               &          +   tr(:,:,:,jpzoo,Kmm) + tr(:,:,:,jpmes,Kmm) 
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+            zw3d(ji,jj,jk)  =  ( tr(ji,jj,jk,jpno3,Kmm) + tr(ji,jj,jk,jpnh4,Kmm)                      &
+               &             +   tr(ji,jj,jk,jpphy,Kmm) + tr(ji,jj,jk,jpdia,Kmm)                      &
+               &             +   tr(ji,jj,jk,jppoc,Kmm) + tr(ji,jj,jk,jpgoc,Kmm)  + tr(ji,jj,jk,jpdoc,Kmm)  &        
+               &             +   tr(ji,jj,jk,jpzoo,Kmm) + tr(ji,jj,jk,jpmes,Kmm)  ) * cvol(ji,jj,jk)
+            END_3D
         ELSE
-            zwork(:,:,:) =    tr(:,:,:,jpno3,Kmm) + tr(:,:,:,jpnh4,Kmm) + tr(:,:,:,jpnph,Kmm)   &
-               &          +   tr(:,:,:,jpndi,Kmm) + tr(:,:,:,jpnpi,Kmm)                      & 
-               &          +   tr(:,:,:,jppon,Kmm) + tr(:,:,:,jpgon,Kmm) + tr(:,:,:,jpdon,Kmm)   &
-               &          + ( tr(:,:,:,jpzoo,Kmm) + tr(:,:,:,jpmes,Kmm) ) * no3rat3 
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+            zw3d(ji,jj,jk) =    ( tr(ji,jj,jk,jpno3,Kmm) + tr(ji,jj,jk,jpnh4,Kmm) + tr(ji,jj,jk,jpnph,Kmm)   &
+               &             +   tr(ji,jj,jk,jpndi,Kmm) + tr(ji,jj,jk,jpnpi,Kmm)                      & 
+               &             +   tr(ji,jj,jk,jppon,Kmm) + tr(ji,jj,jk,jpgon,Kmm) + tr(ji,jj,jk,jpdon,Kmm)   &
+               &             + ( tr(ji,jj,jk,jpzoo,Kmm) + tr(ji,jj,jk,jpmes,Kmm) ) * no3rat3 ) * cvol(ji,jj,jk)
+            END_3D
         ENDIF
         !
-        no3budget = glob_sum( 'p4zsms', zwork(:,:,:) * cvol(:,:,:)  )  
+        no3budget = glob_sum( 'p4zsms', zw3d(:,:,:)  )  
         no3budget = no3budget / areatot
         CALL iom_put( "pno3tot", no3budget )
+        DEALLOCATE( zw3d )
       ENDIF
       !
       ! Compute the budget of PO4
       IF( iom_use( "ppo4tot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
+         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
          IF( ln_p4z ) THEN
-            zwork(:,:,:) =    tr(:,:,:,jppo4,Kmm)                                         &
-               &          +   tr(:,:,:,jpphy,Kmm) + tr(:,:,:,jpdia,Kmm)                      &
-               &          +   tr(:,:,:,jppoc,Kmm) + tr(:,:,:,jpgoc,Kmm)  + tr(:,:,:,jpdoc,Kmm)  &        
-               &          +   tr(:,:,:,jpzoo,Kmm) + tr(:,:,:,jpmes,Kmm) 
-        ELSE
-            zwork(:,:,:) =    tr(:,:,:,jppo4,Kmm) + tr(:,:,:,jppph,Kmm)                      &
-               &          +   tr(:,:,:,jppdi,Kmm) + tr(:,:,:,jpppi,Kmm)                      & 
-               &          +   tr(:,:,:,jppop,Kmm) + tr(:,:,:,jpgop,Kmm) + tr(:,:,:,jpdop,Kmm)   &
-               &          + ( tr(:,:,:,jpzoo,Kmm) + tr(:,:,:,jpmes,Kmm) ) * po4rat3 
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+               zw3d(ji,jj,jk) =    ( tr(ji,jj,jk,jppo4,Kmm)                                         &
+                  &             +   tr(ji,jj,jk,jpphy,Kmm) + tr(ji,jj,jk,jpdia,Kmm)                      &
+                  &             +   tr(ji,jj,jk,jppoc,Kmm) + tr(ji,jj,jk,jpgoc,Kmm)  + tr(ji,jj,jk,jpdoc,Kmm)  &        
+                  &             +   tr(ji,jj,jk,jpzoo,Kmm) + tr(ji,jj,jk,jpmes,Kmm) ) * cvol(ji,jj,jk)
+            END_3D
+         ELSE
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+               zw3d(ji,jj,jk) =    ( tr(ji,jj,jk,jppo4,Kmm) + tr(ji,jj,jk,jppph,Kmm)                      &
+                  &             +   tr(ji,jj,jk,jppdi,Kmm) + tr(ji,jj,jk,jpppi,Kmm)                      & 
+                  &             +   tr(ji,jj,jk,jppop,Kmm) + tr(ji,jj,jk,jpgop,Kmm) + tr(ji,jj,jk,jpdop,Kmm)   &
+                  &             + ( tr(ji,jj,jk,jpzoo,Kmm) + tr(ji,jj,jk,jpmes,Kmm) ) * po4rat3 ) * cvol(ji,jj,jk)
+            END_3D
         ENDIF
         !
-        po4budget = glob_sum( 'p4zsms', zwork(:,:,:) * cvol(:,:,:)  )  
+        po4budget = glob_sum( 'p4zsms', zw3d(:,:,:)  )  
         po4budget = po4budget / areatot
         CALL iom_put( "ppo4tot", po4budget )
+        DEALLOCATE( zw3d )
       ENDIF
       !
       ! Compute the budget of SiO3
       IF( iom_use( "psiltot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
-         zwork(:,:,:) =  tr(:,:,:,jpsil,Kmm) + tr(:,:,:,jpgsi,Kmm) + tr(:,:,:,jpdsi,Kmm) 
+         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpk)
+            zw3d(ji,jj,jk) =  ( tr(ji,jj,jk,jpsil,Kmm) + tr(ji,jj,jk,jpgsi,Kmm) + tr(ji,jj,jk,jpdsi,Kmm) ) * cvol(ji,jj,jk)
+         END_3D
          !
-         silbudget = glob_sum( 'p4zsms', zwork(:,:,:) * cvol(:,:,:)  )  
+         silbudget = glob_sum( 'p4zsms', zw3d(:,:,:)  )  
          silbudget = silbudget / areatot
          CALL iom_put( "psiltot", silbudget )
+         DEALLOCATE( zw3d )
       ENDIF
       !
       IF( iom_use( "palktot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
-         zwork(:,:,:) =  tr(:,:,:,jpno3,Kmm) * rno3 + tr(:,:,:,jptal,Kmm) + tr(:,:,:,jpcal,Kmm) * 2.              
+         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpk)
+            zw3d(ji,jj,jk) =  ( tr(ji,jj,jk,jpno3,Kmm) * rno3 + tr(ji,jj,jk,jptal,Kmm) + tr(ji,jj,jk,jpcal,Kmm) * 2. ) * cvol(ji,jj,jk)             
+         END_3D
          !
-         alkbudget = glob_sum( 'p4zsms', zwork(:,:,:) * cvol(:,:,:)  )         !
+         alkbudget = glob_sum( 'p4zsms', zw3d(:,:,:)  )         !
          alkbudget = alkbudget / areatot
          CALL iom_put( "palktot", alkbudget )
+         DEALLOCATE( zw3d )
       ENDIF
       !
       ! Compute the budget of Iron
       IF( iom_use( "pfertot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
-         zwork(:,:,:) =   tr(:,:,:,jpfer,Kmm) + tr(:,:,:,jpnfe,Kmm) + tr(:,:,:,jpdfe,Kmm)   &
-            &         +   tr(:,:,:,jpbfe,Kmm) + tr(:,:,:,jpsfe,Kmm)                      &
-            &         + ( tr(:,:,:,jpzoo,Kmm) * feratz + tr(:,:,:,jpmes,Kmm) ) * feratm   
+         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpk)
+            zw3d(ji,jj,jk) =   ( tr(ji,jj,jk,jpfer,Kmm) + tr(ji,jj,jk,jpnfe,Kmm) + tr(ji,jj,jk,jpdfe,Kmm)   &
+               &            +    tr(ji,jj,jk,jpbfe,Kmm) + tr(ji,jj,jk,jpsfe,Kmm)                      &
+               &            +    tr(ji,jj,jk,jpzoo,Kmm) * feratz + tr(ji,jj,jk,jpmes,Kmm) * feratm ) * cvol(ji,jj,jk)  
+         END_3D
          !
-         ferbudget = glob_sum( 'p4zsms', zwork(:,:,:) * cvol(:,:,:)  )  
+         ferbudget = glob_sum( 'p4zsms', zw3d(:,:,:) )  
          ferbudget = ferbudget / areatot
          CALL iom_put( "pfertot", ferbudget )
+         DEALLOCATE( zw3d )
       ENDIF
       !
       ! Global budget of N SMS : denitrification in the water column and in the sediment
       !                          nitrogen fixation by the diazotrophs
       ! --------------------------------------------------------------------------------
       IF( iom_use( "tnfix" ) .OR.  ( ln_check_mass .AND. kt == nitend )  ) THEN
-         znitrpottot  = glob_sum ( 'p4zsms', nitrpot(:,:,:) * nitrfix * cvol(:,:,:) )
+         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(:,:,jpk) = 0._wp
+         zw3d(:,:,1:jpkm1) =  nitrpot(A2D(0),1:jpkm1) * nitrfix * cvol(A2D(0),1:jpkm1)
+         znitrpottot  = glob_sum ( 'p4zsms',  zw3d)
          CALL iom_put( "tnfix"  , znitrpottot * xfact3 )  ! Global  nitrogen fixation molC/l  to molN/m3 
+         DEALLOCATE( zw3d )
       ENDIF
       !
       IF( iom_use( "tdenit" ) .OR.  ( ln_check_mass .AND. kt == nitend )  ) THEN
-         zrdenittot = glob_sum ( 'p4zsms', denitr(:,:,:) * rdenit * xnegtr(:,:,:) * cvol(:,:,:) )
-         zsdenittot = glob_sum ( 'p4zsms', sdenit(:,:) * e1e2t(:,:) * tmask(:,:,1) )
+         ALLOCATE( zw3d(A2D(0),jpk), zw2d(A2D(0)) )  ;  zw3d(:,:,jpk) = 0._wp
+         zw3d(:,:,1:jpkm1) =  denitr(A2D(0),1:jpkm1) *  rdenit * xnegtr(A2D(0),1:jpkm1) * cvol(A2D(0),1:jpkm1)
+         zw2d(:,:)         =  sdenit(A2D(0)) *  e1e2t(A2D(0)) * tmask(A2D(0),1)
+         zrdenittot = glob_sum ( 'p4zsms', zw3d )
+         zsdenittot = glob_sum ( 'p4zsms', Zw2d )
          CALL iom_put( "tdenit" , ( zrdenittot + zsdenittot ) * xfact3 )  ! Total denitrification molC/l to molN/m3 
+         DEALLOCATE( zw3d, zw2d )
       ENDIF
       !
       IF( ln_check_mass .AND. kt == nitend ) THEN   ! Compute the budget of NO3, ALK, Si, Fer

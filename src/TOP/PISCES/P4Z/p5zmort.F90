@@ -80,7 +80,7 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('p5z_mort_nano')
       !
       prodcal(:,:,:) = 0.  !: calcite production variable set to zero
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompaph = MAX( ( tr(ji,jj,jk,jpphy,Kbb) - 1e-9 ), 0.e0 )
 
          ! Quadratic mortality of nano due to aggregation during
@@ -151,7 +151,7 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('p5z_mort_pico')
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompaph = MAX( ( tr(ji,jj,jk,jppic,Kbb) - 1e-9 ), 0.e0 )
 
          ! Quadratic mortality of pico due to aggregation during
@@ -215,7 +215,7 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('p5z_mort_diat')
       !
 
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
 
          zcompadi = MAX( ( tr(ji,jj,jk,jpdia,Kbb) - 1E-9), 0. )
 

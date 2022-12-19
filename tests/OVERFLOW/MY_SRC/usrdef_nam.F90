@@ -13,7 +13,6 @@ MODULE usrdef_nam
    !!   usr_def_nam   : read user defined namelist and set global domain size
    !!   usr_def_hgr   : initialize the horizontal mesh 
    !!----------------------------------------------------------------------
-   USE dom_oce  , ONLY: ln_zco, ln_zps, ln_sco   ! flag of type of coordinate
    USE par_oce        ! ocean space and time domain
    USE phycst         ! physical constants
    !
@@ -58,7 +57,7 @@ CONTAINS
       !
       INTEGER ::   ios   ! Local integer
       !!
-      NAMELIST/namusr_def/ ln_zco, ln_zps, ln_sco, rn_dx, rn_dz
+      NAMELIST/namusr_def/ rn_dx, rn_dz
       !!----------------------------------------------------------------------
       !
       READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
@@ -79,10 +78,6 @@ CONTAINS
       WRITE(numout,*) 'usr_def_nam  : read the user defined namelist (namusr_def) in namelist_cfg'
       WRITE(numout,*) '~~~~~~~~~~~ '
       WRITE(numout,*) '   Namelist namusr_def : OVERFLOW test case'
-      WRITE(numout,*) '      type of vertical coordinate : '
-      WRITE(numout,*) '         z-coordinate flag                     ln_zco = ', ln_zco
-      WRITE(numout,*) '         z-partial-step coordinate flag        ln_zps = ', ln_zps
-      WRITE(numout,*) '         s-coordinate flag                     ln_sco = ', ln_sco
       WRITE(numout,*) '      horizontal resolution                    rn_dx  = ', rn_dx, ' meters'
       WRITE(numout,*) '      vertical   resolution                    rn_dz  = ', rn_dz, ' meters'
       WRITE(numout,*) '      OVERFLOW domain = 200 km x 3 grid-points x 2000 m'

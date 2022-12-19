@@ -37,6 +37,8 @@ MODULE trcstp
    REAL(wp) ::   rsecfst, rseclast       ! ???
    REAL(wp), DIMENSION(:,:,:), SAVE, ALLOCATABLE ::   qsr_arr   ! save qsr during TOP time-step
 
+      !! * Substitutions
+#  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -74,17 +76,13 @@ CONTAINS
       ll_trcstat  = ( sn_cfctl%l_trcstat ) .AND. &
      &              ( ( MOD( kt, sn_cfctl%ptimincr ) == 0 ) .OR. ( kt == nitend ) )
 
-      IF( kt == nittrc000 )                      CALL trc_stp_ctl   ! control 
       IF( kt == nittrc000 .AND. lk_trdmxl_trc )  CALL trd_mxl_trc_init    ! trends: Mixed-layer
       !
       IF( .NOT.ln_linssh ) THEN                                           ! update ocean volume due to ssh temporal evolution
          DO jk = 1, jpk
             cvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
          END DO
-         IF ( ll_trcstat .OR. kt == nitrst .OR. ( ln_check_mass .AND. kt == nitend )   &
-            & .OR. iom_use( "pno3tot" ) .OR. iom_use( "ppo4tot" ) .OR. iom_use( "psiltot" )   &
-            & .OR. iom_use( "palktot" ) .OR. iom_use( "pfertot" ) )                           &
-            &     areatot = glob_sum( 'trcstp', cvol(:,:,:) )
+         IF ( ll_trcstat .OR. kt == nitrst )  areatot = glob_sum( 'trcstp', cvol(:,:,:) )
       ENDIF
       !
       IF( l_trcdm2dc )   CALL trc_mean_qsr( kt )
@@ -142,20 +140,6 @@ CONTAINS
    END SUBROUTINE trc_stp
 
 
-   SUBROUTINE trc_stp_ctl
-      !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE trc_stp_ctl  ***
-      !!----------------------------------------------------------------------
-      !
-      ! Define logical parameter ton control dirunal cycle in TOP
-      l_trcdm2dc = ( ln_trcdc2dm .AND. .NOT. ln_dm2dc  ) 
-      !
-      IF( l_trcdm2dc .AND. lwp )   CALL ctl_warn( 'Coupling with passive tracers and used of diurnal cycle.',   &
-         &                           'Computation of a daily mean shortwave for some biogeochemical models ' )
-      !
-   END SUBROUTINE trc_stp_ctl
-
-
    SUBROUTINE trc_mean_qsr( kt )
       !!----------------------------------------------------------------------
       !!             ***  ROUTINE trc_mean_qsr  ***
@@ -170,7 +154,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT( in ) ::   kt   ! ocean time-step index
       !
-      INTEGER  ::   jn   ! dummy loop indices
+      INTEGER  ::   ji,jj,jn   ! dummy loop indices
       REAL(wp) ::   zkt, zrec     ! local scalars
       CHARACTER(len=1) ::   cl1   ! 1 character
       CHARACTER(len=2) ::   cl2   ! 2 characters
@@ -189,7 +173,7 @@ CONTAINS
             WRITE(numout,*) 
          ENDIF
          !
-         ALLOCATE( qsr_arr(jpi,jpj,nb_rec_per_day ) )
+         ALLOCATE( qsr_arr(A2D(0),nb_rec_per_day ) )
          !
          !                                            !* Restart: read in restart file
          IF( ln_rsttr .AND. nn_rsttr /= 0 .AND. iom_varid( numrtr, 'qsr_mean' , ldstop = .FALSE. ) > 0  &
@@ -220,7 +204,9 @@ CONTAINS
             IF(lwp) WRITE(numout,*) 'trc_qsr_mean:   qsr_mean set to nit000 values'
             rsecfst  = kt * rn_Dt
             !
-            qsr_mean(:,:) = qsr(:,:)
+            DO_2D( 0, 0, 0, 0 )
+               qsr_mean(ji,jj) = qsr(ji,jj)
+            END_2D
             DO jn = 1, nb_rec_per_day
                qsr_arr(:,:,jn) = qsr_mean(:,:)
             END DO
@@ -240,7 +226,7 @@ CONTAINS
              qsr_arr(:,:,jn) = qsr_arr(:,:,jn+1)
           ENDDO
           qsr_arr (:,:,nb_rec_per_day) = qsr(:,:)
-          qsr_mean(:,:                ) = SUM( qsr_arr(:,:,:), 3 ) / nb_rec_per_day
+          qsr_mean(:,:) = SUM( qsr_arr(:,:,:), 3 ) / nb_rec_per_day
       ENDIF
       !
       IF( lrst_trc ) THEN    !* Write the mean of qsr in restart file 

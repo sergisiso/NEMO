@@ -46,8 +46,7 @@ MODULE step_diu
       !!---------------------------------------------------------------------- 
       INTEGER ::   jk       ! dummy loop indices
       INTEGER ::   indic    ! error indicator if < 0 
-      REAL(wp), DIMENSION(jpi,jpj) :: z_fvel_bkginc, z_hflux_bkginc     
-      INTEGER :: Nbb, Nnn, Naa, Nrhs    ! local definitions as placeholders for now
+      INTEGER ::   Nbb, Nnn, Naa, Nrhs    ! local definitions as placeholders for now
       !! --------------------------------------------------------------------- 
       
       IF(ln_diurnal_only) THEN

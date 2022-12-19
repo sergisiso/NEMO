@@ -34,8 +34,12 @@ MODULE sbcflx
    INTEGER , PARAMETER ::   jp_qtot = 3   ! index of total (non solar+solar) heat file
    INTEGER , PARAMETER ::   jp_qsr  = 4   ! index of solar heat file
    INTEGER , PARAMETER ::   jp_emp  = 5   ! index of evaporation-precipation file
- !!INTEGER , PARAMETER ::   jp_sfx  = 6   ! index of salt flux flux
-   INTEGER , PARAMETER ::   jpfld   = 5 !! 6 ! maximum number of files to read
+!!$   INTEGER , PARAMETER ::   jp_sfx  = 6   ! index of salt flux flux
+!!$   INTEGER , PARAMETER ::   jp_sithic = 7 ! index of sea ice thickness
+!!$   INTEGER , PARAMETER ::   jp_sivolu = 8 ! index of sea ice volume per area
+!!$   INTEGER , PARAMETER ::   jp_siconc = 9 ! index of sea ice fraction
+   INTEGER , PARAMETER ::   jpfld   = 5   ! maximum number of files to read
+!!$   INTEGER , PARAMETER ::   jpfld   = 9   ! maximum number of files to read
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf    ! structure of input fields (file informations, fields read)
 
    !! * Substitutions
@@ -88,7 +92,7 @@ CONTAINS
       CHARACTER(len=100) ::  cn_dir                               ! Root directory for location of flx files
       TYPE(FLD_N), DIMENSION(jpfld) ::   slf_i                    ! array of namelist information structures
       TYPE(FLD_N) ::   sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp !!, sn_sfx ! informations about the fields to be read
-      NAMELIST/namsbc_flx/ cn_dir, sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp !!, sn_sfx
+      NAMELIST/namsbc_flx/ cn_dir, sn_utau, sn_vtau, sn_qtot, sn_qsr, sn_emp !!, sn_sfx, sn_sithic, sn_sivolu, sn_siconc
       !!---------------------------------------------------------------------
       !
       IF( kt == nit000 ) THEN                ! First call kt=nit000
@@ -108,19 +112,22 @@ CONTAINS
          slf_i(jp_utau) = sn_utau   ;   slf_i(jp_vtau) = sn_vtau
          slf_i(jp_qtot) = sn_qtot   ;   slf_i(jp_qsr ) = sn_qsr
          slf_i(jp_emp ) = sn_emp !! ;   slf_i(jp_sfx ) = sn_sfx
+         !!slf_i(jp_sithic) = sn_sithic
+         !!slf_i(jp_sivolu) = sn_sivolu
+         !!slf_i(jp_siconc) = sn_siconc
          !
          ALLOCATE( sf(jpfld), STAT=ierror )        ! set sf structure
          IF( ierror > 0 ) THEN
             CALL ctl_stop( 'sbc_flx: unable to allocate sf structure' )   ;   RETURN
          ENDIF
          DO ji= 1, jpfld
-            ALLOCATE( sf(ji)%fnow(jpi,jpj,1) )
-            IF( slf_i(ji)%ln_tint ) ALLOCATE( sf(ji)%fdta(jpi,jpj,1,2) )
+            ALLOCATE( sf(ji)%fnow(A2D(0),1) )
+            IF( slf_i(ji)%ln_tint ) ALLOCATE( sf(ji)%fdta(A2D(0),1,2) )
          END DO
          !                                         ! fill sf with slf_i and control print
          CALL fld_fill( sf, slf_i, cn_dir, 'sbc_flx', 'flux formulation for ocean surface boundary condition', 'namsbc_flx' )
-         sf(jp_utau)%cltype = 'U'   ;   sf(jp_utau)%zsgn = -1._wp   ! vector field at U point: overwrite default definition of cltype and zsgn
-         sf(jp_vtau)%cltype = 'V'   ;   sf(jp_vtau)%zsgn = -1._wp   ! vector field at V point: overwrite default definition of cltype and zsgn
+         sf(jp_utau)%cltype = 'T'   ;   sf(jp_utau)%zsgn = -1._wp   ! vector field at T point: overwrite default definition of cltype and zsgn
+         sf(jp_vtau)%cltype = 'T'   ;   sf(jp_vtau)%zsgn = -1._wp   ! vector field at T point: overwrite default definition of cltype and zsgn
          !
       ENDIF
 
@@ -129,33 +136,44 @@ CONTAINS
       IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN                        ! update ocean fluxes at each SBC frequency
 
          IF( ln_dm2dc ) THEN   ! modify now Qsr to include the diurnal cycle
-            qsr(:,:) = sbc_dcy( sf(jp_qsr)%fnow(:,:,1) ) * tmask(:,:,1)
+            qsr(:,:) = sbc_dcy( sf(jp_qsr)%fnow(:,:,1) ) * smask0(:,:)
          ELSE
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-               qsr(ji,jj) =     sf(jp_qsr)%fnow(ji,jj,1) * tmask(ji,jj,1)
-            END_2D
+            qsr(:,:) =          sf(jp_qsr)%fnow(:,:,1)   * smask0(:,:)
          ENDIF
 #if defined key_top
       IF( ln_trcdc2dm )  THEN      !  diurnal cycle in TOP
          IF( ln_dm2dc )  THEN
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-               qsr_mean(ji,jj) = sf(jp_qsr)%fnow(ji,jj,1)  * tmask(ji,jj,1)
+            DO_2D( 0, 0, 0, 0 )                  ! set the ocean fluxes from read fields
+               qsr_mean(ji,jj) = sf(jp_qsr)%fnow(ji,jj,1) * smask0(ji,jj)
             END_2D
          ELSE
             ncpl_qsr_freq = sf(jp_qsr)%freqh * 3600 !  qsr_mean will be computed in TOP
          ENDIF
       ENDIF
 #endif
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )                  ! set the ocean fluxes from read fields
-            utau(ji,jj) =   sf(jp_utau)%fnow(ji,jj,1)                              * umask(ji,jj,1)
-            vtau(ji,jj) =   sf(jp_vtau)%fnow(ji,jj,1)                              * vmask(ji,jj,1)
-            qns (ji,jj) = ( sf(jp_qtot)%fnow(ji,jj,1) - sf(jp_qsr)%fnow(ji,jj,1) ) * tmask(ji,jj,1)
-            emp (ji,jj) =   sf(jp_emp )%fnow(ji,jj,1)                              * tmask(ji,jj,1)
-            !!sfx (ji,jj) = sf(jp_sfx )%fnow(ji,jj,1)                              * tmask(ji,jj,1)
+         DO_2D( 0, 0, 0, 0 )                  ! set the ocean fluxes from read fields
+            utau(ji,jj) =   sf(jp_utau)%fnow(ji,jj,1)                              * smask0(ji,jj)
+            vtau(ji,jj) =   sf(jp_vtau)%fnow(ji,jj,1)                              * smask0(ji,jj)
+            qns (ji,jj) = ( sf(jp_qtot)%fnow(ji,jj,1) - sf(jp_qsr)%fnow(ji,jj,1) ) * smask0(ji,jj)
+            emp (ji,jj) =   sf(jp_emp )%fnow(ji,jj,1)                              * smask0(ji,jj)
+            !!sfx (ji,jj) = sf(jp_sfx )%fnow(ji,jj,1)                              * smask0(ji,jj)
+            !!hcpl_i(ji,jj) = sf(jp_sithic)%fnow(ji,jj,1)                          * smask0(ji,jj)
+            !!vcpl_i(ji,jj) = sf(jp_sivolu)%fnow(ji,jj,1)                          * smask0(ji,jj)
+            !!fr_i(ji,jj)   = sf(jp_siconc)%fnow(ji,jj,1)                          * smask0(ji,jj)
          END_2D
-         !                                                        ! add to qns the heat due to e-p
-         !!clem: I do not think it is needed
-         !!qns(:,:) = qns(:,:) - emp(:,:) * sst_m(:,:) * rcp        ! mass flux is at SST
+         !
+         !! Yona : add global qfrz to qns
+         !!IF( ln_frz .AND. ln_frzglob ) THEN
+         !!   zqfrz = glob_sum(qfrz_m(:,:) * e1t(A2D(0)) * e2t(A2D(0)) * smask0(:,:)) / glob_sum(e1t(A2D(0)) * e2t(A2D(0)) * smask0(:,:))
+         !!   qns(:,:) = ( qns(:,:) - zqfrz ) * smask0(:,:)
+         !!ENDIF
+         !!Yona
+         !
+         !! Yona : add anomalies if they are activated
+         !!IF( ln_flx_ano ) THEN
+         !!   CALL sbc_flx_ano( kt )
+         !!ENDIF
+         !! Yona
          !
          IF( nitend-nit000 <= 100 .AND. lwp ) THEN                ! control print (if less than 100 time-step asked)
             WRITE(numout,*)
@@ -170,18 +188,14 @@ CONTAINS
          ENDIF
          !
       ENDIF
-      !                                                           ! module of wind stress and wind speed at T-point
-      ! Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines
+      !
+      ! module of wind stress and wind speed at T-point
       zcoef = 1. / ( zrhoa * zcdrag )
       DO_2D( 0, 0, 0, 0 )
-         ztx = ( utau(ji-1,jj  ) + utau(ji,jj) ) * 0.5_wp * ( 2._wp - MIN( umask(ji-1,jj  ,1), umask(ji,jj,1) ) )
-         zty = ( vtau(ji  ,jj-1) + vtau(ji,jj) ) * 0.5_wp * ( 2._wp - MIN( vmask(ji  ,jj-1,1), vmask(ji,jj,1) ) )
-         zmod = SQRT( ztx * ztx + zty * zty ) * tmask(ji,jj,1)
+         zmod = SQRT( utau(ji,jj) * utau(ji,jj) + vtau(ji,jj) * vtau(ji,jj) ) * smask0(ji,jj)
          taum(ji,jj) = zmod
          wndm(ji,jj) = SQRT( zmod * zcoef )  !!clem: not used?
       END_2D
-      !
-      CALL lbc_lnk( 'sbcflx', taum, 'T', 1._wp, wndm, 'T', 1._wp )
       !
    END SUBROUTINE sbc_flx
 

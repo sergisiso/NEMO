@@ -70,8 +70,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       INTEGER                                  , INTENT(in   ) ::   kn_cen_h        ! =2/4 (2nd or 4th order scheme)
       INTEGER                                  , INTENT(in   ) ::   kn_cen_v        ! =2/4 (2nd or 4th order scheme)
-      ! TEMP: [tiling] This can be A2D(nn_hls) if using XIOS (subdomain support)
-      REAL(wp), DIMENSION(jpi,jpj,jpk         ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
@@ -80,7 +79,7 @@ CONTAINS
       REAL(wp) ::   zC2t_v, zC4t_v   !   -      -
       REAL(wp) ::   ztu_im1, ztu_ip1 !   -      -
       REAL(wp) ::   ztv_jm1, ztv_jp1 !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zwx, zwy, zwz, ztw
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zwx, zwy, zwz, ztw
       !!----------------------------------------------------------------------
       !
       IF( ntile == 0 .OR. ntile == 1 )  THEN                       ! Do only on the first tile

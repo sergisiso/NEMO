@@ -18,7 +18,6 @@ MODULE diahsb
    USE sbc_oce        ! surface thermohaline fluxes
    USE isf_oce        ! ice shelf fluxes
    USE sbcrnf         ! river runoff
-   USE domvvl         ! vertical scale factors
    USE traqsr         ! penetrative solar radiation
    USE trabbc         ! bottom boundary condition
    USE trabbc         ! bottom boundary condition
@@ -50,6 +49,7 @@ MODULE diahsb
    REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   tmask_ini
 
    !! * Substitutions
+#  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -82,42 +82,73 @@ CONTAINS
       REAL(wp)   ::   z_frc_trd_v                 !    -     -
       REAL(wp)   ::   z_wn_trd_t , z_wn_trd_s     !    -     -
       REAL(wp)   ::   z_ssh_hc , z_ssh_sc         !    -     -
-      REAL(wp), DIMENSION(jpi,jpj,13)      ::   ztmp
-      REAL(wp), DIMENSION(jpi,jpj,jpkm1,4) ::   ztmpk
-      REAL(wp), DIMENSION(17)              ::   zbg          
+      REAL(wp), DIMENSION(A2D(0),13)      ::   ztmp
+      REAL(wp), DIMENSION(A2D(0),jpkm1,4) ::   ztmpk
+      REAL(wp), DIMENSION(17)             ::   zbg
       !!---------------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('dia_hsb')
       !
-      ztmp (:,:,:)   = 0._wp ! should be better coded
-      ztmpk(:,:,:,:) = 0._wp ! should be better coded
-      !
-      ts(:,:,:,1,Kmm) = ts(:,:,:,1,Kmm) * tmask(:,:,:) ; ts(:,:,:,1,Kbb) = ts(:,:,:,1,Kbb) * tmask(:,:,:) ;
-      ts(:,:,:,2,Kmm) = ts(:,:,:,2,Kmm) * tmask(:,:,:) ; ts(:,:,:,2,Kbb) = ts(:,:,:,2,Kbb) * tmask(:,:,:) ;
+      DO_2D( 0, 0, 0, 0 )
+         ztmp (ji,jj,:)   = 0._wp ! should be better coded
+         ztmpk(ji,jj,:,:) = 0._wp ! should be better coded
+         !
+         ts(ji,jj,:,1,Kmm) = ts(ji,jj,:,1,Kmm) * tmask(ji,jj,:)
+         ts(ji,jj,:,1,Kbb) = ts(ji,jj,:,1,Kbb) * tmask(ji,jj,:)
+         !
+         ts(ji,jj,:,2,Kmm) = ts(ji,jj,:,2,Kmm) * tmask(ji,jj,:)
+         ts(ji,jj,:,2,Kbb) = ts(ji,jj,:,2,Kbb) * tmask(ji,jj,:)
+      END_2D
       !
       ! ------------------------- !
       ! 1 - Trends due to forcing !
       ! ------------------------- !
       ! prepare trends
-      ztmp(:,:,1)  = - r1_rho0 * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) ) * surf(:,:)    ! volume
-      ztmp(:,:,2)  =   sbc_tsc(:,:,jp_tem) * surf(:,:)                                                      ! heat
-      ztmp(:,:,3)  =   sbc_tsc(:,:,jp_sal) * surf(:,:)                                                      ! salt
-      IF( ln_rnf     )    ztmp(:,:,4) =   rnf_tsc(:,:,jp_tem) * surf(:,:)                                   ! runoff temp
-      IF( ln_rnf_sal )    ztmp(:,:,5) =   rnf_tsc(:,:,jp_sal) * surf(:,:)                                   ! runoff salt
-      IF( ln_isf     )    ztmp(:,:,6) = ( risf_cav_tsc(:,:,jp_tem) + risf_par_tsc(:,:,jp_tem) ) * surf(:,:) ! isf temp
-      IF( ln_traqsr  )    ztmp(:,:,7) =   r1_rho0_rcp * qsr(:,:) * surf(:,:)                                ! penetrative solar radiation
-      IF( ln_trabbc  )    ztmp(:,:,8) =   qgh_trd0(:,:) * surf(:,:)                                         ! geothermal heat
+      DO_2D( 0, 0, 0, 0 )
+         ztmp(ji,jj,1)  = - r1_rho0 * (   emp(ji,jj)        &                         ! volume
+             &                          - rnf(ji,jj)        &
+             &                          - fwfisf_cav(ji,jj) &
+             &                          - fwfisf_par(ji,jj) ) * surf(ji,jj)
+         ztmp(ji,jj,2)  =   sbc_tsc(ji,jj,jp_tem) * surf(ji,jj)                       ! heat
+         ztmp(ji,jj,3)  =   sbc_tsc(ji,jj,jp_sal) * surf(ji,jj)                       ! salt
+      END_2D
+      IF( ln_rnf     ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            ztmp(ji,jj,4) = rnf_tsc(ji,jj,jp_tem) * surf(ji,jj)    ! runoff temp
+         END_2D
+      END IF
+      IF( ln_rnf_sal ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            ztmp(ji,jj,5) = rnf_tsc(ji,jj,jp_sal) * surf(ji,jj)    ! runoff salt
+         END_2D
+      END IF
+      IF( ln_isf     ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            ztmp(ji,jj,6) = (   risf_cav_tsc(ji,jj,jp_tem) &
+                &             + risf_par_tsc(ji,jj,jp_tem) ) * surf(ji,jj) ! isf temp
+         END_2D
+      END IF
+      IF( ln_traqsr  ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            ztmp(ji,jj,7) = r1_rho0_rcp * qsr(ji,jj) * surf(ji,jj) ! penetrative solar radiation
+         END_2D
+      END IF
+      IF( ln_trabbc  ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            ztmp(ji,jj,8) = qgh_trd0(ji,jj) * surf(ji,jj)             ! geothermal heat
+         END_2D
+      END IF
       !
       IF( ln_linssh ) THEN   ! Advection flux through fixed surface (z=0)
          IF( ln_isfcav ) THEN
-            DO ji=1,jpi
-               DO jj=1,jpj
-                  ztmp(ji,jj,9 ) = - surf(ji,jj) * ww(ji,jj,mikt(ji,jj)) * ts(ji,jj,mikt(ji,jj),jp_tem,Kbb)
-                  ztmp(ji,jj,10) = - surf(ji,jj) * ww(ji,jj,mikt(ji,jj)) * ts(ji,jj,mikt(ji,jj),jp_sal,Kbb)
-               END DO
-            END DO
+            DO_2D( 0, 0, 0, 0 )
+               ztmp(ji,jj,9 ) = - surf(ji,jj) * ww(ji,jj,mikt(ji,jj)) * ts(ji,jj,mikt(ji,jj),jp_tem,Kbb)
+               ztmp(ji,jj,10) = - surf(ji,jj) * ww(ji,jj,mikt(ji,jj)) * ts(ji,jj,mikt(ji,jj),jp_sal,Kbb)
+            END_2D
          ELSE
-            ztmp(:,:,9 ) = - surf(:,:) * ww(:,:,1) * ts(:,:,1,jp_tem,Kbb)
-            ztmp(:,:,10) = - surf(:,:) * ww(:,:,1) * ts(:,:,1,jp_sal,Kbb)
+            DO_2D( 0, 0, 0, 0 )
+               ztmp(ji,jj,9 ) = - surf(ji,jj) * ww(ji,jj,1) * ts(ji,jj,1,jp_tem,Kbb)
+               ztmp(ji,jj,10) = - surf(ji,jj) * ww(ji,jj,1) * ts(ji,jj,1,jp_sal,Kbb)
+            END_2D
          END IF
       ENDIF
       
@@ -152,20 +183,22 @@ CONTAINS
       ! glob_sum is needed because you keep only the interior domain to compute the sum (iscpl)
       !
       !                    ! volume variation (calculated with ssh)
-      ztmp(:,:,11) = surf(:,:)*ssh(:,:,Kmm) - surf_ini(:,:)*ssh_ini(:,:)
+      DO_2D( 0, 0, 0, 0 )
+         ztmp(ji,jj,11) = surf(ji,jj)*ssh(ji,jj,Kmm) - surf_ini(ji,jj)*ssh_ini(ji,jj)
+      END_2D
 
       !                    ! heat & salt content variation (associated with ssh)
       IF( ln_linssh ) THEN       ! linear free surface case
          IF( ln_isfcav ) THEN          ! ISF case
-            DO ji = 1, jpi
-               DO jj = 1, jpj
-                  ztmp(ji,jj,12) = surf(ji,jj) * ( ts(ji,jj,mikt(ji,jj),jp_tem,Kmm) * ssh(ji,jj,Kmm) - ssh_hc_loc_ini(ji,jj) )
-                  ztmp(ji,jj,13) = surf(ji,jj) * ( ts(ji,jj,mikt(ji,jj),jp_sal,Kmm) * ssh(ji,jj,Kmm) - ssh_sc_loc_ini(ji,jj) )
-               END DO
-            END DO
+            DO_2D( 0, 0, 0, 0 )
+               ztmp(ji,jj,12) = surf(ji,jj) * ( ts(ji,jj,mikt(ji,jj),jp_tem,Kmm) * ssh(ji,jj,Kmm) - ssh_hc_loc_ini(ji,jj) )
+               ztmp(ji,jj,13) = surf(ji,jj) * ( ts(ji,jj,mikt(ji,jj),jp_sal,Kmm) * ssh(ji,jj,Kmm) - ssh_sc_loc_ini(ji,jj) )
+            END_2D
          ELSE                          ! no under ice-shelf seas
-            ztmp(:,:,12) = surf(:,:) * ( ts(:,:,1,jp_tem,Kmm) * ssh(:,:,Kmm) - ssh_hc_loc_ini(:,:) )
-            ztmp(:,:,13) = surf(:,:) * ( ts(:,:,1,jp_sal,Kmm) * ssh(:,:,Kmm) - ssh_sc_loc_ini(:,:) )
+            DO_2D( 0, 0, 0, 0 )
+               ztmp(ji,jj,12) = surf(ji,jj) * ( ts(ji,jj,1,jp_tem,Kmm) * ssh(ji,jj,Kmm) - ssh_hc_loc_ini(ji,jj) )
+               ztmp(ji,jj,13) = surf(ji,jj) * ( ts(ji,jj,1,jp_sal,Kmm) * ssh(ji,jj,Kmm) - ssh_sc_loc_ini(ji,jj) )
+            END_2D
          END IF
       ENDIF
 
@@ -185,19 +218,27 @@ CONTAINS
       ! glob_sum is needed because you keep only the interior domain to compute the sum (iscpl)
       !
       DO jk = 1, jpkm1           ! volume
-         ztmpk(:,:,jk,1) =   surf    (:,:) * e3t(:,:,jk,Kmm)*tmask(:,:,jk)   &
-            &              - surf_ini(:,:) * e3t_ini(:,:,jk    )*tmask_ini(:,:,jk)
+         DO_2D( 0, 0, 0, 0 )
+            ztmpk(ji,jj,jk,1) =   surf    (ji,jj) * e3t(ji,jj,jk,Kmm)*tmask(ji,jj,jk)   &
+               &                - surf_ini(ji,jj) * e3t_ini(ji,jj,jk    )*tmask_ini(ji,jj,jk)
+         END_2D
       END DO
       DO jk = 1, jpkm1           ! heat
-         ztmpk(:,:,jk,2) = ( surf    (:,:) * e3t(:,:,jk,Kmm)*ts(:,:,jk,jp_tem,Kmm)   &
-            &              - surf_ini(:,:) *         hc_loc_ini(:,:,jk) )
+         DO_2D( 0, 0, 0, 0 )
+            ztmpk(ji,jj,jk,2) = ( surf    (ji,jj) * e3t(ji,jj,jk,Kmm)*ts(ji,jj,jk,jp_tem,Kmm)   &
+               &                - surf_ini(ji,jj) *         hc_loc_ini(ji,jj,jk) )
+         END_2D
       END DO
       DO jk = 1, jpkm1           ! salt
-         ztmpk(:,:,jk,3) = ( surf    (:,:) * e3t(:,:,jk,Kmm)*ts(:,:,jk,jp_sal,Kmm)   &
-            &              - surf_ini(:,:) *         sc_loc_ini(:,:,jk) )
+         DO_2D( 0, 0, 0, 0 )
+            ztmpk(ji,jj,jk,3) = ( surf    (ji,jj) * e3t(ji,jj,jk,Kmm)*ts(ji,jj,jk,jp_sal,Kmm)   &
+               &                - surf_ini(ji,jj) *         sc_loc_ini(ji,jj,jk) )
+         END_2D
       END DO
       DO jk = 1, jpkm1           ! total ocean volume
-         ztmpk(:,:,jk,4) = surf(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
+         DO_2D( 0, 0, 0, 0 )
+            ztmpk(ji,jj,jk,4) = surf(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
+         END_2D
       END DO
       
       ! global sum
@@ -315,32 +356,34 @@ CONTAINS
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '   dia_hsb_rst : initialise hsb at initial state '
             IF(lwp) WRITE(numout,*)
-            surf_ini(:,:) = e1e2t(:,:) * tmask_i(:,:)         ! initial ocean surface
-            ssh_ini(:,:) = ssh(:,:,Kmm)                          ! initial ssh
-            DO jk = 1, jpk
-              ! if ice sheet/oceqn coupling, need to mask ini variables here (mask could change at the next NEMO instance).
-               e3t_ini   (:,:,jk) = e3t(:,:,jk,Kmm)                      * tmask(:,:,jk)  ! initial vertical scale factors
-               tmask_ini (:,:,jk) = tmask(:,:,jk)                                       ! initial mask
-               hc_loc_ini(:,:,jk) = ts(:,:,jk,jp_tem,Kmm) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)  ! initial heat content
-               sc_loc_ini(:,:,jk) = ts(:,:,jk,jp_sal,Kmm) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)  ! initial salt content
-            END DO
+            DO_2D( 0, 0, 0, 0 )
+               surf_ini(ji,jj) = e1e2t(ji,jj) * tmask_i(ji,jj)         ! initial ocean surface
+               ssh_ini(ji,jj) = ssh(ji,jj,Kmm)                          ! initial ssh
+            END_2D
+            ! if ice sheet/oceqn coupling, need to mask ini variables here (mask could change at the next NEMO instance).
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               e3t_ini   (ji,jj,jk) = e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)  ! initial vertical scale factors
+               tmask_ini (ji,jj,jk) = tmask(ji,jj,jk)                      ! initial mask
+               hc_loc_ini(ji,jj,jk) = ts(ji,jj,jk,jp_tem,Kmm) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)  ! initial heat content
+               sc_loc_ini(ji,jj,jk) = ts(ji,jj,jk,jp_sal,Kmm) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)  ! initial salt content
+            END_3D
             frc_v = 0._wp                                           ! volume       trend due to forcing
             frc_t = 0._wp                                           ! heat content   -    -   -    -
             frc_s = 0._wp                                           ! salt content   -    -   -    -
             IF( ln_linssh ) THEN
                IF( ln_isfcav ) THEN
-                  DO ji = 1, jpi
-                     DO jj = 1, jpj
-                        ssh_hc_loc_ini(ji,jj) = ts(ji,jj,mikt(ji,jj),jp_tem,Kmm) * ssh(ji,jj,Kmm)   ! initial heat content in ssh
-                        ssh_sc_loc_ini(ji,jj) = ts(ji,jj,mikt(ji,jj),jp_sal,Kmm) * ssh(ji,jj,Kmm)   ! initial salt content in ssh
-                     END DO
-                   END DO
-                ELSE
-                  ssh_hc_loc_ini(:,:) = ts(:,:,1,jp_tem,Kmm) * ssh(:,:,Kmm)   ! initial heat content in ssh
-                  ssh_sc_loc_ini(:,:) = ts(:,:,1,jp_sal,Kmm) * ssh(:,:,Kmm)   ! initial salt content in ssh
+                  DO_2D( 0, 0, 0, 0 )
+                     ssh_hc_loc_ini(ji,jj) = ts(ji,jj,mikt(ji,jj),jp_tem,Kmm) * ssh(ji,jj,Kmm)   ! initial heat content in ssh
+                     ssh_sc_loc_ini(ji,jj) = ts(ji,jj,mikt(ji,jj),jp_sal,Kmm) * ssh(ji,jj,Kmm)   ! initial salt content in ssh
+                  END_2D
+               ELSE
+                  DO_2D( 0, 0, 0, 0 )
+                     ssh_hc_loc_ini(ji,jj) = ts(ji,jj,1,jp_tem,Kmm) * ssh(ji,jj,Kmm)   ! initial heat content in ssh
+                     ssh_sc_loc_ini(ji,jj) = ts(ji,jj,1,jp_sal,Kmm) * ssh(ji,jj,Kmm)   ! initial salt content in ssh
+                  END_2D
                END IF
-               frc_wn_t = 0._wp                                       ! initial heat content misfit due to free surface
-               frc_wn_s = 0._wp                                       ! initial salt content misfit due to free surface
+               frc_wn_t = 0._wp    ! initial heat content misfit due to free surface
+               frc_wn_s = 0._wp    ! initial salt content misfit due to free surface
             ENDIF
          ENDIF
          !
@@ -388,6 +431,7 @@ CONTAINS
       INTEGER, INTENT(in) :: Kmm ! time level index
       !
       INTEGER ::   ierror, ios   ! local integer
+      INTEGER ::   ji, jj        ! loop index
       !!
       NAMELIST/namhsb/ ln_diahsb
       !!----------------------------------------------------------------------
@@ -413,13 +457,13 @@ CONTAINS
       ! ------------------- !
       ! 1 - Allocate memory !
       ! ------------------- !
-      ALLOCATE( hc_loc_ini(jpi,jpj,jpk), sc_loc_ini(jpi,jpj,jpk), surf_ini(jpi,jpj), &
-         &      e3t_ini(jpi,jpj,jpk), surf(jpi,jpj),  ssh_ini(jpi,jpj), tmask_ini(jpi,jpj,jpk),STAT=ierror  )
+      ALLOCATE( hc_loc_ini(A2D(0),jpk), sc_loc_ini(A2D(0),jpk), surf_ini(A2D(0)), &
+         &      e3t_ini(A2D(0),jpk), surf(A2D(0)),  ssh_ini(A2D(0)), tmask_ini(A2D(0),jpk),STAT=ierror  )
       IF( ierror > 0 ) THEN
          CALL ctl_stop( 'dia_hsb_init: unable to allocate hc_loc_ini' )   ;   RETURN
       ENDIF
 
-      IF( ln_linssh )   ALLOCATE( ssh_hc_loc_ini(jpi,jpj), ssh_sc_loc_ini(jpi,jpj),STAT=ierror )
+      IF( ln_linssh )   ALLOCATE( ssh_hc_loc_ini(A2D(0)), ssh_sc_loc_ini(A2D(0)),STAT=ierror )
       IF( ierror > 0 ) THEN
          CALL ctl_stop( 'dia_hsb: unable to allocate ssh_hc_loc_ini' )   ;   RETURN
       ENDIF
@@ -427,7 +471,10 @@ CONTAINS
       ! ----------------------------------------------- !
       ! 2 - Time independant variables and file opening !
       ! ----------------------------------------------- !
-      surf(:,:) = e1e2t(:,:) * tmask_i(:,:)               ! masked surface grid cell area
+ 
+      DO_2D( 0, 0, 0, 0 )
+         surf(ji,jj) = e1e2t(ji,jj) * smask0_i(ji,jj)               ! masked surface grid cell area
+      END_2D
       surf_tot  = glob_sum( 'diahsb', surf(:,:) )         ! total ocean surface area
 
       IF( ln_bdy ) CALL ctl_warn( 'dia_hsb_init: heat/salt budget does not consider open boundary fluxes' )

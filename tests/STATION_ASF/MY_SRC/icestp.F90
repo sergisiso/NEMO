@@ -102,7 +102,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm ! ocean time level indices
       INTEGER, INTENT(in) ::   ksbc     ! flux formulation (user defined, bulk, or Pure Coupled)
       !
-      INTEGER ::   jl   ! dummy loop index
+      INTEGER ::   ji, jj, jl   ! dummy loop index
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('ice_stp')
@@ -116,8 +116,10 @@ CONTAINS
          u_oce(:,:) = ssu_m(:,:)                  ! -- mean surface ocean current
          v_oce(:,:) = ssv_m(:,:)
          !
-         CALL eos_fzp( sss_m(:,:) , t_bo(:,:) )   ! -- freezing temperature [Kelvin] (set to rt0 over land)
-         t_bo(:,:) = ( t_bo(:,:) + rt0 ) * tmask(:,:,1) + rt0 * ( 1._wp - tmask(:,:,1) )
+         CALL eos_fzp( sss_m(:,:), t_bo(:,:), kbnd=0 )   ! -- freezing temperature [Kelvin] (set to rt0 over land)
+         DO_2D( 0, 0, 0, 0 )
+            t_bo(ji,jj) = ( t_bo(ji,jj) + rt0 ) * tmask(ji,jj,1) + rt0 * ( 1._wp - tmask(ji,jj,1) )
+         END_2D
          !
          !
          !------------------------------------------------!

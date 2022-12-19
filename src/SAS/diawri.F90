@@ -317,21 +317,21 @@ CONTAINS
 		 !
 		 ENDIF
 !
+         CALL histdef( nid_T, "sozotaux", "Wind Stress along i-axis"           , "N/m2"   ,   &  ! utau
+            &          jpi, jpj, nh_T, 1  , 1, 1  , - 99, 32, clop, zsto, zout )
+         CALL histdef( nid_T, "sometauy", "Wind Stress along j-axis"           , "N/m2"   ,   &  ! vtau
+            &          jpi, jpj, nh_T, 1  , 1, 1  , - 99, 32, clop, zsto, zout )
 
          CALL histend( nid_T, snc4chunks=snc4set )
 
          !                                                                                      !!! nid_U : 3D
          CALL histdef( nid_U, "ssu_m", "Velocity component in x-direction", "m/s"   ,         &  ! ssu
             &          jpi, jpj, nh_U, 1  , 1, 1  , - 99, 32, clop, zsto, zout )
-         CALL histdef( nid_U, "sozotaux", "Wind Stress along i-axis"           , "N/m2"   ,   &  ! utau
-            &          jpi, jpj, nh_U, 1  , 1, 1  , - 99, 32, clop, zsto, zout )
 
          CALL histend( nid_U, snc4chunks=snc4set )
 
          !                                                                                      !!! nid_V : 3D
          CALL histdef( nid_V, "ssv_m", "Velocity component in y-direction", "m/s",            &  ! ssv_m
-            &          jpi, jpj, nh_V, 1  , 1, 1  , - 99, 32, clop, zsto, zout )
-         CALL histdef( nid_V, "sometauy", "Wind Stress along j-axis"           , "N/m2"   ,   &  ! vtau
             &          jpi, jpj, nh_V, 1  , 1, 1  , - 99, 32, clop, zsto, zout )
 
          CALL histend( nid_V, snc4chunks=snc4set )
@@ -366,6 +366,8 @@ CONTAINS
       CALL histwrite( nid_T, "soshfldo", it, qsr           , ndim_hT, ndex_hT )   ! solar heat flux
       CALL histwrite( nid_T, "soicecov", it, fr_i          , ndim_hT, ndex_hT )   ! ice fraction   
       CALL histwrite( nid_T, "sowindsp", it, wndm          , ndim_hT, ndex_hT )   ! wind speed   
+      CALL histwrite( nid_T, "sozotaux", it, utau          , ndim_hT, ndex_hT )   ! i-wind stress
+      CALL histwrite( nid_T, "sometauy", it, vtau          , ndim_hT, ndex_hT )   ! j-wind stress
 !
       IF( ln_abl ) THEN 
 	     ALLOCATE( zw3d_abl(jpi,jpj,jpka) )
@@ -393,11 +395,9 @@ CONTAINS
 
          ! Write fields on U grid
       CALL histwrite( nid_U, "ssu_m"   , it, ssu_m         , ndim_hU, ndex_hU )   ! i-current speed
-      CALL histwrite( nid_U, "sozotaux", it, utau          , ndim_hU, ndex_hU )   ! i-wind stress
 
          ! Write fields on V grid
       CALL histwrite( nid_V, "ssv_m"   , it, ssv_m         , ndim_hV, ndex_hV )   ! j-current speed
-      CALL histwrite( nid_V, "sometauy", it, vtau          , ndim_hV, ndex_hV )   ! j-wind stress
 
       ! 3. Close all files
       ! ---------------------------------------

@@ -42,12 +42,12 @@ CONTAINS
       INTEGER, INTENT( in )     :: kt
       INTEGER, INTENT( in )     :: Kmm  ! time level indices
       !
-      INTEGER                   :: jk, jn
+      INTEGER                   :: ji,jj,jk,jn
       CHARACTER (len=20)        :: cltra
       CHARACTER (len=40)        :: clhstnam
       INTEGER ::   inum = 11            ! temporary logical unit
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   z3d   ! 3D workspace
-      !!---------------------------------------------------------------------
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   z3d, z3d0   ! 3D workspace
+      !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_wri')
       !
@@ -59,32 +59,55 @@ CONTAINS
            CLOSE(inum)
          ENDIF
 
+         ALLOCATE( z3d(jpi,jpj,jpk) )  ;   z3d(:,:,:) = 0._wp
+         ALLOCATE( z3d0(A2D(0),jpk) )  ;  z3d0(:,:,:) = 0._wp
+
          ! Output of initial vertical scale factor
-         CALL iom_put( "e3t_0", e3t_0(:,:,:) )
-         CALL iom_put( "e3u_0", e3u_0(:,:,:) )
-         CALL iom_put( "e3v_0", e3v_0(:,:,:) )
+         IF( lk_vco_1d ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               z3d(ji,jj,jk) =  e3t_0(ji,jj,jk)
+            END_3D
+            CALL iom_put( "e3t_0", z3d )
+            !
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               z3d(ji,jj,jk) =  e3u_0(ji,jj,jk)
+            END_3D
+            CALL iom_put( "e3u_0", z3d )
+            !
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               z3d(ji,jj,jk) =  e3v_0(ji,jj,jk)
+            END_3D
+            CALL iom_put( "e3v_0", z3d )
+         ELSE
+            CALL iom_put( "e3t_0", e3t_0(:,:,:) )
+            CALL iom_put( "e3u_0", e3u_0(:,:,:) )
+            CALL iom_put( "e3v_0", e3v_0(:,:,:) )
+         ENDIF
          !
          IF( .NOT.ln_linssh )  CALL iom_put( "ssh" , ssh(:,:,Kmm) )              ! sea surface height
          !
-         IF ( iom_use("e3t") ) THEN  ! time-varying e3t
-            DO jk = 1, jpk
-               z3d(:,:,jk) =  e3t(:,:,jk,Kmm)
-            END DO
-            CALL iom_put( "e3t", z3d(:,:,:) )
+         ! --- vertical scale factors --- !
+         IF( iom_use("e3t") ) THEN  ! time-varying e3t
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               z3d0(ji,jj,jk) =  e3t(ji,jj,jk,Kmm)
+            END_3D
+            CALL iom_put( "e3t", z3d0 )
          ENDIF
          IF ( iom_use("e3u") ) THEN                         ! time-varying e3u
-            DO jk = 1, jpk
-               z3d(:,:,jk) =  e3u(:,:,jk,Kmm)
-            END DO
-            CALL iom_put( "e3u", z3d(:,:,:) )
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               z3d0(ji,jj,jk) =  e3u(ji,jj,jk,Kmm)
+            END_3D 
+            CALL iom_put( "e3u" , z3d0 )
          ENDIF
          IF ( iom_use("e3v") ) THEN                         ! time-varying e3v
-            DO jk = 1, jpk
-               z3d(:,:,jk) =  e3v(:,:,jk,Kmm)
-            END DO
-            CALL iom_put( "e3v", z3d(:,:,:) )
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               z3d0(ji,jj,jk) =  e3v(ji,jj,jk,Kmm)
+            END_3D
+            CALL iom_put( "e3v" , z3d0 )
          ENDIF
          !
+         DEALLOCATE( z3d )
+         DEALLOCATE( z3d0 )
       ENDIF
       !
       ! write the tracer concentrations in the file

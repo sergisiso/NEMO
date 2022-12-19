@@ -131,7 +131,7 @@ CONTAINS
       ! Linear interpolation between 2 hemispheric function of latitud between ylats and ylatn
       !---------------------------------------------------------------------------------------
       zyd = ylatn - ylats      
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF(     gphit(ji,jj) >= ylatn ) THEN   ;   xphem(ji,jj) = 1.e0
          ELSEIF( gphit(ji,jj) <= ylats ) THEN   ;   xphem(ji,jj) = 0.e0
          ELSE                                   ;   xphem(ji,jj) = ( gphit(ji,jj) - ylats) / zyd

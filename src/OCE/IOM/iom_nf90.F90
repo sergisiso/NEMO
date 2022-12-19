@@ -40,6 +40,8 @@ MODULE iom_nf90
       MODULE PROCEDURE iom_nf90_rp0123d_dp
    END INTERFACE
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: iom_nf90.F90 14433 2021-02-11 08:06:49Z smasson $
@@ -144,16 +146,16 @@ CONTAINS
             END SELECT
                                CALL iom_nf90_check(NF90_DEF_DIM( if90id, 'time_counter', NF90_UNLIMITED, idmy ), clinfo)
             ! global attributes
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_number_total'   , jpnij                        ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_number'         , narea-1                      ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_dimensions_ids' , (/ 1        , 2           /) ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_size_global'    , (/ Ni0glo    , Nj0glo     /) ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_size_local'     , (/ Ni_0      , Nj_0       /) ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_position_first' , (/ mig0(Nis0), mjg0(Njs0) /) ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_position_last'  , (/ mig0(Nie0), mjg0(Nje0) /) ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_halo_size_start', (/ 0         , 0          /) ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_halo_size_end'  , (/ 0         , 0          /) ), clinfo)
-            CALL iom_nf90_check(NF90_PUT_ATT( if90id, NF90_GLOBAL, 'DOMAIN_type'           , 'BOX'                        ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_number_total'   , jpnij                          ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_number'         , narea-1                        ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_dimensions_ids' , (/ 1         , 2            /) ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_size_global'    , (/ Ni0glo     , Nj0glo      /) ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_size_local'     , (/ Ni_0       , Nj_0        /) ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_position_first' , (/ mig(Nis0,0), mjg(Njs0,0) /) ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_position_last'  , (/ mig(Nie0,0), mjg(Nje0,0) /) ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_halo_size_start', (/ 0          , 0           /) ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_halo_size_end'  , (/ 0          , 0           /) ), clinfo)
+            CALL iom_nf90_check(NF90_PUT_ATT(if90id,NF90_GLOBAL, 'DOMAIN_type'           , 'BOX'                          ), clinfo)
          ELSE                          !* the file should be open for read mode so it must exist...
             CALL ctl_stop( TRIM(clinfo), ' should be impossible case...' )
          ENDIF
@@ -544,7 +546,7 @@ CONTAINS
       INTEGER               :: idvar                ! variable id
       INTEGER               :: jd                   ! dimension loop counter
       INTEGER               :: ix1, ix2, iy1, iy2   ! subdomain indexes
-      INTEGER, DIMENSION(4) :: idimsz               ! dimensions size
+      INTEGER, DIMENSION(3) :: ishape               ! dimensions size
       INTEGER, DIMENSION(4) :: idimid               ! dimensions id
       CHARACTER(LEN=256)    :: clinfo               ! info character
       INTEGER               :: if90id               ! nf90 file identifier
@@ -627,11 +629,9 @@ CONTAINS
             itype = NF90_DOUBLE
          ENDIF
          IF( PRESENT(pv_r0d) ) THEN
-            CALL iom_nf90_check(NF90_DEF_VAR( if90id, TRIM(cdvar), itype,                    &
-               &                              iom_file(kiomid)%nvid(idvar) ), clinfo )
+            CALL iom_nf90_check(NF90_DEF_VAR( if90id, TRIM(cdvar), itype,                  iom_file(kiomid)%nvid(idvar) ), clinfo )
          ELSE
-            CALL iom_nf90_check(NF90_DEF_VAR( if90id, TRIM(cdvar), itype, idimid(1:idims),   &
-               &                              iom_file(kiomid)%nvid(idvar) ), clinfo )
+            CALL iom_nf90_check(NF90_DEF_VAR( if90id, TRIM(cdvar), itype, idimid(1:idims), iom_file(kiomid)%nvid(idvar) ), clinfo )
          ENDIF
          lchunk = .false.
          IF( snc4set%luse .AND. idims == 4 )   lchunk = .true.
@@ -673,23 +673,13 @@ CONTAINS
          ENDIF
          ! on what kind of domain must the data be written?
          IF( PRESENT(pv_r2d) .OR. PRESENT(pv_r3d) ) THEN
-            idimsz(1:2) = iom_file(kiomid)%dimsz(1:2,idvar)
-            IF(     idimsz(1) == Ni_0 .AND. idimsz(2) == Nj_0 ) THEN
-               ix1 = Nis0   ;   ix2 = Nie0   ;   iy1 = Njs0   ;   iy2 = Nje0
-            ELSEIF( idimsz(1) == jpi  .AND. idimsz(2) == jpj  ) THEN
-               ix1 = 1      ;   ix2 = jpi    ;   iy1 = 1      ;   iy2 = jpj
-            ELSEIF( idimsz(1) == jpi  .AND. idimsz(2) == jpj  ) THEN
-               ix1 = 1      ;   ix2 = jpi    ;   iy1 = 1      ;   iy2 = jpj
-            ELSE
-               CALL ctl_stop( 'iom_nf90_rp0123d: should have been an impossible case...' )
-            ENDIF
 
             ! write dimension variables if it is not already done
             ! =============
             ! trick: is defined to 0 => dimension variable are defined but not yet written
             IF( iom_file(kiomid)%dimsz(1, 4) == 0 ) THEN   ! time_counter = 0
-               CALL iom_nf90_check(    NF90_PUT_VAR( if90id, 1,                            glamt(ix1:ix2, iy1:iy2) ), clinfo )
-               CALL iom_nf90_check(    NF90_PUT_VAR( if90id, 2,                            gphit(ix1:ix2, iy1:iy2) ), clinfo )
+               CALL iom_nf90_check(    NF90_PUT_VAR( if90id, 1,                                      glamt(T2D(0)) ), clinfo )
+               CALL iom_nf90_check(    NF90_PUT_VAR( if90id, 2,                                      gphit(T2D(0)) ), clinfo )
                SELECT CASE (iom_file(kiomid)%comp)
                CASE ('OCE')
                   CALL iom_nf90_check( NF90_PUT_VAR( if90id, 3,                                           gdept_1d ), clinfo )
@@ -704,6 +694,19 @@ CONTAINS
                iom_file(kiomid)%dimsz(1, 4) = 1   ! so we don't enter this IF case any more...
                IF(lwp) WRITE(numout,*) TRIM(clinfo)//' write dimension variables done'
             ENDIF
+
+            IF( PRESENT(pv_r2d) )  ishape(1:2) = SHAPE(pv_r2d)
+            IF( PRESENT(pv_r3d) )  ishape(1:3) = SHAPE(pv_r3d)
+            IF(     ishape(1) == Ni_0   .AND. ishape(2) == Nj_0   ) THEN           ! array with 0 halo
+               ix1 = 1      ;   ix2 = Ni_0     ;   iy1 = 1      ;   iy2 = Nj_0
+            ELSEIF( ishape(1) == jpi    .AND. ishape(2) == jpj    ) THEN           ! array with nn_hls halos
+               ix1 = Nis0   ;   ix2 = Nie0     ;   iy1 = Njs0   ;   iy2 = Nje0
+            ELSEIF( ishape(1) == Ni_0+2 .AND. ishape(2) == Nj_0+2 ) THEN           ! nn_hls = 2 and array with 1 halo
+               ix1 = 2      ;   ix2 = Ni_0+1   ;   iy1 = 2      ;   iy2 = Nj_0+1
+            ELSE
+               CALL ctl_stop( 'iom_nf90_rp0123d: should have been an impossible case...' )
+            ENDIF
+
          ENDIF
 
          ! write the data
@@ -712,7 +715,7 @@ CONTAINS
             CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pv_r0d                    ), clinfo )
          ELSEIF( PRESENT(pv_r1d) ) THEN
             CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pv_r1d(:)                 ), clinfo )
-         ELSEIF( PRESENT(pv_r2d) ) THEN
+         ELSEIF( PRESENT(pv_r2d) ) THEN     
             CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pv_r2d(ix1:ix2,iy1:iy2)   ), clinfo )
          ELSEIF( PRESENT(pv_r3d) ) THEN
             CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pv_r3d(ix1:ix2,iy1:iy2,:) ), clinfo )

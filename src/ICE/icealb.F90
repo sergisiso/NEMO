@@ -48,7 +48,7 @@ MODULE icealb
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE ice_alb( pt_su, ph_ice, ph_snw, ld_pnd_alb, pafrac_pnd, ph_pnd, pcloud_fra, palb_ice )
+   SUBROUTINE ice_alb( ld_pnd_alb, pt_su, ph_ice, ph_snw, pafrac_pnd, ph_pnd, pcloud_fra, palb_ice )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE ice_alb  ***
       !!          
@@ -94,16 +94,16 @@ CONTAINS
       !!                Brandt et al. 2005, J. Climate, vol 18
       !!                Grenfell & Perovich 2004, JGR, vol 109 
       !!----------------------------------------------------------------------
-      REAL(wp), INTENT(in   ), DIMENSION(:,:,:) ::   pt_su        !  ice surface temperature (Kelvin)
-      REAL(wp), INTENT(in   ), DIMENSION(:,:,:) ::   ph_ice       !  sea-ice thickness
-      REAL(wp), INTENT(in   ), DIMENSION(:,:,:) ::   ph_snw       !  snow depth
-      LOGICAL , INTENT(in   )                   ::   ld_pnd_alb   !  effect of melt ponds on albedo
-      REAL(wp), INTENT(in   ), DIMENSION(:,:,:) ::   pafrac_pnd   !  melt pond relative fraction (per unit ice area)
-      REAL(wp), INTENT(in   ), DIMENSION(:,:,:) ::   ph_pnd       !  melt pond depth
-      REAL(wp), INTENT(in   ), DIMENSION(:,:)   ::   pcloud_fra   !  cloud fraction
-      REAL(wp), INTENT(  out), DIMENSION(:,:,:) ::   palb_ice     !  albedo of ice
+      LOGICAL , INTENT(in   )                        ::   ld_pnd_alb   !  effect of melt ponds on albedo
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   pt_su        !  ice surface temperature (Kelvin)
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_ice       !  sea-ice thickness
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_snw       !  snow depth
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   pafrac_pnd   !  melt pond relative fraction (per unit ice area)
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_pnd       !  melt pond depth
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0))     ::   pcloud_fra   !  cloud fraction
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0),jpl) ::   palb_ice     !  albedo of ice
       !
-      REAL(wp), DIMENSION(jpi,jpj,jpl) :: za_s_fra   ! ice fraction covered by snow
+      REAL(wp), DIMENSION(A2D(0),jpl) :: za_s_fra   ! ice fraction covered by snow
       INTEGER  ::   ji, jj, jl                ! dummy loop indices
       REAL(wp) ::   z1_c1, z1_c2,z1_c3, z1_c4 ! local scalar
       REAL(wp) ::   z1_href_pnd               ! inverse of the characteristic length scale (Lecomte et al. 2015)
@@ -121,10 +121,10 @@ CONTAINS
       z1_c3 = 1._wp / 0.02_wp
       z1_c4 = 1._wp / 0.03_wp
       !
-      CALL ice_var_snwfra( ph_snw, za_s_fra )   ! calculate ice fraction covered by snow
+      CALL ice_var_snwfra( ph_snw(:,:,:), za_s_fra(:,:,:) )   ! calculate ice fraction covered by snow
       !
       DO jl = 1, jpl
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )   ! palb_ice used over the full domain in icesbc
+         DO_2D( 0, 0, 0, 0 )   ! palb_ice used over the full domain in icesbc
             !
             !---------------------------------------------!
             !--- Specific snow, ice and pond fractions ---!
@@ -164,10 +164,10 @@ CONTAINS
             zalb_pnd = rn_alb_dpnd - ( rn_alb_dpnd - zalb_ice ) * EXP( - ph_pnd(ji,jj,jl) * z1_href_pnd ) 
             !
             !                       !--- Surface albedo is weighted mean of snow, ponds and bare ice contributions
-            zalb_os = ( zafrac_snw * zalb_snw + zafrac_pnd * zalb_pnd + zafrac_ice * zalb_ice ) * tmask(ji,jj,1)
+            zalb_os = ( zafrac_snw * zalb_snw + zafrac_pnd * zalb_pnd + zafrac_ice * zalb_ice ) * smask0(ji,jj)
             !
             zalb_cs = zalb_os - ( - 0.1010_wp * zalb_os * zalb_os  &
-               &                  + 0.1933_wp * zalb_os - 0.0148_wp ) * tmask(ji,jj,1)
+               &                  + 0.1933_wp * zalb_os - 0.0148_wp ) * smask0(ji,jj)
             !
             ! albedo depends on cloud fraction because of non-linear spectral effects
             palb_ice(ji,jj,jl) = ( 1._wp - pcloud_fra(ji,jj) ) * zalb_cs + pcloud_fra(ji,jj) * zalb_os

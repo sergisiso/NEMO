@@ -32,6 +32,8 @@ MODULE trcini
    
    PUBLIC   trc_init   ! called by opa
 
+      !! * Substitutions
+#  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -93,9 +95,8 @@ CONTAINS
       !! ** Purpose :      passive tracers inventories at initialsation phase
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   Kmm    ! time level index
-      INTEGER             ::  jk, jn  ! dummy loop indices
+      INTEGER             ::  ji, jj, jk, jn  ! dummy loop indices
       CHARACTER (len=25) :: charout
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jptra) :: zzmsk
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)

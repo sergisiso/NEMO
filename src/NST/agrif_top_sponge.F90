@@ -98,7 +98,7 @@ CONTAINS
             END DO
          END DO
 
-         IF ( l_vremap.OR.ln_zps ) THEN
+         IF ( l_vremap.OR.l_zps ) THEN
 
             ! Fill cell depths (i.e. gdept) to be interpolated
             ! Warning: these are masked, hence extrapolated prior interpolation.
@@ -191,7 +191,7 @@ CONTAINS
 
          ELSE
 
-            IF ( Agrif_Parent(ln_zps) ) THEN ! Account for partial cells
+            IF ( Agrif_Parent(l_zps) ) THEN ! Account for partial cells
 
                DO jj=j1,j2
                   DO ji=i1,i2
@@ -245,7 +245,7 @@ CONTAINS
                   END DO
                END DO
                !
-               IF( ln_zps ) THEN      ! set gradient at partial step level
+               IF( l_zps ) THEN      ! set gradient at partial step level
                   DO jj = j1,j2
                      DO ji = i1,i2
                         ! last level
@@ -265,8 +265,8 @@ CONTAINS
                      IF (.NOT. tabspongedone_trn(ji,jj)) THEN 
                         zbtr = r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm_a)
                         ! horizontal diffusive trends
-                        ztra = zbtr * ( ztu(ji,jj,jk) - ztu(ji-1,jj,jk)   & 
-                          &           + ztv(ji,jj,jk) - ztv(ji,jj-1,jk) ) &
+                        ztra = zbtr * ( ( ztu(ji,jj,jk) - ztu(ji-1,jj,jk) )   &   ! add () for NP repro
+                          &           + ( ztv(ji,jj,jk) - ztv(ji,jj-1,jk) ) ) &
                           &   - rn_trelax_tra * r1_Dt * fspt(ji,jj) * trbdiff(ji,jj,jk,jn)
                         ! add it to the general tracer trends
                         tr(ji,jj,jk,jn,Krhs_a) = tr(ji,jj,jk,jn,Krhs_a) + ztra

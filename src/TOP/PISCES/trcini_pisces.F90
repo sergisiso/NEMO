@@ -123,7 +123,6 @@ CONTAINS
       ELSE
          ! PISCES-QUOTA part
          ierr = ierr +  p5z_lim_alloc()
-         ierr = ierr +  p5z_prod_alloc()
          ierr = ierr +  p5z_meso_alloc()
       ENDIF
       ierr = ierr +  p4z_rem_alloc()

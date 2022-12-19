@@ -27,6 +27,8 @@
           <field field_ref="sKE"          name="sKE"       operation = "instant" />
           <field field_ref="ssh"          name="sossheig"  operation = "instant" />
           <field field_ref="wetdep"       name="hswe_wd"   operation = "instant" />
+          <field field_ref="utau"         name="sozotaux"   operation = "instant"  />
+          <field field_ref="vtau"         name="sometauy"   operation = "instant"  />
         </file>
 
         <file id="file2" name_suffix="_grid_U" description="ocean U grid variables" >
@@ -34,7 +36,6 @@
           <field field_ref="e3u_0"        name="e3u_0"      operation = "instant" />
           <field field_ref="hu"           name="hu"         operation = "instant" />
           <field field_ref="ssu"          name="ssu"        operation = "instant"  />
-          <field field_ref="utau"         name="sozotaux"   operation = "instant"  />
         </file>
 
         <file id="file3" name_suffix="_grid_V" description="ocean V grid variables" >
@@ -42,7 +43,6 @@
           <field field_ref="e3v_0"        name="e3v_0"      operation = "instant" />
           <field field_ref="hv"           name="hv"         operation = "instant" />
           <field field_ref="ssv"          name="ssv"        operation = "instant"  />
-          <field field_ref="vtau"         name="sometauy"   operation = "instant"  />
         </file>
         
         <file id="file5" name_suffix="_grid_F" description="ocean F grid variables" >

@@ -78,8 +78,8 @@ CONTAINS
       zphi0 = -REAL(Nj0glo, wp) * 0.5 * 1.e-3 * rn_dy
 
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         zti = REAL( mig0(ji), wp ) - 0.5_wp  ! start at i=0.5 in the global grid without halos
-         ztj = REAL( mjg0(jj), wp ) - 0.5_wp  ! start at j=0.5 in the global grid without halos
+         zti = REAL( mig(ji,0), wp ) - 0.5_wp  ! start at i=0.5 in the global grid without halos
+         ztj = REAL( mjg(jj,0), wp ) - 0.5_wp  ! start at j=0.5 in the global grid without halos
          
          plamt(ji,jj) = zlam0 + rn_dx * 1.e-3 *   zti
          plamu(ji,jj) = zlam0 + rn_dx * 1.e-3 * ( zti + 0.5_wp )

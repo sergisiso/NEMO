@@ -134,9 +134,6 @@ MODULE ice1D
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   e_i_1d      !:    Ice  enthalpy per unit volume
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   e_s_1d      !:    Snow enthalpy per unit volume
 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   eh_i_old    !: ice heat content (q*h, J.m-2)
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   h_i_old     !: ice thickness layer (m)
-
    ! Conduction flux diagnostics (SIMIP)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   qcn_ice_bot_1d
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   qcn_ice_top_1d
@@ -163,9 +160,13 @@ MODULE ice1D
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   v_il_2d 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   t_su_2d 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   h_i_2d
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   s_i_2d
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   a_ib_2d
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   h_ib_2d
+
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   e_i_2d 
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   e_s_2d 
    
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
@@ -179,62 +180,79 @@ CONTAINS
       !!                ***  ROUTINE ice1D_alloc ***
       !!---------------------------------------------------------------------!
       INTEGER ::   ice1D_alloc   ! return value
-      INTEGER ::   ierr(8), ii
+      INTEGER ::   ierr(12), ii
       !!---------------------------------------------------------------------!
       ierr(:) = 0
+      ii = 0
+      
+      ! * Ice global state variables
+      ii = ii + 1
+      ALLOCATE( nptidx  (jpij) , &
+         &      h_i_1d  (jpij) , a_i_1d (jpij) , v_i_1d  (jpij) , &
+         &      v_s_1d  (jpij) , h_s_1d (jpij) ,                  &
+         &      s_i_1d  (jpij) , sv_i_1d(jpij) , o_i_1d  (jpij) , oa_i_1d (jpij) , &
+         &      a_ip_1d (jpij) , v_ip_1d(jpij) , h_ip_1d (jpij) , &
+         &      v_il_1d (jpij) , h_il_1d(jpij) ,                  &
+         &      t_su_1d (jpij) , t_s_1d (jpij,nlay_s) , t_i_1d (jpij,nlay_i), sz_i_1d(jpij,nlay_i) , &
+         &      ato_i_1d(jpij) , STAT=ierr(ii) )  
+      ii = ii + 1
+      ALLOCATE( e_i_1d(jpij,nlay_i) , e_s_1d(jpij,nlay_s) , STAT=ierr(ii) )
 
-      ii = 1
-      ALLOCATE( nptidx    (jpij) ,   &
-         &      qlead_1d  (jpij) , qtr_ice_bot_1d(jpij) , qsr_ice_1d(jpij) ,   &
-         &      qns_ice_1d(jpij) , qml_ice_1d    (jpij) , qcn_ice_1d(jpij) , qtr_ice_top_1d(jpij) , &
-         &      cnd_ice_1d(jpij) , t1_ice_1d     (jpij) , t_bo_1d   (jpij) ,   &
+      ! * Before values of global variables
+      ii = ii + 1
+      ALLOCATE( a_ib_1d (jpij) , h_ib_1d (jpij) , STAT=ierr(ii) )
+
+      ! * heat fluxes
+      ii = ii + 1
+      ALLOCATE( qsr_ice_1d  (jpij) , qsb_ice_bot_1d(jpij) , qns_ice_1d    (jpij) , qml_ice_1d(jpij) , &
+         &      qprec_ice_1d(jpij) , dqns_ice_1d   (jpij) , qlead_1d      (jpij) , fhld_1d   (jpij) , &
+         &      qt_oce_ai_1d(jpij) , qtr_ice_bot_1d(jpij) , qtr_ice_top_1d(jpij) , &
          &      hfx_sum_1d(jpij) , hfx_bom_1d    (jpij) , hfx_bog_1d(jpij) ,   & 
          &      hfx_dif_1d(jpij) , hfx_opw_1d    (jpij) , hfx_dyn_1d(jpij) ,   &
-         &      rn_amax_1d(jpij) ,                                             &
          &      hfx_thd_1d(jpij) , hfx_spr_1d    (jpij) ,                      &
          &      hfx_snw_1d(jpij) , hfx_sub_1d    (jpij) ,                      &
-         &      hfx_res_1d(jpij) , hfx_err_dif_1d(jpij) , qt_oce_ai_1d(jpij), STAT=ierr(ii) )
-      !
+         &      hfx_res_1d(jpij) , hfx_err_dif_1d(jpij) , STAT=ierr(ii) )     
       ii = ii + 1
-      ALLOCATE( sprecip_1d    (jpij) , at_i_1d       (jpij) , ato_i_1d      (jpij) ,                         &
-         &      qsb_ice_bot_1d(jpij) , wfx_snw_sni_1d(jpij) , wfx_spr_1d    (jpij) , wfx_snw_sum_1d(jpij) ,  &
-         &      fhld_1d       (jpij) , wfx_sub_1d    (jpij) , wfx_bog_1d    (jpij) , wfx_bom_1d    (jpij) ,  &
+      ALLOCATE( qcn_ice_1d(jpij) , qcn_ice_bot_1d(jpij) , qcn_ice_top_1d(jpij) , &
+         &      cnd_ice_1d(jpij) , t1_ice_1d     (jpij) , STAT=ierr(ii) )
+      
+      ! * mass fluxes
+      ii = ii + 1
+      ALLOCATE( sprecip_1d    (jpij) , evap_ice_1d   (jpij) ,                         &
+         &      wfx_snw_sni_1d(jpij) , wfx_spr_1d    (jpij) , wfx_snw_sum_1d(jpij) ,  &
+         &      wfx_sub_1d    (jpij) , wfx_bog_1d    (jpij) , wfx_bom_1d    (jpij) ,  &
          &      wfx_sum_1d    (jpij) , wfx_sni_1d    (jpij) , wfx_opw_1d    (jpij) , wfx_res_1d    (jpij) ,  &
          &      wfx_snw_sub_1d(jpij) , wfx_snw_dyn_1d(jpij) , wfx_ice_sub_1d(jpij) , wfx_err_sub_1d(jpij) ,  &
-         &      wfx_lam_1d    (jpij) , wfx_dyn_1d    (jpij) , wfx_pnd_1d    (jpij) , dqns_ice_1d   (jpij) , evap_ice_1d (jpij) , &
-         &      qprec_ice_1d  (jpij) ,                                                             &  
-         &      sfx_bri_1d    (jpij) , sfx_bog_1d (jpij) , sfx_bom_1d (jpij) , sfx_sum_1d (jpij),  &
-         &      sfx_sni_1d    (jpij) , sfx_opw_1d (jpij) , sfx_res_1d (jpij) , sfx_sub_1d (jpij),  &
-         &      sfx_lam_1d    (jpij) , sfx_dyn_1d(jpij)  , STAT=ierr(ii) )
-      !
+         &      wfx_lam_1d    (jpij) , wfx_dyn_1d    (jpij) , wfx_pnd_1d    (jpij) , STAT=ierr(ii) )
+      
+      ! * salt fluxes
       ii = ii + 1
-      ALLOCATE( t_su_1d (jpij) , t_si_1d (jpij) , a_i_1d    (jpij) , a_ib_1d (jpij) ,                   &
-         &      h_i_1d  (jpij) , h_ib_1d (jpij) , h_s_1d    (jpij) ,                                    &    
-         &      dh_s_tot(jpij) , dh_i_sum(jpij) , dh_i_itm  (jpij) , dh_i_bom(jpij) , dh_i_bog(jpij) ,  &    
-         &      dh_i_sub(jpij) , dh_s_mlt(jpij) , dh_snowice(jpij) , s_i_1d  (jpij) , s_i_new (jpij) ,  &
-         &      a_ip_1d (jpij) , v_ip_1d (jpij) , v_i_1d    (jpij) , v_s_1d  (jpij) , v_il_1d (jpij) ,  &
-         &      h_il_1d (jpij) , h_ip_1d (jpij) ,                                                       &
-         &      sv_i_1d (jpij) , oa_i_1d (jpij) , o_i_1d    (jpij) , STAT=ierr(ii) )
-      !
+      ALLOCATE( sfx_bri_1d(jpij) , sfx_bog_1d (jpij) , sfx_bom_1d (jpij) , sfx_sum_1d (jpij),  &
+         &      sfx_sni_1d(jpij) , sfx_opw_1d (jpij) , sfx_res_1d (jpij) , sfx_sub_1d (jpij),  &
+         &      sfx_lam_1d(jpij) , sfx_dyn_1d(jpij)  , STAT=ierr(ii) )
+      
+      ! * thermo tickness change
       ii = ii + 1
-      ALLOCATE( t_s_1d  (jpij,nlay_s)     , t_i_1d (jpij,nlay_i)     , sz_i_1d(jpij,nlay_i) ,  &            
-         &      e_i_1d  (jpij,nlay_i)     , e_s_1d (jpij,nlay_s)     ,                         &
-         &      eh_i_old(jpij,0:nlay_i+1) , h_i_old(jpij,0:nlay_i+1) , STAT=ierr(ii) )
-      !
+      ALLOCATE( dh_s_tot(jpij) , dh_i_sum(jpij) , dh_i_itm  (jpij) , dh_i_bom(jpij) , dh_i_bog(jpij) ,  &    
+         &      dh_i_sub(jpij) , dh_s_mlt(jpij) , dh_snowice(jpij) , STAT=ierr(ii) )
+
+      ! * other
       ii = ii + 1
-      ALLOCATE( qcn_ice_bot_1d(jpij) , qcn_ice_top_1d(jpij) , STAT=ierr(ii) )
-      !
-      ii = ii + 1
-      ALLOCATE( sst_1d(jpij) , sss_1d(jpij) , frq_m_1d(jpij) , STAT=ierr(ii) )
-      !
+      ALLOCATE( at_i_1d(jpij) , rn_amax_1d(jpij) , t_si_1d(jpij) , t_bo_1d (jpij) , &
+         &      s_i_new(jpij) , sst_1d    (jpij) , sss_1d (jpij) , frq_m_1d(jpij) , STAT=ierr(ii) )
       ii = ii + 1
       ALLOCATE( tice_cvgerr_1d(jpij) , tice_cvgstp_1d(jpij) , STAT=ierr(ii) )
       !
+      ! * 2d arrays
       ii = ii + 1
       ALLOCATE( a_i_2d (jpij,jpl) , a_ib_2d(jpij,jpl) , h_i_2d (jpij,jpl) , h_ib_2d(jpij,jpl) ,  &
          &      v_i_2d (jpij,jpl) , v_s_2d (jpij,jpl) , oa_i_2d(jpij,jpl) , sv_i_2d(jpij,jpl) ,  &
-         &      a_ip_2d(jpij,jpl) , v_ip_2d(jpij,jpl) , t_su_2d(jpij,jpl) , v_il_2d(jpij,jpl) ,  &
+         &      a_ip_2d(jpij,jpl) , v_ip_2d(jpij,jpl) , t_su_2d(jpij,jpl) , v_il_2d(jpij,jpl) , s_i_2d(jpij,jpl) , &
          &      STAT=ierr(ii) )
+      !
+      ! * 3d arrays
+      ii = ii + 1
+      ALLOCATE( e_i_2d(jpij,nlay_i,jpl) , e_s_2d(jpij,nlay_s,jpl) , STAT=ierr(ii) )
 
       ice1D_alloc = MAXVAL( ierr(:) )
       IF( ice1D_alloc /= 0 )   CALL ctl_stop( 'STOP',  'ice1D_alloc: failed to allocate arrays.'  )

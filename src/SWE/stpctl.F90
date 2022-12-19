@@ -32,6 +32,9 @@ MODULE stpctl
    INTEGER, PARAMETER         ::   jpvar = 2
    INTEGER                    ::   nrunid   ! netcdf file id
    INTEGER, DIMENSION(jpvar)  ::   nvarid   ! netcdf variable id
+
+   !! * Substitutions
+#  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: stpctl.F90 14143 2020-12-09 21:26:04Z techene $
@@ -75,8 +78,8 @@ CONTAINS
       IF( nstop > 0 .AND. ngrdstop > -1 )   RETURN   !   stpctl was already called by a child grid
       !
       ll_wrtstp  = ( MOD( kt-nit000, sn_cfctl%ptimincr ) == 0 ) .OR. ( kt == nitend )
-      ll_colruns = ll_wrtstp .AND. sn_cfctl%l_runstat .AND. jpnij > 1
-      ll_wrtruns = ( ll_colruns .OR. jpnij == 1 ) .AND. lwm
+      ll_colruns = sn_cfctl%l_runstat .AND. ll_wrtstp .AND. jpnij > 1
+      ll_wrtruns = sn_cfctl%l_runstat .AND. ll_wrtstp .AND. lwm
       !
       IF( kt == nit000 ) THEN
          !
@@ -185,7 +188,7 @@ CONTAINS
             llmsk(Nis0:Nie0,Njs0:Nje0,:) = umask(Nis0:Nie0,Njs0:Nje0,:) == 1._wp        ! define only the inner domain
             iloc(1:3,2) = MAXLOC( ABS(  uu(:,:,:,       Kmm)), mask = llmsk(:,:,:) )
             DO ji = 1, jptst   ! local domain indices ==> global domain indices, excluding halos
-               iloc(1:2,ji) = (/ mig0(iloc(1,ji)), mjg0(iloc(2,ji)) /)
+               iloc(1:2,ji) = (/ mig(iloc(1,ji),0), mjg(iloc(2,ji),0) /)
             END DO
             iareamin(:) = narea   ;   iareamax(:) = narea   ;   iareasum(:) = 1         ! this is local information
          ENDIF

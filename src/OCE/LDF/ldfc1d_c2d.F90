@@ -31,6 +31,7 @@ MODULE ldfc1d_c2d
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: ldfc1d_c2d.F90 15014 2021-06-17 17:02:04Z smasson $
@@ -80,8 +81,8 @@ CONTAINS
             pah1(:,:,jk) = pahs1(:,:) * (  zratio + zc * ( 1._wp + TANH( - ( gdept_0(:,:,jk) - zh ) * zw) )  )
          END DO
          DO_3DS( 0, 0, 0, 0, jpkm1, 1, -1 )  ! pah2 at F-point (zdep2 is an approximation in zps-coord.)
-            zdep2 = (  gdept_0(ji,jj+1,jk) + gdept_0(ji+1,jj+1,jk)   &
-               &     + gdept_0(ji,jj  ,jk) + gdept_0(ji+1,jj  ,jk)  ) * r1_4
+            zdep2 = (  ( gdept_0(ji,jj+1,jk) + gdept_0(ji+1,jj+1,jk) )   &   ! add () for NP repro
+               &     + ( gdept_0(ji,jj  ,jk) + gdept_0(ji+1,jj  ,jk) )  ) * r1_4
             pah2(ji,jj,jk) = pahs2(ji,jj) * (  zratio + zc * ( 1._wp + TANH( - ( zdep2 - zh ) * zw) )  )
          END_3D
          CALL lbc_lnk( 'ldfc1d_c2d', pah2, 'F', 1.0_wp )   ! Lateral boundary conditions

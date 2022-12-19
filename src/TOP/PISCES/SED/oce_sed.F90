@@ -14,12 +14,15 @@ MODULE oce_sed
    USE dom_oce , ONLY :   glamt     =>   glamt          !: longitude of t-point (degre)
    USE dom_oce , ONLY :   gphit     =>   gphit          !: latitude  of t-point (degre)
  
-#if defined key_qco || defined key_linssh
-#else
-   USE dom_oce , ONLY :   e3t       =>   e3t            !: latitude  of t-point (degre)
-#endif
    USE dom_oce , ONLY :   e3t_1d    =>   e3t_1d         !: reference depth of t-points (m)
-   USE dom_oce , ONLY :   gdepw_0   =>   gdepw_0        !: reference depth of t-points (m)
+   USE dom_oce , ONLY :   gdepw_1d  =>   gdepw_1d       !: reference depth of t-points (m)
+
+#if defined key_vco_1d3d   ||   defined key_vco_3d
+   USE dom_oce , ONLY :   e3t_3d    =>   e3t_3d         !: reference depth of t-points (m)
+# if defined key_vco_3d
+   USE dom_oce , ONLY :   gdepw_3d   =>   gdepw_3d        !: reference depth of t-points (m)
+# endif
+#endif
    USE dom_oce , ONLY :   mbkt      =>   mbkt           !: vertical index of the bottom last T- ocean level
    USE dom_oce , ONLY :   tmask     =>   tmask          !: land/ocean mask at t-points
    USE dom_oce , ONLY :   rn_Dt     =>   rn_Dt          !: time step for the dynamics

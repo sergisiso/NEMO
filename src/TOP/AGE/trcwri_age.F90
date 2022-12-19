@@ -28,7 +28,6 @@ CONTAINS
       !!---------------------------------------------------------------------
       INTEGER, INTENT(in)  :: Kmm  ! time level indices
       CHARACTER (len=20)   :: cltra
-      INTEGER              :: jn
       !!---------------------------------------------------------------------
 
       ! write the tracer concentrations in the file

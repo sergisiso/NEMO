@@ -51,6 +51,8 @@ MODULE sms_c14
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)     ::   spco2      ! Atmospheric CO2
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)     ::   tyrco2     ! Time (yr) atmospheric CO2 data
 
+         !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: sms_c14.F90 10071 2018-08-28 14:49:04Z nicolasmartin $ 
@@ -64,9 +66,9 @@ CONTAINS
       !!                  ***  ROUTINE trc_sms_c14_alloc  ***
       !!----------------------------------------------------------------------
       sms_c14_alloc = 0
-      ALLOCATE( exch_c14(jpi,jpj)        ,  exch_co2(jpi,jpj)        ,   &
-         &      qtr_c14(jpi,jpj)         ,  qint_c14(jpi,jpj)        ,   &
-         &      c14sbc(jpi,jpj)          ,  STAT = sms_c14_alloc )
+      ALLOCATE( exch_c14(A2D(0))        ,  exch_co2(A2D(0))        ,   &
+         &      qtr_c14(A2D(0))         ,  qint_c14(A2D(0))        ,   &
+         &      c14sbc(A2D(0))          ,  STAT = sms_c14_alloc )
          !
       !
    END FUNCTION sms_c14_alloc

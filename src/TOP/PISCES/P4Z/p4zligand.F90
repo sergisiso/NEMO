@@ -26,6 +26,8 @@ MODULE p4zligand
    REAL(wp), PUBLIC ::  prlgw    !: Photochemical of weak ligand
    REAL(wp), PUBLIC ::  xklig    !: 1/2 saturation constant of photolysis
 
+   LOGICAL  ::  l_dia_ligand
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
@@ -44,62 +46,117 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt, knt   ! ocean time step
       INTEGER, INTENT(in)  ::  Kbb, Krhs ! time level indices
       !
-      INTEGER  ::   ji, jj, jk
-      REAL(wp) ::   zlgwp, zlgwpr, zlgwr, zlablgw 
-      REAL(wp) ::   zlam1a, zlam1b, zaggliga, zligco
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zligrem, zligpr, zligprod, zlcoll3d
+      INTEGER  :: ji, jj, jk
+      REAL(wp) :: zlgwp, zlgwpr, zlgwr, zlablgw 
+      REAL(wp) :: zlam1a, zlam1b, zaggliga, zligco
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zligrem, zligpr, zligprod, zlcoll3d
       CHARACTER (len=25) ::   charout
       !!---------------------------------------------------------------------
       !
+      IF( kt == nittrc000 )  &
+          &  l_dia_ligand = iom_use( "LIGREM" ) .OR. iom_use( "LIGPR" ) &
+          &            .OR. iom_use( "LPRODR" ) .OR. iom_use( "LGWCOLL" )
+
       IF( ln_timing )   CALL timing_start('p4z_ligand')
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
-         !
-         ! ------------------------------------------------------------------
-         ! Remineralization of iron ligands
-         ! ------------------------------------------------------------------
-         ! production from remineralisation of organic matter
+      ! ------------------------------------------------------------------
+      ! Remineralization of iron ligands
+      ! ------------------------------------------------------------------
+
+      ! production from remineralisation of organic matter
+      IF( l_dia_ligand ) THEN
+         ALLOCATE( zligprod(A2D(0),jpk) )   ;    zligprod(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zligprod(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
+         END_3D
+      ENDIF
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zlgwp = orem(ji,jj,jk) * rlig
-         ! decay of weak ligand
-         ! This is based on the idea that as LGW is lower
-         ! there is a larger fraction of refractory OM
+         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + zlgwp 
+         !
+      END_3D
+      !
+      IF( l_dia_ligand .AND. ( lk_iomput .AND. knt == nrdttrc ) ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zligprod(ji,jj,jk) = ( tr(ji,jj,jk,jplgw,Krhs) - zligprod(ji,jj,jk) )  &
+                &               * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk)
+         END_3D
+         CALL iom_put( "LPRODR", zligprod )
+         DEALLOCATE( zligprod ) 
+      ENDIF
+
+      ! Decay of weak ligand
+      ! This is based on the idea that as LGW is lower
+      ! there is a larger fraction of refractory OM
+      IF( l_dia_ligand ) THEN
+         ALLOCATE( zligrem(A2D(0),jpk) )   ;    zligrem(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zligrem(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
+         END_3D
+      ENDIF
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zlgwr = ( 1.0 / rlgs * MAX(0., tr(ji,jj,jk,jplgw,Kbb) - xfecolagg(ji,jj,jk) * 1.0E-9 )    &
          &       + 1.0 / rlgw * xfecolagg(ji,jj,jk) * 1.0E-9 ) / ( rtrn + tr(ji,jj,jk,jplgw,Kbb) )
          zlgwr = zlgwr * tgfunc(ji,jj,jk) * ( xstep / nyear_len(1) ) * blim(ji,jj,jk) * tr(ji,jj,jk,jplgw,Kbb)
-         ! photochem loss of weak ligand
+         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) - zlgwr 
+      END_3D
+      !
+      IF( l_dia_ligand .AND. ( lk_iomput .AND. knt == nrdttrc ) ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zligrem(ji,jj,jk) = - ( tr(ji,jj,jk,jplgw,Krhs) - zligrem(ji,jj,jk) )  &
+                &               * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk)
+         END_3D
+         CALL iom_put( "LIGREM", zligrem )
+         DEALLOCATE( zligrem ) 
+      ENDIF
+
+      ! photochem loss of weak ligand
+      IF( l_dia_ligand ) THEN
+         ALLOCATE( zligpr(A2D(0),jpk) )   ;    zligpr(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zligpr(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
+         END_3D
+      ENDIF
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zlgwpr = prlgw * xstep * etot(ji,jj,jk) * tr(ji,jj,jk,jplgw,Kbb)**3 * (1. - fr_i(ji,jj))   &
          &        / ( tr(ji,jj,jk,jplgw,Kbb)**2 + (xklig)**2)
-         ! Coagulation of ligands due to various processes (Brownian, shear, diff. sedimentation
-         ! xcoagfe is computed in p4zfechem
-         ! -------------------------------------------------------------------------------------
-         ! 50% of the ligands are supposed to be in the colloidal size fraction
-         ! as for FeL
+
+         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) - zlgwpr
+      END_3D
+      !
+      IF( l_dia_ligand .AND. ( lk_iomput .AND. knt == nrdttrc ) ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zligpr(ji,jj,jk) = - ( tr(ji,jj,jk,jplgw,Krhs) - zligpr(ji,jj,jk) )  &
+               &               * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk)
+         END_3D
+         CALL iom_put( "LIGPR", zligpr )
+         DEALLOCATE( zligpr ) 
+      ENDIF
+
+      ! Coagulation of ligands due to various processes (Brownian, shear, diff. sedimentation
+      ! xcoagfe is computed in p4zfechem
+      ! -------------------------------------------------------------------------------------
+      ! 50% of the ligands are supposed to be in the colloidal size fraction as for FeL
+      IF( l_dia_ligand ) THEN
+         ALLOCATE( zlcoll3d(A2D(0),jpk) )   ;    zlcoll3d(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zlcoll3d(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
+         END_3D
+      ENDIF
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zligco   = 0.5 * MAX(0., tr(ji,jj,jk,jplgw,Kbb) - xfecolagg(ji,jj,jk) * 1.0E-9 )
          zaggliga = xcoagfe(ji,jj,jk) * xstep * zligco
 
-         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + zlgwp - zlgwr - zlgwpr - zaggliga
-         !
-         zligrem(ji,jj,jk)   = zlgwr
-         zligpr(ji,jj,jk)    = zlgwpr
-         zligprod(ji,jj,jk)  = zlgwp
-         zlcoll3d(ji,jj,jk)  = zaggliga
+         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) - zaggliga
       END_3D
       !
-      !  Output of some diagnostics variables
-      !     ---------------------------------
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN
-         IF( iom_use( "LIGREM" ) ) THEN
-           zligrem(:,:,jpk) = 0.  ; CALL iom_put( "LIGREM", zligrem(:,:,:) * 1e9 * 1.e+3 * rfact2r * tmask(:,:,:) )
-         ENDIF
-         IF( iom_use( "LIGPR" ) ) THEN
-           zligpr(:,:,jpk) = 0.   ; CALL iom_put( "LIGPR" , zligpr(:,:,:) * 1e9 * 1.e+3 * rfact2r * tmask(:,:,:) )
-         ENDIF
-         IF( iom_use( "LPRODR" ) ) THEN
-           zligprod(:,:,jpk) = 0. ; CALL iom_put( "LPRODR", zligprod(:,:,:) * 1e9 * 1.e+3 * rfact2r * tmask(:,:,:) )
-         ENDIF
-         IF( iom_use( "LGWCOLL" ) ) THEN
-            zlcoll3d(:,:,jpk) = 0. ; CALL iom_put( "LGWCOLL", zlcoll3d(:,:,:) * 1.e9 *  1.e+3 * rfact2r * tmask(:,:,:) )
-         ENDIF
+      IF( l_dia_ligand .AND. ( lk_iomput .AND. knt == nrdttrc ) ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zlcoll3d(ji,jj,jk) = - ( tr(ji,jj,jk,jplgw,Krhs) - zlcoll3d(ji,jj,jk) )  &
+                &                 * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk)
+         END_3D
+         CALL iom_put( "LGWCOLL", zlcoll3d )
+         DEALLOCATE( zlcoll3d ) 
       ENDIF
       !
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)

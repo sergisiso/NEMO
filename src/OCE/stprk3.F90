@@ -127,6 +127,8 @@ CONTAINS
       IF( ln_bdy     )   CALL bdy_dta    ( kstp, Nbb )                     ! update dynamic & tracer data at open boundaries
       IF( ln_isf     )   CALL isf_stp    ( kstp, Nbb )                     ! update iceshelf geometry
                          CALL sbc        ( kstp, Nbb, Nbb )                ! Sea Boundary Condition (including sea-ice)
+!!$      IF( ln_isf     )   CALL isf_stp    ( kstp, Nbb )                     ! update iceshelf geometry
+                         !clem: problem with isf and cpl: sbcfwb needs isf but isf needs fwf from sbccpl
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Update stochastic parameters and random T/S fluctuations
@@ -157,21 +159,12 @@ CONTAINS
 !!gm gdep
       !  LATERAL  PHYSICS
       !
-      IF( ln_zps .OR. l_ldfslp ) CALL eos( ts(:,:,:,:,Nbb), rhd, gdept_0(:,:,:) )               ! before in situ density
-
-      IF( ln_zps .AND. .NOT. ln_isfcav)                                    &
-            &            CALL zps_hde    ( kstp, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
-            &                                          rhd, gru , grv    )       ! of t, s, rd at the last ocean level
-
-      IF( ln_zps .AND.       ln_isfcav)                                                &
-            &            CALL zps_hde_isf( kstp, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv, gtui, gtvi,  &  ! Partial steps for top cell (ISF)
-            &                                          rhd, gru , grv , grui, grvi   )       ! of t, s, rd at the first ocean level
-
       IF( l_ldfslp ) THEN                             ! slope of lateral mixing
          IF( ln_traldf_triad ) THEN
-                         CALL ldf_slp_triad( kstp, Nbb, Nbb )             ! before slope for triad operator
+                         CALL ldf_slp_triad( kstp, Nbb, Nbb )        ! before slope for triad operator
          ELSE
-                         CALL ldf_slp     ( kstp, rhd, rn2b, Nbb, Nbb )   ! before slope for standard operator
+                         CALL eos ( ts, Nbb, rhd )                   ! before in situ density
+                         CALL ldf_slp( kstp, rhd, rn2b, Nbb, Nbb )   ! before slope for standard operator
          ENDIF
       ENDIF
       !                                                                        ! eddy diffusivity coeff.

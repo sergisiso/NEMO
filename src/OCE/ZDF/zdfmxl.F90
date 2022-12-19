@@ -30,7 +30,6 @@ MODULE zdfmxl
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   nmln    !: number of level in the mixed layer (used by LDF, ZDF, TRD, TOP)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hmld    !: mixing layer depth (turbocline)      [m]   (used by TOP)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hmlp    !: mixed layer depth  (rho=rho0+zdcrit) [m]   (used by LDF)
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hmlpt   !: depth of the last T-point inside the mixed layer [m] (used by LDF)
 
    REAL(wp), PUBLIC ::   rho_c = 0.01_wp    !: density criterion for mixed layer depth
    REAL(wp), PUBLIC ::   avt_c = 5.e-4_wp   ! Kz criterion for the turbocline depth
@@ -51,7 +50,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       zdf_mxl_alloc = 0      ! set to zero if no array to be allocated
       IF( .NOT. ALLOCATED( nmln ) ) THEN
-         ALLOCATE( nmln(jpi,jpj), hmld(jpi,jpj), hmlp(jpi,jpj), hmlpt(jpi,jpj), STAT= zdf_mxl_alloc )
+         ALLOCATE( hmld(A2D(0)), nmln(jpi,jpj), hmlp(A2D(1)), STAT= zdf_mxl_alloc )
          !
          CALL mpp_sum ( 'zdfmxl', zdf_mxl_alloc )
          IF( zdf_mxl_alloc /= 0 )   CALL ctl_stop( 'STOP', 'zdf_mxl_alloc: failed to allocate arrays.' )
@@ -70,7 +69,7 @@ CONTAINS
       !!      the density of the corresponding T point (just bellow) bellow a
       !!      given value defined locally as rho(10m) + rho_c
       !!
-      !! ** Action  :   nmln, hmlp, hmlpt
+      !! ** Action  :   nmln, hmlp
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   ! ocean time-step index
       INTEGER, INTENT(in) ::   Kmm  ! ocean time level index
@@ -78,6 +77,7 @@ CONTAINS
       INTEGER  ::   ji, jj, jk      ! dummy loop indices
       INTEGER  ::   iik, ikt        ! local integer
       REAL(wp) ::   zN2_c           ! local scalar
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zhmlp
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -89,30 +89,32 @@ CONTAINS
       ENDIF
       !
       ! w-level of the mixing and mixed layers
-      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          nmln(ji,jj)  = nlb10                  ! Initialization to the number of w ocean point
          hmlp(ji,jj)  = 0._wp                  ! here hmlp used as a dummy variable, integrating vertically N^2
       END_2D
       zN2_c = grav * rho_c * r1_rho0      ! convert density criteria into N^2 criteria
-      DO_3D_OVR( nn_hls, nn_hls, nn_hls, nn_hls, nlb10, jpkm1 )   ! Mixed layer level: w-level
+      DO_3D( 0, 0, 0, 0, nlb10, jpkm1 )   ! Mixed layer level: w-level
          ikt = mbkt(ji,jj)
          hmlp(ji,jj) =   &
             & hmlp(ji,jj) + MAX( rn2b(ji,jj,jk) , 0._wp ) * e3w(ji,jj,jk,Kmm)
          IF( hmlp(ji,jj) < zN2_c )   nmln(ji,jj) = MIN( jk , ikt ) + 1   ! Mixed layer level
       END_3D
       ! depth of the mixed layer
-      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          iik = nmln(ji,jj)
-         hmlp (ji,jj) = gdepw(ji,jj,iik  ,Kmm) * ssmask(ji,jj)    ! Mixed layer depth
-         hmlpt(ji,jj) = gdept(ji,jj,iik-1,Kmm) * ssmask(ji,jj)    ! depth of the last T-point inside the mixed layer
+         hmlp(ji,jj) = gdepw(ji,jj,iik  ,Kmm) * ssmask(ji,jj)    ! Mixed layer depth
       END_2D
       !
       IF( .NOT.l_offline .AND. iom_use("mldr10_1") ) THEN
-         IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN         ! Do only on the last tile
-            IF( ln_isfcav ) THEN  ;  CALL iom_put( "mldr10_1", hmlp - risfdep)   ! mixed layer thickness
-            ELSE                  ;  CALL iom_put( "mldr10_1", hmlp )            ! mixed layer depth
-            END IF
+         ALLOCATE( zhmlp(T2D(0)) )
+         IF( ln_isfcav ) THEN
+            zhmlp(:,:) = hmlp(T2D(0)) - risfdep(T2D(0))           ! mixed layer thickness
+         ELSE
+            zhmlp(:,:) = hmlp(T2D(0))                             ! mixed layer depth
          ENDIF
+         CALL iom_put( "mldr10_1", zhmlp(:,:) )
+         DEALLOCATE( zhmlp )
       ENDIF
       !
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab2d_1=REAL(nmln,wp), clinfo1=' nmln : ', tab2d_2=hmlp, clinfo2=' hmlp : ' )
@@ -138,24 +140,24 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk      ! dummy loop indices
       INTEGER  ::   iik             ! local integer
-      INTEGER, DIMENSION(A2D(nn_hls)) ::   imld   ! 2D workspace
+      INTEGER, DIMENSION(T2D(0)) ::   imld   ! 2D workspace
       !!----------------------------------------------------------------------
       !
       ! w-level of the turbocline and mixing layer (iom_use)
-      imld(:,:) = mbkt(A2D(nn_hls)) + 1                ! Initialization to the number of w ocean point
-      DO_3DS( 1, 1, 1, 1, jpkm1, nlb10, -1 )   ! from the bottom to nlb10
+      imld(:,:) = mbkt(T2D(0)) + 1                ! Initialization to the number of w ocean point
+      DO_3DS( 0, 0, 0, 0, jpkm1, nlb10, -1 )   ! from the bottom to nlb10
          IF( avt (ji,jj,jk) < avt_c * wmask(ji,jj,jk) )   imld(ji,jj) = jk      ! Turbocline
       END_3D
       ! depth of the mixing layer
-      DO_2D_OVR( 1, 1, 1, 1 )
+      DO_2D( 0, 0, 0, 0 )
          iik = imld(ji,jj)
          hmld (ji,jj) = gdepw(ji,jj,iik  ,Kmm) * ssmask(ji,jj)    ! Turbocline depth
       END_2D
       !
       IF( .NOT.l_offline .AND. iom_use("mldkz5") ) THEN
          IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN         ! Do only on the last tile
-            IF( ln_isfcav ) THEN  ;  CALL iom_put( "mldkz5"  , hmld - risfdep )   ! turbocline thickness
-            ELSE                  ;  CALL iom_put( "mldkz5"  , hmld )             ! turbocline depth
+            IF( ln_isfcav ) THEN  ;  CALL iom_put( "mldkz5"  , hmld - risfdep(A2D(0)) )   ! turbocline thickness
+            ELSE                  ;  CALL iom_put( "mldkz5"  , hmld )                     ! turbocline depth
             END IF
          ENDIF
       ENDIF

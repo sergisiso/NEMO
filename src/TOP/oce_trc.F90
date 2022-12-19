@@ -33,10 +33,6 @@ MODULE oce_trc
 
    USE dom_oce                                  !* model domain *
 
-   USE domvvl, ONLY : un_td, vn_td          !: thickness diffusion transport
-   USE domvvl, ONLY : ln_vvl_ztilde         !: ztilde vertical coordinate
-   USE domvvl, ONLY : ln_vvl_layer          !: level  vertical coordinate
-
    !* ocean fields: here now and after fields *
    USE oce , ONLY :   uu     =>    uu     !: i-horizontal velocity (m s-1) 
    USE oce , ONLY :   vv     =>    vv     !: j-horizontal velocity (m s-1)
@@ -54,7 +50,7 @@ MODULE oce_trc
    USE sbc_oce , ONLY :   qsr        =>    qsr        !: penetrative solar radiation (w m-2)
    USE sbc_oce , ONLY :   emp        =>    emp        !: freshwater budget: volume flux               [Kg/m2/s]
    USE sbc_oce , ONLY :   emp_b      =>    emp_b      !: freshwater budget: volume flux               [Kg/m2/s]
-   USE sbc_oce , ONLY :   fmmflx     =>    fmmflx     !: freshwater budget: volume flux               [Kg/m2/s]
+   USE sbc_oce , ONLY :   fwfice     =>    fwfice     !: freshwater budget: volume flux               [Kg/m2/s]
    USE sbc_oce , ONLY :   rnf        =>    rnf        !: river runoff   [Kg/m2/s]
    USE sbc_oce , ONLY :   rnf_b      =>    rnf_b      !: river runoff at previus step   [Kg/m2/s]
    USE sbc_oce , ONLY :   ln_dm2dc   =>    ln_dm2dc   !: Diurnal Cycle 
@@ -96,7 +92,6 @@ MODULE oce_trc
    USE zdfmxl , ONLY :   nmln        =>   nmln        !: number of level in the mixed layer
    USE zdfmxl , ONLY :   hmld        =>   hmld        !: mixing layer depth (turbocline)
    USE zdfmxl , ONLY :   hmlp        =>   hmlp        !: mixed layer depth  (rho=rho0+zdcrit) (m)
-   USE zdfmxl , ONLY :   hmlpt       =>   hmlpt       !: mixed layer depth at t-points (m)
    USE zdfmxl , ONLY :   avt_c       =>   avt_c       !: Kz criterion for the turbocline depth
 
 END MODULE oce_trc

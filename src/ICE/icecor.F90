@@ -25,7 +25,6 @@ MODULE icecor
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
    USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
-   USE lbclnk         ! lateral boundary conditions (or mpp links)
    USE timing         ! Timing
 
    IMPLICIT NONE
@@ -68,29 +67,32 @@ CONTAINS
       !                             !-----------------------------------------------------
       !                             !  ice thickness must exceed himin (for temp. diff.) !
       !                             !-----------------------------------------------------
-      WHERE( a_i(:,:,:) >= epsi20 )   ;   h_i(:,:,:) = v_i(:,:,:) / a_i(:,:,:)
-      ELSEWHERE                       ;   h_i(:,:,:) = 0._wp
+      WHERE( a_i(A2D(0),:) >= epsi20 )   ;   h_i(A2D(0),:) = v_i(A2D(0),:) / a_i(A2D(0),:)
+      ELSEWHERE                          ;   h_i(A2D(0),:) = 0._wp
       END WHERE
-      WHERE( h_i(:,:,:) < rn_himin )      a_i(:,:,:) = a_i(:,:,:) * h_i(:,:,:) / rn_himin
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+         WHERE( h_i(A2D(0),:) < rn_himin )  a_ip(A2D(0),:) = a_ip(A2D(0),:) * h_i(A2D(0),:) / rn_himin
+      ENDIF
+      WHERE( h_i(A2D(0),:) < rn_himin )     a_i (A2D(0),:) = a_i (A2D(0),:) * h_i(A2D(0),:) / rn_himin
       !
       !                             !-----------------------------------------------------
       !                             !  ice concentration should not exceed amax          !
       !                             !-----------------------------------------------------
-      at_i(:,:) = SUM( a_i(:,:,:), dim=3 )
+      at_i(A2D(0)) = SUM( a_i(A2D(0),:), dim=3 )
       DO jl = 1, jpl
-         WHERE( at_i(:,:) > rn_amax_2d(:,:) )   a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)
+         WHERE( at_i(A2D(0)) > rn_amax_2d(A2D(0)) )   a_i(A2D(0),jl) = a_i(A2D(0),jl) * rn_amax_2d(A2D(0)) / at_i(A2D(0))
       END DO    
       !                             !-----------------------------------------------------
       !                             !  Rebin categories with thickness out of bounds     !
       !                             !-----------------------------------------------------
-      IF ( jpl > 1 )   CALL ice_itd_reb( kt )
+      IF( jpl > 1 )   CALL ice_itd_reb( kt )
       !
       !                             !-----------------------------------------------------
       IF ( nn_icesal == 2 ) THEN    !  salinity must stay in bounds [Simin,Simax]        !
          !                          !-----------------------------------------------------
          zzc = rhoi * r1_Dt_ice
          DO jl = 1, jpl
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( 0, 0, 0, 0 )
                zsal = sv_i(ji,jj,jl)
                sv_i(ji,jj,jl) = MIN(  MAX( rn_simin*v_i(ji,jj,jl) , sv_i(ji,jj,jl) ) , rn_simax*v_i(ji,jj,jl)  )
                IF( kn /= 0 ) & ! no ice-ocean exchanges if kn=0 (for bdy for instance) otherwise conservation diags will fail

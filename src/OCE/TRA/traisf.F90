@@ -113,39 +113,34 @@ CONTAINS
       !! *** Action :: Update pts(:,:,:,:,Krhs) with the surface boundary condition trend
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts)          , INTENT(inout) ::   pts
-      INTEGER , DIMENSION(jpi,jpj)                   , INTENT(in   ) ::   ktop , kbot
-      REAL(wp), DIMENSION(jpi,jpj)                   , INTENT(in   ) ::   phtbl, pfrac
-      REAL(wp), DIMENSION(jpi,jpj,jpts)              , INTENT(in   ) ::   ptsc
-      REAL(wp), DIMENSION(:,:,:)           , OPTIONAL, INTENT(in   ) ::   ptsc_b
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk,jpts)     , INTENT(inout) ::   pts
+      INTEGER , DIMENSION(A2D(0))                   , INTENT(in   ) ::   ktop , kbot
+      REAL(wp), DIMENSION(A2D(0))                   , INTENT(in   ) ::   phtbl, pfrac
+      REAL(wp), DIMENSION(A2D(0),jpts)              , INTENT(in   ) ::   ptsc
+      REAL(wp), DIMENSION(A2D(0),jpts)    , OPTIONAL, INTENT(in   ) ::   ptsc_b
       !!
-      INTEGER ::   ji,jj,jk   ! dummy loop index
-      INTEGER ::   ikt, ikb   ! top and bottom level of the tbl
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   ztc   ! total ice shelf tracer trend
+      INTEGER  ::   ji, jj, jk   ! dummy loop index
+      INTEGER  ::   ikt, ikb     ! top and bottom level of the tbl
+      REAL(wp) ::   ztc          ! total ice shelf tracer trend
       !!----------------------------------------------------------------------
-      !
-      ! compute 2d total trend due to isf
-      DO_2D( 0, 0, 0, 0 )
-#if defined key_RK3
-         ztc(ji,jj) = ptsc(ji,jj,jp_tem) / phtbl(ji,jj)
-#else
-         ztc(ji,jj) = 0.5_wp * ( ptsc(ji,jj,jp_tem) + ptsc_b(ji,jj,jp_tem) ) / phtbl(ji,jj)
-#endif
-      END_2D
       !
       ! update pts(:,:,:,:,Krhs)
       DO_2D( 0, 0, 0, 0 )
          !
+#if defined key_RK3
+         ztc = ptsc(ji,jj,jp_tem) / phtbl(ji,jj)
+#else
+         ztc = 0.5_wp * ( ptsc(ji,jj,jp_tem) + ptsc_b(ji,jj,jp_tem) ) / phtbl(ji,jj)
+#endif
+         ! level fully include in the ice shelf boundary layer
          ikt = ktop(ji,jj)
          ikb = kbot(ji,jj)
-         !
-         ! level fully include in the ice shelf boundary layer
          DO jk = ikt, ikb - 1
-            pts(ji,jj,jk,jp_tem) = pts(ji,jj,jk,jp_tem) + ztc(ji,jj)
+            pts(ji,jj,jk,jp_tem) = pts(ji,jj,jk,jp_tem) + ztc
          END DO
          !
          ! level partially include in ice shelf boundary layer
-         pts(ji,jj,ikb,jp_tem) = pts(ji,jj,ikb,jp_tem) + ztc(ji,jj) * pfrac(ji,jj)
+         pts(ji,jj,ikb,jp_tem) = pts(ji,jj,ikb,jp_tem) + ztc * pfrac(ji,jj)
          !
       END_2D
       !
@@ -159,9 +154,9 @@ CONTAINS
       !! *** Action :: Update pts(:,:,:,:,Krhs) with the ice shelf coupling trend
       !!
       !!----------------------------------------------------------------------
-      INTEGER                              , INTENT(in   ) ::   Kmm   ! ocean time-level index
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(in   ) ::   ptsc
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts), INTENT(inout) ::   ptsa
+      INTEGER                                  , INTENT(in   ) ::   Kmm   ! ocean time-level index
+      REAL(wp), DIMENSION(A2D(0),jpk,jpts)     , INTENT(in   ) ::   ptsc
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk,jpts), INTENT(inout) ::   ptsa
       !!
       INTEGER ::   ji, jj, jk   ! dummy loop index
       !!----------------------------------------------------------------------

@@ -30,6 +30,10 @@ MODULE trdken
    IMPLICIT NONE
    PRIVATE
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
+#  include "domzgr_substitute.h90"
+
    PUBLIC   trd_ken       ! called by trddyn module
    PUBLIC   trd_ken_init  ! called by trdini module
 
@@ -38,9 +42,6 @@ MODULE trdken
    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   bu, bv   ! volume of u- and v-boxes
    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   r1_bt    ! inverse of t-box volume
 
-   !! * Substitutions
-#  include "do_loop_substitute.h90"
-#  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: trdken.F90 15104 2021-07-07 14:36:00Z clem $
@@ -52,7 +53,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       !!                  ***  FUNCTION trd_ken_alloc  ***
       !!---------------------------------------------------------------------
-      ALLOCATE( bu(jpi,jpj,jpk) , bv(jpi,jpj,jpk) , r1_bt(jpi,jpj,jpk) , STAT= trd_ken_alloc )
+      ALLOCATE( bu(T2D(0),jpk) , bv(T2D(0),jpk) , r1_bt(T2D(0),jpk) , STAT= trd_ken_alloc )
       !
       CALL mpp_sum ( 'trdken', trd_ken_alloc )
       IF( trd_ken_alloc /= 0 )   CALL ctl_stop( 'STOP', 'trd_ken_alloc: failed to allocate arrays' )
@@ -77,31 +78,32 @@ CONTAINS
       !
       !
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   putrd, pvtrd   ! U and V masked trends
-      INTEGER                   , INTENT(in   ) ::   ktrd           ! trend index
-      INTEGER                   , INTENT(in   ) ::   kt             ! time step
-      INTEGER                   , INTENT(in   ) ::   Kmm            ! time level index
+      REAL(wp), DIMENSION(:,:,:)   , INTENT(inout) ::   putrd, pvtrd   ! U and V masked trends
+      INTEGER                      , INTENT(in   ) ::   ktrd           ! trend index
+      INTEGER                      , INTENT(in   ) ::   kt             ! time step
+      INTEGER                      , INTENT(in   ) ::   Kmm            ! time level index
       !
       INTEGER ::   ji, jj, jk       ! dummy loop indices
       INTEGER ::   ikbu  , ikbv     ! local integers
       INTEGER ::   ikbum1, ikbvm1   !   -       -
-      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   z2dx, z2dy, zke2d   ! 2D workspace 
-      REAL(wp), DIMENSION(jpi,jpj,jpk)      ::   zke                 ! 3D workspace 
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE    ::   zke2d   ! 2D workspace 
+      REAL(wp)                                 ::   z2dx, z2dy, z2dxm1, z2dym1   ! 2D workspace 
+      REAL(wp), DIMENSION(T2D(0),jpk)          ::   zke                 ! 3D workspace
       !!----------------------------------------------------------------------
       !
       CALL lbc_lnk( 'trdken', putrd, 'U', -1.0_wp , pvtrd, 'V', -1.0_wp )      ! lateral boundary conditions
       !
       nkstp = kt
       DO jk = 1, jpkm1
-         bu   (:,:,jk) =    e1e2u(:,:) * e3u(:,:,jk,Kmm)
-         bv   (:,:,jk) =    e1e2v(:,:) * e3v(:,:,jk,Kmm)
-         r1_bt(:,:,jk) = r1_e1e2t(:,:) / e3t(:,:,jk,Kmm) * tmask(:,:,jk)
+         DO_2D( 0, 0, 0, 0 )
+            bu   (ji,jj,jk) =    e1e2u(ji,jj) * e3u(ji,jj,jk,Kmm)
+            bv   (ji,jj,jk) =    e1e2v(ji,jj) * e3v(ji,jj,jk,Kmm)
+            r1_bt(ji,jj,jk) = r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
+         END_2D
       END DO
       !
-      zke(:,:,jpk) = 0._wp
-      zke(1:nn_hls,:, : ) = 0._wp
-      zke(:,1:nn_hls, : ) = 0._wp
-      DO_3D( 0, nn_hls, 0, nn_hls, 1, jpkm1 )
+      zke(T2D(0),:) = 0._wp
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          zke(ji,jj,jk) = 0.5_wp * rho0 *( uu(ji  ,jj,jk,Kmm) * putrd(ji  ,jj,jk) * bu(ji  ,jj,jk)  &
             &                           + uu(ji-1,jj,jk,Kmm) * putrd(ji-1,jj,jk) * bu(ji-1,jj,jk)  &
             &                           + vv(ji,jj  ,jk,Kmm) * pvtrd(ji,jj  ,jk) * bv(ji,jj  ,jk)  &
@@ -118,35 +120,31 @@ CONTAINS
          CASE( jpdyn_ldf )   ;   CALL iom_put( "ketrd_ldf"   , zke )    ! lateral diffusion
          CASE( jpdyn_zdf )   ;   CALL iom_put( "ketrd_zdf"   , zke )    ! vertical diffusion 
          !                   !                                          ! wind stress trends
-                                 ALLOCATE( z2dx(jpi,jpj) , z2dy(jpi,jpj) , zke2d(jpi,jpj) )
-                           z2dx(:,:) = uu(:,:,1,Kmm) * ( utau_b(:,:) + utau(:,:) ) * e1e2u(:,:) * umask(:,:,1)
-                           z2dy(:,:) = vv(:,:,1,Kmm) * ( vtau_b(:,:) + vtau(:,:) ) * e1e2v(:,:) * vmask(:,:,1)
-                           zke2d(1:nn_hls,:) = 0._wp   ;   zke2d(:,1:nn_hls) = 0._wp
-                           DO_2D( 0, nn_hls, 0, nn_hls )
-                              zke2d(ji,jj) = r1_rho0 * 0.5_wp * (   z2dx(ji,jj) + z2dx(ji-1,jj)   &
-                              &                                   + z2dy(ji,jj) + z2dy(ji,jj-1)   ) * r1_bt(ji,jj,1)
-                           END_2D
+             ALLOCATE( zke2d(T2D(0)) ) ; zke2d(T2D(0)) = 0._wp
+             DO_2D( 0, 0, 0, 0 )
+                z2dx = uu(ji,jj,1,Kmm) * ( utau_b(ji,jj) + utauU(ji,jj) ) * e1e2u(ji,jj) * umask(ji,jj,1)
+                z2dy = vv(ji,jj,1,Kmm) * ( vtau_b(ji,jj) + vtauV(ji,jj) ) * e1e2v(ji,jj) * vmask(ji,jj,1)
+                z2dxm1 = uu(ji-1,jj,1,Kmm) * ( utau_b(ji-1,jj) + utauU(ji-1,jj) ) * e1e2u(ji-1,jj) * umask(ji-1,jj,1)
+                z2dym1 = vv(ji,jj-1,1,Kmm) * ( vtau_b(ji,jj-1) + vtauV(ji,jj-1) ) * e1e2v(ji,jj-1) * vmask(ji,jj-1,1)
+                zke2d(ji,jj) = r1_rho0 * 0.5_wp * ( z2dx + z2dxm1 + z2dy + z2dym1 ) * r1_bt(ji,jj,1)
+             END_2D
                                  CALL iom_put( "ketrd_tau"   , zke2d )  ! 
-                                 DEALLOCATE( z2dx , z2dy , zke2d )
+                                 DEALLOCATE( zke2d )
          CASE( jpdyn_bfr )   ;   CALL iom_put( "ketrd_bfr"   , zke )    ! bottom friction (explicit case) 
 !!gm TO BE DONE properly
 !!gm only valid if ln_drgimp=F otherwise the bottom stress as to be recomputed at the end of the computation....
 !         IF(.NOT. ln_drgimp) THEN
-!            DO jj = 1, jpj    !   
-!               DO ji = 1, jpi
-!                  ikbu = mbku(ji,jj)         ! deepest ocean u- & v-levels
-!                  ikbv = mbkv(ji,jj)   
-!                  z2dx(ji,jj) = uu(ji,jj,ikbu,Kmm) * bfrua(ji,jj) * uu(ji,jj,ikbu,Kmm)
-!                  z2dy(ji,jj) = vv(ji,jj,ikbu,Kmm) * bfrva(ji,jj) * vv(ji,jj,ikbv,Kmm)
-!               END DO
-!            END DO
+!            zke2d(T2D(0)) = 0._wp
+!            DO_2D( 0, 0, 0, 0 )   
+!               ikbu   = mbku(ji,jj)         ! deepest ocean u- & v-levels
+!               ikbv   = mbkv(ji,jj)   
+!               z2dx   = uu(ji,jj,ikbu,Kmm) * bfrua(ji,jj) * uu(ji,jj,ikbu,Kmm)
+!               z2dy   = vv(ji,jj,ikbu,Kmm) * bfrva(ji,jj) * vv(ji,jj,ikbv,Kmm)
+!               z2dxm1 = uu(ji-1,jj,ikbu,Kmm) * bfrua(ji-1,jj) * uu(ji-1,jj,ikbu,Kmm)
+!               z2dym1 = vv(ji,jj-1,ikbu,Kmm) * bfrva(ji,jj-1) * vv(ji,jj-1,ikbv,Kmm)
+!               zke2d(ji,jj) = 0.5_wp * ( z2dx + z2dxm1 + z2dy + z2dym1 ) * r1_bt(ji,jj,1)
+!            END_2D
 !            zke2d(1,:) = 0._wp   ;   zke2d(:,1) = 0._wp
-!            DO jj = 2, jpj
-!               DO ji = 2, jpi
-!                  zke2d(ji,jj) = 0.5_wp * (   z2dx(ji,jj) + z2dx(ji-1,jj)   &
-!                     &                      + z2dy(ji,jj) + z2dy(ji,jj-1)   ) * r1_bt(ji,jj,  BEURK!!!
-!               END DO
-!            END DO
 !                                    CALL iom_put( "ketrd_bfr"  , zke2d )   ! bottom friction (explicit case)
 !         ENDIF
 !!gm end
@@ -175,11 +173,11 @@ CONTAINS
         CASE( jpdyn_ken )   ;   ! kinetic energy
                     ! called in dynnxt.F90 before asselin time filter
                     ! with putrd=uu(Krhs) and pvtrd=vv(Krhs)
-                    zke(:,:,:) = 0.5_wp * zke(:,:,:)
+                    zke(T2D(0),:) = 0.5_wp * zke(T2D(0),:)
                     CALL iom_put( "KE", zke )
                     !
                     CALL ken_p2k( kt , zke, Kmm )
-                      CALL iom_put( "ketrd_convP2K", zke )     ! conversion -rau*g*w
+                    CALL iom_put( "ketrd_convP2K", zke )     ! conversion -rau*g*w
          !
       END SELECT
       !
@@ -203,22 +201,23 @@ CONTAINS
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   iku, ikv     ! local integers
       REAL(wp) ::   zcoef        ! local scalars
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::  zconv  ! 3D workspace
+      REAL(wp), DIMENSION(T2D(0),jpk) ::  zconv  ! 3D workspace
       !!----------------------------------------------------------------------
       !
       ! Local constant initialization 
       zcoef = - rho0 * grav * 0.5_wp      
       
       !  Surface value (also valid in partial step case)
-      zconv(:,:,1) = zcoef * ( 2._wp * rhd(:,:,1) ) * ww(:,:,1) * e3w(:,:,1,Kmm)
-
+      DO_2D( 0, 0, 0, 0 )
+         zconv(ji,jj,1) = zcoef * ( 2._wp * rhd(ji,jj,1) ) * ww(ji,jj,1) * e3w(ji,jj,1,Kmm)
+      END_2D
       ! interior value (2=<jk=<jpkm1)
-      DO jk = 2, jpk
-         zconv(:,:,jk) = zcoef * ( rhd(:,:,jk) + rhd(:,:,jk-1) ) * ww(:,:,jk) * e3w(:,:,jk,Kmm)
-      END DO
+      DO_3D( 0, 0, 0, 0 , 2, jpk )
+            zconv(ji,jj,jk) = zcoef * ( rhd(ji,jj,jk) + rhd(ji,jj,jk-1) ) * ww(ji,jj,jk) * e3w(ji,jj,jk,Kmm)
+      END_3D
 
       ! conv value on T-point
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          zcoef = 0.5_wp / e3t(ji,jj,jk,Kmm)
          pconv(ji,jj,jk) = zcoef * ( zconv(ji,jj,jk) + zconv(ji,jj,jk+1) ) * tmask(ji,jj,jk)
       END_3D

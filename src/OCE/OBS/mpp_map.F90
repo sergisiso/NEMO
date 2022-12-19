@@ -10,8 +10,8 @@ MODULE mpp_map
    !!  mppmap_init : Initialize mppmap.
    !!----------------------------------------------------------------------
    USE par_kind, ONLY :   wp            ! Precision variables
-   USE par_oce , ONLY :   jpi, jpj, Nis0, Nie0, Njs0, Nje0   ! Ocean parameters
-   USE dom_oce , ONLY :   mig, mjg, narea                    ! Ocean space and time domain variables
+   USE par_oce , ONLY :   jpi, jpj, Nis0, Nie0, Njs0, Nje0, nn_hls   ! Ocean parameters
+   USE dom_oce , ONLY :   mig, mjg, narea                            ! Ocean space and time domain variables
 #if ! defined key_mpi_off
    USE lib_mpp , ONLY :   mpi_comm_oce   ! MPP library
 #endif
@@ -64,7 +64,7 @@ INCLUDE 'mpif.h'
       imppmap(:,:) = 0
 
 !      ! Setup local grid points
-      imppmap(mig(1):mig(jpi),mjg(1):mjg(jpj)) = narea
+      imppmap(mig(1,nn_hls):mig(jpi,nn_hls),mjg(1,nn_hls):mjg(jpj,nn_hls)) = narea
       
       ! Get global data
 

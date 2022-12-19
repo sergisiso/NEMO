@@ -111,9 +111,9 @@
          zmskg(:,:) = -1.e+10
          DO jj = kldj, klej
             DO ji = kldi, klei
-               zlamg(mig(ji),mjg(jj)) = pglam(ji,jj)
-               zphig(mig(ji),mjg(jj)) = pgphi(ji,jj)
-               zmskg(mig(ji),mjg(jj)) = pmask(ji,jj)
+               zlamg(mig(ji,nn_hls),mjg(jj,nn_hls)) = pglam(ji,jj)
+               zphig(mig(ji,nn_hls),mjg(jj,nn_hls)) = pgphi(ji,jj)
+               zmskg(mig(ji,nn_hls),mjg(jj,nn_hls)) = pmask(ji,jj)
             END DO
          END DO
          CALL mpp_global_max( zlamg )

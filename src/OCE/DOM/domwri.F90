@@ -33,6 +33,7 @@ MODULE domwri
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: domwri.F90 15033 2021-06-21 10:24:45Z smasson $ 
@@ -80,9 +81,9 @@ CONTAINS
       CALL iom_putatt( inum,    'NFold', COUNT( (/l_NFold /) ) )
       CALL iom_putatt( inum,   'NFtype',          c_NFtype     )
       !                                                         ! type of vertical coordinate
-      IF(ln_zco)   CALL iom_putatt( inum, 'VertCoord', 'zco' )
-      IF(ln_zps)   CALL iom_putatt( inum, 'VertCoord', 'zps' )
-      IF(ln_sco)   CALL iom_putatt( inum, 'VertCoord', 'sco' )
+      IF(l_zco)   CALL iom_putatt( inum, 'VertCoord', 'zco' )
+      IF(l_zps)   CALL iom_putatt( inum, 'VertCoord', 'zps' )
+      IF(l_sco)   CALL iom_putatt( inum, 'VertCoord', 'sco' )
       !                                                         ! ocean cavities under iceshelves
       CALL iom_putatt( inum,   'IsfCav', COUNT( (/ln_isfcav/) ) )  
       !                                                         ! masks
@@ -146,26 +147,30 @@ CONTAINS
       CALL iom_rstput( 0, 0, inum, 'mbathy', zprt, ktype = jp_i4 )     !    ! nb of ocean T-points
       zprt(:,:) = REAL( mikt(:,:) , wp )
       CALL iom_rstput( 0, 0, inum, 'misf', zprt, ktype = jp_i4 )       !    ! nb of ocean T-points
-      !															             ! vertical mesh
-      CALL iom_rstput( 0, 0, inum, 'e3t_1d', e3t_1d, ktype = jp_r8  )    !    ! scale factors
-      CALL iom_rstput( 0, 0, inum, 'e3w_1d', e3w_1d, ktype = jp_r8  )
       
-      CALL iom_rstput( 0, 0, inum, 'e3t_0' , e3t_0 , ktype = jp_r8  )
-      CALL iom_rstput( 0, 0, inum, 'e3u_0' , e3u_0 , ktype = jp_r8  )
-      CALL iom_rstput( 0, 0, inum, 'e3v_0' , e3v_0 , ktype = jp_r8  )
-      CALL iom_rstput( 0, 0, inum, 'e3f_0' , e3f_0 , ktype = jp_r8  )
-      CALL iom_rstput( 0, 0, inum, 'e3w_0' , e3w_0 , ktype = jp_r8  )
-      CALL iom_rstput( 0, 0, inum, 'e3uw_0', e3uw_0, ktype = jp_r8  )
-      CALL iom_rstput( 0, 0, inum, 'e3vw_0', e3vw_0, ktype = jp_r8  )
+      !						                ! vertical mesh
+      CALL iom_rstput( 0, 0, inum, 'e3t_1d', e3t_1d, ktype = jp_r8  )  !    ! 1d scale factors
+      CALL iom_rstput( 0, 0, inum, 'e3w_1d', e3w_1d, ktype = jp_r8  )
       !
       CALL iom_rstput( 0, 0, inum, 'gdept_1d' , gdept_1d , ktype = jp_r8 )  ! stretched system
       CALL iom_rstput( 0, 0, inum, 'gdepw_1d' , gdepw_1d , ktype = jp_r8 )
-      CALL iom_rstput( 0, 0, inum, 'gdept_0'  , gdept_0  , ktype = jp_r8 )
-      CALL iom_rstput( 0, 0, inum, 'gdepw_0'  , gdepw_0  , ktype = jp_r8 )
       !
-      IF( ln_sco ) THEN                                         ! s-coordinate stiffness
+      IF( lk_vco_1d3d .OR. lk_vco_3d ) THEN                                         ! 3d scale factors
+         CALL iom_rstput( 0, 0, inum, 'e3t_0' , e3t_3d , ktype = jp_r8  )
+         CALL iom_rstput( 0, 0, inum, 'e3u_0' , e3u_3d , ktype = jp_r8  )
+         CALL iom_rstput( 0, 0, inum, 'e3v_0' , e3v_3d , ktype = jp_r8  )
+         CALL iom_rstput( 0, 0, inum, 'e3f_0' , e3f_3d , ktype = jp_r8  )
+      ENDIF
+      IF( lk_vco_3d ) THEN
+         CALL iom_rstput( 0, 0, inum, 'e3w_0' , e3w_3d , ktype = jp_r8  )
+         CALL iom_rstput( 0, 0, inum, 'e3uw_0', e3uw_3d, ktype = jp_r8  )
+         CALL iom_rstput( 0, 0, inum, 'e3vw_0', e3vw_3d, ktype = jp_r8  )
+         !
+         CALL iom_rstput( 0, 0, inum, 'gdept_0', gdept_3d, ktype = jp_r8 )  ! 3d depth
+         CALL iom_rstput( 0, 0, inum, 'gdepw_0', gdepw_3d, ktype = jp_r8 )
+         !                                                      ! s-coordinate stiffness
          CALL dom_stiff( zprt )
-         CALL iom_rstput( 0, 0, inum, 'stiffness', zprt )       ! Max. grid stiffness ratio
+         CALL iom_rstput( 0, 0, inum, 'stiffness', zprt )                   ! Max. grid stiffness ratio
       ENDIF
       !
       IF( ll_wd ) CALL iom_rstput( 0, 0, inum, 'ht_0'   , ht_0   , ktype = jp_r8 )

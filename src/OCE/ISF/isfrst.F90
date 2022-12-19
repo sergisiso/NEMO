@@ -10,7 +10,7 @@ MODULE isfrst
    !!   isfrst : read/write iceshelf variables in/from restart
    !!----------------------------------------------------------------------
    !
-   USE par_oce, ONLY: jpi,jpj,jpk,jpts ! time and space domain
+   USE par_oce        ! time and space domain
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O library
@@ -21,6 +21,8 @@ MODULE isfrst
 
    PUBLIC isfrst_read, isfrst_write ! iceshelf restart read and write
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcisf.F90 10536 2019-01-16 19:21:09Z mathiot $
@@ -33,13 +35,12 @@ CONTAINS
       !!
       !!   isfrst_read : read iceshelf variables from restart
       !!
-      !!-------------------------- OUT --------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)     , INTENT(  out) :: pfwf_b
-      REAL(wp), DIMENSION(jpi,jpj,jpts), INTENT(  out) :: ptsc_b
-      !!-------------------------- IN  --------------------------------------
-      CHARACTER(LEN=3)                 , INTENT(in   ) :: cdisf
-      REAL(wp), DIMENSION(jpi,jpj)     , INTENT(in   ) :: pfwf
-      REAL(wp), DIMENSION(jpi,jpj,jpts), INTENT(in   ) :: ptsc
+      !!----------------------------------------------------------------------
+      CHARACTER(LEN=3)                , INTENT(in   ) :: cdisf
+      REAL(wp), DIMENSION(A2D(0),jpts), INTENT(in   ) :: ptsc
+      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in   ) :: pfwf
+      REAL(wp), DIMENSION(A2D(0),jpts), INTENT(  out) :: ptsc_b
+      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(  out) :: pfwf_b
       !!----------------------------------------------------------------------
       CHARACTER(LEN=256) :: cfwf_b, chc_b, csc_b
       !!----------------------------------------------------------------------
@@ -68,11 +69,11 @@ CONTAINS
       !!
       !!   isfrst_write : write iceshelf variables in restart
       !!
-      !!-------------------------- IN  --------------------------------------
-      INTEGER                          , INTENT(in   ) :: kt
-      CHARACTER(LEN=3)                 , INTENT(in   ) :: cdisf
-      REAL(wp), DIMENSION(jpi,jpj)     , INTENT(in   ) :: pfwf
-      REAL(wp), DIMENSION(jpi,jpj,jpts), INTENT(in   ) :: ptsc
+      !!---------------------------------------------------------------------
+      INTEGER                         , INTENT(in   ) :: kt
+      CHARACTER(LEN=3)                , INTENT(in   ) :: cdisf
+      REAL(wp), DIMENSION(jpi,jpj)    , INTENT(in   ) :: pfwf
+      REAL(wp), DIMENSION(A2D(0),jpts), INTENT(in   ) :: ptsc
       !!---------------------------------------------------------------------
       CHARACTER(LEN=256) :: cfwf_b, chc_b, csc_b
       !!---------------------------------------------------------------------

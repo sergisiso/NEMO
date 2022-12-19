@@ -5,11 +5,11 @@ MODULE diadetide
    !!======================================================================
    !! History :       !  2019  (S. Mueller)
    !!----------------------------------------------------------------------
-   USE par_oce        , ONLY :   wp, jpi, jpj
-   USE in_out_manager , ONLY :   lwp, numout
-   USE iom            , ONLY :   iom_put
-   USE dom_oce        , ONLY :   rn_Dt, nsec_day
-   USE phycst         , ONLY :   rpi
+   USE par_oce        
+   USE in_out_manager 
+   USE iom            
+   USE dom_oce        
+   USE phycst        
    USE tide_mod
 #if defined key_xios
    USE xios
@@ -24,6 +24,8 @@ MODULE diadetide
 
    PUBLIC ::   dia_detide_init, dia_detide
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2019)
    !! $Id$
@@ -90,9 +92,9 @@ CONTAINS
       !!----------------------------------------------------------------------
 
       INTEGER, INTENT(in)          ::   kt
-      REAL(wp), DIMENSION(jpi,jpj) ::   zwght_2D
+      REAL(wp), DIMENSION(T2D(0))  ::   zwght_2D
       REAL(wp)                     ::   zwght, ztmp
-      INTEGER                      ::   jn
+      INTEGER                      ::   ji, jj, jn
 
       ! Compute detiding weight at the current time-step; the daily total weight
       ! is one, and the daily summation of a diagnosed field multiplied by this
@@ -104,7 +106,10 @@ CONTAINS
             zwght = zwght + 1.0_wp / REAL( ndiadetide, KIND=wp )
          END IF
       END DO
-      zwght_2D(:,:) = zwght
+ 
+      DO_2D( 0, 0, 0, 0 )
+         zwght_2D(ji,jj) = zwght
+      END_2D
       CALL iom_put( "diadetide_weight", zwght_2D)
 
    END SUBROUTINE dia_detide

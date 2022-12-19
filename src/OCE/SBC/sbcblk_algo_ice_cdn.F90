@@ -59,12 +59,12 @@ CONTAINS
       !! ** References : Lupkes et al. JGR 2012 (theory)
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)                       ::   CdN10_f_LU12  ! neutral FORM drag coefficient contribution over sea-ice
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pz0w   ! roughness length over water  [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pSc2   ! squared shletering function [0-1] (Sc->1 for large distance between floes, ->0 for small distances)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   phf    ! mean freeboard of floes    [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pDi    ! cross wind dimension of the floe (aka effective edge length for form drag)   [m]
+      REAL(wp), DIMENSION(A2D(0))                       ::   CdN10_f_LU12  ! neutral FORM drag coefficient contribution over sea-ice
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)           ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)           ::   pz0w   ! roughness length over water  [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL ::   pSc2   ! squared shletering function [0-1] (Sc->1 for large distance between floes, ->0 for small distances)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL ::   phf    ! mean freeboard of floes    [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL ::   pDi    ! cross wind dimension of the floe (aka effective edge length for form drag)   [m]
       !!----------------------------------------------------------------------
       LOGICAL  ::   l_known_Sc2=.FALSE., l_known_hf=.FALSE., l_known_Di=.FALSE.
       REAL(wp) ::   ztmp, zrlog, zfri, zfrw, zSc2, zhf, zDi
@@ -74,7 +74,7 @@ CONTAINS
       l_known_hf    = PRESENT(phf)
       l_known_Di    = PRESENT(pDi)
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
             
          zfri = pfrice(ji,jj)
          zfrw = (1._wp - zfri)
@@ -113,9 +113,9 @@ CONTAINS
    
    FUNCTION CdN_f_LU12_eq36( pzu, pfrice )
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             ::   CdN_f_LU12_eq36 ! neutral FORM drag coefficient contribution over sea-ice
-      REAL(wp),                     INTENT(in) ::   pzu    ! reference height                       [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
+      REAL(wp), DIMENSION(A2D(0))             ::   CdN_f_LU12_eq36 ! neutral FORM drag coefficient contribution over sea-ice
+      REAL(wp),                    INTENT(in) ::   pzu    ! reference height                       [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
       !!----------------------------------------------------------------------
       REAL(wp) :: ztmp, zrlog, zfri, zhf, zDi
       INTEGER  :: ji, jj
@@ -127,7 +127,7 @@ CONTAINS
       ztmp  = 1._wp/rz0_w_0
       zrlog = LOG(zhf*ztmp) / LOG(pzu*ztmp)
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          zfri = pfrice(ji,jj)
          CdN_f_LU12_eq36(ji,jj) = 0.5_wp* 0.3_wp * zrlog*zrlog * zhf/zDi  * (1._wp - zfri)**rBeta_0 ! Eq.(35) & (36)
          !!                       1/2      Ce
@@ -167,8 +167,8 @@ CONTAINS
       !!                 Lupkes et al. GRL 2013 (application to GCM)
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)              ::   CdN10_f_LU13  ! neutral FORM drag coefficient contribution over sea-ice
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)  ::   pfrice           ! ice concentration [fraction]  => at_i_b
+      REAL(wp), DIMENSION(A2D(0))              ::   CdN10_f_LU13  ! neutral FORM drag coefficient contribution over sea-ice
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)  ::   pfrice           ! ice concentration [fraction]  => at_i_b
       !!----------------------------------------------------------------------
       INTEGER  ::   ji, jj
       REAL(wp) ::   zcoef
@@ -178,7 +178,7 @@ CONTAINS
       !! We are not an AGCM, we are an OGCM!!! => we drop term "(1 - A)*Cd_w"
       !!  => so we keep only the last rhs terms of Eq.(1) of Lupkes et al, 2013 that we divide by "A":
       !! (we multiply Cd_i_s and Cd_i_f by A later, when applying ocean-ice partitioning...
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          CdN10_f_LU13(ji,jj) = rCe_0 * pfrice(ji,jj)**(rMu_0 - 1._wp) * (1._wp - pfrice(ji,jj))**zcoef
       END_2D
       !! => seems okay for winter 100% sea-ice as second rhs term vanishes as pfrice == 1....
@@ -203,13 +203,13 @@ CONTAINS
       !! ** References : Lupkes & Gryanik (2015)
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)                       ::   CdN_f_LG15  ! neutral FORM drag coefficient contribution over sea-ice
-      REAL(wp),                     INTENT(in )          ::   pzu    ! reference height                       [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)           ::   pz0i   ! roughness length over ICE  [m] (in LU12, it's over water ???)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pSc2   ! squared shletering function [0-1] (Sc->1 for large distance between floes, ->0 for small distances)
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   phf    ! mean freeboard of floes    [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in), OPTIONAL ::   pDi    ! cross wind dimension of the floe (aka effective edge length for form drag)   [m]
+      REAL(wp), DIMENSION(A2D(0))                       ::   CdN_f_LG15  ! neutral FORM drag coefficient contribution over sea-ice
+      REAL(wp),                    INTENT(in )          ::   pzu    ! reference height                       [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)           ::   pfrice ! ice concentration [fraction]  => at_i_b  ! NOT USED if pSc2, phf and pDi all provided...
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in)           ::   pz0i   ! roughness length over ICE  [m] (in LU12, it's over water ???)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL ::   pSc2   ! squared shletering function [0-1] (Sc->1 for large distance between floes, ->0 for small distances)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL ::   phf    ! mean freeboard of floes    [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL ::   pDi    ! cross wind dimension of the floe (aka effective edge length for form drag)   [m]
       !!----------------------------------------------------------------------
       LOGICAL  ::   l_known_Sc2=.FALSE., l_known_hf=.FALSE., l_known_Di=.FALSE.
       REAL(wp) ::   ztmp, zrlog, zfri, zfrw, zSc2, zhf, zDi
@@ -219,7 +219,7 @@ CONTAINS
       l_known_hf    = PRESENT(phf)
       l_known_Di    = PRESENT(pDi)
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
 
          zfri = pfrice(ji,jj)
          zfrw = (1._wp - zfri)
@@ -270,15 +270,15 @@ CONTAINS
       !! ** References : Lupkes & Gryanik (2015)
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj)             ::   CdN_f_LG15_light  ! neutral FORM drag coefficient contribution over sea-ice
-      REAL(wp),                     INTENT(in) ::   pzu    ! reference height [m]
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pfrice ! ice concentration [fraction]  => at_i_b
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pz0w   ! roughness length over water  [m]
+      REAL(wp), DIMENSION(A2D(0))             ::   CdN_f_LG15_light  ! neutral FORM drag coefficient contribution over sea-ice
+      REAL(wp),                    INTENT(in) ::   pzu    ! reference height [m]
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pfrice ! ice concentration [fraction]  => at_i_b
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pz0w   ! roughness length over water  [m]
       !!----------------------------------------------------------------------
       REAL(wp) ::   ztmp, zrlog, zfri
       INTEGER  ::   ji, jj
       !!----------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
 
          zfri = pfrice(ji,jj)
          

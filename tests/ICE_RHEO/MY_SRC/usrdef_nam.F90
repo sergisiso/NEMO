@@ -13,7 +13,6 @@ MODULE usrdef_nam
    !!   usr_def_nam   : read user defined namelist and set global domain size
    !!   usr_def_hgr   : initialize the horizontal mesh 
    !!----------------------------------------------------------------------
-   USE dom_oce  , ONLY: nimpp , njmpp , Agrif_Root           ! i- & j-indices of the local domain
    USE par_oce        ! ocean space and time domain
    USE phycst         ! physical constants
    !

@@ -31,8 +31,6 @@ MODULE domain
    USE domqco         ! quasi-eulerian coord.
 #elif defined key_linssh
    !                  ! fix in time coord.
-#else
-   USE domvvl         ! variable volume coord.
 #endif
 #if defined key_agrif
    USE agrif_oce_interp, ONLY : Agrif_istate_ssh ! ssh interpolated from parent
@@ -65,6 +63,7 @@ MODULE domain
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "domzgr_substitute.h90"
    !!-------------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: domain.F90 14547 2021-02-25 17:07:15Z techene $
@@ -195,39 +194,6 @@ CONTAINS
       IF( .NOT.l_offline )   CALL dom_qco_init( Kbb, Kmm, Kaa )
 #elif defined key_linssh
       !                                 != Fix in time : key_linssh case, set through domzgr_substitute.h90
-#else
-      !
-      IF( ln_linssh ) THEN              != Fix in time : set to the reference one for all
-         !
-         DO jt = 1, jpt                         ! depth of t- and w-grid-points
-            gdept(:,:,:,jt) = gdept_0(:,:,:)
-            gdepw(:,:,:,jt) = gdepw_0(:,:,:)
-         END DO
-            gde3w(:,:,:)    = gde3w_0(:,:,:)    ! = gdept as the sum of e3t
-         !
-         DO jt = 1, jpt                         ! vertical scale factors
-            e3t (:,:,:,jt) =  e3t_0(:,:,:)
-            e3u (:,:,:,jt) =  e3u_0(:,:,:)
-            e3v (:,:,:,jt) =  e3v_0(:,:,:)
-            e3w (:,:,:,jt) =  e3w_0(:,:,:)
-            e3uw(:,:,:,jt) = e3uw_0(:,:,:)
-            e3vw(:,:,:,jt) = e3vw_0(:,:,:)
-         END DO
-            e3f (:,:,:)    =  e3f_0(:,:,:)
-         !
-         DO jt = 1, jpt                         ! water column thickness and its inverse
-               hu(:,:,jt) =    hu_0(:,:)
-               hv(:,:,jt) =    hv_0(:,:)
-            r1_hu(:,:,jt) = r1_hu_0(:,:)
-            r1_hv(:,:,jt) = r1_hv_0(:,:)
-         END DO
-               ht   (:,:) =    ht_0(:,:)
-         !
-      ELSE                              != Time varying : initialize before/now/after variables
-         !
-         IF( .NOT.l_offline )   CALL dom_vvl_init( Kbb, Kmm, Kaa )
-         !
-      ENDIF
 #endif
 
       !
@@ -263,7 +229,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       USE ioipsl
       !!
-      INTEGER ::   ios   ! Local integer
+      INTEGER ::   ios, imax   ! Local integer
       REAL(wp)::   zrdt
       !!----------------------------------------------------------------------
       !
@@ -515,8 +481,40 @@ CONTAINS
          WRITE(numout,*)
          WRITE(numout,*)    '   Namelist : namtile   ---   Domain tiling decomposition'
          WRITE(numout,*)    '      Tiling (T) or not (F)                ln_tile    = ', ln_tile
-         WRITE(numout,*)    '      Length of tile in i                  nn_ltile_i = ', nn_ltile_i
-         WRITE(numout,*)    '      Length of tile in j                  nn_ltile_j = ', nn_ltile_j
+      ENDIF
+
+      ! is_tile in domutl uses the array size to determine if the array represents a tile or the full domain.
+      ! To avoid ambiguity, either the tile must be the size of the full domain (i.e. nn_ltile_i = Ni_0), or the largest
+      ! possible tile array (internal and halo points) must be smaller than the internal area of the full domain
+      IF( ln_tile ) THEN
+         IF(lwp) WRITE(numout,*)    '      Length of tile in i                  nn_ltile_i = ', nn_ltile_i
+
+         imax = Ni_0 - (2 * nn_hls) - 1
+         IF( imax < 1 ) imax = Ni_0                      ! Avoid zero tile size for small domains
+         IF( nn_ltile_i > imax .AND. nn_ltile_i /= Ni_0 ) THEN
+            IF( nn_ltile_i < Ni_0 ) THEN
+               nn_ltile_i = MIN( nn_ltile_i, imax )      ! 2+ tiles
+            ELSE
+               nn_ltile_i = MIN( nn_ltile_i, Ni_0 )      ! 1 tile
+            ENDIF
+            IF(lwp) WRITE(numout,*)    '         ===> Reduced to size ', nn_ltile_i
+         ENDIF
+
+         IF(lwp) WRITE(numout,*)    '      Length of tile in j                  nn_ltile_j = ', nn_ltile_j
+
+         imax = Nj_0 - (2 * nn_hls) - 1
+         IF( imax < 1 ) imax = Nj_0                      ! Avoid zero tile size for small domains
+         IF( nn_ltile_j > imax .AND. nn_ltile_j /= Nj_0 ) THEN
+            IF( nn_ltile_j < Nj_0 ) THEN
+               nn_ltile_j = MIN( nn_ltile_j, imax )      ! 2+ tiles
+            ELSE
+               nn_ltile_j = MIN( nn_ltile_j, Nj_0 )      ! 1 tile
+            ENDIF
+            IF(lwp) WRITE(numout,*)    '         ===> Reduced to size ', nn_ltile_j
+         ENDIF
+      ENDIF
+
+      IF(lwp) THEN
          WRITE(numout,*)
          IF( ln_tile ) THEN
             WRITE(numout,*) '      The domain will be decomposed into tiles of size', nn_ltile_i, 'x', nn_ltile_j
@@ -707,6 +705,7 @@ CONTAINS
       INTEGER           ::   inum     ! local units
       CHARACTER(len=21) ::   clnam    ! filename (mesh and mask informations)
       REAL(wp), DIMENSION(jpi,jpj) ::   z2d   ! workspace
+      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   z3d   ! workspace
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
@@ -734,9 +733,9 @@ CONTAINS
       CALL iom_putatt( inum, 'NFtype',          c_NFtype     )
 
       !                                   ! type of vertical coordinate
-      IF(ln_zco)   CALL iom_putatt( inum, 'VertCoord', 'zco' )
-      IF(ln_zps)   CALL iom_putatt( inum, 'VertCoord', 'zps' )
-      IF(ln_sco)   CALL iom_putatt( inum, 'VertCoord', 'sco' )
+      IF(l_zco)   CALL iom_putatt( inum, 'VertCoord', 'zco' )
+      IF(l_zps)   CALL iom_putatt( inum, 'VertCoord', 'zps' )
+      IF(l_sco)   CALL iom_putatt( inum, 'VertCoord', 'sco' )
       
       !                                   ! ocean cavities under iceshelves
       CALL iom_putatt( inum, 'IsfCav', COUNT( (/ln_isfcav/) ) )
@@ -771,20 +770,41 @@ CONTAINS
       CALL iom_rstput( 0, 0, inum, 'e3t_1d'  , e3t_1d , ktype = jp_r8 )   ! reference 1D-coordinate
       CALL iom_rstput( 0, 0, inum, 'e3w_1d'  , e3w_1d , ktype = jp_r8 )
       !
-      CALL iom_rstput( 0, 0, inum, 'e3t_0'   , e3t_0  , ktype = jp_r8 )   ! vertical scale factors
-      CALL iom_rstput( 0, 0, inum, 'e3u_0'   , e3u_0  , ktype = jp_r8 )
-      CALL iom_rstput( 0, 0, inum, 'e3v_0'   , e3v_0  , ktype = jp_r8 )
-      CALL iom_rstput( 0, 0, inum, 'e3f_0'   , e3f_0  , ktype = jp_r8 )
-      CALL iom_rstput( 0, 0, inum, 'e3w_0'   , e3w_0  , ktype = jp_r8 )
-      CALL iom_rstput( 0, 0, inum, 'e3uw_0'  , e3uw_0 , ktype = jp_r8 )
-      CALL iom_rstput( 0, 0, inum, 'e3vw_0'  , e3vw_0 , ktype = jp_r8 )
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         z3d(ji,jj,jk) = e3t_0(ji,jj,jk)
+      END_3D
+      CALL iom_rstput( 0, 0, inum, 'e3t_0'   , z3d  , ktype = jp_r8 )   ! vertical scale factors
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         z3d(ji,jj,jk) = e3u_0(ji,jj,jk)
+      END_3D
+      CALL iom_rstput( 0, 0, inum, 'e3u_0'   , z3d  , ktype = jp_r8 )
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         z3d(ji,jj,jk) = e3v_0(ji,jj,jk)
+      END_3D
+      CALL iom_rstput( 0, 0, inum, 'e3v_0'   , z3d  , ktype = jp_r8 )
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         z3d(ji,jj,jk) = e3f_0(ji,jj,jk)
+      END_3D
+      CALL iom_rstput( 0, 0, inum, 'e3f_0'   , z3d  , ktype = jp_r8 )
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         z3d(ji,jj,jk) = e3w_0(ji,jj,jk)
+      END_3D
+      CALL iom_rstput( 0, 0, inum, 'e3w_0'   , z3d  , ktype = jp_r8 )
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         z3d(ji,jj,jk) = e3uw_0(ji,jj,jk)
+      END_3D
+      CALL iom_rstput( 0, 0, inum, 'e3uw_0'  , z3d , ktype = jp_r8 )
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         z3d(ji,jj,jk) = e3vw_0(ji,jj,jk)
+      END_3D
+      CALL iom_rstput( 0, 0, inum, 'e3vw_0'  , z3d , ktype = jp_r8 )
       !
       !                             !==  wet top and bottom level  ==!   (caution: multiplied by ssmask)
       !
       CALL iom_rstput( 0, 0, inum, 'top_level'    , REAL( mikt, wp )*ssmask , ktype = jp_i4 )   ! nb of ocean T-points (ISF)
       CALL iom_rstput( 0, 0, inum, 'bottom_level' , REAL( mbkt, wp )*ssmask , ktype = jp_i4 )   ! nb of ocean T-points
       !
-      IF( ln_sco ) THEN             ! s-coordinate: store grid stiffness ratio  (Not required anyway)
+      IF( l_sco ) THEN             ! s-coordinate: store grid stiffness ratio  (Not required anyway)
          CALL dom_stiff( z2d )
          CALL iom_rstput( 0, 0, inum, 'stiffness', z2d )        !    ! Max. grid stiffness ratio
       ENDIF

@@ -65,7 +65,7 @@ CONTAINS
       ! define unique value on each point of the inner global domain. z2d ranging from 0.05 to -0.05
       !
       DO_2D( 0, 0, 0, 0 )   !  +/- 0.05
-         z2d(ji,jj) = 0.1 * ( 0.5 - REAL( mig0(ji) + (mjg0(jj)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) )
+         z2d(ji,jj) = 0.1 * ( 0.5 - REAL( mig(ji,0) + (mjg(jj,0)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) )
       END_2D
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
@@ -108,7 +108,7 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 'usr_def_istate_ssh : BENCH configuration, analytical definition of initial ssh'
       !
       DO_2D( 0, 0, 0, 0 )                              ! sea level:  +/- 0.05 m
-         pssh(ji,jj) = 0.1 * ( 0.5 - REAL( mig0(ji) + (mjg0(jj)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) )
+         pssh(ji,jj) = 0.1 * ( 0.5 - REAL( mig(ji,0) + (mjg(jj,0)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) )
       END_2D
       !
       CALL lbc_lnk('usrdef_istate', pssh, 'T',  1. )   ! apply boundary conditions

@@ -44,16 +44,18 @@ CONTAINS
       !
       ! Computation of phyto and zoo metabolic rate
       ! -------------------------------------------
-      ! Generic temperature dependence (Eppley, 1972)
-      tgfunc (:,:,:) = EXP( 0.0631 * ts(:,:,:,jp_tem,Kmm) )
-      ! Temperature dependence of mesozooplankton (Buitenhuis et al. (2005))
-      tgfunc2(:,:,:) = EXP( 0.0761 * ts(:,:,:,jp_tem,Kmm) )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         ! Generic temperature dependence (Eppley, 1972)
+         tgfunc (ji,jj,jk) = EXP( 0.0631 * ts(ji,jj,jk,jp_tem,Kmm) )
+         ! Temperature dependence of mesozooplankton (Buitenhuis et al. (2005))
+         tgfunc2(ji,jj,jk) = EXP( 0.0761 * ts(ji,jj,jk,jp_tem,Kmm) )
+      END_3D
 
 
       ! Computation of the silicon dependant half saturation  constant for silica uptake
       ! This is based on an old study by Pondaven et al. (1998)
       ! --------------------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          zvar = tr(ji,jj,1,jpsil,Kbb) * tr(ji,jj,1,jpsil,Kbb)
          xksimax(ji,jj) = MAX( xksimax(ji,jj), ( 1.+ 7.* zvar / ( xksilim * xksilim + zvar ) ) * 1e-6 )
       END_2D
@@ -73,14 +75,14 @@ CONTAINS
       zcodel = ASIN(  SIN( zrum * rpi * 2._wp ) * SIN( rad * 23.5_wp )  )
 
       ! day length in hours
-      strn(:,:) = 0.
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+!      strn(:,:) = 0.
+      DO_2D( 0, 0, 0, 0 )
          zargu = TAN( zcodel ) * TAN( gphit(ji,jj) * rad )
          zargu = MAX( -1., MIN(  1., zargu ) )
          strn(ji,jj) = MAX( 0.0, 24. - 2. * ACOS( zargu ) / rad / 15. )
       END_2D
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
         ! denitrification factor computed from O2 levels
          ! This factor diagnoses below which level of O2 denitrification
          ! is active

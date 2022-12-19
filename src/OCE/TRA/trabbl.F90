@@ -183,7 +183,7 @@ CONTAINS
       INTEGER  ::   ji, jj, jn   ! dummy loop indices
       INTEGER  ::   ik           ! local integers
       REAL(wp) ::   zbtr         ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   zptb   ! workspace
+      REAL(wp), DIMENSION(T2D(1)) ::   zptb   ! workspace
       !!----------------------------------------------------------------------
       !
       DO jn = 1, kjpt                                     ! tracer loop
@@ -196,10 +196,10 @@ CONTAINS
          DO_2D( 0, 0, 0, 0 )                               ! Compute the trend
             ik = mbkt(ji,jj)                            ! bottom T-level index
             pt_rhs(ji,jj,ik,jn) = pt_rhs(ji,jj,ik,jn)                                                  &
-               &                + (  ahu_bbl(ji  ,jj  ) * ( zptb(ji+1,jj  ) - zptb(ji  ,jj  ) )     &
-               &                   - ahu_bbl(ji-1,jj  ) * ( zptb(ji  ,jj  ) - zptb(ji-1,jj  ) )     &
-               &                   + ahv_bbl(ji  ,jj  ) * ( zptb(ji  ,jj+1) - zptb(ji  ,jj  ) )     &
-               &                   - ahv_bbl(ji  ,jj-1) * ( zptb(ji  ,jj  ) - zptb(ji  ,jj-1) )  )  &
+               &                + ( ( ahu_bbl(ji  ,jj  ) * ( zptb(ji+1,jj  ) - zptb(ji  ,jj  ) )       &   ! add () for NP repro
+               &                    - ahu_bbl(ji-1,jj  ) * ( zptb(ji  ,jj  ) - zptb(ji-1,jj  ) ) )     &
+               &                  + ( ahv_bbl(ji  ,jj  ) * ( zptb(ji  ,jj+1) - zptb(ji  ,jj  ) )       &
+               &                    - ahv_bbl(ji  ,jj-1) * ( zptb(ji  ,jj  ) - zptb(ji  ,jj-1) ) ) )   &
                &                * r1_e1e2t(ji,jj) / e3t(ji,jj,ik,Kmm)
          END_2D
          !                                                  ! ===========
@@ -326,8 +326,8 @@ CONTAINS
       INTEGER  ::   ijs, ijd, ikvs, ikvd      !   -       -
       REAL(wp) ::   za, zb, zgdrho            ! local scalars
       REAL(wp) ::   zsign, zsigna, zgbbl      !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls),jpts)   :: zts, zab         ! 3D workspace
-      REAL(wp), DIMENSION(A2D(nn_hls))        :: zub, zvb, zdep   ! 2D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpts)   :: zts, zab         ! 3D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls))        :: zub, zvb, zdep   ! 2D workspace
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -527,7 +527,7 @@ CONTAINS
          ENDIF
       END_2D
       !
-      DO_2D( 1, 0, 1, 0 )           !* bbl thickness at u- (v-) point; minimum of top & bottom e3u_0 (e3v_0)
+      DO_2D( 1, 0, 1, 0 )           !* bbl thickness at u- or v- point; minimum of top & bottom e3u_0 or e3v_0
          e3u_bbl_0(ji,jj) = MIN( e3u_0(ji,jj,mbkt(ji+1,jj  )), e3u_0(ji,jj,mbkt(ji,jj)) )
          e3v_bbl_0(ji,jj) = MIN( e3v_0(ji,jj,mbkt(ji  ,jj+1)), e3v_0(ji,jj,mbkt(ji,jj)) )
       END_2D

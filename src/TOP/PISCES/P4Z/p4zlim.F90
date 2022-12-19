@@ -68,6 +68,8 @@ MODULE p4zlim
    REAL(wp) ::  xcoef2   = 1.21E-5 * 14. / 55.85 / 7.3125 * 0.5 * 1.5
    REAL(wp) ::  xcoef3   = 1.15E-4 * 14. / 55.85 / 7.3125 * 0.5 
 
+   LOGICAL  :: l_dia_nut_lim, l_dia_iron_lim, l_dia_size_lim, l_dia_fracal
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
@@ -98,13 +100,21 @@ CONTAINS
       REAL(wp) ::   zconc1d, zconc1dnh4, zconc0n, zconc0nnh4   
       REAL(wp) ::   fananof, fadiatf, znutlim, zfalim
       REAL(wp) ::   znutlimtot, zlimno3, zlimnh4, zbiron
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_lim')
       !
+      IF( kt == nittrc000 )  THEN
+         l_dia_nut_lim  = iom_use( "LNnut"   ) .OR. iom_use( "LDnut" )  
+         l_dia_iron_lim = iom_use( "LNFe"    ) .OR. iom_use( "LDFe"  )
+         l_dia_size_lim = iom_use( "SIZEN"   ) .OR. iom_use( "SIZED" )
+         l_dia_fracal   = iom_use( "xfracal" )
+      ENDIF
+      !
       sizena(:,:,:) = 1.0  ;  sizeda(:,:,:) = 1.0
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          
          ! Computation of a variable Ks for iron on diatoms taking into account
          ! that increasing biomass is made of generally bigger cells
@@ -219,7 +229,7 @@ CONTAINS
       ! Size estimation of phytoplankton based on total biomass
       ! Assumes that larger biomass implies addition of larger cells
       ! ------------------------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcoef = tr(ji,jj,jk,jpphy,Kbb) - MIN(xsizephy, tr(ji,jj,jk,jpphy,Kbb) )
          sizena(ji,jj,jk) = 1. + ( xsizern -1.0 ) * zcoef / ( xsizephy + zcoef )
          zcoef = tr(ji,jj,jk,jpdia,Kbb) - MIN(xsizedia, tr(ji,jj,jk,jpdia,Kbb) )
@@ -231,7 +241,7 @@ CONTAINS
       ! This is a purely adhoc formulation described in Aumont et al. (2015)
       ! This fraction depends on nutrient limitation, light, temperature
       ! --------------------------------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zlim1  = xnanonh4(ji,jj,jk) + xnanono3(ji,jj,jk) 
          zlim2  = tr(ji,jj,jk,jppo4,Kbb) / ( tr(ji,jj,jk,jppo4,Kbb) + concnnh4 )
          zlim3  = tr(ji,jj,jk,jpfer,Kbb) / ( tr(ji,jj,jk,jpfer,Kbb) +  6.E-11   )
@@ -250,7 +260,7 @@ CONTAINS
          xfracal(ji,jj,jk) = MAX( 0.02, xfracal(ji,jj,jk) )
       END_3D
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          ! denitrification factor computed from O2 levels
          nitrfac(ji,jj,jk) = MAX(  0.e0, 0.4 * ( 6.e-6  - tr(ji,jj,jk,jpoxy,Kbb) )    &
             &                                / ( oxymin + tr(ji,jj,jk,jpoxy,Kbb) )  )
@@ -263,13 +273,41 @@ CONTAINS
       END_3D
       !
       IF( lk_iomput .AND. knt == nrdttrc ) THEN        ! save output diagnostics
-        CALL iom_put( "xfracal", xfracal(:,:,:) * tmask(:,:,:) )  ! euphotic layer deptht
-        CALL iom_put( "LNnut"  , xlimphy(:,:,:) * tmask(:,:,:) )  ! Nutrient limitation term
-        CALL iom_put( "LDnut"  , xlimdia(:,:,:) * tmask(:,:,:) )  ! Nutrient limitation term
-        CALL iom_put( "LNFe"   , xlimnfe(:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "LDFe"   , xlimdfe(:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "SIZEN"  , sizen  (:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "SIZED"  , sized  (:,:,:) * tmask(:,:,:) )  ! Iron limitation term
+        !
+        IF( l_dia_fracal ) THEN   ! fraction of calcifiers
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          zw3d(A2D(0),1:jpkm1) = xfracal(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "xfracal",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
+        IF( l_dia_nut_lim ) THEN   ! Nutrient limitation term
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          zw3d(A2D(0),1:jpkm1) = xlimphy(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LNnut",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = xlimdia(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LDnut",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
+        IF( l_dia_iron_lim ) THEN   ! Iron limitation term
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          zw3d(A2D(0),1:jpkm1) = xlimnfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LNFe",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = xlimdfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LDFe",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
+        IF( l_dia_size_lim ) THEN   ! Size limitation term
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          zw3d(A2D(0),1:jpkm1) = sizen(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "SIZEN",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = sized(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "SIZED",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('p4z_lim')
@@ -355,16 +393,16 @@ CONTAINS
       !!----------------------------------------------------------------------
 
       !*  Biological arrays for phytoplankton growth
-      ALLOCATE( xnanono3(jpi,jpj,jpk), xdiatno3(jpi,jpj,jpk),       &
-         &      xnanonh4(jpi,jpj,jpk), xdiatnh4(jpi,jpj,jpk),       &
-         &      xnanopo4(jpi,jpj,jpk), xdiatpo4(jpi,jpj,jpk),       &
-         &      xnanofer(jpi,jpj,jpk), xdiatfer(jpi,jpj,jpk),       &
-         &      xlimphy (jpi,jpj,jpk), xlimdia (jpi,jpj,jpk),       &
-         &      xlimnfe (jpi,jpj,jpk), xlimdfe (jpi,jpj,jpk),       &
-         &      xlimbac (jpi,jpj,jpk), xlimbacl(jpi,jpj,jpk),       &
-         &      concnfe (jpi,jpj,jpk), concdfe (jpi,jpj,jpk),       &
-         &      xqfuncfecn(jpi,jpj,jpk), xqfuncfecd(jpi,jpj,jpk),   &
-         &      xlimsi  (jpi,jpj,jpk), STAT=p4z_lim_alloc )
+      ALLOCATE( xnanono3(A2D(0),jpk), xdiatno3(A2D(0),jpk),       &
+         &      xnanonh4(A2D(0),jpk), xdiatnh4(A2D(0),jpk),       &
+         &      xnanopo4(A2D(0),jpk), xdiatpo4(A2D(0),jpk),       &
+         &      xnanofer(A2D(0),jpk), xdiatfer(A2D(0),jpk),       &
+         &      xlimphy (A2D(0),jpk), xlimdia (A2D(0),jpk),       &
+         &      xlimnfe (A2D(0),jpk), xlimdfe (A2D(0),jpk),       &
+         &      xlimbac (A2D(0),jpk), xlimbacl(A2D(0),jpk),       &
+         &      concnfe (A2D(0),jpk), concdfe (A2D(0),jpk),       &
+         &      xqfuncfecn(A2D(0),jpk), xqfuncfecd(A2D(0),jpk),   &
+         &      xlimsi  (A2D(0),jpk), STAT=p4z_lim_alloc )
       !
       IF( p4z_lim_alloc /= 0 ) CALL ctl_stop( 'STOP', 'p4z_lim_alloc : failed to allocate arrays.' )
       !

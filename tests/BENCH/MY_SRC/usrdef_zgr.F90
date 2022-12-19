@@ -37,11 +37,11 @@ MODULE usrdef_zgr
 CONTAINS             
 
    SUBROUTINE usr_def_zgr( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,    &   ! type of vertical coordinate
+      &                    k_top   , k_bot                        ,    &   ! top & bottom ocean level
       &                    pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,    &   ! 1D reference vertical coordinate
-      &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
       &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! vertical scale factors
-      &                    pe3w  , pe3uw , pe3vw         ,             &   !     -      -      -
-      &                    k_top  , k_bot    )                             ! top & bottom ocean level
+      &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
+      &                    pe3w  , pe3uw , pe3vw                       )   ! vertical scale factors
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE usr_def_zgr  ***
       !!
@@ -50,16 +50,12 @@ CONTAINS
       !!----------------------------------------------------------------------
       LOGICAL                   , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
       LOGICAL                   , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
+      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
       REAL(wp), DIMENSION(:)    , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
       REAL(wp), DIMENSION(:)    , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
-      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
-      !
-      INTEGER  ::   inum   ! local logical unit
-      REAL(WP) ::   z_zco, z_zps, z_sco, z_cav
-      REAL(wp), DIMENSION(jpi,jpj) ::   z2d   ! 2D workspace
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
@@ -81,15 +77,16 @@ CONTAINS
       !
       CALL zgr_msk_top_bot( k_top , k_bot )                 ! masked top and bottom ocean t-level indices
       !
-      !                                                     ! z-coordinate (3D arrays) from the 1D z-coord.
-      CALL zgr_zco( pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d,   &   ! in  : 1D reference vertical coordinate
-         &          pdept   , pdepw   ,                     &   ! out : 3D t & w-points depth
-         &          pe3t    , pe3u    , pe3v   , pe3f   ,   &   !       vertical scale factors
-         &          pe3w    , pe3uw   , pe3vw             )     !           -      -      -
+      IF( PRESENT( pe3t ) ) THEN                            ! z-coordinate (3D arrays) from the 1D z-coord.
+         CALL zgr_zco( pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d,   &   ! in  : 1D reference vertical coordinate
+            &          pdept   , pdepw   ,                     &   ! out : 3D t & w-points depth
+            &          pe3t    , pe3u    , pe3v   , pe3f   ,   &   !       vertical scale factors
+            &          pe3w    , pe3uw   , pe3vw             )     !           -      -      -
+      ENDIF
       !
    END SUBROUTINE usr_def_zgr
 
-
+   
    SUBROUTINE zgr_z( pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d )   ! 1D reference vertical coordinate
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE zgr_z  ***
@@ -197,15 +194,15 @@ CONTAINS
       !
       
 !!$      IF( c_NFtype == 'T' ) THEN   ! add a small island in the upper corners to avoid model instabilities...
-!!$         z2d(mi0(       nn_hls):mi1(                  nn_hls+2 ),mj0(jpjglo-nn_hls-1):mj1(jpjglo-nn_hls+1)) = 0._wp
-!!$         z2d(mi0(jpiglo-nn_hls):mi1(MIN(jpiglo,jpiglo-nn_hls+2)),mj0(jpjglo-nn_hls-1):mj1(jpjglo-nn_hls+1)) = 0._wp
-!!$         z2d(mi0(jpiglo/2     ):mi1(           jpiglo/2     +2 ),mj0(jpjglo-nn_hls-1):mj1(jpjglo-nn_hls+1)) = 0._wp
+!!$         z2d(mi0(       nn_hls,nn_hls):mi1(                  nn_hls+2 ,nn_hls),mj0(jpjglo-nn_hls-1,nn_hls):mj1(jpjglo-nn_hls+1,nn_hls)) = 0._wp
+!!$         z2d(mi0(jpiglo-nn_hls,nn_hls):mi1(MIN(jpiglo,jpiglo-nn_hls+2),nn_hls),mj0(jpjglo-nn_hls-1,nn_hls):mj1(jpjglo-nn_hls+1,nn_hls)) = 0._wp
+!!$         z2d(mi0(jpiglo/2     ,nn_hls):mi1(           jpiglo/2     +2 ,nn_hls),mj0(jpjglo-nn_hls-1,nn_hls):mj1(jpjglo-nn_hls+1,nn_hls)) = 0._wp
 !!$      ENDIF
 !!$      !
-      IF( c_NFtype == 'F' ) THEN   ! Must mask the 2 pivot-points 
-         z2d(mi0(nn_hls+1):mi1(nn_hls+1),mj0(jpjglo-nn_hls):mj1(jpjglo-nn_hls)) = 0._wp
-         z2d(mi0(jpiglo/2):mi1(jpiglo/2),mj0(jpjglo-nn_hls):mj1(jpjglo-nn_hls)) = 0._wp
-      ENDIF
+!!$      IF( c_NFtype == 'F' ) THEN   ! Must mask the 2 pivot-points 
+!!$         z2d(mi0(nn_hls+1,nn_hls):mi1(nn_hls+1,nn_hls),mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)) = 0._wp
+!!$         z2d(mi0(jpiglo/2,nn_hls):mi1(jpiglo/2,nn_hls),mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)) = 0._wp
+!!$      ENDIF
       !
       CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1._wp )           ! set surrounding land to zero (closed boundaries)
       !

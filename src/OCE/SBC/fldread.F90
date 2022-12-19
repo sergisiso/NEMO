@@ -274,7 +274,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER  ,           INTENT(in   ) ::   ksecsbc   ! 
       TYPE(FLD),           INTENT(inout) ::   sdjf      ! input field related variables
-      INTEGER  , OPTIONAL, INTENT(in   ) ::   Kmm    ! ocean time level index
+      INTEGER  , OPTIONAL, INTENT(in   ) ::   Kmm       ! ocean time level index
       !
       INTEGER  ::   ja           ! end of this record (in seconds)
       INTEGER  ::   ibb, iaa     ! shorter name for sdjf%nbb and sdjf%naa
@@ -288,7 +288,7 @@ CONTAINS
          DO WHILE ( ksecsbc >= sdjf%nrecsec(ja) .AND. ja < sdjf%nreclast )   ! Warning: make sure ja <= sdjf%nreclast in this test
             ja = ja + 1
          END DO
-         IF( ksecsbc > sdjf%nrecsec(ja) )   ja = ja + 1   ! in case ksecsbc > sdjf%nrecsec(sdjf%nreclast)
+         IF( ksecsbc > sdjf%nrecsec(ja) )   ja = ja + 1         ! in case ksecsbc > sdjf%nrecsec(sdjf%nreclast)
 
          ! if ln_tint and if the new after is not ja+1, we need also to update after data before the swap
          ! so, after the swap, sdjf%nrec(2,ibb) will still be the closest value located just before ksecsbc
@@ -699,9 +699,10 @@ CONTAINS
       INTEGER ::   imf             ! size of the structure sd
       INTEGER ::   ill             ! character length
       INTEGER ::   iv              ! indice of V component
+      INTEGER ::   ipi, ipj
       CHARACTER (LEN=100)          ::   clcomp       ! dummy weight name
-      REAL(wp), DIMENSION(jpi,jpj) ::   utmp, vtmp   ! temporary arrays for vector rotation
-      REAL(wp), DIMENSION(:,:,:), POINTER ::   dta_u, dta_v    ! short cut
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   utmp, vtmp   ! temporary arrays for vector rotation
+      REAL(wp), DIMENSION(:,:,:), POINTER   ::   dta_u, dta_v    ! short cut
       !!---------------------------------------------------------------------
       !
       !! (sga: following code should be modified so that pairs arent searched for each time
@@ -724,11 +725,14 @@ CONTAINS
                      IF( sd(ju)%ln_tint ) THEN   ;   dta_u => sd(ju)%fdta(:,:,:,jn)   ;   dta_v => sd(iv)%fdta(:,:,:,jn) 
                      ELSE                        ;   dta_u => sd(ju)%fnow(:,:,:   )   ;   dta_v => sd(iv)%fnow(:,:,:   )
                      ENDIF
+                     ipi = SIZE(dta_u,1)   ;   ipj = SIZE(dta_u,2)
+                     ALLOCATE( utmp(ipi,ipj), vtmp(ipi,ipj) )
                      DO jk = 1, SIZE( sd(ju)%fnow, 3 )
                         CALL rot_rep( dta_u(:,:,jk), dta_v(:,:,jk), 'T', 'en->i', utmp(:,:) )
                         CALL rot_rep( dta_u(:,:,jk), dta_v(:,:,jk), 'T', 'en->j', vtmp(:,:) )
                         dta_u(:,:,jk) = utmp(:,:)   ;   dta_v(:,:,jk) = vtmp(:,:)
                      END DO
+                     DEALLOCATE( utmp, vtmp )
                      sd(ju)%rotn(jn) = .TRUE.               ! vector was rotated 
                      IF( lwp .AND. kt == nit000 )   WRITE(numout,*)   &
                         &   'fld_read: vector pair ('//TRIM(sd(ju)%clvar)//', '//TRIM(sd(iv)%clvar)//') rotated on to model grid'
@@ -745,11 +749,18 @@ CONTAINS
       !!---------------------------------------------------------------------
       !!                    ***  ROUTINE fld_def  ***
       !!
-      !! ** Purpose :   define the record(s) of the file and its name
+      !! ** Purpose :   Compute the record(s) of the file and define its name.
+      !!                By default, the current file is defined according to the current time step calendar
+      !!                variables (nyear, month, day, nsec_month, nsec_year... see daymod.F90)
+      !!                Records time (seconds since Jan. 1st 00h of nit000 year) is stored in sdjf%nrecsec
+      !!                if sdjf%ln_tint = .TRUE.
+      !!                   sdjf%nrecsec(1:sdjf%nreclast) = middle of each record
+      !!                if sdjf%ln_tint = .FALSE.
+      !!                   sdjf%nrecsec(0:sdjf%nreclast) = beginning/end of each record
       !!----------------------------------------------------------------------
       TYPE(FLD)        , INTENT(inout) ::   sdjf       ! input field related variables
-      LOGICAL, OPTIONAL, INTENT(in   ) ::   ldprev     ! 
-      LOGICAL, OPTIONAL, INTENT(in   ) ::   ldnext     ! 
+      LOGICAL, OPTIONAL, INTENT(in   ) ::   ldprev     ! True if sdjf must be defined for the previous file
+      LOGICAL, OPTIONAL, INTENT(in   ) ::   ldnext     ! True if sdjf must be defined for the next file
       !
       INTEGER  :: jt
       INTEGER  :: idaysec               ! number of seconds in 1 day = NINT(rday)
@@ -1100,7 +1111,7 @@ CONTAINS
       CHARACTER (len=5) ::   clname   !
       INTEGER , DIMENSION(4) ::   ddims
       INTEGER                ::   isrc
-      REAL(wp), DIMENSION(jpi,jpj) ::   data_tmp
+      REAL(wp), DIMENSION(A2D(0)) ::   data_tmp
       !!----------------------------------------------------------------------
       !
       IF( nxt_wgt > tot_wgts ) THEN
@@ -1155,9 +1166,9 @@ CONTAINS
          ELSE                 ;   ref_wgts(nxt_wgt)%numwgt = 16
          ENDIF
 
-         ALLOCATE( ref_wgts(nxt_wgt)%data_jpi(Nis0:Nie0,Njs0:Nje0,4) )
-         ALLOCATE( ref_wgts(nxt_wgt)%data_jpj(Nis0:Nie0,Njs0:Nje0,4) )
-         ALLOCATE( ref_wgts(nxt_wgt)%data_wgt(Nis0:Nie0,Njs0:Nje0,ref_wgts(nxt_wgt)%numwgt) )
+         ALLOCATE( ref_wgts(nxt_wgt)%data_jpi(A2D(0),4) )
+         ALLOCATE( ref_wgts(nxt_wgt)%data_jpj(A2D(0),4) )
+         ALLOCATE( ref_wgts(nxt_wgt)%data_wgt(A2D(0),ref_wgts(nxt_wgt)%numwgt) )
 
          DO jn = 1,4
             WRITE(clname,'(a3,i2.2)') 'src',jn
@@ -1332,7 +1343,9 @@ CONTAINS
       INTEGER, DIMENSION(3) ::   rec1_lsm, recn_lsm   ! temporary arrays for start and length in case of seaoverland
       INTEGER ::   ii_lsm1,ii_lsm2,ij_lsm1,ij_lsm2    ! temporary indices
       INTEGER ::   ji, jj, jk, jn, jir, jjr           ! loop counters
-      INTEGER ::   ipk
+      INTEGER ::   ipi, ipj, ipk
+      INTEGER ::   iisht, ijsht
+      INTEGER ::   ii, ij
       INTEGER ::   ni, nj                             ! lengths
       INTEGER ::   jpimin,jpiwid                      ! temporary indices
       INTEGER ::   jpimin_lsm,jpiwid_lsm              ! temporary indices
@@ -1343,7 +1356,11 @@ CONTAINS
       INTEGER ::   itmpi,itmpj,itmpz                     ! lengths
       REAL(wp),DIMENSION(:,:,:), ALLOCATABLE ::   ztmp_fly_dta                 ! local array of values on input grid     
       !!----------------------------------------------------------------------
+      ipi = SIZE(dta, 1)
+      ipj = SIZE(dta, 2)
       ipk = SIZE(dta, 3)
+      iisht = ( jpi - ipi ) / 2
+      ijsht = ( jpj - ipj ) / 2
       !
       !! for weighted interpolation we have weights at four corners of a box surrounding 
       !! a model grid point, each weight is multiplied by a grid value (bilinear case)
@@ -1438,7 +1455,9 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1,ipk )
             ni = ref_wgts(kw)%data_jpi(ji,jj,jn) + 1
             nj = ref_wgts(kw)%data_jpj(ji,jj,jn) + 1
-            dta(ji,jj,jk) = dta(ji,jj,jk) + ref_wgts(kw)%data_wgt(ji,jj,jn) * ref_wgts(kw)%fly_dta(ni,nj,jk)
+            ii = ji - iisht
+            ij = jj - ijsht
+            dta(ii,ij,jk) = dta(ii,ij,jk) + ref_wgts(kw)%data_wgt(ji,jj,jn) * ref_wgts(kw)%fly_dta(ni,nj,jk)
          END_3D
       END DO
 
@@ -1482,7 +1501,9 @@ CONTAINS
 !!$            DO_3D( 0, 0, 0, 0, 1,ipk )
 !!$               ni = ref_wgts(kw)%data_jpi(ji,jj,jn) + 1
 !!$               nj = ref_wgts(kw)%data_jpj(ji,jj,jn) + 1
-!!$               dta(ji,jj,jk) = dta(ji,jj,jk)   &
+!!$               ii = ji - iisht
+!!$               ij = jj - ijsht
+!!$               dta(ii,ij,jk) = dta(ii,ij,jk)   &
 !!$                  ! gradient in the i direction
 !!$                  &            + ref_wgts(kw)%data_wgt(ji,jj,jn+4) * 0.5_wp *                                    &
 !!$                  &                (ref_wgts(kw)%fly_dta(ni+1,nj  ,jk) - ref_wgts(kw)%fly_dta(ni-1,nj  ,jk))     &
@@ -1500,8 +1521,10 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1,ipk )
                ni = ref_wgts(kw)%data_jpi(ji,jj,jn)
                nj = ref_wgts(kw)%data_jpj(ji,jj,jn)
+               ii = ji - iisht
+               ij = jj - ijsht
                ! gradient in the i direction
-               dta(ji,jj,jk) = dta(ji,jj,jk) + ref_wgts(kw)%data_wgt(ji,jj,jn+4) * 0.5_wp *         &
+               dta(ii,ij,jk) = dta(ii,ij,jk) + ref_wgts(kw)%data_wgt(ji,jj,jn+4) * 0.5_wp *         &
                   &                (ref_wgts(kw)%fly_dta(ni+2,nj+1,jk) - ref_wgts(kw)%fly_dta(ni  ,nj+1,jk))
             END_3D
          END DO
@@ -1509,8 +1532,10 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1,ipk )
                ni = ref_wgts(kw)%data_jpi(ji,jj,jn)
                nj = ref_wgts(kw)%data_jpj(ji,jj,jn)
+               ii = ji - iisht
+               ij = jj - ijsht
                ! gradient in the j direction
-               dta(ji,jj,jk) = dta(ji,jj,jk) + ref_wgts(kw)%data_wgt(ji,jj,jn+8) * 0.5_wp *         &
+               dta(ii,ij,jk) = dta(ii,ij,jk) + ref_wgts(kw)%data_wgt(ji,jj,jn+8) * 0.5_wp *         &
                   &                (ref_wgts(kw)%fly_dta(ni+1,nj+2,jk) - ref_wgts(kw)%fly_dta(ni+1,nj  ,jk))
             END_3D
          END DO
@@ -1518,8 +1543,10 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1,ipk )
                ni = ref_wgts(kw)%data_jpi(ji,jj,jn)
                nj = ref_wgts(kw)%data_jpj(ji,jj,jn)
+               ii = ji - iisht
+               ij = jj - ijsht
                ! gradient in the ij direction
-               dta(ji,jj,jk) = dta(ji,jj,jk) + ref_wgts(kw)%data_wgt(ji,jj,jn+12) * 0.25_wp * (     &
+               dta(ii,ij,jk) = dta(ii,ij,jk) + ref_wgts(kw)%data_wgt(ji,jj,jn+12) * 0.25_wp * (     &
                   &                (ref_wgts(kw)%fly_dta(ni+2,nj+2,jk) - ref_wgts(kw)%fly_dta(ni  ,nj+2,jk)) -   &
                   &                (ref_wgts(kw)%fly_dta(ni+2,nj  ,jk) - ref_wgts(kw)%fly_dta(ni  ,nj  ,jk)))
             END_3D
