@@ -56,10 +56,6 @@ USER SETUP (recommended)
           |  USING_MPI3        : flag to control the activation of key_mpi3
                                 "yes" to use the MPI3 neighbourhood collectives for halo exchange
                                 "no" to use standard point-to-point communications for halo exchange
-        # loop fusion management
-          |  USING_LOOP_FUSION : flag to control the activation of key_loop_fusion
-                                "yes" to use the loop fusion adv routines when halo = 2
-                                "no" to use standard adv routine
 
         # generique batch scrip prefix name if MPMD set to true/false
            | JOB_PREFIX_MPMD

@@ -97,7 +97,6 @@ printf "%-33s : %s\n" USING_EXTRA_HALO $USING_EXTRA_HALO          >> ./sette_con
 printf "%-33s : %s\n" USING_TILING $USING_TILING                  >> ./sette_config
 printf "%-33s : %s\n" USING_COLLECTIVES $USING_COLLECTIVES        >> ./sette_config
 printf "%-33s : %s\n" USING_QCO $USING_QCO                        >> ./sette_config
-printf "%-33s : %s\n" USING_LOOP_FUSION $USING_LOOP_FUSION        >> ./sette_config
 printf "%-33s : %s\n" USING_XIOS $USING_XIOS                      >> ./sette_config
 printf "%-33s : %s\n" USING_MPMD $USING_MPMD                      >> ./sette_config
 printf "%-33s : %s\n" USING_RK3 $USING_RK3                        >> ./sette_config

@@ -283,8 +283,8 @@ if [ $incfg -eq 1 ] ; then
         . ${COMPIL_DIR}/Fclean_config.sh
         exit 0
     elif [ ${#x_c} -ne 0 ]; then
-        read -p "Are you sure that you want to clean $NEW_CONF configuration ? " -n 1 -r; echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        #read -p "Are you sure that you want to clean $NEW_CONF configuration ? " -n 1 -r; echo
+        #if [[ $REPLY =~ ^[Yy]$ ]]; then
             # We coose the default light file
             [ $x_nocdf -eq 1 ] && export USEBLD=bldxagxcdf.cfg || export USEBLD=bldxag.cfg
             # We look after agrif
@@ -300,10 +300,10 @@ if [ $incfg -eq 1 ] ; then
                rm -f ${NEMO_TDIR}/${NEW_CONF}/BLD/$file
             done
             exit 0
-        else
-            echo "cleaning cancelled"
-            exit 2
-        fi
+        #else
+        #    echo "cleaning cancelled"
+        #    exit 2
+        #fi
     fi
     if [[ -n "$x_n" && -n "$REF_CONF"  ]]; then echo -e "\nWARNING: $x_n configuration is already existing, we ignore \"-r $REF_CONF\"\n"; REF_CONF=""; fi
     if [[ -n "$x_n" && -n "$DEMO_CONF" ]]; then echo -e "\nWARNING: $x_n configuration is already existing, we ignore \"-a $DEMO_CONF\"\n"; DEMO_CONF=""; fi
