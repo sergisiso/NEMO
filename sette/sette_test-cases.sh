@@ -238,7 +238,7 @@ if [ ${config} == "OVERFLOW" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
         NPROC=1
         if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
         cd ${EXE_DIR}
-        rm namelist_*_*_*_*
+        rm namelist_*_*_*_* namelist_cfg
         cp -pL ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00/$file namelist_cfg
 	set_namelist namelist_cfg nn_it000 1
 	set_namelist namelist_cfg nn_itend ${ITEND}
@@ -355,7 +355,7 @@ if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
         NPROC=1
         if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
         cd ${EXE_DIR}
-        rm namelist_*_*_*_*
+        rm namelist_*_*_*_* namelist_cfg
         cp -pL ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00/$file namelist_cfg
 	set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
