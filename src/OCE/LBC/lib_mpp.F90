@@ -253,22 +253,13 @@ CONTAINS
          IF( ierr /= MPI_SUCCESS ) CALL ctl_stop( 'STOP', ' lib_mpp: Error in routine mpi_init' )
       ENDIF
 
-      IF( PRESENT(localComm) ) THEN
-         IF( Agrif_Root() ) THEN
-            mpi_comm_oce = localComm
-         ENDIF
-      ELSE
 # if defined key_agrif
-          IF( Agrif_Root() ) THEN
+      IF( Agrif_Root() )   CALL Agrif_MPI_Init(localComm)
+      mpi_comm_oce = Agrif_MPI_get_grid_comm()   ! works for parent and children
+# else
+      mpi_comm_oce = mpi_comm_world   ! default
+      IF( PRESENT(localComm) )   mpi_comm_oce = localComm
 # endif
-              CALL mpi_comm_dup( mpi_comm_world, mpi_comm_oce, ierr)
-              IF( ierr /= MPI_SUCCESS ) CALL ctl_stop( 'STOP', ' lib_mpp: Error in routine mpi_comm_dup' )
-# if defined key_agrif
-          ELSE
-              mpi_comm_oce = Agrif_MPI_get_grid_comm()
-          ENDIF
-# endif
-      ENDIF
 
       CALL mpi_comm_rank( mpi_comm_oce, mpprank, ierr )
       CALL mpi_comm_size( mpi_comm_oce, mppsize, ierr )
