@@ -17,14 +17,14 @@ MODULE usrdef_sbc
    USE oce             ! ocean dynamics and tracers
    USE sbc_oce         ! Surface boundary condition: ocean fields
    USE sbc_ice         ! Surface boundary condition: ocean fields
-   USE in_out_manager  ! I/O manager
+   USE sbc_phy, ONLY   : pp_cldf
    USE phycst          ! physical constants
+#if defined key_si3
+   USE ice, ONLY       : jpl, at_i_b, a_i_b
+#endif
+   USE in_out_manager  ! I/O manager
    USE lib_mpp         ! MPP library
    USE lbclnk          ! lateral boundary conditions - mpp exchanges
-
-#if defined key_si3
-   USE ice, ONLY       : at_i_b, a_i_b
-#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -132,7 +132,10 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), INTENT(in)  ::   phs    ! snow thickness
       REAL(wp), DIMENSION(:,:,:), INTENT(in)  ::   phi    ! ice thickness
       !!
+      INTEGER  ::   jl
+      REAL(wp) ::   zfr1, zfr2                ! local variables
       REAL(wp), DIMENSION(A2D(0)) ::   zsnw   ! snw distribution after wind blowing
+      REAL(wp), DIMENSION(A2D(0)) ::   ztri
       !!---------------------------------------------------------------------
 #if defined key_si3
       !
@@ -166,8 +169,19 @@ CONTAINS
       qns_tot (:,:) = at_i_b(:,:) * qns_oce(:,:) + SUM( a_i_b(:,:,:) * qns_ice(:,:,:), dim=3 ) + qemp_ice(:,:) + qemp_oce(:,:)
       qsr_tot (:,:) = at_i_b(:,:) * qsr_oce(:,:) + SUM( a_i_b(:,:,:) * qsr_ice(:,:,:), dim=3 )
 
-      ! --- shortwave radiation transmitted thru the surface scattering layer (W/m2) --- !
-      qtr_ice_top(:,:,:) = 0._wp
+      ! --- shortwave radiation transmitted below the surface (W/m2, see Grenfell Maykut 77) --- !
+      cloud_fra(:,:) = pp_cldf
+      ztri(:,:) = 0.18 * ( 1.0 - cloud_fra(:,:) ) + 0.35 * cloud_fra(:,:)  ! surface transmission when hi>10cm
+      !
+      DO jl = 1, jpl
+         WHERE    ( phs(A2D(0),jl) <= 0._wp .AND. phi(A2D(0),jl) <  0.1_wp )     ! linear decrease from hi=0 to 10cm  
+            qtr_ice_top(:,:,jl) = qsr_ice(:,:,jl) * ( ztri(:,:) + ( 1._wp - ztri(:,:) ) * ( 1._wp - phi(A2D(0),jl) * 10._wp ) )
+         ELSEWHERE( phs(A2D(0),jl) <= 0._wp .AND. phi(A2D(0),jl) >= 0.1_wp )     ! constant (ztri) when hi>10cm
+            qtr_ice_top(:,:,jl) = qsr_ice(:,:,jl) * ztri(:,:)
+         ELSEWHERE                                                         ! zero when hs>0
+            qtr_ice_top(:,:,jl) = 0._wp
+         END WHERE
+      ENDDO
 #endif
 
    END SUBROUTINE usrdef_sbc_ice_flx
