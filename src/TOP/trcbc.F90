@@ -136,7 +136,8 @@ CONTAINS
 902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_bc in configuration namelist' )
       IF(lwm) WRITE ( numont, namtrc_bc )
 
-      
+      ! Disable passive-tracer OBC data input if BDY is inactive
+      IF( .NOT. ln_bdy ) ln_trc_obc(:) = .FALSE.
 
       ! compose BC data indexes
       DO jn = 1, ntrc
