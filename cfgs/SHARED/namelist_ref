@@ -232,8 +232,10 @@
    ln_dm2dc    = .false.   !  daily mean to diurnal cycle on short wave
    ln_ssr      = .false.   !  Sea Surface Restoring on T and/or S       (T => fill namsbc_ssr)
    nn_fwb      = 0         !  FreshWater Budget: =0 unchecked
-      !                    !     =1 global mean of e-p-r set to zero at each time step
-      !                    !     =2 annual global mean of e-p-r set to zero
+      !                    !     =1 volume set to zero at each time step
+      !                    !     =2 volume adjusted from previous year budget (uniform correction to emp)
+      !                    !     =3 volume adjusted from previous year budget (non-uniform correction - proportional to erp)
+      !                    !     =4 special treatment for ISOMIP+ test case
    ln_rnf      = .false.   !  runoffs                                   (T => fill namsbc_rnf)
    ln_apr_dyn  = .false.   !  Patm gradient added in ocean & ice Eqs.   (T => fill namsbc_apr )
    ln_wave     = .false.   !  Activate coupling with wave  (T => fill namsbc_wave)

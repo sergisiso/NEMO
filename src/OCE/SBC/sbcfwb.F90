@@ -130,8 +130,10 @@ CONTAINS
             CASE( 3 )
                WRITE(numout,*) '          nn_fwb = 3: Volume set to zero at each time step'
                WRITE(numout,*) '          => non-uniform correction proportional to erp'
+            CASE( 4 )
+               WRITE(numout,*) '          nn_fwb = 4: ISOMIP+ case'
             CASE DEFAULT
-               CALL ctl_stop( 'sbc_fwb : wrong nn_fwb value for the FreshWater Budget correction, choose either 1, 2 or 3' )
+               CALL ctl_stop( 'sbc_fwb : wrong nn_fwb value for the FreshWater Budget correction, choose either 1, 2, 3 or 4' )
             END SELECT
             !
             SELECT CASE ( nn_fwb_voltype )
@@ -505,7 +507,7 @@ CONTAINS
          ENDIF
          !
       CASE DEFAULT                           !==  you should never be there  ==!
-         CALL ctl_stop( 'sbc_fwb : wrong nn_fwb value for the FreshWater Budget correction, choose either 1, 2 or 3' )
+         CALL ctl_stop( 'sbc_fwb : wrong nn_fwb value for the FreshWater Budget correction, choose either 1, 2, 3 or 4' )
          !
       END SELECT
       !
