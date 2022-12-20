@@ -42,6 +42,11 @@ CONTAINS
       !
       IF (lwp.AND.lk_agrif_debug) Write(*,*) ' --> START AGRIF UPDATE from grid Number',Agrif_Fixed()
       !
+      ! Update computionnal domain mask once:
+      IF (lk_agrif_fstep) THEN
+         CALL Agrif_Update_Variable(tmask_id,locupdate=(/ nn_shift_bar,-2/), procname = update_tmask_agrif)
+      ENDIF
+      !
       CALL Agrif_Update_ssh()                      ! Update sea level
       !
       IF (.NOT.ln_linssh) CALL Agrif_Update_vvl()  ! Update scale factors
@@ -112,12 +117,10 @@ CONTAINS
       CALL dom_qco_zgr( Kbb_a, Kmm_a ) 
 #endif
 #if defined key_si3
-      CALL lbc_lnk( 'finalize_lbc_for_agrif',  a_i, 'T',1._wp,  v_i,'T',1._wp,                 &
-           &                                   v_s, 'T',1._wp, sv_i,'T',1._wp, oa_i,'T',1._wp, &
-           &                                   a_ip,'T',1._wp, v_ip,'T',1._wp, v_il,'T',1._wp )
-      CALL lbc_lnk( 'finalize_lbc_for_agrif', t_su,'T',1._wp )
-      CALL lbc_lnk( 'finalize_lbc_for_agrif',  e_s,'T',1._wp )
-      CALL lbc_lnk( 'finalize_lbc_for_agrif',  e_i,'T',1._wp )
+      CALL lbc_lnk( 'finalize_lbc_for_agrif', a_i, 'T',1._wp,  v_i,'T',1._wp,                 &
+           &                                  v_s, 'T',1._wp, sv_i,'T',1._wp, oa_i,'T',1._wp, &
+           &                                  a_ip,'T',1._wp, v_ip,'T',1._wp, v_il,'T',1._wp, t_su,'T',1._wp )
+      CALL lbc_lnk( 'finalize_lbc_for_agrif', e_i,'T',1._wp, e_s,'T',1._wp )
       CALL lbc_lnk( 'finalize_lbc_for_agrif', u_ice, 'U', -1._wp, v_ice, 'V', -1._wp )
 #endif
 #if defined key_top

@@ -56,10 +56,13 @@ CONTAINS
       INTEGER                   , INTENT(in   ) ::   ktrd           ! trend index
       INTEGER                   , INTENT(in   ) ::   kt             ! time step
       INTEGER                   , INTENT(in   ) ::   Kmm            ! time level index
+      INTEGER                                   ::   ji, jj, jk     ! lopp indices
       !!----------------------------------------------------------------------
       !
-      putrd(:,:,:) = putrd(:,:,:) * umask(:,:,:)                       ! mask the trends
-      pvtrd(:,:,:) = pvtrd(:,:,:) * vmask(:,:,:)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         putrd(ji,jj,jk) = putrd(ji,jj,jk) * umask(ji,jj,jk)                       ! mask the trends
+         pvtrd(ji,jj,jk) = pvtrd(ji,jj,jk) * vmask(ji,jj,jk)
+      END_3D
       !
 
 !!gm NB : here a lbc_lnk should probably be added
@@ -120,10 +123,10 @@ CONTAINS
                               CALL iom_put( "vtrd_rvo", pvtrd )
       CASE( jpdyn_keg )   ;   CALL iom_put( "utrd_keg", putrd )    ! Kinetic Energy gradient (or had)
                               CALL iom_put( "vtrd_keg", pvtrd )
-                              ALLOCATE( z3dx(jpi,jpj,jpk) , z3dy(jpi,jpj,jpk) )
-                              z3dx(:,:,:) = 0._wp                  ! U.dxU & V.dyV (approximation)
-                              z3dy(:,:,:) = 0._wp
-                              DO_3D( 0, 0, 0, 0, 1, jpkm1 )   ! no mask as un,vn are masked
+                              ALLOCATE( z3dx(T2D(0),jpk) , z3dy(T2D(0),jpk) )   ! U.dxU & V.dyV (approximation)
+                              z3dx(T2D(0),jpk) = 0._wp
+                              z3dy(T2D(0),jpk) = 0._wp
+                              DO_3D( 0, 0, 0, 0, 1, jpkm1 )                          ! no mask as un,vn are masked
                                  z3dx(ji,jj,jk) = uu(ji,jj,jk,Kmm) * ( uu(ji+1,jj,jk,Kmm) - uu(ji-1,jj,jk,Kmm) ) / ( 2._wp * e1u(ji,jj) )
                                  z3dy(ji,jj,jk) = vv(ji,jj,jk,Kmm) * ( vv(ji,jj+1,jk,Kmm) - vv(ji,jj-1,jk,Kmm) ) / ( 2._wp * e2v(ji,jj) )
                               END_3D
@@ -139,9 +142,11 @@ CONTAINS
                               CALL iom_put( "vtrd_zdf", pvtrd )
                               !
                               !                                    ! wind stress trends
-                              ALLOCATE( z2dx(jpi,jpj) , z2dy(jpi,jpj) )
-                              z2dx(:,:) = ( utau_b(:,:) + utau(:,:) ) / ( e3u(:,:,1,Kmm) * rho0 )
-                              z2dy(:,:) = ( vtau_b(:,:) + vtau(:,:) ) / ( e3v(:,:,1,Kmm) * rho0 )
+                              ALLOCATE( z2dx(T2D(0)) , z2dy(T2D(0)) )
+                              DO_2D( 0, 0, 0, 0 )
+                                 z2dx(ji,jj) = ( utau_b(ji,jj) + utauU(ji,jj) ) / ( e3u(ji,jj,1,Kmm) * rho0 )
+                                 z2dy(ji,jj) = ( vtau_b(ji,jj) + vtauV(ji,jj) ) / ( e3v(ji,jj,1,Kmm) * rho0 )
+                              END_2D
                               CALL iom_put( "utrd_tau", z2dx )
                               CALL iom_put( "vtrd_tau", z2dy )
                               DEALLOCATE( z2dx , z2dy )

@@ -53,7 +53,7 @@ CONTAINS
       !
       IF( l_trdtrc )   ztrtrd(:,:,:,:)  = ptr(:,:,:,:,Krhs)
       !
-      CALL tra_zdf_imp( kt, nittrc000, 'TRC', rDt_trc, Kbb, Kmm, Krhs, ptr, Kaa, jptra )    !   implicit scheme          
+      CALL tra_zdf_imp( 'TRC', Kbb, Kmm, Krhs, ptr, Kaa, jptra )    !   implicit scheme          
       !
       IF( l_trdtrc )   THEN                      ! save the vertical diffusive trends for further diagnostics
          DO jn = 1, jptra

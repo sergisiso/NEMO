@@ -144,7 +144,8 @@ CONTAINS
             tmask(ji,jj,jk) = tmask(ji,jj,jk) * bdytmask(ji,jj)
          END_3D
       ENDIF
-         
+      smask0(:,:) = tmask(A2D(0),1)
+      
       !  Ocean/land mask at u-, v-, and f-points   (computed from tmask)
       ! ----------------------------------------
       ! NB: at this point, fmask is designed for free slip lateral boundary condition
@@ -158,6 +159,15 @@ CONTAINS
       ! In case of a coarsened grid, account her for possibly aditionnal  
       ! masked points; these have been read in the mesh file and stored in mbku, mbkv, mbkf
       DO_2D( 0, 0, 0, 0 )
+         ! Ugly patch to accomodate batropic case (jpk=2)
+         ! but with possible masked faces in the coarsening case
+         ! A better way would be to keep track of mbku/v/f=0 until here
+         ! but these have been assigned a minimum of 1. TBC
+         IF (jpk>2) THEN   
+            IF (mbku(ji,jj)==1) umask(ji,jj,:) = 0._wp
+            IF (mbkv(ji,jj)==1) vmask(ji,jj,:) = 0._wp
+            IF (mbkf(ji,jj)==1) fmask(ji,jj,:) = 0._wp
+         ENDIF
          IF ( MAXVAL(umask(ji,jj,:))/=0._wp )  umask(ji,jj,mbku(ji,jj)+1:jpk) = 0._wp
          IF ( MAXVAL(vmask(ji,jj,:))/=0._wp )  vmask(ji,jj,mbkv(ji,jj)+1:jpk) = 0._wp
          IF ( MAXVAL(fmask(ji,jj,:))/=0._wp )  fmask(ji,jj,mbkf(ji,jj)+1:jpk) = 0._wp
@@ -194,7 +204,8 @@ CONTAINS
       ! --------------------
       !
       CALL dom_uniq( tmask_i, 'T' )
-      tmask_i(:,:) = ssmask(:,:) * tmask_i(:,:)
+      tmask_i (:,:) = ssmask(:,:) * tmask_i(:,:)
+      smask0_i(:,:) = tmask_i(A2D(0))
 
       ! Lateral boundary conditions on velocity (modify fmask)
       ! ---------------------------------------  
@@ -225,6 +236,10 @@ CONTAINS
       tmask_upd(:,:) = 0._wp
       umask_upd(:,:) = 0._wp
       vmask_upd(:,:) = 0._wp
+      !
+      ! Reset mask defining actual computationnal domain
+      ! e.g. excluding ghosts and updated cells.
+      tmask_agrif(:,:) = 1._wp
 #endif     
       !
    END SUBROUTINE dom_msk

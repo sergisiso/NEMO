@@ -26,8 +26,8 @@ MODULE icbutl
    USE icb_oce                             ! define iceberg arrays
    USE sbc_oce                             ! ocean surface boundary conditions
 #if defined key_si3
-   USE ice,    ONLY: u_ice, v_ice, hm_i    ! SI3 variables
-   USE icevar                              ! ice_var_sshdyn
+   USE ice,    ONLY: u_ice, v_ice, at_i, vt_i ! SI3 variables
+   USE icevar                                 ! ice_var_sshdyn
    USE sbc_ice, ONLY: snwice_mass, snwice_mass_b
 #endif
 
@@ -57,6 +57,7 @@ MODULE icbutl
    PUBLIC   icb_utl_heat          ! routine called in icbdia module
 
    !! * Substitutions
+#  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -101,7 +102,11 @@ CONTAINS
       CALL lbc_lnk_icb( 'icbutl', ua_e , 'U', -1._wp, 1, 1 )
       CALL lbc_lnk_icb( 'icbutl', va_e , 'V', -1._wp, 1, 1 )
 #if defined key_si3
-      hi_e(1:jpi, 1:jpj) = hm_i (:,:)  
+      WHERE( at_i(:,:) /= 0._wp )
+         hi_e(1:jpi,1:jpj) = vt_i(:,:) / at_i(:,:)
+      ELSEWHERE
+         hi_e(1:jpi,1:jpj) = 0._wp         
+      ENDWHERE
       ui_e(1:jpi, 1:jpj) = u_ice(:,:)
       vi_e(1:jpi, 1:jpj) = v_ice(:,:)
       !      
@@ -312,18 +317,18 @@ CONTAINS
       !
       IF (TRIM(cd_type) == 'T' ) THEN
          ierr = 0
-         IF    ( kii <  mig( 1 ) ) THEN   ;  ierr = ierr + 1
-         ELSEIF( kii >= mig(jpi) ) THEN   ;  ierr = ierr + 1
+         IF    ( kii <  mig( 1 ,nn_hls) ) THEN   ;  ierr = ierr + 1
+         ELSEIF( kii >= mig(jpi,nn_hls) ) THEN   ;  ierr = ierr + 1
          ENDIF
          !
-         IF    ( kij <  mjg( 1 ) ) THEN   ;   ierr = ierr + 1
-         ELSEIF( kij >= mjg(jpj) ) THEN   ;   ierr = ierr + 1
+         IF    ( kij <  mjg( 1 ,nn_hls) ) THEN   ;   ierr = ierr + 1
+         ELSEIF( kij >= mjg(jpj,nn_hls) ) THEN   ;   ierr = ierr + 1
          ENDIF
          !
          IF ( ierr > 0 ) THEN
             WRITE(numicb,*) 'bottom left corner T point out of bound'
-            WRITE(numicb,*) pi, kii, mig( 1 ), mig(jpi)
-            WRITE(numicb,*) pj, kij, mjg( 1 ), mjg(jpj)
+            WRITE(numicb,*) pi, kii, mig( 1,nn_hls ), mig(jpi,nn_hls)
+            WRITE(numicb,*) pj, kij, mjg( 1,nn_hls ), mjg(jpj,nn_hls)
             WRITE(numicb,*) pmsk
             CALL FLUSH(numicb)
             CALL ctl_stop('STOP','icb_utl_bilin_e: an icebergs coordinates is out of valid range (out of bound error).'       , &
@@ -335,13 +340,13 @@ CONTAINS
       ! find position in this processor. Prevent near edge problems (see #1389)
       ! (PM) will be useless if extra halo is used in NEMO
       !
-      IF    ( kii <= mig(1)-1 ) THEN   ;   kii = 0
-      ELSEIF( kii  > mig(jpi) ) THEN   ;   kii = jpi
-      ELSE                             ;   kii = mi1(kii)
+      IF    ( kii <= mig(1,nn_hls)-1 ) THEN   ;   kii = 0
+      ELSEIF( kii  > mig(jpi,nn_hls) ) THEN   ;   kii = jpi
+      ELSE                                    ;   kii = mi1(kii,nn_hls)
       ENDIF
-      IF    ( kij <= mjg(1)-1 ) THEN   ;   kij = 0
-      ELSEIF( kij  > mjg(jpj) ) THEN   ;   kij = jpj
-      ELSE                             ;   kij = mj1(kij)
+      IF    ( kij <= mjg(1,nn_hls)-1 ) THEN   ;   kij = 0
+      ELSEIF( kij  > mjg(jpj,nn_hls) ) THEN   ;   kij = jpj
+      ELSE                                    ;   kij = mj1(kij,nn_hls)
       ENDIF
       !
       ! define mask array 
@@ -462,8 +467,8 @@ CONTAINS
       zj = pj - REAL(ij,wp)
 
       ! conversion to local domain (no need to do a sanity check already done in icbpos)
-      ii = mi1(ii) + (nn_hls-1)
-      ij = mj1(ij) + (nn_hls-1)
+      ii = mi1(ii,nn_hls) + (nn_hls-1)
+      ij = mj1(ij,nn_hls) + (nn_hls-1)
       !
       IF(    0.0_wp <= zi .AND. zi < 0.5_wp   ) THEN
          IF( 0.0_wp <= zj .AND. zj < 0.5_wp        )   THEN        !  NE quadrant

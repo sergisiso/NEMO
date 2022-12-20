@@ -54,15 +54,6 @@ MODULE oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_i_b, vb2_i_b         !: agrif time integrated fluxes 
 #endif
 
-   !! interpolated gradient (only used in zps case)
-   !! ---------------------
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   gtsu, gtsv   !: horizontal gradient of T, S bottom u-point 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   gru , grv    !: horizontal gradient of rd at bottom u-point
-
-   !! (ISF) interpolated gradient (only used for ice shelf case) 
-   !! --------------------- 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   gtui, gtvi   !: horizontal gradient of T, S and rd at top u-point 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   grui, grvi   !: horizontal gradient of T, S and rd at top v-point  
    !! (ISF) ice load
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   riceload
 
@@ -105,10 +96,6 @@ CONTAINS
       ii = ii+1
       ALLOCATE( ssh (jpi,jpj,jpt)  , uu_b(jpi,jpj,jpt) , vv_b(jpi,jpj,jpt) ,     &
          &      ssh_frc(jpi,jpj)                                           ,     &
-         &      gtsu(jpi,jpj,jpts) , gtsv(jpi,jpj,jpts)                    ,     &
-         &      gru (jpi,jpj)      , grv (jpi,jpj)                         ,     &
-         &      gtui(jpi,jpj,jpts) , gtvi(jpi,jpj,jpts)                    ,     &
-         &      grui(jpi,jpj)      , grvi(jpi,jpj)                         ,     &
          &      riceload(jpi,jpj)                                          , STAT=ierr(ii) )
          !
       ii = ii+1

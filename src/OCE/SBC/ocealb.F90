@@ -17,7 +17,9 @@ MODULE ocealb
    PRIVATE
 
    PUBLIC   oce_alb   ! routine called by sbccpl
-  
+   
+   !! Substitution
+#  include "do_loop_substitute.h90"  
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: ocealb.F90 10069 2018-08-28 14:12:24Z nicolasmartin $
@@ -31,8 +33,8 @@ CONTAINS
       !! 
       !! ** Purpose :   Computation of the albedo of the ocean
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:), INTENT(out) ::   palb_os   !  albedo of ocean under overcast sky
-      REAL(wp), DIMENSION(:,:), INTENT(out) ::   palb_cs   !  albedo of ocean under clear sky
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out) ::   palb_os   !  albedo of ocean under overcast sky
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out) ::   palb_cs   !  albedo of ocean under clear sky
       !!
       REAL(wp) ::   zcoef 
       REAL(wp) ::   rmue = 0.40    !  cosine of local solar altitude

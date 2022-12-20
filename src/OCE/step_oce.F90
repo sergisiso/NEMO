@@ -32,8 +32,6 @@ MODULE step_oce
    USE sshwzv          ! vertical velocity and ssh        (ssh_nxt routine)
    !                                                      (ssh_swp routine)
    !                                                      (wzv     routine)
-   USE domvvl          ! variable vertical scale factors  (dom_vvl_sf_nxt routine)
-   !                                                      (dom_vvl_sf_swp routine)
    
    USE divhor          ! horizontal divergence            (div_hor routine)
    USE dynadv          ! advection                        (dyn_adv routine)
@@ -42,7 +40,7 @@ MODULE step_oce
    USE dynldf          ! lateral momentum diffusion       (dyn_ldf routine)
    USE dynzdf          ! vertical diffusion               (dyn_zdf routine)
    USE dynspg          ! surface pressure gradient        (dyn_spg routine)
-   USE dynatf          ! time-filtering                   (dyn_atf routine)
+   USE dynatf_qco          ! time-filtering                   (dyn_atf routine)
    USE dyndmp          ! current damping                  (dyn_dmp routine)
 
    USE traqsr          ! solar radiation penetration      (tra_qsr routine)
@@ -54,7 +52,7 @@ MODULE step_oce
    USE traadv          ! advection scheme control     (tra_adv_ctl routine)
    USE traldf          ! lateral mixing                   (tra_ldf routine)
    USE trazdf          ! vertical mixing                  (tra_zdf routine)
-   USE traatf          ! time filtering                   (tra_atf routine)
+   USE traatf_qco          ! time filtering                   (tra_atf routine)
    USE tranpc          ! non-penetrative convection       (tra_npc routine)
 
    USE eosbn2          ! equation of state                (eos_bn2 routine)
@@ -75,8 +73,6 @@ MODULE step_oce
    USE diu_layers      ! diurnal SST bulk and coolskin routines
    USE sbc_oce         ! surface fluxes  
    
-   USE zpshde          ! partial step: hor. derivative     (zps_hde routine)
-
    USE diawri          ! Standard run outputs             (dia_wri routine)
    USE diaptr          ! poleward transports              (dia_ptr routine)
    USE diadct          ! sections transports              (dia_dct routine)

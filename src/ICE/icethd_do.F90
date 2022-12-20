@@ -21,14 +21,12 @@ MODULE icethd_do
    USE ice            ! sea-ice: variables
    USE icetab         ! sea-ice: 2D <==> 1D
    USE icectl         ! sea-ice: conservation
-   USE icethd_ent     ! sea-ice: thermodynamics, enthalpy
    USE icevar         ! sea-ice: operations
    USE icethd_sal     ! sea-ice: salinity profiles
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
    USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
-   USE lbclnk         ! lateral boundary conditions (or mpp links)
 
    IMPLICIT NONE
    PRIVATE
@@ -79,41 +77,39 @@ CONTAINS
       REAL(wp) ::   zEw          ! seawater specific enthalpy (J/kg)
       REAL(wp) ::   zfmdt        ! mass flux x time step (kg/m2, >0 towards ocean)
       !
+      INTEGER  ::   jcat        ! indexes of categories where new ice grows
+      !
       REAL(wp) ::   zv_newfra
+      REAL(wp) ::   zv_newice   ! volume of accreted ice
+      REAL(wp) ::   za_newice   ! fractional area of accreted ice
+      REAL(wp) ::   ze_newice   ! heat content of accreted ice
+      REAL(wp) ::   zo_newice   ! age of accreted ice
+      REAL(wp) ::   zdv_res     ! residual volume in case of excessive heat budget
+      REAL(wp) ::   zda_res     ! residual area in case of excessive heat budget
+      REAL(wp) ::   zv_frazb    ! accretion of frazil ice at the ice bottom
       !
-      INTEGER , DIMENSION(jpij) ::   jcat        ! indexes of categories where new ice grows
-      REAL(wp), DIMENSION(jpij) ::   zswinew     ! switch for new ice or not
+      REAL(wp), DIMENSION(jpl) ::   zv_b    ! old volume of ice in category jl
+      REAL(wp), DIMENSION(jpl) ::   za_b    ! old area of ice in category jl
       !
-      REAL(wp), DIMENSION(jpij) ::   zv_newice   ! volume of accreted ice
-      REAL(wp), DIMENSION(jpij) ::   za_newice   ! fractional area of accreted ice
-      REAL(wp), DIMENSION(jpij) ::   zh_newice   ! thickness of accreted ice
-      REAL(wp), DIMENSION(jpij) ::   ze_newice   ! heat content of accreted ice
-      REAL(wp), DIMENSION(jpij) ::   zs_newice   ! salinity of accreted ice
-      REAL(wp), DIMENSION(jpij) ::   zo_newice   ! age of accreted ice
-      REAL(wp), DIMENSION(jpij) ::   zdv_res     ! residual volume in case of excessive heat budget
-      REAL(wp), DIMENSION(jpij) ::   zda_res     ! residual area in case of excessive heat budget
-      REAL(wp), DIMENSION(jpij) ::   zv_frazb    ! accretion of frazil ice at the ice bottom
+      REAL(wp), DIMENSION(jpij) ::   zs_newice     ! salinity of accreted ice
+      REAL(wp), DIMENSION(jpij) ::   zh_newice     ! thickness of accreted ice
       REAL(wp), DIMENSION(jpij) ::   zfraz_frac_1d ! relative ice / frazil velocity (1D vector)
       !
-      REAL(wp), DIMENSION(jpij,jpl) ::   zv_b    ! old volume of ice in category jl
-      REAL(wp), DIMENSION(jpij,jpl) ::   za_b    ! old area of ice in category jl
-      !
-      REAL(wp), DIMENSION(jpij,nlay_i,jpl) ::   ze_i_2d !: 1-D version of e_i
-      !
+      REAL(wp), DIMENSION(0:nlay_i+1) ::   zh_i_old, ze_i_old
       !!-----------------------------------------------------------------------!
 
       IF( ln_icediachk )   CALL ice_cons_hsm( 0, 'icethd_do', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft )
       IF( ln_icediachk )   CALL ice_cons2D  ( 0, 'icethd_do',  diag_v,  diag_s,  diag_t,  diag_fv,  diag_fs,  diag_ft )
 
-      at_i(:,:) = SUM( a_i, dim=3 )
       !------------------------------------------------------------------------------!
       ! 1) Compute thickness, salinity, enthalpy, age, area and volume of new ice
       !------------------------------------------------------------------------------!
       ! it occurs if cooling
+      at_i(A2D(0)) = SUM( a_i(A2D(0),:), dim=3 )
 
       ! Identify grid points where new ice forms
       npti = 0   ;   nptidx(:) = 0
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF ( qlead(ji,jj)  <  0._wp ) THEN
             npti = npti + 1
             nptidx( npti ) = (jj - 1) * jpi + ji
@@ -123,41 +119,33 @@ CONTAINS
       ! Move from 2-D to 1-D vectors
       IF ( npti > 0 ) THEN
 
-         CALL tab_2d_1d( npti, nptidx(1:npti), at_i_1d(1:npti)      , at_i        )
-         CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d (1:npti,1:jpl), a_i (:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d (1:npti,1:jpl), v_i (:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,1:jpl), sv_i(:,:,:) )
-         DO jl = 1, jpl
-            DO jk = 1, nlay_i
-               CALL tab_2d_1d( npti, nptidx(1:npti), ze_i_2d(1:npti,jk,jl), e_i(:,:,jk,jl) )
-            END DO
-         END DO
-         CALL tab_2d_1d( npti, nptidx(1:npti), qlead_1d     (1:npti) , qlead      )
-         CALL tab_2d_1d( npti, nptidx(1:npti), t_bo_1d      (1:npti) , t_bo       )
-         CALL tab_2d_1d( npti, nptidx(1:npti), sfx_opw_1d   (1:npti) , sfx_opw    )
-         CALL tab_2d_1d( npti, nptidx(1:npti), wfx_opw_1d   (1:npti) , wfx_opw    )
-         CALL tab_2d_1d( npti, nptidx(1:npti), zh_newice    (1:npti) , ht_i_new   )
-         CALL tab_2d_1d( npti, nptidx(1:npti), zfraz_frac_1d(1:npti) , fraz_frac  )
+         CALL tab_2d_1d( npti, nptidx(1:npti), at_i_1d(1:npti)  , at_i        )
+         CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d (1:npti,:), a_i (:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d (1:npti,:), v_i (:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,:), sv_i(:,:,:) )
+         CALL tab_4d_3d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
+         CALL tab_2d_1d( npti, nptidx(1:npti), qlead_1d     (1:npti), qlead      )
+         CALL tab_2d_1d( npti, nptidx(1:npti), t_bo_1d      (1:npti), t_bo       )
+         CALL tab_2d_1d( npti, nptidx(1:npti), sfx_opw_1d   (1:npti), sfx_opw    )
+         CALL tab_2d_1d( npti, nptidx(1:npti), wfx_opw_1d   (1:npti), wfx_opw    )
+         CALL tab_2d_1d( npti, nptidx(1:npti), zh_newice    (1:npti), ht_i_new   )
+         CALL tab_2d_1d( npti, nptidx(1:npti), zfraz_frac_1d(1:npti), fraz_frac  )
 
-         CALL tab_2d_1d( npti, nptidx(1:npti), hfx_thd_1d(1:npti) , hfx_thd    )
-         CALL tab_2d_1d( npti, nptidx(1:npti), hfx_opw_1d(1:npti) , hfx_opw    )
-         CALL tab_2d_1d( npti, nptidx(1:npti), rn_amax_1d(1:npti) , rn_amax_2d )
-         CALL tab_2d_1d( npti, nptidx(1:npti), sss_1d    (1:npti) , sss_m      )
+         CALL tab_2d_1d( npti, nptidx(1:npti), hfx_thd_1d(1:npti), hfx_thd    )
+         CALL tab_2d_1d( npti, nptidx(1:npti), hfx_opw_1d(1:npti), hfx_opw    )
+         CALL tab_2d_1d( npti, nptidx(1:npti), rn_amax_1d(1:npti), rn_amax_2d )
+         CALL tab_2d_1d( npti, nptidx(1:npti), sss_1d    (1:npti), sss_m      )
 
          ! Convert units for ice internal energy
          DO jl = 1, jpl
             DO jk = 1, nlay_i               
                WHERE( v_i_2d(1:npti,jl) > 0._wp )
-                  ze_i_2d(1:npti,jk,jl) = ze_i_2d(1:npti,jk,jl) / v_i_2d(1:npti,jl) * REAL( nlay_i )
+                  e_i_2d(1:npti,jk,jl) = e_i_2d(1:npti,jk,jl) / v_i_2d(1:npti,jl) * REAL( nlay_i )
                ELSEWHERE
-                  ze_i_2d(1:npti,jk,jl) = 0._wp
+                  e_i_2d(1:npti,jk,jl) = 0._wp
                END WHERE
             END DO
          END DO
-
-         ! Keep old ice areas and volume in memory
-         zv_b(1:npti,:) = v_i_2d(1:npti,:) 
-         za_b(1:npti,:) = a_i_2d(1:npti,:)
 
          ! --- Salinity of new ice --- ! 
          SELECT CASE ( nn_icesal )
@@ -170,23 +158,30 @@ CONTAINS
          CASE ( 3 )                    ! Sice = F(z) [multiyear ice]
             zs_newice(1:npti) =   2.3
          END SELECT
-
-         ! --- Heat content of new ice --- !
-         ! We assume that new ice is formed at the seawater freezing point
+         !
+         !                       ! ==================== !
+         !                       ! Start main loop here !
+         !                       ! ==================== !
          DO ji = 1, npti
-            ztmelts       = - rTmlt * zs_newice(ji)                  ! Melting point (C)
-            ze_newice(ji) =   rhoi * (  rcpi  * ( ztmelts - ( t_bo_1d(ji) - rt0 ) )                     &
-               &                      + rLfus * ( 1.0 - ztmelts / MIN( t_bo_1d(ji) - rt0, -epsi10 ) )   &
-               &                      - rcp   *         ztmelts )
-         END DO
+            
+            ! Keep old ice areas and volume in memory
+            DO jl = 1, jpl
+               zv_b(jl) = v_i_2d(ji,jl) 
+               za_b(jl) = a_i_2d(ji,jl)
+            ENDDO
+            
+            ! --- Heat content of new ice --- !
+            ! We assume that new ice is formed at the seawater freezing point
+            ztmelts   = - rTmlt * zs_newice(ji)                  ! Melting point (C)
+            ze_newice =   rhoi * (  rcpi  * ( ztmelts - ( t_bo_1d(ji) - rt0 ) )                     &
+               &                  + rLfus * ( 1.0 - ztmelts / MIN( t_bo_1d(ji) - rt0, -epsi10 ) )   &
+               &                  - rcp   *         ztmelts )
+            
+            ! --- Age of new ice --- !
+            zo_newice = 0._wp
 
-         ! --- Age of new ice --- !
-         zo_newice(1:npti) = 0._wp
-
-         ! --- Volume of new ice --- !
-         DO ji = 1, npti
-
-            zEi           = - ze_newice(ji) * r1_rhoi              ! specific enthalpy of forming ice [J/kg]
+            ! --- Volume of new ice --- !
+            zEi           = - ze_newice * r1_rhoi                  ! specific enthalpy of forming ice [J/kg]
 
             zEw           = rcp * ( t_bo_1d(ji) - rt0 )            ! specific enthalpy of seawater at t_bo_1d [J/kg]
                                                                    ! clem: we suppose we are already at the freezing point (condition qlead<0 is satisfyied) 
@@ -195,7 +190,7 @@ CONTAINS
                                               
             zfmdt         = - qlead_1d(ji) / zdE                   ! Fm.dt [kg/m2] (<0) 
                                                                    ! clem: we use qlead instead of zqld (icethd) because we suppose we are at the freezing point   
-            zv_newice(ji) = - zfmdt * r1_rhoi
+            zv_newice     = - zfmdt * r1_rhoi
 
             zQm           = zfmdt * zEw                            ! heat to the ocean >0 associated with mass flux  
 
@@ -204,126 +199,110 @@ CONTAINS
             ! Total heat flux used in this process [W.m-2]  
             hfx_opw_1d(ji) = hfx_opw_1d(ji) - zfmdt * zdE * r1_Dt_ice
             ! mass flux
-            wfx_opw_1d(ji) = wfx_opw_1d(ji) - zv_newice(ji) * rhoi * r1_Dt_ice
+            wfx_opw_1d(ji) = wfx_opw_1d(ji) - zv_newice * rhoi * r1_Dt_ice
             ! salt flux
-            sfx_opw_1d(ji) = sfx_opw_1d(ji) - zv_newice(ji) * rhoi * zs_newice(ji) * r1_Dt_ice
-         END DO
+            sfx_opw_1d(ji) = sfx_opw_1d(ji) - zv_newice * rhoi * zs_newice(ji) * r1_Dt_ice
          
-         ! A fraction fraz_frac of frazil ice is accreted at the ice bottom
-         DO ji = 1, npti
-            rswitch       = 1._wp - MAX( 0._wp, SIGN( 1._wp , - at_i_1d(ji) ) )
-            zv_frazb(ji)  =           zfraz_frac_1d(ji) * rswitch   * zv_newice(ji)
-            zv_newice(ji) = ( 1._wp - zfraz_frac_1d(ji) * rswitch ) * zv_newice(ji)
-         END DO
-         
-         ! --- Area of new ice --- !
-         DO ji = 1, npti
-            za_newice(ji) = zv_newice(ji) / zh_newice(ji)
-         END DO
-
-         !------------------------------------------------------------------------------!
-         ! 2) Redistribute new ice area and volume into ice categories                  !
-         !------------------------------------------------------------------------------!
-
-         ! --- lateral ice growth --- !
-         ! If lateral ice growth gives an ice concentration > amax, then
-         ! we keep the excessive volume in memory and attribute it later to bottom accretion
-         DO ji = 1, npti
-            IF ( za_newice(ji) >  MAX( 0._wp, rn_amax_1d(ji) - at_i_1d(ji) ) ) THEN ! max is for roundoff error
-               zda_res(ji)   = za_newice(ji) - MAX( 0._wp, rn_amax_1d(ji) - at_i_1d(ji) )
-               zdv_res(ji)   = zda_res  (ji) * zh_newice(ji) 
-               za_newice(ji) = MAX( 0._wp, za_newice(ji) - zda_res  (ji) )
-               zv_newice(ji) = MAX( 0._wp, zv_newice(ji) - zdv_res  (ji) )
+            ! A fraction fraz_frac of frazil ice is accreted at the ice bottom
+            IF( at_i_1d(ji) > 0._wp ) THEN
+               zv_frazb  =           zfraz_frac_1d(ji)   * zv_newice
+               zv_newice = ( 1._wp - zfraz_frac_1d(ji) ) * zv_newice
             ELSE
-               zda_res(ji) = 0._wp
-               zdv_res(ji) = 0._wp
+               zv_frazb  = 0._wp
             ENDIF
-         END DO
+            ! --- Area of new ice --- !
+            za_newice = zv_newice / zh_newice(ji)
 
-         ! find which category to fill
-         DO jl = 1, jpl
-            DO ji = 1, npti
+
+            ! --- Redistribute new ice area and volume into ice categories --- !
+
+            ! --- lateral ice growth --- !
+            ! If lateral ice growth gives an ice concentration > amax, then
+            ! we keep the excessive volume in memory and attribute it later to bottom accretion
+            IF ( za_newice >  MAX( 0._wp, rn_amax_1d(ji) - at_i_1d(ji) ) ) THEN ! max is for roundoff error
+               zda_res   = za_newice - MAX( 0._wp, rn_amax_1d(ji) - at_i_1d(ji) )
+               zdv_res   = zda_res * zh_newice(ji) 
+               za_newice = MAX( 0._wp, za_newice - zda_res )
+               zv_newice = MAX( 0._wp, zv_newice - zdv_res )
+            ELSE
+               zda_res = 0._wp
+               zdv_res = 0._wp
+            ENDIF
+
+            ! find which category to fill
+            at_i_1d(ji) = 0._wp
+            DO jl = 1, jpl
                IF( zh_newice(ji) > hi_max(jl-1) .AND. zh_newice(ji) <= hi_max(jl) ) THEN
-                  a_i_2d(ji,jl) = a_i_2d(ji,jl) + za_newice(ji)
-                  v_i_2d(ji,jl) = v_i_2d(ji,jl) + zv_newice(ji)
-                  jcat(ji) = jl
+                  a_i_2d(ji,jl) = a_i_2d(ji,jl) + za_newice
+                  v_i_2d(ji,jl) = v_i_2d(ji,jl) + zv_newice
+                  jcat = jl
                ENDIF
+               at_i_1d(ji) = at_i_1d(ji) + a_i_2d(ji,jl)
             END DO
-         END DO
-         at_i_1d(1:npti) = SUM( a_i_2d(1:npti,:), dim=2 )
 
-         ! Heat content
-         DO ji = 1, npti
-            jl = jcat(ji)                                                    ! categroy in which new ice is put
-            zswinew  (ji) = MAX( 0._wp , SIGN( 1._wp , - za_b(ji,jl) ) )   ! 0 if old ice
-         END DO
-
-         DO jk = 1, nlay_i
-            DO ji = 1, npti
-               jl = jcat(ji)
-               rswitch = MAX( 0._wp, SIGN( 1._wp , v_i_2d(ji,jl) - epsi20 ) )
-               ze_i_2d(ji,jk,jl) = zswinew(ji)   *   ze_newice(ji) +                                                    &
-                  &        ( 1.0 - zswinew(ji) ) * ( ze_newice(ji) * zv_newice(ji) + ze_i_2d(ji,jk,jl) * zv_b(ji,jl) )  &
-                  &        * rswitch / MAX( v_i_2d(ji,jl), epsi20 )
-            END DO
-         END DO
-
-         ! --- bottom ice growth + ice enthalpy remapping --- !
-         DO jl = 1, jpl
-
-            ! for remapping
-            h_i_old (1:npti,0:nlay_i+1) = 0._wp
-            eh_i_old(1:npti,0:nlay_i+1) = 0._wp
-            DO jk = 1, nlay_i
-               DO ji = 1, npti
-                  h_i_old (ji,jk) = v_i_2d(ji,jl) * r1_nlay_i
-                  eh_i_old(ji,jk) = ze_i_2d(ji,jk,jl) * h_i_old(ji,jk)
+            ! Heat content
+            jl = jcat                                             ! categroy in which new ice is put
+            IF( za_b(jl) > 0._wp ) THEN   
+               e_i_2d(ji,:,jl) = ( ze_newice * zv_newice + e_i_2d(ji,:,jl) * zv_b(jl) ) / MAX( v_i_2d(ji,jl), epsi20 )
+            ELSE
+               e_i_2d(ji,:,jl) = ze_newice   
+            ENDIF
+         
+            ! --- bottom ice growth + ice enthalpy remapping --- !
+            DO jl = 1, jpl
+               
+               ! for remapping
+               zh_i_old(0:nlay_i+1) = 0._wp
+               ze_i_old(0:nlay_i+1) = 0._wp
+               DO jk = 1, nlay_i
+                  zh_i_old(jk) = v_i_2d(ji,jl) * r1_nlay_i
+                  ze_i_old(jk) = e_i_2d(ji,jk,jl) * v_i_2d(ji,jl) * r1_nlay_i
                END DO
-            END DO
 
-            ! new volumes including lateral/bottom accretion + residual
-            DO ji = 1, npti
-               rswitch        = MAX( 0._wp, SIGN( 1._wp , at_i_1d(ji) - epsi20 ) )
-               zv_newfra     = rswitch * ( zdv_res(ji) + zv_frazb(ji) ) * a_i_2d(ji,jl) / MAX( at_i_1d(ji) , epsi20 )
-               a_i_2d(ji,jl) = rswitch * a_i_2d(ji,jl)               
+               ! new volumes including lateral/bottom accretion + residual
+               IF( at_i_1d(ji) >= epsi20 ) THEN
+                  zv_newfra     = ( zdv_res + zv_frazb ) * a_i_2d(ji,jl) / MAX( at_i_1d(ji) , epsi20 )
+               ELSE                  
+                  zv_newfra     = 0._wp
+                  a_i_2d(ji,jl) = 0._wp
+               ENDIF
                v_i_2d(ji,jl) = v_i_2d(ji,jl) + zv_newfra
                ! for remapping
-               h_i_old (ji,nlay_i+1) = zv_newfra
-               eh_i_old(ji,nlay_i+1) = ze_newice(ji) * zv_newfra
+               zh_i_old(nlay_i+1) = zv_newfra
+               ze_i_old(nlay_i+1) = ze_newice * zv_newfra
+           
+               ! --- Update salinity --- !
+               sv_i_2d(ji,jl) = sv_i_2d(ji,jl) + zs_newice(ji) * ( v_i_2d(ji,jl) - zv_b(jl) )
+               
+               ! --- Ice enthalpy remapping --- !
+               e_i_2d(ji,:,jl) = ice_ent2( zh_i_old(:), ze_i_old(:) ) 
             END DO
-            ! --- Ice enthalpy remapping --- !
-            CALL ice_thd_ent( ze_i_2d(1:npti,:,jl) ) 
-         END DO
-
-         ! --- Update salinity --- !
-         DO jl = 1, jpl
-            DO ji = 1, npti
-               sv_i_2d(ji,jl) = sv_i_2d(ji,jl) + zs_newice(ji) * ( v_i_2d(ji,jl) - zv_b(ji,jl) )
-            END DO
-         END DO
-
+            
+         END DO ! npti
+         !                       ! ================== !
+         !                       ! End main loop here !
+         !                       ! ================== !
+         !
          ! Change units for e_i
          DO jl = 1, jpl
             DO jk = 1, nlay_i
-               ze_i_2d(1:npti,jk,jl) = ze_i_2d(1:npti,jk,jl) * v_i_2d(1:npti,jl) * r1_nlay_i 
+               e_i_2d(1:npti,jk,jl) = e_i_2d(1:npti,jk,jl) * v_i_2d(1:npti,jl) * r1_nlay_i 
             END DO
          END DO
 
          ! Move 2D vectors to 1D vectors 
-         CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d (1:npti,1:jpl), a_i (:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d (1:npti,1:jpl), v_i (:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d(1:npti,1:jpl), sv_i(:,:,:) )
-          DO jl = 1, jpl
-            DO jk = 1, nlay_i
-               CALL tab_1d_2d( npti, nptidx(1:npti), ze_i_2d(1:npti,jk,jl), e_i(:,:,jk,jl) )
-            END DO
-         END DO
+         CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d (1:npti,:), a_i (:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d (1:npti,:), v_i (:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d(1:npti,:), sv_i(:,:,:) )
+         CALL tab_3d_4d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
          CALL tab_1d_2d( npti, nptidx(1:npti), sfx_opw_1d(1:npti), sfx_opw )
          CALL tab_1d_2d( npti, nptidx(1:npti), wfx_opw_1d(1:npti), wfx_opw )
          CALL tab_1d_2d( npti, nptidx(1:npti), hfx_thd_1d(1:npti), hfx_thd )
          CALL tab_1d_2d( npti, nptidx(1:npti), hfx_opw_1d(1:npti), hfx_opw )
          !
       ENDIF ! npti > 0
+      !
+      ! the following fields need to be updated on the halos (done in icethd): a_i, v_i, sv_i, e_i 
       !
       IF( ln_icediachk )   CALL ice_cons_hsm(1, 'icethd_do', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
       IF( ln_icediachk )   CALL ice_cons2D  (1, 'icethd_do',  diag_v,  diag_s,  diag_t,  diag_fv,  diag_fs,  diag_ft)
@@ -372,26 +351,31 @@ CONTAINS
          DO_2D( 0, 0, 0, 0 )
             IF ( qlead(ji,jj) < 0._wp ) THEN ! cooling
                ! -- Wind stress -- !
-               ztaux = ( utau_ice(ji-1,jj  ) * umask(ji-1,jj  ,1) + utau_ice(ji,jj) * umask(ji,jj,1) ) * 0.5_wp
-               ztauy = ( vtau_ice(ji  ,jj-1) * vmask(ji  ,jj-1,1) + vtau_ice(ji,jj) * vmask(ji,jj,1) ) * 0.5_wp
+               ztaux = utau_ice(ji,jj) * smask0(ji,jj)
+               ztauy = vtau_ice(ji,jj) * smask0(ji,jj)
                ! Square root of wind stress
                ztenagm = SQRT( SQRT( ztaux * ztaux + ztauy * ztauy ) )
 
                ! -- Frazil ice velocity -- !
-               rswitch = MAX( 0._wp, SIGN( 1._wp , ztenagm - epsi10 ) )
-               zvfrx   = rswitch * zgamafr * zsqcd * ztaux / MAX( ztenagm, epsi10 )
-               zvfry   = rswitch * zgamafr * zsqcd * ztauy / MAX( ztenagm, epsi10 )
-
+               IF( ztenagm >= epsi10 ) THEN
+                  zvfrx = zgamafr * zsqcd * ztaux / MAX( ztenagm, epsi10 )
+                  zvfry = zgamafr * zsqcd * ztauy / MAX( ztenagm, epsi10 )
+               ELSE
+                  zvfrx = 0._wp
+                  zvfry = 0._wp
+               ENDIF
                ! -- Pack ice velocity -- !
-               zvgx    = ( u_ice(ji-1,jj  ) * umask(ji-1,jj  ,1)  + u_ice(ji,jj) * umask(ji,jj,1) ) * 0.5_wp
-               zvgy    = ( v_ice(ji  ,jj-1) * vmask(ji  ,jj-1,1)  + v_ice(ji,jj) * vmask(ji,jj,1) ) * 0.5_wp
+               zvgx = ( u_ice(ji-1,jj  ) * umask(ji-1,jj  ,1)  + u_ice(ji,jj) * umask(ji,jj,1) ) * 0.5_wp
+               zvgy = ( v_ice(ji  ,jj-1) * vmask(ji  ,jj-1,1)  + v_ice(ji,jj) * vmask(ji,jj,1) ) * 0.5_wp
 
-               ! -- Relative frazil/pack ice velocity -- !
-               rswitch = MAX( 0._wp, SIGN( 1._wp , at_i(ji,jj) - epsi10 ) )
-               zvrel2  = MAX( (zvfrx - zvgx)*(zvfrx - zvgx) + (zvfry - zvgy)*(zvfry - zvgy), 0.15_wp*0.15_wp ) * rswitch
-
-               ! -- fraction of frazil ice -- !
-               fraz_frac(ji,jj) = rswitch * ( TANH( rn_Cfraz * ( SQRT(zvrel2) - rn_vfraz ) ) + 1._wp ) * 0.5_wp * rn_maxfraz
+               ! -- Relative frazil/pack ice velocity & fraction of frazil ice-- !
+               IF( at_i(ji,jj) >= epsi10 ) THEN
+                  zvrel2 = MAX( (zvfrx - zvgx)*(zvfrx - zvgx) + (zvfry - zvgy)*(zvfry - zvgy), 0.15_wp*0.15_wp )
+                  fraz_frac(ji,jj) = ( TANH( rn_Cfraz * ( SQRT(zvrel2) - rn_vfraz ) ) + 1._wp ) * 0.5_wp * rn_maxfraz
+               ELSE
+                  zvrel2 = 0._wp
+                  fraz_frac(ji,jj) = 0._wp
+               ENDIF
                
                ! -- new ice thickness (iterative loop) -- !
                ht_i_new(ji,jj) = zhicrit +   ( zhicrit + 0.1_wp )    &
@@ -415,10 +399,94 @@ CONTAINS
             !
          END_2D
          ! 
-         CALL lbc_lnk( 'icethd_frazil', fraz_frac, 'T', 1.0_wp, ht_i_new, 'T', 1.0_wp  )
-
       ENDIF
    END SUBROUTINE ice_thd_frazil
+
+   FUNCTION ice_ent2( ph_old, pe_old )
+      !!-------------------------------------------------------------------
+      !!               ***   ROUTINE ice_ent2  ***
+      !!
+      !! ** Purpose :
+      !!           This routine computes new vertical grids in the ice, 
+      !!           and consistently redistributes temperatures. 
+      !!           Redistribution is made so as to ensure to energy conservation
+      !!
+      !!
+      !! ** Method  : linear conservative remapping
+      !!           
+      !! ** Steps : 1) cumulative integrals of old enthalpies/thicknesses
+      !!            2) linear remapping on the new layers
+      !!
+      !! ------------ cum0(0)                        ------------- cum1(0)
+      !!                                    NEW      -------------
+      !! ------------ cum0(1)               ==>      -------------
+      !!     ...                                     -------------
+      !! ------------                                -------------
+      !! ------------ cum0(nlay_i+2)                 ------------- cum1(nlay_i)
+      !!
+      !!
+      !! References : Bitz & Lipscomb, JGR 99; Vancoppenolle et al., GRL, 2005
+      !!-------------------------------------------------------------------
+      REAL(wp), DIMENSION(0:nlay_i+1), INTENT(in) ::   ph_old, pe_old  ! old tickness and enthlapy
+      REAL(wp), DIMENSION(1:nlay_i)               ::   ice_ent2        ! new enthlapies (J.m-3, remapped)
+      !
+      INTEGER  :: ji         !  dummy loop indices
+      INTEGER  :: jk0, jk1   !  old/new layer indices
+      !
+      REAL(wp), DIMENSION(0:nlay_i+2) ::   zeh_cum0, zh_cum0   ! old cumulative enthlapies and layers interfaces
+      REAL(wp), DIMENSION(0:nlay_i)   ::   zeh_cum1, zh_cum1   ! new cumulative enthlapies and layers interfaces
+      REAL(wp)                        ::   zhnew               ! new layers thicknesses
+      !!-------------------------------------------------------------------
+
+      !--------------------------------------------------------------------------
+      !  1) Cumulative integral of old enthalpy * thickness and layers interfaces
+      !--------------------------------------------------------------------------
+      zeh_cum0(0) = 0._wp 
+      zh_cum0 (0) = 0._wp
+      DO jk0 = 1, nlay_i+2
+         zeh_cum0(jk0) = zeh_cum0(jk0-1) + pe_old(jk0-1)
+         zh_cum0 (jk0) = zh_cum0 (jk0-1) + ph_old(jk0-1)
+      END DO
+
+      !------------------------------------
+      !  2) Interpolation on the new layers
+      !------------------------------------
+      ! new layer thickesses
+      zhnew = SUM( ph_old(0:nlay_i+1) ) * r1_nlay_i  
+
+      ! new layers interfaces
+      zh_cum1(0) = 0._wp
+      DO jk1 = 1, nlay_i
+         zh_cum1(jk1) = zh_cum1(jk1-1) + zhnew
+      END DO
+
+      zeh_cum1(0:nlay_i) = 0._wp 
+      ! new cumulative q*h => linear interpolation
+      DO jk0 = 1, nlay_i+2
+         DO jk1 = 1, nlay_i-1
+            IF( zh_cum1(jk1) <= zh_cum0(jk0) .AND. zh_cum1(jk1) > zh_cum0(jk0-1) )   THEN
+               zeh_cum1(jk1) = ( zeh_cum0(jk0-1) * ( zh_cum0(jk0) - zh_cum1(jk1  ) ) +  &
+                  &              zeh_cum0(jk0  ) * ( zh_cum1(jk1) - zh_cum0(jk0-1) ) )  &
+                  &            / ( zh_cum0(jk0) - zh_cum0(jk0-1) )
+            ENDIF
+         END DO
+      END DO
+      ! to ensure that total heat content is strictly conserved, set:
+      zeh_cum1(nlay_i) = zeh_cum0(nlay_i+2) 
+
+      ! new enthalpies
+      DO jk1 = 1, nlay_i
+         ice_ent2(jk1) = MAX( 0._wp, zeh_cum1(jk1) - zeh_cum1(jk1-1) ) / MAX( zhnew, epsi20 ) ! max for roundoff error
+      END DO
+
+      ! --- diag error on heat remapping --- !
+      ! comment: if input h_old and eh_old are already multiplied by a_i (as in icethd_do), 
+      ! then we should not (* a_i) again but not important since this is just to check that remap error is ~0
+      !   hfx_err_rem_1d(ji) = hfx_err_rem_1d(ji) + a_i_1d(ji) * r1_Dt_ice *  &
+      !      &               ( SUM( pe_new(ji,1:nlay_i) ) * zhnew(ji) - SUM( eh_old(ji,0:nlay_i+1) ) ) 
+
+      
+   END FUNCTION ice_ent2
 
    
    SUBROUTINE ice_thd_do_init

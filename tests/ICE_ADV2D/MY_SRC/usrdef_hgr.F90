@@ -90,8 +90,8 @@ CONTAINS
 #endif         
 
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         zti = REAL( mig0(ji), wp ) - 0.5_wp  ! start at i=0.5 in the global grid without halos
-         ztj = REAL( mjg0(jj), wp ) - 0.5_wp  ! start at j=0.5 in the global grid without halos
+         zti = REAL( mig(ji,0), wp ) - 0.5_wp  ! start at i=0.5 in the global grid without halos
+         ztj = REAL( mjg(jj,0), wp ) - 0.5_wp  ! start at j=0.5 in the global grid without halos
          
          plamt(ji,jj) = zlam0 + rn_dx * 1.e-3 *   zti
          plamu(ji,jj) = zlam0 + rn_dx * 1.e-3 * ( zti + 0.5_wp )
@@ -110,19 +110,19 @@ CONTAINS
 !! clem: This can be used with a 1proc simulation but I think it breaks repro when >1procs are used      
 !!         DO jj = 1, jpj
 !!            DO ji = 1, jpi
-!!               !!pe1t(ji,jj) = rn_dx * EXP( -0.8/REAL(jpiglo**2) * (mi0(ji)-REAL(jpiglo+1)*0.5)**2 )  ! gaussian shape
-!!               !!pe2t(ji,jj) = rn_dy * EXP( -0.8/REAL(jpjglo**2) * (mj0(jj)-REAL(jpjglo+1)*0.5)**2 )  ! gaussian shape
-!!               pe1t(ji,jj) = rn_dx * ( 1. -0.1 * ABS(REAL(mi0(ji))-REAL(jpiglo+1)*0.5) / (1.-REAL(jpiglo+1)*0.5) ) ! linear shape
-!!               pe2t(ji,jj) = rn_dy * ( 1. -0.1 * ABS(REAL(mj0(jj))-REAL(jpjglo+1)*0.5) / (1.-REAL(jpjglo+1)*0.5) ) ! linear shape
+!!               !!pe1t(ji,jj) = rn_dx * EXP( -0.8/REAL(jpiglo**2) * (mi0(ji,nn_hls)-REAL(jpiglo+1)*0.5)**2 )  ! gaussian shape
+!!               !!pe2t(ji,jj) = rn_dy * EXP( -0.8/REAL(jpjglo**2) * (mj0(jj,nn_hls)-REAL(jpjglo+1)*0.5)**2 )  ! gaussian shape
+!!               pe1t(ji,jj) = rn_dx * ( 1. -0.1 * ABS(REAL(mi0(ji,nn_hls))-REAL(jpiglo+1)*0.5) / (1.-REAL(jpiglo+1)*0.5) ) ! linear shape
+!!               pe2t(ji,jj) = rn_dy * ( 1. -0.1 * ABS(REAL(mj0(jj,nn_hls))-REAL(jpjglo+1)*0.5) / (1.-REAL(jpjglo+1)*0.5) ) ! linear shape
 !!            END DO
 !!         END DO
 !!#if defined key_agrif 
 !!         IF( .NOT. Agrif_Root() ) THEN ! only works if the zoom is positioned at the center of the parent grid
 !!            DO jj = 1, jpj
 !!               DO ji = 1, jpi
-!!                  pe1t(ji,jj) = rn_dx * ( 1. -0.1 * ABS(REAL(mi0(ji))-REAL(jpiglo+1)*0.5) / (1.-REAL(jpiglo+1)*0.5)  &
+!!                  pe1t(ji,jj) = rn_dx * ( 1. -0.1 * ABS(REAL(mi0(ji,nn_hls))-REAL(jpiglo+1)*0.5) / (1.-REAL(jpiglo+1)*0.5)  &
 !!                     &                            * REAL(jpiglo) / REAL(Agrif_Parent(jpiglo) * Agrif_Rhox()) )       ! factor to match parent grid
-!!                  pe2t(ji,jj) = rn_dy * ( 1. -0.1 * ABS(REAL(mj0(jj))-REAL(jpjglo+1)*0.5) / (1.-REAL(jpjglo+1)*0.5)  &
+!!                  pe2t(ji,jj) = rn_dy * ( 1. -0.1 * ABS(REAL(mj0(jj,nn_hls))-REAL(jpjglo+1)*0.5) / (1.-REAL(jpjglo+1)*0.5)  &
 !!                     &                            * REAL(jpjglo) / REAL(Agrif_Parent(jpjglo) * Agrif_Rhoy()) )       ! factor to match parent grid
 !!               END DO
 !!            END DO

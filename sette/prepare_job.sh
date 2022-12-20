@@ -104,7 +104,7 @@ echo "" >> ${SETTE_DIR}/output.sette
 echo "running config: ${NEW_CONF}" >> ${SETTE_DIR}/output.sette
 echo "" >> ${SETTE_DIR}/output.sette
 echo "list of cpp_keys: " >> ${SETTE_DIR}/output.sette
-echo "`more ${CONFIG_DIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm`" >> ${SETTE_DIR}/output.sette 
+echo "`more ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm`" >> ${SETTE_DIR}/output.sette
 echo "" >> ${SETTE_DIR}/output.sette
 echo "compiling with: ${CMP_NAM}" >> ${SETTE_DIR}/output.sette
 echo "" >> ${SETTE_DIR}/output.sette
@@ -269,7 +269,7 @@ fi
              -e"s/NXIOPROCS/${NXIO_PROC}/" \
              -e"s:DEF_SETTE_DIR:${SETTE_DIR}:" -e"s:DEF_INPUT_DIR:${INPUT_DIR}:" \
              -e"s:DEF_EXE_DIR:${EXE_DIR}:" \
-             -e"s:DEF_CONFIG_DIR:${CONFIG_DIR}:" \
+             -e"s:DEF_CONFIG_DIR:${NEMO_TDIR}:" \
              -e"s:DEF_TOOLS_DIR:${TOOLS_DIR}:" \
              -e"s:MPI_FLAG:${MPI_FLAG}:" \
              -e"s:DEF_NEMO_VALIDATION:${NEMO_VALID}:" -e"s:DEF_NEW_CONF:${NEW_CONF}:" \

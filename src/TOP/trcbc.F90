@@ -382,7 +382,7 @@ CONTAINS
          !
          ! Remove river dilution for tracers with absent river load
          IF( ln_rnf_ctl .AND. .NOT.ln_trc_cbc(jn) ) THEN
-            DO_2D( 0, 0, 0, 1 )
+            DO_2D( 0, 0, 0, 0 )
                DO jk = 1, nk_rnf(ji,jj)
 #if defined key_RK3
                   zrnf =  rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)
@@ -400,7 +400,7 @@ CONTAINS
          IF( ln_trc_sbc(jn) ) THEN
             jl = n_trc_indsbc(jn)
             sf_trcsbc(jl)%fnow(:,:,1) = MAX( rtrn, sf_trcsbc(jl)%fnow(:,:,1) ) ! avoid nedgative value due to interpolation
-            DO_2D( 0, 0, 0, 1 )
+            DO_2D( 0, 0, 0, 0 )
                zfact = 1. / ( e3t(ji,jj,1,Kmm) * rn_sbc_time )
                ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + rf_trsfac(jl) * sf_trcsbc(jl)%fnow(ji,jj,1) * zfact
             END_2D
@@ -411,7 +411,7 @@ CONTAINS
             IF( l_offline )   rn_rfact = 1._wp
             jl = n_trc_indcbc(jn)
             sf_trccbc(jl)%fnow(:,:,1) = MAX( rtrn, sf_trccbc(jl)%fnow(:,:,1) ) ! avoid nedgative value due to interpolation
-            DO_2D( 0, 0, 0, 1 )
+            DO_2D( 0, 0, 0, 0 )
                DO jk = 1, nk_rnf(ji,jj)
                   zfact = rn_rfact / ( e1e2t(ji,jj) * h_rnf(ji,jj) * rn_cbc_time ) 
                   ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs) + rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zfact

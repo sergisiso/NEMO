@@ -254,8 +254,8 @@ CONTAINS
       zhU(:,:) = puu_b(:,:,Kmm) * hu(:,:,Kmm) * e2u(:,:)        ! now fluxes 
       zhV(:,:) = pvv_b(:,:,Kmm) * hv(:,:,Kmm) * e1v(:,:)        ! NB: FULL domain : put a value in last row and column
       !
-      CALL dyn_cor_2D( ht(:,:), hu(:,:,Kmm), hv(:,:,Kmm), puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zhU, zhV,  &   ! <<== in
-         &                                                                          zu_trd, zv_trd   )   ! ==>> out
+      CALL dyn_cor_2D( ht(:,:,Kmm), hu(:,:,Kmm), hv(:,:,Kmm), puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zhU, zhV,  &   ! <<== in
+         &                                                                              zu_trd, zv_trd   )   ! ==>> out
       !
       DO_2D( 0, 0, 0, 0 )                          ! Remove coriolis term (and possibly spg) from barotropic trend
          zu_frc(ji,jj) = zu_frc(ji,jj) - zu_trd(ji,jj) * ssumask(ji,jj)
@@ -271,9 +271,17 @@ CONTAINS
       !
       !                                   !=  zu_frc =  1/H e3*d/dt(Ua)  =!  (Vertical mean of Ua, the 3D trends)
       !                                   !  ---------------------------  !
-# if defined key_qco 
+# if defined key_qco  || defined key_linssh
+#  if defined key_vco_1d
+      ! e3. are substitute by 1D arrays and can't be used in SUM operand
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         zu_frc(ji,jj) = SUM( e3u_0(ji,jj,:) * puu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu_0(ji,jj)
+         zv_frc(ji,jj) = SUM( e3v_0(ji,jj,:) * pvv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv_0(ji,jj)
+      END_2D
+#  else
       zu_frc(:,:) = SUM( e3u_0(:,:,:  ) * puu(:,:,:,Krhs) * umask(:,:,:), DIM=3 ) * r1_hu_0(:,:)
       zv_frc(:,:) = SUM( e3v_0(:,:,:  ) * pvv(:,:,:,Krhs) * vmask(:,:,:), DIM=3 ) * r1_hv_0(:,:)
+#  endif
 # else
       zu_frc(:,:) = SUM( e3u(:,:,:,Kmm) * puu(:,:,:,Krhs) * umask(:,:,:), DIM=3 ) * r1_hu(:,:,Kmm)
       zv_frc(:,:) = SUM( e3v(:,:,:,Kmm) * pvv(:,:,:,Krhs) * vmask(:,:,:), DIM=3 ) * r1_hv(:,:,Kmm)
@@ -298,8 +306,8 @@ CONTAINS
       zhU(:,:) = puu_b(:,:,Kmm) * hu(:,:,Kmm) * e2u(:,:)        ! now fluxes 
       zhV(:,:) = pvv_b(:,:,Kmm) * hv(:,:,Kmm) * e1v(:,:)        ! NB: FULL domain : put a value in last row and column
       !
-      CALL dyn_cor_2D( ht(:,:), hu(:,:,Kmm), hv(:,:,Kmm), puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zhU, zhV,  &   ! <<== in
-         &                                                                          zu_trd, zv_trd   )   ! ==>> out
+      CALL dyn_cor_2D( ht(:,:,Kmm), hu(:,:,Kmm), hv(:,:,Kmm), puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zhU, zhV,  &   ! <<== in
+         &                                                                              zu_trd, zv_trd   )   ! ==>> out
       !
       DO_2D( 0, 0, 0, 0 )                          ! Remove coriolis term (and possibly spg) from barotropic trend
          zu_frc(ji,jj) = zu_frc(ji,jj) - zu_trd(ji,jj) * ssumask(ji,jj)
@@ -322,10 +330,10 @@ CONTAINS
          ELSE                                         ! CENTRED integration: use kt-1/2 + kt+1/2 pressure (NOW)
             zztmp = grav * r1_2
             DO_2D( 0, 0, 0, 0 )
-               zu_frc(ji,jj) = zu_frc(ji,jj) + zztmp * (  ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj)  &
-                    &                                   + ssh_ibb(ji+1,jj  ) - ssh_ibb(ji,jj)  ) * r1_e1u(ji,jj)
-               zv_frc(ji,jj) = zv_frc(ji,jj) + zztmp * (  ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj)  &
-                    &                                   + ssh_ibb(ji  ,jj+1) - ssh_ibb(ji,jj)  ) * r1_e2v(ji,jj)
+               zu_frc(ji,jj) = zu_frc(ji,jj) + zztmp * (  ( ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) )  &
+                    &                                   + ( ssh_ibb(ji+1,jj  ) - ssh_ibb(ji,jj) ) ) * r1_e1u(ji,jj)
+               zv_frc(ji,jj) = zv_frc(ji,jj) + zztmp * (  ( ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) )  &
+                    &                                   + ( ssh_ibb(ji  ,jj+1) - ssh_ibb(ji,jj) ) ) * r1_e2v(ji,jj)
             END_2D
          ENDIF
       ENDIF
@@ -334,14 +342,14 @@ CONTAINS
       !                                   !  ------------------  !
       IF( ln_bt_fw ) THEN
          DO_2D( 0, 0, 0, 0 )
-            zu_frc(ji,jj) =  zu_frc(ji,jj) + r1_rho0 * utau(ji,jj) * r1_hu(ji,jj,Kmm)
-            zv_frc(ji,jj) =  zv_frc(ji,jj) + r1_rho0 * vtau(ji,jj) * r1_hv(ji,jj,Kmm)
+            zu_frc(ji,jj) =  zu_frc(ji,jj) + r1_rho0 * utauU(ji,jj) * r1_hu(ji,jj,Kmm)
+            zv_frc(ji,jj) =  zv_frc(ji,jj) + r1_rho0 * vtauV(ji,jj) * r1_hv(ji,jj,Kmm)
          END_2D
       ELSE
          zztmp = r1_rho0 * r1_2
          DO_2D( 0, 0, 0, 0 )
-            zu_frc(ji,jj) =  zu_frc(ji,jj) + zztmp * ( utau_b(ji,jj) + utau(ji,jj) ) * r1_hu(ji,jj,Kmm)
-            zv_frc(ji,jj) =  zv_frc(ji,jj) + zztmp * ( vtau_b(ji,jj) + vtau(ji,jj) ) * r1_hv(ji,jj,Kmm)
+            zu_frc(ji,jj) =  zu_frc(ji,jj) + zztmp * ( utau_b(ji,jj) + utauU(ji,jj) ) * r1_hu(ji,jj,Kmm)
+            zv_frc(ji,jj) =  zv_frc(ji,jj) + zztmp * ( vtau_b(ji,jj) + vtauV(ji,jj) ) * r1_hv(ji,jj,Kmm)
          END_2D
       ENDIF  
       !
@@ -459,8 +467,6 @@ CONTAINS
       DO jn = 1, icycle                             !  sub-time-step loop  !
          !                                          ! ==================== !
          !
-         l_full_nf_update = jn == icycle   ! false: disable full North fold update (performances) for jn = 1 to icycle-1
-         !
          !                    !==  Update the forcing ==! (BDY and tides)
          !
          IF( ln_bdy      .AND. ln_tide )   CALL bdy_dta_tides( kt, kit=jn, pt_offset= REAL(noffset+1,wp) )
@@ -561,7 +567,7 @@ CONTAINS
          !--        ssh    =  ssh   - delta_t' * [ frc + div( flux      ) ]      --!
          !-------------------------------------------------------------------------!
          DO_2D( 0, 0, 0, 0 )
-            zhdiv = (   zhU(ji,jj) - zhU(ji-1,jj) + zhV(ji,jj) - zhV(ji,jj-1)   ) * r1_e1e2t(ji,jj)
+            zhdiv = (   ( zhU(ji,jj) - zhU(ji-1,jj) ) + ( zhV(ji,jj) - zhV(ji,jj-1) )  ) * r1_e1e2t(ji,jj)
             ssha_e(ji,jj) = (  sshn_e(ji,jj) - rDt_e * ( ssh_frc(ji,jj) + zhdiv )  ) * ssmask(ji,jj)
          END_2D
          !
@@ -789,7 +795,7 @@ CONTAINS
 #if defined key_RK3
       !                                                !*  RK3 case
       !
-      IF(.NOT.ln_dynadv_vec .AND. ln_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
+      IF( (.NOT.(ln_dynadv_vec .OR. ln_linssh)) .AND. ln_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
          !
 # if defined key_qcoTest_FluxForm
          !                                       ! 'key_qcoTest_FluxForm' : simple ssh average
@@ -1149,6 +1155,12 @@ CONTAINS
          zcu(ji,jj) = SQRT( grav * MAX(ht_0(ji,jj),0._wp) * (zxr2 + zyr2) )
       END_2D
       !
+#if defined key_agrif
+     ! Discard points that are not stepped by 2d mode:
+     zcu(Nis0:Nie0,Njs0:Nje0) = zcu(Nis0:Nie0,Njs0:Nje0) &
+                              & * (1._wp - tmask_upd(Nis0:Nie0,Njs0:Nje0))
+#endif
+      !
       zcmax = MAXVAL( zcu(Nis0:Nie0,Njs0:Nje0) )
       CALL mpp_max( 'dynspg_ts', zcmax )
 
@@ -1249,16 +1261,16 @@ CONTAINS
          SELECT CASE( nn_e3f_typ )                  !* ff_f/e3 at F-point
          CASE ( 0 )                                   ! original formulation  (masked averaging of e3t divided by 4)
             DO_2D( 0, 0, 0, 0 )
-               zwz(ji,jj) = ( ht(ji,jj+1) + ht(ji+1,jj+1)   &
-                    &       + ht(ji,jj  ) + ht(ji+1,jj  ) ) * 0.25_wp  
+               zwz(ji,jj) = (  ( ht(ji,jj+1,Kmm) + ht(ji+1,jj+1,Kmm) )   &   ! need additional () for reproducibility around NP
+                    &        + ( ht(ji,jj  ,Kmm) + ht(ji+1,jj  ,Kmm) ) ) * 0.25_wp  
                IF( zwz(ji,jj) /= 0._wp )   zwz(ji,jj) = ff_f(ji,jj) / zwz(ji,jj)
             END_2D
          CASE ( 1 )                                   ! new formulation  (masked averaging of e3t divided by the sum of mask)
             DO_2D( 0, 0, 0, 0 )
-               zwz(ji,jj) =     (    ht(ji,jj+1) +     ht(ji+1,jj+1)      &
-                    &            +   ht(ji,jj  ) +     ht(ji+1,jj  )  )   &
-                    &    / ( MAX(ssmask(ji,jj+1) + ssmask(ji+1,jj+1)      &
-                    &          + ssmask(ji,jj  ) + ssmask(ji+1,jj  ) , 1._wp  )   )
+               zwz(ji,jj) =     (  ( ht(ji,jj+1,Kmm) +     ht(ji+1,jj+1,Kmm) )      &   ! need additional () for
+                    &            + ( ht(ji,jj  ,Kmm) +     ht(ji+1,jj  ,Kmm) )  )   &   ! reproducibility around NP
+                    &    / ( MAX( ( ssmask(ji,jj+1) + ssmask(ji+1,jj+1) )        &
+                    &          +  ( ssmask(ji,jj  ) + ssmask(ji+1,jj  ) ), 1._wp )  )
                IF( zwz(ji,jj) /= 0._wp )   zwz(ji,jj) = ff_f(ji,jj) / zwz(ji,jj)
             END_2D
          END SELECT
@@ -1279,7 +1291,7 @@ CONTAINS
       CASE( np_EET )                            != EEN scheme using e3t energy conserving scheme
          ftne(1,:) = 0._wp   ;   ftnw(1,:) = 0._wp   ;   ftse(1,:) = 0._wp   ;   ftsw(1,:) = 0._wp
          DO_2D( 0, 1, 0, 1 )
-            z1_ht = ssmask(ji,jj) / ( ht(ji,jj) + 1._wp - ssmask(ji,jj) )
+            z1_ht = ssmask(ji,jj) / ( ht(ji,jj,Kmm) + 1._wp - ssmask(ji,jj) )
             ftne(ji,jj) = ( ff_f(ji-1,jj  ) + ff_f(ji  ,jj  ) + ff_f(ji  ,jj-1) ) * z1_ht
             ftnw(ji,jj) = ( ff_f(ji-1,jj-1) + ff_f(ji-1,jj  ) + ff_f(ji  ,jj  ) ) * z1_ht
             ftse(ji,jj) = ( ff_f(ji  ,jj  ) + ff_f(ji  ,jj-1) + ff_f(ji-1,jj-1) ) * z1_ht
@@ -1329,24 +1341,24 @@ CONTAINS
          !
       CASE( np_ENS )                ! enstrophy conserving scheme (f-point)
          DO_2D( 0, 0, 0, 0 )
-            zy1 =   r1_8 * ( zhV(ji  ,jj-1) + zhV(ji+1,jj-1) &
-              &            + zhV(ji  ,jj  ) + zhV(ji+1,jj  ) ) * r1_e1u(ji,jj)
-            zx1 = - r1_8 * ( zhU(ji-1,jj  ) + zhU(ji-1,jj+1) &
-              &            + zhU(ji  ,jj  ) + zhU(ji  ,jj+1) ) * r1_e2v(ji,jj)
+            zy1 =   r1_8 * ( ( zhV(ji  ,jj-1) + zhV(ji+1,jj-1) ) &                       ! need additional () for
+              &            + ( zhV(ji  ,jj  ) + zhV(ji+1,jj  ) ) ) * r1_e1u(ji,jj)       ! reproducibility around NP
+            zx1 = - r1_8 * ( ( zhU(ji-1,jj  ) + zhU(ji-1,jj+1) ) &                       ! need additional () for
+              &            + ( zhU(ji  ,jj  ) + zhU(ji  ,jj+1) ) ) * r1_e2v(ji,jj)       ! reproducibility around NP
             zu_trd(ji,jj)  = zy1 * ( zwz(ji  ,jj-1) + zwz(ji,jj) )
             zv_trd(ji,jj)  = zx1 * ( zwz(ji-1,jj  ) + zwz(ji,jj) )
          END_2D
          !
       CASE( np_EET , np_EEN )      ! energy & enstrophy scheme (using e3t or e3f)         
          DO_2D( 0, 0, 0, 0 )
-            zu_trd(ji,jj) = + r1_12 * r1_e1u(ji,jj) * (  ftne(ji,jj  ) * zhV(ji  ,jj  ) &
-             &                                         + ftnw(ji+1,jj) * zhV(ji+1,jj  ) &
-             &                                         + ftse(ji,jj  ) * zhV(ji  ,jj-1) &
-             &                                         + ftsw(ji+1,jj) * zhV(ji+1,jj-1) )
-            zv_trd(ji,jj) = - r1_12 * r1_e2v(ji,jj) * (  ftsw(ji,jj+1) * zhU(ji-1,jj+1) &
-             &                                         + ftse(ji,jj+1) * zhU(ji  ,jj+1) &
-             &                                         + ftnw(ji,jj  ) * zhU(ji-1,jj  ) &
-             &                                         + ftne(ji,jj  ) * zhU(ji  ,jj  ) )
+            zu_trd(ji,jj) = + r1_12 * r1_e1u(ji,jj) * (  ( ftne(ji,jj  ) * zhV(ji  ,jj  )   &   ! need additional () for
+             &                                           + ftnw(ji+1,jj) * zhV(ji+1,jj  ) ) &   ! reproducibility around NP
+             &                                         + ( ftse(ji,jj  ) * zhV(ji  ,jj-1)   &
+             &                                           + ftsw(ji+1,jj) * zhV(ji+1,jj-1) ) )
+            zv_trd(ji,jj) = - r1_12 * r1_e2v(ji,jj) * (  ( ftsw(ji,jj+1) * zhU(ji-1,jj+1)   &
+             &                                           + ftse(ji,jj+1) * zhU(ji  ,jj+1) ) &
+             &                                         + ( ftnw(ji,jj  ) * zhU(ji-1,jj  )   &
+             &                                           + ftne(ji,jj  ) * zhU(ji  ,jj  ) ) )
          END_2D
          !
       END SELECT
@@ -1512,13 +1524,13 @@ CONTAINS
       IF( ln_isfcav.OR.ln_drgice_imp ) THEN          ! top+bottom friction (ocean cavities)
          
          DO_2D( 0, 0, 0, 0 )
-            pCdU_u(ji,jj) = r1_2*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) + rCdU_top(ji+1,jj)+rCdU_top(ji,jj) )
-            pCdU_v(ji,jj) = r1_2*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) + rCdU_top(ji,jj+1)+rCdU_top(ji,jj) )
+            pCdU_u(ji,jj) = r1_2*( ( rCdU_bot(ji+1,jj) + rCdU_bot(ji,jj) ) + ( rCdU_top(ji+1,jj) + rCdU_top(ji,jj) ) )
+            pCdU_v(ji,jj) = r1_2*( ( rCdU_bot(ji,jj+1) + rCdU_bot(ji,jj) ) + ( rCdU_top(ji,jj+1) + rCdU_top(ji,jj) ) )
          END_2D
       ELSE                          ! bottom friction only
          DO_2D( 0, 0, 0, 0 )
-            pCdU_u(ji,jj) = r1_2*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) )
-            pCdU_v(ji,jj) = r1_2*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) )
+            pCdU_u(ji,jj) = r1_2*( rCdU_bot(ji+1,jj) + rCdU_bot(ji,jj) )
+            pCdU_v(ji,jj) = r1_2*( rCdU_bot(ji,jj+1) + rCdU_bot(ji,jj) )
          END_2D
       ENDIF
       !

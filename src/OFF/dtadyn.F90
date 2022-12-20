@@ -24,8 +24,6 @@ MODULE dtadyn
    USE dom_oce         ! ocean domain: variables
 #if defined key_qco 
    USE domqco          ! variable volume
-#elif ! defined key_linssh
-   USE domvvl
 #endif
    USE zdf_oce         ! ocean vertical physics: variables
    USE sbc_oce         ! surface module: variables
@@ -38,7 +36,6 @@ MODULE dtadyn
    USE zdfmxl          ! vertical physics: mixed layer depth
    USE eosbn2          ! equation of state - Brunt Vaisala frequency
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
-   USE zpshde          ! z-coord. with partial steps: horizontal derivatives
    USE in_out_manager  ! I/O manager
    USE iom             ! I/O library
    USE lib_mpp         ! distributed memory computing library
@@ -80,7 +77,7 @@ MODULE dtadyn
    INTEGER  , SAVE      ::   jf_wnd         ! index of wind speed
    INTEGER  , SAVE      ::   jf_ice         ! index of sea ice cover
    INTEGER  , SAVE      ::   jf_rnf         ! index of river runoff
-   INTEGER  , SAVE      ::   jf_fmf         ! index of downward salt flux
+   INTEGER  , SAVE      ::   jf_fwf         ! index of downward freshwater flux
    INTEGER  , SAVE      ::   jf_ubl         ! index of u-bbl coef
    INTEGER  , SAVE      ::   jf_vbl         ! index of v-bbl coef
    INTEGER  , SAVE      ::   jf_div         ! index of e3t
@@ -136,15 +133,15 @@ CONTAINS
       !
       IF( l_ldfslp .AND. .NOT.ln_c1d )   CALL  dta_dyn_slp( kt, Kbb, Kmm )    ! Computation of slopes
       !
-      ts(:,:,:,jp_tem,Kmm) = sf_dyn(jf_tem)%fnow(:,:,:)  * tmask(:,:,:)    ! temperature
-      ts(:,:,:,jp_sal,Kmm) = sf_dyn(jf_sal)%fnow(:,:,:)  * tmask(:,:,:)    ! salinity
-      wndm(:,:)            = sf_dyn(jf_wnd)%fnow(:,:,1)  * tmask(:,:,1)    ! wind speed - needed for gas exchange
-      fmmflx(:,:)          = sf_dyn(jf_fmf)%fnow(:,:,1)  * tmask(:,:,1)    ! downward salt flux (v3.5+)
-      fr_i(:,:)            = sf_dyn(jf_ice)%fnow(:,:,1)  * tmask(:,:,1)    ! Sea-ice fraction
-      qsr (:,:)            = sf_dyn(jf_qsr)%fnow(:,:,1)  * tmask(:,:,1)    ! solar radiation
-      emp (:,:)            = sf_dyn(jf_emp)%fnow(:,:,1)  * tmask(:,:,1)    ! E-P
+      ts(:,:,:,jp_tem,Kmm) =   sf_dyn(jf_tem)%fnow(:,:,:) * tmask (:,:,:)  ! temperature
+      ts(:,:,:,jp_sal,Kmm) =   sf_dyn(jf_sal)%fnow(:,:,:) * tmask (:,:,:)  ! salinity
+      wndm(:,:)            =   sf_dyn(jf_wnd)%fnow(:,:,1) * smask0(:,:)    ! wind speed - needed for gas exchange
+      fwfice(:,:)          = - sf_dyn(jf_fwf)%fnow(:,:,1) * smask0(:,:)    ! ice-ocean freshwater flux (>0 to the ocean)
+      fr_i(:,:)            =   sf_dyn(jf_ice)%fnow(:,:,1) * tmask (:,:,1)  ! Sea-ice fraction
+      qsr (:,:)            =   sf_dyn(jf_qsr)%fnow(:,:,1) * smask0(:,:)    ! solar radiation
+      emp (:,:)            =   sf_dyn(jf_emp)%fnow(:,:,1) * tmask (:,:,1)  ! E-P
       IF( ln_dynrnf ) THEN 
-         rnf (:,:)         = sf_dyn(jf_rnf)%fnow(:,:,1) * tmask(:,:,1)    ! E-P
+         rnf (:,:)         = sf_dyn(jf_rnf)%fnow(:,:,1) * tmask (:,:,1)  ! rnf
          IF( ln_dynrnf_depth .AND. .NOT. ln_linssh )    CALL  dta_dyn_rnf( Kmm )
       ENDIF
       !
@@ -160,8 +157,8 @@ CONTAINS
 #if defined key_qco
          CALL dta_dyn_ssh( kt, zhdivtr, ssh(:,:,Kbb), zemp, ssh(:,:,Kaa) )
          CALL dom_qco_r3c( ssh(:,:,Kaa), r3t(:,:,Kaa), r3u(:,:,Kaa), r3v(:,:,Kaa) )
-#else
-         CALL dta_dyn_ssh( kt, zhdivtr, ssh(:,:,Kbb), zemp, ssh(:,:,Kaa), e3t(:,:,:,Kaa) )  !=  ssh, vertical scale factor
+#elif defined key_linssh
+         CALL dta_dyn_ssh( kt, zhdivtr, ssh(:,:,Kbb), zemp, ssh(:,:,Kaa) )
 #endif
          DEALLOCATE( zemp , zhdivtr )
          !                                           Write in the tracer restart file
@@ -175,16 +172,18 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      CALL eos    ( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
+      CALL eos    ( ts(:,:,:,:,:), Kmm, rhd ) ! In any case, we need rhd
       CALL eos_rab( ts(:,:,:,:,Kmm), rab_n, Kmm )       ! now    local thermal/haline expension ratio at T-points
       CALL bn2    ( ts(:,:,:,:,Kmm), rab_n, rn2, Kmm )  ! before Brunt-Vaisala frequency need for zdfmxl
 
       rn2b(:,:,:) = rn2(:,:,:)         ! needed for zdfmxl
       CALL zdf_mxl( kt, Kmm )          ! In any case, we need mxl
       !
-      hmld(:,:)       = sf_dyn(jf_mld)%fnow(:,:,1) * tmask(:,:,1)    ! mixed layer depht
-      avt(:,:,:)      = sf_dyn(jf_avt)%fnow(:,:,:) * tmask(:,:,:)    ! vertical diffusive coefficient 
-      avs(:,:,:)      = avt(:,:,:)
+      hmld(:,:)       = sf_dyn(jf_mld)%fnow(:,:,1) * smask0(:,:)   ! mixed layer depht
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         avt(ji,jj,jk) = sf_dyn(jf_avt)%fnow(ji,jj,jk) * tmask(ji,jj,jk)    ! vertical diffusive coefficient
+         avs(ji,jj,jk) = avt(ji,jj,jk)
+      END_3D
       !
       IF( ln_trabbl .AND. .NOT.ln_c1d ) THEN       ! diffusive Bottom boundary layer param 
          ahu_bbl(:,:) = sf_dyn(jf_ubl)%fnow(:,:,1) * umask(:,:,1)    ! bbl diffusive coef
@@ -221,20 +220,20 @@ CONTAINS
       INTEGER  :: jfld                               ! dummy loop arguments
       INTEGER  :: inum, idv, idimv                   ! local integer
       INTEGER  :: ios                                ! Local integer output status for namelist read
-      INTEGER  :: ji, jj, jk
+      INTEGER  :: ji, jj, jk, ipk
       !!
       CHARACTER(len=100)            ::  cn_dir        !   Root directory for location of core files
       TYPE(FLD_N), DIMENSION(jpfld) ::  slf_d         ! array of namelist informations on the fields to read
       TYPE(FLD_N) :: sn_uwd, sn_vwd, sn_wwd, sn_empb, sn_emp  ! informations about the fields to be read
       TYPE(FLD_N) :: sn_tem , sn_sal , sn_avt   !   "                 "
-      TYPE(FLD_N) :: sn_mld, sn_qsr, sn_wnd , sn_ice , sn_fmf   !   "               "
+      TYPE(FLD_N) :: sn_mld, sn_qsr, sn_wnd , sn_ice , sn_fwf   !   "               "
       TYPE(FLD_N) :: sn_ubl, sn_vbl, sn_rnf    !   "              "
       TYPE(FLD_N) :: sn_div  ! informations about the fields to be read
       !!
       NAMELIST/namdta_dyn/cn_dir, ln_dynrnf, ln_dynrnf_depth, &
          &                sn_uwd, sn_vwd, sn_wwd, sn_emp,               &
          &                sn_avt, sn_tem, sn_sal, sn_mld , sn_qsr ,     &
-         &                sn_wnd, sn_ice, sn_fmf,                       &
+         &                sn_wnd, sn_ice, sn_fwf,                       &
          &                sn_ubl, sn_vbl, sn_rnf,                       &
          &                sn_empb, sn_div 
       !!----------------------------------------------------------------------
@@ -258,13 +257,13 @@ CONTAINS
       ! 
       jf_uwd  = 1     ;   jf_vwd  = 2    ;   jf_wwd = 3    ;   jf_emp = 4    ;   jf_avt = 5
       jf_tem  = 6     ;   jf_sal  = 7    ;   jf_mld = 8    ;   jf_qsr = 9
-      jf_wnd  = 10    ;   jf_ice  = 11   ;   jf_fmf = 12   ;   jfld   = jf_fmf
+      jf_wnd  = 10    ;   jf_ice  = 11   ;   jf_fwf = 12   ;   jfld   = jf_fwf
       !
       slf_d(jf_uwd)  = sn_uwd    ;   slf_d(jf_vwd)  = sn_vwd   ;   slf_d(jf_wwd) = sn_wwd
       slf_d(jf_emp)  = sn_emp    ;   slf_d(jf_avt)  = sn_avt
       slf_d(jf_tem)  = sn_tem    ;   slf_d(jf_sal)  = sn_sal   ;   slf_d(jf_mld) = sn_mld
       slf_d(jf_qsr)  = sn_qsr    ;   slf_d(jf_wnd)  = sn_wnd   ;   slf_d(jf_ice) = sn_ice
-      slf_d(jf_fmf)  = sn_fmf
+      slf_d(jf_fwf)  = sn_fwf
       !
       IF( .NOT.ln_linssh ) THEN
                jf_div  = jfld + 1   ;         jf_empb  = jfld + 2    ;   jfld = jf_empb
@@ -305,12 +304,15 @@ CONTAINS
          idimv = iom_file ( sf_dyn(ifpr)%num )%ndims(idv)                 ! number of dimension for variable sdjf%clvar
          CALL iom_close( sf_dyn(ifpr)%num )                               ! close file if already open
          ierr1=0
-         IF( idimv == 3 ) THEN    ! 2D variable
-                                      ALLOCATE( sf_dyn(ifpr)%fnow(jpi,jpj,1)    , STAT=ierr0 )
-            IF( slf_d(ifpr)%ln_tint ) ALLOCATE( sf_dyn(ifpr)%fdta(jpi,jpj,1,2)  , STAT=ierr1 )
-         ELSE                     ! 3D variable
-                                      ALLOCATE( sf_dyn(ifpr)%fnow(jpi,jpj,jpk)  , STAT=ierr0 )
-            IF( slf_d(ifpr)%ln_tint ) ALLOCATE( sf_dyn(ifpr)%fdta(jpi,jpj,jpk,2), STAT=ierr1 )
+         IF( idimv == 3 ) THEN ; ipk = 1     ! 2D variable
+         ELSE                  ; ipk = jpk   ! 3D variable
+         ENDIF
+         IF( ifpr == jf_mld .OR. ifpr == jf_qsr .OR. ifpr == jf_wnd .OR. ifpr == jf_fwf .OR. ifpr == jf_avt ) THEN
+                                      ALLOCATE( sf_dyn(ifpr)%fnow(A2D(0),ipk)   , STAT=ierr0 )
+            IF( slf_d(ifpr)%ln_tint ) ALLOCATE( sf_dyn(ifpr)%fdta(A2D(0),ipk,2) , STAT=ierr1 )
+         ELSE
+                                      ALLOCATE( sf_dyn(ifpr)%fnow(jpi,jpj,ipk)  , STAT=ierr0 )
+            IF( slf_d(ifpr)%ln_tint ) ALLOCATE( sf_dyn(ifpr)%fdta(jpi,jpj,ipk,2), STAT=ierr1 )
          ENDIF
          IF( ierr0 + ierr1 > 0 ) THEN
             CALL ctl_stop( 'dta_dyn_init : unable to allocate sf_dyn array structure' )   ;   RETURN
@@ -346,14 +348,6 @@ CONTAINS
 #if defined key_qco
         CALL dom_qco_r3c( ssh(:,:,Kbb), r3t(:,:,Kbb), r3u(:,:,Kbb), r3v(:,:,Kbb) )
         CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm) )
-#else
-        DO jk = 1, jpkm1
-           e3t(:,:,jk,Kmm) = e3t_0(:,:,jk) * ( 1._wp + ssh(:,:,Kmm) * r1_ht_0(:,:) * tmask(:,:,jk) )
-           e3t(:,:,jk,Kbb) = e3t_0(:,:,jk) * ( 1._wp + ssh(:,:,Kbb) * r1_ht_0(:,:) * tmask(:,:,jk) )
-        ENDDO
-
-        CALL dta_dyn_sf_interp( nit000, Kmm )
-        CALL dta_dyn_sf_interp( nit000, Kbb )
 #endif
 #endif
       ENDIF
@@ -389,47 +383,6 @@ CONTAINS
    END SUBROUTINE dta_dyn_atf
    
    
-#if ! defined key_qco && ! defined key_linssh
-
-   SUBROUTINE dta_dyn_sf_interp( kt, Kmm )
-      !!---------------------------------------------------------------------
-      !!                    ***  ROUTINE dta_dyn_sf_interp  ***
-      !!
-      !! ** Purpose :   Calculate scale factors at U/V/W points and depths
-      !!                given the after e3t field
-      !!---------------------------------------------------------------------
-      INTEGER, INTENT(in) :: kt   ! time step
-      INTEGER, INTENT(in) :: Kmm  ! ocean time level indices
-      !
-      INTEGER             :: ji, jj, jk
-      REAL(wp)            :: zcoef
-      !!---------------------------------------------------------------------
-
-      ! Horizontal scale factor interpolations
-      ! --------------------------------------
-      CALL dom_vvl_interpol( e3t(:,:,:,Kmm), e3u(:,:,:,Kmm), 'U' )
-      CALL dom_vvl_interpol( e3t(:,:,:,Kmm), e3v(:,:,:,Kmm), 'V' )
-
-      ! Vertical scale factor interpolations
-      ! ------------------------------------
-      CALL dom_vvl_interpol( e3t(:,:,:,Kmm), e3w (:,:,:,Kmm), 'W' )
-
-      ! t- and w- points depth
-      ! ----------------------
-      gdept(:,:,1,Kmm) = 0.5_wp * e3w(:,:,1,Kmm)
-      gdepw(:,:,1,Kmm) = 0.0_wp
-      !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpk )
-         zcoef = (tmask(ji,jj,jk) - wmask(ji,jj,jk))
-         gdepw(ji,jj,jk,Kmm) = gdepw(ji,jj,jk-1,Kmm) + e3t(ji,jj,jk-1,Kmm)
-         gdept(ji,jj,jk,Kmm) =      zcoef  * ( gdepw(ji,jj,jk  ,Kmm) + 0.5 * e3w(ji,jj,jk,Kmm))  &
-            &                + (1-zcoef) * ( gdept(ji,jj,jk-1,Kmm) + e3w(ji,jj,jk,Kmm))
-      END_3D
-      !
-   END SUBROUTINE dta_dyn_sf_interp
-
-#endif
-
    SUBROUTINE dta_dyn_ssh( kt, phdivtr, psshb,  pemp, pssha, pe3ta )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE dta_dyn_wzv  ***
@@ -503,7 +456,7 @@ CONTAINS
          CALL iom_close( inum )                                        ! close file
          !
          nk_rnf(:,:) = 0                               ! set the number of level over which river runoffs are applied
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF( h_rnf(ji,jj) > 0._wp ) THEN
                jk = 2
                DO WHILE ( jk /= mbkt(ji,jj) .AND. gdept_0(ji,jj,jk) < h_rnf(ji,jj) ) ;  jk = jk + 1
@@ -518,15 +471,17 @@ CONTAINS
          END_2D
          !
          ! set the associated depth
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             h_rnf(ji,jj) = 0._wp
             DO jk = 1, nk_rnf(ji,jj)
                h_rnf(ji,jj) = h_rnf(ji,jj) + e3t(ji,jj,jk,Kmm)
             END DO
          END_2D
       ELSE                                       ! runoffs applied at the surface
-         nk_rnf(:,:) = 1
-         h_rnf (:,:) = e3t(:,:,1,Kmm)
+         DO_2D( 0, 0, 0, 0 )
+            nk_rnf(ji,jj) = 1
+            h_rnf (ji,jj) = e3t(ji,jj,1,Kmm)
+         END_2D
       ENDIF
       nkrnf_max = MAXVAL( nk_rnf(:,:) )
       hrnf_max = MAXVAL( h_rnf(:,:) )
@@ -554,7 +509,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       !  update the depth over which runoffs are distributed
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          h_rnf(ji,jj) = 0._wp
          DO jk = 1, nk_rnf(ji,jj)                           ! recalculates h_rnf to be the depth in metres
              h_rnf(ji,jj) = h_rnf(ji,jj) + e3t(ji,jj,jk,Kmm)   ! to the bottom of the relevant grid box
@@ -573,7 +528,7 @@ CONTAINS
       INTEGER,  INTENT(in) :: kt       ! time step
       INTEGER,  INTENT(in) :: Kbb, Kmm ! ocean time level indices
       !
-      INTEGER  ::   ji, jj     ! dummy loop indices
+      INTEGER  ::   ji, jj, jk ! dummy loop indices
       REAL(wp) ::   ztinta     ! ratio applied to after  records when doing time interpolation
       REAL(wp) ::   ztintb     ! ratio applied to before records when doing time interpolation
       INTEGER  ::   iswap 
@@ -586,8 +541,10 @@ CONTAINS
          IF( kt == nit000 ) THEN
             IF(lwp) WRITE(numout,*) ' Compute new slopes at kt = ', kt
             zts(:,:,:,jp_tem) = sf_dyn(jf_tem)%fdta(:,:,:,sf_dyn(jf_tem)%nbb) * tmask(:,:,:)   ! temperature
-            zts(:,:,:,jp_sal) = sf_dyn(jf_sal)%fdta(:,:,:,sf_dyn(jf_sal)%nbb) * tmask(:,:,:)   ! salinity 
-            avt(:,:,:)        = sf_dyn(jf_avt)%fdta(:,:,:,sf_dyn(jf_avt)%nbb) * tmask(:,:,:)   ! vertical diffusive coef.
+            zts(:,:,:,jp_sal) = sf_dyn(jf_sal)%fdta(:,:,:,sf_dyn(jf_sal)%nbb) * tmask(:,:,:)   ! salinity
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               avt(ji,jj,jk)  = sf_dyn(jf_avt)%fdta(ji,jj,jk,sf_dyn(jf_avt)%nbb) * tmask(ji,jj,jk)   ! vertical diffusive coef.
+            END_3D
             CALL compute_slopes( kt, zts, zuslp, zvslp, zwslpi, zwslpj, Kbb, Kmm )
             uslpdta (:,:,:,1) = zuslp (:,:,:) 
             vslpdta (:,:,:,1) = zvslp (:,:,:) 
@@ -596,7 +553,9 @@ CONTAINS
             !
             zts(:,:,:,jp_tem) = sf_dyn(jf_tem)%fdta(:,:,:,sf_dyn(jf_tem)%naa) * tmask(:,:,:)   ! temperature
             zts(:,:,:,jp_sal) = sf_dyn(jf_sal)%fdta(:,:,:,sf_dyn(jf_sal)%naa) * tmask(:,:,:)   ! salinity 
-            avt(:,:,:)        = sf_dyn(jf_avt)%fdta(:,:,:,sf_dyn(jf_avt)%naa) * tmask(:,:,:)   ! vertical diffusive coef.
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               avt(ji,jj,jk)  = sf_dyn(jf_avt)%fdta(ji,jj,jk,sf_dyn(jf_avt)%naa) * tmask(ji,jj,jk)   ! vertical diffusive coef.
+            END_3D
             CALL compute_slopes( kt, zts, zuslp, zvslp, zwslpi, zwslpj, Kbb, Kmm )
             uslpdta (:,:,:,2) = zuslp (:,:,:) 
             vslpdta (:,:,:,2) = zvslp (:,:,:) 
@@ -615,7 +574,9 @@ CONTAINS
               !
               zts(:,:,:,jp_tem) = sf_dyn(jf_tem)%fdta(:,:,:,sf_dyn(jf_tem)%naa) * tmask(:,:,:)   ! temperature
               zts(:,:,:,jp_sal) = sf_dyn(jf_sal)%fdta(:,:,:,sf_dyn(jf_sal)%naa) * tmask(:,:,:)   ! salinity 
-              avt(:,:,:)        = sf_dyn(jf_avt)%fdta(:,:,:,sf_dyn(jf_avt)%naa) * tmask(:,:,:)   ! vertical diffusive coef.
+              DO_3D( 0, 0, 0, 0, 1, jpk )
+                 avt(ji,jj,jk)  = sf_dyn(jf_avt)%fdta(ji,jj,jk,sf_dyn(jf_avt)%naa) * tmask(ji,jj,jk)   ! vertical diffusive coef.
+              END_3D
               CALL compute_slopes( kt, zts, zuslp, zvslp, zwslpi, zwslpj, Kbb, Kmm )
               !
               uslpdta (:,:,:,2) = zuslp (:,:,:) 
@@ -639,7 +600,9 @@ CONTAINS
       ELSE
          zts(:,:,:,jp_tem) = sf_dyn(jf_tem)%fnow(:,:,:) * tmask(:,:,:)   ! temperature
          zts(:,:,:,jp_sal) = sf_dyn(jf_sal)%fnow(:,:,:) * tmask(:,:,:)   ! salinity 
-         avt(:,:,:)        = sf_dyn(jf_avt)%fnow(:,:,:) * tmask(:,:,:)   ! vertical diffusive coef.
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            avt(ji,jj,jk)  = sf_dyn(jf_avt)%fnow(ji,jj,jk) * tmask(ji,jj,jk)   ! vertical diffusive coef.
+         END_3D
          CALL compute_slopes( kt, zts, zuslp, zvslp, zwslpi, zwslpj, Kbb, Kmm )
          !
          IF( l_ldfslp .AND. .NOT.ln_c1d ) THEN    ! Computes slopes (here avt is used as workspace)
@@ -667,18 +630,16 @@ CONTAINS
       INTEGER ,                              INTENT(in ) :: Kbb, Kmm ! ocean time level indices
       !!---------------------------------------------------------------------
       !
+      INTEGER  ::   ji,jj, jk   ! dummy loop indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdep0
+      !
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         zdep0(ji,jj,jk) = gdept_0(ji,jj,jk)
+      END_3D
       IF( l_ldfslp .AND. .NOT.ln_c1d ) THEN    ! Computes slopes (here avt is used as workspace)
-         CALL eos    ( pts, rhd, gdept_0(:,:,:) )
+         CALL eos    ( pts, rhd, zdep0 )
          CALL eos_rab( pts, rab_n, Kmm )       ! now local thermal/haline expension ratio at T-points
          CALL bn2    ( pts, rab_n, rn2, Kmm  ) ! now    Brunt-Vaisala
-
-      ! Partial steps: before Horizontal DErivative
-      IF( ln_zps  .AND. .NOT. ln_isfcav)                            &
-         &            CALL zps_hde    ( kt, jpts, pts, gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
-         &                                        rhd, gru , grv    )  ! of t, s, rd at the last ocean level
-      IF( ln_zps .AND.        ln_isfcav)                            &
-         &            CALL zps_hde_isf( kt, jpts, pts, gtsu, gtsv, gtui, gtvi, &  ! Partial steps for top cell (ISF)
-         &                                        rhd, gru , grv , grui, grvi )  ! of t, s, rd at the first ocean level
 
          rn2b(:,:,:) = rn2(:,:,:)                ! needed for zdfmxl
          CALL zdf_mxl( kt, Kmm )                 ! mixed layer depth
@@ -713,6 +674,8 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kmm  ! ocean time level index
       !
       !!----------------------------------------------------------------------
+      INTEGER  ::   ji,jj, jk   ! dummy loop indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdep0
       !
       IF( ln_timing )   CALL timing_start( 'dta_dyn_sed')
       !
@@ -726,7 +689,10 @@ CONTAINS
       ts(:,:,:,jp_tem,Kmm) = sf_dyn(jf_tem)%fnow(:,:,:)  * tmask(:,:,:)    ! temperature
       ts(:,:,:,jp_sal,Kmm) = sf_dyn(jf_sal)%fnow(:,:,:)  * tmask(:,:,:)    ! salinity
       !
-      CALL eos    ( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         zdep0(ji,jj,jk) = gdept_0(ji,jj,jk)
+      END_3D
+      CALL eos    ( ts(:,:,:,:,Kmm), rhd, zdep0 ) ! In any case, we need rhd
 
       IF(sn_cfctl%l_prtctl) THEN                     ! print control
          CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask )

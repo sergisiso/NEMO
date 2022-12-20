@@ -32,6 +32,8 @@ MODULE sbcblk_algo_ice_lu12
    REAL(wp), PARAMETER :: rz0_i_s_0  = 0.69e-3_wp  ! Eq.(43) of Lupkes & Gryanik (2015) [m] => to estimate CdN10 for skin drag!
    REAL(wp), PARAMETER :: rz0_i_f_0  = 4.54e-4_wp  ! bottom p.562 MIZ [m] (LG15)   
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
 CONTAINS
 
@@ -79,27 +81,27 @@ CONTAINS
       !!
       !! ** Author: L. Brodeau, January 2020 / AeroBulk (https://github.com/brodeau/aerobulk/)
       !!----------------------------------------------------------------------------------
-      REAL(wp), INTENT(in )                     :: zt    ! height for t_zt and q_zt                    [m]
-      REAL(wp), INTENT(in )                     :: zu    ! height for U_zu                             [m]
-      REAL(wp), INTENT(in ), DIMENSION(jpi,jpj) :: Ts_i  ! ice surface temperature                [Kelvin]
-      REAL(wp), INTENT(in ), DIMENSION(jpi,jpj) :: t_zt  ! potential air temperature              [Kelvin]
-      REAL(wp), INTENT(in ), DIMENSION(jpi,jpj) :: qs_i  ! sat. spec. hum. at ice/air interface    [kg/kg]
-      REAL(wp), INTENT(in ), DIMENSION(jpi,jpj) :: q_zt  ! spec. air humidity at zt               [kg/kg]
-      REAL(wp), INTENT(in ), DIMENSION(jpi,jpj) :: U_zu  ! relative wind module at zu                [m/s]
-      REAL(wp), INTENT(in ), DIMENSION(jpi,jpj) :: frice ! sea-ice concentration        (fraction)
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj) :: Cd_i  ! drag coefficient over sea-ice
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj) :: Ch_i  ! transfert coefficient for heat over ice
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj) :: Ce_i  ! transfert coefficient for sublimation over ice
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj) :: t_zu_i ! pot. air temp. adjusted at zu               [K]
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj) :: q_zu_i ! spec. humidity adjusted at zu           [kg/kg]
+      REAL(wp), INTENT(in )                    :: zt    ! height for t_zt and q_zt                    [m]
+      REAL(wp), INTENT(in )                    :: zu    ! height for U_zu                             [m]
+      REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: Ts_i  ! ice surface temperature                [Kelvin]
+      REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: t_zt  ! potential air temperature              [Kelvin]
+      REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: qs_i  ! sat. spec. hum. at ice/air interface    [kg/kg]
+      REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: q_zt  ! spec. air humidity at zt               [kg/kg]
+      REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: U_zu  ! relative wind module at zu                [m/s]
+      REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: frice ! sea-ice concentration        (fraction)
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)) :: Cd_i  ! drag coefficient over sea-ice
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)) :: Ch_i  ! transfert coefficient for heat over ice
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)) :: Ce_i  ! transfert coefficient for sublimation over ice
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)) :: t_zu_i ! pot. air temp. adjusted at zu               [K]
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)) :: q_zu_i ! spec. humidity adjusted at zu           [kg/kg]
       !!----------------------------------------------------------------------------------
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj), OPTIONAL :: CdN
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj), OPTIONAL :: ChN
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj), OPTIONAL :: CeN
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj), OPTIONAL :: xz0  ! Aerodynamic roughness length   [m]
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj), OPTIONAL :: xu_star  ! u*, friction velocity
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj), OPTIONAL :: xL  ! zeta (zu/L)
-      REAL(wp), INTENT(out), DIMENSION(jpi,jpj), OPTIONAL :: xUN10  ! Neutral wind at zu
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: CdN
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: ChN
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: CeN
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xz0  ! Aerodynamic roughness length   [m]
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xu_star  ! u*, friction velocity
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xL  ! zeta (zu/L)
+      REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xUN10  ! Neutral wind at zu
       !!----------------------------------------------------------------------------------
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: dt_zu, dq_zu, z0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: Ubzu
@@ -109,8 +111,8 @@ CONTAINS
       !!
       CHARACTER(len=40), PARAMETER :: crtnm = 'turb_ice_lu12@sbcblk_algo_ice_lu12.f90'
       !!----------------------------------------------------------------------------------
-      ALLOCATE ( Ubzu(jpi,jpj) )
-      ALLOCATE ( dt_zu(jpi,jpj), dq_zu(jpi,jpj), z0(jpi,jpj) )
+      ALLOCATE ( Ubzu(A2D(0)) )
+      ALLOCATE ( dt_zu(A2D(0)), dq_zu(A2D(0)), z0(A2D(0)) )
 
       lreturn_cdn   = PRESENT(CdN)
       lreturn_chn   = PRESENT(ChN)

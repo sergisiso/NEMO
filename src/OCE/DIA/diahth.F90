@@ -54,8 +54,8 @@ CONTAINS
       INTEGER :: dia_hth_alloc
       !!---------------------------------------------------------------------
       !
-      ALLOCATE( hth(jpi,jpj), hd20(jpi,jpj), hd26(jpi,jpj), hd28(jpi,jpj), &
-         &      htc3(jpi,jpj), htc7(jpi,jpj), htc20(jpi,jpj), STAT=dia_hth_alloc )
+      ALLOCATE( hth(A2D(0)), hd20(A2D(0)), hd26(A2D(0)), hd28(A2D(0)), &
+         &      htc3(A2D(0)), htc7(A2D(0)), htc20(A2D(0)), STAT=dia_hth_alloc )
       !
       CALL mpp_sum ( 'diahth', dia_hth_alloc )
       IF(dia_hth_alloc /= 0)   CALL ctl_stop( 'STOP', 'dia_hth_alloc: failed to allocate arrays.' )
@@ -86,22 +86,22 @@ CONTAINS
       INTEGER, INTENT( in ) ::   kt      ! ocean time-step index
       INTEGER, INTENT( in ) ::   Kmm     ! ocean time level index
       !!
-      INTEGER                      ::   ji, jj, jk            ! dummy loop arguments
-      REAL(wp)                     ::   zrho3 = 0.03_wp       ! density     criterion for mixed layer depth
-      REAL(wp)                     ::   zrho1 = 0.01_wp       ! density     criterion for mixed layer depth
-      REAL(wp)                     ::   ztem2 = 0.2_wp        ! temperature criterion for mixed layer depth
-      REAL(wp)                     ::   zztmp, zzdep          ! temporary scalars inside do loop
-      REAL(wp)                     ::   zu, zv, zw, zut, zvt  ! temporary workspace
-      REAL(wp), DIMENSION(jpi,jpj) ::   zabs2      ! MLD: abs( tn - tn(10m) ) = ztem2 
-      REAL(wp), DIMENSION(jpi,jpj) ::   ztm2       ! Top of thermocline: tn = tn(10m) - ztem2     
-      REAL(wp), DIMENSION(jpi,jpj) ::   zrho10_3   ! MLD: rho = rho10m + zrho3      
-      REAL(wp), DIMENSION(jpi,jpj) ::   zpycn      ! pycnocline: rho = rho10m + (dr/dT)(T,S,10m)*(-0.2 degC)
-      REAL(wp), DIMENSION(jpi,jpj) ::   ztinv      ! max of temperature inversion
-      REAL(wp), DIMENSION(jpi,jpj) ::   zdepinv    ! depth of temperature inversion
-      REAL(wp), DIMENSION(jpi,jpj) ::   zrho0_3    ! MLD rho = rho(surf) = 0.03
-      REAL(wp), DIMENSION(jpi,jpj) ::   zrho0_1    ! MLD rho = rho(surf) = 0.01
-      REAL(wp), DIMENSION(jpi,jpj) ::   zmaxdzT    ! max of dT/dz
-      REAL(wp), DIMENSION(jpi,jpj) ::   zdelr      ! delta rho equivalent to deltaT = 0.2
+      INTEGER                     ::   ji, jj, jk            ! dummy loop arguments
+      REAL(wp)                    ::   zrho3 = 0.03_wp       ! density     criterion for mixed layer depth
+      REAL(wp)                    ::   zrho1 = 0.01_wp       ! density     criterion for mixed layer depth
+      REAL(wp)                    ::   ztem2 = 0.2_wp        ! temperature criterion for mixed layer depth
+      REAL(wp)                    ::   zztmp, zzdep          ! temporary scalars inside do loop
+      REAL(wp)                    ::   zu, zv, zw, zut, zvt  ! temporary workspace
+      REAL(wp), DIMENSION(A2D(0)) ::   zabs2      ! MLD: abs( tn - tn(10m) ) = ztem2
+      REAL(wp), DIMENSION(A2D(0)) ::   ztm2       ! Top of thermocline: tn = tn(10m) - ztem2
+      REAL(wp), DIMENSION(A2D(0)) ::   zrho10_3   ! MLD: rho = rho10m + zrho3
+      REAL(wp), DIMENSION(A2D(0)) ::   zpycn      ! pycnocline: rho = rho10m + (dr/dT)(T,S,10m)*(-0.2 degC)
+      REAL(wp), DIMENSION(A2D(0)) ::   ztinv      ! max of temperature inversion
+      REAL(wp), DIMENSION(A2D(0)) ::   zdepinv    ! depth of temperature inversion
+      REAL(wp), DIMENSION(A2D(0)) ::   zrho0_3    ! MLD rho = rho(surf) = 0.03
+      REAL(wp), DIMENSION(A2D(0)) ::   zrho0_1    ! MLD rho = rho(surf) = 0.01
+      REAL(wp), DIMENSION(A2D(0)) ::   zmaxdzT    ! max of dT/dz
+      REAL(wp), DIMENSION(A2D(0)) ::   zdelr      ! delta rho equivalent to deltaT = 0.2
       !!----------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('dia_hth')
 
@@ -131,7 +131,7 @@ CONTAINS
          IF( iom_use( 'mlddzt' ) )   zmaxdzT(:,:) = 0._wp  
          IF( iom_use( 'mlddzt' ) .OR. iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' )   &
             &                    .OR. iom_use( 'mldr10_3' ) .OR. iom_use( 'pycndep'  ) ) THEN
-            DO_2D( 1, 1, 1, 1 )
+            DO_2D( 0, 0, 0, 0 )
                zztmp = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) 
                hth     (ji,jj) = zztmp
                zabs2   (ji,jj) = zztmp
@@ -142,7 +142,7 @@ CONTAINS
          ENDIF
          IF( iom_use( 'mldr0_3' ) .OR. iom_use( 'mldr0_1' ) ) THEN
             IF( nla10 > 1 ) THEN 
-               DO_2D( 1, 1, 1, 1 )
+               DO_2D( 0, 0, 0, 0 )
                   zztmp = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) 
                   zrho0_3(ji,jj) = zztmp
                   zrho0_1(ji,jj) = zztmp
@@ -157,7 +157,7 @@ CONTAINS
             ! MLD: rho = rho(1) + zrho3                                     !
             ! MLD: rho = rho(1) + zrho1                                     !
             ! ------------------------------------------------------------- !
-            DO_3DS( 1, 1, 1, 1, jpkm1, 2, -1 )   ! loop from bottom to 2
+            DO_3DS( 0, 0, 0, 0, jpkm1, 2, -1 )   ! loop from bottom to 2
                !
                zzdep = gdepw(ji,jj,jk,Kmm)
                zztmp = ( ts(ji,jj,jk-1,jp_tem,Kmm) - ts(ji,jj,jk,jp_tem,Kmm) ) &
@@ -189,7 +189,7 @@ CONTAINS
             !
             ! Preliminary computation
             ! computation of zdelr = (dr/dT)(T,S,10m)*(-0.2 degC)
-            DO_2D( 1, 1, 1, 1 )
+            DO_2D( 0, 0, 0, 0 )
                IF( tmask(ji,jj,nla10) == 1. ) THEN
                   zu  =  1779.50 + 11.250 * ts(ji,jj,nla10,jp_tem,Kmm) - 3.80   * ts(ji,jj,nla10,jp_sal,Kmm)  &
                      &           - 0.0745 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_tem,Kmm)   &
@@ -213,7 +213,7 @@ CONTAINS
             ! temperature inversion: max( 0, max of tn - tn(10m) )          !
             ! depth of temperature inversion                                !
             ! ------------------------------------------------------------- !
-            DO_3DS( 1, 1, 1, 1, jpkm1, nlb10, -1 )   ! loop from bottom to nlb10
+            DO_3DS( 0, 0, 0, 0, jpkm1, nlb10, -1 )   ! loop from bottom to nlb10
                !
                zzdep = gdepw(ji,jj,jk,Kmm) * tmask(ji,jj,1)
                !
@@ -301,17 +301,20 @@ CONTAINS
       !
       INTEGER , INTENT(in) :: Kmm      ! ocean time level index
       REAL(wp), INTENT(in) :: ptem
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(out) :: pdept     
+      REAL(wp), DIMENSION(A2D(0)), INTENT(out) :: pdept     
       !
       INTEGER  :: ji, jj, jk, iid
       REAL(wp) :: zztmp, zzdep
-      INTEGER, DIMENSION(jpi,jpj) :: iktem
+      INTEGER, DIMENSION(A2D(0)) :: iktem
       
       ! --------------------------------------- !
       ! search deepest level above ptem         !
       ! --------------------------------------- !
-      iktem(:,:) = 1
-      DO_3D( 1, 1, 1, 1, 1, jpkm1 )   ! beware temperature is not always decreasing with depth => loop from top to bottom
+      DO_2D( 0, 0, 0, 0 )
+         iktem(ji,jj) = 1
+      END_2D
+
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )   ! beware temperature is not always decreasing with depth => loop from top to bottom
          zztmp = ts(ji,jj,jk,jp_tem,Kmm)
          IF( zztmp >= ptem )   iktem(ji,jj) = jk
       END_3D
@@ -319,7 +322,7 @@ CONTAINS
       ! ------------------------------- !
       !  Depth of ptem isotherm         !
       ! ------------------------------- !
-      DO_2D( 1, 1, 1, 1 )
+      DO_2D( 0, 0, 0, 0 )
          !
          zzdep = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm)       ! depth of the ocean bottom
          !
@@ -343,21 +346,32 @@ CONTAINS
       INTEGER , INTENT(in) ::   Kmm      ! ocean time level index
       REAL(wp), INTENT(in) ::   pdep     ! depth over the heat content
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in)    ::   pt   
-      REAL(wp), DIMENSION(jpi,jpj),     INTENT(inout) ::   phtc  
+      REAL(wp), DIMENSION(A2D(0)),      INTENT(inout) ::   phtc  
       !
       INTEGER  ::   ji, jj, jk, ik
-      REAL(wp), DIMENSION(jpi,jpj) ::   zthick
-      INTEGER , DIMENSION(jpi,jpj) ::   ilevel
+      REAL(wp), DIMENSION(A2D(0)) ::   zthick
+      INTEGER , DIMENSION(A2D(0)) ::   ilevel
 
 
       ! surface boundary condition
       
-      IF( .NOT. ln_linssh ) THEN   ;   zthick(:,:) = 0._wp          ;   phtc(:,:) = 0._wp                                   
-      ELSE                         ;   zthick(:,:) = ssh(:,:,Kmm)   ;   phtc(:,:) = pt(:,:,1) * ssh(:,:,Kmm) * tmask(:,:,1)   
+      IF( .NOT. ln_linssh ) THEN 
+         DO_2D( 0, 0, 0, 0 )
+            zthick(ji,jj) = 0._wp 
+            phtc  (ji,jj) = 0._wp                                   
+         END_2D
+      ELSE                
+         DO_2D( 0, 0, 0, 0 )
+            zthick(ji,jj) = ssh(ji,jj,Kmm)   
+            phtc  (ji,jj) = pt(ji,jj,1) * ssh(ji,jj,Kmm) * tmask(ji,jj,1)   
+         END_2D
       ENDIF
       !
-      ilevel(:,:) = 1
-      DO_3D( 1, 1, 1, 1, 1, jpkm1 )
+      DO_2D( 0, 0, 0, 0 )
+         ilevel(ji,jj) = 1
+      END_2D
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          IF( ( gdepw(ji,jj,jk+1,Kmm) < pdep ) .AND. ( tmask(ji,jj,jk) == 1 ) ) THEN
              ilevel(ji,jj) = jk+1
              zthick(ji,jj) = zthick(ji,jj) + e3t(ji,jj,jk,Kmm)
@@ -365,7 +379,7 @@ CONTAINS
          ENDIF
       END_3D
       !
-      DO_2D( 1, 1, 1, 1 )
+      DO_2D( 0, 0, 0, 0 )
          ik = ilevel(ji,jj)
          IF( tmask(ji,jj,ik) == 1 ) THEN
             zthick(ji,jj) = MIN ( gdepw(ji,jj,ik+1,Kmm), pdep ) - zthick(ji,jj)   ! remaining thickness to reach dephw pdep

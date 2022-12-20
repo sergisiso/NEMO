@@ -31,6 +31,8 @@ MODULE icbthm
 
    PUBLIC   icb_thm ! routine called in icbstp.F90 module
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"   
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: icbthm.F90 15088 2021-07-06 13:03:34Z acc $
@@ -48,7 +50,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   ! timestep number, just passed to icb_utl_print_berg
       !
-      INTEGER  ::   ii, ij, jk, ikb
+      INTEGER  ::   ii, ij, ji, jj, jk, ikb
       REAL(wp) ::   zM, zT, zW, zL, zSST, zVol, zLn, zWn, zTn, znVol, zIC, zDn, zD, zvb, zub, ztb
       REAL(wp) ::   zMv, zMe, zMb, zmelt, zdvo, zdvob, zdva, zdM, zSs, zdMe, zdMb, zdMv
       REAL(wp) ::   zSSS, zfzpt
@@ -112,9 +114,9 @@ CONTAINS
          zxi  = pt%xi                                      ! position in (i,j) referential
          zyj  = pt%yj
          ii  = INT( zxi + 0.5 )                            ! T-cell of the berg
-         ii  = mi1( ii + (nn_hls-1) )
+         ii  = mi1( ii + (nn_hls-1), nn_hls )
          ij  = INT( zyj + 0.5 )              
-         ij  = mj1( ij + (nn_hls-1) )
+         ij  = mj1( ij + (nn_hls-1), nn_hls )
          zVol = zT * zW * zL
 
          ! Environment
@@ -287,8 +289,10 @@ CONTAINS
       ! now use melt and associated heat flux in ocean (or not)
       !
       IF(.NOT. ln_passive_mode ) THEN
-         emp (:,:) = emp (:,:) - berg_grid%floating_melt(:,:)
-         qns (:,:) = qns (:,:) + berg_grid%calving_hflx (:,:)  
+         DO_2D( 0, 0, 0, 0 )
+            emp(ji,jj) = emp(ji,jj) - berg_grid%floating_melt(ji,jj)
+            qns(ji,jj) = qns(ji,jj) + berg_grid%calving_hflx (ji,jj)
+         END_2D
       ENDIF
       !
    END SUBROUTINE icb_thm

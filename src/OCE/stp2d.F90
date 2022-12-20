@@ -137,8 +137,15 @@ CONTAINS
       CALL dyn_hpg( kt  , Kbb     , uu, vv, Krhs )           ! horizontal gradient of Hydrostatic pressure
       !
       !                             !*  vertical averaging  *!
+#if defined key_vco_1d
+      DO_2D( 0, 0, 0, 0 )
+         Ue_rhs(ji,jj) = SUM( e3u_0(ji,jj,:) * uu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu_0(ji,jj)
+         Ve_rhs(ji,jj) = SUM( e3v_0(ji,jj,:) * vv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv_0(ji,jj)
+      END_2D
+#else
       Ue_rhs(:,:) = SUM( e3u_0(:,:,:) * uu(:,:,:,Krhs) * umask(:,:,:), DIM=3 ) * r1_hu_0(:,:)
       Ve_rhs(:,:) = SUM( e3v_0(:,:,:) * vv(:,:,:,Krhs) * vmask(:,:,:), DIM=3 ) * r1_hv_0(:,:)
+#endif
 
       !                       !===========================!
       !                       !==  external 2D forcing  ==!
@@ -151,14 +158,14 @@ CONTAINS
       !                             !* wind forcing *!
       IF( ln_bt_fw ) THEN
          DO_2D( 0, 0, 0, 0 )
-            Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + r1_rho0 * utau(ji,jj) * r1_hu(ji,jj,Kbb)
-            Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + r1_rho0 * vtau(ji,jj) * r1_hv(ji,jj,Kbb)
+            Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + r1_rho0 * utauU(ji,jj) * r1_hu(ji,jj,Kbb)
+            Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + r1_rho0 * vtauV(ji,jj) * r1_hv(ji,jj,Kbb)
          END_2D
       ELSE
          zztmp = r1_rho0 * r1_2
          DO_2D( 0, 0, 0, 0 )
-            Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + zztmp * ( utau_b(ji,jj) + utau(ji,jj) ) * r1_hu(ji,jj,Kbb)
-            Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + zztmp * ( vtau_b(ji,jj) + vtau(ji,jj) ) * r1_hv(ji,jj,Kbb)
+            Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + zztmp * ( utau_b(ji,jj) + utauU(ji,jj) ) * r1_hu(ji,jj,Kbb)
+            Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + zztmp * ( vtau_b(ji,jj) + vtauV(ji,jj) ) * r1_hv(ji,jj,Kbb)
          END_2D
       ENDIF
       !
@@ -172,10 +179,10 @@ CONTAINS
          ELSE                                         ! CENTRED integration: use kt-1/2 + kt+1/2 pressure (NOW)
             zztmp = grav * r1_2
             DO_2D( 0, 0, 0, 0 )
-               Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + zztmp * (  ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj)  &
-                    &                                   + ssh_ibb(ji+1,jj  ) - ssh_ibb(ji,jj)  ) * r1_e1u(ji,jj)
-               Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + zztmp * (  ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj)  &
-                    &                                   + ssh_ibb(ji  ,jj+1) - ssh_ibb(ji,jj)  ) * r1_e2v(ji,jj)
+               Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + zztmp * (  ( ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) )   &   ! add () for NP repro
+                    &                                   + ( ssh_ibb(ji+1,jj  ) - ssh_ibb(ji,jj) ) ) * r1_e1u(ji,jj)
+               Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + zztmp * (  ( ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) )   &   ! add () for NP repro
+                    &                                   + ( ssh_ibb(ji  ,jj+1) - ssh_ibb(ji,jj) ) ) * r1_e2v(ji,jj)
             END_2D
          ENDIF
       ENDIF

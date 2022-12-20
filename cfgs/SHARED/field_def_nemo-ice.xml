@@ -18,7 +18,7 @@
   <field_group id="SBC" > <!-- time step automaticaly defined based on nn_fsbc -->
 
     <!-- 2D variables -->
-    <field_group id="SBC_2D" grid_ref="grid_T_2D" >
+    <field_group id="SBC_2D" grid_ref="grid_T_2D_inner" >
 
       <!-- =================== -->
       <!-- standard ice fields -->
@@ -69,8 +69,8 @@
       <field id="icesalm"      long_name="Mass of salt in sea ice per area"                        standard_name="sea_ice_salt_mass"                         unit="kg/m2" />
 
       <!-- momentum (rheology) -->
-      <field id="uice"         long_name="X-component of sea ice velocity"                         standard_name="sea_ice_x_velocity"                        unit="m/s"  />
-      <field id="vice"         long_name="Y-component of sea ice velocity"                         standard_name="sea_ice_y_velocity"                        unit="m/s"  />
+      <field id="uice"         long_name="X-component of sea ice velocity"                         standard_name="sea_ice_x_velocity"                        unit="m/s" grid_ref="grid_T_2D" />
+      <field id="vice"         long_name="Y-component of sea ice velocity"                         standard_name="sea_ice_y_velocity"                        unit="m/s" grid_ref="grid_T_2D" />
       <field id="icevel"       long_name="Sea-ice speed"                                           standard_name="sea_ice_speed"                             unit="m/s"  />
       <field id="utau_ai"      long_name="X-component of atmospheric stress on sea ice"            standard_name="surface_downward_x_stress"                 unit="N/m2" />
       <field id="vtau_ai"      long_name="Y-component of atmospheric stress on sea ice"            standard_name="surface_downward_y_stress"                 unit="N/m2" />
@@ -93,7 +93,7 @@
       <field id="yield11"      long_name="yield surface tensor component 11"                       standard_name="yield11"                                   unit="N/m"  />
       <field id="yield22"      long_name="yield surface tensor component 22"                       standard_name="yield22"                                   unit="N/m"  />
       <field id="yield12"      long_name="yield surface tensor component 12"                       standard_name="yield12"                                   unit="N/m"  />
-      <field id="beta_evp"     long_name="Relaxation parameter of ice rheology (beta)"             standard_name="relaxation_parameter_of_ice_rheology"      unit=""  />
+      <field id="beta_evp"     long_name="Relaxation parameter of ice rheology (beta)"             standard_name="relaxation_parameter_of_ice_rheology"      unit=""     grid_ref="grid_T_2D" />
 
       <!-- surface heat fluxes -->
       <field id="qt_ice"       long_name="total heat flux at ice surface"                          standard_name="surface_downward_heat_flux_in_air"         unit="W/m2" />
@@ -311,7 +311,7 @@
     </field_group> <!-- SBC_2D -->
 
     <!-- categories -->
-    <field_group id="SBC_3D" grid_ref="grid_T_ncatice" >
+    <field_group id="SBC_3D" grid_ref="grid_T_ncatice_inner" >
 
       <!-- standard ice fields -->
       <field id="iceconc_cat"  long_name="Sea-ice concentration per category"                unit=""        />
@@ -386,7 +386,7 @@
     -->
     <!-- output variables for my configuration (example) -->
 
-    <field_group id="myvarICE"        grid_ref="grid_T_2D" >
+    <field_group id="myvarICE" >
       <!-- ice mask -->
       <field field_ref="icemask"          name="simsk"   />
       <field field_ref="icemask05"        name="simsk05" />
@@ -495,7 +495,7 @@
     </field_group>
 
 
-    <field_group id="myvarICE_cat"        grid_ref="grid_T_ncatice" >
+    <field_group id="myvarICE_cat"  >
 
       <!-- categories -->
       <field field_ref="icemask_cat"      name="simskcat"/>
@@ -524,7 +524,7 @@
       <field field_ref="ilbgvol_tot"      name="ilbgvol_tot"  />
     </field_group>
     
-    <field_group id="ICE_budget"        grid_ref="grid_T_2D" >
+    <field_group id="ICE_budget"  >
       <!-- general -->
       <field field_ref="icemask"          name="simsk"      />
       <field field_ref="iceconc"          name="siconc"     />
@@ -579,7 +579,7 @@
     </field_group>
 
     <!-- SIMIP daily fields -->
-    <field_group id="SIday_fields"    grid_ref="grid_T_2D" >
+    <field_group id="SIday_fields"   >
       <field field_ref="icepres"          name="sitimefrac"   />
       <field field_ref="iceconc_pct"      name="siconc"       />
       <field field_ref="icethic_cmip"     name="sithick"      />
@@ -591,7 +591,7 @@
     </field_group>
 
     <!-- SIMIP monthly fields -->
-    <field_group id="SImon_fields"    grid_ref="grid_T_2D"  >
+    <field_group id="SImon_fields"    >
       <!-- Sea-ice state variables -->
       <field field_ref="icepres"          name="sitimefrac"   />
       <field field_ref="iceconc_pct"      name="siconc"       />

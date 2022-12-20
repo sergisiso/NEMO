@@ -204,19 +204,13 @@ CONTAINS
          !                                ! defined the type of lateral diffusion from ln_traldf_... logicals
          ierr = 0
          IF ( ln_traldf_lap ) THEN        ! laplacian operator
-            IF ( ln_zco ) THEN                  ! z-coordinate
+            IF ( l_zco .OR. l_zps ) THEN       ! z-coordinate with or without partial step
                IF ( ln_traldf_lev   )   nldf_tra = np_lap     ! iso-level = horizontal (no rotation)
                IF ( ln_traldf_hor   )   nldf_tra = np_lap     ! iso-level = horizontal (no rotation)
                IF ( ln_traldf_iso   )   nldf_tra = np_lap_i   ! iso-neutral: standard  (   rotation)
                IF ( ln_traldf_triad )   nldf_tra = np_lap_it  ! iso-neutral: triad     (   rotation)
             ENDIF
-            IF ( ln_zps ) THEN                  ! z-coordinate with partial step
-               IF ( ln_traldf_lev   )   ierr     = 1          ! iso-level not allowed
-               IF ( ln_traldf_hor   )   nldf_tra = np_lap     ! horizontal             (no rotation)
-               IF ( ln_traldf_iso   )   nldf_tra = np_lap_i   ! iso-neutral: standard     (rotation)
-               IF ( ln_traldf_triad )   nldf_tra = np_lap_it  ! iso-neutral: triad        (rotation)
-            ENDIF
-            IF ( ln_sco ) THEN                  ! s-coordinate
+            IF ( l_sco ) THEN                  ! s-coordinate
                IF ( ln_traldf_lev   )   nldf_tra = np_lap     ! iso-level              (no rotation)
                IF ( ln_traldf_hor   )   nldf_tra = np_lap_i   ! horizontal             (   rotation)
                IF ( ln_traldf_iso   )   nldf_tra = np_lap_i   ! iso-neutral: standard  (   rotation)
@@ -225,19 +219,13 @@ CONTAINS
          ENDIF
          !
          IF( ln_traldf_blp ) THEN         ! bilaplacian operator
-            IF ( ln_zco ) THEN                  ! z-coordinate
+            IF ( l_zco .OR. l_zps ) THEN       ! z-coordinate with or without partial step
                IF ( ln_traldf_lev   )   nldf_tra = np_blp     ! iso-level = horizontal (no rotation)
                IF ( ln_traldf_hor   )   nldf_tra = np_blp     ! iso-level = horizontal (no rotation)
                IF ( ln_traldf_iso   )   nldf_tra = np_blp_i   ! iso-neutral: standard  (   rotation)
                IF ( ln_traldf_triad )   nldf_tra = np_blp_it  ! iso-neutral: triad     (   rotation)
             ENDIF
-            IF ( ln_zps ) THEN                  ! z-coordinate with partial step
-               IF ( ln_traldf_lev   )   ierr     = 1          ! iso-level not allowed
-               IF ( ln_traldf_hor   )   nldf_tra = np_blp     ! horizontal             (no rotation)
-               IF ( ln_traldf_iso   )   nldf_tra = np_blp_i   ! iso-neutral: standard  (   rotation)
-               IF ( ln_traldf_triad )   nldf_tra = np_blp_it  ! iso-neutral: triad     (   rotation)
-            ENDIF
-            IF ( ln_sco ) THEN                  ! s-coordinate
+            IF ( l_sco ) THEN                  ! s-coordinate
                IF ( ln_traldf_lev   )   nldf_tra = np_blp     ! iso-level              (no rotation)
                IF ( ln_traldf_hor   )   nldf_tra = np_blp_it  ! horizontal             (   rotation)
                IF ( ln_traldf_iso   )   nldf_tra = np_blp_i   ! iso-neutral: standard  (   rotation)
@@ -692,7 +680,6 @@ CONTAINS
          zzaei = MIN( 1._wp, ABS( ff_t(ji,jj) * z1_f20 ) ) * zaeiw(ji,jj)     ! tropical decrease
          zaeiw(ji,jj) = MIN( zzaei , paei0 )                                  ! Max value = paei0
       END_2D
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'ldftra', zaeiw(:,:), 'W', 1.0_wp )   ! lateral boundary condition
       !
       DO_2D( 0, 0, 0, 0 )
          paeiu(ji,jj,1) = 0.5_wp * ( zaeiw(ji,jj) + zaeiw(ji+1,jj  ) ) * umask(ji,jj,1)
@@ -726,19 +713,18 @@ CONTAINS
       !!
       !! ** Action  : pu, pv increased by the eiv transport
       !!----------------------------------------------------------------------
-      INTEGER                     , INTENT(in   ) ::   kt        ! ocean time-step index
-      INTEGER                     , INTENT(in   ) ::   kit000    ! first time step index
-      INTEGER                     , INTENT(in   ) ::   Kmm, Krhs ! ocean time level indices
-      CHARACTER(len=3)            , INTENT(in   ) ::   cdtype    ! =TRA or TRC (tracer indicator)
-      ! TEMP: [tiling] Can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pu        ! in : 3 ocean transport components   [m3/s]
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pv        ! out: 3 ocean transport components   [m3/s]
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pw        ! increased by the eiv                [m3/s]
+      INTEGER                             , INTENT(in   ) :: kt        ! ocean time-step index
+      INTEGER                             , INTENT(in   ) :: kit000    ! first time step index
+      INTEGER                             , INTENT(in   ) :: Kmm, Krhs ! ocean time level indices
+      CHARACTER(len=3)                    , INTENT(in   ) :: cdtype    ! =TRA or TRC (tracer indicator)
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) :: pu        ! in : 3 ocean transport components   [m3/s]
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) :: pv        ! out: 3 ocean transport components   [m3/s]
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) :: pw        ! increased by the eiv                [m3/s]
       !!
       INTEGER  ::   ji, jj, jk                 ! dummy loop indices
       REAL(wp) ::   zuwk, zuwk1, zuwi, zuwi1   ! local scalars
       REAL(wp) ::   zvwk, zvwk1, zvwj, zvwj1   !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zpsi_uw, zpsi_vw
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zpsi_uw, zpsi_vw
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -765,8 +751,8 @@ CONTAINS
          pv(ji,jj,jk) = pv(ji,jj,jk) - ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj,jk+1) )
       END_3D
       DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-         pw(ji,jj,jk) = pw(ji,jj,jk) + (  zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj  ,jk)   &
-            &                           + zpsi_vw(ji,jj,jk) - zpsi_vw(ji  ,jj-1,jk) )
+         pw(ji,jj,jk) = pw(ji,jj,jk) + (  ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj  ,jk) )   &   ! add () for NP repro
+            &                           + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji  ,jj-1,jk) ) )
       END_3D
       !
       !                              ! diagnose the eddy induced velocity and associated heat transport
@@ -789,13 +775,13 @@ CONTAINS
       !! ** Method :
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(in) ::   psi_uw, psi_vw   ! streamfunction   [m3/s]
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in) ::   psi_uw, psi_vw   ! streamfunction   [m3/s]
       INTEGER                             , INTENT(in) ::   Kmm              ! ocean time level indices
       !
       INTEGER  ::   ji, jj, jk    ! dummy loop indices
       REAL(wp) ::   zztmp   ! local scalar
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zw2d   ! 2D workspace
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zw3d   ! 3D workspace
+      REAL(wp), DIMENSION(T2D(0))     ::   zw2d   ! 2D workspace
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zw3d   ! 3D workspace
       !!----------------------------------------------------------------------
       !
 !!gm I don't like this routine....   Crazy  way of doing things, not optimal at all...
@@ -806,41 +792,52 @@ CONTAINS
       !
       !                                                  !==  eiv velocities: calculate and output  ==!
       !
-      zw3d(:,:,jpk) = 0._wp                                    ! bottom value always 0
+      zw3d(:,:,jpk) = 0._wp                                   ! bottom value always 0
       !
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                  ! e2u e3u u_eiv = -dk[psi_uw]
-         zw3d(ji,jj,jk) = ( psi_uw(ji,jj,jk+1) - psi_uw(ji,jj,jk) ) / ( e2u(ji,jj) * e3u(ji,jj,jk,Kmm) )
-      END_3D
-      CALL iom_put( "uoce_eiv", zw3d )
-      !
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                  ! e1v e3v v_eiv = -dk[psi_vw]
-         zw3d(ji,jj,jk) = ( psi_vw(ji,jj,jk+1) - psi_vw(ji,jj,jk) ) / ( e1v(ji,jj) * e3v(ji,jj,jk,Kmm) )
-      END_3D
-      CALL iom_put( "voce_eiv", zw3d )
-      !
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                            ! e1 e2 w_eiv = dk[psix] + dk[psix]
-         zw3d(ji,jj,jk) = (  psi_vw(ji,jj,jk) - psi_vw(ji  ,jj-1,jk)    &
-            &              + psi_uw(ji,jj,jk) - psi_uw(ji-1,jj  ,jk)  ) / e1e2t(ji,jj)
-      END_3D
-      CALL iom_put( "woce_eiv", zw3d )
-      !
-      IF( iom_use('weiv_masstr') ) THEN   ! vertical mass transport & its square value
-         DO_2D( 0, 0, 0, 0 )
-            zw2d(ji,jj) = rho0 * e1e2t(ji,jj)
-         END_2D
-         DO jk = 1, jpk
-            zw3d(:,:,jk) = zw3d(:,:,jk) * zw2d(:,:)
-         END DO
-         CALL iom_put( "weiv_masstr" , zw3d )
+      IF( iom_use('uoce_eiv') ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                  ! e2u e3u u_eiv = -dk[psi_uw]
+            zw3d(ji,jj,jk) = ( psi_uw(ji,jj,jk+1) - psi_uw(ji,jj,jk) ) / ( e2u(ji,jj) * e3u(ji,jj,jk,Kmm) )
+         END_3D
+         CALL iom_put( "uoce_eiv", zw3d )
       ENDIF
       !
       IF( iom_use('ueiv_masstr') ) THEN
-         zw3d(:,:,:) = 0.e0
-         DO jk = 1, jpkm1
-            zw3d(:,:,jk) = rho0 * ( psi_uw(:,:,jk+1) - psi_uw(:,:,jk) )
-         END DO
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zw3d(ji,jj,jk) = rho0 * ( psi_uw(ji,jj,jk+1) - psi_uw(ji,jj,jk) )
+         END_3D
          CALL iom_put( "ueiv_masstr", zw3d )                  ! mass transport in i-direction
       ENDIF
+      !
+      IF( iom_use('voce_eiv') ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                  ! e1v e3v v_eiv = -dk[psi_vw]
+            zw3d(ji,jj,jk) = ( psi_vw(ji,jj,jk+1) - psi_vw(ji,jj,jk) ) / ( e1v(ji,jj) * e3v(ji,jj,jk,Kmm) )
+         END_3D
+         CALL iom_put( "voce_eiv", zw3d )
+      ENDIF
+      !
+      IF( iom_use('veiv_masstr') ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zw3d(ji,jj,jk) = rho0 * ( psi_vw(ji,jj,jk+1) - psi_vw(ji,jj,jk) )
+         END_3D
+         CALL iom_put( "veiv_masstr", zw3d )                  ! mass transport in j-direction
+      ENDIF
+       !
+      IF( iom_use('woce_eiv') ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                  ! e1 e2 w_eiv = dk[psix] + dk[psix]
+            zw3d(ji,jj,jk) = (  ( psi_vw(ji,jj,jk) - psi_vw(ji  ,jj-1,jk) )    &   ! add () for NP repro
+               &              + ( psi_uw(ji,jj,jk) - psi_uw(ji-1,jj  ,jk) )  ) / e1e2t(ji,jj)
+         END_3D
+         CALL iom_put( "woce_eiv", zw3d )
+      ENDIF
+      !
+      IF( iom_use('weiv_masstr') ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zw3d(ji,jj,jk) = rho0 * (  ( psi_vw(ji,jj,jk) - psi_vw(ji  ,jj-1,jk) )  &   ! add () for NP repro
+               &                     + ( psi_uw(ji,jj,jk) - psi_uw(ji-1,jj  ,jk) )  )
+         END_3D
+         CALL iom_put( "weiv_masstr" , zw3d )                 ! mass transport in z-direction
+      ENDIF
+      !
       !
       zztmp = 0.5_wp * rho0 * rcp
       IF( iom_use('ueiv_heattr') .OR. iom_use('ueiv_heattr3d') ) THEN
@@ -855,49 +852,47 @@ CONTAINS
         CALL iom_put( "ueiv_heattr3d", zztmp * zw3d )                  ! heat transport in i-direction
       ENDIF
       !
-      IF( iom_use('veiv_masstr') ) THEN
-         zw3d(:,:,:) = 0.e0
-         DO jk = 1, jpkm1
-            zw3d(:,:,jk) = rho0 * ( psi_vw(:,:,jk+1) - psi_vw(:,:,jk) )
-         END DO
-         CALL iom_put( "veiv_masstr", zw3d )                  ! mass transport in i-direction
+      IF( iom_use('veiv_heattr') .OR. iom_use('veiv_heattr3d') .OR. iom_use('sophteiv') ) THEN
+         zw2d(:,:)   = 0._wp
+         zw3d(:,:,:) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zw3d(ji,jj,jk) = zw3d(ji,jj,jk) + ( psi_vw(ji,jj,jk+1)          - psi_vw(ji,jj  ,jk)            )   &
+               &                            * ( ts    (ji,jj,jk,jp_tem,Kmm) + ts    (ji,jj+1,jk,jp_tem,Kmm) )
+            zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk)
+         END_3D
+         CALL iom_put( "veiv_heattr"  , zztmp * zw2d )                  !  heat transport in j-direction
+         CALL iom_put( "veiv_heattr3d", zztmp * zw3d )                  !  heat transport in j-direction
+         !
+         IF( iom_use( 'sophteiv' ) .AND. l_diaptr )   CALL dia_ptr_hst( jp_tem, 'eiv', 0.5 * zw3d )
       ENDIF
       !
-      zw2d(:,:)   = 0._wp
-      zw3d(:,:,:) = 0._wp
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-         zw3d(ji,jj,jk) = zw3d(ji,jj,jk) + ( psi_vw(ji,jj,jk+1)          - psi_vw(ji,jj  ,jk)            )   &
-            &                            * ( ts    (ji,jj,jk,jp_tem,Kmm) + ts    (ji,jj+1,jk,jp_tem,Kmm) )
-         zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk)
-      END_3D
-      CALL iom_put( "veiv_heattr"  , zztmp * zw2d )                  !  heat transport in j-direction
-      CALL iom_put( "veiv_heattr3d", zztmp * zw3d )                  !  heat transport in j-direction
-      !
-      IF( iom_use( 'sophteiv' ) .AND. l_diaptr )   CALL dia_ptr_hst( jp_tem, 'eiv', 0.5 * zw3d )
       !
       zztmp = 0.5_wp * 0.5
-      IF( iom_use('ueiv_salttr') .OR. iom_use('ueiv_salttr3d')) THEN
-        zw2d(:,:) = 0._wp
-        zw3d(:,:,:) = 0._wp
-        DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-           zw3d(ji,jj,jk) = zw3d(ji,jj,jk) * ( psi_uw(ji,jj,jk+1)          - psi_uw(ji  ,jj,jk)            )   &
-              &                            * ( ts    (ji,jj,jk,jp_sal,Kmm) + ts    (ji+1,jj,jk,jp_sal,Kmm) )
-           zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk)
-        END_3D
-        CALL iom_put( "ueiv_salttr", zztmp * zw2d )                  ! salt transport in i-direction
-        CALL iom_put( "ueiv_salttr3d", zztmp * zw3d )                ! salt transport in i-direction
+      IF( iom_use('ueiv_salttr') .OR. iom_use('ueiv_salttr3d') ) THEN
+         zw2d(:,:) = 0._wp
+         zw3d(:,:,:) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zw3d(ji,jj,jk) = zw3d(ji,jj,jk) * ( psi_uw(ji,jj,jk+1)          - psi_uw(ji  ,jj,jk)            )   &
+               &                            * ( ts    (ji,jj,jk,jp_sal,Kmm) + ts    (ji+1,jj,jk,jp_sal,Kmm) )
+            zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk)
+         END_3D
+         CALL iom_put( "ueiv_salttr", zztmp * zw2d )                    ! salt transport in i-direction
+         CALL iom_put( "ueiv_salttr3d", zztmp * zw3d )                  ! salt transport in i-direction
       ENDIF
-      zw2d(:,:) = 0._wp
-      zw3d(:,:,:) = 0._wp
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-         zw3d(ji,jj,jk) = zw3d(ji,jj,jk) + ( psi_vw(ji,jj,jk+1)          - psi_vw(ji,jj  ,jk)            )   &
-            &                            * ( ts    (ji,jj,jk,jp_sal,Kmm) + ts    (ji,jj+1,jk,jp_sal,Kmm) )
-         zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk)
-      END_3D
-      CALL iom_put( "veiv_salttr"  , zztmp * zw2d )                  !  salt transport in j-direction
-      CALL iom_put( "veiv_salttr3d", zztmp * zw3d )                  !  salt transport in j-direction
       !
-      IF( iom_use( 'sopsteiv' ) .AND. l_diaptr ) CALL dia_ptr_hst( jp_sal, 'eiv', 0.5 * zw3d )
+      IF( iom_use('veiv_salttr') .OR. iom_use('veiv_salttr3d') .OR. iom_use('sopsteiv') ) THEN
+         zw2d(:,:) = 0._wp
+         zw3d(:,:,:) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zw3d(ji,jj,jk) = zw3d(ji,jj,jk) + ( psi_vw(ji,jj,jk+1)          - psi_vw(ji,jj  ,jk)            )   &
+               &                            * ( ts    (ji,jj,jk,jp_sal,Kmm) + ts    (ji,jj+1,jk,jp_sal,Kmm) )
+            zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk)
+         END_3D
+         CALL iom_put( "veiv_salttr"  , zztmp * zw2d )                  !  salt transport in j-direction
+         CALL iom_put( "veiv_salttr3d", zztmp * zw3d )                  !  salt transport in j-direction
+         !
+         IF( iom_use( 'sopsteiv' ) .AND. l_diaptr )   CALL dia_ptr_hst( jp_sal, 'eiv', 0.5 * zw3d )
+      ENDIF
       !
       !
    END SUBROUTINE ldf_eiv_dia

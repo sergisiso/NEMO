@@ -33,6 +33,9 @@ MODULE icedia
    PUBLIC   ice_dia        ! called by icestp.F90
    PUBLIC   ice_dia_init   ! called in icestp.F90
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
+
    REAL(wp), SAVE ::   r1_area  ! inverse of the ocean area
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   vol_loc_ini, sal_loc_ini, tem_loc_ini                    ! initial volume, salt and heat contents
    REAL(wp)                              ::   frc_sal, frc_voltop, frc_volbot, frc_temtop, frc_tembot  ! global forcing trends
@@ -48,7 +51,7 @@ CONTAINS
       !!---------------------------------------------------------------------!
       !!                ***  ROUTINE ice_dia_alloc ***
       !!---------------------------------------------------------------------!
-      ALLOCATE( vol_loc_ini(jpi,jpj), sal_loc_ini(jpi,jpj), tem_loc_ini(jpi,jpj), STAT=ice_dia_alloc )
+      ALLOCATE( vol_loc_ini(A2D(0)), sal_loc_ini(A2D(0)), tem_loc_ini(A2D(0)), STAT=ice_dia_alloc )
 
       CALL mpp_sum ( 'icedia', ice_dia_alloc )
       IF( ice_dia_alloc /= 0 )   CALL ctl_stop( 'STOP',  'ice_dia_alloc: failed to allocate arrays'  )
@@ -64,8 +67,9 @@ CONTAINS
       !!---------------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   ! ocean time step
       !!
-      REAL(wp), DIMENSION(jpi,jpj,16) ::   ztmp
-      REAL(wp), DIMENSION(16)         ::   zbg          
+      INTEGER ::   ji, jj           ! dummy loop index
+      REAL(wp), DIMENSION(A2D(0),16) ::   ztmp
+      REAL(wp), DIMENSION(16)        ::   zbg          
       !!---------------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('ice_dia')
 
@@ -85,31 +89,32 @@ CONTAINS
       ! 1 - Trends due to forcing  !
       ! ---------------------------!
       ! they must be kept outside an IF(iom_use) because of the call to dia_rst below
-      ztmp(:,:,1) = - ( wfx_ice(:,:) + wfx_snw(:,:) + wfx_err_sub(:,:) ) * e1e2t(:,:) ! freshwater flux ice/snow-ocean
-      ztmp(:,:,2) = - ( wfx_sub(:,:) + wfx_spr(:,:) )                    * e1e2t(:,:) ! freshwater flux ice/snow-atm
-      ztmp(:,:,3) = -   sfx    (:,:)                                     * e1e2t(:,:) ! salt fluxes ice/snow-ocean
-      ztmp(:,:,4) =   qt_atm_oi(:,:)                                     * e1e2t(:,:) ! heat on top of ice-ocean
-      ztmp(:,:,5) =   qt_oce_ai(:,:)                                     * e1e2t(:,:) ! heat on top of ocean (and below ice)
-      
+      DO_2D( 0, 0, 0, 0 )
+         ztmp(ji,jj,1) = - ( wfx_ice(ji,jj) + wfx_snw(ji,jj) + wfx_err_sub(ji,jj) ) * e1e2t(ji,jj) ! freshwater flux ice/snow-ocean
+         ztmp(ji,jj,2) = - ( wfx_sub(ji,jj) + wfx_spr(ji,jj) )                      * e1e2t(ji,jj) ! freshwater flux ice/snow-atm
+         ztmp(ji,jj,3) = -   sfx    (ji,jj)                                         * e1e2t(ji,jj) ! salt fluxes ice/snow-ocean
+         ztmp(ji,jj,4) =   qt_atm_oi(ji,jj)                                         * e1e2t(ji,jj) ! heat on top of ice-ocean
+         ztmp(ji,jj,5) =   qt_oce_ai(ji,jj)                                         * e1e2t(ji,jj) ! heat on top of ocean (and below ice)
+      END_2D
       ! ----------------------- !
       ! 2 -  Contents           !
       ! ----------------------- !
-      IF( iom_use('ibgvol_tot' ) )   ztmp(:,:,6 ) = vt_i (:,:) * e1e2t(:,:) ! ice volume
-      IF( iom_use('sbgvol_tot' ) )   ztmp(:,:,7 ) = vt_s (:,:) * e1e2t(:,:) ! snow volume
-      IF( iom_use('ibgarea_tot') )   ztmp(:,:,8 ) = at_i (:,:) * e1e2t(:,:) ! area
-      IF( iom_use('ibgsalt_tot') )   ztmp(:,:,9 ) = st_i (:,:) * e1e2t(:,:) ! salt content
-      IF( iom_use('ibgheat_tot') )   ztmp(:,:,10) = et_i (:,:) * e1e2t(:,:) ! heat content
-      IF( iom_use('sbgheat_tot') )   ztmp(:,:,11) = et_s (:,:) * e1e2t(:,:) ! heat content
-      IF( iom_use('ipbgvol_tot') )   ztmp(:,:,12) = vt_ip(:,:) * e1e2t(:,:) ! ice pond volume
-      IF( iom_use('ilbgvol_tot') )   ztmp(:,:,13) = vt_il(:,:) * e1e2t(:,:) ! ice pond lid volume
+      IF( iom_use('ibgvol_tot' ) )   ztmp(:,:,6 ) = vt_i (A2D(0)) * e1e2t(A2D(0)) ! ice volume
+      IF( iom_use('sbgvol_tot' ) )   ztmp(:,:,7 ) = vt_s (A2D(0)) * e1e2t(A2D(0)) ! snow volume
+      IF( iom_use('ibgarea_tot') )   ztmp(:,:,8 ) = at_i (A2D(0)) * e1e2t(A2D(0)) ! area
+      IF( iom_use('ibgsalt_tot') )   ztmp(:,:,9 ) = st_i (:,:)    * e1e2t(A2D(0)) ! salt content
+      IF( iom_use('ibgheat_tot') )   ztmp(:,:,10) = et_i (:,:)    * e1e2t(A2D(0)) ! heat content
+      IF( iom_use('sbgheat_tot') )   ztmp(:,:,11) = et_s (:,:)    * e1e2t(A2D(0)) ! heat content
+      IF( iom_use('ipbgvol_tot') )   ztmp(:,:,12) = vt_ip(A2D(0)) * e1e2t(A2D(0)) ! ice pond volume
+      IF( iom_use('ilbgvol_tot') )   ztmp(:,:,13) = vt_il(A2D(0)) * e1e2t(A2D(0)) ! ice pond lid volume
 
       ! ---------------------------------- !
       ! 3 -  Content variations and drifts !
       ! ---------------------------------- !
-      IF( iom_use('ibgvolume') ) ztmp(:,:,14) = ( rhoi*vt_i(:,:) + rhos*vt_s(:,:) - vol_loc_ini(:,:) ) * e1e2t(:,:) ! freshwater trend
-      IF( iom_use('ibgsaltco') ) ztmp(:,:,15) = ( rhoi*st_i(:,:)                  - sal_loc_ini(:,:) ) * e1e2t(:,:) ! salt content trend
+      IF( iom_use('ibgvolume') ) ztmp(:,:,14) = ( rhoi*vt_i(A2D(0)) + rhos*vt_s(A2D(0)) - vol_loc_ini(:,:) ) * e1e2t(A2D(0)) ! freshwater trend
+      IF( iom_use('ibgsaltco') ) ztmp(:,:,15) = ( rhoi*st_i(:,:)                        - sal_loc_ini(:,:) ) * e1e2t(A2D(0)) ! salt content trend
       IF( iom_use('ibgheatco') .OR. iom_use('ibgheatfx') ) &
-         &                       ztmp(:,:,16) = ( et_i(:,:) + et_s(:,:)           - tem_loc_ini(:,:) ) * e1e2t(:,:) ! heat content trend
+         &                       ztmp(:,:,16) = ( et_i(:,:) + et_s(:,:)                 - tem_loc_ini(:,:) ) * e1e2t(A2D(0)) ! heat content trend
       
       ! global sum
       zbg(1:16) = glob_sum_vec( 'icedia', ztmp(:,:,1:16) )
@@ -261,9 +266,9 @@ CONTAINS
             frc_tembot  = 0._wp
             frc_sal     = 0._wp
             ! record initial ice volume, salt and temp
-            vol_loc_ini(:,:) = rhoi * vt_i(:,:) + rhos * vt_s(:,:)  ! ice/snow volume (kg/m2)
-            tem_loc_ini(:,:) = et_i(:,:) + et_s(:,:)                ! ice/snow heat content (J)
-            sal_loc_ini(:,:) = rhoi * st_i(:,:)                     ! ice salt content (pss*kg/m2)
+            vol_loc_ini(:,:) = rhoi * vt_i(A2D(0)) + rhos * vt_s(A2D(0))  ! ice/snow volume (kg/m2)
+            tem_loc_ini(:,:) = et_i(:,:) + et_s(:,:)                      ! ice/snow heat content (J)
+            sal_loc_ini(:,:) = rhoi * st_i(:,:)                           ! ice salt content (pss*kg/m2)
          ENDIF
          !
       ELSEIF( TRIM(cdrw) == 'WRITE' ) THEN   ! Create restart file

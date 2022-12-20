@@ -245,11 +245,11 @@ CONTAINS
       !                       !==  vertical Stokes Drift 3D velocity  ==!
       !
       DO_3D( 0, 1, 0, 1, 1, jpkm1 )    ! Horizontal e3*divergence
-         ze3divh(ji,jj,jk) = (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * usd(ji  ,jj,jk)    &
-            &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * usd(ji-1,jj,jk)    &
-            &                 + e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vsd(ji,jj  ,jk)    &
-            &                 - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * vsd(ji,jj-1,jk)  ) &
-            &                * r1_e1e2t(ji,jj)
+         ze3divh(ji,jj,jk) = (  ( e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * usd(ji  ,jj,jk)     &   ! add () for NP repro
+            &                   - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * usd(ji-1,jj,jk) )   &
+            &                 + ( e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vsd(ji,jj  ,jk)     &
+            &                   - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * vsd(ji,jj-1,jk) )   &
+            &                ) * r1_e1e2t(ji,jj)
       END_3D
       !
       CALL lbc_lnk( 'sbcwave', ze3divh, 'T', 1.0_wp )

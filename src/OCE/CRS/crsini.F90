@@ -74,7 +74,7 @@ CONTAINS
       INTEGER  :: ji,jj,jk      ! dummy indices
       INTEGER  :: ierr                                ! allocation error status
       INTEGER  ::   ios                 ! Local integer output status for namelist read
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze3t, ze3u, ze3v, ze3w
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze3t, ze3u, ze3v, ze3w, zdept0, zdepw0
 
       NAMELIST/namcrs/ nn_factx, nn_facty, nn_binref, ln_msh_crs, nn_crs_kz, ln_crs_wn
       !!----------------------------------------------------------------------
@@ -210,8 +210,12 @@ CONTAINS
      ENDDO
 
      !    3.d.3   Vertical depth (meters)
-     CALL crs_dom_ope( gdept_0, 'MAX', 'T', tmask, gdept_crs, p_e3=ze3t, psgn=1.0_wp ) 
-     CALL crs_dom_ope( gdepw_0, 'MAX', 'W', tmask, gdepw_crs, p_e3=ze3w, psgn=1.0_wp )
+     DO jk = 1, jpk
+        zdept0(:,:,jk) = gdept_0(:,:,jk)
+        zdepw0(:,:,jk) = gdepw_0(:,:,jk)
+     END DO
+     CALL crs_dom_ope( zdept0, 'MAX', 'T', tmask, gdept_crs, p_e3=ze3t, psgn=1.0_wp ) 
+     CALL crs_dom_ope( zdepw0, 'MAX', 'W', tmask, gdepw_crs, p_e3=ze3w, psgn=1.0_wp )
 
 
      !---------------------------------------------------------

@@ -73,11 +73,7 @@ CONTAINS
             END SELECT
          END DO
          !
-         IF( nn_hls > 1 .AND. ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
-         IF( nn_hls == 1 ) THEN
-            llsend2(:) = .false.   ;   llrecv2(:) = .false.
-            llsend3(:) = .false.   ;   llrecv3(:) = .false.
-         END IF
+         IF( ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
          DO ib_bdy=1, nb_bdy
             SELECT CASE( cn_dyn3d(ib_bdy) )
             CASE('orlanski', 'orlanski_npo')

@@ -25,7 +25,6 @@ MODULE agrif_oce_update
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
-   USE domvvl         ! Need interpolation routines 
    USE vremap         ! Vertical remapping
    USE lbclnk 
 #if defined key_qco
@@ -36,6 +35,7 @@ MODULE agrif_oce_update
 
    PUBLIC   Agrif_Update_Tra, Agrif_Update_Dyn, Agrif_Update_vvl, Agrif_Update_ssh
    PUBLIC   Agrif_Check_parent_bat
+   PUBLIC   update_tmask_agrif
 
    !! * Substitutions
 #  include "domzgr_substitute.h90"
@@ -200,17 +200,17 @@ CONTAINS
 #if defined key_qco
       !
       Agrif_UseSpecialValueInUpdate = .FALSE.
-#if ! defined DECAL_FEEDBACK_2D
+# if ! defined DECAL_FEEDBACK_2D
       CALL Agrif_Update_Variable(r3t_id,  locupdate=(/  nn_shift_bar,-2/), procname=update_r3t) 
       CALL Agrif_Update_Variable(r3f_id,  locupdate=(/  nn_shift_bar,-2/), procname=update_r3f) 
       CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3u) 
       CALL Agrif_Update_Variable(r3v_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3v) 
-#else
+# else
       CALL Agrif_Update_Variable(r3t_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_r3t) 
       CALL Agrif_Update_Variable(r3f_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_r3f) 
       CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/1+nn_shift_bar,-2/), procname=update_r3u) 
       CALL Agrif_Update_Variable(r3v_id, locupdate1=(/1+nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3v) 
-#endif
+# endif
       !
       ! Old way (update e3 at UVF-points everywhere on parent domain):
 !      CALL Agrif_ChildGrid_To_ParentGrid()
@@ -219,26 +219,6 @@ CONTAINS
 #elif defined key_linssh
       !
       ! DO NOTHING HERE
-#else
-      Agrif_UseSpecialValueInUpdate = .FALSE.
-      l_vremap                      = ln_vert_remap
-#if ! defined DECAL_FEEDBACK_2D
-      CALL Agrif_Update_Variable(e3t_id,  locupdate=(/  nn_shift_bar,-2/), procname=update_e3t) 
-      CALL Agrif_Update_Variable(e3f_id,  locupdate=(/  nn_shift_bar,-2/), procname=update_e3f) 
-      CALL Agrif_Update_Variable(e3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_e3u) 
-      CALL Agrif_Update_Variable(e3v_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_e3v) 
-#else
-      CALL Agrif_Update_Variable(e3t_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_e3t) 
-      CALL Agrif_Update_Variable(e3f_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_e3f) 
-      CALL Agrif_Update_Variable(e3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/1+nn_shift_bar,-2/), procname=update_e3u) 
-      CALL Agrif_Update_Variable(e3v_id, locupdate1=(/1+nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_e3v) 
-#endif
-      l_vremap                      = .FALSE. 
-      !
-! Old way (update e3 at UVF-points everywhere on parent domain):
-!      CALL Agrif_ChildGrid_To_ParentGrid()
-!      CALL dom_vvl_update_UVF
-!      CALL Agrif_ParentGrid_To_ChildGrid()
 #endif
       !
    END SUBROUTINE Agrif_Update_vvl
@@ -258,80 +238,6 @@ CONTAINS
       CALL dom_qco_zgr( Kbb_a, Kmm_a )
       !
    END SUBROUTINE Agrif_Update_qco
-#endif
-
-#if ! defined key_qco   &&   ! defined key_linssh
-   SUBROUTINE dom_vvl_update_UVF
-      !!---------------------------------------------
-      !!       *** ROUTINE dom_vvl_update_UVF ***
-      !!---------------------------------------------
-      !!
-      INTEGER :: jk
-      REAL(wp):: zcoef
-      !!---------------------------------------------
-      IF (lwp.AND.lk_agrif_debug) Write(*,*) 'Finalize e3 on grid Number', &
-                  & Agrif_Fixed(), 'Step', Agrif_Nb_Step()
-
-      ! Save "old" scale factor (prior update) for subsequent asselin correction
-      ! of prognostic variables
-      ! -----------------------
-      !
-      e3u(:,:,:,Krhs_a) = e3u(:,:,:,Kmm_a)
-      e3v(:,:,:,Krhs_a) = e3v(:,:,:,Kmm_a)
-      hu(:,:,Krhs_a) = hu(:,:,Kmm_a)
-      hv(:,:,Krhs_a) = hv(:,:,Kmm_a)
-
-      ! 1) NOW fields
-      !--------------
-      
-         ! Vertical scale factor interpolations
-         ! ------------------------------------
-      CALL dom_vvl_interpol( e3t(:,:,:,Kmm_a), e3u(:,:,:,Kmm_a) ,  'U' )
-      CALL dom_vvl_interpol( e3t(:,:,:,Kmm_a), e3v(:,:,:,Kmm_a) ,  'V' )
-      CALL dom_vvl_interpol( e3u(:,:,:,Kmm_a), e3f(:,:,:) ,  'F' )
-
-      CALL dom_vvl_interpol( e3u(:,:,:,Kmm_a), e3uw(:,:,:,Kmm_a), 'UW' )
-      CALL dom_vvl_interpol( e3v(:,:,:,Kmm_a), e3vw(:,:,:,Kmm_a), 'VW' )
-
-         ! Update total depths:
-         ! --------------------
-      hu(:,:,Kmm_a) = 0._wp                    ! Ocean depth at U-points
-      hv(:,:,Kmm_a) = 0._wp                    ! Ocean depth at V-points
-      DO jk = 1, jpkm1
-         hu(:,:,Kmm_a) = hu(:,:,Kmm_a) + e3u(:,:,jk,Kmm_a) * umask(:,:,jk)
-         hv(:,:,Kmm_a) = hv(:,:,Kmm_a) + e3v(:,:,jk,Kmm_a) * vmask(:,:,jk)
-      END DO
-      !                                        ! Inverse of the local depth
-      r1_hu(:,:,Kmm_a) = ssumask(:,:) / ( hu(:,:,Kmm_a) + 1._wp - ssumask(:,:) )
-      r1_hv(:,:,Kmm_a) = ssvmask(:,:) / ( hv(:,:,Kmm_a) + 1._wp - ssvmask(:,:) )
-
-
-      ! 2) BEFORE fields:
-      !------------------
-      IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
-         !
-         ! Vertical scale factor interpolations
-         ! ------------------------------------
-         CALL dom_vvl_interpol( e3t(:,:,:,Kbb_a), e3u(:,:,:,Kbb_a),  'U'  )
-         CALL dom_vvl_interpol( e3t(:,:,:,Kbb_a), e3v(:,:,:,Kbb_a),  'V'  )
-
-         CALL dom_vvl_interpol( e3u(:,:,:,Kbb_a), e3uw(:,:,:,Kbb_a), 'UW' )
-         CALL dom_vvl_interpol( e3v(:,:,:,Kbb_a), e3vw(:,:,:,Kbb_a), 'VW' )
-
-         ! Update total depths:
-         ! --------------------
-         hu(:,:,Kbb_a) = 0._wp                     ! Ocean depth at U-points
-         hv(:,:,Kbb_a) = 0._wp                     ! Ocean depth at V-points
-         DO jk = 1, jpkm1
-            hu(:,:,Kbb_a) = hu(:,:,Kbb_a) + e3u(:,:,jk,Kbb_a) * umask(:,:,jk)
-            hv(:,:,Kbb_a) = hv(:,:,Kbb_a) + e3v(:,:,jk,Kbb_a) * vmask(:,:,jk)
-         END DO
-         !                                     ! Inverse of the local depth
-         r1_hu(:,:,Kbb_a) = ssumask(:,:) / ( hu(:,:,Kbb_a) + 1._wp - ssumask(:,:) )
-         r1_hv(:,:,Kbb_a) = ssvmask(:,:) / ( hv(:,:,Kbb_a) + 1._wp - ssvmask(:,:) )
-      ENDIF
-      !
-   END SUBROUTINE dom_vvl_update_UVF
 #endif
 
 
@@ -1320,7 +1226,6 @@ CONTAINS
          e3w (i1:i2,j1:j2,1,Kmm_a) = e3w_0(i1:i2,j1:j2,1) + e3t(i1:i2,j1:j2,1,Kmm_a) - e3t_0(i1:i2,j1:j2,1)
          gdept(i1:i2,j1:j2,1,Kmm_a) = 0.5_wp * e3w(i1:i2,j1:j2,1,Kmm_a)
          gdepw(i1:i2,j1:j2,1,Kmm_a) = 0.0_wp
-         gde3w(i1:i2,j1:j2,1) = gdept(i1:i2,j1:j2,1,Kmm_a) - (ht(i1:i2,j1:j2)-ht_0(i1:i2,j1:j2)) ! Last term in the rhs is ssh
          !
          DO jk = 2, jpkm1
             DO jj = j1,j2
@@ -1331,7 +1236,6 @@ CONTAINS
                gdepw(ji,jj,jk,Kmm_a) = gdepw(ji,jj,jk-1,Kmm_a) + e3t(ji,jj,jk-1,Kmm_a)
                gdept(ji,jj,jk,Kmm_a) =      zcoef  * ( gdepw(ji,jj,jk  ,Kmm_a) + 0.5_wp * e3w(ji,jj,jk,Kmm_a))  &
                    &               + (1-zcoef) * ( gdept(ji,jj,jk-1,Kmm_a) +       e3w(ji,jj,jk,Kmm_a)) 
-               gde3w(ji,jj,jk) = gdept(ji,jj,jk,Kmm_a) - (ht(ji,jj)-ht_0(ji,jj)) ! Last term in the rhs is ssh
                END DO
             END DO
          END DO
@@ -1893,7 +1797,7 @@ CONTAINS
                      DO jk=k1,k2-1
                         IF  (ABS((ptab(ji,jj,jk)-e3u_0(ji,jj,jk))*umask(ji,jj,jk)).GE.1.e-6)  THEN 
                            kindic_agr = kindic_agr + 1 
-                           print *, 'erro u-pt', mig0(ji), mjg0(jj), jk, mbku(ji,jj), ikbot, ptab(ji,jj,jk), e3u_0(ji,jj,jk)
+                           PRINT *, 'erro u-pt', mig(ji,0), mjg(jj,0), jk, mbku(ji,jj), ikbot, ptab(ji,jj,jk), e3u_0(ji,jj,jk)
                         ENDIF
                      END DO
                   ENDIF
@@ -1933,7 +1837,7 @@ CONTAINS
                      DO jk=k1,k2-1
                         IF  (ABS((ptab(ji,jj,jk)-e3v_0(ji,jj,jk))*vmask(ji,jj,jk)).GE.1.e-6)  THEN 
                            kindic_agr = kindic_agr + 1 
-                           print *, 'erro v-pt', mig0(ji), mjg0(jj), mbkv(ji,jj), ptab(ji,jj,jk), e3v_0(ji,jj,jk)
+                           PRINT *, 'erro v-pt', mig(ji,0), mjg(jj,0), mbkv(ji,jj), ptab(ji,jj,jk), e3v_0(ji,jj,jk)
                         ENDIF
                      END DO
                   ENDIF
@@ -1944,6 +1848,24 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE check_parent_e3v0
+
+
+   SUBROUTINE update_tmask_agrif( tabres, i1, i2, j1, j2, before )
+      !!----------------------------------------------------------------------
+      !!                   *** ROUTINE updatetmsk ***
+      !!----------------------------------------------------------------------
+      INTEGER                         , INTENT(in   ) ::   i1, i2, j1, j2
+      REAL(wp), DIMENSION(i1:i2,j1:j2), INTENT(inout) ::   tabres
+      LOGICAL                         , INTENT(in   ) ::   before
+      !!
+      !!----------------------------------------------------------------------
+      ! 
+      IF( .NOT.before ) THEN
+         tmask_agrif(i1:i2,j1:j2)  = 0._wp 
+      ENDIF
+      !
+   END SUBROUTINE update_tmask_agrif
+
 #else
    !!----------------------------------------------------------------------
    !!   Empty module                                          no AGRIF zoom

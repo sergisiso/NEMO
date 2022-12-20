@@ -274,12 +274,6 @@ CONTAINS
       !                             !-----------------------------------------!
       CALL mpp_init
 
-#if defined key_loop_fusion
-      IF( nn_hls == 1 ) THEN
-         CALL ctl_stop( 'STOP', 'nemogcm : Loop fusion can be used only with extra-halo' )
-      ENDIF
-#endif
-
       CALL halo_mng_init()
       ! Now we know the dimensions of the grid and numout has been set: we can allocate arrays
       CALL nemo_alloc()

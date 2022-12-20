@@ -19,7 +19,6 @@
    !
    USE oce            ! ocean dynamics and active tracers
    USE dom_oce        ! ocean space and time domain
-   USE domvvl         ! ocean space and time domain : variable volume layer
    USE domzgr
    USE zdf_oce        ! ocean vertical physics
    USE sbc_oce        ! surface boundary condition: ocean
@@ -69,8 +68,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                ***  FUNCTION zdf_edmf_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( edmfa(jpi,jpj,jpk) , edmfb(jpi,jpj,jpk) , edmfc(jpi,jpj,jpk)      &
-         &      , edmftra(jpi,jpj,jpk,2), edmfm(jpi,jpj,jpk) ,  STAT= zdf_mfc_alloc )
+      ALLOCATE( edmfa(A2D(0),jpk) , edmfb(A2D(0),jpk) , edmfc(A2D(0),jpk),      &
+         &      edmftra(A2D(0),jpk,2), edmfm(A2D(0),jpk) ,  STAT= zdf_mfc_alloc )
          !
       IF( lk_mpp             )   CALL mpp_sum ( 'zdfmfc', zdf_mfc_alloc )
       IF( zdf_mfc_alloc /= 0 )   CALL ctl_warn('zdf_mfc_alloc: failed to allocate arrays')
@@ -95,26 +94,26 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                                  , INTENT(in)    :: Kmm, Krhs ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) :: pts       ! active tracers and RHS of tracer equation
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk,2) ::   ztsp         ! T/S of the plume
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk,2) ::   ztse         ! T/S at W point
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) :: zrwp          !
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) :: zrwp2         !
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) :: zapp          !
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) :: zedmf         !
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) :: zepsT, zepsW  !
+      REAL(wp), DIMENSION(T2D(0),jpk,2) ::   ztsp         ! T/S of the plume
+      REAL(wp), DIMENSION(T2D(0),jpk,2) ::   ztse         ! T/S at W point
+      REAL(wp), DIMENSION(T2D(0),jpk) :: zrwp          !
+      REAL(wp), DIMENSION(T2D(0),jpk) :: zrwp2         !
+      REAL(wp), DIMENSION(T2D(0),jpk) :: zapp          !
+      REAL(wp), DIMENSION(T2D(0),jpk) :: zedmf         !
+      REAL(wp), DIMENSION(T2D(0),jpk) :: zepsT, zepsW  !
       !
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zustar, zustar2   !
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zuws, zvws, zsws, zfnet          !
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zfbuo, zrautbm1, zrautb, zraupl
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zwpsurf            !
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zop0 , zsp0 !
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zrwp_0, zrwp2_0  !
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zapp0           !
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zphp, zph, zphpm1, zphm1, zNHydro
-      REAL(wp), DIMENSION(A2D(nn_hls)) :: zhcmo          !
+      REAL(wp), DIMENSION(T2D(0)) :: zustar, zustar2   !
+      REAL(wp), DIMENSION(T2D(0)) :: zuws, zvws, zsws, zfnet          !
+      REAL(wp), DIMENSION(T2D(0)) :: zfbuo, zrautbm1, zrautb, zraupl
+      REAL(wp), DIMENSION(T2D(0)) :: zwpsurf            !
+      REAL(wp), DIMENSION(T2D(0)) :: zop0 , zsp0 !
+      REAL(wp), DIMENSION(T2D(0)) :: zrwp_0, zrwp2_0  !
+      REAL(wp), DIMENSION(T2D(0)) :: zapp0           !
+      REAL(wp), DIMENSION(T2D(0)) :: zphp, zph, zphpm1, zphm1, zNHydro
+      REAL(wp), DIMENSION(T2D(0)) :: zhcmo          !
       !
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk)   ::   zn2    ! N^2
-      REAL(wp), DIMENSION(A2D(nn_hls),2  ) ::   zab, zabm1, zabp ! alpha and beta
+      REAL(wp), DIMENSION(T2D(0),jpk)   ::   zn2    ! N^2
+      REAL(wp), DIMENSION(T2D(0),2  ) ::   zab, zabm1, zabp ! alpha and beta
      
       REAL(wp), PARAMETER :: zepsilon = 1.e-30                 ! local small value
 
@@ -135,7 +134,7 @@ CONTAINS
       zcb          = 1._wp
       zcd          = 1._wp
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          !------------------------------------------------------------------
          ! Surface boundary condition
          !------------------------------------------------------------------
@@ -160,8 +159,10 @@ CONTAINS
          !-------------------------------------------
          zrwp (ji,jj,:) =  0._wp ; zrwp2(ji,jj,:) =  0._wp ; zedmf(ji,jj,:) =  0._wp
          zph  (ji,jj)   =  0._wp ; zphm1(ji,jj)   =  0._wp ; zphpm1(ji,jj)  =  0._wp
-         ztsp(ji,jj,:,:)=  0._wp
+      END_2D
 
+      DO_2D( 0, 0, 0, 0 )
+         ztsp(ji,jj,:,:) =  0._wp ; ztse(ji,jj,:,:) =  0._wp
          ! Tracers inside plume (ztsp) and environment (ztse)
          ztsp(ji,jj,1,jp_tem) = pts(ji,jj,1,jp_tem,Kmm) * tmask(ji,jj,1)
          ztsp(ji,jj,1,jp_sal) = pts(ji,jj,1,jp_sal,Kmm) * tmask(ji,jj,1)
@@ -169,17 +170,19 @@ CONTAINS
          ztse(ji,jj,1,jp_sal) = pts(ji,jj,1,jp_sal,Kmm) * tmask(ji,jj,1)
       END_2D
 
-      CALL eos( ztse(:,:,1,:) ,  zrautb(:,:) )
-      CALL eos( ztsp(:,:,1,:) ,  zraupl(:,:) )
+      CALL eos( ztse(:,:,1,:) ,  zrautb(:,:), kbnd=0 )
+      CALL eos( ztsp(:,:,1,:) ,  zraupl(:,:), kbnd=0 )
 
       !-------------------------------------------
       ! Boundary Condition of Mass Flux (plume velo.; convective area, entrain/detrain)
       !-------------------------------------------
-      zhcmo(:,:) = e3t(A1Di(nn_hls),A1Dj(nn_hls),1,Kmm)
-      zfbuo(:,:)   = 0._wp
+      DO_2D( 0, 0, 0, 0 )
+         zhcmo(ji,jj) = e3t(ji,jj,1,Kmm)
+         zfbuo(ji,jj) = 0._wp
+      END_2D
       WHERE ( ABS(zrautb(:,:)) > 1.e-20 ) zfbuo(:,:)   =   &
          &      grav * ( 2.e-4_wp *zfnet(:,:)              &
-         &      - 7.6E-4_wp*pts(A2D(nn_hls),1,jp_sal,Kmm)  &
+         &      - 7.6E-4_wp*pts(T2D(0),1,jp_sal,Kmm)  &
          &      * zsws(:,:)/zrautb(:,:)) * zhcmo(:,:)
 
       zedmf(:,:,1) = -0.065_wp*(ABS(zfbuo(:,:)))**(1._wp/3._wp)*SIGN(1.,zfbuo(:,:))
@@ -211,8 +214,8 @@ CONTAINS
 
          ! Compute the buoyancy acceleration on T-points at jk-1
          zrautbm1(:,:) = zrautb(:,:)
-         CALL eos( pts (:,:,jk  ,:,Kmm) ,  zrautb(:,:)   )
-         CALL eos( ztsp(:,:,jk-1,:    ) ,  zraupl(:,:)   )
+         CALL eos( pts (:,:,jk  ,:,Kmm) ,  zrautb(:,:), kbnd=0 )
+         CALL eos( ztsp(:,:,jk-1,:    ) ,  zraupl(:,:), kbnd=0 )
 
          DO_2D( 0, 0, 0, 0 )
             zphm1(ji,jj)  = zphm1(ji,jj)  + grav * zrautbm1(ji,jj) * e3t(ji,jj,jk-1, Kmm)
@@ -395,9 +398,9 @@ CONTAINS
    
    SUBROUTINE diag_mfc( zdiagi, zdiagd, zdiags, p2dt, Kaa )
 
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::  zdiagi, zdiagd, zdiags  ! inout: tridaig. terms
-      REAL(wp)                            , INTENT(in   ) ::   p2dt                   ! tracer time-step
-      INTEGER                             , INTENT(in   ) ::   Kaa                    ! ocean time level indices
+      REAL(wp), DIMENSION(T2D(0),jpk), INTENT(inout) ::  zdiagi, zdiagd, zdiags  ! inout: tridaig. terms
+      REAL(wp)                       , INTENT(in   ) ::   p2dt                   ! tracer time-step
+      INTEGER                        , INTENT(in   ) ::   Kaa                    ! ocean time level indices
 
       INTEGER  ::   ji, jj, jk  ! dummy  loop arguments   
 

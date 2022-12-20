@@ -11,20 +11,16 @@ MODULE isfcavmlt
    !!   isfcav_mlt    : compute or read ice shelf fwf/heat fluxes from isf 
    !!                   to oce
    !!----------------------------------------------------------------------
-
    USE isf_oce                  ! ice shelf
-   USE isftbl , ONLY: isf_tbl   ! ice shelf depth average
-   USE isfutils,ONLY: debug     ! debug subroutine
 
+   USE par_oce                            ! ocean space and time domain
    USE dom_oce                            ! ocean space and time domain
    USE phycst , ONLY: rcp, rho0, rho0_rcp ! physical constants
-   USE eosbn2 , ONLY: eos_fzp             ! equation of state
 
    USE in_out_manager              ! I/O manager
-   USE iom        , ONLY: iom_put  ! I/O library
    USE fldread    , ONLY: fld_read, FLD, FLD_N !
-   USE lib_fortran, ONLY: glob_sum !
-   USE lib_mpp    , ONLY: ctl_stop !
+   USE lib_fortran, ONLY: glob_sum_vec
+   USE lib_mpp    , ONLY: ctl_stop
 
    IMPLICIT NONE
    PRIVATE
@@ -40,60 +36,51 @@ MODULE isfcavmlt
    !!----------------------------------------------------------------------
 CONTAINS
 
-! -------------------------------------------------------------------------------------------------------
-! -------------------------------- PUBLIC SUBROUTINE ----------------------------------------------------
-! -------------------------------------------------------------------------------------------------------
 
-   SUBROUTINE isfcav_mlt(kt, pgt, pgs , pttbl, pstbl, &
-      &                           pqhc, pqoce, pqfwf  )
+   SUBROUTINE isfcav_mlt( kt, l_converged, pgt, pgs , pttbl, pstbl, &
+      &                                    pqhc, pqoce, pfwf, ptfrz )
       !!----------------------------------------------------------------------
       !!
       !!                          ***  ROUTINE isfcav_mlt  ***
       !!
       !! ** Purpose    : compute or read ice shelf fwf/heat fluxes in the ice shelf cavity
       !!
-      !!-------------------------- OUT -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) :: pqhc, pqoce, pqfwf  ! heat and fwf fluxes
-      !!-------------------------- IN  -------------------------------------
-      INTEGER, INTENT(in) :: kt
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pgt  , pgs    ! gamma t and gamma s
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pttbl, pstbl  ! top boundary layer tracer
+      !!---------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt
+      LOGICAL , DIMENSION(A2D(0)), INTENT(in   ) ::   l_converged         ! true when melting converges (per grid point)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   pgt, pgs            ! gamma t and gamma s
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   pttbl, pstbl        ! top boundary layer tracer
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   pqhc, pqoce, pfwf   ! heat and fwf fluxes
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   ptfrz               ! tbl freezing temperature
       !!---------------------------------------------------------------------
       !
       ! compute latent heat and melt (2d)
       SELECT CASE ( cn_isfcav_mlt )
       CASE ( 'spe' )   ! ice shelf melt specified (read input file, and heat fluxes derived from
-         CALL isfcav_mlt_spe( kt, pstbl,               &
-            &                  pqhc, pqoce, pqfwf  )
+         !
+         CALL isfcav_mlt_spe  ( kt, l_converged,                          pqhc, pqoce, pfwf, ptfrz )
+         !
       CASE ( '2eq' )   !  ISOMIP  formulation (2 equations) for volume flux (Hunter et al., 2006)
-         CALL isfcav_mlt_2eq( pgt, pttbl, pstbl,       &
-            &                  pqhc , pqoce, pqfwf )
+         !
+         CALL isfcav_mlt_2eq  (     l_converged, pgt,       pttbl,        pqhc, pqoce, pfwf, ptfrz )
+         !
       CASE ( '3eq' )   ! ISOMIP+ formulation (3 equations) for volume flux (Asay-Davis et al., 2015)
-         CALL isfcav_mlt_3eq( pgt, pgs , pttbl, pstbl, &
-            &                  pqhc, pqoce, pqfwf  )
+         !
+         CALL isfcav_mlt_3eq  (     l_converged, pgt, pgs , pttbl, pstbl, pqhc, pqoce, pfwf, ptfrz )
+         !
       CASE ( 'oasis' ) ! fwf pass trough oasis
-         CALL isfcav_mlt_oasis( kt, pstbl,              &
-            &                   pqhc, pqoce, pqfwf  )
+         !
+         CALL isfcav_mlt_oasis( kt, l_converged,                          pqhc, pqoce, pfwf, ptfrz )
+         !
       CASE DEFAULT
          CALL ctl_stop('STOP', 'unknown isf melt formulation : cn_isfcav (should not see this)')
       END SELECT
       !
-      IF (ln_isfdebug) THEN
-         IF(lwp) WRITE(numout,*) ''
-         CALL debug( 'isfcav_mlt qhc  :', pqhc (:,:) )
-         CALL debug( 'isfcav_mlt qoce :', pqoce(:,:) )
-         CALL debug( 'isfcav_mlt qfwf :', pqfwf(:,:) )
-         IF(lwp) WRITE(numout,*) ''
-      END IF
-      !
    END SUBROUTINE isfcav_mlt
 
-! -------------------------------------------------------------------------------------------------------
-! -------------------------------- PRIVATE SUBROUTINE ---------------------------------------------------
-! -------------------------------------------------------------------------------------------------------
 
-   SUBROUTINE isfcav_mlt_spe(kt, pstbl,          &  ! <<== in
-      &                      pqhc , pqoce, pqfwf )  ! ==>> out
+   SUBROUTINE isfcav_mlt_spe( kt, l_converged,                          &  ! <<== in
+      &                                        pqhc, pqoce, pfwf, ptfrz )  ! ==>> inout
       !!----------------------------------------------------------------------
       !!
       !!                          ***  ROUTINE isfcav_mlt_spe  ***
@@ -102,34 +89,30 @@ CONTAINS
       !!                 - compute ocea-ice heat flux (assuming it is equal to latent heat)
       !!                 - compute heat content flux
       !!---------------------------------------------------------------------
-      !!-------------------------- OUT -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) :: pqhc, pqoce, pqfwf  ! heat content, latent heat and fwf fluxes
-      !!-------------------------- IN  -------------------------------------
-      INTEGER                     , INTENT(in   ) :: kt                  ! current time step
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pstbl               ! salinity in tbl
+      INTEGER                    , INTENT(in   ) ::   kt                 ! current time step
+      LOGICAL , DIMENSION(A2D(0)), INTENT(in   ) ::   l_converged        ! true when melting converges (per grid point)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   pqhc, pqoce, pfwf  ! heat content, latent heat and fwf fluxes
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   ptfrz              ! tbl freezing temp
+      !!
+      INTEGER ::   ji, jj     ! dummy loop indices
       !!--------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj) :: ztfrz                              ! tbl freezing temperature
-      !!--------------------------------------------------------------------
-      !
-      ! Compute freezing temperature
-      CALL eos_fzp( pstbl(:,:), ztfrz(:,:), risfdep(:,:) )
       !
       ! read input file of fwf (from isf to oce; ie melt)
       CALL fld_read ( kt, 1, sf_isfcav_fwf )
       !
-      ! define fwf and qoce
-      ! ocean heat flux is assume to be equal to the latent heat
-      pqfwf(:,:) =   sf_isfcav_fwf(1)%fnow(:,:,1)      ! fwf                ( > 0 from isf to oce)
-      pqoce(:,:) = - pqfwf(:,:) * rLfusisf             ! ocean heat flux    ( > 0 from isf to oce)
-      pqhc (:,:) =   pqfwf(:,:) * ztfrz(:,:) * rcp     ! heat content flux  ( > 0 from isf to oce)
-      !
-      ! output freezing point at the interface
-      CALL iom_put('isftfrz_cav', ztfrz(:,:) * mskisf_cav(:,:) )
+      ! define fwf and qoce (ocean heat flux is assume to be equal to the latent heat)
+      DO_2D( 0, 0, 0, 0 )
+         IF ( .NOT. l_converged(ji,jj) ) THEN
+            pfwf (ji,jj) =   sf_isfcav_fwf(1)%fnow(ji,jj,1)   * mskisf_cav(ji,jj)   ! fwf                ( > 0 from isf to oce)
+            pqoce(ji,jj) = - pfwf(ji,jj) * rLfusisf           * mskisf_cav(ji,jj)   ! ocean heat flux    ( > 0 from isf to oce)
+            pqhc (ji,jj) =   pfwf(ji,jj) * ptfrz(ji,jj) * rcp * mskisf_cav(ji,jj)   ! heat content flux  ( > 0 from isf to oce)
+         ENDIF
+      END_2D
       !
    END SUBROUTINE isfcav_mlt_spe
 
-   SUBROUTINE isfcav_mlt_2eq(pgt , pttbl, pstbl, &  ! <<== in
-      &                      pqhc, pqoce, pqfwf  )  ! ==>> out
+   SUBROUTINE isfcav_mlt_2eq( l_converged, pgt , pttbl,             &  ! <<== in
+      &                                    pqhc, pqoce, pfwf, ptfrz )  ! ==>> inout
       !!----------------------------------------------------------------------
       !!
       !!                          ***  ROUTINE isfcav_mlt_2eq  ***
@@ -138,43 +121,39 @@ CONTAINS
       !!
       !! ** Method     : The ice shelf melt latent heat is defined as being equal to the ocean/ice heat flux.
       !!                 From this we can derived the fwf, ocean/ice heat flux and the heat content flux as being :
-      !!                   qfwf  = Gammat * rho0 * Cp * ( Tw - Tfrz ) / Lf 
+      !!                    fwf  = Gammat * rho0 * Cp * ( Tw - Tfrz ) / Lf 
       !!                   qhoce = qlat
-      !!                   qhc   = qfwf * Cp * Tfrz
+      !!                   qhc   = fwf * Cp * Tfrz
       !!
       !! ** Reference  : Hunter,  J.  R.:  Specification  for  test  models  of  ice  shelf  cavities,  
       !!                 Tech.  Rep.  June,  Antarctic  Climate  &  Ecosystems  Cooperative  Research  Centre,  available  at:  
       !!                 http://staff.acecrc.org.au/~bkgalton/ISOMIP/test_cavities.pdf (last access: 21 July 2016), 2006.
       !!
-      !!-------------------------- OUT -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) :: pqhc, pqoce, pqfwf  ! hean content, ocean-ice heat and fwf fluxes
-      !!-------------------------- IN  -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pgt           ! temperature exchange coeficient
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pttbl, pstbl  ! temperature and salinity in top boundary layer
       !!--------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj) :: ztfrz         ! freezing temperature
-      REAL(wp), DIMENSION(jpi,jpj) :: zthd          ! thermal driving
+      LOGICAL , DIMENSION(A2D(0)), INTENT(in   ) ::   l_converged        ! true when melting converges (per grid point)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   pgt                ! temperature exchange coeficient
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   pttbl              ! temperature and salinity in top boundary layer
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   pqhc, pqoce, pfwf  ! hean content, ocean-ice heat and fwf fluxes
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   ptfrz              ! tbl freezing temp
+      !!
+      INTEGER  ::   ji, jj     ! dummy loop indices
       !!--------------------------------------------------------------------
       !
-      ! Calculate freezing temperature
-      CALL eos_fzp( pstbl(:,:), ztfrz(:,:), risfdep(:,:) )
-      !
-      ! thermal driving
-      zthd (:,:) = ( pttbl(:,:) - ztfrz(:,:) ) * mskisf_cav(:,:)
-      !
-      ! compute ocean-ice heat flux and then derive fwf assuming that ocean heat flux equal latent heat
-      pqfwf(:,:) =   pgt(:,:) * rho0_rcp * zthd(:,:) / rLfusisf    ! fresh water flux  ( > 0 from isf to oce)
-      pqoce(:,:) = - pqfwf(:,:) * rLfusisf                         ! ocea-ice flux     ( > 0 from isf to oce)
-      pqhc (:,:) =   pqfwf(:,:) * ztfrz(:,:) * rcp                 ! heat content flux ( > 0 from isf to oce)
-      !
-      ! output thermal driving and freezinpoint at the ice shelf interface
-      CALL iom_put('isfthermald_cav', zthd )
-      CALL iom_put('isftfrz_cav'    , ztfrz(:,:) * mskisf_cav(:,:) )
+      DO_2D( 0, 0, 0, 0 )
+         !
+         ! compute ocean-ice heat flux and then derive fwf assuming that ocean heat flux equal latent heat
+         IF ( .NOT. l_converged(ji,jj) ) THEN
+            pfwf (ji,jj) =   pgt (ji,jj) * rho0_rcp * ( pttbl(ji,jj) - ptfrz(ji,jj) ) / rLfusisf * mskisf_cav(ji,jj)  ! fresh water flux  ( > 0 from isf to oce)
+            pqoce(ji,jj) = - pfwf(ji,jj) * rLfusisf                                              * mskisf_cav(ji,jj)  ! ocea-ice flux     ( > 0 from isf to oce)
+            pqhc (ji,jj) =   pfwf(ji,jj) * ptfrz(ji,jj) * rcp                                    * mskisf_cav(ji,jj)  ! heat content flux ( > 0 from isf to oce)
+            !
+         ENDIF
+      END_2D
       !
    END SUBROUTINE isfcav_mlt_2eq
 
-   SUBROUTINE isfcav_mlt_3eq(pgt, pgs , pttbl, pstbl, &  ! <<== in
-      &                           pqhc, pqoce, pqfwf  )  ! ==>> out
+   SUBROUTINE isfcav_mlt_3eq( l_converged, pgt, pgs , pttbl, pstbl, &  ! <<== in
+      &                                    pqhc, pqoce, pfwf, ptfrz )  ! ==>> inout
       !!----------------------------------------------------------------------
       !!
       !!                          ***  ROUTINE isfcav_mlt_3eq  ***
@@ -194,71 +173,58 @@ CONTAINS
       !!                   MISMIP v. 3 (MISMIP +), ISOMIP v. 2 (ISOMIP +) and MISOMIP v. 1 (MISOMIP1), 
       !!                   Geosci. Model Dev., 9, 2471-2497, https://doi.org/10.5194/gmd-9-2471-2016, 2016. 
       !!
-      !!-------------------------- OUT -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) :: pqhc, pqoce, pqfwf  ! latent heat and fwf fluxes
-      !!-------------------------- IN  -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pgt  , pgs          ! heat/salt exchange coeficient
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pttbl, pstbl        ! mean temperature and salinity in top boundary layer
       !!--------------------------------------------------------------------
-      REAL(wp) :: zeps1,zeps2,zeps3,zeps4,zeps6,zeps7       ! dummy local scalar for quadratic equation resolution
-      REAL(wp) :: zaqe,zbqe,zcqe,zaqer,zdis,zsfrz,zcfac     ! dummy local scalar for quadratic equation resolution
-      REAL(wp) :: zeps = 1.e-20
-      REAL(wp), DIMENSION(jpi,jpj) :: ztfrz         ! freezing point
-      REAL(wp), DIMENSION(jpi,jpj) :: zqcon         ! conductive flux through the ice shelf
-      REAL(wp), DIMENSION(jpi,jpj) :: zthd          ! thermal driving
-      !
+      LOGICAL , DIMENSION(A2D(0)), INTENT(in   ) ::   l_converged        ! true when melting converges (per grid point)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   pgt  , pgs         ! heat/salt exchange coeficient
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   pttbl, pstbl       ! mean temperature and salinity in top boundary layer
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   pqhc, pqoce, pfwf  ! latent heat and fwf fluxes
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   ptfrz              ! tbl freezing temp
+      !!
       INTEGER  ::   ji, jj     ! dummy loop indices
+      REAL(wp) ::   zeps1, zeps2, zeps3, zeps4, zeps6, zeps7        ! dummy local scalar for quadratic equation resolution
+      REAL(wp) ::   zaqe, zbqe, zcqe, zaqer, zdis, zsfrz, zcfac     ! dummy local scalar for quadratic equation resolution
       !!--------------------------------------------------------------------
       !
       ! compute upward heat flux zhtflx and upward water flux zwflx
       ! Resolution of a 3d equation from equation 24, 25 and 26 (note conduction through the ice has been added to Eq 24)
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          !
-         ! compute coeficient to solve the 2nd order equation
-         zeps1 = rho0_rcp * pgt(ji,jj)
-         zeps2 = rLfusisf * rho0 * pgs(ji,jj)
-         zeps3 = rhoisf * rcpisf * rkappa / MAX(risfdep(ji,jj),zeps)
-         zeps4 = risf_lamb2 + risf_lamb3 * risfdep(ji,jj)
-         zeps6 = zeps4 - pttbl(ji,jj)
-         zeps7 = zeps4 - rtsurf
-         !
-         ! solve the 2nd order equation to find zsfrz
-         zaqe  = risf_lamb1 * (zeps1 + zeps3)
-         zaqer = 0.5_wp / MIN(zaqe,-zeps)
-         zbqe  = zeps1 * zeps6 + zeps3 * zeps7 - zeps2
-         zcqe  = zeps2 * pstbl(ji,jj)
-         zdis  = zbqe * zbqe - 4.0_wp * zaqe * zcqe               
-         !
-         ! Presumably zdis can never be negative because gammas is very small compared to gammat
-         zsfrz=(-zbqe - SQRT(zdis)) * zaqer
-         IF ( zsfrz < 0.0_wp ) zsfrz=(-zbqe + SQRT(zdis)) * zaqer  ! check this if this if is needed
-         !
-         ! compute t freeze (eq. 25)
-         ztfrz(ji,jj) = zeps4 + risf_lamb1 * zsfrz
-         !
-         ! thermal driving
-         zthd(ji,jj) = ( pttbl(ji,jj) - ztfrz(ji,jj) )
-         !
-         ! compute the upward water and heat flux (eq. 24 and eq. 26)
-         pqfwf(ji,jj) = - rho0     * pgs(ji,jj) * ( zsfrz - pstbl(ji,jj) ) / MAX(zsfrz,zeps) ! fresh water flux    ( > 0 from isf to oce)
-         pqoce(ji,jj) = - rho0_rcp * pgt(ji,jj) * zthd (ji,jj)                               ! ocean-ice heat flux ( > 0 from isf to oce)
-         pqhc (ji,jj) =   rcp      * pqfwf(ji,jj) * ztfrz(ji,jj)                             ! heat content   flux ( > 0 from isf to oce)
-         !
-         zqcon(ji,jj) = zeps3 * ( ztfrz(ji,jj) - rtsurf )
+         IF ( .NOT. l_converged(ji,jj) ) THEN
+            ! compute coeficient to solve the 2nd order equation
+            zeps1 = rho0_rcp * pgt(ji,jj)
+            zeps2 = rLfusisf * rho0 * pgs(ji,jj)
+            zeps3 = rhoisf * rcpisf * rkappa / MAX(risfdep(ji,jj),1.e-20)
+            zeps4 = risf_lamb2 + risf_lamb3 * risfdep(ji,jj)
+            zeps6 = zeps4 - pttbl(ji,jj)
+            zeps7 = zeps4 - rtsurf
+            !
+            ! solve the 2nd order equation to find zsfrz
+            zaqe  = risf_lamb1 * (zeps1 + zeps3)
+            zaqer = 0.5_wp / MIN(zaqe,-1.e-20)
+            zbqe  = zeps1 * zeps6 + zeps3 * zeps7 - zeps2
+            zcqe  = zeps2 * pstbl(ji,jj)
+            zdis  = zbqe * zbqe - 4.0_wp * zaqe * zcqe
+            !
+            ! Presumably zdis can never be negative because gammas is very small compared to gammat
+            zsfrz=(-zbqe - SQRT(zdis)) * zaqer
+            IF ( zsfrz < 0.0_wp ) zsfrz=(-zbqe + SQRT(zdis)) * zaqer  ! check this if this if is needed
+            !
+            ! compute t freeze (eq. 25)
+            ptfrz(ji,jj) = zeps4 + risf_lamb1 * zsfrz
+            !
+            ! compute the upward water and heat flux (eq. 24 and eq. 26)
+            pfwf (ji,jj) = - rho0     * pgs(ji,jj) * ( zsfrz - pstbl(ji,jj) ) / MAX(zsfrz,1.e-20) * mskisf_cav(ji,jj) ! fresh water flux    ( > 0 from isf to oce)
+            pqoce(ji,jj) = - rho0_rcp * pgt(ji,jj) * ( pttbl(ji,jj) - ptfrz(ji,jj) )              * mskisf_cav(ji,jj) ! ocean-ice heat flux ( > 0 from isf to oce)
+            pqhc (ji,jj) =   rcp      * pfwf(ji,jj) * ptfrz(ji,jj)                                * mskisf_cav(ji,jj) ! heat content   flux ( > 0 from isf to oce)
+            !
+         ENDIF
          !
       END_2D
       !
-      ! output conductive heat flux through the ice
-      CALL iom_put('qconisf', zqcon(:,:) * mskisf_cav(:,:) )
-      !
-      ! output thermal driving and freezing point at the interface
-      CALL iom_put('isfthermald_cav', zthd (:,:) * mskisf_cav(:,:) )
-      CALL iom_put('isftfrz_cav'    , ztfrz(:,:) * mskisf_cav(:,:) )
-      !
    END SUBROUTINE isfcav_mlt_3eq
 
-   SUBROUTINE isfcav_mlt_oasis(kt, pstbl,          &  ! <<== in
-      &                        pqhc , pqoce, pqfwf )  ! ==>> out
+   SUBROUTINE isfcav_mlt_oasis( kt, l_converged,                          &  ! <<== in
+      &                                          pqhc, pqoce, pfwf, ptfrz )  ! ==>> inout
       !!----------------------------------------------------------------------
       !!                          ***  ROUTINE isfcav_mlt_oasis  ***
       !!
@@ -269,44 +235,38 @@ CONTAINS
       !!                 - scale fwf and compute heat fluxes
       !!
       !!---------------------------------------------------------------------
-      !!-------------------------- OUT -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) :: pqhc, pqoce, pqfwf  ! heat content, latent heat and fwf fluxes
-      !!-------------------------- IN  -------------------------------------
-      INTEGER                     , INTENT(in   ) :: kt                  ! current time step
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pstbl               ! salinity in tbl
+      INTEGER                    , INTENT(in   ) ::   kt                 ! current time step
+      LOGICAL , DIMENSION(A2D(0)), INTENT(in   ) ::   l_converged        ! true when melting converges (per grid point)
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   pqhc, pqoce, pfwf  ! heat content, latent heat and fwf fluxes
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in   ) ::   ptfrz              ! tbl freezing temp
+      !!
+      INTEGER  ::   ji, jj
+      REAL(wp), DIMENSION(A2D(0),2) ::   ztmp
+      REAL(wp), DIMENSION(2)        ::   zbg
       !!--------------------------------------------------------------------
-      REAL(wp)                     :: zfwf_fld, zfwf_oasis               ! total fwf in the forcing fields (pattern) and from the oasis interface (amount)
-      REAL(wp), DIMENSION(jpi,jpj) :: ztfrz                              ! tbl freezing temperature
-      REAL(wp), DIMENSION(jpi,jpj) :: zfwf                               ! 2d fwf map after scaling
-      !!--------------------------------------------------------------------
-      !
-      ! Calculate freezing temperature
-      CALL eos_fzp( pstbl(:,:), ztfrz(:,:), risfdep(:,:) )
       !
       ! read input file of fwf from isf to oce
       CALL fld_read ( kt, 1, sf_isfcav_fwf )
       !
-      ! ice shelf 2d map
-      zfwf(:,:) = sf_isfcav_fwf(1)%fnow(:,:,1)
+      DO_2D( 0, 0, 0, 0 )
+         ! ice shelf 2d map
+         IF ( .NOT. l_converged(ji,jj) )   pfwf(ji,jj) = sf_isfcav_fwf(1)%fnow(ji,jj,1)
+         ztmp(ji,jj,1) = e1e2t(ji,jj) * pfwf(ji,jj)
+         ztmp(ji,jj,2) = e1e2t(ji,jj) * fwfisf_oasis(ji,jj)
+      END_2D
       !
-      ! compute glob sum from input file
+      ! compute glob sum from input file and from atm->oce ice shelf fwf
       ! (PM) should consider delay sum as in fwb (1 time step offset if I well understood)
-      zfwf_fld = glob_sum('isfcav_mlt', e1e2t(:,:) * zfwf(:,:))
+      zbg = glob_sum_vec( 'isfcav_mlt', ztmp )
       !
-      ! compute glob sum from atm->oce ice shelf fwf
-      ! (PM) should consider delay sum as in fwb (1 time step offset if I well understood)
-      zfwf_oasis = glob_sum('isfcav_mlt', e1e2t(:,:) * fwfisf_oasis(:,:))
-      !
-      ! scale fwf
-      zfwf(:,:) = zfwf(:,:) * zfwf_oasis / zfwf_fld
-      ! 
-      ! define fwf and qoce
-      ! ocean heat flux is assume to be equal to the latent heat
-      pqfwf(:,:) =   zfwf(:,:)                         ! fwf                ( > 0 from isf to oce)
-      pqoce(:,:) = - pqfwf(:,:) * rLfusisf             ! ocean heat flux    ( > 0 from isf to oce)
-      pqhc (:,:) =   pqfwf(:,:) * ztfrz(:,:) * rcp     ! heat content flux  ( > 0 from isf to oce)
-      !
-      CALL iom_put('isftfrz_cav', ztfrz * mskisf_cav(:,:) )
+      ! compute the upward water and heat flux (ocean heat flux is assume to be equal to the latent heat)
+      DO_2D( 0, 0, 0, 0 )
+         IF ( .NOT. l_converged(ji,jj) ) THEN
+            pfwf (ji,jj) =   pfwf(ji,jj) * zbg(2) / zbg(1)    * mskisf_cav(ji,jj)   ! scale fwf
+            pqoce(ji,jj) = - pfwf(ji,jj) * rLfusisf           * mskisf_cav(ji,jj)   ! ocean heat flux    ( > 0 from isf to oce)
+            pqhc (ji,jj) =   pfwf(ji,jj) * ptfrz(ji,jj) * rcp * mskisf_cav(ji,jj)   ! heat content flux  ( > 0 from isf to oce)
+         ENDIF
+      END_2D
       !
    END SUBROUTINE isfcav_mlt_oasis
 

@@ -33,11 +33,12 @@ MODULE dtatsd
    LOGICAL , PUBLIC ::   ln_tsd_init   !: T & S data flag
    LOGICAL , PUBLIC ::   ln_tsd_dmp    !: internal damping toward input data flag
 
+   TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_tsd   ! structure of input SST (file informations, fields read)
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_tsdini ! structure of input SST (file informations, fields read)
-   TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_tsddmp ! structure of input SST (file informations, fields read)
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: dtatsd.F90 10213 2018-10-23 14:40:09Z aumont $ 
@@ -121,16 +122,16 @@ CONTAINS
 
       IF( ln_tsd_dmp ) THEN
          !
-         ALLOCATE( sf_tsddmp(jpts), STAT=ierr0 )
+         ALLOCATE( sf_tsd(jpts), STAT=ierr0 )
          IF( ierr0 > 0 ) THEN
-            CALL ctl_stop( 'dta_tsd_init: unable to allocate sf_tsddmp structure' )   ;   RETURN
+            CALL ctl_stop( 'dta_tsd_init: unable to allocate sf_tsd structure' )   ;   RETURN
          ENDIF
          !
          ! dmp file
-                                 ALLOCATE( sf_tsddmp(jp_tem)%fnow(jpi,jpj,jpk)   , STAT=ierr0 )
-         IF( sn_dmpt%ln_tint )   ALLOCATE( sf_tsddmp(jp_tem)%fdta(jpi,jpj,jpk,2) , STAT=ierr1 )
-                                 ALLOCATE( sf_tsddmp(jp_sal)%fnow(jpi,jpj,jpk)   , STAT=ierr2 )
-         IF( sn_dmps%ln_tint )   ALLOCATE( sf_tsddmp(jp_sal)%fdta(jpi,jpj,jpk,2) , STAT=ierr3 )
+                                 ALLOCATE( sf_tsd(jp_tem)%fnow(jpi,jpj,jpk)   , STAT=ierr0 )
+         IF( sn_dmpt%ln_tint )   ALLOCATE( sf_tsd(jp_tem)%fdta(jpi,jpj,jpk,2) , STAT=ierr1 )
+                                 ALLOCATE( sf_tsd(jp_sal)%fnow(jpi,jpj,jpk)   , STAT=ierr2 )
+         IF( sn_dmps%ln_tint )   ALLOCATE( sf_tsd(jp_sal)%fdta(jpi,jpj,jpk,2) , STAT=ierr3 )
          !
          IF( ierr0 + ierr1 + ierr2 + ierr3 > 0 ) THEN
             CALL ctl_stop( 'dta_tsd : unable to allocate T & S dmp data arrays' )   ;   RETURN
@@ -138,14 +139,14 @@ CONTAINS
          !
          !                         ! fill sf_tsd with sn_tem & sn_sal and control print
          slf_i(jp_tem) = sn_dmpt   ;   slf_i(jp_sal) = sn_dmps
-         CALL fld_fill( sf_tsddmp, slf_i, cn_dir, 'dta_tsd', 'Temperature & Salinity dmp data', 'namtsd', no_print )
+         CALL fld_fill( sf_tsd, slf_i, cn_dir, 'dta_tsd', 'Temperature & Salinity dmp data', 'namtsd', no_print )
          !
       ENDIF
       !
    END SUBROUTINE dta_tsd_init
 
 
-   SUBROUTINE dta_tsd( kt, cddta, ptsd )
+   SUBROUTINE dta_tsd( kt, ptsd, cddta )
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE dta_tsd  ***
       !!
@@ -159,47 +160,45 @@ CONTAINS
       !!
       !! ** Action  :   ptsd   T-S data on medl mesh and interpolated at time-step kt
       !!----------------------------------------------------------------------
-      INTEGER                          , INTENT(in   ) ::   kt     ! ocean time-step
-      CHARACTER(LEN=3)                 , INTENT(in   ) ::   cddta  ! dmp or ini
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk,jpts), INTENT(  out) ::   ptsd   ! T & S data
+      INTEGER                                  , INTENT(in   ) ::   kt      ! ocean time-step
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk,jpts), INTENT(  out) ::   ptsd    ! T & S data
+      CHARACTER(len=*), OPTIONAL               , INTENT(in   ) ::   cddta   ! force the initialization when tradmp is used
       !
       INTEGER ::   ji, jj, jk, jl, jkk   ! dummy loop indicies
       INTEGER ::   ik, il0, il1, ii0, ii1, ij0, ij1   ! local integers
       REAL(wp)::   zl, zi                             ! local scalars
+      LOGICAL ::   ll_tsdini
       REAL(wp), DIMENSION(jpk) ::  ztp, zsp   ! 1D workspace
       !!----------------------------------------------------------------------
       !
+      ll_tsdini = .FALSE.
+      IF( PRESENT(cddta) )   ll_tsdini = .TRUE.
+
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                                         ! Do only for the full domain
          IF( ln_tile ) CALL dom_tile_stop( ldhold=.TRUE. )             ! Use full domain
 
-         SELECT CASE(cddta)
-         CASE('ini')
+         IF( ll_tsdini ) THEN
             CALL fld_read( kt, 1, sf_tsdini ) !==   read T & S data at kt time step   ==!
-         CASE('dmp')
-            CALL fld_read( kt, 1, sf_tsddmp ) !==   read T & S data at kt time step   ==!
-         CASE DEFAULT
-            CALL ctl_stop('STOP', 'dta_tsd: cddta case unknown')
-         END SELECT
+         ELSE
+            CALL fld_read( kt, 1, sf_tsd    ) !==   read T & S data at kt time step   ==!
+         ENDIF
 
          IF( ln_tile ) CALL dom_tile_start( ldhold=.TRUE. )            ! Revert to tile domain
       ENDIF
       !
-      SELECT CASE(cddta)
-      CASE('ini')
+      IF( ll_tsdini ) THEN
          DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
             ptsd(ji,jj,jk,jp_tem) = sf_tsdini(jp_tem)%fnow(ji,jj,jk)    ! NO mask
             ptsd(ji,jj,jk,jp_sal) = sf_tsdini(jp_sal)%fnow(ji,jj,jk)
          END_3D
-      CASE('dmp')
+      ELSE
          DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
-            ptsd(ji,jj,jk,jp_tem) = sf_tsddmp(jp_tem)%fnow(ji,jj,jk)    ! NO mask
-            ptsd(ji,jj,jk,jp_sal) = sf_tsddmp(jp_sal)%fnow(ji,jj,jk)
+            ptsd(ji,jj,jk,jp_tem) = sf_tsd(jp_tem)%fnow(ji,jj,jk)       ! NO mask
+            ptsd(ji,jj,jk,jp_sal) = sf_tsd(jp_sal)%fnow(ji,jj,jk)
          END_3D
-      CASE DEFAULT
-         CALL ctl_stop('STOP', 'dta_tsd: cddta case unknown')
-      END SELECT
+      ENDIF
       !
-      IF( ln_sco ) THEN                   !==   s- or mixed s-zps-coordinate   ==!
+      IF( l_sco ) THEN                   !==   s- or mixed s-zps-coordinate   ==!
          !
          IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
             IF( kt == nit000 .AND. lwp )THEN
@@ -218,7 +217,7 @@ CONTAINS
                   ztp(jk) =  ptsd(ji,jj,jpkm1,jp_tem)
                   zsp(jk) =  ptsd(ji,jj,jpkm1,jp_sal)
                ELSE                                      ! inbetween : vertical interpolation between jkk & jkk+1
-                  DO jkk = 1, jpkm1                                  ! when  gdept(jkk) < zl < gdept(jkk+1)
+                  DO jkk = 1, jpkm1                                  ! when  gdept_jkk < zl < gdept_jkk+1
                      IF( (zl-gdept_1d(jkk)) * (zl-gdept_1d(jkk+1)) <= 0._wp ) THEN
                         zi = ( zl - gdept_1d(jkk) ) / (gdept_1d(jkk+1)-gdept_1d(jkk))
                         ztp(jk) = ptsd(ji,jj,jkk,jp_tem) + ( ptsd(ji,jj,jkk+1,jp_tem) - ptsd(ji,jj,jkk,jp_tem) ) * zi
@@ -242,27 +241,9 @@ CONTAINS
             ptsd(ji,jj,jk,jp_sal) = ptsd(ji,jj,jk,jp_sal) * tmask(ji,jj,jk)
          END_3D
          !
-         IF( ln_zps ) THEN                      ! zps-coordinate (partial steps) interpolation at the last ocean level
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-               ik = mbkt(ji,jj)
-               IF( ik > 1 ) THEN
-                  zl = ( gdept_1d(ik) - gdept_0(ji,jj,ik) ) / ( gdept_1d(ik) - gdept_1d(ik-1) )
-                  ptsd(ji,jj,ik,jp_tem) = (1.-zl) * ptsd(ji,jj,ik,jp_tem) + zl * ptsd(ji,jj,ik-1,jp_tem)
-                  ptsd(ji,jj,ik,jp_sal) = (1.-zl) * ptsd(ji,jj,ik,jp_sal) + zl * ptsd(ji,jj,ik-1,jp_sal)
-               ENDIF
-               ik = mikt(ji,jj)
-               IF( ik > 1 ) THEN
-                  zl = ( gdept_0(ji,jj,ik) - gdept_1d(ik) ) / ( gdept_1d(ik+1) - gdept_1d(ik) )
-                  ptsd(ji,jj,ik,jp_tem) = (1.-zl) * ptsd(ji,jj,ik,jp_tem) + zl * ptsd(ji,jj,ik+1,jp_tem)
-                  ptsd(ji,jj,ik,jp_sal) = (1.-zl) * ptsd(ji,jj,ik,jp_sal) + zl * ptsd(ji,jj,ik+1,jp_sal)
-               END IF
-            END_2D
-         ENDIF
-         !
       ENDIF
       !
-      SELECT CASE(cddta)
-      CASE('ini') 
+      IF( ll_tsdini ) THEN
          !                        !==   deallocate T & S structure   ==! 
          !                                              (data used only for initialisation)
          IF(lwp) WRITE(numout,*) 'dta_tsd: deallocte T & S arrays as they are only use to initialize the run'
@@ -272,7 +253,7 @@ CONTAINS
          IF( sf_tsdini(jp_sal)%ln_tint )   DEALLOCATE( sf_tsdini(jp_sal)%fdta )
                                         DEALLOCATE( sf_tsdini              )     ! the structure itself
          !
-      END SELECT
+      ENDIF
       !
    END SUBROUTINE dta_tsd
 

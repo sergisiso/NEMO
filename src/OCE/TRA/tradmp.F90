@@ -94,7 +94,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) :: pts             ! active tracers and RHS of tracer equation
       !
       INTEGER ::   ji, jj, jk, jn   ! dummy loop indices
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk,jpts)     ::  zts_dta
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk,jpts)     ::  zts_dta
       REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE ::  zwrk
       REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE ::  ztrdts
       !!----------------------------------------------------------------------
@@ -102,7 +102,7 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('tra_dmp')
       !
       IF( l_trdtra .OR. iom_use('hflx_dmp_cea') .OR. iom_use('sflx_dmp_cea') ) THEN   !* Save ta and sa trends
-         ALLOCATE( ztrdts(A2D(nn_hls),jpk,jpts) )
+         ALLOCATE( ztrdts(T2D(nn_hls),jpk,jpts) )
          DO jn = 1, jpts
             DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
                ztrdts(ji,jj,jk,jn) = pts(ji,jj,jk,jn,Krhs)
@@ -146,7 +146,7 @@ CONTAINS
       !
       ! outputs (clem trunk)
       IF( iom_use('hflx_dmp_cea') .OR. iom_use('sflx_dmp_cea') ) THEN
-         ALLOCATE( zwrk(A2D(nn_hls),jpk) )          ! Needed to handle expressions containing e3t when using key_qco or key_linssh
+         ALLOCATE( zwrk(T2D(0),jpk) )          ! Needed to handle expressions containing e3t when using key_qco or key_linssh
          zwrk(:,:,:) = 0._wp
 
          IF( iom_use('hflx_dmp_cea') ) THEN

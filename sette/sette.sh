@@ -15,17 +15,15 @@ NO_REPORT=0
 export USING_TIMING='yes'      # Default: yes => set ln_timing=.true.   ; use -T to disable
 export USING_ICEBERGS='yes'    # Default: yes => set ln_icebergs=.true. ; use -i to disable
 export USING_ABL='no'          # Default: no  => set ln_abl=.false.     ; use -a to set ln_abl=.true.
-export USING_EXTRA_HALO='yes'  # Default: yes => set nn_hls=2           ; use -e to set nn_hls=1
+export USING_EXTRA_HALO='no'   # Default: no  => set nn_hls=2           ; use -e to set nn_hls=3 (not yet implemented)
 export USING_COLLECTIVES='yes' # Default: yes => set nn_comm=2          ; use -C to set nn_comm=1
 export USING_NOGATHER='yes'    # Default: yes => set ln_nnogather=.true.; use -N to set ln_nnogather=.false.
 export USING_TILING='yes'      # Default: yes => set ln_tile=.true.     ; use -t to disable
-                               #    Note: yes also ensures nn_hls=2 but -t will not alter nn_hls 
 #
 # controls for some common compile-time keys:
 #
 export USING_QCO='yes'         # Default: yes => add key_qco            ; use -q to delete key_qco
 export USING_RK3='no'          # Default: yes => add key_RK3 & key_qco  ; use -Q to delete key_RK3
-export USING_LOOP_FUSION='yes' # Default: yes => add key_loop_fusion    ; use -F to delete key_loop_fusion
 export USING_XIOS='yes'        # Default: yes => add key_xios           ; use -X to delete key_xios
                                #    Note: changing USING_XIOS may require a change in arch file
 #
@@ -40,10 +38,10 @@ export USER_INPUT='yes'        # Default: yes => request user input on decisions
 #
 # Check that git branch is usable
 export DETACHED_HEAD="no"
-git branch --show-current >& /dev/null
+git -C ${MAIN_DIR} branch --show-current >& /dev/null
 if [[ $? == 0 ]] ; then
   # subdirectory below NEMO_VALIDATION_DIR defaults to branchname
-  export SETTE_SUB_VAL="$(git branch --show-current)"
+  export SETTE_SUB_VAL="$(git -C ${MAIN_DIR} branch --show-current)"
   if [ -z $SETTE_SUB_VAL ] ; then
    # Probabably on a detached HEAD (possibly testing an old commit).
    # Verify this and try to recover original commit
@@ -76,6 +74,7 @@ if [ $# -gt 0 ]; then
         y) dry_run=1
            echo "";;
         b) NEMO_DEBUG="-b"
+           echo "-b: Nemo will be compiled with DEBUG options"
            echo "";;
         r) NO_REPORT=1
            echo "";;
@@ -111,8 +110,8 @@ if [ $# -gt 0 ]; then
         t) export USING_TILING='no'
            echo "-t: ln_tile will be set to false"
            echo "";;
-        e) export USING_EXTRA_HALO='no'
-           echo "-e: nn_hls will be set to 1"
+        e) export USING_EXTRA_HALO='yes'
+           echo "-e: nn_hls will be set to 3"
            echo "";;
         i) export USING_ICEBERGS='no'
            echo "-i: ln_icebergs will be set to false"
@@ -133,9 +132,6 @@ if [ $# -gt 0 ]; then
            echo "-Q: key_qco and key_RK3 will not be activated"
            echo "    This is the curent default for now since RK3 is not ready"
            echo "";;
-        F) export USING_LOOP_FUSION='no'
-           echo "-F: key_loop_fusion will not be activated"
-           echo "";;
         X) export USING_XIOS='no'
            echo "-X: key_xios will not be activated"
            echo "";;
@@ -148,14 +144,13 @@ if [ $# -gt 0 ]; then
         h | *) echo 'sette.sh with no arguments (in this case all configuration will be tested with default options)'
                echo '-T to set ln_timing false for all non-AGRIF configurations (default: true)'
                echo '-t set ln_tile false in all tests that support it (default: true)'
-               echo '-e set nn_hls=1 (default: nn_hls=2)'
+               echo '-e set nn_hls=3 but it is not yet supported (default: nn_hls=2)'
                echo '-i set ln_icebergs false (default: true)'
                echo '-a set ln_abl true (default: false)'
                echo '-C set nn_comm=1 (default: nn_comm=2 ==> use MPI3 collective comms)'
                echo '-N set ln_nnogather false for ORCA2 configurations (default: true)'
                echo '-q to remove the key_qco key (default: added)'
                echo '-X to remove the key_xios key (default: added)'
-               echo '-F to remove the key_loop_fusion key (default: added)'
                echo '-Q to remove the key_RK3 key (currently a null-op since key_RK3 is not used)'
                echo '-A to run tests in attached (SPMD) mode (default: MPMD with key_xios)'
                echo '-n "CFG1_to_test CFG2_to_test ..." to test some specific configurations'
@@ -176,45 +171,6 @@ if [ $# -gt 0 ]; then
   shift $((OPTIND - 1))
 fi
 #
-# Option dependency tests
-#
-if [ ${USING_TILING} == "yes" ] ; then 
- if [ ${USING_EXTRA_HALO} == "no" ] ; then
-  if [ ${USER_INPUT} == "yes" ] ; then
-   while true; do
-       read -p "Tiling requires the extra halo but you have used -e to deselect it. Would you like to reselect it? (y/n)?: " yn
-       case $yn in
-           [Yy]* ) echo "Ok, ignoring the -e option"; USING_EXTRA_HALO="yes"; break;;
-           [Nn]* ) echo "Ok, exiting instead"; exit 42;;
-           * ) echo "Please answer yes or no.";;
-       esac
-   done
-  else
-   # Without user input, the best option is to disable tiling
-   echo "Tiling requires the extra halo but you have used -e to deselect it. Tiling will not be used."
-   USING_TILING="no"
-  fi
- fi
-fi
-if [ ${USING_LOOP_FUSION} == "yes" ] ; then 
- if [ ${USING_EXTRA_HALO} == "no" ] ; then
-  if [ ${USER_INPUT} == "yes" ] ; then
-   while true; do
-       read -p "Loop fusion requires the extra halo but you have used -e to deselect it. Would you like to reselect it? (y/n)?: " yn
-       case $yn in
-           [Yy]* ) echo "Ok, ignoring the -e option"; USING_EXTRA_HALO="yes"; break;;
-           [Nn]* ) echo "Ok, exiting instead"; exit 42;;
-           * ) echo "Please answer yes or no.";;
-       esac
-   done
-  else
-   # Without user input, the best option is to disable loop fusion
-   echo "Loop fusion requires the extra halo but you have used -e to deselect it. Loop fusion will not be used."
-   USING_LOOP_FUSION="no"
-  fi
- fi
-fi
-#
 # Get SETTE parameters
 . ./param.cfg
 
@@ -224,9 +180,6 @@ fi
 export ADD_KEYS="" ; export DEL_KEYS=""
 if [ ${USING_XIOS} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_xios " ; fi
 if [ ${USING_XIOS} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_xios " ; fi
-#
-if [ ${USING_LOOP_FUSION} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_loop_fusion " ; fi
-if [ ${USING_LOOP_FUSION} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_loop_fusion " ; fi
 #
 if [ ${USING_QCO} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_qco " ; fi
 if [ ${USING_QCO} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_qco key_linssh " ; fi
@@ -263,6 +216,8 @@ if [ ! -d $NEMO_VALIDATION_DIR/$SETTE_SUB_VAL ] && [ ${dry_run} -eq 0 ] ; then
 fi
 export NEMO_VALIDATION_DIR=$NEMO_VALIDATION_DIR/$SETTE_SUB_VAL
 
+TEST_CONFIGS="${TEST_CONFIGS/ORCA2_SAS_ICE/SAS}"   # Shortening of 'ORCA2_SAS_ICE' to 'SAS'
+TEST_CONFIGS="${TEST_CONFIGS/AGRIF_DEMO/AGRIF}"    # Shortening of 'AGRIF_DEMO' to 'AGRIF'
 if [ ${#SETTE_TEST_CONFIGS[@]} -eq 0 ]; then
    echo "=================================="
    echo "Configurations $TEST_CONFIGS will be tested if they are available"
@@ -278,7 +233,6 @@ printf "%-33s : %s\n" USING_TILING $USING_TILING
 printf "%-33s : %s\n" USING_COLLECTIVES $USING_COLLECTIVES
 printf "%-33s : %s\n" USING_NOGATHER $USING_NOGATHER
 printf "%-33s : %s\n" USING_QCO $USING_QCO
-printf "%-33s : %s\n" USING_LOOP_FUSION $USING_LOOP_FUSION
 printf "%-33s : %s\n" USING_XIOS $USING_XIOS
 printf "%-33s : %s\n" USING_MPMD $USING_MPMD
 printf "%-33s : %s\n" USING_RK3 $USING_RK3
@@ -333,7 +287,7 @@ while [[ $NRUN -ne 0 && $nit -le 1080 ]]; do
       printf "%-3d %s\r" $NRUN 'nemo_sette runs still in queue or running ...';
    else
       printf "%-50s\n" " "
-      ./sette_rpt.sh ${NEMO_DEBUG}
+      . ./sette_rpt.sh ${NEMO_DEBUG}
       exit
    fi
    sleep 10

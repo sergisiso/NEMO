@@ -87,7 +87,7 @@
       IF( l_IdoNFold ) THEN
          !
          SELECT CASE ( jpni )
-                   CASE ( 1 )     ;   CALL lbc_nfd         ( pt2d(1:jpi,1:jpj+kextj), cd_type, psgn, kextj )
+                   CASE ( 1 )     ;   CALL lbc_nfd_ext     ( pt2d(1:jpi,1:jpj+kextj), cd_type, psgn, kextj )
                    CASE DEFAULT   ;   CALL LBCNORTH        ( pt2d(1:jpi,1:jpj+kextj), cd_type, psgn, kextj )
          END SELECT
          !

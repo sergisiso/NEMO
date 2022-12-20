@@ -49,8 +49,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                ***  FUNCTION sbc_dcy_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( raa (jpi,jpj) , rbb  (jpi,jpj) , rcc  (jpi,jpj) , rab  (jpi,jpj) ,     &
-         &      rtmd(jpi,jpj) , rdawn_dcy(jpi,jpj) , rdusk_dcy(jpi,jpj) , rscal(jpi,jpj) , STAT=sbc_dcy_alloc )
+      ALLOCATE( raa (A2D(0)) , rbb  (A2D(0)) , rcc  (A2D(0)) , rab  (A2D(0)) ,     &
+         &      rtmd(A2D(0)) , rdawn_dcy(A2D(0)) , rdusk_dcy(A2D(0)) , rscal(A2D(0)) , STAT=sbc_dcy_alloc )
       !
       CALL mpp_sum ( 'sbcdcy', sbc_dcy_alloc )
       IF( sbc_dcy_alloc /= 0 )   CALL ctl_stop( 'STOP', 'sbc_dcy_alloc: failed to allocate arrays' )
@@ -71,12 +71,12 @@ CONTAINS
       !!              Impact of resolving the diurnal cycle in an ocean--atmosphere GCM.
       !!              Part 1: a diurnally forced OGCM. Climate Dynamics 29:6, 575-590.
       !!----------------------------------------------------------------------
-      LOGICAL , OPTIONAL          , INTENT(in) ::   l_mask    ! use the routine for night mask computation
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pqsrin    ! input daily QSR flux
-      REAL(wp), DIMENSION(jpi,jpj)             ::   zqsrout   ! output QSR flux with diurnal cycle
+      LOGICAL , OPTIONAL         , INTENT(in) ::   l_mask    ! use the routine for night mask computation
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pqsrin    ! input daily QSR flux
+      REAL(wp), DIMENSION(A2D(0))             ::   zqsrout   ! output QSR flux with diurnal cycle
       !!
       INTEGER  ::   ji, jj                                       ! dummy loop indices
-      INTEGER, DIMENSION(jpi,jpj) :: imask_night ! night mask
+      INTEGER, DIMENSION(A2D(0)) :: imask_night ! night mask
       REAL(wp) ::   zlo, zup, zlousd, zupusd
       REAL(wp) ::   ztmp, ztmp1, ztmp2
       REAL(wp) ::   ztmpm, ztmpm1, ztmpm2
@@ -100,16 +100,16 @@ CONTAINS
       ! Setting parameters for each new day:
       CALL sbc_dcy_param()
 
-      !CALL iom_put( "rdusk_dcy", rdusk_dcy(:,:)*tmask(:,:,1) ) !LB
-      !CALL iom_put( "rdawn_dcy", rdawn_dcy(:,:)*tmask(:,:,1) ) !LB
-      !CALL iom_put( "rscal_dcy", rscal(:,:)*tmask(:,:,1) ) !LB
+      !CALL iom_put( "rdusk_dcy", rdusk_dcy(:,:)*smask0(:,:) ) !LB
+      !CALL iom_put( "rdawn_dcy", rdawn_dcy(:,:)*smask0(:,:) ) !LB
+      !CALL iom_put( "rscal_dcy", rscal(:,:)*smask0(:,:) ) !LB
 
 
       !     3. update qsr with the diurnal cycle
       !     ------------------------------------
 
       imask_night(:,:) = 0
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          ztmpm = 0._wp
          IF( ABS(rab(ji,jj)) < 1. ) THEN         ! day duration is less than 24h
             !
@@ -161,7 +161,7 @@ CONTAINS
    SUBROUTINE sbc_dcy_param( )
       !!
       INTEGER  ::   ji, jj                                       ! dummy loop indices
-      !INTEGER, DIMENSION(jpi,jpj) :: imask_night ! night mask
+      !INTEGER, DIMENSION(A2D(0)) :: imask_night ! night mask
       REAL(wp) ::   zdsws, zdecrad, ztx, zsin, zcos
       REAL(wp) ::   ztmp, ztest
       !---------------------------statement functions------------------------
@@ -192,7 +192,7 @@ CONTAINS
          ! Compute A and B needed to compute the time integral of the diurnal cycle
 
          zsin = SIN( zdecrad )   ;   zcos = COS( zdecrad )
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             ztmp = rad * gphit(ji,jj)
             raa(ji,jj) = SIN( ztmp ) * zsin
             rbb(ji,jj) = COS( ztmp ) * zcos
@@ -201,7 +201,7 @@ CONTAINS
 
          ! rab to test if the day time is equal to 0, less than 24h of full day
          rab(:,:) = -raa(:,:) / rbb(:,:)
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF( ABS(rab(ji,jj)) < 1._wp ) THEN         ! day duration is less than 24h
                ! When is it night?
                ztx = 1._wp/(2._wp*rpi) * (ACOS(rab(ji,jj)) - rcc(ji,jj))
@@ -225,7 +225,7 @@ CONTAINS
          !         S* = the inverse of the time integral of the diurnal cycle from dawn to dusk
          !         Avoid possible infinite scaling factor, associated with very short daylight
          !         periods, by ignoring periods less than 1/1000th of a day (ticket #1040)
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF( ABS(rab(ji,jj)) < 1._wp ) THEN         ! day duration is less than 24h
                rscal(ji,jj) = 0.0_wp
                IF( rdawn_dcy(ji,jj) < rdusk_dcy(ji,jj) ) THEN      ! day time in one part

@@ -197,10 +197,10 @@ CONTAINS
       IF( ii == ii0  .AND.  ij == ij0  )   RETURN           ! berg remains in the same cell
       !
       ! map into current processor
-      ii0 = mi1( ii0 )
-      ij0 = mj1( ij0 )
-      ii  = mi1( ii  )
-      ij  = mj1( ij  )
+      ii0 = mi1( ii0, nn_hls )
+      ij0 = mj1( ij0, nn_hls )
+      ii  = mi1( ii , nn_hls )
+      ij  = mj1( ij , nn_hls )
       !
       ! assume icb is grounded if tmask(ii,ij,1) or tmask(ii,ij,ikb), depending of the option is not 0
       IF ( ln_M2016 .AND. ln_icb_grd ) THEN

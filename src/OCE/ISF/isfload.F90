@@ -12,6 +12,7 @@ MODULE isfload
 
    USE isf_oce, ONLY: cn_isfload, rn_isfload_T, rn_isfload_S ! ice shelf variables
 
+   USE par_oce                                      ! ocean space and time domain
    USE dom_oce                                      ! vertical scale factor
    USE eosbn2 , ONLY: eos                           ! eos routine
 
@@ -76,19 +77,18 @@ CONTAINS
       INTEGER  :: ji, jj, jk
       INTEGER  :: ikt
       REAL(wp), DIMENSION(jpi,jpj)      :: zrhdtop_isf ! water density    displaced by the ice shelf (at the interface)
-      REAL(wp), DIMENSION(jpi,jpj,jpts) :: zts_top     ! water properties displaced by the ice shelf   
+      REAL(wp), DIMENSION(jpi,jpj,jpts) :: zts_top     ! water properties displaced by the ice shelf
+      REAL(wp), DIMENSION(jpi,jpj)      :: zdept       ! depth at T-level
       REAL(wp), DIMENSION(jpi,jpj,jpk)  :: zrhd        ! water density    displaced by the ice shelf
       !!----------------------------------------------------------------------
       !
       !                                !- assume water displaced by the ice shelf is at T=rn_isfload_T and S=rn_isfload_S (rude)
-      zts_top(:,:,jp_tem) = rn_isfload_T   ;   zts_top(:,:,jp_sal) = rn_isfload_S
+      zts_top(:,:,jp_tem) = rn_isfload_T
+      zts_top(:,:,jp_sal) = rn_isfload_S
       !
       DO jk = 1, jpk                   !- compute density of the water displaced by the ice shelf
-#if defined key_qco && key_isf
-         CALL eos( zts_top(:,:,:), gdept_0(:,:,jk), zrhd(:,:,jk) )
-#else 
-         CALL eos( zts_top(:,:,:), gdept(:,:,jk,Kmm), zrhd(:,:,jk) )
-#endif
+         zdept(:,:) = gdept_0(:,:,jk)
+         CALL eos( zts_top(:,:,:), zdept(:,:), zrhd(:,:,jk) )
       END DO
       !
       !                                !- compute rhd at the ice/oce interface (ice shelf side)
@@ -101,29 +101,16 @@ CONTAINS
          !
          IF ( ikt > 1 ) THEN
             !                                 ! top layer of the ice shelf
-#if defined key_qco && key_isf
             pload(ji,jj) = pload(ji,jj) + zrhd(ji,jj,1) * e3w_0(ji,jj,1) 
             ! 
-            DO jk = 2, ikt-1                  ! core layers of the ice shelf 
+            DO jk = 2, ikt-1                  ! core layers of the ice shelf (!!st half sum of rhd 1/2 applied in hpg)
                pload(ji,jj) = pload(ji,jj) + (zrhd(ji,jj,jk-1) + zrhd(ji,jj,jk)) * e3w_0(ji,jj,jk) 
-            END DO 
+            END DO
             !                                 ! deepest part of the ice shelf (between deepest T point and ice/ocean interface 
             pload(ji,jj) = pload(ji,jj) + ( zrhdtop_isf(ji,jj) +    zrhd(ji,jj,ikt-1) )   & 
                &                        * (     risfdep(ji,jj) - gdept_0(ji,jj,ikt-1) ) 
-#else
-            pload(ji,jj) = pload(ji,jj)   &
-               &         + zrhd (ji,jj,1) * e3w(ji,jj,1,Kmm)
             !
-            DO jk = 2, ikt-1                  ! core layers of the ice shelf
-               pload(ji,jj) = pload(ji,jj) + (zrhd(ji,jj,jk-1) + zrhd(ji,jj,jk))   &
-                  &                        *   e3w(ji,jj,jk,Kmm)
-            END DO
-            !                                 ! deepest part of the ice shelf (between deepest T point and ice/ocean interface
-            pload(ji,jj) = pload(ji,jj) + ( zrhdtop_isf(ji,jj) +  zrhd(ji,jj,ikt-1)     )   &
-               &                        * (     risfdep(ji,jj) - gdept(ji,jj,ikt-1,Kmm) )
-#endif
-            !
-         END IF
+         ENDIF
       END_2D
       !
    END SUBROUTINE isf_load_uniform

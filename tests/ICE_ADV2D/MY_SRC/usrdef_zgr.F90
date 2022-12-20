@@ -32,11 +32,11 @@ MODULE usrdef_zgr
 CONTAINS             
 
    SUBROUTINE usr_def_zgr( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,    &   ! type of vertical coordinate
+      &                    k_top   , k_bot                        ,    &   ! top & bottom ocean level
       &                    pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,    &   ! 1D reference vertical coordinate
+      &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! vertical scale factors
       &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
-      &                    pe3t  , pe3u  , pe3v , pe3f ,               &   ! vertical scale factors
-      &                    pe3w  , pe3uw , pe3vw,                      &   !     -      -      -
-      &                    k_top  , k_bot    )                             ! top & bottom ocean level
+      &                    pe3w  , pe3uw , pe3vw                       )   ! vertical scale factors
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE usr_def_zgr  ***
       !!
@@ -45,12 +45,12 @@ CONTAINS
       !!----------------------------------------------------------------------
       LOGICAL                   , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
       LOGICAL                   , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
+      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
       REAL(wp), DIMENSION(:)    , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
       REAL(wp), DIMENSION(:)    , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
-      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
       !
       INTEGER  ::   jk, k_dz  ! dummy indices
       !!----------------------------------------------------------------------
@@ -88,7 +88,7 @@ CONTAINS
       !
       !                       !==  z-coordinate  ==!   (step-like topography)
       !                                !* bottom ocean compute from the depth of grid-points
-      jpkm1 = jpk
+      !!clem jpkm1 = jpk
       k_bot(:,:) = 1    ! here use k_top as a land mask
       !                                !* horizontally uniform coordinate (reference z-co everywhere)
       DO jk = 1, jpk

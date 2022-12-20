@@ -38,8 +38,8 @@ CONTAINS
       CHARACTER (len=20)   :: cltra         ! short title for tracer
       INTEGER              :: ji,jj,jk,jn   ! dummy loop indexes
       REAL(wp)             :: zage,zarea,ztemp   ! temporary
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:)   :: zres, z2d ! temporary storage 2D
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: z3d , zz3d ! temporary storage 3D
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)   :: z2d ! temporary storage 2D
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: z3d ! temporary storage 3D
       !!---------------------------------------------------------------------
  
       ! write the tracer concentrations in the file
@@ -49,41 +49,35 @@ CONTAINS
 
       ! compute and write the tracer diagnostic in the file
       ! ---------------------------------------
+      IF( iom_use("qtr_c14") ) CALL iom_put( "qtr_c14" , rsiyea * qtr_c14(:,:)  )   !  Radiocarbon surf flux [./m2/yr]
+                               CALL iom_put( "qint_c14", qint_c14(:,:)  )         ! cumulative flux [./m2]
       
       IF( iom_use("DeltaC14") .OR. iom_use("C14Age") .OR. iom_use("RAge")   ) THEN
          !
-         ALLOCATE( z2d(jpi,jpj), zres(jpi,jpj) )
-         ALLOCATE( z3d(jpi,jpj,jpk), zz3d(jpi,jpj,jpk) )
+         ALLOCATE( z2d(A2D(0)), z3d(A2D(0),jpk) )
          !
          zage = -1._wp / rlam14 / rsiyea  ! factor for radioages in year
          z3d(:,:,:)  = 1._wp
-         zz3d(:,:,:) = 0._wp
          !
-         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             IF( tmask(ji,jj,jk) > 0._wp) THEN
-               z3d (ji,jj,jk) = tr(ji,jj,jk,jp_c14,Kmm)
-               zz3d(ji,jj,jk) = LOG( z3d(ji,jj,jk) )
+               z3d(ji,jj,jk) = tr(ji,jj,jk,jp_c14,Kmm)
             ENDIF
          END_3D
-         zres(:,:) = z3d(:,:,1)
+         CALL iom_put( "C14Age", zage * LOG( z3d(:,:,:) ) )            !  Radiocarbon age [yr]
 
          ! Reservoir age [yr]
-         z2d(:,:) =0._wp
-         jk = 1
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-            ztemp = zres(ji,jj) / c14sbc(ji,jj)
-            IF( ztemp > 0._wp .AND. tmask(ji,jj,jk) > 0._wp ) z2d(ji,jj) = LOG( ztemp )
+         z2d(:,:) = 0._wp
+         DO_2D( 0, 0, 0, 0 )
+            ztemp = z3d(ji,jj,1) / c14sbc(ji,jj)
+            IF( ztemp > 0._wp .AND. tmask(ji,jj,1) > 0._wp ) z2d(ji,jj) = LOG( ztemp )
          END_2D
+         CALL iom_put( "RAge" , zage * z2d(:,:) )                     ! Reservoir age [yr]
          !
          z3d(:,:,:) = 1.d03 * ( z3d(:,:,:) - 1._wp )
          CALL iom_put( "DeltaC14" , z3d(:,:,:)  )  ! Delta C14 [permil]
-         CALL iom_put( "C14Age"   , zage * zz3d(:,:,:) )            !  Radiocarbon age [yr]
-
-         CALL iom_put( "qtr_c14", rsiyea * qtr_c14(:,:)  )            !  Radiocarbon surf flux [./m2/yr]
-         CALL iom_put( "qint_c14" , qint_c14  )                       ! cumulative flux [./m2]
-         CALL iom_put( "RAge" , zage * z2d(:,:) )                     ! Reservoir age [yr]
          !
-         DEALLOCATE( z2d, zres, z3d, zz3d )
+         DEALLOCATE( z2d, z3d )
          !
       ENDIF
       !
@@ -91,23 +85,35 @@ CONTAINS
       !
       CALL iom_put( "AtmCO2", co2sbc )  !     global atmospheric CO2 [ppm]
     
-      IF( iom_use("AtmC14") ) THEN
+      IF( iom_use("AtmC14") .OR. iom_use("K_C14") .OR. iom_use("K_CO2") ) THEN
          zarea = glob_sum( 'trcwri_c14', e1e2t(:,:) )           ! global ocean surface
-         ztemp = glob_sum( 'trcwri_c14', c14sbc(:,:) * e1e2t(:,:) )
-         ztemp = ( ztemp / zarea - 1._wp ) * 1000._wp
-         CALL iom_put( "AtmC14" , ztemp )   ! Global atmospheric DeltaC14 [permil]
-      ENDIF
-      IF( iom_use("K_C14") ) THEN
-         ztemp = glob_sum ( 'trcwri_c14', exch_c14(:,:) * e1e2t(:,:) )
-         ztemp = rsiyea * ztemp / zarea
-         CALL iom_put( "K_C14" , ztemp )   ! global mean exchange velocity for C14/C ratio [m/yr]
-      ENDIF
-      IF( iom_use("K_CO2") ) THEN
-         zarea = glob_sum( 'trcwri_c14', e1e2t(:,:) )           ! global ocean surface
-         ztemp = glob_sum ( 'trcwri_c14', exch_co2(:,:) * e1e2t(:,:) )
-         ztemp = 360000._wp * ztemp / zarea       ! cm/h units: directly comparable with literature
-         CALL iom_put( "K_CO2", ztemp )  !  global mean CO2 piston velocity [cm/hr]
-      ENDIF
+         ALLOCATE( z2d(A2D(0)) )
+         IF( iom_use("AtmC14") ) THEN
+            DO_2D( 0, 0, 0, 0 )
+               z2d(ji,jj) = c14sbc(ji,jj) * e1e2t(ji,jj)
+            END_2D
+            ztemp = glob_sum( 'trcwri_c14', z2d(:,:) )
+            ztemp = ( ztemp / zarea - 1._wp ) * 1000._wp
+            CALL iom_put( "AtmC14" , ztemp )   ! Global atmospheric DeltaC14 [permil]
+         ENDIF
+         IF( iom_use("K_C14") ) THEN
+             DO_2D( 0, 0, 0, 0 )
+                z2d(ji,jj) = exch_c14(ji,jj) * e1e2t(ji,jj)
+             END_2D
+             ztemp = glob_sum( 'trcwri_c14', z2d(:,:) )
+             ztemp = rsiyea * ztemp / zarea
+             CALL iom_put( "K_C14" , ztemp )   ! global mean exchange velocity for C14/C ratio [m/yr]
+         ENDIF
+         IF( iom_use("K_CO2") ) THEN
+            DO_2D( 0, 0, 0, 0 )
+               z2d(ji,jj) = exch_co2(ji,jj) * e1e2t(ji,jj)
+            END_2D
+            ztemp = glob_sum( 'trcwri_c14', z2d(:,:) )
+            ztemp = 360000._wp * ztemp / zarea       ! cm/h units: directly comparable with literature
+            CALL iom_put( "K_CO2", ztemp )  !  global mean CO2 piston velocity [cm/hr]
+         ENDIF
+         DEALLOCATE( z2d )
+      END IF
       IF( iom_use("C14Inv") ) THEN
          ztemp = glob_sum( 'trcwri_c14', tr(:,:,:,jp_c14,Kmm) * cvol(:,:,:) )
          ztemp = atomc14 * xdicsur * ztemp

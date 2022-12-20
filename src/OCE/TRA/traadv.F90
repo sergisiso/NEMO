@@ -10,6 +10,7 @@ MODULE traadv
    !!             -   !  2014-12  (G. Madec) suppression of cross land advection option
    !!            3.6  !  2015-06  (E. Clementi) Addition of Stokes drift in case of wave coupling
    !!            4.5  !  2021-04  (G. Madec, S. Techene) add advective velocities as optional arguments
+   !!            4.5  !  2022-06  (S. Techene, G, Madec) refactorization to reduce local memory usage
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -20,7 +21,6 @@ MODULE traadv
    USE dom_oce        ! ocean space and time domain
    ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
    USE domtile
-   USE domvvl         ! variable vertical scale factors
    USE sbcwave        ! wave module
    USE sbc_oce        ! surface boundary condition: ocean
    USE traadv_cen     ! centered scheme            (tra_adv_cen  routine)
@@ -78,7 +78,7 @@ MODULE traadv
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv( kt, Kbb, Kmm, pts, Krhs, pau, pav, paw )
+   SUBROUTINE tra_adv( kt, Kbb, Kmm, Kaa, pts, Krhs, pau, pav, paw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv  ***
       !!
@@ -86,16 +86,15 @@ CONTAINS
       !!
       !! ** Method  : - Update ts(Krhs) with the advective trend following nadv
       !!----------------------------------------------------------------------
-      INTEGER                                     , INTENT(in   ) ::   kt             ! ocean time-step index
-      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Krhs ! time level indices
-      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw  ! advective velocity
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)   , INTENT(inout) ::   pts            ! active tracers and RHS of tracer equation
+      INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
+      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw       ! advective velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)   , INTENT(inout) ::   pts                 ! active tracers and RHS of tracer equation
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
       REAL(wp), DIMENSION(:,:,:), POINTER ::   zptu, zptv, zptw
-      ! TEMP: [tiling] This change not necessary and can be A2D(nn_hls) after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE, SAVE ::   zuu, zvv, zww   ! 3D workspace
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE       ::   ztrdt, ztrds
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zuu, zvv, zww   ! 3D workspace
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: ztrdt, ztrds
       ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       LOGICAL ::   lskip
       !!----------------------------------------------------------------------
@@ -103,11 +102,6 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('tra_adv')
       !
       lskip = .FALSE.
-
-      ! TEMP: [tiling] These changes not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         ALLOCATE( zuu(jpi,jpj,jpk), zvv(jpi,jpj,jpk), zww(jpi,jpj,jpk) )
-      ENDIF
 
       ! TEMP: [tiling] These changes not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       IF( ln_tile .AND. nadv == np_FCT )  THEN
@@ -119,6 +113,7 @@ CONTAINS
       ENDIF
       !
       IF( .NOT. lskip ) THEN
+         ALLOCATE( zuu(T2D(nn_hls),jpk), zvv(T2D(nn_hls),jpk), zww(T2D(nn_hls),jpk) )
          !                                         !==  effective advective transport  ==!
          !
          IF( PRESENT( pau ) ) THEN     ! RK3: advective velocity (pau,pav,paw) /= advected velocity (uu,vv,ww)
@@ -132,31 +127,24 @@ CONTAINS
          ENDIF
          !
          IF( ln_wave .AND. ln_sdw )  THEN
-            DO_3D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
+            DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
                zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
                zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * ( zptv(ji,jj,jk) + vsd(ji,jj,jk) )
             END_3D
-            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                zww(ji,jj,jk) = e1e2t(ji,jj)                     * ( zptw(ji,jj,jk) + wsd(ji,jj,jk) )
             END_3D
          ELSE
-            DO_3D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
+            DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
                zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * zptu(ji,jj,jk)               ! eulerian transport only
                zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * zptv(ji,jj,jk)
             END_3D
-            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                zww(ji,jj,jk) = e1e2t(ji,jj)                     * zptw(ji,jj,jk)
             END_3D
          ENDIF
          !
-         IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN                                ! add z-tilde and/or vvl corrections
-            DO_3D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-               zuu(ji,jj,jk) = zuu(ji,jj,jk) + un_td(ji,jj,jk)
-               zvv(ji,jj,jk) = zvv(ji,jj,jk) + vn_td(ji,jj,jk)
-            END_3D
-         ENDIF
-         !
-         DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
             zuu(ji,jj,jpk) = 0._wp                                                      ! no transport trough the bottom 
             zvv(ji,jj,jpk) = 0._wp
             zww(ji,jj,jpk) = 0._wp
@@ -167,18 +155,14 @@ CONTAINS
          !
          IF( ln_mle    )   CALL tra_mle_trp( kt, nit000, zuu, zvv, zww, 'TRA', Kmm       )   ! add the mle transport (if necessary)
          !
-         ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
          IF( l_iom ) THEN
-            IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
-               CALL iom_put( "uocetr_eff", zuu )                                        ! output effective transport
-               CALL iom_put( "vocetr_eff", zvv )
-               CALL iom_put( "wocetr_eff", zww )
-            ENDIF
+            CALL iom_put( "uocetr_eff", zuu )                                        ! output effective transport
+            CALL iom_put( "vocetr_eff", zvv )
+            CALL iom_put( "wocetr_eff", zww )
          ENDIF
          !
 !!gm ???
-         ! TEMP: [tiling] This copy-in not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-         IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zvv(A2D(nn_hls),:) )                                    ! diagnose the effective MSF
+         IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zvv(:,:,:) )                                    ! diagnose the effective MSF
 !!gm ???
          !
 
@@ -191,15 +175,15 @@ CONTAINS
          SELECT CASE ( nadv )                      !==  compute advection trend and add it to general trend  ==!
          !
          CASE ( np_CEN )                                 ! Centered scheme : 2nd / 4th order
-            CALL tra_adv_cen    ( kt, nit000, 'TRA',      zuu, zvv, zww, Kmm, pts, jpts, Krhs, nn_cen_h, nn_cen_v      )
+            CALL tra_adv_cen( kt, nit000, 'TRA',      zuu, zvv, zww,      Kmm,      pts, jpts, Krhs, nn_cen_h, nn_cen_v )
          CASE ( np_FCT )                                 ! FCT scheme      : 2nd / 4th order
-               CALL tra_adv_fct ( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, pts, jpts, Krhs, nn_fct_h, nn_fct_v )
+            CALL tra_adv_fct( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, Kaa, pts, jpts, Krhs, nn_fct_h, nn_fct_v )
          CASE ( np_MUS )                                 ! MUSCL
-                CALL tra_adv_mus( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, pts, jpts, Krhs, ln_mus_ups         )
+            CALL tra_adv_mus( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm,      pts, jpts, Krhs, ln_mus_ups         )
          CASE ( np_UBS )                                 ! UBS
-            CALL tra_adv_ubs    ( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, pts, jpts, Krhs, nn_ubs_v           )
+            CALL tra_adv_ubs( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm,      pts, jpts, Krhs, nn_ubs_v           )
          CASE ( np_QCK )                                 ! QUICKEST
-            CALL tra_adv_qck    ( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, pts, jpts, Krhs                     )
+            CALL tra_adv_qck( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm,      pts, jpts, Krhs                     )
          !
          END SELECT
          !
@@ -215,15 +199,12 @@ CONTAINS
 
          ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
          IF( ln_tile .AND. .NOT. l_istiled ) CALL dom_tile_start( ldhold=.TRUE. )
+
+         DEALLOCATE( zuu, zvv, zww )
       ENDIF
       !                                              ! print mean trends (used for debugging)
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pts(:,:,:,jp_tem,Krhs), clinfo1=' adv  - Ta: ', mask1=tmask, &
          &                                  tab3d_2=pts(:,:,:,jp_sal,Krhs), clinfo2=       ' Sa: ', mask2=tmask, clinfo3='tra' )
-
-      ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only for the full domain
-         DEALLOCATE( zuu, zvv, zww )
-      ENDIF
       !
       IF( ln_timing )   CALL timing_stop( 'tra_adv' )
       !

@@ -27,9 +27,6 @@ MODULE dynldf_iso
    USE lib_mpp         ! MPP library
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
    USE prtctl          ! Print control
-#if defined key_loop_fusion
-   USE dynldf_iso_lf, ONLY: dyn_ldf_iso_lf   ! lateral mixing - loop fusion version (dyn_ldf_iso routine )
-#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -113,16 +110,12 @@ CONTAINS
       REAL(wp) ::   zabe1, zmskt, zmkt, zuav, zuwslpi, zuwslpj   ! local scalars
       REAL(wp) ::   zabe2, zmskf, zmkf, zvav, zvwslpi, zvwslpj   !   -      -
       REAL(wp) ::   zcof0, zcof1, zcof2, zcof3, zcof4, zaht_0    !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls))      ::   ziut, zivf, zdku, zdk1u  ! 2D workspace
-      REAL(wp), DIMENSION(A2D(nn_hls))      ::   zjuf, zjvt, zdkv, zdk1v  !  -      -
-      REAL(wp), DIMENSION(A1Di(nn_hls),jpk) ::   zfuw, zdiu, zdju, zdj1u  !  -      -
-      REAL(wp), DIMENSION(A1Di(nn_hls),jpk) ::   zfvw, zdiv, zdjv, zdj1v  !  -      -
+      REAL(wp), DIMENSION(T2D(nn_hls))      ::   ziut, zivf, zdku, zdk1u  ! 2D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls))      ::   zjuf, zjvt, zdkv, zdk1v  !  -      -
+      REAL(wp), DIMENSION(T1Di(nn_hls),jpk) ::   zfuw, zdiu, zdju, zdj1u  !  -      -
+      REAL(wp), DIMENSION(T1Di(nn_hls),jpk) ::   zfvw, zdiv, zdjv, zdj1v  !  -      -
       !!----------------------------------------------------------------------
       !
-#if defined key_loop_fusion
-      CALL dyn_ldf_iso_lf( kt, Kbb, Kmm, puu, pvv, Krhs    )
-#else
-
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == nit000 ) THEN
             IF(lwp) WRITE(numout,*)
@@ -131,7 +124,7 @@ CONTAINS
             !                                      ! allocate dyn_ldf_iso arrays
             IF( dyn_ldf_iso_alloc() /= 0 )   CALL ctl_stop('STOP', 'dyn_ldf_iso: failed to allocate arrays')
             !
-            DO_2D_OVR( 0, 0, 0, 0 )
+            DO_2D( 0, 0, 0, 0 )
                akzu(ji,jj,1)   = 0._wp
                akzu(ji,jj,jpk) = 0._wp
                akzv(ji,jj,1)   = 0._wp
@@ -151,8 +144,6 @@ CONTAINS
             wslpi(ji,jj,jk) = - ( gdepw(ji+1,jj,jk,Kbb) - gdepw(ji-1,jj,jk,Kbb) ) * r1_e1t(ji,jj) * tmask(ji,jj,jk) * 0.5
             wslpj(ji,jj,jk) = - ( gdepw(ji,jj+1,jk,Kbb) - gdepw(ji,jj-1,jk,Kbb) ) * r1_e2t(ji,jj) * tmask(ji,jj,jk) * 0.5
          END_3D
-         ! Lateral boundary conditions on the slopes
-         IF (nn_hls == 1) CALL lbc_lnk( 'dynldf_iso', uslp , 'U', -1.0_wp, vslp , 'V', -1.0_wp, wslpi, 'W', -1.0_wp, wslpj, 'W', -1.0_wp )
          !
       ENDIF
          
@@ -188,7 +179,7 @@ CONTAINS
          !                                    |  
          ! i-flux at t-point             -----f-----
 
-         IF( ln_zps ) THEN      ! z-coordinate - partial steps : min(e3u)
+         IF( l_zps ) THEN       ! z-coordinate - partial steps : min(e3u)
             DO_2D( 0, 1, 0, 0 )
                zabe1 = ( ahmt(ji,jj,jk)+rn_ahm_b ) * e2t(ji,jj)   &
                   &    * MIN( e3u(ji  ,jj,jk,Kmm),                &
@@ -200,8 +191,8 @@ CONTAINS
                zcof1 = - zaht_0 * e2t(ji,jj) * zmskt * 0.5  * ( uslp(ji-1,jj,jk) + uslp(ji,jj,jk) )
 
                ziut(ji,jj) = (  zabe1 * ( puu(ji,jj,jk,Kbb) - puu(ji-1,jj,jk,Kbb) )    &
-                  &           + zcof1 * ( zdku (ji,jj) + zdk1u(ji-1,jj)      &
-                  &                      +zdk1u(ji,jj) + zdku (ji-1,jj) )  ) * tmask(ji,jj,jk)
+                  &           + zcof1 * ( ( zdku (ji,jj) + zdk1u(ji-1,jj) )            & ! add () for NP repro
+                  &                      +( zdk1u(ji,jj) + zdku (ji-1,jj) ) )  ) * tmask(ji,jj,jk)
             END_2D
          ELSE                   ! other coordinate system (zco or sco) : e3t
             DO_2D( 0, 1, 0, 0 )
@@ -214,8 +205,8 @@ CONTAINS
                zcof1 = - zaht_0 * e2t(ji,jj) * zmskt * 0.5  * ( uslp(ji-1,jj,jk) + uslp(ji,jj,jk) )
 
                ziut(ji,jj) = (  zabe1 * ( puu(ji,jj,jk,Kbb) - puu(ji-1,jj,jk,Kbb) )   &
-                  &           + zcof1 * ( zdku (ji,jj) + zdk1u(ji-1,jj)     &
-                  &                      +zdk1u(ji,jj) + zdku (ji-1,jj) )  ) * tmask(ji,jj,jk)
+                  &           + zcof1 * ( ( zdku (ji,jj) + zdk1u(ji-1,jj) )           & ! add () for NP repro
+                  &                      +( zdk1u(ji,jj) + zdku (ji-1,jj) ) )  ) * tmask(ji,jj,jk)
             END_2D
          ENDIF
 
@@ -230,8 +221,8 @@ CONTAINS
             zcof2 = - zaht_0 * e1f(ji,jj) * zmskf * 0.5  * ( vslp(ji+1,jj,jk) + vslp(ji,jj,jk) )
 
             zjuf(ji,jj) = (  zabe2 * ( puu(ji,jj+1,jk,Kbb) - puu(ji,jj,jk,Kbb) )   &
-               &           + zcof2 * ( zdku (ji,jj+1) + zdk1u(ji,jj)     &
-               &                      +zdk1u(ji,jj+1) + zdku (ji,jj) )  ) * fmask(ji,jj,jk)
+               &           + zcof2 * ( ( zdku (ji,jj+1) + zdk1u(ji,jj) )           & ! add () for NP repro
+               &                      +( zdk1u(ji,jj+1) + zdku (ji,jj) ) )  ) * fmask(ji,jj,jk)
          END_2D
 
          !                                |   t   |
@@ -250,12 +241,12 @@ CONTAINS
             zcof1 = - zaht_0 * e2f(ji,jj) * zmskf * 0.5 * ( uslp(ji,jj+1,jk) + uslp(ji,jj,jk) )
 
             zivf(ji,jj) = (  zabe1 * ( pvv(ji+1,jj,jk,Kbb) - pvv(ji,jj,jk,Kbb) )    &
-               &           + zcof1 * (  zdkv (ji,jj) + zdk1v(ji+1,jj)      &
-               &                      + zdk1v(ji,jj) + zdkv (ji+1,jj) )  ) * fmask(ji,jj,jk)
+               &           + zcof1 * (  ( zdkv (ji,jj) + zdk1v(ji+1,jj) )           & ! add () for NP repro
+               &                      + ( zdk1v(ji,jj) + zdkv (ji+1,jj) ) )  ) * fmask(ji,jj,jk)
          END_2D
 
          ! j-flux at t-point
-         IF( ln_zps ) THEN      ! z-coordinate - partial steps : min(e3u)
+         IF( l_zps ) THEN       ! z-coordinate - partial steps : min(e3u)
             DO_2D( 1, 0, 0, 1 )
                zabe2 = ( ahmt(ji,jj,jk)+rn_ahm_b ) * e1t(ji,jj)   &
                   &     * MIN( e3v(ji,jj  ,jk,Kmm),                 &
@@ -267,8 +258,8 @@ CONTAINS
                zcof2 = - zaht_0 * e1t(ji,jj) * zmskt * 0.5 * ( vslp(ji,jj-1,jk) + vslp(ji,jj,jk) )
 
                zjvt(ji,jj) = (  zabe2 * ( pvv(ji,jj,jk,Kbb) - pvv(ji,jj-1,jk,Kbb) )    &
-                  &           + zcof2 * ( zdkv (ji,jj-1) + zdk1v(ji,jj)      &
-                  &                      +zdk1v(ji,jj-1) + zdkv (ji,jj) )  ) * tmask(ji,jj,jk)
+                  &           + zcof2 * ( ( zdkv (ji,jj-1) + zdk1v(ji,jj) )            & ! add () for NP repro
+                  &                      +( zdk1v(ji,jj-1) + zdkv (ji,jj) ) )  ) * tmask(ji,jj,jk)
             END_2D
          ELSE                   ! other coordinate system (zco or sco) : e3t
             DO_2D( 1, 0, 0, 1 )
@@ -281,8 +272,8 @@ CONTAINS
                zcof2 = - zaht_0 * e1t(ji,jj) * zmskt * 0.5 * ( vslp(ji,jj-1,jk) + vslp(ji,jj,jk) )
 
                zjvt(ji,jj) = (  zabe2 * ( pvv(ji,jj,jk,Kbb) - pvv(ji,jj-1,jk,Kbb) )   &
-                  &           + zcof2 * ( zdkv (ji,jj-1) + zdk1v(ji,jj)     &
-                  &                      +zdk1v(ji,jj-1) + zdkv (ji,jj) )  ) * tmask(ji,jj,jk)
+                  &           + zcof2 * ( ( zdkv (ji,jj-1) + zdk1v(ji,jj) )           & ! add () for NP repro
+                  &                      +( zdk1v(ji,jj-1) + zdkv (ji,jj) ) )  ) * tmask(ji,jj,jk)
             END_2D
          ENDIF
 
@@ -290,12 +281,10 @@ CONTAINS
          ! Second derivative (divergence) and add to the general trend
          ! -----------------------------------------------------------
          DO_2D( 0, 0, 0, 0 )      !!gm Question vectop possible??? !!bug
-            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (  ziut(ji+1,jj) - ziut(ji,jj  )    &
-               &                           + zjuf(ji  ,jj) - zjuf(ji,jj-1)  ) * r1_e1e2u(ji,jj)   &
-               &                           / e3u(ji,jj,jk,Kmm)
-            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (  zivf(ji,jj  ) - zivf(ji-1,jj)    &
-               &                           + zjvt(ji,jj+1) - zjvt(ji,jj  )  ) * r1_e1e2v(ji,jj)   &
-               &                           / e3v(ji,jj,jk,Kmm)
+            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (  ( ziut(ji+1,jj) - ziut(ji,jj  ) )    &   ! add () for NP repro
+               &                                       + ( zjuf(ji  ,jj) - zjuf(ji,jj-1) )  ) * r1_e1e2u(ji,jj) / e3u(ji,jj,jk,Kmm)
+            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (  ( zivf(ji,jj  ) - zivf(ji-1,jj) )    &   ! add () for NP repro
+               &                                       + ( zjvt(ji,jj+1) - zjvt(ji,jj  ) )  ) * r1_e1e2v(ji,jj) / e3v(ji,jj,jk,Kmm)
          END_2D
          !                                             ! ===============
       END DO                                           !   End of slab
@@ -366,10 +355,10 @@ CONTAINS
                zcof3 = - e2u(ji,jj) * zmkt * zuwslpi
                zcof4 = - e1u(ji,jj) * zmkf * zuwslpj
                ! vertical flux on u field
-               zfuw(ji,jk) = zcof3 * (  zdiu (ji,jk-1) + zdiu (ji+1,jk-1)      &
-                  &                   + zdiu (ji,jk  ) + zdiu (ji+1,jk  )  )   &
-                  &        + zcof4 * (  zdj1u(ji,jk-1) + zdju (ji  ,jk-1)      &
-                  &                   + zdj1u(ji,jk  ) + zdju (ji  ,jk  )  )
+               zfuw(ji,jk) = zcof3 * (  ( zdiu (ji,jk-1) + zdiu (ji+1,jk-1) )      &  ! add () for  NP repro
+                  &                   + ( zdiu (ji,jk  ) + zdiu (ji+1,jk  ) )  )   &
+                  &        + zcof4 * (  ( zdj1u(ji,jk-1) + zdju (ji  ,jk-1) )      &  ! add () for  NP repro
+                  &                   + ( zdj1u(ji,jk  ) + zdju (ji  ,jk  ) )  )
                ! vertical mixing coefficient (akzu)
                ! Note: zcof0 include zaht_0, so divided by zaht_0 to obtain slp^2 * zaht_0
                akzu(ji,jj,jk) = ( zuwslpi * zuwslpi + zuwslpj * zuwslpj ) / zaht_0
@@ -392,10 +381,10 @@ CONTAINS
                zcof3 = - e2v(ji,jj) * zmkf * zvwslpi
                zcof4 = - e1v(ji,jj) * zmkt * zvwslpj
                ! vertical flux on v field
-               zfvw(ji,jk) = zcof3 * (  zdiv (ji,jk-1) + zdiv (ji-1,jk-1)      &
-                  &                   + zdiv (ji,jk  ) + zdiv (ji-1,jk  )  )   &
-                  &        + zcof4 * (  zdjv (ji,jk-1) + zdj1v(ji  ,jk-1)      &
-                  &                   + zdjv (ji,jk  ) + zdj1v(ji  ,jk  )  )
+               zfvw(ji,jk) = zcof3 * (  ( zdiv (ji,jk-1) + zdiv (ji-1,jk-1) )      &  ! add () for  NP repro
+                  &                   + ( zdiv (ji,jk  ) + zdiv (ji-1,jk  ) )  )   &
+                  &        + zcof4 * (  ( zdjv (ji,jk-1) + zdj1v(ji  ,jk-1) )      &  ! add () for  NP repro
+                  &                   + ( zdjv (ji,jk  ) + zdj1v(ji  ,jk  ) )  )
                ! vertical mixing coefficient (akzv)
                ! Note: zcof0 include zaht_0, so divided by zaht_0 to obtain slp^2 * zaht_0
                akzv(ji,jj,jk) = ( zvwslpi * zvwslpi + zvwslpj * zvwslpj ) / zaht_0
@@ -407,16 +396,13 @@ CONTAINS
          ! -------------------------------------------------------------------
          DO jk = 1, jpkm1
             DO ji = ntsi, ntei
-               puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + ( zfuw(ji,jk) - zfuw(ji,jk+1) ) * r1_e1e2u(ji,jj)   &
-                  &               / e3u(ji,jj,jk,Kmm)
-               pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + ( zfvw(ji,jk) - zfvw(ji,jk+1) ) * r1_e1e2v(ji,jj)   &
-                  &               / e3v(ji,jj,jk,Kmm)
+               puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + ( zfuw(ji,jk) - zfuw(ji,jk+1) ) * r1_e1e2u(ji,jj) / e3u(ji,jj,jk,Kmm)
+               pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + ( zfvw(ji,jk) - zfvw(ji,jk+1) ) * r1_e1e2v(ji,jj) / e3v(ji,jj,jk,Kmm)
             END DO
          END DO
          !                                             ! ===============
       END DO                                           !   End of slab
       !                                                ! ===============
-#endif
    END SUBROUTINE dyn_ldf_iso
 
    !!======================================================================

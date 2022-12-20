@@ -16,7 +16,8 @@ MODULE dynldf
    USE dom_oce        ! ocean space and time domain
    USE phycst         ! physical constants
    USE ldfdyn         ! lateral diffusion: eddy viscosity coef.
-   USE dynldf_lap_blp ! lateral mixing   (dyn_ldf_lap & dyn_ldf_blp routines)
+   USE dynldf_lev     ! lateral mixing   (dynldf_lev_lap & dynldf_lev_blp routines)
+!!st   USE dynldf_lap_blp ! lateral mixing   (dyn_ldf_lap & dyn_ldf_blp routines)
    USE dynldf_iso     ! lateral mixing                 (dyn_ldf_iso routine )
    USE trd_oce        ! trends: ocean variables
    USE trddyn         ! trend manager: dynamics   (trd_dyn      routine)
@@ -64,11 +65,13 @@ CONTAINS
       SELECT CASE ( nldf_dyn )                   ! compute lateral mixing trend and add it to the general trend
       !
       CASE ( np_lap   )  
-         CALL dyn_ldf_lap( kt, Kbb, Kmm, puu(:,:,:,Kbb), pvv(:,:,:,Kbb), puu(:,:,:,Krhs), pvv(:,:,:,Krhs), 1 ) ! iso-level    laplacian
+!!st         CALL dyn_ldf_lap( kt, Kbb, Kmm, puu(:,:,:,Kbb), pvv(:,:,:,Kbb), puu(:,:,:,Krhs), pvv(:,:,:,Krhs), 1 ) ! iso-level    laplacian
+         CALL dynldf_lev_lap( kt, Kbb, Kmm, puu, pvv, Krhs )
       CASE ( np_lap_i ) 
          CALL dyn_ldf_iso( kt, Kbb, Kmm, puu, pvv, Krhs    )                                                   ! rotated      laplacian
       CASE ( np_blp   )  
-         CALL dyn_ldf_blp( kt, Kbb, Kmm, puu(:,:,:,Kbb), pvv(:,:,:,Kbb), puu(:,:,:,Krhs), pvv(:,:,:,Krhs)    ) ! iso-level bi-laplacian
+!!st         CALL dyn_ldf_blp( kt, Kbb, Kmm, puu(:,:,:,Kbb), pvv(:,:,:,Kbb), puu(:,:,:,Krhs), pvv(:,:,:,Krhs)    ) ! iso-level bi-laplacian
+         CALL dynldf_lev_blp( kt, Kbb, Kmm, puu, pvv, Krhs )
       !
       END SELECT
 

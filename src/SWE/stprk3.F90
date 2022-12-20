@@ -135,9 +135,9 @@ CONTAINS
          zrhs_v =        - grav    * ( ssh(ji,jj+1,Nbb) - ssh(ji,jj,Nbb) ) * r1_e2v(ji,jj)
 #if defined key_RK3all
          !                                          ! wind stress and layer friction
-         zrhs_u = zrhs_u + r1_rho0 * ( z5_6*utau_b(ji,jj) + (1._wp - z5_6)*utau(ji,jj) ) / e3u(ji,jj,jk,Nbb)   &
+         zrhs_u = zrhs_u + r1_rho0 * ( z5_6*utau_b(ji,jj) + (1._wp - z5_6)*utauU(ji,jj) ) / e3u(ji,jj,jk,Nbb)   &
             &            - rn_rfr  * uu(ji,jj,jk,Nbb)
-         zrhs_v = zrhs_v + r1_rho0 * ( z5_6*vtau_b(ji,jj) + (1._wp - z5_6)*vtau(ji,jj) ) / e3v(ji,jj,jk,Nbb)   &
+         zrhs_v = zrhs_v + r1_rho0 * ( z5_6*vtau_b(ji,jj) + (1._wp - z5_6)*vtauV(ji,jj) ) / e3v(ji,jj,jk,Nbb)   &
             &            - rn_rfr  * vv(ji,jj,jk,Nbb)
 #endif
          !                                          ! ==> RHS
@@ -170,8 +170,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu(:,:,:,Naa), 'U', -1., vv(:,:,:,Naa), 'V', -1. )
-      IF (nn_hls==2) CALL lbc_lnk( 'stp_RK3', r3u(:,:,Naa), 'U', 1., r3v(:,:,Naa), 'V', 1.)
+      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1., vv (:,:,:,Naa), 'V', -1. )
+      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1., r3v(:,:,  Naa), 'V',  1. )
       !
       !                                 !==  Swap time levels  ==!
       Nrhs= Nnn
@@ -201,9 +201,9 @@ CONTAINS
          zrhs_v =        - grav    * ( ssh(ji,jj+1,Nnn) - ssh(ji,jj,Nnn) ) * r1_e2v(ji,jj)
 #if defined key_RK3all
          !                                          ! wind stress and layer friction
-         zrhs_u = zrhs_u + r1_rho0 * ( z3_4*utau_b(ji,jj) + (1._wp - z3_4)*utau(ji,jj) ) / e3u(ji,jj,jk,Nnn)   &
+         zrhs_u = zrhs_u + r1_rho0 * ( z3_4*utau_b(ji,jj) + (1._wp - z3_4)*utauU(ji,jj) ) / e3u(ji,jj,jk,Nnn)   &
             &            - rn_rfr  * uu(ji,jj,jk,Nbb)
-         zrhs_v = zrhs_v + r1_rho0 * ( z3_4*vtau_b(ji,jj) + (1._wp - z3_4)*vtau(ji,jj) ) / e3v(ji,jj,jk,Nnn)   &
+         zrhs_v = zrhs_v + r1_rho0 * ( z3_4*vtau_b(ji,jj) + (1._wp - z3_4)*vtauV(ji,jj) ) / e3v(ji,jj,jk,Nnn)   &
             &            - rn_rfr  * vv(ji,jj,jk,Nbb)
 #endif
          !                                          ! ==> RHS
@@ -236,8 +236,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu(:,:,:,Naa), 'U', -1., vv(:,:,:,Naa), 'V', -1. )
-      IF (nn_hls==2) CALL lbc_lnk( 'stp_RK3', r3u(:,:,Naa), 'U', 1., r3v(:,:,Naa), 'V', 1.)
+      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1., vv (:,:,:,Naa), 'V', -1. )
+      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1., r3v(:,:,  Naa), 'V',  1. )
       !
       !                                 !==  Swap time levels  ==!
       Nrhs= Nnn
@@ -265,9 +265,9 @@ CONTAINS
          zrhs_u =        - grav * ( ssh(ji+1,jj,Nnn) - ssh(ji,jj,Nnn) ) * r1_e1u(ji,jj)
          zrhs_v =        - grav * ( ssh(ji,jj+1,Nnn) - ssh(ji,jj,Nnn) ) * r1_e2v(ji,jj)
          !                                          ! wind stress and layer friction
-         zrhs_u = zrhs_u + z1_2rho0 * ( utau_b(ji,jj) + utau(ji,jj) ) / e3u(ji,jj,jk,Nnn)   &
+         zrhs_u = zrhs_u + z1_2rho0 * ( utau_b(ji,jj) + utauU(ji,jj) ) / e3u(ji,jj,jk,Nnn)   &
             &            - rn_rfr   * uu(ji,jj,jk,Nbb)
-         zrhs_v = zrhs_v + z1_2rho0 * ( vtau_b(ji,jj) + vtau(ji,jj) ) / e3v(ji,jj,jk,Nnn)   &
+         zrhs_v = zrhs_v + z1_2rho0 * ( vtau_b(ji,jj) + vtauV(ji,jj) ) / e3v(ji,jj,jk,Nnn)   &
             &            - rn_rfr   * vv(ji,jj,jk,Nbb)
          !                                          ! ==> RHS
          uu(ji,jj,jk,Nrhs) = uu(ji,jj,jk,Nrhs) + zrhs_u
@@ -300,8 +300,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu(:,:,:,Naa), 'U', -1., vv(:,:,:,Naa), 'V', -1. )
-      IF (nn_hls==2) CALL lbc_lnk( 'stp_RK3', r3u(:,:,Naa), 'U', 1., r3v(:,:,Naa), 'V', 1.)
+      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1., vv (:,:,:,Naa), 'V', -1. )
+      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1., r3v(:,:,  Naa), 'V',  1. )
       !
       !                                 !==  Swap time levels  ==!
       !

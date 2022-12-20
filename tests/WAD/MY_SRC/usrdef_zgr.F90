@@ -14,7 +14,7 @@ MODULE usrdef_zgr
    !!       zgr_z     : reference 1D z-coordinate 
    !!---------------------------------------------------------------------
    USE oce            ! ocean variables
-   USE dom_oce ,  ONLY: ht_0, mi0, mi1, mj0, mj1, glamt, gphit         ! ocean space and time domain
+   USE dom_oce        ! ocean space and time domain
    USE usrdef_nam     ! User defined : namelist variables
    USE wet_dry ,  ONLY: rn_wdmin1, rn_wdmin2, rn_wdld  ! Wetting and drying
    !
@@ -101,10 +101,10 @@ CONTAINS
                  zi = MIN((glamt(ji,1) - 10.0)/40.0, 1.0 )
                  zht(ji,:) = MAX(zbathy*zi, -2.0) 
                END DO
-               zht(mi0(1):mi1(1),:) = -4._wp
-               zht(mi0(jpiglo):mi1(jpiglo),:) = -4._wp
-               zht(:,mj0(1):mj1(1)) = -4._wp
-               zht(:,mj0(jpjglo):mj1(jpjglo)) = -4._wp
+               zht(mi0(     1,nn_hls):mi1(     1,nn_hls),:) = -4._wp
+               zht(mi0(jpiglo,nn_hls):mi1(jpiglo,nn_hls),:) = -4._wp
+               zht(:,mj0(     1,nn_hls):mj1(     1,nn_hls)) = -4._wp
+               zht(:,mj0(jpjglo,nn_hls):mj1(jpjglo,nn_hls)) = -4._wp
                !                                     ! ====================
             CASE ( 2, 3, 8 )                         ! WAD 2 or 3  configuration
                !                                     ! ====================
@@ -117,11 +117,11 @@ CONTAINS
                  zi = MAX(1.0-((glamt(ji,1)-25.0)**2)/484.0, -0.3 )
                  zht(ji,:) = MAX(zbathy*zi, -2.0)
                END DO
-               zht(mi0(1):mi1(1),:) = -4._wp
-               zht(mi0(jpiglo):mi1(jpiglo),:) = -4._wp
+               zht(mi0(     1,nn_hls):mi1(     1,nn_hls),:) = -4._wp
+               zht(mi0(jpiglo,nn_hls):mi1(jpiglo,nn_hls),:) = -4._wp
                IF( nn_cfg /= 8 ) THEN
-                  zht(:,mj0(1):mj1(1)) = -4._wp
-                  zht(:,mj0(jpjglo):mj1(jpjglo)) = -4._wp
+                  zht(:,mj0(     1,nn_hls):mj1(     1,nn_hls)) = -4._wp
+                  zht(:,mj0(jpjglo,nn_hls):mj1(jpjglo,nn_hls)) = -4._wp
                ENDIF
                !                                     ! ====================
             CASE ( 4 )                               ! WAD 4 configuration
@@ -138,10 +138,10 @@ CONTAINS
                  zht(ji,jj) = MAX(zbathy*zi*zj, -2.0)
                END DO
                END DO
-               zht(mi0(1):mi1(1),:) = -4._wp
-               zht(mi0(jpiglo):mi1(jpiglo),:) = -4._wp
-               zht(:,mj0(1):mj1(1)) = -4._wp
-               zht(:,mj0(jpjglo):mj1(jpjglo)) = -4._wp
+               zht(mi0(1     ,nn_hls):mi1(     1,nn_hls),:) = -4._wp
+               zht(mi0(jpiglo,nn_hls):mi1(jpiglo,nn_hls),:) = -4._wp
+               zht(:,mj0(     1,nn_hls):mj1(     1,nn_hls)) = -4._wp
+               zht(:,mj0(jpjglo,nn_hls):mj1(jpjglo,nn_hls)) = -4._wp
                !                                    ! ===========================
             CASE ( 5 )                              ! WAD 5 configuration
                !                                    ! ====================
@@ -168,10 +168,10 @@ CONTAINS
                  ENDIF
                END DO
                !                                    ! ===========================
-               zht(mi0(1):mi1(1),:) = -4._wp
-               zht(mi0(jpiglo):mi1(jpiglo),:) = -4._wp
-               zht(:,mj0(1):mj1(1)) = -4._wp
-               zht(:,mj0(jpjglo):mj1(jpjglo)) = -4._wp
+               zht(mi0(     1,nn_hls):mi1(     1,nn_hls),:) = -4._wp
+               zht(mi0(jpiglo,nn_hls):mi1(jpiglo,nn_hls),:) = -4._wp
+               zht(:,mj0(     1,nn_hls):mj1(     1,nn_hls)) = -4._wp
+               zht(:,mj0(jpjglo,nn_hls):mj1(jpjglo,nn_hls)) = -4._wp
                !                                    ! ===========================
             CASE ( 6 )                              ! WAD 6 configuration
                !                                    ! ====================
@@ -185,10 +185,10 @@ CONTAINS
                  zj = 1.075*MAX(EXP(-1.0*((glamt(ji,1)-25.0)**2)/32.0) , 0.0 )
                  zht(ji,:) = MAX(zbathy*(zi-zj), -2.0)
                END DO
-               zht(mi0(1):mi1(1),:) = -4._wp
-               zht(mi0(jpiglo):mi1(jpiglo),:) = -4._wp
-               zht(:,mj0(1):mj1(1)) = -4._wp
-               zht(:,mj0(jpjglo):mj1(jpjglo)) = -4._wp
+               zht(mi0(     1,nn_hls):mi1(     1,nn_hls),:) = -4._wp
+               zht(mi0(jpiglo,nn_hls):mi1(jpiglo,nn_hls),:) = -4._wp
+               zht(:,mj0(     1,nn_hls):mj1(     1,nn_hls)) = -4._wp
+               zht(:,mj0(jpjglo,nn_hls):mj1(jpjglo,nn_hls)) = -4._wp
                !                                    ! ===========================
             CASE ( 7 )                              ! WAD 7 configuration
                !                                    ! ====================
@@ -215,9 +215,9 @@ CONTAINS
                  ENDIF
                END DO
                !                                    ! ===========================
-               zht(mi0(1):mi1(1),:) = -4._wp
-               zht(:,mj0(1):mj1(1)) = -4._wp
-               zht(:,mj0(jpjglo):mj1(jpjglo)) = -4._wp
+               zht(mi0(     1,nn_hls):mi1(     1,nn_hls),:) = -4._wp
+               zht(:,mj0(     1,nn_hls):mj1(     1,nn_hls)) = -4._wp
+               zht(:,mj0(jpjglo,nn_hls):mj1(jpjglo,nn_hls)) = -4._wp
             CASE DEFAULT
                !                                    ! ===========================
                WRITE(ctmp1,*) 'WAD test with a ', nn_cfg,' option is not coded'
@@ -234,10 +234,10 @@ CONTAINS
       END_2D
       CALL lbc_lnk( 'usrdef_zgr', zhu, 'U', 1. )     ! boundary condition: this mask the surrounding grid-points
       !                                ! ==>>>  set by hand non-zero value on first/last columns & rows 
-      DO ji = mi0(1), mi1(1)              ! first row of global domain only
+      DO ji = mi0(     1,nn_hls), mi1(     1,nn_hls)              ! first row of global domain only
          zhu(ji,:) = zht(1,:)
       END DO
-       DO ji = mi0(jpiglo), mi1(jpiglo)   ! last  row of global domain only
+       DO ji = mi0(jpiglo,nn_hls), mi1(jpiglo,nn_hls)   ! last  row of global domain only
          zhu(ji,:) = zht(jpi,:)
       END DO
       ! at v-point: averaging zht
@@ -246,10 +246,10 @@ CONTAINS
          zhv(ji,jj) = 0.5_wp * ( zht(ji,jj) + zht(ji,jj+1) )
       END_2D
       CALL lbc_lnk( 'usrdef_zgr', zhv, 'V', 1. )     ! boundary condition: this mask the surrounding grid-points
-      DO jj = mj0(1), mj1(1)   ! first  row of global domain only
+      DO jj = mj0(     1,nn_hls), mj1(     1,nn_hls)   ! first  row of global domain only
          zhv(:,jj) = zht(:,jj)
       END DO
-      DO jj = mj0(jpjglo), mj1(jpjglo)   ! last  row of global domain only
+      DO jj = mj0(jpjglo,nn_hls), mj1(jpjglo,nn_hls)   ! last  row of global domain only
          zhv(:,jj) = zht(:,jj)
       END DO
       !     
@@ -261,10 +261,10 @@ CONTAINS
       ! no ocean cavities : top ocean level is ONE, except over land
       ! the ocean basin surrounnded by land (1+nn_hls grid-points) set through lbc_lnk call
       z2d(:,:) = 1._wp                    ! surface ocean is the 1st level
-      z2d(mi0(1):mi1(1),:) = 0._wp
-      z2d(mi0(jpiglo):mi1(jpiglo),:) = 0._wp
-      z2d(:,mj0(1):mj1(1)) = 0._wp
-      z2d(:,mj0(jpjglo):mj1(jpjglo)) = 0._wp
+      z2d(mi0(     1,nn_hls):mi1(     1,nn_hls),:) = 0._wp
+      z2d(mi0(jpiglo,nn_hls):mi1(jpiglo,nn_hls),:) = 0._wp
+      z2d(:,mj0(     1,nn_hls):mj1(     1,nn_hls)) = 0._wp
+      z2d(:,mj0(jpjglo,nn_hls):mj1(jpjglo,nn_hls)) = 0._wp
 
       CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1. )        ! closed basin, see userdef_nam.F90
       k_top(:,:) = NINT( z2d(:,:) )

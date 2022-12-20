@@ -27,6 +27,8 @@ MODULE dom_oce
 
    PUBLIC dom_oce_alloc  ! Called from nemogcm.F90
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! time & space domain namelist
    !! ----------------------------
@@ -38,6 +40,11 @@ MODULE dom_oce
    LOGICAL , PUBLIC ::   ln_1st_euler   !: =T start with forward time step or not (=F)
    LOGICAL , PUBLIC ::   ln_crs         !: Apply grid coarsening to dynamical model output or online passive tracers
    LOGICAL , PUBLIC ::   ln_c1d         !: =T  single column domain (1x1 pt)
+#if defined key_RK3
+   LOGICAL, PUBLIC, PARAMETER ::   lk_RK3    = .TRUE.   !: RK3 key flag
+#else
+   LOGICAL, PUBLIC, PARAMETER ::   lk_RK3    = .FALSE.  !: RK3 key flag
+#endif
 
    !! Free surface parameters
    !! =======================
@@ -74,10 +81,10 @@ MODULE dom_oce
    INTEGER         ::   nn_ltile_i, nn_ltile_j
 
    ! Domain tiling
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   ntsi_a       !: start of internal part of tile domain
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   ntsj_a       !
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   ntei_a       !: end of internal part of tile domain
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   ntej_a       !
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) ::   ntsi_a       !: start of internal part of tile domain
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) ::   ntsj_a       !
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) ::   ntei_a       !: end of internal part of tile domain
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) ::   ntej_a       !
    LOGICAL, PUBLIC                                  ::   l_istiled    ! whether tiling is currently active or not
 
    !                             !: domain MPP decomposition parameters
@@ -85,32 +92,30 @@ MODULE dom_oce
    INTEGER              , PUBLIC ::   narea            !: number for local area (starting at 1) = MPI rank + 1
    INTEGER,               PUBLIC ::   nidom      !: IOIPSL things...
 
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   mig        !: local ==> global domain, including halos (jpiglo), i-index
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   mjg        !: local ==> global domain, including halos (jpjglo), j-index
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   mig0       !: local ==> global domain, excluding halos (Ni0glo), i-index
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   mjg0       !: local ==> global domain, excluding halos (Nj0glo), j-index
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   mi0, mi1   !: global, including halos (jpiglo) ==> local domain i-index
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mig        !: local ==> global domain, i-index
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mjg        !: local ==> global domain, j-index
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mi0, mi1   !: global ==> local domain, i-index
    !                                                                !:    (mi0=1 and mi1=0 if global index not in local domain)
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   mj0, mj1   !: global, including halos (jpjglo) ==> local domain j-index
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mj0, mj1   !: global ==> local domain, j-index
    !                                                                !:    (mj0=1 and mj1=0 if global index not in local domain)
-   INTEGER, PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   nfimpp, nfproc, nfjpi
+   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) ::   nfimpp, nfproc, nfjpi, nfni_0
 
    !!----------------------------------------------------------------------
    !! horizontal curvilinear coordinate and scale factors
    !! ---------------------------------------------------------------------
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   glamt , glamu, glamv , glamf    !: longitude at t, u, v, f-points [degree]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   gphit , gphiu, gphiv , gphif    !: latitude  at t, u, v, f-points [degree]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, TARGET, DIMENSION(:,:) ::   e1t   , e2t  , r1_e1t, r1_e2t   !: t-point horizontal scale factors    [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, TARGET, DIMENSION(:,:) ::   e1u   , e2u  , r1_e1u, r1_e2u   !: horizontal scale factors at u-point [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, TARGET, DIMENSION(:,:) ::   e1v   , e2v  , r1_e1v, r1_e2v   !: horizontal scale factors at v-point [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, TARGET, DIMENSION(:,:) ::   e1f   , e2f  , r1_e1f, r1_e2f   !: horizontal scale factors at f-point [m]
+   REAL(wp), PUBLIC, ALLOCATABLE,         DIMENSION(:,:) ::   glamt , glamu, glamv , glamf    !: longitude at t, u, v, f-points [degree]
+   REAL(wp), PUBLIC, ALLOCATABLE,         DIMENSION(:,:) ::   gphit , gphiu, gphiv , gphif    !: latitude  at t, u, v, f-points [degree]
+   REAL(wp), PUBLIC, ALLOCATABLE, TARGET, DIMENSION(:,:) ::   e1t   , e2t  , r1_e1t, r1_e2t   !: t-point horizontal scale factors    [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, TARGET, DIMENSION(:,:) ::   e1u   , e2u  , r1_e1u, r1_e2u   !: horizontal scale factors at u-point [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, TARGET, DIMENSION(:,:) ::   e1v   , e2v  , r1_e1v, r1_e2v   !: horizontal scale factors at v-point [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, TARGET, DIMENSION(:,:) ::   e1f   , e2f  , r1_e1f, r1_e2f   !: horizontal scale factors at f-point [m]
    !
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e1e2t , r1_e1e2t                !: associated metrics at t-point
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e1e2u , r1_e1e2u , e2_e1u       !: associated metrics at u-point
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e1e2v , r1_e1e2v , e1_e2v       !: associated metrics at v-point
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE        , DIMENSION(:,:) ::   e1e2f , r1_e1e2f                !: associated metrics at f-point
+   REAL(wp), PUBLIC, ALLOCATABLE,         DIMENSION(:,:) ::   e1e2t , r1_e1e2t                !: associated metrics at t-point
+   REAL(wp), PUBLIC, ALLOCATABLE,         DIMENSION(:,:) ::   e1e2u , r1_e1e2u , e2_e1u       !: associated metrics at u-point
+   REAL(wp), PUBLIC, ALLOCATABLE,         DIMENSION(:,:) ::   e1e2v , r1_e1e2v , e1_e2v       !: associated metrics at v-point
+   REAL(wp), PUBLIC, ALLOCATABLE,         DIMENSION(:,:) ::   e1e2f , r1_e1e2f                !: associated metrics at f-point
    !
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ff_f  , ff_t                    !: Coriolis factor at f- & t-points  [1/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   ff_f  , ff_t                    !: Coriolis factor at f- & t-points  [1/s]
    
    !!----------------------------------------------------------------------
    !! vertical coordinate and scale factors
@@ -125,60 +130,105 @@ MODULE dom_oce
 #else
    LOGICAL, PUBLIC, PARAMETER ::   lk_linssh = .FALSE.  !: linssh key flag
 #endif
-   LOGICAL, PUBLIC ::   ln_zco       !: z-coordinate - full step
-   LOGICAL, PUBLIC ::   ln_zps       !: z-coordinate - partial step
-   LOGICAL, PUBLIC ::   ln_sco       !: s-coordinate or hybrid z-s coordinate
-   LOGICAL, PUBLIC ::   ln_isfcav    !: presence of ISF
-   !                                                        !  reference scale factors
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::     e3t_0   !: t- vert. scale factor [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::     e3u_0   !: u- vert. scale factor [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::     e3v_0   !: v- vert. scale factor [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::     e3f_0   !: f- vert. scale factor [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::     e3w_0   !: w- vert. scale factor [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::    e3uw_0   !: uw-vert. scale factor [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::    e3vw_0   !: vw-vert. scale factor [m]
+#if defined key_ALE
+   LOGICAL, PUBLIC, PARAMETER ::   lk_ALE    = .TRUE.   !: ALE key flag
+#else
+   LOGICAL, PUBLIC, PARAMETER ::   lk_ALE    = .FALSE.  !: ALE key flag
+#endif
+#if defined key_vco_1d
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d   = .TRUE.   !: zco key flag
+#else
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d   = .FALSE.  !: zco key flag
+#endif
+#if defined key_vco_1d3d
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d3d = .TRUE.   !: zps key flag
+#else
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d3d = .FALSE.  !: zps key flag
+#endif
+#if defined key_vco_3d
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_3d   = .TRUE.   !: sco key flag
+#else
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_3d   = .FALSE.  !: sco key flag
+#endif
 
-   !                                                        !  time-dependent scale factors     (domvvl)
-#if defined key_qco || defined key_linssh
-#else
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   e3t, e3u, e3v, e3w, e3uw, e3vw  !: vert. scale factor [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   e3f                             !: F-point vert. scale factor [m]
-#endif
-   !                                                        !  time-dependent ratio ssh / h_0   (domqco)
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   r3t, r3u, r3v                   !: time-dependent    ratio at t-, u- and v-point [-]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   r3f                             !: mid-time-level    ratio at f-point            [-]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   r3t_f, r3u_f, r3v_f             !: now time-filtered ratio at t-, u- and v-point [-]
+!!gm obsolescent feature replaced by key_xxx ==>>>  to be removed when z-tilde and or ALE key added (and domvvl removed)
+   LOGICAL, PUBLIC ::   l_zco       !: z-coordinate - full step
+   LOGICAL, PUBLIC ::   l_zps       !: z-coordinate - partial step
+   LOGICAL, PUBLIC ::   l_sco       !: s-coordinate or hybrid z-s coordinate
+!!st for unknown reason this is init at TRUE in dbg mode   LOGICAL, PUBLIC ::   ln_isfcav    !: presence of ISF
+!!gm end
 
-   !                                                        !  reference depths of cells
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gdept_0  !: t- depth              [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gdepw_0  !: w- depth              [m]
+   !        !-----------------------------------!
+   !        !  split of time & space variation  !      coord(i,j,k,t) = coord_0(i,j,k) * (1+rt(i,j,t))
+   !        !-----------------------------------!
+
+   !                    !==  reference thickness of ocean water column and its inverse  ==!   (all coord. except ALE/z-tilde)
+   !
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)   ::   ht_0, r1_ht_0   !: t-depth   [m] and [1/m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)   ::   hu_0, r1_hu_0   !: u-depth   [m] and [1/m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)   ::   hv_0, r1_hv_0   !: v-depth   [m] and [1/m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)   ::   hf_0, r1_hf_0   !: f-depth   [m] and [1/m]
    
-   !                                                        !  time-dependent depths of cells   (domvvl)
-#if defined key_qco || defined key_linssh
-#else
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   gde3w_0, gde3w !: w- depth (sum of e3w) [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   gdept, gdepw
-#endif
-   !                                                        !  reference heights of ocean water column and its inverse
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   ht_0, r1_ht_0   !: t-depth        [m] and [1/m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   hu_0, r1_hu_0   !: u-depth        [m] and [1/m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   hv_0, r1_hv_0   !: v-depth        [m] and [1/m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   hf_0, r1_hf_0   !: f-depth        [m] and [1/m]
+
+   !                    !==  1D reference coordinate  ==!   used in zco and zps cases (z- or z-partial cell coord.)
+   !
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:)     ::   gdept_1d, e3t_1d   !: reference depth & scale factor of T-level points [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:)     ::   gdepw_1d, e3w_1d   !: reference depth & scale factor of W-level points [m]
+
+
+   !                    !==  3D reference coordinate  ==!   used in zps and sco cases (z-partial cell ans s- coord.)
+   !
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::   gdept_3d   !: t- depth                [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::   gdepw_3d   !: w- depth                [m]
+   !
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::     e3t_3d   !: t- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::     e3u_3d   !: u- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::     e3v_3d   !: v- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::     e3f_3d   !: f- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::     e3w_3d   !: w- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::    e3uw_3d   !: uw-vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::    e3vw_3d   !: vw-vert. scale factor   [m]
+
+   !                    !==  time varying factor  ==!   used in qco case (quasi-eulerian coordinate) 
+   !                                                                           !!!  time-dependent ratio ssh / h_0   (domqco)
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:)   ::   r3t, r3u, r3v         !: time-dependent    ratio at t-, u- and v-point [-]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)     ::   r3f                   !: mid-time-level    ratio at f-point            [-]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)     ::   r3t_f, r3u_f, r3v_f   !: now time-filtered ratio at t-, u- and v-point [-]
    
-   !                                                        ! time-dependent heights of ocean water column   (domvvl)
-#if defined key_qco || defined key_linssh 
-#else
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   ht          !: t-points           [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   hu, r1_hu   !: u-depth            [m] and [1/m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   hv, r1_hv   !: v-depth            [m] and [1/m]
-#endif
+   !        !----------------------------------------!
+   !        !  combined of time & space variations   !      coord(i,j,k,t)
+   !        !----------------------------------------!
+
+   !                    !==  z-tilde or ALE case  ==!   default : time-dependent coord.   (currently use of domvvl old staff)
+   !
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::   ht          !: t-points           [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::   hu, r1_hu   !: u-depth            [m] and [1/m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::   hv, r1_hv   !: v-depth            [m] and [1/m]
+   !
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:,:) ::   gdept     !: t- depth                [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:,:) ::   gdepw     !: w- depth                [m]
+   !
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:,:) ::       e3t   !: t- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:,:) ::       e3u   !: u- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:,:) ::       e3v   !: v- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:)   ::       e3f   !: f- vert. scale factor   [m]   (only need at Nmm)
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:,:) ::       e3w   !: w- vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:,:) ::      e3uw   !: uw-vert. scale factor   [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:,:) ::      e3vw   !: vw-vert. scale factor   [m]
+
+   
+!!gm this is to be replaced by a 2D field for sco  
    INTEGER, PUBLIC ::   nla10              !: deepest    W level Above  ~10m (nlb10 - 1)
    INTEGER, PUBLIC ::   nlb10              !: shallowest W level Bellow ~10m (nla10 + 1)
 
-   !! 1D reference  vertical coordinate
-   !! =-----------------====------
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   gdept_1d, gdepw_1d !: reference depth of t- and w-points (m)
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   e3t_1d  , e3w_1d   !: reference vertical scale factors at T- and W-pts (m)
+!!gm bathy should be removed  use ht_0 or ht-ssh
+#if defined key_isf
+   LOGICAL, PUBLIC, PARAMETER ::   lk_isf    = .TRUE.   !: isf key flag
+#else
+   LOGICAL, PUBLIC, PARAMETER ::   lk_isf    = .FALSE.  !: isf key flag
+#endif
+   LOGICAL, PUBLIC            ::   ln_isfcav = .FALSE.  !: absence of ISF (init for debug mode)
+
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   risfdep, bathy
 
@@ -186,19 +236,22 @@ MODULE dom_oce
    !! masks, top and bottom ocean point position
    !! ---------------------------------------------------------------------
 !!gm Proposition of new name for top/bottom vertical indices
-!   INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mtk_t, mtk_u, mtk_v   !: top    first wet T-, U-, and V-level (ISF)
-!   INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mbk_t, mbk_u, mbk_v   !: bottom last  wet T-, U-, and V-level
+!   INTEGER , PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mtk_t, mtk_u, mtk_v   !: top    first wet T-, U-, and V-level (ISF)
+!   INTEGER , PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mbk_t, mbk_u, mbk_v   !: bottom last  wet T-, U-, and V-level
 !!gm
-   INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mbkt, mbku, mbkv, mbkf   !: bottom last wet T-, U-, V- and F-level
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tmask_i                  !: interior (excluding halos+duplicated points) domain T-point mask
+   INTEGER , PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mbkt, mbku, mbkv, mbkf   !: bottom last wet T-, U-, V- and F-level
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   tmask_i                  !: interior (excluding halos+duplicated points) domain T-point mask
 
-   INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   mikt, miku, mikv, mikf   !: top first wet T-, U-, V-, F-level           (ISF)
+   INTEGER , PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mikt, miku, mikv, mikf   !: top first wet T-, U-, V-, F-level           (ISF)
 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)           ::   ssmask, ssumask, ssvmask, ssfmask   !: surface mask at T-,U-, V- and F-pts
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:), TARGET ::   tmask, umask, vmask, wmask, fmask   !: land/ocean mask at T-, U-, V-, W- and F-pts
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:), TARGET ::   wumask, wvmask                      !: land/ocean mask at WU- and WV-pts
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:), TARGET ::   fe3mask                             !: land/ocean mask at F-pts
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) :: tmask_upd, umask_upd, vmask_upd                 !: land/ocean mask at F-pts
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)           ::   smask0                              !: surface mask at T-pts on inner domain
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)           ::   smask0_i                            !: equivalent of tmask_i for inner domain
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:)           ::   ssmask, ssumask, ssvmask, ssfmask   !: surface mask at T-,U-, V- and F-pts
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:), TARGET ::   tmask, umask, vmask, wmask, fmask   !: land/ocean mask at T-, U-, V-, W- and F-pts
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:), TARGET ::   wumask, wvmask                      !: land/ocean mask at WU- and WV-pts
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:), TARGET ::   fe3mask                             !: land/ocean mask at F-pts
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:) :: tmask_upd, umask_upd, vmask_upd                 !: land/ocean mask at F-pts
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:) :: tmask_agrif                !: agrif mask at T-points excluding ghosts and updated areas 
 
    !!----------------------------------------------------------------------
    !! calendar variables
@@ -283,50 +336,76 @@ CONTAINS
          &      e1e2v(jpi,jpj) , r1_e1e2v(jpi,jpj) , e1_e2v(jpi,jpj)                   ,     &
          &      e1e2f(jpi,jpj) , r1_e1e2f(jpi,jpj)                                     ,     &
          &      ff_f (jpi,jpj) ,    ff_t (jpi,jpj)                                     , STAT=ierr(ii) )
+      !
+      !           !=====================!
+      !           !==  vertical mesh  ==!   gdep and e3 arrays allocation
+      !           !=====================!
+      !                                   !-----------------------------------!
+      IF( lk_qco .OR. lk_linssh ) THEN    !-  split time & space variations  -!    qco or linear ssh
+         !                                !-----------------------------------!
+         ii = ii+1
+         ALLOCATE( ht_0(jpi,jpj) ,    hu_0(jpi,jpj)    ,    hv_0(jpi,jpj)     , hf_0(jpi,jpj) ,       &
+            &   r1_ht_0(jpi,jpj) , r1_hu_0(jpi,jpj) ,    r1_hv_0(jpi,jpj),   r1_hf_0(jpi,jpj) ,   STAT=ierr(ii)  )
          !
-      ii = ii+1
-      ALLOCATE( gdept_0 (jpi,jpj,jpk) , gdepw_0 (jpi,jpj,jpk) ,     &
-         &      gdept_1d(        jpk) , gdepw_1d(        jpk)                        , STAT=ierr(ii) )
+         IF( lk_qco ) THEN                !* qco only :   time variation factor (ssh/h ratio)
+            ii = ii+1
+            ALLOCATE( r3t(jpi,jpj,jpt) , r3u(jpi,jpj,jpt) , r3v(jpi,jpj,jpt) , r3f(jpi,jpj) ,   STAT=ierr(ii) )
+            !
+            IF( .NOT. lk_RK3 ) THEN       !   +  MLF  :   Asselin filter applied to r3. at f-point
+               ii = ii+1            
+               ALLOCATE( r3t_f(jpi,jpj) , r3u_f(jpi,jpj) , r3v_f(jpi,jpj) ,   STAT=ierr(ii) )
+            ENDIF
+         ENDIF
          !
-      ii = ii+1
-      ALLOCATE(  e3t_0 (jpi,jpj,jpk) , e3u_0 (jpi,jpj,jpk) , e3v_0 (jpi,jpj,jpk) , e3f_0(jpi,jpj,jpk) ,     &
-         &       e3w_0 (jpi,jpj,jpk) , e3uw_0(jpi,jpj,jpk) , e3vw_0(jpi,jpj,jpk)                      ,     &
-         &       e3t_1d(        jpk) , e3w_1d(        jpk)                                            , STAT=ierr(ii) )
+         ii = ii+1
+         IF(     lk_vco_1d ) THEN         !* zco :   allocate 1d vertical arrays for all gdep and e3 fields
+            !
+            ALLOCATE(        gdept_1d(jpk) ,        gdepw_1d(jpk) ,       &
+               &               e3t_1d(jpk) ,          e3w_1d(jpk) ,   STAT=ierr(ii) )
+               !
+         ELSEIF( lk_vco_1d3d ) THEN       !* zps :   allocate 1d vertical arrays, except t-level e3 !!st WHT not ??? 
+            !                 
+            ALLOCATE(        gdept_1d(jpk) ,        gdepw_1d(jpk) ,       &
+               &               e3t_1d(jpk) ,          e3w_1d(jpk) ,       &
+               &       e3t_3d(jpi,jpj,jpk) ,  e3u_3d(jpi,jpj,jpk) ,       &
+               &       e3v_3d(jpi,jpj,jpk) ,  e3f_3d(jpi,jpj,jpk) ,   STAT=ierr(ii) )
+         ELSEIF( lk_vco_3d ) THEN
+            !                             !* sco :   allocate 3d vertical arrays for all gdep and e3 fields (no more _1d) !!st WHT not ???
+            ALLOCATE(        gdept_1d(jpk) ,        gdepw_1d(jpk) ,       &
+               &               e3t_1d(jpk) ,          e3w_1d(jpk) ,       &
+               &     gdept_3d(jpi,jpj,jpk) ,gdepw_3d(jpi,jpj,jpk) ,       &
+               &       e3t_3d(jpi,jpj,jpk) ,  e3u_3d(jpi,jpj,jpk) ,       &
+               &       e3v_3d(jpi,jpj,jpk) ,  e3f_3d(jpi,jpj,jpk) ,       &
+               &       e3w_3d(jpi,jpj,jpk) , e3uw_3d(jpi,jpj,jpk) ,       &
+               &                             e3vw_3d(jpi,jpj,jpk) ,   STAT=ierr(ii) )
+         ENDIF !!st on ne devrait pas mettre un STOP/WARNING quelque part si aucune clé de coordonnée n'est spécifiée ? 
+         !                                !-------------------------------------!
+      ELSEIF( lk_ALE ) THEN               !-  combine time & space variations  -!   (vertical ALE coordinate)
+         !                                !-------------------------------------!      NOT yet implemented
+         !!st ca ne devrait pas etre des *_0 qui varient dans le temps ? 
+         ii = ii+1
+         ALLOCATE(    ht(jpi,jpj,jpt) ,    hu(jpi,jpj,jpt) ,      hv(jpi,jpj,jpt) ,       &
+            &                           r1_hu(jpi,jpj,jpt) , r1_hv  (jpi,jpj,jpt) ,   STAT=ierr(ii)  )
          !
-      ii = ii+1
-      ALLOCATE( ht_0(jpi,jpj) ,    hu_0(jpi,jpj)    ,    hv_0(jpi,jpj)     , hf_0(jpi,jpj) ,       &
-         &   r1_ht_0(jpi,jpj) , r1_hu_0(jpi,jpj) ,    r1_hv_0(jpi,jpj),   r1_hf_0(jpi,jpj) ,   STAT=ierr(ii)  )
+         ii = ii+1
+         ALLOCATE( gdept(jpi,jpj,jpk,jpt) , gdepw(jpi,jpj,jpk,jpt) ,       &
+            &        e3t(jpi,jpj,jpk,jpt) ,   e3u(jpi,jpj,jpk,jpt) ,       &
+            &        e3v(jpi,jpj,jpk,jpt) ,   e3f(jpi,jpj,jpk)     ,       &
+            &        e3w(jpi,jpj,jpk,jpt) ,  e3uw(jpi,jpj,jpk,jpt) ,       &
+            &                                e3vw(jpi,jpj,jpk,jpt) ,   STAT=ierr(ii) )
+         !                                !-------------------------------------!
+      ELSE                                !-       use old domvvl module       -!   (default : old z-tilde coord)
+         !                                !-------------------------------------!
          !
-#if defined key_qco
-         ! qco : ssh to h ratio and specific fmask
-      ii = ii+1
-      ALLOCATE( r3t  (jpi,jpj,jpt) , r3u  (jpi,jpj,jpt) , r3v  (jpi,jpj,jpt) , r3f  (jpi,jpj) ,      &
-         &      r3t_f(jpi,jpj)     , r3u_f(jpi,jpj)     , r3v_f(jpi,jpj)                      ,  STAT=ierr(ii) )
+         ! mettre un STOP/WARNING 
          !
-      ii = ii+1
-         !
-#elif defined key_linssh
-         ! linear ssh no time varying coordinate arrays
-#else
-         ! vvl : time varation for all vertical coordinate variables
-      ii = ii+1
-      ALLOCATE( gdept  (jpi,jpj,jpk,jpt) , gdepw  (jpi,jpj,jpk,jpt) ,     &
-         &      gde3w_0(jpi,jpj,jpk)     , gde3w  (jpi,jpj,jpk)     , STAT=ierr(ii) )
-         !
-      ii = ii+1
-      ALLOCATE( e3t(jpi,jpj,jpk,jpt) , e3u (jpi,jpj,jpk,jpt) , e3v (jpi,jpj,jpk,jpt) , e3f(jpi,jpj,jpk) ,      &
-         &      e3w(jpi,jpj,jpk,jpt) , e3uw(jpi,jpj,jpk,jpt) , e3vw(jpi,jpj,jpk,jpt)                    ,  STAT=ierr(ii) )
-         !
-      ii = ii+1
-      ALLOCATE( ht  (jpi,jpj) ,    hu  (jpi,jpj,jpt),    hv  (jpi,jpj,jpt) ,       &
-         &                      r1_hu  (jpi,jpj,jpt), r1_hv  (jpi,jpj,jpt) ,   STAT=ierr(ii)  )
-#endif
+      ENDIF
          !
       ii = ii+1
       ALLOCATE( risfdep(jpi,jpj) , bathy(jpi,jpj) , STAT=ierr(ii)  )
          !
       ii = ii+1
-      ALLOCATE( tmask_i(jpi,jpj) ,                                                              &
+      ALLOCATE( tmask_i(jpi,jpj) , smask0(A2D(0)) , smask0_i(A2D(0)) , &
          &      ssmask (jpi,jpj) , ssumask(jpi,jpj) , ssvmask(jpi,jpj) , ssfmask(jpi,jpj) ,     &
          &      mbkt   (jpi,jpj) , mbku   (jpi,jpj) , mbkv   (jpi,jpj) , mbkf(jpi,jpj)    , STAT=ierr(ii) )
          !
@@ -342,7 +421,8 @@ CONTAINS
          !
 #if defined key_agrif
       ii = ii+1
-      ALLOCATE( tmask_upd(jpi,jpj) , umask_upd(jpi,jpj), vmask_upd(jpi,jpj) , STAT=ierr(ii) )
+      ALLOCATE( tmask_upd(jpi,jpj) , umask_upd(jpi,jpj), vmask_upd(jpi,jpj), & 
+         &      tmask_agrif(jpi,jpj), STAT=ierr(ii) )
 #endif
       !
       dom_oce_alloc = MAXVAL(ierr)

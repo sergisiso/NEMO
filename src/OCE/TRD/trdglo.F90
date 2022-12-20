@@ -42,6 +42,7 @@ MODULE trdglo
    REAL(wp) ::   tvolv    ! volume of the whole ocean computed at v-points
    REAL(wp) ::   rpktrd   ! potential to kinetic energy conversion
    REAL(wp) ::   peke     ! conversion potential energy - kinetic energy trend
+   REAL(wp) ::   xcof
 
    !                     !!! domain averaged trends
    REAL(wp), DIMENSION(jptot_tra) ::   tmo, smo   ! temperature and salinity trends 
@@ -77,44 +78,47 @@ CONTAINS
       INTEGER ::   ji, jj, jk      ! dummy loop indices
       INTEGER ::   ikbu, ikbv      ! local integers
       REAL(wp)::   zvm, zvt, zvs, z1_2rho0   ! local scalars
-      REAL(wp), DIMENSION(jpi,jpj)  :: ztswu, ztswv, z2dx, z2dy   ! 2D workspace 
+      REAL(wp), DIMENSION(T2D(0))  :: ztswu, ztswv, z2dx, z2dy   ! 2D workspace
       !!----------------------------------------------------------------------
       !
       IF( MOD(kt,nn_trd) == 0 .OR. kt == nit000 .OR. kt == nitend ) THEN
          !
-      	SELECT CASE( ctype )
-      	!
-      	CASE( 'TRA' )          !==  Tracers (T & S)  ==!
-      	   DO_3D( 1, 1, 1, 1, 1, jpkm1 )   ! global sum of mask volume trend and trend*T (including interior mask)
-	            zvm = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * tmask_i(ji,jj)
-	            zvt = ptrdx(ji,jj,jk) * zvm
-	            zvs = ptrdy(ji,jj,jk) * zvm
-   	         tmo(ktrd) = tmo(ktrd) + zvt   
-   	         smo(ktrd) = smo(ktrd) + zvs
-   	         t2 (ktrd) = t2(ktrd)  + zvt * ts(ji,jj,jk,jp_tem,Kmm)
-   	         s2 (ktrd) = s2(ktrd)  + zvs * ts(ji,jj,jk,jp_sal,Kmm)
-      	   END_3D
+     SELECT CASE( ctype )
+     !
+     CASE( 'TRA' )          !==  Tracers (T & S)  ==!
+        DO_3D( 0, 0, 0, 0, 1, jpkm1 )   ! global sum of mask volume trend and trend*T (including interior mask)
+           zvm = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * tmask_i(ji,jj)
+           zvt = ptrdx(ji,jj,jk) * zvm
+           zvs = ptrdy(ji,jj,jk) * zvm
+           tmo(ktrd) = tmo(ktrd) + zvt   
+           smo(ktrd) = smo(ktrd) + zvs
+           t2 (ktrd) = t2(ktrd)  + zvt * ts(ji,jj,jk,jp_tem,Kmm)
+           s2 (ktrd) = s2(ktrd)  + zvs * ts(ji,jj,jk,jp_sal,Kmm)
+        END_3D
             !                       ! linear free surface: diagnose advective flux trough the fixed k=1 w-surface
-            IF( ln_linssh .AND. ktrd == jptra_zad ) THEN  
-               tmo(jptra_sad) = SUM( ww(:,:,1) * ts(:,:,1,jp_tem,Kmm) * e1e2t(:,:) * tmask_i(:,:) )
-               smo(jptra_sad) = SUM( ww(:,:,1) * ts(:,:,1,jp_sal,Kmm) * e1e2t(:,:) * tmask_i(:,:)  )
-               t2 (jptra_sad) = SUM( ww(:,:,1) * ts(:,:,1,jp_tem,Kmm) * ts(:,:,1,jp_tem,Kmm) * e1e2t(:,:) * tmask_i(:,:)  )
-               s2 (jptra_sad) = SUM( ww(:,:,1) * ts(:,:,1,jp_sal,Kmm) * ts(:,:,1,jp_sal,Kmm) * e1e2t(:,:) * tmask_i(:,:)  )
-            ENDIF
+        IF( ln_linssh .AND. ktrd == jptra_zad ) THEN  
+            DO_2D( 0, 0, 0, 0 )   ! global sum of mask volume trend and trend*T (including interior mask)
+               zvm = ww(ji,jj,1) * e1e2t(ji,jj) * tmask_i(ji,jj)
+               tmo(jptra_sad) = tmo(jptra_sad) + ts(ji,jj,1,jp_tem,Kmm) * zvm
+               smo(jptra_sad) = smo(jptra_sad) + ts(ji,jj,1,jp_sal,Kmm) * zvm
+               t2 (jptra_sad) = t2 (jptra_sad) + ts(ji,jj,1,jp_tem,Kmm) * ts(ji,jj,1,jp_tem,Kmm) * zvm
+               s2 (jptra_sad) = s2 (jptra_sad) + ts(ji,jj,1,jp_sal,Kmm) * ts(ji,jj,1,jp_sal,Kmm) * zvm
+            END_2D
+        ENDIF
             !
-            IF( ktrd == jptra_atf ) THEN     ! last trend (asselin time filter)
-               ! 
-               CALL glo_tra_wri( kt )             ! print the results in ocean.output
-               !                
-	            tmo(:) = 0._wp                     ! prepare the next time step (domain averaged array reset to zero)
-   	         smo(:) = 0._wp
-               t2 (:) = 0._wp
-               s2 (:) = 0._wp
-               !
-            ENDIF
+        IF( ktrd == jptra_atf ) THEN     ! last trend (asselin time filter)
+            ! 
+            CALL glo_tra_wri( kt )             ! print the results in ocean.output
+            !                
+            tmo(:) = 0._wp                     ! prepare the next time step (domain averaged array reset to zero)
+            smo(:) = 0._wp
+            t2 (:) = 0._wp
+            s2 (:) = 0._wp
+            !
+         ENDIF
             !
          CASE( 'DYN' )          !==  Momentum and KE  ==!        
-            DO_3D( 1, 0, 1, 0, 1, jpkm1 )
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                zvt = ptrdx(ji,jj,jk) * tmask_i(ji+1,jj) * tmask_i(ji,jj) * umask(ji,jj,jk)   &
                   &                                     * e1e2u  (ji,jj) * e3u(ji,jj,jk,Kmm)
                zvs = ptrdy(ji,jj,jk) * tmask_i(ji,jj+1) * tmask_i(ji,jj) * vmask(ji,jj,jk)   &
@@ -126,11 +130,11 @@ CONTAINS
             !                 
             IF( ktrd == jpdyn_zdf ) THEN      ! zdf trend: compute separately the surface forcing trend
                z1_2rho0 = 0.5_wp / rho0
-               DO_2D( 1, 0, 1, 0 )
-                  zvt = ( utau_b(ji,jj) + utau(ji,jj) ) * tmask_i(ji+1,jj) * tmask_i(ji,jj) * umask(ji,jj,jk)   &
-                     &                                                     * z1_2rho0       * e1e2u(ji,jj)
-                  zvs = ( vtau_b(ji,jj) + vtau(ji,jj) ) * tmask_i(ji,jj+1) * tmask_i(ji,jj) * vmask(ji,jj,jk)   &
-                     &                                                     * z1_2rho0       * e1e2v(ji,jj)
+               DO_2D( 0, 0, 0, 0 )
+                  zvt = ( utau_b(ji,jj) + utauU(ji,jj) ) * tmask_i(ji+1,jj) * tmask_i(ji,jj) * umask(ji,jj,jk)   &
+                     &                                                      * z1_2rho0       * e1e2u(ji,jj)
+                  zvs = ( vtau_b(ji,jj) + vtauV(ji,jj) ) * tmask_i(ji,jj+1) * tmask_i(ji,jj) * vmask(ji,jj,jk)   &
+                     &                                                      * z1_2rho0       * e1e2v(ji,jj)
                   umo(jpdyn_tau) = umo(jpdyn_tau) + zvt
                   vmo(jpdyn_tau) = vmo(jpdyn_tau) + zvs
                   hke(jpdyn_tau) = hke(jpdyn_tau) + uu(ji,jj,1,Kmm) * zvt + vv(ji,jj,1,Kmm) * zvs
@@ -184,8 +188,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kmm  ! time level index
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
-      REAL(wp) ::   zcof         ! local scalar
-      REAL(wp), DIMENSION(jpi,jpj,jpk)  ::  zkx, zky, zkz, zkepe  
+      REAL(wp), DIMENSION(T2D(0),jpk)  ::  zkx, zky, zkz, zkepe
       !!----------------------------------------------------------------------
 
       ! I. Momentum trends
@@ -196,24 +199,24 @@ CONTAINS
          ! I.1 Conversion potential energy - kinetic energy
          ! --------------------------------------------------
          ! c a u t i o n here, trends are computed at kt+1 (now , but after the swap)
-         zkx  (:,:,:) = 0._wp
-         zky  (:,:,:) = 0._wp
-         zkz  (:,:,:) = 0._wp
-         zkepe(:,:,:) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 ) ! loop from top to bottom
+            zkx  (ji,jj,jk) = 0._wp
+            zky  (ji,jj,jk) = 0._wp
+            zkz  (ji,jj,jk) = 0._wp
+            zkepe(ji,jj,jk) = 0._wp
+         END_3D
    
          CALL eos( ts(:,:,:,:,Kmm), rhd, rhop )       ! now potential density
 
-         zcof = 0.5_wp / rho0             ! Density flux at w-point
-         zkz(:,:,1) = 0._wp
-         DO jk = 2, jpk
-            zkz(:,:,jk) = zcof * e1e2t(:,:) * ww(:,:,jk) * ( rhop(:,:,jk) + rhop(:,:,jk-1) ) * tmask_i(:,:)
-         END DO
+         zkz(T2D(0),1) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpk ) ! loop from top to bottom
+            zkz(ji,jj,jk) = xcof * e1e2t(ji,jj) * ww(ji,jj,jk) * ( rhop(ji,jj,jk) + rhop(ji,jj,jk-1) ) * tmask_i(ji,jj)
+         END_3D
          
-         zcof   = 0.5_wp / rho0           ! Density flux at u and v-points
-         DO_3D( 1, 0, 1, 0, 1, jpkm1 )
-            zkx(ji,jj,jk) = zcof * e2u(ji,jj) * e3u(ji,jj,jk,Kmm)   &
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zkx(ji,jj,jk) = xcof * e2u(ji,jj) * e3u(ji,jj,jk,Kmm)   &
                &                              *  uu(ji,jj,jk,Kmm) * ( rhop(ji,jj,jk) + rhop(ji+1,jj,jk) )
-            zky(ji,jj,jk) = zcof * e1v(ji,jj) * e3v(ji,jj,jk,Kmm)   &
+            zky(ji,jj,jk) = xcof * e1v(ji,jj) * e3v(ji,jj,jk,Kmm)   &
                &                              *  vv(ji,jj,jk,Kmm) * ( rhop(ji,jj,jk) + rhop(ji,jj+1,jk) )
          END_3D
          
@@ -227,10 +230,9 @@ CONTAINS
          ! I.2 Basin averaged kinetic energy trend
          ! ----------------------------------------
          peke = 0._wp
-         DO jk = 1, jpkm1
-            peke = peke + SUM( zkepe(:,:,jk) * gdept(:,:,jk,Kmm) * e1e2t(:,:)   &
-               &                               * e3t(:,:,jk,Kmm) )
-         END DO
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 ) ! loop from top to bottom
+            peke = peke + zkepe(ji,jj,jk) * gdept(ji,jj,jk,Kmm) * e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm)
+         END_3D
          peke = grav * peke
 
          ! I.3 Sums over the global domain
@@ -509,11 +511,14 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~~'
       ENDIF
 
+      xcof = 0.5_wp / rho0
+
       ! Total volume at t-points:
       tvolt = 0._wp
-      DO jk = 1, jpkm1
-         tvolt = tvolt + SUM( e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk) * tmask_i(:,:) )
-      END DO
+
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )    ! Density flux divergence at t-point
+         tvolt = tvolt + e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * tmask_i(ji,jj)
+      END_3D
       CALL mpp_sum( 'trdglo', tvolt )   ! sum over the global domain
 
       IF(lwp) WRITE(numout,*) '                total ocean volume at T-point   tvolt = ',tvolt

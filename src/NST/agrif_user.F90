@@ -26,6 +26,9 @@
       USE nemogcm
       !!----------------------------------------------------------------------
       !
+
+      mpi_comm_oce = Agrif_MPI_get_grid_comm()
+
       CALL nemo_init       !* Initializations of each fine grid
 # if defined key_RK3
       Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs
@@ -103,6 +106,7 @@
       CALL agrif_declare_variable((/1,1    /),(/ind2-1,ind3-1    /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),        r3f_id)
 #endif
       CALL agrif_declare_variable((/2,2,0  /),(/ind2  ,ind3  ,0  /),(/'x','y','N'    /),(/1,1,1  /),(/jpi,jpj,jpk    /),e3t0_interp_id)
+      CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),      tmask_id)
       CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),       mbkt_id)
       CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /),        ht0_id)
       CALL agrif_declare_variable((/2,2    /),(/ind2  ,ind3      /),(/'x','y'        /),(/1,1    /),(/jpi,jpj        /), e1e2t_frac_id)   
@@ -131,6 +135,7 @@
 #endif
       CALL Agrif_Set_bcinterp(e3t0_interp_id,interp =AGRIF_linear  )
       CALL Agrif_Set_interp  (e3t0_interp_id,interp =AGRIF_linear  )
+      CALL Agrif_Set_bcinterp(      tmask_id,interp =AGRIF_constant)
       CALL Agrif_Set_bcinterp(       mbkt_id,interp =AGRIF_constant)
       CALL Agrif_Set_interp  (       mbkt_id,interp =AGRIF_constant)
       CALL Agrif_Set_bcinterp(        ht0_id,interp =AGRIF_constant)
@@ -172,6 +177,7 @@
       ! extend the interpolation zone by 1 more point than necessary:
       ! RB check here
       CALL Agrif_Set_bc( e3t0_interp_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
+      CALL Agrif_Set_bc(       tmask_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
       CALL Agrif_Set_bc(        mbkt_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
       CALL Agrif_Set_bc(         ht0_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
       CALL Agrif_Set_bc(  e1e2t_frac_id, (/-nn_sponge_len*imaxrho-2,ind1-1/) )
@@ -202,6 +208,7 @@
       CALL Agrif_Set_Updatetype(        r3f_id,update  = Agrif_Update_Copy   )
 #endif 
 #endif      
+      CALL Agrif_Set_Updatetype(      tmask_id,update  = AGRIF_Update_Average)
 
       CALL Agrif_Set_ExternalMapping(nemo_mapping)
       !
@@ -246,6 +253,8 @@
       ht0_parent( :,:) = 0._wp
       mbkt_parent(:,:) = 0
       !
+      ! Build tmask_agrif such that it is zero outside barotropic dynamical interface:
+      CALL Agrif_Bc_variable(tmask_id ,calledweight=1.,procname=interp_tmask_agrif)
 !     CALL Agrif_Bc_variable(ht0_id ,calledweight=1.,procname=interpht0 )
 !     CALL Agrif_Bc_variable(mbkt_id,calledweight=1.,procname=interpmbkt)
       CALL Agrif_Init_Variable(ht0_id,        procname=interpht0 )
@@ -261,7 +270,7 @@
          mbku_parent(ji,jj) = MIN( mbkt_parent(ji+1,jj  ), mbkt_parent(ji,jj) )
          mbkv_parent(ji,jj) = MIN( mbkt_parent(ji  ,jj+1), mbkt_parent(ji,jj) )
       END_2D
-      IF ( ln_sco.AND.Agrif_Parent(ln_sco) ) THEN 
+      IF ( l_sco.AND.Agrif_Parent(l_sco) ) THEN 
          DO_2D( 1, 0, 1, 0 )
             hu0_parent(ji,jj) = 0.5_wp * ( ht0_parent(ji,jj)+ht0_parent(ji+1,jj) ) * ssumask(ji,jj)
             hv0_parent(ji,jj) = 0.5_wp * ( ht0_parent(ji,jj)+ht0_parent(ji,jj+1) ) * ssvmask(ji,jj)
@@ -304,7 +313,7 @@
       END_3D
 
       ! Assume a step at the bottom except if (pure) s-coordinates
-      IF ( .NOT.Agrif_Parent(ln_sco) ) THEN 
+      IF ( .NOT.Agrif_Parent(l_sco) ) THEN 
          DO_2D( 1, 0, 1, 0 )
             jk = mbku_parent(ji,jj)
             e3u0_parent(ji,jj,jk) = MIN(e3t0_parent(ji,jj,jk), e3t0_parent(ji+1,jj  ,jk))
@@ -1095,8 +1104,8 @@
       !!----------------------------------------------------------------------
       !
       SELECT CASE( i )
-      CASE(1)        ;   indglob = mig(indloc)
-      CASE(2)        ;   indglob = mjg(indloc)
+      CASE(1)        ;   indglob = mig(indloc,nn_hls)
+      CASE(2)        ;   indglob = mjg(indloc,nn_hls)
       CASE DEFAULT   ;   indglob = indloc
       END SELECT
       !
@@ -1115,10 +1124,10 @@
       INTEGER, INTENT(out) :: jmin, jmax
       !!----------------------------------------------------------------------
       !
-      imin = mig( 1 )
-      jmin = mjg( 1 )
-      imax = mig(jpi)
-      jmax = mjg(jpj)
+      imin = mig( 1 ,nn_hls)
+      jmin = mjg( 1 ,nn_hls)
+      imax = mig(jpi,nn_hls)
+      jmax = mjg(jpj,nn_hls)
       ! 
    END SUBROUTINE Agrif_get_proc_info
 
@@ -1128,6 +1137,11 @@
       !!                 *** ROUTINE Agrif_estimate_parallel_cost ***
       !!----------------------------------------------------------------------
       USE par_oce
+      USE domain         ! domain initialization   (dom_init & dom_cfg routines)
+      USE usrdef_nam     ! user defined configuration namelist
+      USE lib_mpp        ! distributed memory computing
+      USE mppini         ! shared/distributed memory setting (mpp_init routine)
+      USE iom            ! nemo I/O library
       !!
       IMPLICIT NONE
       !
@@ -1137,7 +1151,92 @@
       REAL(wp), INTENT(out) :: grid_cost
       !!----------------------------------------------------------------------
       !
+      INTEGER :: nprocx, nprocy
+      LOGICAL :: lwm
+      INTEGER ::   ios
+      INTEGER :: number_of_land_subdomains
+      LOGICAL ::   ln_listonly
+      INTEGER, ALLOCATABLE, DIMENSION(:,:  ) ::   iimppt, ijpi, ipproc
+      INTEGER, ALLOCATABLE, DIMENSION(:,:  ) ::   ijmppt, ijpj
+      INTEGER :: ji,jj
+      REAL(wp) :: max_grid_cost
+
+      NAMELIST/namcfg/ ln_read_cfg, cn_domcfg, ln_closea, ln_write_cfg, cn_domcfg_out, ln_use_jattr
+      NAMELIST/nammpp/ jpni, jpnj, nn_hls, ln_nnogather, ln_listonly, nn_comm
+
+     ! If not using land supresssion information
       grid_cost = REAL(imax-imin+1,wp)*REAL(jmax-jmin+1,wp) / REAL(nbprocs,wp)
+      return
+
+      narea = Agrif_GlobProcRank + 1    ! mpprank: the rank of proc (0 --> mppsize -1 )
+      lwm = (narea == 1)                ! control of output namelists
+
+      CALL load_nml( numnam_ref,        'namelist_ref',                                           -1, lwm )
+      CALL load_nml( numnam_cfg,        'namelist_cfg',                                           -1, lwm )
+
+      READ  ( numnam_ref, namcfg, IOSTAT = ios, ERR = 903 )
+903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namcfg in reference namelist' )
+      READ  ( numnam_cfg, namcfg, IOSTAT = ios, ERR = 904 )
+904   IF( ios >  0 )   CALL ctl_nam ( ios , 'namcfg in configuration namelist' )
+
+      IF( ln_read_cfg ) THEN            ! Read sizes in domain configuration file
+         CALL domain_cfg ( cn_cfg, nn_cfg, Ni0glo, Nj0glo, jpkglo, l_Iperio, l_Jperio, l_NFold, c_NFtype )
+      ELSE                              ! user-defined namelist
+         CALL usr_def_nam( cn_cfg, nn_cfg, Ni0glo, Nj0glo, jpkglo, l_Iperio, l_Jperio, l_NFold, c_NFtype )
+      ENDIF
+
+      READ  ( numnam_ref, nammpp, IOSTAT = ios, ERR = 901 )
+901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nammpp in reference namelist' )
+      READ  ( numnam_cfg, nammpp, IOSTAT = ios, ERR = 902 )
+902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nammpp in configuration namelist' )
+      !
+      nn_hls = MAX(1, nn_hls)   ! nn_hls must be > 0
+
+      jpiglo = Ni0glo + 2 * nn_hls
+      jpjglo = Nj0glo + 2 * nn_hls
+
+      mppsize = Agrif_totalprocs
+
+      IF(               ln_read_cfg ) CALL iom_open( cn_domcfg,    numbot )
+      IF( ln_bdy .AND. ln_mask_file ) CALL iom_open( cn_mask_file, numbdy )
+
+
+      CALL bestpartition( nbprocs, nprocx, nprocy, knbcnt = number_of_land_subdomains )
+
+! Reinitializations
+
+      IF(               ln_read_cfg ) CALL iom_close( numbot )
+      IF( ln_bdy .AND. ln_mask_file ) CALL iom_close( numbdy )
+
+      numbot = -1
+      numbdy = -1
+
+      DEALLOCATE(numnam_ref)
+      DEALLOCATE(numnam_cfg)
+
+      ALLOCATE(iimppt(nprocx,nprocy), ijmppt(nprocx,nprocy), ijpi(nprocx,nprocy), ijpj(nprocx,nprocy))
+
+      CALL mpp_basesplit( jpiglo, jpjglo, nn_hls, nprocx, nprocy, jpimax, jpjmax, iimppt, ijmppt, ijpi, ijpj )
+
+      max_grid_cost = 0.
+
+      DO jj=1,nprocy
+        DO ji=1,nprocx
+          max_grid_cost=max(max_grid_cost,1.*ijpi(ji,jj)*ijpj(ji,jj))
+        ENDDO
+      ENDDO
+
+
+      DEALLOCATE(iimppt, ijmppt, ijpi, ijpj)
+
+      !grid_cost = REAL(imax-imin+1,wp)*REAL(jmax-jmin+1,wp) / REAL(nprocx*nprocy,wp)
+
+      !if (Agrif_GlobProcRank == 0) then
+      !        print *,'MAXCOST = ',grid_cost,max_grid_cost
+      !endif
+      grid_cost = max_grid_cost
+
+
       !
    END SUBROUTINE Agrif_estimate_parallel_cost
 

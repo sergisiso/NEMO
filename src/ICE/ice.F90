@@ -257,7 +257,6 @@ MODULE ice
    REAL(wp), PUBLIC ::   r1_Dt_ice        !: = 1. / rDt_ice
    REAL(wp), PUBLIC ::   r1_nlay_i        !: 1 / nlay_i
    REAL(wp), PUBLIC ::   r1_nlay_s        !: 1 / nlay_s
-   REAL(wp), PUBLIC ::   rswitch          !: switch for the presence of ice (1) or not (0)
    REAL(wp), PUBLIC ::   rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft   !: conservation diagnostics
    REAL(wp), PUBLIC, PARAMETER ::   epsi06 = 1.e-06_wp  !: small number
    REAL(wp), PUBLIC, PARAMETER ::   epsi10 = 1.e-10_wp  !: small number
@@ -451,6 +450,8 @@ MODULE ice
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   qcn_ice_bot     !: Bottom  conduction flux (W/m2)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   qcn_ice_top     !: Surface conduction flux (W/m2)
    !
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: ice.F90 15388 2021-10-17 11:33:47Z clem $
@@ -464,71 +465,99 @@ CONTAINS
       !!-----------------------------------------------------------------
       INTEGER :: ice_alloc
       !
-      INTEGER :: ierr(16), ii
+      INTEGER :: ierr(21), ii
       !!-----------------------------------------------------------------
       ierr(:) = 0
-
-      ii = 1
-      ALLOCATE( u_oce    (jpi,jpj) , v_oce    (jpi,jpj) , ht_i_new (jpi,jpj) , fraz_frac (jpi,jpj) ,  &
-         &      strength (jpi,jpj) , stress1_i(jpi,jpj) , stress2_i(jpi,jpj) , stress12_i(jpi,jpj) ,  &
-         &      delta_i  (jpi,jpj) , divu_i   (jpi,jpj) , shear_i  (jpi,jpj) ,                        &
-         &      aniso_11 (jpi,jpj) , aniso_12 (jpi,jpj) , rdg_conv (jpi,jpj) , STAT=ierr(ii) )
-
-      ii = ii + 1
-      ALLOCATE( t_bo       (jpi,jpj) , wfx_snw_sni(jpi,jpj) ,                                                &
-         &      wfx_snw    (jpi,jpj) , wfx_snw_dyn(jpi,jpj) , wfx_snw_sum(jpi,jpj) , wfx_snw_sub(jpi,jpj) ,  &
-         &      wfx_ice    (jpi,jpj) , wfx_sub    (jpi,jpj) , wfx_ice_sub(jpi,jpj) , wfx_lam    (jpi,jpj) ,  &
-         &      wfx_pnd    (jpi,jpj) ,                                                                       &
-         &      wfx_bog    (jpi,jpj) , wfx_dyn   (jpi,jpj) , wfx_bom(jpi,jpj) , wfx_sum(jpi,jpj) ,           &
-         &      wfx_res    (jpi,jpj) , wfx_sni   (jpi,jpj) , wfx_opw(jpi,jpj) , wfx_spr(jpi,jpj) ,           &
-         &      rn_amax_2d (jpi,jpj) ,                                                                       &
-         &      qsb_ice_bot(jpi,jpj) , qlead     (jpi,jpj) ,                                                 &
-         &      sfx_res    (jpi,jpj) , sfx_bri   (jpi,jpj) , sfx_dyn(jpi,jpj) , sfx_sub(jpi,jpj) , sfx_lam(jpi,jpj) ,  &
-         &      sfx_bog    (jpi,jpj) , sfx_bom   (jpi,jpj) , sfx_sum(jpi,jpj) , sfx_sni(jpi,jpj) , sfx_opw(jpi,jpj) ,  &
-         &      hfx_res    (jpi,jpj) , hfx_snw   (jpi,jpj) , hfx_sub(jpi,jpj) ,                        &
-         &      qt_atm_oi  (jpi,jpj) , qt_oce_ai (jpi,jpj) , fhld   (jpi,jpj) ,                        &
-         &      hfx_sum    (jpi,jpj) , hfx_bom   (jpi,jpj) , hfx_bog(jpi,jpj) , hfx_dif(jpi,jpj) ,     &
-         &      hfx_opw    (jpi,jpj) , hfx_thd   (jpi,jpj) , hfx_dyn(jpi,jpj) , hfx_spr(jpi,jpj) ,     &
-         &      hfx_err_dif(jpi,jpj) , wfx_err_sub(jpi,jpj)                   , STAT=ierr(ii) )
-
+      ii = 0
+      ! ----------------- !
+      ! == FULL ARRAYS == !
+      ! ----------------- !
+      
       ! * Ice global state variables
       ii = ii + 1
-      ALLOCATE( qtr_ice_bot(jpi,jpj,jpl) , cnd_ice(jpi,jpj,jpl) , t1_ice(jpi,jpj,jpl) ,  &
-         &      h_i        (jpi,jpj,jpl) , a_i    (jpi,jpj,jpl) , v_i   (jpi,jpj,jpl) ,  &
-         &      v_s        (jpi,jpj,jpl) , h_s    (jpi,jpj,jpl) , t_su  (jpi,jpj,jpl) ,  &
-         &      s_i        (jpi,jpj,jpl) , sv_i   (jpi,jpj,jpl) , o_i   (jpi,jpj,jpl) ,  &
-         &      oa_i       (jpi,jpj,jpl) , bv_i   (jpi,jpj,jpl) , STAT=ierr(ii) )
+      ALLOCATE( u_ice(jpi,jpj) , v_ice(jpi,jpj) , STAT=ierr(ii) )
 
       ii = ii + 1
-      ALLOCATE( u_ice(jpi,jpj) , v_ice(jpi,jpj) ,                                   &
-         &      vt_i (jpi,jpj) , vt_s (jpi,jpj) , st_i(jpi,jpj) , at_i(jpi,jpj) , ato_i(jpi,jpj) ,  &
-         &      et_i (jpi,jpj) , et_s (jpi,jpj) , tm_i(jpi,jpj) , tm_s(jpi,jpj) ,  &
-         &      sm_i (jpi,jpj) , tm_su(jpi,jpj) , hm_i(jpi,jpj) , hm_s(jpi,jpj) ,  &
-         &      om_i (jpi,jpj) , bvm_i(jpi,jpj) , tau_icebfr(jpi,jpj), icb_mask(jpi,jpj), STAT=ierr(ii) )
+      ALLOCATE( h_i  (jpi,jpj,jpl) , a_i (jpi,jpj,jpl) , v_i   (jpi,jpj,jpl) ,  &
+         &      v_s  (jpi,jpj,jpl) , h_s (jpi,jpj,jpl) ,                        &
+         &      s_i  (jpi,jpj,jpl) , sv_i(jpi,jpj,jpl) , o_i   (jpi,jpj,jpl) , oa_i (jpi,jpj,jpl) , &
+         &      a_ip (jpi,jpj,jpl) , v_ip(jpi,jpj,jpl) , h_ip(jpi,jpj,jpl),     &
+         &      v_il (jpi,jpj,jpl) , h_il(jpi,jpj,jpl) ,                        &
+         &      t_su (jpi,jpj,jpl) , t_s (jpi,jpj,nlay_s,jpl) , t_i(jpi,jpj,nlay_i,jpl) , sz_i(jpi,jpj,nlay_i,jpl) , &
+         &      ato_i(jpi,jpj)     , STAT = ierr(ii) )
 
       ii = ii + 1
-      ALLOCATE( t_s(jpi,jpj,nlay_s,jpl) , e_s(jpi,jpj,nlay_s,jpl) , STAT=ierr(ii) )
+      ALLOCATE( e_s(jpi,jpj,nlay_s,jpl) , e_i(jpi,jpj,nlay_i,jpl) , STAT=ierr(ii) )
 
+      ! * Before values of global variables
       ii = ii + 1
-      ALLOCATE( t_i(jpi,jpj,nlay_i,jpl) , e_i(jpi,jpj,nlay_i,jpl) , sz_i(jpi,jpj,nlay_i,jpl) , STAT=ierr(ii) )
+      ALLOCATE( u_ice_b(jpi,jpj) , v_ice_b(jpi,jpj) , STAT=ierr(ii) )
 
-      ii = ii + 1
-      ALLOCATE( a_ip(jpi,jpj,jpl) , v_ip(jpi,jpj,jpl) , a_ip_frac(jpi,jpj,jpl) , h_ip(jpi,jpj,jpl),  &
-         &      v_il(jpi,jpj,jpl) , h_il(jpi,jpj,jpl) , a_ip_eff (jpi,jpj,jpl) ,                     &
-         &      dh_i_sum_2d(jpi,jpj,jpl) , dh_s_mlt_2d(jpi,jpj,jpl) , STAT = ierr(ii) )
+      ! * ice rheology
+      ii = ii+1
+      ALLOCATE( u_oce    (jpi,jpj) , v_oce    (jpi,jpj) ,  &
+         &      strength (jpi,jpj) , stress1_i(jpi,jpj) , stress2_i(jpi,jpj) , stress12_i(jpi,jpj) ,  &
+         &      aniso_11 (jpi,jpj) , aniso_12 (jpi,jpj) , rdg_conv (jpi,jpj) , &
+         &      icb_mask (jpi,jpj) , STAT=ierr(ii) )
 
+      ! * mean and total
       ii = ii + 1
-      ALLOCATE( at_ip(jpi,jpj) , hm_ip(jpi,jpj) , vt_ip(jpi,jpj) , hm_il(jpi,jpj) , vt_il(jpi,jpj) , STAT = ierr(ii) )
+      ALLOCATE( vt_i (jpi,jpj) , vt_s (jpi,jpj) , at_i (jpi,jpj) , & ! full arrays since they are used in rheology
+         &      vt_ip(jpi,jpj) , vt_il(jpi,jpj) , at_ip(jpi,jpj) , STAT=ierr(ii) )
+      
+      ! * others
+      ii = ii + 1
+      ALLOCATE( rn_amax_2d(jpi,jpj) , STAT=ierr(ii) )
 
-      ! * Old values of global variables
-      ii = ii + 1
-      ALLOCATE( v_s_b (jpi,jpj,jpl) , v_i_b (jpi,jpj,jpl) , h_s_b(jpi,jpj,jpl)        , h_i_b(jpi,jpj,jpl),         &
-         &      v_ip_b(jpi,jpj,jpl) , v_il_b(jpi,jpj,jpl) ,                                                         &
-         &      a_i_b (jpi,jpj,jpl) , sv_i_b(jpi,jpj,jpl) , e_i_b(jpi,jpj,nlay_i,jpl) , e_s_b(jpi,jpj,nlay_s,jpl) , &
-         &      STAT=ierr(ii) )
 
+      ! -------------------- !
+      ! == REDUCED ARRAYS == !
+      ! -------------------- !
+      ! * Ice global state variables
       ii = ii + 1
-      ALLOCATE( u_ice_b(jpi,jpj) , v_ice_b(jpi,jpj) , at_i_b(jpi,jpj) , STAT=ierr(ii) )
+      ALLOCATE(  bv_i(A2D(0),jpl) , a_ip_frac(A2D(0),jpl) , a_ip_eff(A2D(0),jpl) , STAT=ierr(ii) )
+
+      ! * Before values of global variables
+      ii = ii + 1
+      ALLOCATE( at_i_b(A2D(0))     , h_i_b (A2D(0),jpl) , a_i_b(A2D(0),jpl) , v_i_b(A2D(0),jpl) ,  &
+         &      v_s_b (A2D(0),jpl) , h_s_b (A2D(0),jpl) ,                                          &
+         &      v_ip_b(A2D(0),jpl) , v_il_b(A2D(0),jpl) ,                                          &
+         &      sv_i_b(A2D(0),jpl) , e_i_b (A2D(0),nlay_i,jpl) , e_s_b(A2D(0),nlay_s,jpl) , STAT=ierr(ii) )
+
+      ! * fluxes
+      ii = ii + 1
+      ALLOCATE( qsb_ice_bot(A2D(0)) , qlead      (A2D(0)) , qt_atm_oi  (A2D(0)) , qt_oce_ai  (A2D(0)) , fhld       (A2D(0)) , &
+         &      wfx_snw_sni(A2D(0)) , wfx_snw    (A2D(0)) , wfx_snw_dyn(A2D(0)) , wfx_snw_sum(A2D(0)) , wfx_snw_sub(A2D(0)) , &
+         &      wfx_ice    (A2D(0)) , wfx_sub    (A2D(0)) , wfx_ice_sub(A2D(0)) , wfx_lam    (A2D(0)) ,                       &
+         &      wfx_pnd    (A2D(0)) , wfx_bog    (A2D(0)) , wfx_dyn    (A2D(0)) , wfx_bom    (A2D(0)) , wfx_sum    (A2D(0)) , &
+         &      wfx_sni    (A2D(0)) , wfx_opw    (A2D(0)) , wfx_spr(A2D(0)) ,                                     &
+         &      sfx_bri    (A2D(0)) , sfx_dyn    (A2D(0)) , sfx_sub(A2D(0)) , sfx_lam(A2D(0)) ,                   &
+         &      sfx_bog    (A2D(0)) , sfx_bom    (A2D(0)) , sfx_sum(A2D(0)) , sfx_sni(A2D(0)) , sfx_opw(A2D(0)) , &
+         &      hfx_snw    (A2D(0)) , hfx_sub    (A2D(0)) ,                                                       &
+         &      hfx_sum    (A2D(0)) , hfx_bom    (A2D(0)) , hfx_bog(A2D(0)) , hfx_dif(A2D(0)) ,                   &
+         &      hfx_opw    (A2D(0)) , hfx_thd    (A2D(0)) , hfx_dyn(A2D(0)) , hfx_spr(A2D(0)) ,                   &
+         &      hfx_err_dif(A2D(0)) , wfx_err_sub(A2D(0))                   , STAT=ierr(ii) )
+      ii = ii + 1
+      ALLOCATE( wfx_res(A2D(0)) , sfx_res(A2D(0)) , hfx_res(A2D(0)) , STAT=ierr(ii) )
+      ii = ii + 1
+      ALLOCATE( qtr_ice_bot(A2D(0),jpl) , cnd_ice(A2D(0),jpl) , t1_ice(A2D(0),jpl) , STAT=ierr(ii) )
+
+      ! * ice rheology
+      ii = ii+1
+      ALLOCATE( delta_i(A2D(0)) , divu_i(A2D(0)) , shear_i(A2D(0)) , STAT=ierr(ii) )
+
+      ! * mean and total
+      ii = ii + 1
+      ALLOCATE( t_bo (A2D(0)) , st_i (A2D(0)) , et_i(A2D(0)) , et_s (A2D(0)) , hm_i (A2D(0)) ,  &
+         &      hm_ip(A2D(0)) , hm_il(A2D(0)) , tm_i(A2D(0)) , tm_s (A2D(0)) ,  &
+         &      sm_i (A2D(0)) , hm_s (A2D(0)) , om_i(A2D(0)) , bvm_i(A2D(0)) ,  &
+         &      tm_su(A2D(0)) , STAT=ierr(ii) )
+
+      ! * others
+      ii = ii + 1
+      ALLOCATE( tau_icebfr(A2D(0)) , dh_i_sum_2d(A2D(0),jpl) , dh_s_mlt_2d(A2D(0),jpl) ,  STAT=ierr(ii) )
+      ii = 1
+      ALLOCATE( ht_i_new (A2D(0)) , fraz_frac (A2D(0)) , STAT=ierr(ii) )
 
       ! * Ice thickness distribution variables
       ii = ii + 1
@@ -536,19 +565,19 @@ CONTAINS
 
       ! * Ice diagnostics
       ii = ii + 1
-      ALLOCATE( diag_trp_vi(jpi,jpj) , diag_trp_vs (jpi,jpj) , diag_trp_ei(jpi,jpj),                      &
-         &      diag_trp_es(jpi,jpj) , diag_trp_sv (jpi,jpj) , diag_heat  (jpi,jpj),                      &
-         &      diag_sice  (jpi,jpj) , diag_vice   (jpi,jpj) , diag_vsnw  (jpi,jpj), diag_aice(jpi,jpj), diag_vpnd(jpi,jpj),  &
-         &      diag_adv_mass(jpi,jpj), diag_adv_salt(jpi,jpj), diag_adv_heat(jpi,jpj), STAT=ierr(ii) )
+      ALLOCATE( diag_trp_vi  (A2D(0)) , diag_trp_vs  (A2D(0)) , diag_trp_ei  (A2D(0)) ,                                         &
+         &      diag_trp_es  (A2D(0)) , diag_trp_sv  (A2D(0)) , diag_heat    (A2D(0)) ,                                         &
+         &      diag_sice    (A2D(0)) , diag_vice    (A2D(0)) , diag_vsnw    (A2D(0)) , diag_aice(A2D(0)) , diag_vpnd(A2D(0)) , &
+         &      diag_adv_mass(A2D(0)) , diag_adv_salt(A2D(0)) , diag_adv_heat(A2D(0)) , STAT=ierr(ii) )
 
       ! * Ice conservation
       ii = ii + 1
-      ALLOCATE( diag_v (jpi,jpj) , diag_s (jpi,jpj) , diag_t (jpi,jpj),   &
-         &      diag_fv(jpi,jpj) , diag_fs(jpi,jpj) , diag_ft(jpi,jpj), STAT=ierr(ii) )
+      ALLOCATE( diag_v (A2D(0)) , diag_s (A2D(0)) , diag_t (A2D(0)),   &
+         &      diag_fv(A2D(0)) , diag_fs(A2D(0)) , diag_ft(A2D(0)), STAT=ierr(ii) )
 
       ! * SIMIP diagnostics
       ii = ii + 1
-      ALLOCATE( t_si(jpi,jpj,jpl) , tm_si(jpi,jpj) , qcn_ice_bot(jpi,jpj,jpl) , qcn_ice_top(jpi,jpj,jpl) , STAT = ierr(ii) )
+      ALLOCATE( t_si(A2D(0),jpl) , tm_si(A2D(0)) , qcn_ice_bot(A2D(0),jpl) , qcn_ice_top(A2D(0),jpl) , STAT = ierr(ii) )
 
       ice_alloc = MAXVAL( ierr(:) )
       IF( ice_alloc /= 0 )   CALL ctl_stop( 'STOP', 'ice_alloc: failed to allocate arrays.' )

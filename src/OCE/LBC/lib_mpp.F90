@@ -135,17 +135,15 @@ MODULE lib_mpp
 
    INTEGER, PUBLIC ::   mppsize        ! number of process
    INTEGER, PUBLIC ::   mpprank        ! process number  [ 0 - size-1 ]
-!$AGRIF_DO_NOT_TREAT
    INTEGER, PUBLIC ::   mpi_comm_oce   ! opa local communicator
-!$AGRIF_END_DO_NOT_TREAT
 
    INTEGER :: MPI_SUMDD
 
    ! Neighbourgs informations
-   INTEGER,    PARAMETER, PUBLIC ::   n_hlsmax = 3
-   INTEGER, DIMENSION(         8), PUBLIC ::   mpinei      !: 8-neighbourg MPI indexes (starting at 0, -1 if no neighbourg)
-   INTEGER, DIMENSION(n_hlsmax,8), PUBLIC ::   mpiSnei     !: 8-neighbourg Send MPI indexes (starting at 0, -1 if no neighbourg)
-   INTEGER, DIMENSION(n_hlsmax,8), PUBLIC ::   mpiRnei     !: 8-neighbourg Recv MPI indexes (starting at 0, -1 if no neighbourg)
+   INTEGER,    PARAMETER, PUBLIC ::   n_hlsmax = 2
+   INTEGER, DIMENSION(           8), PUBLIC ::   mpinei      !: 8-neighbourg MPI indexes (starting at 0, -1 if no neighbourg)
+   INTEGER, DIMENSION(0:n_hlsmax,8), PUBLIC ::   mpiSnei     !: 8-neighbourg Send MPI indexes (starting at 0, -1 if no neighbourg)
+   INTEGER, DIMENSION(0:n_hlsmax,8), PUBLIC ::   mpiRnei     !: 8-neighbourg Recv MPI indexes (starting at 0, -1 if no neighbourg)
    INTEGER,    PARAMETER, PUBLIC ::   jpwe = 1   !: WEst
    INTEGER,    PARAMETER, PUBLIC ::   jpea = 2   !: EAst
    INTEGER,    PARAMETER, PUBLIC ::   jpso = 3   !: SOuth
@@ -192,7 +190,6 @@ MODULE lib_mpp
    INTEGER, PUBLIC                               ::   n_sequence_glb = 0           !: # of global communications
    INTEGER, PUBLIC                               ::   n_sequence_dlg = 0           !: # of delayed global communications
    INTEGER, PUBLIC                               ::   numcom = -1                  !: logical unit for communicaton report
-   LOGICAL, PUBLIC                               ::   l_full_nf_update = .TRUE.    !: logical for a full (2lines) update of bc at North fold report
    INTEGER,                    PARAMETER, PUBLIC ::   nbdelay = 2       !: number of delayed operations
    !: name (used as id) of allreduce-delayed operations
    ! Warning: we must use the same character length in an array constructor (at least for gcc compiler)
@@ -261,17 +258,17 @@ CONTAINS
             mpi_comm_oce = localComm
          ENDIF
       ELSE
-         CALL mpi_comm_dup( mpi_comm_world, mpi_comm_oce, ierr)
-         IF( ierr /= MPI_SUCCESS ) CALL ctl_stop( 'STOP', ' lib_mpp: Error in routine mpi_comm_dup' )
-      ENDIF
-
 # if defined key_agrif
-      IF( Agrif_Root() ) THEN
-         CALL Agrif_MPI_Init(mpi_comm_oce)
-      ELSE
-         CALL Agrif_MPI_set_grid_comm(mpi_comm_oce)
-      ENDIF
+          IF( Agrif_Root() ) THEN
 # endif
+              CALL mpi_comm_dup( mpi_comm_world, mpi_comm_oce, ierr)
+              IF( ierr /= MPI_SUCCESS ) CALL ctl_stop( 'STOP', ' lib_mpp: Error in routine mpi_comm_dup' )
+# if defined key_agrif
+          ELSE
+              mpi_comm_oce = Agrif_MPI_get_grid_comm()
+          ENDIF
+# endif
+      ENDIF
 
       CALL mpi_comm_rank( mpi_comm_oce, mpprank, ierr )
       CALL mpi_comm_size( mpi_comm_oce, mppsize, ierr )
@@ -1127,7 +1124,7 @@ CONTAINS
       INTEGER                            :: ierr
       LOGICAL, PARAMETER                 :: ireord = .FALSE.
       !!----------------------------------------------------------------------
-#if ! defined key_mpi_off && ! defined key_mpi2
+#if ! defined key_mpi_off
       
       iScnt4 = COUNT( mpiSnei(khls,1:4) >= 0 )
       iRcnt4 = COUNT( mpiRnei(khls,1:4) >= 0 )
@@ -1141,10 +1138,19 @@ CONTAINS
       iSnei8 = PACK( mpiSnei(khls,1:8), mask = mpiSnei(khls,1:8) >= 0 )
       iRnei8 = PACK( mpiRnei(khls,1:8), mask = mpiRnei(khls,1:8) >= 0 )
 
+      ! Isolated processes (i.e., processes WITH no outgoing or incoming edges, that is, processes that have specied
+      ! indegree and outdegree as zero and thus DO not occur as source or destination rank in the graph specication)
+      ! are allowed. 
+      
+# if ! defined key_mpi2
       CALL MPI_Dist_graph_create_adjacent( mpi_comm_oce, iScnt4, iSnei4, MPI_UNWEIGHTED, iRcnt4, iRnei4, MPI_UNWEIGHTED,   &
          &                                 MPI_INFO_NULL, ireord, mpi_nc_com4(khls), ierr )
       CALL MPI_Dist_graph_create_adjacent( mpi_comm_oce, iScnt8, iSnei8, MPI_UNWEIGHTED, iRcnt8, iRnei8, MPI_UNWEIGHTED,   &
          &                                 MPI_INFO_NULL, ireord, mpi_nc_com8(khls), ierr)
+# else
+      mpi_nc_com4(khls) = -1
+      mpi_nc_com8(khls) = -1
+# endif
 
       DEALLOCATE( iSnei4, iRnei4, iSnei8, iRnei8 )
 #endif
@@ -1307,7 +1313,7 @@ CONTAINS
             IF ( ncomm_sequence(ji,1) .GT. 1 .AND. ncomm_sequence(ji,2) .GT. 1 ) jj = jj + 1
             jh = MAX (jh, ncomm_sequence(ji,1)*ncomm_sequence(ji,2))
          END DO
-         WRITE(numcom,'(A,I3)') ' 3D Exchanged halos : ', jk
+         WRITE(numcom,'(A,I3)') ' 3D or 4D Exchanged halos : ', jk
          WRITE(numcom,'(A,I3)') ' Multi arrays exchanged halos : ', jf
          WRITE(numcom,'(A,I3)') '   from which 3D : ', jj
          WRITE(numcom,'(A,I10)') ' Array max size : ', jh*jpi*jpj

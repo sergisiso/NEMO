@@ -41,6 +41,8 @@ MODULE abl
    !
    INTEGER , PUBLIC :: nt_n, nt_a       !: now / after indices (equal 1 or 2)
    ! 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 4.0 , NEMO Consortium (2011)
    !! $Id: abl.F90 4990 2014-12-15 16:42:49Z timgraham $ 
@@ -55,18 +57,18 @@ CONTAINS
       INTEGER :: ierr
       !!----------------------------------------------------------------------
       !
-      ALLOCATE( u_abl   (1:jpi,1:jpj,1:jpka,jptime     ), &
-         &      v_abl   (1:jpi,1:jpj,1:jpka,jptime     ), &
-         &      tq_abl  (1:jpi,1:jpj,1:jpka,jptime,jptq), &
-         &      tke_abl (1:jpi,1:jpj,1:jpka,jptime     ), &
-         &      avm_abl (1:jpi,1:jpj,1:jpka            ), &
-         &      avt_abl (1:jpi,1:jpj,1:jpka            ), &
-         &      mxld_abl(1:jpi,1:jpj,1:jpka            ), &
-         &      mxlm_abl(1:jpi,1:jpj,1:jpka            ), &
-         &      fft_abl (1:jpi,1:jpj                   ), &
-         &      pblh    (1:jpi,1:jpj                   ), &
-         &      msk_abl (1:jpi,1:jpj                   ), &
-         &      rest_eq (1:jpi,1:jpj                   ), &
+      ALLOCATE( u_abl   (A2D(0),1:jpka,jptime     ), &
+         &      v_abl   (A2D(0),1:jpka,jptime     ), &
+         &      tq_abl  (A2D(0),1:jpka,jptime,jptq), &
+         &      tke_abl (A2D(0),1:jpka,jptime     ), &
+         &      avm_abl (A2D(0),1:jpka            ), &
+         &      avt_abl (A2D(0),1:jpka            ), &
+         &      mxld_abl(A2D(0),1:jpka            ), &
+         &      mxlm_abl(A2D(0),1:jpka            ), &
+         &      fft_abl (A2D(0)                   ), &
+         &      pblh    (A2D(1)                   ), &   ! needed for optional smoothing
+         &      msk_abl (A2D(0)                   ), &
+         &      rest_eq (A2D(0)                   ), &
          &      e3t_abl (1:jpka), e3w_abl(1:jpka)       , &
          &      ght_abl (1:jpka), ghw_abl(1:jpka)       , STAT=ierr )
          !

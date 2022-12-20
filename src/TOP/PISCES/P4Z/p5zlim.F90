@@ -94,6 +94,9 @@ MODULE p5zlim
    REAL(wp) ::  xcoef1   = 0.00167  / 55.85
    REAL(wp) ::  xcoef2   = 1.21E-5 * 14. / 55.85 / 7.625 * 0.5 * 1.5
    REAL(wp) ::  xcoef3   = 1.15E-4 * 14. / 55.85 / 7.625 * 0.5 
+
+    LOGICAL  :: l_dia_nut_lim, l_dia_iron_lim, l_dia_fracal
+    LOGICAL  :: l_dia_size_lim, l_dia_size_pro
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
@@ -136,15 +139,23 @@ CONTAINS
       REAL(wp) ::   zfvn, zfvp, zfvf, zsizen, zsizep, zsized, znanochl, zpicochl, zdiatchl
       REAL(wp) ::   zqfemn, zqfemp, zqfemd, zbactno3, zbactnh4, zbiron
       REAL(wp) ::   znutlimtot, zlimno3, zlimnh4, zlim1f, zsizetmp
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zrassn, zrassp, zrassd
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p5z_lim')
+
+      IF( kt == nittrc000 )  THEN
+         l_dia_nut_lim  = iom_use( "LNnut"   ) .OR. iom_use( "LDnut" ) .OR. iom_use( "LPnut" )
+         l_dia_iron_lim = iom_use( "LNFe"    ) .OR. iom_use( "LDFe"  ) .OR. iom_use( "LPFe"  )
+         l_dia_size_lim = iom_use( "SIZEN"   ) .OR. iom_use( "SIZED" ) .OR. iom_use( "SIZEP" )
+         l_dia_size_pro = iom_use( "RASSN"   ) .OR. iom_use( "RASSP" ) .OR. iom_use( "RASSP" )
+         l_dia_fracal   = iom_use( "xfracal" )
+      ENDIF
       !
       zratchl = 6.0
       sizena(:,:,:) = 0.0  ;  sizepa(:,:,:) = 0.0  ;  sizeda(:,:,:) = 0.0
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          ! Computation of the Chl/C ratio of each phytoplankton group
          ! -------------------------------------------------------
          z1_trnphy   = 1. / ( tr(ji,jj,jk,jpphy,Kbb) + rtrn )
@@ -407,7 +418,7 @@ CONTAINS
       ! nutrient uptake pool and assembly machinery. DNA is assumed to represent 1% of the dry mass of 
       ! phytoplankton (see Daines et al., 2013). 
       ! --------------------------------------------------------------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          ! Size estimation of nanophytoplankton based on total biomass
          ! Assumes that larger biomass implies addition of larger cells
          ! ------------------------------------------------------------
@@ -419,7 +430,6 @@ CONTAINS
          ! Computed from Inomura et al. (2020) using Pavlova Lutheri
          zrpho  = 11.55 * tr(ji,jj,jk,jpnch,Kbb) / ( tr(ji,jj,jk,jpphy,Kbb) * 12. + rtrn )
          zrass = MAX(0.62/4., ( 1. - zrpho - zfuptk ) * xlimnpn(ji,jj,jk) )
-         zrassn(ji,jj,jk) = zrass
          xqpnmin(ji,jj,jk) = ( 0.0 + 0.0078 + 0.62/4. * 0.0783 ) * 16.
          xqpnmax(ji,jj,jk) = ( zrpho * 0.0089 + zrass * 0.0783 ) * 16.
          xqpnmax(ji,jj,jk) = xqpnmax(ji,jj,jk) + (0.033 + 0.0078 ) * 16.
@@ -437,7 +447,6 @@ CONTAINS
          ! Computed from Inomura et al. (2020) using a synechococcus
          zrpho = 13.4 * tr(ji,jj,jk,jppch,Kbb) / ( tr(ji,jj,jk,jppic,Kbb) * 12. + rtrn )
          zrass = MAX(0.4/4., ( 1. - zrpho - zfuptk ) * xlimnpp(ji,jj,jk) )
-         zrassp(ji,jj,jk) = zrass
          xqppmin(ji,jj,jk) = ( (0.0 + 0.0078 ) + 0.4/4. * 0.0517 ) * 16.
          xqppmax(ji,jj,jk) = ( zrpho * 0.0076 + zrass * 0.0517 ) * 16.
          xqppmax(ji,jj,jk) = xqppmax(ji,jj,jk) +  (0.033 + 0.0078 ) * 16
@@ -454,7 +463,6 @@ CONTAINS
          ! Computed from Inomura et al. (2020) using a synechococcus
          zrpho = 8.08 * tr(ji,jj,jk,jpdch,Kbb) / ( tr(ji,jj,jk,jpndi,Kbb) * 12. + rtrn )
          zrass = MAX(0.66/4., ( 1. - zrpho - zfuptk ) * xlimnpd(ji,jj,jk) )
-         zrassd(ji,jj,jk)=zrass
          xqpdmin(ji,jj,jk) = ( ( 0.0 + 0.0078 ) + 0.66/4. * 0.0783 ) * 16.
          xqpdmax(ji,jj,jk) = ( zrpho * 0.0135 + zrass * 0.0783 ) * 16.
          xqpdmax(ji,jj,jk) = xqpdmax(ji,jj,jk) + ( 0.0078 + 0.033 ) * 16.
@@ -465,7 +473,7 @@ CONTAINS
       ! This is a purely adhoc formulation described in Aumont et al. (2015)
       ! This fraction depends on nutrient limitation, light, temperature
       ! --------------------------------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zlim1 =  tr(ji,jj,jk,jpnh4,Kbb) / ( tr(ji,jj,jk,jpnh4,Kbb) + concnnh4 ) + tr(ji,jj,jk,jpno3,Kbb)    &
          &        / ( tr(ji,jj,jk,jpno3,Kbb) + concnno3 ) * ( 1.0 - tr(ji,jj,jk,jpnh4,Kbb)   &
          &        / ( tr(ji,jj,jk,jpnh4,Kbb) + concnnh4 ) )
@@ -482,7 +490,7 @@ CONTAINS
          xfracal(ji,jj,jk) = MAX( 0.02, MIN( 0.8 , xfracal(ji,jj,jk) ) )
       END_3D
       !
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          ! denitrification factor computed from O2 levels
          nitrfac(ji,jj,jk) = MAX(  0.e0, 0.4 * ( 6.e-6  - tr(ji,jj,jk,jpoxy,Kbb) )    &
             &                                / ( oxymin + tr(ji,jj,jk,jpoxy,Kbb) )  )
@@ -490,19 +498,70 @@ CONTAINS
       END_3D
       !
       IF( lk_iomput .AND. knt == nrdttrc ) THEN        ! save output diagnostics
-        CALL iom_put( "xfracal", xfracal(:,:,:) * tmask(:,:,:) )  ! euphotic layer deptht
-        CALL iom_put( "LNnut"  , xlimphy(:,:,:) * tmask(:,:,:) )  ! Nutrient limitation term
-        CALL iom_put( "LPnut"  , xlimpic(:,:,:) * tmask(:,:,:) )  ! Nutrient limitation term
-        CALL iom_put( "LDnut"  , xlimdia(:,:,:) * tmask(:,:,:) )  ! Nutrient limitation term
-        CALL iom_put( "LNFe"   , xlimnfe(:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "LPFe"   , xlimpfe(:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "LDFe"   , xlimdfe(:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "SIZEN"  , sizen  (:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "SIZEP"  , sizep  (:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "SIZED"  , sized  (:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "RASSN"  , zrassn (:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "RASSP"  , zrassp (:,:,:) * tmask(:,:,:) )  ! Iron limitation term
-        CALL iom_put( "RASSD"  , zrassd (:,:,:) * tmask(:,:,:) )  ! Iron limitation term
+        !
+        IF( l_dia_fracal ) THEN   ! fraction of calcifiers
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          zw3d(A2D(0),1:jpkm1) = xfracal(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "xfracal",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
+        IF( l_dia_nut_lim ) THEN   ! Nutrient limitation term
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          zw3d(A2D(0),1:jpkm1) = xlimphy(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LNnut",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = xlimdia(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LDnut",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = xlimpic(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LPnut",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
+        IF( l_dia_iron_lim ) THEN   ! Iron limitation term
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          zw3d(A2D(0),1:jpkm1) = xlimnfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LNFe",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = xlimdfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LDFe",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = xlimpfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "LPFe",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
+        IF( l_dia_size_lim ) THEN   ! Size limitation term
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          zw3d(A2D(0),1:jpkm1) = sizen(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "SIZEN",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = sized(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "SIZED",  zw3d)
+          zw3d(A2D(0),1:jpkm1) = sizep(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
+          CALL iom_put( "SIZEP",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
+        IF( l_dia_size_pro ) THEN   ! Size of the protein machinery
+          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+          DO_3D( 0, 0, 0, 0, 1, jpkm1)
+             zfuptk = 0.2 + 0.12 / ( 3.0 * sizen(ji,jj,jk) + rtrn )
+             zrpho  = 11.55 * tr(ji,jj,jk,jpnch,Kbb) / ( tr(ji,jj,jk,jpphy,Kbb) * 12. + rtrn )
+             zw3d(ji,jj,jk) = MAX(0.62/4., ( 1. - zrpho - zfuptk ) * xlimnpn(ji,jj,jk) ) * tmask(ji,jj,jk)
+          END_3D
+          CALL iom_put( "RASSN",  zw3d)
+          DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zfuptk = 0.2 + 0.12 / ( 3.0 * sizep(ji,jj,jk) + rtrn )
+             zrpho  = 11.55 * tr(ji,jj,jk,jppch,Kbb) / ( tr(ji,jj,jk,jppic,Kbb) * 12. + rtrn )
+             zw3d(ji,jj,jk) = MAX(0.62/4., ( 1. - zrpho - zfuptk ) * xlimnpp(ji,jj,jk) ) * tmask(ji,jj,jk)
+          END_3D
+          CALL iom_put( "RASSP",  zw3d)
+          DO_3D( 0, 0, 0, 0, 1, jpkm1)
+             zfuptk = 0.2 + 0.12 / ( 3.0 * sized(ji,jj,jk) + rtrn )
+             zrpho  = 11.55 * tr(ji,jj,jk,jpdch,Kbb) / ( tr(ji,jj,jk,jpndi,Kbb) * 12. + rtrn )
+             zw3d(ji,jj,jk) = MAX(0.62/4., ( 1. - zrpho - zfuptk ) * xlimnpd(ji,jj,jk) ) * tmask(ji,jj,jk)
+          END_3D
+          CALL iom_put( "RASSD",  zw3d)
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
       ENDIF
       !
       IF( ln_timing )  CALL timing_stop('p5z_lim')
@@ -635,24 +694,24 @@ CONTAINS
       ierr(:) = 0
       !
       !*  Biological arrays for phytoplankton growth
-      ALLOCATE( xpicono3(jpi,jpj,jpk), xpiconh4(jpi,jpj,jpk),       &
-         &      xpicopo4(jpi,jpj,jpk), xpicodop(jpi,jpj,jpk),       &
-         &      xnanodop(jpi,jpj,jpk), xdiatdop(jpi,jpj,jpk),       &
-         &      xpicofer(jpi,jpj,jpk), xlimpfe (jpi,jpj,jpk),       &
-         &      fvnuptk (jpi,jpj,jpk), fvduptk (jpi,jpj,jpk),       &
-         &      xlimphys(jpi,jpj,jpk), xlimdias(jpi,jpj,jpk),       &
-         &      xlimnpp (jpi,jpj,jpk), xlimnpn (jpi,jpj,jpk),       &
-         &      xlimnpd (jpi,jpj,jpk),                              &
-         &      xlimpics(jpi,jpj,jpk), xqfuncfecp(jpi,jpj,jpk),     &
-         &      fvpuptk (jpi,jpj,jpk), xlimpic (jpi,jpj,jpk),    STAT=ierr(1) )
+      ALLOCATE( xpicono3(A2D(0),jpk), xpiconh4(A2D(0),jpk),       &
+         &      xpicopo4(A2D(0),jpk), xpicodop(A2D(0),jpk),       &
+         &      xnanodop(A2D(0),jpk), xdiatdop(A2D(0),jpk),       &
+         &      xpicofer(A2D(0),jpk), xlimpfe (A2D(0),jpk),       &
+         &      fvnuptk (A2D(0),jpk), fvduptk (A2D(0),jpk),       &
+         &      xlimphys(A2D(0),jpk), xlimdias(A2D(0),jpk),       &
+         &      xlimnpp (A2D(0),jpk), xlimnpn (A2D(0),jpk),       &
+         &      xlimnpd (A2D(0),jpk),                              &
+         &      xlimpics(A2D(0),jpk), xqfuncfecp(A2D(0),jpk),     &
+         &      fvpuptk (A2D(0),jpk), xlimpic (A2D(0),jpk),    STAT=ierr(1) )
          !
       !*  Minimum/maximum quotas of phytoplankton
-      ALLOCATE( xqnnmin (jpi,jpj,jpk), xqnnmax(jpi,jpj,jpk),       &
-         &      xqpnmin (jpi,jpj,jpk), xqpnmax(jpi,jpj,jpk),       &
-         &      xqnpmin (jpi,jpj,jpk), xqnpmax(jpi,jpj,jpk),       &
-         &      xqppmin (jpi,jpj,jpk), xqppmax(jpi,jpj,jpk),       &
-         &      xqndmin (jpi,jpj,jpk), xqndmax(jpi,jpj,jpk),       &
-         &      xqpdmin (jpi,jpj,jpk), xqpdmax(jpi,jpj,jpk),     STAT=ierr(2) )
+      ALLOCATE( xqnnmin (A2D(0),jpk), xqnnmax(A2D(0),jpk),       &
+         &      xqpnmin (A2D(0),jpk), xqpnmax(A2D(0),jpk),       &
+         &      xqnpmin (A2D(0),jpk), xqnpmax(A2D(0),jpk),       &
+         &      xqppmin (A2D(0),jpk), xqppmax(A2D(0),jpk),       &
+         &      xqndmin (A2D(0),jpk), xqndmax(A2D(0),jpk),       &
+         &      xqpdmin (A2D(0),jpk), xqpdmax(A2D(0),jpk),     STAT=ierr(2) )
          !
       p5z_lim_alloc = MAXVAL( ierr )
       !

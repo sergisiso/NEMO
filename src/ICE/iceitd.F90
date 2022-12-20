@@ -97,10 +97,10 @@ CONTAINS
       !-----------------------------------------------------------------------------------------------
       !  1) Identify grid cells with ice
       !-----------------------------------------------------------------------------------------------
-      at_i(:,:) = SUM( a_i, dim=3 )
+      at_i(A2D(0)) = SUM( a_i(A2D(0),:), dim=3 )
       !
       npti = 0   ;   nptidx(:) = 0
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF ( at_i(ji,jj) > epsi10 ) THEN
             npti = npti + 1
             nptidx( npti ) = (jj - 1) * jpi + ji
@@ -115,10 +115,10 @@ CONTAINS
          zdhice(:,:) = 0._wp
          zhbnew(:,:) = 0._wp
          !
-         CALL tab_3d_2d( npti, nptidx(1:npti), h_i_2d (1:npti,1:jpl), h_i   )
-         CALL tab_3d_2d( npti, nptidx(1:npti), h_ib_2d(1:npti,1:jpl), h_i_b )
-         CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d (1:npti,1:jpl), a_i   )
-         CALL tab_3d_2d( npti, nptidx(1:npti), a_ib_2d(1:npti,1:jpl), a_i_b )
+         CALL tab_3d_2d( npti, nptidx(1:npti), h_i_2d (1:npti,:), h_i   )
+         CALL tab_3d_2d( npti, nptidx(1:npti), h_ib_2d(1:npti,:), h_i_b )
+         CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d (1:npti,:), a_i   )
+         CALL tab_3d_2d( npti, nptidx(1:npti), a_ib_2d(1:npti,:), a_i_b )
          !
          DO jl = 1, jpl
             ! Compute thickness change in each ice category
@@ -305,27 +305,11 @@ CONTAINS
          ! 6) Shift ice between categories
          !----------------------------------------------------------------------------------------------
          CALL itd_shiftice ( jdonor(1:npti,:), zdaice(1:npti,:), zdvice(1:npti,:) )
-
-         !----------------------------------------------------------------------------------------------
-         ! 7) Make sure h_i >= minimum ice thickness hi_min
-         !----------------------------------------------------------------------------------------------
-         CALL tab_2d_1d( npti, nptidx(1:npti), h_i_1d (1:npti), h_i (:,:,1) )
-         CALL tab_2d_1d( npti, nptidx(1:npti), a_i_1d (1:npti), a_i (:,:,1) )
-         CALL tab_2d_1d( npti, nptidx(1:npti), a_ip_1d(1:npti), a_ip(:,:,1) )
-         !
-         DO ji = 1, npti
-            IF ( a_i_1d(ji) > epsi10 .AND. h_i_1d(ji) < rn_himin ) THEN
-               a_i_1d(ji) = a_i_1d(ji) * h_i_1d(ji) / rn_himin
-               IF( ln_pnd_LEV .OR. ln_pnd_TOPO )   a_ip_1d(ji) = a_ip_1d(ji) * h_i_1d(ji) / rn_himin
-               h_i_1d(ji) = rn_himin
-            ENDIF
-         END DO
-         !
-         CALL tab_1d_2d( npti, nptidx(1:npti), h_i_1d (1:npti), h_i (:,:,1) )
-         CALL tab_1d_2d( npti, nptidx(1:npti), a_i_1d (1:npti), a_i (:,:,1) )
-         CALL tab_1d_2d( npti, nptidx(1:npti), a_ip_1d(1:npti), a_ip(:,:,1) )
          !
       ENDIF
+      !
+      ! the following fields need to be updated in the halos (done afterwards):
+      ! a_i, v_i, v_s, sv_i, oa_i, h_i, a_ip, v_ip, v_il, t_su, e_i, e_s
       !
       IF( ln_icediachk )   CALL ice_cons_hsm(1, 'iceitd_rem', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
       IF( ln_icediachk )   CALL ice_cons2D  (1, 'iceitd_rem',  diag_v,  diag_s,  diag_t,  diag_fv,  diag_fs,  diag_ft)
@@ -411,31 +395,23 @@ CONTAINS
       !
       INTEGER  ::   ji, jl, jk         ! dummy loop indices
       INTEGER  ::   jl2, jl1           ! local integers
-      REAL(wp) ::   ztrans             ! ice/snow transferred
-      REAL(wp), DIMENSION(jpij)            ::   zworka, zworkv   ! workspace
+      REAL(wp) ::   zworka, zworkv, ztrans ! ice/snow transferred
+      REAL(wp), DIMENSION(jpij)            ::   ztmp             ! workspace
       REAL(wp), DIMENSION(jpij,jpl)        ::   zaTsfn           !  -    -
-      REAL(wp), DIMENSION(jpij,nlay_i,jpl) ::   ze_i_2d
-      REAL(wp), DIMENSION(jpij,nlay_s,jpl) ::   ze_s_2d
       !!------------------------------------------------------------------
 
-      CALL tab_3d_2d( npti, nptidx(1:npti), h_i_2d (1:npti,1:jpl), h_i  )
-      CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d (1:npti,1:jpl), a_i  )
-      CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d (1:npti,1:jpl), v_i  )
-      CALL tab_3d_2d( npti, nptidx(1:npti), v_s_2d (1:npti,1:jpl), v_s  )
-      CALL tab_3d_2d( npti, nptidx(1:npti), oa_i_2d(1:npti,1:jpl), oa_i )
-      CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,1:jpl), sv_i )
-      CALL tab_3d_2d( npti, nptidx(1:npti), a_ip_2d(1:npti,1:jpl), a_ip )
-      CALL tab_3d_2d( npti, nptidx(1:npti), v_ip_2d(1:npti,1:jpl), v_ip )
-      CALL tab_3d_2d( npti, nptidx(1:npti), v_il_2d(1:npti,1:jpl), v_il )
-      CALL tab_3d_2d( npti, nptidx(1:npti), t_su_2d(1:npti,1:jpl), t_su )
-      DO jl = 1, jpl
-         DO jk = 1, nlay_s
-            CALL tab_2d_1d( npti, nptidx(1:npti), ze_s_2d(1:npti,jk,jl), e_s(:,:,jk,jl) )
-         END DO
-         DO jk = 1, nlay_i
-            CALL tab_2d_1d( npti, nptidx(1:npti), ze_i_2d(1:npti,jk,jl), e_i(:,:,jk,jl) )
-         END DO
-      END DO
+      CALL tab_3d_2d( npti, nptidx(1:npti), h_i_2d (1:npti,:)  , h_i  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d (1:npti,:)  , a_i  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d (1:npti,:)  , v_i  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), v_s_2d (1:npti,:)  , v_s  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), oa_i_2d(1:npti,:)  , oa_i )
+      CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,:)  , sv_i )
+      CALL tab_3d_2d( npti, nptidx(1:npti), a_ip_2d(1:npti,:)  , a_ip )
+      CALL tab_3d_2d( npti, nptidx(1:npti), v_ip_2d(1:npti,:)  , v_ip )
+      CALL tab_3d_2d( npti, nptidx(1:npti), v_il_2d(1:npti,:)  , v_il )
+      CALL tab_3d_2d( npti, nptidx(1:npti), t_su_2d(1:npti,:)  , t_su )
+      CALL tab_4d_3d( npti, nptidx(1:npti), e_s_2d (1:npti,:,:), e_s  )
+      CALL tab_4d_3d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
       ! to correct roundoff errors on a_i
       CALL tab_2d_1d( npti, nptidx(1:npti), rn_amax_1d(1:npti), rn_amax_2d )
 
@@ -462,11 +438,11 @@ CONTAINS
                ELSE                     ;   jl2 = jl
                ENDIF
                !
-               IF( v_i_2d(ji,jl1) >= epsi10 ) THEN   ;   zworkv(ji) = pdvice(ji,jl) / v_i_2d(ji,jl1)
-               ELSE                                  ;   zworkv(ji) = 0._wp
+               IF( v_i_2d(ji,jl1) >= epsi10 ) THEN   ;   zworkv = pdvice(ji,jl) / v_i_2d(ji,jl1)
+               ELSE                                  ;   zworkv = 0._wp
                ENDIF
-               IF( a_i_2d(ji,jl1) >= epsi10 ) THEN   ;   zworka(ji) = pdaice(ji,jl) / a_i_2d(ji,jl1)
-               ELSE                                  ;   zworka(ji) = 0._wp
+               IF( a_i_2d(ji,jl1) >= epsi10 ) THEN   ;   zworka = pdaice(ji,jl) / a_i_2d(ji,jl1)
+               ELSE                                  ;   zworka = 0._wp
                ENDIF
                !
                a_i_2d(ji,jl1) = a_i_2d(ji,jl1) - pdaice(ji,jl)       ! Ice areas
@@ -475,71 +451,50 @@ CONTAINS
                v_i_2d(ji,jl1) = v_i_2d(ji,jl1) - pdvice(ji,jl)       ! Ice volumes
                v_i_2d(ji,jl2) = v_i_2d(ji,jl2) + pdvice(ji,jl)
                !
-               ztrans         = v_s_2d(ji,jl1) * zworkv(ji)          ! Snow volumes
+               ztrans         = v_s_2d(ji,jl1) * zworkv              ! Snow volumes
                v_s_2d(ji,jl1) = v_s_2d(ji,jl1) - ztrans
                v_s_2d(ji,jl2) = v_s_2d(ji,jl2) + ztrans
                !
-               ztrans          = oa_i_2d(ji,jl1) * zworka(ji)        ! Ice age
+               ztrans          = oa_i_2d(ji,jl1) * zworka            ! Ice age
                oa_i_2d(ji,jl1) = oa_i_2d(ji,jl1) - ztrans
                oa_i_2d(ji,jl2) = oa_i_2d(ji,jl2) + ztrans
                !
-               ztrans          = sv_i_2d(ji,jl1) * zworkv(ji)        ! Ice salinity
+               ztrans          = sv_i_2d(ji,jl1) * zworkv            ! Ice salinity
                sv_i_2d(ji,jl1) = sv_i_2d(ji,jl1) - ztrans
                sv_i_2d(ji,jl2) = sv_i_2d(ji,jl2) + ztrans
                !
-               ztrans          = zaTsfn(ji,jl1) * zworka(ji)         ! Surface temperature
+               ztrans          = zaTsfn(ji,jl1) * zworka             ! Surface temperature
                zaTsfn(ji,jl1)  = zaTsfn(ji,jl1) - ztrans
                zaTsfn(ji,jl2)  = zaTsfn(ji,jl2) + ztrans
                !
                IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-                  ztrans          = a_ip_2d(ji,jl1) * zworka(ji)     ! Pond fraction
+                  ztrans          = a_ip_2d(ji,jl1) * zworka         ! Pond fraction
                   a_ip_2d(ji,jl1) = a_ip_2d(ji,jl1) - ztrans
                   a_ip_2d(ji,jl2) = a_ip_2d(ji,jl2) + ztrans
                   !
-                  ztrans          = v_ip_2d(ji,jl1) * zworkv(ji)     ! Pond volume
+                  ztrans          = v_ip_2d(ji,jl1) * zworkv         ! Pond volume
                   v_ip_2d(ji,jl1) = v_ip_2d(ji,jl1) - ztrans
                   v_ip_2d(ji,jl2) = v_ip_2d(ji,jl2) + ztrans
                   !
                   IF ( ln_pnd_lids ) THEN                            ! Pond lid volume
-                     ztrans          = v_il_2d(ji,jl1) * zworkv(ji)
+                     ztrans          = v_il_2d(ji,jl1) * zworkv
                      v_il_2d(ji,jl1) = v_il_2d(ji,jl1) - ztrans
                      v_il_2d(ji,jl2) = v_il_2d(ji,jl2) + ztrans
                   ENDIF
                ENDIF
                !
+               DO jk = 1, nlay_s                                     ! Snow heat content
+                  ztrans            = e_s_2d(ji,jk,jl1) * zworkv
+                  e_s_2d(ji,jk,jl1) = e_s_2d(ji,jk,jl1) - ztrans
+                  e_s_2d(ji,jk,jl2) = e_s_2d(ji,jk,jl2) + ztrans
+               ENDDO
+               DO jk = 1, nlay_i                                     ! Ice heat content
+                  ztrans            = e_i_2d(ji,jk,jl1) * zworkv
+                  e_i_2d(ji,jk,jl1) = e_i_2d(ji,jk,jl1) - ztrans
+                  e_i_2d(ji,jk,jl2) = e_i_2d(ji,jk,jl2) + ztrans
+               ENDDO
+               !
             ENDIF   ! jl1 >0
-         END DO
-         !
-         DO jk = 1, nlay_s         !--- Snow heat content
-            DO ji = 1, npti
-               !
-               jl1 = kdonor(ji,jl)
-               !
-               IF( jl1 > 0 ) THEN
-                  IF(jl1 == jl) THEN  ;  jl2 = jl+1
-                  ELSE                ;  jl2 = jl
-                  ENDIF
-                  ztrans             = ze_s_2d(ji,jk,jl1) * zworkv(ji)
-                  ze_s_2d(ji,jk,jl1) = ze_s_2d(ji,jk,jl1) - ztrans
-                  ze_s_2d(ji,jk,jl2) = ze_s_2d(ji,jk,jl2) + ztrans
-               ENDIF
-            END DO
-         END DO
-         !
-         DO jk = 1, nlay_i         !--- Ice heat content
-            DO ji = 1, npti
-               !
-               jl1 = kdonor(ji,jl)
-               !
-               IF( jl1 > 0 ) THEN
-                  IF(jl1 == jl) THEN  ;  jl2 = jl+1
-                  ELSE                ;  jl2 = jl
-                  ENDIF
-                  ztrans             = ze_i_2d(ji,jk,jl1) * zworkv(ji)
-                  ze_i_2d(ji,jk,jl1) = ze_i_2d(ji,jk,jl1) - ztrans
-                  ze_i_2d(ji,jk,jl2) = ze_i_2d(ji,jk,jl2) + ztrans
-               ENDIF
-            END DO
          END DO
          !
       END DO                   ! boundaries, 1 to jpl-1
@@ -549,13 +504,13 @@ CONTAINS
       !-------------------
       ! clem: The transfer between one category to another can lead to very small negative values (-1.e-20)
       !       because of truncation error ( i.e. 1. - 1. /= 0 )
-      CALL ice_var_roundoff( a_i_2d, v_i_2d, v_s_2d, sv_i_2d, oa_i_2d, a_ip_2d, v_ip_2d, v_il_2d, ze_s_2d, ze_i_2d )
+      CALL ice_var_roundoff( a_i_2d, v_i_2d, v_s_2d, sv_i_2d, oa_i_2d, a_ip_2d, v_ip_2d, v_il_2d, e_s_2d, e_i_2d )
 
       ! at_i must be <= rn_amax
-      zworka(1:npti) = SUM( a_i_2d(1:npti,:), dim=2 )
+      ztmp(1:npti) = SUM( a_i_2d(1:npti,:), dim=2 )
       DO jl  = 1, jpl
-         WHERE( zworka(1:npti) > rn_amax_1d(1:npti) )   &
-            &   a_i_2d(1:npti,jl) = a_i_2d(1:npti,jl) * rn_amax_1d(1:npti) / zworka(1:npti)
+         WHERE( ztmp(1:npti) > rn_amax_1d(1:npti) )   &
+            &   a_i_2d(1:npti,jl) = a_i_2d(1:npti,jl) * rn_amax_1d(1:npti) / ztmp(1:npti)
       END DO
 
       !-------------------------------------------------------------------------------
@@ -573,24 +528,18 @@ CONTAINS
          t_su_2d(1:npti,:)  = rt0
       END WHERE
       !
-      CALL tab_2d_3d( npti, nptidx(1:npti), h_i_2d (1:npti,1:jpl), h_i  )
-      CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d (1:npti,1:jpl), a_i  )
-      CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d (1:npti,1:jpl), v_i  )
-      CALL tab_2d_3d( npti, nptidx(1:npti), v_s_2d (1:npti,1:jpl), v_s  )
-      CALL tab_2d_3d( npti, nptidx(1:npti), oa_i_2d(1:npti,1:jpl), oa_i )
-      CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d(1:npti,1:jpl), sv_i )
-      CALL tab_2d_3d( npti, nptidx(1:npti), a_ip_2d(1:npti,1:jpl), a_ip )
-      CALL tab_2d_3d( npti, nptidx(1:npti), v_ip_2d(1:npti,1:jpl), v_ip )
-      CALL tab_2d_3d( npti, nptidx(1:npti), v_il_2d(1:npti,1:jpl), v_il )
-      CALL tab_2d_3d( npti, nptidx(1:npti), t_su_2d(1:npti,1:jpl), t_su )
-      DO jl = 1, jpl
-         DO jk = 1, nlay_s
-            CALL tab_1d_2d( npti, nptidx(1:npti), ze_s_2d(1:npti,jk,jl), e_s(:,:,jk,jl) )
-         END DO
-         DO jk = 1, nlay_i
-            CALL tab_1d_2d( npti, nptidx(1:npti), ze_i_2d(1:npti,jk,jl), e_i(:,:,jk,jl) )
-         END DO
-      END DO
+      CALL tab_2d_3d( npti, nptidx(1:npti), h_i_2d (1:npti,:)  , h_i  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d (1:npti,:)  , a_i  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d (1:npti,:)  , v_i  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), v_s_2d (1:npti,:)  , v_s  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), oa_i_2d(1:npti,:)  , oa_i )
+      CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d(1:npti,:)  , sv_i )
+      CALL tab_2d_3d( npti, nptidx(1:npti), a_ip_2d(1:npti,:)  , a_ip )
+      CALL tab_2d_3d( npti, nptidx(1:npti), v_ip_2d(1:npti,:)  , v_ip )
+      CALL tab_2d_3d( npti, nptidx(1:npti), v_il_2d(1:npti,:)  , v_il )
+      CALL tab_2d_3d( npti, nptidx(1:npti), t_su_2d(1:npti,:)  , t_su )
+      CALL tab_3d_4d( npti, nptidx(1:npti), e_s_2d (1:npti,:,:), e_s  )
+      CALL tab_3d_4d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
       !
    END SUBROUTINE itd_shiftice
 
@@ -626,7 +575,7 @@ CONTAINS
       DO jl = 1, jpl-1        ! identify thicknesses that are too big
          !                    !---------------------------------------
          npti = 0   ;   nptidx(:) = 0
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF( a_i(ji,jj,jl) > 0._wp .AND. v_i(ji,jj,jl) > (a_i(ji,jj,jl) * hi_max(jl)) ) THEN
                npti = npti + 1
                nptidx( npti ) = (jj - 1) * jpi + ji
@@ -662,7 +611,7 @@ CONTAINS
       DO jl = jpl-1, 1, -1    ! Identify thicknesses that are too small
          !                    !-----------------------------------------
          npti = 0 ; nptidx(:) = 0
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             IF( a_i(ji,jj,jl+1) > 0._wp .AND. v_i(ji,jj,jl+1) <= (a_i(ji,jj,jl+1) * hi_max(jl)) ) THEN
                npti = npti + 1
                nptidx( npti ) = (jj - 1) * jpi + ji
@@ -686,6 +635,10 @@ CONTAINS
          ENDIF
          !
       END DO
+      !
+      ! clem: those fields must be updated on the halos: a_i, v_i, v_s, sv_i, oa_i, h_i, t_su, a_ip, v_ip, v_il, e_i, e_s
+      !       note: ice_itd_reb is called in icedyn
+      !             and in icethd (but once the arrays are already updated on the boundaries)
       !
       IF( ln_icediachk )   CALL ice_cons_hsm(1, 'iceitd_reb', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
       IF( ln_icediachk )   CALL ice_cons2D  (1, 'iceitd_reb',  diag_v,  diag_s,  diag_t,  diag_fv,  diag_fs,  diag_ft)

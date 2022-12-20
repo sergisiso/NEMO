@@ -93,8 +93,8 @@ CONTAINS
       !
       ! retrieve thickness from volume for landfast param. and UMx advection scheme
       WHERE( a_i(:,:,:) >= epsi20 )
-         h_i(:,:,:) = v_i(:,:,:) / a_i_b(:,:,:)
-         h_s(:,:,:) = v_s(:,:,:) / a_i_b(:,:,:)
+         h_i(:,:,:) = v_i(:,:,:) / a_i(:,:,:)
+         h_s(:,:,:) = v_s(:,:,:) / a_i(:,:,:)
       ELSEWHERE
          h_i(:,:,:) = 0._wp
          h_s(:,:,:) = 0._wp
@@ -142,6 +142,7 @@ CONTAINS
          END_2D
          ! ---
          CALL ice_dyn_adv   ( kt )                                          ! -- advection of ice
+         CALL ice_var_zapsmall                                              ! -- zap small areas
          !
       CASE ( np_dynADV2D )         !==  pure advection ==!   (2D w prescribed velocities)
          !
@@ -151,6 +152,7 @@ CONTAINS
          !CALL RANDOM_NUMBER(v_ice(:,:)) ; v_ice(:,:) = v_ice(:,:) * 0.1 + rn_vice * 0.9 * vmask(:,:,1)
          ! ---
          CALL ice_dyn_adv   ( kt )                                          ! -- advection of ice
+         CALL ice_var_zapsmall                                              ! -- zap small areas
 
       END SELECT
       !
@@ -162,21 +164,30 @@ CONTAINS
 
          CASE ( np_dynADV1D , np_dynADV2D )
 
-            ALLOCATE( zdivu_i(jpi,jpj) )
+            ALLOCATE( zdivu_i(A2D(0)) )
             DO_2D( 0, 0, 0, 0 )
-               zdivu_i(ji,jj) = ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj)   &
-                  &             + e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1) ) * r1_e1e2t(ji,jj)
+               zdivu_i(ji,jj) = ( ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj) )   &   ! add () for NP repro
+                  &             + ( e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1) ) ) * r1_e1e2t(ji,jj)
             END_2D
-            CALL lbc_lnk( 'icedyn', zdivu_i, 'T', 1.0_wp )
-            ! output
             CALL iom_put( 'icediv' , zdivu_i )
-
             DEALLOCATE( zdivu_i )
 
          END SELECT
          !
       ENDIF
       !
+      ! --- Lateral boundary conditions --- !
+      !     caution: t_su update needed from itd_reb
+      !              plus, one needs ldfull=T to deal with the NorthFold in case of Prather advection
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+         CALL lbc_lnk( 'icedyn', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
+            &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp, ldfull = .TRUE. )
+      ELSE
+         CALL lbc_lnk( 'icedyn', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
+            &                    t_su, 'T', 1._wp, ldfull = .TRUE. )
+      ENDIF
+      CALL lbc_lnk( 'icedyn', e_i, 'T', 1._wp, e_s, 'T', 1._wp, ldfull = .TRUE. )
+      
       ! controls
       IF( ln_timing )   CALL timing_stop ('ice_dyn')
       !
@@ -198,12 +209,13 @@ CONTAINS
       ! controls
       IF( ln_icediachk )   CALL ice_cons_hsm(0, 'Hpiling', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft) ! conservation
       !
-      at_i(:,:) = SUM( a_i(:,:,:), dim=3 )
+      at_i(A2D(0)) = SUM( a_i(A2D(0),:), dim=3 )
       DO jl = 1, jpl
-         WHERE( at_i(:,:) > epsi20 )
-            a_i(:,:,jl) = a_i(:,:,jl) * (  1._wp + MIN( rn_amax_2d(:,:) - at_i(:,:) , 0._wp ) / at_i(:,:)  )
+         WHERE( at_i(A2D(0)) > epsi20 )
+            a_i(A2D(0),jl) = a_i(A2D(0),jl) * (  1._wp + MIN( rn_amax_2d(A2D(0)) - at_i(A2D(0)) , 0._wp ) / at_i(A2D(0))  )
          END WHERE
       END DO
+      !
       ! controls
       IF( ln_icediachk )   CALL ice_cons_hsm(1, 'Hpiling', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft) ! conservation
       !

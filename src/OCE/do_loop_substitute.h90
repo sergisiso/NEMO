@@ -56,19 +56,49 @@
 ! Nis0 =   1 + nn_hls     Njs0 =   1 + nn_hls
 ! Nie0 = jpi - nn_hls     Nje0 = jpj - nn_hls
 !
+! Additionally, this file defines several macros for defining and accessing arrays.
+! These return index strides of the form i_lower:i_upper,j_lower:j_upper.
+! The macros mainly serve as substitutions for i-j shape declarations in DIMENSION and ALLOCATE
+! statements, but can also be used for inline stride indexing of arrays.
+! There are three types of macro:
+!
+!    A1Di/A1Dj/A2D - used with arrays that are defined on the MPI domain
+!    T1Di/T1Dj/T2D - used with arrays that are defined on the tile domain
+!             AB2D - used with assumed shape array declarations
+!
+! The first two types have a similar specification to the DO loop macros, with arguments giving the
+! offset with respect to the internal part of the domain:
+!
+!    A1Di(H) = Nis0-(H):Nie0+(H)
+!    T1Di(H) = ntsi-(H):ntei+(H)
+!
+! The third type is used to specify an assumed shape declaration with defined lower bounds, and is used in wrapper
+! subroutines in conjunction with the lbnd_ij function to allow several possible dummy argument shapes:
+!
+!    AB2D(B) = B(1):,B(2):
+!
 #endif
 
-#define DO_2D(L, R, B, T) DO jj = ntsj-(B), ntej+(T) ; DO ji = ntsi-(L), ntei+(R)
-#define DO_2D_OVR(L, R, B, T) DO_2D(L-(L+R)*nthl, R-(R+L)*nthr, B-(B+T)*nthb, T-(T+B)*ntht)
-#define A1Di(H) ntsi-(H):ntei+(H)
-#define A1Dj(H) ntsj-(H):ntej+(H)
+#define A1Di(H) Nis0-(H):Nie0+(H)
+#define A1Dj(H) Njs0-(H):Nje0+(H)
 #define A2D(H) A1Di(H),A1Dj(H)
-#define A1Di_T(T) (ntsi-nn_hls-1)*T+1:
-#define A1Dj_T(T) (ntsj-nn_hls-1)*T+1:
-#define A2D_T(T) A1Di_T(T),A1Dj_T(T)
+
+#define T1Di(H) ntsi-(H):ntei+(H)
+#define T1Dj(H) ntsj-(H):ntej+(H)
+#define T2D(H) T1Di(H),T1Dj(H)
+
+#define AB2D(B) B(1):,B(2):
 #define JPK  :
+#define JPT  :
 #define JPTS  :
 #define KJPT  :
+
+#define DO_1Di(L, R) DO ji = ntsi-(L), ntei+(R)
+#define DO_1Dj(B, T) DO jj = ntsj-(B), ntej+(T)
+
+#define DO_2D(L, R, B, T) DO_1Dj(B, T) ; DO_1Di(L, R)
+#define DO_2Dik(L, R, ks, ke, ki) DO jk = ks, ke, ki ; DO_1Di(L, R)
+#define DO_2D_OVR(L, R, B, T) DO_2D(L-(L+R)*nthl, R-(R+L)*nthr, B-(B+T)*nthb, T-(T+B)*ntht)
 
 #define DO_3D(L, R, B, T, ks, ke) DO jk = ks, ke ; DO_2D(L, R, B, T)
 #define DO_3D_OVR(L, R, B, T, ks, ke) DO jk = ks, ke ; DO_2D_OVR(L, R, B, T)
@@ -76,5 +106,6 @@
 #define DO_3DS(L, R, B, T, ks, ke, ki) DO jk = ks, ke, ki ; DO_2D(L, R, B, T)
 #define DO_3DS_OVR(L, R, B, T, ks, ke, ki) DO jk = ks, ke, ki ; DO_2D_OVR(L, R, B, T)
 
+#define END_1D   END DO
 #define END_2D   END DO   ;   END DO
 #define END_3D   END DO   ;   END DO   ;   END DO

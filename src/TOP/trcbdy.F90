@@ -174,8 +174,7 @@ CONTAINS
             !
          END DO
          !
-         IF( nn_hls > 1 .AND. ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
-         IF( nn_hls == 1 ) THEN   ;   llsend1(:) = .false.   ;   llrecv1(:) = .false.   ;   ENDIF
+         IF( ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
          DO ib_bdy=1, nb_bdy
             SELECT CASE( cn_tra(ib_bdy) )
             CASE('neumann')

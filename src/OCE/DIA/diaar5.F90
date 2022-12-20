@@ -21,6 +21,8 @@ MODULE diaar5
    USE iom            ! I/O manager library
    USE fldread        ! type FLD_N
    USE timing         ! preformance summary
+   USE sbc_oce , ONLY : nn_ice
+   USE sbc_ice , ONLY : snwice_mass, snwice_mass_b
 
    IMPLICIT NONE
    PRIVATE
@@ -53,7 +55,7 @@ CONTAINS
       INTEGER :: dia_ar5_alloc
       !!----------------------------------------------------------------------
       !
-      ALLOCATE( thick0(jpi,jpj) , sn0(jpi,jpj,jpk), STAT=dia_ar5_alloc )
+      ALLOCATE( thick0(A2D(0)) , sn0(A2D(0),jpk), STAT=dia_ar5_alloc )
       !
       CALL mpp_sum ( 'diaar5', dia_ar5_alloc )
       IF( dia_ar5_alloc /= 0 )   CALL ctl_stop( 'STOP', 'dia_ar5_alloc: failed to allocate arrays' )
@@ -73,22 +75,24 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, iks, ikb                      ! dummy loop arguments
       REAL(wp) ::   zvolssh, zvol, zssh_steric, zztmp, zarho, ztemp, zsal, zmass, zsst
-      REAL(wp) ::   zaw, zbw, zrw
+      REAL(wp) ::   zaw, zbw, zrw, ztf
       !
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:)     :: zarea_ssh , zbotpres       ! 2D workspace
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:)     :: z2d, zpe                   ! 2D workspace
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   :: z3d, zrhd, ztpot, zgdept   ! 3D workspace (zgdept: needed to use the substitute)
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: ztsn                       ! 4D workspace
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)       :: zarea_ssh   ! 2D workspace
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)       :: z2d         ! 2D workspace
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)     :: z3d, zrhd   ! 3D workspace
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:,:) :: ztsn        ! 5D workspace
       !!--------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('dia_ar5')
 
       IF( kt == nit000 )     CALL dia_ar5_init
 
       IF( l_ar5 ) THEN
-         ALLOCATE( zarea_ssh(jpi,jpj), zbotpres(jpi,jpj), z2d(jpi,jpj) )
-         ALLOCATE( zrhd(jpi,jpj,jpk) )
-         ALLOCATE( ztsn(jpi,jpj,jpk,jpts) )
-         zarea_ssh(:,:) = e1e2t(:,:) * ssh(:,:,Kmm)
+         ALLOCATE( zarea_ssh(A2D(0)), z2d(A2D(0)), z3d(A2D(0),jpk) )
+         ALLOCATE( zrhd(A2D(0),jpk) )
+         ALLOCATE( ztsn(A2D(0),jpk,jpts,jpt) )
+         zarea_ssh(:,:) = e1e2t(A2D(0)) * ssh(A2D(0),Kmm)
+         ztsn(:,:,:,:,:) = 0._wp
+         zrhd(:,:,:) = 0._wp
       ENDIF
       !
       CALL iom_put( 'e2u'      , e2u  (:,:) )
@@ -96,19 +100,19 @@ CONTAINS
       CALL iom_put( 'areacello', e1e2t(:,:) )
       !
       IF( iom_use( 'volcello' ) .OR. iom_use( 'masscello' )  ) THEN
-         zrhd(:,:,jpk) = 0._wp        ! ocean volume ; rhd is used as workspace
-         DO jk = 1, jpkm1
-            zrhd(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
-         END DO
-         DO jk = 1, jpk
-            z3d(:,:,jk) =  rho0 * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
-         END DO
-         CALL iom_put( 'volcello'  , zrhd(:,:,:)  )  ! WARNING not consistent with CMIP DR where volcello is at ca. 2000
+         z3d(:,:,jpk) = 0._wp        ! ocean volume ; rhd is used as workspace
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            z3d(ji,jj,jk) = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
+         END_3D
+         CALL iom_put( 'volcello'  , z3d(:,:,:)  )  ! WARNING not consistent with CMIP DR where volcello is at ca. 2000
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            z3d(ji,jj,jk) =  rho0 * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
+         END_3D
          CALL iom_put( 'masscello' , z3d (:,:,:) )   ! ocean mass
       ENDIF
       !
       IF( iom_use( 'e3tb' ) )  THEN    ! bottom layer thickness
-         DO_2D( 1, 1, 1, 1 )
+         DO_2D( 0, 0, 0, 0 )
             ikb = mbkt(ji,jj)
             z2d(ji,jj) = e3t(ji,jj,ikb,Kmm)
          END_2D
@@ -126,94 +130,104 @@ CONTAINS
          !
       ENDIF
 
+      IF( iom_use( 'sshice' ) ) THEN
+         !                                         ! total volume of ice+snow 
+         IF( nn_ice == 0 ) THEN
+            zvolssh = 0._wp
+         ELSE
+            ztf = REAL(MOD( kt-1, nn_fsbc ), wp) / REAL(nn_fsbc, wp)
+            z2d = ztf * snwice_mass(:,:) + (1._wp - ztf) * snwice_mass_b(:,:)
+            zvolssh = glob_sum( 'diaar5', e1e2t(:,:) * z2d(:,:) * r1_rho0 )
+         ENDIF
+
+         CALL iom_put( 'sshice', zvolssh / area_tot )
+         !
+      ENDIF
+
       IF( iom_use( 'botpres' ) .OR. iom_use( 'sshthster' )  .OR. iom_use( 'sshsteric' )  ) THEN
          !
-         ztsn(:,:,:,jp_tem) = ts(:,:,:,jp_tem,Kmm)                    ! thermosteric ssh
-         ztsn(:,:,:,jp_sal) = sn0(:,:,:)
-         ALLOCATE( zgdept(jpi,jpj,jpk) )
-         DO jk = 1, jpk
-            zgdept(:,:,jk) = gdept(:,:,jk,Kmm)
-         END DO
-         CALL eos( ztsn, zrhd, zgdept)                       ! now in situ density using initial salinity
+         ztsn(:,:,:,jp_tem,Kmm) = ts(A2D(0),:,jp_tem,Kmm)                ! thermosteric ssh
+         ztsn(:,:,:,jp_sal,Kmm) = sn0(:,:,:)
+         CALL eos( ztsn, Kmm, zrhd, kbnd=0 )                           ! now in situ density using initial salinity
          !
-         zbotpres(:,:) = 0._wp                        ! no atmospheric surface pressure, levitating sea-ice
-         DO jk = 1, jpkm1
-            zbotpres(:,:) = zbotpres(:,:) + e3t(:,:,jk,Kmm) * zrhd(:,:,jk)
-         END DO
+         z2d(:,:) = 0._wp                        ! no atmospheric surface pressure, levitating sea-ice
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            z2d(ji,jj) = z2d(ji,jj) + e3t(ji,jj,jk,Kmm) * zrhd(ji,jj,jk)
+         END_3D
          IF( ln_linssh ) THEN
             IF( ln_isfcav ) THEN
-               DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               DO_2D( 0, 0, 0, 0 )
                   iks = mikt(ji,jj)
-                  zbotpres(ji,jj) = zbotpres(ji,jj) + ssh(ji,jj,Kmm) * zrhd(ji,jj,iks) + riceload(ji,jj)
+                  z2d(ji,jj) = z2d(ji,jj) + ssh(ji,jj,Kmm) * zrhd(ji,jj,iks) + riceload(ji,jj)
                END_2D
             ELSE
-               zbotpres(:,:) = zbotpres(:,:) + ssh(:,:,Kmm) * zrhd(:,:,1)
+               DO_2D( 0, 0, 0, 0 )
+                  z2d(ji,jj) = z2d(ji,jj) + ssh(ji,jj,Kmm) * zrhd(ji,jj,1)
+               END_2D
             END IF
 !!gm
 !!gm   riceload should be added in both ln_linssh=T or F, no?
 !!gm
          END IF
          !
-         zarho = glob_sum( 'diaar5', e1e2t(:,:) * zbotpres(:,:) )
+         zarho = glob_sum( 'diaar5', e1e2t(A2D(0)) * z2d(:,:) )
          zssh_steric = - zarho / area_tot
          CALL iom_put( 'sshthster', zssh_steric )
 
          !                                         ! steric sea surface height
-         zbotpres(:,:) = 0._wp                        ! no atmospheric surface pressure, levitating sea-ice
-         DO jk = 1, jpkm1
-            zbotpres(:,:) = zbotpres(:,:) + e3t(:,:,jk,Kmm) * rhd(:,:,jk)
-         END DO
+         z2d(:,:) = 0._wp                        ! no atmospheric surface pressure, levitating sea-ice
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            z2d(ji,jj) = z2d(ji,jj) + e3t(ji,jj,jk,Kmm) * rhd(ji,jj,jk)
+         END_3D
          IF( ln_linssh ) THEN
             IF ( ln_isfcav ) THEN
-               DO ji = 1,jpi
-                  DO jj = 1,jpj
-                     iks = mikt(ji,jj)
-                     zbotpres(ji,jj) = zbotpres(ji,jj) + ssh(ji,jj,Kmm) * rhd(ji,jj,iks) + riceload(ji,jj)
-                  END DO
-               END DO
+               DO_2D( 0, 0, 0, 0 )
+                  iks = mikt(ji,jj)
+                  z2d(ji,jj) = z2d(ji,jj) + ssh(ji,jj,Kmm) * rhd(ji,jj,iks) + riceload(ji,jj)
+               END_2D
             ELSE
-               zbotpres(:,:) = zbotpres(:,:) + ssh(:,:,Kmm) * rhd(:,:,1)
+               DO_2D( 0, 0, 0, 0 )
+                  z2d(ji,jj) = z2d(ji,jj) + ssh(ji,jj,Kmm) * rhd(ji,jj,1)
+               END_2D
             END IF
          END IF
          !
-         zarho = glob_sum( 'diaar5', e1e2t(:,:) * zbotpres(:,:) )
+         zarho = glob_sum( 'diaar5', e1e2t(A2D(0)) * z2d(:,:) )
          zssh_steric = - zarho / area_tot
          CALL iom_put( 'sshsteric', zssh_steric )
          !                                         ! ocean bottom pressure
          zztmp = rho0 * grav * 1.e-4_wp               ! recover pressure from pressure anomaly and cover to dbar = 1.e4 Pa
-         zbotpres(:,:) = zztmp * ( zbotpres(:,:) + ssh(:,:,Kmm) + thick0(:,:) )
-         CALL iom_put( 'botpres', zbotpres )
-         !
-         DEALLOCATE( zgdept )
+         z2d(:,:) = zztmp * ( z2d(:,:) + ssh(A2D(0),Kmm) + thick0(:,:) )
+         CALL iom_put( 'botpres', z2d )
          !
       ENDIF
 
       IF( iom_use( 'masstot' ) .OR. iom_use( 'temptot' )  .OR. iom_use( 'saltot' )  ) THEN
           !                                         ! Mean density anomalie, temperature and salinity
-          ztsn(:,:,:,:) = 0._wp                    ! ztsn(:,:,1,jp_tem/sal) is used here as 2D Workspace for temperature & salinity
-          DO_3D( 1, 1, 1, 1, 1, jpkm1 )
+          ztsn(:,:,:,:,Kmm) = 0._wp                 ! ztsn(:,:,1,jp_tem/sal) is used here as 2D Workspace for temperature & salinity
+          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
              zztmp = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm)
-             ztsn(ji,jj,1,jp_tem) = ztsn(ji,jj,1,jp_tem) + zztmp * ts(ji,jj,jk,jp_tem,Kmm)
-             ztsn(ji,jj,1,jp_sal) = ztsn(ji,jj,1,jp_sal) + zztmp * ts(ji,jj,jk,jp_sal,Kmm)
+             ztsn(ji,jj,1,jp_tem,Kmm) = ztsn(ji,jj,1,jp_tem,Kmm) + zztmp * ts(ji,jj,jk,jp_tem,Kmm)
+             ztsn(ji,jj,1,jp_sal,Kmm) = ztsn(ji,jj,1,jp_sal,Kmm) + zztmp * ts(ji,jj,jk,jp_sal,Kmm)
           END_3D
 
           IF( ln_linssh ) THEN
             IF( ln_isfcav ) THEN
-               DO ji = 1, jpi
-                  DO jj = 1, jpj
-                     iks = mikt(ji,jj)
-                     ztsn(ji,jj,1,jp_tem) = ztsn(ji,jj,1,jp_tem) + zarea_ssh(ji,jj) * ts(ji,jj,iks,jp_tem,Kmm)
-                     ztsn(ji,jj,1,jp_sal) = ztsn(ji,jj,1,jp_sal) + zarea_ssh(ji,jj) * ts(ji,jj,iks,jp_sal,Kmm)
-                  END DO
-               END DO
+               DO_2D( 0, 0, 0, 0 )
+                  iks = mikt(ji,jj)
+                  ztsn(ji,jj,1,jp_tem,Kmm) = ztsn(ji,jj,1,jp_tem,Kmm) + zarea_ssh(ji,jj) * ts(ji,jj,iks,jp_tem,Kmm)
+                  ztsn(ji,jj,1,jp_sal,Kmm) = ztsn(ji,jj,1,jp_sal,Kmm) + zarea_ssh(ji,jj) * ts(ji,jj,iks,jp_sal,Kmm)
+               END_2D
             ELSE
-               ztsn(:,:,1,jp_tem) = ztsn(:,:,1,jp_tem) + zarea_ssh(:,:) * ts(:,:,1,jp_tem,Kmm)
-               ztsn(:,:,1,jp_sal) = ztsn(:,:,1,jp_sal) + zarea_ssh(:,:) * ts(:,:,1,jp_sal,Kmm)
+               DO_2D( 0, 0, 0, 0 )
+                  ztsn(ji,jj,1,jp_tem,Kmm) = ztsn(ji,jj,1,jp_tem,Kmm) + zarea_ssh(ji,jj) * ts(ji,jj,1,jp_tem,Kmm)
+                  ztsn(ji,jj,1,jp_sal,Kmm) = ztsn(ji,jj,1,jp_sal,Kmm) + zarea_ssh(ji,jj) * ts(ji,jj,1,jp_sal,Kmm)
+               END_2D
             END IF
          ENDIF
          !
-         ztemp = glob_sum( 'diaar5', ztsn(:,:,1,jp_tem) )
-         zsal  = glob_sum( 'diaar5', ztsn(:,:,1,jp_sal) )
+         ztemp = glob_sum( 'diaar5', ztsn(:,:,1,jp_tem,Kmm) )
+         zsal  = glob_sum( 'diaar5', ztsn(:,:,1,jp_sal,Kmm) )
          zmass = rho0 * ( zarho + zvol )
          !
          CALL iom_put( 'masstot', zmass )
@@ -226,37 +240,35 @@ CONTAINS
          IF( iom_use( 'toce_pot') .OR. iom_use( 'temptot_pot' ) .OR. iom_use( 'sst_pot' )  &
                                   .OR. iom_use( 'ssttot' ) .OR.  iom_use( 'tosmint_pot' ) ) THEN
             !
-            ALLOCATE( ztpot(jpi,jpj,jpk) )
-            ztpot(:,:,jpk) = 0._wp
+            z3d(:,:,jpk) = 0._wp
             DO jk = 1, jpkm1
-               ztpot(:,:,jk) = eos_pt_from_ct( ts(:,:,jk,jp_tem,Kmm), ts(:,:,jk,jp_sal,Kmm) )
+               CALL eos_pt_from_ct( ts(:,:,jk,jp_tem,Kmm), ts(:,:,jk,jp_sal,Kmm), z3d(:,:,jk), kbnd=0 )
             END DO
             !
-            CALL iom_put( 'toce_pot', ztpot(:,:,:) )  ! potential temperature (TEOS-10 case)
-            CALL iom_put( 'sst_pot' , ztpot(:,:,1) )  ! surface temperature
+            CALL iom_put( 'toce_pot', z3d(:,:,:) )  ! potential temperature (TEOS-10 case)
+            CALL iom_put( 'sst_pot' , z3d(:,:,1) )  ! surface temperature
             !
             IF( iom_use( 'temptot_pot' ) ) THEN   ! Output potential temperature in case we use TEOS-10
                z2d(:,:) = 0._wp
-               DO jk = 1, jpkm1
-                 z2d(:,:) = z2d(:,:) + e1e2t(:,:) * e3t(:,:,jk,Kmm) * ztpot(:,:,jk)
-               END DO
+               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+                 z2d(ji,jj) = z2d(ji,jj) + e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) * z3d(ji,jj,jk)
+               END_3D
                ztemp = glob_sum( 'diaar5', z2d(:,:)  )
                CALL iom_put( 'temptot_pot', ztemp / zvol )
              ENDIF
              !
              IF( iom_use( 'ssttot' ) ) THEN   ! Output potential temperature in case we use TEOS-10
-               zsst = glob_sum( 'diaar5',  e1e2t(:,:) * ztpot(:,:,1)  )
+               zsst = glob_sum( 'diaar5',  e1e2t(A2D(0)) * z3d(:,:,1)  )
                CALL iom_put( 'ssttot', zsst / area_tot )
              ENDIF
              ! Vertical integral of temperature
              IF( iom_use( 'tosmint_pot') ) THEN
                z2d(:,:) = 0._wp
-               DO_3D( 1, 1, 1, 1, 1, jpkm1 )
-                  z2d(ji,jj) = z2d(ji,jj) + rho0 * e3t(ji,jj,jk,Kmm) *  ztpot(ji,jj,jk)
+               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+                  z2d(ji,jj) = z2d(ji,jj) + rho0 * e3t(ji,jj,jk,Kmm) *  z3d(ji,jj,jk)
                END_3D
                CALL iom_put( 'tosmint_pot', z2d )
             ENDIF
-            DEALLOCATE( ztpot )
         ENDIF
       ELSE
          IF( iom_use('ssttot') ) THEN   ! Output sst in case we use EOS-80
@@ -269,33 +281,31 @@ CONTAINS
         ! Work done against stratification by vertical mixing
         ! Exclude points where rn2 is negative as convection kicks in here and
         ! work is not being done against stratification
-         ALLOCATE( zpe(jpi,jpj) )
-         zpe(:,:) = 0._wp
+         z2d(:,:) = 0._wp
          IF( ln_zdfddm ) THEN
-            DO_3D( 1, 1, 1, 1, 2, jpk )
+            DO_3D( 0, 0, 0, 0, 2, jpk )
                IF( rn2(ji,jj,jk) > 0._wp ) THEN
                   zrw = ( gdept(ji,jj,jk,Kmm) - gdepw(ji,jj,jk,Kmm) ) / e3w(ji,jj,jk,Kmm)
                   !
                   zaw = rab_n(ji,jj,jk,jp_tem) * (1. - zrw) + rab_n(ji,jj,jk-1,jp_tem)* zrw
                   zbw = rab_n(ji,jj,jk,jp_sal) * (1. - zrw) + rab_n(ji,jj,jk-1,jp_sal)* zrw
                   !
-                  zpe(ji, jj) = zpe(ji,jj)   &
+                  z2d(ji, jj) = z2d(ji,jj)   &
                      &        -  grav * (  avt(ji,jj,jk) * zaw * (ts(ji,jj,jk-1,jp_tem,Kmm) - ts(ji,jj,jk,jp_tem,Kmm) )  &
                      &                   - avs(ji,jj,jk) * zbw * (ts(ji,jj,jk-1,jp_sal,Kmm) - ts(ji,jj,jk,jp_sal,Kmm) ) )
                ENDIF
             END_3D
           ELSE
-            DO_3D( 1, 1, 1, 1, 1, jpk )
-               zpe(ji,jj) = zpe(ji,jj) + avt(ji,jj,jk) * MIN(0._wp,rn2(ji,jj,jk)) * rho0 * e3w(ji,jj,jk,Kmm)
+            DO_3D( 0, 0, 0, 0, 1, jpk )
+               z2d(ji,jj) = z2d(ji,jj) + avt(ji,jj,jk) * MIN(0._wp,rn2(ji,jj,jk)) * rho0 * e3w(ji,jj,jk,Kmm)
             END_3D
          ENDIF
-          CALL iom_put( 'tnpeo', zpe )
-          DEALLOCATE( zpe )
+          CALL iom_put( 'tnpeo', z2d )
       ENDIF
 
       IF( l_ar5 ) THEN
-        DEALLOCATE( zarea_ssh , zbotpres, z2d )
-        DEALLOCATE( ztsn                 )
+        DEALLOCATE( zarea_ssh , z2d, z3d )
+        DEALLOCATE( ztsn )
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('dia_ar5')
@@ -312,37 +322,37 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                         , INTENT(in )  :: ktra  ! tracer index
       CHARACTER(len=3)                , INTENT(in)   :: cptr  ! transport type  'adv'/'ldf'
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk)    , INTENT(in)   :: puflx  ! u-flux of advection/diffusion
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk)    , INTENT(in)   :: pvflx  ! v-flux of advection/diffusion
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk)    , INTENT(in)   :: puflx  ! u-flux of advection/diffusion
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk)    , INTENT(in)   :: pvflx  ! v-flux of advection/diffusion
       !
       INTEGER    ::  ji, jj, jk
-      REAL(wp), DIMENSION(A2D(nn_hls))  :: z2d
+      REAL(wp), DIMENSION(T2D(0))  :: z2d
       !!----------------------------------------------------------------------
 
-      z2d(:,:) = puflx(:,:,1)
+      z2d(:,:) = 0._wp
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          z2d(ji,jj) = z2d(ji,jj) + puflx(ji,jj,jk)
       END_3D
 
       IF( cptr == 'adv' ) THEN
-         IF( ktra == jp_tem ) CALL iom_put( 'uadv_heattr' , rho0_rcp * z2d(:,:) )  ! advective heat transport in i-direction
-         IF( ktra == jp_sal ) CALL iom_put( 'uadv_salttr' , rho0     * z2d(:,:) )  ! advective salt transport in i-direction
+         IF( ktra == jp_tem )   CALL iom_put( 'uadv_heattr'  , rho0_rcp * z2d(:,:) ) ! advective heat transport in i-direction
+         IF( ktra == jp_sal )   CALL iom_put( 'uadv_salttr'  , rho0     * z2d(:,:) ) ! advective salt transport in i-direction
       ELSE IF( cptr == 'ldf' ) THEN
-         IF( ktra == jp_tem ) CALL iom_put( 'udiff_heattr' , rho0_rcp * z2d(:,:) ) ! diffusive heat transport in i-direction
-         IF( ktra == jp_sal ) CALL iom_put( 'udiff_salttr' , rho0     * z2d(:,:) ) ! diffusive salt transport in i-direction
+         IF( ktra == jp_tem )   CALL iom_put( 'udiff_heattr' , rho0_rcp * z2d(:,:) ) ! diffusive heat transport in i-direction
+         IF( ktra == jp_sal )   CALL iom_put( 'udiff_salttr' , rho0     * z2d(:,:) ) ! diffusive salt transport in i-direction
       ENDIF
       !
-      z2d(:,:) = pvflx(:,:,1)
+      z2d(:,:) = 0._wp
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          z2d(ji,jj) = z2d(ji,jj) + pvflx(ji,jj,jk)
       END_3D
 
       IF( cptr == 'adv' ) THEN
-         IF( ktra == jp_tem ) CALL iom_put( 'vadv_heattr' , rho0_rcp * z2d(:,:) )  ! advective heat transport in j-direction
-         IF( ktra == jp_sal ) CALL iom_put( 'vadv_salttr' , rho0     * z2d(:,:) )  ! advective salt transport in j-direction
+         IF( ktra == jp_tem )   CALL iom_put( 'vadv_heattr'  , rho0_rcp * z2d(:,:) ) ! advective heat transport in j-direction
+         IF( ktra == jp_sal )   CALL iom_put( 'vadv_salttr'  , rho0     * z2d(:,:) ) ! advective salt transport in j-direction
       ELSE IF( cptr == 'ldf' ) THEN
-         IF( ktra == jp_tem ) CALL iom_put( 'vdiff_heattr' , rho0_rcp * z2d(:,:) ) ! diffusive heat transport in j-direction
-         IF( ktra == jp_sal ) CALL iom_put( 'vdiff_salttr' , rho0     * z2d(:,:) ) ! diffusive salt transport in j-direction
+         IF( ktra == jp_tem )   CALL iom_put( 'vdiff_heattr' , rho0_rcp * z2d(:,:) ) ! diffusive heat transport in j-direction
+         IF( ktra == jp_sal )   CALL iom_put( 'vdiff_salttr' , rho0     * z2d(:,:) ) ! diffusive salt transport in j-direction
       ENDIF
 
    END SUBROUTINE dia_ar5_hst
@@ -371,7 +381,7 @@ CONTAINS
          &  iom_use( 'uadv_salttr' ) .OR. iom_use( 'udiff_salttr' ) .OR. &
          &  iom_use( 'vadv_heattr' ) .OR. iom_use( 'vdiff_heattr' ) .OR. &
          &  iom_use( 'vadv_salttr' ) .OR. iom_use( 'vdiff_salttr' ) .OR. &
-         &  iom_use( 'rhop' )  ) L_ar5 = .TRUE.
+         &  iom_use( 'rhop' ) .OR. iom_use( 'sshice' )  ) L_ar5 = .TRUE.
 
       IF( l_ar5 ) THEN
          !
@@ -380,10 +390,10 @@ CONTAINS
 
          area_tot  = glob_sum( 'diaar5', e1e2t(:,:) )
 
-         ALLOCATE( zvol0(jpi,jpj) )
+         ALLOCATE( zvol0(A2D(0)) )
          zvol0 (:,:) = 0._wp
          thick0(:,:) = 0._wp
-         DO_3D( 1, 1, 1, 1, 1, jpkm1 )   ! interpolation of salinity at the last ocean level (i.e. the partial step)
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )   ! interpolation of salinity at the last ocean level (i.e. the partial step)
             zztmp = tmask(ji,jj,jk) * e3t_0(ji,jj,jk)
             zvol0 (ji,jj) = zvol0 (ji,jj) + zztmp * e1e2t(ji,jj)
             thick0(ji,jj) = thick0(ji,jj) + zztmp
@@ -392,16 +402,16 @@ CONTAINS
          DEALLOCATE( zvol0 )
 
          IF( iom_use( 'sshthster' ) ) THEN
-            ALLOCATE( zsaldta(jpi,jpj,jpk,jpts) )
+            ALLOCATE( zsaldta(A2D(0),jpk,jpts) )
             CALL iom_open ( 'sali_ref_clim_monthly', inum )
             CALL iom_get  ( inum, jpdom_global, 'vosaline' , zsaldta(:,:,:,1), 1  )
             CALL iom_get  ( inum, jpdom_global, 'vosaline' , zsaldta(:,:,:,2), 12 )
             CALL iom_close( inum )
 
             sn0(:,:,:) = 0.5_wp * ( zsaldta(:,:,:,1) + zsaldta(:,:,:,2) )
-            sn0(:,:,:) = sn0(:,:,:) * tmask(:,:,:)
-            IF( ln_zps ) THEN               ! z-coord. partial steps
-               DO_2D( 1, 1, 1, 1 )          ! interpolation of salinity at the last ocean level (i.e. the partial step)
+            sn0(:,:,:) = sn0(:,:,:) * tmask(A2D(0),:)
+            IF( l_zps ) THEN                ! z-coord. partial steps
+               DO_2D( 0, 0, 0, 0 )          ! interpolation of salinity at the last ocean level (i.e. the partial step)
                   ik = mbkt(ji,jj)
                   IF( ik > 1 ) THEN
                      zztmp = ( gdept_1d(ik) - gdept_0(ji,jj,ik) ) / ( gdept_1d(ik) - gdept_1d(ik-1) )

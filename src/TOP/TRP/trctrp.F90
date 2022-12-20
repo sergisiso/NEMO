@@ -26,7 +26,6 @@ MODULE trctrp
    USE trcsbc          ! surface boundary condition          (trc_sbc routine)
    USE trcbc           ! Tracers boundary condtions          ( trc_bc routine)
    USE trcais          ! Antarctic Ice Sheet tracers         (trc_ais routine)
-   USE zpshde          ! partial step: hor. derivative       (zps_hde routine)
    USE bdy_oce   , ONLY: ln_bdy
    USE trcbdy          ! BDY open boundaries
    USE in_out_manager
@@ -68,13 +67,6 @@ CONTAINS
       !
       IF( .NOT. ln_c1d ) THEN
          !
-         !                                                         ! Partial top/bottom cell: GRADh( trb )  
-         IF( ln_zps ) THEN
-            IF( ln_isfcav ) THEN ; CALL zps_hde_isf( kt, jptra, tr(:,:,:,:,Kbb), pgtu=gtru, pgtv=gtrv, pgtui=gtrui, pgtvi=gtrvi )  ! both top & bottom
-            ELSE                 ; CALL zps_hde    ( kt, jptra, tr(:,:,:,:,Kbb), gtru, gtrv )                                      !  only bottom
-            ENDIF
-         ENDIF
-         !
 #if ! defined key_RK3                                
                                 CALL trc_sbc    ( kt,      Kmm, tr, Krhs )      ! surface boundary condition
 #endif
@@ -89,7 +81,7 @@ CONTAINS
 #endif
 #if ! defined key_RK3
          !                                                 ! MLF only: add the advection trend to the RHS
-                                CALL trc_adv    ( kt, Kbb, Kmm, tr, Krhs )      ! horizontal & vertical advection
+                                CALL trc_adv    ( kt, Kbb, Kmm, Kaa, tr, Krhs )   ! horizontal & vertical advection
 #endif
                                 CALL trc_ldf    ( kt, Kbb, Kmm,       tr, Krhs )  ! lateral mixing
                                 CALL trc_zdf    ( kt, Kbb, Kmm, Krhs, tr, Kaa  )  ! vert. mixing & after tracer	==> after

@@ -125,12 +125,12 @@ CONTAINS
       !!              Bouillon et al., Ocean Modelling 2013
       !!              Kimmritz et al., Ocean Modelling 2016 & 2017
       !!-------------------------------------------------------------------
-      INTEGER                 , INTENT(in   ) ::   kt                                    ! time step
-      INTEGER                 , INTENT(in   ) ::   Kmm                                   ! ocean time level index
-      REAL(wp), DIMENSION(:,:), INTENT(inout) ::   pstress1_i, pstress2_i, pstress12_i   !
-      REAL(wp), DIMENSION(:,:), INTENT(  out) ::   pshear_i  , pdivu_i   , pdelta_i      !
-      REAL(wp), DIMENSION(:,:), INTENT(inout) ::   paniso_11 , paniso_12                 ! structure tensor components
-      REAL(wp), DIMENSION(:,:), INTENT(inout) ::   prdg_conv                             ! for ridging
+      INTEGER                    , INTENT(in   ) ::   kt                                    ! time step
+      INTEGER                    , INTENT(in   ) ::   Kmm                                   ! ocean time level index
+      REAL(wp), DIMENSION(:,:)   , INTENT(inout) ::   pstress1_i, pstress2_i, pstress12_i   !
+      REAL(wp), DIMENSION(A2D(0)), INTENT(  out) ::   pshear_i  , pdivu_i   , pdelta_i      !
+      REAL(wp), DIMENSION(:,:)   , INTENT(inout) ::   paniso_11 , paniso_12                 ! structure tensor components
+      REAL(wp), DIMENSION(:,:)   , INTENT(inout) ::   prdg_conv                             ! for ridging
       !!
       INTEGER ::   ji, jj       ! dummy loop indices
       INTEGER ::   jter         ! local integers
@@ -148,15 +148,17 @@ CONTAINS
       !
       REAL(wp) ::   zintb, zintn                                        ! dummy argument
       REAL(wp) ::   zfac_x, zfac_y
-      REAL(wp) ::   zshear, zdum1, zdum2
+      REAL(wp) ::   zdum1, zdum2
       REAL(wp) ::   zstressptmp, zstressmtmp, zstress12tmpF             ! anisotropic stress tensor components
       REAL(wp) ::   zalphar, zalphas                                    ! for mechanical redistribution
       REAL(wp) ::   zmresult11, zmresult12, z1dtevpkth, zp5kth, z1_dtevp_A  ! for structure tensor evolution
       !
+      REAL(wp) ::   zswitch
+      !
       REAL(wp), DIMENSION(jpi,jpj) ::   zstress12tmp                    ! anisotropic stress tensor component for regridding
-      REAL(wp), DIMENSION(jpi,jpj) ::   zyield11, zyield22, zyield12    ! yield surface tensor for history
+      REAL(wp), DIMENSION(A2D(0))  ::   zyield11, zyield22, zyield12    ! yield surface tensor for history
       REAL(wp), DIMENSION(jpi,jpj) ::   zdelta, zp_delt                 ! delta and P/delta at T points
-      REAL(wp), DIMENSION(jpi,jpj) ::   zten_i                          ! tension
+      REAL(wp), DIMENSION(A2D(0))  ::   zten_i, zshear                  ! tension, shear
       REAL(wp), DIMENSION(jpi,jpj) ::   zbeta                           ! beta coef from Kimmritz 2017
       !
       REAL(wp), DIMENSION(jpi,jpj) ::   zdt_m                           ! (dt / ice-snow_mass) on T points
@@ -178,7 +180,6 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj) ::   ztaux_bi, ztauy_bi              ! ice-OceanBottom stress at U-V points (landfast)
       REAL(wp), DIMENSION(jpi,jpj) ::   ztaux_base, ztauy_base          ! ice-bottom stress at U-V points (landfast)
       !
-      REAL(wp), DIMENSION(jpi,jpj) ::   zmsk00, zmsk15
       REAL(wp), DIMENSION(jpi,jpj) ::   zmsk01x, zmsk01y                ! dummy arrays
       REAL(wp), DIMENSION(jpi,jpj) ::   zmsk00x, zmsk00y                ! mask for ice presence
 
@@ -186,7 +187,8 @@ CONTAINS
       REAL(wp), PARAMETER          ::   zmmin  = 1._wp                  ! ice mass (kg/m2)  below which ice velocity becomes very small
       REAL(wp), PARAMETER          ::   zamin  = 0.001_wp               ! ice concentration below which ice velocity becomes very small
       !! --- check convergence
-      REAL(wp), DIMENSION(jpi,jpj) ::   zu_ice, zv_ice
+      REAL(wp), DIMENSION(A2D(0))  ::   zmsk00, zmsk15
+      REAL(wp), DIMENSION(A2D(0))  ::   zu_ice, zv_ice
       !! --- diags
       REAL(wp) ::   zsig1, zsig2, zsig12, zfac, z1_strength
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zsig_I, zsig_II, zsig1_p, zsig2_p
@@ -202,11 +204,11 @@ CONTAINS
       IF( kt == nit000 .AND. lwp )   WRITE(numout,*) '-- ice_dyn_rhg_eap: EAP sea-ice rheology'
       !
       ! for diagnostics and convergence tests
-      DO_2D( 1, 1, 1, 1 )
+      DO_2D( 0, 0, 0, 0 )
          zmsk00(ji,jj) = MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - epsi06  ) ) ! 1 if ice    , 0 if no ice
       END_2D
       IF( nn_rhg_chkcvg > 0 ) THEN
-         DO_2D( 1, 1, 1, 1 )
+         DO_2D( 0, 0, 0, 0 )
             zmsk15(ji,jj) = MAX( 0._wp , SIGN( 1._wp , at_i(ji,jj) - 0.15_wp ) ) ! 1 if 15% ice, 0 if less
          END_2D
       ENDIF
@@ -283,7 +285,14 @@ CONTAINS
       !    non-embedded sea ice: use ocean surface for slope calculation
       zsshdyn(:,:) = ice_var_sshdyn( ssh_m, snwice_mass, snwice_mass_b)
 
-      DO_2D( 0, 0, 0, 0 )
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         zm1          = ( rhos * vt_s(ji,jj) + rhoi * vt_i(ji,jj) )  ! Ice/snow mass at U-V points
+!!$         zm1          = ( rhos * vt_s(ji,jj) + rhoi * vt_i(ji,jj) + rhow * (vt_ip(ji,jj) + vt_il(ji,jj)) ) ! clem: this should replace the above
+         zmf  (ji,jj) = zm1 * ff_t(ji,jj)                            ! Coriolis at T points (m*f)
+         zdt_m(ji,jj) = zdtevp / MAX( zm1, zmmin )                   ! dt/m at T points (for alpha and beta coefficients)
+      END_2D
+
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
 
          ! ice fraction at U-V points
          zaU(ji,jj) = 0.5_wp * ( at_i(ji,jj) * e1e2t(ji,jj) + at_i(ji+1,jj) * e1e2t(ji+1,jj) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
@@ -291,28 +300,29 @@ CONTAINS
 
          ! Ice/snow mass at U-V points
          zm1 = ( rhos * vt_s(ji  ,jj  ) + rhoi * vt_i(ji  ,jj  ) )
+!!$         zm1 = ( rhos * vt_s(ji  ,jj  ) + rhoi * vt_i(ji  ,jj  ) + rhow * (vt_ip(ji  ,jj  ) + vt_il(ji  ,jj  )) ) ! clem: this should replace the above
          zm2 = ( rhos * vt_s(ji+1,jj  ) + rhoi * vt_i(ji+1,jj  ) )
+!!$         zm2 = ( rhos * vt_s(ji+1,jj  ) + rhoi * vt_i(ji+1,jj  ) + rhow * (vt_ip(ji+1,jj  ) + vt_il(ji+1,jj  )) ) ! clem: this should replace the above
          zm3 = ( rhos * vt_s(ji  ,jj+1) + rhoi * vt_i(ji  ,jj+1) )
+!!$         zm3 = ( rhos * vt_s(ji  ,jj+1) + rhoi * vt_i(ji  ,jj+1) + rhow * (vt_ip(ji  ,jj+1) + vt_il(ji  ,jj+1)) ) ! clem: this should replace the above
          zmassU = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm2 * e1e2t(ji+1,jj) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
          zmassV = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm3 * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
 
-         ! Ocean currents at U-V points
-         v_oceU(ji,jj)   = 0.25_wp * ( v_oce(ji,jj) + v_oce(ji,jj-1) + v_oce(ji+1,jj) + v_oce(ji+1,jj-1) ) * umask(ji,jj,1)
-         u_oceV(ji,jj)   = 0.25_wp * ( u_oce(ji,jj) + u_oce(ji-1,jj) + u_oce(ji,jj+1) + u_oce(ji-1,jj+1) ) * vmask(ji,jj,1)
-
-         ! Coriolis at T points (m*f)
-         zmf(ji,jj)      = zm1 * ff_t(ji,jj)
-
-         ! dt/m at T points (for alpha and beta coefficients)
-         zdt_m(ji,jj)    = zdtevp / MAX( zm1, zmmin )
+         ! Ocean currents at U-V point, warning: add () for the North Pole reproducibility
+         v_oceU(ji,jj)   = 0.25_wp * ( ( v_oce(ji,jj) + v_oce(ji,jj-1) ) + ( v_oce(ji+1,jj) + v_oce(ji+1,jj-1) ) ) * umask(ji,jj,1)
+         u_oceV(ji,jj)   = 0.25_wp * ( ( u_oce(ji,jj) + u_oce(ji-1,jj) ) + ( u_oce(ji,jj+1) + u_oce(ji-1,jj+1) ) ) * vmask(ji,jj,1)
 
          ! m/dt
          zmU_t(ji,jj)    = zmassU * z1_dtevp
          zmV_t(ji,jj)    = zmassV * z1_dtevp
 
          ! Drag ice-atm.
-         ztaux_ai(ji,jj) = zaU(ji,jj) * utau_ice(ji,jj)
-         ztauy_ai(ji,jj) = zaV(ji,jj) * vtau_ice(ji,jj)
+         !     Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines
+         !      and the use of MAX(tmask(i,j),tmask(i+1,j) is to mask tau over ice shelves
+         ztaux_ai(ji,jj) = zaU(ji,jj) * 0.5_wp * ( utau_ice(ji,jj) + utau_ice(ji+1,jj) ) * &
+            &                                    ( 2. - umask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji+1,jj,1) )
+         ztauy_ai(ji,jj) = zaV(ji,jj) * 0.5_wp * ( vtau_ice(ji,jj) + vtau_ice(ji,jj+1) ) * &
+            &                                    ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) )
 
          ! Surface pressure gradient (- m*g*GRAD(ssh)) at U-V points
          zspgU(ji,jj)    = - zmassU * grav * ( zsshdyn(ji+1,jj) - zsshdyn(ji,jj) ) * r1_e1u(ji,jj)
@@ -329,12 +339,11 @@ CONTAINS
          ELSE                                                   ;   zmsk01y(ji,jj) = 1._wp   ;   ENDIF
 
       END_2D
-      CALL lbc_lnk( 'icedyn_rhg_eap', zmf, 'T', 1.0_wp, zdt_m, 'T', 1.0_wp )
       !
       !                                  !== Landfast ice parameterization ==!
       !
       IF( ln_landfast_L16 ) THEN         !-- Lemieux 2016
-         DO_2D( 0, 0, 0, 0 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             ! ice thickness at U-V points
             zvU = 0.5_wp * ( vt_i(ji,jj) * e1e2t(ji,jj) + vt_i(ji+1,jj) * e1e2t(ji+1,jj) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
             zvV = 0.5_wp * ( vt_i(ji,jj) * e1e2t(ji,jj) + vt_i(ji,jj+1) * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
@@ -345,13 +354,12 @@ CONTAINS
             zvCr = zaV(ji,jj) * rn_lf_depfra * hv(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) ) ! if grounded icebergs are read: ocean depth = 0
             ztauy_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvV - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaV(ji,jj) ) )
             ! ice_bottom stress at T points
-            zvCr = at_i(ji,jj) * rn_lf_depfra * ht(ji,jj) * ( 1._wp - icb_mask(ji,jj) )    ! if grounded icebergs are read: ocean depth = 0
+            zvCr = at_i(ji,jj) * rn_lf_depfra * ht(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) )    ! if grounded icebergs are read: ocean depth = 0
             tau_icebfr(ji,jj) = - rn_lf_bfr * MAX( 0._wp, vt_i(ji,jj) - zvCr ) * EXP( -rn_crhg * ( 1._wp - at_i(ji,jj) ) )
          END_2D
-         CALL lbc_lnk( 'icedyn_rhg_eap', tau_icebfr(:,:), 'T', 1.0_wp )
          !
       ELSE                               !-- no landfast
-         DO_2D( 0, 0, 0, 0 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             ztaux_base(ji,jj) = 0._wp
             ztauy_base(ji,jj) = 0._wp
          END_2D
@@ -364,18 +372,16 @@ CONTAINS
       !                                               ! ==================== !
       DO jter = 1 , nn_nevp                           !    loop over jter    !
          !                                            ! ==================== !
-         l_full_nf_update = jter == nn_nevp   ! false: disable full North fold update (performances) for iter = 1 to nn_nevp-1
-         !
          ! convergence test
          IF( nn_rhg_chkcvg == 1 .OR. nn_rhg_chkcvg == 2  ) THEN
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( 0, 0, 0, 0 )
                zu_ice(ji,jj) = u_ice(ji,jj) * umask(ji,jj,1) ! velocity at previous time step
                zv_ice(ji,jj) = v_ice(ji,jj) * vmask(ji,jj,1)
             END_2D
          ENDIF
 
          ! --- divergence, tension & shear (Appendix B of Hunke & Dukowicz, 2002) --- !
-         DO_2D( 1, 0, 1, 0 )
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
 
             ! shear at F points
             zds(ji,jj) = ( ( u_ice(ji,jj+1) * r1_e1u(ji,jj+1) - u_ice(ji,jj) * r1_e1u(ji,jj) ) * e1f(ji,jj) * e1f(ji,jj)   &
@@ -386,14 +392,14 @@ CONTAINS
 
          DO_2D( 0, 0, 0, 0 )
 
-            ! shear**2 at T points (doc eq. A16)
-            zds2 = ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  )  &
-               &   + zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1)  &
+            ! shear**2 at T points (doc eq. A16), warning: add () for the North Pole reproducibility
+            zds2 = ( ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  ) )  &
+               &   + ( zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1) )  &
                &   ) * 0.25_wp * r1_e1e2t(ji,jj)
 
-            ! divergence at T points
-            zdiv  = ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj)   &
-               &    + e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1)   &
+            ! divergence at T points, warning: add () for the North Pole reproducibility
+            zdiv  = ( ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj) )   &
+               &    + ( e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1) )   &
                &    ) * r1_e1e2t(ji,jj)
             zdiv2 = zdiv * zdiv
 
@@ -406,24 +412,22 @@ CONTAINS
             ! delta at T points
             zdelta(ji,jj) = SQRT( zdiv2 + ( zdt2 + zds2 ) * z1_ecc2 )
 
-         END_2D
-         CALL lbc_lnk( 'icedyn_rhg_eap', zdelta, 'T', 1.0_wp )
-
-         ! P/delta at T points
-         DO_2D( 1, 1, 1, 1 )
+            ! P/delta at T points
             zp_delt(ji,jj) = strength(ji,jj) / ( zdelta(ji,jj) + rn_creepl )
+            
          END_2D
+         CALL lbc_lnk( 'icedyn_rhg_eap', zdelta, 'T', 1.0_wp, zp_delt, 'T', 1.0_wp )
 
-         DO_2D( 0, 1, 0, 1 )   ! loop ends at jpi,jpj so that no lbc_lnk are needed for zs1 and zs2
+         DO_2D( 0, 0, 0, 0 )
 
-             ! shear at T points
-            zdsT = ( zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * e1e2f(ji-1,jj  )  &
-               &   + zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * e1e2f(ji-1,jj-1)  &
+             ! shear at T points, warning: add () for the North Pole reproducibility
+            zdsT = ( ( zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * e1e2f(ji-1,jj  ) )  &
+               &   + ( zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * e1e2f(ji-1,jj-1) )  &
                &   ) * 0.25_wp * r1_e1e2t(ji,jj)
 
-           ! divergence at T points (duplication to avoid communications)
-            zdiv  = ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj)   &
-               &    + e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1)   &
+           ! divergence at T points (duplication to avoid communications), warning: add () for the North Pole reproducibility
+            zdiv  = ( ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj) )   &
+               &    + ( e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1) )  &
                &    ) * r1_e1e2t(ji,jj)
 
             ! tension at T points (duplication to avoid communications)
@@ -467,16 +471,17 @@ CONTAINS
             zs1(ji,jj) = ( zs1(ji,jj) * zalph1 + zstressptmp ) * z1_alph1
             zs2(ji,jj) = ( zs2(ji,jj) * zalph1 + zstressmtmp ) * z1_alph1
          END_2D
-         CALL lbc_lnk( 'icedyn_rhg_eap', zstress12tmp, 'T', 1.0_wp , paniso_11, 'T', 1.0_wp , paniso_12, 'T', 1.0_wp)
+         CALL lbc_lnk( 'icedyn_rhg_eap', zstress12tmp, 'T', 1.0_wp , paniso_11, 'T', 1.0_wp , paniso_12, 'T', 1.0_wp, &
+            &                            zs1, 'T', 1.0_wp, zs2, 'T', 1.0_wp )
 
         ! Save beta at T-points for further computations
          IF( ln_aEVP ) THEN
-            DO_2D( 1, 1, 1, 1 )
+            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
                zbeta(ji,jj) = MAX( 50._wp, rpi * SQRT( 0.5_wp * zp_delt(ji,jj) * r1_e1e2t(ji,jj) * zdt_m(ji,jj) ) )
             END_2D
          ENDIF
 
-         DO_2D( 1, 0, 1, 0 )
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
             ! stress12tmp at F points
             zstress12tmpF = ( zstress12tmp(ji,jj+1) * e1e2t(ji,jj+1) + zstress12tmp(ji+1,jj+1) * e1e2t(ji+1,jj+1)  &
                &            + zstress12tmp(ji,jj  ) * e1e2t(ji,jj  ) + zstress12tmp(ji+1,jj  ) * e1e2t(ji+1,jj  )  &
@@ -495,10 +500,9 @@ CONTAINS
             zs12(ji,jj) = ( zs12(ji,jj) * zalph1 + zstress12tmpF ) * z1_alph1
 
          END_2D
-         CALL lbc_lnk( 'icedyn_rhg_eap', zs1, 'T', 1.0_wp, zs2, 'T', 1.0_wp, zs12, 'F', 1.0_wp )
 
          ! --- Ice internal stresses (Appendix C of Hunke and Dukowicz, 2002) --- !
-         DO_2D( 0, 0, 0, 0 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             !                   !--- U points
             zfU(ji,jj) = 0.5_wp * ( ( zs1(ji+1,jj) - zs1(ji,jj) ) * e2u(ji,jj)                                             &
                &                  + ( zs2(ji+1,jj) * e2t(ji+1,jj) * e2t(ji+1,jj) - zs2(ji,jj) * e2t(ji,jj) * e2t(ji,jj)    &
@@ -526,7 +530,7 @@ CONTAINS
          !  Bouillon et al. 2009 (eq 34-35) => stable
          IF( MOD(jter,2) == 0 ) THEN ! even iterations
             !
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
                !                 !--- tau_io/(v_oce - v_ice)
                zTauO = zaV(ji,jj) * zrhoco * SQRT( ( v_ice (ji,jj) - v_oce (ji,jj) ) * ( v_ice (ji,jj) - v_oce (ji,jj) )  &
                   &                              + ( u_iceV(ji,jj) - u_oceV(ji,jj) ) * ( u_iceV(ji,jj) - u_oceV(ji,jj) ) )
@@ -549,34 +553,27 @@ CONTAINS
                !
                !                 !--- landfast switch => 0 = static  friction : TauB > RHS & sign(TauB) /= sign(RHS)
                !                                         1 = sliding friction : TauB < RHS
-               rswitch = 1._wp - MIN( 1._wp, ABS( SIGN( 1._wp, zRHS + ztauy_base(ji,jj) ) - SIGN( 1._wp, zRHS ) ) )
+               zswitch = 1._wp - MIN( 1._wp, ABS( SIGN( 1._wp, zRHS + ztauy_base(ji,jj) ) - SIGN( 1._wp, zRHS ) ) )
                !
                IF( ln_aEVP ) THEN !--- ice velocity using aEVP (Kimmritz et al 2016 & 2017)
                   zbetav = MAX( zbeta(ji,jj), zbeta(ji,jj+1) )
-                  v_ice(ji,jj) = ( (          rswitch   * ( zmV_t(ji,jj) * ( zbetav * v_ice(ji,jj) + v_ice_b(ji,jj) )         & ! previous velocity
+                  v_ice(ji,jj) = ( (          zswitch   * ( zmV_t(ji,jj) * ( zbetav * v_ice(ji,jj) + v_ice_b(ji,jj) )         & ! previous velocity
                      &                                    + zRHS + zTauO * v_ice(ji,jj)                                       & ! F + tau_ia + Coriolis + spg + tau_io(only ocean part)
                      &                                    ) / MAX( zepsi, zmV_t(ji,jj) * ( zbetav + 1._wp ) + zTauO - zTauB ) & ! m/dt + tau_io(only ice part) + landfast
-                     &            + ( 1._wp - rswitch ) * (  v_ice_b(ji,jj)                                                   &
+                     &            + ( 1._wp - zswitch ) * (  v_ice_b(ji,jj)                                                   &
                      &                                     + v_ice  (ji,jj) * MAX( 0._wp, zbetav - zdtevp * rn_lf_relax )     & ! static friction => slow decrease to v=0
                      &                                    ) / ( zbetav + 1._wp )                                              &
                      &             ) * zmsk01y(ji,jj) + v_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01y(ji,jj) )                   & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &           )   * zmsk00y(ji,jj)
                ELSE               !--- ice velocity using EVP implicit formulation (cf Madec doc & Bouillon 2009)
-                  v_ice(ji,jj) = ( (         rswitch   * ( zmV_t(ji,jj)  * v_ice(ji,jj)                                       & ! previous velocity
+                  v_ice(ji,jj) = ( (         zswitch   * ( zmV_t(ji,jj)  * v_ice(ji,jj)                                       & ! previous velocity
                      &                                    + zRHS + zTauO * v_ice(ji,jj)                                       & ! F + tau_ia + Coriolis + spg + tau_io(only ocean part)
                      &                                    ) / MAX( zepsi, zmV_t(ji,jj) + zTauO - zTauB )                      & ! m/dt + tau_io(only ice part) + landfast
-                     &            + ( 1._wp - rswitch ) *   v_ice(ji,jj) * MAX( 0._wp, 1._wp - zdtevp * rn_lf_relax )         & ! static friction => slow decrease to v=0
+                     &            + ( 1._wp - zswitch ) *   v_ice(ji,jj) * MAX( 0._wp, 1._wp - zdtevp * rn_lf_relax )         & ! static friction => slow decrease to v=0
                      &              ) * zmsk01y(ji,jj) + v_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01y(ji,jj) )                  & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &            )   * zmsk00y(ji,jj)
                ENDIF
             END_2D
-            CALL lbc_lnk( 'icedyn_rhg_eap', v_ice, 'V', -1.0_wp )
-            !
-#if defined key_agrif
-!!          CALL agrif_interp_ice( 'V', jter, nn_nevp )
-            CALL agrif_interp_ice( 'V' )
-#endif
-            IF( ln_bdy )   CALL bdy_ice_dyn( 'V' )
             !
             DO_2D( 0, 0, 0, 0 )
                !                 !--- tau_io/(u_oce - u_ice)
@@ -601,38 +598,33 @@ CONTAINS
                !
                !                 !--- landfast switch => 0 = static  friction : TauB > RHS & sign(TauB) /= sign(RHS)
                !                                         1 = sliding friction : TauB < RHS
-               rswitch = 1._wp - MIN( 1._wp, ABS( SIGN( 1._wp, zRHS + ztaux_base(ji,jj) ) - SIGN( 1._wp, zRHS ) ) )
+               zswitch = 1._wp - MIN( 1._wp, ABS( SIGN( 1._wp, zRHS + ztaux_base(ji,jj) ) - SIGN( 1._wp, zRHS ) ) )
                !
                IF( ln_aEVP ) THEN !--- ice velocity using aEVP (Kimmritz et al 2016 & 2017)
                   zbetau = MAX( zbeta(ji,jj), zbeta(ji+1,jj) )
-                  u_ice(ji,jj) = ( (          rswitch   * ( zmU_t(ji,jj) * ( zbetau * u_ice(ji,jj) + u_ice_b(ji,jj) )         & ! previous velocity
+                  u_ice(ji,jj) = ( (          zswitch   * ( zmU_t(ji,jj) * ( zbetau * u_ice(ji,jj) + u_ice_b(ji,jj) )         & ! previous velocity
                      &                                    + zRHS + zTauO * u_ice(ji,jj)                                       & ! F + tau_ia + Coriolis + spg + tau_io(only ocean part)
                      &                                    ) / MAX( zepsi, zmU_t(ji,jj) * ( zbetau + 1._wp ) + zTauO - zTauB ) & ! m/dt + tau_io(only ice part) + landfast
-                     &            + ( 1._wp - rswitch ) * (  u_ice_b(ji,jj)                                                   &
+                     &            + ( 1._wp - zswitch ) * (  u_ice_b(ji,jj)                                                   &
                      &                                     + u_ice  (ji,jj) * MAX( 0._wp, zbetau - zdtevp * rn_lf_relax )     & ! static friction => slow decrease to v=0
                      &                                    ) / ( zbetau + 1._wp )                                              &
                      &             ) * zmsk01x(ji,jj) + u_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01x(ji,jj) )                   & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &           )   * zmsk00x(ji,jj)
                ELSE               !--- ice velocity using EVP implicit formulation (cf Madec doc & Bouillon 2009)
-                  u_ice(ji,jj) = ( (         rswitch   * ( zmU_t(ji,jj)  * u_ice(ji,jj)                                       & ! previous velocity
+                  u_ice(ji,jj) = ( (         zswitch   * ( zmU_t(ji,jj)  * u_ice(ji,jj)                                       & ! previous velocity
                      &                                    + zRHS + zTauO * u_ice(ji,jj)                                       & ! F + tau_ia + Coriolis + spg + tau_io(only ocean part)
                      &                                    ) / MAX( zepsi, zmU_t(ji,jj) + zTauO - zTauB )                      & ! m/dt + tau_io(only ice part) + landfast
-                     &            + ( 1._wp - rswitch ) *   u_ice(ji,jj) * MAX( 0._wp, 1._wp - zdtevp * rn_lf_relax )         & ! static friction => slow decrease to v=0
+                     &            + ( 1._wp - zswitch ) *   u_ice(ji,jj) * MAX( 0._wp, 1._wp - zdtevp * rn_lf_relax )         & ! static friction => slow decrease to v=0
                      &              ) * zmsk01x(ji,jj) + u_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01x(ji,jj) )                  & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &            )   * zmsk00x(ji,jj)
                ENDIF
             END_2D
-            CALL lbc_lnk( 'icedyn_rhg_eap', u_ice, 'U', -1.0_wp )
-            !
-#if defined key_agrif
-!!          CALL agrif_interp_ice( 'U', jter, nn_nevp )
-            CALL agrif_interp_ice( 'U' )
-#endif
-            IF( ln_bdy )   CALL bdy_ice_dyn( 'U' )
+
+            CALL lbc_lnk( 'icedyn_rhg_eap', u_ice, 'U', -1.0_wp, v_ice, 'V', -1.0_wp )
             !
          ELSE ! odd iterations
             !
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
                !                 !--- tau_io/(u_oce - u_ice)
                zTauO = zaU(ji,jj) * zrhoco * SQRT( ( u_ice (ji,jj) - u_oce (ji,jj) ) * ( u_ice (ji,jj) - u_oce (ji,jj) )  &
                   &                              + ( v_iceU(ji,jj) - v_oceU(ji,jj) ) * ( v_iceU(ji,jj) - v_oceU(ji,jj) ) )
@@ -655,34 +647,27 @@ CONTAINS
                !
                !                 !--- landfast switch => 0 = static  friction : TauB > RHS & sign(TauB) /= sign(RHS)
                !                                         1 = sliding friction : TauB < RHS
-               rswitch = 1._wp - MIN( 1._wp, ABS( SIGN( 1._wp, zRHS + ztaux_base(ji,jj) ) - SIGN( 1._wp, zRHS ) ) )
+               zswitch = 1._wp - MIN( 1._wp, ABS( SIGN( 1._wp, zRHS + ztaux_base(ji,jj) ) - SIGN( 1._wp, zRHS ) ) )
                !
                IF( ln_aEVP ) THEN !--- ice velocity using aEVP (Kimmritz et al 2016 & 2017)
                   zbetau = MAX( zbeta(ji,jj), zbeta(ji+1,jj) )
-                  u_ice(ji,jj) = ( (          rswitch   * ( zmU_t(ji,jj) * ( zbetau * u_ice(ji,jj) + u_ice_b(ji,jj) )         & ! previous velocity
+                  u_ice(ji,jj) = ( (          zswitch   * ( zmU_t(ji,jj) * ( zbetau * u_ice(ji,jj) + u_ice_b(ji,jj) )         & ! previous velocity
                      &                                    + zRHS + zTauO * u_ice(ji,jj)                                       & ! F + tau_ia + Coriolis + spg + tau_io(only ocean part)
                      &                                    ) / MAX( zepsi, zmU_t(ji,jj) * ( zbetau + 1._wp ) + zTauO - zTauB ) & ! m/dt + tau_io(only ice part) + landfast
-                     &            + ( 1._wp - rswitch ) * (  u_ice_b(ji,jj)                                                   &
+                     &            + ( 1._wp - zswitch ) * (  u_ice_b(ji,jj)                                                   &
                      &                                     + u_ice  (ji,jj) * MAX( 0._wp, zbetau - zdtevp * rn_lf_relax )     & ! static friction => slow decrease to v=0
                      &                                    ) / ( zbetau + 1._wp )                                              &
                      &             ) * zmsk01x(ji,jj) + u_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01x(ji,jj) )                   & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &           )   * zmsk00x(ji,jj)
                ELSE               !--- ice velocity using EVP implicit formulation (cf Madec doc & Bouillon 2009)
-                  u_ice(ji,jj) = ( (         rswitch   * ( zmU_t(ji,jj)  * u_ice(ji,jj)                                       & ! previous velocity
+                  u_ice(ji,jj) = ( (         zswitch   * ( zmU_t(ji,jj)  * u_ice(ji,jj)                                       & ! previous velocity
                      &                                    + zRHS + zTauO * u_ice(ji,jj)                                       & ! F + tau_ia + Coriolis + spg + tau_io(only ocean part)
                      &                                    ) / MAX( zepsi, zmU_t(ji,jj) + zTauO - zTauB )                      & ! m/dt + tau_io(only ice part) + landfast
-                     &            + ( 1._wp - rswitch ) *   u_ice(ji,jj) * MAX( 0._wp, 1._wp - zdtevp * rn_lf_relax )         & ! static friction => slow decrease to v=0
+                     &            + ( 1._wp - zswitch ) *   u_ice(ji,jj) * MAX( 0._wp, 1._wp - zdtevp * rn_lf_relax )         & ! static friction => slow decrease to v=0
                      &              ) * zmsk01x(ji,jj) + u_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01x(ji,jj) )                  & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &            )   * zmsk00x(ji,jj)
                ENDIF
             END_2D
-            CALL lbc_lnk( 'icedyn_rhg_eap', u_ice, 'U', -1.0_wp )
-            !
-#if defined key_agrif
-!!          CALL agrif_interp_ice( 'U', jter, nn_nevp )
-            CALL agrif_interp_ice( 'U' )
-#endif
-            IF( ln_bdy )   CALL bdy_ice_dyn( 'U' )
             !
             DO_2D( 0, 0, 0, 0 )
                !                 !--- tau_io/(v_oce - v_ice)
@@ -707,36 +692,39 @@ CONTAINS
                !
                !                 !--- landfast switch => 0 = static  friction : TauB > RHS & sign(TauB) /= sign(RHS)
                !                                         1 = sliding friction : TauB < RHS
-               rswitch = 1._wp - MIN( 1._wp, ABS( SIGN( 1._wp, zRHS + ztauy_base(ji,jj) ) - SIGN( 1._wp, zRHS ) ) )
+               zswitch = 1._wp - MIN( 1._wp, ABS( SIGN( 1._wp, zRHS + ztauy_base(ji,jj) ) - SIGN( 1._wp, zRHS ) ) )
                !
                IF( ln_aEVP ) THEN !--- ice velocity using aEVP (Kimmritz et al 2016 & 2017)
                   zbetav = MAX( zbeta(ji,jj), zbeta(ji,jj+1) )
-                  v_ice(ji,jj) = ( (          rswitch   * ( zmV_t(ji,jj) * ( zbetav * v_ice(ji,jj) + v_ice_b(ji,jj) )         & ! previous velocity
+                  v_ice(ji,jj) = ( (          zswitch   * ( zmV_t(ji,jj) * ( zbetav * v_ice(ji,jj) + v_ice_b(ji,jj) )         & ! previous velocity
                      &                                    + zRHS + zTauO * v_ice(ji,jj)                                       & ! F + tau_ia + Coriolis + spg + tau_io(only ocean part)
                      &                                    ) / MAX( zepsi, zmV_t(ji,jj) * ( zbetav + 1._wp ) + zTauO - zTauB ) & ! m/dt + tau_io(only ice part) + landfast
-                     &            + ( 1._wp - rswitch ) * (  v_ice_b(ji,jj)                                                   &
+                     &            + ( 1._wp - zswitch ) * (  v_ice_b(ji,jj)                                                   &
                      &                                     + v_ice  (ji,jj) * MAX( 0._wp, zbetav - zdtevp * rn_lf_relax )     & ! static friction => slow decrease to v=0
                      &                                    ) / ( zbetav + 1._wp )                                              &
                      &             ) * zmsk01y(ji,jj) + v_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01y(ji,jj) )                   & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &           )   * zmsk00y(ji,jj)
                ELSE               !--- ice velocity using EVP implicit formulation (cf Madec doc & Bouillon 2009)
-                  v_ice(ji,jj) = ( (         rswitch   * ( zmV_t(ji,jj)  * v_ice(ji,jj)                                       & ! previous velocity
+                  v_ice(ji,jj) = ( (         zswitch   * ( zmV_t(ji,jj)  * v_ice(ji,jj)                                       & ! previous velocity
                      &                                    + zRHS + zTauO * v_ice(ji,jj)                                       & ! F + tau_ia + Coriolis + spg + tau_io(only ocean part)
                      &                                    ) / MAX( zepsi, zmV_t(ji,jj) + zTauO - zTauB )                      & ! m/dt + tau_io(only ice part) + landfast
-                     &            + ( 1._wp - rswitch ) *   v_ice(ji,jj) * MAX( 0._wp, 1._wp - zdtevp * rn_lf_relax )         & ! static friction => slow decrease to v=0
+                     &            + ( 1._wp - zswitch ) *   v_ice(ji,jj) * MAX( 0._wp, 1._wp - zdtevp * rn_lf_relax )         & ! static friction => slow decrease to v=0
                      &              ) * zmsk01y(ji,jj) + v_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01y(ji,jj) )                  & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &            )   * zmsk00y(ji,jj)
                ENDIF
             END_2D
-            CALL lbc_lnk( 'icedyn_rhg_eap', v_ice, 'V', -1.0_wp )
             !
-#if defined key_agrif
-!!          CALL agrif_interp_ice( 'V', jter, nn_nevp )
-            CALL agrif_interp_ice( 'V' )
-#endif
-            IF( ln_bdy )   CALL bdy_ice_dyn( 'V' )
+            CALL lbc_lnk( 'icedyn_rhg_eap', u_ice, 'U', -1.0_wp, v_ice, 'V', -1.0_wp )
             !
          ENDIF
+#if defined key_agrif
+!!       CALL agrif_interp_ice( 'U', jter, nn_nevp )
+!!       CALL agrif_interp_ice( 'V', jter, nn_nevp )
+         CALL agrif_interp_ice( 'U' )
+         CALL agrif_interp_ice( 'V' )
+#endif
+         IF( ln_bdy )   CALL bdy_ice_dyn( 'U' )
+         IF( ln_bdy )   CALL bdy_ice_dyn( 'V' )
 
          ! convergence test
          IF( nn_rhg_chkcvg == 2 )   CALL rhg_cvg_eap( kt, jter, nn_nevp, u_ice, v_ice, zu_ice, zv_ice, zmsk15 )
@@ -751,7 +739,7 @@ CONTAINS
       !------------------------------------------------------------------------------!
       ! 4) Recompute delta, shear and div (inputs for mechanical redistribution)
       !------------------------------------------------------------------------------!
-      DO_2D( 1, 0, 1, 0 )
+      DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
 
          ! shear at F points
          zds(ji,jj) = ( ( u_ice(ji,jj+1) * r1_e1u(ji,jj+1) - u_ice(ji,jj) * r1_e1u(ji,jj) ) * e1f(ji,jj) * e1f(ji,jj)   &
@@ -770,27 +758,35 @@ CONTAINS
 
          zten_i(ji,jj) = zdt
 
-         ! shear**2 at T points (doc eq. A16)
-         zds2 = ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  )  &
-            &   + zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1)  &
+         ! shear**2 at T points (doc eq. A16), warning: add () for the North Pole reproducibility
+         zds2 = ( ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  ) )  &
+            &   + ( zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1) )  &
             &   ) * 0.25_wp * r1_e1e2t(ji,jj)
 
-         ! shear at T points
+         ! maximum shear rate at T points (includes tension, output only)
          pshear_i(ji,jj) = SQRT( zdt2 + zds2 )
 
-         ! divergence at T points
-         pdivu_i(ji,jj) = ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj)   &
-            &             + e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1)   &
+        ! shear at T-points
+         zshear(ji,jj)   = SQRT( zds2 )
+
+         ! divergence at T points, warning: add () for the North Pole reproducibility
+         pdivu_i(ji,jj) = ( ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj) )   &
+            &             + ( e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1) )   &
             &             ) * r1_e1e2t(ji,jj)
 
          ! delta at T points
-         zfac            = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) ! delta
-         rswitch         = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zfac ) ) ! 0 if delta=0
-         pdelta_i(ji,jj) = zfac + rn_creepl * rswitch ! delta+creepl
+         zdelta(ji,jj)   = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) ! delta
+
+         ! delta at T points
+         zswitch         = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zdelta(ji,jj) ) ) ! 0 if delta=0
+         pdelta_i(ji,jj) = zdelta(ji,jj) + rn_creepl * zswitch  
+                           ! it seems that deformation used for advection and mech redistribution is delta*
+                           ! MV in principle adding creep limit is a regularization for viscosity not for delta
+                           ! delta_star should not (in my view) be used in a replacement for delta
 
       END_2D
       CALL lbc_lnk( 'icedyn_rhg_eap', pshear_i, 'T', 1.0_wp, pdivu_i, 'T', 1.0_wp, pdelta_i, 'T', 1.0_wp, &
-         &                              zten_i, 'T', 1.0_wp, zs1    , 'T', 1.0_wp, zs2     , 'T', 1.0_wp, &
+         &                                 zs1, 'T', 1.0_wp, zs2    , 'T', 1.0_wp, &
          &                                zs12, 'F', 1.0_wp )
 
       ! --- Store the stress tensor for the next time step --- !
@@ -803,45 +799,38 @@ CONTAINS
       ! 5) diagnostics
       !------------------------------------------------------------------------------!
       ! --- ice-ocean, ice-atm. & ice-oceanbottom(landfast) stresses --- !
-      IF(  iom_use('utau_oi') .OR. iom_use('vtau_oi') .OR. iom_use('utau_ai') .OR. iom_use('vtau_ai') .OR. &
-         & iom_use('utau_bi') .OR. iom_use('vtau_bi') ) THEN
-         !
-         CALL lbc_lnk( 'icedyn_rhg_eap', ztaux_oi, 'U', -1.0_wp, ztauy_oi, 'V', -1.0_wp, ztaux_ai, 'U', -1.0_wp, &
-            &                            ztauy_ai, 'V', -1.0_wp, ztaux_bi, 'U', -1.0_wp, ztauy_bi, 'V', -1.0_wp )
-         !
-         CALL iom_put( 'utau_oi' , ztaux_oi * zmsk00 )
-         CALL iom_put( 'vtau_oi' , ztauy_oi * zmsk00 )
-         CALL iom_put( 'utau_ai' , ztaux_ai * zmsk00 )
-         CALL iom_put( 'vtau_ai' , ztauy_ai * zmsk00 )
-         CALL iom_put( 'utau_bi' , ztaux_bi * zmsk00 )
-         CALL iom_put( 'vtau_bi' , ztauy_bi * zmsk00 )
-      ENDIF
+      IF( iom_use('utau_oi') )   CALL iom_put( 'utau_oi' , ztaux_oi(A2D(0)) * zmsk00 )
+      IF( iom_use('vtau_oi') )   CALL iom_put( 'vtau_oi' , ztauy_oi(A2D(0)) * zmsk00 )
+      IF( iom_use('utau_ai') )   CALL iom_put( 'utau_ai' , ztaux_ai(A2D(0)) * zmsk00 )
+      IF( iom_use('vtau_ai') )   CALL iom_put( 'vtau_ai' , ztauy_ai(A2D(0)) * zmsk00 )
+      IF( iom_use('utau_bi') )   CALL iom_put( 'utau_bi' , ztaux_bi(A2D(0)) * zmsk00 )
+      IF( iom_use('vtau_bi') )   CALL iom_put( 'vtau_bi' , ztauy_bi(A2D(0)) * zmsk00 )
 
       ! --- divergence, shear and strength --- !
-      IF( iom_use('icediv') )   CALL iom_put( 'icediv' , pdivu_i  * zmsk00 )   ! divergence
-      IF( iom_use('iceshe') )   CALL iom_put( 'iceshe' , pshear_i * zmsk00 )   ! shear
-      IF( iom_use('icedlt') )   CALL iom_put( 'icedlt' , pdelta_i * zmsk00 )   ! delta
-      IF( iom_use('icestr') )   CALL iom_put( 'icestr' , strength * zmsk00 )   ! strength
+      IF( iom_use('icediv') )   CALL iom_put( 'icediv' , pdivu_i (A2D(0)) * zmsk00 )   ! divergence
+      IF( iom_use('iceshe') )   CALL iom_put( 'iceshe' , pshear_i(A2D(0)) * zmsk00 )   ! shear
+      IF( iom_use('icestr') )   CALL iom_put( 'icestr' , strength(A2D(0)) * zmsk00 )   ! strength
+      IF( iom_use('icedlt') )   CALL iom_put( 'icedlt' , zdelta  (A2D(0)) * zmsk00 )   ! delta
 
       ! --- Stress tensor invariants (SIMIP diags) --- !
       IF( iom_use('normstr') .OR. iom_use('sheastr') ) THEN
          !
-         ALLOCATE( zsig_I(jpi,jpj) , zsig_II(jpi,jpj) )
+         ALLOCATE( zsig_I(A2D(0)) , zsig_II(A2D(0)) )
          !
-         DO_2D( 1, 1, 1, 1 )
+         DO_2D( 0, 0, 0, 0 )
 
             ! Ice stresses
             ! sigma1, sigma2, sigma12 are some useful recombination of the stresses (Hunke and Dukowicz MWR 2002, Bouillon et al., OM2013)
             ! These are NOT stress tensor components, neither stress invariants, neither stress principal components
             ! I know, this can be confusing...
-            zfac             =   strength(ji,jj) / ( pdelta_i(ji,jj) + rn_creepl )
-            zsig1            =   zfac * ( pdivu_i(ji,jj) - pdelta_i(ji,jj) )
+            zfac             =   strength(ji,jj) / ( zdelta(ji,jj) + rn_creepl )          ! viscosity
+            zsig1            =   zfac * ( pdivu_i(ji,jj) - zdelta(ji,jj) )
             zsig2            =   zfac * z1_ecc2 * zten_i(ji,jj)
-            zsig12           =   zfac * z1_ecc2 * pshear_i(ji,jj)
+            zsig12           =   zfac * z1_ecc2 * zshear(ji,jj) * 0.5_wp
 
             ! Stress invariants (sigma_I, sigma_II, Coon 1974, Feltham 2008)
-            zsig_I (ji,jj)   =   zsig1 * 0.5_wp                                      ! 1st stress invariant, aka average normal stress, aka negative pressure
-            zsig_II(ji,jj)   =   SQRT ( zsig2 * zsig2 * 0.25_wp + zsig12 * zsig12 )  ! 2nd  ''       ''    , aka maximum shear stress
+            zsig_I (ji,jj)   =   0.5_wp * zsig1 
+            zsig_II(ji,jj)   =   0.5_wp * SQRT ( zsig2 * zsig2 + 4._wp * zsig12 * zsig12 )
 
          END_2D
          !
@@ -859,21 +848,20 @@ CONTAINS
       ! Recommendation 2 : need to use deformations at PREVIOUS iterate for viscosities
       IF( iom_use('sig1_pnorm') .OR. iom_use('sig2_pnorm') ) THEN
          !
-         ALLOCATE( zsig1_p(jpi,jpj) , zsig2_p(jpi,jpj) , zsig_I(jpi,jpj) , zsig_II(jpi,jpj) )
+         ALLOCATE( zsig1_p(A2D(0)) , zsig2_p(A2D(0)) , zsig_I(A2D(0)) , zsig_II(A2D(0)) )
          !
-         DO_2D( 1, 1, 1, 1 )
+        DO_2D( 0, 0, 0, 0 )
 
-            ! Ice stresses computed with **viscosities** (delta, p/delta) at **previous** iterates
-            !                        and **deformations** at current iterates
+            ! For EVP solvers, ice stresses at current iterates can be used
             !                        following Lemieux & Dupont (2020)
-            zfac             =   zp_delt(ji,jj)
-            zsig1            =   zfac * ( pdivu_i(ji,jj) - ( zdelta(ji,jj) + rn_creepl ) )
+            zfac             =   strength(ji,jj) / ( zdelta(ji,jj) + rn_creepl )
+            zsig1            =   zfac * ( pdivu_i(ji,jj) - zdelta(ji,jj) )
             zsig2            =   zfac * z1_ecc2 * zten_i(ji,jj)
-            zsig12           =   zfac * z1_ecc2 * pshear_i(ji,jj)
+            zsig12           =   zfac * z1_ecc2 * zshear(ji,jj) * 0.5_wp
 
             ! Stress invariants (sigma_I, sigma_II, Coon 1974, Feltham 2008), T-point
-            zsig_I(ji,jj)    =   zsig1 * 0.5_wp                                      ! 1st stress invariant, aka average normal stress, aka negative pressure
-            zsig_II(ji,jj)   =   SQRT ( zsig2 * zsig2 * 0.25_wp + zsig12 * zsig12 )  ! 2nd  ''       ''    , aka maximum shear stress
+            zsig_I(ji,jj)    =   0.5_wp * zsig1                                         ! normal stress
+            zsig_II(ji,jj)   =   0.5_wp * SQRT ( zsig2 * zsig2 + 4._wp * zsig12 * zsig12 ) ! max shear stress
 
             ! Normalized  principal stresses (used to display the ellipse)
             z1_strength      =   1._wp / MAX( 1._wp, strength(ji,jj) )
@@ -881,8 +869,8 @@ CONTAINS
             zsig2_p(ji,jj)   =   ( zsig_I(ji,jj) - zsig_II(ji,jj) ) * z1_strength
          END_2D
          !
-         CALL iom_put( 'sig1_pnorm' , zsig1_p )
-         CALL iom_put( 'sig2_pnorm' , zsig2_p )
+         CALL iom_put( 'sig1_pnorm' , zsig1_p(:,:) * zmsk00 )
+         CALL iom_put( 'sig2_pnorm' , zsig2_p(:,:) * zmsk00 )
 
          DEALLOCATE( zsig1_p , zsig2_p , zsig_I, zsig_II )
 
@@ -890,9 +878,6 @@ CONTAINS
 
       ! --- yieldcurve --- !
       IF( iom_use('yield11') .OR. iom_use('yield12') .OR. iom_use('yield22')) THEN
-
-         CALL lbc_lnk( 'icedyn_rhg_eap', zyield11, 'T', 1.0_wp, zyield22, 'T', 1.0_wp, zyield12, 'T', 1.0_wp )
-
          CALL iom_put( 'yield11', zyield11 * zmsk00 )
          CALL iom_put( 'yield22', zyield22 * zmsk00 )
          CALL iom_put( 'yield12', zyield12 * zmsk00 )
@@ -900,31 +885,22 @@ CONTAINS
 
       ! --- anisotropy tensor --- !
       IF( iom_use('aniso') ) THEN
-         CALL lbc_lnk( 'icedyn_rhg_eap', paniso_11, 'T', 1.0_wp )
          CALL iom_put( 'aniso' , paniso_11 * zmsk00 )
       ENDIF
 
       ! --- SIMIP --- !
-      IF(  iom_use('dssh_dx') .OR. iom_use('dssh_dy') .OR. &
-         & iom_use('corstrx') .OR. iom_use('corstry') .OR. iom_use('intstrx') .OR. iom_use('intstry') ) THEN
-         !
-         CALL lbc_lnk( 'icedyn_rhg_eap', zspgU, 'U', -1.0_wp, zspgV, 'V', -1.0_wp, &
-            &                            zCorU, 'U', -1.0_wp, zCorV, 'V', -1.0_wp, &
-            &                              zfU, 'U', -1.0_wp,   zfV, 'V', -1.0_wp )
-
-         CALL iom_put( 'dssh_dx' , zspgU * zmsk00 )   ! Sea-surface tilt term in force balance (x)
-         CALL iom_put( 'dssh_dy' , zspgV * zmsk00 )   ! Sea-surface tilt term in force balance (y)
-         CALL iom_put( 'corstrx' , zCorU * zmsk00 )   ! Coriolis force term in force balance (x)
-         CALL iom_put( 'corstry' , zCorV * zmsk00 )   ! Coriolis force term in force balance (y)
-         CALL iom_put( 'intstrx' , zfU   * zmsk00 )   ! Internal force term in force balance (x)
-         CALL iom_put( 'intstry' , zfV   * zmsk00 )   ! Internal force term in force balance (y)
-      ENDIF
+      IF( iom_use('dssh_dx') )   CALL iom_put( 'dssh_dx' , zspgU(A2D(0)) * zmsk00 )   ! Sea-surface tilt term in force balance (x)
+      IF( iom_use('dssh_dy') )   CALL iom_put( 'dssh_dy' , zspgV(A2D(0)) * zmsk00 )   ! Sea-surface tilt term in force balance (y)
+      IF( iom_use('corstrx') )   CALL iom_put( 'corstrx' , zCorU(A2D(0)) * zmsk00 )   ! Coriolis force term in force balance (x)
+      IF( iom_use('corstry') )   CALL iom_put( 'corstry' , zCorV(A2D(0)) * zmsk00 )   ! Coriolis force term in force balance (y)
+      IF( iom_use('intstrx') )   CALL iom_put( 'intstrx' , zfU  (A2D(0)) * zmsk00 )   ! Internal force term in force balance (x)
+      IF( iom_use('intstry') )   CALL iom_put( 'intstry' , zfV  (A2D(0)) * zmsk00 )   ! Internal force term in force balance (y)
 
       IF(  iom_use('xmtrpice') .OR. iom_use('ymtrpice') .OR. &
          & iom_use('xmtrpsnw') .OR. iom_use('ymtrpsnw') .OR. iom_use('xatrp') .OR. iom_use('yatrp') ) THEN
          !
-         ALLOCATE( zdiag_xmtrp_ice(jpi,jpj) , zdiag_ymtrp_ice(jpi,jpj) , &
-            &      zdiag_xmtrp_snw(jpi,jpj) , zdiag_ymtrp_snw(jpi,jpj) , zdiag_xatrp(jpi,jpj) , zdiag_yatrp(jpi,jpj) )
+         ALLOCATE( zdiag_xmtrp_ice(A2D(0)) , zdiag_ymtrp_ice(A2D(0)) , &
+            &      zdiag_xmtrp_snw(A2D(0)) , zdiag_ymtrp_snw(A2D(0)) , zdiag_xatrp(A2D(0)) , zdiag_yatrp(A2D(0)) )
          !
          DO_2D( 0, 0, 0, 0 )
             ! 2D ice mass, snow mass, area transport arrays (X, Y)
@@ -942,10 +918,6 @@ CONTAINS
 
          END_2D
 
-         CALL lbc_lnk( 'icedyn_rhg_eap', zdiag_xmtrp_ice, 'U', -1.0_wp, zdiag_ymtrp_ice, 'V', -1.0_wp, &
-            &                            zdiag_xmtrp_snw, 'U', -1.0_wp, zdiag_ymtrp_snw, 'V', -1.0_wp, &
-            &                            zdiag_xatrp    , 'U', -1.0_wp, zdiag_yatrp    , 'V', -1.0_wp )
-
          CALL iom_put( 'xmtrpice' , zdiag_xmtrp_ice )   ! X-component of sea-ice mass transport (kg/s)
          CALL iom_put( 'ymtrpice' , zdiag_ymtrp_ice )   ! Y-component of sea-ice mass transport
          CALL iom_put( 'xmtrpsnw' , zdiag_xmtrp_snw )   ! X-component of snow mass transport (kg/s)
@@ -962,11 +934,11 @@ CONTAINS
       IF( nn_rhg_chkcvg == 1 .OR. nn_rhg_chkcvg == 2 ) THEN
          IF( iom_use('uice_cvg') ) THEN
             IF( ln_aEVP ) THEN   ! output: beta * ( u(t=nn_nevp) - u(t=nn_nevp-1) )
-               CALL iom_put( 'uice_cvg', MAX( ABS( u_ice(:,:) - zu_ice(:,:) ) * zbeta(:,:) * umask(:,:,1) , &
-                  &                           ABS( v_ice(:,:) - zv_ice(:,:) ) * zbeta(:,:) * vmask(:,:,1) ) * zmsk15(:,:) )
+               CALL iom_put( 'uice_cvg', MAX( ABS( u_ice(A2D(0)) - zu_ice(:,:) ) * zbeta(A2D(0)) * umask(A2D(0),1) , &
+                  &                           ABS( v_ice(A2D(0)) - zv_ice(:,:) ) * zbeta(A2D(0)) * vmask(A2D(0),1) ) * zmsk15(:,:) )
             ELSE                 ! output: nn_nevp * ( u(t=nn_nevp) - u(t=nn_nevp-1) )
-               CALL iom_put( 'uice_cvg', REAL( nn_nevp ) * MAX( ABS( u_ice(:,:) - zu_ice(:,:) ) * umask(:,:,1) , &
-                  &                                             ABS( v_ice(:,:) - zv_ice(:,:) ) * vmask(:,:,1) ) * zmsk15(:,:) )
+               CALL iom_put( 'uice_cvg', REAL( nn_nevp ) * MAX( ABS( u_ice(A2D(0)) - zu_ice(:,:) ) * umask(A2D(0),1) , &
+                  &                                             ABS( v_ice(A2D(0)) - zv_ice(:,:) ) * vmask(A2D(0),1) ) * zmsk15(:,:) )
             ENDIF
          ENDIF
       ENDIF
@@ -987,22 +959,27 @@ CONTAINS
       !!
       !! ** Note    :   for the first sub-iteration, uice_cvg is set to 0 (too large otherwise)
       !!----------------------------------------------------------------------
-      INTEGER ,                 INTENT(in) ::   kt, kiter, kitermax       ! ocean time-step index
-      REAL(wp), DIMENSION(:,:), INTENT(in) ::   pu, pv, pub, pvb          ! now and before velocities
-      REAL(wp), DIMENSION(:,:), INTENT(in) ::   pmsk15
+      INTEGER ,                    INTENT(in) ::   kt, kiter, kitermax       ! ocean time-step index
+      REAL(wp), DIMENSION(:,:)   , INTENT(in) ::   pu, pv                    ! now velocities
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pub, pvb                  ! before velocities
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pmsk15
       !!
       INTEGER           ::   it, idtime, istatus
       INTEGER           ::   ji, jj          ! dummy loop indices
       REAL(wp)          ::   zresm           ! local real
       CHARACTER(len=20) ::   clname
+      LOGICAL           ::   ll_maxcvg
+      REAL(wp), DIMENSION(A2D(0),2) ::   zres
+      REAL(wp), DIMENSION(2)        ::   ztmp
       !!----------------------------------------------------------------------
-
+      ll_maxcvg = .FALSE.
+      !
       ! create file
       IF( kt == nit000 .AND. kiter == 1 ) THEN
          !
          IF( lwp ) THEN
             WRITE(numout,*)
-            WRITE(numout,*) 'rhg_cvg_eap : ice rheology convergence control'
+            WRITE(numout,*) 'rhg_cvg : ice rheology convergence control'
             WRITE(numout,*) '~~~~~~~'
          ENDIF
          !
@@ -1011,7 +988,7 @@ CONTAINS
             IF( .NOT. Agrif_Root() )   clname = TRIM(Agrif_CFixed())//"_"//TRIM(clname)
             istatus = NF90_CREATE( TRIM(clname), NF90_CLOBBER, ncvgid )
             istatus = NF90_DEF_DIM( ncvgid, 'time'  , NF90_UNLIMITED, idtime )
-            istatus = NF90_DEF_VAR( ncvgid, 'uice_cvg', NF90_DOUBLE   , (/ idtime /), nvarid )
+            istatus = NF90_DEF_VAR( ncvgid, 'uice_cvg', NF90_DOUBLE , (/ idtime /), nvarid )
             istatus = NF90_ENDDEF(ncvgid)
          ENDIF
          !
@@ -1025,11 +1002,21 @@ CONTAINS
          zresm = 0._wp
       ELSE
          zresm = 0._wp
-         DO_2D( 0, 0, 0, 0 )
-            zresm = MAX( zresm, MAX( ABS( pu(ji,jj) - pub(ji,jj) ) * umask(ji,jj,1), &
-               &                     ABS( pv(ji,jj) - pvb(ji,jj) ) * vmask(ji,jj,1) ) * pmsk15(ji,jj) )
-         END_2D
-         CALL mpp_max( 'icedyn_rhg_evp', zresm )   ! max over the global domain
+         IF( ll_maxcvg ) THEN   ! error max over the domain
+            DO_2D( 0, 0, 0, 0 )
+               zresm = MAX( zresm, MAX( ABS( pu(ji,jj) - pub(ji,jj) ) * umask(ji,jj,1), &
+                  &                     ABS( pv(ji,jj) - pvb(ji,jj) ) * vmask(ji,jj,1) ) * pmsk15(ji,jj) )
+            END_2D
+            CALL mpp_max( 'icedyn_rhg_eap', zresm )
+         ELSE                   ! error averaged over the domain
+            DO_2D( 0, 0, 0, 0 )
+               zres(ji,jj,1) = MAX( ABS( pu(ji,jj) - pub(ji,jj) ) * umask(ji,jj,1), &
+                  &                 ABS( pv(ji,jj) - pvb(ji,jj) ) * vmask(ji,jj,1) ) * pmsk15(ji,jj)
+               zres(ji,jj,2) = pmsk15(ji,jj)
+            END_2D
+            ztmp(:) = glob_sum_vec( 'icedyn_rhg_eap', zres )
+            IF( ztmp(2) /= 0._wp )   zresm = ztmp(1) / ztmp(2)
+         ENDIF
       ENDIF
 
       IF( lwm ) THEN

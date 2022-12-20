@@ -22,6 +22,7 @@ MODULE dynvor
    !!             -   ! 2018-04  (G. Madec)  add pre-computed gradient for metric term calculation
    !!            4.x  ! 2020-03  (G. Madec, A. Nasser)  make ln_dynvor_msk truly efficient on relative vorticity
    !!            4.2  ! 2020-12  (G. Madec, E. Clementi) add vortex force trends (ln_vortex_force=T)
+   !!            4.5  ! 2022-06  (S. Techene, G, Madec) refactorization to reduce local memory usage
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -173,11 +174,11 @@ CONTAINS
             ENDIF
          CASE( np_EET )                        !* energy conserving scheme (een scheme using e3t)
                              CALL vor_eeT( kt, Kmm, ntot, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
-            IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
+               IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
                              CALL vor_eeT( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
-            ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
+               ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
                              CALL vor_eeT( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
-            ENDIF
+               ENDIF
          CASE( np_ENE )                        !* energy conserving scheme
                              CALL vor_ene( kt, Kmm, ntot, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
             IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
@@ -200,11 +201,11 @@ CONTAINS
             IF( ln_vortex_force ) CALL vor_ens( kt, Kmm, nrvm, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add vortex force
          CASE( np_EEN )                        !* energy and enstrophy conserving scheme
                              CALL vor_een( kt, Kmm, ntot, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
-            IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
+               IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
                              CALL vor_een( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
-            ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
+               ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
                              CALL vor_een( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
-            ENDIF
+               ENDIF
          END SELECT
          !
       ENDIF
@@ -320,8 +321,8 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk           ! dummy loop indices
       REAL(wp) ::   zx1, zy1, zx2, zy2   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls))        ::   zwx, zwy, zwt   ! 2D workspace
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zwz             ! 3D workspace, jpkm1 -> avoid lbc_lnk on jpk that is not defined
+      REAL(wp), DIMENSION(T2D(1))           ::   zwt   ! 2D workspace
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zwz   ! 3D workspace, jpkm1 -> avoid lbc_lnk on jpk that is not defined
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -333,28 +334,25 @@ CONTAINS
       ENDIF
       !
       !
-      SELECT CASE( kvor )                 !== relative vorticity considered  ==!
-      !
-      CASE ( np_RVO , np_CRV )                  !* relative vorticity at f-point is used
-         ALLOCATE( zwz(A2D(nn_hls),jpk) )
-         DO jk = 1, jpkm1                                ! Horizontal slab
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zwz(ji,jj,jk) = (  e2v(ji+1,jj) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk)  &
-                  &             - e1u(ji,jj+1) * pu(ji,jj+1,jk) + e1u(ji,jj) * pu(ji,jj,jk)  ) * r1_e1e2f(ji,jj)
-            END_2D
-            IF( ln_dynvor_msk ) THEN                     ! mask relative vorticity
-               DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-                  zwz(ji,jj,jk) = zwz(ji,jj,jk) * fmask(ji,jj,jk)
-               END_2D
-            ENDIF
-         END DO
-         IF (nn_hls==1) CALL lbc_lnk( 'dynvor', zwz, 'F', 1.0_wp )
-         !
-      END SELECT
-
       !                                                ! ===============
       DO jk = 1, jpkm1                                 ! Horizontal slab
          !                                             ! ===============
+         !
+         SELECT CASE( kvor )                 !== relative vorticity considered  ==!
+            !
+         CASE ( np_RVO , np_CRV )                  !* relative vorticity at f-point is used
+            ALLOCATE( zwz(T2D(1)) )
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = (  ( e2v(ji+1,jj) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk) )  &                   ! add () for
+                  &          - ( e1u(ji,jj+1) * pu(ji,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) * r1_e1e2f(ji,jj) ! NP repro
+            END_2D
+            IF( ln_dynvor_msk ) THEN                     ! mask relative vorticity
+               DO_2D( 1, 1, 1, 1 )
+                  zwz(ji,jj) = zwz(ji,jj) * fmask(ji,jj,jk)
+               END_2D
+            ENDIF
+            !
+         END SELECT
          !
          SELECT CASE( kvor )                 !==  volume weighted vorticity considered  ==!
          !
@@ -364,8 +362,8 @@ CONTAINS
             END_2D
          CASE ( np_RVO )                           !* relative vorticity
             DO_2D( 0, 1, 0, 1 )
-               zwt(ji,jj) = r1_4 * (   zwz(ji-1,jj  ,jk) + zwz(ji,jj  ,jk)       &
-                  &                  + zwz(ji-1,jj-1,jk) + zwz(ji,jj-1,jk)   )   &
+               zwt(ji,jj) = r1_4 * (   ( zwz(ji-1,jj  ) + zwz(ji,jj  ) )      &   ! need additional () for
+                  &                  + ( zwz(ji-1,jj-1) + zwz(ji,jj-1) )  )   &   ! reproducibility around NP
                   &              * e1e2t(ji,jj)*e3t(ji,jj,jk,Kmm)
             END_2D
          CASE ( np_MET )                           !* metric term
@@ -376,8 +374,8 @@ CONTAINS
             END_2D
          CASE ( np_CRV )                           !* Coriolis + relative vorticity
             DO_2D( 0, 1, 0, 1 )
-               zwt(ji,jj) = (  ff_t(ji,jj) + r1_4 * ( zwz(ji-1,jj  ,jk) + zwz(ji,jj  ,jk)        &
-                  &                                 + zwz(ji-1,jj-1,jk) + zwz(ji,jj-1,jk) )  )   &
+               zwt(ji,jj) = (  ff_t(ji,jj) + r1_4 * ( ( zwz(ji-1,jj  ) + zwz(ji,jj  ) )        &   ! need additional () for
+                  &                                 + ( zwz(ji-1,jj-1) + zwz(ji,jj-1) ) )  )   &   ! reproducibility around NP
                   &       * e1e2t(ji,jj)*e3t(ji,jj,jk,Kmm)
             END_2D
          CASE ( np_CME )                           !* Coriolis + metric
@@ -440,7 +438,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk           ! dummy loop indices
       REAL(wp) ::   zx1, zy1, zx2, zy2, ze3f, zmsk   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   zwx, zwy, zwz   ! 2D workspace
+      REAL(wp), DIMENSION(T2D(1)) ::   zwx, zwy, zwz   ! 2D workspace
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -462,8 +460,8 @@ CONTAINS
             END_2D
          CASE ( np_RVO )                           !* relative vorticity
             DO_2D( 1, 0, 1, 0 )
-               zwz(ji,jj) = (  e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk)    &
-                  &          - e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) + e1u(ji,jj) * pu(ji,jj,jk)  ) * r1_e1e2f(ji,jj)
+               zwz(ji,jj) = (  ( e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk) )    &                 ! add () for
+                  &          - ( e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) * r1_e1e2f(ji,jj) ! NP repro
             END_2D
             IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity
                DO_2D( 1, 0, 1, 0 )
@@ -477,8 +475,8 @@ CONTAINS
             END_2D
          CASE ( np_CRV )                           !* Coriolis + relative vorticity
             DO_2D( 1, 0, 1, 0 )
-               zwz(ji,jj) = ff_f(ji,jj) + (  e2v(ji+1,jj) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk)      &
-                  &                        - e1u(ji,jj+1) * pu(ji,jj+1,jk) + e1u(ji,jj) * pu(ji,jj,jk)  ) * r1_e1e2f(ji,jj)
+               zwz(ji,jj) = ff_f(ji,jj) + (  ( e2v(ji+1,jj) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk) ) & ! add () for NP repro
+                  &                        - ( e1u(ji,jj+1) * pu(ji,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) * r1_e1e2f(ji,jj)
             END_2D
             IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity (NOT the Coriolis term)
                DO_2D( 1, 0, 1, 0 )
@@ -502,22 +500,22 @@ CONTAINS
          SELECT CASE( nn_e3f_typ  )           !==  potential vorticity  ==!
          CASE ( 0 )                                   ! original formulation  (masked averaging of e3t divided by 4)
             DO_2D( 1, 0, 1, 0 )
-               ze3f = (  e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)   &
-                  &    + e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk)   &
-                  &    + e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)   &
-                  &    + e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk)  )
+               ze3f = (  ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
+                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &    + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
+                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )  )
                IF( ze3f /= 0._wp ) THEN   ;   zwz(ji,jj) = zwz(ji,jj) * 4._wp / ze3f
                ELSE                       ;   zwz(ji,jj) = 0._wp
                ENDIF
             END_2D
          CASE ( 1 )                                   ! new formulation  (masked averaging of e3t divided by the sum of mask)
             DO_2D( 1, 0, 1, 0 )
-               ze3f = (   e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)   &
-                  &     + e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk)   &
-                  &     + e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)   &
-                  &     + e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk)   )
-               zmsk = (   tmask(ji,jj+1,jk)   + tmask(ji+1,jj+1,jk)   &
-                  &     + tmask(ji,jj  ,jk)   + tmask(ji+1,jj  ,jk)   )
+               ze3f = (   ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
+                  &     +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &     + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
+                  &     +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   )
+               zmsk = (   tmask(ji,jj+1,jk) + tmask(ji+1,jj+1,jk)   &
+                  &     + tmask(ji,jj  ,jk) + tmask(ji+1,jj  ,jk)   )
                IF( ze3f /= 0._wp ) THEN   ;   zwz(ji,jj) = zwz(ji,jj) * zmsk / ze3f
                ELSE                       ;   zwz(ji,jj) = 0._wp
                ENDIF
@@ -573,7 +571,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp) ::   zuav, zvau, ze3f, zmsk   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   zwx, zwy, zwz   ! 2D workspace
+      REAL(wp), DIMENSION(T2D(1)) ::   zwx, zwy, zwz   ! 2D workspace
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -594,8 +592,8 @@ CONTAINS
             END_2D
          CASE ( np_RVO )                           !* relative vorticity
             DO_2D( 1, 0, 1, 0 )
-               zwz(ji,jj) = (  e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk)    &
-                  &          - e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) + e1u(ji,jj) * pu(ji,jj,jk)  ) * r1_e1e2f(ji,jj)
+               zwz(ji,jj) = (  ( e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk) )    &   ! add () for NP repro
+                  &          - ( e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) * r1_e1e2f(ji,jj)
             END_2D
             IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity
                DO_2D( 1, 0, 1, 0 )
@@ -609,8 +607,8 @@ CONTAINS
             END_2D
          CASE ( np_CRV )                           !* Coriolis + relative vorticity
             DO_2D( 1, 0, 1, 0 )
-               zwz(ji,jj) = ff_f(ji,jj) + (  e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk)  &
-                  &                        - e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) + e1u(ji,jj) * pu(ji,jj,jk)  ) * r1_e1e2f(ji,jj)
+               zwz(ji,jj) = ff_f(ji,jj) + ( ( e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk) ) &! add () for NP repro
+                  &                        -( e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) * r1_e1e2f(ji,jj)
             END_2D
             IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity (NOT the Coriolis term)
                DO_2D( 1, 0, 1, 0 )
@@ -635,22 +633,22 @@ CONTAINS
          SELECT CASE( nn_e3f_typ )           !==  potential vorticity  ==!
          CASE ( 0 )                                   ! original formulation  (masked averaging of e3t divided by 4)
             DO_2D( 1, 0, 1, 0 )
-               ze3f = (  e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)   &
-                  &    + e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk)   &
-                  &    + e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)   &
-                  &    + e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk)  )
+               ze3f = (  ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
+                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &    + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
+                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )  )
                IF( ze3f /= 0._wp ) THEN   ;   zwz(ji,jj) = zwz(ji,jj) * 4._wp / ze3f
                ELSE                       ;   zwz(ji,jj) = 0._wp
                ENDIF
             END_2D
          CASE ( 1 )                                   ! new formulation  (masked averaging of e3t divided by the sum of mask)
             DO_2D( 1, 0, 1, 0 )
-               ze3f = (   e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)   &
-                  &     + e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk)   &
-                  &     + e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)   &
-                  &     + e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk)   )
-               zmsk = (   tmask(ji,jj+1,jk)   + tmask(ji+1,jj+1,jk)   &
-                  &     + tmask(ji,jj  ,jk)   + tmask(ji+1,jj  ,jk)   )
+               ze3f = (   ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
+                  &     +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &     + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
+                  &     +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   )
+               zmsk = (   tmask(ji,jj+1,jk) + tmask(ji+1,jj+1,jk)   &
+                  &     + tmask(ji,jj  ,jk) + tmask(ji+1,jj  ,jk)   )
                IF( ze3f /= 0._wp ) THEN   ;   zwz(ji,jj) = zwz(ji,jj) * zmsk / ze3f
                ELSE                       ;   zwz(ji,jj) = 0._wp
                ENDIF
@@ -665,10 +663,10 @@ CONTAINS
          !
          !                                   !==  compute and add the vorticity term trend  =!
          DO_2D( 0, 0, 0, 0 )
-            zuav = r1_8 * r1_e1u(ji,jj) * (  zwy(ji  ,jj-1) + zwy(ji+1,jj-1)  &
-               &                           + zwy(ji  ,jj  ) + zwy(ji+1,jj  )  )
-            zvau =-r1_8 * r1_e2v(ji,jj) * (  zwx(ji-1,jj  ) + zwx(ji-1,jj+1)  &
-               &                           + zwx(ji  ,jj  ) + zwx(ji  ,jj+1)  )
+            zuav = r1_8 * r1_e1u(ji,jj) * (  ( zwy(ji  ,jj-1) + zwy(ji+1,jj-1) )  &   ! need additional () for
+               &                           + ( zwy(ji  ,jj  ) + zwy(ji+1,jj  ) )  )   ! reproducibility around NP
+            zvau =-r1_8 * r1_e2v(ji,jj) * (  ( zwx(ji-1,jj  ) + zwx(ji-1,jj+1) )  &
+               &                           + ( zwx(ji  ,jj  ) + zwx(ji  ,jj+1) )  )
             pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zuav * ( zwz(ji  ,jj-1) + zwz(ji,jj) )
             pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zvau * ( zwz(ji-1,jj  ) + zwz(ji,jj) )
          END_2D
@@ -705,16 +703,10 @@ CONTAINS
       INTEGER  ::   ierr         ! local integer
       REAL(wp) ::   zua, zva     ! local scalars
       REAL(wp) ::   zmsk, ze3f   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls))       ::   z1_e3f
-#if defined key_loop_fusion
-      REAL(wp) ::   ztne, ztnw, ztnw_ip1, ztse, ztse_jp1, ztsw_jp1, ztsw_ip1
-      REAL(wp) ::   zwx, zwx_im1, zwx_jp1, zwx_im1_jp1
-      REAL(wp) ::   zwy, zwy_ip1, zwy_jm1, zwy_ip1_jm1
-#else
-      REAL(wp), DIMENSION(A2D(nn_hls))       ::   zwx , zwy
-      REAL(wp), DIMENSION(A2D(nn_hls))       ::   ztnw, ztne, ztsw, ztse
-#endif
-      REAL(wp), DIMENSION(A2D(nn_hls),jpkm1) ::   zwz   ! 3D workspace, jpkm1 -> jpkm1 -> avoid lbc_lnk on jpk that is not defined
+      REAL(wp), DIMENSION(T2D(1)) ::   z1_e3f
+      REAL(wp), DIMENSION(T2D(1)) ::   zwx , zwy
+      REAL(wp), DIMENSION(T2D(1)) ::   ztnw, ztne, ztsw, ztse
+      REAL(wp), DIMENSION(T2D(1)) ::   zwz   ! 3D workspace, jpkm1 -> jpkm1 -> avoid lbc_lnk on jpk that is not defined
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -730,33 +722,29 @@ CONTAINS
          !                                             ! ===============
          !
 #if defined key_qco   ||   defined key_linssh
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )                 ! == reciprocal of e3 at F-point (key_qco)
+         DO_2D( 1, 1, 1, 1 )                 ! == reciprocal of e3 at F-point (key_qco)
             z1_e3f(ji,jj) = 1._wp / e3f_vor(ji,jj,jk)
          END_2D
 #else
          SELECT CASE( nn_e3f_typ )           ! == reciprocal of e3 at F-point
          CASE ( 0 )                                   ! original formulation  (masked averaging of e3t divided by 4)
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               ze3f = (  (e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)    &
-                  &    +  e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk))   &
-                  &    + (e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)    &
-                  &    +  e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk))  )
+            DO_2D( 1, 1, 1, 1 )
+               ze3f = (  ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
+                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &    + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
+                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )  )
                IF( ze3f /= 0._wp ) THEN   ;   z1_e3f(ji,jj) = 4._wp / ze3f
                ELSE                       ;   z1_e3f(ji,jj) = 0._wp
                ENDIF
             END_2D
          CASE ( 1 )                                   ! new formulation  (masked averaging of e3t divided by the sum of mask)
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               ze3f = (  (e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)    &
-                  &    +  e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk))   &
-                  &    + (e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)    &
-                  &    +  e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk))  )
-               zmsk = (                    tmask(ji,jj+1,jk) +                     tmask(ji+1,jj+1,jk)   &
-                  &                      + tmask(ji,jj  ,jk) +                     tmask(ji+1,jj  ,jk)  )
+            DO_2D( 1, 1, 1, 1 )
+               ze3f = (  ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
+                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &    + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
+                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )  )
+               zmsk = (tmask(ji,jj+1,jk) + tmask(ji+1,jj+1,jk)   &
+                  &  + tmask(ji,jj  ,jk) + tmask(ji+1,jj  ,jk)  )
                IF( ze3f /= 0._wp ) THEN   ;   z1_e3f(ji,jj) = zmsk / ze3f
                ELSE                       ;   z1_e3f(ji,jj) = 0._wp
                ENDIF
@@ -767,86 +755,72 @@ CONTAINS
          SELECT CASE( kvor )                 !==  vorticity considered  ==!
          !
          CASE ( np_COR )                           !* Coriolis (planetary vorticity)
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zwz(ji,jj,jk) = ff_f(ji,jj) * z1_e3f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = ff_f(ji,jj) * z1_e3f(ji,jj)
             END_2D
          CASE ( np_RVO )                           !* relative vorticity
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zwz(ji,jj,jk) = ( e2v(ji+1,jj  ) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk)  &
-                  &            - e1u(ji  ,jj+1) * pu(ji,jj+1,jk) + e1u(ji,jj) * pu(ji,jj,jk)  ) * r1_e1e2f(ji,jj)*z1_e3f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = ( ( e2v(ji+1,jj  ) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk) )  &   ! add () for NP repro
+                  &         - ( e1u(ji  ,jj+1) * pu(ji,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) * r1_e1e2f(ji,jj)*z1_e3f(ji,jj)
             END_2D
             IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity
-               DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-                  zwz(ji,jj,jk) = zwz(ji,jj,jk) * fmask(ji,jj,jk)
+               DO_2D( 1, 1, 1, 1 )
+                  zwz(ji,jj) = zwz(ji,jj) * fmask(ji,jj,jk)
                END_2D
             ENDIF
          CASE ( np_MET )                           !* metric term
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zwz(ji,jj,jk) = (   ( pv(ji+1,jj,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
-                  &              - ( pu(ji,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)   ) * z1_e3f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = (   ( pv(ji+1,jj,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
+                  &           - ( pu(ji,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)   ) * z1_e3f(ji,jj)
             END_2D
          CASE ( np_CRV )                           !* Coriolis + relative vorticity
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            ! round brackets added to fix the order of floating point operations
-            ! needed to ensure halo 1 - halo 2 compatibility
-               zwz(ji,jj,jk) = (  ff_f(ji,jj) + ( ( e2v(ji+1,jj  ) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk)      &
-                  &                               )                                                                  & ! bracket for halo 1 - halo 2 compatibility
-                  &                             - ( e1u(ji  ,jj+1) * pu(ji,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk)      &
-                  &                               )                                                                  & ! bracket for halo 1 - halo 2 compatibility
-                  &                             ) * r1_e1e2f(ji,jj)   ) * z1_e3f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = (  ff_f(ji,jj) + ( ( e2v(ji+1,jj  ) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk) )   & ! add () for
+                  &                          - ( e1u(ji  ,jj+1) * pu(ji,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )   & ! NP repro
+                  &                          ) * r1_e1e2f(ji,jj)   ) * z1_e3f(ji,jj)
             END_2D
             IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity
-               DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-                  zwz(ji,jj,jk) = ( zwz(ji,jj,jk) - ff_f(ji,jj) ) * fmask(ji,jj,jk) + ff_f(ji,jj)
+               DO_2D( 1, 1, 1, 1 )
+                  zwz(ji,jj) = ( zwz(ji,jj) - ff_f(ji,jj) ) * fmask(ji,jj,jk) + ff_f(ji,jj)
                END_2D
             ENDIF
          CASE ( np_CME )                           !* Coriolis + metric
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zwz(ji,jj,jk) = (   ff_f(ji,jj) + ( pv(ji+1,jj  ,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
-                  &                            - ( pu(ji  ,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)   ) * z1_e3f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = (   ff_f(ji,jj) + ( pv(ji+1,jj  ,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
+                  &                         - ( pu(ji  ,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)   ) * z1_e3f(ji,jj)
             END_2D
          CASE DEFAULT                                             ! error
             CALL ctl_stop('STOP','dyn_vor: wrong value for kvor'  )
          END SELECT
-         !                                             ! ===============
-      END DO                                           !   End of slab
-      !                                                ! ===============
-      !
-      IF (nn_hls==1) CALL lbc_lnk( 'dynvor', zwz, 'F', 1.0_wp )
-      !
-      !                                                ! ===============
-      !                                                ! Horizontal slab
-      !                                                ! ===============
+         !
 #if defined key_loop_fusion
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-         !                                   !==  horizontal fluxes  ==!
-         zwx         = e2u(ji  ,jj  ) * e3u(ji  ,jj  ,jk,Kmm) * pu(ji  ,jj  ,jk)
-         zwx_im1     = e2u(ji-1,jj  ) * e3u(ji-1,jj  ,jk,Kmm) * pu(ji-1,jj  ,jk)
-         zwx_jp1     = e2u(ji  ,jj+1) * e3u(ji  ,jj+1,jk,Kmm) * pu(ji  ,jj+1,jk)
-         zwx_im1_jp1 = e2u(ji-1,jj+1) * e3u(ji-1,jj+1,jk,Kmm) * pu(ji-1,jj+1,jk)
-         zwy         = e1v(ji  ,jj  ) * e3v(ji  ,jj  ,jk,Kmm) * pv(ji  ,jj  ,jk)
-         zwy_ip1     = e1v(ji+1,jj  ) * e3v(ji+1,jj  ,jk,Kmm) * pv(ji+1,jj  ,jk)
-         zwy_jm1     = e1v(ji  ,jj-1) * e3v(ji  ,jj-1,jk,Kmm) * pv(ji  ,jj-1,jk)
-         zwy_ip1_jm1 = e1v(ji+1,jj-1) * e3v(ji+1,jj-1,jk,Kmm) * pv(ji+1,jj-1,jk)
-         !                                   !==  compute and add the vorticity term trend  =!
-         ztne     = zwz(ji-1,jj  ,jk) + zwz(ji  ,jj  ,jk) + zwz(ji  ,jj-1,jk)
-         ztnw     = zwz(ji-1,jj-1,jk) + zwz(ji-1,jj  ,jk) + zwz(ji  ,jj  ,jk)
-         ztnw_ip1 = zwz(ji  ,jj-1,jk) + zwz(ji  ,jj  ,jk) + zwz(ji+1,jj  ,jk)
-         ztse     = zwz(ji  ,jj  ,jk) + zwz(ji  ,jj-1,jk) + zwz(ji-1,jj-1,jk)
-         ztse_jp1 = zwz(ji  ,jj+1,jk) + zwz(ji  ,jj  ,jk) + zwz(ji-1,jj  ,jk)
-         ztsw_jp1 = zwz(ji  ,jj  ,jk) + zwz(ji-1,jj  ,jk) + zwz(ji-1,jj+1,jk)
-         ztsw_ip1 = zwz(ji+1,jj-1,jk) + zwz(ji  ,jj-1,jk) + zwz(ji  ,jj  ,jk)
-         !
-         zua = + r1_12 * r1_e1u(ji,jj) * (  ztne * zwy + ztnw_ip1 * zwy_ip1   &
-            &                             + ztse * zwy_jm1 + ztsw_ip1 * zwy_ip1_jm1 )
-         zva = - r1_12 * r1_e2v(ji,jj) * (  ztsw_jp1 * zwx_im1_jp1 + ztse_jp1 * zwx_jp1   &
-            &                             + ztnw * zwx_im1 + ztne * zwx )
-         pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zua
-         pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zva
-      END_3D
+         DO_2D( 0, 0, 0, 0 )
+            !                                   !==  horizontal fluxes  ==!
+            zwx         = e2u(ji  ,jj  ) * e3u(ji  ,jj  ,jk,Kmm) * pu(ji  ,jj  ,jk)
+            zwx_im1     = e2u(ji-1,jj  ) * e3u(ji-1,jj  ,jk,Kmm) * pu(ji-1,jj  ,jk)
+            zwx_jp1     = e2u(ji  ,jj+1) * e3u(ji  ,jj+1,jk,Kmm) * pu(ji  ,jj+1,jk)
+            zwx_im1_jp1 = e2u(ji-1,jj+1) * e3u(ji-1,jj+1,jk,Kmm) * pu(ji-1,jj+1,jk)
+            zwy         = e1v(ji  ,jj  ) * e3v(ji  ,jj  ,jk,Kmm) * pv(ji  ,jj  ,jk)
+            zwy_ip1     = e1v(ji+1,jj  ) * e3v(ji+1,jj  ,jk,Kmm) * pv(ji+1,jj  ,jk)
+            zwy_jm1     = e1v(ji  ,jj-1) * e3v(ji  ,jj-1,jk,Kmm) * pv(ji  ,jj-1,jk)
+            zwy_ip1_jm1 = e1v(ji+1,jj-1) * e3v(ji+1,jj-1,jk,Kmm) * pv(ji+1,jj-1,jk)
+            !                                   !==  compute and add the vorticity term trend  =!
+            ztne     = zwz(ji-1,jj  ) + zwz(ji  ,jj  ) + zwz(ji  ,jj-1)
+            ztnw     = zwz(ji-1,jj-1) + zwz(ji-1,jj  ) + zwz(ji  ,jj  )
+            ztnw_ip1 = zwz(ji  ,jj-1) + zwz(ji  ,jj  ) + zwz(ji+1,jj  )
+            ztse     = zwz(ji  ,jj  ) + zwz(ji  ,jj-1) + zwz(ji-1,jj-1)
+            ztse_jp1 = zwz(ji  ,jj+1) + zwz(ji  ,jj  ) + zwz(ji-1,jj  )
+            ztsw_jp1 = zwz(ji  ,jj  ) + zwz(ji-1,jj  ) + zwz(ji-1,jj+1)
+            ztsw_ip1 = zwz(ji+1,jj-1) + zwz(ji  ,jj-1) + zwz(ji  ,jj  )
+            !
+            zua = + r1_12 * r1_e1u(ji,jj) * (  ( ztne * zwy + ztnw_ip1 * zwy_ip1 )              & ! add () for
+               &                             + ( ztse * zwy_jm1 + ztsw_ip1 * zwy_ip1_jm1 ) )      ! NP repro
+            zva = - r1_12 * r1_e2v(ji,jj) * (  ( ztsw_jp1 * zwx_im1_jp1 + ztse_jp1 * zwx_jp1 )  &
+               &                             + ( ztnw * zwx_im1 + ztne * zwx ) )
+            pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zua
+            pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zva
+         END_2D
 #else
-      DO jk = 1, jpkm1
-         !
          !                                   !==  horizontal fluxes  ==!
          DO_2D( 1, 1, 1, 1 )
             zwx(ji,jj) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * pu(ji,jj,jk)
@@ -855,24 +829,24 @@ CONTAINS
          !
          !                                   !==  compute and add the vorticity term trend  =!
          DO_2D( 0, 1, 0, 1 )
-            ztne(ji,jj) = zwz(ji-1,jj  ,jk) + zwz(ji  ,jj  ,jk) + zwz(ji  ,jj-1,jk)
-            ztnw(ji,jj) = zwz(ji-1,jj-1,jk) + zwz(ji-1,jj  ,jk) + zwz(ji  ,jj  ,jk)
-            ztse(ji,jj) = zwz(ji  ,jj  ,jk) + zwz(ji  ,jj-1,jk) + zwz(ji-1,jj-1,jk)
-            ztsw(ji,jj) = zwz(ji  ,jj-1,jk) + zwz(ji-1,jj-1,jk) + zwz(ji-1,jj  ,jk)
+            ztne(ji,jj) = zwz(ji-1,jj  ) + zwz(ji  ,jj  ) + zwz(ji  ,jj-1)
+            ztnw(ji,jj) = zwz(ji-1,jj-1) + zwz(ji-1,jj  ) + zwz(ji  ,jj  )
+            ztse(ji,jj) = zwz(ji  ,jj  ) + zwz(ji  ,jj-1) + zwz(ji-1,jj-1)
+            ztsw(ji,jj) = zwz(ji  ,jj-1) + zwz(ji-1,jj-1) + zwz(ji-1,jj  )
          END_2D
          !
-         DO_2D( 0, 0, 0, 0 )
-            zua = + r1_12 * r1_e1u(ji,jj) * (  ztne(ji,jj  ) * zwy(ji  ,jj  ) + ztnw(ji+1,jj) * zwy(ji+1,jj  )   &
-               &                             + ztse(ji,jj  ) * zwy(ji  ,jj-1) + ztsw(ji+1,jj) * zwy(ji+1,jj-1) )
-            zva = - r1_12 * r1_e2v(ji,jj) * (  ztsw(ji,jj+1) * zwx(ji-1,jj+1) + ztse(ji,jj+1) * zwx(ji  ,jj+1)   &
-               &                             + ztnw(ji,jj  ) * zwx(ji-1,jj  ) + ztne(ji,jj  ) * zwx(ji  ,jj  ) )
+         DO_2D( 0, 0, 0, 0 )   ! add () for NP repro
+            zua = + r1_12 * r1_e1u(ji,jj) * (  ( ztne(ji,jj  ) * zwy(ji  ,jj  ) + ztnw(ji+1,jj) * zwy(ji+1,jj  ) )   & ! add () for
+               &                             + ( ztse(ji,jj  ) * zwy(ji  ,jj-1) + ztsw(ji+1,jj) * zwy(ji+1,jj-1) ) )   ! NP repro
+            zva = - r1_12 * r1_e2v(ji,jj) * (  ( ztsw(ji,jj+1) * zwx(ji-1,jj+1) + ztse(ji,jj+1) * zwx(ji  ,jj+1) )   &
+               &                             + ( ztnw(ji,jj  ) * zwx(ji-1,jj  ) + ztne(ji,jj  ) * zwx(ji  ,jj  ) ) )
             pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zua
             pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zva
          END_2D
-      END DO
 #endif
-         !                                             ! ===============
-         !                                             !   End of slab
+      END DO
+      !                                                ! ===============
+      !                                                !   End of slab
       !                                                ! ===============
    END SUBROUTINE vor_een
 
@@ -904,9 +878,9 @@ CONTAINS
       INTEGER  ::   ierr           ! local integer
       REAL(wp) ::   zua, zva       ! local scalars
       REAL(wp) ::   zmsk, z1_e3t   ! local scalars
-      REAL(wp), DIMENSION(A2D(nn_hls))       ::   zwx , zwy
-      REAL(wp), DIMENSION(A2D(nn_hls))       ::   ztnw, ztne, ztsw, ztse
-      REAL(wp), DIMENSION(A2D(nn_hls),jpkm1) ::   zwz   ! 3D workspace, avoid lbc_lnk on jpk that is not defined
+      REAL(wp), DIMENSION(T2D(1)) ::   zwx , zwy
+      REAL(wp), DIMENSION(T2D(1)) ::   ztnw, ztne, ztsw, ztse
+      REAL(wp), DIMENSION(T2D(1)) ::   zwz   ! 3D workspace, avoid lbc_lnk on jpk that is not defined
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -924,58 +898,45 @@ CONTAINS
          !
          SELECT CASE( kvor )                 !==  vorticity considered  ==!
          CASE ( np_COR )                           !* Coriolis (planetary vorticity)
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zwz(ji,jj,jk) = ff_f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = ff_f(ji,jj)
             END_2D
          CASE ( np_RVO )                           !* relative vorticity
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               zwz(ji,jj,jk) = (  (e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk))    &
-                  &             - (e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk))  ) &
-                  &          * r1_e1e2f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = (  ( e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk) )    & ! add () for
+                  &          - ( e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) & ! NP reproducibility
+                  &       * r1_e1e2f(ji,jj)
             END_2D
             IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity
-               DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-                  zwz(ji,jj,jk) = zwz(ji,jj,jk) * fmask(ji,jj,jk)
+               DO_2D( 1, 1, 1, 1 )
+                  zwz(ji,jj) = zwz(ji,jj) * fmask(ji,jj,jk)
                END_2D
             ENDIF
          CASE ( np_MET )                           !* metric term
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zwz(ji,jj,jk) = ( pv(ji+1,jj  ,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
-                  &          - ( pu(ji  ,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = ( pv(ji+1,jj  ,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
+                  &       - ( pu(ji  ,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)
             END_2D
          CASE ( np_CRV )                           !* Coriolis + relative vorticity
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               zwz(ji,jj,jk) = (  ff_f(ji,jj) + (  (e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk))    &
-                  &                              - (e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk))  ) &
-                  &                           * r1_e1e2f(ji,jj)    )
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = (  ff_f(ji,jj) + (  ( e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk) )    & ! add () for
+                  &                           - ( e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) & ! NP repro
+                  &                        * r1_e1e2f(ji,jj)    )
             END_2D
             IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity
-               DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-                  zwz(ji,jj,jk) = ( zwz(ji,jj,jk) - ff_f(ji,jj) ) * fmask(ji,jj,jk) + ff_f(ji,jj)
+               DO_2D( 1, 1, 1, 1 )
+                  zwz(ji,jj) = ( zwz(ji,jj) - ff_f(ji,jj) ) * fmask(ji,jj,jk) + ff_f(ji,jj)
                END_2D
             ENDIF
          CASE ( np_CME )                           !* Coriolis + metric
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zwz(ji,jj,jk) = ff_f(ji,jj) + ( pv(ji+1,jj  ,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
-                  &                        - ( pu(ji  ,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)
+            DO_2D( 1, 1, 1, 1 )
+               zwz(ji,jj) = ff_f(ji,jj) + ( pv(ji+1,jj  ,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
+                  &                     - ( pu(ji  ,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)
             END_2D
          CASE DEFAULT                                             ! error
             CALL ctl_stop('STOP','dyn_vor: wrong value for kvor'  )
          END SELECT
          !
-         !                                             ! ===============
-      END DO                                           !   End of slab
-      !                                                ! ===============
-      !
-      IF (nn_hls==1) CALL lbc_lnk( 'dynvor', zwz, 'F', 1.0_wp )
-      !
-      !                                                ! ===============
-      DO jk = 1, jpkm1                                 ! Horizontal slab
-         !                                             ! ===============
          !
          !                                   !==  horizontal fluxes  ==!
          DO_2D( 1, 1, 1, 1 )
@@ -986,17 +947,17 @@ CONTAINS
          !                                   !==  compute and add the vorticity term trend  =!
          DO_2D( 0, 1, 0, 1 )
             z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-            ztne(ji,jj) = ( zwz(ji-1,jj  ,jk) + zwz(ji  ,jj  ,jk) + zwz(ji  ,jj-1,jk) ) * z1_e3t
-            ztnw(ji,jj) = ( zwz(ji-1,jj-1,jk) + zwz(ji-1,jj  ,jk) + zwz(ji  ,jj  ,jk) ) * z1_e3t
-            ztse(ji,jj) = ( zwz(ji  ,jj  ,jk) + zwz(ji  ,jj-1,jk) + zwz(ji-1,jj-1,jk) ) * z1_e3t
-            ztsw(ji,jj) = ( zwz(ji  ,jj-1,jk) + zwz(ji-1,jj-1,jk) + zwz(ji-1,jj  ,jk) ) * z1_e3t
+            ztne(ji,jj) = ( zwz(ji-1,jj  ) + zwz(ji  ,jj  ) + zwz(ji  ,jj-1) ) * z1_e3t
+            ztnw(ji,jj) = ( zwz(ji-1,jj-1) + zwz(ji-1,jj  ) + zwz(ji  ,jj  ) ) * z1_e3t
+            ztse(ji,jj) = ( zwz(ji  ,jj  ) + zwz(ji  ,jj-1) + zwz(ji-1,jj-1) ) * z1_e3t
+            ztsw(ji,jj) = ( zwz(ji  ,jj-1) + zwz(ji-1,jj-1) + zwz(ji-1,jj  ) ) * z1_e3t
          END_2D
          !
          DO_2D( 0, 0, 0, 0 )
-            zua = + r1_12 * r1_e1u(ji,jj) * (  ztne(ji,jj  ) * zwy(ji  ,jj  ) + ztnw(ji+1,jj) * zwy(ji+1,jj  )   &
-               &                             + ztse(ji,jj  ) * zwy(ji  ,jj-1) + ztsw(ji+1,jj) * zwy(ji+1,jj-1) )
-            zva = - r1_12 * r1_e2v(ji,jj) * (  ztsw(ji,jj+1) * zwx(ji-1,jj+1) + ztse(ji,jj+1) * zwx(ji  ,jj+1)   &
-               &                             + ztnw(ji,jj  ) * zwx(ji-1,jj  ) + ztne(ji,jj  ) * zwx(ji  ,jj  ) )
+            zua = + r1_12 * r1_e1u(ji,jj) * (  ( ztne(ji,jj  ) * zwy(ji  ,jj  ) + ztnw(ji+1,jj) * zwy(ji+1,jj  ) )   & ! add () for
+               &                             + ( ztse(ji,jj  ) * zwy(ji  ,jj-1) + ztsw(ji+1,jj) * zwy(ji+1,jj-1) ) )   ! NP repro
+            zva = - r1_12 * r1_e2v(ji,jj) * (  ( ztsw(ji,jj+1) * zwx(ji-1,jj+1) + ztse(ji,jj+1) * zwx(ji  ,jj+1) )   &
+               &                             + ( ztnw(ji,jj  ) * zwx(ji-1,jj  ) + ztne(ji,jj  ) * zwx(ji  ,jj  ) ) )
             pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zua
             pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zva
          END_2D
@@ -1115,10 +1076,10 @@ CONTAINS
          SELECT CASE( nn_e3f_typ )
          CASE ( 0 )                        ! original formulation  (masked averaging of e3t divided by 4)
             DO_3D( 0, 0, 0, 0, 1, jpk )
-               e3f_0vor(ji,jj,jk) = (   e3t_0(ji  ,jj+1,jk)*tmask(ji  ,jj+1,jk)   &
-                  &                   + e3t_0(ji+1,jj+1,jk)*tmask(ji+1,jj+1,jk)   &
-                  &                   + e3t_0(ji  ,jj  ,jk)*tmask(ji  ,jj  ,jk)   &
-                  &                   + e3t_0(ji+1,jj  ,jk)*tmask(ji+1,jj  ,jk)   ) * 0.25_wp
+               e3f_0vor(ji,jj,jk) = (   ( e3t_0(ji  ,jj+1,jk)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
+                  &                   +   e3t_0(ji+1,jj+1,jk)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &                   + ( e3t_0(ji  ,jj  ,jk)*tmask(ji  ,jj  ,jk)     &
+                  &                   +   e3t_0(ji+1,jj  ,jk)*tmask(ji+1,jj  ,jk) )   ) * 0.25_wp
             END_3D
          CASE ( 1 )                        ! new formulation  (masked averaging of e3t divided by the sum of mask)
             DO_3D( 0, 0, 0, 0, 1, jpk )
@@ -1126,10 +1087,10 @@ CONTAINS
                   &  + tmask(ji,jj  ,jk) +tmask(ji+1,jj  ,jk)  )
                !
                IF( zmsk /= 0._wp ) THEN
-                  e3f_0vor(ji,jj,jk) = (   e3t_0(ji  ,jj+1,jk)*tmask(ji  ,jj+1,jk)   &
-                     &                   + e3t_0(ji+1,jj+1,jk)*tmask(ji+1,jj+1,jk)   &
-                     &                   + e3t_0(ji  ,jj  ,jk)*tmask(ji  ,jj  ,jk)   &
-                     &                   + e3t_0(ji+1,jj  ,jk)*tmask(ji+1,jj  ,jk)   ) / zmsk
+                  e3f_0vor(ji,jj,jk) = (   ( e3t_0(ji  ,jj+1,jk)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
+                     &                   +   e3t_0(ji+1,jj+1,jk)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                     &                   + ( e3t_0(ji  ,jj  ,jk)*tmask(ji  ,jj  ,jk)     &
+                     &                   +   e3t_0(ji+1,jj  ,jk)*tmask(ji+1,jj  ,jk) )   ) / zmsk
                ELSE ; e3f_0vor(ji,jj,jk) = 0._wp
                ENDIF
             END_3D
@@ -1137,7 +1098,13 @@ CONTAINS
          !
          CALL lbc_lnk( 'dynvor', e3f_0vor, 'F', 1._wp )
          !                                 ! insure e3f_0vor /= 0
+# if defined key_vco_1d
+         DO jk = 1, jpk
+            WHERE( e3f_0vor(:,:,jk) == 0._wp )   e3f_0vor(:,:,jk) = e3f_0(:,:,jk)
+         END DO
+# else
          WHERE( e3f_0vor(:,:,:) == 0._wp )   e3f_0vor(:,:,:) = e3f_0(:,:,:)
+# endif
          !
       END SELECT
       !

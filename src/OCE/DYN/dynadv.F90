@@ -7,6 +7,7 @@ MODULE dynadv
    !!            3.3  !  2010-10  (C. Ethe, G. Madec)  reorganisation of initialisation phase
    !!            3.6  !  2015-05  (N. Ducousso, G. Madec)  add Hollingsworth scheme as an option 
    !!            4.0  !  2017-07  (G. Madec)  add a linear dynamics option
+   !!            4.5  !  2022-06  (S. Techene, G, Madec) refactorization to reduce local memory usage
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -50,7 +51,7 @@ MODULE dynadv
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE dyn_adv( kt, Kbb, Kmm, puu, pvv, Krhs, pau, pav, paw, no_zad )
+   SUBROUTINE dyn_adv( kt, Kbb, Kmm, puu, pvv, Krhs, pau, pav, paw )
       !!---------------------------------------------------------------------
       !!                  ***  ROUTINE dyn_adv  ***
       !!                
@@ -64,7 +65,6 @@ CONTAINS
       !!      (see dynvor module).
       !!----------------------------------------------------------------------
       INTEGER                                     , INTENT(in   ) ::   kt , Kbb, Kmm, Krhs   ! ocean time step and level indices
-      INTEGER                   , OPTIONAL        , INTENT(in   ) ::   no_zad                ! no vertical advection compotation
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw         ! advective velocity
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), TARGET, INTENT(inout) ::   puu, pvv              ! ocean velocities and RHS of momentum Eq.
       !!----------------------------------------------------------------------
@@ -73,12 +73,15 @@ CONTAINS
       !
       SELECT CASE( n_dynadv )    !==  compute advection trend and add it to general trend  ==!
       CASE( np_VEC_c2  )                                                         != vector form =!
-         CALL dyn_keg     ( kt, nn_dynkeg     , Kmm, puu, pvv, Krhs )                          ! horizontal gradient of kinetic energy
-         CALL dyn_zad     ( kt                , Kmm, puu, pvv, Krhs )                          ! vertical advection
+         !                                                                             !* horizontal gradient of kinetic energy
+         CALL dyn_keg     ( kt, nn_dynkeg     , Kmm, puu, pvv, Krhs )
+         CALL dyn_zad     ( kt                , Kmm, puu, pvv, Krhs )                  !* vertical advection
+         !
       CASE( np_FLX_c2  )                                                         !=  flux form  =!
-         CALL dyn_adv_cen2( kt                , Kmm, puu, pvv, Krhs, pau, pav, paw, no_zad )   ! 2nd order centered scheme
-      CASE( np_FLX_ubs )   
-         CALL dyn_adv_ubs ( kt           , Kbb, Kmm, puu, pvv, Krhs, pau, pav, paw, no_zad )   ! 3rd order UBS      scheme (UP3)
+         CALL dyn_adv_cen2( kt                , Kmm, puu, pvv, Krhs, pau, pav, paw )   !* 2nd order centered scheme
+         !
+      CASE( np_FLX_ubs )                                                               !* 3rd order UBS      scheme (UP3)
+         CALL dyn_adv_ubs     ( kt       , Kbb, Kmm, puu, pvv, Krhs, pau, pav, paw )
       END SELECT
       !
       IF( ln_timing )   CALL timing_stop( 'dyn_adv' )

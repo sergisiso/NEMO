@@ -38,11 +38,9 @@ MODULE lbclnk
       MODULE PROCEDURE   lbc_lnk_pt2pt_sp, lbc_lnk_pt2pt_dp
    END INTERFACE
 
-#if ! defined key_mpi2
    INTERFACE lbc_lnk_neicoll
       MODULE PROCEDURE   lbc_lnk_neicoll_sp ,lbc_lnk_neicoll_dp
    END INTERFACE
-#endif
    !
    INTERFACE lbc_lnk_icb
       MODULE PROCEDURE mpp_lnk_2d_icb_dp, mpp_lnk_2d_icb_sp
@@ -51,10 +49,10 @@ MODULE lbclnk
    PUBLIC   lbc_lnk            ! ocean/ice lateral boundary conditions
    PUBLIC   lbc_lnk_icb        ! iceberg lateral boundary conditions
 
-   REAL(dp), DIMENSION(:), ALLOCATABLE ::   buffsnd_dp, buffrcv_dp   ! MPI send/recv buffers
-   REAL(sp), DIMENSION(:), ALLOCATABLE ::   buffsnd_sp, buffrcv_sp   ! 
-   INTEGER,  DIMENSION(8)              ::   nreq_p2p                 ! request id for MPI_Isend in point-2-point communication
-   
+   REAL(dp), DIMENSION(:), ALLOCATABLE ::   buffsnd_dp, buffrcv_dp         ! MPI send/recv buffers
+   REAL(sp), DIMENSION(:), ALLOCATABLE ::   buffsnd_sp, buffrcv_sp         ! 
+   INTEGER,  DIMENSION(8)              ::   nreq_p2p = MPI_REQUEST_NULL    ! request id for MPI_Isend in point-2-point communication
+   INTEGER                             ::   nreq_nei = MPI_REQUEST_NULL    ! request id for mpi_neighbor_ialltoallv
    !! * Substitutions
    !!#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
@@ -134,9 +132,7 @@ CONTAINS
 #  define BUFFSND buffsnd_sp
 #  define BUFFRCV buffrcv_sp
 #  include "lbc_lnk_pt2pt_generic.h90"
-#if ! defined key_mpi2
 #  include "lbc_lnk_neicoll_generic.h90"
-#endif
 #  undef MPI_TYPE
 #  undef BUFFSND
 #  undef BUFFRCV
@@ -149,9 +145,7 @@ CONTAINS
 #  define BUFFSND buffsnd_dp
 #  define BUFFRCV buffrcv_dp
 #  include "lbc_lnk_pt2pt_generic.h90"
-#if ! defined key_mpi2
 #  include "lbc_lnk_neicoll_generic.h90"
-#endif
 #  undef MPI_TYPE
 #  undef BUFFSND
 #  undef BUFFRCV

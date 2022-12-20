@@ -105,10 +105,10 @@ CONTAINS
 !            ztd = 15._wp*gdepw_0(ji,jj,jk+1)-0.5*rho0*zn2/(rn_a0*grav)*gdepw_0(ji,jj,jk+1)**2
 !            ztu = 15._wp*gdepw_0(ji,jj,jk  )-0.5*rho0*zn2/(rn_a0*grav)*gdepw_0(ji,jj,jk  )**2
 !            pts(ji,jj,jk,jp_tem) = (ztd - ztu)/e3t_0(ji,jj,jk) * ptmask(ji,jj,jk)
-            IF (Agrif_root().AND.(  mjg0(jj) == Nj0glo-2 ) )  THEN
+            IF (Agrif_root().AND.(  mjg(jj,0) == Nj0glo-2 ) )  THEN
                pv(ji,jj,jk) = -sqrt(zdb*zh0)*exp(-zxw/zro)*(1._wp-zf) * ptmask(ji,jj,jk)
             ENDIF
-            IF (Agrif_root().AND.(  mjg0(jj) == Nj0glo-1 ) )  THEN
+            IF (Agrif_root().AND.(  mjg(jj,0) == Nj0glo-1 ) )  THEN
                pts(ji,jj,jk,jp_tem) = MIN(pts(ji,jj,jk,jp_tem), 15._wp - zdb*rho0/grav/rn_a0*(1._wp-zf)) * ptmask(ji,jj,jk) 
                pts(ji,jj,jk,jp_sal) = 1._wp * ptmask(ji,jj,jk) 
             ENDIF

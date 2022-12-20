@@ -24,6 +24,7 @@ MODULE agrif_ice_update
    USE sbc_oce
    USE agrif_oce
    USE ice
+   USE sbc_ice , ONLY : snwice_mass
    USE agrif_ice 
    USE phycst , ONLY: rt0
 
@@ -101,21 +102,21 @@ CONTAINS
       IF( before ) THEN
          jm = 1
          DO jl = 1, jpl
-            ptab(i1:i2,j1:j2,jm  ) = a_i (i1:i2,j1:j2,jl)
-            ptab(i1:i2,j1:j2,jm+1) = v_i (i1:i2,j1:j2,jl)
-            ptab(i1:i2,j1:j2,jm+2) = v_s (i1:i2,j1:j2,jl)
-            ptab(i1:i2,j1:j2,jm+3) = sv_i(i1:i2,j1:j2,jl)
-            ptab(i1:i2,j1:j2,jm+4) = oa_i(i1:i2,j1:j2,jl)
-            ptab(i1:i2,j1:j2,jm+5) = a_ip(i1:i2,j1:j2,jl)
-            ptab(i1:i2,j1:j2,jm+6) = v_ip(i1:i2,j1:j2,jl)
-            ptab(i1:i2,j1:j2,jm+7) = v_il(i1:i2,j1:j2,jl)
-            ptab(i1:i2,j1:j2,jm+8) = t_su(i1:i2,j1:j2,jl)
+            ptab(i1:i2,j1:j2,jm  ) = a_i (i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2) 
+            ptab(i1:i2,j1:j2,jm+1) = v_i (i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2)
+            ptab(i1:i2,j1:j2,jm+2) = v_s (i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2)
+            ptab(i1:i2,j1:j2,jm+3) = sv_i(i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2)
+            ptab(i1:i2,j1:j2,jm+4) = oa_i(i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2)
+            ptab(i1:i2,j1:j2,jm+5) = a_ip(i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2)
+            ptab(i1:i2,j1:j2,jm+6) = v_ip(i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2)
+            ptab(i1:i2,j1:j2,jm+7) = v_il(i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2)
+            ptab(i1:i2,j1:j2,jm+8) = t_su(i1:i2,j1:j2,jl) * e1e2t_frac(i1:i2,j1:j2)
             jm = jm + 9
             DO jk = 1, nlay_s
-               ptab(i1:i2,j1:j2,jm) = e_s(i1:i2,j1:j2,jk,jl)   ;   jm = jm + 1
+               ptab(i1:i2,j1:j2,jm) = e_s(i1:i2,j1:j2,jk,jl) * e1e2t_frac(i1:i2,j1:j2)   ;   jm = jm + 1
             END DO
             DO jk = 1, nlay_i
-               ptab(i1:i2,j1:j2,jm) = e_i(i1:i2,j1:j2,jk,jl)   ;   jm = jm + 1
+               ptab(i1:i2,j1:j2,jm) = e_i(i1:i2,j1:j2,jk,jl) * e1e2t_frac(i1:i2,j1:j2)   ;   jm = jm + 1
             END DO
          END DO
          !
@@ -164,6 +165,17 @@ CONTAINS
          DO jl = 1, jpl
             WHERE( tmask(i1:i2,j1:j2,1) == 0._wp )   t_su(i1:i2,j1:j2,jl) = rt0   ! to avoid a division by 0 in sbcblk.F90
          END DO
+
+         ! new mass per unit area  
+         vt_s (i1:i2,j1:j2) = SUM(  v_s(i1:i2,j1:j2,:), dim=3 )
+         vt_i (i1:i2,j1:j2) = SUM(  v_i(i1:i2,j1:j2,:), dim=3 )
+         vt_ip(i1:i2,j1:j2) = SUM( v_ip(i1:i2,j1:j2,:), dim=3 )
+         vt_il(i1:i2,j1:j2) = SUM( v_il(i1:i2,j1:j2,:), dim=3 )
+
+         snwice_mass(i1:i2,j1:j2) = tmask(i1:i2,j1:j2,1) * ( rhos *   vt_s(i1:i2,j1:j2)  & 
+                                  &                        + rhoi *   vt_i(i1:i2,j1:j2)  &
+                                  &                        + rhow * (vt_ip(i1:i2,j1:j2)  & 
+                                  &                                + vt_il(i1:i2,j1:j2)) )
          
       ENDIF
       !

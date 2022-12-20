@@ -8,6 +8,7 @@ MODULE trcadv
    !!            3.7  !  2014-05  (G. Madec, C. Ethe)  Add 2nd/4th order cases for CEN and FCT schemes 
    !!            4.0  !  2017-09  (G. Madec)  remove vertical time-splitting option
    !!            4.5  !  2021-08  (G. Madec, S. Techene) add advective velocities as optional arguments
+   !!             -   !  2022-06  (S. Techene, G, Madec) refactorization to reduce local memory usage
    !!----------------------------------------------------------------------
 #if defined key_top
    !!----------------------------------------------------------------------
@@ -72,7 +73,7 @@ MODULE trcadv
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE trc_adv( kt, Kbb, Kmm, ptr, Krhs, pau, pav, paw )
+   SUBROUTINE trc_adv( kt, Kbb, Kmm, Kaa, ptr, Krhs, pau, pav, paw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trc_adv  ***
       !!
@@ -81,7 +82,7 @@ CONTAINS
       !! ** Method  : - Update tr(Krhs) with the advective trend following nadv
       !!----------------------------------------------------------------------
       INTEGER                                     , INTENT(in   ) ::   kt             ! ocean time-step index
-      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Krhs ! time level indices
+      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw  ! advective velocity
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt)  , INTENT(inout) ::   ptr            ! passive tracers and RHS of tracer equation
       !
@@ -123,26 +124,19 @@ CONTAINS
          !
          IF( ln_wave .AND. ln_sdw )  THEN
             DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )                            ! eulerian transport + Stokes Drift
-               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
-               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * ( zptv(ji,jj,jk) + vsd(ji,jj,jk) )
+               zuu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
+               zvv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( zptv(ji,jj,jk) + vsd(ji,jj,jk) )
             END_3D
             DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-               zww(ji,jj,jk) = e1e2t(ji,jj)                     * ( zptw(ji,jj,jk) + wsd(ji,jj,jk) )
+               zww(ji,jj,jk) = e1e2t(ji,jj)                   * ( zptw(ji,jj,jk) + wsd(ji,jj,jk) )
             END_3D
          ELSE
             DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * zptu(ji,jj,jk)           ! eulerian transport
-               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * zptv(ji,jj,jk)
+               zuu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * zptu(ji,jj,jk)           ! eulerian transport
+               zvv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * zptv(ji,jj,jk)
             END_3D
             DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-               zww(ji,jj,jk) = e1e2t(ji,jj)                     * zptw(ji,jj,jk)
-            END_3D
-         ENDIF
-         !
-         IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN                                          ! add z-tilde and/or vvl corrections
-            DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-               zuu(ji,jj,jk) = zuu(ji,jj,jk) + un_td(ji,jj,jk)
-               zvv(ji,jj,jk) = zvv(ji,jj,jk) + vn_td(ji,jj,jk)
+               zww(ji,jj,jk) = e1e2t(ji,jj)                   * zptw(ji,jj,jk)
             END_3D
          ENDIF
          !
@@ -156,15 +150,15 @@ CONTAINS
       SELECT CASE ( nadv )                      !==  compute advection trend and add it to general trend  ==!
       !
       CASE ( np_CEN )                                 ! Centered : 2nd / 4th order
-         CALL tra_adv_cen   ( kt, nittrc000,'TRC',          zuu, zvv, zww,      Kmm, ptr, jptra, Krhs, nn_cen_h, nn_cen_v )
+         CALL tra_adv_cen( kt, nittrc000,'TRC',          zuu, zvv, zww,      Kmm,      ptr, jptra, Krhs, nn_cen_h, nn_cen_v )
       CASE ( np_FCT )                                 ! FCT      : 2nd / 4th order
-            CALL tra_adv_fct( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm, ptr, jptra, Krhs, nn_fct_h, nn_fct_v )
+         CALL tra_adv_fct( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm, Kaa, ptr, jptra, Krhs, nn_fct_h, nn_fct_v )
       CASE ( np_MUS )                                 ! MUSCL
-            CALL tra_adv_mus( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm, ptr, jptra, Krhs, ln_mus_ups         )
+         CALL tra_adv_mus( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm,      ptr, jptra, Krhs, ln_mus_ups         )
       CASE ( np_UBS )                                 ! UBS
-         CALL tra_adv_ubs   ( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm, ptr, jptra, Krhs, nn_ubs_v           )
+         CALL tra_adv_ubs( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm,      ptr, jptra, Krhs, nn_ubs_v           )
       CASE ( np_QCK )                                 ! QUICKEST
-         CALL tra_adv_qck   ( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm, ptr, jptra, Krhs                     )
+         CALL tra_adv_qck( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm,      ptr, jptra, Krhs                     )
       !
       END SELECT
       !                  

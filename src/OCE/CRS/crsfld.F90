@@ -211,8 +211,8 @@ CONTAINS
       
       !  sbc fields  
       CALL crs_dom_ope( ssh(:,:,Kmm) , 'VOL', 'T', tmask, sshn_crs , p_e12=e1e2t, p_e3=ze3t           , psgn=1.0_wp )  
-      CALL crs_dom_ope( utau , 'SUM', 'U', umask, utau_crs , p_e12=e2u  , p_surf_crs=e2u_crs  , psgn=1.0_wp )
-      CALL crs_dom_ope( vtau , 'SUM', 'V', vmask, vtau_crs , p_e12=e1v  , p_surf_crs=e1v_crs  , psgn=1.0_wp )
+      CALL crs_dom_ope( utau , 'SUM', 'T', tmask, utau_crs , p_e12=e2t  , p_surf_crs=e2t_crs  , psgn=1.0_wp ) !clem tau: check psgn ??
+      CALL crs_dom_ope( vtau , 'SUM', 'T', tmask, vtau_crs , p_e12=e1t  , p_surf_crs=e1t_crs  , psgn=1.0_wp ) !
       CALL crs_dom_ope( wndm , 'SUM', 'T', tmask, wndm_crs , p_e12=e1e2t, p_surf_crs=e1e2t_crs, psgn=1.0_wp )
       CALL crs_dom_ope( rnf  , 'MAX', 'T', tmask, rnf_crs                                     , psgn=1.0_wp )
       CALL crs_dom_ope( qsr  , 'SUM', 'T', tmask, qsr_crs  , p_e12=e1e2t, p_surf_crs=e1e2t_crs, psgn=1.0_wp )

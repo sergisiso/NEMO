@@ -94,8 +94,8 @@
    !                    !  bulk algorithm :
    ln_NCAR    = .true.     ! "NCAR"      algorithm   (Large and Yeager 2008)
       !
-      ln_Cd_L12   = .false.   !  air-ice drags = F(ice concentration) (Lupkes et al. 2012)
-      ln_Cd_L15   = .true.    !  air-ice drags = F(ice concentration) (Lupkes et al. 2015)
+      ln_Cx_ice_LU12   = .false.   !  air-ice drags = F(ice concentration) (Lupkes et al. 2012)
+      ln_Cx_ice_LG15   = .true.    !  air-ice drags = F(ice concentration) (Lupkes et al. 2015)
       !
    cn_dir = './'  !  root directory for the bulk data location
    !___________!_________________________!___________________!___________!_____________!________!___________!______________________________________!__________!_______________!

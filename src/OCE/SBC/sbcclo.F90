@@ -44,6 +44,8 @@ MODULE sbcclo
    !
    INTEGER, SAVE, ALLOCATABLE, DIMENSION(:)  :: mcsgrpg, mcsgrpr, mcsgrpe !: closed sea group for glo, rnf and emp
    !
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    CONTAINS
    !
    !!----------------------------------------------------------------------
@@ -120,8 +122,8 @@ MODULE sbcclo
       CALL iom_put('qclosea',zqcs)
       !
       ! 3. update emp and qns
-      emp(:,:) = emp(:,:) + zwcs(:,:)
-      qns(:,:) = qns(:,:) + zqcs(:,:)
+      emp(A2D(0)) = emp(A2D(0)) + zwcs(A2D(0))
+      qns(:,:)    = qns(:,:)    + zqcs(A2D(0))
       !
    END SUBROUTINE sbc_clo
    !
@@ -289,7 +291,7 @@ MODULE sbcclo
          !! 1. Work out net freshwater over the closed sea from EMP - RNF.
          !!    Work out net heat associated with the correction (needed for conservation)
          !!    (PM: should we consider used delayed glob sum ?)
-         zcsfw  = glob_sum( 'closea', e1e2t(:,:) * ( emp(:,:)-rnf(:,:) ) * imsk_src(:,:) )
+         zcsfw  = glob_sum( 'closea', e1e2t(A2D(0)) * ( emp(A2D(0))-rnf(A2D(0)) ) * imsk_src(A2D(0)) )
          !
          !! 2. Deal with runoff special case (net evaporation spread globally)
          !!    and compute trg mask

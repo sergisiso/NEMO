@@ -35,6 +35,9 @@ MODULE mppini
    PUBLIC   mpp_getnum     ! called by prtctl
    PUBLIC   mpp_basesplit  ! called by prtctl
    PUBLIC   mpp_is_ocean   ! called by prtctl
+#ifdef key_agrif
+   PUBLIC bestpartition    ! called by Agrif_estimate_parallel_cost
+#endif
 
    INTEGER ::   numbot = -1   ! 'bottom_level' local logical unit
    INTEGER ::   numbdy = -1   ! 'bdy_msk'      local logical unit
@@ -70,7 +73,8 @@ CONTAINS
       jpi     = jpiglo
       jpj     = jpjglo
       jpk     = MAX( 2, jpkglo )
-      jpij    = jpi*jpj
+      !jpij   = jpi*jpj
+      jpij    = Ni0glo*Nj0glo
       jpni    = 1
       jpnj    = 1
       jpnij   = jpni*jpnj
@@ -86,6 +90,7 @@ CONTAINS
       l_IdoNFold = l_NFold                         ! is this process doing North fold?
       !
       CALL init_doloop                       ! set start/end indices or do-loop depending on the halo width value (nn_hls)
+      CALL init_locglo                       ! define now functions needed to convert indices from/to global to/from local domains
       !
       IF(lwp) THEN
          WRITE(numout,*)
@@ -165,6 +170,10 @@ CONTAINS
 902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nammpp in configuration namelist' )
       !
       nn_hls = MAX(1, nn_hls)   ! nn_hls must be > 0
+# if defined key_mpi2
+      WRITE(numout,*) '   use key_mpi2, we force nn_comm = 1'
+      nn_comm = 1
+# endif
       IF(lwp) THEN
             WRITE(numout,*) '   Namelist nammpp'
          IF( jpni < 1 .OR. jpnj < 1 ) THEN
@@ -303,7 +312,7 @@ CONTAINS
 9002  FORMAT (a, i4, a)
 9003  FORMAT (a, i5)
 
-      ALLOCATE( nfimpp(jpni), nfproc(jpni), nfjpi(jpni),   &
+      ALLOCATE( nfimpp(jpni), nfproc(jpni), nfjpi(jpni), nfni_0(jpni),   &
          &      iin(jpnij), ijn(jpnij),   &
          &      iimppt(jpni,jpnj), ijmppt(jpni,jpnj), ijpi(jpni,jpnj), ijpj(jpni,jpnj), ipproc(jpni,jpnj),   &
          &      inei(8,jpni,jpnj), llnei(8,jpni,jpnj),   &
@@ -327,7 +336,8 @@ CONTAINS
       jpi   = ijpi(ii,ij)
       jpj   = ijpj(ii,ij)
       jpk   = MAX( 2, jpkglo )
-      jpij  = jpi*jpj
+      !jpij = jpi*jpj
+      jpij  = (jpi-2*nn_hls)*(jpj-2*nn_hls)
       nimpp = iimppt(ii,ij)
       njmpp = ijmppt(ii,ij)
       !
@@ -375,7 +385,8 @@ CONTAINS
       ! Store informations for the north pole folding communications
       nfproc(:) = ipproc(:,jpnj)
       nfimpp(:) = iimppt(:,jpnj)
-      nfjpi (:) =   ijpi(:,jpnj)
+      nfjpi (:) =   ijpi(:,jpnj)   ! needed only for mpp_lbc_north_icb_generic.h90
+      nfni_0(:) =   ijpi(:,jpnj) - 2 * nn_hls
       !
       ! 3. Define Western, Eastern, Southern and Northern neighbors + corners in the subdomain grid reference
       ! ------------------------------------------------------------------------------------------------------
@@ -489,7 +500,9 @@ CONTAINS
       ! -----------------------------------------
       !
       ! set default neighbours
-      mpinei(:) = impi(:,narea)
+      mpinei(:) = impi(:,narea)   ! should be just local but is still used in icblbc and mpp_lnk_icb_generic.h90...
+      mpiSnei(0,:) = -1           ! no comm if no halo (but still need to call the NP Folding that may modify the last line)
+      mpiRnei(0,:) = -1 
       DO jh = 1, n_hlsmax
          mpiSnei(jh,:) = impi(:,narea)   ! default definition
          mpiRnei(jh,:) = impi(:,narea)
@@ -516,6 +529,7 @@ CONTAINS
       !
       !                          ! Prepare mpp north fold
       !
+      l_NFold = l_NFold .AND. ANY( nfproc /= -1 )             ! make sure that we kept at least 1 proc along the last line
       llmpiNFold =          jpni  > 1 .AND. l_NFold           ! is the North fold done with an MPI communication?
       l_IdoNFold = ijn(narea) == jpnj .AND. l_NFold           ! is this process doing North fold?
       !
@@ -729,22 +743,36 @@ CONTAINS
 #else
          iszitst = ( Ni0glo + (ji-1) ) / ji + 2*nn_hls   ! max subdomain i-size
 #endif
-         IF( iszitst < isziref .AND. iszitst >= iszimin ) THEN
-            isziref = iszitst
-            inbimax = inbimax + 1
-            inbi0(inbimax) = ji
-            iszi0(inbimax) = isziref
+         IF( iszitst >= iszimin ) THEN
+#ifdef key_agrif
+            IF (((.Not.Agrif_Root()).AND.(Agrif_Parallel_Sisters).AND.(iszitst <= isziref)) &
+                  .OR.(iszitst < isziref)) THEN
+#else
+            IF (iszitst < isziref) THEN
+#endif
+               isziref = iszitst
+               inbimax = inbimax + 1
+               inbi0(inbimax) = ji
+               iszi0(inbimax) = isziref
+            ENDIF
          ENDIF
 #if defined key_nemocice_decomp
          iszjtst = ( ny_global+2-2*nn_hls + (ji-1) ) / ji + 2*nn_hls    ! first  dim.
 #else
          iszjtst = ( Nj0glo + (ji-1) ) / ji + 2*nn_hls   ! max subdomain j-size
 #endif
-         IF( iszjtst < iszjref .AND. iszjtst >= iszjmin ) THEN
-            iszjref = iszjtst
-            inbjmax = inbjmax + 1
-            inbj0(inbjmax) = ji
-            iszj0(inbjmax) = iszjref
+         IF( iszjtst >= iszjmin ) THEN
+#ifdef key_agrif
+            IF (((.Not.Agrif_Root()).AND.(Agrif_Parallel_Sisters).AND.(iszjtst <= iszjref)) &
+                  .OR.(iszjtst < iszjref)) THEN
+#else
+            IF (iszjtst < iszjref) THEN
+#endif
+               iszjref = iszjtst
+               inbjmax = inbjmax + 1
+               inbj0(inbjmax) = ji
+               iszj0(inbjmax) = iszjref
+            ENDIF
          ENDIF
       END DO
       IF( inbimax == 0 ) THEN
@@ -804,7 +832,13 @@ CONTAINS
       iszij = jpiglo*jpjglo+1                                   ! default: larger than global domain
       DO WHILE( inbij <= inbijmax )                             ! if we did not reach the max of inbij1
          ii = MINLOC(iszij1, mask = inbij1 == inbij, dim = 1)   ! warning: send back the first occurence if multiple results
-         IF ( iszij1(ii) < iszij ) THEN
+         IF ( ( iszij1(ii) < iszij )    &
+#ifdef key_agrif
+            ! if key_agrif is defined, we keep the partition if the number of cores is correct
+            ! even if the perimeter is larger than the best partition
+            .OR.(Agrif_Parallel_Sisters.AND.(inbij == knbij))  &
+#endif
+            ) THEN
             ii = MINLOC( iszi1+iszj1, mask = iszij1 == iszij1(ii) .AND. inbij1 == inbij, dim = 1)  ! select the smaller perimeter if multiple min
             isz0 = isz0 + 1
             indexok(isz0) = ii
@@ -1179,7 +1213,7 @@ CONTAINS
          !
          ALLOCATE( zmsk0(ipi,ipj), zmsk(ipi,ipj) )
          zmsk0(jh+1:jh+Ni_0,jh+1:jh+Nj_0) = REAL(COUNT(lloce, dim = 3), wp)   ! define inner domain -> need REAL to use lbclnk
-         CALL lbc_lnk('mppini', zmsk0, 'T', 1._wp, khls = jh)                 ! fill halos
+         CALL lbc_lnk( ' mppini', zmsk0, 'T', 1._wp )                         ! fill halos
          ! Beware about the mask we must use here :
          DO jj = jh+1, jh+Nj_0
             DO ji = jh+1, jh+Ni_0
@@ -1192,7 +1226,7 @@ CONTAINS
                   &        + zmsk0(ji+1,jj) + zmsk0(ji,jj+1) + zmsk0(ji+1,jj+1)
             END DO
          END DO
-         CALL lbc_lnk('mppini', zmsk, 'T', 1._wp, khls = jh)                 ! fill halos again!
+         CALL lbc_lnk( 'mppini', zmsk, 'T', 1._wp )                           ! fill halos again!
          !        
          iiwe = jh   ;   iiea = Ni_0   ! bottom-left corner - 1 of the sent data
          ijso = jh   ;   ijno = Nj_0
@@ -1265,7 +1299,7 @@ ENDIF
       ! used in IOM. This works even if jpnij .ne. jpni*jpnj.
       iglo( :) = (/ Ni0glo, Nj0glo /)
       iloc( :) = (/ Ni_0  , Nj_0   /)
-      iabsf(:) = (/ Nis0  , Njs0   /) + (/ nimpp, njmpp /) - 1 - nn_hls   ! corresponds to mig0(Nis0) but mig0 is not yet defined!
+      iabsf(:) = (/ Nis0  , Njs0   /) + (/ nimpp, njmpp /) - 1 - nn_hls   ! corresponds to mig(Nis0,0) but mig is not yet defined!
       iabsl(:) = iabsf(:) + iloc(:) - 1
       ihals(:) = (/ 0     , 0      /)
       ihale(:) = (/ 0     , 0      /)
@@ -1300,10 +1334,10 @@ ENDIF
       INTEGER, INTENT(in   ) ::   knum       ! layout.dat unit
       !
       REAL(wp), DIMENSION(jpi,jpj,2,4) ::   zinfo
-      INTEGER , DIMENSION(10) ::   irknei ! too many elements but safe...
+      INTEGER , DIMENSION(0:10) ::   irknei ! too many elements but safe...
       INTEGER                 ::   ji, jj, jg, jn   ! dummy loop indices
       INTEGER                 ::   iitmp
-      LOGICAL                 ::   lnew
+      LOGICAL                 ::   llnew
       !!----------------------------------------------------------------------
       !
       IF (lwp) THEN
@@ -1317,29 +1351,28 @@ ENDIF
          WRITE(knum,*)
          WRITE(knum,*)
          WRITE(knum,*) 'Number of subdomains located along the north fold : ', ndim_rank_north
-         WRITE(knum,*) 'Rank of the subdomains located along the north fold : ', ndim_rank_north
+         WRITE(knum,*) 'Rank of the subdomains located along the north fold : '
          DO jn = 1, ndim_rank_north, 5
             WRITE(knum,*) nrank_north( jn:MINVAL( (/jn+4,ndim_rank_north/) ) )
          END DO
       ENDIF
       
-      nfd_nbnei = 0   ! defaul def (useless?)
+      nfd_nbnei = 0   ! default def (useless?)
       IF( ln_nnogather ) THEN
          !
          ! Use the "gather nfd" to know how to do the nfd: for ji point, which process send data from which of its ji-index?
          ! Note that nfd is perfectly symetric: I receive data from X <=> I send data to X  (-> no deadlock)
          !
-         zinfo(:,:,:,:) = HUGE(0._wp)   ! default def to make sure we don't use the halos
-         DO jg = 1, 4   ! grid type: T, U, V, F
+         DO jg = 1, 4                                   ! grid type: T, U, V, F
             DO jj = nn_hls+1, jpj-nn_hls                ! inner domain (warning do_loop_substitute not yet defined)
                DO ji = nn_hls+1, jpi-nn_hls             ! inner domain (warning do_loop_substitute not yet defined)
-                  zinfo(ji,jj,1,jg) = REAL(narea, wp)   ! mpi_rank + 1 (as default lbc_lnk fill is 0
+                  zinfo(ji,jj,1,jg) = REAL(narea, wp)   ! mpi_rank + 1 (note: lbc_lnk will put 0 if no neighbour)
                   zinfo(ji,jj,2,jg) = REAL(ji, wp)      ! ji of this proc
                END DO
             END DO
          END DO
          !
-         ln_nnogather = .FALSE.   ! force "classical" North pole folding to fill all halos -> should be no more HUGE values...
+         ln_nnogather = .FALSE.   ! force "classical" North pole folding to fill all halos
          CALL lbc_lnk( 'mppini', zinfo(:,:,:,1), 'T', 1._wp )   ! Do 4 calls instead of 1 to save memory as the nogather version
          CALL lbc_lnk( 'mppini', zinfo(:,:,:,2), 'U', 1._wp )   ! creates buffer arrays with jpiglo as the first dimension
          CALL lbc_lnk( 'mppini', zinfo(:,:,:,3), 'V', 1._wp )   ! 
@@ -1348,24 +1381,52 @@ ENDIF
          
          IF( l_IdoNFold ) THEN   ! only the procs involed in the NFD must take care of this
             
-            ALLOCATE( nfd_rksnd(jpi,4), nfd_jisnd(jpi,4) )          ! neighbour rand and remote ji-index for each grid (T, U, V, F)
-            nfd_rksnd(:,:) = NINT( zinfo(:, jpj, 1, :) ) - 1        ! neighbour MPI rank
-            nfd_jisnd(:,:) = NINT( zinfo(:, jpj, 2, :) ) - nn_hls   ! neighbour ji index (shifted as we don't send the halos)
-            WHERE( nfd_rksnd == -1 )   nfd_jisnd = 1                ! use ji=1 if no neighbour, see mpp_nfd_generic.h90
-            
-            nfd_nbnei = 1                ! Number of neighbour sending data for the nfd. We have at least 1 neighbour!
-            irknei(1) = nfd_rksnd(1,1)   ! which is the 1st one (I can be neighbour of myself, exclude land-proc are also ok)
+            ALLOCATE( nfd_rksnd(jpi,nn_hls+1,4), nfd_jisnd(jpi,nn_hls+1,4), lnfd_same(jpi,4) )
+            nfd_rksnd(:,:,:) = NINT( zinfo(:,jpj-nn_hls:jpj,1,:) ) - 1        ! neighbour MPI rank (-1 means no neighbour)
+            ! Use some tricks for mpp_nfd_generic.h90:
+            !    1) neighbour ji index (shifted as we don't send the halos)
+            nfd_jisnd(:,:,:) = NINT( zinfo(:,jpj-nn_hls:jpj,2,:) ) - nn_hls
+            !    2) use ji=1 if no neighbour
+            WHERE( nfd_rksnd == -1 )   nfd_jisnd = 1
+            !    3) control which points must be modified by the NP folding on line jpjglo-nn_hls
+            lnfd_same(:,:) = .TRUE.
+            IF(     c_NFtype == 'T' ) THEN
+               lnfd_same(mi0(jpiglo/2+2,nn_hls):mi1(jpiglo-nn_hls,nn_hls),  1) = .FALSE.
+               lnfd_same(mi0(jpiglo/2+1,nn_hls):mi1(jpiglo-nn_hls,nn_hls),  2) = .FALSE.
+               lnfd_same(mi0(  nn_hls+1,nn_hls):mi1(jpiglo-nn_hls,nn_hls),3:4) = .FALSE.
+               IF( l_Iperio ) THEN   ! in case the ew-periodicity was done before calling the NP folding
+                  lnfd_same(mi0(              1,nn_hls):mi1(nn_hls,nn_hls),1:4) = .FALSE.
+                  lnfd_same(mi0(jpiglo-nn_hls+1,nn_hls):mi1(jpiglo,nn_hls),3:4) = .FALSE.
+               ENDIF
+            ELSEIF( c_NFtype == 'F' ) THEN
+               lnfd_same(mi0(jpiglo/2+1   ,nn_hls):mi1(jpiglo/2+1     ,nn_hls),1) = .FALSE.
+               lnfd_same(mi0(jpiglo-nn_hls,nn_hls):mi1(jpiglo-nn_hls  ,nn_hls),1) = .FALSE.
+               lnfd_same(mi0(jpiglo/2+1   ,nn_hls):mi1(jpiglo-nn_hls  ,nn_hls),3) = .FALSE.
+               lnfd_same(mi0(jpiglo/2+1   ,nn_hls):mi1(jpiglo-nn_hls-1,nn_hls),4) = .FALSE.
+               IF( l_Iperio ) THEN   ! in case the ew-periodicity was done before calling the NP folding
+                  lnfd_same(mi0(nn_hls,nn_hls):mi1(nn_hls  ,nn_hls),1) = .FALSE.
+                  lnfd_same(mi0(     1,nn_hls):mi1(nn_hls  ,nn_hls),3) = .FALSE.
+                  lnfd_same(mi0(     1,nn_hls):mi1(nn_hls-1,nn_hls),4) = .FALSE.
+               ENDIF
+            ENDIF
+            WHERE( lnfd_same )   nfd_jisnd(:,1,:) = HUGE(0)   ! make sure we dont use it
+               
+            nfd_nbnei = 0
+            irknei(0) = HUGE(0)
             DO jg = 1, 4
-               DO ji = 1, jpi     ! we must be able to fill the full line including halos
-                  lnew = .TRUE.   ! new neighbour?
-                  DO jn = 1, nfd_nbnei
-                     IF( irknei(jn) == nfd_rksnd(ji,jg) )   lnew = .FALSE.   ! already found
+               DO jj = 1, nn_hls+1
+                  DO ji = 1, jpi     ! we must be able to fill the full line including halos
+                     IF( jj == 1 .AND. lnfd_same(ji,jg) )   CYCLE
+                     llnew = .TRUE.   ! new neighbour?
+                     DO jn = 0, nfd_nbnei
+                        IF( irknei(jn) == nfd_rksnd(ji,jj,jg) )   llnew = .FALSE.   ! already found
+                     END DO
+                     IF( llnew ) THEN
+                        jn = nfd_nbnei + 1
+                        nfd_nbnei = jn
+                        irknei(jn) = nfd_rksnd(ji,jj,jg)
+                     ENDIF
                   END DO
-                  IF( lnew ) THEN
-                     jn = nfd_nbnei + 1
-                     nfd_nbnei = jn
-                     irknei(jn) = nfd_rksnd(ji,jg)
-                  ENDIF
                END DO
             END DO
             
@@ -1373,14 +1434,20 @@ ENDIF
             nfd_rknei(:) = irknei(1:nfd_nbnei)
             ! re-number nfd_rksnd according to the indexes of nfd_rknei
             DO jg = 1, 4
-               DO ji = 1, jpi
-                  iitmp = nfd_rksnd(ji,jg)   ! must store a copy of nfd_rksnd(ji,jg) to make sure we don't change it twice
-                  DO jn = 1, nfd_nbnei
-                     IF( iitmp == nfd_rknei(jn) )   nfd_rksnd(ji,jg) = jn
+               DO jj = 1, nn_hls+1
+                  DO ji = 1, jpi
+                     IF( jj == 1 .AND. lnfd_same(ji,jg) ) THEN
+                        nfd_rksnd(ji,jj,jg) = HUGE(0)   ! make sure we don't use it
+                     ELSE
+                        iitmp = nfd_rksnd(ji,jj,jg)     ! must store a copy of nfd_rksnd(ji,jj,jg) so we don't change it twice
+                        DO jn = 1, nfd_nbnei
+                           IF( iitmp == nfd_rknei(jn) )   nfd_rksnd(ji,jj,jg) = jn
+                        END DO
+                     ENDIF
                   END DO
                END DO
             END DO
-            
+
             IF( ldwrtlay ) THEN
                WRITE(knum,*)
                WRITE(knum,*) 'north fold exchanges with explicit point-to-point messaging :'
@@ -1411,7 +1478,18 @@ ENDIF
       Ni_0 = Nie0 - Nis0 + 1
       Nj_0 = Nje0 - Njs0 + 1
       !
-      jpkm1 = jpk-1                             !   "           "
+      jpkm1 = jpk-1
+      !
+      ntile = 0                     ! Initialise "no tile" by default
+      nijtile = 1
+      ntsi = Nis0
+      ntsj = Njs0
+      ntei = Nie0
+      ntej = Nje0
+      nthl = 0
+      nthr = 0
+      nthb = 0
+      ntht = 0
       !
    END SUBROUTINE init_doloop
 
@@ -1424,38 +1502,74 @@ ENDIF
       !!
       !! ** Method  :
       !!
-      !! ** Action  : - mig , mjg : local  domain indices ==> global domain, including halos, indices
-      !!              - mig0, mjg0: local  domain indices ==> global domain, excluding halos, indices
+      !!              Local domain indices: Same values for the same point, different upper/lower bounds 
+      !!              e.g. with nn_hls = 2
+      !!                    jh = 0   x,x,3,...,jpi-2,    x,  x
+      !!                    jh = 1   x,2,3,...,jpi-2,jpi-1,  x
+      !!                    jh = 2   1,2,3,...,jpi-2,jpi-1,jpi
+      !!       
+      !!                 or jh = 0   x,x,3,...,Ni_0+2,     x,     x
+      !!                    jh = 1   x,2,3,...,Ni_0+2,Ni_0+3,     x
+      !!                    jh = 2   1,2,3,...,Ni_0+2,Ni_0+3,Ni_0+4
+      !!              
+      !!              Global domain indices: different values for the same point, all starts at 1
+      !!              e.g. with nn_hls = 2
+      !!                    jh = 0       1,2,3,              ...,jpiglo-4,       x,     x,x,x
+      !!                    jh = 1     1,2,3,       ...,jpiglo-4,jpiglo-3,jpiglo-2,     x,x
+      !!                    jh = 2   1,2,3,...,jpiglo-4,jpiglo-3,jpiglo-2,jpiglo-1,jpiglo
+      !!       
+      !!                 or jh = 0       1,2,3,            ...,Ni0glo  ,       x,       x,x,x
+      !!                    jh = 1     1,2,3,     ...,Ni0glo  ,Ni0glo+1,Ni0glo+2,       x,x
+      !!                    jh = 2   1,2,3,...,Ni0glo,Ni0glo+1,Ni0glo+2,Ni0glo+3,Ni0glo+4
+      !!                                 ^
+      !!                                 |
+      !!                                 |
+      !!                               iimpp
+      !!
+      !! ** Action  : - mig , mjg : local  domain indices ==> global domain indices
       !!              - mi0 , mi1 : global domain indices ==> local  domain indices
       !!              - mj0 , mj1   (if global point not in the local domain ==> mi0>mi1 and/or mj0>mj1)
       !!----------------------------------------------------------------------
-      INTEGER ::   ji, jj   ! dummy loop argument
+      INTEGER ::   ji, jj, jh   ! dummy loop argument
+      INTEGER ::   ipi, ipj, ipiglo, ipjglo, iimpp, ijmpp, ishft
       !!----------------------------------------------------------------------
       !
-      ALLOCATE( mig(jpi), mjg(jpj), mig0(jpi), mjg0(jpj) )
-      ALLOCATE( mi0(jpiglo), mi1(jpiglo), mj0(jpjglo), mj1(jpjglo) )
+      ALLOCATE( mig(jpi   , 0:nn_hls), mjg(jpj   , 0:nn_hls) )
+      ALLOCATE( mi0(jpiglo, 0:nn_hls), mi1(jpiglo, 0:nn_hls), mj0(jpjglo, 0:nn_hls), mj1(jpjglo, 0:nn_hls) )
       !
-      DO ji = 1, jpi                 ! local domain indices ==> global domain indices, including halos
-        mig(ji) = ji + nimpp - 1
-      END DO
-      DO jj = 1, jpj
-        mjg(jj) = jj + njmpp - 1
-      END DO
-      !                              ! local domain indices ==> global domain indices, excluding halos
-      !
-      mig0(:) = mig(:) - nn_hls
-      mjg0(:) = mjg(:) - nn_hls
-      !                              ! global domain, including halos, indices ==> local domain indices
-      !                                   ! (return (m.0,m.1)=(1,0) if data domain gridpoint is to the west/south of the
-      !                                   ! local domain, or (m.0,m.1)=(jp.+1,jp.) to the east/north of local domain.
-      DO ji = 1, jpiglo
-        mi0(ji) = MAX( 1 , MIN( ji - nimpp + 1, jpi+1 ) )
-        mi1(ji) = MAX( 0 , MIN( ji - nimpp + 1, jpi   ) )
-      END DO
-      DO jj = 1, jpjglo
-        mj0(jj) = MAX( 1 , MIN( jj - njmpp + 1, jpj+1 ) )
-        mj1(jj) = MAX( 0 , MIN( jj - njmpp + 1, jpj   ) )
-      END DO
+      DO jh = 0, nn_hls
+         !
+         ishft  = nn_hls - jh
+         !
+         ipi    = Ni_0   + 2*jh   ;   ipj    = Nj_0   + 2*jh
+         ipiglo = Ni0glo + 2*jh   ;   ipjglo = Nj0glo + 2*jh
+         iimpp  = nimpp - ishft   ;   ijmpp  = njmpp - ishft
+         !
+         ! local domain indices ==> global domain indices, including jh halos
+         !
+         DO ji = ishft + 1, ishft + ipi
+            mig(ji,jh) = ji + iimpp - 1
+         END DO
+         !
+         DO jj = ishft + 1, ishft + ipj
+            mjg(jj,jh) = jj + ijmpp - 1
+         END DO
+         !
+         ! global domain, including jh halos, indices ==> local domain indices
+         !    return (m.0,m.1)=(1,0) if data domain gridpoint is to the west/south of the
+         !    local domain, or (m.0,m.1)=(jp.+1,jp.) to the east/north of local domain.
+         !
+         DO ji = 1, ipiglo
+            mi0(ji,jh) = MAX( 1 , MIN( ji - iimpp + 1, ipi+ishft+1 ) )
+            mi1(ji,jh) = MAX( 0 , MIN( ji - iimpp + 1, ipi+ishft   ) )
+         END DO
+         !
+         DO jj = 1, ipjglo
+            mj0(jj,jh) = MAX( 1 , MIN( jj - ijmpp + 1, ipj+ishft+1 ) )
+            mj1(jj,jh) = MAX( 0 , MIN( jj - ijmpp + 1, ipj+ishft   ) )
+         END DO
+         !
+      END DO   ! jh
       !
    END SUBROUTINE init_locglo
    

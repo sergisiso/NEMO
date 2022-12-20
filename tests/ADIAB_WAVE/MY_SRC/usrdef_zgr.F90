@@ -14,8 +14,7 @@ MODULE usrdef_zgr
    !!       zgr_z1d   : reference 1D z-coordinate 
    !!---------------------------------------------------------------------
    USE oce            ! ocean variables
-   USE dom_oce ,  ONLY: mi0, mi1   ! ocean space and time domain
-   USE dom_oce ,  ONLY: glamt      ! ocean space and time domain
+   USE dom_oce        ! ocean space and time domain
    USE usrdef_nam     ! User defined : namelist variables
    !
    USE in_out_manager ! I/O manager
@@ -105,10 +104,10 @@ CONTAINS
       END_2D
       CALL lbc_lnk( 'usrdef_zgr', zhu, 'U', 1. )     ! boundary condition: this mask the surrouding grid-points
       !                                ! ==>>>  set by hand non-zero value on first/last columns & rows 
-      DO ji = mi0(1), mi1(1)              ! first row of global domain only
+      DO ji = mi0(1,nn_hls), mi1(1,nn_hls)              ! first row of global domain only
          zhu(ji,2) = zht(ji,2)
       END DO
-       DO ji = mi0(jpiglo), mi1(jpiglo)   ! last  row of global domain only
+       DO ji = mi0(jpiglo,nn_hls), mi1(jpiglo,nn_hls)   ! last  row of global domain only
          zhu(ji,2) = zht(ji,2)
       END DO
       zhu(:,1) = zhu(:,2)

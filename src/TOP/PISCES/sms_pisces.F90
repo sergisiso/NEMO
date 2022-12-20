@@ -124,6 +124,8 @@ MODULE sms_pisces
 
    LOGICAL, SAVE :: lk_sed
 
+      !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: sms_pisces.F90 15459 2021-10-29 08:19:18Z cetlod $ 
@@ -140,52 +142,52 @@ CONTAINS
       !!----------------------------------------------------------------------
       ierr(:) = 0
       !*  Biological fluxes for light : shared variables for pisces & lobster
-      ALLOCATE( xksi(jpi,jpj), strn(jpi,jpj),  STAT=ierr(1) )
+      ALLOCATE( xksi(A2D(0)), strn(A2D(0)),  STAT=ierr(1) )
 
       IF( ln_p4z .OR. ln_p5z ) THEN
 
          !* Optics
-         ALLOCATE(  enano(jpi,jpj,jpk) , ediat(jpi,jpj,jpk) ,   &
-           &        enanom(jpi,jpj,jpk), ediatm(jpi,jpj,jpk),   &
-           &        emoy(jpi,jpj,jpk)  , etotm(jpi,jpj,jpk),   STAT=ierr(2) )
+         ALLOCATE(  enano(A2D(0),jpk) , ediat(A2D(0),jpk) ,   &
+           &        enanom(A2D(0),jpk), ediatm(A2D(0),jpk),   &
+           &        emoy(A2D(0),jpk)  , etotm(A2D(0),jpk),   STAT=ierr(2) )
 
          !* Biological SMS
-         ALLOCATE( xksimax(jpi,jpj)  , biron(jpi,jpj,jpk)      ,  STAT=ierr(3) )
+         ALLOCATE( xksimax(A2D(0))  , biron(A2D(0),jpk)      ,  STAT=ierr(3) )
 
          ! Biological SMS
-         ALLOCATE( xfracal  (jpi,jpj,jpk), orem    (jpi,jpj,jpk),  &
-            &      nitrfac  (jpi,jpj,jpk), nitrfac2(jpi,jpj,jpk),  &
-            &      prodcal  (jpi,jpj,jpk), xdiss   (jpi,jpj,jpk),  &
-            &      prodpoc  (jpi,jpj,jpk), conspoc (jpi,jpj,jpk),  &
-            &      prodgoc  (jpi,jpj,jpk), consgoc (jpi,jpj,jpk),  &
-            &      blim     (jpi,jpj,jpk), consfe3 (jpi,jpj,jpk),  &
-            &      xfecolagg(jpi,jpj,jpk), xcoagfe (jpi,jpj,jpk), STAT=ierr(4) )
+         ALLOCATE( xfracal  (A2D(0),jpk), orem    (A2D(0),jpk),  &
+            &      nitrfac  (A2D(0),jpk), nitrfac2(A2D(0),jpk),  &
+            &      prodcal  (A2D(0),jpk), xdiss   (A2D(0),jpk),  &
+            &      prodpoc  (A2D(0),jpk), conspoc (A2D(0),jpk),  &
+            &      prodgoc  (A2D(0),jpk), consgoc (A2D(0),jpk),  &
+            &      blim     (A2D(0),jpk), consfe3 (A2D(0),jpk),  &
+            &      xfecolagg(A2D(0),jpk), xcoagfe (A2D(0),jpk), STAT=ierr(4) )
 
          !* Carbonate chemistry
-         ALLOCATE( ak13  (jpi,jpj,jpk)  ,                          &
-            &      ak23(jpi,jpj,jpk)    , aksp  (jpi,jpj,jpk) ,    &
-            &      hi  (jpi,jpj,jpk)    , excess(jpi,jpj,jpk) ,    &
-            &      aphscale(jpi,jpj,jpk),                         STAT=ierr(5) )
+         ALLOCATE( ak13(A2D(0),jpk),                          &
+            &      ak23(A2D(0),jpk), aksp  (A2D(0),jpk) ,    &
+            &      hi  (A2D(0),jpk), excess(A2D(0),jpk) ,    &
+            &      aphscale(A2D(0),jpk),                         STAT=ierr(5) )
          !
          !* Temperature dependency of SMS terms
-         ALLOCATE( tgfunc (jpi,jpj,jpk) , tgfunc2(jpi,jpj,jpk),   STAT=ierr(6) )
+         ALLOCATE( tgfunc (A2D(0),jpk) , tgfunc2(A2D(0),jpk),   STAT=ierr(6) )
          !
          !* Sinking speed
-         ALLOCATE( wsbio3 (jpi,jpj,jpk) , wsbio4 (jpi,jpj,jpk),   STAT=ierr(7) )
+         ALLOCATE( wsbio3 (A2D(0),jpk) , wsbio4 (A2D(0),jpk),   STAT=ierr(7) )
 
          !*  Size of phytoplankton cells
-         ALLOCATE( sizen (jpi,jpj,jpk), sized (jpi,jpj,jpk),        &
-           &       sizena(jpi,jpj,jpk), sizeda(jpi,jpj,jpk),      STAT=ierr(8) )
+         ALLOCATE( sizen (A2D(0),jpk), sized (A2D(0),jpk),        &
+           &       sizena(A2D(0),jpk), sizeda(A2D(0),jpk),      STAT=ierr(8) )
          ! 
-         ALLOCATE( plig(jpi,jpj,jpk)  ,                           STAT=ierr(9) )
+         ALLOCATE( plig(A2D(0),jpk)  ,                           STAT=ierr(9) )
       ENDIF
       !
       IF( ln_p5z ) THEN
          ! PISCES-QUOTA specific part      
-         ALLOCATE( epico(jpi,jpj,jpk)   , epicom(jpi,jpj,jpk) ,   STAT=ierr(10) ) 
+         ALLOCATE( epico(A2D(0),jpk)   , epicom(A2D(0),jpk) ,   STAT=ierr(10) ) 
 
          !*  Size of phytoplankton cells
-         ALLOCATE( sizep(jpi,jpj,jpk), sizepa(jpi,jpj,jpk),       STAT=ierr(11) )
+         ALLOCATE( sizep(A2D(0),jpk), sizepa(A2D(0),jpk),       STAT=ierr(11) )
       ENDIF
       !
       sms_pisces_alloc = MAXVAL( ierr )

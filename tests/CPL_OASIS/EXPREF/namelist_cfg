@@ -151,7 +151,7 @@
    sn_rcv_cal    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_co2    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_iceflx =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
-   sn_rcv_mslp   =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
+   sn_rcv_mslp   =   'coupled'              ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_ts_ice =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_isf    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
    sn_rcv_icb    =   'none'                 ,    'no'    ,     ''      ,         ''           ,   ''
@@ -216,7 +216,7 @@
 !-----------------------------------------------------------------------
 &namberg       !   iceberg parameters                                   (default: OFF)
 !-----------------------------------------------------------------------
-   ln_icebergs = .true.    ! activate iceberg floats (force =F with "key_agrif")
+   ln_icebergs = .false.    ! activate iceberg floats (force =F with "key_agrif")
 
    cn_dir = './'  !  root directory for the location of drag coefficient files
    !______!___________!___________________!______________!______________!_________!___________!__________!__________!_______________!

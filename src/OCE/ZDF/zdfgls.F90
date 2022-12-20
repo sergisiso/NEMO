@@ -17,7 +17,6 @@ MODULE zdfgls
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and active tracers
    USE dom_oce        ! ocean space and time domain
-   USE domvvl         ! ocean space and time domain : variable volume layer
    USE zdfdrg  , ONLY : ln_drg_OFF            ! top/bottom free-slip flag
    USE zdfdrg  , ONLY : r_z0_top , r_z0_bot   ! top/bottom roughness
    USE zdfdrg  , ONLY : rCdU_top , rCdU_bot   ! top/bottom friction
@@ -126,8 +125,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                ***  FUNCTION zdf_gls_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( hmxl_n(jpi,jpj,jpk) , ustar2_surf(jpi,jpj) ,                     &
-         &      zwall (jpi,jpj,jpk) , ustar2_top (jpi,jpj) , ustar2_bot(jpi,jpj) , STAT= zdf_gls_alloc )
+      ALLOCATE( hmxl_n(A2D(0),jpk) , ustar2_surf(A2D(0)) ,                     &
+         &      zwall (A2D(0),jpk) , ustar2_top (A2D(0)) , ustar2_bot(A2D(0)) , STAT= zdf_gls_alloc )
          !
       CALL mpp_sum ( 'zdfgls', zdf_gls_alloc )
       IF( zdf_gls_alloc /= 0 )   CALL ctl_stop( 'STOP', 'zdf_gls_alloc: failed to allocate arrays' )
@@ -143,10 +142,11 @@ CONTAINS
       !!----------------------------------------------------------------------
       USE zdf_oce , ONLY : en, avtb, avmb   ! ocean vertical physics
       !!
-      INTEGER                             , INTENT(in   ) ::   kt             ! ocean time step
-      INTEGER                             , INTENT(in   ) ::   Kbb, Kmm       ! ocean time level indices
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(in   ) ::   p_sh2          ! shear production term
-      REAL(wp), DIMENSION(:,:,:)          , INTENT(inout) ::   p_avm, p_avt   !  momentum and tracer Kz (w-points)
+      INTEGER                         , INTENT(in   ) ::   kt             ! ocean time step
+      INTEGER                         , INTENT(in   ) ::   Kbb, Kmm       ! ocean time level indices
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(in   ) ::   p_sh2          ! shear production term
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt          ! vertical eddy diffusivity (w-points)
       !
       INTEGER  ::   ji, jj, jk    ! dummy loop arguments
       INTEGER  ::   ibot, ibotm1  ! local integers
@@ -157,51 +157,51 @@ CONTAINS
       REAL(wp) ::   prod, buoy, diss, zdiss, sm         !   -      -
       REAL(wp) ::   gh, gm, shr, dif, zsqen, zavt, zavm !   -      -
       REAL(wp) ::   zmsku, zmskv                        !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zdep
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zkar
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zflxs                 ! Turbulence fluxed induced by internal waves
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zhsro                 ! Surface roughness (surface waves)
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zice_fra              ! Tapering of wave breaking under sea ice
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   eb                    ! tke at time before
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   hmxl_b                ! mixing length at time before
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   eps                   ! dissipation rate
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zwall_psi             ! Wall function use in the wb case (ln_sigpsi)
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   psi                   ! psi at time now
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zd_lw, zd_up, zdiag   ! lower, upper  and diagonal of the matrix
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zstt, zstm            ! stability function on tracer and momentum
+      REAL(wp), DIMENSION(T2D(0))     ::   zdep
+      REAL(wp), DIMENSION(T2D(0))     ::   zkar
+      REAL(wp), DIMENSION(T2D(0))     ::   zflxs                 ! Turbulence fluxed induced by internal waves
+      REAL(wp), DIMENSION(T2D(0))     ::   zhsro                 ! Surface roughness (surface waves)
+      REAL(wp), DIMENSION(T2D(0))     ::   zice_fra              ! Tapering of wave breaking under sea ice
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   eb                    ! tke at time before
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   hmxl_b                ! mixing length at time before
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   eps                   ! dissipation rate
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zwall_psi             ! Wall function use in the wb case (ln_sigpsi)
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   psi                   ! psi at time now
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zd_lw, zd_up, zdiag   ! lower, upper  and diagonal of the matrix
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zstt, zstm            ! stability function on tracer and momentum
       !!--------------------------------------------------------------------
       !
       ! Preliminary computing
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( 0, 0, 0, 0 )
          ustar2_surf(ji,jj) = 0._wp   ;   ustar2_top(ji,jj) = 0._wp   ;   ustar2_bot(ji,jj) = 0._wp
       END_2D
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          psi(ji,jj,jk) = 0._wp   ;   zwall_psi(ji,jj,jk) = 0._wp
       END_3D
 
       SELECT CASE ( nn_z0_ice )
       CASE( 0 )   ;   zice_fra(:,:) = 0._wp
-      CASE( 1 )   ;   zice_fra(:,:) =        TANH( fr_i(A2D(nn_hls)) * 10._wp )
-      CASE( 2 )   ;   zice_fra(:,:) =              fr_i(A2D(nn_hls))
-      CASE( 3 )   ;   zice_fra(:,:) = MIN( 4._wp * fr_i(A2D(nn_hls)) , 1._wp )
+      CASE( 1 )   ;   zice_fra(:,:) =        TANH( fr_i(T2D(0)) * 10._wp )
+      CASE( 2 )   ;   zice_fra(:,:) =              fr_i(T2D(0))
+      CASE( 3 )   ;   zice_fra(:,:) = MIN( 4._wp * fr_i(T2D(0)) , 1._wp )
       END SELECT
 
       ! Compute surface, top and bottom friction at T-points
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )          !==  surface ocean friction
+      DO_2D( 0, 0, 0, 0 )          !==  surface ocean friction
          ustar2_surf(ji,jj) = r1_rho0 * taum(ji,jj) * tmask(ji,jj,1)   ! surface friction
       END_2D
       !
       !!gm Rq we may add here r_ke0(_top/_bot) ?  ==>> think about that...
       !
       IF( .NOT.ln_drg_OFF ) THEN     !== top/bottom friction   (explicit before friction)
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )          ! bottom friction (explicit before friction)
+         DO_2D( 0, 0, 0, 0 )          ! bottom friction (explicit before friction)
             zmsku = 0.5_wp * ( 2._wp - umask(ji-1,jj,mbkt(ji,jj)) * umask(ji,jj,mbkt(ji,jj)) )
             zmskv = 0.5_wp * ( 2._wp - vmask(ji,jj-1,mbkt(ji,jj)) * vmask(ji,jj,mbkt(ji,jj)) )     ! (CAUTION: CdU<0)
             ustar2_bot(ji,jj) = - rCdU_bot(ji,jj) * SQRT(  ( zmsku*( uu(ji,jj,mbkt(ji,jj),Kbb)+uu(ji-1,jj,mbkt(ji,jj),Kbb) ) )**2  &
                &                                         + ( zmskv*( vv(ji,jj,mbkt(ji,jj),Kbb)+vv(ji,jj-1,mbkt(ji,jj),Kbb) ) )**2  )
          END_2D
          IF( ln_isfcav ) THEN
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )      ! top friction
+            DO_2D( 0, 0, 0, 0 )      ! top friction
                zmsku = 0.5_wp * ( 2. - umask(ji-1,jj,mikt(ji,jj)) * umask(ji,jj,mikt(ji,jj)) )
                zmskv = 0.5_wp * ( 2. - vmask(ji,jj-1,mikt(ji,jj)) * vmask(ji,jj,mikt(ji,jj)) )     ! (CAUTION: CdU<0)
                ustar2_top(ji,jj) = - rCdU_top(ji,jj) * SQRT(  ( zmsku*( uu(ji,jj,mikt(ji,jj),Kbb)+uu(ji-1,jj,mikt(ji,jj),Kbb) ) )**2  &
@@ -214,57 +214,59 @@ CONTAINS
       CASE ( 0 )                          ! Constant roughness
          zhsro(:,:) = rn_hsro
       CASE ( 1 )             ! Standard Charnock formula
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             zhsro(ji,jj) = MAX( rsbc_zs1 * ustar2_surf(ji,jj) , rn_hsro )
          END_2D
       CASE ( 2 )             ! Roughness formulae according to Rascle et al., Ocean Modelling (2008)
 !!gm faster coding : the 2 comment lines should be used
 !!gm         zcof = 2._wp * 0.6_wp / 28._wp
 !!gm         zdep(:,:)  = 30._wp * TANH(  zcof/ SQRT( MAX(ustar2_surf(:,:),rsmall) )  )       ! Wave age (eq. 10)
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             zcof = 30.*TANH( 2.*0.3/(28.*SQRT(MAX(ustar2_surf(ji,jj),rsmall))) )          ! Wave age (eq. 10)
             zhsro(ji,jj) = MAX(rsbc_zs2 * ustar2_surf(ji,jj) * zcof**1.5, rn_hsro)        ! zhsro = rn_frac_hs * Hsw (eq. 11)
          END_2D
       CASE ( 3 )             ! Roughness given by the wave model (coupled or read in file)
-         zhsro(:,:) = MAX(rn_frac_hs * hsw(A2D(nn_hls)), rn_hsro)   ! (rn_frac_hs=1.6 see Eq. (5) of Rascle et al. 2008 )
+         DO_2D( 0, 0, 0, 0 )
+            zhsro(ji,jj) = MAX(rn_frac_hs * hsw(ji,jj), rn_hsro)   ! (rn_frac_hs=1.6 see Eq. (5) of Rascle et al. 2008 )
+         END_2D
       END SELECT
       !
       ! adapt roughness where there is sea ice
       SELECT CASE( nn_mxlice )       ! Type of scaling under sea-ice
       !
       CASE( 1 )                      ! scaling with constant sea-ice roughness
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             zhsro(ji,jj) = ( (1._wp-zice_fra(ji,jj)) * zhsro(ji,jj) + zice_fra(ji,jj) * rn_hsri )*tmask(ji,jj,1)  + (1._wp - tmask(ji,jj,1))*rn_hsro
          END_2D
          !
       CASE( 2 )                      ! scaling with mean sea-ice thickness
 #if defined key_si3
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             zhsro(ji,jj) = ( (1._wp-zice_fra(ji,jj)) * zhsro(ji,jj) + zice_fra(ji,jj) * hm_i(ji,jj) )*tmask(ji,jj,1)  + (1._wp - tmask(ji,jj,1))*rn_hsro
          END_2D
 #endif
          !
       CASE( 3 )                      ! scaling with max sea-ice thickness
 #if defined key_si3 || defined key_cice
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             zhsro(ji,jj) = ( (1._wp-zice_fra(ji,jj)) * zhsro(ji,jj) + zice_fra(ji,jj) * MAXVAL(h_i(ji,jj,:)) )*tmask(ji,jj,1)  + (1._wp - tmask(ji,jj,1))*rn_hsro
          END_2D
 #endif
          !
       END SELECT
       !
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )  !==  Compute dissipation rate  ==!
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )  !==  Compute dissipation rate  ==!
          eps(ji,jj,jk)  = rc03 * en(ji,jj,jk) * SQRT( en(ji,jj,jk) ) / hmxl_n(ji,jj,jk)
       END_3D
 
       ! Save tke at before time step
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          eb    (ji,jj,jk) = en    (ji,jj,jk)
          hmxl_b(ji,jj,jk) = hmxl_n(ji,jj,jk)
       END_3D
 
       IF( nn_clos == 0 ) THEN    ! Mellor-Yamada
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             zup   = hmxl_n(ji,jj,jk) * gdepw(ji,jj,mbkt(ji,jj)+1,Kmm)
             zdown = vkarmn * gdepw(ji,jj,jk,Kmm) * ( -gdepw(ji,jj,jk,Kmm) + gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) )
             zcoef = ( zup / MAX( zdown, rsmall ) )
@@ -285,7 +287,7 @@ CONTAINS
       ! zdiag : diagonal zd_up : upper diagonal zd_lw : lower diagonal
       ! Warning : after this step, en : right hand side of the matrix
 
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          !
          buoy = - p_avt(ji,jj,jk) * rn2(ji,jj,jk)     ! stratif. destruction
          !
@@ -326,7 +328,7 @@ CONTAINS
          en(ji,jj,jk) = en(ji,jj,jk) + rn_Dt * zesh2 * wmask(ji,jj,jk)
       END_3D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( 0, 0, 0, 0 )
          zdiag(ji,jj,jpk) = 1._wp
          !
          ! Set surface condition on zwall_psi (1 at the bottom)
@@ -340,7 +342,7 @@ CONTAINS
       SELECT CASE ( nn_bc_surf )
       !
       CASE ( 0 )             ! Dirichlet boundary condition (set e at k=1 & 2)
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             ! First level
             en   (ji,jj,1) = MAX(  rn_emin , rc02r * ustar2_surf(ji,jj) * (1._wp + (1._wp-zice_fra(ji,jj))*rsbc_tke1)**r2_3  )
             zd_lw(ji,jj,1) = en(ji,jj,1)
@@ -356,7 +358,7 @@ CONTAINS
          END_2D
          !
          IF( ln_isfcav) THEN     ! top boundary   (ocean cavity)
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            DO_2D( 0, 0, 0, 0 )
                IF( mikt(ji,jj) > 1 )THEN
                   itop   = mikt(ji,jj)       ! k   top w-point
                   itopp1 = mikt(ji,jj) + 1   ! k+1 1st w-point below the top one
@@ -377,7 +379,7 @@ CONTAINS
          !
       CASE ( 1 )             ! Neumann boundary condition (set d(e)/dz)
          !
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             ! Dirichlet conditions at k=1
             en   (ji,jj,1) = MAX(  rn_emin , rc02r * ustar2_surf(ji,jj) * (1._wp + (1._wp-zice_fra(ji,jj))*rsbc_tke1)**r2_3  )
             zd_lw(ji,jj,1) = en(ji,jj,1)
@@ -398,7 +400,7 @@ CONTAINS
          END_2D
          !
          IF( ln_isfcav) THEN     ! top boundary   (ocean cavity)
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            DO_2D( 0, 0, 0, 0 )
                IF( mikt(ji,jj) > 1 )THEN
                   itop   = mikt(ji,jj)       ! k   top w-point
                   itopp1 = mikt(ji,jj) + 1   ! k+1 1st w-point below the top one
@@ -428,7 +430,7 @@ CONTAINS
       CASE ( 0 )             ! Dirichlet
          !                      ! en(ibot) = u*^2 / Co2 and hmxl_n(ibot) = rn_lmin
          !                      ! Balance between the production and the dissipation terms
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
 !!gm This means that bottom and ocean w-level above have a specified "en" value.   Sure ????
 !!   With thick deep ocean level thickness, this may be quite large, no ???
 !!   in particular in ocean cavities where top stratification can be large...
@@ -447,7 +449,7 @@ CONTAINS
          !
          ! NOTE: ctl_stop with ln_isfcav when using GLS
          IF( ln_isfcav) THEN     ! top boundary   (ocean cavity)
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            DO_2D( 0, 0, 0, 0 )
                itop   = mikt(ji,jj)       ! k   top w-point
                itopp1 = mikt(ji,jj) + 1   ! k+1 1st w-point below the top one
                !                                                ! mask at the ocean surface points
@@ -465,7 +467,7 @@ CONTAINS
          !
       CASE ( 1 )             ! Neumman boundary condition
          !
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             ibot   = mbkt(ji,jj) + 1      ! k   bottom level of w-point
             ibotm1 = mbkt(ji,jj)          ! k-1 bottom level of w-point but >=1
             !
@@ -481,7 +483,7 @@ CONTAINS
          END_2D
          ! NOTE: ctl_stop with ln_isfcav when using GLS
          IF( ln_isfcav) THEN     ! top boundary   (ocean cavity)
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            DO_2D( 0, 0, 0, 0 )
                itop   = mikt(ji,jj)       ! k   top w-point
                itopp1 = mikt(ji,jj) + 1   ! k+1 1st w-point below the top one
                !                                                ! mask at the ocean surface points
@@ -502,17 +504,17 @@ CONTAINS
       ! Matrix inversion (en prescribed at surface and the bottom)
       ! ----------------------------------------------------------
       !
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )                ! First recurrence : Dk = Dk - Lk * Uk-1 / Dk-1
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )                ! First recurrence : Dk = Dk - Lk * Uk-1 / Dk-1
          zdiag(ji,jj,jk) = zdiag(ji,jj,jk) - zd_lw(ji,jj,jk) * zd_up(ji,jj,jk-1) / zdiag(ji,jj,jk-1)
       END_3D
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )                ! Second recurrence : Lk = RHSk - Lk / Dk-1 * Lk-1
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )                ! Second recurrence : Lk = RHSk - Lk / Dk-1 * Lk-1
          zd_lw(ji,jj,jk) = en(ji,jj,jk) - zd_lw(ji,jj,jk) / zdiag(ji,jj,jk-1) * zd_lw(ji,jj,jk-1)
       END_3D
-      DO_3DS_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, jpkm1, 2, -1 )           ! Third recurrence : Ek = ( Lk - Uk * Ek+1 ) / Dk
+      DO_3DS( 0, 0, 0, 0, jpkm1, 2, -1 )           ! Third recurrence : Ek = ( Lk - Uk * Ek+1 ) / Dk
          en(ji,jj,jk) = ( zd_lw(ji,jj,jk) - zd_up(ji,jj,jk) * en(ji,jj,jk+1) ) / zdiag(ji,jj,jk)
       END_3D
       !                                            ! set the minimum value of tke
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          en(ji,jj,jk) = MAX( en(ji,jj,jk), rn_emin )
       END_3D
 
@@ -525,22 +527,22 @@ CONTAINS
       SELECT CASE ( nn_clos )
       !
       CASE( 0 )               ! k-kl  (Mellor-Yamada)
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             psi(ji,jj,jk)  = eb(ji,jj,jk) * hmxl_b(ji,jj,jk)
          END_3D
          !
       CASE( 1 )               ! k-eps
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             psi(ji,jj,jk)  = eps(ji,jj,jk)
          END_3D
          !
       CASE( 2 )               ! k-w
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             psi(ji,jj,jk)  = SQRT( eb(ji,jj,jk) ) / ( rc0 * hmxl_b(ji,jj,jk) )
          END_3D
          !
       CASE( 3 )               ! generic
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             psi(ji,jj,jk)  = rc02 * eb(ji,jj,jk) * hmxl_b(ji,jj,jk)**rnn
          END_3D
          !
@@ -553,7 +555,7 @@ CONTAINS
       ! zdiag : diagonal zd_up : upper diagonal zd_lw : lower diagonal
       ! Warning : after this step, en : right hand side of the matrix
 
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          !
          ! psi / k
          zratio = psi(ji,jj,jk) / eb(ji,jj,jk)
@@ -591,7 +593,7 @@ CONTAINS
          psi(ji,jj,jk) = psi(ji,jj,jk) + rn_Dt * zesh2 * wmask(ji,jj,jk)
       END_3D
       !
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( 0, 0, 0, 0 )
          zdiag(ji,jj,jpk) = 1._wp
       END_2D
       
@@ -602,7 +604,7 @@ CONTAINS
       !
       CASE ( 0 )             ! Dirichlet boundary conditions
          !
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             ! Surface value
             zdep    (ji,jj)   = zhsro(ji,jj) * rl_sf ! Cosmetic
             psi     (ji,jj,1) = rc0**rpp * en(ji,jj,1)**rmm * zdep(ji,jj)**rnn * tmask(ji,jj,1)
@@ -621,7 +623,7 @@ CONTAINS
          !
       CASE ( 1 )             ! Neumann boundary condition on d(psi)/dz
          !
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             ! Surface value: Dirichlet
             zdep    (ji,jj)   = zhsro(ji,jj) * rl_sf
             psi     (ji,jj,1) = rc0**rpp * en(ji,jj,1)**rmm * zdep(ji,jj)**rnn * tmask(ji,jj,1)
@@ -657,7 +659,7 @@ CONTAINS
       CASE ( 0 )             ! Dirichlet
          !                      ! en(ibot) = u*^2 / Co2 and hmxl_n(ibot) = vkarmn * r_z0_bot
          !                      ! Balance between the production and the dissipation terms
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             ibot   = mbkt(ji,jj) + 1      ! k   bottom level of w-point
             ibotm1 = mbkt(ji,jj)          ! k-1 bottom level of w-point but >=1
             zdep(ji,jj) = vkarmn * r_z0_bot
@@ -675,7 +677,7 @@ CONTAINS
          END_2D
          !
          IF( ln_isfcav) THEN     ! top boundary   (ocean cavity)
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            DO_2D( 0, 0, 0, 0 )
                IF ( mikt(ji,jj) > 1 ) THEN
                   itop   = mikt(ji,jj)       ! k   top w-point
                   itopp1 = mikt(ji,jj) + 1   ! k+1 1st w-point below the top one
@@ -698,7 +700,7 @@ CONTAINS
          !
       CASE ( 1 )             ! Neumman boundary condition
          !
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( 0, 0, 0, 0 )
             ibot   = mbkt(ji,jj) + 1      ! k   bottom level of w-point
             ibotm1 = mbkt(ji,jj)          ! k-1 bottom level of w-point but >=1
             !
@@ -722,7 +724,7 @@ CONTAINS
          END_2D
          !
          IF( ln_isfcav) THEN     ! top boundary   (ocean cavity)
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            DO_2D( 0, 0, 0, 0 )
                IF ( mikt(ji,jj) > 1 ) THEN
                   itop   = mikt(ji,jj)       ! k   top w-point
                   itopp1 = mikt(ji,jj) + 1   ! k+1 1st w-point below the top one
@@ -755,13 +757,13 @@ CONTAINS
       ! Matrix inversion
       ! ----------------
       !
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )                ! First recurrence : Dk = Dk - Lk * Uk-1 / Dk-1
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )                ! First recurrence : Dk = Dk - Lk * Uk-1 / Dk-1
          zdiag(ji,jj,jk) = zdiag(ji,jj,jk) - zd_lw(ji,jj,jk) * zd_up(ji,jj,jk-1) / zdiag(ji,jj,jk-1)
       END_3D
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )                ! Second recurrence : Lk = RHSk - Lk / Dk-1 * Lk-1
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )                ! Second recurrence : Lk = RHSk - Lk / Dk-1 * Lk-1
          zd_lw(ji,jj,jk) = psi(ji,jj,jk) - zd_lw(ji,jj,jk) / zdiag(ji,jj,jk-1) * zd_lw(ji,jj,jk-1)
       END_3D
-      DO_3DS( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, jpkm1, 2, -1 )           ! Third recurrence : Ek = ( Lk - Uk * Ek+1 ) / Dk
+      DO_3DS( 0, 0, 0, 0, jpkm1, 2, -1 )           ! Third recurrence : Ek = ( Lk - Uk * Ek+1 ) / Dk
          psi(ji,jj,jk) = ( zd_lw(ji,jj,jk) - zd_up(ji,jj,jk) * psi(ji,jj,jk+1) ) / zdiag(ji,jj,jk)
       END_3D
 
@@ -771,17 +773,17 @@ CONTAINS
       SELECT CASE ( nn_clos )
       !
       CASE( 0 )               ! k-kl  (Mellor-Yamada)
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             eps(ji,jj,jk) = rc03 * en(ji,jj,jk) * en(ji,jj,jk) * SQRT( en(ji,jj,jk) ) / MAX( psi(ji,jj,jk), rn_epsmin)
          END_3D
          !
       CASE( 1 )               ! k-eps
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             eps(ji,jj,jk) = psi(ji,jj,jk)
          END_3D
          !
       CASE( 2 )               ! k-w
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             eps(ji,jj,jk) = rc04 * en(ji,jj,jk) * psi(ji,jj,jk)
          END_3D
          !
@@ -789,7 +791,7 @@ CONTAINS
          zcoef = rc0**( 3._wp  + rpp/rnn )
          zex1  =      ( 1.5_wp + rmm/rnn )
          zex2  = -1._wp / rnn
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             eps(ji,jj,jk) = zcoef * en(ji,jj,jk)**zex1 * psi(ji,jj,jk)**zex2
          END_3D
          !
@@ -797,13 +799,13 @@ CONTAINS
 
       ! Limit dissipation rate under stable stratification
       ! --------------------------------------------------
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )   ! Note that this set boundary conditions on hmxl_n at the same time
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )   ! Note that this set boundary conditions on hmxl_n at the same time
          ! limitation
          eps   (ji,jj,jk)  = MAX( eps(ji,jj,jk), rn_epsmin )
          hmxl_n(ji,jj,jk)  = rc03 * en(ji,jj,jk) * SQRT( en(ji,jj,jk) ) / eps(ji,jj,jk)
       END_3D
       IF( ln_length_lim ) THEN        ! Galperin criterium (NOTE : Not required if the proper value of C3 in stable cases is calculated)
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             zrn2 = MAX( rn2(ji,jj,jk), rsmall )
             hmxl_n(ji,jj,jk) = MIN(  rn_clim_galp * SQRT( 2._wp * en(ji,jj,jk) / zrn2 ), hmxl_n(ji,jj,jk) )
          END_3D
@@ -816,7 +818,7 @@ CONTAINS
       SELECT CASE ( nn_stab_func )
       !
       CASE ( 0 , 1 )             ! Galperin or Kantha-Clayson stability functions
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             ! zcof =  l²/q²
             zcof = hmxl_b(ji,jj,jk) * hmxl_b(ji,jj,jk) / ( 2._wp*eb(ji,jj,jk) )
             ! Gh = -N²l²/q²
@@ -833,7 +835,7 @@ CONTAINS
          END_3D
          !
       CASE ( 2, 3 )               ! Canuto stability functions
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             ! zcof =  l²/q²
             zcof = hmxl_b(ji,jj,jk)*hmxl_b(ji,jj,jk) / ( 2._wp * eb(ji,jj,jk) )
             ! Gh = -N²l²/q²
@@ -861,17 +863,16 @@ CONTAINS
       ! Boundary conditions on stability functions for momentum (Neumann):
       ! Lines below are useless if GOTM style Dirichlet conditions are used
 
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( 0, 0, 0, 0 )
          zstm(ji,jj,1) = zstm(ji,jj,2)
          zstm(ji,jj,jpk) = 0.  ! default value, in case jpk > mbkt(ji,jj)+1
          !                   ! Not needed but avoid a bug when looking for undefined values (-fpe0)
       END_2D
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )             ! update bottom with good values
+      DO_2D( 0, 0, 0, 0 )             ! update bottom with good values
          zstm(ji,jj,mbkt(ji,jj)+1) = zstm(ji,jj,mbkt(ji,jj))
       END_2D
-
-      zstt(:,:,  1) = wmask(A2D(nn_hls),  1)  ! default value not needed but avoid a bug when looking for undefined values (-fpe0)
-      zstt(:,:,jpk) = wmask(A2D(nn_hls),jpk)  ! default value not needed but avoid a bug when looking for undefined values (-fpe0)
+      zstt(:,:,  1) = wmask(A2D(0),  1)  ! default value not needed but avoid a bug when looking for undefined values (-fpe0)
+      zstt(:,:,jpk) = wmask(A2D(0),jpk)  ! default value not needed but avoid a bug when looking for undefined values (-fpe0)
 
 !!gm should be done for ISF (top boundary cond.)
 !!gm so, totally new staff needed!!gm
@@ -881,14 +882,14 @@ CONTAINS
       !  -> yes BUT p_avm(:,:1) and p_avm(:,:jpk) are used when we compute zd_lw(:,:2) and zd_up(:,:jpkm1). These values are
       !     later overwritten by surface/bottom boundaries conditions, so we don't really care of p_avm(:,:1) and p_avm(:,:jpk)
       !     for zd_lw and zd_up but they have to be defined to avoid a bug when looking for undefined values (-fpe0)
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          zsqen = SQRT( 2._wp * en(ji,jj,jk) ) * hmxl_n(ji,jj,jk)
          zavt  = zsqen * zstt(ji,jj,jk)
          zavm  = zsqen * zstm(ji,jj,jk)
          p_avt(ji,jj,jk) = MAX( zavt, avtb(jk) ) * wmask(ji,jj,jk) ! apply mask for zdfmxl routine
          p_avm(ji,jj,jk) = MAX( zavm, avmb(jk) )                   ! Note that avm is not masked at the surface and the bottom
       END_3D
-      p_avt(A2D(nn_hls),1) = 0._wp
+      p_avt(:,:,1) = 0._wp
       !
       IF(sn_cfctl%l_prtctl) THEN
          CALL prt_ctl( tab3d_1=en   , clinfo1=' gls  - e: ', tab3d_2=p_avt, clinfo2=' t: ' )
@@ -970,7 +971,8 @@ CONTAINS
                CALL ctl_stop( 'zdf_gls_init: wrong value for nn_mxlice, should be 0,1,2,3 ')
          END SELECT
          IF     ( (nn_mxlice>0).AND.(nn_ice==0) ) THEN
-            CALL ctl_stop( 'zdf_gls_init: with no ice at all, nn_mxlice must be 0 ') 
+            CALL ctl_warn( 'zdf_gls_init: with no ice at all, nn_mxlice is set to 0 ')
+            nn_mxlice = 0
          ELSEIF ( (nn_mxlice>1).AND.(nn_ice==1) ) THEN
             CALL ctl_stop( 'zdf_gls_init: with no ice model, nn_mxlice must be 0 or 1')
          ENDIF
@@ -1212,7 +1214,7 @@ CONTAINS
       !
       !                                !* Wall proximity function
 !!gm tmask or wmask ????
-      zwall(:,:,:) = 1._wp * tmask(:,:,:)
+      zwall(:,:,:) = 1._wp * tmask(A2D(0),:)
 
       !                                !* read or initialize all required files
       CALL gls_rst( nit000, 'READ' )      ! (en, avt_k, avm_k, hmxl_n)

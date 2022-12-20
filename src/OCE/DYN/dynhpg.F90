@@ -24,7 +24,6 @@ MODULE dynhpg
    !!                  gradient of the hydrostatic pressure
    !!   dyn_hpg_init : initialisation and control of options
    !!       hpg_zco  : z-coordinate scheme
-   !!       hpg_zps  : z-coordinate plus partial steps (interpolation)
    !!       hpg_sco  : s-coordinate (standard jacobian formulation)
    !!       hpg_isf  : s-coordinate (sco formulation) adapted to ice shelf
    !!       hpg_djc  : s-coordinate (Density Jacobian with Cubic polynomial)
@@ -39,11 +38,9 @@ MODULE dynhpg
    USE phycst          ! physical constants
    USE trd_oce         ! trends: ocean variables
    USE trddyn          ! trend manager: dynamics
-   USE zpshde          ! partial step: hor. derivative     (zps_hde routine)
    !
    USE in_out_manager  ! I/O manager
    USE prtctl          ! Print control
-   USE lbclnk          ! lateral boundary condition 
    USE lib_mpp         ! MPP library
    USE eosbn2          ! compute density
    USE timing          ! Timing
@@ -115,7 +112,6 @@ CONTAINS
       !
       SELECT CASE ( nhpg )      ! Hydrostatic pressure gradient computation
       CASE ( np_zco )   ;   CALL hpg_zco    ( kt, Kmm, puu, pvv, Krhs )  ! z-coordinate
-      CASE ( np_zps )   ;   CALL hpg_zps    ( kt, Kmm, puu, pvv, Krhs )  ! z-coordinate plus partial steps (interpolation)
       CASE ( np_sco )   ;   CALL hpg_sco    ( kt, Kmm, puu, pvv, Krhs )  ! s-coordinate (standard jacobian formulation)
       CASE ( np_djc )   ;   CALL hpg_djc    ( kt, Kmm, puu, pvv, Krhs )  ! s-coordinate (Density Jacobian with Cubic polynomial)
       CASE ( np_prj )   ;   CALL hpg_prj    ( kt, Kmm, puu, pvv, Krhs )  ! s-coordinate (Pressure Jacobian scheme)
@@ -260,7 +256,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk       ! dummy loop indices
       REAL(wp) ::   zcoef0, zcoef1   ! temporary scalars
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::  zhpi, zhpj
+      REAL(wp), DIMENSION(T2D(nn_hls)) ::  zhpi, zhpj
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -299,90 +295,6 @@ CONTAINS
    END SUBROUTINE hpg_zco
 
 
-   SUBROUTINE hpg_zps( kt, Kmm, puu, pvv, Krhs )
-      !!---------------------------------------------------------------------
-      !!                 ***  ROUTINE hpg_zps  ***
-      !!
-      !! ** Method  :   z-coordinate plus partial steps case.  blahblah...
-      !!
-      !! ** Action  : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now hydrastatic pressure trend
-      !!----------------------------------------------------------------------
-      INTEGER                             , INTENT( in )  ::  kt          ! ocean time-step index
-      INTEGER                             , INTENT( in )  ::  Kmm, Krhs   ! ocean time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv    ! ocean velocities and RHS of momentum equation
-      !!
-      INTEGER  ::   ji, jj, jk                       ! dummy loop indices
-      INTEGER  ::   iku, ikv                         ! temporary integers
-      REAL(wp) ::   zcoef0, zcoef1, zcoef2, zcoef3   ! temporary scalars
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk ) :: zhpi, zhpj
-      REAL(wp), DIMENSION(A2D(nn_hls),jpts) :: zgtsu, zgtsv
-      REAL(wp), DIMENSION(A2D(nn_hls)     ) :: zgru, zgrv
-      !!----------------------------------------------------------------------
-      !
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == nit000 ) THEN
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) 'dyn:hpg_zps : hydrostatic pressure gradient trend'
-            IF(lwp) WRITE(numout,*) '~~~~~~~~~~~   z-coordinate with partial steps - vector optimization'
-         ENDIF
-      ENDIF
-
-      ! Partial steps: Compute NOW horizontal gradient of t, s, rd at the last ocean level
-      CALL zps_hde( kt, jpts, ts(:,:,:,:,Kmm), zgtsu, zgtsv, rhd, zgru , zgrv )
-
-      ! Local constant initialization
-      zcoef0 = - grav * 0.5_wp
-
-      !  Surface value (also valid in partial step case)
-      DO_2D( 0, 0, 0, 0 )
-         zcoef1 = zcoef0 * e3w(ji,jj,1,Kmm)
-         ! hydrostatic pressure gradient
-         zhpi(ji,jj,1) = zcoef1 * ( rhd(ji+1,jj  ,1) - rhd(ji,jj,1) ) * r1_e1u(ji,jj)
-         zhpj(ji,jj,1) = zcoef1 * ( rhd(ji  ,jj+1,1) - rhd(ji,jj,1) ) * r1_e2v(ji,jj)
-         ! add to the general momentum trend
-         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj,1)
-         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj,1)
-      END_2D
-
-      ! interior value (2=<jk=<jpkm1)
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-         zcoef1 = zcoef0 * e3w(ji,jj,jk,Kmm)
-         ! hydrostatic pressure gradient
-         zhpi(ji,jj,jk) = zhpi(ji,jj,jk-1)   &
-            &           + zcoef1 * (  ( rhd(ji+1,jj,jk) + rhd(ji+1,jj,jk-1) )   &
-            &                       - ( rhd(ji  ,jj,jk) + rhd(ji  ,jj,jk-1) )  ) * r1_e1u(ji,jj)
-
-         zhpj(ji,jj,jk) = zhpj(ji,jj,jk-1)   &
-            &           + zcoef1 * (  ( rhd(ji,jj+1,jk) + rhd(ji,jj+1,jk-1) )   &
-            &                       - ( rhd(ji,jj,  jk) + rhd(ji,jj  ,jk-1) )  ) * r1_e2v(ji,jj)
-         ! add to the general momentum trend
-         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj,jk)
-         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj,jk)
-      END_3D
-
-      ! partial steps correction at the last level  (use zgru & zgrv computed in zpshde.F90)
-      DO_2D( 0, 0, 0, 0 )
-         iku = mbku(ji,jj)
-         ikv = mbkv(ji,jj)
-         zcoef2 = zcoef0 * MIN( e3w(ji,jj,iku,Kmm), e3w(ji+1,jj  ,iku,Kmm) )
-         zcoef3 = zcoef0 * MIN( e3w(ji,jj,ikv,Kmm), e3w(ji  ,jj+1,ikv,Kmm) )
-         IF( iku > 1 ) THEN            ! on i-direction (level 2 or more)
-            puu  (ji,jj,iku,Krhs) = puu(ji,jj,iku,Krhs) - zhpi(ji,jj,iku)         ! subtract old value
-            zhpi(ji,jj,iku) = zhpi(ji,jj,iku-1)                   &   ! compute the new one
-               &            + zcoef2 * ( rhd(ji+1,jj,iku-1) - rhd(ji,jj,iku-1) + zgru(ji,jj) ) * r1_e1u(ji,jj)
-            puu  (ji,jj,iku,Krhs) = puu(ji,jj,iku,Krhs) + zhpi(ji,jj,iku)         ! add the new one to the general momentum trend
-         ENDIF
-         IF( ikv > 1 ) THEN            ! on j-direction (level 2 or more)
-            pvv  (ji,jj,ikv,Krhs) = pvv(ji,jj,ikv,Krhs) - zhpj(ji,jj,ikv)         ! subtract old value
-            zhpj(ji,jj,ikv) = zhpj(ji,jj,ikv-1)                   &   ! compute the new one
-               &            + zcoef3 * ( rhd(ji,jj+1,ikv-1) - rhd(ji,jj,ikv-1) + zgrv(ji,jj) ) * r1_e2v(ji,jj)
-            pvv  (ji,jj,ikv,Krhs) = pvv(ji,jj,ikv,Krhs) + zhpj(ji,jj,ikv)         ! add the new one to the general momentum trend
-         ENDIF
-      END_2D
-      !
-   END SUBROUTINE hpg_zps
-
-
    SUBROUTINE hpg_sco( kt, Kmm, puu, pvv, Krhs )
       !!---------------------------------------------------------------------
       !!                  ***  ROUTINE hpg_sco  ***
@@ -391,7 +303,7 @@ CONTAINS
       !!      The now hydrostatic pressure gradient at a given level, jk,
       !!      is computed by taking the vertical integral of the in-situ
       !!      density gradient along the model level from the suface to that
-      !!      level. s-coordinates (ln_sco): a corrective term is added
+      !!      level. s-coordinates (l_sco): a corrective term is added
       !!      to the horizontal pressure gradient :
       !!         zhpi = grav .....  + 1/e1u mi(rhd) di[ grav dep3w ]
       !!         zhpj = grav .....  + 1/e2v mj(rhd) dj[ grav dep3w ]
@@ -401,18 +313,18 @@ CONTAINS
       !!
       !! ** Action : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now hydrastatic pressure trend
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT( in )  ::  kt          ! ocean time-step index
-      INTEGER                             , INTENT( in )  ::  Kmm, Krhs   ! ocean time level indices
+      INTEGER                             , INTENT(in   ) ::  kt          ! ocean time-step index
+      INTEGER                             , INTENT(in   ) ::  Kmm, Krhs   ! ocean time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv    ! ocean velocities and RHS of momentum equation
       !!
       INTEGER  ::   ji, jj, jk, jii, jjj           ! dummy loop indices
       REAL(wp) ::   zcoef0, zuap, zvap, ztmp       ! local scalars
       LOGICAL  ::   ll_tmp1, ll_tmp2               ! local logical variables
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk)  ::   zhpi, zhpj
+      REAL(wp), DIMENSION(T2D(0))           ::   zhpi, zhpj
       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zcpx, zcpy   !W/D pressure filter
       !!----------------------------------------------------------------------
       !
-      IF( ln_wd_il ) ALLOCATE(zcpx(A2D(nn_hls)), zcpy(A2D(nn_hls)))
+      IF( ln_wd_il ) ALLOCATE(zcpx(T2D(0)), zcpy(T2D(0)))
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == nit000 ) THEN
@@ -456,8 +368,8 @@ CONTAINS
             zcpy(ji,jj) = 1.0_wp
           ELSE IF(ll_tmp2) THEN
             ! no worries about  ssh(ji,jj+1,Kmm) -  ssh(ji,jj  ,Kmm) = 0, it won't happen ! here
-            zcpy(ji,jj) = ABS( (ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) - ssh(ji,jj,Kmm) - ht_0(ji,jj)) &
-                        &    / (ssh(ji,jj+1,Kmm) - ssh(ji,jj  ,Kmm)) )
+            zcpy(ji,jj) = ABS( ( ( ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &   ! add () for NP repro
+                        &      / ( ssh(ji,jj+1,Kmm)                   -   ssh(ji,jj,Kmm)                 ) )
           ELSE
             zcpy(ji,jj) = 0._wp
           END IF
@@ -466,54 +378,56 @@ CONTAINS
       !
       DO_2D( 0, 0, 0, 0 )              ! Surface value
          !                                   ! hydrostatic pressure gradient along s-surfaces
-         zhpi(ji,jj,1) = zcoef0 * r1_e1u(ji,jj)                      &
-            &          * (  e3w(ji+1,jj  ,1,Kmm) * rhd(ji+1,jj  ,1)  &
-            &             - e3w(ji  ,jj  ,1,Kmm) * rhd(ji  ,jj  ,1)  )
-         zhpj(ji,jj,1) = zcoef0 * r1_e2v(ji,jj)                      &
-            &          * (  e3w(ji  ,jj+1,1,Kmm) * rhd(ji  ,jj+1,1)  &
-            &             - e3w(ji  ,jj  ,1,Kmm) * rhd(ji  ,jj  ,1)  )
+         zhpi(ji,jj) = zcoef0 * r1_e1u(ji,jj)                      &
+            &        * (  e3w(ji+1,jj  ,1,Kmm) * rhd(ji+1,jj  ,1)  &
+            &           - e3w(ji  ,jj  ,1,Kmm) * rhd(ji  ,jj  ,1)  )
+         zhpj(ji,jj) = zcoef0 * r1_e2v(ji,jj)                      &
+            &        * (  e3w(ji  ,jj+1,1,Kmm) * rhd(ji  ,jj+1,1)  &
+            &           - e3w(ji  ,jj  ,1,Kmm) * rhd(ji  ,jj  ,1)  )
          !                                   ! s-coordinate pressure gradient correction
-         zuap = -zcoef0 * ( rhd    (ji+1,jj,1) + rhd    (ji,jj,1) )   &
-            &           * ( gde3w(ji+1,jj,1) - gde3w(ji,jj,1) ) * r1_e1u(ji,jj)
-         zvap = -zcoef0 * ( rhd    (ji,jj+1,1) + rhd    (ji,jj,1) )   &
-            &           * ( gde3w(ji,jj+1,1) - gde3w(ji,jj,1) ) * r1_e2v(ji,jj)
+         zuap = -zcoef0 * ( rhd     (ji+1,jj,1)     + rhd     (ji,jj,1) )   &
+            &           * ( gdept_z0(ji+1,jj,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e1u(ji,jj)
+         zvap = -zcoef0 * ( rhd     (ji,jj+1,1)     + rhd     (ji,jj,1) )   &
+            &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !
          IF( ln_wd_il ) THEN
-            zhpi(ji,jj,1) = zhpi(ji,jj,1) * zcpx(ji,jj)
-            zhpj(ji,jj,1) = zhpj(ji,jj,1) * zcpy(ji,jj) 
+            zhpi(ji,jj) = zhpi(ji,jj) * zcpx(ji,jj)
+            zhpj(ji,jj) = zhpj(ji,jj) * zcpy(ji,jj)
             zuap = zuap * zcpx(ji,jj)
             zvap = zvap * zcpy(ji,jj)
          ENDIF
          !                                   ! add to the general momentum trend
-         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj,1) + zuap
-         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj,1) + zvap
+         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj) + zuap
+         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj) + zvap
       END_2D
       !
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )    ! interior value (2=<jk=<jpkm1)
-         !                                   ! hydrostatic pressure gradient along s-surfaces
-         zhpi(ji,jj,jk) = zhpi(ji,jj,jk-1) + zcoef0 * r1_e1u(ji,jj)                         &
-            &           * (  e3w(ji+1,jj,jk,Kmm) * ( rhd(ji+1,jj,jk) + rhd(ji+1,jj,jk-1) )  &
-            &              - e3w(ji  ,jj,jk,Kmm) * ( rhd(ji  ,jj,jk) + rhd(ji  ,jj,jk-1) )  )
-         zhpj(ji,jj,jk) = zhpj(ji,jj,jk-1) + zcoef0 * r1_e2v(ji,jj)                         &
-            &           * (  e3w(ji,jj+1,jk,Kmm) * ( rhd(ji,jj+1,jk) + rhd(ji,jj+1,jk-1) )  &
-            &              - e3w(ji,jj  ,jk,Kmm) * ( rhd(ji,jj,  jk) + rhd(ji,jj  ,jk-1) )  )
-         !                                   ! s-coordinate pressure gradient correction
-         zuap = -zcoef0 * ( rhd  (ji+1,jj  ,jk) + rhd  (ji,jj,jk) ) &
-            &           * ( gde3w(ji+1,jj  ,jk) - gde3w(ji,jj,jk) ) * r1_e1u(ji,jj)
-         zvap = -zcoef0 * ( rhd  (ji  ,jj+1,jk) + rhd  (ji,jj,jk) ) &
-            &           * ( gde3w(ji  ,jj+1,jk) - gde3w(ji,jj,jk) ) * r1_e2v(ji,jj)
-         !
-         IF( ln_wd_il ) THEN
-            zhpi(ji,jj,jk) = zhpi(ji,jj,jk) * zcpx(ji,jj)
-            zhpj(ji,jj,jk) = zhpj(ji,jj,jk) * zcpy(ji,jj) 
-            zuap = zuap * zcpx(ji,jj)
-            zvap = zvap * zcpy(ji,jj)
-         ENDIF
-         !
-         ! add to the general momentum trend
-         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj,jk) + zuap
-         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj,jk) + zvap
-      END_3D
+      DO jk= 2, jpkm1
+         DO_2D( 0, 0, 0, 0 )    ! interior value (2=<jk=<jpkm1)
+            !                                   ! hydrostatic pressure gradient along s-surfaces
+            zhpi(ji,jj) = zhpi(ji,jj) + zcoef0 * r1_e1u(ji,jj)                         &
+               &        * (  e3w(ji+1,jj,jk,Kmm) * ( rhd(ji+1,jj,jk) + rhd(ji+1,jj,jk-1) )  &
+               &           - e3w(ji  ,jj,jk,Kmm) * ( rhd(ji  ,jj,jk) + rhd(ji  ,jj,jk-1) )  )
+            zhpj(ji,jj) = zhpj(ji,jj) + zcoef0 * r1_e2v(ji,jj)                         &
+               &        * (  e3w(ji,jj+1,jk,Kmm) * ( rhd(ji,jj+1,jk) + rhd(ji,jj+1,jk-1) )  &
+               &           - e3w(ji,jj  ,jk,Kmm) * ( rhd(ji,jj,  jk) + rhd(ji,jj  ,jk-1) )  )
+            !                                   ! s-coordinate pressure gradient correction
+            zuap = -zcoef0 * ( rhd     (ji+1,jj  ,jk)     + rhd     (ji,jj,jk)     ) &
+               &           * ( gdept_z0(ji+1,jj  ,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) * r1_e1u(ji,jj)
+            zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk)     ) &
+               &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) * r1_e2v(ji,jj)
+            !
+            IF( ln_wd_il ) THEN
+               zhpi(ji,jj) = zhpi(ji,jj) * zcpx(ji,jj)
+               zhpj(ji,jj) = zhpj(ji,jj) * zcpy(ji,jj)
+               zuap = zuap * zcpx(ji,jj)
+               zvap = zvap * zcpy(ji,jj)
+            ENDIF
+            !
+            ! add to the general momentum trend
+            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj) + zuap
+            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj) + zvap
+         END_2D
+      END DO
       !
       IF( ln_wd_il )  DEALLOCATE( zcpx , zcpy )
       !
@@ -528,7 +442,7 @@ CONTAINS
       !!      The now hydrostatic pressure gradient at a given level, jk,
       !!      is computed by taking the vertical integral of the in-situ
       !!      density gradient along the model level from the suface to that
-      !!      level. s-coordinates (ln_sco): a corrective term is added
+      !!      level. s-coordinates (l_sco): a corrective term is added
       !!      to the horizontal pressure gradient :
       !!         zhpi = grav .....  + 1/e1u mi(rhd) di[ grav dep3w ]
       !!         zhpj = grav .....  + 1/e2v mj(rhd) dj[ grav dep3w ]
@@ -539,34 +453,35 @@ CONTAINS
       !!      
       !! ** Action : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now hydrastatic pressure trend
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT( in )  ::  kt          ! ocean time-step index
-      INTEGER                             , INTENT( in )  ::  Kmm, Krhs   ! ocean time level indices
+      INTEGER                             , INTENT(in   ) ::  kt          ! ocean time-step index
+      INTEGER                             , INTENT(in   ) ::  Kmm, Krhs   ! ocean time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv    ! ocean velocities and RHS of momentum equation
       !!
       INTEGER  ::   ji, jj, jk             ! dummy loop indices
       INTEGER  ::   ikt ,  ikti1,  iktj1   ! local integer
       REAL(wp) ::   ze3w, ze3wi1, ze3wj1   ! local scalars
       REAL(wp) ::   zcoef0, zuap, zvap     !   -      -
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk ) ::  zhpi, zhpj
-      REAL(wp), DIMENSION(A2D(nn_hls),jpts) ::  zts_top
-      REAL(wp), DIMENSION(A2D(nn_hls))      ::  zrhd_top, zdep_top
+      REAL(wp), DIMENSION(T2D(1),jpts) ::  zts_top
+      REAL(wp), DIMENSION(T2D(1))      ::  zrhd_top, zdep_top
+      REAL(wp), DIMENSION(T2D(0))      ::  zhpi, zhpj
       !!----------------------------------------------------------------------
       !
       zcoef0 = - grav * 0.5_wp   ! Local constant initialization
       !
-      !                          ! iniitialised to 0. zhpi zhpi 
-      zhpi(:,:,:) = 0._wp   ;   zhpj(:,:,:) = 0._wp
+      !                          ! iniitialised to 0. zhpi zhpi   !!st is it necessary ???
+      zhpi(:,:) = 0._wp   ;   zhpj(:,:) = 0._wp
 
       ! compute rhd at the ice/oce interface (ocean side)
       ! usefull to reduce residual current in the test case ISOMIP with no melting
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 1, 1, 1, 1 )
          ikt = mikt(ji,jj)
          zts_top(ji,jj,1) = ts(ji,jj,ikt,1,Kmm)
          zts_top(ji,jj,2) = ts(ji,jj,ikt,2,Kmm)
          zdep_top(ji,jj)  = MAX( risfdep(ji,jj) , gdept(ji,jj,1,Kmm) )
       END_2D
-      CALL eos( zts_top, zdep_top, zrhd_top )
-
+      ! eos 2D interface
+      CALL eos( zts_top, zdep_top, zrhd_top, kbnd=1 )
+      !
       !                     !===========================!
       !                     !=====  surface value  =====!
       !                     !===========================!
@@ -576,45 +491,47 @@ CONTAINS
          iktj1 = mikt(ji  ,jj+1)   ;   ze3wj1 = e3w(ji  ,jj+1,iktj1,Kmm)
          !                          ! hydrostatic pressure gradient along s-surfaces and ice shelf pressure
          !                          ! we assume ISF is in isostatic equilibrium
-         zhpi(ji,jj,1) = zcoef0 * r1_e1u(ji,jj) * (   risfload(ji+1,jj) - risfload(ji,jj)  &
-            &                                       + 0.5_wp * ( ze3wi1 * ( rhd(ji+1,jj,ikti1) + zrhd_top(ji+1,jj) )     &
-            &                                                  - ze3w   * ( rhd(ji  ,jj,ikt  ) + zrhd_top(ji  ,jj) ) )   )
-         zhpj(ji,jj,1) = zcoef0 * r1_e2v(ji,jj) * (   risfload(ji,jj+1) - risfload(ji,jj)  &
-            &                                       + 0.5_wp * ( ze3wj1 * ( rhd(ji,jj+1,iktj1) + zrhd_top(ji,jj+1) )      &
-            &                                                  - ze3w   * ( rhd(ji,jj  ,ikt  ) + zrhd_top(ji,jj  ) ) )   )
+         zhpi(ji,jj) = zcoef0 * r1_e1u(ji,jj) * (   risfload(ji+1,jj) - risfload(ji,jj)  &
+            &                                     + 0.5_wp * ( ze3wi1 * ( rhd(ji+1,jj,ikti1) + zrhd_top(ji+1,jj) )     &
+            &                                                - ze3w   * ( rhd(ji  ,jj,ikt  ) + zrhd_top(ji  ,jj) ) )   )
+         zhpj(ji,jj) = zcoef0 * r1_e2v(ji,jj) * (   risfload(ji,jj+1) - risfload(ji,jj)  &
+            &                                     + 0.5_wp * ( ze3wj1 * ( rhd(ji,jj+1,iktj1) + zrhd_top(ji,jj+1) )      &
+            &                                                - ze3w   * ( rhd(ji,jj  ,ikt  ) + zrhd_top(ji,jj  ) ) )   )
          !                          ! s-coordinate pressure gradient correction (=0 if z coordinate)
-         zuap = -zcoef0 * ( rhd    (ji+1,jj,1) + rhd    (ji,jj,1) )   &
-            &           * ( gde3w(ji+1,jj,1) - gde3w(ji,jj,1) ) * r1_e1u(ji,jj)
-         zvap = -zcoef0 * ( rhd    (ji,jj+1,1) + rhd    (ji,jj,1) )   &
-            &           * ( gde3w(ji,jj+1,1) - gde3w(ji,jj,1) ) * r1_e2v(ji,jj)
+         zuap = -zcoef0 * ( rhd     (ji+1,jj,1)     + rhd     (ji,jj,1)     )   &
+            &           * ( gdept_z0(ji+1,jj,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e1u(ji,jj)
+         zvap = -zcoef0 * ( rhd     (ji,jj+1,1)     + rhd     (ji,jj,1)     )   &
+            &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !                          ! add to the general momentum trend
-         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + (zhpi(ji,jj,1) + zuap) * umask(ji,jj,1)
-         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + (zhpj(ji,jj,1) + zvap) * vmask(ji,jj,1)
+         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + (zhpi(ji,jj) + zuap) * umask(ji,jj,1)
+         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + (zhpj(ji,jj) + zvap) * vmask(ji,jj,1)
       END_2D
       !   
       !                     !=============================!
       !                     !=====  interior values  =====!
       !                     !=============================!
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-         ze3w   = e3w(ji  ,jj  ,jk,Kmm)
-         ze3wi1 = e3w(ji+1,jj  ,jk,Kmm)
-         ze3wj1 = e3w(ji  ,jj+1,jk,Kmm)
-         !                          ! hydrostatic pressure gradient along s-surfaces
-         zhpi(ji,jj,jk) = zhpi(ji,jj,jk-1) + zcoef0 / e1u(ji,jj)   &
-            &           * (  ze3wi1 * ( rhd(ji+1,jj,jk) + rhd(ji+1,jj,jk-1) ) * wmask(ji+1,jj,jk)   &
-            &              - ze3w   * ( rhd(ji  ,jj,jk) + rhd(ji  ,jj,jk-1) ) * wmask(ji  ,jj,jk)   )
-         zhpj(ji,jj,jk) = zhpj(ji,jj,jk-1) + zcoef0 / e2v(ji,jj)   &
-            &           * (  ze3wj1 * ( rhd(ji,jj+1,jk) + rhd(ji,jj+1,jk-1) ) * wmask(ji,jj+1,jk)   &
-            &              - ze3w   * ( rhd(ji,jj,  jk) + rhd(ji,jj  ,jk-1) ) * wmask(ji,jj  ,jk)   )
-         !                          ! s-coordinate pressure gradient correction
-         zuap = -zcoef0 * ( rhd   (ji+1,jj  ,jk) + rhd   (ji,jj,jk) )   &
-            &           * ( gde3w(ji+1,jj  ,jk) - gde3w(ji,jj,jk) ) / e1u(ji,jj)
-         zvap = -zcoef0 * ( rhd   (ji  ,jj+1,jk) + rhd   (ji,jj,jk) )   &
-            &           * ( gde3w(ji  ,jj+1,jk) - gde3w(ji,jj,jk) ) / e2v(ji,jj)
-         !                          ! add to the general momentum trend
-         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (zhpi(ji,jj,jk) + zuap) * umask(ji,jj,jk)
-         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (zhpj(ji,jj,jk) + zvap) * vmask(ji,jj,jk)
-      END_3D
+      DO jk=2, jpkm1
+         DO_2D( 0, 0, 0, 0 )
+            ze3w   = e3w(ji  ,jj  ,jk,Kmm)
+            ze3wi1 = e3w(ji+1,jj  ,jk,Kmm)
+            ze3wj1 = e3w(ji  ,jj+1,jk,Kmm)
+            !                          ! hydrostatic pressure gradient along s-surfaces
+            zhpi(ji,jj) = zhpi(ji,jj) + zcoef0 / e1u(ji,jj)   &
+               &        * (  ze3wi1 * ( rhd(ji+1,jj,jk) + rhd(ji+1,jj,jk-1) ) * wmask(ji+1,jj,jk)   &
+               &           - ze3w   * ( rhd(ji  ,jj,jk) + rhd(ji  ,jj,jk-1) ) * wmask(ji  ,jj,jk)   )
+            zhpj(ji,jj) = zhpj(ji,jj) + zcoef0 / e2v(ji,jj)   &
+               &        * (  ze3wj1 * ( rhd(ji,jj+1,jk) + rhd(ji,jj+1,jk-1) ) * wmask(ji,jj+1,jk)   &
+               &           - ze3w   * ( rhd(ji,jj,  jk) + rhd(ji,jj  ,jk-1) ) * wmask(ji,jj  ,jk)   )
+            !                          ! s-coordinate pressure gradient correction
+            zuap = -zcoef0 * ( rhd     (ji+1,jj  ,jk)     + rhd     (ji,jj,jk) )   &
+               &           * ( gdept_z0(ji+1,jj  ,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) / e1u(ji,jj)
+            zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk) )   &
+               &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) / e2v(ji,jj)
+            !                          ! add to the general momentum trend
+            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (zhpi(ji,jj) + zuap) * umask(ji,jj,jk)
+            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (zhpj(ji,jj) + zvap) * vmask(ji,jj,jk)
+         END_2D
+      END DO
       !
    END SUBROUTINE hpg_isf
 
@@ -638,19 +555,19 @@ CONTAINS
       REAL(wp) ::   cffu, cffx          !    "         "
       REAL(wp) ::   cffv, cffy          !    "         "
       LOGICAL  ::   ll_tmp1, ll_tmp2    ! local logical variables
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zhpi, zhpj
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zhpi, zhpj
 
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zdzx, zdzy, zdzz                          ! Primitive grid differences ('delta_xyz')
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zdz_i, zdz_j, zdz_k                       ! Harmonic average of primitive grid differences ('d_xyz')
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zdrhox, zdrhoy, zdrhoz                    ! Primitive rho differences ('delta_rho')
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zdrho_i, zdrho_j, zdrho_k                 ! Harmonic average of primitive rho differences ('d_rho')
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   z_rho_i, z_rho_j, z_rho_k                 ! Face intergrals
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zz_dz_i, zz_dz_j, zz_drho_i, zz_drho_j    ! temporary arrays
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdzx, zdzy, zdzz                          ! Primitive grid differences ('delta_xyz')
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdz_i, zdz_j, zdz_k                       ! Harmonic average of primitive grid differences ('d_xyz')
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdrhox, zdrhoy, zdrhoz                    ! Primitive rho differences ('delta_rho')
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdrho_i, zdrho_j, zdrho_k                 ! Harmonic average of primitive rho differences ('d_rho')
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   z_rho_i, z_rho_j, z_rho_k                 ! Face intergrals
+      REAL(wp), DIMENSION(T2D(nn_hls))     ::   zz_dz_i, zz_dz_j, zz_drho_i, zz_drho_j    ! temporary arrays
       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zcpx, zcpy   !W/D pressure filter
       !!----------------------------------------------------------------------
       !
       IF( ln_wd_il ) THEN
-         ALLOCATE( zcpx(A2D(nn_hls)) , zcpy(A2D(nn_hls)) )
+         ALLOCATE( zcpx(T2D(nn_hls)) , zcpy(T2D(nn_hls)) )
         DO_2D( 0, 0, 0, 0 )
           ll_tmp1 = MIN(  ssh(ji,jj,Kmm)              ,  ssh(ji+1,jj,Kmm) ) >                &
                &    MAX( -ht_0(ji,jj)              , -ht_0(ji+1,jj) ) .AND.            &
@@ -663,8 +580,8 @@ CONTAINS
             zcpx(ji,jj) = 1.0_wp
           ELSE IF(ll_tmp2) THEN
             ! no worries about  ssh(ji+1,jj,Kmm) -  ssh(ji  ,jj,Kmm) = 0, it won't happen ! here
-            zcpx(ji,jj) = ABS( (ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) - ssh(ji,jj,Kmm) - ht_0(ji,jj)) &
-                        &    / (ssh(ji+1,jj,Kmm) - ssh(ji  ,jj,Kmm)) )
+            zcpx(ji,jj) = ABS( ( ( ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &  ! add () for NP repro
+                        &    / (   ssh(ji+1,jj,Kmm)                     - ssh(ji,jj,Kmm)                 ) )
           ELSE
             zcpx(ji,jj) = 0._wp
           END IF
@@ -681,8 +598,8 @@ CONTAINS
             zcpy(ji,jj) = 1.0_wp
           ELSE IF(ll_tmp2) THEN
             ! no worries about  ssh(ji,jj+1,Kmm) -  ssh(ji,jj  ,Kmm) = 0, it won't happen ! here
-            zcpy(ji,jj) = ABS( (ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) - ssh(ji,jj,Kmm) - ht_0(ji,jj)) &
-                        &    / (ssh(ji,jj+1,Kmm) - ssh(ji,jj  ,Kmm)) )
+            zcpy(ji,jj) = ABS( ( ( ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &  ! add () for NP repro
+                        &    / (   ssh(ji,jj+1,Kmm)                   -   ssh(ji,jj,Kmm)                 ) )
           ELSE
             zcpy(ji,jj) = 0._wp
           END IF
@@ -709,8 +626,8 @@ CONTAINS
 !!bug gm   Not a true bug, but... zdzz=e3w  for zdzx, zdzy verify what it is really
 
       DO_3D( 1, 1, 1, 1, 2, jpkm1 )  
-         zdrhoz(ji,jj,jk) =   rhd    (ji  ,jj  ,jk) - rhd    (ji,jj,jk-1)
-         zdzz  (ji,jj,jk) = - gde3w(ji  ,jj  ,jk) + gde3w(ji,jj,jk-1)
+         zdrhoz(ji,jj,jk) =   rhd     (ji,jj,jk    ) - rhd     (ji,jj,jk-1    )
+         zdzz  (ji,jj,jk) = - gdept_z0(ji,jj,jk,Kmm) + gdept_z0(ji,jj,jk-1,Kmm)
       END_3D
 
       !-------------------------------------------------------------------------
@@ -727,7 +644,7 @@ CONTAINS
          z1_cff = zdrhoz(ji,jj,jk) + zdrhoz(ji,jj,jk+1)
          zdrho_k(ji,jj,jk) = cffw / SIGN( MAX( ABS(z1_cff), zep ), z1_cff )
          zdz_k(ji,jj,jk) = 2._wp *   zdzz(ji,jj,jk) * zdzz(ji,jj,jk+1)   &
-            &                  / ( zdzz(ji,jj,jk) + zdzz(ji,jj,jk+1) )
+            &                    / ( zdzz(ji,jj,jk) + zdzz(ji,jj,jk+1) )
       END_3D
 
       !----------------------------------------------------------------------------------
@@ -736,15 +653,15 @@ CONTAINS
 
 ! mb for sea-ice shelves we will need to re-write this upper boundary condition in the same form as the lower boundary condition
       DO_2D( 1, 1, 1, 1 )
-         zdrho_k(ji,jj,1) = aco_bc_vrt * ( rhd  (ji,jj,2) - rhd  (ji,jj,1) ) - bco_bc_vrt * zdrho_k(ji,jj,2)
-         zdz_k  (ji,jj,1) = aco_bc_vrt * (-gde3w(ji,jj,2) + gde3w(ji,jj,1) ) - bco_bc_vrt * zdz_k  (ji,jj,2)
+         zdrho_k(ji,jj,1) = aco_bc_vrt * ( rhd     (ji,jj,2    ) - rhd     (ji,jj,1    ) ) - bco_bc_vrt * zdrho_k(ji,jj,2)
+         zdz_k  (ji,jj,1) = aco_bc_vrt * (-gdept_z0(ji,jj,2,Kmm) + gdept_z0(ji,jj,1,Kmm) ) - bco_bc_vrt * zdz_k  (ji,jj,2)
       END_2D
 
       DO_2D( 1, 1, 1, 1 )
          IF ( mbkt(ji,jj)>1 ) THEN
             iktb = mbkt(ji,jj)
-            zdrho_k(ji,jj,iktb) = aco_bc_vrt * (     rhd(ji,jj,iktb) -     rhd(ji,jj,iktb-1) ) - bco_bc_vrt * zdrho_k(ji,jj,iktb-1)
-            zdz_k  (ji,jj,iktb) = aco_bc_vrt * (-gde3w(ji,jj,iktb) + gde3w(ji,jj,iktb-1) ) - bco_bc_vrt * zdz_k  (ji,jj,iktb-1) 
+            zdrho_k(ji,jj,iktb) = aco_bc_vrt * (      rhd(ji,jj,iktb    ) -      rhd(ji,jj,iktb-1    ) ) - bco_bc_vrt * zdrho_k(ji,jj,iktb-1)
+            zdz_k  (ji,jj,iktb) = aco_bc_vrt * (-gdept_z0(ji,jj,iktb,Kmm) + gdept_z0(ji,jj,iktb-1,Kmm) ) - bco_bc_vrt * zdz_k  (ji,jj,iktb-1)
          END IF
       END_2D
 
@@ -772,14 +689,14 @@ CONTAINS
       !-------------------------------------------------------------
 
       DO_3D( 0, 1, 0, 1, 2, jpkm1 )
-         z_rho_k(ji,jj,jk) = zcoef0 * (   rhd    (ji,jj,jk) + rhd    (ji,jj,jk-1) )                                   &
-            &                       * ( - gde3w(ji,jj,jk) + gde3w(ji,jj,jk-1) )                                               &
+         z_rho_k(ji,jj,jk) = zcoef0 * (   rhd     (ji,jj,jk    ) + rhd     (ji,jj,jk-1    ) )                                 &
+            &                       * ( - gdept_z0(ji,jj,jk,Kmm) + gdept_z0(ji,jj,jk-1,Kmm) )                                 &
             &                       + z_grav_10 * (                                                                           &
-            &     (   zdrho_k  (ji,jj,jk) - zdrho_k  (ji,jj,jk-1) )                                                           &
-            &   * ( - gde3w(ji,jj,jk) + gde3w(ji,jj,jk-1) - z1_12 * ( zdz_k  (ji,jj,jk) + zdz_k  (ji,jj,jk-1) ) )             &
-            &   - ( zdz_k    (ji,jj,jk) - zdz_k    (ji,jj,jk-1) )                                                             &
-            &   * ( rhd    (ji,jj,jk) - rhd    (ji,jj,jk-1) - z1_12 * ( zdrho_k(ji,jj,jk) + zdrho_k(ji,jj,jk-1) ) )   &
-            &                             )
+            &     (     zdrho_k (ji,jj,jk    ) - zdrho_k (ji,jj,jk-1    ) )                                                   &
+            &   * ( - ( gdept_z0(ji,jj,jk,Kmm) - gdept_z0(ji,jj,jk-1,Kmm) ) - z1_12 * ( zdz_k  (ji,jj,jk) + zdz_k  (ji,jj,jk-1) ) )   &
+            &   - (     zdz_k   (ji,jj,jk)     - zdz_k   (ji,jj,jk-1)     )                                                           &
+            &   * (   ( rhd     (ji,jj,jk)     - rhd     (ji,jj,jk-1)     ) - z1_12 * ( zdrho_k(ji,jj,jk) + zdrho_k(ji,jj,jk-1) ) )   &
+            &                                      )
       END_3D
 
       !----------------------------------------------------------------------------------------
@@ -791,13 +708,11 @@ CONTAINS
       zdzy  (:,:,:) = 0._wp
 
       DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-         zdrhox(ji,jj,jk) = rhd  (ji+1,jj  ,jk) - rhd  (ji  ,jj  ,jk)
-         zdzx  (ji,jj,jk) = gde3w(ji  ,jj  ,jk) - gde3w(ji+1,jj  ,jk)
-         zdrhoy(ji,jj,jk) = rhd  (ji  ,jj+1,jk) - rhd  (ji  ,jj  ,jk)
-         zdzy  (ji,jj,jk) = gde3w(ji  ,jj  ,jk) - gde3w(ji  ,jj+1,jk)
+         zdrhox(ji,jj,jk) = rhd     (ji+1,jj  ,jk    ) - rhd     (ji  ,jj  ,jk)
+         zdzx  (ji,jj,jk) = gdept_z0(ji  ,jj  ,jk,Kmm) - gdept_z0(ji+1,jj  ,jk,Kmm)
+         zdrhoy(ji,jj,jk) = rhd     (ji  ,jj+1,jk    ) - rhd     (ji  ,jj  ,jk)
+         zdzy  (ji,jj,jk) = gdept_z0(ji  ,jj  ,jk,Kmm) - gdept_z0(ji  ,jj+1,jk,Kmm)
       END_3D
-
-      IF( nn_hls == 1 ) CALL lbc_lnk( 'dynhpg', zdrhox, 'U', -1._wp, zdzx, 'U', -1._wp, zdrhoy, 'V', -1._wp, zdzy, 'V', -1._wp )
 
       !-------------------------------------------------------------------------
       ! 6. compute harmonic averages using eq. 5.18
@@ -836,28 +751,28 @@ CONTAINS
          DO_2D( 0, 0, 0, 1 )
             IF ( umask(ji,jj,jk) > 0.5_wp .AND. umask(ji-1,jj,jk) < 0.5_wp .AND. umask(ji+1,jj,jk) > 0.5_wp)  THEN
                zz_drho_i(ji,jj) = aco_bc_hor * ( rhd    (ji+1,jj,jk) - rhd    (ji,jj,jk) ) - bco_bc_hor * zdrho_i(ji+1,jj,jk)
-               zz_dz_i  (ji,jj) = aco_bc_hor * (-gde3w(ji+1,jj,jk) + gde3w(ji,jj,jk) ) - bco_bc_hor * zdz_i  (ji+1,jj,jk)
+               zz_dz_i  (ji,jj) = aco_bc_hor * (-gdept_z0(ji+1,jj,jk,Kmm) + gdept_z0(ji,jj,jk,Kmm) ) - bco_bc_hor * zdz_i  (ji+1,jj,jk)
             END IF
          END_2D
          ! Walls coming from right: should check from 3 to jpi (and jpj=2-jpj)
          DO_2D( -1, 1, 0, 1 )
             IF ( umask(ji,jj,jk) < 0.5_wp .AND. umask(ji-1,jj,jk) > 0.5_wp .AND. umask(ji-2,jj,jk) > 0.5_wp) THEN
-               zz_drho_i(ji,jj) = aco_bc_hor * ( rhd    (ji,jj,jk) - rhd    (ji-1,jj,jk) ) - bco_bc_hor * zdrho_i(ji-1,jj,jk)
-               zz_dz_i  (ji,jj) = aco_bc_hor * (-gde3w(ji,jj,jk) + gde3w(ji-1,jj,jk) ) - bco_bc_hor * zdz_i  (ji-1,jj,jk)
+               zz_drho_i(ji,jj) = aco_bc_hor * ( rhd     (ji,jj,jk    ) - rhd     (ji-1,jj,jk    ) ) - bco_bc_hor * zdrho_i(ji-1,jj,jk)
+               zz_dz_i  (ji,jj) = aco_bc_hor * (-gdept_z0(ji,jj,jk,Kmm) + gdept_z0(ji-1,jj,jk,Kmm) ) - bco_bc_hor * zdz_i  (ji-1,jj,jk)
             END IF
          END_2D
          ! Walls coming from left: should check from 2 to jpj-1 (and jpi=2-jpi)
          DO_2D( 0, 1, 0, 0 )
             IF ( vmask(ji,jj,jk) > 0.5_wp .AND. vmask(ji,jj-1,jk) < 0.5_wp .AND. vmask(ji,jj+1,jk) > 0.5_wp)  THEN
-               zz_drho_j(ji,jj) = aco_bc_hor * ( rhd    (ji,jj+1,jk) - rhd    (ji,jj,jk) ) - bco_bc_hor * zdrho_j(ji,jj+1,jk)
-               zz_dz_j  (ji,jj) = aco_bc_hor * (-gde3w(ji,jj+1,jk) + gde3w(ji,jj,jk) ) - bco_bc_hor * zdz_j  (ji,jj+1,jk)
+               zz_drho_j(ji,jj) = aco_bc_hor * ( rhd     (ji,jj+1,jk    ) - rhd     (ji,jj,jk    ) ) - bco_bc_hor * zdrho_j(ji,jj+1,jk)
+               zz_dz_j  (ji,jj) = aco_bc_hor * (-gdept_z0(ji,jj+1,jk,Kmm) + gdept_z0(ji,jj,jk,Kmm) ) - bco_bc_hor * zdz_j  (ji,jj+1,jk)
             END IF
          END_2D
          ! Walls coming from right: should check from 3 to jpj (and jpi=2-jpi)
          DO_2D( 0, 1, -1, 1 )
             IF ( vmask(ji,jj,jk) < 0.5_wp .AND. vmask(ji,jj-1,jk) > 0.5_wp .AND. vmask(ji,jj-2,jk) > 0.5_wp) THEN
-               zz_drho_j(ji,jj) = aco_bc_hor * ( rhd    (ji,jj,jk) - rhd    (ji,jj-1,jk) ) - bco_bc_hor * zdrho_j(ji,jj-1,jk)
-               zz_dz_j  (ji,jj) = aco_bc_hor * (-gde3w(ji,jj,jk) + gde3w(ji,jj-1,jk) ) - bco_bc_hor * zdz_j  (ji,jj-1,jk)
+               zz_drho_j(ji,jj) = aco_bc_hor * ( rhd     (ji,jj,jk    ) - rhd     (ji,jj-1,jk    ) ) - bco_bc_hor * zdrho_j(ji,jj-1,jk)
+               zz_dz_j  (ji,jj) = aco_bc_hor * (-gdept_z0(ji,jj,jk,Kmm) + gdept_z0(ji,jj-1,jk,Kmm) ) - bco_bc_hor * zdz_j  (ji,jj-1,jk)
             END IF
          END_2D
          zdrho_i(:,:,jk) = zz_drho_i(:,:)
@@ -872,26 +787,26 @@ CONTAINS
 
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
 ! two -ve signs cancel in next two lines (within zcoef0 and because gde3w is a depth not a height)
-         z_rho_i(ji,jj,jk) = zcoef0 * ( rhd    (ji+1,jj,jk) + rhd    (ji,jj,jk) )                                       &
-             &                    * ( gde3w(ji+1,jj,jk) - gde3w(ji,jj,jk) )                                    
+         z_rho_i(ji,jj,jk) = zcoef0 * ( rhd   (ji+1,jj,jk    ) + rhd     (ji,jj,jk    ) )                                       &
+             &                    * ( gdept_z0(ji+1,jj,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) )
          IF ( umask(ji-1, jj, jk) > 0.5 .OR. umask(ji+1, jj, jk) > 0.5 ) THEN
             z_rho_i(ji,jj,jk) = z_rho_i(ji,jj,jk) - z_grav_10 * (                                                               &
-             &     (   zdrho_i  (ji+1,jj,jk) - zdrho_i  (ji,jj,jk) )                                                            &
-             &   * ( - gde3w(ji+1,jj,jk) + gde3w(ji,jj,jk) - z1_12 * ( zdz_i  (ji+1,jj,jk) + zdz_i  (ji,jj,jk) ) )              &
-             &   - (   zdz_i    (ji+1,jj,jk) - zdz_i    (ji,jj,jk) )                                                            &
-             &   * (   rhd    (ji+1,jj,jk) - rhd    (ji,jj,jk) - z1_12 * ( zdrho_i(ji+1,jj,jk) + zdrho_i(ji,jj,jk) ) )  &
-             &                                               )
+             &     (     zdrho_i  (ji+1,jj,jk)    - zdrho_i  (ji,jj,jk) )                                                            &
+             &   * ( - ( gdept_z0(ji+1,jj,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) - z1_12 * ( zdz_i  (ji+1,jj,jk) + zdz_i  (ji,jj,jk) ) ) &
+             &   - (     zdz_i    (ji+1,jj,jk)    - zdz_i    (ji,jj,jk) )                                                            &
+             &   * (   ( rhd    (ji+1,jj,jk)      - rhd    (ji,jj,jk)      ) - z1_12 * ( zdrho_i(ji+1,jj,jk) + zdrho_i(ji,jj,jk) ) ) &
+             &                                                  )
          END IF
   
-         z_rho_j(ji,jj,jk) = zcoef0 * ( rhd    (ji,jj+1,jk) + rhd    (ji,jj,jk) )                                       &
-             &                    * ( gde3w(ji,jj+1,jk) - gde3w(ji,jj,jk) )                                  
+         z_rho_j(ji,jj,jk) = zcoef0 * ( rhd   (ji,jj+1,jk    ) + rhd     (ji,jj,jk    ) )                                       &
+             &                    * ( gdept_z0(ji,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) )
          IF ( vmask(ji, jj-1, jk) > 0.5 .OR. vmask(ji, jj+1, jk) > 0.5 ) THEN
             z_rho_j(ji,jj,jk) = z_rho_j(ji,jj,jk) - z_grav_10 * (                                                               &
-             &     (   zdrho_j  (ji,jj+1,jk) - zdrho_j  (ji,jj,jk) )                                                            &
-             &   * ( - gde3w(ji,jj+1,jk) + gde3w(ji,jj,jk) - z1_12 * ( zdz_j  (ji,jj+1,jk) + zdz_j  (ji,jj,jk) ) )              &
-             &   - (   zdz_j    (ji,jj+1,jk) - zdz_j    (ji,jj,jk) )                                                            &
-             &   * (   rhd    (ji,jj+1,jk) - rhd    (ji,jj,jk) - z1_12 * ( zdrho_j(ji,jj+1,jk) + zdrho_j(ji,jj,jk) ) )  &
-             &                                                 )
+             &     (     zdrho_j (ji,jj+1,jk)     - zdrho_j (ji,jj,jk)       )                                                        &
+             &   * ( - ( gdept_z0(ji,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) - z1_12 * ( zdz_j  (ji,jj+1,jk) + zdz_j  (ji,jj,jk) ) )  &
+             &   - (        zdz_j(ji,jj+1,jk)     -    zdz_j(ji,jj,jk)       )                                                        &
+             &   * (   (      rhd(ji,jj+1,jk)     -      rhd(ji,jj,jk)     ) - z1_12 * ( zdrho_j(ji,jj+1,jk) + zdrho_j(ji,jj,jk) ) )  &
+             &                                                  )
          END IF
       END_3D
 
@@ -903,8 +818,8 @@ CONTAINS
       !  Surface value
       ! ---------------
       DO_2D( 0, 0, 0, 0 )
-         zhpi(ji,jj,1) = ( z_rho_k(ji,jj,1) - z_rho_k(ji+1,jj  ,1) - z_rho_i(ji,jj,1) ) * r1_e1u(ji,jj)
-         zhpj(ji,jj,1) = ( z_rho_k(ji,jj,1) - z_rho_k(ji  ,jj+1,1) - z_rho_j(ji,jj,1) ) * r1_e2v(ji,jj)
+         zhpi(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji+1,jj  ,1) ) - z_rho_i(ji,jj,1) ) * r1_e1u(ji,jj)   ! add () for NP repro
+         zhpj(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji  ,jj+1,1) ) - z_rho_j(ji,jj,1) ) * r1_e2v(ji,jj)
          IF( ln_wd_il ) THEN
            zhpi(ji,jj,1) = zhpi(ji,jj,1) * zcpx(ji,jj)
            zhpj(ji,jj,1) = zhpj(ji,jj,1) * zcpy(ji,jj) 
@@ -964,10 +879,10 @@ CONTAINS
       REAL(wp) :: zuijk, zvijk, zpwes, zpwed, zpnss, zpnsd, zdeps
       REAL(wp) :: zrhdt1
       REAL(wp) :: zdpdx1, zdpdx2, zdpdy1, zdpdy2
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zpgu, zpgv   ! 2D workspace
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zsshu_n, zsshv_n
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zdept, zrhh
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zhpi, zu, zv, fsp, xsp, asp, bsp, csp, dsp
+      REAL(wp), DIMENSION(T2D(nn_hls))     ::   zpgu, zpgv   ! 2D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls))     ::   zsshu_n, zsshv_n
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdept, zrhh
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zhpi, zu, zv, fsp, xsp, asp, bsp, csp, dsp
       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zcpx, zcpy   !W/D pressure filter
       !!----------------------------------------------------------------------
       !
@@ -993,7 +908,7 @@ CONTAINS
       END_2D
       !
       IF( ln_wd_il ) THEN
-         ALLOCATE( zcpx(A2D(nn_hls)) , zcpy(A2D(nn_hls)) )
+         ALLOCATE( zcpx(T2D(nn_hls)) , zcpy(T2D(nn_hls)) )
          DO_2D( 0, 0, 0, 0 )
             ll_tmp1 = MIN(   ssh(ji,jj,Kmm)              ,   ssh(ji+1,jj,Kmm)                 ) >       &
                &      MAX( -ht_0(ji,jj)                  , -ht_0(ji+1,jj)                     ) .AND.   &
@@ -1007,8 +922,8 @@ CONTAINS
                zcpx(ji,jj) = 1.0_wp
             ELSE IF(ll_tmp2) THEN
                ! no worries about  ssh(ji+1,jj,Kmm) -  ssh(ji  ,jj,Kmm) = 0, it won't happen ! here
-               zcpx(ji,jj) = ABS( (ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) - ssh(ji,jj,Kmm) - ht_0(ji,jj)) &
-                           &    / (ssh(ji+1,jj,Kmm) -  ssh(ji  ,jj,Kmm)) )
+               zcpx(ji,jj) = ABS( ( ( ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &
+                  &             / (   ssh(ji+1,jj,Kmm)                   -  ssh(ji,jj,Kmm)                  ) )
                zcpx(ji,jj) = MAX(MIN( zcpx(ji,jj) , 1.0_wp),0.0_wp)
             ELSE
                zcpx(ji,jj) = 0._wp
@@ -1026,8 +941,8 @@ CONTAINS
                zcpy(ji,jj) = 1.0_wp
             ELSE IF(ll_tmp2) THEN
                ! no worries about  ssh(ji,jj+1,Kmm) -  ssh(ji,jj  ,Kmm) = 0, it won't happen ! here
-               zcpy(ji,jj) = ABS( (ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) - ssh(ji,jj,Kmm) - ht_0(ji,jj)) &
-                           &    / (ssh(ji,jj+1,Kmm) -  ssh(ji,jj  ,Kmm)) )
+               zcpy(ji,jj) = ABS( ( ( ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &
+                           &    / (   ssh(ji,jj+1,Kmm)                   -   ssh(ji,jj,Kmm)                 ) )
                zcpy(ji,jj) = MAX(MIN( zcpy(ji,jj) , 1.0_wp),0.0_wp)
             ELSE
                zcpy(ji,jj) = 0._wp
@@ -1037,7 +952,7 @@ CONTAINS
 
       ! Clean 3-D work arrays
       zhpi(:,:,:) = 0._wp
-      zrhh(:,:,:) = rhd(A2D(nn_hls),:)
+      zrhh(:,:,:) = rhd(T2D(nn_hls),:)
 
       ! Preparing vertical density profile "zrhh(:,:,:)" for hybrid-sco coordinate
       DO_2D( 1, 1, 1, 1 )
@@ -1046,8 +961,8 @@ CONTAINS
          ELSEIF( jk ==  2   ) THEN   ;   zrhh(ji,jj,jk+1:jpk) = rhd(ji,jj,jk)
          ELSEIF( jk < jpkm1 ) THEN
             DO jkk = jk+1, jpk
-               zrhh(ji,jj,jkk) = interp1(gde3w(ji,jj,jkk  ), gde3w(ji,jj,jkk-1),   &
-                  &                      gde3w(ji,jj,jkk-2), zrhh (ji,jj,jkk-1), zrhh(ji,jj,jkk-2))
+               zrhh(ji,jj,jkk) = interp1(gdept_z0(ji,jj,jkk  ,Kmm), gdept_z0(ji,jj,jkk-1,Kmm),   &
+                  &                      gdept_z0(ji,jj,jkk-2,Kmm), zrhh (ji,jj,jkk-1), zrhh(ji,jj,jkk-2))
             END DO
          ENDIF
       END_2D
@@ -1263,8 +1178,8 @@ CONTAINS
       !!
       !! Reference: CJC Kruger, Constrained Cubic Spline Interpoltation
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(in   ) ::   fsp, xsp           ! value and coordinate
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(  out) ::   asp, bsp, csp, dsp ! coefficients of the interpoated function
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   fsp, xsp           ! value and coordinate
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(  out) ::   asp, bsp, csp, dsp ! coefficients of the interpoated function
       INTEGER                             , INTENT(in   ) ::   polynomial_type    ! 1: cubic spline   ;   2: Linear
       !
       INTEGER  ::   ji, jj, jk                 ! dummy loop indices

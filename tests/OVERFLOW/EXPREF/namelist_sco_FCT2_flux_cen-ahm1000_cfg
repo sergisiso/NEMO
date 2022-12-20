@@ -6,9 +6,6 @@
 &namusr_def    !   User defined :   OVERFLOW configuration 
 !-----------------------------------------------------------------------
    !                       !  type of vertical coordinate
-   ln_zco      = .false.      ! z-coordinate
-   ln_zps      = .false.      ! z-partial-step coordinate
-   ln_sco      = .true.       ! s-coordinate   
    rn_dx       =   1000.   !  horizontal resolution   [meters]
    rn_dz       =     20.   !  vertical   resolution   [meters]
 /

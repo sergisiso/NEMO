@@ -2,6 +2,7 @@
 #SBATCH -A GROUP_IDRIS@cpu
 #SBATCH --job-name=SETTE_JOB      # nom du job
 #SBATCH --partition=cpu_p1        # Nom de la partition d'exécution
+#SBATCH --qos=qos_cpu-dev           # quality of service
 #SBATCH --ntasks=NPROCS                # Nombre total de processus MPI
 #SBATCH --ntasks-per-node=40       # Nombre de processus MPI par noeud
 # /!\ Attention, la ligne suivante est trompeuse mais dans le vocabulaire

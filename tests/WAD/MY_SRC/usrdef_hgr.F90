@@ -75,14 +75,14 @@ CONTAINS
       zfact = rn_dx * 1.e-3         ! conversion in km
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
          !                       ! longitude   (west coast at lon=0°)
-         plamt(ji,jj) = zfact * (  - 0.5 + REAL( mig0(ji)-1 , wp )  )  
-         plamu(ji,jj) = zfact * (          REAL( mig0(ji)-1 , wp )  )
+         plamt(ji,jj) = zfact * (  - 0.5 + REAL( mig(ji,0)-1 , wp )  )  
+         plamu(ji,jj) = zfact * (          REAL( mig(ji,0)-1 , wp )  )
          plamv(ji,jj) = plamt(ji,jj)
          plamf(ji,jj) = plamu(ji,jj)
          !                       ! latitude   (south coast at lat= 0°)
-         pphit(ji,jj) = zfact * (  - 0.5 + REAL( mjg0(jj)-1 , wp )  )
+         pphit(ji,jj) = zfact * (  - 0.5 + REAL( mjg(jj,0)-1 , wp )  )
          pphiu(ji,jj) = pphit(ji,jj)
-         pphiv(ji,jj) = zfact * (          REAL( mjg0(jj)-1 , wp )  )
+         pphiv(ji,jj) = zfact * (          REAL( mjg(jj,0)-1 , wp )  )
          pphif(ji,jj) = pphiv(ji,jj)
       END_2D
       !

@@ -94,8 +94,8 @@ usage=" if value is a string ths is neede syntax : ./set_namelist namelist_name 
 sync_config() {
    if [ ${SYNC_CONFIGS} == "yes" ]; then
 
-      lREF=$3/$1    # reference 
-      lCFG=$3/$2    # target
+      lREF=$1    # reference
+      lCFG=$2    # target
 
       echo '-------------------------------------------------------------------------------'
       echo '                    SOURCE AND CONFIG FILES SYNCHRONISATION                    '
@@ -146,24 +146,16 @@ sync_config() {
 # clean _STg config (input CFG CFG_STg TYPE (test or ref))
 clean_config() {
    if [ ${CLEAN_CONFIGS} == "yes" ]; then
-      lREF=$1
-      lCFG=$2
-      lTYP=$3
+      lCFG=$1
       echo ''
       echo '-------------------------------------------------------------------------------'
       echo '                         CLEANING CONFIGURATION                                '
       echo ''
-      echo "./makenemo -n $lCFG -a/-r $lREF -t ${CMP_DIR:-${CONFIG_DIR0}} clean"
+      echo "./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean"
       echo ''
-      if [ ${lTYP} == 'tests' ]; then
-         ./makenemo -n $lCFG -t ${CMP_DIR:-${CONFIG_DIR0}} -a $lREF clean
-      elif [ ${lTYP} == 'cfgs' ]; then
-         ./makenemo -n $lCFG -t ${CMP_DIR:-${CONFIG_DIR0}} -r $lREF clean
-      else
-         echo 'ERROR in the cleaning process'; exit 42
-      fi
+      ./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean
       echo ''
-      echo "$lCFG configuration has been cleaned"
+      echo "$(basename $lCFG) configuration has been cleaned"
       echo ''
       echo '-------------------------------------------------------------------------------'
    fi
@@ -172,7 +164,7 @@ clean_config() {
 # define validation dir
 set_valid_dir () {
     if [ ${DETACHED_HEAD} == "no" ] ; then
-      REVISION_NB=`git -C ${MAIN_DIR} rev-list --abbrev-commit HEAD | head -1l`
+      REVISION_NB=`git -C ${MAIN_DIR} rev-parse --short HEAD`
     else
       REVISION_NB=${DETACHED_CMIT}
     fi
@@ -195,7 +187,8 @@ set_valid_dir () {
     fi
     # remove last _ST followed by zero or more alphanumeric characters
     NEW_CONF1=$( echo $NEW_CONF | sed -e 's/_ST\([0-9a-zA-Z]*\)$//' )
-    if [[ -n "${NEMO_DEBUG}" && ! ${CMP_NAM,,} =~ ("debug"|"dbg") ]]; then
+    CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
+    if [[ -n "${NEMO_DEBUG}" && ! ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
       export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}_DEBUG/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}
     else
       export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}
@@ -296,7 +289,8 @@ set_namelist () {
 
 # Add $VARNAME in namelist file ${EXE_DIR}/$1 in namelist group $NAMGRP
 # on mac osx, replace sed --posix by gsed (available with mac port)
-                sed --posix "/${NAMGRP} /a\ ${VAR_NAME} " ${EXE_DIR}/$1 > ${EXE_DIR}/$1.tmp || gsed --posix "/${NAMGRP} /a\ ${VAR_NAME} " ${EXE_DIR}/$1 > ${EXE_DIR}/$1.tmp
+                sed    --posix -e "/${NAMGRP}[ !]/a\ ${VAR_NAME} " -e "/${NAMGRP}$/a\ ${VAR_NAME} " ${EXE_DIR}/$1 > ${EXE_DIR}/$1.tmp || \
+                  gsed --posix -e "/${NAMGRP}[ !]/a\ ${VAR_NAME} " -e "/${NAMGRP}$/a\ ${VAR_NAME} " ${EXE_DIR}/$1 > ${EXE_DIR}/$1.tmp
 
 # if file not empty replace ${EXE_DIR}/$1
                if [ -s ${EXE_DIR}/$1.tmp ] ; then

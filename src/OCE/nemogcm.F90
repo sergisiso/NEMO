@@ -119,7 +119,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
 #if defined key_agrif
-      CALL Agrif_Init_Grids()      ! AGRIF: set the meshes
+#if defined key_agrif_psisters
+      Agrif_Parallel_sisters = .TRUE.  ! Activate parallel sisters
+#endif
+      CALL Agrif_Init_Grids()          ! AGRIF: set the meshes
 #endif
       !                            !-----------------------!
       CALL nemo_init               !==  Initialisations  ==!
@@ -164,6 +167,7 @@ CONTAINS
       !
       DO WHILE( istp <= nitend .AND. nstop == 0 )
          !
+         ncom_stp = istp
 #  if defined key_qco   ||   defined key_linssh
 #   if defined key_RK3
          CALL stp_RK3
@@ -397,13 +401,7 @@ CONTAINS
       !                             ! mpp parameters and domain decomposition !
       !                             !-----------------------------------------!
       CALL mpp_init
-
-#if defined key_loop_fusion
-      IF( nn_hls == 1 ) THEN
-         CALL ctl_stop( 'STOP', 'nemogcm : Loop fusion can be used only with extra-halo' )
-      ENDIF
-#endif
-
+      !
       CALL halo_mng_init()
       ! Now we know the dimensions of the grid and numout has been set: we can allocate arrays
       CALL nemo_alloc()
@@ -525,6 +523,13 @@ CONTAINS
       !
       IF( ln_timing    )   CALL timing_stop( 'nemo_init')
       !
+
+# if defined key_agrif
+      IF( Agrif_Root() ) THEN
+          CALL Agrif_MPI_Init(mpi_comm_oce)
+      ENDIF
+# endif
+
    END SUBROUTINE nemo_init
 
 

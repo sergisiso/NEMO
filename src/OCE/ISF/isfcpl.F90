@@ -11,13 +11,12 @@ MODULE isfcpl
    !!----------------------------------------------------------------------
    !!   isfrst        : read/write iceshelf variables in/from restart
    !!----------------------------------------------------------------------
+   USE par_oce        ! ocean space and time domain
    USE oce            ! ocean dynamics and tracers
 #if defined key_qco
    USE domqco  , ONLY : dom_qco_zgr      ! vertical scale factor interpolation
 #elif defined key_linssh
    !                                     ! fix in time coordinate
-#else
-   USE domvvl  , ONLY : dom_vvl_zgr      ! vertical scale factor interpolation
 #endif
    USE domutl  , ONLY : dom_ngb          ! find the closest grid point from a given lon/lat position
    USE isf_oce        ! ice shelf variable
@@ -32,7 +31,6 @@ MODULE isfcpl
    PRIVATE
 
    PUBLIC isfcpl_rst_write, isfcpl_init                    ! iceshelf restart read and write
-   PUBLIC isfcpl_ssh, isfcpl_tra, isfcpl_vol, isfcpl_cons  ! iceshelf correction for ssh, tra, dyn and conservation
 
    TYPE isfcons
       INTEGER ::   ii     ! i global
@@ -79,6 +77,13 @@ CONTAINS
       ! allocation and initialisation to 0
       CALL isf_alloc_cpl()
       !
+      risfcpl_tsc     (:,:,:,:) = 0._wp
+      risfcpl_cons_tsc(:,:,:,:) = 0._wp
+      risfcpl_vol     (:,:,:)   = 0._wp
+      risfcpl_cons_vol(:,:,:)   = 0._wp
+      risfcpl_ssh     (:,:)     = 0._wp
+      risfcpl_cons_ssh(:,:)     = 0._wp
+      !
       ! check presence of variable needed for coupling
       ! iom_varid return 0 if not found
       id = 1
@@ -115,11 +120,11 @@ CONTAINS
       !
       ! all before fields set to now values
       ts  (:,:,:,:,Kbb) = ts  (:,:,:,:,Kmm)
-      uu   (:,:,:,Kbb)   = uu   (:,:,:,Kmm)
-      vv   (:,:,:,Kbb)   = vv   (:,:,:,Kmm)
+      uu  (:,:,:,Kbb)   = uu  (:,:,:,Kmm)
+      vv  (:,:,:,Kbb)   = vv  (:,:,:,Kmm)
       ssh (:,:,Kbb)     = ssh (:,:,Kmm)
 #if ! defined key_qco   &&   ! defined key_linssh
-      e3t(:,:,:,Kbb)   = e3t(:,:,:,Kmm)
+      e3t (:,:,:,Kbb)   = e3t (:,:,:,Kmm)
 #endif
    END SUBROUTINE isfcpl_init
 
@@ -135,23 +140,30 @@ CONTAINS
       INTEGER, INTENT(in) :: Kmm    ! ocean time level index
       !!----------------------------------------------------------------------
       INTEGER :: jk                               ! loop index
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze3t, ze3u, ze3v, zgdepw  ! for qco substitution
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ztmp    ! for qco substitution
       !!----------------------------------------------------------------------
-      !
-      DO jk = 1, jpk
-         ze3t(:,:,jk) = e3t(:,:,jk,Kmm)
-         ze3u(:,:,jk) = e3u(:,:,jk,Kmm)
-         ze3v(:,:,jk) = e3v(:,:,jk,Kmm)
-         !
-         zgdepw(:,:,jk) = gdepw(:,:,jk,Kmm)
-      END DO
       !
       CALL iom_rstput( kt, nitrst, numrow, 'tmask'  , tmask  )
       CALL iom_rstput( kt, nitrst, numrow, 'ssmask' , ssmask )
-      CALL iom_rstput( kt, nitrst, numrow, 'e3t_n'  , ze3t   )
-      CALL iom_rstput( kt, nitrst, numrow, 'e3u_n'  , ze3u   )
-      CALL iom_rstput( kt, nitrst, numrow, 'e3v_n'  , ze3v   )
-      CALL iom_rstput( kt, nitrst, numrow, 'gdepw_n', zgdepw )
+      !
+      DO jk = 1, jpk
+         ztmp(:,:,jk) = e3t(:,:,jk,Kmm)
+      END DO
+      CALL iom_rstput( kt, nitrst, numrow, 'e3t_n'  , ztmp   )
+      DO jk = 1, jpk
+         ztmp(:,:,jk) = e3u(:,:,jk,Kmm)
+      END DO
+      CALL iom_rstput( kt, nitrst, numrow, 'e3u_n'  , ztmp   )
+      DO jk = 1, jpk
+         ztmp(:,:,jk) = e3v(:,:,jk,Kmm)
+      END DO
+      CALL iom_rstput( kt, nitrst, numrow, 'e3v_n'  , ztmp   )
+         !
+      DO jk = 1, jpk
+         ztmp(:,:,jk) = gdepw(:,:,jk,Kmm)
+      END DO
+      CALL iom_rstput( kt, nitrst, numrow, 'gdepw_n', ztmp )
+      !
       !
    END SUBROUTINE isfcpl_rst_write
 
@@ -166,13 +178,14 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !!
-      INTEGER, INTENT(in) :: Kbb, Kmm, Kaa    ! ocean time level indices
+      INTEGER, INTENT(in) ::   Kbb, Kmm, Kaa    ! ocean time level indices
       !!----------------------------------------------------------------------
-      INTEGER :: ji, jj, jd, jk      !! loop index
-      INTEGER :: jip1, jim1, jjp1, jjm1
+      INTEGER ::   ji, jj, jd, jk      !! loop index
+      INTEGER ::   jip1, jim1, jjp1, jjm1
+      INTEGER ::   ibnd
       !!
-      REAL(wp):: zsummsk
-      REAL(wp), DIMENSION(jpi,jpj) :: zdssmask, zssmask0, zssmask_b, zssh
+      REAL(wp)::   zdssmask, zsummsk
+      REAL(wp), DIMENSION(jpi,jpj) ::  zssmask0, zssmask_b, zssh
       !!----------------------------------------------------------------------
       !
       CALL iom_get( numror, jpdom_auto, 'ssmask'  , zssmask_b   ) ! need to extrapolate T/S
@@ -185,26 +198,36 @@ CONTAINS
       !
       DO jd = 1, nn_drown
          !
-         zdssmask(:,:) = ssmask(:,:) - zssmask0(:,:)
-         DO_2D( 0, 0, 0, 0 )
+         IF    ( MOD(jd,2) == 0 ) THEN ! even
+            ibnd = nn_hls-1
+         ELSEIF( MOD(jd,2) == 1 ) THEN ! odd
+            ibnd = 0
+         ENDIF
+         
+         DO_2D( ibnd, ibnd, ibnd, ibnd )
+            zdssmask = ssmask(ji,jj) - zssmask0(ji,jj)
+            
             jip1=ji+1   ;   jim1=ji-1
             jjp1=jj+1   ;   jjm1=jj-1
             !
             zsummsk = zssmask0(jip1,jj) + zssmask0(jim1,jj) + zssmask0(ji,jjp1) + zssmask0(ji,jjm1)
             !
-            IF (zdssmask(ji,jj) == 1._wp .AND. zsummsk /= 0._wp) THEN
-               ssh(ji,jj,Kmm)=( zssh(jip1,jj)*zssmask0(jip1,jj)     &
-                  &           + zssh(jim1,jj)*zssmask0(jim1,jj)     &
-                  &           + zssh(ji,jjp1)*zssmask0(ji,jjp1)     &
-                  &           + zssh(ji,jjm1)*zssmask0(ji,jjm1)) / zsummsk
+            IF (zdssmask == 1._wp .AND. zsummsk /= 0._wp) THEN
+               ssh(ji,jj,Kmm)=( ( zssh(jip1,jj)*zssmask0(jip1,jj) + zssh(jim1,jj)*zssmask0(jim1,jj) )     &   ! add () for NP repro
+                  &           + ( zssh(ji,jjp1)*zssmask0(ji,jjp1) + zssh(ji,jjm1)*zssmask0(ji,jjm1) ) ) / zsummsk
                zssmask_b(ji,jj) = 1._wp
             ENDIF
          END_2D
-         CALL lbc_lnk( 'isfcpl', ssh(:,:,Kmm), 'T', 1.0_wp, zssmask_b(:,:), 'T', 1.0_wp )
          !
-         zssh(:,:) = ssh(:,:,Kmm)
-         zssmask0(:,:) = zssmask_b(:,:)
-         !
+         ! update ssh and mask
+         DO_2D( ibnd, ibnd, ibnd, ibnd )
+            zssh    (ji,jj) = ssh      (ji,jj,Kmm)
+            zssmask0(ji,jj) = zssmask_b(ji,jj)
+         END_2D
+
+         IF( ibnd == 0 ) THEN
+            CALL lbc_lnk( 'isfcpl', zssh(:,:), 'T', 1.0_wp, zssmask0(:,:), 'T', 1.0_wp )
+         ENDIF
          !
       END DO
       !
@@ -222,12 +245,6 @@ CONTAINS
       CALL dom_qco_zgr(Kbb, Kmm)
 #elif defined key_linssh
       ! linear ssh : fix in time coord.
-#else
-      DO jk = 1, jpk
-         e3t(:,:,jk,Kmm) = e3t_0(:,:,jk) * ( 1._wp + (ht_0(:,:) + ssh(:,:,Kmm)) * r1_ht_0(:,:) )
-      END DO
-      e3t(:,:,:,Kbb) = e3t(:,:,:,Kmm)
-      CALL dom_vvl_zgr(Kbb, Kmm, Kaa)
 #endif
       !
    END SUBROUTINE isfcpl_ssh
@@ -244,19 +261,16 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) :: Kmm    ! ocean time level index
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ztmask_b
+      REAL(wp), DIMENSION(jpi,jpj,jpk)      ::   ztmask_b, ztmask0 
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts) ::   zts0
       !REAL(wp), DIMENSION(:,:,:  ), INTENT(in ) :: pdepw_b                         !! depth w before
       !!
-      INTEGER :: ji, jj, jk, jd          !! loop index
-      INTEGER :: jip1, jim1, jjp1, jjm1, jkp1, jkm1
+      INTEGER ::   ji, jj, jk, jd          !! loop index
+      INTEGER ::   jip1, jim1, jjp1, jjm1, jkp1, jkm1
+      INTEGER ::   ibnd
       !!
-      REAL(wp):: zsummsk
-      REAL(wp):: zdz, zdzm1, zdzp1
-      !!
-      REAL(wp), DIMENSION(jpi,jpj)          :: zdmask
-      REAL(wp), DIMENSION(jpi,jpj,jpk)      :: ztmask0, zwmaskn
-      REAL(wp), DIMENSION(jpi,jpj,jpk)      :: ztmask1, zwmaskb, ztmp3d
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts) :: zts0
+      REAL(wp)::   zdmask, zsummsk
+      REAL(wp)::   zdz, zdzm1, zdzp1
       !!----------------------------------------------------------------------
       !
       CALL iom_get( numror, jpdom_auto, 'tmask'  , ztmask_b   ) ! need to extrapolate T/S
@@ -301,69 +315,77 @@ CONTAINS
 !         END DO
 !      END IF
 
-      zts0(:,:,:,:)  = ts(:,:,:,:,Kmm)
-      ztmask0(:,:,:) = ztmask_b(:,:,:)
-      ztmask1(:,:,:) = ztmask_b(:,:,:)
+      zts0   (:,:,:,:) = ts      (:,:,:,:,Kmm)
+      ztmask0(:,:,:)   = ztmask_b(:,:,:)
       !
       ! iterate the extrapolation processes nn_drown times
       DO jd = 1,nn_drown ! resolution dependent (OK for ISOMIP+ case)
-         DO jk = 1,jpk-1
-            !
+
+         IF    ( MOD(jd,2) == 0 ) THEN ! even
+            ibnd = nn_hls-1
+         ELSEIF( MOD(jd,2) == 1 ) THEN ! odd
+            ibnd = 0
+         ENDIF
+
+         DO_3D( ibnd, ibnd, ibnd, ibnd, 1, jpkm1 )
             ! define new wet cell
-            zdmask(:,:) = tmask(:,:,jk) - ztmask0(:,:,jk);
+            zdmask = tmask(ji,jj,jk) - ztmask0(ji,jj,jk)
+            
+            jip1=ji+1; jim1=ji-1;
+            jjp1=jj+1; jjm1=jj-1;
             !
-            DO_2D( 0, 0, 0, 0 )
-               jip1=ji+1; jim1=ji-1;
-               jjp1=jj+1; jjm1=jj-1;
+            ! check if a wet neigbourg cell is present
+            zsummsk = ztmask0(jip1,jj  ,jk) + ztmask0(jim1,jj  ,jk) &
+               &    + ztmask0(ji  ,jjp1,jk) + ztmask0(ji  ,jjm1,jk)
+            !
+            ! if neigbourg wet cell available at the same level
+            IF( zdmask == 1._wp  .AND. zsummsk /= 0._wp ) THEN
                !
-               ! check if a wet neigbourg cell is present
-               zsummsk = ztmask0(jip1,jj  ,jk) + ztmask0(jim1,jj  ,jk) &
-                       + ztmask0(ji  ,jjp1,jk) + ztmask0(ji  ,jjm1,jk)
-               !
-               ! if neigbourg wet cell available at the same level
-               IF ( zdmask(ji,jj) == 1._wp  .AND. zsummsk /= 0._wp ) THEN
-                  !
-                  ! horizontal basic extrapolation
-                  ts(ji,jj,jk,1,Kmm)=( zts0(jip1,jj  ,jk,1) * ztmask0(jip1,jj  ,jk) &
+               ! horizontal basic extrapolation
+               ts(ji,jj,jk,1,Kmm)=( zts0(jip1,jj  ,jk,1) * ztmask0(jip1,jj  ,jk) &
                   &               + zts0(jim1,jj  ,jk,1) * ztmask0(jim1,jj  ,jk) &
                   &               + zts0(ji  ,jjp1,jk,1) * ztmask0(ji  ,jjp1,jk) &
                   &               + zts0(ji  ,jjm1,jk,1) * ztmask0(ji  ,jjm1,jk) ) / zsummsk
-                  ts(ji,jj,jk,2,Kmm)=( zts0(jip1,jj  ,jk,2) * ztmask0(jip1,jj  ,jk) &
+               ts(ji,jj,jk,2,Kmm)=( zts0(jip1,jj  ,jk,2) * ztmask0(jip1,jj  ,jk) &
                   &               + zts0(jim1,jj  ,jk,2) * ztmask0(jim1,jj  ,jk) &
                   &               + zts0(ji  ,jjp1,jk,2) * ztmask0(ji  ,jjp1,jk) &
                   &               + zts0(ji  ,jjm1,jk,2) * ztmask0(ji  ,jjm1,jk) ) / zsummsk
-                  !
-                  ! update mask for next pass
-                  ztmask1(ji,jj,jk)=1
-                  !
+               !
+               ! update mask for next pass
+               ztmask_b(ji,jj,jk)=1
+               !
                ! in case no neigbourg wet cell available at the same level
                ! check if a wet cell is available below
-               ELSEIF (zdmask(ji,jj) == 1._wp .AND. zsummsk == 0._wp) THEN
-                  !
-                  ! vertical extrapolation if horizontal extrapolation failed
-                  jkm1=max(1,jk-1) ; jkp1=min(jpk,jk+1)
-                  !
-                  ! check if a wet neigbourg cell is present
-                  zsummsk = ztmask0(ji,jj,jkm1) + ztmask0(ji,jj,jkp1)
-                  IF (zdmask(ji,jj) == 1._wp .AND. zsummsk /= 0._wp ) THEN
-                     ts(ji,jj,jk,1,Kmm)=( zts0(ji,jj,jkp1,1)*ztmask0(ji,jj,jkp1)     &
+            ELSEIF( zdmask == 1._wp .AND. zsummsk == 0._wp ) THEN
+               !
+               ! vertical extrapolation if horizontal extrapolation failed
+               jkm1=MAX(1,jk-1) ; jkp1=MIN(jpk,jk+1)
+               !
+               ! check if a wet neigbourg cell is present
+               zsummsk = ztmask0(ji,jj,jkm1) + ztmask0(ji,jj,jkp1)
+               IF( zdmask == 1._wp .AND. zsummsk /= 0._wp ) THEN
+                  ts(ji,jj,jk,1,Kmm)=( zts0(ji,jj,jkp1,1)*ztmask0(ji,jj,jkp1)     &
                      &               + zts0(ji,jj,jkm1,1)*ztmask0(ji,jj,jkm1)) / zsummsk
-                     ts(ji,jj,jk,2,Kmm)=( zts0(ji,jj,jkp1,2)*ztmask0(ji,jj,jkp1)     &
+                  ts(ji,jj,jk,2,Kmm)=( zts0(ji,jj,jkp1,2)*ztmask0(ji,jj,jkp1)     &
                      &               + zts0(ji,jj,jkm1,2)*ztmask0(ji,jj,jkm1)) / zsummsk
-                     !
-                     ! update mask for next pass
-                     ztmask1(ji,jj,jk)=1._wp
-                  END IF
+                  !
+                  ! update mask for next pass
+                  ztmask_b(ji,jj,jk)=1._wp
                END IF
-            END_2D
-         END DO
-         !
-         CALL lbc_lnk( 'isfcpl', ts(:,:,:,jp_tem,Kmm), 'T', 1.0_wp, ts(:,:,:,jp_sal,Kmm), 'T', 1.0_wp, ztmask1, 'T', 1.0_wp)
-         !
+            END IF
+            !
+         END_3D
+         
          ! update temperature and salinity and mask
-         zts0(:,:,:,:)  = ts(:,:,:,:,Kmm)
-         ztmask0(:,:,:) = ztmask1(:,:,:)
+         DO_3D( ibnd, ibnd, ibnd, ibnd, 1, jpk )
+            zts0   (ji,jj,jk,1)  = ts      (ji,jj,jk,1,Kmm)
+            zts0   (ji,jj,jk,2)  = ts      (ji,jj,jk,2,Kmm)
+            ztmask0(ji,jj,jk)    = ztmask_b(ji,jj,jk)
+         END_3D
          !
+         IF( ibnd == 0 ) THEN
+            CALL lbc_lnk( 'isfcpl', zts0(:,:,:,1), 'T', 1.0_wp, zts0(:,:,:,2), 'T', 1.0_wp, ztmask0(:,:,:), 'T', 1.0_wp )
+         ENDIF
          !
       END DO  ! nn_drown
       !
@@ -374,7 +396,7 @@ CONTAINS
       ! sanity check
       ! -----------------------------------------------------------------------------------------
       ! case we open a cell but no neigbour cells available to get an estimate of T and S
-      DO_3D( 0, 0, 0, 0, 1,jpk-1 )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          IF (tmask(ji,jj,jk) == 1._wp .AND. ts(ji,jj,jk,2,Kmm) == 0._wp)              &
             &   CALL ctl_stop('STOP', 'failing to fill all new weet cell,     &
             &                          try increase nn_drown or activate XXXX &
@@ -455,25 +477,29 @@ CONTAINS
          !
       END_2D
       !
-      CALL lbc_lnk( 'isfcpl', risfcpl_vol, 'T', 1.0_wp )
-      !
       ! 3.0: set total correction (div, tr(:,:,:,:,Krhs), ssh)
       !
       ! 3.1: mask volume flux divergence correction
-      risfcpl_vol(:,:,:) = risfcpl_vol(:,:,:) * tmask(:,:,:)
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         risfcpl_vol(ji,jj,jk) = risfcpl_vol(ji,jj,jk) * tmask(ji,jj,jk)
+      END_3D
       !
       ! 3.2: get 3d tr(:,:,:,:,Krhs) increment to apply at the first time step
       ! temperature and salt content flux computed using local ts(:,:,:,:,Kmm)
       ! (very simple advection scheme)
       ! (>0 out)
-      risfcpl_tsc(:,:,:,jp_tem) = -risfcpl_vol(:,:,:) * ts(:,:,:,jp_tem,Kmm)
-      risfcpl_tsc(:,:,:,jp_sal) = -risfcpl_vol(:,:,:) * ts(:,:,:,jp_sal,Kmm)
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         risfcpl_tsc(ji,jj,jk,jp_tem) = -risfcpl_vol(ji,jj,jk) * ts(ji,jj,jk,jp_tem,Kmm)
+         risfcpl_tsc(ji,jj,jk,jp_sal) = -risfcpl_vol(ji,jj,jk) * ts(ji,jj,jk,jp_sal,Kmm)
+      END_3D
       !
       ! 3.3: ssh correction (for dynspg_ts)
-      risfcpl_ssh(:,:) = 0.0
-      DO jk = 1,jpk
-         risfcpl_ssh(:,:) = risfcpl_ssh(:,:) + risfcpl_vol(:,:,jk) * r1_e1e2t(:,:)
-      END DO
+      DO_2D( 0, 0, 0, 0 )
+         risfcpl_ssh(ji,jj) = 0.0
+      END_2D
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         risfcpl_ssh(ji,jj) = risfcpl_ssh(ji,jj) + risfcpl_vol(ji,jj,jk) * r1_e1e2t(ji,jj)
+      END_3D
       !
    END SUBROUTINE isfcpl_vol
 
@@ -507,21 +533,17 @@ CONTAINS
       REAL(wp) ::   z1_sum, z1_rdtiscpl
       REAL(wp) ::   zdtem, zdsal, zdvol, zratio       ! tem, sal, vol increment
       REAL(wp) ::   zlon , zlat                       ! target location
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ztmask_b    ! mask before
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze3t_b      ! scale factor before
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zt_b      ! scale factor before
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zs_b      ! scale factor before
+      REAL(wp), DIMENSION(A2D(0),jpk) :: ztmask_b    ! mask before
+      REAL(wp), DIMENSION(A2D(0),jpk) :: ze3t_b      ! scale factor before
+      REAL(wp), DIMENSION(A2D(0),jpk) :: ztmp        ! scale factor before
       !!----------------------------------------------------------------------
 
       !==============================================================================
       ! 1.0: initialisation
       !==============================================================================
-
       ! get restart variable
       CALL iom_get( numror, jpdom_auto, 'tmask'  , ztmask_b(:,:,:) ) ! need to extrapolate T/S
-      CALL iom_get( numror, jpdom_auto, 'e3t_n'  , ze3t_b(:,:,:)   )
-      CALL iom_get( numror, jpdom_auto, 'tn'     , zt_b(:,:,:)     )
-      CALL iom_get( numror, jpdom_auto, 'sn'     , zs_b(:,:,:)     )
+
 
       ! compute run length
       nstp_iscpl  = nitend - nit000 + 1
@@ -540,32 +562,36 @@ CONTAINS
       ! 2.0: diagnose the heat, salt and volume input and compute the correction variable
       !      for case where we wet a cell or cell still wet (no change in cell status)
       !==============================================================================
+      CALL iom_get( numror, jpdom_auto, 'e3t_n'  , ze3t_b(:,:,:) )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         ! volume diff
+         zdvol =     e3t(ji,jj,jk,Kmm) *  tmask  (ji,jj,jk)   &
+            &   - ze3t_b(ji,jj,jk    ) * ztmask_b(ji,jj,jk)
+         ! volume differences in each cell (>0 means correction is an outward flux)
+         ! in addition to the geometry change unconservation, need to add the divergence correction as it is flux across the boundary
+         risfcpl_cons_vol(ji,jj,jk)        = (   zdvol * e1e2t(ji,jj) + risfcpl_vol(ji,jj,jk)        ) * z1_rdtiscpl
+      END_3D
 
-      DO jk = 1,jpk-1
-         DO jj = Njs0,Nje0
-            DO ji = Nis0,Nie0
+      CALL iom_get( numror, jpdom_auto, 'tn'     , ztmp(:,:,:)   )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         ! heat diff
+         zdtem =   ts (ji,jj,jk,jp_tem,Kmm) *  e3t(ji,jj,jk,Kmm) *  tmask  (ji,jj,jk)   &
+            &   - ztmp(ji,jj,jk)            * ze3t_b(ji,jj,jk)   * ztmask_b(ji,jj,jk)
+         ! heat differences in each cell (>0 means correction is an outward flux)
+         ! in addition to the geometry change unconservation, need to add the divergence correction as it is flux across the boundary
+         risfcpl_cons_tsc(ji,jj,jk,jp_tem) = ( - zdtem * e1e2t(ji,jj) + risfcpl_tsc(ji,jj,jk,jp_tem) ) * z1_rdtiscpl
+      END_3D
 
-               ! volume diff
-               zdvol =   e3t(ji,jj,jk,Kmm) *  tmask  (ji,jj,jk)   &
-                  &   - ze3t_b(ji,jj,jk    ) * ztmask_b(ji,jj,jk)
+      CALL iom_get( numror, jpdom_auto, 'sn'     , ztmp(:,:,:)   )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         ! salt diff
+         zdsal =    ts(ji,jj,jk,jp_sal,Kmm) *  e3t(ji,jj,jk,Kmm) *  tmask  (ji,jj,jk)   &
+            &   - ztmp(ji,jj,jk)            * ze3t_b(ji,jj,jk)   * ztmask_b(ji,jj,jk)
 
-               ! heat diff
-               zdtem = ts (ji,jj,jk,jp_tem,Kmm) *  e3t(ji,jj,jk,Kmm) *  tmask  (ji,jj,jk)   &
-                     - zt_b(ji,jj,jk)        * ze3t_b(ji,jj,jk) * ztmask_b(ji,jj,jk)
-
-               ! salt diff
-               zdsal = ts(ji,jj,jk,jp_sal,Kmm) *  e3t(ji,jj,jk,Kmm) *  tmask  (ji,jj,jk)   &
-                     - zs_b(ji,jj,jk)       * ze3t_b(ji,jj,jk) * ztmask_b(ji,jj,jk)
-
-               ! volume, heat and salt differences in each cell (>0 means correction is an outward flux)
-               ! in addition to the geometry change unconservation, need to add the divergence correction as it is flux across the boundary
-               risfcpl_cons_vol(ji,jj,jk)        = (   zdvol * e1e2t(ji,jj) + risfcpl_vol(ji,jj,jk)        ) * z1_rdtiscpl
-               risfcpl_cons_tsc(ji,jj,jk,jp_sal) = ( - zdsal * e1e2t(ji,jj) + risfcpl_tsc(ji,jj,jk,jp_sal) ) * z1_rdtiscpl
-               risfcpl_cons_tsc(ji,jj,jk,jp_tem) = ( - zdtem * e1e2t(ji,jj) + risfcpl_tsc(ji,jj,jk,jp_tem) ) * z1_rdtiscpl
-
-            END DO
-         END DO
-      END DO
+         ! salt differences in each cell (>0 means correction is an outward flux)
+         ! in addition to the geometry change unconservation, need to add the divergence correction as it is flux across the boundary
+         risfcpl_cons_tsc(ji,jj,jk,jp_sal) = ( - zdsal * e1e2t(ji,jj) + risfcpl_tsc(ji,jj,jk,jp_sal) ) * z1_rdtiscpl
+      END_3D
       !
       !==============================================================================
       ! 3.0: diagnose the heat, salt and volume input and compute the correction variable
@@ -575,16 +601,15 @@ CONTAINS
       ! compute the total number of point receiving a correction increment for each processor
       ! local
       nisfl(:)=0
-      DO jk = 1,jpk-1
-         DO jj = Njs0,Nje0
-            DO ji = Nis0,Nie0
-               jip1=MIN(ji+1,jpi) ; jim1=MAX(ji-1,1) ; jjp1=MIN(jj+1,jpj) ; jjm1=MAX(jj-1,1) ;
-               IF ( tmask(ji,jj,jk) == 0._wp .AND. ztmask_b(ji,jj,jk) == 1._wp ) THEN
-                  nisfl(narea) = nisfl(narea) + MAX(SUM(tmask(jim1:jip1,jjm1:jjp1,jk)),1._wp)
-               ENDIF
-            ENDDO
-         ENDDO
-      ENDDO
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         jip1=MIN(ji+1,jpi)
+         jim1=MAX(ji-1,1  )
+         jjp1=MIN(jj+1,jpj)
+         jjm1=MAX(jj-1,1  )
+         IF( tmask(ji,jj,jk) == 0._wp .AND. ztmask_b(ji,jj,jk) == 1._wp ) THEN
+            nisfl(narea) = nisfl(narea) + MAX(SUM(tmask(jim1:jip1,jjm1:jjp1,jk)),1._wp)
+         ENDIF
+      END_3D
       !
       ! global
       CALL mpp_sum('isfcpl',nisfl  )
@@ -597,46 +622,42 @@ CONTAINS
       ! start computing the correction and fill zisfpts
       ! local
       jisf = 0
-      DO jk = 1,jpk-1
-         DO jj = Njs0,Nje0
-            DO ji = Nis0,Nie0
-               IF ( tmask(ji,jj,jk) == 0._wp .AND. ztmask_b(ji,jj,jk) == 1._wp ) THEN
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         IF ( tmask(ji,jj,jk) == 0._wp .AND. ztmask_b(ji,jj,jk) == 1._wp ) THEN
 
-                  jip1=MIN(ji+1,jpi) ; jim1=MAX(ji-1,1) ; jjp1=MIN(jj+1,jpj) ; jjm1=MAX(jj-1,1) ;
+            jip1=MIN(ji+1,jpi) ; jim1=MAX(ji-1,1) ; jjp1=MIN(jj+1,jpj) ; jjm1=MAX(jj-1,1) ;
 
-                  zdvol = risfcpl_cons_vol(ji,jj,jk       )
-                  zdsal = risfcpl_cons_tsc(ji,jj,jk,jp_sal)
-                  zdtem = risfcpl_cons_tsc(ji,jj,jk,jp_tem)
+            zdvol = risfcpl_cons_vol(ji,jj,jk       )
+            zdsal = risfcpl_cons_tsc(ji,jj,jk,jp_sal)
+            zdtem = risfcpl_cons_tsc(ji,jj,jk,jp_tem)
 
-                  IF ( SUM( tmask(jim1:jip1,jjm1:jjp1,jk) ) > 0._wp ) THEN
-                     ! spread correction amoung neigbourg wet cells (horizontal direction first)
-                     ! as it is a rude correction corner and lateral cell have the same weight
-                     !
-                     z1_sum =  1._wp / SUM( tmask(jim1:jip1,jjm1:jjp1,jk) )
-                     !
-                     ! lateral cells
-                     IF (tmask(jip1,jj  ,jk) == 1) CALL update_isfpts(zisfpts, jisf, jip1, jj  , jk, zdvol, zdsal, zdtem, z1_sum)
-                     IF (tmask(jim1,jj  ,jk) == 1) CALL update_isfpts(zisfpts, jisf, jim1, jj  , jk, zdvol, zdsal, zdtem, z1_sum)
-                     IF (tmask(ji  ,jjp1,jk) == 1) CALL update_isfpts(zisfpts, jisf, ji  , jjp1, jk, zdvol, zdsal, zdtem, z1_sum)
-                     IF (tmask(ji  ,jjm1,jk) == 1) CALL update_isfpts(zisfpts, jisf, ji  , jjm1, jk, zdvol, zdsal, zdtem, z1_sum)
-                     !
-                     ! corner  cells
-                     IF (tmask(jip1,jjm1,jk) == 1) CALL update_isfpts(zisfpts, jisf, jip1, jjm1, jk, zdvol, zdsal, zdtem, z1_sum)
-                     IF (tmask(jim1,jjm1,jk) == 1) CALL update_isfpts(zisfpts, jisf, jim1, jjm1, jk, zdvol, zdsal, zdtem, z1_sum)
-                     IF (tmask(jim1,jjp1,jk) == 1) CALL update_isfpts(zisfpts, jisf, jim1, jjp1, jk, zdvol, zdsal, zdtem, z1_sum)
-                     IF (tmask(jip1,jjp1,jk) == 1) CALL update_isfpts(zisfpts, jisf, jip1, jjp1, jk, zdvol, zdsal, zdtem, z1_sum)
-                     !
-                  ELSE IF ( tmask(ji,jj,jk+1) == 1._wp ) THEN
-                     ! spread correction amoung neigbourg wet cells (vertical direction)
-                     CALL update_isfpts(zisfpts, jisf, ji  , jj  , jk+1, zdvol, zdsal, zdtem, 1.0_wp, 0)
-                  ELSE
-                     ! need to find where to put correction in later on
-                     CALL update_isfpts(zisfpts, jisf, ji  , jj  , jk  , zdvol, zdsal, zdtem, 1.0_wp, 1)
-                  END IF
-               END IF
-            END DO
-         END DO
-      END DO
+            IF ( SUM( tmask(jim1:jip1,jjm1:jjp1,jk) ) > 0._wp ) THEN
+               ! spread correction amoung neigbourg wet cells (horizontal direction first)
+               ! as it is a rude correction corner and lateral cell have the same weight
+               !
+               z1_sum =  1._wp / SUM( tmask(jim1:jip1,jjm1:jjp1,jk) )
+               !
+               ! lateral cells
+               IF (tmask(jip1,jj  ,jk) == 1) CALL update_isfpts(zisfpts, jisf, jip1, jj  , jk, zdvol, zdsal, zdtem, z1_sum)
+               IF (tmask(jim1,jj  ,jk) == 1) CALL update_isfpts(zisfpts, jisf, jim1, jj  , jk, zdvol, zdsal, zdtem, z1_sum)
+               IF (tmask(ji  ,jjp1,jk) == 1) CALL update_isfpts(zisfpts, jisf, ji  , jjp1, jk, zdvol, zdsal, zdtem, z1_sum)
+               IF (tmask(ji  ,jjm1,jk) == 1) CALL update_isfpts(zisfpts, jisf, ji  , jjm1, jk, zdvol, zdsal, zdtem, z1_sum)
+               !
+               ! corner  cells
+               IF (tmask(jip1,jjm1,jk) == 1) CALL update_isfpts(zisfpts, jisf, jip1, jjm1, jk, zdvol, zdsal, zdtem, z1_sum)
+               IF (tmask(jim1,jjm1,jk) == 1) CALL update_isfpts(zisfpts, jisf, jim1, jjm1, jk, zdvol, zdsal, zdtem, z1_sum)
+               IF (tmask(jim1,jjp1,jk) == 1) CALL update_isfpts(zisfpts, jisf, jim1, jjp1, jk, zdvol, zdsal, zdtem, z1_sum)
+               IF (tmask(jip1,jjp1,jk) == 1) CALL update_isfpts(zisfpts, jisf, jip1, jjp1, jk, zdvol, zdsal, zdtem, z1_sum)
+               !
+            ELSE IF ( tmask(ji,jj,jk+1) == 1._wp ) THEN
+               ! spread correction amoung neigbourg wet cells (vertical direction)
+               CALL update_isfpts(zisfpts, jisf, ji  , jj  , jk+1, zdvol, zdsal, zdtem, 1.0_wp, 0)
+            ELSE
+               ! need to find where to put correction in later on
+               CALL update_isfpts(zisfpts, jisf, ji  , jj  , jk  , zdvol, zdsal, zdtem, 1.0_wp, 1)
+            END IF
+         END IF
+      END_3D
       !
       ! share data among all processes because for some point we need to find the closest wet point (could be on other process)
       DO jproc=1,jpnij
@@ -686,19 +707,22 @@ CONTAINS
       !==============================================================================
       !
       ! mask
-      risfcpl_cons_vol(:,:,:       ) = risfcpl_cons_vol(:,:,:       ) * tmask(:,:,:)
-      risfcpl_cons_tsc(:,:,:,jp_sal) = risfcpl_cons_tsc(:,:,:,jp_sal) * tmask(:,:,:)
-      risfcpl_cons_tsc(:,:,:,jp_tem) = risfcpl_cons_tsc(:,:,:,jp_tem) * tmask(:,:,:)
-      !
-      ! add lbclnk
-      CALL lbc_lnk( 'isfcpl', risfcpl_cons_tsc(:,:,:,jp_tem), 'T', 1.0_wp, risfcpl_cons_tsc(:,:,:,jp_sal), 'T', 1.0_wp, &
-         &                    risfcpl_cons_vol(:,:,:)       , 'T', 1.0_wp)
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         risfcpl_cons_vol(ji,jj,jk       ) = risfcpl_cons_vol(ji,jj,jk       ) * tmask(ji,jj,jk)
+         risfcpl_cons_tsc(ji,jj,jk,jp_sal) = risfcpl_cons_tsc(ji,jj,jk,jp_sal) * tmask(ji,jj,jk)
+         risfcpl_cons_tsc(ji,jj,jk,jp_tem) = risfcpl_cons_tsc(ji,jj,jk,jp_tem) * tmask(ji,jj,jk)
+      END_3D
       !
       ! ssh correction (for dynspg_ts)
-      DO jk = 1,jpk
-         risfcpl_cons_ssh(:,:) = risfcpl_cons_ssh(:,:) + risfcpl_cons_vol(:,:,jk)
-      END DO
-      risfcpl_cons_ssh(:,:) = risfcpl_cons_ssh(:,:) * r1_e1e2t(:,:)
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         risfcpl_cons_ssh(ji,jj) = risfcpl_cons_ssh(ji,jj) + risfcpl_cons_vol(ji,jj,jk)
+      END_3D
+      DO_2D( 0, 0, 0, 0 )
+         risfcpl_cons_ssh(ji,jj) = risfcpl_cons_ssh(ji,jj) * r1_e1e2t(ji,jj)
+      END_2D
+      !
+      ! deallocate list of point receiving correction
+      DEALLOCATE( zisfpts )
       !
    END SUBROUTINE isfcpl_cons
    !
@@ -736,7 +760,8 @@ CONTAINS
       END IF
       !
       ! update isfpts structure
-      sisfpts(kpts) = isfcons(mig(ki), mjg(kj), kk, pratio * pdvol, pratio * pdsal, pratio * pdtem, glamt(ki,kj), gphit(ki,kj), ifind )
+      sisfpts(kpts) = isfcons(mig(ki,0), mjg(kj,0), kk, pratio * pdvol, pratio * pdsal, pratio * pdtem,   &
+         &                    glamt(ki,kj), gphit(ki,kj), ifind )
       !
    END SUBROUTINE update_isfpts
    !
@@ -760,9 +785,8 @@ CONTAINS
       iig = ki ; ijg = kj
       IF ( kfind == 1 ) CALL dom_ngb( plon, plat, iig, ijg,'T', kk)
       !
-      ! fill the correction array
-      DO jj = mj0(ijg),mj1(ijg)
-         DO ji = mi0(iig),mi1(iig)
+      DO jj = mj0(ijg,0),mj1(ijg,0)
+         DO ji = mi0(iig,0),mi1(iig,0)
             ! correct the vol_flx and corresponding heat/salt flx in the closest cell
             risfcpl_cons_vol(ji,jj,kk)        =  risfcpl_cons_vol(ji,jj,kk       ) + pvolinc
             risfcpl_cons_tsc(ji,jj,kk,jp_sal) =  risfcpl_cons_tsc(ji,jj,kk,jp_sal) + psalinc

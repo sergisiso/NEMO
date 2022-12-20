@@ -58,6 +58,7 @@ MODULE p5zmeso
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) :: depmig  !: DVM of mesozooplankton : migration depth
    INTEGER , ALLOCATABLE, SAVE, DIMENSION(:,:) :: kmig    !: Vertical indice of the the migration depth
 
+   LOGICAL          :: l_dia_fezoo2, l_dia_graz2, l_dia_lprodz2
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
@@ -103,21 +104,40 @@ CONTAINS
       REAL(wp) :: zmigreltime, zrum, zcodel, zargu, zval, zmigthick 
       CHARACTER (len=25) :: charout
       REAL(wp) :: zrfact2, zmetexcess, zsigma, zdiffdn
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgrazing, zfezoo2
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgrarem, zgraref, zgrapoc, zgrapof
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgrarep, zgraren, zgrapon, zgrapop
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgradoc, zgradon, zgradop
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zgrarem, zgraref, zgrapoc, zgrapof
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zgrarep, zgraren, zgrapon, zgrapop
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zgradoc, zgradon, zgradop
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigrem, zgramigref, zgramigpoc, zgramigpof
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigrep, zgramigren, zgramigpop, zgramigpon
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigdoc, zgramigdop, zgramigdon
-      
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zgrazing2, zfezoo2, zzligprod2, zw3d
 
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p5z_meso')
       !
+      IF( kt == nittrc000 )  THEN
+         l_dia_graz2   = iom_use( "GRAZ2" )
+         l_dia_fezoo2  = iom_use( "FEZOO2" )
+         l_dia_lprodz2 = ln_ligand .AND. iom_use( "LPRODZ2" )
+      ENDIF
+      IF( l_dia_lprodz2 ) THEN
+         ALLOCATE( zzligprod2(A2D(0),jpk) )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zzligprod2(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
+         END_3D
+      ENDIF
+      IF( l_dia_fezoo2 ) THEN
+         ALLOCATE( zfezoo2(A2D(0),jpk) )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zfezoo2(ji,jj,jk) = tr(ji,jj,jk,jpfer,Krhs)
+         END_3D
+      ENDIF
+      IF( l_dia_graz2 ) THEN
+         ALLOCATE( zgrazing2(A2D(0),jpk) )
+      ENDIF
+
       ! Initialization of local arrays
-      zgrazing(:,:,:) = 0._wp  ;  zfezoo2(:,:,:) = 0._wp
       zgrarem (:,:,:) = 0._wp  ;  zgraren(:,:,:) = 0._wp
       zgrarep (:,:,:) = 0._wp  ;  zgraref(:,:,:) = 0._wp
       zgrapoc (:,:,:) = 0._wp  ;  zgrapon(:,:,:) = 0._wp
@@ -136,7 +156,7 @@ CONTAINS
       zmetexcess = 0.0
       IF ( bmetexc2 ) zmetexcess = 1.0
 
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompam   = MAX( ( tr(ji,jj,jk,jpmes,Kbb) - 1.e-9 ), 0.e0 )
          zfact     = xstep * tgfunc2(ji,jj,jk) * zcompam
 
@@ -284,7 +304,7 @@ CONTAINS
          &            + zgrazffpp + zgrazffpg
 
          ! Total grazing ( grazing by microzoo is already computed in p5zmicro )
-         zgrazing(ji,jj,jk) = zgraztotc
+         IF( l_dia_graz2 ) zgrazing2(ji,jj,jk) = zgraztotc
 
          !   Stoichiometruc ratios of the food ingested by zooplanton 
          !   --------------------------------------------------------
@@ -427,7 +447,7 @@ CONTAINS
           ! This fraction is sumed over the euphotic zone and is removed from 
           ! the fluxes driven by mesozooplankton in the euphotic zone.
           ! --------------------------------------------------------------------
-          DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+          DO_3D( 0, 0, 0, 0, 1, jpkm1)
              zmigreltime = (1. - strn(ji,jj))
              IF( gdept(ji,jj,jk,Kmm) <= heup(ji,jj) ) THEN
                 zmigthick  = e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * ( 1. - zmigreltime ) 
@@ -460,7 +480,7 @@ CONTAINS
           ! The inorganic and organic fluxes induced by migrating organisms are added at the 
           ! the migration depth (corresponding indice is set by kmig)
           ! --------------------------------------------------------------------------------
-          DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+          DO_2D( 0, 0, 0, 0 )
              IF( tmask(ji,jj,1) == 1. ) THEN
                  jkt = kmig(ji,jj)
                  zdep = 1. / e3t(ji,jj,jkt,Kmm)
@@ -490,7 +510,7 @@ CONTAINS
         !   This only concerns the variables which are affected by DVM (inorganic 
         !   nutrients, DOC agands, and particulate organic carbon). 
         !   ---------------------------------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zgrarep(ji,jj,jk) 
          tr(ji,jj,jk,jpnh4,Krhs) = tr(ji,jj,jk,jpnh4,Krhs) + zgraren(ji,jj,jk)
          tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) + zgradoc(ji,jj,jk)
@@ -512,12 +532,47 @@ CONTAINS
          tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zgrapof(ji,jj,jk)
       END_3D
       !
+      ! Write the output
       IF( lk_iomput .AND. knt == nrdttrc ) THEN
-         CALL iom_put( "PCAL"  , prodcal(:,:,:) * 1.e+3  * rfact2r * tmask(:,:,:) )  !  Calcite production 
-         CALL iom_put( "GRAZ2" , zgrazing(:,:,:) * 1.e+3  * rfact2r * tmask(:,:,:) ) ! Total grazing of phyto by zoo
-         CALL iom_put( "FEZOO2", zfezoo2(:,:,:) * 1e9 * 1.e+3 * rfact2r * tmask(:,:,:) )
-         IF( ln_ligand ) &
-           & CALL iom_put( "LPRODZ2", zgradoc(:,:,:) * ldocz * 1e9 * 1.e+3 * rfact2r * tmask(:,:,:)  )
+        !
+        IF( iom_use ( "PCAL" ) ) THEN   ! Calcite production
+            ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               zw3d(ji,jj,jk) = prodcal(ji,jj,jk) * 1.e+3 * rfact2r * tmask(ji,jj,jk)
+            END_3D
+          CALL iom_put( "PCAL", zw3d )
+          DEALLOCATE( zw3d )
+        ENDIF
+        !
+        IF( l_dia_graz2 ) THEN  !   Total grazing of phyto by zooplankton
+            zgrazing2(A2D(0),jpk) = 0._wp
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               zgrazing2(ji,jj,jk) =  zgrazing2(ji,jj,jk) *  1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in mol/m2/s
+            END_3D
+            CALL iom_put( "GRAZ2" , zgrazing2 )
+            DEALLOCATE( zgrazing2 )
+        ENDIF
+        !
+        IF( l_dia_fezoo2 ) THEN
+            zfezoo2(A2D(0),jpk) = 0._wp
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               zfezoo2(ji,jj,jk) = ( tr(ji,jj,jk,jpfer,Krhs) - zfezoo2(ji,jj,jk) ) &
+                  &              * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in nmol/m2/s
+            END_3D
+           CALL iom_put( "FEZOO2", zfezoo2 )
+           DEALLOCATE( zfezoo2 )
+        ENDIF
+        !
+        IF( l_dia_lprodz2 ) THEN
+            zzligprod2(A2D(0),jpk) = 0._wp
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               zzligprod2(ji,jj,jk) = ( tr(ji,jj,jk,jplgw,Krhs) - zzligprod2(ji,jj,jk) ) &
+                   &                * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in nmol/m2/s
+            END_3D
+           CALL iom_put( "LPRODZ2", zzligprod2 )
+           DEALLOCATE( zzligprod2 )
+        ENDIF
+        !
       ENDIF
       !
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
@@ -626,7 +681,7 @@ CONTAINS
       ! Compute the averaged values of oxygen, temperature over the domain 
       ! 150m to 500 m depth.
       ! ------------------------------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      DO_3D( 0, 0, 0, 0, 1, jpk )
          IF( tmask(ji,jj,jk) == 1.) THEN
             IF( gdept(ji,jj,jk,Kmm) >= 150. .AND. gdept(ji,jj,jk,kmm) <= 500.) THEN
                oxymoy(ji,jj)  = oxymoy(ji,jj)  + tr(ji,jj,jk,jpoxy,Kbb) * 1E6 * e3t(ji,jj,jk,Kmm)
@@ -639,7 +694,7 @@ CONTAINS
       ! Compute the difference between surface values and the mean values in the mesopelagic
       ! domain
       ! ------------------------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          z1dep = 1. / ( zdepmoy(ji,jj) + rtrn )
          oxymoy(ji,jj)  = tr(ji,jj,1,jpoxy,Kbb) * 1E6 - oxymoy(ji,jj)  * z1dep
          tempmoy(ji,jj) = ts(ji,jj,1,jp_tem,Kmm)      - tempmoy(ji,jj) * z1dep
@@ -648,7 +703,7 @@ CONTAINS
       ! Computation of the migration depth based on the parameterization of 
       ! Bianchi et al. (2013)
       ! -------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF( tmask(ji,jj,1) == 1. ) THEN
             ztotchl = ( tr(ji,jj,1,jppch,Kbb) + tr(ji,jj,1,jpnch,Kbb) + tr(ji,jj,1,jpdch,Kbb) ) * 1E6
             depmig(ji,jj) = 398. - 0.56 * oxymoy(ji,jj) -115. * log10(ztotchl) + 0.36 * hmld(ji,jj) -2.4 * tempmoy(ji,jj)
@@ -657,7 +712,7 @@ CONTAINS
 
             ! Computation of the corresponding jk indice 
       ! ------------------------------------------
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          IF( depmig(ji,jj) >= gdepw(ji,jj,jk,Kmm) .AND. depmig(ji,jj) < gdepw(ji,jj,jk+1,Kmm) ) THEN
              kmig(ji,jj) = jk
           ENDIF
@@ -669,7 +724,7 @@ CONTAINS
       ! to 0. Thus, to avoid that problem, the migration depth is adjusted so
       ! that it falls above the OMZ
       ! -----------------------------------------------------------------------
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          IF( tr(ji,jj,kmig(ji,jj),jpoxy,Kbb) < 5E-6 ) THEN
             DO jk = kmig(ji,jj),1,-1
                IF( tr(ji,jj,jk,jpoxy,Kbb) >= 5E-6 .AND. tr(ji,jj,jk+1,jpoxy,Kbb)  < 5E-6) THEN
@@ -689,7 +744,7 @@ CONTAINS
       !!                     ***  ROUTINE p5z_meso_alloc  ***
       !!----------------------------------------------------------------------
       !
-      ALLOCATE( depmig(jpi,jpj), kmig(jpi,jpj), STAT= p5z_meso_alloc  )
+      ALLOCATE( depmig(A2D(0)), kmig(A2D(0)), STAT= p5z_meso_alloc  )
       !
       IF( p5z_meso_alloc /= 0 ) CALL ctl_stop( 'STOP', 'p5z_meso_alloc : failed to allocate arrays.' )
       !

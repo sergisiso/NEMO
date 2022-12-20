@@ -18,7 +18,6 @@ MODULE sbcssm
    USE phycst         ! physical constants
    USE eosbn2         ! equation of state - Brunt Vaisala frequency
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
-   USE zpshde         ! z-coord. with partial steps: horizontal derivatives
    USE closea         ! for ln_closea
    USE icb_oce        ! for icebergs
    !
@@ -55,6 +54,7 @@ MODULE sbcssm
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_ssm_3d  ! structure of input fields (file information, fields read)
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_ssm_2d  ! structure of input fields (file information, fields read)
 
+#  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/SAS 4.0 , NEMO Consortium (2018)
    !! $Id: sbcssm.F90 15023 2021-06-18 14:35:25Z gsamson $

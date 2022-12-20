@@ -189,7 +189,7 @@ CONTAINS
          ptrcdta(:,:,:) = sf_trcdta(kjl)%fnow(:,:,:) * tmask(:,:,:)
          ! 
 #if ! defined key_sed_off
-         IF( ln_sco ) THEN                !== s- or mixed s-zps-coordinate  ==!
+         IF( l_sco ) THEN                !== s- or mixed s-zps-coordinate  ==!
             !
             IF( kt == nit000 .AND. lwp )THEN
                WRITE(numout,*)
@@ -217,23 +217,6 @@ CONTAINS
                ptrcdta(ji,jj,jpk) = 0._wp
             END_2D
             ! 
-         ELSE                                !==   z- or zps- coordinate   ==!
-            ! zps-coordinate (partial steps) interpolation at the last ocean level
-            IF( ln_zps ) THEN
-                DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-                   ik = mbkt(ji,jj)
-                   IF( ik > 1 .AND. gdept_0(ji,jj,ik) < gdept_1d(ik) ) THEN
-                      zl = ( gdept_1d(ik) - gdept_0(ji,jj,ik) ) / ( gdept_1d(ik) - gdept_1d(ik-1) )
-                      ptrcdta(ji,jj,ik) = (1.-zl) * ptrcdta(ji,jj,ik) + zl * ptrcdta(ji,jj,ik-1)
-                   ENDIF
-                   ik = mikt(ji,jj)
-                   IF( ik > 1 ) THEN
-                      zl = ( gdept_0(ji,jj,ik) - gdept_1d(ik) ) / ( gdept_1d(ik+1) - gdept_1d(ik) )
-                      ptrcdta(ji,jj,ik) = (1.-zl) * ptrcdta(ji,jj,ik) + zl * ptrcdta(ji,jj,ik+1)
-                   ENDIF
-                 END_2D
-            ENDIF
-            !
          ENDIF
 #endif
          ! Scale by multiplicative factor

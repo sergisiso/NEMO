@@ -13,7 +13,6 @@ MODULE usrdef_hgr
    !!----------------------------------------------------------------------
    !!   usr_def_hgr   : initialize the horizontal mesh
    !!----------------------------------------------------------------------
-   USE dom_oce  , ONLY: nimpp, njmpp       ! ocean space and time domain
    USE c1d      ,  ONLY: rn_lon1d, rn_lat1d ! ocean lon/lat define by namelist
    USE par_oce        ! ocean space and time domain
    USE phycst         ! physical constants

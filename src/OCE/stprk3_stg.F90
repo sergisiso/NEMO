@@ -271,7 +271,7 @@ CONTAINS
             !
             CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
             !
-            CALL trc_adv    ( kstp, Kbb, Kmm, tr, Krhs, zaU, zaV, ww )      ! horizontal & vertical advection
+            CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zaU, zaV, ww ) ! horizontal & vertical advection
             !
             !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
             DO jn = 1, jptra
@@ -299,7 +299,7 @@ CONTAINS
          !
          CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
          !
-         CALL trc_adv    ( kstp, Kbb, Kmm, tr, Krhs, zaU, zaV, ww )      ! horizontal & vertical advection
+         CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zaU, zaV, ww ) ! horizontal & vertical advection
          !
          CALL trc_sms    ( kstp, Kbb, Kbb, Krhs      )       ! tracers: sinks and sources
          CALL trc_trp    ( kstp, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers (without advection)
@@ -317,10 +317,10 @@ CONTAINS
          ts(:,:,:,jn,Krhs) = 0._wp                                   ! set tracer trends to zero (:,:,:) needed otherwise it does not work (?)
       END DO
 
-      CALL eos( ts(:,:,:,:,Kmm), rhd, rhop, gdept_0 ) ! now in potential density for tra_mle computation
+      CALL eos( ts, Kmm, rhd, rhop ) ! now in potential density for tra_mle computation
 !===>>> CAUTION here may be without GM velocity but stokes drift required ! 0 barotropic divergence for GM  != 0 barotropic divergence for SD 
 !!st consistence 2D / 3D - flux de masse 
-      CALL tra_adv( kstp, Kbb, Kmm, ts, Krhs, zaU, zaV, ww )       ! hor. + vert. advection	==> RHS
+      CALL tra_adv( kstp, Kbb, Kmm, Kaa, ts, Krhs, zaU, zaV, ww )       ! hor. + vert. advection	==> RHS
 
 !===>>>>>> stg1&2:  Verify the necessity of these trends (we may need it as there are in the RHS of dynspg_ts ?)
 !!gm ====>>>>   needed for heat and salt fluxes associated with mass/volume flux
@@ -428,14 +428,15 @@ CONTAINS
       END SELECT      
       !                                         !==  correction of the barotropic (all stages)  ==!    at Kaa = N+1/3, N+1/2 or N+1
       !                                                           ! barotropic velocity correction
-      zub(A2D(0)) = uu_b(A2D(0),Kaa) - SUM( e3u_0(A2D(0),:)*uu(A2D(0),:,Kaa), 3 ) * r1_hu_0(A2D(0))
-      zvb(A2D(0)) = vv_b(A2D(0),Kaa) - SUM( e3v_0(A2D(0),:)*vv(A2D(0),:,Kaa), 3 ) * r1_hv_0(A2D(0))
+      DO_2D( 0, 0, 0, 0 )
+         zub(ji,jj) = uu_b(ji,jj,Kaa) - SUM( e3u_0(ji,jj,:)*uu(ji,jj,:,Kaa) ) * r1_hu_0(ji,jj)
+         zvb(ji,jj) = vv_b(ji,jj,Kaa) - SUM( e3v_0(ji,jj,:)*vv(ji,jj,:,Kaa) ) * r1_hv_0(ji,jj)
+      END_2D
       !
       DO jk = 1, jpkm1                                            ! corrected horizontal velocity
-         uu(A2D(0),jk,Kaa) = uu(A2D(0),jk,Kaa) + zub(A2D(0))*umask(A2D(0),jk)
-         vv(A2D(0),jk,Kaa) = vv(A2D(0),jk,Kaa) + zvb(A2D(0))*vmask(A2D(0),jk)
+         uu(T2D(0),jk,Kaa) = uu(T2D(0),jk,Kaa) + zub(T2D(0))*umask(T2D(0),jk)
+         vv(T2D(0),jk,Kaa) = vv(T2D(0),jk,Kaa) + zvb(T2D(0))*vmask(T2D(0),jk)
       END DO
-         
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Set boundary conditions
@@ -449,7 +450,7 @@ CONTAINS
       CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1., vv(:,:,:       ,Kaa), 'V', -1.   &
          &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1., ts(:,:,:,jp_sal,Kaa), 'T',  1. )
       !
-      IF( nn_hls == 2 .AND. l_zdfsh2 ) CALL lbc_lnk( 'stp_RK3_stg', avm_k, 'W', 1.0_wp )   !  lbc_lnk needed for zdf_sh2 when using nn_hls = 2, moved here to allow tiling in zdf_phy
+      IF( l_zdfsh2 ) CALL lbc_lnk( 'stp_RK3_stg', avm_k, 'W', 1.0_wp )   !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
       !
       !                                              !* BDY open boundaries
       IF( ln_bdy )   THEN

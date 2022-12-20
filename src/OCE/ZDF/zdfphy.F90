@@ -11,8 +11,6 @@ MODULE zdfphy
    !!   zdf_phy       : upadate at each time-step the vertical mixing coeff.
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers variables
-   ! TEMP: [tiling] This change not necessary after finalisation of zdf_osm (not yet tiled)
-   USE domtile
    USE zdf_oce        ! vertical physics: shared variables
    USE zdfdrg         ! vertical physics: top/bottom drag coef.
    USE zdfsh2         ! vertical physics: shear production term of TKE
@@ -31,6 +29,7 @@ MODULE zdfphy
    USE sbc_oce        ! surface module (only for nn_isf in the option compatibility test)
    USE sbcrnf         ! surface boundary condition: runoff variables
    USE sbc_ice        ! sea ice drag
+   USE domtile
 #if defined key_agrif
    USE agrif_oce_interp   ! interpavm
 #endif
@@ -57,7 +56,7 @@ MODULE zdfphy
 
    LOGICAL, PUBLIC ::   l_zdfsh2   ! shear production term flag (=F for CST, =T otherwise (i.e. TKE, GLS, RIC))
 
-   REAL(wp), SAVE, ALLOCATABLE, DIMENSION(:,:,:) ::   avm_k_n !: "Now" avm_k used for calculation of zsh2 with tiling
+   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   sh2 !: Shear term
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -145,8 +144,10 @@ CONTAINS
          Cu_adv(:,:,:) = 0._wp
          wi    (:,:,:) = 0._wp
       ENDIF
-      !                                  ! Initialise zdf_mxl arrays (only hmld as not set everywhere when nn_hls > 1)
+      !                                  ! Initialise zdf_mxl arrays
       IF( zdf_mxl_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'zdf_mxl : unable to allocate arrays' )
+      ! Initialize halo for diagnostics (only updated on internal points)
+      hmlp(:,:) = 0._wp
       hmld(:,:) = 0._wp
       !                          !==  Background eddy viscosity and diffusivity  ==!
       IF( nn_avb == 0 ) THEN             ! Define avmb, avtb from namelist parameter
@@ -155,7 +156,7 @@ CONTAINS
       ELSE                               ! Background profile of avt (fit a theoretical/observational profile (Krauss 1990)
          avmb(:) = rn_avm0
          avtb(:) = rn_avt0 + ( 3.e-4_wp - 2._wp * rn_avt0 ) * 1.e-4_wp * gdepw_1d(:)   ! m2/s
-         IF(ln_sco .AND. lwp)   CALL ctl_warn( 'avtb profile not valid in sco' )
+         IF(l_sco .AND. lwp)   CALL ctl_warn( 'avtb profile not valid in sco' )
       ENDIF
       !                                  ! 2D shape of the avtb
       avtb_2d(:,:) = 1._wp                   ! uniform
@@ -164,14 +165,14 @@ CONTAINS
            !                                 !   -15S -5S : linear decrease from avt0 to avt0/10.
            !                                 !   -5S  +5N : cst value avt0/10.
            !                                 !    5N  15N : linear increase from avt0/10, to avt0
-           WHERE(-15. <= gphit .AND. gphit < -5 )   avtb_2d = (1.  - 0.09 * (gphit + 15.))
-           WHERE( -5. <= gphit .AND. gphit <  5 )   avtb_2d =  0.1
-           WHERE(  5. <= gphit .AND. gphit < 15 )   avtb_2d = (0.1 + 0.09 * (gphit -  5.))
+           WHERE(-15. <= gphit(A2D(0)) .AND. gphit(A2D(0)) < -5 )   avtb_2d(:,:) = (1.  - 0.09 * (gphit(A2D(0)) + 15.))
+           WHERE( -5. <= gphit(A2D(0)) .AND. gphit(A2D(0)) <  5 )   avtb_2d(:,:) =  0.1
+           WHERE(  5. <= gphit(A2D(0)) .AND. gphit(A2D(0)) < 15 )   avtb_2d(:,:) = (0.1 + 0.09 * (gphit(A2D(0)) -  5.))
       ENDIF
       !
       DO jk = 1, jpk                      ! set turbulent closure Kz to the background value (avt_k, avm_k)
-         avt_k(:,:,jk) = avtb_2d(:,:) * avtb(jk) * wmask (:,:,jk)
-         avm_k(:,:,jk) =                avmb(jk) * wmask (:,:,jk)
+         avt_k(:,:,jk)    = avtb_2d(:,:) * avtb(jk) * wmask(A2D(0),jk)
+         avm_k(A2D(1),jk) =                avmb(jk) * wmask(A2D(1),jk)
       END DO
 !!gm  to be tested only the 1st & last levels
 !      avt  (:,:, 1 ) = 0._wp   ;   avs(:,:, 1 ) = 0._wp   ;   avm  (:,:, 1 ) = 0._wp
@@ -221,7 +222,6 @@ CONTAINS
       IF( ln_zdfcst .OR. ln_zdfosm ) THEN   ;   l_zdfsh2 = .FALSE.
       ELSE                                  ;   l_zdfsh2 = .TRUE.
       ENDIF
-      IF( ln_tile .AND. l_zdfsh2 ) ALLOCATE( avm_k_n(jpi,jpj,jpk) )
       !                          !== Mass Flux Convectiive algorithm  ==!
       IF( ln_zdfmfc )   CALL zdf_mfc_init       ! Convection computed with eddy diffusivity mass flux
       !
@@ -255,10 +255,19 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs   ! ocean time level indices
       !
       INTEGER ::   ji, jj, jk   ! dummy loop indice
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zsh2   ! shear production
       !! ---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('zdf_phy')
+      !
+      IF( l_zdfsh2 ) THEN        !* shear production at w-points (energy conserving form)
+         IF( .NOT. l_istiled .OR. ntile == 1 ) THEN                       ! Do only for the full domain
+            IF( ln_tile ) CALL dom_tile_stop( ldhold=.TRUE. )             ! Use full domain
+            ALLOCATE( sh2(A2D(0),jpk) )
+            CALL zdf_sh2( Kbb, Kmm, avm_k,   &     ! <<== in
+               &                      sh2    )     ! ==>> out : shear production
+            IF( ln_tile ) CALL dom_tile_start( ldhold=.TRUE. )            ! Revert to tile domain
+         ENDIF
+      ENDIF
       !
       IF( l_zdfdrg ) THEN     !==  update top/bottom drag  ==!   (non-linear cases)
          !
@@ -276,11 +285,12 @@ CONTAINS
 #if defined key_si3
       IF ( ln_drgice_imp) THEN
          IF ( ln_isfcav ) THEN
-            DO_2D_OVR( 1, 1, 1, 1 )
+            DO_2D( 0, 0, 0, 0 )
                rCdU_top(ji,jj) = rCdU_top(ji,jj) + ssmask(ji,jj) * tmask(ji,jj,1) * rCdU_ice(ji,jj)
             END_2D
          ELSE
-            DO_2D_OVR( 1, 1, 1, 1 )
+            ! Needed on 1st halo points by dyn_zdf (if ln_drgice_imp or ln_isfcav)
+            DO_2D( 1, 1, 1, 1 )
                rCdU_top(ji,jj) = rCdU_ice(ji,jj)
             END_2D
          ENDIF
@@ -291,23 +301,14 @@ CONTAINS
       !
       !                       !==  Kz from chosen turbulent closure  ==!   (avm_k, avt_k)
       !
-      ! NOTE: [tiling] the closure schemes (zdf_tke etc) will update avm_k. With tiling, the calculation of zsh2 on adjacent tiles then uses both updated (next timestep) and non-updated (current timestep) values of avm_k. To preserve results, we save a read-only copy of the "now" avm_k to use in the calculation of zsh2.
-      IF( l_zdfsh2 ) THEN        !* shear production at w-points (energy conserving form)
-         IF( ln_tile ) THEN
-            IF( ntile == 1 ) avm_k_n(:,:,:) = avm_k(:,:,:)     ! Preserve "now" avm_k for calculation of zsh2
-            CALL zdf_sh2( Kbb, Kmm, avm_k_n, &     ! <<== in
-               &                     zsh2    )     ! ==>> out : shear production
-         ELSE
-            CALL zdf_sh2( Kbb, Kmm, avm_k,   &     ! <<== in
-               &                     zsh2    )     ! ==>> out : shear production
-         ENDIF
-      ENDIF
-      !
       SELECT CASE ( nzdf_phy )                  !* Vertical eddy viscosity and diffusivity coefficients at w-points
-      CASE( np_RIC )   ;   CALL zdf_ric( kt,      Kmm, zsh2, avm_k, avt_k )    ! Richardson number dependent Kz
-      CASE( np_TKE )   ;   CALL zdf_tke( kt, Kbb, Kmm, zsh2, avm_k, avt_k )    ! TKE closure scheme for Kz
-      CASE( np_GLS )   ;   CALL zdf_gls( kt, Kbb, Kmm, zsh2, avm_k, avt_k )    ! GLS closure scheme for Kz
+      CASE( np_RIC )   ;   CALL zdf_ric( kt,      Kmm, sh2, avm_k, avt_k )    ! Richardson number dependent Kz
+      CASE( np_TKE )   ;   CALL zdf_tke( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! TKE closure scheme for Kz
+      CASE( np_GLS )   ;   CALL zdf_gls( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! GLS closure scheme for Kz
       CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )    ! OSMOSIS closure scheme for Kz
+         !                                                                     ! clem: osmosis currently cannot work because
+         !                                                                             it uses qns and qsr that are only defined in the interior (A2D(0))
+         !                                                                             we should do calculations in the interior and put a lbc_lnk at the end
    !     CASE( np_CST )                                  ! Constant Kz (reset avt, avm to the background value)
    !         ! avt_k and avm_k set one for all at initialisation phase
 !!gm         avt(2:jpim1,2:jpjm1,1:jpkm1) = rn_avt0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
@@ -323,13 +324,13 @@ CONTAINS
 #endif
       !
       !                                         !* start from turbulent closure values
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          avt(ji,jj,jk) = avt_k(ji,jj,jk)
          avm(ji,jj,jk) = avm_k(ji,jj,jk)
       END_3D
       !
       IF( ln_rnf_mouth ) THEN                   !* increase diffusivity at rivers mouths
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, nkrnf )
+         DO_3D( 0, 0, 0, 0, 2, nkrnf )
             avt(ji,jj,jk) = avt(ji,jj,jk) + 2._wp * rn_avt_rnf * rnfmsk(ji,jj) * wmask(ji,jj,jk)
          END_3D
       ENDIF
@@ -340,7 +341,7 @@ CONTAINS
       IF( ln_zdfddm ) THEN                            ! update avt and compute avs
                         CALL zdf_ddm( kt, Kmm,  avm, avt, avs )
       ELSE                                            ! same mixing on all tracers
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             avs(ji,jj,jk) = avt(ji,jj,jk)
          END_3D
       ENDIF
@@ -350,14 +351,10 @@ CONTAINS
       IF( ln_zdfiwm )   CALL zdf_iwm( kt, Kmm, avm, avt, avs )   ! internal wave (de Lavergne et al 2017)
 
       !                                         !* Lateral boundary conditions (sign unchanged)
-      IF(nn_hls==1) THEN                                         ! if nn_hls==2 lbc_lnk done in stp routines
-         IF( l_zdfsh2 ) THEN
-            CALL lbc_lnk( 'zdfphy', avm_k, 'W', 1.0_wp , avt_k, 'W', 1.0_wp,   &
-                  &                 avm  , 'W', 1.0_wp , avt  , 'W', 1.0_wp , avs , 'W', 1.0_wp )
-         ELSE
-            CALL lbc_lnk( 'zdfphy', avm  , 'W', 1.0_wp , avt  , 'W', 1.0_wp , avs , 'W', 1.0_wp )
-         ENDIF
-         !
+      ! Subroutines requiring halo points: zdf_sh2 (avm_k), dia_wri (rCdU_bot), dyn_zdf (avm, rCdU_bot, rCdU_top)
+      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
+         CALL lbc_lnk( 'zdfphy', avm, 'W', 1.0_wp ) ! lbc_lnk for avm_k is in stp
+
          IF( l_zdfdrg ) THEN     ! drag  have been updated (non-linear cases)
             IF( ln_isfcav ) THEN   ;  CALL lbc_lnk( 'zdfphy', rCdU_top, 'T', 1.0_wp , rCdU_bot, 'T', 1.0_wp )   ! top & bot drag
             ELSE                   ;  CALL lbc_lnk( 'zdfphy', rCdU_bot, 'T', 1.0_wp )                           ! bottom drag only
@@ -377,12 +374,18 @@ CONTAINS
       ENDIF
       !
       ! diagnostics of energy dissipation
-      IF( iom_use('avt_k') .OR. iom_use('avm_k') .OR. iom_use('eshear_k') .OR. iom_use('estrat_k') ) THEN
-         IF( l_zdfsh2 ) THEN
-            CALL iom_put( 'avt_k'   ,   avt_k       * wmask )
-            CALL iom_put( 'avm_k'   ,   avm_k       * wmask )
-            CALL iom_put( 'eshear_k',   zsh2        * wmask )
-            CALL iom_put( 'estrat_k', - avt_k * rn2 * wmask )
+      IF( l_zdfsh2 ) THEN
+         IF( iom_use('eshear_k') ) THEN
+            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+               sh2(ji,jj,jk) = sh2(ji,jj,jk) * wmask(ji,jj,jk)
+            END_3D
+         ENDIF
+         IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
+            IF( iom_use('avt_k'   ) ) CALL iom_put( 'avt_k'   ,   avt_k                 * wmask(A2D(0),:) )
+            IF( iom_use('avm_k'   ) ) CALL iom_put( 'avm_k'   ,   avm_k                 * wmask(:,:   ,:) )
+            IF( iom_use('estrat_k') ) CALL iom_put( 'estrat_k', - avt_k * rn2(A2D(0),:) * wmask(A2D(0),:) )
+            IF( iom_use('eshear_k') ) CALL iom_put( 'eshear_k',   sh2                                     )
+            DEALLOCATE( sh2 )
          ENDIF
       ENDIF
       !

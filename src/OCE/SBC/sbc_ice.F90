@@ -50,8 +50,8 @@ MODULE sbc_ice
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   qcn_ice        !: heat conduction flux in the layer below surface   [W/m2]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   qtr_ice_top    !: solar flux transmitted below the ice surface      [W/m2]
 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   utau_ice       !: atmos-ice u-stress. VP: I-pt ; EVP: U,V-pts   [N/m2]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   vtau_ice       !: atmos-ice v-stress. VP: I-pt ; EVP: U,V-pts   [N/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   utau_ice       !: atmos-ice u-stress. T-pts                  [N/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   vtau_ice       !: atmos-ice v-stress. T-pts                  [N/m2]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   emp_ice        !: sublimation - precip over sea ice          [kg/m2/s]
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   topmelt            !: category topmelt
@@ -103,6 +103,8 @@ MODULE sbc_ice
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   snwice_mass_b      !: mass of snow and ice at previous ice time step   [Kg/m2]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   snwice_fmass       !: time evolution of mass of snow+ice               [Kg/m2/s]
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbc_ice.F90 14072 2020-12-04 07:48:38Z laurent $
@@ -114,36 +116,49 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                     ***  FUNCTION sbc_ice_alloc  ***
       !!----------------------------------------------------------------------
-      INTEGER :: ierr(4)
+      INTEGER :: ierr(5), ii
       !!----------------------------------------------------------------------
       ierr(:) = 0
+      ii = 0
 
-      ALLOCATE( snwice_mass(jpi,jpj) , snwice_mass_b(jpi,jpj), snwice_fmass(jpi,jpj) , STAT=ierr(1) )
+      ii = ii + 1
+      ALLOCATE( snwice_mass(jpi,jpj) , snwice_mass_b(jpi,jpj), snwice_fmass(jpi,jpj) , STAT=ierr(ii) )
 
 #if defined key_si3
-      ALLOCATE( qns_ice (jpi,jpj,jpl) , qsr_ice  (jpi,jpj,jpl) ,     &
-         &      qla_ice (jpi,jpj,jpl) , dqla_ice (jpi,jpj,jpl) ,     &
-         &      dqns_ice(jpi,jpj,jpl) , tn_ice   (jpi,jpj,jpl) , alb_ice    (jpi,jpj,jpl) ,   &
-         &      qml_ice (jpi,jpj,jpl) , qcn_ice  (jpi,jpj,jpl) , qtr_ice_top(jpi,jpj,jpl) ,   &
-         &      utau_ice(jpi,jpj)     , vtau_ice (jpi,jpj)     , wndm_ice   (jpi,jpj)     ,   &
-         &      evap_ice(jpi,jpj,jpl) , devap_ice(jpi,jpj,jpl) , qprec_ice  (jpi,jpj)     ,   &
-         &      qemp_ice(jpi,jpj)     , qevap_ice(jpi,jpj,jpl) , qemp_oce   (jpi,jpj)     ,   &
-         &      qns_oce (jpi,jpj)     , qsr_oce  (jpi,jpj)     , emp_oce    (jpi,jpj)     ,   &
-         &      emp_ice (jpi,jpj)     , sstfrz   (jpi,jpj)     , rCdU_ice   (jpi,jpj)     , STAT= ierr(2) )
+      ! ----------------- !
+      ! == FULL ARRAYS == !
+      ! ----------------- !
+      ii = ii + 1
+      ALLOCATE( utau_ice(jpi,jpj) , vtau_ice(jpi,jpj) ,  &
+         &      rCdU_ice(A2D(1))                      , STAT= ierr(ii) )
+      ! -------------------- !
+      ! == REDUCED ARRAYS == !
+      ! -------------------- !
+      ii = ii + 1
+      ALLOCATE( wndm_ice(A2D(0))     , &
+         &      qns_ice (A2D(0),jpl) , qsr_ice  (A2D(0),jpl) ,     &
+         &      qla_ice (A2D(0),jpl) , dqla_ice (A2D(0),jpl) ,     &
+         &      dqns_ice(A2D(0),jpl) , tn_ice   (A2D(0),jpl) , alb_ice    (A2D(0),jpl) ,   &
+         &      qml_ice (A2D(0),jpl) , qcn_ice  (A2D(0),jpl) , qtr_ice_top(A2D(0),jpl) ,   &
+         &      evap_ice(A2D(0),jpl) , devap_ice(A2D(0),jpl) , qprec_ice  (A2D(0))     ,   &
+         &      qemp_ice(A2D(0))     , qevap_ice(A2D(0),jpl) , qemp_oce   (A2D(0))     ,   &
+         &      qns_oce (A2D(0))     , qsr_oce  (A2D(0))     , emp_oce    (A2D(0))     ,   &
+         &      emp_ice (A2D(0))     , sstfrz   (A2D(0))     , STAT= ierr(ii) )
 #endif
 
 #if defined key_cice
+      ii = ii + 1
       ALLOCATE( qla_ice(jpi,jpj,1)    , qlw_ice(jpi,jpj,1)    , qsr_ice(jpi,jpj,1)    , &
                 wndi_ice(jpi,jpj)     , tatm_ice(jpi,jpj)     , qatm_ice(jpi,jpj)     , &
                 wndj_ice(jpi,jpj)     , nfrzmlt(jpi,jpj)      , ss_iou(jpi,jpj)       , &
                 ss_iov(jpi,jpj)       , fr_iu(jpi,jpj)        , fr_iv(jpi,jpj)        , &
                 a_i(jpi,jpj,ncat)     , topmelt(jpi,jpj,ncat) , botmelt(jpi,jpj,ncat) , &
-                STAT= ierr(2) )
+                STAT= ierr(ii) )
+      ii = ii + 1
       IF( ln_cpl )   ALLOCATE( u_ice(jpi,jpj)        , tn_ice (jpi,jpj,1)    , &
          &                     v_ice(jpi,jpj)        , alb_ice(jpi,jpj,1)    , &
          &                     emp_ice(jpi,jpj)      , qns_ice(jpi,jpj,1)    , dqns_ice(jpi,jpj,1)   , &
-         &                     STAT= ierr(3) )
-      IF( ln_cpl )   ALLOCATE( h_i(jpi,jpj,jpl) , h_s(jpi,jpj,jpl) , STAT=ierr(4) )
+         &                     h_i(jpi,jpj,jpl) , h_s(jpi,jpj,jpl) ,STAT= ierr(ii) )
 #endif
 
       sbc_ice_alloc = MAXVAL( ierr )

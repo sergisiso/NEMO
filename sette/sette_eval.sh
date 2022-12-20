@@ -155,6 +155,9 @@ function runcmpres(){
   MAIN_DIR=$(dirname $SETTE_DIR)
   quiet=0
   . ./param.cfg
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]:-${TEST_CONFIGS[@]}}     # workaround for some dated param.cfgs files
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/ SAS / ORCA2_SAS_ICE }   # workaround for some dated param.cfgs files
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/ AGRIF / AGRIF_DEMO }    # workaround for some dated param.cfgs files
   USER_INPUT='yes'        # Default: yes => request user input on decisions.
 
   mach=${COMPILER}
@@ -259,20 +262,18 @@ localchanges=`git status --short -uno | wc -l`
 git branch --show-current >& /dev/null
 if [[ $? == 0 ]] ; then
   branchname="$(git branch --show-current)"
+  revision=`git rev-parse --short HEAD`
   if [ -z $branchname ] ; then
    # Probabably on a detached HEAD (possibly testing an old commit).
    # Verify this and try to recover original commit
    MORE_INFO="$(git branch -a | head -1l | sed -e's/.*(//' -e 's/)//' )"
    if [[ "${MORE_INFO}" == *"detached"* ]] ; then
-     revision=$( echo \\${MORE_INFO} | awk '{print $NF}' )
      # There is no robust way to recover a branch name in a detached state
      # so just use the commit with a prefix
      branchname="detached_"${revision}
    else
      branchname="Unknown"
    fi
-  else
-   revision=`git rev-list --abbrev-commit origin | head -1l`
   fi
 else
   branchname="Unknown"
@@ -327,8 +328,7 @@ fi
       echo "REFERENCE directory : $NEMO_VALID_REF at rev $NEMO_REV_REF"
       echo ''
      fi
-     checklist=(GYRE_PISCES ORCA2_ICE_PISCES ORCA2_OFF_PISCES AMM12 ORCA2_SAS_ICE ORCA2_ICE_OBS AGRIF_DEMO WED025 ISOMIP+ VORTEX ICE_AGRIF OVERFLOW LOCK_EXCHANGE SWG) 
-     for repro_test in ${checklist[@]}
+     for repro_test in ${TEST_CONFIGS_AVAILABLE[@]}
      do
         runcmpres $NEMO_VALID $repro_test $NEMO_VALID_REF $NEMO_REV_REF $quiet
      done

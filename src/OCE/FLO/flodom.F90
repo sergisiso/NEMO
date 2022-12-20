@@ -234,8 +234,8 @@ CONTAINS
             zdyad = flo_dstnce( flxx(jfl), flyy(jfl), flxx(jfl), gphif(iimfl(jfl)-1,ijmfl(jfl)-1) )
 
             ! Translation of this distances (in meter) in indexes
-            zgifl(jfl)= (iimfl(jfl)-0.5) + zdxab/e1u(iimfl(jfl)-1,ijmfl(jfl)) + (mig(1)-1)
-            zgjfl(jfl)= (ijmfl(jfl)-0.5) + zdyad/e2v(iimfl(jfl),ijmfl(jfl)-1) + (mjg(1)-1)
+            zgifl(jfl)= (iimfl(jfl)-0.5) + zdxab/e1u(iimfl(jfl)-1,ijmfl(jfl)) + (mig(1,nn_hls)-1)
+            zgjfl(jfl)= (ijmfl(jfl)-0.5) + zdyad/e2v(iimfl(jfl),ijmfl(jfl)-1) + (mjg(1,nn_hls)-1)
             zgkfl(jfl) = (( gdepw(iimfl(jfl),ijmfl(jfl),ikmfl(jfl)+1,Kmm) - flzz(jfl) )* ikmfl(jfl))   &
                &                 / (  gdepw(iimfl(jfl),ijmfl(jfl),ikmfl(jfl)+1,Kmm)                              &
                &                    - gdepw(iimfl(jfl),ijmfl(jfl),ikmfl(jfl) ,Kmm) )                             &

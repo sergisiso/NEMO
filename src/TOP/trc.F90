@@ -159,19 +159,19 @@ CONTAINS
       !!-------------------------------------------------------------------
       ierr(:) = 0
       !
-      ALLOCATE( tr(jpi,jpj,jpk,jptra,jpt)                                             ,       &  
-         &      trc_i(jpi,jpj,jptra)  , trc_o(jpi,jpj,jptra)                          ,       &
-         &      gtru (jpi,jpj,jptra)  , gtrv (jpi,jpj,jptra)                          ,       &
-         &      gtrui(jpi,jpj,jptra)  , gtrvi(jpi,jpj,jptra)                          ,       &
-         &      trc_ice_ratio(jptra)  , trc_ice_prescr(jptra) , cn_trc_o(jptra)       ,       &
-         &      neln(jpi,jpj)         , heup(jpi,jpj)         , heup_01(jpi,jpj)      ,       &
-         &      etot(jpi,jpj,jpk)     , etot_ndcy(jpi,jpj,jpk)                        ,       &
-         &      sbc_trc_b(jpi,jpj,jptra), sbc_trc(jpi,jpj,jptra)                      ,       &  
-         &      cvol(jpi,jpj,jpk)     , trai(jptra)                                   ,       &
-         &      ctrcnm(jptra)         , ctrcln(jptra)         , ctrcun(jptra)         ,       &
-         &      ln_trc_ini(jptra)     ,                                                       &
-         &      ln_trc_sbc(jptra)     , ln_trc_cbc(jptra)     , ln_trc_obc(jptra)     ,       &
-         &      ln_trc_ais(jptra)     ,                                                       &
+      ALLOCATE( tr(jpi,jpj,jpk,jptra,jpt)                                         ,       &  
+         &      gtru (jpi,jpj,jptra) , gtrv (jpi,jpj,jptra)                       ,       &
+         &      gtrui(jpi,jpj,jptra) , gtrvi(jpi,jpj,jptra)                       ,       &
+         &      trc_i(A2D(0),jptra)  , trc_o(A2D(0),jptra)                        ,       &
+         &      trc_ice_ratio(jptra) , trc_ice_prescr(jptra) , cn_trc_o(jptra)    ,       &
+         &      neln(A2D(0))         , heup(A2D(0))         , heup_01(A2D(0))     ,       &
+         &      etot(A2D(0),jpk)     , etot_ndcy(A2D(0),jpk)                      ,       &
+         &      sbc_trc_b(A2D(0),jptra), sbc_trc(A2D(0),jptra)                    ,       &  
+         &      cvol(jpi,jpj,jpk)    , trai(jptra)                                ,       &
+         &      ctrcnm(jptra)        , ctrcln(jptra)         , ctrcun(jptra)      ,       &
+         &      ln_trc_ini(jptra)    ,                                                    &
+         &      ln_trc_sbc(jptra)    , ln_trc_cbc(jptra)     , ln_trc_obc(jptra)  ,       &
+         &      ln_trc_ais(jptra)    ,                                                    &
          &      STAT = ierr(1)  )
       !
       IF( ln_bdy       )   ALLOCATE( trcdta_bdy(jptra, jp_bdy)  , STAT = ierr(2) )

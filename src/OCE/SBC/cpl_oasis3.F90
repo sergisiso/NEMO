@@ -67,7 +67,6 @@ MODULE cpl_oasis3
    INTEGER                    ::   nrcv         ! total number of fields received
    INTEGER                    ::   nsnd         ! total number of fields sent
    INTEGER                    ::   ncplmodel    ! Maximum number of models to/from which NEMO is potentialy sending/receiving data
-   INTEGER, PUBLIC, PARAMETER ::   nmaxfld=62   ! Maximum number of coupling fields
    INTEGER, PUBLIC, PARAMETER ::   nmaxcat=5    ! Maximum number of coupling fields
    INTEGER, PUBLIC, PARAMETER ::   nmaxcpl=5    ! Maximum number of coupling fields
 
@@ -81,7 +80,7 @@ MODULE cpl_oasis3
       INTEGER               ::   ncplmodel ! Maximum number of models to/from which this variable may be sent/received
    END TYPE FLD_CPL
 
-   TYPE(FLD_CPL), DIMENSION(nmaxfld), PUBLIC ::   srcv, ssnd   !: Coupling fields
+   TYPE(FLD_CPL), DIMENSION(:), ALLOCATABLE, PUBLIC ::   srcv, ssnd   !: Coupling fields
 
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   exfld   ! Temporary buffer for receiving
 
@@ -157,15 +156,6 @@ CONTAINS
          CALL oasis_abort ( ncomp_id, 'cpl_define', 'ncplmodel is larger than nmaxcpl, increase nmaxcpl')   ;   RETURN
       ENDIF
 
-      nrcv = krcv
-      IF( nrcv > nmaxfld ) THEN
-         CALL oasis_abort ( ncomp_id, 'cpl_define', 'nrcv is larger than nmaxfld, increase nmaxfld')   ;   RETURN
-      ENDIF
-
-      nsnd = ksnd
-      IF( nsnd > nmaxfld ) THEN
-         CALL oasis_abort ( ncomp_id, 'cpl_define', 'nsnd is larger than nmaxfld, increase nmaxfld')   ;   RETURN
-      ENDIF
       !
       ! ... Define the shape for the area that excludes the halo as we don't want them to be "seen" by oasis
       !
@@ -185,11 +175,11 @@ CONTAINS
       ! ... Define the partition, excluding halos as we don't want them to be "seen" by oasis
       ! -----------------------------------------------------------------
 
-      paral(1) = 2                                      ! box partitioning
-      paral(2) = Ni0glo * mjg0(nn_hls) + mig0(nn_hls)   ! NEMO lower left corner global offset, without halos
-      paral(3) = Ni_0                                   ! local extent in i, excluding halos
-      paral(4) = Nj_0                                   ! local extent in j, excluding halos
-      paral(5) = Ni0glo                                 ! global extent in x, excluding halos
+      paral(1) = 2                                        ! box partitioning
+      paral(2) = Ni0glo * mjg(nn_hls,0) + mig(nn_hls,0)   ! NEMO lower left corner global offset, without halos
+      paral(3) = Ni_0                                     ! local extent in i, excluding halos
+      paral(4) = Nj_0                                     ! local extent in j, excluding halos
+      paral(5) = Ni0glo                                   ! global extent in x, excluding halos
 
       IF( sn_cfctl%l_oasout ) THEN
          WRITE(numout,*) ' multiexchg: paral (1:5)', paral
@@ -428,8 +418,9 @@ CONTAINS
 
          !--- we must call lbc_lnk to fill the halos that where not received.
          IF( .NOT. ll_1st ) THEN
-            CALL lbc_lnk( 'cpl_oasis3', pdata(:,:,jc), srcv(kid)%clgrid, srcv(kid)%nsgn )
+            CALL lbc_lnk( 'cpl_oasis3', pdata(:,:,jc), srcv(kid)%clgrid, srcv(kid)%nsgn, ldfull = .TRUE. )
          ENDIF
+         !!clem: mettre T instead of clgrid
 
       ENDDO
       !

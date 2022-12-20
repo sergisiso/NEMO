@@ -53,6 +53,8 @@ MODULE zdf_oce
    REAL(wp), PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:)     ::   avmb , avtb    !: background profile of avm and avt      [m2/s]
    REAL(wp), PUBLIC, SAVE, ALLOCATABLE, DIMENSION(:,:)   ::   avtb_2d        !: horizontal shape of background Kz profile [-]
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: zdf_oce.F90 14072 2020-12-04 07:48:38Z laurent $
@@ -65,9 +67,9 @@ CONTAINS
       !!            *** FUNCTION zdf_oce_alloc ***
       !!----------------------------------------------------------------------
       !
-      ALLOCATE( avm (jpi,jpj,jpk) , avm_k(jpi,jpj,jpk) , avs(jpi,jpj,jpk) ,   &
-         &      avt (jpi,jpj,jpk) , avt_k(jpi,jpj,jpk) , en (jpi,jpj,jpk) ,   &
-         &      avmb(jpk)         , avtb(jpk)          , avtb_2d(jpi,jpj) , STAT = zdf_oce_alloc )
+      ALLOCATE( avm (jpi,jpj,jpk), avm_k(jpi,jpj,jpk), avs(A2D(0),jpk) ,   &
+         &      avt (A2D(0),jpk) , avt_k(A2D(0),jpk) , en (A2D(0),jpk) ,   &
+         &      avmb(jpk)        , avtb(jpk)         , avtb_2d(A2D(0)) , STAT = zdf_oce_alloc )
          !
       IF( zdf_oce_alloc /= 0 )   CALL ctl_stop( 'STOP', 'zdf_oce_alloc: failed to allocate arrays' )
       !

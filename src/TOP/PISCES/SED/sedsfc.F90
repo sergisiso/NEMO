@@ -49,7 +49,7 @@ CONTAINS
       CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,8), iarroce(1:jpoce), pwcp(1:jpoce,1,jwfe2) )
       CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,9), iarroce(1:jpoce), pwcp(1:jpoce,1,jwlgw) )
 
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          ikt = mbkt(ji,jj)
          IF ( tmask(ji,jj,ikt) == 1 ) THEN
             tr(ji,jj,ikt,jptal,Kbb) = trc_data(ji,jj,1)

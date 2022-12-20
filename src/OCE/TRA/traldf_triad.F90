@@ -12,7 +12,7 @@ MODULE traldf_triad
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and active tracers
    USE dom_oce        ! ocean space and time domain
-   USE domutl, ONLY : is_tile
+   USE domutl, ONLY : lbnd_ij
    USE phycst         ! physical constants
    USE trc_oce        ! share passive tracers/Ocean variables
    USE zdf_oce        ! ocean vertical physics
@@ -30,7 +30,8 @@ MODULE traldf_triad
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_ldf_triad   ! routine called by traldf.F90
+   PUBLIC   traldf_triad_lap   ! routine called by traldf.F90
+   PUBLIC   traldf_triad_blp   ! routine called by traldf.F90
 
    LOGICAL  ::   l_ptr   ! flag to compute poleward transport
    LOGICAL  ::   l_hst   ! flag to compute heat transport
@@ -46,9 +47,8 @@ MODULE traldf_triad
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_ldf_triad( kt, Kmm, kit000, cdtype, pahu, pahv,             &
-      &                                               pgu , pgv , pgui, pgvi, &
-      &                                               pt, pt2, pt_rhs, kjpt, kpass )
+   SUBROUTINE traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv,                  &
+      &                                                  pt, pt2, pt_rhs, kjpt, kpass )
       !!
       INTEGER                     , INTENT(in   ) ::   kt         ! ocean time-step index
       INTEGER                     , INTENT(in   ) ::   kit000     ! first time step index
@@ -57,21 +57,17 @@ CONTAINS
       INTEGER                     , INTENT(in   ) ::   kpass      ! =1/2 first or second passage
       INTEGER                     , INTENT(in   ) ::   Kmm        ! ocean time level indices
       REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pahu, pahv ! eddy diffusivity at u- and v-points  [m2/s]
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pgu , pgv  ! tracer gradient at pstep levels
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pgui, pgvi ! tracer gradient at top   levels
       REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pt         ! tracer (kpass=1) or laplacian of tracer (kpass=2)
       REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pt2        ! tracer (only used in kpass=2)
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pt_rhs     ! tracer trend
       !!
-      CALL tra_ldf_triad_t( kt, Kmm, kit000, cdtype, pahu, pahv, is_tile(pahu),                            &
-      &                                              pgu , pgv , is_tile(pgu) , pgui, pgvi, is_tile(pgui), &
-      &                                              pt, is_tile(pt), pt2, is_tile(pt2), pt_rhs, is_tile(pt_rhs), kjpt, kpass )
-   END SUBROUTINE tra_ldf_triad
+      CALL traldf_triad_lap_t( kt, Kmm, kit000, cdtype, pahu, pahv, lbnd_ij(pahu),                                               &
+      &                                                 pt, lbnd_ij(pt), pt2, lbnd_ij(pt2), pt_rhs, lbnd_ij(pt_rhs), kjpt, kpass )
+   END SUBROUTINE traldf_triad_lap
 
 
-  SUBROUTINE tra_ldf_triad_t( kt, Kmm, kit000, cdtype, pahu, pahv, ktah,                   &
-      &                                                pgu , pgv , ktg , pgui, pgvi, ktgi, &
-      &                                                pt, ktt, pt2, ktt2, pt_rhs, ktt_rhs, kjpt, kpass )
+   SUBROUTINE traldf_triad_lap_t( kt, Kmm, kit000, cdtype, pahu, pahv, ktah,                                &
+      &                                                    pt, ktt, pt2, ktt2, pt_rhs, ktt_rhs, kjpt, kpass )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_ldf_triad  ***
       !!
@@ -91,19 +87,17 @@ CONTAINS
       !!               ah_wslp2 ....
       !!               akz   stabilizing vertical diffusivity coefficient (used in trazdf_imp)
       !!----------------------------------------------------------------------
-      INTEGER                              , INTENT(in   ) ::   kt         ! ocean time-step index
-      INTEGER                              , INTENT(in   ) ::   kit000     ! first time step index
-      CHARACTER(len=3)                     , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
-      INTEGER                              , INTENT(in   ) ::   kjpt       ! number of tracers
-      INTEGER                              , INTENT(in   ) ::   kpass      ! =1/2 first or second passage
-      INTEGER                              , INTENT(in)    ::   Kmm        ! ocean time level indices
-      INTEGER                              , INTENT(in   ) ::   ktah, ktg, ktgi, ktt, ktt2, ktt_rhs
-      REAL(wp), DIMENSION(A2D_T(ktah),   JPK)     , INTENT(in   ) ::   pahu, pahv ! eddy diffusivity at u- and v-points  [m2/s]
-      REAL(wp), DIMENSION(A2D_T(ktg),        KJPT), INTENT(in   ) ::   pgu , pgv  ! tracer gradient at pstep levels
-      REAL(wp), DIMENSION(A2D_T(ktgi),       KJPT), INTENT(in   ) ::   pgui, pgvi ! tracer gradient at top   levels
-      REAL(wp), DIMENSION(A2D_T(ktt),    JPK,KJPT), INTENT(in   ) ::   pt         ! tracer (kpass=1) or laplacian of tracer (kpass=2)
-      REAL(wp), DIMENSION(A2D_T(ktt2),   JPK,KJPT), INTENT(in   ) ::   pt2        ! tracer (only used in kpass=2)
-      REAL(wp), DIMENSION(A2D_T(ktt_rhs),JPK,KJPT), INTENT(inout) ::   pt_rhs     ! tracer trend
+      INTEGER                                    , INTENT(in   ) ::   kt         ! ocean time-step index
+      INTEGER                                    , INTENT(in   ) ::   kit000     ! first time step index
+      CHARACTER(len=3)                           , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
+      INTEGER                                    , INTENT(in   ) ::   kjpt       ! number of tracers
+      INTEGER                                    , INTENT(in   ) ::   kpass      ! =1/2 first or second passage
+      INTEGER                                    , INTENT(in   ) ::   Kmm        ! ocean time level indices
+      INTEGER , DIMENSION(2)                     , INTENT(in   ) ::   ktah, ktt, ktt2, ktt_rhs
+      REAL(wp), DIMENSION(AB2D(ktah),   JPK)     , INTENT(in   ) ::   pahu, pahv ! eddy diffusivity at u- and v-points  [m2/s]
+      REAL(wp), DIMENSION(AB2D(ktt),    JPK,KJPT), INTENT(in   ) ::   pt         ! tracer (kpass=1) or laplacian of tracer (kpass=2)
+      REAL(wp), DIMENSION(AB2D(ktt2),   JPK,KJPT), INTENT(in   ) ::   pt2        ! tracer (only used in kpass=2)
+      REAL(wp), DIMENSION(AB2D(ktt_rhs),JPK,KJPT), INTENT(inout) ::   pt_rhs     ! tracer trend
       !
       INTEGER  ::  ji, jj, jk, jn, kp, iij   ! dummy loop indices
       REAL(wp) ::  zcoef0, ze3w_2, zsign          !   -      -
@@ -111,9 +105,9 @@ CONTAINS
       REAL(wp) ::   zslope2, zbu, zbv, zbu1, zbv1, zslope21, zah, zah1, zah_ip1, zah_jp1, zbu_ip1, zbv_jp1
       REAL(wp) ::   ze1ur, ze2vr, ze3wr, zdxt, zdyt, zdzt, zdyt_jp1, ze3wr_jp1, zdzt_jp1, zah_slp1, zah_slp_jp1, zaei_slp_jp1
       REAL(wp) ::   zah_slp, zaei_slp, zdxt_ip1, ze3wr_ip1, zdzt_ip1, zah_slp_ip1, zaei_slp_ip1, zaei_slp1
-      REAL(wp), DIMENSION(A2D(nn_hls),0:1) ::   zdkt3d                                           ! vertical tracer gradient at 2 levels
-      REAL(wp), DIMENSION(A2D(nn_hls)    ) ::   z2d                                              ! 2D workspace
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zdit, zdjt, zftu, zftv, ztfw, zpsi_uw, zpsi_vw   ! 3D     -
+      REAL(wp), DIMENSION(T2D(nn_hls),0:1) ::   zdkt3d                                           ! vertical tracer gradient at 2 levels
+      REAL(wp), DIMENSION(T2D(nn_hls)    ) ::   z2d                                              ! 2D workspace
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdit, zdjt, zftu, zftv, ztfw, zpsi_uw, zpsi_vw   ! 3D     -
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -148,6 +142,13 @@ CONTAINS
       !
       IF( kpass == 1 ) THEN         !==  first pass only  and whatever the tracer is  ==!
          !
+         IF( kt /= kit000 ) THEN    ! Already zeroed on first timestep in ldf_slp_init
+            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+               akz     (ji,jj,jk) = 0._wp
+               ah_wslp2(ji,jj,jk) = 0._wp
+            END_3D
+         ENDIF
+         !
          DO kp = 0, 1                            ! i-k triads
             DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                ze3wr = 1._wp / e3w(ji,jj,jk+kp,Kmm)
@@ -156,18 +157,18 @@ CONTAINS
                zah   = 0.25_wp * pahu(ji,jj,jk)
                zah1  = 0.25_wp * pahu(ji-1,jj,jk)
                ! Subtract s-coordinate slope at t-points to give slope rel to s-surfaces (do this by *adding* gradient of depth)
-               zslope2 = triadi_g(ji,jj,jk,1,kp) + ( gdept(ji+1,jj,jk,Kmm) - gdept(ji,jj,jk,Kmm) ) * r1_e1u(ji,jj) * umask(ji,jj,jk+kp)
+               zslope2  = triadi_g(ji,jj,jk,1,kp) + ( gdept(ji+1,jj,jk,Kmm) - gdept(ji,jj,jk,Kmm) )   &
+                  &                                 * r1_e1u(ji,jj) * umask(ji,jj,jk+kp)
                zslope2 = zslope2 *zslope2
-               zslope21 = triadi_g(ji,jj,jk,0,kp) + ( gdept(ji,jj,jk,Kmm) - gdept(ji-1,jj,jk,Kmm) ) * r1_e1u(ji-1,jj) * umask(ji-1,jj,jk+kp)
+               zslope21 = triadi_g(ji,jj,jk,0,kp) + ( gdept(ji,jj,jk,Kmm) - gdept(ji-1,jj,jk,Kmm) )   &
+                  &                                 * r1_e1u(ji-1,jj) * umask(ji-1,jj,jk+kp)
                zslope21 = zslope21 *zslope21
                ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               ah_wslp2(ji,jj,jk+kp) =  ah_wslp2(ji,jj,jk+kp) + ( zah * zbu * ze3wr * r1_e1e2t(ji,jj) * zslope2                    &
-                        &                                       + zah1 * zbu1 * ze3wr * r1_e1e2t(ji,jj) * zslope21                 &
-                        &                                       )                                                                  ! bracket for halo 1 - halo 2 compatibility
-               akz     (ji,jj,jk+kp) =  akz     (ji,jj,jk+kp) + ( zah * r1_e1u(ji,jj) * r1_e1u(ji,jj) * umask(ji,jj,jk+kp)         &
-                                                                + zah1 * r1_e1u(ji-1,jj) * r1_e1u(ji-1,jj) * umask(ji-1,jj,jk+kp)  &
-                        &                                       )                                                                  ! bracket for halo 1 - halo 2 compatibility
+               ! needed to ensure the North Pole reproducibility
+               ah_wslp2(ji,jj,jk+kp) =  ah_wslp2(ji,jj,jk+kp) + ( zah  * zbu  * ze3wr * r1_e1e2t(ji,jj) * zslope2    & ! () for NP
+                        &                                       + zah1 * zbu1 * ze3wr * r1_e1e2t(ji,jj) * zslope21 )   ! repro
+               akz     (ji,jj,jk+kp) =  akz     (ji,jj,jk+kp) + ( zah  * r1_e1u(ji  ,jj) * r1_e1u(ji  ,jj) * umask(ji  ,jj,jk+kp) &
+                                                                + zah1 * r1_e1u(ji-1,jj) * r1_e1u(ji-1,jj) * umask(ji-1,jj,jk+kp) )
             END_3D
          END DO
          !
@@ -180,18 +181,18 @@ CONTAINS
                zah1   = 0.25_wp * pahv(ji,jj-1,jk)
                ! Subtract s-coordinate slope at t-points to give slope rel to s surfaces
                !    (do this by *adding* gradient of depth)
-               zslope2 = triadj_g(ji,jj,jk,1,kp) + ( gdept(ji,jj+1,jk,Kmm) - gdept(ji,jj,jk,Kmm) ) * r1_e2v(ji,jj) * vmask(ji,jj,jk+kp)
+               zslope2  = triadj_g(ji,jj,jk,1,kp) + ( gdept(ji,jj+1,jk,Kmm) - gdept(ji,jj,jk,Kmm) )   &
+                  &                                 * r1_e2v(ji,jj) * vmask(ji,jj,jk+kp)
                zslope2 = zslope2 * zslope2
-               zslope21 = triadj_g(ji,jj,jk,0,kp) + ( gdept(ji,jj,jk,Kmm) - gdept(ji,jj-1,jk,Kmm) ) * r1_e2v(ji,jj-1) * vmask(ji,jj-1,jk+kp)
+               zslope21 = triadj_g(ji,jj,jk,0,kp) + ( gdept(ji,jj,jk,Kmm) - gdept(ji,jj-1,jk,Kmm) )   &
+                  &                                 * r1_e2v(ji,jj-1) * vmask(ji,jj-1,jk+kp)
                zslope21 = zslope21 * zslope21
                ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               ah_wslp2(ji,jj,jk+kp) = ah_wslp2(ji,jj,jk+kp) + ( zah * zbv * ze3wr * r1_e1e2t(ji,jj) * zslope2                     &
-                        &                                      + zah1 * zbv1 * ze3wr * r1_e1e2t(ji,jj) * zslope21                  &
-                        &                                      )                                                                   ! bracket for halo 1 - halo 2 compatibility
-               akz     (ji,jj,jk+kp) = akz     (ji,jj,jk+kp) + ( zah * r1_e2v(ji,jj) * r1_e2v(ji,jj) * vmask(ji,jj,jk+kp)          &
-                        &                                      + zah1 * r1_e2v(ji,jj-1) * r1_e2v(ji,jj-1) * vmask(ji,jj-1,jk+kp)   &
-                        &                                      )                                                                   ! bracket for halo 1 - halo 2 compatibility
+               ! needed to ensure the North Pole reproducibility
+               ah_wslp2(ji,jj,jk+kp) = ah_wslp2(ji,jj,jk+kp) + ( zah  * zbv  * ze3wr * r1_e1e2t(ji,jj) * zslope2    & ! () for NP
+                        &                                      + zah1 * zbv1 * ze3wr * r1_e1e2t(ji,jj) * zslope21 )   ! repro
+               akz     (ji,jj,jk+kp) = akz     (ji,jj,jk+kp) + ( zah  * r1_e2v(ji,jj  ) * r1_e2v(ji,jj  ) * vmask(ji,jj  ,jk+kp) &
+                        &                                      + zah1 * r1_e2v(ji,jj-1) * r1_e2v(ji,jj-1) * vmask(ji,jj-1,jk+kp) )
             END_3D
          END DO
          !
@@ -225,16 +226,12 @@ CONTAINS
 
             DO kp = 0, 1
                DO_3D( 1, 0, 1, 0, 1, jpkm1 )
-                  ! round brackets added to fix the order of floating point operations
-                  ! needed to ensure halo 1 - halo 2 compatibility
-                  zpsi_uw(ji,jj,jk+kp) = zpsi_uw(ji,jj,jk+kp)                                     &
-                     & + ( 0.25_wp * aeiu(ji,jj,jk) * e2u(ji,jj) * triadi_g(ji,jj,jk,1,kp)        &
-                     &   + 0.25_wp * aeiu(ji,jj,jk) * e2u(ji,jj) * triadi_g(ji+1,jj,jk,0,kp)      &
-                     &   )                                                                        ! bracket for halo 1 - halo 2 compatibility
-                  zpsi_vw(ji,jj,jk+kp) = zpsi_vw(ji,jj,jk+kp)                                     &
-                     & + ( 0.25_wp * aeiv(ji,jj,jk) * e1v(ji,jj) * triadj_g(ji,jj,jk,1,kp)        &
-                     &   + 0.25_wp * aeiv(ji,jj,jk) * e1v(ji,jj) * triadj_g(ji,jj+1,jk,0,kp)      &
-                     &   )                                                                        ! bracket for halo 1 - halo 2 compatibility
+                  zpsi_uw(ji,jj,jk+kp) = zpsi_uw(ji,jj,jk+kp)                                       &
+                     & + ( 0.25_wp * aeiu(ji,jj,jk) * e2u(ji,jj) * triadi_g(ji  ,jj,jk,1,kp)        & ! () for NP reproducibility
+                     &   + 0.25_wp * aeiu(ji,jj,jk) * e2u(ji,jj) * triadi_g(ji+1,jj,jk,0,kp) )
+                  zpsi_vw(ji,jj,jk+kp) = zpsi_vw(ji,jj,jk+kp)                                       & ! () for NP reproducibility
+                     & + ( 0.25_wp * aeiv(ji,jj,jk) * e1v(ji,jj) * triadj_g(ji,jj  ,jk,1,kp)        &
+                     &   + 0.25_wp * aeiv(ji,jj,jk) * e1v(ji,jj) * triadj_g(ji,jj+1,jk,0,kp) )
                END_3D
             END DO
             CALL ldf_eiv_dia( zpsi_uw, zpsi_vw, Kmm )
@@ -257,18 +254,6 @@ CONTAINS
             zdit(ji,jj,jk) = ( pt(ji+1,jj  ,jk,jn) - pt(ji,jj,jk,jn) ) * umask(ji,jj,jk)
             zdjt(ji,jj,jk) = ( pt(ji  ,jj+1,jk,jn) - pt(ji,jj,jk,jn) ) * vmask(ji,jj,jk)
          END_3D
-         IF( ln_zps .AND. l_grad_zps ) THEN    ! partial steps: correction at top/bottom ocean level
-            DO_2D( iij, iij-1, iij, iij-1 )                    ! bottom level
-               zdit(ji,jj,mbku(ji,jj)) = pgu(ji,jj,jn)
-               zdjt(ji,jj,mbkv(ji,jj)) = pgv(ji,jj,jn)
-            END_2D
-            IF( ln_isfcav ) THEN                   ! top level (ocean cavities only)
-               DO_2D( iij, iij-1, iij, iij-1 )
-                  IF( miku(ji,jj)  > 1 )   zdit(ji,jj,miku(ji,jj) ) = pgui(ji,jj,jn)
-                  IF( mikv(ji,jj)  > 1 )   zdjt(ji,jj,mikv(ji,jj) ) = pgvi(ji,jj,jn)
-               END_2D
-            ENDIF
-         ENDIF
          !
          !!----------------------------------------------------------------------
          !!   II - horizontal trend  (full)
@@ -440,14 +425,10 @@ CONTAINS
             ENDIF
             !                             !==  horizontal divergence and add to the general trend  ==!
             DO_2D( iij-1, iij-1, iij-1, iij-1 )
-               ! round brackets added to fix the order of floating point operations
-               ! needed to ensure halo 1 - halo 2 compatibility
-               pt_rhs(ji,jj,jk,jn) = pt_rhs(ji,jj,jk,jn)                                                &
-                  &                       + zsign * ( ( zftu(ji-1,jj  ,jk) - zftu(ji,jj,jk)             &
-                  &                                   )                                                 & ! bracket for halo 1 - halo 2 compatibility
-                  &                                 + ( zftv(ji,jj-1,jk) - zftv(ji,jj,jk)               &
-                  &                                   )                                                 & ! bracket for halo 1 - halo 2 compatibility
-                  &                                 ) / (  e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm)  )
+               pt_rhs(ji,jj,jk,jn) = pt_rhs(ji,jj,jk,jn)                                           &
+                  &                       + zsign * ( ( zftu(ji-1,jj  ,jk) - zftu(ji,jj,jk) )      & ! () for NP reproducibility
+                  &                                 + ( zftv(ji  ,jj-1,jk) - zftv(ji,jj,jk) ) )    &
+                  &                               / (  e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm)  )
             END_2D
             !
          END DO
@@ -456,7 +437,7 @@ CONTAINS
          IF( ln_traldf_lap ) THEN               ! laplacian case: eddy coef = ah_wslp2 - akz
             DO_3D( iij-1, iij-1, iij-1, iij-1, 2, jpkm1 )
                ztfw(ji,jj,jk) = ztfw(ji,jj,jk) - e1e2t(ji,jj) / e3w(ji,jj,jk,Kmm) * tmask(ji,jj,jk)   &
-                  &                            * ( ah_wslp2(ji,jj,jk) - akz(ji,jj,jk) )             &
+                  &                            * ( ah_wslp2(ji,jj,jk) - akz(ji,jj,jk) )               &
                   &                            * (  pt(ji,jj,jk-1,jn) - pt(ji,jj,jk,jn) )
             END_3D
          ELSE                                   ! bilaplacian
@@ -466,9 +447,9 @@ CONTAINS
                   ztfw(ji,jj,jk) = ztfw(ji,jj,jk) - e1e2t(ji,jj) / e3w(ji,jj,jk,Kmm) * tmask(ji,jj,jk)             &
                      &                            * ah_wslp2(ji,jj,jk) * ( pt(ji,jj,jk-1,jn) - pt(ji,jj,jk,jn) )
                END_3D
-            CASE(  2  )                            ! 2nd pass : eddy flux = ah_wslp2 and akz applied on pt  and pt2 gradients, resp.
+            CASE(  2  )                            ! 2nd pass : eddy flux = ah_wslp2 and akz applied on pt and pt2 gradients, resp.
                DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-                  ztfw(ji,jj,jk) = ztfw(ji,jj,jk) - e1e2t(ji,jj) / e3w(ji,jj,jk,Kmm) * tmask(ji,jj,jk)                      &
+                  ztfw(ji,jj,jk) = ztfw(ji,jj,jk) - e1e2t(ji,jj) / e3w(ji,jj,jk,Kmm) * tmask(ji,jj,jk)                  &
                      &                            * (  ah_wslp2(ji,jj,jk) * ( pt (ji,jj,jk-1,jn) - pt (ji,jj,jk,jn) )   &
                      &                               + akz     (ji,jj,jk) * ( pt2(ji,jj,jk-1,jn) - pt2(ji,jj,jk,jn) )   )
                END_3D
@@ -494,7 +475,53 @@ CONTAINS
          !                                                        ! ===============
       END DO                                                      ! end tracer loop
       !                                                           ! ===============
-   END SUBROUTINE tra_ldf_triad_t
+   END SUBROUTINE traldf_triad_lap_t
+
+
+   SUBROUTINE traldf_triad_blp( kt, Kmm, kit000, cdtype, pahu, pahv  ,             &
+      &                                             pt  , pt_rhs, kjpt )
+      !!----------------------------------------------------------------------
+      !!                 ***  ROUTINE tra_ldf_blp  ***
+      !!
+      !! ** Purpose :   Compute the before lateral tracer diffusive
+      !!      trend and add it to the general trend of tracer equation.
+      !!
+      !! ** Method  :   The lateral diffusive trends is provided by a bilaplacian
+      !!      operator applied to before field (forward in time).
+      !!      It is computed by two successive calls to laplacian routine
+      !!
+      !! ** Action :   pta   updated with the before rotated bilaplacian diffusion
+      !!----------------------------------------------------------------------
+      INTEGER                              , INTENT(in   ) ::   kt         ! ocean time-step index
+      INTEGER                              , INTENT(in   ) ::   kit000     ! first time step index
+      CHARACTER(len=3)                     , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
+      INTEGER                              , INTENT(in   ) ::   kjpt       ! number of tracers
+      INTEGER                              , INTENT(in   ) ::   Kmm        ! ocean time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk)     , INTENT(in   ) ::   pahu, pahv ! eddy diffusivity at u- and v-points  [m2/s]
+      REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(in   ) ::   pt         ! before and now tracer fields
+      REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(inout) ::   pt_rhs     ! tracer trend
+      !
+      INTEGER ::   ji, jj, jk, jn   ! dummy loop indices
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk,kjpt) :: zlap         ! laplacian at t-point
+      !!---------------------------------------------------------------------
+      !
+      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+         IF( kt == kit000 .AND. lwp )  THEN
+            WRITE(numout,*)
+            WRITE(numout,*) 'tra_ldf_blp : iso-neutral bilaplacian operator on ', cdtype, ' (triad)'
+            WRITE(numout,*) '~~~~~~~~~~~'
+         ENDIF
+      ENDIF
+
+      zlap(:,:,:,:) = 0._wp
+      !
+      !                          !==  1st laplacian applied to pt (output in zlap)  ==!
+      CALL traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv, pt, pt, zlap, kjpt, 1 )
+      !
+      !                          !==  2nd laplacian applied to zlap (output in pt_rhs)  ==!
+      CALL traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv, zlap, pt    , pt_rhs, kjpt, 2 )
+      !
+   END SUBROUTINE traldf_triad_blp
 
    !!==============================================================================
 END MODULE traldf_triad

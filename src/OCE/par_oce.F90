@@ -59,7 +59,8 @@ MODULE par_oce
    INTEGER, PUBLIC ::   jpj   !                                                    !: second dimension
    INTEGER, PUBLIC ::   jpk   ! = jpkglo                                           !: third  dimension
    INTEGER, PUBLIC ::   jpkm1 ! = jpk-1                                            !:   -     -      -
-   INTEGER, PUBLIC ::   jpij  ! = jpi*jpj                                          !:  jpi x jpj
+   !INTEGER, PUBLIC ::  jpij  ! = jpi*jpj                                          !:  jpi x jpj
+   INTEGER, PUBLIC ::   jpij  ! = (jpi-2*nn_hls)*(jpj-2*nn_hls)                    !:  jpi x jpj but without the halos
    INTEGER, PUBLIC ::   jpimax! = ( Ni0glo + jpni-1 ) / jpni + 2*nn_hls            !: maximum jpi
    INTEGER, PUBLIC ::   jpjmax! = ( Nj0glo + jpnj-1 ) / jpnj + 2*nn_hls            !: maximum jpj
 

@@ -325,7 +325,7 @@
    sn_sal      = 'dyna_grid_T'           ,       120.        , 'vosaline'  ,  .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_mld      = 'dyna_grid_T'           ,       120.        , 'somixhgt'  ,  .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_emp      = 'dyna_grid_T'           ,       120.        , 'sowaflcd'  ,  .true.   , .true. , 'yearly'  , ''               , ''       , ''
-   sn_fmf      = 'dyna_grid_T'           ,       120.        , 'iowaflup'  ,  .true.   , .true. , 'yearly'  , ''               , ''       , ''
+   sn_fwf      = 'dyna_grid_T'           ,       120.        , 'iowaflup'  ,  .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_ice      = 'dyna_grid_T'           ,       120.        , 'soicecov'  ,  .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_qsr      = 'dyna_grid_T'           ,       120.        , 'soshfldo'  ,  .true.   , .true. , 'yearly'  , ''               , ''       , ''
    sn_wnd      = 'dyna_grid_T'           ,       120.        , 'sowindsp'  ,  .true.   , .true. , 'yearly'  , ''               , ''       , ''

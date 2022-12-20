@@ -83,25 +83,33 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)    ::   cd_routine    ! name of the routine
       REAL(wp)        , INTENT(inout) ::   pdiag_v, pdiag_s, pdiag_t, pdiag_fv, pdiag_fs, pdiag_ft
       !!
+      INTEGER  ::   ji, jj, jl           ! dummy loop index
       REAL(wp) ::   zdiag_mass, zdiag_salt, zdiag_heat
-      REAL(wp), DIMENSION(jpi,jpj,10)     ::   ztmp3
-      REAL(wp), DIMENSION(jpi,jpj,jpl,8)  ::   ztmp4
-      REAL(wp), DIMENSION(10)             ::   zchk3         
-      REAL(wp), DIMENSION(8)              ::   zchk4         
+      REAL(wp), DIMENSION(A2D(0),10)     ::   ztmp3
+      REAL(wp), DIMENSION(A2D(0),jpl,8)  ::   ztmp4
+      REAL(wp), DIMENSION(10)            ::   zchk3         
+      REAL(wp), DIMENSION(8)             ::   zchk4         
       !!-------------------------------------------------------------------
       !
-      ! -- quantities -- !
-      ztmp3(:,:,1) = SUM( v_i * rhoi + v_s * rhos + ( v_ip + v_il ) * rhow, dim=3 ) * e1e2t        ! volume
-      ztmp3(:,:,2) = SUM( sv_i * rhoi, dim=3 ) * e1e2t                                             ! salt
-      ztmp3(:,:,3) = ( SUM( SUM( e_i, dim=4 ), dim=3 ) + SUM( SUM( e_s, dim=4 ), dim=3 ) ) * e1e2t ! heat
-      !
-      ! -- fluxes -- !
-      ztmp3(:,:,4) = ( wfx_bog + wfx_bom + wfx_sum + wfx_sni + wfx_opw + wfx_res + wfx_dyn + wfx_lam + wfx_pnd &  ! mass
-         &          + wfx_snw_sni + wfx_snw_sum + wfx_snw_dyn + wfx_snw_sub + wfx_ice_sub + wfx_spr ) * e1e2t
-      ztmp3(:,:,5) = ( sfx_bri + sfx_bog + sfx_bom + sfx_sum + sfx_sni + sfx_opw &                                ! salt
-         &          + sfx_res + sfx_dyn + sfx_sub + sfx_lam ) * e1e2t
-      ztmp3(:,:,6) = ( hfx_sum + hfx_bom + hfx_bog + hfx_dif + hfx_opw + hfx_snw &                                ! heat
-         &          - hfx_thd - hfx_dyn - hfx_res - hfx_sub - hfx_spr ) * e1e2t
+      DO_2D( 0, 0, 0, 0 )
+         ! -- quantities -- !
+         ztmp3(ji,jj,1) = SUM(  v_i(ji,jj,:) * rhoi + v_s(ji,jj,:) * rhos + &
+            &                    ( v_ip(ji,jj,:) + v_il(ji,jj,:) ) * rhow ) * e1e2t(ji,jj)   ! volume
+         ztmp3(ji,jj,2) = SUM( sv_i(ji,jj,:) * rhoi ) * e1e2t(ji,jj)                         ! salt
+         ztmp3(ji,jj,3) = ( SUM( SUM( e_i(ji,jj,:,:), dim=2 ) ) + &                          ! heat
+            &               SUM( SUM( e_s(ji,jj,:,:), dim=2 ) ) ) * e1e2t(ji,jj)
+         !
+         ! -- fluxes -- !
+         ztmp3(ji,jj,4) = ( wfx_bog    (ji,jj) + wfx_bom    (ji,jj) + wfx_sum    (ji,jj) + wfx_sni    (ji,jj) &                   ! mass
+            &             + wfx_opw    (ji,jj) + wfx_res    (ji,jj) + wfx_dyn    (ji,jj) + wfx_lam    (ji,jj) + wfx_pnd(ji,jj) &
+            &             + wfx_snw_sni(ji,jj) + wfx_snw_sum(ji,jj) + wfx_snw_dyn(ji,jj) + wfx_snw_sub(ji,jj) &
+            &             + wfx_ice_sub(ji,jj) + wfx_spr(ji,jj) ) * e1e2t(ji,jj)
+         ztmp3(ji,jj,5) = ( sfx_bri(ji,jj) + sfx_bog(ji,jj) + sfx_bom(ji,jj) + sfx_sum(ji,jj) + sfx_sni(ji,jj) + sfx_opw(ji,jj) & ! salt
+            &             + sfx_res(ji,jj) + sfx_dyn(ji,jj) + sfx_sub(ji,jj) + sfx_lam(ji,jj) ) * e1e2t(ji,jj)
+         ztmp3(ji,jj,6) = ( hfx_sum(ji,jj) + hfx_bom(ji,jj) + hfx_bog(ji,jj) + hfx_dif(ji,jj) + hfx_opw(ji,jj) + hfx_snw(ji,jj) & ! heat
+            &             - hfx_thd(ji,jj) - hfx_dyn(ji,jj) - hfx_res(ji,jj) - hfx_sub(ji,jj) - hfx_spr(ji,jj) ) * e1e2t(ji,jj)
+         !
+      END_2D
       !
       ! -- global sum -- !
       zchk3(1:6) = glob_sum_vec( 'icectl', ztmp3(:,:,1:6) )
@@ -123,25 +131,33 @@ CONTAINS
          zdiag_heat = ( zchk3(3) - pdiag_t ) * r1_Dt_ice + ( zchk3(6) - pdiag_ft )
 
          ! -- max concentration diag -- !
-         ztmp3(:,:,7) = SUM( a_i, dim=3 )
-         zchk3(7)     = glob_max( 'icectl', ztmp3(:,:,7) )
-
+         DO_2D( 0, 0, 0, 0 )
+            ztmp3(ji,jj,7) = SUM( a_i(ji,jj,:) )
+         END_2D
+         zchk3(7) = glob_max( 'icectl', ztmp3(:,:,7) )
+         
          ! -- advection scheme is conservative? -- !
-         ztmp3(:,:,8 ) = diag_adv_mass * e1e2t 
-         ztmp3(:,:,9 ) = diag_adv_heat * e1e2t 
-         ztmp3(:,:,10) = SUM( a_i + epsi10, dim=3 ) * e1e2t ! ice area (+epsi10 to set a threshold > 0 when there is no ice)
-         zchk3(8:10)   = glob_sum_vec( 'icectl', ztmp3(:,:,8:10) )
+         DO_2D( 0, 0, 0, 0 )
+            ztmp3(ji,jj,8 ) = diag_adv_mass(ji,jj) * e1e2t(ji,jj) 
+            ztmp3(ji,jj,9 ) = diag_adv_heat(ji,jj) * e1e2t(ji,jj) 
+            ztmp3(ji,jj,10) = SUM( a_i(ji,jj,:) + epsi10 ) * e1e2t(ji,jj) ! ice area (+epsi10 to set a threshold > 0 when there is no ice)
+         END_2D
+         zchk3(8:10) = glob_sum_vec( 'icectl', ztmp3(:,:,8:10) )
          
          ! -- min diags -- !
-         ztmp4(:,:,:,1) = v_i
-         ztmp4(:,:,:,2) = v_s
-         ztmp4(:,:,:,3) = v_ip
-         ztmp4(:,:,:,4) = v_il
-         ztmp4(:,:,:,5) = a_i
-         ztmp4(:,:,:,6) = sv_i
-         ztmp4(:,:,:,7) = SUM( e_i, dim=3 )
-         ztmp4(:,:,:,8) = SUM( e_s, dim=3 )
-         zchk4(1:8)     = glob_min_vec( 'icectl', ztmp4(:,:,:,1:8) )
+         DO jl = 1, jpl
+            DO_2D( 0, 0, 0, 0 )
+               ztmp4(ji,jj,jl,1) = v_i(ji,jj,jl)
+               ztmp4(ji,jj,jl,2) = v_s(ji,jj,jl)
+               ztmp4(ji,jj,jl,3) = v_ip(ji,jj,jl)
+               ztmp4(ji,jj,jl,4) = v_il(ji,jj,jl)
+               ztmp4(ji,jj,jl,5) = a_i(ji,jj,jl)
+               ztmp4(ji,jj,jl,6) = sv_i(ji,jj,jl)
+               ztmp4(ji,jj,jl,7) = SUM( e_i(ji,jj,:,jl) )
+               ztmp4(ji,jj,jl,8) = SUM( e_s(ji,jj,:,jl) )
+            END_2D
+         ENDDO
+         zchk4(1:8) = glob_min_vec( 'icectl', ztmp4(:,:,:,1:8) )
 
          IF( lwp ) THEN
             ! check conservation issues
@@ -188,17 +204,21 @@ CONTAINS
       !!-------------------------------------------------------------------
       CHARACTER(len=*), INTENT(in) ::   cd_routine    ! name of the routine
       !!
-      REAL(wp), DIMENSION(jpi,jpj,4)     ::   ztmp
-      REAL(wp), DIMENSION(4)             ::   zchk         
+      INTEGER  ::   ji, jj           ! dummy loop index
+      REAL(wp), DIMENSION(A2D(0),4) ::   ztmp
+      REAL(wp), DIMENSION(4)        ::   zchk         
       !!-------------------------------------------------------------------
-
-      ztmp(:,:,1) = ( wfx_ice + wfx_snw + wfx_spr + wfx_sub + wfx_pnd + diag_vice + diag_vsnw + diag_vpnd - diag_adv_mass ) * e1e2t ! mass diag
-      ztmp(:,:,2) = ( sfx + diag_sice - diag_adv_salt ) * e1e2t                                                                     ! salt
-      ztmp(:,:,3) = ( qt_oce_ai - qt_atm_oi + diag_heat - diag_adv_heat ) * e1e2t                                                   ! heat
-      ! equivalent to this:
-      !! ( -diag_heat + hfx_sum + hfx_bom + hfx_bog + hfx_dif + hfx_opw + hfx_snw &
-      !!   &                                        - hfx_thd - hfx_dyn - hfx_res - hfx_sub - hfx_spr ) * e1e2t )
-      ztmp(:,:,4) =  SUM( a_i + epsi10, dim=3 ) * e1e2t      ! ice area (+epsi10 to set a threshold > 0 when there is no ice)
+      DO_2D( 0, 0, 0, 0 )
+         !
+         ztmp(ji,jj,1) = ( wfx_ice  (ji,jj) + wfx_snw  (ji,jj) + wfx_pnd  (ji,jj) + wfx_spr(ji,jj) + wfx_sub(ji,jj)  &
+            &          + diag_vice(ji,jj) + diag_vsnw(ji,jj) + diag_vpnd(ji,jj) - diag_adv_mass(ji,jj) ) * e1e2t(ji,jj) ! mass diag
+         ztmp(ji,jj,2) = ( sfx(ji,jj) + diag_sice(ji,jj) - diag_adv_salt(ji,jj) ) * e1e2t(ji,jj)                          ! salt
+         ztmp(ji,jj,3) = ( qt_oce_ai(ji,jj) - qt_atm_oi(ji,jj) + diag_heat(ji,jj) - diag_adv_heat(ji,jj) ) * e1e2t(ji,jj) ! heat
+         ! equivalent to this:
+         !! ( -diag_heat + hfx_sum + hfx_bom + hfx_bog + hfx_dif + hfx_opw + hfx_snw &
+         !!   &                                        - hfx_thd - hfx_dyn - hfx_res - hfx_sub - hfx_spr ) * e1e2t )
+         ztmp(ji,jj,4) = SUM( a_i(ji,jj,:) + epsi10 ) * e1e2t(ji,jj) ! ice area (+epsi10 to set a threshold > 0 when there is no ice)
+      END_2D
 
       ! global sums
       zchk(1:4)   = glob_sum_vec( 'icectl', ztmp(:,:,1:4) )
@@ -226,11 +246,11 @@ CONTAINS
       !!-------------------------------------------------------------------
       INTEGER         , INTENT(in) ::   icount        ! called at: =0 the begining of the routine, =1  the end
       CHARACTER(len=*), INTENT(in) ::   cd_routine    ! name of the routine
-      REAL(wp)        , DIMENSION(jpi,jpj), INTENT(inout) ::   pdiag_v, pdiag_s, pdiag_t, pdiag_fv, pdiag_fs, pdiag_ft
+      REAL(wp)        , DIMENSION(A2D(0)), INTENT(inout) ::   pdiag_v, pdiag_s, pdiag_t, pdiag_fv, pdiag_fs, pdiag_ft
       !!
-      REAL(wp), DIMENSION(jpi,jpj) ::   zdiag_mass, zdiag_salt, zdiag_heat, &
-         &                              zdiag_amin, zdiag_vmin, zdiag_smin, zdiag_emin !!, zdiag_amax
-      INTEGER ::   jl, jk
+      REAL(wp), DIMENSION(A2D(0)) ::   zdiag_mass, zdiag_salt, zdiag_heat, &
+         &                             zdiag_amin, zdiag_vmin, zdiag_smin, zdiag_emin !!, zdiag_amax
+      INTEGER ::   ji, jj, jl, jk
       LOGICAL ::   ll_stop_m = .FALSE.
       LOGICAL ::   ll_stop_s = .FALSE.
       LOGICAL ::   ll_stop_t = .FALSE.
@@ -239,62 +259,79 @@ CONTAINS
       !
       IF( icount == 0 ) THEN
 
-         pdiag_v = SUM( v_i  * rhoi + v_s * rhos + ( v_ip + v_il ) * rhow, dim=3 )
-         pdiag_s = SUM( sv_i * rhoi , dim=3 )
-         pdiag_t = SUM( SUM( e_i, dim=4 ), dim=3 ) + SUM( SUM( e_s, dim=4 ), dim=3 )
+      DO_2D( 0, 0, 0, 0 )
+         pdiag_v(ji,jj) = SUM( v_i(ji,jj,:)  * rhoi + v_s(ji,jj,:) * rhos + ( v_ip(ji,jj,:) + v_il(ji,jj,:) ) * rhow )
+         pdiag_s(ji,jj) = SUM( sv_i(ji,jj,:) * rhoi )
+         pdiag_t(ji,jj) = SUM( SUM( e_i(ji,jj,:,:), dim=2 ) ) + SUM( SUM( e_s(ji,jj,:,:), dim=2 ) )
 
          ! mass flux
-         pdiag_fv = wfx_bog + wfx_bom + wfx_sum + wfx_sni + wfx_opw + wfx_res + wfx_dyn + wfx_lam + wfx_pnd  +  &
-            &       wfx_snw_sni + wfx_snw_sum + wfx_snw_dyn + wfx_snw_sub + wfx_ice_sub + wfx_spr
+         pdiag_fv(ji,jj) = wfx_bog(ji,jj) + wfx_bom(ji,jj) + wfx_sum(ji,jj) + wfx_sni(ji,jj) &
+            &            + wfx_opw(ji,jj) + wfx_res(ji,jj) + wfx_dyn(ji,jj) + wfx_lam(ji,jj) + wfx_pnd (ji,jj) &
+            &            + wfx_snw_sni(ji,jj) + wfx_snw_sum(ji,jj) + wfx_snw_dyn(ji,jj) &
+            &            + wfx_snw_sub(ji,jj) + wfx_ice_sub(ji,jj) + wfx_spr(ji,jj)
          ! salt flux
-         pdiag_fs = sfx_bri + sfx_bog + sfx_bom + sfx_sum + sfx_sni + sfx_opw + sfx_res + sfx_dyn + sfx_sub + sfx_lam
+         pdiag_fs(ji,jj) = sfx_bri(ji,jj) + sfx_bog(ji,jj) + sfx_bom(ji,jj) + sfx_sum(ji,jj) + sfx_sni(ji,jj) &
+            &            + sfx_opw(ji,jj) + sfx_res(ji,jj) + sfx_dyn(ji,jj) + sfx_sub(ji,jj) + sfx_lam(ji,jj)
          ! heat flux
-         pdiag_ft =   hfx_sum + hfx_bom + hfx_bog + hfx_dif + hfx_opw + hfx_snw  &
-            &       - hfx_thd - hfx_dyn - hfx_res - hfx_sub - hfx_spr
+         pdiag_ft(ji,jj) = hfx_sum(ji,jj) + hfx_bom(ji,jj) + hfx_bog(ji,jj) + hfx_dif(ji,jj) + hfx_opw(ji,jj) + hfx_snw(ji,jj) &
+            &            - hfx_thd(ji,jj) - hfx_dyn(ji,jj) - hfx_res(ji,jj) - hfx_sub(ji,jj) - hfx_spr(ji,jj)
+      END_2D
 
       ELSEIF( icount == 1 ) THEN
-
+         
          ! -- mass diag -- !
-         zdiag_mass =   ( SUM( v_i * rhoi + v_s * rhos + ( v_ip + v_il ) * rhow, dim=3 ) - pdiag_v ) * r1_Dt_ice    &
-            &         + ( wfx_bog + wfx_bom + wfx_sum + wfx_sni + wfx_opw + wfx_res + wfx_dyn + wfx_lam + wfx_pnd + &
-            &             wfx_snw_sni + wfx_snw_sum + wfx_snw_dyn + wfx_snw_sub + wfx_ice_sub + wfx_spr )           &
-            &         - pdiag_fv
+         DO_2D( 0, 0, 0, 0 )
+            zdiag_mass(ji,jj) =  ( SUM( v_i(ji,jj,:) * rhoi + v_s(ji,jj,:) * rhos                                       &
+               &                   + ( v_ip(ji,jj,:) + v_il(ji,jj,:) ) * rhow ) - pdiag_v(ji,jj) ) * r1_Dt_ice          &
+               &               + (   wfx_bog(ji,jj) + wfx_bom(ji,jj) + wfx_sum(ji,jj) + wfx_sni(ji,jj) + wfx_opw(ji,jj) &
+               &                   + wfx_res(ji,jj) + wfx_dyn(ji,jj) + wfx_lam(ji,jj) + wfx_pnd(ji,jj)                  &
+               &                   + wfx_snw_sni(ji,jj) + wfx_snw_sum(ji,jj) + wfx_snw_dyn(ji,jj)                       &
+               &                   + wfx_snw_sub(ji,jj) + wfx_ice_sub(ji,jj) + wfx_spr(ji,jj) )                         &
+               &               - pdiag_fv(ji,jj)
+         END_2D
          IF( MAXVAL( ABS(zdiag_mass) ) > rchk_m * rn_icechk_cel )   ll_stop_m = .TRUE.
          !
          ! -- salt diag -- !
-         zdiag_salt =   ( SUM( sv_i * rhoi , dim=3 ) - pdiag_s ) * r1_Dt_ice                                                  &
-            &         + ( sfx_bri + sfx_bog + sfx_bom + sfx_sum + sfx_sni + sfx_opw + sfx_res + sfx_dyn + sfx_sub + sfx_lam ) &
-            &         - pdiag_fs
+         DO_2D( 0, 0, 0, 0 )
+            zdiag_salt(ji,jj) =   ( SUM( sv_i(ji,jj,:) * rhoi ) - pdiag_s(ji,jj) ) * r1_Dt_ice                           &
+               &                + ( sfx_bri(ji,jj) + sfx_bog(ji,jj) + sfx_bom(ji,jj) + sfx_sum(ji,jj) + sfx_sni(ji,jj)   &
+               &                  + sfx_opw(ji,jj) + sfx_res(ji,jj) + sfx_dyn(ji,jj) + sfx_sub(ji,jj) + sfx_lam(ji,jj) ) &
+               &                - pdiag_fs(ji,jj)
+         END_2D
          IF( MAXVAL( ABS(zdiag_salt) ) > rchk_s * rn_icechk_cel )   ll_stop_s = .TRUE.
          !
          ! -- heat diag -- !
-         zdiag_heat =   ( SUM( SUM( e_i, dim=4 ), dim=3 ) + SUM( SUM( e_s, dim=4 ), dim=3 ) - pdiag_t ) * r1_Dt_ice &
-            &         + (  hfx_sum + hfx_bom + hfx_bog + hfx_dif + hfx_opw + hfx_snw                                &
-            &            - hfx_thd - hfx_dyn - hfx_res - hfx_sub - hfx_spr )                                        &
-            &         - pdiag_ft
+         DO_2D( 0, 0, 0, 0 )
+            zdiag_heat(ji,jj) = (   SUM( SUM( e_i(ji,jj,:,:), dim=2 ) )                                                  &
+               &                  + SUM( SUM( e_s(ji,jj,:,:), dim=2 ) ) - pdiag_t(ji,jj) ) * r1_Dt_ice                   &
+               &                + ( hfx_sum(ji,jj) + hfx_bom(ji,jj) + hfx_bog(ji,jj)                                     &
+               &                  + hfx_dif(ji,jj) + hfx_opw(ji,jj) + hfx_snw(ji,jj)                                     &
+               &                  - hfx_thd(ji,jj) - hfx_dyn(ji,jj) - hfx_res(ji,jj) - hfx_sub(ji,jj) - hfx_spr(ji,jj) ) &
+               &                - pdiag_ft(ji,jj)
+         END_2D
          IF( MAXVAL( ABS(zdiag_heat) ) > rchk_t * rn_icechk_cel )   ll_stop_t = .TRUE.
          !
          ! -- other diags -- !
          ! a_i < 0
          zdiag_amin(:,:) = 0._wp
          DO jl = 1, jpl
-            WHERE( a_i(:,:,jl) < 0._wp )   zdiag_amin(:,:) = 1._wp
+            WHERE( a_i(A2D(0),jl) < 0._wp )   zdiag_amin(:,:) = 1._wp
          ENDDO
          ! v_i < 0
          zdiag_vmin(:,:) = 0._wp
          DO jl = 1, jpl
-            WHERE( v_i(:,:,jl) < 0._wp )   zdiag_vmin(:,:) = 1._wp
+            WHERE( v_i(A2D(0),jl) < 0._wp )   zdiag_vmin(:,:) = 1._wp
          ENDDO
          ! s_i < 0
          zdiag_smin(:,:) = 0._wp
          DO jl = 1, jpl
-            WHERE( s_i(:,:,jl) < 0._wp )   zdiag_smin(:,:) = 1._wp
+            WHERE( s_i(A2D(0),jl) < 0._wp )   zdiag_smin(:,:) = 1._wp
          ENDDO
          ! e_i < 0
          zdiag_emin(:,:) = 0._wp
          DO jl = 1, jpl
             DO jk = 1, nlay_i
-               WHERE( e_i(:,:,jk,jl) < 0._wp )   zdiag_emin(:,:) = 1._wp
+               WHERE( e_i(A2D(0),jk,jl) < 0._wp )   zdiag_emin(:,:) = 1._wp
             ENDDO
          ENDDO
          ! a_i > amax
@@ -528,8 +565,8 @@ CONTAINS
       INTEGER :: jl, ji, jj
       !!-------------------------------------------------------------------
 
-      DO ji = mi0(ki), mi1(ki)
-         DO jj = mj0(kj), mj1(kj)
+      DO ji = mi0(ki,nn_hls), mi1(ki,nn_hls)
+         DO jj = mj0(kj,nn_hls), mj1(kj,nn_hls)
 
             WRITE(numout,*) ' time step ',kt,' ',cd1             ! print title
 
@@ -696,6 +733,7 @@ CONTAINS
       CALL prt_ctl(tab2d_1=ato_i      , clinfo1=' ato_i       :', mask1=tmask)
       CALL prt_ctl(tab2d_1=vt_i       , clinfo1=' vt_i        :', mask1=tmask)
       CALL prt_ctl(tab2d_1=vt_s       , clinfo1=' vt_s        :', mask1=tmask)
+      IF( ln_icedyn ) THEN
       CALL prt_ctl(tab2d_1=divu_i     , clinfo1=' divu_i      :', mask1=tmask)
       CALL prt_ctl(tab2d_1=delta_i    , clinfo1=' delta_i     :', mask1=tmask)
       CALL prt_ctl(tab2d_1=stress1_i  , clinfo1=' stress1_i   :', mask1=tmask)
@@ -703,6 +741,7 @@ CONTAINS
       CALL prt_ctl(tab2d_1=stress12_i , clinfo1=' stress12_i  :')   ! should be fmask
       CALL prt_ctl(tab2d_1=strength   , clinfo1=' strength    :', mask1=tmask)
       CALL prt_ctl(tab2d_1=delta_i    , clinfo1=' delta_i     :', mask1=tmask)
+      ENDIF
       CALL prt_ctl(tab2d_1=u_ice      , clinfo1=' u_ice       :', mask1=umask,   &
          &         tab2d_2=v_ice      , clinfo2=' v_ice       :', mask2=vmask)
 
@@ -733,10 +772,10 @@ CONTAINS
       CALL prt_ctl_info(' ')
       CALL prt_ctl_info(' - Stresses : ')
       CALL prt_ctl_info('   ~~~~~~~~~~ ')
-      CALL prt_ctl(tab2d_1=utau       , clinfo1= ' utau      : ', mask1 = umask,  &
-         &         tab2d_2=vtau       , clinfo2= ' vtau      : ', mask2 = vmask)
-      CALL prt_ctl(tab2d_1=utau_ice   , clinfo1= ' utau_ice  : ', mask1 = umask,  &
-         &         tab2d_2=vtau_ice   , clinfo2= ' vtau_ice  : ', mask2 = vmask)
+      CALL prt_ctl(tab2d_1=utau       , clinfo1= ' utau      : ', mask1 = tmask,  &
+         &         tab2d_2=vtau       , clinfo2= ' vtau      : ', mask2 = tmask)
+      CALL prt_ctl(tab2d_1=utau_ice   , clinfo1= ' utau_ice  : ', mask1 = tmask,  &
+         &         tab2d_2=vtau_ice   , clinfo2= ' vtau_ice  : ', mask2 = tmask)
 
    END SUBROUTINE ice_prt3D
 
@@ -751,8 +790,9 @@ CONTAINS
       !!-------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   ! ice time-step index
       !
-      REAL(wp), DIMENSION(jpi,jpj,6) ::   ztmp
-      REAL(wp), DIMENSION(6)         ::   zchk
+      INTEGER ::   ji, jj           ! dummy loop index
+      REAL(wp), DIMENSION(A2D(0),6) ::   ztmp
+      REAL(wp), DIMENSION(6)        ::   zchk
       !!-------------------------------------------------------------------
       !
       IF( kt == nit000 .AND. lwp ) THEN
@@ -762,25 +802,27 @@ CONTAINS
       ENDIF
       !
       ! -- 2D budgets (must be close to 0) -- !
-      ztmp(:,:,1) =  wfx_ice  (:,:) + wfx_snw  (:,:) + wfx_spr  (:,:) + wfx_sub(:,:) + wfx_pnd(:,:) &
-         &         + diag_vice(:,:) + diag_vsnw(:,:) + diag_vpnd(:,:) - diag_adv_mass(:,:)
-      ztmp(:,:,2) = sfx(:,:) + diag_sice(:,:) - diag_adv_salt(:,:)
-      ztmp(:,:,3) = qt_oce_ai(:,:) - qt_atm_oi(:,:) + diag_heat(:,:) - diag_adv_heat(:,:)
-
+      DO_2D( 0, 0, 0, 0 )
+         ztmp(ji,jj,1) =  wfx_ice  (ji,jj) + wfx_snw  (ji,jj) + wfx_spr  (ji,jj) + wfx_sub(ji,jj) + wfx_pnd(ji,jj) &
+            &           + diag_vice(ji,jj) + diag_vsnw(ji,jj) + diag_vpnd(ji,jj) - diag_adv_mass(ji,jj)
+         ztmp(ji,jj,2) = sfx(ji,jj) + diag_sice(ji,jj) - diag_adv_salt(ji,jj)
+         ztmp(ji,jj,3) = qt_oce_ai(ji,jj) - qt_atm_oi(ji,jj) + diag_heat(ji,jj) - diag_adv_heat(ji,jj)
+      END_2D
       ! write outputs
       CALL iom_put( 'icedrift_mass', ztmp(:,:,1) )
       CALL iom_put( 'icedrift_salt', ztmp(:,:,2) )
       CALL iom_put( 'icedrift_heat', ztmp(:,:,3) )
 
       ! -- 1D budgets -- !
-      ztmp(:,:,1) = ztmp(:,:,1) * e1e2t * rDt_ice         ! mass
-      ztmp(:,:,2) = ztmp(:,:,2) * e1e2t * rDt_ice * 1.e-3 ! salt
-      ztmp(:,:,3) = ztmp(:,:,3) * e1e2t                   ! heat
-
-      ztmp(:,:,4) = diag_adv_mass * e1e2t * rDt_ice
-      ztmp(:,:,5) = diag_adv_salt * e1e2t * rDt_ice * 1.e-3
-      ztmp(:,:,6) = diag_adv_heat * e1e2t
-
+      DO_2D( 0, 0, 0, 0 )
+         ztmp(ji,jj,1) = ztmp(ji,jj,1) * e1e2t(ji,jj) * rDt_ice         ! mass
+         ztmp(ji,jj,2) = ztmp(ji,jj,2) * e1e2t(ji,jj) * rDt_ice * 1.e-3 ! salt
+         ztmp(ji,jj,3) = ztmp(ji,jj,3) * e1e2t(ji,jj)                   ! heat
+         
+         ztmp(ji,jj,4) = diag_adv_mass(ji,jj) * e1e2t(ji,jj) * rDt_ice
+         ztmp(ji,jj,5) = diag_adv_salt(ji,jj) * e1e2t(ji,jj) * rDt_ice * 1.e-3
+         ztmp(ji,jj,6) = diag_adv_heat(ji,jj) * e1e2t(ji,jj)
+      END_2D
       ! global sums
       zchk(1:6) = glob_sum_vec( 'icectl', ztmp(:,:,1:6) )
       

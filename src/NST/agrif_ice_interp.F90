@@ -64,12 +64,10 @@ CONTAINS
       CALL Agrif_Set_MaskMaxSearch(10)
       CALL Agrif_init_variable(tra_iceini_id,procname=interp_tra_ice)
       !
-      CALL lbc_lnk( 'agrif_istate_ice',  a_i,'T',1._wp,  v_i,'T',1._wp, &
-               &         v_s,'T',1._wp, sv_i,'T',1._wp, oa_i,'T',1._wp, &
-               &        a_ip,'T',1._wp, v_ip,'T',1._wp, v_il,'T',1._wp )
-      CALL lbc_lnk( 'agrif_istate_ice', t_su,'T',1._wp )
-      CALL lbc_lnk( 'agrif_istate_ice',  e_s,'T',1._wp )
-      CALL lbc_lnk( 'agrif_istate_ice',  e_i,'T',1._wp )
+      CALL lbc_lnk( 'agrif_istate_ice', a_i,'T',1._wp,  v_i,'T',1._wp, &
+               &                        v_s,'T',1._wp, sv_i,'T',1._wp, oa_i,'T',1._wp, &
+               &                        a_ip,'T',1._wp, v_ip,'T',1._wp, v_il,'T',1._wp, t_su,'T',1._wp )
+      CALL lbc_lnk( 'agrif_istate_ice', e_i,'T',1._wp, e_s,'T',1._wp )
       !
       ! Set u_ice, v_ice:
       use_sign_north = .TRUE.
@@ -87,7 +85,7 @@ CONTAINS
       ! 
       CALL lbc_lnk( 'agrif_istate_ice', u_ice, 'U', -1._wp, v_ice, 'V', -1._wp )
       !
-      CALL ice_var_glo2eqv
+      CALL ice_var_glo2eqv(1)
       !
    END SUBROUTINE agrif_istate_ice
 

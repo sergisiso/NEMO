@@ -80,7 +80,7 @@ MODULE agrif_oce
    INTEGER, PUBLIC :: unb_interp_id, vnb_interp_id, ub2b_interp_id, vb2b_interp_id
    INTEGER, PUBLIC :: ub2b_update_id, vb2b_update_id, unb_update_id, vnb_update_id
    INTEGER, PUBLIC :: ub2b_cor_id, vb2b_cor_id, sshn_id
-   INTEGER, PUBLIC :: sshn_frc_id
+   INTEGER, PUBLIC :: sshn_frc_id, tmask_id
    INTEGER, PUBLIC :: e3t_id, e3u_id, e3v_id, e3f_id
    INTEGER, PUBLIC :: r3t_id, r3u_id, r3v_id, r3f_id
    INTEGER, PUBLIC :: scales_t_id

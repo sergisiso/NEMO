@@ -24,7 +24,6 @@ MODULE sshwzv
    USE isf_oce        ! ice shelf
    USE dom_oce        ! ocean space and time domain variables 
    USE sbc_oce        ! surface boundary condition: ocean
-   USE domvvl         ! Variable volume
    USE divhor         ! horizontal divergence
    USE phycst         ! physical constants
    USE bdy_oce , ONLY : ln_bdy, bdytmask   ! Open BounDarY
@@ -86,7 +85,6 @@ CONTAINS
       INTEGER  ::   ji, jj, jk      ! dummy loop index
       REAL(wp) ::   zcoef   ! local scalar
       REAL(wp), DIMENSION(jpi,jpj) ::   zhdiv   ! 2D workspace
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   z3d   ! 3D workspace
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('ssh_nxt')
@@ -123,7 +121,7 @@ CONTAINS
 #endif
       END_2D
       ! pssh must be defined everywhere (true for dyn_spg_ts, not for dyn_spg_exp)
-      IF ( .NOT. ln_dynspg_ts .AND. nn_hls == 2 ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )
+      IF ( .NOT. ln_dynspg_ts ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )
       !
 #if defined key_agrif
       Kbb_a = Kbb   ;   Kmm_a = Kmm   ;   Krhs_a = Kaa
@@ -132,7 +130,6 @@ CONTAINS
       !
       IF ( .NOT.ln_dynspg_ts ) THEN
          IF( ln_bdy ) THEN
-            IF (nn_hls==1) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )    ! Not sure that's necessary
             CALL bdy_ssh( pssh(:,:,Kaa) )              ! Duplicate sea level across open boundaries
          ENDIF
       ENDIF
@@ -175,40 +172,15 @@ CONTAINS
          IF(lwp) WRITE(numout,*) 'wzv_MLF : now vertical velocity '
          IF(lwp) WRITE(numout,*) '~~~~~~~'
          !
-         pww(:,:,jpk) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
+         pww(:,:,:) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
+         !                                   ! needed over the halos for the output (ww+wi) in diawri.F90
       ENDIF
       !                                           !------------------------------!
       !                                           !     Now Vertical Velocity    !
       !                                           !------------------------------!
       !
-      !                                               !===============================!
-      IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN      !==  z_tilde and layer cases  ==!
-         !                                            !===============================!
-         ALLOCATE( zhdiv(jpi,jpj,jpk) ) 
-         !
-         DO jk = 1, jpkm1
-            ! horizontal divergence of thickness diffusion transport ( velocity multiplied by e3t)
-            ! - ML - note: computation already done in dom_vvl_sf_nxt. Could be optimized (not critical and clearer this way)
-            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
-               zhdiv(ji,jj,jk) = r1_e1e2t(ji,jj) * ( un_td(ji,jj,jk) - un_td(ji-1,jj,jk) + vn_td(ji,jj,jk) - vn_td(ji,jj-1,jk) )
-            END_2D
-         END DO
-         IF( nn_hls == 1)   CALL lbc_lnk('sshwzv', zhdiv, 'T', 1.0_wp)  ! - ML - Perhaps not necessary: not used for horizontal "connexions"
-         !                             ! Is it problematic to have a wrong vertical velocity in boundary cells?
-         !                             ! Same question holds for hdiv. Perhaps just for security
-         !                             ! clem: yes it is a problem because ww is used in many other places where we need the halos
-         !
-         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
-            ! computation of w
-            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (   e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)   &
-               &                                  +                  zhdiv(ji,jj,jk)   &
-               &                                  + r1_Dt * (  e3t(ji,jj,jk,Kaa)       &
-               &                                             - e3t(ji,jj,jk,Kbb) )   ) * tmask(ji,jj,jk)
-         END_3D
-         !          IF( ln_vvl_layer ) pww(:,:,:) = 0.e0
-         DEALLOCATE( zhdiv )
-         !                                            !=================================!
-      ELSEIF( ln_linssh )   THEN                      !==  linear free surface cases  ==!
+      !                                               !=================================!
+      IF( ln_linssh )   THEN                          !==  linear free surface cases  ==!
          !                                            !=================================!
          DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)  ) * tmask(ji,jj,jk)
@@ -220,11 +192,10 @@ CONTAINS
 #if defined key_qco
 !!gm slightly faster
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)    &
-                 &                               + r1_Dt * e3t_0(ji,jj,jk) * ( r3t(ji,jj,Kaa) - r3t(ji,jj,Kbb) )  ) * tmask(ji,jj,jk)
+                 &                               + r1_Dt * e3t_0(ji,jj,jk) * ( r3t(ji,jj,Kaa) - r3t(ji,jj,Kbb) ) ) * tmask(ji,jj,jk)
 #else
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)    &
-               &                                 + r1_Dt * (  e3t(ji,jj,jk,Kaa)        &
-               &                                            - e3t(ji,jj,jk,Kbb)  )   ) * tmask(ji,jj,jk)
+               &                                 + r1_Dt * ( e3t(ji,jj,jk,Kaa) - e3t(ji,jj,jk,Kbb) )  ) * tmask(ji,jj,jk)
 #endif
          END_3D
       ENDIF
@@ -244,28 +215,28 @@ CONTAINS
          ! inside computational domain (cosmetic) 
          DO jk = 1, jpkm1
             IF( lk_west ) THEN                             ! --- West --- !
-               DO ji = mi0(2+nn_hls), mi1(2+nn_hls)
+               DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
                   DO jj = 1, jpj
                      pww(ji,jj,jk) = 0._wp 
                   END DO
                END DO
             ENDIF
             IF( lk_east ) THEN                             ! --- East --- !
-               DO ji = mi0(jpiglo-1-nn_hls), mi1(jpiglo-1-nn_hls)
+               DO ji = mi0(jpiglo-1-nn_hls,nn_hls), mi1(jpiglo-1-nn_hls,nn_hls)
                   DO jj = 1, jpj
                      pww(ji,jj,jk) = 0._wp
                   END DO
                END DO
             ENDIF
             IF( lk_south ) THEN                            ! --- South --- !
-               DO jj = mj0(2+nn_hls), mj1(2+nn_hls)
+               DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
                   DO ji = 1, jpi
                      pww(ji,jj,jk) = 0._wp
                   END DO
                END DO
             ENDIF
             IF( lk_north ) THEN                            ! --- North --- !
-               DO jj = mj0(jpjglo-1-nn_hls), mj1(jpjglo-1-nn_hls)
+               DO jj = mj0(jpjglo-1-nn_hls,nn_hls), mj1(jpjglo-1-nn_hls,nn_hls)
                   DO ji = 1, jpi
                      pww(ji,jj,jk) = 0._wp
                   END DO
@@ -314,7 +285,8 @@ CONTAINS
          IF(lwp) WRITE(numout,*) 'wzv_RK3 : now vertical velocity '
          IF(lwp) WRITE(numout,*) '~~~~~ '
          !
-         pww(:,:,jpk) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
+         pww(:,:,:) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
+         !                                   ! needed over the halos for the output (ww+wi) in diawri.F90
       ENDIF
       !
       CALL div_hor( kt, Kbb, Kmm, puu, pvv, ze3div )
@@ -322,30 +294,8 @@ CONTAINS
       !                                           !     Now Vertical Velocity    !
       !                                           !------------------------------!
       !
-      !                                               !===============================!
-      IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN      !==  z_tilde and layer cases  ==!
-         !                                            !===============================!
-         ALLOCATE( zhdiv(jpi,jpj,jpk) ) 
-         !
-         DO jk = 1, jpkm1
-            ! horizontal divergence of thickness diffusion transport ( velocity multiplied by e3t)
-            ! - ML - note: computation already done in dom_vvl_sf_nxt. Could be optimized (not critical and clearer this way)
-            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
-               zhdiv(ji,jj,jk) = r1_e1e2t(ji,jj) * ( un_td(ji,jj,jk) - un_td(ji-1,jj,jk) + vn_td(ji,jj,jk) - vn_td(ji,jj-1,jk) )
-            END_2D
-         END DO
-         IF( nn_hls == 1)   CALL lbc_lnk('sshwzv', zhdiv, 'T', 1.0_wp)  ! - ML - Perhaps not necessary: not used for horizontal "connexions"
-         !                             ! Is it problematic to have a wrong vertical velocity in boundary cells?
-         !                             ! Same question holds for hdiv. Perhaps just for security
-         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
-            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (   ze3div(ji,jj,jk) + zhdiv(ji,jj,jk)   &
-                 &                            + r1_Dt * (  e3t(ji,jj,jk,Kaa)       &
-                 &                                       - e3t(ji,jj,jk,Kbb) )   ) * tmask(ji,jj,jk)
-         END_3D
-         !
-         DEALLOCATE( zhdiv ) 
-         !                                            !=================================!
-      ELSEIF( ln_linssh )   THEN                      !==  linear free surface cases  ==!
+      !                                               !=================================!
+      IF( ln_linssh )   THEN                          !==  linear free surface cases  ==!
          !                                            !=================================!
          DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - ze3div(ji,jj,jk) 
@@ -375,28 +325,28 @@ CONTAINS
          ! inside computational domain (cosmetic) 
          DO jk = 1, jpkm1
             IF( lk_west ) THEN                             ! --- West --- !
-               DO ji = mi0(2+nn_hls), mi1(2+nn_hls)
+               DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
                   DO jj = 1, jpj
                      pww(ji,jj,jk) = 0._wp 
                   END DO
                END DO
             ENDIF
             IF( lk_east ) THEN                             ! --- East --- !
-               DO ji = mi0(jpiglo-1-nn_hls), mi1(jpiglo-1-nn_hls)
+               DO ji = mi0(jpiglo-1-nn_hls,nn_hls), mi1(jpiglo-1-nn_hls,nn_hls)
                   DO jj = 1, jpj
                      pww(ji,jj,jk) = 0._wp
                   END DO
                END DO
             ENDIF
             IF( lk_south ) THEN                            ! --- South --- !
-               DO jj = mj0(2+nn_hls), mj1(2+nn_hls)
+               DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
                   DO ji = 1, jpi
                      pww(ji,jj,jk) = 0._wp
                   END DO
                END DO
             ENDIF
             IF( lk_north ) THEN                            ! --- North --- !
-               DO jj = mj0(jpjglo-1-nn_hls), mj1(jpjglo-1-nn_hls)
+               DO jj = mj0(jpjglo-1-nn_hls,nn_hls), mj1(jpjglo-1-nn_hls,nn_hls)
                   DO ji = 1, jpi
                      pww(ji,jj,jk) = 0._wp
                   END DO
@@ -507,24 +457,6 @@ CONTAINS
       !
       ! Calculate Courant numbers
       zdt = 2._wp * rn_Dt                            ! 2*rn_Dt and not rDt (for restartability)
-      IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN
-         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
-            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-            Cu_adv(ji,jj,jk) =   zdt *                                                         &
-               &  ( ( MAX( ww(ji,jj,jk) , 0._wp ) - MIN( ww(ji,jj,jk+1) , 0._wp ) )            &
-               &  + ( MAX( e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm)                                  &
-               &                        * uu (ji  ,jj,jk,Kmm) + un_td(ji  ,jj,jk), 0._wp ) -   &
-               &      MIN( e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm)                                  &
-               &                        * uu (ji-1,jj,jk,Kmm) + un_td(ji-1,jj,jk), 0._wp ) )   &
-               &                               * r1_e1e2t(ji,jj)                                                                     &
-               &  + ( MAX( e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm)                                  &
-               &                        * vv (ji,jj  ,jk,Kmm) + vn_td(ji,jj  ,jk), 0._wp ) -   &
-               &      MIN( e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm)                                  &
-               &                        * vv (ji,jj-1,jk,Kmm) + vn_td(ji,jj-1,jk), 0._wp ) )   &
-               &                               * r1_e1e2t(ji,jj)                                                                     &
-               &                             ) * z1_e3t
-         END_3D
-      ELSE
          DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
             z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
             Cu_adv(ji,jj,jk) =   zdt *                                                      &
@@ -537,7 +469,6 @@ CONTAINS
                &                               * r1_e1e2t(ji,jj)                                                 &
                &                             ) * z1_e3t
          END_3D
-      ENDIF
       CALL iom_put("Courant",Cu_adv)
       !
       IF( MAXVAL( Cu_adv(:,:,:) ) > Cu_min ) THEN       ! Quick check if any breaches anywhere

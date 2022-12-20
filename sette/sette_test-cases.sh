@@ -108,18 +108,20 @@ if [ ${USING_MPMD} == "no" ]
 fi
 #
 # Directory to run the tests
-CONFIG_DIR0=${MAIN_DIR}/cfgs
+CONFIG_DIR0=${MAIN_DIR}/tests
 TOOLS_DIR=${MAIN_DIR}/tools
 
 if [ -n "${CUSTOM_DIR}" ]; then
   NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
-  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]; then
+  CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
+  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG
   else
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}
   fi
 fi
 CMP_NAM=${1:-$COMPILER}
+CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
 # Copy job_batch_COMPILER file for specific compiler into job_batch_template
 cd ${SETTE_DIR}
 cp BATCH_TEMPLATE/${JOB_PREFIX}-${COMPILER} job_batch_template || exit
@@ -143,7 +145,7 @@ do
 # ---------
 if [ ${config} == "OVERFLOW" ] ;  then
     SETTE_CONFIG="OVERFLOW"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -153,11 +155,10 @@ if [ ${config} == "OVERFLOW" ] ;  then
     cd ${MAIN_DIR}
     #
     #
-    clean_config OVERFLOW ${SETTE_CONFIG} 'tests'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    sync_config  OVERFLOW ${SETTE_CONFIG} 'tests'
-    #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "OVERFLOW" ] && [ ${DO_RESTART} == "1" ] ;  then
     ## Restartability tests for OVERFLOW
@@ -176,7 +177,7 @@ if [ ${config} == "OVERFLOW" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -198,7 +199,7 @@ if [ ${config} == "OVERFLOW" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg nn_rstctl 2
     set_namelist namelist_cfg cn_ocerst_in \"OVF_LONG_${ITRST}_restart\"
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -215,18 +216,18 @@ fi
 if [ ${config} == "OVERFLOW" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
     ## Test for all advection, vert. coordinates, vector form, flux form: test runability and complete all time steps
     ## Needed namelist-xxxx for every type of run tested
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
 	ITEND=6120
     fi
-    cd ${CONFIG_DIR}/${NEW_CONF}/EXP00
+    cd ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
 
     for file in $(echo `ls namelist_*_cfg `) ; do
         TEST_NAME=`echo $file | sed -e "s/namelist_//" | sed -e "s/_cfg//"`
         TEST_NAME="EXP-${TEST_NAME}"
-        if [ ! -d ${CONFIG_DIR}/${NEW_CONF}/${TEST_NAME} ] ; then mkdir ${CONFIG_DIR}/${NEW_CONF}/${TEST_NAME} ; fi
+        if [ ! -d ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/${TEST_NAME} ] ; then mkdir -p ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/${TEST_NAME} ; fi
         export TEST_NAME="${TEST_NAME}"
          ##
         cd ${SETTE_DIR}
@@ -238,11 +239,11 @@ if [ ${config} == "OVERFLOW" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
         if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
         cd ${EXE_DIR}
         rm namelist_*_*_*_*
-        cp -pL ${CONFIG_DIR}/${NEW_CONF}/EXP00/$file namelist_cfg
+        cp -pL ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00/$file namelist_cfg
 	set_namelist namelist_cfg nn_it000 1
 	set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
         set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
         set_xio_using_server iodef.xml ${USING_MPMD}
@@ -259,7 +260,7 @@ fi
 # --------------
 if [ ${config} == "LOCK_EXCHANGE" ] ;  then
     SETTE_CONFIG="LOCK_EXCHANGE"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -270,11 +271,10 @@ if [ ${config} == "LOCK_EXCHANGE" ] ;  then
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     #
-    clean_config LOCK_EXCHANGE ${SETTE_CONFIG} 'tests'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    sync_config  LOCK_EXCHANGE ${SETTE_CONFIG} 'tests'
-    #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_RESTART} == "1" ] ;  then
     ## Restartability tests for LOCK_EXCHANGE
@@ -293,7 +293,7 @@ if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -315,7 +315,7 @@ if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg nn_rstctl 2
     set_namelist namelist_cfg cn_ocerst_in \"LOCK_LONG_${ITRST}_restart\"
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -331,19 +331,20 @@ fi
 if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
     ## Test for all advection, vector form, flux form: test runability and complete all time steps
     ## Needed namelist-xxxx for every type of run tested
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
 	ITEND=61200
     fi
-    cd ${CONFIG_DIR}/${NEW_CONF}/EXP00
+    cd ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+
 
     for file in $(echo `ls namelist_*_cfg `) ; do
         echo ''
         TEST_NAME=`echo $file | sed -e "s/namelist_//" | sed -e "s/_cfg//"`
         TEST_NAME="EXP-${TEST_NAME}"
-        `mkdir ${CONFIG_DIR}/${NEW_CONF}/${TEST_NAME}`
+        mkdir -p ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/${TEST_NAME}
         export TEST_NAME="${TEST_NAME}"
         ##  
         cd ${SETTE_DIR}
@@ -355,11 +356,11 @@ if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
         if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
         cd ${EXE_DIR}
         rm namelist_*_*_*_*
-        cp -pL ${CONFIG_DIR}/${NEW_CONF}/EXP00/$file namelist_cfg
+        cp -pL ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00/$file namelist_cfg
 	set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
         set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
         set_xio_using_server iodef.xml ${USING_MPMD}
@@ -377,7 +378,7 @@ fi
 # ---------
 if [ ${config} == "VORTEX" ] ;  then
     SETTE_CONFIG="VORTEX"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -389,11 +390,10 @@ if [ ${config} == "VORTEX" ] ;  then
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     #
-    clean_config VORTEX ${SETTE_CONFIG} 'tests'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    sync_config  VORTEX ${SETTE_CONFIG} 'tests'
-    #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for VORTEX
@@ -412,7 +412,7 @@ if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.	
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
 
@@ -421,7 +421,7 @@ if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist 1_namelist_cfg nn_itend $(( ${ITEND} * 3 ))
     set_namelist 1_namelist_cfg nn_stock $(( ${ITEND} * 3 / 2 ))
     set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
 	
@@ -444,7 +444,7 @@ if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg nn_rstctl 2
     set_namelist namelist_cfg cn_ocerst_in \"VORTEX_LONG_${ITRST}_restart\"
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     
@@ -456,7 +456,7 @@ if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist 1_namelist_cfg ln_rstart .true.
     set_namelist 1_namelist_cfg nn_rstctl 2
     set_namelist 1_namelist_cfg cn_ocerst_in \"VORTEX_LONG_${ITRST_1}_restart\"
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
       
@@ -499,7 +499,7 @@ if [ ${config} == "VORTEX" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 3
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     #if [ ${USING_TIMING} == "yes" ]  ; then set_namelist namelist_cfg ln_timing .true. ; fi
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
    
@@ -510,7 +510,7 @@ if [ ${config} == "VORTEX" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist 1_namelist_cfg jpni 2
     set_namelist 1_namelist_cfg jpnj 3
     set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
 
@@ -542,7 +542,7 @@ if [ ${config} == "VORTEX" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 2
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
 
@@ -553,7 +553,7 @@ if [ ${config} == "VORTEX" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist 1_namelist_cfg jpni 3
     set_namelist 1_namelist_cfg jpnj 2
     set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
 
@@ -571,7 +571,7 @@ fi
 # ---------
 if [ ${config} == "ICE_AGRIF" ] ;  then
     SETTE_CONFIG="ICE_AGRIF"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=10
     else
@@ -583,12 +583,11 @@ if [ ${config} == "ICE_AGRIF" ] ;  then
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     #
-    clean_config ICE_AGRIF ${SETTE_CONFIG} 'tests'
-    #
-    sync_config  ICE_AGRIF ${SETTE_CONFIG} 'tests'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ICE_AGRIF uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for ICE_AGRIF
@@ -607,7 +606,7 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     
@@ -616,7 +615,7 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist 1_namelist_cfg nn_itend $(( ${ITEND} * 3 ))
     set_namelist 1_namelist_cfg nn_stock $(( ${ITEND} * 3 / 2 ))
     set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
     
@@ -640,7 +639,7 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg cn_ocerst_in \"ICE_AGRIF_LONG_${ITRST}_restart\"
     set_namelist namelist_ice_cfg cn_icerst_in \"ICE_AGRIF_LONG_${ITRST}_restart_ice\"
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     
@@ -653,7 +652,7 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist 1_namelist_cfg nn_rstctl 2
     set_namelist 1_namelist_cfg cn_ocerst_in \"ICE_AGRIF_LONG_${ITRST_1}_restart\"
     set_namelist 1_namelist_ice_cfg cn_icerst_in \"ICE_AGRIF_LONG_${ITRST_1}_restart_ice\"
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
     
@@ -703,7 +702,7 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 3
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     
@@ -714,7 +713,7 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist 1_namelist_cfg jpni 2
     set_namelist 1_namelist_cfg jpnj 3
     set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
 
@@ -742,7 +741,7 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 2
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     
@@ -753,7 +752,7 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist 1_namelist_cfg jpni 3
     set_namelist 1_namelist_cfg jpnj 2
     set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
     
@@ -770,7 +769,7 @@ fi
 # ------
 if [ ${config} == "ISOMIP+" ] ;  then
     SETTE_CONFIG="ISOMIP+"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -781,12 +780,11 @@ if [ ${config} == "ISOMIP+" ] ;  then
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     #
-    clean_config ISOMIP+ ${SETTE_CONFIG} 'tests'
-    #
-    sync_config  ISOMIP+ ${SETTE_CONFIG} 'tests'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ISOMIP+ uses ln_hpg_isf so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ISOMIP+" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests
@@ -807,7 +805,7 @@ if [ ${config} == "ISOMIP+" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 3
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -831,7 +829,7 @@ if [ ${config} == "ISOMIP+" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist namelist_cfg cn_ocerst_in \"ISOMIP+_LONG_${ITRST}_restart\"
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -850,7 +848,7 @@ fi
 
 if [ ${config} == "ISOMIP+" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -873,7 +871,7 @@ if [ ${config} == "ISOMIP+" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 3
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -898,7 +896,7 @@ if [ ${config} == "ISOMIP+" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 4
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -915,7 +913,7 @@ fi
 # ---------
 if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
     SETTE_CONFIG="SWG"${SETTE_STG}
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM,,} =~ ("debug"|"dbg") ]]
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
     else
@@ -926,11 +924,10 @@ if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     #
-    clean_config SWG ${SETTE_CONFIG} 'tests'
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    sync_config  SWG ${SETTE_CONFIG} 'tests'
-    #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG -t ${CMP_DIR:-${CONFIG_DIR0}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "SWG" ] && [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
 ## Restartability tests for SWG
@@ -949,7 +946,7 @@ if [ ${config} == "SWG" ] && [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes"
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.	
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
 	
@@ -973,7 +970,7 @@ if [ ${config} == "SWG" ] && [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes"
     set_namelist namelist_cfg cn_ocerst_in \"SWG_LONG_${ITRST}_restart\"
       
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -1016,7 +1013,7 @@ if [ ${config} == "SWG" ] && [ ${DO_REPRO} == "1" ] && [ ${USING_QCO} == "yes" ]
    
 
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
@@ -1045,7 +1042,7 @@ if [ ${config} == "SWG" ] && [ ${DO_REPRO} == "1" ] && [ ${USING_QCO} == "yes" ]
     set_namelist namelist_cfg sn_cfctl%l_prtctl .true.
 
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 2 1
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}

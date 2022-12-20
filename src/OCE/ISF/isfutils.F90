@@ -13,9 +13,9 @@ MODULE isfutils
 
    USE iom           , ONLY: iom_open, iom_get, iom_close, jpdom_global      ! read input file
    USE lib_fortran   , ONLY: glob_sum, glob_min, glob_max                    ! compute global value
-   USE par_oce       , ONLY: jpi,jpj,jpk, jpnij, Nis0, Nie0, Njs0, Nje0      ! domain size
+   USE par_oce                                                               ! domain size
    USE dom_oce       , ONLY: narea                                           ! local domain
-   USE in_out_manager, ONLY: i8, wp, lwp, numout                             ! miscelenious
+   USE in_out_manager                                                        ! miscelenious
    USE lib_mpp
 
    IMPLICIT NONE
@@ -28,6 +28,8 @@ MODULE isfutils
 
    PUBLIC read_2dcstdta, debug
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
 CONTAINS
 
    SUBROUTINE read_2dcstdta(cdfile, cdvar, pvar)
@@ -36,17 +38,16 @@ CONTAINS
       !!
       !! ** Purpose : read input file
       !!
-      !!-------------------------- OUT -------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) :: pvar     ! output variable
-      !!-------------------------- IN  -------------------------------------
-      CHARACTER(len=*)            , INTENT(in   ) :: cdfile   ! input file name
-      CHARACTER(len=*)            , INTENT(in   ) :: cdvar    ! variable name
+      !!--------------------------------------------------------------------
+      CHARACTER(len=*)           , INTENT(in   ) ::   cdfile   ! input file name
+      CHARACTER(len=*)           , INTENT(in   ) ::   cdvar    ! variable name
+      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   pvar     ! output variable
       !!--------------------------------------------------------------------
       INTEGER :: inum
       !!--------------------------------------------------------------------
 
       CALL iom_open( TRIM(cdfile), inum )
-      CALL iom_get( inum, jpdom_global, TRIM(cdvar), pvar)
+      CALL iom_get( inum, jpdom_global, TRIM(cdvar), pvar )
       CALL iom_close(inum)
 
    END SUBROUTINE read_2dcstdta
@@ -57,16 +58,16 @@ CONTAINS
       !!
       !! ** Purpose : add debug print for 2d variables
       !!
-      !!-------------------------- IN  -------------------------------------
-      CHARACTER(LEN=*)            , INTENT(in   ) :: cdtxt
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pvar
       !!--------------------------------------------------------------------
-      REAL(wp)    :: zmin, zmax, zsum
-      INTEGER(i8) :: imodd, ip
-      INTEGER     :: imods
-      INTEGER     :: isums, idums
-      INTEGER     :: ji,jj,jk
-      INTEGER, DIMENSION(jpnij) :: itmps
+      CHARACTER(LEN=*)           , INTENT(in) ::   cdtxt
+      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pvar
+      !!--------------------------------------------------------------------
+      REAL(wp)    ::   zmin, zmax, zsum
+      INTEGER(i8) ::   imodd, ip
+      INTEGER     ::   imods
+      INTEGER     ::   isums, idums
+      INTEGER     ::   ji, jj, jk
+      INTEGER, DIMENSION(jpnij) ::   itmps
       !!--------------------------------------------------------------------
       !
       ! global min/max/sum to check data range and NaN
@@ -110,16 +111,16 @@ CONTAINS
       !!
       !! ** Purpose : add debug print for 3d variables
       !!
-      !!-------------------------- IN  -------------------------------------
-      CHARACTER(LEN=*)                , INTENT(in   ) :: cdtxt
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) :: pvar
       !!--------------------------------------------------------------------
-      REAL(wp)    :: zmin, zmax, zsum
-      INTEGER(i8) :: imodd, ip
-      INTEGER     :: imods
-      INTEGER     :: isums, idums
-      INTEGER     :: ji,jj,jk
-      INTEGER, DIMENSION(jpnij) :: itmps
+      CHARACTER(LEN=*)               , INTENT(in) ::   cdtxt
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(in) ::   pvar
+      !!--------------------------------------------------------------------
+      REAL(wp)    ::   zmin, zmax, zsum
+      INTEGER(i8) ::   imodd, ip
+      INTEGER     ::   imods
+      INTEGER     ::   isums, idums
+      INTEGER     ::   ji, jj, jk
+      INTEGER, DIMENSION(jpnij) ::   itmps
       !!--------------------------------------------------------------------
       !
       ! global min/max/sum to check data range and NaN

@@ -59,7 +59,7 @@ MODULE diu_coolskin
       !! ** Reference :
       !!
       !!----------------------------------------------------------------------
-      ALLOCATE( x_csdsst(jpi,jpj), x_csthick(jpi,jpj) )
+      ALLOCATE( x_csdsst(A2D(0)), x_csthick(A2D(0)) )
       x_csdsst = 0.
       x_csthick = 0.
       !
@@ -77,16 +77,16 @@ MODULE diu_coolskin
       !! ** Reference :
       !!----------------------------------------------------------------------
       ! Dummy variables
-      REAL(wp), INTENT(IN), DIMENSION(jpi,jpj) :: psqflux     ! Heat (non-solar)(Watts)
-      REAL(wp), INTENT(IN), DIMENSION(jpi,jpj) :: pstauflux   ! Wind stress (kg/ m s^2)
+      REAL(wp), INTENT(IN), DIMENSION(A2D(0))  :: psqflux     ! Heat (non-solar)(Watts)
+      REAL(wp), INTENT(IN), DIMENSION(A2D(0))  :: pstauflux   ! Wind stress (kg/ m s^2)
       REAL(wp), INTENT(IN), DIMENSION(jpi,jpj) :: psrho       ! Water density (kg/m^3)
       REAL(wp), INTENT(IN) :: pDt                             ! Time-step
 
       ! Local variables
-      REAL(wp), DIMENSION(jpi,jpj) :: z_fv                    ! Friction velocity
-      REAL(wp), DIMENSION(jpi,jpj) :: z_gamma                 ! Dimensionless function of wind speed
-      REAL(wp), DIMENSION(jpi,jpj) :: z_lamda                 ! Sauders (dimensionless) proportionality constant
-      REAL(wp), DIMENSION(jpi,jpj) :: z_wspd                  ! Wind speed (m/s)
+      REAL(wp), DIMENSION(A2D(0)) :: z_fv                     ! Friction velocity
+      REAL(wp), DIMENSION(A2D(0)) :: z_gamma                  ! Dimensionless function of wind speed
+      REAL(wp), DIMENSION(A2D(0)) :: z_lamda                  ! Sauders (dimensionless) proportionality constant
+      REAL(wp), DIMENSION(A2D(0)) :: z_wspd                   ! Wind speed (m/s)
       REAL(wp) :: z_ztx                                       ! Temporary u wind stress
       REAL(wp) :: z_zty                                       ! Temporary v wind stress
       REAL(wp) :: z_zmod                                      ! Temporary total wind stress
@@ -96,10 +96,10 @@ MODULE diu_coolskin
       !
       IF( .NOT. (ln_blk .OR. ln_abl) )   CALL ctl_stop("diu_coolskin.f90: diurnal flux processing only implemented for bulk forcing")
       !
-      DO_2D( 1, 1, 1, 1 )
+      DO_2D( 0, 0, 0, 0 )
          !
          ! Calcualte wind speed from wind stress and friction velocity
-         IF( tmask(ji,jj,1) == 1. .AND. pstauflux(ji,jj) /= 0 .AND. psrho(ji,jj) /=0 ) THEN
+         IF( smask0(ji,jj) == 1. .AND. pstauflux(ji,jj) /= 0 .AND. psrho(ji,jj) /=0 ) THEN
             z_fv(ji,jj) = SQRT( pstauflux(ji,jj) / psrho(ji,jj) )
             z_wspd(ji,jj) = SQRT( pstauflux(ji,jj) / ( pp_cda * pp_rhoa ) )
          ELSE
@@ -108,28 +108,28 @@ MODULE diu_coolskin
          ENDIF
          !
          ! Calculate gamma function which is dependent upon wind speed
-         IF( tmask(ji,jj,1) == 1. ) THEN
+         IF( smask0(ji,jj) == 1. ) THEN
             IF( ( z_wspd(ji,jj) <= 7.5 ) ) z_gamma(ji,jj) = ( 0.2 * z_wspd(ji,jj) ) + 0.5
             IF( ( z_wspd(ji,jj) > 7.5 ) .AND. ( z_wspd(ji,jj) < 10. ) ) z_gamma(ji,jj) = ( 1.6 * z_wspd(ji,jj) ) - 10.
             IF( ( z_wspd(ji,jj) >= 10. ) ) z_gamma(ji,jj) = 6.
          ENDIF
          !
          ! Calculate lamda function
-         IF( tmask(ji,jj,1) == 1. .AND. z_fv(ji,jj) /= 0 ) THEN
+         IF( smask0(ji,jj) == 1. .AND. z_fv(ji,jj) /= 0 ) THEN
             z_lamda(ji,jj) = ( z_fv(ji,jj) * pp_k * pp_C ) / ( z_gamma(ji,jj) * psrho(ji,jj) * pp_cw * pp_h * pp_v )
          ELSE
             z_lamda(ji,jj) = 0.
          ENDIF
          !
          ! Calculate the cool skin thickness - only when heat flux is out of the ocean
-         IF( tmask(ji,jj,1) == 1. .AND. z_fv(ji,jj) /= 0 .AND. psqflux(ji,jj) < 0 ) THEN
+         IF( smask0(ji,jj) == 1. .AND. z_fv(ji,jj) /= 0 .AND. psqflux(ji,jj) < 0 ) THEN
             x_csthick(ji,jj) = ( z_lamda(ji,jj) * pp_v ) / z_fv(ji,jj)
          ELSE
             x_csthick(ji,jj) = 0.
          ENDIF
          !
          ! Calculate the cool skin correction - only when the heat flux is out of the ocean
-         IF( tmask(ji,jj,1) == 1. .AND. x_csthick(ji,jj) /= 0. .AND. psqflux(ji,jj) < 0. ) THEN
+         IF( smask0(ji,jj) == 1. .AND. x_csthick(ji,jj) /= 0. .AND. psqflux(ji,jj) < 0. ) THEN
             x_csdsst(ji,jj) = ( psqflux(ji,jj) * x_csthick(ji,jj) ) / pp_k
           ELSE
             x_csdsst(ji,jj) = 0.

@@ -109,7 +109,7 @@ CONTAINS
       !!              - save the outputs
       !!              - save the outputs for restart when necessary
       !!
-      !! ** Action  : - time evolution of the LIM sea-ice model
+      !! ** Action  : - time evolution of the SI3 sea-ice model
       !!              - update all sbc variables below sea-ice:
       !!                utau, vtau, taum, wndm, qns , qsr, emp , sfx
       !!---------------------------------------------------------------------
@@ -117,25 +117,27 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm ! ocean time level indices
       INTEGER, INTENT(in) ::   ksbc     ! flux formulation (user defined, bulk, or Pure Coupled)
       !
-      INTEGER ::   jl   ! dummy loop index
+      INTEGER ::   ji, jj, jl   ! dummy loop index
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('icestp')
       !
-      !                                      !-----------------------!
-      IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN   ! --- Ice time step --- !
-         !                                   !-----------------------!
+      IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN   ! Ice time step
          !
-         kt_ice = kt                              ! -- Ice model time step
+         kt_ice = kt                                                  ! Ice model time step
          !
-         u_oce(:,:) = ssu_m(:,:)                  ! -- mean surface ocean current
-         v_oce(:,:) = ssv_m(:,:)
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )                      ! mean surface ocean current
+            u_oce(ji,jj) = ssu_m(ji,jj)
+            v_oce(ji,jj) = ssv_m(ji,jj)
+         END_2D
          !
-         CALL eos_fzp( sss_m(:,:) , t_bo(:,:) )   ! -- freezing temperature [Kelvin] (set to rt0 over land)
-         t_bo(:,:) = ( t_bo(:,:) + rt0 ) * tmask(:,:,1) + rt0 * ( 1._wp - tmask(:,:,1) )
+         CALL eos_fzp( sss_m(:,:), t_bo(:,:), kbnd=0 )                    ! freezing temperature [Kelvin] (set to rt0 over land)
+         t_bo(:,:) = ( t_bo(:,:) + rt0 ) * smask0(:,:) + rt0 * ( 1._wp - smask0(:,:) )
          !
-         !                          !==  AGRIF Parent to Child  ==!
 #if defined key_agrif
+         !-------------------------------!
+         ! --- AGRIF Parent to Child --- !
+         !-------------------------------!
          !                              ! nbstep_ice ranges from 1 to the nb of child ocean steps inside one parent ice step
          IF( .NOT. Agrif_Root() )       nbstep_ice = MOD( nbstep_ice, Agrif_irhot() * Agrif_Parent(nn_fsbc) / nn_fsbc ) + 1
          !                              ! these calls must remain here for restartability purposes
@@ -148,54 +150,66 @@ CONTAINS
          !------------------------------------------------!
          ! --- Dynamical coupling with the atmosphere --- !
          !------------------------------------------------!
-         ! It provides the following fields used in sea ice model:
-         !    utau_ice, vtau_ice = surface ice stress [N/m2]
-         !------------------------------------------------!
+                                        ! surface ice stress (utau_ice, vtau_ice) [N/m2]
                                         CALL ice_sbc_tau( kt, ksbc, utau_ice, vtau_ice )
+         !
          !-------------------------------------!
-         ! --- ice dynamics and advection  --- !
+         ! --- Ice dynamics and advection  --- !
          !-------------------------------------!
                                         CALL diag_set0                ! set diag of mass, heat and salt fluxes to 0
                                         CALL ice_rst_opn( kt )        ! Open Ice restart file (if necessary)
          !
          IF( ln_icedyn .AND. .NOT.ln_c1d )   &
             &                           CALL ice_dyn( kt, Kmm )       ! -- Ice dynamics
-         !
+         ! ==> clem: here, all the global variables are correctly defined in the halos
+         !         
                                         CALL diag_trends( 1 )         ! record dyn trends
          !
-         !                          !==  lateral boundary conditions  ==!
+         !-----------------------------!
+         ! --- Thermodynamics BDY  --- !
+         !-----------------------------!
          IF( ln_icethd .AND. ln_bdy )   CALL bdy_ice( kt )            ! -- bdy ice thermo
+         ! ==> clem: here, all the global variables are correctly defined in the halos
          !
-         !                          !==  previous lead fraction and ice volume for flux calculations
-                                        CALL ice_var_glo2eqv          ! h_i and h_s for ice albedo calculation
+         !-------------------------------------------------!
+         ! --- Change from global to equivalent arrays --- !
+         !-------------------------------------------------!
+                                        CALL ice_var_glo2eqv(2)       ! h_i and h_s for ice albedo calculation
                                         CALL ice_var_agg(1)           ! at_i for coupling
                                         CALL store_fields             ! Store now ice values
          !
          !------------------------------------------------------!
          ! --- Thermodynamical coupling with the atmosphere --- !
          !------------------------------------------------------!
-         ! It provides the following fields used in sea ice model:
-         !    emp_oce , emp_ice    = E-P over ocean and sea ice                    [Kg/m2/s]
-         !    sprecip              = solid precipitation                           [Kg/m2/s]
-         !    evap_ice             = sublimation                                   [Kg/m2/s]
-         !    qsr_tot , qns_tot    = solar & non solar heat flux (total)           [W/m2]
-         !    qsr_ice , qns_ice    = solar & non solar heat flux over ice          [W/m2]
-         !    dqns_ice             = non solar  heat sensistivity                  [W/m2]
-         !    qemp_oce, qemp_ice,  = sensible heat (associated with evap & precip) [W/m2]
-         !    qprec_ice, qevap_ice
-         !------------------------------------------------------!
+                                        ! It provides the following fields used in sea ice model:
+                                        !    emp_oce , emp_ice    = E-P over ocean and sea ice                    [Kg/m2/s]
+                                        !    sprecip , tprecip    = solid and total precipitation                 [Kg/m2/s]
+                                        !    evap_ice, devap_ice  = sublimation and sensitivity                   [Kg/m2/s ; Kg/m2/s/K]
+                                        !    qsr_tot , qns_tot    = solar & non solar heat flux (total)           [W/m2]
+                                        !    qsr_ice , qns_ice    = solar & non solar heat flux over ice          [W/m2]
+                                        !    dqns_ice             = non solar heat sensistivity                   [W/m2/K]
+                                        !    qemp_oce, qemp_ice,
+                                        !    qprec_ice, qevap_ice = sensible heat associated with mass exchange   [W/m2]
+                                        !    qla_ice, dqla_ice    = latent heat and sensitivity                   [W/m2 ; W/m2/K]
+                                        !    qtr_ice_top          = solar heat transmitted thru the ice/snow ssl  [W/m2]
+                                        !------------------------------------------------------!
                                         CALL ice_sbc_flx( kt, ksbc )
+         !
          !----------------------------!
          ! --- ice thermodynamics --- !
          !----------------------------!
          IF( ln_icethd )                CALL ice_thd( kt )            ! -- Ice thermodynamics
+         ! ==> clem: here, all the global variables are correctly defined in the halos
          !
-                                        CALL diag_trends( 2 )         ! record thermo trends
-                                        CALL ice_var_glo2eqv          ! necessary calls (at least for coupling)
-                                        CALL ice_var_agg( 2 )         ! necessary calls (at least for coupling)
+                                        CALL diag_trends(2)           ! record thermo trends
+                                        CALL ice_var_glo2eqv(2)
+                                        CALL ice_var_agg(2)
          !
                                         CALL ice_update_flx( kt )     ! -- Update ocean surface mass, heat and salt fluxes
          !
+         !------------------------!
+         ! --- Diag and write --- !
+         !------------------------!
          IF( ln_icediahsb )             CALL ice_dia( kt )            ! -- Diagnostics outputs
          !
          IF( ln_icediachk )             CALL ice_drift_wri( kt )      ! -- Diagnostics outputs for conservation
@@ -274,7 +288,7 @@ CONTAINS
       ELSE
          CALL ice_istate( nit000, Kbb, Kmm, Kaa )   ! start from rest or read a file
       ENDIF
-      CALL ice_var_glo2eqv
+      CALL ice_var_glo2eqv(1)
       CALL ice_var_agg(1)
       !
       CALL ice_dyn_init                ! set ice dynamics parameters
@@ -288,7 +302,7 @@ CONTAINS
       CALL ice_drift_init              ! initialization for diags of conservation
       !
       fr_i  (:,:)   = at_i(:,:)        ! initialisation of sea-ice fraction
-      tn_ice(:,:,:) = t_su(:,:,:)      ! initialisation of surface temp for coupled simu
+      tn_ice(:,:,:) = t_su(A2D(0),:)   ! initialisation of surface temp for coupled simu
       !
       IF( ln_rstart )  THEN
          CALL iom_close( numrir )  ! close input ice restart file
@@ -369,26 +383,33 @@ CONTAINS
       INTEGER  ::   ji, jj, jl      ! dummy loop index
       !!----------------------------------------------------------------------
       !
-      a_i_b (:,:,:)   = a_i (:,:,:)     ! ice area
-      v_i_b (:,:,:)   = v_i (:,:,:)     ! ice volume
-      v_s_b (:,:,:)   = v_s (:,:,:)     ! snow volume
-      v_ip_b(:,:,:)   = v_ip(:,:,:)     ! pond volume
-      v_il_b(:,:,:)   = v_il(:,:,:)     ! pond lid volume
-      sv_i_b(:,:,:)   = sv_i(:,:,:)     ! salt content
-      e_s_b (:,:,:,:) = e_s (:,:,:,:)   ! snow thermal energy
-      e_i_b (:,:,:,:) = e_i (:,:,:,:)   ! ice thermal energy
-      WHERE( a_i_b(:,:,:) >= epsi20 )
-         h_i_b(:,:,:) = v_i_b(:,:,:) / a_i_b(:,:,:)   ! ice thickness
-         h_s_b(:,:,:) = v_s_b(:,:,:) / a_i_b(:,:,:)   ! snw thickness
-      ELSEWHERE
-         h_i_b(:,:,:) = 0._wp
-         h_s_b(:,:,:) = 0._wp
-      END WHERE
-      !
-      ! ice velocities & total concentration
+      DO jl = 1, jpl
+         DO_2D( 0, 0, 0, 0 )
+            a_i_b (ji,jj,jl)   = a_i (ji,jj,jl)     ! ice area
+            v_i_b (ji,jj,jl)   = v_i (ji,jj,jl)     ! ice volume
+            v_s_b (ji,jj,jl)   = v_s (ji,jj,jl)     ! snow volume
+            v_ip_b(ji,jj,jl)   = v_ip(ji,jj,jl)     ! pond volume
+            v_il_b(ji,jj,jl)   = v_il(ji,jj,jl)     ! pond lid volume
+            sv_i_b(ji,jj,jl)   = sv_i(ji,jj,jl)     ! salt content
+            IF( a_i_b(ji,jj,jl) >= epsi20 ) THEN
+               h_i_b(ji,jj,jl) = v_i_b(ji,jj,jl) / a_i_b(ji,jj,jl)   ! ice thickness
+               h_s_b(ji,jj,jl) = v_s_b(ji,jj,jl) / a_i_b(ji,jj,jl)   ! snw thickness
+            ELSE
+               h_i_b(ji,jj,jl) = 0._wp
+               h_s_b(ji,jj,jl) = 0._wp
+            ENDIF
+            e_s_b (ji,jj,:,jl) = e_s (ji,jj,:,jl)   ! snow thermal energy
+            e_i_b (ji,jj,:,jl) = e_i (ji,jj,:,jl)   ! ice thermal energy
+         END_2D
+      ENDDO
+      ! total concentration
       at_i_b(:,:)  = SUM( a_i_b(:,:,:), dim=3 )
-      u_ice_b(:,:) = u_ice(:,:)
-      v_ice_b(:,:) = v_ice(:,:)
+
+      ! ice velocity
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls  )
+         u_ice_b(ji,jj) = u_ice(ji,jj)
+         v_ice_b(ji,jj) = v_ice(ji,jj)
+      END_2D
       !
    END SUBROUTINE store_fields
 
@@ -402,20 +423,19 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER  ::   ji, jj, jl      ! dummy loop index
       !!----------------------------------------------------------------------
-
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )   ! needed for (at least) diag_adv_mass -> to be removed 
+      DO_2D( 0, 0, 0, 0 )
          sfx    (ji,jj) = 0._wp   ;
          sfx_bri(ji,jj) = 0._wp   ;   sfx_lam(ji,jj) = 0._wp
          sfx_sni(ji,jj) = 0._wp   ;   sfx_opw(ji,jj) = 0._wp
          sfx_bog(ji,jj) = 0._wp   ;   sfx_dyn(ji,jj) = 0._wp
          sfx_bom(ji,jj) = 0._wp   ;   sfx_sum(ji,jj) = 0._wp
-         sfx_res(ji,jj) = 0._wp   ;   sfx_sub(ji,jj) = 0._wp
+         sfx_sub(ji,jj) = 0._wp   ;   sfx_res(ji,jj) = 0._wp
          !
          wfx_snw(ji,jj) = 0._wp   ;   wfx_ice(ji,jj) = 0._wp
          wfx_sni(ji,jj) = 0._wp   ;   wfx_opw(ji,jj) = 0._wp
          wfx_bog(ji,jj) = 0._wp   ;   wfx_dyn(ji,jj) = 0._wp
          wfx_bom(ji,jj) = 0._wp   ;   wfx_sum(ji,jj) = 0._wp
-         wfx_res(ji,jj) = 0._wp   ;   wfx_sub(ji,jj) = 0._wp
+         wfx_sub(ji,jj) = 0._wp   ;   wfx_res(ji,jj) = 0._wp
          wfx_spr(ji,jj) = 0._wp   ;   wfx_lam(ji,jj) = 0._wp
          wfx_snw_dyn(ji,jj) = 0._wp ; wfx_snw_sum(ji,jj) = 0._wp
          wfx_snw_sub(ji,jj) = 0._wp ; wfx_ice_sub(ji,jj) = 0._wp
@@ -426,7 +446,7 @@ CONTAINS
          hfx_snw(ji,jj) = 0._wp   ;   hfx_opw(ji,jj) = 0._wp
          hfx_bog(ji,jj) = 0._wp   ;   hfx_dyn(ji,jj) = 0._wp
          hfx_bom(ji,jj) = 0._wp   ;   hfx_sum(ji,jj) = 0._wp
-         hfx_res(ji,jj) = 0._wp   ;   hfx_sub(ji,jj) = 0._wp
+         hfx_sub(ji,jj) = 0._wp   ;   hfx_res(ji,jj) = 0._wp
          hfx_spr(ji,jj) = 0._wp   ;   hfx_dif(ji,jj) = 0._wp
          hfx_err_dif(ji,jj) = 0._wp
          wfx_err_sub(ji,jj) = 0._wp
@@ -451,7 +471,7 @@ CONTAINS
       END_2D
 
       DO jl = 1, jpl
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( 0, 0, 0, 0 )
             ! SIMIP diagnostics
             t_si       (ji,jj,jl) = rt0     ! temp at the ice-snow interface
             qcn_ice_bot(ji,jj,jl) = 0._wp
@@ -477,22 +497,25 @@ CONTAINS
       !!              and outputs
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kn    ! 1 = after dyn ; 2 = after thermo
-      !!----------------------------------------------------------------------
+      INTEGER  ::   ji, jj, jl      ! dummy loop index
+     !!----------------------------------------------------------------------
       !
       ! --- trends of heat, salt, mass (used for conservation controls)
       IF( ln_icediachk .OR. iom_use('hfxdhc') ) THEN
          !
-         diag_heat(:,:) = diag_heat(:,:) &
-            &             - SUM(SUM( e_i (:,:,1:nlay_i,:) - e_i_b (:,:,1:nlay_i,:), dim=4 ), dim=3 ) * r1_Dt_ice &
-            &             - SUM(SUM( e_s (:,:,1:nlay_s,:) - e_s_b (:,:,1:nlay_s,:), dim=4 ), dim=3 ) * r1_Dt_ice
-         diag_sice(:,:) = diag_sice(:,:) &
-            &             + SUM(     sv_i(:,:,:)          - sv_i_b(:,:,:)                  , dim=3 ) * r1_Dt_ice * rhoi
-         diag_vice(:,:) = diag_vice(:,:) &
-            &             + SUM(     v_i (:,:,:)          - v_i_b (:,:,:)                  , dim=3 ) * r1_Dt_ice * rhoi
-         diag_vsnw(:,:) = diag_vsnw(:,:) &
-            &             + SUM(     v_s (:,:,:)          - v_s_b (:,:,:)                  , dim=3 ) * r1_Dt_ice * rhos
-         diag_vpnd(:,:) = diag_vpnd(:,:) &
-            &             + SUM(     v_ip + v_il          - v_ip_b - v_il_b                , dim=3 ) * r1_Dt_ice * rhow
+         DO_2D( 0, 0, 0, 0 )
+            diag_heat(ji,jj) = diag_heat(ji,jj) &
+               &             - SUM(SUM( e_i (ji,jj,1:nlay_i,:) - e_i_b (ji,jj,1:nlay_i,:), dim=2 ) ) * r1_Dt_ice &
+               &             - SUM(SUM( e_s (ji,jj,1:nlay_s,:) - e_s_b (ji,jj,1:nlay_s,:), dim=2 ) ) * r1_Dt_ice
+            diag_sice(ji,jj) = diag_sice(ji,jj) &
+               &             + SUM(     sv_i(ji,jj,:)          - sv_i_b(ji,jj,:)                   ) * r1_Dt_ice * rhoi
+            diag_vice(ji,jj) = diag_vice(ji,jj) &
+               &             + SUM(     v_i (ji,jj,:)          - v_i_b (ji,jj,:)                   ) * r1_Dt_ice * rhoi
+            diag_vsnw(ji,jj) = diag_vsnw(ji,jj) &
+               &             + SUM(     v_s (ji,jj,:)          - v_s_b (ji,jj,:)                   ) * r1_Dt_ice * rhos
+            diag_vpnd(ji,jj) = diag_vpnd(ji,jj) &
+               &             + SUM( v_ip(ji,jj,:)+v_il(ji,jj,:) - v_ip_b(ji,jj,:)-v_il_b(ji,jj,:)  ) * r1_Dt_ice * rhow
+         END_2D
          !
          IF( kn == 2 )    CALL iom_put ( 'hfxdhc' , diag_heat )   ! output of heat trend
          !
@@ -501,11 +524,13 @@ CONTAINS
       ! --- trends of concentration (used for simip outputs)
       IF( iom_use('afxdyn') .OR. iom_use('afxthd') .OR. iom_use('afxtot') ) THEN
          !
-         diag_aice(:,:) = diag_aice(:,:) + SUM( a_i(:,:,:) - a_i_b(:,:,:), dim=3 ) * r1_Dt_ice
+         DO_2D( 0, 0, 0, 0 )
+            diag_aice(ji,jj) = diag_aice(ji,jj) + SUM( a_i(ji,jj,:) - a_i_b(ji,jj,:) ) * r1_Dt_ice
+         END_2D
          !
-         IF( kn == 1 )   CALL iom_put( 'afxdyn' , diag_aice )                                           ! dyn trend
-         IF( kn == 2 )   CALL iom_put( 'afxthd' , SUM( a_i(:,:,:) - a_i_b(:,:,:), dim=3 ) * r1_Dt_ice ) ! thermo trend
-         IF( kn == 2 )   CALL iom_put( 'afxtot' , diag_aice )                                           ! total trend
+         IF( kn == 1 )   CALL iom_put( 'afxdyn' , diag_aice )                                              ! dyn trend
+         IF( kn == 2 )   CALL iom_put( 'afxthd' , SUM( a_i(A2D(0),:) - a_i_b(:,:,:), dim=3 ) * r1_Dt_ice ) ! thermo trend
+         IF( kn == 2 )   CALL iom_put( 'afxtot' , diag_aice )                                              ! total trend
          !
       ENDIF
       !

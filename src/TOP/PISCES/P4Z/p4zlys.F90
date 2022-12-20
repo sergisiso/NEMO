@@ -32,7 +32,8 @@ MODULE p4zlys
    REAL(wp), PUBLIC ::   kdca   !: diss. rate constant calcite
    REAL(wp), PUBLIC ::   nca    !: order of reaction for calcite dissolution
 
-   INTEGER  ::   rmtss              ! number of seconds per month 
+   INTEGER  :: rmtss              ! number of seconds per month 
+   LOGICAL  :: l_dia
 
    !! * Module variables
    REAL(wp) :: calcon = 1.03E-2           !: mean calcite concentration [Ca2+]  in sea water [mole/kg solution]
@@ -63,23 +64,36 @@ CONTAINS
       INTEGER, INTENT(in)  ::  Kbb, Krhs ! time level indices
       !
       INTEGER  ::   ji, jj, jk, jn
-      REAL(wp) ::   zdispot, zrhd, zcalcon
+      REAL(wp) ::   zdispot, zrhd, zcalcon, ztra
       REAL(wp) ::   zomegaca, zexcess, zexcess0, zkd
       CHARACTER (len=25) ::   charout
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zco3, zcaldiss, zhinit, zhi, zco3sat
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zhinit, zhi, zco3
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)  :: zw3d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )  CALL timing_start('p4z_lys')
       !
+     IF( kt == nittrc000 )  &
+           & l_dia = iom_use( "PH" ) .OR. iom_use( "CO3" ) .OR. iom_use( "CO3sat" ) .OR. iom_use( "DCAL" )
 
-      zhinit  (:,:,:) = hi(:,:,:) / ( rhd(:,:,:) + 1._wp )
+      IF( l_dia )   THEN                  !* Save ta and sa trends
+         ALLOCATE( zw3d(A2D(0),jpk) )    ;    zw3d(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zw3d(ji,jj,jk) = tr(ji,jj,jk,jpdic,Krhs)  ! we be used to compute DCAL if needed
+         END_3D
+      ENDIF
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         zhinit(ji,jj,jk) = hi(ji,jj,jk) / ( rhd(ji,jj,jk) + 1._wp )
+      END_3D
       !
       !     -------------------------------------------
       !     COMPUTE [CO3--] and [H+] CONCENTRATIONS
       !     -------------------------------------------
 
       CALL solve_at_general( zhinit, zhi, Kbb )
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zco3(ji,jj,jk) = tr(ji,jj,jk,jpdic,Kbb) * ak13(ji,jj,jk) * ak23(ji,jj,jk) / (zhi(ji,jj,jk)**2   &
             &             + ak13(ji,jj,jk) * zhi(ji,jj,jk) + ak13(ji,jj,jk) * ak23(ji,jj,jk) + rtrn )
          hi  (ji,jj,jk) = zhi(ji,jj,jk) * ( rhd(ji,jj,jk) + 1._wp )
@@ -91,14 +105,13 @@ CONTAINS
       !        MGCO3)
       !     ---------------------------------------------------------
 
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
 
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
          ! Salinity dependance in zomegaca and divide by rhd to have good units
          zcalcon  = calcon * ( salinprac(ji,jj,jk) / 35._wp )
          zrhd    = rhd(ji,jj,jk) + 1._wp
          zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zrhd + rtrn )
-         zco3sat(ji,jj,jk) = aksp(ji,jj,jk) * zrhd / ( zcalcon + rtrn )
 
          ! SET DEGREE OF UNDER-/SUPERSATURATION
          excess(ji,jj,jk) = 1._wp - zomegaca
@@ -116,25 +129,42 @@ CONTAINS
 
         !  CHANGE OF [CO3--] , [ALK], PARTICULATE [CACO3],
         !       AND [SUM(CO2)] DUE TO CACO3 DISSOLUTION/PRECIPITATION
-        zcaldiss(ji,jj,jk)  = zdispot * rfact2 / rmtss ! calcite dissolution
+        ztra  = zdispot * rfact2 / rmtss ! calcite dissolution
         !
-        tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + 2. * zcaldiss(ji,jj,jk)
-        tr(ji,jj,jk,jpcal,Krhs) = tr(ji,jj,jk,jpcal,Krhs) -      zcaldiss(ji,jj,jk)
-        tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) +      zcaldiss(ji,jj,jk)
+        tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + 2. * ztra
+        tr(ji,jj,jk,jpcal,Krhs) = tr(ji,jj,jk,jpcal,Krhs) -      ztra
+        tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) +      ztra
       END_3D
       !
 
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN
-         CALL iom_put( "PH" , -1. * LOG10( MAX( hi(:,:,:), rtrn ) ) * tmask(:,:,:) )
-         IF( iom_use( "CO3" ) ) THEN
-            zco3(:,:,jpk) = 0.    ; CALL iom_put( "CO3"   , zco3(:,:,:)     * 1.e+3           * tmask(:,:,:) )
-         ENDIF
-         IF( iom_use( "CO3sat" ) ) THEN
-           zco3sat(:,:,jpk) = 0.  ; CALL iom_put( "CO3sat", zco3sat(:,:,:)  * 1.e+3           * tmask(:,:,:) )
-         ENDIF
-         IF( iom_use( "DCAL" ) ) THEN
-           zcaldiss(:,:,jpk) = 0. ; CALL iom_put( "DCAL"  , zcaldiss(:,:,:) * 1.e+3 * rfact2r * tmask(:,:,:) )
+      IF( l_dia .AND. knt == nrdttrc ) THEN
+         IF( iom_use( "DCAL" ) ) THEN  ! calcite dissolution
+             DO_3D( 0, 0, 0, 0, 1, jpkm1)
+                zw3d(ji,jj,jk) = ( tr(ji,jj,jk,jpdic,Krhs) - zw3d(ji,jj,jk) ) * 1.e+3 * rfact2r * tmask(ji,jj,jk)
+             END_3D
+             CALL iom_put( "DCAL", zw3d ) 
          ENDIF              
+         IF( iom_use( "PH" ) ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               zw3d(ji,jj,jk) = -1. * LOG10( MAX( hi(ji,jj,jk), rtrn ) ) * tmask(ji,jj,jk) 
+            END_3D
+            CALL iom_put( "PH" , zw3d )
+         ENDIF
+         IF( iom_use( "CO3" ) ) THEN  ! bicarbonate 
+             DO_3D( 0, 0, 0, 0, 1, jpkm1)
+                zw3d(ji,jj,jk) = zco3(ji,jj,jk) * 1.e+3 * tmask(ji,jj,jk) 
+             END_3D
+             CALL iom_put( "CO3", zw3d ) 
+         ENDIF
+         IF( iom_use( "CO3sat" ) ) THEN  ! calcite saturation
+             DO_3D( 0, 0, 0, 0, 1, jpkm1)
+                zrhd  = rhd(ji,jj,jk) + 1._wp
+                zw3d(ji,jj,jk) = aksp(ji,jj,jk) * zrhd / ( calcon * ( salinprac(ji,jj,jk) / 35._wp ) + rtrn )  &
+                 &            * 1.e+3 * tmask(ji,jj,jk)
+             END_3D
+             CALL iom_put( "CO3sat", zw3d ) 
+         ENDIF
+         DEALLOCATE( zw3d )
       ENDIF
       !
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
@@ -184,6 +214,9 @@ CONTAINS
       !
       ! Number of seconds per month 
       rmtss =  nyear_len(1) * rday / raamo
+      !
+      ! CE not really needed ; tempory, shoub be removed when quotan( A2D(0),jpk )
+      excess(:,:,:) = 0._wp
       !
    END SUBROUTINE p4z_lys_init
 

@@ -118,12 +118,13 @@ CONTAINS
       !
       TYPE(xios_duration) :: dtime    = xios_duration(0, 0, 0, 0, 0, 0)
       TYPE(xios_date)     :: start_date
-      CHARACTER(len=lc) :: clname
+      CHARACTER(len=lc) :: clname, cltmpn
       INTEGER             :: irefyear, irefmonth, irefday
       INTEGER           :: ji
       LOGICAL           :: llrst_context              ! is context related to restart
       LOGICAL           :: llrstr, llrstw
       INTEGER           :: inum
+      INTEGER           :: iln
       !
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zt_bnds, zw_bnds
       REAL(wp), DIMENSION(2,jpkam1)         :: za_bnds   ! ABL vertical boundaries
@@ -136,8 +137,14 @@ CONTAINS
       !
       ALLOCATE( zt_bnds(2,jpk), zw_bnds(2,jpk) )
       !
-      clname = cdname
-      IF( TRIM(Agrif_CFixed()) /= '0' )   clname = TRIM(Agrif_CFixed())//"_"//TRIM(cdname)
+      clname = TRIM(cdname)
+      IF ( .NOT. Agrif_Root() ) THEN
+         iln    = INDEX(clname,'/', BACK=.TRUE.)
+         cltmpn = clname(1:iln)
+         clname = clname(iln+1:LEN_TRIM(clname))
+         clname = TRIM(cltmpn)//TRIM(Agrif_CFixed())//'_'//TRIM(clname)
+      ENDIF
+
       CALL xios_context_initialize(TRIM(clname), mpi_comm_oce)
       CALL iom_swap( cdname )
 
@@ -462,14 +469,14 @@ CONTAINS
       CALL xios_add_child(filegroup_hdl, file_hdl, 'wrestart')
       IF(nxioso.eq.1) THEN
          CALL xios_set_file_attr( "wrestart", type="one_file", enabled=.TRUE.,&
-                                       mode="write", output_freq=xios_timestep)
-         IF(lwp) write(numout,*) 'OPEN ', trim(cdrst_file), ' in one_file mode'
+                                   mode="write", output_freq=xios_timestep)
+         IF(lwp) write(numout,*) 'OPEN ', TRIM(cdrst_file), ' in one_file mode'
       ELSE
          CALL xios_set_file_attr( "wrestart", type="multiple_file", enabled=.TRUE.,&
-                                            mode="write", output_freq=xios_timestep)
-         IF(lwp) write(numout,*) 'OPEN ', trim(cdrst_file), ' in multiple_file mode'
+                                   mode="write", output_freq=xios_timestep, min_digits=4)
+         IF(lwp) write(numout,*) 'OPEN ', TRIM(cdrst_file), ' in multiple_file mode'
       ENDIF
-      CALL xios_set_file_attr( "wrestart", name=trim(cdrst_file))
+      CALL xios_set_file_attr( "wrestart", name=TRIM(cdrst_file))
 #endif
    END SUBROUTINE iom_set_rstw_file
 
@@ -491,6 +498,8 @@ CONTAINS
       REAL(sp), OPTIONAL, INTENT(IN), DIMENSION(:, :)    :: rs2
       REAL(dp), OPTIONAL, INTENT(IN), DIMENSION(:, :, :) :: rd3
       REAL(sp), OPTIONAL, INTENT(IN), DIMENSION(:, :, :) :: rs3
+      CHARACTER(len=30)                                  :: clgsuf
+      INTEGER, DIMENSION(2)                              :: ihls
 #if defined key_xios
       TYPE(xios_field) :: field_hdl
       TYPE(xios_file) :: file_hdl
@@ -499,40 +508,66 @@ CONTAINS
 !define fields for restart context
       CALL xios_add_child(file_hdl, field_hdl, sdfield)
 
+      ! Determine number of halo points
+      IF(     PRESENT(rd3) ) THEN
+         ihls = arr_hls( SIZE(rd3, 1), SIZE(rd3, 2), ldsize=.TRUE. )
+      ELSEIF( PRESENT(rs3) ) THEN
+         ihls = arr_hls( SIZE(rs3, 1), SIZE(rs3, 2), ldsize=.TRUE. )
+      ELSEIF( PRESENT(rd2) ) THEN
+         ihls = arr_hls( SIZE(rd2, 1), SIZE(rd2, 2), ldsize=.TRUE. )
+      ELSEIF( PRESENT(rs2) ) THEN
+         ihls = arr_hls( SIZE(rs2, 1), SIZE(rs2, 2), ldsize=.TRUE. )
+      ELSE
+         ihls(:) = 0
+      ENDIF
+
+      ! Choose horizontal grid based on number of halo points
+      IF(     ihls(1) == 0      .AND. ihls(2) == 0      ) THEN     ! Inner domain only
+         clgsuf = "_inner"
+      ELSEIF( ihls(1) == nn_hls .AND. ihls(2) == nn_hls ) THEN     ! nn_hls halo points
+         clgsuf = ""
+      ELSEIF( ihls(1) == 1      .AND. ihls(2) == 1      ) THEN     ! 1 halo point, nn_hls > 1
+         clgsuf = "_halo1"
+      ELSE
+         WRITE(ctmp1,*) 'iom_set_rstw_active: unsupported array shape with number of i-j halo points:'
+         WRITE(ctmp2,*) ihls(1), 'x', ihls(2)
+         CALL ctl_stop(ctmp1, ctmp2)
+      ENDIF
+
       IF(PRESENT(rd3)) THEN
-         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield, &
-                             domain_ref = "grid_N",                       &
-                             axis_ref = iom_axis(size(rd3, 3)),           &
-                             prec = 8, operation = "instant"              )
+         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield,   &
+                             domain_ref = "grid_N"//TRIM(clgsuf),           &
+                             axis_ref = iom_axis(size(rd3, 3)),             &
+                             prec = 8, operation = "instant"                )
       ELSEIF(PRESENT(rs3)) THEN
-         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield, &
-                             domain_ref = "grid_N",                       &
-                             axis_ref = iom_axis(size(rd3, 3)),           &
-                             prec = 4, operation = "instant"              )
+         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield,   &
+                             domain_ref = "grid_N"//TRIM(clgsuf),           &
+                             axis_ref = iom_axis(size(rd3, 3)),             &
+                             prec = 4, operation = "instant"                )
       ELSEIF(PRESENT(rd2)) THEN
-         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield, &
-                             domain_ref = "grid_N", prec = 8,             &
-                             operation = "instant"                        )
+         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield,   &
+                             domain_ref = "grid_N"//TRIM(clgsuf), prec = 8, &
+                             operation = "instant"                          )
       ELSEIF(PRESENT(rs2)) THEN
-         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield, &
-                             domain_ref = "grid_N", prec = 4,             &
-                             operation = "instant"                        )
+         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield,   &
+                             domain_ref = "grid_N"//TRIM(clgsuf), prec = 4, &
+                             operation = "instant"                          )
       ELSEIF(PRESENT(rd1)) THEN
-         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield, &
-                             axis_ref = iom_axis(size(rd1, 1)),           &
-                             prec = 8, operation = "instant"              )
+         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield,   &
+                             axis_ref = iom_axis(size(rd1, 1)),             &
+                             prec = 8, operation = "instant"                )
       ELSEIF(PRESENT(rs1)) THEN
-         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield, &
-                             axis_ref = iom_axis(size(rd1, 1)),           &
-                             prec = 4, operation = "instant"              )
+         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield,   &
+                             axis_ref = iom_axis(size(rd1, 1)),             &
+                             prec = 4, operation = "instant"                )
       ELSEIF(PRESENT(rd0)) THEN
-         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield, &
-                             scalar_ref = "grid_scalar", prec = 8,        &
-                             operation = "instant"                        )
+         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield,   &
+                             scalar_ref = "grid_scalar", prec = 8,          &
+                             operation = "instant"                          )
       ELSEIF(PRESENT(rs0)) THEN
-         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield, &
-                             scalar_ref = "grid_scalar", prec = 4,        &
-                             operation = "instant"                        )
+         CALL xios_set_attr (field_hdl, enabled = .TRUE., name = sdfield,   &
+                             scalar_ref = "grid_scalar", prec = 4,          &
+                             operation = "instant"                          )
       ENDIF
 #endif
    END SUBROUTINE iom_set_rstw_active
@@ -608,6 +643,10 @@ CONTAINS
 
       CALL xios_get_handle("domain_definition",domaingroup_hdl)
       CALL xios_add_child(domaingroup_hdl, domain_hdl, "grid_N")
+      CALL xios_add_child(domaingroup_hdl, domain_hdl, "grid_N_halo1")
+      CALL xios_add_child(domaingroup_hdl, domain_hdl, "grid_N_inner")
+      CALL xios_set_domain_attr("grid_N_halo1", name="grid_N")
+      CALL xios_set_domain_attr("grid_N_inner", name="grid_N")
       CALL set_grid("N", glamt, gphit, .TRUE., ld_rstr)
 
       CALL xios_get_handle("axis_definition",axisgroup_hdl)
@@ -677,13 +716,20 @@ CONTAINS
       !! ** Purpose :  swap context between different agrif grid for xmlio_server
       !!---------------------------------------------------------------------
       CHARACTER(len=*), INTENT(in) :: cdname
+      CHARACTER(len=256)           :: clname, cltmpn
+      INTEGER                      :: iln
 #if defined key_xios
       TYPE(xios_context) :: nemo_hdl
-      IF( TRIM(Agrif_CFixed()) == '0' ) THEN
-        CALL xios_get_handle(TRIM(cdname),nemo_hdl)
-      ELSE
-        CALL xios_get_handle(TRIM(Agrif_CFixed())//"_"//TRIM(cdname),nemo_hdl)
+
+      clname = TRIM(cdname)
+      IF ( .NOT. Agrif_Root() ) THEN
+         iln    = INDEX(clname,'/', BACK=.TRUE.)
+         cltmpn = clname(1:iln)
+         clname = clname(iln+1:LEN_TRIM(clname))
+         clname = TRIM(cltmpn)//TRIM(Agrif_CFixed())//'_'//TRIM(clname)
       ENDIF
+      !
+      CALL xios_get_handle(clname,nemo_hdl)
       !
       CALL xios_set_current_context(nemo_hdl)
 #endif
@@ -750,12 +796,12 @@ CONTAINS
       ENDIF
       ! create the file name by added, if needed, TRIM(Agrif_CFixed()) and TRIM(clsuffix)
       ! =============
-      clname   = trim(cdname)
+      clname   = TRIM(cdname)
       IF ( .NOT. Agrif_Root() .AND. .NOT. lliof ) THEN
          iln    = INDEX(clname,'/', BACK=.TRUE.)
          cltmpn = clname(1:iln)
          clname = clname(iln+1:LEN_TRIM(clname))
-         clname=TRIM(cltmpn)//TRIM(Agrif_CFixed())//'_'//TRIM(clname)
+         clname = TRIM(cltmpn)//TRIM(Agrif_CFixed())//'_'//TRIM(clname)
       ENDIF
       ! which suffix should we use?
       clsuffix = '.nc'
@@ -779,7 +825,7 @@ CONTAINS
          INQUIRE( FILE = clname, EXIST = llok )
          ! we try different formats for the cpu number by adding 0
          DO WHILE( .NOT.llok .AND. icnt < jpmax_digits )
-            clcpu  = "0"//trim(clcpu)
+            clcpu  = "0"//TRIM(clcpu)
             clname = clname(1:iln-1)//'_'//TRIM(clcpu)//TRIM(clsuffix)
             INQUIRE( FILE = clname, EXIST = llok )
             icnt = icnt + 1
@@ -884,9 +930,9 @@ CONTAINS
       ENDIF
       !
       IF( kiomid > 0 ) THEN
-         clinfo = 'iom_varid, file: '//trim(iom_file(kiomid)%name)//', var: '//trim(cdvar)
+         clinfo = 'iom_varid, file: '//TRIM(iom_file(kiomid)%name)//', var: '//TRIM(cdvar)
          IF( iom_file(kiomid)%nfid == 0 ) THEN
-            CALL ctl_stop( trim(clinfo), 'the file is not open' )
+            CALL ctl_stop( TRIM(clinfo), 'the file is not open' )
          ELSE
             ll_fnd  = .FALSE.
             iiv = 0
@@ -901,7 +947,7 @@ CONTAINS
                IF( iiv <= jpmax_vars ) THEN
                   iom_varid = iom_nf90_varid( kiomid, cdvar, iiv, kdimsz, kndims, lduld )
                ELSE
-                  CALL ctl_stop( trim(clinfo), 'Too many variables in the file '//iom_file(kiomid)%name,   &
+                  CALL ctl_stop( TRIM(clinfo), 'Too many variables in the file '//iom_file(kiomid)%name,   &
                         &                      'increase the parameter jpmax_vars')
                ENDIF
                IF( llstop .AND. iom_varid == -1 )   CALL ctl_stop( TRIM(clinfo)//' not found' )
@@ -913,7 +959,7 @@ CONTAINS
                      kdimsz(1:i_nvd) = iom_file(kiomid)%dimsz(1:i_nvd,iiv)
                   ELSE
                      WRITE(ctmp1,*) i_nvd, size(kdimsz)
-                     CALL ctl_stop( trim(clinfo), 'error in kdimsz size'//trim(ctmp1) )
+                     CALL ctl_stop( TRIM(clinfo), 'error in kdimsz size'//TRIM(ctmp1) )
                   ENDIF
                ENDIF
                IF( PRESENT(kndims) )  kndims = iom_file(kiomid)%ndims(iiv)
@@ -950,7 +996,7 @@ CONTAINS
          IF( PRESENT(ktime) ) itime = ktime
          !
          clname = iom_file(kiomid)%name
-         clinfo = '          iom_g0d, file: '//trim(clname)//', var: '//trim(cdvar)
+         clinfo = '          iom_g0d, file: '//TRIM(clname)//', var: '//TRIM(cdvar)
          !
          IF( kiomid > 0 ) THEN
             idvar = iom_varid( kiomid, cdvar )
@@ -967,12 +1013,12 @@ CONTAINS
          ENDIF
       ELSE
 #if defined key_xios
-         IF(lwp) WRITE(numout,*) 'XIOS RST READ (0D): ', trim(cdvar)
+         IF(lwp) WRITE(numout,*) 'XIOS RST READ (0D): ', TRIM(cdvar)
          CALL iom_swap(context)
-         CALL xios_recv_field( trim(cdvar), pvar)
+         CALL xios_recv_field( TRIM(cdvar), pvar)
          CALL iom_swap(cxios_context)
 #else
-         WRITE(ctmp1,*) 'Can not use XIOS in iom_g0d, file: '//trim(clname)//', var:'//trim(cdvar)
+         WRITE(ctmp1,*) 'Can not use XIOS in iom_g0d, file: '//TRIM(clname)//', var:'//TRIM(cdvar)
          CALL ctl_stop( 'iom_g0d', ctmp1 )
 #endif
       ENDIF
@@ -999,7 +1045,7 @@ CONTAINS
          IF( PRESENT(ktime) ) itime = ktime
          !
          clname = iom_file(kiomid)%name
-         clinfo = '          iom_g0d, file: '//trim(clname)//', var: '//trim(cdvar)
+         clinfo = '          iom_g0d, file: '//TRIM(clname)//', var: '//TRIM(cdvar)
          !
          IF( kiomid > 0 ) THEN
             idvar = iom_varid( kiomid, cdvar )
@@ -1015,12 +1061,12 @@ CONTAINS
          ENDIF
       ELSE
 #if defined key_xios
-         IF(lwp) WRITE(numout,*) 'XIOS RST READ (0D): ', trim(cdvar)
+         IF(lwp) WRITE(numout,*) 'XIOS RST READ (0D): ', TRIM(cdvar)
          CALL iom_swap(context)
-         CALL xios_recv_field( trim(cdvar), pvar)
+         CALL xios_recv_field( TRIM(cdvar), pvar)
          CALL iom_swap(cxios_context)
 #else
-         WRITE(ctmp1,*) 'Can not use XIOS in iom_g0d, file: '//trim(clname)//', var:'//trim(cdvar)
+         WRITE(ctmp1,*) 'Can not use XIOS in iom_g0d, file: '//TRIM(clname)//', var:'//TRIM(cdvar)
          CALL ctl_stop( 'iom_g0d', ctmp1 )
 #endif
       ENDIF
@@ -1189,6 +1235,7 @@ CONTAINS
       INTEGER                        ::   ji, jj      ! loop counters
       INTEGER                        ::   irankpv     !
       INTEGER                        ::   ind1, ind2  ! substring index
+      INTEGER, DIMENSION(2)          ::   ihls        ! halo size determined from array shape (XIOS only)
       INTEGER, DIMENSION(jpmax_dims) ::   istart      ! starting point to read for each axis
       INTEGER, DIMENSION(jpmax_dims) ::   icnt        ! number of value to read along each axis
       INTEGER, DIMENSION(jpmax_dims) ::   idimsz      ! size of the dimensions of the variable
@@ -1203,22 +1250,35 @@ CONTAINS
       LOGICAL                        ::   ll_only3rd  ! T => if kstart, kcount present then *only* use values for 3rd spatial dimension.
       INTEGER                        ::   inlev       ! number of levels for 3D data
       REAL(dp)                       ::   gma, gmi
+      REAL(dp), DIMENSION(:,:),   ALLOCATABLE  ::   zwrk2d  ! temporary arrays for reading into an array
+      REAL(dp), DIMENSION(:,:,:), ALLOCATABLE  ::   zwrk3d  ! smaller than jpi-jpj (XIOS only)
       !---------------------------------------------------------------------
       CHARACTER(LEN=lc)                               ::   context
       !
       CALL set_xios_context(kiomid, context)
+      ! Array shape information
       inlev = -1
-      IF( PRESENT(pv_r3d) )   inlev = SIZE(pv_r3d, 3)
+      IF( PRESENT(pv_r1d) ) THEN
+         irankpv = 1
+         ishape(1:1) = SHAPE(pv_r1d)
+      ELSE IF( PRESENT(pv_r2d) ) THEN
+         irankpv = 2
+         ishape(1:2) = SHAPE(pv_r2d)
+      ELSE IF( PRESENT(pv_r3d) ) THEN
+         irankpv = 3
+         ishape(1:3) = SHAPE(pv_r3d)
+         inlev = ishape(3)
+      ENDIF
       !
       idom = kdom
       istop = nstop
       !
       IF(context == "NONE") THEN
          clname = iom_file(kiomid)%name   !   esier to read
-         clinfo = '          iom_get_123d, file: '//trim(clname)//', var: '//trim(cdvar)
+         clinfo = '          iom_get_123d, file: '//TRIM(clname)//', var: '//TRIM(cdvar)
          ! check kcount and kstart optionals parameters...
-         IF( PRESENT(kcount) .AND. .NOT. PRESENT(kstart) ) CALL ctl_stop(trim(clinfo), 'kcount present needs kstart present')
-         IF( PRESENT(kstart) .AND. .NOT. PRESENT(kcount) ) CALL ctl_stop(trim(clinfo), 'kstart present needs kcount present')
+         IF( PRESENT(kcount) .AND. .NOT. PRESENT(kstart) ) CALL ctl_stop(TRIM(clinfo), 'kcount present needs kstart present')
+         IF( PRESENT(kstart) .AND. .NOT. PRESENT(kcount) ) CALL ctl_stop(TRIM(clinfo), 'kstart present needs kcount present')
          IF( PRESENT(kstart) .AND. idom /= jpdom_unknown .AND. idom /= jpdom_auto_xy ) &
             &          CALL ctl_stop(TRIM(clinfo), 'kstart present needs idom = jpdom_unknown or idom = jpdom_auto_xy')
          IF( idom == jpdom_auto_xy .AND. .NOT. PRESENT(kstart) ) &
@@ -1233,7 +1293,7 @@ CONTAINS
             inbdim = iom_file(kiomid)%ndims(idvar)            ! number of dimensions in the file
             idmspc = inbdim                                   ! number of spatial dimensions in the file
             IF( iom_file(kiomid)%luld(idvar) )   idmspc = inbdim - 1
-            IF( idmspc > 3 )   CALL ctl_stop(trim(clinfo), 'the file has more than 3 spatial dimensions this case is not coded...')
+            IF( idmspc > 3 )   CALL ctl_stop(TRIM(clinfo), 'the file has more than 3 spatial dimensions this case is not coded...')
             !
             ! Identify the domain in case of jpdom_auto definition
             IF( idom == jpdom_auto .OR. idom == jpdom_auto_xy ) THEN
@@ -1250,7 +1310,6 @@ CONTAINS
             itime = 1
             IF( PRESENT(ktime) ) itime = ktime
             !
-            irankpv = 1 * COUNT( (/PRESENT(pv_r1d)/) ) + 2 * COUNT( (/PRESENT(pv_r2d)/) ) + 3 * COUNT( (/PRESENT(pv_r3d)/) )
             WRITE(clrankpv, fmt='(i1)') irankpv
             WRITE(cldmspc , fmt='(i1)') idmspc
             !
@@ -1271,7 +1330,7 @@ CONTAINS
                   &   CALL ctl_stop( TRIM(clinfo), 'case not coded...You must use jpdom_unknown' )
             ELSEIF( idmspc >  irankpv ) THEN                     ! it seems we want to read less than we should...
                   IF( PRESENT(pv_r2d) .AND. itime == 1 .AND. idimsz(3) == 1 .AND. idmspc == 3 ) THEN
-                     CALL ctl_warn( trim(clinfo), '2D array input but 3 spatial dimensions in the file...'              ,   &
+                     CALL ctl_warn( TRIM(clinfo), '2D array input but 3 spatial dimensions in the file...'              ,   &
                            &         'As the size of the z dimension is 1 and as we try to read the first record, ',   &
                            &         'we accept this case, even if there is a possible mix-up between z and time dimension' )
                      idmspc = idmspc - 1
@@ -1298,7 +1357,7 @@ CONTAINS
                ENDIF
             ELSE   !   not a 1D array as pv_r1d requires jpdom_unknown
                ! we do not read the overlap and the extra-halos -> from Nis0 to Nie0 and from Njs0 to Nje0
-               IF( idom == jpdom_global )   istart(1:2) = (/ mig0(Nis0), mjg0(Njs0) /)
+               IF( idom == jpdom_global )   istart(1:2) = (/ mig(Nis0,0), mjg(Njs0,0) /)
                icnt(1:2) = (/ Ni_0, Nj_0 /)
                IF( PRESENT(pv_r3d) ) THEN
                   IF( idom == jpdom_auto_xy ) THEN
@@ -1317,24 +1376,31 @@ CONTAINS
                IF( itmp > idimsz(jl) .AND. idimsz(jl) /= 0 ) THEN
                   WRITE( ctmp1, FMT="('(istart(', i1, ') + icnt(', i1, ') - 1) = ', i5)" ) jl, jl, itmp
                   WRITE( ctmp2, FMT="(' is larger than idimsz(', i1,') = ', i5)"         ) jl, idimsz(jl)
-                  CALL ctl_stop( trim(clinfo), 'start and count too big regarding to the size of the data, ', ctmp1, ctmp2 )
+                  CALL ctl_stop( TRIM(clinfo), 'start and count too big regarding to the size of the data, ', ctmp1, ctmp2 )
                ENDIF
             END DO
             !
             ! check that icnt matches the input array
             !-
             IF( idom == jpdom_unknown ) THEN
-               IF( irankpv == 1 )        ishape(1:1) = SHAPE(pv_r1d)
-               IF( irankpv == 2 )        ishape(1:2) = SHAPE(pv_r2d)
-               IF( irankpv == 3 )        ishape(1:3) = SHAPE(pv_r3d)
+               ix1 = 1      ;   ix2 = icnt(1)   ;   iy1 = 1   ;   iy2 = icnt(2)         ! index of the array to be read
                ctmp1 = 'd'
             ELSE
-               IF( irankpv == 2 ) THEN
-                  ishape(1:2) = SHAPE(pv_r2d(Nis0:Nie0,Njs0:Nje0  ))   ;   ctmp1 = 'd(Nis0:Nie0,Njs0:Nje0)'
+               IF(     ishape(1) == Ni_0   .AND. ishape(2) == Nj_0   ) THEN           ! array with 0 halo
+                  ix1 = 1      ;   ix2 = Ni_0     ;   iy1 = 1      ;   iy2 = Nj_0     ! index of the array to be read
+                  ctmp1 = 'd(:,:'
+               ELSEIF( ishape(1) == jpi    .AND. ishape(2) == jpj    ) THEN           ! array with nn_hls halos
+                  ix1 = Nis0   ;   ix2 = Nie0     ;   iy1 = Njs0   ;   iy2 = Nje0     ! index of the array to be read
+                  ctmp1 = 'd(Nis0:Nie0,Njs0:Nje0'
+               ELSEIF( ishape(1) == Ni_0+2 .AND. ishape(2) == Nj_0+2 ) THEN           ! nn_hls = 2 and array with 1 halo
+                  ix1 = 2      ;   ix2 = Ni_0+1   ;   iy1 = 2      ;   iy2 = Nj_0+1   ! index of the array to be read
+                  ctmp1 = 'd(2:Ni_0+1,2:Ni_0+1'
+               ELSE
+                  CALL ctl_stop( 'iom_get_123d: should have been an impossible case...' )
                ENDIF
-               IF( irankpv == 3 ) THEN
-                  ishape(1:3) = SHAPE(pv_r3d(Nis0:Nie0,Njs0:Nje0,:))   ;   ctmp1 = 'd(Nis0:Nie0,Njs0:Nje0,:)'
-               ENDIF
+               ishape(1:2) = (/ Ni_0, Nj_0 /)   ! update and force ishape to match the inner domain
+               IF( irankpv == 3 )   ctmp1 = TRIM(ctmp1)//',:'
+               ctmp1 = TRIM(ctmp1)//')'
             ENDIF
             DO jl = 1, irankpv
                WRITE( ctmp2, FMT="(', ', i1,'): ', i5,' /= icnt(', i1,'):', i5)" ) jl, ishape(jl), jl, icnt(jl)
@@ -1347,11 +1413,6 @@ CONTAINS
          !-
          IF( idvar > 0 .AND. istop == nstop ) THEN   ! no additional errors until this point...
             !
-            ! find the right index of the array to be read
-            IF( idom /= jpdom_unknown ) THEN   ;   ix1 = Nis0   ;   ix2 = Nie0      ;   iy1 = Njs0   ;   iy2 = Nje0
-            ELSE                               ;   ix1 = 1      ;   ix2 = icnt(1)   ;   iy1 = 1      ;   iy2 = icnt(2)
-            ENDIF
-
             CALL iom_nf90_get( kiomid, idvar, inbdim, istart, icnt, ix1, ix2, iy1, iy2, pv_r1d, pv_r2d, pv_r3d )
 
             IF( istop == nstop ) THEN   ! no additional errors until this point...
@@ -1359,13 +1420,15 @@ CONTAINS
 
                cl_type = 'T'
                IF( PRESENT(cd_type) )   cl_type = cd_type
-               zsgn = 1._wp
-               IF( PRESENT(psgn   ) )   zsgn    = psgn
-               !--- overlap areas and extra hallows (mpp)
-               IF(     PRESENT(pv_r2d) .AND. idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-                  CALL lbc_lnk( 'iom', pv_r2d, cl_type, zsgn, kfillmode = kfill )
-               ELSEIF( PRESENT(pv_r3d) .AND. idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-                  CALL lbc_lnk( 'iom', pv_r3d, cl_type, zsgn, kfillmode = kfill )
+               !--- halos and NP folding (NP folding to be done even if no halos)
+               IF( idom /= jpdom_unknown .AND. cl_type /= 'Z' .AND. ( PRESENT(pv_r2d) .OR. PRESENT(pv_r3d) ) ) THEN
+                  zsgn = 1._wp
+                  IF( PRESENT(psgn   ) )   zsgn    = psgn
+                  IF(     PRESENT(pv_r2d) ) THEN
+                     CALL lbc_lnk( 'iom', pv_r2d, cl_type, zsgn, kfillmode = kfill, ldfull = .TRUE. )
+                  ELSEIF( PRESENT(pv_r3d) ) THEN
+                     CALL lbc_lnk( 'iom', pv_r3d, cl_type, zsgn, kfillmode = kfill, ldfull = .TRUE. )
+                  ENDIF
                ENDIF
                !
             ELSE
@@ -1387,26 +1450,49 @@ CONTAINS
          cl_type = 'T'
          IF( PRESENT(cd_type) )   cl_type = cd_type
 
+         ! We do not know whether pv_r[23]d will have halo points during context initialisation in iom_set_vars_active,
+         ! so we must always read to an array on the full grid (1:jpi,1:jpj), then copy the correct part to pv_r[23]d
+         IF( irankpv > 1 .AND. idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
+            llok = (ishape(1) == jpi) .AND. (ishape(2) == jpj)
+            ihls = arr_hls( ishape(1), ishape(2), ldtile=.FALSE., ldsize=.TRUE. )
+         ELSE
+            llok = .TRUE.
+         ENDIF
+
          IF( PRESENT(pv_r3d) ) THEN
             IF(lwp) WRITE(numout,*) 'XIOS RST READ (3D): ',TRIM(cdvar)
-            CALL xios_recv_field( trim(cdvar), pv_r3d(:, :, :))
+            IF( .NOT. llok ) THEN
+               ALLOCATE( zwrk3d(jpi,jpj,inlev) )
+               CALL xios_recv_field( trim(cdvar), zwrk3d(:,:,:) )
+               pv_r3d(:,:,:) = zwrk3d(A1Di(ihls(1)),A1Dj(ihls(2)),:)
+               DEALLOCATE( zwrk3d )
+            ELSE
+               CALL xios_recv_field( trim(cdvar), pv_r3d(:,:,:) )
+            ENDIF
             IF(idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-               CALL lbc_lnk( 'iom', pv_r3d, cl_type, zsgn, kfillmode = kfill)
+               CALL lbc_lnk( 'iom', pv_r3d, cl_type, zsgn, kfillmode = kfill, ldfull = .TRUE. )
             ENDIF
          ELSEIF( PRESENT(pv_r2d) ) THEN
             IF(lwp) WRITE(numout,*) 'XIOS RST READ (2D): ', TRIM(cdvar)
-            CALL xios_recv_field( trim(cdvar), pv_r2d(:, :))
+            IF( .NOT. llok ) THEN
+               ALLOCATE( zwrk2d(jpi,jpj) )
+               CALL xios_recv_field( trim(cdvar), zwrk2d(:,:) )
+               pv_r2d(:,:) = zwrk2d(A1Di(ihls(1)),A1Dj(ihls(2)))
+               DEALLOCATE( zwrk2d )
+            ELSE
+               CALL xios_recv_field( trim(cdvar), pv_r2d(:,:) )
+            ENDIF
             IF(idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-               CALL lbc_lnk('iom', pv_r2d, cl_type, zsgn, kfillmode = kfill)
+               CALL lbc_lnk('iom', pv_r2d, cl_type, zsgn, kfillmode = kfill, ldfull = .TRUE. )
             ENDIF
          ELSEIF( PRESENT(pv_r1d) ) THEN
             IF(lwp) WRITE(numout,*) 'XIOS RST READ (1D): ', TRIM(cdvar)
-            CALL xios_recv_field( trim(cdvar), pv_r1d)
+            CALL xios_recv_field( TRIM(cdvar), pv_r1d)
          ENDIF
          CALL iom_swap(cxios_context)
 #else
          istop = istop + 1
-         clinfo = 'Can not use XIOS in iom_get_123d, file: '//trim(clname)//', var:'//trim(cdvar)
+         clinfo = 'Can not use XIOS in iom_get_123d, file: '//TRIM(clname)//', var:'//TRIM(cdvar)
 #endif
       ENDIF
 
@@ -1614,14 +1700,14 @@ CONTAINS
       IF( llx ) THEN
 #ifdef key_xios
          IF( kt == kwrite ) THEN
-            IF(lwp) write(numout,*) 'RESTART: write (XIOS 0D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: write (XIOS 0D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_put(trim(cdvar), pvar)
+            CALL iom_put(TRIM(cdvar), pvar)
             CALL iom_swap(cxios_context)
          ELSE
-            IF(lwp) write(numout,*) 'RESTART: define (XIOS 0D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: define (XIOS 0D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_set_rstw_active( trim(cdvar), rs0 = pvar )
+            CALL iom_set_rstw_active( TRIM(cdvar), rs0 = pvar )
             CALL iom_swap(cxios_context)
          ENDIF
 #endif
@@ -1654,14 +1740,14 @@ CONTAINS
       IF( llx ) THEN
 #ifdef key_xios
          IF( kt == kwrite ) THEN
-            IF(lwp) write(numout,*) 'RESTART: write (XIOS 0D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: write (XIOS 0D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_put(trim(cdvar), pvar)
+            CALL iom_put(TRIM(cdvar), pvar)
             CALL iom_swap(cxios_context)
          ELSE
-            IF(lwp) write(numout,*) 'RESTART: define (XIOS 0D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: define (XIOS 0D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_set_rstw_active( trim(cdvar), rd0 = pvar )
+            CALL iom_set_rstw_active( TRIM(cdvar), rd0 = pvar )
             CALL iom_swap(cxios_context)
          ENDIF
 #endif
@@ -1695,14 +1781,14 @@ CONTAINS
       IF( llx ) THEN
 #ifdef key_xios
          IF( kt == kwrite ) THEN
-            IF(lwp) write(numout,*) 'RESTART: write (XIOS 1D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: write (XIOS 1D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_put(trim(cdvar), pvar)
+            CALL iom_put(TRIM(cdvar), pvar)
             CALL iom_swap(cxios_context)
          ELSE
-            IF(lwp) write(numout,*) 'RESTART: define (XIOS 1D)',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: define (XIOS 1D)',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_set_rstw_active( trim(cdvar), rs1 = pvar )
+            CALL iom_set_rstw_active( TRIM(cdvar), rs1 = pvar )
             CALL iom_swap(cxios_context)
          ENDIF
 #endif
@@ -1735,14 +1821,14 @@ CONTAINS
       IF( llx ) THEN
 #ifdef key_xios
          IF( kt == kwrite ) THEN
-            IF(lwp) write(numout,*) 'RESTART: write (XIOS 1D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: write (XIOS 1D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_put(trim(cdvar), pvar)
+            CALL iom_put(TRIM(cdvar), pvar)
             CALL iom_swap(cxios_context)
          ELSE
-            IF(lwp) write(numout,*) 'RESTART: define (XIOS 1D)',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: define (XIOS 1D)',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_set_rstw_active( trim(cdvar), rd1 = pvar )
+            CALL iom_set_rstw_active( TRIM(cdvar), rd1 = pvar )
             CALL iom_swap(cxios_context)
          ENDIF
 #endif
@@ -1776,14 +1862,14 @@ CONTAINS
       IF( llx ) THEN
 #ifdef key_xios
          IF( kt == kwrite ) THEN
-            IF(lwp) write(numout,*) 'RESTART: write (XIOS 2D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: write (XIOS 2D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_put(trim(cdvar), pvar)
+            CALL iom_put(TRIM(cdvar), pvar)
             CALL iom_swap(cxios_context)
          ELSE
-            IF(lwp) write(numout,*) 'RESTART: define (XIOS 2D)',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: define (XIOS 2D)',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_set_rstw_active( trim(cdvar), rs2 = pvar )
+            CALL iom_set_rstw_active( TRIM(cdvar), rs2 = pvar )
             CALL iom_swap(cxios_context)
          ENDIF
 #endif
@@ -1816,14 +1902,14 @@ CONTAINS
       IF( llx ) THEN
 #ifdef key_xios
          IF( kt == kwrite ) THEN
-            IF(lwp) write(numout,*) 'RESTART: write (XIOS 2D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: write (XIOS 2D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_put(trim(cdvar), pvar)
+            CALL iom_put(TRIM(cdvar), pvar)
             CALL iom_swap(cxios_context)
          ELSE
-            IF(lwp) write(numout,*) 'RESTART: define (XIOS 2D)',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: define (XIOS 2D)',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_set_rstw_active( trim(cdvar), rd2 = pvar )
+            CALL iom_set_rstw_active( TRIM(cdvar), rd2 = pvar )
             CALL iom_swap(cxios_context)
          ENDIF
 #endif
@@ -1857,14 +1943,14 @@ CONTAINS
       IF( llx ) THEN
 #ifdef key_xios
          IF( kt == kwrite ) THEN
-            IF(lwp) write(numout,*) 'RESTART: write (XIOS 3D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: write (XIOS 3D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_put(trim(cdvar), pvar)
+            CALL iom_put(TRIM(cdvar), pvar)
             CALL iom_swap(cxios_context)
          ELSE
-            IF(lwp) write(numout,*) 'RESTART: define (XIOS 3D)',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: define (XIOS 3D)',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_set_rstw_active( trim(cdvar), rs3 = pvar )
+            CALL iom_set_rstw_active( TRIM(cdvar), rs3 = pvar )
             CALL iom_swap(cxios_context)
          ENDIF
 #endif
@@ -1897,14 +1983,14 @@ CONTAINS
       IF( llx ) THEN
 #ifdef key_xios
          IF( kt == kwrite ) THEN
-            IF(lwp) write(numout,*) 'RESTART: write (XIOS 3D) ',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: write (XIOS 3D) ',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_put(trim(cdvar), pvar)
+            CALL iom_put(TRIM(cdvar), pvar)
             CALL iom_swap(cxios_context)
          ELSE
-            IF(lwp) write(numout,*) 'RESTART: define (XIOS 3D)',trim(cdvar)
+            IF(lwp) write(numout,*) 'RESTART: define (XIOS 3D)',TRIM(cdvar)
             CALL iom_swap(context)
-            CALL iom_set_rstw_active( trim(cdvar), rd3 = pvar )
+            CALL iom_set_rstw_active( TRIM(cdvar), rd3 = pvar )
             CALL iom_swap(cxios_context)
          ENDIF
 #endif
@@ -2021,7 +2107,7 @@ CONTAINS
       REAL(sp),     DIMENSION(:,:), INTENT(in) ::   pfield2d
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
-         IF( is_tile(pfield2d) == 1 ) THEN
+         IF( is_tile(SIZE(pfield2d, 1), SIZE(pfield2d, 2)) ) THEN
             CALL xios_send_field( cdname, pfield2d, ntile - 1 )
          ELSE IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
             CALL xios_send_field( cdname, pfield2d )
@@ -2037,7 +2123,7 @@ CONTAINS
       REAL(dp),     DIMENSION(:,:), INTENT(in) ::   pfield2d
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
-         IF( is_tile(pfield2d) == 1 ) THEN
+         IF( is_tile(SIZE(pfield2d, 1), SIZE(pfield2d, 2)) ) THEN
             CALL xios_send_field( cdname, pfield2d, ntile - 1 )
          ELSE IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
             CALL xios_send_field( cdname, pfield2d )
@@ -2053,7 +2139,7 @@ CONTAINS
       REAL(sp),       DIMENSION(:,:,:), INTENT(in) ::   pfield3d
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
-         IF( is_tile(pfield3d) == 1 ) THEN
+         IF( is_tile(SIZE(pfield3d, 1), SIZE(pfield3d, 2)) ) THEN
             CALL xios_send_field( cdname, pfield3d, ntile - 1 )
          ELSE IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
             CALL xios_send_field( cdname, pfield3d )
@@ -2069,7 +2155,7 @@ CONTAINS
       REAL(dp),       DIMENSION(:,:,:), INTENT(in) ::   pfield3d
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
-         IF( is_tile(pfield3d) == 1 ) THEN
+         IF( is_tile(SIZE(pfield3d, 1), SIZE(pfield3d, 2)) ) THEN
             CALL xios_send_field( cdname, pfield3d, ntile - 1 )
          ELSE IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
             CALL xios_send_field( cdname, pfield3d )
@@ -2085,7 +2171,7 @@ CONTAINS
       REAL(sp),       DIMENSION(:,:,:,:), INTENT(in) ::   pfield4d
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
-         IF( is_tile(pfield4d) == 1 ) THEN
+         IF( is_tile(SIZE(pfield4d, 1), SIZE(pfield4d, 2)) ) THEN
             CALL xios_send_field( cdname, pfield4d, ntile - 1 )
          ELSE IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
             CALL xios_send_field( cdname, pfield4d )
@@ -2101,7 +2187,7 @@ CONTAINS
       REAL(dp),       DIMENSION(:,:,:,:), INTENT(in) ::   pfield4d
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
-         IF( is_tile(pfield4d) == 1 ) THEN
+         IF( is_tile(SIZE(pfield4d, 1), SIZE(pfield4d, 2)) ) THEN
             CALL xios_send_field( cdname, pfield4d, ntile - 1 )
          ELSE IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
             CALL xios_send_field( cdname, pfield4d )
@@ -2294,9 +2380,17 @@ CONTAINS
       !!----------------------------------------------------------------------
       CHARACTER(LEN=*), INTENT(in) :: cdname
       CHARACTER(LEN=120)           :: clname
+      CHARACTER(LEN=256)           :: cltmpn    ! tempory name to store clname (in writting mode)
+      INTEGER                      :: iln
       !!----------------------------------------------------------------------
-      clname = cdname
-      IF( TRIM(Agrif_CFixed()) .NE. '0' ) clname = TRIM(Agrif_CFixed())//"_"//clname
+      clname = TRIM(cdname)
+      IF ( .NOT. Agrif_Root() ) THEN
+         iln    = INDEX(clname,'/', BACK=.TRUE.)
+         cltmpn = clname(1:iln)
+         clname = clname(iln+1:LEN_TRIM(clname))
+         clname = TRIM(cltmpn)//TRIM(Agrif_CFixed())//'_'//TRIM(clname)
+      ENDIF
+
       IF( xios_is_valid_context(clname) ) THEN
          CALL iom_swap( cdname )   ! swap to cdname context
          CALL xios_context_finalize() ! finalize the context
@@ -2316,18 +2410,24 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   plon
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   plat
       !
-      REAL(wp), DIMENSION(A2D(0),jpk) ::   zmask
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zmask
       INTEGER :: jn
       INTEGER, DIMENSION(nijtile) :: ini, inj, idb
       LOGICAL, INTENT(IN) :: ldxios, ldrxios
       !!----------------------------------------------------------------------
       !
-      CALL iom_set_domain_attr("grid_"//cdgrd, ni_glo=Ni0glo,nj_glo=Nj0glo,ibegin=mig0(Nis0)-1,jbegin=mjg0(Njs0)-1,ni=Ni_0,nj=Nj_0)
-      CALL iom_set_domain_attr("grid_"//cdgrd, data_dim=2, data_ibegin = -nn_hls, data_ni=jpi, data_jbegin = -nn_hls, data_nj=jpj)
-
-      CALL iom_set_domain_attr("grid_"//cdgrd//"_inner", ni_glo = Ni0glo, nj_glo = Nj0glo,   &
-         &                     ibegin = mig0(Nis0) - 1, jbegin = mjg0(Njs0) - 1, ni = Ni_0, nj = Nj_0)
-      CALL iom_set_domain_attr("grid_"//cdgrd//"_inner", data_dim=2, data_ibegin = 0, data_ni=Ni_0, data_jbegin = 0, data_nj=Nj_0)
+      ! nn_hls halo points
+      CALL iom_set_domain_attr("grid_"//cdgrd,                                                                             &
+         &                     ni_glo=Ni0glo, nj_glo=Nj0glo, ibegin=mig(Nis0,0)-1, jbegin=mjg(Njs0,0)-1, ni=Ni_0, nj=Nj_0, &
+         &                     data_dim=2, data_ibegin=-nn_hls, data_ni=jpi,    data_jbegin=-nn_hls, data_nj=jpj    )
+      ! 1 halo point, nn_hls > 1
+      CALL iom_set_domain_attr("grid_"//cdgrd//"_halo1",                                                                   &
+         &                     ni_glo=Ni0glo, nj_glo=Nj0glo, ibegin=mig(Nis0,0)-1, jbegin=mjg(Njs0,0)-1, ni=Ni_0, nj=Nj_0, &
+         &                     data_dim=2, data_ibegin=-1,      data_ni=Ni_0+2, data_jbegin=-1,      data_nj=Nj_0+2 )
+      ! Inner domain only
+      CALL iom_set_domain_attr("grid_"//cdgrd//"_inner",                                                                   &
+         &                     ni_glo=Ni0glo, nj_glo=Nj0glo, ibegin=mig(Nis0,0)-1, jbegin=mjg(Njs0,0)-1, ni=Ni_0, nj=Nj_0, &
+         &                     data_dim=2, data_ibegin=0,       data_ni=Ni_0,   data_jbegin=0,       data_nj=Nj_0   )
 
       IF( ln_tile ) THEN
          DO jn = 1, nijtile
@@ -2336,14 +2436,23 @@ CONTAINS
             idb(jn) = -nn_hls                         ! Tile data offset (halo size)
          END DO
 
-         ! Tile_[ij]begin are defined with respect to the processor data domain, so data_[ij]begin is added
+         ! Data includes all halo points
          CALL iom_set_domain_attr("grid_"//cdgrd, ntiles=nijtile,                                     &
-            & tile_ibegin=ntsi_a(1:nijtile) + idb(:) - 1, tile_jbegin=ntsj_a(1:nijtile) + idb(:) - 1, &
+            & tile_ibegin=ntsi_a(1:nijtile) - nn_hls - 1, tile_jbegin=ntsj_a(1:nijtile) - nn_hls - 1, &
             & tile_ni=ini(:), tile_nj=inj(:),                                                         &
             & tile_data_ibegin=idb(:), tile_data_jbegin=idb(:),                                       &
             & tile_data_ni=ini(:) - 2 * idb(:), tile_data_nj=inj(:) - 2 * idb(:))
+         ! Data contains one halo point (less than nn_hls)
+         idb(:) = -1
+         CALL iom_set_domain_attr("grid_"//cdgrd//"_halo1", ntiles=nijtile,                           &
+            & tile_ibegin=ntsi_a(1:nijtile) - nn_hls - 1, tile_jbegin=ntsj_a(1:nijtile) - nn_hls - 1, &
+            & tile_ni=ini(:), tile_nj=inj(:),                                                         &
+            & tile_data_ibegin=idb(:), tile_data_jbegin=idb(:),                                       &
+            & tile_data_ni=ini(:) - 2 * idb(:), tile_data_nj=inj(:) - 2 * idb(:))
+         ! Data contains no halo points
+         idb(:) = 0
          CALL iom_set_domain_attr("grid_"//cdgrd//"_inner", ntiles=nijtile,                           &
-            & tile_ibegin=ntsi_a(1:nijtile) + idb(:) - 1, tile_jbegin=ntsj_a(1:nijtile) + idb(:) - 1, &
+            & tile_ibegin=ntsi_a(1:nijtile) - nn_hls - 1, tile_jbegin=ntsj_a(1:nijtile) - nn_hls - 1, &
             & tile_ni=ini(:), tile_nj=inj(:),                                                         &
             & tile_data_ibegin=idb(:), tile_data_jbegin=idb(:),                                       &
             & tile_data_ni=ini(:) - 2 * idb(:), tile_data_nj=inj(:) - 2 * idb(:))
@@ -2367,8 +2476,10 @@ CONTAINS
          END SELECT
          !
          CALL iom_set_domain_attr( "grid_"//cdgrd             , mask=RESHAPE(zmask(:,:,1),(/Ni_0*Nj_0    /)) /= 0. )
-         CALL iom_set_grid_attr  ( "grid_"//cdgrd//"_3D"      , mask=RESHAPE(zmask(:,:,:),(/Ni_0,Nj_0,jpk/)) /= 0. )
+         CALL iom_set_domain_attr( "grid_"//cdgrd//"_halo1"   , mask=RESHAPE(zmask(:,:,1),(/Ni_0*Nj_0    /)) /= 0. )
          CALL iom_set_domain_attr( "grid_"//cdgrd//"_inner"   , mask=RESHAPE(zmask(:,:,1),(/Ni_0*Nj_0    /)) /= 0. )
+         CALL iom_set_grid_attr  ( "grid_"//cdgrd//"_3D"      , mask=RESHAPE(zmask(:,:,:),(/Ni_0,Nj_0,jpk/)) /= 0. )
+         CALL iom_set_grid_attr  ( "grid_"//cdgrd//"_3D_halo1", mask=RESHAPE(zmask(:,:,:),(/Ni_0,Nj_0,jpk/)) /= 0. )
          CALL iom_set_grid_attr  ( "grid_"//cdgrd//"_3D_inner", mask=RESHAPE(zmask(:,:,:),(/Ni_0,Nj_0,jpk/)) /= 0. )
       ENDIF
       !
@@ -2406,7 +2517,7 @@ CONTAINS
       END SELECT
       !
       z_fld(:,:) = 1._wp
-      CALL lbc_lnk( 'iom', z_fld, cdgrd, -1.0_wp )    ! Working array for location of northfold
+      CALL lbc_lnk( 'iom', z_fld, cdgrd, -1.0_wp, ldfull = .TRUE. )    ! Working array for location of northfold
       !
       ! Cell vertices that can be defined
       DO_2D( 0, 0, 0, 0 )
@@ -2452,8 +2563,8 @@ CONTAINS
       !
 !      CALL dom_ngb( -168.53_wp, 65.03_wp, ix, iy, 'T' ) !  i-line that passes through Bering Strait: Reference latitude (used in plots)
       CALL dom_ngb( 180.0_wp, 90.0_wp, ix, iy, 'T' ) !  i-line that passes near the North Pole : Reference latitude (used in plots)
-      CALL iom_set_domain_attr("gznl", ni_glo=Ni0glo, nj_glo=Nj0glo, ibegin=mig0(Nis0)-1, jbegin=mjg0(Njs0)-1, ni=Ni_0, nj=Nj_0)
-      CALL iom_set_domain_attr("gznl", data_dim=2, data_ibegin = -nn_hls, data_ni = jpi, data_jbegin = -nn_hls, data_nj = jpj)
+      CALL iom_set_domain_attr("gznl", ni_glo=Ni0glo, nj_glo=Nj0glo, ibegin=mig(Nis0,0)-1, jbegin=mjg(Njs0,0)-1, ni=Ni_0, nj=Nj_0)
+      CALL iom_set_domain_attr("gznl", data_dim=2, data_ibegin=0, data_ni=Ni_0, data_jbegin=0, data_nj=Nj_0)
       CALL iom_set_domain_attr("gznl", lonvalue = real(zlon, dp),   &
          &                             latvalue = real(RESHAPE(plat(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp))
       CALL iom_set_zoom_domain_attr("ptr", ibegin=ix-1, jbegin=0, ni=1, nj=Nj0glo)
@@ -2633,11 +2744,11 @@ CONTAINS
       !!----------------------------------------------------------------------
       CHARACTER(LEN=*)          , INTENT(in) ::   cdid
       !
-      CHARACTER(LEN=256) ::   clname
+      CHARACTER(LEN=256) ::   clname, cltmpn
       CHARACTER(LEN=20)  ::   clfreq
       CHARACTER(LEN=20)  ::   cldate
       INTEGER            ::   idx
-      INTEGER            ::   jn
+      INTEGER            ::   jn, iln
       INTEGER            ::   itrlen
       INTEGER            ::   iyear, imonth, iday, isec
       REAL(wp)           ::   zsec
@@ -2718,7 +2829,12 @@ CONTAINS
                idx = INDEX(clname,'@enddatefull@') + INDEX(clname,'@ENDDATEFULL@')
             END DO
             !
-            IF( jn == 1 .AND. TRIM(Agrif_CFixed()) /= '0' )   clname = TRIM(Agrif_CFixed())//"_"//TRIM(clname)
+            IF( (jn ==1).AND.(.NOT. Agrif_Root())) THEN
+               iln    = INDEX(clname,'/', BACK=.TRUE.)
+               cltmpn = clname(1:iln)
+               clname = clname(iln+1:LEN_TRIM(clname))
+               clname = TRIM(cltmpn)//TRIM(Agrif_CFixed())//'_'//TRIM(clname)
+            ENDIF
             IF( jn == 1 )   CALL iom_set_file_attr( cdid, name        = clname )
             IF( jn == 2 )   CALL iom_set_file_attr( cdid, name_suffix = clname )
             !

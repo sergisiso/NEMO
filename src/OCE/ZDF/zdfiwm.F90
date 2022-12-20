@@ -65,8 +65,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                ***  FUNCTION zdf_iwm_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( ebot_iwm(jpi,jpj),  ecri_iwm(jpi,jpj),  ensq_iwm(jpi,jpj) ,     &
-      &         esho_iwm(jpi,jpj),  hbot_iwm(jpi,jpj),  hcri_iwm(jpi,jpj) , STAT=zdf_iwm_alloc )
+      ALLOCATE( ebot_iwm(A2D(0)),  ecri_iwm(A2D(0)),  ensq_iwm(A2D(0)) ,     &
+      &         esho_iwm(A2D(0)),  hbot_iwm(A2D(0)),  hcri_iwm(A2D(0)) , STAT=zdf_iwm_alloc )
       !
       CALL mpp_sum ( 'zdfiwm', zdf_iwm_alloc )
       IF( zdf_iwm_alloc /= 0 )   CALL ctl_stop( 'STOP', 'zdf_iwm_alloc: failed to allocate arrays' )
@@ -100,7 +100,7 @@ CONTAINS
       !!                 2. Bottom-intensified dissipation above abyssal hills, expressed
       !!              as an algebraic decay above bottom.
       !!                     zemx_iwm(z) = ( ebot_iwm / rho0 ) * ( 1 + hbot_iwm/H ) 
-      !!                                   / ( 1 + (H-z)/hbot_iwm )^2                                
+      !!                                   / ( 1 + (H-z)/hbot_iwm )^2
       !!              where hbot_iwm is the characteristic length scale of the bottom 
       !!              intensification and ebot_iwm is a static 2D map of available power.
       !!                 3. Dissipation scaling in the vertical with the squared buoyancy 
@@ -127,29 +127,32 @@ CONTAINS
       !! References :  de Lavergne et al. JAMES 2020, https://doi.org/10.1029/2020MS002065
       !!               de Lavergne et al. JPO 2016, https://doi.org/10.1175/JPO-D-14-0259.1
       !!----------------------------------------------------------------------
-      INTEGER                    , INTENT(in   ) ::   kt             ! ocean time step
-      INTEGER                    , INTENT(in   ) ::   Kmm            ! time level index      
-      REAL(wp), DIMENSION(:,:,:) , INTENT(inout) ::   p_avm          ! momentum Kz (w-points)
-      REAL(wp), DIMENSION(:,:,:) , INTENT(inout) ::   p_avt, p_avs   ! tracer   Kz (w-points)
+      INTEGER                         , INTENT(in   ) ::   kt             ! ocean time step
+      INTEGER                         , INTENT(in   ) ::   Kmm            ! time level index
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt, p_avs   ! vertical eddy diffusivity (w-points)
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp), SAVE :: zztmp
       !
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zfact       ! Used for vertical structure
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zReb        ! Turbulence intensity parameter
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zemx_iwm    ! local energy density available for mixing (W/kg)
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zav_ratio   ! S/T diffusivity ratio (only for ln_tsdiff=T)
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zav_wave    ! Internal wave-induced diffusivity
+      REAL(wp), DIMENSION(T2D(0))     ::   zfact       ! Used for vertical structure
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zReb        ! Turbulence intensity parameter
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zemx_iwm    ! local energy density available for mixing (W/kg)
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zav_ratio   ! S/T diffusivity ratio (only for ln_tsdiff=T)
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zav_wave    ! Internal wave-induced diffusivity
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   z3d  ! 3D workspace used for iom_put 
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   z2d  ! 2D     -      -    -     -
       !!----------------------------------------------------------------------
       !
-      !                       !* Initialize appropriately certain variables
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
-         zav_ratio(ji,jj,jk) = 1._wp * wmask(ji,jj,jk)  ! important to set it to 1 here 
-      END_3D
-      IF( iom_use("emix_iwm") )                         zemx_iwm (:,:,:) = 0._wp
-      IF( iom_use("av_wave") .OR. sn_cfctl%l_prtctl )   zav_wave (:,:,:) = 0._wp
+      !                       !* Initialize variables at 1 & jpk for diagnostics
+      zav_ratio(:,:,1  ) = 1._wp * wmask(T2D(0),1  )  ! important to set it to 1 here
+      zav_ratio(:,:,jpk) = 1._wp * wmask(T2D(0),jpk)
+      IF( iom_use("emix_iwm") ) THEN
+         zemx_iwm(:,:,1) = 0._wp ; zemx_iwm(:,:,jpk) = 0._wp
+      ENDIF
+      IF( iom_use("av_wave") .OR. sn_cfctl%l_prtctl ) THEN
+         zav_wave(:,:,1) = 0._wp ; zav_wave(:,:,jpk) = 0._wp
+      ENDIF
       !
       !                       ! ----------------------------- !
       !                       !  Internal wave-driven mixing  !  (compute zav_wave)
@@ -157,79 +160,78 @@ CONTAINS
       !                             
       !                       !* 'cri' component: distribute energy over the time-varying
       !                       !* ocean depth using an exponential decay from the seafloor.
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )                ! part independent of the level
-         IF( ht(ji,jj) /= 0._wp ) THEN ; zfact(ji,jj) = ecri_iwm(ji,jj) * r1_rho0 / ( 1._wp - EXP( -ht(ji,jj) * hcri_iwm(ji,jj) ) )
-         ELSE                          ; zfact(ji,jj) = 0._wp
+      DO_2D( 0, 0, 0, 0 )                ! part independent of the level
+         IF( ht(ji,jj,Kmm) /= 0._wp ) THEN ; zfact(ji,jj) = ecri_iwm(ji,jj) * r1_rho0 / ( 1._wp - EXP( -ht(ji,jj,Kmm) * hcri_iwm(ji,jj) ) )
+         ELSE                              ; zfact(ji,jj) = 0._wp
          ENDIF
       END_2D
-
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )      ! complete with the level-dependent part
-         zemx_iwm(ji,jj,jk) = zfact(ji,jj) * (  EXP( ( gdept(ji,jj,jk  ,Kmm) - ht(ji,jj) ) * hcri_iwm(ji,jj) )   &
-            &                                 - EXP( ( gdept(ji,jj,jk-1,Kmm) - ht(ji,jj) ) * hcri_iwm(ji,jj) )   &
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )      ! complete with the level-dependent part
+         zemx_iwm(ji,jj,jk) = zfact(ji,jj) * (  EXP( ( gdept(ji,jj,jk  ,Kmm) - ht(ji,jj,Kmm) ) * hcri_iwm(ji,jj) )   &
+            &                                 - EXP( ( gdept(ji,jj,jk-1,Kmm) - ht(ji,jj,Kmm) ) * hcri_iwm(ji,jj) )   &
             &                                ) * wmask(ji,jj,jk) / e3w(ji,jj,jk,Kmm)
       END_3D
-
                                !* 'bot' component: distribute energy over the time-varying
                                !* ocean depth using an algebraic decay above the seafloor.
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )               ! part independent of the level
-         IF( ht(ji,jj) /= 0._wp ) THEN ; zfact(ji,jj) = ebot_iwm(ji,jj) * ( 1._wp +  hbot_iwm(ji,jj) / ht(ji,jj)  ) * r1_rho0
-         ELSE                          ; zfact(ji,jj) = 0._wp
+
+      DO_2D( 0, 0, 0, 0 )               ! part independent of the level
+         IF( ht(ji,jj,Kmm) /= 0._wp ) THEN ; zfact(ji,jj) = ebot_iwm(ji,jj) * ( 1._wp +  hbot_iwm(ji,jj) / ht(ji,jj,Kmm)  ) * r1_rho0
+         ELSE                              ; zfact(ji,jj) = 0._wp
          ENDIF
       END_2D
 
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )     ! complete with the level-dependent part
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! complete with the level-dependent part
          zemx_iwm(ji,jj,jk) = zemx_iwm(ji,jj,jk) +                                                                           & 
-            &                 zfact(ji,jj) * (  1._wp / ( 1._wp + ( ht(ji,jj) - gdept(ji,jj,jk  ,Kmm) ) / hbot_iwm(ji,jj) )  &
-            &                                 - 1._wp / ( 1._wp + ( ht(ji,jj) - gdept(ji,jj,jk-1,Kmm) ) / hbot_iwm(ji,jj) )  &
+            &                 zfact(ji,jj) * (  1._wp / ( 1._wp + ( ht(ji,jj,Kmm) - gdept(ji,jj,jk  ,Kmm) ) / hbot_iwm(ji,jj) )  &
+            &                                 - 1._wp / ( 1._wp + ( ht(ji,jj,Kmm) - gdept(ji,jj,jk-1,Kmm) ) / hbot_iwm(ji,jj) )  &
             &                                ) * wmask(ji,jj,jk) / e3w(ji,jj,jk,Kmm)
       END_3D
 
                                !* 'nsq' component: distribute energy over the time-varying 
                                !* ocean depth as proportional to rn2
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( 0, 0, 0, 0 )
          zfact(ji,jj) = 0._wp
       END_2D
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )     ! part independent of the level
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! part independent of the level
          zfact(ji,jj) = zfact(ji,jj) + e3w(ji,jj,jk,Kmm) * MAX( 0._wp, rn2(ji,jj,jk) )
       END_3D
       !
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( 0, 0, 0, 0 )
          IF( zfact(ji,jj) /= 0._wp )   zfact(ji,jj) = ensq_iwm(ji,jj) * r1_rho0 / zfact(ji,jj)
       END_2D
       !
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )     ! complete with the level-dependent part
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! complete with the level-dependent part
          zemx_iwm(ji,jj,jk) = zemx_iwm(ji,jj,jk) + zfact(ji,jj) * MAX( 0._wp, rn2(ji,jj,jk) )
       END_3D
 
                                !* 'sho' component: distribute energy over the time-varying 
                                !* ocean depth as proportional to sqrt(rn2)
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( 0, 0, 0, 0 )
          zfact(ji,jj) = 0._wp
       END_2D
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )     ! part independent of the level
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! part independent of the level
          zfact(ji,jj) = zfact(ji,jj) + e3w(ji,jj,jk,Kmm) * SQRT( MAX( 0._wp, rn2(ji,jj,jk) ) )
       END_3D
       !
-      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( 0, 0, 0, 0 )
          IF( zfact(ji,jj) /= 0._wp )   zfact(ji,jj) = esho_iwm(ji,jj) * r1_rho0 / zfact(ji,jj)
       END_2D
       !
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )     ! complete with the level-dependent part
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! complete with the level-dependent part
          zemx_iwm(ji,jj,jk) = zemx_iwm(ji,jj,jk) + zfact(ji,jj) * SQRT( MAX( 0._wp, rn2(ji,jj,jk) ) )
       END_3D
 
       ! Calculate turbulence intensity parameter Reb
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          zReb(ji,jj,jk) = zemx_iwm(ji,jj,jk) / MAX( 1.e-20_wp, rnu * rn2(ji,jj,jk) )
       END_3D
       !
       ! Define internal wave-induced diffusivity
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          zav_wave(ji,jj,jk) = zReb(ji,jj,jk) * r1_6 * rnu  ! This corresponds to a constant mixing efficiency of 1/6
       END_3D
       !
       IF( ln_mevar ) THEN                                          ! Variable mixing efficiency case : modify zav_wave in the
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 ) ! energetic (Reb > 480) and buoyancy-controlled (Reb <10.224) regimes
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 ) ! energetic (Reb > 480) and buoyancy-controlled (Reb <10.224) regimes
             IF( zReb(ji,jj,jk) > 480.00_wp ) THEN
                zav_wave(ji,jj,jk) = 3.6515_wp * rnu * SQRT( zReb(ji,jj,jk) )
             ELSEIF( zReb(ji,jj,jk) < 10.224_wp ) THEN
@@ -238,7 +240,7 @@ CONTAINS
          END_3D
       ENDIF
       !
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )    ! Bound diffusivity by molecular value and 100 cm2/s
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )    ! Bound diffusivity by molecular value and 100 cm2/s
          zav_wave(ji,jj,jk) = MIN( MAX( 1.4e-7_wp, zav_wave(ji,jj,jk) ), 1.e-2_wp ) * wmask(ji,jj,jk)
       END_3D
       !
@@ -247,15 +249,19 @@ CONTAINS
       !                          ! ----------------------- !
       !
       IF( ln_tsdiff ) THEN                !* Option for differential mixing of salinity and temperature
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 ) ! Calculate S/T diffusivity ratio as a function of Reb (else it is set to 1)
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 ) ! Calculate S/T diffusivity ratio as a function of Reb (else it is set to 1)
             zav_ratio(ji,jj,jk) = ( 0.505_wp + &
                &                    0.495_wp * TANH( 0.92_wp * ( LOG10( MAX( 1.e-20, zReb(ji,jj,jk) * 5._wp * r1_6 ) ) - 0.60_wp ) ) &
                &                  ) * wmask(ji,jj,jk)
          END_3D
+      ELSE
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+            zav_ratio(ji,jj,jk) = 1._wp * wmask(ji,jj,jk)
+         END_3D
       ENDIF
       CALL iom_put( "av_ratio", zav_ratio )
       !
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 ) !* update momentum & tracer diffusivity with wave-driven mixing
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 ) !* update momentum & tracer diffusivity with wave-driven mixing
          p_avs(ji,jj,jk) = p_avs(ji,jj,jk) + zav_wave(ji,jj,jk) * zav_ratio(ji,jj,jk)
          p_avt(ji,jj,jk) = p_avt(ji,jj,jk) + zav_wave(ji,jj,jk)
          p_avm(ji,jj,jk) = p_avm(ji,jj,jk) + zav_wave(ji,jj,jk)
@@ -265,8 +271,10 @@ CONTAINS
                                     !* output useful diagnostics: Kz*N^2 , 
                                     !  vertical integral of rho0 * Kz * N^2 , energy density (zemx_iwm)
       IF( iom_use("bflx_iwm") .OR. iom_use("pcmap_iwm") ) THEN
-         ALLOCATE( z2d(A2D(nn_hls)) , z3d(A2D(nn_hls),jpk) )
-         z2d(:,:) = 0._wp ; z3d(:,:,:) = 0._wp   ! Initialisation for iom_put
+         ALLOCATE( z2d(T2D(0)), z3d(T2D(0),jpk) )
+         ! Initialise 1 & jpk for diagnostics
+         z2d(:,:) = 0._wp ; z3d(:,:,1) = 0._wp ; z3d(:,:,jpk) = 0._wp
+
          DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             z3d(ji,jj,jk) = MAX( 0._wp, rn2(ji,jj,jk) ) * zav_wave(ji,jj,jk)
             z2d(ji,jj) = z2d(ji,jj) + rho0 * e3w(ji,jj,jk,Kmm) * z3d(ji,jj,jk) * wmask(ji,jj,jk)
@@ -282,7 +290,7 @@ CONTAINS
          IF( .NOT. l_istiled .OR. ntile == 1 ) zztmp = 0._wp                    ! Do only on the first tile
          DO_3D( 0, 0, 0, 0, 2, jpkm1 )
             zztmp = zztmp + e3w(ji,jj,jk,Kmm) * e1e2t(ji,jj)   &
-               &          * MAX( 0._wp, rn2(ji,jj,jk) ) * zav_wave(ji,jj,jk) * wmask(ji,jj,jk) * tmask_i(ji,jj)
+               &          * MAX( 0._wp, rn2(ji,jj,jk) ) * zav_wave(ji,jj,jk) * wmask(ji,jj,jk) * smask0_i(ji,jj)
          END_3D
 
          IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
@@ -299,7 +307,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl(tab3d_1=zav_wave , clinfo1=' iwm - av_wave: ', tab3d_2=avt, clinfo2=' avt: ')
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl(tab3d_1=zav_wave , clinfo1=' iwm - av_wave: ', tab3d_2=p_avt, clinfo2=' avt: ')
       !
    END SUBROUTINE zdf_iwm
 
@@ -341,14 +349,16 @@ CONTAINS
       INTEGER, PARAMETER            ::   jp_mps = 4
       INTEGER, PARAMETER            ::   jp_dsb = 5
       INTEGER, PARAMETER            ::   jp_dsc = 6
+      INTEGER                       ::   ji, jj
       !
       TYPE(FLD_N), DIMENSION(jpiwm) ::   slf_iwm                        ! array of namelist informations
       TYPE(FLD_N)                   ::   sn_mpb, sn_mpc, sn_mpn, sn_mps ! information about Mixing Power field to be read
       TYPE(FLD_N)                   ::   sn_dsb, sn_dsc                 ! information about Decay Scale field to be read
       TYPE(FLD  ), DIMENSION(jpiwm) ::   sf_iwm                         ! structure of input fields (file informations, fields read)
       !
-      REAL(wp), DIMENSION(jpi,jpj,4) ::   ztmp
-      REAL(wp), DIMENSION(4)         ::   zdia
+      REAL(wp), DIMENSION(A2D(0),4) ::   ztmp
+      REAL(wp), DIMENSION(4)        ::   zdia
+      REAL(wp)                      ::   zcte
       !
       NAMELIST/namzdf_iwm/ ln_mevar, ln_tsdiff, &
           &                cn_dir, sn_mpb, sn_mpc, sn_mpn, sn_mps, sn_dsb, sn_dsc
@@ -373,10 +383,10 @@ CONTAINS
       ! This internal-wave-driven mixing parameterization elevates avt and avm in the interior, and
       ! ensures that avt remains larger than its molecular value (=1.4e-7). Therefore, avtb should 
       ! be set here to a very small value, and avmb to its (uniform) molecular value (=1.4e-6).
-      avmb(:) = rnu              ! molecular value
-      avtb(:) = 1.e-10_wp        ! very small diffusive minimum (background avt is specified in zdf_iwm)    
-      avtb_2d(:,:) = 1._wp       ! uniform 
-      IF(lwp) THEN                  ! Control print
+      avmb(:) = rnu               ! molecular value
+      avtb(:) = 1.e-10_wp         ! very small diffusive minimum (background avt is specified in zdf_iwm)
+      avtb_2d(:,:) = 1._wp        ! uniform
+      IF(lwp) THEN                ! Control print
          WRITE(numout,*)
          WRITE(numout,*) '   Force the background value applied to avm & avt in TKE to be everywhere ',   &
             &               'the viscous molecular value & a very small diffusive value, resp.'
@@ -390,40 +400,46 @@ CONTAINS
       slf_iwm(jp_dsb) = sn_dsb ; slf_iwm(jp_dsc) = sn_dsc
       !
       DO ifpr= 1, jpiwm
-         ALLOCATE( sf_iwm(ifpr)%fnow(jpi,jpj,1)   )
-         IF( slf_iwm(ifpr)%ln_tint ) ALLOCATE( sf_iwm(ifpr)%fdta(jpi,jpj,1,2) )
+         ALLOCATE( sf_iwm(ifpr)%fnow(A2D(0),1)   )
+         IF( slf_iwm(ifpr)%ln_tint ) ALLOCATE( sf_iwm(ifpr)%fdta(A2D(0),1,2) )
       END DO
 
       ! fill sf_iwm with sf_iwm and control print
       CALL fld_fill( sf_iwm, slf_iwm , cn_dir, 'zdfiwm_init', 'iwm input file', 'namiwm' )
 
       !                             ! hard-coded default values
-      sf_iwm(jp_mpb)%fnow(:,:,1) = 1.e-10_wp
-      sf_iwm(jp_mpc)%fnow(:,:,1) = 1.e-10_wp
-      sf_iwm(jp_mpn)%fnow(:,:,1) = 1.e-5_wp
-      sf_iwm(jp_mps)%fnow(:,:,1) = 1.e-10_wp
-      sf_iwm(jp_dsb)%fnow(:,:,1) = 100._wp
-      sf_iwm(jp_dsc)%fnow(:,:,1) = 100._wp
+      DO_2D( 0, 0, 0, 0 )
+         sf_iwm(jp_mpb)%fnow(ji,jj,1) = 1.e-10_wp
+         sf_iwm(jp_mpc)%fnow(ji,jj,1) = 1.e-10_wp
+         sf_iwm(jp_mpn)%fnow(ji,jj,1) = 1.e-5_wp
+         sf_iwm(jp_mps)%fnow(ji,jj,1) = 1.e-10_wp
+         sf_iwm(jp_dsb)%fnow(ji,jj,1) = 100._wp
+         sf_iwm(jp_dsc)%fnow(ji,jj,1) = 100._wp
+      END_2D
 
       !                             ! read necessary fields
       CALL fld_read( nit000, 1, sf_iwm )
 
-      ebot_iwm(:,:) = sf_iwm(1)%fnow(:,:,1) * ssmask(:,:) ! energy flux for dissipation above abyssal hills [W/m2]
-      ecri_iwm(:,:) = sf_iwm(2)%fnow(:,:,1) * ssmask(:,:) ! energy flux for dissipation at topographic slopes [W/m2]
-      ensq_iwm(:,:) = sf_iwm(3)%fnow(:,:,1) * ssmask(:,:) ! energy flux for dissipation scaling with N^2 [W/m2]
-      esho_iwm(:,:) = sf_iwm(4)%fnow(:,:,1) * ssmask(:,:) ! energy flux for dissipation due to shoaling [W/m2]
-      hbot_iwm(:,:) = sf_iwm(5)%fnow(:,:,1)               ! spatially variable decay scale for abyssal hill dissipation [m]
-      hcri_iwm(:,:) = sf_iwm(6)%fnow(:,:,1)               ! spatially variable decay scale for topographic-slope [m]
-
-      hcri_iwm(:,:) = 1._wp / hcri_iwm(:,:) ! only the inverse height is used, hence calculated here once for all
+      DO_2D( 0, 0, 0, 0 )
+         zcte = smask0(ji,jj)
+         ebot_iwm(ji,jj) = sf_iwm(1)%fnow(ji,jj,1) * zcte    ! energy flux for dissipation above abyssal hills [W/m2]
+         ecri_iwm(ji,jj) = sf_iwm(2)%fnow(ji,jj,1) * zcte    ! energy flux for dissipation at topographic slopes [W/m2]
+         ensq_iwm(ji,jj) = sf_iwm(3)%fnow(ji,jj,1) * zcte    ! energy flux for dissipation scaling with N^2 [W/m2]
+         esho_iwm(ji,jj) = sf_iwm(4)%fnow(ji,jj,1) * zcte    ! energy flux for dissipation due to shoaling [W/m2]
+         hbot_iwm(ji,jj) = sf_iwm(5)%fnow(ji,jj,1)           ! spatially variable decay scale for abyssal hill dissipation [m]
+         hcri_iwm(ji,jj) = 1._wp / sf_iwm(6)%fnow(ji,jj,1)   ! inverse decay scale for topographic slope dissipation [m-1]
+      END_2D
 
       ! diags
-      ztmp(:,:,1) = e1e2t(:,:) * ebot_iwm(:,:)
-      ztmp(:,:,2) = e1e2t(:,:) * ecri_iwm(:,:)
-      ztmp(:,:,3) = e1e2t(:,:) * ensq_iwm(:,:)
-      ztmp(:,:,4) = e1e2t(:,:) * esho_iwm(:,:)
+      DO_2D( 0, 0, 0, 0 )
+         zcte = e1e2t(ji,jj)
+         ztmp(ji,jj,1) = zcte * ebot_iwm(ji,jj)
+         ztmp(ji,jj,2) = zcte * ecri_iwm(ji,jj)
+         ztmp(ji,jj,3) = zcte * ensq_iwm(ji,jj)
+         ztmp(ji,jj,4) = zcte * esho_iwm(ji,jj)
+      END_2D
 
-      zdia(1:4) = glob_sum_vec( 'zdfiwm', ztmp(:,:,1:4) )
+      zdia(1:4) = glob_sum_vec( 'zdfiwm', ztmp )
 
       IF(lwp) THEN
          WRITE(numout,*) '      Dissipation above abyssal hills:        ', zdia(1) * 1.e-12_wp, 'TW'

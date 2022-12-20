@@ -68,6 +68,7 @@ MODULE zdfosm
    USE oce                       ! Ocean dynamics and active tracers
    !                             ! Uses ww from previous time step (which is now wb) to calculate hbl
    USE dom_oce                   ! Ocean space and time domain
+   USE domtile, ONLY : dom_tile_init
    USE zdf_oce                   ! Ocean vertical physics
    USE sbc_oce                   ! Surface boundary condition: ocean
    USE sbcwave                   ! Surface wave parameters
@@ -349,57 +350,58 @@ CONTAINS
       !!         Comments in the code refer to this paper, particularly
       !!         the equation number. (LMD94, here after)
       !!----------------------------------------------------------------------
-      INTEGER                   , INTENT(in   ) ::  kt               ! Ocean time step
-      INTEGER                   , INTENT(in   ) ::  Kbb, Kmm, Krhs   ! Ocean time level indices
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::  p_avm, p_avt     ! Momentum and tracer Kz (w-points)
+      INTEGER                         , INTENT(in   ) ::  kt               ! Ocean time step
+      INTEGER                         , INTENT(in   ) ::  Kbb, Kmm, Krhs   ! Ocean time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::  p_avm            ! vertical eddy viscosity (w-points)
+      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::  p_avt            ! vertical eddy diffusivity (w-points)
       !!
       INTEGER ::   ji, jj, jk, jl, jm, jkflt   ! Dummy loop indices
       !!
       REAL(wp) ::   zthermal, zbeta
       REAL(wp) ::   zesh2, zri, zfri   ! Interior Richardson mixing
       !! Scales
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zrad0       ! Surface solar temperature flux (deg m/s)
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zradh       ! Radiative flux at bl base (Buoyancy units)
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zrad0       ! Surface solar temperature flux (deg m/s)
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zradh       ! Radiative flux at bl base (Buoyancy units)
       REAL(wp)                           ::   zradav      ! Radiative flux, bl average (Buoyancy Units)
       REAL(wp)                           ::   zvw0        ! Surface v-momentum flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zwb0tot     ! Total surface buoyancy flux including insolation
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zwb_ent     ! Buoyancy entrainment flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zwb_min
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zwb_fk_b    ! MLE buoyancy flux averaged over OSBL
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zwb_fk      ! Max MLE buoyancy flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdiff_mle   ! Extra MLE vertical diff
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zvel_mle    ! Velocity scale for dhdt with stable ML and FK
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zwb0tot     ! Total surface buoyancy flux including insolation
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zwb_ent     ! Buoyancy entrainment flux
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zwb_min
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zwb_fk_b    ! MLE buoyancy flux averaged over OSBL
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zwb_fk      ! Max MLE buoyancy flux
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zdiff_mle   ! Extra MLE vertical diff
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zvel_mle    ! Velocity scale for dhdt with stable ML and FK
       !! Mixed-layer variables
-      INTEGER,  DIMENSION(A2D(nn_hls-1)) ::   jk_nlev  ! Number of levels
-      INTEGER,  DIMENSION(A2D(nn_hls-1)) ::   jk_ext   ! Offset for external level
+      INTEGER,  DIMENSION(T2D(nn_hls-1)) ::   jk_nlev  ! Number of levels
+      INTEGER,  DIMENSION(T2D(nn_hls-1)) ::   jk_ext   ! Offset for external level
       !!
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zhbl   ! BL depth - grid
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zhml   ! ML depth - grid
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zhbl   ! BL depth - grid
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zhml   ! ML depth - grid
       !!
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zhmle   ! MLE depth - grid
-      REAL(wp), DIMENSION(A2D(nn_hls))   ::   zmld    ! ML depth on grid
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zhmle   ! MLE depth - grid
+      REAL(wp), DIMENSION(T2D(nn_hls))   ::   zmld    ! ML depth on grid
       !!
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdh                          ! Pycnocline depth - grid
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdhdt                        ! BL depth tendency
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdtdz_bl_ext, zdsdz_bl_ext   ! External temperature/salinity gradients
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdbdz_bl_ext                 ! External buoyancy gradients
-      REAL(wp), DIMENSION(A2D(nn_hls))   ::   zdtdx, zdtdy, zdsdx, zdsdy   ! Horizontal gradients for Fox-Kemper parametrization
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zdh                          ! Pycnocline depth - grid
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zdhdt                        ! BL depth tendency
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zdtdz_bl_ext, zdsdz_bl_ext   ! External temperature/salinity gradients
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zdbdz_bl_ext                 ! External buoyancy gradients
+      REAL(wp), DIMENSION(T2D(nn_hls))   ::   zdtdx, zdtdy, zdsdx, zdsdy   ! Horizontal gradients for Fox-Kemper parametrization
       !!
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdbds_mle   ! Magnitude of horizontal buoyancy gradient
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zdbds_mle   ! Magnitude of horizontal buoyancy gradient
       !! Flux-gradient relationship variables
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zshear   ! Shear production
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zshear   ! Shear production
       !!
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zhbl_t   ! Holds boundary layer depth updated by full timestep
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zhbl_t   ! Holds boundary layer depth updated by full timestep
       !! For calculating Ri#-dependent mixing
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   z2du     ! u-shear^2
-      REAL(wp), DIMENSION(A2D(nn_hls)) ::   z2dv     ! v-shear^2
+      REAL(wp), DIMENSION(T2D(nn_hls)) ::   z2du     ! u-shear^2
+      REAL(wp), DIMENSION(T2D(nn_hls)) ::   z2dv     ! v-shear^2
       REAL(wp)                         ::   zrimix   ! Spatial form of ri#-induced diffusion
       !! Temporary variables
       REAL(wp)                                 ::   znd              ! Temporary non-dimensional depth
       REAL(wp)                                 ::   zz0, zz1, zfac
       REAL(wp)                                 ::   zus_x, zus_y     ! Temporary Stokes drift
-      REAL(wp), DIMENSION(A2D(nn_hls-1),jpk)   ::   zviscos          ! Viscosity
-      REAL(wp), DIMENSION(A2D(nn_hls-1),jpk)   ::   zdiffut          ! t-diffusivity
+      REAL(wp), DIMENSION(T2D(nn_hls-1),jpk)   ::   zviscos          ! Viscosity
+      REAL(wp), DIMENSION(T2D(nn_hls-1),jpk)   ::   zdiffut          ! t-diffusivity
       REAL(wp)                                 ::   zabsstke
       REAL(wp)                                 ::   zsqrtpi, z_two_thirds, zthickness
       REAL(wp)                                 ::   z2k_times_thickness, zsqrt_depth, zexp_depth, zf, zexperfc
@@ -486,8 +488,8 @@ CONTAINS
             &             grav  * zbeta * swsav(ji,jj)                      ! OBSBL
       END_2D
       DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-         suw0(ji,jj)    = -0.5_wp * (utau(ji-1,jj) + utau(ji,jj)) * r1_rho0 * tmask(ji,jj,1)   ! Surface upward velocity fluxes
-         zvw0           = -0.5_wp * (vtau(ji,jj-1) + vtau(ji,jj)) * r1_rho0 * tmask(ji,jj,1)
+         suw0(ji,jj)    = - utau(ji,jj) * r1_rho0 * tmask(ji,jj,1)          ! Surface upward velocity fluxes
+         zvw0           = - vtau(ji,jj) * r1_rho0 * tmask(ji,jj,1)
          sustar(ji,jj)  = MAX( SQRT( SQRT( suw0(ji,jj) * suw0(ji,jj) + zvw0 * zvw0 ) ),   &   ! Friction velocity (sustar), at
             &                  1e-8_wp )                                                      !    T-point : LMD94 eq. 2
          scos_wind(ji,jj) = -1.0_wp * suw0(ji,jj) / ( sustar(ji,jj) * sustar(ji,jj) )
@@ -643,13 +645,13 @@ CONTAINS
       END_2D
       !
       ! Averages over well-mixed and boundary layer, note BL averages use jk_ext=2 everywhere
-      jk_nlev(:,:) = nbld(A2D(nn_hls-1))
+      jk_nlev(:,:) = nbld(T2D(nn_hls-1))
       jk_ext(:,:) = 1   ! ag 19/03
       CALL zdf_osm_vertical_average( Kbb,      Kmm,      jk_nlev,  av_t_bl,  av_s_bl,    &
          &                           av_b_bl,  av_u_bl,  av_v_bl,  jk_ext,   av_dt_bl,   &
          &                           av_ds_bl, av_db_bl, av_du_bl, av_dv_bl )
-      jk_nlev(:,:) = nmld(A2D(nn_hls-1)) - 1
-      jk_ext(:,:) = nbld(A2D(nn_hls-1)) - nmld(A2D(nn_hls-1)) + jk_ext(:,:) + 1   ! ag 19/03
+      jk_nlev(:,:) = nmld(T2D(nn_hls-1)) - 1
+      jk_ext(:,:) = nbld(T2D(nn_hls-1)) - nmld(T2D(nn_hls-1)) + jk_ext(:,:) + 1   ! ag 19/03
       CALL zdf_osm_vertical_average( Kbb,      Kmm,      jk_nlev,  av_t_ml,  av_s_ml,    &
          &                           av_b_ml,  av_u_ml,  av_v_ml,  jk_ext,   av_dt_ml,   &
          &                           av_ds_ml, av_db_ml, av_du_ml, av_dv_ml )
@@ -671,7 +673,7 @@ CONTAINS
          DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 5, jpkm1 )
             IF ( hmle(ji,jj) >= gdepw(ji,jj,jk,Kmm) ) mld_prof(ji,jj) = MIN( mbkt(ji,jj), jk)
          END_3D
-         jk_nlev(:,:) = mld_prof(A2D(nn_hls-1))
+         jk_nlev(:,:) = mld_prof(T2D(nn_hls-1))
          CALL zdf_osm_vertical_average( Kbb,      Kmm,      jk_nlev,  av_t_mle, av_s_mle,   &
             &                           av_b_mle, av_u_mle, av_v_mle )
          !
@@ -699,7 +701,7 @@ CONTAINS
       ENDIF   ! ln_osm_mle
       !
       !! External gradient below BL needed both with and w/o FK
-      jk_ext(:,:) = nbld(A2D(nn_hls-1)) + 1
+      jk_ext(:,:) = nbld(T2D(nn_hls-1)) + 1
       CALL zdf_osm_external_gradients( Kmm, jk_ext, zdtdz_bl_ext, zdsdz_bl_ext, zdbdz_bl_ext )   ! ag 19/03
       !
       ! Test if pycnocline well resolved
@@ -720,13 +722,13 @@ CONTAINS
       !      END_2D
       !
       ! Recalculate bl averages using jk_ext & ml averages .... note no rotation of u & v here..
-      jk_nlev(:,:) = nbld(A2D(nn_hls-1))
+      jk_nlev(:,:) = nbld(T2D(nn_hls-1))
       jk_ext(:,:) = 1   ! ag 19/03
       CALL zdf_osm_vertical_average( Kbb,      Kmm,      jk_nlev,  av_t_bl,  av_s_bl,    &
          &                           av_b_bl,  av_u_bl,  av_v_bl,  jk_ext,   av_dt_bl,   &
          &                           av_ds_bl, av_db_bl, av_du_bl, av_dv_bl )
-      jk_nlev(:,:) = nmld(A2D(nn_hls-1)) - 1
-      jk_ext(:,:) = nbld(A2D(nn_hls-1)) - nmld(A2D(nn_hls-1)) + jk_ext(:,:) + 1   ! ag 19/03
+      jk_nlev(:,:) = nmld(T2D(nn_hls-1)) - 1
+      jk_ext(:,:) = nbld(T2D(nn_hls-1)) - nmld(T2D(nn_hls-1)) + jk_ext(:,:) + 1   ! ag 19/03
       CALL zdf_osm_vertical_average( Kbb,      Kmm,      jk_nlev,  av_t_ml,  av_s_ml,    &
          &                           av_b_ml,  av_u_ml,  av_v_ml,  jk_ext,   av_dt_ml,   &
          &                           av_ds_ml, av_db_ml, av_du_ml, av_dv_ml )   ! ag 19/03
@@ -741,7 +743,7 @@ CONTAINS
          ! Adjustment to represent limiting by ocean bottom
          IF ( mbkt(ji,jj) > 2 ) THEN   ! To ensure mbkt(ji,jj) - 2 > 0 so no incorrect array access
             IF ( zhbl_t(ji,jj) > gdepw(ji, jj,mbkt(ji,jj)-2,Kmm) ) THEN
-               zhbl_t(ji,jj) = MIN( zhbl_t(ji,jj), gdepw(ji,jj,mbkt(ji,jj)-2,Kmm) )   ! ht(:,:))
+               zhbl_t(ji,jj) = MIN( zhbl_t(ji,jj), gdepw(ji,jj,mbkt(ji,jj)-2,Kmm) )   ! ht(:,:,Kmm))
                l_pyc(ji,jj)  = .FALSE.
                l_coup(ji,jj) = .TRUE.   ! ag 19/03
             END IF
@@ -767,7 +769,7 @@ CONTAINS
       ! Is external level in bounds?
       !
       ! Recalculate BL averages and differences using new BL depth
-      jk_nlev(:,:) = nbld(A2D(nn_hls-1))
+      jk_nlev(:,:) = nbld(T2D(nn_hls-1))
       jk_ext(:,:) = 1   ! ag 19/03
       CALL zdf_osm_vertical_average( Kbb,      Kmm,      jk_nlev,  av_t_bl,  av_s_bl,    &
          &                           av_b_bl,  av_u_bl,  av_v_bl,  jk_ext,   av_dt_bl,   &
@@ -799,13 +801,13 @@ CONTAINS
       ! Average over the depth of the mixed layer in the convective boundary layer
       !      jk_ext = nbld - nmld + 1
       ! Recalculate ML averages and differences using new ML depth
-      jk_nlev(:,:) = nmld(A2D(nn_hls-1)) - 1
-      jk_ext(:,:) = nbld(A2D(nn_hls-1)) - nmld(A2D(nn_hls-1)) + jk_ext(:,:) + 1   ! ag 19/03
+      jk_nlev(:,:) = nmld(T2D(nn_hls-1)) - 1
+      jk_ext(:,:) = nbld(T2D(nn_hls-1)) - nmld(T2D(nn_hls-1)) + jk_ext(:,:) + 1   ! ag 19/03
       CALL zdf_osm_vertical_average( Kbb,      Kmm,      jk_nlev,  av_t_ml,  av_s_ml,    &
          &                           av_b_ml,  av_u_ml,  av_v_ml,  jk_ext,   av_dt_ml,   &
          &                           av_ds_ml, av_db_ml, av_du_ml, av_dv_ml )
       !
-      jk_ext(:,:) = nbld(A2D(nn_hls-1)) + 1
+      jk_ext(:,:) = nbld(T2D(nn_hls-1)) + 1
       CALL zdf_osm_external_gradients( Kmm, jk_ext, zdtdz_bl_ext, zdsdz_bl_ext, zdbdz_bl_ext )
       ! Rotate mean currents and changes onto wind aligned co-ordinates
       CALL zdf_osm_velocity_rotation( av_u_ml,  av_v_ml  )
@@ -833,7 +835,7 @@ CONTAINS
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
       ! Rotate non-gradient velocity terms back to model reference frame
-      jk_nlev(:,:) = nbld(A2D(nn_hls-1))
+      jk_nlev(:,:) = nbld(T2D(nn_hls-1))
       CALL zdf_osm_velocity_rotation( ghamu, ghamv, .FALSE.,  2, jk_nlev )
       !
       ! KPP-style Ri# mixing
@@ -910,7 +912,7 @@ CONTAINS
       ! Lateral boundary conditions on zvicos (sign unchanged), needed to caclulate viscosities on u and v grids
       ! CALL lbc_lnk( 'zdfosm', zviscos(:,:,:), 'W', 1.0_wp )
       ! GN 25/8: need to change tmask --> wmask
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          p_avt(ji,jj,jk) = MAX( zdiffut(ji,jj,jk), avtb(jk) ) * tmask(ji,jj,jk)
          p_avm(ji,jj,jk) = MAX( zviscos(ji,jj,jk), avmb(jk) ) * tmask(ji,jj,jk)
       END_3D
@@ -919,84 +921,82 @@ CONTAINS
          SELECT CASE (nn_osm_wave)
             ! Stokes drift set by assumimg onstant La#=0.3 (=0) or Pierson-Moskovitz spectrum (=1)
          CASE(0:1)
-            CALL zdf_osm_iomput( "us_x", tmask(A2D(0),1) * sustke(A2D(0)) * scos_wind(A2D(0)) )   ! x surface Stokes drift
-            CALL zdf_osm_iomput( "us_y", tmask(A2D(0),1) * sustke(A2D(0)) * scos_wind(A2D(0)) )   ! y surface Stokes drift
-            CALL zdf_osm_iomput( "wind_wave_abs_power", 1000.0_wp * rho0 * tmask(A2D(0),1) * sustar(A2D(0))**2 * sustke(A2D(0)) )
+            CALL zdf_osm_iomput( "us_x", tmask(T2D(0),1) * sustke(T2D(0)) * scos_wind(T2D(0)) )   ! x surface Stokes drift
+            CALL zdf_osm_iomput( "us_y", tmask(T2D(0),1) * sustke(T2D(0)) * ssin_wind(T2D(0)) )   ! y surface Stokes drift
+            CALL zdf_osm_iomput( "wind_wave_abs_power", 1000.0_wp * rho0 * tmask(T2D(0),1) * sustar(T2D(0))**2 * sustke(T2D(0)) )
             ! Stokes drift read in from sbcwave  (=2).
          CASE(2:3)
-            CALL zdf_osm_iomput( "us_x",   ut0sd(A2D(0)) * umask(A2D(0),1) )                         ! x surface Stokes drift
-            CALL zdf_osm_iomput( "us_y",   vt0sd(A2D(0)) * vmask(A2D(0),1) )                         ! y surface Stokes drift
-            CALL zdf_osm_iomput( "wmp",    wmp(A2D(0)) * tmask(A2D(0),1) )                           ! Wave mean period
-            CALL zdf_osm_iomput( "hsw",    hsw(A2D(0)) * tmask(A2D(0),1) )                           ! Significant wave height
+            CALL zdf_osm_iomput( "us_x",   ut0sd(T2D(0)) * umask(T2D(0),1) )                         ! x surface Stokes drift
+            CALL zdf_osm_iomput( "us_y",   vt0sd(T2D(0)) * vmask(T2D(0),1) )                         ! y surface Stokes drift
+            CALL zdf_osm_iomput( "wmp",    wmp(T2D(0)) * tmask(T2D(0),1) )                           ! Wave mean period
+            CALL zdf_osm_iomput( "hsw",    hsw(T2D(0)) * tmask(T2D(0),1) )                           ! Significant wave height
             CALL zdf_osm_iomput( "wmp_NP", ( 2.0_wp * rpi * 1.026_wp / ( 0.877_wp * grav ) ) *   &   ! Wave mean period from NP
-               &                           wndm(A2D(0)) * tmask(A2D(0),1) )                          !    spectrum
-            CALL zdf_osm_iomput( "hsw_NP", ( 0.22_wp / grav ) * wndm(A2D(0))**2 * tmask(A2D(0),1) )  ! Significant wave height from
+               &                           wndm(T2D(0)) * tmask(T2D(0),1) )                          !    spectrum
+            CALL zdf_osm_iomput( "hsw_NP", ( 0.22_wp / grav ) * wndm(T2D(0))**2 * tmask(T2D(0),1) )  ! Significant wave height from
             !                                                                                        !    NP spectrum
-            CALL zdf_osm_iomput( "wndm",   wndm(A2D(0)) * tmask(A2D(0),1) )                          ! U_10
-            CALL zdf_osm_iomput( "wind_wave_abs_power", 1000.0_wp * rho0 * tmask(A2D(0),1) * sustar(A2D(0))**2 *   &
-               &                                        SQRT( ut0sd(A2D(0))**2 + vt0sd(A2D(0))**2 ) )
+            CALL zdf_osm_iomput( "wndm",   wndm(T2D(0)) * tmask(T2D(0),1) )                          ! U_10
+            CALL zdf_osm_iomput( "wind_wave_abs_power", 1000.0_wp * rho0 * tmask(T2D(0),1) * sustar(T2D(0))**2 *   &
+               &                                        SQRT( ut0sd(T2D(0))**2 + vt0sd(T2D(0))**2 ) )
          END SELECT
-         CALL zdf_osm_iomput( "zwth0",           tmask(A2D(0),1) * swth0(A2D(0))     )      ! <Tw_0>
-         CALL zdf_osm_iomput( "zws0",            tmask(A2D(0),1) * sws0(A2D(0))      )      ! <Sw_0>
-         CALL zdf_osm_iomput( "zwb0",            tmask(A2D(0),1) * swb0(A2D(0))      )      ! <Sw_0>
-         CALL zdf_osm_iomput( "zwbav",           tmask(A2D(0),1) * swth0(A2D(0))     )      ! Upward BL-avged turb buoyancy flux
-         CALL zdf_osm_iomput( "ibld",            tmask(A2D(0),1) * nbld(A2D(0))      )      ! Boundary-layer max k
-         CALL zdf_osm_iomput( "zdt_bl",          tmask(A2D(0),1) * av_dt_bl(A2D(0))  )      ! dt at ml base
-         CALL zdf_osm_iomput( "zds_bl",          tmask(A2D(0),1) * av_ds_bl(A2D(0))  )      ! ds at ml base
-         CALL zdf_osm_iomput( "zdb_bl",          tmask(A2D(0),1) * av_db_bl(A2D(0))  )      ! db at ml base
-         CALL zdf_osm_iomput( "zdu_bl",          tmask(A2D(0),1) * av_du_bl(A2D(0))  )      ! du at ml base
-         CALL zdf_osm_iomput( "zdv_bl",          tmask(A2D(0),1) * av_dv_bl(A2D(0))  )      ! dv at ml base
-         CALL zdf_osm_iomput( "dh",              tmask(A2D(0),1) * dh(A2D(0))        )      ! Initial boundary-layer depth
-         CALL zdf_osm_iomput( "hml",             tmask(A2D(0),1) * hml(A2D(0))       )      ! Initial boundary-layer depth
-         CALL zdf_osm_iomput( "zdt_ml",          tmask(A2D(0),1) * av_dt_ml(A2D(0))  )      ! dt at ml base
-         CALL zdf_osm_iomput( "zds_ml",          tmask(A2D(0),1) * av_ds_ml(A2D(0))  )      ! ds at ml base
-         CALL zdf_osm_iomput( "zdb_ml",          tmask(A2D(0),1) * av_db_ml(A2D(0))  )      ! db at ml base
-         CALL zdf_osm_iomput( "dstokes",         tmask(A2D(0),1) * dstokes(A2D(0))   )      ! Stokes drift penetration depth
-         CALL zdf_osm_iomput( "zustke",          tmask(A2D(0),1) * sustke(A2D(0))    )      ! Stokes drift magnitude at T-points
-         CALL zdf_osm_iomput( "zwstrc",          tmask(A2D(0),1) * swstrc(A2D(0))    )      ! Convective velocity scale
-         CALL zdf_osm_iomput( "zwstrl",          tmask(A2D(0),1) * swstrl(A2D(0))    )      ! Langmuir velocity scale
-         CALL zdf_osm_iomput( "zustar",          tmask(A2D(0),1) * sustar(A2D(0))    )      ! Friction velocity scale
-         CALL zdf_osm_iomput( "zvstr",           tmask(A2D(0),1) * svstr(A2D(0))     )      ! Mixed velocity scale
-         CALL zdf_osm_iomput( "zla",             tmask(A2D(0),1) * sla(A2D(0))       )      ! Langmuir #
-         CALL zdf_osm_iomput( "wind_power",      1000.0_wp * rho0 * tmask(A2D(0),1) *   &   ! BL depth internal to zdf_osm routine
-            &                                    sustar(A2D(0))**3 )
-         CALL zdf_osm_iomput( "wind_wave_power", 1000.0_wp * rho0 * tmask(A2D(0),1) *   &
-            &                                    sustar(A2D(0))**2 * sustke(A2D(0))  )
-         CALL zdf_osm_iomput( "zhbl",            tmask(A2D(0),1) * zhbl(A2D(0))      )      ! BL depth internal to zdf_osm routine
-         CALL zdf_osm_iomput( "zhml",            tmask(A2D(0),1) * zhml(A2D(0))      )      ! ML depth internal to zdf_osm routine
-         CALL zdf_osm_iomput( "imld",            tmask(A2D(0),1) * nmld(A2D(0))      )      ! Index for ML depth internal to zdf_osm
+         CALL zdf_osm_iomput( "zwth0",           tmask(T2D(0),1) * swth0(T2D(0))     )      ! <Tw_0>
+         CALL zdf_osm_iomput( "zws0",            tmask(T2D(0),1) * sws0(T2D(0))      )      ! <Sw_0>
+         CALL zdf_osm_iomput( "zwb0",            tmask(T2D(0),1) * swb0(T2D(0))      )      ! <Sw_0>
+         CALL zdf_osm_iomput( "zwbav",           tmask(T2D(0),1) * swth0(T2D(0))     )      ! Upward BL-avged turb buoyancy flux
+         CALL zdf_osm_iomput( "ibld",            tmask(T2D(0),1) * nbld(T2D(0))      )      ! Boundary-layer max k
+         CALL zdf_osm_iomput( "zdt_bl",          tmask(T2D(0),1) * av_dt_bl(T2D(0))  )      ! dt at ml base
+         CALL zdf_osm_iomput( "zds_bl",          tmask(T2D(0),1) * av_ds_bl(T2D(0))  )      ! ds at ml base
+         CALL zdf_osm_iomput( "zdb_bl",          tmask(T2D(0),1) * av_db_bl(T2D(0))  )      ! db at ml base
+         CALL zdf_osm_iomput( "zdu_bl",          tmask(T2D(0),1) * av_du_bl(T2D(0))  )      ! du at ml base
+         CALL zdf_osm_iomput( "zdv_bl",          tmask(T2D(0),1) * av_dv_bl(T2D(0))  )      ! dv at ml base
+         CALL zdf_osm_iomput( "dh",              tmask(T2D(0),1) * dh(T2D(0))        )      ! Initial boundary-layer depth
+         CALL zdf_osm_iomput( "hml",             tmask(T2D(0),1) * hml(T2D(0))       )      ! Initial boundary-layer depth
+         CALL zdf_osm_iomput( "zdt_ml",          tmask(T2D(0),1) * av_dt_ml(T2D(0))  )      ! dt at ml base
+         CALL zdf_osm_iomput( "zds_ml",          tmask(T2D(0),1) * av_ds_ml(T2D(0))  )      ! ds at ml base
+         CALL zdf_osm_iomput( "zdb_ml",          tmask(T2D(0),1) * av_db_ml(T2D(0))  )      ! db at ml base
+         CALL zdf_osm_iomput( "dstokes",         tmask(T2D(0),1) * dstokes(T2D(0))   )      ! Stokes drift penetration depth
+         CALL zdf_osm_iomput( "zustke",          tmask(T2D(0),1) * sustke(T2D(0))    )      ! Stokes drift magnitude at T-points
+         CALL zdf_osm_iomput( "zwstrc",          tmask(T2D(0),1) * swstrc(T2D(0))    )      ! Convective velocity scale
+         CALL zdf_osm_iomput( "zwstrl",          tmask(T2D(0),1) * swstrl(T2D(0))    )      ! Langmuir velocity scale
+         CALL zdf_osm_iomput( "zustar",          tmask(T2D(0),1) * sustar(T2D(0))    )      ! Friction velocity scale
+         CALL zdf_osm_iomput( "zvstr",           tmask(T2D(0),1) * svstr(T2D(0))     )      ! Mixed velocity scale
+         CALL zdf_osm_iomput( "zla",             tmask(T2D(0),1) * sla(T2D(0))       )      ! Langmuir #
+         CALL zdf_osm_iomput( "wind_power",      1000.0_wp * rho0 * tmask(T2D(0),1) *   &   ! BL depth internal to zdf_osm routine
+            &                                    sustar(T2D(0))**3 )
+         CALL zdf_osm_iomput( "wind_wave_power", 1000.0_wp * rho0 * tmask(T2D(0),1) *   &
+            &                                    sustar(T2D(0))**2 * sustke(T2D(0))  )
+         CALL zdf_osm_iomput( "zhbl",            tmask(T2D(0),1) * zhbl(T2D(0))      )      ! BL depth internal to zdf_osm routine
+         CALL zdf_osm_iomput( "zhml",            tmask(T2D(0),1) * zhml(T2D(0))      )      ! ML depth internal to zdf_osm routine
+         CALL zdf_osm_iomput( "imld",            tmask(T2D(0),1) * nmld(T2D(0))      )      ! Index for ML depth internal to zdf_osm
          !                                                                                  !    routine
-         CALL zdf_osm_iomput( "jp_ext",          tmask(A2D(0),1) * jk_ext(A2D(0))    )      ! =1 if pycnocline resolved internal to
+         CALL zdf_osm_iomput( "jp_ext",          tmask(T2D(0),1) * jk_ext(T2D(0))    )      ! =1 if pycnocline resolved internal to
          !                                                                                  !    zdf_osm routine
-         CALL zdf_osm_iomput( "j_ddh",           tmask(A2D(0),1) * n_ddh(A2D(0))     )      ! Index forpyc thicknessh internal to
+         CALL zdf_osm_iomput( "j_ddh",           tmask(T2D(0),1) * n_ddh(T2D(0))     )      ! Index forpyc thicknessh internal to
          !                                                                                  !    zdf_osm routine
-         CALL zdf_osm_iomput( "zshear",          tmask(A2D(0),1) * zshear(A2D(0))    )      ! Shear production of TKE internal to
+         CALL zdf_osm_iomput( "zshear",          tmask(T2D(0),1) * zshear(T2D(0))    )      ! Shear production of TKE internal to
          !                                                                                  !    zdf_osm routine
-         CALL zdf_osm_iomput( "zdh",             tmask(A2D(0),1) * zdh(A2D(0))       )      ! Pyc thicknessh internal to zdf_osm
+         CALL zdf_osm_iomput( "zdh",             tmask(T2D(0),1) * zdh(T2D(0))       )      ! Pyc thicknessh internal to zdf_osm
          !                                                                                  !    routine
-         CALL zdf_osm_iomput( "zhol",            tmask(A2D(0),1) * shol(A2D(0))      )      ! ML depth internal to zdf_osm routine
-         CALL zdf_osm_iomput( "zwb_ent",         tmask(A2D(0),1) * zwb_ent(A2D(0))   )      ! Upward turb buoyancy entrainment flux
-         CALL zdf_osm_iomput( "zt_ml",           tmask(A2D(0),1) * av_t_ml(A2D(0))   )      ! Average T in ML
-         CALL zdf_osm_iomput( "zmld",            tmask(A2D(0),1) * zmld(A2D(0))      )      ! FK target layer depth
-         CALL zdf_osm_iomput( "zwb_fk",          tmask(A2D(0),1) * zwb_fk(A2D(0))    )      ! FK b flux
-         CALL zdf_osm_iomput( "zwb_fk_b",        tmask(A2D(0),1) * zwb_fk_b(A2D(0))  )      ! FK b flux averaged over ML
-         CALL zdf_osm_iomput( "mld_prof",        tmask(A2D(0),1) * mld_prof(A2D(0))  )      ! FK layer max k
-         CALL zdf_osm_iomput( "zdtdx",           umask(A2D(0),1) * zdtdx(A2D(0))     )      ! FK dtdx at u-pt
-         CALL zdf_osm_iomput( "zdtdy",           vmask(A2D(0),1) * zdtdy(A2D(0))     )      ! FK dtdy at v-pt
-         CALL zdf_osm_iomput( "zdsdx",           umask(A2D(0),1) * zdsdx(A2D(0))     )      ! FK dtdx at u-pt
-         CALL zdf_osm_iomput( "zdsdy",           vmask(A2D(0),1) * zdsdy(A2D(0))     )      ! FK dsdy at v-pt
-         CALL zdf_osm_iomput( "dbdx_mle",        umask(A2D(0),1) * dbdx_mle(A2D(0))  )      ! FK dbdx at u-pt
-         CALL zdf_osm_iomput( "dbdy_mle",        vmask(A2D(0),1) * dbdy_mle(A2D(0))  )      ! FK dbdy at v-pt
-         CALL zdf_osm_iomput( "zdiff_mle",       tmask(A2D(0),1) * zdiff_mle(A2D(0)) )      ! FK diff in MLE at t-pt
-         CALL zdf_osm_iomput( "zvel_mle",        tmask(A2D(0),1) * zdiff_mle(A2D(0)) )      ! FK diff in MLE at t-pt
+         CALL zdf_osm_iomput( "zhol",            tmask(T2D(0),1) * shol(T2D(0))      )      ! ML depth internal to zdf_osm routine
+         CALL zdf_osm_iomput( "zwb_ent",         tmask(T2D(0),1) * zwb_ent(T2D(0))   )      ! Upward turb buoyancy entrainment flux
+         CALL zdf_osm_iomput( "zt_ml",           tmask(T2D(0),1) * av_t_ml(T2D(0))   )      ! Average T in ML
+         CALL zdf_osm_iomput( "zmld",            tmask(T2D(0),1) * zmld(T2D(0))      )      ! FK target layer depth
+         CALL zdf_osm_iomput( "zwb_fk",          tmask(T2D(0),1) * zwb_fk(T2D(0))    )      ! FK b flux
+         CALL zdf_osm_iomput( "zwb_fk_b",        tmask(T2D(0),1) * zwb_fk_b(T2D(0))  )      ! FK b flux averaged over ML
+         CALL zdf_osm_iomput( "mld_prof",        tmask(T2D(0),1) * mld_prof(T2D(0))  )      ! FK layer max k
+         CALL zdf_osm_iomput( "zdtdx",           umask(T2D(0),1) * zdtdx(T2D(0))     )      ! FK dtdx at u-pt
+         CALL zdf_osm_iomput( "zdtdy",           vmask(T2D(0),1) * zdtdy(T2D(0))     )      ! FK dtdy at v-pt
+         CALL zdf_osm_iomput( "zdsdx",           umask(T2D(0),1) * zdsdx(T2D(0))     )      ! FK dtdx at u-pt
+         CALL zdf_osm_iomput( "zdsdy",           vmask(T2D(0),1) * zdsdy(T2D(0))     )      ! FK dsdy at v-pt
+         CALL zdf_osm_iomput( "dbdx_mle",        umask(T2D(0),1) * dbdx_mle(T2D(0))  )      ! FK dbdx at u-pt
+         CALL zdf_osm_iomput( "dbdy_mle",        vmask(T2D(0),1) * dbdy_mle(T2D(0))  )      ! FK dbdy at v-pt
+         CALL zdf_osm_iomput( "zdiff_mle",       tmask(T2D(0),1) * zdiff_mle(T2D(0)) )      ! FK diff in MLE at t-pt
+         CALL zdf_osm_iomput( "zvel_mle",        tmask(T2D(0),1) * zvel_mle(T2D(0))  )      ! FK velocity in MLE at t-pt
       END IF
       !
       ! Lateral boundary conditions on ghamu and ghamv, currently on W-grid (sign unchanged), needed to caclulate gham[uv] on u and
       !    v grids
       IF ( .NOT. l_istiled .OR. ntile == nijtile ) THEN   ! Finalise ghamu, ghamv, hbl, and hmle only after full domain has been
          !                                                !    processed
-         IF ( nn_hls == 1 ) CALL lbc_lnk( 'zdfosm', ghamu, 'W', 1.0_wp,   &
-            &                                       ghamv, 'W', 1.0_wp )
          DO jk = 2, jpkm1
             DO jj = Njs0, Nje0
                DO ji = Nis0, Nie0
@@ -1038,11 +1038,11 @@ CONTAINS
       !!              knlev+kp_ext
       !!----------------------------------------------------------------------
       INTEGER,                            INTENT(in   )           ::   Kbb, Kmm   ! Ocean time-level indices
-      INTEGER,  DIMENSION(A2D(nn_hls-1)), INTENT(in   )           ::   knlev      ! Number of levels to average over.
+      INTEGER,  DIMENSION(T2D(nn_hls-1)), INTENT(in   )           ::   knlev      ! Number of levels to average over.
       REAL(wp), DIMENSION(jpi,jpj),       INTENT(  out)           ::   pt, ps     ! Average temperature and salinity
       REAL(wp), DIMENSION(jpi,jpj),       INTENT(  out)           ::   pb         ! Average buoyancy
       REAL(wp), DIMENSION(jpi,jpj),       INTENT(  out)           ::   pu, pv     ! Average current components
-      INTEGER,  DIMENSION(A2D(nn_hls-1)), INTENT(in   ), OPTIONAL ::   kp_ext     ! External-level offsets
+      INTEGER,  DIMENSION(T2D(nn_hls-1)), INTENT(in   ), OPTIONAL ::   kp_ext     ! External-level offsets
       REAL(wp), DIMENSION(jpi,jpj),       INTENT(  out), OPTIONAL ::   pdt        ! Difference between average temperature,
       REAL(wp), DIMENSION(jpi,jpj),       INTENT(  out), OPTIONAL ::   pds        !    salinity,
       REAL(wp), DIMENSION(jpi,jpj),       INTENT(  out), OPTIONAL ::   pdb        !    buoyancy, and
@@ -1050,7 +1050,7 @@ CONTAINS
       !!
       INTEGER                              ::   jk, jkflt, jkmax, ji, jj   ! Loop indices
       INTEGER                              ::   ibld_ext                   ! External-layer index
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zthick                     ! Layer thickness
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zthick                     ! Layer thickness
       REAL(wp)                             ::   zthermal                   ! Thermal expansion coefficient
       REAL(wp)                             ::   zbeta                      ! Haline contraction coefficient
       !!----------------------------------------------------------------------
@@ -1176,7 +1176,7 @@ CONTAINS
       REAL(wp),           INTENT(inout), DIMENSION(jpi,jpj,jpk)   ::   pu, pv   ! Components of current
       LOGICAL,  OPTIONAL, INTENT(in   )                           ::   fwd      ! Forward (default) or reverse rotation
       INTEGER,  OPTIONAL, INTENT(in   )                           ::   ktop     ! Minimum depth index
-      INTEGER,  OPTIONAL, INTENT(in   ), DIMENSION(A2D(nn_hls-1)) ::   knlev    ! Array of maximum depth indices
+      INTEGER,  OPTIONAL, INTENT(in   ), DIMENSION(T2D(nn_hls-1)) ::   knlev    ! Array of maximum depth indices
       !!
       INTEGER  ::   ji, jj, jk, jktop, jkmax   ! Loop indices
       REAL(wp) ::   ztmp, zfwd                 ! Auxiliary variables
@@ -1221,17 +1221,17 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                            INTENT(in   ) ::   Kmm       ! Ocean time-level index
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(  out) ::   pwb_ent   ! Buoyancy fluxes at base
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(  out) ::   pwb_min   !    of well-mixed layer
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(  out) ::   pshear    ! Production of TKE due to shear across the pycnocline
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   phbl      ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   phml      ! ML depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pdh       ! Pycnocline depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(  out) ::   pwb_ent   ! Buoyancy fluxes at base
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(  out) ::   pwb_min   !    of well-mixed layer
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(  out) ::   pshear    ! Production of TKE due to shear across the pycnocline
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   phbl      ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   phml      ! ML depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pdh       ! Pycnocline depth
       !!
       INTEGER :: jj, ji   ! Loop indices
       !!
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zekman
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zri_p, zri_b   ! Richardson numbers
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zekman
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zri_p, zri_b   ! Richardson numbers
       REAL(wp)                           ::   zshear_u, zshear_v, zwb_shr
       REAL(wp)                           ::   zwcor, zrf_conv, zrf_shear, zrf_langmuir, zr_stokes
       !!
@@ -1268,8 +1268,8 @@ CONTAINS
       DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          pshear(ji,jj) = 0.0_wp
       END_2D
-      zekman(:,:) = EXP( -1.0_wp * pp_ek * ABS( ff_t(A2D(nn_hls-1)) ) * phbl(A2D(nn_hls-1)) /   &
-         &               MAX( sustar(A2D(nn_hls-1)), 1.e-8 ) )
+      zekman(:,:) = EXP( -1.0_wp * pp_ek * ABS( ff_t(T2D(nn_hls-1)) ) * phbl(T2D(nn_hls-1)) /   &
+         &               MAX( sustar(T2D(nn_hls-1)), 1.e-8 ) )
       !
       DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) ) THEN
@@ -1384,9 +1384,9 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------   
       INTEGER,                            INTENT(in   ) ::   Kmm            ! Ocean time-level index
-      INTEGER,  DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   kbase          ! OSBL base layer index
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(  out) ::   pdtdz, pdsdz   ! External gradients of temperature, salinity
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(  out) ::   pdbdz          !    and buoyancy
+      INTEGER,  DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   kbase          ! OSBL base layer index
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(  out) ::   pdtdz, pdsdz   ! External gradients of temperature, salinity
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(  out) ::   pdbdz          !    and buoyancy
       !!
       INTEGER  ::   ji, jj, jkb, jkb1
       REAL(wp) ::   zthermal, zbeta
@@ -1428,15 +1428,15 @@ CONTAINS
       !! ** Method  :
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(  out) ::   pdhdt          ! Rate of change of hbl
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   phbl           ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pdh            ! Pycnocline depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb_ent        ! Buoyancy entrainment flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb_min
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pdbdz_bl_ext   ! External buoyancy gradients
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(  out) ::   pwb_fk_b       ! MLE buoyancy flux averaged over OSBL
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb_fk         ! Max MLE buoyancy flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pvel_mle       ! Vvelocity scale for dhdt with stable ML and FK
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(  out) ::   pdhdt          ! Rate of change of hbl
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   phbl           ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pdh            ! Pycnocline depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb_ent        ! Buoyancy entrainment flux
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb_min
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pdbdz_bl_ext   ! External buoyancy gradients
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(  out) ::   pwb_fk_b       ! MLE buoyancy flux averaged over OSBL
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb_fk         ! Max MLE buoyancy flux
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pvel_mle       ! Vvelocity scale for dhdt with stable ML and FK
       !!
       INTEGER  ::   jj, ji
       REAL(wp) ::   zgamma_b_nd, zgamma_dh_nd, zpert, zpsi, zari
@@ -1598,11 +1598,11 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                            INTENT(in   ) ::   Kmm        ! Ocean time-level index
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   pdhdt      ! Rates of change of hbl
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   phbl       ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   phbl_t     ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb_ent    ! Buoyancy entrainment flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb_fk_b   ! MLE buoyancy flux averaged over OSBL
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   pdhdt      ! Rates of change of hbl
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   phbl       ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   phbl_t     ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb_ent    ! Buoyancy entrainment flux
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb_fk_b   ! MLE buoyancy flux averaged over OSBL
       !!
       INTEGER  ::   jk, jj, ji, jm
       REAL(wp) ::   zhbl_s, zvel_max, zdb
@@ -1665,7 +1665,7 @@ CONTAINS
                      &                   e3w(ji,jj,jm,Kmm) )
                   
                   !                    zhbl_s = MIN(zhbl_s, gdepw(ji,jj, mbkt(ji,jj) + 1,Kmm) - depth_tol)
-                  IF ( zhbl_s >= mbkt(ji,jj) + 1 ) THEN
+                  IF ( zhbl_s >= gdepw(ji,jj,mbkt(ji,jj) + 1,Kmm) ) THEN
                      zhbl_s      = MIN( zhbl_s,  gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) - depth_tol )
                      l_pyc(ji,jj) = .FALSE.
                   ENDIF
@@ -1698,13 +1698,13 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                            INTENT(in   ) ::   Kmm            ! Ocean time-level index
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   pdh            ! Pycnocline thickness
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   phml           ! ML depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pdhdt          ! BL depth tendency
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   phbl           ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb_ent        ! Buoyancy entrainment flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pdbdz_bl_ext   ! External buoyancy gradients
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb_fk_b       ! MLE buoyancy flux averaged over OSBL
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   pdh            ! Pycnocline thickness
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   phml           ! ML depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pdhdt          ! BL depth tendency
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   phbl           ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb_ent        ! Buoyancy entrainment flux
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pdbdz_bl_ext   ! External buoyancy gradients
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb_fk_b       ! MLE buoyancy flux averaged over OSBL
       !!
       INTEGER  ::   jj, ji
       INTEGER  ::   inhml
@@ -1858,14 +1858,14 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                                 INTENT(in   ) ::   Kmm            ! Ocean time-level index
-      INTEGER,  DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   kp_ext         ! External-level offsets
-      REAL(wp), DIMENSION(A2D(nn_hls-1),jpk),  INTENT(  out) ::   pdbdz          ! Gradients in the pycnocline
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(  out) ::   palpha
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdh            ! Pycnocline thickness
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   phbl           ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdbdz_bl_ext   ! External buoyancy gradients
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   phml           ! ML depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdhdt          ! Rates of change of hbl
+      INTEGER,  DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   kp_ext         ! External-level offsets
+      REAL(wp), DIMENSION(T2D(nn_hls-1),jpk),  INTENT(  out) ::   pdbdz          ! Gradients in the pycnocline
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(  out) ::   palpha
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdh            ! Pycnocline thickness
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   phbl           ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdbdz_bl_ext   ! External buoyancy gradients
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   phml           ! ML depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdhdt          ! Rates of change of hbl
       !!
       INTEGER  ::   jk, jj, ji
       REAL(wp) ::   zbgrad
@@ -1951,7 +1951,7 @@ CONTAINS
       END_2D
       !
       IF ( ln_dia_pyc_scl ) THEN   ! Output of pycnocline gradient profiles
-         CALL zdf_osm_iomput( "zdbdz_pyc", wmask(A2D(0),:) * pdbdz(A2D(0),:) )
+         CALL zdf_osm_iomput( "zdbdz_pyc", wmask(T2D(0),:) * pdbdz(T2D(0),:) )
       END IF
       !
    END SUBROUTINE zdf_osm_pycnocline_buoyancy_profiles
@@ -1969,23 +1969,23 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                                 INTENT(in   ) ::   Kbb, Kmm       ! Ocean time-level indices
-      REAL(wp), DIMENSION(A2D(nn_hls-1),jpk),  INTENT(inout) ::   pdiffut        ! t-diffusivity
-      REAL(wp), DIMENSION(A2D(nn_hls-1),jpk),  INTENT(inout) ::   pviscos        ! Viscosity
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   phbl           ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   phml           ! ML depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdh            ! Pycnocline depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdhdt          ! BL depth tendency
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pshear         ! Shear production
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pwb_ent        ! Buoyancy entrainment flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pwb_min
+      REAL(wp), DIMENSION(T2D(nn_hls-1),jpk),  INTENT(inout) ::   pdiffut        ! t-diffusivity
+      REAL(wp), DIMENSION(T2D(nn_hls-1),jpk),  INTENT(inout) ::   pviscos        ! Viscosity
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   phbl           ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   phml           ! ML depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdh            ! Pycnocline depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdhdt          ! BL depth tendency
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pshear         ! Shear production
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pwb_ent        ! Buoyancy entrainment flux
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pwb_min
       !!
       INTEGER ::   ji, jj, jk   ! Loop indices
       !! Scales used to calculate eddy diffusivity and viscosity profiles
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdifml_sc,    zvisml_sc
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdifpyc_n_sc, zdifpyc_s_sc
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zvispyc_n_sc, zvispyc_s_sc
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zbeta_d_sc,   zbeta_v_sc
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zb_coup,      zc_coup_vis,  zc_coup_dif
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zdifml_sc,    zvisml_sc
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zdifpyc_n_sc, zdifpyc_s_sc
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zvispyc_n_sc, zvispyc_s_sc
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zbeta_d_sc,   zbeta_v_sc
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zb_coup,      zc_coup_vis,  zc_coup_dif
       !!
       REAL(wp) ::   zvel_sc_pyc, zvel_sc_ml, zstab_fac, zz_b
       REAL(wp) ::   za_cubic, zb_d_cubic, zc_d_cubic, zd_d_cubic,   &   ! Coefficients in cubic polynomial specifying diffusivity
@@ -2148,7 +2148,7 @@ CONTAINS
          ENDIF   ! End if ( l_conv )
          !
       END_2D
-      CALL zdf_osm_iomput( "pb_coup", tmask(A2D(0),1) * zb_coup(A2D(0)) )   ! BBL-coupling velocity scale
+      CALL zdf_osm_iomput( "pb_coup", tmask(T2D(0),1) * zb_coup(T2D(0)) )   ! BBL-coupling velocity scale
       !
    END SUBROUTINE zdf_osm_diffusivity_viscosity
 
@@ -2164,39 +2164,39 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                                 INTENT(in   ) ::   Kmm            ! Time-level index
-      INTEGER,  DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   kp_ext         ! Offset for external level
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   phbl           ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   phml           ! ML depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdh            ! Pycnocline depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdhdt          ! BL depth tendency
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pshear         ! Shear production
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdtdz_bl_ext   ! External temperature gradients
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdsdz_bl_ext   ! External salinity gradients
-      REAL(wp), DIMENSION(A2D(nn_hls-1)),      INTENT(in   ) ::   pdbdz_bl_ext   ! External buoyancy gradients
-      REAL(wp), DIMENSION(A2D(nn_hls-1),jpk),  INTENT(in   ) ::   pdiffut        ! t-diffusivity
-      REAL(wp), DIMENSION(A2D(nn_hls-1),jpk),  INTENT(in   ) ::   pviscos        ! Viscosity
+      INTEGER,  DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   kp_ext         ! Offset for external level
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   phbl           ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   phml           ! ML depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdh            ! Pycnocline depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdhdt          ! BL depth tendency
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pshear         ! Shear production
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdtdz_bl_ext   ! External temperature gradients
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdsdz_bl_ext   ! External salinity gradients
+      REAL(wp), DIMENSION(T2D(nn_hls-1)),      INTENT(in   ) ::   pdbdz_bl_ext   ! External buoyancy gradients
+      REAL(wp), DIMENSION(T2D(nn_hls-1),jpk),  INTENT(in   ) ::   pdiffut        ! t-diffusivity
+      REAL(wp), DIMENSION(T2D(nn_hls-1),jpk),  INTENT(in   ) ::   pviscos        ! Viscosity
       !!
-      REAL(wp), DIMENSION(A2D(nn_hls-1))     ::   zalpha_pyc   !
-      REAL(wp), DIMENSION(A2D(nn_hls-1),jpk) ::   zdbdz_pyc    ! Parametrised gradient of buoyancy in the pycnocline
+      REAL(wp), DIMENSION(T2D(nn_hls-1))     ::   zalpha_pyc   !
+      REAL(wp), DIMENSION(T2D(nn_hls-1),jpk) ::   zdbdz_pyc    ! Parametrised gradient of buoyancy in the pycnocline
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   z3ddz_pyc_1, z3ddz_pyc_2   ! Pycnocline gradient/shear profiles
       !!
       INTEGER                            ::   ji, jj, jk, jkm_bld, jkf_mld, jkm_mld   ! Loop indices
       INTEGER                            ::   istat                                   ! Memory allocation status
       REAL(wp)                           ::   zznd_d, zznd_ml, zznd_pyc, znd          ! Temporary non-dimensional depths
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zsc_wth_1,zsc_ws_1                      ! Temporary scales
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zsc_uw_1, zsc_uw_2                      ! Temporary scales
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zsc_vw_1, zsc_vw_2                      ! Temporary scales
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   ztau_sc_u                               ! Dissipation timescale at base of WML
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zsc_wth_1,zsc_ws_1                      ! Temporary scales
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zsc_uw_1, zsc_uw_2                      ! Temporary scales
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zsc_vw_1, zsc_vw_2                      ! Temporary scales
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   ztau_sc_u                               ! Dissipation timescale at base of WML
       REAL(wp)                           ::   zbuoy_pyc_sc, zdelta_pyc                !
       REAL(wp)                           ::   zl_c,zl_l,zl_eps                        ! Used to calculate turbulence length scale
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   za_cubic, zb_cubic                      ! Coefficients in cubic polynomial specifying
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zc_cubic, zd_cubic                      !    diffusivity in pycnocline
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zwt_pyc_sc_1, zws_pyc_sc_1              !
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zzeta_pyc                               !
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   za_cubic, zb_cubic                      ! Coefficients in cubic polynomial specifying
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zc_cubic, zd_cubic                      !    diffusivity in pycnocline
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zwt_pyc_sc_1, zws_pyc_sc_1              !
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zzeta_pyc                               !
       REAL(wp)                           ::   zomega, zvw_max                         !
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zuw_bse,zvw_bse                         ! Momentum, heat, and salinity fluxes
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zwth_ent,zws_ent                        !    at the top of the pycnocline
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zsc_wth_pyc, zsc_ws_pyc                 ! Scales for pycnocline transport term
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zuw_bse,zvw_bse                         ! Momentum, heat, and salinity fluxes
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zwth_ent,zws_ent                        !    at the top of the pycnocline
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   zsc_wth_pyc, zsc_ws_pyc                 ! Scales for pycnocline transport term
       REAL(wp)                           ::   ztmp                                    !
       REAL(wp)                           ::   ztgrad, zsgrad, zbgrad                  ! Variables used to calculate pycnocline
       !!                                                                              !    gradients
@@ -2228,14 +2228,14 @@ CONTAINS
       !
       ! Stokes term in scalar flux, flux-gradient relationship
       ! ------------------------------------------------------
-      WHERE ( l_conv(A2D(nn_hls-1)) )
-         zsc_wth_1(:,:) = swstrl(A2D(nn_hls-1))**3 * swth0(A2D(nn_hls-1)) /   &
-            &             ( svstr(A2D(nn_hls-1))**3 + 0.5_wp * swstrc(A2D(nn_hls-1))**3 + epsln )
-         zsc_ws_1(:,:)  = swstrl(A2D(nn_hls-1))**3 * sws0(A2D(nn_hls-1))  /   &
-            &             ( svstr(A2D(nn_hls-1))**3 + 0.5_wp * swstrc(A2D(nn_hls-1))**3 + epsln )
+      WHERE ( l_conv(T2D(nn_hls-1)) )
+         zsc_wth_1(:,:) = swstrl(T2D(nn_hls-1))**3 * swth0(T2D(nn_hls-1)) /   &
+            &             ( svstr(T2D(nn_hls-1))**3 + 0.5_wp * swstrc(T2D(nn_hls-1))**3 + epsln )
+         zsc_ws_1(:,:)  = swstrl(T2D(nn_hls-1))**3 * sws0(T2D(nn_hls-1))  /   &
+            &             ( svstr(T2D(nn_hls-1))**3 + 0.5_wp * swstrc(T2D(nn_hls-1))**3 + epsln )
       ELSEWHERE
-         zsc_wth_1(:,:) = 2.0_wp * swthav(A2D(nn_hls-1))
-         zsc_ws_1(:,:)  = 2.0_wp * swsav(A2D(nn_hls-1))
+         zsc_wth_1(:,:) = 2.0_wp * swthav(T2D(nn_hls-1))
+         zsc_ws_1(:,:)  = 2.0_wp * swsav(T2D(nn_hls-1))
       ENDWHERE
       DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
@@ -2258,27 +2258,27 @@ CONTAINS
       END_3D
       !
       IF ( ln_dia_osm ) THEN
-         CALL zdf_osm_iomput( "ghamu_00", wmask(A2D(0),:) * ghamu(A2D(0),:) )
-         CALL zdf_osm_iomput( "ghamv_00", wmask(A2D(0),:) * ghamv(A2D(0),:) )
+         CALL zdf_osm_iomput( "ghamu_00", wmask(T2D(0),:) * ghamu(T2D(0),:) )
+         CALL zdf_osm_iomput( "ghamv_00", wmask(T2D(0),:) * ghamv(T2D(0),:) )
       END IF
       !
       ! Stokes term in flux-gradient relationship (note in zsc_uw_n don't use
       ! svstr since term needs to go to zero as swstrl goes to zero)
       ! ---------------------------------------------------------------------
-      WHERE ( l_conv(A2D(nn_hls-1)) )
-         zsc_uw_1(:,:) = ( swstrl(A2D(nn_hls-1))**3 +                                                &
-            &              0.5_wp * swstrc(A2D(nn_hls-1))**3 )**pthird * sustke(A2D(nn_hls-1)) /   &
-            &              MAX( ( 1.0_wp - 1.0_wp * 6.5_wp * sla(A2D(nn_hls-1))**( 8.0_wp / 3.0_wp ) ), 0.2_wp )
-         zsc_uw_2(:,:) = ( swstrl(A2D(nn_hls-1))**3 +                                                &
-            &              0.5_wp * swstrc(A2D(nn_hls-1))**3 )**pthird * sustke(A2D(nn_hls-1)) /   &
-            &              MIN( sla(A2D(nn_hls-1))**( 8.0_wp / 3.0_wp ) + epsln, 0.12_wp )
-         zsc_vw_1(:,:) = ff_t(A2D(nn_hls-1)) * phml(A2D(nn_hls-1)) * sustke(A2D(nn_hls-1))**3 *   &
-            &            MIN( sla(A2D(nn_hls-1))**( 8.0_wp / 3.0_wp ), 0.12_wp ) /                    &
-            &            ( ( svstr(A2D(nn_hls-1))**3 + 0.5_wp * swstrc(A2D(nn_hls-1))**3 )**( 2.0_wp / 3.0_wp ) + epsln )
+      WHERE ( l_conv(T2D(nn_hls-1)) )
+         zsc_uw_1(:,:) = ( swstrl(T2D(nn_hls-1))**3 +                                                &
+            &              0.5_wp * swstrc(T2D(nn_hls-1))**3 )**pthird * sustke(T2D(nn_hls-1)) /   &
+            &              MAX( ( 1.0_wp - 1.0_wp * 6.5_wp * sla(T2D(nn_hls-1))**( 8.0_wp / 3.0_wp ) ), 0.2_wp )
+         zsc_uw_2(:,:) = ( swstrl(T2D(nn_hls-1))**3 +                                                &
+            &              0.5_wp * swstrc(T2D(nn_hls-1))**3 )**pthird * sustke(T2D(nn_hls-1)) /   &
+            &              MIN( sla(T2D(nn_hls-1))**( 8.0_wp / 3.0_wp ) + epsln, 0.12_wp )
+         zsc_vw_1(:,:) = ff_t(T2D(nn_hls-1)) * phml(T2D(nn_hls-1)) * sustke(T2D(nn_hls-1))**3 *   &
+            &            MIN( sla(T2D(nn_hls-1))**( 8.0_wp / 3.0_wp ), 0.12_wp ) /                    &
+            &            ( ( svstr(T2D(nn_hls-1))**3 + 0.5_wp * swstrc(T2D(nn_hls-1))**3 )**( 2.0_wp / 3.0_wp ) + epsln )
       ELSEWHERE
-         zsc_uw_1(:,:) = sustar(A2D(nn_hls-1))**2
-         zsc_vw_1(:,:) = ff_t(A2D(nn_hls-1)) * phbl(A2D(nn_hls-1)) * sustke(A2D(nn_hls-1))**3 *   &
-            &            MIN( sla(A2D(nn_hls-1))**( 8.0_wp / 3.0_wp ), 0.12_wp ) / ( svstr(A2D(nn_hls-1))**2 + epsln )
+         zsc_uw_1(:,:) = sustar(T2D(nn_hls-1))**2
+         zsc_vw_1(:,:) = ff_t(T2D(nn_hls-1)) * phbl(T2D(nn_hls-1)) * sustke(T2D(nn_hls-1))**3 *   &
+            &            MIN( sla(T2D(nn_hls-1))**( 8.0_wp / 3.0_wp ), 0.12_wp ) / ( svstr(T2D(nn_hls-1))**2 + epsln )
       ENDWHERE
       DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
@@ -2302,11 +2302,11 @@ CONTAINS
       ! Buoyancy term in flux-gradient relationship [note : includes ROI ratio
       ! (X0.3) and pressure (X0.5)]
       ! ----------------------------------------------------------------------
-      WHERE ( l_conv(A2D(nn_hls-1)) )
-         zsc_wth_1(:,:) = swbav(A2D(nn_hls-1)) * swth0(A2D(nn_hls-1)) * ( 1.0_wp + EXP( 0.2_wp * shol(A2D(nn_hls-1)) ) ) *   &
-            &             phml(A2D(nn_hls-1)) / ( svstr(A2D(nn_hls-1))**3 + 0.5_wp * swstrc(A2D(nn_hls-1))**3 + epsln )
-         zsc_ws_1(:,:)  = swbav(A2D(nn_hls-1)) * sws0(A2D(nn_hls-1))  * ( 1.0_wp + EXP( 0.2_wp * shol(A2D(nn_hls-1)) ) ) *   &
-            &             phml(A2D(nn_hls-1)) / ( svstr(A2D(nn_hls-1))**3 + 0.5_wp * swstrc(A2D(nn_hls-1))**3 + epsln )
+      WHERE ( l_conv(T2D(nn_hls-1)) )
+         zsc_wth_1(:,:) = swbav(T2D(nn_hls-1)) * swth0(T2D(nn_hls-1)) * ( 1.0_wp + EXP( 0.2_wp * shol(T2D(nn_hls-1)) ) ) *   &
+            &             phml(T2D(nn_hls-1)) / ( svstr(T2D(nn_hls-1))**3 + 0.5_wp * swstrc(T2D(nn_hls-1))**3 + epsln )
+         zsc_ws_1(:,:)  = swbav(T2D(nn_hls-1)) * sws0(T2D(nn_hls-1))  * ( 1.0_wp + EXP( 0.2_wp * shol(T2D(nn_hls-1)) ) ) *   &
+            &             phml(T2D(nn_hls-1)) / ( svstr(T2D(nn_hls-1))**3 + 0.5_wp * swstrc(T2D(nn_hls-1))**3 + epsln )
       ELSEWHERE
          zsc_wth_1(:,:) = 0.0_wp
          zsc_ws_1(:,:)  = 0.0_wp
@@ -2373,16 +2373,16 @@ CONTAINS
       END_3D
       !
       IF ( ln_dia_osm ) THEN
-         CALL zdf_osm_iomput( "zwth_ent", tmask(A2D(0),1) * zwth_ent(A2D(0)) )   ! Upward turb. temperature entrainment flux
-         CALL zdf_osm_iomput( "zws_ent",  tmask(A2D(0),1) * zws_ent(A2D(0))  )   ! Upward turb. salinity entrainment flux
+         CALL zdf_osm_iomput( "zwth_ent", tmask(T2D(0),1) * zwth_ent(T2D(0)) )   ! Upward turb. temperature entrainment flux
+         CALL zdf_osm_iomput( "zws_ent",  tmask(T2D(0),1) * zws_ent(T2D(0))  )   ! Upward turb. salinity entrainment flux
       END IF
       !
       zsc_vw_1(:,:) = 0.0_wp
-      WHERE ( l_conv(A2D(nn_hls-1)) )
-         zsc_uw_1(:,:) = -1.0_wp * swb0(A2D(nn_hls-1)) * sustar(A2D(nn_hls-1))**2 * phml(A2D(nn_hls-1)) /   &
-            &            ( svstr(A2D(nn_hls-1))**3 + 0.5_wp * swstrc(A2D(nn_hls-1))**3 + epsln )
-         zsc_uw_2(:,:) =           swb0(A2D(nn_hls-1)) * sustke(A2D(nn_hls-1))    * phml(A2D(nn_hls-1)) /   &
-            &            ( svstr(A2D(nn_hls-1))**3 + 0.5_wp * swstrc(A2D(nn_hls-1))**3 + epsln )**( 2.0_wp / 3.0_wp )
+      WHERE ( l_conv(T2D(nn_hls-1)) )
+         zsc_uw_1(:,:) = -1.0_wp * swb0(T2D(nn_hls-1)) * sustar(T2D(nn_hls-1))**2 * phml(T2D(nn_hls-1)) /   &
+            &            ( svstr(T2D(nn_hls-1))**3 + 0.5_wp * swstrc(T2D(nn_hls-1))**3 + epsln )
+         zsc_uw_2(:,:) =           swb0(T2D(nn_hls-1)) * sustke(T2D(nn_hls-1))    * phml(T2D(nn_hls-1)) /   &
+            &            ( svstr(T2D(nn_hls-1))**3 + 0.5_wp * swstrc(T2D(nn_hls-1))**3 + epsln )**( 2.0_wp / 3.0_wp )
       ELSEWHERE
          zsc_uw_1(:,:) = 0.0_wp
       ENDWHERE
@@ -2435,25 +2435,25 @@ CONTAINS
       END_3D
       !
       IF ( ln_dia_osm ) THEN
-         CALL zdf_osm_iomput( "ghamu_0",    wmask(A2D(0),:) * ghamu(A2D(0),:)  )
-         CALL zdf_osm_iomput( "zsc_uw_1_0", tmask(A2D(0),1) * zsc_uw_1(A2D(0)) )
+         CALL zdf_osm_iomput( "ghamu_0",    wmask(T2D(0),:) * ghamu(T2D(0),:)  )
+         CALL zdf_osm_iomput( "zsc_uw_1_0", tmask(T2D(0),1) * zsc_uw_1(T2D(0)) )
       END IF
       !
       ! Transport term in flux-gradient relationship [note : includes ROI ratio
       ! (X0.3) ]
       ! -----------------------------------------------------------------------
-      WHERE ( l_conv(A2D(nn_hls-1)) )
-         zsc_wth_1(:,:) = swth0(A2D(nn_hls-1)) / ( 1.0_wp - 0.56_wp * EXP( shol(A2D(nn_hls-1)) ) )
-         zsc_ws_1(:,:)  = sws0(A2D(nn_hls-1))  / ( 1.0_wp - 0.56_wp * EXP( shol(A2D(nn_hls-1)) ) )
-         WHERE ( l_pyc(A2D(nn_hls-1)) )   ! Pycnocline scales
-            zsc_wth_pyc(:,:) = -0.003_wp * swstrc(A2D(nn_hls-1)) * ( 1.0_wp - pdh(A2D(nn_hls-1)) / phbl(A2D(nn_hls-1)) ) *   &
-               &               av_dt_ml(A2D(nn_hls-1))
-            zsc_ws_pyc(:,:)  = -0.003_wp * swstrc(A2D(nn_hls-1)) * ( 1.0_wp - pdh(A2D(nn_hls-1)) / phbl(A2D(nn_hls-1)) ) *   &
-               &               av_ds_ml(A2D(nn_hls-1))
+      WHERE ( l_conv(T2D(nn_hls-1)) )
+         zsc_wth_1(:,:) = swth0(T2D(nn_hls-1)) / ( 1.0_wp - 0.56_wp * EXP( shol(T2D(nn_hls-1)) ) )
+         zsc_ws_1(:,:)  = sws0(T2D(nn_hls-1))  / ( 1.0_wp - 0.56_wp * EXP( shol(T2D(nn_hls-1)) ) )
+         WHERE ( l_pyc(T2D(nn_hls-1)) )   ! Pycnocline scales
+            zsc_wth_pyc(:,:) = -0.003_wp * swstrc(T2D(nn_hls-1)) * ( 1.0_wp - pdh(T2D(nn_hls-1)) / phbl(T2D(nn_hls-1)) ) *   &
+               &               av_dt_ml(T2D(nn_hls-1))
+            zsc_ws_pyc(:,:)  = -0.003_wp * swstrc(T2D(nn_hls-1)) * ( 1.0_wp - pdh(T2D(nn_hls-1)) / phbl(T2D(nn_hls-1)) ) *   &
+               &               av_ds_ml(T2D(nn_hls-1))
          END WHERE
       ELSEWHERE
-         zsc_wth_1(:,:) = 2.0_wp * swthav(A2D(nn_hls-1))
-         zsc_ws_1(:,:)  =          sws0(A2D(nn_hls-1))
+         zsc_wth_1(:,:) = 2.0_wp * swthav(T2D(nn_hls-1))
+         zsc_ws_1(:,:)  =          sws0(T2D(nn_hls-1))
       END WHERE
       DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
@@ -2490,14 +2490,14 @@ CONTAINS
          ENDIF
       END_3D
       !
-      WHERE ( l_conv(A2D(nn_hls-1)) )
-         zsc_uw_1(:,:) = sustar(A2D(nn_hls-1))**2
-         zsc_vw_1(:,:) = ff_t(A2D(nn_hls-1)) * sustke(A2D(nn_hls-1)) * phml(A2D(nn_hls-1))
+      WHERE ( l_conv(T2D(nn_hls-1)) )
+         zsc_uw_1(:,:) = sustar(T2D(nn_hls-1))**2
+         zsc_vw_1(:,:) = ff_t(T2D(nn_hls-1)) * sustke(T2D(nn_hls-1)) * phml(T2D(nn_hls-1))
       ELSEWHERE
-         zsc_uw_1(:,:) = sustar(A2D(nn_hls-1))**2
+         zsc_uw_1(:,:) = sustar(T2D(nn_hls-1))**2
          zsc_uw_2(:,:) = ( 2.25_wp - 3.0_wp * ( 1.0_wp - EXP( -1.25_wp * 2.0_wp ) ) ) * ( 1.0_wp - EXP( -4.0_wp * 2.0_wp ) ) *   &
             &            zsc_uw_1(:,:)
-         zsc_vw_1(:,:) = ff_t(A2D(nn_hls-1)) * sustke(A2D(nn_hls-1)) * phbl(A2D(nn_hls-1))
+         zsc_vw_1(:,:) = ff_t(T2D(nn_hls-1)) * sustke(T2D(nn_hls-1)) * phbl(T2D(nn_hls-1))
          zsc_vw_2(:,:) = -0.11_wp * SIN( 3.14159_wp * ( 2.0_wp + 0.4_wp ) ) * EXP( -1.0_wp * ( 1.5_wp + 2.0_wp )**2 ) *   &
             &            zsc_vw_1(:,:)
       ENDWHERE
@@ -2534,12 +2534,12 @@ CONTAINS
       END_3D
       !
       IF ( ln_dia_osm ) THEN
-         CALL zdf_osm_iomput( "ghamu_f",    wmask(A2D(0),:) * ghamu(A2D(0),:)  )
-         CALL zdf_osm_iomput( "ghamv_f",    wmask(A2D(0),:) * ghamv(A2D(0),:)  )
-         CALL zdf_osm_iomput( "zsc_uw_1_f", tmask(A2D(0),1) * zsc_uw_1(A2D(0)) )
-         CALL zdf_osm_iomput( "zsc_vw_1_f", tmask(A2D(0),1) * zsc_vw_1(A2D(0)) )
-         CALL zdf_osm_iomput( "zsc_uw_2_f", tmask(A2D(0),1) * zsc_uw_2(A2D(0)) )
-         CALL zdf_osm_iomput( "zsc_vw_2_f", tmask(A2D(0),1) * zsc_vw_2(A2D(0)) )
+         CALL zdf_osm_iomput( "ghamu_f",    wmask(T2D(0),:) * ghamu(T2D(0),:)  )
+         CALL zdf_osm_iomput( "ghamv_f",    wmask(T2D(0),:) * ghamv(T2D(0),:)  )
+         CALL zdf_osm_iomput( "zsc_uw_1_f", tmask(T2D(0),1) * zsc_uw_1(T2D(0)) )
+         CALL zdf_osm_iomput( "zsc_vw_1_f", tmask(T2D(0),1) * zsc_vw_1(T2D(0)) )
+         CALL zdf_osm_iomput( "zsc_uw_2_f", tmask(T2D(0),1) * zsc_uw_2(T2D(0)) )
+         CALL zdf_osm_iomput( "zsc_vw_2_f", tmask(T2D(0),1) * zsc_vw_2(T2D(0)) )
       END IF
       !
       ! Make surface forced velocity non-gradient terms go to zero at the base
@@ -2563,7 +2563,7 @@ CONTAINS
       ! Pynocline contributions
       !
       IF ( ln_dia_pyc_scl .OR. ln_dia_pyc_shr ) THEN   ! Allocate arrays for output of pycnocline gradient/shear profiles
-         ALLOCATE( z3ddz_pyc_1(A2D(nn_hls),jpk), z3ddz_pyc_2(A2D(nn_hls),jpk), STAT=istat )
+         ALLOCATE( z3ddz_pyc_1(T2D(nn_hls),jpk), z3ddz_pyc_2(T2D(nn_hls),jpk), STAT=istat )
          IF ( istat /= 0 ) CALL ctl_stop( 'zdf_osm: failed to allocate temporary arrays' )
          z3ddz_pyc_1(:,:,:) = 0.0_wp
          z3ddz_pyc_2(:,:,:) = 0.0_wp
@@ -2634,8 +2634,8 @@ CONTAINS
          END IF
       END_3D
       IF ( ln_dia_pyc_scl ) THEN   ! Output of pycnocline gradient profiles
-         CALL zdf_osm_iomput( "zdtdz_pyc", wmask(A2D(0),:) * z3ddz_pyc_1(A2D(0),:) )
-         CALL zdf_osm_iomput( "zdsdz_pyc", wmask(A2D(0),:) * z3ddz_pyc_2(A2D(0),:) )
+         CALL zdf_osm_iomput( "zdtdz_pyc", wmask(T2D(0),:) * z3ddz_pyc_1(T2D(0),:) )
+         CALL zdf_osm_iomput( "zdsdz_pyc", wmask(T2D(0),:) * z3ddz_pyc_2(T2D(0),:) )
       END IF
       DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
          IF ( .NOT. l_conv (ji,jj) ) THEN
@@ -2661,12 +2661,12 @@ CONTAINS
          END IF
       END_3D
       IF ( ln_dia_pyc_shr ) THEN   ! Output of pycnocline shear profiles
-         CALL zdf_osm_iomput( "zdudz_pyc", wmask(A2D(0),:) * z3ddz_pyc_1(A2D(0),:) )
-         CALL zdf_osm_iomput( "zdvdz_pyc", wmask(A2D(0),:) * z3ddz_pyc_2(A2D(0),:) )
+         CALL zdf_osm_iomput( "zdudz_pyc", wmask(T2D(0),:) * z3ddz_pyc_1(T2D(0),:) )
+         CALL zdf_osm_iomput( "zdvdz_pyc", wmask(T2D(0),:) * z3ddz_pyc_2(T2D(0),:) )
       END IF
       IF ( ln_dia_osm ) THEN
-         CALL zdf_osm_iomput( "ghamu_b", wmask(A2D(0),:) * ghamu(A2D(0),:) )
-         CALL zdf_osm_iomput( "ghamv_b", wmask(A2D(0),:) * ghamv(A2D(0),:) )
+         CALL zdf_osm_iomput( "ghamu_b", wmask(T2D(0),:) * ghamu(T2D(0),:) )
+         CALL zdf_osm_iomput( "ghamv_b", wmask(T2D(0),:) * ghamv(T2D(0),:) )
       END IF
       IF ( ln_dia_pyc_scl .OR. ln_dia_pyc_shr ) THEN   ! Deallocate arrays used for output of pycnocline gradient/shear profiles
          DEALLOCATE( z3ddz_pyc_1, z3ddz_pyc_2 )
@@ -2680,9 +2680,9 @@ CONTAINS
       END_2D
       !
       IF ( ln_dia_osm ) THEN
-         CALL zdf_osm_iomput( "ghamu_1", wmask(A2D(0),:) * ghamu(A2D(0),:)   )
-         CALL zdf_osm_iomput( "ghamv_1", wmask(A2D(0),:) * ghamv(A2D(0),:)   )
-         CALL zdf_osm_iomput( "zviscos", wmask(A2D(0),:) * pviscos(A2D(0),:) )
+         CALL zdf_osm_iomput( "ghamu_1", wmask(T2D(0),:) * ghamu(T2D(0),:)   )
+         CALL zdf_osm_iomput( "ghamv_1", wmask(T2D(0),:) * ghamv(T2D(0),:)   )
+         CALL zdf_osm_iomput( "zviscos", wmask(T2D(0),:) * pviscos(T2D(0),:) )
       END IF
       !
    END SUBROUTINE zdf_osm_fgr_terms
@@ -2702,26 +2702,26 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                            INTENT(in   ) ::   Kmm          ! Time-level index
-      REAL(wp), DIMENSION(A2D(nn_hls)),   INTENT(  out) ::   pmld         ! == Estimated FK BLD used for MLE horizontal gradients == !
-      REAL(wp), DIMENSION(A2D(nn_hls)),   INTENT(inout) ::   pdtdx        ! Horizontal gradient for Fox-Kemper parametrization
-      REAL(wp), DIMENSION(A2D(nn_hls)),   INTENT(inout) ::   pdtdy        ! Horizontal gradient for Fox-Kemper parametrization
-      REAL(wp), DIMENSION(A2D(nn_hls)),   INTENT(inout) ::   pdsdx        ! Horizontal gradient for Fox-Kemper parametrization
-      REAL(wp), DIMENSION(A2D(nn_hls)),   INTENT(inout) ::   pdsdy        ! Horizontal gradient for Fox-Kemper parametrization
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   pdbds_mle    ! Magnitude of horizontal buoyancy gradient
+      REAL(wp), DIMENSION(T2D(nn_hls)),   INTENT(  out) ::   pmld         ! == Estimated FK BLD used for MLE horizontal gradients == !
+      REAL(wp), DIMENSION(T2D(nn_hls)),   INTENT(inout) ::   pdtdx        ! Horizontal gradient for Fox-Kemper parametrization
+      REAL(wp), DIMENSION(T2D(nn_hls)),   INTENT(inout) ::   pdtdy        ! Horizontal gradient for Fox-Kemper parametrization
+      REAL(wp), DIMENSION(T2D(nn_hls)),   INTENT(inout) ::   pdsdx        ! Horizontal gradient for Fox-Kemper parametrization
+      REAL(wp), DIMENSION(T2D(nn_hls)),   INTENT(inout) ::   pdsdy        ! Horizontal gradient for Fox-Kemper parametrization
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   pdbds_mle    ! Magnitude of horizontal buoyancy gradient
       !!
       INTEGER                               ::   ji, jj, jk   ! Dummy loop indices
-      INTEGER,  DIMENSION(A2D(nn_hls))      ::   jk_mld_prof  ! Base level of MLE layer
+      INTEGER,  DIMENSION(T2D(nn_hls))      ::   jk_mld_prof  ! Base level of MLE layer
       INTEGER                               ::   ikt, ikmax   ! Local integers      
       REAL(wp)                              ::   zc
       REAL(wp)                              ::   zN2_c        ! Local buoyancy difference from 10m value
-      REAL(wp), DIMENSION(A2D(nn_hls))      ::   ztm
-      REAL(wp), DIMENSION(A2D(nn_hls))      ::   zsm
-      REAL(wp), DIMENSION(A2D(nn_hls),jpts) ::   ztsm_midu
-      REAL(wp), DIMENSION(A2D(nn_hls),jpts) ::   ztsm_midv
-      REAL(wp), DIMENSION(A2D(nn_hls),jpts) ::   zabu
-      REAL(wp), DIMENSION(A2D(nn_hls),jpts) ::   zabv
-      REAL(wp), DIMENSION(A2D(nn_hls))      ::   zmld_midu
-      REAL(wp), DIMENSION(A2D(nn_hls))      ::   zmld_midv
+      REAL(wp), DIMENSION(T2D(nn_hls))      ::   ztm
+      REAL(wp), DIMENSION(T2D(nn_hls))      ::   zsm
+      REAL(wp), DIMENSION(T2D(nn_hls),jpts) ::   ztsm_midu
+      REAL(wp), DIMENSION(T2D(nn_hls),jpts) ::   ztsm_midv
+      REAL(wp), DIMENSION(T2D(nn_hls),jpts) ::   zabu
+      REAL(wp), DIMENSION(T2D(nn_hls),jpts) ::   zabv
+      REAL(wp), DIMENSION(T2D(nn_hls))      ::   zmld_midu
+      REAL(wp), DIMENSION(T2D(nn_hls))      ::   zmld_midv
       !!----------------------------------------------------------------------
       !
       ! ==  MLD used for MLE  ==!
@@ -2743,7 +2743,7 @@ CONTAINS
          mld_prof(ji,jj) = jk_mld_prof(ji,jj)
       END_2D
       !
-      ikmax = MIN( MAXVAL( jk_mld_prof(A2D(nn_hls)) ), jpkm1 )   ! Max level of the computation
+      ikmax = MIN( MAXVAL( jk_mld_prof(T2D(nn_hls)) ), jpkm1 )   ! Max level of the computation
       ztm(:,:) = 0.0_wp
       zsm(:,:) = 0.0_wp
       DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, ikmax )
@@ -2811,14 +2811,14 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------      
       INTEGER,                            INTENT(in   ) ::   Kmm         ! Time-level index
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   pwb_fk
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   phbl        ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   phmle       ! MLE depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb_ent     ! Buoyancy entrainment flux
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pdbds_mle   ! Magnitude of horizontal buoyancy gradient
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   pwb_fk
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   phbl        ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   phmle       ! MLE depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb_ent     ! Buoyancy entrainment flux
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pdbds_mle   ! Magnitude of horizontal buoyancy gradient
       !!
       INTEGER                            ::   ji, jj, jk        ! Dummy loop indices
-      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   znd_param
+      REAL(wp), DIMENSION(T2D(nn_hls-1)) ::   znd_param
       REAL(wp)                           ::   zthermal, zbeta
       REAL(wp)                           ::   zbuoy
       REAL(wp)                           ::   ztmp
@@ -2923,13 +2923,13 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                            INTENT(in   ) ::   Kmm         ! Time-level index
-      REAL(wp), DIMENSION(A2D(nn_hls)),   INTENT(in   ) ::   pmld        ! == Estimated FK BLD used for MLE horiz gradients == !
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   phmle       ! MLE depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   pvel_mle    ! Velocity scale for dhdt with stable ML and FK
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(inout) ::   pdiff_mle   ! Extra MLE vertical diff
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pdbds_mle   ! Magnitude of horizontal buoyancy gradient
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   phbl        ! BL depth
-      REAL(wp), DIMENSION(A2D(nn_hls-1)), INTENT(in   ) ::   pwb0tot     ! Total surface buoyancy flux including insolation
+      REAL(wp), DIMENSION(T2D(nn_hls)),   INTENT(in   ) ::   pmld        ! == Estimated FK BLD used for MLE horiz gradients == !
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   phmle       ! MLE depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   pvel_mle    ! Velocity scale for dhdt with stable ML and FK
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(inout) ::   pdiff_mle   ! Extra MLE vertical diff
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pdbds_mle   ! Magnitude of horizontal buoyancy gradient
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   phbl        ! BL depth
+      REAL(wp), DIMENSION(T2D(nn_hls-1)), INTENT(in   ) ::   pwb0tot     ! Total surface buoyancy flux including insolation
       !!
       INTEGER  ::   ji, jj, jk   ! Dummy loop indices
       REAL(wp) ::   ztmp
@@ -2943,6 +2943,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       ! Calculate vertical buoyancy, heat and salinity fluxes due to MLE
+      ! BUG: [zdfosm_avt_diag] lbc_lnk changes the value of avt on the northfold (see zdfphy.F90 comment). It seems to stem from here- if ztmp is converted to an array, calling lbc_lnk on this array has the same effect as calling lbc_lnk on avt. I think it could be related to l_conv.
       DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) ) THEN
             ztmp =  r1_ft(ji,jj) * MIN( 111e3_wp, e1u(ji,jj) ) / rn_osm_mle_lf
@@ -2969,7 +2970,7 @@ CONTAINS
                hmle(ji,jj) = hmle(ji,jj) - 10.0_wp * ( hmle(ji,jj) - hbl(ji,jj) ) * rn_Dt / rn_osm_mle_tau
             END IF
          END IF
-         hmle(ji,jj) = MAX( MIN( hmle(ji,jj), ht(ji,jj) ), gdepw(ji,jj,4,Kmm) )
+         hmle(ji,jj) = MAX( MIN( hmle(ji,jj), ht(ji,jj,Kmm) ), gdepw(ji,jj,4,Kmm) )
          IF ( ln_osm_hmle_limit ) hmle(ji,jj) = MIN( hmle(ji,jj), rn_osm_hmle_limit*hbl(ji,jj) )
          hmle(ji,jj) = pmld(ji,jj)   ! For now try just set hmle to pmld
       END_2D
@@ -3069,6 +3070,13 @@ CONTAINS
          IF (.NOT. ( ln_wave .AND. ln_sdw )) &
             & CALL ctl_stop( 'zdf_osm_init : ln_zdfosm and nn_osm_wave=2, ln_wave and ln_sdw must be true' )
       END IF
+      !
+      ! TEMP: Specifically, the issue is that rCdU_bot is accessed on halo points but is no longer defined there. We must remove halo calculations from zdfosm where possible.
+      IF( ln_tile ) THEN
+         CALL ctl_warn( 'zdf_osm_init: tiling is not currently working with OSMOSIS- it is disabled' )
+         ln_tile = .FALSE.
+         CALL dom_tile_init
+      ENDIF
       !
       ! Flags associated with diagnostic output
       IF ( ln_dia_osm .AND. ( iom_use("zdudz_pyc") .OR. iom_use("zdvdz_pyc") ) )                            ln_dia_pyc_shr = .TRUE.
@@ -3196,9 +3204,9 @@ CONTAINS
       !
       ! Initialization of vertical eddy coef. to the background value
       ! -------------------------------------------------------------
-      DO jk = 1, jpk
-         avt(:,:,jk) = avtb(jk) * tmask(:,:,jk)
-      END DO
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         avt(ji,jj,jk) = avtb(jk) * tmask(ji,jj,jk)
+      END_3D
       !
       ! Zero the surface flux for non local term and osm mixed layer depth
       ! ------------------------------------------------------------------
@@ -3447,10 +3455,10 @@ CONTAINS
       !
       IF ( ln_dia_osm .AND. iom_use( cdname ) ) THEN
          IF ( SIZE( posmdia2d, 1 ) == ntei-ntsi+1 .AND. SIZE( posmdia2d, 2 ) == ntej-ntsj+1 ) THEN   ! Halo absent
-            osmdia2d(A2D(0)) = posmdia2d(:,:)
-            CALL iom_put( cdname, osmdia2d(A2D(nn_hls)) )
+            osmdia2d(T2D(0)) = posmdia2d(:,:)
+            CALL iom_put( cdname, osmdia2d(T2D(nn_hls)) )
          ELSE   ! Halo present
-            CALL iom_put( cdname, osmdia2d )
+            CALL iom_put( cdname, posmdia2d )
          END IF
       END IF
       !
@@ -3470,10 +3478,10 @@ CONTAINS
       !
       IF ( ln_dia_osm .AND. iom_use( cdname ) ) THEN
          IF ( SIZE( posmdia3d, 1 ) == ntei-ntsi+1 .AND. SIZE( posmdia3d, 2 ) == ntej-ntsj+1 ) THEN   ! Halo absent
-            osmdia3d(A2D(0),:) = posmdia3d(:,:,:)
-            CALL iom_put( cdname, osmdia3d(A2D(nn_hls),:) )
+            osmdia3d(T2D(0),:) = posmdia3d(:,:,:)
+            CALL iom_put( cdname, osmdia3d(T2D(nn_hls),:) )
          ELSE   ! Halo present
-            CALL iom_put( cdname, osmdia3d )
+            CALL iom_put( cdname, posmdia3d )
          END IF
       END IF
       !

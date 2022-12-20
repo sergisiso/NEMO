@@ -103,8 +103,8 @@ CONTAINS
 
          IF( lk_mpp ) THEN
                
-            iafloc = mi1( iafl )
-            ibfloc = mj1( ibfl )
+            iafloc = mi1( iafl, nn_hls )
+            ibfloc = mj1( ibfl, nn_hls )
  
             IF( Nis0 <= iafloc .AND. iafloc <= Nie0 .AND. &
               & Njs0 <= ibfloc .AND. ibfloc <= Nje0       ) THEN 

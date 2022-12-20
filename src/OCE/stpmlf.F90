@@ -93,7 +93,6 @@ CONTAINS
       !!              -8- Outputs and diagnostics
       !!----------------------------------------------------------------------
       INTEGER ::   ji, jj, jk, jn, jtile   ! dummy loop indice
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)       ::   zgdept
       !! ---------------------------------------------------------------------
 #if defined key_agrif
       IF( nstop > 0 ) RETURN   ! avoid to go further if an error was detected during previous time step (child grid)
@@ -164,6 +163,8 @@ CONTAINS
       IF( ln_bdy     )   CALL bdy_dta ( kstp, Nnn )                   ! update dynamic & tracer data at open boundaries
       IF( ln_isf     )   CALL isf_stp ( kstp, Nnn )
                          CALL sbc     ( kstp, Nbb, Nnn )              ! Sea Boundary Condition (including sea-ice)
+!!$      IF( ln_isf     )   CALL isf_stp ( kstp, Nnn )
+                         !clem: problem with isf and cpl: sbcfwb needs isf but isf needs fwf from sbccpl
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Update stochastic parameters and random T/S fluctuations
@@ -190,21 +191,12 @@ CONTAINS
 
       !  LATERAL  PHYSICS
       !
-      IF( ln_zps .OR. l_ldfslp ) CALL eos( ts(:,:,:,:,Nbb), rhd, gdept_0(:,:,:) )               ! before in situ density
-
-      IF( ln_zps .AND. .NOT. ln_isfcav)                                    &
-            &            CALL zps_hde    ( kstp, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv,  &  ! Partial steps: before horizontal gradient
-            &                                          rhd, gru , grv    )       ! of t, s, rd at the last ocean level
-
-      IF( ln_zps .AND.       ln_isfcav)                                                &
-            &            CALL zps_hde_isf( kstp, jpts, ts(:,:,:,:,Nbb), gtsu, gtsv, gtui, gtvi,  &  ! Partial steps for top cell (ISF)
-            &                                          rhd, gru , grv , grui, grvi   )       ! of t, s, rd at the first ocean level
-
       IF( l_ldfslp ) THEN                             ! slope of lateral mixing
          IF( ln_traldf_triad ) THEN
                          CALL ldf_slp_triad( kstp, Nbb, Nnn )             ! before slope for triad operator
          ELSE
-                         CALL ldf_slp     ( kstp, rhd, rn2b, Nbb, Nnn )   ! before slope for standard operator
+                         CALL eos ( ts, Nbb, rhd )                        ! before in situ density
+                         CALL ldf_slp( kstp, rhd, rn2b, Nbb, Nnn )        ! before slope for standard operator
          ENDIF
       ENDIF
       !                                                                        ! eddy diffusivity coeff.
@@ -214,7 +206,7 @@ CONTAINS
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !  Ocean dynamics : hdiv, ssh, e3, u, v, w
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-      
+
                          CALL ssh_nxt    ( kstp, Nbb, Nnn, ssh,  Naa )   ! after ssh (includes call to div_hor)
       IF( .NOT.lk_linssh ) THEN
                          CALL dom_qco_r3c( ssh(:,:,Naa), r3t(:,:,Naa), r3u(:,:,Naa), r3v(:,:,Naa)           )   ! "after" ssh/h_0 ratio at t,u,v pts
@@ -223,12 +215,7 @@ CONTAINS
       ENDIF
                          CALL wzv        ( kstp, Nbb, Nnn, Naa, ww  )    ! Nnn cross-level velocity
       IF( ln_zad_Aimp )  CALL wAimp      ( kstp,      Nnn           )    ! Adaptive-implicit vertical advection partitioning
-                         ALLOCATE( zgdept(jpi,jpj,jpk) )
-                         DO jk = 1, jpk
-                            zgdept(:,:,jk) = gdept(:,:,jk,Nnn)
-                         END DO
-                         CALL eos        ( ts(:,:,:,:,Nnn), rhd, rhop, zgdept ) ! now in situ density for hpg computation
-                         DEALLOCATE( zgdept )
+                         CALL eos        ( ts, Nnn, rhd, rhop )          ! now in situ density for hpg computation
 
                          uu(:,:,:,Nrhs) = 0._wp            ! set dynamics trends to zero
                          vv(:,:,:,Nrhs) = 0._wp
@@ -351,7 +338,7 @@ CONTAINS
       DO jtile = 1, nijtile
          IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
 
-                            CALL tra_adv    ( kstp, Nbb, Nnn, ts, Nrhs )  ! hor. + vert. advection	==> RHS
+                            CALL tra_adv    ( kstp, Nbb, Nnn, Naa, ts, Nrhs )  ! hor. + vert. advection	==> RHS
          IF( ln_zdfmfc  )   CALL tra_mfc    ( kstp, Nbb,      ts, Nrhs )  ! Mass Flux Convection
          IF( ln_zdfosm  ) THEN
                             CALL tra_osm    ( kstp,      Nnn, ts, Nrhs )  ! OSMOSIS non-local tracer fluxes ==> RHS
@@ -554,11 +541,11 @@ CONTAINS
       CALL lbc_lnk( 'finalize_lbc', puu(:,:,:,       Kaa), 'U', -1., pvv(:,:,:       ,Kaa), 'V', -1.   &
                        &          , pts(:,:,:,jp_tem,Kaa), 'T',  1., pts(:,:,:,jp_sal,Kaa), 'T',  1. )
       !
-      ! lbc_lnk needed for zdf_sh2 when using nn_hls = 2, moved here to allow tiling in zdf_phy
-      IF( nn_hls == 2 .AND. l_zdfsh2 ) CALL lbc_lnk( 'stp', avm_k, 'W', 1.0_wp )
+      ! lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
+      IF( l_zdfsh2 ) CALL lbc_lnk( 'stp', avm_k, 'W', 1.0_wp )
 
       ! dom_qco_r3c defines over [nn_hls, nn_hls-1, nn_hls, nn_hls-1]
-      IF( nn_hls == 2 .AND. .NOT. lk_linssh ) THEN
+      IF( .NOT. lk_linssh ) THEN
          CALL lbc_lnk( 'finalize_lbc', r3u(:,:,Kaa), 'U', 1._wp, r3v(:,:,Kaa), 'V', 1._wp, &
             &                          r3u_f(:,:),   'U', 1._wp, r3v_f(:,:),   'V', 1._wp )
       ENDIF

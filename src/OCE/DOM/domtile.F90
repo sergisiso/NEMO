@@ -50,8 +50,6 @@ CONTAINS
       INTEGER ::   jt                                     ! dummy loop argument
       INTEGER ::   iitile, ijtile                         ! Local integers
       !!----------------------------------------------------------------------
-      IF( ln_tile .AND. nn_hls /= 2 ) CALL ctl_stop('dom_tile_init: Tiling is only supported for nn_hls = 2')
-
       ntile = 0                     ! Initialise to full domain
       nijtile = 1
       ntsi = Nis0

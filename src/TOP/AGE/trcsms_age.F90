@@ -46,7 +46,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt              ! ocean time-step index
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! ocean time level
-      INTEGER ::   jn, jk   ! dummy loop index
+      INTEGER ::   jk   ! dummy loop index
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_sms_age')
@@ -56,13 +56,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*) ' trc_sms_age:  AGE model'
          IF(lwp) WRITE(numout,*) ' ~~~~~~~~~~~~~~'
       ENDIF
-
-#if ! defined key_RK3
-      IF( l_1st_euler .OR. ln_top_euler ) THEN
-         tr(:,:,:,jp_age,Kbb) = tr(:,:,:,jp_age,Kmm)
-      ENDIF
-#endif
-
+      !
       DO jk = 1, nla_age
          tr(:,:,jk,jp_age,Krhs) = rn_age_kill_rate * tr(:,:,jk,jp_age,Kbb)
       END DO
@@ -74,7 +68,7 @@ CONTAINS
          tr(:,:,jk,jp_age,Krhs) = tmask(:,:,jk) * rryear
       END DO
       !
-      IF( l_trdtrc  )   CALL trd_trc( tr(:,:,:,jp_age,Krhs), jn, jptra_sms, kt, Kmm )   ! save trends
+      IF( l_trdtrc  )   CALL trd_trc( tr(:,:,:,jp_age,Krhs), jp_age, jptra_sms, kt, Kmm )   ! save trends
       !
       IF( ln_timing )   CALL timing_stop('trc_sms_age')
       !

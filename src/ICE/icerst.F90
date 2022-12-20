@@ -328,7 +328,7 @@ CONTAINS
          IF( nn_components == jp_iam_sas ) THEN   ! SAS case: ss[st]_m were not initialized by sbc_ssm_init
             !
             IF(lwp) WRITE(numout,*) '  SAS: default initialisation of ss[st]_m arrays used in ice_istate'
-            IF( l_useCT )  THEN    ;   sst_m(:,:) = eos_pt_from_ct( ts(:,:,1,jp_tem, Kmm), ts(:,:,1,jp_sal, Kmm) )
+            IF( l_useCT )  THEN    ;   CALL eos_pt_from_ct( ts(:,:,1,jp_tem, Kmm), ts(:,:,1,jp_sal, Kmm), sst_m(:,:) )
             ELSE                   ;   sst_m(:,:) = ts(:,:,1,jp_tem, Kmm)
             ENDIF
             sss_m(:,:) = ts(:,:,1,jp_sal, Kmm)

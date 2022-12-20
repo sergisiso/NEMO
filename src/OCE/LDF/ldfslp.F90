@@ -11,12 +11,12 @@ MODULE ldfslp
    !!            3.3  ! 2010-10  (G. Nurser, C. Harris, G. Madec)  add Griffies operator
    !!             -   ! 2010-11  (F. Dupond, G. Madec)  bug correction in slopes just below the ML
    !!            3.7  ! 2013-12  (F. Lemarie, G. Madec)  add limiter on triad slopes
+   !!            4.x  ! 2022-12  (S. Techene, G. Madec)  optmise memory and correct discrepancy wrt eos evolution
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
    !!   ldf_slp       : calculates the slopes of neutral surface   (Madec operator)
    !!   ldf_slp_triad : calculates the triads of isoneutral slopes (Griffies operator)
-   !!   ldf_slp_mxl   : calculates the slopes at the base of the mixed layer (Madec operator)
    !!   ldf_slp_init  : initialization of the slopes computation
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers
@@ -64,11 +64,7 @@ MODULE ldfslp
    !                                                     !! both operators
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)     ::   ah_wslp2             !: ah * slope^2 at w-point
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)     ::   akz                  !: stabilizing vertical diffusivity
-   
-   !                                                     !! Madec operator
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   omlmask           ! mask of the surface mixed layer at T-pt
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   uslpml, wslpiml   ! i_slope at U- and W-points just below the mixed layer
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   vslpml, wslpjml   ! j_slope at V- and W-points just below the mixed layer
+
 
    REAL(wp) ::   repsln = 1.e-25_wp       ! tiny value used as minium of di(rho), dj(rho) and dk(rho)
 
@@ -98,11 +94,11 @@ CONTAINS
       !!      diffusion (here, aht=2000m2/s ==> l=20km with a typical velocity
       !!      of 10cm/s)
       !!        A horizontal shapiro filter is applied to the slopes
-      !!        ln_sco=T, s-coordinate, add to the previously computed slopes
+      !!        l_sco=T, s-coordinate, add to the previously computed slopes
       !!      the slope of the model level surface.
       !!        macro-tasked on horizontal slab (jk-loop)  (2, jpk-1)
       !!      [slopes already set to zero at level 1, and to zero or the ocean
-      !!      bottom slope (ln_sco=T) at level jpk in inildf]
+      !!      bottom slope (l_sco=T) at level jpk in inildf]
       !!
       !! ** Action : - uslp, wslpi, and vslp, wslpj, the i- and  j-slopes
       !!               of now neutral surfaces at u-, w- and v- w-points, resp.
@@ -112,17 +108,20 @@ CONTAINS
       REAL(wp), INTENT(in), DIMENSION(:,:,:) ::   prd   ! in situ density
       REAL(wp), INTENT(in), DIMENSION(:,:,:) ::   pn2   ! Brunt-Vaisala frequency (locally ref.)
       !!
-      INTEGER  ::   ji , jj , jk    ! dummy loop indices
-      INTEGER  ::   ii0, ii1        ! temporary integer
-      INTEGER  ::   ij0, ij1        ! temporary integer
+      INTEGER  ::   ji , jj , jk                 ! dummy loop indices
+      INTEGER  ::   iik, iikm1, itmp, iku, ikv   ! local integer
       REAL(wp) ::   zeps, zm1_g, zm1_2g, z1_16, zcofw, z1_slpmax ! local scalars
-      REAL(wp) ::   zci, zfi, zau, zbu, zai, zbi   !   -      -
-      REAL(wp) ::   zcj, zfj, zav, zbv, zaj, zbj   !   -      -
-      REAL(wp) ::   zck, zfk,      zbw             !   -      -
-      REAL(wp) ::   zdepu, zdepv                   !   -      -
-      REAL(wp), DIMENSION(jpi,jpj)     ::  zslpml_hmlpu, zslpml_hmlpv
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::  zgru, zwz, zdzr
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::  zgrv, zww
+      REAL(wp) ::   zci, zfi, zau, zbu, zai, zbi, zmli   !   -      -
+      REAL(wp) ::   zcj, zfj, zav, zbv, zaj, zbj, zmlj   !   -      -
+      REAL(wp) ::   zck, zfk,      zbw          , zmlk   !   -      -
+      REAL(wp) ::   zdepu, zdepv                         !   -      -
+      REAL(wp), DIMENSION(A2D(2))   ::  zwz, zdzr
+      REAL(wp), DIMENSION(A2D(2))   ::  zww
+      REAL(wp), DIMENSION(A2D(2))   ::  zhmlpt
+      REAL(wp), DIMENSION(A2D(1))   ::  zuslp_hml, zwslpi_hml, r1_hmlu
+      REAL(wp), DIMENSION(A2D(1))   ::  zvslp_hml, zwslpj_hml, r1_hmlv
+      REAL(wp), DIMENSION(A2D(1))   ::                         r1_hmlw
+      REAL(wp), DIMENSION(A2D(2),2) ::  zgru, zgrv
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('ldf_slp')
@@ -133,192 +132,185 @@ CONTAINS
       zm1_2g = -0.5_wp / grav
       z1_slpmax = 1._wp / rn_slpmax
       !
-      zww(:,:,:) = 0._wp
-      zwz(:,:,:) = 0._wp
+      zuslp_hml(:,:) = 0._wp   ;   zwslpi_hml(:,:) = 0._wp
+      zvslp_hml(:,:) = 0._wp   ;   zwslpj_hml(:,:) = 0._wp
       !
-      DO_3D( 1, 0, 1, 0, 1, jpk )   !==   i- & j-gradient of density   ==!
-         zgru(ji,jj,jk) = umask(ji,jj,jk) * ( prd(ji+1,jj  ,jk) - prd(ji,jj,jk) )
-         zgrv(ji,jj,jk) = vmask(ji,jj,jk) * ( prd(ji  ,jj+1,jk) - prd(ji,jj,jk) )
-      END_3D
-      IF( ln_zps ) THEN                           ! partial steps correction at the bottom ocean level
-         DO_2D( 1, 0, 1, 0 )
-            zgru(ji,jj,mbku(ji,jj)) = gru(ji,jj)
-            zgrv(ji,jj,mbkv(ji,jj)) = grv(ji,jj)
-         END_2D
-      ENDIF
-      IF( ln_zps .AND. ln_isfcav ) THEN           ! partial steps correction at the bottom ocean level
-         DO_2D( 1, 0, 1, 0 )
-            IF( miku(ji,jj) > 1 )   zgru(ji,jj,miku(ji,jj)) = grui(ji,jj) 
-            IF( mikv(ji,jj) > 1 )   zgrv(ji,jj,mikv(ji,jj)) = grvi(ji,jj)
-         END_2D
-      ENDIF
+      ! nmln calculation in zdfmxl is only on internal points
+      DO_2D( 0, 0, 0, 0 )
+         zhmlpt(ji,jj) = REAL( nmln(ji,jj), wp )
+      END_2D
+      CALL lbc_lnk( 'ldfslp', zhmlpt, 'T', 1.0_wp, hmlp, 'W', 1.0_wp, kfillmode=jpfillcopy )  ! No 0 over closed boundaries
+      DO_2D( 1, 2, 1, 2 )
+         nmln(ji,jj) = NINT( zhmlpt(ji,jj) )
+      END_2D
       !
-      zdzr(:,:,1) = 0._wp           !==   Local vertical density gradient at T-point   == !   (evaluated from N^2)
-      DO jk = 2, jpkm1
-         !                                ! zdzr = d/dz(prd)= - ( prd ) / grav * mk(pn2) -- at t point
-         !                                !   trick: tmask(ik  )  = 0   =>   all pn2   = 0   =>   zdzr = 0
-         !                                !    else  tmask(ik+1)  = 0   =>   pn2(ik+1) = 0   =>   zdzr divides by 1
-         !                                !          umask(ik+1) /= 0   =>   all pn2  /= 0   =>   zdzr divides by 2
-         !                                ! NB: 1/(tmask+1) = (1-.5*tmask)  substitute a / by a *  ==> faster
-         zdzr(:,:,jk) = zm1_g * ( prd(:,:,jk) + 1._wp )              &
-            &                 * ( pn2(:,:,jk) + pn2(:,:,jk+1) ) * ( 1._wp - 0.5_wp * tmask(:,:,jk+1) )
-      END DO
-      !
-      !                             !==   Slopes just below the mixed layer   ==!
-      CALL ldf_slp_mxl( prd, pn2, zgru, zgrv, zdzr, Kmm )        ! output: uslpml, vslpml, wslpiml, wslpjml
-
-
-      ! I.  slopes at u and v point      | uslp = d/di( prd ) / d/dz( prd )
-      ! ===========================      | vslp = d/dj( prd ) / d/dz( prd )
-      !
-      IF ( ln_isfcav ) THEN
-         DO_2D( 0, 0, 0, 0 )
-            zslpml_hmlpu(ji,jj) = uslpml(ji,jj) / ( MAX(hmlpt  (ji,jj), hmlpt  (ji+1,jj  ), 5._wp) &
-               &                                  - MAX(risfdep(ji,jj), risfdep(ji+1,jj  )       ) ) 
-            zslpml_hmlpv(ji,jj) = vslpml(ji,jj) / ( MAX(hmlpt  (ji,jj), hmlpt  (ji  ,jj+1), 5._wp) &
-               &                                  - MAX(risfdep(ji,jj), risfdep(ji  ,jj+1)       ) )
+      DO_2D( 1, 2, 1, 2 )                  ! depth of the last T-point inside the mixed layer
+         zhmlpt(ji,jj) = gdept(ji,jj,nmln(ji,jj)-1,Kmm) * ssmask(ji,jj)
+      END_2D
+      !                             !==   Mixed layer height at u-, v- and w-points  ==!
+      IF( ln_isfcav ) THEN
+         DO_2D( 1, 1, 1, 1 )
+            r1_hmlu(ji,jj) = 1._wp / ( MAX(zhmlpt (ji,jj), zhmlpt (ji+1,jj  ), 5._wp) &
+               &                     - MAX(risfdep(ji,jj), risfdep(ji+1,jj  )       ) )
+            r1_hmlv(ji,jj) = 1._wp / ( MAX(zhmlpt (ji,jj), zhmlpt (ji  ,jj+1), 5._wp) &
+               &                     - MAX(risfdep(ji,jj), risfdep(ji  ,jj+1)       ) )
          END_2D
       ELSE
-         DO_2D( 0, 0, 0, 0 )
-            zslpml_hmlpu(ji,jj) = uslpml(ji,jj) / MAX(hmlpt(ji,jj), hmlpt(ji+1,jj  ), 5._wp)
-            zslpml_hmlpv(ji,jj) = vslpml(ji,jj) / MAX(hmlpt(ji,jj), hmlpt(ji  ,jj+1), 5._wp)
+         DO_2D( 1, 1, 1, 1 )
+            r1_hmlu(ji,jj) = 1._wp / MAX(zhmlpt(ji,jj), zhmlpt(ji+1,jj  ), 5._wp)
+            r1_hmlv(ji,jj) = 1._wp / MAX(zhmlpt(ji,jj), zhmlpt(ji  ,jj+1), 5._wp)
          END_2D
-      END IF
-
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )        !* Slopes at u and v points
-         !                                      ! horizontal and vertical density gradient at u- and v-points
-         zau = zgru(ji,jj,jk) * r1_e1u(ji,jj)
-         zav = zgrv(ji,jj,jk) * r1_e2v(ji,jj)
-         zbu = 0.5_wp * ( zdzr(ji,jj,jk) + zdzr(ji+1,jj  ,jk) )
-         zbv = 0.5_wp * ( zdzr(ji,jj,jk) + zdzr(ji  ,jj+1,jk) )
-         !                                      ! bound the slopes: abs(zw.)<= 1/100 and zb..<0
-         !                                      ! + kxz max= ah slope max =< e1 e3 /(pi**2 2 dt)
-         zbu = MIN(  zbu, - z1_slpmax * ABS( zau ) , -7.e+3_wp/e3u(ji,jj,jk,Kmm)* ABS( zau )  )
-         zbv = MIN(  zbv, - z1_slpmax * ABS( zav ) , -7.e+3_wp/e3v(ji,jj,jk,Kmm)* ABS( zav )  )
-         !                                      ! Fred Dupont: add a correction for bottom partial steps:
-         !                                      !              max slope = 1/2 * e3 / e1
-         IF (ln_zps .AND. jk==mbku(ji,jj)) &
-            zbu = MIN(  zbu, - z1_slpmax * ABS( zau ) ,   &
-               &                - 2._wp * e1u(ji,jj) / e3u(ji,jj,jk,Kmm)* ABS( zau )  )
-         IF (ln_zps .AND. jk==mbkv(ji,jj)) &
-            zbv = MIN(  zbv, - z1_slpmax * ABS( zav ) ,   &
-               &                - 2._wp * e2v(ji,jj) / e3v(ji,jj,jk,Kmm)* ABS( zav )  )
-         !                                      ! uslp and vslp output in zwz and zww, resp.
-         zfi = MAX( omlmask(ji,jj,jk), omlmask(ji+1,jj,jk) )
-         zfj = MAX( omlmask(ji,jj,jk), omlmask(ji,jj+1,jk) )
-         ! thickness of water column between surface and level k at u/v point
-         zdepu = 0.5_wp * ( ( gdept(ji,jj,jk,Kmm) + gdept(ji+1,jj,jk,Kmm) )                            &
-            &              - 2 * MAX( risfdep(ji,jj), risfdep(ji+1,jj) )        &
-            &              - e3u(ji,jj,miku(ji,jj),Kmm)   )
-         zdepv = 0.5_wp * ( ( gdept(ji,jj,jk,Kmm) + gdept(ji,jj+1,jk,Kmm) )                            &
-            &              - 2 * MAX( risfdep(ji,jj), risfdep(ji,jj+1) )        &
-            &              - e3v(ji,jj,mikv(ji,jj),Kmm)   )
+      ENDIF
+      !
+      DO_2D( 1, 1, 1, 1 )
+         r1_hmlw(ji,jj) = 1._wp / MAX( hmlp(ji,jj) - gdepw(ji,jj,mikt(ji,jj),Kmm), 10._wp )
+      END_2D
+      !
+      iikm1 = 1   ;   iik = 2                              ! iik-index initialisation
+      !
+      DO_2D( 2, 1, 2, 1 )           !==   bottom i- & j-gradient of density at u- and v-points ==!
+         zgru(ji,jj,iikm1) = umask(ji,jj,jpkm1) * ( prd(ji+1,jj  ,jpkm1) - prd(ji,jj,jpkm1) )
+         zgrv(ji,jj,iikm1) = vmask(ji,jj,jpkm1) * ( prd(ji  ,jj+1,jpkm1) - prd(ji,jj,jpkm1) )
+      END_2D
+      !
+      zdzr(:,:) = 0._wp             !==   bottom local vertical density gradient at T-point   == !
+      !
+      !                               !----------------------!
+      DO jk = jpkm1, 2, -1            !-  Horizontal slice  -!
+         !                            !----------------------!
          !
-         zwz(ji,jj,jk) = ( ( 1._wp - zfi) * zau / ( zbu - zeps )                                     &
-            &                      + zfi  * zdepu * zslpml_hmlpu(ji,jj) ) * umask(ji,jj,jk)
-         zww(ji,jj,jk) = ( ( 1._wp - zfj) * zav / ( zbv - zeps )                                     &
-            &                      + zfj  * zdepv * zslpml_hmlpv(ji,jj) ) * vmask(ji,jj,jk)
-!!gm  modif to suppress omlmask.... (as in Griffies case)
-!               !                                         ! jk must be >= ML level for zf=1. otherwise  zf=0.
-!               zfi = REAL( 1 - 1/(1 + jk / MAX( nmln(ji+1,jj), nmln(ji,jj) ) ), wp )
-!               zfj = REAL( 1 - 1/(1 + jk / MAX( nmln(ji,jj+1), nmln(ji,jj) ) ), wp )
-!               zci = 0.5 * ( gdept(ji+1,jj,jk,Kmm)+gdept(ji,jj,jk,Kmm) ) / MAX( hmlpt(ji,jj), hmlpt(ji+1,jj), 10. ) )
-!               zcj = 0.5 * ( gdept(ji,jj+1,jk,Kmm)+gdept(ji,jj,jk,Kmm) ) / MAX( hmlpt(ji,jj), hmlpt(ji,jj+1), 10. ) )
-!               zwz(ji,jj,jk) = ( zfi * zai / ( zbi - zeps ) + ( 1._wp - zfi ) * wslpiml(ji,jj) * zci ) * tmask(ji,jj,jk)
-!               zww(ji,jj,jk) = ( zfj * zaj / ( zbj - zeps ) + ( 1._wp - zfj ) * wslpjml(ji,jj) * zcj ) * tmask(ji,jj,jk)
-!!gm end modif
-      END_3D
-      CALL lbc_lnk( 'ldfslp', zwz, 'U', -1.0_wp,  zww, 'V', -1.0_wp )      ! lateral boundary conditions
-      !
-      !                                    !* horizontal Shapiro filter
-      DO jk = 2, jpkm1
+         itmp = iik   ;   iik = iikm1   ;   iikm1 = itmp   ! swap iik-index
+         !
+         DO_2D( 2, 1, 2, 1 )
+            !                       !==   jk: i- & j-gradient of density  ==!
+            zgru(ji,jj,iikm1) = umask(ji,jj,jk-1) * ( prd(ji+1,jj  ,jk-1) - prd(ji,jj,jk-1) )
+            zgrv(ji,jj,iikm1) = vmask(ji,jj,jk-1) * ( prd(ji  ,jj+1,jk-1) - prd(ji,jj,jk-1) )
+            !
+         END_2D
+         !                          !==   jk: Local vertical density gradient at T-point   == !
+         DO_2D( 1, 2, 1, 2 )
+            !                                ! zdzr = d/dz(prd)= - ( prd ) / grav * mk(pn2) -- at t point
+            !                                !   trick: tmask(ik  )  = 0   =>   all pn2   = 0   =>   zdzr = 0
+            !                                !    else  tmask(ik+1)  = 0   =>   pn2(ik+1) = 0   =>   zdzr divides by 1
+            !                                !          umask(ik+1) /= 0   =>   all pn2  /= 0   =>   zdzr divides by 2
+            !                                ! NB: 1/(tmask+1) = (1-.5*tmask)  substitute a / by a *  ==> faster
+            zdzr(ji,jj) = zm1_g * ( prd(ji,jj,jk) + 1._wp )              &
+               &                * ( pn2(ji,jj,jk) + pn2(ji,jj,jk+1) ) * ( 1._wp - 0.5_wp * tmask(ji,jj,jk+1) )
+         END_2D
+         !
+         !
+         !                     !==================================!
+         DO_2D( 1, 1, 1, 1 )   !==   Slopes at u and v points   ==!
+            !                  !==================================!
+            !                                              ! horizontal and vertical density gradient at u- and v-points
+            zau = zgru(ji,jj,iik) * r1_e1u(ji,jj)
+            zav = zgrv(ji,jj,iik) * r1_e2v(ji,jj)
+            zbu = 0.5_wp * ( zdzr(ji,jj) + zdzr(ji+1,jj  ) )
+            zbv = 0.5_wp * ( zdzr(ji,jj) + zdzr(ji  ,jj+1) )
+            !                                              ! bound the slopes: abs(zw.)<= 1/100 and zb..<0
+            !                                              ! + kxz max= ah slope max =< e1 e3 /(pi**2 2 dt)
+            zbu = MIN(  zbu, - z1_slpmax * ABS( zau ) , -7.e+3_wp/e3u(ji,jj,jk,Kmm)* ABS( zau )  )
+            zbv = MIN(  zbv, - z1_slpmax * ABS( zav ) , -7.e+3_wp/e3v(ji,jj,jk,Kmm)* ABS( zav )  )
+            !
+            !                       !==  slp=dxR(jk)/dzR(jk) under ml   slp=dep(jk)/hml*(dxR/dzR)_ml in ml ==!
+            iku = MAX( nmln(ji+1,jj), nmln(ji,jj) )        ! mix-layer index
+            ikv = MAX( nmln(ji,jj+1), nmln(ji,jj) )
+            !                                              ! zfi/j=0 in the mix-layer otherwise zfi/j=1
+            zfi = REAL( 1 - 1/(1 + jk / iku ), wp )
+            zfj = REAL( 1 - 1/(1 + jk / ikv ), wp )
+            !                                              ! zmi/j=1 when jk=nmln otherwise zmi/j=0
+            zmli = REAL(  1/( 1 + jk / (iku + 1) )  - 1/( 1 + jk / iku ), wp  )
+            zmlj = REAL(  1/( 1 + jk / (ikv + 1) )  - 1/( 1 + jk / ikv ), wp  )
+            !
+            !                                              ! thickness of water column between surface and level k at u/v point
+            zdepu = 0.5_wp * ( ( gdept(ji,jj,jk,Kmm) + gdept(ji+1,jj,jk,Kmm) )   &
+               &              - 2 * MAX( risfdep(ji,jj), risfdep(ji+1,jj) )      &
+               &              - e3u(ji,jj,miku(ji,jj),Kmm)   )
+            zdepv = 0.5_wp * ( ( gdept(ji,jj,jk,Kmm) + gdept(ji,jj+1,jk,Kmm) )   &
+               &              - 2 * MAX( risfdep(ji,jj), risfdep(ji,jj+1) )      &
+               &              - e3v(ji,jj,mikv(ji,jj),Kmm)   )
+            !                                              ! slp at jk level
+            zwz(ji,jj) = ( zfi * zau / ( zbu - zeps ) + ( 1._wp - zfi ) * zdepu * zuslp_hml(ji,jj) ) * umask(ji,jj,jk)
+            zww(ji,jj) = ( zfj * zav / ( zbv - zeps ) + ( 1._wp - zfj ) * zdepv * zvslp_hml(ji,jj) ) * vmask(ji,jj,jk)
+            !                                              ! store 1/hml*(dxR/dzR)_ml at nmln level
+            zuslp_hml(ji,jj) = zmli * zwz(ji,jj) * r1_hmlu(ji,jj) + ( 1._wp - zmli ) * zuslp_hml(ji,jj)
+            zvslp_hml(ji,jj) = zmlj * zww(ji,jj) * r1_hmlv(ji,jj) + ( 1._wp - zmlj ) * zvslp_hml(ji,jj)
+         END_2D
+         !
+         !                          !==  horizontal Shapiro filter + decrease along coastal boundaries  ==!
          DO_2D( 0, 0, 0, 0 )                                 ! rows jj=2 and =jpjm1 only
-            uslp(ji,jj,jk) = z1_16 * (        zwz(ji-1,jj-1,jk) + zwz(ji+1,jj-1,jk)      &
-               &                       +      zwz(ji-1,jj+1,jk) + zwz(ji+1,jj+1,jk)      &
-               &                       + 2.*( zwz(ji  ,jj-1,jk) + zwz(ji-1,jj  ,jk)      &
-               &                       +      zwz(ji+1,jj  ,jk) + zwz(ji  ,jj+1,jk) )    &
-               &                       + 4.*  zwz(ji  ,jj  ,jk)                       )
-            vslp(ji,jj,jk) = z1_16 * (        zww(ji-1,jj-1,jk) + zww(ji+1,jj-1,jk)      &
-               &                       +      zww(ji-1,jj+1,jk) + zww(ji+1,jj+1,jk)      &
-               &                       + 2.*( zww(ji  ,jj-1,jk) + zww(ji-1,jj  ,jk)      &
-               &                       +      zww(ji+1,jj  ,jk) + zww(ji  ,jj+1,jk) )    &
-               &                       + 4.*  zww(ji,jj    ,jk)                       )
+            uslp(ji,jj,jk) = z1_16 * (      ( ( zwz(ji-1,jj-1) + zwz(ji+1,jj-1) )      &   ! need additional () for
+               &                       +      ( zwz(ji-1,jj+1) + zwz(ji+1,jj+1) ) )    &   ! reproducibility around NP
+               &                       + 2.*( ( zwz(ji  ,jj-1) + zwz(ji-1,jj  ) )      &
+               &                       +      ( zwz(ji+1,jj  ) + zwz(ji  ,jj+1) ) )    &
+               &                       + 4.*    zwz(ji  ,jj  )                      )  &
+               &                   * ( umask(ji,jj+1,jk) + umask(ji,jj-1,jk  ) ) * 0.5_wp   &
+               &                   * ( umask(ji,jj  ,jk) + umask(ji,jj  ,jk+1) ) * 0.5_wp
+            vslp(ji,jj,jk) = z1_16 * (      ( ( zww(ji-1,jj-1) + zww(ji+1,jj-1) )      &
+               &                       +      ( zww(ji-1,jj+1) + zww(ji+1,jj+1) ) )    &
+               &                       + 2.*( ( zww(ji  ,jj-1) + zww(ji-1,jj  ) )      &
+               &                       +      ( zww(ji+1,jj  ) + zww(ji  ,jj+1) ) )    &
+               &                       + 4.*    zww(ji,jj    )                      )  &
+               &                   * ( vmask(ji+1,jj,jk) + vmask(ji-1,jj,jk  ) ) * 0.5_wp   &
+               &                   * ( vmask(ji  ,jj,jk) + vmask(ji  ,jj,jk+1) ) * 0.5_wp
          END_2D
-         !                                 !* decrease along coastal boundaries
-         DO_2D( 0, 0, 0, 0 )
-            uslp(ji,jj,jk) = uslp(ji,jj,jk) * ( umask(ji,jj+1,jk) + umask(ji,jj-1,jk  ) ) * 0.5_wp   &
-               &                            * ( umask(ji,jj  ,jk) + umask(ji,jj  ,jk+1) ) * 0.5_wp
-            vslp(ji,jj,jk) = vslp(ji,jj,jk) * ( vmask(ji+1,jj,jk) + vmask(ji-1,jj,jk  ) ) * 0.5_wp   &
-               &                            * ( vmask(ji  ,jj,jk) + vmask(ji  ,jj,jk+1) ) * 0.5_wp
+         !
+         !                      !============================!
+         DO_2D( 1, 1, 1, 1 )    !==   Slopes at w points   ==!
+            !                   !============================!
+            !                       !==  Local vertical density gradient evaluated from N^2  ==!
+            zbw = zm1_2g * pn2 (ji,jj,jk) * ( prd (ji,jj,jk) + prd (ji,jj,jk-1) + 2. )
+            !                       !==  Slopes at w point
+            !                                        ! i- & j-gradient of density at w-points  ==!
+            zci = MAX(  umask(ji-1,jj,jk   ) + umask(ji,jj,jk   )           &
+               &      + umask(ji-1,jj,jk-1 ) + umask(ji,jj,jk-1 ) , zeps  ) * e1t(ji,jj)
+            zcj = MAX(  vmask(ji,jj-1,jk   ) + vmask(ji,jj,jk-1 )           &
+               &      + vmask(ji,jj-1,jk-1 ) + vmask(ji,jj,jk   ) , zeps  ) * e2t(ji,jj)
+            zai =    (  ( zgru (ji-1,jj,iik  ) + zgru (ji,jj,iik  ) )           &     ! need additional () for reproducibility around NP
+               &      + ( zgru (ji-1,jj,iikm1) + zgru (ji,jj,iikm1) )   ) / zci * wmask (ji,jj,jk)
+            zaj =    (  ( zgrv (ji,jj-1,iik  ) + zgrv (ji,jj,iikm1) )           &
+               &      + ( zgrv (ji,jj-1,iikm1) + zgrv (ji,jj,iik  ) )   ) / zcj * wmask (ji,jj,jk)
+            !                                        ! bound the slopes: abs(zw.)<= 1/100 and zb..<0.
+            !                                        ! + kxz max= ah slope max =< e1 e3 /(pi**2 2 dt)
+            zbi = MIN( zbw ,- 100._wp* ABS( zai ) , -7.e+3_wp/e3w(ji,jj,jk,Kmm)* ABS( zai )  )
+            zbj = MIN( zbw , -100._wp* ABS( zaj ) , -7.e+3_wp/e3w(ji,jj,jk,Kmm)* ABS( zaj )  )
+            !
+            !                                        ! zfk=0 in the mix-layer otherwise zfk=1
+            zfk = REAL(   1 - 1/(  1 + jk / ( nmln(ji,jj) + 1 )  ) , wp   )
+            !                                        ! zmlk=1 when jk=nmln+1 otherwise zmlk=0
+            zmlk = REAL(  1/( 1 + jk / ( nmln(ji,jj) + 2 ) )  - 1/( 1 + jk / ( nmln(ji,jj) + 1 ) ), wp  )
+            !
+            !                                        ! thickness of water column between surface and level k at w point
+            zck = ( gdepw(ji,jj,jk,Kmm) - gdepw(ji,jj,mikt(ji,jj),Kmm) )
+            !                                        ! wslpi and wslpj with ML flattening (output in zwz and zww, resp.)
+            zwz(ji,jj) = (  zfk * zai / ( zbi - zeps ) + ( 1._wp - zfk ) * zck * zwslpi_hml(ji,jj)  ) * wmask(ji,jj,jk)
+            zww(ji,jj) = (  zfk * zaj / ( zbj - zeps ) + ( 1._wp - zfk ) * zck * zwslpj_hml(ji,jj)  ) * wmask(ji,jj,jk)
+            !
+            !                                        ! store 1/hml*(dxR/dzR)_ml at nmln+1 level (1st level above lower T-point in ML)
+            zwslpi_hml(ji,jj) = zmlk * zwz(ji,jj) * r1_hmlw(ji,jj) + ( 1._wp - zmlk ) * zwslpi_hml(ji,jj)
+            zwslpj_hml(ji,jj) = zmlk * zww(ji,jj) * r1_hmlw(ji,jj) + ( 1._wp - zmlk ) * zwslpj_hml(ji,jj)
          END_2D
-      END DO
-
-
-      ! II.  slopes at w point           | wslpi = mij( d/di( prd ) / d/dz( prd )
-      ! ===========================      | wslpj = mij( d/dj( prd ) / d/dz( prd )
-      !
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-         !                                  !* Local vertical density gradient evaluated from N^2
-         zbw = zm1_2g * pn2 (ji,jj,jk) * ( prd (ji,jj,jk) + prd (ji,jj,jk-1) + 2. )
-         !                                  !* Slopes at w point
-         !                                        ! i- & j-gradient of density at w-points
-         zci = MAX(  umask(ji-1,jj,jk  ) + umask(ji,jj,jk  )           &
-            &      + umask(ji-1,jj,jk-1) + umask(ji,jj,jk-1) , zeps  ) * e1t(ji,jj)
-         zcj = MAX(  vmask(ji,jj-1,jk  ) + vmask(ji,jj,jk-1)           &
-            &      + vmask(ji,jj-1,jk-1) + vmask(ji,jj,jk  ) , zeps  ) * e2t(ji,jj)
-         zai =    (  zgru (ji-1,jj,jk  ) + zgru (ji,jj,jk-1)           &
-            &      + zgru (ji-1,jj,jk-1) + zgru (ji,jj,jk  )   ) / zci * wmask (ji,jj,jk)
-         zaj =    (  zgrv (ji,jj-1,jk  ) + zgrv (ji,jj,jk-1)           &
-            &      + zgrv (ji,jj-1,jk-1) + zgrv (ji,jj,jk  )   ) / zcj * wmask (ji,jj,jk)
-         !                                        ! bound the slopes: abs(zw.)<= 1/100 and zb..<0.
-         !                                        ! + kxz max= ah slope max =< e1 e3 /(pi**2 2 dt)
-         zbi = MIN( zbw ,- 100._wp* ABS( zai ) , -7.e+3_wp/e3w(ji,jj,jk,Kmm)* ABS( zai )  )
-         zbj = MIN( zbw , -100._wp* ABS( zaj ) , -7.e+3_wp/e3w(ji,jj,jk,Kmm)* ABS( zaj )  )
-         !                                        ! wslpi and wslpj with ML flattening (output in zwz and zww, resp.)
-         zfk = MAX( omlmask(ji,jj,jk), omlmask(ji,jj,jk-1) )   ! zfk=1 in the ML otherwise zfk=0
-         zck = ( gdepw(ji,jj,jk,Kmm) - gdepw(ji,jj,mikt(ji,jj),Kmm) ) / MAX( hmlp(ji,jj) - gdepw(ji,jj,mikt(ji,jj),Kmm), 10._wp )
-         zwz(ji,jj,jk) = (  zai / ( zbi - zeps ) * ( 1._wp - zfk ) + zck * wslpiml(ji,jj) * zfk  ) * wmask(ji,jj,jk)
-         zww(ji,jj,jk) = (  zaj / ( zbj - zeps ) * ( 1._wp - zfk ) + zck * wslpjml(ji,jj) * zfk  ) * wmask(ji,jj,jk)
-
-!!gm  modif to suppress omlmask....  (as in Griffies operator)
-!               !                                         ! jk must be >= ML level for zfk=1. otherwise  zfk=0.
-!               zfk = REAL( 1 - 1/(1 + jk / nmln(ji+1,jj)), wp )
-!               zck = gdepw(ji,jj,jk,Kmm)    / MAX( hmlp(ji,jj), 10. )
-!               zwz(ji,jj,jk) = ( zfk * zai / ( zbi - zeps ) + ( 1._wp - zfk ) * wslpiml(ji,jj) * zck ) * tmask(ji,jj,jk)
-!               zww(ji,jj,jk) = ( zfk * zaj / ( zbj - zeps ) + ( 1._wp - zfk ) * wslpjml(ji,jj) * zck ) * tmask(ji,jj,jk)
-!!gm end modif
-      END_3D
-      CALL lbc_lnk( 'ldfslp', zwz, 'T', -1.0_wp,  zww, 'T', -1.0_wp )      ! lateral boundary conditions
-      !
-      !                                           !* horizontal Shapiro filter
-      DO jk = 2, jpkm1
+         !                           !== horizontal Shapiro filter + decrease in vicinity of topography  ==!
          DO_2D( 0, 0, 0, 0 )                             ! rows jj=2 and =jpjm1 only
-            zcofw = wmask(ji,jj,jk) * z1_16
-            wslpi(ji,jj,jk) = (         zwz(ji-1,jj-1,jk) + zwz(ji+1,jj-1,jk)     &
-                 &               +      zwz(ji-1,jj+1,jk) + zwz(ji+1,jj+1,jk)     &
-                 &               + 2.*( zwz(ji  ,jj-1,jk) + zwz(ji-1,jj  ,jk)     &
-                 &               +      zwz(ji+1,jj  ,jk) + zwz(ji  ,jj+1,jk) )   &
-                 &               + 4.*  zwz(ji  ,jj  ,jk)                         ) * zcofw
+            zcofw = wmask(ji,jj,jk) * z1_16 * ( umask(ji,jj,jk) + umask(ji-1,jj,jk) )   &
+               &                            * ( vmask(ji,jj,jk) + vmask(ji,jj-1,jk) ) * 0.25
+            wslpi(ji,jj,jk) = (       ( ( zwz(ji-1,jj-1) + zwz(ji+1,jj-1) )     &   ! need additional () for
+                 &               +      ( zwz(ji-1,jj+1) + zwz(ji+1,jj+1) ) )   &   ! reproducibility around NP
+                 &               + 2.*( ( zwz(ji  ,jj-1) + zwz(ji-1,jj  ) )     &
+                 &               +      ( zwz(ji+1,jj  ) + zwz(ji  ,jj+1) ) )   &
+                 &               + 4.*    zwz(ji  ,jj  )                        ) * zcofw
 
-            wslpj(ji,jj,jk) = (         zww(ji-1,jj-1,jk) + zww(ji+1,jj-1,jk)     &
-                 &               +      zww(ji-1,jj+1,jk) + zww(ji+1,jj+1,jk)     &
-                 &               + 2.*( zww(ji  ,jj-1,jk) + zww(ji-1,jj  ,jk)     &
-                 &               +      zww(ji+1,jj  ,jk) + zww(ji  ,jj+1,jk) )   &
-                 &               + 4.*  zww(ji  ,jj  ,jk)                         ) * zcofw
+            wslpj(ji,jj,jk) = (       ( ( zww(ji-1,jj-1) + zww(ji+1,jj-1) )     &
+                 &               +      ( zww(ji-1,jj+1) + zww(ji+1,jj+1) ) )   &
+                 &               + 2.*( ( zww(ji  ,jj-1) + zww(ji-1,jj  ) )     &
+                 &               +      ( zww(ji+1,jj  ) + zww(ji  ,jj+1) ) )   &
+                 &               + 4.*    zww(ji  ,jj  )                        ) * zcofw
          END_2D
-         !                                        !* decrease in vicinity of topography
-         DO_2D( 0, 0, 0, 0 )
-            zck =   ( umask(ji,jj,jk) + umask(ji-1,jj,jk) )   &
-               &  * ( vmask(ji,jj,jk) + vmask(ji,jj-1,jk) ) * 0.25
-            wslpi(ji,jj,jk) = wslpi(ji,jj,jk) * zck
-            wslpj(ji,jj,jk) = wslpj(ji,jj,jk) * zck
-         END_2D
-      END DO
-
-      ! IV. Lateral boundary conditions
-      ! ===============================
+         !
+      END DO  ! end jk
+      !                              !==  Lateral boundary conditions  ==!
       CALL lbc_lnk( 'ldfslp', uslp , 'U', -1.0_wp , vslp , 'V', -1.0_wp , wslpi, 'W', -1.0_wp, wslpj, 'W', -1.0_wp )
-
+      !
       IF(sn_cfctl%l_prtctl) THEN
          CALL prt_ctl(tab3d_1=uslp , clinfo1=' slp  - u : ', tab3d_2=vslp,  clinfo2=' v : ')
          CALL prt_ctl(tab3d_1=wslpi, clinfo1=' slp  - wi: ', tab3d_2=wslpj, clinfo2=' wj: ')
@@ -381,18 +373,6 @@ CONTAINS
             zdyrho(ji   ,jj+jp,jk,1-jp) = SIGN(  MAX( repsln, ABS( zdyrho_raw ) ), zdyrho_raw  )
          END_3D
          !
-         IF( ln_zps .AND. l_grad_zps ) THEN     ! partial steps: correction of i- & j-grad on bottom
-            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-               iku  = mbku(ji,jj)          ;   ikv  = mbkv(ji,jj)             ! last ocean level (u- & v-points)
-               zdit = gtsu(ji,jj,jp_tem)   ;   zdjt = gtsv(ji,jj,jp_tem)      ! i- & j-gradient of Temperature
-               zdis = gtsu(ji,jj,jp_sal)   ;   zdjs = gtsv(ji,jj,jp_sal)      ! i- & j-gradient of Salinity
-               zdxrho_raw = ( - rab_b(ji+ip,jj   ,iku,jp_tem) * zdit + rab_b(ji+ip,jj   ,iku,jp_sal) * zdis ) * r1_e1u(ji,jj)
-               zdyrho_raw = ( - rab_b(ji   ,jj+jp,ikv,jp_tem) * zdjt + rab_b(ji   ,jj+jp,ikv,jp_sal) * zdjs ) * r1_e2v(ji,jj)
-               zdxrho(ji+ip,jj   ,iku,1-ip) = SIGN( MAX( repsln, ABS( zdxrho_raw ) ), zdxrho_raw )   ! keep the sign
-               zdyrho(ji   ,jj+jp,ikv,1-jp) = SIGN( MAX( repsln, ABS( zdyrho_raw ) ), zdyrho_raw )
-            END_2D
-         ENDIF
-         !
       END DO
 
       DO kp = 0, 1                            !==  unmasked before density i- j-, k-gradients  ==!
@@ -410,6 +390,13 @@ CONTAINS
             zdzrho(ji,jj,jk,kp) = - MIN( - repsln , zdzrho_raw )    ! force zdzrho >= repsln
          END_3D
       END DO
+
+      ! nmln calculation in zdfmxl is only on internal points
+      DO_2D( 0, 0, 0, 0 )
+         z1_mlbw(ji,jj) = REAL( nmln(ji,jj), wp )
+      END_2D
+      CALL lbc_lnk( 'ldfslp', z1_mlbw, 'T', 1.0_wp, kfillmode=jpfillcopy )  ! No 0 over closed boundaries
+      nmln(:,:) = NINT( z1_mlbw(:,:) )
       !
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )                   !== Reciprocal depth of the w-point below ML base  ==!
          jk = MIN( nmln(ji,jj), mbkt(ji,jj) ) + 1     ! MIN in case ML depth is the ocean depth
@@ -556,113 +543,6 @@ CONTAINS
    END SUBROUTINE ldf_slp_triad
 
 
-   SUBROUTINE ldf_slp_mxl( prd, pn2, p_gru, p_grv, p_dzr, Kmm )
-      !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE ldf_slp_mxl  ***
-      !!
-      !! ** Purpose :   Compute the slopes of iso-neutral surface just below
-      !!              the mixed layer.
-      !!
-      !! ** Method  :   The slope in the i-direction is computed at u- & w-points
-      !!              (uslpml, wslpiml) and the slope in the j-direction is computed
-      !!              at v- and w-points (vslpml, wslpjml) with the same bounds as
-      !!              in ldf_slp.
-      !!
-      !! ** Action  :   uslpml, wslpiml :  i- &  j-slopes of neutral surfaces
-      !!                vslpml, wslpjml    just below the mixed layer
-      !!                omlmask         :  mixed layer mask
-      !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:), INTENT(in) ::   prd            ! in situ density
-      REAL(wp), DIMENSION(:,:,:), INTENT(in) ::   pn2            ! Brunt-Vaisala frequency (locally ref.)
-      REAL(wp), DIMENSION(:,:,:), INTENT(in) ::   p_gru, p_grv   ! i- & j-gradient of density (u- & v-pts)
-      REAL(wp), DIMENSION(:,:,:), INTENT(in) ::   p_dzr          ! z-gradient of density      (T-point)
-      INTEGER , INTENT(in)                   ::   Kmm            ! ocean time level indices
-      !!
-      INTEGER  ::   ji , jj , jk                   ! dummy loop indices
-      INTEGER  ::   iku, ikv, ik, ikm1             ! local integers
-      REAL(wp) ::   zeps, zm1_g, zm1_2g, z1_slpmax ! local scalars
-      REAL(wp) ::   zci, zfi, zau, zbu, zai, zbi   !   -      -
-      REAL(wp) ::   zcj, zfj, zav, zbv, zaj, zbj   !   -      -
-      REAL(wp) ::   zck, zfk,      zbw             !   -      -
-      !!----------------------------------------------------------------------
-      !
-      zeps   =  1.e-20_wp        !==   Local constant initialization   ==!
-      zm1_g  = -1.0_wp / grav
-      zm1_2g = -0.5_wp / grav
-      z1_slpmax = 1._wp / rn_slpmax
-      !
-      uslpml (1,:) = 0._wp      ;      uslpml (jpi,:) = 0._wp
-      vslpml (1,:) = 0._wp      ;      vslpml (jpi,:) = 0._wp
-      wslpiml(1,:) = 0._wp      ;      wslpiml(jpi,:) = 0._wp
-      wslpjml(1,:) = 0._wp      ;      wslpjml(jpi,:) = 0._wp
-      !
-      !                                            !==   surface mixed layer mask   !
-      DO_3D( 1, 1, 1, 1, 1, jpk )                  ! =1 inside the mixed layer, =0 otherwise
-         ik = nmln(ji,jj) - 1
-         IF( jk <= ik ) THEN   ;   omlmask(ji,jj,jk) = 1._wp
-         ELSE                  ;   omlmask(ji,jj,jk) = 0._wp
-         ENDIF
-      END_3D
-
-
-      ! Slopes of isopycnal surfaces just before bottom of mixed layer
-      ! --------------------------------------------------------------
-      ! The slope are computed as in the 3D case.
-      ! A key point here is the definition of the mixed layer at u- and v-points.
-      ! It is assumed to be the maximum of the two neighbouring T-point mixed layer depth.
-      ! Otherwise, a n2 value inside the mixed layer can be involved in the computation
-      ! of the slope, resulting in a too steep diagnosed slope and thus a spurious eddy
-      ! induce velocity field near the base of the mixed layer.
-      !-----------------------------------------------------------------------
-      !
-      DO_2D( 0, 0, 0, 0 )
-         !                        !==   Slope at u- & v-points just below the Mixed Layer   ==!
-         !
-         !                        !- vertical density gradient for u- and v-slopes (from dzr at T-point)
-         iku = MIN(  MAX( 1, nmln(ji,jj) , nmln(ji+1,jj) ) , jpkm1  )   ! ML (MAX of T-pts, bound by jpkm1)
-         ikv = MIN(  MAX( 1, nmln(ji,jj) , nmln(ji,jj+1) ) , jpkm1  )   !
-         zbu = 0.5_wp * ( p_dzr(ji,jj,iku) + p_dzr(ji+1,jj  ,iku) )
-         zbv = 0.5_wp * ( p_dzr(ji,jj,ikv) + p_dzr(ji  ,jj+1,ikv) )
-         !                        !- horizontal density gradient at u- & v-points
-         zau = p_gru(ji,jj,iku) * r1_e1u(ji,jj)
-         zav = p_grv(ji,jj,ikv) * r1_e2v(ji,jj)
-         !                        !- bound the slopes: abs(zw.)<= 1/100 and zb..<0
-         !                           kxz max= ah slope max =< e1 e3 /(pi**2 2 dt)
-         zbu = MIN(  zbu , - z1_slpmax * ABS( zau ) , -7.e+3_wp/e3u(ji,jj,iku,Kmm)* ABS( zau )  )
-         zbv = MIN(  zbv , - z1_slpmax * ABS( zav ) , -7.e+3_wp/e3v(ji,jj,ikv,Kmm)* ABS( zav )  )
-         !                        !- Slope at u- & v-points (uslpml, vslpml)
-         uslpml(ji,jj) = zau / ( zbu - zeps ) * umask(ji,jj,iku)
-         vslpml(ji,jj) = zav / ( zbv - zeps ) * vmask(ji,jj,ikv)
-         !
-         !                        !==   i- & j-slopes at w-points just below the Mixed Layer   ==!
-         !
-         ik   = MIN( nmln(ji,jj) + 1, jpk )
-         ikm1 = MAX( 1, ik-1 )
-         !                        !- vertical density gradient for w-slope (from N^2)
-         zbw = zm1_2g * pn2 (ji,jj,ik) * ( prd (ji,jj,ik) + prd (ji,jj,ikm1) + 2. )
-         !                        !- horizontal density i- & j-gradient at w-points
-         zci = MAX(   umask(ji-1,jj,ik  ) + umask(ji,jj,ik  )           &
-            &       + umask(ji-1,jj,ikm1) + umask(ji,jj,ikm1) , zeps  ) * e1t(ji,jj)
-         zcj = MAX(   vmask(ji,jj-1,ik  ) + vmask(ji,jj,ik  )           &
-            &       + vmask(ji,jj-1,ikm1) + vmask(ji,jj,ikm1) , zeps  ) * e2t(ji,jj)
-         zai =    (   p_gru(ji-1,jj,ik  ) + p_gru(ji,jj,ik)             &
-            &       + p_gru(ji-1,jj,ikm1) + p_gru(ji,jj,ikm1  )  ) / zci  * tmask(ji,jj,ik)
-         zaj =    (   p_grv(ji,jj-1,ik  ) + p_grv(ji,jj,ik  )           &
-            &       + p_grv(ji,jj-1,ikm1) + p_grv(ji,jj,ikm1)  ) / zcj  * tmask(ji,jj,ik)
-         !                        !- bound the slopes: abs(zw.)<= 1/100 and zb..<0.
-         !                           kxz max= ah slope max =< e1 e3 /(pi**2 2 dt)
-         zbi = MIN(  zbw , -100._wp* ABS( zai ) , -7.e+3_wp/e3w(ji,jj,ik,Kmm)* ABS( zai )  )
-         zbj = MIN(  zbw , -100._wp* ABS( zaj ) , -7.e+3_wp/e3w(ji,jj,ik,Kmm)* ABS( zaj )  )
-         !                        !- i- & j-slope at w-points (wslpiml, wslpjml)
-         wslpiml(ji,jj) = zai / ( zbi - zeps ) * tmask (ji,jj,ik)
-         wslpjml(ji,jj) = zaj / ( zbj - zeps ) * tmask (ji,jj,ik)
-      END_2D
-      !!gm this lbc_lnk should be useless....
-      CALL lbc_lnk( 'ldfslp', uslpml , 'U', -1.0_wp , vslpml , 'V', -1.0_wp , wslpiml, 'W', -1.0_wp , wslpjml, 'W', -1.0_wp ) 
-      !
-   END SUBROUTINE ldf_slp_mxl
-
-
    SUBROUTINE ldf_slp_init
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE ldf_slp_init  ***
@@ -699,17 +579,16 @@ CONTAINS
          !
       ELSE                             ! Madec operator : slopes at u-, v-, and w-points
          IF(lwp) WRITE(numout,*) '   ==>>>   iso operator (Madec)'
-         ALLOCATE( omlmask(jpi,jpj,jpk) ,                                                                        &
-            &      uslp(jpi,jpj,jpk) , uslpml(jpi,jpj) , wslpi(jpi,jpj,jpk) , wslpiml(jpi,jpj) ,     &
-            &      vslp(jpi,jpj,jpk) , vslpml(jpi,jpj) , wslpj(jpi,jpj,jpk) , wslpjml(jpi,jpj) , STAT=ierr )
+         ALLOCATE( uslp(jpi,jpj,jpk) ,  wslpi(jpi,jpj,jpk) ,     &
+            &      vslp(jpi,jpj,jpk) ,  wslpj(jpi,jpj,jpk) , STAT=ierr )
          IF( ierr > 0 )   CALL ctl_stop( 'STOP', 'ldf_slp_init : unable to allocate Madec operator slope ' )
 
          ! Direction of lateral diffusion (tracers and/or momentum)
          ! ------------------------------
-         uslp (:,:,:) = 0._wp   ;   uslpml (:,:) = 0._wp      ! set the slope to zero (even in s-coordinates)
-         vslp (:,:,:) = 0._wp   ;   vslpml (:,:) = 0._wp
-         wslpi(:,:,:) = 0._wp   ;   wslpiml(:,:) = 0._wp
-         wslpj(:,:,:) = 0._wp   ;   wslpjml(:,:) = 0._wp
+         uslp (:,:,:) = 0._wp      ! set the slope to zero (even in s-coordinates)
+         vslp (:,:,:) = 0._wp
+         wslpi(:,:,:) = 0._wp
+         wslpj(:,:,:) = 0._wp
 
          !!gm I no longer understand this.....
 !!gm         IF( (ln_traldf_hor .OR. ln_dynldf_hor) .AND. .NOT. (.NOT.ln_linssh .AND. ln_rstart) ) THEN

@@ -103,34 +103,36 @@ MODULE sbc_oce
    INTEGER , PUBLIC ::  ncpl_qsr_freq = 0        !: qsr coupling frequency per days from atmosphere (used by top)
    !
    !!                                   !!   now    ! before   !!
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   utau   , utau_b   !: sea surface i-stress (ocean referential)     [N/m2]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   vtau   , vtau_b   !: sea surface j-stress (ocean referential)     [N/m2]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   utau_icb, vtau_icb !: sea surface (i,j)-stress used by icebergs   [N/m2]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   taum              !: module of sea surface stress (at T-point)    [N/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   utau               !: sea surface i-stress (ocean referential) T-pt [N/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   vtau               !: sea surface j-stress (ocean referential) T-pt [N/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   utauU  , utau_b    !: sea surface i-stress (ocean referential) U-pt [N/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   vtauV  , vtau_b    !: sea surface j-stress (ocean referential) V-pt [N/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   utau_icb, vtau_icb !: sea surface (i,j)-stress used by icebergs     [N/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   taum               !: module of sea surface stress (at T-point)     [N/m2]
    !! wndm is used compute surface gases exchanges in ice-free ocean or leads
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   wndm              !: wind speed module at T-point (=|U10m-Uoce|)  [m/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   rhoa              !: air density at "rn_zu" m above the sea       [kg/m3]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   qsr               !: sea heat flux:     solar                     [W/m2]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   qns    , qns_b    !: sea heat flux: non solar                     [W/m2]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   qsr_tot           !: total     solar heat flux (over sea and ice) [W/m2]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   qns_tot           !: total non solar heat flux (over sea and ice) [W/m2]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   emp    , emp_b    !: freshwater budget: volume flux               [Kg/m2/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   sfx    , sfx_b    !: salt flux                                    [PSS.kg/m2/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   emp_tot           !: total E-P over ocean and ice                 [Kg/m2/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fmmflx            !: freshwater budget: freezing/melting          [Kg/m2/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   rnf    , rnf_b    !: river runoff                                 [Kg/m2/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fwficb , fwficb_b !: iceberg melting                              [Kg/m2/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   wndm               !: wind speed module at T-point (=|U10m-Uoce|)   [m/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   rhoa               !: air density at "rn_zu" m above the sea        [kg/m3]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   qsr                !: sea heat flux:     solar                      [W/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   qns    , qns_b     !: sea heat flux: non solar                      [W/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   qsr_tot            !: total     solar heat flux (over sea and ice)  [W/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   qns_tot            !: total non solar heat flux (over sea and ice)  [W/m2]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   emp    , emp_b     !: freshwater budget: volume flux                [Kg/m2/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   sfx    , sfx_b     !: salt flux                                     [PSS.kg/m2/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   emp_tot            !: total E-P over ocean and ice                  [Kg/m2/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fwfice             !: ice-ocean freshwater budget (>0 to the ocean) [Kg/m2/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   rnf    , rnf_b     !: river runoff                                  [Kg/m2/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fwficb             !: iceberg melting                               [Kg/m2/s]
    !!
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  sbc_tsc, sbc_tsc_b  !: sbc content trend                      [K.m/s] jpi,jpj,jpts
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  qsr_hc , qsr_hc_b   !: heat content trend due to qsr flux     [K.m/s] jpi,jpj,jpk
    !!
    !!
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tprecip           !: total precipitation                          [Kg/m2/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   sprecip           !: solid precipitation                          [Kg/m2/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fr_i              !: ice fraction = 1 - lead fraction      (between 0 to 1)
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   atm_co2           !: atmospheric pCO2                             [ppm]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: xcplmask          !: coupling mask for ln_mixcpl (warning: allocated in sbccpl)
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   cloud_fra         !: cloud cover (fraction of cloud in a gridcell) [-]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tprecip            !: total precipitation                           [Kg/m2/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   sprecip            !: solid precipitation                           [Kg/m2/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fr_i               !: ice fraction = 1 - lead fraction       (between 0 to 1)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   atm_co2            !: atmospheric pCO2                              [ppm]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: xcplmask           !: coupling mask for ln_mixcpl (warning: allocated in sbccpl)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   cloud_fra          !: cloud cover (fraction of cloud in a gridcell) [-]
 
    !!---------------------------------------------------------------------
    !! ABL Vertical Domain size
@@ -173,30 +175,40 @@ CONTAINS
       !!---------------------------------------------------------------------
       !!                  ***  FUNCTION sbc_oce_alloc  ***
       !!---------------------------------------------------------------------
-      INTEGER :: ierr(6)
+      INTEGER :: ierr(8)
       !!---------------------------------------------------------------------
       ierr(:) = 0
       !
-      ALLOCATE( utau(jpi,jpj) , utau_b(jpi,jpj) , taum(jpi,jpj) ,     &
-         &      vtau(jpi,jpj) , vtau_b(jpi,jpj) , wndm(jpi,jpj) , rhoa(jpi,jpj) , STAT=ierr(1) )
+      ! ----------------- !
+      ! == FULL ARRAYS == !
+      ! ----------------- !
+      ALLOCATE( utau(jpi,jpj) , utau_b(jpi,jpj) , utauU(jpi,jpj) , &
+         &      vtau(jpi,jpj) , vtau_b(jpi,jpj) , vtauV(jpi,jpj) , STAT=ierr(1) )
       !
-      ALLOCATE( qns_tot(jpi,jpj) , qns  (jpi,jpj) , qns_b(jpi,jpj),        &
-         &      qsr_tot(jpi,jpj) , qsr  (jpi,jpj) ,                        &
-         &      emp    (jpi,jpj) , emp_b(jpi,jpj) ,                        &
-         &      sfx    (jpi,jpj) , sfx_b(jpi,jpj) , emp_tot(jpi,jpj), fmmflx(jpi,jpj), STAT=ierr(2) )
+      ALLOCATE( emp(jpi,jpj) , emp_b(jpi,jpj) ,  &
+         &      STAT=ierr(2) )
       !
-      ALLOCATE( rnf  (jpi,jpj) , sbc_tsc  (jpi,jpj,jpts) , qsr_hc  (jpi,jpj,jpk) ,  &
-         &      rnf_b(jpi,jpj) , sbc_tsc_b(jpi,jpj,jpts) , qsr_hc_b(jpi,jpj,jpk) ,  &
-         &      fwficb  (jpi,jpj), fwficb_b(jpi,jpj), STAT=ierr(3) )
+      ALLOCATE( rnf(jpi,jpj), rnf_b(jpi,jpj), STAT=ierr(3) )
       !
-      ALLOCATE( tprecip(jpi,jpj) , sprecip(jpi,jpj) , fr_i(jpi,jpj) ,     &
-         &      atm_co2(jpi,jpj) , tsk_m(jpi,jpj) , cloud_fra(jpi,jpj),   &
+      ALLOCATE( fr_i(jpi,jpj) ,     &
          &      ssu_m  (jpi,jpj) , sst_m(jpi,jpj) , frq_m(jpi,jpj) ,      &
-         &      ssv_m  (jpi,jpj) , sss_m(jpi,jpj) , ssh_m(jpi,jpj) , STAT=ierr(4) )
+         &      ssv_m  (jpi,jpj) , sss_m(jpi,jpj) , ssh_m(jpi,jpj) , e3t_m(jpi,jpj) , STAT=ierr(4) )
       !
-      ALLOCATE( e3t_m(jpi,jpj) , STAT=ierr(5) )
+      ! -------------------- !
+      ! == REDUCED ARRAYS == !
+      ! -------------------- !
+      ALLOCATE( qns    (A2D(0)) , qns_b  (A2D(0)) , qsr   (A2D(0))     ,  &
+         &      qns_tot(A2D(0)) , qsr_tot(A2D(0)) , qsr_hc(A2D(0),jpk) , qsr_hc_b(A2D(0),jpk) , STAT=ierr(5) )
       !
-      ALLOCATE( q_air_zt(jpi,jpj) , theta_air_zt(jpi,jpj) , STAT=ierr(6) ) !#LB
+      ALLOCATE( sbc_tsc(A2D(0),jpts) , sbc_tsc_b(A2D(0),jpts) ,  &
+         &      sfx (A2D(0)) , sfx_b(A2D(0)) , emp_tot(A2D(0)), fwfice(A2D(0)), fwficb(A2D(0)), &
+         &      wndm(A2D(0)) , taum (A2D(0)) , STAT=ierr(6) )
+      !
+      ALLOCATE( tprecip(A2D(0)) , sprecip(A2D(0)) ,    &
+         &      atm_co2(A2D(0)) , tsk_m  (A2D(0)) , cloud_fra(A2D(0)), STAT=ierr(7) )
+
+      ALLOCATE( rhoa(A2D(0)) , q_air_zt(A2D(0)) , theta_air_zt(A2D(0)) , STAT=ierr(8) )
+      !
       !
       sbc_oce_alloc = MAXVAL( ierr )
       CALL mpp_sum ( 'sbc_oce', sbc_oce_alloc )
@@ -205,9 +217,10 @@ CONTAINS
    END FUNCTION sbc_oce_alloc
 
 
+   !!clem => this subroutine is never used in nemo
    SUBROUTINE sbc_tau2wnd
       !!---------------------------------------------------------------------
-      !!                    ***  ROUTINE sbc_tau2wnd  ***
+      !!                    ***  ROUTINE   ***
       !!
       !! ** Purpose : Estimation of wind speed as a function of wind stress
       !!
@@ -217,17 +230,14 @@ CONTAINS
       USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
       REAL(wp) ::   zrhoa  = 1.22         ! Air density kg/m3
       REAL(wp) ::   zcdrag = 1.5e-3       ! drag coefficient
-      REAL(wp) ::   ztx, zty, ztau, zcoef ! temporary variables
+      REAL(wp) ::   ztau, zcoef           ! temporary variables
       INTEGER  ::   ji, jj                ! dummy indices
       !!---------------------------------------------------------------------
       zcoef = 0.5 / ( zrhoa * zcdrag )
       DO_2D( 0, 0, 0, 0 )
-         ztx = utau(ji-1,jj  ) + utau(ji,jj)
-         zty = vtau(ji  ,jj-1) + vtau(ji,jj)
-         ztau = SQRT( ztx * ztx + zty * zty )
-         wndm(ji,jj) = SQRT ( ztau * zcoef ) * tmask(ji,jj,1)
+         ztau = SQRT( utau(ji,jj)*utau(ji,jj) + vtau(ji,jj)*vtau(ji,jj) )
+         wndm(ji,jj) = SQRT ( ztau * zcoef ) * smask0(ji,jj)
       END_2D
-      CALL lbc_lnk( 'sbc_oce', wndm(:,:) , 'T', 1.0_wp )
       !
    END SUBROUTINE sbc_tau2wnd
 
