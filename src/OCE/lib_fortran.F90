@@ -172,28 +172,6 @@ CONTAINS
          ENDIF
       END_2D
       CALL lbc_lnk( 'lib_fortran', p2d, 'T', 1.0_wp )
-      ! no need for 2nd exchange when nn_hls > 1
-      IF( nn_hls == 1 ) THEN
-         IF( mpiRnei(nn_hls,jpwe) > -1 ) THEN          ! 1st column was changed during the previous call to lbc_lnk
-            IF( MOD(mig(    1,nn_hls), 3) == 1 )   &   ! 1st box start at i=1 -> column 1 to 3 correctly computed locally
-               p2d(    1,:) = p2d(    2,:)             ! previous lbc_lnk corrupted column 1 -> put it back using column 2 
-            IF( MOD(mig(    1,nn_hls), 3) == 2 )   &   ! 1st box start at i=3 -> column 1 and 2 correctly computed on w-neighbourh
-               p2d(    2,:) = p2d(    1,:)             !  previous lbc_lnk fix column 1 -> copy it to column 2 
-         ENDIF
-         IF( mpiRnei(nn_hls,jpea) > -1 ) THEN
-            IF( MOD(mig(jpi-2,nn_hls), 3) == 1 )   p2d(  jpi,:) = p2d(jpi-1,:)
-            IF( MOD(mig(jpi-2,nn_hls), 3) == 0 )   p2d(jpi-1,:) = p2d(  jpi,:)
-         ENDIF
-         IF( mpiRnei(nn_hls,jpso) > -1 ) THEN
-            IF( MOD(mjg(    1,nn_hls), 3) == 1 )   p2d(:,    1) = p2d(:,    2)
-            IF( MOD(mjg(    1,nn_hls), 3) == 2 )   p2d(:,    2) = p2d(:,    1)
-         ENDIF
-         IF( mpiRnei(nn_hls,jpno) > -1 ) THEN
-            IF( MOD(mjg(jpj-2,nn_hls), 3) == 1 )   p2d(:,  jpj) = p2d(:,jpj-1)
-            IF( MOD(mjg(jpj-2,nn_hls), 3) == 0 )   p2d(:,jpj-1) = p2d(:,  jpj)
-         ENDIF
-         CALL lbc_lnk( 'lib_fortran', p2d, 'T', 1.0_wp )
-      ENDIF
 
    END SUBROUTINE sum3x3_2d
 
@@ -229,28 +207,6 @@ CONTAINS
          END_2D
       END DO
       CALL lbc_lnk( 'lib_fortran', p3d, 'T', 1.0_wp )
-      ! no need for 2nd exchange when nn_hls > 1
-      IF( nn_hls == 1 ) THEN
-         IF( mpiRnei(nn_hls,jpwe) > -1 ) THEN           ! 1st column was changed during the previous call to lbc_lnk
-            IF( MOD(mig(    1,nn_hls), 3) == 1 )   &    ! 1st box start at i=1 -> column 1 to 3 correctly computed locally
-               p3d(    1,:,:) = p3d(    2,:,:)          ! previous lbc_lnk corrupted column 1 -> put it back using column 2 
-            IF( MOD(mig(    1,nn_hls), 3) == 2 )   &    ! 1st box start at i=3 -> column 1 and 2 correctly computed on w-neighbourh
-               p3d(    2,:,:) = p3d(    1,:,:)          !  previous lbc_lnk fix column 1 -> copy it to column 2 
-         ENDIF
-         IF( mpiRnei(nn_hls,jpea) > -1 ) THEN
-            IF( MOD(mig(jpi-2,nn_hls), 3) == 1 )   p3d(  jpi,:,:) = p3d(jpi-1,:,:)
-            IF( MOD(mig(jpi-2,nn_hls), 3) == 0 )   p3d(jpi-1,:,:) = p3d(  jpi,:,:)
-         ENDIF
-         IF( mpiRnei(nn_hls,jpso) > -1 ) THEN
-            IF( MOD(mjg(    1,nn_hls), 3) == 1 )   p3d(:,    1,:) = p3d(:,    2,:)
-            IF( MOD(mjg(    1,nn_hls), 3) == 2 )   p3d(:,    2,:) = p3d(:,    1,:)
-         ENDIF
-         IF( mpiRnei(nn_hls,jpno) > -1 ) THEN
-            IF( MOD(mjg(jpj-2,nn_hls), 3) == 1 )   p3d(:,  jpj,:) = p3d(:,jpj-1,:)
-            IF( MOD(mjg(jpj-2,nn_hls), 3) == 0 )   p3d(:,jpj-1,:) = p3d(:,  jpj,:)
-         ENDIF
-         CALL lbc_lnk( 'lib_fortran', p3d, 'T', 1.0_wp )
-      ENDIF
 
    END SUBROUTINE sum3x3_3d
 

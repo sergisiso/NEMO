@@ -557,7 +557,6 @@ CONTAINS
                !
             END_2D
             !
-            IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_rhg_evp', v_ice, 'V', -1.0_wp )
             !
             DO_2D( 0, 0, 0, 0 )
                !                 !--- tau_io/(u_oce - u_ice)
@@ -606,9 +605,7 @@ CONTAINS
                !
             END_2D
             !
-            IF( nn_hls == 1 ) THEN   ;   CALL lbc_lnk( 'icedyn_rhg_evp', u_ice, 'U', -1.0_wp )
-            ELSE                     ;   CALL lbc_lnk( 'icedyn_rhg_evp', u_ice, 'U', -1.0_wp, v_ice, 'V', -1.0_wp )
-            ENDIF
+            CALL lbc_lnk( 'icedyn_rhg_evp', u_ice, 'U', -1.0_wp, v_ice, 'V', -1.0_wp )
             !
          ELSE ! odd iterations
             !
@@ -659,7 +656,6 @@ CONTAINS
                !
             END_2D
             !
-            IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_rhg_evp', u_ice, 'U', -1.0_wp )
             !
             DO_2D( 0, 0, 0, 0 )
                !                 !--- tau_io/(v_oce - v_ice)
@@ -708,9 +704,7 @@ CONTAINS
                !
             END_2D
             !
-            IF( nn_hls == 1 ) THEN   ;   CALL lbc_lnk( 'icedyn_rhg_evp', v_ice, 'V', -1.0_wp )
-            ELSE                     ;   CALL lbc_lnk( 'icedyn_rhg_evp', u_ice, 'U', -1.0_wp, v_ice, 'V', -1.0_wp )
-            ENDIF
+            CALL lbc_lnk( 'icedyn_rhg_evp', u_ice, 'U', -1.0_wp, v_ice, 'V', -1.0_wp )
             !
          ENDIF
          !

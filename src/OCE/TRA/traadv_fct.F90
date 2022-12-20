@@ -254,7 +254,6 @@ CONTAINS
                ztu(ji,jj,jk) = ( pt(ji+1,jj  ,jk,jn,Kmm) - pt(ji,jj,jk,jn,Kmm) ) * umask(ji,jj,jk)
                ztv(ji,jj,jk) = ( pt(ji  ,jj+1,jk,jn,Kmm) - pt(ji,jj,jk,jn,Kmm) ) * vmask(ji,jj,jk)
             END_3D
-            IF (nn_hls==1) CALL lbc_lnk( 'traadv_fct', ztu, 'U', -1.0_wp , ztv, 'V', -1.0_wp, ld4only= .TRUE. )   ! Lateral boundary cond. (unchanged sgn)
             !
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )    ! Horizontal advective fluxes
                zC2t_u = pt(ji,jj,jk,jn,Kmm) + pt(ji+1,jj  ,jk,jn,Kmm)   ! 2 x C2 interpolation of T at u- & v-points (x2)
@@ -266,7 +265,7 @@ CONTAINS
                zwx(ji,jj,jk) =  0.5_wp * pU(ji,jj,jk) * zC4t_u - zwx(ji,jj,jk)
                zwy(ji,jj,jk) =  0.5_wp * pV(ji,jj,jk) * zC4t_v - zwy(ji,jj,jk)
             END_3D
-            IF (nn_hls==2) CALL lbc_lnk( 'traadv_fct', zwx, 'U', -1.0_wp , zwy, 'V', -1.0_wp )   ! Lateral boundary cond. (unchanged sgn)
+            CALL lbc_lnk( 'traadv_fct', zwx, 'U', -1.0_wp , zwy, 'V', -1.0_wp )   ! Lateral boundary cond. (unchanged sgn)
             !
          END SELECT
          !
@@ -289,11 +288,7 @@ CONTAINS
             zwz(:,:,1) = 0._wp   ! only ocean surface as interior zwz values have been w-masked
          ENDIF
          !
-         IF (nn_hls==1) THEN
-            CALL lbc_lnk( 'traadv_fct', zwi, 'T', 1.0_wp, zwx, 'U', -1.0_wp , zwy, 'V', -1.0_wp, zwz, 'T', 1.0_wp )
-         ELSE
-            CALL lbc_lnk( 'traadv_fct', zwi, 'T', 1.0_wp)
-         END IF
+         CALL lbc_lnk( 'traadv_fct', zwi, 'T', 1.0_wp)
          !
          IF ( ll_zAimp ) THEN
             DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )    !* trend and after field with monotonic scheme
@@ -447,7 +442,6 @@ CONTAINS
             zbetdo(ji,jj,jk) = ( paft(ji,jj,jk) - zdo            ) / ( zneg + zrtrn ) * zbt
          END_2D
       END DO
-      IF (nn_hls==1) CALL lbc_lnk( 'traadv_fct', zbetup, 'T', 1.0_wp , zbetdo, 'T', 1.0_wp, ld4only= .TRUE. )   ! lateral boundary cond. (unchanged sign)
 
       ! 3. monotonic flux in the i & j direction (paa & pbb)
       ! ----------------------------------------

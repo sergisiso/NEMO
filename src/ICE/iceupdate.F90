@@ -372,7 +372,6 @@ CONTAINS
             !
             tmod_io(ji,jj) = zrhoco * SQRT( zmodt )
          END_2D
-         IF( nn_hls == 1 )   CALL lbc_lnk( 'iceupdate', tmod_io, 'T', 1._wp )
          !
          DO_2D( 0, 0, 0, 0 )                                !* save the air-ocean stresses at ice time-step
             !                                               ! 2*(U_ice-U_oce) at T-point

@@ -450,7 +450,7 @@ CONTAINS
       CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1., vv(:,:,:       ,Kaa), 'V', -1.   &
          &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1., ts(:,:,:,jp_sal,Kaa), 'T',  1. )
       !
-      IF( nn_hls == 2 .AND. l_zdfsh2 ) CALL lbc_lnk( 'stp_RK3_stg', avm_k, 'W', 1.0_wp )   !  lbc_lnk needed for zdf_sh2 when using nn_hls = 2, moved here to allow tiling in zdf_phy
+      IF( l_zdfsh2 ) CALL lbc_lnk( 'stp_RK3_stg', avm_k, 'W', 1.0_wp )   !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
       !
       !                                              !* BDY open boundaries
       IF( ln_bdy )   THEN

@@ -132,9 +132,9 @@ CONTAINS
       CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm), r3f(:,:) )
 #endif
       ! dom_qco_r3c defines over [nn_hls, nn_hls-1, nn_hls, nn_hls-1]
-      IF( nn_hls == 2 ) CALL lbc_lnk( 'dom_qco_zgr', r3u(:,:,Kbb), 'U', 1._wp, r3v(:,:,Kbb), 'V', 1._wp, &
-         &                                           r3u(:,:,Kmm), 'U', 1._wp, r3v(:,:,Kmm), 'V', 1._wp, r3f(:,:), 'F', 1._wp )
-      !                                                                                                ! r3f is needed for agrif
+      CALL lbc_lnk( 'dom_qco_zgr', r3u(:,:,Kbb), 'U', 1._wp, r3v(:,:,Kbb), 'V', 1._wp, &
+         &                         r3u(:,:,Kmm), 'U', 1._wp, r3v(:,:,Kmm), 'V', 1._wp, r3f(:,:), 'F', 1._wp )
+      !                                                                              ! r3f is needed for agrif
    END SUBROUTINE dom_qco_zgr
 
 
@@ -170,11 +170,7 @@ CONTAINS
             &                    + e1e2t(ji,jj+1) * pssh(ji,jj+1)  ) * r1_hv_0(ji,jj) * r1_e1e2v(ji,jj)
       END_2D        
       !
-      IF( .NOT.PRESENT( pr3f ) ) THEN              !- lbc on ratio at u-, v-points only
-         IF (nn_hls==1) CALL lbc_lnk( 'dom_qco_r3c', pr3u, 'U', 1._wp, pr3v, 'V', 1._wp )
-         !
-         !
-      ELSE                                   !==  ratio at f-point  ==!
+      IF( PRESENT( pr3f ) ) THEN             !==  ratio at f-point  ==!
          !
          DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
             ! round brackets added to fix the order of floating point operations
@@ -185,8 +181,6 @@ CONTAINS
                &                         + e1e2t(ji+1,jj+1) * pssh(ji+1,jj+1)  )   & ! add () for NP reproducibility
                &                    ) * r1_hf_0(ji,jj) * r1_e1e2f(ji,jj)
          END_2D
-         !                                                 ! lbc on ratio at u-,v-,f-points
-         IF (nn_hls==1) CALL lbc_lnk( 'dom_qco_r3c', pr3u, 'U', 1._wp, pr3v, 'V', 1._wp, pr3f, 'F', 1._wp )
          !
       ENDIF
       !

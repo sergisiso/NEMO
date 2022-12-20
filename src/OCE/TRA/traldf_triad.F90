@@ -518,8 +518,6 @@ CONTAINS
       !                          !==  1st laplacian applied to pt (output in zlap)  ==!
       CALL traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv, pt, pt, zlap, kjpt, 1 )
       !
-      IF (nn_hls==1) CALL lbc_lnk( 'traldf_lap_blp', zlap(:,:,:,:) , 'T', 1.0_wp )     ! Lateral boundary conditions (unchanged sign)
-      !
       !                          !==  2nd laplacian applied to zlap (output in pt_rhs)  ==!
       CALL traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv, zlap, pt    , pt_rhs, kjpt, 2 )
       !

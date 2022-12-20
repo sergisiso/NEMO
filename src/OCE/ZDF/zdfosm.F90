@@ -997,8 +997,6 @@ CONTAINS
       !    v grids
       IF ( .NOT. l_istiled .OR. ntile == nijtile ) THEN   ! Finalise ghamu, ghamv, hbl, and hmle only after full domain has been
          !                                                !    processed
-         IF ( nn_hls == 1 ) CALL lbc_lnk( 'zdfosm', ghamu, 'W', 1.0_wp,   &
-            &                                       ghamv, 'W', 1.0_wp )
          DO jk = 2, jpkm1
             DO jj = Njs0, Nje0
                DO ji = Nis0, Nie0

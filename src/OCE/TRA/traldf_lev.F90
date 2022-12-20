@@ -144,7 +144,6 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                 ***  ROUTINE tra_ldf_blp  ***
       !!
-      !!                          nn_hls >= 2
       !!
       !!           NO use of zps_hde ==>>  New HPG calculation
       !!           **        *******

@@ -557,7 +557,6 @@ CONTAINS
          vtauV  (ji,jj) = 0.5_wp * ( vtau(ji,jj) + vtau(ji,jj+1) ) * &
             &                      ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) )
       END_2D
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'sbcmod', utauU, 'U', -1.0_wp, vtauV, 'V', -1.0_wp )
       !
       IF( kt == nit000 ) THEN                          !   set the forcing field at nit000 - 1    !
          !                                             ! ---------------------------------------- !

@@ -355,10 +355,6 @@ CONTAINS
       IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
          CALL lbc_lnk( 'zdfphy', avm, 'W', 1.0_wp ) ! lbc_lnk for avm_k is in stp
 
-         ! TEMP: [zdfosm_avt_diag] Needed only to preserve diagnostics along the eastern half of the north fold (T-pivot)
-         IF( nn_hls == 1 .AND. ln_zdfosm .AND. ln_osm_mle ) &
-            & CALL lbc_lnk( 'zdfphy', avt, 'W', 1.0_wp, avs, 'W', 1.0_wp )
-
          IF( l_zdfdrg ) THEN     ! drag  have been updated (non-linear cases)
             IF( ln_isfcav ) THEN   ;  CALL lbc_lnk( 'zdfphy', rCdU_top, 'T', 1.0_wp , rCdU_bot, 'T', 1.0_wp )   ! top & bot drag
             ELSE                   ;  CALL lbc_lnk( 'zdfphy', rCdU_bot, 'T', 1.0_wp )                           ! bottom drag only

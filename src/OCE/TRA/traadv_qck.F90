@@ -146,8 +146,6 @@ CONTAINS
             zfc(ji,jj,jk) = pt(ji-1,jj,jk,jn,Kbb)        ! Upstream   in the x-direction for the tracer
             zfd(ji,jj,jk) = pt(ji+1,jj,jk,jn,Kbb)        ! Downstream in the x-direction for the tracer
          END_3D
-         IF (nn_hls==1) CALL lbc_lnk( 'traadv_qck', zfc(:,:,:), 'T', 1.0_wp , zfd(:,:,:), 'T', 1.0_wp, ld4only= .TRUE. )   ! Lateral boundary conditions
-
          !
          ! Horizontal advective fluxes
          ! ---------------------------
@@ -163,8 +161,6 @@ CONTAINS
             zfc(ji,jj,jk)  = zdir * pt(ji  ,jj,jk,jn,Kbb) + ( 1. - zdir ) * pt(ji+1,jj,jk,jn,Kbb)  ! FC in the x-direction for T
             zfd(ji,jj,jk)  = zdir * pt(ji+1,jj,jk,jn,Kbb) + ( 1. - zdir ) * pt(ji  ,jj,jk,jn,Kbb)  ! FD in the x-direction for T
          END_3D
-         !--- Lateral boundary conditions
-         IF (nn_hls==1) CALL lbc_lnk( 'traadv_qck', zfu(:,:,:), 'T', 1.0_wp , zfd(:,:,:), 'T', 1.0_wp, zfc(:,:,:), 'T', 1.0_wp,  zwx(:,:,:), 'T', 1.0_wp )
 
          !--- QUICKEST scheme
          CALL quickest( zfu, zfd, zfc, zwx )
@@ -173,8 +169,6 @@ CONTAINS
          DO_3D( nn_hls-1, nn_hls-1, 0, 0, 1, jpkm1 )
             zfu(ji,jj,jk) = tmask(ji-1,jj,jk) + tmask(ji,jj,jk) + tmask(ji+1,jj,jk) - 2.
          END_3D
-         IF (nn_hls==1) CALL lbc_lnk( 'traadv_qck', zfu(:,:,:), 'T', 1.0_wp, ld4only= .TRUE. )      ! Lateral boundary conditions
-
          !
          ! Tracer flux on the x-direction
          DO_3D( 1, 0, 0, 0, 1, jpkm1 )
@@ -232,15 +226,6 @@ CONTAINS
             ! Downstream in the x-direction for the tracer
             zfd(ji,jj,jk) = pt(ji,jj+1,jk,jn,Kbb)
          END_3D
-
-         IF (nn_hls==1) CALL lbc_lnk( 'traadv_qck', zfc(:,:,:), 'T', 1.0_wp , zfd(:,:,:), 'T', 1.0_wp, ld4only= .TRUE. )   ! Lateral boundary conditions
-
-         ! Correct zfd on northfold after lbc_lnk; see #2640
-         IF( nn_hls == 1 .AND. l_IdoNFold .AND. ntej == Nje0 ) THEN
-            DO jk = 1, jpkm1
-               WHERE( tmask_i(ntsi:ntei,ntej:jpj) == 0._wp ) zfd(ntsi:ntei,ntej:jpj,jk) = zfc(ntsi:ntei,ntej:jpj,jk)
-            END DO
-         ENDIF
          !
          ! Horizontal advective fluxes
          ! ---------------------------
@@ -258,9 +243,6 @@ CONTAINS
             zfd(ji,jj,jk)  = zdir * pt(ji,jj+1,jk,jn,Kbb) + ( 1. - zdir ) * pt(ji,jj  ,jk,jn,Kbb)  ! FD in the x-direction for T
          END_3D
 
-         !--- Lateral boundary conditions
-         IF (nn_hls==1) CALL lbc_lnk( 'traadv_qck', zfu(:,:,:), 'T', 1.0_wp , zfd(:,:,:), 'T', 1.0_wp, zfc(:,:,:), 'T', 1.0_wp, zwy(:,:,:), 'T', 1.0_wp )
-
          !--- QUICKEST scheme
          CALL quickest( zfu, zfd, zfc, zwy )
          !
@@ -268,7 +250,6 @@ CONTAINS
          DO_3D( 0, 0, nn_hls-1, nn_hls-1, 1, jpkm1 )
             zfu(ji,jj,jk) = tmask(ji,jj-1,jk) + tmask(ji,jj,jk) + tmask(ji,jj+1,jk) - 2.
          END_3D
-         IF (nn_hls==1) CALL lbc_lnk( 'traadv_qck', zfu(:,:,:), 'T', 1.0_wp, ld4only= .TRUE. )    !--- Lateral boundary conditions
          !
          ! Tracer flux on the x-direction
          DO_3D( 0, 0, 1, 0, 1, jpkm1 )

@@ -196,9 +196,9 @@ CONTAINS
          ENDIF
       ENDIF
 
-      CALL lbc_lnk( 'stp_MLF', uu(:,:,:,Nnn), 'U', -1., vv(:,:,:,Nnn), 'V', -1.,   &   !* local domain boundaries
-         &                     uu(:,:,:,Naa), 'U', -1., vv(:,:,:,Naa), 'V', -1.    )     
-      IF (nn_hls==2) CALL lbc_lnk( 'stp_MLF', r3u(:,:,Naa), 'U', 1., r3v(:,:,Naa), 'V', 1.)
+      CALL lbc_lnk( 'stp_MLF', uu (:,:,:,Nnn), 'U', -1., vv (:,:,:,Nnn), 'V', -1., &   !* local domain boundaries
+         &                     uu (:,:,:,Naa), 'U', -1., vv (:,:,:,Naa), 'V', -1.  )     
+      CALL lbc_lnk( 'stp_MLF', r3u(:,:,  Naa), 'U',  1., r3v(:,:,  Naa), 'V',  1.  )
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Set boundary conditions, time filter and swap time levels

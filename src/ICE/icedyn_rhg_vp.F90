@@ -1623,8 +1623,6 @@ CONTAINS
             
          END_2D
          
-         IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_rhg_cvg_vp', zu_res,  'U',  1., zv_res , 'V',  1. )
-
          DO_2D( 0, 0, 0, 0 ) !clem check bounds
         
                pvel_res(ji,jj) = 0.25_wp * ( ( zu_res(ji-1,jj) + zu_res(ji,jj) ) + ( zv_res(ji,jj-1) + zv_res(ji,jj) ) )

@@ -41,7 +41,6 @@ MODULE dynhpg
    !
    USE in_out_manager  ! I/O manager
    USE prtctl          ! Print control
-   USE lbclnk          ! lateral boundary condition 
    USE lib_mpp         ! MPP library
    USE eosbn2          ! compute density
    USE timing          ! Timing
@@ -714,8 +713,6 @@ CONTAINS
          zdrhoy(ji,jj,jk) = rhd     (ji  ,jj+1,jk    ) - rhd     (ji  ,jj  ,jk)
          zdzy  (ji,jj,jk) = gdept_z0(ji  ,jj  ,jk,Kmm) - gdept_z0(ji  ,jj+1,jk,Kmm)
       END_3D
-
-      IF( nn_hls == 1 ) CALL lbc_lnk( 'dynhpg', zdrhox, 'U', -1._wp, zdzx, 'U', -1._wp, zdrhoy, 'V', -1._wp, zdzy, 'V', -1._wp )
 
       !-------------------------------------------------------------------------
       ! 6. compute harmonic averages using eq. 5.18

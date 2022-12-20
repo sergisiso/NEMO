@@ -121,7 +121,7 @@ CONTAINS
 #endif
       END_2D
       ! pssh must be defined everywhere (true for dyn_spg_ts, not for dyn_spg_exp)
-      IF ( .NOT. ln_dynspg_ts .AND. nn_hls == 2 ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )
+      IF ( .NOT. ln_dynspg_ts ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )
       !
 #if defined key_agrif
       Kbb_a = Kbb   ;   Kmm_a = Kmm   ;   Krhs_a = Kaa
@@ -130,7 +130,6 @@ CONTAINS
       !
       IF ( .NOT.ln_dynspg_ts ) THEN
          IF( ln_bdy ) THEN
-            IF (nn_hls==1) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )    ! Not sure that's necessary
             CALL bdy_ssh( pssh(:,:,Kaa) )              ! Duplicate sea level across open boundaries
          ENDIF
       ENDIF

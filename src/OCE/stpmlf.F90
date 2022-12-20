@@ -545,7 +545,7 @@ CONTAINS
       IF( l_zdfsh2 ) CALL lbc_lnk( 'stp', avm_k, 'W', 1.0_wp )
 
       ! dom_qco_r3c defines over [nn_hls, nn_hls-1, nn_hls, nn_hls-1]
-      IF( nn_hls == 2 .AND. .NOT. lk_linssh ) THEN
+      IF( .NOT. lk_linssh ) THEN
          CALL lbc_lnk( 'finalize_lbc', r3u(:,:,Kaa), 'U', 1._wp, r3v(:,:,Kaa), 'V', 1._wp, &
             &                          r3u_f(:,:),   'U', 1._wp, r3v_f(:,:),   'V', 1._wp )
       ENDIF

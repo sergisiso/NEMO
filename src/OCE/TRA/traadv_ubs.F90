@@ -138,7 +138,6 @@ CONTAINS
             END_2D
             !
          END DO
-         IF (nn_hls==1) CALL lbc_lnk( 'traadv_ubs', zltu, 'T', 1.0_wp, zltv, 'T', 1.0_wp, ld4only= .TRUE. )   ! Lateral boundary cond. (unchanged sgn)
          !
          DO_3D( 1, 0, 1, 0, 1, jpkm1 )   !==  Horizontal advective fluxes  ==!     (UBS)
             zfp_ui = pU(ji,jj,jk) + ABS( pU(ji,jj,jk) )        ! upstream transport (x2)

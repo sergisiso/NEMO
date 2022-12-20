@@ -664,7 +664,6 @@ CONTAINS
             pt_ups(ji,jj,jl) = ( pt(ji,jj,jl) + ztra * pdt * r1_e1e2t(ji,jj) ) * tmask(ji,jj,1)
          END_2D
       END DO
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_adv_umx', pt_ups, 'T', 1.0_wp )
 
    END SUBROUTINE upstream
 
@@ -895,7 +894,6 @@ CONTAINS
 !!$            END DO
 !!$         END DO
       END DO
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_adv_umx', ztu2, 'T', 1.0_wp )
       !
       !                                                     !--  BiLaplacian in i-direction  --!
       DO jl = 1, jpl
@@ -1043,7 +1041,6 @@ CONTAINS
             ztv2(ji,jj,jl) = ( ztv1(ji,jj,jl) - ztv1(ji,jj-1,jl) ) * r1_e2t(ji,jj)
          END_2D
       END DO
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_adv_umx', ztv2, 'T', 1.0_wp )
       !
       !                                                     !--  BiLaplacian in j-direction  --!
       DO jl = 1, jpl
@@ -1331,7 +1328,6 @@ CONTAINS
             zslpx(ji,jj,jl) = ( pt(ji+1,jj,jl) - pt(ji,jj,jl) ) * umask(ji,jj,1)
          END_2D
       END DO
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_adv_umx', zslpx, 'U', -1.0_wp)   ! lateral boundary cond.
 
       DO jl = 1, jpl
          DO_2D( nn_hls-1, 0, 0, 0 )
@@ -1395,7 +1391,6 @@ CONTAINS
             ENDIF
          END_2D
       END DO
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_adv_umx', pfu_ho, 'U', -1.0_wp)   ! lateral boundary cond.
       !
    END SUBROUTINE limiter_x
 
@@ -1422,7 +1417,6 @@ CONTAINS
             zslpy(ji,jj,jl) = ( pt(ji,jj+1,jl) - pt(ji,jj,jl) ) * vmask(ji,jj,1)
          END_2D
       END DO
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_adv_umx', zslpy, 'V', -1.0_wp)   ! lateral boundary cond.
 
       DO jl = 1, jpl
          DO_2D( 0, 0, nn_hls-1, 0 )
@@ -1487,7 +1481,6 @@ CONTAINS
             ENDIF
          END_2D
       END DO
-      IF( nn_hls == 1 )   CALL lbc_lnk( 'icedyn_adv_umx', pfv_ho, 'V', -1.0_wp)   ! lateral boundary cond.
       !
    END SUBROUTINE limiter_y
 

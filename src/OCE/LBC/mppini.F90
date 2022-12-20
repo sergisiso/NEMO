@@ -1406,7 +1406,7 @@ ENDIF
                IF( l_Iperio ) THEN   ! in case the ew-periodicity was done before calling the NP folding
                   lnfd_same(mi0(nn_hls,nn_hls):mi1(nn_hls  ,nn_hls),1) = .FALSE.
                   lnfd_same(mi0(     1,nn_hls):mi1(nn_hls  ,nn_hls),3) = .FALSE.
-                  IF( nn_hls > 1 ) lnfd_same(mi0(     1,nn_hls):mi1(nn_hls-1,nn_hls),4) = .FALSE.
+                  lnfd_same(mi0(     1,nn_hls):mi1(nn_hls-1,nn_hls),4) = .FALSE.
                ENDIF
             ENDIF
             WHERE( lnfd_same )   nfd_jisnd(:,1,:) = HUGE(0)   ! make sure we dont use it

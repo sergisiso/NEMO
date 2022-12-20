@@ -144,8 +144,6 @@ CONTAINS
             wslpi(ji,jj,jk) = - ( gdepw(ji+1,jj,jk,Kbb) - gdepw(ji-1,jj,jk,Kbb) ) * r1_e1t(ji,jj) * tmask(ji,jj,jk) * 0.5
             wslpj(ji,jj,jk) = - ( gdepw(ji,jj+1,jk,Kbb) - gdepw(ji,jj-1,jk,Kbb) ) * r1_e2t(ji,jj) * tmask(ji,jj,jk) * 0.5
          END_3D
-         ! Lateral boundary conditions on the slopes
-         IF (nn_hls == 1) CALL lbc_lnk( 'dynldf_iso', uslp , 'U', -1.0_wp, vslp , 'V', -1.0_wp, wslpi, 'W', -1.0_wp, wslpj, 'W', -1.0_wp )
          !
       ENDIF
          

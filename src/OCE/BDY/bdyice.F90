@@ -81,8 +81,7 @@ CONTAINS
          END DO
          !
          ! Update bdy points        
-         IF( nn_hls > 1 .AND. ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
-         IF( nn_hls == 1 ) THEN   ;   llsend1(:) = .false.   ;   llrecv1(:) = .false.   ;   END IF
+         IF( ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
          DO jbdy = 1, nb_bdy
             IF( cn_ice(jbdy) == 'frs' ) THEN
                llsend1(:) = llsend1(:) .OR. lsend_bdyint(jbdy,1,:,ir)   ! possibly every direction, T points
@@ -431,8 +430,7 @@ CONTAINS
          !
          SELECT CASE ( cd_type )        
          CASE ( 'U' ) 
-         IF( nn_hls > 1 .AND. ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
-         IF( nn_hls == 1 ) THEN   ;   llsend2(:) = .false.   ;   llrecv2(:) = .false.   ;   END IF
+         IF( ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
             DO jbdy = 1, nb_bdy
                IF( cn_ice(jbdy) == 'frs' .AND. nn_ice_dta(jbdy) /= 0 ) THEN
                   llsend2(  :  ) = llsend2(  :  ) .OR. lsend_bdyint(jbdy,2,  :  ,ir)   ! possibly every direction, U points
@@ -447,8 +445,7 @@ CONTAINS
                CALL lbc_lnk( 'bdyice', u_ice, 'U', -1.0_wp, kfillmode=jpfillnothing ,lsend=llsend2, lrecv=llrecv2 )
             END IF
          CASE ( 'V' )
-         IF( nn_hls > 1 .AND. ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
-         IF( nn_hls == 1 ) THEN   ;   llsend3(:) = .false.   ;   llrecv3(:) = .false.   ;   END IF
+         IF( ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
             DO jbdy = 1, nb_bdy
                IF( cn_ice(jbdy) == 'frs' .AND. nn_ice_dta(jbdy) /= 0 ) THEN
                   llsend3(  :  ) = llsend3(  :  ) .OR. lsend_bdyint(jbdy,3,  :  ,ir)   ! possibly every direction, V points

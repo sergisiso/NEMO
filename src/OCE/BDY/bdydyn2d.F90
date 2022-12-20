@@ -80,11 +80,7 @@ CONTAINS
             END SELECT
          ENDDO
          !
-         IF( nn_hls > 1 .AND. ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
-         IF( nn_hls == 1 ) THEN
-            llsend2(:) = .false.   ;   llrecv2(:) = .false.
-            llsend3(:) = .false.   ;   llrecv3(:) = .false.
-         END IF
+         IF( ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
          DO ib_bdy=1, nb_bdy
             SELECT CASE( cn_dyn2d(ib_bdy) )
             CASE('flather')
@@ -321,7 +317,6 @@ CONTAINS
       !!----------------------------------------------------------------------
       llsend1(:) = .false.   ;   llrecv1(:) = .false.
       DO ir = 1, 0, -1   ! treat rim 1 before rim 0
-         IF( nn_hls == 1 ) THEN   ;   llsend1(:) = .false.   ;   llrecv1(:) = .false.   ;   END IF
          IF( ir == 0 ) THEN   ;   llrim0 = .TRUE.
          ELSE                 ;   llrim0 = .FALSE.
          END IF
@@ -330,7 +325,7 @@ CONTAINS
             llsend1(:) = llsend1(:) .OR. lsend_bdyint(ib_bdy,1,:,ir)   ! possibly every direction, T points
             llrecv1(:) = llrecv1(:) .OR. lrecv_bdyint(ib_bdy,1,:,ir)   ! possibly every direction, T points
          END DO
-         IF( nn_hls > 1 .AND. ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
+         IF( ir == 1 ) CYCLE   ! at least 2 halos will be corrected -> no need to correct rim 1 before rim 0
          IF( ANY(llsend1) .OR. ANY(llrecv1) ) THEN   ! if need to send/recv in at least one direction
             CALL lbc_lnk( 'bdydyn2d', zssh(:,:,1), 'T',  1.0_wp, kfillmode=jpfillnothing ,lsend=llsend1, lrecv=llrecv1 )
          END IF

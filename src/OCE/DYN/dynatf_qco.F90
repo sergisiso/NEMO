@@ -188,7 +188,7 @@ CONTAINS
       ENDIF ! .NOT. l_1st_euler
       !
       ! This is needed for dyn_ldf_blp to be restartable
-      IF( nn_hls == 2 ) CALL lbc_lnk( 'dynatfqco', puu(:,:,:,Kmm), 'U', -1.0_wp, pvv(:,:,:,Kmm), 'V', -1.0_wp )
+      CALL lbc_lnk( 'dynatfqco', puu(:,:,:,Kmm), 'U', -1.0_wp, pvv(:,:,:,Kmm), 'V', -1.0_wp )
 
       ! Set "now" and "before" barotropic velocities for next time step:
       ! JC: Would be more clever to swap variables than to make a full vertical
