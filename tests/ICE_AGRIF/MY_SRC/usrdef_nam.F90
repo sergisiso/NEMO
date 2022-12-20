@@ -59,6 +59,7 @@ CONTAINS
       CHARACTER(len=1), INTENT(out) ::   cdNFtype             ! Folding type: T or F
       !
       INTEGER ::   ios       ! Local integer
+      INTEGER ::   ighost_n, ighost_s, ighost_w, ighost_e
       REAL(wp)::   zlx, zly  ! Local scalars
       !!
       NAMELIST/namusr_def/ rn_dx, rn_dy, ln_corio, rn_ppgphi0
@@ -66,8 +67,6 @@ CONTAINS
       !
       READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
 902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
-      IF(lwm)   WRITE( numond, namusr_def )
       !
 #if defined key_agrif 
       ! Domain parameters are taken from parent:
@@ -87,18 +86,28 @@ CONTAINS
          kpi = NINT( 300.e3 / rn_dx ) - 3 
          kpj = NINT( 300.e3 / rn_dy ) - 3
       ELSE                           ! Global Domain size: add nbghostcells + 1 "land" point on each side
-         kpi  = nbcellsx + 2 * nbghostcells
-         kpj  = nbcellsy + 2 * nbghostcells
-!! JC: number of ghosts unknown at this tage
-!!$         kpi  = nbcellsx + nbghostcells_x_w + nbghostcells_x_e + 2
-!!$         kpj  = nbcellsy + nbghostcells_y_s + nbghostcells_y_n + 2
+         ! At this stage, child ghosts have not been set
+         ighost_w = nbghostcells
+         ighost_e = nbghostcells
+         ighost_s = nbghostcells
+         ighost_n = nbghostcells
+
+         ! In case one sets zoom boundaries over domain edges: 
+         IF  ( Agrif_Ix() == 2 - Agrif_Parent(nbghostcells_x_w) ) ighost_w = 1
+         IF  ( Agrif_Ix() + nbcellsx/AGRIF_Irhox() == Agrif_Parent(Ni0glo) - Agrif_Parent(nbghostcells_x_w) ) ighost_e = 1
+         IF  ( Agrif_Iy() == 2 - Agrif_Parent(nbghostcells_y_s) ) ighost_s = 1
+         IF  ( Agrif_Iy() + nbcellsy/AGRIF_Irhoy() == Agrif_Parent(Nj0glo) - Agrif_Parent(nbghostcells_y_s) ) ighost_n = 1
+!         kpi  = nbcellsx + 2 * ( nbghostcells + 1 )
+!         kpj  = nbcellsy + 2 * ( nbghostcells + 1 )
+         kpi  = nbcellsx + ighost_w + ighost_e
+         kpj  = nbcellsy + ighost_s + ighost_n
       ENDIF
       kpk = 2
       !
-!!      zlx = (kpi-2)*rn_dx*1.e-3
-!!      zly = (kpj-2)*rn_dy*1.e-3
-      zlx = kpi*rn_dx*1.e-3
-      zly = kpj*rn_dy*1.e-3
+      zlx = (kpi-2)*rn_dx*1.e-3
+      zly = (kpj-2)*rn_dy*1.e-3
+!!      zlx = kpi*rn_dx*1.e-3
+!!      zly = kpj*rn_dy*1.e-3
       !
       IF( Agrif_Root() ) THEN   ;   ldIperio =  .TRUE.   ;   ldJperio =  .TRUE.     ! ICE_AGRIF configuration : bi-periodic basin
       ELSE                      ;   ldIperio = .FALSE.   ;   ldJperio = .FALSE.     ! closed periodicity for the zoom
