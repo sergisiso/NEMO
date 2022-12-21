@@ -447,8 +447,8 @@ CONTAINS
             CALL Agrif_dyn( kstp, kstg )
 # endif
       !                                              !* local domain boundaries  (T-point, unchanged sign)
-      CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1., vv(:,:,:       ,Kaa), 'V', -1.   &
-         &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1., ts(:,:,:,jp_sal,Kaa), 'T',  1. )
+      CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+         &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp )
       !
       IF( l_zdfsh2 ) CALL lbc_lnk( 'stp_RK3_stg', avm_k, 'W', 1.0_wp )   !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
       !

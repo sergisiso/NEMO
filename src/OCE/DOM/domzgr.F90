@@ -293,7 +293,7 @@ CALL FLUSH(numout)
       IF( .NOT. ( l_Jperio .OR. l_NFold ) ) THEN                   ! N closed:
          zmsk(:,mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)  ) = 0._wp   ! last    line of inner global domain at 0
       ENDIF
-      CALL lbc_lnk( 'usrdef_zgr', zmsk, 'T', 1. )             ! set halos
+      CALL lbc_lnk( 'usrdef_zgr', zmsk, 'T', 1._wp )             ! set halos
       k_top(:,:) = k_top(:,:) * NINT( zmsk(:,:) )
       !
       ! Any closed seas (defined by closea_mask > 0 in domain_cfg file) to be filled 

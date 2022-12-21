@@ -126,7 +126,7 @@ CONTAINS
       !
       ! WARNING! the lbc_lnk call could not be compatible with the tiling approach
       ! please refer to the manual for how to adapt your code
-      CALL lbc_lnk( 'module_example', avm, 'T', 1. )     ! Lateral boundary conditions (unchanged sign)
+      CALL lbc_lnk( 'module_example', avm, 'T', 1._wp )     ! Lateral boundary conditions (unchanged sign)
       !
    END SUBROUTINE exa_mpl
 

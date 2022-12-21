@@ -122,7 +122,7 @@ CONTAINS
          END DO
       END_2D
       !
-      CALL lbc_lnk( 'usrdef_istate', pu, 'U', -1., pv, 'V', -1. )
+      CALL lbc_lnk( 'usrdef_istate', pu, 'U', -1._wp, pv, 'V', -1._wp )
       !   
    END SUBROUTINE usr_def_istate
 

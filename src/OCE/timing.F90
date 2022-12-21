@@ -39,7 +39,7 @@ MODULE timing
       CHARACTER(LEN=20)  :: cname
       CHARACTER(LEN=20)  :: surname
       INTEGER :: rank
-      REAL(wp)  :: t_cpu, t_clock, tsum_cpu, tsum_clock, tmax_cpu, tmax_clock, tmin_cpu, tmin_clock, tsub_cpu, tsub_clock
+      REAL(dp)  :: t_cpu, t_clock, tsum_cpu, tsum_clock, tmax_cpu, tmax_clock, tmin_cpu, tmin_clock, tsub_cpu, tsub_clock
       INTEGER :: ncount, ncount_max, ncount_rate
       INTEGER :: niter
       LOGICAL :: l_tdone
@@ -50,8 +50,8 @@ MODULE timing
 
    TYPE alltimer
       CHARACTER(LEN=20), DIMENSION(:), POINTER :: cname => NULL()
-      REAL(wp), DIMENSION(:), POINTER :: tsum_cpu   => NULL()
-      REAL(wp), DIMENSION(:), POINTER :: tsum_clock => NULL()
+      REAL(dp), DIMENSION(:), POINTER :: tsum_cpu   => NULL()
+      REAL(dp), DIMENSION(:), POINTER :: tsum_clock => NULL()
       INTEGER, DIMENSION(:), POINTER :: niter => NULL()
       TYPE(alltimer), POINTER :: next => NULL()
       TYPE(alltimer), POINTER :: prev => NULL()
@@ -62,14 +62,14 @@ MODULE timing
    TYPE(timer), POINTER :: s_timer_old      => NULL()
 
    TYPE(timer), POINTER :: s_wrk        => NULL()
-   REAL(wp) :: t_overclock, t_overcpu
+   REAL(dp) :: t_overclock, t_overcpu
    LOGICAL :: l_initdone = .FALSE.
    INTEGER :: nsize
 
    ! Variables for coarse grain timing
-   REAL(wp) :: tot_etime, tot_ctime
-   REAL(kind=wp), DIMENSION(2)     :: t_elaps, t_cpu
-   REAL(wp), ALLOCATABLE, DIMENSION(:) :: all_etime, all_ctime
+   REAL(dp) :: tot_etime, tot_ctime
+   REAL(kind=dp), DIMENSION(2)     :: t_elaps, t_cpu
+   REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_etime, all_ctime
    INTEGER :: nfinal_count, ncount, ncount_rate, ncount_max
    INTEGER, DIMENSION(8)           :: nvalues
    CHARACTER(LEN=8), DIMENSION(2)  :: cdate
@@ -136,7 +136,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in), OPTIONAL :: csection
       !
       INTEGER  :: ifinal_count, iperiods
-      REAL(wp) :: zcpu_end, zmpitime,zcpu_raw,zclock_raw
+      REAL(dp) :: zcpu_end, zmpitime,zcpu_raw,zclock_raw
       !
       s_wrk => NULL()
 
@@ -218,7 +218,7 @@ CONTAINS
       !! ** Purpose :   open timing output file
       !!----------------------------------------------------------------------
       INTEGER :: iperiods, istart_count, ifinal_count
-      REAL(wp) :: zdum
+      REAL(dp) :: zdum
       LOGICAL :: ll_f
       CHARACTER(len=*), INTENT(in), OPTIONAL :: clname
       CHARACTER(len=20)                      :: cln
@@ -295,9 +295,9 @@ CONTAINS
       INTEGER :: ji
       LOGICAL :: ll_ord, ll_averep
       CHARACTER(len=120) :: clfmt
-      REAL(wp), DIMENSION(:), ALLOCATABLE ::   timing_glob
-      REAL(wp) ::   zsypd   ! simulated years per day (Balaji 2017)
-      REAL(wp) ::   zperc, ztot
+      REAL(dp), DIMENSION(:), ALLOCATABLE ::   timing_glob
+      REAL(dp) ::   zsypd   ! simulated years per day (Balaji 2017)
+      REAL(dp) ::   zperc, ztot
 
       ll_averep = .TRUE.
 
@@ -387,16 +387,16 @@ CONTAINS
          WRITE(numtime,*) '    warning: includes restarts writing time if output before nitend... '
          WRITE(numtime,*) ' '
          DO ji = 1, jpnij
-            zperc = 0._wp ; zsypd = 0._wp
+            zperc = 0._dp ; zsypd = 0._dp
             ztot = SUM( timing_glob(4*ji-3:4*ji-1) )
             WRITE(numtime,'(A28,F11.6,            A34,I8)') 'Computing       time : ',timing_glob(4*ji-3), ' on MPI rank : ', ji
-            IF ( ztot /= 0._wp ) zperc = timing_glob(4*ji-2) / ztot * 100.
+            IF ( ztot /= 0._dp ) zperc = timing_glob(4*ji-2) / ztot * 100.
             WRITE(numtime,'(A28,F11.6,A2, F4.1,A3,A25,I8)') 'Waiting lbc_lnk time : ',timing_glob(4*ji-2)   &
                &                                                         , ' (',      zperc,' %)',   ' on MPI rank : ', ji
-            IF ( ztot /= 0._wp ) zperc = timing_glob(4*ji-1) / ztot * 100.
+            IF ( ztot /= 0._dp ) zperc = timing_glob(4*ji-1) / ztot * 100.
             WRITE(numtime,'(A28,F11.6,A2, F4.1,A3,A25,I8)') 'Waiting  global time : ',timing_glob(4*ji-1)   &
                &                                                         , ' (',      zperc,' %)',   ' on MPI rank : ', ji
-            IF ( timing_glob(4*ji) /= 0._wp ) zsypd = rn_Dt * REAL(nitend-nit000-1, wp) / (timing_glob(4*ji) * 365.)
+            IF ( timing_glob(4*ji) /= 0._dp ) zsypd = rn_Dt * REAL(nitend-nit000-1, dp) / (timing_glob(4*ji) * 365.)
             WRITE(numtime,'(A28,F11.6,A7,F10.3,A2,A15,I8)') 'Total           time : ',timing_glob(4*ji  )   &
                &                                                         , ' (SYPD: ', zsypd, ')',   ' on MPI rank : ', ji
          END DO
@@ -447,7 +447,7 @@ CONTAINS
       s_timer => s_timer_root
       clfmt = '(1x,a,4x,f12.3,6x,f12.3,x,f12.3,2x,f12.3,6x,f7.3,2x,i9)'
       DO WHILE ( ASSOCIATED(s_timer) )
-         IF( s_timer%tsum_clock > 0._wp )                                &
+         IF( s_timer%tsum_clock > 0._dp )                                &
             WRITE(numtime,TRIM(clfmt))   s_timer%cname,                  &
             &   s_timer%tsum_clock,s_timer%tsum_clock*100./t_elaps(2),   &
             &   s_timer%tsum_cpu  ,s_timer%tsum_cpu*100./t_cpu(2)    ,   &
@@ -489,8 +489,8 @@ CONTAINS
          RETURN
       END IF
       sl_timer_glob_root%cname(:)       = ''
-      sl_timer_glob_root%tsum_cpu(:)   = 0._wp
-      sl_timer_glob_root%tsum_clock(:) = 0._wp
+      sl_timer_glob_root%tsum_cpu(:)   = 0._dp
+      sl_timer_glob_root%tsum_clock(:) = 0._dp
       sl_timer_glob_root%niter(:)      = 0
       sl_timer_glob_root%next => NULL()
       sl_timer_glob_root%prev => NULL()
@@ -506,16 +506,16 @@ CONTAINS
       IF( narea .EQ. 1 ) THEN
          ALLOCATE(sl_timer_ave_root)
          sl_timer_ave_root%cname       = ''
-         sl_timer_ave_root%t_cpu      = 0._wp
-         sl_timer_ave_root%t_clock    = 0._wp
-         sl_timer_ave_root%tsum_cpu   = 0._wp
-         sl_timer_ave_root%tsum_clock = 0._wp
-         sl_timer_ave_root%tmax_cpu   = 0._wp
-         sl_timer_ave_root%tmax_clock = 0._wp
-         sl_timer_ave_root%tmin_cpu   = 0._wp
-         sl_timer_ave_root%tmin_clock = 0._wp
-         sl_timer_ave_root%tsub_cpu   = 0._wp
-         sl_timer_ave_root%tsub_clock = 0._wp
+         sl_timer_ave_root%t_cpu      = 0._dp
+         sl_timer_ave_root%t_clock    = 0._dp
+         sl_timer_ave_root%tsum_cpu   = 0._dp
+         sl_timer_ave_root%tsum_clock = 0._dp
+         sl_timer_ave_root%tmax_cpu   = 0._dp
+         sl_timer_ave_root%tmax_clock = 0._dp
+         sl_timer_ave_root%tmin_cpu   = 0._dp
+         sl_timer_ave_root%tmin_clock = 0._dp
+         sl_timer_ave_root%tsub_cpu   = 0._dp
+         sl_timer_ave_root%tsub_clock = 0._dp
          sl_timer_ave_root%ncount      = 0
          sl_timer_ave_root%ncount_rate = 0
          sl_timer_ave_root%ncount_max  = 0
@@ -642,10 +642,10 @@ CONTAINS
       !
       INTEGER                            :: idum, icode
       INTEGER, ALLOCATABLE, DIMENSION(:) :: iall_rank
-      REAL(wp) :: ztot_ratio
-      REAL(wp) :: zmax_etime, zmax_ctime, zmax_ratio, zmin_etime, zmin_ctime, zmin_ratio
-      REAL(wp) :: zavg_etime, zavg_ctime, zavg_ratio
-      REAL(wp), ALLOCATABLE, DIMENSION(:) :: zall_ratio
+      REAL(dp) :: ztot_ratio
+      REAL(dp) :: zmax_etime, zmax_ctime, zmax_ratio, zmin_etime, zmin_ctime, zmin_ratio
+      REAL(dp) :: zavg_etime, zavg_ctime, zavg_ratio
+      REAL(dp), ALLOCATABLE, DIMENSION(:) :: zall_ratio
       CHARACTER(LEN=128), dimension(8) :: cllignes
       CHARACTER(LEN=128)               :: clhline, clstart_date, clfinal_date
       CHARACTER(LEN=2048)              :: clfmt
@@ -656,19 +656,19 @@ CONTAINS
          iall_rank(:) = (/ (idum,idum=0,jpnij-1) /)
 
          ! Compute elapse user time
-         zavg_etime = tot_etime/REAL(jpnij,wp)
+         zavg_etime = tot_etime/REAL(jpnij,dp)
          zmax_etime = MAXVAL(all_etime(:))
          zmin_etime = MINVAL(all_etime(:))
 
          ! Compute CPU user time
-         zavg_ctime = tot_ctime/REAL(jpnij,wp)
+         zavg_ctime = tot_ctime/REAL(jpnij,dp)
          zmax_ctime = MAXVAL(all_ctime(:))
          zmin_ctime = MINVAL(all_ctime(:))
 
          ! Compute cpu/elapsed ratio
          zall_ratio(:) = all_ctime(:) / all_etime(:)
          ztot_ratio    = SUM(all_ctime(:))/SUM(all_etime(:))
-         zavg_ratio    = SUM(zall_ratio(:))/REAL(jpnij,wp)
+         zavg_ratio    = SUM(zall_ratio(:))/REAL(jpnij,dp)
          zmax_ratio    = MAXVAL(zall_ratio(:))
          zmin_ratio    = MINVAL(zall_ratio(:))
 
@@ -714,16 +714,16 @@ CONTAINS
       IF( .NOT. ASSOCIATED(s_timer_root) ) THEN
          ALLOCATE(s_timer_root)
          s_timer_root%cname       = cdinfo
-         s_timer_root%t_cpu      = 0._wp
-         s_timer_root%t_clock    = 0._wp
-         s_timer_root%tsum_cpu   = 0._wp
-         s_timer_root%tsum_clock = 0._wp
-         s_timer_root%tmax_cpu   = 0._wp
-         s_timer_root%tmax_clock = 0._wp
-         s_timer_root%tmin_cpu   = 0._wp
-         s_timer_root%tmin_clock = 0._wp
-         s_timer_root%tsub_cpu   = 0._wp
-         s_timer_root%tsub_clock = 0._wp
+         s_timer_root%t_cpu      = 0._dp
+         s_timer_root%t_clock    = 0._dp
+         s_timer_root%tsum_cpu   = 0._dp
+         s_timer_root%tsum_clock = 0._dp
+         s_timer_root%tmax_cpu   = 0._dp
+         s_timer_root%tmax_clock = 0._dp
+         s_timer_root%tmin_cpu   = 0._dp
+         s_timer_root%tmin_clock = 0._dp
+         s_timer_root%tsub_cpu   = 0._dp
+         s_timer_root%tsub_clock = 0._dp
          s_timer_root%ncount      = 0
          s_timer_root%ncount_rate = 0
          s_timer_root%ncount_max  = 0
@@ -738,16 +738,16 @@ CONTAINS
          !
          ALLOCATE(s_timer_old)
          s_timer_old%cname       = cdinfo
-         s_timer_old%t_cpu      = 0._wp
-         s_timer_old%t_clock    = 0._wp
-         s_timer_old%tsum_cpu   = 0._wp
-         s_timer_old%tsum_clock = 0._wp
-         s_timer_old%tmax_cpu   = 0._wp
-         s_timer_old%tmax_clock = 0._wp
-         s_timer_old%tmin_cpu   = 0._wp
-         s_timer_old%tmin_clock = 0._wp
-         s_timer_old%tsub_cpu   = 0._wp
-         s_timer_old%tsub_clock = 0._wp
+         s_timer_old%t_cpu      = 0._dp
+         s_timer_old%t_clock    = 0._dp
+         s_timer_old%tsum_cpu   = 0._dp
+         s_timer_old%tsum_clock = 0._dp
+         s_timer_old%tmax_cpu   = 0._dp
+         s_timer_old%tmax_clock = 0._dp
+         s_timer_old%tmin_cpu   = 0._dp
+         s_timer_old%tmin_clock = 0._dp
+         s_timer_old%tsub_cpu   = 0._dp
+         s_timer_old%tsub_clock = 0._dp
          s_timer_old%ncount      = 0
          s_timer_old%ncount_rate = 0
          s_timer_old%ncount_max  = 0
@@ -780,16 +780,16 @@ CONTAINS
     !     write(*,*) 'after allocation of next'
 
          s_timer%next%cname       = cdinfo
-         s_timer%next%t_cpu      = 0._wp
-         s_timer%next%t_clock    = 0._wp
-         s_timer%next%tsum_cpu   = 0._wp
-         s_timer%next%tsum_clock = 0._wp
-         s_timer%next%tmax_cpu   = 0._wp
-         s_timer%next%tmax_clock = 0._wp
-         s_timer%next%tmin_cpu   = 0._wp
-         s_timer%next%tmin_clock = 0._wp
-         s_timer%next%tsub_cpu   = 0._wp
-         s_timer%next%tsub_clock = 0._wp
+         s_timer%next%t_cpu      = 0._dp
+         s_timer%next%t_clock    = 0._dp
+         s_timer%next%tsum_cpu   = 0._dp
+         s_timer%next%tsum_clock = 0._dp
+         s_timer%next%tmax_cpu   = 0._dp
+         s_timer%next%tmax_clock = 0._dp
+         s_timer%next%tmin_cpu   = 0._dp
+         s_timer%next%tmin_clock = 0._dp
+         s_timer%next%tsub_cpu   = 0._dp
+         s_timer%next%tsub_clock = 0._dp
          s_timer%next%ncount      = 0
          s_timer%next%ncount_rate = 0
          s_timer%next%ncount_max  = 0

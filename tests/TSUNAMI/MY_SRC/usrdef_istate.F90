@@ -103,7 +103,7 @@ CONTAINS
       END_2D
 
       !
-      CALL lbc_lnk('usrdef_istate', pssh, 'T',  1. )            ! apply boundary conditions
+      CALL lbc_lnk('usrdef_istate', pssh, 'T',  1._wp )            ! apply boundary conditions
       !
    END SUBROUTINE usr_def_istate_ssh
    

@@ -116,7 +116,7 @@ CONTAINS
          vtau_ice(mi0(  nn_hls+1,nn_hls):mi1(  nn_hls+1,nn_hls),mj0(jpjglo-nn_hls,nn_hls):mj1(jpjglo-nn_hls,nn_hls)) = 0._wp
       ENDIF
 
-      CALL lbc_lnk( 'usrdef_sbc', utau_ice, 'T', -1., vtau_ice, 'T', -1., ldfull = .TRUE. )
+      CALL lbc_lnk( 'usrdef_sbc', utau_ice, 'T', -1._wp, vtau_ice, 'T', -1._wp, ldfull = .TRUE. )
 #endif
       !
    END SUBROUTINE usrdef_sbc_ice_tau

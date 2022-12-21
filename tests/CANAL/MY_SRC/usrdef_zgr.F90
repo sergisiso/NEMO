@@ -199,7 +199,7 @@ CONTAINS
          z2d(:,:) = REAL(jpkm1 - NINT( 0.5 * REAL(jpkm1,wp) * z2d(:,:) ), wp)
       END SELECT
       !
-      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1. )           ! set surrounding land to zero (closed boundaries)
+      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1._wp )           ! set surrounding land to zero (closed boundaries)
       !
       k_bot(:,:) = NINT( z2d(:,:) )          ! =jpkm1 over the ocean point, =0 elsewhere
       !

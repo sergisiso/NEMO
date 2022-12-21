@@ -170,8 +170,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1., vv (:,:,:,Naa), 'V', -1. )
-      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1., r3v(:,:,  Naa), 'V',  1. )
+      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
+      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
       !
       !                                 !==  Swap time levels  ==!
       Nrhs= Nnn
@@ -236,8 +236,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1., vv (:,:,:,Naa), 'V', -1. )
-      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1., r3v(:,:,  Naa), 'V',  1. )
+      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
+      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
       !
       !                                 !==  Swap time levels  ==!
       Nrhs= Nnn
@@ -300,8 +300,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1., vv (:,:,:,Naa), 'V', -1. )
-      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1., r3v(:,:,  Naa), 'V',  1. )
+      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
+      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
       !
       !                                 !==  Swap time levels  ==!
       !

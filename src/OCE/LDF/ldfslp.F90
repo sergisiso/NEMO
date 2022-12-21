@@ -610,7 +610,7 @@ CONTAINS
 !                  END DO
 !               END DO
 !            END DO
-!            CALL lbc_lnk( 'ldfslp', uslp , 'U', -1. ; CALL lbc_lnk( 'ldfslp', vslp , 'V', -1.,  wslpi, 'W', -1.,  wslpj, 'W', -1. )
+!            CALL lbc_lnk( 'ldfslp', uslp , 'U', -1. ; CALL lbc_lnk( 'ldfslp', vslp , 'V', -1._wp,  wslpi, 'W', -1._wp,  wslpj, 'W', -1._wp )
 !!gm         ENDIF
       ENDIF
       !

@@ -140,8 +140,8 @@ CONTAINS
          utau_ice(ji,jj) = zrhoa * Cd_atm * wndm_ice(ji,jj) * zwndi_t
          vtau_ice(ji,jj) = zrhoa * Cd_atm * wndm_ice(ji,jj) * zwndj_t
       END_2D
-      CALL lbc_lnk( 'usrdef_sbc', utau_ice, 'T', -1., vtau_ice, 'T', -1., ldfull = .TRUE. )
-
+      
+      CALL lbc_lnk( 'usrdef_sbc', utau_ice, 'T', -1._wp, vtau_ice, 'T', -1._wp, ldfull = .TRUE. )
       !
    END SUBROUTINE usrdef_sbc_ice_tau
 

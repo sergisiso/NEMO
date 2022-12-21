@@ -292,8 +292,8 @@ CONTAINS
       !
       INTEGER, PARAMETER :: ndof = 1
       INTEGER  :: jk, jn
-      REAL(wp) ::  zwin(kjpk_in+1) ,  ztin(ndof, kn_var, kjpk_in)
-      REAL(wp) :: zwout(kjpk_out+1), ztout(ndof, kn_var, kjpk_out)
+      REAL(dp) ::  zwin(kjpk_in+1) ,  ztin(ndof, kn_var, kjpk_in)    ! rmap1d uses dp
+      REAL(dp) :: zwout(kjpk_out+1), ztout(ndof, kn_var, kjpk_out)   ! rmap1d uses dp
       TYPE(rmap_work) :: work
       TYPE(rmap_opts) :: opts
       TYPE(rcon_ends) :: bc_l(kn_var)

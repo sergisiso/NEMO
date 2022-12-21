@@ -94,8 +94,8 @@
         do  ivar = +1, nvar
             fhat(1,ivar,+1) = &
         &   fdat(1,ivar,+1)
-            fhat(2,ivar,+1) = 0.e0
-            fhat(3,ivar,+1) = 0.e0
+            fhat(2,ivar,+1) = 0.e0_8
+            fhat(3,ivar,+1) = 0.e0_8
         end do
         end if
 
@@ -275,8 +275,8 @@
             mono = +1
 
             lhat(1) = ff00
-            lhat(2) = 0.e0
-            lhat(3) = 0.e0
+            lhat(2) = 0.e0_8
+            lhat(3) = 0.e0_8
              
             return
               

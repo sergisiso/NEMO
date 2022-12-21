@@ -83,10 +83,10 @@
         do  ivar = 1,nvar
         
             edge(ivar,1) = fdat(1,ivar,1)
-            dfdx(ivar,1) = 0.e0
+            dfdx(ivar,1) = 0.e0_8
             
             edge(ivar,2) = fdat(1,ivar,1)
-            dfdx(ivar,2) = 0.e0
+            dfdx(ivar,2) = 0.e0_8
             
         end do
         end if
@@ -103,7 +103,7 @@
     
     !--------------- reconstruction: constant grid-spacing !
             
-            dd10 = delx(+1) * 2.e0
+            dd10 = delx(+1) * 2.e0_8
             
             do  ivar = +1, nvar
 
@@ -175,8 +175,8 @@
             edge(ivar,tail+1) = &
         &       fdat(+1,ivar,tail+0)
         
-            dfdx(ivar,head-1) = 0.e0
-            dfdx(ivar,tail+1) = 0.e0
+            dfdx(ivar,head-1) = 0.e0_8
+            dfdx(ivar,tail+1) = 0.e0_8
 
         end do
     

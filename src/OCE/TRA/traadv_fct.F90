@@ -391,23 +391,25 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   ikm1         ! local integer
-      REAL(dp) ::   zpos, zneg, zbt, za, zb, zc, zbig, zrtrn    ! local scalars
-      REAL(dp) ::   zau, zbu, zcu, zav, zbv, zcv, zup, zdo            !   -      -
-      REAL(dp), DIMENSION(T2D(nn_hls),jpk) :: zbetup, zbetdo, zbup, zbdo
+      REAL(wp) ::   zpos, zneg, zbt, zbig                 ! local scalars
+      REAL(wp) ::   zup, zdo                              !   -      -
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk) :: zbetup, zbetdo, zbup, zbdo
       !!----------------------------------------------------------------------
       !
-      zbig  = 1.e+40_dp
-      zrtrn = 1.e-15_dp
-      zbetup(:,:,:) = 0._dp   ;   zbetdo(:,:,:) = 0._dp
+      zbig = HUGE(1._wp)
+      zbetup(:,:,jpk) = zbig   ;   zbetdo(:,:,jpk) = zbig
 
       ! Search local extrema
       ! --------------------
       ! max/min of pbef & paft with large negative/positive value (-/+zbig) inside land
       DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
-         zbup(ji,jj,jk) = MAX( pbef(ji,jj,jk) * tmask(ji,jj,jk) - zbig * ( 1._wp - tmask(ji,jj,jk) ),   &
-            &                  paft(ji,jj,jk) * tmask(ji,jj,jk) - zbig * ( 1._wp - tmask(ji,jj,jk) )  )
-         zbdo(ji,jj,jk) = MIN( pbef(ji,jj,jk) * tmask(ji,jj,jk) + zbig * ( 1._wp - tmask(ji,jj,jk) ),   &
-            &                  paft(ji,jj,jk) * tmask(ji,jj,jk) + zbig * ( 1._wp - tmask(ji,jj,jk) )  )
+         IF( tmask(ji,jj,jk) == 1._wp ) THEN
+            zbup(ji,jj,jk) = MAX( pbef(ji,jj,jk), paft(ji,jj,jk) )
+            zbdo(ji,jj,jk) = MIN( pbef(ji,jj,jk), paft(ji,jj,jk) )
+         ELSE
+            zbup(ji,jj,jk) = -zbig
+            zbdo(ji,jj,jk) =  zbig
+         ENDIF
       END_3D
 
       DO jk = 1, jpkm1
@@ -427,41 +429,38 @@ CONTAINS
                &        zbdo(ji  ,jj  ,ikm1), zbdo(ji  ,jj  ,jk+1)  )
 
             ! positive part of the flux
-            zpos = MAX( 0., paa(ji-1,jj  ,jk  ) ) - MIN( 0., paa(ji  ,jj  ,jk  ) )   &
-               & + MAX( 0., pbb(ji  ,jj-1,jk  ) ) - MIN( 0., pbb(ji  ,jj  ,jk  ) )   &
-               & + MAX( 0., pcc(ji  ,jj  ,jk+1) ) - MIN( 0., pcc(ji  ,jj  ,jk  ) )
+            zpos = MAX( 0._wp, paa(ji-1,jj  ,jk  ) ) - MIN( 0._wp, paa(ji  ,jj  ,jk  ) )   &
+               & + MAX( 0._wp, pbb(ji  ,jj-1,jk  ) ) - MIN( 0._wp, pbb(ji  ,jj  ,jk  ) )   &
+               & + MAX( 0._wp, pcc(ji  ,jj  ,jk+1) ) - MIN( 0._wp, pcc(ji  ,jj  ,jk  ) )
 
             ! negative part of the flux
-            zneg = MAX( 0., paa(ji  ,jj  ,jk  ) ) - MIN( 0., paa(ji-1,jj  ,jk  ) )   &
-               & + MAX( 0., pbb(ji  ,jj  ,jk  ) ) - MIN( 0., pbb(ji  ,jj-1,jk  ) )   &
-               & + MAX( 0., pcc(ji  ,jj  ,jk  ) ) - MIN( 0., pcc(ji  ,jj  ,jk+1) )
+            zneg = MAX( 0._wp, paa(ji  ,jj  ,jk  ) ) - MIN( 0._wp, paa(ji-1,jj  ,jk  ) )   &
+               & + MAX( 0._wp, pbb(ji  ,jj  ,jk  ) ) - MIN( 0._wp, pbb(ji  ,jj-1,jk  ) )   &
+               & + MAX( 0._wp, pcc(ji  ,jj  ,jk  ) ) - MIN( 0._wp, pcc(ji  ,jj  ,jk+1) )
 
             ! up & down beta terms
             zbt = e1e2t(ji,jj) * e3t(ji,jj,jk,Kaa) / p2dt
-            zbetup(ji,jj,jk) = ( zup            - paft(ji,jj,jk) ) / ( zpos + zrtrn ) * zbt
-            zbetdo(ji,jj,jk) = ( paft(ji,jj,jk) - zdo            ) / ( zneg + zrtrn ) * zbt
+            IF( zup /= -zbig .AND. zpos /= 0._wp ) THEN   ;   zbetup(ji,jj,jk) = ( zup - paft(ji,jj,jk) ) / zpos * zbt
+            ELSE                                          ;   zbetup(ji,jj,jk) = zbig
+            ENDIF
+            IF( zdo /=  zbig .AND. zneg /= 0._wp ) THEN   ;   zbetdo(ji,jj,jk) = ( paft(ji,jj,jk) - zdo ) / zneg * zbt
+            ELSE                                          ;   zbetdo(ji,jj,jk) = zbig
+            ENDIF
          END_2D
       END DO
 
-      ! 3. monotonic flux in the i & j direction (paa & pbb)
-      ! ----------------------------------------
+      ! 3. monotonic flux in the i, j and k direction (paa, pbb and pcc)
+      ! ----------------------------------------------------------------
       DO_3D( 1, 0, 1, 0, 1, jpkm1 )
-         zau = MIN( 1._wp, zbetdo(ji,jj,jk), zbetup(ji+1,jj,jk) )
-         zbu = MIN( 1._wp, zbetup(ji,jj,jk), zbetdo(ji+1,jj,jk) )
-         zcu =       ( 0.5  + SIGN( 0.5_wp , paa(ji,jj,jk) ) )
-         paa(ji,jj,jk) = paa(ji,jj,jk) * ( zcu * zau + ( 1._wp - zcu) * zbu )
-
-         zav = MIN( 1._wp, zbetdo(ji,jj,jk), zbetup(ji,jj+1,jk) )
-         zbv = MIN( 1._wp, zbetup(ji,jj,jk), zbetdo(ji,jj+1,jk) )
-         zcv =       ( 0.5  + SIGN( 0.5_wp , pbb(ji,jj,jk) ) )
-         pbb(ji,jj,jk) = pbb(ji,jj,jk) * ( zcv * zav + ( 1._wp - zcv) * zbv )
-
-      ! monotonic flux in the k direction, i.e. pcc
-      ! -------------------------------------------
-         za = MIN( 1., zbetdo(ji,jj,jk+1), zbetup(ji,jj,jk) )
-         zb = MIN( 1., zbetup(ji,jj,jk+1), zbetdo(ji,jj,jk) )
-         zc =       ( 0.5  + SIGN( 0.5_wp , pcc(ji,jj,jk+1) ) )
-         pcc(ji,jj,jk+1) = pcc(ji,jj,jk+1) * ( zc * za + ( 1._wp - zc) * zb )
+         IF( paa(ji,jj,jk) > 0._wp ) THEN   ;   paa(ji,jj,jk) = paa(ji,jj,jk) * MIN( 1._wp, zbetdo(ji,jj,jk), zbetup(ji+1,jj,jk) )
+         ELSE                               ;   paa(ji,jj,jk) = paa(ji,jj,jk) * MIN( 1._wp, zbetup(ji,jj,jk), zbetdo(ji+1,jj,jk) )
+         ENDIF
+         IF( pbb(ji,jj,jk) > 0._wp ) THEN   ;   pbb(ji,jj,jk) = pbb(ji,jj,jk) * MIN( 1._wp, zbetdo(ji,jj,jk), zbetup(ji,jj+1,jk) )
+         ELSE                               ;   pbb(ji,jj,jk) = pbb(ji,jj,jk) * MIN( 1._wp, zbetup(ji,jj,jk), zbetdo(ji,jj+1,jk) )
+         ENDIF
+         IF( pcc(ji,jj,jk+1) > 0._wp ) THEN   ;   pcc(ji,jj,jk+1) = pcc(ji,jj,jk+1) * MIN( 1._wp, zbetdo(ji,jj,jk+1), zbetup(ji,jj,jk) )
+         ELSE                                 ;   pcc(ji,jj,jk+1) = pcc(ji,jj,jk+1) * MIN( 1._wp, zbetup(ji,jj,jk+1), zbetdo(ji,jj,jk) )
+         ENDIF
       END_3D
       !
    END SUBROUTINE nonosc

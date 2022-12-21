@@ -94,7 +94,7 @@ CONTAINS
       DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls )
          zhu(ji,jj) = 0.5_wp * ( zht(ji,jj) + zht(ji+1,jj) )
       END_2D
-      CALL lbc_lnk( 'usrdef_zgr', zhu, 'U', 1. )     ! boundary condition: this mask the surrouding grid-points
+      CALL lbc_lnk( 'usrdef_zgr', zhu, 'U', 1._wp )     ! boundary condition: this mask the surrouding grid-points
       !                                ! ==>>>  set by hand non-zero value on first/last columns & rows 
       !     
       CALL zgr_z1d( pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d )   ! Reference z-coordinate system
@@ -105,7 +105,7 @@ CONTAINS
       ! no ocean cavities : top ocean level is ONE, except over land
       ! the ocean basin surrounded by land (1+nn_hls grid-points) set through lbc_lnk call
       z2d(:,:) = 1._wp                    ! surface ocean is the 1st level
-      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1. )        ! closed basin, see userdef_nam.F90
+      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1._wp )        ! closed basin, see userdef_nam.F90
       k_top(:,:) = NINT( z2d(:,:) )
       !
       !                              

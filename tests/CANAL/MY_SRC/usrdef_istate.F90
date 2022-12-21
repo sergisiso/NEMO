@@ -237,8 +237,8 @@ CONTAINS
          !            
       END SELECT
       !
-      CALL lbc_lnk( 'usrdef_istate', pts , 'T',  1. )
-      CALL lbc_lnk( 'usrdef_istate', pu, 'U', -1., pv, 'V', -1. )
+      CALL lbc_lnk( 'usrdef_istate', pts , 'T',  1._wp )
+      CALL lbc_lnk( 'usrdef_istate', pu, 'U', -1._wp, pv, 'V', -1._wp )
 
    END SUBROUTINE usr_def_istate
 
@@ -322,7 +322,7 @@ CONTAINS
             DO_2D( 0, 0, 0, 0 )
                pssh(ji,jj) = pssh(ji,jj-1) - ff_t(ji,jj) / grav * rn_uzonal * EXP( - 0.5 * gphit(ji,jj)**2 / rn_lambda**2 ) * e2t(ji,jj)
             END_2D
-            CALL lbc_lnk( 'usrdef_istate_ssh', pssh, 'T',  1. )
+            CALL lbc_lnk( 'usrdef_istate_ssh', pssh, 'T',  1._wp )
          END DO
          !            
       CASE(4)                      !==  geostrophic zonal pulse !!st need to implement a way to separate ssh properly  ==!
@@ -374,7 +374,7 @@ CONTAINS
          CALL RANDOM_NUMBER(zrandom)
          pssh(:,:) = pssh(:,:) + ( 0.1  * zrandom(:,:) - 0.05 )
       ENDIF
-      CALL lbc_lnk( 'usrdef_istate_ssh', pssh, 'T',  1. )
+      CALL lbc_lnk( 'usrdef_istate_ssh', pssh, 'T',  1._wp )
       !
    END SUBROUTINE usr_def_istate_ssh
    
