@@ -120,24 +120,24 @@
             do  ivar = 1, nvar
 
                 edge(ivar,ipos) = ( &
-        &     -      1.e0 * &
+        &     -      1.e0_8 * &
         &       fdat(1,ivar,ipos-2) &
-        &     +      7.e0 * &
+        &     +      7.e0_8 * &
         &       fdat(1,ivar,ipos-1) &
-        &     +      7.e0 * &
+        &     +      7.e0_8 * &
         &       fdat(1,ivar,ipos+0) &
-        &     -      1.e0 * &
-        &       fdat(1,ivar,ipos+1) ) / 12.e0
+        &     -      1.e0_8 * &
+        &       fdat(1,ivar,ipos+1) ) / 12.e0_8
             
                 dfdx(ivar,ipos) = ( &
-        &     +      1.e0 * &
+        &     +      1.e0_8 * &
         &       fdat(1,ivar,ipos-2) &
-        &     -     15.e0 * &
+        &     -     15.e0_8 * &
         &       fdat(1,ivar,ipos-1) &
-        &     +     15.e0 * &
+        &     +     15.e0_8 * &
         &       fdat(1,ivar,ipos+0) &
-        &     -      1.e0 * &
-        &       fdat(1,ivar,ipos+1) ) / 12.e0
+        &     -      1.e0_8 * &
+        &       fdat(1,ivar,ipos+1) ) / 12.e0_8
 
                 dfdx(ivar,ipos) = &
         &       dfdx(ivar,ipos) / delx(+1)
@@ -165,7 +165,7 @@
             xmap(-2) = -( delh(-2) &
         &              +  delh(-1) ) / xhat
             xmap(-1) = -  delh(-1)   / xhat
-            xmap(+0) = +  0.e0
+            xmap(+0) = +  0.e0_8
             xmap(+1) = +  delh(+0)   / xhat
             xmap(+2) = +( delh(+0) &
         &              +  delh(+1) ) / xhat

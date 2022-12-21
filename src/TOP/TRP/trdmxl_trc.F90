@@ -289,7 +289,7 @@ CONTAINS
          DO jn = 1, jptra
             IF( ln_trdtrc(jn) ) THEN
                DO jl = 1, jpltrd_trc
-                  CALL lbc_lnk( 'trdmxl_trc', tmltrd_trc(:,:,jl,jn), 'T', 1. )        ! lateral boundary conditions
+                  CALL lbc_lnk( 'trdmxl_trc', tmltrd_trc(:,:,jl,jn), 'T', 1._wp )        ! lateral boundary conditions
                END DO
             ENDIF
          END DO
@@ -424,8 +424,8 @@ CONTAINS
                
          !-- Lateral boundary conditions
                IF ( cn_cfg .NE. 'gyre' ) THEN
-                  CALL lbc_lnk( 'trdmxl_trc', ztmltot(:,:,jn) , 'T', 1. , ztmlres(:,:,jn) , 'T', 1., &
-                     &                        ztmlatf(:,:,jn) , 'T', 1. , ztmlrad(:,:,jn) , 'T', 1. )
+                  CALL lbc_lnk( 'trdmxl_trc', ztmltot(:,:,jn) , 'T', 1._wp , ztmlres(:,:,jn) , 'T', 1._wp, &
+                     &                        ztmlatf(:,:,jn) , 'T', 1._wp , ztmlrad(:,:,jn) , 'T', 1._wp )
                ENDIF
 
 
@@ -475,9 +475,9 @@ CONTAINS
 
          !-- Lateral boundary conditions 
                IF ( cn_cfg .NE. 'gyre' ) THEN            ! other than GYRE configuration    
-                  CALL lbc_lnk( 'trdmxl_trc', ztmltot2(:,:,jn), 'T', 1., ztmlres2(:,:,jn), 'T', 1. )
+                  CALL lbc_lnk( 'trdmxl_trc', ztmltot2(:,:,jn), 'T', 1._wp, ztmlres2(:,:,jn), 'T', 1._wp )
                   DO jl = 1, jpltrd_trc
-                     CALL lbc_lnk( 'trdmxl_trc', ztmltrd2(:,:,jl,jn), 'T', 1. )       ! will be output in the NetCDF trends file
+                     CALL lbc_lnk( 'trdmxl_trc', ztmltrd2(:,:,jl,jn), 'T', 1._wp )       ! will be output in the NetCDF trends file
                   END DO
                ENDIF
 

@@ -59,46 +59,46 @@
     !------------------------------------ -1th-order basis !
             select case (ndof)
             case (+1)
-                bfun(1) = sval**1 / 1.e0
+                bfun(1) = sval**1 / 1.e0_8
                 
             case (+2)
-                bfun(1) = sval**1 / 1.e0
-                bfun(2) = sval**2 / 2.e0
+                bfun(1) = sval**1 / 1.e0_8
+                bfun(2) = sval**2 / 2.e0_8
                 
             case (+3)
-                bfun(1) = sval**1 / 1.e0
-                bfun(2) = sval**2 / 2.e0
-                bfun(3) = sval**3 / 3.e0
+                bfun(1) = sval**1 / 1.e0_8
+                bfun(2) = sval**2 / 2.e0_8
+                bfun(3) = sval**3 / 3.e0_8
                 
             case (+4)
-                bfun(1) = sval**1 / 1.e0
-                bfun(2) = sval**2 / 2.e0
-                bfun(3) = sval**3 / 3.e0
-                bfun(4) = sval**4 / 4.e0
+                bfun(1) = sval**1 / 1.e0_8
+                bfun(2) = sval**2 / 2.e0_8
+                bfun(3) = sval**3 / 3.e0_8
+                bfun(4) = sval**4 / 4.e0_8
                 
             case (+5)
-                bfun(1) = sval**1 / 1.e0
-                bfun(2) = sval**2 / 2.e0
-                bfun(3) = sval**3 / 3.e0
-                bfun(4) = sval**4 / 4.e0
-                bfun(5) = sval**5 / 5.e0
+                bfun(1) = sval**1 / 1.e0_8
+                bfun(2) = sval**2 / 2.e0_8
+                bfun(3) = sval**3 / 3.e0_8
+                bfun(4) = sval**4 / 4.e0_8
+                bfun(5) = sval**5 / 5.e0_8
                 
             case (+6)
-                bfun(1) = sval**1 / 1.e0
-                bfun(2) = sval**2 / 2.e0
-                bfun(3) = sval**3 / 3.e0
-                bfun(4) = sval**4 / 4.e0
-                bfun(5) = sval**5 / 5.e0
-                bfun(6) = sval**6 / 6.e0
+                bfun(1) = sval**1 / 1.e0_8
+                bfun(2) = sval**2 / 2.e0_8
+                bfun(3) = sval**3 / 3.e0_8
+                bfun(4) = sval**4 / 4.e0_8
+                bfun(5) = sval**5 / 5.e0_8
+                bfun(6) = sval**6 / 6.e0_8
                 
             case (+7)
-                bfun(1) = sval**1 / 1.e0
-                bfun(2) = sval**2 / 2.e0
-                bfun(3) = sval**3 / 3.e0
-                bfun(4) = sval**4 / 4.e0
-                bfun(5) = sval**5 / 5.e0
-                bfun(6) = sval**6 / 6.e0
-                bfun(7) = sval**7 / 7.e0
+                bfun(1) = sval**1 / 1.e0_8
+                bfun(2) = sval**2 / 2.e0_8
+                bfun(3) = sval**3 / 3.e0_8
+                bfun(4) = sval**4 / 4.e0_8
+                bfun(5) = sval**5 / 5.e0_8
+                bfun(6) = sval**6 / 6.e0_8
+                bfun(7) = sval**7 / 7.e0_8
             
             end select
 
@@ -106,46 +106,46 @@
     !------------------------------------ +0th-order basis !
             select case (ndof)
             case (+1)
-                bfun(1) =           1.e0
+                bfun(1) =           1.e0_8
                 
             case (+2)
-                bfun(1) =           1.e0
-                bfun(2) = sval**1 * 1.e0
+                bfun(1) =           1.e0_8
+                bfun(2) = sval**1 * 1.e0_8
                 
             case (+3)
-                bfun(1) =           1.e0
-                bfun(2) = sval**1 * 1.e0
-                bfun(3) = sval**2 * 1.e0
+                bfun(1) =           1.e0_8
+                bfun(2) = sval**1 * 1.e0_8
+                bfun(3) = sval**2 * 1.e0_8
                 
             case (+4)
-                bfun(1) =           1.e0
-                bfun(2) = sval**1 * 1.e0
-                bfun(3) = sval**2 * 1.e0
-                bfun(4) = sval**3 * 1.e0
+                bfun(1) =           1.e0_8
+                bfun(2) = sval**1 * 1.e0_8
+                bfun(3) = sval**2 * 1.e0_8
+                bfun(4) = sval**3 * 1.e0_8
                 
             case (+5)
-                bfun(1) =           1.e0
-                bfun(2) = sval**1 * 1.e0
-                bfun(3) = sval**2 * 1.e0
-                bfun(4) = sval**3 * 1.e0
-                bfun(5) = sval**4 * 1.e0
+                bfun(1) =           1.e0_8
+                bfun(2) = sval**1 * 1.e0_8
+                bfun(3) = sval**2 * 1.e0_8
+                bfun(4) = sval**3 * 1.e0_8
+                bfun(5) = sval**4 * 1.e0_8
                 
             case (+6)
-                bfun(1) =           1.e0
-                bfun(2) = sval**1 * 1.e0
-                bfun(3) = sval**2 * 1.e0
-                bfun(4) = sval**3 * 1.e0
-                bfun(5) = sval**4 * 1.e0
-                bfun(6) = sval**5 * 1.e0
+                bfun(1) =           1.e0_8
+                bfun(2) = sval**1 * 1.e0_8
+                bfun(3) = sval**2 * 1.e0_8
+                bfun(4) = sval**3 * 1.e0_8
+                bfun(5) = sval**4 * 1.e0_8
+                bfun(6) = sval**5 * 1.e0_8
                 
             case (+7)
-                bfun(1) =           1.e0
-                bfun(2) = sval**1 * 1.e0
-                bfun(3) = sval**2 * 1.e0
-                bfun(4) = sval**3 * 1.e0
-                bfun(5) = sval**4 * 1.e0
-                bfun(6) = sval**5 * 1.e0
-                bfun(7) = sval**6 * 1.e0
+                bfun(1) =           1.e0_8
+                bfun(2) = sval**1 * 1.e0_8
+                bfun(3) = sval**2 * 1.e0_8
+                bfun(4) = sval**3 * 1.e0_8
+                bfun(5) = sval**4 * 1.e0_8
+                bfun(6) = sval**5 * 1.e0_8
+                bfun(7) = sval**6 * 1.e0_8
             
             end select
 
@@ -153,46 +153,46 @@
     !------------------------------------ +1st-order basis !
             select case (ndof)
             case (+1)
-                bfun(1) =           0.e0
+                bfun(1) =           0.e0_8
                 
             case (+2)
-                bfun(1) =           0.e0
-                bfun(2) =           1.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           1.e0_8
                 
             case (+3)
-                bfun(1) =           0.e0
-                bfun(2) =           1.e0
-                bfun(3) = sval**1 * 2.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           1.e0_8
+                bfun(3) = sval**1 * 2.e0_8
                 
             case (+4)
-                bfun(1) =           0.e0
-                bfun(2) =           1.e0
-                bfun(3) = sval**1 * 2.e0
-                bfun(4) = sval**2 * 3.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           1.e0_8
+                bfun(3) = sval**1 * 2.e0_8
+                bfun(4) = sval**2 * 3.e0_8
                 
             case (+5)
-                bfun(1) =           0.e0
-                bfun(2) =           1.e0
-                bfun(3) = sval**1 * 2.e0
-                bfun(4) = sval**2 * 3.e0
-                bfun(5) = sval**3 * 4.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           1.e0_8
+                bfun(3) = sval**1 * 2.e0_8
+                bfun(4) = sval**2 * 3.e0_8
+                bfun(5) = sval**3 * 4.e0_8
                 
             case (+6)
-                bfun(1) =           0.e0
-                bfun(2) =           1.e0
-                bfun(3) = sval**1 * 2.e0
-                bfun(4) = sval**2 * 3.e0
-                bfun(5) = sval**3 * 4.e0
-                bfun(6) = sval**4 * 5.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           1.e0_8
+                bfun(3) = sval**1 * 2.e0_8
+                bfun(4) = sval**2 * 3.e0_8
+                bfun(5) = sval**3 * 4.e0_8
+                bfun(6) = sval**4 * 5.e0_8
                 
             case (+7)
-                bfun(1) =           0.e0
-                bfun(2) =           1.e0
-                bfun(3) = sval**1 * 2.e0
-                bfun(4) = sval**2 * 3.e0
-                bfun(5) = sval**3 * 4.e0
-                bfun(6) = sval**4 * 5.e0
-                bfun(7) = sval**5 * 6.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           1.e0_8
+                bfun(3) = sval**1 * 2.e0_8
+                bfun(4) = sval**2 * 3.e0_8
+                bfun(5) = sval**3 * 4.e0_8
+                bfun(6) = sval**4 * 5.e0_8
+                bfun(7) = sval**5 * 6.e0_8
             
             end select
 
@@ -200,46 +200,46 @@
     !------------------------------------ +2nd-order basis !
             select case (ndof)
             case (+1)
-                bfun(1) =           0.e0
+                bfun(1) =           0.e0_8
                 
             case (+2)
-                bfun(1) =           0.e0
-                bfun(2) =           0.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           0.e0_8
                 
             case (+3)
-                bfun(1) =           0.e0
-                bfun(2) =           0.e0
-                bfun(3) =           2.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           0.e0_8
+                bfun(3) =           2.e0_8
                 
             case (+4)
-                bfun(1) =           0.e0
-                bfun(2) =           0.e0
-                bfun(3) =           2.e0
-                bfun(4) = sval**1 * 6.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           0.e0_8
+                bfun(3) =           2.e0_8
+                bfun(4) = sval**1 * 6.e0_8
                 
             case (+5)
-                bfun(1) =           0.e0
-                bfun(2) =           0.e0
-                bfun(3) =           2.e0
-                bfun(4) = sval**1 * 6.e0
-                bfun(5) = sval**2 *12.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           0.e0_8
+                bfun(3) =           2.e0_8
+                bfun(4) = sval**1 * 6.e0_8
+                bfun(5) = sval**2 *12.e0_8
                 
             case (+6)
-                bfun(1) =           0.e0
-                bfun(2) =           0.e0
-                bfun(3) =           2.e0
-                bfun(4) = sval**1 * 6.e0
-                bfun(5) = sval**2 *12.e0
-                bfun(6) = sval**3 *20.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           0.e0_8
+                bfun(3) =           2.e0_8
+                bfun(4) = sval**1 * 6.e0_8
+                bfun(5) = sval**2 *12.e0_8
+                bfun(6) = sval**3 *20.e0_8
                 
             case (+7)
-                bfun(1) =           0.e0
-                bfun(2) =           0.e0
-                bfun(3) =           2.e0
-                bfun(4) = sval**1 * 6.e0
-                bfun(5) = sval**2 *12.e0
-                bfun(6) = sval**3 *20.e0
-                bfun(7) = sval**4 *30.e0
+                bfun(1) =           0.e0_8
+                bfun(2) =           0.e0_8
+                bfun(3) =           2.e0_8
+                bfun(4) = sval**1 * 6.e0_8
+                bfun(5) = sval**2 *12.e0_8
+                bfun(6) = sval**3 *20.e0_8
+                bfun(7) = sval**4 *30.e0_8
             
             end select
 

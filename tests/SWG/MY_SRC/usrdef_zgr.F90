@@ -191,7 +191,7 @@ CONTAINS
       !
       z2d(:,:) = REAL( jpkm1 , wp )          ! flat bottom
       !
-      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1. )           ! set surrounding land to zero (closed boundaries)
+      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1._wp )           ! set surrounding land to zero (closed boundaries)
       !
       zylim0 =   10000._wp    ! +10km 
       zylim1 = 2010000._wp    ! 2010km

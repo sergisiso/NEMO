@@ -34,10 +34,7 @@ MODULE iom_nf90
 
    INTERFACE iom_nf90_get
       MODULE PROCEDURE iom_nf90_g0d_sp
-      MODULE PROCEDURE iom_nf90_g0d_dp, iom_nf90_g123d_dp
-   END INTERFACE
-   INTERFACE iom_nf90_rstput
-      MODULE PROCEDURE iom_nf90_rp0123d_dp
+      MODULE PROCEDURE iom_nf90_g0d_dp, iom_nf90_g123d
    END INTERFACE
 
    !! * Substitutions
@@ -312,8 +309,8 @@ CONTAINS
       CALL iom_nf90_check(NF90_GET_VAR(iom_file(kiomid)%nfid, iom_file(kiomid)%nvid(kvid), pvar, start = kstart), clinfo )
    END SUBROUTINE iom_nf90_g0d_dp
 
-   SUBROUTINE iom_nf90_g123d_dp( kiomid, kvid, knbdim, kstart, kcount, kx1, kx2, ky1, ky2,   &
-         &                    pv_r1d, pv_r2d, pv_r3d )
+   SUBROUTINE iom_nf90_g123d( kiomid, kvid, knbdim, kstart, kcount, kx1, kx2, ky1, ky2,   &
+         &                    pvsp1d, pvsp2d, pvsp3d, pvdp1d, pvdp2d, pvdp3d )
       !!-----------------------------------------------------------------------
       !!                  ***  ROUTINE  iom_nf90_g123d  ***
       !!
@@ -327,9 +324,12 @@ CONTAINS
       INTEGER , DIMENSION(:)     , INTENT(in   )           ::   kstart    ! start position of the reading in each axis
       INTEGER , DIMENSION(:)     , INTENT(in   )           ::   kcount    ! number of points to be read in each axis
       INTEGER ,                    INTENT(in   )           ::   kx1, kx2, ky1, ky2   ! subdomain indexes
-      REAL(dp), DIMENSION(:)     , INTENT(  out), OPTIONAL ::   pv_r1d    ! read field (1D case)
-      REAL(dp), DIMENSION(:,:)   , INTENT(  out), OPTIONAL ::   pv_r2d    ! read field (2D case)
-      REAL(dp), DIMENSION(:,:,:) , INTENT(  out), OPTIONAL ::   pv_r3d    ! read field (3D case)
+      REAL(sp), DIMENSION(:)     , INTENT(  out), OPTIONAL ::   pvsp1d    ! read field (1D case), single precision
+      REAL(sp), DIMENSION(:,:)   , INTENT(  out), OPTIONAL ::   pvsp2d    ! read field (2D case), single precision
+      REAL(sp), DIMENSION(:,:,:) , INTENT(  out), OPTIONAL ::   pvsp3d    ! read field (3D case), single precision
+      REAL(dp), DIMENSION(:)     , INTENT(  out), OPTIONAL ::   pvdp1d    ! read field (1D case), double precision
+      REAL(dp), DIMENSION(:,:)   , INTENT(  out), OPTIONAL ::   pvdp2d    ! read field (2D case), double precision
+      REAL(dp), DIMENSION(:,:,:) , INTENT(  out), OPTIONAL ::   pvdp3d    ! read field (3D case), double precision
       !
       CHARACTER(LEN=100) ::   clinfo               ! info character
       INTEGER            ::   if90id               ! nf90 identifier of the opened file
@@ -339,18 +339,27 @@ CONTAINS
       if90id = iom_file(kiomid)%nfid         ! get back NetCDF file id
       ivid   = iom_file(kiomid)%nvid(kvid)   ! get back NetCDF var id
       !
-      IF(     PRESENT(pv_r1d) ) THEN
-         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pv_r1d(:                ), start = kstart(1:knbdim),   &
+      IF(     PRESENT(pvsp1d) ) THEN
+         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pvsp1d(:                ), start = kstart(1:knbdim),   &
             &                                                                       count = kcount(1:knbdim)), clinfo )
-      ELSEIF( PRESENT(pv_r2d) ) THEN
-         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pv_r2d(kx1:kx2,ky1:ky2  ), start = kstart(1:knbdim),   &
+      ELSEIF( PRESENT(pvdp1d) ) THEN
+         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pvdp1d(:                ), start = kstart(1:knbdim),   &
             &                                                                       count = kcount(1:knbdim)), clinfo )
-      ELSEIF( PRESENT(pv_r3d) ) THEN
-         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pv_r3d(kx1:kx2,ky1:ky2,:), start = kstart(1:knbdim),   &
+      ELSEIF( PRESENT(pvsp2d) ) THEN
+         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pvsp2d(kx1:kx2,ky1:ky2  ), start = kstart(1:knbdim),   &
+            &                                                                       count = kcount(1:knbdim)), clinfo )
+      ELSEIF( PRESENT(pvdp2d) ) THEN
+         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pvdp2d(kx1:kx2,ky1:ky2  ), start = kstart(1:knbdim),   &
+            &                                                                       count = kcount(1:knbdim)), clinfo )
+      ELSEIF( PRESENT(pvsp3d) ) THEN
+         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pvsp3d(kx1:kx2,ky1:ky2,:), start = kstart(1:knbdim),   &
+            &                                                                       count = kcount(1:knbdim)), clinfo )
+      ELSEIF( PRESENT(pvdp3d) ) THEN
+         CALL iom_nf90_check( NF90_GET_VAR(if90id, ivid, pvdp3d(kx1:kx2,ky1:ky2,:), start = kstart(1:knbdim),   &
             &                                                                       count = kcount(1:knbdim)), clinfo )
       ENDIF
       !
-   END SUBROUTINE iom_nf90_g123d_dp
+   END SUBROUTINE iom_nf90_g123d
 
 
 
@@ -524,8 +533,9 @@ CONTAINS
       !
    END SUBROUTINE iom_nf90_putatt
 
-   SUBROUTINE iom_nf90_rp0123d_dp( kt, kwrite, kiomid, cdvar , kvid  , ktype,   &
-         &                                  pv_r0d, pv_r1d, pv_r2d, pv_r3d )
+   SUBROUTINE iom_nf90_rstput( kt, kwrite, kiomid, cdvar , kvid  , ktype ,   &
+         &                                 pvsp0d, pvsp1d, pvsp2d, pvsp3d,   &
+         &                                 pvdp0d, pvdp1d, pvdp2d, pvdp3d )
       !!--------------------------------------------------------------------
       !!                   ***  SUBROUTINE  iom_nf90_rstput  ***
       !!
@@ -537,10 +547,14 @@ CONTAINS
       CHARACTER(len=*)            , INTENT(in)           ::   cdvar    ! variable name
       INTEGER                     , INTENT(in)           ::   kvid     ! variable id
       INTEGER                     , INTENT(in), OPTIONAL ::   ktype    ! variable type (default R8)
-      REAL(dp)                    , INTENT(in), OPTIONAL ::   pv_r0d   ! written Od field
-      REAL(dp), DIMENSION(      :), INTENT(in), OPTIONAL ::   pv_r1d   ! written 1d field
-      REAL(dp), DIMENSION(:, :   ), INTENT(in), OPTIONAL ::   pv_r2d   ! written 2d field
-      REAL(dp), DIMENSION(:, :, :), INTENT(in), OPTIONAL ::   pv_r3d   ! written 3d field
+      REAL(sp)                    , INTENT(in), OPTIONAL ::   pvsp0d   ! written Od field
+      REAL(sp), DIMENSION(      :), INTENT(in), OPTIONAL ::   pvsp1d   ! written 1d field
+      REAL(sp), DIMENSION(:, :   ), INTENT(in), OPTIONAL ::   pvsp2d   ! written 2d field
+      REAL(sp), DIMENSION(:, :, :), INTENT(in), OPTIONAL ::   pvsp3d   ! written 3d field
+      REAL(dp)                    , INTENT(in), OPTIONAL ::   pvdp0d   ! written Od field
+      REAL(dp), DIMENSION(      :), INTENT(in), OPTIONAL ::   pvdp1d   ! written 1d field
+      REAL(dp), DIMENSION(:, :   ), INTENT(in), OPTIONAL ::   pvdp2d   ! written 2d field
+      REAL(dp), DIMENSION(:, :, :), INTENT(in), OPTIONAL ::   pvdp3d   ! written 3d field
       !
       INTEGER               :: idims                ! number of dimension
       INTEGER               :: idvar                ! variable id
@@ -555,11 +569,17 @@ CONTAINS
       !                                             ! nn_nchunks_[i,j,k,t] namelist parameters
       INTEGER               :: ichunkalg, ishuffle, ideflate, ideflate_level
       !                                             ! NetCDF4 internally fixed parameters
+      INTEGER               :: idlv                 ! local variable
       LOGICAL               :: lchunk               ! logical switch to activate chunking and compression
       !                                             ! when appropriate (currently chunking is applied to 4d fields only)
-      INTEGER               :: idlv                 ! local variable
+      LOGICAL               :: llis0d, llis1d, llis2d, llis3d
       CHARACTER(LEN=256)    :: ccname               ! local variable
       !---------------------------------------------------------------------
+      !
+      llis0d = PRESENT(pvsp0d) .OR. PRESENT(pvdp0d)
+      llis1d = PRESENT(pvsp1d) .OR. PRESENT(pvdp1d)
+      llis2d = PRESENT(pvsp2d) .OR. PRESENT(pvdp2d)
+      llis3d = PRESENT(pvsp3d) .OR. PRESENT(pvdp3d)
       !
       clinfo = '          iom_nf90_rp0123d, file: '//TRIM(iom_file(kiomid)%name)//', var: '//TRIM(cdvar)
       if90id = iom_file(kiomid)%nfid
@@ -609,12 +629,12 @@ CONTAINS
             CALL iom_nf90_check(NF90_REDEF( if90id ), clinfo)   ;   iom_file(kiomid)%irec = -1
          ENDIF
          ! variable definition
-         IF(     PRESENT(pv_r0d) ) THEN   ;   idims = 0
-         ELSEIF( PRESENT(pv_r1d) ) THEN
-                                              idims = 2   ;   idimid(1:idims) = (/3,4/)
-         ELSEIF( PRESENT(pv_r2d) ) THEN   ;   idims = 3   ;   idimid(1:idims) = (/1,2,4/)
-         ELSEIF( PRESENT(pv_r3d) ) THEN
-                                              idims = 4   ;   idimid(1:idims) = (/1,2,3,4/)
+         IF(     llis0d ) THEN   ;   idims = 0
+         ELSEIF( llis1d ) THEN
+                                     idims = 2   ;   idimid(1:idims) = (/3,4/)
+         ELSEIF( llis2d ) THEN   ;   idims = 3   ;   idimid(1:idims) = (/1,2,4/)
+         ELSEIF( llis3d ) THEN
+                                     idims = 4   ;   idimid(1:idims) = (/1,2,3,4/)
          ENDIF
          IF( PRESENT(ktype) ) THEN   ! variable external type
             SELECT CASE (ktype)
@@ -628,7 +648,7 @@ CONTAINS
          ELSE
             itype = NF90_DOUBLE
          ENDIF
-         IF( PRESENT(pv_r0d) ) THEN
+         IF( llis0d ) THEN
             CALL iom_nf90_check(NF90_DEF_VAR( if90id, TRIM(cdvar), itype,                  iom_file(kiomid)%nvid(idvar) ), clinfo )
          ELSE
             CALL iom_nf90_check(NF90_DEF_VAR( if90id, TRIM(cdvar), itype, idimid(1:idims), iom_file(kiomid)%nvid(idvar) ), clinfo )
@@ -641,9 +661,7 @@ CONTAINS
          iom_file(kiomid)%scf(idvar)    = 1.
          iom_file(kiomid)%ofs(idvar)    = 0.
          iom_file(kiomid)%ndims(idvar)  = idims
-         IF( .NOT. PRESENT(pv_r0d) ) THEN   ;   iom_file(kiomid)%luld(idvar) = .TRUE.
-         ELSE                               ;   iom_file(kiomid)%luld(idvar) = .FALSE.
-         ENDIF
+         iom_file(kiomid)%luld(idvar)   = .NOT. llis0d
          DO jd = 1, idims
             CALL iom_nf90_check(NF90_INQUIRE_DIMENSION( if90id, idimid(jd), len = iom_file(kiomid)%dimsz(jd,idvar) ), clinfo)
             IF ( lchunk ) ichunksz(jd) = iom_file(kiomid)%dimsz(jd,idvar)
@@ -672,7 +690,7 @@ CONTAINS
             CALL iom_nf90_check(NF90_ENDDEF( if90id ), clinfo)   ;   iom_file(kiomid)%irec = 0
          ENDIF
          ! on what kind of domain must the data be written?
-         IF( PRESENT(pv_r2d) .OR. PRESENT(pv_r3d) ) THEN
+         IF( llis2d .OR. llis3d ) THEN
 
             ! write dimension variables if it is not already done
             ! =============
@@ -695,8 +713,10 @@ CONTAINS
                IF(lwp) WRITE(numout,*) TRIM(clinfo)//' write dimension variables done'
             ENDIF
 
-            IF( PRESENT(pv_r2d) )  ishape(1:2) = SHAPE(pv_r2d)
-            IF( PRESENT(pv_r3d) )  ishape(1:3) = SHAPE(pv_r3d)
+            IF( PRESENT(pvsp2d) )  ishape(1:2) = SHAPE(pvsp2d)
+            IF( PRESENT(pvdp2d) )  ishape(1:2) = SHAPE(pvdp2d)
+            IF( PRESENT(pvsp3d) )  ishape(1:3) = SHAPE(pvsp3d)
+            IF( PRESENT(pvdp3d) )  ishape(1:3) = SHAPE(pvdp3d)
             IF(     ishape(1) == Ni_0   .AND. ishape(2) == Nj_0   ) THEN           ! array with 0 halo
                ix1 = 1      ;   ix2 = Ni_0     ;   iy1 = 1      ;   iy2 = Nj_0
             ELSEIF( ishape(1) == jpi    .AND. ishape(2) == jpj    ) THEN           ! array with nn_hls halos
@@ -711,14 +731,22 @@ CONTAINS
 
          ! write the data
          ! =============
-         IF(     PRESENT(pv_r0d) ) THEN
-            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pv_r0d                    ), clinfo )
-         ELSEIF( PRESENT(pv_r1d) ) THEN
-            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pv_r1d(:)                 ), clinfo )
-         ELSEIF( PRESENT(pv_r2d) ) THEN     
-            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pv_r2d(ix1:ix2,iy1:iy2)   ), clinfo )
-         ELSEIF( PRESENT(pv_r3d) ) THEN
-            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pv_r3d(ix1:ix2,iy1:iy2,:) ), clinfo )
+         IF(     PRESENT(pvsp0d) ) THEN
+            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pvsp0d                    ), clinfo )
+         ELSEIF( PRESENT(pvdp0d) ) THEN
+            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pvdp0d                    ), clinfo )
+         ELSEIF( PRESENT(pvsp1d) ) THEN
+            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pvsp1d(:)                 ), clinfo )
+         ELSEIF( PRESENT(pvdp1d) ) THEN
+            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pvdp1d(:)                 ), clinfo )
+         ELSEIF( PRESENT(pvsp2d) ) THEN
+            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pvsp2d(ix1:ix2,iy1:iy2)   ), clinfo )
+         ELSEIF( PRESENT(pvdp2d) ) THEN
+            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pvdp2d(ix1:ix2,iy1:iy2)   ), clinfo )
+         ELSEIF( PRESENT(pvsp3d) ) THEN
+            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pvsp3d(ix1:ix2,iy1:iy2,:) ), clinfo )
+         ELSEIF( PRESENT(pvdp3d) ) THEN
+            CALL iom_nf90_check( NF90_PUT_VAR( if90id, idvar, pvdp3d(ix1:ix2,iy1:iy2,:) ), clinfo )
          ENDIF
          ! add 1 to the size of the temporal dimension (not really useful...)
          IF( iom_file(kiomid)%luld(idvar) )   iom_file(kiomid)%dimsz(iom_file(kiomid)%ndims(idvar), idvar)    &
@@ -726,7 +754,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*) TRIM(clinfo)//' written ok'
       ENDIF
       !
-   END SUBROUTINE iom_nf90_rp0123d_dp
+   END SUBROUTINE iom_nf90_rstput
 
 
    SUBROUTINE iom_nf90_check( kstatus, cdinfo )

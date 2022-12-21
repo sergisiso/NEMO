@@ -231,16 +231,15 @@ subroutine Agrif_basicupdate_max1d ( x, y, np, nc, s_parent, s_child, ds_parent,
     REAL, DIMENSION(np), intent(out)    :: x
     REAL, DIMENSION(nc), intent(in)     :: y
     INTEGER,             intent(in)     :: np,nc
-    REAL,                intent(in)     :: s_parent,  s_child
-    REAL,                intent(in)     :: ds_parent, ds_child
+    REAL(kind=8),        intent(in)     :: s_parent,  s_child
+    REAL(kind=8),        intent(in)     :: ds_parent, ds_child
 !
     INTEGER :: i, ii, locind_child_left, coeffraf
-    REAL    :: xpos, invcoeffraf
+    REAL(kind=8) :: xpos
     INTEGER :: nbnonnuls
     INTEGER :: diffmod
 !
     coeffraf = nint(ds_parent/ds_child)
-    invcoeffraf = 1./coeffraf
 !
     if (coeffraf == 1) then
         locind_child_left = 1 + nint((s_parent - s_child)/ds_child)

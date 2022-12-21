@@ -1124,7 +1124,7 @@ CONTAINS
 
          END_2D
 
-!!$         CALL lbc_lnk( 'icedyn_rhg_vp', zs1, 'T', 1., zs2, 'T', 1., zs12, 'T', 1. )
+!!$         CALL lbc_lnk( 'icedyn_rhg_vp', zs1, 'T', 1._wp, zs2, 'T', 1._wp, zs12, 'T', 1._wp )
       
       ENDIF
       
@@ -1141,7 +1141,7 @@ CONTAINS
                
          END_2D
 
-         CALL lbc_lnk( 'icedyn_rhg_vp', zs12f, 'F', 1. )
+         CALL lbc_lnk( 'icedyn_rhg_vp', zs12f, 'F', 1._wp )
          
       ENDIF
       
@@ -1178,8 +1178,8 @@ CONTAINS
             
          END_2D
          !
-         CALL lbc_lnk( 'icedyn_rhg_vp', ztaux_oi, 'U', -1., ztauy_oi, 'V', -1., ztaux_ai, 'U', -1., ztauy_ai, 'V', -1. ) !, &
-!            &                          ztaux_bi, 'U', -1., ztauy_bi, 'V', -1. )
+         CALL lbc_lnk( 'icedyn_rhg_vp', ztaux_oi, 'U', -1._wp, ztauy_oi, 'V', -1._wp, ztaux_ai, 'U', -1._wp, ztauy_ai, 'V', -1._wp ) !, &
+!            &                          ztaux_bi, 'U', -1._wp, ztauy_bi, 'V', -1._wp )
          !
          CALL iom_put( 'utau_oi' , ztaux_oi * zmsk00 )
          CALL iom_put( 'vtau_oi' , ztauy_oi * zmsk00 )
@@ -1209,7 +1209,7 @@ CONTAINS
             zsig_II(ji,jj)   =   0.5_wp * SQRT ( zs2(ji,jj) * zs2(ji,jj) + 4. * zs12(ji,jj) * zs12(ji,jj) )
          END_2D
 
-!!$         CALL lbc_lnk( 'icedyn_rhg_vp', zsig_I, 'T', 1., zsig_II, 'T', 1.)
+!!$         CALL lbc_lnk( 'icedyn_rhg_vp', zsig_I, 'T', 1._wp, zsig_II, 'T', 1._wp)
          
          IF( iom_use('normstr') )   CALL iom_put( 'normstr' ,   zsig_I(:,:)  * zmsk00(:,:) ) ! Normal stress
          IF( iom_use('sheastr') )   CALL iom_put( 'sheastr' ,   zsig_II(:,:) * zmsk00(:,:) ) ! Maximum shear stress
@@ -1250,7 +1250,7 @@ CONTAINS
                
          END_2D
          !
-         ! CALL lbc_lnk( 'icedyn_rhg_vp', zsig1_p, 'T', 1., zsig2_p, 'T', 1.)
+         ! CALL lbc_lnk( 'icedyn_rhg_vp', zsig1_p, 'T', 1._wp, zsig2_p, 'T', 1._wp)
          !
          CALL iom_put( 'sig1_pnorm' , zsig1_p ) 
          CALL iom_put( 'sig2_pnorm' , zsig2_p ) 
@@ -1274,8 +1274,8 @@ CONTAINS
                            &             + zmf(ji,jj+1) * ( e2u(ji,jj+1) * u_ice(ji,jj+1) + e2u(ji-1,jj+1) * u_ice(ji-1,jj+1) ) )
          END_2D
          !
-         CALL lbc_lnk( 'icedyn_rhg_vp', zspgU, 'U', -1., zspgV, 'V', -1., &
-            &                           zCorU, 'U', -1., zCorV, 'V', -1. )
+         CALL lbc_lnk( 'icedyn_rhg_vp', zspgU, 'U', -1._wp, zspgV, 'V', -1._wp, &
+            &                           zCorU, 'U', -1._wp, zCorV, 'V', -1._wp )
          !
          CALL iom_put( 'dssh_dx' , zspgU * zmsk00 )   ! Sea-surface tilt term in force balance (x)
          CALL iom_put( 'dssh_dy' , zspgV * zmsk00 )   ! Sea-surface tilt term in force balance (y)
@@ -1305,7 +1305,7 @@ CONTAINS
 
          END_2D
             
-         CALL lbc_lnk( 'icedyn_rhg_vp', zfU, 'U', -1., zfV, 'V', -1. )
+         CALL lbc_lnk( 'icedyn_rhg_vp', zfU, 'U', -1._wp, zfV, 'V', -1._wp )
          
          CALL iom_put( 'intstrx' , zfU   * zmsk00 )   ! Internal force term in force balance (x)
          CALL iom_put( 'intstry' , zfV   * zmsk00 )   ! Internal force term in force balance (y)
@@ -1335,9 +1335,9 @@ CONTAINS
 
          END_2D
          
-         CALL lbc_lnk( 'icedyn_rhg_vp', zdiag_xmtrp_ice, 'U', -1., zdiag_ymtrp_ice, 'V', -1., &
-            &                           zdiag_xmtrp_snw, 'U', -1., zdiag_ymtrp_snw, 'V', -1., &
-            &                           zdiag_xatrp    , 'U', -1., zdiag_yatrp    , 'V', -1. )
+         CALL lbc_lnk( 'icedyn_rhg_vp', zdiag_xmtrp_ice, 'U', -1._wp, zdiag_ymtrp_ice, 'V', -1._wp, &
+            &                           zdiag_xmtrp_snw, 'U', -1._wp, zdiag_ymtrp_snw, 'V', -1._wp, &
+            &                           zdiag_xatrp    , 'U', -1._wp, zdiag_yatrp    , 'V', -1._wp )
 
          CALL iom_put( 'xmtrpice' , zdiag_xmtrp_ice )   ! X-component of sea-ice mass transport (kg/s)
          CALL iom_put( 'ymtrpice' , zdiag_ymtrp_ice )   ! Y-component of sea-ice mass transport 
@@ -1628,7 +1628,7 @@ CONTAINS
                pvel_res(ji,jj) = 0.25_wp * ( ( zu_res(ji-1,jj) + zu_res(ji,jj) ) + ( zv_res(ji,jj-1) + zv_res(ji,jj) ) )
          
          END_2D
-         CALL lbc_lnk( 'icedyn_rhg_cvg_vp', pvel_res, 'T', 1. )
+         CALL lbc_lnk( 'icedyn_rhg_cvg_vp', pvel_res, 'T', 1._wp )
 
       ELSE
 

@@ -417,27 +417,23 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pzeta
       !
       INTEGER  ::   ji, jj    ! dummy loop indices
-      REAL(wp) :: zta, zx2, zx, ztmp, zpsi_unst, zpsi_stab, zstab, zc
+      REAL(wp) :: zta, zx2, zx, ztmp, zc
       !!----------------------------------------------------------------------------------
       zc = 5._wp/0.35_wp
       DO_2D( 0, 0, 0, 0 )
             !
             zta = MIN( pzeta(ji,jj) , 5._wp ) !! Very stable conditions (L positif and big!):
-
-            ! *** Unstable (Paulson 1970)    [eq.3.20, Chap.3, p.33, IFS doc - Cy31r1] :
-            zx2 = SQRT( ABS(1._wp - 16._wp*zta) )  ! (1 - 16z)^0.5
-            zx  = SQRT(zx2)                          ! (1 - 16z)^0.25
-            ztmp = 1._wp + zx
-            zpsi_unst = LOG( 0.125_wp*ztmp*ztmp*(1._wp + zx2) ) - 2._wp*ATAN( zx ) + 0.5_wp*rpi
-
-            ! *** Stable                   [eq.3.22, Chap.3, p.33, IFS doc - Cy31r1] :
-            zpsi_stab = -2._wp/3._wp*(zta - zc)*EXP(-0.35_wp*zta) &
-               &       - zta - 2._wp/3._wp*zc
             !
-            zstab = 0.5_wp + SIGN(0.5_wp, zta) ! zta > 0 => zstab = 1
-            !
-            psi_m_ecmwf(ji,jj) =         zstab  * zpsi_stab &  ! (zta > 0) Stable
-               &              + (1._wp - zstab) * zpsi_unst    ! (zta < 0) Unstable
+            IF (zta < 0.0_wp) THEN
+               ! *** Unstable (Paulson 1970)    [eq.3.20, Chap.3, p.33, IFS doc - Cy31r1] :
+               zx2 = SQRT( ABS(1._wp - 16._wp*zta) )  ! (1 - 16z)^0.5
+               zx  = SQRT(zx2)                        ! (1 - 16z)^0.25
+               ztmp = 1._wp + zx
+               psi_m_ecmwf(ji,jj) = LOG(0.125_wp*ztmp*ztmp*(1._wp + zx2)) - 2._wp*ATAN(zx) + 0.5_wp*rpi
+            ELSE
+               ! *** Stable                   [eq.3.22, Chap.3, p.33, IFS doc - Cy31r1] :
+               psi_m_ecmwf(ji,jj) = -2._wp/3._wp*(zta - zc)*EXP(-0.35_wp*zta) - zta - 2._wp/3._wp*zc
+            ENDIF
             !
       END_2D
    END FUNCTION psi_m_ecmwf
@@ -458,7 +454,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)), INTENT(in) :: pzeta
       !
       INTEGER  ::   ji, jj     ! dummy loop indices
-      REAL(wp) ::  zta, zx2, zpsi_unst, zpsi_stab, zstab, zc
+      REAL(wp) ::  zta, zx2, zc
       !!----------------------------------------------------------------------------------
       zc = 5._wp/0.35_wp
       !
@@ -466,20 +462,15 @@ CONTAINS
             !
             zta = MIN(pzeta(ji,jj) , 5._wp)   ! Very stable conditions (L positif and big!):
             !
-            ! *** Unstable (Paulson 1970)   [eq.3.20, Chap.3, p.33, IFS doc - Cy31r1] :
-            zx2 = SQRT( ABS(1._wp - 16._wp*zta) )  ! (1 -16z)^0.5
-            zpsi_unst = 2._wp*LOG( 0.5_wp*(1._wp + zx2) )
-            !
-            ! *** Stable [eq.3.22, Chap.3, p.33, IFS doc - Cy31r1] :
-            zpsi_stab = -2._wp/3._wp*(zta - zc)*EXP(-0.35_wp*zta) &
+            IF (zta < 0.0_wp) THEN
+               ! *** Unstable (Paulson 1970)   [eq.3.20, Chap.3, p.33, IFS doc - Cy31r1] :
+               zx2 = SQRT( ABS(1._wp - 16._wp*zta) )  ! (1 -16z)^0.5
+               psi_h_ecmwf(ji,jj) = 2._wp*LOG( 0.5_wp*(1._wp + zx2) )
+            ELSE
+               ! *** Stable [eq.3.22, Chap.3, p.33, IFS doc - Cy31r1] :
+               psi_h_ecmwf(ji,jj) = -2._wp/3._wp*(zta - zc)*EXP(-0.35_wp*zta) &
                &       - ABS(1._wp + 2._wp/3._wp*zta)**1.5_wp - 2._wp/3._wp*zc + 1._wp
-            !
-            ! LB: added ABS() to avoid NaN values when unstable, which contaminates the unstable solution...
-            !
-            zstab = 0.5_wp + SIGN(0.5_wp, zta) ! zta > 0 => zstab = 1
-            !
-            psi_h_ecmwf(ji,jj) =         zstab  * zpsi_stab &  ! (zta > 0) Stable
-               &              + (1._wp - zstab) * zpsi_unst    ! (zta < 0) Unstable
+            ENDIF
             !
       END_2D
    END FUNCTION psi_h_ecmwf

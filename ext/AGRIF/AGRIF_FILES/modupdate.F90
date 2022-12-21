@@ -1904,8 +1904,8 @@ subroutine Agrif_Update_1D_Recursive ( type_update,         &
     integer,                            intent(in)  :: type_update            !< Type of update (copy or average)
     integer,                            intent(in)  :: indmin, indmax
     integer,                            intent(in)  :: lb_child, ub_child
-    real(kind=8),                               intent(in)  ::  s_child,  s_parent
-    real(kind=8),                               intent(in)  :: ds_child, ds_parent
+    real(kind=8),                       intent(in)  ::  s_child,  s_parent
+    real(kind=8),                       intent(in)  :: ds_child, ds_parent
     real, dimension(indmin:indmax),     intent(out) :: tempP
     real, dimension(lb_child:ub_child), intent(in)  :: tempC
 !---------------------------------------------------------------------------------------------------
@@ -1933,11 +1933,11 @@ subroutine Agrif_Update_2D_Recursive ( type_update,         &
                                         s_child,  s_parent, &
                                        ds_child, ds_parent )
 !---------------------------------------------------------------------------------------------------
-    integer, dimension(2),          intent(in)  :: type_update            !< Type of update (copy or average)
-    integer, dimension(2),          intent(in)  :: indmin, indmax
-    integer, dimension(2),          intent(in)  :: lb_child, ub_child
-    real(kind=8),    dimension(2),          intent(in)  ::  s_child,  s_parent
-    real(kind=8),    dimension(2),          intent(in)  :: ds_child, ds_parent
+    integer,     dimension(2),      intent(in)  :: type_update            !< Type of update (copy or average)
+    integer,     dimension(2),      intent(in)  :: indmin, indmax
+    integer,     dimension(2),      intent(in)  :: lb_child, ub_child
+    real(kind=8),dimension(2),      intent(in)  ::  s_child,  s_parent
+    real(kind=8),dimension(2),      intent(in)  :: ds_child, ds_parent
     real,    dimension(          &
         indmin(1):indmax(1),     &
         indmin(2):indmax(2)),       intent(out) :: tempP
@@ -2047,11 +2047,11 @@ subroutine Agrif_Update_2D_Recursive_ok ( type_update, &
                                        lb_child, ub_child,                    &
                                        s_child, s_parent, ds_child, ds_parent )
 !---------------------------------------------------------------------------------------------------
-    INTEGER, DIMENSION(2), intent(in)   :: type_update            !< Type of update (copy or average)
-    INTEGER, DIMENSION(2), intent(in)   :: indmin, indmax
-    INTEGER, DIMENSION(2), intent(in)   :: lb_child, ub_child
-    REAL,    DIMENSION(2), intent(in)   :: s_child,  s_parent
-    REAL,    DIMENSION(2), intent(in)   :: ds_child, ds_parent
+    INTEGER,     DIMENSION(2), intent(in)   :: type_update            !< Type of update (copy or average)
+    INTEGER,     DIMENSION(2), intent(in)   :: indmin, indmax
+    INTEGER,     DIMENSION(2), intent(in)   :: lb_child, ub_child
+    REAL(kind=8),DIMENSION(2), intent(in)   :: s_child,  s_parent
+    REAL(kind=8),DIMENSION(2), intent(in)   :: ds_child, ds_parent
     REAL,    DIMENSION(                 &
                 indmin(1):indmax(1),    &
                 indmin(2):indmax(2)),           intent(out) :: tempP
@@ -2101,11 +2101,11 @@ subroutine Agrif_Update_3D_Recursive ( type_update,         &
                                         s_child,  s_parent, &
                                        ds_child, ds_parent )
 !---------------------------------------------------------------------------------------------------
-    integer, dimension(3),          intent(in)  :: type_update            !< Type of update (copy or average)
-    integer, dimension(3),          intent(in)  :: indmin, indmax
-    integer, dimension(3),          intent(in)  :: lb_child, ub_child
-    real,    dimension(3),          intent(in)  ::  s_child,  s_parent
-    real,    dimension(3),          intent(in)  :: ds_child, ds_parent
+    integer,     dimension(3),      intent(in)  :: type_update            !< Type of update (copy or average)
+    integer,     dimension(3),      intent(in)  :: indmin, indmax
+    integer,     dimension(3),      intent(in)  :: lb_child, ub_child
+    real(kind=8),dimension(3),      intent(in)  ::  s_child,  s_parent
+    real(kind=8),dimension(3),      intent(in)  :: ds_child, ds_parent
     real,    dimension(          &
         indmin(1):indmax(1),     &
         indmin(2):indmax(2),     &
@@ -2213,11 +2213,11 @@ subroutine Agrif_Update_4D_Recursive ( type_update,         &
                                         s_child,  s_parent, &
                                        ds_child, ds_parent )
 !---------------------------------------------------------------------------------------------------
-    integer, dimension(4),          intent(in)  :: type_update            !< Type of update (copy or average)
-    integer, dimension(4),          intent(in)  :: indmin, indmax
-    integer, dimension(4),          intent(in)  :: lb_child, ub_child
-    real,    dimension(4),          intent(in)  ::  s_child,  s_parent
-    real,    dimension(4),          intent(in)  :: ds_child, ds_parent
+    integer,     dimension(4),      intent(in)  :: type_update            !< Type of update (copy or average)
+    integer,     dimension(4),      intent(in)  :: indmin, indmax
+    integer,     dimension(4),      intent(in)  :: lb_child, ub_child
+    real(kind=8),dimension(4),      intent(in)  ::  s_child,  s_parent
+    real(kind=8),dimension(4),      intent(in)  :: ds_child, ds_parent
     real,    dimension(          &
         indmin(1):indmax(1),     &
         indmin(2):indmax(2),     &
@@ -2285,11 +2285,11 @@ subroutine Agrif_Update_5D_Recursive ( type_update,         &
                                         s_child,  s_parent, &
                                        ds_child, ds_parent )
 !---------------------------------------------------------------------------------------------------
-    integer, dimension(5),          intent(in)  :: type_update            !< Type of update (copy or average)
-    integer, dimension(5),          intent(in)  :: indmin, indmax
-    integer, dimension(5),          intent(in)  :: lb_child, ub_child
-    real,    dimension(5),          intent(in)  ::  s_child,  s_parent
-    real,    dimension(5),          intent(in)  :: ds_child, ds_parent
+    integer,     dimension(5),      intent(in)  :: type_update            !< Type of update (copy or average)
+    integer,     dimension(5),      intent(in)  :: indmin, indmax
+    integer,     dimension(5),      intent(in)  :: lb_child, ub_child
+    real(kind=8),dimension(5),      intent(in)  ::  s_child,  s_parent
+    real(kind=8),dimension(5),      intent(in)  :: ds_child, ds_parent
     real,    dimension(          &
         indmin(1):indmax(1),     &
         indmin(2):indmax(2),     &
@@ -2364,11 +2364,11 @@ subroutine Agrif_Update_6D_Recursive ( type_update,         &
                                         s_child,  s_parent, &
                                        ds_child, ds_parent )
 !---------------------------------------------------------------------------------------------------
-    integer, dimension(6),          intent(in)  :: type_update            !< Type of update (copy or average)
-    integer, dimension(6),          intent(in)  :: indmin, indmax
-    integer, dimension(6),          intent(in)  :: lb_child, ub_child
-    real,    dimension(6),          intent(in)  ::  s_child,  s_parent
-    real,    dimension(6),          intent(in)  :: ds_child, ds_parent
+    integer,     dimension(6),      intent(in)  :: type_update            !< Type of update (copy or average)
+    integer,     dimension(6),      intent(in)  :: indmin, indmax
+    integer,     dimension(6),      intent(in)  :: lb_child, ub_child
+    real(kind=8),dimension(6),      intent(in)  ::  s_child,  s_parent
+    real(kind=8),dimension(6),      intent(in)  :: ds_child, ds_parent
     real,    dimension(          &
         indmin(1):indmax(1),     &
         indmin(2):indmax(2),     &
@@ -2454,8 +2454,8 @@ subroutine Agrif_UpdateBase ( type_update,              &
     integer,                            intent(in) :: lb_child, ub_child
     real, dimension(indmin:indmax),     intent(out):: parent_tab
     real, dimension(lb_child:ub_child), intent(in) :: child_tab
-    real,                               intent(in) :: s_parent,  s_child
-    real,                               intent(in) :: ds_parent, ds_child
+    real(kind=8),                       intent(in) :: s_parent,  s_child
+    real(kind=8),                       intent(in) :: ds_parent, ds_child
 !---------------------------------------------------------------------------------------------------
     integer :: np       ! Length of parent array
     integer :: nc       ! Length of child  array

@@ -103,7 +103,7 @@ CONTAINS
       WHERE (gphit(:,:)>0._wp) z2d(:,:) = 0._wp
       ! Dig inlet:
       WHERE ((gphit(:,:)>0._wp).AND.(glamt(:,:)>-50._wp).AND.(glamt(:,:)<50._wp)) z2d(:,:) = 1._wp
-      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1. )        ! closed basin, see userdef_nam.F90
+      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1._wp )        ! closed basin, see userdef_nam.F90
       k_top(:,:) = NINT( z2d(:,:) )
       !
       !                              

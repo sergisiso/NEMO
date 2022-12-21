@@ -1234,7 +1234,7 @@ CONTAINS
                 + aimag(ydda(ji)) + aimag(yddb(ji))
 
          ! The result is zt1 + zt2, after normalization.
-         yddb(ji) = cmplx ( zt1 + zt2, zt2 - ((zt1 + zt2) - zt1),wp )
+         yddb(ji) = cmplx ( zt1 + zt2, zt2 - ((zt1 + zt2) - zt1), dp )
       END DO
       !
    END SUBROUTINE DDPDD_MPI

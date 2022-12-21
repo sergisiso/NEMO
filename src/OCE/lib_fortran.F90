@@ -241,7 +241,7 @@ CONTAINS
          &   + AIMAG(ydda)         + AIMAG(yddb)
       !
       ! The result is t1 + t2, after normalization.
-      yddb = CMPLX( zt1 + zt2, zt2 - ((zt1 + zt2) - zt1), wp )
+      yddb = CMPLX( zt1 + zt2, zt2 - ((zt1 + zt2) - zt1), dp )
       !
    END SUBROUTINE DDPDD
 

@@ -175,7 +175,7 @@ CONTAINS
       ! there is no restart file.
       ! Values from a CICE restart file would overwrite this
       IF( .NOT. ln_rstart ) THEN    
-         CALL nemo2cice( ts(:,:,1,jp_tem,Kmm) , sst , 'T' , 1.) 
+         CALL nemo2cice( ts(:,:,1,jp_tem,Kmm) , sst , 'T' , 1._wp) 
       ENDIF  
 #endif
 
@@ -207,10 +207,10 @@ CONTAINS
       fr_iu(:,:)=0.0
       fr_iv(:,:)=0.0
 
-      CALL cice2nemo(aice,fr_i, 'T', 1. )
+      CALL cice2nemo(aice,fr_i, 'T', 1._wp )
       IF( (ksbc == jp_flx) .OR. (ksbc == jp_purecpl) ) THEN
          DO jl=1,ncat
-            CALL cice2nemo(aicen(:,:,jl,:),a_i(:,:,jl), 'T', 1. )
+            CALL cice2nemo(aicen(:,:,jl,:),a_i(:,:,jl), 'T', 1._wp )
          ENDDO
       ENDIF
 
@@ -224,8 +224,8 @@ CONTAINS
       CALL lbc_lnk( 'sbcice_cice', fr_iu , 'U', 1.0_wp,  fr_iv , 'V', 1.0_wp )
 
       ! set the snow+ice mass
-      CALL cice2nemo(vsno(:,:,:),ztmp1,'T', 1. )
-      CALL cice2nemo(vice(:,:,:),ztmp2,'T', 1. )
+      CALL cice2nemo(vsno(:,:,:),ztmp1,'T', 1._wp )
+      CALL cice2nemo(vice(:,:,:),ztmp2,'T', 1._wp )
       snwice_mass  (:,:) = ( rhos * ztmp1(:,:) + rhoi * ztmp2(:,:)  )
       snwice_mass_b(:,:) = snwice_mass(:,:)
 
@@ -282,7 +282,7 @@ CONTAINS
             ztmp(ji,jj) = 0.5 * (  fr_iu(ji,jj) * utau(ji,jj)      &
                                  + fr_iu(ji,jj+1) * utau(ji,jj+1) ) * fmask(ji,jj,1)
          END_2D
-         CALL nemo2cice(ztmp,strax,'F', -1. )
+         CALL nemo2cice(ztmp,strax,'F', -1._wp )
 
 ! y comp of wind stress (CI_2)
 ! V point to F point
@@ -290,7 +290,7 @@ CONTAINS
             ztmp(ji,jj) = 0.5 * (  fr_iv(ji,jj) * vtau(ji,jj)      &
                                  + fr_iv(ji+1,jj) * vtau(ji+1,jj) ) * fmask(ji,jj,1)
          END_2D
-         CALL nemo2cice(ztmp,stray,'F', -1. )
+         CALL nemo2cice(ztmp,stray,'F', -1._wp )
 
 ! Surface downward latent heat flux (CI_5)
          IF(ksbc == jp_flx) THEN
@@ -316,7 +316,7 @@ CONTAINS
             END_2D
          ENDIF
          DO jl=1,ncat
-            CALL nemo2cice(ztmpn(:,:,jl),flatn_f(:,:,jl,:),'T', 1. )
+            CALL nemo2cice(ztmpn(:,:,jl),flatn_f(:,:,jl,:),'T', 1._wp )
 
 ! GBM conductive flux through ice (CI_6)
 !  Convert to GBM
@@ -325,7 +325,7 @@ CONTAINS
             ELSE
                ztmp(:,:) = botmelt(:,:,jl)
             ENDIF
-            CALL nemo2cice(ztmp,fcondtopn_f(:,:,jl,:),'T', 1. )
+            CALL nemo2cice(ztmp,fcondtopn_f(:,:,jl,:),'T', 1._wp )
 
 ! GBM surface heat flux (CI_7)
 !  Convert to GBM
@@ -334,7 +334,7 @@ CONTAINS
             ELSE
                ztmp(:,:) = (topmelt(:,:,jl)+botmelt(:,:,jl))
             ENDIF
-            CALL nemo2cice(ztmp,fsurfn_f(:,:,jl,:),'T', 1. )
+            CALL nemo2cice(ztmp,fsurfn_f(:,:,jl,:),'T', 1._wp )
          ENDDO
 
       ELSE IF(ksbc == jp_blk) THEN
@@ -342,39 +342,39 @@ CONTAINS
 ! Pass bulk forcing fields to CICE (which will calculate heat fluxes etc itself)
 ! x comp and y comp of atmosphere surface wind (CICE expects on T points)
          ztmp(:,:) = wndi_ice(:,:)
-         CALL nemo2cice(ztmp,uatm,'T', -1. )
+         CALL nemo2cice(ztmp,uatm,'T', -1._wp )
          ztmp(:,:) = wndj_ice(:,:)
-         CALL nemo2cice(ztmp,vatm,'T', -1. )
+         CALL nemo2cice(ztmp,vatm,'T', -1._wp )
          ztmp(:,:) = SQRT ( wndi_ice(:,:)**2 + wndj_ice(:,:)**2 )
-         CALL nemo2cice(ztmp,wind,'T', 1. )    ! Wind speed (m/s)
+         CALL nemo2cice(ztmp,wind,'T', 1._wp )    ! Wind speed (m/s)
          ztmp(:,:) = qsr_ice(:,:,1)
-         CALL nemo2cice(ztmp,fsw,'T', 1. )     ! Incoming short-wave (W/m^2)
+         CALL nemo2cice(ztmp,fsw,'T', 1._wp )     ! Incoming short-wave (W/m^2)
          ztmp(:,:) = qlw_ice(:,:,1)
-         CALL nemo2cice(ztmp,flw,'T', 1. )     ! Incoming long-wave (W/m^2)
+         CALL nemo2cice(ztmp,flw,'T', 1._wp )     ! Incoming long-wave (W/m^2)
          ztmp(:,:) = tatm_ice(:,:)
-         CALL nemo2cice(ztmp,Tair,'T', 1. )    ! Air temperature (K)
-         CALL nemo2cice(ztmp,potT,'T', 1. )    ! Potential temp (K)
+         CALL nemo2cice(ztmp,Tair,'T', 1._wp )    ! Air temperature (K)
+         CALL nemo2cice(ztmp,potT,'T', 1._wp )    ! Potential temp (K)
 ! Following line uses MAX(....) to avoid problems if tatm_ice has unset halo rows  
          ztmp(:,:) = 101000. / ( 287.04 * MAX(1.0,tatm_ice(:,:)) )    
                                                ! Constant (101000.) atm pressure assumed
-         CALL nemo2cice(ztmp,rhoa,'T', 1. )    ! Air density (kg/m^3)
+         CALL nemo2cice(ztmp,rhoa,'T', 1._wp )    ! Air density (kg/m^3)
          ztmp(:,:) = qatm_ice(:,:)
-         CALL nemo2cice(ztmp,Qa,'T', 1. )      ! Specific humidity (kg/kg)
+         CALL nemo2cice(ztmp,Qa,'T', 1._wp )      ! Specific humidity (kg/kg)
          ztmp(:,:)=10.0
-         CALL nemo2cice(ztmp,zlvl,'T', 1. )    ! Atmos level height (m)
+         CALL nemo2cice(ztmp,zlvl,'T', 1._wp )    ! Atmos level height (m)
 
 ! May want to check all values are physically realistic (as in CICE routine 
 ! prepare_forcing)?
 
 ! Divide shortwave into spectral bands (as in prepare_forcing)
          ztmp(:,:)=qsr_ice(:,:,1)*frcvdr       ! visible direct
-         CALL nemo2cice(ztmp,swvdr,'T', 1. )             
+         CALL nemo2cice(ztmp,swvdr,'T', 1._wp )             
          ztmp(:,:)=qsr_ice(:,:,1)*frcvdf       ! visible diffuse
-         CALL nemo2cice(ztmp,swvdf,'T', 1. )              
+         CALL nemo2cice(ztmp,swvdf,'T', 1._wp )              
          ztmp(:,:)=qsr_ice(:,:,1)*frcidr       ! near IR direct
-         CALL nemo2cice(ztmp,swidr,'T', 1. )
+         CALL nemo2cice(ztmp,swidr,'T', 1._wp )
          ztmp(:,:)=qsr_ice(:,:,1)*frcidf       ! near IR diffuse
-         CALL nemo2cice(ztmp,swidf,'T', 1. )
+         CALL nemo2cice(ztmp,swidf,'T', 1._wp )
 
       ENDIF
 
@@ -382,37 +382,37 @@ CONTAINS
 ! Ensure fsnow is positive (as in CICE routine prepare_forcing)
       IF( iom_use('snowpre') )   CALL iom_put('snowpre',MAX( (1.0-fr_i(:,:))*sprecip(:,:) ,0.0)) !!Joakim edit  
       ztmp(:,:)=MAX(fr_i(:,:)*sprecip(:,:),0.0)  
-      CALL nemo2cice(ztmp,fsnow,'T', 1. ) 
+      CALL nemo2cice(ztmp,fsnow,'T', 1._wp ) 
 
 ! Rainfall
       IF( iom_use('precip') )   CALL iom_put('precip', (1.0-fr_i(:,:))*(tprecip(:,:)-sprecip(:,:)) ) !!Joakim edit
       ztmp(:,:)=fr_i(:,:)*(tprecip(:,:)-sprecip(:,:))
-      CALL nemo2cice(ztmp,frain,'T', 1. ) 
+      CALL nemo2cice(ztmp,frain,'T', 1._wp ) 
 
 ! Freezing/melting potential
 ! Calculated over NEMO leapfrog timestep (hence 2*dt)
       nfrzmlt(:,:) = rho0 * rcp * e3t_m(:,:) * ( Tocnfrz-sst_m(:,:) ) / ( 2.0*dt )
 
       ztmp(:,:) = nfrzmlt(:,:)
-      CALL nemo2cice(ztmp,frzmlt,'T', 1. )
+      CALL nemo2cice(ztmp,frzmlt,'T', 1._wp )
 
 ! SST  and SSS
 
-      CALL nemo2cice(sst_m,sst,'T', 1. )
-      CALL nemo2cice(sss_m,sss,'T', 1. )
+      CALL nemo2cice(sst_m,sst,'T', 1._wp )
+      CALL nemo2cice(sss_m,sss,'T', 1._wp )
 
 ! x comp and y comp of surface ocean current
 ! U point to F point
       DO_2D( 1, 1, 1, 0 )
          ztmp(ji,jj)=0.5*(ssu_m(ji,jj)+ssu_m(ji,jj+1))*fmask(ji,jj,1)
       END_2D
-      CALL nemo2cice(ztmp,uocn,'F', -1. )
+      CALL nemo2cice(ztmp,uocn,'F', -1._wp )
 
 ! V point to F point
       DO_2D( 1, 0, 1, 1 )
          ztmp(ji,jj)=0.5*(ssv_m(ji,jj)+ssv_m(ji+1,jj))*fmask(ji,jj,1)
       END_2D
-      CALL nemo2cice(ztmp,vocn,'F', -1. )
+      CALL nemo2cice(ztmp,vocn,'F', -1._wp )
 
       IF( ln_ice_embd ) THEN             !== embedded sea ice: compute representative ice top surface ==!
           !
@@ -437,14 +437,14 @@ CONTAINS
          ztmp(ji,jj)=0.5 * (  (zpice(ji+1,jj  )-zpice(ji,jj  )) * r1_e1u(ji,jj  )    &
             &               + (zpice(ji+1,jj+1)-zpice(ji,jj+1)) * r1_e1u(ji,jj+1)  ) * fmask(ji,jj,1)
       END_2D
-      CALL nemo2cice( ztmp,ss_tltx,'F', -1. )
+      CALL nemo2cice( ztmp,ss_tltx,'F', -1._wp )
 
 ! T point to F point
       DO_2D( 1, 0, 1, 0 )
          ztmp(ji,jj)=0.5 * (  (zpice(ji  ,jj+1)-zpice(ji  ,jj)) * r1_e2v(ji  ,jj)    &
             &               + (zpice(ji+1,jj+1)-zpice(ji+1,jj)) * r1_e2v(ji+1,jj)  ) *  fmask(ji,jj,1)
       END_2D
-      CALL nemo2cice(ztmp,ss_tlty,'F', -1. )
+      CALL nemo2cice(ztmp,ss_tlty,'F', -1._wp )
       !
    END SUBROUTINE cice_sbc_in
 
@@ -466,7 +466,7 @@ CONTAINS
       ENDIF
       
 ! x comp of ocean-ice stress 
-      CALL cice2nemo(strocnx,ztmp1,'F', -1. )
+      CALL cice2nemo(strocnx,ztmp1,'F', -1._wp )
       ss_iou(:,:)=0.0
 ! F point to U point
       DO_2D( 0, 0, 0, 0 )
@@ -475,7 +475,7 @@ CONTAINS
       CALL lbc_lnk( 'sbcice_cice', ss_iou , 'U', -1.0_wp )
 
 ! y comp of ocean-ice stress 
-      CALL cice2nemo(strocny,ztmp1,'F', -1. )
+      CALL cice2nemo(strocny,ztmp1,'F', -1._wp )
       ss_iov(:,:)=0.0
 ! F point to V point
 
@@ -494,8 +494,8 @@ CONTAINS
  
 ! Also need ice/ocean stress on T points so that taum can be updated 
 ! This interpolation is already done in CICE so best to use those values 
-      CALL cice2nemo(strocnxT,ztmp1,'T',-1.) 
-      CALL cice2nemo(strocnyT,ztmp2,'T',-1.) 
+      CALL cice2nemo(strocnxT,ztmp1,'T',-1._wp) 
+      CALL cice2nemo(strocnyT,ztmp2,'T',-1._wp) 
  
 ! Update taum with modulus of ice-ocean stress 
 ! strocnxT and strocnyT are not weighted by ice fraction in CICE so must be done here 
@@ -518,11 +518,11 @@ taum(:,:)=(1.0-fr_i(:,:))*taum(:,:)+fr_i(:,:)*SQRT(ztmp1*ztmp1 + ztmp2*ztmp2)
       ENDIF
 
 #if defined key_cice4
-      CALL cice2nemo(fresh_gbm,ztmp1,'T', 1. )
-      CALL cice2nemo(fsalt_gbm,ztmp2,'T', 1. )
+      CALL cice2nemo(fresh_gbm,ztmp1,'T', 1._wp )
+      CALL cice2nemo(fsalt_gbm,ztmp2,'T', 1._wp )
 #else
-      CALL cice2nemo(fresh_ai,ztmp1,'T', 1. )
-      CALL cice2nemo(fsalt_ai,ztmp2,'T', 1. )
+      CALL cice2nemo(fresh_ai,ztmp1,'T', 1._wp )
+      CALL cice2nemo(fsalt_ai,ztmp2,'T', 1._wp )
 #endif
 
 ! Check to avoid unphysical expression when ice is forming (ztmp1 negative)
@@ -556,9 +556,9 @@ taum(:,:)=(1.0-fr_i(:,:))*taum(:,:)+fr_i(:,:)*SQRT(ztmp1*ztmp1 + ztmp2*ztmp2)
 ! Now add in ice / snow related terms
 ! [fswthru will be zero unless running with calc_Tsfc=T in CICE]
 #if defined key_cice4
-      CALL cice2nemo(fswthru_gbm,ztmp1,'T', 1. )
+      CALL cice2nemo(fswthru_gbm,ztmp1,'T', 1._wp )
 #else
-      CALL cice2nemo(fswthru_ai,ztmp1,'T', 1. )
+      CALL cice2nemo(fswthru_ai,ztmp1,'T', 1._wp )
 #endif
       qsr(:,:)=qsr(:,:)+ztmp1(:,:)
       CALL lbc_lnk( 'sbcice_cice', qsr , 'T', 1.0_wp )
@@ -568,9 +568,9 @@ taum(:,:)=(1.0-fr_i(:,:))*taum(:,:)+fr_i(:,:)*SQRT(ztmp1*ztmp1 + ztmp2*ztmp2)
       END_2D
 
 #if defined key_cice4
-      CALL cice2nemo(fhocn_gbm,ztmp1,'T', 1. )
+      CALL cice2nemo(fhocn_gbm,ztmp1,'T', 1._wp )
 #else
-      CALL cice2nemo(fhocn_ai,ztmp1,'T', 1. )
+      CALL cice2nemo(fhocn_ai,ztmp1,'T', 1._wp )
 #endif
       qns(:,:)=qns(:,:)+nfrzmlt(:,:)+ztmp1(:,:)
 
@@ -578,10 +578,10 @@ taum(:,:)=(1.0-fr_i(:,:))*taum(:,:)+fr_i(:,:)*SQRT(ztmp1*ztmp1 + ztmp2*ztmp2)
 
 ! Prepare for the following CICE time-step
 
-      CALL cice2nemo(aice,fr_i,'T', 1. )
+      CALL cice2nemo(aice,fr_i,'T', 1._wp )
       IF( (ksbc == jp_flx).OR.(ksbc == jp_purecpl) ) THEN
          DO jl=1,ncat
-            CALL cice2nemo(aicen(:,:,jl,:),a_i(:,:,jl), 'T', 1. )
+            CALL cice2nemo(aicen(:,:,jl,:),a_i(:,:,jl), 'T', 1._wp )
          ENDDO
       ENDIF
 
@@ -595,8 +595,8 @@ taum(:,:)=(1.0-fr_i(:,:))*taum(:,:)+fr_i(:,:)*SQRT(ztmp1*ztmp1 + ztmp2*ztmp2)
       CALL lbc_lnk( 'sbcice_cice', fr_iu , 'U', 1.0_wp, fr_iv , 'V', 1.0_wp )
 
       ! set the snow+ice mass
-      CALL cice2nemo(vsno(:,:,:),ztmp1,'T', 1. )
-      CALL cice2nemo(vice(:,:,:),ztmp2,'T', 1. )
+      CALL cice2nemo(vsno(:,:,:),ztmp1,'T', 1._wp )
+      CALL cice2nemo(vice(:,:,:),ztmp2,'T', 1._wp )
       snwice_mass  (:,:) = ( rhos * ztmp1(:,:) + rhoi * ztmp2(:,:)  )
       snwice_mass_b(:,:) = snwice_mass(:,:)
       snwice_fmass (:,:) = ( snwice_mass(:,:) - snwice_mass_b(:,:) ) / dt
@@ -628,16 +628,16 @@ taum(:,:)=(1.0-fr_i(:,:))*taum(:,:)+fr_i(:,:)*SQRT(ztmp1*ztmp1 + ztmp2*ztmp2)
       !
       ! x and y comp of ice velocity
       !
-      CALL cice2nemo(uvel,u_ice,'F', -1. )
-      CALL cice2nemo(vvel,v_ice,'F', -1. )
+      CALL cice2nemo(uvel,u_ice,'F', -1._wp )
+      CALL cice2nemo(vvel,v_ice,'F', -1._wp )
       !
       ! Ice concentration (CO_1) = a_i calculated at end of cice_sbc_out  
       !
       ! Snow and ice thicknesses (CO_2 and CO_3)
       !
       DO jl = 1, ncat
-         CALL cice2nemo( vsnon(:,:,jl,:), h_s(:,:,jl),'T', 1. )
-         CALL cice2nemo( vicen(:,:,jl,:), h_i(:,:,jl),'T', 1. )
+         CALL cice2nemo( vsnon(:,:,jl,:), h_s(:,:,jl),'T', 1._wp )
+         CALL cice2nemo( vicen(:,:,jl,:), h_i(:,:,jl),'T', 1._wp )
       END DO
       !
    END SUBROUTINE cice_sbc_hadgam

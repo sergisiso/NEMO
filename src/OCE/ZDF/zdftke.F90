@@ -218,6 +218,7 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(0))     ::   zice_fra, zhlc, zus3, zWlc2
       REAL(wp), DIMENSION(T2D(0),jpk) ::   zpelc, zdiag, zd_up, zd_lw
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztmp ! for diags
+      REAL(wp) :: zdiv
       !!--------------------------------------------------------------------
       !
       zbbrau  = rn_ebb / rho0       ! Local constant initialisation
@@ -369,7 +370,16 @@ CONTAINS
             IF (rn2b(ji,jj,jk) <= 0.0_wp) then
                 zri = 0.0_wp
             ELSE
-                zri = rn2b(ji,jj,jk) * p_avm(ji,jj,jk) / ( p_sh2(ji,jj,jk) + rn_bshear )
+                ! This logic is to avoid divide-by-zero errors which can occur for single-precision
+                ! The actual value you choose for the denominator instead of zero doesn't really
+                ! matter, as long as it is very small and so triggers the same logic below with the
+                ! inverse Prandtl number
+                zdiv = p_sh2(ji,jj,jk) + rn_bshear
+                IF (zdiv == 0.0_wp) THEN
+                   zri = rn2b(ji,jj,jk) * p_avm(ji,jj,jk) / rn_bshear
+                ELSE
+                   zri = rn2b(ji,jj,jk) * p_avm(ji,jj,jk) / zdiv
+                ENDIF
             ENDIF
             !                             ! inverse of Prandtl number
             apdlr(ji,jj,jk) = MAX(  0.1_wp,  ri_cri / MAX( ri_cri , zri )  )
