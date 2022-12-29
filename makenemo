@@ -349,8 +349,8 @@ if [ ${TML_CONF} != ${NEW_CONF} ]; then
     printf "\nYou are installing a new configuration %s from %s " ${NEW_CONF} ${TML_CONF}
     if [ -n "${NEM_SUBDIR}" ]; then printf  "with sub-components: %s\n"  "${NEM_SUBDIR}"; fi
     echo
-    ${COMPIL_DIR}/Fmake_config.sh ${NEMO_TDIR}/${NEW_CONF} ${CONFIG_DIR}/${TML_CONF}
 fi
+${COMPIL_DIR}/Fmake_config.sh ${NEMO_TDIR}/${NEW_CONF} ${CONFIG_DIR}/${TML_CONF}  # must be called for existing config to create EXP00 if not existing
 
 ## Save new configuration with sub-components set in work_cfgs.txt
 [ -f ${CONFIG_DIR}/work_cfgs.txt ] && sed -i "/^${NEW_CONF} /d" ${CONFIG_DIR}/work_cfgs.txt
