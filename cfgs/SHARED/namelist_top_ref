@@ -146,6 +146,14 @@
 /
 !----------------------------------------------------------------------
 &namtrc_bc       !   data for boundary conditions
+!----------------------------------------------------------------------
+! Surface and coastal input data must be specified individually for each tracer.
+! Lateral open boundary inputs are specified for each BDY segment and related inputfiles
+!  must contain data for the variables with active open boundary (set through &namtrc).
+!  By default, variable names of BDY inputfiles are the same as in &namtrc, but using 
+!  cn_tronam it is possible to specify alternative variable names to match with inputfiles.
+!               !    file name             ! freq ! variable ! time interp. ! clim   !'yearly' ! weights  ! rotation | land/sea
+!  sn_trcobc(1) = 'bdy_dta_trc_North_y1980',  -1  , 'dummy'  ,  .false.     , .true. ,'yearly' ,  '',  '',  ''
 !-----------------------------------------------------------------------
    cn_dir_sbc    =  './'     !  root directory for the location of SURFACE data files
    cn_dir_cbc    =  './'     !  root directory for the location of COASTAL data files
