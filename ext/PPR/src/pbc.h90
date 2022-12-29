@@ -244,8 +244,8 @@
 
         xmap(-1) =-(delh(-1) + &
         &           delh(+0)*0.5d0)/xhat
-        xmap(+0) = -1.e0
-        xmap(+1) = +1.e0
+        xmap(+0) = -1.e0_8
+        xmap(+1) = +1.e0_8
         xmap(+2) = (delh(+1) + &
         &           delh(+0)*0.5d0)/xhat
 
@@ -453,7 +453,7 @@
         if (bcon(ivar)%bcopt.eq.bopt)  then
 
             eval(-1) = &
-        &   fdat(1,ivar,head-1) * 1.e0
+        &   fdat(1,ivar,head-1) * 1.e0_8
             eval(+0) = &
         &   fdat(1,ivar,head-1) * .5d0 + &
         &   fdat(1,ivar,head+0) * .5d0
@@ -575,8 +575,8 @@
 
         xmap(-1) =-(delh(-1) + &
         &           delh(+0)*0.5d0)/xhat
-        xmap(+0) = -1.e0
-        xmap(+1) = +1.e0
+        xmap(+0) = -1.e0_8
+        xmap(+1) = +1.e0_8
         xmap(+2) = (delh(+1) + &
         &           delh(+0)*0.5d0)/xhat
 
@@ -790,7 +790,7 @@
         &   fdat(1,ivar,tail+0) * .5d0 + &
         &   fdat(1,ivar,tail+1) * .5d0
             eval(+2) = &
-        &   fdat(1,ivar,tail+1) * 1.e0
+        &   fdat(1,ivar,tail+1) * 1.e0_8
    
             gval(+0) = &
         &   fdat(1,ivar,tail+0) * .5d0 - &

@@ -1165,7 +1165,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj    ) :: zbup, zbdo
       REAL(wp), DIMENSION(jpi,jpj,jpl) :: zbetup, zbetdo, zti_ups, ztj_ups
       !!----------------------------------------------------------------------
-      zbig = 1.e+40_wp
+      zbig = 1.e+20_wp   ! works ok with simple/double precison
 
       ! antidiffusive flux : high order minus low order
       ! --------------------------------------------------

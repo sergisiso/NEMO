@@ -110,7 +110,7 @@
 
             call random_number (rand)
 
-            rand = 2.e0 * (rand-.5d0)
+            rand = 2.e0_8 * (rand-.5d0)
             
             move = rand *  move
 

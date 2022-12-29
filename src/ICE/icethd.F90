@@ -345,11 +345,22 @@ CONTAINS
          CALL tab_2d_1d( npti, nptidx(1:npti), oa_i_1d(1:npti), oa_i(:,:,kl) )
          !
          ! --- Change units of e_i, e_s from J/m2 to J/m3 --- !
+         ! Here we make sure that we don't divide by very small, but physically
+         ! meaningless, products of sea ice thicknesses/snow depths and sea ice
+         ! concentration
          DO jk = 1, nlay_i
-            WHERE( h_i_1d(1:npti)>0._wp ) e_i_1d(1:npti,jk) = e_i_1d(1:npti,jk) / (h_i_1d(1:npti) * a_i_1d(1:npti)) * nlay_i
+            WHERE( (h_i_1d(1:npti) * a_i_1d(1:npti)) > epsi20 )
+               e_i_1d(1:npti,jk) = e_i_1d(1:npti,jk) / (h_i_1d(1:npti) * a_i_1d(1:npti)) * nlay_i
+            ELSEWHERE
+               e_i_1d(1:npti,jk) = 0._wp
+            ENDWHERE
          END DO
          DO jk = 1, nlay_s
-            WHERE( h_s_1d(1:npti)>0._wp ) e_s_1d(1:npti,jk) = e_s_1d(1:npti,jk) / (h_s_1d(1:npti) * a_i_1d(1:npti)) * nlay_s
+            WHERE( (h_s_1d(1:npti) * a_i_1d(1:npti)) > epsi20 )
+               e_s_1d(1:npti,jk) = e_s_1d(1:npti,jk) / (h_s_1d(1:npti) * a_i_1d(1:npti)) * nlay_s
+            ELSEWHERE
+               e_s_1d(1:npti,jk) = 0._wp
+            ENDWHERE
          END DO
          !
          !                 !---------------------!

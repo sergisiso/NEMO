@@ -142,7 +142,7 @@ CONTAINS
             ! salt fingering
             zrr = zrau(ji,jj) / rn_hsbfr
             zrr = zrr * zrr
-            zavfs = rn_avts / ( 1 + zrr*zrr*zrr ) * zmsks(ji,jj) * zmskf(ji,jj)
+            zavfs = rn_avts / ( 1. + zrr*zrr*zrr ) * zmsks(ji,jj) * zmskf(ji,jj)
             zavft = 0.7 * zavfs * zinr
             ! diffusive layering
             zavdt = 1.3635e-6 * EXP(  4.6 * EXP( -0.54*(zinr-1.) )  ) * zmsks(ji,jj) * zmskd1(ji,jj)

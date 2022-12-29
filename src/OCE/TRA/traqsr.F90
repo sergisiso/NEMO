@@ -77,6 +77,7 @@ MODULE traqsr
    REAL(wp) ::   r1_si0                 ! all schemes : infrared  = 1/rn_si0 
    REAL(wp) ::   r1_si1                 ! 2 band      : mean RGB  = 1/rn_si1   
    REAL(wp) ::   r1_LR, r1_LG, r1_LB    ! RGB with constant Chl (np_RGB)
+   REAL(wp) ::   zz0
    !
    REAL(wp) , PUBLIC, DIMENSION(3,61)   ::   rkrgb    ! tabulated attenuation coefficients for RGB absorption
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_chl   ! structure of input Chl (file informations, fields read)
@@ -209,8 +210,9 @@ CONTAINS
       !
       ! sea-ice: store the 1st ocean level attenuation coefficient
       DO_2D( 0, 0, 0, 0 )
-         IF( qsr(ji,jj) /= 0._wp ) THEN   ;   fraqsr_1lev(ji,jj) = qsr_hc(ji,jj,1) / ( r1_rho0_rcp * qsr(ji,jj) )
-         ELSE                             ;   fraqsr_1lev(ji,jj) = 1._wp
+         zz0 = r1_rho0_rcp * qsr(ji,jj)   ! test zz0 and not qsr for rounding errors in single precision
+         IF( zz0 /= 0._wp ) THEN   ;   fraqsr_1lev(ji,jj) = qsr_hc(ji,jj,1) / zz0
+         ELSE                      ;   fraqsr_1lev(ji,jj) = 1._wp
          ENDIF
       END_2D
       !

@@ -66,8 +66,8 @@
     !------------------------------- at least 3 grid-cells !
         do  ipos = +1, npos-1
         do  ivar = +1, nvar-0
-            oscl(1,ivar,ipos) = +0.e0
-            oscl(2,ivar,ipos) = +0.e0
+            oscl(1,ivar,ipos) = +0.e0_8
+            oscl(2,ivar,ipos) = +0.e0_8
         end do
         end do
         end if
@@ -143,25 +143,25 @@
         hhlc = hhll + hhcc
         hhmm = hhll + hhcc + hhrr
 
-        cmat(1,1) = -(hhcc+2.e0*hhrr)/(hhlc*hhmm)
+        cmat(1,1) = -(hhcc+2.e0_8*hhrr)/(hhlc*hhmm)
         cmat(1,2) = -(hhll-hhrr)* &
-        &          (3.e0*hhcc+2.e0*(hhll+hhrr))/&
+        &          (3.e0_8*hhcc+2.e0_8*(hhll+hhrr))/&
         &            (hhlc*hhrc*hhmm)
-        cmat(1,3) = +(hhcc+2.e0*hhll)/(hhrc*hhmm)
+        cmat(1,3) = +(hhcc+2.e0_8*hhll)/(hhrc*hhmm)
 
-        cmat(2,1) = +3.e0/(hhlc*hhmm)
-        cmat(2,2) = -3.e0*(2.e0*hhcc+hhll+hhrr)/&
+        cmat(2,1) = +3.e0_8/(hhlc*hhmm)
+        cmat(2,2) = -3.e0_8*(2.e0_8*hhcc+hhll+hhrr)/&
         &            (hhlc*hhrc*hhmm)
-        cmat(2,3) = +3.e0/(hhrc*hhmm)
+        cmat(2,3) = +3.e0_8/(hhrc*hhmm)
 
         do  ivar = 1, nvar
 
-            oscl(1,ivar,ipos) = +1.e0 * ( &
+            oscl(1,ivar,ipos) = +1.e0_8 * ( &
         & + cmat(1,1)*fdat(1,ivar,ipos-1) &
         & + cmat(1,2)*fdat(1,ivar,ipos+0) &
         & + cmat(1,3)*fdat(1,ivar,ipos+1) )
 
-            oscl(2,ivar,ipos) = +2.e0 * ( &
+            oscl(2,ivar,ipos) = +2.e0_8 * ( &
         & + cmat(2,1)*fdat(1,ivar,ipos-1) &
         & + cmat(2,2)*fdat(1,ivar,ipos+0) &
         & + cmat(2,3)*fdat(1,ivar,ipos+1) )
@@ -176,8 +176,8 @@
         hhcc = max(delx(head+1),dmin)
         hhrr = max(delx(head+2),dmin)
 
-        cmat(1,1) = -2.e0 / (hhll+hhcc)
-        cmat(1,2) = +2.e0 / (hhll+hhcc)
+        cmat(1,1) = -2.e0_8 / (hhll+hhcc)
+        cmat(1,2) = +2.e0_8 / (hhll+hhcc)
 
         do  ivar = 1, nvar
 
@@ -185,7 +185,7 @@
         & + cmat(1,1)*fdat(1,ivar,head+0) &
         & + cmat(1,2)*fdat(1,ivar,head+1)
              
-            oscl(2,ivar,head) = +0.e0
+            oscl(2,ivar,head) = +0.e0_8
 
         end do
 
@@ -195,8 +195,8 @@
         hhcc = max(delx(tail-1),dmin)
         hhrr = max(delx(tail-0),dmin)
 
-        cmat(1,2) = -2.e0 / (hhrr+hhcc)
-        cmat(1,3) = +2.e0 / (hhrr+hhcc)
+        cmat(1,2) = -2.e0_8 / (hhrr+hhcc)
+        cmat(1,3) = +2.e0_8 / (hhrr+hhcc)
 
         do  ivar = 1, nvar
 
@@ -204,7 +204,7 @@
         & + cmat(1,2)*fdat(1,ivar,tail-1) &
         & + cmat(1,3)*fdat(1,ivar,tail+0)
 
-            oscl(2,ivar,tail) = +0.e0
+            oscl(2,ivar,tail) = +0.e0_8
 
         end do
         
@@ -268,7 +268,7 @@
         & + .50d+0 * fdat(1,ivar,head+1) &
         & - .50d+0 * fdat(1,ivar,head+0)
         
-            oscl(2,ivar,head) = +0.e0
+            oscl(2,ivar,head) = +0.e0_8
 
         end do
 
@@ -280,7 +280,7 @@
         & + .50d+0 * fdat(1,ivar,tail+0) &
         & - .50d+0 * fdat(1,ivar,tail-1)
             
-            oscl(2,ivar,tail) = +0.e0
+            oscl(2,ivar,tail) = +0.e0_8
 
         end do
         

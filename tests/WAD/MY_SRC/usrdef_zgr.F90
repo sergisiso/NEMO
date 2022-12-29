@@ -232,7 +232,7 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )
          zhu(ji,jj) = 0.5_wp * ( zht(ji,jj) + zht(ji+1,jj) )
       END_2D
-      CALL lbc_lnk( 'usrdef_zgr', zhu, 'U', 1. )     ! boundary condition: this mask the surrounding grid-points
+      CALL lbc_lnk( 'usrdef_zgr', zhu, 'U', 1._wp )     ! boundary condition: this mask the surrounding grid-points
       !                                ! ==>>>  set by hand non-zero value on first/last columns & rows 
       DO ji = mi0(     1,nn_hls), mi1(     1,nn_hls)              ! first row of global domain only
          zhu(ji,:) = zht(1,:)
@@ -245,7 +245,7 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )
          zhv(ji,jj) = 0.5_wp * ( zht(ji,jj) + zht(ji,jj+1) )
       END_2D
-      CALL lbc_lnk( 'usrdef_zgr', zhv, 'V', 1. )     ! boundary condition: this mask the surrounding grid-points
+      CALL lbc_lnk( 'usrdef_zgr', zhv, 'V', 1._wp )    ! boundary condition: this mask the surrounding grid-points
       DO jj = mj0(     1,nn_hls), mj1(     1,nn_hls)   ! first  row of global domain only
          zhv(:,jj) = zht(:,jj)
       END DO
@@ -266,7 +266,7 @@ CONTAINS
       z2d(:,mj0(     1,nn_hls):mj1(     1,nn_hls)) = 0._wp
       z2d(:,mj0(jpjglo,nn_hls):mj1(jpjglo,nn_hls)) = 0._wp
 
-      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1. )        ! closed basin, see userdef_nam.F90
+      CALL lbc_lnk( 'usrdef_zgr', z2d, 'T', 1._wp )        ! closed basin, see userdef_nam.F90
       k_top(:,:) = NINT( z2d(:,:) )
       !
       !                              
@@ -301,15 +301,15 @@ CONTAINS
                pe3vw(ji,jj,jk) = zwet * z1_jpkm1
             END DO
          END_2D     
-         CALL lbc_lnk( 'usrdef_zgr', pdept, 'T', 1. )
-         CALL lbc_lnk( 'usrdef_zgr', pdepw, 'T', 1. )
-         CALL lbc_lnk( 'usrdef_zgr', pe3t , 'T', 1. )
-         CALL lbc_lnk( 'usrdef_zgr', pe3w , 'T', 1. )
-         CALL lbc_lnk( 'usrdef_zgr', pe3u , 'U', 1. )
-         CALL lbc_lnk( 'usrdef_zgr', pe3uw, 'U', 1. )
-         CALL lbc_lnk( 'usrdef_zgr', pe3f , 'F', 1. )
-         CALL lbc_lnk( 'usrdef_zgr', pe3v , 'V', 1. )
-         CALL lbc_lnk( 'usrdef_zgr', pe3vw, 'V', 1. )
+         CALL lbc_lnk( 'usrdef_zgr', pdept, 'T', 1._wp )
+         CALL lbc_lnk( 'usrdef_zgr', pdepw, 'T', 1._wp )
+         CALL lbc_lnk( 'usrdef_zgr', pe3t , 'T', 1._wp )
+         CALL lbc_lnk( 'usrdef_zgr', pe3w , 'T', 1._wp )
+         CALL lbc_lnk( 'usrdef_zgr', pe3u , 'U', 1._wp )
+         CALL lbc_lnk( 'usrdef_zgr', pe3uw, 'U', 1._wp )
+         CALL lbc_lnk( 'usrdef_zgr', pe3f , 'F', 1._wp )
+         CALL lbc_lnk( 'usrdef_zgr', pe3v , 'V', 1._wp )
+         CALL lbc_lnk( 'usrdef_zgr', pe3vw, 'V', 1._wp )
          WHERE( pe3t (:,:,:) == 0._wp )   pe3t (:,:,:) = 1._wp
          WHERE( pe3u (:,:,:) == 0._wp )   pe3u (:,:,:) = 1._wp
          WHERE( pe3v (:,:,:) == 0._wp )   pe3v (:,:,:) = 1._wp

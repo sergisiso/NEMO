@@ -250,7 +250,7 @@
         
         do  ipos = +2 , npos - 1
         
-            if (uvel(ipos) .gt. +0.e0) then
+            if (uvel(ipos) .gt. +0.e0_8) then
             
     !----------- integrate profile over upwind cell IPOS-1 !
  
@@ -264,8 +264,8 @@
         &        * tDEL / SPAC(    +1)
             end if
  
-            ss11 = +1.e0 - 2.e0 * uCFL
-            ss22 = +1.e0
+            ss11 = +1.e0_8 - 2.e0_8 * uCFL
+            ss22 = +1.e0_8
 
             call bfun1d(-1,mdof,ss11,vv11)
             call bfun1d(-1,mdof,ss22,vv22)
@@ -285,7 +285,7 @@
             end do
                       
             else &
-        &   if (uvel(ipos) .lt. -0.e0) then
+        &   if (uvel(ipos) .lt. -0.e0_8) then
             
     !----------- integrate profile over upwind cell IPOS+0 !
             
@@ -299,8 +299,8 @@
         &        * tDEL / SPAC(    +1)
             end if
 
-            ss11 = -1.e0 - 2.e0 * uCFL
-            ss22 = -1.e0
+            ss11 = -1.e0_8 - 2.e0_8 * uCFL
+            ss22 = -1.e0_8
         
             call bfun1d(-1,mdof,ss11,vv11)
             call bfun1d(-1,mdof,ss22,vv22)

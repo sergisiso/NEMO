@@ -244,8 +244,8 @@
 
     !------------------------------------- initializations !
 
-        vvlo(+1:+5) = 0.e0
-        vvhi(+1:+5) = 0.e0
+        vvlo(+1:+5) = 0.e0_8
+        vvhi(+1:+5) = 0.e0_8
 
     !------------- remap FDAT from XPOS to XNEW using FHAT !
 
@@ -285,7 +285,7 @@
             do  idof = +1,ndof
             do  ivar = +1,nvar
                 
-                fnew(idof,ivar,kpos) = 0.e0
+                fnew(idof,ivar,kpos) = 0.e0_8
             
             end do
             end do
@@ -374,7 +374,7 @@
     !   wrt. column-wise conservation. Use KBN approach to
     !   account for FP roundoff.
 
-        sdat = 0.e0; serr = 0.e0
+        sdat = 0.e0_8; serr = 0.e0_8
         do  ipos = +1, npos-1
         do  ivar = +1, nvar-0
         
@@ -407,7 +407,7 @@
 
         sdat =  sdat + serr
 
-        snew = 0.e0; serr = 0.e0
+        snew = 0.e0_8; serr = 0.e0_8
         do  ipos = +1, nnew-1
         do  ivar = +1, nvar-0
         
@@ -450,7 +450,7 @@
     
         do  ivar = +1, nvar-0
 
-            if (serr(ivar) .gt. 0.e0) then
+            if (serr(ivar) .gt. 0.e0_8) then
 
                 vmin = kmin(ivar)
 
@@ -459,7 +459,7 @@
         &  serr(ivar)/(xnew(vmin+1)-xnew(vmin+0))
 
             else &
-        &   if (serr(ivar) .lt. 0.e0) then
+        &   if (serr(ivar) .lt. 0.e0_8) then
 
                 vmax = kmax(ivar)
 

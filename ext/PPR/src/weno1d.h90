@@ -111,7 +111,7 @@
         wsum = wval(1) + wval(2) + ZERO
         wval(1) = wval(1) / wsum
     !   wval(2) = wval(2) / wsum
-        wval(2) =-wval(1) + 1.e0 ! wval(2)/wsum but robust !
+        wval(2) =-wval(1) + 1.e0_8 ! wval(2)/wsum but robust !
 
         return
 
@@ -168,15 +168,15 @@
         
         if (ipos-halo.lt.head) then
         
-            omax = 1.e0 
-            omin = 0.e0 ; return
+            omax = 1.e0_8 
+            omin = 0.e0_8 ; return
         
         end if
         
         if (ipos+halo.gt.tail) then
             
-            omax = 1.e0 
-            omin = 0.e0 ; return
+            omax = 1.e0_8 
+            omin = 0.e0_8 ; return
         
         end if
 
@@ -203,7 +203,7 @@
       
     !---------------------------------------- "lower" part !
       
-        delh = 0.e0
+        delh = 0.e0_8
 
         do  hpos = ipos-1, imin, -1
         
@@ -235,7 +235,7 @@
       
     !---------------------------------------- "upper" part !     
       
-        delh = 0.e0
+        delh = 0.e0_8
         
         do  hpos = ipos+1, imax, +1
         
@@ -319,15 +319,15 @@
         
         if (ipos-halo.lt.head) then
         
-            omax = 1.e0 
-            omin = 0.e0 ; return
+            omax = 1.e0_8 
+            omin = 0.e0_8 ; return
         
         end if
         
         if (ipos+halo.gt.tail) then
             
-            omax = 1.e0 
-            omin = 0.e0 ; return
+            omax = 1.e0_8 
+            omin = 0.e0_8 ; return
         
         end if
 
@@ -343,21 +343,21 @@
         dfx1 = oscl(1,ivar,ipos)
         dfx2 = oscl(2,ivar,ipos)
       
-        oval = (2.e0**1*dfx1)**2 &
-        &    + (2.e0**2*dfx2)**2
+        oval = (2.e0_8**1*dfx1)**2 &
+        &    + (2.e0_8**2*dfx2)**2
       
         omin = oval
         omax = oval
       
     !---------------------------------------- "lower" part !
       
-        delh = 0.e0
+        delh = 0.e0_8
 
         do  hpos = ipos-1, imin, -1
         
     !------------------ calc. derivatives centred on IPOS. !     
 
-        delh = delh + 2.e0
+        delh = delh + 2.e0_8
         
         dfx1 = oscl(1,ivar,hpos)
         dfx2 = oscl(2,ivar,hpos)
@@ -366,8 +366,8 @@
 
     !------------------ indicator: NORM(H^N * D^N/DX^N(F)) !
 
-        oval = (2.e0**1*dfx1)**2 &
-    &        + (2.e0**2*dfx2)**2
+        oval = (2.e0_8**1*dfx1)**2 &
+    &        + (2.e0_8**2*dfx2)**2
 
         if (oval .lt. omin) then
             omin = oval 
@@ -380,13 +380,13 @@
       
     !---------------------------------------- "upper" part !     
       
-        delh = 0.e0
+        delh = 0.e0_8
         
         do  hpos = ipos+1, imax, +1
         
     !------------------ calc. derivatives centred on IPOS. !     
 
-        delh = delh - 2.e0
+        delh = delh - 2.e0_8
         
         dfx1 = oscl(1,ivar,hpos)
         dfx2 = oscl(2,ivar,hpos)
@@ -395,8 +395,8 @@
     
     !------------------ indicator: NORM(H^N * D^N/DX^N(F)) !
 
-        oval = (2.e0**1*dfx1)**2 &
-    &        + (2.e0**2*dfx2)**2
+        oval = (2.e0_8**1*dfx1)**2 &
+    &        + (2.e0_8**2*dfx2)**2
   
         if (oval .lt. omin) then
             omin = oval 

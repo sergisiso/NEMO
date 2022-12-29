@@ -437,7 +437,7 @@ CONTAINS
       
       ! Set gridded stuff
       
-      newsurf%mt(insurf)    = surf%mt(ji)
+!clem bug?      newsurf%mt(insurf)    = surf%mt(ji)
  
       ! Deallocate temporary data
 

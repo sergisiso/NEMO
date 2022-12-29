@@ -239,34 +239,49 @@ NEMO_DBG=${x_b}
 
 [ "${CMP_NAM}" == 'all' ] && . ${COMPIL_DIR}/Flist_archfile.sh all && exit
 
-## 'all' arg: list all available configurations
-if [[ "${REF_CONF}" == 'all' || "${DEMO_CONF}" == 'all' ]]; then
-    ${COMPIL_DIR}/Flist_cfgs.sh
-    exit 2
+# '-r': reference config ('cfgs' directory)
+if [ -n "${REF_CONF}" ]; then
+    conf_file=ref_cfgs.txt ; export CONFIG_DIR=${CFGS_DIR} ; TML_CONF=${REF_CONF}
+# '-a': testcases ('tests' directory)
+elif [ -n "${DEMO_CONF}" ]; then
+    conf_file=demo_cfgs.txt; export CONFIG_DIR=${TESTS_DIR}; TML_CONF=${DEMO_CONF}
+# '-n': new or already-existing config (any directory)
+elif [[ -n "${NEW_CONF}" && -z "${conf_file}" ]]; then
+    # already-existing config (check work_cfgs.txt)
+    if [ $( grep -l "^${NEW_CONF} " ${CFGS_DIR}/work_cfgs.txt ${TESTS_DIR}/work_cfgs.txt 2> /dev/null | wc -l ) -eq 1 ]; then
+        conf_file=$( grep -l "^${NEW_CONF} " ${CFGS_DIR}/work_cfgs.txt ${TESTS_DIR}/work_cfgs.txt )
+        export CONFIG_DIR=$( dirname $conf_file ); conf_file=$( basename $conf_file )
+        TML_CONF=${NEW_CONF}
+    # new config (check ref_cfgs.txt & demo_cfgs.txt)
+    elif [ $( grep -l "^${NEW_CONF} " ${CFGS_DIR}/ref_cfgs.txt ${TESTS_DIR}/demo_cfgs.txt 2> /dev/null | wc -l ) -eq 1 ]; then
+        conf_file=$( grep -l "^${NEW_CONF} " ${CFGS_DIR}/ref_cfgs.txt ${TESTS_DIR}/demo_cfgs.txt )
+        export CONFIG_DIR=$( dirname $conf_file ); conf_file=$( basename $conf_file )
+        TML_CONF=${NEW_CONF}
+    # config not found in both cfgs & tests directories
+    else
+        echo -e "\033[0;31m\nUser configuration ${NEW_CONF} not found !"
+        echo -e "Please choose a reference configuration (-r) or a testcase (-a)"
+        echo -e "among this list to create your own configuration (-n):"
+        ${COMPIL_DIR}/Flist_cfgs.sh
+        exit 2
+    fi
+# using both '-r' and '-a' options
 elif [[ -n "${REF_CONF}" && -n "${DEMO_CONF}" ]]; then
     echo -e "\033[0;31m\nYou have to choose whether you work with:"
     echo -e "  - LTS configurations in ./cfgs  ('-r') or"
     echo -e "  - Unsupported cases  in ./tests ('-a')\033[0m\n"
     exit 2
-elif [ -n "${REF_CONF}" ]; then
-    conf_file=ref_cfgs.txt ; export CONFIG_DIR=${CFGS_DIR} ; TML_CONF=${REF_CONF}
-elif [ -n "${DEMO_CONF}" ]; then
-    conf_file=demo_cfgs.txt; export CONFIG_DIR=${TESTS_DIR}; TML_CONF=${DEMO_CONF}
-elif [ $( grep -l "^${NEW_CONF} " */work_cfgs.txt 2> /dev/null | wc -l ) -eq 1 ]; then
-    conf_file=$( grep -l "^${NEW_CONF} " ${CFGS_DIR}/work_cfgs.txt ${TESTS_DIR}/work_cfgs.txt )
-    export CONFIG_DIR=$( dirname $conf_file ); conf_file=$( basename $conf_file )
-    TML_CONF=${NEW_CONF}
-elif [ $( grep -l "^${NEW_CONF} " */work_cfgs.txt 2> /dev/null | wc -l ) -eq 2 ]; then
-    echo -e "\033[0;31m\nUser configuration is present in both"
+# config found in both cfgs & tests directories
+elif [ $( grep -l "^${NEW_CONF} " */work_cfgs.txt 2> /dev/null | wc -l ) -gt 1 ]; then
+    echo -e "\033[0;31m\nUser configuration ${NEW_CONF} is present in both"
     echo -e "cfgs/work_cfgs.txt and tests/work_cfgs.txt files"
     echo -e "Please choose only one \033[0m"
     exit 2
-elif ! grep -q "^${NEW_CONF} " ${CFGS_DIR}/work_cfgs.txt ${TESTS_DIR}/work_cfgs.txt 2> /dev/null; then
-    echo -e "\033[0;31m\nThe reference configuration ('-r') or "
-    echo -e "demonstration case ('-a') selected is not available!!!"
-    echo -e "Check the option used and the available items in .txt files\033[0m"
+# 'all': list all available configurations
+elif [[ "${REF_CONF}" == 'all' || "${DEMO_CONF}" == 'all' ]]; then
     ${COMPIL_DIR}/Flist_cfgs.sh
-    exit 2
+    exit 0
+# any other case
 else
     exit 2
 fi
@@ -328,20 +343,18 @@ fi
 
 export NEM_SUBDIR="${NEM_SUBDIR}" NEW_CONF="${NEW_CONF}"
 
-## If new cfg exists, work in it
+## Create new config
 if [ ${TML_CONF} != ${NEW_CONF} ]; then
     echo
     printf "\nYou are installing a new configuration %s from %s " ${NEW_CONF} ${TML_CONF}
     if [ -n "${NEM_SUBDIR}" ]; then printf  "with sub-components: %s\n"  "${NEM_SUBDIR}"; fi
     echo
 fi
+${COMPIL_DIR}/Fmake_config.sh ${NEMO_TDIR}/${NEW_CONF} ${CONFIG_DIR}/${TML_CONF}  # must be called for existing config to create EXP00 if not existing
 
 ## Save new configuration with sub-components set in work_cfgs.txt
 [ -f ${CONFIG_DIR}/work_cfgs.txt ] && sed -i "/^${NEW_CONF} /d" ${CONFIG_DIR}/work_cfgs.txt
 echo ${NEW_CONF} "${NEM_SUBDIR}" >> ${CONFIG_DIR}/work_cfgs.txt
-
-## Create new config even in existing one (mkdir with -p option, cp with -n)
-${COMPIL_DIR}/Fmake_config.sh ${NEMO_TDIR}/${NEW_CONF} ${CONFIG_DIR}/${TML_CONF}
 
 #- Create the WORK ---
 #- Clean links and librairies ---

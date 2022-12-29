@@ -447,14 +447,14 @@ subroutine Agrif_Find_Nearest ( tabvarsindic, fineloc, parentloc )
     type(Agrif_Variable), pointer :: parent_var
     type(Agrif_Variable), pointer :: child_var
     integer :: i
-    integer, dimension(6)           :: nb_child     !< Number of cells on the child grid
-    integer, dimension(6)           :: ub_child     !< Upper bound on the child grid
-    integer, dimension(6)           :: lb_child     !< Lower bound on the child grid
-    integer, dimension(6)           :: lb_parent    !< Lower bound on the parent grid
-    real, dimension(6)              :: s_child      !< Child  grid position (s_root = 0)
-    real, dimension(6)              :: s_parent     !< Parent grid position (s_root = 0)
-    real, dimension(6)              :: ds_child     !< Child  grid dx (ds_root = 1)
-    real, dimension(6)              :: ds_parent    !< Parent grid dx (ds_root = 1)
+    integer,      dimension(6)      :: nb_child     !< Number of cells on the child grid
+    integer,      dimension(6)      :: ub_child     !< Upper bound on the child grid
+    integer,      dimension(6)      :: lb_child     !< Lower bound on the child grid
+    integer,      dimension(6)      :: lb_parent    !< Lower bound on the parent grid
+    real(kind=8), dimension(6)      :: s_child      !< Child  grid position (s_root = 0)
+    real(kind=8), dimension(6)      :: s_parent     !< Parent grid position (s_root = 0)
+    real(kind=8), dimension(6)      :: ds_child     !< Child  grid dx (ds_root = 1)
+    real(kind=8), dimension(6)      :: ds_parent    !< Parent grid dx (ds_root = 1)
     integer                         :: nbdim        !< Number of dimensions
     real, dimension(6) :: xfineloc
 !

@@ -404,7 +404,7 @@ CONTAINS
                ltype_night     = .FALSE.
             ENDIF
             
-            CALL obs_setinterpopts( nsurftypes, jtype, TRIM(cobstypessurf(jtype)), &
+            CALL obs_setinterpopts( nsurftypes, jtype, cobstypessurf(jtype),       &
                &                    nn_2dint_default, n2dint_type,                 &
                &                    ztype_avglamscl, ztype_avgphiscl,              &
                &                    ltype_fp_indegs, ltype_night,                  &
@@ -1074,7 +1074,7 @@ CONTAINS
          &                    ravgphiscl_type    !N/S diameter of obs footprint for this type
       LOGICAL, INTENT(IN)  :: lfp_indegs_type    !T=> footprint in degrees, F=> in metres
       LOGICAL, INTENT(IN)  :: lavnight_type      !T=> obs represent night time average
-      CHARACTER(len=8), INTENT(IN) :: ctypein 
+      CHARACTER(len=lca), INTENT(IN) :: ctypein 
 
       INTEGER, DIMENSION(ntypes), INTENT(INOUT) :: &
          &                    n2dint 

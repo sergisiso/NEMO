@@ -74,7 +74,7 @@ echo 'Creating '${ZCONF}'/WORK = '${ZTAB[*]}' for '${ZCONF##*/}
 [   -d ${ZCONF}/WORK   ] || \mkdir -p ${ZCONF}/WORK
 
 for comp in ${ZTAB[*]}; do
-	find ${NEMO_DIR}/$comp -name *.[Ffh]90 -exec ln -sf {} ${ZCONF}/WORK \;
+	find ${NEMO_DIR}/$comp -name \*.[Ffh]90 -exec ln -sf {} ${ZCONF}/WORK \;
 done
 
 cd ${ZCONF}
@@ -86,7 +86,7 @@ for ZDIR in ${ZSRC[@]}; do
         echo 'External directory for MY_SRC unspecified or does not exist. Using default.'
     fi
 
-    for ff in `(find ${d} -name *.[Ffh]90 2>/dev/null)`
+    for ff in `(find ${d} -name \*.[Ffh]90 2>/dev/null)`
     do
         if [ "$ff" != "${ff#/}" ]; then
           ln -sf $ff WORK/.

@@ -153,9 +153,14 @@ clean_config() {
       echo ''
       echo "./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean"
       echo ''
-      ./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean
-      echo ''
-      echo "$(basename $lCFG) configuration has been cleaned"
+      if [ -d $lCFG ]; then
+        ./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean
+        echo ''
+        echo "$(basename $lCFG) configuration has been cleaned"
+      else
+        echo ''
+        echo "$(basename $lCFG) configuration does not exist; we skip cleaning"
+      fi
       echo ''
       echo '-------------------------------------------------------------------------------'
    fi
