@@ -35,6 +35,7 @@ MODULE stpctl
    INTEGER, PARAMETER         ::   jpvar = 9
    INTEGER                    ::   nrunid   ! netcdf file id
    INTEGER, DIMENSION(jpvar)  ::   nvarid   ! netcdf variable id
+   INTEGER, DIMENSION(3)      ::   j0oce    ! global integer wet point indicators
    LOGICAL                    ::   l0oce_T, l0oce_U, l0oce_V        ! Logical no wet point indicators
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -129,6 +130,13 @@ CONTAINS
          !
          llmsk(Nis0:Nie0,Njs0:Nje0,1) = vmask(Nis0:Nie0,Njs0:Nje0,1) == 1._wp        ! define only the inner domain
          l0oce_V = .NOT. ANY( llmsk(:,:,1) )                                         ! no ocean V-point in the inner domain?
+         IF( jpnij > 1 ) THEN
+           j0oce = 0
+           IF( l0oce_T ) j0oce(1) = 1
+           IF( l0oce_U ) j0oce(2) = 1
+           IF( l0oce_V ) j0oce(3) = 1
+           CALL mpp_max( "stpctl", j0oce )                                           ! max over the global domain
+         ENDIF
       ENDIF
       !
       !                                   !==              write current time step              ==!
@@ -180,7 +188,12 @@ CONTAINS
          zmaxlocal(:) = zmax(1:jptst)
          CALL mpp_max( "stpctl", zmax )          ! max over the global domain: ok even if l0oce_[T,U,V] = .true. 
          nstop = NINT( zmax(jpvar+1) )           ! update nstop indicator (now shared among all local domains)
+         ! if no ocean point: MAXVAL returns -HUGE => we must overwrite this value to avoid error handling below.
+         ! no T-points, globally is unlikely but no U- or V- points can occur with uni-directional channels
+         IF( j0oce(2) == 1 )   zmax(2) = 0._wp                                      ! default "valid" values... (in case single-width N-S channel)
+         IF( j0oce(3) == 1 )   zmax(3) = 0._wp                                      ! default "valid" values... (in case single-width E-W channel)
       ELSE
+         ! Local checks only
          ! if no ocean point: MAXVAL returns -HUGE => we must overwrite this value to avoid error handling below.
          IF( l0oce_T )   zmax(1:jptst) = (/ 0._wp, 0._wp, 0._wp, -1._wp, 1._wp /)   ! default "valid" values...
          IF( l0oce_U )   zmax(2) = 0._wp                                            ! default "valid" values... (in case single-width N-S channel)

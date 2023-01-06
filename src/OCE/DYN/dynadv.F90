@@ -100,7 +100,7 @@ CONTAINS
       !! ** Purpose :   Control the consistency between namelist options for 
       !!              momentum advection formulation & scheme and set n_dynadv
       !!----------------------------------------------------------------------
-      INTEGER ::   ioptio, ios   ! Local integer
+      INTEGER ::   ioptio, ios, istat1, istat2   ! Local integer
       !
       NAMELIST/namdyn_adv/ ln_dynadv_OFF, ln_dynadv_vec, nn_dynkeg, ln_dynadv_cen2, ln_dynadv_ubs
       !!----------------------------------------------------------------------
@@ -138,10 +138,12 @@ CONTAINS
       IF( ln_dynadv_vec  ) THEN CALL ctl_stop( 'STOP', 'key_qcoTest_FluxForm requires flux form advection' )
 #endif
       IF( ln_dynadv_vec ) THEN
-         ALLOCATE(     ww_U(jpi,jpj,jpk) )
+         ALLOCATE(     ww_U(jpi,jpj,jpk), STAT=istat1 )
          IF( ln_zad_Aimp ) THEN
-            ALLOCATE(     wi_U(jpi,jpj,jpk) )
+            ALLOCATE(     wi_U(jpi,jpj,jpk), STAT=istat2 )
+            istat1 = istat1 + istat2
          ENDIF
+         IF( istat1 /= 0 )   CALL ctl_stop( 'dyn_adv_init: failed to allocate ln_dynadv_vec=T required arrays' )
       ENDIF
 
       IF(lwp) THEN                    ! Print the choice

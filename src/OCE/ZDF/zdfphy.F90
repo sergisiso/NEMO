@@ -400,10 +400,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                 ***  FUNCTION zdf_phy_alloc1  ***
       !!----------------------------------------------------------------------
-     INTEGER :: istat1
-     ! Allocate ww_[T,U] arrays (declared in oce.F90) 
+     ! Allocate ww_T array (declared in oce.F90) 
      ALLOCATE(     ww_T(jpi,jpj,jpk),  STAT= zdf_phy_alloc1 )
      IF( zdf_phy_alloc1 /= 0 )   CALL ctl_warn('zdf_phy_alloc1: failed to allocate vertical velocity arrays')
+     ww => ww_T
      CALL mpp_sum ( 'zdfphy', zdf_phy_alloc1 )
    END FUNCTION zdf_phy_alloc1
 
@@ -411,10 +411,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                 ***  FUNCTION zdf_phy_alloc2  ***
       !!----------------------------------------------------------------------
-     INTEGER :: istat2
-     ! Allocate wi array (declared in oce.F90) for use with the adaptive-implicit vertical velocity option
-     ALLOCATE(     wi(jpi,jpj,jpk), wi_T(jpi,jpj,jpk), Cu_adv(jpi,jpj,jpk),  STAT= zdf_phy_alloc2 )
+     ! Allocate wi_T array (declared in oce.F90) for use with the adaptive-implicit vertical velocity option
+     ALLOCATE(     wi_T(jpi,jpj,jpk), Cu_adv(jpi,jpj,jpk),  STAT= zdf_phy_alloc2 )
      IF( zdf_phy_alloc2 /= 0 )   CALL ctl_warn('zdf_phy_alloc2: failed to allocate ln_zad_Aimp=T required arrays')
+     wi => wi_T
      CALL mpp_sum ( 'zdfphy', zdf_phy_alloc2 )
    END FUNCTION zdf_phy_alloc2
 

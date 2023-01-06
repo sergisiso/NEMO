@@ -530,9 +530,13 @@ CONTAINS
       !
    END SUBROUTINE wAimp_MLF
 
-   SUBROUTINE wAimp_RK3( kt, Kmm, puu, pvv, pww, pwi, kstage )
+   SUBROUTINE wAimp_RK3_alt( kt, Kmm, puu, pvv, pww, pwi, kstage, kalt )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wAimp  ***
+      !!  Original version now superceded by Wicker, L. J. and W. C. Skamarock (2020)
+      !!  (see wAimp_RK3, below). This version retained temporarily but not active.
+      !!  Can only be activated by manually adding an extra integer argument to calls
+      !!  to wAimp_RK3 within stprk3_stg.F90
       !!
       !! ** Purpose :   compute the Courant number and partition vertical velocity
       !!                if a proportion needs to be treated implicitly
@@ -548,6 +552,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   ! time step
       INTEGER, INTENT(in) ::   Kmm  ! time level index
+      INTEGER, INTENT(in) ::   kalt                                       !  Alternative partitioning indictor
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(out  ) ::   pwi            !  vertical velocity at Kmm (implicit part)
@@ -562,7 +567,7 @@ CONTAINS
       !
       IF( kt == nit000 ) THEN
          IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'wAimp_RK3 : Courant number-based partitioning of now vertical velocity '
+         IF(lwp) WRITE(numout,*) 'wAimp_RK3_alt : Courant number-based partitioning of now vertical velocity '
          IF(lwp) WRITE(numout,*) '~~~~~ '
          Cu_min = r_stb_thres_dyn
          Cu_cut = r_stb_cstra_dyn
@@ -655,9 +660,9 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_stop('wAimp')
       !
-   END SUBROUTINE wAimp_RK3
+   END SUBROUTINE wAimp_RK3_alt
 
-   SUBROUTINE wAimp_RK3_alt( kt, Kmm, puu, pvv, pww, pwi, kstage, kalt )
+   SUBROUTINE wAimp_RK3( kt, Kmm, puu, pvv, pww, pwi, kstage )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wAimp  ***
       !!
@@ -684,15 +689,15 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(out  ) ::   pwi            !  vertical velocity at Kmm (implicit part)
       INTEGER, INTENT(in) ::   kstage                                     !  RK3 stage indictor
-      INTEGER, INTENT(in) ::   kalt                                       !  Alternative partitioning indictor
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp)             ::   zcff, z1_e3t, z1_e3w, zdt, zCu_h, zCu_v   !  local scalars
-      REAL(wp)             ::   zCu_min, zCu_max, zCu_cut                 !  local scalars
+      REAL(wp)             ::   zCu_min, zCu_max, zCu_cut, zr_Cu_max_h    !  local scalars
       REAL(wp) , PARAMETER ::   Cu_min_v = 0.8_wp           ! minimum Courant number for transitioning
-      REAL(wp) , PARAMETER ::   Cu_max_v = 0.9_wp           ! maximum allowable vertical Courant number
+      !REAL(wp) , PARAMETER ::   Cu_max_v = 0.9_wp           ! maximum allowable vertical Courant number
       !REAL(wp) , PARAMETER ::   Cu_max_h = 0.9_wp           ! maximum allowable horizontal Courant number
-      REAL(wp) , PARAMETER ::   Cu_max_h = 4.0_wp           ! maximum allowable horizontal Courant number
+      REAL(wp) , PARAMETER ::   Cu_max_v = 1.1_wp           ! maximum allowable vertical Courant number
+      REAL(wp) , PARAMETER ::   Cu_max_h = 1.1_wp           ! maximum allowable horizontal Courant number
       CHARACTER(LEN=10) :: clmname
       !!----------------------------------------------------------------------
       !
@@ -700,18 +705,18 @@ CONTAINS
       !
       IF( kt == nit000 ) THEN
          IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'wAimp_RK3_alt : Courant number-based partitioning of now vertical velocity '
+         IF(lwp) WRITE(numout,*) 'wAimp_RK3 : Courant number-based partitioning of now vertical velocity '
          IF(lwp) WRITE(numout,*) '~~~~~ '
          Cu_min = r_stb_thres_dyn
          Cu_cut = r_stb_cstra_dyn
-         Cu_mid = 0.5_wp*(Cu_cut + Cu_min)
-         Fcu    = (Cu_cut*Cu_cut-Cu_min*Cu_min)
-         IF(lwp) WRITE(numout,*) 'Partitioning parameters: ', Cu_min, Cu_cut, Cu_mid, Fcu
+         IF(lwp) WRITE(numout,'(3(a,F10.4,1x))') 'Partitioning parameters: Cu_min_v= ', Cu_min_v, &
+         &                                       'Cu_max_v= ', Cu_max_v,  'Cu_max_h= ', Cu_max_h
       ENDIF
       !
       ! Calculate Courant numbers
       !
-      zdt = 1._wp * rn_Dt                    ! RK3: 3rd stage timestep
+      zdt = rn_Dt                    ! RK3: 3rd stage timestep
+      zr_Cu_max_h = 1._wp/Cu_max_h
       !
       ! Sort of horizontal Courant number:
       ! JC: Is it still worth saving into a 3d array ? I don't believe.
@@ -739,18 +744,18 @@ CONTAINS
       !
       ! JC: Warning: this is the horizontal Courant number this time
       ! not the total as in previous versions of the scheme.
-      CALL iom_put("Courant",Cu_adv)
       !
-      IF( iom_use("Aimp_Cmx") )   THEN
+      IF( iom_use("Aimp_Cmx_h") )   THEN
          Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values to use as temporary store
          Cu_adv(:,:,jpk) = MAXVAL(Cu_adv, DIM=3)        ! Use seabed points to hold temporary maximums
-         CALL iom_put('Aimp_Cmx',Cu_adv(:,:,jpk))       ! to record activation locations at each stage
+         CALL iom_put('Aimp_Cmx_h',Cu_adv(:,:,jpk))     ! o/p column maximum horizontal Courant number
          Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values for possible o/p of Cu_adv in stpctl
       ENDIF
       !
       pwi(:,:,:) = 0.0_wp
       DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 2, -1 )
          !
+         zcff = Cu_adv(ji,jj,jpk)
          IF ( pww(ji,jj,jk) > 0._wp ) THEN
             zCu_h =  Cu_adv(ji,jj,jk  )
          ELSE
@@ -759,18 +764,19 @@ CONTAINS
          ! Vertical Courant Number:
          z1_e3w = 1._wp / e3w(ji,jj,jk,Kmm)
          zCu_v = zdt * z1_e3w * ABS (pww(ji,jj,jk))
+         Cu_adv(ji,jj,jpk) = MAX( zCu_v, zcff )
          !
-         zCu_min = Cu_min_v * (1._wp - zCu_h / Cu_max_h)
-         zCu_max = Cu_max_v * (1._wp - zCu_h / Cu_max_h)
+         zCu_min = Cu_min_v * (1._wp - zCu_h * zr_Cu_max_h)
+         zCu_max = Cu_max_v * (1._wp - zCu_h * zr_Cu_max_h)
          zCu_cut = 2._wp * zCu_max - zCu_min
          !
          IF( zCu_v <= zCu_min ) THEN            !<-- Fully explicit
             zcff = 0._wp
          ELSEIF( zCu_v < zCu_cut ) THEN         !<-- Mixed explicit
-            zcff = ( zCu_v - zCu_min )**2
-            zcff = zcff / (4._wp * zCu_max * (zCu_max - zCu_min))
+            zcff = 1.0_wp / ( zCu_v - zCu_min )**2
+            zcff = 1.0_wp / ( 1.0_wp + 4._wp * zCu_max * (zCu_max - zCu_min) * zcff )
          ELSE                                   !<-- Mostly implicit
-            zcff = ( zCu_v - zCu_max ) / zCu_max
+            zcff = ( zCu_v - zCu_max ) / zCu_v
          ENDIF
          zcff = MIN(1._wp, zcff)
          zcff = MAX(0._wp, zcff)
@@ -784,14 +790,16 @@ CONTAINS
       Cu_adv(:,:,1) = 0._wp
       !
       IF( kstage == 3 ) CALL iom_put("wimp",pwi)
+      CALL iom_put("Aimp_Cmx_v", Cu_adv(:,:,jpk))      ! o/p column maximum vertical Courant number
+      Cu_adv(:,:,jpk) = 0._wp
       IF( iom_use("Aimp_loc") )   THEN
-         WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,1) = 1._wp
-         CALL iom_put("Aimp_loc",Cu_adv(:,:,1))
-         Cu_adv(:,:,1) = 0._wp
+         WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,jpk) = 1._wp
+         CALL iom_put("Aimp_loc",Cu_adv(:,:,jpk))      ! o/p active Aimp locations
+         Cu_adv(:,:,jpk) = 0._wp
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('wAimp')
       !
-   END SUBROUTINE wAimp_RK3_alt
+   END SUBROUTINE wAimp_RK3
    !!======================================================================
 END MODULE sshwzv

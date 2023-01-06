@@ -210,11 +210,11 @@ CONTAINS
          IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww_U, wi_U, kstg )   ! partition at stage 3 only
          !
          !                                         ! use ww cross-level velocity consistent with uu/vv at Kmm
-         IF( ln_zad_Aimp ) wi = wi_U
-         ww = ww_U
+         IF( ln_zad_Aimp ) wi => wi_U
+         ww => ww_U
       ELSE                                         ! use ww cross-level velocity consistent with zaU/zaV for momentum
-         IF( ln_zad_Aimp ) wi = wi_T
-         ww = ww_T
+         IF( ln_zad_Aimp ) wi => wi_T
+         ww => ww_T
       ENDIF
       !
 
@@ -259,8 +259,8 @@ CONTAINS
       !
       !                                            ! Advective velocity needed for tracers advection - already in use if ln_dynadv_vec=F
       IF( ln_dynadv_vec )  THEN
-         ww(:,:,:) = ww_T(:,:,:)
-         IF( ln_zad_Aimp ) wi(:,:,:) = wi_T(:,:,:)
+         ww => ww_T
+         IF( ln_zad_Aimp ) wi => wi_T
       ENDIF
       !
 # if defined key_top
@@ -431,11 +431,11 @@ CONTAINS
          !                                      !==  DYN & TRA time integration + ZDF  ==!   ∆t = rDt
          !
          IF( ln_dynadv_vec ) THEN 
-                             ww = ww_U
-                             IF( ln_zad_Aimp ) wi = wi_U
+                             ww => ww_U
+                             IF( ln_zad_Aimp ) wi => wi_U
          ENDIF 
                             CALL dyn_zdf( kstp, Kbb, Kmm, Krhs, uu, vv, Kaa  )  ! vertical diffusion and time integration
-         IF( ln_dynadv_vec .AND. ln_zad_Aimp )  wi = wi_T
+         IF( ln_dynadv_vec .AND. ln_zad_Aimp )  wi => wi_T
                             CALL tra_zdf( kstp, Kbb, Kmm, Krhs, ts    , Kaa  )  ! vertical mixing and after tracer fields
          IF( ln_zdfnpc  )   CALL tra_npc( kstp,      Kmm, Krhs, ts    , Kaa  )  ! update after fields by non-penetrative convection
          !
