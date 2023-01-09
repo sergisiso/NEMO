@@ -34,7 +34,7 @@ set -o posix
 #
 # Make the WORK directory:
 #
-# - Create line in NEW_CONF/WORK
+# - Create line in CUR_CONF/WORK
 # - Use specified sub-directories previously
 # - OCE has to be done first !!!
 #
@@ -63,39 +63,37 @@ set -o posix
 #   * creation
 #
 #-
-declare ZSRC=${@}
-ZCONF=${NEMO_TDIR}/${NEW_CONF}
-ZTAB=${NEM_SUBDIR[@]}
-declare NDIR=${#ZTAB[@]}
+ZTAB=( $1 )
+ZSRC=( $2 )
+ZCONF=$3
+NDIR=${#ZTAB[@]}
 
+echo ''
 echo 'Creating '${ZCONF}'/WORK = '${ZTAB[*]}' for '${ZCONF##*/}
+echo ''
 
 [ ! -d ${ZCONF}/MY_SRC ] && \mkdir -p ${ZCONF}/MY_SRC
+[ ! -d ${ZCONF}/BLD    ] && \mkdir -p ${ZCONF}/BLD
 [   -d ${ZCONF}/WORK   ] || \mkdir -p ${ZCONF}/WORK
 
 for comp in ${ZTAB[*]}; do
-	find ${NEMO_DIR}/$comp -name \*.[Ffh]90 -exec ln -sf {} ${ZCONF}/WORK \;
+    find $comp -name \*.[Ffh]90 -exec ln -sf {} ${ZCONF}/WORK \;
 done
 
-cd ${ZCONF}
-for ZDIR in ${ZSRC[@]}; do
-    if [ -d ${ZDIR} ] ; then
+for ZDIR in ${ZSRC[*]}; do
+    if [ -d ${ZCONF}/${ZDIR} ] ; then
+        d=${ZCONF}/${ZDIR}
+    elif [ -d ${ZDIR} ] ; then
         d=${ZDIR}
-    else
-        d='MY_SRC'
-        echo 'External directory for MY_SRC unspecified or does not exist. Using default.'
     fi
 
     for ff in `(find ${d} -name \*.[Ffh]90 2>/dev/null)`
     do
         if [ "$ff" != "${ff#/}" ]; then
-          ln -sf $ff WORK/.
+          ln -sf $ff ${ZCONF}/WORK/.
         else
-          ln -sf ../$ff WORK/.
+          ln -sf ../$ff ${ZCONF}/WORK/.
         fi
     done
     echo ${d}' content is linked to '${ZCONF}/WORK
 done
-cd -
-
-unset -v ZCONF ZTAB NDIR
