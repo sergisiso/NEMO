@@ -57,7 +57,7 @@
 #
 # REVISION_NUMBER(or DATE)      : revision number by svn info, if problems with svn date is taken
 #
-# TEST_NAME                     : set in sette.sh for each configuration to be tested (directory TEST_NAME is created under ${NEW_CONF} directory )
+# TEST_NAME                     : set in sette.sh for each configuration to be tested (directory TEST_NAME is created under ${config} directory )
 #
 # EXAMPLES
 # ========
@@ -99,9 +99,6 @@ sync_config() {
 
       echo '-------------------------------------------------------------------------------'
       echo '                    SOURCE AND CONFIG FILES SYNCHRONISATION                    '
-      echo ''
-      echo "configuration $lCFG/MY_SRC will be synchronised with $lREF/MY_SRC"
-      echo ''
       # synchronise MY_SRC if $lCFG directory exist
       if [ -d $lREF/MY_SRC ] && [ -d $lCFG ] ; then
 
@@ -124,20 +121,31 @@ sync_config() {
          fi
 
          # synchronisation $lREF/MY_SRC directory (and delete file in target location if needed)
+         echo ''
+         echo "configuration $lCFG/MY_SRC will be synchronised with $lREF/MY_SRC"
+         echo ''
          rsync -a --delete $lREF/MY_SRC/ $lCFG/MY_SRC
 
          # rsync keep preserve the modification time stamp.
          # To avoid case where a file in MY_SRC is replace by an older file, we touch the file
          touch --no-create $lCFG/MY_SRC/*
+      else
+          echo ''
+          echo "configuration $lCFG/MY_SRC not synchronised with $lREF/MY_SRC"
+          echo ''
       fi
 
-      echo ''
-      echo "configuration $lCFG/EXP00 will be synchronised with $lREF/EXPREF"
-      echo "(links are skipped)"
-      echo ''
       # synchronize EXPREF
       if [ -d $lREF/EXPREF ] && [ -d $lCFG/EXP00 ] ; then
-         rsync -a --no-links $lREF/EXPREF/ $lCFG/EXP00/.
+          echo ''
+          echo "configuration $lCFG/EXP00 will be synchronised with $lREF/EXPREF"
+          echo "(links are skipped)"
+          echo ''
+          rsync -a --no-links $lREF/EXPREF/ $lCFG/EXP00/.
+      else
+          echo ''
+          echo "configuration $lCFG/EXP00 not synchronised with $lREF/EXPREF"
+          echo ''
       fi
       echo '-------------------------------------------------------------------------------'
    fi
@@ -158,7 +166,6 @@ clean_config() {
         echo ''
         echo "$(basename $lCFG) configuration has been cleaned"
       else
-        echo ''
         echo "$(basename $lCFG) configuration does not exist; we skip cleaning"
       fi
       echo ''
@@ -190,13 +197,11 @@ set_valid_dir () {
     if [[ $localchanges > 0 ]] ; then
      REVISION_NB=${REVISION_NB}+
     fi
-    # remove last _ST followed by zero or more alphanumeric characters
-    NEW_CONF1=$( echo $NEW_CONF | sed -e 's/_ST\([0-9a-zA-Z]*\)$//' )
     CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
     if [[ -n "${NEMO_DEBUG}" && ! ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
-      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}_DEBUG/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}
+      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}_DEBUG/${REVISION_NB}/${config}/${TEST_NAME}
     else
-      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}/${REVISION_NB}/${NEW_CONF1}/${TEST_NAME}
+      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}/${REVISION_NB}/${config}/${TEST_NAME}
     fi
 }
 
@@ -329,7 +334,7 @@ post_test_tidyup () {
 #  EXE_DIR
 #  CONFIG_DIR
 #  NEMO_VALIDATION_DIR
-#  NEW_CONF
+#  config
 #  CMP_NAM
 #  TEST_NAME
 echo "SETTE directory is : ${SETTE_DIR}"
@@ -337,7 +342,7 @@ echo "INPUT directory is : ${INPUT_DIR}"
 echo "EXECUTION directory is : ${EXE_DIR}"
 echo "CONFIG directory is : ${CONFIG_DIR}"
 echo "VALIDATION directory is : ${NEMO_VALID}"
-echo "NEW CONFIGURATION is : ${NEW_CONF}"
+echo "CONFIGURATION is : ${config}"
 echo "COMPILER is : ${CMP_NAM}"
 echo "TEST is : ${TEST_NAME}"
 echo "TOOLS directory is : ${TOOLS_DIR}"

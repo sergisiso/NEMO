@@ -60,22 +60,13 @@ set -o posix
 #
 #-
 
-echo "Removing keys in : ${NEW_CONF}"
+echo "Removing keys ${2} in : ${1}"
 
-for i in ${list_del_key} ; do
-
-     if [ "$(echo ${i} | grep -c key_nproc )" -ne 0                                      ]; then
-        sed -e "s/key_nproc[ij]=.* //" ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm \
-	    >  ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp
-        mv ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
-        echo " "
-     elif [ "$(cat ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm | grep -c "$i" )" -ne 0 ]; then
-         sed -e "s/\b${i}\b//" ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm \
-	     >  ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp
-         mv ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
-         echo "deleted key $i in ${NEW_CONF}"
+for i in ${2} ; do
+     if [ "$(echo ${i} | grep -c key_nproc )" -gt 0 ]; then
+        sed -i "s/key_nproc[ij]=.* //" ${1}/cpp_$(basename ${1}).fcm
+     elif [ "$(cat ${1}/cpp_$(basename ${1}).fcm | grep -c "$i")" -gt 0 ]; then
+         sed -i "s/\b${i}\b//" ${1}/cpp_$(basename ${1}).fcm
+         echo "deleted key $i in $(basename ${1})"
      fi
-
 done
-
-unset -v list_del_key

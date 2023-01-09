@@ -101,10 +101,10 @@ NEMO_VALID=$7
 #
 echo "date: `date`" >> ${SETTE_DIR}/output.sette
 echo "" >> ${SETTE_DIR}/output.sette
-echo "running config: ${NEW_CONF}" >> ${SETTE_DIR}/output.sette
+echo "running config: ${SETTE_CONFIG}" >> ${SETTE_DIR}/output.sette
 echo "" >> ${SETTE_DIR}/output.sette
 echo "list of cpp_keys: " >> ${SETTE_DIR}/output.sette
-echo "`more ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm`" >> ${SETTE_DIR}/output.sette
+echo "`more ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/cpp_${SETTE_CONFIG}.fcm`" >> ${SETTE_DIR}/output.sette
 echo "" >> ${SETTE_DIR}/output.sette
 echo "compiling with: ${CMP_NAM}" >> ${SETTE_DIR}/output.sette
 echo "" >> ${SETTE_DIR}/output.sette
@@ -269,10 +269,10 @@ fi
              -e"s/NXIOPROCS/${NXIO_PROC}/" \
              -e"s:DEF_SETTE_DIR:${SETTE_DIR}:" -e"s:DEF_INPUT_DIR:${INPUT_DIR}:" \
              -e"s:DEF_EXE_DIR:${EXE_DIR}:" \
-             -e"s:DEF_CONFIG_DIR:${NEMO_TDIR}:" \
+             -e"s:DEF_CONFIG_DIR:${CMP_DIR:-${CONFIG_DIR0}}:" \
              -e"s:DEF_TOOLS_DIR:${TOOLS_DIR}:" \
              -e"s:MPI_FLAG:${MPI_FLAG}:" \
-             -e"s:DEF_NEMO_VALIDATION:${NEMO_VALID}:" -e"s:DEF_NEW_CONF:${NEW_CONF}:" \
+             -e"s:DEF_NEMO_VALIDATION:${NEMO_VALID}:" -e"s:DEF_NEW_CONF:${SETTE_CONFIG}:" \
              -e"s:DEF_CMP_NAM:${CMP_NAM}:" -e"s:DEF_TEST_NAME:${TEST_NAME}:" > run_sette_test.job
 
         case ${COMPILER} in

@@ -130,10 +130,10 @@ cp BATCH_TEMPLATE/${JOB_PREFIX}-${COMPILER} job_batch_template || exit
 # ORCA2_ICE_PISCES  :
 # ORCA2_OFF_PISCES  :
 # AMM12             :
-# SAS               : aka ORCA2_SAS_ICE
+# ORCA2_SAS_ICE     :
 # ORCA2_ICE_OBS     :
-# AGRIF             : AGRIF_DEMO: test AGRIF in a double zoom configuration in the nordic seas + 1 zoom in the eq. Pacific and
-#                     AGRIF_DEMO_NOAGRIF: check that key_agrif without zoom = no key_agrif
+# AGRIF_DEMO        : test AGRIF in a double zoom configuration in the nordic seas + 1 zoom in the eq. Pacific and
+# AGRIF_DEMO_NOAGRIF: check that key_agrif without zoom = no key_agrif
 # WED025            : regional configuration including sea-ice and tides (Spitzbergen)
 
 . ./all_functions.sh
@@ -159,7 +159,7 @@ if [ ${config} == "GYRE_PISCES" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # GYRE uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "GYRE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for GYRE_PISCES
@@ -305,7 +305,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for ORCA2_ICE_PISCES
@@ -593,7 +593,7 @@ if [ ${config} == "ORCA2_OFF_PISCES" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ORCA2_OFF_PISCES uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "ORCA2_OFF_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests for ORCA2_OFF_PISCES
@@ -769,7 +769,7 @@ if [ ${config} == "AMM12" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "AMM12" ] && [ ${DO_RESTART} == "1" ] ;  then
     ## Restartability tests for AMM12
@@ -888,7 +888,7 @@ fi
 # ---------
 # ORCA2_SAS_ICE
 # ---------
-if [ ${config} == "SAS" ] ;  then
+if [ ${config} == "ORCA2_SAS_ICE" ] ;  then
     SETTE_CONFIG="ORCA2_SAS_ICE"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -904,9 +904,9 @@ if [ ${config} == "SAS" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ORCA2_SAS_ICE uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
+if [ ${config} == "ORCA2_SAS_ICE" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
@@ -969,7 +969,7 @@ if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "SAS" ] && [ ${DO_REPRO} == "1" ] ;  then
+if [ ${config} == "ORCA2_SAS_ICE" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -1051,7 +1051,7 @@ if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}"
 fi
 if [ ${config} == "ORCA2_ICE_OBS" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Reproducibility tests
@@ -1155,9 +1155,9 @@ if [ ${config} == "ORCA2_ICE_OBS" ] && [ ${DO_RESTART} == "1" ] ;  then
 fi
 
 # ------------
-# AGRIF ICE
+# AGRIF_DEMO
 # -----------
-if [ ${config} == "AGRIF" ] ;  then
+if [ ${config} == "AGRIF_DEMO" ] ;  then
     SETTE_CONFIG="AGRIF_DEMO"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -1175,9 +1175,9 @@ if [ ${config} == "AGRIF" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
+if [ ${config} == "AGRIF_DEMO" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
@@ -1325,7 +1325,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
+if [ ${config} == "AGRIF_DEMO" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
     export TEST_NAME="REPRO_2_8"
     cd ${MAIN_DIR}
@@ -1438,7 +1438,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
+if [ ${config} == "AGRIF_DEMO" ] && [ ${DO_CORRUPT} == "1" ] ;  then
 ## test code corruption with AGRIF (phase 1) ==> Compile with key_agrif but run with no zoom
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -1481,7 +1481,7 @@ fi
 
 
 ## test code corruption with AGRIF (phase 2) ==> Compile without key_agrif (to be compared with AGRIF_DEMO_ST/ORCA2)
-if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
+if [ ${config} == "AGRIF_DEMO" ] && [ ${DO_CORRUPT} == "1" ] ;  then
     SETTE_CONFIG="AGRIF_DEMO_NOAGRIF"${SETTE_STG}
     export TEST_NAME="ORCA2"
     cd ${MAIN_DIR}
@@ -1490,7 +1490,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "key_agrif ${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "key_agrif ${DEL_KEYS}"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
     set_valid_dir
@@ -1538,7 +1538,7 @@ if [ ${config} == "WED025" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # WED025 uses ln_hpg_isf so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
 if [ ${config} == "WED025" ] && [ ${DO_RESTART} == "1" ] ;  then
 ## Restartability tests

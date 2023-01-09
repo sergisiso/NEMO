@@ -1,5 +1,6 @@
 #!/bin/sh
 #set -x
+
 # initialise user dependent variable
 export cmd=$0 ; export cmdargs=$@
 SETTE_DIR=$(cd $(dirname "$0"); pwd)
@@ -82,8 +83,6 @@ if [ $# -gt 0 ]; then
            echo "-s: MY_SRC and EXP00 in ${SETTE_TEST_CONFIGS[@]} will be synchronised with the MY_SRC and EXPREF from the reference configuration"
            echo "";;
         n) OPTSTR="$OPTARG"
-           OPTSTR="${OPTSTR/ORCA2_SAS_ICE/SAS}"              # Permit either shortened (expected) or full name for SAS
-           OPTSTR="${OPTSTR/AGRIF_DEMO/AGRIF}"               # Permit either shortened (expected) or full name for AGRIF
            export SETTE_TEST_CONFIGS=(${OPTSTR})
            echo "=================================="
            if [ ${#SETTE_TEST_CONFIGS[@]} -gt 1 ]; then
@@ -216,8 +215,6 @@ if [ ! -d $NEMO_VALIDATION_DIR/$SETTE_SUB_VAL ] && [ ${dry_run} -eq 0 ] ; then
 fi
 export NEMO_VALIDATION_DIR=$NEMO_VALIDATION_DIR/$SETTE_SUB_VAL
 
-TEST_CONFIGS="${TEST_CONFIGS/ORCA2_SAS_ICE/SAS}"   # Shortening of 'ORCA2_SAS_ICE' to 'SAS'
-TEST_CONFIGS="${TEST_CONFIGS/AGRIF_DEMO/AGRIF}"    # Shortening of 'AGRIF_DEMO' to 'AGRIF'
 if [ ${#SETTE_TEST_CONFIGS[@]} -eq 0 ]; then
    echo "=================================="
    echo "Configurations $TEST_CONFIGS will be tested if they are available"
@@ -287,7 +284,7 @@ while [[ $NRUN -ne 0 && $nit -le 1080 ]]; do
       printf "%-3d %s\r" $NRUN 'nemo_sette runs still in queue or running ...';
    else
       printf "%-50s\n" " "
-      . ./sette_rpt.sh ${NEMO_DEBUG}
+      ./sette_rpt.sh ${NEMO_DEBUG} ${SETTE_SUB_VAL:+-v ${SETTE_SUB_VAL}}
       exit
    fi
    sleep 10

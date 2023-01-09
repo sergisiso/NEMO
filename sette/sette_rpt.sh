@@ -8,7 +8,6 @@
 #########################################################################################
 ######################### Start of function definitions #################################
 ##
-
 function get_dorv() {
   if [ $lastchange == 'old' ] ; then 
     dorv=`ls -1rt $vdir/$mach/ | tail -1l `
@@ -475,8 +474,6 @@ function identictest(){
   MAIN_DIR=$(dirname $SETTE_DIR)
   . ./param.cfg
   TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]:-${TEST_CONFIGS[@]}}    # Workaround for some dated param.cfgs files
-  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/SAS /ORCA2_SAS_ICE }    # Workaround for some dated param.cfgs files
-  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/AGRIF /AGRIF_DEMO }     # Workaround for some dated param.cfgs files
   if [ -z $USER_INPUT ] ; then USER_INPUT='yes' ; fi        # Default: yes => request user input on decisions.
                                                             # (but may br inherited/imported from sette.sh)
 

@@ -62,16 +62,14 @@ set -o posix
 #   * creation
 #
 #-
- echo "Adding keys in : ${NEW_CONF}" 
- for i in ${list_add_key} ; do
-	if [ "$(cat ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm | grep -c "\<$i\>" )" -ne 0 ] ; then
- 	   echo "key $i already present in cpp_${NEW_CONF}.fcm" 
-	else
-	   sed -e "s/$/ ${i}/"  ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm >  ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp
- 	   mv ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm.tmp   ${NEMO_TDIR}/${NEW_CONF}/cpp_${NEW_CONF}.fcm
- 	   echo "added key $i in ${NEW_CONF}" 
-	fi
- done
- 
- unset -v list_add_key
 
+echo "Adding keys ${2} in : ${1}"
+
+for i in ${2} ; do
+    if [ "$(cat ${1}/cpp_$(basename ${1}).fcm | grep -c "\<$i\>" )" -ne 0 ] ; then
+        echo "key $i already present in cpp_$(basename ${1}).fcm"
+    else
+        sed -i "s/$/ ${i}/" ${1}/cpp_$(basename ${1}).fcm
+        echo "added key $i in $(basename ${1})"
+    fi
+done

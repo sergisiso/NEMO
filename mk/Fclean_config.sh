@@ -63,31 +63,23 @@ set -o posix
 #
 #-
 
-NEW_CONF=${x_n}
+CONF=$(basename ${1})
+CONFIG_DIR=$(dirname ${1})
 
-if [ ${#NEW_CONF} -eq 0 ] ; then
+if [ ${#CONF} -eq 0 ] ; then
 	echo " "
 	echo "No configuration specified, please use makenemo -n CONFIG clean_config "
 else
 	echo " "
-	echo "Are you sure that you want to remove this directory $NEW_CONF? [y/n] "
+	echo "Are you sure that you want to remove this directory $CONF? [y/n] "
 	read answer
 	answer=`echo $answer | sed 's/^[y].*$/y/'`
 
 	if [  -z "$answer" -o "x$answer" = "xy" ]; then
 
-		## testing if configuration exists
-		if [[ ! $( grep "${NEW_CONF} " */work_cfgs.txt ) ]] ; then
-			echo "The configuration ${NEW_CONF} does not exist in file work_cfgs.txt"     
-			echo "No removing configuration"
-			echo " "
-		else
-			CONFIG_DIR=${MAIN_DIR}/$( grep -l "${NEW_CONF} " */work_cfgs.txt | cut -d/ -f1 )
-			rm -rf ${CONFIG_DIR}/${NEW_CONF}
-			sed -e "/${NEW_CONF} /d"  ${CONFIG_DIR}/work_cfgs.txt >  ${CONFIG_DIR}/work_cfgs.tmp
-			mv  ${CONFIG_DIR}/work_cfgs.tmp  ${CONFIG_DIR}/work_cfgs.txt
-			echo "${NEW_CONF} configuration REMOVED" 
-		fi
+		rm -rf ${CONFIG_DIR}/${CONF}
+		sed -i "/^${CONF} /d"  ${CONFIG_DIR}/work_cfgs.txt >  ${CONFIG_DIR}/work_cfgs.tmp
+		echo "${CONF} configuration REMOVED" 
 
 	else
 		echo " "
@@ -95,5 +87,3 @@ else
 	fi
 
 fi 
-
-unset -v answer

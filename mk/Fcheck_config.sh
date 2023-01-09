@@ -69,18 +69,18 @@ declare -a ZTAB
 if [ ${#2} -eq 0 ]; then
    tail -1  ${CONFIG_DIR}/$1	> ${CONFIG_DIR}/cfg.tmp
    read -a ZTAB < ${CONFIG_DIR}/cfg.tmp
-   NEW_CONF=${ZTAB[0]} ; TAB=( ${ZTAB[@]:1} )
+   CUR_CONF=${ZTAB[0]} ; TAB=( ${ZTAB[@]:1} )
    \rm ${CONFIG_DIR}/cfg.tmp
    echo "Warning !!!"
    echo "No configuration specified"
    echo "Use makenemo -n MYCONFIG"
    echo "or  makenemo -h for help"
-   echo "Using default configuration : ${NEW_CONF}"
+   echo "Using default configuration : ${CUR_CONF}"
 fi
 if [ "$1" == cfg.txt ]; then
-   cat ${CONFIG_DIR}/$1 | grep "${NEW_CONF} " > ${CONFIG_DIR}/cfg.tmp
+   cat ${CONFIG_DIR}/$1 | grep "${CUR_CONF} " > ${CONFIG_DIR}/cfg.tmp
    read -a ZTAB < ${CONFIG_DIR}/cfg.tmp
-   NEW_CONF=${ZTAB[0]} ; TAB=( ${ZTAB[@]:1} )
+   CUR_CONF=${ZTAB[0]} ; TAB=( ${ZTAB[@]:1} )
    \rm ${CONFIG_DIR}/cfg.tmp
 fi
 
