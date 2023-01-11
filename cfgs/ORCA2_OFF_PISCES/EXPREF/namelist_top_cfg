@@ -114,7 +114,7 @@
    sn_trcsbc(14) = 'dust.orca.new'   ,       -1          , 'dustfer'     ,  .true.      , .true. , 'yearly'  , ''       , ''    , ''
    sn_trcsbc(23) = 'ndeposition.orca',      -12          , 'ndep'        ,  .false.     , .true. , 'yearly'  , ''       , ''    , ''
    rn_trsfac(5)  = 3.774194e-02     !  (  1E-3 / 31. * 117 )
-   rn_trsfac(7)  = 9.572954e-03     !  ( 8.8   / 28.1 )
+   rn_trsfac(7)  = 9.572954e-03     !  (  0.269 / 28.1 )
    rn_trsfac(14) = 6.2667860e-04    !  (  0.035 / 55.85 )
    rn_trsfac(23) = 5.2232143e-01    !  ( From kgN m-2 s-1 to molC l-1 ====> zfact = 7.3125/14 )
    rn_sbc_time   = 1.               !  Time scaling factor for SBC and CBC data (seconds in a day)
