@@ -836,8 +836,8 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )             ! update bottom with good values
          zstm(ji,jj,mbkt(ji,jj)+1) = zstm(ji,jj,mbkt(ji,jj))
       END_2D
-      zstt(:,:,  1) = wmask(A2D(0),  1)  ! default value not needed but avoid a bug when looking for undefined values (-fpe0)
-      zstt(:,:,jpk) = wmask(A2D(0),jpk)  ! default value not needed but avoid a bug when looking for undefined values (-fpe0)
+      zstt(:,:,  1) = wmask(T2D(0),  1)  ! default value not needed but avoid a bug when looking for undefined values (-fpe0)
+      zstt(:,:,jpk) = wmask(T2D(0),jpk)  ! default value not needed but avoid a bug when looking for undefined values (-fpe0)
 
 !!gm should be done for ISF (top boundary cond.)
 !!gm so, totally new staff needed!!gm
