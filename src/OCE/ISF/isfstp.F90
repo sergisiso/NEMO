@@ -151,11 +151,11 @@ CONTAINS
             &                     risfcpl_ssh, 'T', 1.0_wp, risfcpl_cons_ssh, 'T', 1.0_wp ) ! needed in dynspg_ts, stp2d
          CALL lbc_lnk( 'isf_stp', risfcpl_vol, 'T', 1.0_wp )                                ! needed in dynspg_ts, stp2d, sshwzv, dynatf
       ELSE
-         CALL lbc_lnk( 'isf_stp', fwfisf_par  , 'T', 1.0_wp, fwfisf_cav  , 'T', 1.0_wp, &
+         CALL lbc_lnk( 'isf_stp', fwfisf_par  , 'T', 1.0_wp, fwfisf_cav  , 'T', 1.0_wp  &
 #if ! defined key_RK3
-            &                     fwfisf_par_b, 'T', 1.0_wp, fwfisf_cav_b, 'T', 1.0_wp  &
-            &        )
-#endif         
+            &                   , fwfisf_par_b, 'T', 1.0_wp, fwfisf_cav_b, 'T', 1.0_wp  &
+#endif
+            &        )     
       ENDIF
       !
       !==================
