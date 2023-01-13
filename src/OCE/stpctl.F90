@@ -135,7 +135,7 @@ CONTAINS
            IF( l0oce_T ) j0oce(1) = 1
            IF( l0oce_U ) j0oce(2) = 1
            IF( l0oce_V ) j0oce(3) = 1
-           CALL mpp_max( "stpctl", j0oce )                                           ! max over the global domain
+           CALL mpp_min( "stpctl", j0oce )                                           ! min over the global domain (only 1 if no-sea anywhere)
          ENDIF
       ENDIF
       !

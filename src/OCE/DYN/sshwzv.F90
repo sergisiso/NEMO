@@ -465,18 +465,18 @@ CONTAINS
       ! Calculate Courant numbers
       !
       zdt = 2._wp * rn_Dt                    ! MLF: 2*rn_Dt and not rDt (for restartability)
-         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
-            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-            Cu_adv(ji,jj,jk) =   zdt *                                                      &
-               &  ( ( MAX( ww(ji,jj,jk) , 0._wp ) - MIN( ww(ji,jj,jk+1) , 0._wp ) )         &
-               &                             + ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*uu(ji  ,jj,jk,Kmm), 0._wp ) -   &
-               &                                 MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*uu(ji-1,jj,jk,Kmm), 0._wp ) )   &
-               &                               * r1_e1e2t(ji,jj)                                                 &
-               &                             + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*vv(ji,jj  ,jk,Kmm), 0._wp ) -   &
-               &                                 MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*vv(ji,jj-1,jk,Kmm), 0._wp ) )   &
-               &                               * r1_e1e2t(ji,jj)                                                 &
-               &                             ) * z1_e3t
-         END_3D
+      DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+         z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
+         Cu_adv(ji,jj,jk) =   zdt *                                                      &
+            &  ( ( MAX( ww(ji,jj,jk) , 0._wp ) - MIN( ww(ji,jj,jk+1) , 0._wp ) )         &
+            &                             + ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*uu(ji  ,jj,jk,Kmm), 0._wp ) -   &
+            &                                 MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*uu(ji-1,jj,jk,Kmm), 0._wp ) )   &
+            &                               * r1_e1e2t(ji,jj)                                                 &
+            &                             + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*vv(ji,jj  ,jk,Kmm), 0._wp ) -   &
+            &                                 MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*vv(ji,jj-1,jk,Kmm), 0._wp ) )   &
+            &                               * r1_e1e2t(ji,jj)                                                 &
+            &                             ) * z1_e3t
+      END_3D
       CALL iom_put("Courant",Cu_adv)
       IF( iom_use("Aimp_Cmx") )   THEN
          Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values to use as temporary store
@@ -580,37 +580,18 @@ CONTAINS
       !
       zdt = 1._wp * rn_Dt                    ! RK3: 3rd stage timestep
       !
-      IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN
-         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
-            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-            Cu_adv(ji,jj,jk) =   zdt *                                                         &
-               &  ( ( MAX( pww(ji,jj,jk) , 0._wp ) - MIN( pww(ji,jj,jk+1) , 0._wp ) )            &
-               &  + ( MAX( e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm)                                  &
-               &                        * puu (ji  ,jj,jk) + un_td(ji  ,jj,jk), 0._wp ) -   &
-               &      MIN( e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm)                                  &
-               &                        * puu (ji-1,jj,jk) + un_td(ji-1,jj,jk), 0._wp ) )   &
-               &                               * r1_e1e2t(ji,jj)                                                                     &
-               &  + ( MAX( e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm)                                  &
-               &                        * pvv (ji,jj  ,jk) + vn_td(ji,jj  ,jk), 0._wp ) -   &
-               &      MIN( e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm)                                  &
-               &                        * pvv (ji,jj-1,jk) + vn_td(ji,jj-1,jk), 0._wp ) )   &
-               &                               * r1_e1e2t(ji,jj)                                                                     &
-               &                             ) * z1_e3t
-         END_3D
-      ELSE
-         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
-            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-            Cu_adv(ji,jj,jk) =   zdt *                                                      &
-               &  ( ( MAX( pww(ji,jj,jk) , 0._wp ) - MIN( pww(ji,jj,jk+1) , 0._wp ) )         &
-               &                             + ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk), 0._wp ) -   &
-               &                                 MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk), 0._wp ) )   &
-               &                               * r1_e1e2t(ji,jj)                                                 &
-               &                             + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk), 0._wp ) -   &
-               &                                 MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk), 0._wp ) )   &
-               &                               * r1_e1e2t(ji,jj)                                                 &
-               &                             ) * z1_e3t
-         END_3D
-      ENDIF
+      DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+         z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
+         Cu_adv(ji,jj,jk) =   zdt *                                                      &
+            &  ( ( MAX( pww(ji,jj,jk) , 0._wp ) - MIN( pww(ji,jj,jk+1) , 0._wp ) )         &
+            &                             + ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk), 0._wp ) -   &
+            &                                 MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk), 0._wp ) )   &
+            &                               * r1_e1e2t(ji,jj)                                                 &
+            &                             + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk), 0._wp ) -   &
+            &                                 MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk), 0._wp ) )   &
+            &                               * r1_e1e2t(ji,jj)                                                 &
+            &                             ) * z1_e3t
+      END_3D
       CALL iom_put("Courant",Cu_adv)
       IF( iom_use("Aimp_Cmx") )   THEN
          Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values to use as temporary store
@@ -720,27 +701,15 @@ CONTAINS
       !
       ! Sort of horizontal Courant number:
       ! JC: Is it still worth saving into a 3d array ? I don't believe.
-      IF( ln_vvl_ztilde .OR. ln_vvl_layer ) THEN
-         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
-            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-            Cu_adv(ji,jj,jk) =   zdt *                                                                          &
-               &  ( ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk) + un_td(ji  ,jj,jk), 0._wp ) -   &
-               &      MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk) + un_td(ji-1,jj,jk), 0._wp ) )   &
-               &  + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk) + vn_td(ji,jj  ,jk), 0._wp ) -   &
-               &      MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk) + vn_td(ji,jj-1,jk), 0._wp ) )   &
-               &                             ) * z1_e3t * r1_e1e2t(ji,jj)
-         END_3D
-      ELSE
-         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
-            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-            Cu_adv(ji,jj,jk) =   zdt *                                                      &
-               &  ( ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk), 0._wp ) -   &
-               &      MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk), 0._wp ) )   &
-               &  + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk), 0._wp ) -   &
-               &      MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk), 0._wp ) )   &
-               &                             ) * z1_e3t * r1_e1e2t(ji,jj)
-         END_3D
-      ENDIF
+      DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+         z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
+         Cu_adv(ji,jj,jk) =   zdt *                                                      &
+            &  ( ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk), 0._wp ) -   &
+            &      MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk), 0._wp ) )   &
+            &  + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk), 0._wp ) -   &
+            &      MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk), 0._wp ) )   &
+            &                             ) * z1_e3t * r1_e1e2t(ji,jj)
+      END_3D
       !
       ! JC: Warning: this is the horizontal Courant number this time
       ! not the total as in previous versions of the scheme.
