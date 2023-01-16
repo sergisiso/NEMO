@@ -1,3 +1,6 @@
+.. image:: https://forge.nemo-ocean.eu/nemo/nemo/badges/main/pipeline.svg
+           :target: https://forge.nemo-ocean.eu/nemo/nemo/-/commits/main
+
 **Contents**
 
 .. contents::
