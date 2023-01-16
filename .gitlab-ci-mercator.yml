@@ -1,0 +1,32 @@
+# HPC & configs lists to be tested with SETTE
+.parallel_HPC_CFG:
+  parallel:
+    matrix:
+      - HPC: [aa,belenos]
+        #CONFIG: [ORCA2_ICE_PISCES,ORCA2_OFF_PISCES,AMM12,AGRIF_DEMO,WED025,GYRE_PISCES,ORCA2_SAS_ICE,ORCA2_ICE_OBS]
+        CONFIG: [ORCA2_ICE_PISCES,ORCA2_OFF_PISCES,AMM12,WED025,GYRE_PISCES,ORCA2_SAS_ICE,ORCA2_ICE_OBS]
+
+# HPC & testcases lists to be tested with SETTE
+.parallel_HPC_TST:
+  parallel:
+    matrix:
+      - HPC: [aa,belenos]
+        #CONFIG: [SWG,ICE_AGRIF,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+]
+        CONFIG: [SWG,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+]
+
+
+# variables declared hereafter will be avaible in all jobs
+# these 2 variables are needed for each HPC to be tested:
+# - SETTE_CFG: SETTE param.cfg file path
+# - SETTE_MOD: SETTE modules list
+
+variables:
+  # METEO-FRANCE BELENOS (INTEL_2018+INTEL-MPI)
+  BL_SETTE_CFG: "/home/ext/mr/smer/samsong/SRC/NEMO/main/sette/param.ci"
+  BL_SETTE_MOD: "gcc/9.2.0 intel/2018.5.274 intelmpi/2018.5.274 phdf5/1.8.18 netcdf_par/4.7.1_V2 xios/trunk/r2320_intel-impi git/2.27.0"
+  # ECMWF AA (INTEL_2021+OPEN-MPI)
+  AA_SETTE_CFG: "/home/ar0s/SRC/NEMO/main/sette/param.ci"
+  AA_SETTE_MOD: "prgenv/intel intel/2021.4.0 openmpi/4.1.1.1 hdf5-parallel/1.10.6 netcdf4-parallel/4.7.4 xios/trunk/r2320_intel-ompi"
+  # MERCATOR KARA (TODO)
+  #KR_SETTE_CFG: "/kara/data1/gsamson/SRC/NEMO/nemo/sette/param.ci"
+  #KR_SETTE_MOD: "gcc/9.3.0 openmpi/4.0.5_gcc9.3.0 hdf5/1.8.18_gcc9.3.0 netcdf/4.7.1_gcc9.3.0 xios/trunk_rev2136_gcc9.3.0 git/2.34.1"

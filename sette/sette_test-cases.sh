@@ -112,7 +112,7 @@ CONFIG_DIR0=${MAIN_DIR}/tests
 TOOLS_DIR=${MAIN_DIR}/tools
 
 if [ -n "${CUSTOM_DIR}" ]; then
-  NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
+  #NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
   CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
   if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG
@@ -143,7 +143,7 @@ do
 # ---------
 #  OVERFLOW
 # ---------
-if [ ${config} == "OVERFLOW" ] ;  then
+if [ ${config} == "OVERFLOW" ];  then
     SETTE_CONFIG="OVERFLOW"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -152,16 +152,19 @@ if [ ${config} == "OVERFLOW" ] ;  then
 	ITEND=120
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} == "1" ] ;  then
     cd ${MAIN_DIR}
     #
-    #
+    # syncronisation if target directory/file exist (not done by makenemo)
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "OVERFLOW" ] && [ ${DO_RESTART} == "1" ] ;  then
-    ## Restartability tests for OVERFLOW
+
+## Restartability tests for OVERFLOW
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -210,12 +213,11 @@ if [ ${config} == "OVERFLOW" ] && [ ${DO_RESTART} == "1" ] ;  then
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
-
 fi
 
-if [ ${config} == "OVERFLOW" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
-    ## Test for all advection, vert. coordinates, vector form, flux form: test runability and complete all time steps
-    ## Needed namelist-xxxx for every type of run tested
+## Test for all advection, vert. coordinates, vector form, flux form: test runability and complete all time steps
+## Needed namelist-xxxx for every type of run tested
+if [ ${DO_PHYOPTS} == "1" ] ;  then
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -255,6 +257,9 @@ if [ ${config} == "OVERFLOW" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
      done
 fi
 
+fi
+
+
 # --------------
 #  LOCK_EXCHANGE
 # --------------
@@ -267,17 +272,19 @@ if [ ${config} == "LOCK_EXCHANGE" ] ;  then
 	ITEND=120
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} == "1" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    #
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_RESTART} == "1" ] ;  then
-    ## Restartability tests for LOCK_EXCHANGE
+
+## Restartability tests for LOCK_EXCHANGE
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -328,9 +335,9 @@ if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
-    ## Test for all advection, vector form, flux form: test runability and complete all time steps
-    ## Needed namelist-xxxx for every type of run tested
+## Test for all advection, vector form, flux form: test runability and complete all time steps
+## Needed namelist-xxxx for every type of run tested
+if [ ${DO_PHYOPTS} == "1" ] ;  then
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -373,6 +380,9 @@ if [ ${config} == "LOCK_EXCHANGE" ] && [ ${DO_PHYOPTS} == "1" ] ;  then
    done
 fi
 
+fi
+
+
 # ---------
 # VORTEX
 # ---------
@@ -386,17 +396,19 @@ if [ ${config} == "VORTEX" ] ;  then
     fi
     ITRST=$(   printf "%08d" $(( ${ITEND} / 2 )) )
     ITRST_1=$( printf "%08d" $(( ${ITEND} * 3 / 2 )) )
+
+if [ ${DO_COMPILE} == "1" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    #
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests for VORTEX
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -478,9 +490,8 @@ if [ ${config} == "VORTEX" ] && [ ${DO_RESTART} == "1" ] ;  then
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 fi
 
-if [ ${config} == "VORTEX" ] && [ ${DO_REPRO} == "1" ] ;  then
-
 ## Reproducibility tests for VORTEX
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_2_3"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -565,6 +576,8 @@ if [ ${config} == "VORTEX" ] && [ ${DO_REPRO} == "1" ] ;  then
 
 fi
 
+fi
+
 
 # ---------
 # ICE_AGRIF
@@ -579,18 +592,20 @@ if [ ${config} == "ICE_AGRIF" ] ;  then
     fi
     ITRST=$(   printf "%08d" $(( ${ITEND} / 2 )) )
     ITRST_1=$( printf "%08d" $(( ${ITEND} * 3 / 2 )) )
+
+if [ ${DO_COMPILE} == "1" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    #
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ICE_AGRIF uses linssh so remove key_qco if added by default
     ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests for ICE_AGRIF
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -681,9 +696,8 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "ICE_AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
-
 ## Reproducibility tests for ICE_AGRIF
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_2_3"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -764,10 +778,13 @@ if [ ${config} == "ICE_AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
 
 fi
 
+fi
+
+
 # ------
 # ISOMIP+
 # ------
-if [ ${config} == "ISOMIP+" ] ;  then
+if [ ${config} == "ISOMIP+" ]; then 
     SETTE_CONFIG="ISOMIP+"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -776,18 +793,20 @@ if [ ${config} == "ISOMIP+" ] ;  then
 	ITEND=1200
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} == "1" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    #
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ISOMIP+ uses ln_hpg_isf so remove key_qco if added by default
     ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "ISOMIP+" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -846,8 +865,8 @@ if [ ${config} == "ISOMIP+" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "ISOMIP+" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
+if [ ${DO_REPRO} == "1" ] ;  then
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -907,11 +926,13 @@ if [ ${config} == "ISOMIP+" ] && [ ${DO_REPRO} == "1" ] ;  then
 
 fi
 
+fi
+
 
 # ---------
 # SWG
 # ---------
-if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
+if [ ${config} == "SWG" ] ;  then
     SETTE_CONFIG="SWG"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -920,17 +941,19 @@ if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
 	ITEND=1728
     fi
     ITRST=$(   printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${USING_QCO} == "yes" ] && [ ${DO_COMPILE} == "1" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
-    #
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "SWG" ] && [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
+
 ## Restartability tests for SWG
+if [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -989,9 +1012,8 @@ if [ ${config} == "SWG" ] && [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes"
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 fi
 
-if [ ${config} == "SWG" ] && [ ${DO_REPRO} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
-
 ## Reproducibility tests for SWG
+if [ ${DO_REPRO} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
     export TEST_NAME="REPRO_2_3"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -1053,6 +1075,7 @@ if [ ${config} == "SWG" ] && [ ${DO_REPRO} == "1" ] && [ ${USING_QCO} == "yes" ]
 
 fi
 
+fi
 
 
 #----

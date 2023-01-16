@@ -93,11 +93,16 @@ cd ${EXE_DIR}
 if [ "${INTERACT_FLAG}" == "yes" ]; then
 	eval ${JOB_FILE}
 else if [ "${INTERACT_FLAG}" == "no" ]; then
+        if [[ "${BATCH_COMMAND_PAR}" =~ "sbatch" ]]; then
+          BATCH_NAME0="${BATCH_NAME}_${config}_${TEST_NAME}"
+          BATCH_COMMAND_PAR="sbatch -J ${BATCH_NAME0} --parsable"
+          BATCH_COMMAND_SEQ=${BATCH_COMMAND_PAR}
+        fi
 	# submit job to batch system 
         if [ "${NB_PROC}" == "1" ]; then
-		eval ${BATCH_COMMAND_SEQ} ${JOB_FILE} ; echo  ${BATCH_COMMAND_SEQ} ${JOB_FILE}
+		BATCH_LST+=( $( ${BATCH_COMMAND_SEQ} ${JOB_FILE} ) ) ; echo ${BATCH_COMMAND_SEQ} ${JOB_FILE}
         else
-		eval ${BATCH_COMMAND_PAR} ${JOB_FILE} ; echo ${BATCH_COMMAND_PAR} ${JOB_FILE}
+		BATCH_LST+=( $( ${BATCH_COMMAND_PAR} ${JOB_FILE} ) ) ; echo ${BATCH_COMMAND_PAR} ${JOB_FILE}
         fi
 fi
 fi

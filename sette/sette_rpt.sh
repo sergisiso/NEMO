@@ -7,7 +7,11 @@
 #
 #########################################################################################
 ######################### Start of function definitions #################################
-##
+#set -x
+
+# exit codes
+declare -i {REPRO_EC,RESTA_EC,REFCMP_EC,CPUCMP_EC,OCEOUT_EC,AGRIF_EC}=0
+
 function get_dorv() {
   if [ $lastchange == 'old' ] ; then 
     dorv=`ls -1rt $vdir/$mach/ | tail -1l `
@@ -43,6 +47,8 @@ function resttest() {
 # check if directory is here
   if [ ! -d $vdir/$mach/$dorv/$nam ]; then
     printf "%-27s %s %s\n" $nam  " directory                  MISSING : " $dorv
+    echo " please check $vdir/$mach/$dorv/$nam"
+    RESTA_EC=1
     return
   fi
 
@@ -59,12 +65,14 @@ function resttest() {
     f2t=$vdir/$mach/$dorv/$nam/SHORT/tracer.stat
 
     if  [ ! -f $f1s ] &&  [ ! -f $f1t ] ; then 
-      printf "%-27s %s\n" $nam " incomplete test";
-      return; 
+      printf "%-27s %s\n" $nam " incomplete test"
+      RESTA_EC=1
+      return
     fi
     if  [ ! -f $f2s ] &&  [ ! -f $f2t ] ; then 
-      printf "%-27s %s\n" $nam " incomplete test";
-      return; 
+      printf "%-27s %s\n" $nam " incomplete test"
+      RESTA_EC=1
+      return
     fi
 #
     done_oce=0
@@ -80,6 +88,7 @@ function resttest() {
       else
         get_ktdiff f1.tmp$$ $f2s
         printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " run.stat    restartability  FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
+        RESTA_EC=1
 #
 # Offer view of differences on the second pass
 #
@@ -110,6 +119,7 @@ function resttest() {
       else
         get_ktdiff2 f1.tmp$$ $f2t
         printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " tracer.stat    restartability  FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
+        RESTA_EC=1
 #
 # Offer view of differences on the second pass
 #
@@ -149,6 +159,8 @@ function reprotest(){
 # check if directory is here
   if [ ! -d $vdir/$mach/$dorv/$nam ]; then
     printf "%-27s %s %s\n" $nam  " directory                  MISSING : " $dorv
+    echo " please check $vdir/$mach/$dorv/$nam"
+    REPRO_EC=R1
     return
   fi
 #
@@ -170,12 +182,14 @@ function reprotest(){
     f2t=$vdir/$mach/$dorv/$nam/$rep2/tracer.stat
 
     if  [ ! -f $f1s ] && [ ! -f $f1t ] ; then 
-      printf "%-27s %s\n" $nam " incomplete test";
-      return; 
+      printf "%-27s %s\n" $nam " incomplete test"
+      REPRO_EC=1
+      return
     fi
     if  [ ! -f $f2s ] && [ ! -f $f2t ] ; then 
-      printf "%-27s %s\n" $nam " incomplete test";
-      return; 
+      printf "%-27s %s\n" $nam " incomplete test"
+      REPRO_EC=1
+      return
     fi
 #
     done_oce=0
@@ -189,6 +203,7 @@ function reprotest(){
       else
         get_ktdiff $f1s $f2s
         printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " run.stat    reproducibility FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
+        REPRO_EC=1
 #
 # Offer view of differences on the second pass
 #
@@ -216,6 +231,7 @@ function reprotest(){
       else
         get_ktdiff2 $f1t $f2t
         printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " tracer.stat reproducibility FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
+        REPRO_EC=1
 #
 # Offer view of differences on the second pass
 #
@@ -256,10 +272,14 @@ function runcmpres(){
 # check if reference directory is present
   if [ ! -d $vdirref/$mach/$dorvref/$nam ]; then
     printf "%-27s %s\n" $nam " REFERENCE directory at $dorvref is MISSING"
+    echo " please check $vdirref/$mach/$dorvref/$nam"
+    REFCMP_EC=1
     return
   fi
   if [ ! -d $vdir/$mach/$dorv/$nam ]; then
     printf "%-27s %s\n" $nam " VALID     directory at $dorv is MISSING"
+    echo " please check $vdir/$mach/$dorv/$nam"
+    REFCMP_EC=1
     return
   fi
 
@@ -272,12 +292,14 @@ function runcmpres(){
     f2s=$vdirref/$mach/$dorvref/${nam}/${TESTD}/run.stat
     f2t=$vdirref/$mach/$dorvref/${nam}/${TESTD}/tracer.stat
     if  [ ! -f $f1s ] && [ ! -f $f1t ] ; then
-      printf "%-20s %s\n" $nam " incomplete test";
-      return;
+      printf "%-20s %s\n" $nam " incomplete test"
+      REFCMP_EC=1
+      return
     fi
     if  [ ! -f $f2s ] && [ ! -f $f2t ] ; then
-      printf "%-20s %s\n" $nam " incomplete test";
-      return;
+      printf "%-20s %s\n" $nam " incomplete test"
+      REFCMP_EC=1
+      return
     fi
 #
     done_oce=0
@@ -291,6 +313,7 @@ function runcmpres(){
       else
         get_ktdiff $f1s $f2s
         printf "%-20s %s %s %-5s (%s)\n" $nam  " run.stat    files are DIFFERENT (results are different after " $ktdiff " time steps) " ${TESTD}
+        REFCMP_EC=1
 #
 # Offer view of differences on the second pass
 #
@@ -315,6 +338,7 @@ function runcmpres(){
       else
         get_ktdiff2 $f1t $f2t
         printf "%-20s %s %s %-5s (%s)\n" $nam  " tracer.stat files are DIFFERENT (results are different after " $ktdiff " time steps) " ${TESTD}
+        REFCMP_EC=1
 #
 # Offer view of differences on the second pass
 #
@@ -343,9 +367,11 @@ function runcmptim(){
 #
 # check if reference directory is present
   if [ ! -d $vdirref/$mach/$dorvref/$nam ]; then
+    CPUCMP_EC=1
     return
   fi
   if [ ! -d $vdir/$mach/$dorv/$nam ]; then
+    CPUCMP_EC=1
     return
   fi
 
@@ -399,7 +425,8 @@ function runtest(){
        f1o=$vdir/$mach/$dorv/$nam/$tdir/ocean.output
        if  [ ! -f $f1o ] ; then
           if [ $pass == 0 ]; then printf "%-27s %s %s\n" $nam " ocean.output               MISSING : " $dorv ; fi
-          return;
+          OCEOUT_EC=1
+          return
        else 
           nerr=`grep 'E R R O R' $f1o | wc -l`
           if [[ $nerr > 0 ]]; then
@@ -411,12 +438,15 @@ function runtest(){
                 echo ''
                 echo "full ocean.output available here: $f1o"
              fi
-             return;
+             OCEOUT_EC=1
+             return
           fi
        fi
     done
   else
-    if [ $pass == 0 ]; then printf "%-27s %s %s\n" $nam  " directory                  MISSING : " $dorv ; fi
+     if [ $pass == 0 ]; then printf "%-27s %s %s\n" $nam  " directory                  MISSING : " $dorv ; fi
+     OCEOUT_EC=1
+     return
   fi
 }
 
@@ -445,6 +475,7 @@ function identictest(){
       else
           get_ktdiff $f1s $f2s
           printf "\e[38;5;196m%-5s %s %-5s %s %s %s %s %-5s %s\e[0m\n" $rep "AGRIF vs" $rep "NOAGRIF run.stat    changed  -     FAILED : " $dorv $dorv2 " (results are different after " $ktdiff " time steps)"
+          AGRIF_EC=1
 #
 # Offer view of differences on the second pass
 #
@@ -473,14 +504,14 @@ function identictest(){
   SETTE_DIR=$(cd $(dirname "$0"); pwd)
   MAIN_DIR=$(dirname $SETTE_DIR)
   . ./param.cfg
-  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]:-${TEST_CONFIGS[@]}}    # Workaround for some dated param.cfgs files
+  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]:-${TEST_CONFIGS[@]}}     # Workaround for some dated param.cfgs files
   if [ -z $USER_INPUT ] ; then USER_INPUT='yes' ; fi        # Default: yes => request user input on decisions.
                                                             # (but may br inherited/imported from sette.sh)
-
   mach=${COMPILER}
 # overwrite revision (later) or compiler
   if [ $# -gt 0 ]; then
-    while getopts r:R:c:v:V:ubh option; do
+    echo ""
+    while getopts n:r:R:c:v:V:ubh option; do
        case $option in
           c) mach=$OPTARG;;
           r) rev=$OPTARG;;
@@ -488,14 +519,20 @@ function identictest(){
           v) SETTE_SUB_VAL=$OPTARG;;
           V) SETTE_SUB_VAL2=$OPTARG
              if [ -d ${NEMO_VALIDATION_DIR}/${SETTE_SUB_VAL2} ] ; then
-               export NEMO_VALIDATION_REF=${NEMO_VALIDATION_DIR}/${SETTE_SUB_VAL2}
+               NEMO_VALIDATION_REF=${NEMO_VALIDATION_DIR}/${SETTE_SUB_VAL2}
              else
                echo "Requested comparison subdirectory: ${NEMO_VALIDATION_DIR}/${SETTE_SUB_VAL2} does not exist"
              fi
              ;;
           u) USER_INPUT='no';;
           b) mach=${mach//_DEBUG}_DEBUG
-             DEBUG="with DEBUG (-b) option";;
+             DEBUG="with DEBUG (-b) option"
+             echo "-b: will use DEBUG compilation directory"
+             echo "";;
+          n) OPTSTR="$OPTARG"
+             TEST_CONFIGS=(${OPTSTR})
+             echo "-n: Configuration(s) ${TEST_CONFIGS[@]} will be tested if they are available"
+             echo "";;
           h | *) echo ''
                  echo 'sette_rpt.sh : ' 
                  echo '     display result for the latest change'
@@ -521,86 +558,58 @@ function identictest(){
 # if $1 (remaining arguments)
   if [[ ! -z $1 ]] ; then rev=$1 ; fi
 
-  # Check that git branch is usable
-  git branch --show-current >&/dev/null
-  if [[ $? == 0 ]] ; then
-    # subdirectory below NEMO_VALIDATION_DIR defaults to branchname
-    NAM_MAIN="$(git branch --show-current)"
-  else
-    # subdirectory below NEMO_VALIDATION_DIR defaults to "MAIN"
-    NAM_MAIN="MAIN"
-  fi
-  if [ ! -z $SETTE_SUB_VAL ] ; then
-   export NEMO_VALIDATION_DIR=$NEMO_VALIDATION_DIR/$SETTE_SUB_VAL
+# https://stackoverflow.com/questions/6059336/how-to-find-the-current-git-branch-in-detached-head-state
+branchname=$(git log -1 --pretty=%D HEAD | sed 's|.*origin/||g;s|, .*||g;s|.*-> ||g' )
+if [ ! -z $SETTE_SUB_VAL ] ; then
+   NEMO_VALIDATION_DIR=$NEMO_VALIDATION_DIR/$SETTE_SUB_VAL
    if [ -d $NEMO_VALIDATION_REF/$SETTE_SUB_VAL ] && [ -z $SETTE_SUB_VAL2 ] && [ ${USER_INPUT} == "yes" ] ; then
-    while true; do
-        read -p "$NEMO_VALIDATION_REF/$SETTE_SUB_VAL exists. Do you wish to use it as a reference? " yn
-        case $yn in
-            [Yy]* ) export NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/$SETTE_SUB_VAL; break;;
-            [Nn]* ) echo "Ok, continuing with ${NEMO_VALIDATION_REF}/${NAM_MAIN} as the reference directory"
-                    export NEMO_VALIDATION_REF=${NEMO_VALIDATION_REF}/${NAM_MAIN}
-                    break
-                    ;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
-   elif [ -d $NEMO_VALIDATION_REF/$SETTE_SUB_VAL ] && [ -z $SETTE_SUB_VAL2 ] ; then
-    # No user input: make a best guess as to intent
-    export NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/$SETTE_SUB_VAL
-   elif [ -z $SETTE_SUB_VAL2 ] ; then
-    # No user input: default to branchname or MAIN
-    export NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/${NAM_MAIN}
-   fi
-  else
-   export NEMO_VALIDATION_DIR=${NEMO_VALIDATION_DIR}/${NAM_MAIN}
+      while true; do
+      read -p "$NEMO_VALIDATION_REF/$SETTE_SUB_VAL exists. Do you wish to use it as a reference? " yn
+      case $yn in
+          [Yy]* ) NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/$SETTE_SUB_VAL; break;;
+          [Nn]* ) echo "Ok, continuing with ${NEMO_VALIDATION_REF}/${branchname} as the reference directory"
+                  NEMO_VALIDATION_REF=${NEMO_VALIDATION_REF}/${branchname}
+                  break
+                  ;;
+          * ) echo "Please answer yes or no.";;
+      esac
+  done
+ # No user input: make a best guess as to intent
+ elif [ -d $NEMO_VALIDATION_REF/$SETTE_SUB_VAL ] && [ -z $SETTE_SUB_VAL2 ] ; then
+    NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/$SETTE_SUB_VAL
+ # No user input: default to branchname or MAIN
+ elif [ -z $SETTE_SUB_VAL2 ] ; then
+    NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/${branchname}
+ fi
+else
+   NEMO_VALIDATION_DIR=${NEMO_VALIDATION_DIR}/${branchname}
    if [ -z $SETTE_SUB_VAL2 ] ; then
-    export NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/${NAM_MAIN}
+      NEMO_VALIDATION_REF=$NEMO_VALIDATION_REF/${branchname}
    fi
-  fi
-  NEMO_VALID=${NEMO_VALIDATION_DIR}
-  NEMO_VALID_REF=${NEMO_VALIDATION_REF}
-  if [ ! -z $refrev ] ; then
-    NEMO_REV_REF=${refrev}
-  fi
-#
-  if [ ! -d $NEMO_VALID ]; then
-    echo "$NEMO_VALID validation directory not found"
-    exit
-  fi
+fi
+NEMO_VALID=${NEMO_VALIDATION_DIR}
+NEMO_VALID_REF=${NEMO_VALIDATION_REF}
+if [ ! -z $refrev ] ; then
+   NEMO_REV_REF=${refrev}
+fi
+
+if [ ! -d $NEMO_VALID ]; then
+  echo "$NEMO_VALID validation directory not found"
+  exit
+fi
 #
 #
 # Show current revision tag and branch name
 #
 echo ""
-localchanges=`git status --short -uno | wc -l`
-# Check that git branch is usable and use it to detect detached HEADs
-git branch --show-current >& /dev/null
-if [[ $? == 0 ]] ; then
-  branchname="$(git branch --show-current)"
-  revision=`git rev-parse --short HEAD`
-  if [ -z $branchname ] ; then
-   # Probabably on a detached HEAD (possibly testing an old commit).
-   # Verify this and try to recover original commit
-   MORE_INFO="$(git branch -a | head -1l | sed -e's/.*(//' -e 's/)//' )"
-   if [[ "${MORE_INFO}" == *"detached"* ]] ; then
-     # There is no robust way to recover a branch name in a detached state
-     # so just use the commit with a prefix
-     branchname="detached_"${revision}
-   else
-     branchname="Unknown"
-   fi
-  fi
-else
-  branchname="Unknown"
-fi
+nemo_revision=$(git -C ${MAIN_DIR} rev-parse --short HEAD 2> /dev/null)
 rev_date0=`git log -1 | grep Date | sed -e 's/.*Date: *//' -e's/ +.*$//'`
 rev_date=`${DATE_CONV}"${rev_date0}" +"%y%j"`
-revision=${rev_date}_${revision}
+revision=${rev_date}_${nemo_revision}
+localchanges=`git status --short -uno | wc -l`
 if [[ $localchanges > 0 ]] ; then
- echo "Current code is : $branchname @ $revision  ( with local changes )"
  lastchange=${revision}+
 else
- echo "Current code is : $branchname @ $revision"
  lastchange=$revision
 fi
 
@@ -611,9 +620,9 @@ echo ""
 echo "SETTE validation report generated for : "
 echo ""
 if [[ $localchanges > 0 ]] ; then
- echo "       $branchname @ $revision (with local changes)"
+ echo "       $branchname @ $nemo_revision (with local changes)"
 else
- echo "       $branchname @ $revision"
+ echo "       $branchname @ $nemo_revision"
 fi
 echo ""
 echo "       on $COMPILER arch file $DEBUG"
@@ -638,7 +647,7 @@ do
 # Restartability test
  echo ""
  echo "   !----restart----!   "
- for restart_test in ${TEST_CONFIGS_AVAILABLE[@]}
+ for restart_test in ${TEST_CONFIGS[@]/ORCA2_ICE_OBS}
  do
    [ "${restart_test}" != "ORCA2_ICE_OBS" ] && resttest $NEMO_VALID $restart_test $pass
  done
@@ -646,17 +655,21 @@ do
 # Reproducibility tests
  echo ""
  echo "   !----repro----!   "
- for repro_test in ${TEST_CONFIGS_AVAILABLE[@]}
+ for repro_test in ${TEST_CONFIGS[@]}
  do
-   [ "${repro_test}" != "OVERFLOW" -a "${repro_test}" != "LOCK_EXCHANGE" ] && reprotest $NEMO_VALID $repro_test $pass
+   if [[ ${repro_test} != *"OVERFLOW"* && ${repro_test} != *"LOCK_EXCHANGE"* ]]; then
+      reprotest $NEMO_VALID $repro_test $pass
+   fi
  done
 
 # AGRIF special check to ensure results are unchanged with and without key_agrif
- echo ""
- echo "   !----agrif check----!   "
- dir1=AGRIF_DEMO_NOAGRIF
- dir2=AGRIF_DEMO
- identictest $NEMO_VALID $dir1 $dir2 $pass 
+ if [[ ${TEST_CONFIGS[@]} =~ "AGRIF" ]]; then
+   echo ""
+   echo "   !----agrif check----!   "
+   dir1=AGRIF_DEMO_NOAGRIF
+   dir2=AGRIF_DEMO
+   identictest $NEMO_VALID $dir1 $dir2 $pass 
+ fi
 #
 # before/after tests
  if [ $lastchange == 'old' ] ; then
@@ -666,30 +679,31 @@ do
  else
    echo ""
    echo "   !----result comparison check----!   "
-   if [ $NEMO_VALID_REF != "/path/to/reference/sette/results" ]; then
+   if [ $NEMO_VALID_REF != "/path/to/reference/sette/results" ] && [ $NEMO_REV_REF != "0000" ]; then
      echo ''
      echo 'check result differences between :'
      echo "VALID directory : $NEMO_VALID at rev $lastchange"
      echo 'and'
      echo "REFERENCE directory : $NEMO_VALID_REF at rev $NEMO_REV_REF"
      echo ''
-     for runcmp_test in ${TEST_CONFIGS_AVAILABLE[@]}
+     for runcmp_test in ${TEST_CONFIGS[@]}
      do
        runcmpres $NEMO_VALID $runcmp_test $NEMO_VALID_REF $NEMO_REV_REF $pass
      done
      echo ''
      echo 'Report timing differences between REFERENCE and VALID (if available) :'
-     for repro_test in ${TEST_CONFIGS_AVAILABLE[@]}
+     for repro_test in ${TEST_CONFIGS[@]}
      do
        runcmptim $NEMO_VALID $repro_test $NEMO_VALID_REF $NEMO_REV_REF $pass
      done
    else
      echo ''
-     echo ' No path for comparison specified. Result are not compare with any other revision. '
+     echo ' No path or revision for comparison specified. Result are not compare with any other revision. '
      echo ' To do it please fill NEMO_VALID_REF and NEMO_REV_REF in param.cfg. '
      echo ''
    fi
  fi
 done
 #
-exit
+echo "SETTE Report Exit Code: "$((REPRO_EC+RESTA_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC))
+exit $((REPRO_EC+RESTA_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC))

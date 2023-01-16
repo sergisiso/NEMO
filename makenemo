@@ -203,12 +203,12 @@ if [ -n "${x_n}" ]; then
   # Look for already-existing new config
   NEW_CONF=${x_n}
   if [ -n "${x_t}" ]; then
-    NEW_DIR=$( find ${x_t} -maxdepth 1 -type d -name ${x_n} 2>/dev/null )
+    NEW_DIR=$( find -L ${x_t} -maxdepth 1 -type d -name ${x_n} 2>/dev/null )
   else
-    NEW_DIR=$( find ${MAIN_DIR}/cfgs ${MAIN_DIR}/tests -maxdepth 1 -type d -name ${NEW_CONF} 2>/dev/null )
+    NEW_DIR=$( find -L ${MAIN_DIR}/cfgs ${MAIN_DIR}/tests -maxdepth 1 -type d -name ${NEW_CONF} 2>/dev/null )
   fi
   NEW_NB=$( echo ${NEW_DIR} | wc -w )
-  NEW_CMP=$( grep -l "^${NEW_CONF} " ${MAIN_DIR}/cfgs/*_cfgs.txt ${MAIN_DIR}/tests/*_cfgs.txt )
+  NEW_CMP=$( grep -l "^${NEW_CONF} " ${MAIN_DIR}/cfgs/*_cfgs.txt ${MAIN_DIR}/tests/*_cfgs.txt | tail -1 )
 
   # Define if new config needs to be created or not
   if [[ ${NEW_NB:-0} -eq 0 || -z "${NEW_CMP}" ]]; then
@@ -389,7 +389,7 @@ if [ "${NBR_PRC}" -gt 0 ]; then
     fcm build --ignore-lock -v ${x_v} -j ${NBR_PRC} ${NEMO_TDIR}/${CUR_CONF}/BLD/${USEBLD} || exit 1
 
     if [ -f ${NEMO_TDIR}/${CUR_CONF}/BLD/bin/nemo.exe ]; then
-	ln -sfv ${NEMO_TDIR}/${CUR_CONF}/BLD/bin/nemo.exe ${NEMO_TDIR}/${CUR_CONF}/EXP00/nemo
+	(cd ${NEMO_TDIR}/${CUR_CONF}/EXP00; ln -sfv ../BLD/bin/nemo.exe ./nemo)
     else
         exit 1
     fi
