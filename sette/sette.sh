@@ -9,7 +9,8 @@ export CMPL_CORES=8            # Number of threads to use for compiling
 export SETTE_STG="_ST"         # Base suffix to append to configuration name
 NEMO_DEBUG=""
 dry_run=0
-NO_REPORT=0
+SETTE_REPORT=0
+WAIT_SETTE=0
 #
 # controls for some common namelist, run-time options:
 #
@@ -36,60 +37,36 @@ export USER_INPUT='yes'        # Default: yes => request user input on decisions
                                #                 1. regarding mismatched options
                                #                 2. regardin incompatible options
                                #                 3. regarding creation of directories
-#
-# Check that git branch is usable
-export DETACHED_HEAD="no"
-git -C ${MAIN_DIR} branch --show-current >& /dev/null
-if [[ $? == 0 ]] ; then
-  # subdirectory below NEMO_VALIDATION_DIR defaults to branchname
-  export SETTE_SUB_VAL="$(git -C ${MAIN_DIR} branch --show-current)"
-  if [ -z $SETTE_SUB_VAL ] ; then
-   # Probabably on a detached HEAD (possibly testing an old commit).
-   # Verify this and try to recover original commit
-   MORE_INFO="$(git branch -a | head -1l | sed -e's/.*(//' -e 's/)//' )"
-   if [[ "${MORE_INFO}" == *"detached"* ]] ; then
-     export DETACHED_HEAD="yes"
-     export DETACHED_CMIT=$( echo \\${MORE_INFO} | awk '{print $NF}' )
-     # There is no robust way to recover a branch name in a detached state
-     # so just use the commit with a prefix
-     export SETTE_SUB_VAL="detached_"${DETACHED_CMIT}
-   else
-     export SETTE_SUB_VAL="Unknown"
-   fi
-  fi
-  export SETTE_THIS_BRANCH=${SETTE_SUB_VAL}
-else
-  # subdirectory below NEMO_VALIDATION_DIR defaults to "MAIN"
-  export SETTE_SUB_VAL="MAIN"
-  export SETTE_THIS_BRANCH="Unknown"
-fi
+export SETTE_THIS_BRANCH=$(git log -1 --pretty=%D HEAD | sed 's|.*origin/||g;s|, .*||g;s|.*-> ||g' )
+export SETTE_SUB_VAL=${SETTE_THIS_BRANCH}
+export NEMO_REV=$(git -C ${MAIN_DIR} rev-parse --short HEAD 2> /dev/null)
 
 # Parse command-line arguments
 if [ $# -gt 0 ]; then
-  while getopts n:x:v:g:cybrshTqQteiACFNXua option; do
+  while getopts n:x:v:g:cybrshTqQteiACFNXuaw option; do
      case $option in
         c) export SETTE_CLEAN_CONFIGS='yes'
            export SETTE_SYNC_CONFIGS='yes'
-           echo "-c: Configuration ${SETTE_TEST_CONFIGS[@]} will be cleaned; this option enforces also synchronisation"
+           echo "-c: Configuration(s) ${SETTE_TEST_CONFIGS[@]} will be cleaned; this option enforces also synchronisation"
            echo "";;
         y) dry_run=1
            echo "";;
         b) NEMO_DEBUG="-b"
-           echo "-b: Nemo will be compiled with DEBUG options"
+           echo "-b: Nemo will be compiled with DEBUG options if available in ARCH file"
            echo "";;
-        r) NO_REPORT=1
+        r) SETTE_REPORT=1
+           echo "-r: Sette report will be printed once jobs are finished"
+           WAIT_SETTE=1
+           echo "";;
+        w) WAIT_SETTE=1
+           echo "-w: Sette will wait for jobs to finish"
            echo "";;
         s) export SETTE_SYNC_CONFIGS='yes'
            echo "-s: MY_SRC and EXP00 in ${SETTE_TEST_CONFIGS[@]} will be synchronised with the MY_SRC and EXPREF from the reference configuration"
            echo "";;
         n) OPTSTR="$OPTARG"
-           export SETTE_TEST_CONFIGS=(${OPTSTR})
-           echo "=================================="
-           if [ ${#SETTE_TEST_CONFIGS[@]} -gt 1 ]; then
-             echo "-n: Configurations ${SETTE_TEST_CONFIGS[@]} will be tested if they are available"
-           else
-             echo "-n: Configuration ${SETTE_TEST_CONFIGS[@]} will be tested if it is available"
-           fi
+           SETTE_TEST_CONFIGS=(${OPTSTR})
+           echo "-n: Configuration(s) ${SETTE_TEST_CONFIGS[@]} will be tested if they are available"
            echo "";;
         g) case $OPTARG in
              [0-9,a-z,A-Z] ) echo "-g: Using ${SETTE_STG}${OPTARG} as the configuration suffix";;
@@ -154,7 +131,7 @@ if [ $# -gt 0 ]; then
                echo '-A to run tests in attached (SPMD) mode (default: MPMD with key_xios)'
                echo '-n "CFG1_to_test CFG2_to_test ..." to test some specific configurations'
                echo '-x "TEST_type TEST_type ..." to specify particular type(s) of test(s) to run after compilation'
-               echo '              TEST_type choices are: RESTART REPRO CORRUPT PHYSICS - anything else will COMPILE only'
+               echo '              TEST_type choices are: COMPILE RESTART REPRO CORRUPT PHYSICS - anything else will COMPILE only'
                echo '-v "subdir" optional validation record subdirectory to be created below NEMO_VALIDATION_DIR'
                echo '-g "group_suffix" single character suffix to be appended to the standard _ST suffix used'
                echo '                  for SETTE-built configurations (needed if sette.sh invocations may overlap)'
@@ -163,6 +140,8 @@ if [ $# -gt 0 ]; then
                echo '-b to compile Nemo with debug options (only if %DEBUG_FCFLAGS if defined in your arch file)'
                echo '-c to clean each configuration'
                echo '-s to synchronise the sette MY_SRC and EXP00 with the reference MY_SRC and EXPREF'
+               echo '-w to wait for Sette jobs to finish'
+               echo '-r to print Sette report after Sette jobs completion'
                echo '-u to run sette.sh without any user interaction. This means no checks on creating'
                echo '          directories etc. i.e. no safety net!' ; exit 42 ;;
      esac
@@ -172,7 +151,6 @@ fi
 #
 # Get SETTE parameters
 . ./param.cfg
-
 #
 # Set the common compile keys to add or delete based on command-line arguments:
 #
@@ -222,6 +200,7 @@ fi
 echo "Carrying out the following tests  : ${TEST_TYPES[@]}"
 echo "requested by the command          : "$cmd $cmdargs
 echo "on branch                         : "$SETTE_THIS_BRANCH
+echo "on revision                       : "$NEMO_REV
 printf "%-33s : %s\n" USING_TIMING $USING_TIMING
 printf "%-33s : %s\n" USING_ICEBERGS $USING_ICEBERGS
 printf "%-33s : %s\n" USING_ABL $USING_ABL
@@ -243,7 +222,6 @@ echo ""
 # Option compatibility tests
 #
 if [ ${USING_MPMD} == "yes" ] && [ ${USING_XIOS} == "no" ] ; then echo "Incompatible choices. MPMD mode requires the XIOS server" ; exit ; fi
-
 if [ ${dry_run} -eq 1 ] ; then echo "dryrun only: no tests performed" ; exit ; fi
 
 # run sette on reference configuration
@@ -268,28 +246,49 @@ if [[ $? != 0 ]]; then
    exit 42
 fi
 
-if [ ${NO_REPORT} -ne 0 ] ; then exit ; fi
+# wait for sette jobs to finish
+if [[ ${WAIT_SETTE} -eq 1 && "${TEST_TYPES[@]}" =~ (RESTART|REPRO|CORRUPT|PHYSICS) ]]; then
+   echo ""
+   echo "-------------------------------------------------------------"
+   echo "wait for sette jobs to finish..."
+   echo "-------------------------------------------------------------"
+   echo ""
+   NRUN=999
+   NIT=0
+   while [[ $NRUN -ne 0 && $nit -le 1080 ]]; do
+      nit=$((nit+1))
+      if [[ "${BATCH_STAT}" == "squeue" && -n "${BATCH_LST[@]}" ]]; then
+        BATCH_STAT="squeue -j $(echo ${BATCH_LST[@]} | tr ' ' ',') -h -o %j"
+        NRUN=$( ${BATCH_STAT} | wc -l )
+        echo "currently running jobs: "$(${BATCH_STAT})
+      else
+        NRUN=$( ${BATCH_STAT} | grep ${BATCH_NAME} | wc -l )
+      fi
+      if [[ $NRUN -ne 0 ]]; then
+         echo $NRUN "sette jobs still in queue or running ..."
+         sleep 10
+      else
+         echo "all sette runs completed"
+         break
+      fi
+   done
+fi
+
 # run sette report
-echo ""
-echo "-------------------------------------------------------------"
-echo "./sette_rpt.sh (script will wait all nemo_sette run are done)"
-echo "-------------------------------------------------------------"
-echo ""
-NRUN=999
-NIT=0
-while [[ $NRUN -ne 0 && $nit -le 1080 ]]; do
-   nit=$((nit+1))
-   NRUN=$( ${BATCH_STAT} | grep ${BATCH_NAME} | wc -l ) 
-   if [[ $NRUN -ne 0 ]]; then 
-      printf "%-3d %s\r" $NRUN 'nemo_sette runs still in queue or running ...';
-   else
-      printf "%-50s\n" " "
-      ./sette_rpt.sh ${NEMO_DEBUG} ${SETTE_SUB_VAL:+-v ${SETTE_SUB_VAL}}
-      exit
+if [ ${SETTE_REPORT} -eq 1 ] ; then
+   echo ""
+   echo "-------------------------------------------------------------"
+   echo "./sette_rpt.sh"
+   echo "-------------------------------------------------------------"
+   ./sette_rpt.sh ${NEMO_DEBUG} -n "${TEST_CONFIGS[*]}"
+   if [[ $? != 0 ]]; then
+      echo ""
+      echo "-----------------------------------------------------------------"
+      echo "./sette_rpt.sh didn't finish properly, need investigations"
+      echo "-----------------------------------------------------------------"
+      echo ""
+      exit 42
    fi
-   sleep 10
-done
-printf "\n"
-echo ""
-echo "Something wrong happened, it tooks more than 3 hours to run all the sette tests"
-echo ""
+fi
+
+exit 0

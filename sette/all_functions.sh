@@ -175,24 +175,11 @@ clean_config() {
 
 # define validation dir
 set_valid_dir () {
-    if [ ${DETACHED_HEAD} == "no" ] ; then
-      REVISION_NB=`git -C ${MAIN_DIR} rev-parse --short HEAD`
-    else
-      REVISION_NB=${DETACHED_CMIT}
-    fi
+    REVISION_NB=`git -C ${MAIN_DIR} rev-parse --short HEAD`
     REV_DATE0="`git -C ${MAIN_DIR} log -1 | grep Date | sed -e 's/.*Date: *//' -e's/ +.*$//'`"
     REV_DATE=`${DATE_CONV}"${REV_DATE0}" +"%y%j"`
-    REVISION_NB=${REV_DATE}_${REVISION_NB}
-    if [ ${#REVISION_NB} -eq 0 ]
-    then
-        echo "some problems with git rev-list command"
-        echo "some problems with git rev-list command" >> ${SETTE_DIR}/output.sette
-        REVISION_NB=`date +%Y%m%d`
-        echo "put in ${REVISION_NB} date"
-        echo "put in ${REVISION_NB} date" >> ${SETTE_DIR}/output.sette
-    else
+    REVISION_NB=${REV_DATE}_${NEMO_REV}
     echo "value of revision number of NEMOGCM: ${REVISION_NB}"
-    fi
     localchanges=`git -C ${MAIN_DIR} status --short -uno | wc -l`
     if [[ $localchanges > 0 ]] ; then
      REVISION_NB=${REVISION_NB}+
