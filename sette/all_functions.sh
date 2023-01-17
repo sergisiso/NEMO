@@ -186,9 +186,9 @@ set_valid_dir () {
     fi
     CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
     if [[ -n "${NEMO_DEBUG}" && ! ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
-      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}_DEBUG/${REVISION_NB}/${config}/${TEST_NAME}
+      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}_DEBUG/${REVISION_NB}/${SETTE_CONFIG%${SETTE_STG}}/${TEST_NAME}
     else
-      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}/${REVISION_NB}/${config}/${TEST_NAME}
+      export NEMO_VALID=${NEMO_VALIDATION_DIR}/${CMP_NAM}/${REVISION_NB}/${SETTE_CONFIG%${SETTE_STG}}/${TEST_NAME}
     fi
 }
 
