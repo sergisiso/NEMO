@@ -56,12 +56,13 @@ set -o posix
 #-
 MYDIR=$1
 MYFILE=$(basename "$2")
+
 if [ "$MYFILE" == "agrif2model.f90" ];then
-   if [ -d ${MYDIR}/${NEW_CONF}/WORK ]; then
-      \cp ${MYDIR}/${NEW_CONF}/WORK/${MYFILE/.f90/.F90} ${MYDIR}/${NEW_CONF}/NEMOFILES/obj/$MYFILE
+   if [ -d ${MYDIR}/WORK ]; then
+      \cp ${MYDIR}//WORK/${MYFILE/.f90/.F90} ${MYDIR}/NEMOFILES/obj/$MYFILE
    else
-      \cp ${CONFIG_DIR}/${NEW_CONF}/WORK/${MYFILE/.f90/.F90} ${MYDIR}/${NEW_CONF}/NEMOFILES/obj/$MYFILE
+      \cp ${MYDIR}/WORK/${MYFILE/.f90/.F90} ${MYDIR}/NEMOFILES/obj/$MYFILE
    fi   
 else
-cd ${MYDIR}/${NEW_CONF}/NEMOFILES/ppsrc/nemo ; ${MYDIR}/${NEW_CONF}/NEMOFILES/conv ${MYDIR}/${NEW_CONF}/NEMOFILES/agrif_oce.in -rm -incdir ${MYDIR}/${NEW_CONF}/NEMOFILES/inc -comdirout ${MYDIR}/${NEW_CONF}/NEMOFILES/obj -convfile ${MYFILE} > /dev/null 
+   cd ${MYDIR}/NEMOFILES/ppsrc/nemo ; ${MYDIR}/NEMOFILES/conv ${MYDIR}/NEMOFILES/agrif_oce.in -rm -incdir ${MYDIR}/NEMOFILES/inc -comdirout ${MYDIR}/NEMOFILES/obj -convfile ${MYFILE} > /dev/null 
 fi

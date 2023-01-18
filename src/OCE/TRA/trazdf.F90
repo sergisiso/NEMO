@@ -77,7 +77,7 @@ CONTAINS
       ENDIF
       !
       !                                      !* compute lateral mixing trend and add it to the general trend
-      CALL tra_zdf_imp( 'TRA', Kbb, Kmm, Krhs, pts, Kaa, jpts )
+      CALL tra_zdf_imp( 'TRA', rDt, Kbb, Kmm, Krhs, pts, Kaa, jpts )
 
 !!gm WHY here !   and I don't like that !
       ! DRAKKAR SSS control {
@@ -116,7 +116,7 @@ CONTAINS
    END SUBROUTINE tra_zdf
 
 
-   SUBROUTINE tra_zdf_imp( cdtype, Kbb, Kmm, Krhs, pt, Kaa, kjpt )
+   SUBROUTINE tra_zdf_imp( cdtype, p2dt, Kbb, Kmm, Krhs, pt, Kaa, kjpt )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_zdf_imp  ***
       !!
@@ -139,6 +139,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs, Kaa  ! ocean time level indices
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype   ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt     ! number of tracers
+      REAL(wp)                                 , INTENT(in   ) ::   p2dt     ! tracer time-step
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt       ! tracers and RHS of tracer equation
       !
       INTEGER  ::  ji, jj, jk, jn   ! dummy loop indices
@@ -202,18 +203,18 @@ CONTAINS
                ! Diagonal, lower (i), upper (s)  (including the bottom boundary condition since avt is masked)
                IF( ln_zad_Aimp ) THEN         ! Adaptive implicit vertical advection
                   DO_2Dik( 0, 0,   1, jpkm1, 1 )
-                     zzwi = - rDt * zwt(ji,jk  ) / e3w(ji,jj,jk  ,Kmm)
-                     zzws = - rDt * zwt(ji,jk+1) / e3w(ji,jj,jk+1,Kmm)
+                     zzwi = - p2dt * zwt(ji,jk  ) / e3w(ji,jj,jk  ,Kmm)
+                     zzws = - p2dt * zwt(ji,jk+1) / e3w(ji,jj,jk+1,Kmm)
                      zwd(ji,jk) = e3t(ji,jj,jk,Kaa) - ( zzwi + zzws )   &
-                        &              + rDt * ( MAX( wi(ji,jj,jk  ) , 0._wp ) &
+                        &              + p2dt * ( MAX( wi(ji,jj,jk  ) , 0._wp ) &
                         &                      - MIN( wi(ji,jj,jk+1) , 0._wp ) )
-                     zwi(ji,jk) = zzwi + rDt *   MIN( wi(ji,jj,jk  ) , 0._wp )
-                     zws(ji,jk) = zzws - rDt *   MAX( wi(ji,jj,jk+1) , 0._wp )
+                     zwi(ji,jk) = zzwi + p2dt *   MIN( wi(ji,jj,jk  ) , 0._wp )
+                     zws(ji,jk) = zzws - p2dt *   MAX( wi(ji,jj,jk+1) , 0._wp )
                   END_2D
                ELSE
                   DO_2Dik( 0, 0,   1, jpkm1, 1 )
-                     zwi(ji,jk) = - rDt * zwt(ji,jk  ) / e3w(ji,jj,jk,Kmm)
-                     zws(ji,jk) = - rDt * zwt(ji,jk+1) / e3w(ji,jj,jk+1,Kmm)
+                     zwi(ji,jk) = - p2dt * zwt(ji,jk  ) / e3w(ji,jj,jk,Kmm)
+                     zws(ji,jk) = - p2dt * zwt(ji,jk+1) / e3w(ji,jj,jk+1,Kmm)
                      zwd(ji,jk) = e3t(ji,jj,jk,Kaa) - ( zwi(ji,jk) + zws(ji,jk) )
                   END_2D
                ENDIF
@@ -223,8 +224,8 @@ CONTAINS
                !
                IF( ln_zdfmfc ) THEN    ! add upward Mass Flux in the matrix
                   DO_2Dik( 0, 0,   1, jpkm1, 1 )
-                     zws(ji,jk) = zws(ji,jk) + e3t(ji,jj,jk,Kaa) * rDt * edmfm(ji,jj,jk+1) / e3w(ji,jj,jk+1,Kmm)
-                     zwd(ji,jk) = zwd(ji,jk) - e3t(ji,jj,jk,Kaa) * rDt * edmfm(ji,jj,jk  ) / e3w(ji,jj,jk+1,Kmm)
+                     zws(ji,jk) = zws(ji,jk) + e3t(ji,jj,jk,Kaa) * p2dt * edmfm(ji,jj,jk+1) / e3w(ji,jj,jk+1,Kmm)
+                     zwd(ji,jk) = zwd(ji,jk) - e3t(ji,jj,jk,Kaa) * p2dt * edmfm(ji,jj,jk  ) / e3w(ji,jj,jk+1,Kmm)
                   END_2D
                ENDIF
 !       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
@@ -288,11 +289,11 @@ CONTAINS
             !
             DO_1Di( 0, 0 )             !* 2nd recurrence:    Zk = Yk - Ik / Tk-1  Zk-1
                pt(ji,jj,1,jn,Kaa) =       e3t(ji,jj,1,Kbb) * pt(ji,jj,1,jn,Kbb )    &
-                  &               + rDt * e3t(ji,jj,1,Kmm) * pt(ji,jj,1,jn,Krhs)
+                  &               + p2dt * e3t(ji,jj,1,Kmm) * pt(ji,jj,1,jn,Krhs)
             END_1D
             DO_2Dik( 0, 0,   2, jpkm1, 1 )
                zrhs =       e3t(ji,jj,jk,Kbb) * pt(ji,jj,jk,jn,Kbb )   &
-                  & + rDt * e3t(ji,jj,jk,Kmm) * pt(ji,jj,jk,jn,Krhs)   ! zrhs=right hand side
+                  & + p2dt * e3t(ji,jj,jk,Kmm) * pt(ji,jj,jk,jn,Krhs)   ! zrhs=right hand side
                pt(ji,jj,jk,jn,Kaa) = zrhs - zwi(ji,jk) / zwt(ji,jk-1) * pt(ji,jj,jk-1,jn,Kaa)
             END_2D
             !

@@ -67,11 +67,11 @@ archfile_loop() {
 
 echo -e "\n  ¤ Generic computing architectures"
 
-archfile_loop ${MAIN_DIR}/arch
+archfile_loop ${1}/arch
 
-for dir in $( ls ${MAIN_DIR}/arch | grep -v "fcm$" ); do
-	echo -e "\n  ¤ Specific HPC architectures for "${dir}
-	archfile_loop ${MAIN_DIR}/arch/$dir
+for dir in $( ls ${1}/arch | grep -v "fcm$" ); do
+    echo -e "\n  ¤ Specific HPC architectures for "${dir}
+    archfile_loop ${1}/arch/$dir
 done
 
 echo

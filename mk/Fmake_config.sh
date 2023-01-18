@@ -66,7 +66,12 @@ then
     do
 	if [[ -L ${f} && $( readlink -f ${f} ) =~ "SHARED" ]]
 	then
-	    \ln -sf $( readlink -f ${f} ) ${1}/EXP00/$( basename ${f} )   # keep link from SHARED
+	    # create absolute(relative) symlinks if config directory is outside(inside) nemo directory
+            if [[ $(dirname ${1}) != $(dirname ${2}) ]]; then
+              \ln -sf $( readlink -f ${f} ) ${1}/EXP00/$( basename ${f} )   # keep link from SHARED
+            else
+              (cd ${1}/EXP00; \ln -sf ../../../cfgs/SHARED/$(basename $(readlink -f ${f}) ) $( basename ${f} ))
+            fi
 	else
 	    \cp ${f} ${1}/EXP00/.
 	fi

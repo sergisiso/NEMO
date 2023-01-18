@@ -9,6 +9,7 @@ use strict;
 use warnings;
 
 use Fcm::Timer qw{timestamp_command};
+use File::Spec;
 
 # Function declarations
 sub catfile;

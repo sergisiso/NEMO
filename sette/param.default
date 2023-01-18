@@ -35,8 +35,6 @@ BATCH_NAME=${SETTE_BATCH_NAME:-sette}
 FORCING_DIR=${SETTE_FORCING_DIR:-$WORKDIR/FORCING}
 # validation files storing
 NEMO_VALIDATION_DIR=${SETTE_NEMO_VALIDATION_DIR:-$MAIN_DIR}/NEMO_VALIDATION
-# input files storing (namelist, iodef ...) (DO NOT CHANGE)
-INPUT_DIR=${CONFIG_DIR}/${NEW_CONF}/EXP00
 # optional custom SETTE tests directory
 #export CUSTOM_DIR=/path/to/custom/sette/tests
 # ------------------------------------------------------------------------------------------
@@ -72,11 +70,13 @@ fi
 #
 # TYPES OF TESTS TO PERFORM
 # Note an attempt will be made to compile each configuration even if none of these tests are activated
+export DO_COMPILE=0
 export DO_RESTART=0  
 export DO_REPRO=0
 export DO_CORRUPT=0
 export DO_PHYOPTS=0
-TEST_TYPES=(${SETTE_TEST_TYPES[@]:-"RESTART REPRO PHYOPTS CORRUPT"})
+TEST_TYPES=(${SETTE_TEST_TYPES[@]:-"COMPILE RESTART REPRO PHYOPTS CORRUPT"})
+if [[ ${TEST_TYPES[*]} =~ .*COMPILE.* ]]; then export DO_COMPILE=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*RESTART.* ]]; then export DO_RESTART=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*REPRO.* ]]; then export DO_REPRO=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*CORRUPT.* ]]; then export DO_CORRUPT=1 ;fi

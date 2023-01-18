@@ -66,21 +66,21 @@ set -o posix
 
 # PREPARE EXEC_DIR
 #==================
-if [ -z "${CUSTOM_DIR}" ]; then
-  EXE_DIR=${CONFIG_DIR}/${NEW_CONF}
-else
-  CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
-  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
-    export EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG/${NEW_CONF}
-  else
-    EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}/${NEW_CONF}
-  fi
-fi
+#if [ -z "${CUSTOM_DIR}" ]; then
+#  EXE_DIR=${CONFIG_DIR}/${SETTE_CONFIG}
+#else
+#  CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
+#  if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
+#    export EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG/${SETTE_CONFIG}
+#  else
+#    EXE_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}/${SETTE_CONFIG}
+#  fi
+#fi
+EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
 mkdir -p ${EXE_DIR}/${TEST_NAME}
 
-#cp -RL ${EXE_DIR:-${CONFIG_DIR}/${NEW_CONF}}/EXP00/* ${EXE_DIR}/${TEST_NAME}/.
-cp -an ${EXE_DIR:-${CONFIG_DIR}/${NEW_CONF}}/EXP00/* ${EXE_DIR}/${TEST_NAME}/.
-COMP_KEYS="`cat ${EXE_DIR}/cpp_${NEW_CONF}.fcm | sed -e 's/.*fppkeys *//'`"
+cp -an ${EXE_DIR}/EXP00/* ${EXE_DIR}/${TEST_NAME}/.
+COMP_KEYS="`cat ${EXE_DIR}/cpp_${SETTE_CONFIG}.fcm | sed -e 's/.*fppkeys *//'`"
 
 export EXE_DIR=${EXE_DIR}/${TEST_NAME}
 cd ${EXE_DIR}

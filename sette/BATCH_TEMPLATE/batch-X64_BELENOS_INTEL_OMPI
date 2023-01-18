@@ -4,12 +4,15 @@
 #SBATCH -o sette.%j.out
 #SBATCH -e sette.%j.err
 #SBATCH --parsable
+#SBATCH --exclusive
 #SBATCH -N 1
-#SBATCH --time=0-00:30:00
-#SBATCH --account=frtomerc
-#SBATCH --partition=par
-#SBATCH --qos=np
-#SBATCH --ntasks=TOTAL_NPROCS
+#SBATCH -p normal256
+#SBATCH --time=01:00:00
+##SBATCH --time=00:15:00
+##SBATCH -A smer
+#SBATCH -A cmems
+##SBATCH --qos=normal
+#SBATCH --qos=coper
 
 set -x
 
@@ -35,10 +38,14 @@ export MPIRUN="srun"
 ###############################################################
 #
 # modules to load
-module purge &> /dev/null
-module use /home/ar5/modules
-module load prgenv/intel intel/2021.4.0 openmpi/4.1.1.1 hdf5-parallel/1.10.6 netcdf4-parallel/4.7.4 xios/trunk/r2320_intel-ompi
-module list
+module purge
+module use ~samsong/modules
+module load gcc/9.2.0 intel/2018.5.274 openmpi/intel/4.0.2.2 hdf5-1.8.18-ompi netcdf-4.7.1-ompi_V2 xios/trunk/r2320_intel-ompi
+export OMPI_CC=icc
+export OMPI_CXX=icpc
+export OMPI_FC=ifort
+export OMPI_F77=ifort
+export OMPI_F90=ifort
 
 # Don't remove neither change the following line
 # BODY
@@ -70,7 +77,6 @@ module list
   echo Running on host `hostname`
   echo Time is `date`
   echo Directory is `pwd`
-  sed -i "s/one_file/multiple_file/" file_def_nemo-*.xml
 # 
 #  Run the parallel MPI executable 
 #

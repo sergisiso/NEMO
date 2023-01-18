@@ -93,15 +93,14 @@ CONTAINS
          IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN      !    Add restoring term     !
             !                                      ! ========================= !
             !
-            qrp(:,:) = 0._wp ! necessary init
-            erp(:,:) = 0._wp
-            !
-            IF( nn_sstr == 1 ) THEN                                   !* Temperature restoring term
+            IF(     nn_sstr == 1 ) THEN                                   !* Temperature restoring term
                DO_2D( 0, 0, 0, 0 )
                   zqrp = rn_dqdt * ( sst_m(ji,jj) - sf_sst(1)%fnow(ji,jj,1) ) * smask0(ji,jj)
                   qns(ji,jj) = qns(ji,jj) + zqrp
                   qrp(ji,jj) = zqrp
                END_2D
+            ELSEIF( nn_sssr == 2 ) THEN
+               qrp(:,:) = 0._wp   ! necessary init, see bellow: qrp(ji,jj) = qrp(ji,jj) - ...
             ENDIF
             !
             IF( nn_sssr /= 0 .AND. nn_sssr_ice /= 1 ) THEN
@@ -233,8 +232,8 @@ CONTAINS
       !
       coefice(:,:) = 1._wp         !  Initialise coefice to 1._wp ; will not need to be changed if nn_sssr_ice=1
       !                            !* Initialize qrp and erp if no restoring 
-      IF( nn_sstr /= 1                   )   qrp(:,:) = 0._wp
-      IF( nn_sssr /= 1 .OR. nn_sssr /= 2 )   erp(:,:) = 0._wp
+      IF( nn_sstr /= 1 .AND. nn_sssr /= 2 )   qrp(:,:) = 0._wp
+      IF( nn_sssr /= 1 .AND. nn_sssr /= 2 )   erp(:,:) = 0._wp
       !
    END SUBROUTINE sbc_ssr_init
          

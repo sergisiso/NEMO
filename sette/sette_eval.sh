@@ -156,8 +156,6 @@ function runcmpres(){
   quiet=0
   . ./param.cfg
   TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]:-${TEST_CONFIGS[@]}}     # workaround for some dated param.cfgs files
-  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/ SAS / ORCA2_SAS_ICE }   # workaround for some dated param.cfgs files
-  TEST_CONFIGS_AVAILABLE=${TEST_CONFIGS_AVAILABLE[@]/ AGRIF / AGRIF_DEMO }    # workaround for some dated param.cfgs files
   USER_INPUT='yes'        # Default: yes => request user input on decisions.
 
   mach=${COMPILER}

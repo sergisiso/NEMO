@@ -118,7 +118,7 @@ if [ ${#3} -eq 0 ]; then # arch not specified
 	fi
     fi
 else 
-    nb=$( find ${MAIN_DIR}/arch -name arch-${3}.fcm -print | wc -l )
+    nb=$( find $(dirname ${3}) -name $(basename ${3}) -print | wc -l )
     if [ $nb -eq 0 ]; then # no arch file found
 	echo "Warning !!!"
 	echo "Compiler not existing"
@@ -129,12 +129,12 @@ else
     if [ $nb -gt 1 ]; then # more than 1 arch file found
 	echo "Warning !!!"
 	echo "more than 1 arch file for the same compiler have been found"
-	find ${MAIN_DIR}/arch -name arch-${3}.fcm -print
+	find $(dirname ${3}) -name $(basename ${3}) -print
 	echo "keep only 1"
 	echo "EXITING..."
 	exit 1       
     fi
-    myarch=$( find ${MAIN_DIR}/arch -name arch-${3}.fcm -print )
+    myarch=$( find $(dirname ${3}) -name $(basename ${3}) -print )
     # we were already using this arch file ?
     if [ "$myarch" == "$( cat $(dirname $1)/arch.history 2>/dev/null)" ]; then 
 	if [ -f $1 ]; then
@@ -151,7 +151,7 @@ else
 		[ ${#mycpp} -ne 0 ] && cpeval ${myarch} $1
 	    fi
 	    # has myarch file been updated since we copied it in ${COMPIL_DIR}?
-	    myarch=$( find -L ${MAIN_DIR}/arch -cnewer $(basename $1) -name arch-${3}.fcm -print )
+	    myarch=$( find -L $(dirname ${3}) -cnewer $(basename $1) -name $(basename ${3}) -print )
 	    [ ${#myarch} -ne 0 ] && cpeval ${myarch} $1
 	else
 	    cpeval ${myarch} $1
@@ -185,7 +185,7 @@ then
     fi
 #- in TOOLS directory looking for USE xios
 else
-    use_iom=$( egrep --exclude-dir=.svn -r USE ${MAIN_DIR}/src/* | grep -c xios )
+    use_iom=$( egrep --exclude-dir=.svn -r USE $(dirname ${3})/../src/* | grep -c xios )
     have_lxios=$( sed -e "s/#.*$//" $1 | grep -c "\-lxios" )
     if [[ ( $use_iom -eq 0 ) || ( $have_lxios != 1 ) ]]
     then 
@@ -216,7 +216,7 @@ do
 done
 
 # Nemo debug ?
-if [ -n "${NEMO_DBG}" ]; then
+if [ -n "${4}" ]; then
     if (! grep -q "^%DEBUG_FCFLAGS" $1 ); then
        echo "ERROR: You must defined '%DEBUG_FCFLAGS' in your arch file if you want to compile Nemo in debug mode using '-d' option"
        exit 1

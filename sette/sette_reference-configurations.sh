@@ -111,7 +111,7 @@ fi
 CONFIG_DIR0=${MAIN_DIR}/cfgs
 TOOLS_DIR=${MAIN_DIR}/tools
 if [ -n "${CUSTOM_DIR}" ]; then
-  NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
+  #NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
   CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
   if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG
@@ -130,10 +130,10 @@ cp BATCH_TEMPLATE/${JOB_PREFIX}-${COMPILER} job_batch_template || exit
 # ORCA2_ICE_PISCES  :
 # ORCA2_OFF_PISCES  :
 # AMM12             :
-# SAS               : aka ORCA2_SAS_ICE
+# ORCA2_SAS_ICE     :
 # ORCA2_ICE_OBS     :
-# AGRIF             : AGRIF_DEMO: test AGRIF in a double zoom configuration in the nordic seas + 1 zoom in the eq. Pacific and
-#                     AGRIF_DEMO_NOAGRIF: check that key_agrif without zoom = no key_agrif
+# AGRIF_DEMO        : test AGRIF in a double zoom configuration in the nordic seas + 1 zoom in the eq. Pacific and
+# AGRIF_DEMO_NOAGRIF: check that key_agrif without zoom = no key_agrif
 # WED025            : regional configuration including sea-ice and tides (Spitzbergen)
 
 . ./all_functions.sh
@@ -143,7 +143,7 @@ do
 # -----------
 # GYRE_PISCES
 # -----------
-if [ ${config} == "GYRE_PISCES" ] ;  then
+if [ ${config} == "GYRE_PISCES" ] ; then
     SETTE_CONFIG="GYRE_PISCES"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -152,6 +152,8 @@ if [ ${config} == "GYRE_PISCES" ] ;  then
 	ITEND=1080  # 90 days
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} -eq 1 ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
@@ -159,10 +161,11 @@ if [ ${config} == "GYRE_PISCES" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # GYRE uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "GYRE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests for GYRE_PISCES
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -228,8 +231,8 @@ if [ ${config} == "GYRE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "GYRE_PISCES" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests for GYRE_PISCES
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_2_4"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -287,10 +290,13 @@ if [ ${config} == "GYRE_PISCES" ] && [ ${DO_REPRO} == "1" ] ;  then
 
 fi
 
+fi # GYRE_PISCES
+
+
 # -----------------
 # ORCA2_ICE_PISCES
 # -----------------
-if [ ${config} == "ORCA2_ICE_PISCES" ] ;  then
+if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
     SETTE_CONFIG="ORCA2_ICE_PISCES"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -299,16 +305,19 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ;  then
 	ITEND=992  # 62 days
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} -eq 1 ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests for ORCA2_ICE_PISCES
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -453,8 +462,8 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests for ORCA2_ICE_PISCES
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_4_8"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -574,10 +583,13 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] && [ ${DO_REPRO} == "1" ] ;  then
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 fi
 
+fi # ORCA2_ICE_PISCES
+
+
 # ----------------
 # ORCA2_OFF_PISCES
 # ----------------
-if [ ${config} == "ORCA2_OFF_PISCES" ] ;  then
+if [ ${config} == "ORCA2_OFF_PISCES" ]  ;  then
     SETTE_CONFIG="ORCA2_OFF_PISCES"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -586,6 +598,8 @@ if [ ${config} == "ORCA2_OFF_PISCES" ] ;  then
 	ITEND=380  # 95 days
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} -eq 1 ];  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
@@ -593,10 +607,11 @@ if [ ${config} == "ORCA2_OFF_PISCES" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ORCA2_OFF_PISCES uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "ORCA2_OFF_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests for ORCA2_OFF_PISCES
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -675,8 +690,8 @@ if [ ${config} == "ORCA2_OFF_PISCES" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "ORCA2_OFF_PISCES" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests for ORCA2_OFF_PISCES
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_4_8"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -751,6 +766,8 @@ if [ ${config} == "ORCA2_OFF_PISCES" ] && [ ${DO_REPRO} == "1" ] ;  then
     . ./fcm_job.sh $NPROC  ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 fi
 
+fi # ORCA2_OFF_PISCES
+
 # -----
 # AMM12
 # -----
@@ -763,16 +780,19 @@ if [ ${config} == "AMM12" ] ;  then
 	ITEND=576  # 4 days
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} -eq 1 ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "AMM12" ] && [ ${DO_RESTART} == "1" ] ;  then
-    ## Restartability tests for AMM12
+
+## Restartability tests for AMM12
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -831,8 +851,8 @@ if [ ${config} == "AMM12" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "AMM12" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests for AMM12
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_8_4"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -884,11 +904,13 @@ if [ ${config} == "AMM12" ] && [ ${DO_REPRO} == "1" ] ;  then
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 fi
 
+fi # AMM12
+
 
 # ---------
 # ORCA2_SAS_ICE
 # ---------
-if [ ${config} == "SAS" ] ;  then
+if [ ${config} == "ORCA2_SAS_ICE" ] ;  then
     SETTE_CONFIG="ORCA2_SAS_ICE"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -897,6 +919,8 @@ if [ ${config} == "SAS" ] ;  then
 	ITEND=256  # 16 days
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} -eq 1 ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
@@ -904,10 +928,11 @@ if [ ${config} == "SAS" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ORCA2_SAS_ICE uses linssh so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -917,7 +942,7 @@ if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
     NPROC=32
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"SAS\"
+    set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE\"
     set_namelist namelist_cfg nn_it000 1
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
@@ -931,7 +956,7 @@ if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_SAS.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
 
     cd ${SETTE_DIR}
     export TEST_NAME="SHORT"
@@ -939,7 +964,7 @@ if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_valid_dir
     clean_valid_dir
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"SAS\"
+    set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE\"
     set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
@@ -949,8 +974,8 @@ if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg ln_rstart .true.
     set_namelist namelist_cfg nn_rstctl 2
     set_namelist namelist_cfg nn_date0 010109
-    set_namelist namelist_cfg cn_ocerst_in \"SAS_${ITRST}_restart\"
-    set_namelist namelist_ice_cfg cn_icerst_in \"SAS_${ITRST}_restart_ice\"
+    set_namelist namelist_cfg cn_ocerst_in \"ORCA2_SAS_ICE_${ITRST}_restart\"
+    set_namelist namelist_ice_cfg cn_icerst_in \"ORCA2_SAS_ICE_${ITRST}_restart_ice\"
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -959,18 +984,18 @@ if [ ${config} == "SAS" ] && [ ${DO_RESTART} == "1" ] ;  then
     for (( i=1; i<=$NPROC; i++)) ; do
         L_NPROC=$(( $i - 1 ))
         L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/SAS_${ITRST}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/SAS_${ITRST}_restart_ice_${L_NPROC}.nc .
+        ln -sf ../LONG/ORCA2_SAS_ICE_${ITRST}_restart_${L_NPROC}.nc .
+        ln -sf ../LONG/ORCA2_SAS_ICE_${ITRST}_restart_ice_${L_NPROC}.nc .
     done
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_SAS.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
 fi
 
-if [ ${config} == "SAS" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
+if [ ${DO_REPRO} == "1" ] ;  then
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16  # 1 day
@@ -987,7 +1012,7 @@ if [ ${config} == "SAS" ] && [ ${DO_REPRO} == "1" ] ;  then
     NPROC=32
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"SAS_48\"
+    set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE_48\"
     set_namelist namelist_cfg nn_it000 1
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg jpni 4
@@ -999,7 +1024,7 @@ if [ ${config} == "SAS" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_SAS.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
@@ -1012,7 +1037,7 @@ if [ ${config} == "SAS" ] && [ ${DO_REPRO} == "1" ] ;  then
     NPROC=32
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"SAS_84\"
+    set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE_84\"
     set_namelist namelist_cfg nn_it000 1
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg jpni 8
@@ -1024,9 +1049,11 @@ if [ ${config} == "SAS" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_SAS.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+
+fi
 
 fi
 
@@ -1038,23 +1065,25 @@ fi
 ## Restartability not tested (ASM code not restartable while increments are being applied)
 if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
     SETTE_CONFIG="ORCA2_ICE_OBS"${SETTE_STG}
-## Reproducibility tests
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16  # 1 day
     else
 	ITEND=80  # 5 days
     fi
+
+if [ ${DO_COMPILE} -eq 1 ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}"
 fi
-if [ ${config} == "ORCA2_ICE_OBS" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Reproducibility tests
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="REPRO_4_8"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -1154,10 +1183,13 @@ if [ ${config} == "ORCA2_ICE_OBS" ] && [ ${DO_RESTART} == "1" ] ;  then
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 fi
 
+fi
+
+
 # ------------
-# AGRIF ICE
+# AGRIF_DEMO
 # -----------
-if [ ${config} == "AGRIF" ] ;  then
+if [ ${config} == "AGRIF_DEMO" ] ;  then
     SETTE_CONFIG="AGRIF_DEMO"${SETTE_STG}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -1169,16 +1201,19 @@ if [ ${config} == "AGRIF" ] ;  then
     ITRST_1=$( printf "%08d" $(( ${ITEND} / 2 )) )
     ITRST_2=$( printf "%08d" $(( ${ITEND} * 4 / 2 )) )
     ITRST_3=$( printf "%08d" $(( ${ITEND} * 4 * 3 / 2 )) )
+
+if [ ${DO_COMPILE} -eq 1 ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -1188,24 +1223,24 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     NPROC=16
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AGRIF_LONG\"
+    set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
     set_namelist namelist_cfg nn_it000 1
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 1_namelist_cfg cn_exp \"AGRIF_LONG\"
+    set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
     set_namelist 1_namelist_cfg nn_it000 1
     set_namelist 1_namelist_cfg nn_itend ${ITEND}
     set_namelist 1_namelist_cfg nn_stock $(( ${ITEND} / 2 ))
     set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist 2_namelist_cfg cn_exp \"AGRIF_LONG\"
+    set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
     set_namelist 2_namelist_cfg nn_it000 1
     set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
     set_namelist 2_namelist_cfg nn_stock $(( ${ITEND} * 4 / 2 ))
     set_namelist 2_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist 3_namelist_cfg cn_exp \"AGRIF_LONG\"
+    set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
     set_namelist 3_namelist_cfg nn_it000 1
     set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
     set_namelist 3_namelist_cfg nn_stock $(( ${ITEND} * 4 * 3 / 2 ))
@@ -1226,7 +1261,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
 
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     
     cd ${SETTE_DIR}
     export TEST_NAME="SHORT"
@@ -1234,7 +1269,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_valid_dir
     clean_valid_dir
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AGRIF_SHORT\"
+    set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
     set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
@@ -1245,7 +1280,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_top_cfg ln_rsttr .true.
     set_namelist namelist_top_cfg nn_rsttr 2 
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 1_namelist_cfg cn_exp \"AGRIF_SHORT\"
+    set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
     set_namelist 1_namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
     set_namelist 1_namelist_cfg nn_itend ${ITEND}
     set_namelist 1_namelist_cfg nn_stock $(( ${ITEND} / 2 ))
@@ -1255,7 +1290,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist 1_namelist_top_cfg ln_rsttr .true.
     set_namelist 1_namelist_cfg ln_init_chfrpar .false.
     set_namelist 1_namelist_top_cfg nn_rsttr 2 
-    set_namelist 2_namelist_cfg cn_exp \"AGRIF_SHORT\"
+    set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
     set_namelist 2_namelist_cfg nn_it000 $(( ${ITEND} * 4 / 2 + 1 ))
     set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
     set_namelist 2_namelist_cfg nn_stock $(( ${ITEND} * 4 / 2 ))
@@ -1265,7 +1300,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist 2_namelist_cfg ln_init_chfrpar .false.
     set_namelist 2_namelist_top_cfg ln_rsttr .true.
     set_namelist 2_namelist_top_cfg nn_rsttr 2 
-    set_namelist 3_namelist_cfg cn_exp \"AGRIF_SHORT\"
+    set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
     set_namelist 3_namelist_cfg nn_it000 $(( ${ITEND} * 4 * 3 / 2 + 1 ))
     set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
     set_namelist 3_namelist_cfg nn_stock $(( ${ITEND} * 4 * 3 / 2 ))
@@ -1275,18 +1310,18 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     set_namelist 3_namelist_cfg ln_init_chfrpar .false.
     set_namelist 3_namelist_top_cfg ln_rsttr .true.
     set_namelist 3_namelist_top_cfg nn_rsttr 2 
-    set_namelist namelist_cfg cn_ocerst_in \"AGRIF_LONG_${ITRST}_restart\"
-    set_namelist namelist_ice_cfg cn_icerst_in \"AGRIF_LONG_${ITRST}_restart_ice\"
-    set_namelist namelist_top_cfg cn_trcrst_in \"AGRIF_LONG_${ITRST}_restart_trc\"
-    set_namelist 1_namelist_cfg cn_ocerst_in \"AGRIF_LONG_${ITRST_1}_restart\"
-    set_namelist 1_namelist_ice_cfg cn_icerst_in \"AGRIF_LONG_${ITRST_1}_restart_ice\"
-    set_namelist 1_namelist_top_cfg cn_trcrst_in \"AGRIF_LONG_${ITRST_1}_restart_trc\"
-    set_namelist 2_namelist_cfg cn_ocerst_in \"AGRIF_LONG_${ITRST_2}_restart\"
-    set_namelist 2_namelist_ice_cfg cn_icerst_in \"AGRIF_LONG_${ITRST_2}_restart_ice\"
-    set_namelist 2_namelist_top_cfg cn_trcrst_in \"AGRIF_LONG_${ITRST_2}_restart_trc\"
-    set_namelist 3_namelist_cfg cn_ocerst_in \"AGRIF_LONG_${ITRST_3}_restart\"
-    set_namelist 3_namelist_ice_cfg cn_icerst_in \"AGRIF_LONG_${ITRST_3}_restart_ice\"
-    set_namelist 3_namelist_top_cfg cn_trcrst_in \"AGRIF_LONG_${ITRST_3}_restart_trc\"
+    set_namelist namelist_cfg cn_ocerst_in \"AGRIF_DEMO_LONG_${ITRST}_restart\"
+    set_namelist namelist_ice_cfg cn_icerst_in \"AGRIF_DEMO_LONG_${ITRST}_restart_ice\"
+    set_namelist namelist_top_cfg cn_trcrst_in \"AGRIF_DEMO_LONG_${ITRST}_restart_trc\"
+    set_namelist 1_namelist_cfg cn_ocerst_in \"AGRIF_DEMO_LONG_${ITRST_1}_restart\"
+    set_namelist 1_namelist_ice_cfg cn_icerst_in \"AGRIF_DEMO_LONG_${ITRST_1}_restart_ice\"
+    set_namelist 1_namelist_top_cfg cn_trcrst_in \"AGRIF_DEMO_LONG_${ITRST_1}_restart_trc\"
+    set_namelist 2_namelist_cfg cn_ocerst_in \"AGRIF_DEMO_LONG_${ITRST_2}_restart\"
+    set_namelist 2_namelist_ice_cfg cn_icerst_in \"AGRIF_DEMO_LONG_${ITRST_2}_restart_ice\"
+    set_namelist 2_namelist_top_cfg cn_trcrst_in \"AGRIF_DEMO_LONG_${ITRST_2}_restart_trc\"
+    set_namelist 3_namelist_cfg cn_ocerst_in \"AGRIF_DEMO_LONG_${ITRST_3}_restart\"
+    set_namelist 3_namelist_ice_cfg cn_icerst_in \"AGRIF_DEMO_LONG_${ITRST_3}_restart_ice\"
+    set_namelist 3_namelist_top_cfg cn_trcrst_in \"AGRIF_DEMO_LONG_${ITRST_3}_restart_trc\"
 #
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -1304,29 +1339,29 @@ if [ ${config} == "AGRIF" ] && [ ${DO_RESTART} == "1" ] ;  then
     for (( i=1; i<=$NPROC; i++)) ; do
         L_NPROC=$(( $i - 1 ))
         L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/AGRIF_LONG_${ITRST}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/AGRIF_LONG_${ITRST}_restart_ice_${L_NPROC}.nc .
-        ln -sf ../LONG/AGRIF_LONG_${ITRST}_restart_trc_${L_NPROC}.nc .
-        ln -sf ../LONG/1_AGRIF_LONG_${ITRST_1}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/1_AGRIF_LONG_${ITRST_1}_restart_ice_${L_NPROC}.nc .
-        ln -sf ../LONG/1_AGRIF_LONG_${ITRST_1}_restart_trc_${L_NPROC}.nc .
-        ln -sf ../LONG/2_AGRIF_LONG_${ITRST_2}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/2_AGRIF_LONG_${ITRST_2}_restart_ice_${L_NPROC}.nc .
-        ln -sf ../LONG/2_AGRIF_LONG_${ITRST_2}_restart_trc_${L_NPROC}.nc .
-        ln -sf ../LONG/3_AGRIF_LONG_${ITRST_3}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/3_AGRIF_LONG_${ITRST_3}_restart_ice_${L_NPROC}.nc .
-        ln -sf ../LONG/3_AGRIF_LONG_${ITRST_3}_restart_trc_${L_NPROC}.nc .
+        ln -sf ../LONG/AGRIF_DEMO_LONG_${ITRST}_restart_${L_NPROC}.nc .
+        ln -sf ../LONG/AGRIF_DEMO_LONG_${ITRST}_restart_ice_${L_NPROC}.nc .
+        ln -sf ../LONG/AGRIF_DEMO_LONG_${ITRST}_restart_trc_${L_NPROC}.nc .
+        ln -sf ../LONG/1_AGRIF_DEMO_LONG_${ITRST_1}_restart_${L_NPROC}.nc .
+        ln -sf ../LONG/1_AGRIF_DEMO_LONG_${ITRST_1}_restart_ice_${L_NPROC}.nc .
+        ln -sf ../LONG/1_AGRIF_DEMO_LONG_${ITRST_1}_restart_trc_${L_NPROC}.nc .
+        ln -sf ../LONG/2_AGRIF_DEMO_LONG_${ITRST_2}_restart_${L_NPROC}.nc .
+        ln -sf ../LONG/2_AGRIF_DEMO_LONG_${ITRST_2}_restart_ice_${L_NPROC}.nc .
+        ln -sf ../LONG/2_AGRIF_DEMO_LONG_${ITRST_2}_restart_trc_${L_NPROC}.nc .
+        ln -sf ../LONG/3_AGRIF_DEMO_LONG_${ITRST_3}_restart_${L_NPROC}.nc .
+        ln -sf ../LONG/3_AGRIF_DEMO_LONG_${ITRST_3}_restart_ice_${L_NPROC}.nc .
+        ln -sf ../LONG/3_AGRIF_DEMO_LONG_${ITRST_3}_restart_trc_${L_NPROC}.nc .
     done
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
 fi
 
-if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_2_8"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -1337,7 +1372,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     NPROC=16
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AGRIF_28\"
+    set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_28\"
     set_namelist namelist_cfg nn_it000 1
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg jpni 2
@@ -1348,7 +1383,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 1_namelist_cfg cn_exp \"AGRIF_28\"
+    set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_28\"
     set_namelist 1_namelist_cfg nn_it000 1
     set_namelist 1_namelist_cfg nn_itend ${ITEND}
     set_namelist 1_namelist_cfg jpni 2
@@ -1357,7 +1392,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist 2_namelist_cfg cn_exp \"AGRIF_28\"
+    set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_28\"
     set_namelist 2_namelist_cfg nn_it000 1
     set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
     set_namelist 2_namelist_cfg jpni 2
@@ -1366,7 +1401,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt 2_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 2_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist 3_namelist_cfg cn_exp \"AGRIF_28\"
+    set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_28\"
     set_namelist 3_namelist_cfg nn_it000 1
     set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
     set_namelist 3_namelist_cfg jpni 2
@@ -1378,7 +1413,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
 
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
@@ -1391,7 +1426,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     NPROC=16
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
     cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AGRIF_44\"
+    set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_44\"
     set_namelist namelist_cfg nn_it000 1
     set_namelist namelist_cfg nn_itend ${ITEND}
     set_namelist namelist_cfg jpni 4
@@ -1403,7 +1438,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
     #set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
     set_xio_using_server iodef.xml ${USING_MPMD}
-    set_namelist 1_namelist_cfg cn_exp \"AGRIF_44\"
+    set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_44\"
     set_namelist 1_namelist_cfg nn_it000 1
     set_namelist 1_namelist_cfg nn_itend ${ITEND}
     set_namelist 1_namelist_cfg jpni 4
@@ -1412,7 +1447,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist 2_namelist_cfg cn_exp \"AGRIF_44\"
+    set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_44\"
     set_namelist 2_namelist_cfg nn_it000 1
     set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
     set_namelist 2_namelist_cfg jpni 4
@@ -1421,7 +1456,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt 2_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt 2_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
     set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist 3_namelist_cfg cn_exp \"AGRIF_44\"
+    set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_44\"
     set_namelist 3_namelist_cfg nn_it000 1
     set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
     set_namelist 3_namelist_cfg jpni 4
@@ -1432,14 +1467,14 @@ if [ ${config} == "AGRIF" ] && [ ${DO_REPRO} == "1" ] ;  then
     set_namelist_opt 3_namelist_cfg ln_tile ${USING_TILING} .true. .false.
 
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
 fi
 
-if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
-## test code corruption with AGRIF (phase 1) ==> Compile with key_agrif but run with no zoom
+## test code corruption with AGRIF_DEMO (phase 1) ==> Compile with key_agrif but run with no zoom
+if [ ${DO_CORRUPT} == "1" ] ;  then
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=16   # 1d
@@ -1473,15 +1508,14 @@ if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
 
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
 fi
 
-
-## test code corruption with AGRIF (phase 2) ==> Compile without key_agrif (to be compared with AGRIF_DEMO_ST/ORCA2)
-if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
+## test code corruption with AGRIF_DEMO (phase 2) ==> Compile without key_agrif (to be compared with AGRIF_DEMO_ST/ORCA2)
+if [ ${DO_CORRUPT} == "1" ] ;  then
     SETTE_CONFIG="AGRIF_DEMO_NOAGRIF"${SETTE_STG}
     export TEST_NAME="ORCA2"
     cd ${MAIN_DIR}
@@ -1490,7 +1524,7 @@ if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "key_agrif ${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "key_agrif ${DEL_KEYS}"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
     set_valid_dir
@@ -1513,11 +1547,14 @@ if [ ${config} == "AGRIF" ] && [ ${DO_CORRUPT} == "1" ] ;  then
 #
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
 fi
+
+fi
+
 
 # -------
 # WED025
@@ -1531,6 +1568,8 @@ if [ ${config} == "WED025" ] ;  then
 	ITEND=720  # 10 days
     fi
     ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} -eq 1 ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
@@ -1538,10 +1577,11 @@ if [ ${config} == "WED025" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # WED025 uses ln_hpg_isf so remove key_qco if added by default
-    . ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
 fi
-if [ ${config} == "WED025" ] && [ ${DO_RESTART} == "1" ] ;  then
+
 ## Restartability tests
+if [ ${DO_RESTART} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
@@ -1603,8 +1643,8 @@ if [ ${config} == "WED025" ] && [ ${DO_RESTART} == "1" ] ;  then
 
 fi
 
-if [ ${config} == "WED025" ] && [ ${DO_REPRO} == "1" ] ;  then
 ## Reproducibility tests
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_6_7"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -1657,6 +1697,8 @@ if [ ${config} == "WED025" ] && [ ${DO_REPRO} == "1" ] ;  then
     . ./prepare_job.sh input_WED025.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+fi
+
 fi
 
 

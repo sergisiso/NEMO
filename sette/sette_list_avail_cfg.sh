@@ -5,9 +5,9 @@ printf "%-15s \n" GYRE_PISCES
 printf "%-15s \n" ORCA2_ICE_PISCES
 printf "%-15s \n" ORCA2_OFF_PISCES
 printf "%-15s \n" AMM12
-printf "%-15s \n" SAS
+printf "%-15s \n" ORCA2_SAS_ICE
 printf "%-15s \n" ORCA2_ICE_OBS
-printf "%-15s \n" AGRIF
+printf "%-15s \n" AGRIF_DEMO
 printf "%-15s \n" WED025
 echo ''
 echo 'Test cases available are named :'

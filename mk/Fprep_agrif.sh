@@ -55,26 +55,13 @@ set -o posix
 #-
 
 #- AGRIF conv
-if [ "$AGRIFUSE" == 1 ]; then
-#-MPI for AGRIF
-if [ ! -f ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h ];then
-   echo '#if ! defined key_mpi_off' > ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h
-   echo '#define AGRIF_MPI'        >> ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h
-   echo '#endif'                   >> ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h
-fi
 
- #- CONV
-export MYARCH=$3
-fcm build ${COMPIL_DIR}/conv.cfg || exit 1
-#C_COMPILER=${CC-cc}
-#gmake CC=${C_COMPILER} -C ${MAIN_DIR}/ext/AGRIF/LIB
+#-MPI for AGRIF
+if [ ! -f ${1}/ext/AGRIF/nemo_mpi.h ]; then
+   echo '#if ! defined key_mpi_off' > ${1}/ext/AGRIF/nemo_mpi.h
+   echo '#define AGRIF_MPI'        >> ${1}/ext/AGRIF/nemo_mpi.h
+   echo '#endif'                   >> ${1}/ext/AGRIF/nemo_mpi.h
+fi
 
 #- AGRIF sources
-[ ! -d $2/$1/NEMOFILES ] && mkdir  $2/$1/NEMOFILES
-[ ! -d $2/$1/NEMOFILES/AGRIF_INC ] && mkdir  $2/$1/NEMOFILES/AGRIF_INC
-[ ! -d $2/$1/NEMOFILES/AGRIF_MODELFILES ] && mkdir  $2/$1/NEMOFILES/AGRIF_MODELFILES
-cp -f -r ${MAIN_DIR}/ext/AGRIF/agrif_oce.in  $2/$1/NEMOFILES/
-#cp -f -r ${MAIN_DIR}/ext/AGRIF/conv  $2/$1/NEMOFILES/
-cp -f -r $2/$1/AGRIFLIB/bin/conv  $2/$1/NEMOFILES/
-
-fi
+mkdir -p ${2}/NEMOFILES

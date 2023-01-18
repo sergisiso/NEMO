@@ -1,0 +1,180 @@
+#----------#
+# SETTE CI #
+#----------#
+
+
+include:
+  # default values will be overwritten depending on commit author
+  - local: '.gitlab-ci-default.yml'
+  - local: '.gitlab-ci-cnrs.yml'
+    rules:
+    - if: '$CI_COMMIT_AUTHOR =~ /.*masson.*/'
+  - local: '.gitlab-ci-mercator.yml'
+    rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    #- if: '$CI_COMMIT_AUTHOR =~ /.*samson.*/ || $CI_COMMIT_AUTHOR =~ /.*chanut.*/'
+
+
+.cache: &cache_CFG
+  key: ${CONFIG}_${CI_COMMIT_SHORT_SHA}_${CI_PIPELINE_ID}
+  paths:
+    - cfgs/${CONFIG}_ST/EXP*
+    - cfgs/${CONFIG}_ST/BLD/bin
+    - cfgs/${CONFIG}_ST/cpp_${CONFIG}_ST.fcm
+
+.cache: &cache_TST
+  key: ${CONFIG}_${CI_COMMIT_SHORT_SHA}_${CI_PIPELINE_ID}
+  paths:
+    - tests/${CONFIG}_ST/EXP*
+    - tests/${CONFIG}_ST/BLD/bin
+    - tests/${CONFIG}_ST/cpp_${CONFIG}_ST.fcm
+
+
+stages:
+  - compile
+  - run
+  - check
+
+
+before_script:
+# the following commands will be executed at the beginning of each job
+# they are needed to copy param.cfg to SETTE directory and to load the modules
+  - declare -A HOST_NAME=( ["kara"]="KR" ["aa"]="AA" ["belenoslogin"]="BL" ["irene"]="IR" ["jean-zay"]="JZ" )
+  - SETTE_MOD=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_MOD
+  - if [ -d ${HOME}/modules ]; then module use ${HOME}/modules; fi
+  - module purge || true   # force to always have 0 as error code (needed for irene)
+  - module load ${!SETTE_MOD}
+  - set -x   # debug prints
+  - SETTE_CFG=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_CFG
+  - cp -av ${!SETTE_CFG} sette/param.cfg
+  - git config core.filemode false   # ignore git(lab) symlinks permissions changes when pushing then pulling cache ("old mode 100755 -> new mode 100644")
+  - SETTE_OPT="-b -u -w"
+
+
+# JOBS
+# sette_cmp_cfgs : compile reference configurations
+# sette_cmp_tsts : compile test cases
+# sette_run_cfgs : run reference configurations
+# sette_run_tsts : run test cases
+# sette_rpt_cfgs : check reference configurations results
+# sette_rpt_tsts : check test cases results
+
+sette_cmp_cfgs:
+  stage: compile
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  extends: .parallel_HPC_CFG   # HPC + configs loop 
+  cache:
+    <<: *cache_CFG
+    policy: push
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - cd -
+  artifacts:
+    paths:
+      - sette/sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    when: always
+
+sette_cmp_tsts:
+  stage: compile
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  extends: .parallel_HPC_TST   # HPC + tests loop
+  cache:
+    <<: *cache_TST
+    policy: push
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - cd -
+  artifacts:
+    paths:
+      - sette/sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    when: always
+
+sette_run_cfgs:
+  stage: run
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  needs: [sette_cmp_cfgs]   # limited to 50 jobs
+  dependencies: []   # do not retrieve previous artifacts
+  extends: .parallel_HPC_CFG   # HPC + configs loop
+  cache:
+    <<: *cache_CFG
+    policy: pull
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "RESTART REPRO PHYOPTS CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - cd -
+  artifacts:
+    paths:
+      - sette/sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - cfgs/${CONFIG}_ST/*/sette.*.out
+      - cfgs/${CONFIG}_ST/*/sette.*.err
+      - cfgs/${CONFIG}_ST/*/ocean.output*
+    when: always
+
+sette_run_tsts:
+  stage: run
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  needs: [sette_cmp_tsts]   # limited to 50 jobs
+  dependencies: []   # do not retrieve previous artifacts
+  extends: .parallel_HPC_TST   # HPC + tests loop
+  cache:
+    <<: *cache_TST
+    policy: pull
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "RESTART REPRO PHYOPTS CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - cd -
+  artifacts:
+    paths:
+      - sette/sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - tests/${CONFIG}_ST/*/sette.*.out
+      - tests/${CONFIG}_ST/*/sette.*.err
+      - tests/${CONFIG}_ST/*/ocean.output*
+    when: always
+
+sette_rpt_cfgs:
+  stage: check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  needs: [sette_run_cfgs]   # limited to 50 jobs
+  dependencies: []   # do not retrieve previous artifacts
+  extends: .parallel_HPC_CFG   # HPC + configs loop
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette_rpt.sh -b -u -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+  artifacts:
+    paths:
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    when: always
+
+sette_rpt_tsts:
+  stage: check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  needs: [sette_run_tsts]   # limited to 50 jobs
+  dependencies: []   # do not retrieve previous artifacts
+  extends: .parallel_HPC_TST   # HPC + tests loop
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette_rpt.sh -b -u -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+  artifacts:
+    paths:
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    when: always
