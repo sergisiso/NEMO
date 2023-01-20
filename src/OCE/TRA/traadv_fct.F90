@@ -37,6 +37,7 @@ MODULE traadv_fct
    LOGICAL  ::   l_trd   ! flag to compute trends
    LOGICAL  ::   l_ptr   ! flag to compute poleward transport
    LOGICAL  ::   l_hst   ! flag to compute heat/salt transport
+   LOGICAL  ::   l_subit_upwind ! flag to sub-iterate (RK3 only)
    REAL(wp) ::   r1_6 = 1._wp / 6._wp   ! =1/6
 
    !                                        ! tridiag solver associated indices:
@@ -89,7 +90,6 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrdx, ztrdy, ztrdz, zptry
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zwinf, zwdia, zwsup
       LOGICAL  ::   ll_zAimp                                 ! flag to apply adaptive implicit vertical advection
-      LOGICAL  ::   ll_subit_upwind
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -109,21 +109,17 @@ CONTAINS
               &                                       iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )  l_hst = .TRUE.
          !
 #if defined key_RK3
-         ll_subit_upwind = .TRUE.
+         l_subit_upwind = .TRUE.
          nminsub = 1
          zfacit = 0.5_wp
 #else
-         ll_subit_upwind = .FALSE.
+         l_subit_upwind = .FALSE.
          nminsub = 2
          zfacit = 1.0_wp
 #endif
       ENDIF
 
       !! -- init to 0
-      zwi(:,:,:) = 0._wp
-      zwx(:,:,:) = 0._wp
-      zwy(:,:,:) = 0._wp
-      zwz(:,:,:) = 0._wp
       ztu(:,:,:) = 0._wp
       ztv(:,:,:) = 0._wp
       zltu(:,:,:) = 0._wp
@@ -153,7 +149,7 @@ CONTAINS
          !
          !        !==  upstream advection with initial mass fluxes & intermediate update  ==!
          !                    !* upstream tracer flux in the i and j direction
-         zwi(:,:,:) = pt(:,:,:,jn,Kbb)
+         zwi(:,:,:) = pt(T2D(nn_hls),:,jn,Kbb)
          zwx(:,:,:) = 0._wp
          zwy(:,:,:) = 0._wp
          zwz(:,:,:) = 0._wp
@@ -191,19 +187,19 @@ CONTAINS
                !
                DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )   !* trend and after field with monotonic scheme
                   !                               ! total intermediate advective trends
-                  ztra = - (  zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
-                     &      + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  )   &
-                     &      + zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) * r1_e1e2t(ji,jj)
+                  ztra = - (  ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  ) )   &
+                     &      + ( zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )   &
+                     &      + ( zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) ) * r1_e1e2t(ji,jj)
                   !                               ! update and guess with monotonic sheme
                   zwi(ji,jj,jk)    = 2._wp * ( e3t(ji,jj,jk,Kbb) *  pt(ji,jj,jk,jn,Kbb) + zfacit * p2dt * ztra )       &
-                     &                      / (e3t(ji,jj,jk,Krhs) + e3t(ji,jj,jk,Kbb)) * tmask(ji,jj,jk)
+                     &                      / (e3t(ji,jj,jk,Kaa) + e3t(ji,jj,jk,Kbb)) * tmask(ji,jj,jk)
                END_3D
                IF ( ll_zAimp ) THEN
                   DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                      zwdia(ji,jj,jk) =  1._wp +  zfacit * p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
-                     &                                / 0.5_wp / (e3t(ji,jj,jk,Krhs) + e3t(ji,jj,jk,Kbb))
-                     zwinf(ji,jj,jk) =  zfacit * p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / 0.5_wp / (e3t(ji,jj,jk,Krhs) + e3t(ji,jj,jk,Kbb))
-                     zwsup(ji,jj,jk) = -zfacit * p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / 0.5_wp / (e3t(ji,jj,jk,Krhs) + e3t(ji,jj,jk,Kbb))
+                     &                                / 0.5_wp / (e3t(ji,jj,jk,Kaa) + e3t(ji,jj,jk,Kbb))
+                     zwinf(ji,jj,jk) =  zfacit * p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / 0.5_wp / (e3t(ji,jj,jk,Kaa) + e3t(ji,jj,jk,Kbb))
+                     zwsup(ji,jj,jk) = -zfacit * p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / 0.5_wp / (e3t(ji,jj,jk,Kaa) + e3t(ji,jj,jk,Kbb))
                   END_3D
                   !
                   CALL tridia_solver( zwdia, zwsup, zwinf, zwi, zwi , 0 )
@@ -231,21 +227,21 @@ CONTAINS
                DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )   !* trend and after field with monotonic scheme
                   !                               ! total intermediate advective trends
                   !
-                  ztra = - (  zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
-                     &      + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  )   &
-                     &      + zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) * r1_e1e2t(ji,jj)
+                  ztra = - (  ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  ) )   &   ! add () NP halo
+                     &      + ( zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )   &
+                     &      + ( zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) ) * r1_e1e2t(ji,jj)
                   !                               ! update and guess with monotonic sheme
                   pt(ji,jj,jk,jn,Krhs) =                   pt(ji,jj,jk,jn,Krhs) +       ztra   &
                      &                                  / e3t(ji,jj,jk,Kmm ) * tmask(ji,jj,jk)
                   zwi(ji,jj,jk)    = ( e3t(ji,jj,jk,Kbb) * pt(ji,jj,jk,jn,Kbb) + p2dt * ztra ) &
-                  &                                     / e3t(ji,jj,jk,Krhs) * tmask(ji,jj,jk)
+                  &                                     / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
                END_3D
                IF ( ll_zAimp ) THEN
                   DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                      zwdia(ji,jj,jk) =  1._wp +  zfacit * p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
-                     &                                / e3t(ji,jj,jk,Krhs)
-                     zwinf(ji,jj,jk) =  zfacit * p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Krhs)
-                     zwsup(ji,jj,jk) = -zfacit * p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Krhs)
+                     &                                / e3t(ji,jj,jk,Kaa)
+                     zwinf(ji,jj,jk) =  zfacit * p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Kaa)
+                     zwsup(ji,jj,jk) = -zfacit * p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Kaa)
                   END_3D
                   !
                   CALL tridia_solver( zwdia, zwsup, zwinf, zwi, zwi , 0 )
@@ -262,12 +258,12 @@ CONTAINS
                         &                                        * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
                   END_3D
                   !
-                  IF ( ll_zAimp.AND.ll_subit_upwind ) THEN ! no need to do this with no sub-iteration
+                  IF ( ll_zAimp.AND.l_subit_upwind ) THEN ! no need to do this with no sub-iteration
                      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                         zwdia(ji,jj,jk) =  1._wp +  p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
-                        &                                / e3t(ji,jj,jk,Krhs)
-                        zwinf(ji,jj,jk) =  p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Krhs)
-                        zwsup(ji,jj,jk) = -p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Krhs)
+                        &                                / e3t(ji,jj,jk,Kaa)
+                        zwinf(ji,jj,jk) =  p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Kaa)
+                        zwsup(ji,jj,jk) = -p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Kaa)
                      END_3D
                   ENDIF
                   !
