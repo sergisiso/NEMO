@@ -183,7 +183,7 @@ CONTAINS
                         dta_bdy(jbdy)%t_i(ib,jl) =  SUM(t_i (ii,ij,:,jl)) * r1_nlay_i * tmask(ii,ij,1) 
                         dta_bdy(jbdy)%t_s(ib,jl) =  SUM(t_s (ii,ij,:,jl)) * r1_nlay_s * tmask(ii,ij,1)
                         dta_bdy(jbdy)%tsu(ib,jl) =  t_su(ii,ij,jl) * tmask(ii,ij,1) 
-                        dta_bdy(jbdy)%s_i(ib,jl) =  s_i (ii,ij,jl) * tmask(ii,ij,1)
+                        dta_bdy(jbdy)%s_i(ib,jl) =  SUM(sz_i(ii,ij,:,jl)) * r1_nlay_i * tmask(ii,ij,1)
                         ! melt ponds
                         dta_bdy(jbdy)%aip(ib,jl) =  a_ip(ii,ij,jl) * tmask(ii,ij,1) 
                         dta_bdy(jbdy)%hip(ib,jl) =  h_ip(ii,ij,jl) * tmask(ii,ij,1) 

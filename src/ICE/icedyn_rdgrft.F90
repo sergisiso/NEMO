@@ -278,7 +278,7 @@ CONTAINS
          CALL ice_dyn_1d2d( 2 )            ! --- Move to 2D arrays --- !
 
       ENDIF
-      ! clem: those fields must be updated on the halos: ato_i, a_i, v_i, v_s, sv_i, oa_i, a_ip, v_ip, v_il, e_i, e_s
+      ! clem: those fields must be updated on the halos: ato_i, a_i, v_i, v_s, sv_i, oa_i, a_ip, v_ip, v_il, e_i, e_s, szv_i
 
       ! clem: I think we can comment this line but I am not sure it does not change results
 !!$      CALL ice_var_agg( 1 )
@@ -561,10 +561,10 @@ CONTAINS
       REAL(wp) ::   expL, expR                 ! exponentials involving hL, hR
       REAL(wp) ::   vsw                        ! vol of water trapped into ridges
       REAL(wp) ::   afrdg, afrft               ! fraction of category area ridged/rafted
-      REAL(wp)                  ::   airdg1, oirdg1, aprdg1, virdg1, sirdg1
-      REAL(wp)                  ::   airft1, oirft1, aprft1
-      REAL(wp), DIMENSION(jpij) ::   airdg2, oirdg2, aprdg2, virdg2, sirdg2, vsrdg, vprdg, vlrdg  ! area etc of new ridges
-      REAL(wp), DIMENSION(jpij) ::   airft2, oirft2, aprft2, virft , sirft , vsrft, vprft, vlrft  ! area etc of rafted ice
+      REAL(wp)                  ::   airdg1, airft1
+      REAL(wp), DIMENSION(jpij) ::   airdg2, oirdg, aprdg, virdg, vsrdg, vprdg, vlrdg  ! area etc of new ridges
+      REAL(wp), DIMENSION(jpij) ::   airft2, oirft, aprft, virft, vsrft, vprft, vlrft  ! area etc of rafted ice
+      REAL(wp), DIMENSION(jpij,nlay_i) ::   sirdg, sirft
       !
       REAL(wp) ::   ersw             ! enthalpy of water trapped into ridges
       REAL(wp) ::   zswitch, fvol    ! new ridge volume going to jl2
@@ -590,7 +590,7 @@ CONTAINS
 
       ! 2) compute categories in which ice is removed (jl1)
       !----------------------------------------------------
-      IF( nn_icesal /= 2 )  THEN
+      IF( nn_icesal == 1 .OR. nn_icesal == 3 )  THEN
          CALL tab_3d_2d( npti, nptidx(1:npti), s_i_2d(1:npti,:), s_i(:,:,:) )
       ENDIF
 
@@ -628,42 +628,38 @@ CONTAINS
                ersw = -rhoi * vsw * rcp * sst_1d(ji)   ! clem: if sst>0, then ersw <0 (is that possible?)
 
                ! volume etc of ridging / rafting ice and new ridges (vi, vs, sm, oi, es, ei)
-               virdg1     = v_i_2d (ji,jl1)   * afrdg
-               virdg2(ji) = v_i_2d (ji,jl1)   * afrdg + vsw
-               vsrdg(ji)  = v_s_2d (ji,jl1)   * afrdg
-               sirdg1     = sv_i_2d(ji,jl1)   * afrdg
-               sirdg2(ji) = sv_i_2d(ji,jl1)   * afrdg + vsw * sss_1d(ji)
-               oirdg1     = oa_i_2d(ji,jl1)   * afrdg
-               oirdg2(ji) = oa_i_2d(ji,jl1)   * afrdg * hi_hrdg(ji,jl1)
+               virdg(ji) = v_i_2d (ji,jl1)    * afrdg + vsw
+               vsrdg(ji) = v_s_2d (ji,jl1)    * afrdg
+               oirdg(ji) = oa_i_2d(ji,jl1)    * afrdg * hi_hrdg(ji,jl1)
 
-               virft(ji)  = v_i_2d (ji,jl1)   * afrft
-               vsrft(ji)  = v_s_2d (ji,jl1)   * afrft
-               sirft(ji)  = sv_i_2d(ji,jl1)   * afrft
-               oirft1     = oa_i_2d(ji,jl1)   * afrft
-               oirft2(ji) = oa_i_2d(ji,jl1)   * afrft * hi_hrft
+               virft(ji) = v_i_2d (ji,jl1)    * afrft
+               vsrft(ji) = v_s_2d (ji,jl1)    * afrft
+               oirft(ji) = oa_i_2d(ji,jl1)    * afrft * hi_hrft
 
                IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-                  aprdg1     = a_ip_2d(ji,jl1) * afrdg
-                  aprdg2(ji) = a_ip_2d(ji,jl1) * afrdg * hi_hrdg(ji,jl1)
-                  vprdg (ji) = v_ip_2d(ji,jl1) * afrdg
-                  aprft1     = a_ip_2d(ji,jl1) * afrft
-                  aprft2(ji) = a_ip_2d(ji,jl1) * afrft * hi_hrft
-                  vprft (ji) = v_ip_2d(ji,jl1) * afrft
+                  aprdg(ji) = a_ip_2d(ji,jl1)    * afrdg * hi_hrdg(ji,jl1)
+                  vprdg(ji) = v_ip_2d(ji,jl1)    * afrdg
+                  aprft(ji) = a_ip_2d(ji,jl1)    * afrft * hi_hrft
+                  vprft(ji) = v_ip_2d(ji,jl1)    * afrft
                   IF ( ln_pnd_lids ) THEN
-                     vlrdg (ji) = v_il_2d(ji,jl1) * afrdg
-                     vlrft (ji) = v_il_2d(ji,jl1) * afrft
+                     vlrdg(ji) = v_il_2d(ji,jl1) * afrdg
+                     vlrft(ji) = v_il_2d(ji,jl1) * afrft
                   ENDIF
                ENDIF
                
-               DO jk = 1, nlay_s
-                  esrdg(ji,jk) = e_s_2d (ji,jk,jl1) * afrdg
-                  esrft(ji,jk) = e_s_2d (ji,jk,jl1) * afrft
-               END DO
-               DO jk = 1, nlay_i
-                  eirdg(ji,jk) = e_i_2d (ji,jk,jl1) * afrdg + ersw * r1_nlay_i
-                  eirft(ji,jk) = e_i_2d (ji,jk,jl1) * afrft
-               END DO
+               esrdg(ji,:) = e_s_2d (ji,:,jl1) * afrdg
+               esrft(ji,:) = e_s_2d (ji,:,jl1) * afrft
+               eirdg(ji,:) = e_i_2d (ji,:,jl1) * afrdg + ersw * r1_nlay_i
+               eirft(ji,:) = e_i_2d (ji,:,jl1) * afrft
 
+               IF( nn_icesal == 4 ) THEN 
+                  sirdg(ji,:) = szv_i_2d(ji,:,jl1) * afrdg + vsw * sss_1d(ji) * r1_nlay_i
+                  sirft(ji,:) = szv_i_2d(ji,:,jl1) * afrft
+               ELSE
+                  sirdg(ji,1) = sv_i_2d (ji,  jl1) * afrdg + vsw * sss_1d(ji)
+                  sirft(ji,1) = sv_i_2d (ji,  jl1) * afrft
+               ENDIF
+               
                ! Ice-ocean exchanges associated with ice porosity
                wfx_dyn_1d(ji) = wfx_dyn_1d(ji) - vsw * rhoi * r1_Dt_ice   ! increase in ice volume due to seawater frozen in voids
                sfx_dyn_1d(ji) = sfx_dyn_1d(ji) - vsw * sss_1d(ji) * rhoi * r1_Dt_ice
@@ -679,32 +675,30 @@ CONTAINS
                END DO
 
                ! virtual salt flux to keep salinity constant
-               IF( nn_icesal /= 2 )  THEN
-                  sirdg2(ji)     = sirdg2(ji)     - ( sss_1d(ji) - s_i_2d(ji,jl1) ) * vsw                      ! ridge salinity = s_i
+               IF( nn_icesal == 1 .OR. nn_icesal == 3 )  THEN
+                  sirdg(ji,1)    = sirdg(ji,1)    - ( sss_1d(ji) - s_i_2d(ji,jl1) ) * vsw                      ! ridge salinity = s_i
                   sfx_bri_1d(ji) = sfx_bri_1d(ji) + ( sss_1d(ji) - s_i_2d(ji,jl1) ) * vsw * rhoi * r1_Dt_ice   ! put back sss_m into the ocean
                   !                                                                                            ! and get  s_i  from the ocean
                ENDIF
 
                ! Remove area, volume of new ridge to each category jl1
                !------------------------------------------------------
-               a_i_2d (ji,jl1) = a_i_2d (ji,jl1) - airdg1    - airft1
-               v_i_2d (ji,jl1) = v_i_2d (ji,jl1) - virdg1    - virft(ji)
-               v_s_2d (ji,jl1) = v_s_2d (ji,jl1) - vsrdg(ji) - vsrft(ji)
-               sv_i_2d(ji,jl1) = sv_i_2d(ji,jl1) - sirdg1    - sirft(ji)
-               oa_i_2d(ji,jl1) = oa_i_2d(ji,jl1) - oirdg1    - oirft1
+               a_i_2d (ji,jl1) = a_i_2d (ji,jl1) - airdg1 - airft1
+               v_i_2d (ji,jl1) = v_i_2d (ji,jl1)     * ( 1._wp - afrdg - afrft ) 
+               v_s_2d (ji,jl1) = v_s_2d (ji,jl1)     * ( 1._wp - afrdg - afrft )
+               oa_i_2d(ji,jl1) = oa_i_2d(ji,jl1)     * ( 1._wp - afrdg - afrft )
                IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-                  a_ip_2d(ji,jl1) = a_ip_2d(ji,jl1) - aprdg1    - aprft1
-                  v_ip_2d(ji,jl1) = v_ip_2d(ji,jl1) - vprdg(ji) - vprft(ji)
-                  IF ( ln_pnd_lids ) THEN
-                     v_il_2d(ji,jl1) = v_il_2d(ji,jl1) - vlrdg(ji) - vlrft(ji)
-                  ENDIF
+                  a_ip_2d(ji,jl1)  = a_ip_2d(ji,jl1) * ( 1._wp - afrdg - afrft )
+                  v_ip_2d(ji,jl1)  = v_ip_2d(ji,jl1) * ( 1._wp - afrdg - afrft ) 
+                  IF ( ln_pnd_lids ) v_il_2d(ji,jl1) = v_il_2d(ji,jl1) * ( 1._wp - afrdg - afrft )
                ENDIF
-               DO jk = 1, nlay_s
-                  e_s_2d(ji,jk,jl1) = e_s_2d(ji,jk,jl1) * ( 1._wp - afrdg - afrft )
-               END DO
-               DO jk = 1, nlay_i
-                  e_i_2d(ji,jk,jl1) = e_i_2d(ji,jk,jl1) * ( 1._wp - afrdg - afrft )
-               END DO
+               !
+               e_s_2d(ji,:,jl1) = e_s_2d(ji,:,jl1)   * ( 1._wp - afrdg - afrft )
+               e_i_2d(ji,:,jl1) = e_i_2d(ji,:,jl1)   * ( 1._wp - afrdg - afrft )
+               !
+               IF( nn_icesal == 4 ) THEN   ;   szv_i_2d(ji,:,jl1) = szv_i_2d(ji,:,jl1) * ( 1._wp - afrdg - afrft ) 
+               ELSE                        ;   sv_i_2d (ji,  jl1) = sv_i_2d (ji,  jl1) * ( 1._wp - afrdg - afrft ) 
+               ENDIF
                
             ENDIF
             
@@ -784,30 +778,24 @@ CONTAINS
                   !
                   ! Add area, volume of new ridge to category jl2
                   !----------------------------------------------
-                  a_i_2d (ji,jl2) = a_i_2d (ji,jl2) + ( airdg2(ji) * farea + airft2(ji) * zswitch )
-                  oa_i_2d(ji,jl2) = oa_i_2d(ji,jl2) + ( oirdg2(ji) * farea + oirft2(ji) * zswitch )
-                  v_i_2d (ji,jl2) = v_i_2d (ji,jl2) + ( virdg2(ji) * fvol  + virft (ji) * zswitch )
-                  sv_i_2d(ji,jl2) = sv_i_2d(ji,jl2) + ( sirdg2(ji) * fvol  + sirft (ji) * zswitch )
-                  v_s_2d (ji,jl2) = v_s_2d (ji,jl2) + ( vsrdg (ji) * rn_fsnwrdg * fvol +  &
-                     &                                  vsrft (ji) * rn_fsnwrft * zswitch )
+                  a_i_2d (ji,jl2) = a_i_2d (ji,jl2) + ( airdg2(ji)              * farea + airft2(ji)              * zswitch )
+                  oa_i_2d(ji,jl2) = oa_i_2d(ji,jl2) + ( oirdg (ji)              * farea + oirft (ji)              * zswitch )
+                  v_i_2d (ji,jl2) = v_i_2d (ji,jl2) + ( virdg (ji)              * fvol  + virft (ji)              * zswitch )
+                  v_s_2d (ji,jl2) = v_s_2d (ji,jl2) + ( vsrdg (ji) * rn_fsnwrdg * fvol  + vsrft (ji) * rn_fsnwrft * zswitch )
                   IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-                     v_ip_2d (ji,jl2) = v_ip_2d(ji,jl2) + (   vprdg (ji) * rn_fpndrdg * fvol      &
-                        &                                   + vprft (ji) * rn_fpndrft * zswitch   )
-                     a_ip_2d (ji,jl2) = a_ip_2d(ji,jl2) + (   aprdg2(ji) * rn_fpndrdg * farea     &
-                        &                                   + aprft2(ji) * rn_fpndrft * zswitch   )
+                     v_ip_2d (ji,jl2) = v_ip_2d(ji,jl2)    + ( vprdg(ji) * rn_fpndrdg * fvol  + vprft(ji) * rn_fpndrft * zswitch )
+                     a_ip_2d (ji,jl2) = a_ip_2d(ji,jl2)    + ( aprdg(ji) * rn_fpndrdg * farea + aprft(ji) * rn_fpndrft * zswitch )
                      IF ( ln_pnd_lids ) THEN
-                        v_il_2d (ji,jl2) = v_il_2d(ji,jl2) + (   vlrdg(ji) * rn_fpndrdg * fvol    &
-                           &                                   + vlrft(ji) * rn_fpndrft * zswitch )
+                        v_il_2d (ji,jl2) = v_il_2d(ji,jl2) + ( vlrdg(ji) * rn_fpndrdg * fvol  + vlrft(ji) * rn_fpndrft * zswitch )
                      ENDIF
                   ENDIF
-                  DO jk = 1, nlay_s
-                     e_s_2d(ji,jk,jl2) = e_s_2d(ji,jk,jl2) + ( esrdg(ji,jk) * rn_fsnwrdg * fvol +  &
-                        &                                      esrft(ji,jk) * rn_fsnwrft * zswitch )
-                  END DO
-                  DO jk = 1, nlay_i
-                     e_i_2d(ji,jk,jl2) = e_i_2d(ji,jk,jl2) + eirdg(ji,jk) * fvol + eirft(ji,jk) * zswitch
-                  END DO
-                  
+                  e_s_2d(ji,:,jl2) = e_s_2d(ji,:,jl2) + ( esrdg(ji,:) * rn_fsnwrdg * fvol + esrft(ji,:) * rn_fsnwrft * zswitch )
+                  e_i_2d(ji,:,jl2) = e_i_2d(ji,:,jl2) + ( eirdg(ji,:)              * fvol + eirft(ji,:)              * zswitch )
+                  IF( nn_icesal == 4 ) THEN
+                     szv_i_2d(ji,:,jl2) = szv_i_2d(ji,:,jl2) + ( sirdg(ji,:) * fvol + sirft(ji,:) * zswitch )
+                  ELSE
+                     sv_i_2d (ji,  jl2) = sv_i_2d (ji,  jl2) + ( sirdg(ji,1) * fvol + sirft(ji,1) * zswitch )
+                  ENDIF
                ENDIF
 
             END DO
@@ -819,7 +807,7 @@ CONTAINS
       ! roundoff errors
       !----------------
       ! In case ridging/rafting lead to very small negative values (sometimes it happens)
-      CALL ice_var_roundoff( a_i_2d, v_i_2d, v_s_2d, sv_i_2d, oa_i_2d, a_ip_2d, v_ip_2d, v_il_2d, e_s_2d, e_i_2d )
+      CALL ice_var_roundoff( a_i_2d, v_i_2d, v_s_2d, sv_i_2d, oa_i_2d, a_ip_2d, v_ip_2d, v_il_2d, e_s_2d, e_i_2d, szv_i_2d )
       !
    END SUBROUTINE rdgrft_shift
 
@@ -999,14 +987,15 @@ CONTAINS
          !!CALL tab_2d_1d( npti, nptidx(1:npti), ato_i_1d(1:npti), ato_i(:,:) )
          !!CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d(1:npti,:), a_i(:,:,:) )
          !!CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d  (1:npti,:), v_i  (:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), v_s_2d (1:npti,:)  , v_s (:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,:)  , sv_i(:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), oa_i_2d(1:npti,:)  , oa_i(:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), a_ip_2d(1:npti,:)  , a_ip(:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), v_ip_2d(1:npti,:)  , v_ip(:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), v_il_2d(1:npti,:)  , v_il(:,:,:) )
-         CALL tab_4d_3d( npti, nptidx(1:npti), e_s_2d (1:npti,:,:), e_s  )
-         CALL tab_4d_3d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
+         CALL tab_3d_2d( npti, nptidx(1:npti), v_s_2d  (1:npti,:)  , v_s (:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d (1:npti,:)  , sv_i(:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), oa_i_2d (1:npti,:)  , oa_i(:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), a_ip_2d (1:npti,:)  , a_ip(:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), v_ip_2d (1:npti,:)  , v_ip(:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), v_il_2d (1:npti,:)  , v_il(:,:,:) )
+         CALL tab_4d_3d( npti, nptidx(1:npti), e_s_2d  (1:npti,:,:), e_s   )
+         CALL tab_4d_3d( npti, nptidx(1:npti), e_i_2d  (1:npti,:,:), e_i   )
+         CALL tab_4d_3d( npti, nptidx(1:npti), szv_i_2d(1:npti,:,:), szv_i )
          CALL tab_2d_1d( npti, nptidx(1:npti), sfx_dyn_1d    (1:npti), sfx_dyn    (:,:) )
          CALL tab_2d_1d( npti, nptidx(1:npti), sfx_bri_1d    (1:npti), sfx_bri    (:,:) )
          CALL tab_2d_1d( npti, nptidx(1:npti), wfx_dyn_1d    (1:npti), wfx_dyn    (:,:) )
@@ -1018,16 +1007,17 @@ CONTAINS
       CASE( 2 )            !==  from 1D to 2D  ==!
          !                 !---------------------!
          CALL tab_1d_2d( npti, nptidx(1:npti), ato_i_1d(1:npti)   , ato_i(:,:)  )
-         CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d (1:npti,:)  , a_i (:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d (1:npti,:)  , v_i (:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), v_s_2d (1:npti,:)  , v_s (:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d(1:npti,:)  , sv_i(:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), oa_i_2d(1:npti,:)  , oa_i(:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), a_ip_2d(1:npti,:)  , a_ip(:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), v_ip_2d(1:npti,:)  , v_ip(:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), v_il_2d(1:npti,:)  , v_il(:,:,:) )
-         CALL tab_3d_4d( npti, nptidx(1:npti), e_s_2d (1:npti,:,:), e_s )
-         CALL tab_3d_4d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i )
+         CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d  (1:npti,:)  , a_i (:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d  (1:npti,:)  , v_i (:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), v_s_2d  (1:npti,:)  , v_s (:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d (1:npti,:)  , sv_i(:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), oa_i_2d (1:npti,:)  , oa_i(:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), a_ip_2d (1:npti,:)  , a_ip(:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), v_ip_2d (1:npti,:)  , v_ip(:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), v_il_2d (1:npti,:)  , v_il(:,:,:) )
+         CALL tab_3d_4d( npti, nptidx(1:npti), e_s_2d  (1:npti,:,:), e_s   )
+         CALL tab_3d_4d( npti, nptidx(1:npti), e_i_2d  (1:npti,:,:), e_i   )
+         CALL tab_3d_4d( npti, nptidx(1:npti), szv_i_2d(1:npti,:,:), szv_i )
          CALL tab_1d_2d( npti, nptidx(1:npti), sfx_dyn_1d    (1:npti), sfx_dyn    (:,:) )
          CALL tab_1d_2d( npti, nptidx(1:npti), sfx_bri_1d    (1:npti), sfx_bri    (:,:) )
          CALL tab_1d_2d( npti, nptidx(1:npti), wfx_dyn_1d    (1:npti), wfx_dyn    (:,:) )

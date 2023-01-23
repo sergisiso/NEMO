@@ -261,13 +261,12 @@ CONTAINS
       CALL Agrif_Declare_Var_ice  !  "      "   "   "      "  Sea ice
 #endif
       !
-      !                                ! Allocate the ice arrays (sbc_ice already allocated in sbc_init)
+      !                                ! Allocate the 2D ice arrays (sbc_ice already allocated in sbc_init)
       ierr =        ice_alloc        ()      ! ice variables
       ierr = ierr + sbc_ice_alloc    ()      ! surface boundary conditions
-      ierr = ierr + ice1D_alloc      ()      ! thermodynamics
       !
       CALL mpp_sum( 'icestp', ierr )
-      IF( ierr /= 0 )   CALL ctl_stop('STOP', 'ice_init : unable to allocate ice arrays')
+      IF( ierr /= 0 )   CALL ctl_stop('STOP', 'ice_init : unable to allocate 2D ice arrays')
       !
       !                                ! set max concentration in both hemispheres
       WHERE( gphit(:,:) > 0._wp )   ;   rn_amax_2d(:,:) = rn_amax_n  ! NH
@@ -308,6 +307,12 @@ CONTAINS
          CALL iom_close( numrir )  ! close input ice restart file
          IF(lrxios) CALL iom_context_finalize(      cr_icerst_cxt         )
       ENDIF
+      !
+      !                                ! Allocate the 1D ice arrays
+      ierr = ice1D_alloc      ()       ! thermodynamics
+      !
+      CALL mpp_sum( 'icestp', ierr )
+      IF( ierr /= 0 )   CALL ctl_stop('STOP', 'ice_init : unable to allocate 1D ice arrays')
       !
    END SUBROUTINE ice_init
 
@@ -398,8 +403,9 @@ CONTAINS
                h_i_b(ji,jj,jl) = 0._wp
                h_s_b(ji,jj,jl) = 0._wp
             ENDIF
-            e_s_b (ji,jj,:,jl) = e_s (ji,jj,:,jl)   ! snow thermal energy
-            e_i_b (ji,jj,:,jl) = e_i (ji,jj,:,jl)   ! ice thermal energy
+            e_s_b  (ji,jj,:,jl) = e_s  (ji,jj,:,jl)   ! snow thermal energy
+            e_i_b  (ji,jj,:,jl) = e_i  (ji,jj,:,jl)   ! ice thermal energy
+            szv_i_b(ji,jj,:,jl) = szv_i(ji,jj,:,jl)   ! ice salt content
          END_2D
       ENDDO
       ! total concentration
@@ -482,7 +488,7 @@ CONTAINS
             qml_ice    (ji,jj,jl) = 0._wp   ! surface melt heat flux
             ! Melt pond surface melt diagnostics (mv - more efficient: grouped into one water volume flux)
             dh_i_sum_2d(ji,jj,jl) = 0._wp
-            dh_s_mlt_2d(ji,jj,jl) = 0._wp
+            dh_s_sum_2d(ji,jj,jl) = 0._wp
          END_2D
       ENDDO
 
@@ -505,17 +511,26 @@ CONTAINS
          !
          DO_2D( 0, 0, 0, 0 )
             diag_heat(ji,jj) = diag_heat(ji,jj) &
-               &             - SUM(SUM( e_i (ji,jj,1:nlay_i,:) - e_i_b (ji,jj,1:nlay_i,:), dim=2 ) ) * r1_Dt_ice &
-               &             - SUM(SUM( e_s (ji,jj,1:nlay_s,:) - e_s_b (ji,jj,1:nlay_s,:), dim=2 ) ) * r1_Dt_ice
-            diag_sice(ji,jj) = diag_sice(ji,jj) &
-               &             + SUM(     sv_i(ji,jj,:)          - sv_i_b(ji,jj,:)                   ) * r1_Dt_ice * rhoi
+               &             - SUM(SUM( e_i (ji,jj,1:nlay_i,:)  - e_i_b (ji,jj,1:nlay_i,:), dim=2 ) ) * r1_Dt_ice &
+               &             - SUM(SUM( e_s (ji,jj,1:nlay_s,:)  - e_s_b (ji,jj,1:nlay_s,:), dim=2 ) ) * r1_Dt_ice
             diag_vice(ji,jj) = diag_vice(ji,jj) &
-               &             + SUM(     v_i (ji,jj,:)          - v_i_b (ji,jj,:)                   ) * r1_Dt_ice * rhoi
+               &             + SUM(     v_i (ji,jj,:)           - v_i_b (ji,jj,:)                   ) * r1_Dt_ice * rhoi
             diag_vsnw(ji,jj) = diag_vsnw(ji,jj) &
-               &             + SUM(     v_s (ji,jj,:)          - v_s_b (ji,jj,:)                   ) * r1_Dt_ice * rhos
+               &             + SUM(     v_s (ji,jj,:)           - v_s_b (ji,jj,:)                   ) * r1_Dt_ice * rhos
             diag_vpnd(ji,jj) = diag_vpnd(ji,jj) &
-               &             + SUM( v_ip(ji,jj,:)+v_il(ji,jj,:) - v_ip_b(ji,jj,:)-v_il_b(ji,jj,:)  ) * r1_Dt_ice * rhow
+               &             + SUM( v_ip(ji,jj,:)+v_il(ji,jj,:) - v_ip_b(ji,jj,:)-v_il_b(ji,jj,:)   ) * r1_Dt_ice * rhow
          END_2D
+         IF( nn_icesal == 4 ) THEN
+            DO_2D( 0, 0, 0, 0 )
+               diag_sice(ji,jj) = diag_sice(ji,jj) &
+                  &             + SUM(SUM( szv_i(ji,jj,:,:)     - szv_i_b(ji,jj,:,:)      , dim=2 ) ) * r1_Dt_ice * rhoi
+            END_2D
+         ELSE
+            DO_2D( 0, 0, 0, 0 )
+               diag_sice(ji,jj) = diag_sice(ji,jj) &
+                  &             + SUM(     sv_i(ji,jj,:)        - sv_i_b(ji,jj,:)                   ) * r1_Dt_ice * rhoi
+            END_2D
+         ENDIF
          !
          IF( kn == 2 )    CALL iom_put ( 'hfxdhc' , diag_heat )   ! output of heat trend
          !

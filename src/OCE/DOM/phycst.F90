@@ -26,46 +26,46 @@ MODULE phycst
    REAL(wp), PUBLIC ::   rad      = 3.141592653589793_wp / 180._wp   !: conversion from degre into radian
    REAL(wp), PUBLIC ::   rsmall   = 0.5 * EPSILON( 1.e0 )            !: smallest real computer value
 
-   REAL(wp), PUBLIC ::   rday     = 24.*60.*60.      !: day                                [s]
-   REAL(wp), PUBLIC ::   rsiyea                      !: sideral year                       [s]
-   REAL(wp), PUBLIC ::   rsiday                      !: sideral day                        [s]
-   REAL(wp), PUBLIC ::   raamo    =  12._wp          !: number of months in one year
-   REAL(wp), PUBLIC ::   rjjhh    =  24._wp          !: number of hours in one day
-   REAL(wp), PUBLIC ::   rhhmm    =  60._wp          !: number of minutes in one hour
-   REAL(wp), PUBLIC ::   rmmss    =  60._wp          !: number of seconds in one minute
-   REAL(wp), PUBLIC ::   omega                       !: earth rotation parameter           [s-1]
-   REAL(wp), PUBLIC ::   ra       = 6371229._wp      !: earth radius                       [m]
-   REAL(wp), PUBLIC ::   grav     = 9.80665_wp       !: gravity                            [m/s2]
-   REAL(wp), PUBLIC ::   rt0      = 273.15_wp        !: freezing point of fresh water [Kelvin]
+   REAL(wp), PUBLIC ::   rday     = 24.*60.*60.       !: day                                [s]
+   REAL(wp), PUBLIC ::   rsiyea                       !: sideral year                       [s]
+   REAL(wp), PUBLIC ::   rsiday                       !: sideral day                        [s]
+   REAL(wp), PUBLIC ::   raamo    =  12._wp           !: number of months in one year
+   REAL(wp), PUBLIC ::   rjjhh    =  24._wp           !: number of hours in one day
+   REAL(wp), PUBLIC ::   rhhmm    =  60._wp           !: number of minutes in one hour
+   REAL(wp), PUBLIC ::   rmmss    =  60._wp           !: number of seconds in one minute
+   REAL(wp), PUBLIC ::   omega                        !: earth rotation parameter           [s-1]
+   REAL(wp), PUBLIC ::   ra       = 6371229._wp       !: earth radius                       [m]
+   REAL(wp), PUBLIC ::   grav     = 9.80665_wp        !: gravity                            [m/s2]
+   REAL(wp), PUBLIC ::   rt0      = 273.15_wp         !: freezing point of fresh water [Kelvin]
 
-   REAL(wp), PUBLIC ::   rho0                        !: volumic mass of reference     [kg/m3]
-   REAL(wp), PUBLIC ::   r1_rho0                     !: = 1. / rho0                   [m3/kg]
-   REAL(wp), PUBLIC ::   rcp                         !: ocean specific heat           [J/Kelvin]
-   REAL(wp), PUBLIC ::   r1_rcp                      !: = 1. / rcp                    [Kelvin/J]
-   REAL(wp), PUBLIC ::   rho0_rcp                    !: = rho0 * rcp
-   REAL(wp), PUBLIC ::   r1_rho0_rcp                 !: = 1. / ( rho0 * rcp )
+   REAL(wp), PUBLIC ::   rho0                         !: volumic mass of reference     [kg/m3]
+   REAL(wp), PUBLIC ::   r1_rho0                      !: = 1. / rho0                   [m3/kg]
+   REAL(wp), PUBLIC ::   rcp                          !: ocean specific heat           [J/Kelvin]
+   REAL(wp), PUBLIC ::   r1_rcp                       !: = 1. / rcp                    [Kelvin/J]
+   REAL(wp), PUBLIC ::   rho0_rcp                     !: = rho0 * rcp
+   REAL(wp), PUBLIC ::   r1_rho0_rcp                  !: = 1. / ( rho0 * rcp )
 
-   REAL(wp), PUBLIC ::   emic     =    0.97_wp       !: emissivity of snow or ice (not used?)
+   REAL(wp), PUBLIC ::   emic     =    0.97_wp        !: emissivity of snow or ice (not used?)
 
-   REAL(wp), PUBLIC ::   sice     =    6.0_wp        !: salinity of ice (for pisces)          [psu]
-   REAL(wp), PUBLIC ::   soce     =   34.7_wp        !: salinity of sea (for pisces and isf)  [psu]
-   REAL(wp), PUBLIC ::   rLevap   =    2.5e+6_wp     !: latent heat of evaporation (water)
-   REAL(wp), PUBLIC ::   vkarmn   =    0.4_wp        !: von Karman constant
-   REAL(wp), PUBLIC ::   vkarmn2  =    0.4_wp*0.4_wp !: square of von Karman constant
-   REAL(wp), PUBLIC ::   stefan   =    5.67e-8_wp    !: Stefan-Boltzmann constant
+   REAL(wp), PUBLIC ::   sice     =    6.0_wp         !: salinity of ice (for pisces)          [psu]
+   REAL(wp), PUBLIC ::   soce     =   34.7_wp         !: salinity of sea (for pisces and isf)  [psu]
+   REAL(wp), PUBLIC ::   rLevap   =    2.5e+6_wp      !: latent heat of evaporation (water)
+   REAL(wp), PUBLIC ::   vkarmn   =    0.4_wp         !: von Karman constant
+   REAL(wp), PUBLIC ::   vkarmn2  =    0.4_wp*0.4_wp  !: square of von Karman constant
+   REAL(wp), PUBLIC ::   stefan   =    5.67e-8_wp     !: Stefan-Boltzmann constant
 
-   REAL(wp), PUBLIC ::   rhos     =  330._wp         !: volumic mass of snow                                  [kg/m3]
-   REAL(wp), PUBLIC ::   rhoi     =  917._wp         !: volumic mass of sea ice                               [kg/m3]
-   REAL(wp), PUBLIC ::   rhow     = 1000._wp         !: volumic mass of freshwater in melt ponds              [kg/m3]
-   REAL(wp), PUBLIC ::   rcnd_i   =    2.034396_wp   !: thermal conductivity of fresh ice                     [W/m/K]
-   REAL(wp), PUBLIC ::   rcpi     = 2067.0_wp        !: specific heat of fresh ice                            [J/kg/K]
-   REAL(wp), PUBLIC ::   rLsub    =    2.834e+6_wp   !: pure ice latent heat of sublimation                   [J/kg]
-   REAL(wp), PUBLIC ::   rLfus    =    0.334e+6_wp   !: latent heat of fusion of fresh ice                    [J/kg]
-   REAL(wp), PUBLIC ::   rTmlt    =    0.054_wp      !: decrease of seawater meltpoint with salinity
+   REAL(wp), PUBLIC ::   rhos     =  330._wp          !: volumic mass of snow                                  [kg/m3]
+   REAL(wp), PUBLIC ::   rhoi     =  917._wp          !: volumic mass of sea ice (Pounder, 1965)               [kg/m3]
+   REAL(wp), PUBLIC ::   rhow     =  1000._wp         !: volumic mass of freshwater in melt ponds              [kg/m3]
+   REAL(wp), PUBLIC ::   rcnd_i   =  2.034396_wp      !: thermal conductivity of fresh ice                     [W/m/K]
+   REAL(wp), PUBLIC ::   rcpi     =  2096.7_wp        !: specific heat of fresh ice          (Feistel and Wagner, 2006) (previously 2067.0)   [J/kg/K]
+   REAL(wp), PUBLIC ::   rLsub    =  2.8344e+6_wp     !: pure ice latent heat of sublimation (Feistel and Wagner, 2006)                       [J/kg]
+   REAL(wp), PUBLIC ::   rLfus    =  0.3333601e+06_wp !: latent heat of fusion of fresh ice  (Feistel and Wagner, 2006) (previously 0.334e+6) [J/kg]
+   REAL(wp), PUBLIC ::   rTmlt    =  0.054_wp         !: decrease of seawater meltpoint with salinity
 
-   REAL(wp), PUBLIC ::   r1_rhoi                     !: 1 / rhoi
-   REAL(wp), PUBLIC ::   r1_rhos                     !: 1 / rhos
-   REAL(wp), PUBLIC ::   r1_rcpi                     !: 1 / rcpi
+   REAL(wp), PUBLIC ::   r1_rhoi                      !: 1 / rhoi
+   REAL(wp), PUBLIC ::   r1_rhos                      !: 1 / rhos
+   REAL(wp), PUBLIC ::   r1_rcpi                      !: 1 / rcpi
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)

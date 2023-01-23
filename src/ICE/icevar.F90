@@ -46,7 +46,7 @@ MODULE icevar
    !!   ice_var_zapsmall  : remove very small area and volume
    !!   ice_var_zapneg    : remove negative ice fields
    !!   ice_var_roundoff  : remove negative values arising from roundoff erros
-   !!   ice_var_bv        : brine volume
+   !!   ice_var_brine     : brine volume
    !!   ice_var_enthalpy  : compute ice and snow enthalpies from temperature
    !!   ice_var_sshdyn    : compute equivalent ssh in lead
    !!   ice_var_itd       : convert N-cat to M-cat
@@ -68,14 +68,15 @@ MODULE icevar
 
    PUBLIC   ice_var_agg
    PUBLIC   ice_var_glo2eqv
-   PUBLIC   ice_var_eqv2glo
+!!$   PUBLIC   ice_var_eqv2glo
    PUBLIC   ice_var_salprof
    PUBLIC   ice_var_salprof1d
    PUBLIC   ice_var_zapsmall
    PUBLIC   ice_var_zapneg
    PUBLIC   ice_var_roundoff
-   PUBLIC   ice_var_bv
+   PUBLIC   ice_var_brine
    PUBLIC   ice_var_enthalpy
+   PUBLIC   ice_var_vremap
    PUBLIC   ice_var_sshdyn
    PUBLIC   ice_var_itd
    PUBLIC   ice_var_snwfra
@@ -134,7 +135,6 @@ CONTAINS
       END_2D
       !
       DO_2D( 0, 0, 0, 0 )
-         st_i(ji,jj) =       SUM( sv_i(ji,jj,:)     )
          et_s(ji,jj)  = SUM( SUM( e_s (ji,jj,:,:), dim=2 ) )
          et_i(ji,jj)  = SUM( SUM( e_i (ji,jj,:,:), dim=2 ) )
          !
@@ -146,6 +146,16 @@ CONTAINS
          ENDIF
       END_2D
       !
+      IF( nn_icesal == 4 ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            st_i(ji,jj) = SUM( SUM( szv_i (ji,jj,:,:), dim=2 ) )
+         END_2D
+      ELSE
+         DO_2D( 0, 0, 0, 0 )
+            st_i(ji,jj) = SUM( sv_i(ji,jj,:) )
+         END_2D
+      ENDIF
+      
       ! The following fields are calculated for diagnostics and outputs only
       ! ==> Do not use them for other purposes
       IF( kn > 1 ) THEN
@@ -252,9 +262,9 @@ CONTAINS
       INTEGER, INTENT( in ) ::   kn     ! =1 everything including ponds (necessary for init)
       !                                 ! =2            excluding ponds if ln_pnd=F
       INTEGER  ::   ji, jj, jk, jl   ! dummy loop indices
-      REAL(wp) ::   ze_i             ! local scalars
+      REAL(wp) ::   ze_i, zs_i                      ! local scalars
       REAL(wp) ::   ze_s, ztmelts, zbbb, zccc       !   -      -
-      REAL(wp) ::   zhmax, z1_hmax                 !   -      -
+      REAL(wp) ::   zhmax, z1_hmax                  !   -      -
       REAL(wp) ::   zlay_i, zlay_s                  !   -      -
       REAL(wp), PARAMETER ::   zhl_max =  0.015_wp  ! pond lid thickness above which the ponds disappear from the albedo calculation
       REAL(wp), PARAMETER ::   zhl_min =  0.005_wp  ! pond lid thickness below which the full pond area is used in the albedo calculation
@@ -294,14 +304,7 @@ CONTAINS
             !
          END_2D
       ENDDO
-      !                                                  !---  salinity (with a minimum value imposed everywhere)
-      IF( nn_icesal == 2 ) THEN
-         WHERE( v_i(:,:,:) > epsi20 )   ;   s_i(:,:,:) = MAX( rn_simin , MIN( rn_simax, sv_i(:,:,:) / v_i(:,:,:) ) )
-         ELSEWHERE                      ;   s_i(:,:,:) = rn_simin
-         END WHERE
-      ENDIF
-      CALL ice_var_salprof   ! salinity profile
-
+      !
       IF( kn == 1 .OR. ln_pnd ) THEN
          ALLOCATE( za_s_fra(A2D(0),jpl) )
          !
@@ -333,6 +336,46 @@ CONTAINS
          a_ip_eff(:,:,:) = MIN( a_ip_eff(:,:,:), 1._wp - za_s_fra(:,:,:) )   ! make sure (a_ip_eff + a_s_fra) <= 1
          !
          DEALLOCATE( za_s_fra )
+      ENDIF
+      !
+      !-------------------
+      ! Ice salinity         (with a min value rn_simin and a max value rn_sinew*sss)
+      !-------------------
+      IF( nn_icesal == 1 .OR. nn_icesal == 3 ) THEN
+         !
+         CALL ice_var_salprof   ! salinity profile
+         !
+      ELSEIF( nn_icesal == 2 ) THEN
+         !
+         DO jl = 1, jpl
+            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               IF( v_i(ji,jj,jl) > epsi20 ) THEN
+!!clem test                  s_i(ji,jj,jl) = MAX( rn_simin , MIN( rn_sinew * sss_m(ji,jj), sv_i(ji,jj,jl) / v_i(ji,jj,jl) ) )
+                  s_i(ji,jj,jl) = sv_i(ji,jj,jl) / v_i(ji,jj,jl)
+               ELSE
+                  s_i(ji,jj,jl) = rn_simin
+               ENDIF
+            END_2D
+         ENDDO
+         CALL ice_var_salprof   ! salinity profile
+         !
+      ELSEIF( nn_icesal == 4 ) THEN
+         !
+         s_i(:,:,:) = 0._wp
+         zlay_i = REAL( nlay_i , wp )    ! number of layers
+         DO jl = 1, jpl
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, nlay_i )
+               IF ( v_i(ji,jj,jl) > epsi20 ) THEN     !--- icy area
+                  zs_i = szv_i(ji,jj,jk,jl) / ( v_i(ji,jj,jl) * r1_nlay_i )
+!!clem test                  sz_i(ji,jj,jk,jl) = MAX( rn_simin , MIN( rn_sinew * sss_m(ji,jj), zs_i ) )
+                  sz_i(ji,jj,jk,jl) = zs_i
+               ELSE                                   !--- no ice
+                  sz_i(ji,jj,jk,jl) = rn_simin
+               ENDIF
+               s_i(ji,jj,jl) = s_i(ji,jj,jl) + sz_i(ji,jj,jk,jl) * r1_nlay_i
+            END_3D
+         END DO
+         !         
       ENDIF
          
       !-------------------
@@ -383,27 +426,27 @@ CONTAINS
    END SUBROUTINE ice_var_glo2eqv
 
 
-   SUBROUTINE ice_var_eqv2glo
-      !!-------------------------------------------------------------------
-      !!                ***  ROUTINE ice_var_eqv2glo ***
-      !!
-      !! ** Purpose :   computes global variables as function of
-      !!              equivalent variables,  i.e. it turns VEQV into VGLO
-      !!-------------------------------------------------------------------
-      INTEGER  ::   ji, jj, jl   ! dummy loop indices
-      !!-------------------------------------------------------------------
-      !
-      DO jl = 1, jpl
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-            v_i (ji,jj,jl) = h_i (ji,jj,jl) * a_i (ji,jj,jl)
-            v_s (ji,jj,jl) = h_s (ji,jj,jl) * a_i (ji,jj,jl)
-            sv_i(ji,jj,jl) = s_i (ji,jj,jl) * v_i (ji,jj,jl)
-            v_ip(ji,jj,jl) = h_ip(ji,jj,jl) * a_ip(ji,jj,jl)
-            v_il(ji,jj,jl) = h_il(ji,jj,jl) * a_ip(ji,jj,jl)
-         END_2D
-      ENDDO
-      !
-   END SUBROUTINE ice_var_eqv2glo
+!!$   SUBROUTINE ice_var_eqv2glo
+!!$      !!-------------------------------------------------------------------
+!!$      !!                ***  ROUTINE ice_var_eqv2glo ***
+!!$      !!
+!!$      !! ** Purpose :   computes global variables as function of
+!!$      !!              equivalent variables,  i.e. it turns VEQV into VGLO
+!!$      !!-------------------------------------------------------------------
+!!$      INTEGER  ::   ji, jj, jl   ! dummy loop indices
+!!$      !!-------------------------------------------------------------------
+!!$      !
+!!$      DO jl = 1, jpl
+!!$         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+!!$            v_i (ji,jj,jl) = h_i (ji,jj,jl) * a_i (ji,jj,jl)
+!!$            v_s (ji,jj,jl) = h_s (ji,jj,jl) * a_i (ji,jj,jl)
+!!$            sv_i(ji,jj,jl) = s_i (ji,jj,jl) * v_i (ji,jj,jl)
+!!$            v_ip(ji,jj,jl) = h_ip(ji,jj,jl) * a_ip(ji,jj,jl)
+!!$            v_il(ji,jj,jl) = h_il(ji,jj,jl) * a_ip(ji,jj,jl)
+!!$         END_2D
+!!$      ENDDO
+!!$      !
+!!$   END SUBROUTINE ice_var_eqv2glo
 
 
    SUBROUTINE ice_var_salprof
@@ -422,11 +465,9 @@ CONTAINS
       !! ** References : Vancoppenolle et al., 2007
       !!-------------------------------------------------------------------
       INTEGER  ::   ji, jj, jk, jl   ! dummy loop index
-      REAL(wp) ::   z1_dS
-      REAL(wp) ::   ztmp1, ztmp2, zs0, zs
-      REAL(wp) ::   z_slope_s, zalpha    ! case 2 only
-      REAL(wp), PARAMETER :: zsi0 = 3.5_wp
-      REAL(wp), PARAMETER :: zsi1 = 4.5_wp
+      REAL(wp) ::   z1_dS, ztmp1, ztmp2, zalpha
+      REAL(wp), PARAMETER ::   zsi0 = 3.5_wp
+      REAL(wp), PARAMETER ::   zsi1 = 4.5_wp
       !!-------------------------------------------------------------------
 
 !!gm Question: Remove the option 3 ?  How many years since it last use ?
@@ -440,27 +481,27 @@ CONTAINS
          s_i (:,:,:)   = rn_icesal
          !
          !            !---------------------------------------------!
-      CASE( 2 )       !  time varying salinity with linear profile  !
+      CASE( 2 , 4 )   !  time varying salinity with linear profile  !
          !            !---------------------------------------------!
          z1_dS = 1._wp / ( zsi1 - zsi0 )
          !
          DO jl = 1, jpl
             DO jk = 1, nlay_i
                DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-                  !                                      ! Slope of the linear profile
-                  IF( h_i(ji,jj,jl) > epsi20 ) THEN   ;   z_slope_s = 2._wp * s_i(ji,jj,jl) / h_i(ji,jj,jl)
-                  ELSE                                ;   z_slope_s = 0._wp
+                  !
+                  IF    ( s_i(ji,jj,jl) >= zsi1 ) THEN    ;    zalpha = 0._wp
+                  ELSEIF( s_i(ji,jj,jl) <= zsi0 ) THEN    ;    zalpha = 1._wp
+                  ELSE                                    ;    zalpha = ( zsi1 - s_i(ji,jj,jl) ) * z1_dS
                   ENDIF
                   !
-                  zalpha = MAX( 0._wp , MIN( ( zsi1 - s_i(ji,jj,jl) ) * z1_dS , 1._wp )  )
-                  !                             ! force a constant profile when SSS too low (Baltic Sea)
-                  IF( 2._wp * s_i(ji,jj,jl) >= sss_m(ji,jj) )   zalpha = 0._wp
+                  IF( s_i(ji,jj,jl) >= ( 0.5_wp * rn_sinew * sss_m(ji,jj) ) )   zalpha = 0._wp ! force constant profile when SSS too low (Baltic Sea)
+                  IF( s_i(ji,jj,jl) <= ( REAL( nlay_i , wp ) * rn_simin ) )     zalpha = 0._wp ! force constant profile when ice surface salinity too small
+                  !                                                                            !       it depends on nlay_i which is not ideal
                   !
-                  ! Computation of the profile
-                  !                          ! linear profile with 0 surface value
-                  zs0 = z_slope_s * ( REAL(jk,wp) - 0.5_wp ) * h_i(ji,jj,jl) * r1_nlay_i
-                  zs  = zalpha * zs0 + ( 1._wp - zalpha ) * s_i(ji,jj,jl)     ! weighting the profile
-                  sz_i(ji,jj,jk,jl) = MIN( rn_simax, MAX( zs, rn_simin ) )
+                  ! linear profile with 0 surface value
+                  sz_i(ji,jj,jk,jl) =             zalpha   * s_i(ji,jj,jl) * 2._wp * ( REAL(jk,wp) - 0.5_wp ) * r1_nlay_i &
+                     &                + ( 1._wp - zalpha ) * s_i(ji,jj,jl)
+                  !  => mean(sz_i(jk)) = s_i
                END_2D
             ENDDO
          ENDDO
@@ -499,12 +540,9 @@ CONTAINS
       !!                Works with 1d vectors and is used by thermodynamic modules
       !!-------------------------------------------------------------------
       INTEGER  ::   ji, jk    ! dummy loop indices
-      REAL(wp) ::   ztmp1, ztmp2, z1_dS   ! local scalars
-      REAL(wp) ::   zs, zs0              !   -      -
-      !
-      REAL(wp) ::   z_slope_s, zalpha   !
-      REAL(wp), PARAMETER :: zsi0 = 3.5_wp
-      REAL(wp), PARAMETER :: zsi1 = 4.5_wp
+      REAL(wp) ::   z1_dS, ztmp1, ztmp2, zalpha
+      REAL(wp), PARAMETER ::   zsi0 = 3.5_wp
+      REAL(wp), PARAMETER ::   zsi1 = 4.5_wp
       !!-------------------------------------------------------------------
       !
       SELECT CASE ( nn_icesal )
@@ -515,27 +553,26 @@ CONTAINS
          sz_i_1d(1:npti,:) = rn_icesal
          !
          !            !---------------------------------------------!
-      CASE( 2 )       !  time varying salinity with linear profile  !
+      CASE( 2 , 4 )   !  time varying salinity with linear profile  !
          !            !---------------------------------------------!
          z1_dS = 1._wp / ( zsi1 - zsi0 )
          !
          DO jk = 1, nlay_i
             DO ji = 1, npti
-               !                                      ! Slope of the linear profile
-               IF( h_i_1d(ji) > epsi20 ) THEN   ;   z_slope_s = 2._wp * s_i_1d(ji) / h_i_1d(ji)
-               ELSE                             ;   z_slope_s = 0._wp
+               !
+               IF    ( s_i_1d(ji) >= zsi1 ) THEN    ;    zalpha = 0._wp
+               ELSEIF( s_i_1d(ji) <= zsi0 ) THEN    ;    zalpha = 1._wp
+               ELSE                                 ;    zalpha = ( zsi1 - s_i_1d(ji) ) * z1_dS
                ENDIF
                !
-               zalpha = MAX(  0._wp , MIN(  ( zsi1 - s_i_1d(ji) ) * z1_dS , 1._wp  )  )
-               !                             ! force a constant profile when SSS too low (Baltic Sea)
-               IF( 2._wp * s_i_1d(ji) >= sss_1d(ji) )   zalpha = 0._wp
+               IF( s_i_1d(ji) >= ( 0.5_wp * rn_sinew * sss_1d(ji) ) )   zalpha = 0._wp ! force constant profile when SSS too low (Baltic Sea)
+               IF( s_i_1d(ji) <= ( REAL( nlay_i , wp ) * rn_simin ) )   zalpha = 0._wp ! force constant profile when ice surface salinity too small
+               !                                                                       !       it depends on nlay_i which is not ideal
                !
-               !
-               ! Computation of the profile
-               !                          ! linear profile with 0 surface value
-               zs0 = z_slope_s * ( REAL(jk,wp) - 0.5_wp ) * h_i_1d(ji) * r1_nlay_i
-               zs  = zalpha * zs0 + ( 1._wp - zalpha ) * s_i_1d(ji)
-               sz_i_1d(ji,jk) = MIN( rn_simax , MAX( zs , rn_simin ) )
+               ! linear profile with 0 surface value
+               sz_i_1d(ji,jk) =          zalpha   * s_i_1d(ji) * 2._wp * ( REAL(jk,wp) - 0.5_wp ) * r1_nlay_i &
+                  &          + ( 1._wp - zalpha ) * s_i_1d(ji)
+               !  => mean(sz_i(jk)) = s_i
             END DO
          END DO
          !
@@ -574,6 +611,38 @@ CONTAINS
       END WHERE
       !
       !-----------------------------------------------------------------
+      ! Zap ice volume, add salt to ocean
+      !-----------------------------------------------------------------
+      IF( nn_icesal == 4 ) THEN
+         DO jl = 1, jpl
+            DO_3D( 0, 0, 0, 0, 1, nlay_i )
+               !
+               zsmall = MIN( a_i(ji,jj,jl), v_i(ji,jj,jl),  h_i(ji,jj,jl) )
+               !
+               IF( zsmall < epsi10 ) THEN
+                  ! update exchanges with ocean
+                  sfx_res(ji,jj)  = sfx_res(ji,jj) + szv_i(ji,jj,jk,jl) * rhoi * r1_Dt_ice
+                  szv_i(ji,jj,jk,jl) = 0._wp
+                  sz_i (ji,jj,jk,jl) = rn_simin
+               ENDIF
+            END_3D
+         ENDDO
+      ELSE
+         DO jl = 1, jpl
+            DO_2D( 0, 0, 0, 0 )
+               !
+               zsmall = MIN( a_i(ji,jj,jl), v_i(ji,jj,jl),  h_i(ji,jj,jl) )
+               !
+               IF( zsmall < epsi10 ) THEN
+                  ! update exchanges with ocean
+                  sfx_res(ji,jj)  = sfx_res(ji,jj) + sv_i(ji,jj,jl)   * rhoi * r1_Dt_ice
+                  sv_i (ji,jj,jl) = 0._wp
+               ENDIF
+            END_2D
+         END DO
+      ENDIF
+
+      !-----------------------------------------------------------------
       ! Zap ice energy and use ocean heat to melt ice
       !-----------------------------------------------------------------
       DO jl = 1, jpl
@@ -605,7 +674,7 @@ CONTAINS
       ENDDO
       !
       !-----------------------------------------------------------------
-      ! zap ice and snow volume, add water and salt to ocean
+      ! zap ice and snow volume, add water to ocean
       !-----------------------------------------------------------------
       DO jl = 1, jpl
          DO_2D( 0, 0, 0, 0 )
@@ -614,7 +683,6 @@ CONTAINS
             !
             IF( zsmall < epsi10 ) THEN
                ! update exchanges with ocean
-               sfx_res(ji,jj)  = sfx_res(ji,jj) + sv_i(ji,jj,jl)   * rhoi * r1_Dt_ice
                wfx_res(ji,jj)  = wfx_res(ji,jj) + v_i (ji,jj,jl)   * rhoi * r1_Dt_ice
                wfx_res(ji,jj)  = wfx_res(ji,jj) + v_s (ji,jj,jl)   * rhos * r1_Dt_ice
                wfx_res(ji,jj)  = wfx_res(ji,jj) + ( v_ip(ji,jj,jl)+v_il(ji,jj,jl) ) * rhow * r1_Dt_ice
@@ -624,7 +692,6 @@ CONTAINS
                v_s  (ji,jj,jl) = 0._wp
                t_su (ji,jj,jl) = sst_m(ji,jj) + rt0
                oa_i (ji,jj,jl) = 0._wp
-               sv_i (ji,jj,jl) = 0._wp
                !
                h_i (ji,jj,jl) = 0._wp
                h_s (ji,jj,jl) = 0._wp
@@ -654,7 +721,7 @@ CONTAINS
    END SUBROUTINE ice_var_zapsmall
 
 
-   SUBROUTINE ice_var_zapneg( ihls, pdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i )
+   SUBROUTINE ice_var_zapneg( ihls, pdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
       !!-------------------------------------------------------------------
       !!                   ***  ROUTINE ice_var_zapneg ***
       !!
@@ -673,6 +740,7 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   pv_il      ! melt pond lid volume
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_s       ! snw heat content
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_i       ! ice heat content
+      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pszv_i     ! ice salt content
       !
       INTEGER  ::   ji, jj, jl, jk   ! dummy loop indices
       REAL(wp) ::   z1_dt
@@ -690,30 +758,51 @@ CONTAINS
       ! make sure a_i=0 where v_i<=0
       WHERE( pv_i(:,:,:) <= 0._wp )   pa_i(:,:,:) = 0._wp
       
+      !--------------------------------------
+      ! zap ice salt and send it to the ocean
+      !--------------------------------------
+      IF( nn_icesal == 4 ) THEN
+         DO jl = 1, jpl
+            DO_3D( ihls, ihls, ihls, ihls, 1, nlay_i )
+               IF( pszv_i(ji,jj,jk,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp .OR. pv_i(ji,jj,jl) <= 0._wp ) THEN
+                  zsfx_res(ji,jj)     = zsfx_res(ji,jj) + pszv_i(ji,jj,jk,jl) * rhoi * z1_dt
+                  pszv_i(ji,jj,jk,jl) = 0._wp
+               ENDIF
+            END_3D
+         ENDDO
+      ELSE
+         DO jl = 1, jpl
+            DO_2D( ihls, ihls, ihls, ihls )
+               IF( psv_i(ji,jj,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp .OR. pv_i(ji,jj,jl) <= 0._wp ) THEN
+                  zsfx_res(ji,jj)    = zsfx_res(ji,jj) + psv_i(ji,jj,jl) * rhoi * z1_dt
+                  psv_i   (ji,jj,jl) = 0._wp
+               ENDIF
+            END_2D
+         END DO
+      ENDIF
+      !
       !----------------------------------------
       ! zap ice energy and send it to the ocean
       !----------------------------------------
       DO jl = 1, jpl
          DO_3D( ihls, ihls, ihls, ihls, 1, nlay_i )
-            IF( pe_i(ji,jj,jk,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp ) THEN
+            IF( pe_i(ji,jj,jk,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp .OR. pv_i(ji,jj,jl) <= 0._wp ) THEN
                zhfx_res(ji,jj)   = zhfx_res(ji,jj) - pe_i(ji,jj,jk,jl) * z1_dt ! W.m-2 >0
                pe_i(ji,jj,jk,jl) = 0._wp
             ENDIF
          END_3D
-      ENDDO
-      !
-      DO jl = 1, jpl
+         !
          DO_3D( ihls, ihls, ihls, ihls, 1, nlay_s )
-            IF( pe_s(ji,jj,jk,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp ) THEN
+            IF( pe_s(ji,jj,jk,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp .OR. pv_s(ji,jj,jl) <= 0._wp ) THEN
                zhfx_res(ji,jj)   = zhfx_res(ji,jj) - pe_s(ji,jj,jk,jl) * z1_dt ! W.m-2 <0
                pe_s(ji,jj,jk,jl) = 0._wp
             ENDIF
          END_3D
       ENDDO
       !
-      !-----------------------------------------------------
-      ! zap ice and snow volume, add water and salt to ocean
-      !-----------------------------------------------------
+      !--------------------------------------------
+      ! zap ice and snow volume, add water to ocean
+      !--------------------------------------------
       DO jl = 1, jpl
          DO_2D( ihls, ihls, ihls, ihls )
             IF( pv_i(ji,jj,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp ) THEN
@@ -723,10 +812,6 @@ CONTAINS
             IF( pv_s(ji,jj,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp ) THEN
                zwfx_res(ji,jj)    = zwfx_res(ji,jj) + pv_s (ji,jj,jl) * rhos * z1_dt
                pv_s    (ji,jj,jl) = 0._wp
-            ENDIF
-            IF( psv_i(ji,jj,jl) < 0._wp .OR. pa_i(ji,jj,jl) <= 0._wp .OR. pv_i(ji,jj,jl) <= 0._wp ) THEN
-               zsfx_res(ji,jj)    = zsfx_res(ji,jj) + psv_i(ji,jj,jl) * rhoi * z1_dt
-               psv_i   (ji,jj,jl) = 0._wp
             ENDIF
             IF( pv_ip(ji,jj,jl) < 0._wp .OR. pv_il(ji,jj,jl) < 0._wp .OR. pa_ip(ji,jj,jl) <= 0._wp ) THEN
                zwfx_res(ji,jj)    = zwfx_res(ji,jj) + pv_il(ji,jj,jl) * rhow * z1_dt
@@ -754,7 +839,7 @@ CONTAINS
    END SUBROUTINE ice_var_zapneg
 
 
-   SUBROUTINE ice_var_roundoff( pa_i, pv_i, pv_s, psv_i, poa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i )
+   SUBROUTINE ice_var_roundoff( pa_i, pv_i, pv_s, psv_i, poa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
       !!-------------------------------------------------------------------
       !!                   ***  ROUTINE ice_var_roundoff ***
       !!
@@ -770,59 +855,74 @@ CONTAINS
       REAL(wp), DIMENSION(:,:)  , INTENT(inout) ::   pv_il      ! melt pond lid volume
       REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pe_s       ! snw heat content
       REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pe_i       ! ice heat content
+      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   pszv_i     ! ice salt content
       !!-------------------------------------------------------------------
 
       WHERE( pa_i (1:npti,:)   < 0._wp )   pa_i (1:npti,:)   = 0._wp   !  a_i must be >= 0
       WHERE( pv_i (1:npti,:)   < 0._wp )   pv_i (1:npti,:)   = 0._wp   !  v_i must be >= 0
       WHERE( pv_s (1:npti,:)   < 0._wp )   pv_s (1:npti,:)   = 0._wp   !  v_s must be >= 0
-      WHERE( psv_i(1:npti,:)   < 0._wp )   psv_i(1:npti,:)   = 0._wp   ! sv_i must be >= 0
       WHERE( poa_i(1:npti,:)   < 0._wp )   poa_i(1:npti,:)   = 0._wp   ! oa_i must be >= 0
       WHERE( pe_i (1:npti,:,:) < 0._wp )   pe_i (1:npti,:,:) = 0._wp   !  e_i must be >= 0
       WHERE( pe_s (1:npti,:,:) < 0._wp )   pe_s (1:npti,:,:) = 0._wp   !  e_s must be >= 0
       IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-         WHERE( pa_ip(1:npti,:) < 0._wp )    pa_ip(1:npti,:)   = 0._wp   ! a_ip must be >= 0
-         WHERE( pv_ip(1:npti,:) < 0._wp )    pv_ip(1:npti,:)   = 0._wp   ! v_ip must be >= 0
+         WHERE( pa_ip(1:npti,:) < 0._wp )  pa_ip(1:npti,:)   = 0._wp   ! a_ip must be >= 0
+         WHERE( pv_ip(1:npti,:) < 0._wp )  pv_ip(1:npti,:)   = 0._wp   ! v_ip must be >= 0
          IF( ln_pnd_lids ) THEN
-            WHERE( pv_il(1:npti,:) < 0._wp .AND. pv_il(1:npti,:) > -epsi10 ) pv_il(1:npti,:)   = 0._wp   ! v_il must be >= 0
+            WHERE( pv_il(1:npti,:) < 0._wp .AND. pv_il(1:npti,:) > -epsi10 )   pv_il(1:npti,:) = 0._wp   ! v_il must be >= 0
          ENDIF
+      ENDIF
+      IF( nn_icesal == 4 ) THEN
+         WHERE( pszv_i(1:npti,:,:) < 0._wp )   pszv_i(1:npti,:,:) = 0._wp   ! szv_i must be >= 0
+      ELSE
+         WHERE( psv_i (1:npti,:)   < 0._wp )   psv_i (1:npti,:)   = 0._wp   ! sv_i must be >= 0
       ENDIF
       !
    END SUBROUTINE ice_var_roundoff
 
 
-   SUBROUTINE ice_var_bv
+   SUBROUTINE ice_var_brine
       !!-------------------------------------------------------------------
-      !!                ***  ROUTINE ice_var_bv ***
+      !!                ***  ROUTINE ice_var_brine ***
       !!
-      !! ** Purpose :   computes mean brine volume (%) in sea ice
+      !! ** Purpose :   computes brine volume fraction (%)
+      !!                         and salinity of the brine in sea ice
       !!
       !! ** Method  : e = - 0.054 * S (ppt) / T (C)
       !!
       !! References : Vancoppenolle et al., JGR, 2007
       !!-------------------------------------------------------------------
       INTEGER  ::   ji, jj, jk, jl   ! dummy loop indices
+      REAL(wp) ::   zt1, zt2, zt3, zs_br
       !!-------------------------------------------------------------------
       !
-      bv_i (:,:,:) = 0._wp
+      v_ibr(:,:,:) = 0._wp
       DO jl = 1, jpl
          DO_3D( 0, 0, 0, 0, 1, nlay_i )
-            IF( t_i(ji,jj,jk,jl) < rt0 - epsi10 ) THEN
-               bv_i(ji,jj,jl) = bv_i(ji,jj,jl) - rTmlt * sz_i(ji,jj,jk,jl) * r1_nlay_i / ( t_i(ji,jj,jk,jl) - rt0 )
+            ! brine salinity
+            zt1 = t_i(ji,jj,jk,jl) - rt0
+            zt2 = zt1 * zt1
+            zt3 = zt2 * zt1
+            IF    ( nn_liquidus == 1 ) THEN ; zs_br = - zt1 / rTmlt                                      ! --- Linear liquidus
+            ELSEIF( nn_liquidus == 2 ) THEN ; zs_br = -18.7_wp * zt1 - 0.519_wp * zt2 - 0.00535_wp * zt3 ! --- 3rd order liquidus, VC19
+            ELSEIF( nn_liquidus == 3 ) THEN ; zs_br = -17.6_wp * zt1 - 0.389_wp * zt2 - 0.00362_wp * zt3 ! --- Weast 71 liquidus in RJW14
             ENDIF
+            ! brine volume fraction
+            IF( zt1 < - epsi10 )   v_ibr(ji,jj,jl) = v_ibr(ji,jj,jl) + r1_nlay_i * sz_i(ji,jj,jk,jl) / zs_br
          END_3D
       ENDDO
       !
+      ! mean brine volume fraction
       DO_2D( 0, 0, 0, 0 )
          IF( vt_i(ji,jj) > epsi20 ) THEN
-            bvm_i(ji,jj) = SUM( bv_i(ji,jj,:) * v_i(ji,jj,:) ) / vt_i(ji,jj)
+            vm_ibr(ji,jj) = SUM( v_ibr(ji,jj,:) * v_i(ji,jj,:) ) / vt_i(ji,jj)
          ELSE
-            bvm_i(ji,jj) = 0._wp
+            vm_ibr(ji,jj) = 0._wp
          ENDIF
       END_2D
       !
-   END SUBROUTINE ice_var_bv
+   END SUBROUTINE ice_var_brine
 
-
+   
    SUBROUTINE ice_var_enthalpy
       !!-------------------------------------------------------------------
       !!                   ***  ROUTINE ice_var_enthalpy ***
@@ -854,6 +954,84 @@ CONTAINS
       !
    END SUBROUTINE ice_var_enthalpy
 
+   SUBROUTINE ice_var_vremap( ph_old, pts_old, pts_i )
+      !!-------------------------------------------------------------------
+      !!               ***   ROUTINE ice_var_vremap  ***
+      !!
+      !! ** Purpose :
+      !!           This routine computes new vertical grids in the ice, 
+      !!           and consistently redistributes temperatures and salinities 
+      !!           Redistribution is made so as to ensure energy/salt conservation
+      !!
+      !!
+      !! ** Method  : linear conservative remapping
+      !!           
+      !! ** Steps : 1) cumulative integrals of old enthalpies/salinities/thicknesses
+      !!            2) linear remapping on the new layers
+      !!
+      !! ------------ cum0(0)                        ------------- cum1(0)
+      !!                                    NEW      -------------
+      !! ------------ cum0(1)               ==>      -------------
+      !!     ...                                     -------------
+      !! ------------                                -------------
+      !! ------------ cum0(nlay_i+2)                 ------------- cum1(nlay_i)
+      !!
+      !!
+      !! References : Bitz & Lipscomb, JGR 99; Vancoppenolle et al., GRL, 2005
+      !!-------------------------------------------------------------------
+      REAL(wp), DIMENSION(0:nlay_i+1), INTENT(in)    ::   ph_old, pts_old  ! old tickness (m), enthlapy (J.m-2) or salt (m.g/kg)
+      REAL(wp), DIMENSION(1:nlay_i)  , INTENT(inout) ::   pts_i            ! new enthlapies (J.m-3, remapped) or salt (g/kg)
+      !
+      INTEGER  ::   ji         !  dummy loop indices
+      INTEGER  ::   jk0, jk1   !  old/new layer indices
+      !
+      REAL(wp), DIMENSION(0:nlay_i+2) ::   zts_cum0, zh_cum0   ! old cumulative enthlapies/salinities and layers interfaces
+      REAL(wp), DIMENSION(0:nlay_i)   ::   zts_cum1, zh_cum1   ! new cumulative enthlapies/salinities and layers interfaces
+      REAL(wp)                        ::   zhnew               ! new layers thicknesses
+      !!-------------------------------------------------------------------
+
+      !-------------------------------------------------------------------------------
+      !  1) Cumulative integral of old enthalpy/salt * thickness and layers interfaces
+      !-------------------------------------------------------------------------------
+      zts_cum0(0) = 0._wp 
+      zh_cum0 (0) = 0._wp
+      DO jk0 = 1, nlay_i+2
+         zts_cum0(jk0) = zts_cum0(jk0-1) + pts_old(jk0-1)
+         zh_cum0 (jk0) = zh_cum0 (jk0-1) + ph_old(jk0-1)
+      END DO
+
+      !------------------------------------
+      !  2) Interpolation on the new layers
+      !------------------------------------
+      ! new layer thickesses
+      zhnew = SUM( ph_old(0:nlay_i+1) ) * r1_nlay_i  
+
+      ! new layers interfaces
+      zh_cum1(0) = 0._wp
+      DO jk1 = 1, nlay_i
+         zh_cum1(jk1) = zh_cum1(jk1-1) + zhnew
+      END DO
+
+      zts_cum1(0:nlay_i) = 0._wp 
+      ! new cumulative q*h => linear interpolation
+      DO jk0 = 1, nlay_i+2
+         DO jk1 = 1, nlay_i-1
+            IF( zh_cum1(jk1) <= zh_cum0(jk0) .AND. zh_cum1(jk1) > zh_cum0(jk0-1) )   THEN
+               zts_cum1(jk1) = ( zts_cum0(jk0-1) * ( zh_cum0(jk0) - zh_cum1(jk1  ) ) +  &
+                  &              zts_cum0(jk0  ) * ( zh_cum1(jk1) - zh_cum0(jk0-1) ) )  &
+                  &            / ( zh_cum0(jk0) - zh_cum0(jk0-1) )
+            ENDIF
+         END DO
+      END DO
+      ! to ensure that total heat/salt content is strictly conserved, set:
+      zts_cum1(nlay_i) = zts_cum0(nlay_i+2) 
+
+      ! new enthalpies/salinities
+      DO jk1 = 1, nlay_i
+         pts_i(jk1) = MAX( 0._wp, zts_cum1(jk1) - zts_cum1(jk1-1) ) / MAX( zhnew, epsi20 ) ! max for roundoff error
+      END DO
+      
+   END SUBROUTINE ice_var_vremap
 
    FUNCTION ice_var_sshdyn(pssh, psnwice_mass, psnwice_mass_b)
       !!---------------------------------------------------------------------
