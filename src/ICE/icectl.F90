@@ -89,21 +89,26 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0),jpl,8)  ::   ztmp4
       REAL(wp), DIMENSION(10)            ::   zchk3         
       REAL(wp), DIMENSION(8)             ::   zchk4         
+      REAL(wp), DIMENSION(A2D(0),jpl)    ::   zsv_i
       !!-------------------------------------------------------------------
+      IF( nn_icesal == 4 ) THEN
+         zsv_i(:,:,:) = SUM( szv_i(A2D(0),:,:), dim=3 )
+      ELSE
+         zsv_i(:,:,:) = sv_i(A2D(0),:)
+      ENDIF
       !
       DO_2D( 0, 0, 0, 0 )
          ! -- quantities -- !
-         ztmp3(ji,jj,1) = SUM(  v_i(ji,jj,:) * rhoi + v_s(ji,jj,:) * rhos + &
-            &                    ( v_ip(ji,jj,:) + v_il(ji,jj,:) ) * rhow ) * e1e2t(ji,jj)   ! volume
-         ztmp3(ji,jj,2) = SUM( sv_i(ji,jj,:) * rhoi ) * e1e2t(ji,jj)                         ! salt
-         ztmp3(ji,jj,3) = ( SUM( SUM( e_i(ji,jj,:,:), dim=2 ) ) + &                          ! heat
-            &               SUM( SUM( e_s(ji,jj,:,:), dim=2 ) ) ) * e1e2t(ji,jj)
+         ztmp3(ji,jj,1) =   SUM(     v_i (ji,jj,:) * rhoi + v_s (ji,jj,:)   * rhos + &
+            &                      ( v_ip(ji,jj,:)        + v_il(ji,jj,:) ) * rhow ) * e1e2t(ji,jj)                    ! mass
+         ztmp3(ji,jj,2) =   SUM(    zsv_i(ji,jj,:) ) * rhoi * e1e2t(ji,jj)                                             ! salt                      
+         ztmp3(ji,jj,3) = ( SUM( SUM( e_i(ji,jj,:,:), dim=2 ) ) + SUM( SUM( e_s(ji,jj,:,:), dim=2 ) ) ) * e1e2t(ji,jj) ! heat
          !
          ! -- fluxes -- !
          ztmp3(ji,jj,4) = ( wfx_bog    (ji,jj) + wfx_bom    (ji,jj) + wfx_sum    (ji,jj) + wfx_sni    (ji,jj) &                   ! mass
             &             + wfx_opw    (ji,jj) + wfx_res    (ji,jj) + wfx_dyn    (ji,jj) + wfx_lam    (ji,jj) + wfx_pnd(ji,jj) &
             &             + wfx_snw_sni(ji,jj) + wfx_snw_sum(ji,jj) + wfx_snw_dyn(ji,jj) + wfx_snw_sub(ji,jj) &
-            &             + wfx_ice_sub(ji,jj) + wfx_spr(ji,jj) ) * e1e2t(ji,jj)
+            &             + wfx_ice_sub(ji,jj) + wfx_spr    (ji,jj) ) * e1e2t(ji,jj)
          ztmp3(ji,jj,5) = ( sfx_bri(ji,jj) + sfx_bog(ji,jj) + sfx_bom(ji,jj) + sfx_sum(ji,jj) + sfx_sni(ji,jj) + sfx_opw(ji,jj) & ! salt
             &             + sfx_res(ji,jj) + sfx_dyn(ji,jj) + sfx_sub(ji,jj) + sfx_lam(ji,jj) ) * e1e2t(ji,jj)
          ztmp3(ji,jj,6) = ( hfx_sum(ji,jj) + hfx_bom(ji,jj) + hfx_bog(ji,jj) + hfx_dif(ji,jj) + hfx_opw(ji,jj) + hfx_snw(ji,jj) & ! heat
@@ -147,12 +152,12 @@ CONTAINS
          ! -- min diags -- !
          DO jl = 1, jpl
             DO_2D( 0, 0, 0, 0 )
-               ztmp4(ji,jj,jl,1) = v_i(ji,jj,jl)
-               ztmp4(ji,jj,jl,2) = v_s(ji,jj,jl)
-               ztmp4(ji,jj,jl,3) = v_ip(ji,jj,jl)
-               ztmp4(ji,jj,jl,4) = v_il(ji,jj,jl)
-               ztmp4(ji,jj,jl,5) = a_i(ji,jj,jl)
-               ztmp4(ji,jj,jl,6) = sv_i(ji,jj,jl)
+               ztmp4(ji,jj,jl,1) = v_i  (ji,jj,jl)
+               ztmp4(ji,jj,jl,2) = v_s  (ji,jj,jl)
+               ztmp4(ji,jj,jl,3) = v_ip (ji,jj,jl)
+               ztmp4(ji,jj,jl,4) = v_il (ji,jj,jl)
+               ztmp4(ji,jj,jl,5) = a_i  (ji,jj,jl)
+               ztmp4(ji,jj,jl,6) = zsv_i(ji,jj,jl)
                ztmp4(ji,jj,jl,7) = SUM( e_i(ji,jj,:,jl) )
                ztmp4(ji,jj,jl,8) = SUM( e_s(ji,jj,:,jl) )
             END_2D
@@ -208,6 +213,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0),4) ::   ztmp
       REAL(wp), DIMENSION(4)        ::   zchk         
       !!-------------------------------------------------------------------
+
       DO_2D( 0, 0, 0, 0 )
          !
          ztmp(ji,jj,1) = ( wfx_ice  (ji,jj) + wfx_snw  (ji,jj) + wfx_pnd  (ji,jj) + wfx_spr(ji,jj) + wfx_sub(ji,jj)  &
@@ -255,20 +261,26 @@ CONTAINS
       LOGICAL ::   ll_stop_s = .FALSE.
       LOGICAL ::   ll_stop_t = .FALSE.
       CHARACTER(len=120) ::   clnam   ! filename for the output
+      REAL(wp), DIMENSION(A2D(0)) ::   zsv_i
       !!-------------------------------------------------------------------
+      IF( nn_icesal == 4 ) THEN
+         zsv_i(:,:) = SUM( SUM( szv_i(A2D(0),:,:), dim=4 ), dim=3 )
+      ELSE
+         zsv_i(:,:) = SUM( sv_i(A2D(0),:), dim=3 )
+      ENDIF
       !
       IF( icount == 0 ) THEN
 
       DO_2D( 0, 0, 0, 0 )
          pdiag_v(ji,jj) = SUM( v_i(ji,jj,:)  * rhoi + v_s(ji,jj,:) * rhos + ( v_ip(ji,jj,:) + v_il(ji,jj,:) ) * rhow )
-         pdiag_s(ji,jj) = SUM( sv_i(ji,jj,:) * rhoi )
+         pdiag_s(ji,jj) =    zsv_i(ji,jj)    * rhoi
          pdiag_t(ji,jj) = SUM( SUM( e_i(ji,jj,:,:), dim=2 ) ) + SUM( SUM( e_s(ji,jj,:,:), dim=2 ) )
 
          ! mass flux
          pdiag_fv(ji,jj) = wfx_bog(ji,jj) + wfx_bom(ji,jj) + wfx_sum(ji,jj) + wfx_sni(ji,jj) &
             &            + wfx_opw(ji,jj) + wfx_res(ji,jj) + wfx_dyn(ji,jj) + wfx_lam(ji,jj) + wfx_pnd (ji,jj) &
             &            + wfx_snw_sni(ji,jj) + wfx_snw_sum(ji,jj) + wfx_snw_dyn(ji,jj) &
-            &            + wfx_snw_sub(ji,jj) + wfx_ice_sub(ji,jj) + wfx_spr(ji,jj)
+            &            + wfx_snw_sub(ji,jj) + wfx_ice_sub(ji,jj) + wfx_spr    (ji,jj)
          ! salt flux
          pdiag_fs(ji,jj) = sfx_bri(ji,jj) + sfx_bog(ji,jj) + sfx_bom(ji,jj) + sfx_sum(ji,jj) + sfx_sni(ji,jj) &
             &            + sfx_opw(ji,jj) + sfx_res(ji,jj) + sfx_dyn(ji,jj) + sfx_sub(ji,jj) + sfx_lam(ji,jj)
@@ -286,14 +298,14 @@ CONTAINS
                &               + (   wfx_bog(ji,jj) + wfx_bom(ji,jj) + wfx_sum(ji,jj) + wfx_sni(ji,jj) + wfx_opw(ji,jj) &
                &                   + wfx_res(ji,jj) + wfx_dyn(ji,jj) + wfx_lam(ji,jj) + wfx_pnd(ji,jj)                  &
                &                   + wfx_snw_sni(ji,jj) + wfx_snw_sum(ji,jj) + wfx_snw_dyn(ji,jj)                       &
-               &                   + wfx_snw_sub(ji,jj) + wfx_ice_sub(ji,jj) + wfx_spr(ji,jj) )                         &
+               &                   + wfx_snw_sub(ji,jj) + wfx_ice_sub(ji,jj) + wfx_spr    (ji,jj) )                     &
                &               - pdiag_fv(ji,jj)
          END_2D
          IF( MAXVAL( ABS(zdiag_mass) ) > rchk_m * rn_icechk_cel )   ll_stop_m = .TRUE.
          !
          ! -- salt diag -- !
          DO_2D( 0, 0, 0, 0 )
-            zdiag_salt(ji,jj) =   ( SUM( sv_i(ji,jj,:) * rhoi ) - pdiag_s(ji,jj) ) * r1_Dt_ice                           &
+            zdiag_salt(ji,jj) =   ( zsv_i  (ji,jj) * rhoi - pdiag_s(ji,jj) ) * r1_Dt_ice                                 &
                &                + ( sfx_bri(ji,jj) + sfx_bog(ji,jj) + sfx_bom(ji,jj) + sfx_sum(ji,jj) + sfx_sni(ji,jj)   &
                &                  + sfx_opw(ji,jj) + sfx_res(ji,jj) + sfx_dyn(ji,jj) + sfx_sub(ji,jj) + sfx_lam(ji,jj) ) &
                &                - pdiag_fs(ji,jj)
@@ -406,7 +418,14 @@ CONTAINS
       REAL(wp) ::   ztmelts            ! ice layer melting point
       CHARACTER (len=30), DIMENSION(20) ::   cl_alname   ! name of alert
       INTEGER           , DIMENSION(20) ::   inb_alp     ! number of alerts positive
+      REAL(wp), DIMENSION(A2D(0),jpl)   ::   zsv_i
       !!-------------------------------------------------------------------
+      IF( nn_icesal == 4 ) THEN
+         zsv_i(:,:,:) = SUM( szv_i(A2D(0),:,:), dim=3 )
+      ELSE
+         zsv_i(:,:,:) = sv_i(A2D(0),:)
+      ENDIF
+      !
       inb_alp(:) = 0
       ialert_id = 0
 
@@ -416,8 +435,8 @@ CONTAINS
       DO jl = 1, jpl
          DO_2D( 0, 0, 0, 0 )
             IF( v_i(ji,jj,jl) > epsi10  ) THEN
-               IF( sv_i(ji,jj,jl) / v_i(ji,jj,jl) > rn_simax ) THEN
-                  WRITE(numout,*) ' ALERTE :   Very high salinity ',sv_i(ji,jj,jl)/v_i(ji,jj,jl)
+               IF( zsv_i(ji,jj,jl) / v_i(ji,jj,jl) > rn_sinew * sss_m(ji,jj) ) THEN
+                  WRITE(numout,*) ' ALERTE :   Very high salinity ',zsv_i(ji,jj,jl)/v_i(ji,jj,jl)
                   WRITE(numout,*) ' at i,j,l = ',ji,jj,jl
                   inb_alp(ialert_id) = inb_alp(ialert_id) + 1
                ENDIF
@@ -431,8 +450,8 @@ CONTAINS
       DO jl = 1, jpl
          DO_2D( 0, 0, 0, 0 )
             IF( v_i(ji,jj,jl) > epsi10  ) THEN
-               IF( sv_i(ji,jj,jl) / v_i(ji,jj,jl) < rn_simin ) THEN
-                  WRITE(numout,*) ' ALERTE :   Very low salinity ',sv_i(ji,jj,jl),v_i(ji,jj,jl)
+               IF( zsv_i(ji,jj,jl) / v_i(ji,jj,jl) < rn_simin ) THEN
+                  WRITE(numout,*) ' ALERTE :   Very low salinity ',zsv_i(ji,jj,jl),v_i(ji,jj,jl)
                   WRITE(numout,*) ' at i,j,l = ',ji,jj,jl
                   inb_alp(ialert_id) = inb_alp(ialert_id) + 1
                ENDIF

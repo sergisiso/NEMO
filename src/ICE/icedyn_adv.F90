@@ -82,12 +82,12 @@ CONTAINS
       CASE( np_advUMx )                ! ULTIMATE-MACHO scheme !
          !                             !-----------------------!
          CALL ice_dyn_adv_umx( nn_UMx, kt, u_ice, v_ice, h_i, h_s, h_ip, &
-            &                          ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, v_il, e_s, e_i )
+            &                          ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, v_il, e_s, e_i, szv_i )
          !                             !-----------------------!
       CASE( np_advPRA )                ! PRATHER scheme        !
          !                             !-----------------------!
          CALL ice_dyn_adv_pra(         kt, u_ice, v_ice, h_i, h_s, h_ip, &
-            &                          ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, v_il, e_s, e_i )
+            &                          ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, v_il, e_s, e_i, szv_i )
       END SELECT
 
       !------------

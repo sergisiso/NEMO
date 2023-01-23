@@ -113,11 +113,17 @@ CONTAINS
       REAL(wp), PARAMETER ::   zcs   = 0.66_wp
       REAL(wp), PARAMETER ::   zm1   = 3.e-6_wp
       REAL(wp), PARAMETER ::   zm2   = 1.36_wp
+      REAL(wp), DIMENSION(nlay_i) ::   zs_i      ! ice salinity      
       !!---------------------------------------------------------------------
       !
       zastar = 1._wp / ( 1._wp - (rn_dmin / zdmax)**(1._wp/rn_beta) )
       !
       DO ji = 1, npti   
+         !
+         IF( nn_icesal == 4 ) THEN   ;   zs_i(:) = sz_i_1d(ji,:)  ! use layer salinity if nn_icesal=4 
+         ELSE                        ;   zs_i(:) = s_i_1d (ji)    !     bulk salinity otherwise (for conservation purpose)
+         ENDIF
+         !
          ! --- Calculate reduction of total sea ice concentration --- !
          zdfloe = rn_dmin * ( zastar / ( zastar - at_i_1d(ji) ) )**rn_beta         ! Mean floe caliper diameter [m]
          !
@@ -134,7 +140,7 @@ CONTAINS
             zda = MIN( a_i_1d(ji), zda_tot * a_i_1d(ji) / at_i_1d(ji) )
             
             ! Contribution to salt flux
-            sfx_lam_1d(ji) = sfx_lam_1d(ji) + rhoi *  h_i_1d(ji) * zda * s_i_1d(ji) * r1_Dt_ice
+            sfx_lam_1d(ji) = sfx_lam_1d(ji) + rhoi * zda * r1_Dt_ice * h_i_1d(ji) * r1_nlay_i * SUM( zs_i(:) ) 
             
             ! Contribution to heat flux into the ocean [W.m-2], (<0)  
             hfx_thd_1d(ji) = hfx_thd_1d(ji) - zda * r1_Dt_ice * ( h_i_1d(ji) * r1_nlay_i * SUM( e_i_1d(ji,1:nlay_i) )  &

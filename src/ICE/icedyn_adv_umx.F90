@@ -59,7 +59,7 @@ MODULE icedyn_adv_umx
 CONTAINS
 
    SUBROUTINE ice_dyn_adv_umx( kn_umx, kt, pu_ice, pv_ice, ph_i, ph_s, ph_ip,  &
-      &                        pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i )
+      &                        pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE ice_dyn_adv_umx  ***
       !!
@@ -87,6 +87,7 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   pv_il      ! melt pond lid volume
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_s       ! snw heat content
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_i       ! ice heat content
+      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pszv_i     ! ice salt content
       !
       INTEGER  ::   ji, jj, jk, jl, jt      ! dummy loop indices
       INTEGER  ::   icycle                  ! number of sub-timestep for the advection
@@ -98,28 +99,37 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj)            ::   zati1
       REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   zu_cat, zv_cat
       REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   zua_ho, zva_ho, zua_ups, zva_ups
-      REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   z1_ai , z1_aip, zhvar
-      REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   zhi_max, zhs_max, zhip_max, zs_i, zsi_max
-      REAL(wp), DIMENSION(jpi,jpj,nlay_i,jpl) ::   ze_i, zei_max
-      REAL(wp), DIMENSION(jpi,jpj,nlay_s,jpl) ::   ze_s, zes_max
+      REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   z1_ai , zhvar
       !
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zuv_ho, zvv_ho, zuv_ups, zvv_ups, z1_vi, z1_vs
+      REAL(wp), DIMENSION(jpi,jpj,nlay_i,jpl) ::   ze_i
+      REAL(wp), DIMENSION(jpi,jpj,nlay_s,jpl) ::   ze_s
+      REAL(wp), DIMENSION(A2D(0),jpl)         ::   zhi_max, zhs_max, zhip_max, zsi_max
+      REAL(wp), DIMENSION(A2D(0),nlay_i,jpl)  ::   zei_max, zszi_max
+      REAL(wp), DIMENSION(A2D(0),nlay_s,jpl)  ::   zes_max
+      !
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   z1_aip
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   zs_i 
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   zsz_i
+      !
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   zuv_ho, zvv_ho, zuv_ups, zvv_ups, z1_vi, z1_vs
       !! diagnostics
-      REAL(wp), DIMENSION(A2D(0))             ::   zdiag_adv_mass, zdiag_adv_salt, zdiag_adv_heat
+      REAL(wp), DIMENSION(A2D(0)) ::   zdiag_adv_mass, zdiag_adv_salt, zdiag_adv_heat
       !!----------------------------------------------------------------------
       !
       IF( kt == nit000 .AND. lwp )   WRITE(numout,*) '-- ice_dyn_adv_umx: Ultimate-Macho advection scheme'
       !
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) ALLOCATE( z1_aip(jpi,jpj,jpl)        )
+      IF( nn_icesal == 4 ) THEN   ;     ALLOCATE( zsz_i (jpi,jpj,nlay_i,jpl) )
+      ELSE                        ;     ALLOCATE( zs_i  (jpi,jpj,jpl)        )
+      ENDIF
+      !
       ! --- Record max of the surrounding 9-pts (for call Hbig) --- !
-      ! thickness and salinity
-      WHERE( pv_i(:,:,:) >= epsi10 ) ; zs_i(:,:,:) = psv_i(:,:,:) / pv_i(:,:,:)
-      ELSEWHERE                      ; zs_i(:,:,:) = 0._wp
-      END WHERE
+      ! thickness
       CALL icemax3D_umx( ph_i , zhi_max )
       CALL icemax3D_umx( ph_s , zhs_max )
-      CALL icemax3D_umx( ph_ip, zhip_max)
-      CALL icemax3D_umx( zs_i , zsi_max )
-      CALL lbc_lnk( 'icedyn_adv_umx', zhi_max, 'T', 1._wp, zhs_max, 'T', 1._wp, zhip_max, 'T', 1._wp, zsi_max, 'T', 1._wp )
+      IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+         CALL icemax3D_umx( ph_ip, zhip_max)
+      ENDIF
       !
       ! enthalpies
       DO jk = 1, nlay_i
@@ -134,7 +144,25 @@ CONTAINS
       END DO
       CALL icemax4D_umx( ze_i , zei_max )
       CALL icemax4D_umx( ze_s , zes_max )
-      CALL lbc_lnk( 'icedyn_adv_umx', zei_max, 'T', 1._wp, zes_max, 'T', 1._wp )
+      !
+      ! salt content
+      IF( nn_icesal == 4 ) THEN
+         !
+         DO jk = 1, nlay_i
+            WHERE( pv_i(:,:,:) >= epsi10 ) ; zsz_i(:,:,jk,:) = pszv_i(:,:,jk,:) / pv_i(:,:,:)
+            ELSEWHERE                      ; zsz_i(:,:,jk,:) = 0._wp
+            END WHERE
+         END DO
+         CALL icemax4D_umx( zsz_i , zszi_max )
+         !
+      ELSE
+         !
+         WHERE( pv_i(:,:,:) >= epsi10 ) ; zs_i(:,:,:) = psv_i(:,:,:) / pv_i(:,:,:)
+         ELSEWHERE                      ; zs_i(:,:,:) = 0._wp
+         END WHERE
+         CALL icemax3D_umx( zs_i , zsi_max )
+         !
+      ENDIF
       !
       !
       ! --- If ice drift is too fast, use  subtime steps for advection (CFL test for stability) --- !
@@ -192,9 +220,11 @@ CONTAINS
          WHERE( pa_i(:,:,:) >= epsi20 )   ;   z1_ai(:,:,:) = 1._wp / pa_i(:,:,:)
          ELSEWHERE                        ;   z1_ai(:,:,:) = 0.
          END WHERE
-         WHERE( pa_ip(:,:,:) >= epsi20 )  ;   z1_aip(:,:,:) = 1._wp / pa_ip(:,:,:)
-         ELSEWHERE                        ;   z1_aip(:,:,:) = 0.
-         END WHERE
+         IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+            WHERE( pa_ip(:,:,:) >= epsi20 )  ;   z1_aip(:,:,:) = 1._wp / pa_ip(:,:,:)
+            ELSEWHERE                        ;   z1_aip(:,:,:) = 0.
+            END WHERE
+         ENDIF
          !
          ! setup a mask where advection will be upstream
          IF( ll_neg ) THEN
@@ -218,9 +248,17 @@ CONTAINS
          DO_2D( 0, 0, 0, 0 )
             zdiag_adv_mass(ji,jj) =   SUM( pv_i (ji,jj,:) ) * rhoi + SUM( pv_s (ji,jj,:) ) * rhos &
                &                    + SUM( pv_ip(ji,jj,:) ) * rhow + SUM( pv_il(ji,jj,:) ) * rhow
-            zdiag_adv_salt(ji,jj) =   SUM( psv_i(ji,jj,:) ) * rhoi
             zdiag_adv_heat(ji,jj) = - SUM( SUM( pe_i(ji,jj,1:nlay_i,:), dim=2 ) ) - SUM( SUM( pe_s(ji,jj,1:nlay_s,:), dim=2 ) )            
          END_2D
+         IF( nn_icesal == 4 ) THEN
+            DO_2D( 0, 0, 0, 0 )
+               zdiag_adv_salt(ji,jj) = SUM( SUM( pszv_i(ji,jj,:,:), dim=2 ) ) * rhoi
+            END_2D
+         ELSE
+            DO_2D( 0, 0, 0, 0 )
+               zdiag_adv_salt(ji,jj) = SUM( psv_i(ji,jj,:) ) * rhoi
+            END_2D
+         ENDIF
          !
          ! ----------------------- !
          ! ==> start advection <== !
@@ -245,9 +283,6 @@ CONTAINS
                &                                      zhvar, pv_s, zua_ups, zva_ups )
             !
             zamsk = 1._wp
-            !== Salt content ==!
-            CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zu_cat, zv_cat, zcu_box, zcv_box, &
-               &                                      psv_i, psv_i )
             !== Ice heat content ==!
             DO jk = 1, nlay_i
                CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zu_cat, zv_cat, zcu_box, zcv_box, &
@@ -258,6 +293,16 @@ CONTAINS
                CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zu_cat, zv_cat, zcu_box, zcv_box, &
                   &                                      pe_s(:,:,jk,:), pe_s(:,:,jk,:) )
             END DO
+            !== Ice salt content ==!
+            IF( nn_icesal == 4 ) THEN
+               DO jk = 1, nlay_i
+                  CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zu_cat, zv_cat, zcu_box, zcv_box, &
+                     &                                      pszv_i(:,:,jk,:), pszv_i(:,:,jk,:) )
+               END DO
+            ELSE
+               CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zu_cat, zv_cat, zcu_box, zcv_box, &
+                  &                                      psv_i, psv_i )
+            ENDIF
             !
             !                          ! ------------------------------------------ !
          ELSEIF( np_advS == 2 ) THEN   ! -- advection form: -div( uA * uHS / u ) -- !
@@ -271,10 +316,6 @@ CONTAINS
             zhvar(:,:,:) = pv_s(:,:,:) * z1_ai(:,:,:)
             CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx, zua_ho , zva_ho , zcu_box, zcv_box, &
                &                                      zhvar, pv_s, zua_ups, zva_ups )
-            !== Salt content ==!
-            zhvar(:,:,:) = psv_i(:,:,:) * z1_ai(:,:,:)
-            CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zua_ho , zva_ho , zcu_box, zcv_box, &
-               &                                      zhvar, psv_i, zua_ups, zva_ups )
             !== Ice heat content ==!
             DO jk = 1, nlay_i
                zhvar(:,:,:) = pe_i(:,:,jk,:) * z1_ai(:,:,:)
@@ -287,6 +328,18 @@ CONTAINS
                CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx, zua_ho, zva_ho, zcu_box, zcv_box, &
                   &                                      zhvar, pe_s(:,:,jk,:), zua_ups, zva_ups )
             END DO
+            !== Ice salt content ==!
+            IF( nn_icesal == 4 ) THEN
+               DO jk = 1, nlay_i
+                  zhvar(:,:,:) = pszv_i(:,:,jk,:) * z1_ai(:,:,:)
+                  CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx, zua_ho, zva_ho, zcu_box, zcv_box, &
+                     &                                      zhvar, pszv_i(:,:,jk,:), zua_ups, zva_ups )
+               END DO
+            ELSE
+               zhvar(:,:,:) = psv_i(:,:,:) * z1_ai(:,:,:)
+               CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zua_ho , zva_ho , zcu_box, zcv_box, &
+                  &                                      zhvar, psv_i, zua_ups, zva_ups )
+            ENDIF
             !
             !                          ! ----------------------------------------- !
          ELSEIF( np_advS == 3 ) THEN   ! -- advection form: -div( uV * uS / u ) -- !
@@ -313,16 +366,24 @@ CONTAINS
             zhvar(:,:,:) = pv_i(:,:,:) * z1_ai(:,:,:)
             CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx, zua_ho , zva_ho , zcu_box, zcv_box, &
                &                                      zhvar, pv_i, zuv_ups, zvv_ups, zuv_ho , zvv_ho )
-            !== Salt content ==!
-            zhvar(:,:,:) = psv_i(:,:,:) * z1_vi(:,:,:)
-            CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zuv_ho , zvv_ho , zcu_box, zcv_box, &
-               &                                      zhvar, psv_i, zuv_ups, zvv_ups )
             !== Ice heat content ==!
             DO jk = 1, nlay_i
                zhvar(:,:,:) = pe_i(:,:,jk,:) * z1_vi(:,:,:)
                CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx, zuv_ho, zvv_ho, zcu_box, zcv_box, &
                   &                                      zhvar, pe_i(:,:,jk,:), zuv_ups, zvv_ups )
             END DO
+            !== Ice salt content ==!
+            IF( nn_icesal == 4 ) THEN
+               DO jk = 1, nlay_i
+                  zhvar(:,:,:) = pszv_i(:,:,jk,:) * z1_vi(:,:,:)
+                  CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx, zuv_ho, zvv_ho, zcu_box, zcv_box, &
+                     &                                      zhvar, pszv_i(:,:,jk,:), zuv_ups, zvv_ups )
+               END DO
+            ELSE
+               zhvar(:,:,:) = psv_i(:,:,:) * z1_vi(:,:,:)
+               CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zuv_ho , zvv_ho , zcu_box, zcv_box, &
+                  &                                      zhvar, psv_i, zuv_ups, zvv_ups )
+            ENDIF
             !== Snow volume ==!
             zuv_ups = zua_ups
             zvv_ups = zva_ups
@@ -357,12 +418,10 @@ CONTAINS
             CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zua_ho , zva_ho , zcu_box, zcv_box, &
                &                                      zhvar, pv_ip, zua_ups, zva_ups )
             ! lid
-            IF ( ln_pnd_lids ) THEN
-               zamsk = 0._wp
-               zhvar(:,:,:) = pv_il(:,:,:) * z1_aip(:,:,:)
-               CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zua_ho , zva_ho , zcu_box, zcv_box, &
-                  &                                      zhvar, pv_il, zua_ups, zva_ups )
-            ENDIF
+            zamsk = 0._wp
+            zhvar(:,:,:) = pv_il(:,:,:) * z1_aip(:,:,:)
+            CALL adv_umx( zamsk, kn_umx, jt, kt, zdt, zudy , zvdx , zua_ho , zva_ho , zcu_box, zcv_box, &
+               &                                      zhvar, pv_il, zua_ups, zva_ups )
          ENDIF
 
          !== Open water area ==!
@@ -378,28 +437,38 @@ CONTAINS
             diag_adv_mass(ji,jj) = diag_adv_mass(ji,jj) + (   SUM( pv_i (ji,jj,:) ) * rhoi + SUM( pv_s (ji,jj,:) ) * rhos &
                &                                            + SUM( pv_ip(ji,jj,:) ) * rhow + SUM( pv_il(ji,jj,:) ) * rhow &
                &                                          - zdiag_adv_mass(ji,jj) ) * z1_dt
-            diag_adv_salt(ji,jj) = diag_adv_salt(ji,jj) + (   SUM( psv_i(ji,jj,:) ) * rhoi &
-               &                                          - zdiag_adv_salt(ji,jj) ) * z1_dt
             diag_adv_heat(ji,jj) = diag_adv_heat(ji,jj) + ( - SUM(SUM( pe_i(ji,jj,1:nlay_i,:) , dim=2 ) ) &
                &                                            - SUM(SUM( pe_s(ji,jj,1:nlay_s,:) , dim=2 ) ) &
                &                                          - zdiag_adv_heat(ji,jj) ) * z1_dt
          END_2D
+         IF( nn_icesal == 4 ) THEN
+            DO_2D( 0, 0, 0, 0 )
+               diag_adv_salt(ji,jj) = diag_adv_salt(ji,jj) + ( SUM( SUM( pszv_i(ji,jj,:,:), dim=2 ) ) * rhoi &
+                  &                                          - zdiag_adv_salt(ji,jj) ) * z1_dt
+            END_2D
+         ELSE
+            DO_2D( 0, 0, 0, 0 )
+               diag_adv_salt(ji,jj) = diag_adv_salt(ji,jj) + ( SUM( psv_i(ji,jj,:) ) * rhoi &
+                  &                                          - zdiag_adv_salt(ji,jj) ) * z1_dt
+            END_2D
+         ENDIF
 
          ! --- Ensure non-negative fields and in-bound thicknesses --- !
          ! Remove negative values (conservation is ensured)
          !    (because advected fields are not perfectly bounded and tiny negative values can occur, e.g. -1.e-20)
-         CALL ice_var_zapneg( 0, zdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i )
+         CALL ice_var_zapneg( 0, zdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
          !
          ! --- Make sure ice thickness is not too big --- !
          !     (because ice thickness can be too large where ice concentration is very small)
-         CALL Hbig_umx( zdt, zhi_max, zhs_max, zhip_max, zsi_max, zes_max, zei_max, &
-            &            pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i )
+         CALL Hbig_umx( zdt, zhi_max, zhs_max, zhip_max, zsi_max, zes_max, zei_max, zszi_max, &
+            &            pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i, pszv_i )
          !
          ! --- Ensure snow load is not too big --- !
          CALL Hsnow_umx( zdt, pv_i, pv_s, pa_i, pa_ip, pe_s )
          !
          ! --- Lateral boundary conditions --- !
          IF( jt /= icycle ) THEN ! only if we have 2 cycles and we are at the 1st one
+            !
             IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
                CALL lbc_lnk( 'icedyn_adv_umx', pa_i , 'T', 1._wp, pv_i , 'T', 1._wp, pv_s , 'T', 1._wp, &
                   &                            psv_i, 'T', 1._wp, poa_i, 'T', 1._wp, &
@@ -408,12 +477,21 @@ CONTAINS
                CALL lbc_lnk( 'icedyn_adv_umx', pa_i , 'T', 1._wp, pv_i , 'T', 1._wp, pv_s , 'T', 1._wp, &
                   &                            psv_i, 'T', 1._wp, poa_i, 'T', 1._wp )
             ENDIF
-            CALL lbc_lnk( 'icedyn_adv_umx', pe_i, 'T', 1._wp, pe_s, 'T', 1._wp )
+            IF( nn_icesal == 4 ) THEN
+               CALL lbc_lnk( 'icedyn_adv_umx', pe_i, 'T', 1._wp, pe_s, 'T', 1._wp, pszv_i, 'T', 1._wp )
+            ELSE
+               CALL lbc_lnk( 'icedyn_adv_umx', pe_i, 'T', 1._wp, pe_s, 'T', 1._wp )
+            ENDIF
             CALL lbc_lnk( 'icedyn_adv_umx', pato_i, 'T',  1._wp )
+            !
          ENDIF
          !
-         !
       END DO
+      !
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) DEALLOCATE( z1_aip )
+      IF( nn_icesal == 4 ) THEN   ;     DEALLOCATE( zsz_i  )
+      ELSE                        ;     DEALLOCATE( zs_i   )
+      ENDIF
       !
    END SUBROUTINE ice_dyn_adv_umx
 
@@ -884,15 +962,6 @@ CONTAINS
          DO_2D( nn_hls-1, nn_hls-1, kloop, kloop )    ! Second derivative (Laplacian)
             ztu2(ji,jj,jl) = ( ztu1(ji,jj,jl) - ztu1(ji-1,jj,jl) ) * r1_e1t(ji,jj)
          END_2D
-!!$         DO jj = 2, jpjm1         ! First derivative (gradient)
-!!$            DO ji = 1, jpim1
-!!$               ztu1(ji,jj,jl) = ( pt(ji+1,jj,jl) - pt(ji,jj,jl) ) * r1_e1u(ji,jj) * umask(ji,jj,1)
-!!$            END DO
-!!$            !                     ! Second derivative (Laplacian)
-!!$            DO ji = 2, jpim1
-!!$               ztu2(ji,jj,jl) = ( ztu1(ji,jj,jl) - ztu1(ji-1,jj,jl) ) * r1_e1t(ji,jj)
-!!$            END DO
-!!$         END DO
       END DO
       !
       !                                                     !--  BiLaplacian in i-direction  --!
@@ -903,15 +972,6 @@ CONTAINS
          DO_2D( 0, 0, kloop, kloop )                  ! Fourth derivative
             ztu4(ji,jj,jl) = ( ztu3(ji,jj,jl) - ztu3(ji-1,jj,jl) ) * r1_e1t(ji,jj)
          END_2D
-!!$         DO jj = 2, jpjm1         ! Third derivative
-!!$            DO ji = 1, jpim1
-!!$               ztu3(ji,jj,jl) = ( ztu2(ji+1,jj,jl) - ztu2(ji,jj,jl) ) * r1_e1u(ji,jj) * umask(ji,jj,1)
-!!$            END DO
-!!$            !                     ! Fourth derivative
-!!$            DO ji = 2, jpim1
-!!$               ztu4(ji,jj,jl) = ( ztu3(ji,jj,jl) - ztu3(ji-1,jj,jl) ) * r1_e1t(ji,jj)
-!!$            END DO
-!!$         END DO
       END DO
       !
       !
@@ -1485,8 +1545,8 @@ CONTAINS
    END SUBROUTINE limiter_y
 
 
-   SUBROUTINE Hbig_umx( pdt, phi_max, phs_max, phip_max, psi_max, pes_max, pei_max, &
-      &                  pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i )
+   SUBROUTINE Hbig_umx( pdt, phi_max, phs_max, phip_max, psi_max, pes_max, pei_max, pszi_max, &
+      &                  pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i, pszv_i )
       !!-------------------------------------------------------------------
       !!                  ***  ROUTINE Hbig_umx  ***
       !!
@@ -1500,13 +1560,13 @@ CONTAINS
       !!
       !! ** input   : Max thickness of the surrounding 9-points
       !!-------------------------------------------------------------------
-      REAL(wp)                    , INTENT(in   ) ::   pdt                                   ! tracer time-step
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   phi_max, phs_max, phip_max, psi_max   ! max ice thick from surrounding 9-pts
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pes_max
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   pei_max
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_s
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_i
+      REAL(wp)                              , INTENT(in   ) ::   pdt                                   ! tracer time-step
+      REAL(wp), DIMENSION(A2D(0),jpl)       , INTENT(in   ) ::   phi_max, phs_max, phip_max, psi_max   ! max ice thick from surrounding 9-pts
+      REAL(wp), DIMENSION(A2D(0),nlay_s,jpl), INTENT(in   ) ::   pes_max
+      REAL(wp), DIMENSION(A2D(0),nlay_i,jpl), INTENT(in   ) ::   pei_max, pszi_max
+      REAL(wp), DIMENSION(:,:,:)            , INTENT(inout) ::   pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i
+      REAL(wp), DIMENSION(:,:,:,:)          , INTENT(inout) ::   pe_s
+      REAL(wp), DIMENSION(:,:,:,:)          , INTENT(inout) ::   pe_i, pszv_i
       !
       INTEGER  ::   ji, jj, jk, jl         ! dummy loop indices
       REAL(wp) ::   z1_dt, zhip, zhi, zhs, zsi, zes, zei, zfra
@@ -1547,18 +1607,41 @@ CONTAINS
                   pv_s(ji,jj,jl)          = pa_i(ji,jj,jl) * phs_max(ji,jj,jl)
                ENDIF
                !
-               !                               ! -- check s_i -- !
-               ! if s_i is larger than the surrounding 9 pts => put salt excess in the ocean
-               zsi = psv_i(ji,jj,jl) / pv_i(ji,jj,jl)
-               IF( zsi > psi_max(ji,jj,jl) .AND. pa_i(ji,jj,jl) < 0.15 ) THEN
-                  zfra = psi_max(ji,jj,jl) / zsi
-                  sfx_res(ji,jj) = sfx_res(ji,jj) + psv_i(ji,jj,jl) * ( 1._wp - zfra ) * rhoi * z1_dt
-                  psv_i(ji,jj,jl) = psv_i(ji,jj,jl) * zfra
-               ENDIF
-               !
             ENDIF
          END_2D
       END DO
+      !
+      !                                          ! -- check s_i -- !
+      IF( nn_icesal == 4 ) THEN
+         DO jl = 1, jpl
+            DO_3D( 0, 0, 0, 0, 1, nlay_i )
+               IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
+                  ! if szv_i/v_i is larger than the surrounding 9 pts => put the salt excess in the ocean
+                  zsi = pszv_i(ji,jj,jk,jl) / pv_i(ji,jj,jl)
+                  IF( zsi > pszi_max(ji,jj,jk,jl) .AND. pa_i(ji,jj,jl) < 0.15 ) THEN
+                     zfra = pszi_max(ji,jj,jk,jl) / zsi
+                     sfx_res(ji,jj) = sfx_res(ji,jj) + pszv_i(ji,jj,jk,jl) * ( 1._wp - zfra ) * rhoi * z1_dt
+                     pszv_i(ji,jj,jk,jl) = pszv_i(ji,jj,jk,jl) * zfra
+                  ENDIF
+               ENDIF
+            END_3D
+         END DO
+      ELSE
+         DO jl = 1, jpl
+            DO_2D( 0, 0, 0, 0 )
+               IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
+                  ! if s_i is larger than the surrounding 9 pts => put salt excess in the ocean
+                  zsi = psv_i(ji,jj,jl) / pv_i(ji,jj,jl)
+                  IF( zsi > psi_max(ji,jj,jl) .AND. pa_i(ji,jj,jl) < 0.15 ) THEN
+                     zfra = psi_max(ji,jj,jl) / zsi
+                     sfx_res(ji,jj) = sfx_res(ji,jj) + psv_i(ji,jj,jl) * ( 1._wp - zfra ) * rhoi * z1_dt
+                     psv_i(ji,jj,jl) = psv_i(ji,jj,jl) * zfra
+                  ENDIF
+                  !
+               ENDIF
+            END_2D
+         END DO
+      ENDIF
       !
       !                                           ! -- check e_i/v_i -- !
       DO jl = 1, jpl
@@ -1648,8 +1731,8 @@ CONTAINS
       !!                   ***  ROUTINE icemax3D_umx ***
       !! ** Purpose :  compute the max of the 9 points around
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:), INTENT(in ) ::   pice   ! input
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pmax   ! output
+      REAL(wp), DIMENSION(:,:,:)     , INTENT(in ) ::   pice   ! input
+      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(out) ::   pmax   ! output
       !
       REAL(wp), DIMENSION(Nis0:Nie0) ::   zmax1, zmax2
       REAL(wp)                       ::   zmax3
@@ -1688,9 +1771,15 @@ CONTAINS
       !
       REAL(wp), DIMENSION(Nis0:Nie0) ::   zmax1, zmax2
       REAL(wp)                       ::   zmax3
-      INTEGER  ::   jlay, ji, jj, jk, jl   ! dummy loop indices
+      INTEGER  ::   ihls, jlay, ji, jj, jk, jl   ! dummy loop indices
       !!----------------------------------------------------------------------
       jlay = SIZE( pice , 3 )   ! size of input arrays
+
+      ! pmax is A2D(0), so it needs to be shifted by nn_hls in the loops below
+      IF( SIZE( pmax , 1 ) == jpi ) THEN ; ihls = 0
+      ELSE                               ; ihls = nn_hls
+      ENDIF
+      
       ! basic version: get the max of epsi20 + 9 neighbours
 !!$      DO jl = 1, jpl
 !!$         DO jk = 1, jlay
@@ -1710,7 +1799,7 @@ CONTAINS
             END DO
             DO_2D( 0, 0, 0, 0 )
                zmax3 = MAX( epsi20, pice(ji,jj+1,jk,jl), pice(ji-1,jj+1,jk,jl), pice(ji+1,jj+1,jk,jl) )
-               pmax(ji,jj,jk,jl) = MAX( epsi20, zmax1(ji), zmax2(ji), zmax3 )
+               pmax(ji-ihls,jj-ihls,jk,jl) = MAX( epsi20, zmax1(ji), zmax2(ji), zmax3 )
                zmax1(ji) = zmax2(ji)
                zmax2(ji) = zmax3
             END_2D

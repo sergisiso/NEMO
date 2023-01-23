@@ -95,7 +95,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpij) ::   zh_newice     ! thickness of accreted ice
       REAL(wp), DIMENSION(jpij) ::   zfraz_frac_1d ! relative ice / frazil velocity (1D vector)
       !
-      REAL(wp), DIMENSION(0:nlay_i+1) ::   zh_i_old, ze_i_old
+      REAL(wp), DIMENSION(0:nlay_i+1) ::   zh_i_old, ze_i_old, zs_i_old
       !!-----------------------------------------------------------------------!
 
       IF( ln_icediachk )   CALL ice_cons_hsm( 0, 'icethd_do', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft )
@@ -119,11 +119,12 @@ CONTAINS
       ! Move from 2-D to 1-D vectors
       IF ( npti > 0 ) THEN
 
-         CALL tab_2d_1d( npti, nptidx(1:npti), at_i_1d(1:npti)  , at_i        )
-         CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d (1:npti,:), a_i (:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d (1:npti,:), v_i (:,:,:) )
-         CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,:), sv_i(:,:,:) )
-         CALL tab_4d_3d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
+         CALL tab_2d_1d( npti, nptidx(1:npti), at_i_1d (1:npti)    , at_i        )
+         CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d  (1:npti,:)  , a_i (:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d  (1:npti,:)  , v_i (:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d (1:npti,:)  , sv_i(:,:,:) )
+         CALL tab_4d_3d( npti, nptidx(1:npti), e_i_2d  (1:npti,:,:), e_i    )
+         CALL tab_4d_3d( npti, nptidx(1:npti), szv_i_2d(1:npti,:,:), szv_i  )
          CALL tab_2d_1d( npti, nptidx(1:npti), qlead_1d     (1:npti), qlead      )
          CALL tab_2d_1d( npti, nptidx(1:npti), t_bo_1d      (1:npti), t_bo       )
          CALL tab_2d_1d( npti, nptidx(1:npti), sfx_opw_1d   (1:npti), sfx_opw    )
@@ -136,13 +137,15 @@ CONTAINS
          CALL tab_2d_1d( npti, nptidx(1:npti), rn_amax_1d(1:npti), rn_amax_2d )
          CALL tab_2d_1d( npti, nptidx(1:npti), sss_1d    (1:npti), sss_m      )
 
-         ! Convert units for ice internal energy
+         ! Convert units for ice internal energy and salt content
          DO jl = 1, jpl
             DO jk = 1, nlay_i               
                WHERE( v_i_2d(1:npti,jl) > 0._wp )
-                  e_i_2d(1:npti,jk,jl) = e_i_2d(1:npti,jk,jl) / v_i_2d(1:npti,jl) * REAL( nlay_i )
+                  e_i_2d  (1:npti,jk,jl) = e_i_2d  (1:npti,jk,jl) / v_i_2d(1:npti,jl) * REAL( nlay_i )
+                  szv_i_2d(1:npti,jk,jl) = szv_i_2d(1:npti,jk,jl) / v_i_2d(1:npti,jl) * REAL( nlay_i )
                ELSEWHERE
-                  e_i_2d(1:npti,jk,jl) = 0._wp
+                  e_i_2d  (1:npti,jk,jl) = 0._wp
+                  szv_i_2d(1:npti,jk,jl) = 0._wp
                END WHERE
             END DO
          END DO
@@ -151,10 +154,8 @@ CONTAINS
          SELECT CASE ( nn_icesal )
          CASE ( 1 )                    ! Sice = constant 
             zs_newice(1:npti) = rn_icesal
-         CASE ( 2 )                    ! Sice = F(z,t) [Vancoppenolle et al (2005)]
-            DO ji = 1, npti
-               zs_newice(ji) = MIN(  4.606 + 0.91 / zh_newice(ji) , rn_simax , 0.5 * sss_1d(ji) )
-            END DO
+         CASE ( 2 , 4 )                ! Sice = F(z,t) [Griewank and Notz 2013 ; Rees Jones and Worster 2014]
+            zs_newice(1:npti) = rn_sinew * sss_1d(1:npti)
          CASE ( 3 )                    ! Sice = F(z) [multiyear ice]
             zs_newice(1:npti) =   2.3
          END SELECT
@@ -243,9 +244,11 @@ CONTAINS
             ! Heat content
             jl = jcat                                             ! categroy in which new ice is put
             IF( za_b(jl) > 0._wp ) THEN   
-               e_i_2d(ji,:,jl) = ( ze_newice * zv_newice + e_i_2d(ji,:,jl) * zv_b(jl) ) / MAX( v_i_2d(ji,jl), epsi20 )
+               e_i_2d  (ji,:,jl) = ( ze_newice     * zv_newice + e_i_2d  (ji,:,jl) * zv_b(jl) ) / MAX( v_i_2d(ji,jl), epsi20 )
+               szv_i_2d(ji,:,jl) = ( zs_newice(ji) * zv_newice + szv_i_2d(ji,:,jl) * zv_b(jl) ) / MAX( v_i_2d(ji,jl), epsi20 )
             ELSE
-               e_i_2d(ji,:,jl) = ze_newice   
+               e_i_2d  (ji,:,jl) = ze_newice   
+               szv_i_2d(ji,:,jl) = zs_newice(ji)   
             ENDIF
          
             ! --- bottom ice growth + ice enthalpy remapping --- !
@@ -254,9 +257,11 @@ CONTAINS
                ! for remapping
                zh_i_old(0:nlay_i+1) = 0._wp
                ze_i_old(0:nlay_i+1) = 0._wp
+               zs_i_old(0:nlay_i+1) = 0._wp
                DO jk = 1, nlay_i
-                  zh_i_old(jk) = v_i_2d(ji,jl) * r1_nlay_i
-                  ze_i_old(jk) = e_i_2d(ji,jk,jl) * v_i_2d(ji,jl) * r1_nlay_i
+                  zh_i_old(jk) =                      v_i_2d(ji,jl) * r1_nlay_i
+                  ze_i_old(jk) = e_i_2d  (ji,jk,jl) * v_i_2d(ji,jl) * r1_nlay_i
+                  zs_i_old(jk) = szv_i_2d(ji,jk,jl) * v_i_2d(ji,jl) * r1_nlay_i
                END DO
 
                ! new volumes including lateral/bottom accretion + residual
@@ -269,13 +274,16 @@ CONTAINS
                v_i_2d(ji,jl) = v_i_2d(ji,jl) + zv_newfra
                ! for remapping
                zh_i_old(nlay_i+1) = zv_newfra
-               ze_i_old(nlay_i+1) = ze_newice * zv_newfra
+               ze_i_old(nlay_i+1) = ze_newice     * zv_newfra
+               zs_i_old(nlay_i+1) = zs_newice(ji) * zv_newfra
            
-               ! --- Update salinity --- !
+               ! --- Update bulk salinity --- !
                sv_i_2d(ji,jl) = sv_i_2d(ji,jl) + zs_newice(ji) * ( v_i_2d(ji,jl) - zv_b(jl) )
-               
-               ! --- Ice enthalpy remapping --- !
-               e_i_2d(ji,:,jl) = ice_ent2( zh_i_old(:), ze_i_old(:) ) 
+              
+               ! --- Ice enthalpy and salt remapping --- !
+                                      CALL ice_var_vremap( zh_i_old, ze_i_old, e_i_2d  (ji,:,jl) ) 
+               IF( nn_icesal == 4 )   CALL ice_var_vremap( zh_i_old, zs_i_old, szv_i_2d(ji,:,jl) ) 
+               !
             END DO
             
          END DO ! npti
@@ -283,18 +291,20 @@ CONTAINS
          !                       ! End main loop here !
          !                       ! ================== !
          !
-         ! Change units for e_i
+         ! Change units for e_i/szv_i
          DO jl = 1, jpl
             DO jk = 1, nlay_i
-               e_i_2d(1:npti,jk,jl) = e_i_2d(1:npti,jk,jl) * v_i_2d(1:npti,jl) * r1_nlay_i 
+               e_i_2d  (1:npti,jk,jl) = e_i_2d  (1:npti,jk,jl) * v_i_2d(1:npti,jl) * r1_nlay_i 
+               szv_i_2d(1:npti,jk,jl) = szv_i_2d(1:npti,jk,jl) * v_i_2d(1:npti,jl) * r1_nlay_i 
             END DO
          END DO
 
          ! Move 2D vectors to 1D vectors 
-         CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d (1:npti,:), a_i (:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d (1:npti,:), v_i (:,:,:) )
-         CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d(1:npti,:), sv_i(:,:,:) )
-         CALL tab_3d_4d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
+         CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d  (1:npti,:)  , a_i (:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d  (1:npti,:)  , v_i (:,:,:) )
+         CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d (1:npti,:)  , sv_i(:,:,:) )
+         CALL tab_3d_4d( npti, nptidx(1:npti), e_i_2d  (1:npti,:,:), e_i   )
+         CALL tab_3d_4d( npti, nptidx(1:npti), szv_i_2d(1:npti,:,:), szv_i )
          CALL tab_1d_2d( npti, nptidx(1:npti), sfx_opw_1d(1:npti), sfx_opw )
          CALL tab_1d_2d( npti, nptidx(1:npti), wfx_opw_1d(1:npti), wfx_opw )
          CALL tab_1d_2d( npti, nptidx(1:npti), hfx_thd_1d(1:npti), hfx_thd )
@@ -402,93 +412,6 @@ CONTAINS
       ENDIF
    END SUBROUTINE ice_thd_frazil
 
-   FUNCTION ice_ent2( ph_old, pe_old )
-      !!-------------------------------------------------------------------
-      !!               ***   ROUTINE ice_ent2  ***
-      !!
-      !! ** Purpose :
-      !!           This routine computes new vertical grids in the ice, 
-      !!           and consistently redistributes temperatures. 
-      !!           Redistribution is made so as to ensure to energy conservation
-      !!
-      !!
-      !! ** Method  : linear conservative remapping
-      !!           
-      !! ** Steps : 1) cumulative integrals of old enthalpies/thicknesses
-      !!            2) linear remapping on the new layers
-      !!
-      !! ------------ cum0(0)                        ------------- cum1(0)
-      !!                                    NEW      -------------
-      !! ------------ cum0(1)               ==>      -------------
-      !!     ...                                     -------------
-      !! ------------                                -------------
-      !! ------------ cum0(nlay_i+2)                 ------------- cum1(nlay_i)
-      !!
-      !!
-      !! References : Bitz & Lipscomb, JGR 99; Vancoppenolle et al., GRL, 2005
-      !!-------------------------------------------------------------------
-      REAL(wp), DIMENSION(0:nlay_i+1), INTENT(in) ::   ph_old, pe_old  ! old tickness and enthlapy
-      REAL(wp), DIMENSION(1:nlay_i)               ::   ice_ent2        ! new enthlapies (J.m-3, remapped)
-      !
-      INTEGER  :: ji         !  dummy loop indices
-      INTEGER  :: jk0, jk1   !  old/new layer indices
-      !
-      REAL(wp), DIMENSION(0:nlay_i+2) ::   zeh_cum0, zh_cum0   ! old cumulative enthlapies and layers interfaces
-      REAL(wp), DIMENSION(0:nlay_i)   ::   zeh_cum1, zh_cum1   ! new cumulative enthlapies and layers interfaces
-      REAL(wp)                        ::   zhnew               ! new layers thicknesses
-      !!-------------------------------------------------------------------
-
-      !--------------------------------------------------------------------------
-      !  1) Cumulative integral of old enthalpy * thickness and layers interfaces
-      !--------------------------------------------------------------------------
-      zeh_cum0(0) = 0._wp 
-      zh_cum0 (0) = 0._wp
-      DO jk0 = 1, nlay_i+2
-         zeh_cum0(jk0) = zeh_cum0(jk0-1) + pe_old(jk0-1)
-         zh_cum0 (jk0) = zh_cum0 (jk0-1) + ph_old(jk0-1)
-      END DO
-
-      !------------------------------------
-      !  2) Interpolation on the new layers
-      !------------------------------------
-      ! new layer thickesses
-      zhnew = SUM( ph_old(0:nlay_i+1) ) * r1_nlay_i  
-
-      ! new layers interfaces
-      zh_cum1(0) = 0._wp
-      DO jk1 = 1, nlay_i
-         zh_cum1(jk1) = zh_cum1(jk1-1) + zhnew
-      END DO
-
-      zeh_cum1(0:nlay_i) = 0._wp 
-      ! new cumulative q*h => linear interpolation
-      DO jk0 = 1, nlay_i+2
-         DO jk1 = 1, nlay_i-1
-            IF( zh_cum1(jk1) <= zh_cum0(jk0) .AND. zh_cum1(jk1) > zh_cum0(jk0-1) )   THEN
-               zeh_cum1(jk1) = ( zeh_cum0(jk0-1) * ( zh_cum0(jk0) - zh_cum1(jk1  ) ) +  &
-                  &              zeh_cum0(jk0  ) * ( zh_cum1(jk1) - zh_cum0(jk0-1) ) )  &
-                  &            / ( zh_cum0(jk0) - zh_cum0(jk0-1) )
-            ENDIF
-         END DO
-      END DO
-      ! to ensure that total heat content is strictly conserved, set:
-      zeh_cum1(nlay_i) = zeh_cum0(nlay_i+2) 
-
-      ! new enthalpies
-      DO jk1 = 1, nlay_i
-         ice_ent2(jk1) = MAX( 0._wp, zeh_cum1(jk1) - zeh_cum1(jk1-1) ) / MAX( zhnew, epsi20 ) ! max for roundoff error
-      END DO
-
-      ! --- diag error on heat remapping --- !
-      ! comment: if input h_old and eh_old are already multiplied by a_i (as in icethd_do), 
-      ! then we should not (* a_i) again but not important since this is just to check that remap error is ~0
-      !   hfx_err_rem_1d(ji) = hfx_err_rem_1d(ji) + a_i_1d(ji) * r1_Dt_ice *  &
-      !      &               ( SUM( pe_new(ji,1:nlay_i) ) * zhnew(ji) - SUM( eh_old(ji,0:nlay_i+1) ) ) 
-
-      
-   END FUNCTION ice_ent2
-
-   
    SUBROUTINE ice_thd_do_init
       !!-----------------------------------------------------------------------
       !!                   ***  ROUTINE ice_thd_do_init *** 

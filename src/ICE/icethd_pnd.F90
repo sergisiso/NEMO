@@ -310,7 +310,7 @@ CONTAINS
          CALL tab_2d_1d( npti, nptidx(1:npti), h_il_1d (1:npti), h_il(:,:,jl) )
 
          CALL tab_2d_1d( npti, nptidx(1:npti), dh_i_sum(1:npti), dh_i_sum_2d(:,:,jl) )
-         CALL tab_2d_1d( npti, nptidx(1:npti), dh_s_mlt(1:npti), dh_s_mlt_2d(:,:,jl) )
+         CALL tab_2d_1d( npti, nptidx(1:npti), dh_s_sum(1:npti), dh_s_sum_2d(:,:,jl) )
 
          DO jk = 1, nlay_i
             CALL tab_2d_1d( npti, nptidx(1:npti), sz_i_1d(1:npti,jk), sz_i(:,:,jk,jl) )
@@ -341,7 +341,7 @@ CONTAINS
                !------------------!
                !
                !--- available meltwater for melt ponding (zdv_avail) ---!
-               zdv_avail = -( dh_i_sum(ji)*rhoi + dh_s_mlt(ji)*rhos ) * z1_rhow * a_i_1d(ji) ! > 0
+               zdv_avail = -( dh_i_sum(ji)*rhoi + dh_s_sum(ji)*rhos ) * z1_rhow * a_i_1d(ji) ! > 0
                zfr_mlt   = rn_apnd_min + ( rn_apnd_max - rn_apnd_min ) * at_i_1d(ji) !  = ( 1 - r ) = fraction of melt water that is not flushed
                zdv_mlt   = MAX( 0._wp, zfr_mlt * zdv_avail ) ! max for roundoff errors?
                !
@@ -596,7 +596,7 @@ CONTAINS
                IF ( a_i(ji,jj,jl) > epsi10 ) THEN
 
                   !--- Available and contributing meltwater for melt ponding ---!
-                  zv_mlt  = - ( dh_i_sum_2d(ji,jj,jl) * rhoi + dh_s_mlt_2d(ji,jj,jl) * rhos ) &        ! available volume of surface melt water per grid area
+                  zv_mlt  = - ( dh_i_sum_2d(ji,jj,jl) * rhoi + dh_s_sum_2d(ji,jj,jl) * rhos ) &        ! available volume of surface melt water per grid area
                      &    * z1_rhow * a_i(ji,jj,jl)
                       ! MV -> could move this directly in ice_thd_dh and get an array (ji,jj,jl) for surface melt water volume per grid area
                   zfr_mlt = rn_apnd_min + ( rn_apnd_max - rn_apnd_min ) * at_i(ji,jj)                  ! fraction of surface meltwater going to ponds
