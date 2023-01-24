@@ -39,20 +39,20 @@ CONTAINS
    SUBROUTINE usr_def_zgr( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,    &   ! type of vertical coordinate
       &                    k_top   , k_bot                        ,    &   ! top & bottom ocean level
       &                    pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,    &   ! 1D reference vertical coordinate
-      &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! vertical scale factors
+      &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! 3D vertical scale factors at t-level
       &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
-      &                    pe3w  , pe3uw , pe3vw                       )   ! vertical scale factors
+      &                    pe3w  , pe3uw , pe3vw                       )   ! 3D vertical scale factors at w-level
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE usr_def_zgr  ***
       !!
       !! ** Purpose :   User defined the vertical coordinates
       !!
       !!----------------------------------------------------------------------
-      LOGICAL                   , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
-      LOGICAL                   , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
-      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
+      LOGICAL                             , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
+      LOGICAL                             , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
+      INTEGER , DIMENSION(:,:)            , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
@@ -77,11 +77,16 @@ CONTAINS
       !
       CALL zgr_msk_top_bot( k_top , k_bot )                 ! masked top and bottom ocean t-level indices
       !
-      IF( PRESENT( pe3t ) ) THEN                            ! z-coordinate (3D arrays) from the 1D z-coord.
-         CALL zgr_zco( pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d,   &   ! in  : 1D reference vertical coordinate
-            &          pdept   , pdepw   ,                     &   ! out : 3D t & w-points depth
-            &          pe3t    , pe3u    , pe3v   , pe3f   ,   &   !       vertical scale factors
-            &          pe3w    , pe3uw   , pe3vw             )     !           -      -      -
+      IF( lk_vco_1d3d ) THEN                                ! z-coordinate (3D arrays) from the 1D z-coord.
+         CALL zgr_zco_1d3d( pe3t_1d,                   &               ! in  : 1D reference vertical coordinate
+            &               pe3t , pe3u , pe3v , pe3f  )               ! out : 3D vertical scale factors at t-level
+      ENDIF
+      !
+      IF( lk_vco_3d ) THEN                                  ! z-coordinate (3D arrays) from the 1D z-coord.
+         CALL zgr_zco_3d(   pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d,   &   ! in  : 1D reference vertical coordinate
+            &               pe3t    , pe3u    , pe3v   , pe3f   ,   &   ! out : 3D vertical scale factors at t-level
+            &               pdept   , pdepw   ,                     &   !       3D t & w-points depth
+            &               pe3w    , pe3uw   , pe3vw               )   !       3D vertical scale factors at w-level
       ENDIF
       !
    END SUBROUTINE usr_def_zgr
@@ -213,10 +218,10 @@ CONTAINS
    END SUBROUTINE zgr_msk_top_bot
    
 
-   SUBROUTINE zgr_zco( pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d,   &   ! in : 1D reference vertical coordinate
-      &                pdept   , pdepw   ,                     &   ! out: 3D t & w-points depth
-      &                pe3t    , pe3u    , pe3v   , pe3f   ,   &   !      vertical scale factors
-      &                pe3w    , pe3uw   , pe3vw             )     !          -      -      -
+   SUBROUTINE zgr_zco_3d( pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d,   &   ! in : 1D reference vertical coordinate
+      &                   pe3t    , pe3u    , pe3v   , pe3f   ,   &   ! out: 3D vertical scale factors at t-level
+      &                   pdept   , pdepw   ,                     &   !      3D t & w-points depth
+      &                   pe3w    , pe3uw   , pe3vw             )     !      3D vertical scale factors at w-level
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE zgr_zco  ***
       !!
@@ -226,12 +231,17 @@ CONTAINS
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(:)    , INTENT(in   ) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth       [m]
       REAL(wp), DIMENSION(:)    , INTENT(in   ) ::   pe3t_1d , pe3w_1d           ! 1D vertical scale factors [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pdept, pdepw                ! grid-point depth          [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors    [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pe3w , pe3uw, pe3vw         !    -       -      -
+      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pe3t , pe3u , pe3v , pe3f   ! 3D vertical scale factors [m]
+      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pdept, pdepw                ! 3D grid-point depth       [m]
+      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pe3w , pe3uw, pe3vw         ! 3D vertical scale factors [m]
       !
       INTEGER  ::   jk
       !!----------------------------------------------------------------------
+      !
+      IF(lwp) WRITE(numout,*)
+      IF(lwp) WRITE(numout,*) '    zgr_zco_3d : defines depths and scale-factors.'
+      IF(lwp) WRITE(numout,*) '    ~~~~~~~~~~~'
+      IF(lwp) WRITE(numout,*) '       BENCH case : uniform'
       !
       DO jk = 1, jpk
          pdept(:,:,jk) = pdept_1d(jk)
@@ -245,7 +255,37 @@ CONTAINS
          pe3vw(:,:,jk) = pe3w_1d (jk)
       END DO
       !
-   END SUBROUTINE zgr_zco
+   END SUBROUTINE zgr_zco_3d
+
+   
+   SUBROUTINE zgr_zco_1d3d( pe3t_1d,                          &   ! in : 1D reference vertical coordinate
+      &                     pe3t   , pe3u   , pe3v  , pe3f  )     ! out: vertical scale factors
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE zgr_zco  ***
+      !!
+      !! ** Purpose :   define the reference z-coordinate system
+      !!
+      !! ** Method  :   set 3D coord. arrays to reference 1D array 
+      !!----------------------------------------------------------------------
+      REAL(wp), DIMENSION(:)    , INTENT(in   ) ::   pe3t_1d                     ! 1D vertical scale factors [m]
+      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pe3t , pe3u , pe3v , pe3f   ! 3D vertical scale factors [m]
+      !
+      INTEGER  ::   jk
+      !!----------------------------------------------------------------------
+      !
+      IF(lwp) WRITE(numout,*)
+      IF(lwp) WRITE(numout,*) '    zgr_zco_1d3d : defines t-level scale-factors.'
+      IF(lwp) WRITE(numout,*) '    ~~~~~~~~~~~~~'
+      IF(lwp) WRITE(numout,*) '       BENCH case : uniform'
+      !
+      DO jk = 1, jpk
+         pe3t(:,:,jk) = pe3t_1d (jk)
+         pe3u(:,:,jk) = pe3t_1d (jk)
+         pe3v(:,:,jk) = pe3t_1d (jk)
+         pe3f(:,:,jk) = pe3t_1d (jk)
+      END DO
+      !
+   END SUBROUTINE zgr_zco_1d3d
 
    !!======================================================================
 END MODULE usrdef_zgr

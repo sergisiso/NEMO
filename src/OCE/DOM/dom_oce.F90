@@ -136,19 +136,19 @@ MODULE dom_oce
    LOGICAL, PUBLIC, PARAMETER ::   lk_ALE    = .FALSE.  !: ALE key flag
 #endif
 #if defined key_vco_1d
-   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d   = .TRUE.   !: zco key flag
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d   = .TRUE.   !: 1d key flag
 #else
-   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d   = .FALSE.  !: zco key flag
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d   = .FALSE.  !: 1d key flag
 #endif
 #if defined key_vco_1d3d
-   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d3d = .TRUE.   !: zps key flag
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d3d = .TRUE.   !: 1d3d key flag
 #else
-   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d3d = .FALSE.  !: zps key flag
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_1d3d = .FALSE.  !: 1d3d key flag
 #endif
 #if defined key_vco_3d
-   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_3d   = .TRUE.   !: sco key flag
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_3d   = .TRUE.   !: 3d key flag
 #else
-   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_3d   = .FALSE.  !: sco key flag
+   LOGICAL, PUBLIC, PARAMETER ::   lk_vco_3d   = .FALSE.  !: 3d key flag
 #endif
 
 !!gm obsolescent feature replaced by key_xxx ==>>>  to be removed when z-tilde and or ALE key added (and domvvl removed)
@@ -362,15 +362,14 @@ CONTAINS
             !
             ALLOCATE(        gdept_1d(jpk) ,        gdepw_1d(jpk) ,       &
                &               e3t_1d(jpk) ,          e3w_1d(jpk) ,   STAT=ierr(ii) )
-               !
-         ELSEIF( lk_vco_1d3d ) THEN       !* zps :   allocate 1d vertical arrays, except t-level e3 !!st WHT not ??? 
-            !                 
+         ELSEIF( lk_vco_1d3d ) THEN
+            !                             !* zps :   allocate 1d vertical arrays for gdep and w-level e3 fields and t-level e3 fields
             ALLOCATE(        gdept_1d(jpk) ,        gdepw_1d(jpk) ,       &
                &               e3t_1d(jpk) ,          e3w_1d(jpk) ,       &
                &       e3t_3d(jpi,jpj,jpk) ,  e3u_3d(jpi,jpj,jpk) ,       &
                &       e3v_3d(jpi,jpj,jpk) ,  e3f_3d(jpi,jpj,jpk) ,   STAT=ierr(ii) )
          ELSEIF( lk_vco_3d ) THEN
-            !                             !* sco :   allocate 3d vertical arrays for all gdep and e3 fields (no more _1d) !!st WHT not ???
+            !                             !* sco :   allocate 3d vertical arrays for all gdep and e3 fields (no more _1d)
             ALLOCATE(        gdept_1d(jpk) ,        gdepw_1d(jpk) ,       &
                &               e3t_1d(jpk) ,          e3w_1d(jpk) ,       &
                &     gdept_3d(jpi,jpj,jpk) ,gdepw_3d(jpi,jpj,jpk) ,       &
@@ -382,7 +381,6 @@ CONTAINS
          !                                !-------------------------------------!
       ELSEIF( lk_ALE ) THEN               !-  combine time & space variations  -!   (vertical ALE coordinate)
          !                                !-------------------------------------!      NOT yet implemented
-         !!st ca ne devrait pas etre des *_0 qui varient dans le temps ? 
          ii = ii+1
          ALLOCATE(    ht(jpi,jpj,jpt) ,    hu(jpi,jpj,jpt) ,      hv(jpi,jpj,jpt) ,       &
             &                           r1_hu(jpi,jpj,jpt) , r1_hv  (jpi,jpj,jpt) ,   STAT=ierr(ii)  )
