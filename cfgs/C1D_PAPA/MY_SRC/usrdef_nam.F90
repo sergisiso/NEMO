@@ -14,7 +14,6 @@ MODULE usrdef_nam
    !!   usr_def_hgr   : initialize the horizontal mesh 
    !!----------------------------------------------------------------------
    USE dom_oce  , ONLY: nimpp, njmpp             ! ocean space and time domain
-   USE dom_oce  , ONLY: ln_zco, ln_zps, ln_sco   ! flag of type of coordinate
    USE par_oce        ! ocean space and time domain
    USE phycst         ! physical constants
    !
@@ -84,10 +83,6 @@ CONTAINS
          WRITE(numout,*) 'usr_def_nam  : read the user defined namelist (namusr_def) in namelist_cfg'
          WRITE(numout,*) '~~~~~~~~~~~ '
          WRITE(numout,*) '   Namelist namusr_def : C1 case'
-         WRITE(numout,*) '      type of vertical coordinate : '
-         WRITE(numout,*) '         z-coordinate flag                     ln_zco = ', ln_zco
-         WRITE(numout,*) '         z-partial-step coordinate flag        ln_zps = ', ln_zps
-         WRITE(numout,*) '         s-coordinate flag                     ln_sco = ', ln_sco
          WRITE(numout,*) '      C1D domain = 1 x 1 x 75 grid-points                '
          WRITE(numout,*) '         resulting global domain size :        jpiglo = ', kpi
          WRITE(numout,*) '                                               jpjglo = ', kpj

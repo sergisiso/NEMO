@@ -34,27 +34,27 @@ MODULE usrdef_zgr
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
-
+   
    SUBROUTINE usr_def_zgr( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,    &   ! type of vertical coordinate
+      &                    k_top   , k_bot                        ,    &   ! top & bottom ocean level
       &                    pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,    &   ! 1D reference vertical coordinate
-      &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
       &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! vertical scale factors
-      &                    pe3w  , pe3uw , pe3vw         ,             &   !     -      -      -
-      &                    k_top  , k_bot    )                             ! top & bottom ocean level
+      &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
+      &                    pe3w  , pe3uw , pe3vw                       )   ! vertical scale factors
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE usr_def_zgr  ***
       !!
       !! ** Purpose :   User defined the vertical coordinates
       !!
       !!----------------------------------------------------------------------
-      LOGICAL                   , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
-      LOGICAL                   , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors
-      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      LOGICAL                             , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
+      LOGICAL                             , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
+      INTEGER , DIMENSION(:,:)            , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
@@ -75,6 +75,7 @@ CONTAINS
       pe3t_1d(1)  = 2._wp*rn_dept1
       pe3w_1d(1)  = rn_dept1 ! LB???
 
+#if defined key_vco_3d
       pdept(:,:,1) = rn_dept1
       pdepw(:,:,1) = 0._wp
       pe3t(:,:,1) = 2._wp*rn_dept1
@@ -84,13 +85,14 @@ CONTAINS
       pe3w(:,:,1)  = rn_dept1  ! LB???
       pe3uw(:,:,1) = rn_dept1  ! LB???
       pe3vw(:,:,1) = rn_dept1  ! LB???
-
+#endif
       !! 2nd level, technically useless (only for the sake of code stability)
       pdept_1d(2) = 3._wp*rn_dept1
       pdepw_1d(2) = 2._wp*rn_dept1
       pe3t_1d(2)  = 2._wp*rn_dept1
       pe3w_1d(2)  = 2._wp*rn_dept1
 
+#if defined key_vco_3d
       pdept(:,:,2) = 3._wp*rn_dept1
       pdepw(:,:,2) = 2._wp*rn_dept1
       pe3t(:,:,2) = 2._wp*rn_dept1
@@ -100,7 +102,7 @@ CONTAINS
       pe3w(:,:,2)  = 2._wp*rn_dept1
       pe3uw(:,:,2) = 2._wp*rn_dept1
       pe3vw(:,:,2) = 2._wp*rn_dept1
-
+#endif
       k_top = 1
       k_bot = 1
 

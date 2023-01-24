@@ -36,28 +36,28 @@ MODULE usrdef_zgr
    !! $Id: usrdef_zgr.F90 13295 2020-07-10 18:24:21Z acc $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
-CONTAINS             
-
+CONTAINS
+   
    SUBROUTINE usr_def_zgr( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,    &   ! type of vertical coordinate
+      &                    k_top   , k_bot                        ,    &   ! top & bottom ocean level
       &                    pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,    &   ! 1D reference vertical coordinate
-      &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
       &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! vertical scale factors
-      &                    pe3w  , pe3uw , pe3vw         ,             &   !     -      -      -
-      &                    k_top  , k_bot    )                             ! top & bottom ocean level
+      &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
+      &                    pe3w  , pe3uw , pe3vw                       )   ! vertical scale factors
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE usr_def_zgr  ***
       !!
       !! ** Purpose :   User defined the vertical coordinates
       !!
       !!----------------------------------------------------------------------
-      LOGICAL                   , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
-      LOGICAL                   , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
-      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      LOGICAL                             , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
+      LOGICAL                             , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
+      INTEGER , DIMENSION(:,:)            , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
       !
       INTEGER  ::   ji, jj, jk        ! dummy indices
       INTEGER  ::   ik                ! local integers
@@ -148,34 +148,34 @@ CONTAINS
       !
       !                                !* vertical coordinate system
       DO jk = 1, jpk                      ! initialization to the reference z-coordinate
-         pdept(:,:,jk) = pdept_1d(jk)
-         pdepw(:,:,jk) = pdepw_1d(jk)
+!!st         pdept(:,:,jk) = pdept_1d(jk)
+!!st         pdepw(:,:,jk) = pdepw_1d(jk)
          pe3t (:,:,jk) = pe3t_1d (jk)
          pe3u (:,:,jk) = pe3t_1d (jk)
          pe3v (:,:,jk) = pe3t_1d (jk)
          pe3f (:,:,jk) = pe3t_1d (jk)
-         pe3w (:,:,jk) = pe3w_1d (jk)
-         pe3uw(:,:,jk) = pe3w_1d (jk)
-         pe3vw(:,:,jk) = pe3w_1d (jk)
+!!st         pe3w (:,:,jk) = pe3w_1d (jk)
+!!st         pe3uw(:,:,jk) = pe3w_1d (jk)
+!!st         pe3vw(:,:,jk) = pe3w_1d (jk)
       END DO
       ! bottom scale factors and depth at T- and W-points
       DO_2D( 1, 1, 1, 1 )
          ik = k_bot(ji,jj)
-         pdepw(ji,jj,ik+1) = MIN( zht(ji,jj) , pdepw_1d(ik+1) )
-         pe3t (ji,jj,ik  ) = pdepw(ji,jj,ik+1) - pdepw(ji,jj,ik)
+!!st         pdepw(ji,jj,ik+1) = MIN( zht(ji,jj) , pdepw_1d(ik+1) )
+         pe3t (ji,jj,ik  ) = MIN( zht(ji,jj) , pdepw_1d(ik+1) ) - pdepw_1d(ik)
          pe3t (ji,jj,ik+1) = pe3t (ji,jj,ik  ) 
          !
-         pdept(ji,jj,ik  ) = pdepw(ji,jj,ik  ) + pe3t (ji,jj,ik  ) * 0.5_wp
-         pdept(ji,jj,ik+1) = pdepw(ji,jj,ik+1) + pe3t (ji,jj,ik+1) * 0.5_wp
-         pe3w (ji,jj,ik+1) = pdept(ji,jj,ik+1) - pdept(ji,jj,ik)              ! = pe3t (ji,jj,ik  )
+!!st         pdept(ji,jj,ik  ) = pdepw(ji,jj,ik  ) + pe3t (ji,jj,ik  ) * 0.5_wp
+!!st         pdept(ji,jj,ik+1) = pdepw(ji,jj,ik+1) + pe3t (ji,jj,ik+1) * 0.5_wp
+!!st         pe3w (ji,jj,ik+1) = pdept(ji,jj,ik+1) - pdept(ji,jj,ik)              ! = pe3t (ji,jj,ik  )
       END_2D        
       !                                   ! bottom scale factors and depth at  U-, V-, UW and VW-points
       !                                   ! usually Computed as the minimum of neighbooring scale factors
       pe3u (:,:,:) = pe3t(:,:,:)          ! HERE C1D configuration : 
       pe3v (:,:,:) = pe3t(:,:,:)          !    e3 increases with k-index 
       pe3f (:,:,:) = pe3t(:,:,:)          !    so e3 minimum of (i,i+1) points is (i) point
-      pe3uw(:,:,:) = pe3w(:,:,:)          !    in j-direction e3v=e3t and e3f=e3v
-      pe3vw(:,:,:) = pe3w(:,:,:)          !    ==>>  no need of lbc_lnk calls
+!!st      pe3uw(:,:,:) = pe3w(:,:,:)          !    in j-direction e3v=e3t and e3f=e3v
+!!st      pe3vw(:,:,:) = pe3w(:,:,:)          !    ==>>  no need of lbc_lnk calls
       !      
       !
    END SUBROUTINE usr_def_zgr
