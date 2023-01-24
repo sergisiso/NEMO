@@ -35,32 +35,28 @@ MODULE usrdef_zgr
    !! $Id: usrdef_zgr.F90 13472 2020-09-16 13:05:19Z smasson $
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
-CONTAINS             
-
+CONTAINS
+   
    SUBROUTINE usr_def_zgr( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,    &   ! type of vertical coordinate
+      &                    k_top   , k_bot                        ,    &   ! top & bottom ocean level
       &                    pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,    &   ! 1D reference vertical coordinate
-      &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
       &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! vertical scale factors
-      &                    pe3w  , pe3uw , pe3vw         ,             &   !     -      -      -
-      &                    k_top  , k_bot    )                             ! top & bottom ocean level
+      &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
+      &                    pe3w  , pe3uw , pe3vw                       )   ! vertical scale factors
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE usr_def_zgr  ***
       !!
       !! ** Purpose :   User defined the vertical coordinates
       !!
       !!----------------------------------------------------------------------
-      LOGICAL                   , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
-      LOGICAL                   , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
-      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
-      !
-      INTEGER  ::   inum   ! local logical unit
-      REAL(WP) ::   z_zco, z_zps, z_sco, z_cav
-      REAL(wp), DIMENSION(jpi,jpj) ::   z2d   ! 2D workspace
+      LOGICAL                             , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
+      LOGICAL                             , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
+      INTEGER , DIMENSION(:,:)            , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
@@ -82,11 +78,13 @@ CONTAINS
       !
       CALL zgr_msk_top_bot( k_top , k_bot )                 ! masked top and bottom ocean t-level indices
       !
+#if defined key_vco_3d
       !                                                     ! z-coordinate (3D arrays) from the 1D z-coord.
       CALL zgr_zco( pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d,   &   ! in  : 1D reference vertical coordinate
          &          pdept   , pdepw   ,                     &   ! out : 3D t & w-points depth
          &          pe3t    , pe3u    , pe3v   , pe3f   ,   &   !       vertical scale factors
          &          pe3w    , pe3uw   , pe3vw             )     !           -      -      -
+#endif
       !
    END SUBROUTINE usr_def_zgr
 

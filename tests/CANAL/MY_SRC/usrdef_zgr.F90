@@ -79,12 +79,14 @@ CONTAINS
       CALL zgr_msk_top_bot( k_top , k_bot )                 ! masked top and bottom ocean t-level indices
       !
       !
+#if defined key_vco_3d
       IF( PRESENT( pe3t ) ) THEN                            ! z-coordinate (3D arrays) from the 1D z-coord.
          CALL zgr_zco( pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d,   &   ! in  : 1D reference vertical coordinate
             &          pdept   , pdepw   ,                     &   ! out : 3D t & w-points depth
             &          pe3t    , pe3u    , pe3v   , pe3f   ,   &   !       vertical scale factors
             &          pe3w    , pe3uw   , pe3vw             )     !           -      -      -
       ENDIF
+#endif
       !
    END SUBROUTINE usr_def_zgr
 

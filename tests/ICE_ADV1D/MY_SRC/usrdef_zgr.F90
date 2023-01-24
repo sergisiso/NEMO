@@ -91,6 +91,16 @@ CONTAINS
       !!jpkm1 = jpk
       k_bot(:,:) = 1    ! here use k_top as a land mask
       !                                !* horizontally uniform coordinate (reference z-co everywhere)
+#if defined key_vco_1d3d
+      DO jk = 1, jpk
+         pe3t (:,:,jk) = pe3t_1d (jk)
+         pe3u (:,:,jk) = pe3t_1d (jk)
+         pe3v (:,:,jk) = pe3t_1d (jk)
+         pe3f (:,:,jk) = pe3t_1d (jk)
+      END DO
+#endif
+      !
+#if defined key_vco_3d
       DO jk = 1, jpk
          pdept(:,:,jk) = pdept_1d(jk)
          pdepw(:,:,jk) = pdepw_1d(jk)
@@ -102,6 +112,7 @@ CONTAINS
          pe3uw(:,:,jk) = pe3w_1d (jk)
          pe3vw(:,:,jk) = pe3w_1d (jk)
       END DO
+#endif
       !
    END SUBROUTINE usr_def_zgr
 
