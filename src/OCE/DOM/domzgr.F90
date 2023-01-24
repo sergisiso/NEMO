@@ -87,7 +87,6 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~'
          IF( ln_linssh ) WRITE(numout,*) '          linear free surface: the vertical mesh does not change in time'
       ENDIF
-CALL FLUSH(numout)
       !                             !==============================!
       IF( ln_read_cfg ) THEN        !==  read in domcfg.nc file  ==!
          !                          !==============================!
@@ -229,46 +228,44 @@ CALL FLUSH(numout)
             !                                !--------------------!
             IF( lk_vco_1d ) THEN             !--  z-coordinate  --!   use only 1D arrays for all gdep and e3 fields
                !                             !--------------------!
-               l_zco = .TRUE.                     ! old logical   ==> to be removed
-               l_zps = .FALSE.
-               l_sco = .FALSE.
                !
+               
                CALL usr_def_zgr( l_zco  , l_zps  , l_sco, ln_isfcav,   &
                   &              k_top   , k_bot                      ,   &    ! 1st & last ocean level
                   &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   )        ! 1D gridpoints depth
+               !
+               IF( l_sco )   CALL ctl_stop( 'STOP','domzgr: key_vco_1d and l_sco=T are incompatible. Fix usrdef_zgr !' )
+               IF( l_zps )   CALL ctl_stop( 'STOP','domzgr: key_vco_1d and l_zps=T are incompatible. Fix usrdef_zgr !' )
+               !
                !                             !-----------------------!
             ELSEIF( lk_vco_1d3d ) THEN       !--  z-partial cells  --!   use 3D t-level e3
                !                             !-----------------------!
-               l_zco = .FALSE.                     ! old logical   ==> to be removed
-               l_zps = .TRUE.
-               l_sco = .FALSE.
                !
-               CALL usr_def_zgr( l_zco  , l_zps  , l_sco, ln_isfcav,   &
+               CALL usr_def_zgr( l_zco  , l_zps  , l_sco, ln_isfcav   ,   &
                   &              k_top   , k_bot                      ,   &    ! 1st & last ocean level
                   &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   ,   &    ! 1D gridpoints depth
-                  &              e3t_3d  , e3u_3d  , e3v_3d, e3f_3d    )        ! vertical scale factors
+                  &              e3t_3d  , e3u_3d  , e3v_3d, e3f_3d       )    ! vertical scale factors
+               !
+               IF( l_sco )   CALL ctl_stop( 'STOP','domzgr: key_vco_1d3d and l_sco=T are incompatible. Fix usrdef_zgr !' )
                !
                ! make sure that periodicities are properly applied 
                CALL lbc_lnk( 'dom_zgr', e3t_3d, 'T', 1._wp,   e3u_3d, 'U', 1._wp,  e3v_3d, 'V', 1._wp, e3f_3d, 'F', 1._wp,   &
                     &                     kfillmode = jpfillcopy )   ! do not put 0 over closed boundaries
-
+               !
                !                             !--------------------!               
             ELSEIF( lk_vco_3d ) THEN         !--  s-coordinate  --!   use 3D for all gdep and e3 fields
                !                             !--------------------!
-               l_zco = .FALSE.                     ! old logical   ==> to be removed
-               l_zps = .FALSE.
-               l_sco = .TRUE.
                !
-               CALL usr_def_zgr( l_zco  , l_zps  , l_sco, ln_isfcav,   &
-               &              k_top   , k_bot                      ,   &    ! 1st & last ocean level
-               &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   ,   &    ! 1D gridpoints depth
-               &              e3t_3d  , e3u_3d  , e3v_3d, e3f_3d    ,   &    ! vertical scale factors
-               &              gdept_3d, gdepw_3d                    ,   &    ! gridpoints depth 
-               &              e3w_3d  , e3uw_3d , e3vw_3d           )        ! vertical scale factors
-               CALL lbc_lnk( 'dom_zgr', gdept_3d, 'T', 1._wp, gdepw_3d, 'W', 1._wp,                                          &
-               &                          e3t_3d, 'T', 1._wp,   e3u_3d, 'U', 1._wp,  e3v_3d, 'V', 1._wp, e3f_3d, 'F', 1._wp,   &
-               &                          e3w_3d, 'W', 1._wp,  e3uw_3d, 'U', 1._wp, e3vw_3d, 'V', 1._wp,   &   
-               &                     kfillmode = jpfillcopy )   ! do not put 0 over closed boundaries
+               CALL usr_def_zgr( l_zco  , l_zps  , l_sco, ln_isfcav   ,   &
+                  &              k_top   , k_bot                      ,   &    ! 1st & last ocean level
+                  &              gdept_1d, gdepw_1d, e3t_1d, e3w_1d   ,   &    ! 1D gridpoints depth
+                  &              e3t_3d  , e3u_3d  , e3v_3d, e3f_3d   ,   &    ! vertical scale factors
+                  &              gdept_3d, gdepw_3d                   ,   &    ! gridpoints depth 
+                  &              e3w_3d  , e3uw_3d , e3vw_3d               )   ! vertical scale factors
+               CALL lbc_lnk( 'dom_zgr', gdept_3d, 'T', 1._wp, gdepw_3d, 'W', 1._wp,                                            &
+                  &                       e3t_3d, 'T', 1._wp,   e3u_3d, 'U', 1._wp,  e3v_3d, 'V', 1._wp, e3f_3d, 'F', 1._wp,   &
+                  &                       e3w_3d, 'W', 1._wp,  e3uw_3d, 'U', 1._wp, e3vw_3d, 'V', 1._wp,                       &   
+                  &                     kfillmode = jpfillcopy )   ! do not put 0 over closed boundaries
             ENDIF
          ENDIF
          ztopbot(:,:,1) = REAL(k_top, wp)
@@ -311,7 +308,7 @@ CALL FLUSH(numout)
       !
       IF(lwp) THEN                     ! Control print
          WRITE(numout,*)
-         WRITE(numout,*) '   Type of vertical coordinate (read in ', TRIM( cn_domcfg ), ' file or set in userdef_nam) :'
+         WRITE(numout,*) '   Type of vertical coordinate (read in ', TRIM( cn_domcfg ), ' file or set in userdef_zgr) :'
          WRITE(numout,*) '      z-coordinate - full steps      l_zco    = ', l_zco
          WRITE(numout,*) '      z-coordinate - partial steps   l_zps    = ', l_zps
          WRITE(numout,*) '      s- or hybrid z-s-coordinate    l_sco    = ', l_sco
