@@ -93,11 +93,15 @@ CONTAINS
       !------------
       ! diagnostics
       !------------
-      diag_trp_ei(:,:) = SUM(SUM( e_i (A2D(0),1:nlay_i,:) - e_i_b (A2D(0),1:nlay_i,:), dim=4 ), dim=3 ) * r1_Dt_ice
-      diag_trp_es(:,:) = SUM(SUM( e_s (A2D(0),1:nlay_s,:) - e_s_b (A2D(0),1:nlay_s,:), dim=4 ), dim=3 ) * r1_Dt_ice
-      diag_trp_sv(:,:) = SUM(     sv_i(A2D(0),:)          - sv_i_b(A2D(0),:)                  , dim=3 ) * r1_Dt_ice
-      diag_trp_vi(:,:) = SUM(     v_i (A2D(0),:)          - v_i_b (A2D(0),:)                  , dim=3 ) * r1_Dt_ice
-      diag_trp_vs(:,:) = SUM(     v_s (A2D(0),:)          - v_s_b (A2D(0),:)                  , dim=3 ) * r1_Dt_ice
+      diag_trp_ei(:,:) =    SUM(SUM( e_i  (A2D(0),:,:) - e_i_b  (A2D(0),:,:), dim=4 ), dim=3 ) * r1_Dt_ice
+      diag_trp_es(:,:) =    SUM(SUM( e_s  (A2D(0),:,:) - e_s_b  (A2D(0),:,:), dim=4 ), dim=3 ) * r1_Dt_ice
+      IF( nn_icesal == 4 ) THEN
+         diag_trp_sv(:,:) = SUM(SUM( szv_i(A2D(0),:,:) - szv_i_b(A2D(0),:,:), dim=4 ), dim=3 ) * r1_Dt_ice
+      ELSE
+         diag_trp_sv(:,:) = SUM(     sv_i (A2D(0),:)   - sv_i_b (A2D(0),:)           , dim=3 ) * r1_Dt_ice
+      ENDIF
+      diag_trp_vi(:,:) =    SUM(     v_i  (A2D(0),:)   - v_i_b  (A2D(0),:)           , dim=3 ) * r1_Dt_ice
+      diag_trp_vs(:,:) =    SUM(     v_s  (A2D(0),:)   - v_s_b  (A2D(0),:)           , dim=3 ) * r1_Dt_ice
       IF( iom_use('icemtrp') )   CALL iom_put( 'icemtrp' ,  diag_trp_vi * rhoi          )   ! ice mass transport
       IF( iom_use('snwmtrp') )   CALL iom_put( 'snwmtrp' ,  diag_trp_vs * rhos          )   ! snw mass transport
       IF( iom_use('salmtrp') )   CALL iom_put( 'salmtrp' ,  diag_trp_sv * rhoi * 1.e-03 )   ! salt mass transport (kg/m2/s)

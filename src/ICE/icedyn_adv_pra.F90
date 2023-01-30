@@ -92,7 +92,7 @@ CONTAINS
       REAL(wp) ::   zdt, z1_dt               !   -      -
       REAL(wp) ::   zati2
       REAL(wp), DIMENSION(1)              ::   zcflprv, zcflnow   ! for global communication
-      REAL(wp), DIMENSION(jpi,jpj)        ::   zati1
+      REAL(wp), DIMENSION(A2D(0))         ::   zati1
       REAL(wp), DIMENSION(jpi,jpj)        ::   zudy, zvdx
       REAL(wp), DIMENSION(jpi,jpj)        ::   zh_i, zh_s, zhi_max, zhs_max, zhip_max, zsi_max
       REAL(wp), DIMENSION(jpi,jpj,nlay_i) ::   ze_i, zei_max, zszi_max
@@ -137,20 +137,18 @@ CONTAINS
       ! --- transport --- !
       zudy(:,:) = pu_ice(:,:) * e2u(:,:)
       zvdx(:,:) = pv_ice(:,:) * e1v(:,:)
-
+      
       !---------------!
       !== advection ==!
       !---------------!
       DO jt = 1, icycle
          
+         ! record at_i before advection (for open water)
+         zati1(:,:) = SUM( pa_i(A2D(0),:), dim=3 )
+
          IF( icycle == 1 ) THEN   ;   ihls = 0                   ! optimization
          ELSE                     ;   ihls = MAX( 0, nn_hls - jt )
          ENDIF
-         !
-         ! record at_i before advection (for open water)
-         DO_2D( ihls, ihls, ihls, ihls )
-            zati1(ji,jj) = SUM( pa_i(ji,jj,:) )
-         END_2D
          !
          !                       ! =================== !
          !                       ! Start cat loop here !
@@ -385,7 +383,7 @@ CONTAINS
                   pv_il(ji,jj,jl) = z0vl(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
                END_2D
             ENDIF
-            
+                        
             ! --- diagnostics --- !
             DO_2D( 0, 0, 0, 0 )
                diag_adv_mass(ji,jj) = diag_adv_mass(ji,jj) + ( pv_i (ji,jj,jl) * rhoi + pv_s (ji,jj,jl) * rhos &
@@ -418,19 +416,20 @@ CONTAINS
          !                       ! ================= !
          !                       ! End cat loop here !
          !                       ! ================= !
-
-         ! derive open water from ice concentration
-         DO_2D( ihls, ihls, ihls, ihls )
-            zati2 = SUM( pa_i(ji,jj,:) )
-            pato_i(ji,jj) = pato_i(ji,jj) - ( zati2 - zati1(ji,jj) )            &                                    !--- open water
-               &                          - (  ( zudy(ji,jj) - zudy(ji-1,jj) )  &    ! add () for NP repro
-               &                             + ( zvdx(ji,jj) - zvdx(ji,jj-1) )  ) * r1_e1e2t(ji,jj) * zdt
-         END_2D
-         
+         !
          ! --- Ensure non-negative fields --- !
          !     Remove negative values (conservation is ensured)
          !     (because advected fields are not perfectly bounded and tiny negative values can occur, e.g. -1.e-20)
-         CALL ice_var_zapneg( ihls, zdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
+         CALL ice_var_zapneg( ihls, zdt, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
+         !
+         ! derive open water from ice concentration
+         DO_2D( 0, 0, 0, 0 )
+            zati2 = SUM( pa_i(ji,jj,:) )
+            pato_i(ji,jj) = MAX( 0._wp, pato_i(ji,jj) - ( zati2 - zati1(ji,jj) )            &
+               &                                      - (   ( zudy(ji,jj) - zudy(ji-1,jj) ) &   ! ad () for NP repro
+               &                                          + ( zvdx(ji,jj) - zvdx(ji,jj-1) ) ) * r1_e1e2t(ji,jj) * zdt )
+         END_2D
+         ! note: no need of lbc_lnk for open water (never used in the halos)
          !
          ! --- Lateral boundary conditions --- !
          !     caution: for gradients (sx and sy) the sign changes
@@ -479,7 +478,6 @@ CONTAINS
                   &                          , pe_i  , 'T', 1._wp, sxe   , 'T', -1._wp, sye   , 'T', -1._wp  & ! ice enthalpy
                   &                          , sxxe  , 'T', 1._wp, syye  , 'T',  1._wp, sxye  , 'T',  1._wp, ldfull = .TRUE. )
             ENDIF
-            CALL lbc_lnk( 'icedyn_adv_pra', pato_i, 'T', 1._wp, ldfull = .TRUE. )
             !
          ELSEIF( jt == icycle ) THEN             ! comm. on the moments at the end of advection
             !                                    ! comm. on the other fields are gathered in icedyn.F90
@@ -530,9 +528,11 @@ CONTAINS
          !
       END DO ! jt
       !
+      !
       IF( lrst_ice )   CALL adv_pra_rst( 'WRITE', kt )   !* write Prather fields in the restart file
       !
       !
+      ! --- Deallocate arrays --- !
       IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) DEALLOCATE( z0ap , z0vp, z0vl, zh_ip )
       IF( nn_icesal == 4 ) THEN   ;     DEALLOCATE( z0si , zsz_i )
       ELSE                        ;     DEALLOCATE( z0smi, zs_i  )

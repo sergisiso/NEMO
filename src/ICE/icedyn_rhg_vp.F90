@@ -308,8 +308,8 @@ CONTAINS
       zsshdyn(:,:) = ice_var_sshdyn( ssh_m, snwice_mass, snwice_mass_b)    
 
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         zmt(ji,jj) = rhos * vt_s(ji,jj) + rhoi * vt_i(ji,jj)       ! Snow and ice mass at T-point
-         zmf(ji,jj) = zmt(ji,jj) * ff_t(ji,jj)                      ! Coriolis factor at T points (m*f)
+         zmt(ji,jj) = rhos * vt_s(ji,jj) + rhoi * vt_i(ji,jj) + rhow * (vt_ip(ji,jj) + vt_il(ji,jj)) ! Snow and ice mass at T-point
+         zmf(ji,jj) = zmt(ji,jj) * ff_t(ji,jj)                                                       ! Coriolis factor at T points (m*f)
       END_2D
       
       DO_2D( nn_hls, nn_hls-1, nn_hls-1, nn_hls )

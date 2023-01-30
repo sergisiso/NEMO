@@ -86,8 +86,7 @@ CONTAINS
       !!                     (ji-1,jj-1)     (ji,jj-1)
       !!
       !! ** Inputs  : - wind forcing (stress), oceanic currents
-      !!                ice total volume (vt_i) per unit area
-      !!                snow total volume (vt_s) per unit area
+      !!                ice, snow and ponds total volume (vt_i, vt_s, vt_ip, vt_il) per unit area
       !!
       !! ** Action  : - compute u_ice, v_ice : the components of the
       !!                sea-ice velocity vector
@@ -218,8 +217,8 @@ CONTAINS
                fimask(ji,jj) = tmask(ji,jj,1) * tmask(ji+1,jj,1) * tmask(ji,jj+1,1) * tmask(ji+1,jj+1,1)
                ! Lateral boundary conditions on velocity (modify fimask)
                IF( fimask(ji,jj) == 0._wp ) THEN
-                  fimask(ji,jj) = rn_ishlat * MIN( 1._wp , MAX( umask(ji,jj,1), umask(ji,jj+1,1), &
-                     &                                          vmask(ji,jj,1), vmask(ji+1,jj,1) ) )
+                  fimask(ji,jj) = rn_ishlat * MIN( 1._wp , MAX( umask(ji,jj,1), umask(ji  ,jj+1,1), &
+                     &                                          vmask(ji,jj,1), vmask(ji+1,jj  ,1) ) )
                ENDIF
             END_2D
          ENDIF
@@ -270,32 +269,29 @@ CONTAINS
       zsshdyn(:,:) = ice_var_sshdyn( ssh_m, snwice_mass, snwice_mass_b)
 
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         zm1          = ( rhos * vt_s(ji,jj) + rhoi * vt_i(ji,jj) )  ! Ice/snow mass at U-V points
-!!$         zm1          = ( rhos * vt_s(ji,jj) + rhoi * vt_i(ji,jj) + rhow * (vt_ip(ji,jj) + vt_il(ji,jj)) ) ! clem: this should replace the above
-         zmf  (ji,jj) = zm1 * ff_t(ji,jj)                            ! Coriolis at T points (m*f)
-         zdt_m(ji,jj) = zdtevp / MAX( zm1, zmmin )                   ! dt/m at T points (for alpha and beta coefficients)
+         zm1          = ( rhos * vt_s(ji,jj) + rhoi * vt_i(ji,jj) + rhow * (vt_ip(ji,jj) + vt_il(ji,jj)) ) ! Ice/snow mass at U-V points
+         zmf  (ji,jj) = zm1 * ff_t(ji,jj)                                                                  ! Coriolis at T points (m*f)
+         zdt_m(ji,jj) = zdtevp / MAX( zm1, zmmin )                                                         ! dt/m at T points (for alpha and beta coefficients)
       END_2D
       
       DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
 
          ! ice fraction at U-V points
-         zaU(ji,jj) = 0.5_wp * ( at_i(ji,jj) * e1e2t(ji,jj) + at_i(ji+1,jj) * e1e2t(ji+1,jj) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
-         zaV(ji,jj) = 0.5_wp * ( at_i(ji,jj) * e1e2t(ji,jj) + at_i(ji,jj+1) * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
+         zaU(ji,jj) = 0.5_wp * ( at_i(ji,jj)*e1e2t(ji,jj) + at_i(ji+1,jj  )*e1e2t(ji+1,jj  ) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
+         zaV(ji,jj) = 0.5_wp * ( at_i(ji,jj)*e1e2t(ji,jj) + at_i(ji  ,jj+1)*e1e2t(ji  ,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
 
          ! Ice/snow mass at U-V points
-         zm1 = ( rhos * vt_s(ji  ,jj  ) + rhoi * vt_i(ji  ,jj  ) )
-!!$         zm1 = ( rhos * vt_s(ji  ,jj  ) + rhoi * vt_i(ji  ,jj  ) + rhow * (vt_ip(ji  ,jj  ) + vt_il(ji  ,jj  )) ) ! clem: this should replace the above
-         zm2 = ( rhos * vt_s(ji+1,jj  ) + rhoi * vt_i(ji+1,jj  ) )
-!!$         zm2 = ( rhos * vt_s(ji+1,jj  ) + rhoi * vt_i(ji+1,jj  ) + rhow * (vt_ip(ji+1,jj  ) + vt_il(ji+1,jj  )) ) ! clem: this should replace the above
-         zm3 = ( rhos * vt_s(ji  ,jj+1) + rhoi * vt_i(ji  ,jj+1) )
-!!$         zm3 = ( rhos * vt_s(ji  ,jj+1) + rhoi * vt_i(ji  ,jj+1) + rhow * (vt_ip(ji  ,jj+1) + vt_il(ji  ,jj+1)) ) ! clem: this should replace the above
-         zmassU = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm2 * e1e2t(ji+1,jj) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
-         zmassV = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm3 * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
+         zm1 = ( rhos * vt_s(ji  ,jj  ) + rhoi * vt_i(ji  ,jj  ) + rhow * (vt_ip(ji  ,jj  ) + vt_il(ji  ,jj  )) )
+         zm2 = ( rhos * vt_s(ji+1,jj  ) + rhoi * vt_i(ji+1,jj  ) + rhow * (vt_ip(ji+1,jj  ) + vt_il(ji+1,jj  )) )
+         zm3 = ( rhos * vt_s(ji  ,jj+1) + rhoi * vt_i(ji  ,jj+1) + rhow * (vt_ip(ji  ,jj+1) + vt_il(ji  ,jj+1)) )
+         !
+         zmassU = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm2 * e1e2t(ji+1,jj  ) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
+         zmassV = 0.5_wp * ( zm1 * e1e2t(ji,jj) + zm3 * e1e2t(ji  ,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
 
          ! Ocean currents at U-V points
          ! (brackets added to fix the order of floating point operations for the North Pole reproducibility)
-         v_oceU(ji,jj)   = 0.25_wp * ( (v_oce(ji,jj) + v_oce(ji,jj-1)) + (v_oce(ji+1,jj) + v_oce(ji+1,jj-1)) ) * umask(ji,jj,1)
-         u_oceV(ji,jj)   = 0.25_wp * ( (u_oce(ji,jj) + u_oce(ji-1,jj)) + (u_oce(ji,jj+1) + u_oce(ji-1,jj+1)) ) * vmask(ji,jj,1)
+         v_oceU(ji,jj)   = 0.25_wp * ( (v_oce(ji,jj) + v_oce(ji  ,jj-1)) + (v_oce(ji+1,jj  ) + v_oce(ji+1,jj-1)) ) * umask(ji,jj,1)
+         u_oceV(ji,jj)   = 0.25_wp * ( (u_oce(ji,jj) + u_oce(ji-1,jj  )) + (u_oce(ji  ,jj+1) + u_oce(ji-1,jj+1)) ) * vmask(ji,jj,1)
 
          ! m/dt
          zmU_t(ji,jj)    = zmassU * z1_dtevp
@@ -332,8 +328,8 @@ CONTAINS
       IF( ln_landfast_L16 ) THEN         !-- Lemieux 2016
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             ! ice thickness at U-V points
-            zvU = 0.5_wp * ( vt_i(ji,jj) * e1e2t(ji,jj) + vt_i(ji+1,jj) * e1e2t(ji+1,jj) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
-            zvV = 0.5_wp * ( vt_i(ji,jj) * e1e2t(ji,jj) + vt_i(ji,jj+1) * e1e2t(ji,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
+            zvU = 0.5_wp * ( vt_i(ji,jj)*e1e2t(ji,jj) + vt_i(ji+1,jj  )*e1e2t(ji+1,jj  ) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
+            zvV = 0.5_wp * ( vt_i(ji,jj)*e1e2t(ji,jj) + vt_i(ji  ,jj+1)*e1e2t(ji  ,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
             ! ice-bottom stress at U points
             zvCr = zaU(ji,jj) * rn_lf_depfra * hu(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) ) ! if grounded icebergs are read: ocean depth = 0
             ztaux_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvU - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaU(ji,jj) ) )
