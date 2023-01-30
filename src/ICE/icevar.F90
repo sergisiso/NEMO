@@ -721,7 +721,7 @@ CONTAINS
    END SUBROUTINE ice_var_zapsmall
 
 
-   SUBROUTINE ice_var_zapneg( ihls, pdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
+   SUBROUTINE ice_var_zapneg( ihls, pdt, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
       !!-------------------------------------------------------------------
       !!                   ***  ROUTINE ice_var_zapneg ***
       !!
@@ -729,7 +729,6 @@ CONTAINS
       !!-------------------------------------------------------------------
       INTEGER                     , INTENT(in   ) ::   ihls       ! loop index
       REAL(wp)                    , INTENT(in   ) ::   pdt        ! tracer time-step
-      REAL(wp), DIMENSION(:,:)    , INTENT(inout) ::   pato_i     ! open water area
       REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   pv_i       ! ice volume
       REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   pv_s       ! snw volume
       REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   psv_i      ! salt content
@@ -831,7 +830,6 @@ CONTAINS
          sfx_res(ji,jj) = sfx_res(ji,jj) + zsfx_res(ji,jj)
       END_2D
       !
-      WHERE( pato_i(:,:)   < 0._wp )   pato_i(:,:)   = 0._wp
       WHERE( poa_i (:,:,:) < 0._wp )   poa_i (:,:,:) = 0._wp
       WHERE( pa_i  (:,:,:) < 0._wp )   pa_i  (:,:,:) = 0._wp
       WHERE( pa_ip (:,:,:) < 0._wp )   pa_ip (:,:,:) = 0._wp
