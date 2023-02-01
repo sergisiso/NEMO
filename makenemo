@@ -336,9 +336,9 @@ fi
 
 
 # CPP keys addition/removal
-[ -n "${list_add_key}" ] && ${COMPIL_DIR}/Fadd_keys.sh ${NEMO_TDIR}/${CUR_CONF} ${list_add_key}
-[ -n "${list_def_key}" ] && ${COMPIL_DIR}/Fdef_keys.sh ${NEMO_TDIR}/${CUR_CONF} ${list_def_key}
-[ -n "${list_del_key}" ] && ${COMPIL_DIR}/Fdel_keys.sh ${NEMO_TDIR}/${CUR_CONF} ${list_del_key}
+[ -n "${list_add_key}" ] && ${COMPIL_DIR}/Fadd_keys.sh ${NEMO_TDIR}/${CUR_CONF} "${list_add_key}"
+[ -n "${list_def_key}" ] && ${COMPIL_DIR}/Fdef_keys.sh ${NEMO_TDIR}/${CUR_CONF} "${list_def_key}"
+[ -n "${list_del_key}" ] && ${COMPIL_DIR}/Fdel_keys.sh ${NEMO_TDIR}/${CUR_CONF} "${list_del_key}"
 
 
 # CPP keys check

@@ -20,6 +20,7 @@ MODULE icecor
    USE iceitd         ! sea-ice: rebining
    USE icevar         ! sea-ice: operations
    USE icectl         ! sea-ice: control prints
+   USE sbc_oce,  ONLY : sss_m
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
@@ -51,8 +52,8 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt    ! number of iteration
       INTEGER, INTENT(in) ::   kn    ! 1 = after dyn ; 2 = after thermo
       !
-      INTEGER  ::   ji, jj, jl       ! dummy loop indices
-      REAL(wp) ::   zsal, zzc
+      INTEGER  ::   ji, jj, jk, jl   ! dummy loop indices
+      REAL(wp) ::   zsal
       !!----------------------------------------------------------------------
       ! controls
       IF( ln_timing    )   CALL timing_start('icecor')                                                             ! timing
@@ -88,16 +89,26 @@ CONTAINS
       IF( jpl > 1 )   CALL ice_itd_reb( kt )
       !
       !                             !-----------------------------------------------------
-      IF ( nn_icesal == 2 ) THEN    !  salinity must stay in bounds [Simin,Simax]        !
-         !                          !-----------------------------------------------------
-         zzc = rhoi * r1_Dt_ice
+      !                             !  salinity must stay in bounds [Simin,Simax]        !
+      !                             !-----------------------------------------------------
+      IF ( nn_icesal == 2 ) THEN
          DO jl = 1, jpl
             DO_2D( 0, 0, 0, 0 )
                zsal = sv_i(ji,jj,jl)
-               sv_i(ji,jj,jl) = MIN(  MAX( rn_simin*v_i(ji,jj,jl) , sv_i(ji,jj,jl) ) , rn_simax*v_i(ji,jj,jl)  )
+               sv_i(ji,jj,jl) = MIN( MAX( rn_simin*v_i(ji,jj,jl) , sv_i(ji,jj,jl) ) , rn_sinew*sss_m(ji,jj)*v_i(ji,jj,jl)  )
                IF( kn /= 0 ) & ! no ice-ocean exchanges if kn=0 (for bdy for instance) otherwise conservation diags will fail
-                  &   sfx_res(ji,jj) = sfx_res(ji,jj) - ( sv_i(ji,jj,jl) - zsal ) * zzc   ! associated salt flux
+                  &   sfx_res(ji,jj) = sfx_res(ji,jj) - ( sv_i(ji,jj,jl) - zsal ) * rhoi * r1_Dt_ice   ! associated salt flux
             END_2D
+         END DO
+      ELSEIF ( nn_icesal == 4 ) THEN
+         DO jl = 1, jpl
+            DO_3D( 0, 0, 0, 0, 1, nlay_i )
+               zsal = szv_i(ji,jj,jk,jl)
+               szv_i(ji,jj,jk,jl) = MIN( MAX( szv_i(ji,jj,jk,jl) , rn_simin              * v_i(ji,jj,jl) * r1_nlay_i ) , &
+                  &                                                rn_sinew*sss_m(ji,jj) * v_i(ji,jj,jl) * r1_nlay_i )
+               IF( kn /= 0 ) & ! no ice-ocean exchanges if kn=0 (for bdy for instance) otherwise conservation diags will fail
+                  &   sfx_res(ji,jj) = sfx_res(ji,jj) - ( szv_i(ji,jj,jk,jl) - zsal ) * rhoi * r1_Dt_ice   ! associated salt flux
+            END_3D
          END DO
       ENDIF
       !

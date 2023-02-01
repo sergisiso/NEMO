@@ -118,6 +118,9 @@ CONTAINS
             DO jk = 1, nlay_i
                ptab(i1:i2,j1:j2,jm) = e_i(i1:i2,j1:j2,jk,jl) * e1e2t_frac(i1:i2,j1:j2)   ;   jm = jm + 1
             END DO
+            DO jk = 1, nlay_i
+               ptab(i1:i2,j1:j2,jm) = szv_i(i1:i2,j1:j2,jk,jl) * e1e2t_frac(i1:i2,j1:j2) ;   jm = jm + 1
+            END DO
          END DO
          !
          DO jk = k1, k2
@@ -156,6 +159,13 @@ CONTAINS
             DO jk = 1, nlay_i
                WHERE( ptab(i1:i2,j1:j2,jm) /= Agrif_SpecialValueFineGrid )
                   e_i(i1:i2,j1:j2,jk,jl) = ptab(i1:i2,j1:j2,jm) * tmask(i1:i2,j1:j2,1)
+               ENDWHERE
+               jm = jm + 1
+            END DO
+            !
+            DO jk = 1, nlay_i
+               WHERE( ptab(i1:i2,j1:j2,jm) /= Agrif_SpecialValueFineGrid )
+                  szv_i(i1:i2,j1:j2,jk,jl) = ptab(i1:i2,j1:j2,jm) * tmask(i1:i2,j1:j2,1)
                ENDWHERE
                jm = jm + 1
             END DO

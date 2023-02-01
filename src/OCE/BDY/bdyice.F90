@@ -95,7 +95,7 @@ CONTAINS
                &                 , a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp                                     &
                &                 , kfillmode=jpfillnothing ,lsend=llsend1, lrecv=llrecv1 )
             ! exchange 4d arrays :   third dimension = 1   and then   third dimension = jpk
-            CALL lbc_lnk('bdyice', t_s , 'T', 1._wp, e_s , 'T', 1._wp, t_i , 'T', 1._wp, e_i , 'T', 1._wp, &
+            CALL lbc_lnk('bdyice', t_s , 'T', 1._wp, e_s , 'T', 1._wp, t_i , 'T', 1._wp, e_i , 'T', 1._wp, szv_i , 'T', 1._wp, &
                &                                     kfillmode=jpfillnothing ,lsend=llsend1, lrecv=llrecv1 )
          END IF
       END DO   ! ir
@@ -104,9 +104,9 @@ CONTAINS
       !                           !    i.e. inputs have not the same ice thickness distribution (set by rn_himean)
       !                           !         than the regional simulation
       !                           ! -- lbc_lnk needed because of iceitd_reb that is called in icecor.F90
-      CALL lbc_lnk( 'bdyice', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
-         &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp )
-      CALL lbc_lnk( 'bdyice', e_i , 'T', 1._wp, e_s , 'T', 1._wp )
+      CALL lbc_lnk( 'bdyice', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s  , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
+         &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip , 'T', 1._wp, v_il, 'T', 1._wp )
+      CALL lbc_lnk( 'bdyice', e_i , 'T', 1._wp, e_s , 'T', 1._wp, szv_i, 'T', 1._wp )
       !
       CALL ice_var_agg(1)
       !
@@ -251,11 +251,14 @@ CONTAINS
                   s_i (ji,jj  ,jl) = rn_icesal
                   sz_i(ji,jj,:,jl) = rn_icesal
                ENDIF
+               IF( nn_icesal == 2 .OR. nn_icesal == 4 ) THEN
+                  s_i (ji,jj  ,jl) = MAX( rn_simin, MIN( s_i (ji,jj  ,jl), rn_sinew*sss_m(ji,jj) ) )
+                  sz_i(ji,jj,:,jl) = MAX( rn_simin, MIN( sz_i(ji,jj,:,jl), rn_sinew*sss_m(ji,jj) ) )
+               ENDIF
                !
                ! global fields
                v_i (ji,jj,jl) = h_i(ji,jj,jl) * a_i(ji,jj,jl)                       ! volume ice
                v_s (ji,jj,jl) = h_s(ji,jj,jl) * a_i(ji,jj,jl)                       ! volume snw
-               sv_i(ji,jj,jl) = MIN( s_i(ji,jj,jl) , sss_m(ji,jj) ) * v_i(ji,jj,jl) ! salt content
                DO jk = 1, nlay_s
                   t_s(ji,jj,jk,jl) = MIN( t_s(ji,jj,jk,jl), -0.15_wp + rt0 )           ! Force t_s to be lower than -0.15deg (arbitrary) => likely conservation issue
                   !                                                                    !       otherwise instant melting can occur
@@ -272,6 +275,9 @@ CONTAINS
                      &                      - rcp   *   ztmelts )                  
                   e_i(ji,jj,jk,jl) = e_i(ji,jj,jk,jl) * v_i(ji,jj,jl) * r1_nlay_i                            ! enthalpy in J/m2
                END DO
+               ! salt content
+               sv_i (ji,jj,  jl) = s_i (ji,jj,  jl) * v_i(ji,jj,jl)
+               szv_i(ji,jj,:,jl) = sz_i(ji,jj,:,jl) * v_i(ji,jj,jl) * r1_nlay_i
                !
                ! melt ponds
                v_ip(ji,jj,jl) = h_ip(ji,jj,jl) * a_ip(ji,jj,jl)
@@ -300,13 +306,14 @@ CONTAINS
                ENDIF
                !
                ! global fields
-               v_i (ji,jj,  jl) = 0._wp
-               v_s (ji,jj,  jl) = 0._wp
-               sv_i(ji,jj,  jl) = 0._wp
-               e_s (ji,jj,:,jl) = 0._wp
-               e_i (ji,jj,:,jl) = 0._wp
-               v_ip(ji,jj,  jl) = 0._wp
-               v_il(ji,jj,  jl) = 0._wp
+               v_i  (ji,jj,  jl) = 0._wp
+               v_s  (ji,jj,  jl) = 0._wp
+               sv_i (ji,jj,  jl) = 0._wp
+               e_s  (ji,jj,:,jl) = 0._wp
+               e_i  (ji,jj,:,jl) = 0._wp
+               szv_i(ji,jj,:,jl) = 0._wp
+               v_ip (ji,jj,  jl) = 0._wp
+               v_il (ji,jj,  jl) = 0._wp
 
             ENDIF
                         

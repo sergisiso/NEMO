@@ -400,18 +400,19 @@ CONTAINS
       REAL(wp), DIMENSION(jpij,jpl)        ::   zaTsfn           !  -    -
       !!------------------------------------------------------------------
 
-      CALL tab_3d_2d( npti, nptidx(1:npti), h_i_2d (1:npti,:)  , h_i  )
-      CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d (1:npti,:)  , a_i  )
-      CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d (1:npti,:)  , v_i  )
-      CALL tab_3d_2d( npti, nptidx(1:npti), v_s_2d (1:npti,:)  , v_s  )
-      CALL tab_3d_2d( npti, nptidx(1:npti), oa_i_2d(1:npti,:)  , oa_i )
-      CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,:)  , sv_i )
-      CALL tab_3d_2d( npti, nptidx(1:npti), a_ip_2d(1:npti,:)  , a_ip )
-      CALL tab_3d_2d( npti, nptidx(1:npti), v_ip_2d(1:npti,:)  , v_ip )
-      CALL tab_3d_2d( npti, nptidx(1:npti), v_il_2d(1:npti,:)  , v_il )
-      CALL tab_3d_2d( npti, nptidx(1:npti), t_su_2d(1:npti,:)  , t_su )
-      CALL tab_4d_3d( npti, nptidx(1:npti), e_s_2d (1:npti,:,:), e_s  )
-      CALL tab_4d_3d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), h_i_2d  (1:npti,:)  , h_i   )
+      CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d  (1:npti,:)  , a_i   )
+      CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d  (1:npti,:)  , v_i   )
+      CALL tab_3d_2d( npti, nptidx(1:npti), v_s_2d  (1:npti,:)  , v_s   )
+      CALL tab_3d_2d( npti, nptidx(1:npti), oa_i_2d (1:npti,:)  , oa_i  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d (1:npti,:)  , sv_i  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), a_ip_2d (1:npti,:)  , a_ip  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), v_ip_2d (1:npti,:)  , v_ip  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), v_il_2d (1:npti,:)  , v_il  )
+      CALL tab_3d_2d( npti, nptidx(1:npti), t_su_2d (1:npti,:)  , t_su  )
+      CALL tab_4d_3d( npti, nptidx(1:npti), e_s_2d  (1:npti,:,:), e_s   )
+      CALL tab_4d_3d( npti, nptidx(1:npti), e_i_2d  (1:npti,:,:), e_i   )
+      CALL tab_4d_3d( npti, nptidx(1:npti), szv_i_2d(1:npti,:,:), szv_i )
       ! to correct roundoff errors on a_i
       CALL tab_2d_1d( npti, nptidx(1:npti), rn_amax_1d(1:npti), rn_amax_2d )
 
@@ -459,10 +460,6 @@ CONTAINS
                oa_i_2d(ji,jl1) = oa_i_2d(ji,jl1) - ztrans
                oa_i_2d(ji,jl2) = oa_i_2d(ji,jl2) + ztrans
                !
-               ztrans          = sv_i_2d(ji,jl1) * zworkv            ! Ice salinity
-               sv_i_2d(ji,jl1) = sv_i_2d(ji,jl1) - ztrans
-               sv_i_2d(ji,jl2) = sv_i_2d(ji,jl2) + ztrans
-               !
                ztrans          = zaTsfn(ji,jl1) * zworka             ! Surface temperature
                zaTsfn(ji,jl1)  = zaTsfn(ji,jl1) - ztrans
                zaTsfn(ji,jl2)  = zaTsfn(ji,jl2) + ztrans
@@ -493,6 +490,18 @@ CONTAINS
                   e_i_2d(ji,jk,jl1) = e_i_2d(ji,jk,jl1) - ztrans
                   e_i_2d(ji,jk,jl2) = e_i_2d(ji,jk,jl2) + ztrans
                ENDDO
+               !                                                     ! Ice salinity
+               IF( nn_icesal == 4 ) THEN
+                  DO jk = 1, nlay_i
+                     ztrans              = szv_i_2d(ji,jk,jl1) * zworkv
+                     szv_i_2d(ji,jk,jl1) = szv_i_2d(ji,jk,jl1) - ztrans
+                     szv_i_2d(ji,jk,jl2) = szv_i_2d(ji,jk,jl2) + ztrans
+                  ENDDO
+               ELSE
+                  ztrans          = sv_i_2d(ji,jl1) * zworkv
+                  sv_i_2d(ji,jl1) = sv_i_2d(ji,jl1) - ztrans
+                  sv_i_2d(ji,jl2) = sv_i_2d(ji,jl2) + ztrans
+               ENDIF
                !
             ENDIF   ! jl1 >0
          END DO
@@ -504,7 +513,7 @@ CONTAINS
       !-------------------
       ! clem: The transfer between one category to another can lead to very small negative values (-1.e-20)
       !       because of truncation error ( i.e. 1. - 1. /= 0 )
-      CALL ice_var_roundoff( a_i_2d, v_i_2d, v_s_2d, sv_i_2d, oa_i_2d, a_ip_2d, v_ip_2d, v_il_2d, e_s_2d, e_i_2d )
+      CALL ice_var_roundoff( a_i_2d, v_i_2d, v_s_2d, sv_i_2d, oa_i_2d, a_ip_2d, v_ip_2d, v_il_2d, e_s_2d, e_i_2d, szv_i_2d )
 
       ! at_i must be <= rn_amax
       ztmp(1:npti) = SUM( a_i_2d(1:npti,:), dim=2 )
@@ -528,18 +537,19 @@ CONTAINS
          t_su_2d(1:npti,:)  = rt0
       END WHERE
       !
-      CALL tab_2d_3d( npti, nptidx(1:npti), h_i_2d (1:npti,:)  , h_i  )
-      CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d (1:npti,:)  , a_i  )
-      CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d (1:npti,:)  , v_i  )
-      CALL tab_2d_3d( npti, nptidx(1:npti), v_s_2d (1:npti,:)  , v_s  )
-      CALL tab_2d_3d( npti, nptidx(1:npti), oa_i_2d(1:npti,:)  , oa_i )
-      CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d(1:npti,:)  , sv_i )
-      CALL tab_2d_3d( npti, nptidx(1:npti), a_ip_2d(1:npti,:)  , a_ip )
-      CALL tab_2d_3d( npti, nptidx(1:npti), v_ip_2d(1:npti,:)  , v_ip )
-      CALL tab_2d_3d( npti, nptidx(1:npti), v_il_2d(1:npti,:)  , v_il )
-      CALL tab_2d_3d( npti, nptidx(1:npti), t_su_2d(1:npti,:)  , t_su )
-      CALL tab_3d_4d( npti, nptidx(1:npti), e_s_2d (1:npti,:,:), e_s  )
-      CALL tab_3d_4d( npti, nptidx(1:npti), e_i_2d (1:npti,:,:), e_i  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), h_i_2d  (1:npti,:)  , h_i   )
+      CALL tab_2d_3d( npti, nptidx(1:npti), a_i_2d  (1:npti,:)  , a_i   )
+      CALL tab_2d_3d( npti, nptidx(1:npti), v_i_2d  (1:npti,:)  , v_i   )
+      CALL tab_2d_3d( npti, nptidx(1:npti), v_s_2d  (1:npti,:)  , v_s   )
+      CALL tab_2d_3d( npti, nptidx(1:npti), oa_i_2d (1:npti,:)  , oa_i  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d (1:npti,:)  , sv_i  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), a_ip_2d (1:npti,:)  , a_ip  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), v_ip_2d (1:npti,:)  , v_ip  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), v_il_2d (1:npti,:)  , v_il  )
+      CALL tab_2d_3d( npti, nptidx(1:npti), t_su_2d (1:npti,:)  , t_su  )
+      CALL tab_3d_4d( npti, nptidx(1:npti), e_s_2d  (1:npti,:,:), e_s   )
+      CALL tab_3d_4d( npti, nptidx(1:npti), e_i_2d  (1:npti,:,:), e_i   )
+      CALL tab_3d_4d( npti, nptidx(1:npti), szv_i_2d(1:npti,:,:), szv_i )
       !
    END SUBROUTINE itd_shiftice
 

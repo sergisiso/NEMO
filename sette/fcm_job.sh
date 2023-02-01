@@ -100,9 +100,9 @@ else if [ "${INTERACT_FLAG}" == "no" ]; then
         fi
 	# submit job to batch system 
         if [ "${NB_PROC}" == "1" ]; then
-		BATCH_LST+=( $( ${BATCH_COMMAND_SEQ} ${JOB_FILE} ) ) ; echo ${BATCH_COMMAND_SEQ} ${JOB_FILE}
+		BATCH_LST+=( $( eval "${BATCH_COMMAND_SEQ} ${JOB_FILE}" ) ) ; echo ${BATCH_COMMAND_SEQ} ${JOB_FILE}
         else
-		BATCH_LST+=( $( ${BATCH_COMMAND_PAR} ${JOB_FILE} ) ) ; echo ${BATCH_COMMAND_PAR} ${JOB_FILE}
+		BATCH_LST+=( $( eval "${BATCH_COMMAND_PAR} ${JOB_FILE}" ) ) ; echo ${BATCH_COMMAND_PAR} ${JOB_FILE}
         fi
 fi
 fi

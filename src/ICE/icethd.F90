@@ -48,6 +48,10 @@ MODULE icethd
 
    !! for convergence tests
    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztice_cvgerr, ztice_cvgstp
+   !! for sanity checks in drainage and flushing
+   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   zcfl_flush, zcfl_drain
+   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   zs_flush_dserr, zs_drain_dserr, zs_flush_serr, zs_drain_serr
+   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   zt_flush_dserr, zt_drain_dserr, zt_flush_serr, zt_drain_serr
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -79,9 +83,10 @@ CONTAINS
       !!                - call ice_thd_rem  for remapping thickness distribution
       !!                - call ice_thd_do   for ice growth in leads
       !!-------------------------------------------------------------------
-      INTEGER, INTENT(in) :: kt    ! number of iteration
+      INTEGER, INTENT(in) ::   kt    ! number of iteration
       !
-      INTEGER  :: ji, jj, jk, jl   ! dummy loop indices
+      INTEGER  ::   ji, jj, jk, jl   ! dummy loop indices
+      REAL(wp) ::   zmiss
       !!-------------------------------------------------------------------
 
       ! controls
@@ -101,11 +106,29 @@ CONTAINS
          ztice_cvgerr = 0._wp ; ztice_cvgstp = 0._wp
       ENDIF
       !
-      CALL ice_thd_frazil             !--- frazil ice: collection thickness (ht_i_new) & fraction of frazil (fraz_frac)
+      ! sanity checks for salt flushing and drainage
+      IF( ln_sal_chk ) THEN
+         CALL iom_miss_val( 'icetemp', zmiss )         ! get missing value from xml
+         !
+         ALLOCATE( zcfl_flush(A2D(0),jpl), zcfl_drain(A2D(0),jpl) )
+         !
+         ALLOCATE( zs_flush_dserr(A2D(0),jpl), zs_drain_dserr(A2D(0),jpl), &
+            &      zs_flush_serr (A2D(0),jpl), zs_drain_serr (A2D(0),jpl) )
+         !
+         ALLOCATE( zt_flush_dserr(A2D(0),nlay_i,jpl), zt_drain_dserr(A2D(0),nlay_i,jpl), &
+            &      zt_flush_serr (A2D(0),nlay_i,jpl), zt_drain_serr (A2D(0),nlay_i,jpl) )
+         !
+         zcfl_flush = 0._wp ; zcfl_drain = 0._wp
+         zs_flush_dserr = zmiss ; zs_drain_dserr = zmiss ; zs_flush_serr = zmiss ; zs_drain_serr = zmiss
+         zt_flush_dserr = zmiss ; zt_drain_dserr = zmiss ; zt_flush_serr = zmiss ; zt_drain_serr = zmiss
+      ENDIF
       !
       !-------------------------------------------------------------------------------------------!
       ! Thermodynamic computation (only on grid points covered by ice) => loop over ice categories
       !-------------------------------------------------------------------------------------------!
+      !
+      CALL ice_thd_frazil             !--- frazil ice: collection thickness (ht_i_new) & fraction of frazil (fraz_frac)
+      !
       DO jl = 1, jpl
 
          ! select ice covered grid points
@@ -122,17 +145,18 @@ CONTAINS
                               CALL ice_thd_1d2d( jl, 1 )            ! --- Move to 1D arrays --- !
             !                                                       ! --- & Change units of e_i, e_s from J/m2 to J/m3 --- !
             !
-            s_i_new   (1:npti) = 0._wp ; dh_s_tot(1:npti) = 0._wp   ! --- some init --- !  (important to have them here)
-            dh_i_sum  (1:npti) = 0._wp ; dh_i_bom(1:npti) = 0._wp ; dh_i_itm  (1:npti) = 0._wp
+            dh_s_tot  (1:npti) = 0._wp                              ! --- some init --- !  (important to have them here)
+            dh_i_sum  (1:npti) = 0._wp ; dh_i_bom(1:npti) = 0._wp ; dh_i_itm(1:npti) = 0._wp
             dh_i_sub  (1:npti) = 0._wp ; dh_i_bog(1:npti) = 0._wp
-            dh_snowice(1:npti) = 0._wp ; dh_s_mlt(1:npti) = 0._wp
+            dh_snowice(1:npti) = 0._wp ; dh_s_sum(1:npti) = 0._wp ; dh_s_itm(1:npti) = 0._wp
             !
                               CALL ice_thd_zdf                      ! --- Ice-Snow temperature --- !
             !
-            IF( ln_icedH ) THEN                                     ! --- Growing/Melting --- !
-                              CALL ice_thd_dh
-            ENDIF
-                              CALL ice_thd_sal( ln_icedS )          ! --- Ice salinity --- !
+            IF( ln_icedH )    CALL ice_thd_dh                       ! --- Growing/Melting --- !
+            !
+                              CALL ice_thd_temp                     ! --- Temperature update --- !
+            !
+                              CALL ice_thd_sal                      ! --- Ice salinity --- !
             !
                               CALL ice_thd_temp                     ! --- Temperature update --- !
             !
@@ -164,7 +188,7 @@ CONTAINS
       !                                                             ! --- LBC for the halos --- !
       CALL lbc_lnk( 'icethd', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
          &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp )
-      CALL lbc_lnk( 'icethd', e_i , 'T', 1._wp, e_s , 'T', 1._wp )
+      CALL lbc_lnk( 'icethd', e_i , 'T', 1._wp, e_s , 'T', 1._wp, szv_i , 'T', 1._wp )
       !
       at_i(:,:) = SUM( a_i, dim=3 )
       DO_2D( 0, 0, 0, 0 )                                           ! --- Ice velocity corrections
@@ -183,6 +207,22 @@ CONTAINS
          CALL iom_put( 'tice_cvgstp', ztice_cvgstp ) ; DEALLOCATE( ztice_cvgstp )
       ENDIF
       !
+      ! sanity checks for salt drainage and flushing
+      IF( ln_sal_chk ) THEN
+         CALL iom_put( 'sice_flush_dserr', zs_flush_dserr ) ; DEALLOCATE( zs_flush_dserr )
+         CALL iom_put( 'sice_drain_dserr', zs_drain_dserr ) ; DEALLOCATE( zs_drain_dserr )
+         CALL iom_put( 'tice_flush_dserr', zt_flush_dserr ) ; DEALLOCATE( zt_flush_dserr )
+         CALL iom_put( 'tice_drain_dserr', zt_drain_dserr ) ; DEALLOCATE( zt_drain_dserr )
+         !
+         CALL iom_put( 'sice_flush_serr', zs_flush_serr ) ; DEALLOCATE( zs_flush_serr )
+         CALL iom_put( 'sice_drain_serr', zs_drain_serr ) ; DEALLOCATE( zs_drain_serr )
+         CALL iom_put( 'tice_flush_serr', zt_flush_serr ) ; DEALLOCATE( zt_flush_serr )
+         CALL iom_put( 'tice_drain_serr', zt_drain_serr ) ; DEALLOCATE( zt_drain_serr )
+         !
+         CALL iom_put( 'cfl_flush', zcfl_flush ) ; DEALLOCATE( zcfl_flush )
+         CALL iom_put( 'cfl_drain', zcfl_drain ) ; DEALLOCATE( zcfl_drain )
+      ENDIF
+      
       ! controls
       IF( ln_icectl )   CALL ice_prt    (kt, iiceprt, jiceprt, 1, ' - ice thermodyn. - ') ! prints
       IF( sn_cfctl%l_prtctl )   &
@@ -280,9 +320,9 @@ CONTAINS
             CALL tab_2d_1d( npti, nptidx(1:npti), e_s_1d(1:npti,jk), e_s(:,:,jk,kl)    )
          END DO
          DO jk = 1, nlay_i
-            CALL tab_2d_1d( npti, nptidx(1:npti), t_i_1d (1:npti,jk), t_i (:,:,jk,kl)  )
-            CALL tab_2d_1d( npti, nptidx(1:npti), e_i_1d (1:npti,jk), e_i (:,:,jk,kl)  )
-            CALL tab_2d_1d( npti, nptidx(1:npti), sz_i_1d(1:npti,jk), sz_i(:,:,jk,kl)  )
+            CALL tab_2d_1d( npti, nptidx(1:npti), t_i_1d  (1:npti,jk), t_i  (:,:,jk,kl)  )
+            CALL tab_2d_1d( npti, nptidx(1:npti), e_i_1d  (1:npti,jk), e_i  (:,:,jk,kl)  )
+            CALL tab_2d_1d( npti, nptidx(1:npti), sz_i_1d (1:npti,jk), sz_i (:,:,jk,kl)  )
          END DO
          !
          CALL tab_2d_1d( npti, nptidx(1:npti), qprec_ice_1d  (1:npti), qprec_ice            )
@@ -375,11 +415,13 @@ CONTAINS
          END DO
          !
          ! Change thickness to volume (replaces routine ice_var_eqv2glo)
-         v_i_1d (1:npti) = h_i_1d (1:npti) * a_i_1d (1:npti)
-         v_s_1d (1:npti) = h_s_1d (1:npti) * a_i_1d (1:npti)
-         sv_i_1d(1:npti) = s_i_1d (1:npti) * v_i_1d (1:npti)
-         oa_i_1d(1:npti) = o_i_1d (1:npti) * a_i_1d (1:npti)
-
+         v_i_1d  (1:npti)   = h_i_1d (1:npti)   * a_i_1d (1:npti)
+         v_s_1d  (1:npti)   = h_s_1d (1:npti)   * a_i_1d (1:npti)
+         sv_i_1d (1:npti)   = s_i_1d (1:npti)   * v_i_1d (1:npti)
+         oa_i_1d (1:npti)   = o_i_1d (1:npti)   * a_i_1d (1:npti)
+         DO jk = 1, nlay_i
+            szv_i_1d(1:npti,jk) = sz_i_1d(1:npti,jk) * v_i_1d (1:npti) * r1_nlay_i
+         ENDDO
          CALL tab_1d_2d( npti, nptidx(1:npti), at_i_1d(1:npti), at_i             )
          CALL tab_1d_2d( npti, nptidx(1:npti), a_i_1d (1:npti), a_i (:,:,kl)     )
          CALL tab_1d_2d( npti, nptidx(1:npti), h_i_1d (1:npti), h_i (:,:,kl)     )
@@ -391,9 +433,10 @@ CONTAINS
             CALL tab_1d_2d( npti, nptidx(1:npti), e_s_1d(1:npti,jk), e_s(:,:,jk,kl)    )
          END DO
          DO jk = 1, nlay_i
-            CALL tab_1d_2d( npti, nptidx(1:npti), t_i_1d (1:npti,jk), t_i (:,:,jk,kl)  )
-            CALL tab_1d_2d( npti, nptidx(1:npti), e_i_1d (1:npti,jk), e_i (:,:,jk,kl)  )
-            CALL tab_1d_2d( npti, nptidx(1:npti), sz_i_1d(1:npti,jk), sz_i(:,:,jk,kl)  )
+            CALL tab_1d_2d( npti, nptidx(1:npti), t_i_1d  (1:npti,jk), t_i  (:,:,jk,kl)  )
+            CALL tab_1d_2d( npti, nptidx(1:npti), e_i_1d  (1:npti,jk), e_i  (:,:,jk,kl)  )
+            CALL tab_1d_2d( npti, nptidx(1:npti), sz_i_1d (1:npti,jk), sz_i (:,:,jk,kl)  )
+            CALL tab_1d_2d( npti, nptidx(1:npti), szv_i_1d(1:npti,jk), szv_i(:,:,jk,kl)  )
          END DO
          !
          CALL tab_1d_2d( npti, nptidx(1:npti), wfx_snw_sni_1d(1:npti), wfx_snw_sni )
@@ -439,7 +482,7 @@ CONTAINS
          CALL tab_1d_2d( npti, nptidx(1:npti), t1_ice_1d (1:npti), t1_ice (:,:,kl) )
          ! Melt ponds
          CALL tab_1d_2d( npti, nptidx(1:npti), dh_i_sum  (1:npti) , dh_i_sum_2d(:,:,kl) )
-         CALL tab_1d_2d( npti, nptidx(1:npti), dh_s_mlt  (1:npti) , dh_s_mlt_2d(:,:,kl) )
+         CALL tab_1d_2d( npti, nptidx(1:npti), dh_s_sum  (1:npti) , dh_s_sum_2d(:,:,kl) )
          ! SIMIP diagnostics
          CALL tab_1d_2d( npti, nptidx(1:npti), t_si_1d       (1:npti), t_si       (:,:,kl) )
          CALL tab_1d_2d( npti, nptidx(1:npti), qcn_ice_bot_1d(1:npti), qcn_ice_bot(:,:,kl) )
@@ -454,6 +497,21 @@ CONTAINS
          IF( ln_zdf_chkcvg ) THEN
             CALL tab_1d_2d( npti, nptidx(1:npti), tice_cvgerr_1d(1:npti), ztice_cvgerr(:,:,kl) )
             CALL tab_1d_2d( npti, nptidx(1:npti), tice_cvgstp_1d(1:npti), ztice_cvgstp(:,:,kl) )
+         ENDIF
+         ! sanity check for salt scheme
+         IF( ln_sal_chk ) THEN
+            CALL tab_1d_2d( npti, nptidx(1:npti), s_flush_dserr_1d(1:npti), zs_flush_dserr(:,:,kl) )
+            CALL tab_1d_2d( npti, nptidx(1:npti), s_drain_dserr_1d(1:npti), zs_drain_dserr(:,:,kl) )
+            CALL tab_1d_2d( npti, nptidx(1:npti), s_flush_serr_1d (1:npti), zs_flush_serr (:,:,kl) )
+            CALL tab_1d_2d( npti, nptidx(1:npti), s_drain_serr_1d (1:npti), zs_drain_serr (:,:,kl) )
+            CALL tab_1d_2d( npti, nptidx(1:npti), cfl_flush_1d(1:npti), zcfl_flush(:,:,kl) )
+            CALL tab_1d_2d( npti, nptidx(1:npti), cfl_drain_1d(1:npti), zcfl_drain(:,:,kl) )
+            DO jk = 1, nlay_i
+               CALL tab_1d_2d( npti, nptidx(1:npti), t_flush_dserr_1d(1:npti,jk), zt_flush_dserr(:,:,jk,kl) )
+               CALL tab_1d_2d( npti, nptidx(1:npti), t_drain_dserr_1d(1:npti,jk), zt_drain_dserr(:,:,jk,kl) )
+               CALL tab_1d_2d( npti, nptidx(1:npti), t_flush_serr_1d (1:npti,jk), zt_flush_serr (:,:,jk,kl) )
+               CALL tab_1d_2d( npti, nptidx(1:npti), t_drain_serr_1d (1:npti,jk), zt_drain_serr (:,:,jk,kl) )
+            END DO
          ENDIF
          !
       END SELECT
@@ -475,7 +533,7 @@ CONTAINS
       !!-------------------------------------------------------------------
       INTEGER  ::   ios   ! Local integer output status for namelist read
       !!
-      NAMELIST/namthd/ ln_icedH, ln_icedA, ln_icedO, ln_icedS, ln_leadhfx
+      NAMELIST/namthd/ ln_icedH, ln_icedA, ln_icedO, ln_leadhfx
       !!-------------------------------------------------------------------
       !
       READ  ( numnam_ice_ref, namthd, IOSTAT = ios, ERR = 901)
@@ -492,7 +550,6 @@ CONTAINS
          WRITE(numout,*) '      activate ice thick change from top/bot (T) or not (F)                ln_icedH   = ', ln_icedH
          WRITE(numout,*) '      activate lateral melting (T) or not (F)                              ln_icedA   = ', ln_icedA
          WRITE(numout,*) '      activate ice growth in open-water (T) or not (F)                     ln_icedO   = ', ln_icedO
-         WRITE(numout,*) '      activate gravity drainage and flushing (T) or not (F)                ln_icedS   = ', ln_icedS
          WRITE(numout,*) '      heat in the leads is used to melt sea-ice before warming the ocean   ln_leadhfx = ', ln_leadhfx
      ENDIF
       !

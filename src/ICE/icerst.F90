@@ -145,7 +145,6 @@ CONTAINS
       ! Prognostic variables
       CALL iom_rstput( iter, nitrst, numriw, 'v_i'  , v_i   )
       CALL iom_rstput( iter, nitrst, numriw, 'v_s'  , v_s   )
-      CALL iom_rstput( iter, nitrst, numriw, 'sv_i' , sv_i  )
       CALL iom_rstput( iter, nitrst, numriw, 'a_i'  , a_i   )
       CALL iom_rstput( iter, nitrst, numriw, 't_su' , t_su  )
       CALL iom_rstput( iter, nitrst, numriw, 'u_ice', u_ice )
@@ -168,6 +167,16 @@ CONTAINS
          z3d(:,:,:) = e_i(:,:,jk,:)
          CALL iom_rstput( iter, nitrst, numriw, znam , z3d )
       END DO
+      ! Ice salt content
+      CALL iom_rstput( iter, nitrst, numriw, 'sv_i' , sv_i  )
+      !
+      DO jk = 1, nlay_i
+         WRITE(zchar1,'(I2.2)') jk
+         znam = 'szv_i'//'_l'//zchar1
+         z3d(:,:,:) = szv_i(:,:,jk,:)
+         CALL iom_rstput( iter, nitrst, numriw, znam , z3d )
+      END DO
+      !
       ! fields needed for Met Office (Jules) coupling
       IF( ln_cpl ) THEN
          CALL iom_rstput( iter, nitrst, numriw, 'cnd_ice', cnd_ice )
@@ -200,7 +209,7 @@ CONTAINS
       INTEGER, INTENT(in) :: Kbb, Kmm, Kaa ! ocean time level indices
       INTEGER           ::   jk
       LOGICAL           ::   llok
-      INTEGER           ::   id0, id1, id2, id3, id4, id5   ! local integer
+      INTEGER           ::   id0, id1, id2, id3, id4, id5, id6   ! local integer
       CHARACTER(len=25) ::   znam
       CHARACTER(len=2)  ::   zchar, zchar1
       REAL(wp)          ::   zfice, ziter
@@ -311,6 +320,21 @@ CONTAINS
                cnd_ice(:,:,:) = 0._wp
                t1_ice (:,:,:) = rt0
             ENDIF
+         ENDIF
+         ! Ice salt content
+         id6 = iom_varid( numrir, 'szv_i_l01' , ldstop = .FALSE. )
+         IF( id6 > 0 ) THEN                       ! fields exist
+            DO jk = 1, nlay_i
+               WRITE(zchar1,'(I2.2)') jk
+               znam = 'szv_i'//'_l'//zchar1
+               CALL iom_get( numrir, jpdom_auto, znam , z3d )
+               szv_i(:,:,jk,:) = z3d(:,:,:)
+            END DO
+         ELSE                                     ! start from rest
+            IF(lwp) WRITE(numout,*) '   ==>>   previous run without ice salt content per layer output then set it to bulk value'
+            DO jk = 1, nlay_i
+               szv_i(:,:,jk,:) = sv_i(:,:,:) * r1_nlay_i
+            ENDDO
          ENDIF
 
          IF(.NOT.lrxios) CALL iom_delay_rst( 'READ', 'ICE', numrir )   ! read only ice delayed global communication variables

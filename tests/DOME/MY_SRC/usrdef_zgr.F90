@@ -35,27 +35,27 @@ MODULE usrdef_zgr
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS             
-
+   
    SUBROUTINE usr_def_zgr( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,    &   ! type of vertical coordinate
+      &                    k_top   , k_bot                        ,    &   ! top & bottom ocean level
       &                    pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,    &   ! 1D reference vertical coordinate
+      &                    pe3t  , pe3u  , pe3v   , pe3f ,             &   ! vertical scale factors
       &                    pdept , pdepw ,                             &   ! 3D t & w-points depth
-      &                    pe3t  , pe3u  , pe3v , pe3f ,               &   ! vertical scale factors
-      &                    pe3w  , pe3uw , pe3vw,                      &   !     -      -      -
-      &                    k_top  , k_bot    )                             ! top & bottom ocean level
+      &                    pe3w  , pe3uw , pe3vw                       )   ! vertical scale factors
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE usr_def_zgr  ***
       !!
       !! ** Purpose :   User defined the vertical coordinates
       !!
       !!----------------------------------------------------------------------
-      LOGICAL                   , INTENT(in   ) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags ( read in namusr_def )
-      LOGICAL                   , INTENT(  out) ::   ld_isfcav                   ! under iceshelf cavity flag
-      REAL(wp), DIMENSION(:)    , INTENT(  out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:)    , INTENT(  out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pdept, pdepw                ! grid-point depth        [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(  out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
-      INTEGER , DIMENSION(:,:)  , INTENT(  out) ::   k_top, k_bot                ! first & last ocean level
+      LOGICAL                             , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
+      LOGICAL                             , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
+      INTEGER , DIMENSION(:,:)            , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:)              , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D grid-point depth     [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pdept, pdepw                ! grid-point depth        [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors  [m]
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(out) ::   pe3w , pe3uw, pe3vw         ! i-scale factors 
       !
       INTEGER  ::   ji, jj, jk        ! dummy indices
       INTEGER  ::   ik                ! local integers
@@ -73,6 +73,7 @@ CONTAINS
       ! ---------------------------
       ! already set in usrdef_nam.F90 by reading the namusr_def namelist except for ISF
       ld_isfcav = .FALSE.
+      ld_sco = .TRUE.
       !
       !
       ! Build the vertical coordinate system

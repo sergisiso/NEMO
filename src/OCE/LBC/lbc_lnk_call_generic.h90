@@ -29,6 +29,8 @@
       &                   , pt29, cdna29, psgn29, pt30, cdna30, psgn30, pt31, cdna31, psgn31, pt32, cdna32, psgn32  &
       &                   , pt33, cdna33, psgn33, pt34, cdna34, psgn34, pt35, cdna35, psgn35, pt36, cdna36, psgn36  &
       &                   , pt37, cdna37, psgn37, pt38, cdna38, psgn38, pt39, cdna39, psgn39, pt40, cdna40, psgn40  &
+      &                   , pt41, cdna41, psgn41, pt42, cdna42, psgn42, pt43, cdna43, psgn43, pt44, cdna44, psgn44  &
+      &                   , pt45, cdna45, psgn45, pt46, cdna46, psgn46, pt47, cdna47, psgn47, pt48, cdna48, psgn48  &
       &                   , kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
       !!---------------------------------------------------------------------
       CHARACTER(len=*)     ,                   INTENT(in   ) ::   cdname  ! name of the calling subroutine
@@ -38,21 +40,24 @@
          &                                                                               pt16, pt17, pt18, pt19, pt20, pt21, pt22, &
          &                                                                               pt23, pt24, pt25, pt26, pt27, pt28, pt29, &
          &                                                                               pt30, pt31, pt32, pt33, pt34, pt35, pt36, &
-         &                                                                               pt37, pt38, pt39, pt40
+         &                                                                               pt37, pt38, pt39, pt40, pt41, pt42, pt43, &
+         &                                                                               pt44, pt45, pt46, pt47, pt48
       CHARACTER(len=1)                       , INTENT(in   ) ::   cdna1   ! nature of pt2D. array grid-points
       CHARACTER(len=1)     , OPTIONAL        , INTENT(in   ) ::   cdna2 , cdna3 , cdna4 , cdna5 , cdna6 , cdna7 , cdna8 , &
          &                                                        cdna9 , cdna10, cdna11, cdna12, cdna13, cdna14, cdna15, &
          &                                                        cdna16, cdna17, cdna18, cdna19, cdna20, cdna21, cdna22, &
          &                                                        cdna23, cdna24, cdna25, cdna26, cdna27, cdna28, cdna29, &
          &                                                        cdna30, cdna31, cdna32, cdna33, cdna34, cdna35, cdna36, &
-         &                                                        cdna37, cdna38, cdna39, cdna40 
+         &                                                        cdna37, cdna38, cdna39, cdna40, cdna41, cdna42, cdna43, &
+         &                                                        cdna44, cdna45, cdna46, cdna47, cdna48 
       REAL(PRECISION)                        , INTENT(in   ) ::   psgn1   ! sign used across the north fold
       REAL(PRECISION)      , OPTIONAL        , INTENT(in   ) ::   psgn2 , psgn3 , psgn4 , psgn5 , psgn6 , psgn7 , psgn8 , &
          &                                                        psgn9 , psgn10, psgn11, psgn12, psgn13, psgn14, psgn15, &
          &                                                        psgn16, psgn17, psgn18, psgn19, psgn20, psgn21, psgn22, &
          &                                                        psgn23, psgn24, psgn25, psgn26, psgn27, psgn28, psgn29, &
          &                                                        psgn30, psgn31, psgn32, psgn33, psgn34, psgn35, psgn36, &
-         &                                                        psgn37, psgn38, psgn39, psgn40 
+         &                                                        psgn37, psgn38, psgn39, psgn40, psgn41, psgn42, psgn43, &
+         &                                                        psgn44, psgn45, psgn46, psgn47, psgn48 
       INTEGER              , OPTIONAL        , INTENT(in   ) ::   kfillmode   ! filling method for halo over land (default = constant)
       REAL(PRECISION)      , OPTIONAL        , INTENT(in   ) ::   pfillval    ! background value (used at closed boundaries)
       LOGICAL, DIMENSION(8), OPTIONAL        , INTENT(in   ) ::   lsend, lrecv   ! indicate how communications are to be carried out
@@ -60,9 +65,9 @@
       LOGICAL              , OPTIONAL        , INTENT(in   ) ::   ldfull      ! .true. if we also update the last line of the inner domain
       !!
       INTEGER                          ::   kfld        ! number of elements that will be attributed
-      TYPE(PTR_4d_/**/PRECISION), DIMENSION(40) ::   ptab_ptr    ! pointer array
-      CHARACTER(len=1) , DIMENSION(40) ::   cdna_ptr    ! nature of ptab_ptr grid-points
-      REAL(PRECISION)  , DIMENSION(40) ::   psgn_ptr    ! sign used across the north fold boundary
+      TYPE(PTR_4d_/**/PRECISION), DIMENSION(48) ::   ptab_ptr    ! pointer array
+      CHARACTER(len=1) , DIMENSION(48) ::   cdna_ptr    ! nature of ptab_ptr grid-points
+      REAL(PRECISION)  , DIMENSION(48) ::   psgn_ptr    ! sign used across the north fold boundary
       !!---------------------------------------------------------------------
       !
       kfld = 0          ! initial array of pointer size
@@ -110,6 +115,14 @@
       IF( PRESENT(psgn38) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt38, cdna38, psgn38, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
       IF( PRESENT(psgn39) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt39, cdna39, psgn39, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
       IF( PRESENT(psgn40) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt40, cdna40, psgn40, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
+      IF( PRESENT(psgn41) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt41, cdna41, psgn41, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
+      IF( PRESENT(psgn42) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt42, cdna42, psgn42, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
+      IF( PRESENT(psgn43) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt43, cdna43, psgn43, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
+      IF( PRESENT(psgn44) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt44, cdna44, psgn44, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
+      IF( PRESENT(psgn45) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt45, cdna45, psgn45, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
+      IF( PRESENT(psgn46) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt46, cdna46, psgn46, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
+      IF( PRESENT(psgn47) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt47, cdna47, psgn47, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
+      IF( PRESENT(psgn48) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt48, cdna48, psgn48, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
       !
       IF( nn_comm == 1 ) THEN 
          CALL lbc_lnk_pt2pt(   cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )

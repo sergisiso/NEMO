@@ -141,7 +141,7 @@ CONTAINS
       ENDIF
                          uu(:,:,:,Nrhs) = 0._wp            ! set dynamics trends to zero
                          vv(:,:,:,Nrhs) = 0._wp
-                         CALL dyn_spg( kstp, Nbb, Nnn, Nrhs, uu, vv, ssh, uu_b, vv_b, Naa, 1 )  ! surface pressure gradient
+                         CALL dyn_spg( kstp, Nbb, Nnn, Nrhs, uu, vv, ssh, uu_b, vv_b, Naa )  ! surface pressure gradient
                          CALL iom_put( "ssh" , ssh(:,:,Nnn) )              ! sea surface height
       ! Swap time levels
       Nrhs = Nbb

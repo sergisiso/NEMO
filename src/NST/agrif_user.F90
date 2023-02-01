@@ -724,7 +724,7 @@
       ind1 =              nbghostcells - 1 ! Remove one land cell in ghosts 
       ind2 = nn_hls + 1 + nbghostcells_x_w
       ind3 = nn_hls + 1 + nbghostcells_y_s
-      ipl = jpl*(9+nlay_s+nlay_i)
+      ipl = jpl*(9+nlay_s+2*nlay_i)
       CALL agrif_declare_variable((/2,2,0/),(/ind2,ind3,0/),(/'x','y','N'/),(/1,1,1/),(/jpi,jpj,ipl/),tra_ice_id)
       CALL agrif_declare_variable((/1,2/)  ,(/ind2-1,ind3/),(/'x','y'    /),(/1,1  /),(/jpi,jpj    /),  u_ice_id)
       CALL agrif_declare_variable((/2,1/)  ,(/ind2,ind3-1/),(/'x','y'    /),(/1,1  /),(/jpi,jpj    /),  v_ice_id)

@@ -41,6 +41,7 @@ MODULE icedyn_adv_pra
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   sxage, syage, sxxage, syyage, sxyage   ! ice age
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   sxc0 , syc0 , sxxc0 , syyc0 , sxyc0    ! snow layers heat content
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   sxe  , sye  , sxxe  , syye  , sxye     ! ice layers heat content
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   sxsi , sysi , sxxsi , syysi , sxysi    ! ice layers salt content
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   sxap , syap , sxxap , syyap , sxyap    ! melt pond fraction
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   sxvp , syvp , sxxvp , syyvp , sxyvp    ! melt pond volume
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   sxvl , syvl , sxxvl , syyvl , sxyvl    ! melt pond lid volume
@@ -55,7 +56,7 @@ MODULE icedyn_adv_pra
 CONTAINS
 
    SUBROUTINE ice_dyn_adv_pra(         kt, pu_ice, pv_ice, ph_i, ph_s, ph_ip,  &
-      &                        pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i )
+      &                        pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
       !!----------------------------------------------------------------------
       !!                **  routine ice_dyn_adv_pra  **
       !!
@@ -84,28 +85,36 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   pv_il      ! melt pond lid thickness
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_s       ! snw heat content
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_i       ! ice heat content
+      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pszv_i     ! ice salt content
       !
       INTEGER  ::   ji, jj, jk, jl, jt, ihls ! dummy loop indices
       INTEGER  ::   icycle                   ! number of sub-timestep for the advection
       REAL(wp) ::   zdt, z1_dt               !   -      -
       REAL(wp) ::   zati2
       REAL(wp), DIMENSION(1)              ::   zcflprv, zcflnow   ! for global communication
-      REAL(wp), DIMENSION(jpi,jpj)        ::   zati1
+      REAL(wp), DIMENSION(A2D(0))         ::   zati1
       REAL(wp), DIMENSION(jpi,jpj)        ::   zudy, zvdx
-      REAL(wp), DIMENSION(jpi,jpj)        ::   zh_i, zh_s, zh_ip, zs_i, zhi_max, zhs_max, zhip_max, zsi_max
-      REAL(wp), DIMENSION(jpi,jpj,nlay_i) ::   ze_i, zei_max
+      REAL(wp), DIMENSION(jpi,jpj)        ::   zh_i, zh_s, zhi_max, zhs_max, zhip_max, zsi_max
+      REAL(wp), DIMENSION(jpi,jpj,nlay_i) ::   ze_i, zei_max, zszi_max
       REAL(wp), DIMENSION(jpi,jpj,nlay_s) ::   ze_s, zes_max
       REAL(wp), DIMENSION(jpi,jpj)        ::   zarea
-      REAL(wp), DIMENSION(jpi,jpj)        ::   z0ice, z0snw, z0ai, z0smi, z0oi
-      REAL(wp), DIMENSION(jpi,jpj)        ::   z0ap , z0vp, z0vl
+      REAL(wp), DIMENSION(jpi,jpj)        ::   z0ice, z0snw, z0ai, z0oi
       REAL(wp), DIMENSION(jpi,jpj,nlay_s) ::   z0es
       REAL(wp), DIMENSION(jpi,jpj,nlay_i) ::   z0ei
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)    ::   z0ap , z0vp, z0vl, zh_ip
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)    ::   z0smi, zs_i 
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)  ::   z0si , zsz_i
       !! diagnostics
       REAL(wp), DIMENSION(A2D(0))         ::   zdiag_adv_mass, zdiag_adv_salt, zdiag_adv_heat
       !!----------------------------------------------------------------------
       !
       IF( kt == nit000 .AND. lwp )   WRITE(numout,*) '-- ice_dyn_adv_pra: Prather advection scheme'
       !
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) ALLOCATE( z0ap(jpi,jpj), z0vp(jpi,jpj), z0vl(jpi,jpj), zh_ip(jpi,jpj) )
+      IF( nn_icesal == 4 ) THEN   ;     ALLOCATE( z0si (jpi,jpj,nlay_i), zsz_i(jpi,jpj,nlay_i) )
+      ELSE                        ;     ALLOCATE( z0smi(jpi,jpj)       , zs_i (jpi,jpj)        )
+      ENDIF
+      
       ! --- If ice drift is too fast, use  subtime steps for advection (CFL test for stability) --- !
       !        Note: the advection split is applied at the next time-step in order to avoid blocking global comm.
       !              this should not affect too much the stability
@@ -128,20 +137,18 @@ CONTAINS
       ! --- transport --- !
       zudy(:,:) = pu_ice(:,:) * e2u(:,:)
       zvdx(:,:) = pv_ice(:,:) * e1v(:,:)
-
+      
       !---------------!
       !== advection ==!
       !---------------!
       DO jt = 1, icycle
          
+         ! record at_i before advection (for open water)
+         zati1(:,:) = SUM( pa_i(A2D(0),:), dim=3 )
+
          IF( icycle == 1 ) THEN   ;   ihls = 0                   ! optimization
          ELSE                     ;   ihls = MAX( 0, nn_hls - jt )
          ENDIF
-         !
-         ! record at_i before advection (for open water)
-         DO_2D( ihls, ihls, ihls, ihls )
-            zati1(ji,jj) = SUM( pa_i(ji,jj,:) )
-         END_2D
          !
          !                       ! =================== !
          !                       ! Start cat loop here !
@@ -149,17 +156,16 @@ CONTAINS
          DO jl = 1, jpl
             
             ! --- Record max of the surrounding 9-pts (for call Hbig) --- !
-            ! thickness and salinity
+            ! thickness
             zh_i (:,:) = ph_i (:,:,jl)
             zh_s (:,:) = ph_s (:,:,jl)
-            zh_ip(:,:) = ph_ip(:,:,jl)
-            WHERE( pv_i(:,:,jl) >= epsi10 ) ; zs_i(:,:) = psv_i(:,:,jl) / pv_i(:,:,jl)
-            ELSEWHERE                       ; zs_i(:,:) = 0._wp
-            END WHERE
             CALL icemax2D_pra( ihls, zh_i , zhi_max )
             CALL icemax2D_pra( ihls, zh_s , zhs_max )
-            CALL icemax2D_pra( ihls, zh_ip, zhip_max)
-            CALL icemax2D_pra( ihls, zs_i , zsi_max )
+
+            IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+               zh_ip(:,:) = ph_ip(:,:,jl)
+               CALL icemax2D_pra( ihls, zh_ip, zhip_max)
+            ENDIF
             !
             ! enthalpies
             DO jk = 1, nlay_i
@@ -174,41 +180,72 @@ CONTAINS
             END DO
             CALL icemax3D_pra( ihls, ze_i , zei_max )
             CALL icemax3D_pra( ihls, ze_s , zes_max )
-
+            !
+            ! salt content
+            IF( nn_icesal == 4 ) THEN
+               !
+               DO jk = 1, nlay_i
+                  WHERE( pv_i(:,:,jl) >= epsi10 ) ; zsz_i(:,:,jk) = pszv_i(:,:,jk,jl) / pv_i(:,:,jl)
+                  ELSEWHERE                       ; zsz_i(:,:,jk) = 0._wp
+                  END WHERE
+               END DO
+               CALL icemax3D_pra( ihls, zsz_i , zszi_max )
+               !
+            ELSE
+               !
+               WHERE( pv_i(:,:,jl) >= epsi10 ) ; zs_i(:,:) = psv_i(:,:,jl) / pv_i(:,:,jl)
+               ELSEWHERE                       ; zs_i(:,:) = 0._wp
+               END WHERE
+               CALL icemax2D_pra( ihls, zs_i , zsi_max )
+               !
+            ENDIF
+         
             ! diagnostics
             DO_2D( 0, 0, 0, 0 )
                zdiag_adv_mass(ji,jj) =   pv_i (ji,jj,jl) * rhoi + pv_s (ji,jj,jl) * rhos &
                   &                    + pv_ip(ji,jj,jl) * rhow + pv_il(ji,jj,jl) * rhow
-               zdiag_adv_salt(ji,jj) =   psv_i(ji,jj,jl) * rhoi
                zdiag_adv_heat(ji,jj) = - SUM( pe_i(ji,jj,1:nlay_i,jl) ) - SUM( pe_s(ji,jj,1:nlay_s,jl) )
             END_2D
+            IF( nn_icesal == 4 ) THEN
+               DO_2D( 0, 0, 0, 0 )
+                  zdiag_adv_salt(ji,jj) = SUM( pszv_i(ji,jj,1:nlay_i,jl) ) * rhoi
+               END_2D
+            ELSE
+                DO_2D( 0, 0, 0, 0 )
+                  zdiag_adv_salt(ji,jj) = psv_i(ji,jj,jl) * rhoi
+               END_2D
+            ENDIF
             !
 
             ! --- transported fields --- !
             DO_2D( ihls+1, ihls+1, ihls+1, ihls+1 )
                zarea(ji,jj) = e1e2t(ji,jj)
-               z0snw(ji,jj) = pv_s (ji,jj,jl) * e1e2t(ji,jj)        ! Snow volume
-               z0ice(ji,jj) = pv_i (ji,jj,jl) * e1e2t(ji,jj)        ! Ice  volume
-               z0ai (ji,jj) = pa_i (ji,jj,jl) * e1e2t(ji,jj)        ! Ice area
-               z0smi(ji,jj) = psv_i(ji,jj,jl) * e1e2t(ji,jj)        ! Salt content
-               z0oi (ji,jj) = poa_i(ji,jj,jl) * e1e2t(ji,jj)        ! Age content
-               DO jk = 1, nlay_s
-                  z0es(ji,jj,jk) = pe_s(ji,jj,jk,jl) * e1e2t(ji,jj) ! Snow heat content
-               END DO
-               DO jk = 1, nlay_i
-                  z0ei(ji,jj,jk) = pe_i(ji,jj,jk,jl) * e1e2t(ji,jj) ! Ice  heat content
-               END DO
+               z0snw(ji,jj) = pv_s (ji,jj,jl) * e1e2t(ji,jj)          ! Snow volume
+               z0ice(ji,jj) = pv_i (ji,jj,jl) * e1e2t(ji,jj)          ! Ice  volume
+               z0ai (ji,jj) = pa_i (ji,jj,jl) * e1e2t(ji,jj)          ! Ice area
+               z0oi (ji,jj) = poa_i(ji,jj,jl) * e1e2t(ji,jj)          ! Age content
             END_2D
+            DO_3D( ihls+1, ihls+1, ihls+1, ihls+1, 1, nlay_s )
+               z0es(ji,jj,jk) = pe_s(ji,jj,jk,jl) * e1e2t(ji,jj)      ! Snow heat content
+            END_3D
+            DO_3D( ihls+1, ihls+1, ihls+1, ihls+1, 1, nlay_i )
+               z0ei(ji,jj,jk) = pe_i  (ji,jj,jk,jl) * e1e2t(ji,jj)    ! Ice  heat content
+            END_3D
+            IF( nn_icesal == 4 ) THEN
+               DO_3D( ihls+1, ihls+1, ihls+1, ihls+1, 1, nlay_i )
+                  z0si(ji,jj,jk) = pszv_i(ji,jj,jk,jl) * e1e2t(ji,jj) ! Ice  salt content
+               END_3D
+            ELSE
+               DO_2D( ihls+1, ihls+1, ihls+1, ihls+1 )
+                  z0smi(ji,jj) = psv_i(ji,jj,jl) * e1e2t(ji,jj)
+               END_2D
+            ENDIF
             IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
                DO_2D( ihls+1, ihls+1, ihls+1, ihls+1 )
-                  z0ap(ji,jj) = pa_ip(ji,jj,jl) * e1e2t(ji,jj)      ! Melt pond fraction
-                  z0vp(ji,jj) = pv_ip(ji,jj,jl) * e1e2t(ji,jj)      ! Melt pond volume
+                  z0ap(ji,jj) = pa_ip(ji,jj,jl) * e1e2t(ji,jj)        ! Melt pond fraction
+                  z0vp(ji,jj) = pv_ip(ji,jj,jl) * e1e2t(ji,jj)        ! Melt pond volume
+                  z0vl(ji,jj) = pv_il(ji,jj,jl) * e1e2t(ji,jj)        ! Melt pond lid volume
                END_2D
-               IF ( ln_pnd_lids ) THEN
-                  DO_2D( ihls+1, ihls+1, ihls+1, ihls+1 )
-                     z0vl(ji,jj) = pv_il(ji,jj,jl) * e1e2t(ji,jj)   ! Melt pond lid volume
-                  END_2D
-               ENDIF
             ENDIF
             !
             ! ----------------------- !
@@ -217,74 +254,102 @@ CONTAINS
             !                                                                  !--------------------------------------------!
             IF( MOD( (kt - 1) / nn_fsbc , 2 ) ==  MOD( (jt - 1) , 2 ) ) THEN   !==  odd ice time step:  adv_x then adv_y  ==!
                !                                                               !--------------------------------------------!
-               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0ice , sxice , sxxice , syice , syyice , sxyice ) !--- ice volume
+               ! ---------------------- !
+               ! == mandatory fields == !
+               ! ---------------------- !
+               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0ice , sxice , sxxice , syice , syyice , sxyice )    !--- ice volume
                CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0ice , sxice , sxxice , syice , syyice , sxyice )
-               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0snw , sxsn  , sxxsn  , sysn  , syysn  , sxysn  ) !--- snow volume
+               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0snw , sxsn  , sxxsn  , sysn  , syysn  , sxysn  )    !--- snow volume
                CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0snw , sxsn  , sxxsn  , sysn  , syysn  , sxysn  )
-               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0smi , sxsal , sxxsal , sysal , syysal , sxysal ) !--- ice salinity
-               CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0smi , sxsal , sxxsal , sysal , syysal , sxysal )
-               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0ai  , sxa   , sxxa   , sya   , syya   , sxya   ) !--- ice concentration
+               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0ai  , sxa   , sxxa   , sya   , syya   , sxya   )    !--- ice concentration
                CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0ai  , sxa   , sxxa   , sya   , syya   , sxya   )
-               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0oi  , sxage , sxxage , syage , syyage , sxyage ) !--- ice age
+               CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0oi  , sxage , sxxage , syage , syyage , sxyage )    !--- ice age
                CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0oi  , sxage , sxxage , syage , syyage , sxyage )
                !
-               DO jk = 1, nlay_s                                                                                     !--- snow heat content
+               DO jk = 1, nlay_s                                                                                        !--- snow heat content
                   CALL adv_x( ihls, jl, zdt, zudy, 1._wp, zarea, z0es (:,:,jk)  , sxc0(:,:,jk,:),   &
                      &                           sxxc0(:,:,jk,:), syc0(:,:,jk,:), syyc0(:,:,jk,:), sxyc0(:,:,jk,:) )
                   CALL adv_y( ihls, jl, zdt, zvdx, 0._wp, zarea, z0es (:,:,jk)  , sxc0(:,:,jk,:),   &
                      &                           sxxc0(:,:,jk,:), syc0(:,:,jk,:), syyc0(:,:,jk,:), sxyc0(:,:,jk,:) )
                END DO
-               DO jk = 1, nlay_i                                                                                     !--- ice heat content
+               DO jk = 1, nlay_i                                                                                        !--- ice heat content
                   CALL adv_x( ihls, jl, zdt, zudy, 1._wp, zarea, z0ei(:,:,jk)  , sxe(:,:,jk,:),   &
                      &                               sxxe(:,:,jk,:), sye(:,:,jk,:), syye(:,:,jk,:), sxye(:,:,jk,:) )
                   CALL adv_y( ihls, jl, zdt, zvdx, 0._wp, zarea, z0ei(:,:,jk)  , sxe(:,:,jk,:),   &
                      &                               sxxe(:,:,jk,:), sye(:,:,jk,:), syye(:,:,jk,:), sxye(:,:,jk,:) )
                END DO
+               ! --------------------- !
+               ! == optional fields == !
+               ! --------------------- !
+               IF( nn_icesal == 4 ) THEN
+                  DO jk = 1, nlay_i                                                                                     !--- ice salt content
+                     CALL adv_x( ihls, jl, zdt, zudy, 1._wp, zarea, z0si(:,:,jk)  , sxsi (:,:,jk,:),   &
+                        &                          sxxsi(:,:,jk,:), sysi(:,:,jk,:), syysi(:,:,jk,:), sxysi(:,:,jk,:) )
+                     CALL adv_y( ihls, jl, zdt, zvdx, 0._wp, zarea, z0si(:,:,jk)  , sxsi (:,:,jk,:),   &
+                        &                          sxxsi(:,:,jk,:), sysi(:,:,jk,:), syysi(:,:,jk,:), sxysi(:,:,jk,:) )
+                  END DO
+               ELSE
+                  CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0smi , sxsal , sxxsal , sysal , syysal , sxysal ) !--- ice salinity
+                  CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0smi , sxsal , sxxsal , sysal , syysal , sxysal )
+               ENDIF
                !
                IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-                  CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0ap , sxap , sxxap , syap , syyap , sxyap )    !--- melt pond fraction
+                  CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0ap , sxap , sxxap , syap , syyap , sxyap )       !--- melt pond fraction
                   CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0ap , sxap , sxxap , syap , syyap , sxyap )
-                  CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0vp , sxvp , sxxvp , syvp , syyvp , sxyvp )    !--- melt pond volume
+                  CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0vp , sxvp , sxxvp , syvp , syyvp , sxyvp )       !--- melt pond volume
                   CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0vp , sxvp , sxxvp , syvp , syyvp , sxyvp )
-                  IF ( ln_pnd_lids ) THEN
-                     CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0vl , sxvl , sxxvl , syvl , syyvl , sxyvl ) !--- melt pond lid volume
-                     CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0vl , sxvl , sxxvl , syvl , syyvl , sxyvl )
-                  ENDIF
+                  CALL adv_x( ihls, jl, zdt , zudy , 1._wp , zarea , z0vl , sxvl , sxxvl , syvl , syyvl , sxyvl )       !--- melt pond lid volume
+                  CALL adv_y( ihls, jl, zdt , zvdx , 0._wp , zarea , z0vl , sxvl , sxxvl , syvl , syyvl , sxyvl )
                ENDIF
                !                                                               !--------------------------------------------!
             ELSE                                                               !== even ice time step:  adv_y then adv_x  ==!
                !                                                               !--------------------------------------------!
-               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0ice , sxice , sxxice , syice , syyice , sxyice ) !--- ice volume
+               ! ---------------------- !
+               ! == mandatory fields == !
+               ! ---------------------- !
+               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0ice , sxice , sxxice , syice , syyice , sxyice )    !--- ice volume
                CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0ice , sxice , sxxice , syice , syyice , sxyice )
-               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0snw , sxsn  , sxxsn  , sysn  , syysn  , sxysn  ) !--- snow volume
+               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0snw , sxsn  , sxxsn  , sysn  , syysn  , sxysn  )    !--- snow volume
                CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0snw , sxsn  , sxxsn  , sysn  , syysn  , sxysn  )
-               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0smi , sxsal , sxxsal , sysal , syysal , sxysal ) !--- ice salinity
-               CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0smi , sxsal , sxxsal , sysal , syysal , sxysal )
-               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0ai  , sxa   , sxxa   , sya   , syya   , sxya   ) !--- ice concentration
+               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0ai  , sxa   , sxxa   , sya   , syya   , sxya   )    !--- ice concentration
                CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0ai  , sxa   , sxxa   , sya   , syya   , sxya   )
-               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0oi  , sxage , sxxage , syage , syyage , sxyage ) !--- ice age
+               CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0oi  , sxage , sxxage , syage , syyage , sxyage )    !--- ice age
                CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0oi  , sxage , sxxage , syage , syyage , sxyage )
-               DO jk = 1, nlay_s                                                                               !--- snow heat content
+               !
+               DO jk = 1, nlay_s                                                                                        !--- snow heat content
                   CALL adv_y( ihls, jl, zdt, zvdx, 1._wp, zarea, z0es (:,:,jk)  , sxc0(:,:,jk,:),   &
                      &                           sxxc0(:,:,jk,:), syc0(:,:,jk,:), syyc0(:,:,jk,:), sxyc0(:,:,jk,:) )
                   CALL adv_x( ihls, jl, zdt, zudy, 0._wp, zarea, z0es (:,:,jk)  , sxc0(:,:,jk,:),   &
                      &                           sxxc0(:,:,jk,:), syc0(:,:,jk,:), syyc0(:,:,jk,:), sxyc0(:,:,jk,:) )
                END DO
-               DO jk = 1, nlay_i                                                                               !--- ice heat content
+               DO jk = 1, nlay_i                                                                                        !--- ice heat content
                   CALL adv_y( ihls, jl, zdt, zvdx, 1._wp, zarea, z0ei(:,:,jk)  , sxe(:,:,jk,:),   &
                      &                               sxxe(:,:,jk,:), sye(:,:,jk,:), syye(:,:,jk,:), sxye(:,:,jk,:) )
                   CALL adv_x( ihls, jl, zdt, zudy, 0._wp, zarea, z0ei(:,:,jk)  , sxe(:,:,jk,:),   &
                      &                               sxxe(:,:,jk,:), sye(:,:,jk,:), syye(:,:,jk,:), sxye(:,:,jk,:) )
                END DO
+               ! --------------------- !
+               ! == optional fields == !
+               ! --------------------- !
+               IF( nn_icesal == 4 ) THEN
+                  DO jk = 1, nlay_i                                                                                     !--- ice salt content
+                     CALL adv_y( ihls, jl, zdt, zvdx, 1._wp, zarea, z0si(:,:,jk)  , sxsi (:,:,jk,:),   &
+                        &                          sxxsi(:,:,jk,:), sysi(:,:,jk,:), syysi(:,:,jk,:), sxysi(:,:,jk,:) )
+                     CALL adv_x( ihls, jl, zdt, zudy, 0._wp, zarea, z0si(:,:,jk)  , sxsi (:,:,jk,:),   &
+                        &                          sxxsi(:,:,jk,:), sysi(:,:,jk,:), syysi(:,:,jk,:), sxysi(:,:,jk,:) )
+                  END DO
+               ELSE
+                  CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0smi , sxsal , sxxsal , sysal , syysal , sxysal ) !--- ice salinity
+                  CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0smi , sxsal , sxxsal , sysal , syysal , sxysal )
+               ENDIF
+               !
                IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-                  CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0ap , sxap , sxxap , syap , syyap , sxyap )    !--- melt pond fraction
+                  CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0ap , sxap , sxxap , syap , syyap , sxyap )       !--- melt pond fraction
                   CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0ap , sxap , sxxap , syap , syyap , sxyap )
-                  CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0vp , sxvp , sxxvp , syvp , syyvp , sxyvp )    !--- melt pond volume
+                  CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0vp , sxvp , sxxvp , syvp , syyvp , sxyvp )       !--- melt pond volume
                   CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0vp , sxvp , sxxvp , syvp , syyvp , sxyvp )
-                  IF ( ln_pnd_lids ) THEN
-                     CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0vl , sxvl , sxxvl , syvl , syyvl , sxyvl ) !--- melt pond lid volume
-                     CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0vl , sxvl , sxxvl , syvl , syyvl , sxyvl )
-                  ENDIF
+                  CALL adv_y( ihls, jl, zdt , zvdx , 1._wp , zarea , z0vl , sxvl , sxxvl , syvl , syyvl , sxyvl )       !--- melt pond lid volume
+                  CALL adv_x( ihls, jl, zdt , zudy , 0._wp , zarea , z0vl , sxvl , sxxvl , syvl , syyvl , sxyvl )
                ENDIF
                !
             ENDIF
@@ -293,43 +358,56 @@ CONTAINS
             DO_2D( ihls, ihls, ihls, ihls )
                pv_i (ji,jj,jl) = z0ice(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
                pv_s (ji,jj,jl) = z0snw(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
-               psv_i(ji,jj,jl) = z0smi(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
                poa_i(ji,jj,jl) = z0oi (ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
                pa_i (ji,jj,jl) = z0ai (ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
-               DO jk = 1, nlay_s
-                  pe_s(ji,jj,jk,jl) = z0es(ji,jj,jk) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
-               END DO
-               DO jk = 1, nlay_i
-                  pe_i(ji,jj,jk,jl) = z0ei(ji,jj,jk) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
-               END DO
             END_2D
+            DO_3D( ihls, ihls, ihls, ihls, 1, nlay_s )
+               pe_s(ji,jj,jk,jl) = z0es(ji,jj,jk) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
+            END_3D
+            DO_3D( ihls, ihls, ihls, ihls, 1, nlay_i )
+               pe_i(ji,jj,jk,jl) = z0ei(ji,jj,jk) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
+            END_3D
+            IF( nn_icesal == 4 ) THEN
+               DO_3D( ihls, ihls, ihls, ihls, 1, nlay_i )
+                  pszv_i(ji,jj,jk,jl) = z0si(ji,jj,jk) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
+               END_3D
+            ELSE
+               DO_2D( ihls, ihls, ihls, ihls )
+                  psv_i(ji,jj,jl) = z0smi(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
+               END_2D
+            ENDIF
             IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
                DO_2D( ihls, ihls, ihls, ihls )
                   pa_ip(ji,jj,jl) = z0ap(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
                   pv_ip(ji,jj,jl) = z0vp(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
+                  pv_il(ji,jj,jl) = z0vl(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
                END_2D
-               IF ( ln_pnd_lids ) THEN
-                  DO_2D( ihls, ihls, ihls, ihls )
-                     pv_il(ji,jj,jl) = z0vl(ji,jj) * r1_e1e2t(ji,jj) * tmask(ji,jj,1)
-                  END_2D
-               ENDIF
             ENDIF
-            
+                        
             ! --- diagnostics --- !
             DO_2D( 0, 0, 0, 0 )
                diag_adv_mass(ji,jj) = diag_adv_mass(ji,jj) + ( pv_i (ji,jj,jl) * rhoi + pv_s (ji,jj,jl) * rhos &
                   &                                        +   pv_ip(ji,jj,jl) * rhow + pv_il(ji,jj,jl) * rhow &
                   &                                          - zdiag_adv_mass(ji,jj) ) * z1_dt
-               diag_adv_salt(ji,jj) = diag_adv_salt(ji,jj) + ( psv_i(ji,jj,jl) * rhoi &
-                  &                                          - zdiag_adv_salt(ji,jj) ) * z1_dt
                diag_adv_heat(ji,jj) = diag_adv_heat(ji,jj) + ( -SUM( pe_i(ji,jj,1:nlay_i,jl) ) -SUM( pe_s(ji,jj,1:nlay_s,jl) ) &
                   &                                          - zdiag_adv_heat(ji,jj) ) * z1_dt
             END_2D
+            IF( nn_icesal == 4 ) THEN
+               DO_2D( 0, 0, 0, 0 )
+                  diag_adv_salt(ji,jj) = diag_adv_salt(ji,jj) + ( SUM( pszv_i(ji,jj,1:nlay_i,jl) ) * rhoi &
+                     &                                          - zdiag_adv_salt(ji,jj) ) * z1_dt
+               END_2D
+            ELSE
+                DO_2D( 0, 0, 0, 0 )
+                  diag_adv_salt(ji,jj) = diag_adv_salt(ji,jj) + ( psv_i(ji,jj,jl) * rhoi &
+                     &                                          - zdiag_adv_salt(ji,jj) ) * z1_dt
+               END_2D
+            ENDIF
 
             ! --- Make sure ice thickness is not too big --- !
             !     (because ice thickness can be too large where ice concentration is very small)
-            CALL Hbig_pra( ihls, jl, zdt, zhi_max, zhs_max, zhip_max, zsi_max, zes_max, zei_max, &
-               &            pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i )
+            CALL Hbig_pra( ihls, jl, zdt, zhi_max, zhs_max, zhip_max, zsi_max, zes_max, zei_max, zszi_max, &
+               &            pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i, pszv_i )
             !
             ! --- Ensure snow load is not too big --- !
             CALL Hsnow_pra( ihls, jl, zdt, pv_i, pv_s, pa_i, pa_ip, pe_s )
@@ -338,48 +416,68 @@ CONTAINS
          !                       ! ================= !
          !                       ! End cat loop here !
          !                       ! ================= !
-
-         ! derive open water from ice concentration
-         DO_2D( ihls, ihls, ihls, ihls )
-            zati2 = SUM( pa_i(ji,jj,:) )
-            pato_i(ji,jj) = pato_i(ji,jj) - ( zati2 - zati1(ji,jj) )            &                                    !--- open water
-               &                          - (  ( zudy(ji,jj) - zudy(ji-1,jj) )  &    ! add () for NP repro
-               &                             + ( zvdx(ji,jj) - zvdx(ji,jj-1) )  ) * r1_e1e2t(ji,jj) * zdt
-         END_2D
-         
+         !
          ! --- Ensure non-negative fields --- !
          !     Remove negative values (conservation is ensured)
          !     (because advected fields are not perfectly bounded and tiny negative values can occur, e.g. -1.e-20)
-         CALL ice_var_zapneg( ihls, zdt, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i )
+         CALL ice_var_zapneg( ihls, zdt, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pv_il, pe_s, pe_i, pszv_i )
+         !
+         ! derive open water from ice concentration
+         DO_2D( 0, 0, 0, 0 )
+            zati2 = SUM( pa_i(ji,jj,:) )
+            pato_i(ji,jj) = MAX( 0._wp, pato_i(ji,jj) - ( zati2 - zati1(ji,jj) )            &
+               &                                      - (   ( zudy(ji,jj) - zudy(ji-1,jj) ) &   ! ad () for NP repro
+               &                                          + ( zvdx(ji,jj) - zvdx(ji,jj-1) ) ) * r1_e1e2t(ji,jj) * zdt )
+         END_2D
+         ! note: no need of lbc_lnk for open water (never used in the halos)
          !
          ! --- Lateral boundary conditions --- !
          !     caution: for gradients (sx and sy) the sign changes
          !              plus, one needs ldfull=T to deal with the NorthFold
          IF( ihls == 0 .AND. jt /= icycle ) THEN ! comm. on all fields if ihls=0 and we are only at the 1st iteration (jt=1) over 2 (icycle=2) 
             !
-            CALL lbc_lnk( 'icedyn_adv_pra', pv_i  , 'T', 1._wp, sxice , 'T', -1._wp, syice , 'T', -1._wp  & ! ice volume
-               &                          , sxxice, 'T', 1._wp, syyice, 'T',  1._wp, sxyice, 'T',  1._wp  &
-               &                          , pv_s  , 'T', 1._wp, sxsn  , 'T', -1._wp, sysn  , 'T', -1._wp  & ! snw volume
-               &                          , sxxsn , 'T', 1._wp, syysn , 'T',  1._wp, sxysn , 'T',  1._wp  &
-               &                          , psv_i , 'T', 1._wp, sxsal , 'T', -1._wp, sysal , 'T', -1._wp  & ! ice salinity
-               &                          , sxxsal, 'T', 1._wp, syysal, 'T',  1._wp, sxysal, 'T',  1._wp  &
-               &                          , pa_i  , 'T', 1._wp, sxa   , 'T', -1._wp, sya   , 'T', -1._wp  & ! ice concentration
-               &                          , sxxa  , 'T', 1._wp, syya  , 'T',  1._wp, sxya  , 'T',  1._wp  &
-               &                          , poa_i , 'T', 1._wp, sxage , 'T', -1._wp, syage , 'T', -1._wp  & ! ice age
-               &                          , sxxage, 'T', 1._wp, syyage, 'T',  1._wp, sxyage, 'T',  1._wp, ldfull = .TRUE.  )
-            CALL lbc_lnk( 'icedyn_adv_pra', pe_s  , 'T', 1._wp, sxc0  , 'T', -1._wp, syc0  , 'T', -1._wp  & ! snw enthalpy
-               &                          , sxxc0 , 'T', 1._wp, syyc0 , 'T',  1._wp, sxyc0 , 'T',  1._wp  &
-               &                          , pe_i  , 'T', 1._wp, sxe   , 'T', -1._wp, sye   , 'T', -1._wp  & ! ice enthalpy
-               &                          , sxxe  , 'T', 1._wp, syye  , 'T',  1._wp, sxye  , 'T',  1._wp, ldfull = .TRUE.  )
             IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-               CALL lbc_lnk( 'icedyn_adv_pra', pa_ip, 'T', 1._wp, sxap , 'T', -1._wp, syap , 'T', -1._wp  & ! melt pond fraction
-                  &                          , sxxap, 'T', 1._wp, syyap, 'T',  1._wp, sxyap, 'T',  1._wp  &
-                  &                          , pv_ip, 'T', 1._wp, sxvp , 'T', -1._wp, syvp , 'T', -1._wp  & ! melt pond volume
-                  &                          , sxxvp, 'T', 1._wp, syyvp, 'T',  1._wp, sxyvp, 'T',  1._wp  &
-                  &                          , pv_il, 'T', 1._wp, sxvl , 'T', -1._wp, syvl , 'T', -1._wp  & ! melt pond lid volume
-                  &                          , sxxvl, 'T', 1._wp, syyvl, 'T',  1._wp, sxyvl, 'T',  1._wp, ldfull = .TRUE.  )
+               CALL lbc_lnk( 'icedyn_adv_pra', pv_i  , 'T', 1._wp, sxice , 'T', -1._wp, syice , 'T', -1._wp  & ! ice volume
+                  &                          , sxxice, 'T', 1._wp, syyice, 'T',  1._wp, sxyice, 'T',  1._wp  &
+                  &                          , pv_s  , 'T', 1._wp, sxsn  , 'T', -1._wp, sysn  , 'T', -1._wp  & ! snw volume
+                  &                          , sxxsn , 'T', 1._wp, syysn , 'T',  1._wp, sxysn , 'T',  1._wp  &
+                  &                          , psv_i , 'T', 1._wp, sxsal , 'T', -1._wp, sysal , 'T', -1._wp  & ! ice salinity
+                  &                          , sxxsal, 'T', 1._wp, syysal, 'T',  1._wp, sxysal, 'T',  1._wp  &
+                  &                          , pa_i  , 'T', 1._wp, sxa   , 'T', -1._wp, sya   , 'T', -1._wp  & ! ice concentration
+                  &                          , sxxa  , 'T', 1._wp, syya  , 'T',  1._wp, sxya  , 'T',  1._wp  &
+                  &                          , poa_i , 'T', 1._wp, sxage , 'T', -1._wp, syage , 'T', -1._wp  & ! ice age
+                  &                          , sxxage, 'T', 1._wp, syyage, 'T',  1._wp, sxyage, 'T',  1._wp  &
+                  &                          , pa_ip , 'T', 1._wp, sxap  , 'T', -1._wp, syap  , 'T', -1._wp  & ! melt pond fraction
+                  &                          , sxxap , 'T', 1._wp, syyap , 'T',  1._wp, sxyap , 'T',  1._wp  &
+                  &                          , pv_ip , 'T', 1._wp, sxvp  , 'T', -1._wp, syvp  , 'T', -1._wp  & ! melt pond volume
+                  &                          , sxxvp , 'T', 1._wp, syyvp , 'T',  1._wp, sxyvp , 'T',  1._wp  &
+                  &                          , pv_il , 'T', 1._wp, sxvl  , 'T', -1._wp, syvl  , 'T', -1._wp  & ! melt pond lid volume
+                  &                          , sxxvl , 'T', 1._wp, syyvl , 'T',  1._wp, sxyvl,  'T',  1._wp, ldfull = .TRUE. )
+            ELSE
+               CALL lbc_lnk( 'icedyn_adv_pra', pv_i  , 'T', 1._wp, sxice , 'T', -1._wp, syice , 'T', -1._wp  & ! ice volume
+                  &                          , sxxice, 'T', 1._wp, syyice, 'T',  1._wp, sxyice, 'T',  1._wp  &
+                  &                          , pv_s  , 'T', 1._wp, sxsn  , 'T', -1._wp, sysn  , 'T', -1._wp  & ! snw volume
+                  &                          , sxxsn , 'T', 1._wp, syysn , 'T',  1._wp, sxysn , 'T',  1._wp  &
+                  &                          , psv_i , 'T', 1._wp, sxsal , 'T', -1._wp, sysal , 'T', -1._wp  & ! ice salinity
+                  &                          , sxxsal, 'T', 1._wp, syysal, 'T',  1._wp, sxysal, 'T',  1._wp  &
+                  &                          , pa_i  , 'T', 1._wp, sxa   , 'T', -1._wp, sya   , 'T', -1._wp  & ! ice concentration
+                  &                          , sxxa  , 'T', 1._wp, syya  , 'T',  1._wp, sxya  , 'T',  1._wp  &
+                  &                          , poa_i , 'T', 1._wp, sxage , 'T', -1._wp, syage , 'T', -1._wp  & ! ice age
+                  &                          , sxxage, 'T', 1._wp, syyage, 'T',  1._wp, sxyage, 'T',  1._wp, ldfull = .TRUE. )
             ENDIF
-            CALL lbc_lnk( 'icedyn_adv_pra', pato_i, 'T',  1.0_wp, ldfull = .TRUE. )
+            IF( nn_icesal == 4 ) THEN
+               CALL lbc_lnk( 'icedyn_adv_pra', pe_s  , 'T', 1._wp, sxc0  , 'T', -1._wp, syc0  , 'T', -1._wp  & ! snw enthalpy
+                  &                          , sxxc0 , 'T', 1._wp, syyc0 , 'T',  1._wp, sxyc0 , 'T',  1._wp  &
+                  &                          , pe_i  , 'T', 1._wp, sxe   , 'T', -1._wp, sye   , 'T', -1._wp  & ! ice enthalpy
+                  &                          , sxxe  , 'T', 1._wp, syye  , 'T',  1._wp, sxye  , 'T',  1._wp  &
+                  &                          , pszv_i, 'T', 1._wp, sxsi  , 'T', -1._wp, sysi  , 'T', -1._wp  & ! ice salt content
+                  &                          , sxxsi , 'T', 1._wp, syysi , 'T',  1._wp, sxysi , 'T',  1._wp, ldfull = .TRUE. )
+            ELSE
+               CALL lbc_lnk( 'icedyn_adv_pra', pe_s  , 'T', 1._wp, sxc0  , 'T', -1._wp, syc0  , 'T', -1._wp  & ! snw enthalpy
+                  &                          , sxxc0 , 'T', 1._wp, syyc0 , 'T',  1._wp, sxyc0 , 'T',  1._wp  &
+                  &                          , pe_i  , 'T', 1._wp, sxe   , 'T', -1._wp, sye   , 'T', -1._wp  & ! ice enthalpy
+                  &                          , sxxe  , 'T', 1._wp, syye  , 'T',  1._wp, sxye  , 'T',  1._wp, ldfull = .TRUE. )
+            ENDIF
             !
          ELSEIF( jt == icycle ) THEN             ! comm. on the moments at the end of advection
             !                                    ! comm. on the other fields are gathered in icedyn.F90
@@ -412,16 +510,33 @@ CONTAINS
                   &                          , sxage , 'T', -1._wp, syage , 'T', -1._wp  &                   ! ice age
                   &                          , sxxage, 'T',  1._wp, syyage, 'T',  1._wp, sxyage, 'T',  1._wp, ldfull = .TRUE. )
             ENDIF
-            CALL lbc_lnk( 'icedyn_adv_pra', sxc0  , 'T', -1._wp, syc0  , 'T', -1._wp  &                      ! snw enthalpy
-               &                          , sxxc0 , 'T',  1._wp, syyc0 , 'T',  1._wp, sxyc0 , 'T',  1._wp &
-               &                          , sxe   , 'T', -1._wp, sye   , 'T', -1._wp  &                      ! ice enthalpy
-               &                          , sxxe  , 'T',  1._wp, syye  , 'T',  1._wp, sxye  , 'T',  1._wp, ldfull = .TRUE. )
+            IF( nn_icesal == 4 ) THEN
+               CALL lbc_lnk( 'icedyn_adv_pra', sxc0  , 'T', -1._wp, syc0  , 'T', -1._wp  &                   ! snw enthalpy
+                  &                          , sxxc0 , 'T',  1._wp, syyc0 , 'T',  1._wp, sxyc0 , 'T',  1._wp &
+                  &                          , sxe   , 'T', -1._wp, sye   , 'T', -1._wp  &                   ! ice enthalpy
+                  &                          , sxxe  , 'T',  1._wp, syye  , 'T',  1._wp, sxye  , 'T',  1._wp &
+                  &                          , sxsi  , 'T', -1._wp, sysi  , 'T', -1._wp  &                   ! ice salt content
+                  &                          , sxxsi , 'T',  1._wp, syysi , 'T',  1._wp, sxysi , 'T',  1._wp, ldfull = .TRUE. )
+            ELSE
+               CALL lbc_lnk( 'icedyn_adv_pra', sxc0  , 'T', -1._wp, syc0  , 'T', -1._wp  &                   ! snw enthalpy
+                  &                          , sxxc0 , 'T',  1._wp, syyc0 , 'T',  1._wp, sxyc0 , 'T',  1._wp &
+                  &                          , sxe   , 'T', -1._wp, sye   , 'T', -1._wp  &                   ! ice enthalpy
+                  &                          , sxxe  , 'T',  1._wp, syye  , 'T',  1._wp, sxye  , 'T',  1._wp, ldfull = .TRUE. )
+            ENDIF
             !
          ENDIF
          !
       END DO ! jt
       !
+      !
       IF( lrst_ice )   CALL adv_pra_rst( 'WRITE', kt )   !* write Prather fields in the restart file
+      !
+      !
+      ! --- Deallocate arrays --- !
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) DEALLOCATE( z0ap , z0vp, z0vl, zh_ip )
+      IF( nn_icesal == 4 ) THEN   ;     DEALLOCATE( z0si , zsz_i )
+      ELSE                        ;     DEALLOCATE( z0smi, zs_i  )
+      ENDIF
       !
    END SUBROUTINE ice_dyn_adv_pra
 
@@ -446,6 +561,7 @@ CONTAINS
       !!
       INTEGER  ::   ji, jj                               ! dummy loop indices
       INTEGER  ::   ji0, jj0                             ! dummy loop indices
+      REAL(wp) ::   z1_3
       REAL(wp) ::   zs1max, zslpmax                      ! local scalars
       REAL(wp) ::   zs1new, zalf , zalf2, zalf3          !   -      -
       REAL(wp) ::   zs2new, z1malf, z1malf2, z1malf3     !   -      -
@@ -460,6 +576,7 @@ CONTAINS
       ji0 = 1 + ihls
       jj0 = NINT(pcrh) + ihls
       !
+      z1_3 = 1._wp / 3._wp
       ! Limitation of moments.
       DO_2D( ji0, ji0, jj0, jj0 )
          !
@@ -480,7 +597,7 @@ CONTAINS
          IF( zslpmax > 0._wp ) THEN
             zs1max = 1.5_wp * zslpmax
             zs1new = MIN( zs1max, MAX( -zs1max, zpsx ) )
-            zs2new = MIN( 2._wp * zslpmax - 0.3334_wp * ABS( zs1new ), MAX( ABS( zs1new ) - zslpmax, zpsxx ) )
+            zs2new = MIN( 2._wp * zslpmax - z1_3 * ABS( zs1new ), MAX( ABS( zs1new ) - zslpmax, zpsxx ) )
             !
             zpsx  = zs1new  * tmask(ji,jj,1)
             zpsxx = zs2new  * tmask(ji,jj,1)
@@ -506,7 +623,7 @@ CONTAINS
             zalf3   =   zalf2 *   zalf
             z1malf2 = z1malf  * z1malf
             z1malf3 = z1malf2 * z1malf
-            
+            !
             zfm (ji,jj) = zalf  *   zpsm
             zf0 (ji,jj) = zalf  * ( zps0  +         z1malf * ( zpsx + (z1malf - zalf) * zpsxx ) )
             zfx (ji,jj) = zalf2 * ( zpsx  + 3._wp * z1malf *   zpsxx )
@@ -514,6 +631,7 @@ CONTAINS
             zfy (ji,jj) = zalf  * ( zpsy  +         z1malf *   zpsxy )
             zfyy(ji,jj) = zalf  *   zpsyy
             zfxy(ji,jj) = zalf2 *   zpsxy
+            !
             !                                !  Readjust moments remaining in the box.
             zpsm  = zpsm    -   zfm (ji,jj)
             zps0  = zps0    -   zf0 (ji,jj)
@@ -666,6 +784,7 @@ CONTAINS
       !!
       INTEGER  ::   ji, jj                               ! dummy loop indices
       INTEGER  ::   ji0, jj0                             ! dummy loop indices
+      REAL(wp) ::   z1_3
       REAL(wp) ::   zs1max, zslpmax                      ! local scalars
       REAL(wp) ::   zs1new, zalf , zalf2, zalf3          !   -      -
       REAL(wp) ::   zs2new, z1malf, z1malf2, z1malf3     !   -      -
@@ -680,6 +799,7 @@ CONTAINS
       ji0 = NINT(pcrh) + ihls
       jj0 = 1 + ihls
       !
+      z1_3 = 1._wp / 3._wp
       ! Limitation of moments.
       DO_2D( ji0, ji0, jj0, jj0 )
          !
@@ -698,9 +818,9 @@ CONTAINS
          zps0    = zslpmax
          !
          IF( zslpmax > 0._wp ) THEN
-            zs1max  = 1.5_wp * zslpmax
-            zs1new  = MIN( zs1max, MAX( -zs1max, zpsy ) )
-            zs2new  = MIN( 2._wp * zslpmax - 0.3334_wp * ABS( zs1new ), MAX( ABS( zs1new ) - zslpmax, zpsyy ) )
+            zs1max = 1.5_wp * zslpmax
+            zs1new = MIN( zs1max, MAX( -zs1max, zpsy ) )
+            zs2new = MIN( 2._wp * zslpmax - z1_3 * ABS( zs1new ), MAX( ABS( zs1new ) - zslpmax, zpsyy ) )
             !
             zpsx  = zpsx    * tmask(ji,jj,1)
             zpsxx = zpsxx   * tmask(ji,jj,1)
@@ -727,18 +847,18 @@ CONTAINS
             z1malf2 = z1malf  * z1malf
             z1malf3 = z1malf2 * z1malf
             !
-            zfm (ji,jj) =  zalf  *   zpsm
-            zf0 (ji,jj) =  zalf  * ( zps0  +         z1malf * ( zpsy + (z1malf - zalf) * zpsyy ) )
-            zfy (ji,jj) =  zalf2 * ( zpsy  + 3._wp * z1malf *   zpsyy )
-            zfyy(ji,jj) =  zalf3 *   zpsyy 
-            zfx (ji,jj) =  zalf  * ( zpsx  +         z1malf *   zpsxy )
-            zfxx(ji,jj) =  zalf  *   zpsxx
-            zfxy(ji,jj) =  zalf2 *   zpsxy
+            zfm (ji,jj) = zalf  *   zpsm
+            zf0 (ji,jj) = zalf  * ( zps0  +         z1malf * ( zpsy + (z1malf - zalf) * zpsyy ) )
+            zfy (ji,jj) = zalf2 * ( zpsy  + 3._wp * z1malf *   zpsyy )
+            zfyy(ji,jj) = zalf3 *   zpsyy 
+            zfx (ji,jj) = zalf  * ( zpsx  +         z1malf *   zpsxy )
+            zfxx(ji,jj) = zalf  *   zpsxx
+            zfxy(ji,jj) = zalf2 *   zpsxy
             !
             !                                !  Readjust moments remaining in the box.
             zpsm  = zpsm    -   zfm (ji,jj)
             zps0  = zps0    -   zf0 (ji,jj)
-            zpsy  = z1malf2 * ( zpsy -3._wp * zalf * zpsyy )
+            zpsy  = z1malf2 * ( zpsy - 3._wp * zalf * zpsyy )
             zpsyy = z1malf3 *   zpsyy
             zpsx  = zpsx    -   zfx (ji,jj)
             zpsxx = zpsxx   -   zfxx(ji,jj)
@@ -868,8 +988,8 @@ CONTAINS
    END SUBROUTINE adv_y
 
 
-   SUBROUTINE Hbig_pra( ihls, jcat, pdt, phi_max, phs_max, phip_max, psi_max, pes_max, pei_max, &
-      &                  pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i )
+   SUBROUTINE Hbig_pra( ihls, jcat, pdt, phi_max, phs_max, phip_max, psi_max, pes_max, pei_max, pszi_max, &
+      &                  pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i, pe_s, pe_i, pszv_i )
       !!-------------------------------------------------------------------
       !!                  ***  ROUTINE Hbig_pra  ***
       !!
@@ -888,10 +1008,11 @@ CONTAINS
       REAL(wp)                    , INTENT(in   ) ::   pdt                                   ! tracer time-step
       REAL(wp), DIMENSION(:,:)    , INTENT(in   ) ::   phi_max, phs_max, phip_max, psi_max   ! max ice thick from surrounding 9-pts
       REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pes_max
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pei_max
+      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   pei_max, pszi_max
       REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   pv_i, pv_s, pa_i, pa_ip, pv_ip, psv_i
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_s
       REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pe_i
+      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   pszv_i
       !
       INTEGER  ::   ji, jj, jk         ! dummy loop indices
       REAL(wp) ::   z1_dt, zhip, zhi, zhs, zsi, zes, zei, zfra
@@ -938,18 +1059,36 @@ CONTAINS
                pv_s(ji,jj,jcat)          = pa_i(ji,jj,jcat) * phs_max(ji,jj)
             ENDIF
             !
-            !                               ! -- check s_i -- !
-            ! if s_i is larger than the surrounding 9 pts => put salt excess in the ocean
-            zsi = psv_i(ji,jj,jcat) / pv_i(ji,jj,jcat)
-            IF( zsi > psi_max(ji,jj) .AND. pa_i(ji,jj,jcat) < 0.15 ) THEN
-               zfra = psi_max(ji,jj) / zsi
-               zsfx_res(ji,jj) = zsfx_res(ji,jj) + psv_i(ji,jj,jcat) * ( 1._wp - zfra ) * rhoi * z1_dt
-               psv_i(ji,jj,jcat) = psv_i(ji,jj,jcat) * zfra
-            ENDIF
-            !
          ENDIF
       END_2D
       !
+      !                                          ! -- check s_i -- !
+      IF( nn_icesal == 4 ) THEN
+         DO_3D( ihls, ihls, ihls, ihls, 1, nlay_i )
+            IF ( pv_i(ji,jj,jcat) > 0._wp ) THEN
+               ! if szv_i/v_i is larger than the surrounding 9 pts => put the salt excess in the ocean
+               zsi = pszv_i(ji,jj,jk,jcat) / pv_i(ji,jj,jcat)
+               IF( zsi > pszi_max(ji,jj,jk) .AND. pa_i(ji,jj,jcat) < 0.15 ) THEN
+                  zfra = pszi_max(ji,jj,jk) / zsi
+                  zsfx_res(ji,jj) = zsfx_res(ji,jj) + pszv_i(ji,jj,jk,jcat) * ( 1._wp - zfra ) * rhoi * z1_dt
+                  pszv_i(ji,jj,jk,jcat) = pszv_i(ji,jj,jk,jcat) * zfra
+               ENDIF
+            ENDIF
+         END_3D
+      ELSE
+         DO_2D( ihls, ihls, ihls, ihls )
+            IF ( pv_i(ji,jj,jcat) > 0._wp ) THEN
+               ! if s_i is larger than the surrounding 9 pts => put salt excess in the ocean
+               zsi = psv_i(ji,jj,jcat) / pv_i(ji,jj,jcat)
+               IF( zsi > psi_max(ji,jj) .AND. pa_i(ji,jj,jcat) < 0.15 ) THEN
+                  zfra = psi_max(ji,jj) / zsi
+                  zsfx_res(ji,jj) = zsfx_res(ji,jj) + psv_i(ji,jj,jcat) * ( 1._wp - zfra ) * rhoi * z1_dt
+                  psv_i(ji,jj,jcat) = psv_i(ji,jj,jcat) * zfra
+               ENDIF
+               !
+            ENDIF
+         END_2D
+      ENDIF
       !                                           ! -- check e_i/v_i -- !
       DO_3D( ihls, ihls, ihls, ihls, 1, nlay_i )
          IF ( pv_i(ji,jj,jcat) > 0._wp ) THEN
@@ -1054,28 +1193,52 @@ CONTAINS
       !!
       !! ** Purpose :   allocate and initialize arrays for Prather advection
       !!-------------------------------------------------------------------
-      INTEGER ::   ierr
+      INTEGER ::   ierr(4), ii, ierr_max
       !!-------------------------------------------------------------------
       !
+      ierr(:) = 0
+      ii = 0
       !                             !* allocate prather fields
-      ALLOCATE( sxice(jpi,jpj,jpl) , syice(jpi,jpj,jpl) , sxxice(jpi,jpj,jpl) , syyice(jpi,jpj,jpl) , sxyice(jpi,jpj,jpl) ,   &
-         &      sxsn (jpi,jpj,jpl) , sysn (jpi,jpj,jpl) , sxxsn (jpi,jpj,jpl) , syysn (jpi,jpj,jpl) , sxysn (jpi,jpj,jpl) ,   &
-         &      sxa  (jpi,jpj,jpl) , sya  (jpi,jpj,jpl) , sxxa  (jpi,jpj,jpl) , syya  (jpi,jpj,jpl) , sxya  (jpi,jpj,jpl) ,   &
-         &      sxsal(jpi,jpj,jpl) , sysal(jpi,jpj,jpl) , sxxsal(jpi,jpj,jpl) , syysal(jpi,jpj,jpl) , sxysal(jpi,jpj,jpl) ,   &
-         &      sxage(jpi,jpj,jpl) , syage(jpi,jpj,jpl) , sxxage(jpi,jpj,jpl) , syyage(jpi,jpj,jpl) , sxyage(jpi,jpj,jpl) ,   &
-         &      sxap (jpi,jpj,jpl) , syap (jpi,jpj,jpl) , sxxap (jpi,jpj,jpl) , syyap (jpi,jpj,jpl) , sxyap (jpi,jpj,jpl) ,   &
-         &      sxvp (jpi,jpj,jpl) , syvp (jpi,jpj,jpl) , sxxvp (jpi,jpj,jpl) , syyvp (jpi,jpj,jpl) , sxyvp (jpi,jpj,jpl) ,   &
-         &      sxvl (jpi,jpj,jpl) , syvl (jpi,jpj,jpl) , sxxvl (jpi,jpj,jpl) , syyvl (jpi,jpj,jpl) , sxyvl (jpi,jpj,jpl) ,   &
-         !
+      ! ---------------------- !
+      ! == mandatory fields == !
+      ! ---------------------- !
+      ii = ii + 1
+      ALLOCATE( sxice(jpi,jpj,jpl) , syice(jpi,jpj,jpl) , sxxice(jpi,jpj,jpl) , syyice(jpi,jpj,jpl) , sxyice(jpi,jpj,jpl) , &
+         &      sxsn (jpi,jpj,jpl) , sysn (jpi,jpj,jpl) , sxxsn (jpi,jpj,jpl) , syysn (jpi,jpj,jpl) , sxysn (jpi,jpj,jpl) , &
+         &      sxa  (jpi,jpj,jpl) , sya  (jpi,jpj,jpl) , sxxa  (jpi,jpj,jpl) , syya  (jpi,jpj,jpl) , sxya  (jpi,jpj,jpl) , &
+         &      sxage(jpi,jpj,jpl) , syage(jpi,jpj,jpl) , sxxage(jpi,jpj,jpl) , syyage(jpi,jpj,jpl) , sxyage(jpi,jpj,jpl) , &
          &      sxc0 (jpi,jpj,nlay_s,jpl) , syc0 (jpi,jpj,nlay_s,jpl) , sxxc0(jpi,jpj,nlay_s,jpl) , &
          &      syyc0(jpi,jpj,nlay_s,jpl) , sxyc0(jpi,jpj,nlay_s,jpl)                             , &
-         !
          &      sxe  (jpi,jpj,nlay_i,jpl) , sye  (jpi,jpj,nlay_i,jpl) , sxxe (jpi,jpj,nlay_i,jpl) , &
          &      syye (jpi,jpj,nlay_i,jpl) , sxye (jpi,jpj,nlay_i,jpl)                             , &
-         &      STAT = ierr )
+         &      STAT = ierr(ii) )
       !
-      CALL mpp_sum( 'icedyn_adv_pra', ierr )
-      IF( ierr /= 0 )   CALL ctl_stop('STOP', 'adv_pra_init : unable to allocate ice arrays for Prather advection scheme')
+      ! --------------------- !
+      ! == optional fields == !
+      ! --------------------- !            
+      ii = ii + 1             ! sxsal etc must be allocated for conveniency
+      ALLOCATE( sxsal(jpi,jpj,jpl) , sysal(jpi,jpj,jpl) , sxxsal(jpi,jpj,jpl) , syysal(jpi,jpj,jpl) , sxysal(jpi,jpj,jpl) , &
+         &      STAT = ierr(ii) )
+      !
+      ii = ii + 1
+      IF( nn_icesal == 4 ) THEN
+         ALLOCATE( sxsi (jpi,jpj,nlay_i,jpl) , sysi (jpi,jpj,nlay_i,jpl) , sxxsi(jpi,jpj,nlay_i,jpl) , &
+            &      syysi(jpi,jpj,nlay_i,jpl) , sxysi(jpi,jpj,nlay_i,jpl)                             , &
+            &      STAT = ierr(ii) )
+      ENDIF
+      !
+      ii = ii + 1
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+         ALLOCATE( sxap (jpi,jpj,jpl) , syap (jpi,jpj,jpl) , sxxap (jpi,jpj,jpl) , syyap (jpi,jpj,jpl) , sxyap (jpi,jpj,jpl) , &
+            &      sxvp (jpi,jpj,jpl) , syvp (jpi,jpj,jpl) , sxxvp (jpi,jpj,jpl) , syyvp (jpi,jpj,jpl) , sxyvp (jpi,jpj,jpl) , &
+            &      sxvl (jpi,jpj,jpl) , syvl (jpi,jpj,jpl) , sxxvl (jpi,jpj,jpl) , syyvl (jpi,jpj,jpl) , sxyvl (jpi,jpj,jpl) , &
+            &      STAT = ierr(ii) )
+      ENDIF
+      !
+      ierr_max = MAXVAL( ierr(:) )
+      !
+      CALL mpp_sum( 'icedyn_adv_pra', ierr_max )
+      IF( ierr_max /= 0 )   CALL ctl_stop('STOP', 'adv_pra_init : unable to allocate ice arrays for Prather advection scheme')
       !
       CALL adv_pra_rst( 'READ' )    !* read or initialize all required files
       !
@@ -1111,6 +1274,9 @@ CONTAINS
          !
          IF( id1 > 0 ) THEN                     !**  Read the restart file  **!
             !
+            ! ---------------------- !
+            ! == mandatory fields == !
+            ! ---------------------- !
             !                                                        ! ice thickness
             CALL iom_get( numrir, jpdom_auto, 'sxice' , sxice , psgn = -1._wp )
             CALL iom_get( numrir, jpdom_auto, 'syice' , syice , psgn = -1._wp )
@@ -1129,12 +1295,6 @@ CONTAINS
             CALL iom_get( numrir, jpdom_auto, 'sxxa'  , sxxa   )
             CALL iom_get( numrir, jpdom_auto, 'syya'  , syya   )
             CALL iom_get( numrir, jpdom_auto, 'sxya'  , sxya   )
-            !                                                        ! ice salinity
-            CALL iom_get( numrir, jpdom_auto, 'sxsal' , sxsal , psgn = -1._wp )
-            CALL iom_get( numrir, jpdom_auto, 'sysal' , sysal , psgn = -1._wp )
-            CALL iom_get( numrir, jpdom_auto, 'sxxsal', sxxsal )
-            CALL iom_get( numrir, jpdom_auto, 'syysal', syysal )
-            CALL iom_get( numrir, jpdom_auto, 'sxysal', sxysal )
             !                                                        ! ice age
             CALL iom_get( numrir, jpdom_auto, 'sxage' , sxage , psgn = -1._wp )
             CALL iom_get( numrir, jpdom_auto, 'syage' , syage , psgn = -1._wp )
@@ -1149,11 +1309,11 @@ CONTAINS
                znam = 'syc0'//'_l'//zchar1
                CALL iom_get( numrir, jpdom_auto, znam , z3d, psgn = -1._wp )   ;   syc0 (:,:,jk,:) = z3d(:,:,:)
                znam = 'sxxc0'//'_l'//zchar1
-               CALL iom_get( numrir, jpdom_auto, znam , z3d )   ;   sxxc0(:,:,jk,:) = z3d(:,:,:)
+               CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   sxxc0(:,:,jk,:) = z3d(:,:,:)
                znam = 'syyc0'//'_l'//zchar1
-               CALL iom_get( numrir, jpdom_auto, znam , z3d )   ;   syyc0(:,:,jk,:) = z3d(:,:,:)
+               CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   syyc0(:,:,jk,:) = z3d(:,:,:)
                znam = 'sxyc0'//'_l'//zchar1
-               CALL iom_get( numrir, jpdom_auto, znam , z3d )   ;   sxyc0(:,:,jk,:) = z3d(:,:,:)
+               CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   sxyc0(:,:,jk,:) = z3d(:,:,:)
             END DO
             !                                                        ! ice layers heat content
             DO jk = 1, nlay_i
@@ -1163,39 +1323,73 @@ CONTAINS
                znam = 'sye'//'_l'//zchar1
                CALL iom_get( numrir, jpdom_auto, znam , z3d, psgn = -1._wp )   ;   sye (:,:,jk,:) = z3d(:,:,:)
                znam = 'sxxe'//'_l'//zchar1
-               CALL iom_get( numrir, jpdom_auto, znam , z3d )   ;   sxxe(:,:,jk,:) = z3d(:,:,:)
+               CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   sxxe(:,:,jk,:) = z3d(:,:,:)
                znam = 'syye'//'_l'//zchar1
-               CALL iom_get( numrir, jpdom_auto, znam , z3d )   ;   syye(:,:,jk,:) = z3d(:,:,:)
+               CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   syye(:,:,jk,:) = z3d(:,:,:)
                znam = 'sxye'//'_l'//zchar1
-               CALL iom_get( numrir, jpdom_auto, znam , z3d )   ;   sxye(:,:,jk,:) = z3d(:,:,:)
+               CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   sxye(:,:,jk,:) = z3d(:,:,:)
             END DO
             !
-            IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN                                    ! melt pond fraction
+            ! --------------------- !
+            ! == optional fields == !
+            ! --------------------- !            
+            !                                                        ! ice salinity
+            IF( iom_varid( numrir, 'sxsal', ldstop = .FALSE. ) > 0 ) THEN
+               CALL iom_get( numrir, jpdom_auto, 'sxsal' , sxsal , psgn = -1._wp )
+               CALL iom_get( numrir, jpdom_auto, 'sysal' , sysal , psgn = -1._wp )
+               CALL iom_get( numrir, jpdom_auto, 'sxxsal', sxxsal )
+               CALL iom_get( numrir, jpdom_auto, 'syysal', syysal )
+               CALL iom_get( numrir, jpdom_auto, 'sxysal', sxysal )
+            ELSE
+               sxsal = 0._wp ; sysal = 0._wp ; sxxsal = 0._wp ; syysal = 0._wp ; sxysal = 0._wp               
+            ENDIF
+            !                                                        ! ice layers salt content
+            IF( nn_icesal == 4 ) THEN
+               IF( iom_varid( numrir, 'sxsi_l01' , ldstop = .FALSE. ) > 0 ) THEN
+                  DO jk = 1, nlay_i
+                     WRITE(zchar1,'(I2.2)') jk
+                     znam = 'sxsi'//'_l'//zchar1
+                     CALL iom_get( numrir, jpdom_auto, znam , z3d, psgn = -1._wp )   ;   sxsi (:,:,jk,:) = z3d(:,:,:)
+                     znam = 'sysi'//'_l'//zchar1
+                     CALL iom_get( numrir, jpdom_auto, znam , z3d, psgn = -1._wp )   ;   sysi (:,:,jk,:) = z3d(:,:,:)
+                     znam = 'sxxsi'//'_l'//zchar1
+                     CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   sxxsi(:,:,jk,:) = z3d(:,:,:)
+                     znam = 'syysi'//'_l'//zchar1
+                     CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   syysi(:,:,jk,:) = z3d(:,:,:)
+                     znam = 'sxysi'//'_l'//zchar1
+                     CALL iom_get( numrir, jpdom_auto, znam , z3d )                  ;   sxysi(:,:,jk,:) = z3d(:,:,:)
+                  END DO
+               ELSE
+                  sxsi = 0._wp ; sysi = 0._wp ; sxxsi = 0._wp ; syysi = 0._wp ; sxysi = 0._wp               
+               ENDIF
+            ENDIF
+            !
+            IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN                   ! melt pond fraction
                IF( iom_varid( numrir, 'sxap', ldstop = .FALSE. ) > 0 ) THEN
                   CALL iom_get( numrir, jpdom_auto, 'sxap' , sxap , psgn = -1._wp )
                   CALL iom_get( numrir, jpdom_auto, 'syap' , syap , psgn = -1._wp )
                   CALL iom_get( numrir, jpdom_auto, 'sxxap', sxxap )
                   CALL iom_get( numrir, jpdom_auto, 'syyap', syyap )
                   CALL iom_get( numrir, jpdom_auto, 'sxyap', sxyap )
-                  !                                                                   ! melt pond volume
+                  !                                                  ! melt pond volume
                   CALL iom_get( numrir, jpdom_auto, 'sxvp' , sxvp , psgn = -1._wp )
                   CALL iom_get( numrir, jpdom_auto, 'syvp' , syvp , psgn = -1._wp )
                   CALL iom_get( numrir, jpdom_auto, 'sxxvp', sxxvp )
                   CALL iom_get( numrir, jpdom_auto, 'syyvp', syyvp )
                   CALL iom_get( numrir, jpdom_auto, 'sxyvp', sxyvp )
                ELSE
-                  sxap = 0._wp ;   syap = 0._wp    ;   sxxap = 0._wp    ;   syyap = 0._wp    ;   sxyap = 0._wp   ! melt pond fraction
-                  sxvp = 0._wp ;   syvp = 0._wp    ;   sxxvp = 0._wp    ;   syyvp = 0._wp    ;   sxyvp = 0._wp   ! melt pond volume
+                  sxap = 0._wp ; syap = 0._wp ; sxxap = 0._wp ; syyap = 0._wp ; sxyap = 0._wp
+                  sxvp = 0._wp ; syvp = 0._wp ; sxxvp = 0._wp ; syyvp = 0._wp ; sxyvp = 0._wp
                ENDIF
-                  !
-               IF( iom_varid( numrir, 'sxvl', ldstop = .FALSE. ) > 0 ) THEN           ! melt pond lid volume
+                  !                                                  ! melt pond lid volume
+               IF( iom_varid( numrir, 'sxvl', ldstop = .FALSE. ) > 0 ) THEN
                   CALL iom_get( numrir, jpdom_auto, 'sxvl' , sxvl , psgn = -1._wp )
                   CALL iom_get( numrir, jpdom_auto, 'syvl' , syvl , psgn = -1._wp )
                   CALL iom_get( numrir, jpdom_auto, 'sxxvl', sxxvl )
                   CALL iom_get( numrir, jpdom_auto, 'syyvl', syyvl )
                   CALL iom_get( numrir, jpdom_auto, 'sxyvl', sxyvl )
                ELSE
-                  sxvl = 0._wp ;   syvl = 0._wp    ;   sxxvl = 0._wp    ;   syyvl = 0._wp    ;   sxyvl = 0._wp   ! melt pond lid volume
+                  sxvl = 0._wp ; syvl = 0._wp ; sxxvl = 0._wp ; syyvl = 0._wp ; sxyvl = 0._wp
                ENDIF
             ENDIF
             !
@@ -1206,10 +1400,14 @@ CONTAINS
             sxice = 0._wp   ;   syice = 0._wp   ;   sxxice = 0._wp   ;   syyice = 0._wp   ;   sxyice = 0._wp      ! ice thickness
             sxsn  = 0._wp   ;   sysn  = 0._wp   ;   sxxsn  = 0._wp   ;   syysn  = 0._wp   ;   sxysn  = 0._wp      ! snow thickness
             sxa   = 0._wp   ;   sya   = 0._wp   ;   sxxa   = 0._wp   ;   syya   = 0._wp   ;   sxya   = 0._wp      ! ice concentration
-            sxsal = 0._wp   ;   sysal = 0._wp   ;   sxxsal = 0._wp   ;   syysal = 0._wp   ;   sxysal = 0._wp      ! ice salinity
             sxage = 0._wp   ;   syage = 0._wp   ;   sxxage = 0._wp   ;   syyage = 0._wp   ;   sxyage = 0._wp      ! ice age
             sxc0  = 0._wp   ;   syc0  = 0._wp   ;   sxxc0  = 0._wp   ;   syyc0  = 0._wp   ;   sxyc0  = 0._wp      ! snow layers heat content
             sxe   = 0._wp   ;   sye   = 0._wp   ;   sxxe   = 0._wp   ;   syye   = 0._wp   ;   sxye   = 0._wp      ! ice layers heat content
+            !
+            sxsal = 0._wp   ;   sysal = 0._wp   ;   sxxsal = 0._wp   ;   syysal = 0._wp   ;   sxysal = 0._wp      ! ice salinity
+            IF( nn_icesal == 4 ) THEN
+               sxsi = 0._wp ;   sysi  = 0._wp   ;   sxxsi  = 0._wp   ;   syysi  = 0._wp   ;   sxysi  = 0._wp      ! ice layers salt content               
+            ENDIF
             IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
                sxap = 0._wp ;   syap = 0._wp    ;   sxxap = 0._wp    ;   syyap = 0._wp    ;   sxyap = 0._wp       ! melt pond fraction
                sxvp = 0._wp ;   syvp = 0._wp    ;   sxxvp = 0._wp    ;   syyvp = 0._wp    ;   sxyvp = 0._wp       ! melt pond volume
@@ -1227,6 +1425,9 @@ CONTAINS
          ! In case Prather scheme is used for advection, write second order moments
          ! ------------------------------------------------------------------------
          !
+         ! ---------------------- !
+         ! == mandatory fields == !
+         ! ---------------------- !
          !                                                           ! ice thickness
          CALL iom_rstput( iter, nitrst, numriw, 'sxice' , sxice  )
          CALL iom_rstput( iter, nitrst, numriw, 'syice' , syice  )
@@ -1245,12 +1446,6 @@ CONTAINS
          CALL iom_rstput( iter, nitrst, numriw, 'sxxa'  , sxxa   )
          CALL iom_rstput( iter, nitrst, numriw, 'syya'  , syya   )
          CALL iom_rstput( iter, nitrst, numriw, 'sxya'  , sxya   )
-         !                                                           ! ice salinity
-         CALL iom_rstput( iter, nitrst, numriw, 'sxsal' , sxsal  )
-         CALL iom_rstput( iter, nitrst, numriw, 'sysal' , sysal  )
-         CALL iom_rstput( iter, nitrst, numriw, 'sxxsal', sxxsal )
-         CALL iom_rstput( iter, nitrst, numriw, 'syysal', syysal )
-         CALL iom_rstput( iter, nitrst, numriw, 'sxysal', sxysal )
          !                                                           ! ice age
          CALL iom_rstput( iter, nitrst, numriw, 'sxage' , sxage  )
          CALL iom_rstput( iter, nitrst, numriw, 'syage' , syage  )
@@ -1286,7 +1481,38 @@ CONTAINS
             CALL iom_rstput( iter, nitrst, numriw, znam , z3d )
          END DO
          !
-         IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN                      ! melt pond fraction
+         ! --------------------- !
+         ! == optional fields == !
+         ! --------------------- !
+         !
+         IF( nn_icesal == 4 ) THEN
+            !                                                        ! ice layers salt content
+            DO jk = 1, nlay_i
+               WRITE(zchar1,'(I2.2)') jk
+               znam = 'sxsi'//'_l'//zchar1   ;   z3d(:,:,:) = sxsi (:,:,jk,:)
+               CALL iom_rstput( iter, nitrst, numriw, znam , z3d )
+               znam = 'sysi'//'_l'//zchar1   ;   z3d(:,:,:) = sysi (:,:,jk,:)
+               CALL iom_rstput( iter, nitrst, numriw, znam , z3d )
+               znam = 'sxxsi'//'_l'//zchar1  ;   z3d(:,:,:) = sxxsi(:,:,jk,:)
+               CALL iom_rstput( iter, nitrst, numriw, znam , z3d )
+               znam = 'syysi'//'_l'//zchar1  ;   z3d(:,:,:) = syysi(:,:,jk,:)
+               CALL iom_rstput( iter, nitrst, numriw, znam , z3d )
+               znam = 'sxysi'//'_l'//zchar1  ;   z3d(:,:,:) = sxysi(:,:,jk,:)
+               CALL iom_rstput( iter, nitrst, numriw, znam , z3d )
+            END DO
+            !
+         ELSE
+            !                                                        ! ice salinity
+            CALL iom_rstput( iter, nitrst, numriw, 'sxsal' , sxsal  )
+            CALL iom_rstput( iter, nitrst, numriw, 'sysal' , sysal  )
+            CALL iom_rstput( iter, nitrst, numriw, 'sxxsal', sxxsal )
+            CALL iom_rstput( iter, nitrst, numriw, 'syysal', syysal )
+            CALL iom_rstput( iter, nitrst, numriw, 'sxysal', sxysal )
+            !
+         ENDIF
+         !
+         IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+            !                                                        ! melt pond fraction
             CALL iom_rstput( iter, nitrst, numriw, 'sxap' , sxap  )
             CALL iom_rstput( iter, nitrst, numriw, 'syap' , syap  )
             CALL iom_rstput( iter, nitrst, numriw, 'sxxap', sxxap )
@@ -1298,14 +1524,13 @@ CONTAINS
             CALL iom_rstput( iter, nitrst, numriw, 'sxxvp', sxxvp )
             CALL iom_rstput( iter, nitrst, numriw, 'syyvp', syyvp )
             CALL iom_rstput( iter, nitrst, numriw, 'sxyvp', sxyvp )
+            !                                                        ! melt pond lid volume
+            CALL iom_rstput( iter, nitrst, numriw, 'sxvl' , sxvl  )
+            CALL iom_rstput( iter, nitrst, numriw, 'syvl' , syvl  )
+            CALL iom_rstput( iter, nitrst, numriw, 'sxxvl', sxxvl )
+            CALL iom_rstput( iter, nitrst, numriw, 'syyvl', syyvl )
+            CALL iom_rstput( iter, nitrst, numriw, 'sxyvl', sxyvl )
             !
-            IF ( ln_pnd_lids ) THEN                                  ! melt pond lid volume
-               CALL iom_rstput( iter, nitrst, numriw, 'sxvl' , sxvl  )
-               CALL iom_rstput( iter, nitrst, numriw, 'syvl' , syvl  )
-               CALL iom_rstput( iter, nitrst, numriw, 'sxxvl', sxxvl )
-               CALL iom_rstput( iter, nitrst, numriw, 'syyvl', syyvl )
-               CALL iom_rstput( iter, nitrst, numriw, 'sxyvl', sxyvl )
-            ENDIF
          ENDIF
          !
       ENDIF

@@ -10,7 +10,7 @@ MODULE ice1D
    !!----------------------------------------------------------------------
    !!   'key_si3'                                       SI3 sea-ice model
    !!----------------------------------------------------------------------
-   USE ice     , ONLY :   nlay_i, nlay_s, jpl   ! number of ice/snow layers and categories
+   USE ice     , ONLY :   nlay_i, nlay_s, jpl, ln_zdf_chkcvg, ln_sal_chk   ! number of ice/snow layers and categories
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
@@ -113,10 +113,10 @@ MODULE ice1D
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   dh_i_bom      !: Ice bottom ablation  [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   dh_i_bog      !: Ice bottom accretion  [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   dh_i_sub      !: Ice surface sublimation [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   dh_s_mlt      !: Snow melt [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   dh_s_sum      !: Snow surface melt [m]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   dh_s_itm      !: Snow internal melt [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   dh_snowice    !: Snow ice formation             [m of ice]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   s_i_1d        !: Ice bulk salinity [ppt]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   s_i_new       !: Salinity of new ice at the bottom
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   v_i_1d        !:
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   v_s_1d        !:
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   sv_i_1d       !:
@@ -131,6 +131,7 @@ MODULE ice1D
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   t_s_1d      !: corresponding to the 2D var  t_s
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   t_i_1d      !: corresponding to the 2D var  t_i
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   sz_i_1d     !: profiled ice salinity
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   szv_i_1d    !: profiled ice salinity content
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   e_i_1d      !:    Ice  enthalpy per unit volume
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   e_s_1d      !:    Snow enthalpy per unit volume
 
@@ -146,6 +147,13 @@ MODULE ice1D
    ! convergence check
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   tice_cvgerr_1d   !: convergence of ice/snow temp (dT)          [K]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   tice_cvgstp_1d   !: convergence of ice/snow temp (subtimestep) [-]
+
+   ! sanity checks for salinity
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   s_drain_dserr_1d, s_flush_dserr_1d
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   t_drain_dserr_1d, t_flush_dserr_1d
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   s_drain_serr_1d , s_flush_serr_1d
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   t_drain_serr_1d , t_flush_serr_1d
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   cfl_drain_1d    , cfl_flush_1d
    ! 
    !!----------------------
    !! * 2D Module variables
@@ -167,6 +175,7 @@ MODULE ice1D
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   e_i_2d 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   e_s_2d 
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   szv_i_2d 
    
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
@@ -180,7 +189,7 @@ CONTAINS
       !!                ***  ROUTINE ice1D_alloc ***
       !!---------------------------------------------------------------------!
       INTEGER ::   ice1D_alloc   ! return value
-      INTEGER ::   ierr(12), ii
+      INTEGER ::   ierr(15), ii
       !!---------------------------------------------------------------------!
       ierr(:) = 0
       ii = 0
@@ -193,7 +202,7 @@ CONTAINS
          &      s_i_1d  (jpij) , sv_i_1d(jpij) , o_i_1d  (jpij) , oa_i_1d (jpij) , &
          &      a_ip_1d (jpij) , v_ip_1d(jpij) , h_ip_1d (jpij) , &
          &      v_il_1d (jpij) , h_il_1d(jpij) ,                  &
-         &      t_su_1d (jpij) , t_s_1d (jpij,nlay_s) , t_i_1d (jpij,nlay_i), sz_i_1d(jpij,nlay_i) , &
+         &      t_su_1d (jpij) , t_s_1d (jpij,nlay_s) , t_i_1d (jpij,nlay_i), sz_i_1d(jpij,nlay_i) , szv_i_1d(jpij,nlay_i) , &
          &      ato_i_1d(jpij) , STAT=ierr(ii) )  
       ii = ii + 1
       ALLOCATE( e_i_1d(jpij,nlay_i) , e_s_1d(jpij,nlay_s) , STAT=ierr(ii) )
@@ -233,15 +242,13 @@ CONTAINS
       
       ! * thermo tickness change
       ii = ii + 1
-      ALLOCATE( dh_s_tot(jpij) , dh_i_sum(jpij) , dh_i_itm  (jpij) , dh_i_bom(jpij) , dh_i_bog(jpij) ,  &    
-         &      dh_i_sub(jpij) , dh_s_mlt(jpij) , dh_snowice(jpij) , STAT=ierr(ii) )
+      ALLOCATE( dh_s_tot(jpij) , dh_i_sum(jpij) , dh_i_itm(jpij) , dh_i_bom  (jpij) , dh_i_bog(jpij) ,  &    
+         &      dh_i_sub(jpij) , dh_s_sum(jpij) , dh_s_itm(jpij) , dh_snowice(jpij) , STAT=ierr(ii)  )
 
       ! * other
       ii = ii + 1
-      ALLOCATE( at_i_1d(jpij) , rn_amax_1d(jpij) , t_si_1d(jpij) , t_bo_1d (jpij) , &
-         &      s_i_new(jpij) , sst_1d    (jpij) , sss_1d (jpij) , frq_m_1d(jpij) , STAT=ierr(ii) )
-      ii = ii + 1
-      ALLOCATE( tice_cvgerr_1d(jpij) , tice_cvgstp_1d(jpij) , STAT=ierr(ii) )
+      ALLOCATE( at_i_1d(jpij) , rn_amax_1d(jpij) , t_si_1d (jpij) , t_bo_1d (jpij) , &
+         &      sst_1d (jpij) , sss_1d    (jpij) , frq_m_1d(jpij) , STAT=ierr(ii)  )
       !
       ! * 2d arrays
       ii = ii + 1
@@ -252,8 +259,22 @@ CONTAINS
       !
       ! * 3d arrays
       ii = ii + 1
-      ALLOCATE( e_i_2d(jpij,nlay_i,jpl) , e_s_2d(jpij,nlay_s,jpl) , STAT=ierr(ii) )
+      ALLOCATE( e_i_2d(jpij,nlay_i,jpl) , e_s_2d(jpij,nlay_s,jpl) , szv_i_2d(jpij,nlay_i,jpl) , STAT=ierr(ii) )
 
+      ! * checks
+      IF( ln_zdf_chkcvg ) THEN
+         ii = ii + 1
+         ALLOCATE( tice_cvgerr_1d  (jpij) , tice_cvgstp_1d  (jpij) , STAT=ierr(ii) )
+      ENDIF
+      IF( ln_sal_chk ) THEN
+         ii = ii + 1
+         ALLOCATE( s_drain_dserr_1d(jpij), s_flush_dserr_1d(jpij), &
+            &      s_drain_serr_1d (jpij), s_flush_serr_1d (jpij), cfl_drain_1d(jpij), cfl_flush_1d(jpij), STAT=ierr(ii) )
+         ii = ii + 1
+         ALLOCATE( t_drain_dserr_1d(jpij,nlay_i), t_flush_dserr_1d(jpij,nlay_i), &
+            &      t_drain_serr_1d (jpij,nlay_i), t_flush_serr_1d (jpij,nlay_i), STAT=ierr(ii) )
+      ENDIF
+      
       ice1D_alloc = MAXVAL( ierr(:) )
       IF( ice1D_alloc /= 0 )   CALL ctl_stop( 'STOP',  'ice1D_alloc: failed to allocate arrays.'  )
       !
