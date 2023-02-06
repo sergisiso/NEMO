@@ -26,6 +26,7 @@ MODULE trcini
    USE trcice          ! tracers in sea ice
    USE trcbc           ! generalized Boundary Conditions
    USE trcais          ! tracers from Antartic Ice Sheet
+   USE trcbdy          ! passive-tracer open boundary conditions
  
    IMPLICIT NONE
    PRIVATE
@@ -266,7 +267,8 @@ CONTAINS
         ! 
       ENDIF
       !
-      IF( ln_trcbc .AND. lltrcbc )  THEN
+      IF( ln_bdy ) CALL trc_bdy_ini( jptra )
+      IF( ln_trcbc .AND. lltrcbc ) THEN
         CALL trc_bc_ini ( jptra, Kmm  )            ! set tracers Boundary Conditions
         CALL trc_bc     ( nit000, Kmm, tr, Kaa )   ! tracers: surface and lateral Boundary Conditions
       ENDIF

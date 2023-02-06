@@ -146,6 +146,14 @@
 /
 !----------------------------------------------------------------------
 &namtrc_bc       !   data for boundary conditions
+!----------------------------------------------------------------------
+! Surface and coastal input data must be specified individually for each tracer.
+! Lateral open boundary inputs are specified for each BDY segment and related inputfiles
+!  must contain data for the variables with active open boundary (set through &namtrc).
+!  By default, variable names of BDY inputfiles are the same as in &namtrc, but using 
+!  cn_tronam it is possible to specify alternative variable names to match with inputfiles.
+!               !    file name             ! freq ! variable ! time interp. ! clim   !'yearly' ! weights  ! rotation | land/sea
+!  sn_trcobc(1) = 'bdy_dta_trc_North_y1980',  -1  , 'dummy'  ,  .false.     , .true. ,'yearly' ,  '',  '',  ''
 !-----------------------------------------------------------------------
    cn_dir_sbc    =  './'     !  root directory for the location of SURFACE data files
    cn_dir_cbc    =  './'     !  root directory for the location of COASTAL data files
@@ -153,6 +161,7 @@
    ln_rnf_ctl    = .false.   !  Remove runoff dilution on tracers with absent river load
    rn_sbc_time   =  86400.   !  Time scaling factor for SBC data (seconds in a day)
    rn_cbc_time   =  86400.   !  Time scaling factor for CBC data (seconds in a day)
+!  cn_tronam(1)  = 'var1'    !  Tracer-name to variable-name translation
 /
 !----------------------------------------------------------------------
 &namtrc_bdy      !   Setup of tracer boundary conditions
@@ -164,6 +173,8 @@
                              !  = 0 NO damping of tracers at open boudaries
                              !  = 1 Only for tracers forced with external data
                              !  = 2 Damping applied to all tracers
+   ln_zintobc    = .false.   ! T if a vertical interpolation is required. Variables gdep[t] and e3[t] must exist in the file 
+                             !  automatically defined to T if the number of vertical levels in bdy dta /= jpk
 /
 !-----------------------------------------------------------------------
 &namtrc_ais      !  Representation of Antarctic Ice Sheet tracers supply
