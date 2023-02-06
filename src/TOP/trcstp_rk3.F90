@@ -73,7 +73,6 @@ CONTAINS
       l_trcstat  = ( sn_cfctl%l_trcstat ) .AND. &
            &       ( ( MOD( kt, sn_cfctl%ptimincr ) == 0 ) .OR. ( kt == nitend ) )
       !
-      IF( kt == nittrc000 )                      CALL trc_stpsctl   ! control 
       IF( kt == nittrc000 .AND. lk_trdmxl_trc )  CALL trd_mxl_trc_init    ! trends: Mixed-layer
       !
       IF( .NOT.ln_linssh ) THEN                                           ! update ocean volume due to ssh temporal evolution
