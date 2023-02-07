@@ -172,9 +172,9 @@ if [ "${NBR_PRC}" -gt 0 ]; then
                 ${COMPIL_DIR}/Fprep_agrif.sh ${MAIN_DIR} ${TOOLS_DIR}/${CUR_CONF} || exit 3
 
                 # compile & copy conv
-                sed -e "s~MAIN_DIR~${MAIN_DIR}~; s~NEMO_TDIR~${NEMO_TDIR}~; s~CUR_CONF~${CUR_CONF}~; s~COMPIL_DIR~${COMPIL_DIR}~" ${COMPIL_DIR}/conv.cfg > ${NEMO_TDIR}/${CUR_CONF}/BLD/conv.cfg
+                sed -e "s~MAIN_DIR~${MAIN_DIR}~; s~NEMO_TDIR~${NEMO_TDIR}~; s~CUR_CONF~${CUR_CONF}~; s~COMPIL_DIR~${COMPIL_DIR}~; s~arch_nemo~arch_tools~" ${COMPIL_DIR}/conv.cfg > ${NEMO_TDIR}/${CUR_CONF}/BLD/conv.cfg
                 fcm build ${NEMO_TDIR}/${CUR_CONF}/BLD/conv.cfg || exit 1
-                cp -fa ${MAIN_DIR}/ext/AGRIF/agrif_oce.in $2/$1/AGRIFLIB/bin/conv ${NEMO_TDIR}/${CUR_CONF}/NEMOFILES/.
+                cp -fa ${MAIN_DIR}/ext/AGRIF/agrif_oce.in ${NEMO_TDIR}/${CUR_CONF}/AGRIFLIB/bin/conv ${NEMO_TDIR}/${CUR_CONF}/NEMOFILES/.
 
                 sed -e "s~MAIN_DIR~${MAIN_DIR}~; s~TOOLS_DIR~${TOOLS_DIR}~; s~CUR_CONF~${CUR_CONF}~; s~COMPIL_DIR~${COMPIL_DIR}~" ${COMPIL_DIR}/bld_preproagr_tools.cfg > ${NEMO_TDIR}/${CUR_CONF}/BLD/bld_preproagr_tools.cfg
 		fcm build --ignore-lock -j 1 ${NEMO_TDIR}/${CUR_CONF}/BLD/bld_preproagr_tools.cfg || exit 1
