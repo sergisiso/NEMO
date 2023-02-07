@@ -328,7 +328,7 @@ ${COMPIL_DIR}/Fmake_WORK.sh "${NEM_SUBDIR[*]/#/${NEMO_DIR}/}" "${x_e:-"MY_SRC"}"
 
 # Build the complete list of the CPP keys of this configuration
 if [[ ${chk_key} -eq 1 || ${list_key} -eq 1 ]] ; then
-    grep -h "^#.*defined.*" ${NEMO_TDIR}/${CUR_CONF}/WORK/* | \
+    grep -h "^#.*defined.*\|^#if.*def.*" ${NEMO_TDIR}/${CUR_CONF}/WORK/* | \
     grep -o "key_[[:alnum:]]\+\|key_[[:alnum:]]\+_[[:alnum:]]\+\|iso_[[:alnum:]]\+_[[:alnum:]]\+" | \
     sort | uniq > ${NEMO_TDIR}/${CUR_CONF}/BLD/full_key_list.txt
     [ ${list_key} -eq 1 ] && echo && cat ${NEMO_TDIR}/${CUR_CONF}/BLD/full_key_list.txt && exit 0
