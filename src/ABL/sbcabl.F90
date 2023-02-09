@@ -73,7 +73,7 @@ CONTAINS
          &                 ln_hpgls_frc, ln_geos_winds, nn_dyn_restore,           &
          &                 rn_ldyn_min , rn_ldyn_max, rn_ltra_min, rn_ltra_max,   &
          &                 nn_amxl, rn_Cm, rn_Ct, rn_Ce, rn_Ceps, rn_Rod, rn_Ric, &
-         &                 rn_vfac, ln_smth_pblh
+         &                 rn_vfac, ln_smth_pblh, ln_pga_abl
       !!---------------------------------------------------------------------
 
                                         ! Namelist namsbc_abl in reference namelist : ABL parameters
@@ -106,6 +106,9 @@ CONTAINS
             IF(ln_geos_winds) THEN
                ln_geos_winds = .FALSE.
                WRITE(numout,*) '      ABL -- geostrophic guide disabled (not compatible with ln_hpgls_frc = .T.)'
+            END IF
+            IF( ln_pga_abl ) THEN
+               WRITE(numout,*) '      ABL -- pressure gradient anomaly forcing'
             END IF
          ELSE IF( ln_geos_winds ) THEN
             WRITE(numout,*) '      ABL -- winds forced by geostrophic winds'
@@ -272,11 +275,6 @@ CONTAINS
       nt_n = 1; nt_a = 2
 
       ! initialize ABL from data or restart
-      u_abl  (:,:,:,nt_a     ) = 0._wp
-      v_abl  (:,:,:,nt_a     ) = 0._wp
-      tq_abl (:,:,:,nt_a,:   ) = 0._wp
-      tke_abl(:,:,:,nt_a     ) = 0._wp
-
       IF( ln_rstart_abl ) THEN
          CALL abl_rst_read
       ELSE
@@ -320,11 +318,9 @@ CONTAINS
       !!---------------------------------------------------------------------
       INTEGER ,         INTENT(in) ::   kt   ! ocean time step
       !!
-      !REAL(wp), DIMENSION(jpi,jpj) ::   zssq, zcd_du, zsen, zlat, zevp
-      REAL(wp), DIMENSION(A2D(0))  ::   zssq, zcd_du, zsen, zlat, zevp
+      REAL(wp), DIMENSION(A2D(0)) ::   zssq, zcd_du, zsen, zlat, zevp
 #if defined key_si3
-      !REAL(wp), DIMENSION(jpi,jpj) ::   zssqi, zcd_dui, zseni, zevpi
-      REAL(wp), DIMENSION(A2D(0))  ::   zssqi, zcd_dui, zseni, zevpi
+      REAL(wp), DIMENSION(A2D(0)) ::   zssqi, zcd_dui, zseni, zevpi
 #endif
       INTEGER                      ::   jbak, jbak_dta, ji, jj
       !!---------------------------------------------------------------------

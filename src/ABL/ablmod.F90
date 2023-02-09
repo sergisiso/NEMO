@@ -105,6 +105,8 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0))         ::   zwnd_i, zwnd_j
       REAL(wp), DIMENSION(A2D(0))         ::   zsspt, ztabs, zpre
       REAL(wp), DIMENSION(A1Di(0),2:jpka) ::   zCF
+      REAL(wp), DIMENSION(A2D(1),1:jpka)  ::   zpdif
+      REAL(wp), DIMENSION(A2D(0),1:jpka)  ::   zpabl, zpdta, zpgau, zpgav
       REAL(wp), DIMENSION(A1Di(0),1:jpka) ::   z_elem_a, z_elem_b, z_elem_c
       !
       INTEGER  ::   ji, jj, jk, jtra, jbak               ! dummy loop indices
@@ -139,10 +141,6 @@ CONTAINS
       !#LB: sorry Cdn_oce is gone:
       !zrough(:,:) = ght_abl(2) * EXP( - vkarmn / SQRT( MAX( Cdn_oce(:,:), 1.e-4 ) ) ) !<-- recover the value of z0 from Cdn_oce
       zrough(:,:) = z0_from_Cd( ght_abl(2), pCd_du(:,:) / MAX( pwndm(:,:), 0.5_wp ) ) ! #LB: z0_from_Cd is define in sbc_phy.F90...
-
-      ! sea surface potential temperature [K]
-      !zsspt(:,:) = theta_exner( psst(A2D(0))+rt0, pslp_dta(:,:) )
-
 
       !                            !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !                            !  1 *** Advance TKE to time n+1 and compute Avm_abl, Avt_abl, PBLh
@@ -282,11 +280,39 @@ CONTAINS
          END IF
          !
          IF( ln_hpgls_frc ) THEN
+
+            IF( ln_pga_abl ) THEN
+
+               DO_3D( 0, 0, 0, 0, 0, jpka)
+                  zpabl(ji,jj,jk) = pres_temp( tq_abl(ji,jj,jk,nt_n,jp_qa), pslp_dta(ji,jj), ght_abl(jk), ptpot=tq_abl(ji,jj,jk,nt_n,jp_ta) )
+                  zpdta(ji,jj,jk) = pres_temp( pq_dta(ji,jj,jk)           , pslp_dta(ji,jj), ght_abl(jk), ptpot=pt_dta(ji,jj,jk)            )
+                  zpdif(ji,jj,jk) = zpabl(ji,jj,jk) - zpdta(ji,jj,jk)
+               END_3D
+               zpdif(:,:,:) = MAX( MIN( zpdif(:,:,:), 10._wp ), -10._wp )   ! limiter due to ice/oce inconsistencies between nemo/si3 & atm frc
+
+               DO jk = 1, jpka
+                  CALL smooth_pblh( zpdif(:,:,:), msk_abl(:,:) )
+               END DO
+               CALL lbc_lnk( 'ablmod', zpdif(:,:,:), 'T', 1.0_wp)
+
+               DO_3D( 0, 0, 0, 0, 1, jpka)
+                  zpgau(ji,jj,jk) = ( 1._wp - 0.5_wp * umask(ji,jj,1) * umask(ji-1,jj,1) ) * &
+                                  & ( (zpdif(ji+1,jj,jk) - zpdif(ji  ,jj,jk)) * r1_e1u(ji  ,jj) * umask(ji  ,jj,1) + &
+                                  &   (zpdif(ji  ,jj,jk) - zpdif(ji-1,jj,jk)) * r1_e1u(ji-1,jj) * umask(ji-1,jj,1) )
+                  zpgav(ji,jj,jk) = ( 1._wp - 0.5_wp * vmask(ji,jj,1) * vmask(ji,jj-1,1) ) * &
+                                  & ( (zpdif(ji,jj+1,jk) - zpdif(ji,jj  ,jk)) * r1_e2v(ji,jj  ) * vmask(ji,jj  ,1) + &
+                                  &   (zpdif(ji,jj  ,jk) - zpdif(ji,jj-1,jk)) * r1_e2v(ji,jj-1) * vmask(ji,jj-1,1) )
+               END_3D
+            ELSE
+               zpgau(:,:,:) = 0._wp
+               zpgav(:,:,:) = 0._wp
+            ENDIF
+
             DO_1Dj( 0, 0 )    ! outer loop
                DO jk = 1, jpka
                   DO_1Di( 0, 0 )
-                     u_abl( ji, jj, jk, nt_a ) = u_abl( ji, jj, jk, nt_a ) - rDt_abl * e3t_abl(jk) * pgu_dta(ji,jj,jk)
-                     v_abl( ji, jj, jk, nt_a ) = v_abl( ji, jj, jk, nt_a ) - rDt_abl * e3t_abl(jk) * pgv_dta(ji,jj,jk)
+                     u_abl( ji, jj, jk, nt_a ) = u_abl( ji, jj, jk, nt_a ) - rDt_abl * e3t_abl(jk) * ( pgu_dta(ji,jj,jk) + zpgau(ji,jj,jk) )
+                     v_abl( ji, jj, jk, nt_a ) = v_abl( ji, jj, jk, nt_a ) - rDt_abl * e3t_abl(jk) * ( pgv_dta(ji,jj,jk) + zpgav(ji,jj,jk) )
                   END_1D
                ENDDO
             END_1D
@@ -788,8 +814,9 @@ CONTAINS
          END DO
 
          !!FL should not be needed because of Patankar procedure
-         tke_abl(A2D(0),1:jpka,nt_a) = MAX( tke_abl(A2D(0),1:jpka,nt_a), tke_min )
-
+         DO_1Di( 0, 0 )
+            tke_abl(ji,jj,1:jpka,nt_a) = MAX( tke_abl(ji,jj,1:jpka,nt_a), tke_min )
+         END_1D
          !!
          !! Diagnose PBL height
          !! ----------------------------------------------------------

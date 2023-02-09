@@ -323,6 +323,7 @@
 
    ln_rstart_abl  = .false.
    ln_hpgls_frc   = .false.
+      ln_pga_abl  = .false.   ! ABL pressure gradient anomaly forcing
    ln_geos_winds  = .false.
    ln_smth_pblh   = .false.
    nn_dyn_restore = 0         ! restoring option for dynamical ABL variables: = 0 no restoring
