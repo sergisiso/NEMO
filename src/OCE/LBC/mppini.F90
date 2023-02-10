@@ -65,7 +65,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       nn_comm = 1
-      nn_hls  = 1
+      nn_hls  = 2
       jpiglo  = Ni0glo + 2 * nn_hls
       jpjglo  = Nj0glo + 2 * nn_hls
       jpimax  = jpiglo
@@ -169,7 +169,7 @@ CONTAINS
       READ  ( numnam_cfg, nammpp, IOSTAT = ios, ERR = 902 )
 902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nammpp in configuration namelist' )
       !
-      nn_hls = MAX(1, nn_hls)   ! nn_hls must be > 0
+      nn_hls = MAX(2, nn_hls)   ! nn_hls must be > 1
 # if defined key_mpi2
       WRITE(numout,*) '   use key_mpi2, we force nn_comm = 1'
       nn_comm = 1
