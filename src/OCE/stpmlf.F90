@@ -151,6 +151,7 @@ CONTAINS
                              CALL iom_setkt( kstp - nit000 + 1, cw_ablrst_cxt )
          ENDIF
       ENDIF
+      IF( kstp == nit000 )   CALL dia_ar5_init    ! AR5 diagnostics
       IF( kstp /= nit000 )   CALL day( kstp )         ! Calendar (day was already called at nit000 in day_init)
                              CALL iom_setkt( kstp - nit000 + 1,      cxios_context          )   ! tell IOM we are at time step kstp
       IF( ln_crs         )   CALL iom_setkt( kstp - nit000 + 1, TRIM(cxios_context)//"_crs" )   ! tell IOM we are at time step kstp
@@ -279,11 +280,19 @@ CONTAINS
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       IF( ln_floats  )   CALL flo_stp   ( kstp, Nbb, Nnn )      ! drifting Floats
       IF( ln_diacfl  )   CALL dia_cfl   ( kstp,      Nnn )      ! Courant number diagnostics
-                         CALL dia_hth   ( kstp,      Nnn )      ! Thermocline depth (20 degres isotherm depth)
       IF( ln_diadct  )   CALL dia_dct   ( kstp,      Nnn )      ! Transports
+
+      IF( ln_tile ) CALL dom_tile_start         ! Loop for DIA modules with tiling
+
+      DO jtile = 1, nijtile
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+                         CALL dia_hth   ( kstp,      Nnn )      ! Thermocline depth (20 degres isotherm depth)
                          CALL dia_ar5   ( kstp,      Nnn )      ! ar5 diag
                          CALL dia_ptr   ( kstp,      Nnn )      ! Poleward adv/ldf TRansports diagnostics
                          CALL dia_wri   ( kstp,      Nnn )      ! ocean model: outputs
+      END DO
+      IF( ln_tile ) CALL dom_tile_stop
+
       IF( ln_crs     )   CALL crs_fld   ( kstp,      Nnn )      ! ocean model: online field coarsening & output
       IF( lk_diadetide ) CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
       IF( lk_diamlr  )   CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
