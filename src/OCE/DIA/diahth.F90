@@ -25,18 +25,8 @@ MODULE diahth
    PRIVATE
 
    PUBLIC   dia_hth       ! routine called by step.F90
-   PUBLIC   dia_hth_alloc ! routine called by nemogcm.F90
 
    LOGICAL, SAVE  ::   l_hth     !: thermocline-20d depths flag
-   
-   ! note: following variables should move to local variables once iom_put is always used 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hth    !: depth of the max vertical temperature gradient [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hd20   !: depth of 20 C isotherm                         [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hd26   !: depth of 26 C isotherm                         [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   hd28   !: depth of 28 C isotherm                         [m]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   htc3   !: heat content of first 300 m                    [W]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   htc7   !: heat content of first 700 m                    [W]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   htc20  !: heat content of first 2000 m                   [W]
 
 
    !! * Substitutions
@@ -48,20 +38,6 @@ MODULE diahth
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
-
-   FUNCTION dia_hth_alloc()
-      !!---------------------------------------------------------------------
-      INTEGER :: dia_hth_alloc
-      !!---------------------------------------------------------------------
-      !
-      ALLOCATE( hth(A2D(0)), hd20(A2D(0)), hd26(A2D(0)), hd28(A2D(0)), &
-         &      htc3(A2D(0)), htc7(A2D(0)), htc20(A2D(0)), STAT=dia_hth_alloc )
-      !
-      CALL mpp_sum ( 'diahth', dia_hth_alloc )
-      IF(dia_hth_alloc /= 0)   CALL ctl_stop( 'STOP', 'dia_hth_alloc: failed to allocate arrays.' )
-      !
-   END FUNCTION dia_hth_alloc
-
 
    SUBROUTINE dia_hth( kt, Kmm )
       !!---------------------------------------------------------------------
@@ -92,39 +68,44 @@ CONTAINS
       REAL(wp)                    ::   ztem2 = 0.2_wp        ! temperature criterion for mixed layer depth
       REAL(wp)                    ::   zztmp, zzdep          ! temporary scalars inside do loop
       REAL(wp)                    ::   zu, zv, zw, zut, zvt  ! temporary workspace
-      REAL(wp), DIMENSION(A2D(0)) ::   zabs2      ! MLD: abs( tn - tn(10m) ) = ztem2
-      REAL(wp), DIMENSION(A2D(0)) ::   ztm2       ! Top of thermocline: tn = tn(10m) - ztem2
-      REAL(wp), DIMENSION(A2D(0)) ::   zrho10_3   ! MLD: rho = rho10m + zrho3
-      REAL(wp), DIMENSION(A2D(0)) ::   zpycn      ! pycnocline: rho = rho10m + (dr/dT)(T,S,10m)*(-0.2 degC)
-      REAL(wp), DIMENSION(A2D(0)) ::   ztinv      ! max of temperature inversion
-      REAL(wp), DIMENSION(A2D(0)) ::   zdepinv    ! depth of temperature inversion
-      REAL(wp), DIMENSION(A2D(0)) ::   zrho0_3    ! MLD rho = rho(surf) = 0.03
-      REAL(wp), DIMENSION(A2D(0)) ::   zrho0_1    ! MLD rho = rho(surf) = 0.01
-      REAL(wp), DIMENSION(A2D(0)) ::   zmaxdzT    ! max of dT/dz
-      REAL(wp), DIMENSION(A2D(0)) ::   zdelr      ! delta rho equivalent to deltaT = 0.2
-      !!----------------------------------------------------------------------
+      REAL(wp)                    ::   ztemp = 0._wp
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zabs2      ! MLD: abs( tn - tn(10m) ) = ztem2
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztm2       ! Top of thermocline: tn = tn(10m) - ztem2
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zrho10_3   ! MLD: rho = rho10m + zrho3
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zpycn      ! pycnocline: rho = rho10m + (dr/dT)(T,S,10m)*(-0.2 degC)
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztinv      ! max of temperature inversion
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zdepinv    ! depth of temperature inversion
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zrho0_3    ! MLD rho = rho(surf) = 0.03
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zrho0_1    ! MLD rho = rho(surf) = 0.01
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zmaxdzT    ! max of dT/dz
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zdelr      ! delta rho equivalent to deltaT = 0.2
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zhth       ! depth of the max vertical temperature gradient [m]
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   z2d        ! 2D working array
+      !!---------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('dia_hth')
-
-      IF( kt == nit000 ) THEN
-         !
-         l_hth = iom_use( 'mlddzt'   ) .OR. iom_use( 'mldr0_3'  ) .OR. iom_use( 'mldr0_1'  )    .OR.  & 
-            &    iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' )    .OR.  &    
-            &    iom_use( '20d'      ) .OR. iom_use( '26d'      ) .OR. iom_use( '28d'      )    .OR.  &    
-            &    iom_use( 'hc300'    ) .OR. iom_use( 'hc700'    ) .OR. iom_use( 'hc2000'   )    .OR.  &    
-            &    iom_use( 'pycndep'  ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )
-         !
-         !                                      ! allocate dia_hth array
-         IF( l_hth ) THEN 
-            IF( dia_hth_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'dia_hth : unable to allocate standard arrays' )
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) 'dia_hth : diagnostics of the thermocline depth'
-            IF(lwp) WRITE(numout,*) '~~~~~~~ '
-            IF(lwp) WRITE(numout,*)
+      IF( .NOT. l_istiled .OR. ntile == 1) THEN   ! Do only for the first tile
+         IF( kt == nit000 ) THEN
+            !
+            l_hth = iom_use( 'mlddzt'   ) .OR. iom_use( 'mldr0_3'  ) .OR. iom_use( 'mldr0_1'  )    .OR.  &
+               &    iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' )    .OR.  & 
+               &    iom_use( '20d'      ) .OR. iom_use( '26d'      ) .OR. iom_use( '28d'      )    .OR.  & 
+               &    iom_use( 'hc300'    ) .OR. iom_use( 'hc700'    ) .OR. iom_use( 'hc2000'   )    .OR.  & 
+               &    iom_use( 'pycndep'  ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )
+            !
+            !                                      ! allocate dia_hth array
+            IF( l_hth ) THEN
+               IF(lwp) WRITE(numout,*)
+               IF(lwp) WRITE(numout,*) 'dia_hth : diagnostics of the thermocline depth'
+               IF(lwp) WRITE(numout,*) '~~~~~~~ '
+               IF(lwp) WRITE(numout,*)
+            ENDIF
          ENDIF
       ENDIF
-
+      !
       IF( l_hth ) THEN
          !
+         ALLOCATE( z2d(T2D(0)), zhth(T2D(0)), zabs2(T2D(0)), ztm2(T2D(0)), zrho10_3(T2D(0)), zpycn(T2D(0)), &
+               & ztinv(T2D(0)), zdepinv(T2D(0)), zrho0_3(T2D(0)), zrho0_1(T2D(0)), zmaxdzT(T2D(0)), zdelr(T2D(0)))
          ! initialization
          IF( iom_use( 'tinv'   ) )   ztinv  (:,:) = 0._wp  
          IF( iom_use( 'depti'  ) )   zdepinv(:,:) = 0._wp  
@@ -133,7 +114,7 @@ CONTAINS
             &                    .OR. iom_use( 'mldr10_3' ) .OR. iom_use( 'pycndep'  ) ) THEN
             DO_2D( 0, 0, 0, 0 )
                zztmp = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) 
-               hth     (ji,jj) = zztmp
+               zhth    (ji,jj) = zztmp
                zabs2   (ji,jj) = zztmp
                ztm2    (ji,jj) = zztmp
                zrho10_3(ji,jj) = zztmp
@@ -166,7 +147,7 @@ CONTAINS
 
                IF( zztmp > zmaxdzT(ji,jj) ) THEN                        
                    zmaxdzT(ji,jj) = zztmp   
-                   hth    (ji,jj) = zzdep                ! max and depth of dT/dz
+                   zhth    (ji,jj) = zzdep                ! max and depth of dT/dz
                ENDIF
          
                IF( nla10 > 1 ) THEN 
@@ -176,7 +157,7 @@ CONTAINS
                ENDIF
             END_3D
          
-            CALL iom_put( 'mlddzt', hth )            ! depth of the thermocline
+            CALL iom_put( 'mlddzt', zhth )            ! depth of the thermocline
             IF( nla10 > 1 ) THEN 
                CALL iom_put( 'mldr0_3', zrho0_3 )   ! MLD delta rho(surf) = 0.03
                CALL iom_put( 'mldr0_1', zrho0_1 )   ! MLD delta rho(surf) = 0.01
@@ -245,51 +226,46 @@ CONTAINS
          !  Depth of 20C/26C/28C isotherm  !
          ! ------------------------------- !
          IF( iom_use ('20d') ) THEN  ! depth of the 20 isotherm
-            ztem2 = 20.
-            CALL dia_hth_dep( Kmm, ztem2, hd20 )  
-            CALL iom_put( '20d', hd20 )    
+            CALL dia_hth_dep( Kmm, 20., z2d )
+            CALL iom_put( '20d', z2d )
          ENDIF
          !
          IF( iom_use ('26d') ) THEN  ! depth of the 26 isotherm
-            ztem2 = 26.
-            CALL dia_hth_dep( Kmm, ztem2, hd26 )  
-            CALL iom_put( '26d', hd26 )    
+            CALL dia_hth_dep( Kmm, 26., z2d )
+            CALL iom_put( '26d', z2d )
          ENDIF
          !
          IF( iom_use ('28d') ) THEN  ! depth of the 28 isotherm
-            ztem2 = 28.
-            CALL dia_hth_dep( Kmm, ztem2, hd28 )  
-            CALL iom_put( '28d', hd28 )    
+            CALL dia_hth_dep( Kmm, 28., z2d )
+            CALL iom_put( '28d', z2d )
          ENDIF
         
          ! ----------------------------- !
          !  Heat content of first 300 m  !
          ! ----------------------------- !
          IF( iom_use ('hc300') ) THEN  
-            zzdep = 300.
-            CALL  dia_hth_htc( Kmm, zzdep, ts(:,:,:,jp_tem,Kmm), htc3 )
-            CALL iom_put( 'hc300', rho0_rcp * htc3 )  ! vertically integrated heat content (J/m2)
+            CALL  dia_hth_htc( Kmm, 300., ts(:,:,:,jp_tem,Kmm), z2d )
+            CALL iom_put( 'hc300', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
          ENDIF
          !
          ! ----------------------------- !
          !  Heat content of first 700 m  !
          ! ----------------------------- !
          IF( iom_use ('hc700') ) THEN  
-            zzdep = 700.
-            CALL  dia_hth_htc( Kmm, zzdep, ts(:,:,:,jp_tem,Kmm), htc7 )
-            CALL iom_put( 'hc700', rho0_rcp * htc7 )  ! vertically integrated heat content (J/m2)
-  
+            CALL dia_hth_htc( Kmm, 700., ts(:,:,:,jp_tem,Kmm), z2d )
+            CALL iom_put( 'hc700', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
          ENDIF
          !
          ! ----------------------------- !
          !  Heat content of first 2000 m  !
          ! ----------------------------- !
          IF( iom_use ('hc2000') ) THEN  
-            zzdep = 2000.
-            CALL  dia_hth_htc( Kmm, zzdep, ts(:,:,:,jp_tem,Kmm), htc20 )
-            CALL iom_put( 'hc2000', rho0_rcp * htc20 )  ! vertically integrated heat content (J/m2)  
+            CALL dia_hth_htc( Kmm, 2000., ts(:,:,:,jp_tem,Kmm), z2d )
+            CALL iom_put( 'hc2000', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
          ENDIF
          !
+         DEALLOCATE( z2d, zhth, zabs2, ztm2, zrho10_3, zpycn, ztinv, &
+                   & zdepinv, zrho0_3, zrho0_1, zmaxdzT, zdelr )
       ENDIF
 
       !
@@ -301,11 +277,11 @@ CONTAINS
       !
       INTEGER , INTENT(in) :: Kmm      ! ocean time level index
       REAL(wp), INTENT(in) :: ptem
-      REAL(wp), DIMENSION(A2D(0)), INTENT(out) :: pdept     
+      REAL(wp), DIMENSION(T2D(0)), INTENT(out) :: pdept
       !
       INTEGER  :: ji, jj, jk, iid
       REAL(wp) :: zztmp, zzdep
-      INTEGER, DIMENSION(A2D(0)) :: iktem
+      INTEGER, DIMENSION(T2D(0)) :: iktem
       
       ! --------------------------------------- !
       ! search deepest level above ptem         !
@@ -346,11 +322,11 @@ CONTAINS
       INTEGER , INTENT(in) ::   Kmm      ! ocean time level index
       REAL(wp), INTENT(in) ::   pdep     ! depth over the heat content
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in)    ::   pt   
-      REAL(wp), DIMENSION(A2D(0)),      INTENT(inout) ::   phtc  
+      REAL(wp), DIMENSION(T2D(0))     , INTENT(inout)  ::   phtc
       !
       INTEGER  ::   ji, jj, jk, ik
-      REAL(wp), DIMENSION(A2D(0)) ::   zthick
-      INTEGER , DIMENSION(A2D(0)) ::   ilevel
+      REAL(wp), DIMENSION(T2D(0)) ::   zthick
+      INTEGER , DIMENSION(T2D(0)) ::   ilevel
 
 
       ! surface boundary condition

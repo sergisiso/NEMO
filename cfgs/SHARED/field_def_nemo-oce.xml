@@ -111,7 +111,7 @@ that are available in the tidal-forcing implementation (see
   <field_group id="grid_T" grid_ref="grid_T_2D" >
     <field id="e3t"          long_name="T-cell thickness"                    standard_name="cell_thickness"        unit="m"   grid_ref="grid_T_3D_inner" />
     <field id="e3ts"         long_name="T-cell thickness"   field_ref="e3t"  standard_name="cell_thickness"        unit="m"   grid_ref="grid_T_SFC_inner"      />
-    <field id="e3t_0"        long_name="Initial T-cell thickness"            standard_name="ref_cell_thickness"    unit="m"   grid_ref="grid_T_3D"       />
+    <field id="e3t_0"        long_name="Initial T-cell thickness"            standard_name="ref_cell_thickness"    unit="m"   grid_ref="grid_T_3D_inner"  />
     <field id="e3tb"         long_name="bottom T-cell thickness"             standard_name="bottom_cell_thickness" unit="m"   grid_ref="grid_T_2D_inner" />
     <field id="e3t_300"      field_ref="e3t"                                                                                  grid_ref="grid_T_zoom_300_inner" detect_missing_value="true" />
     <field id="e3t_vsum300"  field_ref="e3t_300"                                                                              grid_ref="grid_T_vsum_inner"     detect_missing_value="true" />
@@ -168,7 +168,7 @@ that are available in the tidal-forcing implementation (see
     <field id="ssh"          long_name="sea surface height"                                 standard_name="sea_surface_height_above_geoid"             unit="m" />
     <field id="ssh2"         long_name="square of sea surface height"                       standard_name="square_of_sea_surface_height_above_geoid"   unit="m2" > ssh * ssh </field >
     <field id="wetdep"       long_name="wet depth"                                          standard_name="wet_depth"                                  unit="m" />
-    <field id="sshmax"       long_name="max of sea surface height"        field_ref="ssh"   operation="maximum"                                                 />
+    <field id="sshmax"       long_name="max of sea surface height"        field_ref="ssh"   operation="maximum"                                                 grid_ref="grid_T_2D_inner"/>
 
     <field id="mldkz5"       long_name="Turbocline depth (Kz = 5e-4)"                     standard_name="ocean_mixed_layer_thickness_defined_by_vertical_tracer_diffusivity"              unit="m"          grid_ref="grid_T_2D_inner" />
     <field id="mldr10_1"     long_name="Mixed Layer Depth (dsigma = 0.01 wrt 10m)"        standard_name="ocean_mixed_layer_thickness_defined_by_sigma_theta"                              unit="m"          grid_ref="grid_T_2D_inner" />
@@ -588,7 +588,7 @@ that are available in the tidal-forcing implementation (see
     <field id="hu"            long_name="water column height at U point"                         standard_name="water_column_height_U"       unit="m" />
     <field id="e2u"           long_name="U-cell width in meridional direction"                   standard_name="cell_width"                  unit="m"                                 />
     <field id="e3u"           long_name="U-cell thickness"                                       standard_name="cell_thickness"              unit="m"          grid_ref="grid_U_3D_inner"   />
-    <field id="e3u_0"         long_name="Initial U-cell thickness"                               standard_name="ref_cell_thickness"          unit="m"          grid_ref="grid_U_3D"   />
+    <field id="e3u_0"         long_name="Initial U-cell thickness"                               standard_name="ref_cell_thickness"          unit="m"          grid_ref="grid_U_3D_inner"   />
     <field id="uoce"          long_name="ocean current along i-axis"                             standard_name="sea_water_x_velocity"        unit="m/s"        grid_ref="grid_U_3D"   />
     <field id="uoce_e3u"      long_name="ocean current along i-axis  (thickness weighted)"                                                   unit="m/s"        grid_ref="grid_U_3D"    > uoce * e3u </field>
     <field id="uoce_e3u_vsum" long_name="ocean current along i-axis * e3u summed on the vertical"  field_ref="uoce_e3u"                      unit="m3/s"       grid_ref="grid_U_vsum" />
@@ -651,7 +651,7 @@ that are available in the tidal-forcing implementation (see
   <field_group id="grid_V"   grid_ref="grid_V_2D">
     <field id="e1v"          long_name="V-cell width in longitudinal direction"                 standard_name="cell_width"                  unit="m"                               />
     <field id="e3v"          long_name="V-cell thickness"                                       standard_name="cell_thickness"              unit="m"          grid_ref="grid_V_3D_inner" />
-    <field id="e3v_0"        long_name="Initial V-cell thickness"                               standard_name="ref_cell_thickness"          unit="m"          grid_ref="grid_V_3D" />
+    <field id="e3v_0"        long_name="Initial V-cell thickness"                               standard_name="ref_cell_thickness"          unit="m"          grid_ref="grid_V_3D_inner" />
     <field id="hv"            long_name="water column height at V point"                        standard_name="water_column_height_V"       unit="m" />
     <field id="voce"         long_name="ocean current along j-axis"                             standard_name="sea_water_y_velocity"        unit="m/s"        grid_ref="grid_V_3D" />
     <field id="voce_e3v"     long_name="ocean current along j-axis  (thickness weighted)"                                                   unit="m/s"        grid_ref="grid_V_3D"  > voce * e3v </field>
@@ -706,7 +706,7 @@ that are available in the tidal-forcing implementation (see
 
   <field_group id="grid_W" grid_ref="grid_W_3D">
     <field id="e3w"          long_name="W-cell thickness"                              standard_name="cell_thickness"                         unit="m"  grid_ref="grid_W_3D_inner"  />
-    <field id="woce"         long_name="ocean vertical velocity"                       standard_name="upward_sea_water_velocity"              unit="m/s"  />
+    <field id="woce"         long_name="ocean vertical velocity"                       standard_name="upward_sea_water_velocity"              unit="m/s"  grid_ref="grid_W_3D_inner"/>
     <field id="woce_e3w"     long_name="ocean vertical velocity * e3w"                                                                        unit="m2/s"  > woce * e3w </field>
     <field id="wocetr_eff"   long_name="effective ocean vertical transport"                                                                   unit="m3/s" />
 
@@ -766,7 +766,7 @@ that are available in the tidal-forcing implementation (see
   <!-- F grid -->
   <field_group id="grid_F" grid_ref="grid_F_2D">
     <field id="e3f"          long_name="F-cell thickness"                      standard_name="cell_thickness"                       unit="m"       grid_ref="grid_F_3D_inner" />
-    <field id="e3f_0"        long_name="F-cell thickness"                      standard_name="cell_thickness"                       unit="m"       grid_ref="grid_F_3D"       />
+    <field id="e3f_0"        long_name="F-cell thickness"                      standard_name="cell_thickness"                       unit="m"       grid_ref="grid_F_3D_inner" />
     <field id="hf"           long_name="water column height at F point"        standard_name="water_column_height_F"                unit="m"                                  />
     <field id="ssKEf"        long_name="surface kinetic energy at F point"     standard_name="specific_kinetic_energy_of_sea_water" unit="m2/s2"   grid_ref="grid_F_2D_inner" />
     <field id="ssrelvor"     long_name="surface relative vorticity"            standard_name="relative_vorticity"                   unit="1/s"     grid_ref="grid_F_2D_inner" />
@@ -1235,26 +1235,26 @@ that are available in the tidal-forcing implementation (see
 
   <!-- 25h diagnostic output -->
   <field_group id="25h_grid_T" grid_ref="grid_T_3D_inner" operation="instant">
-    <field id="temper25h"         name="potential temperature 25h mean"    unit="degC" />
-    <field id="tempis25h"         name="insitu temperature 25h mean"    unit="degC" />
-    <field id="salin25h"          name="salinity 25h mean"                 unit="psu"  />
-    <field id="ssh25h"            name="sea surface height 25h mean"  grid_ref="grid_T_2D_inner"      unit="m"    />
+    <field id="temper25h"         long_name="potential temperature 25h mean"   unit="degC" />
+    <field id="tempis25h"         long_name="insitu temperature 25h mean"    unit="degC" />
+    <field id="salin25h"          long_name="salinity 25h mean"                 unit="psu"  />
+    <field id="ssh25h"            long_name="sea surface height 25h mean"  grid_ref="grid_T_2D_inner"      unit="m"    />
   </field_group>
 
   <field_group id="25h_grid_U" grid_ref="grid_U_3D_inner" operation="instant" >
-    <field id="vozocrtx25h"         name="i current 25h mean"    unit="m/s"   />
+    <field id="vozocrtx25h"       long_name="i current 25h mean"    unit="m/s"   />
   </field_group>
 
   <field_group id="25h_grid_V" grid_ref="grid_V_3D_inner" operation="instant">
-    <field id="vomecrty25h"         name="j current 25h mean"    unit="m/s"    />
+    <field id="vomecrty25h"       long_name="j current 25h mean"    unit="m/s"    />
   </field_group>
 
   <field_group id="25h_grid_W" grid_ref="grid_W_3D_inner" operation="instant">
-    <field id="vovecrtz25h"         name="k current 25h mean"                 unit="m/s"      />
-    <field id="avt25h"              name="vertical diffusivity25h mean"       unit="m2/s" />
-    <field id="avm25h"              name="vertical viscosity 25h mean"        unit="m2/s" />
-    <field id="tke25h"              name="turbulent kinetic energy 25h mean" />
-    <field id="mxln25h"             name="mixing length 25h mean"             unit="m" />
+    <field id="vovecrtz25h"       long_name="k current 25h mean"                 unit="m/s"      />
+    <field id="avt25h"            long_name="vertical diffusivity25h mean"       unit="m2/s" />
+    <field id="avm25h"            long_name="vertical viscosity 25h mean"        unit="m2/s" />
+    <field id="tke25h"            long_name="turbulent kinetic energy 25h mean" />
+    <field id="mxln25h"           long_name="mixing length 25h mean"             unit="m" />
   </field_group>
 
   <!--

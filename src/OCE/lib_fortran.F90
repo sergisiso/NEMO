@@ -18,6 +18,7 @@ MODULE lib_fortran
    !!----------------------------------------------------------------------
    USE par_oce         ! Ocean parameter
    USE dom_oce         ! ocean domain
+   USE domutl, ONLY : is_tile
    USE in_out_manager  ! I/O manager
    USE lib_mpp         ! distributed memory computing
    USE lbclnk          ! ocean lateral boundary conditions
@@ -37,7 +38,7 @@ MODULE lib_fortran
 #endif
 
    INTERFACE glob_sum
-      MODULE PROCEDURE glob_sum_1d, glob_sum_2d, glob_sum_3d
+      MODULE PROCEDURE glob_sum_0d, glob_sum_1d, glob_sum_2d, glob_sum_3d
    END INTERFACE
    INTERFACE local_sum
       MODULE PROCEDURE local_sum_2d, local_sum_3d
@@ -79,6 +80,9 @@ MODULE lib_fortran
 CONTAINS
 
 #  define GLOBSUM_CODE
+#     define DIM_0d
+#        include "lib_fortran_generic.h90"
+#     undef DIM_0d
 #     define DIM_1d
 #        include "lib_fortran_generic.h90"
 #     undef DIM_1d

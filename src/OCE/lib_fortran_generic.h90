@@ -3,6 +3,10 @@
 /*   DEFINE COMMON VARIABLES   */
 /*-----------------------------*/
 /**/
+#   if defined DIM_0d
+#      define XD                  0d
+#      define ARRAY_IN(i,j,k,l)   ptab
+#   endif
 #   if defined DIM_1d
 #      define XD                  1d
 #      define ARRAY_IN(i,j,k,l)   ptab(i)
@@ -49,29 +53,38 @@
 /**/
 !
 #   if defined LOCALONLY
-FUNCTION TYPENAME/**/_sum/**/ISVEC/**/_/**/XD/**/(         ptab ) RESULT( ptmp )
+   FUNCTION TYPENAME/**/_sum/**/ISVEC/**/_/**/XD/**/(         ptab, psum ) RESULT( ptmp )
       !!----------------------------------------------------------------------
 #   else
-FUNCTION TYPENAME/**/_sum/**/ISVEC/**/_/**/XD/**/( cdname, ptab ) RESULT( ptmp )
+   FUNCTION TYPENAME/**/_sum/**/ISVEC/**/_/**/XD/**/( cdname, ptab, psum ) RESULT( ptmp )
       !!----------------------------------------------------------------------
-      CHARACTER(len=*), INTENT(in   ) ::   cdname  ! name of the calling subroutine
+      CHARACTER(len=*), INTENT(in   )           ::   cdname  ! name of the calling subroutine
 #   endif
-      REAL(wp)        , INTENT(in   ) ::   ARRAY_IN(:,:,:,:)   ! array on which operation is applied
+      REAL(wp)        , INTENT(in   )           ::   ARRAY_IN(:,:,:,:)   ! array on which operation is applied
+      REAL(wp)        , INTENT(in   ), OPTIONAL ::   psum   ! existing sum to add to
       !
 #   if defined VEC
       REAL(wp)   , DIMENSION(LAST_SIZE) ::   ptmp
       COMPLEX(dp), DIMENSION(LAST_SIZE) ::   ctmp
 #   else
-      REAL(wp)   ::  ptmp
-      COMPLEX(dp)::   ctmp
+      REAL(wp)    ::   ptmp
+      COMPLEX(dp) ::   ctmp
 #   endif
       INTEGER    ::    ji,  jj,  jk,  jl        ! dummy loop indices
       INTEGER    ::   ipi, ipj, ipk, ipl        ! dimensions
-      INTEGER    ::   iisht, ijsht
+      INTEGER    ::   iilsht, ijlsht            ! loop shift indices
+      INTEGER    ::   iiasht, ijasht            ! array shift indices
       !!-----------------------------------------------------------------------
       !
-#  if defined DIM_1d
-      ctmp = CMPLX( 0.e0, 0.e0, dp )   ! warning ctmp is cumulated
+      IF( PRESENT( psum )) THEN           ! warning ctmp is cumulated
+         ctmp = CMPLX( psum, 0.e0, dp )
+      ELSE
+         ctmp = CMPLX( 0.e0, 0.e0, dp )
+      END IF
+
+#  if defined DIM_0d
+      CALL DDPDD( CMPLX( ptab, 0.e0, dp), ctmp )
+#  elif defined DIM_1d
       DO ji = 1, SIZE(ptab,1)
          CALL DDPDD( CMPLX( ptab(ji), 0.e0, dp ), ctmp )
       END DO
@@ -82,16 +95,21 @@ FUNCTION TYPENAME/**/_sum/**/ISVEC/**/_/**/XD/**/( cdname, ptab ) RESULT( ptmp )
       ipk = K_SIZE(ptab)   ! 3rd dimension
       ipl = L_SIZE(ptab)   ! 4th dimension
       !
-      iisht = ( jpi - ipi ) / 2
-      ijsht = ( jpj - ipj ) / 2   ! should be the same as iisht...
-      !
-      ctmp = CMPLX( 0.e0, 0.e0, dp )   ! warning ctmp is cumulated
+      IF( .NOT. is_tile(SIZE(ptab,1), SIZE(ptab,2)) ) THEN
+         iilsht = ( jpi - ipi ) / 2
+         ijlsht = ( jpj - ipj ) / 2   ! should be the same as iisht...
+      ELSE ! Tile sized array
+         iilsht = ( ntei - ntsi + 1 - ipi ) / 2 + nn_hls
+         ijlsht = ( ntej - ntsj + 1 - ipj ) / 2 + nn_hls
+      END IF
+      iiasht = iilsht + ntsi - 1 - nn_hls
+      ijasht = ijlsht + ntsj - 1 - nn_hls
       !
       DO jl = 1, ipl
          DO jk = 1, ipk
             DO_2D( 0, 0, 0, 0 )
                ! warning tmask_i is defined over the full MPI domain but maybe not ptab
-#   define ARRAY_LOOP             ARRAY_IN(ji-iisht,jj-ijsht,jk,jl) * tmask_i(ji,jj)
+#   define ARRAY_LOOP             ARRAY_IN(ji-iiasht,jj-ijasht,jk,jl) * tmask_i(ji,jj)
 #   if   defined VEC && defined DIM_3d
                CALL DDPDD( CMPLX( ARRAY_LOOP, 0.e0, dp ), ctmp(jk) )
 #   endif
