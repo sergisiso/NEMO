@@ -372,7 +372,7 @@ CONTAINS
       ENDIF
       !
       DO jk = 1, jpk
-         zvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Krhs) * tmask(:,:,jk)
+         zvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
       END DO
       !
       DO jn = 1, jptra

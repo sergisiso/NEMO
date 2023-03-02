@@ -249,6 +249,10 @@ CONTAINS
       !                                            ! Advective velocity needed for tracers advection - already computed if ln_dynadv_vec=F
       IF( ln_dynadv_vec )   CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww )
       !
+      !                                            ! BBL coefficients required for both passive- and active-tracer transport within
+      !                                            ! the BBL (stage 3 only, requires uu, vv, gdept at Kmm)
+      IF( ( kstg == 3 ) .AND. ln_trabbl ) CALL bbl( kstp, nit000, Kbb, Kmm )
+      !
 # if defined key_top
       !                       !==  Passive Tracer  ==!
       !

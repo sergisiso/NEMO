@@ -204,6 +204,10 @@ CONTAINS
       IF( l_ldftra_time .OR. l_ldfeiv_time )   CALL ldf_tra( kstp, Nbb, Nnn )  !       and/or eiv coeff.
       IF( l_ldfdyn_time                    )   CALL ldf_dyn( kstp, Nbb )       ! eddy viscosity coeff.
 
+      ! BBL coefficients
+      !
+      IF( ln_trabbl )    CALL bbl( kstp, nit000, Nbb, Nnn )   ! BBL diffusion coefficients and transports
+
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !  Ocean dynamics : hdiv, ssh, e3, u, v, w
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
