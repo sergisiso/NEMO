@@ -1702,6 +1702,89 @@ fi
 fi
 
 
+# -----------
+# C1D_PAPA
+# -----------
+if [ ${config} == "C1D_PAPA" ] ; then
+    SETTE_CONFIG=${config}${SETTE_STG}
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
+    then
+	ITEND=240   # 1 day
+    else
+	ITEND=87600 # 365 days
+    fi
+    ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
+
+if [ ${DO_COMPILE} -eq 1 ] ;  then
+    cd ${MAIN_DIR}
+    #
+    # syncronisation if target directory/file exist (not done by makenemo)
+    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+    #
+    # C1D_PAPA uses linssh so remove key_qco if added by default
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+fi
+
+## Restartability tests for C1D_PAPA
+if [ ${DO_RESTART} == "1" ] ;  then
+    export TEST_NAME="LONG"
+    cd ${SETTE_DIR}
+    . ./prepare_exe_dir.sh
+    set_valid_dir
+    clean_valid_dir
+    JOB_FILE=${EXE_DIR}/run_job.sh
+    NPROC=1
+    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+    cd ${EXE_DIR}
+    set_namelist namelist_cfg cn_exp \"C1DPAPA_LONG\"
+    set_namelist namelist_cfg nn_it000 1
+    set_namelist namelist_cfg nn_itend ${ITEND}
+    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
+    set_namelist namelist_cfg jpni 1
+    set_namelist namelist_cfg jpnj 1
+    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 1
+    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+    set_xio_using_server iodef.xml ${USING_MPMD}
+    cd ${SETTE_DIR}
+    . ./prepare_job.sh input_${config}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+
+    cd ${SETTE_DIR}
+    export TEST_NAME="SHORT"
+    . ./prepare_exe_dir.sh
+    set_valid_dir
+    clean_valid_dir
+    cd ${EXE_DIR}
+    set_namelist namelist_cfg cn_exp \"C1DPAPA_SHORT\"
+    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
+    set_namelist namelist_cfg nn_itend ${ITEND}
+    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
+    set_namelist namelist_cfg ln_rstart .true.
+    set_namelist namelist_cfg nn_rstctl 2
+    set_namelist namelist_cfg jpni 1
+    set_namelist namelist_cfg jpnj 1
+    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+    set_namelist namelist_cfg cn_ocerst_in \"C1DPAPA_LONG_${ITRST}_restart\"
+    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 1
+    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+    set_xio_using_server iodef.xml ${USING_MPMD}
+    ln -sf ../LONG/C1DPAPA_LONG_${ITRST}_restart.nc .
+    cd ${SETTE_DIR}
+    . ./prepare_job.sh input_${config}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+    cd ${SETTE_DIR}
+    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+
+fi
+
+fi
+
+
 done
 #
 # Return to SETTE_DIR (last fcm_job.sh will have moved to EXE_DIR)
