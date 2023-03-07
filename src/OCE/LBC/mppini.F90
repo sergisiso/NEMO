@@ -630,7 +630,7 @@ CONTAINS
 #else
       klci(1:iresti      ,:) = kimax
       klci(iresti+1:knbi ,:) = kimax-1
-      IF( MINVAL(klci) < 3*khls ) THEN
+      IF( MINVAL(klci) < 3*khls .AND. knbi > 1 ) THEN   ! if we do MPI communications along i (knbi > 1)
          WRITE(ctmp1,*) '   mpp_basesplit: minimum value of jpi must be >= ', 3*khls
          WRITE(ctmp2,*) '   We have ', MINVAL(klci)
          CALL ctl_stop( 'STOP', ctmp1, ctmp2 )
@@ -648,7 +648,7 @@ CONTAINS
          klcj(:, irestj+1:knbj  ) = kjmax-1
       ENDIF
       klcj(:,1:irestj) = kjmax
-      IF( MINVAL(klcj) < 3*khls ) THEN
+      IF( MINVAL(klcj) < 3*khls .AND. knbj > 1 ) THEN   ! if we do MPI communications along j (knbj > 1)
          WRITE(ctmp1,*) '   mpp_basesplit: minimum value of jpj must be >= ', 3*khls
          WRITE(ctmp2,*) '   We have ', MINVAL(klcj)
          CALL ctl_stop( 'STOP', ctmp1, ctmp2 )
@@ -775,13 +775,26 @@ CONTAINS
             ENDIF
          ENDIF
       END DO
+      
       IF( inbimax == 0 ) THEN
-         WRITE(ctmp1,'(a,i2,a,i2)') '   mpp_ini bestpartition: Ni0glo (', Ni0glo, ') is too small to be used with nn_hls = ', nn_hls
-         CALL ctl_stop( 'STOP', ctmp1 )
+         ! The domain is too small to cut it along the i direction. ==> force jpni = 1.
+         ! Note: halos larger than the inner domain along i: lbc_lnk OK if there is no MPI communications along i direction 
+         WRITE(ctmp1,'(a,i2,a,i2)')   &
+            &                  '   mpp_ini bestpartition: Ni0glo (',Ni0glo,') is too small to cut the domain with nn_hls = ', nn_hls
+         CALL ctl_warn( ctmp1, '                          We force jpni = 1 (no domain decomposition along i)' )
+         inbimax = 1                          ! only 1 case possible:
+         inbi0(inbimax) = 1                   !    only 1 domain along i
+         iszi0(inbimax) = Ni0glo + 2*nn_hls   !    total domain size along i when there is no domain decomposition
       ENDIF
       IF( inbjmax == 0 ) THEN
-         WRITE(ctmp1,'(a,i2,a,i2)') '   mpp_ini bestpartition: Nj0glo (', Nj0glo, ') is too small to be used with nn_hls = ', nn_hls
-         CALL ctl_stop( 'STOP', ctmp1 )
+         ! The domain is too small to cut it along the j direction. ==> force jpnj = 1.
+         ! Note: halos larger than the inner domain along j: lbc_lnk OK if there is no MPI communications along j direction 
+         WRITE(ctmp1,'(a,i2,a,i2)')   &
+            &                  '   mpp_ini bestpartition: Nj0glo (',Nj0glo,') is too small to cut the domain with nn_hls = ', nn_hls
+         CALL ctl_warn( ctmp1, '                          We force jpnj = 1 (no domain decomposition along j)' )
+         inbjmax = 1                          ! only 1 case possible:
+         inbj0(inbjmax) = 1                   !    only 1 domain along j
+         iszj0(inbjmax) = Nj0glo + 2*nn_hls   !    total domain size along j when there is no domain decomposition 
       ENDIF
 
       ! combine these 2 lists to get all possible knbi*knbj <  inbijmax

@@ -84,8 +84,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~ '
          WRITE(numout,*) '   Namelist namusr_def : C1 case'
          WRITE(numout,*) '      C1D domain = 1 x 1 x 75 grid-points                '
-         WRITE(numout,*) '         resulting global domain size :        jpiglo = ', kpi
-         WRITE(numout,*) '                                               jpjglo = ', kpj
+         WRITE(numout,*) '         resulting global domain size :        Ni0glo = ', kpi
+         WRITE(numout,*) '                                               Nj0glo = ', kpj
          WRITE(numout,*) '                                               jpkglo = ', kpk
          WRITE(numout,*) '   '
       ENDIF
