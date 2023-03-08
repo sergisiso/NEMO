@@ -313,7 +313,7 @@ else
     echo
 fi
 if [[ -n "${x_d}" || ${DO_NEW:-0} -eq 1 ]]; then
-    [ -f ${CFG_DIR}/work_cfgs.txt ] && sed -i "/^${CUR_CONF} /d" ${CFG_DIR}/work_cfgs.txt
+    [ -f ${CFG_DIR}/work_cfgs.txt ] && sed -i'' -e "/^${CUR_CONF} /d" ${CFG_DIR}/work_cfgs.txt
     echo ${CUR_CONF} "${NEM_SUBDIR[*]}" >> ${CFG_DIR}/work_cfgs.txt
 fi
 
@@ -343,7 +343,7 @@ fi
 
 # CPP keys check
 if [ $chk_key -eq 1 ] ; then
-    for kk in $( sed -n "s/bld::tool::fppkeys \+//p" ${NEMO_TDIR}/${CUR_CONF}/cpp_${CUR_CONF}.fcm ); do
+    for kk in $( sed -n -e "s/bld::tool::fppkeys \+//p" ${NEMO_TDIR}/${CUR_CONF}/cpp_${CUR_CONF}.fcm ); do
         if ! grep -q $kk ${NEMO_TDIR}/${CUR_CONF}/BLD/full_key_list.txt; then
 	    echo
 	    echo "E R R O R : key "$kk" is not found in ${NEMO_TDIR}/${CUR_CONF}/WORK routines..."
