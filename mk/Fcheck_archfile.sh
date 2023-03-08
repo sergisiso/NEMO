@@ -222,11 +222,11 @@ if [ -n "${4}" ]; then
        exit 1
     fi
     # duplicate the lines starting with %DEBUG_XXX and replace, in the duplicated line, %DEBUG_XXX by %XXX
-    sed -i "/^%DEBUG_/{p;s/^%DEBUG_\([^ ]*\)/%\1/;}" $1
+    sed -i'' -e "/^%DEBUG_/{p;s/^%DEBUG_\([^ ]*\)/%\1/;}" $1
 else
     if (! grep -q "^%PROD_FCFLAGS" $1 ); then
         echo "WARNING: '%PROD_FCFLAGS' not defined in your arch file, makenemo will use '%FCFLAGS' instead"
     fi
     # duplicate the lines starting with %PROD_XXX and replace, in the duplicated line, %PROD_XXX by %XXX
-    sed -i "/^%PROD_/{p;s/^%PROD_\([^ ]*\)/%\1/;}" $1
+    sed -i'' -e "/^%PROD_/{p;s/^%PROD_\([^ ]*\)/%\1/;}" $1
 fi

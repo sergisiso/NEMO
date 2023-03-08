@@ -54,9 +54,29 @@ set -o posix
 #   * creation
 #
 #-
+# function to mimic "readlink -f" command (not available on MacOS)
+# source: https://stackoverflow.com/a/1116890
+rlf ()
+{
+    TARGET_FILE=$1;
+    cd `dirname $TARGET_FILE`;
+    TARGET_FILE=`basename $TARGET_FILE`;
+    while [ -L "$TARGET_FILE" ]; do
+        TARGET_FILE=`readlink $TARGET_FILE`;
+        cd `dirname $TARGET_FILE`;
+        TARGET_FILE=`basename $TARGET_FILE`;
+    done;
+    PHYS_DIR=`pwd -P`;
+    RESULT=$PHYS_DIR/$TARGET_FILE;
+    echo $RESULT
+}
+
 [ ! -d ${1} ] && \mkdir -p ${1}
+
+# CPP
 [ "${2}" != "${1}" ] && \cp -n ${2}/cpp_${2##*/}.fcm ${1}/cpp_${1##*/}.fcm
-#
+
+# EXP00
 if [ ! -d ${1}/EXP00 ]
 then
     echo "   Creating ${1}/EXP00"
@@ -64,20 +84,21 @@ then
     echo "    -> Copying existing xml, namelist and AGRIF_FixedGrids.in files from ${2}/EXPREF to ${1}/EXP00"
     for f in $( ls -1 ${2}/EXPREF/*.xml ${2}/EXPREF/*namelist* ${2}/EXPREF/AGRIF_FixedGrids.in 2>/dev/null )
     do
-	if [[ -L ${f} && $( readlink -f ${f} ) =~ "SHARED" ]]
+	if [[ -L ${f} && $( rlf ${f} ) =~ "SHARED" ]]
 	then
 	    # create absolute(relative) symlinks if config directory is outside(inside) nemo directory
             if [[ $(dirname ${1}) != $(dirname ${2}) ]]; then
-              \ln -sf $( readlink -f ${f} ) ${1}/EXP00/$( basename ${f} )   # keep link from SHARED
+              \ln -sf $( rlf ${f} ) ${1}/EXP00/$( basename ${f} )   # keep link from SHARED
             else
-              (cd ${1}/EXP00; \ln -sf ../../../cfgs/SHARED/$(basename $(readlink -f ${f}) ) $( basename ${f} ))
+              (cd ${1}/EXP00; \ln -sf ../../../cfgs/SHARED/$(basename $(rlf ${f}) ) $( basename ${f} ))
             fi
 	else
 	    \cp ${f} ${1}/EXP00/.
 	fi
     done
 fi
-#
+
+# MY_SRC
 if [ ! -d ${1}/MY_SRC ]
 then
     if [ -d ${2}/MY_SRC ]

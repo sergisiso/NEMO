@@ -58,7 +58,7 @@ set -o posix
 archfile_loop() {
 
 	for file in $( ls $1/*.fcm ); do
-		zvar1=$( basename $file | sed 's/arch-\(.*\).fcm/\1/' )
+		zvar1=$( basename $file | sed -e 's/arch-\(.*\).fcm/\1/' )
 		zvar2=$( head -1  $file | tr -d '#'                   )
 		printf "%-30s %-s\n" ${zvar1} "${zvar2}"
 	done

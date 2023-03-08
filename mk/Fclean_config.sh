@@ -73,12 +73,12 @@ else
 	echo " "
 	echo "Are you sure that you want to remove this directory $CONF? [y/n] "
 	read answer
-	answer=`echo $answer | sed 's/^[y].*$/y/'`
+	answer=`echo $answer | sed -e 's/^[y].*$/y/'`
 
 	if [  -z "$answer" -o "x$answer" = "xy" ]; then
 
 		rm -rf ${CONFIG_DIR}/${CONF}
-		sed -i "/^${CONF} /d"  ${CONFIG_DIR}/work_cfgs.txt >  ${CONFIG_DIR}/work_cfgs.tmp
+		sed -i'' -e "/^${CONF} /d"  ${CONFIG_DIR}/work_cfgs.txt >  ${CONFIG_DIR}/work_cfgs.tmp
 		echo "${CONF} configuration REMOVED" 
 
 	else
