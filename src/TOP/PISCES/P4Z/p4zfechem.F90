@@ -79,12 +79,12 @@ CONTAINS
       ! Parameterization from Pham and Ito (2018)
       ! -------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         xfecolagg(ji,jj,jk) = ligand * 1E9 + MAX(0., chemo2(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Kbb) ) / 400.E-6
+         xfecolagg(ji,jj,jk) = ligand * 1E9 + 0.01 * MAX(0., (chemo2(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Kbb) ) * 1E6 )**0.8
       END_3D
       !
       IF( ln_ligvar ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            ztotlig(ji,jj,jk) =  0.09 * 0.667 * tr(ji,jj,jk,jpdoc,Kbb) * 1E6 + xfecolagg(ji,jj,jk)
+            ztotlig(ji,jj,jk) =  0.07 * 0.667 * (tr(ji,jj,jk,jpdoc,Kbb) * 1E6 )**0.8  + xfecolagg(ji,jj,jk)
             ztotlig(ji,jj,jk) =  MIN( ztotlig(ji,jj,jk), 10. )
          END_3D
       ELSE
@@ -169,13 +169,6 @@ CONTAINS
          ! This occurs in anoxic waters only
          zprecipno3 = 2.0 * 130.0 * tr(ji,jj,jk,jpno3,Kbb) * nitrfac(ji,jj,jk) * xstep * zFe3(ji,jj,jk)
          !
-         ztrc   = ( tr(ji,jj,jk,jppoc,Kbb) + tr(ji,jj,jk,jpgoc,Kbb) + tr(ji,jj,jk,jpcal,Kbb) + tr(ji,jj,jk,jpgsi,Kbb) ) * 1.e6 
-         ztrc = MAX( rtrn, ztrc )
-         IF( ll_dust )  zdust  = dust(ji,jj) / ( wdust / rday ) * tmask(ji,jj,jk)
-         zxlam  = MAX( 1.E-3, (1. - EXP(-2 * tr(ji,jj,jk,jpoxy,Kbb) / 100.E-6 ) ))
-         zlam1b = 3.e-5 + ( xlamdust * zdust + xlam1 * ztrc ) * zxlam
-         zscave = zFe3(ji,jj,jk) * zlam1b * xstep
-
          !  Compute the coagulation of colloidal iron. This parameterization 
          !  could be thought as an equivalent of colloidal pumping.
          !  It requires certainly some more work as it is very poorly constrained.
@@ -184,36 +177,53 @@ CONTAINS
              &    + ( 2.49  * tr(ji,jj,jk,jppoc,Kbb) )     &
              &    + ( 127.8 * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) + 725.7 * tr(ji,jj,jk,jppoc,Kbb) )
          zaggdfea = zlam1a * xstep * zfecoll(ji,jj,jk)
-               !
-         zlam1b   = ( 1.94 * xdiss(ji,jj,jk) + 1.37 ) * tr(ji,jj,jk,jpgoc,Kbb)
-         zaggdfeb = zlam1b * xstep * zfecoll(ji,jj,jk)
-         xcoagfe(ji,jj,jk) = zlam1a + zlam1b
          !
+         IF( ll_dust )  zdust  = dust(ji,jj) / ( wdust / rday ) * tmask(ji,jj,jk)
+         zxlam  = MAX( 1.E-3, (1. - EXP(-2 * tr(ji,jj,jk,jpoxy,Kbb) / 100.E-6 ) ))
+
+         IF( ln_p2z ) THEN
+            ztrc = tr(ji,jj,jk,jppoc,Kbb) * 1e6
+         ELSE
+            ztrc = ( tr(ji,jj,jk,jppoc,Kbb) + tr(ji,jj,jk,jpgoc,Kbb) + tr(ji,jj,jk,jpcal,Kbb) + tr(ji,jj,jk,jpgsi,Kbb) ) * 1.e6
+         ENDIF
+         ztrc = MAX( rtrn, ztrc )
+         zlam1b = 3.e-5 + ( xlamdust * zdust + xlam1 * ztrc ) * zxlam
+         zscave = zFe3(ji,jj,jk) * zlam1b * xstep
+
+         !
+         IF( ln_p2z ) THEN
+            zaggdfeb = 0._wp
+            xcoagfe(ji,jj,jk) = zlam1a
+         ELSE
+            zlam1b   = ( 1.94 * xdiss(ji,jj,jk) + 1.37 ) * tr(ji,jj,jk,jpgoc,Kbb)
+            zaggdfeb = zlam1b * xstep * zfecoll(ji,jj,jk)
+            xcoagfe(ji,jj,jk) =  zlam1a + zlam1b
+            !
+            tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zscave * scaveff * tr(ji,jj,jk,jppoc,Kbb) / ztrc
+            tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zscave * scaveff * tr(ji,jj,jk,jppoc,Kbb) / ztrc
+            !
+            ! Precipitated iron is supposed to be permanently lost.
+            ! Scavenged iron is supposed to be released back to seawater
+            ! when POM is solubilized. This is highly uncertain as probably
+            ! a significant part of it may be rescavenged back onto 
+            ! the particles. An efficiency factor is applied that is read
+            ! in the namelist. 
+            ! See for instance Tagliabue et al. (2019).
+            ! Aggregated FeL is considered as biogenic Fe as it 
+            ! probably remains  complexed when the particle is solubilized.
+            ! -------------------------------------------------------------
+            tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zaggdfea
+            tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zaggdfeb
+            !
+         ENDIF
          tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) - zscave - zaggdfea - zaggdfeb &
-         &                       - ( zprecip + zprecipno3 )
+            &                    - ( zprecip + zprecipno3 )
 
-         tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zscave * scaveff * tr(ji,jj,jk,jppoc,Kbb) / ztrc
-         tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zscave * scaveff * tr(ji,jj,jk,jppoc,Kbb) / ztrc
-
-
-          ! Precipitated iron is supposed to be permanently lost.
-          ! Scavenged iron is supposed to be released back to seawater
-          ! when POM is solubilized. This is highly uncertain as probably
-          ! a significant part of it may be rescavenged back onto 
-          ! the particles. An efficiency factor is applied that is read
-          ! in the namelist. 
-          ! See for instance Tagliabue et al. (2019).
-          ! Aggregated FeL is considered as biogenic Fe as it 
-          ! probably remains  complexed when the particle is solubilized.
-          ! -------------------------------------------------------------
-          tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zaggdfea
-          tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zaggdfeb
-          !
-          IF( l_dia_fechem ) THEN
-             zscav3d(ji,jj,jk)   = zscave 
-             zcoll3d(ji,jj,jk)   = zaggdfea + zaggdfeb
-             zfeprecip(ji,jj,jk) = zprecip + zprecipno3
-          ENDIF
+         IF( l_dia_fechem ) THEN
+            zscav3d(ji,jj,jk)   = zscave 
+            zcoll3d(ji,jj,jk)   = zaggdfea + zaggdfeb
+            zfeprecip(ji,jj,jk) = zprecip + zprecipno3
+         ENDIF
          !
       END_3D
       !

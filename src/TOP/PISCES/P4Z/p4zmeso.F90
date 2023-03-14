@@ -31,10 +31,12 @@ MODULE p4zmeso
    REAL(wp), PUBLIC ::  xpref2n      !: mesozoo preference for nanophyto
    REAL(wp), PUBLIC ::  xpref2z      !: mesozoo preference for microzooplankton
    REAL(wp), PUBLIC ::  xpref2c      !: mesozoo preference for POC 
+   REAL(wp), PUBLIC ::  xpref2m      !: mesozoo preference for mesozoo
    REAL(wp), PUBLIC ::  xthresh2zoo  !: zoo feeding threshold for mesozooplankton 
    REAL(wp), PUBLIC ::  xthresh2dia  !: diatoms feeding threshold for mesozooplankton 
    REAL(wp), PUBLIC ::  xthresh2phy  !: nanophyto feeding threshold for mesozooplankton 
    REAL(wp), PUBLIC ::  xthresh2poc  !: poc feeding threshold for mesozooplankton 
+   REAL(wp), PUBLIC ::  xthresh2mes  !: mesozoo feeding threshold for mesozooplankton 
    REAL(wp), PUBLIC ::  xthresh2     !: feeding threshold for mesozooplankton 
    REAL(wp), PUBLIC ::  resrat2      !: exsudation rate of mesozooplankton
    REAL(wp), PUBLIC ::  mzrat2       !: microzooplankton mortality rate 
@@ -81,14 +83,14 @@ CONTAINS
       INTEGER, INTENT(in)  ::  Kbb, kmm, Krhs ! time level indices
       !
       INTEGER  :: ji, jj, jk, jkt
-      REAL(wp) :: zcompadi, zcompaph, zcompapoc, zcompaz, zcompam
-      REAL(wp) :: zgraze2 , zdenom, zdenom2, zfact   , zfood, zfoodlim, zproport, zbeta
+      REAL(wp) :: zcompadi, zcompaph, zcompapoc, zcompaz, zcompam, zcompames
+      REAL(wp) :: zgraze2, zdenom, zfact, zfood, zfoodlim, zproport, zbeta
       REAL(wp) :: zmortzgoc, zfrac, zfracfe, zratio, zratio2, zfracal, zgrazcal
       REAL(wp) :: zepsherf, zepshert, zepsherq, zepsherv, zgraztotc, zgraztotn, zgraztotf
       REAL(wp) :: zmigreltime, zprcaca, zmortz, zgrasratf, zgrasratn
       REAL(wp) :: zrespz, ztortz, zgrazdc, zgrazz, zgrazpof, zgraznc, zgrazpoc, zgraznf, zgrazdf
-      REAL(wp) :: zgrazfffp, zgrazfffg, zgrazffep, zgrazffeg, zrum, zcodel, zargu, zval, zdep
-      REAL(wp) :: zsigma, zdiffdn, ztmp1, ztmp2, ztmp3, ztmp4, ztmptot, zmigthick 
+      REAL(wp) :: zgrazm, zgrazfffp, zgrazfffg, zgrazffep, zgrazffeg, zdep
+      REAL(wp) :: zsigma, zdiffdn, ztmp1, ztmp2, ztmp3, ztmp4, ztmp5, ztmptot, zmigthick 
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zgrarem, zgraref, zgrapoc, zgrapof, zgrabsi
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigrem, zgramigref, zgramigpoc, zgramigpof
@@ -143,19 +145,13 @@ CONTAINS
          !  -------------------------------------------------------------------------
          ztortz    = mzrat2 * 1.e6 * zfact * tr(ji,jj,jk,jpmes,Kbb)  * (1. - nitrfac(ji,jj,jk) )
          !
- 
          !   Computation of the abundance of the preys
          !   A threshold can be specified in the namelist
          !   --------------------------------------------
          zcompadi  = MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthresh2dia ), 0.e0 )
          zcompaz   = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - xthresh2zoo ), 0.e0 )
          zcompapoc = MAX( ( tr(ji,jj,jk,jppoc,Kbb) - xthresh2poc ), 0.e0 )
-
-         ! Size effect of nanophytoplankton on grazing : the smaller it is, the less prone
-         ! it is to predation by mesozooplankton. We use a quota dependant parameterization
-         ! as a low quota indicates oligotrophic conditions which are charatcerized by
-         ! small cells
-         ! -------------------------------------------------------------------------------
+         zcompames = MAX( ( tr(ji,jj,jk,jpmes,Kbb) - xthresh2mes ), 0.e0 )
          zcompaph  = MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthresh2phy ), 0.e0 )
 
          ! Mesozooplankton grazing
@@ -165,12 +161,11 @@ CONTAINS
          ! concentration is close to this threshold, it is decreased to avoid the 
          ! accumulation of food in the mesozoopelagic domain
          ! -------------------------------------------------------------------------------
-         zfood     = xpref2d * zcompadi + xpref2z * zcompaz + xpref2n * zcompaph + xpref2c * zcompapoc 
+         zfood     = xpref2d * zcompadi + xpref2z * zcompaz + xpref2n * zcompaph + xpref2c * zcompapoc    &
+           &         + xpref2m * zcompames 
          zfoodlim  = MAX( 0., zfood - MIN( 0.5 * zfood, xthresh2 ) )
          zdenom    = zfoodlim / ( xkgraz2 + zfoodlim )
-         zdenom2   = zdenom / ( zfood + rtrn )
          zgraze2   = grazrat2 * xstep * tgfunc2(ji,jj,jk) * tr(ji,jj,jk,jpmes,Kbb) * (1. - nitrfac(ji,jj,jk)) 
-
 
          ! An active switching parameterization is used here.
          ! We don't use the KTW parameterization proposed by 
@@ -190,22 +185,25 @@ CONTAINS
          ! to be close enough to have potential interference
          ! -----------------------------------------------------------
          zdiffdn = exp( -ABS(log(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )**2 / zsigma**2 )
-         ztmp1 = xpref2n * zcompaph * ( zcompaph + zdiffdn * zcompadi ) / ( 1.0 + zdiffdn )
-         ztmp2 = xpref2c * zcompapoc**2
-         ztmp3 = xpref2d * zcompadi * ( zdiffdn * zcompadi + zcompaph ) / ( 1.0 + zdiffdn )
-         ztmp4 = xpref2z * zcompaz**2
-         ztmptot = ztmp1 + ztmp2 + ztmp3 + ztmp4 + rtrn
+         ztmp1 = xpref2n * zcompaph * ( zcompaph + zdiffdn * zcompadi )
+         ztmp2 = xpref2m * zcompames**2
+         ztmp3 = xpref2c * zcompapoc**2
+         ztmp4 = xpref2d * zcompadi * ( zdiffdn * zcompadi + zcompaph )
+         ztmp5 = xpref2z * zcompaz**2
+         ztmptot = ztmp1 + ztmp2 + ztmp3 + ztmp4 + ztmp5 + rtrn
          ztmp1 = ztmp1 / ztmptot
          ztmp2 = ztmp2 / ztmptot
          ztmp3 = ztmp3 / ztmptot
          ztmp4 = ztmp4 / ztmptot
+         ztmp5 = ztmp5 / ztmptot
 
          !   Mesozooplankton regular grazing on the different preys
          !   ------------------------------------------------------
-         zgrazdc   = zgraze2  * ztmp3 * zdenom  ! diatoms
+         zgrazdc   = zgraze2  * ztmp4 * zdenom  ! diatoms
          zgraznc   = zgraze2  * ztmp1 * zdenom  ! nanophytoplankton
-         zgrazpoc  = zgraze2  * ztmp2 * zdenom  ! small POC
-         zgrazz    = zgraze2  * ztmp4 * zdenom  ! microzooplankton
+         zgrazpoc  = zgraze2  * ztmp3 * zdenom  ! small POC
+         zgrazz    = zgraze2  * ztmp5 * zdenom  ! microzooplankton
+         zgrazm    = zgraze2  * ztmp2 * zdenom
 
          ! Ingestion rates of the Fe content of the different preys
          zgraznf   = zgraznc  * tr(ji,jj,jk,jpnfe,Kbb) / ( tr(ji,jj,jk,jpphy,Kbb) + rtrn)
@@ -224,14 +222,12 @@ CONTAINS
          &           * (1. - nitrfac(ji,jj,jk))
          zgrazfffp = zgrazffep * tr(ji,jj,jk,jpsfe,Kbb) / (tr(ji,jj,jk,jppoc,Kbb) + rtrn)
          !
-         zgraztotc = zgrazdc + zgrazz + zgraznc + zgrazpoc + zgrazffep + zgrazffeg
+         zgraztotc = zgrazdc + zgrazz + zgraznc + zgrazm + zgrazpoc + zgrazffep + zgrazffeg
 
          ! Compute the proportion of filter feeders. It is assumed steady state.
-         ! ---------------------------------------------------------------------  
-         zproport  = 0._wp
-         IF( gdepw(ji,jj,jk+1,Kmm) > MAX(hmld(ji,jj), heup_01(ji,jj) ) ) THEN
-            zproport  = (zgrazffep + zgrazffeg)/(rtrn + zgraztotc)
-         ENDIF
+         ! ---------------------------------------------------------------------
+         zproport  = (zgrazffep + zgrazffeg)/(rtrn + zgraztotc)
+         zproport = zproport**2
 
          ! Compute fractionation of aggregates. It is assumed that 
          ! diatoms based aggregates are more prone to fractionation
@@ -257,18 +253,23 @@ CONTAINS
          zgraznc   = (1.0 - zproport) * zgraznc
          zgrazz    = (1.0 - zproport) * zgrazz
          zgrazpoc  = (1.0 - zproport) * zgrazpoc
+         zgrazm    = (1.0 - zproport) * zgrazm
          zgrazdf   = (1.0 - zproport) * zgrazdf
          zgraznf   = (1.0 - zproport) * zgraznf
          zgrazpof  = (1.0 - zproport) * zgrazpof
 
-
          ! Total ingestion rates in C, N, Fe
-         zgraztotc = zgrazdc + zgrazz + zgraznc + zgrazpoc + zgrazffep + zgrazffeg  ! grazing by mesozooplankton
+         zgraztotc = zgrazdc + zgrazz + zgraznc + zgrazpoc + zgrazm + zgrazffep + zgrazffeg  ! grazing by mesozooplankton
          IF( l_dia_graz2 ) zgrazing2(ji,jj,jk) = zgraztotc
 
          zgraztotn = zgrazdc * quotad(ji,jj,jk) + zgrazz + zgraznc * quotan(ji,jj,jk)   &
-         &   + zgrazpoc + zgrazffep + zgrazffeg
-         zgraztotf = zgrazdf + zgraznf + zgrazz * feratz + zgrazpof + zgrazfffp + zgrazfffg
+         &   + zgrazm + zgrazpoc + zgrazffep + zgrazffeg
+         zgraztotf = zgrazdf + zgraznf + zgrazz * feratz + zgrazpof + zgrazfffp + zgrazfffg + zgrazm * feratm
+
+         !   Stoichiometruc ratios of the food ingested by zooplanton 
+         !   --------------------------------------------------------
+         zgrasratf =  ( zgraztotf + rtrn )/ ( zgraztotc + rtrn )
+         zgrasratn =  ( zgraztotn + rtrn )/ ( zgraztotc + rtrn )
 
          ! Mesozooplankton efficiency. 
          ! We adopt a formulation proposed by Mitra et al. (2007)
@@ -278,13 +279,10 @@ CONTAINS
          ! GGE can also be decreased when food quantity is high, zepsherf (Montagnes and 
          ! Fulton, 2012)
          ! -----------------------------------------------------------------------------------
-
-         zgrasratf =  ( zgraztotf + rtrn )/ ( zgraztotc + rtrn )
-         zgrasratn =  ( zgraztotn + rtrn )/ ( zgraztotc + rtrn )
          zepshert  = MIN( 1., zgrasratn, zgrasratf / feratm)
          zbeta     = MAX(0., (epsher2 - epsher2min) )
          ! Food quantity deprivation of GGE
-         zepsherf  = epsher2min + zbeta / ( 1.0 + 0.04E6 * 12. * zfood * zbeta ) 
+         zepsherf  = epsher2min + zbeta / ( 1.0 + 0.04E6 * 12. * zfood * zbeta )
          ! Food quality deprivation of GGE
          zepsherq  = 0.5 + (1.0 - 0.5) * zepshert * ( 1.0 + 1.0 ) / ( zepshert + 1.0 )
          ! Actual GGE
@@ -297,7 +295,7 @@ CONTAINS
          ! according to a infinite chain of predators (ANderson et al., 2013)
          zmortzgoc = unass2 / ( 1. - epsher2 ) * ztortz + zrespz
 
-         tr(ji,jj,jk,jpmes,Krhs) = tr(ji,jj,jk,jpmes,Krhs) - zmortz + zepsherv * zgraztotc 
+         tr(ji,jj,jk,jpmes,Krhs) = tr(ji,jj,jk,jpmes,Krhs) - zmortz + zepsherv * zgraztotc - zgrazm 
          tr(ji,jj,jk,jpdia,Krhs) = tr(ji,jj,jk,jpdia,Krhs) - zgrazdc
          tr(ji,jj,jk,jpzoo,Krhs) = tr(ji,jj,jk,jpzoo,Krhs) - zgrazz
          tr(ji,jj,jk,jpphy,Krhs) = tr(ji,jj,jk,jpphy,Krhs) - zgraznc
@@ -423,16 +421,6 @@ CONTAINS
       ! Write the output
       IF( lk_iomput .AND. knt == nrdttrc ) THEN
         !
-        IF( iom_use ( "PCAL" ) ) THEN   ! Calcite production
-            ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-            DO_3D( 0, 0, 0, 0, 1, jpkm1)
-               zw3d(ji,jj,jk) = prodcal(ji,jj,jk) * 1.e+3 * rfact2r * tmask(ji,jj,jk)
-            END_3D
-          CALL iom_put( "PCAL", zw3d )
-          DEALLOCATE( zw3d )
-        ENDIF
-        !
-        !
         IF( l_dia_graz2 ) THEN  !   Total grazing of phyto by zooplankton
             zgrazing2(A2D(0),jpk) = 0._wp
             DO_3D( 0, 0, 0, 0, 1, jpkm1)
@@ -488,7 +476,7 @@ CONTAINS
       INTEGER ::   ios   ! Local integer
       !
       NAMELIST/namp4zmes/ part2, grazrat2, resrat2, mzrat2, xpref2n, xpref2d, xpref2z,   &
-         &                xpref2c, xthresh2dia, xthresh2phy, xthresh2zoo, xthresh2poc, &
+         &                xpref2c, xpref2m, xthresh2dia, xthresh2phy, xthresh2zoo, xthresh2poc, xthresh2mes, &
          &                xthresh2, xkgraz2, epsher2, epsher2min, sigma2, unass2, grazflux, ln_dvm_meso,  &
          &                xsigma2, xsigma2del, xfracmig
       !!----------------------------------------------------------------------
@@ -513,10 +501,12 @@ CONTAINS
          WRITE(numout,*) '      mesozoo preference for diatoms                 xpref2d      =', xpref2d
          WRITE(numout,*) '      mesozoo preference for zoo                     xpref2z      =', xpref2z
          WRITE(numout,*) '      mesozoo preference for poc                     xpref2c      =', xpref2c
+         WRITE(numout,*) '      mesozoo preference for mesozoo                 xpref2m      = ', xpref2m
          WRITE(numout,*) '      microzoo feeding threshold  for mesozoo        xthresh2zoo  =', xthresh2zoo
          WRITE(numout,*) '      diatoms feeding threshold  for mesozoo         xthresh2dia  =', xthresh2dia
          WRITE(numout,*) '      nanophyto feeding threshold for mesozoo        xthresh2phy  =', xthresh2phy
          WRITE(numout,*) '      poc feeding threshold for mesozoo              xthresh2poc  =', xthresh2poc
+         WRITE(numout,*) '      mesozoo feeding threshold for mesozoo          xthresh2mes  = ', xthresh2mes
          WRITE(numout,*) '      feeding threshold for mesozooplankton          xthresh2     =', xthresh2
          WRITE(numout,*) '      exsudation rate of mesozooplankton             resrat2      =', resrat2
          WRITE(numout,*) '      mesozooplankton mortality rate                 mzrat2       =', mzrat2

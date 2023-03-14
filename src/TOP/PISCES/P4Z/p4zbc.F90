@@ -120,24 +120,25 @@ CONTAINS
 
          ENDIF
 
+         IF( .NOT. ln_p2z ) THEN 
          ! Atmospheric input of PO4 dissolves in the water column
-         IF ( ln_trc_sbc(jppo4) ) THEN
-            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-               zdustdep = dust(ji,jj) * zwdust * rfact * EXP( -gdept(ji,jj,jk,Kmm) /( 250. * wdust ) )
-               !
-               tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zdustdep * 1.e-3 / mMass_P
-            END_3D
-         ENDIF
+            IF ( ln_trc_sbc(jppo4) ) THEN
+               DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+                  zdustdep = dust(ji,jj) * zwdust * rfact * EXP( -gdept(ji,jj,jk,Kmm) /( 250. * wdust ) )
+                  !
+                  tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zdustdep * 1.e-3 / mMass_P
+               END_3D
+            ENDIF
 
-         ! Atmospheric input of Si dissolves in the water column
-         IF ( ln_trc_sbc(jpsil) ) THEN
-            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-               zdustdep = dust(ji,jj) * zwdust * rfact * EXP( -gdept(ji,jj,jk,Kmm) /( 250. * wdust ) )
-               !
-               tr(ji,jj,jk,jpsil,Krhs) = tr(ji,jj,jk,jpsil,Krhs) + zdustdep * 0.269 / mMass_Si
-            END_3D
+            ! Atmospheric input of Si dissolves in the water column
+            IF ( ln_trc_sbc(jpsil) ) THEN
+               DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+                  zdustdep = dust(ji,jj) * zwdust * rfact * EXP( -gdept(ji,jj,jk,Kmm) /( 250. * wdust ) )
+                  !
+                  tr(ji,jj,jk,jpsil,Krhs) = tr(ji,jj,jk,jpsil,Krhs) + zdustdep * 0.269 / mMass_Si
+               END_3D
+            ENDIF
          ENDIF
-
          !
          IF( lk_iomput ) THEN
              ! dust concentration at surface
@@ -172,12 +173,14 @@ CONTAINS
                tr(ji,jj,1,jptal,Krhs) = tr(ji,jj,1,jptal,Krhs) - rno3 * zndep * rfact
             END_2D
          ENDIF
-         IF( ln_trc_sbc(jpnh4) ) THEN
-            jl = n_trc_indsbc(jpnh4)
-            DO_2D( 0, 0, 0, 0 )
-               zndep = rf_trsfac(jl) * sf_trcsbc(jl)%fnow(ji,jj,1) / e3t(ji,jj,1,Kmm) / rn_sbc_time
-               tr(ji,jj,1,jptal,Krhs) = tr(ji,jj,1,jptal,Krhs) + rno3 * zndep * rfact
-            END_2D
+         IF( .NOT. ln_p2z ) THEN
+            IF( ln_trc_sbc(jpnh4) ) THEN
+               jl = n_trc_indsbc(jpnh4)
+               DO_2D( 0, 0, 0, 0 )
+                  zndep = rf_trsfac(jl) * sf_trcsbc(jl)%fnow(ji,jj,1) / e3t(ji,jj,1,Kmm) / rn_sbc_time
+                  tr(ji,jj,1,jptal,Krhs) = tr(ji,jj,1,jptal,Krhs) + rno3 * zndep * rfact
+               END_2D
+            ENDIF
          ENDIF
       ENDIF
       !
@@ -281,8 +284,8 @@ CONTAINS
       INTEGER  :: ierr, ierr1, ierr2, ierr3
       INTEGER  :: ios                 ! Local integer output status for namelist read
       INTEGER  :: ik50                !  last level where depth less than 50 m
-      REAL(wp) :: zexpide, zdenitide, zmaskt, zsurfc, zsurfp,ze3t, ze3t2, zcslp
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zriver, zcmask
+      REAL(wp) :: zexpide, zdenitide, zmaskt, zsurfc, zsurfp, ze3t, ze3t2, zcslp
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zcmask
       !
       CHARACTER(len=100) ::  cn_dir          ! Root directory for location of ssr files
       TYPE(FLD_N) ::   sn_dust, sn_ironsed, sn_hydrofe   ! informations about the fields to be read
@@ -328,12 +331,17 @@ CONTAINS
          IF( ln_hydrofe ) THEN
             WRITE(numout,*) '      Fe to 3He ratio assumed for vent iron supply hratio  = ', hratio
          ENDIF
-      END IF
+      ENDIF
 
-      ll_bc    = ( ln_trcbc .AND. lltrcbc )  .OR. ln_hydrofe .OR. ln_ironsed .OR. ln_ironice 
-      ll_dust  =  ln_trc_sbc(jpfer) .OR. ln_trc_sbc(jppo4) .OR. ln_trc_sbc(jpsil) .OR. ln_sediment
-      ll_ndepo =  ln_trc_sbc(jpno3) .OR. ln_trc_sbc(jpnh4)   
-      ll_river =  ln_trc_cbc(jpno3)  
+      ll_river =  ln_trc_cbc(jpno3)
+      IF( ln_p2z ) THEN
+         ll_dust    =  ln_trc_sbc(jpfer)
+         ll_ndepo   =  ln_trc_sbc(jpno3)
+      ELSE
+         ll_dust  =  ln_trc_sbc(jpfer) .OR. ln_trc_sbc(jppo4) .OR. ln_trc_sbc(jpsil) .OR. ln_sediment
+         ll_ndepo =  ln_trc_sbc(jpno3) .OR. ln_trc_sbc(jpnh4)   
+      ENDIF
+      ll_bc    = ( ln_trcbc .AND. lltrcbc )  .OR. ln_hydrofe .OR. ln_ironsed .OR. ln_ironice
 
       ! dust input from the atmosphere
       ! ------------------------------

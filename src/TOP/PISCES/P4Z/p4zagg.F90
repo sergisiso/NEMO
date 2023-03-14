@@ -57,7 +57,7 @@ CONTAINS
       REAL(wp) ::   zaggpoc , zaggfe, zaggdoc, zaggdoc2, zaggdoc3
       REAL(wp) ::   zaggpon , zaggdon, zaggdon2, zaggdon3
       REAL(wp) ::   zaggpop, zaggdop, zaggdop2, zaggdop3
-      REAL(wp) ::   zaggtmp, zfact, zmax
+      REAL(wp) ::   zaggtmp, zfact
       CHARACTER (len=25) :: charout
       !!---------------------------------------------------------------------
       !
@@ -122,18 +122,18 @@ CONTAINS
             zfact = xstep * xdiss(ji,jj,jk)
             !  Part I : Coagulation dependent on turbulence
             ! The stickiness has been assumed to be 0.1
-            zaggtmp = 25.9  * zfact * tr(ji,jj,jk,jppoc,Kbb)
+            zaggtmp = 12.5  * zfact * tr(ji,jj,jk,jppoc,Kbb)
             zaggpoc1 = zaggtmp * tr(ji,jj,jk,jppoc,Kbb)
-            zaggtmp = 4452. * zfact * tr(ji,jj,jk,jpgoc,Kbb)
+            zaggtmp = 169.7 * zfact * tr(ji,jj,jk,jpgoc,Kbb)
             zaggpoc2 = zaggtmp * tr(ji,jj,jk,jppoc,Kbb)
                   
             ! Part II : Differential settling
             ! The stickiness has been assumed to be 0.1
    
             !  Aggregation of small into large particles
-            zaggtmp =  47.1 * xstep * tr(ji,jj,jk,jpgoc,Kbb)
+            zaggtmp =  8.63  * xstep * tr(ji,jj,jk,jpgoc,Kbb)
             zaggpoc3 = zaggtmp * tr(ji,jj,jk,jppoc,Kbb)
-            zaggtmp =  3.3  * xstep * tr(ji,jj,jk,jppoc,Kbb)
+            zaggtmp =  132.8 * xstep * tr(ji,jj,jk,jppoc,Kbb)
             zaggpoc4 = zaggtmp * tr(ji,jj,jk,jppoc,Kbb)
 
             zaggpoc = zaggpoc1 + zaggpoc2 + zaggpoc3 + zaggpoc4
@@ -146,8 +146,8 @@ CONTAINS
             ! 2nd term is shear aggregation of DOC-POC
             ! 3rd term is differential settling of DOC-POC
             ! 1/3 of DOC is supposed to experience aggregation (HMW)
-            zaggtmp = ( ( 0.37 * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) + 20.5 * tr(ji,jj,jk,jppoc,Kbb) ) * zfact       &
-            &            + 0.15 * xstep * tr(ji,jj,jk,jppoc,Kbb) )
+            zaggtmp = ( ( 12.0 * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) + 9.05 * tr(ji,jj,jk,jppoc,Kbb) ) * zfact       &
+            &            + 2.49 * xstep * tr(ji,jj,jk,jppoc,Kbb) )
             zaggdoc  = zaggtmp * 0.3 * tr(ji,jj,jk,jpdoc,Kbb)
             zaggdon  = zaggtmp * 0.3 * tr(ji,jj,jk,jpdon,Kbb)
             zaggdop  = zaggtmp * 0.3 * tr(ji,jj,jk,jpdop,Kbb)
@@ -156,18 +156,17 @@ CONTAINS
             ! 1st term is shear aggregation
             ! 2nd term is differential settling 
             ! 1/3 of DOC is supposed to experience aggregation (HMW)
-            zaggtmp = 655.4 * zfact * tr(ji,jj,jk,jpgoc,Kbb)
+            zaggtmp = ( 1.94 * zfact + 1.37 * xstep ) * tr(ji,jj,jk,jpgoc,Kbb)
             zaggdoc2 = zaggtmp * 0.3 * tr(ji,jj,jk,jpdoc,Kbb)
             zaggdon2 = zaggtmp * 0.3 * tr(ji,jj,jk,jpdon,Kbb)
             zaggdop2 = zaggtmp * 0.3 * tr(ji,jj,jk,jpdop,Kbb)
 
             ! tranfer of DOC to POC due to brownian motion
             ! 1/3 of DOC is supposed to experience aggregation (HMW)
-            zaggtmp = ( 260.2 * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) +  418.5 * tr(ji,jj,jk,jppoc,Kbb) ) * xstep
+            zaggtmp = ( 127.8 * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) +  725.7 * tr(ji,jj,jk,jppoc,Kbb) ) * xstep
             zaggdoc3 =  zaggtmp * 0.3 * tr(ji,jj,jk,jpdoc,Kbb)
             zaggdon3 =  zaggtmp * 0.3 * tr(ji,jj,jk,jpdon,Kbb)
             zaggdop3 =  zaggtmp * 0.3 * tr(ji,jj,jk,jpdop,Kbb)
-
 
             !  Update the trends
             tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) - zaggpoc + zaggdoc + zaggdoc3

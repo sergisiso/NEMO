@@ -65,8 +65,8 @@ CONTAINS
       INTEGER  ::   irgb
       REAL(wp) ::   zchl
       REAL(wp) ::   zc0 , zc1 , zc2, zc3, z1_dep
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zetmp5
-      REAL(wp), DIMENSION(A2D(0)    ) :: zdepmoy, zetmp1, zetmp2, zetmp3, zetmp4
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zetmp4
+      REAL(wp), DIMENSION(A2D(0)    ) :: zdepmoy, zetmp1, zetmp2, zetmp3
       REAL(wp), DIMENSION(A2D(0)    ) :: zqsr100, zqsr_corr
       REAL(wp), DIMENSION(A2D(0),jpk) :: zpar, ze0, ze1, ze2, ze3
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
@@ -82,12 +82,6 @@ CONTAINS
 
       IF( knt == 1 .AND. ln_varpar )   CALL p4z_opt_sbc( kt )
 
-      !     Initialisation of variables used to compute PAR
-      !     -----------------------------------------------
-!      ze1(:,:,:) = 0._wp
-!      ze2(:,:,:) = 0._wp
-!      ze3(:,:,:) = 0._wp
-
       !
       ! Attenuation coef. function of Chlorophyll and wavelength (Red-Green-Blue)
       ! Thus the light penetration scheme is based on a decomposition of PAR
@@ -98,8 +92,12 @@ CONTAINS
       ! Computation of the light attenuation parameters based on a 
       ! look-up table
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zchl =  ( tr(ji,jj,jk,jpnch,Kbb) + tr(ji,jj,jk,jpdch,Kbb) + rtrn ) * 1.e6
-         IF( ln_p5z )   zchl = zchl + tr(ji,jj,jk,jppch,Kbb) * 1.e6
+         IF( ln_p2z ) THEN
+            zchl = ( tr(ji,jj,jk,jpphy,Kbb) * 12.0 * thetanano(ji,jj,jk) + rtrn ) * 1.e6
+         ELSE
+            zchl =  ( tr(ji,jj,jk,jpnch,Kbb) + tr(ji,jj,jk,jpdch,Kbb) + rtrn ) * 1.e6
+            IF( ln_p5z )       zchl = zchl + tr(ji,jj,jk,jppch,Kbb) * 1.e6
+         ENDIF
          zchl = MIN(  10. , MAX( 0.05, zchl )  )
          irgb = NINT( 41 + 20.* LOG10( zchl ) + rtrn )
          !                                                         
@@ -153,12 +151,16 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1, nksr )
                etot (ji,jj,jk) =         ze1(ji,jj,jk) +        ze2(ji,jj,jk) +        ze3(ji,jj,jk)
                enano(ji,jj,jk) =  1.85 * ze1(ji,jj,jk) + 0.69 * ze2(ji,jj,jk) + 0.46 * ze3(ji,jj,jk)
-               ediat(ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
             END_3D
-            IF( ln_p5z ) THEN
+            IF( .NOT. ln_p2z ) THEN
                DO_3D( 0, 0, 0, 0, 1, nksr )
-                  epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk)
+                  ediat(ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
                END_3D
+               IF( ln_p5z ) THEN
+                  DO_3D( 0, 0, 0, 0, 1, nksr )
+                     epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk)
+                  END_3D
+               ENDIF
             ENDIF
 
          ELSE ! No diurnal cycle in PISCES
@@ -182,12 +184,16 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1, nksr )
                etot_ndcy(ji,jj,jk) =         ze1(ji,jj,jk) +        ze2(ji,jj,jk) +        ze3(ji,jj,jk)
                enano    (ji,jj,jk) =  1.85 * ze1(ji,jj,jk) + 0.69 * ze2(ji,jj,jk) + 0.46 * ze3(ji,jj,jk)
-               ediat    (ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
             END_3D
-            IF( ln_p5z ) THEN
+            IF( .NOT. ln_p2z ) THEN
                DO_3D( 0, 0, 0, 0, 1, nksr )
-                  epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk)
+                  ediat(ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
                END_3D
+               IF( ln_p5z ) THEN
+                  DO_3D( 0, 0, 0, 0, 1, nksr )
+                     epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk)
+                  END_3D
+               ENDIF
             ENDIF
             !
             ! SW over the ice free zone of the grid cell. This assumes that
@@ -227,12 +233,16 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, nksr )
             etot (ji,jj,jk) =         ze1(ji,jj,jk) +        ze2(ji,jj,jk) +        ze3(ji,jj,jk)
             enano(ji,jj,jk) =  1.85 * ze1(ji,jj,jk) + 0.69 * ze2(ji,jj,jk) + 0.46 * ze3(ji,jj,jk)
-            ediat(ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
          END_3D
-         IF( ln_p5z ) THEN
+         IF( .NOT. ln_p2z ) THEN
             DO_3D( 0, 0, 0, 0, 1, nksr )
-               epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk) ! Picophytoplankton (PISCES-QUOTA)
+               ediat(ji,jj,jk) =  1.62 * ze1(ji,jj,jk) + 0.74 * ze2(ji,jj,jk) + 0.63 * ze3(ji,jj,jk)
             END_3D
+            IF( ln_p5z ) THEN
+               DO_3D( 0, 0, 0, 0, 1, nksr )
+                  epico(ji,jj,jk) =  1.94 * ze1(ji,jj,jk) + 0.66 * ze2(ji,jj,jk) + 0.4 * ze3(ji,jj,jk)
+               END_3D
+            ENDIF
          ENDIF
          etot_ndcy(:,:,:) =  etot(:,:,:) 
       ENDIF
@@ -307,32 +317,48 @@ CONTAINS
       ! groups based on their absorption characteristics.
       zdepmoy(:,:)   = 0.e0
       zetmp3 (:,:)   = 0.e0
-      zetmp4 (:,:)   = 0.e0
       !
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
             zetmp3 (ji,jj) = zetmp3 (ji,jj) + enano    (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Nanophytoplankton
-            zetmp4 (ji,jj) = zetmp4 (ji,jj) + ediat    (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Diatoms
             zdepmoy(ji,jj) = zdepmoy(ji,jj) +                       e3t(ji,jj,jk,Kmm)
          ENDIF
       END_3D
       enanom(:,:,:) = enano(:,:,:)
-      ediatm(:,:,:) = ediat(:,:,:)
       !
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
             z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
             enanom(ji,jj,jk) = zetmp3(ji,jj) * z1_dep
-            ediatm(ji,jj,jk) = zetmp4(ji,jj) * z1_dep
          ENDIF
       END_3D
       !
-      IF( ln_p5z ) THEN
-         ! Picophytoplankton when using PISCES-QUOTA
-         ALLOCATE( zetmp5(A2D(0)) )  ;   zetmp5 (:,:) = 0.e0
+      IF( .NOT. ln_p2z ) THEN
+         ! Diatoms when using PISCES-operational or PISCES-QUOTA
+         ALLOCATE( zetmp4(A2D(0)) )  ;   zetmp4 (:,:) = 0.e0
+         !
          DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
-               zetmp5(ji,jj)  = zetmp5 (ji,jj) + epico(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
+               zetmp4 (ji,jj) = zetmp4 (ji,jj) + ediat    (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Diatoms
+            ENDIF
+         END_3D
+         !
+         ediatm(:,:,:) = ediat(:,:,:)
+         !
+         DO_3D( 0, 0, 0, 0, 1, nksr)
+            IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
+               z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
+               ediatm(ji,jj,jk) = zetmp4(ji,jj) * z1_dep
+            ENDIF
+         END_3D
+         DEALLOCATE( zetmp4 )
+      ENDIF
+      IF( ln_p5z ) THEN
+         ! Picophytoplankton when using PISCES-QUOTA
+         ALLOCATE( zetmp4(A2D(0)) )  ;   zetmp4 (:,:) = 0.e0
+         DO_3D( 0, 0, 0, 0, 1, nksr)
+            IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
+               zetmp4(ji,jj)  = zetmp4 (ji,jj) + epico(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
             ENDIF
          END_3D
          !
@@ -341,10 +367,10 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
                z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
-               epicom(ji,jj,jk) = zetmp5(ji,jj) * z1_dep
+               epicom(ji,jj,jk) = zetmp4(ji,jj) * z1_dep
             ENDIF
          END_3D
-         DEALLOCATE( zetmp5 )
+         DEALLOCATE( zetmp4 )
       ENDIF
       !
       IF( lk_iomput .AND.  knt == nrdttrc ) THEN
@@ -537,9 +563,9 @@ CONTAINS
                          etot     (:,:,:) = 0._wp
                          etot_ndcy(:,:,:) = 0._wp
                          enano    (:,:,:) = 0._wp
-                         ediat    (:,:,:) = 0._wp
-      IF( ln_p5z     )   epico    (:,:,:) = 0._wp
-      IF( ln_qsr_bio )   etot3    (:,:,:) = 0._wp
+      IF( .NOT. ln_p2z)  ediat    (:,:,:) = 0._wp
+      IF( ln_p5z      )  epico    (:,:,:) = 0._wp
+      IF( ln_qsr_bio  )  etot3    (:,:,:) = 0._wp
       ! 
    END SUBROUTINE p4z_opt_init
 

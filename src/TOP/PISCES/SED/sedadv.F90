@@ -150,8 +150,8 @@ CONTAINS
       END DO
       DO jk = 2, jpksed
          pwcp(:,jk,jwnh4) = (pwcp(:,jk,jwnh4) + zsolcp(:,jk,jpsol+1) * por1(jk) / por(jk) ) * radssol(jk,jwnh4)
-         IF (jpoce == 146 .and. slatit(145) > 0.) write(0,*) 'plante advection ',pwcp(145,jk,jwfe2)*1E6,zsolcp(145,jk,jpsol+2)*1E6,    &
-         &         (pwcp(145,jk,jwfe2) + zsolcp(145,jk,jpsol+2) * por1(jk) / por(jk) ) * radssol(jk,jwfe2) * 1E6
+!         IF (jpoce == 146 .and. slatit(145) > 0.) write(0,*) 'plante advection ',pwcp(145,jk,jwfe2)*1E6,zsolcp(145,jk,jpsol+2)*1E6,    &
+!         &         (pwcp(145,jk,jwfe2) + zsolcp(145,jk,jpsol+2) * por1(jk) / por(jk) ) * radssol(jk,jwfe2) * 1E6
          pwcp(:,jk,jwfe2) = (pwcp(:,jk,jwfe2) + zsolcp(:,jk,jpsol+2) * por1(jk) / por(jk) ) * radssol(jk,jwfe2)
       END DO
 

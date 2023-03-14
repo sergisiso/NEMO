@@ -16,6 +16,10 @@ MODULE p4zbio
    USE sms_pisces      !  PISCES Source Minus Sink variables
    USE p4zsink         !  vertical flux of particulate matter due to sinking
    USE p4zopt          !  optical model
+   USE p2zlim          !  Co-limitations by nutrient (REDUCED)
+   USE p2zprod         !  Growth rate of phytoplankton (REDUCED)
+   USE p2zmicro        !  Sources and sinks of microzooplankton (REDUCED)
+   USE p2zmort         !  Mortality terms for phytoplankton (REDUCED)
    USE p4zlim          !  Co-limitations of differents nutrients
    USE p4zprod         !  Growth rate of the 2 phyto groups
    USE p4zmort         !  Mortality terms for phytoplankton
@@ -80,7 +84,12 @@ CONTAINS
       CALL p4z_sink    ( kt, knt, Kbb, Kmm, Krhs )     ! vertical flux of particulate organic matter
       CALL p4z_fechem  ( kt, knt, Kbb, Kmm, Krhs )     ! Iron chemistry/scavenging
       !
-      IF( ln_p4z ) THEN  ! PISCES standard
+      IF( ln_p2z ) THEN  ! PISCES reduced
+         CALL p2z_lim  ( kt, knt, Kbb, Kmm       )     ! co-limitations by the various nutrients
+         CALL p2z_prod ( kt, knt, Kbb, Kmm, Krhs )     ! phytoplankton growth rate over the global ocean. 
+         CALL p2z_mort ( kt,      Kbb,      Krhs )     ! phytoplankton mortality
+         CALL p2z_micro( kt, knt, Kbb,      Krhs )     ! microzooplankton
+      ELSE IF( ln_p4z ) THEN  ! PISCES standard
          ! Phytoplankton only sources/sinks terms
          CALL p4z_lim  ( kt, knt, Kbb, Kmm       )     ! co-limitations by the various nutrients
          CALL p4z_prod ( kt, knt, Kbb, Kmm, Krhs )     ! phytoplankton growth rate over the global ocean. 
@@ -100,8 +109,12 @@ CONTAINS
          CALL p5z_meso ( kt, knt, Kbb, Kmm, Krhs )           ! mesozooplankton
       ENDIF
       !
-      CALL p4z_agg     ( kt, knt, Kbb,      Krhs )     ! Aggregation of particles
-      CALL p4z_rem     ( kt, knt, Kbb, Kmm, Krhs )     ! remineralization terms of organic matter+scavenging of Fe
+      IF( ln_p2z ) THEN
+         CALL p2z_rem     ( kt, knt, Kbb, Kmm, Krhs )     ! remineralization terms of organic matter+scavenging of Fe
+      ELSE
+         CALL p4z_agg     ( kt, knt, Kbb,      Krhs )     ! Aggregation of particles
+         CALL p4z_rem     ( kt, knt, Kbb, Kmm, Krhs )     ! remineralization terms of organic matter+scavenging of Fe
+      ENDIF
       CALL p4z_poc     ( kt, knt, Kbb, Kmm, Krhs )     ! Remineralization of organic particles
       !
       ! Ligand production. ln_ligand should be set .true. to activate
@@ -109,10 +122,12 @@ CONTAINS
       & CALL p4z_ligand( kt, knt, Kbb,      Krhs )
 
       ! Update of the size of the different phytoplankton groups
-      sized(:,:,:) = MAX(1.0, sizeda(:,:,:) )
       sizen(:,:,:) = MAX(1.0, sizena(:,:,:) )
-      IF (ln_p5z) THEN
-         sizep(:,:,:) = MAX(1.0, sizepa(:,:,:) )
+      IF( .NOT. ln_p2z ) THEN
+         sized(:,:,:) = MAX(1.0, sizeda(:,:,:) )
+         IF (ln_p5z) THEN
+            sizep(:,:,:) = MAX(1.0, sizepa(:,:,:) )
+         ENDIF
       ENDIF
       !                                                             !
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)

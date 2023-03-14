@@ -13,6 +13,7 @@ MODULE p4zlim
    USE oce_trc         ! Shared ocean-passive tracers variables
    USE trc             ! Tracers defined
    USE sms_pisces      ! PISCES variables
+   USE p2zlim          ! Reduced PISCES nutrient limitation
    USE iom             ! I/O manager
 
    IMPLICIT NONE
@@ -23,40 +24,28 @@ MODULE p4zlim
    PUBLIC p4z_lim_alloc     ! called in trcini_pisces.F90
 
    !! * Shared module variables
-   REAL(wp), PUBLIC ::  concnno3    !:  NO3, PO4 half saturation   
    REAL(wp), PUBLIC ::  concdno3    !:  Phosphate half saturation for diatoms  
    REAL(wp), PUBLIC ::  concnnh4    !:  NH4 half saturation for nanophyto  
    REAL(wp), PUBLIC ::  concdnh4    !:  NH4 half saturation for diatoms
-   REAL(wp), PUBLIC ::  concnfer    !:  Iron half saturation for nanophyto 
    REAL(wp), PUBLIC ::  concdfer    !:  Iron half saturation for diatoms  
-   REAL(wp), PUBLIC ::  concbno3    !:  NO3 half saturation  for bacteria 
    REAL(wp), PUBLIC ::  concbnh4    !:  NH4 half saturation for bacteria
    REAL(wp), PUBLIC ::  xsizedia    !:  Minimum size criteria for diatoms
-   REAL(wp), PUBLIC ::  xsizephy    !:  Minimum size criteria for nanophyto
-   REAL(wp), PUBLIC ::  xsizern     !:  Size ratio for nanophytoplankton
    REAL(wp), PUBLIC ::  xsizerd     !:  Size ratio for diatoms
    REAL(wp), PUBLIC ::  xksi1       !:  half saturation constant for Si uptake 
    REAL(wp), PUBLIC ::  xksi2       !:  half saturation constant for Si/C 
-   REAL(wp), PUBLIC ::  xkdoc       !:  2nd half-sat. of DOC remineralization  
-   REAL(wp), PUBLIC ::  concbfe     !:  Fe half saturation for bacteria 
    REAL(wp), PUBLIC ::  qnfelim     !:  optimal Fe quota for nanophyto
    REAL(wp), PUBLIC ::  qdfelim     !:  optimal Fe quota for diatoms
-   REAL(wp), PUBLIC ::  caco3r      !:  mean rainratio 
+   REAL(wp), PUBLIC ::  ratchl      !:  C associated with Chlorophyll
 
    !!* Phytoplankton limitation terms
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanono3   !: Nanophyto limitation by NO3
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatno3   !: Diatoms limitation by NO3
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanonh4   !: Nanophyto limitation by NH4
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatnh4   !:  Diatoms limitation by NH4
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanopo4   !: Nanophyto limitation by PO4
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatpo4   !: Diatoms limitation by PO4
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimphy    !: Nutrient limitation term of nanophytoplankton
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimdia    !: Nutrient limitation term of diatoms
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimnfe    !: Nanophyto limitation by Iron
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimdfe    !: Diatoms limitation by iron
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimsi     !: Diatoms limitation by Si
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimbac    !: Bacterial limitation term
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimbacl   !: Bacterial limitation term
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   concdfe    !: Limitation of diatoms uptake of Fe
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   concnfe    !: Limitation of Nano uptake of Fe
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanofer   !: Limitation of Fe uptake by nanophyto
@@ -252,24 +241,12 @@ CONTAINS
 
          xfracal(ji,jj,jk) = caco3r * MIN( zlim1, zlim2, zlim3 )                  &
             &                       * ztem1 / ( 0.1 + ztem1 )                     &
-            &                       * MAX( 1., tr(ji,jj,jk,jpphy,Kbb) * 1.e6 / 2. )  &
+            &                       * MAX( 1., tr(ji,jj,jk,jpphy,Kbb) / xsizephy )  &
             &                       * zetot1 * zetot2               &
             &                       * ( 1. + EXP(-ztem2 * ztem2 / 25. ) )         &
             &                       * MIN( 1., 50. / ( hmld(ji,jj) + rtrn ) )
          xfracal(ji,jj,jk) = MIN( 0.8 , xfracal(ji,jj,jk) )
          xfracal(ji,jj,jk) = MAX( 0.02, xfracal(ji,jj,jk) )
-      END_3D
-      !
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         ! denitrification factor computed from O2 levels
-         nitrfac(ji,jj,jk) = MAX(  0.e0, 0.4 * ( 6.e-6  - tr(ji,jj,jk,jpoxy,Kbb) )    &
-            &                                / ( oxymin + tr(ji,jj,jk,jpoxy,Kbb) )  )
-         nitrfac(ji,jj,jk) = MIN( 1., nitrfac(ji,jj,jk) )
-         !
-         ! denitrification factor computed from NO3 levels
-         nitrfac2(ji,jj,jk) = MAX( 0.e0,       ( 1.E-6 - tr(ji,jj,jk,jpno3,Kbb) )  &
-            &                                / ( 1.E-6 + tr(ji,jj,jk,jpno3,Kbb) ) )
-         nitrfac2(ji,jj,jk) = MIN( 1., nitrfac2(ji,jj,jk) )
       END_3D
       !
       IF( lk_iomput .AND. knt == nrdttrc ) THEN        ! save output diagnostics
@@ -332,7 +309,7 @@ CONTAINS
       ! Namelist block
       NAMELIST/namp4zlim/ concnno3, concdno3, concnnh4, concdnh4, concnfer, concdfer, concbfe,   &
          &                concbno3, concbnh4, xsizedia, xsizephy, xsizern, xsizerd,          & 
-         &                xksi1, xksi2, xkdoc, qnfelim, qdfelim, caco3r, oxymin
+         &                xksi1, xksi2, xkdoc, qnfelim, qdfelim, caco3r, oxymin, ratchl
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -351,6 +328,7 @@ CONTAINS
       IF(lwp) THEN                         ! control print
          WRITE(numout,*) '   Namelist : namp4zlim'
          WRITE(numout,*) '      mean rainratio                           caco3r    = ', caco3r
+         WRITE(numout,*) '      C associated with Chlorophyll            ratchl    = ', ratchl
          WRITE(numout,*) '      NO3 half saturation of nanophyto         concnno3  = ', concnno3
          WRITE(numout,*) '      NO3 half saturation of diatoms           concdno3  = ', concdno3
          WRITE(numout,*) '      NH4 half saturation for phyto            concnnh4  = ', concnnh4
@@ -367,13 +345,11 @@ CONTAINS
          WRITE(numout,*) '      Minimum size criteria for diatoms        xsizedia  = ', xsizedia
          WRITE(numout,*) '      Minimum size criteria for nanophyto      xsizephy  = ', xsizephy
          WRITE(numout,*) '      Fe half saturation for bacteria          concbfe   = ', concbfe
-         WRITE(numout,*) '      halk saturation constant for anoxia       oxymin   =' , oxymin
+         WRITE(numout,*) '      halk saturation constant for anoxia      oxymin    =' , oxymin
          WRITE(numout,*) '      optimal Fe quota for nano.               qnfelim   = ', qnfelim
          WRITE(numout,*) '      Optimal Fe quota for diatoms             qdfelim   = ', qdfelim
       ENDIF
       !
-      nitrfac (:,:,jpk) = 0._wp
-      nitrfac2(:,:,jpk) = 0._wp
       xfracal (:,:,jpk) = 0._wp
       xlimphy (:,:,jpk) = 0._wp
       xlimdia (:,:,jpk) = 0._wp
@@ -393,13 +369,11 @@ CONTAINS
       !!----------------------------------------------------------------------
 
       !*  Biological arrays for phytoplankton growth
-      ALLOCATE( xnanono3(A2D(0),jpk), xdiatno3(A2D(0),jpk),       &
+      ALLOCATE( xdiatno3(A2D(0),jpk),                             &
          &      xnanonh4(A2D(0),jpk), xdiatnh4(A2D(0),jpk),       &
          &      xnanopo4(A2D(0),jpk), xdiatpo4(A2D(0),jpk),       &
          &      xnanofer(A2D(0),jpk), xdiatfer(A2D(0),jpk),       &
-         &      xlimphy (A2D(0),jpk), xlimdia (A2D(0),jpk),       &
-         &      xlimnfe (A2D(0),jpk), xlimdfe (A2D(0),jpk),       &
-         &      xlimbac (A2D(0),jpk), xlimbacl(A2D(0),jpk),       &
+         &      xlimdia (A2D(0),jpk), xlimdfe (A2D(0),jpk),       &
          &      concnfe (A2D(0),jpk), concdfe (A2D(0),jpk),       &
          &      xqfuncfecn(A2D(0),jpk), xqfuncfecd(A2D(0),jpk),   &
          &      xlimsi  (A2D(0),jpk), STAT=p4z_lim_alloc )

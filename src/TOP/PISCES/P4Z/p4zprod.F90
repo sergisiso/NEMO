@@ -14,6 +14,7 @@ MODULE p4zprod
    USE oce_trc         ! shared variables between ocean and passive tracers
    USE trc             ! passive tracers common variables 
    USE sms_pisces      ! PISCES Source Minus Sink variables
+   USE p2zlim          ! Co-limitations of different nutrients
    USE p4zlim          ! Co-limitations of differents nutrients
    USE prtctl          ! print control for debugging
    USE iom             ! I/O manager
@@ -27,12 +28,9 @@ MODULE p4zprod
 
    REAL(wp), PUBLIC ::   pislopen     !:  P-I slope of nanophytoplankton
    REAL(wp), PUBLIC ::   pisloped     !:  P-I slope of diatoms
-   REAL(wp), PUBLIC ::   xadap        !:  Adaptation factor to low light 
    REAL(wp), PUBLIC ::   excretn      !:  Excretion ratio of nanophyto
    REAL(wp), PUBLIC ::   excretd      !:  Excretion ratio of diatoms
    REAL(wp), PUBLIC ::   bresp        !:  Basal respiration rate
-   REAL(wp), PUBLIC ::   chlcnm       !:  Maximum Chl/C ratio of nano
-   REAL(wp), PUBLIC ::   chlcdm       !:  Maximum Chl/C ratio of diatoms
    REAL(wp), PUBLIC ::   chlcmin      !:  Minimum Chl/C ratio of phytoplankton
    REAL(wp), PUBLIC ::   fecnm        !:  Maximum Fe/C ratio of nano
    REAL(wp), PUBLIC ::   fecdm        !:  Maximum Fe/C ratio of diatoms
@@ -71,10 +69,10 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level indices
       !
       INTEGER  ::   ji, jj, jk
-      REAL(wp) ::   zsilfac, znanotot, zdiattot, zconctemp, zconctemp2
-      REAL(wp) ::   zratio, zmax, zsilim, ztn, zadap, zlim, zsiborn
+      REAL(wp) ::   zsilfac, znanotot, zdiattot
+      REAL(wp) ::   zratio, zmax, zsilim, zlim, zsiborn
       REAL(wp) ::   zpptot, zpnewtot, zpregtot, zprochln, zprochld
-      REAL(wp) ::   zproddoc, zprodsil, zprodfer, zprodlig
+      REAL(wp) ::   zproddoc, zprodsil, zprodfer, zprodlig, zprod1
       REAL(wp) ::   zpislopen, zpisloped, zfact
       REAL(wp) ::   zratiosi, zmaxsi, zlimfac, zsizetmp, zfecnm, zfecdm
       REAL(wp) ::   zprod, zval, zmxl_fac, zmxl_chl, zpronewn, zpronewd
@@ -119,8 +117,9 @@ CONTAINS
       IF ( ln_p4z_dcyc ) THEN    ! Diurnal cycle in PISCES
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
             IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
+               zval = 24.0
                IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
-                  zval = MIN(1., heup_01(ji,jj) / ( hmld(ji,jj) + rtrn ))
+                  zval = zval * MIN(1., heup_01(ji,jj) / ( hmld(ji,jj) + rtrn ))
                ENDIF
                zmxl(ji,jj,jk) = zval
             ENDIF
@@ -137,24 +136,16 @@ CONTAINS
          END_3D
       ENDIF
 
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
-            zmxl_fac      = 1.0 - EXP( -0.26 * zmxl(ji,jj,jk) )
-            zprbio(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
-            zprdia(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
-         ENDIF
-      END_3D
-
       ! The formulation proposed by Geider et al. (1997) has been modified 
       ! to exclude the effect of nutrient limitation and temperature in the PI
       ! curve following Vichi et al. (2007)
       ! -----------------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
-            ztn         = MAX( 0., ts(ji,jj,jk,jp_tem,Kmm) - 15. )
-            zadap       = xadap * ztn / ( 2.+ ztn )
-            zconctemp   = MAX( 0.e0 , tr(ji,jj,jk,jpdia,Kbb) - xsizedia )
-            zconctemp2  = tr(ji,jj,jk,jpdia,Kbb) - zconctemp
+            zmxl_fac = 1.0 - EXP( -0.26 * zmxl(ji,jj,jk) )
+            zmxl_chl = zmxl(ji,jj,jk) / 24.
+            zprbio(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
+            zprdia(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
             !
             ! The initial slope of the PI curve can be increased for nano
             ! to account for photadaptation, for instance in the DCM
@@ -162,35 +153,32 @@ CONTAINS
             ! improved or removed in future versions of the model
 
             ! Nanophytoplankton
-            zpislopeadn(ji,jj,jk) = pislopen * ( 1.+ zadap  * EXP( -0.25 * enano(ji,jj,jk) ) )  &
-            &                   * tr(ji,jj,jk,jpnch,Kbb) /( tr(ji,jj,jk,jpphy,Kbb) * 12. + rtrn)
+            zpislopeadn(ji,jj,jk) = pislopen * tr(ji,jj,jk,jpnch,Kbb)  &
+            &                   /( tr(ji,jj,jk,jpphy,Kbb) * 12. + rtrn)
 
             ! Diatoms
-            zpislopeadd(ji,jj,jk) = (pislopen * zconctemp2 + pisloped * zconctemp) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )   &
-            &                   * tr(ji,jj,jk,jpdch,Kbb) /( tr(ji,jj,jk,jpdia,Kbb) * 12. + rtrn)
-             !
-             ! Computation of production function for Carbon
-             ! Actual light levels are used here 
-             ! ----------------------------------------------
-             zmxl_fac = 1.0 - EXP( -0.26 * zmxl(ji,jj,jk) )
-             zmxl_chl = zmxl(ji,jj,jk) / 24.
-             !
-             zpislopen = zpislopeadn(ji,jj,jk) / ( ( r1_rday + bresp * r1_rday ) &
-             &            * zmxl_fac * rday + rtrn)
-             zpisloped = zpislopeadd(ji,jj,jk) / ( ( r1_rday + bresp * r1_rday ) &
-             &            * zmxl_fac * rday + rtrn)
-             zprbio(ji,jj,jk) = zprbio(ji,jj,jk) * ( 1.- EXP( -zpislopen * enano(ji,jj,jk) )  )
-             zprdia(ji,jj,jk) = zprdia(ji,jj,jk) * ( 1.- EXP( -zpisloped * ediat(ji,jj,jk) )  )
+            zpislopeadd(ji,jj,jk) = pisloped * tr(ji,jj,jk,jpdch,Kbb)   &
+            &                   /( tr(ji,jj,jk,jpdia,Kbb) * 12. + rtrn)
+            !
+            ! Computation of production function for Carbon
+            ! Actual light levels are used here 
+            ! ----------------------------------------------
+            zpislopen = zpislopeadn(ji,jj,jk) / ( zprmax(ji,jj,jk) * xlimphy(ji,jj,jk) &
+            &            * zmxl_fac * rday + rtrn)
+            zpisloped = zpislopeadd(ji,jj,jk) / ( zprmax(ji,jj,jk) * xlimdia(ji,jj,jk) &
+            &            * zmxl_fac * rday + rtrn)
+            zprbio(ji,jj,jk) = zprbio(ji,jj,jk) * ( 1.- EXP( -zpislopen * enano(ji,jj,jk) )  )
+            zprdia(ji,jj,jk) = zprdia(ji,jj,jk) * ( 1.- EXP( -zpisloped * ediat(ji,jj,jk) )  )
 
-             !  Computation of production function for Chlorophyll
-             !  Mean light level in the mixed layer (when appropriate)
-             !  is used here (acclimation is in general slower than 
-             !  the characteristic time scales of vertical mixing)
-             !  ------------------------------------------------------
-             zpislopen = zpislopeadn(ji,jj,jk) / ( zprmax(ji,jj,jk) * zmxl_chl * rday + rtrn )
-             zpisloped = zpislopeadd(ji,jj,jk) / ( zprmax(ji,jj,jk) * zmxl_chl * rday + rtrn )
-             zprchln(ji,jj,jk) = zprmax(ji,jj,jk) * ( 1.- EXP( -zpislopen * enanom(ji,jj,jk) ) )
-             zprchld(ji,jj,jk) = zprmax(ji,jj,jk) * ( 1.- EXP( -zpisloped * ediatm(ji,jj,jk) ) )
+            !  Computation of production function for Chlorophyll
+            !  Mean light level in the mixed layer (when appropriate)
+            !  is used here (acclimation is in general slower than 
+            !  the characteristic time scales of vertical mixing)
+            !  ------------------------------------------------------
+            zpislopen = zpislopen * zmxl_fac / ( zmxl_chl + rtrn )
+            zpisloped = zpisloped * zmxl_fac / ( zmxl_chl + rtrn )
+            zprchln(ji,jj,jk) = ( 1.- EXP( -zpislopen * enanom(ji,jj,jk) ) )
+            zprchld(ji,jj,jk) = ( 1.- EXP( -zpisloped * ediatm(ji,jj,jk) ) )
          ENDIF
       END_3D
 
@@ -259,7 +247,7 @@ CONTAINS
             ! size at time step t+1 and is thus updated at the end of the 
             ! current time step
             ! --------------------------------------------------------------------
-            zlimfac = xlimphy(ji,jj,jk) * zprchln(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
+            zlimfac = xlimphy(ji,jj,jk) * zprchln(ji,jj,jk)
             zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac**3/(0.3 + zlimfac**3)
             sizena(ji,jj,jk) = min(xsizern, max( sizena(ji,jj,jk), zsizetmp ) )
 
@@ -277,14 +265,13 @@ CONTAINS
             ! production terms of diatoms (C)
             zprorcad(ji,jj,jk) = zprdia(ji,jj,jk) * xlimdia(ji,jj,jk) * tr(ji,jj,jk,jpdia,Kbb) * rfact2
 
-
             ! Size computation
             ! Size is made a function of the limitation of of phytoplankton growth
             ! Strongly limited cells are supposed to be smaller. sizeda is
             ! size at time step t+1 and is thus updated at the end of the 
             ! current time step. 
             ! --------------------------------------------------------------------
-            zlimfac = zprchld(ji,jj,jk) * xlimdia(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
+            zlimfac = zprchld(ji,jj,jk) * xlimdia(ji,jj,jk)
             zsizetmp = 1.0 + 1.3 * ( xsizerd - 1.0 ) * zlimfac**3/(0.3 + zlimfac**3)
             sizeda(ji,jj,jk) = min(xsizerd, max( sizeda(ji,jj,jk), zsizetmp ) )
 
@@ -310,21 +297,25 @@ CONTAINS
             zmxl_chl = zmxl(ji,jj,jk)  / 24.
             !  production terms for nanophyto. ( chlorophyll )
             znanotot = enanom(ji,jj,jk) / ( zmxl_chl + rtrn )
-            zprod    = rday * zprorcan(ji,jj,jk) * zprchln(ji,jj,jk) * xlimphy(ji,jj,jk)
-            zprochln = chlcmin * 12. * zprorcan (ji,jj,jk)
-            zprochln = zprochln + (chlcnm - chlcmin) * 12. * zprod / &
-                                  & (  zpislopeadn(ji,jj,jk) * znanotot +rtrn)
+            zprod1   = zprorcan(ji,jj,jk) * texcretn / ( tr(ji,jj,jk,jpphy,Kbb) + rtrn )
+            zprod = zprod1 / ratchl * ( pislopen * znanotot / ( zprmax(ji,jj,jk) * rday )   &
+            &   * ( 1.0 - zprchln(ji,jj,jk) ) * MAX(0.0, (1.0 - ratchl * tr(ji,jj,jk,jpnch,Kbb)    &
+            &   / ( 12. * tr(ji,jj,jk,jpphy,Kbb) + rtrn ) / (xlimphy(ji,jj,jk) + rtrn ) ) )     &
+            &   - ratchl * zprchln(ji,jj,jk) ) + zprod1
+            zprochln = MAX(zprod * tr(ji,jj,jk,jpnch,Kbb) , chlcmin * 12 * zprorcan(ji,jj,jk) )
 
             !  production terms for diatoms ( chlorophyll )
             zdiattot = ediatm(ji,jj,jk) / ( zmxl_chl + rtrn )
-            zprod    = rday * zprorcad(ji,jj,jk) * zprchld(ji,jj,jk) * xlimdia(ji,jj,jk)
-            zprochld = chlcmin * 12. * zprorcad(ji,jj,jk)
-            zprochld = zprochld + (chlcdm - chlcmin) * 12. * zprod / &
-                                  & ( zpislopeadd(ji,jj,jk) * zdiattot +rtrn )
+            zprod1   = zprorcad(ji,jj,jk) * texcretd / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
+            zprod = zprod1 / ratchl * ( pisloped * zdiattot / ( zprmax(ji,jj,jk) * rday )   &
+            &   * ( 1.0 - zprchld(ji,jj,jk) ) * MAX(0.0, (1.0 - ratchl * tr(ji,jj,jk,jpdch,Kbb)    &
+            &   / ( 12. * tr(ji,jj,jk,jpdia,Kbb) + rtrn ) / (xlimdia(ji,jj,jk) + rtrn ) ) )     &
+            &   - ratchl * zprchld(ji,jj,jk) ) + zprod1
+            zprochld = MAX(zprod * tr(ji,jj,jk,jpdch,Kbb) , chlcmin * 12 * zprorcad(ji,jj,jk) )
 
             !   Update the arrays TRA which contain the Chla sources and sinks
-            tr(ji,jj,jk,jpnch,Krhs) = tr(ji,jj,jk,jpnch,Krhs) + zprochln * texcretn
-            tr(ji,jj,jk,jpdch,Krhs) = tr(ji,jj,jk,jpdch,Krhs) + zprochld * texcretd
+            tr(ji,jj,jk,jpnch,Krhs) = tr(ji,jj,jk,jpnch,Krhs) + zprochln
+            tr(ji,jj,jk,jpdch,Krhs) = tr(ji,jj,jk,jpdch,Krhs) + zprochld
          ENDIF
       END_3D
 
@@ -522,8 +513,8 @@ CONTAINS
       INTEGER ::   ios   ! Local integer
       !
       ! Namelist block
-      NAMELIST/namp4zprod/ pislopen, pisloped, xadap, bresp, excretn, excretd,  &
-         &                 chlcnm, chlcdm, chlcmin, fecnm, fecdm, grosip
+      NAMELIST/namp4zprod/ pislopen, pisloped, bresp, excretn, excretd,  &
+         &                 chlcmin, fecnm, fecdm, grosip
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN                         ! control print
@@ -543,14 +534,11 @@ CONTAINS
          WRITE(numout,*) '   Namelist : namp4zprod'
          WRITE(numout,*) '      mean Si/C ratio                           grosip       =', grosip
          WRITE(numout,*) '      P-I slope                                 pislopen     =', pislopen
-         WRITE(numout,*) '      Acclimation factor to low light           xadap        =', xadap
          WRITE(numout,*) '      excretion ratio of nanophytoplankton      excretn      =', excretn
          WRITE(numout,*) '      excretion ratio of diatoms                excretd      =', excretd
          WRITE(numout,*) '      basal respiration in phytoplankton        bresp        =', bresp
          WRITE(numout,*) '      Maximum Chl/C in phytoplankton            chlcmin      =', chlcmin
          WRITE(numout,*) '      P-I slope  for diatoms                    pisloped     =', pisloped
-         WRITE(numout,*) '      Minimum Chl/C in nanophytoplankton        chlcnm       =', chlcnm
-         WRITE(numout,*) '      Minimum Chl/C in diatoms                  chlcdm       =', chlcdm
          WRITE(numout,*) '      Maximum Fe/C in nanophytoplankton         fecnm        =', fecnm
          WRITE(numout,*) '      Minimum Fe/C in diatoms                   fecdm        =', fecdm
       ENDIF
