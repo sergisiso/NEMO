@@ -50,12 +50,16 @@
         </file>
 
 	<file id="file5" name_suffix="_ptrc_T" description="lobster sms variables" >
-          <field field_ref="DET"      />
-          <field field_ref="ZOO"      />
+	  <field field_ref="DIC"      />
+          <field field_ref="Alkalini" />
+          <field field_ref="O2"       />
+          <field field_ref="POC"      />
           <field field_ref="PHY"      />
+          <field field_ref="ZOO"      />
+          <field field_ref="DOC"      />
+          <field field_ref="THETANANO"/>
           <field field_ref="NO3"      />
-          <field field_ref="NH4"      />
-          <field field_ref="DOM"      />
+          <field field_ref="Fer"      />
 	</file>
 	
       </file_group>
@@ -69,27 +73,25 @@
       <file_group id="1y"  output_freq="1y" output_level="10" enabled=".TRUE."> <!-- real yearly files -->
 
 	<file id="file6" name_suffix="_diad_T" description="additional lobster diagnostics" >  
-          <field field_ref="FNO3PHY"   /> 
-          <field field_ref="FNH4PHY"   /> 
-          <field field_ref="FNH4NO3"   /> 
-          <field field_ref="TNO3PHY"   /> 
-          <field field_ref="TNH4PHY"   /> 
-          <field field_ref="TPHYDOM"   /> 
-          <field field_ref="TPHYNH4"   /> 
-          <field field_ref="TPHYZOO"   /> 
-          <field field_ref="TPHYDET"   /> 
-          <field field_ref="TDETZOO"   /> 
-          <field field_ref="TDETSED"   /> 
-          <field field_ref="TZOODET"   /> 
-          <field field_ref="TZOOBOD"   /> 
-          <field field_ref="TZOONH4"   /> 
-          <field field_ref="TZOODOM"   /> 
-          <field field_ref="TNH4NO3"   /> 
-          <field field_ref="TDOMNH4"   /> 
-          <field field_ref="TDETNH4"   /> 
-          <field field_ref="TPHYTOT"   /> 
-          <field field_ref="TZOOTOT"   /> 
-          <field field_ref="SEDPOC"    /> 
+	  <field field_ref="PH"       />
+          <field field_ref="CO3"      />
+          <field field_ref="CO3sat"   />
+          <field field_ref="PAR"      />
+          <field field_ref="PPPHYN"    />
+          <field field_ref="xfracal"  />
+          <field field_ref="GRAZ1"    />
+          <field field_ref="EPC100"   />
+          <field field_ref="Cflx"     />
+          <field field_ref="Oflx"     />
+          <field field_ref="Kg"       />
+          <field field_ref="Dpco2"    />
+          <field field_ref="Dpo2"     />
+          <field field_ref="Heup"     />
+          <field field_ref="Nfix"     />
+          <field field_ref="MuN"      />
+          <field field_ref="LNnut"    />
+          <field field_ref="LNlight"  />
+	  <field field_ref="Sdenit"   />
 	</file>
 
       </file_group>

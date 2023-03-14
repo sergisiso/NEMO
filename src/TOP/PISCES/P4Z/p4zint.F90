@@ -52,30 +52,31 @@ CONTAINS
       END_3D
 
 
-      ! Computation of the silicon dependant half saturation  constant for silica uptake
-      ! This is based on an old study by Pondaven et al. (1998)
-      ! --------------------------------------------------------------------------------
-      DO_2D( 0, 0, 0, 0 )
-         zvar = tr(ji,jj,1,jpsil,Kbb) * tr(ji,jj,1,jpsil,Kbb)
-         xksimax(ji,jj) = MAX( xksimax(ji,jj), ( 1.+ 7.* zvar / ( xksilim * xksilim + zvar ) ) * 1e-6 )
-      END_2D
-      !
-      ! At the end of each year, the half saturation constant for silica is 
-      ! updated as this is based on the highest concentration reached over 
-      ! the year
-      ! -------------------------------------------------------------------
-      IF( nday_year == nyear_len(1) ) THEN
-         xksi   (:,:) = xksimax(:,:)
-         xksimax(:,:) = 0._wp
+      IF( ln_p4z .OR. ln_p5z ) THEN
+         ! Computation of the silicon dependant half saturation  constant for silica uptake
+         ! This is based on an old study by Pondaven et al. (1998)
+         ! --------------------------------------------------------------------------------
+         DO_2D( 0, 0, 0, 0 )
+            zvar = tr(ji,jj,1,jpsil,Kbb) * tr(ji,jj,1,jpsil,Kbb)
+            xksimax(ji,jj) = MAX( xksimax(ji,jj), ( 1.+ 7.* zvar / ( xksilim * xksilim + zvar ) ) * 1e-6 )
+         END_2D
+         !
+         ! At the end of each year, the half saturation constant for silica is 
+         ! updated as this is based on the highest concentration reached over 
+         ! the year
+         ! -------------------------------------------------------------------
+         IF( nday_year == nyear_len(1) ) THEN
+            xksi   (:,:) = xksimax(:,:)
+            xksimax(:,:) = 0._wp
+         ENDIF
       ENDIF
-      !
-      ! compute the day length depending on latitude and the day
-      ! Astronomical parameterization taken from HAMOCC3
+         !
+         ! compute the day length depending on latitude and the day
+         ! Astronomical parameterization taken from HAMOCC3
       zrum = REAL( nday_year - 80, wp ) / REAL( nyear_len(1), wp )
       zcodel = ASIN(  SIN( zrum * rpi * 2._wp ) * SIN( rad * 23.5_wp )  )
 
       ! day length in hours
-!      strn(:,:) = 0.
       DO_2D( 0, 0, 0, 0 )
          zargu = TAN( zcodel ) * TAN( gphit(ji,jj) * rad )
          zargu = MAX( -1., MIN(  1., zargu ) )

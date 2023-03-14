@@ -119,7 +119,11 @@ CONTAINS
       DO jnt = 1, nrdttrc          ! Potential time splitting if requested
          !
          CALL p4z_bio( kt, jnt, Kbb, Kmm, Krhs )   ! Biology
-         CALL p4z_lys( kt, jnt, Kbb,      Krhs )   ! Compute CaCO3 saturation
+         IF( ln_p2z ) THEN
+            CALL p2z_lys( kt, jnt, Kbb, Kmm, Krhs )   ! Compute CaCO3 saturation
+         ELSE
+            CALL p4z_lys( kt, jnt, Kbb,      Krhs )   ! Compute CaCO3 saturation
+         ENDIF
          CALL p4z_sed( kt, jnt, Kbb, Kmm, Krhs )   ! Surface and Bottom boundary conditions
          CALL p4z_flx( kt, jnt, Kbb, Kmm, Krhs )   ! Compute surface fluxes
          !
@@ -149,59 +153,75 @@ CONTAINS
         IF(  iom_use( 'INTdtAlk' ) .OR. iom_use( 'INTdtDIC' ) .OR. iom_use( 'INTdtFer' ) .OR.  &
           &  iom_use( 'INTdtDIN' ) .OR. iom_use( 'INTdtDIP' ) .OR. iom_use( 'INTdtSil' ) )  THEN
           !
-          ALLOCATE( zw3d(A2D(0),jpk), zw2d(A2D(0)) )
-          DO_3D( 0, 0, 0, 0, 1, jpkm1)
-             zw3d(ji,jj,jk) = xnegtr(ji,jj,jk) * xfact * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
-          END_3D
+           ALLOCATE( zw3d(A2D(0),jpk), zw2d(A2D(0)) )
+        ENDIF
+        IF ( iom_use( 'INTdtAlk' ) ) THEN
+           DO_3D( 0, 0, 0, 0, 1, jpkm1)
+              zw3d(ji,jj,jk) = xnegtr(ji,jj,jk) * xfact * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
+           END_3D
+           !
+           zw2d(:,:) = 0.
+           DO jk = 1, jpkm1
+              DO_2D( 0, 0, 0, 0 )
+                 zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jptal,Krhs) 
+              END_2D
+           ENDDO
+           CALL iom_put( 'INTdtAlk', zw2d )
+        ENDIF
           !
-          zw2d(:,:) = 0.
-          DO jk = 1, jpkm1
-             DO_2D( 0, 0, 0, 0 )
-                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jptal,Krhs) 
-             END_2D
-          ENDDO
-          CALL iom_put( 'INTdtAlk', zw2d )
+        IF ( iom_use( 'INTdtDIC' ) ) THEN
+           zw2d(:,:) = 0.
+           DO jk = 1, jpkm1
+              DO_2D( 0, 0, 0, 0 )
+                 zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpdic,Krhs) 
+              END_2D
+           ENDDO
+           CALL iom_put( 'INTdtDIC', zw2d )
+        ENDIF
           !
-          zw2d(:,:) = 0.
-          DO jk = 1, jpkm1
-             DO_2D( 0, 0, 0, 0 )
-                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpdic,Krhs) 
-             END_2D
-          ENDDO
-          CALL iom_put( 'INTdtDIC', zw2d )
+        IF ( iom_use( 'INTdtDIN' ) ) THEN
+           zw2d(:,:) = 0.
+           DO jk = 1, jpkm1
+              DO_2D( 0, 0, 0, 0 )
+                 zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) * rno3 * ( tr(ji,jj,jk,jpno3,Krhs) + tr(ji,jj,jk,jpnh4,Krhs) ) 
+              END_2D
+           ENDDO
+           CALL iom_put( 'INTdtDIN', zw2d )
+        ENDIF
           !
-          zw2d(:,:) = 0.
-          DO jk = 1, jpkm1
-             DO_2D( 0, 0, 0, 0 )
-                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) * rno3 * ( tr(ji,jj,jk,jpno3,Krhs) + tr(ji,jj,jk,jpnh4,Krhs) ) 
-             END_2D
-          ENDDO
-          CALL iom_put( 'INTdtDIN', zw2d )
+        IF ( iom_use( 'INTdtDIP' ) .AND. .NOT.ln_p2z ) THEN
+           zw2d(:,:) = 0.
+           DO jk = 1, jpkm1
+              DO_2D( 0, 0, 0, 0 )
+                 zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) * po4r * tr(ji,jj,jk,jppo4,Krhs) 
+              END_2D
+           ENDDO
+           CALL iom_put( 'INTdtDIP', zw2d )
+        ENDIF
+           !
+        IF ( iom_use( 'INTdtFer' ) ) THEN
+           zw2d(:,:) = 0.
+           DO jk = 1, jpkm1
+              DO_2D( 0, 0, 0, 0 )
+                 zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpfer,Krhs) 
+              END_2D
+           ENDDO
+           CALL iom_put( 'INTdtFer', zw2d )
+        ENDIF
           !
-          zw2d(:,:) = 0.
-          DO jk = 1, jpkm1
-             DO_2D( 0, 0, 0, 0 )
-                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) * po4r * tr(ji,jj,jk,jppo4,Krhs) 
-             END_2D
-          ENDDO
-          CALL iom_put( 'INTdtDIP', zw2d )
-          !
-          zw2d(:,:) = 0.
-          DO jk = 1, jpkm1
-             DO_2D( 0, 0, 0, 0 )
-                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpfer,Krhs) 
-             END_2D
-          ENDDO
-          CALL iom_put( 'INTdtFer', zw2d )
-          !
-          zw2d(:,:) = 0.
-          DO jk = 1, jpkm1
-             DO_2D( 0, 0, 0, 0 )
-                zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpsil,Krhs) 
-             END_2D
-          ENDDO
-          CALL iom_put( 'INTdtSil', zw2d )
-          !
+        IF ( iom_use( 'INTdtSil' ) .AND. .NOT.ln_p2z ) THEN
+           zw2d(:,:) = 0.
+           DO jk = 1, jpkm1
+              DO_2D( 0, 0, 0, 0 )
+                 zw2d(ji,jj) = zw2d(ji,jj) + zw3d(ji,jj,jk) *  tr(ji,jj,jk,jpsil,Krhs) 
+              END_2D
+           ENDDO
+           CALL iom_put( 'INTdtSil', zw2d )
+           !
+        ENDIF 
+
+        IF(  iom_use( 'INTdtAlk' ) .OR. iom_use( 'INTdtDIC' ) .OR. iom_use( 'INTdtFer' ) .OR.  &
+          &  iom_use( 'INTdtDIN' ) .OR. iom_use( 'INTdtDIP' ) .OR. iom_use( 'INTdtSil' ) )  THEN
           DEALLOCATE( zw3d, zw2d )
         ENDIF
         !
@@ -224,7 +244,6 @@ CONTAINS
       DO jn = jp_pcs0, jp_pcs1
          tr(:,:,:,jn,Krhs) = ( tr(:,:,:,jn,Kbb) - ztrbbio(:,:,:,jn) ) * rfactr
          tr(:,:,:,jn,Kbb ) = ztrbbio(:,:,:,jn)
-         ztrbbio(:,:,:,jn) = 0._wp
       END DO
       !
       !
@@ -286,16 +305,16 @@ CONTAINS
             WRITE(numout,*) '      P/C in zooplankton                     po4rat3     =', po4rat3
          ENDIF
          WRITE(numout,*) '      Fe/C in microzooplankton                  feratz      =', feratz
-         WRITE(numout,*) '      Fe/C in microzooplankton                  feratz      =', feratm
+         IF( .NOT. ln_p2z ) THEN
+            WRITE(numout,*) '      Fe/C in mesozooplankton                   feratm      =', feratm
+         ENDIF
          WRITE(numout,*) '      Big particles sinking speed               wsbio2      =', wsbio2
          WRITE(numout,*) '      Big particles maximum sinking speed       wsbio2max   =', wsbio2max
          WRITE(numout,*) '      Big particles sinking speed length scale  wsbio2scale =', wsbio2scale
          IF( ln_ligand ) THEN
-            IF( ln_p4z ) THEN
-               WRITE(numout,*) '      Phyto ligand production per unit doc           ldocp  =', ldocp
-               WRITE(numout,*) '      Zoo ligand production per unit doc             ldocz  =', ldocz
-               WRITE(numout,*) '      Proportional loss of ligands due to Fe uptake  lthet  =', lthet
-            ENDIF
+            WRITE(numout,*) '      Phyto ligand production per unit doc           ldocp  =', ldocp
+            WRITE(numout,*) '      Zoo ligand production per unit doc             ldocz  =', ldocz
+            WRITE(numout,*) '      Proportional loss of ligands due to Fe uptake  lthet  =', lthet
          ENDIF
       ENDIF
 
@@ -358,13 +377,24 @@ CONTAINS
             CALL p4z_che( Kbb, Kmm )                  ! initialize the chemical constants
             CALL ahini_for_at( hi, Kbb )
          ENDIF
-         CALL iom_get( numrtr, jpdom_auto, 'Silicalim', xksi(:,:) )
 
-         ! Read the Si half saturation constant and the maximum Silica concentration
-         IF( iom_varid( numrtr, 'Silicamax', ldstop = .FALSE. ) > 0 ) THEN
-            CALL iom_get( numrtr, jpdom_auto, 'Silicamax' , xksimax(:,:)  )
-         ELSE
-            xksimax(:,:) = xksi(:,:)
+         IF( ln_p2z ) THEN
+            IF( iom_varid( numrtr, 'Thetanano', ldstop = .FALSE. ) > 0 ) THEN
+               CALL iom_get( numrtr, jpdom_auto, 'Thetanano' , thetanano(:,:,:)  )
+            ELSE
+               thetanano(:,:,:) = 1.0 / 55.0
+            ENDIF
+         ENDIF
+
+         IF( .NOT. ln_p2z ) THEN
+            CALL iom_get( numrtr, jpdom_auto, 'Silicalim', xksi(:,:) )
+   
+            ! Read the Si half saturation constant and the maximum Silica concentration
+            IF( iom_varid( numrtr, 'Silicamax', ldstop = .FALSE. ) > 0 ) THEN
+               CALL iom_get( numrtr, jpdom_auto, 'Silicamax' , xksimax(:,:)  )
+            ELSE
+               xksimax(:,:) = xksi(:,:)
+            ENDIF
          ENDIF
 
          ! Read the Fe3 consumption term by phytoplankton
@@ -374,7 +404,6 @@ CONTAINS
             consfe3(:,:,:) = 0._wp
          ENDIF
 
-
          ! Read the cumulative total flux. If not in the restart file, it is set to 0          
          IF( iom_varid( numrtr, 'tcflxcum', ldstop = .FALSE. ) > 0 ) THEN  ! cumulative total flux of carbon
             CALL iom_get( numrtr, 'tcflxcum' , t_oce_co2_flx_cum  )
@@ -383,18 +412,21 @@ CONTAINS
          ENDIF
          !
          ! PISCES size proxy
-         IF( iom_varid( numrtr, 'sized', ldstop = .FALSE. ) > 0 ) THEN
-            CALL iom_get( numrtr, jpdom_auto, 'sized' , sized(:,:,:)  )
-            sized(:,:,:) = MAX( 1.0, sized(:,:,:) )
-         ELSE
-            sized(:,:,:) = 1.
-         ENDIF
          !
          IF( iom_varid( numrtr, 'sizen', ldstop = .FALSE. ) > 0 ) THEN
             CALL iom_get( numrtr, jpdom_auto, 'sizen' , sizen(:,:,:)  )
             sizen(:,:,:) = MAX( 1.0, sizen(:,:,:) )
          ELSE
             sizen(:,:,:) = 1.
+         ENDIF
+
+         IF( ln_p4z .OR. ln_p5z ) THEN
+            IF( iom_varid( numrtr, 'sized', ldstop = .FALSE. ) > 0 ) THEN
+               CALL iom_get( numrtr, jpdom_auto, 'sized' , sized(:,:,:)  )
+               sized(:,:,:) = MAX( 1.0, sized(:,:,:) )
+            ELSE
+               sized(:,:,:) = 1.
+            ENDIF
          ENDIF
 
          ! PISCES-QUOTA specific part
@@ -417,13 +449,18 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '~~~~~~~'
          ENDIF
          CALL iom_rstput( kt, nitrst, numrtw, 'PH', hi(:,:,:)           )
-         CALL iom_rstput( kt, nitrst, numrtw, 'Silicalim', xksi(:,:)    )
-         CALL iom_rstput( kt, nitrst, numrtw, 'Silicamax', xksimax(:,:) )
-         CALL iom_rstput( kt, nitrst, numrtw, 'tcflxcum', t_oce_co2_flx_cum )
-         CALL iom_rstput( kt, nitrst, numrtw, 'Consfe3', consfe3(:,:,:) ) ! Si max concentration
-         CALL iom_rstput( kt, nitrst, numrtw, 'tcflxcum', t_oce_co2_flx_cum ) ! Cumulative CO2 flux
          CALL iom_rstput( kt, nitrst, numrtw, 'sizen', sizen(:,:,:) )  ! Size of nanophytoplankton
-         CALL iom_rstput( kt, nitrst, numrtw, 'sized', sized(:,:,:) )  ! Size of diatoms
+         CALL iom_rstput( kt, nitrst, numrtw, 'tcflxcum', t_oce_co2_flx_cum )
+         IF( ln_p2z ) THEN
+            CALL iom_rstput( kt, nitrst, numrtw, 'Thetanano' , thetanano(:,:,:)  )
+         ENDIF
+
+         IF ( ln_p4z .OR. ln_p5z ) THEN
+            CALL iom_rstput( kt, nitrst, numrtw, 'Silicalim', xksi(:,:)    )
+            CALL iom_rstput( kt, nitrst, numrtw, 'Silicamax', xksimax(:,:) )
+            CALL iom_rstput( kt, nitrst, numrtw, 'Consfe3', consfe3(:,:,:) ) ! Si max concentration
+            CALL iom_rstput( kt, nitrst, numrtw, 'sized', sized(:,:,:) )  ! Size of diatoms
+         ENDIF
          IF( ln_p5z ) CALL iom_rstput( kt, nitrst, numrtw, 'sizep', sizep(:,:,:) )  ! Size of picophytoplankton
       ENDIF
       !
@@ -463,54 +500,60 @@ CONTAINS
             zarea          = 1._wp / glob_sum( 'p4zsms', cvol(:,:,:) ) * 1e6              
 
             zalksumn = glob_sum( 'p4zsms', tr(:,:,:,jptal,Kmm) * cvol(:,:,:)  ) * zarea
-            zpo4sumn = glob_sum( 'p4zsms', tr(:,:,:,jppo4,Kmm) * cvol(:,:,:)  ) * zarea * po4r
             zno3sumn = glob_sum( 'p4zsms', tr(:,:,:,jpno3,Kmm) * cvol(:,:,:)  ) * zarea * rno3
-            zsilsumn = glob_sum( 'p4zsms', tr(:,:,:,jpsil,Kmm) * cvol(:,:,:)  ) * zarea
  
             ! Correct the trn mean content of alkalinity
             IF(lwp) WRITE(numout,*) '       TALKN mean : ', zalksumn
             tr(:,:,:,jptal,Kmm) = tr(:,:,:,jptal,Kmm) * alkmean / zalksumn
 
-            ! Correct the trn mean content of PO4
-            IF(lwp) WRITE(numout,*) '       PO4N  mean : ', zpo4sumn
-            tr(:,:,:,jppo4,Kmm) = tr(:,:,:,jppo4,Kmm) * po4mean / zpo4sumn
-
             ! Correct the trn mean content of NO3
             IF(lwp) WRITE(numout,*) '       NO3N  mean : ', zno3sumn
             tr(:,:,:,jpno3,Kmm) = tr(:,:,:,jpno3,Kmm) * no3mean / zno3sumn
 
-            ! Correct the trn mean content of SiO3
-            IF(lwp) WRITE(numout,*) '       SiO3N mean : ', zsilsumn
-            tr(:,:,:,jpsil,Kmm) = MIN( 400.e-6,tr(:,:,:,jpsil,Kmm) * silmean / zsilsumn )
+            IF ( ln_p4z .OR. ln_p5z ) THEN
+               zpo4sumn = glob_sum( 'p4zsms', tr(:,:,:,jppo4,Kmm) * cvol(:,:,:)  ) * zarea * po4r
+               zsilsumn = glob_sum( 'p4zsms', tr(:,:,:,jpsil,Kmm) * cvol(:,:,:)  ) * zarea
+
+               ! Correct the trn mean content of PO4
+               IF(lwp) WRITE(numout,*) '       PO4N  mean : ', zpo4sumn
+               tr(:,:,:,jppo4,Kmm) = tr(:,:,:,jppo4,Kmm) * po4mean / zpo4sumn
+
+               ! Correct the trn mean content of SiO3
+               IF(lwp) WRITE(numout,*) '       SiO3N mean : ', zsilsumn
+               tr(:,:,:,jpsil,Kmm) = MIN( 400.e-6,tr(:,:,:,jpsil,Kmm) * silmean / zsilsumn )
+            ENDIF
             !
             !
             IF( .NOT. ln_top_euler ) THEN
                zalksumb = glob_sum( 'p4zsms', tr(:,:,:,jptal,Kbb) * cvol(:,:,:)  ) * zarea
-               zpo4sumb = glob_sum( 'p4zsms', tr(:,:,:,jppo4,Kbb) * cvol(:,:,:)  ) * zarea * po4r
                zno3sumb = glob_sum( 'p4zsms', tr(:,:,:,jpno3,Kbb) * cvol(:,:,:)  ) * zarea * rno3
-               zsilsumb = glob_sum( 'p4zsms', tr(:,:,:,jpsil,Kbb) * cvol(:,:,:)  ) * zarea
  
                IF(lwp) WRITE(numout,*) ' '
                ! Correct the trb mean content of alkalinity
                IF(lwp) WRITE(numout,*) '       TALKB mean : ', zalksumb
                tr(:,:,:,jptal,Kbb) = tr(:,:,:,jptal,Kbb) * alkmean / zalksumb
 
-               ! Correct the trb mean content of PO4
-               IF(lwp) WRITE(numout,*) '       PO4B  mean : ', zpo4sumb
-               tr(:,:,:,jppo4,Kbb) = tr(:,:,:,jppo4,Kbb) * po4mean / zpo4sumb
-
                ! Correct the trb mean content of NO3
                IF(lwp) WRITE(numout,*) '       NO3B  mean : ', zno3sumb
                tr(:,:,:,jpno3,Kbb) = tr(:,:,:,jpno3,Kbb) * no3mean / zno3sumb
 
-               ! Correct the trb mean content of SiO3
-               IF(lwp) WRITE(numout,*) '       SiO3B mean : ', zsilsumb
-               tr(:,:,:,jpsil,Kbb) = MIN( 400.e-6,tr(:,:,:,jpsil,Kbb) * silmean / zsilsumb )
-           ENDIF
-        ENDIF
-        !
+               IF ( ln_p4z .OR. ln_p5z ) THEN
+                  zpo4sumb = glob_sum( 'p4zsms', tr(:,:,:,jppo4,Kbb) * cvol(:,:,:)  ) * zarea * po4r
+                  zsilsumb = glob_sum( 'p4zsms', tr(:,:,:,jpsil,Kbb) * cvol(:,:,:)  ) * zarea
+
+                  ! Correct the trb mean content of PO4
+                  IF(lwp) WRITE(numout,*) '       PO4B  mean : ', zpo4sumb
+                  tr(:,:,:,jppo4,Kbb) = tr(:,:,:,jppo4,Kbb) * po4mean / zpo4sumb
+
+                  ! Correct the trb mean content of SiO3
+                  IF(lwp) WRITE(numout,*) '       SiO3B mean : ', zsilsumb
+                  tr(:,:,:,jpsil,Kbb) = MIN( 400.e-6,tr(:,:,:,jpsil,Kbb) * silmean / zsilsumb )
+               ENDIF
+            ENDIF
+         ENDIF
+      !
       ENDIF
-        !
+      !
    END SUBROUTINE p4z_dmp
 
 
@@ -546,8 +589,14 @@ CONTAINS
 
       ! Compute the budget of NO3
       IF( iom_use( "pno3tot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
-         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-         IF( ln_p4z ) THEN
+        ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+        IF( ln_p2z ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+            zw3d(ji,jj,jk)  =  ( tr(ji,jj,jk,jpno3,Kmm) + tr(ji,jj,jk,jpphy,Kmm)                      &
+               &             +   tr(ji,jj,jk,jppoc,Kmm) + tr(ji,jj,jk,jpdoc,Kmm)                      &
+               &             +   tr(ji,jj,jk,jpzoo,Kmm) ) * cvol(ji,jj,jk)
+            END_3D
+        ELSE IF( ln_p4z ) THEN
             DO_3D( 0, 0, 0, 0, 1, jpk)
             zw3d(ji,jj,jk)  =  ( tr(ji,jj,jk,jpno3,Kmm) + tr(ji,jj,jk,jpnh4,Kmm)                      &
                &             +   tr(ji,jj,jk,jpphy,Kmm) + tr(ji,jj,jk,jpdia,Kmm)                      &
@@ -568,69 +617,91 @@ CONTAINS
         CALL iom_put( "pno3tot", no3budget )
         DEALLOCATE( zw3d )
       ENDIF
+      IF( .NOT. ln_p2z ) THEN
       !
       ! Compute the budget of PO4
-      IF( iom_use( "ppo4tot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
-         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-         IF( ln_p4z ) THEN
+         IF( iom_use( "ppo4tot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
+            ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+            IF( ln_p4z ) THEN
+               DO_3D( 0, 0, 0, 0, 1, jpk)
+                  zw3d(ji,jj,jk) =    ( tr(ji,jj,jk,jppo4,Kmm)                                         &
+                     &             +   tr(ji,jj,jk,jpphy,Kmm) + tr(ji,jj,jk,jpdia,Kmm)                      &
+                     &             +   tr(ji,jj,jk,jppoc,Kmm) + tr(ji,jj,jk,jpgoc,Kmm)  + tr(ji,jj,jk,jpdoc,Kmm)  &        
+                     &             +   tr(ji,jj,jk,jpzoo,Kmm) + tr(ji,jj,jk,jpmes,Kmm) ) * cvol(ji,jj,jk)
+               END_3D
+            ELSE
+               DO_3D( 0, 0, 0, 0, 1, jpk)
+                  zw3d(ji,jj,jk) =    ( tr(ji,jj,jk,jppo4,Kmm) + tr(ji,jj,jk,jppph,Kmm)                      &
+                     &             +   tr(ji,jj,jk,jppdi,Kmm) + tr(ji,jj,jk,jpppi,Kmm)                      & 
+                     &             +   tr(ji,jj,jk,jppop,Kmm) + tr(ji,jj,jk,jpgop,Kmm) + tr(ji,jj,jk,jpdop,Kmm)   &
+                     &             + ( tr(ji,jj,jk,jpzoo,Kmm) + tr(ji,jj,jk,jpmes,Kmm) ) * po4rat3 ) * cvol(ji,jj,jk)
+               END_3D
+            ENDIF
+            !
+            po4budget = glob_sum( 'p4zsms', zw3d(:,:,:)  )  
+            po4budget = po4budget / areatot
+            CALL iom_put( "ppo4tot", po4budget )
+            DEALLOCATE( zw3d )
+         ENDIF
+         !
+         ! Compute the budget of SiO3
+         IF( iom_use( "psiltot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
+            ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
             DO_3D( 0, 0, 0, 0, 1, jpk)
-               zw3d(ji,jj,jk) =    ( tr(ji,jj,jk,jppo4,Kmm)                                         &
-                  &             +   tr(ji,jj,jk,jpphy,Kmm) + tr(ji,jj,jk,jpdia,Kmm)                      &
-                  &             +   tr(ji,jj,jk,jppoc,Kmm) + tr(ji,jj,jk,jpgoc,Kmm)  + tr(ji,jj,jk,jpdoc,Kmm)  &        
-                  &             +   tr(ji,jj,jk,jpzoo,Kmm) + tr(ji,jj,jk,jpmes,Kmm) ) * cvol(ji,jj,jk)
+               zw3d(ji,jj,jk) =  ( tr(ji,jj,jk,jpsil,Kmm) + tr(ji,jj,jk,jpgsi,Kmm) + tr(ji,jj,jk,jpdsi,Kmm) ) * cvol(ji,jj,jk)
+            END_3D
+            !
+            silbudget = glob_sum( 'p4zsms', zw3d(:,:,:)  )  
+            silbudget = silbudget / areatot
+            CALL iom_put( "psiltot", silbudget )
+            DEALLOCATE( zw3d )
+         ENDIF
+      ENDIF
+         ! Compute the budget of Iron
+      IF( iom_use( "pfertot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
+         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
+         IF( ln_p2z ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+               zw3d(ji,jj,jk) =   ( tr(ji,jj,jk,jpfer,Kmm) + tr(ji,jj,jk,jpphy,Kmm) * feratz  &
+                  &            +    tr(ji,jj,jk,jppoc,Kmm) *feratz               &
+                  &            +    tr(ji,jj,jk,jpzoo,Kmm) * feratz ) * cvol(ji,jj,jk)
+            END_3D
+         ELSE IF( ln_p4z ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+               zw3d(ji,jj,jk) =   ( tr(ji,jj,jk,jpfer,Kmm) + tr(ji,jj,jk,jpnfe,Kmm) + tr(ji,jj,jk,jpdfe,Kmm)   &
+                  &            +    tr(ji,jj,jk,jpbfe,Kmm) + tr(ji,jj,jk,jpsfe,Kmm)                      &
+                  &            +    tr(ji,jj,jk,jpzoo,Kmm) * feratz + tr(ji,jj,jk,jpmes,Kmm) * feratm ) * cvol(ji,jj,jk)
             END_3D
          ELSE
             DO_3D( 0, 0, 0, 0, 1, jpk)
-               zw3d(ji,jj,jk) =    ( tr(ji,jj,jk,jppo4,Kmm) + tr(ji,jj,jk,jppph,Kmm)                      &
-                  &             +   tr(ji,jj,jk,jppdi,Kmm) + tr(ji,jj,jk,jpppi,Kmm)                      & 
-                  &             +   tr(ji,jj,jk,jppop,Kmm) + tr(ji,jj,jk,jpgop,Kmm) + tr(ji,jj,jk,jpdop,Kmm)   &
-                  &             + ( tr(ji,jj,jk,jpzoo,Kmm) + tr(ji,jj,jk,jpmes,Kmm) ) * po4rat3 ) * cvol(ji,jj,jk)
+               zw3d(ji,jj,jk) =   ( tr(ji,jj,jk,jpfer,Kmm) + tr(ji,jj,jk,jpnfe,Kmm) + tr(ji,jj,jk,jpdfe,Kmm)   &
+                  &            +    tr(ji,jj,jk,jppfe,Kmm) + tr(ji,jj,jk,jpbfe,Kmm) + tr(ji,jj,jk,jpsfe,Kmm)   &
+                  &            +    tr(ji,jj,jk,jpzoo,Kmm) * feratz + tr(ji,jj,jk,jpmes,Kmm) * feratm ) * cvol(ji,jj,jk)
             END_3D
-        ENDIF
-        !
-        po4budget = glob_sum( 'p4zsms', zw3d(:,:,:)  )  
-        po4budget = po4budget / areatot
-        CALL iom_put( "ppo4tot", po4budget )
-        DEALLOCATE( zw3d )
-      ENDIF
-      !
-      ! Compute the budget of SiO3
-      IF( iom_use( "psiltot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
-         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpk)
-            zw3d(ji,jj,jk) =  ( tr(ji,jj,jk,jpsil,Kmm) + tr(ji,jj,jk,jpgsi,Kmm) + tr(ji,jj,jk,jpdsi,Kmm) ) * cvol(ji,jj,jk)
-         END_3D
+         ENDIF
          !
-         silbudget = glob_sum( 'p4zsms', zw3d(:,:,:)  )  
-         silbudget = silbudget / areatot
-         CALL iom_put( "psiltot", silbudget )
+         ferbudget = glob_sum( 'p4zsms', zw3d(:,:,:) )
+         ferbudget = ferbudget / areatot
+         CALL iom_put( "pfertot", ferbudget )
          DEALLOCATE( zw3d )
       ENDIF
       !
       IF( iom_use( "palktot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpk)
-            zw3d(ji,jj,jk) =  ( tr(ji,jj,jk,jpno3,Kmm) * rno3 + tr(ji,jj,jk,jptal,Kmm) + tr(ji,jj,jk,jpcal,Kmm) * 2. ) * cvol(ji,jj,jk)             
-         END_3D
+         IF( ln_p2z ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+               zw3d(ji,jj,jk) =  ( tr(ji,jj,jk,jpno3,Kmm) * rno3 + tr(ji,jj,jk,jptal,Kmm) ) * cvol(ji,jj,jk)             
+            END_3D
+         ELSE
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+               zw3d(ji,jj,jk) =  ( tr(ji,jj,jk,jpno3,Kmm) * rno3 + tr(ji,jj,jk,jptal,Kmm)   &
+                 &               + tr(ji,jj,jk,jpcal,Kmm) * 2. - tr(ji,jj,jk,jpnh4,Kmm) * rno3 ) * cvol(ji,jj,jk)
+            END_3D
+         ENDIF
          !
          alkbudget = glob_sum( 'p4zsms', zw3d(:,:,:)  )         !
          alkbudget = alkbudget / areatot
          CALL iom_put( "palktot", alkbudget )
-         DEALLOCATE( zw3d )
-      ENDIF
-      !
-      ! Compute the budget of Iron
-      IF( iom_use( "pfertot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
-         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpk)
-            zw3d(ji,jj,jk) =   ( tr(ji,jj,jk,jpfer,Kmm) + tr(ji,jj,jk,jpnfe,Kmm) + tr(ji,jj,jk,jpdfe,Kmm)   &
-               &            +    tr(ji,jj,jk,jpbfe,Kmm) + tr(ji,jj,jk,jpsfe,Kmm)                      &
-               &            +    tr(ji,jj,jk,jpzoo,Kmm) * feratz + tr(ji,jj,jk,jpmes,Kmm) * feratm ) * cvol(ji,jj,jk)  
-         END_3D
-         !
-         ferbudget = glob_sum( 'p4zsms', zw3d(:,:,:) )  
-         ferbudget = ferbudget / areatot
-         CALL iom_put( "pfertot", ferbudget )
          DEALLOCATE( zw3d )
       ENDIF
       !
@@ -663,9 +734,11 @@ CONTAINS
          IF( lwp ) WRITE(numco2,9000) ndastp, t_atm_co2_flx, t_oce_co2_flx, tpp, t_oce_co2_exp
          IF( lwp ) WRITE(numnut,9100) ndastp, alkbudget        * 1.e+06, &
              &                                no3budget * rno3 * 1.e+06, &
-             &                                po4budget * po4r * 1.e+06, &
-             &                                silbudget        * 1.e+06, &
              &                                ferbudget        * 1.e+09
+         IF( ln_p4z .OR. ln_p5z ) THEN
+            IF( lwp ) WRITE(numnut,9101) ndastp, po4budget * po4r * 1.e+06, &
+                &                                silbudget        * 1.e+06
+         ENDIF
          !
          IF( lwp ) WRITE(numnit,9200) ndastp, znitrpottot * xfact2  , &
             &                             zrdenittot  * xfact2  , &
@@ -673,7 +746,8 @@ CONTAINS
       ENDIF
       !
  9000  FORMAT(i8,f10.5,e18.10,f10.5,f10.5)
- 9100  FORMAT(i8,5e18.10)
+ 9100  FORMAT(i8,3e18.10)
+ 9101  FORMAT(i8,2e18.10)
  9200  FORMAT(i8,3f10.5)
        !
    END SUBROUTINE p4z_chk_mass

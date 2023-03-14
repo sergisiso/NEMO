@@ -43,49 +43,42 @@ CONTAINS
  
       ! write the tracer concentrations in the file
       ! ---------------------------------------
-      IF( ln_p2z ) THEN
-         DO jn = jp_pcs0, jp_pcs1
-            cltra = TRIM( ctrcnm(jn) )                  ! short title for tracer
-            CALL iom_put( cltra, tr(:,:,:,jn,Kmm) )
-         END DO
-      ELSE
-         DO jn = jp_pcs0, jp_pcs1
-            zfact = 1.0e+6 
-            IF( jn == jpno3 .OR. jn == jpnh4 ) zfact = rno3 * 1.0e+6 
-            IF( jn == jppo4  )                 zfact = po4r * 1.0e+6
-            cltra = TRIM( ctrcnm(jn) )                  ! short title for tracer
-            IF( iom_use( cltra ) )  CALL iom_put( cltra, tr(:,:,:,jn,Kmm) * zfact )
-         END DO
+      DO jn = jp_pcs0, jp_pcs1
+         zfact = 1.0e+6 
+         IF( jn == jpno3 .OR. jn == jpnh4 ) zfact = rno3 * 1.0e+6 
+         IF( jn == jppo4  )                 zfact = po4r * 1.0e+6
+         cltra = TRIM( ctrcnm(jn) )                  ! short title for tracer
+         IF( iom_use( cltra ) )  CALL iom_put( cltra, tr(:,:,:,jn,Kmm) * zfact )
+      END DO
 
-         IF( iom_use( "INTDIC" ) ) THEN                     !   DIC content in kg/m2
-            zdic(:,:) = 0.
-            DO jk = 1, jpkm1
-               DO_2D( 0, 0, 0, 0 )
-                 zdic(ji,jj) = zdic(ji,jj) + tr(ji,jj,jk,jpdic,Kmm) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * 12.
-               END_2D
-            ENDDO
-            CALL iom_put( 'INTDIC', zdic )
-         ENDIF
-         !
-         IF( iom_use( "O2MIN" ) .OR. iom_use ( "ZO2MIN" ) ) THEN  ! Oxygen minimum concentration and depth
+      IF( iom_use( "INTDIC" ) ) THEN                     !   DIC content in kg/m2
+         zdic(:,:) = 0.
+         DO jk = 1, jpkm1
             DO_2D( 0, 0, 0, 0 )
-               zo2min   (ji,jj) = tr(ji,jj,1,jpoxy,Kmm) * tmask(ji,jj,1)
-               zdepo2min(ji,jj) = gdepw(ji,jj,1,Kmm)    * tmask(ji,jj,1)
+            zdic(ji,jj) = zdic(ji,jj) + tr(ji,jj,jk,jpdic,Kmm) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * 12.
             END_2D
-            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-               IF( tmask(ji,jj,jk) == 1 ) then
-                  IF( tr(ji,jj,jk,jpoxy,Kmm) < zo2min(ji,jj) ) then
-                     zo2min   (ji,jj) = tr(ji,jj,jk,jpoxy,Kmm)
-                     zdepo2min(ji,jj) = gdepw(ji,jj,jk,Kmm)
-                  ENDIF
+         ENDDO
+            CALL iom_put( 'INTDIC', zdic )
+      ENDIF
+      !
+      IF( iom_use( "O2MIN" ) .OR. iom_use ( "ZO2MIN" ) ) THEN  ! Oxygen minimum concentration and depth
+         DO_2D( 0, 0, 0, 0 )
+            zo2min   (ji,jj) = tr(ji,jj,1,jpoxy,Kmm) * tmask(ji,jj,1)
+            zdepo2min(ji,jj) = gdepw(ji,jj,1,Kmm)    * tmask(ji,jj,1)
+         END_2D
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+            IF( tmask(ji,jj,jk) == 1 ) then
+               IF( tr(ji,jj,jk,jpoxy,Kmm) < zo2min(ji,jj) ) then
+                  zo2min   (ji,jj) = tr(ji,jj,jk,jpoxy,Kmm)
+                  zdepo2min(ji,jj) = gdepw(ji,jj,jk,Kmm)
                ENDIF
-            END_3D
-            !
-            CALL iom_put('O2MIN' , zo2min     )                              ! oxygen minimum concentration
-            CALL iom_put('ZO2MIN', zdepo2min  )                              ! depth of oxygen minimum concentration
-             !
-         ENDIF
-     ENDIF
+            ENDIF
+         END_3D
+         !
+         CALL iom_put('O2MIN' , zo2min     )                              ! oxygen minimum concentration
+         CALL iom_put('ZO2MIN', zdepo2min  )                              ! depth of oxygen minimum concentration
+         !
+      ENDIF
       !
    END SUBROUTINE trc_wri_pisces
 

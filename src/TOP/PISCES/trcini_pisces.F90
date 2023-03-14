@@ -44,9 +44,7 @@ CONTAINS
       ! Read the PISCES namelist
       CALL trc_nam_pisces
       !
-      IF( ln_p4z .OR. ln_p5z ) THEN  ;   CALL p4z_ini( Kmm )   !  PISCES
-      ELSE                           ;   CALL p2z_ini( Kmm )   !  LOBSTER
-      ENDIF
+      CALL p4z_ini( Kmm )   !  PISCES
 
    END SUBROUTINE trc_ini_pisces
 
@@ -61,10 +59,13 @@ CONTAINS
       USE p4zche          !  Chemical model
       USE p4zsink         !  vertical flux of particulate matter due to sinking
       USE p4zopt          !  optical model
-      USE p4zbc          !  Boundary conditions
+      USE p4zbc           !  Boundary conditions
       USE p4zfechem       !  Iron chemistry
       USE p4zrem          !  Remineralisation of organic matter
       USE p4zflx          !  Gas exchange
+      USE p2zlim          !  Nutrient limitation of phytoplankton
+      USE p2zmort         !  Mortality terms for phytoplankton
+      USE p2zprod         !  Growth rate of phytoplankton
       USE p4zlim          !  Co-limitations of differents nutrients
       USE p4zprod         !  Growth rate of the 2 phyto groups
       USE p4zmicro        !  Sources and sinks of microzooplankton
@@ -79,6 +80,7 @@ CONTAINS
       USE p5zmicro        !  Sources and sinks of microzooplankton (QUOTA)
       USE p5zmeso         !  Sources and sinks of mesozooplankton (QUOTA)
       USE p5zmort         !  Mortality terms for phytoplankton (QUOTA)
+      USE p2zmicro        !  Sources and sinks of microzooplankton (REDUCED)
       !
       INTEGER, INTENT(in)  ::  Kmm      ! time level indices
       !
@@ -91,9 +93,12 @@ CONTAINS
       !
       IF(lwp) THEN
          WRITE(numout,*)
-         IF( ln_p4z ) THEN 
+         IF( ln_p2z ) THEN
+            WRITE(numout,*) 'p2z_ini :   PISCES biochemical model initialisation'
+            WRITE(numout,*) '~~~~~~~     Reduced version'
+         ELSE IF( ln_p4z ) THEN 
             WRITE(numout,*) 'p4z_ini :   PISCES biochemical model initialisation'
-            WRITE(numout,*) '~~~~~~~'
+            WRITE(numout,*) '~~~~~~~     Operationnal version'
          ELSE
             WRITE(numout,*) 'p5z_ini :   PISCES biochemical model initialisation'
             WRITE(numout,*) '~~~~~~~     With variable stoichiometry'
@@ -115,13 +120,19 @@ CONTAINS
       ierr = ierr +  p4z_opt_alloc()
       ierr = ierr +  p4z_flx_alloc()
       ierr = ierr +  p4z_sed_alloc()
-      ierr = ierr +  p4z_lim_alloc()
+      ierr = ierr +  p2z_lim_alloc()
+      IF( ln_p2z ) THEN
+         ierr = ierr +  p2z_prod_alloc()
+      ENDIF
       IF( ln_p4z ) THEN
          ! PISCES part
+         ierr = ierr +  p4z_lim_alloc()
          ierr = ierr +  p4z_prod_alloc()
          ierr = ierr +  p4z_meso_alloc()
-      ELSE
+      ENDIF
+      IF( ln_p5z ) THEN 
          ! PISCES-QUOTA part
+         ierr = ierr +  p4z_lim_alloc()
          ierr = ierr +  p5z_lim_alloc()
          ierr = ierr +  p5z_meso_alloc()
       ENDIF
@@ -203,26 +214,28 @@ CONTAINS
          tr(:,:,:,jpdoc,Kmm) = bioma0
          tr(:,:,:,jptal,Kmm) = alka0
          tr(:,:,:,jpoxy,Kmm) = oxyg0
-         tr(:,:,:,jpcal,Kmm) = bioma0
-         tr(:,:,:,jppo4,Kmm) = po4 / po4r
-         tr(:,:,:,jppoc,Kmm) = bioma0
-         tr(:,:,:,jpgoc,Kmm) = bioma0
-         tr(:,:,:,jpbfe,Kmm) = bioma0 * 5.e-6
-         tr(:,:,:,jpsil,Kmm) = silic1
-         tr(:,:,:,jpdsi,Kmm) = bioma0 * 0.15
-         tr(:,:,:,jpgsi,Kmm) = bioma0 * 5.e-6
-         tr(:,:,:,jpphy,Kmm) = bioma0
-         tr(:,:,:,jpdia,Kmm) = bioma0
-         tr(:,:,:,jpzoo,Kmm) = bioma0
-         tr(:,:,:,jpmes,Kmm) = bioma0
-         tr(:,:,:,jpfer,Kmm) = 0.6E-9
-         tr(:,:,:,jpsfe,Kmm) = bioma0 * 5.e-6
-         tr(:,:,:,jpdfe,Kmm) = bioma0 * 5.e-6
-         tr(:,:,:,jpnfe,Kmm) = bioma0 * 5.e-6
-         tr(:,:,:,jpnch,Kmm) = bioma0 * 12. / 55.
-         tr(:,:,:,jpdch,Kmm) = bioma0 * 12. / 55.
          tr(:,:,:,jpno3,Kmm) = no3
-         tr(:,:,:,jpnh4,Kmm) = bioma0
+         tr(:,:,:,jpphy,Kmm) = bioma0
+         tr(:,:,:,jpzoo,Kmm) = bioma0
+         tr(:,:,:,jppoc,Kmm) = bioma0
+         tr(:,:,:,jpfer,Kmm) = 0.6E-9
+         IF( .NOT. ln_p2z ) THEN
+            tr(:,:,:,jppo4,Kmm) = po4 / po4r
+            tr(:,:,:,jpgoc,Kmm) = bioma0
+            tr(:,:,:,jpbfe,Kmm) = bioma0 * 5.e-6
+            tr(:,:,:,jpsil,Kmm) = silic1
+            tr(:,:,:,jpdsi,Kmm) = bioma0 * 0.15
+            tr(:,:,:,jpgsi,Kmm) = bioma0 * 5.e-6
+            tr(:,:,:,jpdia,Kmm) = bioma0
+            tr(:,:,:,jpmes,Kmm) = bioma0
+            tr(:,:,:,jpsfe,Kmm) = bioma0 * 5.e-6
+            tr(:,:,:,jpdfe,Kmm) = bioma0 * 5.e-6
+            tr(:,:,:,jpnfe,Kmm) = bioma0 * 5.e-6
+            tr(:,:,:,jpnch,Kmm) = bioma0 * 12. / 55.
+            tr(:,:,:,jpdch,Kmm) = bioma0 * 12. / 55.
+            tr(:,:,:,jpnh4,Kmm) = bioma0
+            tr(:,:,:,jpcal,Kmm) = bioma0
+         ENDIF
          IF( ln_ligand) THEN
             tr(:,:,:,jplgw,Kmm) = 0.6E-9
          ENDIF
@@ -245,13 +258,17 @@ CONTAINS
          ENDIF
          ! initialize the half saturation constant for silicate
          ! ----------------------------------------------------
-         xksi(:,:)      = 2.e-6
-         xksimax(:,:)   = xksi(:,:)
+         sizen(:,:,:)   = 1.0
          consfe3(:,:,:) = 0._wp
-         !
-         sized(:,:,:) = 1.0
-         sizen(:,:,:) = 1.0
-         IF( ln_p5z )  sizep(:,:,:) = 1.0
+         IF ( .NOT. ln_p2z ) THEN
+            xksi(:,:)      = 2.e-6
+            xksimax(:,:)   = xksi(:,:)
+            !
+            sized(:,:,:) = 1.0
+            IF( ln_p5z )  sizep(:,:,:) = 1.0
+         ENDIF 
+
+         IF( ln_p2z ) thetanano(:,:,:) = 1.0 / 55.0
       END IF
 
 
@@ -260,7 +277,11 @@ CONTAINS
       ! ----------------------------------------------
       CALL p4z_sink_init         !  vertical flux of particulate organic matter
       CALL p4z_opt_init          !  Optic: PAR in the water column
-      IF( ln_p4z ) THEN
+      IF( ln_p2z ) THEN
+         ! Reduced PISCES part
+         CALL p2z_lim_init       !  co-limitations by the various nutrients
+         CALL p2z_prod_init      !  phytoplankton growth rate over the global ocean.
+      ELSE IF( ln_p4z ) THEN
          ! PISCES part
          CALL p4z_lim_init       !  co-limitations by the various nutrients
          CALL p4z_prod_init      !  phytoplankton growth rate over the global ocean.
@@ -276,7 +297,10 @@ CONTAINS
       IF( ln_ligand ) &
          & CALL p4z_ligand_init  !  remineralisation of organic ligands
 
-      IF( ln_p4z ) THEN ! PISCES-std
+      IF( ln_p2z ) THEN ! PISCES-reduced
+         CALL p2z_mort_init      !  phytoplankton mortality 
+         CALL p2z_micro_init     !  microzooplankton
+      ELSE IF( ln_p4z ) THEN ! PISCES-std
          CALL p4z_mort_init      !  phytoplankton mortality 
          CALL p4z_micro_init     !  microzooplankton
          CALL p4z_meso_init      !  mesozooplankton
@@ -300,79 +324,6 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 
       !
    END SUBROUTINE p4z_ini
-
-
-   SUBROUTINE p2z_ini( Kmm )
-      !!----------------------------------------------------------------------
-      !!                   ***  ROUTINE p2z_ini ***
-      !!
-      !! ** Purpose :   Initialisation of the LOBSTER biochemical model
-      !!----------------------------------------------------------------------
-      !
-      USE p2zopt
-      USE p2zexp
-      USE p2zbio
-      USE p2zsed
-      !
-      INTEGER, INTENT(in)  ::  Kmm      ! time level indices
-      INTEGER  ::  ji, jj, jk, jn, ierr
-      CHARACTER(len = 10)  ::  cltra
-      !!----------------------------------------------------------------------
-
-      IF(lwp) WRITE(numout,*)
-      IF(lwp) WRITE(numout,*) ' p2z_ini :   LOBSTER biochemical model initialisation'
-      IF(lwp) WRITE(numout,*) ' ~~~~~~~'
-
-      ierr =        sms_pisces_alloc()          
-      ierr = ierr + p2z_exp_alloc()
-      !
-      CALL mpp_sum( 'trcini_pisces', ierr )
-      IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'p2z_ini: unable to allocate LOBSTER arrays' )
-
-      DO jn = 1, jptra
-        cltra = ctrcnm(jn) 
-        IF( cltra == 'DET' )   jpdet = jn       !: detritus                    [mmoleN/m3]
-        IF( cltra == 'ZOO' )   jpzoo = jn       !: zooplancton concentration   [mmoleN/m3]
-        IF( cltra == 'PHY' )   jpphy = jn       !: phytoplancton concentration [mmoleN/m3]
-        IF( cltra == 'NO3' )   jpno3 = jn       !: nitrate concentration       [mmoleN/m3]
-        IF( cltra == 'NH4' )   jpnh4 = jn       !: ammonium concentration      [mmoleN/m3]
-        IF( cltra == 'DOM' )   jpdom = jn       !: dissolved organic matter    [mmoleN/m3]
-      ENDDO
-
-      jpkb = 10        !  last level where depth less than 200 m
-      DO jk = jpkm1, 1, -1
-         IF( gdept_1d(jk) > 200. ) jpkb = jk 
-      END DO
-      IF (lwp) WRITE(numout,*)
-      IF (lwp) WRITE(numout,*) ' first vertical layers where biology is active (200m depth ) ', jpkb
-      IF (lwp) WRITE(numout,*)
-      jpkbm1 = jpkb - 1
-      !
-
-
-      ! LOBSTER initialisation for GYRE : init NO3=f(density) by asklod AS Kremeur 2005-07
-      ! ----------------------
-      IF( .NOT. ln_rsttr ) THEN             ! in case of  no restart 
-         tr(:,:,:,jpdet,Kmm) = 0.1 * tmask(:,:,:)
-         tr(:,:,:,jpzoo,Kmm) = 0.1 * tmask(:,:,:)
-         tr(:,:,:,jpnh4,Kmm) = 0.1 * tmask(:,:,:)
-         tr(:,:,:,jpphy,Kmm) = 0.1 * tmask(:,:,:)
-         tr(:,:,:,jpdom,Kmm) = 1.0 * tmask(:,:,:)
-         WHERE( rhd(:,:,:) <= 24.5e-3 )  ;  tr(:,:,:,jpno3,Kmm) = 2._wp * tmask(:,:,:)
-         ELSE WHERE                      ;  tr(:,:,:,jpno3,Kmm) = ( 15.55 * ( rhd(:,:,:) * 1000. ) - 380.11 ) * tmask(:,:,:)
-         END WHERE                       
-      ENDIF
-      !                        !  Namelist read
-      CALL p2z_opt_init        !  Optics parameters
-      CALL p2z_sed_init        !  sedimentation
-      CALL p2z_bio_init        !  biology
-      CALL p2z_exp_init( Kmm ) !  export 
-      !
-      IF(lwp) WRITE(numout,*) 
-      IF(lwp) WRITE(numout,*) '   ==>>>   Initialization of LOBSTER tracers done'
-      IF(lwp) WRITE(numout,*) 
-      !
-   END SUBROUTINE p2z_ini
 
    !!======================================================================
 END MODULE trcini_pisces

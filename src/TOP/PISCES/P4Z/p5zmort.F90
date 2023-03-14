@@ -13,6 +13,7 @@ MODULE p5zmort
    USE oce_trc         !  shared variables between ocean and passive tracers
    USE trc             !  passive tracers common variables 
    USE sms_pisces      !  PISCES Source Minus Sink variables
+   USE p2zlim
    USE p4zlim          !  Phytoplankton limitation terms (p4z)
    USE p5zlim          !  Phytoplankton limitation terms (p5z)
    USE prtctl          !  print control for debugging
@@ -79,7 +80,7 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('p5z_mort_nano')
       !
-      prodcal(:,:,:) = 0.  !: calcite production variable set to zero
+      prodcal(:,:,:) = 0._wp   ! calcite production variable set to zero
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompaph = MAX( ( tr(ji,jj,jk,jpphy,Kbb) - 1e-9 ), 0.e0 )
 
@@ -207,7 +208,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Krhs  ! time level indices
       INTEGER  ::  ji, jj, jk
       REAL(wp) ::  zfactfe,zfactsi,zfactch, zfactn, zfactp, zcompadi
-      REAL(wp) ::  zrespp2, ztortp2, zmortp2
+      REAL(wp) ::  zrespp, ztortp, zmortp
       REAL(wp) ::  zlim2, zlim1
       CHARACTER (len=25) :: charout
       !!---------------------------------------------------------------------
@@ -227,14 +228,14 @@ CONTAINS
          !  -------------------------------
          zlim2   = xlimdia(ji,jj,jk) * xlimdia(ji,jj,jk)
          zlim1   = 0.25 * ( 1. - zlim2 ) / ( 0.25 + zlim2 ) 
-         zrespp2 = 1.e6 * xstep * wchld * zlim1 * xdiss(ji,jj,jk) * zcompadi * tr(ji,jj,jk,jpdia,Kbb)
+         zrespp  = 1.e6 * xstep * wchld * zlim1 * xdiss(ji,jj,jk) * zcompadi * tr(ji,jj,jk,jpdia,Kbb)
 
          ! Phytoplankton linear mortality
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of diatoms in highly limited areas
          !  ---------------------------------------------------
-         ztortp2 = mpratd * xstep  * zcompadi * tr(ji,jj,jk,jpdia,Kbb) /  ( xkmort + tr(ji,jj,jk,jpdia,Kbb) )
-         zmortp2 = zrespp2 + ztortp2
+         ztortp  = mpratd * xstep  * zcompadi * tr(ji,jj,jk,jpdia,Kbb) /  ( xkmort + tr(ji,jj,jk,jpdia,Kbb) )
+         zmortp  = zrespp + ztortp
 
          !   Update the arrays tr(:,:,:,:,Krhs) which contains the biological sources and sinks
          !   ---------------------------------------------------------------------
@@ -243,23 +244,23 @@ CONTAINS
          zfactch = tr(ji,jj,jk,jpdch,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
          zfactfe = tr(ji,jj,jk,jpdfe,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
          zfactsi = tr(ji,jj,jk,jpdsi,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
-         tr(ji,jj,jk,jpdia,Krhs) = tr(ji,jj,jk,jpdia,Krhs) - zmortp2 
-         tr(ji,jj,jk,jpndi,Krhs) = tr(ji,jj,jk,jpndi,Krhs) - zmortp2 * zfactn
-         tr(ji,jj,jk,jppdi,Krhs) = tr(ji,jj,jk,jppdi,Krhs) - zmortp2 * zfactp
-         tr(ji,jj,jk,jpdch,Krhs) = tr(ji,jj,jk,jpdch,Krhs) - zmortp2 * zfactch
-         tr(ji,jj,jk,jpdfe,Krhs) = tr(ji,jj,jk,jpdfe,Krhs) - zmortp2 * zfactfe
-         tr(ji,jj,jk,jpdsi,Krhs) = tr(ji,jj,jk,jpdsi,Krhs) - zmortp2 * zfactsi
-         tr(ji,jj,jk,jpgsi,Krhs) = tr(ji,jj,jk,jpgsi,Krhs) + zmortp2 * zfactsi
-         tr(ji,jj,jk,jpgoc,Krhs) = tr(ji,jj,jk,jpgoc,Krhs) + zrespp2 
-         tr(ji,jj,jk,jpgon,Krhs) = tr(ji,jj,jk,jpgon,Krhs) + zrespp2 * zfactn
-         tr(ji,jj,jk,jpgop,Krhs) = tr(ji,jj,jk,jpgop,Krhs) + zrespp2 * zfactp
-         tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zrespp2 * zfactfe
-         tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + ztortp2
-         tr(ji,jj,jk,jppon,Krhs) = tr(ji,jj,jk,jppon,Krhs) + ztortp2 * zfactn
-         tr(ji,jj,jk,jppop,Krhs) = tr(ji,jj,jk,jppop,Krhs) + ztortp2 * zfactp
-         tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + ztortp2 * zfactfe
-         prodpoc(ji,jj,jk)   = prodpoc(ji,jj,jk) + ztortp2
-         prodgoc(ji,jj,jk)   = prodgoc(ji,jj,jk) + zrespp2
+         tr(ji,jj,jk,jpdia,Krhs) = tr(ji,jj,jk,jpdia,Krhs) - zmortp 
+         tr(ji,jj,jk,jpndi,Krhs) = tr(ji,jj,jk,jpndi,Krhs) - zmortp * zfactn
+         tr(ji,jj,jk,jppdi,Krhs) = tr(ji,jj,jk,jppdi,Krhs) - zmortp * zfactp
+         tr(ji,jj,jk,jpdch,Krhs) = tr(ji,jj,jk,jpdch,Krhs) - zmortp * zfactch
+         tr(ji,jj,jk,jpdfe,Krhs) = tr(ji,jj,jk,jpdfe,Krhs) - zmortp * zfactfe
+         tr(ji,jj,jk,jpdsi,Krhs) = tr(ji,jj,jk,jpdsi,Krhs) - zmortp * zfactsi
+         tr(ji,jj,jk,jpgsi,Krhs) = tr(ji,jj,jk,jpgsi,Krhs) + zmortp * zfactsi
+         tr(ji,jj,jk,jpgoc,Krhs) = tr(ji,jj,jk,jpgoc,Krhs) + zrespp 
+         tr(ji,jj,jk,jpgon,Krhs) = tr(ji,jj,jk,jpgon,Krhs) + zrespp * zfactn
+         tr(ji,jj,jk,jpgop,Krhs) = tr(ji,jj,jk,jpgop,Krhs) + zrespp * zfactp
+         tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zrespp * zfactfe
+         tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + ztortp
+         tr(ji,jj,jk,jppon,Krhs) = tr(ji,jj,jk,jppon,Krhs) + ztortp * zfactn
+         tr(ji,jj,jk,jppop,Krhs) = tr(ji,jj,jk,jppop,Krhs) + ztortp * zfactp
+         tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + ztortp * zfactfe
+         prodpoc(ji,jj,jk)   = prodpoc(ji,jj,jk) + ztortp
+         prodgoc(ji,jj,jk)   = prodgoc(ji,jj,jk) + zrespp
 
       END_3D
       !
