@@ -455,10 +455,10 @@ CONTAINS
             CALL iom_rstput( kt, nitrst, numrtw, 'Thetanano' , thetanano(:,:,:)  )
          ENDIF
 
+         CALL iom_rstput( kt, nitrst, numrtw, 'Consfe3', consfe3(:,:,:) ) ! Si max concentration
          IF ( ln_p4z .OR. ln_p5z ) THEN
             CALL iom_rstput( kt, nitrst, numrtw, 'Silicalim', xksi(:,:)    )
             CALL iom_rstput( kt, nitrst, numrtw, 'Silicamax', xksimax(:,:) )
-            CALL iom_rstput( kt, nitrst, numrtw, 'Consfe3', consfe3(:,:,:) ) ! Si max concentration
             CALL iom_rstput( kt, nitrst, numrtw, 'sized', sized(:,:,:) )  ! Size of diatoms
          ENDIF
          IF( ln_p5z ) CALL iom_rstput( kt, nitrst, numrtw, 'sizep', sizep(:,:,:) )  ! Size of picophytoplankton
