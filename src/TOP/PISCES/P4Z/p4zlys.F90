@@ -87,7 +87,7 @@ CONTAINS
       ENDIF
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zhinit(ji,jj,jk) = hi(ji,jj,jk) / ( rhd(ji,jj,jk) + 1._wp )
+         zhinit(ji,jj,jk) = hi(ji,jj,jk) * 1000._wp / ( rhop(ji,jj,jk) + rtrn )
       END_3D
       !
       !     -------------------------------------------
@@ -99,7 +99,7 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zco3(ji,jj,jk) = tr(ji,jj,jk,jpdic,Kbb) * ak13(ji,jj,jk) * ak23(ji,jj,jk) / (zhi(ji,jj,jk)**2   &
             &             + ak13(ji,jj,jk) * zhi(ji,jj,jk) + ak13(ji,jj,jk) * ak23(ji,jj,jk) + rtrn )
-         hi  (ji,jj,jk) = zhi(ji,jj,jk) * ( rhd(ji,jj,jk) + 1._wp )
+         hi  (ji,jj,jk) = zhi(ji,jj,jk) * rhop(ji,jj,jk) / 1000._wp
       END_3D
 
       !     ---------------------------------------------------------
@@ -111,9 +111,9 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
 
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
-         ! Salinity dependance in zomegaca and divide by rhd to have good units
+         ! Salinity dependance in zomegaca and divide by rhop to have good units
          zcalcon  = calcon * ( salinprac(ji,jj,jk) / 35._wp )
-         zrhd    = rhd(ji,jj,jk) + 1._wp
+         zrhd    = rhop(ji,jj,jk) / 1000._wp
          zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zrhd + rtrn )
 
          ! SET DEGREE OF UNDER-/SUPERSATURATION
@@ -203,8 +203,8 @@ CONTAINS
          ENDIF
          IF( iom_use( "CO3sat" ) ) THEN  ! calcite saturation
              DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zrhd  = rhd(ji,jj,jk) + 1._wp
-                zw3d(ji,jj,jk) = aksp(ji,jj,jk) * zrhd / ( calcon * ( salinprac(ji,jj,jk) / 35._wp ) + rtrn )  &
+                zrhd  = rhop(ji,jj,jk) / 1000._wp
+                zw3d(ji,jj,jk) = aksp(ji,jj,jk) / zrhd / ( calcon * ( salinprac(ji,jj,jk) / 35._wp ) + rtrn )  &
                  &            * 1.e+3 * tmask(ji,jj,jk)
              END_3D
              CALL iom_put( "CO3sat", zw3d )
@@ -250,7 +250,7 @@ CONTAINS
       ENDIF
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zhinit(ji,jj,jk) = hi(ji,jj,jk) / ( rhd(ji,jj,jk) + 1._wp )
+         zhinit(ji,jj,jk) = hi(ji,jj,jk) * 1000._wp / ( rhop(ji,jj,jk) + rtrn )
       END_3D
       !
       !     -------------------------------------------
@@ -262,7 +262,7 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zco3(ji,jj,jk) = tr(ji,jj,jk,jpdic,Kbb) * ak13(ji,jj,jk) * ak23(ji,jj,jk) / (zhi(ji,jj,jk)**2   &
             &             + ak13(ji,jj,jk) * zhi(ji,jj,jk) + ak13(ji,jj,jk) * ak23(ji,jj,jk) + rtrn )
-         hi  (ji,jj,jk) = zhi(ji,jj,jk) * ( rhd(ji,jj,jk) + 1._wp )
+         hi  (ji,jj,jk) = zhi(ji,jj,jk) * rhop(ji,jj,jk) / 1000._wp
       END_3D
 
       !     ---------------------------------------------------------
@@ -276,7 +276,7 @@ CONTAINS
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
          ! Salinity dependance in zomegaca and divide by rhd to have good units
          zcalcon  = calcon * ( salinprac(ji,jj,jk) / 35._wp )
-         zrhd    = rhd(ji,jj,jk) + 1._wp
+         zrhd    = rhop(ji,jj,jk) / 1000._wp
          zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zrhd + rtrn )
 
          ! SET DEGREE OF UNDER-/SUPERSATURATION
@@ -330,8 +330,8 @@ CONTAINS
          ENDIF
          IF( iom_use( "CO3sat" ) ) THEN  ! calcite saturation
              DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zrhd  = rhd(ji,jj,jk) + 1._wp
-                zw3d(ji,jj,jk) = aksp(ji,jj,jk) * zrhd / ( calcon * ( salinprac(ji,jj,jk) / 35._wp ) + rtrn )  &
+                zrhd  = rhop(ji,jj,jk) / 1000._wp
+                zw3d(ji,jj,jk) = aksp(ji,jj,jk) / zrhd / ( calcon * ( salinprac(ji,jj,jk) / 35._wp ) + rtrn )  &
                  &            * 1.e+3 * tmask(ji,jj,jk)
              END_3D
              CALL iom_put( "CO3sat", zw3d ) 

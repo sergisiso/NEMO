@@ -184,6 +184,15 @@ if [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 4
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+    set_namelist namelist_top_cfg ln_trcbc  .false.
+    # put ln_ironsed, ln_hydrofe to false
+    # if not you need input files, and for tests is not necessary
+    set_namelist namelist_pisces_cfg ln_varpar .false.
+    set_namelist namelist_pisces_cfg ln_ironsed .false.
+    set_namelist namelist_pisces_cfg ln_ironice .false.
+    set_namelist namelist_pisces_cfg ln_hydrofe .false.
+    # put ln_pisdmp to false : no restoring to global mean value
+    set_namelist namelist_pisces_cfg ln_pisdmp .false.
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -211,6 +220,15 @@ if [ ${DO_RESTART} == "1" ] ;  then
     set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
     set_namelist namelist_top_cfg ln_rsttr .true.
     set_namelist namelist_top_cfg nn_rsttr 2
+        set_namelist namelist_top_cfg ln_trcbc  .false.
+    # put ln_ironsed, ln_hydrofe to false
+    # if not you need input files, and for tests is not necessary
+    set_namelist namelist_pisces_cfg ln_varpar .false.
+    set_namelist namelist_pisces_cfg ln_ironsed .false.
+    set_namelist namelist_pisces_cfg ln_ironice .false.
+    set_namelist namelist_pisces_cfg ln_hydrofe .false.
+    # put ln_pisdmp to false : no restoring to global mean value
+    set_namelist namelist_pisces_cfg ln_pisdmp .false.
     set_namelist namelist_cfg cn_ocerst_in \"GYREPIS_LONG_${ITRST}_restart\"
     set_namelist namelist_top_cfg cn_trcrst_in \"GYREPIS_LONG_${ITRST}_restart_trc\"
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
@@ -251,6 +269,15 @@ if [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 4
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+        set_namelist namelist_top_cfg ln_trcbc  .false.
+    # put ln_ironsed, ln_hydrofe to false
+    # if not you need input files, and for tests is not necessary
+    set_namelist namelist_pisces_cfg ln_varpar .false.
+    set_namelist namelist_pisces_cfg ln_ironsed .false.
+    set_namelist namelist_pisces_cfg ln_ironice .false.
+    set_namelist namelist_pisces_cfg ln_hydrofe .false.
+    # put ln_pisdmp to false : no restoring to global mean value
+    set_namelist namelist_pisces_cfg ln_pisdmp .false.
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -278,6 +305,15 @@ if [ ${DO_REPRO} == "1" ] ;  then
     set_namelist namelist_cfg jpnj 2
     set_namelist namelist_cfg sn_cfctl%l_runstat .true.
     set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+    set_namelist namelist_top_cfg ln_trcbc  .false.
+    # put ln_ironsed, ln_hydrofe to false
+    # if not you need input files, and for tests is not necessary
+    set_namelist namelist_pisces_cfg ln_varpar .false.
+    set_namelist namelist_pisces_cfg ln_ironsed .false.
+    set_namelist namelist_pisces_cfg ln_ironice .false.
+    set_namelist namelist_pisces_cfg ln_hydrofe .false.
+    # put ln_pisdmp to false : no restoring to global mean value
+    set_namelist namelist_pisces_cfg ln_pisdmp .false.
     set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
     set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
     set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
