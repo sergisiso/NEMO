@@ -17,6 +17,7 @@ MODULE ldfdyn
    USE dom_oce         ! ocean space and time domain 
    USE phycst          ! physical constants
    USE ldfslp          ! lateral diffusion: slopes of mixing orientation
+   USE ldftra  ,  ONLY : ln_eke_equ  ! for compatability check only (GEOMETRIC)
    USE ldfc1d_c2d      ! lateral diffusion: 1D and 2D cases
    !
    USE in_out_manager  ! I/O manager
@@ -170,8 +171,11 @@ CONTAINS
       IF(.NOT.ln_dynldf_OFF ) THEN     !==  direction ==>> type of operator  ==!
          !
          SELECT CASE( nn_dynldf_typ )  ! div-rot or symmetric
-         CASE( np_typ_rot )   ;   IF(lwp)   WRITE(numout,*) '   ==>>>   use div-rot   operator '
-         CASE( np_typ_sym )   ;   IF(lwp)   WRITE(numout,*) '   ==>>>   use symmetric operator '
+         CASE( np_typ_rot )
+            IF(lwp)   WRITE(numout,*) '   ==>>>   use div-rot   operator '
+         CASE( np_typ_sym )
+            IF(lwp)   WRITE(numout,*) '   ==>>>   use symmetric operator '
+            IF( ln_eke_equ )  CALL ctl_stop('STOP', 'ldf_dyn_init : GEOMETRIC parameterisation is only available with the div-rot operator')
          CASE DEFAULT                                     ! error
             CALL ctl_stop('ldf_dyn_init: wrong value for nn_dynldf_typ (0 or 1)'  )
          END SELECT

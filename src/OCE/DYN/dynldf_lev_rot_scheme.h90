@@ -51,3 +51,14 @@
                   &                ( zcur(ji,jj  ) - zcur(ji-1,jj) ) * r1_e1v(ji,jj) / e3v(ji,jj,jk,Kmm)   &
                   &              + ( zdiv(ji,jj+1) - zdiv(ji  ,jj) ) * r1_e2v(ji,jj)                      )
             END_2D
+            !
+#if defined lap
+            IF( l_ldfeke .AND. nn_eke_opt == 2 ) THEN        ! GEOMETRIC source term        
+               DO_2D( INN, INN+1, INN, INN+1 )
+                  zah_cur2(ji-1,jj-1) = zah_cur2(ji-1,jj-1) +                         &
+                    &                       zcur(ji-1,jj-1)**2 / MAX( 1._wp , ahmf(ji-1,jj-1,jk) ) * fmask(ji-1,jj-1,jk)
+                  zah_div2(ji  ,jj  ) = zah_div2(ji  ,jj  ) + e3t(ji  ,jj  ,jk,Kbb) * &
+                    &                       zdiv(ji  ,jj  )**2 / MAX( 1._wp , ahmt(ji  ,jj  ,jk) ) * tmask(ji,jj,jk)
+               END_2D
+            ENDIF
+#endif

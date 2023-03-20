@@ -34,6 +34,7 @@ MODULE nemogcm
    !              ! ocean physics
    USE ldftra         ! lateral diffusivity setting    (ldf_tra_init routine)
    USE ldfslp         ! slopes of neutral surfaces     (ldf_slp_init routine)
+   USE ldfeke         ! GEOMETRIC parameterisation     (ldf_eke_init routine)
    USE traqsr         ! solar radiation penetration    (tra_qsr_init routine)
    USE trabbl         ! bottom boundary layer          (tra_bbl_init routine)
    USE traldf         ! lateral physics                (tra_ldf_init routine)
@@ -353,15 +354,16 @@ CONTAINS
                            CALL     sbc_init( Nbb, Nnn, Naa )    ! Forcings : surface module
                            CALL     bdy_init    ! Open boundaries initialisation
                            
-                           CALL zdf_phy_init( Nnn )    ! Vertical physics
+                           CALL zdf_phy_init( Nnn )  ! Vertical physics
 
       !                                      ! Tracer physics
-                           CALL ldf_tra_init    ! Lateral ocean tracer physics
-                           CALL ldf_eiv_init    ! Eddy induced velocity param. must be done after ldf_tra_init
-                           CALL tra_ldf_init    ! lateral mixing
-      IF( l_ldfslp     )   CALL ldf_slp_init    ! slope of lateral mixing
-      IF( ln_traqsr    )   CALL tra_qsr_init    ! penetrative solar radiation
-      IF( ln_trabbl    )   CALL tra_bbl_init    ! advective (and/or diffusive) bottom boundary layer scheme
+                           CALL ldf_tra_init              ! Lateral ocean tracer physics
+                           CALL ldf_eiv_init              ! Eddy induced velocity param. must be done after ldf_tra_init
+      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb, Nnn )  ! GEOMETRIC param.
+                           CALL tra_ldf_init              ! lateral mixing
+      IF( l_ldfslp     )   CALL ldf_slp_init              ! slope of lateral mixing
+      IF( ln_traqsr    )   CALL tra_qsr_init              ! penetrative solar radiation
+      IF( ln_trabbl    )   CALL tra_bbl_init              ! advective (and/or diffusive) bottom boundary layer scheme
 
       !                                      ! Passive tracers
                            CALL trc_nam_run    ! Needed to get restart parameters for passive tracers

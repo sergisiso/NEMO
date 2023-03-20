@@ -464,10 +464,11 @@ CONTAINS
       !                                      ! Ocean physics
                            CALL zdf_phy_init( Nnn )    ! Vertical physics
 
-      !                                         ! Lateral physics
-                           CALL ldf_tra_init      ! Lateral ocean tracer physics
-                           CALL ldf_eiv_init      ! eddy induced velocity param. must be done after ldf_tra_init
-                           CALL ldf_dyn_init      ! Lateral ocean momentum physics
+      !                                      ! Lateral physics
+                           CALL ldf_tra_init             ! Lateral ocean tracer physics
+                           CALL ldf_eiv_init             ! eddy induced velocity param.
+      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb, Nnn ) ! GEOMETRIC param.
+                           CALL ldf_dyn_init             ! Lateral ocean momentum physics
 
       !                                      ! Active tracers
       IF( ln_traqsr    )   CALL tra_qsr_init      ! penetrative solar radiation qsr

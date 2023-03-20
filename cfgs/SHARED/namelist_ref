@@ -980,11 +980,42 @@
       !                             !   = 20 F(i,j)    =ldf_c2d
       !                             !   = 21 F(i,j,t)  =Treguier et al. JPO 1997 formulation
       !                             !   = 30 F(i,j,k)  =ldf_c2d * ldf_c1d
+      !                             !   = 32 F(i,j,t)  = GEOMETRIC parameterization        (=> fill namldf_eke)
       !                        !  time invariant coefficients:  aei0 = 1/2  Ue*Le
       rn_Ue        = 0.02           !  lateral diffusive velocity [m/s] (nn_aht_ijk_t= 0, 10, 20, 30)
       rn_Le        = 200.e+3        !  lateral diffusive length   [m]   (nn_aht_ijk_t= 0, 10)
       !
       ln_ldfeiv_dia =.false.   ! diagnose eiv stream function and velocities
+      ln_eke_equ    =.false.   ! switch on update of GEOMETRIC eddy energy equation        (=> fill namldf_eke)
+                               ! forced to be true if nn_aei_ijk_t = 32
+/
+!----------------------------------------------------------------------------------
+&namldf_eke !   GEOMETRIC param. (total EKE equation)                           (nn_aei_ijk_t = 32)
+!----------------------------------------------------------------------------------
+   rn_ekedis      =  180.      ! dissipation time scale of EKE [days]
+      nn_eke_dis  =    0       ! dissipation option
+      !                             !   =  0  constant in space
+      !                             !   =-20  read in geom_diss_2D.nc file
+   rn_geom        =  0.05      ! geometric parameterization master coefficient (>0 & <1)
+   rn_eke_init    =  1.e-1     ! initial total EKE value
+   rn_eke_min     =  1.e+0     ! background value of total EKE
+   rn_ross_min    =  4.e+3     ! tapering of aeiv based on min Rossby radius [m]
+   !                           !   set to zero to not taper it
+   rn_eke_lap     =   500.     ! Laplacian diffusion coefficient of EKE
+   !                           !   this is in all options below, so set it to zero and nothing is done
+   rn_aeiv_min    =  1.e+1     ! minimum bound of eiv coefficient
+   rn_aeiv_max    =  1.5e+4    ! maximum bound of eiv coefficient
+   rn_SFmin       =  1.0       ! minimum bound of Structure Function
+   rn_SFmax       =  1.0       ! maximum bound of Structure Function
+   nn_eke_opt     =  1         ! options for terms to include in EKE budget
+   !                                !   =  0  PE->EKE conversion, dissipation only
+   !                                !   =  1  as 0 but with advection
+   !                                !   =  2  as 1 but with additional KE->EKE conversion
+   !                                !   for testing purposes:
+   !                                !   = 88  only advection by depth-averaged flow
+   !                                !   = 99  only Laplacian diffusion
+   ln_adv_wav     =  .false.  ! include advection at long Rossby speed
+   ln_beta_plane  =  .false.  ! beta plane option for computing long Rossby speed (default: sphere option)
 /
 !-----------------------------------------------------------------------
 &namtra_dmp    !   tracer: T & S newtonian damping                      (default: OFF)

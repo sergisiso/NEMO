@@ -204,6 +204,9 @@ fi
 			X86_ARCHER2-Gnu*)
                                 MK_TEMPLATE=$( /work/n01/shared/nemo/mkslurm_settejob_4.2_Gnu -S $NXIO_PROC -s 8 -m 4 -C $NB_PROC -g 2 -a n01-CLASS -j sette_job -t 20:00 > ${SETTE_DIR}/job_batch_template )
 				;;
+			ANEMONE-ifort*)
+                                MK_TEMPLATE=$( /home/acc/mkslurm_settejob_4.2 -S $NXIO_PROC -s 8 -m 4 -C $NB_PROC -g 2 -j sette_job -t 20:00 > ${SETTE_DIR}/job_batch_template )
+				;;
                         XC40_METO*) #Setup for Met Office XC40 with any compiler
                                 # ocean cores are packed 32 to a node
                                 # If we need more than one node then have to use parallel queue and XIOS must have a node to itself
