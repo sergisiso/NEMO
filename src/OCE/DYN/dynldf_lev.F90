@@ -18,6 +18,8 @@ MODULE dynldf_lev
    USE domutl, ONLY : is_tile
    USE ldfdyn         ! lateral diffusion: eddy viscosity coef.
    USE ldfslp         ! iso-neutral slopes 
+   USE ldftra  , ONLY : l_ldfeke               ! GEOMETRIC param. activation
+   USE ldfeke  , ONLY : eke_keS, nn_eke_opt    ! GEOMETRIC source term of eke due to KE dissipation
    USE zdf_oce        ! ocean vertical physics
    !
    USE in_out_manager ! I/O manager
@@ -59,13 +61,14 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp), DIMENSION(T2D(1)) ::   zwf, zwt
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zah_cur2, zah_div2   !  temporaries used to calculate GEOMTERIC source term
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == nit000 )  THEN
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) 'dynldf_lev_lap : laplacian operator momentum '
-            IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~'
+         IF( kt == nit000 .AND. lwp ) THEN
+            WRITE(numout,*)
+            WRITE(numout,*) 'dynldf_lev_lap : laplacian operator momentum '
+            WRITE(numout,*) '~~~~~~~~~~~~~~'
          ENDIF
       ENDIF
       !
@@ -78,6 +81,12 @@ CONTAINS
       !              
       CASE ( np_typ_rot )       !==  Vorticity-Divergence operator  ==!
          !
+         IF( l_ldfeke .AND. nn_eke_opt == 2 ) THEN        ! GEOMETRIC source term        
+            ALLOCATE( zah_cur2(T2D(1)) , zah_div2(T2D(1)) )
+            zah_cur2(:,:) = 0._wp
+            zah_div2(:,:) = 0._wp
+         ENDIF     
+         !
 #        define zcur   zwf
 #        define zdiv   zwt
          !
@@ -87,6 +96,17 @@ CONTAINS
          !
 #        undef  zcur   
 #        undef  zdiv
+         !
+         IF( l_ldfeke .AND. nn_eke_opt == 2 ) THEN        ! GEOMETRIC source term        
+            zah_cur2(T2D(1)) = zah_cur2(T2D(1)) * e1e2f(T2D(1))
+            DO_2D( 0, 0, 0, 0 )
+               eke_keS(ji,jj) = zah_div2(ji,jj) + (  ( zah_cur2(ji-1,jj  )   + zah_cur2(ji,jj  ) )        &   ! add () for NP repro
+                  &                                + ( zah_cur2(ji-1,jj-1)   + zah_cur2(ji,jj-1) )    )   &   ! add () for NP repro
+                  &                 / MAX(  1._wp ,  fmask   (ji-1,jj  ,1) + fmask   (ji,jj  ,1)          &
+                  &                                + fmask   (ji-1,jj-1,1) + fmask   (ji,jj-1,1) ) * r1_e1e2t(ji,jj)
+            END_2D  
+            DEALLOCATE( zah_cur2 , zah_div2 )
+         ENDIF
          !
       CASE ( np_typ_sym )       !==  Symmetric operator  ==!
          !

@@ -229,6 +229,15 @@ that are available in the tidal-forcing implementation (see
     <field id="cfl_cv"       long_name="v-courant number"   unit="#" grid_ref="grid_T_2D_inner" />
     <field id="cfl_cw"       long_name="w-courant number"   unit="#" grid_ref="grid_T_2D_inner" />
 
+    <!-- GEOMETRIC fields (requires nn_aei_ijk_t = 32)  -->
+    <field id="eke"               long_name="total EKE (EKE+EPE)"                 unit="m3/s2" />
+    <field id="trd_eke_adv_ubt"   long_name="ubt advective trend of EKE (LHS)"    unit="m3/s3" grid_ref="grid_T_2D_inner" />
+    <field id="trd_eke_adv_wav"   long_name="wav advective trend of EKE (LHS)"    unit="m3/s3" grid_ref="grid_T_2D_inner" />
+    <field id="trd_eke_lap"       long_name="diffusive trend of EKE (RHS)"        unit="m3/s3" grid_ref="grid_T_2D_inner" />
+    <field id="trd_eke_peS"       long_name="PE to EKE source trend (RHS)"        unit="m3/s3" grid_ref="grid_T_2D_inner" />
+    <field id="trd_eke_keS"       long_name="KE to EKE source trend (RHS)"        unit="m3/s3" grid_ref="grid_T_2D_inner" />
+    <field id="trd_eke_dis"       long_name="dissipation trend of EKE (RHS)"      unit="m3/s3" grid_ref="grid_T_2D_inner" />
+
     <!-- variables available with ln_zdfmfc=.true. -->
     <field id="mf_Tp"       long_name="plume_temperature"      standard_name="plume_temperature"     unit="degC"   grid_ref="grid_T_3D_inner" />
     <field id="mf_Sp"       long_name="plume_salinity"         standard_name="plume_salinity"        unit="1e-3"   grid_ref="grid_T_3D_inner" />
@@ -753,6 +762,13 @@ that are available in the tidal-forcing implementation (see
 
     <!-- EOS -->
     <field id="bn2"          long_name="squared Brunt-Vaisala frequency"                unit="s-2" />
+
+    <!-- GEOMETRIC fields (requires nn_aei_ijk_t = 32)  -->
+    <field id="aeiv_geom"    long_name="3D w-EIV coefficient from GEOMETRIC param."     unit="m2/s" />
+    <field id="rossby_rad"   long_name="internal Rossby deformation radius"             unit="m"    grid_ref="grid_W_2D_inner"/>
+    <field id="bn2"          long_name="squared Brunt-Vaisala frequency"                unit="s-1"  />
+    <field id="c1_vert"      long_name="1st baroclinic mode phase speed"                unit="m/s"  grid_ref="grid_W_2D_inner"/>
+    <field id="c_ros"        long_name="long Rossby phase speed"                        unit="m/s"  grid_ref="grid_W_2D"/>
 
     <!-- dissipation diagnostics (note: ediss_k is only available with tke scheme) -->   
     <field id="avt_k"        long_name="vertical eddy diffusivity from closure schemes" standard_name="ocean_vertical_eddy_diffusivity"       unit="m2/s"   grid_ref="grid_W_3D_inner" />
