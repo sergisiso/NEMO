@@ -233,9 +233,9 @@ CONTAINS
       IF( ln_mevar ) THEN                                          ! Variable mixing efficiency case : modify zav_wave in the
          DO_3D( 0, 0, 0, 0, 2, jpkm1 ) ! energetic (Reb > 480) and buoyancy-controlled (Reb <10.224) regimes
             IF( zReb(ji,jj,jk) > 480.00_wp ) THEN
-               zav_wave(ji,jj,jk) = 3.6515_wp * rnu * SQRT( zReb(ji,jj,jk) )
+               zav_wave(ji,jj,jk) = 3.6515_wp * rnu * SQRT( MAX( 0._wp, zReb(ji,jj,jk) ) )
             ELSEIF( zReb(ji,jj,jk) < 10.224_wp ) THEN
-               zav_wave(ji,jj,jk) = 0.052125_wp * rnu * zReb(ji,jj,jk) * SQRT( zReb(ji,jj,jk) )
+               zav_wave(ji,jj,jk) = 0.052125_wp * rnu * zReb(ji,jj,jk) * SQRT( MAX( 0._wp, zReb(ji,jj,jk) ) )
             ENDIF
          END_3D
       ENDIF

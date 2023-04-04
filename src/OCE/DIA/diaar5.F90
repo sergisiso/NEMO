@@ -166,11 +166,11 @@ CONTAINS
          !
       ENDIF
 
-      IF( iom_use( 'botpres' ) .OR. iom_use( 'sshthster' )  .OR. iom_use( 'sshsteric' )  ) THEN
+      IF( iom_use( 'sshthster' ) ) THEN
          ALLOCATE( zrhd(T2D(0),jpk) )
          !
          DO_3D( 0, 0, 0, 0, 1, jpk )
-            ztsn(ji,jj,jk,jp_tem,Kmm) = ts(ji,jj,jk,jp_tem,Kmm)                    ! thermosteric ssh
+            ztsn(ji,jj,jk,jp_tem,Kmm) = ts(ji,jj,jk,jp_tem,Kmm)
             ztsn(ji,jj,jk,jp_sal,Kmm) = sn0(ji,jj,jk)
          END_3D
          CALL eos( ztsn, Kmm, zrhd, kbnd=0 )                           ! now in situ density using initial salinity
@@ -202,6 +202,10 @@ CONTAINS
             zztmp = - zarho / area_tot
             CALL iom_put( 'sshthster', zztmp )
          ENDIF
+
+      ENDIF
+         
+      IF( iom_use( 'botpres' ) .OR. iom_use( 'sshsteric' ) .OR. iom_use( 'masstot' ) ) THEN
          !                                         ! steric sea surface height
          z2d(:,:) = 0._wp                          ! no atmospheric surface pressure, levitating sea-ice
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
@@ -225,6 +229,9 @@ CONTAINS
             zarho = glob_sum( 'diaar5', zsarho2 )
             zztmp = - zarho / area_tot
             CALL iom_put( 'sshsteric', zztmp )
+            !
+            zztmp = rho0 * ( zarho + zvol )
+            CALL iom_put( 'masstot', zztmp )
          END IF
          !                                            ! ocean bottom pressure
          zztmp = rho0 * grav * 1.e-4_wp               ! recover pressure from pressure anomaly and cover to dbar = 1.e4 Pa
@@ -235,7 +242,7 @@ CONTAINS
          !
       ENDIF
 
-      IF( iom_use( 'masstot' ) .OR. iom_use( 'temptot' )  .OR. iom_use( 'saltot' )  ) THEN
+      IF( iom_use( 'temptot' )  .OR. iom_use( 'saltot' ) ) THEN
          !                                         ! Mean density anomalie, temperature and salinity
          ztsn(:,:,:,:,Kmm) = 0._wp                 ! ztsn(:,:,1,jp_tem/sal) is used here as 2D Workspace for temperature & salinity
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
@@ -264,9 +271,7 @@ CONTAINS
          IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN  ! Do only for the last tile
             ztemp = glob_sum( 'diaar5', zstemp )
             zsal  = glob_sum( 'diaar5', zssal )
-            zztmp = rho0 * ( zarho + zvol )
             !
-            CALL iom_put( 'masstot', zztmp )
             CALL iom_put( 'temptot', ztemp / zvol )
             CALL iom_put( 'saltot' , zsal  / zvol )
          ENDIF

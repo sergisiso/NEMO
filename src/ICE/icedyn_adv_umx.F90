@@ -1739,7 +1739,7 @@ CONTAINS
       !
       DO jl = 1, jpl
          DO_2D( 0, 0, 0, 0 )
-            IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
+            IF ( pv_i(ji,jj,jl) > 0._wp .AND. pa_i(ji,jj,jl) > 0._wp ) THEN
                !
                !                               ! -- check h_ip -- !
                ! if h_ip is larger than the surrounding 9 pts => reduce h_ip and increase a_ip
@@ -1778,7 +1778,7 @@ CONTAINS
       IF( nn_icesal == 4 ) THEN
          DO jl = 1, jpl
             DO_3D( 0, 0, 0, 0, 1, nlay_i )
-               IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
+               IF ( pv_i(ji,jj,jl) > 0._wp .AND. pa_i(ji,jj,jl) > 0._wp ) THEN
                   ! if szv_i/v_i is larger than the surrounding 9 pts => put the salt excess in the ocean
                   zsi = pszv_i(ji,jj,jk,jl) / pv_i(ji,jj,jl)
                   IF( zsi > pszi_max(ji,jj,jk,jl) .AND. pa_i(ji,jj,jl) < 0.15 ) THEN
@@ -1792,7 +1792,7 @@ CONTAINS
       ELSE
          DO jl = 1, jpl
             DO_2D( 0, 0, 0, 0 )
-               IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
+               IF ( pv_i(ji,jj,jl) > 0._wp .AND. pa_i(ji,jj,jl) > 0._wp ) THEN
                   ! if s_i is larger than the surrounding 9 pts => put salt excess in the ocean
                   zsi = psv_i(ji,jj,jl) / pv_i(ji,jj,jl)
                   IF( zsi > psi_max(ji,jj,jl) .AND. pa_i(ji,jj,jl) < 0.15 ) THEN
@@ -1809,7 +1809,7 @@ CONTAINS
       !                                           ! -- check e_i/v_i -- !
       DO jl = 1, jpl
          DO_3D( 0, 0, 0, 0, 1, nlay_i )
-            IF ( pv_i(ji,jj,jl) > 0._wp ) THEN
+            IF ( pv_i(ji,jj,jl) > 0._wp .AND. pa_i(ji,jj,jl) > 0._wp ) THEN
                ! if e_i/v_i is larger than the surrounding 9 pts => put the heat excess in the ocean
                zei = pe_i(ji,jj,jk,jl) / pv_i(ji,jj,jl)
                IF( zei > pei_max(ji,jj,jk,jl) .AND. pa_i(ji,jj,jl) < 0.15 ) THEN
@@ -1823,7 +1823,7 @@ CONTAINS
       !                                           ! -- check e_s/v_s -- !
       DO jl = 1, jpl
          DO_3D( 0, 0, 0, 0, 1, nlay_s )
-            IF ( pv_s(ji,jj,jl) > 0._wp ) THEN
+            IF ( pv_s(ji,jj,jl) > 0._wp .AND. pa_i(ji,jj,jl) > 0._wp ) THEN
                ! if e_s/v_s is larger than the surrounding 9 pts => put the heat excess in the ocean
                zes = pe_s(ji,jj,jk,jl) / pv_s(ji,jj,jl)
                IF( zes > pes_max(ji,jj,jk,jl) .AND. pa_i(ji,jj,jl) < 0.15 ) THEN
