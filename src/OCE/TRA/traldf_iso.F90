@@ -269,6 +269,11 @@ CONTAINS
 #           undef    INN
 #           undef    pt_in
             !
+         END DO                             !=  end ij slab  =!
+         !
+         !
+         DO jk = 1, jpkm1                       !=  ij slab  =!
+            !
             !                                      !* 2nd pass : bilaplacian = laplacian of 1st pass (zlap)
             !                                                    computed over the INNER domain
 #           define   iso_blp_p2
