@@ -145,7 +145,10 @@ CONTAINS
                                 CALL dom_qco_r3c( ssh(:,:,Nnn), r3t_f, r3u_f, r3v_f )
 # endif
          ENDIF
-                                CALL trc_stp    ( istp, Nbb, Nnn, Nrhs, Naa ) ! time-stepping
+
+         IF( l_ldftra_time .OR. l_ldfeiv_time )  CALL ldf_tra( istp, Nbb, Nnn )  ! eddy diffusivity coeff. and/or eiv coeff.
+
+                                CALL trc_stp    ( istp, Nbb, Nnn, Nrhs, Naa )    ! time-stepping
          ! Swap time levels
          Nrhs = Nbb
          Nbb  = Nnn

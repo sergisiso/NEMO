@@ -172,7 +172,7 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      CALL eos    ( ts(:,:,:,:,:), Kmm, rhd ) ! In any case, we need rhd
+      CALL eos    ( ts(:,:,:,:,:), Kmm, rhd, rhop ) ! In any case, we need rhop
       CALL eos_rab( ts(:,:,:,:,Kmm), rab_n, Kmm )       ! now    local thermal/haline expension ratio at T-points
       CALL bn2    ( ts(:,:,:,:,Kmm), rab_n, rn2, Kmm )  ! before Brunt-Vaisala frequency need for zdfmxl
 

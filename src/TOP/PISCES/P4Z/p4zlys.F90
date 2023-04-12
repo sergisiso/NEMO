@@ -67,7 +67,7 @@ CONTAINS
       INTEGER, INTENT(in)  ::  Kbb, Kmm, Krhs ! time level indices
       !
       INTEGER  ::   ji, jj, jk, jn
-      REAL(wp) ::   zdispot, zrhd, zcalcon, zdepexp, zdissol
+      REAL(wp) ::   zdispot, zfact, zcalcon, zdepexp, zdissol
       REAL(wp) ::   zomegaca, zexcess, zexcess0, zkd, zwsbio
       CHARACTER (len=25) ::   charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zhinit, zhi, zco3, zcaco3, ztra
@@ -113,8 +113,8 @@ CONTAINS
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
          ! Salinity dependance in zomegaca and divide by rhop to have good units
          zcalcon  = calcon * ( salinprac(ji,jj,jk) / 35._wp )
-         zrhd    = rhop(ji,jj,jk) / 1000._wp
-         zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zrhd + rtrn )
+         zfact    = rhop(ji,jj,jk) / 1000._wp
+         zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zfact + rtrn )
 
          ! SET DEGREE OF UNDER-/SUPERSATURATION
          excess(ji,jj,jk) = 1._wp - zomegaca
@@ -135,6 +135,8 @@ CONTAINS
         ztra(ji,jj,jk)  = zdispot / rmtss ! calcite dissolution
         !
       END_3D
+      !
+      zcaco3(:,:,:) = 0._wp
       !
       DO_2D( 0, 0, 0, 0 )
          zcaco3(ji,jj,1) = prodcal(ji,jj,1) * rfact2r / ( wsbio4(ji,jj,1) / e3t(ji,jj,1,Kmm) / rday + ztra(ji,jj,1) )
@@ -203,9 +205,9 @@ CONTAINS
          ENDIF
          IF( iom_use( "CO3sat" ) ) THEN  ! calcite saturation
              DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zrhd  = rhop(ji,jj,jk) / 1000._wp
-                zw3d(ji,jj,jk) = aksp(ji,jj,jk) / zrhd / ( calcon * ( salinprac(ji,jj,jk) / 35._wp ) + rtrn )  &
-                 &            * 1.e+3 * tmask(ji,jj,jk)
+                zcalcon        = calcon * ( salinprac(ji,jj,jk) / 35._wp )
+                zfact          = rhop(ji,jj,jk) / 1000._wp
+                zw3d(ji,jj,jk) = aksp(ji,jj,jk) * zfact / ( zcalcon + rtrn )  * 1.e+3 * tmask(ji,jj,jk)
              END_3D
              CALL iom_put( "CO3sat", zw3d )
          ENDIF
@@ -230,7 +232,7 @@ CONTAINS
       INTEGER, INTENT(in)  ::  Kbb, Krhs ! time level indices
       !
       INTEGER  ::   ji, jj, jk, jn
-      REAL(wp) ::   zdispot, zrhd, zcalcon, ztra
+      REAL(wp) ::   zdispot, zfact, zcalcon, ztra
       REAL(wp) ::   zomegaca, zexcess, zexcess0, zkd
       CHARACTER (len=25) ::   charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zhinit, zhi, zco3
@@ -276,8 +278,8 @@ CONTAINS
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
          ! Salinity dependance in zomegaca and divide by rhd to have good units
          zcalcon  = calcon * ( salinprac(ji,jj,jk) / 35._wp )
-         zrhd    = rhop(ji,jj,jk) / 1000._wp
-         zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zrhd + rtrn )
+         zfact    = rhop(ji,jj,jk) / 1000._wp
+         zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zfact + rtrn )
 
          ! SET DEGREE OF UNDER-/SUPERSATURATION
          excess(ji,jj,jk) = 1._wp - zomegaca
@@ -330,9 +332,9 @@ CONTAINS
          ENDIF
          IF( iom_use( "CO3sat" ) ) THEN  ! calcite saturation
              DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zrhd  = rhop(ji,jj,jk) / 1000._wp
-                zw3d(ji,jj,jk) = aksp(ji,jj,jk) / zrhd / ( calcon * ( salinprac(ji,jj,jk) / 35._wp ) + rtrn )  &
-                 &            * 1.e+3 * tmask(ji,jj,jk)
+                zcalcon        = calcon * ( salinprac(ji,jj,jk) / 35._wp )
+                zfact          = rhop(ji,jj,jk) / 1000._wp
+                zw3d(ji,jj,jk) = aksp(ji,jj,jk) * zfact / ( zcalcon + rtrn )  * 1.e+3 * tmask(ji,jj,jk)
              END_3D
              CALL iom_put( "CO3sat", zw3d ) 
          ENDIF
