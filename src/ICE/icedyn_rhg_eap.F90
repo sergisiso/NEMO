@@ -1548,7 +1548,7 @@ CONTAINS
    END SUBROUTINE rhg_eap_rst
 
 
-   FUNCTION w1(pa)
+   ELEMENTAL FUNCTION w1(pa)
       !!-------------------------------------------------------------------
       !! Function : w1 (see Gaussian function psi in Tsamados et al 2013)
       !!-------------------------------------------------------------------
@@ -1568,7 +1568,7 @@ CONTAINS
    END FUNCTION w1
 
 
-   FUNCTION w2(pa)
+   ELEMENTAL FUNCTION w2(pa)
       !!-------------------------------------------------------------------
       !! Function : w2 (see Gaussian function psi in Tsamados et al 2013)
       !!-------------------------------------------------------------------

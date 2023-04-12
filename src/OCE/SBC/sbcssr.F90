@@ -249,7 +249,7 @@ CONTAINS
          IF( sbc_ssr_alloc /= 0 )   CALL ctl_warn('sbc_ssr_alloc: failed to allocate arrays.')
          !
       ENDIF
-   END FUNCTION
+   END FUNCTION sbc_ssr_alloc
       
    !!======================================================================
 END MODULE sbcssr

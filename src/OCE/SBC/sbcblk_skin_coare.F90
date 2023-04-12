@@ -73,7 +73,7 @@ CONTAINS
       !!------------------------------------------------------------------
       !!
       !!  **   INPUT:
-      !!     *pQsw*       surface net solar radiation into the ocean     [W/m^2] => >= 0 !
+     !!     *pQsw*       surface net solar radiation into the ocean     [W/m^2] => >= 0 !
       !!     *pQnsol*     surface net non-solar heat flux into the ocean [W/m^2] => normally < 0 !
       !!     *pustar*     friction velocity u*                           [m/s]
       !!     *pSST*       bulk SST (taken at depth gdept_1d(1))          [K]
@@ -258,7 +258,7 @@ CONTAINS
 
 
 
-   FUNCTION delta_skin_layer( palpha, pQd, pQlat, pustar_a )
+   ELEMENTAL FUNCTION delta_skin_layer( palpha, pQd, pQlat, pustar_a )
       !!---------------------------------------------------------------------
       !! Computes the thickness (m) of the viscous skin layer.
       !! Based on Fairall et al., 1996
@@ -297,7 +297,7 @@ CONTAINS
    END FUNCTION delta_skin_layer
 
 
-   FUNCTION frac_solar_abs( pHwl )
+   ELEMENTAL FUNCTION frac_solar_abs( pHwl )
       !!---------------------------------------------------------------------
       !! Fraction of solar heat flux absorbed inside warm layer
       !!---------------------------------------------------------------------

@@ -178,6 +178,9 @@ else[ \t]*where             { return TOK_ELSEWHERE; }
 only                        { return TOK_ONLY; }
 parameter                   { return TOK_PARAMETER; }
 recursive                   { return TOK_RECURSIVE; }
+pure                        { return TOK_PURE; }
+impure                      { return TOK_IMPURE; }
+elemental                   { return TOK_ELEMENTAL; }
 common                      { return TOK_COMMON; }
 ^[ \t]*global[ \t]+         { return TOK_GLOBAL; }
 external                    { return TOK_EXTERNAL; }
