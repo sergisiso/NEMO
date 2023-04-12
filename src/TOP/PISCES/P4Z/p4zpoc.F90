@@ -488,7 +488,7 @@ CONTAINS
       !! ** input   :   Namelist nampispoc
       !!----------------------------------------------------------------------
       INTEGER ::   jn            ! dummy loop index
-      INTEGER ::   ios, ifault   ! Local integer
+      INTEGER ::   ios           ! Local integer
       REAL(wp)::   remindelta, reminup, remindown
       !!
       NAMELIST/nampispoc/ jcpoc  , rshape,  &
@@ -533,18 +533,18 @@ CONTAINS
          ! fortran 95, they have been coded as functions in this module (gamain)
          ! ---------------------------------------------------------------------
          !
-         alphan(1) = gamain(reminup, rshape, ifault)
-         reminp(1) = gamain(reminup, rshape+1.0, ifault) * xremipc / alphan(1)
+         alphan(1) = gamain(reminup, rshape)
+         reminp(1) = gamain(reminup, rshape+1.0) * xremipc / alphan(1)
          DO jn = 2, jcpoc-1
             reminup = 1./ 400. * EXP( REAL(jn, wp) * remindelta)
             remindown = 1. / 400. * EXP( REAL(jn-1, wp) * remindelta)
-            alphan(jn) = gamain(reminup, rshape, ifault) - gamain(remindown, rshape, ifault)
-            reminp(jn) = gamain(reminup, rshape+1.0, ifault) - gamain(remindown, rshape+1.0, ifault)
+            alphan(jn) = gamain(reminup, rshape) - gamain(remindown, rshape)
+            reminp(jn) = gamain(reminup, rshape+1.0) - gamain(remindown, rshape+1.0)
             reminp(jn) = reminp(jn) * xremipc / alphan(jn)
          END DO
          remindown = 1. / 400. * EXP( REAL(jcpoc-1, wp) * remindelta)
-         alphan(jcpoc) = 1.0 - gamain(remindown, rshape, ifault)
-         reminp(jcpoc) = 1.0 - gamain(remindown, rshape+1.0, ifault)
+         alphan(jcpoc) = 1.0 - gamain(remindown, rshape)
+         reminp(jcpoc) = 1.0 - gamain(remindown, rshape+1.0)
          reminp(jcpoc) = reminp(jcpoc) * xremipc / alphan(jcpoc)
 
       ELSE  ! Only one lability class is used
@@ -567,7 +567,7 @@ CONTAINS
    END SUBROUTINE p4z_poc_init
 
 
-   REAL FUNCTION alngam( xvalue, ifault )
+   ELEMENTAL FUNCTION alngam( xvalue )
       !*****************************************************************************80
       !
       !! ALNGAM computes the logarithm of the gamma function.
@@ -587,18 +587,15 @@ CONTAINS
       !
       !    Input, real ( kind = 8 ) XVALUE, the argument of the Gamma function.
       !
-      !    Output, integer ( kind = 4 ) IFAULT, error flag.
       !    0, no error occurred.
       !    1, XVALUE is less than or equal to 0.
       !    2, XVALUE is too big.
       !
       !    Output, real ( kind = 8 ) ALNGAM, the logarithm of the gamma function of X.
       !*****************************************************************************80
-  implicit none
-
+  REAL(wp) alngam
   real(wp), parameter :: alr2pi = 0.918938533204673E+00
-  integer:: ifault
-  real(wp), dimension ( 9 ) :: r1 = (/ &
+  real(wp), parameter, dimension ( 9 ) :: r1 = (/ &
     -2.66685511495E+00, &
     -24.4387534237E+00, &
     -21.9698958928E+00, &
@@ -608,7 +605,7 @@ CONTAINS
      11.9400905721E+00, &
      31.4690115749E+00, &
      15.2346874070E+00 /)
-  real(wp), dimension ( 9 ) :: r2 = (/ &
+  real(wp), parameter, dimension ( 9 ) :: r2 = (/ &
     -78.3359299449E+00, &
     -142.046296688E+00, &
      137.519416416E+00, &
@@ -618,7 +615,7 @@ CONTAINS
      313.399215894E+00, &
      263.505074721E+00, &
      43.3400022514E+00 /)
-  real(wp), dimension ( 9 ) :: r3 = (/ &
+  real(wp), parameter, dimension ( 9 ) :: r3 = (/ &
     -2.12159572323E+05, &
      2.30661510616E+05, &
      2.74647644705E+04, &
@@ -628,7 +625,7 @@ CONTAINS
     -1.46025937511E+05, &
     -2.42357409629E+04, &
     -5.70691009324E+02 /)
-  real(wp), dimension ( 5 ) :: r4 = (/ &
+  real(wp), parameter, dimension ( 5 ) :: r4 = (/ &
      0.279195317918525E+00, &
      0.4917317610505968E+00, &
      0.0692910599291889E+00, &
@@ -639,7 +636,7 @@ CONTAINS
   real (wp) :: x2
   real (wp), parameter :: xlge = 5.10E+05
   real (wp), parameter :: xlgst = 1.0E+30
-  real (wp) :: xvalue
+  REAL (wp), INTENT(in) :: xvalue
   real (wp) :: y
 
   x = xvalue
@@ -648,15 +645,12 @@ CONTAINS
 !  Check the input.
 !
   if ( xlgst <= x ) then
-    ifault = 2
     return
   end if
   if ( x <= 0.0E+00 ) then
-    ifault = 1
     return
   end if
 
-  ifault = 0
 !
 !  Calculation for 0 < X < 0.5 and 0.5 <= X < 1.5 combined.
 !
@@ -756,7 +750,7 @@ CONTAINS
    END FUNCTION alngam
 
 
-   REAL FUNCTION gamain( x, p, ifault )
+   ELEMENTAL FUNCTION gamain( x, p )
 !*****************************************************************************80
 !
 !! GAMAIN computes the incomplete gamma ratio.
@@ -788,7 +782,6 @@ CONTAINS
 !    Input, real ( kind = 8 ) X, P, the parameters of the incomplete 
 !    gamma ratio.  0 <= X, and 0 < P.
 !
-!    Output, integer ( kind = 4 ) IFAULT, error flag.
 !    0, no errors.
 !    1, P <= 0.
 !    2, X < 0.
@@ -798,8 +791,8 @@ CONTAINS
 !    Output, real ( kind = 8 ) GAMAIN, the value of the incomplete
 !    gamma ratio.
 !
-  implicit none
 
+  real (wp) gamain
   real (wp) a
   real (wp), parameter :: acu = 1.0E-08
   real (wp) an
@@ -810,52 +803,40 @@ CONTAINS
   real (wp) g
   real (wp) gin
   integer i
-  integer ifault
   real (wp), parameter :: oflo = 1.0E+37
-  real (wp) p
+  REAL (wp), INTENT(in) :: p
   real (wp) pn(6)
   real (wp) rn
   real (wp) term
   real (wp), parameter :: uflo = 1.0E-37
-  real (wp) x
+  REAL (wp), intent(in) :: x
 !
 !  Check the input.
 !
   if ( p <= 0.0E+00 ) then
-    ifault = 1
     gamain = 0.0E+00
     return
   end if
 
   if ( x < 0.0E+00 ) then
-    ifault = 2
     gamain = 0.0E+00
     return
   end if
 
   if ( x == 0.0E+00 ) then
-    ifault = 0
     gamain = 0.0E+00
     return
   end if
 
-  g = alngam ( p, ifault )
-
-  if ( ifault /= 0 ) then
-    ifault = 4
-    gamain = 0.0E+00
-    return
-  end if
+  g = alngam ( p )
 
   arg = p * log ( x ) - x - g
 
   if ( arg < log ( uflo ) ) then
-    ifault = 3
     gamain = 0.0E+00
     return
   end if
 
-  ifault = 0
   factor = exp ( arg )
 !
 !  Calculation by series expansion.

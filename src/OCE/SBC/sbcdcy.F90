@@ -258,7 +258,7 @@ CONTAINS
    END SUBROUTINE sbc_dcy_param
 
 
-   FUNCTION fintegral( pt1, pt2, paaa, pbbb, pccc )
+   ELEMENTAL FUNCTION fintegral( pt1, pt2, paaa, pbbb, pccc )
       REAL(wp), INTENT(in) :: pt1, pt2, paaa, pbbb, pccc
       REAL(wp) :: fintegral
       fintegral =   paaa * pt2 + 1._wp/(2._wp*rpi) * pbbb * SIN(pccc + 2._wp*rpi*pt2)   &

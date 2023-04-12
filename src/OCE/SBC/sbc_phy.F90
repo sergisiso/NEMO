@@ -196,7 +196,7 @@ MODULE sbc_phy
 CONTAINS
 
 
-   FUNCTION virt_temp_sclr( pta, pqa )
+   ELEMENTAL FUNCTION virt_temp_sclr( pta, pqa )
       !!------------------------------------------------------------------------
       !!
       !! Compute the (absolute/potential) VIRTUAL temperature, based on the
@@ -232,7 +232,7 @@ CONTAINS
    END FUNCTION virt_temp_vctr
 
 
-   FUNCTION pres_temp_sclr( pqspe, pslp, pz, ptpot, pta, l_ice )
+   impure ELEMENTAL FUNCTION pres_temp_sclr( pqspe, pslp, pz, ptpot, pta, l_ice )
 
       !!-------------------------------------------------------------------------------
       !!                           ***  FUNCTION pres_temp  ***
@@ -249,10 +249,12 @@ CONTAINS
       REAL(wp), INTENT(in )  , OPTIONAL :: ptpot             ! air potential temperature [K]
       REAL(wp), INTENT(inout), OPTIONAL :: pta               ! air absolute temperature  [K]
       REAL(wp)                          :: ztpot, zta, zpa, zxm, zmask, zqsat
-      INTEGER                           :: it, niter = 3     ! iteration indice and number
+      INTEGER                           :: it, niter         ! iteration indice and number
       LOGICAL , INTENT(in)   , OPTIONAL :: l_ice             ! sea-ice presence
       LOGICAL                           :: lice              ! sea-ice presence
 
+      niter = 3
+      
       IF( PRESENT(ptpot) ) THEN
         zmask = 1._wp
         ztpot = ptpot
@@ -316,7 +318,7 @@ CONTAINS
    END FUNCTION pres_temp_vctr
 
 
-   FUNCTION theta_exner_sclr( pta, ppa )
+   ELEMENTAL FUNCTION theta_exner_sclr( pta, ppa )
 
       !!-------------------------------------------------------------------------------
       !!                           ***  FUNCTION theta_exner  ***
@@ -374,7 +376,7 @@ CONTAINS
 
    END FUNCTION rho_air_vctr
 
-   FUNCTION rho_air_sclr( ptak, pqa, ppa )
+   ELEMENTAL FUNCTION rho_air_sclr( ptak, pqa, ppa )
       !!-------------------------------------------------------------------------------
       !!                           ***  FUNCTION rho_air_sclr  ***
       !!
@@ -392,7 +394,7 @@ CONTAINS
    END FUNCTION rho_air_sclr
 
 
-   FUNCTION visc_air_sclr(ptak)
+   ELEMENTAL FUNCTION visc_air_sclr(ptak)
       !!----------------------------------------------------------------------------------
       !! Air kinetic viscosity (m^2/s) given from air temperature in Kelvin
       !!
@@ -439,7 +441,7 @@ CONTAINS
       !
    END FUNCTION L_vap_vctr
 
-   FUNCTION L_vap_sclr( psst )
+   ELEMENTAL FUNCTION L_vap_sclr( psst )
       !!---------------------------------------------------------------------------------
       !!                           ***  FUNCTION L_vap_sclr  ***
       !!
@@ -472,7 +474,7 @@ CONTAINS
 
    END FUNCTION cp_air_vctr
 
-   FUNCTION cp_air_sclr( pqa )
+   ELEMENTAL FUNCTION cp_air_sclr( pqa )
       !!-------------------------------------------------------------------------------
       !!                           ***  FUNCTION cp_air_sclr  ***
       !!
@@ -489,7 +491,7 @@ CONTAINS
    END FUNCTION cp_air_sclr
 
 
-   FUNCTION gamma_moist_sclr( ptak, pqa )
+   ELEMENTAL FUNCTION gamma_moist_sclr( ptak, pqa )
       !!----------------------------------------------------------------------------------
       !! ** Purpose : Compute the moist adiabatic lapse-rate.
       !!     => http://glossary.ametsoc.org/wiki/Moist-adiabatic_lapse_rate
@@ -564,7 +566,7 @@ CONTAINS
    END FUNCTION One_on_L
 
 
-   FUNCTION Ri_bulk_sclr( pz, psst, ptha, pssq, pqa, pub,  pta_layer, pqa_layer )
+   ELEMENTAL FUNCTION Ri_bulk_sclr( pz, psst, ptha, pssq, pqa, pub,  pta_layer, pqa_layer )
       !!----------------------------------------------------------------------------------
       !! Bulk Richardson number according to "wide-spread equation"...
       !!
@@ -582,11 +584,9 @@ CONTAINS
       REAL(wp), INTENT(in), OPTIONAL :: pta_layer ! when possible, a better guess of absolute temperature WITHIN the layer [K]
       REAL(wp), INTENT(in), OPTIONAL :: pqa_layer ! when possible, a better guess of specific humidity    WITHIN the layer [kg/kg]
       !!
-      LOGICAL  :: l_ptqa_l_prvd = .FALSE.
       REAL(wp) :: zqa, zta, zgamma, zdthv, ztv, zsstv  ! local scalars
       REAL(wp) :: ztptv
       !!-------------------------------------------------------------------
-      IF( PRESENT(pta_layer) .AND. PRESENT(pqa_layer) ) l_ptqa_l_prvd = .TRUE.
       !
       zsstv = virt_temp_sclr( psst, pssq )   ! virtual potential SST
       ztptv = virt_temp_sclr( ptha, pqa  )   ! virtual potential air temperature
@@ -608,9 +608,10 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL :: pta_layer ! when possible, a better guess of absolute temperature WITHIN the layer [K]
       REAL(wp), DIMENSION(A2D(0)), INTENT(in), OPTIONAL :: pqa_layer ! when possible, a better guess of specific humidity    WITHIN the layer [kg/kg]
       !!
-      LOGICAL  :: l_ptqa_l_prvd = .FALSE.
+      LOGICAL  :: l_ptqa_l_prvd
       INTEGER  ::   ji, jj
 
+      l_ptqa_l_prvd = .FALSE.
       IF( PRESENT(pta_layer) .AND. PRESENT(pqa_layer) ) l_ptqa_l_prvd = .TRUE.
       IF( l_ptqa_l_prvd ) THEN
          DO_2D( 0, 0, 0, 0 )
@@ -626,7 +627,7 @@ CONTAINS
    END FUNCTION Ri_bulk_vctr
 
 
-   FUNCTION e_sat_sclr( ptak )
+   ELEMENTAL FUNCTION e_sat_sclr( ptak )
       !!----------------------------------------------------------------------------------
       !!                   ***  FUNCTION e_sat_sclr  ***
       !!                  < SCALAR argument version >
@@ -661,7 +662,7 @@ CONTAINS
    END FUNCTION e_sat_vctr
 
 
-   FUNCTION e_sat_ice_sclr(ptak)
+   ELEMENTAL FUNCTION e_sat_ice_sclr(ptak)
       !!---------------------------------------------------------------------------------
       !! Same as "e_sat" but over ice rather than water!
       !!---------------------------------------------------------------------------------
@@ -692,7 +693,7 @@ CONTAINS
    END FUNCTION e_sat_ice_vctr
 
 
-   FUNCTION de_sat_dt_ice_sclr(ptak)
+   ELEMENTAL FUNCTION de_sat_dt_ice_sclr(ptak)
       !!---------------------------------------------------------------------------------
       !! d [ e_sat_ice ] / dT   (derivative / temperature)
       !! Analytical exact formulation: double checked!!!
@@ -723,7 +724,7 @@ CONTAINS
    END FUNCTION de_sat_dt_ice_vctr
 
 
-   FUNCTION q_sat_sclr( pta, ppa,  l_ice )
+   ELEMENTAL FUNCTION q_sat_sclr( pta, ppa,  l_ice )
       !!---------------------------------------------------------------------------------
       !!                           ***  FUNCTION q_sat_sclr  ***
       !!
@@ -767,7 +768,7 @@ CONTAINS
    END FUNCTION q_sat_vctr
 
 
-   FUNCTION dq_sat_dt_ice_sclr( pta, ppa )
+   ELEMENTAL FUNCTION dq_sat_dt_ice_sclr( pta, ppa )
       !!---------------------------------------------------------------------------------
       !!     ***  FUNCTION dq_sat_dt_ice_sclr  ***
       !!    => d [ q_sat_ice(T) ] / dT
@@ -879,7 +880,7 @@ CONTAINS
    END SUBROUTINE UPDATE_QNSOL_TAU
 
 
-   SUBROUTINE BULK_FORMULA_SCLR( pzu, pTs, pqs, pTa, pqa, &
+   ELEMENTAL SUBROUTINE BULK_FORMULA_SCLR( pzu, pTs, pqs, pTa, pqa, &
       &                          pCd, pCh, pCe,           &
       &                          pwnd, pUb, ppa, prhoa,   &
       &                          pTau, pQsen, pQlat,      &
@@ -984,7 +985,7 @@ CONTAINS
 
    END FUNCTION alpha_sw_vctr
 
-   FUNCTION alpha_sw_sclr( psst )
+   ELEMENTAL FUNCTION alpha_sw_sclr( psst )
       !!---------------------------------------------------------------------------------
       !!                           ***  FUNCTION alpha_sw_sclr  ***
       !!
@@ -1000,7 +1001,7 @@ CONTAINS
    END FUNCTION alpha_sw_sclr
 
 
-   FUNCTION qlw_net_sclr( pdwlw, pts,  l_ice )
+   ELEMENTAL FUNCTION qlw_net_sclr( pdwlw, pts,  l_ice )
       !!---------------------------------------------------------------------------------
       !!                           ***  FUNCTION qlw_net_sclr  ***
       !!
@@ -1086,7 +1087,7 @@ CONTAINS
    END FUNCTION Cd_from_z0
 
 
-   FUNCTION f_m_louis_sclr( pzu, pRib, pCdn, pz0 )
+   ELEMENTAL FUNCTION f_m_louis_sclr( pzu, pRib, pCdn, pz0 )
       !!----------------------------------------------------------------------------------
       !!  Stability correction function for MOMENTUM
       !!                 Louis (1979)
@@ -1125,7 +1126,7 @@ CONTAINS
    END FUNCTION f_m_louis_vctr
 
 
-   FUNCTION f_h_louis_sclr( pzu, pRib, pChn, pz0 )
+   ELEMENTAL FUNCTION f_h_louis_sclr( pzu, pRib, pChn, pz0 )
       !!----------------------------------------------------------------------------------
       !!  Stability correction function for HEAT
       !!                 Louis (1979)
