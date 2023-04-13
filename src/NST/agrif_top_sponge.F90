@@ -77,7 +77,7 @@ CONTAINS
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
       INTEGER  ::   iku, ikv
       REAL(wp) :: ztra, zabe1, zabe2, zbtr, zhtot
-      REAL(wp), DIMENSION(i1-1:i2,j1-1:j2,jpk) :: ztu, ztv
+      REAL(wp), DIMENSION(i1:i2,j1:j2,jpk) :: ztu, ztv
       REAL(wp), DIMENSION(i1:i2,j1:j2,jpk,n1:n2) ::trbdiff
       ! vertical interpolation:
       REAL(wp), DIMENSION(i1:i2,j1:j2,jpk,n1:n2) ::tabres_child
@@ -230,14 +230,14 @@ CONTAINS
 
          DO jn = 1, jptra            
             DO jk = 1, jpkm1
-               ztu(i1-1:i2,j1-1:j2,jk) = 0._wp
+               ztu(i2,j1:j2,jk) = 0._wp
                DO jj = j1,j2
                   DO ji = i1,i2-1
                      zabe1 = rn_sponge_tra * r1_Dt * umask(ji,jj,jk) * e1e2u(ji,jj) * e3u(ji,jj,jk,Kmm_a)
                      ztu(ji,jj,jk) = zabe1 * fspu(ji,jj) * ( trbdiff(ji+1,jj  ,jk,jn) - trbdiff(ji,jj,jk,jn) ) 
                   END DO
                END DO
-               ztv(i1-1:i2,j1-1:j2,jk) = 0._wp
+               ztv(i1:i2,j2,jk) = 0._wp
                DO ji = i1,i2
                   DO jj = j1,j2-1
                      zabe2 = rn_sponge_tra * r1_Dt * vmask(ji,jj,jk) * e1e2v(ji,jj) * e3v(ji,jj,jk,Kmm_a)
@@ -260,8 +260,8 @@ CONTAINS
             !
 ! JC: there is something wrong with the Laplacian in corners
             DO jk = 1, jpkm1
-               DO jj = j1,j2
-                  DO ji = i1,i2
+               DO jj = j1+1,j2-1
+                  DO ji = i1+1,i2-1
                      IF (.NOT. tabspongedone_trn(ji,jj)) THEN 
                         zbtr = r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm_a)
                         ! horizontal diffusive trends
@@ -278,7 +278,7 @@ CONTAINS
             !
          END DO
          !
-         tabspongedone_trn(i1:i2,j1:j2) = .TRUE.
+         tabspongedone_trn(i1+1:i2-1,j1+1:j2-1) = .TRUE.
          !
       ENDIF
       !

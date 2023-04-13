@@ -202,15 +202,14 @@ CONTAINS
       Agrif_UseSpecialValueInUpdate = .FALSE.
 # if ! defined DECAL_FEEDBACK_2D
       CALL Agrif_Update_Variable(r3t_id,  locupdate=(/  nn_shift_bar,-2/), procname=update_r3t) 
-      CALL Agrif_Update_Variable(r3f_id,  locupdate=(/  nn_shift_bar,-2/), procname=update_r3f) 
       CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3u) 
       CALL Agrif_Update_Variable(r3v_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3v) 
 # else
       CALL Agrif_Update_Variable(r3t_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_r3t) 
-      CALL Agrif_Update_Variable(r3f_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_r3f) 
       CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/1+nn_shift_bar,-2/), procname=update_r3u) 
       CALL Agrif_Update_Variable(r3v_id, locupdate1=(/1+nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3v) 
 # endif
+      CALL Agrif_Update_Variable(r3f_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_r3f) 
       !
       ! Old way (update e3 at UVF-points everywhere on parent domain):
 !      CALL Agrif_ChildGrid_To_ParentGrid()
