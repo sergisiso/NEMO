@@ -592,9 +592,10 @@
       CALL Agrif_Set_bc(  un_interp_id, (/0,ind1-1/) ) 
       CALL Agrif_Set_bc(  vn_interp_id, (/0,ind1-1/) )
 
-      CALL Agrif_Set_bc(  ts_sponge_id, (/-nn_sponge_len*imaxrho-1,0/) )  ! if west,  rhox=3, nn_sponge_len=2 
-      CALL Agrif_Set_bc(  un_sponge_id, (/-nn_sponge_len*imaxrho-1,0/) )  ! and nbghost=3: 
-      CALL Agrif_Set_bc(  vn_sponge_id, (/-nn_sponge_len*imaxrho-1,0/) )  ! columns 4 to 11
+      !                if west,  rhox=3, nn_sponge_len=2 and and nbghost=3:
+      CALL Agrif_Set_bc(  ts_sponge_id, (/-nn_sponge_len*imaxrho-1,0/) )  ! columns 4-11
+      CALL Agrif_Set_bc(  un_sponge_id, (/-nn_sponge_len*imaxrho-2,0/) )  ! columns 4-12
+      CALL Agrif_Set_bc(  vn_sponge_id, (/-nn_sponge_len*imaxrho-2,0/) )  ! columns 4-12
 
       CALL Agrif_Set_bc(       sshn_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
       CALL Agrif_Set_bc(   sshn_frc_id, (/-imaxrho*nn_shift_bar,ind1-1/) )
