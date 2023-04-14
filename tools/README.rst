@@ -56,15 +56,6 @@ MISCELLANEOUS
 The tool allows to create alternative configurations to the community without
 having to rely on system team sponsorship and support.
 
-MPP_PREP
---------
-
-This tool provides the user with information to choose the best domain decomposition.
-The tool computes the number of water processors for all possible decompositions,
-up to a maximum number of processors
-(see :download:`MPP_PREP documentation <../../../tools/MPP_PREP/mpp_nc.pdf>` and
-:download:`MPP_PREP archive <../../../tools/MPP_PREP/mpp_prep-1.0.tar.gz>`).
-
 NESTING
 -------
 
@@ -87,11 +78,6 @@ REBUILD_NEMO
 REBUILD_NEMO is a tool to rebuild NEMO output files from multiple processors
 (mesh_mask, restart or XIOS output files) into one file
 (see :download:`REBUILD_NEMO README <../../../tools/REBUILD_NEMO/README.rst>`).
-
-REBUILD
--------
-
-It contains the old version of REBUILD_NEMO tool based on the IOIPSL code.
 
 SCOORD_GEN
 ----------
