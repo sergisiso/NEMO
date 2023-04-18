@@ -83,8 +83,8 @@ CONTAINS
       !
       ! 0.1 compatibility option
       ierr = 0
-      IF ( ln_zco .OR. ln_sco ) ierr = ierr + 1
-      IF ( ierr > 0 ) CALL ctl_stop( ' Cavity not tested/compatible with full step (zco) and sigma (ln_sco) ' )
+      IF ( ln_zco .OR. ln_sco .OR. ln_mes ) ierr = ierr + 1
+      IF ( ierr > 0 ) CALL ctl_stop( ' Cavity not tested/compatible with full step (zco), sigma (ln_sco) or multi-envelope (ln_mes)' )
 
    END SUBROUTINE zgr_isf_nam
 
