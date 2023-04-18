@@ -213,7 +213,10 @@ MODULE dom_oce
    LOGICAL, PUBLIC ::   ln_zco       !: z-coordinate - full step
    LOGICAL, PUBLIC ::   ln_zps       !: z-coordinate - partial step
    LOGICAL, PUBLIC ::   ln_sco       !: s-coordinate or hybrid z-s coordinate
-   LOGICAL, PUBLIC ::   ln_isfcav    !: presence of ISF 
+   LOGICAL, PUBLIC ::   ln_mes       !: Multi-Envelope s-coordinate
+   LOGICAL, PUBLIC ::   ln_isfcav    !: presence of ISF
+   LOGICAL, PUBLIC ::   ln_loczgr    !: To localise (.TRUE.) or not (.FALSE.)
+ 	   	                            !: the chosen vertical coordinate system 
    !
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  e3t_0, e3u_0 , e3v_0 , e3f_0 !: t-,u-,v-,f-vert. scale factor [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  e3w_0, e3uw_0, e3vw_0        !: w-,uw-,vw-vert. scale factor [m]
@@ -256,6 +259,13 @@ MODULE dom_oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) :: msk_csgrpglo, msk_csgrprnf, msk_csgrpemp !: closed sea masks
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   tpol, fpol          !: north fold mask (jperio= 3 or 4)
+   !
+   ! LOCALISED VERTICAL COORDINATE SYSTEM
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) :: l2g_msk ! mask to identify areas using
+                                                                  ! -) the LOCAL vert. coord. system (=2),
+                                                                  ! -) vert. coord. system TRANSITIONING from local to global (=1),
+                                                                  ! -) the GLOBAL vert. coord. system (=0)
+                                                                  ! If ln_loczgr=.FALSE. then l2g_msk(:,:)=2
 
    !!----------------------------------------------------------------------
    !! calendar variables
@@ -366,9 +376,10 @@ CONTAINS
          !
       ALLOCATE( gdept_1d(jpk) , e3tp (jpi,jpj), e3wp(jpi,jpj) ,gdepw_1d(jpk) , e3t_1d(jpk) , e3w_1d(jpk) , STAT=ierr(6) )
          !
-      ALLOCATE( bathy(jpi,jpj),mbathy(jpi,jpj), tmask_i(jpi,jpj) , tmask_h(jpi,jpj) ,                        &
-         &      ssmask (jpi,jpj) , ssfmask(jpi,jpj), ssumask(jpi,jpj) , ssvmask(jpi,jpj) ,                   &
-         &      mbkt   (jpi,jpj) , mbku   (jpi,jpj) , mbkv   (jpi,jpj), mbkf(jpi,jpj) , STAT=ierr(7) )
+      ALLOCATE( bathy  (jpi,jpj) , mbathy (jpi,jpj) , tmask_i(jpi,jpj) , tmask_h(jpi,jpj) ,  &
+         &      ssmask (jpi,jpj) , ssfmask(jpi,jpj) , ssumask(jpi,jpj) , ssvmask(jpi,jpj) ,  &
+         &      mbkt   (jpi,jpj) , mbku   (jpi,jpj) , mbkv   (jpi,jpj) , mbkf   (jpi,jpj) ,  & 
+         &      l2g_msk(jpi,jpj) , STAT=ierr(7) )
          !
       ALLOCATE( misfdep(jpi,jpj) , mikt(jpi,jpj) , miku(jpi,jpj) ,     &
          &      risfdep(jpi,jpj) , mikv(jpi,jpj) , mikf(jpi,jpj) , STAT=ierr(8) )

@@ -22,7 +22,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj) ::   zk   ! workspace
 
 
-      IF ( ln_sco ) RETURN
+      IF ( ln_sco .OR. ln_mes ) RETURN
 
       ! Scale factors and depth at U-, V-, UW and VW-points
       DO jk = 1, jpk                        ! initialisation to z-scale factors

@@ -44,6 +44,8 @@ MODULE domzgr
    USE lib_fortran
    USE dombat
    USE domisf
+   USE dommes            ! Multi-Envelope s-coordinates
+   USE domloc            ! Localise the vertical coordinate system
 
 #if defined key_agrif
    USE agrif_connect
@@ -112,15 +114,15 @@ CONTAINS
       INTEGER :: ji,jj,jk
       REAL(wp) ::   zrefdep             ! depth of the reference level (~10m)
 
-      NAMELIST/namzgr/ ln_zco, ln_zps, ln_sco, ln_isfcav
+      NAMELIST/namzgr/ ln_zco, ln_zps, ln_sco, ln_mes, ln_isfcav, ln_loczgr
       !!----------------------------------------------------------------------
       !
       !
-     ! REWIND( numnam_ref )              ! Namelist namzgr in reference namelist : Vertical coordinate
+      ! REWIND( numnam_ref )              ! Namelist namzgr in reference namelist : Vertical coordinate
       READ  ( numnam_ref, namzgr, IOSTAT = ios, ERR = 901 )
 901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namzgr in reference namelist')
 
-     ! REWIND( numnam_cfg )              ! Namelist namzgr in configuration namelist : Vertical coordinate
+      ! REWIND( numnam_cfg )              ! Namelist namzgr in configuration namelist : Vertical coordinate
       READ  ( numnam_cfg, namzgr, IOSTAT = ios, ERR = 902 )
 902   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namzgr in configuration namelist')
       IF(lwm) WRITE ( numond, namzgr )
@@ -154,15 +156,14 @@ CONTAINS
       !
 
       !                                ! top/bottom ocean level indices for t-, u- and v-points (f-point also for top)
-      CALL zgr_top_bot( k_top, k_bot )      ! with a minimum value set to 1
+         CALL zgr_top_bot( k_top, k_bot )      ! with a minimum value set to 1
 
       !                                ! deepest/shallowest W level Above/Below ~10m
 !!gm BUG in s-coordinate this does not work!
-      zrefdep = 10._wp - 0.1_wp * MINVAL( e3w_1d )                   ! ref. depth with tolerance (10% of minimum layer thickness)
-      nlb10 = MINLOC( gdepw_1d, mask = gdepw_1d > zrefdep, dim = 1 ) ! shallowest W level Below ~10m
-      nla10 = nlb10 - 1                                              ! deepest    W level Above ~10m
+         zrefdep = 10._wp - 0.1_wp * MINVAL( e3w_1d )                   ! ref. depth with tolerance (10% of minimum layer thickness)
+         nlb10 = MINLOC( gdepw_1d, mask = gdepw_1d > zrefdep, dim = 1 ) ! shallowest W level Below ~10m
+         nla10 = nlb10 - 1                                              ! deepest    W level Above ~10m
 !!gm end bug
-
       ENDIF        
 
       IF(lwp) THEN                     ! Control print
@@ -173,19 +174,23 @@ CONTAINS
          WRITE(numout,*) '      z-coordinate - full steps      ln_zco    = ', ln_zco
          WRITE(numout,*) '      z-coordinate - partial steps   ln_zps    = ', ln_zps
          WRITE(numout,*) '      s- or hybrid z-s-coordinate    ln_sco    = ', ln_sco
+         WRITE(numout,*) '      ME s-coordinate                ln_mes    = ', ln_mes
          WRITE(numout,*) '      ice shelf cavities             ln_isfcav = ', ln_isfcav
+         IF(ln_loczgr) WRITE(numout,*) '   The chosen vertical coordinate system is implemented locally'    
       ENDIF
 
       ioptio = 0                       ! Check Vertical coordinate options
       IF( ln_zco      )   ioptio = ioptio + 1
       IF( ln_zps      )   ioptio = ioptio + 1
       IF( ln_sco      )   ioptio = ioptio + 1
+      IF( ln_mes      )   ioptio = ioptio + 1
       IF( ioptio /= 1 )   CALL ctl_stop( ' none or several vertical coordinate options used' )
       !
       IF ( ln_isfcav ) CALL zgr_isf_nam
       ioptio = 0
       IF ( ln_zco .AND. ln_isfcav ) ioptio = ioptio + 1
       IF ( ln_sco .AND. ln_isfcav ) ioptio = ioptio + 1
+      IF ( ln_mes .AND. ln_isfcav ) ioptio = ioptio + 1
       IF( ioptio > 0 )   CALL ctl_stop( ' Cavity not tested/compatible with full step (zco) and sigma (ln_sco) ' )
 
 #if defined key_agrif
@@ -194,24 +199,34 @@ CONTAINS
 !      ENDIF
 #endif
 
-      IF(.NOT.ln_read_cfg) THEN
-      !
-      ! Build the vertical coordinate system
-      ! ------------------------------------
-                          CALL zgr_z            ! Reference z-coordinate system (always called)
-                          CALL zgr_bat          ! Bathymetry fields (levels and meters)
-      IF( ln_zco      )   CALL zgr_zco          ! z-coordinate
-      IF( ln_zps      )   CALL zgr_zps          ! Partial step z-coordinate
-      IF( ln_sco      )   CALL zgr_sco          ! s-coordinate or hybrid z-s coordinate
-                          CALL zgr_bat_ctl      ! check bathymetry (mbathy) and suppress isolated ocean points
-      !
-      ! final adjustment of mbathy & check 
-      ! -----------------------------------
-                          CALL zgr_bot_level    ! deepest ocean level for t-, u- and v-points
-                          k_bot = mbkt
-                          CALL zgr_top_level    ! shallowest ocean level for T-, U-, V- points
-                          k_top = mikt
-                          WHERE( bathy(:,:) <= 0._wp )  k_top(:,:) = 0  ! set k_top to zero over land
+      IF( .NOT.ln_read_cfg ) THEN
+        !
+        ! Build the vertical coordinate system
+        ! ------------------------------------
+                            CALL zgr_z            ! Reference z-coordinate system (always called)
+                            CALL zgr_bat          ! Bathymetry fields (levels and meters)
+        IF( ln_zco      )   CALL zgr_zco          ! z-coordinate
+        IF( ln_zps      )   CALL zgr_zps          ! Partial step z-coordinate
+        IF( ln_sco      )   CALL zgr_sco          ! s-coordinate or hybrid z-s coordinate
+        IF( ln_mes      )   CALL zgr_mes          ! ME s-coordinate
+        !
+        ! Localising the vert. coord. system if requested
+        ! -----------------------------------------------
+        l2g_msk(:,:) = 2.0                        ! Initialise the localisation
+                                                  ! mask to global
+        IF( ln_loczgr   )   CALL loc_zgr
+        !
+        ! Check bathymetry (mbathy) and suppress isolated ocean points
+        ! ------------------------------------------------------------
+                            CALL zgr_bat_ctl
+        !
+        ! final adjustment of mbathy & check 
+        ! -----------------------------------
+                            CALL zgr_bot_level    ! deepest ocean level for t-, u- and v-points
+                            k_bot = mbkt
+                            CALL zgr_top_level    ! shallowest ocean level for T-, U-, V- points
+                            k_top = mikt
+                            WHERE( bathy(:,:) <= 0._wp )  k_top(:,:) = 0  ! set k_top to zero over land
       ENDIF
       !
 #if defined key_agrif
@@ -263,102 +278,6 @@ CONTAINS
 
       !
    END SUBROUTINE dom_zgr
-
-   SUBROUTINE zgr_read( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,   &   ! type of vertical coordinate
-      &                 pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,   &   ! 1D reference vertical coordinate
-      &                 pdept , pdepw ,                            &   ! 3D t & w-points depth
-      &                 pe3t  , pe3u  , pe3v   , pe3f ,            &   ! vertical scale factors
-      &                 pe3w  , pe3uw , pe3vw         ,            &   !     -      -      -
-      &                 k_top  , k_bot    )                            ! top & bottom ocean level
-      !!---------------------------------------------------------------------
-      !!              ***  ROUTINE zgr_read  ***
-      !!
-      !! ** Purpose :   Read the vertical information in the domain configuration file
-      !!
-      !!----------------------------------------------------------------------
-      LOGICAL                   , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
-      LOGICAL                   , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth       [m]
-      REAL(wp), DIMENSION(:)    , INTENT(out) ::   pe3t_1d , pe3w_1d           ! 1D vertical scale factors [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pdept, pdepw                ! grid-point depth          [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3t , pe3u , pe3v , pe3f   ! vertical scale factors    [m]
-      REAL(wp), DIMENSION(:,:,:), INTENT(out) ::   pe3w , pe3uw, pe3vw         !    -       -      -
-      INTEGER , DIMENSION(:,:)  , INTENT(out) ::   k_top , k_bot               ! first & last ocean level
-      !
-      INTEGER  ::   jk     ! dummy loop index
-      INTEGER  ::   inum   ! local logical unit
-      REAL(WP) ::   z_zco, z_zps, z_sco, z_cav
-      REAL(wp), DIMENSION(jpi,jpj) ::   z2d   ! 2D workspace
-      !!----------------------------------------------------------------------
-      !
-      IF(lwp) THEN
-         WRITE(numout,*)
-         WRITE(numout,*) '   zgr_read : read the vertical coordinates in ', TRIM( cn_domcfg ), ' file'
-         WRITE(numout,*) '   ~~~~~~~~'
-      ENDIF
-      !
-      CALL iom_open( cn_domcfg, inum )
-      !
-      !                          !* type of vertical coordinate
-      CALL iom_get( inum, 'ln_zco'   , z_zco )
-      CALL iom_get( inum, 'ln_zps'   , z_zps )
-      CALL iom_get( inum, 'ln_sco'   , z_sco )
-      IF( z_zco == 0._wp ) THEN   ;   ld_zco = .false.   ;   ELSE   ;   ld_zco = .true.   ;   ENDIF
-      IF( z_zps == 0._wp ) THEN   ;   ld_zps = .false.   ;   ELSE   ;   ld_zps = .true.   ;   ENDIF
-      IF( z_sco == 0._wp ) THEN   ;   ld_sco = .false.   ;   ELSE   ;   ld_sco = .true.   ;   ENDIF
-      !
-      !                          !* ocean cavities under iceshelves
-      CALL iom_get( inum, 'ln_isfcav', z_cav )
-      IF( z_cav == 0._wp ) THEN   ;   ld_isfcav = .false.   ;   ELSE   ;   ld_isfcav = .true.   ;   ENDIF
-      !
-      !                          !* vertical scale factors
-      CALL iom_get( inum, jpdom_unknown, 'e3t_1d'  , pe3t_1d  )                     ! 1D reference coordinate
-      CALL iom_get( inum, jpdom_unknown, 'e3w_1d'  , pe3w_1d  )
-      !
-      CALL iom_get( inum, jpdom_global, 'e3t_0'  , pe3t , cd_type = 'T', psgn = 1._wp, kfill = jpfillcopy )    ! 3D coordinate
-      CALL iom_get( inum, jpdom_global, 'e3u_0'  , pe3u , cd_type = 'U', psgn = 1._wp, kfill = jpfillcopy )
-      CALL iom_get( inum, jpdom_global, 'e3v_0'  , pe3v , cd_type = 'V', psgn = 1._wp, kfill = jpfillcopy )
-      CALL iom_get( inum, jpdom_global, 'e3f_0'  , pe3f , cd_type = 'F', psgn = 1._wp, kfill = jpfillcopy )
-      CALL iom_get( inum, jpdom_global, 'e3w_0'  , pe3w , cd_type = 'W', psgn = 1._wp, kfill = jpfillcopy )
-      CALL iom_get( inum, jpdom_global, 'e3uw_0' , pe3uw, cd_type = 'U', psgn = 1._wp, kfill = jpfillcopy )
-      CALL iom_get( inum, jpdom_global, 'e3vw_0' , pe3vw, cd_type = 'V', psgn = 1._wp, kfill = jpfillcopy )
-      !
-      !                          !* depths
-      !                                   !- old depth definition (obsolescent feature)
-      IF(  iom_varid( inum, 'gdept_1d', ldstop = .FALSE. ) > 0  .AND.  &
-         & iom_varid( inum, 'gdepw_1d', ldstop = .FALSE. ) > 0  .AND.  &
-         & iom_varid( inum, 'gdept_0' , ldstop = .FALSE. ) > 0  .AND.  &
-         & iom_varid( inum, 'gdepw_0' , ldstop = .FALSE. ) > 0    ) THEN
-         CALL ctl_warn( 'zgr_read : old definition of depths and scale factors used ', & 
-            &           '           depths at t- and w-points read in the domain configuration file')
-         CALL iom_get( inum, jpdom_unknown, 'gdept_1d', pdept_1d )   
-         CALL iom_get( inum, jpdom_unknown, 'gdepw_1d', pdepw_1d )
-         CALL iom_get( inum, jpdom_global , 'gdept_0' , pdept, kfill = jpfillcopy )
-         CALL iom_get( inum, jpdom_global , 'gdepw_0' , pdepw, kfill = jpfillcopy )
-         !
-      ELSE                                !- depths computed from e3. scale factors
-         CALL e3_to_depth( pe3t_1d, pe3w_1d, pdept_1d, pdepw_1d )    ! 1D reference depth
-         CALL e3_to_depth( pe3t   , pe3w   , pdept   , pdepw    )    ! 3D depths
-         IF(lwp) THEN
-            WRITE(numout,*)
-            WRITE(numout,*) '              Reference 1D z-coordinate depth and scale factors:'
-            WRITE(numout, "(9x,' level  gdept_1d  gdepw_1d  e3t_1d   e3w_1d  ')" )
-            WRITE(numout, "(10x, i4, 4f9.2)" ) ( jk, pdept_1d(jk), pdepw_1d(jk), pe3t_1d(jk), pe3w_1d(jk), jk = 1, jpk )
-         ENDIF
-      ENDIF
-      !
-      !                          !* ocean top and bottom level
-      CALL iom_get( inum, jpdom_global, 'top_level'    , z2d )   ! 1st wet T-points (ISF)
-      k_top(:,:) = NINT( z2d(:,:) )
-      CALL iom_get( inum, jpdom_global, 'bottom_level' , z2d )   ! last wet T-points
-      k_bot(:,:) = NINT( z2d(:,:) )
-      !
-      ! reference depth for negative bathy (wetting and drying only)
-      ! IF( ll_wd )  CALL iom_get( inum,  'rn_wd_ref_depth' , ssh_ref   )
-      !
-      CALL iom_close( inum )
-      !
-   END SUBROUTINE zgr_read
 
    SUBROUTINE zgr_top_bot( k_top, k_bot )
       !!----------------------------------------------------------------------
@@ -797,7 +716,7 @@ CONTAINS
          CALL ctl_stop( '    zgr_bat : '//trim(ctmp1) )
       ENDIF
       !
-      IF ( .not. ln_sco ) THEN                                !==  set a minimum depth  ==!
+      IF (( .NOT. ln_sco).AND.(.NOT. ln_mes )) THEN                                !==  set a minimum depth  ==!
          IF( rn_hmin < 0._wp ) THEN    ;   ik = - INT( rn_hmin )                                      ! from a nb of level
          ELSE                          ;   ik = MINLOC( gdepw_1d, mask = gdepw_1d > rn_hmin, dim = 1 )  ! from a depth
          ENDIF
@@ -1404,11 +1323,11 @@ CONTAINS
 #endif
       bathy(:,:) = MIN( rn_sbot_max, bathy(:,:) )
 
-         DO jj = 1, jpj
-            DO ji = 1, jpi
-              IF( bathy(ji,jj) > 0._wp )   bathy(ji,jj) = MAX( rn_sbot_min, bathy(ji,jj) )
-            END DO
+      DO jj = 1, jpj
+         DO ji = 1, jpi
+            IF( bathy(ji,jj) > 0._wp )   bathy(ji,jj) = MAX( rn_sbot_min, bathy(ji,jj) )
          END DO
+      END DO
       !                                        ! =============================
       !                                        ! Define the envelop bathymetry   (hbatt)
       !                                        ! =============================
@@ -1494,10 +1413,10 @@ CONTAINS
       END DO
 
 !!bug:  key_helsinki a verifer
-        hift(:,:) = MIN( hift(:,:), hbatt(:,:) )
-        hifu(:,:) = MIN( hifu(:,:), hbatu(:,:) )
-        hifv(:,:) = MIN( hifv(:,:), hbatv(:,:) )
-        hiff(:,:) = MIN( hiff(:,:), hbatf(:,:) )
+      hift(:,:) = MIN( hift(:,:), hbatt(:,:) )
+      hifu(:,:) = MIN( hifu(:,:), hbatu(:,:) )
+      hifv(:,:) = MIN( hifv(:,:), hbatv(:,:) )
+      hiff(:,:) = MIN( hiff(:,:), hbatf(:,:) )
 
       IF( lwp )   THEN
          WRITE(numout,*) ' MAX val hif   t ', MAXVAL( hift (:,:) ), ' f ', MAXVAL( hiff (:,:) ),  &
@@ -1539,14 +1458,14 @@ CONTAINS
       CALL lbc_lnk( 'domzgr',e3uw_0, 'U', 1._wp )
       CALL lbc_lnk('domzgr', e3vw_0, 'V', 1._wp )
       !
-        WHERE( e3t_0 (:,:,:) == 0._wp )   e3t_0 (:,:,:) = 1._wp
-        WHERE( e3u_0 (:,:,:) == 0._wp )   e3u_0 (:,:,:) = 1._wp
-        WHERE( e3v_0 (:,:,:) == 0._wp )   e3v_0 (:,:,:) = 1._wp
-        WHERE( e3f_0 (:,:,:) == 0._wp )   e3f_0 (:,:,:) = 1._wp
-        WHERE( e3w_0 (:,:,:) == 0._wp )   e3w_0 (:,:,:) = 1._wp
-        WHERE( e3uw_0(:,:,:) == 0._wp )   e3uw_0(:,:,:) = 1._wp
-        WHERE( e3vw_0(:,:,:) == 0._wp )   e3vw_0(:,:,:) = 1._wp
-!!
+      WHERE( e3t_0 (:,:,:) == 0._wp )   e3t_0 (:,:,:) = 1._wp
+      WHERE( e3u_0 (:,:,:) == 0._wp )   e3u_0 (:,:,:) = 1._wp
+      WHERE( e3v_0 (:,:,:) == 0._wp )   e3v_0 (:,:,:) = 1._wp
+      WHERE( e3f_0 (:,:,:) == 0._wp )   e3f_0 (:,:,:) = 1._wp
+      WHERE( e3w_0 (:,:,:) == 0._wp )   e3w_0 (:,:,:) = 1._wp
+      WHERE( e3uw_0(:,:,:) == 0._wp )   e3uw_0(:,:,:) = 1._wp
+      WHERE( e3vw_0(:,:,:) == 0._wp )   e3vw_0(:,:,:) = 1._wp
+
       ! HYBRID : 
       DO jj = 1, jpj
          DO ji = 1, jpi
