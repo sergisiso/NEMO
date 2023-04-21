@@ -216,7 +216,7 @@
       IF( ihlsmax > 0 ) THEN
          impi_nc = mpi_nc_com8( ihlsmax )
          IF( ll4only )   impi_nc = mpi_nc_com4( ihlsmax )
-#if ! defined key_mpi2
+#if ! defined key_mpi2 && ! defined key_mpi_off
          IF( ln_timing ) CALL tic_tac( .TRUE.)
          CALL mpi_Ineighbor_alltoallv(BUFFSND, iScnt, iSdpl, MPI_TYPE, BUFFRCV, iRcnt, iRdpl, MPI_TYPE, impi_nc, nreq_nei, ierr)
          IF( ln_timing ) CALL tic_tac(.FALSE.)
