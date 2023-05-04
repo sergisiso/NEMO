@@ -48,7 +48,7 @@ CONTAINS
       !! ** Purpose :   User defined the vertical coordinates
       !!
       !!----------------------------------------------------------------------
-      LOGICAL                             , INTENT(out) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
+      LOGICAL                             , INTENT( in) ::   ld_zco, ld_zps, ld_sco      ! vertical coordinate flags
       LOGICAL                             , INTENT(out) ::   ld_isfcav                   ! under iceshelf cavity flag
       INTEGER , DIMENSION(:,:)            , INTENT(out) ::   k_top, k_bot                ! first & last ocean level
       REAL(wp), DIMENSION(:)              , INTENT(out) ::   pdept_1d, pdepw_1d          ! 1D grid-point depth     [m]
@@ -73,7 +73,6 @@ CONTAINS
       ! ---------------------------
       ! already set in usrdef_nam.F90 by reading the namusr_def namelist except for ISF
       ld_isfcav = .FALSE.
-      ld_sco = .TRUE.
       !
       !
       ! Build the vertical coordinate system
@@ -87,7 +86,7 @@ CONTAINS
       zhu(:,:) = 600_wp ; zhv(:,:) = 600_wp ; zhf(:,:) = 600_wp
       DO_2D( 0, 0, 0, 0 )
          zhu(ji,jj) =  0.5_wp * ( zht(ji,jj  ) + zht(ji+1,jj  ) )
-         zhv(jj,jj) =  0.5_wp * ( zht(ji,jj  ) + zht(ji  ,jj+1) )
+         zhv(ji,jj) =  0.5_wp * ( zht(ji,jj  ) + zht(ji  ,jj+1) )
          zhf(ji,jj) = 0.25_wp * ( zht(ji,jj  ) + zht(ji+1,jj  ) &
                        &        + zht(ji,jj+1) + zht(ji+1,jj+1) ) 
       END_2D

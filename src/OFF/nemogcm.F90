@@ -63,11 +63,7 @@ MODULE nemogcm
    USE prtctl         ! Print control                    (prt_ctl_init routine)
    USE timing         ! Timing
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
-#if defined key_qco || defined key_linssh
    USE stpmlf , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
-#else
-   USE step    , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
-#endif
    USE halo_mng
 
    IMPLICIT NONE

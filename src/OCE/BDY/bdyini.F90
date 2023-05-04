@@ -1594,12 +1594,10 @@ CONTAINS
       DO ib = 1, nbdysegw
          ! get mask at boundary extremities:
          ztestmask(1:2)=0.
-         DO ji = 1, jpi
-            DO jj = 1, jpj             
-              IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
-            END DO
-         END DO
+         DO_2D (0, 0, 0, 0) 
+            IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+            IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+         END_2D
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
          IF (ztestmask(1)==1) THEN 
@@ -1630,12 +1628,10 @@ CONTAINS
       DO ib = 1, nbdysege
          ! get mask at boundary extremities:
          ztestmask(1:2)=0.
-         DO ji = 1, jpi
-            DO jj = 1, jpj             
-              IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjedt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjeft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
-            END DO
-         END DO
+         DO_2D (0, 0, 0, 0) 
+            IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjedt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+            IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjeft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+         END_2D 
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
          IF (ztestmask(1)==1) THEN
@@ -1666,12 +1662,10 @@ CONTAINS
       DO ib = 1, nbdysegs
          ! get mask at boundary extremities:
          ztestmask(1:2)=0.
-         DO ji = 1, jpi
-            DO jj = 1, jpj             
-              IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
-            END DO
-         END DO
+         DO_2D (0, 0, 0, 0) 
+            IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+            IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+         END_2D 
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
          IF ((ztestmask(1)==1).AND.(icorns(ib,1)==0)) THEN
@@ -1688,12 +1682,10 @@ CONTAINS
       DO ib = 1, nbdysegn
          ! get mask at boundary extremities:
          ztestmask(1:2)=0.
-         DO ji = 1, jpi
-            DO jj = 1, jpj             
-               IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpindt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-               IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpinft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
-            END DO
-         END DO
+         DO_2D (0, 0, 0, 0) 
+            IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpindt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+            IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpinft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+         END_2D
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
          IF ((ztestmask(1)==1).AND.(icornn(ib,1)==0)) THEN

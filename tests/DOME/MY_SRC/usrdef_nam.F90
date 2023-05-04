@@ -62,7 +62,7 @@ CONTAINS
       INTEGER ::   ighost_w, ighost_e, ighost_s, ighost_n
       REAL(wp)::   zlx, zly, zh ! Local scalars
       !!
-      NAMELIST/namusr_def/  ln_zco, ln_zps, ln_sco, rn_dx, rn_dz, rn_f0
+      NAMELIST/namusr_def/  l_zco, l_zps, l_sco, rn_dx, rn_dz, rn_f0
       !!----------------------------------------------------------------------
       !
       READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
@@ -122,9 +122,9 @@ CONTAINS
          WRITE(numout,*) 'usr_def_nam  : read the user defined namelist (namusr_def) in namelist_cfg'
          WRITE(numout,*) '~~~~~~~~~~~ '
          WRITE(numout,*) '   Namelist namusr_def : DOME test case'
-         WRITE(numout,*) '      z-coordinate flag                 ln_zco = ', ln_zco
-         WRITE(numout,*) '      z-partial-step coordinate flag    ln_zps = ', ln_zps 
-         WRITE(numout,*) '      s-coordinate flag                 ln_sco = ', ln_sco  
+         WRITE(numout,*) '      z-coordinate flag                 l_zco  = ', l_zco
+         WRITE(numout,*) '      z-partial-step coordinate flag    l_zps  = ', l_zps 
+         WRITE(numout,*) '      s-coordinate flag                 l_sco  = ', l_sco  
          WRITE(numout,*) '      horizontal resolution             rn_dx  = ', rn_dx, ' m'
          WRITE(numout,*) '      vertical resolution               rn_dz  = ', rn_dz, ' m'
          WRITE(numout,*) '      resulting global domain size :    Ni0glo = ', kpi

@@ -31,6 +31,8 @@ MODULE usrdef_nam
    REAL(wp), PUBLIC ::   rn_dy      ! resolution in meters defining the horizontal domain size
    REAL(wp), PUBLIC ::   rn_dz      ! vertical resolution 
    REAL(wp), PUBLIC ::   rn_ppgphi0 ! reference latitude for beta-plane 
+   REAL(wp), PUBLIC ::   rn_ppumax  ! vortex velocity 
+   INTEGER,  PUBLIC ::   nn_rot     ! vortex velocity 
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -62,11 +64,13 @@ CONTAINS
       INTEGER :: ighost_n, ighost_s, ighost_w, ighost_e
       REAL(wp)::   zlx, zly, zh ! Local scalars
       !!
-      NAMELIST/namusr_def/  rn_dx, rn_dy, rn_dz, rn_ppgphi0
+      NAMELIST/namusr_def/  rn_dx, rn_dy, rn_dz, rn_ppgphi0, rn_ppumax, nn_rot
       !!----------------------------------------------------------------------
       !
       READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
 902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
+      !
+      IF( nn_rot  < 0   .OR.  nn_rot  > 3 )   CALL ctl_stop( 'bad namelist flag: nn_rot is 0, 1, 2 or 3' )
       !
 #if defined key_agrif 
       ! Domain parameters are taken from parent:
@@ -75,6 +79,8 @@ CONTAINS
          rn_dy = Agrif_Parent(rn_dy)/Agrif_Rhoy()
 !         rn_dz = Agrif_Parent(rn_dz)
          rn_ppgphi0 = Agrif_Parent(rn_ppgphi0)
+         rn_ppumax  = Agrif_Parent(rn_ppumax)
+         nn_rot     = Agrif_Parent(nn_rot)
       ENDIF
 #endif
       !
@@ -86,8 +92,13 @@ CONTAINS
 #if defined key_agrif 
       IF( Agrif_Root() ) THEN       ! Global Domain size:  VORTEX global domain is  1800 km x 1800 Km x 5000 m
 #endif
-         kpi = NINT( 1800.e3  / rn_dx ) + 3  
-         kpj = NINT( 1800.e3  / rn_dy ) + 3 
+         IF     ((nn_rot==0).OR.(nn_rot==2)) THEN
+            kpi = NINT( 1800.e3  / rn_dx ) + 3  
+            kpj = NINT( 1800.e3  / rn_dy ) + 3 
+         ELSEIF ((nn_rot==1).OR.(nn_rot==3)) THEN
+            kpi = NINT( 1800.e3  / rn_dy ) + 3  
+            kpj = NINT( 1800.e3  / rn_dx ) + 3 
+         ENDIF
 #if defined key_agrif 
       ELSE                          ! Global Domain size: add nbghostcells + 1 "land" point on each side
          ! At this stage, child ghosts have not been set
@@ -133,6 +144,8 @@ CONTAINS
          WRITE(numout,*) '         LY [km]: ', zly
          WRITE(numout,*) '          H [m] : ', zh
          WRITE(numout,*) '      Reference latitude            rn_ppgphi0 = ', rn_ppgphi0
+         WRITE(numout,*) '      Max. current amplitude        rn_ppumax  = ', rn_ppumax
+         WRITE(numout,*) '      Domain rotation               nn_rot     = ', nn_rot
          WRITE(numout,*) '   '
       ENDIF
       !

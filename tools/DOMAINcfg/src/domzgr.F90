@@ -574,7 +574,7 @@ CONTAINS
             CALL RANDOM_SEED()
             CALL RANDOM_NUMBER(zrand)
             DO_2D( 0, 0, 0, 0 )
-               bathy(ji,jj) = h_oce + 0.1_wp *h_oce * (zrand(mig(ji),mjg(jj))-1._wp) 
+               bathy(ji,jj) = h_oce + 0.3_wp *h_oce * (zrand(mig(ji),mjg(jj))-1._wp) 
             END_2D
             IF ( cp_cfg=='OVERFLOW' ) THEN
                DO jj=1,jpj
