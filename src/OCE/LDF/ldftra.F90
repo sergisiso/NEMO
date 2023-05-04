@@ -766,11 +766,11 @@ CONTAINS
             &                                    * ( aeiv (ji,jj,jk-1) + aeiv (ji,jj  ,jk) ) * wvmask(ji,jj,jk)
       END_3D
       !
-      DO_3D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
+      DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
          pu(ji,jj,jk) = pu(ji,jj,jk) - ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji,jj,jk+1) )
          pv(ji,jj,jk) = pv(ji,jj,jk) - ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj,jk+1) )
       END_3D
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
          pw(ji,jj,jk) = pw(ji,jj,jk) + (  ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj  ,jk) )   &   ! add () for NP repro
             &                           + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji  ,jj-1,jk) ) )
       END_3D
