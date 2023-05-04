@@ -195,6 +195,11 @@ CONTAINS
             gphi0 = gphi0 -  800._wp 
          ENDIF
          !
+         IF ( cp_cfg=='VORTEX' ) THEN
+            glam0 = glam0 + (-REAL(Ni0glo-1, wp) + 1._wp) * 0.5 * 1.e-3 * ppe1_m    
+            gphi0 = gphi0 + (-REAL(Nj0glo-1, wp) + 1._wp) * 0.5 * 1.e-3 * ppe2_m    
+         ENDIF
+         !
          DO jj = 1, jpj
             DO ji = 1, jpi
                glamt(ji,jj) = glam0 + ppe1_m * 1.e-3 *  REAL( mig0(ji)-1   ) 
@@ -389,6 +394,7 @@ CONTAINS
          !
          zbeta   = 2. * omega * COS( rad * ppgphi0 ) / ra                       ! beta at latitude ppgphi0
          zphi0   = ppgphi0 - REAL( jpjglo/2) * ppe2_m / ( ra * rad )           ! latitude of the first row F-points
+         IF ( cp_cfg=='VORTEX' ) zphi0 = ppgphi0 
          !
          zf0     = 2. * omega * SIN( rad * zphi0 )                              ! compute f0 1st point south
          !

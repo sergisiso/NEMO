@@ -113,6 +113,7 @@ CONTAINS
             nn_hvolg_mth   = Agrif_parent(nn_hvolg_mth)
          ENDIF
 #endif
+         IF ( nn_ice/=2 ) nn_fwb_voltype = 2 ! Enforce liquid volume conservation with no sea-ice 
 
          IF(lwp) THEN
             WRITE(numout,*)
@@ -198,11 +199,6 @@ CONTAINS
          ! isf cavities are excluded because it can feedback to the melting with generation of inhibition of plumes
          ! and in case of no melt, it can generate HSSW.
          !
-         IF( nn_ice == 0 ) THEN
-            snwice_mass_b(:,:) = 0.e0               ! no sea-ice model is being used : no snow+ice mass
-            snwice_fmass (:,:) = 0.e0
-         ENDIF
-         !
       ENDIF
 
 
@@ -279,10 +275,11 @@ CONTAINS
                   SELECT CASE (nn_fwb_voltype)
                   CASE( 1 )
                      agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ))
+                     CALL Agrif_step_child_adj(glob_sum_volume_ice_oce_agrif) 
                   CASE( 2 )
                      agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ssh(A2D(0),Kmm))
+                     CALL Agrif_step_child_adj(glob_sum_volume_oce_agrif) 
                   END SELECT
-                  CALL Agrif_step_child_adj(glob_sum_volume_agrif) ! Get value over child grids
                   CALL mpp_min('sbcfwb', agrif_tmp(:)) ! Required with // sisters to populate the value of each grid on each processor
                   a_fwb = SUM(agrif_tmp) * rho0 / area ! Sum over all grids
                   IF ( a_fwb_b == 999._wp ) a_fwb_b = a_fwb
@@ -358,10 +355,11 @@ CONTAINS
                SELECT CASE (nn_fwb_voltype)
                CASE( 1 )
                   agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ))
+                  CALL Agrif_step_child_adj(glob_sum_volume_ice_oce_agrif) ! Get value over child grids
                CASE( 2 )
                   agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ssh(A2D(0),Kmm) )
+                  CALL Agrif_step_child_adj(glob_sum_volume_oce_agrif)     ! Get value over child grids
                END SELECT
-               CALL Agrif_step_child_adj(glob_sum_volume_agrif) ! Get value over child grids
                CALL mpp_min('sbcfwb', agrif_tmp(:)) ! Required with // sisters to populate the value of each grid on each processor
                a_fwb = SUM(agrif_tmp) ! Sum over all grids
 #else          
@@ -481,9 +479,16 @@ CONTAINS
       CASE ( 4 )                             !==  global mean fwf set to zero (ISOMIP case) ==!
          !
          IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
-            !                                                  ! fwf global mean (excluding ocean to ice/snow exchanges) 
-            emp_corr = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
-               &                                                      - snwice_fmass(A2D(0)) ) ) / area
+            !                                                  ! fwf global mean (excluding ocean to ice/snow exchanges)
+            SELECT CASE (nn_fwb_voltype)
+            CASE( 1 )
+               emp_corr = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
+                  &                                                      - snwice_fmass(A2D(0)) ) ) / area
+            CASE( 2 )
+               emp_corr = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
+                  &                                                                             ) ) / area
+            END SELECT
+!!st check with clem
             ! clem: use y_fwfnow instead to improve performance? 
             !y_fwfnow(1) = local_sum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
             !   &                                                   - snwice_fmass(A2D(0)) ) )
@@ -558,26 +563,38 @@ CONTAINS
 
    END SUBROUTINE glob_sum_area_agrif   
 
-   SUBROUTINE glob_sum_volume_agrif()
+   SUBROUTINE glob_sum_volume_ice_oce_agrif()
       !!---------------------------------------------------------------------
-      !!           ***  Compute volume with embedded zooms  ***
+      !!     ***  Compute volume with embedded zooms (ice + liquid)  ***
       !!----------------------------------------------------------------------
       INTEGER :: igrid
       !
       IF (Agrif_root()) RETURN
 
       igrid = agrif_fixed() + 1
-      IF (( nn_ice==2 ).OR.(nn_fwb_voltype==1)) THEN
-         ! NB: we use "now" value for snwice_mass over child grids since it has not been updated yet at the time
-         !     this call is made (e.g. when starting a new step over the parent grid)
+      IF ( nn_ice==2 ) THEN
+         ! NB1: nn_ice is known on child grids at this stage
+         ! NB2: we use "now" value for snwice_mass over child grids since it has not been updated yet at the time
+         !      this call is made (e.g. when starting a new step over the parent grid)
          agrif_tmp(igrid) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ( ssh(:,:,Kmm_a) + snwice_mass(:,:) * r1_rho0 ))
       ELSE
          agrif_tmp(igrid) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ssh(:,:,Kmm_a) )
       ENDIF
 
-   END SUBROUTINE glob_sum_volume_agrif 
+   END SUBROUTINE glob_sum_volume_ice_oce_agrif 
 
+   SUBROUTINE glob_sum_volume_oce_agrif()
+      !!---------------------------------------------------------------------
+      !!       ***  Compute volume with embedded zooms (liquid only)  ***
+      !!---------------------------------------------------------------------
+      INTEGER :: igrid
+      !
+      IF (Agrif_root()) RETURN
 
+      igrid = agrif_fixed() + 1
+      agrif_tmp(igrid) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ssh(:,:,Kmm_a) )
+
+   END SUBROUTINE glob_sum_volume_oce_agrif 
 
 #endif
 

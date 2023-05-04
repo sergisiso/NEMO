@@ -64,15 +64,11 @@ MODULE nemogcm
 #if defined key_nemocice_decomp
    USE ice_domain_size, only: nx_global, ny_global
 #endif
-#if defined key_qco   ||   defined key_linssh
 # if defined key_RK3
    USE stprk3
 # else
    USE stpmlf         ! NEMO time-stepping               (stp_MLF   routine)
 # endif
-#else
-   USE step           ! NEMO time-stepping                 (stp     routine)
-#endif
    !
    USE lib_mpp        ! distributed memory computing
    USE mppini         ! shared/distributed memory setting (mpp_init routine)
@@ -168,15 +164,11 @@ CONTAINS
       DO WHILE( istp <= nitend .AND. nstop == 0 )
          !
          ncom_stp = istp
-#  if defined key_qco   ||   defined key_linssh
 #   if defined key_RK3
          CALL stp_RK3
 #   else
          CALL stp_MLF
 #   endif
-#  else
-         CALL stp
-#  endif
          istp = istp + 1
       END DO
       !
@@ -193,15 +185,11 @@ CONTAINS
                IF ( istp ==         nitend ) elapsed_time = zstptiming - elapsed_time
             ENDIF
             !
-#  if defined key_qco   ||   defined key_linssh
 #   if defined key_RK3
             CALL stp_RK3( istp )
 #   else
             CALL stp_MLF( istp )
 #   endif
-#  else
-            CALL stp    ( istp )
-#  endif
             istp = istp + 1
             !
             IF( lwp .AND. ln_timing )   WRITE(numtime,*) 'timing step ', istp-1, ' : ', MPI_Wtime() - zstptiming
