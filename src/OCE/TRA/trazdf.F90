@@ -221,36 +221,15 @@ CONTAINS
                !
 !!gm  BUG?? : if edmfm is equivalent to a w  ==>>>   just add +/-  rDt * edmfm(ji,jj,jk+1/jk  )
 !!            but edmfm is at t-point !!!!   crazy???  why not keep it at w-point????
-               !
+!!gm   BUG ???   below  e3t_Kmm  should be used ?
+!!               or even no multiplication by e3t unless there is a bug in wi calculation
                IF( ln_zdfmfc ) THEN    ! add upward Mass Flux in the matrix
                   DO_2Dik( 0, 0,   1, jpkm1, 1 )
+                     ! zwi not updated- in the original zdfmfc.F90 calculation the added flux was zero over 1:jpkm1
                      zws(ji,jk) = zws(ji,jk) + e3t(ji,jj,jk,Kaa) * p2dt * edmfm(ji,jj,jk+1) / e3w(ji,jj,jk+1,Kmm)
                      zwd(ji,jk) = zwd(ji,jk) - e3t(ji,jj,jk,Kaa) * p2dt * edmfm(ji,jj,jk  ) / e3w(ji,jj,jk+1,Kmm)
                   END_2D
                ENDIF
-!       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-!          edmfa(ji,jj,jk) =  0._wp
-!          edmfb(ji,jj,jk) = -edmfm(ji,jj,jk  ) / e3w(ji,jj,jk+1,Kmm)
-!          edmfc(ji,jj,jk) =  edmfm(ji,jj,jk+1) / e3w(ji,jj,jk+1,Kmm)
-!       END_3D
-!!gm    BUG :  level jpk never used in the inversion
-!       DO_2D( 0, 0, 0, 0 )
-!          edmfa(ji,jj,jpk)   = -edmfm(ji,jj,jpk-1) / e3w(ji,jj,jpk,Kmm)
-!          edmfb(ji,jj,jpk)   =  edmfm(ji,jj,jpk  ) / e3w(ji,jj,jpk,Kmm)
-!          edmfc(ji,jj,jpk)   =  0._wp
-!       END_2D
-!!
-!!gm   BUG ???   below  e3t_Kmm  should be used ?
-!!               or even no multiplication by e3t unless there is a bug in wi calculation
-!!
-!                   DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-!!gm edmfa = 0._wp except at jpk which is not used  ==>>  zdiagi update is useless !
-!                      zdiagi(ji,jj,jk) = zdiagi(ji,jj,jk) + e3t(ji,jj,jk,Kaa) * p2dt *edmfa(ji,jj,jk)
-!                      zdiags(ji,jj,jk) = zdiags(ji,jj,jk) + e3t(ji,jj,jk,Kaa) * p2dt *edmfc(ji,jj,jk)
-!                      zdiagd(ji,jj,jk) = zdiagd(ji,jj,jk) + e3t(ji,jj,jk,Kaa) * p2dt *edmfb(ji,jj,jk)
-!                   END_3D
-!!gm                  CALL diag_mfc( zwi, zwd, zws, rDt, Kaa )
-!!gm   SUBROUTINE diag_mfc( zdiagi, zdiagd, zdiags, p2dt, Kaa )
                !
                !! Matrix inversion from the first level
                !!----------------------------------------------------------------------
@@ -284,7 +263,6 @@ CONTAINS
                DO_2Dik( 0, 0,   1, jpkm1, 1 )
                   pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) + edmftra(ji,jj,jk,jn)
                END_2D
-!!gm               CALL rhs_mfc( pt(:,:,:,jn,Krhs), jn )
             ENDIF
             !
             DO_1Di( 0, 0 )             !* 2nd recurrence:    Zk = Yk - Ik / Tk-1  Zk-1

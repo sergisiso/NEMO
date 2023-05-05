@@ -150,9 +150,9 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
       REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt          ! vertical eddy diffusivity (w-points)
       !!
-      INTEGER  ::   ji, jj, jk                  ! dummy loop indices
+      INTEGER  ::   ji, jj, jk                                   ! dummy loop indices
       REAL(wp) ::   zcfRi, zav, zustar, zhek, zdku, zdkv, zwx    ! local scalars
-      REAL(wp), DIMENSION(T2D(0)) ::   zh_ekm  ! 2D workspace
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zh_ekm          ! 2D workspace
       !!----------------------------------------------------------------------
       !
       !                       !==  avm and avt = F(Richardson number)  ==!
@@ -173,6 +173,7 @@ CONTAINS
 !!gm               it provides there much to thick mixed layer ( summer 150m in GYRE configuration !!! )
       !
       IF( ln_mldw ) THEN      !==  set a minimum value in the Ekman layer  ==!
+         ALLOCATE( zh_ekm(T2D(0)) )
          !
          DO_2D( 0, 0, 0, 0 )
             zustar = SQRT( taum(ji,jj) * r1_rho0 )
@@ -185,6 +186,8 @@ CONTAINS
                p_avt(ji,jj,jk) = MAX(  p_avt(ji,jj,jk), rn_wtmix  ) * wmask(ji,jj,jk)
             ENDIF
          END_3D
+         !
+         DEALLOCATE( zh_ekm )
       ENDIF
       !
    END SUBROUTINE zdf_ric
