@@ -174,8 +174,12 @@ CONTAINS
                &                                             + ( zwy(ji,jj) - zwy(ji  ,jj-1) ) )     &
                &                                   * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
             END_2D
+            !                                 ! "Poleward" heat and salt transports
+            IF( l_ptr )  CALL dia_ptr_hst( jn, 'adv', zwy(:,:) )
+            !                                 !  heat transport
+            IF( l_hst )  CALL dia_ar5_hst( jn, 'adv', zwx(:,:), zwy(:,:), ldfin=(jk == jpkm1) )
          END DO
-!!gm + !!st to be done with the whole rewritting of trd  
+!!gm + !!st to be done with the whole rewritting of trd
 !!          trd routine arguments MUST be changed adding jk and zwx, zwy in 2D
 !!
 !!         !                                ! trend diagnostics
@@ -183,10 +187,6 @@ CONTAINS
 !!            CALL trd_tra( kt, Kmm, Krhs, cdtype, jn, jk, jptra_xad, zwx(:,:), pU, pt(:,:,:,jn,Kbb) )
 !!            CALL trd_tra( kt, Kmm, Krhs, cdtype, jn, jk, jptra_yad, zwy(:,:), pV, pt(:,:,:,jn,Kbb) )
 !!         END IF
-!!         !                                 ! "Poleward" heat and salt transports
-!!         IF( l_ptr )  CALL dia_ptr_hst( jn, jk, 'adv', zwy(:,:) )
-!!         !                                 !  heat transport
-!!         IF( l_hst )  CALL dia_ar5_hst( jn, jk, 'adv', zwx(:,:), zwy(:,:) )
          !
          !                          !* Vertical advective fluxes
          !

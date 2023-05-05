@@ -53,7 +53,7 @@ CONTAINS
 
    SUBROUTINE traldf_iso_lap( kt, Kbb, Kmm, pt, Krhs, ld_ptr, ld_hst )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE traldf_iso_iso  ***
+      !!                  ***  ROUTINE traldf_iso_lap  ***
       !!
       !!                   ——    nn_hls =2 or more  ——
       !!
@@ -105,6 +105,8 @@ CONTAINS
       INTEGER  ::   itra               ! number of tracers
       INTEGER  ::   ik, ikp1, iis      ! swap  indices
       !
+      LOGICAL  ::   ll_ptr, ll_hst
+      !
       REAL(wp) ::   zmsku, zahu_w      ! local scalars
       REAL(wp) ::   zmskv, zahv_w      !   -      -
       REAL(wp) ::   zfw_kp1            !   -      -
@@ -116,12 +118,10 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(1),0:1) ::   zdkt         ! INNER + 1 domain at level jk and jk+1
       REAL(wp), DIMENSION(T2D(1)    ) ::   zfu , zfv    ! INNER + 1 domain
       REAL(wp), DIMENSION(T2D(0)    ) ::   zfw          ! INNER     domain
-      !
-!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
-!      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zdia_i , zdia_j    ! used for some diagnostics
-!!!gm end
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zdia_i , zdia_j    ! used for some diagnostics
       !!----------------------------------------------------------------------
+      ll_ptr = .FALSE. ; ll_hst = .FALSE.
+      IF( PRESENT(ld_ptr) ) ll_ptr = ld_ptr
+      IF( PRESENT(ld_hst) ) ll_hst = ld_hst
       !
 !!gm OPTIMIZATION : This part does not depends on tracer  ===>>> put in a routine
 !!                  possibility of moving it in tra_ldf routine (shared between TRA and TRC at least in RK3 case).
@@ -134,28 +134,10 @@ CONTAINS
       !
       CALL traldf_iso_a33( Kmm, ah_wslp2, akz )   ! calculate  a33 element   (ah_wslp2 and akz)
       !
-!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
-!       IF( ld_ptr .OR. ld_hst ) THEN
-!          ALLOCATE( zdia_i(A2D(0)) , zdia_j(A2D(0)) )
-!       ENDIF
-      IF( PRESENT(ld_ptr) .OR. PRESENT(ld_hst) ) THEN
-         IF( ld_ptr .OR. ld_hst ) THEN
-            ALLOCATE( zdia_i(T2D(0),jpk) , zdia_j(T2D(0),jpk) )
-            zdia_i(:,:,jpk) = 0._wp   ;   zdia_j(:,:,jpk) = 0._wp
-         ENDIF
-      ENDIF
-!!gm end
-      !
       itra = SIZE( pt, dim = 4 )                   ! number of tracers
       !
       DO jn = 1, itra                     !==  tracer loop  ==!
          !
-!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
-!       IF( ld_ptr .OR. ld_hst ) THEN
-!          zdia_i(:,:) = 0._wp   ;   zdia_j(:,:) = 0._wp
-!       ENDIF
-!!gm end
-
          DO jk = 1, jpkm1                       !=  ij slab  =!
             !
             !                                      !* iso-neutral laplacian applied on pt over the INNER domain
@@ -168,28 +150,13 @@ CONTAINS
 #           undef    iso_lap
 #           undef    INN
 #           undef    pt_in
-!!gm ld_ptr,ld_hst:
-!             IF( ld_ptr .OR. ld_hst ) THEN       ! vertically cumulated fluxes (minus sign by convention in the output)
-!                zdia_i(:,:) = zdia_i(:,:) - zfu(A2D(0))
-!                zdia_j(:,:) = zdia_j(:,:) - zfv(A2D(0))
-!             ENDIF
-            IF( PRESENT(ld_ptr) .OR. PRESENT(ld_hst) ) THEN        ! store fluxes for diagnostics (minus sign by convention in the output)
-               IF( ld_ptr .OR. ld_hst ) THEN
-                  zdia_i(:,:,jk) = - zfu(T2D(0))
-                  zdia_j(:,:,jk) = - zfv(T2D(0))
-               ENDIF
-            ENDIF
-!!gm end
             !
+            !
+            !                                   !=  "Poleward" & 2D-integrated diffusive heat and salt transports  =!
+            !                                       Note sign is reversed to give down-gradient diffusive transports
+            IF( ll_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zfv(:,:) )
+            IF( ll_hst )  CALL dia_ar5_hst( jn, 'ldf', -zfu(:,:), -zfv(:,:), ldfin=(jk == jpkm1) )
          END DO                             !=  end ij slab  =!
-         !
-         !                                  !=  "Poleward" diffusive heat or salt transports  =!
-         IF( PRESENT(ld_ptr) )  THEN
-            IF( ld_ptr)  CALL dia_ptr_hst( jn, 'ldf'        , zdia_j )
-         ENDIF
-         IF( PRESENT(ld_hst) )  THEN
-            IF( ld_hst)  CALL dia_ar5_hst( jn, 'ldf', zdia_i, zdia_j )
-         ENDIF
          !
       END DO                          !==  end tracer loop  ==!
       !
@@ -198,7 +165,7 @@ CONTAINS
 
    SUBROUTINE traldf_iso_blp( kt, Kbb, Kmm, pt, Krhs, ld_ptr, ld_hst )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tra_ldf_iso_blp  ***
+      !!                  ***  ROUTINE traldf_iso_blp  ***
       !!
       !!                   ——    nn_hls =2 or more  ——
       !!
@@ -212,6 +179,8 @@ CONTAINS
       INTEGER  ::   itra               ! number of tracers
       INTEGER  ::   ik, ikp1, iis      ! swap  indices
       !
+      LOGICAL  ::   ll_ptr, ll_hst
+      !
       REAL(wp) ::   zmsku, zahu_w      ! local scalars
       REAL(wp) ::   zmskv, zahv_w      !   -      -
       REAL(wp) ::   zfw_kp1            !   -      -
@@ -224,36 +193,16 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(2)    )   ::   zfu , zfv    ! INNER + 2 domain
       REAL(wp), DIMENSION(T2D(1)    )   ::   zfw          ! INNER + 1 domain
       REAL(wp), DIMENSION(T2D(1),jpkm1) ::   zlap         ! INNER + 1 doamin (3D laplacian at t-point)
-      !
-!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
-!      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zdia_i , zdia_j    ! used for some diagnostics
-!!!gm end
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zdia_i , zdia_j    ! used for some diagnostics
       !!----------------------------------------------------------------------
+      ll_ptr = .FALSE. ; ll_hst = .FALSE.
+      IF( PRESENT(ld_ptr) ) ll_ptr = ld_ptr
+      IF( PRESENT(ld_hst) ) ll_hst = ld_hst
       !
       CALL traldf_iso_a33( Kmm, ah_wslp2, akz )   ! calculate  a33 element   (ah_wslp2 and akz)
       !
       itra = SIZE( pt, dim = 4 )                   ! number of tracers
       !
-!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
-!      IF( ld_ptr .OR. ld_hst ) THEN
-!         ALLOCATE( zdia_i(A2D(0)) , zdia_j(A2D(0)) )
-!      ENDIF
-      IF( PRESENT(ld_ptr) .OR. PRESENT(ld_hst) ) THEN
-         IF( ld_ptr .OR. ld_hst ) THEN
-            ALLOCATE( zdia_i(T2D(0),jpk) , zdia_j(T2D(0),jpk) )
-            zdia_i(:,:,jpk) = 0._wp   ;   zdia_j(:,:,jpk) = 0._wp
-         ENDIF
-      ENDIF
-!!gm end
-      !
       DO jn = 1, itra                     !==  tracer loop  ==!
-         !                  !
-!!gm ld_ptr,ld_hst:  require changes in the dia_ptr/dia_ar5   <<<=== comment for the moment
-!         IF( ld_ptr .OR. ld_hst ) THEN
-!            zdia_i(:,:) = 0._wp   ;   zdia_j(:,:) = 0._wp
-!         ENDIF
-!!gm end
          !
          DO jk = 1, jpkm1                       !=  ij slab  =!
             !
@@ -286,28 +235,11 @@ CONTAINS
 #           undef    INN
 #           undef    pt_in
             !
-!!gm ld_ptr,ld_hst:
-!             IF( ld_ptr .OR. ld_hst ) THEN       ! vertically cumulated fluxes (minus sign by convention in the output)
-!                zdia_i(:,:) = zdia_i(:,:) - zfu(A2D(0))
-!                zdia_j(:,:) = zdia_j(:,:) - zfv(A2D(0))
-!             ENDIF
-            IF( PRESENT(ld_ptr) .OR. PRESENT(ld_hst) ) THEN
-               IF( ld_ptr .OR. ld_hst ) THEN       ! store fluxes for diagnostics (minus sign by convention in the output)
-                  zdia_i(:,:,jk) = - zfu(T2D(0))
-                  zdia_j(:,:,jk) = - zfv(T2D(0))
-               ENDIF
-            ENDIF
-!!gm end
-            !
+            !                                   !=  "Poleward" & 2D-integrated diffusive heat and salt transports  =!
+            !                                       Note sign is reversed to give down-gradient diffusive transports
+            IF( ll_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zfv(:,:) )
+            IF( ll_hst )  CALL dia_ar5_hst( jn, 'ldf', -zfu(:,:), -zfv(:,:), ldfin=(jk == jpkm1) )
          END DO                             !=  end ij slab  =!
-         !
-         !                                  !=  "Poleward" diffusive heat or salt transports  =!
-         IF( PRESENT(ld_ptr) )  THEN
-            IF( ld_ptr )   CALL dia_ptr_hst( jn, 'ldf'        , zdia_j )
-         ENDIF
-         IF( PRESENT(ld_hst) )  THEN
-            IF( ld_hst )   CALL dia_ar5_hst( jn, 'ldf', zdia_i, zdia_j )
-         ENDIF
          !
       END DO                          !==  end tracer loop  ==!
       !
@@ -360,12 +292,6 @@ CONTAINS
             &      + ( ahtu(ji-1,jj,jk-1) + ahtu(ji  ,jj,jk) )  ) * zmsku
          zahv_w = (  ( ahtv(ji,jj  ,jk-1) + ahtv(ji,jj-1,jk) )    &
             &      + ( ahtv(ji,jj-1,jk-1) + ahtv(ji,jj  ,jk) )  ) * zmskv
-!!st need to do something for dia...
-!!st            !                             ! "Poleward" diffusive heat or salt transports (T-S case only)
-!!st               ! note sign is reversed to give down-gradient diffusive transports )
-!!st            IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(A2D(0),:)  )
-!!st            !                          ! Diffusive heat transports
-!!st            IF( l_hst )  CALL dia_ar5_hst( jn, 'ldf', -zftu(:,:,:), -zftv(:,:,:) )
             !
          pah_wslp2(ji,jj,jk) = zahu_w * wslpi(ji,jj,jk) * wslpi(ji,jj,jk)   &
             &                + zahv_w * wslpj(ji,jj,jk) * wslpj(ji,jj,jk)
