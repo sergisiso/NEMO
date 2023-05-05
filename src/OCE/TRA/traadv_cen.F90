@@ -110,7 +110,7 @@ CONTAINS
 !!st limitation : does not take into acccount iceshelf specificity
 !!                in case of linssh
          CASE(  2  )                         !* 2nd order centered
-             DO jk = 1, jpkm1
+            DO jk = 1, jpkm1
                !
                DO_2D( 1, 0, 1, 0 )                     ! Horizontal fluxes at layer jk
                   zft_u(ji,jj) = 0.5_wp * pU(ji,jj,jk) * ( pt(ji,jj,jk,jn,Kmm) + pt(ji+1,jj  ,jk,jn,Kmm) )
@@ -122,6 +122,10 @@ CONTAINS
                      &                                           + ( zft_v(ji,jj) - zft_v(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)   &
                      &                                        / e3t(ji,jj,jk,Kmm)
                END_2D
+               !                                 ! "Poleward" heat and salt transports
+               IF( l_ptr )   CALL dia_ptr_hst( jn, 'adv', zft_v(:,:) )
+               !                                 !  heat and salt transport
+               IF( l_hst )   CALL dia_ar5_hst( jn, 'adv', zft_u(:,:), zft_v(:,:), ldfin=(jk == jpkm1) )
             END DO
             !
          CASE(  4  )                         !* 4th order centered
@@ -147,6 +151,10 @@ CONTAINS
                      &                                           + ( zft_v(ji,jj) - zft_v(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)   &
                      &                                        / e3t(ji,jj,jk,Kmm)
                END_2D
+               !                                 ! "Poleward" heat and salt transports
+               IF( l_ptr )   CALL dia_ptr_hst( jn, 'adv', zft_v(:,:) )
+               !                                 !  heat and salt transport
+               IF( l_hst )   CALL dia_ar5_hst( jn, 'adv', zft_u(:,:), zft_v(:,:), ldfin=(jk == jpkm1) )
             END DO
             !
          CASE DEFAULT
@@ -216,10 +224,6 @@ CONTAINS
 !!            CALL trd_tra( kt, Kmm, Krhs, cdtype, jn, jptra_yad, zwy, pV, pt(:,:,:,jn,Kmm) )
 !!            CALL trd_tra( kt, Kmm, Krhs, cdtype, jn, jptra_zad, zwz, pW, pt(:,:,:,jn,Kmm) )
 !!         ENDIF
-!!         !                                 ! "Poleward" heat and salt transports
-!!         IF( l_ptr )   CALL dia_ptr_hst( jn, 'adv', zwy(:,:,:) )
-!!         !                                 !  heat and salt transport
-!!         IF( l_hst )   CALL dia_ar5_hst( jn, 'adv', zwx(:,:,:), zwy(:,:,:) )
          !
       END DO
       !

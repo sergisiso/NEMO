@@ -28,6 +28,10 @@ MODULE diaar5
    IMPLICIT NONE
    PRIVATE
 
+   INTERFACE dia_ar5_hst
+      MODULE PROCEDURE dia_ar5_hst_2d, dia_ar5_hst_3d
+   END INTERFACE
+
    PUBLIC   dia_ar5        ! routine called in step.F90 module
    PUBLIC   dia_ar5_init
    PUBLIC   dia_ar5_alloc  ! routine called in nemogcm.F90 module
@@ -367,49 +371,102 @@ CONTAINS
    END SUBROUTINE dia_ar5
 
 
-   SUBROUTINE dia_ar5_hst( ktra, cptr, puflx, pvflx )
+   SUBROUTINE dia_ar5_hst_2d( ktra, cptr, puflx, pvflx, ldfin )
+      !!
+      INTEGER,                  INTENT(in)  :: ktra         ! tracer index
+      CHARACTER(len=3),         INTENT(in)  :: cptr         ! transport type 'adv'/'ldf'
+      REAL(wp), DIMENSION(:,:), INTENT(in)  :: puflx, pvflx ! 2D u/v-flux of advection/diffusion
+      LOGICAL,                  INTENT(in)  :: ldfin        ! last call or not?
+      !!
+      CALL dia_ar5_hst_t( ktra, cptr, puflx2d=puflx, pvflx2d=pvflx, ktuvflx=lbnd_ij(puflx), ldfin=ldfin )
+   END SUBROUTINE dia_ar5_hst_2d
+
+
+   SUBROUTINE dia_ar5_hst_3d( ktra, cptr, puflx, pvflx )
+      !!
+      INTEGER,                    INTENT(in)  :: ktra         ! tracer index
+      CHARACTER(len=3),           INTENT(in)  :: cptr         ! transport type 'adv'/'ldf'
+      REAL(wp), DIMENSION(:,:,:), INTENT(in)  :: puflx, pvflx ! 3D u/v-flux of advection/diffusion
+      !!
+      CALL dia_ar5_hst_t( ktra, cptr, puflx3d=puflx, pvflx3d=pvflx, ktuvflx=lbnd_ij(puflx), ldfin=.TRUE. )
+   END SUBROUTINE dia_ar5_hst_3d
+
+
+   SUBROUTINE dia_ar5_hst_t( ktra, cptr, puflx2d, pvflx2d, puflx3d, pvflx3d, ktuvflx, ldfin )
       !!----------------------------------------------------------------------
       !!                    ***  ROUTINE dia_ar5_hst ***
       !!----------------------------------------------------------------------
       !! Wrapper for heat transport calculations
       !! Called from all advection and/or diffusion routines
       !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in )  :: ktra  ! tracer index
-      CHARACTER(len=3)                , INTENT(in)   :: cptr  ! transport type  'adv'/'ldf'
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk)    , INTENT(in)   :: puflx  ! u-flux of advection/diffusion
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk)    , INTENT(in)   :: pvflx  ! v-flux of advection/diffusion
+      INTEGER,  DIMENSION(2),                 INTENT(in)            :: ktuvflx
+      INTEGER,                                INTENT(in)            :: ktra              ! tracer index
+      CHARACTER(len=3),                       INTENT(in)            :: cptr              ! transport type  'adv'/'ldf'
+      LOGICAL,                                INTENT(in)            :: ldfin             ! are diagnostics ready for XIOS?
+      REAL(wp), DIMENSION(AB2D(ktuvflx)),     INTENT(in), OPTIONAL  :: puflx2d, pvflx2d  ! 2D u/v-flux of advection/diffusion
+      REAL(wp), DIMENSION(AB2D(ktuvflx),JPK), INTENT(in), OPTIONAL  :: puflx3d, pvflx3d  ! 3D "  "
       !
-      INTEGER    ::  ji, jj, jk
-      REAL(wp), DIMENSION(T2D(0))  :: z2d
+      INTEGER ::  ji, jj, jk
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE, SAVE  :: zuflx, zvflx
       !!----------------------------------------------------------------------
 
-      z2d(:,:) = 0._wp
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-         z2d(ji,jj) = z2d(ji,jj) + puflx(ji,jj,jk)
-      END_3D
-
-      IF( cptr == 'adv' ) THEN
-         IF( ktra == jp_tem )   CALL iom_put( 'uadv_heattr'  , rho0_rcp * z2d(:,:) ) ! advective heat transport in i-direction
-         IF( ktra == jp_sal )   CALL iom_put( 'uadv_salttr'  , rho0     * z2d(:,:) ) ! advective salt transport in i-direction
-      ELSE IF( cptr == 'ldf' ) THEN
-         IF( ktra == jp_tem )   CALL iom_put( 'udiff_heattr' , rho0_rcp * z2d(:,:) ) ! diffusive heat transport in i-direction
-         IF( ktra == jp_sal )   CALL iom_put( 'udiff_salttr' , rho0     * z2d(:,:) ) ! diffusive salt transport in i-direction
-      ENDIF
-      !
-      z2d(:,:) = 0._wp
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-         z2d(ji,jj) = z2d(ji,jj) + pvflx(ji,jj,jk)
-      END_3D
-
-      IF( cptr == 'adv' ) THEN
-         IF( ktra == jp_tem )   CALL iom_put( 'vadv_heattr'  , rho0_rcp * z2d(:,:) ) ! advective heat transport in j-direction
-         IF( ktra == jp_sal )   CALL iom_put( 'vadv_salttr'  , rho0     * z2d(:,:) ) ! advective salt transport in j-direction
-      ELSE IF( cptr == 'ldf' ) THEN
-         IF( ktra == jp_tem )   CALL iom_put( 'vdiff_heattr' , rho0_rcp * z2d(:,:) ) ! diffusive heat transport in j-direction
-         IF( ktra == jp_sal )   CALL iom_put( 'vdiff_salttr' , rho0     * z2d(:,:) ) ! diffusive salt transport in j-direction
+      ! Flux in i-direction
+      IF( .NOT. ALLOCATED(zuflx) ) THEN
+         ALLOCATE( zuflx(T2D(0)) )
+         zuflx(:,:) = 0._wp
       ENDIF
 
-   END SUBROUTINE dia_ar5_hst
+      IF( PRESENT(puflx2d) ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            zuflx(ji,jj) = zuflx(ji,jj) + puflx2d(ji,jj)
+         END_2D
+      ELSE IF( PRESENT(puflx3d) ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zuflx(ji,jj) = zuflx(ji,jj) + puflx3d(ji,jj,jk)
+         END_3D
+      ENDIF
+
+      IF( ldfin ) THEN
+         IF( cptr == 'adv' ) THEN
+            IF( ktra == jp_tem ) CALL iom_put( 'uadv_heattr'  , rho0_rcp * zuflx(:,:) ) ! advective heat transport
+            IF( ktra == jp_sal ) CALL iom_put( 'uadv_salttr'  , rho0     * zuflx(:,:) ) ! advective salt transport
+         ELSE IF( cptr == 'ldf' ) THEN
+            IF( ktra == jp_tem ) CALL iom_put( 'udiff_heattr' , rho0_rcp * zuflx(:,:) ) ! diffusive heat transport
+            IF( ktra == jp_sal ) CALL iom_put( 'udiff_salttr' , rho0     * zuflx(:,:) ) ! diffusive salt transport
+         ENDIF
+
+         DEALLOCATE( zuflx )
+      ENDIF
+
+      ! Flux in j-direction
+      IF( .NOT. ALLOCATED(zvflx) ) THEN
+         ALLOCATE( zvflx(T2D(0)) )
+         zvflx(:,:) = 0._wp
+      ENDIF
+
+      IF( PRESENT(pvflx2d) ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            zvflx(ji,jj) = zvflx(ji,jj) + pvflx2d(ji,jj)
+         END_2D
+      ELSE IF( PRESENT(pvflx3d) ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            zvflx(ji,jj) = zvflx(ji,jj) + pvflx3d(ji,jj,jk)
+         END_3D
+      ENDIF
+
+      IF( ldfin ) THEN
+         IF( cptr == 'adv' ) THEN
+            IF( ktra == jp_tem ) CALL iom_put( 'vadv_heattr'  , rho0_rcp * zvflx(:,:) ) ! advective heat transport
+            IF( ktra == jp_sal ) CALL iom_put( 'vadv_salttr'  , rho0     * zvflx(:,:) ) ! advective salt transport
+         ELSE IF( cptr == 'ldf' ) THEN
+            IF( ktra == jp_tem ) CALL iom_put( 'vdiff_heattr' , rho0_rcp * zvflx(:,:) ) ! diffusive heat transport
+            IF( ktra == jp_sal ) CALL iom_put( 'vdiff_salttr' , rho0     * zvflx(:,:) ) ! diffusive salt transport
+         ENDIF
+
+         DEALLOCATE( zvflx )
+      ENDIF
+
+   END SUBROUTINE dia_ar5_hst_t
 
 
    SUBROUTINE dia_ar5_init
