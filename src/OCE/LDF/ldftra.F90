@@ -384,7 +384,7 @@ CONTAINS
       !!                                                   with a reduction to 0 in vicinity of the Equator
       !!    nn_aht_ijk_t = 21    ahtu, ahtv = F(i,j,  t) = F(growth rate of baroclinic instability)
       !!
-      !!                 = 31    ahtu, ahtv = F(i,j,k,t) = F(local velocity) (  |u|e  /12   laplacian operator
+      !!                 = 31    ahtu, ahtv = F(i,j,k,t) = F(local velocity) (  |u|e  / 2   laplacian operator
       !!                                                                     or |u|e^3/12 bilaplacian operator )
       !!
       !!              * time varying EIV coefficients: call to ldf_eiv routine
@@ -435,10 +435,10 @@ CONTAINS
          END DO
          !
       CASE(  31  )       !==  time varying 3D field  ==!   = F( local velocity )
-         IF( ln_traldf_lap     ) THEN          !   laplacian operator |u| e /12
+         IF( ln_traldf_lap     ) THEN          !   laplacian operator |u| e / 2
             DO jk = 1, jpkm1
-               ahtu(:,:,jk) = ABS( uu(:,:,jk,Kbb) ) * e1u(:,:) * r1_12   ! n.b. uu,vv are masked
-               ahtv(:,:,jk) = ABS( vv(:,:,jk,Kbb) ) * e2v(:,:) * r1_12
+               ahtu(:,:,jk) = ABS( uu(:,:,jk,Kbb) ) * e1u(:,:) * r1_2   ! n.b. uu,vv are masked
+               ahtv(:,:,jk) = ABS( vv(:,:,jk,Kbb) ) * e2v(:,:) * r1_2
             END DO
          ELSEIF( ln_traldf_blp ) THEN      ! bilaplacian operator      sqrt( |u| e^3 /12 ) = sqrt( |u| e /12 ) * e
             DO jk = 1, jpkm1
