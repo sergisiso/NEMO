@@ -58,7 +58,6 @@
 !-----------------------------------------------------------------------
 &namwad        !   Wetting and Drying (WaD)                             (default: OFF)
 !-----------------------------------------------------------------------
-   ln_wd_il    = .false    ! T/F activation of iterative   limiter
    ln_wd_dl    = .true.    ! T/F activation of directional limiter
    ln_wd_dl_bc = .true.    ! T/F Directional limiteer Baroclinic option
    ln_wd_dl_rmp = .true.    ! T/F Turn on directional limiter ramp
@@ -66,7 +65,6 @@
    rn_wdmin1   =  0.2      ! Minimum wet depth on dried cells
    rn_wdmin2   =  0.0001   ! Tolerance of min wet depth on dried cells
    rn_wdld     =  2.5      ! Land elevation below which WaD is allowed
-   nn_wdit     =   20      ! Max iterations for WaD limiter
 /
 !!======================================================================
 !!            ***  Surface Boundary Condition namelists  ***          !!
@@ -156,10 +154,6 @@
     cn_ice        =  'none'               !
     nn_ice_dta    =  0                    !  = 0, bdy data are equal to the initial state
                                           !  = 1, bdy data are read in 'bdydata   .nc' files
-    rn_ice_tem    = 270.                  !  si3 only: arbitrary temperature of incoming sea ice
-    rn_ice_sal    = 10.                   !  si3 only:      --   salinity           --
-    rn_ice_age    = 30.                   !  si3 only:      --   age                --
-
     ln_tra_dmp    =.false.                !  open boudaries conditions for tracers
     ln_dyn3d_dmp  =.false.                !  open boundary condition for baroclinic velocities
     rn_time_dmp   =  1.                   ! Damping time scale in days

@@ -319,12 +319,9 @@ CONTAINS
       !!
       INTEGER  ::   ji, jj, jk, jii, jjj           ! dummy loop indices
       REAL(wp) ::   zcoef0, zuap, zvap, ztmp       ! local scalars
-      LOGICAL  ::   ll_tmp1, ll_tmp2               ! local logical variables
       REAL(wp), DIMENSION(T2D(0))           ::   zhpi, zhpj
-      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zcpx, zcpy   !W/D pressure filter
       !!----------------------------------------------------------------------
       !
-      IF( ln_wd_il ) ALLOCATE(zcpx(T2D(0)), zcpy(T2D(0)))
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == nit000 ) THEN
@@ -336,45 +333,6 @@ CONTAINS
       !
       zcoef0 = - grav * 0.5_wp
       !
-      IF( ln_wd_il ) THEN
-        DO_2D( 0, 0, 0, 0 )
-          ll_tmp1 = MIN(  ssh(ji,jj,Kmm)               ,  ssh(ji+1,jj,Kmm) ) >                &
-               &    MAX( -ht_0(ji,jj)               , -ht_0(ji+1,jj) ) .AND.            &
-               &    MAX(  ssh(ji,jj,Kmm) +  ht_0(ji,jj),  ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) )  &
-               &                                                       > rn_wdmin1 + rn_wdmin2
-          ll_tmp2 = ( ABS( ssh(ji,jj,Kmm)              -  ssh(ji+1,jj,Kmm) ) > 1.E-12 ) .AND. (       &
-               &    MAX(   ssh(ji,jj,Kmm)              ,  ssh(ji+1,jj,Kmm) ) >                &
-               &    MAX(  -ht_0(ji,jj)              , -ht_0(ji+1,jj) ) + rn_wdmin1 + rn_wdmin2 )
-
-          IF(ll_tmp1) THEN
-            zcpx(ji,jj) = 1.0_wp
-          ELSE IF(ll_tmp2) THEN
-            ! no worries about  ssh(ji+1,jj,Kmm) -  ssh(ji  ,jj,Kmm) = 0, it won't happen ! here
-            zcpx(ji,jj) = ABS( (ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) - ssh(ji,jj,Kmm) - ht_0(ji,jj)) &
-                        &    / (ssh(ji+1,jj,Kmm) - ssh(ji  ,jj,Kmm)) )
-          ELSE
-            zcpx(ji,jj) = 0._wp
-          END IF
-   
-          ll_tmp1 = MIN(  ssh(ji,jj,Kmm)              ,  ssh(ji,jj+1,Kmm) ) >                &
-               &    MAX( -ht_0(ji,jj)              , -ht_0(ji,jj+1) ) .AND.            &
-               &    MAX(  ssh(ji,jj,Kmm) + ht_0(ji,jj),  ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) )  &
-               &                                                      > rn_wdmin1 + rn_wdmin2
-          ll_tmp2 = ( ABS( ssh(ji,jj,Kmm)             -  ssh(ji,jj+1,Kmm) ) > 1.E-12 ) .AND. (        &
-               &    MAX(   ssh(ji,jj,Kmm)             ,  ssh(ji,jj+1,Kmm) ) >                &
-               &    MAX(  -ht_0(ji,jj)             , -ht_0(ji,jj+1) ) + rn_wdmin1 + rn_wdmin2 )
-
-          IF(ll_tmp1) THEN
-            zcpy(ji,jj) = 1.0_wp
-          ELSE IF(ll_tmp2) THEN
-            ! no worries about  ssh(ji,jj+1,Kmm) -  ssh(ji,jj  ,Kmm) = 0, it won't happen ! here
-            zcpy(ji,jj) = ABS( ( ( ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &   ! add () for NP repro
-                        &      / ( ssh(ji,jj+1,Kmm)                   -   ssh(ji,jj,Kmm)                 ) )
-          ELSE
-            zcpy(ji,jj) = 0._wp
-          END IF
-        END_2D
-      END IF
       !
       DO_2D( 0, 0, 0, 0 )              ! Surface value
          !                                   ! hydrostatic pressure gradient along s-surfaces
@@ -390,12 +348,6 @@ CONTAINS
          zvap = -zcoef0 * ( rhd     (ji,jj+1,1)     + rhd     (ji,jj,1) )   &
             &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !
-         IF( ln_wd_il ) THEN
-            zhpi(ji,jj) = zhpi(ji,jj) * zcpx(ji,jj)
-            zhpj(ji,jj) = zhpj(ji,jj) * zcpy(ji,jj)
-            zuap = zuap * zcpx(ji,jj)
-            zvap = zvap * zcpy(ji,jj)
-         ENDIF
          !                                   ! add to the general momentum trend
          puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj) + zuap
          pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj) + zvap
@@ -416,12 +368,6 @@ CONTAINS
             zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk)     ) &
                &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) * r1_e2v(ji,jj)
             !
-            IF( ln_wd_il ) THEN
-               zhpi(ji,jj) = zhpi(ji,jj) * zcpx(ji,jj)
-               zhpj(ji,jj) = zhpj(ji,jj) * zcpy(ji,jj)
-               zuap = zuap * zcpx(ji,jj)
-               zvap = zvap * zcpy(ji,jj)
-            ENDIF
             !
             ! add to the general momentum trend
             puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj) + zuap
@@ -429,7 +375,6 @@ CONTAINS
          END_2D
       END DO
       !
-      IF( ln_wd_il )  DEALLOCATE( zcpx , zcpy )
       !
    END SUBROUTINE hpg_sco
 
@@ -554,7 +499,6 @@ CONTAINS
       REAL(wp) ::   z_grav_10, z1_12, z1_cff
       REAL(wp) ::   cffu, cffx          !    "         "
       REAL(wp) ::   cffv, cffy          !    "         "
-      LOGICAL  ::   ll_tmp1, ll_tmp2    ! local logical variables
       REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zhpi, zhpj
 
       REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdzx, zdzy, zdzz                          ! Primitive grid differences ('delta_xyz')
@@ -563,48 +507,8 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdrho_i, zdrho_j, zdrho_k                 ! Harmonic average of primitive rho differences ('d_rho')
       REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   z_rho_i, z_rho_j, z_rho_k                 ! Face intergrals
       REAL(wp), DIMENSION(T2D(nn_hls))     ::   zz_dz_i, zz_dz_j, zz_drho_i, zz_drho_j    ! temporary arrays
-      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zcpx, zcpy   !W/D pressure filter
       !!----------------------------------------------------------------------
       !
-      IF( ln_wd_il ) THEN
-         ALLOCATE( zcpx(T2D(nn_hls)) , zcpy(T2D(nn_hls)) )
-        DO_2D( 0, 0, 0, 0 )
-          ll_tmp1 = MIN(  ssh(ji,jj,Kmm)              ,  ssh(ji+1,jj,Kmm) ) >                &
-               &    MAX( -ht_0(ji,jj)              , -ht_0(ji+1,jj) ) .AND.            &
-               &    MAX(  ssh(ji,jj,Kmm) + ht_0(ji,jj),  ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) )  &
-               &                                                      > rn_wdmin1 + rn_wdmin2
-          ll_tmp2 = ( ABS( ssh(ji,jj,Kmm)             -  ssh(ji+1,jj,Kmm) ) > 1.E-12 ) .AND. (        &
-               &    MAX(   ssh(ji,jj,Kmm)             ,  ssh(ji+1,jj,Kmm) ) >                &
-               &    MAX(  -ht_0(ji,jj)             , -ht_0(ji+1,jj) ) + rn_wdmin1 + rn_wdmin2 )
-          IF(ll_tmp1) THEN
-            zcpx(ji,jj) = 1.0_wp
-          ELSE IF(ll_tmp2) THEN
-            ! no worries about  ssh(ji+1,jj,Kmm) -  ssh(ji  ,jj,Kmm) = 0, it won't happen ! here
-            zcpx(ji,jj) = ABS( ( ( ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &  ! add () for NP repro
-                        &    / (   ssh(ji+1,jj,Kmm)                     - ssh(ji,jj,Kmm)                 ) )
-          ELSE
-            zcpx(ji,jj) = 0._wp
-          END IF
-   
-          ll_tmp1 = MIN(  ssh(ji,jj,Kmm)              ,  ssh(ji,jj+1,Kmm) ) >                &
-               &    MAX( -ht_0(ji,jj)              , -ht_0(ji,jj+1) ) .AND.            &
-               &    MAX(  ssh(ji,jj,Kmm) + ht_0(ji,jj),  ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) )  &
-               &                                                      > rn_wdmin1 + rn_wdmin2
-          ll_tmp2 = ( ABS( ssh(ji,jj,Kmm)             -  ssh(ji,jj+1,Kmm) ) > 1.E-12 ) .AND. (        &
-               &    MAX(   ssh(ji,jj,Kmm)             ,  ssh(ji,jj+1,Kmm) ) >                &
-               &    MAX(  -ht_0(ji,jj)             , -ht_0(ji,jj+1) ) + rn_wdmin1 + rn_wdmin2 )
-
-          IF(ll_tmp1) THEN
-            zcpy(ji,jj) = 1.0_wp
-          ELSE IF(ll_tmp2) THEN
-            ! no worries about  ssh(ji,jj+1,Kmm) -  ssh(ji,jj  ,Kmm) = 0, it won't happen ! here
-            zcpy(ji,jj) = ABS( ( ( ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &  ! add () for NP repro
-                        &    / (   ssh(ji,jj+1,Kmm)                   -   ssh(ji,jj,Kmm)                 ) )
-          ELSE
-            zcpy(ji,jj) = 0._wp
-          END IF
-        END_2D
-      END IF
 
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == nit000 ) THEN
@@ -820,10 +724,6 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )
          zhpi(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji+1,jj  ,1) ) - z_rho_i(ji,jj,1) ) * r1_e1u(ji,jj)   ! add () for NP repro
          zhpj(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji  ,jj+1,1) ) - z_rho_j(ji,jj,1) ) * r1_e2v(ji,jj)
-         IF( ln_wd_il ) THEN
-           zhpi(ji,jj,1) = zhpi(ji,jj,1) * zcpx(ji,jj)
-           zhpj(ji,jj,1) = zhpj(ji,jj,1) * zcpy(ji,jj) 
-         ENDIF
          ! add to the general momentum trend
          puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj,1)
          pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj,1)
@@ -840,16 +740,11 @@ CONTAINS
          zhpj(ji,jj,jk) = zhpj(ji,jj,jk-1)                                                     &
             &           + (  ( z_rho_k(ji,jj,jk) - z_rho_k(ji,jj+1,jk  ) )                     &
             &               -( z_rho_j(ji,jj,jk) - z_rho_j(ji,jj  ,jk-1) )  ) * r1_e2v(ji,jj)
-         IF( ln_wd_il ) THEN
-           zhpi(ji,jj,jk) = zhpi(ji,jj,jk) * zcpx(ji,jj)
-           zhpj(ji,jj,jk) = zhpj(ji,jj,jk) * zcpy(ji,jj) 
-         ENDIF
          ! add to the general momentum trend
          puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj,jk)
          pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj,jk)
       END_3D
       !
-      IF( ln_wd_il )   DEALLOCATE( zcpx, zcpy )
       !
    END SUBROUTINE hpg_djc
 
@@ -875,7 +770,6 @@ CONTAINS
       !
       !! The local variables for the correction term
       INTEGER  :: jk1, jis, jid, jjs, jjd
-      LOGICAL  :: ll_tmp1, ll_tmp2                  ! local logical variables
       REAL(wp) :: zuijk, zvijk, zpwes, zpwed, zpnss, zpnsd, zdeps
       REAL(wp) :: zrhdt1
       REAL(wp) :: zdpdx1, zdpdx2, zdpdy1, zdpdy2
@@ -883,7 +777,6 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(nn_hls))     ::   zsshu_n, zsshv_n
       REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zdept, zrhh
       REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zhpi, zu, zv, fsp, xsp, asp, bsp, csp, dsp
-      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zcpx, zcpy   !W/D pressure filter
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -907,48 +800,6 @@ CONTAINS
          zpgv(ji,jj) = - grav * ( ssh(ji,jj+1,Kmm) - ssh(ji,jj,Kmm) ) * r1_e2v(ji,jj)
       END_2D
       !
-      IF( ln_wd_il ) THEN
-         ALLOCATE( zcpx(T2D(nn_hls)) , zcpy(T2D(nn_hls)) )
-         DO_2D( 0, 0, 0, 0 )
-            ll_tmp1 = MIN(   ssh(ji,jj,Kmm)              ,   ssh(ji+1,jj,Kmm)                 ) >       &
-               &      MAX( -ht_0(ji,jj)                  , -ht_0(ji+1,jj)                     ) .AND.   &
-               &      MAX(   ssh(ji,jj,Kmm) + ht_0(ji,jj),   ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) ) >       &
-               &      rn_wdmin1 + rn_wdmin2
-            ll_tmp2 = ( ABS(   ssh(ji,jj,Kmm) -   ssh(ji+1,jj,Kmm) ) > 1.E-12 ) .AND.                   &
-               &      ( MAX(   ssh(ji,jj,Kmm) ,   ssh(ji+1,jj,Kmm) ) >                                  &
-               &        MAX( -ht_0(ji,jj)     , -ht_0(ji+1,jj)     ) + rn_wdmin1 + rn_wdmin2 )
-
-            IF(ll_tmp1) THEN
-               zcpx(ji,jj) = 1.0_wp
-            ELSE IF(ll_tmp2) THEN
-               ! no worries about  ssh(ji+1,jj,Kmm) -  ssh(ji  ,jj,Kmm) = 0, it won't happen ! here
-               zcpx(ji,jj) = ABS( ( ( ssh(ji+1,jj,Kmm) + ht_0(ji+1,jj) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &
-                  &             / (   ssh(ji+1,jj,Kmm)                   -  ssh(ji,jj,Kmm)                  ) )
-               zcpx(ji,jj) = MAX(MIN( zcpx(ji,jj) , 1.0_wp),0.0_wp)
-            ELSE
-               zcpx(ji,jj) = 0._wp
-            END IF
-
-            ll_tmp1 = MIN(   ssh(ji,jj,Kmm)              ,   ssh(ji,jj+1,Kmm)                 ) >       &
-               &      MAX( -ht_0(ji,jj)                  , -ht_0(ji,jj+1)                     ) .AND.   &
-               &      MAX(   ssh(ji,jj,Kmm) + ht_0(ji,jj),   ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) ) >       &
-               &      rn_wdmin1 + rn_wdmin2
-            ll_tmp2 = ( ABS(   ssh(ji,jj,Kmm) -   ssh(ji,jj+1,Kmm) ) > 1.E-12 ) .AND.                   &
-               &      ( MAX(   ssh(ji,jj,Kmm) ,   ssh(ji,jj+1,Kmm) ) >                                  &
-               &        MAX( -ht_0(ji,jj)     , -ht_0(ji,jj+1)     ) + rn_wdmin1 + rn_wdmin2 )
-
-            IF(ll_tmp1) THEN
-               zcpy(ji,jj) = 1.0_wp
-            ELSE IF(ll_tmp2) THEN
-               ! no worries about  ssh(ji,jj+1,Kmm) -  ssh(ji,jj  ,Kmm) = 0, it won't happen ! here
-               zcpy(ji,jj) = ABS( ( ( ssh(ji,jj+1,Kmm) + ht_0(ji,jj+1) ) - ( ssh(ji,jj,Kmm) + ht_0(ji,jj) ) ) &
-                           &    / (   ssh(ji,jj+1,Kmm)                   -   ssh(ji,jj,Kmm)                 ) )
-               zcpy(ji,jj) = MAX(MIN( zcpy(ji,jj) , 1.0_wp),0.0_wp)
-            ELSE
-               zcpy(ji,jj) = 0._wp
-            ENDIF
-         END_2D
-      ENDIF
 
       ! Clean 3-D work arrays
       zhpi(:,:,:) = 0._wp
@@ -1096,10 +947,6 @@ CONTAINS
             ELSE
                zdpdx2 = zcoef0 * r1_e1u(ji,jj) * REAL(jis-jid, wp) * (zpwes + zpwed)
             ENDIF
-            IF( ln_wd_il ) THEN
-               zdpdx1 = zdpdx1 * zcpx(ji,jj) * wdrampu(ji,jj)
-               zdpdx2 = zdpdx2 * zcpx(ji,jj) * wdrampu(ji,jj)
-            ENDIF
             puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (zdpdx1 + zdpdx2 - zpgu(ji,jj)) * umask(ji,jj,jk)
          ENDIF
 
@@ -1153,17 +1000,12 @@ CONTAINS
             ELSE
                zdpdy2 = zcoef0 * r1_e2v(ji,jj) * REAL(jjs-jjd, wp) * (zpnss + zpnsd )
             ENDIF
-            IF( ln_wd_il ) THEN
-               zdpdy1 = zdpdy1 * zcpy(ji,jj) * wdrampv(ji,jj)
-               zdpdy2 = zdpdy2 * zcpy(ji,jj) * wdrampv(ji,jj)
-            ENDIF
 
             pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (zdpdy1 + zdpdy2 - zpgv(ji,jj)) * vmask(ji,jj,jk)
          ENDIF
          !
       END_3D
       !
-      IF( ln_wd_il )   DEALLOCATE( zcpx, zcpy )
       !
    END SUBROUTINE hpg_prj
 
