@@ -21,7 +21,7 @@ MODULE nemogcm
    USE usrdef_nam     ! user defined configuration
    USE bdyini         ! open boundary cond. setting       (bdy_init routine)
    USE istate         ! initial state setting          (istate_init routine)
-   USE wet_dry , ONLY : ln_wd_il, ln_wd_dl, ln_wd_dl_bc   ! switch off wetting and drying
+   USE wet_dry , ONLY : ln_wd_dl, ln_wd_dl_bc   ! switch off wetting and drying
    USE isf_oce , ONLY : ln_isf           ! ice shelf
    USE trd_oce , ONLY : l_trddyn         ! dynamical trend logical
    USE dia25h  , ONLY : ln_dia25h        ! 25h mean output
@@ -292,7 +292,7 @@ CONTAINS
       IF( ln_timing    )   CALL timing_start( 'nemo_init')
       !
                            CALL     phy_cst         ! Physical constants
-                           ln_wd_il = .FALSE.   ;   ln_wd_dl = .FALSE.   ;   ln_wd_dl_bc = .FALSE.  ! No wetting and drying
+                           ln_wd_dl = .FALSE.   ;   ln_wd_dl_bc = .FALSE.  ! No wetting and drying
       !
       !                                             ! SWE: Set rho0 and associated variables (eosbn2 not used)
                            rho0        = 1026._wp                 !: volumic mass of reference     [kg/m3]
