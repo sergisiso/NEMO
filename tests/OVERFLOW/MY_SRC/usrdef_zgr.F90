@@ -62,7 +62,6 @@ CONTAINS
       REAL(wp) ::   zfact, z1_jpkm1   ! local scalar
       REAL(wp) ::   ze3min            ! local scalar
       REAL(wp), DIMENSION(jpi,jpj) ::   zht, zhu, z2d   ! 2D workspace
-      REAL(wp), DIMENSION(A2D(nn_hls), jpk) ::   zdepw   ! 3D workspace !!st a mettre en ALLOCATABLE
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
@@ -75,8 +74,8 @@ CONTAINS
       ! already set in usrdef_nam.F90 by reading the namusr_def namelist except for ISF
       ld_isfcav = .FALSE.
       ld_zco  = .FALSE.
-      ld_zps  = .FALSE.
-      ld_sco  = .TRUE.
+      ld_zps  = .TRUE.
+      ld_sco  = .FALSE.
       !
       ! Build the vertical coordinate system
       ! ------------------------------------
@@ -170,9 +169,8 @@ CONTAINS
             END DO
             DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
                ik = k_bot(ji,jj)
-               zdepw(ji,jj,ik+1) = MIN( zht(ji,jj) , pdepw_1d(ik+1) )
-               pe3t (ji,jj,ik  ) = zdepw(ji,jj,ik+1) - zdepw(ji,jj,ik)
-               pe3t (ji,jj,ik+1) = pe3t (ji,jj,ik  ) 
+               pe3t (ji,jj,ik  ) = MIN( zht(ji,jj) , pdepw_1d(ik+1) ) - pdepw_1d(ik)   ! last wet level thickness
+               pe3t (ji,jj,ik+1) = pe3t (ji,jj,ik  )
             END_2D
             !                                   ! bottom scale factors and depth at  U-, V-, UW and VW-points
             !                                   ! usually Computed as the minimum of neighbooring scale factors
@@ -215,8 +213,7 @@ CONTAINS
             END DO
             DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
                ik = k_bot(ji,jj)
-               zdepw(ji,jj,ik+1) = MIN( zht(ji,jj) , pdepw_1d(ik+1) )
-               pe3t (ji,jj,ik  ) = zdepw(ji,jj,ik+1) - zdepw(ji,jj,ik)
+               pe3t (ji,jj,ik  ) = MIN( zht(ji,jj) , pdepw_1d(ik+1) ) - pdepw_1d(ik)   ! last wet level thickness
                pe3t (ji,jj,ik+1) = pe3t (ji,jj,ik  ) 
             END_2D
             !                                   ! bottom scale factors and depth at  U-, V-, UW and VW-points
