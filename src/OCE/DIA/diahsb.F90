@@ -82,21 +82,13 @@ CONTAINS
       REAL(wp)   ::   z_frc_trd_v                 !    -     -
       REAL(wp)   ::   z_wn_trd_t , z_wn_trd_s     !    -     -
       REAL(wp)   ::   z_ssh_hc , z_ssh_sc         !    -     -
-      REAL(wp), DIMENSION(A2D(0),13)      ::   ztmp
-      REAL(wp), DIMENSION(A2D(0),jpkm1,4) ::   ztmpk
+      REAL(wp), DIMENSION(A2D(0),17)      ::   ztmp
       REAL(wp), DIMENSION(17)             ::   zbg
       !!---------------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('dia_hsb')
       !
       DO_2D( 0, 0, 0, 0 )
          ztmp (ji,jj,:)   = 0._wp ! should be better coded
-         ztmpk(ji,jj,:,:) = 0._wp ! should be better coded
-         !
-         ts(ji,jj,:,1,Kmm) = ts(ji,jj,:,1,Kmm) * tmask(ji,jj,:)
-         ts(ji,jj,:,1,Kbb) = ts(ji,jj,:,1,Kbb) * tmask(ji,jj,:)
-         !
-         ts(ji,jj,:,2,Kmm) = ts(ji,jj,:,2,Kmm) * tmask(ji,jj,:)
-         ts(ji,jj,:,2,Kbb) = ts(ji,jj,:,2,Kbb) * tmask(ji,jj,:)
       END_2D
       !
       ! ------------------------- !
@@ -108,8 +100,13 @@ CONTAINS
              &                          - rnf(ji,jj)        &
              &                          - fwfisf_cav(ji,jj) &
              &                          - fwfisf_par(ji,jj) ) * surf(ji,jj)
+#if defined key_RK3
+         ztmp(ji,jj,2)  =   0._wp !!sbc_tsc(ji,jj,jp_tem) * surf(ji,jj)               ! heat => clem: needs to be sorted out for rk3
+         ztmp(ji,jj,3)  =   0._wp !!sbc_tsc(ji,jj,jp_sal) * surf(ji,jj)               ! salt => clem: needs to be sorted out for rk3
+#else
          ztmp(ji,jj,2)  =   sbc_tsc(ji,jj,jp_tem) * surf(ji,jj)                       ! heat
          ztmp(ji,jj,3)  =   sbc_tsc(ji,jj,jp_sal) * surf(ji,jj)                       ! salt
+#endif
       END_2D
       IF( ln_rnf     ) THEN
          DO_2D( 0, 0, 0, 0 )
@@ -151,31 +148,6 @@ CONTAINS
             END_2D
          END IF
       ENDIF
-      
-      ! global sum
-      zbg(1:10) = glob_sum_vec( 'dia_hsb', ztmp(:,:,1:10) )
-
-      ! adding up
-      z_frc_trd_v = zbg(1)  ! volume fluxes
-      z_frc_trd_t = zbg(2)  ! heat fluxes
-      z_frc_trd_s = zbg(3)  ! salt fluxes
-      IF( ln_rnf    )   z_frc_trd_t = z_frc_trd_t + zbg(4) ! runoff heat
-      IF( ln_rnf_sal)   z_frc_trd_s = z_frc_trd_s + zbg(5) ! runoff salt
-      IF( ln_isf    )   z_frc_trd_t = z_frc_trd_t + zbg(6) ! isf heat
-      IF( ln_traqsr )   z_frc_trd_t = z_frc_trd_t + zbg(7) ! penetrative solar flux
-      IF( ln_trabbc )   z_frc_trd_t = z_frc_trd_t + zbg(8) ! geothermal heat
-      !
-      frc_v = frc_v + z_frc_trd_v * rn_Dt
-      frc_t = frc_t + z_frc_trd_t * rn_Dt
-      frc_s = frc_s + z_frc_trd_s * rn_Dt
-      !                                          ! Advection flux through fixed surface (z=0)
-      IF( ln_linssh ) THEN
-         z_wn_trd_t = zbg(9)
-         z_wn_trd_s = zbg(10)
-         !
-         frc_wn_t = frc_wn_t + z_wn_trd_t * rn_Dt
-         frc_wn_s = frc_wn_s + z_wn_trd_s * rn_Dt
-      ENDIF
 
       ! --------------------------------- !
       ! 2 -  Content variations with ssh  !
@@ -202,9 +174,53 @@ CONTAINS
          END IF
       ENDIF
 
+      ! --------------------------------- !
+      ! 3 -  Content variations with e3t  !
+      ! --------------------------------- !
+      ! glob_sum is needed because you keep only the interior domain to compute the sum (iscpl)
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         ! volume
+         ztmp(ji,jj,14) = ztmp(ji,jj,14) + surf    (ji,jj) * e3t    (ji,jj,jk,Kmm)*tmask    (ji,jj,jk) &
+            &                            - surf_ini(ji,jj) * e3t_ini(ji,jj,jk)    *tmask_ini(ji,jj,jk)
+         ! heat
+         ztmp(ji,jj,15) = ztmp(ji,jj,15) + ( surf    (ji,jj) * e3t(ji,jj,jk,Kmm)*ts(ji,jj,jk,jp_tem,Kmm) &
+            &                            -   surf_ini(ji,jj) * hc_loc_ini(ji,jj,jk) )
+         ! salt
+         ztmp(ji,jj,16) = ztmp(ji,jj,16) + ( surf    (ji,jj) * e3t(ji,jj,jk,Kmm)*ts(ji,jj,jk,jp_sal,Kmm) &
+            &                            -   surf_ini(ji,jj) * sc_loc_ini(ji,jj,jk) )
+         ! total ocean volume
+         ztmp(ji,jj,17) = ztmp(ji,jj,17) + surf(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
+      END_3D
+
+      ! ----------
       ! global sum
-      zbg(11:13) = glob_sum_vec( 'dia_hsb', ztmp(:,:,11:13) )
-      
+      ! ----------
+      zbg(1:17) = glob_sum_vec( 'dia_hsb', ztmp(:,:,1:17) )
+ 
+      ! 1)
+      z_frc_trd_v = zbg(1)  ! volume fluxes
+      z_frc_trd_t = zbg(2)  ! heat fluxes
+      z_frc_trd_s = zbg(3)  ! salt fluxes
+      IF( ln_rnf    )   z_frc_trd_t = z_frc_trd_t + zbg(4) ! runoff heat
+      IF( ln_rnf_sal)   z_frc_trd_s = z_frc_trd_s + zbg(5) ! runoff salt
+      IF( ln_isf    )   z_frc_trd_t = z_frc_trd_t + zbg(6) ! isf heat
+      IF( ln_traqsr )   z_frc_trd_t = z_frc_trd_t + zbg(7) ! penetrative solar flux
+      IF( ln_trabbc )   z_frc_trd_t = z_frc_trd_t + zbg(8) ! geothermal heat
+      !
+      frc_v = frc_v + z_frc_trd_v * rn_Dt
+      frc_t = frc_t + z_frc_trd_t * rn_Dt
+      frc_s = frc_s + z_frc_trd_s * rn_Dt
+      !                                          ! Advection flux through fixed surface (z=0)
+      IF( ln_linssh ) THEN
+         z_wn_trd_t = zbg(9)
+         z_wn_trd_s = zbg(10)
+         !
+         frc_wn_t = frc_wn_t + z_wn_trd_t * rn_Dt
+         frc_wn_s = frc_wn_s + z_wn_trd_s * rn_Dt
+      ENDIF
+
+      ! 2)
       zdiff_v1 = zbg(11)
       !                    ! heat & salt content variation (associated with ssh)
       IF( ln_linssh ) THEN       ! linear free surface case
@@ -212,38 +228,7 @@ CONTAINS
          z_ssh_sc = zbg(13)
       ENDIF
       !
-      ! --------------------------------- !
-      ! 3 -  Content variations with e3t  !
-      ! --------------------------------- !
-      ! glob_sum is needed because you keep only the interior domain to compute the sum (iscpl)
-      !
-      DO jk = 1, jpkm1           ! volume
-         DO_2D( 0, 0, 0, 0 )
-            ztmpk(ji,jj,jk,1) =   surf    (ji,jj) * e3t(ji,jj,jk,Kmm)*tmask(ji,jj,jk)   &
-               &                - surf_ini(ji,jj) * e3t_ini(ji,jj,jk    )*tmask_ini(ji,jj,jk)
-         END_2D
-      END DO
-      DO jk = 1, jpkm1           ! heat
-         DO_2D( 0, 0, 0, 0 )
-            ztmpk(ji,jj,jk,2) = ( surf    (ji,jj) * e3t(ji,jj,jk,Kmm)*ts(ji,jj,jk,jp_tem,Kmm)   &
-               &                - surf_ini(ji,jj) *         hc_loc_ini(ji,jj,jk) )
-         END_2D
-      END DO
-      DO jk = 1, jpkm1           ! salt
-         DO_2D( 0, 0, 0, 0 )
-            ztmpk(ji,jj,jk,3) = ( surf    (ji,jj) * e3t(ji,jj,jk,Kmm)*ts(ji,jj,jk,jp_sal,Kmm)   &
-               &                - surf_ini(ji,jj) *         sc_loc_ini(ji,jj,jk) )
-         END_2D
-      END DO
-      DO jk = 1, jpkm1           ! total ocean volume
-         DO_2D( 0, 0, 0, 0 )
-            ztmpk(ji,jj,jk,4) = surf(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
-         END_2D
-      END DO
-      
-      ! global sum
-      zbg(14:17) = glob_sum_vec( 'dia_hsb', ztmpk(:,:,:,1:4) )
-      
+      ! 3)
       zdiff_v2 = zbg(14)     ! glob_sum needed as tmask and tmask_ini could be different
       zdiff_hc = zbg(15)
       zdiff_sc = zbg(16)
@@ -327,10 +312,14 @@ CONTAINS
       CHARACTER(len=*), INTENT(in) ::   cdrw   ! "READ"/"WRITE" flag
       !
       INTEGER ::   ji, jj, jk   ! dummy loop indices
+      INTEGER ::   id0          ! local integer
       !!----------------------------------------------------------------------
       !
       IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise
-         IF( ln_rstart ) THEN                   !* Read the restart file
+
+         id0 = iom_varid( numror, 'frc_v' , ldstop = .FALSE. ) ! test if this variable exists
+
+         IF( ln_rstart .AND. id0 > 0 ) THEN      !* Read the restart file
             !
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '   dia_hsb_rst : read hsb restart at it= ', kt,' date= ', ndastp

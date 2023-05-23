@@ -119,9 +119,8 @@ CONTAINS
       !!
       INTEGER ::   ji, jj, jk       ! dummy loop indices
       INTEGER ::   ikbot            ! local integer
-      REAL(wp)::   zztmp , zztmpx   ! local scalar
-      REAL(wp)::   zztmp2, zztmpy   !   -      -
-      REAL(wp)::   ze3
+      REAL(wp)::   ztmp , ztmpx, ztmpy   ! local scalar
+      REAL(wp)::   ztau1, ztau2, ztau3, ztau4    ! local scalar
       REAL(wp), DIMENSION(T2D(0))     ::   z2d   ! 2D workspace
       REAL(wp), DIMENSION(T2D(0),jpk) ::   z3d   ! 3D workspace
       !!----------------------------------------------------------------------
@@ -220,10 +219,10 @@ CONTAINS
       IF( iom_use("wetdep") )    CALL iom_put( "wetdep" , ht_0(:,:) + ssh(:,:,Kmm) )   ! wet depth
 
 #if defined key_qco
-      IF( iom_use("ht") )   CALL iom_put( "ht" , ht(:,:,Kmm) )   ! water column at t-point
-      IF( iom_use("hu") )   CALL iom_put( "hu" , hu(:,:,Kmm) )   ! water column at u-point
-      IF( iom_use("hv") )   CALL iom_put( "hv" , hv(:,:,Kmm) )   ! water column at v-point
-      IF( iom_use("hf") )   CALL iom_put( "hf" , hf_0(:,:)*( 1._wp + r3f(:,:) ) )   ! water column at f-point (caution here at Naa)
+      CALL iom_put( "ht" , ht(:,:,Kmm) )   ! water column at t-point
+      CALL iom_put( "hu" , hu(:,:,Kmm) )   ! water column at u-point
+      CALL iom_put( "hv" , hv(:,:,Kmm) )   ! water column at v-point
+      CALL iom_put( "hf" , hf_0(:,:)*( 1._wp + r3f(:,:) ) )   ! water column at f-point (caution here at Naa)
 #endif
 
       ! --- tracers T&S --- !
@@ -252,14 +251,13 @@ CONTAINS
 
       ! --- momentum --- !
       IF ( iom_use("taubot") ) THEN                ! bottom stress
-         zztmp = rho0 * 0.25_wp
+         ztmp = rho0 * 0.25_wp
          DO_2D( 0, 0, 0, 0 )
-            zztmp2 = (  ( rCdU_bot(ji+1,jj)+rCdU_bot(ji  ,jj) ) * uu(ji  ,jj,mbku(ji  ,jj),Kmm)  )**2   &
-               &   + (  ( rCdU_bot(ji  ,jj)+rCdU_bot(ji-1,jj) ) * uu(ji-1,jj,mbku(ji-1,jj),Kmm)  )**2   &
-               &   + (  ( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj  ) ) * vv(ji,jj  ,mbkv(ji,jj  ),Kmm)  )**2   &
-               &   + (  ( rCdU_bot(ji,jj  )+rCdU_bot(ji,jj-1) ) * vv(ji,jj-1,mbkv(ji,jj-1),Kmm)  )**2
-            z2d(ji,jj) = zztmp * SQRT( zztmp2 ) * tmask(ji,jj,1)
-            !
+            ztau1 = ( rCdU_bot(ji+1,jj) + rCdU_bot(ji  ,jj) ) * uu(ji  ,jj,mbku(ji  ,jj),Kmm)
+            ztau2 = ( rCdU_bot(ji  ,jj) + rCdU_bot(ji-1,jj) ) * uu(ji-1,jj,mbku(ji-1,jj),Kmm)
+            ztau3 = ( rCdU_bot(ji,jj+1) + rCdU_bot(ji,jj  ) ) * vv(ji,jj  ,mbkv(ji,jj  ),Kmm)
+            ztau4 = ( rCdU_bot(ji,jj  ) + rCdU_bot(ji,jj-1) ) * vv(ji,jj-1,mbkv(ji,jj-1),Kmm)
+            z2d(ji,jj) = ztmp * SQRT( ztau1*ztau1 + ztau2*ztau2 + ztau3*ztau3 + ztau4*ztau4 ) * tmask(ji,jj,1)
          END_2D
          CALL iom_put( "taubot", z2d )
       ENDIF
@@ -321,10 +319,10 @@ CONTAINS
 
       IF ( iom_use("sssgrad") .OR. iom_use("sssgrad2") ) THEN
          DO_2D( 0, 0, 0, 0 )                       ! sss gradient
-            zztmp  = ts(ji,jj,1,jp_sal,Kmm)
-            zztmpx = (ts(ji+1,jj,1,jp_sal,Kmm) - zztmp) * r1_e1u(ji,jj) + (zztmp - ts(ji-1,jj  ,1,jp_sal,Kmm)) * r1_e1u(ji-1,jj)
-            zztmpy = (ts(ji,jj+1,1,jp_sal,Kmm) - zztmp) * r1_e2v(ji,jj) + (zztmp - ts(ji  ,jj-1,1,jp_sal,Kmm)) * r1_e2v(ji,jj-1)
-            z2d(ji,jj) = 0.25_wp * ( zztmpx * zztmpx + zztmpy * zztmpy )   &
+            ztmp  = ts(ji,jj,1,jp_sal,Kmm)
+            ztmpx = (ts(ji+1,jj,1,jp_sal,Kmm) - ztmp) * r1_e1u(ji,jj) + (ztmp - ts(ji-1,jj  ,1,jp_sal,Kmm)) * r1_e1u(ji-1,jj)
+            ztmpy = (ts(ji,jj+1,1,jp_sal,Kmm) - ztmp) * r1_e2v(ji,jj) + (ztmp - ts(ji  ,jj-1,1,jp_sal,Kmm)) * r1_e2v(ji,jj-1)
+            z2d(ji,jj) = 0.25_wp * ( ztmpx * ztmpx + ztmpy * ztmpy )   &
                &                 * umask(ji,jj,1) * umask(ji-1,jj,1) * vmask(ji,jj,1) * vmask(ji,jj-1,1)
          END_2D
          CALL iom_put( "sssgrad2",  z2d )          ! square of module of sss gradient
@@ -338,10 +336,10 @@ CONTAINS
 
       IF ( iom_use("sstgrad") .OR. iom_use("sstgrad2") ) THEN
          DO_2D( 0, 0, 0, 0 )                       ! sst gradient
-            zztmp  = ts(ji,jj,1,jp_tem,Kmm)
-            zztmpx = ( ts(ji+1,jj,1,jp_tem,Kmm) - zztmp ) * r1_e1u(ji,jj) + ( zztmp - ts(ji-1,jj  ,1,jp_tem,Kmm) ) * r1_e1u(ji-1,jj)
-            zztmpy = ( ts(ji,jj+1,1,jp_tem,Kmm) - zztmp ) * r1_e2v(ji,jj) + ( zztmp - ts(ji  ,jj-1,1,jp_tem,Kmm) ) * r1_e2v(ji,jj-1)
-            z2d(ji,jj) = 0.25_wp * ( zztmpx * zztmpx + zztmpy * zztmpy )   &
+            ztmp  = ts(ji,jj,1,jp_tem,Kmm)
+            ztmpx = ( ts(ji+1,jj,1,jp_tem,Kmm) - ztmp ) * r1_e1u(ji,jj) + ( ztmp - ts(ji-1,jj  ,1,jp_tem,Kmm) ) * r1_e1u(ji-1,jj)
+            ztmpy = ( ts(ji,jj+1,1,jp_tem,Kmm) - ztmp ) * r1_e2v(ji,jj) + ( ztmp - ts(ji  ,jj-1,1,jp_tem,Kmm) ) * r1_e2v(ji,jj-1)
+            z2d(ji,jj) = 0.25_wp * ( ztmpx * ztmpx + ztmpy * ztmpy )   &
                &                 * umask(ji,jj,1) * umask(ji-1,jj,1) * vmask(ji,jj,1) * vmask(ji,jj-1,1)
          END_2D
          CALL iom_put( "sstgrad2",  z2d )          ! square of module of sst gradient
@@ -380,9 +378,9 @@ CONTAINS
       !
       IF ( iom_use("ke") .OR. iom_use("ke_int") ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpk )
-            zztmpx = uu(ji-1,jj  ,jk,Kmm) + uu(ji,jj,jk,Kmm)
-            zztmpy = vv(ji  ,jj-1,jk,Kmm) + vv(ji,jj,jk,Kmm)
-            z3d(ji,jj,jk) = 0.25_wp * ( zztmpx*zztmpx + zztmpy*zztmpy )
+            ztmpx = uu(ji-1,jj  ,jk,Kmm) + uu(ji,jj,jk,Kmm)
+            ztmpy = vv(ji  ,jj-1,jk,Kmm) + vv(ji,jj,jk,Kmm)
+            z3d(ji,jj,jk) = 0.25_wp * ( ztmpx*ztmpx + ztmpy*ztmpy )
          END_3D
          CALL iom_put( "ke", z3d )                 ! kinetic energy
 
@@ -434,9 +432,9 @@ CONTAINS
          ENDIF
          IF( iom_use("u_heattr") ) THEN
             z2d(:,:) = 0._wp
-            zztmp = 0.5_wp * rcp
+            ztmp = 0.5_wp * rcp
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               z2d(ji,jj) = z2d(ji,jj) + zztmp * z3d(ji,jj,jk) * ( ts(ji,jj,jk,jp_tem,Kmm) + ts(ji+1,jj,jk,jp_tem,Kmm) )
+               z2d(ji,jj) = z2d(ji,jj) + ztmp * z3d(ji,jj,jk) * ( ts(ji,jj,jk,jp_tem,Kmm) + ts(ji+1,jj,jk,jp_tem,Kmm) )
             END_3D
             CALL iom_put( "u_heattr", z2d )        ! heat transport in i-direction
          ENDIF
@@ -459,9 +457,9 @@ CONTAINS
 
          IF( iom_use("v_heattr") ) THEN
             z2d(:,:) = 0._wp
-            zztmp = 0.5_wp * rcp
+            ztmp = 0.5_wp * rcp
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               z2d(ji,jj) = z2d(ji,jj) + zztmp * z3d(ji,jj,jk) * ( ts(ji,jj,jk,jp_tem,Kmm) + ts(ji,jj+1,jk,jp_tem,Kmm) )
+               z2d(ji,jj) = z2d(ji,jj) + ztmp * z3d(ji,jj,jk) * ( ts(ji,jj,jk,jp_tem,Kmm) + ts(ji,jj+1,jk,jp_tem,Kmm) )
             END_3D
             CALL iom_put( "v_heattr", z2d )        !  heat transport in j-direction
          ENDIF
@@ -512,23 +510,23 @@ CONTAINS
          !
          IF ( iom_use("ssEns") .OR. iom_use("ssrelpotvor") .OR. iom_use("ssabspotvor") ) THEN
             DO_2D( 0, 0, 0, 0 )
-               ze3 = (  e3t(ji,jj+1,1,Kmm) * e1e2t(ji,jj+1) + e3t(ji+1,jj+1,1,Kmm) * e1e2t(ji+1,jj+1)    &
+               ztmp = (  e3t(ji,jj+1,1,Kmm) * e1e2t(ji,jj+1) + e3t(ji+1,jj+1,1,Kmm) * e1e2t(ji+1,jj+1)    &
                   &    + e3t(ji,jj  ,1,Kmm) * e1e2t(ji,jj  ) + e3t(ji+1,jj  ,1,Kmm) * e1e2t(ji+1,jj  )  ) * r1_e1e2f(ji,jj)
-               IF( ze3 /= 0._wp ) THEN   ;   ze3 = 4._wp / ze3
-               ELSE                      ;   ze3 = 0._wp
+               IF( ztmp /= 0._wp ) THEN   ;   ztmp = 4._wp / ztmp
+               ELSE                       ;   ztmp = 0._wp
                ENDIF
-               z2d(ji,jj) = ze3 * z2d(ji,jj)
+               z2d(ji,jj) = ztmp * z2d(ji,jj)
             END_2D
             CALL iom_put( "ssrelpotvor", z2d )     ! relative potential vorticity (zeta/h)
             !
             IF ( iom_use("ssEns") .OR. iom_use("ssabspotvor") ) THEN
                DO_2D( 0, 0, 0, 0 )
-                  ze3 = (  e3t(ji,jj+1,1,Kmm) * e1e2t(ji,jj+1) + e3t(ji+1,jj+1,1,Kmm) * e1e2t(ji+1,jj+1)    &
+                  ztmp = (  e3t(ji,jj+1,1,Kmm) * e1e2t(ji,jj+1) + e3t(ji+1,jj+1,1,Kmm) * e1e2t(ji+1,jj+1)    &
                      &    + e3t(ji,jj  ,1,Kmm) * e1e2t(ji,jj  ) + e3t(ji+1,jj  ,1,Kmm) * e1e2t(ji+1,jj  )  ) * r1_e1e2f(ji,jj)
-                  IF( ze3 /= 0._wp ) THEN   ;   ze3 = 4._wp / ze3
-                  ELSE                      ;   ze3 = 0._wp
+                  IF( ztmp /= 0._wp ) THEN   ;   ztmp = 4._wp / ztmp
+                  ELSE                       ;   ztmp = 0._wp
                   ENDIF
-                  z2d(ji,jj) = ze3 * ff_f(ji,jj) + z2d(ji,jj)
+                  z2d(ji,jj) = ztmp * ff_f(ji,jj) + z2d(ji,jj)
                END_2D
                CALL iom_put( "ssabspotvor", z2d )  ! absolute potential vorticity ( q )
                !

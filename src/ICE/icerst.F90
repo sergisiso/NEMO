@@ -209,7 +209,7 @@ CONTAINS
       INTEGER, INTENT(in) :: Kbb, Kmm, Kaa ! ocean time level indices
       INTEGER           ::   jk
       LOGICAL           ::   llok
-      INTEGER           ::   id0, id1, id2, id3, id4, id5, id6   ! local integer
+      INTEGER           ::   id0, id1, id2, id3, id4, id5, id6, id_nlay   ! local integer
       CHARACTER(len=25) ::   znam
       CHARACTER(len=2)  ::   zchar, zchar1
       REAL(wp)          ::   zfice, ziter
@@ -240,9 +240,23 @@ CONTAINS
       ! test if v_i exists
       id0 = iom_varid( numrir, 'v_i' , ldstop = .FALSE. )
 
-      !                    ! ------------------------------ !
-      IF( id0 > 0 ) THEN   ! == case of a normal restart == !
-         !                 ! ------------------------------ !
+      ! check size of the input fields
+      id_nlay=0
+      DO jk = 1, 99
+         WRITE(zchar1,'(I2.2)') jk
+         znam = 'e_s'//'_l'//zchar1
+         IF( iom_varid( numrir, znam , ldstop = .FALSE. ) > 0 )   id_nlay = id_nlay+1 
+         znam = 'e_i'//'_l'//zchar1
+         IF( iom_varid( numrir, znam , ldstop = .FALSE. ) > 0 )   id_nlay = id_nlay+1 
+      END DO
+      IF( id_nlay /= (nlay_s+nlay_i) ) &
+         &     CALL ctl_warn( 'ice_rst_read ===>>>> : problem with size in ice restart',  &
+         &                   '   verify the 3d and 4th dim of the restart files wrt nlay_i/nlay_s and jpl ', &
+         &                   '   reading of restart is bypassed' )
+      !
+      !                                                     ! ------------------------------ !
+      IF( id0 > 0 .AND. id_nlay == (nlay_s+nlay_i) ) THEN   ! == case of a normal restart == !
+         !                                                  ! ------------------------------ !
          ! Time info
          CALL iom_get( numrir, 'nn_fsbc', zfice )
          CALL iom_get( numrir, 'kt_ice' , ziter )
@@ -259,6 +273,8 @@ CONTAINS
             &                   '   verify the file or rerun with the value 0 for the',         &
             &                   '   control of time parameter  nrstdt' )
 
+         !
+         
          ! --- mandatory fields --- !
          CALL iom_get( numrir, jpdom_auto, 'v_i'  , v_i   )
          CALL iom_get( numrir, jpdom_auto, 'v_s'  , v_s   )
@@ -267,6 +283,7 @@ CONTAINS
          CALL iom_get( numrir, jpdom_auto, 't_su' , t_su  )
          CALL iom_get( numrir, jpdom_auto, 'u_ice', u_ice, cd_type = 'U', psgn = -1._wp )
          CALL iom_get( numrir, jpdom_auto, 'v_ice', v_ice, cd_type = 'V', psgn = -1._wp )
+         !
          ! Snow enthalpy
          DO jk = 1, nlay_s
             WRITE(zchar1,'(I2.2)') jk
@@ -281,6 +298,7 @@ CONTAINS
             CALL iom_get( numrir, jpdom_auto, znam , z3d )
             e_i(:,:,jk,:) = z3d(:,:,:)
          END DO
+
          ! -- optional fields -- !
          ! ice age
          id1 = iom_varid( numrir, 'oa_i' , ldstop = .FALSE. )
