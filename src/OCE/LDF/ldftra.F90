@@ -28,6 +28,7 @@ MODULE ldftra
    !
    USE in_out_manager  ! I/O manager
    USE iom             ! I/O module for ehanced bottom friction file
+   USE timing          ! Timing
    USE lib_mpp         ! distribued memory computing library
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
 
@@ -399,6 +400,8 @@ CONTAINS
       REAL(wp) ::   zaht, zahf, zaht_min, zDaht, z1_f20   ! local scalar
       !!----------------------------------------------------------------------
       !
+      IF( ln_timing )   CALL timing_start('ldf_tra')
+      !
       IF( ln_ldfeiv .AND. nn_aei_ijk_t == 21 ) THEN       ! eddy induced velocity coefficients
          !                                ! =F(growth rate of baroclinic instability)
          !                                ! max value aeiv_0 ; decreased to 0 within 20N-20S
@@ -460,6 +463,8 @@ CONTAINS
         CALL iom_put( "aeiu_3d", aeiu(:,:,:) )   ! 3D      u-EIV coeff.
         CALL iom_put( "aeiv_3d", aeiv(:,:,:) )   ! 3D      v-EIV coeff.
       ENDIF
+      !
+      IF( ln_timing )   CALL timing_stop('ldf_tra')
       !
    END SUBROUTINE ldf_tra
 

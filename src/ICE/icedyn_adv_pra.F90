@@ -1258,7 +1258,7 @@ CONTAINS
       !
       INTEGER ::   jk, jl   ! dummy loop indices
       INTEGER ::   iter     ! local integer
-      INTEGER ::   id1      ! local integer
+      INTEGER ::   id1, id0      ! local integer
       CHARACTER(len=25) ::   znam
       CHARACTER(len=2)  ::   zchar, zchar1
       REAL(wp), DIMENSION(jpi,jpj,jpl) ::   z3d   ! 3D workspace
@@ -1272,7 +1272,17 @@ CONTAINS
          ELSE                   ;   id1 = 0                                                  ! no restart: id1=0
          ENDIF
          !
-         IF( id1 > 0 ) THEN                     !**  Read the restart file  **!
+         ! check size of the input fields
+         id0=0
+         DO jk = 1, 99
+            WRITE(zchar1,'(I2.2)') jk
+            znam = 'sxc0'//'_l'//zchar1
+            IF( iom_varid( numrir, znam , ldstop = .FALSE. ) > 0 )   id0 = id0+1 
+            znam = 'sxe'//'_l'//zchar1
+            IF( iom_varid( numrir, znam , ldstop = .FALSE. ) > 0 )   id0 = id0+1 
+         END DO
+         
+         IF( id1 > 0 .AND. id0 == (nlay_s+nlay_i) ) THEN   !**  Read the restart file  **!
             !
             ! ---------------------- !
             ! == mandatory fields == !
@@ -1393,7 +1403,7 @@ CONTAINS
                ENDIF
             ENDIF
             !
-         ELSE                                   !**  start rheology from rest  **!
+         ELSE                                   !**  start advection from rest  **!
             !
             IF(lwp) WRITE(numout,*) '   ==>>   start from rest OR previous run without Prather, set moments to 0'
             !
