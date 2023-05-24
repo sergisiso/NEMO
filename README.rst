@@ -1,5 +1,15 @@
-.. image:: https://forge.nemo-ocean.eu/nemo/nemo/badges/main/pipeline.svg
-           :target: https://forge.nemo-ocean.eu/nemo/nemo/-/commits/main
+**Welcome to NEMO home page!**
+  
+NEMO (*Nucleus for European Modelling of the Ocean*) is a state-of-the-art modelling
+framework for research activities and forecasting services in ocean and climate sciences,
+developed in a sustainable way by the NEMO European consortium since 2008.
+
+This page intends to help you to get started using the NEMO platform and to introduce you
+to the different levels of information available. It starts here with NEMO release 4.2.0.
+
+Reminder: Our `Former web platform forge`_ (SVN+Trac) contains the previous documentation
+and releases made available from the beginning of the project up to of NEMO 4.0.
+
 
 **Contents**
 
@@ -27,18 +37,6 @@
 .. _`PISCES`: https://www.pisces-community.org/index.php/model-description/
 
 
-**Welcome to NEMO home page!**
-  
-NEMO (*Nucleus for European Modelling of the Ocean*) is a state-of-the-art modelling
-framework for research activities and forecasting services in ocean and climate sciences,
-developed in a sustainable way by the NEMO European consortium since 2008.
-
-This page intends to help you to get started using the NEMO platform and to introduce you
-to the different levels of information available. It starts here with NEMO release 4.2.0.
-
-Reminder: Our `Former web platform forge`_ (SVN+Trac) contains the previous documentation
-and releases made available from the beginning of the project up to of NEMO 4.0.
-
 Getting started
 ===============
 
@@ -56,6 +54,14 @@ exploring specific aspects of NEMO with light configurations. The web page also 
 to submit test cases you have developed and want to share with the community. Feel free to
 contribute!
 
+Project status
+=====================
+
+.. image:: https://forge.nemo-ocean.eu/nemo/nemo/-/badges/release.svg
+           :target: https://forge.nemo-ocean.eu/nemo/nemo/-/releases
+
+.. image:: https://forge.nemo-ocean.eu/nemo/nemo/badges/main/pipeline.svg
+           :target: https://forge.nemo-ocean.eu/nemo/nemo/-/commits/main 
 
 Project documentation
 =====================
