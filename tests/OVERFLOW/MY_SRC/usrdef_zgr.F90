@@ -74,8 +74,16 @@ CONTAINS
       ! already set in usrdef_nam.F90 by reading the namusr_def namelist except for ISF
       ld_isfcav = .FALSE.
       ld_zco  = .FALSE.
-      ld_zps  = .TRUE.
+      ld_zps  = .FALSE.
       ld_sco  = .FALSE.
+      SELECT CASE( nn_COORD )
+      CASE( 0 )
+         ld_zco  = .TRUE.
+      CASE( 1 )
+         ld_zps  = .TRUE.
+      CASE( 2 )
+         ld_sco  = .TRUE.
+      END SELECT
       !
       ! Build the vertical coordinate system
       ! ------------------------------------

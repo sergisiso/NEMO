@@ -28,6 +28,7 @@ MODULE usrdef_nam
    !                              !!* namusr_def namelist *!!
    REAL(wp), PUBLIC ::   rn_dx     ! resolution in meters defining the horizontal domain size
    REAL(wp), PUBLIC ::   rn_dz     ! resolution in meters defining the vertical   domain size
+   INTEGER , PUBLIC ::   nn_COORD  ! vertical coordinate type: 0 for zco coord, 1 for zps coord, 2 for sco coord
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -57,7 +58,7 @@ CONTAINS
       !
       INTEGER ::   ios   ! Local integer
       !!
-      NAMELIST/namusr_def/ rn_dx, rn_dz
+      NAMELIST/namusr_def/ rn_dx, rn_dz, nn_COORD
       !!----------------------------------------------------------------------
       !
       READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
@@ -78,6 +79,17 @@ CONTAINS
       WRITE(numout,*) 'usr_def_nam  : read the user defined namelist (namusr_def) in namelist_cfg'
       WRITE(numout,*) '~~~~~~~~~~~ '
       WRITE(numout,*) '   Namelist namusr_def : OVERFLOW test case'
+      WRITE(numout,*) '      select type of vertical coordinate     nn_COORD = ', nn_COORD
+      SELECT CASE( nn_COORD )
+      CASE( 0 )
+         WRITE(numout,*) '      type of coordinate  =  l_zco'
+      CASE( 1 )
+         WRITE(numout,*) '      type of coordinate  =  l_zps'
+      CASE( 2 )
+         WRITE(numout,*) '      type of coordinate  =  l_sco'
+      CASE DEFAULT
+         CALL ctl_stop( 'Choose ONE vertical coordinate nn_COORD is 0(zco), 1(zps) or 2(sco)' )
+      END SELECT
       WRITE(numout,*) '      horizontal resolution                    rn_dx  = ', rn_dx, ' meters'
       WRITE(numout,*) '      vertical   resolution                    rn_dz  = ', rn_dz, ' meters'
       WRITE(numout,*) '      OVERFLOW domain = 200 km x 3 grid-points x 2000 m'

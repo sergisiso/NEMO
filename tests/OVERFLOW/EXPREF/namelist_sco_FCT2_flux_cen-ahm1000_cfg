@@ -7,6 +7,7 @@
 !-----------------------------------------------------------------------
    !                       !  type of vertical coordinate
    rn_dx       =   1000.   !  horizontal resolution   [meters]
+   nn_COORD    =      2    !  sco vertical coordinate 
    rn_dz       =     20.   !  vertical   resolution   [meters]
 /
 !
