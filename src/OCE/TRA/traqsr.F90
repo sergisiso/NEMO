@@ -186,21 +186,7 @@ CONTAINS
          !
       END SELECT
       !
-#if defined key_RK3
-      !                             ! RK3 : diagnostics/output
-      IF( l_trdtra .OR. iom_use('qsr3d') ) THEN     ! qsr diagnostics
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
-         !                                         ! qsr tracers trends saved for diagnostics
-         IF( l_trdtra )   CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_qsr, ztrdt )
-         IF( iom_use('qsr3d') ) THEN               ! qsr distribution
-            DO jk = nkV, 1, -1
-               ztrdt(:,:,jk) = ztrdt(:,:,jk+1) + qsr_hc(:,:,jk) * rho0_rcp
-            END DO
-            CALL iom_put( 'qsr3d', ztrdt )   ! 3D distribution of shortwave Radiation
-         ENDIF
-         DEALLOCATE( ztrdt )
-      ENDIF
-#else
+#if ! defined key_RK3
       !                             ! MLF : add the temperature trend
       DO_3D( 0, 0, 0, 0, 1, nksr )
          pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs)   &
@@ -215,9 +201,16 @@ CONTAINS
          ELSE                      ;   fraqsr_1lev(ji,jj) = 1._wp
          ENDIF
       END_2D
+#endif
+      !
+      IF( l_trdtra ) THEN     ! qsr tracers trends saved for diagnostics
+         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
+         CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_qsr, ztrdt )
+         DEALLOCATE( ztrdt )
+      ENDIF
       !
       IF( iom_use('qsr3d') ) THEN      ! output the shortwave Radiation distribution
-         ALLOCATE( zetot(T2D(nn_hls),jpk) )
+         ALLOCATE( zetot(T2D(0),jpk) )
          zetot(:,:,nksr+1:jpk) = 0._wp     ! below ~400m set to zero
          DO_3DS(0, 0, 0, 0, nksr, 1, -1)
             zetot(ji,jj,jk) = zetot(ji,jj,jk+1) + qsr_hc(ji,jj,jk) * rho0_rcp
@@ -225,13 +218,6 @@ CONTAINS
          CALL iom_put( 'qsr3d', zetot )   ! 3D distribution of shortwave Radiation
          DEALLOCATE( zetot )
       ENDIF
-      !
-      IF( l_trdtra ) THEN     ! qsr tracers trends saved for diagnostics
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
-         CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_qsr, ztrdt )
-         DEALLOCATE( ztrdt )
-      ENDIF
-#endif
       !
       IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
          IF( lrst_oce ) THEN     ! write in the ocean restart file

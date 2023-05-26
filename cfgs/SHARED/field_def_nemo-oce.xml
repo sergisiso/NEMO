@@ -438,7 +438,7 @@ that are available in the tidal-forcing implementation (see
       <field id="qt"           long_name="Net Downward Heat Flux"                standard_name="surface_downward_heat_flux_in_sea_water"                              unit="W/m2"                      />
       <field id="qns"          long_name="non solar Downward Heat Flux"                                                                                               unit="W/m2"                      />
       <field id="qsr"          long_name="Shortwave Radiation"                   standard_name="net_downward_shortwave_flux_at_sea_water_surface"                     unit="W/m2"                      />
-      <field id="qsr3d"        long_name="Shortwave Radiation 3D distribution"   standard_name="downwelling_shortwave_flux_in_sea_water"                              unit="W/m2" grid_ref="grid_T_3D" />
+      <field id="qsr3d"        long_name="Shortwave Radiation 3D distribution"   standard_name="downwelling_shortwave_flux_in_sea_water"                              unit="W/m2" grid_ref="grid_T_3D_inner" />
       <field id="qrp"          long_name="Surface Heat Flux: Damping"            standard_name="heat_flux_into_sea_water_due_to_newtonian_relaxation"                 unit="W/m2"                      />
       <field id="qclosea"      long_name="closed sea heat content flux"          standard_name="closea_heat_content_downward_flux"                                    unit="W/m2"     />
       <field id="erp"          long_name="Surface Water Flux: Damping"           standard_name="water_flux_out_of_sea_water_due_to_newtonian_relaxation"              unit="kg/m2/s"                   />
