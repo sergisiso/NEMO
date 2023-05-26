@@ -175,7 +175,7 @@ CONTAINS
                pe3v (:,:,jk) = pe3t_1d (jk)
                pe3f (:,:,jk) = pe3t_1d (jk)
             END DO
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( 0, 0, 0, 0 )
                ik = k_bot(ji,jj)
                pe3t (ji,jj,ik  ) = MIN( zht(ji,jj) , pdepw_1d(ik+1) ) - pdepw_1d(ik)   ! last wet level thickness
                pe3t (ji,jj,ik+1) = pe3t (ji,jj,ik  )
@@ -219,9 +219,9 @@ CONTAINS
                pe3v (:,:,jk) = pe3t_1d (jk)
                pe3f (:,:,jk) = pe3t_1d (jk)
             END DO
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-               ik = k_bot(ji,jj)
-               pe3t (ji,jj,ik  ) = MIN( zht(ji,jj) , pdepw_1d(ik+1) ) - pdepw_1d(ik)   ! last wet level thickness
+            DO_2D( 0, 0, 0, 0 )
+               ik = k_bot(ji,jj)                ! last wet level thickness
+               pe3t (ji,jj,ik  ) = MIN( zht(ji,jj) , pdepw_1d(ik+1) ) - pdepw_1d(ik)   ! min(sum_e3,pdep_W(k_bot+1))-pdep_W(k_bot) 
                pe3t (ji,jj,ik+1) = pe3t (ji,jj,ik  ) 
             END_2D
             !                                   ! bottom scale factors and depth at  U-, V-, UW and VW-points
