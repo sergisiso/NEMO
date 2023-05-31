@@ -1119,7 +1119,7 @@ if [ ${DO_COMPILE} -eq 1 ] ;  then
 fi
 
 ## Reproducibility tests
-if [ ${DO_RESTART} == "1" ] ;  then
+if [ ${DO_REPRO} == "1" ] ;  then
     export TEST_NAME="REPRO_4_8"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
