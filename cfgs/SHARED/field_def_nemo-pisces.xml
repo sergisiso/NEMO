@@ -220,7 +220,7 @@
     <field id="Fe3"         long_name="Iron III concentration"                  unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
     <field id="FeL1"        long_name="Complexed Iron concentration with L1"    unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
     <field id="TL1"         long_name="Total L1 concentration"                  unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
-    <field id="pdust"       long_name="dust concentration"                      unit="g/m3"         />
+    <field id="pdust"       long_name="dust concentration"                      unit="kg/m3"         />
     <field id="Totlig"      long_name="Total ligand concentation"               unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
     <field id="Biron"       long_name="Bioavailable iron"                       unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
     <field id="Sdenit"      long_name="Nitrate reduction in the sediments"      unit="mol/m2/s"    />
