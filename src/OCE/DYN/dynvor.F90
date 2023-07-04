@@ -1043,7 +1043,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '   ==>>>   vector form dynamics : total vorticity = Coriolis + relative vorticity'
          nrvm = np_RVO        ! relative vorticity
          ntot = np_CRV        ! relative + planetary vorticity
-      CASE( np_FLX_c2 , np_FLX_ubs  )
+      CASE( np_FLX_c2 , np_FLX_up3 )
          IF(lwp) WRITE(numout,*) '   ==>>>   flux form dynamics : total vorticity = Coriolis + metric term'
          nrvm = np_MET        ! metric term
          ntot = np_CME        ! Coriolis + metric term

@@ -214,9 +214,9 @@ CONTAINS
 !===>>>>>> Modify dyn_adv_... dyn_keg routines so that Krhs to zero useless
       !                                         ! advection (VF or FF)	==> RHS
       IF( ln_dynadv_vec ) THEN                                            ! uu and vv used for momentum advection
-         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs)
+         CALL dyn_adv( kstp, Kmm, Kmm      , uu, vv, Krhs)
       ELSE                                                                ! advective velocity used for momentum advection
-         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs, zaU, zaV, ww )
+         CALL dyn_adv( kstp, Kmm, Kmm      , uu, vv, Krhs, zaU, zaV, ww ) !!st !!! TO DO !!! METTRE Kmm partout et faire le test !!!
       ENDIF
       !                                         ! Coriolis / vorticity  ==> RHS
       CALL dyn_vor( kstp,      Kmm      , uu, vv, Krhs )
