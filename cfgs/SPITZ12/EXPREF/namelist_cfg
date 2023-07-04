@@ -290,7 +290,7 @@
 !-----------------------------------------------------------------------
 &namdyn_adv    !   formulation of the momentum advection                (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_dynadv_ubs = .true.  !  flux form - 3rd order UBS      scheme
+   ln_dynadv_up3 = .true.  !  flux form - 3rd order UBS      scheme
 /
 !-----------------------------------------------------------------------
 &namdyn_vor    !   Vorticity / Coriolis scheme                          (default: NO selection)
