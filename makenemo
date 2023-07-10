@@ -197,6 +197,14 @@ NEMO_DIR=${MAIN_DIR}/${x_s}
 [ "${CMP_NAM}" == 'all' ] && ${COMPIL_DIR}/Flist_archfile.sh && exit 0
 
 
+# Load environment if exists
+env_file=`find ${MAIN_DIR}/arch -name arch-${CMP_NAM}.env`
+if [ -f "${env_file}" ] ; then
+   echo "Load environment file arch-${CMP_NAM}.env"
+   . ${env_file}
+fi
+
+
 # New config case
 if [ -n "${x_n}" ]; then
 
