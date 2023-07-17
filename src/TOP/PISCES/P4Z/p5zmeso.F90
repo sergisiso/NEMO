@@ -224,7 +224,7 @@ CONTAINS
          ztmp1 = xpref2n * zcompaph * ( zcompaph + zdiffdn * zcompadi )
          ztmp2 = xpref2m * zcompames**2
          ztmp3 = xpref2c * zcompapoc**2
-         ztmp4 = xpref2d * zcompadi * ( zdiffdn * zcompadi + zcompaph )
+         ztmp4 = xpref2d * zcompadi * ( zcompadi + zdiffdn * zcompaph )
          ztmp5 = xpref2z * zcompaz**2
          ztmptot = ztmp1 + ztmp2 + ztmp3 + ztmp4 + ztmp5 + rtrn
          ztmp1 = ztmp1 / ztmptot
