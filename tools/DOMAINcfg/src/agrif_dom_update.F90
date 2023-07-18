@@ -487,7 +487,7 @@ CONTAINS
                ! 
                DO jk=2,jpkm1
                   IF ( (ssmask(ji,jj)==1._wp).AND.(mbkt(ji,jj).GE.jk) ) THEN
-                     gdept_0(ji,jj,jk) = gdept_1d(jk-1) + tabres(ji,jj,jk) / e3t_0(ji,jj,jk)
+                     gdept_0(ji,jj,jk) = gdept_0(ji,jj,jk-1) + tabres(ji,jj,jk) / e3t_0(ji,jj,jk)
                   ELSE
                      gdept_0(ji,jj,jk) = gdept_1d(jk)
                   ENDIF
@@ -544,7 +544,7 @@ CONTAINS
                ! 
                DO jk=2,jpkm1
                   IF ( (ssumask(ji,jj)==1._wp).AND.(mbku(ji,jj).GE.jk) ) THEN
-                     gdepu(ji,jj,jk) = gdept_1d(jk-1) + tabres(ji,jj,jk) / e3u_0(ji,jj,jk)
+                     gdepu(ji,jj,jk) = gdepu(ji,jj,jk-1) + tabres(ji,jj,jk) / e3u_0(ji,jj,jk)
                   ELSE
                      gdepu(ji,jj,jk) = gdept_1d(jk)
                   ENDIF
@@ -601,7 +601,7 @@ CONTAINS
                ! 
                DO jk=2,jpkm1
                   IF ( (ssvmask(ji,jj)==1._wp).AND.(mbkv(ji,jj).GE.jk) ) THEN
-                     gdepv(ji,jj,jk) = gdept_1d(jk-1) + tabres(ji,jj,jk) / e3v_0(ji,jj,jk)
+                     gdepv(ji,jj,jk) = gdepv(ji,jj,jk-1) + tabres(ji,jj,jk) / e3v_0(ji,jj,jk)
                   ELSE
                      gdepv(ji,jj,jk) = gdept_1d(jk)
                   ENDIF
