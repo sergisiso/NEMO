@@ -49,9 +49,12 @@ MODULE icethd
    !! for convergence tests
    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztice_cvgerr, ztice_cvgstp
    !! for sanity checks in drainage and flushing
-   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   zcfl_flush, zcfl_drain
-   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   zs_flush_dserr, zs_drain_dserr, zs_flush_serr, zs_drain_serr
-   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   zt_flush_dserr, zt_drain_dserr, zt_flush_serr, zt_drain_serr
+   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zcfl_flush, zcfl_drain, zsneg_flush, zsneg_drain
+   LOGICAL , ALLOCATABLE, DIMENSION(:,:,:) ::   llmsk
+   CHARACTER(LEN=50)      ::   clname="cfl_icesalt.ascii"    ! ascii filename
+   INTEGER , DIMENSION(3) ::   iloc
+   REAL(wp)               ::   zcfl_drain_max, zcfl_flush_max
+   INTEGER                ::   numcfl                        ! outfile unit
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -86,7 +89,6 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt    ! number of iteration
       !
       INTEGER  ::   ji, jj, jk, jl   ! dummy loop indices
-      REAL(wp) ::   zmiss
       !!-------------------------------------------------------------------
 
       ! controls
@@ -106,22 +108,7 @@ CONTAINS
          ztice_cvgerr = 0._wp ; ztice_cvgstp = 0._wp
       ENDIF
       !
-      ! sanity checks for salt flushing and drainage
-      IF( ln_sal_chk ) THEN
-         CALL iom_miss_val( 'icetemp', zmiss )         ! get missing value from xml
-         !
-         ALLOCATE( zcfl_flush(A2D(0),jpl), zcfl_drain(A2D(0),jpl) )
-         !
-         ALLOCATE( zs_flush_dserr(A2D(0),jpl), zs_drain_dserr(A2D(0),jpl), &
-            &      zs_flush_serr (A2D(0),jpl), zs_drain_serr (A2D(0),jpl) )
-         !
-         ALLOCATE( zt_flush_dserr(A2D(0),nlay_i,jpl), zt_drain_dserr(A2D(0),nlay_i,jpl), &
-            &      zt_flush_serr (A2D(0),nlay_i,jpl), zt_drain_serr (A2D(0),nlay_i,jpl) )
-         !
-         zcfl_flush = 0._wp ; zcfl_drain = 0._wp
-         zs_flush_dserr = zmiss ; zs_drain_dserr = zmiss ; zs_flush_serr = zmiss ; zs_drain_serr = zmiss
-         zt_flush_dserr = zmiss ; zt_drain_dserr = zmiss ; zt_flush_serr = zmiss ; zt_drain_serr = zmiss
-      ENDIF
+      IF( ln_sal_chk )   CALL ice_thd_salchk( kt, 1 )
       !
       !-------------------------------------------------------------------------------------------!
       ! Thermodynamic computation (only on grid points covered by ice) => loop over ice categories
@@ -208,20 +195,7 @@ CONTAINS
       ENDIF
       !
       ! sanity checks for salt drainage and flushing
-      IF( ln_sal_chk ) THEN
-         CALL iom_put( 'sice_flush_dserr', zs_flush_dserr ) ; DEALLOCATE( zs_flush_dserr )
-         CALL iom_put( 'sice_drain_dserr', zs_drain_dserr ) ; DEALLOCATE( zs_drain_dserr )
-         CALL iom_put( 'tice_flush_dserr', zt_flush_dserr ) ; DEALLOCATE( zt_flush_dserr )
-         CALL iom_put( 'tice_drain_dserr', zt_drain_dserr ) ; DEALLOCATE( zt_drain_dserr )
-         !
-         CALL iom_put( 'sice_flush_serr', zs_flush_serr ) ; DEALLOCATE( zs_flush_serr )
-         CALL iom_put( 'sice_drain_serr', zs_drain_serr ) ; DEALLOCATE( zs_drain_serr )
-         CALL iom_put( 'tice_flush_serr', zt_flush_serr ) ; DEALLOCATE( zt_flush_serr )
-         CALL iom_put( 'tice_drain_serr', zt_drain_serr ) ; DEALLOCATE( zt_drain_serr )
-         !
-         CALL iom_put( 'cfl_flush', zcfl_flush ) ; DEALLOCATE( zcfl_flush )
-         CALL iom_put( 'cfl_drain', zcfl_drain ) ; DEALLOCATE( zcfl_drain )
-      ENDIF
+      IF( ln_sal_chk )   CALL ice_thd_salchk( kt, 2 )
       
       ! controls
       IF( ln_icectl )   CALL ice_prt    (kt, iiceprt, jiceprt, 1, ' - ice thermodyn. - ') ! prints
@@ -292,6 +266,51 @@ CONTAINS
       END DO
       !
    END SUBROUTINE ice_thd_mono
+
+   SUBROUTINE ice_thd_salchk( kt, kn )
+      !!-----------------------------------------------------------------------
+      !!                   ***  ROUTINE ice_thd_salchk ***
+      !!
+      !! ** Purpose :   checking salt drainage and flushing
+      !!-----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt, kn 
+      !
+      !INTEGER ::   jk   ! dummy loop indices
+      !!-----------------------------------------------------------------------
+     
+      ! sanity checks for salt flushing and drainage
+      IF( kn == 1 ) THEN
+         !
+         ALLOCATE( llmsk(A2D(0),jpl) )
+         ALLOCATE( zcfl_flush(A2D(0),jpl) , zcfl_drain(A2D(0),jpl), zsneg_flush(A2D(0),jpl) , zsneg_drain(A2D(0),jpl) )
+         !
+         zcfl_flush = 0._wp ; zcfl_drain = 0._wp
+         zsneg_flush = 0._wp ; zsneg_drain = 0._wp
+         !
+      ELSEIF( kn == 2 ) THEN
+         !
+         CALL iom_put( 'sice_flush_neg', zsneg_flush ) ; DEALLOCATE( zsneg_flush )
+         CALL iom_put( 'sice_drain_neg', zsneg_drain ) ; DEALLOCATE( zsneg_drain )
+         !
+         CALL iom_put( 'cfl_flush', zcfl_flush )
+         CALL iom_put( 'cfl_drain', zcfl_drain )
+
+         !                    ! calculate maximum values and locations
+         llmsk(Nis0:Nie0,Njs0:Nje0,:) = h_i(Nis0:Nie0,Njs0:Nje0,:) > rn_himin        ! define only where h > 0.10m
+         CALL mpp_maxloc( 'icethd', zcfl_drain, llmsk, zcfl_drain_max, iloc )
+         CALL mpp_maxloc( 'icethd', zcfl_flush, llmsk, zcfl_flush_max, iloc )
+
+         IF( lwp ) THEN       ! write out to file
+            WRITE(numcfl,FMT='(2x,i6,3x,a10,4x,f8.4,1x,i4,1x,i4,1x,i4)') kt, 'Max Cdrain', zcfl_drain_max, iloc(1), iloc(2), iloc(3)
+            WRITE(numcfl,FMT='(11x,     a10,4x,f8.4,1x,i4,1x,i4,1x,i4)')     'Max Cflush', zcfl_flush_max, iloc(1), iloc(2), iloc(3)
+         ENDIF
+         DEALLOCATE( zcfl_flush, zcfl_drain )
+         DEALLOCATE( llmsk )
+
+         IF( kt == nitend .AND. lwp )   CLOSE( numcfl )
+      ENDIF
+      
+   END SUBROUTINE ice_thd_salchk
 
    SUBROUTINE ice_thd_1d2d( kl, kn )
       !!-----------------------------------------------------------------------
@@ -500,18 +519,10 @@ CONTAINS
          ENDIF
          ! sanity check for salt scheme
          IF( ln_sal_chk ) THEN
-            CALL tab_1d_2d( npti, nptidx(1:npti), s_flush_dserr_1d(1:npti), zs_flush_dserr(:,:,kl) )
-            CALL tab_1d_2d( npti, nptidx(1:npti), s_drain_dserr_1d(1:npti), zs_drain_dserr(:,:,kl) )
-            CALL tab_1d_2d( npti, nptidx(1:npti), s_flush_serr_1d (1:npti), zs_flush_serr (:,:,kl) )
-            CALL tab_1d_2d( npti, nptidx(1:npti), s_drain_serr_1d (1:npti), zs_drain_serr (:,:,kl) )
+            CALL tab_1d_2d( npti, nptidx(1:npti), sneg_flush_1d (1:npti), zsneg_flush (:,:,kl) )
+            CALL tab_1d_2d( npti, nptidx(1:npti), sneg_drain_1d (1:npti), zsneg_drain (:,:,kl) )
             CALL tab_1d_2d( npti, nptidx(1:npti), cfl_flush_1d(1:npti), zcfl_flush(:,:,kl) )
             CALL tab_1d_2d( npti, nptidx(1:npti), cfl_drain_1d(1:npti), zcfl_drain(:,:,kl) )
-            DO jk = 1, nlay_i
-               CALL tab_1d_2d( npti, nptidx(1:npti), t_flush_dserr_1d(1:npti,jk), zt_flush_dserr(:,:,jk,kl) )
-               CALL tab_1d_2d( npti, nptidx(1:npti), t_drain_dserr_1d(1:npti,jk), zt_drain_dserr(:,:,jk,kl) )
-               CALL tab_1d_2d( npti, nptidx(1:npti), t_flush_serr_1d (1:npti,jk), zt_flush_serr (:,:,jk,kl) )
-               CALL tab_1d_2d( npti, nptidx(1:npti), t_drain_serr_1d (1:npti,jk), zt_drain_serr (:,:,jk,kl) )
-            END DO
          ENDIF
          !
       END SELECT
@@ -559,6 +570,12 @@ CONTAINS
                        CALL ice_thd_sal_init   ! set ice salinity parameters
                        CALL ice_thd_pnd_init   ! set melt ponds parameters
       !
+      IF( ln_sal_chk ) THEN
+         ! create output ascii file
+         CALL ctl_opn( numcfl, clname, 'UNKNOWN', 'FORMATTED', 'SEQUENTIAL', 1, numout, lwp, 1 )
+         WRITE(numcfl,*) 'Timestep  Direction   Max C     i    j    k'
+         WRITE(numcfl,*) '*******************************************'
+      ENDIF
    END SUBROUTINE ice_thd_init
 
 #else

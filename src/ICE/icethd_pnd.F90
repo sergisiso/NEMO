@@ -39,7 +39,9 @@ MODULE icethd_pnd
    INTEGER, PARAMETER ::   np_pndCST  = 1   ! Constant ice pond scheme
    INTEGER, PARAMETER ::   np_pndLEV  = 2   ! Level ice pond scheme
    INTEGER, PARAMETER ::   np_pndTOPO = 3   ! Level ice pond scheme
-
+   ! permeability
+   INTEGER, PARAMETER ::   np_perm_eff = 2  ! 1 = vertical minimum
+   !                                          2 = harmonic mean
    !--------------------------------------------------------------------------
    ! Diagnostics for pond volume per area
    !
@@ -52,6 +54,7 @@ MODULE icethd_pnd
    ! In topo mode, the pond water lost because it is in the snow is not included in the budget
    ! In level mode, all terms are incorporated
    !
+   LOGICAL, PUBLIC ::   ll_diag_pnd      !: activate ponds diag or not
    REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   diag_dvpn_mlt       ! meltwater pond volume input      [kg/m2/s]
    REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   diag_dvpn_drn       ! pond volume lost by drainage     [-]
    REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   diag_dvpn_lid       ! exchange with lid / refreezing   [-]
@@ -83,15 +86,18 @@ CONTAINS
       !!-------------------------------------------------------------------
       INTEGER ::   ji, jj, jl        ! loop indices
       !!-------------------------------------------------------------------
-
-      ALLOCATE( diag_dvpn_mlt(A2D(0)) , diag_dvpn_lid(A2D(0)) , diag_dvpn_drn(A2D(0)) , diag_dvpn_rnf(A2D(0))  )
-      ALLOCATE( diag_dvpn_mlt_1d(jpij), diag_dvpn_lid_1d(jpij), diag_dvpn_drn_1d(jpij), diag_dvpn_rnf_1d(jpij) )
       !
-      diag_dvpn_mlt (:,:) = 0._wp   ;   diag_dvpn_drn (:,:) = 0._wp
-      diag_dvpn_lid (:,:) = 0._wp   ;   diag_dvpn_rnf (:,:) = 0._wp
-      diag_dvpn_mlt_1d(:) = 0._wp   ;   diag_dvpn_drn_1d(:) = 0._wp
-      diag_dvpn_lid_1d(:) = 0._wp   ;   diag_dvpn_rnf_1d(:) = 0._wp
-
+      IF( ll_diag_pnd ) THEN
+         !
+         ALLOCATE( diag_dvpn_mlt   (A2D(0)), diag_dvpn_lid   (A2D(0)), diag_dvpn_drn   (A2D(0)), diag_dvpn_rnf(A2D(0))  )
+         ALLOCATE( diag_dvpn_mlt_1d(jpij)  , diag_dvpn_lid_1d(jpij)  , diag_dvpn_drn_1d(jpij)  , diag_dvpn_rnf_1d(jpij) )
+         diag_dvpn_mlt (:,:) = 0._wp   ;   diag_dvpn_drn (:,:) = 0._wp
+         diag_dvpn_lid (:,:) = 0._wp   ;   diag_dvpn_rnf (:,:) = 0._wp
+         diag_dvpn_mlt_1d(:) = 0._wp   ;   diag_dvpn_drn_1d(:) = 0._wp
+         diag_dvpn_lid_1d(:) = 0._wp   ;   diag_dvpn_rnf_1d(:) = 0._wp
+         !
+      ENDIF
+      
       !-------------------------------------
       !  Remove ponds where ice has vanished
       !-------------------------------------
@@ -142,14 +148,17 @@ CONTAINS
       !------------------------------------
       !  Diagnostics
       !------------------------------------
-      CALL iom_put( 'dvpn_mlt', diag_dvpn_mlt ) ! input from melting
-      CALL iom_put( 'dvpn_lid', diag_dvpn_lid ) ! exchanges with lid
-      CALL iom_put( 'dvpn_drn', diag_dvpn_drn ) ! vertical drainage
-      CALL iom_put( 'dvpn_rnf', diag_dvpn_rnf ) ! runoff + overflow
-      !
-      DEALLOCATE( diag_dvpn_mlt   , diag_dvpn_lid   , diag_dvpn_drn   , diag_dvpn_rnf    )
-      DEALLOCATE( diag_dvpn_mlt_1d, diag_dvpn_lid_1d, diag_dvpn_drn_1d, diag_dvpn_rnf_1d )
-
+      IF( ll_diag_pnd ) THEN
+         !
+         CALL iom_put( 'dvpn_mlt', diag_dvpn_mlt ) ! input from melting
+         CALL iom_put( 'dvpn_lid', diag_dvpn_lid ) ! exchanges with lid
+         CALL iom_put( 'dvpn_drn', diag_dvpn_drn ) ! vertical drainage
+         CALL iom_put( 'dvpn_rnf', diag_dvpn_rnf ) ! runoff + overflow
+         DEALLOCATE( diag_dvpn_mlt   , diag_dvpn_lid   , diag_dvpn_drn   , diag_dvpn_rnf    )
+         DEALLOCATE( diag_dvpn_mlt_1d, diag_dvpn_lid_1d, diag_dvpn_drn_1d, diag_dvpn_rnf_1d )
+         !
+      ENDIF
+      
    END SUBROUTINE ice_thd_pnd
 
 
@@ -282,8 +291,7 @@ CONTAINS
       REAL(wp) ::   zv_ip_max                         ! max pond volume allowed
       REAL(wp) ::   zdT                               ! zTp-t_su
       REAL(wp) ::   zsbr, ztmelts                     ! Brine salinity
-      REAL(wp) ::   zperm                             ! permeability of sea ice
-      REAL(wp) ::   zfac, zdum                        ! temporary arrays
+      REAL(wp) ::   zdum, zperm                       ! permeability of sea ice
       REAL(wp) ::   z1_rhow, z1_aspect, z1_Tp         ! inverse
       !!
       INTEGER  ::   ji, jk, jl                        ! loop indices
@@ -295,11 +303,13 @@ CONTAINS
       CALL tab_2d_1d( npti, nptidx(1:npti), at_i_1d          (1:npti), at_i          )
       CALL tab_2d_1d( npti, nptidx(1:npti), wfx_pnd_1d       (1:npti), wfx_pnd       )
 
-      CALL tab_2d_1d( npti, nptidx(1:npti), diag_dvpn_mlt_1d (1:npti), diag_dvpn_mlt )
-      CALL tab_2d_1d( npti, nptidx(1:npti), diag_dvpn_drn_1d (1:npti), diag_dvpn_drn )
-      CALL tab_2d_1d( npti, nptidx(1:npti), diag_dvpn_lid_1d (1:npti), diag_dvpn_lid )
-      CALL tab_2d_1d( npti, nptidx(1:npti), diag_dvpn_rnf_1d (1:npti), diag_dvpn_rnf )
-
+      IF( ll_diag_pnd ) THEN
+         CALL tab_2d_1d( npti, nptidx(1:npti), diag_dvpn_mlt_1d (1:npti), diag_dvpn_mlt )
+         CALL tab_2d_1d( npti, nptidx(1:npti), diag_dvpn_drn_1d (1:npti), diag_dvpn_drn )
+         CALL tab_2d_1d( npti, nptidx(1:npti), diag_dvpn_lid_1d (1:npti), diag_dvpn_lid )
+         CALL tab_2d_1d( npti, nptidx(1:npti), diag_dvpn_rnf_1d (1:npti), diag_dvpn_rnf )
+      ENDIF
+      
       DO jl = 1, jpl
 
          CALL tab_2d_1d( npti, nptidx(1:npti), a_i_1d  (1:npti), a_i (:,:,jl) )
@@ -351,7 +361,7 @@ CONTAINS
                !    If pond area exceeds zfr_mlt * a_i_1d(ji) then reduce the pond volume
                !       a_ip_max = zfr_mlt * a_i
                !       => from zaspect = h_ip / (a_ip / a_i), set v_ip_max as:
-               zv_ip_max = zfr_mlt**2 * a_i_1d(ji) * zaspect
+               zv_ip_max = zfr_mlt * zfr_mlt * a_i_1d(ji) * zaspect
                zdv_mlt   = MAX( 0._wp, MIN( zdv_mlt, zv_ip_max - v_ip_1d(ji) ) )
 
                ! depth driven overflow
@@ -378,7 +388,7 @@ CONTAINS
                   !
                   !--- Lid growing and subsequent pond shrinking ---!
                   zdv_frz = - 0.5_wp * MAX( 0._wp, -v_il_1d(ji) + & ! Flocco 2010 (eq. 5) solved implicitly as aH**2 + bH + c = 0
-                     &                    SQRT( v_il_1d(ji)**2 + a_ip_1d(ji)**2 * 4._wp * rcnd_i * zdT * rDt_ice / (rLfus * rhow) ) ) ! max for roundoff errors
+                     & SQRT( v_il_1d(ji)*v_il_1d(ji) + a_ip_1d(ji)*a_ip_1d(ji) * 4._wp * rcnd_i * zdT * rDt_ice / (rLfus * rhow) ) ) ! max for roundoff errors
 
                   ! Lid growing
                   v_il_1d(ji) = MAX( 0._wp, v_il_1d(ji) - zdv_frz )
@@ -405,22 +415,11 @@ CONTAINS
                ! height of top of the pond above sea-level
                zhp = ( h_i_1d(ji) * ( rho0 - rhoi ) + h_ip_1d(ji) * ( rho0 - rhow * a_ip_1d(ji) / a_i_1d(ji) ) ) * r1_rho0
 
-               ! Calculate the permeability of the ice (Assur 1958, see Flocco 2010)
-               DO jk = 1, nlay_i
-                  ! MV Assur is inconsistent with SI3
-                  !!zsbr = - 1.2_wp                                  &
-                  !!   &   - 21.8_wp    * ( t_i_1d(ji,jk) - rt0 )    &
-                  !!   &   - 0.919_wp   * ( t_i_1d(ji,jk) - rt0 )**2 &
-                  !!   &   - 0.0178_wp  * ( t_i_1d(ji,jk) - rt0 )**3
-                  !!ztmp(jk) = sz_i_1d(ji,jk) / zsbr
-                  ! MV linear expression more consistent & simpler: zsbr = - ( t_i_1d(ji,jk) - rt0 ) / rTmlt
-                  ztmelts  = -rTmlt * sz_i_1d(ji,jk)
-                  ztmp(jk) = ztmelts / MIN( ztmelts, t_i_1d(ji,jk) - rt0 )
-               END DO
-               zperm = MAX( 0._wp, 3.e-08_wp * MINVAL(ztmp)**3 )
-
+               ! Calculate the permeability of the ice
+               zperm = ice_perm_eff( t_i_1d(ji,:), sz_i_1d(ji,:) )
+               
                ! Do the drainage using Darcy's law
-               zdv_flush   = -zperm * rho0 * grav * zhp * rDt_ice / (zvisc * h_i_1d(ji)) * a_ip_1d(ji) * rn_pnd_flush ! zflush comes from Hunke et al. (2012)
+               zdv_flush   = -zperm * rho0 * grav * zhp * rDt_ice / (zvisc * h_i_1d(ji)) * a_ip_1d(ji) * rn_pnd_flush ! rn_pnd_flush comes from Hunke et al. (2012)
                zdv_flush   = MAX( zdv_flush, -v_ip_1d(ji) ) ! < 0
                v_ip_1d(ji) = v_ip_1d(ji) + zdv_flush
 
@@ -443,10 +442,12 @@ CONTAINS
                ENDIF
 
                ! diagnostics: dvpnd = mlt+rnf+lid+drn
-               diag_dvpn_mlt_1d(ji) = diag_dvpn_mlt_1d(ji) + rhow *   zdv_avail             * r1_Dt_ice   ! > 0, surface melt input
-               diag_dvpn_rnf_1d(ji) = diag_dvpn_rnf_1d(ji) + rhow * ( zdv_mlt - zdv_avail ) * r1_Dt_ice   ! < 0, runoff
-               diag_dvpn_lid_1d(ji) = diag_dvpn_lid_1d(ji) + rhow *   zdv_frz               * r1_Dt_ice   ! < 0, shrinking
-               diag_dvpn_drn_1d(ji) = diag_dvpn_drn_1d(ji) + rhow *   zdv_flush             * r1_Dt_ice   ! < 0, drainage
+               IF( ll_diag_pnd ) THEN
+                  diag_dvpn_mlt_1d(ji) = diag_dvpn_mlt_1d(ji) + rhow *   zdv_avail             * r1_Dt_ice   ! > 0, surface melt input
+                  diag_dvpn_rnf_1d(ji) = diag_dvpn_rnf_1d(ji) + rhow * ( zdv_mlt - zdv_avail ) * r1_Dt_ice   ! < 0, runoff
+                  diag_dvpn_lid_1d(ji) = diag_dvpn_lid_1d(ji) + rhow *   zdv_frz               * r1_Dt_ice   ! < 0, shrinking
+                  diag_dvpn_drn_1d(ji) = diag_dvpn_drn_1d(ji) + rhow *   zdv_flush             * r1_Dt_ice   ! < 0, drainage
+               ENDIF
                !
             ENDIF
             !
@@ -471,10 +472,12 @@ CONTAINS
       !
       CALL tab_1d_2d( npti, nptidx(1:npti), wfx_pnd_1d(1:npti), wfx_pnd )
       !
-      CALL tab_1d_2d( npti, nptidx(1:npti), diag_dvpn_mlt_1d (1:npti), diag_dvpn_mlt        )
-      CALL tab_1d_2d( npti, nptidx(1:npti), diag_dvpn_drn_1d (1:npti), diag_dvpn_drn        )
-      CALL tab_1d_2d( npti, nptidx(1:npti), diag_dvpn_lid_1d (1:npti), diag_dvpn_lid        )
-      CALL tab_1d_2d( npti, nptidx(1:npti), diag_dvpn_rnf_1d (1:npti), diag_dvpn_rnf        )
+      IF( ll_diag_pnd ) THEN
+         CALL tab_1d_2d( npti, nptidx(1:npti), diag_dvpn_mlt_1d (1:npti), diag_dvpn_mlt        )
+         CALL tab_1d_2d( npti, nptidx(1:npti), diag_dvpn_drn_1d (1:npti), diag_dvpn_drn        )
+         CALL tab_1d_2d( npti, nptidx(1:npti), diag_dvpn_lid_1d (1:npti), diag_dvpn_lid        )
+         CALL tab_1d_2d( npti, nptidx(1:npti), diag_dvpn_rnf_1d (1:npti), diag_dvpn_rnf        )
+      ENDIF
       !
    END SUBROUTINE pnd_LEV
 
@@ -602,9 +605,11 @@ CONTAINS
                   zfr_mlt = rn_apnd_min + ( rn_apnd_max - rn_apnd_min ) * at_i(ji,jj)                  ! fraction of surface meltwater going to ponds
                   zv_pnd  = zfr_mlt * zv_mlt                                                           ! contributing meltwater volume for category jl
 
-                  diag_dvpn_mlt(ji,jj) = diag_dvpn_mlt(ji,jj) + zv_mlt * r1_Dt_ice                     ! diags
-                  diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) + ( 1. - zfr_mlt ) * zv_mlt * r1_Dt_ice
-
+                  IF( ll_diag_pnd ) THEN
+                     diag_dvpn_mlt(ji,jj) = diag_dvpn_mlt(ji,jj) + zv_mlt * r1_Dt_ice                     ! diags
+                     diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) + ( 1. - zfr_mlt ) * zv_mlt * r1_Dt_ice
+                  ENDIF
+                  
                   !--- Create possible new ponds
                   ! if pond does not exist, create new pond over full ice area
                   !IF ( a_ip_frac(ji,jj,jl) < epsi10 ) THEN
@@ -681,8 +686,7 @@ CONTAINS
                            ENDIF
                            h_ip(ji,jj,jl) = v_ip(ji,jj,jl) / a_ip(ji,jj,jl) !!! could get a division by zero here
 
-                           diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + zdvice   ! diag
-
+                           IF( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + zdvice   ! diag
                         ENDIF
 
                      !----------------------------------------------------------------
@@ -705,8 +709,7 @@ CONTAINS
 !                          zfpond(ji,jj)   = zfpond(ji,jj)    - zdvice
                            h_ip(ji,jj,jl)   = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
 
-                           diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - zdvice    ! diag
-
+                           IF( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - zdvice    ! diag
                         ENDIF
 
                      ENDIF ! Tsfcn(i,j,n)
@@ -734,7 +737,7 @@ CONTAINS
                         v_il (ji,jj,jl)  = v_il(ji,jj,jl)   + zdvice
                         v_ip(ji,jj,jl)   = v_ip(ji,jj,jl)   - zdvice
 
-                        diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - zdvice      ! diag
+                        IF( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - zdvice      ! diag
 !                       zvolp(ji,jj)     = zvolp(ji,jj)     - zdvice
 !                       zfpond(ji,jj)    = zfpond(ji,jj)    - zdvice
                         h_ip(ji,jj,jl)   = v_ip(ji,jj,jl) / a_ip(ji,jj,jl) ! MV - in principle, this is useless as h_ip is computed in icevar
@@ -978,7 +981,7 @@ CONTAINS
            drain = zvolp(ji,jj) - cum_max_vol(jpl) + epsi10
            zvolp(ji,jj) = zvolp(ji,jj) - drain ! update meltwater volume available
 
-           diag_dvpn_rnf(ji,jj) = - drain      ! diag - overflow counted in the runoff part (arbitrary choice)
+           IF( ll_diag_pnd )   diag_dvpn_rnf(ji,jj) = - drain      ! diag - overflow counted in the runoff part (arbitrary choice)
 
            zdvolp(ji,jj) = drain         ! this is the drained water
            IF (zvolp(ji,jj) < epsi10) THEN
@@ -1028,7 +1031,7 @@ CONTAINS
               !IF (hicen(jl) > 0._wp) THEN           !js: from CICE 5.1.2
 
                  perm = 0._wp ! MV ugly dummy patch
-                 CALL ice_thd_pnd_perm(t_i(ji,jj,:,jl),  sz_i(ji,jj,:,jl), perm) ! bof
+                 perm = ice_perm_eff( t_i(ji,jj,:,jl), sz_i(ji,jj,:,jl) ) ! bof
                  IF (perm > 0._wp) permflag = 1
 
                  drain = perm*a_ip(ji,jj,jl)*pressure_head*rDt_ice / &
@@ -1036,7 +1039,7 @@ CONTAINS
                  zdvolp(ji,jj) = zdvolp(ji,jj) + min(drain, zvolp(ji,jj))
                  zvolp(ji,jj) = max(zvolp(ji,jj) - drain, 0._wp)
 
-                 diag_dvpn_drn(ji,jj) = - drain ! diag (could be better coded)
+                 IF( ll_diag_pnd )   diag_dvpn_drn(ji,jj) = - drain ! diag (could be better coded)
 
                  IF (zvolp(ji,jj) < epsi10) THEN
                     zdvolp(ji,jj) = zdvolp(ji,jj) + zvolp(ji,jj)
@@ -1285,59 +1288,52 @@ CONTAINS
 
     END SUBROUTINE ice_thd_pnd_depth
 
-
-    SUBROUTINE ice_thd_pnd_perm(ticen, salin, perm)
+    FUNCTION ice_perm_eff( zti, zsi )
        !!-------------------------------------------------------------------
        !!                ***  ROUTINE ice_thd_pnd_perm ***
        !!
        !! ** Purpose :   Determine the liquid fraction of brine in the ice
        !!                and its permeability
        !!-------------------------------------------------------------------
+       REAL(wp), DIMENSION(nlay_i), INTENT(in) ::   zti, zsi 
+       REAL(wp)                                ::   ice_perm_eff ! effective permeability
+       !
+       REAL(wp), DIMENSION(nlay_i) ::   zv_br
+       REAL(wp) ::   zt1, zt2, zt3, ztmp, zperm, zs_br
+       INTEGER  ::   jk
+       !!-------------------------------------------------------------------
 
-       REAL (wp), DIMENSION(nlay_i), INTENT(IN) :: &
-          ticen,  &     ! internal ice temperature (K)
-          salin         ! salinity (ppt)     !js: ppt according to cice
-
-       REAL (wp), INTENT(OUT) :: &
-          perm      ! permeability
-
-       REAL (wp) ::   &
-          Sbr       ! brine salinity
-
-       REAL (wp), DIMENSION(nlay_i) ::   &
-          Tin, &    ! ice temperature
-          phi       ! liquid fraction
-
-       INTEGER :: k
-
-       !-----------------------------------------------------------------
-       ! Compute ice temperatures from enthalpies using quadratic formula
-       !-----------------------------------------------------------------
-
-       DO k = 1,nlay_i
-          Tin(k) = ticen(k) - rt0   !js: from K to degC
-       END DO
-
-       !-----------------------------------------------------------------
        ! brine salinity and liquid fraction
-       !-----------------------------------------------------------------
+       !-----------------------------------
+       DO jk = 1, nlay_i
+          zt1 = zti(jk) - rt0
+          zt2 = zt1 * zt1
+          zt3 = zt2 * zt1
+          zs_br = -18.7_wp * zt1 - 0.519_wp * zt2 - 0.00535_wp * zt3
+!!$         IF    ( nn_liquidus == 1 ) THEN ; Sbrine(jk) = - zt1 / rTmlt                                      ! --- Linear liquidus
+!!$         ELSEIF( nn_liquidus == 2 ) THEN ; Sbrine(jk) = -18.7_wp * zt1 - 0.519_wp * zt2 - 0.00535_wp * zt3 ! --- 3rd order liquidus, VC19
+!!$         ELSEIF( nn_liquidus == 3 ) THEN ; Sbrine(jk) = -17.6_wp * zt1 - 0.389_wp * zt2 - 0.00362_wp * zt3 ! --- Weast 71 liquidus in RJW14
+!!$         ENDIF
+          IF( (zti(jk)-rt0) <  - epsi06 ) THEN   ;   zv_br(jk) = zsi(jk) / zs_br
+          ELSE                                   ;   zv_br(jk) = 0._wp
+          ENDIF
+       ENDDO
 
-       DO k = 1, nlay_i
+       ! Effective permeability
+       ! ----------------------
+       IF    ( np_perm_eff == 1 ) THEN ! Minimum
+          ztmp = MINVAL( zv_br(1:nlay_i) )
+          ice_perm_eff = 3.e-8_wp * ztmp * ztmp * ztmp
+       ELSEIF( np_perm_eff == 2 ) THEN ! Harmonic Mean                         
+          ztmp = 0._wp
+          DO jk = 1, nlay_i
+             zperm = 3.e-8_wp * zv_br(jk)*zv_br(jk)*zv_br(jk)
+             ztmp = ztmp + 1._wp / zperm
+          END DO
+          ice_perm_eff = REAL( nlay_i, wp ) / ztmp
+       END IF
 
-          Sbr    = - Tin(k) / rTmlt ! Consistent expression with SI3 (linear liquidus)
-          ! Best expression to date is that one (Vancoppenolle et al JGR 2019)
-          ! Sbr  = - 18.7 * Tin(k) - 0.519 * Tin(k)**2 - 0.00535 * Tin(k) **3
-          phi(k) = salin(k) / Sbr
-
-       END DO
-
-       !-----------------------------------------------------------------
-       ! permeability
-       !-----------------------------------------------------------------
-
-       perm = 3.0e-08_wp * (minval(phi))**3 ! Golden et al. (2007)
-
-   END SUBROUTINE ice_thd_pnd_perm
+   END FUNCTION ice_perm_eff
 
    SUBROUTINE ice_thd_pnd_init
       !!-------------------------------------------------------------------
@@ -1399,6 +1395,12 @@ CONTAINS
       CASE( np_pndCST )
          IF( ln_pnd_lids ) THEN ; ln_pnd_lids = .FALSE. ; CALL ctl_warn( 'ln_pnd_lids=false when constant ponds' ) ; ENDIF
       END SELECT
+      !
+      IF( iom_use('dvpn_mlt') .OR. iom_use('dvpn_lid') .OR. iom_use('dvpn_drn') .OR. iom_use('dvpn_rnf') ) THEN
+         ll_diag_pnd = .TRUE.
+      ELSE
+         ll_diag_pnd = .FALSE.
+      ENDIF
       !
    END SUBROUTINE ice_thd_pnd_init
 
