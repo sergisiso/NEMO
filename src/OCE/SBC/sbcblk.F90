@@ -1005,7 +1005,9 @@ CONTAINS
       !
       ! treshold for outputs
       DO_2D( 0, 0, 0, 0 )
-         zmsk00(ji,jj) = MAX( 0._wp , SIGN( 1._wp , fr_i(ji,jj) - 1.e-6_wp  ) ) ! 1 if ice, 0 if no ice
+         IF( fr_i(ji,jj) >= 1.e-06_wp  ) THEN ; zmsk00(ji,jj) = 1._wp ! 1 if ice    , 0 if no ice
+         ELSE                                 ; zmsk00(ji,jj) = 0._wp
+         ENDIF
       END_2D
 
       ! ------------------------------------------------------------ !
@@ -1120,17 +1122,15 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zmsk   ! temporary mask for prt_ctl
       REAL(wp), DIMENSION(A2D(0),jpl) ::   z_qlw         ! long wave heat flux over ice
       REAL(wp), DIMENSION(A2D(0),jpl) ::   z_qsb         ! sensible  heat flux over ice
-      REAL(wp), DIMENSION(A2D(0),jpl) ::   z_dqlw        ! long wave heat sensitivity over ice
-      REAL(wp), DIMENSION(A2D(0),jpl) ::   z_dqsb        ! sensible  heat sensitivity over ice
+      REAL(wp)                        ::   z_dqlw        ! long wave heat sensitivity over ice
+      REAL(wp)                        ::   z_dqsb        ! sensible  heat sensitivity over ice
       REAL(wp), DIMENSION(A2D(0))     ::   zevap, zsnw   ! evaporation and snw distribution after wind blowing (SI3)
-      REAL(wp), DIMENSION(A2D(0))     ::   ztmp, ztmp2
       REAL(wp), DIMENSION(A2D(0))     ::   ztri
       REAL(wp), DIMENSION(A2D(0))     ::   zcptrain, zcptsnw, zcptn ! Heat content per unit mass (J/kg)
       !!---------------------------------------------------------------------
       !
       zcoef_dqlw = 4._wp * emiss_i * stefan             ! local scalars
       zztmp = 1. / ( 1. - albo )
-      dqla_ice(:,:,:) = 0._wp
 
       ! Heat content per unit mass (J/kg)
       zcptrain(:,:) = (      ptair(:,:)        - rt0 ) * rcp  * smask0(:,:)
@@ -1156,7 +1156,7 @@ CONTAINS
             zst3 = zst * zst * zst
             z_qlw(ji,jj,jl)   = emiss_i * ( pdqlw(ji,jj) - stefan * zst * zst3 ) * smask0(ji,jj)
             ! lw sensitivity
-            z_dqlw(ji,jj,jl)  = zcoef_dqlw * zst3
+            z_dqlw = zcoef_dqlw * zst3
 
             ! ----------------------------!
             !     II    Turbulent FLUXES  !
@@ -1170,13 +1170,17 @@ CONTAINS
             ! Sensible Heat
             zztmp1 = zzblk * rCp_air * Ch_ice(ji,jj)
             z_qsb (ji,jj,jl) = zztmp1 * (zsipt - theta_zu_i(ji,jj))
-            z_dqsb(ji,jj,jl) = zztmp1                        ! ==> Qsens sensitivity (Dqsb_ice/Dtn_ice)
+            z_dqsb = zztmp1                        ! ==> Qsens sensitivity (Dqsb_ice/Dtn_ice)
 
             ! Latent Heat
             zztmp1 = zzblk * rLsub * Ce_ice(ji,jj)
             qla_ice(ji,jj,jl) = MAX( zztmp1 * (zsq - q_zu_i(ji,jj)) , 0._wp )   ! #LB: only sublimation (and not condensation) ???
-            IF(qla_ice(ji,jj,jl)>0._wp) dqla_ice(ji,jj,jl) = zztmp1*dq_sat_dt_ice(zst, pslp(ji,jj)) ! ==> Qlat sensitivity  (dQlat/dT)
-            !                                                                                       !#LB: dq_sat_dt_ice() in "sbc_phy.F90"
+            IF( qla_ice(ji,jj,jl) > 0._wp ) THEN
+               dqla_ice(ji,jj,jl) = zztmp1*dq_sat_dt_ice(zst, pslp(ji,jj)) ! ==> Qlat sensitivity  (dQlat/dT)
+               !                                                                 !#LB: dq_sat_dt_ice() in "sbc_phy.F90"
+            ELSE
+               dqla_ice(ji,jj,jl) = 0._wp
+            ENDIF
             !#LB: without this unjustified "condensation sensure":
             !qla_ice( ji,jj,jl) = zztmp1 * (zsq - q_zu_i(ji,jj))
             !dqla_ice(ji,jj,jl) = zztmp1 * dq_sat_dt_ice(zst, pslp(ji,jj)) ! ==> Qlat sensitivity  (dQlat/dT)
@@ -1187,7 +1191,7 @@ CONTAINS
             ! Downward Non Solar flux
             qns_ice (ji,jj,jl) =     z_qlw (ji,jj,jl) - z_qsb (ji,jj,jl) - qla_ice (ji,jj,jl)
             ! Total non solar heat flux sensitivity for ice
-            dqns_ice(ji,jj,jl) = - ( z_dqlw(ji,jj,jl) + z_dqsb(ji,jj,jl) + dqla_ice(ji,jj,jl) ) !#LB: correct signs ????
+            dqns_ice(ji,jj,jl) = - ( z_dqlw + z_dqsb + dqla_ice(ji,jj,jl) ) !#LB: correct signs ????
 
          END_2D
          !
@@ -1296,8 +1300,8 @@ CONTAINS
             &         tab3d_2=z_qsb   , clinfo2=' z_qsb    : '         , mask2=zmsk, kdim=jpl)
          CALL prt_ctl(tab3d_1=z_qlw   , clinfo1=' blk_ice: z_qlw    : ', mask1=zmsk,   &
             &         tab3d_2=dqla_ice, clinfo2=' dqla_ice : '         , mask2=zmsk, kdim=jpl)
-         CALL prt_ctl(tab3d_1=z_dqsb  , clinfo1=' blk_ice: z_dqsb   : ', mask1=zmsk,   &
-            &         tab3d_2=z_dqlw  , clinfo2=' z_dqlw   : '         , mask2=zmsk, kdim=jpl)
+!!$         CALL prt_ctl(tab3d_1=z_dqsb  , clinfo1=' blk_ice: z_dqsb   : ', mask1=zmsk,   &
+!!$            &         tab3d_2=z_dqlw  , clinfo2=' z_dqlw   : '         , mask2=zmsk, kdim=jpl)
          CALL prt_ctl(tab3d_1=dqns_ice, clinfo1=' blk_ice: dqns_ice : ', mask1=zmsk,   &
             &         tab3d_2=qsr_ice , clinfo2=' qsr_ice  : '         , mask2=zmsk, kdim=jpl)
          CALL prt_ctl(tab3d_1=ptsu    , clinfo1=' blk_ice: ptsu     : ', mask1=zmsk,   &

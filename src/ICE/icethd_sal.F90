@@ -114,9 +114,9 @@ CONTAINS
       !!             zc     : critical depth below which convection occurs (m)
       !!             h      : total ice thickness         (m)
       !!             perm   : effective permeability      (m2)
-      !!                      = 3.e-8    * (S/Sbr)^3      [SI3]     ( np_perm_for == 0 )
-      !!                      = 1.995e-8 * (S/Sbr)^3.1    [Freitag] ( np_perm_for == 1 )
-      !!                      = 1.0e-8   * (S/Sbr)^3.     [RJW2014] ( np_perm_for == 2 )
+      !!                      = 3.e-8    * (S/Sbr)^3      [SI3]     ( hard coded )
+      !!                      = 1.995e-8 * (S/Sbr)^3.1    [Freitag] 
+      !!                      = 1.0e-8   * (S/Sbr)^3.     [RJW2014] 
       !!
       !!    1) === Reese Jones & Worster 2014 (refer to as RJW2014) ===
       !!
@@ -168,23 +168,21 @@ CONTAINS
       !!             Tracer measurements in growing sea ice support convective gravity drainage parameterizations.
       !              Journal of Geophysical Research: Oceans, 125, e2019JC015791. https://doi.org/10. 1029/2019JC015791
       !!---------------------------------------------------------------------
-      INTEGER  ::   ji, jk, jk1, jk2            ! dummy loop indices 
+      INTEGER  ::   ji, jk, jk2            ! dummy loop indices 
       REAL(wp) ::   z1_time_gd, z1_time_fl
       !
       ! for gravity drainage and flushing
-      INTEGER  ::   iter
-      REAL(wp) ::   zh_i, z1_h_i, zhmelt, zc, zcfl, zperm, ztmp, zdt
+      INTEGER  ::   iter, jc
+      REAL(wp) ::   z1_h_i, zhmelt, zc, zcfl, zperm, ztmp, zRae, zdt, zt1, zt2, zt3, &
+         &          zv_brmin, zs_brmax, z1_cp_br, z1_cnd_br, z1_visc, z1_c2
       REAL(wp), DIMENSION(nlay_i)     ::   z_mid
       REAL(wp), DIMENSION(nlay_i+1)   ::   z_edge 
-      REAL(wp), DIMENSION(nlay_i)     ::   zds, zperm_eff, zv_br, zRa, zRae, zw_br 
+      REAL(wp), DIMENSION(nlay_i)     ::   zds, zv_br, zRa, zperm_eff, zw_br, zmsk 
       REAL(wp), DIMENSION(0:nlay_i+1) ::   zs_br 
       !
       ! permeability
       REAL(wp), PARAMETER ::   np_perm_eff = 2     ! 1 = vertical minimum
       !                                              2 = harmonic mean
-      REAL(wp), PARAMETER ::   np_perm_for = 1     ! 0 = SI3 
-      !                                              1 = Freitag 99
-      !                                              2 = RJW 2014
       ! Rayleigh
       REAL(wp), PARAMETER ::   zcp_br    = 4.e6    ! heat capacity of brine (J/m3)
       REAL(wp), PARAMETER ::   zbeta     = 7.5e-4  ! saline density coefficient (g/kg)-1
@@ -194,11 +192,12 @@ CONTAINS
       REAL(wp), PARAMETER ::   zrhob_GN  = 1020.   ! Brine density (kg/m3)
       !
       ! for sanity checks
-      REAL(wp) ::   zmiss, zs_min, zds_max, zcfl_max
+      REAL(wp) ::   zs_min, zcfl_max
+
+      !!clem test
+      INTEGER ::   ndrainage, nflushing
+      REAL(wp) ::  zcfl_test
       !!---------------------------------------------------------------------
-      !
-      ! sanity check
-      IF( ln_sal_chk)   CALL iom_miss_val( 'icetemp', zmiss )   ! get missing value from xml
       !
       SELECT CASE ( nn_icesal )
       !
@@ -254,109 +253,214 @@ CONTAINS
          !             !--------------------------------!
       CASE( 4 )        ! Gravity Drainage and Flushing  !
          !             !--------------------------------!
-                        
+
+         ! ==============
          ! Initialization
          ! ==============         
          DO jk = 1, nlay_i
-            z_mid(jk) = ( REAL( jk ) - 0.5_wp ) * r1_nlay_i
+            z_mid (jk) = ( REAL( jk ) - 0.5_wp ) * r1_nlay_i
+            z_edge(jk) = ( REAL( jk ) - 1.0_wp ) * r1_nlay_i
          END DO
-         DO jk = 1, nlay_i+1
-            z_edge(jk) = ( REAL( jk ) - 1._wp ) * r1_nlay_i
-         END DO
+         z_edge(nlay_i+1) = ( REAL( nlay_i+1 ) - 1.0_wp ) * r1_nlay_i
 
+         ! ================
          ! Gravity Drainage
          ! ================
          IF( ln_drainage ) THEN
             !
-            zdt   = rDt_ice / REAL( nn_drainage )
+            z1_cp_br  = 1._wp / zcp_br
+            z1_cnd_br = 1._wp / zcnd_br
+            z1_visc   = 1._wp / zvisc            
             !
             DO ji = 1, npti
                ! ice thickness ( we do not want to do anything for salt when ice is thinner than the minimum allowed )
-               IF( h_i_1d(ji) >= rn_sal_himin ) THEN   ;   z1_h_i = 1._wp / ( h_i_1d(ji) * r1_nlay_i )
-               ELSE                                    ;   z1_h_i = 0._wp
-               ENDIF
+               z1_h_i = 1._wp / MAX( epsi10, h_i_1d(ji) * r1_nlay_i )
                !
                ! surface melting (m)
                zhmelt = dh_s_sum(ji) + dh_i_sum(ji) ! =0 if no melt, <0 otherwise 
                !
-               ! iteration to converge (usually 10 is ok)
+               ! brine salinity
+               zs_brmax = 0._wp
+               DO jk = 1, nlay_i
+                  zt1 = t_i_1d(ji,jk) - rt0
+                  zt2 = zt1 * zt1
+                  zt3 = zt2 * zt1
+                  zs_br(jk) = -18.7_wp * zt1 - 0.519_wp * zt2 - 0.00535_wp * zt3
+!!$         IF    ( nn_liquidus == 1 ) THEN ; Sbrine(jk) = - zt1 / rTmlt                                      ! --- Linear liquidus
+!!$         ELSEIF( nn_liquidus == 2 ) THEN ; Sbrine(jk) = -18.7_wp * zt1 - 0.519_wp * zt2 - 0.00535_wp * zt3 ! --- 3rd order liquidus, VC19
+!!$         ELSEIF( nn_liquidus == 3 ) THEN ; Sbrine(jk) = -17.6_wp * zt1 - 0.389_wp * zt2 - 0.00362_wp * zt3 ! --- Weast 71 liquidus in RJW14
+!!$         ENDIF
+                  zs_brmax = MAX( zs_brmax, zs_br(jk) )
+               ENDDO
+               zs_br(0) = 0._wp               ! brine salinity at the interfaces
+               zs_br(nlay_i+1) = sss_1d(ji)
+               !               
                zcfl_max = 0._wp
-               zds_max  = 0._wp
                zs_min   = 0._wp
-               DO iter = 1, nn_drainage
+               IF( h_i_1d(ji) >= rn_sal_himin .AND. zhmelt >= 0._wp .AND. zs_brmax > sss_1d(ji) ) THEN
+                  !                               ! during melting season, salt flux can turn upward
                   !
-                  CALL ice_brine( sss_1d(ji), t_i_1d(ji,:), sz_i_1d(ji,:), zs_br, zv_br )
-
-                  IF( h_i_1d(ji) >= rn_sal_himin .AND. MAXVAL( zs_br(:) ) > sss_1d(ji) .AND. zhmelt >= 0._wp ) THEN
-                     !                                                                       during melting season, salt flux can turn upward with these schemes
-                     ! Effective permeability
-                     ! ----------------------
-                     IF( np_perm_eff == 1 ) THEN ! Minimum
-
-                        DO jk = 1, nlay_i
-                           IF    ( np_perm_for == 0 ) THEN ; zperm_eff(jk) = 3.e-8_wp    * ( MINVAL( zv_br(jk:nlay_i) ) )**3.  ! SI3
-                           ELSEIF( np_perm_for == 1 ) THEN ; zperm_eff(jk) = 1.995e-8_wp * ( MINVAL( zv_br(jk:nlay_i) ) )**3.1 ! Freitag
-                           ELSEIF( np_perm_for == 2 ) THEN ; zperm_eff(jk) = 1.e-8_wp    * ( MINVAL( zv_br(jk:nlay_i) ) )**3.  ! Rees Jones and Worster
-                           END IF                                                                                           !    -> this case leads to bizarre results
-                        END DO
-
-                     ELSEIF( np_perm_eff == 2 ) THEN ! Harmonic Mean
-
-                        DO jk1 = 1, nlay_i
-                           ztmp = 0._wp
-                           DO jk2 = jk1, nlay_i
-                              IF    ( np_perm_for == 0 ) THEN ; zperm = 3.e-8_wp    * zv_br(jk2)**3.  ! SI3
-                              ELSEIF( np_perm_for == 1 ) THEN ; zperm = 1.995e-8_wp * zv_br(jk2)**3.1 ! Freitag
-                              ELSEIF( np_perm_for == 2 ) THEN ; zperm = 1.e-8_wp    * zv_br(jk2)**3.  ! Rees Jones and Worster
-                              END IF
-                              ztmp = ztmp + 1._wp / zperm
-                           END DO
-                           zperm_eff(jk1) = REAL( nlay_i - jk1 + 1 ) / ztmp
-                        END DO
-
-                     END IF
-
-                     ! Rayleigh number
-                     ! ---------------
-                     ! Ra = cp_br * g * beta * (Sbr(z) - Sw) * perm * (h-z) / (cnd_br*visc)   [RWJ2014 formulation]
+                  WHERE( (t_i_1d(ji,:)-rt0) <  - epsi06 ) ; zmsk(:) = 1._wp
+                  ELSEWHERE                               ; zmsk(:) = 0._wp
+                  ENDWHERE
+                  !
+                  ! Compute CFL
+                  ! ===========
+                  DO jk = 1, nlay_i
+                     zv_br(jk) = zmsk(jk) * sz_i_1d(ji,jk) / zs_br(jk)
+                  ENDDO
+                  
+                  ! Effective permeability
+                  ! ----------------------
+                  IF( np_perm_eff == 1 ) THEN ! Minimum
                      DO jk = 1, nlay_i
-                        zRa(jk) = zcp_br * grav * zbeta * MAX( 0., zs_br(jk) - sss_1d(ji)) * zperm_eff(jk) &
-                           &                            *  h_i_1d(ji) * ( 1._wp - z_mid(jk) ) / ( zcnd_br * zvisc )
+                        ztmp = MINVAL( zv_br(jk:nlay_i) )
+                        zperm_eff(jk) = 3.e-8_wp * ztmp * ztmp * ztmp
                      END DO
-
-                     ! Vertical velocity
-                     ! -----------------
-                     IF ( nn_sal_scheme == 1 ) THEN     ! *** RJW 2014 ***
-                        !
-                        ! if Ra is everywhere < Rc : no convection => Rae =0
-                        ! else                     : convection until zc => Rae /= 0
-                        zc = 0._wp
+                  ELSEIF( np_perm_eff == 2 ) THEN ! Harmonic Mean                         
+                     DO jk = 1, nlay_i
                         ztmp = 0._wp
-                        DO jk = nlay_i,1,-1
-                           IF ( zRa(jk) >= rn_Rc_RJW ) THEN
-                              ztmp = MAX( ztmp , zRa(jk) - rn_Rc_RJW )
-                              zc = z_edge(jk)
-                           END IF
-                           zRae(jk) = ztmp 
+                        DO jk2 = jk, nlay_i
+                           zperm = 3.e-8_wp * zv_br(jk2)*zv_br(jk2)*zv_br(jk2)
+                           ztmp = ztmp + 1._wp / zperm
                         END DO
+                        zperm_eff(jk) = REAL( nlay_i-jk+1, wp ) / ztmp
+                     END DO
+                  END IF
+                  
+                  ! Rayleigh number
+                  ! ---------------
+                  DO jk = 1, nlay_i
+                     ! Ra = cp_br * g * beta * (Sbr(z) - Sw) * perm * (h-z) / (cnd_br*visc)   [RWJ2014 formulation]
+                     zRa(jk) = zcp_br * grav * zbeta * MAX( 0._wp, zs_br(jk) - sss_1d(ji)) * zperm_eff(jk) &
+                        &                            *  h_i_1d(ji) * ( 1._wp - z_mid(jk) ) * ( z1_cnd_br * z1_visc )
+                  END DO
+                  
+                  ! Vertical velocity
+                  ! -----------------
+                  IF ( nn_sal_scheme == 1 ) THEN     ! *** RJW 2014 ***
+                     !
+                     ! if Ra is everywhere < Rc : no convection => Rae =0
+                     ! else                     : convection until zc => Rae /= 0
+                     jc = nlay_i+1
+                     zc = 0._wp
+                     zRae = 0._wp
+                     DO jk = nlay_i,1,-1
+                        IF ( zRa(jk) >= rn_Rc_RJW ) THEN
+                           zRae = MAX( zRae , zRa(jk) - rn_Rc_RJW )
+                           zc = z_edge(jk)
+                           jc = jk
+                        END IF
+                     END DO
+                     z1_c2 = 1._wp / ( ( 1._wp - zc )*( 1._wp - zc ) )
+                     
+                     zw_br(:) = 0._wp
+                     DO jk = jc, nlay_i
+                        zw_br(jk) = - rn_alpha_RJW * zRae * ( zcnd_br * z1_cp_br ) * ( z_mid(jk) - zc ) * z1_h_i * z1_c2
+                     END DO
+                     
+                  ELSEIF ( nn_sal_scheme == 2 ) THEN    ! *** GN 2013 ***
 
+                     zRae = 0._wp
+                     DO jk = 1, nlay_i
+                        zRae = zRae + MAX( zRa(jk) - rn_Rc_GN, 0._wp )
+                        zw_br(jk) = - rn_alpha_GN / zrhob_GN * zRae * h_i_1d(ji) * r1_nlay_i
+                     END DO
+                     
+                  ELSEIF ( nn_sal_scheme == 3 ) THEN    ! *** CW 1988 ***
+                     DO jk = 1, nlay_i
+                        zw_br(jk) = - rn_alpha_CW  * 0.0589_wp * MAX( 0._wp, zv_br(jk)/rn_vbrc - 1._wp )
+                     END DO
+                     
+                  END IF
+                  
+                  ! CFL
+                  ! ---
+                  zcfl_test = 0._wp
+                  DO jk = 1, nlay_i
+                     zcfl = zw_br(jk) * rDt_ice * z1_h_i
+                     zcfl_test = MAX( zcfl_test, ABS(zcfl) )
+                  END DO
+                  ! 
+                  ndrainage = MIN( nn_drainage, CEILING(zcfl_test*2._wp) )
+                  zdt   = rDt_ice / REAL( MAX( 1, ndrainage ) )
+
+                  ! Iteration Loop
+                  ! ===============
+                  ! ndrainage is larger than 1 only if CFL>0.5
+                  DO iter = 1, ndrainage
+                     !
+                     IF( iter > 1 ) THEN
                         DO jk = 1, nlay_i
-                           zw_br(jk) = - rn_alpha_RJW * zRae(jk) * ( zcnd_br / zcp_br ) * &
-                              &                                  ( z_mid(jk) - zc ) / ( h_i_1d(ji) * ( 1 - zc )**2 )
-                        END DO
-
-                     ELSEIF ( nn_sal_scheme == 2 ) THEN    ! *** GN 2013 ***
+                           zv_br(jk) = zmsk(jk) * sz_i_1d(ji,jk) / zs_br(jk)
+                        ENDDO
+                        
+                        ! Effective permeability
+                        ! ----------------------
+                        IF( np_perm_eff == 1 ) THEN ! Minimum
+                           DO jk = 1, nlay_i
+                              ztmp = MINVAL( zv_br(jk:nlay_i) )
+                              zperm_eff(jk) = 3.e-8_wp * ztmp * ztmp * ztmp
+                           END DO
+                        ELSEIF( np_perm_eff == 2 ) THEN ! Harmonic Mean                         
+                           DO jk = 1, nlay_i
+                              ztmp = 0._wp
+                              DO jk2 = jk, nlay_i
+                                 zperm = 3.e-8_wp * zv_br(jk2)*zv_br(jk2)*zv_br(jk2)
+                                 ztmp = ztmp + 1._wp / zperm
+                              END DO
+                              zperm_eff(jk) = REAL( nlay_i-jk+1, wp ) / ztmp
+                           END DO
+                        END IF
+                        
+                        ! Rayleigh number
+                        ! ---------------
                         DO jk = 1, nlay_i
-                           zw_br(jk) = - rn_alpha_GN / zrhob_GN * SUM ( ( zRa(1:jk) - rn_Rc_GN ) * h_i_1d(ji) * r1_nlay_i )
+                           ! Ra = cp_br * g * beta * (Sbr(z) - Sw) * perm * (h-z) / (cnd_br*visc)   [RWJ2014 formulation]
+                           zRa(jk) = zcp_br * grav * zbeta * MAX( 0._wp, zs_br(jk) - sss_1d(ji)) * zperm_eff(jk) &
+                              &                            *  h_i_1d(ji) * ( 1._wp - z_mid(jk) ) * ( z1_cnd_br * z1_visc )
                         END DO
+                        
+                        ! Vertical velocity
+                        ! -----------------
+                        IF ( nn_sal_scheme == 1 ) THEN     ! *** RJW 2014 ***
+                           !
+                           ! if Ra is everywhere < Rc : no convection => Rae =0
+                           ! else                     : convection until zc => Rae /= 0
+                           jc = nlay_i+1
+                           zc = 0._wp
+                           zRae = 0._wp
+                           DO jk = nlay_i,1,-1
+                              IF ( zRa(jk) >= rn_Rc_RJW ) THEN
+                                 zRae = MAX( zRae , zRa(jk) - rn_Rc_RJW )
+                                 zc = z_edge(jk)
+                                 jc = jk
+                              END IF
+                           END DO
+                           z1_c2 = 1._wp / ( ( 1._wp - zc )*( 1._wp - zc ) )
+                           
+                           zw_br(:) = 0._wp
+                           DO jk = jc, nlay_i
+                              zw_br(jk) = - rn_alpha_RJW * zRae * ( zcnd_br * z1_cp_br ) * ( z_mid(jk) - zc ) * z1_h_i * z1_c2
+                           END DO
+                           
+                        ELSEIF ( nn_sal_scheme == 2 ) THEN    ! *** GN 2013 ***
 
-                     ELSEIF ( nn_sal_scheme == 3 ) THEN    ! *** CW 1988 ***
-                        DO jk = 1, nlay_i
-                           zw_br(jk) = - rn_alpha_CW  * 0.0589_wp * MAX( 0._wp, zv_br(jk)/rn_vbrc - 1._wp )
-                        END DO
+                           zRae = 0._wp
+                           DO jk = 1, nlay_i
+                              zRae = zRae + MAX( zRa(jk) - rn_Rc_GN, 0._wp )
+                              zw_br(jk) = - rn_alpha_GN / zrhob_GN * zRae * h_i_1d(ji) * r1_nlay_i
+                           END DO
+                           
+                        ELSEIF ( nn_sal_scheme == 3 ) THEN    ! *** CW 1988 ***
 
-                     END IF
-
+                           DO jk = 1, nlay_i
+                              zw_br(jk) = - rn_alpha_CW  * 0.0589_wp * MAX( 0._wp, zv_br(jk)/rn_vbrc - 1._wp )
+                           END DO
+                           
+                        END IF
+                     ENDIF
+                     
                      ! Salinity
                      ! --------
                      ! upstream scheme as in CICE: ds = -w(k)*dt/dz * ( s_br(k+1) - s_br(k) ), w > 0 or < 0
@@ -367,10 +471,6 @@ CONTAINS
                         !
                         zcfl_max = MAX( zcfl_max, ABS(zcfl) )
                         zs_min   = MIN( zs_min , sz_i_1d(ji,jk) + zds(jk) ) ! record what salinity would be without the trick below
-                     ENDDO
-                     IF( ln_sal_chk)   zds_max = MAX( zds_max, MAX( 0._wp, SUM( zds(:) ) * r1_nlay_i )*REAL(nn_drainage) )
-
-                     DO jk = 1, nlay_i
                         !
                         !!clem trick
                         zds(jk) = MAX( zds(jk), -sz_i_1d(ji,jk)+rn_simin )
@@ -383,97 +483,123 @@ CONTAINS
                         !
                      END DO
 
-                  ENDIF
-
-               END DO
+                  END DO
+               ENDIF
 
                ! sanity check
                IF( ln_sal_chk) THEN
                   cfl_drain_1d(ji) = zcfl_max 
-                  IF( zds_max > 0._wp ) THEN   ;   s_drain_dserr_1d(ji) = zds_max ; t_drain_dserr_1d(ji,:) = t_i_1d(ji,:)-rt0
-                  ELSE                         ;   s_drain_dserr_1d(ji) = zmiss   ; t_drain_dserr_1d(ji,:) = zmiss
-                  ENDIF
-                  IF( zs_min < 0._wp )  THEN   ;   s_drain_serr_1d(ji) = zs_min ; t_drain_serr_1d(ji,:) = t_i_1d(ji,:)-rt0
-                  ELSE                         ;   s_drain_serr_1d(ji) = zmiss  ; t_drain_serr_1d(ji,:) = zmiss
+                  IF( zs_min < 0._wp )  THEN   ;   sneg_drain_1d(ji) = zs_min 
+                  ELSE                         ;   sneg_drain_1d(ji) = 0._wp  
                   ENDIF
                ENDIF
 
             ENDDO
          ENDIF
 
+         ! ========
          ! Flushing
          ! ========
          IF( ln_flushing ) THEN
-
-            zdt   = rDt_ice / REAL( nn_flushing )
             !
             DO ji = 1, npti
                ! ice thickness ( we do not want to do anything for salt when ice is thinner than the minimum allowed )
-               IF( h_i_1d(ji) >= rn_sal_himin ) THEN   ;   z1_h_i = 1._wp / ( h_i_1d(ji) * r1_nlay_i )
-               ELSE                                    ;   z1_h_i = 0._wp
-               ENDIF
+               z1_h_i = 1._wp / MAX( h_i_1d(ji) * r1_nlay_i, epsi10 )
                !
                ! surface melting (m)
                zhmelt = dh_s_sum(ji) + dh_i_sum(ji) ! =0 if no melt, <0 otherwise 
                !
-               ! iteration to converge (usually 1 is ok)
                zcfl_max = 0._wp
-               zds_max  = 0._wp
                zs_min   = 0._wp
-               DO iter = 1, nn_flushing
+               IF( h_i_1d(ji) >= rn_sal_himin .AND. zhmelt < 0._wp ) THEN     ! Flushing if  surface melting
+                  
+                  ! brine salinity
+                  DO jk = 1, nlay_i
+                     zt1 = t_i_1d(ji,jk) - rt0
+                     zt2 = zt1 * zt1
+                     zt3 = zt2 * zt1
+                     zs_br(jk) = -18.7_wp * zt1 - 0.519_wp * zt2 - 0.00535_wp * zt3
+!!$         IF    ( nn_liquidus == 1 ) THEN ; Sbrine(jk) = - zt1 / rTmlt                                      ! --- Linear liquidus
+!!$         ELSEIF( nn_liquidus == 2 ) THEN ; Sbrine(jk) = -18.7_wp * zt1 - 0.519_wp * zt2 - 0.00535_wp * zt3 ! --- 3rd order liquidus, VC19
+!!$         ELSEIF( nn_liquidus == 3 ) THEN ; Sbrine(jk) = -17.6_wp * zt1 - 0.389_wp * zt2 - 0.00362_wp * zt3 ! --- Weast 71 liquidus in RJW14
+!!$         ENDIF
+                  ENDDO
+                  !               ! brine salinity at the interfaces
+                  zs_br(0) = 0._wp
+                  zs_br(nlay_i+1) = sss_1d(ji)
+
+                  WHERE( (t_i_1d(ji,:)-rt0) <  - epsi06 ) ; zmsk(:) = 1._wp
+                  ELSEWHERE                               ; zmsk(:) = 0._wp
+                  ENDWHERE
+
+                  ! Compute CFL
+                  ! ===========
+                  zcfl_test = 0._wp
+                  DO jk = 1, nlay_i
+                     zw_br(jk) = -rn_flushrate * ( dh_i_sum(ji)*rhoi + dh_s_sum(ji)*rhos )  &
+                        &                 / ( rhow * ( 1._wp + 0.8e-3_wp * zs_br(jk) ) ) * r1_Dt_ice ! r1_Dt_ice is ok
+                     !                        can be replaced by rhow but in theory rhow should be rho_br = (rho0*(1+c*S_br)), with c = 0.8e-3
+                     zcfl = zw_br(jk) * rDt_ice * z1_h_i
+                     zcfl_test = MAX( zcfl_test, ABS(zcfl) )
+                  ENDDO
+                  nflushing = MIN( nn_flushing, CEILING(zcfl_test*2._wp) )
+                  zdt   = rDt_ice / REAL( MAX( 1, nflushing ) )
+
                   !
-                  CALL ice_brine( sss_1d(ji), t_i_1d(ji,:), sz_i_1d(ji,:), zs_br, zv_br )
-                  !
-                  IF(        zhmelt < 0._wp                    &      ! Flushing if  surface melting
-                                !& .AND. t_i_1d(ji,1) >= t_i_1d(ji,nlay_i) &      !          and surface temperature is warmer than bottom temperature
-                     & .AND. MINVAL(zv_br(:)) >= rn_vbrc       ) THEN !          and brine volume fraction exceeds a certain treshold
+                  ! iteration Loop
+                  ! ==============
+                  ! nflushing is larger than 1 only if CFL>0.5
+                  DO iter = 1, nflushing
                      !
-                     ! Vertical velocity
-                     ! -----------------
+                     zv_brmin = 1.e+20_wp
                      DO jk = 1, nlay_i
-                        zw_br(jk) = -rn_flushrate * ( dh_i_sum(ji)*rhoi + dh_s_sum(ji)*rhos )  &
-                           &                 / ( rhow * ( 1._wp + 0.8e-3_wp * zs_br(jk) ) ) * r1_Dt_ice ! r1_Dt_ice is ok
-                        !                        can be replaced by rhow but in theory rhow should be rho_br = (rho0*(1+c*S_br)), with c = 0.8e-3
+                        zv_br(jk) = zmsk(jk) * sz_i_1d(ji,jk) / zs_br(jk)
+                        zv_brmin = MIN( zv_brmin, zv_br(jk) )
                      ENDDO
+                     !
+                     IF( zv_brmin >= rn_vbrc ) THEN            ! Flushing if brine volume fraction exceeds a certain treshold 
+                        ! .AND. t_i_1d(ji,1) >= t_i_1d(ji,nlay_i)      !          and surface temperature is warmer than bottom temperature
+                        !
+                        DO jk = 1, nlay_i
+                           ! Vertical velocity
+                           ! -----------------
+                           zw_br(jk) = -rn_flushrate * ( dh_i_sum(ji)*rhoi + dh_s_sum(ji)*rhos )  &
+                              &                 / ( rhow * ( 1._wp + 0.8e-3_wp * zs_br(jk) ) ) * r1_Dt_ice ! r1_Dt_ice is ok
+                           !                        can be replaced by rhow but in theory rhow should be rho_br = (rho0*(1+c*S_br)), with c = 0.8e-3
+                           ! Salinity
+                           ! --------
+                           ! upstream scheme as in CICE: ds = -w*dt/dz * ( s_br(k) - s_br(k-1) ), w > 0
+                           ! zcfl = w*dt/dz                                 
+                           zcfl = zw_br(jk) * zdt * z1_h_i
+                           !
+                           zcfl_max = MAX( zcfl_max, ABS(zcfl) )
+                           !
+                           zds(jk) = - zcfl * ( zs_br(jk) - zs_br(jk-1) )
+                           !
+                           zs_min  = MIN( zs_min , sz_i_1d(ji,jk) + zds(jk) )   ! record what salinity would be without the trick below
+                           !
+                           !!clem trick
+                           zds(jk) = MAX( MIN( 0._wp, zds(jk) ), -sz_i_1d(ji,jk)+rn_simin )
+                           !            ! min to block flushing when temperature profile is not ok
+                           !
+                           ! new salinity
+                           sz_i_1d(ji,jk) = sz_i_1d(ji,jk) + zds(jk)
+                           !
+                           ! salt flux
+                           sfx_bri_1d(ji) = sfx_bri_1d(ji) - rhoi * a_i_1d(ji) * h_i_1d(ji) * r1_nlay_i * zds(jk) * r1_Dt_ice ! r1_Dt_ice is ok
 
-                     ! Salinity
-                     ! --------
-                     DO jk = 1, nlay_i
-                        ! upstream scheme as in CICE: ds = -w*dt/dz * ( s_br(k) - s_br(k-1) ), w > 0
-                        ! zcfl = w*dt/dz                                 
-                        zcfl = zw_br(jk) * zdt * z1_h_i
-                        !
-                        zcfl_max = MAX( zcfl_max, ABS(zcfl) )
-                        !
-                        zds(jk) = - zcfl * ( zs_br(jk) - zs_br(jk-1) )
-                        !
-                        zs_min  = MIN( zs_min , sz_i_1d(ji,jk) + zds(jk) )   ! record what salinity would be without the trick below
-                        !
-                     ENDDO
-                     IF( ln_sal_chk)   zds_max = MAX( zds_max, MAX( 0._wp, SUM( zds(:) ) * r1_nlay_i )*REAL(nn_flushing) )
+                        ENDDO
+                        !                        
+                     ENDIF
 
-                     DO jk = 1, nlay_i
-!!$                           zds(jk) = MIN( 0._wp, zds(jk) ) ! min to block flushing when temperature profile is not ok
-                        !
-                        ! new salinity
-                        sz_i_1d(ji,jk) = sz_i_1d(ji,jk) + zds(jk)
-                        !
-                        ! salt flux
-                        sfx_bri_1d(ji) = sfx_bri_1d(ji) - rhoi * a_i_1d(ji) * h_i_1d(ji) * r1_nlay_i * zds(jk) * r1_Dt_ice ! r1_Dt_ice is ok
-
-                     ENDDO
-                  ENDIF
-
-               END DO
-
+                  END DO
+               ENDIF
+               
                ! sanity check
-               IF( ln_sal_chk) THEN
+               IF( ln_sal_chk ) THEN
                   cfl_flush_1d(ji) = zcfl_max 
-                  IF( zds_max > 0._wp ) THEN   ;   s_flush_dserr_1d(ji) = zds_max ; t_flush_dserr_1d(ji,:) = t_i_1d(ji,:)-rt0
-                  ELSE                         ;   s_flush_dserr_1d(ji) = zmiss   ; t_flush_dserr_1d(ji,:) = zmiss
-                  ENDIF
-                  IF( zs_min < 0._wp ) THEN    ;   s_flush_serr_1d(ji) = zs_min ; t_flush_serr_1d(ji,:) = t_i_1d(ji,:)-rt0
-                  ELSE                         ;   s_flush_serr_1d(ji) = zmiss  ; t_flush_serr_1d(ji,:) = zmiss
+                  IF( zs_min < 0._wp ) THEN    ;   sneg_flush_1d(ji) = zs_min 
+                  ELSE                         ;   sneg_flush_1d(ji) = 0._wp  
                   ENDIF
                ENDIF
 
@@ -497,47 +623,6 @@ CONTAINS
       END SELECT
       !
    END SUBROUTINE ice_thd_sal
-
-
-   SUBROUTINE ice_brine( zsss, pt_i, ps_i, ps_br, pv_br )
-      !!-------------------------------------------------------------------
-      !!                ***  ROUTINE ice_brine ***
-      !!
-      !! ** Purpose :   computes brine volume fraction (%)
-      !!                         and salinity of the brine in sea ice
-      !!
-      !!-------------------------------------------------------------------
-      INTEGER  ::   ji, jk   ! dummy loop indices
-      REAL(wp) ::   zt1, zt2, zt3
-      REAL(wp),                        INTENT(in   ) ::   zsss
-      REAL(wp), DIMENSION(1:nlay_i)  , INTENT(in   ) ::   pt_i, ps_i
-      REAL(wp), DIMENSION(0:nlay_i+1), INTENT(  out) ::   ps_br
-      REAL(wp), DIMENSION(1:nlay_i)  , INTENT(  out) ::   pv_br
-      !!-------------------------------------------------------------------
-      !
-      ! brines
-      DO jk = 1, nlay_i
-         ! brine salinity
-         zt1 = pt_i(jk) - rt0
-         zt2 = zt1 * zt1
-         zt3 = zt2 * zt1
-         IF    ( nn_liquidus == 1 ) THEN ; ps_br(jk) = - zt1 / rTmlt                                      ! --- Linear liquidus
-         ELSEIF( nn_liquidus == 2 ) THEN ; ps_br(jk) = -18.7_wp * zt1 - 0.519_wp * zt2 - 0.00535_wp * zt3 ! --- 3rd order liquidus, VC19
-         ELSEIF( nn_liquidus == 3 ) THEN ; ps_br(jk) = -17.6_wp * zt1 - 0.389_wp * zt2 - 0.00362_wp * zt3 ! --- Weast 71 liquidus in RJW14
-         ENDIF
-         ! brine volume fraction
-         IF( zt1 < - epsi06 ) THEN
-            pv_br(jk) = ps_i(jk) / ps_br(jk)
-         ELSE
-            pv_br(jk) = 0._wp
-         ENDIF
-      ENDDO
-      ! brine salinity at the interfaces
-      ps_br(0) = 0._wp
-      ps_br(nlay_i+1) = zsss
-      !
-   END SUBROUTINE ice_brine
-
    
    SUBROUTINE ice_thd_sal_init
       !!-------------------------------------------------------------------

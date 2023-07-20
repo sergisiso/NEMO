@@ -345,10 +345,8 @@
       <!-- salt drainage and flushing sanity checks -->
       <field id="cfl_flush"        long_name="max CFL during flushing" unit="" />
       <field id="cfl_drain"        long_name="max CFL during drainage" unit="" />
-      <field id="sice_flush_dserr" long_name="positive sea ice salinity derivative during flushing" detect_missing_value="true" unit="g/kg" />
-      <field id="sice_drain_dserr" long_name="positive sea ice salinity derivative during drainage" detect_missing_value="true" unit="g/kg" />
-      <field id="sice_flush_serr"  long_name="negative sea ice salinity during flushing"            detect_missing_value="true" unit="g/kg" />
-      <field id="sice_drain_serr"  long_name="negative sea ice salinity during drainage"            detect_missing_value="true" unit="g/kg" />
+      <field id="sice_flush_neg"   long_name="negative sea ice salinity during flushing"            detect_missing_value="true" unit="g/kg" />
+      <field id="sice_drain_neg"   long_name="negative sea ice salinity during drainage"            detect_missing_value="true" unit="g/kg" />
 
     </field_group> <!-- SBC_3D -->
 
@@ -358,12 +356,6 @@
       <!-- standard ice fields -->
       <field id="icesalt_lay"  long_name="Sea-Ice salinity per layer"   unit="g/kg"    detect_missing_value="true" />
       <field id="icetemp_lay"  long_name="Ice temperature per layer"    unit="degC"    detect_missing_value="true" />
-
-      <!-- salt drainage and flushing sanity checks -->
-      <field id="tice_flush_dserr" long_name="temperature when positive sea ice salinity derivative during flushing" detect_missing_value="true" unit="degC" />
-      <field id="tice_drain_dserr" long_name="temperature when positive sea ice salinity derivative during drainage" detect_missing_value="true" unit="degC" />
-      <field id="tice_flush_serr"  long_name="temperature when negative sea ice salinity during flushing"            detect_missing_value="true" unit="degC" />
-      <field id="tice_drain_serr"  long_name="temperature when negative sea ice salinity during drainage"            detect_missing_value="true" unit="degC" />
       
     </field_group> <!-- SBC_4D -->    
     
