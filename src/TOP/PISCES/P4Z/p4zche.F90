@@ -427,9 +427,8 @@ CONTAINS
           sulfat(ji,jj,jk) = zst
           fluorid(ji,jj,jk) = zft 
 
-          ! Iron and SIO3 saturation concentration from ...
-          sio3eq(ji,jj,jk) = EXP(  LOG( 10.) * ( 6.44 - 968. / ztkel )  ) * 1.e-6
           fekeq (ji,jj,jk) = 10**( 17.27 - 1565.7 / ztkel ) 
+
           ! Liu and Millero (1999) only valid 5 - 50 degC
           ztkel1 = MAX( 5. , tempis(ji,jj,jk) ) + 273.16
           fesol(ji,jj,jk,1) = 10**(-13.486 - 0.1856* zis**0.5 + 0.3073*zis + 5254.0/ztkel1)
@@ -438,6 +437,15 @@ CONTAINS
           fesol(ji,jj,jk,4) = 10**(-0.2965 - 0.7881*zis**0.5 - 4086.0/ztkel1 )
           fesol(ji,jj,jk,5) = 10**(4.4466 - 0.8505*zis**0.5 - 7980.0/ztkel1 )
       END_3D
+      ! Iron and SIO3 saturation concentration from ...
+      IF( .NOT. ln_p2z) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+             ! SET ABSOLUTE TEMPERATURE
+             ztkel   = tempis(ji,jj,jk) + 273.15
+             sio3eq(ji,jj,jk) = EXP(  LOG( 10.) * ( 6.44 - 968. / ztkel )  ) * 1.e-6
+            !
+         END_3D
+      ENDIF
       !
       IF( ln_timing )  CALL timing_stop('p4z_che')
       !
@@ -522,13 +530,23 @@ CONTAINS
    INTEGER  ::   ji, jj, jk
    REAL(wp)  ::  zrhd
 
-    DO_3D( 0, 0, 0, 0, 1, jpk )
-      zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
-      p_alknw_inf(ji,jj,jk) =  -tr(ji,jj,jk,jppo4,Kbb) * zrhd - sulfat(ji,jj,jk) &
-      &              - fluorid(ji,jj,jk)
-      p_alknw_sup(ji,jj,jk) =   (2. * tr(ji,jj,jk,jpdic,Kbb) + 2. * tr(ji,jj,jk,jppo4,Kbb) + tr(ji,jj,jk,jpsil,Kbb) )    &
-      &               * zrhd + borat(ji,jj,jk)
-    END_3D
+   IF( ln_p2z ) THEN
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
+         p_alknw_inf(ji,jj,jk) =  -2.174E-6 * zrhd - sulfat(ji,jj,jk) &
+         &              - fluorid(ji,jj,jk)
+         p_alknw_sup(ji,jj,jk) =   (2. * tr(ji,jj,jk,jpdic,Kbb) + 2. * 2.174E-6    &
+         &               + 90.33E-6 ) * zrhd + borat(ji,jj,jk)
+      END_3D
+   ELSE
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
+         p_alknw_inf(ji,jj,jk) =  -tr(ji,jj,jk,jppo4,Kbb) * zrhd * po4r - sulfat(ji,jj,jk) &
+         &              - fluorid(ji,jj,jk)
+         p_alknw_sup(ji,jj,jk) =   (2. * tr(ji,jj,jk,jpdic,Kbb) + 2. * tr(ji,jj,jk,jppo4,Kbb) * po4r    &
+         &               + tr(ji,jj,jk,jpsil,Kbb) ) * zrhd + borat(ji,jj,jk)
+      END_3D
+   ENDIF
 
    END SUBROUTINE anw_infsup
 
@@ -607,13 +625,18 @@ CONTAINS
          p_alktot = tr(ji,jj,jk,jptal,Kbb) * zrhd
          zdic  = tr(ji,jj,jk,jpdic,Kbb) * zrhd
          zbot  = borat(ji,jj,jk)
-         zpt = tr(ji,jj,jk,jppo4,Kbb) * zrhd * po4r
-         zsit = tr(ji,jj,jk,jpsil,Kbb) * zrhd
          zst = sulfat (ji,jj,jk)
          zft = fluorid(ji,jj,jk)
          aphscale = 1. + sulfat(ji,jj,jk)/aks3(ji,jj,jk)
          zh = zhi(ji,jj,jk)
          zh_prev = zh
+         IF( ln_p2z ) THEN
+            zsit = 90.33E-6 * zrhd
+            zpt  = 2.174E-6 * zrhd
+         ELSE
+            zpt  = tr(ji,jj,jk,jppo4,Kbb) * zrhd * po4r
+            zsit = tr(ji,jj,jk,jpsil,Kbb) * zrhd
+         ENDIF
 
          ! H2CO3 - HCO3 - CO3 : n=2, m=0
          znumer_dic = 2.*ak13(ji,jj,jk)*ak23(ji,jj,jk) + zh*ak13(ji,jj,jk)
@@ -796,12 +819,12 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE p4z_che_alloc  ***
       !!----------------------------------------------------------------------
-      INTEGER ::   ierr(3)        ! Local variables
+      INTEGER ::   ierr(4)        ! Local variables
       !!----------------------------------------------------------------------
 
       ierr(:) = 0
 
-      ALLOCATE( sio3eq(A2D(0),jpk), fekeq(A2D(0),jpk), chemc(A2D(0),3), chemo2(A2D(0),jpk), STAT=ierr(1) )
+      ALLOCATE( fekeq(A2D(0),jpk), chemc(A2D(0),3), chemo2(A2D(0),jpk), STAT=ierr(1) )
 
       ALLOCATE( akb3(A2D(0),jpk)     , tempis(A2D(0),jpk),       &
          &      akw3(A2D(0),jpk)     , borat (A2D(0),jpk)  ,       &
@@ -812,6 +835,7 @@ CONTAINS
          &      salinprac(A2D(0),jpk),                 STAT=ierr(2) )
 
       ALLOCATE( fesol(A2D(0),jpk,5), STAT=ierr(3) )
+      IF( .NOT. ln_p2z ) ALLOCATE( sio3eq(A2D(0),jpk), STAT=ierr(4) )
 
       !* Variable for chemistry of the CO2 cycle
       p4z_che_alloc = MAXVAL( ierr )

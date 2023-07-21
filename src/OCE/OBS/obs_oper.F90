@@ -665,15 +665,17 @@ CONTAINS
          &                  igrdip1, igrdjp1, gphif, zgphif )
 
       ! At the end of the day get interpolated means
-      IF ( idayend == 0 .AND. ldnightav ) THEN
+      IF ( ldnightav ) THEN
+         IF ( idayend == 0 ) THEN
 
-         ALLOCATE( &
-            & zsurfm(imaxifp,imaxjfp,isurf)  &
-            & )
+            ALLOCATE( &
+               & zsurfm(imaxifp,imaxjfp,isurf)  &
+               & )
 
-         CALL obs_int_comm_2d( imaxifp,imaxjfp, isurf, kpi, kpj, igrdi, igrdj, &
-            &               surfdataqc%vdmean(:,:), zsurfm )
+            CALL obs_int_comm_2d( imaxifp,imaxjfp, isurf, kpi, kpj, igrdi, igrdj, &
+               &               surfdataqc%vdmean(:,:), zsurfm )
 
+         ENDIF
       ENDIF
 
       ! Loop over observations
@@ -766,10 +768,12 @@ CONTAINS
          & )
 
       ! At the end of the day also deallocate night-time mean array
-      IF ( idayend == 0 .AND. ldnightav ) THEN
-         DEALLOCATE( &
-            & zsurfm  &
-            & )
+      IF ( ldnightav ) THEN
+         IF ( idayend == 0 ) THEN
+            DEALLOCATE( &
+               & zsurfm  &
+               & )
+         ENDIF
       ENDIF
       !
       surfdataqc%nsurfup = surfdataqc%nsurfup + isurf

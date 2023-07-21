@@ -236,12 +236,15 @@ CONTAINS
       CHARACTER(len=*) , INTENT(in) ::   cdrw   ! "READ"/"WRITE" flag
       INTEGER, OPTIONAL, INTENT(in) ::   kt     ! ice time-step
       !
-      INTEGER  ::   iter    ! local integer
-      REAL(wp) ::   ziter   ! local scalar
+      INTEGER  ::   iter, id0    ! local integer
+      REAL(wp) ::   ziter        ! local scalar
       !!----------------------------------------------------------------------
       !
       IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise
-         IF( ln_rstart ) THEN                   !* Read the restart file
+
+         id0 = iom_varid( numrir, 'frc_voltop' , ldstop = .FALSE. ) ! test if this variable exists
+
+         IF( ln_rstart .AND. id0 > 0 ) THEN        !* Read the restart file
             !
             CALL iom_get( numrir, 'kt_ice' , ziter )
             IF(lwp) WRITE(numout,*)

@@ -175,6 +175,9 @@ int fortran_error(const char *s)
 %token TOK_TAN
 %token TOK_ATAN
 %token TOK_RECURSIVE
+%token TOK_PURE
+%token TOK_IMPURE
+%token TOK_ELEMENTAL
 %token TOK_ABS
 %token TOK_MOD
 %token TOK_SIGN
@@ -574,6 +577,18 @@ external-subprogram: function-subprogram
      
 opt_recursive :         { isrecursive = 0; }
       | TOK_RECURSIVE   { isrecursive = 1; }
+      ;
+
+opt_pure :              { ispure = 0; }
+      | TOK_PURE        { ispure = 1; }
+      ;
+
+opt_impure :            { isimpure = 0; }
+      | TOK_IMPURE      { isimpure = 1; }
+      ;
+
+opt_elemental :         { iselemental = 0; }
+      | TOK_ELEMENTAL   { iselemental = 1; }
       ;
 
 opt_result :                                { is_result_present = 0; }
@@ -4379,7 +4394,7 @@ actual-arg: expr
      | ident
      ;
 
-opt-prefix:     {isrecursive = 0;}
+opt-prefix:     {isrecursive = 0; ispure = 0; isimpure = 0; iselemental = 0;}
      | prefix
      ;
      
@@ -4390,11 +4405,17 @@ prefix: prefix-spec
 
 /* R1226 prefix-spec */
 prefix-spec: declaration-type-spec
-     {isrecursive = 0; functiondeclarationisdone = 1;}
+     {isrecursive = 0; ispure = 0; isimpure = 0; iselemental = 0; functiondeclarationisdone = 1;}
      | TOK_MODULE
-     {isrecursive = 0;}
+     {isrecursive = 0; ispure = 0; isimpure = 0; iselemental = 0;}
      | TOK_RECURSIVE
      {isrecursive = 1;}
+     | TOK_PURE
+     {ispure = 1;}
+     | TOK_IMPURE
+     {isimpure = 1;}
+     | TOK_ELEMENTAL
+     {iselemental = 1;}
      ;
 
 /*R1227 : function-subprogram */
@@ -4941,6 +4962,9 @@ void process_fortran(const char *input_file)
     insubroutinedeclare = 0 ;
     strcpy(subroutinename," ");
     isrecursive = 0;
+    ispure = 0;
+    isimpure = 0;
+    iselemental = 0;
     InitialValueGiven = 0 ;
     GlobalDeclarationType = 0;
     inmoduledeclare = 0;

@@ -1,29 +1,36 @@
 !!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-!! NEMO/TOP :   Configuration namelist : used to overwrite defaults values defined in SHARED/namelist_top_ref
+!! NEMO/TOP1 :  Configuration namelist : used to overwrite defaults values defined in SHARED/namelist_top_ref
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 !-----------------------------------------------------------------------
 &namtrc_run      !   run information
 !-----------------------------------------------------------------------
+   ln_top_euler  = .true.
 /
 !-----------------------------------------------------------------------
 &namtrc          !   tracers definition
 !-----------------------------------------------------------------------
-   jp_bgc        =  6
-   !
+   jp_bgc        =  9 
+!
    ln_pisces     =  .true.
+   ln_my_trc     =  .false.
    ln_age        =  .false.
    ln_cfc11      =  .false.
    ln_cfc12      =  .false.
    ln_c14        =  .false.
-   ln_my_trc     =  .false.
-   !_____________!__________!________________________________!______________!________________!
-   !             !   name   !           title of the field   !   units      ! init from file ! 
-   sn_tracer(1)   = 'DET'   , 'Detritus                   '  , 'mmole-N/m3' ,  .false.    
-   sn_tracer(2)   = 'ZOO'   , 'Zooplankton concentration  '  , 'mmole-N/m3' ,  .false.   
-   sn_tracer(3)   = 'PHY'   , 'Phytoplankton concentration'  , 'mmole-N/m3' ,  .false.  
-   sn_tracer(4)   = 'NO3'   , 'Nitrate concentration      '  , 'mmole-N/m3' ,  .false. 
-   sn_tracer(5)   = 'NH4'   , 'Ammonium concentration     '  , 'mmole-N/m3' ,  .false.   
-   sn_tracer(6)   = 'DOM'   , 'Dissolved organic matter   '  , 'mmole-N/m3' ,  .false.  
+!
+   ln_trcdta     =  .false.  !  Initialisation from data input file (T) or not (F)
+   ln_trcbc      =  .false.  !  Enables Boundary conditions
+!                !           !                                           !             !         !
+!                !    name   !           title of the field              !   units     ! init    ! sbc    ! cbc    !  obc    !  ais
+   sn_tracer(1)   = 'DIC     ' , 'Dissolved inorganic Concentration      ',  'mol-C/L' , .true.  , .false., .true. , .false. , .false.
+   sn_tracer(2)   = 'Alkalini' , 'Total Alkalinity Concentration         ',  'eq/L '   , .true.  , .false., .true. , .false. , .false.
+   sn_tracer(3)   = 'O2      ' , 'Dissolved Oxygen Concentration         ',  'mol-C/L' , .true.  , .false., .false., .false. , .false.
+   sn_tracer(4)   = 'POC     ' , 'Small organic carbon Concentration     ',  'mol-C/L' , .false. , .false., .false., .false. , .false.
+   sn_tracer(5)   = 'PHY     ' , 'Nanophytoplankton Concentration        ',  'mol-C/L' , .false. , .false., .false., .false. , .false.
+   sn_tracer(6)   = 'ZOO     ' , 'Microzooplankton Concentration         ',  'mol-C/L' , .false. , .false., .false., .false. , .false.
+   sn_tracer(7)   = 'DOC     ' , 'Dissolved organic Concentration        ',  'mol-C/L' , .true.  , .false., .true. , .false. , .false.
+   sn_tracer(8)   = 'NO3     ' , 'Nitrates Concentration                 ',  'mol-C/L' , .true.  , .true. , .true. , .false. , .false.
+   sn_tracer(9)   = 'Fer     ' , 'Dissolved Iron Concentration           ',  'mol-C/L' , .true.  , .true. , .true. , .false. , .true.
 /
 !-----------------------------------------------------------------------
 &namage          !   AGE 
@@ -32,13 +39,15 @@
 !-----------------------------------------------------------------------
 &namtrc_dta      !    Initialisation from data input file
 !-----------------------------------------------------------------------
+!          !  file name  ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
+!          !             !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
 /
 !-----------------------------------------------------------------------
 &namtrc_adv      !   advection scheme for passive tracer                (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_trcadv_fct =  .true.   !  FCT scheme
-      nn_fct_h   =  2               !  =2/4, horizontal 2nd / 4th order
-      nn_fct_v   =  2               !  =2/4, vertical   2nd / COMPACT 4th order
+   ln_trcadv_fct =  .true.  !  FCT scheme
+      nn_fct_h   =  2               !  =2/4, horizontal 2nd / 4th order 
+      nn_fct_v   =  2               !  =2/4, vertical   2nd / COMPACT 4th order 
 /
 !-----------------------------------------------------------------------
 &namtrc_ldf      !   lateral diffusion scheme for passive tracer        (default: NO selection)
@@ -48,10 +57,13 @@
 !-----------------------------------------------------------------------
 &namtrc_rad      !  treatment of negative concentrations 
 !-----------------------------------------------------------------------
-   ln_trcrad   =  .false.  !  artificially correct negative concentrations (T) or not (F)
 /
 !-----------------------------------------------------------------------
-&namtrc_dmp      !   passive tracer newtonian damping                   (ln_trcdmp=T)
+&namtrc_snk      !  sedimentation of particles
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namtrc_dmp      !   passive tracer newtonian damping   
 !-----------------------------------------------------------------------
 /
 !-----------------------------------------------------------------------
@@ -65,8 +77,14 @@
 !----------------------------------------------------------------------
 &namtrc_bc       !   data for boundary conditions
 !-----------------------------------------------------------------------
+!                !  file name        ! frequency (hours) ! variable      ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
+!                !                   !  (if <0  months)  !   name        !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
 /
 !----------------------------------------------------------------------
 &namtrc_bdy      !   Setup of tracer boundary conditions
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namtrc_ais      !  Representation of Antarctic Ice Sheet tracers supply
 !-----------------------------------------------------------------------
 /

@@ -26,6 +26,7 @@ MODULE par_abl
    INTEGER , PUBLIC            ::   nn_dyn_restore !: restoring option for dynamical ABL variables
    LOGICAL , PUBLIC            ::   ln_geos_winds  !: large-scale restoring of ABL winds toward geostrophic winds
    LOGICAL , PUBLIC            ::   ln_hpgls_frc   !: forcing of ABL winds by large-scale pressure gradient 
+   LOGICAL , PUBLIC            ::   ln_pga_abl     !: ABL pressure gradient anomaly forcing
    LOGICAL , PUBLIC            ::   ln_smth_pblh   !: smoothing of atmospheric PBL height 
    !LOGICAL , PUBLIC            ::   ln_topbc_neumann = .FALSE.  !: idealised testcases only
 

@@ -197,6 +197,14 @@ NEMO_DIR=${MAIN_DIR}/${x_s}
 [ "${CMP_NAM}" == 'all' ] && ${COMPIL_DIR}/Flist_archfile.sh && exit 0
 
 
+# Load environment if exists
+env_file=`find ${MAIN_DIR}/arch -name arch-${CMP_NAM}.env`
+if [ -f "${env_file}" ] ; then
+   echo "Load environment file arch-${CMP_NAM}.env"
+   . ${env_file}
+fi
+
+
 # New config case
 if [ -n "${x_n}" ]; then
 
@@ -313,7 +321,7 @@ else
     echo
 fi
 if [[ -n "${x_d}" || ${DO_NEW:-0} -eq 1 ]]; then
-    [ -f ${CFG_DIR}/work_cfgs.txt ] && sed -i "/^${CUR_CONF} /d" ${CFG_DIR}/work_cfgs.txt
+    [ -f ${CFG_DIR}/work_cfgs.txt ] && sed -i'' -e "/^${CUR_CONF} /d" ${CFG_DIR}/work_cfgs.txt
     echo ${CUR_CONF} "${NEM_SUBDIR[*]}" >> ${CFG_DIR}/work_cfgs.txt
 fi
 
@@ -328,7 +336,7 @@ ${COMPIL_DIR}/Fmake_WORK.sh "${NEM_SUBDIR[*]/#/${NEMO_DIR}/}" "${x_e:-"MY_SRC"}"
 
 # Build the complete list of the CPP keys of this configuration
 if [[ ${chk_key} -eq 1 || ${list_key} -eq 1 ]] ; then
-    grep -h "^#.*defined.*" ${NEMO_TDIR}/${CUR_CONF}/WORK/* | \
+    grep -h "^#.*defined.*\|^#if.*def.*" ${NEMO_TDIR}/${CUR_CONF}/WORK/* | \
     grep -o "key_[[:alnum:]]\+\|key_[[:alnum:]]\+_[[:alnum:]]\+\|iso_[[:alnum:]]\+_[[:alnum:]]\+" | \
     sort | uniq > ${NEMO_TDIR}/${CUR_CONF}/BLD/full_key_list.txt
     [ ${list_key} -eq 1 ] && echo && cat ${NEMO_TDIR}/${CUR_CONF}/BLD/full_key_list.txt && exit 0
@@ -343,7 +351,7 @@ fi
 
 # CPP keys check
 if [ $chk_key -eq 1 ] ; then
-    for kk in $( sed -n "s/bld::tool::fppkeys \+//p" ${NEMO_TDIR}/${CUR_CONF}/cpp_${CUR_CONF}.fcm ); do
+    for kk in $( sed -n -e "s/bld::tool::fppkeys \+//p" ${NEMO_TDIR}/${CUR_CONF}/cpp_${CUR_CONF}.fcm ); do
         if ! grep -q $kk ${NEMO_TDIR}/${CUR_CONF}/BLD/full_key_list.txt; then
 	    echo
 	    echo "E R R O R : key "$kk" is not found in ${NEMO_TDIR}/${CUR_CONF}/WORK routines..."

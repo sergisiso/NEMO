@@ -23,6 +23,8 @@
    rn_dy       =  30000.   !  y horizontal resolution   [meters]
    rn_dz       =    500.   !  z vertical resolution [meters]
    rn_ppgphi0  =   38.5    !  Reference latitude [degrees]
+   rn_ppumax   =    1.0    !  Max velocity scale [m/s]
+   nn_rot      =      0    !  = 0,1,2,3 domain quarter turn clockwise rotation 
 /
 !-----------------------------------------------------------------------
 &namrun        !   parameters of the run
@@ -39,8 +41,9 @@
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
    ln_linssh   =  .false.  !  =T  linear free surface  ==>>  model level are fixed in time
-   rn_Dt      =   1440.   !  time step for the dynamics (and tracer if nn_acc=0)
+   rn_Dt       =   1440.   !  time step for the dynamics (and tracer if nn_acc=0)
    rn_atfp     =   0.05    !  asselin time filter parameter
+   ln_meshmask = .false.   !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)
@@ -182,7 +185,7 @@
    ln_dynadv_vec = .false. !  vector form (T) or flux form (F)
    nn_dynkeg     = 0       ! scheme for grad(KE): =0   C2  ;  =1   Hollingsworth correction
    ln_dynadv_cen2 = .false. !  flux form - 2nd order centered scheme
-   ln_dynadv_ubs = .true.  !  flux form - 3rd order UBS      scheme
+   ln_dynadv_up3 = .true.  !  flux form - 3rd order UBS      scheme
 /
 !-----------------------------------------------------------------------
 &namdyn_vor    !   Vorticity / Coriolis scheme                          (default: OFF)

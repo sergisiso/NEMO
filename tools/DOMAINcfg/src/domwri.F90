@@ -81,9 +81,9 @@ CONTAINS
       !                                                         ! domain characteristics
       CALL iom_rstput( 0, 0, inum, 'jperio', REAL( jperio, wp), ktype = jp_i4 )
       !                                                         ! type of vertical coordinate
-      IF( ln_zco    ) THEN   ;   izco = 1   ;   ELSE   ;   izco = 0   ;   ENDIF
-      IF( ln_zps    ) THEN   ;   izps = 1   ;   ELSE   ;   izps = 0   ;   ENDIF
-      IF( ln_sco    ) THEN   ;   isco = 1   ;   ELSE   ;   isco = 0   ;   ENDIF
+      IF( ln_zco             ) THEN   ;   izco = 1   ;   ELSE   ;   izco = 0   ;   ENDIF
+      IF( ln_zps             ) THEN   ;   izps = 1   ;   ELSE   ;   izps = 0   ;   ENDIF
+      IF( ln_sco .OR. ln_mes ) THEN   ;   isco = 1   ;   ELSE   ;   isco = 0   ;   ENDIF
       CALL iom_rstput( 0, 0, inum, 'ln_zco'   , REAL( izco, wp), ktype = jp_i4 )
       CALL iom_rstput( 0, 0, inum, 'ln_zps'   , REAL( izps, wp), ktype = jp_i4 )
       CALL iom_rstput( 0, 0, inum, 'ln_sco'   , REAL( isco, wp), ktype = jp_i4 )
@@ -175,7 +175,7 @@ CONTAINS
       CALL iom_rstput( 0, 0, inum, 'gdept_0'  , gdept_0  , ktype = jp_r8 )
       CALL iom_rstput( 0, 0, inum, 'gdepw_0'  , gdepw_0  , ktype = jp_r8 )
       !
-      IF( ln_sco ) THEN                                         ! s-coordinate stiffness
+      IF( ln_sco .OR. ln_mes ) THEN                             ! s-coordinate stiffness
          CALL dom_stiff( zprt )
          CALL iom_rstput( 0, 0, inum, 'stiffness', zprt )       ! Max. grid stiffness ratio
       ENDIF

@@ -67,6 +67,7 @@ MODULE fldread
       REAL(wp)                        ::   freqh        ! frequency of each flux file
       CHARACTER(len = 34)             ::   clvar        ! generic name of the variable in the NetCDF flux file
       LOGICAL                         ::   ln_tint      ! time interpolation or not (T/F)
+      REAL(wp)                        ::   rec_shft     ! record shift (from -0.5 to +0.5) when ln_tint=T
       LOGICAL                         ::   ln_clim      ! climatology or not (T/F)
       CHARACTER(len = 8)              ::   clftyp       ! type of data file 'daily', 'monthly' or yearly'
       CHARACTER(len = 1)              ::   cltype       ! nature of grid-points: T, U, V...
@@ -75,7 +76,7 @@ MODULE fldread
       INTEGER , DIMENSION(2,2)        ::   nrec         ! before/after record (1: index, 2: second since Jan. 1st 00h of yr nit000)
       INTEGER                         ::   nbb          ! index of before values
       INTEGER                         ::   naa          ! index of after  values
-      INTEGER , ALLOCATABLE, DIMENSION(:) ::   nrecsec   ! 
+      INTEGER , ALLOCATABLE, DIMENSION(:) ::   nrecsec  ! records time in seconds
       REAL(wp), POINTER, DIMENSION(:,:,:  ) ::   fnow   ! input fields interpolated to now time step
       REAL(wp), POINTER, DIMENSION(:,:,:,:) ::   fdta   ! 2 consecutive record of input fields
       CHARACTER(len = 256)            ::   wgtname      ! current name of the NetCDF weight file acting as a key
@@ -210,7 +211,7 @@ CONTAINS
             ibb = sd(jf)%nbb   ;   iaa = sd(jf)%naa
             !
             IF( sd(jf)%ln_tint ) THEN              ! temporal interpolation
-               IF(lwp .AND. ( kt - nit000 <= 20 .OR. nitend - kt <= 20 ) ) THEN 
+               IF(lwp .AND. ( kt - nit000 <= 30 .OR. nitend - kt <= 30 ) ) THEN 
                   clfmt = "('   fld_read: var ', a, ' kt = ', i8, ' (', f9.4,' days), Y/M/D = ', i4.4,'/', i2.2,'/', i2.2," //   &
                      &    "', records b/a: ', i6.4, '/', i6.4, ' (days ', f9.4,'/', f9.4, ')')"
                   WRITE(numout, clfmt)  TRIM( sd(jf)%clvar ), kt, REAL(isecsbc,wp)/rday, nyear, nmonth, nday,   &            
@@ -222,7 +223,7 @@ CONTAINS
                ztintb =  1. - ztinta
                sd(jf)%fnow(:,:,:) = ztintb * sd(jf)%fdta(:,:,:,ibb) + ztinta * sd(jf)%fdta(:,:,:,iaa)
             ELSE   ! nothing to do...
-               IF(lwp .AND. ( kt - nit000 <= 20 .OR. nitend - kt <= 20 ) ) THEN
+               IF(lwp .AND. ( kt - nit000 <= 30 .OR. nitend - kt <= 30 ) ) THEN
                   clfmt = "('   fld_read: var ', a, ' kt = ', i8,' (', f9.4,' days), Y/M/D = ', i4.4,'/', i2.2,'/', i2.2," //   &
                      &    "', record: ', i6.4, ' (days ', f9.4, ' <-> ', f9.4, ')')"
                   WRITE(numout, clfmt) TRIM(sd(jf)%clvar), kt, REAL(isecsbc,wp)/rday, nyear, nmonth, nday,    &
@@ -766,7 +767,7 @@ CONTAINS
       INTEGER  :: idaysec               ! number of seconds in 1 day = NINT(rday)
       INTEGER  :: iyr, imt, idy, isecwk
       INTEGER  :: indexyr, indexmt
-      INTEGER  :: ireclast
+      INTEGER  :: ireclast, irecshft
       INTEGER  :: ishift, istart
       INTEGER, DIMENSION(2)  :: isave
       REAL(wp) :: zfreqs
@@ -896,8 +897,9 @@ CONTAINS
       !
       IF( sdjf%ln_tint ) THEN   ! record time defined in the middle of the record, computed using an implementation
                                 ! of the rounded average that is valid over the full integer range
+         irecshft = NINT( sdjf%rec_shft * (sdjf%nrecsec(1) - sdjf%nrecsec(0)) )
          sdjf%nrecsec(1:sdjf%nreclast) = sdjf%nrecsec(0:sdjf%nreclast-1) / 2 + sdjf%nrecsec(1:sdjf%nreclast) / 2 + &
-            & MAX( MOD( sdjf%nrecsec(0:sdjf%nreclast-1), 2 ), MOD( sdjf%nrecsec(1:sdjf%nreclast), 2 ) )
+            & MAX( MOD( sdjf%nrecsec(0:sdjf%nreclast-1), 2 ), MOD( sdjf%nrecsec(1:sdjf%nreclast), 2 ) ) + irecshft
       END IF
       !
       sdjf%clname = fld_filename( sdjf, idy, imt, iyr )
@@ -977,6 +979,16 @@ CONTAINS
          sdf(jf)%freqh      = sdf_n(jf)%freqh
          sdf(jf)%clvar      = sdf_n(jf)%clvar
          sdf(jf)%ln_tint    = sdf_n(jf)%ln_tint
+         sdf(jf)%rec_shft   = 0._wp
+         IF( sdf(jf)%ln_tint ) THEN
+            IF( sdf(jf)%clvar(1:1) == '+' ) THEN
+               sdf(jf)%rec_shft = +0.5_wp
+               sdf(jf)%clvar = sdf(jf)%clvar(2:)
+            ELSE IF( sdf(jf)%clvar(1:1) == '-' ) THEN
+               sdf(jf)%rec_shft = -0.5_wp
+               sdf(jf)%clvar = sdf(jf)%clvar(2:)
+            ENDIF
+         ENDIF
          sdf(jf)%ln_clim    = sdf_n(jf)%ln_clim
          sdf(jf)%clftyp     = sdf_n(jf)%clftyp
          sdf(jf)%cltype     = 'T'   ! by default don't do any call to lbc_lnk in iom_get

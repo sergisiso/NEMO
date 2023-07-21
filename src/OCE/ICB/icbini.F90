@@ -522,6 +522,16 @@ CONTAINS
          CALL ctl_stop( 'icb_nam: a negative rn_distribution value encountered ==>> change your namelist namberg' )
       ENDIF
       !
+      ! ensure that nn_verbose_write is a multiple of nn_fsbc
+      IF (MOD(nn_verbose_write, nn_fsbc) /= 0) THEN
+         CALL ctl_stop( 'icb_nam: nn_verbose_write is not a multiple of nn_fsbc')
+      END IF
+      !
+      ! ensure that nn_sample_rate is a multiple of nn_fsbc
+      IF (MOD(nn_sample_rate, nn_fsbc) /= 0) THEN
+         CALL ctl_stop( 'icb_nam: nn_sample_rate is not a multiple of nn_fsbc')
+      END IF
+      !
    END SUBROUTINE icb_nam
 
    !!======================================================================

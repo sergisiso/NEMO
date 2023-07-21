@@ -17,6 +17,7 @@ MODULE ldfdyn
    USE dom_oce         ! ocean space and time domain 
    USE phycst          ! physical constants
    USE ldfslp          ! lateral diffusion: slopes of mixing orientation
+   USE ldftra  ,  ONLY : ln_eke_equ  ! for compatability check only (GEOMETRIC)
    USE ldfc1d_c2d      ! lateral diffusion: 1D and 2D cases
    !
    USE in_out_manager  ! I/O manager
@@ -102,7 +103,7 @@ CONTAINS
       !!                  = 20    = F(i,j)     = F(e1,e2) or F(e1^3,e2^3) (lap or bilap case)
       !!                  =-30 => = F(i,j,k)   = shape read in 'eddy_viscosity_3D.nc'  file
       !!                  = 30    = F(i,j,k)   = 2D (case 20) + decrease with depth (case 10)
-      !!                  = 31    = F(i,j,k,t) = F(local velocity) (  |u|e  /12   laplacian operator
+      !!                  = 31    = F(i,j,k,t) = F(local velocity) (  |u|e  / 2   laplacian operator
       !!                                                           or |u|e^3/12 bilaplacian operator )
       !!                  = 32    = F(i,j,k,t) = F(local deformation rate and gridscale) (D and L) (Smagorinsky)  
       !!                                                           (   L^2|D|      laplacian operator
@@ -170,8 +171,11 @@ CONTAINS
       IF(.NOT.ln_dynldf_OFF ) THEN     !==  direction ==>> type of operator  ==!
          !
          SELECT CASE( nn_dynldf_typ )  ! div-rot or symmetric
-         CASE( np_typ_rot )   ;   IF(lwp)   WRITE(numout,*) '   ==>>>   use div-rot   operator '
-         CASE( np_typ_sym )   ;   IF(lwp)   WRITE(numout,*) '   ==>>>   use symmetric operator '
+         CASE( np_typ_rot )
+            IF(lwp)   WRITE(numout,*) '   ==>>>   use div-rot   operator '
+         CASE( np_typ_sym )
+            IF(lwp)   WRITE(numout,*) '   ==>>>   use symmetric operator '
+            IF( ln_eke_equ )  CALL ctl_stop('STOP', 'ldf_dyn_init : GEOMETRIC parameterisation is only available with the div-rot operator')
          CASE DEFAULT                                     ! error
             CALL ctl_stop('ldf_dyn_init: wrong value for nn_dynldf_typ (0 or 1)'  )
          END SELECT
@@ -347,7 +351,7 @@ CONTAINS
       !! ** Method  :   time varying eddy viscosity coefficients:
       !!
       !!    nn_ahm_ijk_t = 31    ahmt, ahmf = F(i,j,k,t) = F(local velocity) 
-      !!                         ( |u|e /12  or  |u|e^3/12 for laplacian or bilaplacian operator )
+      !!                         ( |u|e / 2  or  |u|e^3/2 for laplacian, u|e^3/12  for bilaplacian operator )
       !!
       !!    nn_ahm_ijk_t = 32    ahmt, ahmf = F(i,j,k,t) = F(local deformation rate and gridscale) (D and L) (Smagorinsky)  
       !!                         ( L^2|D|    or  L^4|D|/8  for laplacian or bilaplacian operator )
@@ -369,20 +373,20 @@ CONTAINS
       !
       CASE(  31  )       !==  time varying 3D field  ==!   = F( local velocity )
          !
-         IF( ln_dynldf_lap   ) THEN        ! laplacian operator : |u| e /12 = |u/144| e
-            DO jk = 1, jpkm1
+         IF( ln_dynldf_lap   ) THEN        ! laplacian operator : |u| e / 2 = |u/ 4| e
+            DO jk = 1, jpkm1               ! r1_8 = 1 / (2*2 * 2)
                DO_2D( 0, 0, 0, 0 )
                   zu2pv2_ij    = uu(ji  ,jj  ,jk,Kbb) * uu(ji  ,jj  ,jk,Kbb) + vv(ji  ,jj  ,jk,Kbb) * vv(ji  ,jj  ,jk,Kbb)
                   zu2pv2_ij_m1 = uu(ji-1,jj  ,jk,Kbb) * uu(ji-1,jj  ,jk,Kbb) + vv(ji  ,jj-1,jk,Kbb) * vv(ji  ,jj-1,jk,Kbb)
                   zu2pv2_ij_p1 = uu(ji  ,jj+1,jk,Kbb) * uu(ji  ,jj+1,jk,Kbb) + vv(ji+1,jj  ,jk,Kbb) * vv(ji+1,jj  ,jk,Kbb)
                   zemax = MAX( e1t(ji,jj) , e2t(ji,jj) )
-                  ahmt(ji,jj,jk) = SQRT( (zu2pv2_ij + zu2pv2_ij_m1) * r1_288 ) * zemax * tmask(ji,jj,jk)      ! 288= 12*12 * 2
+                  ahmt(ji,jj,jk) = SQRT( (zu2pv2_ij + zu2pv2_ij_m1) * r1_8 ) * zemax * tmask(ji,jj,jk)   
                   zemax = MAX( e1f(ji,jj) , e2f(ji,jj) )
-                  ahmf(ji,jj,jk) = SQRT( (zu2pv2_ij + zu2pv2_ij_p1) * r1_288 ) * zemax * fmask(ji,jj,jk)      ! 288= 12*12 * 2
+                  ahmf(ji,jj,jk) = SQRT( (zu2pv2_ij + zu2pv2_ij_p1) * r1_8 ) * zemax * fmask(ji,jj,jk)
                END_2D
             END DO
          ELSEIF( ln_dynldf_blp ) THEN      ! bilaplacian operator : sqrt( |u| e^3 /12 ) = sqrt( |u/144| e ) * e
-            DO jk = 1, jpkm1
+            DO jk = 1, jpkm1               ! r1_288 = 1 / (12*12 * 2)
                DO_2D( 0, 0, 0, 0 )
                   zu2pv2_ij    = uu(ji  ,jj  ,jk,Kbb) * uu(ji  ,jj  ,jk,Kbb) + vv(ji  ,jj  ,jk,Kbb) * vv(ji  ,jj  ,jk,Kbb)
                   zu2pv2_ij_m1 = uu(ji-1,jj  ,jk,Kbb) * uu(ji-1,jj  ,jk,Kbb) + vv(ji  ,jj-1,jk,Kbb) * vv(ji  ,jj-1,jk,Kbb)

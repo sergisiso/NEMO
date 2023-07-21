@@ -1028,7 +1028,7 @@ CONTAINS
       z1_dt = 1._wp / pdt
       !
       DO_2D( ihls, ihls, ihls, ihls )
-         IF ( pv_i(ji,jj,jcat) > 0._wp ) THEN
+         IF ( pv_i(ji,jj,jcat) > 0._wp .AND. pa_i(ji,jj,jcat) > 0._wp ) THEN
             !
             !                               ! -- check h_ip -- !
             ! if h_ip is larger than the surrounding 9 pts => reduce h_ip and increase a_ip
@@ -1065,7 +1065,7 @@ CONTAINS
       !                                          ! -- check s_i -- !
       IF( nn_icesal == 4 ) THEN
          DO_3D( ihls, ihls, ihls, ihls, 1, nlay_i )
-            IF ( pv_i(ji,jj,jcat) > 0._wp ) THEN
+            IF ( pv_i(ji,jj,jcat) > 0._wp .AND. pa_i(ji,jj,jcat) > 0._wp ) THEN
                ! if szv_i/v_i is larger than the surrounding 9 pts => put the salt excess in the ocean
                zsi = pszv_i(ji,jj,jk,jcat) / pv_i(ji,jj,jcat)
                IF( zsi > pszi_max(ji,jj,jk) .AND. pa_i(ji,jj,jcat) < 0.15 ) THEN
@@ -1077,7 +1077,7 @@ CONTAINS
          END_3D
       ELSE
          DO_2D( ihls, ihls, ihls, ihls )
-            IF ( pv_i(ji,jj,jcat) > 0._wp ) THEN
+            IF ( pv_i(ji,jj,jcat) > 0._wp .AND. pa_i(ji,jj,jcat) > 0._wp ) THEN
                ! if s_i is larger than the surrounding 9 pts => put salt excess in the ocean
                zsi = psv_i(ji,jj,jcat) / pv_i(ji,jj,jcat)
                IF( zsi > psi_max(ji,jj) .AND. pa_i(ji,jj,jcat) < 0.15 ) THEN
@@ -1091,7 +1091,7 @@ CONTAINS
       ENDIF
       !                                           ! -- check e_i/v_i -- !
       DO_3D( ihls, ihls, ihls, ihls, 1, nlay_i )
-         IF ( pv_i(ji,jj,jcat) > 0._wp ) THEN
+         IF ( pv_i(ji,jj,jcat) > 0._wp .AND. pa_i(ji,jj,jcat) > 0._wp ) THEN
             ! if e_i/v_i is larger than the surrounding 9 pts => put the heat excess in the ocean
             zei = pe_i(ji,jj,jk,jcat) / pv_i(ji,jj,jcat)
             IF( zei > pei_max(ji,jj,jk) .AND. pa_i(ji,jj,jcat) < 0.15 ) THEN
@@ -1103,7 +1103,7 @@ CONTAINS
       END_3D
       !                                           ! -- check e_s/v_s -- !
       DO_3D( ihls, ihls, ihls, ihls, 1, nlay_s )
-         IF ( pv_s(ji,jj,jcat) > 0._wp ) THEN
+         IF ( pv_s(ji,jj,jcat) > 0._wp .AND. pa_i(ji,jj,jcat) > 0._wp ) THEN
             ! if e_s/v_s is larger than the surrounding 9 pts => put the heat excess in the ocean
             zes = pe_s(ji,jj,jk,jcat) / pv_s(ji,jj,jcat)
             IF( zes > pes_max(ji,jj,jk) .AND. pa_i(ji,jj,jcat) < 0.15 ) THEN
@@ -1258,7 +1258,7 @@ CONTAINS
       !
       INTEGER ::   jk, jl   ! dummy loop indices
       INTEGER ::   iter     ! local integer
-      INTEGER ::   id1      ! local integer
+      INTEGER ::   id1, id0      ! local integer
       CHARACTER(len=25) ::   znam
       CHARACTER(len=2)  ::   zchar, zchar1
       REAL(wp), DIMENSION(jpi,jpj,jpl) ::   z3d   ! 3D workspace
@@ -1272,7 +1272,17 @@ CONTAINS
          ELSE                   ;   id1 = 0                                                  ! no restart: id1=0
          ENDIF
          !
-         IF( id1 > 0 ) THEN                     !**  Read the restart file  **!
+         ! check size of the input fields
+         id0=0
+         DO jk = 1, 99
+            WRITE(zchar1,'(I2.2)') jk
+            znam = 'sxc0'//'_l'//zchar1
+            IF( iom_varid( numrir, znam , ldstop = .FALSE. ) > 0 )   id0 = id0+1 
+            znam = 'sxe'//'_l'//zchar1
+            IF( iom_varid( numrir, znam , ldstop = .FALSE. ) > 0 )   id0 = id0+1 
+         END DO
+         
+         IF( id1 > 0 .AND. id0 == (nlay_s+nlay_i) ) THEN   !**  Read the restart file  **!
             !
             ! ---------------------- !
             ! == mandatory fields == !
@@ -1393,7 +1403,7 @@ CONTAINS
                ENDIF
             ENDIF
             !
-         ELSE                                   !**  start rheology from rest  **!
+         ELSE                                   !**  start advection from rest  **!
             !
             IF(lwp) WRITE(numout,*) '   ==>>   start from rest OR previous run without Prather, set moments to 0'
             !

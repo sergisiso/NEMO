@@ -252,7 +252,7 @@ CONTAINS
    END SUBROUTINE WL_ECMWF
 
 
-   FUNCTION delta_skin_layer( palpha, pQd, pustar_a )
+   ELEMENTAL FUNCTION delta_skin_layer( palpha, pQd, pustar_a )
       !!---------------------------------------------------------------------
       !! Computes the thickness (m) of the viscous skin layer.
       !! Based on Fairall et al., 1996
@@ -287,7 +287,7 @@ CONTAINS
    END FUNCTION delta_skin_layer
 
 
-   FUNCTION PHI( pzeta)
+   ELEMENTAL FUNCTION PHI( pzeta)
       !!---------------------------------------------------------------------
       !!
       !! Takaya et al., 2010

@@ -235,7 +235,7 @@ void WriteLocalParamDeclaration(FILE* tofile)
     }
 }
 
-void WriteFunctionDeclaration(FILE* tofile, int value)
+void WriteFunctionDeclaration(FILE* tofile, int value, int insubloop )
 {
     listvar *parcours;
 
@@ -252,7 +252,18 @@ void WriteFunctionDeclaration(FILE* tofile, int value)
         if ( !strcasecmp(parcours->var->v_subroutinename, subroutinename) &&
               strcasecmp(parcours->var->v_typevar, "") )
         {
+           if (insubloop == 1 && iselemental == 1)
+           { 
+               strcpy(parcours->var->v_IntentSpec, "OUT");
+           }
+
             WriteVarDeclaration(parcours->var, tofile, value, 1);
+
+             /* le test sur out doit suffire ici en fait*/
+            if ( insubloop == 1 && iselemental == 1 && !strcasecmp(parcours->var->v_IntentSpec,"OUT") )
+            {
+                strcpy(parcours->var->v_IntentSpec, "");
+            } 
         }
         parcours = parcours -> suiv;
     }
@@ -330,8 +341,12 @@ void WriteArgumentDeclaration_beforecall()
     if ( IsTabvarsUseInArgument_0() && (inmodulemeet == 0) && (inprogramdeclare == 0) )
     {
         fprintf(paramtoamr, "      interface\n");
-        if (isrecursive) sprintf(ligne,"  recursive subroutine Sub_Loop_%s(", subroutinename);
-        else             sprintf(ligne,"  subroutine Sub_Loop_%s(", subroutinename);
+	strcpy(ligne, "");
+	if (isrecursive) strcat(ligne, "recursive ");
+	if (     ispure) strcat(ligne, "pure ");
+	if (   isimpure) strcat(ligne, "impure ");
+	if (iselemental) strcat(ligne, "elemental ");
+	sprintf(ligne,"%s subroutine Sub_Loop_%s(", ligne, subroutinename);	
         WriteVariablelist_subloop(&ligne,&line_length);
         WriteVariablelist_subloop_Def(&ligne,&line_length);
         strcat(ligne,")");
@@ -353,7 +368,7 @@ void WriteArgumentDeclaration_beforecall()
         writesub_loopdeclaration_scalar(List_UsedInSubroutine_Var, paramtoamr);
         writesub_loopdeclaration_tab(List_UsedInSubroutine_Var, paramtoamr);
         WriteArgumentDeclaration_Sort(paramtoamr);
-        WriteFunctionDeclaration(paramtoamr, 1);
+        WriteFunctionDeclaration(paramtoamr, 1, 1);
 
         sprintf(ligne,"  end subroutine Sub_Loop_%s\n", subroutinename);
         tofich(paramtoamr, ligne, 1);
@@ -589,6 +604,10 @@ void writesub_loopdeclaration_scalar (listvar * deb_common, FILE *fileout)
            (newvar->var->v_pointerdeclare >= 0 || !strcasecmp(newvar->var->v_typevar,"type")) )
      {
         v = newvar->var;
+        if (iselemental)
+        {
+             strcpy(v->v_IntentSpec, "in");
+        }    
         WriteBeginDeclaration(v,ligne,1);
         WriteScalarDeclaration(v,ligne);
         tofich (fileout, ligne,1);
@@ -621,6 +640,11 @@ void writesub_loopdeclaration_tab (listvar * deb_common, FILE *fileout)
   while (newvar)
   {
       v = newvar->var;
+        if (iselemental)
+        {
+             strcpy(v->v_IntentSpec, "in");
+        }    
+
 //  printf("newvar = %s %d %s\n",newvar->var->v_nomvar,newvar->var->v_pointerdeclare,newvar->var->v_typevar);
      if ( (v->v_nbdim != 0)  && !strcasecmp(v->v_subroutinename, subroutinename) &&
           (v->v_pointerdeclare >= 0 || !strcasecmp(v->v_typevar,"type")) )

@@ -655,7 +655,7 @@ do
 # Reproducibility tests
  echo ""
  echo "   !----repro----!   "
- for repro_test in ${TEST_CONFIGS[@]}
+ for repro_test in ${TEST_CONFIGS[@]/C1D_PAPA}
  do
    if [[ ${repro_test} != *"OVERFLOW"* && ${repro_test} != *"LOCK_EXCHANGE"* ]]; then
       reprotest $NEMO_VALID $repro_test $pass

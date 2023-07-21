@@ -60,6 +60,7 @@ CONTAINS
       INTEGER, INTENT( in ) :: Kbb, Kmm, Krhs, Kaa ! time level indices
       !
       INTEGER ::   jk, jn   ! dummy loop indices
+      INTEGER ::   ibb      ! local time-level index
       REAL(wp)::   ztrai    ! local scalar
       LOGICAL ::   ll_trcstat ! local logical
       CHARACTER (len=25) ::   charout   !
@@ -67,8 +68,10 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('trc_stp')
       !
+      ibb = Kbb                     ! default "before" time-level index
       IF( l_1st_euler .OR. ln_top_euler ) THEN     ! at nittrc000
          rDt_trc =  rn_Dt           ! = rn_Dt (use or restarting with Euler time stepping)
+         ibb = Kmm                  ! time-level index used to substitute the "before" with the "now" time level
       ELSEIF( kt <= nittrc000 + 1 ) THEN                                     ! at nittrc000 or nittrc000+1 
          rDt_trc = 2. * rn_Dt       ! = 2 rn_Dt (leapfrog) 
       ENDIF
@@ -98,9 +101,9 @@ CONTAINS
       CALL trc_rst_opn  ( kt )                            ! Open tracer restart file 
       IF( lrst_trc )  CALL trc_rst_cal  ( kt, 'WRITE' )   ! calendar
       CALL trc_wri      ( kt,      Kmm            )       ! output of passive tracers with iom I/O manager
-      CALL trc_sms      ( kt, Kbb, Kmm, Krhs      )       ! tracers: sinks and sources
+      CALL trc_sms      ( kt, ibb, Kmm, Krhs      )       ! tracers: sinks and sources
 #if ! defined key_sed_off
-      CALL trc_trp      ( kt, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers
+      CALL trc_trp      ( kt, ibb, Kmm, Krhs, Kaa )       ! transport of passive tracers
 #endif
            !
            ! Note passive tracers have been time-filtered in trc_trp but the time level
@@ -123,7 +126,7 @@ CONTAINS
          tr(:,:,:,:,Kmm) = tr(:,:,:,:,Kaa)
       ENDIF
       !
-      IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kbb, Kmm, Kaa  )       ! write tracer restart file
+      IF( lrst_trc )            CALL trc_rst_wri  ( kt, ibb, Kmm, Kaa  )       ! write tracer restart file
 !     IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kmm, Kaa, Kbb  )       ! write tracer restart file
       !
       IF (ll_trcstat) THEN

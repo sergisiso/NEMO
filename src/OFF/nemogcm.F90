@@ -34,6 +34,7 @@ MODULE nemogcm
    !              ! ocean physics
    USE ldftra         ! lateral diffusivity setting    (ldf_tra_init routine)
    USE ldfslp         ! slopes of neutral surfaces     (ldf_slp_init routine)
+   USE ldfeke         ! GEOMETRIC parameterisation     (ldf_eke_init routine)
    USE traqsr         ! solar radiation penetration    (tra_qsr_init routine)
    USE trabbl         ! bottom boundary layer          (tra_bbl_init routine)
    USE traldf         ! lateral physics                (tra_ldf_init routine)
@@ -62,11 +63,7 @@ MODULE nemogcm
    USE prtctl         ! Print control                    (prt_ctl_init routine)
    USE timing         ! Timing
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
-#if defined key_qco || defined key_linssh
    USE stpmlf , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
-#else
-   USE step    , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
-#endif
    USE halo_mng
 
    IMPLICIT NONE
@@ -144,7 +141,10 @@ CONTAINS
                                 CALL dom_qco_r3c( ssh(:,:,Nnn), r3t_f, r3u_f, r3v_f )
 # endif
          ENDIF
-                                CALL trc_stp    ( istp, Nbb, Nnn, Nrhs, Naa ) ! time-stepping
+
+         IF( l_ldftra_time .OR. l_ldfeiv_time )  CALL ldf_tra( istp, Nbb, Nnn )  ! eddy diffusivity coeff. and/or eiv coeff.
+
+                                CALL trc_stp    ( istp, Nbb, Nnn, Nrhs, Naa )    ! time-stepping
          ! Swap time levels
          Nrhs = Nbb
          Nbb  = Nnn
@@ -353,15 +353,16 @@ CONTAINS
                            CALL     sbc_init( Nbb, Nnn, Naa )    ! Forcings : surface module
                            CALL     bdy_init    ! Open boundaries initialisation
                            
-                           CALL zdf_phy_init( Nnn )    ! Vertical physics
+                           CALL zdf_phy_init( Nnn )  ! Vertical physics
 
       !                                      ! Tracer physics
-                           CALL ldf_tra_init    ! Lateral ocean tracer physics
-                           CALL ldf_eiv_init    ! Eddy induced velocity param. must be done after ldf_tra_init
-                           CALL tra_ldf_init    ! lateral mixing
-      IF( l_ldfslp     )   CALL ldf_slp_init    ! slope of lateral mixing
-      IF( ln_traqsr    )   CALL tra_qsr_init    ! penetrative solar radiation
-      IF( ln_trabbl    )   CALL tra_bbl_init    ! advective (and/or diffusive) bottom boundary layer scheme
+                           CALL ldf_tra_init              ! Lateral ocean tracer physics
+                           CALL ldf_eiv_init              ! Eddy induced velocity param. must be done after ldf_tra_init
+      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb, Nnn )  ! GEOMETRIC param.
+                           CALL tra_ldf_init              ! lateral mixing
+      IF( l_ldfslp     )   CALL ldf_slp_init              ! slope of lateral mixing
+      IF( ln_traqsr    )   CALL tra_qsr_init              ! penetrative solar radiation
+      IF( ln_trabbl    )   CALL tra_bbl_init              ! advective (and/or diffusive) bottom boundary layer scheme
 
       !                                      ! Passive tracers
                            CALL trc_nam_run    ! Needed to get restart parameters for passive tracers

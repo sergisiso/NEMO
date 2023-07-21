@@ -384,7 +384,7 @@ CONTAINS
          ENDIF
          IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
             IF( iom_use('avt_k'   ) ) CALL iom_put( 'avt_k'   ,   avt_k                 * wmask(A2D(0),:) )
-            IF( iom_use('avm_k'   ) ) CALL iom_put( 'avm_k'   ,   avm_k                 * wmask(:,:   ,:) )
+            IF( iom_use('avm_k'   ) ) CALL iom_put( 'avm_k'   ,   avm_k(A2D(0),:)       * wmask(A2D(0),:) )
             IF( iom_use('estrat_k') ) CALL iom_put( 'estrat_k', - avt_k * rn2(A2D(0),:) * wmask(A2D(0),:) )
             IF( iom_use('eshear_k') ) CALL iom_put( 'eshear_k',   sh2                                     )
             DEALLOCATE( sh2 )

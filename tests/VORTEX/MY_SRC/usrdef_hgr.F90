@@ -23,8 +23,6 @@ MODULE usrdef_hgr
    IMPLICIT NONE
    PRIVATE
 
-   REAL(wp) :: roffsetx, roffsety ! Offset in km to first f-point
-
    PUBLIC   usr_def_hgr   ! called by domhgr.F90
 
    !! * Substitutions
@@ -65,8 +63,9 @@ CONTAINS
       REAL(wp), DIMENSION(:,:), INTENT(out) ::   pe1e2u, pe1e2v               ! u- & v-surfaces (if reduction in strait)   [m2]
       !
       INTEGER  ::   ji, jj     ! dummy loop indices
-      REAL(wp) ::   zbeta, zf0
-      REAL(wp) ::   zti, ztj   ! local scalars
+      REAL(wp) ::   zbeta, zf0 ! local scalars
+      REAL(wp) ::   zroffsetx, zroffsety
+      REAL(wp) ::   zti, ztj   
       !!-------------------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
@@ -81,39 +80,88 @@ CONTAINS
       ! offset is given at first f-point, i.e. at (i,j) = (nn_hls+1, nn_hls+1)
       ! Here we assume the grid is centred around a T-point at the middle of
       ! of the domain (hence domain size is odd) 
-      roffsetx = (-REAL(Ni0glo-1, wp) + 1._wp) * 0.5 * 1.e-3 * rn_dx
-      roffsety = (-REAL(Nj0glo-1, wp) + 1._wp) * 0.5 * 1.e-3 * rn_dy
+      zroffsetx = (-REAL(Ni0glo-1, wp) + 1._wp) * 0.5_wp * 1.e-3 * rn_dx
+      zroffsety = (-REAL(Nj0glo-1, wp) + 1._wp) * 0.5_wp * 1.e-3 * rn_dy
 #if defined key_agrif
       IF( .NOT.Agrif_Root() ) THEN
          ! deduce offset from parent:
-         roffsetx = Agrif_Parent(roffsetx) &
-                  & + (-(nbghostcells_x_w - 1) + (Agrif_Parent(nbghostcells_x_w) + Agrif_Ix()-2)*Agrif_Rhox()) * 1.e-3 * rn_dx
-         roffsety = Agrif_Parent(roffsety) &
-                  & + (-(nbghostcells_y_s - 1) + (Agrif_Parent(nbghostcells_y_s) + Agrif_Iy()-2)*Agrif_Rhoy()) * 1.e-3 * rn_dy
+!         zroffsetx = Agrif_Parent(zroffsetx) &
+!                  & + REAL(-(nbghostcells_x_w - 1) + (Agrif_Parent(nbghostcells_x_w) + Agrif_Ix()-2)*Agrif_iRhox(), wp ) * 1.e-3 * rn_dx
+!         zroffsety = Agrif_Parent(zroffsety) &
+!                  & + REAL(-(nbghostcells_y_s - 1) + (Agrif_Parent(nbghostcells_y_s) + Agrif_Iy()-2)*Agrif_iRhoy(), wp ) * 1.e-3 * rn_dy
+! JC: More accurate positioning implied by 1:1 tests:
+!     (10-13 km shift between child and parent grids  otherwise)
+         zroffsetx = ((-REAL(Agrif_Parent(Ni0glo)-1, wp) + 1._wp) * 0.5_wp * Agrif_Rhox() &
+                   & + REAL(-(nbghostcells_x_w - 1) + (Agrif_Parent(nbghostcells_x_w)     & 
+                   & + Agrif_Ix()-2)*Agrif_iRhox(), wp )) * 1.e-3 * rn_dx
+         zroffsety = ((-REAL(Agrif_Parent(Nj0glo)-1, wp) + 1._wp) * 0.5_wp * Agrif_Rhoy() &
+                   & + REAL(-(nbghostcells_y_s - 1) + (Agrif_Parent(nbghostcells_y_s)     & 
+                   & + Agrif_Iy()-2)*Agrif_iRhoy(), wp )) * 1.e-3 * rn_dy
       ENDIF
 #endif         
       DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
          zti = REAL( mig(ji,0)-1, wp )  ! start at i=0 in the global grid without halos
          ztj = REAL( mjg(jj,0)-1, wp )  ! start at j=0 in the global grid without halos
          
-         plamt(ji,jj) = roffsetx + rn_dx * 1.e-3 * ( zti - 0.5_wp )
-         plamu(ji,jj) = roffsetx + rn_dx * 1.e-3 *   zti 
-         plamv(ji,jj) = plamt(ji,jj) 
-         plamf(ji,jj) = plamu(ji,jj) 
-         
-         pphit(ji,jj) = roffsety + rn_dy * 1.e-3 * ( ztj - 0.5_wp )
-         pphiv(ji,jj) = roffsety + rn_dy * 1.e-3 *   ztj 
-         pphiu(ji,jj) = pphit(ji,jj) 
-         pphif(ji,jj) = pphiv(ji,jj) 
+         ! Longitudes
+         IF ( nn_rot==0 ) THEN
+            plamt(ji,jj) = zroffsetx + rn_dx * 1.e-3 * ( zti - 0.5_wp )
+            plamu(ji,jj) = plamt(ji,jj) + rn_dx * 1.e-3 * 0.5_wp 
+            plamv(ji,jj) = plamt(ji,jj) 
+            plamf(ji,jj) = plamu(ji,jj) 
+         ELSEIF ( nn_rot==1 ) THEN
+            plamt(ji,jj) = -(zroffsety + rn_dy * 1.e-3 * ( ztj - 0.5_wp ))
+            plamu(ji,jj) = plamt(ji,jj)
+            plamv(ji,jj) = plamt(ji,jj) - rn_dy * 1.e-3 * 0.5_wp
+            plamf(ji,jj) = plamv(ji,jj) 
+         ELSEIF ( nn_rot==2 ) THEN
+            plamt(ji,jj) = -(zroffsetx + rn_dx * 1.e-3 * ( zti - 0.5_wp ))
+            plamu(ji,jj) = plamt(ji,jj) - rn_dx * 1.e-3 * 0.5_wp 
+            plamv(ji,jj) = plamt(ji,jj) 
+            plamf(ji,jj) = plamu(ji,jj) 
+         ELSEIF ( nn_rot==3 ) THEN
+            plamt(ji,jj) = (zroffsety + rn_dy * 1.e-3 * ( ztj - 0.5_wp ))
+            plamu(ji,jj) = plamt(ji,jj)
+            plamv(ji,jj) = plamt(ji,jj) + rn_dy * 1.e-3 * 0.5_wp
+            plamf(ji,jj) = plamv(ji,jj) 
+         ENDIF          
+         ! Latitudes:
+         IF ( nn_rot==0 ) THEN
+            pphit(ji,jj) = (zroffsety + rn_dy * 1.e-3 * ( ztj - 0.5_wp ))
+            pphiv(ji,jj) = pphit(ji,jj) + rn_dy * 1.e-3 * 0.5_wp 
+            pphiu(ji,jj) = pphit(ji,jj) 
+            pphif(ji,jj) = pphiv(ji,jj) 
+         ELSEIF ( nn_rot==1 ) THEN
+            pphit(ji,jj) = (zroffsetx + rn_dx * 1.e-3 * ( zti - 0.5_wp ))
+            pphiv(ji,jj) = pphit(ji,jj) 
+            pphiu(ji,jj) = pphit(ji,jj) + rn_dx * 1.e-3 * 0.5_wp 
+            pphif(ji,jj) = pphiu(ji,jj) 
+         ELSEIF ( nn_rot==2 ) THEN
+            pphit(ji,jj) = -(zroffsety + rn_dy * 1.e-3 * ( ztj - 0.5_wp ))
+            pphiv(ji,jj) = pphit(ji,jj) - rn_dy * 1.e-3 * 0.5_wp 
+            pphiu(ji,jj) = pphit(ji,jj) 
+            pphif(ji,jj) = pphiv(ji,jj) 
+         ELSEIF ( nn_rot==3 ) THEN
+            pphit(ji,jj) = -(zroffsetx + rn_dx * 1.e-3 * ( zti - 0.5_wp ))
+            pphiv(ji,jj) = pphit(ji,jj) 
+            pphiu(ji,jj) = pphit(ji,jj) - rn_dx * 1.e-3 * 0.5_wp 
+            pphif(ji,jj) = pphiu(ji,jj) 
+         ENDIF
       END_2D
       !     
       ! Horizontal scale factors (in meters)
       !                              ======
-      pe1t(:,:) = rn_dx  ;   pe2t(:,:) = rn_dy 
-      pe1u(:,:) = rn_dx  ;   pe2u(:,:) = rn_dy 
-      pe1v(:,:) = rn_dx  ;   pe2v(:,:) = rn_dy 
-      pe1f(:,:) = rn_dx  ;   pe2f(:,:) = rn_dy 
-
+      IF     ((nn_rot==0).OR.(nn_rot==2)) THEN
+         pe1t(:,:) = rn_dx  ;   pe2t(:,:) = rn_dy 
+         pe1u(:,:) = rn_dx  ;   pe2u(:,:) = rn_dy 
+         pe1v(:,:) = rn_dx  ;   pe2v(:,:) = rn_dy 
+         pe1f(:,:) = rn_dx  ;   pe2f(:,:) = rn_dy 
+      ELSEIF ((nn_rot==1).OR.(nn_rot==3)) THEN
+         pe1t(:,:) = rn_dy  ;   pe2t(:,:) = rn_dx 
+         pe1u(:,:) = rn_dy  ;   pe2u(:,:) = rn_dx 
+         pe1v(:,:) = rn_dy  ;   pe2v(:,:) = rn_dx 
+         pe1f(:,:) = rn_dy  ;   pe2f(:,:) = rn_dx 
+      ENDIF
       !                             ! NO reduction of grid size in some straits 
       ke1e2u_v = 0                  !    ==>> u_ & v_surfaces will be computed in dom_hgr routine
       pe1e2u(:,:) = 0._wp           !    CAUTION: set to zero to avoid error with some compilers that

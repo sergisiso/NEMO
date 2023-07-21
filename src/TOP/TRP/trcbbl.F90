@@ -55,11 +55,6 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('trc_bbl')
       !
-      IF( .NOT. l_offline ) THEN
-         CALL bbl( kt, nittrc000, 'TRC', Kbb, Kmm )  ! Online coupling with dynamics  : Computation of bbl coef and bbl transport
-         l_bbl = .FALSE.                             ! Offline coupling with dynamics : Read bbl coef and bbl transport from input files
-      ENDIF
-
       IF( l_trdtrc )  THEN
          ALLOCATE( ztrtrd(jpi,jpj,jpk,jptra) ) ! temporary save of trends
          ztrtrd(:,:,:,:)  = ptr(:,:,:,:,Krhs)

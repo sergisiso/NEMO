@@ -18,6 +18,7 @@ MODULE lib_fortran
    !!----------------------------------------------------------------------
    USE par_oce         ! Ocean parameter
    USE dom_oce         ! ocean domain
+   USE domutl, ONLY : is_tile
    USE in_out_manager  ! I/O manager
    USE lib_mpp         ! distributed memory computing
    USE lbclnk          ! ocean lateral boundary conditions
@@ -37,7 +38,7 @@ MODULE lib_fortran
 #endif
 
    INTERFACE glob_sum
-      MODULE PROCEDURE glob_sum_1d, glob_sum_2d, glob_sum_3d
+      MODULE PROCEDURE glob_sum_0d, glob_sum_1d, glob_sum_2d, glob_sum_3d
    END INTERFACE
    INTERFACE local_sum
       MODULE PROCEDURE local_sum_2d, local_sum_3d
@@ -63,9 +64,7 @@ MODULE lib_fortran
 
 #if defined key_nosignedzero
    INTERFACE SIGN
-      MODULE PROCEDURE SIGN_SCALAR, SIGN_ARRAY_1D, SIGN_ARRAY_2D, SIGN_ARRAY_3D,   &
-         &             SIGN_ARRAY_1D_A, SIGN_ARRAY_2D_A, SIGN_ARRAY_3D_A,          &
-         &             SIGN_ARRAY_1D_B, SIGN_ARRAY_2D_B, SIGN_ARRAY_3D_B
+      MODULE PROCEDURE SIGN_SCALAR
    END INTERFACE
 #endif
 
@@ -79,6 +78,9 @@ MODULE lib_fortran
 CONTAINS
 
 #  define GLOBSUM_CODE
+#     define DIM_0d
+#        include "lib_fortran_generic.h90"
+#     undef DIM_0d
 #     define DIM_1d
 #        include "lib_fortran_generic.h90"
 #     undef DIM_1d
@@ -211,7 +213,7 @@ CONTAINS
    END SUBROUTINE sum3x3_3d
 
    
-   SUBROUTINE DDPDD( ydda, yddb )
+   ELEMENTAL SUBROUTINE DDPDD( ydda, yddb )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE DDPDD ***
       !!
@@ -250,153 +252,20 @@ CONTAINS
    !!   'key_nosignedzero'                                         F90 SIGN
    !!----------------------------------------------------------------------
 
-   FUNCTION SIGN_SCALAR( pa, pb )
+   ELEMENTAL FUNCTION SIGN_SCALAR( pa, pb )
       !!-----------------------------------------------------------------------
       !!                  ***  FUNCTION SIGN_SCALAR  ***
       !!
       !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
       !!-----------------------------------------------------------------------
-      REAL(wp) :: pa,pb          ! input
-      REAL(wp) :: SIGN_SCALAR    ! result
+      REAL(wp), INTENT(in) :: pa,pb          ! input
+      REAL(wp)             :: SIGN_SCALAR    ! result
       !!-----------------------------------------------------------------------
-      IF ( pb >= 0.e0) THEN   ;   SIGN_SCALAR = ABS(pa)
-      ELSE                    ;   SIGN_SCALAR =-ABS(pa)
+      IF ( pb >= 0._wp ) THEN   ;   SIGN_SCALAR =  ABS(pa)
+      ELSE                      ;   SIGN_SCALAR = -ABS(pa)
       ENDIF
    END FUNCTION SIGN_SCALAR
 
-
-   FUNCTION SIGN_ARRAY_1D( pa, pb )
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_1D  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa,pb(:)                   ! input
-      REAL(wp) :: SIGN_ARRAY_1D(SIZE(pb,1))  ! result
-      !!-----------------------------------------------------------------------
-      WHERE ( pb >= 0.e0 )   ;   SIGN_ARRAY_1D = ABS(pa)
-      ELSEWHERE              ;   SIGN_ARRAY_1D =-ABS(pa)
-      END WHERE
-   END FUNCTION SIGN_ARRAY_1D
-
-
-   FUNCTION SIGN_ARRAY_2D(pa,pb)
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_2D  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa,pb(:,:)      ! input
-      REAL(wp) :: SIGN_ARRAY_2D(SIZE(pb,1),SIZE(pb,2))  ! result
-      !!-----------------------------------------------------------------------
-      WHERE ( pb >= 0.e0 )   ;   SIGN_ARRAY_2D = ABS(pa)
-      ELSEWHERE              ;   SIGN_ARRAY_2D =-ABS(pa)
-      END WHERE
-   END FUNCTION SIGN_ARRAY_2D
-
-   FUNCTION SIGN_ARRAY_3D(pa,pb)
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_3D  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa,pb(:,:,:)      ! input
-      REAL(wp) :: SIGN_ARRAY_3D(SIZE(pb,1),SIZE(pb,2),SIZE(pb,3))  ! result
-      !!-----------------------------------------------------------------------
-      WHERE ( pb >= 0.e0 )   ;   SIGN_ARRAY_3D = ABS(pa)
-      ELSEWHERE              ;   SIGN_ARRAY_3D =-ABS(pa)
-      END WHERE
-   END FUNCTION SIGN_ARRAY_3D
-
-
-   FUNCTION SIGN_ARRAY_1D_A(pa,pb)
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_1D_A  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa(:),pb(:)      ! input
-      REAL(wp) :: SIGN_ARRAY_1D_A(SIZE(pb,1))  ! result
-      !!-----------------------------------------------------------------------
-      WHERE ( pb >= 0.e0 )   ;   SIGN_ARRAY_1D_A = ABS(pa)
-      ELSEWHERE              ;   SIGN_ARRAY_1D_A =-ABS(pa)
-      END WHERE
-   END FUNCTION SIGN_ARRAY_1D_A
-
-
-   FUNCTION SIGN_ARRAY_2D_A(pa,pb)
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_2D_A  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa(:,:),pb(:,:)      ! input
-      REAL(wp) :: SIGN_ARRAY_2D_A(SIZE(pb,1),SIZE(pb,2))  ! result
-      !!-----------------------------------------------------------------------
-      WHERE ( pb >= 0.e0 )   ;   SIGN_ARRAY_2D_A = ABS(pa)
-      ELSEWHERE              ;   SIGN_ARRAY_2D_A =-ABS(pa)
-      END WHERE
-   END FUNCTION SIGN_ARRAY_2D_A
-
-
-   FUNCTION SIGN_ARRAY_3D_A(pa,pb)
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_3D_A  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa(:,:,:),pb(:,:,:)  ! input
-      REAL(wp) :: SIGN_ARRAY_3D_A(SIZE(pb,1),SIZE(pb,2),SIZE(pb,3)) ! result
-      !!-----------------------------------------------------------------------
-      WHERE ( pb >= 0.e0 )   ;   SIGN_ARRAY_3D_A = ABS(pa)
-      ELSEWHERE              ;   SIGN_ARRAY_3D_A =-ABS(pa)
-      END WHERE
-   END FUNCTION SIGN_ARRAY_3D_A
-
-
-   FUNCTION SIGN_ARRAY_1D_B(pa,pb)
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_1D_B  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa(:),pb      ! input
-      REAL(wp) :: SIGN_ARRAY_1D_B(SIZE(pa,1))  ! result
-      !!-----------------------------------------------------------------------
-      IF( pb >= 0.e0 ) THEN   ;   SIGN_ARRAY_1D_B = ABS(pa)
-      ELSE                    ;   SIGN_ARRAY_1D_B =-ABS(pa)
-      ENDIF
-   END FUNCTION SIGN_ARRAY_1D_B
-
-
-   FUNCTION SIGN_ARRAY_2D_B(pa,pb)
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_2D_B  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa(:,:),pb      ! input
-      REAL(wp) :: SIGN_ARRAY_2D_B(SIZE(pa,1),SIZE(pa,2))  ! result
-      !!-----------------------------------------------------------------------
-      IF( pb >= 0.e0 ) THEN   ;   SIGN_ARRAY_2D_B = ABS(pa)
-      ELSE                    ;   SIGN_ARRAY_2D_B =-ABS(pa)
-      ENDIF
-   END FUNCTION SIGN_ARRAY_2D_B
-
-
-   FUNCTION SIGN_ARRAY_3D_B(pa,pb)
-      !!-----------------------------------------------------------------------
-      !!                  ***  FUNCTION SIGN_ARRAY_3D_B  ***
-      !!
-      !! ** Purpose : overwrite f95 behaviour of intrinsinc sign function
-      !!-----------------------------------------------------------------------
-      REAL(wp) :: pa(:,:,:),pb      ! input
-      REAL(wp) :: SIGN_ARRAY_3D_B(SIZE(pa,1),SIZE(pa,2),SIZE(pa,3))  ! result
-      !!-----------------------------------------------------------------------
-      IF( pb >= 0.e0 ) THEN   ;   SIGN_ARRAY_3D_B = ABS(pa)
-      ELSE                    ;   SIGN_ARRAY_3D_B =-ABS(pa)
-      ENDIF
-   END FUNCTION SIGN_ARRAY_3D_B
 #endif
 
    !!======================================================================

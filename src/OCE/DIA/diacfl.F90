@@ -93,9 +93,9 @@ CONTAINS
       CALL mpp_maxloc( 'diacfl', zCw_cfl, llmsk, zCw_max, iloc_w )
       !
       IF( lwp ) THEN       ! write out to file
-         WRITE(numcfl,FMT='(2x,i6,3x,a6,4x,f7.4,1x,i4,1x,i4,1x,i4)') kt, 'Max Cu', zCu_max, iloc_u(1), iloc_u(2), iloc_u(3)
-         WRITE(numcfl,FMT='(11x,     a6,4x,f7.4,1x,i4,1x,i4,1x,i4)')     'Max Cv', zCv_max, iloc_v(1), iloc_v(2), iloc_v(3)
-         WRITE(numcfl,FMT='(11x,     a6,4x,f7.4,1x,i4,1x,i4,1x,i4)')     'Max Cw', zCw_max, iloc_w(1), iloc_w(2), iloc_w(3)
+         WRITE(numcfl,FMT='(2x,i6,3x,a6,4x,f8.4,1x,i4,1x,i4,1x,i4)') kt, 'Max Cu', zCu_max, iloc_u(1), iloc_u(2), iloc_u(3)
+         WRITE(numcfl,FMT='(11x,     a6,4x,f8.4,1x,i4,1x,i4,1x,i4)')     'Max Cv', zCv_max, iloc_v(1), iloc_v(2), iloc_v(3)
+         WRITE(numcfl,FMT='(11x,     a6,4x,f8.4,1x,i4,1x,i4,1x,i4)')     'Max Cw', zCw_max, iloc_w(1), iloc_w(2), iloc_w(3)
       ENDIF
       !
       !                    ! update maximum Courant numbers from whole run if applicable
@@ -107,13 +107,13 @@ CONTAINS
       IF( kt == nitend .AND. lwp ) THEN
          ! to ascii file
          WRITE(numcfl,*) '******************************************'
-         WRITE(numcfl,FMT='(3x,a12,6x,f7.4,1x,i4,1x,i4,1x,i4)') 'Run Max Cu', rCu_max, nCu_loc(1), nCu_loc(2), nCu_loc(3)
+         WRITE(numcfl,FMT='(3x,a12,6x,f8.4,1x,i4,1x,i4,1x,i4)') 'Run Max Cu', rCu_max, nCu_loc(1), nCu_loc(2), nCu_loc(3)
          WRITE(numcfl,FMT='(3x,a8,11x,f15.1)') ' => dt/C', rDt/rCu_max
          WRITE(numcfl,*) '******************************************'
-         WRITE(numcfl,FMT='(3x,a12,6x,f7.4,1x,i4,1x,i4,1x,i4)') 'Run Max Cv', rCv_max, nCv_loc(1), nCv_loc(2), nCv_loc(3)
+         WRITE(numcfl,FMT='(3x,a12,6x,f8.4,1x,i4,1x,i4,1x,i4)') 'Run Max Cv', rCv_max, nCv_loc(1), nCv_loc(2), nCv_loc(3)
          WRITE(numcfl,FMT='(3x,a8,11x,f15.1)') ' => dt/C', rDt/rCv_max
          WRITE(numcfl,*) '******************************************'
-         WRITE(numcfl,FMT='(3x,a12,6x,f7.4,1x,i4,1x,i4,1x,i4)') 'Run Max Cw', rCw_max, nCw_loc(1), nCw_loc(2), nCw_loc(3)
+         WRITE(numcfl,FMT='(3x,a12,6x,f8.4,1x,i4,1x,i4,1x,i4)') 'Run Max Cw', rCw_max, nCw_loc(1), nCw_loc(2), nCw_loc(3)
          WRITE(numcfl,FMT='(3x,a8,11x,f15.1)') ' => dt/C', rDt/rCw_max
          CLOSE( numcfl ) 
          !
@@ -146,8 +146,8 @@ CONTAINS
          !
          ! create output ascii file
          CALL ctl_opn( numcfl, clname, 'UNKNOWN', 'FORMATTED', 'SEQUENTIAL', 1, numout, lwp, 1 )
-         WRITE(numcfl,*) 'Timestep  Direction  Max C     i    j    k'
-         WRITE(numcfl,*) '******************************************'
+         WRITE(numcfl,*) 'Timestep  Direction   Max C     i    j    k'
+         WRITE(numcfl,*) '*******************************************'
       ENDIF
       !
       rCu_max = 0._wp

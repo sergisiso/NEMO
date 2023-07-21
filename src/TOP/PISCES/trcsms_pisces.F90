@@ -12,7 +12,6 @@ MODULE trcsms_pisces
    USE par_pisces
    USE sms_pisces
    USE p4zsms
-   USE p2zsms
 
    IMPLICIT NONE
    PRIVATE
@@ -38,10 +37,7 @@ CONTAINS
       INTEGER, INTENT( in ) ::   Kbb, Kmm, Krhs   ! time level index
       !!---------------------------------------------------------------------
       !
-      IF( ln_p4z .OR. ln_p5z ) THEN  ;   CALL p4z_sms( kt, Kbb, Kmm, Krhs )   !  PISCES
-      ELSE                           ;   CALL p2z_sms( kt,      Kmm, Krhs )   !  LOBSTER
-      ENDIF
-
+      CALL p4z_sms( kt, Kbb, Kmm, Krhs )   !  PISCES
       !
    END SUBROUTINE trc_sms_pisces
 

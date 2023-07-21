@@ -172,8 +172,7 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      CALL eos    ( ts(:,:,:,:,:), Kmm, rhd ) ! In any case, we need rhd
-!!st      CALL eos    ( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
+      CALL eos    ( ts(:,:,:,:,:), Kmm, rhd, rhop ) ! In any case, we need rhop
       CALL eos_rab( ts(:,:,:,:,Kmm), rab_n, Kmm )       ! now    local thermal/haline expension ratio at T-points
       CALL bn2    ( ts(:,:,:,:,Kmm), rab_n, rn2, Kmm )  ! before Brunt-Vaisala frequency need for zdfmxl
 
@@ -190,10 +189,6 @@ CONTAINS
          ahu_bbl(:,:) = sf_dyn(jf_ubl)%fnow(:,:,1) * umask(:,:,1)    ! bbl diffusive coef
          ahv_bbl(:,:) = sf_dyn(jf_vbl)%fnow(:,:,1) * vmask(:,:,1)
       ENDIF
-      !
-      !
-      CALL eos    ( ts(:,:,:,:,:), Kmm, rhd ) ! In any case, we need rhd
-!!st      CALL eos( ts(:,:,:,:,Kmm), rhd, gdept_0(:,:,:) ) ! In any case, we need rhd
       !
       IF(sn_cfctl%l_prtctl) THEN                 ! print control
          CALL prt_ctl(tab3d_1=ts(:,:,:,jp_tem,Kmm), clinfo1=' tn      - : ', mask1=tmask )

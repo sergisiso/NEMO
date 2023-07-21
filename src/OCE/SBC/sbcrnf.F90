@@ -273,16 +273,6 @@ CONTAINS
       !                                         !==  allocate runoff arrays
       IF( sbc_rnf_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'sbc_rnf_alloc : unable to allocate arrays' )
       !
-      IF( .NOT. ln_rnf ) THEN                      ! no specific treatment in vicinity of river mouths
-         ln_rnf_mouth  = .FALSE.                   ! default definition needed for example by sbc_ssr or by tra_adv_muscl
-         nkrnf         = 0
-         rnf     (:,:) = 0.0_wp
-         rnf_b   (:,:) = 0.0_wp
-         rnfmsk  (:,:) = 0.0_wp
-         rnfmsk_z(:)   = 0.0_wp
-         RETURN
-      ENDIF
-      !
       !                                   ! ============
       !                                   !   Namelist
       !                                   ! ============
@@ -293,6 +283,19 @@ CONTAINS
       READ  ( numnam_cfg, namsbc_rnf, IOSTAT = ios, ERR = 902 )
 902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_rnf in configuration namelist' )
       IF(lwm) WRITE ( numond, namsbc_rnf )
+      !
+      IF( .NOT. ln_rnf ) THEN                      ! no specific treatment in vicinity of river mouths
+         ln_rnf_mouth  = .FALSE.                   ! default definition needed for example by sbc_ssr or by tra_adv_muscl
+         ln_rnf_tem    = .FALSE.
+         ln_rnf_sal    = .FALSE.
+         ln_rnf_icb    = .FALSE.
+         nkrnf         = 0
+         rnf     (:,:) = 0.0_wp
+         rnf_b   (:,:) = 0.0_wp
+         rnfmsk  (:,:) = 0.0_wp
+         rnfmsk_z(:)   = 0.0_wp
+         RETURN
+      ENDIF
       !
       !                                         ! Control print
       IF(lwp) THEN

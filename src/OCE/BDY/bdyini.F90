@@ -24,6 +24,7 @@ MODULE bdyini
    USE bdytides       ! open boundary cond. setting   (bdytide_init routine)
    USE tide_mod, ONLY: ln_tide ! tidal forcing
    USE phycst  , ONLY: rday
+   USE netcdf
    !
    USE in_out_manager ! I/O units
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
@@ -95,6 +96,7 @@ CONTAINS
       rn_time_dmp_out(2:jp_bdy) = rn_time_dmp_out(1)
       cn_ice         (2:jp_bdy) = cn_ice         (1)
       nn_ice_dta     (2:jp_bdy) = nn_ice_dta     (1)
+      nn_rimwidth    (2:jp_bdy) = nn_rimwidth    (1)
       READ  ( numnam_cfg, nambdy, IOSTAT = ios, ERR = 902 )
 902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nambdy in configuration namelist' )
       IF(lwm) WRITE ( numond, nambdy )
@@ -1592,12 +1594,10 @@ CONTAINS
       DO ib = 1, nbdysegw
          ! get mask at boundary extremities:
          ztestmask(1:2)=0.
-         DO ji = 1, jpi
-            DO jj = 1, jpj             
-              IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
-            END DO
-         END DO
+         DO_2D (0, 0, 0, 0) 
+            IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+            IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+         END_2D
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
          IF (ztestmask(1)==1) THEN 
@@ -1628,12 +1628,10 @@ CONTAINS
       DO ib = 1, nbdysege
          ! get mask at boundary extremities:
          ztestmask(1:2)=0.
-         DO ji = 1, jpi
-            DO jj = 1, jpj             
-              IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjedt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjeft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
-            END DO
-         END DO
+         DO_2D (0, 0, 0, 0) 
+            IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjedt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+            IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjeft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+         END_2D 
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
          IF (ztestmask(1)==1) THEN
@@ -1664,12 +1662,10 @@ CONTAINS
       DO ib = 1, nbdysegs
          ! get mask at boundary extremities:
          ztestmask(1:2)=0.
-         DO ji = 1, jpi
-            DO jj = 1, jpj             
-              IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-              IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
-            END DO
-         END DO
+         DO_2D (0, 0, 0, 0) 
+            IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+            IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+         END_2D 
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
          IF ((ztestmask(1)==1).AND.(icorns(ib,1)==0)) THEN
@@ -1686,12 +1682,10 @@ CONTAINS
       DO ib = 1, nbdysegn
          ! get mask at boundary extremities:
          ztestmask(1:2)=0.
-         DO ji = 1, jpi
-            DO jj = 1, jpj             
-               IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpindt(ib) )   ztestmask(1) = tmask(ji,jj,1)
-               IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpinft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
-            END DO
-         END DO
+         DO_2D (0, 0, 0, 0) 
+            IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpindt(ib) )   ztestmask(1) = tmask(ji,jj,1)
+            IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpinft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
+         END_2D
          CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
          IF ((ztestmask(1)==1).AND.(icornn(ib,1)==0)) THEN
@@ -1774,6 +1768,8 @@ CONTAINS
             nbidta(icount, igrd, ib_bdy) = -ib_bdy ! Discount this point
             nbjdta(icount, igrd, ib_bdy) = -ib_bdy ! Discount this point
          ENDDO
+
+         IF(lwp) call bdy_coords_wri( nbidta, nbjdta, nbrdta, icount, ib_bdy, 'East' )
       ENDDO
       !
       ! West
@@ -1819,6 +1815,8 @@ CONTAINS
             nbidta(icount, igrd, ib_bdy) = -ib_bdy ! Discount this point
             nbjdta(icount, igrd, ib_bdy) = -ib_bdy ! Discount this point
          ENDDO
+
+         IF(lwp) call bdy_coords_wri( nbidta, nbjdta, nbrdta, icount, ib_bdy, 'West' )
       ENDDO
       !
       ! North
@@ -1864,6 +1862,8 @@ CONTAINS
                nbrdta(icount, igrd, ib_bdy) = ir
             ENDDO
          ENDDO
+
+         IF(lwp) call bdy_coords_wri( nbidta, nbjdta, nbrdta, icount, ib_bdy, 'North' )
       ENDDO
       !
       ! South
@@ -1909,12 +1909,14 @@ CONTAINS
                nbrdta(icount, igrd, ib_bdy) = ir
             ENDDO
          ENDDO
+
+         IF(lwp) call bdy_coords_wri( nbidta, nbjdta, nbrdta, icount, ib_bdy, 'South' )
       ENDDO
 
       
    END SUBROUTINE bdy_coords_seg
-   
-   
+
+
    SUBROUTINE bdy_ctl_corn( ib1, ib2 )
       !!----------------------------------------------------------------------
       !!                 ***  ROUTINE bdy_ctl_corn  ***
@@ -1945,6 +1947,85 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE bdy_ctl_corn
+
+
+   SUBROUTINE bdy_coords_wri( nbidta, nbjdta, nbrdta, icount, id_seg, segment )
+      !!----------------------------------------------------------------------
+      !!                 ***  ROUTINE bdy_coords_wri  ***
+      !!
+      !! ** Purpose :  write to file  nbidta, nbidta, nbrdta for bdy built with segments
+      !!
+      !! ** Method  :
+      !!
+      !!----------------------------------------------------------------------
+      INTEGER, DIMENSION(:,:,:), intent(in   )  :: nbidta, nbjdta, nbrdta   ! Index arrays: i and j indices & rim of bdy dta
+      INTEGER,                   intent(in   )  :: icount, id_seg
+      CHARACTER(LEN=*),          intent(in   )  :: segment
+      !!
+      INTEGER  ::   igrd                   ! grid type (t=1, u=2, v=3)
+      CHARACTER(LEN=1) , DIMENSION(jpbgrd)  ::   cgrid = (/'t','u','v'/)
+      INTEGER, DIMENSION(2) :: vardim
+      INTEGER, DIMENSION(3) :: xbdim, igrdsize
+      INTEGER, DIMENSION(3,3) :: varids
+      INTEGER  :: istatus, idfile, ybdim, kdim, kid
+      CHARACTER(len=nf90_max_name) :: filename
+      !!----------------------------------------------------------------------
+      filename='coordinates.bdy.'//TRIM(segment)//'.nc'
+
+      ! discount last point in U or V (see bdy_coords_seg)
+      igrdsize(:) = icount
+      SELECT CASE( TRIM(segment) )
+         CASE( 'North', 'South' ) ; igrdsize(2) = icount - 1
+         CASE( 'East', 'West' )   ; igrdsize(3) = icount - 1
+      END SELECT
+
+      ! Open output filename
+      istatus = nf90_create( TRIM( filename ), nf90_clobber, idfile )
+      istatus = nf90_put_att( idfile, nf90_global, 'title', 'BDY coordinate file' )
+      istatus = nf90_put_att( idfile, nf90_global, 'boundary', TRIM(segment) )
+      istatus = nf90_put_att( idfile, nf90_global, 'rimwidth', MAXVAL(nbrdta(:, 1, id_seg)) )
+
+      ! Create the dimensions
+      istatus = nf90_def_dim( idfile, 'yb'  , 1, ybdim)
+      istatus = nf90_def_dim( idfile, 'xbT'  , igrdsize(1), xbdim(1))
+      istatus = nf90_def_dim( idfile, 'xbU'  , igrdsize(2), xbdim(2))
+      istatus = nf90_def_dim( idfile, 'xbV'  , igrdsize(3), xbdim(3))
+      istatus = nf90_def_dim( idfile, 'lev'  , jpk, kdim)
+
+      ! Define netCDF variables
+      DO igrd = 1, 3
+         vardim(1) = xbdim(igrd)
+         vardim(2) = ybdim
+         istatus = nf90_def_var( idfile, 'nbi'//cgrid(igrd), nf90_short, vardim, varids(igrd,1) )
+         istatus = nf90_put_att( idfile, varids(igrd,1), 'long_name', cgrid(igrd)//'-grid index along X axis')
+         istatus = nf90_put_att( idfile, varids(igrd,1), 'units', '-')
+         istatus = nf90_def_var( idfile, 'nbj'//cgrid(igrd), nf90_short, vardim, varids(igrd,2) )
+         istatus = nf90_put_att( idfile, varids(igrd,2), 'long_name', cgrid(igrd)//'-grid index along Y axis')
+         istatus = nf90_put_att( idfile, varids(igrd,2), 'units', '-')
+         istatus = nf90_def_var( idfile, 'nbr'//cgrid(igrd), nf90_short, vardim, varids(igrd,3) )
+         istatus = nf90_put_att( idfile, varids(igrd,3), 'long_name', 'Rim index of segment')
+         istatus = nf90_put_att( idfile, varids(igrd,3), 'units', '-')
+      ENDDO
+      istatus = nf90_def_var( idfile, 'depth', nf90_float, kdim, kid)
+      istatus = nf90_put_att( idfile, kid, 'long_name', 'Vertical levels')
+      istatus = nf90_put_att( idfile, kid, 'units', 'meters')
+
+
+      ! Stop definitions
+      istatus = nf90_enddef( idfile )
+
+      ! Write the variables (remove nn_hls, it is added back when reading the file)
+      DO igrd = 1, 3
+         istatus = nf90_put_var( idfile, varids(igrd,1), nbidta(1:igrdsize(igrd),igrd,id_seg) - nn_hls)
+         istatus = nf90_put_var( idfile, varids(igrd,2), nbjdta(1:igrdsize(igrd),igrd,id_seg) - nn_hls)
+         istatus = nf90_put_var( idfile, varids(igrd,3), nbrdta(1:igrdsize(igrd),igrd,id_seg) )
+      ENDDO
+      istatus = nf90_put_var( idfile, kid, gdept_1d(:))
+
+      ! Close the file
+      istatus = nf90_close( idfile )
+
+   END SUBROUTINE bdy_coords_wri
 
 
    SUBROUTINE bdy_meshwri()

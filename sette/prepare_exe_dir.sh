@@ -79,7 +79,7 @@ set -o posix
 EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
 mkdir -p ${EXE_DIR}/${TEST_NAME}
 
-cp -an ${EXE_DIR}/EXP00/* ${EXE_DIR}/${TEST_NAME}/.
+cp -a ${EXE_DIR}/EXP00/* ${EXE_DIR}/${TEST_NAME}/.
 COMP_KEYS="`cat ${EXE_DIR}/cpp_${SETTE_CONFIG}.fcm | sed -e 's/.*fppkeys *//'`"
 
 export EXE_DIR=${EXE_DIR}/${TEST_NAME}

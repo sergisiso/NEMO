@@ -22,6 +22,8 @@
 # Test specific settings. Do not hand edit these lines; the fcm_job.sh script will set these
 # (via sed operating on this template job file). 
 #
+set -x
+
   echo " ";
   OCORES=NPROCS
   XCORES=NXIOPROCS
@@ -71,7 +73,9 @@ export XIO_HOME=${XIOS_DIR}
 # change to the working directory 
 #
   cd $EXE_DIR
-
+  if [[ ${NEW_CONF} =~ "ICE_AGRIF" ]]; then
+    sed -i'' -e 's/detect_missing_value="true"/detect_missing_value="false"/' field_def_nemo-ice.xml
+  fi
   echo Running on host `hostname`
   echo Time is `date`
   echo Directory is `pwd`

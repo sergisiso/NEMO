@@ -1720,7 +1720,7 @@ CONTAINS
       !!----------------------------------------------------------------------  
       !    
       IF( before ) THEN
-         IF ( lk_vco_1d3d ) THEN
+         IF ( l_zps ) THEN
             DO jk = k1, k2
                DO jj = j1, j2
                   DO ji = i1, i2

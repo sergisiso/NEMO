@@ -55,7 +55,7 @@ set -o posix
 if [ "$2" == "YES" ]; then
    echo -n " $1 [Y/n] "
    read answer
-   answer=`echo $answer | sed 's/^[yY].*$/y/'`
+   answer=`echo $answer | sed -e 's/^[yY].*$/y/'`
    if [  -z "$answer" -o "x$answer" = "xy" ]; then
       TAB[$ind]="$1"
       let ind=ind+1
@@ -69,7 +69,7 @@ if [ "$2" == "YES" ]; then
 else
    echo -n " $1 [y/N] "
    read answer
-   answer=`echo $answer | sed 's/^[nN].*$/N/'`
+   answer=`echo $answer | sed -e 's/^[nN].*$/N/'`
    if [ "x$answer" = "xy" ]; then
       TAB[$ind]="$1"
       let ind=ind+1

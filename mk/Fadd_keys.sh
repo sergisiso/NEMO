@@ -69,7 +69,7 @@ for i in ${2} ; do
     if [ "$(cat ${1}/cpp_$(basename ${1}).fcm | grep -c "\<$i\>" )" -ne 0 ] ; then
         echo "key $i already present in cpp_$(basename ${1}).fcm"
     else
-        sed -i "s/$/ ${i}/" ${1}/cpp_$(basename ${1}).fcm
+        sed -i'' -e "s/$/ ${i}/" ${1}/cpp_$(basename ${1}).fcm
         echo "added key $i in $(basename ${1})"
     fi
 done

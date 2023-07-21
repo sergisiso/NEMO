@@ -133,7 +133,6 @@
 !-----------------------------------------------------------------------
 &namwad        !   Wetting and Drying (WaD)                             (default: OFF)
 !-----------------------------------------------------------------------
-   ln_wd_il    = .false.   !  T/F activation of iterative   limiter
    ln_wd_dl    = .false.   !  T/F activation of directional limiter
    ln_wd_dl_bc = .false.   !  T/F Directional limiteer Baroclinic option
    ln_wd_dl_rmp = .false.  !  T/F Turn on directional limiter ramp
@@ -141,7 +140,6 @@
    rn_wdmin1   =  0.2      !  Minimum wet depth on dried cells
    rn_wdmin2   =  0.0001   !  Tolerance of min wet depth on dried cells
    rn_wdld     =  2.5      !  Land elevation below which WaD is allowed
-   nn_wdit     =   20      !  Max iterations for WaD limiter
    rn_wd_sbcdep =  5.0     !  Depth at which to taper sbc fluxes
    rn_wd_sbcfra =  0.999   !  Fraction of SBC fluxes at taper depth (Must be <1)
 /
@@ -323,6 +321,7 @@
 
    ln_rstart_abl  = .false.
    ln_hpgls_frc   = .false.
+      ln_pga_abl  = .false.   ! ABL pressure gradient anomaly forcing
    ln_geos_winds  = .false.
    ln_smth_pblh   = .false.
    nn_dyn_restore = 0         ! restoring option for dynamical ABL variables: = 0 no restoring
@@ -631,8 +630,10 @@
    !                          ! diagnostics:
    ln_bergdia        = .true.        ! Calculate budgets
    nn_verbose_level  = 0             ! Turn on more verbose output if level > 0
-   nn_verbose_write  = 15            ! Timesteps between verbose messages
-   nn_sample_rate    = 1             ! Timesteps between sampling for trajectory storage
+   !
+   ! nn_verbose_write and nn_sample_rate need to be a multiple of nn_fsbc
+   nn_verbose_write  = 16            ! Timesteps between verbose messages
+   nn_sample_rate    = 16            ! Timesteps between sampling for trajectory storage
    !
    !                          ! iceberg setting:
    !                                 ! Initial mass required for an iceberg of each class
@@ -979,11 +980,42 @@
       !                             !   = 20 F(i,j)    =ldf_c2d
       !                             !   = 21 F(i,j,t)  =Treguier et al. JPO 1997 formulation
       !                             !   = 30 F(i,j,k)  =ldf_c2d * ldf_c1d
+      !                             !   = 32 F(i,j,t)  = GEOMETRIC parameterization        (=> fill namldf_eke)
       !                        !  time invariant coefficients:  aei0 = 1/2  Ue*Le
       rn_Ue        = 0.02           !  lateral diffusive velocity [m/s] (nn_aht_ijk_t= 0, 10, 20, 30)
       rn_Le        = 200.e+3        !  lateral diffusive length   [m]   (nn_aht_ijk_t= 0, 10)
       !
       ln_ldfeiv_dia =.false.   ! diagnose eiv stream function and velocities
+      ln_eke_equ    =.false.   ! switch on update of GEOMETRIC eddy energy equation        (=> fill namldf_eke)
+                               ! forced to be true if nn_aei_ijk_t = 32
+/
+!----------------------------------------------------------------------------------
+&namldf_eke !   GEOMETRIC param. (total EKE equation)                           (nn_aei_ijk_t = 32)
+!----------------------------------------------------------------------------------
+   rn_ekedis      =  180.      ! dissipation time scale of EKE [days]
+      nn_eke_dis  =    0       ! dissipation option
+      !                             !   =  0  constant in space
+      !                             !   =-20  read in geom_diss_2D.nc file
+   rn_geom        =  0.05      ! geometric parameterization master coefficient (>0 & <1)
+   rn_eke_init    =  1.e-1     ! initial total EKE value
+   rn_eke_min     =  1.e+0     ! background value of total EKE
+   rn_ross_min    =  4.e+3     ! tapering of aeiv based on min Rossby radius [m]
+   !                           !   set to zero to not taper it
+   rn_eke_lap     =   500.     ! Laplacian diffusion coefficient of EKE
+   !                           !   this is in all options below, so set it to zero and nothing is done
+   rn_aeiv_min    =  1.e+1     ! minimum bound of eiv coefficient
+   rn_aeiv_max    =  1.5e+4    ! maximum bound of eiv coefficient
+   rn_SFmin       =  1.0       ! minimum bound of Structure Function
+   rn_SFmax       =  1.0       ! maximum bound of Structure Function
+   nn_eke_opt     =  1         ! options for terms to include in EKE budget
+   !                                !   =  0  PE->EKE conversion, dissipation only
+   !                                !   =  1  as 0 but with advection
+   !                                !   =  2  as 1 but with additional KE->EKE conversion
+   !                                !   for testing purposes:
+   !                                !   = 88  only advection by depth-averaged flow
+   !                                !   = 99  only Laplacian diffusion
+   ln_adv_wav     =  .false.  ! include advection at long Rossby speed
+   ln_beta_plane  =  .false.  ! beta plane option for computing long Rossby speed (default: sphere option)
 /
 !-----------------------------------------------------------------------
 &namtra_dmp    !   tracer: T & S newtonian damping                      (default: OFF)
@@ -1032,7 +1064,7 @@
    ln_dynadv_vec = .false. !  vector form - 2nd centered scheme
      nn_dynkeg     = 0        ! grad(KE) scheme: =0   C2  ;  =1   Hollingsworth correction
    ln_dynadv_cen2 = .false. !  flux form - 2nd order centered scheme
-   ln_dynadv_ubs = .false. !  flux form - 3rd order UBS      scheme
+   ln_dynadv_up3 = .false. !  flux form - 3rd order UBS      scheme
 /
 !-----------------------------------------------------------------------
 &namdyn_vor    !   Vorticity / Coriolis scheme                          (default: NO selection)

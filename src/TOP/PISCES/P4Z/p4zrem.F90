@@ -18,6 +18,7 @@ MODULE p4zrem
    USE sms_pisces      !  PISCES Source Minus Sink variables
    USE p4zche          !  chemical model
    USE p4zprod         !  Growth rate of the 2 phyto groups
+   USE p2zlim          !  Nutrient limitation terms
    USE p4zlim          !  Nutrient limitation terms
    USE prtctl          !  print control for debugging
    USE iom             !  I/O manager
@@ -27,6 +28,7 @@ MODULE p4zrem
    PRIVATE
 
    PUBLIC   p4z_rem         ! called in p4zbio.F90
+   PUBLIC   p2z_rem
    PUBLIC   p4z_rem_init    ! called in trcini_pisces.F90
    PUBLIC   p4z_rem_alloc   ! called in trcini_pisces.F90
 
@@ -53,6 +55,137 @@ MODULE p4zrem
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
+
+   SUBROUTINE p2z_rem( kt, knt, Kbb, Kmm, Krhs )
+      !!---------------------------------------------------------------------
+      !!                     ***  ROUTINE p2z_rem  ***
+      !!
+      !! ** Purpose :   Compute remineralization/dissolution of organic compounds
+      !!                Computes also nitrification of ammonium 
+      !!                The solubilization/remineralization of POC is treated 
+      !!                in p4zpoc.F90. The dissolution of calcite is processed
+      !!                in p4zlys.F90. 
+      !!
+      !! ** Method  : - Bacterial biomass is computed implicitely based on a 
+      !!                parameterization developed from an explicit modeling
+      !!                of PISCES in an alternative version 
+      !!---------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt, knt         ! ocean time step
+      INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level indices
+      !
+      INTEGER  ::   ji, jj, jk
+      REAL(wp) ::   zremik, zremikc, zfact
+      REAL(wp) ::   zdep, zdepmin, zfactdep
+      REAL(wp) ::   zammonic, zoxyremc, zolimic
+      CHARACTER (len=25) :: charout
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zdepbac
+      REAL(wp), DIMENSION(A2D(0)    ) :: ztempbac
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zw3d, zolimi
+      !!---------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('p2z_rem')
+      !
+      IF( kt == nittrc000 )  THEN
+         l_dia_remin  = iom_use( "REMIN" )
+         l_dia_denit  = iom_use( "DENIT" )
+         l_dia_bact   = iom_use( "BACT" )
+      ENDIF
+      IF( l_dia_remin ) THEN
+         ALLOCATE( zolimi(A2D(0),jpk) )    ;   zolimi(A2D(0),jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpk)
+            zolimi(ji,jj,jk) = tr(ji,jj,jk,jpoxy,Krhs)
+         END_3D
+      ENDIF
+
+      ! Computation of the mean bacterial concentration
+      ! this parameterization has been deduced from a model version
+      ! that was modeling explicitely bacteria. This is a very old parame
+      ! that will be very soon updated based on results from a much more
+      ! recent version of PISCES with bacteria.
+      ! ----------------------------------------------------------------
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         zdep = MAX( hmld(ji,jj), heup_01(ji,jj), gdept(ji,jj,1,Kmm) )
+         IF ( gdept(ji,jj,jk,Kmm) <= zdep ) THEN
+            zdepbac(ji,jj,jk) = 0.6 * ( MAX(0.0, tr(ji,jj,jk,jpzoo,Kbb) ) * 1.0E6 )**0.6 * 1.E-6
+            ztempbac(ji,jj)   = zdepbac(ji,jj,jk)
+         ELSE
+            zdepmin = MIN( 1., zdep / gdept(ji,jj,jk,Kmm) )
+            zdepbac(ji,jj,jk) = zdepmin**0.683 * ztempbac(ji,jj)
+         ENDIF
+      END_3D
+
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         ! DOC ammonification. Depends on depth, phytoplankton biomass
+         ! and a limitation term which is supposed to be a parameterization of the bacterial activity. 
+         ! --------------------------------------------------------------------------
+         zremik = xstep / 1.e-6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk)
+         zremik = MAX( zremik, 2.74e-4 * xstep / xremikc )
+         zremikc = xremikc * zremik
+         ! Ammonification in oxic waters with oxygen consumption
+         ! -----------------------------------------------------
+         zolimic = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb)
+         zolimic = MAX(0., MIN( ( tr(ji,jj,jk,jpoxy,Kbb) - rtrn ) / o2ut, zolimic ) )
+
+         ! Ammonification in suboxic waters with denitrification
+         ! -----------------------------------------------------
+         zammonic = zremikc * nitrfac(ji,jj,jk) * tr(ji,jj,jk,jpdoc,Kbb)
+         denitr(ji,jj,jk)  = zammonic * ( 1. - nitrfac2(ji,jj,jk) )
+         denitr(ji,jj,jk)  = MAX(0., MIN(  ( tr(ji,jj,jk,jpno3,Kbb) - rtrn ) / rdenit, denitr(ji,jj,jk) ) )
+
+         ! Ammonification in waters depleted in O2 and NO3 based on 
+         ! other redox processes
+         ! --------------------------------------------------------
+         zoxyremc          = MAX(0., zammonic - denitr(ji,jj,jk) )
+
+         ! Update of the the trends arrays
+         tr(ji,jj,jk,jpno3,Krhs) = tr(ji,jj,jk,jpno3,Krhs) - denitr (ji,jj,jk) * rdenit
+         tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) - ( zolimic + denitr(ji,jj,jk) + zoxyremc )
+         tr(ji,jj,jk,jpoxy,Krhs) = tr(ji,jj,jk,jpoxy,Krhs) - zolimic * (o2ut + o2nit)
+         tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) + zolimic + denitr(ji,jj,jk) + zoxyremc
+         tr(ji,jj,jk,jpno3,Krhs) = tr(ji,jj,jk,jpno3,Krhs) + zolimic + denitr(ji,jj,jk) + zoxyremc
+         tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - rno3 * ( zolimic + zoxyremc - ( rdenit - 1.) * denitr(ji,jj,jk) )
+      END_3D
+
+      IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
+         WRITE(charout, FMT="('rem1')")
+         CALL prt_ctl_info( charout, cdcomp = 'top' )
+         CALL prt_ctl(tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm)
+      ENDIF
+
+      IF( lk_iomput .AND. knt == nrdttrc ) THEN
+          !
+          IF( l_dia_remin ) THEN    ! Remineralisation rate
+             DO_3D( 0, 0, 0, 0, 1, jpkm1)
+                zolimi(ji,jj,jk) = ( zolimi(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Krhs) ) / o2ut &
+                   &               * rfact2r * tmask(ji,jj,jk) ! 
+             END_3D
+             CALL iom_put( "REMIN", zolimi )
+             DEALLOCATE( zolimi )
+          ENDIF
+          !
+          IF( l_dia_bact ) THEN   ! Bacterial biomass
+             ALLOCATE( zw3d(A2D(0),jpk) )    ;    zw3d(A2D(0),jpk) = 0._wp
+             DO_3D( 0, 0, 0, 0, 1, jpkm1)
+                zw3d(ji,jj,jk) = zdepbac(ji,jj,jk) * 1.E6 * tmask(ji,jj,jk)
+             END_3D
+             CALL iom_put( "BACT", zw3d )
+             DEALLOCATE( zw3d )
+          ENDIF
+          !
+          IF( l_dia_denit )  THEN ! Denitrification
+             ALLOCATE( zw3d(A2D(0),jpk) )    ;    zw3d(A2D(0),jpk) = 0._wp
+             DO_3D( 0, 0, 0, 0, 1, jpkm1)
+                zw3d(ji,jj,jk) = denitr(ji,jj,jk) * 1E+3 * rfact2r * rno3 * tmask(ji,jj,jk)
+             END_3D
+             CALL iom_put( "DENIT", zw3d )
+             DEALLOCATE( zw3d )
+          ENDIF
+          !
+      ENDIF
+      !
+      IF( ln_timing )   CALL timing_stop('p2z_rem')
+      !
+   END SUBROUTINE p2z_rem
 
    SUBROUTINE p4z_rem( kt, knt, Kbb, Kmm, Krhs )
       !!---------------------------------------------------------------------
@@ -113,11 +246,10 @@ CONTAINS
       ! recent version of PISCES with bacteria.
       ! ----------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zdep = MAX( hmld(ji,jj), heup_01(ji,jj) )
-         IF ( gdept(ji,jj,jk,Kmm) < zdep ) THEN
+         zdep = MAX( hmld(ji,jj), heup_01(ji,jj), gdept(ji,jj,1,Kmm) )
+         IF ( gdept(ji,jj,jk,Kmm) <= zdep ) THEN
             zdepbac(ji,jj,jk) = 0.6 * ( MAX(0.0, tr(ji,jj,jk,jpzoo,Kbb) + tr(ji,jj,jk,jpmes,Kbb) ) * 1.0E6 )**0.6 * 1.E-6
             ztempbac(ji,jj)   = zdepbac(ji,jj,jk)
-!         IF( gdept(ji,jj,jk,Kmm) >= zdep ) THEN
          ELSE
             zdepmin = MIN( 1., zdep / gdept(ji,jj,jk,Kmm) )
             zdepbac(ji,jj,jk) = zdepmin**0.683 * ztempbac(ji,jj)
@@ -194,17 +326,16 @@ CONTAINS
          IF( gdept(ji,jj,jk,Kmm) >= zdep ) THEN
             zdepmin = MIN( 1., zdep / gdept(ji,jj,jk,Kmm) )
             zdepeff = 0.3_wp * zdepmin**0.6
-!            zdepeff = 0.3_wp * zdepmin**0.3
          ELSE
-             zdepeff = 0.3_wp
+            zdepeff = 0.3_wp
          ENDIF
 
          ! Bacterial uptake of iron. No iron is available in DOC. So
          ! Bacteries are obliged to take up iron from the water. Some
          ! studies (especially at Papa) have shown this uptake to be significant
          ! ----------------------------------------------------------
-         zbactfer = feratb * 0.6_wp * xstep * tgfunc(ji,jj,jk) * xlimbacl(ji,jj,jk) * tr(ji,jj,jk,jpfer,Kbb)    &
-           &       / ( xkferb + tr(ji,jj,jk,jpfer,Kbb) ) * zdepeff * zdepbac(ji,jj,jk)
+         zbactfer = feratb * 0.6_wp * xstep * tgfunc(ji,jj,jk) * xlimbacl(ji,jj,jk) * biron(ji,jj,jk)    &
+           &       / ( xkferb + biron(ji,jj,jk) ) * zdepeff * zdepbac(ji,jj,jk)
          
          ! Only the transfer of iron from its dissolved form to particles
          ! is treated here. The GGE of bacteria supposed to be equal to 
@@ -336,19 +467,20 @@ CONTAINS
 
       IF(lwp) THEN                         ! control print
          WRITE(numout,*) '   Namelist parameters for remineralization, nampisrem'
-         IF( ln_p4z ) THEN
-            WRITE(numout,*) '      remineralization rate of DOC              xremikc   =', xremikc
-         ELSE
+         WRITE(numout,*) '      remineralization rate of DOC              xremikc   =', xremikc
+         IF( ln_p5z ) THEN 
             WRITE(numout,*) '      remineralization rate of DOC              xremikc   =', xremikc
             WRITE(numout,*) '      remineralization rate of DON              xremikn   =', xremikn
             WRITE(numout,*) '      remineralization rate of DOP              xremikp   =', xremikp
          ENDIF
-         WRITE(numout,*) '      remineralization rate of Si               xsirem    =', xsirem
-         WRITE(numout,*) '      fast remineralization rate of Si          xsiremlab =', xsiremlab
-         WRITE(numout,*) '      fraction of labile biogenic silica        xsilab    =', xsilab
-         WRITE(numout,*) '      NH4 nitrification rate                    nitrif    =', nitrif
-         WRITE(numout,*) '      Bacterial Fe/C ratio                      feratb    =', feratb
-         WRITE(numout,*) '      Half-saturation constant for bact. Fe/C   xkferb    =', xkferb
+         IF( ln_p5z .OR. ln_p4z ) THEN
+            WRITE(numout,*) '      remineralization rate of Si               xsirem    =', xsirem
+            WRITE(numout,*) '      fast remineralization rate of Si          xsiremlab =', xsiremlab
+            WRITE(numout,*) '      fraction of labile biogenic silica        xsilab    =', xsilab
+            WRITE(numout,*) '      NH4 nitrification rate                    nitrif    =', nitrif
+            WRITE(numout,*) '      Bacterial Fe/C ratio                      feratb    =', feratb
+            WRITE(numout,*) '      Half-saturation constant for bact. Fe/C   xkferb    =', xkferb
+         ENDIF
       ENDIF
       !
       denitr(:,:,:) = 0._wp

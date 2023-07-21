@@ -105,12 +105,6 @@
     <field id="LGW"         long_name="Weak ligands concentration"                unit="mmol/m3" />
     <field id="LGW_e3t"     long_name="LGW * e3t"                                 unit="mmol/m2"  > LGW * e3t </field >
 
-    <!-- PISCES light : variables available with ln_p2z  -->
-    <field id="DET"         long_name="Detritus"                                 unit="mmol-N/m3" />
-    <field id="DET_e3t"     long_name="DET * e3t"                                unit="mmol-N/m2"  > DET * e3t </field >
-    <field id="DOM"         long_name="Dissolved Organic Matter"                 unit="mmol-N/m3" />
-    <field id="DOM_e3t"     long_name="DOM * e3t"                                unit="mmol-N/m2"  > DOM * e3t </field >
-
   </field_group>
 
   <!-- SEDIMENT variables on T sediment grid  -->
@@ -184,6 +178,9 @@
     <field id="PPNEWN"      long_name="New Primary production of nanophyto"     unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
     <field id="PPNEWP"      long_name="New Primary production of picophyto"     unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
     <field id="PPNEWD"      long_name="New Primary production of diatoms"       unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
+    <field id="GPPHYN"      long_name="Gross Primary production of nanophyto"   unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
+    <field id="GPPHYP"      long_name="Gross Primary production of picophyto"   unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
+    <field id="GPPHYD"      long_name="Gross Primary production of diatoms"     unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
     <field id="PBSi"        long_name="Primary production of Si diatoms"        unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
     <field id="PFeN"        long_name="Primary production of nano iron"         unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
     <field id="PFeP"        long_name="Primary production of pico iron"         unit="molC/m3/s"  grid_ref="grid_T_3D_inner" />
@@ -216,13 +213,14 @@
     <field id="SIZEN"       long_name="Mean relative size of nanophyto."        unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="SIZEP"       long_name="Mean relative size of picophyto."        unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="SIZED"       long_name="Mean relative size of diatoms"           unit="-"          grid_ref="grid_T_3D_inner" />
+    <field id="THETANANO"   long_name="Diagnostic Chl:C ratio"                  unit="mgChl/mgC"  grid_ref="grid_T_3D_inner" />
     <field id="RASSD"       long_name="Size of the protein machinery (Diat.)"   unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="RASSN"       long_name="Size of the protein machinery (Nano.)"   unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="RASSP"       long_name="Size of the protein machinery (Pico.)"   unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="Fe3"         long_name="Iron III concentration"                  unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
     <field id="FeL1"        long_name="Complexed Iron concentration with L1"    unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
     <field id="TL1"         long_name="Total L1 concentration"                  unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
-    <field id="pdust"       long_name="dust concentration"                      unit="g/m3"         />
+    <field id="pdust"       long_name="dust concentration"                      unit="kg/m3"         />
     <field id="Totlig"      long_name="Total ligand concentation"               unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
     <field id="Biron"       long_name="Bioavailable iron"                       unit="nmol/m3"    grid_ref="grid_T_3D_inner" />
     <field id="Sdenit"      long_name="Nitrate reduction in the sediments"      unit="mol/m2/s"    />
@@ -299,28 +297,6 @@
     <field id="INTPBFE"     long_name="Vertically integrated of biogenic iron production"   field_ref="TPBFE_e3t"    unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
     <field id="INTPBSI"     long_name="Vertically integrated of biogenic Si production"     field_ref="PBSi_e3t"     unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
 
-    <!-- PISCES light : variables available with key_pisces_reduced -->
-    <field id="FNO3PHY"     long_name="FNO3PHY"                                 unit=""     grid_ref="grid_T_3D_inner" />
-    <field id="FNH4PHY"     long_name="FNH4PHY"                                 unit=""     grid_ref="grid_T_3D_inner" />
-    <field id="FNH4NO3"     long_name="FNH4NO3"                                 unit=""     grid_ref="grid_T_3D_inner" />
-    <field id="TNO3PHY"     long_name="TNO3PHY"                                 unit=""  />
-    <field id="TNH4PHY"     long_name="TNH4PHY"                                 unit=""  />
-    <field id="TPHYDOM"     long_name="TPHYDOM"                                 unit=""  />
-    <field id="TPHYNH4"     long_name="TPHYNH4"                                 unit=""  />
-    <field id="TPHYZOO"     long_name="TPHYZOO"                                 unit=""  />
-    <field id="TPHYDET"     long_name="TPHYDET"                                 unit=""  />
-    <field id="TDETZOO"     long_name="TDETZOO"                                 unit=""  />
-    <field id="TZOODET"     long_name="TZOODET"                                 unit=""  />
-    <field id="TZOOBOD"     long_name="TZOOBOD"                                 unit=""  />
-    <field id="TZOONH4"     long_name="TZOONH4"                                 unit=""  />
-    <field id="TZOODOM"     long_name="TZOODOM"                                 unit=""  />
-    <field id="TNH4NO3"     long_name="TNH4NO3"                                 unit=""  />
-    <field id="TDOMNH4"     long_name="TDOMNH4"                                 unit=""  />
-    <field id="TDETNH4"     long_name="TDETNH4"                                 unit=""  />
-    <field id="TPHYTOT"     long_name="TPHYTOT"                                 unit=""  />
-    <field id="TZOOTOT"     long_name="TZOOTOT"                                 unit=""  />
-    <field id="SEDPOC"      long_name="SEDPOC"                                  unit=""  />
-    <field id="TDETSED"     long_name="TDETSED"                                 unit=""  />
   </field_group>
 
   <field_group id="tracer_scalar"  grid_ref="grid_scalar"  >

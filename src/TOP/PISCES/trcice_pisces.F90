@@ -35,9 +35,7 @@ CONTAINS
       !! ** Purpose :   Initialisation of the PISCES biochemical model
       !!----------------------------------------------------------------------
       !
-      IF( ln_p4z .OR. ln_p5z ) THEN  ;   CALL p4z_ice_ini   !  PISCES
-      ELSE                           ;   CALL p2z_ice_ini   !  LOBSTER
-      ENDIF
+      CALL p4z_ice_ini   !  PISCES
       !
    END SUBROUTINE trc_ice_ini_pisces
 
@@ -340,15 +338,6 @@ CONTAINS
       END DO ! jn
       !
    END SUBROUTINE p4z_ice_ini
-
-   SUBROUTINE p2z_ice_ini
-      !!----------------------------------------------------------------------
-      !!                   ***  ROUTINE p2z_ice_ini ***
-      !!
-      !! ** Purpose :   Initialisation of the LOBSTER biochemical model
-      !!----------------------------------------------------------------------
-   END SUBROUTINE p2z_ice_ini
-
 
    !!======================================================================
 END MODULE trcice_pisces

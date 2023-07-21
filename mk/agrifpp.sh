@@ -58,11 +58,13 @@ MYDIR=$1
 MYFILE=$(basename "$2")
 
 if [ "$MYFILE" == "agrif2model.f90" ];then
+   # generic case
    if [ -d ${MYDIR}/WORK ]; then
-      \cp ${MYDIR}//WORK/${MYFILE/.f90/.F90} ${MYDIR}/NEMOFILES/obj/$MYFILE
-   else
       \cp ${MYDIR}/WORK/${MYFILE/.f90/.F90} ${MYDIR}/NEMOFILES/obj/$MYFILE
-   fi   
+   # DOMAINcfg case
+   elif [ -d ${MYDIR}/src ]; then
+      \cp ${MYDIR}/src/${MYFILE/.f90/.F90} ${MYDIR}/NEMOFILES/obj/$MYFILE
+   fi
 else
    cd ${MYDIR}/NEMOFILES/ppsrc/nemo ; ${MYDIR}/NEMOFILES/conv ${MYDIR}/NEMOFILES/agrif_oce.in -rm -incdir ${MYDIR}/NEMOFILES/inc -comdirout ${MYDIR}/NEMOFILES/obj -convfile ${MYFILE} > /dev/null 
 fi

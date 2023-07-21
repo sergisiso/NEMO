@@ -344,8 +344,8 @@
          DO jl = 1, ipl(jf)  ;  DO jk = 1, ipk(jf)  ;  DO jj = 1,isizej(jn,jf)  ;  DO ji = 1,isizei(jn,jf)
             ii1 = ishti1 +       ji                * isgni1
             ij1 = ishtj1 +       jj                * isgnj1
-            ii2 = ishti2 + ( MOD(ji-1, iisz) + 1 ) * isgni2   ! warning: iisz my be smaller than isizei(jn,jf)
-            ij2 = ishtj2 + ( MOD(jj-1, Nj_0) + 1 ) * isgnj2   ! warning: Nj_0 my be smaller than isizej(jn,jf)
+            ii2 = ishti2 + ( MOD(ji-1, iisz) + 1 ) * isgni2   ! warning: iisz might be smaller than isizei(jn,jf)
+            ij2 = ishtj2 + ( MOD(jj-1, Nj_0) + 1 ) * isgnj2   ! warning: Nj_0 might be smaller than isizej(jn,jf)
             ptab(jf)%pt4d(ii1,ij1,jk,jl) = ptab(jf)%pt4d(ii2,ij2,jk,jl)
          END DO   ;   END DO   ;   END DO   ;   END DO
          !

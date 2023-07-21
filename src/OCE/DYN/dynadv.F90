@@ -16,7 +16,7 @@ MODULE dynadv
    !!----------------------------------------------------------------------
    USE dom_oce         ! ocean space and time domain
    USE dynadv_cen2     ! centred flux form advection      (dyn_adv_cen2 routine)
-   USE dynadv_ubs      ! UBS flux form advection          (dyn_adv_ubs  routine)
+   USE dynadv_up3      ! UP3 flux form advection          (dyn_adv_up3  routine)
    USE dynkeg          ! kinetic energy gradient          (dyn_keg      routine)
    USE dynzad          ! vertical advection               (dyn_zad      routine)
    USE zdf_oce,  ONLY : ln_zad_Aimp
@@ -37,14 +37,14 @@ MODULE dynadv
    LOGICAL, PUBLIC ::   ln_dynadv_vec   !: vector form
    INTEGER, PUBLIC ::      nn_dynkeg       !: scheme of grad(KE): =0 C2 ; =1 Hollingsworth
    LOGICAL, PUBLIC ::   ln_dynadv_cen2  !: flux form - 2nd order centered scheme flag
-   LOGICAL, PUBLIC ::   ln_dynadv_ubs   !: flux form - 3rd order UBS scheme flag
-   
+   LOGICAL, PUBLIC ::   ln_dynadv_up3   !: flux form - 3rd order upstream scheme flag
+
    INTEGER, PUBLIC ::   n_dynadv   !: choice of the formulation and scheme for momentum advection
    !                               !  associated indices:
    INTEGER,  PUBLIC, PARAMETER ::   np_LIN_dyn = 0   ! no advection: linear dynamics
    INTEGER,  PUBLIC, PARAMETER ::   np_VEC_c2  = 1   ! vector form : 2nd order centered scheme
    INTEGER,  PUBLIC, PARAMETER ::   np_FLX_c2  = 2   ! flux   form : 2nd order centered scheme
-   INTEGER,  PUBLIC, PARAMETER ::   np_FLX_ubs = 3   ! flux   form : 3rd order Upstream Biased Scheme
+   INTEGER,  PUBLIC, PARAMETER ::   np_FLX_up3 = 3   ! flux   form : 3rd order Upstream Biased Scheme
    REAL(wp), PUBLIC            ::   r_stb_thres_dyn  ! starting Courant number threshold for adaptive implicit vertical advection
    REAL(wp), PUBLIC            ::   r_stb_cstra_dyn  ! stability constraint for dynamic advection
 
@@ -63,7 +63,7 @@ CONTAINS
       !!
       !! ** Method  : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the advection term following n_dynadv
       !!
-      !!      NB: in flux form advection (ln_dynadv_cen2 or ln_dynadv_ubs=T) 
+      !!      NB: in flux form advection (ln_dynadv_cen2 or ln_dynadv_up3=T) 
       !!      a metric term is add to the coriolis term while in vector form 
       !!      it is the relative vorticity which is added to coriolis term
       !!      (see dynvor module).
@@ -84,8 +84,9 @@ CONTAINS
       CASE( np_FLX_c2  )                                                         !=  flux form  =!
          CALL dyn_adv_cen2( kt                , Kmm, puu, pvv, Krhs, pau, pav, paw )   !* 2nd order centered scheme
          !
-      CASE( np_FLX_ubs )                                                               !* 3rd order UBS      scheme (UP3)
-         CALL dyn_adv_ubs     ( kt       , Kbb, Kmm, puu, pvv, Krhs, pau, pav, paw )
+      CASE( np_FLX_up3 )                                                               !* 3rd order upstream scheme (UP3)
+         CALL dyn_adv_up3     ( kt       , Kbb, Kmm, puu, pvv, Krhs, pau, pav, paw )
+         !
       END SELECT
       !
       IF( ln_timing )   CALL timing_stop( 'dyn_adv' )
@@ -102,7 +103,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER ::   ioptio, ios, istat1, istat2   ! Local integer
       !
-      NAMELIST/namdyn_adv/ ln_dynadv_OFF, ln_dynadv_vec, nn_dynkeg, ln_dynadv_cen2, ln_dynadv_ubs
+      NAMELIST/namdyn_adv/ ln_dynadv_OFF, ln_dynadv_vec, nn_dynkeg, ln_dynadv_cen2, ln_dynadv_up3
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -123,14 +124,14 @@ CONTAINS
          WRITE(numout,*) '      Vector form: 2nd order centered scheme           ln_dynadv_vec  = ', ln_dynadv_vec
          WRITE(numout,*) '         with Hollingsworth scheme (=1) or not (=0)       nn_dynkeg   = ', nn_dynkeg
          WRITE(numout,*) '      flux form: 2nd order centred scheme              ln_dynadv_cen2 = ', ln_dynadv_cen2
-         WRITE(numout,*) '                 3rd order UBS scheme                  ln_dynadv_ubs  = ', ln_dynadv_ubs
+         WRITE(numout,*) '                 3rd order UBS scheme                  ln_dynadv_up3  = ', ln_dynadv_up3
       ENDIF
 
       ioptio = 0                      ! parameter control and set n_dynadv
       IF( ln_dynadv_OFF  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_LIN_dyn   ;   ENDIF
       IF( ln_dynadv_vec  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_VEC_c2    ;   r_stb_thres_dyn = pp_stb_thres_dync2   ;  r_stb_cstra_dyn = pp_stb_cstra_dync2   ;  ENDIF
       IF( ln_dynadv_cen2 ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_c2    ;   r_stb_thres_dyn = pp_stb_thres_dync2   ;  r_stb_cstra_dyn = pp_stb_cstra_dync2   ;  ENDIF
-      IF( ln_dynadv_ubs  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_ubs   ;   r_stb_thres_dyn = pp_stb_thres_dynubs  ;  r_stb_cstra_dyn = pp_stb_cstra_dynubs  ;  ENDIF
+      IF( ln_dynadv_up3  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_up3   ;   r_stb_thres_dyn = pp_stb_thres_dynup3  ;  r_stb_cstra_dyn = pp_stb_cstra_dynup3  ;  ENDIF
 
       IF( ioptio /= 1 )   CALL ctl_stop( 'choose ONE and only ONE advection scheme' )
       IF( nn_dynkeg /= nkeg_C2 .AND. nn_dynkeg /= nkeg_HW )   CALL ctl_stop( 'KEG scheme wrong value of nn_dynkeg' )
@@ -154,7 +155,7 @@ CONTAINS
             IF( nn_dynkeg == nkeg_C2  )   WRITE(numout,*) '              with Centered standard keg scheme'
             IF( nn_dynkeg == nkeg_HW  )   WRITE(numout,*) '              with Hollingsworth keg scheme'
          CASE( np_FLX_c2  )   ;   WRITE(numout,*) '   ==>>>   flux form   : 2nd order scheme is used'
-         CASE( np_FLX_ubs )   ;   WRITE(numout,*) '   ==>>>   flux form   : UBS       scheme is used'
+         CASE( np_FLX_up3 )   ;   WRITE(numout,*) '   ==>>>   flux form   : 3rd order scheme is used'
          END SELECT
       ENDIF
       !

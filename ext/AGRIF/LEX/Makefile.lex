@@ -1,5 +1,5 @@
-LEX		= flex -i
-YACC	= /usr/bin/bison -t -v -g --graph
+LEX	= flex -i
+YACC	= bison -t -v -g --graph
 #YACC = byacc -t -v
 
 all: main.c fortran.c

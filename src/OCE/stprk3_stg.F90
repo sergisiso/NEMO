@@ -228,9 +228,9 @@ CONTAINS
 !===>>>>>> Modify dyn_adv_... dyn_keg routines so that Krhs to zero useless
       !                                         ! advection (VF or FF)	==> RHS
       IF( ln_dynadv_vec ) THEN                                            ! uu and vv used for momentum advection
-         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs )
+         CALL dyn_adv( kstp, Kmm, Kmm      , uu, vv, Krhs)
       ELSE                                                                ! advective velocity used for momentum advection
-         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs, zaU, zaV, ww )
+         CALL dyn_adv( kstp, Kmm, Kmm      , uu, vv, Krhs, zaU, zaV, ww ) !!st !!! TO DO !!! METTRE Kmm partout et faire le test !!!
       ENDIF
       !                                         ! Coriolis / vorticity  ==> RHS
       CALL dyn_vor( kstp,      Kmm      , uu, vv, Krhs )
@@ -262,6 +262,10 @@ CONTAINS
          ww => ww_T
          IF( ln_zad_Aimp ) wi => wi_T
       ENDIF
+      !
+      !                                            ! BBL coefficients required for both passive- and active-tracer transport within
+      !                                            ! the BBL (stage 3 only, requires uu, vv, gdept at Kmm)
+      IF( ( kstg == 3 ) .AND. ln_trabbl ) CALL bbl( kstp, nit000, Kbb, Kmm )
       !
 # if defined key_top
       !                       !==  Passive Tracer  ==!

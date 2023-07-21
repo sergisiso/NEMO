@@ -63,6 +63,7 @@ MODULE step_oce
    USE ldfslp          ! iso-neutral slopes               (ldf_slp routine)
    USE ldfdyn          ! lateral eddy viscosity coef.     (ldf_dyn routine)
    USE ldftra          ! lateral eddy diffusive coef.     (ldf_tra routine)
+   USE ldfeke          ! GEOMETRIC parameterization       (ldf_eke routine)
 
    USE zdf_oce         ! ocean vertical physics variables
    USE zdfphy          ! vertical physics manager      (zdf_phy_init routine)

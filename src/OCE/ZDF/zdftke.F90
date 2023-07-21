@@ -561,10 +561,12 @@ CONTAINS
       zmxld(:,:,:)  = rmxl_min
       !
       IF(ln_sdw .AND. ln_mxhsw) THEN
-         zmxlm(:,:,1)= vkarmn * MAX ( 1.6 * hsw(:,:) , 0.02 )        ! surface mixing length = F(wave height)
-         ! from terray et al 1999 and mellor and blumberg 2004 it should be 0.85 and not 1.6
+         ! From Terray et al 1999 and Mellor and Blumberg 2004 it should be 0.85 and not 1.6
          zcoef       = vkarmn * ( (rn_ediff*rn_ediss)**0.25 ) / rn_ediff
-         zmxlm(:,:,1)= zcoef * MAX ( 1.6 * hsw(:,:) , 0.02 )        ! surface mixing length = F(wave height)
+         DO_2D( 0, 0, 0, 0 )
+!            zmxlm(ji,jj,1)= vkarmn * MAX ( 1.6 * hsw(ji,jj) , 0.02 )        ! surface mixing length = F(wave height)
+            zmxlm(ji,jj,1)= zcoef * MAX ( 1.6 * hsw(ji,jj) , 0.02 )        ! surface mixing length = F(wave height)
+         END_2D
       ELSE
       !
          IF( ln_mxl0 ) THEN            ! surface mixing length = F(stress) : l=vkarmn*2.e5*taum/(rho0*g)

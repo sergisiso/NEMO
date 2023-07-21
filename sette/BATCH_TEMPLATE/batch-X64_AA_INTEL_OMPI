@@ -67,6 +67,9 @@ module list
 # change to the working directory 
 #
   cd ${EXE_DIR}
+  if [[ ${NEW_CONF} =~ "ICE_AGRIF" ]]; then
+    sed -i'' -e 's/detect_missing_value="true"/detect_missing_value="false"/' field_def_nemo-ice.xml
+  fi
   echo Running on host `hostname`
   echo Time is `date`
   echo Directory is `pwd`

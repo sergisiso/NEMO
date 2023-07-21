@@ -96,7 +96,7 @@ CONTAINS
       ! ------------------------- !
       ! 2 - Assign Initial Values !
       ! ------------------------- !
-      cnt_25h = 1  ! sets the first value of sum at timestep 1 (note - should strictly be at timestep zero so before values used where possible)
+      cnt_25h = 2  ! sets the first value of sum at timestep 1 (note - should strictly be at timestep zero so before values used where possible)
       DO_3D( 0, 0, 0, 0, 1, jpk )
          tn_25h (ji,jj,jk) = ts (ji,jj,jk,jp_tem,Kbb)
          sn_25h (ji,jj,jk) = ts (ji,jj,jk,jp_sal,Kbb)
@@ -169,11 +169,12 @@ CONTAINS
       ! Sum of 25 hourly instantaneous values to give a 25h mean from 24hours every day
       IF( MOD( kt, i_steps ) == 0  .AND. kt /= nn_it000 ) THEN
 
-         IF (lwp) THEN
-              WRITE(numout,*) 'dia_wri_tide : Summing instantaneous hourly diagnostics at timestep ',kt
-              WRITE(numout,*) '~~~~~~~~~~~~ '
+         IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN ! Do only for the first tile
+            IF (lwp) THEN
+               WRITE(numout,*) 'dia_wri_tide : Summing instantaneous hourly diagnostics at timestep ',kt
+               WRITE(numout,*) '~~~~~~~~~~~~ '
+            ENDIF
          ENDIF
-
          DO_3D( 0, 0, 0, 0, 1, jpk )
             tn_25h  (ji,jj,jk) = tn_25h  (ji,jj,jk) + ts (ji,jj,jk,jp_tem,Kmm)
             sn_25h  (ji,jj,jk) = sn_25h  (ji,jj,jk) + ts (ji,jj,jk,jp_sal,Kmm)
@@ -197,10 +198,12 @@ CONTAINS
                rmxln_25h(ji,jj,jk) = rmxln_25h(ji,jj,jk) + hmxl_n(ji,jj,jk)
             END_3D
          ENDIF
-         cnt_25h = cnt_25h + 1
          !
-         IF (lwp) THEN
-            WRITE(numout,*) 'dia_tide : Summed the following number of hourly values so far',cnt_25h
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN   ! Do only for the first tile
+            cnt_25h = cnt_25h + 1
+            IF (lwp) THEN
+               WRITE(numout,*) 'dia_tide : Summed the following number of hourly values so far',cnt_25h
+            ENDIF
          ENDIF
          !
       ENDIF ! MOD( kt, i_steps ) == 0
@@ -208,25 +211,36 @@ CONTAINS
       ! Write data for 25 hour mean output streams
       IF( cnt_25h == 25 .AND.  MOD( kt, i_steps*24) == 0 .AND. kt /= nn_it000 ) THEN
          !
-         IF(lwp) THEN
-            WRITE(numout,*) 'dia_wri_tide : Writing 25 hour mean tide diagnostics at timestep', kt
-            WRITE(numout,*) '~~~~~~~~~~~~ '
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN ! Do only for the first tile
+            IF(lwp) THEN
+               WRITE(numout,*) 'dia_wri_tide : Writing 25 hour mean tide diagnostics at timestep', kt
+               WRITE(numout,*) '~~~~~~~~~~~~ '
+            ENDIF
          ENDIF
          !
-         tn_25h  (:,:,:) = tn_25h  (:,:,:) * r1_25
-         sn_25h  (:,:,:) = sn_25h  (:,:,:) * r1_25
-         sshn_25h(:,:)   = sshn_25h(:,:)   * r1_25
-         un_25h  (:,:,:) = un_25h  (:,:,:) * r1_25
-         vn_25h  (:,:,:) = vn_25h  (:,:,:) * r1_25
-         wn_25h  (:,:,:) = wn_25h  (:,:,:) * r1_25
-         avt_25h (:,:,:) = avt_25h (:,:,:) * r1_25
-         avm_25h (:,:,:) = avm_25h (:,:,:) * r1_25
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            tn_25h  (ji,jj,jk) = tn_25h  (ji,jj,jk) * r1_25
+            sn_25h  (ji,jj,jk) = sn_25h  (ji,jj,jk) * r1_25
+            un_25h  (ji,jj,jk) = un_25h  (ji,jj,jk) * r1_25
+            vn_25h  (ji,jj,jk) = vn_25h  (ji,jj,jk) * r1_25
+            wn_25h  (ji,jj,jk) = wn_25h  (ji,jj,jk) * r1_25
+            avt_25h (ji,jj,jk) = avt_25h (ji,jj,jk) * r1_25
+            avm_25h (ji,jj,jk) = avm_25h (ji,jj,jk) * r1_25
+         END_3D
+         DO_2D( 0, 0, 0, 0 )
+            sshn_25h(ji,jj)    = sshn_25h(ji,jj)    * r1_25
+         END_2D
+         !
          IF( ln_zdftke ) THEN
-            en_25h(:,:,:) = en_25h(:,:,:) * r1_25
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+               en_25h(ji,jj,jk) = en_25h(ji,jj,jk) * r1_25
+            END_3D
          ENDIF
          IF( ln_zdfgls ) THEN
-            en_25h   (:,:,:) = en_25h   (:,:,:) * r1_25
-            rmxln_25h(:,:,:) = rmxln_25h(:,:,:) * r1_25
+            DO_3D( 0, 0, 0, 0, 1, jpk)
+               en_25h   (ji,jj,jk) = en_25h   (ji,jj,jk) * r1_25
+               rmxln_25h(ji,jj,jk) = rmxln_25h(ji,jj,jk) * r1_25
+            END_3D
          ENDIF
          !
          IF(lwp)  WRITE(numout,*) 'dia_wri_tide : Mean calculated by dividing 25 hour sums and writing output'
@@ -311,9 +325,11 @@ CONTAINS
                rmxln_25h(ji,jj,jk) = hmxl_n(ji,jj,jk)
             END_3D
          ENDIF
-         cnt_25h = 1
-         IF(lwp)  WRITE(numout,*) 'dia_wri_tide :   &
-            &    After 25hr mean write, reset sum to current value and cnt_25h to one for overlapping average', cnt_25h
+         IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN ! Do only for the first tile
+            cnt_25h = 1
+            IF(lwp)  WRITE(numout,*) 'dia_wri_tide :   &
+               &    After 25hr mean write, reset sum to current value and cnt_25h to one for overlapping average', cnt_25h
+         ENDIF
       ENDIF !  cnt_25h .EQ. 25 .AND.  MOD( kt, i_steps * 24) == 0 .AND. kt .NE. nn_it000
       !
    END SUBROUTINE dia_25h 

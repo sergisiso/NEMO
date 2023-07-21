@@ -67,8 +67,8 @@ CONTAINS
       !
       !
       zf0   = 2._wp * omega * SIN( rad * rn_ppgphi0 )
-      zumax = 1._wp * SIGN(1._wp, zf0) ! Here Anticyclonic: set zumax=-1 for cyclonic
-      zlambda = SQRT(2._wp)*60.e3      ! Horizontal scale in meters
+      zumax = rn_ppumax * SIGN(1._wp, zf0) ! Here Anticyclonic: set zumax=-1 for cyclonic
+      zlambda = SQRT(2._wp)*60.e3          ! Horizontal scale in meters
       zn2 = 3.e-3**2
       zH = 0.5_wp * 5000._wp
       !
@@ -101,7 +101,15 @@ CONTAINS
             zdu = 0.5_wp * (pdept(ji  ,jj,jk) + pdept(ji+1,jj,jk))
             IF (zdu < zH) THEN
                zf = (zH-1._wp-zdu+EXP(zdu-zH)) / (zH-1._wp+EXP(-zH))
-               pu(ji,jj,jk) = (za * zf * zy * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji+1,jj,jk)
+               IF ( nn_rot==0 ) THEN
+                  pu(ji,jj,jk) = (za * zf * zy * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji+1,jj,jk)
+               ELSEIF ( nn_rot==1 ) THEN
+                  pu(ji,jj,jk) = -(za * zf * zx * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji+1,jj,jk)
+               ELSEIF ( nn_rot==2 ) THEN
+                  pu(ji,jj,jk) = -(za * zf * zy * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji+1,jj,jk)
+               ELSEIF ( nn_rot==3 ) THEN
+                  pu(ji,jj,jk) =  (za * zf * zx * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji+1,jj,jk)
+               ENDIF
             ELSE
                pu(ji,jj,jk) = 0._wp
             ENDIF
@@ -115,7 +123,15 @@ CONTAINS
             zdv = 0.5_wp * (pdept(ji  ,jj,jk) + pdept(ji,jj+1,jk))
             IF (zdv < zH) THEN
                zf = (zH-1._wp-zdv+EXP(zdv-zH)) / (zH-1._wp+EXP(-zH))
-               pv(ji,jj,jk) = -(za * zf * zx * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji,jj+1,jk)
+               IF ( nn_rot==0 ) THEN
+                  pv(ji,jj,jk) = -(za * zf * zx * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji,jj+1,jk)
+               ELSEIF ( nn_rot==1 ) THEN
+                  pv(ji,jj,jk) = -(za * zf * zy * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji,jj+1,jk)
+               ELSEIF ( nn_rot==2 ) THEN
+                  pv(ji,jj,jk) =  (za * zf * zx * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji,jj+1,jk)
+               ELSEIF ( nn_rot==3 ) THEN
+                  pv(ji,jj,jk) =  (za * zf * zy * EXP(-(zx**2+zy**2)/zlambda**2)) * ptmask(ji,jj,jk) * ptmask(ji,jj+1,jk)
+               ENDIF
             ELSE
                pv(ji,jj,jk) = 0._wp
             ENDIF
@@ -151,8 +167,8 @@ CONTAINS
       !
       !
       zf0   = 2._wp * omega * SIN( rad * rn_ppgphi0 )
-      zumax = 1._wp * SIGN(1._wp, zf0) ! Here Anticyclonic: set zumax=-1 for cyclonic
-      zlambda = SQRT(2._wp)*60.e3      ! Horizontal scale in meters 
+      zumax = rn_ppumax * SIGN(1._wp, zf0) ! Here Anticyclonic: set zumax=-1 for cyclonic
+      zlambda = SQRT(2._wp)*60.e3          ! Horizontal scale in meters 
       zH = 0.5_wp * 5000._wp
       !
       zP0 = rho0 * zf0 * zumax * zlambda * SQRT(EXP(1._wp)/2._wp)

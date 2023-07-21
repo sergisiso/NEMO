@@ -362,23 +362,21 @@ CONTAINS
          !     qlead is the energy received from the atm. in the leads.
          !     If warming (zqld >= 0), then the energy in the leads is used to melt ice (bottom melting) => fhld  (W/m2)
          !     If cooling (zqld <  0), then the energy in the leads is used to grow ice in open water    => qlead (J.m-2)
-         IF( zqld >= 0._wp .AND. at_i(ji,jj) > 0._wp ) THEN
-            ! upper bound for fhld: fhld should be equal to zqld
-            !                        but we have to make sure that this heat will not make the sst drop below the freezing point
-            !                        so the max heat that can be pulled out of the ocean is zqld - qsb - zqfr_pos
-            !                        The following formulation is ok for both normal conditions and supercooling
-            fhld (ji,jj) = zswitch * MAX( 0._wp, ( zqld - zqfr_pos ) * r1_Dt_ice / MAX( at_i(ji,jj), epsi10 ) &  ! divided by at_i since this is (re)multiplied by a_i in icethd_dh.F90
-               &                                 - qsb_ice_bot(ji,jj) )
-            qlead(ji,jj) = 0._wp
-         ELSE
+         IF( ( zqld - zqfr ) < 0._wp .OR. at_i(ji,jj) < epsi10 ) THEN
             fhld (ji,jj) = 0._wp
             ! upper bound for qlead: qlead should be equal to zqld
             !                        but before using this heat for ice formation, we suppose that the ocean cools down till the freezing point.
-            !                        The energy for this cooling down is zqfr. Also some heat will be removed from the ocean from turbulent fluxes (qsb)
-            !                        and freezing point is reached if zqfr = zqld - qsb*a/dt
-            !                        so the max heat that can be pulled out of the ocean is zqld - qsb - zqfr
+            !                        The energy for this cooling down is zqfr and freezing point is reached if zqfr = zqld
+            !                        so the max heat that can be pulled out of the ocean is zqld - zqfr
             !                        The following formulation is ok for both normal conditions and supercooling
-            qlead(ji,jj) = MIN( 0._wp , zqld - ( qsb_ice_bot(ji,jj) * at_i(ji,jj) * rDt_ice ) - zqfr )
+            qlead(ji,jj) = MIN( 0._wp , zqld - zqfr )
+         ELSE
+            ! upper bound for fhld: fhld should be equal to zqld
+            !                        but we have to make sure that this heat will not make the sst drop below the freezing point
+            !                        so the max heat that can be pulled out of the ocean is zqld - zqfr_pos
+            !                        The following formulation is ok for both normal conditions and supercooling
+            fhld (ji,jj) = zswitch * MAX( 0._wp, ( zqld - zqfr_pos ) * r1_Dt_ice / MAX( at_i(ji,jj), epsi10 ) ) ! divided by at_i since this is (re)multiplied by a_i in icethd_dh.F90
+            qlead(ji,jj) = 0._wp
          ENDIF
          !
          ! If ice is landfast and ice concentration reaches its max

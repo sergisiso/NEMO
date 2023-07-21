@@ -395,7 +395,7 @@ CONTAINS
       INTEGER  ::   iku, ikv
       REAL(wp) :: ztsa, zabe1, zabe2, zbtr, zhtot
       REAl(wp) :: zflag, zdmod, zdtot
-      REAL(wp), DIMENSION(i1-1:i2,j1-1:j2,jpk) :: ztu, ztv
+      REAL(wp), DIMENSION(i1:i2,j1:j2,jpk) :: ztu, ztv
       REAL(wp), DIMENSION(i1:i2,j1:j2,jpk,n1:n2) ::tsbdiff
       ! vertical interpolation:
       REAL(wp), DIMENSION(i1:i2,j1:j2,jpk,n1:n2) ::tabres_child
@@ -551,17 +551,18 @@ CONTAINS
 
          DO jn = 1, jpts            
             DO jk = 1, jpkm1
-               ztu(i1-1:i2,j1-1:j2,jk) = 0._wp
+               ztu(i2,j1:j2,jk) = 0._wp
                DO jj = j1,j2
                   DO ji = i1,i2-1
                      zabe1 = rn_sponge_tra * r1_Dt * umask(ji,jj,jk) * e1e2u(ji,jj) * e3u(ji,jj,jk,Kmm_a)
                      zdtot =  tsbdiff(ji+1,jj,jk,jn) -  tsbdiff(ji,jj,jk,jn) 
                      zdmod =       ts(ji+1,jj,jk,jn,Kbb_a) - ts(ji,jj,jk,jn,Kbb_a)
                      zflag = 0.5_wp + SIGN(0.5_wp, zdtot*zdmod)
+                     IF (ABS(zdtot*zdmod)<=1.e-6) zflag = 1._wp ! for 1:1 repro
                      ztu(ji,jj,jk) = zabe1 * fspu(ji,jj) * ( zflag * zdtot + (1._wp - zflag) * zdmod ) 
                   END DO
                END DO
-               ztv(i1-1:i2,j1-1:j2,jk) = 0._wp
+               ztv(i1:i2,j2,jk) = 0._wp
                DO ji = i1,i2
                   DO jj = j1,j2-1
                      zabe2 = rn_sponge_tra * r1_Dt * vmask(ji,jj,jk) * e1e2v(ji,jj) * e3v(ji,jj,jk,Kmm_a)
@@ -569,6 +570,7 @@ CONTAINS
                      zdtot =  tsbdiff(ji,jj+1,jk,jn) -  tsbdiff(ji,jj,jk,jn) 
                      zdmod =       ts(ji,jj+1,jk,jn,Kbb_a) - ts(ji,jj,jk,jn,Kbb_a)
                      zflag = 0.5_wp + SIGN(0.5_wp, zdtot*zdmod)
+                     IF (ABS(zdtot*zdmod)<=1.e-6) zflag = 1._wp ! for 1:1 repro
                      ztv(ji,jj,jk) = zabe2 * fspv(ji,jj) * ( zflag * zdtot + (1._wp - zflag) * zdmod ) 
                   END DO
                END DO
@@ -586,10 +588,9 @@ CONTAINS
                ENDIF
             END DO
             !
-! JC: there is something wrong with the Laplacian in corners
             DO jk = 1, jpkm1
-               DO jj = j1,j2
-                  DO ji = i1,i2
+               DO jj = j1+1,j2-1
+                  DO ji = i1+1,i2-1
                      IF (.NOT. tabspongedone_tsn(ji,jj)) THEN 
                         zbtr = r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm_a)
                         ! horizontal diffusive trends
@@ -606,7 +607,7 @@ CONTAINS
             !
          END DO
          !
-         tabspongedone_tsn(i1:i2,j1:j2) = .TRUE.
+         tabspongedone_tsn(i1+1:i2-1,j1+1:j2-1) = .TRUE.
          !
       ENDIF
       !

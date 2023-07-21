@@ -8,6 +8,7 @@ MODULE ldftra
    !!            2.0  ! 2005-11  (G. Madec)
    !!            3.7  ! 2013-12  (F. Lemarie, G. Madec)  restructuration/simplification of aht/aeiv specification,
    !!                 !                                  add velocity dependent coefficient and optional read in file
+   !!            4.3  ! 2023-02  (J. Mak, A. C. Coward, G. Madec) added GEOMETRIC parameterization
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -27,6 +28,7 @@ MODULE ldftra
    !
    USE in_out_manager  ! I/O manager
    USE iom             ! I/O module for ehanced bottom friction file
+   USE timing          ! Timing
    USE lib_mpp         ! distribued memory computing library
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
 
@@ -85,6 +87,10 @@ MODULE ldftra
    INTEGER , PUBLIC ::   nldf_tra      = 0         !: type of lateral diffusion used defined from ln_traldf_... (namlist logicals)
    LOGICAL , PUBLIC ::   l_ldftra_time = .FALSE.   !: flag for time variation of the lateral eddy diffusivity coef.
    LOGICAL , PUBLIC ::   l_ldfeiv_time = .FALSE.   !: flag for time variation of the eiv coef.
+   
+   LOGICAL , PUBLIC ::   ln_eke_equ                !: flag for having updates to eddy energy equation
+   LOGICAL , PUBLIC ::   l_ldfeke      = .FALSE.   !: GEOMETRIC - total EKE flag
+   LOGICAL , PUBLIC ::   l_eke_eiv     = .FALSE.   !: GEOMETRIC - aeiw flag
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   ahtu, ahtv   !: eddy diffusivity coef. at U- and V-points   [m2/s]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   aeiu, aeiv   !: eddy induced velocity coeff.                [m2/s]
@@ -379,7 +385,7 @@ CONTAINS
       !!                                                   with a reduction to 0 in vicinity of the Equator
       !!    nn_aht_ijk_t = 21    ahtu, ahtv = F(i,j,  t) = F(growth rate of baroclinic instability)
       !!
-      !!                 = 31    ahtu, ahtv = F(i,j,k,t) = F(local velocity) (  |u|e  /12   laplacian operator
+      !!                 = 31    ahtu, ahtv = F(i,j,k,t) = F(local velocity) (  |u|e  / 2   laplacian operator
       !!                                                                     or |u|e^3/12 bilaplacian operator )
       !!
       !!              * time varying EIV coefficients: call to ldf_eiv routine
@@ -393,6 +399,8 @@ CONTAINS
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp) ::   zaht, zahf, zaht_min, zDaht, z1_f20   ! local scalar
       !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('ldf_tra')
       !
       IF( ln_ldfeiv .AND. nn_aei_ijk_t == 21 ) THEN       ! eddy induced velocity coefficients
          !                                ! =F(growth rate of baroclinic instability)
@@ -430,10 +438,10 @@ CONTAINS
          END DO
          !
       CASE(  31  )       !==  time varying 3D field  ==!   = F( local velocity )
-         IF( ln_traldf_lap     ) THEN          !   laplacian operator |u| e /12
+         IF( ln_traldf_lap     ) THEN          !   laplacian operator |u| e / 2
             DO jk = 1, jpkm1
-               ahtu(:,:,jk) = ABS( uu(:,:,jk,Kbb) ) * e1u(:,:) * r1_12   ! n.b. uu,vv are masked
-               ahtv(:,:,jk) = ABS( vv(:,:,jk,Kbb) ) * e2v(:,:) * r1_12
+               ahtu(:,:,jk) = ABS( uu(:,:,jk,Kbb) ) * e1u(:,:) * r1_2   ! n.b. uu,vv are masked
+               ahtv(:,:,jk) = ABS( vv(:,:,jk,Kbb) ) * e2v(:,:) * r1_2
             END DO
          ELSEIF( ln_traldf_blp ) THEN      ! bilaplacian operator      sqrt( |u| e^3 /12 ) = sqrt( |u| e /12 ) * e
             DO jk = 1, jpkm1
@@ -449,12 +457,14 @@ CONTAINS
       CALL iom_put( "ahtu_3d", ahtu(:,:,:) )   ! 3D      u-eddy diffusivity coeff.
       CALL iom_put( "ahtv_3d", ahtv(:,:,:) )   ! 3D      v-eddy diffusivity coeff.
       !
-      IF( ln_ldfeiv ) THEN
+      IF( ln_ldfeiv .AND. (.NOT. ln_eke_equ) ) THEN
         CALL iom_put( "aeiu_2d", aeiu(:,:,1) )   ! surface u-EIV coeff.
         CALL iom_put( "aeiv_2d", aeiv(:,:,1) )   ! surface v-EIV coeff.
         CALL iom_put( "aeiu_3d", aeiu(:,:,:) )   ! 3D      u-EIV coeff.
         CALL iom_put( "aeiv_3d", aeiv(:,:,:) )   ! 3D      v-EIV coeff.
       ENDIF
+      !
+      IF( ln_timing )   CALL timing_stop('ldf_tra')
       !
    END SUBROUTINE ldf_tra
 
@@ -485,7 +495,8 @@ CONTAINS
       REAL(wp) ::   zah_max, zUfac         !   -   scalar
       !!
       NAMELIST/namtra_eiv/ ln_ldfeiv   , ln_ldfeiv_dia,   &   ! eddy induced velocity (eiv)
-         &                 nn_aei_ijk_t, rn_Ue, rn_Le         ! eiv  coefficient
+         &                 nn_aei_ijk_t, rn_Ue, rn_Le ,   &   ! eiv  coefficient
+         &                 ln_eke_equ                         ! GEOMETRIC eddy energy equation
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN                      ! control print
@@ -593,6 +604,16 @@ CONTAINS
             CALL ldf_c2d( 'TRA', zUfac      , inn        , aeiu, aeiv )    ! surface value proportional to scale factor^inn
             CALL ldf_c1d( 'TRA', aeiu(:,:,1), aeiv(:,:,1), aeiu, aeiv )    ! reduction with depth
             !
+         CASE(  32  )                        !--  time varying 3D field  --!
+            IF(lwp) WRITE(numout,*) '          eddy induced velocity coef. = F( latitude, longitude, depth, time )'
+            IF(lwp) WRITE(numout,*) '                              = F( total EKE )   GEOMETRIC parameterization'
+            !
+            IF ( lk_RK3 ) CALL ctl_stop('ldf_tra_init: The GEOMETRIC parameterisation is not yet available with RK3 time-stepping')
+            IF(lwp .AND. .NOT. ln_eke_equ ) WRITE(numout,*) '          ln_eke_equ will be set to .true. '
+            ln_eke_equ = .TRUE.       ! force the eddy energy equation to be updated
+            l_ldfeiv_time = .TRUE.    ! will be calculated by call to ldf_tra routine in step.F90
+            l_eke_eiv  = .TRUE.
+            !
          CASE DEFAULT
             CALL ctl_stop('ldf_tra_init: wrong choice for nn_aei_ijk_t, the type of space-time variation of aei')
          END SELECT
@@ -606,6 +627,10 @@ CONTAINS
          !
       ENDIF
       !
+      IF( ln_eke_equ ) THEN
+         l_ldfeke   = .TRUE.          ! GEOMETRIC param initialization done in nemogcm_init
+         IF(lwp) WRITE(numout,*) '      GEOMETRIC eddy energy equation to be computed ln_eke_equ = ', ln_eke_equ
+      ENDIF
    END SUBROUTINE ldf_eiv_init
 
 
@@ -746,11 +771,11 @@ CONTAINS
             &                                    * ( aeiv (ji,jj,jk-1) + aeiv (ji,jj  ,jk) ) * wvmask(ji,jj,jk)
       END_3D
       !
-      DO_3D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
+      DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
          pu(ji,jj,jk) = pu(ji,jj,jk) - ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji,jj,jk+1) )
          pv(ji,jj,jk) = pv(ji,jj,jk) - ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj,jk+1) )
       END_3D
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
          pw(ji,jj,jk) = pw(ji,jj,jk) + (  ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj  ,jk) )   &   ! add () for NP repro
             &                           + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji  ,jj-1,jk) ) )
       END_3D

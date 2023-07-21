@@ -51,6 +51,7 @@ MODULE lib_mpp
    !!   mpp_ini_north : initialisation of north fold
    !!   mpp_lbc_north_icb : alternative to mpp_nfd for extra outer halo with icebergs
    !!   mpp_bcast_nml : broadcast/receive namelist character buffer from reading process to all others
+   !!   mpp_bcast_real : broadcast/receive double precision array buffer from reading process to all others
    !!----------------------------------------------------------------------
    USE dom_oce        ! ocean space and time domain
    USE in_out_manager ! I/O manager
@@ -70,6 +71,7 @@ MODULE lib_mpp
    PUBLIC   mppsend_dp, mpprecv_dp                          ! needed by TAM and ICB routines
    PUBLIC   mpp_report
    PUBLIC   mpp_bcast_nml
+   PUBLIC   mpp_bcast_real
    PUBLIC   tic_tac
 #if ! defined key_mpp_mpi
    PUBLIC MPI_Wtime
@@ -665,7 +667,29 @@ CONTAINS
       !
    END SUBROUTINE mpp_bcast_nml
 
-   
+   SUBROUTINE mpp_bcast_real( kvals, kno, kroot )
+      REAL(wp), DIMENSION(kno), INTENT(inout) :: kvals   ! Array to send on kroot, receive for non-kroot
+      INTEGER                 , INTENT(in   ) :: kno     ! Number of elements in array
+      INTEGER                 , INTENT(in   ) :: kroot   ! Processor to send data
+      !!----------------------------------------------------------------------
+      !!                  ***  routine mpp_bcast_real  ***
+      !!
+      !! ** Purpose : Send array kvals to all processors
+      !!
+      !! ** Method  : MPI broadcast
+      !!
+      !!-----------------------------------------------------------------------
+      !!
+      INTEGER                   ::   iflag  
+      !!-----------------------------------------------------------------------
+      !
+#if defined key_mpp_mpi     
+      call MPI_BCAST( kvals, kno, mpi_double_precision, kroot, mpi_comm_oce, iflag )
+      call MPI_BARRIER(mpi_comm_oce, iflag)
+#endif
+      !
+   END SUBROUTINE mpp_bcast_real
+
    !!----------------------------------------------------------------------
    !!    ***  mppmax_a_int, mppmax_int, mppmax_a_real, mppmax_real  ***
    !!   

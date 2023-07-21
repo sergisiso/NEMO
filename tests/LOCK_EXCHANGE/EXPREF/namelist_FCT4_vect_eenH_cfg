@@ -114,7 +114,7 @@
    ln_dynadv_vec = .true.  !  vector form (T) or flux form (F)
    nn_dynkeg     = 1       ! scheme for grad(KE): =0   C2  ;  =1   Hollingsworth correction
    ln_dynadv_cen2 = .false. !  flux form - 2nd order centered scheme
-   ln_dynadv_ubs = .false. !  flux form - 3rd order UBS      scheme
+   ln_dynadv_up3 = .false. !  flux form - 3rd order UBS      scheme
 /
 !-----------------------------------------------------------------------
 &nam_vvl    !   vertical coordinate options                             (default: zstar)

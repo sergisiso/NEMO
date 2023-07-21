@@ -104,7 +104,16 @@
    ln_zco      = .false.   !  z-coordinate - full    steps
    ln_zps      = .false.   !  z-coordinate - partial steps
    ln_sco      = .false.   !  s- or hybrid z-s-coordinate
+   ln_mes      = .false.   !  Multi-Envelope s-coordinate 
    ln_isfcav   = .false.   !  ice shelf cavity             (T: see namzgr_isf)
+   ln_loczgr   = .false.   !  to localise or not the chosen vert. coord. system
+                           !  If TRUE, the user must provide:
+                           !     1) a bathy_meter.nc file including
+                           !        *) s2z_msk: 2D mask for s(=2), s2z(=1) and z(=0) areas
+                           !        *) s2z_wgt: 2D field with 1 in s-areas, distance-based
+                           !                    weights (0<wgt<1) in s2z-areas and 0 elsewhere.
+                           !     2) a domain_cfg_global.nc file including all the geometrical
+                           !        information describing the vertical grid used globally.
 /
 !-----------------------------------------------------------------------
 &namzgr_isf    !   isf cavity geometry definition                       (default: OFF)
@@ -146,6 +155,33 @@
                         !!!!!!!! Other stretching (not SH94 or SF12) [also uses rn_theta above]
    rn_thetb    =    1.0    !  bottom control parameter  (0<=thetb<= 1)
 /
+!-----------------------------------------------------------------------
+&namzgr_mes    !   MEs-coordinate                                       (default F)
+!-----------------------------------------------------------------------
+!                ! env. 1 ! env. 2 ! env. 3 ! env. 4 ! env. 5  !
+!                !        !        !        !        !         !
+   nn_strt     =     1    ,   1    ,    1   ,   0    ,   0     ! Stretch. funct.: Madec 1996 (0) or
+                                                               ! Song & Haidvogel 1994 (1) or
+                                                               ! Siddorn & Furner 2012 (2)
+   nn_slev     =    11    ,   10   ,   10   ,   0    ,   0     ! number of s-lev between env(n-1)
+                                                               ! and env(n)
+   rn_e_hc     =    20.0  ,   10.0 ,   0.0  ,   0.0  ,   0.0   ! critical depth for transition to
+                                                               ! stretch. coord.
+   rn_e_th     =     3.9  ,    2.98,   2.8  ,   0.0  ,   0.0   ! surf. control param.:
+                                                               ! SH94 or MD96: 0<=th<=20
+                                                               ! SF12: thickness surf. cell
+   rn_e_bb     =     0.77 ,    0.15,   0.8  ,   0.0  ,   0.0   ! bot. control param.:
+                                                               ! SH94 or MD96: 0<=bb<=1
+                                                               ! SF12: offset for calculating Zb
+   rn_e_al     =     0.0  ,    0.0 ,   0.0  ,   0.0  ,   0.0   ! alpha stretching param with SF12
+   rn_e_ba     =     0.0  ,    0.0 ,   0.0  ,   0.0  ,   0.0   ! SF12 bathymetry scaling factor for
+                                                               ! calculating Zb
+
+
+   rn_bot_min  = 5.0       ! minimum depth of the ocean bottom (>0) (m)
+   rn_bot_max  = 2201.5    ! maximum depth of the ocean bottom (= ocean depth) (>0) (m)
+/
+
 !-----------------------------------------------------------------------
 &namclo ! (closed sea : need ln_domclo = .true. in namcfg)              (default: OFF)
 !-----------------------------------------------------------------------

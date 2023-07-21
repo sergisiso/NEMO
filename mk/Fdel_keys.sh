@@ -64,9 +64,9 @@ echo "Removing keys ${2} in : ${1}"
 
 for i in ${2} ; do
      if [ "$(echo ${i} | grep -c key_nproc )" -gt 0 ]; then
-        sed -i "s/key_nproc[ij]=.* //" ${1}/cpp_$(basename ${1}).fcm
+        sed -i'' -e "s/key_nproc[ij]=.* //" ${1}/cpp_$(basename ${1}).fcm
      elif [ "$(cat ${1}/cpp_$(basename ${1}).fcm | grep -c "$i")" -gt 0 ]; then
-         sed -i "s/\b${i}\b//" ${1}/cpp_$(basename ${1}).fcm
+         sed -i'' -e "s/\b${i}\b//" ${1}/cpp_$(basename ${1}).fcm
          echo "deleted key $i in $(basename ${1})"
      fi
 done
