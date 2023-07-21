@@ -217,12 +217,12 @@
                                       !     1 = linear liquidus
                                       !     2 = Vancopenolle et al (2019) formulation
                                       !     3 = Weast 71 (used in RJW2014)
-   nn_drainage      =   20            !  number of subcycles for gravity drainage
-   nn_flushing      =   2             !  number of subcycles for flushing
+   nn_drainage      =   50            !  maximum number of subcycles for gravity drainage (10 is usually enough)
+   nn_flushing      =   5             !  maximum number of subcycles for flushing         ( 1 is usually enough)
    rn_flushrate     =   0.3           !  rate of flushing (fraction of melt water used for flushing)
    rn_vbrc          =   0.05          !  critical brines volume above which flushing can occur
                                       ! ** drainage convection scheme **
-   nn_sal_scheme    =   2             !    1 = Rees Jones and Worster (2014) => RJW2014 !!! be carfeul: this one gives wrong results for now
+   nn_sal_scheme    =   2             !    1 = Rees Jones and Worster (2014) => RJW2014
                                       !    2 = Griewank and Notz (2013)      => GN2013
                                       !    3 = Cox and Weeks (1988)          => CW1988
                                       ! ** parameters for each scheme **
@@ -230,12 +230,12 @@
       !                                                                    ==> 0.037  from Martin pers. com.
       rn_Rc_RJW     = 2.7             !    1: Critical Rayleigh number     ==> 2.9    from Thomas 2020
       !                                                                    ==> 2.7    from Martin pers. com.
-      rn_alpha_GN   = 0.681e-3        !    2: Intensity of the Brine flow  ==> 6.7e-3                from Thomas 2020
+      rn_alpha_GN   = 5.84e-4         !    2: Intensity of the Brine flow  ==> 6.7e-3                from Thomas 2020
       !                                                                    ==> [0.510e-3 ; 0.681e-3] from Griewank and Notz 2015
-      !                                                                    ==> 1.56e-3               from Martin pers. com.
-      rn_Rc_GN      = 3.23            !    2: Critical Rayleigh number     ==> 2.4           from Thomas 2020
+      !                                                                    ==> 5.84e-4               from Wongpan et al 2021
+      rn_Rc_GN      = 4.89            !    2: Critical Rayleigh number     ==> 2.4           from Thomas 2020
       !                               !                                    ==> [7.10 ; 3.23] from Griewank and Notz 2015 
-      !                               !                                    ==> 1.01          from Martin pers. com.
+      !                               !                                    ==> 4.89          from Wongpan et al 2021
       rn_alpha_CW   = 7.2e-7          !    3: Intensity of the Brine flow
       !
    ln_sal_chk       = .FALSE.         !  sanity checks for drainage and flushing

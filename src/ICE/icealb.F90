@@ -105,7 +105,7 @@ CONTAINS
       !
       REAL(wp), DIMENSION(A2D(0),jpl) :: za_s_fra   ! ice fraction covered by snow
       INTEGER  ::   ji, jj, jl                ! dummy loop indices
-      REAL(wp) ::   z1_c1, z1_c2,z1_c3, z1_c4 ! local scalar
+      REAL(wp) ::   zhpiv, z1_c1, z1_c2,z1_c3, z1_c4 ! local scalar
       REAL(wp) ::   z1_href_pnd               ! inverse of the characteristic length scale (Lecomte et al. 2015)
       REAL(wp) ::   zalb_pnd, zafrac_pnd      ! ponded sea ice albedo & relative pound fraction
       REAL(wp) ::   zalb_ice, zafrac_ice      ! bare sea ice albedo & relative ice fraction
@@ -120,6 +120,8 @@ CONTAINS
       z1_c2 = 1._wp / 0.05_wp
       z1_c3 = 1._wp / 0.02_wp
       z1_c4 = 1._wp / 0.03_wp
+      !
+      zhpiv = LOG(rn_alb_hpiv)
       !
       CALL ice_var_snwfra( ph_snw(:,:,:), za_s_fra(:,:,:) )   ! calculate ice fraction covered by snow
       !
@@ -149,7 +151,7 @@ CONTAINS
             ENDIF
             !                       !--- Bare ice albedo (for hi < 100cm)
             IF( 0.05 < ph_ice(ji,jj,jl) .AND. ph_ice(ji,jj,jl) <= rn_alb_hpiv ) THEN      ! 5cm < hi < 100cm
-               zalb_ice = zalb_ice    + ( 0.18_wp - zalb_ice   ) * z1_c1 * ( LOG(rn_alb_hpiv) - LOG(ph_ice(ji,jj,jl)) )
+               zalb_ice = zalb_ice    + ( 0.18_wp - zalb_ice   ) * z1_c1 * ( zhpiv - LOG(ph_ice(ji,jj,jl)) )
             ELSEIF( ph_ice(ji,jj,jl) <= 0.05_wp ) THEN                                    ! 0cm < hi < 5cm
                zalb_ice = rn_alb_oce  + ( 0.18_wp - rn_alb_oce ) * z1_c2 * ph_ice(ji,jj,jl)
             ENDIF

@@ -149,11 +149,8 @@ MODULE ice1D
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:) ::   tice_cvgstp_1d   !: convergence of ice/snow temp (subtimestep) [-]
 
    ! sanity checks for salinity
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   s_drain_dserr_1d, s_flush_dserr_1d
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   t_drain_dserr_1d, t_flush_dserr_1d
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   s_drain_serr_1d , s_flush_serr_1d
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   t_drain_serr_1d , t_flush_serr_1d
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   cfl_drain_1d    , cfl_flush_1d
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   sneg_drain_1d , sneg_flush_1d
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)   ::   cfl_drain_1d  , cfl_flush_1d
    ! 
    !!----------------------
    !! * 2D Module variables
@@ -264,15 +261,11 @@ CONTAINS
       ! * checks
       IF( ln_zdf_chkcvg ) THEN
          ii = ii + 1
-         ALLOCATE( tice_cvgerr_1d  (jpij) , tice_cvgstp_1d  (jpij) , STAT=ierr(ii) )
+         ALLOCATE( tice_cvgerr_1d(jpij) , tice_cvgstp_1d(jpij) , STAT=ierr(ii) )
       ENDIF
       IF( ln_sal_chk ) THEN
          ii = ii + 1
-         ALLOCATE( s_drain_dserr_1d(jpij), s_flush_dserr_1d(jpij), &
-            &      s_drain_serr_1d (jpij), s_flush_serr_1d (jpij), cfl_drain_1d(jpij), cfl_flush_1d(jpij), STAT=ierr(ii) )
-         ii = ii + 1
-         ALLOCATE( t_drain_dserr_1d(jpij,nlay_i), t_flush_dserr_1d(jpij,nlay_i), &
-            &      t_drain_serr_1d (jpij,nlay_i), t_flush_serr_1d (jpij,nlay_i), STAT=ierr(ii) )
+         ALLOCATE( sneg_drain_1d(jpij), sneg_flush_1d(jpij), cfl_drain_1d(jpij), cfl_flush_1d(jpij), STAT=ierr(ii) )
       ENDIF
       
       ice1D_alloc = MAXVAL( ierr(:) )
