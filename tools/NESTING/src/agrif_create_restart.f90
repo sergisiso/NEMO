@@ -99,7 +99,7 @@ PROGRAM create_rstrt
   ! create this file
   !
   CALL set_child_name(restart_file,Child_file)
-  status = nf90_create(Child_file,NF90_WRITE,ncid)
+  status = nf90_create(Child_file,NF90_NETCDF4,ncid)
   status = nf90_close(ncid)
   WRITE(*,*) 'Child grid restart file name = ',TRIM(Child_file)      
   WRITE(*,*) ''

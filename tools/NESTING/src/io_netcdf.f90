@@ -1603,4 +1603,53 @@ CONTAINS
     !
   END FUNCTION Dims_Existence
   !
+  LOGICAL FUNCTION Vars_Existence( varname , filename )
+    !
+    CHARACTER(*),INTENT(in) :: varname,filename
+    INTEGER :: status,ncid,varid    
+    !      
+    status = nf90_open(TRIM(filename),NF90_NOWRITE,ncid)
+    IF (status/=nf90_noerr) THEN    
+       WRITE(*,*)"unable to open netcdf file : ",TRIM(filename)
+       STOP
+    ENDIF
+    status = nf90_inq_varid(ncid,TRIM(varname),varid)
+    !      
+    IF (status/=nf90_noerr) THEN
+       Vars_Existence = .FALSE.
+    ELSE
+       Vars_Existence = .TRUE.
+    ENDIF
+    !
+    RETURN
+    !
+  END FUNCTION Vars_Existence
+  !
+  LOGICAL FUNCTION DimUnlimited_Var( varname , filename )
+    !
+    CHARACTER(*),INTENT(in) :: varname,filename
+    INTEGER :: ji, ncid, varid, status, numDims, unlimDimID
+    INTEGER, DIMENSION(nf90_max_var_dims) :: VarDimIds
+    !      
+    status = nf90_open(TRIM(filename),NF90_NOWRITE,ncid)
+    IF (status/=nf90_noerr) THEN    
+       WRITE(*,*)"unable to open netcdf file : ",TRIM(filename)
+       STOP
+    ENDIF
+    status = nf90_inquire(ncid, unlimiteddimid = unlimdimid)
+    !
+    status = nf90_inq_varid(ncid,TRIM(varname),varid)
+    !
+    status = nf90_inquire_variable(ncid, varid , ndims = numdims)
+    status = nf90_inquire_variable(ncid, varid , dimids = vardimids(:numdims))
+
+    DimUnlimited_Var = .FALSE.
+    DO ji = 1, numdims
+       IF( vardimids(ji) == unlimdimid ) DimUnlimited_Var = .TRUE.
+    ENDDO
+
+    RETURN
+    !
+  END FUNCTION DimUnlimited_Var
+  
 END MODULE io_netcdf

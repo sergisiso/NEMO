@@ -1128,7 +1128,7 @@ CONTAINS
     USE io_netcdf
     !      
     CHARACTER(*) name
-    INTEGER :: nx,ny,k,i,j,jpiglo,jpjglo
+    INTEGER :: nx,ny,k,i,j,jpiglo,jpjglo,ji,jj
     TYPE(Coordinates) :: Grid
     REAL*8, POINTER, DIMENSION(:,:) ::zwf => NULL()
     !
@@ -1145,7 +1145,6 @@ CONTAINS
     nx = SIZE(Grid%Bathy_level,1)
     ny = SIZE(Grid%Bathy_level,2)
     !
-    !      
     ALLOCATE(Grid%tmask(nx,ny,N), &
          Grid%umask(nx,ny,N), &
          Grid%vmask(nx,ny,N), &
@@ -1154,21 +1153,34 @@ CONTAINS
     DO k = 1,N
        !      
        WHERE(Grid%Bathy_level(:,:) <= k-1 )    
-          Grid%tmask(:,:,k) = 0
+          Grid%tmask(:,:,k) = 0.
        ELSEWHERE
-          Grid%tmask(:,:,k) = 1
+          Grid%tmask(:,:,k) = 1.
        END WHERE
        !
     END DO
     !
-    Grid%umask(1:nx-1,:,:) = Grid%tmask(1:nx-1,:,:)*Grid%tmask(2:nx,:,:)
-    Grid%vmask(:,1:ny-1,:) = Grid%tmask(:,1:ny-1,:)*Grid%tmask(:,2:ny,:)
+    DO jj=1,ny
+       DO ji=1,nx-1
+          Grid%umask(ji,jj,:) = Grid%tmask(ji,jj,:) * Grid%tmask(ji+1,jj,:)
+       ENDDO
+    ENDDO
+    DO jj=1,ny-1
+       DO ji=1,nx
+          Grid%vmask(ji,jj,:) = Grid%tmask(ji,jj,:)*Grid%tmask(ji,jj+1,:)
+       ENDDO
+    ENDDO
     !
     Grid%umask(nx,:,:) = Grid%tmask(nx,:,:)
     Grid%vmask(:,ny,:) = Grid%tmask(:,ny,:)
-    !      
-    Grid%fmask(1:nx-1,1:ny-1,:) = Grid%tmask(1:nx-1,1:ny-1,:)*Grid%tmask(2:nx,1:ny-1,:)* &
-         Grid%tmask(1:nx-1,2:ny,:)*Grid%tmask(2:nx,2:ny,:) 
+
+    !    
+    DO jj=1,ny-1
+       DO ji=1,nx-1  
+          Grid%fmask(ji,jj,:) = Grid%tmask(ji,jj,:)*Grid%tmask(ji+1,jj,:)* &
+                                Grid%tmask(ji,jj+1,:)*Grid%tmask(ji+1,jj+1,:) 
+       ENDDO
+    ENDDO
     !
     Grid%fmask(nx,:,:) = Grid%tmask(nx,:,:)
     Grid%fmask(:,ny,:) = Grid%tmask(:,ny,:)
@@ -1232,6 +1244,8 @@ CONTAINS
     !
     nx = SIZE(Grid%Bathy_level,1)
     ny = SIZE(Grid%Bathy_level,2) 
+    !
+    WRITE(*,*) 'nx=',nx,' ny=',ny
     !
     WRITE(*,*) 'Init masks in T points'    
     !     
