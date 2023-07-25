@@ -210,21 +210,21 @@ CONTAINS
     SELECT CASE(typevar)
     CASE('T')
        IF(MOD(irafx,2)==1) THEN ! odd
-          zx = 1 ; zy = 1 ; jdecx = FLOOR(irafx/2.) ; jdecy = FLOOR(irafy/2.)
+          zx = 1 ; zy = 1 ; jdecx = FLOOR(REAL(irafx)/2.) ; jdecy = FLOOR(REAL(irafy)/2.)
        ELSE                     ! even
-          zx = 2 ; zy = 2 ; jdecx = FLOOR(irafx/2.) ; jdecy = FLOOR(irafy/2.)
+          zx = 2 ; zy = 2 ; jdecx = FLOOR(REAL(irafx)/2.) ; jdecy = FLOOR(REAL(irafy)/2.)
        ENDIF
     CASE('U')
        IF(MOD(irafx,2)==1) THEN ! odd
-          zx = 1 ; zy = 1 ; jdecx = irafx - 1 ; jdecy = FLOOR(irafy/2.)
+          zx = 1 ; zy = 1 ; jdecx = irafx - 1 ; jdecy = FLOOR(REAL(irafy)/2.)
        ELSE                     ! even
-          zx = 1 ; zy = 2 ; jdecx = irafx - 1 ; jdecy = FLOOR(irafy/2.)
+          zx = 1 ; zy = 2 ; jdecx = irafx - 1 ; jdecy = FLOOR(REAL(irafy)/2.)
        ENDIF
     CASE('V')
        IF(MOD(irafx,2)==1) THEN ! odd
-          zx = 1 ; zy = 1 ; jdecx = FLOOR(irafx/2.) ; jdecy = irafy - 1
+          zx = 1 ; zy = 1 ; jdecx = FLOOR(REAL(irafx)/2.) ; jdecy = irafy - 1
        ELSE                     ! even
-          zx = 2 ; zy = 1 ; jdecx = FLOOR(irafx/2.) ; jdecy = irafy - 1
+          zx = 2 ; zy = 1 ; jdecx = FLOOR(REAL(irafx)/2.) ; jdecy = irafy - 1
        ENDIF
     CASE('F')
        IF(MOD(irafx,2)==1) THEN ! odd
@@ -238,20 +238,23 @@ CONTAINS
     DO jj = 1, nyf
 
        jjf = jj - jdecy
-       jjc = j_min + FLOOR((jjf-1.) / irafy) 
-       
+       jjc = j_min + FLOOR(REAL(jjf-1) / REAL(irafy)) 
+
        DO ji = 1, nxf
           
           jif = ji - jdecx 
-          jic = i_min + FLOOR((jif-1.) / irafx) 
-          
-          Bx = MOD( zx*jif-1, zx*irafx ) / REAL(zx*irafx)
-          By = MOD( zy*jjf-1, zy*irafy ) / REAL(zy*irafy)
+          jic = i_min + FLOOR(REAL(jif-1) / REAL(irafx)) 
+
+          Bx = REAL(MODULO( zx*jif-1, zx*irafx )) / REAL(zx*irafx)
+          By = REAL(MODULO( zy*jjf-1, zy*irafy )) / REAL(zy*irafy)
           Ax = 1. - Bx
           Ay = 1. - By
 
           jic1 = MIN( nxc, jic+1 ) ! avoid out of bounds for tabin below
           jjc1 = MIN( nyc, jjc+1 ) !             --
+
+          jic = MAX( 1, jic ) ! avoid out of bounds
+          jjc = MAX( 1, jjc ) ! avoid out of bounds
 
           tabout(ji,jj) = ( Bx * tabin(jic1,jjc ) + Ax * tabin(jic,jjc ) ) * Ay + &
              &            ( Bx * tabin(jic1,jjc1) + Ax * tabin(jic,jjc1) ) * By
@@ -503,7 +506,7 @@ CONTAINS
     REAL*8, POINTER, DIMENSION(:,:) :: lonParent,latParent => NULL()
     REAL*8, POINTER, DIMENSION(:,:) :: lonChild,latChild,latlon_temp => NULL()
     REAL*8, POINTER, DIMENSION(:,:,:,:) :: tabinterp4d,tabvar1,tabvar2,tabvar3 => NULL()
-    REAL*8, POINTER, DIMENSION(:,:,:) :: tabinterp3d,tabvar3d => NULL()
+    REAL*8, POINTER, DIMENSION(:,:,:) :: tabinterp3d,tabvar3d,tabvar01,tabvar02,tabvar03 => NULL()
     REAL*8, POINTER, DIMENSION(:) :: timedepth_temp,depth => NULL()
     REAL*8,DIMENSION(:,:),POINTER :: matrix => NULL()
     INTEGER,DIMENSION(:),POINTER :: src_add,dst_add  => NULL()
@@ -515,10 +518,16 @@ CONTAINS
     LOGICAL,DIMENSION(:,:),POINTER :: masksrc => NULL()
     LOGICAL :: Interpolation,conservation,Pacifique,Extrapolation,land_level
     !      
-    INTEGER :: deptht,time,i,status,ncid,t,ii,j,nb,numlon,numlat
+    INTEGER :: deptht,time,i,status,ncid,t,ii,j,nb,numlon,numlat,unlimdimid
 
     !        
     TYPE(Coordinates) :: G0,G1      
+    !
+    status = nf90_open(TRIM(filename),NF90_NOWRITE,ncid)
+    IF (status/=nf90_noerr) THEN
+       WRITE(*,*)"unable to open netcdf file : ",TRIM(filename)
+       STOP
+    ENDIF
     !
     !*****************
     !If coarse grid is masked possibility to activate an extrapolation process
@@ -541,7 +550,6 @@ CONTAINS
     !
     CALL Read_Ncdf_dim('x',filename,numlon)
     CALL Read_Ncdf_dim('y',filename,numlat)
-    CALL Read_Ncdf_dim('time_counter',filename,time)
     IF ( Dims_Existence( 'deptht' , filename ) ) THEN
        CALL Read_Ncdf_dim('deptht',filename,deptht)
     ELSE IF ( Dims_Existence( 'depthu' , filename ) ) THEN
@@ -555,7 +563,28 @@ CONTAINS
     ELSE
        deptht = N
     ENDIF
-
+    IF    ( Dims_Existence( 'time_counter' , filename ) ) THEN
+       CALL Read_Ncdf_dim('time_counter',filename,time)
+       ! check that time_counter is the unlimited dim
+       status = nf90_inquire(ncid, unlimiteddimid = unlimdimid)
+       IF ( unlimdimid == -1 ) THEN
+          WRITE(*,*)"time_counter should be the unlimited dimension in this file : ",filename
+          WRITE(*,*)" use nco command: ncks -O --mk_rec_dmn time_counter ",filename," ",filename
+          STOP
+       ENDIF
+    ELSEIF( Dims_Existence( 'time' , filename ) ) THEN
+       CALL Read_Ncdf_dim('time',filename,time)
+       ! check that time is the unlimited dim
+       status = nf90_inquire(ncid, unlimiteddimid = unlimdimid)
+       IF ( unlimdimid == -1 ) THEN
+          WRITE(*,*)"time should be the unlimited dimension in this file : ",filename
+          WRITE(*,*)" use nco command: ncks -O --mk_rec_dmn time ",filename," ",filename
+          STOP
+       ENDIF
+    ELSE
+       time = 0
+    ENDIF
+    
     !
     ! retrieve netcdf variable name
     !
@@ -579,7 +608,7 @@ CONTAINS
     status = Read_Coordinates(Childcoordinates,G1,Pacifique)
     !
     ! check consistency of informations read in namelist 
-    !      
+    !
     IF( imax > SIZE(G0%glamt,1) .OR. jmax > SIZE(G0%glamt,2) .OR. &
          imax <= imin .OR. jmax <= jmin ) THEN                    
        WRITE(*,*) 'ERROR ***** bad child grid definition ...'
@@ -597,7 +626,6 @@ CONTAINS
        STOP
     ENDIF
     !      
-
     !
     ! Initialization of T-mask thanks to bathymetry 
     !
@@ -610,7 +638,6 @@ CONTAINS
        CALL Init_mask(parent_bathy_level,G0,1,1)
        !
     ENDIF
-
     !      
     ! select coordinates to use according to variable position
     !
@@ -619,23 +646,67 @@ CONTAINS
 
     SELECT CASE(posvar)
     CASE('T')
-       lonParent = G0%glamt
-       latParent = G0%gphit
-       lonChild  = G1%glamt
-       latChild  = G1%gphit
-       mask      = G1%tmask
+       IF ( Vars_Existence( 'glamt' , parent_coordinate_file ) ) THEN
+          lonParent = G0%glamt
+          latParent = G0%gphit
+       ELSEIF( Vars_Existence( 'nav_lon' , parent_coordinate_file ) ) THEN
+          lonParent = G0%nav_lon
+          latParent = G0%nav_lat
+       ENDIF
+       IF ( Vars_Existence( 'glamt' , Childcoordinates ) ) THEN
+          lonChild  = G1%glamt
+          latChild  = G1%gphit
+       ELSEIF( Vars_Existence( 'nav_lon' , Childcoordinates ) ) THEN
+          lonChild  = G1%nav_lon
+          latChild  = G1%nav_lat
+       ENDIF
+       !!IF ( Vars_Existence( 'tmask' , Childcoordinates ) ) THEN
+          mask = G1%tmask
+       !!ELSEIF( Vars_Existence( 'top_level' , Childcoordinates ) ) THEN
+       !!   mask = MAX( 1., G1%top_level )
+       !!ELSE
+       !!   mask = 1.
+       !!ENDIF
     CASE('U')
-       lonParent = G0%glamu
-       latParent = G0%gphiu
-       lonChild  = G1%glamu
-       latChild  = G1%gphiu
-       mask      = G1%umask
+       IF ( Vars_Existence( 'glamu' , parent_coordinate_file ) ) THEN
+          lonParent = G0%glamu
+          latParent = G0%gphiu
+       ELSE
+          WRITE(*,*) 'ERROR ***** missing glamu/gphiu coordinates in ', TRIM(parent_coordinate_file)
+          STOP
+       ENDIF
+       IF ( Vars_Existence( 'glamu' , Childcoordinates ) ) THEN
+          lonChild  = G1%glamu
+          latChild  = G1%gphiu
+       ELSE
+          WRITE(*,*) 'ERROR ***** missing glamu/gphiu coordinates in ', TRIM(Childcoordinates)
+          STOP
+       ENDIF
+       !!IF ( Vars_Existence( 'umask' , Childcoordinates ) ) THEN
+          mask = G1%umask
+       !!ELSE
+       !!   mask = 1.
+       !!ENDIF
     CASE('V')
-       lonParent = G0%glamv
-       latParent = G0%gphiv
-       lonChild  = G1%glamv
-       latChild  = G1%gphiv
-       mask      = G1%vmask
+       IF ( Vars_Existence( 'glamv' , parent_coordinate_file ) ) THEN
+          lonParent = G0%glamv
+          latParent = G0%gphiv
+       ELSE
+          WRITE(*,*) 'ERROR ***** missing glamv/gphiv coordinates in ', TRIM(parent_coordinate_file)
+          STOP
+       ENDIF
+       IF ( Vars_Existence( 'glamv' , Childcoordinates ) ) THEN
+          lonChild  = G1%glamv
+          latChild  = G1%gphiv
+       ELSE
+          WRITE(*,*) 'ERROR ***** missing glamv/gphiv coordinates in ', TRIM(Childcoordinates)
+          STOP
+       ENDIF
+       !!IF ( Vars_Existence( 'vmask' , Childcoordinates ) ) THEN
+          mask = G1%vmask
+       !!ELSE
+       !!   mask = 1.
+       !!ENDIF
     END SELECT
 
     DEALLOCATE(G0%glamu,G0%glamv,G0%gphiu,G0%gphiv)
@@ -665,8 +736,9 @@ CONTAINS
     IF ( Dims_Existence( 'depthu' , filename ) ) CALL Write_Ncdf_dim('depthu',Child_file,deptht)
     IF ( Dims_Existence( 'depthv' , filename ) ) CALL Write_Ncdf_dim('depthv',Child_file,deptht)
     IF ( Dims_Existence( 'depthw' , filename ) ) CALL Write_Ncdf_dim('depthw',Child_file,deptht)
-    IF ( Dims_Existence( 'z' , filename ) ) CALL Write_Ncdf_dim('z',Child_file,deptht)
-    CALL Write_Ncdf_dim('time_counter',Child_file,0)
+    IF ( Dims_Existence( 'z'      , filename ) ) CALL Write_Ncdf_dim('z'     ,Child_file,deptht)
+    IF ( Dims_Existence( 'time_counter' , filename ) ) CALL Write_Ncdf_dim('time_counter',Child_file,time)
+    IF ( Dims_Existence( 'time'         , filename ) ) CALL Write_Ncdf_dim('time'        ,Child_file,time)
 
     IF( deptht .NE. 1 .AND. deptht .NE. N ) THEN
        WRITE(*,*) '***'
@@ -729,6 +801,17 @@ CONTAINS
           CALL Write_Ncdf_var('time_counter','time_counter',  &
                Child_file,timedepth_temp,'float')
           CALL Copy_Ncdf_att('time_counter',TRIM(filename),Child_file)
+          DEALLOCATE(timedepth_temp)
+          varname = TRIM(Ncdf_varname(i))
+          Interpolation = .FALSE.
+          !
+          !copy time from input file to output file
+       CASE('time')
+          ALLOCATE(timedepth_temp(time))
+          CALL Read_Ncdf_var('time',filename,timedepth_temp) 
+          CALL Write_Ncdf_var('time','time',  &
+               Child_file,timedepth_temp,'float')
+          CALL Copy_Ncdf_att('time',TRIM(filename),Child_file)
           DEALLOCATE(timedepth_temp)
           varname = TRIM(Ncdf_varname(i))
           Interpolation = .FALSE.
@@ -806,84 +889,305 @@ CONTAINS
           !	         
        END SELECT
 
-       ! //////////////// INTERPOLATION FOR 3D VARIABLES /////////////////////////////////////
+       ! //////////////// INTERPOLATION FOR 2D VARIABLES /////////////////////////////////////
        ! 
-       IF( Interpolation .AND. Get_NbDims(TRIM(varname),TRIM(filename)) == 3 ) THEN
+       IF( Interpolation .AND. Get_NbDims(TRIM(varname),TRIM(filename)) == 2 ) THEN
           !      
           ALLOCATE(detected_pts(numlon,numlat,N))
           ALLOCATE(masksrc(numlon,numlat))                                           
           !
-          ! ******************************LOOP ON TIME*******************************************
-          !loop on time
-          DO t = 1,time
-             !                   
-             IF(extrapolation) THEN
-                WRITE(*,*) 'interpolation/extrapolation ',TRIM(varname),' for time t = ',t
-             ELSE
-                WRITE(*,*) 'interpolation ',TRIM(varname),' for time t = ',t
-             ENDIF
-             !                            
-             ALLOCATE(tabvar3d(numlon,numlat,1))      
-             ALLOCATE(tabinterp3d(nxfin,nyfin,1))
-             !                    
-             CALL Read_Ncdf_var(varname,filename,tabvar3d,t)                                              
-             !
-             ! search points where extrapolation is required
-             ! 
-             IF(Extrapolation) THEN
-                 WHERE( tabvar3d .GE. 1.e+20 ) tabvar3d = 0.
-                IF (t .EQ. 1. ) CALL extrap_detect(G0,G1,detected_pts(:,:,1),1)
-                CALL correct_field_2d(detected_pts(:,:,1),tabvar3d,G0,masksrc,'posvar')
-             ELSE
-                masksrc = .TRUE.
-             ENDIF
+          IF(extrapolation) THEN
+             WRITE(*,*) 'interpolation/extrapolation ',TRIM(varname)
+          ELSE
+             WRITE(*,*) 'interpolation ',TRIM(varname)
+          ENDIF
+          !                            
+          ALLOCATE(tabvar3d(numlon,numlat,1))      
+          ALLOCATE(tabinterp3d(nxfin,nyfin,1))
+          !                    
+          CALL Read_Ncdf_var(varname,filename,tabvar3d)                                              
+          !
+          ! search points where extrapolation is required
+          ! 
+          IF(Extrapolation) THEN
+             WHERE( tabvar3d .GE. 1.e+20 ) tabvar3d = 0.
+             CALL extrap_detect(G0,G1,detected_pts(:,:,1),1)
+             CALL correct_field_2d(detected_pts(:,:,1),tabvar3d,G0,masksrc,'posvar')
+          ELSE
+             masksrc = .TRUE.
+          ENDIF
 
-             IF (t.EQ.1 ) THEN 
+          SELECT CASE(TRIM(interp_type))
+          CASE('bilinear')
+             CALL get_remap_matrix(latParent,latChild,   &
+                lonParent,lonChild,                    &
+                masksrc,matrix,src_add,dst_add)
 
-                SELECT CASE(TRIM(interp_type))
-                CASE('bilinear')
-                   CALL get_remap_matrix(latParent,latChild,   &
-                        lonParent,lonChild,                    &
-                        masksrc,matrix,src_add,dst_add)
+          CASE('bicubic')
+             CALL get_remap_bicub(latParent,latChild,   &
+                lonParent,lonChild,   &
+                masksrc,matrix,src_add,dst_add)
 
-                CASE('bicubic')
-                   CALL get_remap_bicub(latParent,latChild,   &
-                        lonParent,lonChild,   &
-                        masksrc,matrix,src_add,dst_add)
-
-                END SELECT
-                !                                                        
-             ENDIF
-             !      
-             SELECT CASE(TRIM(interp_type))
-             CASE('bilinear')                                                       
-                CALL make_remap(tabvar3d(:,:,1),tabinterp3d(:,:,1),nxfin,nyfin, &
-                     matrix,src_add,dst_add)     
-             CASE('bicubic')                                   
-                CALL make_bicubic_remap(tabvar3d(:,:,1),masksrc,tabinterp3d(:,:,1),nxfin,nyfin, &
-                     matrix,src_add,dst_add)                        
-             END SELECT
-             !                     
-             IF( conservation ) CALL Correctforconservation(tabvar3d(:,:,1),tabinterp3d(:,:,1), &
-                  G0%e1t,G0%e2t,G1%e1t,G1%e2t,nxfin,nyfin,posvar,imin,jmin)  
-             !      
-             IF(Extrapolation) tabinterp3d(:,:,1) = tabinterp3d(:,:,1) * mask(:,:,1)     
-             !                     
-             dimnames(1)='x'
-             dimnames(2)='y'
-             dimnames(3)='time_counter'
-             !                                     
-             CALL Write_Ncdf_var(TRIM(varname),dimnames(1:3),&
-                  Child_file,tabinterp3d,t,'float')
-             !      
-             DEALLOCATE(tabinterp3d)
-             DEALLOCATE(tabvar3d)                     
-             !end loop on time
-          END DO
+          END SELECT
+          !                                                        
+          !      
+          SELECT CASE(TRIM(interp_type))
+          CASE('bilinear')                                                       
+             CALL make_remap(tabvar3d(:,:,1),tabinterp3d(:,:,1),nxfin,nyfin, &
+                matrix,src_add,dst_add)     
+          CASE('bicubic')                                   
+             CALL make_bicubic_remap(tabvar3d(:,:,1),masksrc,tabinterp3d(:,:,1),nxfin,nyfin, &
+                matrix,src_add,dst_add)                        
+          END SELECT
+          !                     
+          IF( conservation ) CALL Correctforconservation(tabvar3d(:,:,1),tabinterp3d(:,:,1), &
+             G0%e1t,G0%e2t,G1%e1t,G1%e2t,nxfin,nyfin,posvar,imin,jmin)  
+          !      
+          IF(Extrapolation) tabinterp3d(:,:,1) = tabinterp3d(:,:,1) * mask(:,:,1)     
+!!          tabinterp3d(:,:,1) = tabinterp3d(:,:,1) * mask(:,:,1)
+          !                     
+          dimnames(1)='x'
+          dimnames(2)='y'
+          !                                     
+          CALL Write_Ncdf_var(TRIM(varname),dimnames(1:2),&
+             Child_file,tabinterp3d(:,:,1),'float')
+          !      
+          DEALLOCATE(tabinterp3d)
+          DEALLOCATE(tabvar3d)                     
           !                   
           DEALLOCATE(detected_pts)
           IF(ASSOCIATED(matrix)) DEALLOCATE(matrix,dst_add,src_add)
           DEALLOCATE( masksrc)
+          
+          CALL Copy_Ncdf_att(TRIM(varname),TRIM(filename),Child_file)                        
+          !
+          
+       ! //////////////// INTERPOLATION FOR 3D VARIABLES /////////////////////////////////////
+       ! 
+       ELSEIF( Interpolation .AND. Get_NbDims(TRIM(varname),TRIM(filename)) == 3 ) THEN
+          !      
+          IF( DimUnlimited_Var(TRIM(varname),TRIM(filename)) ) THEN
+
+             ALLOCATE(detected_pts(numlon,numlat,N))
+             ALLOCATE(masksrc(numlon,numlat))                                           
+             !
+             ! ******************************LOOP ON TIME*******************************************
+             !loop on time
+             DO t = 1,time
+                !                   
+                IF(extrapolation) THEN
+                   WRITE(*,*) 'interpolation/extrapolation ',TRIM(varname),' for time t = ',t
+                ELSE
+                   WRITE(*,*) 'interpolation ',TRIM(varname),' for time t = ',t
+                ENDIF
+                !                            
+                ALLOCATE(tabvar3d(numlon,numlat,1))      
+                ALLOCATE(tabinterp3d(nxfin,nyfin,1))
+                !                    
+                CALL Read_Ncdf_var(varname,filename,tabvar3d,t)                                              
+                !
+                ! search points where extrapolation is required
+                ! 
+                IF(Extrapolation) THEN
+                   WHERE( tabvar3d .GE. 1.e+20 ) tabvar3d = 0.
+                   IF (t .EQ. 1. ) CALL extrap_detect(G0,G1,detected_pts(:,:,1),1)
+                   CALL correct_field_2d(detected_pts(:,:,1),tabvar3d,G0,masksrc,'posvar')
+                ELSE
+                   masksrc = .TRUE.
+                ENDIF
+
+                IF (t.EQ.1 ) THEN 
+
+                   SELECT CASE(TRIM(interp_type))
+                   CASE('bilinear')
+                      CALL get_remap_matrix(latParent,latChild,   &
+                         lonParent,lonChild,                    &
+                         masksrc,matrix,src_add,dst_add)
+                   CASE('bicubic')
+                      CALL get_remap_bicub(latParent,latChild,   &
+                         lonParent,lonChild,   &
+                         masksrc,matrix,src_add,dst_add)
+
+                   END SELECT
+                   !                                                        
+                ENDIF
+                !      
+                SELECT CASE(TRIM(interp_type))
+                CASE('bilinear')                                                       
+                   CALL make_remap(tabvar3d(:,:,1),tabinterp3d(:,:,1),nxfin,nyfin, &
+                      matrix,src_add,dst_add)     
+                CASE('bicubic')                                   
+                   CALL make_bicubic_remap(tabvar3d(:,:,1),masksrc,tabinterp3d(:,:,1),nxfin,nyfin, &
+                      matrix,src_add,dst_add)                        
+                END SELECT
+                !                     
+                IF( conservation ) CALL Correctforconservation(tabvar3d(:,:,1),tabinterp3d(:,:,1), &
+                   G0%e1t,G0%e2t,G1%e1t,G1%e2t,nxfin,nyfin,posvar,imin,jmin)  
+                !      
+                IF(Extrapolation) tabinterp3d(:,:,1) = tabinterp3d(:,:,1) * mask(:,:,1)     
+!!                tabinterp3d(:,:,1) = tabinterp3d(:,:,1) * mask(:,:,1)
+                !                     
+                dimnames(1)='x'
+                dimnames(2)='y'
+                dimnames(3)='time_counter'
+                !                                     
+                CALL Write_Ncdf_var(TRIM(varname),dimnames(1:3),&
+                   Child_file,tabinterp3d,t,'float')
+                !      
+                DEALLOCATE(tabinterp3d)
+                DEALLOCATE(tabvar3d)                     
+                !end loop on time
+             END DO
+             !                   
+             DEALLOCATE(detected_pts)
+             IF(ASSOCIATED(matrix)) DEALLOCATE(matrix,dst_add,src_add)
+             DEALLOCATE( masksrc)
+
+          ELSE
+
+             dimnames(1)='x'
+             dimnames(2)='y'
+             IF ( Dims_Existence( 'deptht' , filename ) ) dimnames(3)='deptht'  
+             IF ( Dims_Existence( 'depthu' , filename ) ) dimnames(3)='depthu'
+             IF ( Dims_Existence( 'depthv' , filename ) ) dimnames(3)='depthv'
+             IF ( Dims_Existence( 'depthw' , filename ) ) dimnames(3)='depthw'
+             IF ( Dims_Existence( 'z' , filename ) ) dimnames(3)='z'
+             !
+             ! loop on vertical levels
+             ! 
+             DO nb = 1,deptht
+                !        
+                ALLOCATE(masksrc(numlon,numlat))
+                ALLOCATE(detected_pts(numlon,numlat,N))          
+                !
+                ! point detection et level n                                     
+                !
+                land_level = .FALSE.
+                IF( Extrapolation ) THEN
+                   IF(MAXVAL(mask(:,:,nb))==0.) land_level = .TRUE.
+                ENDIF
+
+
+                IF ( land_level ) THEN
+                   !
+                   WRITE(*,*) 'only land points on level ',nb
+                   ALLOCATE(tabinterp3d(nxfin,nyfin,1)) 
+                   tabinterp3d = 0.e0
+                   !                              
+                   CALL Write_Ncdf_var(TRIM(varname),dimnames, &
+                      Child_file,tabinterp3d,nb,'float')
+                   DEALLOCATE(tabinterp3d)
+                   !
+                ELSE
+                   !                       
+                   ALLOCATE(tabvar01(numlon,numlat,1))    ! level k
+                   IF(Extrapolation) ALLOCATE(tabvar02(numlon,numlat,1))    ! level k-1
+                   IF(Extrapolation) ALLOCATE(tabvar03(numlon,numlat,1))    ! level k-2                       
+                   ALLOCATE(tabinterp3d(nxfin,nyfin,1)) 
+                   !
+                   IF(Extrapolation) THEN                                  
+                      IF(nb==1) THEN
+                         CALL Read_Ncdf_var(varname,filename,tabvar01,nb)    
+                         WHERE( tabvar01 .GE. 1.e+20 ) tabvar01 = 0.
+                      ELSE IF (nb==2) THEN
+                         CALL Read_Ncdf_var(varname,filename,tabvar02,nb-1)
+                         CALL Read_Ncdf_var(varname,filename,tabvar01,nb)            
+                         WHERE( tabvar01 .GE. 1.e+20 ) tabvar01 = 0.
+                         WHERE( tabvar02 .GE. 1.e+20 ) tabvar02 = 0.
+                      ELSE 
+                         CALL Read_Ncdf_var(varname,filename,tabvar03,nb-2)
+                         CALL Read_Ncdf_var(varname,filename,tabvar02,nb-1)
+                         CALL Read_Ncdf_var(varname,filename,tabvar01,nb)
+                         WHERE( tabvar01 .GE. 1.e+20 ) tabvar01 = 0.
+                         WHERE( tabvar02 .GE. 1.e+20 ) tabvar02 = 0.
+                         WHERE( tabvar03 .GE. 1.e+20 ) tabvar03 = 0.
+                      ENDIF
+                      !                              
+                      CALL extrap_detect(G0,G1,detected_pts(:,:,nb),nb)
+
+                      ALLOCATE(tabvar1(numlon,numlat,1,1))    ! level k
+                      ALLOCATE(tabvar2(numlon,numlat,1,1))    ! level k-1
+                      ALLOCATE(tabvar3(numlon,numlat,1,1))    ! level k-2
+                      tabvar1(:,:,1,1) = tabvar01(:,:,1)
+                      tabvar2(:,:,1,1) = tabvar02(:,:,1)
+                      tabvar3(:,:,1,1) = tabvar03(:,:,1)
+                      CALL correct_field(detected_pts(:,:,nb),tabvar1,tabvar2,&
+                         tabvar3,G0,depth,masksrc,nb,'posvar')
+                      tabvar01(:,:,1) = tabvar1(:,:,1,1)
+                      tabvar02(:,:,1) = tabvar2(:,:,1,1)
+                      tabvar03(:,:,1) = tabvar3(:,:,1,1)                      
+                      DEALLOCATE(tabvar1,tabvar2,tabvar3)
+                      DEALLOCATE(tabvar02,tabvar03)
+
+                   ELSE 
+                      CALL Read_Ncdf_var(varname,filename,tabvar01,nb)
+                      IF(MAXVAL(tabvar01(:,:,1))==0.) land_level = .TRUE.
+                      masksrc = .TRUE. 
+                   ENDIF
+
+                   IF( Extrapolation ) THEN
+                      WRITE(*,*) 'interpolation/extrapolation ',TRIM(varname),' for vertical level = ',nb   
+                   ELSE
+                      WRITE(*,*) 'interpolation ',TRIM(varname),' for vertical level = ',nb
+                   ENDIF
+                   !
+                   SELECT CASE(TRIM(interp_type))
+                   CASE('bilinear')
+                      CALL get_remap_matrix(latParent,latChild,   &
+                         lonParent,lonChild,   &
+                         masksrc,matrix,src_add,dst_add)
+
+                   CASE('bicubic')
+                      CALL get_remap_bicub(latParent,latChild,   &
+                         lonParent,lonChild,   &
+                         masksrc,matrix,src_add,dst_add)
+                      !                             
+                   END SELECT
+                   !                                                        
+                   !      
+                   SELECT CASE(TRIM(interp_type))
+                      !                             
+                   CASE('bilinear')                                                       
+                      CALL make_remap(tabvar01(:,:,1),tabinterp3d(:,:,1),nxfin,nyfin, &
+                         matrix,src_add,dst_add)     
+                   CASE('bicubic')                                   
+                      CALL make_bicubic_remap(tabvar01(:,:,1),masksrc,tabinterp3d(:,:,1),nxfin,nyfin, &
+                         matrix,src_add,dst_add)                        
+                   END SELECT
+                   !                     
+                   IF( conservation ) CALL Correctforconservation(tabvar01(:,:,1),tabinterp3d(:,:,1), &
+                      G0%e1t,G0%e2t,G1%e1t,G1%e2t,nxfin,nyfin,posvar,imin,jmin)  
+
+                   !
+                   ALLOCATE(tabinterp4d(nxfin,nyfin,1,1))
+                   tabinterp4d(:,:,1,1) = tabinterp3d(:,:,1)
+                   IF(Extrapolation) CALL check_extrap(G1,tabinterp4d,nb)
+                   tabinterp3d(:,:,1) = tabinterp4d(:,:,1,1)
+                   DEALLOCATE(tabinterp4d)
+                   !     
+                   IF(Extrapolation) tabinterp3d(:,:,1) = tabinterp3d(:,:,1) * mask(:,:,nb)     
+!!                   tabinterp3d(:,:,1) = tabinterp3d(:,:,1) * mask(:,:,nb)
+                   !                     
+                   CALL Write_Ncdf_var(TRIM(varname),dimnames, &
+                      Child_file,tabinterp3d,nb,'float')
+                   !      
+                   DEALLOCATE(tabinterp3d)
+                   DEALLOCATE(tabvar01)                     
+                   !
+                   !
+                ENDIF
+
+                !
+                IF(ASSOCIATED(matrix)) DEALLOCATE(matrix,dst_add,src_add)
+                DEALLOCATE( masksrc )
+                DEALLOCATE(detected_pts)       
+                !
+                ! end loop on vertical levels
+                !      
+             END DO
+
+             
+          ENDIF
 
           CALL Copy_Ncdf_att(TRIM(varname),TRIM(filename),Child_file)                        
           !

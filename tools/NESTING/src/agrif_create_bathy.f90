@@ -123,18 +123,20 @@ PROGRAM create_bathy
 
   ! check grids: if identical then do not interpolate
   identical_grids = .FALSE.
-  
-  IF(  SIZE(G0%nav_lat,1) == SIZE(G1%nav_lat,1) .AND. SIZE(G0%nav_lat,2) == SIZE(G1%nav_lat,2) .AND. &
-     & SIZE(G0%nav_lon,1) == SIZE(G1%nav_lon,1) .AND. SIZE(G0%nav_lon,2) == SIZE(G1%nav_lon,2) ) THEN
-     IF(  MAXVAL( ABS(G0%nav_lat(:,:)- G1%nav_lat(:,:)) ) < 0.0001 .AND. &
-        & MAXVAL( ABS(G0%nav_lon(:,:)- G1%nav_lon(:,:)) ) < 0.0001 ) THEN
-        WRITE(*,*) ''
-        WRITE(*,*) 'same grid between parent and child domains => NO INTERPOLATION'
-        WRITE(*,*) ''
-        G1%bathy_meter = G0%bathy_meter
-        identical_grids = .TRUE.
-     ENDIF
-  ENDIF
+ 
+!clem: comment these lines if one wants to create a zoom 1:1 and to change the bathymetry in the zoom
+!
+!  IF(  SIZE(G0%nav_lat,1) == SIZE(G1%nav_lat,1) .AND. SIZE(G0%nav_lat,2) == SIZE(G1%nav_lat,2) .AND. &
+!     & SIZE(G0%nav_lon,1) == SIZE(G1%nav_lon,1) .AND. SIZE(G0%nav_lon,2) == SIZE(G1%nav_lon,2) ) THEN
+!     IF(  MAXVAL( ABS(G0%nav_lat(:,:)- G1%nav_lat(:,:)) ) < 0.0001 .AND. &
+!        & MAXVAL( ABS(G0%nav_lon(:,:)- G1%nav_lon(:,:)) ) < 0.0001 ) THEN
+!        WRITE(*,*) ''
+!        WRITE(*,*) 'same grid between parent and child domains => NO INTERPOLATION'
+!        WRITE(*,*) ''
+!        G1%bathy_meter = G0%bathy_meter
+!        identical_grids = .TRUE.
+!     ENDIF
+!  ENDIF
   
   IF( .NOT.new_topo )   type_bathy_interp = 2   ! only one which works
   !
@@ -270,8 +272,8 @@ PROGRAM create_bathy
         ALLOCATE(masksrc(SIZE(G0%bathy_meter,1),SIZE(G0%bathy_meter,2)))
         ALLOCATE(bathy_test(nxfin,nyfin))
         !
-        WHERE(G0%bathy_meter.LE.0)   ;   masksrc = .FALSE.   ;
-        ELSEWHERE                    ;   masksrc = .TRUE.    ;
+        WHERE(G0%bathy_meter.LE.0.)   ;   masksrc = .FALSE.   ;
+        ELSEWHERE                     ;   masksrc = .TRUE.    ;
         END WHERE
         !            
         ! compute remapping matrix thanks to SCRIP package            

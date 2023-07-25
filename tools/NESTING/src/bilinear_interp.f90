@@ -205,7 +205,6 @@ CONTAINS
     ALLOCATE(grid1_mask(SIZE(grid1_lat,1)*SIZE(grid1_lat,2)))
     CALL logtab2Dto1D(mask,grid1_mask)
     !      
-    !      Write(*,*) ,'grid1_mask = ',grid1_mask                 
     !
     ! degrees to radian
     !
@@ -529,6 +528,7 @@ CONTAINS
     ! bilinear weights for four corners
     !      
     REAL*8, DIMENSION(4) :: wgts            
+    INTEGER, DIMENSION(1) :: wmax !!clem nearest
     !
     REAL*8 :: &
          plat, plon,       &  ! lat/lon coords of destination point
@@ -653,6 +653,11 @@ CONTAINS
              wgts(3) = iguess*jguess
              wgts(4) = (one-iguess)*jguess
              !	    	        
+!!clem nearest
+!wmax=MAX( 1, MAXLOC( wgts(1:4), MASK = (grid1_mask(src_add(1:4)) == .TRUE.) ) )
+!wgts(1:4)=0.
+!wgts(wmax)=1.
+!!clem
              !
              CALL store_link_bilin(dst_add, src_add, wgts, nmap)
 
@@ -669,7 +674,7 @@ CONTAINS
           !*** search for bilinear failed - use a distance-weighted
           !*** average instead (this is typically near the pole)
           !***
-       ELSE IF (src_add(1) < 0) THEN
+       ELSE IF (src_add(1) <= 0) THEN
 
           src_add = ABS(src_add)
           icount = 0
@@ -693,6 +698,11 @@ CONTAINS
              wgts(3) = src_lats(3)/sum_wgts
              wgts(4) = src_lats(4)/sum_wgts
              !
+!!clem nearest
+!wmax=MAX( 1, MAXLOC( wgts(1:4), MASK = (grid1_mask(src_add(1:4)) == .TRUE.) ) )
+!wgts(1:4)=0.
+!wgts(wmax)=1.
+!!clem
              grid2_frac(dst_add) = one
              CALL store_link_bilin(dst_add, src_add, wgts, nmap)
           ENDIF
