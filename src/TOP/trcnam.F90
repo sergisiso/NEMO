@@ -49,8 +49,6 @@ CONTAINS
       !!              - read namelist of each defined SMS model
       !!                ( (PISCES, CFC, MY_TRC )
       !!---------------------------------------------------------------------
-      INTEGER  ::   jn   ! dummy loop indice
-      !!---------------------------------------------------------------------
       !
       IF( .NOT.l_offline )   CALL trc_nam_run     ! Parameters of the run                                  
       !               
@@ -270,6 +268,7 @@ CONTAINS
       !!---------------------------------------------------------------------
 #if defined key_trdmxl_trc  || defined key_trdtrc
       INTEGER  ::   ios, ierr                 ! Local integer
+      INTEGER  ::   jn                        ! dummy loop indice
       !!
       NAMELIST/namtrc_trd/ nn_trd_trc, nn_ctls_trc, rn_ucf_trc, &
          &                ln_trdmxl_trc_restart, ln_trdmxl_trc_instant, &

@@ -10,7 +10,7 @@ MODULE trdini
    !!   trd_init      : initialization step
    !!----------------------------------------------------------------------
    USE dom_oce        ! ocean domain
-   USE domtile
+   USE domtile        ! tiling utilities
    USE trd_oce        ! trends: ocean variables
    USE trdken         ! trends: 3D kinetic   energy
    USE trdpen         ! trends: 3D potential energy
@@ -89,7 +89,7 @@ CONTAINS
       !
 !      IF( .NOT.ln_linssh .AND. ( l_trdtra .OR. l_trddyn ) )  CALL ctl_stop( 'trend diagnostics with variable volume not validated' )
 
-      IF( ln_tile .AND. ( l_trdtra .OR. l_trddyn ) ) THEN
+      IF( ln_tile .AND. ( l_trdtra .OR. l_trddyn .OR. l_trdtrc ) ) THEN
          CALL ctl_warn('Tiling is not yet implemented for the trends diagnostics; ln_tile is forced to FALSE')
          ln_tile = .FALSE.
          CALL dom_tile_init

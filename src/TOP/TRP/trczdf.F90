@@ -25,7 +25,10 @@ MODULE trczdf
    PRIVATE
 
    PUBLIC   trc_zdf         ! called by step.F90 
-   
+
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
+#  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trczdf.F90 14086 2020-12-04 11:37:14Z cetlod $ 
@@ -44,24 +47,33 @@ CONTAINS
       INTEGER                                   , INTENT(in   ) ::   Kbb, Kmm, Krhs, Kaa  ! ocean time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) ::   ptr                  ! passive tracers and RHS of tracer equation
       !
-      INTEGER               ::  jk, jn
+      INTEGER               ::  ji, jj, jk, jn   ! dummy loop indices
       CHARACTER (len=22)    :: charout
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jptra) ::   ztrtrd   ! 4D workspace
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ztrtrd   ! 4D workspace
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_zdf')
       !
-      IF( l_trdtrc )   ztrtrd(:,:,:,:)  = ptr(:,:,:,:,Krhs)
+      IF( l_trdtrc ) THEN
+         ALLOCATE( ztrtrd(A2D(nn_hls),jpk,jptra) )
+         DO jn = 1, jptra
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+               ztrtrd(ji,jj,jk,jn)  = ptr(ji,jj,jk,jn,Krhs)
+            END_3D
+         END DO
+      ENDIF
       !
       CALL tra_zdf_imp( 'TRC', rDt_trc, Kbb, Kmm, Krhs, ptr, Kaa, jptra )    !   implicit scheme          
       !
       IF( l_trdtrc )   THEN                      ! save the vertical diffusive trends for further diagnostics
          DO jn = 1, jptra
-            DO jk = 1, jpkm1
-               ztrtrd(:,:,jk,jn) = ( ( ptr(:,:,jk,jn,Kaa) - ptr(:,:,jk,jn,Kbb) ) / rDt_trc ) - ztrtrd(:,:,jk,jn)
-            END DO
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+               ztrtrd(ji,jj,jk,jn) = ( ( ptr(ji,jj,jk,jn,Kaa) - ptr(ji,jj,jk,jn,Kbb) ) / rDt_trc ) - ztrtrd(ji,jj,jk,jn)
+            END_3D
             CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_zdf, ztrtrd(:,:,:,jn) )
          END DO
+         !
+         DEALLOCATE( ztrtrd )
       ENDIF
       !                                          ! print mean trends (used for debugging)
       IF( sn_cfctl%l_prttrc )   THEN

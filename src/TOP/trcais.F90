@@ -152,10 +152,12 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('trc_ais')
 
-      IF( kt == nit000 .AND. lwp) THEN
-         WRITE(numout,*)
-         WRITE(numout,*) 'trc_ais : passive tracers from Antarctic Ice Sheet'
-         WRITE(numout,*) '~~~~~~~ '
+      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN ! Do only for the first tile
+         IF( kt == nit000 .AND. lwp) THEN
+            WRITE(numout,*)
+            WRITE(numout,*) 'trc_ais : passive tracers from Antarctic Ice Sheet'
+            WRITE(numout,*) '~~~~~~~ '
+         ENDIF
       ENDIF
 
 

@@ -23,6 +23,7 @@ MODULE trcdta
    USE iom           !  I/O manager
    USE lib_mpp       !  MPP library
    USE fldread       !  read input fields
+   USE domtile       ! tiling utilities
 
    IMPLICIT NONE
    PRIVATE
@@ -164,9 +165,9 @@ CONTAINS
       !!
       !! ** Action  :   sf_trcdta   passive tracer data on meld mesh and interpolated at time-step kt
       !!----------------------------------------------------------------------
-      INTEGER                          , INTENT(in   )   ::   kt         ! ocean time-step
-      INTEGER                          , INTENT(in   )   ::   kjl        ! tracer index
-      REAL(wp),  DIMENSION(jpi,jpj,jpk), INTENT(inout  ) ::   ptrcdta    ! 3D data array
+      INTEGER                              , INTENT(in   )   ::   kt         ! ocean time-step
+      INTEGER                              , INTENT(in   )   ::   kjl        ! tracer index
+      REAL(wp),  DIMENSION(T2D(nn_hls),jpk), INTENT(inout  ) ::   ptrcdta    ! 3D data array
       !
       INTEGER ::   ji, jj, jk, jl, jkk, ik    ! dummy loop indices
       REAL(wp)::   zl, zi
@@ -184,9 +185,14 @@ CONTAINS
       !
       IF( nb_trcdta > 0 ) THEN
          !
-         ! read data at kt time step
-         CALL fld_read( kt, 1, sf_trcdta )
-         ptrcdta(:,:,:) = sf_trcdta(kjl)%fnow(:,:,:) * tmask(:,:,:)
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN              ! Do only for the full domain
+            IF( ln_tile ) CALL dom_tile_stop( ldhold=.TRUE. )     ! Use full domain
+            CALL fld_read( kt, 1, sf_trcdta )                     ! read data at kt time step
+            IF( ln_tile ) CALL dom_tile_start( ldhold=.TRUE. )    ! Revert to tile domain
+         ENDIF
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+            ptrcdta(ji,jj,jk) = sf_trcdta(kjl)%fnow(ji,jj,jk) * tmask(ji,jj,jk)
+         END_3D
          ! 
 #if ! defined key_sed_off
          IF( l_sco ) THEN                !== s- or mixed s-zps-coordinate  ==!

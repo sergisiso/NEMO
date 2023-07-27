@@ -37,8 +37,8 @@ MODULE trcldf
    !                                      !!: ** lateral mixing namelist (nam_trcldf) **
    LOGICAL , PUBLIC ::   ln_trcldf_OFF     !: No operator (no explicit lateral diffusion)
    LOGICAL , PUBLIC ::   ln_trcldf_tra     !: use active tracer operator
-   REAL(wp), PUBLIC ::      rn_ldf_multi      !: multiplier of T-S eddy diffusivity to obtain the passive tracer one
-   REAL(wp), PUBLIC ::      rn_fact_lap       !: enhanced Equatorial zonal diffusivity coefficent
+   REAL(wp), PUBLIC ::   rn_ldf_multi      !: multiplier of T-S eddy diffusivity to obtain the passive tracer one
+   REAL(wp), PUBLIC ::   rn_fact_lap       !: enhanced Equatorial zonal diffusivity coefficent
    !
    INTEGER  ::   nldf_trc = 0   ! type of lateral diffusion used defined from ln_traldf_... (namlist logicals)
    REAL(wp) ::   rldf           ! multiplier between active and passive tracers eddy diffusivity   [-]
@@ -67,8 +67,8 @@ CONTAINS
       INTEGER            :: ji, jj, jk, jn
       REAL(wp)           :: zdep
       CHARACTER (len=22) :: charout
-      REAL(wp),          DIMENSION(jpi,jpj,jpk) ::   zahu, zahv
-      REAL(wp), POINTER, DIMENSION(:,:,:,:)     ::   ztrtrd
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   zahu, zahv
+      REAL(wp), POINTER    , DIMENSION(:,:,:,:) ::   ztrtrd
       !!----------------------------------------------------------------------
       !
       IF( ln_trcldf_OFF )   RETURN        ! not lateral diffusion applied on passive tracers
@@ -76,12 +76,20 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('trc_ldf')
       !
       IF( l_trdtrc )  THEN
-         ALLOCATE( ztrtrd(jpi,jpj,jpk,jptra) )
-         ztrtrd(:,:,:,:)  = ptr(:,:,:,:,Krhs)
+         ALLOCATE( ztrtrd(A2D(nn_hls),jpk,jptra) )
+         DO jn = 1, jptra
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+               ztrtrd(ji,jj,jk,jn)  = ptr(ji,jj,jk,jn,Krhs)
+            END_3D
+         END DO
       ENDIF
-      !                                  !* set the lateral diffusivity coef. for passive tracer      
-      zahu(:,:,:) = rldf * ahtu(:,:,:) 
-      zahv(:,:,:) = rldf * ahtv(:,:,:)
+      !
+      ALLOCATE( zahu(T2D(nn_hls),jpk), zahv(T2D(nn_hls),jpk) )
+      !                                  !* set the lateral diffusivity coef. for passive tracer
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+         zahu(ji,jj,jk) = rldf * ahtu(ji,jj,jk)
+         zahv(ji,jj,jk) = rldf * ahtv(ji,jj,jk)
+      END_3D
       !                                  !* Enhanced zonal diffusivity coefficent in the equatorial domain
       DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
          IF( gdept(ji,jj,jk,Kmm) > 200. .AND. gphit(ji,jj) < 5. .AND. gphit(ji,jj) > -5. ) THEN
@@ -112,7 +120,9 @@ CONTAINS
       !
       IF( l_trdtrc )   THEN                    ! send the trends for further diagnostics
         DO jn = 1, jptra
-           ztrtrd(:,:,:,jn) = ptr(:,:,:,jn,Krhs) - ztrtrd(:,:,:,jn)
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+               ztrtrd(ji,jj,jk,jn) = ptr(ji,jj,jk,jn,Krhs) - ztrtrd(ji,jj,jk,jn)
+            END_3D
            CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_ldf, ztrtrd(:,:,:,jn) )
         END DO
         DEALLOCATE( ztrtrd )
@@ -123,6 +133,8 @@ CONTAINS
          CALL prt_ctl_info( charout, cdcomp = 'top' )
          CALL prt_ctl( tab4d_1=ptr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm, clinfo3='trd' )
       ENDIF
+      !
+      DEALLOCATE( zahu, zahv )
       !
       IF( ln_timing )   CALL timing_stop('trc_ldf')
       !
