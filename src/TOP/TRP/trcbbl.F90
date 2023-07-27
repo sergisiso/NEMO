@@ -29,6 +29,9 @@ MODULE trcbbl
 
    PUBLIC   trc_bbl   !  routine called by trctrp.F90
 
+   !! Substitutions
+#include "do_loop_substitute.h90"
+#include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcbbl.F90 14086 2020-12-04 11:37:14Z cetlod $ 
@@ -56,8 +59,12 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('trc_bbl')
       !
       IF( l_trdtrc )  THEN
-         ALLOCATE( ztrtrd(jpi,jpj,jpk,jptra) ) ! temporary save of trends
-         ztrtrd(:,:,:,:)  = ptr(:,:,:,:,Krhs)
+         ALLOCATE( ztrtrd(A2D(nn_hls),jpk,jptra) ) ! temporary save of trends
+         DO jn = 1, jptra
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+               ztrtrd(ji,jj,jk,jn)  = ptr(ji,jj,jk,jn,Krhs)
+            END_3D
+         ENDDO
       ENDIF
 
       !* Diffusive bbl :
@@ -73,6 +80,7 @@ CONTAINS
 
       !* Advective bbl : bbl upstream advective trends added to the tracer trends
       IF( nn_bbl_adv /= 0 ) THEN
+         ! NOTE: [tiling] tiling changes the results, but only the order of floating point operations is different
          !
          CALL tra_bbl_adv( ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Krhs), jptra, Kmm )  
          IF( sn_cfctl%l_prttrc )   THEN
@@ -84,7 +92,9 @@ CONTAINS
 
       IF( l_trdtrc )   THEN                      ! save the horizontal diffusive trends for further diagnostics
         DO jn = 1, jptra
-           ztrtrd(:,:,:,jn) = ptr(:,:,:,jn,Krhs) - ztrtrd(:,:,:,jn)
+            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+               ztrtrd(ji,jj,jk,jn) = ptr(ji,jj,jk,jn,Krhs) - ztrtrd(ji,jj,jk,jn)
+            END_3D
            CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_bbl, ztrtrd(:,:,:,jn) )
         END DO
         DEALLOCATE( ztrtrd ) ! temporary save of trends

@@ -101,7 +101,7 @@ CONTAINS
       CALL Agrif_trc( kt )                ! AGRIF zoom boundaries
 #endif
       ! Update after tracer on domain lateral boundaries
-      CALL lbc_lnk( 'trcatf', ptr(:,:,:,:,Kaa), 'T', 1._wp )   
+      CALL lbc_lnk( 'trcatf', ptr(:,:,:,:,Kaa), 'T', 1._wp )
 
       IF( ln_bdy )  CALL trc_bdy( kt, Kbb, Kmm, Kaa )
 

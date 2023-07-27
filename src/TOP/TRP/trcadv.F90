@@ -30,6 +30,7 @@ MODULE trcadv
    USE tramle         ! ML eddy induced transport (tra_adv_mle  routine)
    USE ldftra         ! lateral diffusion: eddy diffusivity & EIV coeff.
    USE ldfslp         ! Lateral diffusion: slopes of neutral surfaces
+   USE domtile        ! tiling utilities
    !
    USE prtctl         ! control print
    USE timing         ! Timing
@@ -89,11 +90,18 @@ CONTAINS
       INTEGER ::   ji, jj, jk   ! dummy loop index
       CHARACTER (len=22) ::   charout
       REAL(wp), DIMENSION(:,:,:), POINTER ::   zptu, zptv, zptw
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zuu, zvv, zww  ! effective velocity
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zuu, zvv, zww  ! effective velocity
       !!----------------------------------------------------------------------
+      !
+      ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
+      IF( l_istiled .AND. ( nadv == np_FCT ) ) THEN
+         IF( ntile /= 1 ) RETURN
+         CALL dom_tile_stop( ldhold=.TRUE. )
+      END IF
       !
       IF( ln_timing )   CALL timing_start('trc_adv')
       !
+      ALLOCATE( zuu(T2D(nn_hls),jpk), zvv(T2D(nn_hls),jpk), zww(T2D(nn_hls),jpk))
       !                                         !==  effective transport  ==!
       IF( l_offline ) THEN
          DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpk )
@@ -161,12 +169,17 @@ CONTAINS
          CALL tra_adv_qck( kt, nittrc000,'TRC', rDt_trc, zuu, zvv, zww, Kbb, Kmm,      ptr, jptra, Krhs                     )
       !
       END SELECT
-      !                  
+      !
+      DEALLOCATE( zuu, zvv, zww )
+      !
       IF( sn_cfctl%l_prttrc ) THEN        !== print mean trends (used for debugging)
          WRITE(charout, FMT="('adv ')")
          CALL prt_ctl_info( charout, cdcomp = 'top' )
          CALL prt_ctl( tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm, clinfo3='trd' )
       END IF
+      !
+      ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
+      IF( ln_tile .AND. .NOT. l_istiled ) CALL dom_tile_start( ldhold=.TRUE. )
       !
       IF( ln_timing )   CALL timing_stop('trc_adv')
       !
@@ -234,6 +247,10 @@ CONTAINS
       IF( ln_trcadv_fct .AND. ( nn_fct_h /= 2 .AND. nn_fct_h /= 4 )   &
                         .AND. ( nn_fct_v /= 2 .AND. nn_fct_v /= 4 )   ) THEN
         CALL ctl_stop( 'trc_adv_ini: FCT scheme, choose 2nd or 4th order' )
+      ENDIF
+      ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
+      IF( ln_trcadv_fct .AND. ln_tile ) THEN
+         CALL ctl_warn( 'trc_adv_init: FCT scheme does not yet work with tiling' )
       ENDIF
       IF( ln_trcadv_ubs .AND. ( nn_ubs_v /= 2 .AND. nn_ubs_v /= 4 )   ) THEN
         CALL ctl_stop( 'trc_adv_ini: UBS scheme, choose 2nd or 4th order' )

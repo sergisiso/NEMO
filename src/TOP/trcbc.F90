@@ -16,6 +16,7 @@ MODULE trcbc
    USE lib_mpp       !  MPP library
    USE fldread       !  read input fields
    USE bdy_oce,  ONLY: ln_bdy, nb_bdy , idx_bdy, ln_coords_file, rn_time_dmp, rn_time_dmp_out
+   USE domtile       ! tiling utilities
 
    IMPLICIT NONE
    PRIVATE
@@ -324,60 +325,65 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('trc_bc')
 
-      IF( kt == nit000 .AND. lwp) THEN
-         WRITE(numout,*)
-         WRITE(numout,*) 'trc_bc : Surface boundary conditions for passive tracers.'
-         WRITE(numout,*) '~~~~~~~ '
-      ENDIF
 
-      lwriter = .FALSE.
-      IF( kt - nit000 <= 20 .OR. nitend - kt <= 20 ) lwriter = lwp
+      IF( .NOT. l_istiled .OR. ntile == 1 ) THEN ! Do only for the first tile
+         IF( ln_tile ) CALL dom_tile_stop( ldhold=.TRUE. ) ! Pause tiling whilst data is read in
+         IF( kt == nit000 .AND. lwp) THEN
+            WRITE(numout,*)
+            WRITE(numout,*) 'trc_bc : Surface boundary conditions for passive tracers.'
+            WRITE(numout,*) '~~~~~~~ '
+         ENDIF
 
-      ! 1. Update Boundary conditions data
-      IF( PRESENT(jit) ) THEN 
-         !
-         ! BDY: use pt_offset=0.5 as applied at the end of the step and fldread is referenced at the middle of the step
-         IF( nb_trcobc > 0 ) THEN
-           DO ib = 1, nb_bdy
-              if (lwriter) write(numout,'(a,i3,a,i10)') '   reading OBC data for segment ', ib ,' at step ', kt
-              CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trcobc(:,ib), kit=jit, pt_offset = 0.5_wp )
-           ENDDO
+         lwriter = .FALSE.
+         IF( kt - nit000 <= 20 .OR. nitend - kt <= 20 ) lwriter = lwp
+
+         ! 1. Update Boundary conditions data
+         IF( PRESENT(jit) ) THEN
+            !
+            ! BDY: use pt_offset=0.5 as applied at the end of the step and fldread is referenced at the middle of the step
+            IF( nb_trcobc > 0 ) THEN
+              DO ib = 1, nb_bdy
+                 if (lwriter) write(numout,'(a,i3,a,i10)') '   reading OBC data for segment ', ib ,' at step ', kt
+                 CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trcobc(:,ib), kit=jit, pt_offset = 0.5_wp )
+              ENDDO
+            ENDIF
+            !
+            ! SURFACE boundary conditions
+            IF( nb_trcsbc > 0 ) THEN
+              if (lwriter) write(numout,'(a,i5,a,i10)') '   reading SBC data for ', nb_trcsbc ,' variable(s) at step ', kt
+              CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trcsbc, kit=jit)
+            ENDIF
+            !
+            ! COASTAL boundary conditions
+            IF( nb_trccbc > 0 ) THEN
+              if (lwriter) write(numout,'(a,i5,a,i10)') '   reading CBC data for ', nb_trccbc ,' variable(s) at step ', kt
+              CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trccbc, kit=jit)
+            ENDIF
+            !
+         ELSE
+            !
+            ! BDY: use pt_offset=0.5 as applied at the end of the step and fldread is referenced at the middle of the step
+            IF( nb_trcobc > 0 ) THEN
+              DO ib = 1, nb_bdy
+                 if (lwriter) write(numout,'(a,i3,a,i10)') '   reading OBC data for segment ', ib ,' at step ', kt
+                 CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trcobc(:,ib), pt_offset = 0.5_wp )
+              ENDDO
+            ENDIF
+            !
+            ! SURFACE boundary conditions
+            IF( nb_trcsbc > 0 ) THEN
+              if (lwriter) write(numout,'(a,i5,a,i10)') '   reading SBC data for ', nb_trcsbc ,' variable(s) at step ', kt
+              CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trcsbc )
+            ENDIF
+            !
+            ! COASTAL boundary conditions
+            IF( nb_trccbc > 0 ) THEN
+              if (lwriter) write(numout,'(a,i5,a,i10)') '   reading CBC data for ', nb_trccbc ,' variable(s) at step ', kt
+              CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trccbc )
+            ENDIF
+            !
          ENDIF
-         !
-         ! SURFACE boundary conditions
-         IF( nb_trcsbc > 0 ) THEN
-           if (lwriter) write(numout,'(a,i5,a,i10)') '   reading SBC data for ', nb_trcsbc ,' variable(s) at step ', kt
-           CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trcsbc, kit=jit)
-         ENDIF
-         !
-         ! COASTAL boundary conditions
-         IF( nb_trccbc > 0 ) THEN
-           if (lwriter) write(numout,'(a,i5,a,i10)') '   reading CBC data for ', nb_trccbc ,' variable(s) at step ', kt
-           CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trccbc, kit=jit)
-         ENDIF
-         !
-      ELSE
-         !
-         ! BDY: use pt_offset=0.5 as applied at the end of the step and fldread is referenced at the middle of the step
-         IF( nb_trcobc > 0 ) THEN
-           DO ib = 1, nb_bdy
-              if (lwriter) write(numout,'(a,i3,a,i10)') '   reading OBC data for segment ', ib ,' at step ', kt
-              CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trcobc(:,ib), pt_offset = 0.5_wp )
-           ENDDO
-         ENDIF
-         !
-         ! SURFACE boundary conditions
-         IF( nb_trcsbc > 0 ) THEN
-           if (lwriter) write(numout,'(a,i5,a,i10)') '   reading SBC data for ', nb_trcsbc ,' variable(s) at step ', kt
-           CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trcsbc )
-         ENDIF
-         !
-         ! COASTAL boundary conditions
-         IF( nb_trccbc > 0 ) THEN
-           if (lwriter) write(numout,'(a,i5,a,i10)') '   reading CBC data for ', nb_trccbc ,' variable(s) at step ', kt
-           CALL fld_read( kt=kt, kn_fsbc=1, sd=sf_trccbc )
-         ENDIF
-         !
+         IF( ln_tile ) CALL dom_tile_start( ldhold=.TRUE. )
       ENDIF
 
       ! 2. Apply Boundary conditions data
@@ -403,8 +409,8 @@ CONTAINS
          ! SURFACE boundary conditions
          IF( ln_trc_sbc(jn) ) THEN
             jl = n_trc_indsbc(jn)
-            sf_trcsbc(jl)%fnow(:,:,1) = MAX( rtrn, sf_trcsbc(jl)%fnow(:,:,1) ) ! avoid nedgative value due to interpolation
             DO_2D( 0, 0, 0, 0 )
+               sf_trcsbc(jl)%fnow(ji,jj,1) = MAX( rtrn, sf_trcsbc(jl)%fnow(ji,jj,1) ) ! avoid nedgative value due to interpolation
                zfact = 1. / ( e3t(ji,jj,1,Kmm) * rn_sbc_time )
                ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + rf_trsfac(jl) * sf_trcsbc(jl)%fnow(ji,jj,1) * zfact
             END_2D
@@ -414,8 +420,8 @@ CONTAINS
          IF( ( ln_rnf .OR. l_offline ) .AND. ln_trc_cbc(jn) ) THEN
             IF( l_offline )   rn_rfact = 1._wp
             jl = n_trc_indcbc(jn)
-            sf_trccbc(jl)%fnow(:,:,1) = MAX( rtrn, sf_trccbc(jl)%fnow(:,:,1) ) ! avoid nedgative value due to interpolation
             DO_2D( 0, 0, 0, 0 )
+               sf_trccbc(jl)%fnow(ji,jj,1) = MAX( rtrn, sf_trccbc(jl)%fnow(ji,jj,1) ) ! avoid nedgative value due to interpolation
                DO jk = 1, nk_rnf(ji,jj)
                   zfact = rn_rfact / ( e1e2t(ji,jj) * h_rnf(ji,jj) * rn_cbc_time ) 
                   ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs) + rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zfact

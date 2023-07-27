@@ -497,7 +497,7 @@ CONTAINS
       CHARACTER(len=3)                     , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
       INTEGER                              , INTENT(in   ) ::   kjpt       ! number of tracers
       INTEGER                              , INTENT(in   ) ::   Kmm        ! ocean time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk)     , INTENT(in   ) ::   pahu, pahv ! eddy diffusivity at u- and v-points  [m2/s]
+      REAL(wp), DIMENSION(:,:,:)           , INTENT(in   ) ::   pahu, pahv ! eddy diffusivity at u- and v-points  [m2/s]
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(in   ) ::   pt         ! before and now tracer fields
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt), INTENT(inout) ::   pt_rhs     ! tracer trend
       !
@@ -516,10 +516,10 @@ CONTAINS
       zlap(:,:,:,:) = 0._wp
       !
       !                          !==  1st laplacian applied to pt (output in zlap)  ==!
-      CALL traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv, pt, pt, zlap, kjpt, 1 )
+      CALL traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv, pt  , pt, zlap  , kjpt, 1 )
       !
       !                          !==  2nd laplacian applied to zlap (output in pt_rhs)  ==!
-      CALL traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv, zlap, pt    , pt_rhs, kjpt, 2 )
+      CALL traldf_triad_lap( kt, Kmm, kit000, cdtype, pahu, pahv, zlap, pt, pt_rhs, kjpt, 2 )
       !
    END SUBROUTINE traldf_triad_blp
 

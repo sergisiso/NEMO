@@ -29,6 +29,7 @@ MODULE trctrp
    USE bdy_oce   , ONLY: ln_bdy
    USE trcbdy          ! BDY open boundaries
    USE in_out_manager
+   USE domtile         ! tiling utilities
 
 #if defined key_agrif
    USE agrif_top_sponge ! tracers sponges
@@ -61,6 +62,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT( in ) :: kt                  ! ocean time-step index
       INTEGER, INTENT( in ) :: Kbb, Kmm, Krhs, Kaa ! time level indices (not swapped in this routine)
+      INTEGER               :: jtile               ! dummy loop index
       !! ---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_trp')
@@ -70,21 +72,33 @@ CONTAINS
 #if ! defined key_RK3                                
                                 CALL trc_sbc    ( kt,      Kmm, tr, Krhs )      ! surface boundary condition
 #endif
-         IF( ln_trcbc .AND. lltrcbc .AND. kt /= nit000 )  &
-                                CALL trc_bc     ( kt,      Kmm, tr, Krhs )      ! tracers: surface and lateral Boundary Conditions 
-         IF( ln_trcais )        CALL trc_ais    ( kt,      Kmm, tr, Krhs )      ! tracers from Antarctic Ice Sheet (icb, isf)               
-         IF( ln_trabbl )        CALL trc_bbl    ( kt, Kbb, Kmm, tr, Krhs )      ! advective (and/or diffusive) bottom boundary layer scheme
-         IF( ln_trcdmp )        CALL trc_dmp    ( kt, Kbb, Kmm, tr, Krhs )      ! internal damping trends
-         IF( ln_bdy )           CALL trc_bdy_dmp( kt, Kbb,      Krhs )      ! BDY damping trends
+         IF( ln_tile ) CALL dom_tile_start
+         DO jtile = 1, nijtile
+            IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+            IF( ln_trcbc .AND. lltrcbc .AND. kt /= nit000 )  &
+                                   CALL trc_bc     ( kt,      Kmm, tr, Krhs )      ! tracers: surface and lateral Boundary Conditions
+            IF( ln_trcais )        CALL trc_ais    ( kt,      Kmm, tr, Krhs )      ! tracers from Antarctic Ice Sheet (icb, isf)
+            IF( ln_trabbl )        CALL trc_bbl    ( kt, Kbb, Kmm, tr, Krhs )      ! advective (and/or diffusive) bottom boundary layer scheme
+            IF( ln_trcdmp )        CALL trc_dmp    ( kt, Kbb, Kmm, tr, Krhs )      ! internal damping trends
+         END DO
+         IF( ln_tile ) CALL dom_tile_stop
+
+         IF( ln_bdy )           CALL trc_bdy_dmp( kt, Kbb,          Krhs )      ! BDY damping trends
 #if defined key_agrif
          IF(.NOT. Agrif_Root()) CALL Agrif_Sponge_trc       ! tracers sponge
 #endif
+         !
+         IF( ln_tile ) CALL dom_tile_start
+         DO jtile = 1, nijtile
+            IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
 #if ! defined key_RK3
          !                                                 ! MLF only: add the advection trend to the RHS
                                 CALL trc_adv    ( kt, Kbb, Kmm, Kaa, tr, Krhs )   ! horizontal & vertical advection
 #endif
                                 CALL trc_ldf    ( kt, Kbb, Kmm,       tr, Krhs )  ! lateral mixing
                                 CALL trc_zdf    ( kt, Kbb, Kmm, Krhs, tr, Kaa  )  ! vert. mixing & after tracer	==> after
+         END DO
+         IF( ln_tile ) CALL dom_tile_stop
 #if defined key_RK3
          !                                                 ! RK3: only manage lateral boundary
 # if defined key_agrif
@@ -99,7 +113,7 @@ CONTAINS
                                 CALL trc_atf    ( kt, Kbb, Kmm, Kaa , tr )        ! time filtering of "now" tracer fields
 #endif
          !
-         ! Subsequent calls use the filtered values: Kmm and Kaa 
+         ! Subsequent calls use the filtered values: Kmm and Kaa
          ! These are used explicitly here since time levels will not be swapped until after tra_atf/dyn_atf/ssh_atf in stp
          !
          IF( ln_trcrad )        CALL trc_rad    ( kt, Kmm, Kaa, tr       )    ! Correct artificial negative concentrations
