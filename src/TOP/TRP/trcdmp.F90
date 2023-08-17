@@ -95,15 +95,19 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('trc_dmp')
       !
-      IF( l_trdtrc )   ALLOCATE( ztrtrd(jpi,jpj,jpk) )   ! temporary save of trends
-      !
       IF( nb_trcdta > 0 ) THEN  ! Initialisation of tracer from a file that may also be used for damping
          !
-         ALLOCATE( ztrcdta(jpi,jpj,jpk) )    ! Memory allocation
+         ALLOCATE( ztrcdta(T2D(nn_hls),jpk) )    ! Memory allocation
+         !
+         IF( l_trdtrc )   ALLOCATE( ztrtrd(A2D(nn_hls),jpk) )   ! temporary save of trends
          !                                                          ! ===========
          DO jn = 1, jptra                                           ! tracer loop
             !                                                       ! ===========
-            IF( l_trdtrc ) ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs)    ! save trends 
+            IF( l_trdtrc ) THEN
+               DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk)
+                  ztrtrd(ji,jj,jk) = ptr(ji,jj,jk,jn,Krhs)    ! save trends
+               END_3D
+            END IF
             !
             IF( ln_trc_ini(jn) ) THEN      ! update passive tracers arrays with input data read from file
                !
@@ -136,16 +140,18 @@ CONTAINS
             ENDIF
             !
             IF( l_trdtrc ) THEN
-               ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs) -  ztrtrd(:,:,:)
+               DO_3D( 0, 0, 0, 0, 1, jpk )
+                  ztrtrd(ji,jj,jk) = ptr(ji,jj,jk,jn,Krhs) -  ztrtrd(ji,jj,jk)
+               END_3D
                CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_dmp, ztrtrd )
             END IF
             !                                                       ! ===========
          END DO                                                     ! tracer loop
          !                                                          ! ===========
          DEALLOCATE( ztrcdta )
+         !
+         IF( l_trdtrc )  DEALLOCATE( ztrtrd )
       ENDIF
-      !
-      IF( l_trdtrc )  DEALLOCATE( ztrtrd )
       !                                          ! print mean trends (used for debugging)
       IF( sn_cfctl%l_prttrc ) THEN
          WRITE(charout, FMT="('dmp ')")

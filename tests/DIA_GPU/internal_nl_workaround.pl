@@ -1,4 +1,5 @@
-INUNITS=( numnam_ref numnam_cfg numnat_ref numnat_cfg numtrc_ref numtrc_cfg numnam_ice_ref numnam_ice_cfg numnamsed_ref numnamsed_cfg numnatp_cfg numnatp_ref )
+# Not numnamsed_ref or numnamsed_cfg - these are integers not characters, so using INDEX will cause a compiler error
+INUNITS=( numnam_ref numnam_cfg numnat_ref numnat_cfg numtrc_ref numtrc_cfg numnam_ice_ref numnam_ice_cfg numnatp_cfg numnatp_ref )
 #
 # build a list of files that need to be changed
 #
