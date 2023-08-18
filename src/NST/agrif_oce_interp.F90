@@ -81,8 +81,10 @@ CONTAINS
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~~'
       IF(lwp) WRITE(numout,*) ' '
 
+#if ! defined key_RK3
       IF ( .NOT.Agrif_Parent(l_1st_euler) ) & 
          & CALL ctl_stop('AGRIF hot start requires to force Euler first step on parent')
+#endif
 
       l_ini_child           = .TRUE.
       Agrif_SpecialValue    = 0.0_wp
@@ -142,8 +144,10 @@ CONTAINS
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~~'
       IF(lwp) WRITE(numout,*) ' '
 
+#if ! defined key_RK3
       IF ( .NOT.Agrif_Parent(l_1st_euler) ) & 
          & CALL ctl_stop('AGRIF hot start requires to force Euler first step on parent')
+#endif
 
       l_do_all = .TRUE.
       IF (present(ghosts_only)) l_do_all = .FALSE.
@@ -160,16 +164,35 @@ CONTAINS
          CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, procname=interpsshn)
       ENDIF
       !
+#if defined key_RK3 
+      Krhs_a = Kaa   ;   Kmm_a = Kaa
+      !
+      Agrif_SpecialValue    = 0._wp
+      Agrif_UseSpecialValue = .TRUE.
+      l_ini_child           = .TRUE.
+      !
+      IF (l_do_all) THEN
+         CALL Agrif_Init_Variable(sshini_id, procname=interpsshn)
+      ELSE
+         CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, procname=interpsshn)
+      ENDIF
+#else
+      ssh(:,:,Kaa) = 0._wp
+#endif
+      !
       Agrif_UseSpecialValue = .FALSE.
       l_ini_child           = .FALSE.
       !
       Krhs_a = Kaa   ;   Kmm_a = Kmm
       !
+#if defined key_RK3
+      CALL lbc_lnk( 'Agrif_istate_ssh', ssh(:,:,Kbb), 'T', 1._wp , ssh(:,:,Kaa), 'T', 1._wp )
+#else
       CALL lbc_lnk( 'Agrif_istate_ssh', ssh(:,:,Kbb), 'T', 1._wp )
+#endif
       !
       ssh(:,:,Kmm) = ssh(:,:,Kbb)
-      ssh(:,:,Kaa) = 0._wp
-
+      !
    END SUBROUTINE Agrif_istate_ssh
 
 

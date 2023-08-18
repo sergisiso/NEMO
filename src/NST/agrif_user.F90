@@ -421,7 +421,9 @@
       Agrif_UseSpecialValue = l_spc_ssh 
       CALL Agrif_Bc_variable(sshn_id,calledweight=1., procname=interpsshn )
       hbdy(:,:) = 0._wp
+#if ! defined key_RK3
       ssh(:,:,Krhs_a) = 0._wp
+#endif
 
       Agrif_UseSpecialValue = ln_spc_dyn
       use_sign_north = .TRUE.

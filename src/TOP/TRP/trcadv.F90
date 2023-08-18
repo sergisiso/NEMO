@@ -112,14 +112,6 @@ CONTAINS
             zww(ji,jj,jk) = ww(ji,jj,jk)
          END_3D
       ELSE                                         ! build the effective transport
-         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            zuu(ji,jj,jpk) = 0._wp
-            zvv(ji,jj,jpk) = 0._wp
-         END_2D
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            zww(ji,jj,jpk) = 0._wp
-         END_2D
-         !
          IF( PRESENT( pau ) ) THEN                       ! RK3: advective velocity (pau,pav,paw) /= advected velocity (uu,vv,ww)
             zptu => pau(:,:,:)
             zptv => pav(:,:,:)
@@ -129,6 +121,23 @@ CONTAINS
             zptv => vv(:,:,:,Kmm)
             zptw => ww(:,:,:    )
          ENDIF
+         !
+#if defined key_RK3
+         DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 ) 
+            zuu(ji,jj,jk) = zptu(ji,jj,jk)
+            zvv(ji,jj,jk) = zptv(ji,jj,jk)
+         END_3D
+         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+            zww(ji,jj,jk) = zptw(ji,jj,jk)
+         END_3D
+#else
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            zuu(ji,jj,jpk) = 0._wp
+            zvv(ji,jj,jpk) = 0._wp
+         END_2D
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            zww(ji,jj,jpk) = 0._wp
+         END_2D
          !
          IF( ln_wave .AND. ln_sdw )  THEN
             DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )                            ! eulerian transport + Stokes Drift
@@ -153,6 +162,7 @@ CONTAINS
          !
          IF( ln_mle    )   CALL tra_mle_trp( kt, nittrc000, zuu, zvv, zww, 'TRC', Kmm       )  ! add the mle transport
          !
+#endif
       ENDIF
       !
       SELECT CASE ( nadv )                      !==  compute advection trend and add it to general trend  ==!
