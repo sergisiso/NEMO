@@ -93,9 +93,9 @@ CONTAINS
       IF( kstp == nit000 ) THEN                       ! initialize IOM context (must be done after nemo_init for AGRIF+XIOS+OASIS)
                              CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
          IF( lk_diamlr   )   CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
-                             CALL dia_ptr_init        ! called here since it uses iom_use
                              CALL iom_init_closedef
          IF( ln_crs      )   CALL iom_init( TRIM(cxios_context)//"_crs" )  ! for coarse grid
+                             CALL dia_ptr_init        ! called here since it uses iom_use
       ENDIF
       IF( kstp == nitrst .AND. lwxios ) THEN
                              CALL iom_swap(                     cw_ocerst_cxt )

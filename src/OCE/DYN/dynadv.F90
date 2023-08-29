@@ -19,6 +19,8 @@ MODULE dynadv
    USE dynadv_up3      ! UP3 flux form advection          (dyn_adv_up3  routine)
    USE dynkeg          ! kinetic energy gradient          (dyn_keg      routine)
    USE dynzad          ! vertical advection               (dyn_zad      routine)
+   USE zdf_oce,  ONLY : ln_zad_Aimp
+   USE oce,      ONLY : ww_U, wi_U
    !
    USE in_out_manager  ! I/O manager
    USE lib_mpp         ! MPP library
@@ -39,10 +41,12 @@ MODULE dynadv
 
    INTEGER, PUBLIC ::   n_dynadv   !: choice of the formulation and scheme for momentum advection
    !                               !  associated indices:
-   INTEGER, PUBLIC, PARAMETER ::   np_LIN_dyn = 0   ! no advection: linear dynamics
-   INTEGER, PUBLIC, PARAMETER ::   np_VEC_c2  = 1   ! vector form : 2nd order centered scheme
-   INTEGER, PUBLIC, PARAMETER ::   np_FLX_c2  = 2   ! flux   form : 2nd order centered scheme
-   INTEGER, PUBLIC, PARAMETER ::   np_FLX_up3 = 3   ! flux   form : 3rd order UPstream scheme
+   INTEGER,  PUBLIC, PARAMETER ::   np_LIN_dyn = 0   ! no advection: linear dynamics
+   INTEGER,  PUBLIC, PARAMETER ::   np_VEC_c2  = 1   ! vector form : 2nd order centered scheme
+   INTEGER,  PUBLIC, PARAMETER ::   np_FLX_c2  = 2   ! flux   form : 2nd order centered scheme
+   INTEGER,  PUBLIC, PARAMETER ::   np_FLX_up3 = 3   ! flux   form : 3rd order Upstream Biased Scheme
+   REAL(wp), PUBLIC            ::   r_stb_thres_dyn  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC            ::   r_stb_cstra_dyn  ! stability constraint for dynamic advection
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -97,7 +101,7 @@ CONTAINS
       !! ** Purpose :   Control the consistency between namelist options for 
       !!              momentum advection formulation & scheme and set n_dynadv
       !!----------------------------------------------------------------------
-      INTEGER ::   ioptio, ios   ! Local integer
+      INTEGER ::   ioptio, ios, istat1, istat2   ! Local integer
       !
       NAMELIST/namdyn_adv/ ln_dynadv_OFF, ln_dynadv_vec, nn_dynkeg, ln_dynadv_cen2, ln_dynadv_up3
       !!----------------------------------------------------------------------
@@ -125,15 +129,23 @@ CONTAINS
 
       ioptio = 0                      ! parameter control and set n_dynadv
       IF( ln_dynadv_OFF  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_LIN_dyn   ;   ENDIF
-      IF( ln_dynadv_vec  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_VEC_c2    ;   ENDIF
-      IF( ln_dynadv_cen2 ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_c2    ;   ENDIF
-      IF( ln_dynadv_up3  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_up3   ;   ENDIF
-         
+      IF( ln_dynadv_vec  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_VEC_c2    ;   r_stb_thres_dyn = pp_stb_thres_dync2   ;  r_stb_cstra_dyn = pp_stb_cstra_dync2   ;  ENDIF
+      IF( ln_dynadv_cen2 ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_c2    ;   r_stb_thres_dyn = pp_stb_thres_dync2   ;  r_stb_cstra_dyn = pp_stb_cstra_dync2   ;  ENDIF
+      IF( ln_dynadv_up3  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_up3   ;   r_stb_thres_dyn = pp_stb_thres_dynup3  ;  r_stb_cstra_dyn = pp_stb_cstra_dynup3  ;  ENDIF
+
       IF( ioptio /= 1 )   CALL ctl_stop( 'choose ONE and only ONE advection scheme' )
       IF( nn_dynkeg /= nkeg_C2 .AND. nn_dynkeg /= nkeg_HW )   CALL ctl_stop( 'KEG scheme wrong value of nn_dynkeg' )
 #if defined key_qcoTest_FluxForm
       IF( ln_dynadv_vec  ) THEN CALL ctl_stop( 'STOP', 'key_qcoTest_FluxForm requires flux form advection' )
 #endif
+      IF( ln_dynadv_vec ) THEN
+         ALLOCATE(     ww_U(jpi,jpj,jpk), STAT=istat1 )
+         IF( ln_zad_Aimp ) THEN
+            ALLOCATE(     wi_U(jpi,jpj,jpk), STAT=istat2 )
+            istat1 = istat1 + istat2
+         ENDIF
+         IF( istat1 /= 0 )   CALL ctl_stop( 'dyn_adv_init: failed to allocate ln_dynadv_vec=T required arrays' )
+      ENDIF
 
       IF(lwp) THEN                    ! Print the choice
          WRITE(numout,*)

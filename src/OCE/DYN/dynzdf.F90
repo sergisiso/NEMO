@@ -162,11 +162,11 @@ CONTAINS
             SELECT CASE( nldf_dyn )
             CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzu)
                DO_2Dik( 0, 0,   1, jpkm1, 1 )
-                  z1_e3ua =  1._wp  / e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
                   zzwi = - zDt_2 * ( ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) ) + akzu(ji,jj,jk  ) )   &   ! add () for NP repro
-                     &             / e3uw(ji,jj,jk  ,Kmm) * z1_e3ua * wumask(ji,jj,jk  )
+                     &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
                   zzws = - zDt_2 * ( ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) ) + akzu(ji,jj,jk+1) )   &   ! add () for NP repro
-                     &             / e3uw(ji,jj,jk+1,Kmm) * z1_e3ua * wumask(ji,jj,jk+1)
+                     &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
+                  z1_e3ua =  1._wp  / e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
                   zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) * z1_e3ua
                   zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) * z1_e3ua
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWui, 0._wp )
@@ -175,11 +175,11 @@ CONTAINS
                END_2D
             CASE DEFAULT               ! iso-level lateral mixing
                DO_2Dik( 0, 0,   1, jpkm1, 1 )
-                  z1_e3ua =  1._wp  / e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
                   zzwi = - zDt_2 * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) )   &
-                     &           / e3uw(ji,jj,jk  ,Kmm) * z1_e3ua * wumask(ji,jj,jk  )
+                     &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
                   zzws = - zDt_2 * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) )   &
-                     &           / e3uw(ji,jj,jk+1,Kmm) * z1_e3ua * wumask(ji,jj,jk+1)
+                     &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
+                  z1_e3ua =  1._wp  / e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
                   zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) * z1_e3ua
                   zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) * z1_e3ua
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWui, 0._wp )
@@ -282,7 +282,7 @@ CONTAINS
             puu(ji,jj,jk,Kaa) = puu(ji,jj,jk,Kaa) - zwi(ji,jk) / zwd(ji,jk-1) * puu(ji,jj,jk-1,Kaa)
          END_2D
          !
-         DO_1Di( 0, 0 )                    !==  thrid recurrence : SOLk = ( Lk - Uk * Ek+1 ) / Dk  ==!
+         DO_1Di( 0, 0 )                    !==  third recurrence : SOLk = ( Lk - Uk * Ek+1 ) / Dk  ==!
             puu(ji,jj,jpkm1,Kaa) = puu(ji,jj,jpkm1,Kaa) / zwd(ji,jpkm1)
          END_1D
          DO_2Dik( 0, 0,    jpk-2, 1, -1 )
@@ -297,11 +297,11 @@ CONTAINS
             SELECT CASE( nldf_dyn )
             CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzv)
                DO_2Dik( 0, 0,    1, jpkm1, 1 )
-                  z1_e3va = 1._wp / e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
                   zzwi = - zDt_2 * ( ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) ) + akzv(ji,jj,jk  ) )   &   ! add () for NP repro
-                     &           / e3vw(ji,jj,jk  ,Kmm) * z1_e3va * wvmask(ji,jj,jk  )
+                     &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk  ,Kmm) ) * wvmask(ji,jj,jk  )
                   zzws = - zDt_2 * ( ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) ) + akzv(ji,jj,jk+1) )   &   ! add () for NP repro
-                     &           / e3vw(ji,jj,jk+1,Kmm) * z1_e3va * wvmask(ji,jj,jk+1)
+                     &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
+                  z1_e3va = 1._wp / e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
                   zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) * z1_e3va
                   zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) * z1_e3va
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWvi, 0._wp )
@@ -310,11 +310,11 @@ CONTAINS
                END_2D
             CASE DEFAULT               ! iso-level lateral mixing
                DO_2Dik( 0, 0,    1, jpkm1, 1 )
-                  z1_e3va = 1._wp / e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
                   zzwi = - zDt_2 * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) )    &
-                     &           / e3vw(ji,jj,jk  ,Kmm) * z1_e3va * wvmask(ji,jj,jk  )
+                     &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk  ,Kmm) ) * wvmask(ji,jj,jk  )
                   zzws = - zDt_2 * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) )    &
-                     &           / e3vw(ji,jj,jk+1,Kmm) * z1_e3va * wvmask(ji,jj,jk+1)
+                     &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
+                  z1_e3va = 1._wp / e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
                   zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) * z1_e3va
                   zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) * z1_e3va
                   zwi(ji,jk) = zzwi  + zDt_2 * MIN( zWvi, 0._wp )

@@ -37,6 +37,7 @@ MODULE traadv_fct
    LOGICAL  ::   l_trd   ! flag to compute trends
    LOGICAL  ::   l_ptr   ! flag to compute poleward transport
    LOGICAL  ::   l_hst   ! flag to compute heat/salt transport
+   LOGICAL  ::   l_subit_upwind ! flag to sub-iterate (RK3 only)
    REAL(wp) ::   r1_6 = 1._wp / 6._wp   ! =1/6
 
    !                                        ! tridiag solver associated indices:
@@ -81,8 +82,8 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
-      INTEGER  ::   ji, jj, jk, jn                           ! dummy loop indices
-      REAL(wp) ::   ztra                                     ! local scalar
+      INTEGER  ::   ji, jj, jk, jn, nsub, nminsub            ! dummy loop indices
+      REAL(wp) ::   ztra, zfacit                             ! local scalar
       REAL(wp) ::   zfp_ui, zfp_vj, zfp_wk, zC2t_u, zC4t_u   !   -      -
       REAL(wp) ::   zfm_ui, zfm_vj, zfm_wk, zC2t_v, zC4t_v   !   -      -
       REAL(wp), DIMENSION(T2D(nn_hls),jpk)        ::   zwi, zwx, zwy, zwz, ztu, ztv, zltu, zltv, ztw
@@ -107,13 +108,18 @@ CONTAINS
          IF(   l_iom    .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR.  &
               &                                       iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )  l_hst = .TRUE.
          !
+#if defined key_RK3
+         l_subit_upwind = .TRUE.
+         nminsub = 1
+         zfacit = 0.5_wp
+#else
+         l_subit_upwind = .FALSE.
+         nminsub = 2
+         zfacit = 1.0_wp
+#endif
       ENDIF
 
       !! -- init to 0
-      zwi(:,:,:) = 0._wp
-      zwx(:,:,:) = 0._wp
-      zwy(:,:,:) = 0._wp
-      zwz(:,:,:) = 0._wp
       ztu(:,:,:) = 0._wp
       ztv(:,:,:) = 0._wp
       zltu(:,:,:) = 0._wp
@@ -134,76 +140,136 @@ CONTAINS
       IF( ln_zad_Aimp ) THEN
          IF( MAXVAL( ABS( wi(T2D(1),:) ) ) > 0._wp ) ll_zAimp = .TRUE.
       END IF
-      ! If active adaptive vertical advection, build tridiagonal matrix
+      ! If active adaptive vertical advection, prepare to build tridiagonal matrix
       IF( ll_zAimp ) THEN
          ALLOCATE(zwdia(T2D(nn_hls),jpk), zwinf(T2D(nn_hls),jpk), zwsup(T2D(nn_hls),jpk))
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-            zwdia(ji,jj,jk) =  1._wp + p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
-            &                               / e3t(ji,jj,jk,Kaa)
-            zwinf(ji,jj,jk) =  p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Kaa)
-            zwsup(ji,jj,jk) = -p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Kaa)
-         END_3D
       END IF
       !
       DO jn = 1, kjpt            !==  loop over the tracers  ==!
          !
          !        !==  upstream advection with initial mass fluxes & intermediate update  ==!
          !                    !* upstream tracer flux in the i and j direction
-         DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-            ! upstream scheme
-            zfp_ui = pU(ji,jj,jk) + ABS( pU(ji,jj,jk) )
-            zfm_ui = pU(ji,jj,jk) - ABS( pU(ji,jj,jk) )
-            zfp_vj = pV(ji,jj,jk) + ABS( pV(ji,jj,jk) )
-            zfm_vj = pV(ji,jj,jk) - ABS( pV(ji,jj,jk) )
-            zwx(ji,jj,jk) = 0.5 * ( zfp_ui * pt(ji,jj,jk,jn,Kbb) + zfm_ui * pt(ji+1,jj  ,jk,jn,Kbb) )
-            zwy(ji,jj,jk) = 0.5 * ( zfp_vj * pt(ji,jj,jk,jn,Kbb) + zfm_vj * pt(ji  ,jj+1,jk,jn,Kbb) )
-         END_3D
-         !                               !* upstream tracer flux in the k direction *!
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )      ! Interior value ( multiplied by wmask)
-            zfp_wk = pW(ji,jj,jk) + ABS( pW(ji,jj,jk) )
-            zfm_wk = pW(ji,jj,jk) - ABS( pW(ji,jj,jk) )
-            zwz(ji,jj,jk) = 0.5 * ( zfp_wk * pt(ji,jj,jk,jn,Kbb) + zfm_wk * pt(ji,jj,jk-1,jn,Kbb) ) * wmask(ji,jj,jk)
-         END_3D
-         IF( ln_linssh ) THEN               ! top ocean value (only in linear free surface as zwz has been w-masked)
-            IF( ln_isfcav ) THEN                        ! top of the ice-shelf cavities and at the ocean surface
-               DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-                  zwz(ji,jj, mikt(ji,jj) ) = pW(ji,jj,mikt(ji,jj)) * pt(ji,jj,mikt(ji,jj),jn,Kbb)   ! linear free surface
-               END_2D
-            ELSE                                        ! no cavities: only at the ocean surface
-               DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-                  zwz(ji,jj,1) = pW(ji,jj,1) * pt(ji,jj,1,jn,Kbb)
-               END_2D
-            ENDIF
-         ENDIF
+         zwi(:,:,:) = pt(T2D(nn_hls),:,jn,Kbb)
+         zwx(:,:,:) = 0._wp
+         zwy(:,:,:) = 0._wp
+         zwz(:,:,:) = 0._wp
          !
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )   !* trend and after field with monotonic scheme
-            !                               ! total intermediate advective trends
-            ztra = - (  ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  ) )   &  ! add () for NP reproducibility
-               &      + ( zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )   &
-               &      + ( zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) ) * r1_e1e2t(ji,jj)
-            !                               ! update and guess with monotonic sheme
-            pt(ji,jj,jk,jn,Krhs) =                   pt(ji,jj,jk,jn,Krhs) +       ztra   &
-               &                                  / e3t(ji,jj,jk,Kmm ) * tmask(ji,jj,jk)
-            zwi(ji,jj,jk)    = ( e3t(ji,jj,jk,Kbb) * pt(ji,jj,jk,jn,Kbb) + p2dt * ztra ) &
-               &                                  / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
-         END_3D
+         DO nsub = nminsub, 2
+            !
+            DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
+               ! upstream scheme
+               zfp_ui = pU(ji,jj,jk) + ABS( pU(ji,jj,jk) )
+               zfm_ui = pU(ji,jj,jk) - ABS( pU(ji,jj,jk) )
+               zfp_vj = pV(ji,jj,jk) + ABS( pV(ji,jj,jk) )
+               zfm_vj = pV(ji,jj,jk) - ABS( pV(ji,jj,jk) )
+               zwx(ji,jj,jk) = zwx(ji,jj,jk) + 0.5 * ( zfp_ui * zwi(ji,jj,jk) + zfm_ui * zwi(ji+1,jj  ,jk) )
+               zwy(ji,jj,jk) = zwy(ji,jj,jk) + 0.5 * ( zfp_vj * zwi(ji,jj,jk) + zfm_vj * zwi(ji  ,jj+1,jk) )
+            END_3D
+            !                               !* upstream tracer flux in the k direction *!  
+            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )      ! Interior value ( multiplied by wmask)
+               zfp_wk = pW(ji,jj,jk) + ABS( pW(ji,jj,jk) )
+               zfm_wk = pW(ji,jj,jk) - ABS( pW(ji,jj,jk) )
+               zwz(ji,jj,jk) = zwz(ji,jj,jk) + 0.5 * ( zfp_wk * zwi(ji,jj,jk) + zfm_wk * zwi(ji,jj,jk-1) ) * wmask(ji,jj,jk)
+            END_3D
+            IF( ln_linssh ) THEN               ! top ocean value (only in linear free surface as zwz has been w-masked)
+               IF( ln_isfcav ) THEN                        ! top of the ice-shelf cavities and at the ocean surface
+                  DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+                     zwz(ji,jj, mikt(ji,jj) ) = zwz(ji,jj,mikt(ji,jj)) + pW(ji,jj,mikt(ji,jj)) * zwi(ji,jj,mikt(ji,jj))   ! linear free surface
+                  END_2D
+               ELSE                                        ! no cavities: only at the ocean surface
+                  DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+                     zwz(ji,jj,1) = zwz(ji,jj,1) + pW(ji,jj,1) * zwi(ji,jj,1)
+                  END_2D
+               ENDIF
+            ENDIF
 
-         IF ( ll_zAimp ) THEN
-            CALL tridia_solver( zwdia, zwsup, zwinf, zwi, zwi , 0 )
-            !
-            ztw(:,:,1) = 0._wp ; ztw(:,:,jpk) = 0._wp ;
-            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )       ! Interior value ( multiplied by wmask)
-               zfp_wk = wi(ji,jj,jk) + ABS( wi(ji,jj,jk) )
-               zfm_wk = wi(ji,jj,jk) - ABS( wi(ji,jj,jk) )
-               ztw(ji,jj,jk) =  0.5 * e1e2t(ji,jj) * ( zfp_wk * zwi(ji,jj,jk) + zfm_wk * zwi(ji,jj,jk-1) ) * wmask(ji,jj,jk)
-               zwz(ji,jj,jk) = zwz(ji,jj,jk) + ztw(ji,jj,jk) ! update vertical fluxes
-            END_3D
-            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - ( ztw(ji,jj,jk) - ztw(ji  ,jj  ,jk+1) ) &
-                  &                                        * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
-            END_3D
-            !
-         END IF
+            IF (nsub==1) THEN 
+               !
+               DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )   !* trend and after field with monotonic scheme
+                  !                               ! total intermediate advective trends
+                  ztra = - (  ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  ) )   &
+                     &      + ( zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )   &
+                     &      + ( zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) ) * r1_e1e2t(ji,jj)
+                  !                               ! update and guess with monotonic sheme
+                  zwi(ji,jj,jk)    = 2._wp * ( e3t(ji,jj,jk,Kbb) *  pt(ji,jj,jk,jn,Kbb) + zfacit * p2dt * ztra )       &
+                     &                      / (e3t(ji,jj,jk,Kaa) + e3t(ji,jj,jk,Kbb)) * tmask(ji,jj,jk)
+               END_3D
+               IF ( ll_zAimp ) THEN
+                  DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+                     zwdia(ji,jj,jk) =  1._wp +  zfacit * p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
+                     &                                / 0.5_wp / (e3t(ji,jj,jk,Kaa) + e3t(ji,jj,jk,Kbb))
+                     zwinf(ji,jj,jk) =  zfacit * p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / 0.5_wp / (e3t(ji,jj,jk,Kaa) + e3t(ji,jj,jk,Kbb))
+                     zwsup(ji,jj,jk) = -zfacit * p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / 0.5_wp / (e3t(ji,jj,jk,Kaa) + e3t(ji,jj,jk,Kbb))
+                  END_3D
+                  !
+                  CALL tridia_solver( zwdia, zwsup, zwinf, zwi, zwi , 0 )
+                  !
+                  ztw(:,:,1) = 0._wp ; ztw(:,:,jpk) = 0._wp ;
+                  DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )       ! Interior value ( multiplied by wmask)
+                     zfp_wk = wi(ji,jj,jk) + ABS( wi(ji,jj,jk) )
+                     zfm_wk = wi(ji,jj,jk) - ABS( wi(ji,jj,jk) )
+                     ztw(ji,jj,jk) =  0.5 * e1e2t(ji,jj) * ( zfp_wk * zwi(ji,jj,jk) + zfm_wk * zwi(ji,jj,jk-1) ) * wmask(ji,jj,jk)
+                     zwz(ji,jj,jk) = zwz(ji,jj,jk) + ztw(ji,jj,jk) ! update vertical fluxes
+                  END_3D
+                  !
+               END IF
+               !
+               IF (nn_hls==1) THEN
+                  CALL lbc_lnk( 'traadv_fct', zwx, 'U', -1.0_wp , zwy, 'V', -1.0_wp, zwz, 'T', 1.0_wp)
+               END IF
+               !
+            ELSEIF (nsub==2) THEN
+               !
+               zwx(:,:,:) = zwx(:,:,:) * zfacit
+               zwy(:,:,:) = zwy(:,:,:) * zfacit
+               zwz(:,:,:) = zwz(:,:,:) * zfacit
+               !
+               DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )   !* trend and after field with monotonic scheme
+                  !                               ! total intermediate advective trends
+                  !
+                  ztra = - (  ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  ) )   &   ! add () NP halo
+                     &      + ( zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )   &
+                     &      + ( zwz(ji,jj,jk) - zwz(ji  ,jj  ,jk+1) ) ) * r1_e1e2t(ji,jj)
+                  !                               ! update and guess with monotonic sheme
+                  pt(ji,jj,jk,jn,Krhs) =                   pt(ji,jj,jk,jn,Krhs) +       ztra   &
+                     &                                  / e3t(ji,jj,jk,Kmm ) * tmask(ji,jj,jk)
+                  zwi(ji,jj,jk)    = ( e3t(ji,jj,jk,Kbb) * pt(ji,jj,jk,jn,Kbb) + p2dt * ztra ) &
+                  &                                     / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
+               END_3D
+               IF ( ll_zAimp ) THEN
+                  DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+                     zwdia(ji,jj,jk) =  1._wp +  zfacit * p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
+                     &                                / e3t(ji,jj,jk,Kaa)
+                     zwinf(ji,jj,jk) =  zfacit * p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Kaa)
+                     zwsup(ji,jj,jk) = -zfacit * p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Kaa)
+                  END_3D
+                  !
+                  CALL tridia_solver( zwdia, zwsup, zwinf, zwi, zwi , 0 )
+                  !
+                  ztw(:,:,1) = 0._wp ; ztw(:,:,jpk) = 0._wp ;
+                  DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )       ! Interior value ( multiplied by wmask)
+                     zfp_wk = wi(ji,jj,jk) + ABS( wi(ji,jj,jk) )
+                     zfm_wk = wi(ji,jj,jk) - ABS( wi(ji,jj,jk) )
+                     ztw(ji,jj,jk) =  zfacit * 0.5 * e1e2t(ji,jj) * ( zfp_wk * zwi(ji,jj,jk) + zfm_wk * zwi(ji,jj,jk-1) ) * wmask(ji,jj,jk)
+                     zwz(ji,jj,jk) = zwz(ji,jj,jk) + ztw(ji,jj,jk) ! update vertical fluxes
+                  END_3D
+                  DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+                     pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - ( ztw(ji,jj,jk) - ztw(ji  ,jj  ,jk+1) ) &
+                        &                                        * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
+                  END_3D
+                  !
+                  IF ( ll_zAimp.AND.l_subit_upwind ) THEN ! no need to do this with no sub-iteration
+                     DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+                        zwdia(ji,jj,jk) =  1._wp +  p2dt * ( MAX( wi(ji,jj,jk) , 0._wp ) - MIN( wi(ji,jj,jk+1) , 0._wp ) )   &
+                        &                                / e3t(ji,jj,jk,Kaa)
+                        zwinf(ji,jj,jk) =  p2dt * MIN( wi(ji,jj,jk  ) , 0._wp ) / e3t(ji,jj,jk,Kaa)
+                        zwsup(ji,jj,jk) = -p2dt * MAX( wi(ji,jj,jk+1) , 0._wp ) / e3t(ji,jj,jk,Kaa)
+                     END_3D
+                  ENDIF
+                  !
+               END IF
+            ENDIF
+         END DO
          !
          IF( l_trd .OR. l_hst )  THEN             ! trend diagnostics (contribution of upstream fluxes)
             ztrdx(:,:,:) = zwx(:,:,:)   ;   ztrdy(:,:,:) = zwy(:,:,:)   ;   ztrdz(:,:,:) = zwz(:,:,:)
