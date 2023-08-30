@@ -43,7 +43,7 @@ MODULE dynadv_cen2
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE dyn_adv_cen2( kt, Kmm, puu, pvv, Krhs, pau, pav, paw )
+   SUBROUTINE dyn_adv_cen2( kt, Kmm, puu, pvv, Krhs, pFu, pFv, pFw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE dyn_adv_cen2  ***
       !!
@@ -52,7 +52,7 @@ CONTAINS
       !!
       !! ** Method  :   Trend evaluated with a 2nd order centered scheme 
       !!              using fields at Kmm time-level.
-      !!                In RK3 time stepping case, the optional arguments (pau,pav,paw) 
+      !!                In RK3 time stepping case, the optional arguments (pFu,pFv,pFw) 
       !!              are present. They are used as advective velocity while 
       !!              the advected velocity remains (puu,pvv). 
       !!
@@ -60,16 +60,16 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                                     , INTENT(in   ) ::   kt , Kmm, Krhs   ! ocean time-step and level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), TARGET, INTENT(inout) ::   puu, pvv         ! ocean velocities and RHS of momentum equation
-      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw    ! advective velocity
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw    ! advective velocity
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
-      REAL(wp) ::   zzu, zzfu_kp1     ! local scalars
-      REAL(wp) ::   zzv, zzfv_kp1     !   -      -
-      REAL(wp), DIMENSION(T2D(1)) ::   zfu_t, zfu_f, zfu
-      REAL(wp), DIMENSION(T2D(1)) ::   zfv_t, zfv_f, zfv
-      REAL(wp), DIMENSION(T2D(1)) ::   zfu_uw, zfv_vw, zfw
-      REAL(wp), DIMENSION(:,:,:) , POINTER ::   zpt_u, zpt_v, zpt_w
-      REAL(wp), DIMENSION(:,:,:) , ALLOCATABLE ::   zu_trd, zv_trd
+      REAL(wp) ::   zzu, zzFwu_kp1     ! local scalars
+      REAL(wp) ::   zzv, zzFwv_kp1     !   -      -
+      REAL(wp), DIMENSION(T2D(1)) ::   zFu_t, zFu_f
+      REAL(wp), DIMENSION(T2D(1)) ::   zFv_t, zFv_f
+      REAL(wp), DIMENSION(:,:)  , POINTER             ::   zFu, zFv
+      REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, TARGET ::   zwu, zwv
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE         ::   zu_trd, zv_trd
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -85,36 +85,39 @@ CONTAINS
          zu_trd(:,:,:) = puu(A2D(0),:,Krhs)
          zv_trd(:,:,:) = pvv(A2D(0),:,Krhs)
       ENDIF
-      !
-      IF( PRESENT( pau ) ) THEN     ! RK3: advective velocity (pau,pav,paw) /= advected velocity (puu,pvv,ww)
-         zpt_u => pau(:,:,:)
-         zpt_v => pav(:,:,:)
-         zpt_w => paw(:,:,:)
-      ELSE                          ! MLF: advective velocity = (puu,pvv,ww)
-         zpt_u => puu(:,:,:,Kmm)
-         zpt_v => pvv(:,:,:,Kmm)
-         zpt_w => ww (:,:,:    )
-      ENDIF
+      !                             ! used in MLF and RK3(stp2d) : advective velocity = (puu,pvv,ww)
+      IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(A2D(2)), zwv(A2D(2)) )
       !
       !                             !==  Horizontal advection  ==!
       !
       DO jk = 1, jpkm1                    ! horizontal transport
-         DO_2D( 1, 1, 1, 1 )
-            zfu(ji,jj) = 0.25_wp * e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * zpt_u(ji,jj,jk)
-            zfv(ji,jj) = 0.25_wp * e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * zpt_v(ji,jj,jk)
-         END_2D
+         IF( PRESENT( pFu ) ) THEN
+            DO_2D( 1, 1, 1, 1 )
+               zFu => pFu(:,:,jk)
+               zFv => pFv(:,:,jk)
+            END_2D
+         ELSE
+            zFu => zwu(:,:)
+            zFv => zwv(:,:)
+            DO_2D( 1, 1, 1, 1 )
+               zFu(ji,jj) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * puu(ji,jj,jk,Kmm)
+               zFv(ji,jj) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * pvv(ji,jj,jk,Kmm)
+            END_2D
+         ENDIF
+         !
          DO_2D( 1, 0, 1, 0 )              ! horizontal momentum fluxes (at T- and F-point)
-            zfu_t(ji+1,jj  ) = ( zfu(ji,jj) + zfu(ji+1,jj) ) * ( puu(ji,jj,jk,Kmm) + puu(ji+1,jj  ,jk,Kmm) )
-            zfv_f(ji  ,jj  ) = ( zfv(ji,jj) + zfv(ji+1,jj) ) * ( puu(ji,jj,jk,Kmm) + puu(ji  ,jj+1,jk,Kmm) )
-            zfu_f(ji  ,jj  ) = ( zfu(ji,jj) + zfu(ji,jj+1) ) * ( pvv(ji,jj,jk,Kmm) + pvv(ji+1,jj  ,jk,Kmm) )
-            zfv_t(ji  ,jj+1) = ( zfv(ji,jj) + zfv(ji,jj+1) ) * ( pvv(ji,jj,jk,Kmm) + pvv(ji  ,jj+1,jk,Kmm) )
+            zFu_t(ji+1,jj  ) = ( zFu(ji,jj) + zFu(ji+1,jj) ) * ( puu(ji,jj,jk,Kmm) + puu(ji+1,jj  ,jk,Kmm) )
+            zFv_f(ji  ,jj  ) = ( zFv(ji,jj) + zFv(ji+1,jj) ) * ( puu(ji,jj,jk,Kmm) + puu(ji  ,jj+1,jk,Kmm) )
+            zFu_f(ji  ,jj  ) = ( zFu(ji,jj) + zFu(ji,jj+1) ) * ( pvv(ji,jj,jk,Kmm) + pvv(ji+1,jj  ,jk,Kmm) )
+            zFv_t(ji  ,jj+1) = ( zFv(ji,jj) + zFv(ji,jj+1) ) * ( pvv(ji,jj,jk,Kmm) + pvv(ji  ,jj+1,jk,Kmm) )
          END_2D
+         !
          DO_2D( 0, 0, 0, 0 )              ! divergence of horizontal momentum fluxes
-            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - (  ( zfu_t(ji+1,jj) - zfu_t(ji,jj  ) )    &   ! add () for NP repro
-               &                                       + ( zfv_f(ji  ,jj) - zfv_f(ji,jj-1) )  ) * r1_e1e2u(ji,jj)   &
+            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - (  ( zFu_t(ji+1,jj) - zFu_t(ji,jj  ) )    &   ! add () for NP repro
+               &                                       + ( zFv_f(ji  ,jj) - zFv_f(ji,jj-1) )  ) * r1_e1e2u(ji,jj)   &
                &                                    / e3u(ji,jj,jk,Kmm)
-            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - (  ( zfu_f(ji,jj  ) - zfu_f(ji-1,jj) )    &   ! add () for NP repro
-               &                                       + ( zfv_t(ji,jj+1) - zfv_t(ji  ,jj) )  ) * r1_e1e2v(ji,jj)   &
+            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - (  ( zFu_f(ji,jj  ) - zFu_f(ji-1,jj) )    &   ! add () for NP repro
+               &                                       + ( zFv_t(ji,jj+1) - zFv_t(ji  ,jj) )  ) * r1_e1e2v(ji,jj)   &
                &                                    / e3v(ji,jj,jk,Kmm)
          END_2D
       END DO
@@ -127,47 +130,67 @@ CONTAINS
          zv_trd(:,:,:) = pvv(A2D(0),:,Krhs)
       ENDIF
       !
+#define zFwu   zFu
+#define zFwv   zFv
+#define zFw    zFu
+#define zww    zwu
       !                          !==  Vertical advection  ==!
       !
       !                              ! surface vertical fluxes
       !
       IF( ln_linssh ) THEN                ! linear free surface: advection through the surface z=0
+         IF( PRESENT( pFu ) ) THEN
+            zFw => pFw(:,:,1)
+         ELSE
+            zFw => zww(:,:)
+            DO_2D( 0, 1, 0, 1 )
+               zFw(ji,jj) = e1e2t(ji,jj) * ww(ji,jj,1)
+            END_2D
+         ENDIF
+         !
          DO_2D( 0, 0, 0, 0 )
-            zfu_uw(ji,jj) = 0.5_wp * ( e1e2t(ji,jj) * zpt_w(ji,jj,1) + e1e2t(ji+1,jj) * zpt_w(ji+1,jj,1) ) * puu(ji,jj,1,Kmm)
-            zfv_vw(ji,jj) = 0.5_wp * ( e1e2t(ji,jj) * zpt_w(ji,jj,1) + e1e2t(ji,jj+1) * zpt_w(ji,jj+1,1) ) * pvv(ji,jj,1,Kmm)
+            zFwu(ji,jj) = 0.5_wp * ( zFw(ji,jj) + zFw(ji+1,jj  ) ) * puu(ji,jj,1,Kmm)
+            zFwv(ji,jj) = 0.5_wp * ( zFw(ji,jj) + zFw(ji  ,jj+1) ) * pvv(ji,jj,1,Kmm)
          END_2D
       ELSE                                ! non linear free: surface advective fluxes set to zero
          DO_2D( 0, 0, 0, 0 )
-            zfu_uw(ji,jj) = 0._wp
-            zfv_vw(ji,jj) = 0._wp
+            zFwu(ji,jj) = 0._wp
+            zFwv(ji,jj) = 0._wp
          END_2D
       ENDIF
       !
       DO jk = 1, jpk-2               !  divergence of advective fluxes
          !
-         DO_2D( 0, 1, 0, 1 )                  ! 1/4 * Vertical transport at level k+1
-            zfw(ji,jj) = 0.25_wp * e1e2t(ji,jj) * zpt_w(ji,jj,jk+1)
-         END_2D
+         IF( PRESENT( pFu ) ) THEN        ! vertical transport at level k+1
+            DO_2D( 0, 1, 0, 1 )
+               zFw => pFw(:,:,jk+1)
+            END_2D
+         ELSE
+            DO_2D( 0, 1, 0, 1 )
+               zFw(ji,jj) = e1e2t(ji,jj) * ww(ji,jj,jk+1)
+            END_2D
+         ENDIF
+         !
          DO_2D( 0, 0, 0, 0 )
-            !                                       ! vertical flux at level k+1
-            zzfu_kp1 = ( zfw(ji,jj) + zfw(ji+1,jj  ) ) * ( puu(ji,jj,jk+1,Kmm) + puu(ji,jj,jk,Kmm) )
-            zzfv_kp1 = ( zfw(ji,jj) + zfw(ji  ,jj+1) ) * ( pvv(ji,jj,jk+1,Kmm) + pvv(ji,jj,jk,Kmm) )
-            !                                       ! divergence of vertical momentum flux
-            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - ( zfu_uw(ji,jj) - zzfu_kp1 ) * r1_e1e2u(ji,jj)   &
+            !                             ! vertical flux at level k+1
+            zzFwu_kp1 = 0.25_wp * ( zFw(ji,jj) + zFw(ji+1,jj  ) ) * ( puu(ji,jj,jk+1,Kmm) + puu(ji,jj,jk,Kmm) )
+            zzFwv_kp1 = 0.25_wp * ( zFw(ji,jj) + zFw(ji  ,jj+1) ) * ( pvv(ji,jj,jk+1,Kmm) + pvv(ji,jj,jk,Kmm) )
+            !                             ! divergence of vertical momentum flux
+            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - ( zFwu(ji,jj) - zzFwu_kp1 ) * r1_e1e2u(ji,jj)   &
                &                                      / e3u(ji,jj,jk,Kmm)
-            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zfv_vw(ji,jj) - zzfv_kp1 ) * r1_e1e2v(ji,jj)   &
+            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zFwv(ji,jj) - zzFwv_kp1 ) * r1_e1e2v(ji,jj)   &
                &                                      / e3v(ji,jj,jk,Kmm)
-            !                                       ! store vertical flux for next level calculation
-            zfu_uw(ji,jj) = zzfu_kp1
-            zfv_vw(ji,jj) = zzfv_kp1
+            !                             ! store vertical flux for next level calculation
+            zFwu(ji,jj) = zzFwu_kp1
+            zFwv(ji,jj) = zzFwv_kp1
          END_2D
       END DO
       !
       jk = jpkm1
       DO_2D( 0, 0, 0, 0 )
-         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - zfu_uw(ji,jj) * r1_e1e2u(ji,jj)   &
+         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - zFwu(ji,jj) * r1_e1e2u(ji,jj)   &
             &                                      / e3u(ji,jj,jk,Kmm)
-         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - zfv_vw(ji,jj) * r1_e1e2v(ji,jj)   &
+         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - zFwv(ji,jj) * r1_e1e2v(ji,jj)   &
             &                                      / e3v(ji,jj,jk,Kmm)
       END_2D
       !
@@ -177,6 +200,11 @@ CONTAINS
          CALL trd_dyn( zu_trd, zv_trd, jpdyn_zad, kt, Kmm )
          DEALLOCATE( zu_trd, zv_trd )
       ENDIF
+      !
+#undef zFwu
+#undef zFwv
+#undef zFw
+#undef zww
       !                                   ! Control print
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=puu(:,:,:,Krhs), clinfo1=' cen2 adv - Ua: ', mask1=umask,   &
          &                                  tab3d_2=pvv(:,:,:,Krhs), clinfo2=           ' Va: ', mask2=vmask, clinfo3='dyn' )

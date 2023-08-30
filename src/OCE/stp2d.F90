@@ -20,7 +20,6 @@ MODULE stp2d
    USE step_oce       ! time stepping used modules
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
    USE dynspg_ts      ! 2D mode integration
-   USE sshwzv         ! vertical speed
    USE sbc_ice , ONLY : snwice_mass, snwice_mass_b
    USE sbcapr         ! surface boundary condition: atmospheric pressure
    USE sbcwave,  ONLY : bhd_wave
@@ -107,9 +106,9 @@ CONTAINS
       uu(:,:,:,Krhs) = 0._wp        ! set dynamics trends to zero
       vv(:,:,:,Krhs) = 0._wp
       !
-      !                             !*  compute advection + coriolis *!
+      !                             !*  compute advection + coriolis  *!
       !
-      CALL ssh_nxt( kt, Kbb, Kbb, ssh, Kaa )
+!!st should come from restart      CALL ssh_nxt( kt, Kbb, Kbb, ssh, Kaa )
       !
       IF( .NOT.lk_linssh ) THEN
          DO_2D_OVR( 1, nn_hls, 1, nn_hls )      ! loop bounds limited by ssh definition in ssh_nxt
@@ -119,22 +118,22 @@ CONTAINS
       !
       CALL wzv    ( kt, Kbb, Kbb, Kaa , uu(:,:,:,Kbb), vv(:,:,:,Kbb), ww )  ! ww guess at Kbb (n)
       !
-      CALL dyn_adv( kt, Kbb, Kbb      , uu, vv, Krhs)       !- vector form KEG+ZAD 
-      !                                                     !- flux   form ADV
-      CALL dyn_vor( kt,            Kbb, uu, vv, Krhs )      !- vector form COR+RVO
-      !                                                     !- flux   form COR+MET
+      !                                                                     !   flux form   !   vector invariant form   !
+      CALL dyn_adv( kt, Kbb, Kbb, uu, vv, Krhs )                            !      ADV      !         KEG+ZAD           !
+      !                                                                     !               !                           !
+      CALL dyn_vor( kt,      Kbb, uu, vv, Krhs )                            !    COR+MET    !         COR+RVO           !
       !
       !                             !*  lateral viscosity  *!
-      CALL dyn_ldf( kt,   Kbb, Kbb, uu, vv, Krhs )
+      CALL dyn_ldf( kt, Kbb, Kbb, uu, vv, Krhs )
 #if defined key_agrif
-      IF(.NOT. Agrif_Root() ) THEN  !*  AGRIF: sponge *!
+      IF(.NOT. Agrif_Root() ) THEN  !*  AGRIF: sponge  *!
          CALL Agrif_Sponge_dyn
       ENDIF
 #endif
       !
       !                             !*  hydrostatic pressure gradient  *!  
-      CALL eos    ( ts , Kbb, rhd )                          ! in situ density anomaly at Kbb
-      CALL dyn_hpg( kt  , Kbb     , uu, vv, Krhs )           ! horizontal gradient of Hydrostatic pressure
+      CALL eos    ( ts, Kbb, rhd )                          ! in situ density anomaly at Kbb
+      CALL dyn_hpg( kt, Kbb     , uu, vv, Krhs )            ! horizontal gradient of Hydrostatic pressure
       !
       !                             !*  vertical averaging  *!
 #if defined key_vco_1d

@@ -217,6 +217,7 @@ CONTAINS
                IF (nn_hls==1) THEN
                   CALL lbc_lnk( 'traadv_fct', zwx, 'U', -1.0_wp , zwy, 'V', -1.0_wp, zwz, 'T', 1.0_wp)
                END IF
+               CALL lbc_lnk( 'traadv_fct', zwi, 'T', 1.0_wp)
                !
             ELSEIF (nsub==2) THEN
                !

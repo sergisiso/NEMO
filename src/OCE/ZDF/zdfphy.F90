@@ -138,10 +138,8 @@ CONTAINS
          WRITE(numout,*) '         horizontal variation for avtb           nn_havtb  = ', nn_havtb
       ENDIF
 
-      IF( zdf_phy_alloc1() /= 0 )   &
-            &       CALL ctl_stop( 'STOP', 'zdf_phy_init : unable to allocate z-advection arrays' )
       IF( ln_zad_Aimp ) THEN
-         IF( zdf_phy_alloc2() /= 0 )   &
+         IF( zdf_phy_alloc() /= 0 )   &
             &       CALL ctl_stop( 'STOP', 'zdf_phy_init : unable to allocate adaptive-implicit z-advection arrays' )
          Cu_adv(:,:,:) = 0._wp
          wi    (:,:,:) = 0._wp
@@ -396,27 +394,15 @@ CONTAINS
    END SUBROUTINE zdf_phy
 
 
-   INTEGER FUNCTION zdf_phy_alloc1()
+   INTEGER FUNCTION zdf_phy_alloc()
       !!----------------------------------------------------------------------
-      !!                 ***  FUNCTION zdf_phy_alloc1  ***
+      !!                 ***  FUNCTION zdf_phy_alloc  ***
       !!----------------------------------------------------------------------
-     ! Allocate ww_T array (declared in oce.F90) 
-     ALLOCATE(     ww_T(jpi,jpj,jpk),  STAT= zdf_phy_alloc1 )
-     IF( zdf_phy_alloc1 /= 0 )   CALL ctl_warn('zdf_phy_alloc1: failed to allocate vertical velocity arrays')
-     ww => ww_T
-     CALL mpp_sum ( 'zdfphy', zdf_phy_alloc1 )
-   END FUNCTION zdf_phy_alloc1
-
-   INTEGER FUNCTION zdf_phy_alloc2()
-      !!----------------------------------------------------------------------
-      !!                 ***  FUNCTION zdf_phy_alloc2  ***
-      !!----------------------------------------------------------------------
-     ! Allocate wi_T array (declared in oce.F90) for use with the adaptive-implicit vertical velocity option
-     ALLOCATE(     wi_T(jpi,jpj,jpk), Cu_adv(jpi,jpj,jpk),  STAT= zdf_phy_alloc2 )
-     IF( zdf_phy_alloc2 /= 0 )   CALL ctl_warn('zdf_phy_alloc2: failed to allocate ln_zad_Aimp=T required arrays')
-     wi => wi_T
-     CALL mpp_sum ( 'zdfphy', zdf_phy_alloc2 )
-   END FUNCTION zdf_phy_alloc2
+      ! Allocate wi array (declared in oce.F90) for use with the adaptive-implicit vertical velocity option
+      ALLOCATE(     wi(jpi,jpj,jpk), Cu_adv(jpi,jpj,jpk),  STAT= zdf_phy_alloc )
+      IF( zdf_phy_alloc /= 0 )   CALL ctl_warn('zdf_phy_alloc: failed to allocate ln_zad_Aimp=T required arrays')
+      CALL mpp_sum ( 'zdfphy', zdf_phy_alloc )
+   END FUNCTION zdf_phy_alloc
 
    !!======================================================================
 END MODULE zdfphy

@@ -20,7 +20,6 @@ MODULE dynadv
    USE dynkeg          ! kinetic energy gradient          (dyn_keg      routine)
    USE dynzad          ! vertical advection               (dyn_zad      routine)
    USE zdf_oce,  ONLY : ln_zad_Aimp
-   USE oce,      ONLY : ww_U, wi_U
    !
    USE in_out_manager  ! I/O manager
    USE lib_mpp         ! MPP library
@@ -138,14 +137,6 @@ CONTAINS
 #if defined key_qcoTest_FluxForm
       IF( ln_dynadv_vec  ) THEN CALL ctl_stop( 'STOP', 'key_qcoTest_FluxForm requires flux form advection' )
 #endif
-      IF( ln_dynadv_vec ) THEN
-         ALLOCATE(     ww_U(jpi,jpj,jpk), STAT=istat1 )
-         IF( ln_zad_Aimp ) THEN
-            ALLOCATE(     wi_U(jpi,jpj,jpk), STAT=istat2 )
-            istat1 = istat1 + istat2
-         ENDIF
-         IF( istat1 /= 0 )   CALL ctl_stop( 'dyn_adv_init: failed to allocate ln_dynadv_vec=T required arrays' )
-      ENDIF
 
       IF(lwp) THEN                    ! Print the choice
          WRITE(numout,*)
