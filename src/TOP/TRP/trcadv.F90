@@ -27,7 +27,9 @@ MODULE trcadv
    USE traadv_mus     ! MUSCL    scheme           (tra_adv_mus  routine)
    USE traadv_ubs     ! UBS      scheme           (tra_adv_ubs  routine)
    USE traadv_qck     ! QUICKEST scheme           (tra_adv_qck  routine)
+#if ! defined key_RK3
    USE tramle         ! ML eddy induced transport (tra_adv_mle  routine)
+#endif
    USE ldftra         ! lateral diffusion: eddy diffusivity & EIV coeff.
    USE ldfslp         ! Lateral diffusion: slopes of neutral surfaces
    USE domtile        ! tiling utilities
@@ -51,7 +53,7 @@ MODULE trcadv
    LOGICAL ::      ln_mus_ups           ! use upstream scheme in vivcinity of river mouths
    LOGICAL ::   ln_trcadv_ubs    ! UBS scheme flag
    INTEGER ::      nn_ubs_v             ! =2/4 : vertical choice of the order of UBS scheme
-   LOGICAL ::   ln_trcadv_qck    ! QUICKEST scheme flag
+   LOGICAL, PUBLIC ::   ln_trcadv_qck    ! QUICKEST scheme flag
 
    INTEGER ::   nadv             ! choice of the type of advection scheme
    !                             ! associated indices:
@@ -158,9 +160,9 @@ CONTAINS
          ENDIF
          !
          IF( ln_ldfeiv .AND. .NOT. ln_traldf_triad )   & 
-            &              CALL ldf_eiv_trp( kt, nittrc000, zuu, zvv, zww, 'TRC', Kmm, Krhs )  ! add the eiv transport
+            &              CALL ldf_eiv_trp( kt, nittrc000, zuu, zvv, zww, Kmm, Krhs     , 'TRC' )  ! add the eiv transport
          !
-         IF( ln_mle    )   CALL tra_mle_trp( kt, nittrc000, zuu, zvv, zww, 'TRC', Kmm       )  ! add the mle transport
+         IF( ln_mle    )   CALL tra_mle_trp( kt           , zuu, zvv, zww, Kmm, nittrc000, 'TRC' )  ! add the mle transport
          !
 #endif
       ENDIF

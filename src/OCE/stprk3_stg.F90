@@ -21,6 +21,7 @@ MODULE stprk3_stg
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
    USE bdydyn         ! ocean open boundary conditions (define bdy_dyn)
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
+   USE tramle         ! ML eddy induced transport (tra_adv_mle  routine)
 # if defined key_top
    USE trc            ! ocean passive tracers variables
    USE trcadv         ! passive tracers advection      (trc_adv routine)
@@ -83,8 +84,9 @@ CONTAINS
       INTEGER  ::   ji, jj, jk, jn, jtile                  ! dummy loop indices
       REAL(wp) ::   ze3Tb, ze3Sb, z1_e3t     ! local scalars
       REAL(wp) ::   ze3Tr, ze3Sr             !   -      -
-      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zaU, zaV       ! advective horizontal velocity
-      REAL(wp), DIMENSION(jpi,jpj)     ::   zub, zvb       ! advective transport
+!      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zaU, zaV       ! advective horizontal velocity
+      REAL(wp), DIMENSION(jpi,jpj)     ::   zub, zvb       ! advective transport 
+      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zFu, zFv, zFw  ! advective transport
       !! ---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('stp_RK3_stg')
@@ -182,42 +184,35 @@ CONTAINS
       !
       !                     !==  advective velocity at Kmm  ==!
       !
-      !                                            !- horizontal components -!   (zaU,zaV)
+      !                                            !- horizontal components -!   (zFu,zFv) 
       DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
          zub(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
          zvb(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
       END_2D
-      DO_3D_OVR( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )               ! horizontal advective velocity
-         zaU(ji,jj,jk) = uu(ji,jj,jk,Kmm) + zub(ji,jj)*umask(ji,jj,jk)
-         zaV(ji,jj,jk) = vv(ji,jj,jk,Kmm) + zvb(ji,jj)*vmask(ji,jj,jk)
-      END_3D
-      !                                            !- vertical components -!   ww
       !
-      ! Always need:                               ! ww cross-level velocity consistent with zaU/zaV
+      DO jk = 1, jpkm1                                                    ! advective transport
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            zFu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + zub(ji,jj)*umask(ji,jj,jk) )
+            zFv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + zvb(ji,jj)*vmask(ji,jj,jk) )
+         END_2D
+      END DO
+      !                                            !- vertical components -!   ww or zFw
       !
-      CALL wzv  ( kstp, Kbb, Kmm, Kaa, zaU, zaV, ww_T )
-      !
-      !                                            ! Adaptive-implicit vertical advection partitioning
-      IF( ln_zad_Aimp )  wi_T(:,:,:) = 0.0_wp                                                    ! ensure it is zero for stages 1 and 2
-      IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, zaU, zaV, ww_T, wi_T, kstg )     ! Partition at stage 3 only
-      !
-      IF( ln_dynadv_vec ) THEN
-         ! Also need:                              ! ww cross-level velocity consistent with uu/vv at Kmm
-         CALL wzv  ( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww_U )
-         !
-         !                                         ! Adaptive-implicit vertical advection partitioning
-         IF( ln_zad_Aimp )  wi_U(:,:,:) = 0.0_wp                                                                      ! ensure it is zero for stages 1 and 2
-         IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww_U, wi_U, kstg )   ! partition at stage 3 only
-         !
-         !                                         ! use ww cross-level velocity consistent with uu/vv at Kmm
-         IF( ln_zad_Aimp ) wi => wi_U
-         ww => ww_U
-      ELSE                                         ! use ww cross-level velocity consistent with zaU/zaV for momentum
-         IF( ln_zad_Aimp ) wi => wi_T
-         ww => ww_T
+      IF( ln_zad_Aimp )  wi(:,:,:) = 0.0_wp                                                      !                              ! ensure adaptive-implicit vertical advection part is zero for stages 1 and 2
+      IF( ln_dynadv_vec ) THEN                                            ! ww cross-level velocity consistent with uu/vv at Kmm
+         CALL wzv( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, np_velocity )
+         IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, np_velocity )   ! Partition at stage 3 only
+      ELSE                                                                ! zFw cross-level transport consistent with (zFu,zFv)
+         CALL wzv( kstp, Kbb, Kmm, Kaa, zFu          , zFv          , ww, np_transport )
+         IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, zFu, zFv, ww, wi, np_transport )                      ! Partition at stage 3 only
+         DO jk = 1, jpkm1
+            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
+               zFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
+            END_2D
+         END DO
       ENDIF
       !
-
+      !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !  RHS of ocean dynamics : ADV + VOR/COR + HPG (+ ASM )      <<<===  Question:  Stokes drift ?
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -228,9 +223,9 @@ CONTAINS
 !===>>>>>> Modify dyn_adv_... dyn_keg routines so that Krhs to zero useless
       !                                         ! advection (VF or FF)	==> RHS
       IF( ln_dynadv_vec ) THEN                                            ! uu and vv used for momentum advection
-         CALL dyn_adv( kstp, Kmm, Kmm      , uu, vv, Krhs)
-      ELSE                                                                ! advective velocity used for momentum advection
-         CALL dyn_adv( kstp, Kmm, Kmm      , uu, vv, Krhs, zaU, zaV, ww ) !!st !!! TO DO !!! METTRE Kmm partout et faire le test !!!
+         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs)
+      ELSE                                                                ! advective transport used for momentum advection
+         CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs, zFu, zFv, zFw )
       ENDIF
       !                                         ! Coriolis / vorticity  ==> RHS
       CALL dyn_vor( kstp,      Kmm      , uu, vv, Krhs )
@@ -254,14 +249,28 @@ CONTAINS
 !!gm
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      ! RHS of tracers : ADV only using (zaU,zaV,ww)
+      ! RHS of tracers : ADV only using (zFu,zFv,zFw)
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
-      !                                            ! Advective velocity needed for tracers advection - already in use if ln_dynadv_vec=F
-      IF( ln_dynadv_vec )  THEN
-         ww => ww_T
-         IF( ln_zad_Aimp ) wi => wi_T
+      !                                            ! Advective velocity needed for tracers advection - already computed if ln_dynadv_vec=F
+      IF( ln_dynadv_vec )   THEN
+         CALL wzv  ( kstp, Kbb, Kmm, Kaa, zFU, zFV, ww, np_transport )
+         !                                              ! Partition at stage 3 only
+         IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, zFu, zFv, ww, wi, np_transport )
+         DO jk = 1, jpkm1
+            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+               zFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
+            END_2D
+         END DO
       ENDIF
+      !
+      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      ! advective transport
+      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      !
+!===>>> CAUTION here may be without GM velocity but stokes drift required ! 0 barotropic divergence for GM  != 0 barotropic divergence for SD
+      !                                       ! Update advective transport
+      CALL tra_adv_trp( kstp, kstg, nit000, Kmm, Krhs, zFu, zFv, zFw )
       !
       !                                            ! BBL coefficients required for both passive- and active-tracer transport within
       !                                            ! the BBL (stage 3 only, requires uu, vv, gdept at Kmm)
@@ -279,7 +288,8 @@ CONTAINS
             CALL trc_stp_start( kstp, Kbb, Kmm, Krhs, Kaa )
          ENDIF
          !
-         IF(.NOT. ln_trcadv_mus ) THEN
+!!st+gm : probably QUICK 
+         IF( .NOT.ln_trcadv_mus .AND. .NOT.ln_trcadv_qck ) THEN
             !
             DO jn = 1, jptra
                tr(:,:,:,jn,Krhs) = 0._wp                              ! set tracer trends to zero !!st ::: required because of tra_adv new loops
@@ -289,7 +299,7 @@ CONTAINS
             !
             CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
             !
-            CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zaU, zaV, ww ) ! horizontal & vertical advection
+            CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zFu, zFv, zFw ) ! horizontal & vertical advection
             !
             !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
             DO jn = 1, jptra
@@ -317,7 +327,7 @@ CONTAINS
          !
          CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
          !
-         CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zaU, zaV, ww ) ! horizontal & vertical advection
+         CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zFu, zFv, zFw ) ! horizontal & vertical advection
          !
          CALL trc_sms    ( kstp, Kbb, Kbb, Krhs      )       ! tracers: sinks and sources
          CALL trc_trp    ( kstp, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers (without advection)
@@ -334,18 +344,14 @@ CONTAINS
       DO jn = 1, jpts
          ts(:,:,:,jn,Krhs) = 0._wp                                   ! set tracer trends to zero (:,:,:) needed otherwise it does not work (?)
       END DO
-
-      CALL eos( ts, Kmm, rhd, rhop ) ! now in potential density for tra_mle computation
-!===>>> CAUTION here may be without GM velocity but stokes drift required ! 0 barotropic divergence for GM  != 0 barotropic divergence for SD 
-!!st consistence 2D / 3D - flux de masse 
-      CALL tra_adv( kstp, Kbb, Kmm, Kaa, ts, Krhs, zaU, zaV, ww, kstg )       ! hor. + vert. advection	==> RHS
+      !     
+      CALL tra_adv( kstp, Kbb, Kmm, Kaa, ts, Krhs, zFu, zFv, zFw, kstg ) ! horizontal & vertical advection
 
 !===>>>>>> stg1&2:  Verify the necessity of these trends (we may need it as there are in the RHS of dynspg_ts ?)
 !!gm ====>>>>   needed for heat and salt fluxes associated with mass/volume flux
                         CALL tra_sbc_RK3( kstp,      Kmm, ts, Krhs, kstg )   ! surface boundary condition
 
       IF( ln_isf )      CALL tra_isf    ( kstp,      Kmm, ts, Krhs )   ! ice shelf heat flux
-      IF( ln_traqsr )   CALL tra_qsr    ( kstp,      Kmm, ts, Krhs )   ! penetrative solar radiation qsr
 !!gm
 
       !
@@ -421,6 +427,7 @@ CONTAINS
          !                                      !==  complete the tracers RHS  ==!   except ZDF (implicit)
          !                                            !*  T-S Tracer  *!
          !
+         IF( ln_traqsr )    CALL tra_qsr( kstp,      Kmm, ts, Krhs )  ! penetrative solar radiation qsr
                             CALL tra_ldf( kstp, Kbb, Kmm, ts, Krhs )  ! lateral mixing
          IF( ln_trabbc  )   CALL tra_bbc( kstp,      Kmm, ts, Krhs )  ! bottom heat flux
          IF( ln_trabbl  )   CALL tra_bbl( kstp, Kbb, Kmm, ts, Krhs )  ! advective (and/or diffusive) bottom boundary layer scheme
@@ -434,12 +441,7 @@ CONTAINS
          !
          !                                      !==  DYN & TRA time integration + ZDF  ==!   ∆t = rDt
          !
-         IF( ln_dynadv_vec ) THEN 
-                             ww => ww_U
-                             IF( ln_zad_Aimp ) wi => wi_U
-         ENDIF 
                             CALL dyn_zdf( kstp, Kbb, Kmm, Krhs, uu, vv, Kaa  )  ! vertical diffusion and time integration
-         IF( ln_dynadv_vec .AND. ln_zad_Aimp )  wi => wi_T
                             CALL tra_zdf( kstp, Kbb, Kmm, Krhs, ts    , Kaa  )  ! vertical mixing and after tracer fields
          IF( ln_zdfnpc  )   CALL tra_npc( kstp,      Kmm, Krhs, ts    , Kaa  )  ! update after fields by non-penetrative convection
          !

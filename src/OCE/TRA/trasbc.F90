@@ -349,6 +349,7 @@ CONTAINS
       !----------------------------------------
       !
       IF( ln_sshinc .AND. kstg == 3 ) THEN         ! input of heat and salt due to assimilation
+!!st a priori this should be done at each stage not only at last stage since it is associated with ssh change (included in step 2D)
          !
          IF( ln_linssh ) THEN
             DO_2D( 0, 0, 0, 0 )

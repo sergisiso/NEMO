@@ -43,6 +43,9 @@ MODULE divhor
 
    PUBLIC   div_hor    ! routine called by ssh_nxt.F90 and istate.F90
 
+   INTEGER, PUBLIC, PARAMETER ::   np_velocity  = 0   ! velocities given as arguments in wzv
+   INTEGER, PUBLIC, PARAMETER ::   np_transport = 1   ! transports given as arguments in wzv
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
@@ -53,7 +56,7 @@ MODULE divhor
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE div_hor_RK3( kt, Kbb, Kmm, puu, pvv, pe3divUh )
+   SUBROUTINE div_hor_RK3( kt, Kbb, Kmm, pu, pv, pe3divUh, k_ind )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE div_hor_RK3  ***
       !!                    
@@ -66,10 +69,12 @@ CONTAINS
       !! ** Action  : - thickness weighted horizontal divergence of in input velocity (puu,pvv)
       !!----------------------------------------------------------------------
       INTEGER                         , INTENT(in   ) ::   kt, Kbb, Kmm   ! ocean time-step & time-level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   puu, pvv       ! horizontal velocity
+      INTEGER , OPTIONAL              , INTENT(in   ) ::   k_ind          ! indicator 
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pu, pv       ! horizontal velocity or transport
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(  out) ::   pe3divUh       ! e3t*div[Uh]
       !
       INTEGER  ::   ji, jj, jk    ! dummy loop indices
+      INTEGER  ::   ik_ind        ! local indicator
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('div_hor_RK3')
@@ -81,14 +86,31 @@ CONTAINS
          hdiv(:,:,:) = 0._wp    ! initialize hdiv & pe3divUh for the halos and jpk level at the first time step
          pe3divUh(:,:,jpk) = 0._wp
       ENDIF
-      ! 
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-         hdiv(ji,jj,jk) = (  (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * puu(ji  ,jj,jk)       &   ! add () for NP repro
-            &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * puu(ji-1,jj,jk) )     &
-            &              + (  e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * pvv(ji,jj  ,jk)       &
-            &                 - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * pvv(ji,jj-1,jk) )     &
-            &             ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
-      END_3D
+      !
+      IF( .NOT. PRESENT( k_ind ) ) THEN
+         ik_ind = np_velocity
+      ELSE
+         ik_ind = k_ind
+      ENDIF
+      !
+      SELECT CASE ( ik_ind )
+      CASE ( np_velocity )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            hdiv(ji,jj,jk) = (  (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * pu(ji  ,jj,jk)       &   ! add () for NP repro
+               &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * pu(ji-1,jj,jk) )     &
+               &              + (  e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * pv(ji,jj  ,jk)       &
+               &                 - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * pv(ji,jj-1,jk) )     &
+               &             ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
+         END_3D
+      CASE ( np_transport )
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            hdiv(ji,jj,jk) = (  (  pu(ji  ,jj,jk)       &   ! add () for NP repro
+               &                 - pu(ji-1,jj,jk) )     &
+               &              + (  pv(ji,jj  ,jk)       &
+               &                 - pv(ji,jj-1,jk) )     &
+               &             ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
+         END_3D
+      END SELECT
       !
       IF( ln_rnf )   CALL sbc_rnf_div( hdiv, Kmm )             !==  + runoffs divergence  ==!
       !

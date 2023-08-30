@@ -145,9 +145,7 @@ CONTAINS
 !!gm only Before is needed for bn2 and rab  (except at stage 3 for n2)
 !!gm issue with   Nnn  used in rad(Nbb) 
                          CALL eos_rab( ts(:,:,:,:,Nbb), rab_b, Nbb )       ! before local thermal/haline expension ratio at T-points
-!!st                         CALL eos_rab( ts(:,:,:,:,Nnn), rab_n, Nnn )       ! now    local thermal/haline expension ratio at T-points
                          CALL bn2    ( ts(:,:,:,:,Nbb), rab_b, rn2b, Nbb ) ! before Brunt-Vaisala frequency
-!!st                         CALL bn2    ( ts(:,:,:,:,Nnn), rab_n, rn2, Nnn  ) ! now    Brunt-Vaisala frequency
 !!gm
                          rab_n = rab_b
                          rn2   = rn2b
@@ -205,6 +203,7 @@ CONTAINS
       ! linear extrapolation of ssh to compute ww at the beginning of the next time-step
       ! ssh(n+1) = 2*ssh(n) - ssh(n-1)    
       ssh(:,:,Naa) = 2*ssh(:,:,Nbb) - ssh(:,:,Naa)
+      !!st: ssh recomputed at the begining of stp2d
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! diagnostics and outputs

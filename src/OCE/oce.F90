@@ -21,10 +21,8 @@ MODULE oce
    !! dynamics and tracer fields
    !! --------------------------                            
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:), TARGET   ::   uu   ,  vv   !: horizontal velocities        [m/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  , TARGET   ::   ww_T, ww_U   !: vertical vel. [m/s]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  , TARGET   ::   wi_T, wi_U   !: implicit vertical vel. (adaptive-implicit) [m/s]
-   REAL(wp), PUBLIC,  SAVE, DIMENSION(:,:,:)  , POINTER      ::   ww             !: vertical velocity            [m/s]
-   REAL(wp), PUBLIC,  SAVE, DIMENSION(:,:,:)  , POINTER      ::   wi             !: implicit vertical vel. (adaptive-implicit) [m/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  , TARGET   ::   ww           !: vertical velocity            [m/s]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)             ::   wi           !: implicit vertical vel. (adaptive-implicit) [m/s]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)     ::   hdiv           !: horizontal divergence        [s-1]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:,:) ::   ts             !: 4D T-S fields                  [Celsius,psu] 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:)   ::   rab_b,  rab_n  !: thermal/haline expansion coef. [Celsius-1,psu-1]

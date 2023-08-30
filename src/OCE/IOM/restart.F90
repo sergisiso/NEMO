@@ -175,15 +175,17 @@ CONTAINS
          CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'tn'  , ts(:,:,:,jp_tem,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'sn'  , ts(:,:,:,jp_sal,Kbb) )
-         CALL iom_rstput( kt, nitrst, numrow, 'uu_n'   , uu_b(:,:    ,Kbb) )     
-         CALL iom_rstput( kt, nitrst, numrow, 'vv_n'   , vv_b(:,:    ,Kbb) )     
+         CALL iom_rstput( kt, nitrst, numrow, 'uu_n', uu_b(:,:       ,Kbb) )     
+         CALL iom_rstput( kt, nitrst, numrow, 'vv_n', vv_b(:,:       ,Kbb) )
+         !
+         IF( PRESENT(Kaa) )   CALL iom_rstput( kt, nitrst, numrow, 'ssha', ssh(:,:,Kaa) )   ! after  fields
 #else
          CALL iom_rstput( kt, nitrst, numrow, 'sshb', ssh(:,:        ,Kbb) )     ! before fields
          CALL iom_rstput( kt, nitrst, numrow, 'ub'  , uu(:,:,:       ,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'vb'  , vv(:,:,:       ,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'tb'  , ts(:,:,:,jp_tem,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'sb'  , ts(:,:,:,jp_sal,Kbb) )
-
+         !
          CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields 
          CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kmm) )
          CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kmm) )
@@ -366,7 +368,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   Kbb, Kmm, Kaa   ! ocean time level indices
       !
-      INTEGER ::   ji, jj, jk
+      INTEGER ::   ji, jj, jk   ! dummy loop arguments
+      INTEGER ::   id1          ! local integer
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -385,9 +388,19 @@ CONTAINS
          IF(lwp) WRITE(numout,*)    '      Kbb sea surface height read in the restart file'
          CALL iom_get( numror, jpdom_auto, 'sshn'   , ssh(:,:,Kbb) )
          !
-         !                                     !*  RK3: Set ssh at Kmm for AGRIF
+         !                                     !*  RK3: Set  ssh at Kmm (for AGRIF)
          ssh(:,:,Kmm) = ssh(:,:,Kbb)
+         !                                     !*  RK3: Set  ssh at Kaa (for stp2d)
+         id1 = iom_varid( numror, 'ssha', ldstop = .FALSE. )
          !
+         IF( id1 > 0 ) THEN                        ! restart from RK3 run
+            IF(lwp) WRITE(numout,*)
+            IF(lwp) WRITE(numout,*)    '      Kaa extrapolated sea surface height read in the restart file'
+            CALL iom_get( numror, jpdom_auto, 'ssha'   , ssh(:,:,Kaa) )
+            !
+         ELSE                                      ! restart from MLF run
+            ssh(:,:,Kaa) = ssh(:,:,Kbb)               ! no ssh variation in ww computation
+         ENDIF
 #else
          !                                     !*  MLF: Read ssh at Kmm
          IF(lwp) WRITE(numout,*)
@@ -408,6 +421,9 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '      Kbb sea surface height read in the restart file'
             CALL iom_get( numror, jpdom_auto, 'sshb', ssh(:,:,Kbb) )
          ENDIF
+         !
+         ssh(:,:,Kaa) = 0._wp                  !*  MLF: set  ssh at Kaa (for AGRIF)
+         !
 #endif
          !                         !============================!
       ELSE                         !==  Initialize at "rest"  ==!
@@ -436,6 +452,9 @@ CONTAINS
             CALL usr_def_istate_ssh( tmask, ssh(:,:,Kbb) )
             !
          ENDIF
+         !
+         ssh(:,:,Kaa) = ssh(:,:,Kbb)           !*  set ssh at Kaa (for AGRIF)
+         !
 #if defined key_agrif
          ! Set ghosts points from parent 
          IF (.NOT.Agrif_Root()) THEN 
@@ -449,12 +468,9 @@ CONTAINS
          ENDIF
 #endif
          !
-         ssh(:,:,Kmm) = ssh(:,:,Kbb)              !* set now values from to before ones
+         ssh(:,:,Kmm) = ssh(:,:,Kbb)           !*  set now values from to before ones
+         !
       ENDIF
-      !
-      !                            !==========================!
-      ssh(:,:,Kaa) = 0._wp         !==  Set to 0 for AGRIF  ==!
-      !                            !==========================!
       !
    END SUBROUTINE rst_read_ssh
 

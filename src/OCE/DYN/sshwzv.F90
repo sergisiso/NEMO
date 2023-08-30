@@ -258,7 +258,7 @@ CONTAINS
    END SUBROUTINE wzv_MLF
 
 
-   SUBROUTINE wzv_RK3( kt, Kbb, Kmm, Kaa, puu, pvv, pww )
+   SUBROUTINE wzv_RK3( kt, Kbb, Kmm, Kaa, pu, pv, pww, k_ind )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wzv_RK3  ***
       !!
@@ -275,7 +275,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                         , INTENT(in   ) ::   kt             ! time step
       INTEGER                         , INTENT(in   ) ::   Kbb, Kmm, Kaa  ! time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   puu, pvv       ! horizontal velocity at Kmm
+      INTEGER , OPTIONAL              , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pu, pv         ! horizontal velocity at Kmm
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::             pww  ! vertical velocity at Kmm
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
@@ -294,7 +295,11 @@ CONTAINS
          !                                   ! needed over the halos for the output (ww+wi) in diawri.F90
       ENDIF
       !
-      CALL div_hor( kt, Kbb, Kmm, puu, pvv, ze3div )
+      IF( .NOT. PRESENT( k_ind ) ) THEN
+         CALL div_hor( kt, Kbb, Kmm, pu, pv, ze3div )
+      ELSE
+         CALL div_hor( kt, Kbb, Kmm, pu, pv, ze3div, k_ind )
+      ENDIF
       !                                           !------------------------------!
       !                                           !     Now Vertical Velocity    !
       !                                           !------------------------------!
@@ -309,7 +314,7 @@ CONTAINS
       ELSE                                            !==  Quasi-Eulerian vertical coordinate  ==!   ('key_qco')
          !                                            !==========================================!
          DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
-         !                                                              ! NB: [e3t[a] -e3t[b] ]=e3t_0*[r3t[a]-r3t[b]]
+            !                                                              ! NB: [e3t[a] -e3t[b] ]=e3t_0*[r3t[a]-r3t[b]]
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  ze3div(ji,jj,jk)                            &
                &                               + r1_Dt * e3t_0(ji,jj,jk) * ( r3t(ji,jj,Kaa) - r3t(ji,jj,Kbb) )  ) * tmask(ji,jj,jk)
          END_3D
@@ -526,6 +531,7 @@ CONTAINS
       IF( ln_timing )   CALL timing_stop('wAimp')
       !
    END SUBROUTINE wAimp_MLF
+    
 
    SUBROUTINE wAimp_RK3_alt( kt, Kmm, puu, pvv, pww, pwi, kstage, kalt )
       !!----------------------------------------------------------------------
@@ -640,7 +646,8 @@ CONTAINS
       !
    END SUBROUTINE wAimp_RK3_alt
 
-   SUBROUTINE wAimp_RK3( kt, Kmm, puu, pvv, pww, pwi, kstage )
+   
+   SUBROUTINE wAimp_RK3( kt, Kmm, puu, pvv, pww, pwi, k_ind )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wAimp  ***
       !!
@@ -661,12 +668,13 @@ CONTAINS
       !!              Monthly Weather Review, 148:9, 3893-S3910.
       !!              https://doi.org/10.1175/MWR-D-20-0055.1
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in) ::   kt   ! time step
-      INTEGER, INTENT(in) ::   Kmm  ! time level index
+      INTEGER                         , INTENT(in   ) ::   kt             ! time step
+      INTEGER                         , INTENT(in   ) ::   Kmm            ! time level index
+      INTEGER                         , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(out  ) ::   pwi            !  vertical velocity at Kmm (implicit part)
-      INTEGER, INTENT(in) ::   kstage                                     !  RK3 stage indictor
+!!st      INTEGER, INTENT(in) ::   kstage                                     !  RK3 stage indictor
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp)             ::   zcff, z1_e3t, z1_e3w, zdt, zCu_h, zCu_v   !  local scalars
@@ -698,15 +706,28 @@ CONTAINS
       !
       ! Sort of horizontal Courant number:
       ! JC: Is it still worth saving into a 3d array ? I don't believe.
-      DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
-         z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-         Cu_adv(ji,jj,jk) =   zdt *                                                      &
-            &  ( ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk), 0._wp ) -   &
-            &      MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk), 0._wp ) )   &
-            &  + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk), 0._wp ) -   &
-            &      MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk), 0._wp ) )   &
-            &                             ) * z1_e3t * r1_e1e2t(ji,jj)
-      END_3D
+      SELECT CASE ( k_ind )
+      CASE ( np_velocity )
+         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
+            Cu_adv(ji,jj,jk) =   zdt *                                                      &
+               &  ( ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk), 0._wp ) -   &
+               &      MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*puu(ji-1,jj,jk), 0._wp ) )   &
+               &  + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*pvv(ji,jj  ,jk), 0._wp ) -   &
+               &      MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*pvv(ji,jj-1,jk), 0._wp ) )   &
+               &                             ) * z1_e3t * r1_e1e2t(ji,jj)
+         END_3D
+      CASE ( np_transport )
+         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
+            Cu_adv(ji,jj,jk) =   zdt *                                                      &
+               &  ( ( MAX( puu(ji  ,jj,jk), 0._wp ) -   &
+               &      MIN( puu(ji-1,jj,jk), 0._wp ) )   &
+               &  + ( MAX( pvv(ji,jj  ,jk), 0._wp ) -   &
+               &      MIN( pvv(ji,jj-1,jk), 0._wp ) )   &
+               &  ) * z1_e3t * r1_e1e2t(ji,jj)
+         END_3D
+      END SELECT
       !
       ! JC: Warning: this is the horizontal Courant number this time
       ! not the total as in previous versions of the scheme.
@@ -755,7 +776,9 @@ CONTAINS
       END_3D
       Cu_adv(:,:,1) = 0._wp
       !
-      IF( kstage == 3 ) CALL iom_put("wimp",pwi)
+!!st only called when kstg = 3 I think this is not necessary !
+!!      IF( kstage == 3 ) CALL iom_put("wimp",pwi)
+      CALL iom_put("wimp",pwi)
       CALL iom_put("Aimp_Cmx_v", Cu_adv(:,:,jpk))      ! o/p column maximum vertical Courant number
       Cu_adv(:,:,jpk) = 0._wp
       IF( iom_use("Aimp_loc") )   THEN

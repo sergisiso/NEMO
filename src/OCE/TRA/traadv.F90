@@ -34,6 +34,9 @@ MODULE traadv
    USE trd_oce        ! trends: ocean variables
    USE trdtra         ! trends manager: tracers
    USE diaptr         ! Poleward heat transport
+#if defined key_RK3
+   USE eosbn2
+#endif
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O module
@@ -46,6 +49,9 @@ MODULE traadv
 
    PUBLIC   tra_adv        ! called by step.F90, stpmlf.F90 and stprk3_stg.F90
    PUBLIC   tra_adv_init   ! called by nemogcm.F90
+#if defined key_RK3
+   PUBLIC   tra_adv_trp    ! called by stprk3_stg.F90
+#endif
 
    !                            !!* Namelist namtra_adv *
    LOGICAL ::   ln_traadv_OFF    ! no advection on T and S
@@ -77,6 +83,58 @@ MODULE traadv
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
+
+#if defined key_RK3
+   SUBROUTINE tra_adv_trp( kt, kstg, kit000, Kmm, Krhs, pFu, pFv, pFw )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE tra_adv_trp  ***
+      !!
+      !! ** Purpose :   compute transport for tracer advection 
+      !!
+      !! ** Method  : - Update pFu/v/w with stoke drift or eiv or mle
+      !!----------------------------------------------------------------------
+      INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
+      INTEGER                                     , INTENT(in   ) ::   kstg, kit000        ! RK3 stage and init index
+      INTEGER                                     , INTENT(in   ) ::   Kmm, Krhs           ! time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk)            , INTENT(inout) ::   pFu, pFv, pFw       ! advective transport
+      !
+      INTEGER ::   ji, jj, jk   ! dummy loop index
+      !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('tra_adv_trp')
+      !
+      IF( ln_wave .AND. ln_sdw )  THEN
+         DO jk = 1, jpkm1                                    ! At all stages : Add the Stokes Drift
+            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1)
+               pFu(ji,jj,jk) = pFu(ji,jj,jk) + e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * usd(ji,jj,jk)
+               pFv(ji,jj,jk) = pFv(ji,jj,jk) + e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * vsd(ji,jj,jk)
+            END_2D
+            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1)
+               pFw(ji,jj,jk) = pFw(ji,jj,jk) + e1e2t(ji,jj)                   * wsd(ji,jj,jk)
+            END_2D
+         END DO
+      ENDIF
+      !
+      DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+         pFu(ji,jj,jpk) = 0._wp                                                   ! no transport trough the bottom 
+         pFv(ji,jj,jpk) = 0._wp
+         pFw(ji,jj,jpk) = 0._wp
+      END_2D
+      !
+      IF( kstg == 3 ) THEN                                   ! At stage 3 only
+         IF( ln_ldfeiv .AND. .NOT. ln_traldf_triad )   &                     ! Add the eiv transport
+            &   CALL ldf_eiv_trp( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
+         !
+         IF( ln_mle    )   THEN                                              ! Add the mle transport
+                CALL eos( ts, Kmm, rhd, rhop )                                    ! now in potential density for tra_mle computation
+                CALL tra_mle_trp( kt, pFu, pFv, pFw, Kmm )
+         ENDIF
+      ENDIF
+      !
+      IF( ln_timing )   CALL timing_stop( 'tra_adv_trp' )
+      !
+   END SUBROUTINE tra_adv_trp
+#endif
 
    SUBROUTINE tra_adv( kt, Kbb, Kmm, Kaa, pts, Krhs, pau, pav, paw, kstg )
       !!----------------------------------------------------------------------
@@ -134,6 +192,15 @@ CONTAINS
             zptw => ww(:,:,:    )
          ENDIF
          !
+#if defined key_RK3
+         DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpk ) 
+            zuu(ji,jj,jk) = zptu(ji,jj,jk)
+            zvv(ji,jj,jk) = zptv(ji,jj,jk)
+         END_3D
+         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+            zww(ji,jj,jk) = zptw(ji,jj,jk)
+         END_3D
+#else
          IF( ln_wave .AND. ln_sdw )  THEN
             DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
                zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
@@ -152,6 +219,7 @@ CONTAINS
             END_3D
          ENDIF
          !
+!!st QUESTION gm dans quelle mesure on doit faire ça AUSSI pour les traveurs PASSIFS ? 
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
             zuu(ji,jj,jpk) = 0._wp                                                      ! no transport trough the bottom 
             zvv(ji,jj,jpk) = 0._wp
@@ -159,10 +227,11 @@ CONTAINS
          END_2D
          !
          IF( ln_ldfeiv .AND. .NOT. ln_traldf_triad )   &
-            &              CALL ldf_eiv_trp( kt, nit000, zuu, zvv, zww, 'TRA', Kmm, Krhs )   ! add the eiv transport (if necessary)
+            &              CALL ldf_eiv_trp( kt, nit000, zuu, zvv, zww, Kmm, Krhs  , 'TRA' )   ! add the eiv transport (if necessary)
          !
-         IF( ln_mle    )   CALL tra_mle_trp( kt, nit000, zuu, zvv, zww, 'TRA', Kmm       )   ! add the mle transport (if necessary)
+         IF( ln_mle    )   CALL tra_mle_trp( kt        , zuu, zvv, zww, Kmm, nit000, 'TRA' )   ! add the mle transport (if necessary)
          !
+#endif
          IF( l_iom ) THEN
             CALL iom_put( "uocetr_eff", zuu )                                        ! output effective transport
             CALL iom_put( "vocetr_eff", zvv )
@@ -172,6 +241,7 @@ CONTAINS
 !!gm ???
          IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zvv(:,:,:) )                                    ! diagnose the effective MSF
 !!gm ???
+         !
          !
 
          IF( l_trdtra )   THEN                    !* Save ta and sa trends
