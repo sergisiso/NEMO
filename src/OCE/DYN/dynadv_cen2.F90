@@ -130,7 +130,7 @@ CONTAINS
          zv_trd(:,:,:) = pvv(A2D(0),:,Krhs)
       ENDIF
       !
-#define zFwu   zFu
+#define zFwu   zFu_t
 #define zFwv   zFv
 #define zFw    zFu
 #define zww    zwu
