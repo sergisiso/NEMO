@@ -194,7 +194,6 @@ CONTAINS
             ptrcdta(ji,jj,jk) = sf_trcdta(kjl)%fnow(ji,jj,jk) * tmask(ji,jj,jk)
          END_3D
          ! 
-#if ! defined key_sed_off
          IF( l_sco ) THEN                !== s- or mixed s-zps-coordinate  ==!
             !
             IF( kt == nit000 .AND. lwp )THEN
@@ -224,7 +223,6 @@ CONTAINS
             END_2D
             ! 
          ENDIF
-#endif
          ! Scale by multiplicative factor
          ptrcdta(:,:,:) = ptrcdta(:,:,:) * rf_trfac(kjl)
          !

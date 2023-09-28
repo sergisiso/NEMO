@@ -20,9 +20,12 @@ MODULE sed
    REAL(wp), PUBLIC               ::  reac_sil            !: reactivity of silicate in  [l.mol-1.s-1]
    REAL(wp), PUBLIC               ::  reac_clay           !: reactivity of clay in  [l.mol-1.s-1]
    REAL(wp), PUBLIC               ::  reac_ligc           !: reactivity of Ligands [l.mol-1.s-1]
-   REAL(wp), PUBLIC               ::  reac_pocl           !: reactivity of pocl in  [s-1]
-   REAL(wp), PUBLIC               ::  reac_pocs           !: reactivity of pocs in  [s-1]
-   REAL(wp), PUBLIC               ::  reac_pocr           !: reactivity of pocr in  [s-1]
+   REAL(wp), PUBLIC               ::  reac_poc1           !: reactivity of pocl in  [s-1]
+   REAL(wp), PUBLIC               ::  reac_poc2           !: reactivity of pocl in  [s-1]
+   REAL(wp), PUBLIC               ::  reac_poc3           !: reactivity of pocl in  [s-1]
+   REAL(wp), PUBLIC               ::  reac_poc4           !: reactivity of pocl in  [s-1]
+   REAL(wp), PUBLIC               ::  reac_poc5           !: reactivity of pocl in  [s-1]
+   REAL(wp), PUBLIC               ::  reac_poc6           !: reactivity of pocl in  [s-1]
    REAL(wp), PUBLIC               ::  reac_nh4            !: reactivity of NH4 in  [l.mol-1.s-1]
    REAL(wp), PUBLIC               ::  reac_h2s            !: reactivity of ODU in  [l.mol-1.s-1]
    REAL(wp), PUBLIC               ::  reac_fe2            !: reactivity of Fe2+ in  [l.mol-1.s-1]
@@ -46,9 +49,7 @@ MODULE sed
    LOGICAL , PUBLIC               ::  ln_btbz     = .FALSE.    !: Depth variation of the bioturbation coefficient
    LOGICAL , PUBLIC               ::  ln_irrig    = .FALSE.    !: iActivation of the bioirrigation
    LOGICAL , PUBLIC               ::  ln_sed_2way = .FALSE.    !: 2 way coupling with PISCES
-   LOGICAL , PUBLIC               ::  ln_sediment_offline = .FALSE. !: Offline mode for sediment module
    INTEGER             , PUBLIC   ::  nn_rstsed      !: control of the time step ( 0 or 1 ) for pass. tr.
-   INTEGER , PUBLIC               ::  nn_dtsed = 1   !: frequency of step on passive tracers
    CHARACTER(len = 80) , PUBLIC   ::  cn_sedrst_in   !: suffix of pass. tracer restart name (input)
    CHARACTER(len = 256), PUBLIC   ::  cn_sedrst_indir  !: restart input directory
    CHARACTER(len = 80) , PUBLIC   ::  cn_sedrst_out  !: suffix of pass. tracer restart name (output)
@@ -58,18 +59,19 @@ MODULE sed
    REAL(wp), PUBLIC               ::  rosrtol   !: Tolerance for relative error
 
    !
-   REAL(wp), PUBLIC, DIMENSION(:,:,:),  ALLOCATABLE ::  pwcp, pwcpa
+   REAL(wp), PUBLIC, DIMENSION(:,:,:),  ALLOCATABLE ::  pwcp, pwcpa, pwcpaa
    REAL(wp), PUBLIC, DIMENSION(:,:,:),  ALLOCATABLE ::  solcp, solcpa
    REAL(wp), PUBLIC, DIMENSION(:,:,:),  ALLOCATABLE ::  diff
 
    !! * Shared module variables
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  pwcp_dta   !: pore water data at given time-step
-   REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  rainrm_dta !: rain data at at initial time
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  rainrg     !: rain of each solid component in [g/(cm**2.s)]
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  fromsed    !:
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  tosed      !:
+   REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  burial      !:
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  rearatpom  !: 
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  apluss, aminuss  !: 
+   REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  xirrigtrd, xirrigtrdtmp  !: 
    !
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  temp       !: temperature
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  salt       !: salinity
@@ -80,7 +82,6 @@ MODULE sed
    !
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  hipor      !: [h+] in mol/kg*densSW 
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  co3por     !: [co3--]solid sediment at initial time
-   REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  dz3d       !:  ???
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  volw3d     !:  ???
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  vols3d     !:  ???
    REAL(wp), PUBLIC, DIMENSION(:,:,:), ALLOCATABLE ::  volc
@@ -110,13 +111,14 @@ MODULE sed
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  akf3s
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  sulfats
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  fluorids
+   REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  co3sat
 
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  mol_wgt    !: molecular weight of solid sediment data
  
    REAL(wp), PUBLIC, DIMENSION(:,:,:), ALLOCATABLE ::  trc_data    !: tracer data to share with sediment model
+   REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  sedmask     !: tracer data to share with sediment model
    !! Geometry
-   INTEGER , PUBLIC, SAVE                          ::  jpoce, indoce !: Ocean points ( number/indices )
-   INTEGER , PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  iarroce       !: Computation of 1D array of sediments points
+   INTEGER , PUBLIC, SAVE                          ::  jpoce       !: Ocean points ( number/indices )
    INTEGER , PUBLIC, DIMENSION(:, : ), ALLOCATABLE ::  jarr       !: Computation of 1D array of sediments points
    INTEGER , PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  jsvode, isvode   !: Computation of 1D array of sediments points
 
@@ -126,20 +128,17 @@ MODULE sed
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  dz            !: sediment layers thickness
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  por           !: porosity profile     
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  por1          !: 1-por 
-   REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  volw          !: volume of pore water cell fraction
+   REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  xtortuosity   !: Tortuosity
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  vols          !: volume of solid cell fraction
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  db            !: bioturbation ceofficient
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  irrig        !: bioturbation ceofficient
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  radssol, rads1sol
    REAL(wp), PUBLIC, DIMENSION(:,:  ), ALLOCATABLE ::  saturco3
-   REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  rdtsed        !:  sediment model time-step
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  rstepros      !:  Number of iteration of rosenbrock method
    REAL(wp)  ::   dens               !: density of solid material
    !! Inputs / Outputs
    CHARACTER( len = 80 ), DIMENSION(jptrased  ) ::  sedtrcl
    CHARACTER( len = 20 ), DIMENSION(jptrased  ) ::  sedtrcd , sedtrcu
-   CHARACTER( len = 80 ), DIMENSION(jpdia3dsed) ::  seddia3l 
-   CHARACTER( len = 20 ), DIMENSION(jpdia3dsed) ::  seddia3d, seddia3u
    CHARACTER( len = 80 ), DIMENSION(jpdia2dsed) ::  seddia2l 
    CHARACTER( len = 20 ), DIMENSION(jpdia2dsed) ::  seddia2d, seddia2u
    !
@@ -156,11 +155,10 @@ CONTAINS
       USE lib_mpp, ONLY: ctl_stop
       !!-------------------------------------------------------------------
       !
-      ALLOCATE( trc_data(jpi,jpj,jpdta)                                   ,   &
-         &      epkbot(jpi,jpj), gdepbot(jpi,jpj)        ,   &
-         &      dz(jpksed)  , por(jpksed) , por1(jpksed)                  ,   &
-         &      volw(jpksed), vols(jpksed), rdtsed(jpksed)  ,   &
-         &      mol_wgt(jpsol),                                           STAT=sed_alloc )
+      ALLOCATE( trc_data(jpi,jpj,jpdta), sedmask(jpi,jpj),  &
+         &      epkbot(jpi,jpj), gdepbot(jpi,jpj),            &
+         &      dz(jpksed)  , por(jpksed) , por1(jpksed) , vols(jpksed),     &
+         &      xtortuosity(jpksed), mol_wgt(jpsol),                 STAT=sed_alloc )
 
       IF( sed_alloc /= 0 )   CALL ctl_stop( 'STOP', 'sed_alloc: failed to allocate arrays' )
       !

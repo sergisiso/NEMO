@@ -341,7 +341,7 @@ CONTAINS
          ll_dust  =  ln_trc_sbc(jpfer) .OR. ln_trc_sbc(jppo4) .OR. ln_trc_sbc(jpsil) .OR. ln_sediment
          ll_ndepo =  ln_trc_sbc(jpno3) .OR. ln_trc_sbc(jpnh4)   
       ENDIF
-      ll_bc    = ( ln_trcbc .AND. lltrcbc )  .OR. ln_hydrofe .OR. ln_ironsed .OR. ln_ironice
+      ll_bc    = ( ln_trcbc .AND. lltrcbc )  .OR. ln_hydrofe .OR. ln_ironsed .OR. ln_ironice .OR. ln_sediment
 
       ! dust input from the atmosphere
       ! ------------------------------
@@ -350,7 +350,8 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '    initialize dust input from atmosphere '
          IF(lwp) WRITE(numout,*) '    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
          !
-         ALLOCATE( dust(A2D(0)) ) 
+!         ALLOCATE( dust(A2D(0)) ) 
+         ALLOCATE( dust(jpi,jpj) )
          !
          ALLOCATE( sf_dust(1), STAT=ierr )           !* allocate and fill sf_sst (forcing structure) with sn_sst
          IF( ierr > 0 )   CALL ctl_stop( 'STOP', 'p4z_bc_init: unable to allocate sf_dust structure' )

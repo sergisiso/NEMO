@@ -31,10 +31,9 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt               ! number of iteration
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs   ! time level indices
 
-
       IF( ln_timing )  CALL timing_start('sed_model')
 
-      IF( kt == nittrc000 ) CALL sed_initrc( Kbb, Kmm )         ! Initialization of sediment model
+      IF( kt == nittrc000 ) CALL sed_initrc( Kbb, Kmm )          ! Initialization of sediment model
                             CALL sed_stp( kt, Kbb, Kmm, Krhs )  ! Time stepping of Sediment model
 
       IF( ln_timing )  CALL timing_stop('sed_model')

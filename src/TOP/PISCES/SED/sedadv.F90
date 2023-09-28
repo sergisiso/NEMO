@@ -47,7 +47,9 @@ CONTAINS
       INTEGER :: jn
       
       REAL(wp), DIMENSION(jpoce,jpksed,jpsol+jpads) :: zsolcp
-      REAL(wp) :: solfu, zfilled, zwb, fulsed, uebers, seddef
+      REAL(wp), DIMENSION(jpoce) :: fulsed, zwb
+      REAL(wp) :: solfu, zfilled, uebers, seddef
+      REAL(wp) :: buried, spresent, zfract, refill
 
       !------------------------------------------------------------------------
 
@@ -63,10 +65,10 @@ CONTAINS
 
       ! Allocation of the temporary arrays
       ! ----------------------------------
-      zsolcp(:,:,:) = 0._wp
       DO js = 1, jpsol
          zsolcp(:,:,js) = solcp(:,:,js)
       END DO
+      zsolcp(:,1,jpsol+1:jpsol+jpads) = 0.0_wp
       DO jk = 2, jpksed
          zsolcp(:,jk,jpsol+1) = pwcp(:,jk,jwnh4) * adsnh4 
          zsolcp(:,jk,jpsol+2) = pwcp(:,jk,jwfe2) * adsfe2
@@ -74,8 +76,8 @@ CONTAINS
 
       ! Initialization of data for mass balance calculation
       !---------------------------------------------------
-      fromsed(:,:) = 0.
-      tosed  (:,:) = 0. 
+      fromsed(:,:) = 0._wp
+      tosed  (:,:) = 0._wp
 
       solfu = 0.0
       DO jk = 2, jpksed
@@ -86,76 +88,105 @@ CONTAINS
 
       ! Initiate burial rates
       !-----------------------
-      DO ji = 1, jpoce
-         DO jk = 2, jpksed-1
+      DO jk = 2, jpksed-1
+         DO ji = 1, jpoce
             zfilled = 0._wp
             DO js = 1, jpsol
                zfilled = zfilled + zsolcp(ji,jk,js) / dens_sol(js)
             END DO
-            zwb = MAX(0._wp, (zfilled - 1._wp) / (zfilled + rtrn) )
+            zwb(ji) = MAX(0._wp, (zfilled - 1._wp) / (zfilled + rtrn) )
+         END DO
 
-
-            DO js = 1, jpsol + jpads
-               uebers = zwb * zsolcp(ji,jk,js)
+         DO js = 1, jpsol + jpads
+            DO ji = 1, jpoce
+               uebers = zwb(ji) * zsolcp(ji,jk,js)
                zsolcp(ji,jk,js) = zsolcp(ji,jk,js) - uebers
                zsolcp(ji,jk+1,js) = zsolcp(ji,jk+1,js) + uebers * dz(jk) * por1(jk) / ( dz(jk+1) * por1(jk+1) )
             END DO
          END DO
+      END DO
 
+         
+      DO ji = 1, jpoce
          zfilled = 0._wp
          DO js = 1, jpsol
             zfilled = zfilled + zsolcp(ji,jpksed,js) / dens_sol(js)
          END DO
-         zwb = MAX(0._wp, (zfilled - 1._wp) / (zfilled + rtrn) )
-         DO js = 1, jpsol + jpads
-            uebers = zwb * zsolcp(ji,jpksed,js)
+         zwb(ji) = MAX(0._wp, (zfilled - 1._wp) / (zfilled + rtrn) )
+      END DO
+
+      DO js = 1, jpsol + jpads
+         DO ji = 1, jpoce
+            uebers = zwb(ji) * zsolcp(ji,jpksed,js)
             zsolcp(ji,jpksed,js) = zsolcp(ji,jpksed,js) - uebers
             tosed(ji,js) = uebers * dz(jpksed) * por1(jpksed)
          END DO
       END DO
 
-      DO ji = 1, jpoce
-         fulsed = 0._wp
-         DO jk = 2, jpksed 
+      DO js = 1, jpsol
+         burial(:,js) = burial(:,js) + tosed(:,js)
+      END DO
+
+
+      fulsed(:) = 0.0_wp
+      DO jk = 2, jpksed
+         DO ji = 1, jpoce
             zfilled = 0._wp
             DO js = 1, jpsol
                zfilled = zfilled + zsolcp(ji,jk,js) / dens_sol(js)
             END DO
-            fulsed = fulsed + zfilled * dz(jk) * por1(jk)
+            fulsed(ji) = fulsed(ji) + zfilled * dz(jk) * por1(jk)
          END DO 
+      END DO
 
-         seddef = solfu - fulsed
-
-         zsolcp(ji,jpksed,jsclay) = zsolcp(ji,jpksed,jsclay) + seddef / ( por1(jpksed) * dz(jpksed) )    &
-         &         * dens_sol(jsclay)
-         fromsed(ji,jsclay) = seddef * dens_sol(jsclay) 
-
-         DO jk = jpksed, 3, -1
-            zfilled = 0._wp
-            DO js = 1, jpsol
-               zfilled = zfilled + zsolcp(ji,jk,js) / dens_sol(js)
-            END DO
-            zwb = MAX(0._wp, (zfilled - 1._wp) / (zfilled + rtrn) )
-            DO js = 1, jpsol + jpads
-               uebers = zwb * zsolcp(ji,jk,js)
-               zsolcp(ji,jk,js) = zsolcp(ji,jk,js) - uebers
-               zsolcp(ji,jk-1,js) = zsolcp(ji,jk-1,js) + uebers * dz(jk) * por1(jk) / ( dz(jk-1) * por1(jk-1) )
-            END DO
+      DO ji = 1, jpoce
+         seddef = solfu - fulsed(ji)
+         spresent = 0.0
+         DO js = 1, jpsol
+            spresent = spresent + burial(ji,js) * mol_wgt(js) / dens_sol(js) 
          END DO
 
-      END DO
+         burial(ji,jsclay) = burial(ji,jsclay) + MAX(0._wp, seddef - spresent) * dens_sol(jsclay) / mol_wgt(jsclay)
+
+         buried = 0.
+         DO js = 1, jpsol
+            buried = buried + burial(ji,js) * mol_wgt(js) / dens_sol(js)
+         END DO
+
+         refill = seddef/(buried+rtrn)
+         zfract = por1(jpksed)*dz(jpksed)
+         DO js = 1, jpsol
+            zsolcp(ji,jpksed,js) = zsolcp(ji,jpksed,js) + refill*burial(ji,js)/zfract
+            fromsed(ji,js) = refill*burial(ji,js)
+            burial(ji,js) = burial(ji,js) - refill*burial(ji,js)
+         END DO
+     END DO
+
+     DO jk = jpksed, 3, -1
+        DO ji = 1, jpoce
+            zfilled = 0._wp
+            DO js = 1, jpsol
+               zfilled = zfilled + zsolcp(ji,jk,js) / dens_sol(js)
+            END DO
+            zwb(ji) = MAX(0._wp, (zfilled - 1._wp) / (zfilled + rtrn) )
+        END DO
+        DO js = 1, jpsol + jpads
+           DO ji = 1, jpoce
+              uebers = zwb(ji) * zsolcp(ji,jk,js)
+              zsolcp(ji,jk,js) = zsolcp(ji,jk,js) - uebers
+              zsolcp(ji,jk-1,js) = zsolcp(ji,jk-1,js) + uebers * dz(jk) * por1(jk) / ( dz(jk-1) * por1(jk-1) )
+           END DO
+        END DO
+
+     END DO
 
       DO js = 1, jpsol
          solcp(:,:,js) = zsolcp(:,:,js)
       END DO
       DO jk = 2, jpksed
          pwcp(:,jk,jwnh4) = (pwcp(:,jk,jwnh4) + zsolcp(:,jk,jpsol+1) * por1(jk) / por(jk) ) * radssol(jk,jwnh4)
-!         IF (jpoce == 146 .and. slatit(145) > 0.) write(0,*) 'plante advection ',pwcp(145,jk,jwfe2)*1E6,zsolcp(145,jk,jpsol+2)*1E6,    &
-!         &         (pwcp(145,jk,jwfe2) + zsolcp(145,jk,jpsol+2) * por1(jk) / por(jk) ) * radssol(jk,jwfe2) * 1E6
          pwcp(:,jk,jwfe2) = (pwcp(:,jk,jwfe2) + zsolcp(:,jk,jpsol+2) * por1(jk) / por(jk) ) * radssol(jk,jwfe2)
       END DO
-
-      rainrg(:,:) = 0.
 
       IF( ln_timing )  CALL timing_stop('sed_adv')
 

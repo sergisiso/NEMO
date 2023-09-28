@@ -112,7 +112,6 @@ CONTAINS
       !
       IF( ll_bc )    CALL p4z_bc( kt, Kbb, Kmm, Krhs )   ! external sources of nutrients 
       !
-#if ! defined key_sed_off
       CALL p4z_che(     Kbb, Kmm       ) ! computation of chemical constants
       CALL p4z_int( kt, Kbb, Kmm       ) ! computation of various rates for biogeochemistry
       !
@@ -232,7 +231,6 @@ CONTAINS
          !
       END DO
       !
-#endif
       !
       ! If ln_sediment is set to .true. then the sediment module is called
       IF( ln_sediment ) THEN 

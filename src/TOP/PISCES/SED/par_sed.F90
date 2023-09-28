@@ -17,20 +17,19 @@ MODULE par_sed
       jp_tem   =>   jp_tem,  & !: indice of temperature
       jp_sal   =>   jp_sal     !: indice of salintity
 
-   INTEGER, PARAMETER :: jpdta = 18
+!   USE par_pisces
+
+   INTEGER, PARAMETER :: jpdta = 17
 
    ! Vertical sediment geometry
    INTEGER, PUBLIC   ::      &
-      jpksed   = 11 ,        &
-      jpksedm1 = 10
+      jpksed   = 11
 
    ! sediment tracer species
    INTEGER, PARAMETER ::    &
-      jpsol =  8,           &  !: number of solid component
+      jpsol = 11,           &   !: number of solid component
       jpwat = 11,           &   !: number of pore water component
-      jpads = 2 ,           &   !! number adsorbed species
-      jpwatp1 = jpwat +1,   &
-      jpsol1 = jpsol - 1
+      jpads = 2                 !! number adsorbed species
 
    
    ! pore water components       
@@ -51,17 +50,22 @@ MODULE par_sed
    INTEGER, PARAMETER ::  &
       jsfeo   = 1,        & !: iron hydroxides
       jsfes   = 2,        & !: FeS
-      jspoc   = 3,        & !: organic carbon
-      jspos   = 4,        & !: semi-ref POC
-      jspor   = 5,        & !: refractory POC
-      jscal   = 6,        & !: Calcite
-      jsopal  = 7,        & !: Opal
-      jsclay  = 8           !: clay
+      jscal   = 3,        & !: Calcite
+      jsopal  = 4,        & !: Opal
+      jsclay  = 5,        & !: clay
+      jspoc1  = 6,        &
+      jspoc2  = 7,        &
+      jspoc3  = 8,        &
+      jspoc4  = 9,        &
+      jspoc5  = 10,       &
+      jspoc6  = 11
+
 
    INTEGER, PARAMETER ::  &
       jptrased   = jpsol + jpwat , &
-      jpvode     = jptrased - 11  , &
-      jpdia3dsed = 3             , &
-      jpdia2dsed = 22 
+      jpvode     = jptrased - 14  , &
+      jpdia2dsed = 25
+
+!   REAL(wp), PUBLIC  :: rtrn  = 0.5 * EPSILON( 1.e0 )    !: truncation value
 
 END MODULE par_sed

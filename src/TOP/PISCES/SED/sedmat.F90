@@ -16,39 +16,28 @@ MODULE sedmat
    PUBLIC sed_mat_dsr 
    PUBLIC sed_mat_dsrjac
    PUBLIC sed_mat_dsri
+   PUBLIC sed_mat_dsre
    PUBLIC sed_mat_btb
    PUBLIC sed_mat_btbjac
+   PUBLIC sed_mat_ads
+   PUBLIC sed_mat_adsjac
    PUBLIC sed_mat_btbi
+   PUBLIC sed_mat_btbe
    PUBLIC sed_mat_coef
 
    !! $Id: sedmat.F90 15450 2021-10-27 14:32:08Z cetlod $
  CONTAINS
 
-    SUBROUTINE sed_mat_coef( nksed )
+    SUBROUTINE sed_mat_coef
        !!---------------------------------------------------------------------
        !!                  ***  ROUTINE sed_mat_coef  ***
        !!
-       !! ** Purpose :  solves tridiagonal system of linear equations 
+       !! ** Purpose :  Computes the non variable coefficient used to compute
+       !!               the diffusion of solute species
        !!
        !! ** Method  : 
-       !!        1 - computes left hand side of linear system of equations
-       !!            for dissolution reaction
-       !!         For mass balance in kbot+sediment :
-       !!              dz3d  (:,1) = dz(1) = 0.5 cm
-       !!              volw3d(:,1) = dzkbot ( see sedini.F90 ) 
-       !!              dz(2)       = 0.3 cm 
-       !!              dz3d(:,2)   = 0.3 + dzdep   ( see seddsr.F90 )     
-       !!              volw3d(:,2) and vols3d(l,2) are thickened ( see seddsr.F90 ) 
-       !!
-       !!         2 - forward/backward substitution. 
-       !!
-       !!   History :
-       !!        !  04-10 (N. Emprin, M. Gehlen ) original
-       !!        !  06-04 (C. Ethe)  Module Re-organization
        !!----------------------------------------------------------------------
        !! * Arguments
-       INTEGER, INTENT(in) :: nksed
-
        !---Local declarations
        INTEGER  ::  ji, jk
        REAL(wp) ::  aplus, aminus, dxplus, dxminus
@@ -56,151 +45,114 @@ MODULE sedmat
 
        IF( ln_timing )  CALL timing_start('sed_mat_coef')
 
-       ! Computation left hand side of linear system of 
-       ! equations for dissolution reaction
-       !---------------------------------------------
-       ! first sediment level          
        DO ji = 1, jpoce
+          ! first sediment level          
           aplus  = ( por(1) + por(2) ) * 0.5
-          dxplus = ( dz3d(ji,1) + dz3d(ji,2) ) / 2.
+          dxplus = ( dz(1) + dz(2) ) / 2.
           apluss(ji,1) = ( 1.0 / ( volw3d(ji,1) ) ) * aplus / dxplus
 
-          DO jk = 2, nksed - 1
+          ! Interior of the sediment column
+          DO jk = 2, jpksed - 1
              aminus  = ( por(jk-1) + por(jk) ) * 0.5
-             dxminus = ( dz3d(ji,jk-1) + dz3d(ji,jk) ) / 2.
+             dxminus = ( dz(jk-1) + dz(jk) ) / 2.
 
              aplus   = ( por(jk+1) + por(jk) ) * 0.5
-             dxplus  = ( dz3d(ji,jk) + dz3d(ji,jk+1) ) / 2
+             dxplus  = ( dz(jk) + dz(jk+1) ) / 2
              !
              aminuss(ji,jk) = ( 1.0 / volw3d(ji,jk) ) * aminus / dxminus
              apluss (ji,jk) = ( 1.0 / volw3d(ji,jk) ) * aplus / dxplus
           END DO
 
-          aminus  = ( por(nksed-1) + por(nksed) ) * 0.5
-          dxminus = ( dz3d(ji,nksed-1) + dz3d(ji,nksed) ) / 2.
-          aminuss(ji,nksed)  = ( 1.0 / volw3d(ji,nksed) ) * aminus / dxminus
-
+          ! Bottom of the sediment column
+          aminus  = ( por(jpksed-1) + por(jpksed) ) * 0.5
+          dxminus = ( dz(jpksed-1) + dz(jpksed) ) / 2.
+          aminuss(ji,jpksed)  = ( 1.0 / volw3d(ji,jpksed) ) * aminus / dxminus
        END DO
 
        IF( ln_timing )  CALL timing_stop('sed_mat_coef')
 
     END SUBROUTINE sed_mat_coef
 
-    SUBROUTINE sed_mat_dsr( nksed, nvar, accmask )
+    SUBROUTINE sed_mat_dsr( nvar, accmask )
        !!---------------------------------------------------------------------
        !!                  ***  ROUTINE sed_mat_dsr  ***
        !!
-       !! ** Purpose :  solves tridiagonal system of linear equations 
+       !! ** Purpose :  Computes the SMS due to diffusion of solute species
        !!
        !! ** Method  : 
-       !!        1 - computes left hand side of linear system of equations
-       !!            for dissolution reaction
-       !!         For mass balance in kbot+sediment :
-       !!              dz3d  (:,1) = dz(1) = 0.5 cm
-       !!              volw3d(:,1) = dzkbot ( see sedini.F90 ) 
-       !!              dz(2)       = 0.3 cm 
-       !!              dz3d(:,2)   = 0.3 + dzdep   ( see seddsr.F90 )     
-       !!              volw3d(:,2) and vols3d(l,2) are thickened ( see seddsr.F90 ) 
-       !!
-       !!         2 - forward/backward substitution. 
-       !!
-       !!   History :
-       !!        !  04-10 (N. Emprin, M. Gehlen ) original
-       !!        !  06-04 (C. Ethe)  Module Re-organization
        !!----------------------------------------------------------------------
        !! * Arguments
-       INTEGER , INTENT(in) ::  nvar, nksed  ! number of variable
-       INTEGER, DIMENSION(jpoce) :: accmask
+       INTEGER , INTENT(in) ::  nvar   ! number of variable
+       INTEGER, DIMENSION(jpoce), INTENT(in) :: accmask
        INTEGER :: ji
 
        !---Local declarations
        INTEGER  ::  jk, jn
-       REAL(wp), DIMENSION(nksed) :: za, zb, zc
-
-       REAL(wp) ::  rplus,rminus   
+       REAL(wp) ::  rplus,rminus, zirrigt, zfact
        !----------------------------------------------------------------------
 
        IF( ln_timing )  CALL timing_start('sed_mat_dsr')
 
-       ! Computation left hand side of linear system of 
-       ! equations for dissolution reaction
-       !---------------------------------------------
+       ! Computation of the tridiagonal matrix associated
+       ! to diffusion of solute species
+       !-------------------------------------------------
        jn = nvar
-       ! first sediment level          
+       zfact = 1.0
+
+       ! Biorrigation is reduced strongly for Fe2+
+       IF (jn == jwfe2) zfact = 0.1
+ 
+       ! computes the SMS due to diffusion
+       ! ---------------------------------
        DO ji = 1, jpoce
           IF (accmask(ji) == 0) THEN
              rplus  = apluss(ji,1) * diff(ji,1,jn) * radssol(1,jn)
+             pwcpa(ji,1,jn) = pwcpa(ji,1,jn) + ( rplus * pwcp(ji,2,jn) - rplus * pwcp(ji,1,jn) )
 
-             za(1) = 0.
-             zb(1) = rplus
-             zc(1) = -rplus
- 
-             DO jk = 2, nksed - 1
-                rminus  = aminuss(ji,jk) * diff(ji,jk-1,jn) * radssol(jk,jn)
-                rplus   = apluss (ji,jk) * diff(ji,jk,jn) * radssol(jk,jn)
-                !     
-                za(jk) = -rminus
-                zb(jk) = rminus + rplus 
-                zc(jk) = -rplus
-             END DO
-
-             rminus  = aminuss(ji,nksed) * diff(ji,nksed-1,jn) * radssol(nksed,jn)
-             !
-             za(nksed) = -rminus
-             zb(nksed) = rminus
-             zc(nksed) = 0.
-
-             ! solves tridiagonal system of linear equations 
-             ! -----------------------------------------------
-
-             pwcpa(ji,1,jn) = pwcpa(ji,1,jn) - ( zc(1) * pwcp(ji,2,jn) + zb(1) * pwcp(ji,1,jn) )
-             DO jk = 2, nksed - 1
-                pwcpa(ji,jk,jn) =  pwcpa(ji,jk,jn) - ( zc(jk) * pwcp(ji,jk+1,jn) + za(jk) * pwcp(ji,jk-1,jn)    &
-                &                  + zb(jk) * pwcp(ji,jk,jn) )
-             ENDDO
-             pwcpa(ji,nksed,jn) = pwcpa(ji,nksed,jn) - ( za(nksed) * pwcp(ji,nksed-1,jn)    &
-             &                     + zb(nksed) * pwcp(ji,nksed,jn) )
-
+             rminus  = aminuss(ji,jpksed) * diff(ji,jpksed-1,jn) * radssol(jpksed,jn)
+             zirrigt = zfact * irrig(ji,jpksed) * (pwcp(ji,1,jn) - pwcp(ji,jpksed,jn) )
+             pwcpa(ji,jpksed,jn) = pwcpa(ji,jpksed,jn) + rminus * ( pwcp(ji,jpksed-1,jn)    &
+             &                     - pwcp(ji,jpksed,jn) ) + zirrigt
+             xirrigtrdtmp(ji,jn) = -zirrigt * volw3d(ji,jpksed)
           ENDIF
+       END DO
+       DO jk = 2, jpksed - 1
+          DO ji = 1, jpoce
+             IF (accmask(ji) == 0) THEN
+                rminus = aminuss(ji,jk) * diff(ji,jk-1,jn) * radssol(jk,jn)
+                zirrigt = zfact * irrig(ji,jk) * (pwcp(ji,1,jn) - pwcp(ji,jk,jn) )
+                rplus  = apluss (ji,jk) * diff(ji,jk,jn) * radssol(jk,jn)
+                !     
+                pwcpa(ji,jk,jn) = pwcpa(ji,jk,jn) + ( rplus * pwcp(ji,jk+1,jn) + rminus * pwcp(ji,jk-1,jn)    &
+                &                  - ( rplus + rminus ) * pwcp(ji,jk,jn) ) + zirrigt
+                xirrigtrdtmp(ji,jn) = xirrigtrdtmp(ji,jn) - zirrigt * volw3d(ji,jk)
+             ENDIF
+          END DO
        END DO
 
        IF( ln_timing )  CALL timing_stop('sed_mat_dsr')
 
     END SUBROUTINE sed_mat_dsr
 
-    SUBROUTINE sed_mat_dsrjac( nksed, nvar, NEQ, NROWPD, jacvode, accmask )
+    SUBROUTINE sed_mat_dsrjac( nvar, NEQ, NROWPD, jacvode, accmask )
        !!---------------------------------------------------------------------
        !!                  ***  ROUTINE sed_mat_dsrjac  ***
        !!
-       !! ** Purpose :  solves tridiagonal system of linear equations 
+       !! ** Purpose :  Computes the jacobian of the diffusion of solute
+       !!               species
        !!
        !! ** Method  : 
-       !!        1 - computes left hand side of linear system of equations
-       !!            for dissolution reaction
-       !!         For mass balance in kbot+sediment :
-       !!              dz3d  (:,1) = dz(1) = 0.5 cm
-       !!              volw3d(:,1) = dzkbot ( see sedini.F90 ) 
-       !!              dz(2)       = 0.3 cm 
-       !!              dz3d(:,2)   = 0.3 + dzdep   ( see seddsr.F90 )     
-       !!              volw3d(:,2) and vols3d(l,2) are thickened ( see
-       !seddsr.F90 ) 
-       !!
-       !!         2 - forward/backward substitution. 
        !!
        !!   History :
-       !!        !  04-10 (N. Emprin, M. Gehlen ) original
-       !!        !  06-04 (C. Ethe)  Module Re-organization
        !!----------------------------------------------------------------------
        !! * Arguments
-       INTEGER , INTENT(in) ::  nvar, nksed, NEQ, NROWPD  ! number of variable
+       INTEGER , INTENT(in) ::  nvar, NEQ, NROWPD  ! number of variable
        REAL, DIMENSION(jpoce,NROWPD,NEQ), INTENT(inout) :: jacvode
        INTEGER, DIMENSION(jpoce), INTENT(in) :: accmask
 
        !---Local declarations
        INTEGER  ::  ji,jk, jn, jnn, jni, jnj ,jnij
-       REAL(wp), DIMENSION(nksed) :: za, zb, zc
-
-       REAL(wp) ::  rplus,rminus
+       REAL(wp) ::  rplus,rminus, zfact
        !----------------------------------------------------------------------
 
        IF( ln_timing )  CALL timing_start('sed_mat_dsrjac')
@@ -209,402 +161,499 @@ MODULE sedmat
        ! equations for dissolution reaction
        !---------------------------------------------
        jn = nvar
-       ! first sediment level          
+       zfact = 1.0
+
+       ! Bioirrigation is strongly reduced for Fe2+
+       IF (jn == jwfe2) zfact = 0.1
+
+       ! Computes the non zero element of the jacobian matrix
+       ! The jacobian is stored in a condensed form
+
+       ! first and bottom sediment level
+       jnn = isvode(jn)
        DO ji = 1, jpoce
           IF (accmask(ji) == 0 ) THEN
              rplus  = apluss(ji,1) * diff(ji,1,jn) * radssol(1,jn)
 
-             za(1) = 0.
-             zb(1) = rplus
-             zc(1) = -rplus
-
-             DO jk = 2, nksed - 1
-                rminus  = aminuss(ji,jk) * diff(ji,jk-1,jn) * radssol(jk,jn)
-                rplus   = apluss (ji,jk) * diff(ji,jk,jn) * radssol(jk,jn)
-                !     
-                za(jk) = -rminus
-                zb(jk) = rminus + rplus
-                zc(jk) = -rplus
-             END DO
-
-             rminus  = aminuss(ji,nksed) * diff(ji,nksed-1,jn) * radssol(nksed,jn)
-             !
-             za(nksed) = -rminus
-             zb(nksed) = rminus
-             zc(nksed) = 0.
-
-             ! solves tridiagonal system of linear equations 
-
-             jnn = isvode(jn)
              jnij = jpvode + 1
-             jacvode(ji, jnij, jnn) = jacvode(ji,jnij,jnn) - zb(1)
+             jacvode(ji, jnij, jnn) = jacvode(ji,jnij,jnn) - rplus
              jnj = jpvode + jnn
              jnij = jnn - jnj + jpvode + 1
-             jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) -zc(1)
-             DO jk = 2, nksed - 1
+             jacvode(ji, jnij, jnj) = jacvode(ji,jnij,jnj) + rplus
+
+             rminus  = aminuss(ji,jpksed) * diff(ji,jpksed-1,jn) * radssol(jpksed,jn)
+
+             jni = (jpksed-1) * jpvode + jnn
+             jnj = (jpksed-2) * jpvode + jnn
+             jnij = jni - jnj + jpvode + 1
+             jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rminus
+             jnij = jpvode + 1
+             jacvode(ji, jnij, jni) = jacvode(ji, jnij, jni) - rminus - zfact * irrig(ji,jpksed)
+          ENDIF
+       END DO
+
+       ! Interior of the sediment column
+       DO jk = 2, jpksed - 1
+          DO ji = 1, jpoce
+             IF (accmask(ji) == 0 ) THEN
+                rminus  = aminuss(ji,jk) * diff(ji,jk-1,jn) * radssol(jk,jn)
+                rplus   = apluss (ji,jk) * diff(ji,jk,jn) * radssol(jk,jn)
+
                 jni = (jk-1) * jpvode + jnn
                 jnj = (jk-2) * jpvode + jnn
                 jnij = jni - jnj + jpvode + 1
-                jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - za(jk)
+                jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rminus
                 jnj = (jk-1) * jpvode + jnn
-                jnij = jni - jnj + jpvode + 1
-                jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - zb(jk)
+                jnij = jpvode + 1
+                jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - ( rminus + rplus ) - zfact * irrig(ji,jk)
                 jnj = (jk) * jpvode + jnn
                 jnij = jni - jnj + jpvode + 1
-                jacvode(ji, jnij, jnj)   = jacvode(ji, jnij, jnj) - zc(jk)
-             END DO
-             jni = (nksed-1) * jpvode + jnn
-             jnj = (nksed-2) * jpvode + jnn
-             jnij = jni - jnj + jpvode + 1
-             jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - za(nksed)
-             jnij = jpvode + 1
-             jacvode(ji, jnij, jni) = jacvode(ji, jnij, jni) - zb(nksed)
-          ENDIF
+                jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rplus
+             ENDIF
+          END DO
        END DO
 
        IF( ln_timing )  CALL timing_stop('sed_mat_dsrjac')
 
     END SUBROUTINE sed_mat_dsrjac
 
-    SUBROUTINE sed_mat_btbi( nksed, nvar, psol, preac, dtsed_in )
+    SUBROUTINE sed_mat_btbi( nvar, psol, preac, dtsed_in )
        !!---------------------------------------------------------------------
-       !!                  ***  ROUTINE sed_mat_btb  ***
+       !!                  ***  ROUTINE sed_mat_btbi  ***
        !!
        !! ** Purpose :  solves tridiagonal system of linear equations 
+       !!               associated to bioturbation
        !!
        !! ** Method  : 
        !!        1 - computes left hand side of linear system of equations
        !!            for dissolution reaction
-       !!
-       !!
-       !!         2 - forward/backward substitution. 
+       !!        2 - forward/backward substitution. 
        !!
        !!   History :
-       !!        !  04-10 (N. Emprin, M. Gehlen ) original
-       !!        !  06-04 (C. Ethe)  Module Re-organization
        !!----------------------------------------------------------------------
        !! * Arguments
-       INTEGER , INTENT(in) :: nksed, nvar      ! number of sediment levels
+       INTEGER , INTENT(in) :: nvar      ! number of sediment levels
 
-      REAL(wp), DIMENSION(jpoce,nksed,nvar), INTENT(inout) :: &
-          psol, preac
-
-      REAL(wp), INTENT(in) :: dtsed_in
-
-       !---Local declarations
-       INTEGER  ::  &
-          ji, jk, jn
-
-       REAL(wp) ::  &
-          aplus,aminus   ,  &
-          rplus,rminus   ,  &
-          dxplus,dxminus
-
-       REAL(wp), DIMENSION(nksed)    :: za, zb, zc
-       REAL(wp), DIMENSION(nksed)    :: zr, zgamm
-       REAL(wp) ::  zbet
-
-       !----------------------------------------------------------------------
-
-      ! Computation left hand side of linear system of 
-      ! equations for dissolution reaction
-      !---------------------------------------------
-      IF( ln_timing )  CALL timing_start('sed_mat_btbi')
-
-      ! first sediment level          
-      DO ji = 1, jpoce
-         aplus  = ( por1(2) + por1(3) ) / 2.0
-         dxplus = ( dz(2) + dz(3) ) / 2.
-         rplus  = ( dtsed_in / vols(2) ) * db(ji,2) * aplus / dxplus
-         za(2) = 0.
-         zb(2) = 1. + rplus
-         zc(2) = -rplus
-
-         DO jk = 3, nksed - 1
-            aminus  = ( por1(jk-1) + por1(jk) ) * 0.5
-            aminus  = ( ( vols(jk-1) / dz(jk-1) ) + ( vols(jk) / dz(jk) ) ) / 2.
-            dxminus = ( dz(jk-1) + dz(jk) ) / 2.
-            rminus  = ( dtsed_in / vols(jk) ) * db(ji,jk-1) * aminus / dxminus
-            !
-            aplus   = ( por1(jk) + por1(jk+1) ) * 0.5
-            dxplus  = ( dz(jk) + dz(jk+1) ) / 2.
-            rplus   = ( dtsed_in / vols(jk) ) * db(ji,jk) * aplus / dxplus
-            !     
-            za(jk) = -rminus
-            zb(jk) = 1. + rminus + rplus
-            zc(jk) = -rplus
-
-         ENDDO
-
-         aminus = ( por1(nksed-1) + por1(nksed) ) * 0.5
-         dxminus = ( dz(nksed-1) + dz(nksed) ) / 2.
-         rminus  = ( dtsed_in / vols(nksed) ) * db(ji,nksed-1) * aminus / dxminus
-         !
-         za(nksed) = -rminus
-         zb(nksed) = 1. + rminus
-         zc(nksed) = 0.
-
-         ! solves tridiagonal system of linear equations 
-         ! -----------------------------------------------    
-         DO jn = 1, nvar
-            zr(:) = psol(ji,:,jn)
-            zbet     = zb(2) - preac(ji,2,jn) * dtsed_in
-            psol(ji,2,jn) = zr(2) / zbet
-            ! 
-            DO jk = 3, nksed
-               zgamm(jk) =  zc(jk-1) / zbet
-               zbet      =  zb(jk) - preac(ji,jk,jn) * dtsed_in - za(jk) * zgamm(jk)
-               psol(ji,jk,jn) = ( zr(jk) - za(jk) * psol(ji,jk-1,jn) ) / zbet
-            ENDDO
-            ! 
-            DO jk = nksed - 1, 2, -1
-               psol(ji,jk,jn) = psol(ji,jk,jn) - zgamm(jk+1) * psol(ji,jk+1,jn)
-            ENDDO
-         END DO
-      END DO
-      !
-      IF( ln_timing )  CALL timing_stop('sed_mat_btbi')
-
-    END SUBROUTINE sed_mat_btbi
-
-
-    SUBROUTINE sed_mat_btb( nksed, nvar, accmask )
-       !!---------------------------------------------------------------------
-       !!                  ***  ROUTINE sed_mat_btb  ***
-       !!
-       !! ** Purpose :  solves tridiagonal system of linear equations 
-       !!
-       !! ** Method  : 
-       !!        1 - computes left hand side of linear system of equations
-       !!            for dissolution reaction
-       !!
-       !!         2 - forward/backward substitution. 
-       !!
-       !!   History :
-       !!        !  04-10 (N. Emprin, M. Gehlen ) original
-       !!        !  06-04 (C. Ethe)  Module Re-organization
-       !!----------------------------------------------------------------------
-       !! * Arguments
-       INTEGER , INTENT(in) :: &
-          nvar, nksed     ! number of sediment levels
-       INTEGER, DIMENSION(jpoce) :: accmask
+       REAL(wp), DIMENSION(jpoce,jpksed,nvar), INTENT(inout) :: psol
+       REAL(wp), DIMENSION(jpoce,jpksed,nvar), INTENT(in) :: preac
+       REAL(wp), INTENT(in) :: dtsed_in
 
        !---Local declarations
        INTEGER  ::  ji, jk, jn
 
-       REAL(wp) ::  &
-          aplus,aminus   ,  &
-          rplus,rminus   ,  &
-          dxplus,dxminus
-
-       REAL(wp), DIMENSION(nksed)      :: za, zb, zc
-
+       REAL(wp) ::  aplus, aminus, rplus, rminus, dxplus, dxminus
+       REAL(wp), DIMENSION(jpoce)           :: zbet
+       REAL(wp), DIMENSION(jpoce,jpksed)    :: za, zb, zc
+       REAL(wp), DIMENSION(jpoce,jpksed)    :: zr, zgamm
        !----------------------------------------------------------------------
 
-      ! Computation left hand side of linear system of 
-      ! equations for dissolution reaction
-      !---------------------------------------------
-      IF( ln_timing )  CALL timing_start('sed_mat_btb')
+       ! Computation left hand side of linear system of 
+       ! equations for bioturbation
+       !---------------------------------------------
+       IF( ln_timing )  CALL timing_start('sed_mat_btbi')
 
-      ! first sediment level          
-      jn = nvar
-      DO ji = 1, jpoce
-         IF (accmask(ji) == 0) THEN
-         aplus  = ( por1(2) + por1(3) ) / 2.0
-         dxplus = ( dz(2) + dz(3) ) / 2.
-         rplus  = ( 1.0 / vols(2) ) * db(ji,2) * aplus / dxplus * rads1sol(2,jn)
+       aplus  = ( dtsed_in / vols(2) ) * ( por1(2) + por1(3) ) / 2.0
+       dxplus = ( dz(2) + dz(3) ) / 2.
+       aminus = ( dtsed_in / vols(jpksed) ) * ( por1(jpksed-1) + por1(jpksed) ) * 0.5
+       dxminus = ( dz(jpksed-1) + dz(jpksed) ) / 2.
+       DO ji = 1, jpoce
+          ! first sediment level
+          rplus    = db(ji,2) * aplus / dxplus
+          za(ji,2) = 0.
+          zb(ji,2) = 1. + rplus
+          zc(ji,2) = -rplus
 
-         za(2) = 0.
-         zb(2) = rplus 
-         zc(2) = -rplus
+          ! bottom sediment level
+          rminus        = db(ji,jpksed-1) * aminus / dxminus
+          za(ji,jpksed) = -rminus
+          zb(ji,jpksed) = 1. + rminus
+          zc(ji,jpksed) = 0.
+       END DO
 
-         DO jk = 3, nksed - 1
-            aminus  = ( por1(jk-1) + por1(jk) ) * 0.5
-            aminus  = ( ( vols(jk-1) / dz(jk-1) ) + ( vols(jk) / dz(jk) ) ) / 2.
-            dxminus = ( dz(jk-1) + dz(jk) ) / 2.
-            rminus  = ( 1.0 / vols(jk) ) * db(ji,jk-1) * aminus / dxminus * rads1sol(jk,jn)
-            !
-            aplus   = ( por1(jk) + por1(jk+1) ) * 0.5
-            dxplus  = ( dz(jk) + dz(jk+1) ) / 2.
-            rplus   = ( 1.0 / vols(jk) ) * db(ji,jk) * aplus / dxplus * rads1sol(jk,jn)
-            !     
-            za(jk) = -rminus
-            zb(jk) = rminus + rplus
-            zc(jk) = -rplus
+          ! interior of the sediment column
+       DO jk = 3, jpksed - 1
+          aminus  = ( dtsed_in / vols(jk) ) * ( por1(jk-1) + por1(jk) ) * 0.5
+          dxminus = ( dz(jk-1) + dz(jk) ) / 2.
+          aplus   = ( dtsed_in / vols(jk) ) * ( por1(jk) + por1(jk+1) ) * 0.5
+          dxplus  = ( dz(jk) + dz(jk+1) ) / 2.
+          DO ji = 1, jpoce
+             rminus  = db(ji,jk-1) * aminus / dxminus
+             !
+             rplus   = db(ji,jk) * aplus / dxplus
+             !     
+             za(ji,jk) = -rminus
+             zb(ji,jk) = 1. + rminus + rplus
+             zc(ji,jk) = -rplus
+          END DO
+       END DO
 
-         ENDDO
+       ! solves tridiagonal system of linear equations 
+       ! -----------------------------------------------    
+       DO jn = 1, nvar
+          IF (isvode(jpwat+jn) == 0) THEN
+             DO ji = 1, jpoce
+                zr(ji,:)      = psol(ji,:,jn)
+                zbet(ji)      = zb(ji,2) - preac(ji,2,jn) * dtsed_in
+                psol(ji,2,jn) = zr(ji,2) / zbet(ji)
+             END DO
+                ! 
+             DO jk = 3, jpksed
+                DO ji = 1, jpoce
+                   zgamm(ji,jk) =  zc(ji,jk-1) / zbet(ji)
+                   zbet(ji)     =  zb(ji,jk) - preac(ji,jk,jn) * dtsed_in - za(ji,jk) * zgamm(ji,jk)
+                   psol(ji,jk,jn) = ( zr(ji,jk) - za(ji,jk) * psol(ji,jk-1,jn) ) / zbet(ji)
+                END DO
+             END DO
+                ! 
+             DO jk = jpksed - 1, 2, -1
+                DO ji = 1, jpoce
+                   psol(ji,jk,jn) = psol(ji,jk,jn) - zgamm(ji,jk+1) * psol(ji,jk+1,jn)
+                END DO
+             END DO
+          ENDIF
+       END DO
+       !
+       IF( ln_timing )  CALL timing_stop('sed_mat_btbi')
 
-         aminus = ( por1(nksed-1) + por1(nksed) ) * 0.5
-         dxminus = ( dz(nksed-1) + dz(nksed) ) / 2.
-         rminus  = ( 1.0 / vols(nksed) ) * db(ji,nksed-1) * aminus / dxminus * rads1sol(nksed,jn)
-         !
-         za(nksed) = -rminus
-         zb(nksed) = rminus
-         zc(nksed) = 0.
+    END SUBROUTINE sed_mat_btbi
 
-         ! solves tridiagonal system of linear equations 
-         ! -----------------------------------------------    
-         pwcpa(ji,2,jn) = pwcpa(ji,2,jn) - ( zc(2) * pwcp(ji,3,jn) + zb(2) * pwcp(ji,2,jn) )
-         DO jk = 3, nksed-1
-            pwcpa(ji,jk,jn) =  pwcpa(ji,jk,jn) - ( zc(jk) * pwcp(ji,jk+1,jn) + za(jk) * pwcp(ji,jk-1,jn)    &
-            &                  + zb(jk) * pwcp(ji,jk,jn) )
-         ENDDO
-         pwcpa(ji,nksed,jn) = pwcpa(ji,nksed,jn) - ( za(nksed) * pwcp(ji,nksed-1,jn)    &
-         &                     + zb(nksed) * pwcp(ji,nksed,jn) )
-         ! 
-         ENDIF
-      END DO
-      !
-      IF( ln_timing )  CALL timing_stop('sed_mat_btb')
-       
-    END SUBROUTINE sed_mat_btb
-
-    SUBROUTINE sed_mat_btbjac( nksed, nvar, NEQ, NROWPD, jacvode, accmask )
+    SUBROUTINE sed_mat_ads( nvar, accmask )
        !!---------------------------------------------------------------------
-       !!                  ***  ROUTINE sed_mat_btb  ***
+       !!                  ***  ROUTINE sed_mat_ads  ***
        !!
-       !! ** Purpose :  solves tridiagonal system of linear equations 
+       !! ** Purpose :  Computes the SMS due to bioturbation for adsorbed 
+       !!               solute species
        !!
        !! ** Method  : 
-       !!        1 - computes left hand side of linear system of equations
-       !!            for dissolution reaction
-       !!
-       !!         2 - forward/backward substitution. 
        !!
        !!   History :
-       !!        !  04-10 (N. Emprin, M. Gehlen ) original
-       !!        !  06-04 (C. Ethe)  Module Re-organization
        !!----------------------------------------------------------------------
        !! * Arguments
-       INTEGER , INTENT(in) ::  nvar, nksed, NEQ, NROWPD  ! number of variable
+       INTEGER , INTENT(in) :: nvar      ! Number of the adsorbed species
+       INTEGER, DIMENSION(jpoce), INTENT(in) :: accmask
+
+       !---Local declarations
+       INTEGER  ::  ji, jk, jn
+
+       REAL(wp) ::  aplus, aminus, rplus, rminus, dxplus, dxminus
+       !----------------------------------------------------------------------
+
+       ! Computation left hand side of linear system of 
+       ! equations for dissolution reaction
+       !---------------------------------------------
+       IF( ln_timing )  CALL timing_start('sed_mat_ads')
+
+       jn = nvar
+
+       ! first and last sediment levels
+       ! Computes the SMS (tridiagonal system)
+       ! -------------------------------------
+       aplus  = ( 1.0 / vols(2) ) * ( por1(2) + por1(3) ) * 0.5 * rads1sol(3,jn)   &
+          &     / ( por(2) + rads1sol(2,jn) )
+       dxplus = ( dz(2) + dz(3) ) / 2.
+       aminus = ( 1.0 / vols(jpksed) ) * ( por1(jpksed-1) + por1(jpksed) ) * 0.5 * rads1sol(jpksed-1,jn)   &
+          &     / ( por(jpksed) + rads1sol(jpksed,jn) )
+       dxminus = ( dz(jpksed-1) + dz(jpksed) ) / 2.
+       DO ji = 1, jpoce
+          IF (accmask(ji) == 0) THEN
+             rplus  = db(ji,2) * aplus / dxplus
+             pwcpa(ji,2,jn) = pwcpa(ji,2,jn) + rplus * ( pwcp(ji,3,jn) - pwcp(ji,2,jn) )
+ 
+             rminus = db(ji,jpksed-1) * aminus / dxminus
+             pwcpa(ji,jpksed,jn) = pwcpa(ji,jpksed,jn) + rminus * ( pwcp(ji,jpksed-1,jn)    &
+             &                     - pwcp(ji,jpksed,jn) )
+          ENDIF
+       END DO
+
+       DO jk = 3, jpksed-1
+          aminus  = ( 1.0 / vols(jk) ) * ( por1(jk-1) + por1(jk) ) * 0.5 * rads1sol(jk-1,jn)   &
+            &       / ( por(jk) + rads1sol(jk,jn) )
+          dxminus = ( dz(jk-1) + dz(jk) ) / 2.
+          aplus   = ( 1.0 / vols(jk) ) * ( por1(jk) + por1(jk+1) ) * 0.5 * rads1sol(jk+1,jn)   &
+            &       / ( por(jk) + rads1sol(jk,jn) )
+          dxplus  = ( dz(jk) + dz(jk+1) ) / 2.
+          DO ji = 1, jpoce
+             IF (accmask(ji) == 0) THEN
+                rminus  = db(ji,jk-1) * aminus / dxminus
+                rplus   = db(ji,jk) * aplus / dxplus
+                !     
+                pwcpa(ji,jk,jn) =  pwcpa(ji,jk,jn) + ( rplus * pwcp(ji,jk+1,jn) + rminus * pwcp(ji,jk-1,jn)    &
+                &                  - ( rplus + rminus ) * pwcp(ji,jk,jn) )
+             ENDIF
+          END DO
+       END DO
+       !
+       IF( ln_timing )  CALL timing_stop('sed_mat_ads')
+       
+    END SUBROUTINE sed_mat_ads
+
+    SUBROUTINE sed_mat_adsjac( nvar, NEQ, NROWPD, jacvode, accmask )
+       !!---------------------------------------------------------------------
+       !!                  ***  ROUTINE sed_mat_adsjac  ***
+       !!
+       !! ** Purpose :  Computes the jacobian of diffusion due to bioturbation
+       !!               for adsorbed solute species
+       !!
+       !! ** Method  : 
+       !!
+       !!   History :
+       !!----------------------------------------------------------------------
+       !! * Arguments
+       INTEGER , INTENT(in) ::  nvar, NEQ, NROWPD  ! number of variable
        REAL, DIMENSION(jpoce,NROWPD,NEQ), INTENT(inout) :: jacvode
        INTEGER, DIMENSION(jpoce), INTENT(in) :: accmask
 
        !---Local declarations
        INTEGER  ::  ji, jk, jn, jnn, jni, jnj ,jnij
-
-       REAL(wp) ::  &
-          aplus,aminus   ,  &
-          rplus,rminus   ,  &
-          dxplus,dxminus
-
-       REAL(wp), DIMENSION(nksed)      :: za, zb, zc
-
+       REAL(wp) ::  aplus, aminus, rplus, rminus, dxplus, dxminus
        !----------------------------------------------------------------------
 
       ! Computation left hand side of linear system of 
       ! equations for dissolution reaction
       !---------------------------------------------
-      IF( ln_timing )  CALL timing_start('sed_mat_btbjac')
+      IF( ln_timing )  CALL timing_start('sed_mat_adsjac')
 
-      ! first sediment level          
       jn = nvar
+
+      ! Computes the jacobian (tridiagonal system) which is 
+      ! stored in a condensed form
+      ! ---------------------------------------------------    
+      jnn = isvode(jn)
+
+            ! Top sediment level
+      aplus  = ( 1.0 / vols(2) ) * ( por1(2) + por1(3) ) * 0.5 * rads1sol(3,jn)  &
+        &      / ( por(2) + rads1sol(2,jn) )
+      dxplus = ( dz(2) + dz(3) ) / 2.
+      aminus = ( 1.0 / vols(jpksed) ) * ( por1(jpksed-1) + por1(jpksed) ) * 0.5 * rads1sol(jpksed-1,jn)  &
+        &      / ( por(jpksed) + rads1sol(jpksed,jn) )
+      dxminus = ( dz(jpksed-1) + dz(jpksed) ) / 2.
       DO ji = 1, jpoce
-         IF (accmask(ji) == 0) THEN
-         aplus  = ( por1(2) + por1(3) ) / 2.0
-         dxplus = ( dz(2) + dz(3) ) / 2.
-         rplus  = ( 1.0 / vols(2) ) * db(ji,2) * aplus / dxplus * rads1sol(2,jn)
-
-         za(2) = 0.
-         zb(2) = rplus
-         zc(2) = -rplus
-
-         DO jk = 3, nksed - 1
-            aminus  = ( por1(jk-1) + por1(jk) ) * 0.5
-            aminus  = ( ( vols(jk-1) / dz(jk-1) ) + ( vols(jk) / dz(jk) ) ) / 2.
-            dxminus = ( dz(jk-1) + dz(jk) ) / 2.
-            rminus  = ( 1.0 / vols(jk) ) * db(ji,jk-1) * aminus / dxminus * rads1sol(jk,jn)
-            !
-            aplus   = ( por1(jk) + por1(jk+1) ) * 0.5
-            dxplus  = ( dz(jk) + dz(jk+1) ) / 2.
-            rplus   = ( 1.0 / vols(jk) ) * db(ji,jk) * aplus / dxplus * rads1sol(jk,jn)
-            !     
-            za(jk) = -rminus
-            zb(jk) = rminus + rplus
-            zc(jk) = -rplus
-
-         ENDDO
-
-         aminus = ( por1(nksed-1) + por1(nksed) ) * 0.5
-         dxminus = ( dz(nksed-1) + dz(nksed) ) / 2.
-         rminus  = ( 1.0 / vols(nksed) ) * db(ji,nksed-1) * aminus / dxminus * rads1sol(nksed,jn)
-         !
-         za(nksed) = -rminus
-         zb(nksed) = rminus
-         zc(nksed) = 0.
-
-         ! solves tridiagonal system of linear equations 
-         ! -----------------------------------------------    
-         jnn = isvode(jn)
-         jni = jpvode + jnn
-         jnij = jpvode + 1
-         jacvode(ji, jnij, jni) = jacvode(ji,jnij,jni) - zb(2)
-         jnj = 2 * jpvode + jnn
-         jnij = jni - jnj + jpvode + 1
-         jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) -zc(2)
-         DO jk = 3, nksed-1
-            jni = (jk-1) * jpvode + jnn
-            jnj = (jk-2) * jpvode + jnn
+         IF ( accmask(ji) == 0 ) THEN
+            rplus  = db(ji,2) * aplus / dxplus
+            ! Top sediment level
+            jni = jpvode + jnn
+            jnij = jpvode + 1
+            jacvode(ji, jnij, jni) = jacvode(ji,jnij,jni) - rplus
+            jnj = 2 * jpvode + jnn
             jnij = jni - jnj + jpvode + 1
-            jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - za(jk)
-            jnj = (jk-1) * jpvode + jnn
+            jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rplus
+
+            rminus  = db(ji,jpksed-1) * aminus / dxminus
+            ! Bottom sediment level
+            jni = (jpksed-1) * jpvode + jnn
+            jnj = (jpksed-2) * jpvode + jnn
             jnij = jni - jnj + jpvode + 1
-            jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - zb(jk)
-            jnj = (jk) * jpvode + jnn
-            jnij = jni - jnj + jpvode + 1
-            jacvode(ji, jnij, jnj)   = jacvode(ji, jnij, jnj) - zc(jk)
-         ENDDO
-         jni = (nksed-1) * jpvode + jnn
-         jnj = (nksed-2) * jpvode + jnn
-         jnij = jni - jnj + jpvode + 1
-         jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - za(nksed)
-         jnij = jpvode + 1
-         jacvode(ji, jnij, jni) = jacvode(ji, jnij, jni) - zb(nksed)
-         ! 
+            jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rminus
+            jnij = jpvode + 1
+            jacvode(ji, jnij, jni) = jacvode(ji, jnij, jni) - rminus
          ENDIF
       END DO
+
+            ! Interior of the sediment column
+      DO jk = 3, jpksed-1
+         aminus  = ( 1.0 / vols(jk) ) * ( por1(jk-1) + por1(jk) ) * 0.5 * rads1sol(jk-1,jn)   &
+               &         / ( por(jk) + rads1sol(jk,jn) )
+         dxminus = ( dz(jk-1) + dz(jk) ) * 0.5
+         aplus   = ( 1.0 / vols(jk) ) * ( por1(jk) + por1(jk+1) ) * 0.5 * rads1sol(jk+1,jn)   &
+               &         / ( por(jk) + rads1sol(jk,jn) )
+         dxplus  = ( dz(jk) + dz(jk+1) ) * 0.5
+         DO ji = 1, jpoce
+            IF ( accmask(ji) == 0 ) THEN
+               rminus  = db(ji,jk-1) * aminus / dxminus
+               rplus   = db(ji,jk) * aplus / dxplus
+               !     
+               jni = (jk-1) * jpvode + jnn
+               jnj = (jk-2) * jpvode + jnn
+               jnij = jni - jnj + jpvode + 1
+               jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rminus
+               jnj = (jk-1) * jpvode + jnn
+               jnij = jni - jnj + jpvode + 1
+               jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - ( rminus + rplus )
+               jnj = (jk) * jpvode + jnn
+               jnij = jni - jnj + jpvode + 1
+               jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rplus
+            ENDIF
+         END DO
+      END DO
       !
-      IF( ln_timing )  CALL timing_stop('sed_mat_btbjac')
+      IF( ln_timing )  CALL timing_stop('sed_mat_adsjac')
+
+    END SUBROUTINE sed_mat_adsjac
+
+    SUBROUTINE sed_mat_btb( nvar, accmask )
+       !!---------------------------------------------------------------------
+       !!                  ***  ROUTINE sed_mat_btb  ***
+       !!
+       !! ** Purpose :  Computes the SMS due to bioturbation for solid species
+       !!
+       !! ** Method  : 
+       !!
+       !!   History :
+       !!----------------------------------------------------------------------
+       !! * Arguments
+       INTEGER , INTENT(in) :: nvar    ! Number of solid species
+       INTEGER, DIMENSION(jpoce), INTENT(in) :: accmask
+
+       !---Local declarations
+       INTEGER  ::  ji, jk, jn
+       REAL(wp) ::  aplus, aminus, rplus, rminus, dxplus, dxminus
+       !----------------------------------------------------------------------
+
+       ! Computation left hand side of linear system of 
+       ! equations for dissolution reaction
+       !---------------------------------------------
+       IF( ln_timing )  CALL timing_start('sed_mat_btb')
+
+       jn = nvar
+
+       ! Computes the SMS due to bioturbation (tridiagonal system)
+       ! ---------------------------------------------------------    
+       aplus  = ( 1.0 / vols(2) ) * ( por1(2) + por1(3) ) / 2.0
+       dxplus = ( dz(2) + dz(3) ) / 2.
+       aminus = ( 1.0 / vols(jpksed) ) * ( por1(jpksed-1) + por1(jpksed) ) * 0.5
+       dxminus = ( dz(jpksed-1) + dz(jpksed) ) / 2.
+       DO ji = 1, jpoce
+          IF ( accmask(ji) == 0 ) THEN
+             rplus  = db(ji,2) * aplus / dxplus
+             solcpa(ji,2,jn) = solcpa(ji,2,jn) + rplus * ( solcp(ji,3,jn) - solcp(ji,2,jn) )
+             rminus = db(ji,jpksed-1) * aminus / dxminus
+             solcpa(ji,jpksed,jn) = solcpa(ji,jpksed,jn) + rminus * ( solcp(ji,jpksed-1,jn)    &
+             &                     - solcp(ji,jpksed,jn) )
+          ENDIF
+       END DO
+
+       DO jk = 3, jpksed-1
+          aminus  = ( 1.0 / vols(jk) ) * ( por1(jk-1) + por1(jk) ) * 0.5
+          dxminus = ( dz(jk-1) + dz(jk) ) / 2.
+          aplus   = ( 1.0 / vols(jk) ) * ( por1(jk) + por1(jk+1) ) * 0.5
+          dxplus  = ( dz(jk) + dz(jk+1) ) / 2.
+          DO ji = 1, jpoce
+             IF ( accmask(ji) == 0 ) THEN
+                rminus = db(ji,jk-1) * aminus / dxminus
+                rplus  = db(ji,jk) * aplus / dxplus
+                solcpa(ji,jk,jn) = solcpa(ji,jk,jn) + ( rplus * solcp(ji,jk+1,jn) + rminus * solcp(ji,jk-1,jn)    &
+                &                  - ( rminus + rplus ) * solcp(ji,jk,jn) )
+             ENDIF
+          END DO
+       END DO
+       !
+       IF( ln_timing )  CALL timing_stop('sed_mat_btb')
+
+    END SUBROUTINE sed_mat_btb
+
+    SUBROUTINE sed_mat_btbjac( nvar, NEQ, NROWPD, jacvode, accmask )
+       !!---------------------------------------------------------------------
+       !!                  ***  ROUTINE sed_mat_btbjac  ***
+       !!
+       !! ** Purpose :  Computes the jacobian of bioturbation of solid species
+       !!
+       !! ** Method  : 
+       !!
+       !!   History :
+       !!----------------------------------------------------------------------
+       !! * Arguments
+       INTEGER , INTENT(in) ::  nvar, NEQ, NROWPD  ! number of variable
+       REAL, DIMENSION(jpoce,NROWPD,NEQ), INTENT(inout) :: jacvode
+       INTEGER, DIMENSION(jpoce), INTENT(in) :: accmask
+
+       !---Local declarations
+       INTEGER  ::  ji, jk, jn, jnn, jni, jnj ,jnij
+       REAL(wp) ::  aplus, aminus, rplus, rminus, dxplus, dxminus
+
+       !----------------------------------------------------------------------
+
+       ! Computation left hand side of linear system of 
+       ! equations for dissolution reaction
+       !---------------------------------------------
+       IF( ln_timing )  CALL timing_start('sed_mat_btbjac')
+
+       jn = nvar
+
+       ! Computes the jacobian (tridiagonal system) that is stored
+       ! in a condensed form
+       ! ---------------------------------------------------------    
+       jnn = isvode(jpwat+jn)
+
+       ! Top and bottom sediment levels
+       aplus  = ( 1.0 / vols(2) ) * ( por1(2) + por1(3) ) * 0.5
+       dxplus = ( dz(2) + dz(3) ) / 2.
+       aminus = ( 1.0 / vols(jpksed) ) * ( por1(jpksed-1) + por1(jpksed) ) * 0.5
+       dxminus = ( dz(jpksed-1) + dz(jpksed) ) / 2.
+       DO ji = 1, jpoce
+          IF (accmask(ji) == 0) THEN
+             rplus  = db(ji,2) * aplus / dxplus
+             jni = jpvode + jnn
+             jnij = jpvode + 1
+             jacvode(ji, jnij, jni) = jacvode(ji,jnij,jni) - rplus
+             jnj = 2 * jpvode + jnn
+             jnij = jni - jnj + jpvode + 1
+             jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rplus
+
+             rminus  = db(ji,jpksed-1) * aminus / dxminus
+             jni = (jpksed-1) * jpvode + jnn
+             jnj = (jpksed-2) * jpvode + jnn
+             jnij = jni - jnj + jpvode + 1
+             jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rminus
+             jnij = jpvode + 1
+             jacvode(ji, jnij, jni) = jacvode(ji, jnij, jni) - rminus
+          ENDIF
+       END DO
+
+       ! Interior of the sediment level
+       DO jk = 3, jpksed-1
+          aminus  = ( 1.0 / vols(jk) ) * ( por1(jk-1) + por1(jk) ) * 0.5
+          dxminus = ( dz(jk-1) + dz(jk) ) / 2.
+          aplus   = ( 1.0 / vols(jk) ) * ( por1(jk) + por1(jk+1) ) * 0.5
+          dxplus  = ( dz(jk) + dz(jk+1) ) / 2.
+          DO ji = 1, jpoce
+             IF (accmask(ji) == 0) THEN
+                rminus = db(ji,jk-1) * aminus / dxminus
+                rplus  = db(ji,jk) * aplus / dxplus
+                jni = (jk-1) * jpvode + jnn
+                jnj = (jk-2) * jpvode + jnn
+                jnij = jni - jnj + jpvode + 1
+                jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rminus
+                jnj = (jk-1) * jpvode + jnn
+                jnij = jni - jnj + jpvode + 1
+                jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) - rminus - rplus
+                jnj = (jk) * jpvode + jnn
+                jnij = jni - jnj + jpvode + 1
+                jacvode(ji, jnij, jnj) = jacvode(ji, jnij, jnj) + rplus
+             ENDIF
+          END DO
+       END DO
+       !
+       IF( ln_timing )  CALL timing_stop('sed_mat_btbjac')
 
     END SUBROUTINE sed_mat_btbjac
 
-
-    SUBROUTINE sed_mat_dsri( nksed, nvar, preac, psms, dtsed_in, psol )
+    SUBROUTINE sed_mat_dsri( nvar, preac, psms, dtsed_in, psol )
        !!---------------------------------------------------------------------
-       !!                  ***  ROUTINE sed_mat_dsr  ***
+       !!                  ***  ROUTINE sed_mat_dsri  ***
        !!
        !! ** Purpose :  solves tridiagonal system of linear equations 
+       !!               for solute species
        !!
        !! ** Method  : 
        !!        1 - computes left hand side of linear system of equations
        !!            for dissolution reaction
-       !!         For mass balance in kbot+sediment :
-       !!              dz3d  (:,1) = dz(1) = 0.5 cm
-       !!              volw3d(:,1) = dzkbot ( see sedini.F90 ) 
-       !!              dz(2)       = 0.3 cm 
-       !!              dz3d(:,2)   = 0.3 + dzdep   ( see seddsr.F90 )     
-       !!              volw3d(:,2) and vols3d(l,2) are thickened ( see
-       !seddsr.F90 ) 
-       !!
-       !!         2 - forward/backward substitution. 
+       !!        2 - forward/backward substitution. 
        !!
        !!   History :
-       !!        !  04-10 (N. Emprin, M. Gehlen ) original
-       !!        !  06-04 (C. Ethe)  Module Re-organization
        !!----------------------------------------------------------------------
        !! * Arguments
-       INTEGER , INTENT(in) ::  nksed, nvar  ! number of variable
+       INTEGER , INTENT(in) ::  nvar  ! number of variable
 
-       REAL(wp), DIMENSION(jpoce,nksed), INTENT(in   ) :: preac  ! reaction rates
-       REAL(wp), DIMENSION(jpoce,nksed), INTENT(in   ) :: psms  ! reaction rates
-       REAL(wp), DIMENSION(jpoce,nksed), INTENT(inout) :: psol  ! reaction rates
+       REAL(wp), DIMENSION(jpoce,jpksed), INTENT(in   ) :: preac  ! reaction rates
+       REAL(wp), DIMENSION(jpoce,jpksed), INTENT(in   ) :: psms  ! reaction rates
+       REAL(wp), DIMENSION(jpoce,jpksed), INTENT(inout) :: psol  ! reaction rates
        REAL(wp), INTENT(in) ::  dtsed_in
 
        !---Local declarations
        INTEGER  ::  ji, jk, jn
-       REAL(wp), DIMENSION(jpoce,nksed) :: za, zb, zc, zr
+       REAL(wp), DIMENSION(jpoce,jpksed) :: za, zb, zc, zr
        REAL(wp), DIMENSION(jpoce)        :: zbet
-       REAL(wp), DIMENSION(jpoce,nksed) :: zgamm
+       REAL(wp), DIMENSION(jpoce,jpksed) :: zgamm
 
        REAL(wp) ::  rplus,rminus
        !----------------------------------------------------------------------
@@ -622,9 +671,15 @@ MODULE sedmat
           za(ji,1) = 0.
           zb(ji,1) = 1. + rplus
           zc(ji,1) = -rplus
+
+          rminus  = dtsed_in * aminuss(ji,jpksed) * diff(ji,jpksed-1,jn) * radssol(jpksed,jn)
+          !
+          za(ji,jpksed) = -rminus
+          zb(ji,jpksed) = 1. + rminus
+          zc(ji,jpksed) = 0.
        ENDDO
 
-       DO jk = 2, nksed - 1
+       DO jk = 2, jpksed - 1
           DO ji = 1, jpoce
              rminus  = dtsed_in * aminuss(ji,jk) * diff(ji,jk-1,jn) * radssol(jk,jn)
              rplus   = dtsed_in * apluss (ji,jk) * diff(ji,jk,jn) * radssol(jk,jn)
@@ -635,25 +690,16 @@ MODULE sedmat
           END DO
        END DO
 
-       DO ji = 1, jpoce
-          rminus  = dtsed_in * aminuss(ji,nksed) * diff(ji,nksed-1,jn) * radssol(nksed,jn)
-          !
-          za(ji,nksed) = -rminus
-          zb(ji,nksed) = 1. + rminus
-          zc(ji,nksed) = 0.
-       END DO
-
-
        ! solves tridiagonal system of linear equations 
        ! -----------------------------------------------
-
-       zr  (:,:) = psol(:,:) + psms(:,:) * dtsed_in
-       zb  (:,:) = zb(:,:) - preac(:,:) * dtsed_in
-       zbet(:  ) = zb(:,1)
-       psol(:,1) = zr(:,1) / zbet(:)
-
+       DO ji = 1, jpoce
+          zr  (ji,:) = psol(ji,:) + (psms(ji,:) + irrig(ji,:) * psol(ji,1) ) * dtsed_in
+          zb  (ji,:) = zb(ji,:) - (preac(ji,:) - irrig(ji,:) ) * dtsed_in
+          zbet(ji  ) = zb(ji,1)
+          psol(ji,1) = zr(ji,1) / zbet(ji)
+       END DO
           ! 
-       DO jk = 2, nksed
+       DO jk = 2, jpksed
           DO ji = 1, jpoce
              zgamm(ji,jk) =  zc(ji,jk-1) / zbet(ji)
              zbet(ji)     =  zb(ji,jk) - za(ji,jk) * zgamm(ji,jk)
@@ -661,16 +707,128 @@ MODULE sedmat
           END DO
        ENDDO
           ! 
-       DO jk = nksed - 1, 1, -1
+       DO jk = jpksed - 1, 1, -1
           DO ji = 1, jpoce
              psol(ji,jk) = psol(ji,jk) - zgamm(ji,jk+1) * psol(ji,jk+1)
           END DO
        ENDDO
 
+       DO jk = 2, jpksed
+          DO ji = 1, jpoce
+             xirrigtrd(ji,jn) = xirrigtrd(ji,jn) - irrig(ji,jk) * (psol(ji,1) - psol(ji,jk) ) * volw3d(ji,jk) * dtsed_in
+          END DO
+       END DO  
+
        IF( ln_timing )  CALL timing_stop('sed_mat_dsri')
 
-
     END SUBROUTINE sed_mat_dsri
+
+    SUBROUTINE sed_mat_dsre( nvar, preac, psms, dtsed_in, psol )
+       !!---------------------------------------------------------------------
+       !!                  ***  ROUTINE sed_mat_dsre  ***
+       !!
+       !! ** Purpose :  Computes diffusion of solute species
+       !!
+       !! ** Method  : 
+       !!        1 - A BDF3 (3rd order) implicit scheme is used
+       !!
+       !!   History :
+       !!----------------------------------------------------------------------
+       !! * Arguments
+       INTEGER , INTENT(in) ::  nvar  ! number of variable
+
+       REAL(wp), DIMENSION(jpoce,jpksed), INTENT(in   ) :: preac  ! reaction rates
+       REAL(wp), DIMENSION(jpoce,jpksed), INTENT(in   ) :: psms  ! reaction rates
+       REAL(wp), DIMENSION(jpoce,jpksed), INTENT(inout) :: psol  ! reaction rates
+       REAL(wp), INTENT(in) ::  dtsed_in
+
+       !---Local declarations
+       INTEGER  ::  ji, jk, jn
+       REAL(wp), DIMENSION(jpoce,jpksed) :: psol1,psol2
+
+       REAL(wp) ::  zirrigt
+       !----------------------------------------------------------------------
+
+       IF( ln_timing )  CALL timing_start('sed_mat_dsre')
+
+       jn = nvar
+
+       ! First step of BDF3
+       psol1(:,:) = psol(:,:)
+       CALL sed_mat_dsri( jn, preac(:,:), psms(:,:), dtsed_in/3., psol1(:,:) )
+
+       DO jk = 2, jpksed
+          DO ji = 1, jpoce
+             xirrigtrd(ji,jn) = xirrigtrd(ji,jn) - irrig(ji,jk) * (psol1(ji,1) - psol1(ji,jk) ) * volw3d(ji,jk) * 5.0 * dtsed_in / 11.0
+          END DO
+       END DO
+
+       ! Second step of BDF3
+       psol2(:,:) = 4./3. * psol1(:,:) - 1./3. * psol(:,:)
+       CALL sed_mat_dsri( jn, preac(:,:), psms(:,:), 2.0*dtsed_in/9., psol2(:,:) )
+
+       DO jk = 2, jpksed
+          DO ji = 1, jpoce
+             xirrigtrd(ji,jn) = xirrigtrd(ji,jn) - irrig(ji,jk) * (psol2(ji,1) - psol2(ji,jk) ) * volw3d(ji,jk) * 4.0 * dtsed_in / 11.0
+          END DO
+       END DO
+
+       ! Third step of BDF3
+       psol(:,:) = 18.0 / 11.0 * psol2(:,:) - 9.0 / 11.0 * psol1(:,:) + 2.0 / 11.0 * psol(:,:)
+       CALL sed_mat_dsri( jn, preac(:,:), psms(:,:), 2.0*dtsed_in/11., psol(:,:) )
+
+       DO jk = 2, jpksed
+          DO ji = 1, jpoce
+             xirrigtrd(ji,jn) = xirrigtrd(ji,jn) - irrig(ji,jk) * (psol(ji,1) - psol(ji,jk) ) * volw3d(ji,jk) * 2.0 * dtsed_in / 11.0
+          END DO
+       END DO
+
+       IF( ln_timing )  CALL timing_stop('sed_mat_dsre')
+
+    END SUBROUTINE sed_mat_dsre
+
+
+    SUBROUTINE sed_mat_btbe( nvar, psol, preac, dtsed_in )
+       !!---------------------------------------------------------------------
+       !!                  ***  ROUTINE sed_mat_btbe  ***
+       !!
+       !! ** Purpose :  Computes bioturbation of solid species
+       !!
+       !! ** Method  : 
+       !!        A BDF3 (3rd order) implicit scheme is used
+       !!
+       !!   History :
+       !!----------------------------------------------------------------------
+       !! * Arguments
+       INTEGER , INTENT(in) ::  nvar  ! number of variable
+
+       REAL(wp), DIMENSION(jpoce,jpksed,nvar), INTENT(in   ) :: preac  ! reaction rates
+       REAL(wp), DIMENSION(jpoce,jpksed,nvar), INTENT(inout) :: psol  ! reaction rates
+       REAL(wp), INTENT(in) ::  dtsed_in
+
+       !---Local declarations
+       INTEGER  ::  ji, jk
+       REAL(wp), DIMENSION(jpoce,jpksed,nvar) :: psol1, psol2
+       !----------------------------------------------------------------------
+
+       IF( ln_timing )  CALL timing_start('sed_mat_btbe')
+
+       ! First step
+       psol1(:,:,:) = psol(:,:,:)
+       CALL sed_mat_btbi( nvar, psol1(:,:,:), preac(:,:,:), dtsed_in/3. )
+
+       ! Second step
+       psol2(:,:,:) = 4./3. * psol1(:,:,:) - 1./3. * psol(:,:,:)
+       CALL sed_mat_btbi( nvar, psol2(:,:,:), preac(:,:,:), 2.0*dtsed_in/9. )
+
+       ! Third step
+       psol(:,:,:) = 18.0 / 11.0 * psol2(:,:,:) - 9.0 / 11.0 * psol1(:,:,:) + 2.0 / 11.0 * psol(:,:,:)
+       CALL sed_mat_btbi( nvar, psol(:,:,:), preac(:,:,:), 2.0*dtsed_in/11. )
+
+
+       IF( ln_timing )  CALL timing_stop('sed_mat_btbe')
+
+    END SUBROUTINE sed_mat_btbe
 
 
  END MODULE sedmat

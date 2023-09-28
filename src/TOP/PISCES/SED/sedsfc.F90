@@ -6,7 +6,6 @@ MODULE sedsfc
    !! * Modules used
    USE sed     ! sediment global variable
    USE sedini
-   USE sedarr
    USE seddta
 
    PUBLIC sed_sfc
@@ -39,15 +38,15 @@ CONTAINS
 
       IF( ln_timing )  CALL timing_start('sed_sfc')
 
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,1), iarroce(1:jpoce), pwcp(1:jpoce,1,jwalk) )
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,2), iarroce(1:jpoce), pwcp(1:jpoce,1,jwdic) )
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,3), iarroce(1:jpoce), pwcp(1:jpoce,1,jwno3) )
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,4), iarroce(1:jpoce), pwcp(1:jpoce,1,jwpo4) )
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,5), iarroce(1:jpoce), pwcp(1:jpoce,1,jwoxy) )
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,6), iarroce(1:jpoce), pwcp(1:jpoce,1,jwsil) )
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,7), iarroce(1:jpoce), pwcp(1:jpoce,1,jwnh4) )
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,8), iarroce(1:jpoce), pwcp(1:jpoce,1,jwfe2) )
-      CALL unpack_arr ( jpoce, trc_data(1:jpi,1:jpj,9), iarroce(1:jpoce), pwcp(1:jpoce,1,jwlgw) )
+      trc_data(:,:,1) = UNPACK( pwcp(:,1,jwalk), sedmask == 1.0, 0.0 )
+      trc_data(:,:,2) = UNPACK( pwcp(:,1,jwdic), sedmask == 1.0, 0.0 )
+      trc_data(:,:,3) = UNPACK( pwcp(:,1,jwno3), sedmask == 1.0, 0.0 )
+      trc_data(:,:,4) = UNPACK( pwcp(:,1,jwpo4), sedmask == 1.0, 0.0 )
+      trc_data(:,:,5) = UNPACK( pwcp(:,1,jwoxy), sedmask == 1.0, 0.0 )
+      trc_data(:,:,6) = UNPACK( pwcp(:,1,jwsil), sedmask == 1.0, 0.0 )
+      trc_data(:,:,7) = UNPACK( pwcp(:,1,jwnh4), sedmask == 1.0, 0.0 )
+      trc_data(:,:,8) = UNPACK( pwcp(:,1,jwfe2), sedmask == 1.0, 0.0 )
+      trc_data(:,:,9) = UNPACK( pwcp(:,1,jwlgw), sedmask == 1.0, 0.0 )
 
       DO_2D( 0, 0, 0, 0 )
          ikt = mbkt(ji,jj)
@@ -55,7 +54,7 @@ CONTAINS
             tr(ji,jj,ikt,jptal,Kbb) = trc_data(ji,jj,1)
             tr(ji,jj,ikt,jpdic,Kbb) = trc_data(ji,jj,2)
             tr(ji,jj,ikt,jpno3,Kbb) = trc_data(ji,jj,3) * redC / redNo3
-            tr(ji,jj,ikt,jppo4,Kbb) = trc_data(ji,jj,4) * redC
+            tr(ji,jj,ikt,jppo4,Kbb) = trc_data(ji,jj,4) * redC / redPo4
             tr(ji,jj,ikt,jpoxy,Kbb) = trc_data(ji,jj,5)
             tr(ji,jj,ikt,jpsil,Kbb) = trc_data(ji,jj,6)
             tr(ji,jj,ikt,jpnh4,Kbb) = trc_data(ji,jj,7) * redC / redNo3

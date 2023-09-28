@@ -10,7 +10,7 @@ MODULE sedini
    !! * Modules used
    USE sed     ! sediment global variable
    USE sed_oce
-   USE sedarr
+   USE sedmat
    USE sedadv
    USE trcdmp_sed
    USE trcdta
@@ -22,7 +22,6 @@ MODULE sedini
    PRIVATE
 
    !! Module variables
-   REAL(wp), PUBLIC :: sedmask 
 
    REAL(wp)    ::  &
       sedzmin = 0.3    ,  &  !: Minimum vertical spacing
@@ -44,9 +43,12 @@ MODULE sedini
       redPo4   =    1.  ,  &  !: Redfield coef for Phosphate
       redC     =  117.  ,  &  !: Redfield coef for Carbon
       redfep   =  0.175 ,  &  !: Ratio for iron bound phosphorus
-      rcorgl   =   50.  ,  &  !: reactivity for POC/O2 [l.mol-1.an-1]    
-      rcorgs   =   0.5  ,  &  !: reactivity of the semi-labile component
-      rcorgr   =   1E-4 ,  &  !: reactivity of the refractory component
+      rcorg1   =   50.  ,  &  !: reactivity for POC/O2 [l.mol-1.an-1]    
+      rcorg2   =   50.  ,  &  !: reactivity for POC/O2 [l.mol-1.an-1]    
+      rcorg3   =   50.  ,  &  !: reactivity for POC/O2 [l.mol-1.an-1]    
+      rcorg4   =   50.  ,  &  !: reactivity for POC/O2 [l.mol-1.an-1]    
+      rcorg5   =   50.  ,  &  !: reactivity for POC/O2 [l.mol-1.an-1]    
+      rcorg6   =   50.  ,  &  !: reactivity for POC/O2 [l.mol-1.an-1]    
       rcnh4    =   10E6 ,  &  !: reactivity for O2/NH4 [l.mol-1.an-1]  
       rch2s    =   1.E5 ,  &  !: reactivity for O2/ODU [l.mol-1.an-1] 
       rcfe2    =   5.E8 ,  &  !: reactivity for O2/Fe2+ [l.mol-1.an-1]
@@ -54,6 +56,7 @@ MODULE sedini
       rcfeso   =   3.E5 ,  &  !: Reactivity for FES/O2 [l.mol-1.an-1]
       rcfesp   =   5E-6 ,  &  !: Precipitation of FeS [mol/l-1.an-1]
       rcfesd   =   1E-3 ,  &  !: Dissolution of FeS [an-1]
+      rcapat   =   0.35 ,  &  !: Apatite formation [an-1]
       xksedo2  =   5E-6 ,  &  !: half-sturation constant for oxic remin.
       xksedno3 =   5E-6 ,  &  !: half-saturation constant for denitrification
       xksedfeo =   0.6  ,  & !: half-saturation constant for iron remin
@@ -66,15 +69,15 @@ MODULE sedini
    REAL(wp), PUBLIC    ::  dbiot   = 15. , &  !: coefficient for bioturbation    [cm**2.(n-1)]
       dbtbzsc =  10.0  ,    &  !: Vertical scale of variation. If no variation, mixed layer in the sed [cm]
       xirrzsc = 2.0            !: Vertical scale of irrigation variation.
-   REAL(wp)    ::  &
+   REAL(wp), PUBLIC    ::  &
       ryear = 365. * 24. * 3600. !:  1 year converted in second
 
    REAL(wp), DIMENSION(jpwat), PUBLIC  :: diff1
-   DATA diff1/ 1.104E-5, 9.78E-6, 3.58E-6, 9.8E-6, 9.73E-6, 5.0E-6, 3.31E-6, 4.81E-6, 4.81E-6, 4.81E-6, 4.59E-6 /
+   DATA diff1/ 1.0007E-5, 9.7866E-6, 3.1022E-6, 9.8066E-6, 9.1762E-6, 5.0035E-6, 3.412E-6, 4.8132E-6, 4.8132E-6, 4.8132E-6, 4.59E-6 /
 
 
    REAL(wp), DIMENSION(jpwat), PUBLIC  :: diff2
-   DATA diff2/ 4.47E-7, 3.89E-7, 1.77E-7, 3.89E-7, 3.06E-7, 2.5E-7, 1.5E-7, 2.51E-7, 2.51E-7, 2.51E-7, 1.74E-7 /
+   DATA diff2/ 4.528E-7, 3.656E-7, 1.627E-7, 3.884E-7, 4.177E-7, 2.258E-7, 1.477E-7, 2.521E-7, 2.521E-7, 2.521E-7, 1.74E-7 /
 
    !! *  Routine accessibility
    PUBLIC sed_ini          ! routine called by opa.F90
@@ -104,7 +107,7 @@ CONTAINS
       !!        !  06-07  (C. Ethe)  Re-organization
       !!----------------------------------------------------------------------
       INTEGER  :: ji, jj, js, jn, jk, ikt, ierr
-      REAL(wp) :: ztmp1, ztmp2 
+      REAL(wp) :: ztmp1, ztmp2 , zfact
       !!----------------------------------------------------------------------
 
       ! Reading namelist.sed variables
@@ -142,30 +145,28 @@ CONTAINS
          gdepbot(ji,jj) = gdepw_0(ji,jj,ikt+1)
       END_2D
 
+      trc_data(:,:,:) = 0.0
+
       ! computation of total number of ocean points
       !--------------------------------------------
-      sedmask = 0.
-      IF ( COUNT( epkbot(:,:) > 0. ) == 0 ) THEN 
-          sedmask = 0.
-      ELSE
-          sedmask = 1.
-      ENDIF 
       jpoce  = MAX( COUNT( epkbot(:,:) > 0. ) , 1 )
 
       ! Allocate memory size of global variables
       ALLOCATE( pwcp (jpoce,jpksed,jpwat) )  ;  ALLOCATE( pwcp_dta  (jpoce,jpwat) )
       ALLOCATE( pwcpa(jpoce,jpksed,jpwat) )  ;  ALLOCATE( solcpa(jpoce,jpksed,jpsol) )
-      ALLOCATE( solcp(jpoce,jpksed,jpsol) )  ;  ALLOCATE( rainrm_dta(jpoce,jpsol) )
-      ALLOCATE( rainrg(jpoce,jpsol) )
-      ALLOCATE( dzdep(jpoce) )               ;  ALLOCATE( iarroce(jpoce) )             ;  ALLOCATE( dzkbot(jpoce) )
+      ALLOCATE( pwcpaa(jpoce,jpksed,jpwat) )
+      ALLOCATE( solcp(jpoce,jpksed,jpsol) )
+      ALLOCATE( rainrg(jpoce,jpsol) )        ;  ALLOCATE( xirrigtrd(jpoce,jpwat) )
+      ALLOCATE( xirrigtrdtmp(jpoce,jpwat) )
+      ALLOCATE( dzdep(jpoce) )
       ALLOCATE( slatit(jpoce) )              ;  ALLOCATE( slongit(jpoce) )
       ALLOCATE( zkbot(jpoce) )               ;  ALLOCATE( db(jpoce,jpksed) )
       ALLOCATE( temp(jpoce) )                ;  ALLOCATE( salt(jpoce) )  
       ALLOCATE( diff(jpoce,jpksed,jpwat ) )  ;  ALLOCATE( irrig(jpoce, jpksed) )
       ALLOCATE( wacc(jpoce) )                ;  ALLOCATE( fecratio(jpoce) )
-      ALLOCATE( densSW(jpoce) )   ;   ALLOCATE( saturco3(jpoce,jpksed) ) 
+      ALLOCATE( densSW(jpoce) )              ;  ALLOCATE( saturco3(jpoce,jpksed) ) 
       ALLOCATE( hipor(jpoce,jpksed) )        ;  ALLOCATE( co3por(jpoce,jpksed) )
-      ALLOCATE( dz3d(jpoce,jpksed) )         ;  ALLOCATE( volw3d(jpoce,jpksed) )       ;  ALLOCATE( vols3d(jpoce,jpksed) )
+      ALLOCATE( volw3d(jpoce,jpksed) )       ;  ALLOCATE( vols3d(jpoce,jpksed) )
       ALLOCATE( rearatpom(jpoce, jpksed) )   ;  ALLOCATE( volc(jpoce,jpksed,jpsol) )
       ALLOCATE( radssol(jpksed, jpwat) )     ;  ALLOCATE( rads1sol(jpksed, jpwat) )
       ALLOCATE( apluss(jpoce, jpksed) )      ;  ALLOCATE( aminuss(jpoce,jpksed) )
@@ -173,14 +174,14 @@ CONTAINS
       ! Initialization of global variables
       pwcp  (:,:,:) = 0.   ;  pwcp_dta  (:,:) = 0.  
       pwcpa (:,:,:) = 0.   ;  solcpa(:,:,:) = 0.
-      solcp (:,:,:) = 0.   ;  rainrm_dta(:,:) = 0.
+      solcp (:,:,:) = 0.
       rainrg(:,:  ) = 0.
-      dzdep (:    ) = 0.   ;  iarroce(:   ) = 0   ; dzkbot    (:  ) = 0.
+      dzdep (:    ) = 0.   ;  dzkbot (:   ) = 0.
       temp  (:    ) = 0.   ;  salt   (:   ) = 0.  ; zkbot     (:  ) = 0.
-      densSW (:   ) = 0.   ;  db     (:,:) = 0. 
+      densSW (:   ) = 0.   ;  db     (:,:)  = 0. 
       hipor (:,:  ) = 0.   ;  co3por (:,: ) = 0.  ; irrig     (:,:) = 0. 
-      dz3d  (:,:  ) = 0.   ;  volw3d (:,: ) = 0.  ; vols3d    (:,:) = 0. 
-      fecratio(:)   = 1E-5 ;  rearatpom(:,:) = 0. 
+      volw3d (:,: ) = 0.   ;  vols3d  (:,:) = 0. 
+      fecratio(:)   = 1E-5 ;  rearatpom(:,:)= 0. 
       radssol(:,:)  = 1.0  ;  rads1sol(:,:) = 0.
       apluss(:,:)   = 0.0  ;  aminuss(:,:)  = 0.0
 
@@ -191,26 +192,25 @@ CONTAINS
       ALLOCATE( borats(jpoce) )  ;  ALLOCATE( calcon2(jpoce) )  ;  ALLOCATE( sieqs (jpoce) ) 
       ALLOCATE( aks3s(jpoce) )   ;  ALLOCATE( akf3s(jpoce) )    ;  ALLOCATE( sulfats(jpoce) )
       ALLOCATE( fluorids(jpoce) ) ; ALLOCATE( akh2s(jpoce) )    ;  ALLOCATE( aknh3(jpoce) )
+      ALLOCATE( co3sat(jpoce) )
 
       akbs  (:) = 0. ;   ak1s   (:) = 0. ;  ak2s  (:) = 0. ;   akws   (:) = 0.
       ak1ps (:) = 0. ;   ak2ps  (:) = 0. ;  ak3ps (:) = 0. ;   aksis  (:) = 0.
       aksps (:) = 0. ;   ak12s  (:) = 0. ;  ak12ps(:) = 0. ;   ak123ps(:) = 0.
       borats(:) = 0. ;   calcon2(:) = 0. ;  sieqs (:) = 0. ;   akh2s  (:) = 0.
       aks3s(:)  = 0. ;   akf3s(:)   = 0. ;  sulfats(:) = 0. ;  fluorids(:) = 0.
-      aknh3(:)  = 0.
+      aknh3(:)  = 0. ;   co3sat(:)  = 0.
 
       ! Mass balance calculation  
       ALLOCATE( fromsed(jpoce, jpsol+jpads) ) ; ALLOCATE( tosed(jpoce, jpsol+jpads) )
+      ALLOCATE( burial(jpoce, jpsol) )
 
       fromsed(:,:) = 0.    ;   tosed(:,:) = 0.
+      burial(:,:) = 0.0
 
       ! Initialization of sediment geometry
       !------------------------------------
       CALL sed_ini_geom
-
-      ! Offline specific mode
-      ! ---------------------
-      ln_sediment_offline = .FALSE.
 
       !---------------------------------------------
       ! Molecular weight [g/mol] for solid species
@@ -237,9 +237,7 @@ CONTAINS
       ! But den sity of Poc is an Hydrated material (= POC + 30H2O)
       ! So C(122)H(355)O(120)N(16)P(1)
       !------------------------------------------------------------
-      mol_wgt(jspoc) = ( redC * 12. + 355. + 120. * 16. + redNo3 * 14. + 31. ) / redC
-      mol_wgt(jspos) = mol_wgt(jspoc)
-      mol_wgt(jspor) = mol_wgt(jspoc)
+      mol_wgt(jspoc1:jspoc6) = ( redC * 12. + 355. + 120. * 16. + redNo3 * 14. + 31. ) / redC
 
       ! CaCO3
       !---------
@@ -253,25 +251,40 @@ CONTAINS
       dens_sol(jsopal) = 2.1 
       dens_sol(jsfeo)  = 3.4
       dens_sol(jsfes)  = 4.8
-      dens_sol(jspoc)  = 1.0
-      dens_sol(jspos)  = 1.0
-      dens_sol(jspor)  = 1.0
+      dens_sol(jspoc1:jspoc6) = 1.0
 
       ! Accumulation rate from Burwicz et al. (2011). This is used to
       ! compute the flux of clays and minerals
       ! --------------------------------------------------------------
       DO ji = 1, jpoce
-          ztmp1 = 0.0117 * 3.0 / ( 1.0 + ( zkbot(ji) / 200.)**3 )
-          ztmp2 = 0.006 / ( 1.0 + ( zkbot(ji) / 5000.)**10 )
+          ztmp1 = 0.1 / ( 1.0 + ( zkbot(ji) / 200.)**3.3 )
+          ztmp2 = 0.001 / ( 1.0 + ( MIN(zkbot(ji), 4500.) / 4500.)**11.4 )
           wacc(ji) = ztmp2+ztmp1
       END DO
 
       ! Vertical profile of of the adsorption factor for adsorbed species
       ! -----------------------------------------------------------------
-      radssol(:,jwfe2) = 1.0 / ( 1.0 + adsfe2 * por1(:) / por(:) )
-      radssol(:,jwnh4) = 1.0 / ( 1.0 + adsnh4 * por1(:) / por(:) )
-      rads1sol(:,jwnh4) = adsnh4 * por1(:) / ( por(:) + adsnh4 * por1(:) )
-      rads1sol(:,jwfe2) = adsfe2 * por1(:) / ( por(:) + adsfe2 * por1(:) )
+      DO jk = 1, jpksed
+         radssol(jk,jwfe2)  = 1.0 / ( 1.0 + adsfe2 * por1(jk) / por(jk) )
+         radssol(jk,jwnh4)  = 1.0 / ( 1.0 + adsnh4 * por1(jk) / por(jk) )
+         rads1sol(jk,jwnh4) = adsnh4 * por1(jk)
+         rads1sol(jk,jwfe2) = adsfe2 * por1(jk)
+      END DO
+
+      ! ---------------------------
+      ! Conversion of volume units
+      !----------------------------
+      DO jn = 1, jpsol
+         zfact = 1.0 / ( mol_wgt(jn) * 1.E-3 )
+         DO jk = 1, jpksed
+            DO ji = 1, jpoce
+               volc(ji,jk,jn) =  vols3d(ji,jk) * zfact  / volw3d(ji,jk)
+            END DO
+         END DO
+      END DO
+
+      ! Compute coefficients commonly used in diffusion
+      CALL sed_mat_coef
 
       ! Initialization of the array for non linear solving
       ! --------------------------------------------------
@@ -281,6 +294,7 @@ CONTAINS
       jsvode(1) = jwoxy ; jsvode(2) = jwno3 ; jsvode(3) = jwnh4
       jsvode(4) = jwh2s ; jsvode(5) = jwso4 ; jsvode(6) = jwfe2
       jsvode(7) = jpwat+jsfeo ; jsvode(8) = jpwat+jsfes
+      isvode(:) = 0
       isvode(jwoxy) = 1 ; isvode(jwno3) = 2 ; isvode(jwnh4) = 3
       isvode(jwh2s) = 4 ; isvode(jwso4) = 5 ; isvode(jwfe2) = 6
       isvode(jpwat+jsfeo) = 7 ; isvode(jpwat+jsfes) = 8
@@ -293,20 +307,6 @@ CONTAINS
       END DO
 
       ALLOCATE( rstepros(jpoce) )
-
-#if defined key_sed_off
-      ln_sediment_offline = .TRUE.
-      IF (lwp) write(numsed,*) 'Sediment module is run in offline mode'
-      IF (lwp) write(numsed,*) 'key_sed_off is activated at compilation time'
-      IF (lwp) write(numsed,*) 'ln_sed_2way is forced to false'
-      IF (lwp) write(numsed,*) '--------------------------------------------'
-      ln_sed_2way = .FALSE.
-#endif
-      ! Initialisation of tracer damping
-      ! --------------------------------
-      IF (ln_sediment_offline) THEN
-         CALL trc_dmp_sed_ini
-      ENDIF
 
    END SUBROUTINE sed_ini
 
@@ -327,45 +327,31 @@ CONTAINS
       !! * local declarations
       INTEGER  :: ji, jj, jk, jn
       REAL(wp) :: za0, za1, zt, zw, zsum, zsur, zprof, zprofw
-      REAL(wp) :: ztmp1, ztmp2
+      REAL(wp) :: zfact
       !---------------------------------------------------------- 
 
       IF(lwp) WRITE(numsed,*) ' sed_ini_geom : Initialization of sediment geometry '
       IF(lwp) WRITE(numsed,*) ' '
 
       ! Computation of 1D array of sediments points
-      indoce = 0
+      sedmask(:,:) = 0.0
       DO_2D( 0, 0, 0, 0 )
          IF (  epkbot(ji,jj) > 0. ) THEN
-            indoce          = indoce + 1
-            iarroce(indoce) = (jj - 1) * jpi + ji
+            sedmask(ji,jj) = 1.0
          ENDIF
       END_2D
 
-      IF ( indoce .EQ. 0 ) THEN
-         indoce = 1
-         iarroce(indoce) = 1
-      ENDIF
-
-      IF( indoce .NE. jpoce ) THEN
-         CALL ctl_stop( 'STOP', 'sed_ini: number of ocean points indoce doesn''t match  number of point' )
-      ELSE
-         IF (lwp) WRITE(numsed,*) ' '
-         IF (lwp) WRITE(numsed,*) ' total number of ocean points jpoce =  ',jpoce
-         IF (lwp) WRITE(numsed,*) ' '
-      ENDIF
+      IF (lwp) WRITE(numsed,*) ' '
+      IF (lwp) WRITE(numsed,*) ' total number of ocean points jpoce =  ',jpoce
+      IF (lwp) WRITE(numsed,*) ' '
 
       ! initialization of dzkbot in [cm]
       !------------------------------------------------    
-      CALL pack_arr ( jpoce, dzkbot(1:jpoce), epkbot(1:jpi,1:jpj), iarroce(1:jpoce) )
-#if defined key_sed_off
-      dzkbot(1:jpoce) = 1.E8
-#else
-      dzkbot(1:jpoce) = dzkbot(1:jpoce) * 1.e+2 
-#endif
-      CALL pack_arr ( jpoce, zkbot(1:jpoce), gdepbot(1:jpi,1:jpj), iarroce(1:jpoce) )
-      CALL pack_arr ( jpoce, slatit(1:jpoce), gphit(1:jpi,1:jpj), iarroce(1:jpoce) )
-      CALL pack_arr ( jpoce, slongit(1:jpoce), glamt(1:jpi,1:jpj), iarroce(1:jpoce) )
+      dzkbot = PACK( epkbot, sedmask == 1.0 )
+      dzkbot(1:jpoce) = dzkbot(1:jpoce) * 1.e+2
+      zkbot   = PACK( gdepbot, sedmask == 1.0 )
+      slatit  = PACK( gphit, sedmask == 1.0 )
+      slongit = PACK( glamt, sedmask == 1.0 )
 
       ! Geometry and  constants 
       ! sediment layer thickness [cm]
@@ -377,7 +363,7 @@ CONTAINS
       za0  = sedzmin - za1 * TANH( (1-sedkth) / sedacr )
       zsur = - za0 - za1 * sedacr * LOG( COSH( (1-sedkth) / sedacr )  )
 
-      dz(1)       = 0.1
+      dz(1)       = 0.2
       profsedw(1) = 0.0
       profsed(1)  = -dz(1) / 2.
       DO jk = 2, jpksed
@@ -388,37 +374,27 @@ CONTAINS
          dz(jk) = profsedw(jk) - profsedw(jk-1)
       END DO
 
-      DO ji = 1, jpoce
-         dz3d(ji,:) = dz(:)
-      END DO
-
       !  Porosity profile [0]
       !---------------------
       por(1) = 1.0
+      xtortuosity(1) = 1.0
       DO jk = 2, jpksed
          por(jk) = porinf + ( porsurf-porinf) * exp(-rhox * profsed(jk) )
+         xtortuosity(jk) = 1.0 / ( 1.0 - 2.0 * log(por(jk) ) )
       END DO
  
       ! inverse of  Porosity profile
       !-----------------------------
       por1(:) = 1. - por(:)
 
-      ! Volumes of pore water and solid fractions (vector and array)
-      !     WARNING : volw(1) and vols(1) are sublayer volums
-      volw(:) = dz(:) * por(:)
-      vols(:) = dz(:) * por1(:)
-
-      ! temporary new value for dz3d(:,1) 
-      dz3d(1:jpoce,1) = dzkbot(1:jpoce)
-
       ! WARNING : volw3d(:,1) and vols3d(:,1) are deepest water column volums
-      DO jk = 1, jpksed
-         volw3d(1:jpoce,jk) = dz3d(1:jpoce,jk) * por (jk)
-         vols3d(1:jpoce,jk) = dz3d(1:jpoce,jk) * por1(jk)
+      vols(1:jpksed)    = dz(1:jpksed) * por1(1:jpksed)
+      volw3d(1:jpoce,1) = dzkbot(1:jpoce) * por(1)
+      vols3d(1:jpoce,1) = dzkbot(1:jpoce) * por1(1)
+      DO jk = 2, jpksed
+         volw3d(1:jpoce,jk) = dz(jk) * por (jk)
+         vols3d(1:jpoce,jk) = dz(jk) * por1(jk)
       ENDDO
-
-      ! Back to the old sublayer vlaue for dz3d(:,1)
-      dz3d(1:jpoce,1) = dz(1)
 
    END SUBROUTINE sed_ini_geom
 
@@ -446,19 +422,19 @@ CONTAINS
 
       TYPE(PSED) , DIMENSION(jpsol     ) :: sedsol
       TYPE(PSED) , DIMENSION(jpwat     ) :: sedwat
-      TYPE(PSED) , DIMENSION(jpdia3dsed) :: seddiag3d
       TYPE(PSED) , DIMENSION(jpdia2dsed) :: seddiag2d
 
-      NAMELIST/nam_run/ln_sed_2way,nrosorder,rosatol,rosrtol
+      NAMELIST/nam_run/ln_sed_2way,nrosorder, rosatol, rosrtol
       NAMELIST/nam_geom/jpksed, sedzmin, sedhmax, sedkth, sedacr, porsurf, porinf, rhox
       NAMELIST/nam_trased/sedsol, sedwat
-      NAMELIST/nam_diased/seddiag3d, seddiag2d
+      NAMELIST/nam_diased/seddiag2d
       NAMELIST/nam_inorg/rcopal, rccal, ratligc, rcligc
-      NAMELIST/nam_poc/redO2, redNo3, redPo4, redC, redfep, rcorgl, rcorgs,  &
-         &             rcorgr, rcnh4, rch2s, rcfe2, rcfeh2s, rcfeso, rcfesp, &
-         &             rcfesd, xksedo2, xksedno3, xksedfeo, xksedso4
+      NAMELIST/nam_poc/redO2, redNo3, redPo4, redC, redfep, rcorg1,   &
+         &             rcorg2, rcorg3, rcorg4, rcorg5, rcorg6,  &
+         &             rcnh4, rch2s, rcfe2, rcfeh2s, rcfeso, rcfesp, &
+         &             rcfesd, rcapat, xksedo2, xksedno3, xksedfeo, xksedso4
       NAMELIST/nam_btb/dbiot, ln_btbz, dbtbzsc, adsnh4, adsfe2, ln_irrig, xirrzsc
-      NAMELIST/nam_rst/ln_rst_sed, cn_sedrst_indir, cn_sedrst_outdir, cn_sedrst_in, cn_sedrst_out
+      NAMELIST/nam_rst/ln_rst_sed, nn_rstsed, cn_sedrst_indir, cn_sedrst_outdir, cn_sedrst_in, cn_sedrst_out
 
       INTEGER :: ji, jn, jn1
       !-------------------------------------------------------
@@ -484,6 +460,7 @@ CONTAINS
 
       nitsed000 = nittrc000
       nitsedend = nitend
+
       ! Namelist nam_run
       REWIND( numnamsed_ref )              ! Namelist nam_run in reference namelist : Pisces variables
       READ  ( numnamsed_ref, nam_run, IOSTAT = ios, ERR = 901)
@@ -522,9 +499,6 @@ CONTAINS
          WRITE(numsed,*) ' Sediment porosity at infinite depth  porinf  = ', porinf
          WRITE(numsed,*) ' Length scale of porosity variation   rhox    = ', rhox
       ENDIF
-
-      jpksedm1  = jpksed - 1
-      dtsed = rDt_trc
 
       REWIND( numnamsed_ref )              ! Namelist nam_trased in reference namelist : Pisces variables
       READ  ( numnamsed_ref, nam_trased, IOSTAT = ios, ERR = 905)
@@ -566,12 +540,6 @@ CONTAINS
       REWIND( numnamsed_cfg )              ! Namelist nam_diased in reference namelist : Pisces variables
       READ  ( numnamsed_cfg, nam_diased, IOSTAT = ios, ERR = 908)
 908   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_diased in configuration namelist' )
-      
-      DO jn = 1, jpdia3dsed
-         seddia3d(jn) = seddiag3d(jn)%snamesed
-         seddia3l(jn) = seddiag3d(jn)%lnamesed
-         seddia3u(jn) = seddiag3d(jn)%unitsed
-      END DO
 
       DO jn = 1, jpdia2dsed
          seddia2d(jn) = seddiag2d(jn)%snamesed
@@ -582,12 +550,6 @@ CONTAINS
       IF (lwp) THEN
          WRITE(numsed,*) ' namelist nam_diased'
          WRITE(numsed,*) ' '
-         DO jn = 1, jpdia3dsed
-            WRITE(numsed,*) 'name of 3D output diag number :',jn, ' : ', TRIM(seddia3d(jn))
-            WRITE(numsed,*) 'long name ', TRIM(seddia3l(jn))
-            WRITE(numsed,*) ' in unit = ',TRIM(seddia3u(jn))
-            WRITE(numsed,*) ' '
-         END DO
 
          DO jn = 1, jpdia2dsed
             WRITE(numsed,*) 'name of 2D output diag number :',jn, ' : ', TRIM(seddia2d(jn))
@@ -641,9 +603,12 @@ CONTAINS
          WRITE(numsed,*) ' Redfield coef for po4            redPo4   = ', redPo4
          WRITE(numsed,*) ' Redfield coef for carbon         redC     = ', redC
          WRITE(numsed,*) ' Ration for iron bound P          redfep   = ', redfep
-         WRITE(numsed,*) ' reactivity for labile POC        rcorgl   = ', rcorgl
-         WRITE(numsed,*) ' reactivity for semi-refract. POC rcorgs   = ', rcorgs
-         WRITE(numsed,*) ' reactivity for refractory POC    rcorgr   = ', rcorgr
+         WRITE(numsed,*) ' reactivity for labile POC        rcorg1   = ', rcorg1
+         WRITE(numsed,*) ' reactivity for labile POC        rcorg2   = ', rcorg2
+         WRITE(numsed,*) ' reactivity for labile POC        rcorg3   = ', rcorg3
+         WRITE(numsed,*) ' reactivity for labile POC        rcorg4   = ', rcorg4
+         WRITE(numsed,*) ' reactivity for labile POC        rcorg5   = ', rcorg5
+         WRITE(numsed,*) ' reactivity for labile POC        rcorg6   = ', rcorg6
          WRITE(numsed,*) ' reactivity for NH4               rcnh4    = ', rcnh4
          WRITE(numsed,*) ' reactivity for H2S               rch2s    = ', rch2s
          WRITE(numsed,*) ' reactivity for Fe2+              rcfe2    = ', rcfe2
@@ -651,6 +616,7 @@ CONTAINS
          WRITE(numsed,*) ' reactivity for FeS/O2            rcfeso   = ', rcfeso
          WRITE(numsed,*) ' Precipitation of FeS             rcfesp   = ', rcfesp
          WRITE(numsed,*) ' Dissolution of FeS               rcfesd   = ', rcfesd
+         WRITE(numsed,*) ' Apatite formation rate           rcapat   = ', rcapat
          WRITE(numsed,*) ' Half-sat. cste for oxic remin    xksedo2  = ', xksedo2
          WRITE(numsed,*) ' Half-sat. cste for denit.        xksedno3 = ', xksedno3
          WRITE(numsed,*) ' Half-sat. cste for iron remin    xksedfeo = ', xksedfeo
@@ -664,9 +630,12 @@ CONTAINS
       spo4r  = redPo4   / redC
       srDnit = ( (redO2 + 32. ) * 0.8 - redNo3 - redNo3 * 0.6 ) / redC
       ! reactivity rc in  [l.mol-1.s-1]
-      reac_pocl  = rcorgl / ryear
-      reac_pocs  = rcorgs / ryear
-      reac_pocr  = rcorgr / ryear
+      reac_poc1  = rcorg1 / ryear
+      reac_poc2  = rcorg2 / ryear
+      reac_poc3  = rcorg3 / ryear
+      reac_poc4  = rcorg4 / ryear
+      reac_poc5  = rcorg5 / ryear
+      reac_poc6  = rcorg6 / ryear
       reac_nh4   = rcnh4  / ryear
       reac_h2s   = rch2s  / ryear
       reac_fe2   = rcfe2  / ryear

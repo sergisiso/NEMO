@@ -6,11 +6,9 @@ MODULE sedorg
    !!=====================================================================
    !! * Modules used
    USE sed     ! sediment global variable
-   USE sed_oce
    USE sedini
    USE sedmat
    USE lib_mpp         ! distribued memory computing library
-   USE lib_fortran
 
    IMPLICIT NONE
    PRIVATE
@@ -44,6 +42,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !! Arguments
       INTEGER, INTENT(in)  :: kt   ! time step
+      INTEGER :: ji, jk
       ! --- local variables
       REAL(wp), DIMENSION(jpoce, jpksed) :: psms, preac
       !!
@@ -56,19 +55,21 @@ CONTAINS
          IF (lwp) WRITE(numsed,*) ' '
       ENDIF
 !
-      ! DIC in pore water
       preac(:,:) = 0.0_wp
-      psms (:,:) = rearatpom(:,:)
-      CALL sed_mat_dsri( jpksed, jwdic, preac, psms, dtsed, pwcp(:,:,jwdic) )
-      
-      ! Silicate in pore water
-      psms (:,:) = 0.0_wp
-      CALL sed_mat_dsri( jpksed, jwsil, preac, psms, dtsed, pwcp(:,:,jwsil) )
+      DO jk = 2, jpksed
+         DO ji = 1, jpoce
+            pwcpaa(ji,jk,jwpo4) = pwcpaa(ji,jk,jwpo4) - rcapat / ryear * MAX(0.0, pwcp(ji,jk,jwpo4) - 3.7E-6 )
+         END DO
+      END DO
+      ! PO4 in pore water
+      CALL sed_mat_dsre( jwpo4, preac, pwcpaa(:,:,jwpo4), dtsed, pwcp(:,:,jwpo4) )
 
       ! Iron ligands in pore water
-      psms (:,:) = ratligc * rearatpom(:,:)
-      preac(:,:) = -reac_ligc
-      CALL sed_mat_dsri( jpksed, jwlgw, preac, psms, dtsed, pwcp(:,:,jwlgw) )
+      psms(:,1) = 0.0
+      psms (:,2:jpksed) = ratligc * rearatpom(:,2:jpksed)
+      preac(:,2:jpksed) = -reac_ligc
+      
+      CALL sed_mat_dsre( jwlgw, preac, psms, dtsed, pwcp(:,:,jwlgw) )
 
       IF( ln_timing )  CALL timing_stop('sed_org')
 !      
