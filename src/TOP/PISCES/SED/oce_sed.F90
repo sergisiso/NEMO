@@ -56,7 +56,7 @@ MODULE oce_sed
    USE p4zche, ONLY     : fluorid   =>   fluorid         !: Chemical constants  
    USE p4zche, ONLY     : sulfat    =>   sulfat          !: Chemical constants  
    USE p4zche, ONLY     : sio3eq    =>   sio3eq          !: Chemical constants  
-   USE p4zbc, ONLY     : dust      =>   dust
-   USE trc  , ONLY : rDt_trc   =>   rDt_trc
+   USE p4zbc, ONLY      : dust      =>   dust
+   USE trc  , ONLY      : rDt_trc   =>   rDt_trc
 
 END MODULE oce_sed

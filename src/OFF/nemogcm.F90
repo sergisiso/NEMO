@@ -133,7 +133,6 @@ CONTAINS
 
          IF( istp /= nit000 )   CALL day        ( istp )         ! Calendar (day was already called at nit000 in day_init)
                                 CALL iom_setkt  ( istp - nit000 + 1, cxios_context )   ! say to iom that we are at time step kstp
-#if ! defined key_sed_off
                                 CALL dta_dyn    ( istp, Nbb, Nnn, Naa )       ! Interpolation of the dynamical fields
          IF( .NOT.ln_linssh ) THEN
                                 CALL dta_dyn_atf( istp, Nbb, Nnn, Naa )       ! time filter of sea  surface height and vertical scale factors
@@ -155,13 +154,6 @@ CONTAINS
          IF( .NOT.ln_linssh )   CALL dta_dyn_sf_interp( istp, Nnn )  ! calculate now grid parameters
 # endif  
 
-#else
-                                CALL dta_dyn_sed( istp,      Nnn      )       ! Interpolation of the dynamical fields
-                                CALL trc_stp    ( istp, Nbb, Nnn, Nrhs, Naa ) ! time-stepping
-         ! Swap time levels
-         Nnn = Nbb
-         Naa = Nbb
-#endif
          CALL stp_ctl    ( istp )             ! Time loop: control and print
          istp = istp + 1
 
@@ -367,11 +359,7 @@ CONTAINS
       !                                      ! Passive tracers
                            CALL trc_nam_run    ! Needed to get restart parameters for passive tracers
                            CALL trc_rst_cal( nit000, 'READ' )   ! calendar
-#if defined key_sed_off
-                           CALL dta_dyn_sed_init(  Nnn      )        ! Initialization for the dynamics
-#else
                            CALL dta_dyn_init( Nbb, Nnn, Naa )        ! Initialization for the dynamics
-#endif
                            CALL     trc_init( Nbb, Nnn, Naa )        ! Passive tracers initialization
                            
       IF(lwp) WRITE(numout,cform_aaa)           ! Flag AAAAAAA

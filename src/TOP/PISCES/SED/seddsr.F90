@@ -18,8 +18,6 @@ MODULE seddsr
 
    !! * Module variables
 
-   REAL(wp), DIMENSION(jpsol), PUBLIC      :: dens_mol_wgt  ! molecular density 
-
    !! $Id: seddsr.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
    
@@ -47,21 +45,17 @@ CONTAINS
       !! Arguments
       ! --- local variables
       INTEGER, DIMENSION(jpoce), INTENT(in) :: accmask
-      INTEGER :: ji, jk, js, jw, jn   ! dummy looop indices
 
-      REAL(wp), DIMENSION(jpoce,jpksed) ::zlimo2, zlimno3, zlimso4, zlimfeo    ! undersaturation ; indice jpwatp1 is for calcite   
-      REAL(wp)  ::  zreasat
+      INTEGER :: ji, jk   ! dummy looop indices
+      REAL(wp)  ::  zreasat, zreasat1, zlimo2, zlimno3, zlimfeo, zlimso4
       !!
       !!----------------------------------------------------------------------
 
       IF( ln_timing )  CALL timing_start('sed_dsr')
 !
-     ! Initializations
-     !----------------------
+      ! Initializations
+      !----------------------
       
-      zlimo2 (:,:)    = 0.    ;   zlimno3(:,:)  = 0.
-      zlimso4(:,:)    = 0.
-  
       !----------------------------------------------------------
       ! 5.  Beginning of solid reaction
       !---------------------------------------------------------
@@ -77,85 +71,58 @@ CONTAINS
             IF (accmask(ji) == 0 ) THEN
                zreasat = rearatpom(ji,jk)
                ! For alkalinity
-               pwcpa(ji,jk,jwalk)  = pwcpa(ji,jk,jwalk) + zreasat * ( srno3 - 2.* spo4r )
+               pwcpa(ji,jk,jwalk)  = zreasat * ( srno3 - 2.* spo4r )
                ! For Phosphate (in mol/l)
-               pwcpa(ji,jk,jwpo4)  = pwcpa(ji,jk,jwpo4) + zreasat * spo4r
+               pwcpa(ji,jk,jwpo4)  = zreasat * spo4r
                ! For Ammonium
-               pwcpa(ji,jk,jwnh4)  = pwcpa(ji,jk,jwnh4) + zreasat * srno3 * radssol(jk,jwnh4)
+               pwcpa(ji,jk,jwnh4)  = zreasat * srno3 * radssol(jk,jwnh4)
                ! For iron (in mol/l)
-               pwcpa(ji,jk,jwfe2)  = pwcpa(ji,jk,jwfe2) + fecratio(ji) * zreasat * radssol(jk,jwfe2)
-            ENDIF
-         END DO
-      ENDDO
+               pwcpa(ji,jk,jwfe2)  = fecratio(ji) * zreasat * radssol(jk,jwfe2)
 
-      ! Computes SMS of oxygen
-      DO jk = 2, jpksed
-         DO ji = 1, jpoce
-            IF (accmask(ji) == 0 ) THEN
-               zlimo2(ji,jk) = pwcp(ji,jk,jwoxy) / ( pwcp(ji,jk,jwoxy) + xksedo2 )
-               zlimo2(ji,jk) = MAX( 0., zlimo2(ji,jk) )
-               zreasat = rearatpom(ji,jk) * zlimo2(ji,jk)
+               ! Computes SMS of oxygen
+               zlimo2   = pwcp(ji,jk,jwoxy) / ( pwcp(ji,jk,jwoxy) + xksedo2 )
+               zlimo2   = MAX( 0., zlimo2 )
+               zreasat1 = zreasat * zlimo2
                ! Acid Silicic 
-               pwcpa(ji,jk,jwoxy)  = pwcpa(ji,jk,jwoxy) - so2ut * zreasat
-            ENDIF
-         END DO
-      ENDDO
+               pwcpa(ji,jk,jwoxy)  = - so2ut * zreasat1
 
-      !--------------------------------------------------------------------
-      ! Denitrification
-      !--------------------------------------------------------------------
-      DO jk = 2, jpksed
-         DO ji = 1, jpoce
-            IF (accmask(ji) == 0 ) THEN
-               zlimno3(ji,jk) = ( 1.0 - zlimo2(ji,jk) ) * pwcp(ji,jk,jwno3) / ( pwcp(ji,jk,jwno3) + xksedno3 ) 
-               zlimno3(ji,jk) = MAX(0., zlimno3(ji,jk) )
-               zreasat = rearatpom(ji,jk) * zlimno3(ji,jk) * srDnit
+               !----------------
+               ! Denitrification
+               !----------------
+               zlimno3  = ( 1.0 - zlimo2 ) * pwcp(ji,jk,jwno3) / ( pwcp(ji,jk,jwno3) + xksedno3 ) 
+               zlimno3  = MAX(0., zlimno3 )
+               zreasat1 = zreasat * zlimno3 * srDnit
                ! For nitrates
-               pwcpa(ji,jk,jwno3) = pwcpa(ji,jk,jwno3) - zreasat
+               pwcpa(ji,jk,jwno3) = - zreasat1
                ! For alkalinity
-               pwcpa(ji,jk,jwalk) = pwcpa(ji,jk,jwalk) + zreasat
-            ENDIF
-         END DO
-      ENDDO
+               pwcpa(ji,jk,jwalk) = pwcpa(ji,jk,jwalk) + zreasat1
 
-
-      !--------------------------------------------------------------------
-      ! Begining POC iron reduction
-      !--------------------------------------------------------------------
-
-      DO jk = 2, jpksed
-         DO ji = 1, jpoce
-            IF (accmask(ji) == 0 ) THEN
-               zlimfeo(ji,jk) = ( 1.0 - zlimno3(ji,jk) - zlimo2(ji,jk) ) * solcp(ji,jk,jsfeo) / ( solcp(ji,jk,jsfeo) + xksedfeo )
-               zlimfeo(ji,jk) = MAX(0., zlimfeo(ji,jk) )
-               zreasat = 4.0 * rearatpom(ji,jk) * zlimfeo(ji,jk)
+               !-------------------
+               ! POC iron reduction
+               !-------------------
+               zlimfeo  = ( 1.0 - zlimno3 - zlimo2 ) * solcp(ji,jk,jsfeo) / ( solcp(ji,jk,jsfeo) + xksedfeo )
+               zlimfeo  = MAX(0., zlimfeo )
+               zreasat1 = 4.0 * zreasat * zlimfeo
                ! For FEOH
-               solcpa(ji,jk,jsfeo) = solcpa(ji,jk,jsfeo) - zreasat / volc(ji,jk,jsfeo)
+               solcpa(ji,jk,jsfeo) = - zreasat1 / volc(ji,jk,jsfeo)
                ! For PO4
-               pwcpa(ji,jk,jwpo4)  = pwcpa(ji,jk,jwpo4) + zreasat * redfep
+               pwcpa(ji,jk,jwpo4)  = pwcpa(ji,jk,jwpo4) + zreasat1 * redfep
                ! For alkalinity
-               pwcpa(ji,jk,jwalk)  = pwcpa(ji,jk,jwalk) + 2.0 * zreasat
+               pwcpa(ji,jk,jwalk)  = pwcpa(ji,jk,jwalk) + 2.0 * zreasat1
                ! Iron
-               pwcpa(ji,jk,jwfe2)  = pwcpa(ji,jk,jwfe2) + zreasat * radssol(jk,jwfe2)
-            ENDIF
-         END DO
-      ENDDO
+               pwcpa(ji,jk,jwfe2)  = pwcpa(ji,jk,jwfe2) + zreasat1 * radssol(jk,jwfe2)
 
-      !--------------------------------------------------------------------
-      ! Begining POC denitrification and NO3- diffusion
-      !--------------------------------------------------------------------
-
-      DO jk = 2, jpksed
-         DO ji = 1, jpoce
-            IF (accmask(ji) == 0 ) THEN
-               zlimso4(ji,jk) = ( 1.0 - zlimno3(ji,jk) - zlimo2(ji,jk) - zlimfeo(ji,jk) ) * pwcp(ji,jk,jwso4) / ( pwcp(ji,jk,jwso4) + xksedso4 )
-               zlimso4(ji,jk) = MAX(0., zlimso4(ji,jk) )
-               zreasat = 0.5 * rearatpom(ji,jk) * zlimso4(ji,jk)
+               !---------------------
+               ! POC sulfatoreduction
+               !---------------------
+               zlimso4 = ( 1.0 - zlimno3 - zlimo2 - zlimfeo ) * pwcp(ji,jk,jwso4) / ( pwcp(ji,jk,jwso4) + xksedso4 )
+               zlimso4 = MAX(0., zlimso4 )
+               zreasat1 = 0.5 * zreasat * zlimso4
                ! For sulfur
-               pwcpa(ji,jk,jwso4)  =  pwcpa(ji,jk,jwso4) - zreasat 
-               pwcpa(ji,jk,jwh2s)  = pwcpa(ji,jk,jwh2s) + zreasat
+               pwcpa(ji,jk,jwso4)  = - zreasat1
+               pwcpa(ji,jk,jwh2s)  = zreasat1
                ! For alkalinity
-               pwcpa(ji,jk,jwalk)  = pwcpa(ji,jk,jwalk) + 2.0 * zreasat
+               pwcpa(ji,jk,jwalk)  = pwcpa(ji,jk,jwalk) + 2.0 * zreasat1
             ENDIF
          END DO
       ENDDO
@@ -184,6 +151,7 @@ CONTAINS
       INTEGER   ::  ji, jni, jnj, jk   ! dummy looop indices
 
       REAL(wp)  ::  zalpha, zexcess, zh2seq, zsedfer, zreasat
+      REAL(wp),DIMENSION(jpoce,jpksed) ::  zapproxfer
       !!
       !!----------------------------------------------------------------------
 
@@ -193,8 +161,19 @@ CONTAINS
          DO ji = 1, jpoce
             IF (accmask(ji) == 0 ) THEN
                zalpha = ( pwcp(ji,jk,jwfe2) - pwcp(ji,jk,jwlgw) ) * 1E9
-               zsedfer = ( zalpha + SQRT( zalpha**2 + 1.E-10 ) ) /2.0 * 1E-9
-
+               IF (zalpha < 2.0) THEN
+                  zapproxfer(ji,jk) = LOG(exp(10.0*zalpha) + 1.0 ) /10.0 * 1E-9
+               ELSE
+                  zapproxfer(ji,jk) = zalpha * 1E-9
+               ENDIF
+            ENDIF
+         END DO
+      END DO
+             
+      DO jk = 2, jpksed
+         DO ji = 1, jpoce
+            IF (accmask(ji) == 0 ) THEN
+               zsedfer = zapproxfer(ji,jk)
                ! First pass of the scheme. At the end, it is 1st order 
                ! -----------------------------------------------------
                ! Fe (both adsorbed and solute) + O2
@@ -204,7 +183,6 @@ CONTAINS
                pwcpa(ji,jk,jwpo4) = pwcpa(ji,jk,jwpo4) - redfep * zreasat 
                pwcpa(ji,jk,jwalk) = pwcpa(ji,jk,jwalk) - 2.0 * zreasat
                solcpa(ji,jk,jsfeo) = solcpa(ji,jk,jsfeo) + zreasat / volc(ji,jk,jsfeo)
-
                ! H2S + O2
                zreasat = reac_h2s * pwcp(ji,jk,jwoxy) * pwcp(ji,jk,jwh2s)
                pwcpa(ji,jk,jwh2s) = pwcpa(ji,jk,jwh2s) - zreasat
@@ -221,7 +199,7 @@ CONTAINS
 
                ! FeS - O2
                zreasat = reac_feso * solcp(ji,jk,jsfes) * volc(ji,jk,jsfes) * pwcp(ji,jk,jwoxy) 
-               solcpa(ji,jk,jsfes) = solcpa(ji,jk,jsfes) - zreasat / volc(ji,jk,jsfes)
+               solcpa(ji,jk,jsfes) = - zreasat / volc(ji,jk,jsfes)
                pwcpa(ji,jk,jwoxy) = pwcpa(ji,jk,jwoxy) - 2.0 * zreasat
                pwcpa(ji,jk,jwfe2) = pwcpa(ji,jk,jwfe2) + zreasat * radssol(jk,jwfe2)
                pwcpa(ji,jk,jwso4) = pwcpa(ji,jk,jwso4) + zreasat
@@ -234,22 +212,20 @@ CONTAINS
                pwcpa(ji,jk,jwalk) = pwcpa(ji,jk,jwalk) + 14.0 * zreasat 
                pwcpa(ji,jk,jwso4) = pwcpa(ji,jk,jwso4) + zreasat
                pwcpa(ji,jk,jwpo4) = pwcpa(ji,jk,jwpo4) + 8.0 * redfep * zreasat
+            ENDIF
+         END DO
+      END DO
 
-               ! Fe + H2S
-               zh2seq     = MAX(rtrn, 2.1E-3 * hipor(ji,jk))
+      DO jk = 2, jpksed
+         DO ji = 1, jpoce
+            IF (accmask(ji) == 0 ) THEN
+               zsedfer = zapproxfer(ji,jk)
+               zh2seq     = MAX(rtrn, 2.1E-3 * hipor(ji,jk)) * ( 1.0 + hipor(ji,jk) / ( densSW(ji) * akh2s(ji) ) )
                zexcess = pwcp(ji,jk,jwh2s) * zsedfer / zh2seq - 1.0
-               IF ( zexcess >= 0.0 ) THEN
-                  zreasat = reac_fesp * zexcess
-                  pwcpa (ji,jk,jwfe2) = pwcpa(ji,jk,jwfe2) - zreasat * radssol(jk,jwfe2)
-                  solcpa(ji,jk,jsfes) = solcpa(ji,jk,jsfes) + zreasat / volc(ji,jk,jsfes)
-                  pwcpa(ji,jk,jwh2s)  = pwcpa(ji,jk,jwh2s) - zreasat
-               ELSE
-                  zreasat = reac_fesd * zexcess * solcp(ji,jk,jsfes) * volc(ji,jk,jsfes)
-                  pwcpa (ji,jk,jwfe2) = pwcpa(ji,jk,jwfe2) - zreasat * radssol(jk,jwfe2)
-                  solcpa(ji,jk,jsfes) = solcpa(ji,jk,jsfes) + zreasat / volc(ji,jk,jsfes)
-                  pwcpa(ji,jk,jwh2s)  = pwcpa(ji,jk,jwh2s) - zreasat
-               ENDIF
-               ! For alkalinity
+               zreasat = reac_fesp * MAX(0., zexcess ) + reac_fesd * MIN(0., zexcess) * solcp(ji,jk,jsfes) * volc(ji,jk,jsfes)
+               pwcpa (ji,jk,jwfe2) = pwcpa(ji,jk,jwfe2) - zreasat * radssol(jk,jwfe2)
+               solcpa(ji,jk,jsfes) = solcpa(ji,jk,jsfes) + zreasat / volc(ji,jk,jsfes)
+               pwcpa(ji,jk,jwh2s)  = pwcpa(ji,jk,jwh2s) - zreasat
                pwcpa(ji,jk,jwalk)  = pwcpa(ji,jk,jwalk) - zreasat * 2.0
             ENDIF
          END DO

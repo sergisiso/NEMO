@@ -7,8 +7,8 @@ MODULE sedrst
    !!----------------------------------------------------------------------
    !! * Modules used
    !! ==============
+   USE oce_sed
    USE sed
-   USE sedarr
    USE trc_oce, ONLY : l_offline
    USE phycst , ONLY : rday
    USE iom
@@ -99,11 +99,11 @@ CONTAINS
       !!----------------------------------------------------------------------
 
       !! * local declarations
-      INTEGER :: ji, jj, jk, jn 
+      INTEGER :: ji, jj, jk, js, jn 
       REAL(wp), DIMENSION(jpi,jpj,jpksed,jptrased) :: zdta
-      REAL(wp), DIMENSION(jpi,jpj,jpksed,2)        :: zdta1 
-      REAL(wp), DIMENSION(jpi,jpj,jpksed)          :: zdta2
+      REAL(wp), DIMENSION(jpi,jpj,jpksed)          :: zdta1 
       REAL(wp), DIMENSION(jpoce,jpksed)            :: zhipor
+      REAL(wp), DIMENSION(jpi,jpj,jpsol)           :: zburial
       REAL(wp) :: zkt
       CHARACTER(len = 20) ::   cltra
       CHARACTER(LEN=20)   ::   name1
@@ -118,7 +118,6 @@ CONTAINS
 
       zdta  = 1.
       zdta1 = 1.
-      zdta2 = 0.
 
       DO jn = 1, jptrased
          cltra = TRIM(sedtrcd(jn))
@@ -130,27 +129,27 @@ CONTAINS
       ENDDO
 
       DO jn = 1, jpsol
-         CALL pack_arr( jpoce, solcp(1:jpoce,1:jpksed,jn), &
-         &              zdta(1:jpi,1:jpj,1:jpksed,jn), iarroce(1:jpoce) )
+         DO jk = 1, jpksed
+            solcp(:,jk,jn) = PACK( zdta(:,:,jk,jn), sedmask == 1.0 )
+         END DO
       END DO
 
       DO jn = 1, jpwat
-         CALL pack_arr( jpoce, pwcp(1:jpoce,1:jpksed,jn), &
-         &              zdta(1:jpi,1:jpj,1:jpksed,jpsol+jn), iarroce(1:jpoce) )
+         DO jk = 1, jpksed
+            pwcp(:,jk,jn) = PACK( zdta(:,:,jk,jpsol+jn), sedmask == 1.0 )
+         END DO
       END DO
 
-      DO jn = 1, 2
-         cltra = TRIM(seddia3d(jn))
-         IF( iom_varid( numrsr, TRIM(cltra) , ldstop = .FALSE. ) > 0 ) THEN
-            CALL iom_get( numrsr, jpdom_auto, TRIM(cltra), zdta1(:,:,:,jn) )
-         ELSE
-            zdta1(:,:,:,jn) = 0.0
-         ENDIF
-      ENDDO
+      IF( iom_varid( numrsr, "SedpH", ldstop = .FALSE. ) > 0 ) THEN
+         CALL iom_get( numrsr, jpdom_auto, "SedpH", zdta1(:,:,:) )
+      ELSE
+         zdta1(:,:,:) = 0.0
+      ENDIF
 
       zhipor(:,:) = 0.
-      CALL pack_arr( jpoce, zhipor(1:jpoce,1:jpksed), &
-         &             zdta1(1:jpi,1:jpj,1:jpksed,1), iarroce(1:jpoce) )
+      DO jk = 1, jpksed
+         zhipor(:,jk) = PACK(zdta1(:,:,jk), sedmask == 1.0 )
+      END DO
 
       ! Initialization of [h+] in mol/kg
       DO jk = 1, jpksed
@@ -159,33 +158,23 @@ CONTAINS
          ENDDO
       ENDDO
 
-      CALL pack_arr( jpoce, co3por(1:jpoce,1:jpksed), &
-         &             zdta1(1:jpi,1:jpj,1:jpksed,2), iarroce(1:jpoce) )
-
       ! Initialization of sediment composant only ie jk=2 to jk=jpksed 
       ! ( nothing in jk=1)
       solcp(1:jpoce,1,:) = 0.
       pwcp (1:jpoce,1,:) = 0.
 
-      cltra = "dbioturb"
-      IF( iom_varid( numrsr, TRIM(cltra) , ldstop = .FALSE. ) > 0 ) THEN
-         CALL iom_get( numrsr, jpdom_auto, TRIM(cltra), zdta2(:,:,:) )
-      ELSE
-         zdta2(:,:,:) = 0.0
-      ENDIF
+      DO js = 1, jpsol
+         cltra = "burial" // TRIM(sedtrcd(js))
+         IF( iom_varid( numrsr, TRIM(cltra) , ldstop = .FALSE. ) > 0 ) THEN
+            CALL iom_get( numrsr, jpdom_auto, TRIM(cltra), zburial(:,:,js) )
+         ELSE
+            zburial(:,:,js) = 0.0
+         ENDIF
+      END DO
 
-      CALL pack_arr( jpoce, db(1:jpoce,1:jpksed), &
-         &             zdta2(1:jpi,1:jpj,1:jpksed), iarroce(1:jpoce) )
-
-      cltra = "irrig"
-      IF( iom_varid( numrsr, TRIM(cltra) , ldstop = .FALSE. ) > 0 ) THEN
-         CALL iom_get( numrsr, jpdom_auto, TRIM(cltra), zdta2(:,:,:) )
-      ELSE
-         zdta2(:,:,:) = 0.0
-      ENDIF
-
-      CALL pack_arr( jpoce, irrig(1:jpoce,1:jpksed), &
-         &             zdta2(1:jpi,1:jpj,1:jpksed), iarroce(1:jpoce) )
+      DO js = 1, jpsol
+         burial(:,js) = PACK( zburial(:,:,js), sedmask == 1.0 )
+      END DO
 
       IF( ln_timing )  CALL timing_stop('sed_rst_read')
      
@@ -203,12 +192,13 @@ CONTAINS
       !!* Modules used
       INTEGER, INTENT(in) ::   kt       ! number of iteration
       !! * local declarations
-      INTEGER  :: ji, jj, jk, jn
+      INTEGER  :: ji, jj, jk, js, jn
       REAL(wp), DIMENSION(1) ::  zinfo
       CHARACTER(len=50) :: clname
       CHARACTER(len=20) :: cltra, name1 
       REAL(wp), DIMENSION(jpoce,jpksed)   :: zdta   
       REAL(wp), DIMENSION(jpi,jpj,jpksed) :: zdta2
+      REAL(wp), DIMENSION(jpi,jpj,jpsol)  :: zburial
       !! -----------------------------------------------------------------------
 
       IF( ln_timing )  CALL timing_start('sed_rst_wri')
@@ -221,9 +211,6 @@ CONTAINS
             'at it= ',kt
       IF(lwp) WRITE(numsed,*) '~~~~~~~~~'
 
-      zdta(:,:)          = 1.0
-      zdta2(:,:,:)       = 0.0
-         
       !! 1. WRITE in nutwrs
       !! ------------------
       zinfo(1) = REAL( kt)
@@ -231,15 +218,17 @@ CONTAINS
 
       ! Back to 2D geometry
       DO jn = 1, jpsol
-         CALL unpack_arr( jpoce, zdta2(1:jpi,1:jpj,1:jpksed) , iarroce(1:jpoce), &
-         &                       solcp(1:jpoce,1:jpksed,jn ) )
+         DO jk = 1, jpksed
+            zdta2(:,:,jk) = UNPACK( solcp(:,jk,jn), sedmask == 1.0, 0.0 )
+         END DO
          cltra = TRIM(sedtrcd(jn))
          CALL iom_rstput( kt, nitrst, numrsw, TRIM(cltra), zdta2(:,:,:) )
       END DO
 
       DO jn = 1, jpwat
-         CALL unpack_arr( jpoce, zdta2(1:jpi,1:jpj,1:jpksed) , iarroce(1:jpoce), &
-         &                       pwcp(1:jpoce,1:jpksed,jn  )  )
+         DO jk = 1, jpksed
+            zdta2(:,:,jk) = UNPACK( pwcp(:,jk,jn), sedmask == 1.0, 0.0 )
+         END DO
          cltra = TRIM(sedtrcd(jpsol+jn))
          CALL iom_rstput( kt, nitrst, numrsw, TRIM(cltra), zdta2(:,:,:) )
       END DO
@@ -248,36 +237,24 @@ CONTAINS
          DO ji = 1, jpoce
             zdta(ji,jk) = -LOG10( hipor(ji,jk) / ( densSW(ji) + rtrn ) + rtrn )
          ENDDO
+         zdta2(:,:,jk) = UNPACK( zdta(:,jk), sedmask == 1.0, 0.0 )
       ENDDO
-
-      CALL unpack_arr( jpoce, zdta2(1:jpi,1:jpj,1:jpksed)  , iarroce(1:jpoce), &
-      &                   zdta(1:jpoce,1:jpksed)  )
-      cltra = TRIM(seddia3d(1))
-      CALL iom_rstput( kt, nitrst, numrsw, TRIM(cltra), zdta2(:,:,:) )
+      CALL iom_rstput( kt, nitrst, numrsw, "SedpH", zdta2(:,:,:) )
          
-      CALL unpack_arr( jpoce, zdta2(1:jpi,1:jpj,1:jpksed)  , iarroce(1:jpoce), &
-      &                   co3por(1:jpoce,1:jpksed)  )
-      cltra = TRIM(seddia3d(2))
-      CALL iom_rstput( kt, nitrst, numrsw, TRIM(cltra), zdta2(:,:,:) )
-
       ! prognostic variables
       ! --------------------
+      DO js = 1, jpsol
+         zburial(:,:,js) = UNPACK( burial(:,js), sedmask == 1.0, 0.0 )
+      END DO
 
-      CALL unpack_arr( jpoce, zdta2(1:jpi,1:jpj,1:jpksed)  , iarroce(1:jpoce), &
-      &                   db(1:jpoce,1:jpksed)  )
-
-      cltra = "dbioturb"
-      CALL iom_rstput( kt, nitrst, numrsw, TRIM(cltra), zdta2(:,:,:) )
-
-      CALL unpack_arr( jpoce, zdta2(1:jpi,1:jpj,1:jpksed)  , iarroce(1:jpoce), &
-      &                   irrig(1:jpoce,1:jpksed)  )
-
-      cltra = "irrig"
-      CALL iom_rstput( kt, nitrst, numrsw, TRIM(cltra), zdta2(:,:,:) )
+      DO js = 1, jpsol
+         cltra = "burial" // TRIM(sedtrcd(js))
+         CALL iom_rstput( kt, nitrst, numrsw, TRIM(cltra), zburial(:,:,js) )
+      END DO
 
       IF( kt == nitrst ) THEN
           CALL iom_close( numrsw )     ! close the restart file (only at last time step)
-          IF( l_offline .AND. ln_rst_list ) THEN
+          IF( ln_rst_list ) THEN
              nrst_lst = nrst_lst + 1
              nitrst = nn_stocklist( nrst_lst )
           ENDIF
@@ -351,22 +328,22 @@ CONTAINS
          ENDIF
          !
          IF( l_offline ) THEN
-            !                                          ! set the date in offline mode
+            !                                          ! set the date in offline mode     
             IF( ln_rst_sed .AND. nn_rstsed == 2 ) THEN
                CALL iom_get( numrsr, 'ndastp', zndastp )
                ndastp = NINT( zndastp )
                CALL iom_get( numrsr, 'adatrj', adatrj  )
-             ELSE
+            ELSE
                ndastp = ndate0 - 1     ! ndate0 read in the namelist in dom_nam
-               adatrj = ( REAL( nittrc000-1, wp ) * rdt ) / rday
+               adatrj = ( REAL( nittrc000-1, wp ) * rn_Dt ) / rday
                ! note this is wrong if time step has changed during run
             ENDIF
             !
             IF(lwp) THEN
-              WRITE(numsed,*) ' *** Info used values : '
-              WRITE(numsed,*) '   date ndastp                                      : ', ndastp
-              WRITE(numsed,*) '   number of elapsed days since the begining of run : ', adatrj
-              WRITE(numsed,*)
+               WRITE(numsed,*) ' *** Info used values : '
+               WRITE(numsed,*) '   date ndastp                                      : ', ndastp
+               WRITE(numsed,*) '   number of elapsed days since the begining of run : ', adatrj
+               WRITE(numsed,*)
             ENDIF
             !
             CALL day_init          ! compute calendar

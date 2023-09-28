@@ -6,7 +6,6 @@ MODULE sedstp
    USE sed      ! sediment global variables
    USE seddta   ! data read
    USE sedchem  ! chemical constant
-   USE sedco3   ! carbonate in sediment pore water
    USE sedsol   ! Organic reactions and diffusion
    USE sedadv   ! vertical advection
    USE sedsfc   ! sediment surface data
@@ -47,39 +46,26 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt       ! number of iteration
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level indices
-
-      INTEGER :: ji,jk,js,jn,jw,jkmax,jsmax
       !!----------------------------------------------------------------------
       IF( ln_timing )           CALL timing_start('sed_stp')
         !
                                 CALL sed_rst_opn  ( kt )       ! Open tracer restart file 
       IF( lrst_sed )            CALL sed_rst_cal  ( kt, 'WRITE' )   ! calenda
 
-      IF(ln_sediment_offline)   CALL trc_dmp_sed  ( kt, Kbb, Kmm, Krhs )
-
       dtsed  = rDt_trc
-      IF (kt /= nitsed000) THEN
-         CALL sed_dta( kt, Kbb, Kmm )    ! Load  Data for bot. wat. Chem and fluxes
-      ENDIF
+      IF (kt /= nitsed000)      CALL sed_dta( kt, Kbb, Kmm )    ! Load  Data for bot. wat. Chem and fluxes
 
-      IF (sedmask == 1. ) THEN
-         IF( kt /= nitsed000 )  THEN
-           CALL sed_chem( kt )      ! update of chemical constant to account for salinity, temperature changes
-         ENDIF
+      IF( kt /= nitsed000 )  &
+        &  CALL sed_chem( kt )      ! update of chemical constant to account for salinity, temperature changes
+           CALL sed_sol( kt )       ! Solute diffusion and reactions 
+           CALL sed_adv( kt )       ! advection
 
-         CALL sed_sol( kt )        ! Solute diffusion and reactions 
-         CALL sed_adv( kt )         ! advection
-         CALL sed_co3( kt )         ! pH actualization for saving
+      IF (ln_sed_2way) CALL sed_sfc( kt, Kbb )   ! Give back new bottom wat chem to tracer model
 
-         IF (ln_sed_2way) CALL sed_sfc( kt, Kbb )   ! Give back new bottom wat chem to tracer model
-      ENDIF
-      CALL sed_wri( kt )         ! outputs
-      IF( kt == nitsed000 ) THEN
-          CALL iom_close( numrsr )       ! close input tracer restart file
-!          IF(lwm) CALL FLUSH( numont )   ! flush namelist output
-      ENDIF
-      IF( lrst_sed )            CALL sed_rst_wri( kt )   ! restart file output
+                            CALL sed_wri( kt )         ! outputs
+      IF( kt == nitsed000 ) CALL iom_close( numrsr )       ! close input tracer restart file
 
+      IF( lrst_sed )        CALL sed_rst_wri( kt )   ! restart file output
       IF( kt == nitsedend )     CLOSE( numsed )
 
       IF( ln_timing )           CALL timing_stop('sed_stp')

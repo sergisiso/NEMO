@@ -56,7 +56,9 @@ CONTAINS
       ENDIF
 
       DO jk = 1, jpksed
-         zhinit(:,jk)   = hipor(:,jk) / densSW(:)
+         DO ji = 1, jpoce
+            zhinit(ji,jk)   = hipor(ji,jk) / densSW(ji)
+         END DO
       END DO
 
       !     -------------------------------------------

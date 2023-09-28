@@ -102,9 +102,7 @@ CONTAINS
       IF( lrst_trc )  CALL trc_rst_cal  ( kt, 'WRITE' )   ! calendar
       CALL trc_wri      ( kt,      Kmm            )       ! output of passive tracers with iom I/O manager
       CALL trc_sms      ( kt, ibb, Kmm, Krhs      )       ! tracers: sinks and sources
-#if ! defined key_sed_off
       CALL trc_trp      ( kt, ibb, Kmm, Krhs, Kaa )       ! transport of passive tracers
-#endif
            !
            ! Note passive tracers have been time-filtered in trc_trp but the time level
            ! indices will not be swapped until after tra_atf/dyn_atf/ssh_atf in stp. Subsequent calls here

@@ -112,56 +112,73 @@
     <field id="SedDIC"          long_name="Dissolved inorganic Concentration"        unit="mmol/m3" />
     <field id="SedAlkalini"     long_name="Total Alkalinity Concentration"           unit="mmol/m3" />
     <field id="SedO2"           long_name="Oxygen Concentration"                     unit="mmol/m3" />
-    <field id="SedCaCO3"        long_name="Calcite Concentration"                    unit="%" />
-    <field id="SedPOS"          long_name="Semi-ref POC Concentration"               unit="%" />
-    <field id="SedPOR"          long_name="Refractory POC Concentration"             unit="%" />
+    <field id="SedCaCO3"        long_name="Calcite Concentration"                    unit="g/cm3"   />
+    <field id="SedPOC1"         long_name="POC1 Concentration"                       unit="g/cm3"   />
     <field id="SedPO4"          long_name="Phosphate Concentration"                  unit="mmol/m3" />
-    <field id="SedPOC"          long_name="Labile POC Concentration"                 unit="%" />
+    <field id="SedPOC2"         long_name="POC2 Concentration"                       unit="g/cm3"   />
+    <field id="SedPOC3"         long_name="POC3 Concentration"                       unit="g/cm3"   />
+    <field id="SedPOC4"         long_name="POC4 Concentration"                       unit="g/cm3"   />
+    <field id="SedPOC5"         long_name="POC5 Concentration"                       unit="g/cm3"   />
+    <field id="SedPOC6"         long_name="POC6 Concentration"                       unit="g/cm3"   />
     <field id="SedSil"          long_name="Silicate Concentration"                   unit="mmol/m3" />
     <field id="SedFe2"          long_name="Fe2+ Concentration"                       unit="mmol/m3" />
-    <field id="SedBSi"          long_name="Biogenic Silicate Concentration"          unit="%" />
+    <field id="SedBSi"          long_name="Biogenic Silicate Concentration"          unit="g/cm3"   />
     <field id="SedNO3"          long_name="Nitrate Concentration"                    unit="mmol/m3" />
     <field id="SedNH4"          long_name="Ammonium Concentration"                   unit="mmol/m3" />
     <field id="SedH2S"          long_name="H2S Concentration"                        unit="mmol/m3" />
     <field id="SedSO4"          long_name="SO4 Concentration"                        unit="mmol/m3" />
-    <field id="SedClay"         long_name="Clay Concentration"                       unit="%" />
-    <field id="SedFeO"          long_name="Fe(OH)3 Concentration"                    unit="%" />
-    <field id="SedFeS"          long_name="FeS Concentration"                        unit="%" />
-    <field id="SedpH"           long_name="PH"                                       unit="1"          />
-    <field id="SedCO3por"       long_name="Bicarbonates"                             unit="mol/m3" />
-    <field id="Sedligand"       long_name="Ligands"                                  unit="mol/m3" />
-    <field id="SaturCO3"        long_name="CO3 Saturation"                           unit="-" />	    
+    <field id="SedClay"         long_name="Clay Concentration"                       unit="g/cm3"   />
+    <field id="SedFeO"          long_name="Fe(OH)3 Concentration"                    unit="g/cm3"   />
+    <field id="SedFeS"          long_name="FeS Concentration"                        unit="g/cm3"   />
+    <field id="Sedligand"       long_name="Ligands"                                  unit="mol/m3"  />
   </field_group>
 
   <!-- SEDIMENT additional variables on T sediment grid  -->
   <field_group id="Diag_S" grid_ref="grid_T_2D">
-      <field id="FlxSi"       long_name="Si sediment flux"                        unit="mol/cm2/s"     />
-       <field id="FlxO2"       long_name="O2 sediment flux"                        unit="mol/cm2/s"     />
-       <field id="FlxDIC"      long_name="DIC sediment flux"                       unit="mol/cm2/s"     />
-       <field id="FlxNO3"      long_name="NO3 sediment flux"                       unit="mol/cm2/s"     />
-       <field id="FlxPO4"      long_name="PO4 sediment flux"                       unit="mol/cm2/s"     />
-       <field id="FlxAlkalini" long_name="Alkalinity sediment flux"                unit="mol/cm2/s"     />
-       <field id="FlxNH4"      long_name="Ammonium sediment flux"                  unit="mol/cm2/s"     />
-       <field id="FlxH2S"      long_name="H2S sediment flux"                       unit="mol/cm2/s"     />
-       <field id="FlxSO4"      long_name="SO4 sediment flux"                       unit="mol/cm2/s"     />
-       <field id="FlxFe2"      long_name="Fe2+ sediment flux"                      unit="mol/cm2/s"     />
-       <field id="FlxLig"      long_name="Ligand sediment flux"                    unit="mol/cm2/s"     />
-       <field id="dzdep"       long_name="Sedimentation rate"                      unit="cm/s"     />
-       <field id="sflxclay"    long_name="Clay sedimentation rate"                 unit="g/cm2/s"     />
-       <field id="sflxbsi"     long_name="BSi sedimentation rate"                  unit="g/cm2/s"     />
-       <field id="sflxpoc"     long_name="POC sedimentation rate"                  unit="g/cm2/s"     />
-       <field id="sflxcal"     long_name="Calcite sedimentation rate"              unit="g/cm2/s"     />
-       <field id="sflxfeo"     long_name="Fe(OH)3 Sedimentation rate"              unit="mol/cm2/s"     />
-       <field id="FlxClay"     long_name="Clay burial rate"                        unit="g/cm2/s"     />
-       <field id="FlxCaCO3"    long_name="Calcite burial rate"                     unit="g/cm2/s"     />
-       <field id="FlxBSi"      long_name="BSi burial rate"                         unit="g/cm2/s"     />
-       <field id="FlxPOC"      long_name="POC burial rate"                         unit="g/cm2/s"     />
-       <field id="FlxFeO"      long_name="Fe(OH)3 burial rate"                     unit="g/cm2/s"     />
-       <field id="FlxFeS"      long_name="FeS burial rate"                         unit="g/cm2/s"     />
-       <field id="FlxPOR"      long_name="POR burial rate"                         unit="g/cm2/s"     />
-       <field id="FlxPOS"      long_name="POS burial rate"                         unit="g/cm2/s"     />
-       <field id="Flxtot"      long_name="total burial flux"                       unit="g/cm2/s"     />
-       <field id="Rstepros"    long_name="Number of iterations"                    unit="-"     />
+    <field id="SaturCO3"    long_name="CO3 Saturation"                          unit="-"          grid_ref="grid_T_3DS" />
+    <field id="SedpH"       long_name="PH"                                      unit="1"          grid_ref="grid_T_3DS" />
+    <field id="SedCO3por"   long_name="Bicarbonates"                            unit="mol/m3"     grid_ref="grid_T_3DS" />
+    <field id="FlxSi"       long_name="Si sediment flux"                        unit="mol/cm2/s"     />
+    <field id="FlxO2"       long_name="O2 sediment flux"                        unit="mol/cm2/s"     />
+    <field id="FlxDIC"      long_name="DIC sediment flux"                       unit="mol/cm2/s"     />
+    <field id="FlxNO3"      long_name="NO3 sediment flux"                       unit="mol/cm2/s"     />
+    <field id="FlxPO4"      long_name="PO4 sediment flux"                       unit="mol/cm2/s"     />
+    <field id="FlxAlkalini" long_name="Alkalinity sediment flux"                unit="mol/cm2/s"     />
+    <field id="FlxNH4"      long_name="Ammonium sediment flux"                  unit="mol/cm2/s"     />
+    <field id="FlxH2S"      long_name="H2S sediment flux"                       unit="mol/cm2/s"     />
+    <field id="FlxSO4"      long_name="SO4 sediment flux"                       unit="mol/cm2/s"     />
+    <field id="FlxFe2"      long_name="Fe2+ sediment flux"                      unit="mol/cm2/s"     />
+    <field id="FlxLig"      long_name="Ligand sediment flux"                    unit="mol/cm2/s"     />
+    <field id="dzdep"       long_name="Sedimentation rate"                      unit="cm/s"          />
+    <field id="FlxClay"     long_name="Clay burial rate"                        unit="g/cm2/s"       />
+    <field id="FlxCaCO3"    long_name="Calcite burial rate"                     unit="g/cm2/s"       />
+    <field id="FlxBSi"      long_name="BSi burial rate"                         unit="g/cm2/s"       />
+    <field id="FlxPOC1"     long_name="POC1 burial rate"                        unit="g/cm2/s"       />
+    <field id="FlxFeO"      long_name="Fe(OH)3 burial rate"                     unit="g/cm2/s"       />
+    <field id="FlxFeS"      long_name="FeS burial rate"                         unit="g/cm2/s"       />
+    <field id="FlxPOC2"     long_name="POC2 burial rate"                        unit="g/cm2/s"       />
+    <field id="FlxPOC3"     long_name="POC3 burial rate"                        unit="g/cm2/s"       />
+    <field id="FlxPOC4"     long_name="POC4 burial rate"                        unit="g/cm2/s"       />
+    <field id="FlxPOC5"     long_name="POC5 burial rate"                        unit="g/cm2/s"       />
+    <field id="FlxPOC6"     long_name="POC6 burial rate"                        unit="g/cm2/s"       />
+    <field id="Flxtot"      long_name="total burial flux"                       unit="g/cm2/s"       />
+    <field id="Rstepros"    long_name="Number of iterations"                    unit="-"             />
+    <field id="sflxclay"    long_name="Clay sedimentation rate"                 unit="g/cm2/s"       />
+    <field id="sflxbsi"     long_name="BSi sedimentation rate"                  unit="g/cm2/s"       />
+    <field id="sflxpoc"     long_name="POC sedimentation rate"                  unit="g/cm2/s"       />
+    <field id="sflxcal"     long_name="Calcite sedimentation rate"              unit="mol/cm2/s"     />
+    <field id="OceDIC"      long_name="DIC at ocean bottom "                    unit="mmol/m3"       />
+    <field id="OceALK"      long_name="ALK at ocean bottom "                    unit="mmol/m3"       />
+    <field id="OceOXY"      long_name="OXY at ocean bottom "                    unit="mmol/m3"       />
+    <field id="OceSIL"      long_name="SIL at ocean bottom "                    unit="mmol/m3"       />
+    <field id="OceNO3"      long_name="NO3 at ocean bottom "                    unit="mmol/m3"       />
+    <field id="OcePO4"      long_name="PO4 at ocean bottom "                    unit="mmol/m3"       />
+    <field id="OceNH4"      long_name="NH4 at ocean bottom "                    unit="mmol/m3"       />
+    <field id="OceSO4"      long_name="SO4 at ocean bottom "                    unit="mmol/m3"       />
+    <field id="OceFE2"      long_name="Dissolved Iron at ocean bottom "         unit="mmol/m3"       />
+    <field id="OceTEM"      long_name="Temperature at ocean bottom "            unit="degC"          />
+    <field id="OceSAL"      long_name="Salinity at oceaan bottom "              unit="1e-3"          />
+    <field id="OceSFE"      long_name="Sinking Iron at ocean bottom "           unit="-"             />
   </field_group>
 
   <!-- PISCES additional diagnostics on T grid  -->
