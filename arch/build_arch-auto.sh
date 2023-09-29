@@ -444,6 +444,19 @@ case "$ftncomp" in
 esac
 #
 #-----------------------------------------------------
+# CFLAGS
+#-----------------------------------------------------
+#
+case "${ftncomp}" in
+    gnu)
+        PROD_CFLAGS="-O0 -fcommon"
+        ;;
+    *)
+        PROD_CFLAGS="-O0"
+        ;;
+esac
+#
+#-----------------------------------------------------
 # XIOS and OASIS
 #-----------------------------------------------------
 #
@@ -570,7 +583,7 @@ cat > $archname << EOF
 %USER_LIB            %XIOS_LIB %OASIS_LIB %NCDF_LIB
 
 %CC                  $CCnemo
-%CFLAGS              -O0
+%CFLAGS              $PROD_CFLAGS
 EOF
 #
 # Additional module search command for Cray Fortran to enable successful parallel builds
