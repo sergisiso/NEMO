@@ -44,13 +44,14 @@ CONTAINS
 # if ! defined key_agrif      
       INTEGER :: JINDEX, IJAC, MLJAC
       INTEGER :: MUJAC, LE1, LJAC, IDID, NMAXSTP, ROSM
-      REAL(wp) :: X, XEND, zfact
+      REAL(wp) :: X, XEND
       REAL(wp),DIMENSION(jpoce) :: H
       INTEGER, DIMENSION(jpoce) :: accmask
       REAL(wp), DIMENSION(jpvode * jpksed) :: RTOL, ATOL
       INTEGER, DIMENSION(jpoce,3)   :: ISTAT
       REAL(wp), DIMENSION(jpoce,2)  :: RSTAT
-#endif      
+#endif
+      REAL(wp) ::   zfact
       !!
       !!----------------------------------------------------------------------
 

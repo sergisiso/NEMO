@@ -7,6 +7,7 @@ MODULE sedmat
    !!----------------------------------------------------------------------
 
    USE sed     ! sediment global variable
+   USE par_sed, ONLY : jpksed
    USE lib_mpp         ! distribued memory computing library
 
 
