@@ -467,7 +467,7 @@ CONTAINS
             DO jj=j1,j2
                DO ji=i1,i2
                   IF ( (ssmask(ji,jj)/=0._wp).AND.(mbkt(ji,jj).GE.jk) ) THEN
-                     tabres(ji,jj,jk) = e1e2t_frac(ji,jj) * e3w_0(ji,jj,jk) * e3t_0(ji,jj,jk)
+                     tabres(ji,jj,jk) = gdept_0(ji,jj,jk) * e1e2t_frac(ji,jj)  * e3t_0(ji,jj,jk)
                   ELSE
                      tabres(ji,jj,jk) = 0._wp
                   ENDIF 
@@ -478,8 +478,8 @@ CONTAINS
          DO jj=j1,j2
             DO ji=i1,i2
                IF ( ssmask(ji,jj)==1._wp ) THEN  
-                  e3w_0(ji,jj,1) = tabres(ji,jj,1) / e3t_0(ji,jj,1)
-                  gdept_0(ji,jj,1) = 0.5_wp * e3w_0(ji,jj,1) 
+                  gdept_0(ji,jj,1) = tabres(ji,jj,1) / e3t_0(ji,jj,1)
+                  e3w_0(ji,jj,1) = 2._wp * gdept_0(ji,jj,1)
                ELSE 
                   e3w_0(ji,jj,1) = e3w_1d(1)
                   gdept_0(ji,jj,1) = gdept_1d(1)
@@ -487,7 +487,7 @@ CONTAINS
                ! 
                DO jk=2,jpkm1
                   IF ( (ssmask(ji,jj)==1._wp).AND.(mbkt(ji,jj).GE.jk) ) THEN
-                     gdept_0(ji,jj,jk) = gdept_0(ji,jj,jk-1) + tabres(ji,jj,jk) / e3t_0(ji,jj,jk)
+                     gdept_0(ji,jj,jk) = tabres(ji,jj,jk) / e3t_0(ji,jj,jk)
                   ELSE
                      gdept_0(ji,jj,jk) = gdept_1d(jk)
                   ENDIF
@@ -520,11 +520,19 @@ CONTAINS
       !!---------------------------------------------
       !
       IF (before) THEN
+         DO jj=j1,j2
+            DO ji=i1,i2
+               gdepu(ji,jj,1) = 0.5 * e3uw_0(ji,jj,1)
+               DO jk=2,k2
+                  gdepu(ji,jj,jk) = gdepu(ji,jj,jk-1) + e3uw_0(ji,jj,jk)
+               END DO
+            END DO
+         END DO
          DO jk=k1,k2
             DO jj=j1,j2
                DO ji=i1,i2
                   IF ( (ssumask(ji,jj)/=0._wp).AND.(mbku(ji,jj).GE.jk) ) THEN
-                     tabres(ji,jj,jk) = e2u_frac(ji,jj) * e3uw_0(ji,jj,jk) * e3u_0(ji,jj,jk)
+                     tabres(ji,jj,jk) = gdepu(ji,jj,jk) * e2u_frac(ji,jj) * e3u_0(ji,jj,jk)
                   ELSE
                      tabres(ji,jj,jk) = 0._wp
                   ENDIF 
@@ -535,8 +543,8 @@ CONTAINS
          DO jj=j1,j2
             DO ji=i1,i2
                IF ( ssumask(ji,jj)==1._wp ) THEN  
-                  e3uw_0(ji,jj,1) = tabres(ji,jj,1) / e3u_0(ji,jj,1)
-                  gdepu(ji,jj,1) = 0.5_wp * e3uw_0(ji,jj,1) 
+                  gdepu(ji,jj,1) = tabres(ji,jj,1) / e3u_0(ji,jj,1)
+                  e3uw_0(ji,jj,1) = 2._wp * gdepu(ji,jj,1)
                ELSE 
                   e3uw_0(ji,jj,1) = e3w_1d(1)
                   gdepu(ji,jj,1) = gdept_1d(1)
@@ -544,7 +552,7 @@ CONTAINS
                ! 
                DO jk=2,jpkm1
                   IF ( (ssumask(ji,jj)==1._wp).AND.(mbku(ji,jj).GE.jk) ) THEN
-                     gdepu(ji,jj,jk) = gdepu(ji,jj,jk-1) + tabres(ji,jj,jk) / e3u_0(ji,jj,jk)
+                     gdepu(ji,jj,jk) = tabres(ji,jj,jk) / e3u_0(ji,jj,jk)
                   ELSE
                      gdepu(ji,jj,jk) = gdept_1d(jk)
                   ENDIF
@@ -577,11 +585,19 @@ CONTAINS
       !!---------------------------------------------
       !
       IF (before) THEN
+         DO jj=j1,j2
+            DO ji=i1,i2
+               gdepv(ji,jj,1) = 0.5 * e3vw_0(ji,jj,1)
+               DO jk=2,k2
+                  gdepv(ji,jj,jk) = gdepv(ji,jj,jk-1) + e3vw_0(ji,jj,jk)
+               END DO
+            END DO
+         END DO
          DO jk=k1,k2
             DO jj=j1,j2
                DO ji=i1,i2
                   IF ( (ssvmask(ji,jj)/=0._wp).AND.(mbkv(ji,jj).GE.jk) ) THEN
-                     tabres(ji,jj,jk) = e1v_frac(ji,jj) * e3vw_0(ji,jj,jk) * e3v_0(ji,jj,jk)
+                     tabres(ji,jj,jk) = gdepv(ji,jj,jk) * e1v_frac(ji,jj) * e3v_0(ji,jj,jk)
                   ELSE
                      tabres(ji,jj,jk) = 0._wp
                   ENDIF 
@@ -592,8 +608,8 @@ CONTAINS
          DO jj=j1,j2
             DO ji=i1,i2
                IF ( ssvmask(ji,jj)==1._wp ) THEN  
-                  e3vw_0(ji,jj,1) = tabres(ji,jj,1) / e3v_0(ji,jj,1)
-                  gdepv(ji,jj,1) = 0.5_wp * e3vw_0(ji,jj,1) 
+                  gdepv(ji,jj,1) = tabres(ji,jj,1) / e3v_0(ji,jj,1)
+                  e3vw_0(ji,jj,1) = 2._wp * gdepv(ji,jj,1)
                ELSE 
                   e3vw_0(ji,jj,1) = e3w_1d(1)
                   gdepv(ji,jj,1) = gdept_1d(1)
@@ -601,7 +617,7 @@ CONTAINS
                ! 
                DO jk=2,jpkm1
                   IF ( (ssvmask(ji,jj)==1._wp).AND.(mbkv(ji,jj).GE.jk) ) THEN
-                     gdepv(ji,jj,jk) = gdepv(ji,jj,jk-1) + tabres(ji,jj,jk) / e3v_0(ji,jj,jk)
+                     gdepv(ji,jj,jk) = tabres(ji,jj,jk) / e3v_0(ji,jj,jk)
                   ELSE
                      gdepv(ji,jj,jk) = gdept_1d(jk)
                   ENDIF
