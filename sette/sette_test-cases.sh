@@ -139,12 +139,38 @@ cp BATCH_TEMPLATE/${JOB_PREFIX}-${COMPILER} job_batch_template || exit
 . ./all_functions.sh
 for config in ${TEST_CONFIGS[@]}
 do
+    for (( l_t=-1 ; l_t < ${#SCTRANSFORMS[@]} ; l_t++ )); do
+
+        CONFIG_SUFFIX=${SETTE_STG}
+        DO_RESTART_1=${DO_RESTART}
+        DO_RESTART_2=${DO_RESTART}
+        DO_REPRO_1=${DO_REPRO}
+        DO_REPRO_2=${DO_REPRO}
+        DO_PHYOPTS_0=${DO_PHYOPTS}
+        TRANSFORM_OPT=""
+        if [[ ${DO_TRANSFORM} == "1" ]] ; then
+            # Ensure reference run for TRANSFORM test
+            DO_RESTART_1="1"
+            if [ ${l_t} -ge 0 ]; then
+                TRANSFORM_OPT="-p passthrough"
+                CONFIG_SUFFIX="+PT"${SETTE_STG}
+                if [ ! "${SCTRANSFORMS[${l_t}]}" == "passthrough" ]; then
+                    TRANSFORM_OPT="-p ${SCTRANSFORMS[${l_t}]}"
+                    CONFIG_SUFFIX=`printf "+T%02i" ${l_t}`${SETTE_STG}
+                fi
+                # Only perform runs required for TRANSFORM test
+                DO_RESTART_2="0"
+                DO_REPRO_1="0"
+                DO_REPRO_2="0"
+                DO_PHYOPTS_0="0"
+            fi
+        fi
 
 # ---------
 #  OVERFLOW
 # ---------
 if [ ${config} == "OVERFLOW" ];  then
-    SETTE_CONFIG="OVERFLOW"${SETTE_STG}
+    SETTE_CONFIG="OVERFLOW"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -160,19 +186,22 @@ if [ ${DO_COMPILE} == "1" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a OVERFLOW ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
 fi
 
 ## Restartability tests for OVERFLOW
-if [ ${DO_RESTART} == "1" ] ;  then
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
     JOB_FILE=${EXE_DIR}/run_job.sh
     NPROC=1
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+fi
+
+if [ ${DO_RESTART_1} == "1" ] ;  then
+    set_valid_dir
+    clean_valid_dir
     cd ${EXE_DIR}  
     set_namelist namelist_cfg cn_exp \"OVF_LONG\"
     set_namelist namelist_cfg nn_it000 1
@@ -186,7 +215,9 @@ if [ ${DO_RESTART} == "1" ] ;  then
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
 
+if [ ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="SHORT"
     . ./prepare_exe_dir.sh
@@ -210,6 +241,8 @@ if [ ${DO_RESTART} == "1" ] ;  then
 
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
@@ -217,7 +250,7 @@ fi
 
 ## Test for all advection, vert. coordinates, vector form, flux form: test runability and complete all time steps
 ## Needed namelist-xxxx for every type of run tested
-if [ ${DO_PHYOPTS} == "1" ] ;  then
+if [ ${DO_PHYOPTS_0} == "1" ] ;  then
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -264,7 +297,7 @@ fi
 #  LOCK_EXCHANGE
 # --------------
 if [ ${config} == "LOCK_EXCHANGE" ] ;  then
-    SETTE_CONFIG="LOCK_EXCHANGE"${SETTE_STG}
+    SETTE_CONFIG="LOCK_EXCHANGE"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -280,19 +313,22 @@ if [ ${DO_COMPILE} == "1" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a LOCK_EXCHANGE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
 fi
 
 ## Restartability tests for LOCK_EXCHANGE
-if [ ${DO_RESTART} == "1" ] ;  then
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
     JOB_FILE=${EXE_DIR}/run_job.sh
     NPROC=1
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+fi
+
+if [ ${DO_RESTART_1} == "1" ] ;  then
+    set_valid_dir
+    clean_valid_dir
     cd ${EXE_DIR}
     set_namelist namelist_cfg cn_exp \"LOCK_LONG\"
     set_namelist namelist_cfg nn_it000 1
@@ -306,7 +342,9 @@ if [ ${DO_RESTART} == "1" ] ;  then
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-
+fi
+    
+if [ ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="SHORT"
     . ./prepare_exe_dir.sh
@@ -330,6 +368,8 @@ if [ ${DO_RESTART} == "1" ] ;  then
 
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
@@ -337,7 +377,7 @@ fi
 
 ## Test for all advection, vector form, flux form: test runability and complete all time steps
 ## Needed namelist-xxxx for every type of run tested
-if [ ${DO_PHYOPTS} == "1" ] ;  then
+if [ ${DO_PHYOPTS_0} == "1" ] ;  then
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -387,7 +427,7 @@ fi
 # VORTEX
 # ---------
 if [ ${config} == "VORTEX" ] ;  then
-    SETTE_CONFIG="VORTEX"${SETTE_STG}
+    SETTE_CONFIG="VORTEX"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -404,19 +444,22 @@ if [ ${DO_COMPILE} == "1" ] ;  then
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a VORTEX ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
 fi
 
 ## Restartability tests for VORTEX
-if [ ${DO_RESTART} == "1" ] ;  then
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
     JOB_FILE=${EXE_DIR}/run_job.sh
     NPROC=6
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi 
+fi
+
+if [ ${DO_RESTART_1} == "1" ] ;  then
+    set_valid_dir
+    clean_valid_dir
     cd ${EXE_DIR}
     set_namelist namelist_cfg cn_exp \"VORTEX_LONG\"
     set_namelist namelist_cfg nn_it000 1
@@ -440,7 +483,8 @@ if [ ${DO_RESTART} == "1" ] ;  then
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    
+fi
+if [ ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="SHORT"
     . ./prepare_exe_dir.sh
@@ -486,12 +530,14 @@ if [ ${DO_RESTART} == "1" ] ;  then
     fi
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 fi
 
 ## Reproducibility tests for VORTEX
-if [ ${DO_REPRO} == "1" ] ;  then
+if [ ${DO_REPRO_1} == "1" ] ;  then
     export TEST_NAME="REPRO_2_3"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -534,7 +580,9 @@ if [ ${DO_REPRO} == "1" ] ;  then
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+fi
 
+if [ ${DO_REPRO_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="REPRO_3_2"
     . ./prepare_exe_dir.sh
@@ -583,7 +631,7 @@ fi
 # ICE_AGRIF
 # ---------
 if [ ${config} == "ICE_AGRIF" ] ;  then
-    SETTE_CONFIG="ICE_AGRIF"${SETTE_STG}
+    SETTE_CONFIG="ICE_AGRIF"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=10
@@ -601,19 +649,22 @@ if [ ${DO_COMPILE} == "1" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ICE_AGRIF uses linssh so remove key_qco if added by default
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ICE_AGRIF ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
 fi
 
 ## Restartability tests for ICE_AGRIF
-if [ ${DO_RESTART} == "1" ] ;  then
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
     JOB_FILE=${EXE_DIR}/run_job.sh
     NPROC=6
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi 
+fi
+
+if [ ${DO_RESTART_1} == "1" ] ;  then
+    set_valid_dir
+    clean_valid_dir
     cd ${EXE_DIR}
     set_namelist namelist_cfg cn_exp \"ICE_AGRIF_LONG\"
     set_namelist namelist_cfg nn_it000 1
@@ -637,7 +688,9 @@ if [ ${DO_RESTART} == "1" ] ;  then
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_ICE_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    
+fi
+
+if [ ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="SHORT"
     . ./prepare_exe_dir.sh
@@ -691,13 +744,15 @@ if [ ${DO_RESTART} == "1" ] ;  then
 
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_ICE_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
 fi
 
 ## Reproducibility tests for ICE_AGRIF
-if [ ${DO_REPRO} == "1" ] ;  then
+if [ ${DO_REPRO_1} == "1" ] ;  then
     export TEST_NAME="REPRO_2_3"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -736,7 +791,9 @@ if [ ${DO_REPRO} == "1" ] ;  then
     . ./prepare_job.sh input_ICE_AGRIF.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+fi
 
+if [ ${DO_REPRO_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="REPRO_3_2"
     . ./prepare_exe_dir.sh
@@ -785,7 +842,7 @@ fi
 # ISOMIP+
 # ------
 if [ ${config} == "ISOMIP+" ]; then 
-    SETTE_CONFIG="ISOMIP+"${SETTE_STG}
+    SETTE_CONFIG="ISOMIP+"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -802,19 +859,22 @@ if [ ${DO_COMPILE} == "1" ] ;  then
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
     # ISOMIP+ uses ln_hpg_isf so remove key_qco if added by default
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a ISOMIP+ ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
 fi
 
 ## Restartability tests
-if [ ${DO_RESTART} == "1" ] ;  then
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
     JOB_FILE=${EXE_DIR}/run_job.sh
     NPROC=27
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+fi
+
+if [ ${DO_RESTART_1} == "1" ] ;  then
+    set_valid_dir
+    clean_valid_dir
     cd ${EXE_DIR}
     set_namelist namelist_cfg cn_exp \"ISOMIP+_LONG\"
     set_namelist namelist_cfg nn_it000 1
@@ -830,7 +890,9 @@ if [ ${DO_RESTART} == "1" ] ;  then
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_ISOMIP+.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
 
+if [ ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="SHORT"
     . ./prepare_exe_dir.sh
@@ -860,13 +922,15 @@ if [ ${DO_RESTART} == "1" ] ;  then
 
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_ISOMIP+.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 
 fi
 
 ## Reproducibility tests
-if [ ${DO_REPRO} == "1" ] ;  then
+if [ ${DO_REPRO_1} == "1" ] ;  then
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -898,7 +962,9 @@ if [ ${DO_REPRO} == "1" ] ;  then
     . ./prepare_job.sh input_ISOMIP+.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+fi
 
+if [ ${DO_REPRO_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="REPRO_8_4"
     . ./prepare_exe_dir.sh
@@ -932,8 +998,8 @@ fi
 # ---------
 # SWG
 # ---------
-if [ ${config} == "SWG" ] ;  then
-    SETTE_CONFIG="SWG"${SETTE_STG}
+if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
+    SETTE_CONFIG="SWG"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
 	ITEND=12
@@ -942,26 +1008,29 @@ if [ ${config} == "SWG" ] ;  then
     fi
     ITRST=$(   printf "%08d" $(( ${ITEND} / 2 )) )
 
-if [ ${USING_QCO} == "yes" ] && [ ${DO_COMPILE} == "1" ] ;  then
+if [ ${DO_COMPILE} == "1" ] ;  then
     cd ${MAIN_DIR}
     #
     # syncronisation if target directory/file exist (not done by makenemo)
     clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
     #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}"
+    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a SWG ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
 fi
 
 ## Restartability tests for SWG
-if [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     export TEST_NAME="LONG"
     cd ${SETTE_DIR}
     . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
     JOB_FILE=${EXE_DIR}/run_job.sh
     NPROC=1
     if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi 
+fi
+
+if [ ${DO_RESTART_1} == "1" ] ;  then
+    set_valid_dir
+    clean_valid_dir
     cd ${EXE_DIR}
     set_namelist namelist_cfg cn_exp \"SWG_LONG\"
     set_namelist namelist_cfg nn_it000 1
@@ -976,7 +1045,9 @@ if [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
     set_xio_using_server iodef.xml ${USING_MPMD}
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
     
+if [ ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="SHORT"
     . ./prepare_exe_dir.sh
@@ -1008,12 +1079,14 @@ if [ ${DO_RESTART} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
     fi
     cd ${SETTE_DIR}
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+fi
+if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
 fi
 
 ## Reproducibility tests for SWG
-if [ ${DO_REPRO} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
+if [ ${DO_REPRO_1} == "1" ] ;  then
     export TEST_NAME="REPRO_2_3"
     cd ${MAIN_DIR}
     cd ${SETTE_DIR}
@@ -1043,7 +1116,9 @@ if [ ${DO_REPRO} == "1" ] && [ ${USING_QCO} == "yes" ] ;  then
     . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
     cd ${SETTE_DIR}
     . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+fi
 
+if [ ${DO_REPRO_2} == "1" ] ;  then
     cd ${SETTE_DIR}
     export TEST_NAME="REPRO_3_2"
     . ./prepare_exe_dir.sh
@@ -1079,6 +1154,7 @@ fi
 
 
 #----
+    done
 done
 #
 # Return to SETTE_DIR (last fcm_job.sh will have moved to EXE_DIR)

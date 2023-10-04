@@ -25,11 +25,11 @@ set -o posix
 # ===========
 #
 #
-# Preprocess file using the conv in NEMOFILES directory
-# Standard preprocessed files are stored in NEMOFILES/ppsrc/nemo
-# Source files are stored under NEMOFILES/obj
-# Include filess  in NEMOFILES/inc
-# Note that agrif2model.F90 should not be preprocess (standard one) 
+# Process file using ./conv in the build directory
+# Standard preprocessed files are stored in the ./ppsrc/nemo subdirectory
+# Processed source-code and include files are stored in ./obj and ./inc,
+# respectively
+# Note that agrif2model.F90 should not be preprocessed (standard one)
 #
 # EXAMPLES
 # ========
@@ -59,12 +59,12 @@ MYFILE=$(basename "$2")
 
 if [ "$MYFILE" == "agrif2model.f90" ];then
    # generic case
-   if [ -d ${MYDIR}/WORK ]; then
-      \cp ${MYDIR}/WORK/${MYFILE/.f90/.F90} ${MYDIR}/NEMOFILES/obj/$MYFILE
+   if [ -d ${MYDIR}/../WORK ]; then
+      \cp ${MYDIR}/../WORK/${MYFILE/.f90/.F90} ${MYDIR}/obj/$MYFILE
    # DOMAINcfg case
-   elif [ -d ${MYDIR}/src ]; then
-      \cp ${MYDIR}/src/${MYFILE/.f90/.F90} ${MYDIR}/NEMOFILES/obj/$MYFILE
+   elif [ -d ${MYDIR}/../src ]; then
+      \cp ${MYDIR}/../src/${MYFILE/.f90/.F90} ${MYDIR}/obj/$MYFILE
    fi
 else
-   cd ${MYDIR}/NEMOFILES/ppsrc/nemo ; ${MYDIR}/NEMOFILES/conv ${MYDIR}/NEMOFILES/agrif_oce.in -rm -incdir ${MYDIR}/NEMOFILES/inc -comdirout ${MYDIR}/NEMOFILES/obj -convfile ${MYFILE} > /dev/null 
+   cd ${MYDIR}/ppsrc/nemo ; ${MYDIR}/conv ${MYDIR}/agrif_oce.in -rm -incdir ${MYDIR}/inc -comdirout ${MYDIR}/obj -convfile ${MYFILE} > /dev/null 
 fi
