@@ -3,16 +3,23 @@
 #----------#
 
 
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_COMMIT_TITLE =~ /(?i).*\[ci\].*/
+    - if: $CI_PIPELINE_SOURCE == 'schedule'
+
+
 include:
-  # default values will be overwritten depending on commit author
-  - local: '.gitlab-ci-default.yml'
-  - local: '.gitlab-ci-cnrs.yml'
+  # default values (will be overwritten after)
+  - local: '.gitlab-ci/.gitlab-ci-default.yml'
+  - local: '.gitlab-ci/.gitlab-ci-mercator.yml'
     rules:
-    - if: '$CI_COMMIT_AUTHOR =~ /.*masson.*/'
-  - local: '.gitlab-ci-mercator.yml'
-    rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    #- if: '$CI_COMMIT_AUTHOR =~ /.*samson.*/ || $CI_COMMIT_AUTHOR =~ /.*chanut.*/'
+      - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_COMMIT_TITLE =~ /(?i).*\[ci\].*/
+      - if: $CI_PIPELINE_SOURCE == 'schedule'
+  # example to show how to specify the HPC depending on commit author
+  #- local: '.gitlab-ci/.gitlab-ci-cnrs.yml'
+  #  rules:
+  #  - if: '$CI_COMMIT_AUTHOR =~ /.*masson.*/' || $CI_COMMIT_AUTHOR =~ /.*samson.*/'
 
 
 .cache: &cache_CFG
@@ -61,8 +68,6 @@ before_script:
 
 sette_cmp_cfgs:
   stage: compile
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
   extends: .parallel_HPC_CFG   # HPC + configs loop 
   cache:
     <<: *cache_CFG
@@ -81,8 +86,6 @@ sette_cmp_cfgs:
 
 sette_cmp_tsts:
   stage: compile
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
   extends: .parallel_HPC_TST   # HPC + tests loop
   cache:
     <<: *cache_TST
@@ -101,8 +104,6 @@ sette_cmp_tsts:
 
 sette_run_cfgs:
   stage: run
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
   needs: [sette_cmp_cfgs]   # limited to 50 jobs
   dependencies: []   # do not retrieve previous artifacts
   extends: .parallel_HPC_CFG   # HPC + configs loop
@@ -126,8 +127,6 @@ sette_run_cfgs:
 
 sette_run_tsts:
   stage: run
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
   needs: [sette_cmp_tsts]   # limited to 50 jobs
   dependencies: []   # do not retrieve previous artifacts
   extends: .parallel_HPC_TST   # HPC + tests loop
@@ -151,8 +150,6 @@ sette_run_tsts:
 
 sette_rpt_cfgs:
   stage: check
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
   needs: [sette_run_cfgs]   # limited to 50 jobs
   dependencies: []   # do not retrieve previous artifacts
   extends: .parallel_HPC_CFG   # HPC + configs loop
@@ -169,8 +166,6 @@ sette_rpt_cfgs:
 
 sette_rpt_tsts:
   stage: check
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
   needs: [sette_run_tsts]   # limited to 50 jobs
   dependencies: []   # do not retrieve previous artifacts
   extends: .parallel_HPC_TST   # HPC + tests loop
