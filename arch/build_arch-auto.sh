@@ -43,6 +43,8 @@ Environment variables that can be defined
 	     include ($OASIS_PREFIX/build/lib/mct and $OASIS_PREFIX/build/lib/psmile.MPI1)
   	     Can also be specified with the optional argument --OASIS_prefix
 
+  PSYCLONE_prefix : path to a PSyclone installation; also configurable with argument '--PSYCLONE_prefix <path>'
+
   LIBMpath : path of the m library (standard C library of basic mathematical functions)
   	     Can also be specified with the optional argument --LIBMpath
 
@@ -75,6 +77,7 @@ EOF
 	--hdf5_prefix)     HDF5_prefix=${2}     ; shift ;;
 	--xios_prefix)     XIOS_prefix=${2}     ; shift ;;
 	--oasis_prefix)    OASIS_prefix=${2}    ; shift ;;
+	--psyclone_prefix) PSYCLONE_prefix=${2} ; shift ;;
 	--libmpath)        LIBMpath=${2}        ; shift ;;
 	--curlpath)        CURLpath=${2}        ; shift ;;
 	--zlibpath)        ZLIBpath=${2}        ; shift ;;
@@ -493,6 +496,26 @@ then
 fi
 #
 #-----------------------------------------------------
+# PSyclone
+#-----------------------------------------------------
+#
+PSYCLONE_prefix=${PSYCLONE_prefix:-notdef}
+if [ "${PSYCLONE_prefix}" == "notdef" ]; then
+    if [ $( err_which psyclone ) -eq 0 ]; then
+        PSYCLONE_cmd=`which psyclone`
+        PSYCLONE_prefix=${PSYCLONE_cmd%/bin/psyclone}
+        if [ "${PSYCLONE_prefix}/bin/psyclone" == "${PSYCLONE_cmd}" ]; then
+            echo_green "PSYCLONE_prefix=${PSYCLONE_prefix}"
+        else
+            PSYCLONE_prefix="notdef"
+        fi
+    fi
+fi
+if [ "${PSYCLONE_prefix}" == "notdef" ]; then
+    echo_orange "WARNING: PSYCLONE_prefix is not specified (only required for PSyclone processing)"
+fi
+#
+#-----------------------------------------------------
 #   make
 #-----------------------------------------------------
 #
@@ -560,6 +583,7 @@ cat > $archname << EOF
 %HDF5_PREFIX         $HDF5_prefix
 %XIOS_PREFIX         $XIOS_prefix
 %OASIS_PREFIX        $OASIS_prefix
+%PSYCLONE_HOME       $PSYCLONE_prefix
 
 %NCDF_INC            $NCDF_INC
 %NCDF_LIB            $NCDF_LIB

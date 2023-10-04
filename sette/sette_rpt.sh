@@ -10,7 +10,7 @@
 #set -x
 
 # exit codes
-declare -i {REPRO_EC,RESTA_EC,REFCMP_EC,CPUCMP_EC,OCEOUT_EC,AGRIF_EC}=0
+declare -i {REPRO_EC,RESTA_EC,TRANSFORM_EC,REFCMP_EC,CPUCMP_EC,OCEOUT_EC,AGRIF_EC}=0
 
 function get_dorv() {
   if [ $lastchange == 'old' ] ; then 
@@ -46,7 +46,7 @@ function resttest() {
 #
 # check if directory is here
   if [ ! -d $vdir/$mach/$dorv/$nam ]; then
-    printf "%-27s %s %s\n" $nam  " directory                  MISSING : " $dorv
+    printf "%-27s %s %s\n" $nam  " directory                    MISSING :" $dorv
     echo " please check $vdir/$mach/$dorv/$nam"
     RESTA_EC=1
     return
@@ -83,11 +83,11 @@ function resttest() {
       cmp -s f1.tmp$$ $f2s
       if [ $? == 0 ]; then
         if [ $pass == 0 ]; then 
-          printf "%-27s %s %s\n" $nam  " run.stat    restartability  passed : " $dorv
+          printf "%-27s %s %s\n" $nam  " run.stat    restartability   passed  :" $dorv
         fi
       else
         get_ktdiff f1.tmp$$ $f2s
-        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " run.stat    restartability  FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
+        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " run.stat    restartability   FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
         RESTA_EC=1
 #
 # Offer view of differences on the second pass
@@ -114,11 +114,11 @@ function resttest() {
       cmp -s f1.tmp$$ $f2t
       if [ $? == 0 ]; then
         if [ $pass == 0 ]; then 
-          printf "%-27s %s %s\n" $nam  " tracer.stat restartability  passed : " $dorv
+          printf "%-27s %s %s\n" $nam  " tracer.stat restartability   passed  :" $dorv
         fi
       else
         get_ktdiff2 f1.tmp$$ $f2t
-        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " tracer.stat    restartability  FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
+        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " tracer.stat    restartability   FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
         RESTA_EC=1
 #
 # Offer view of differences on the second pass
@@ -158,7 +158,7 @@ function reprotest(){
 #
 # check if directory is here
   if [ ! -d $vdir/$mach/$dorv/$nam ]; then
-    printf "%-27s %s %s\n" $nam  " directory                  MISSING : " $dorv
+    printf "%-27s %s %s\n" $nam  " directory                    MISSING :" $dorv
     echo " please check $vdir/$mach/$dorv/$nam"
     REPRO_EC=R1
     return
@@ -198,11 +198,11 @@ function reprotest(){
       cmp -s $f1s $f2s
       if [ $? == 0 ]; then
         if [ $pass == 0 ]; then 
-          printf "%-27s %s %s\n" $nam  " run.stat    reproducibility passed : " $dorv
+          printf "%-27s %s %s\n" $nam  " run.stat    reproducibility  passed  :" $dorv
         fi
       else
         get_ktdiff $f1s $f2s
-        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " run.stat    reproducibility FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
+        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " run.stat    reproducibility  FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
         REPRO_EC=1
 #
 # Offer view of differences on the second pass
@@ -226,11 +226,11 @@ function reprotest(){
     if  [ -f $f1t ] && [ -f $f2t ] ; then
       cmp -s $f1t $f2t
       if [ $? == 0 ]; then
-        if [ $pass == 0 ]; then           printf "%-27s %s %s\n" $nam  " tracer.stat reproducibility passed : " $dorv
+        if [ $pass == 0 ]; then           printf "%-27s %s %s\n" $nam  " tracer.stat reproducibility  passed  :" $dorv
         fi
       else
         get_ktdiff2 $f1t $f2t
-        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " tracer.stat reproducibility FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
+        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " tracer.stat reproducibility  FAILED : " $dorv " (results are different after " $ktdiff " time steps)"
         REPRO_EC=1
 #
 # Offer view of differences on the second pass
@@ -254,6 +254,110 @@ function reprotest(){
     fi
   fi
 }
+
+function transformtest() {
+#
+# Transformability checks
+#
+# This check expects results from configurations <CONF>+PT or <CONF>+T?? as
+# well as a reference configuration <CONF>, and compares the *.stat files from
+# either the LONG or a REPRO_?_? run
+#
+# Function arguments (validation-directory path, test name, pass counter) and
+# revision number
+  vdir=$1
+  nam=$2
+  pass=$3
+  get_dorv
+#
+# Stop if the reference-output directory is missing
+  if [ ! -d ${vdir}/${mach}/${dorv}/${nam} ]; then
+    printf "%-27s %s %s\n" ${nam}  " directory                    MISSING :" ${dorv}
+    TRANSFORM_EC=1
+  else
+# List of available reference runs
+    RUNNAMES0=$(ls -1 ${vdir}/${mach}/${dorv}/${nam}/ | grep -e "^LONG\$" -e "^REPRO_[0-9]_[0-9]\$")
+    for RUNNAME in ${RUNNAMES0}; do
+      runtest ${vdir} ${nam} ${pass} ${RUNNAME}
+    done
+    RUNNAMES0=" ${RUNNAMES0} "
+# List of transformed configurations
+    DIRNAMES=$(ls -1 ${vdir}/${mach}/${dorv}/ | grep -e "^${nam}+PT\$" -e "^${nam}+T[0-9][0-9]\$")
+    found_var=0
+    for dirnam in ${DIRNAMES} ; do
+      if [ -d ${vdir}/${mach}/${dorv}/${dirnam} ]; then
+# One of the runs is selected,
+        RUNNAME=`ls -1 --color=never ${vdir}/${mach}/${dorv}/${dirnam}/ | grep -m 1 -e '^LONG$' -e '^REPRO_[0-9]_[0-9]$'`
+        if [ -n "${RUNNAME}" ]; then
+#   but only if a corresponding reference run is available
+          if [ ! "${RUNNAMES0/${RUNNAME}/}" == "${RUNNAMES0}" ]; then
+            runtest ${vdir} ${dirnam} ${pass} ${RUNNAME}
+            found_var=1
+            # Compare timing.output (if available)
+            f1t=${vdir}/${mach}/${dorv}/${nam}/${RUNNAME}/timing.output
+            f2t=${vdir}/${mach}/${dorv}/${dirnam}/${RUNNAME}/timing.output
+            ntime="-1"
+            if [ -f ${f1t} -a -f ${f2t} ]; then
+              t0=`grep -e 'Average ' $f1t | cut -d '|' -f 3`
+              t1=`grep -e 'Average ' $f2t | cut -d '|' -f 3`
+              if [[ ${t0} ]] && [[ ${t1} ]]; then
+                rt=`echo "100 * (${t1} - ${t0}) / ${t0}" | bc -l`
+                ntime=`echo "${t1} > ${t0}" | bc -l`
+              fi
+            fi
+            done_cmp=0
+            done_oce=0
+            # Compare run.stat and tracer.stat (if available)
+            for sfile in run.stat tracer.stat; do
+              f1=${vdir}/${mach}/${dorv}/${nam}/${RUNNAME}/${sfile}
+              f2=${vdir}/${mach}/${dorv}/${dirnam}/${RUNNAME}/${sfile}
+              if [ -f ${f1} -a -f ${f2} ]; then
+                done_cmp=1
+                cmp -s $f1 $f2
+                if [ $? == 0 ]; then
+                  if [ ${pass} == 0 ]; then
+                    if [ ${ntime} == "0" ]; then
+                      printf "%-28s %-11s %-25s %-17s - elapsed time: \\e[42;01;196m%10.3f s (%+6.2f %%)\\e[0m\n" ${dirnam} ${sfile} "transformability passed  :" ${dorv} ${t1} ${rt};
+                    elif [ ${ntime} == "1" ]; then
+                      printf "%-28s %-11s %-25s %-17s - elapsed time: \\e[41;33;196m%10.3f s (%+6.2f %%)\\e[0m\n" ${dirnam} ${sfile} "transformability passed  :" ${dorv} ${t1} ${rt};
+                    else
+                      printf "%-28s %-11s %-25s %s\n" ${dirnam} ${sfile} "transformability passed  :" ${dorv};
+                    fi
+                  fi
+                else
+                  get_ktdiff $f1 $f2
+                  printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" ${dirnam}  " ${sfile}   transformability FAILED : " ${dorv} " (results are different after " ${ktdiff} " time steps)"
+                  TRANSFORM_EC=1
+                  if [ ${pass} == 1 ]; then
+                    echo "<return> to view ${sfile} differences"
+                    read y
+                    sdiff $f1 $f2
+                    if [ ${done_oce} == 0 ]; then
+                      echo "<return> to view ocean.output differences"
+                      read y
+                      sdiff ${vdir}/${mach}/${dorv}/${nam}/${RUNNAME}/ocean.output ${vdir}/${mach}/${dorv}/${dirnam}/${RUNNAME}/ocean.output
+                      done_oce=1
+                    fi
+                    echo "<return> to continue"
+                    return y
+                  fi
+                fi
+              fi
+            done
+# Test failure report if no output file has been compared
+            if [ ${done_cmp} -eq 0 ]; then
+              printf "%-27s %s\n" ${dirnam} " incomplete test"
+              TRANSFORM_EC=1
+              return
+            fi
+          fi
+        fi
+      fi
+    done
+    [ ${found_var} -eq 0 ] && printf "%-27s %s %s\n" ${nam}  " transformed variants         MISSING :" ${dorv}
+  fi
+}
+
 function runcmpres(){
 #
 # compare *.stat file with reference file from a previous sette test or previous version
@@ -407,7 +511,7 @@ function runtest(){
 # Check presence of E R R O R in ocean.output from each
 #
   vdir=$1
-  nam=$2
+  naml=$2
   pass=$3
   ttype=$4
   [[ $ttype == 'RST' ]] && ttype="LONG|SHORT"
@@ -417,20 +521,20 @@ function runtest(){
 #
 # no print needed if the repository is not here (already catch before)
 #
-  if [ -d $vdir/$mach/$dorv/$nam/ ]; then
+  if [ -d $vdir/$mach/$dorv/${naml}/ ]; then
     #
     # apply check for all ttype directory
-    rep1=$(ls -rt $vdir/$mach/$dorv/$nam/ | grep -E $ttype)
+    rep1=$(ls -rt $vdir/$mach/$dorv/${naml}/ | grep -E $ttype)
     for tdir in $rep1 ; do
-       f1o=$vdir/$mach/$dorv/$nam/$tdir/ocean.output
+       f1o=$vdir/$mach/$dorv/${naml}/$tdir/ocean.output
        if  [ ! -f $f1o ] ; then
-          if [ $pass == 0 ]; then printf "%-27s %s %s\n" $nam " ocean.output               MISSING : " $dorv ; fi
+          if [ $pass == 0 ]; then printf "%-27s %s %s\n" ${naml} " ocean.output                 MISSING :" $dorv ; fi
           OCEOUT_EC=1
           return
        else 
           nerr=`grep 'E R R O R' $f1o | wc -l`
           if [[ $nerr > 0 ]]; then
-             printf "\e[38;5;196m%-27s %s %s %s\e[0m\n" $nam " run                         FAILED : " $dorv " ( E R R O R in ocean.output) " 
+             printf "\e[38;5;196m%-27s %s %s %s\e[0m\n" ${naml} " run                         FAILED : " $dorv " ( E R R O R in ocean.output) " 
              if [ $pass == 1 ]; then
                 echo "<return> to view end of ocean.output"
                 read y
@@ -444,7 +548,7 @@ function runtest(){
        fi
     done
   else
-     if [ $pass == 0 ]; then printf "%-27s %s %s\n" $nam  " directory                  MISSING : " $dorv ; fi
+     if [ $pass == 0 ]; then printf "%-27s %s %s\n" ${naml}  " directory                    MISSING :" $dorv ; fi
      OCEOUT_EC=1
      return
   fi
@@ -470,7 +574,7 @@ function identictest(){
       cmp -s $f1s $f2s
       if [ $? == 0 ]; then
           if [ $pass == 0 ]; then 
-	      printf "%-5s %s %-5s %s %s %s\n" $rep "AGRIF vs" $rep "NOAGRIF run.stat    unchanged  -    passed : " $dorv $dorv2
+	      printf "%-5s %s %-5s %s %s %s\n" $rep "AGRIF vs" $rep "NOAGRIF run.stat    unchanged  -     passed  :" $dorv $dorv2
           fi
       else
           get_ktdiff $f1s $f2s
@@ -661,6 +765,13 @@ do
       reprotest $NEMO_VALID $repro_test $pass
    fi
  done
+# Transformability tests
+ echo ""
+ echo "   !----transform----!   "
+ for transform_test in ${TEST_CONFIGS[@]}
+ do
+   transformtest ${NEMO_VALID} ${transform_test} ${pass}
+ done
 
 # AGRIF special check to ensure results are unchanged with and without key_agrif
  if [[ ${TEST_CONFIGS[@]} =~ "AGRIF" ]]; then
@@ -705,5 +816,5 @@ do
  fi
 done
 #
-echo "SETTE Report Exit Code: "$((REPRO_EC+RESTA_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC))
-exit $((REPRO_EC+RESTA_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC))
+echo "SETTE Report Exit Code: "$((REPRO_EC+RESTA_EC+TRANSFORM_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC))
+exit $((REPRO_EC+RESTA_EC+TRANSFORM_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC))

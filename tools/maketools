@@ -90,37 +90,37 @@ x_c="";
 x_j=1;
 while getopts :hbm:n:r:j:t: V
   do
-	 case $V in
-		(h)  x_h=${OPTARG};
-                          echo "Usage	 : "${b_n} \
-					 " [-h] [-n name] [-m arch] [-j No] [-t tmpdir]";
-			  echo " -h	 : help";
-                          echo " -h institute : specific help for consortium members";
-			  echo " -n name : tool name, [-n help] to list existing tools";
-			  echo " -m arch : choose compiler, [-m help] to list exiting compilers";
-			  echo " -b      : compile with debug options";
-			  echo " -j No	 : number of processes used to compile (0=nocompilation)";
-			  echo " -t dir  : remporary directory for compilation"
-			  echo "";
-			  echo "Example to compile Agrif Nesting tools";
-			  echo "maketools -n NESTING" ;
-			  echo "";
-                          printf "%s\n" "Available tools :" `ls ${TOOLS_DIR}|grep -v COMPILE | grep -v maketools`;
-			  echo "";
-                          . ${COMPIL_DIR}/Flist_archfile.sh  ${x_h};
-			  echo "";
-			  echo "Default : previous tool and compiler";
-			  exit 0;;
-		(n)  x_n=${OPTARG};;
-		(m)  x_m=${OPTARG};;
-		(b)  x_b=1;;
-		(j)  x_j=${OPTARG};;
-		(t)  x_t=${OPTARG};;
-		(:)  echo ${b_n}" : -"${OPTARG}" option : missing value" 1>&2;
-			  exit 2;;
-		(\?) echo ${b_n}" : -"${OPTARG}" option : not supported" 1>&2;
-			  exit 2;;
-	 esac
+    case $V in
+        (h)  x_h=${OPTARG};
+            echo "Usage	 : "${b_n} \
+                 " [-h] [-n name] [-m arch] [-j No] [-t tmpdir]";
+            echo " -h	 : help";
+            echo " -h institute : specific help for consortium members";
+            echo " -n name : tool name, [-n help] to list existing tools";
+            echo " -m arch : choose compiler, [-m help] to list exiting compilers";
+            echo " -b      : compile with debug options";
+            echo " -j No	 : number of processes used to compile (0=nocompilation)";
+            echo " -t dir  : remporary directory for compilation"
+            echo "";
+            echo "Example to compile Agrif Nesting tools";
+            echo "maketools -n NESTING" ;
+            echo "";
+            printf "%s\n" "Available tools :" `ls ${TOOLS_DIR}|grep -v COMPILE | grep -v maketools`;
+            echo "";
+            . ${COMPIL_DIR}/Flist_archfile.sh  ${x_h};
+            echo "";
+            echo "Default : previous tool and compiler";
+            exit 0;;
+        (n)  x_n=${OPTARG};;
+        (m)  x_m=${OPTARG};;
+        (b)  x_b=1;;
+        (j)  x_j=${OPTARG};;
+        (t)  x_t=${OPTARG};;
+        (:)  echo ${b_n}" : -"${OPTARG}" option : missing value" 1>&2;
+            exit 2;;
+        (\?) echo ${b_n}" : -"${OPTARG}" option : not supported" 1>&2;
+            exit 2;;
+    esac
   done
 shift $(($OPTIND-1));
 
@@ -135,6 +135,14 @@ CUR_CONF=${x_n}
 NBR_PRC=${x_j}
 CMP_NAM=${x_m}
 NEMO_TDIR=${x_t:-$TOOLS_DIR}
+
+# Default source-code and include paths
+NEMO_SRC='src'
+NEMO_INC='BLD/inc'
+# Default build target
+NEMO_TARGET='make_domain_cfg.exe'
+# Default source-code transformation target
+NEMO_TARGET_SCT='make_domain_cfg.f90'
 
 #- Check if the tool or the compiler exist or list it
 [ "${CUR_CONF}" == help ] && printf "%s\n"  "Available tools :" `ls ${TOOLS_DIR}|grep -v COMPILE | grep -v maketools` && exit
@@ -166,35 +174,78 @@ USEBLD=bldxag_tools.cfg
 
 if [ "${NBR_PRC}" -gt 0 ]; then
 
-	## if AGRIF we do a first preprocessing
-        grep key_agrif ${TOOLS_DIR}/${CUR_CONF}/BLD/cpp_tools.fcm && USEBLD=${USEBLD/xag/}
-	if [[ ${#x_c} -eq 0 && ! ${USEBLD} =~ "xag" ]]; then
-                ${COMPIL_DIR}/Fprep_agrif.sh ${MAIN_DIR} ${TOOLS_DIR}/${CUR_CONF} || exit 3
+    ## if AGRIF we do a first preprocessing
+    grep key_agrif ${TOOLS_DIR}/${CUR_CONF}/BLD/cpp_tools.fcm && USEBLD=${USEBLD/xag/}
+    # Create sequence of build stages ('BLD' is the main compilation
+    # stage and the prefix 'BLD_SCT' indicates source-code transformation
+    # stages)
+    NEMO_BLD_STAGES="BLD"
+    [[ ${#x_c} -eq 0 && ! ${USEBLD} =~ "xag" ]] && NEMO_BLD_STAGES="BLD_AGRIFLIB BLD_SCT_AGRIF ${NEMO_BLD_STAGES}"
 
-                # compile & copy conv
-                sed -e "s~MAIN_DIR~${MAIN_DIR}~; s~NEMO_TDIR~${NEMO_TDIR}~; s~CUR_CONF~${CUR_CONF}~; s~COMPIL_DIR~${COMPIL_DIR}~; s~arch_nemo~arch_tools~" ${COMPIL_DIR}/conv.cfg > ${NEMO_TDIR}/${CUR_CONF}/BLD/conv.cfg
-                fcm build ${NEMO_TDIR}/${CUR_CONF}/BLD/conv.cfg || exit 1
-                cp -fa ${MAIN_DIR}/ext/AGRIF/agrif_oce.in ${NEMO_TDIR}/${CUR_CONF}/AGRIFLIB/bin/conv ${NEMO_TDIR}/${CUR_CONF}/NEMOFILES/.
+    # Loop over build stages
+    for NEMO_BLD_STAGE in ${NEMO_BLD_STAGES}; do
+        echo
+        echo "--------------------------------------------------------------------------------"
+        [[ ${NEMO_BLD_STAGE} != 'BLD' ]] && echo "Build stage ${NEMO_BLD_STAGE}" || echo "Compilation"
+        echo "--------------------------------------------------------------------------------"
+        echo
 
-                sed -e "s~MAIN_DIR~${MAIN_DIR}~; s~TOOLS_DIR~${TOOLS_DIR}~; s~CUR_CONF~${CUR_CONF}~; s~COMPIL_DIR~${COMPIL_DIR}~" ${COMPIL_DIR}/bld_preproagr_tools.cfg > ${NEMO_TDIR}/${CUR_CONF}/BLD/bld_preproagr_tools.cfg
-		fcm build --ignore-lock -j 1 ${NEMO_TDIR}/${CUR_CONF}/BLD/bld_preproagr_tools.cfg || exit 1
-		echo
-		echo "---------------------------------"
-		echo "CONV preprocessing successfull !!"
-		echo "---------------------------------"
-		echo
-	fi
+        # Create build directory
+        mkdir -p ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}
 
-   sed -e "s~MAIN_DIR~${MAIN_DIR}~; s~TOOLS_DIR~${TOOLS_DIR}~; s~CUR_CONF~${CUR_CONF}~; s~COMPIL_DIR~${COMPIL_DIR}~" ${COMPIL_DIR}/${USEBLD} > ${NEMO_TDIR}/${CUR_CONF}/BLD/${USEBLD}
-   fcm build ${x_c} --ignore-lock -v 1 -j ${NBR_PRC} ${NEMO_TDIR}/${CUR_CONF}/BLD/${USEBLD}
+        # Common settings
+        NEMO_BLD_OPT="${x_c} --ignore-lock -v 1 -j ${NBR_PRC}"
+        NEMO_FC="%FC"
 
-   if ls ${NEMO_TDIR}/${CUR_CONF}/BLD/bin/*.exe 2>/dev/null && [ -z "${x_c}" ]; then
-      for i in ${NEMO_TDIR}/${CUR_CONF}/BLD/bin/*.exe
-      do
-         ln -sfv ${i} ${TOOLS_DIR}/${CUR_CONF}/.
-      done
-   fi
+        # Specific settings for the final compilation stage
+        if [[ ${NEMO_BLD_STAGE} == 'BLD' ]]; then
+            NEMO_BLD_TARGET=${NEMO_TARGET}
+            NEMO_BLD_CFG=${USEBLD}
+        fi
+
+        # Specific settings for AGRIF processing
+        if [[ ${NEMO_BLD_STAGE} == 'BLD_AGRIFLIB' ]]; then
+            NEMO_BLD_CFG="conv.cfg"
+            NEMO_BLD_OPT=""
+        fi
+        if [[ ${NEMO_BLD_STAGE} == 'BLD_SCT_AGRIF'    ]]; then
+            NEMO_FC="${COMPIL_DIR}/agrifpp.sh"
+            NEMO_BLD_CFG="bld_preproagr_tools.cfg"
+            NEMO_BLD_OPT="--ignore-lock -j 1"
+            NEMO_BLD_TARGET="${NEMO_TARGET_SCT} agrif_user.f90 agrif2model.f90"
+            if [ ! -f ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h ]; then
+                printf "#if ! defined key_mpi_off\n#define AGRIF_MPI\n#endif\n" > ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h
+            fi
+            cp -fa ${MAIN_DIR}/ext/AGRIF/agrif_oce.in ${NEMO_TDIR}/${CUR_CONF}/BLD_AGRIFLIB/bin/conv ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/.
+        fi
+
+        sed -e "s~MAIN_DIR~${MAIN_DIR}~"         -e "s~NEMO_TDIR~${NEMO_TDIR}~"           -e "s~TOOLS_DIR~${TOOLS_DIR}~" \
+            -e "s~CUR_CONF~${CUR_CONF}~"         -e "s~COMPIL_DIR~${COMPIL_DIR}~"         -e "s~arch_nemo~arch_tools~"   \
+            -e "s~_NEMO_SRC_~${NEMO_SRC}~"       -e "s~_NEMO_BLD_~${NEMO_BLD_STAGE}~"     -e "s~_NEMO_FC_~${NEMO_FC}~"   \
+            -e "s~_NEMO_INC_~${NEMO_INC}~"       -e "s~_NEMO_TARGET_~${NEMO_BLD_TARGET}~"                                \
+            ${COMPIL_DIR}/${NEMO_BLD_CFG} > ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/bld.cfg
+        fcm build ${NEMO_BLD_OPT} ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/bld.cfg || exit 1
+
+        # Update source-code and include file locations if the source
+        # code has been transformed (the build stage prefix is
+        # 'BLD_SCT_')
+        if [[ ${NEMO_BLD_STAGE} != ${NEMO_BLD_STAGE#BLD_SCT_} ]]; then
+            NEMO_SRC="${NEMO_BLD_STAGE}/obj"
+            NEMO_INC="${NEMO_BLD_STAGE}/inc"
+        fi
+
+        echo
+        echo "--------------------------------------------------------------------------------"
+        [[ ${NEMO_BLD_STAGE} != 'BLD' ]] && echo "Build stage ${NEMO_BLD_STAGE} successful" || echo "Compilation successful"
+        echo "--------------------------------------------------------------------------------"
+        echo
+    done
+
+    if ls ${NEMO_TDIR}/${CUR_CONF}/BLD/bin/*.exe 2>/dev/null && [ -z "${x_c}" ]; then
+        for i in ${NEMO_TDIR}/${CUR_CONF}/BLD/bin/*.exe ; do
+            ln -sfv ${i} ${TOOLS_DIR}/${CUR_CONF}/.
+        done
+    fi
 fi
-
 
 exit 0
