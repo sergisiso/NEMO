@@ -570,7 +570,7 @@ CONTAINS
          !
          CALL blk_oce_1( kt, sf(jp_wndi )%fnow(:,:,1), sf(jp_wndj )%fnow(:,:,1),   &   !   <<= in
             &                theta_air_zt(:,:), q_air_zt(:,:),                     &   !   <<= in
-            &                sf(jp_slp  )%fnow(:,:,1), sst_m(A2D(0)), ssu_m(A2D(0)), ssv_m(A2D(0)),        &   !   <<= in
+            &                sf(jp_slp  )%fnow(:,:,1), sst_m(A2D(0)), ssu_m(A2D(1)), ssv_m(A2D(1)),        &   !   <<= in
             &                sf(jp_uoatm)%fnow(:,:,1), sf(jp_voatm)%fnow(:,:,1),   &   !   <<= in
             &                sf(jp_qsr  )%fnow(:,:,1), sf(jp_qlw  )%fnow(:,:,1),   &   !   <<= in (wl/cs)
             &                tsk_m, zssq, zcd_du, zsen, zlat, zevp )                   !   =>> out
@@ -642,8 +642,8 @@ CONTAINS
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   ptair  ! potential temperature at T-points        [Kelvin]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pslp   ! sea-level pressure                       [Pa]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pst    ! surface temperature                      [Celsius]
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pu     ! surface current at U-point (i-component) [m/s]
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pv     ! surface current at V-point (j-component) [m/s]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(1)) ::   pu     ! surface current at U-point (i-component) [m/s]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(1)) ::   pv     ! surface current at V-point (j-component) [m/s]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   puatm  ! surface current seen by the atm at T-point (i-component) [m/s]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pvatm  ! surface current seen by the atm at T-point (j-component) [m/s]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pdqsr  ! downwelling solar (shortwave) radiation at surface [W/m^2]
