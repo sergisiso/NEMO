@@ -331,22 +331,35 @@ CONTAINS
             zvU = 0.5_wp * ( vt_i(ji,jj)*e1e2t(ji,jj) + vt_i(ji+1,jj  )*e1e2t(ji+1,jj  ) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
             zvV = 0.5_wp * ( vt_i(ji,jj)*e1e2t(ji,jj) + vt_i(ji  ,jj+1)*e1e2t(ji  ,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
             ! ice-bottom stress at U points
-            zvCr = zaU(ji,jj) * rn_lf_depfra * hu(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) ) ! if grounded icebergs are read: ocean depth = 0
-            ztaux_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvU - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaU(ji,jj) ) )
+            IF( icb_umask(ji,jj) == 0._wp ) THEN
+               zvCr = zaU(ji,jj) * rn_lf_depfra * hu(ji,jj,Kmm)
+               ztaux_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvU - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaU(ji,jj) ) )
+            ELSE
+               ztaux_base(ji,jj) = - rn_lf_bfr * icb_umask(ji,jj)
+            ENDIF
             ! ice-bottom stress at V points
-            zvCr = zaV(ji,jj) * rn_lf_depfra * hv(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) ) ! if grounded icebergs are read: ocean depth = 0
-            ztauy_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvV - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaV(ji,jj) ) )
+            IF( icb_vmask(ji,jj) == 0._wp ) THEN
+               zvCr = zaV(ji,jj) * rn_lf_depfra * hv(ji,jj,Kmm)
+               ztauy_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvV - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaV(ji,jj) ) )
+            ELSE
+               ztauy_base(ji,jj) = - rn_lf_bfr * icb_vmask(ji,jj)
+            ENDIF
          END_2D
          DO_2D( 0, 0, 0, 0 )
             ! ice_bottom stress at T points
-            zvCr = at_i(ji,jj) * rn_lf_depfra * ht(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) )    ! if grounded icebergs are read: ocean depth = 0
-            tau_icebfr(ji,jj) = - rn_lf_bfr * MAX( 0._wp, vt_i(ji,jj) - zvCr ) * EXP( -rn_crhg * ( 1._wp - at_i(ji,jj) ) )
+            IF( icb_tmask(ji,jj) == 0._wp ) THEN
+               zvCr = at_i(ji,jj) * rn_lf_depfra * ht(ji,jj,Kmm)
+               tau_icebfr(ji,jj) = - rn_lf_bfr * MAX( 0._wp, vt_i(ji,jj) - zvCr ) * EXP( -rn_crhg * ( 1._wp - at_i(ji,jj) ) )
+            ELSE
+               tau_icebfr(ji,jj) = - rn_lf_bfr * icb_tmask(ji,jj)
+            ENDIF
          END_2D
-         !
-      ELSE                               !-- no landfast
+      ELSE                               !-- no landfast or landfast read in a file
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            ! ice-bottom stress at U, V, T points
             ztaux_base(ji,jj) = 0._wp
             ztauy_base(ji,jj) = 0._wp
+            tau_icebfr(ji,jj) = 0._wp
          END_2D
       ENDIF
 
@@ -463,7 +476,7 @@ CONTAINS
 
             ! stress at F points (zkt/=0 if landfast)
             zs12(ji,jj)= ( zs12(ji,jj) * zalph2 + zp_delf * ( zds(ji,jj) * z1_ecc2 * (1._wp + zkt) ) * 0.5_wp ) &
-               &         * z1_alph2
+               &         * z1_alph2 
 
          END_2D
 
@@ -550,7 +563,9 @@ CONTAINS
                ENDIF
                ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                v_ice(ji,jj) = ( v_ice(ji,jj)*zmsk01y(ji,jj) + v_oce(ji,jj) * 0.01_wp * (1._wp - zmsk01y(ji,jj)) ) * zmsk00y(ji,jj)
-               !
+               ! Reduce value of v_ice drastically where masks for landfast or grounded icebergs are /=0
+               ! In theory one could set v_ice=0 but it may lead to instabilities (cf Noe Pirlet)
+               v_ice(ji,jj) = v_ice(ji,jj) * ( 1._wp - 0.99_wp * fast_vmask(ji,jj) ) !!* ( 1._wp - 0.99_wp * icb_vmask(ji,jj) ) 
             END_2D
             !
             !
@@ -593,11 +608,14 @@ CONTAINS
                   ELSE
                      u_ice(ji,jj) = ( zmU_t(ji,jj) * u_ice(ji,jj) + zRHS + zTauO * u_ice(ji,jj) ) &
                         &           / MAX( zepsi, zmU_t(ji,jj) + zTauO - zTauB )
-                     ENDIF
-                     !
+                  ENDIF
+                  !
                ENDIF
                ! u_ice = u_oce/100 if mass < zmmin & conc < zamin
                u_ice(ji,jj) = ( u_ice(ji,jj)*zmsk01x(ji,jj) + u_oce(ji,jj) * 0.01_wp * (1._wp - zmsk01x(ji,jj)) ) * zmsk00x(ji,jj)
+               ! Reduce value of u_ice drastically where masks for landfast or grounded icebergs are /=0
+               ! In theory one could set u_ice=0 but it may lead to instabilities (cf Noe Pirlet)
+               u_ice(ji,jj) = u_ice(ji,jj) * ( 1._wp - 0.99_wp * fast_umask(ji,jj) ) !!* ( 1._wp - 0.99_wp * icb_umask(ji,jj) ) 
                !
             END_2D
             !
@@ -649,6 +667,9 @@ CONTAINS
                ENDIF
                ! u_ice = u_oce/100 if mass < zmmin & conc < zamin
                u_ice(ji,jj) = ( u_ice(ji,jj)*zmsk01x(ji,jj) + u_oce(ji,jj) * 0.01_wp * (1._wp - zmsk01x(ji,jj)) ) * zmsk00x(ji,jj)
+               ! Reduce value of u_ice drastically where masks for landfast or grounded icebergs are /=0
+               ! In theory one could set u_ice=0 but it may lead to instabilities (cf Noe Pirlet)
+               u_ice(ji,jj) = u_ice(ji,jj) * ( 1._wp - 0.99_wp * fast_umask(ji,jj) ) !!* ( 1._wp - 0.99_wp * icb_umask(ji,jj) ) 
                !
             END_2D
             !
@@ -697,6 +718,9 @@ CONTAINS
                ENDIF
                ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                v_ice(ji,jj) = ( v_ice(ji,jj)*zmsk01y(ji,jj) + v_oce(ji,jj) * 0.01_wp * (1._wp - zmsk01y(ji,jj)) ) * zmsk00y(ji,jj)
+               ! Reduce value of v_ice drastically where masks for landfast or grounded icebergs are /=0
+               ! In theory one could set v_ice=0 but it may lead to instabilities (cf Noe Pirlet)
+               v_ice(ji,jj) = v_ice(ji,jj) * ( 1._wp - 0.99_wp * fast_vmask(ji,jj) ) !!* ( 1._wp - 0.99_wp * icb_vmask(ji,jj) ) 
                !
             END_2D
             !
@@ -764,7 +788,7 @@ CONTAINS
          ! tension**2 at T points
          zdt  = ( ( u_ice(ji,jj) * r1_e2u(ji,jj) - u_ice(ji-1,jj) * r1_e2u(ji-1,jj) ) * e2t(ji,jj) * e2t(ji,jj)   &
             &   - ( v_ice(ji,jj) * r1_e1v(ji,jj) - v_ice(ji,jj-1) * r1_e1v(ji,jj-1) ) * e1t(ji,jj) * e1t(ji,jj)   &
-            &   ) * r1_e1e2t(ji,jj)
+            &   ) * r1_e1e2t(ji,jj) * (1._wp - fast_tmask(ji,jj)) * (1._wp - icb_tmask(ji,jj))
          zdt2 = zdt * zdt
 
          zten_i(ji,jj) = zdt
@@ -772,10 +796,10 @@ CONTAINS
          ! shear**2 at T points (doc eq. A16)
          zds2 = ( ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  ) )  & ! add () 
             &   + ( zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1) )  & ! NP rep
-            &   ) * 0.25_wp * r1_e1e2t(ji,jj)
+            &   ) * 0.25_wp * r1_e1e2t(ji,jj) * (1._wp - fast_tmask(ji,jj)) * (1._wp - icb_tmask(ji,jj))
 
          ! maximum shear rate at T points (includes tension, output only)
-         pshear_i(ji,jj) = SQRT( zdt2 + zds2 ) * zmsk(ji,jj) ! 
+         pshear_i(ji,jj) = SQRT( zdt2 + zds2 ) * zmsk(ji,jj) 
 
          ! shear at T-points
          zshear(ji,jj)   = SQRT( zds2 ) * zmsk(ji,jj)
@@ -783,13 +807,13 @@ CONTAINS
          ! divergence at T points
          pdivu_i(ji,jj) = ( ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj) )  & ! add () for NP repro
             &             + ( e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1) )  &
-            &             ) * r1_e1e2t(ji,jj) * zmsk(ji,jj)
+            &             ) * r1_e1e2t(ji,jj) * zmsk(ji,jj) * (1._wp - fast_tmask(ji,jj)) * (1._wp - icb_tmask(ji,jj))
 
          ! delta at T points
-         zdelta(ji,jj)   = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) * zmsk(ji,jj) ! delta
+         zdelta(ji,jj)   = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) * zmsk(ji,jj) 
 
          ! delta* at T points (pdelta_i)
-         IF( zdelta(ji,jj) > 0._wp ) THEN   ;   pdelta_i(ji,jj) = zdelta(ji,jj) + rn_creepl
+         IF( zdelta(ji,jj) > 0._wp ) THEN   ;   pdelta_i(ji,jj) = zdelta(ji,jj) !!clem + rn_creepl
          ELSE                               ;   pdelta_i(ji,jj) = 0._wp
          ENDIF
                            ! it seems that deformation used for advection and mech redistribution is delta*

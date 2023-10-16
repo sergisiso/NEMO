@@ -62,11 +62,12 @@
       rn_lf_relax   =   1.e-5         !        relaxation time scale to reach static friction [s-1]
       rn_lf_tensile =   0.05          !        isotropic tensile strength [0-0.5??]
 
-   cn_dir           = './'      !  root directory for the grounded icebergs mask data location
+   cn_dir           = './'      !  root directory for the grounded icebergs and landfast mask data location
    !___________!________________!___________________!___________!_____________!________!___________!__________!__________!_______________!
    !           !  file name     ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
    !           !                !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' ! filename ! pairing  !    filename   !
-   sn_icbmsk       = 'NOT USED' ,       -12.        , 'icb_mask',   .false.   , .true. , 'yearly'  , ''       , ''       , ''
+   sn_icbmsk       = 'NOT USED' ,       -12.        , 'icb_mask' ,   .false.  , .true. , 'yearly'  , ''       , ''       , ''
+   sn_fastmsk      = 'NOT USED' ,       -12.        , 'fast_mask',   .false.  , .true. , 'yearly'  , ''       , ''       , ''
 /
 !------------------------------------------------------------------------------
 &namdyn_rdgrft  !   Ice ridging/rafting

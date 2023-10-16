@@ -345,20 +345,35 @@ CONTAINS
             zvU = 0.5_wp * ( vt_i(ji,jj)*e1e2t(ji,jj) + vt_i(ji+1,jj  )*e1e2t(ji+1,jj  ) ) * r1_e1e2u(ji,jj) * umask(ji,jj,1)
             zvV = 0.5_wp * ( vt_i(ji,jj)*e1e2t(ji,jj) + vt_i(ji  ,jj+1)*e1e2t(ji  ,jj+1) ) * r1_e1e2v(ji,jj) * vmask(ji,jj,1)
             ! ice-bottom stress at U points
-            zvCr = zaU(ji,jj) * rn_lf_depfra * hu(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) ) ! if grounded icebergs are read: ocean depth = 0
-            ztaux_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvU - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaU(ji,jj) ) )
+            IF( icb_umask(ji,jj) == 0._wp ) THEN
+               zvCr = zaU(ji,jj) * rn_lf_depfra * hu(ji,jj,Kmm)
+               ztaux_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvU - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaU(ji,jj) ) )
+            ELSE
+               ztaux_base(ji,jj) = - rn_lf_bfr * icb_umask(ji,jj)
+            ENDIF
             ! ice-bottom stress at V points
-            zvCr = zaV(ji,jj) * rn_lf_depfra * hv(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) ) ! if grounded icebergs are read: ocean depth = 0
-            ztauy_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvV - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaV(ji,jj) ) )
-            ! ice_bottom stress at T points
-            zvCr = at_i(ji,jj) * rn_lf_depfra * ht(ji,jj,Kmm) * ( 1._wp - icb_mask(ji,jj) )    ! if grounded icebergs are read: ocean depth = 0
-            tau_icebfr(ji,jj) = - rn_lf_bfr * MAX( 0._wp, vt_i(ji,jj) - zvCr ) * EXP( -rn_crhg * ( 1._wp - at_i(ji,jj) ) )
+            IF( icb_vmask(ji,jj) == 0._wp ) THEN
+               zvCr = zaV(ji,jj) * rn_lf_depfra * hv(ji,jj,Kmm)
+               ztauy_base(ji,jj) = - rn_lf_bfr * MAX( 0._wp, zvV - zvCr ) * EXP( -rn_crhg * ( 1._wp - zaV(ji,jj) ) )
+            ELSE
+               ztauy_base(ji,jj) = - rn_lf_bfr * icb_vmask(ji,jj)
+            ENDIF
          END_2D
-         !
-      ELSE                               !-- no landfast
+         DO_2D( 0, 0, 0, 0 )
+            ! ice_bottom stress at T points
+            IF( icb_tmask(ji,jj) == 0._wp ) THEN
+               zvCr = at_i(ji,jj) * rn_lf_depfra * ht(ji,jj,Kmm)
+               tau_icebfr(ji,jj) = - rn_lf_bfr * MAX( 0._wp, vt_i(ji,jj) - zvCr ) * EXP( -rn_crhg * ( 1._wp - at_i(ji,jj) ) )
+            ELSE
+               tau_icebfr(ji,jj) = - rn_lf_bfr * icb_tmask(ji,jj)
+            ENDIF
+         END_2D
+      ELSE                               !-- no landfast or landfast read in a file
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            ! ice-bottom stress at U, V, T points
             ztaux_base(ji,jj) = 0._wp
             ztauy_base(ji,jj) = 0._wp
+            tau_icebfr(ji,jj) = 0._wp
          END_2D
       ENDIF
 
@@ -570,6 +585,9 @@ CONTAINS
                      &              ) * zmsk01y(ji,jj) + v_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01y(ji,jj) )                  & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &            )   * zmsk00y(ji,jj)
                ENDIF
+               ! Reduce value of v_ice drastically where masks for landfast or grounded icebergs are /=0
+               ! In theory one could set v_ice=0 but it may lead to instabilities (cf Noe Pirlet)
+               v_ice(ji,jj) = v_ice(ji,jj) * ( 1._wp - 0.99_wp * fast_vmask(ji,jj) ) !!* ( 1._wp - 0.99_wp * icb_vmask(ji,jj) ) 
             END_2D
             !
             DO_2D( 0, 0, 0, 0 )
@@ -615,6 +633,9 @@ CONTAINS
                      &              ) * zmsk01x(ji,jj) + u_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01x(ji,jj) )                  & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &            )   * zmsk00x(ji,jj)
                ENDIF
+               ! Reduce value of v_ice drastically where masks for landfast or grounded icebergs are /=0
+               ! In theory one could set v_ice=0 but it may lead to instabilities (cf Noe Pirlet)
+               u_ice(ji,jj) = u_ice(ji,jj) * ( 1._wp - 0.99_wp * fast_umask(ji,jj) ) !!* ( 1._wp - 0.99_wp * icb_umask(ji,jj) ) 
             END_2D
 
             CALL lbc_lnk( 'icedyn_rhg_eap', u_ice, 'U', -1.0_wp, v_ice, 'V', -1.0_wp )
@@ -664,6 +685,9 @@ CONTAINS
                      &              ) * zmsk01x(ji,jj) + u_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01x(ji,jj) )                  & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &            )   * zmsk00x(ji,jj)
                ENDIF
+               ! Reduce value of v_ice drastically where masks for landfast or grounded icebergs are /=0
+               ! In theory one could set v_ice=0 but it may lead to instabilities (cf Noe Pirlet)
+               u_ice(ji,jj) = u_ice(ji,jj) * ( 1._wp - 0.99_wp * fast_umask(ji,jj) ) !!* ( 1._wp - 0.99_wp * icb_umask(ji,jj) ) 
             END_2D
             !
             DO_2D( 0, 0, 0, 0 )
@@ -709,6 +733,9 @@ CONTAINS
                      &              ) * zmsk01y(ji,jj) + v_oce(ji,jj) * 0.01_wp * ( 1._wp - zmsk01y(ji,jj) )                  & ! v_ice = v_oce/100 if mass < zmmin & conc < zamin
                      &            )   * zmsk00y(ji,jj)
                ENDIF
+               ! Reduce value of v_ice drastically where masks for landfast or grounded icebergs are /=0
+               ! In theory one could set v_ice=0 but it may lead to instabilities (cf Noe Pirlet)
+               v_ice(ji,jj) = v_ice(ji,jj) * ( 1._wp - 0.99_wp * fast_vmask(ji,jj) ) !!* ( 1._wp - 0.99_wp * icb_vmask(ji,jj) ) 
             END_2D
             !
             CALL lbc_lnk( 'icedyn_rhg_eap', u_ice, 'U', -1.0_wp, v_ice, 'V', -1.0_wp )
@@ -750,7 +777,7 @@ CONTAINS
          ! tension**2 at T points
          zdt  = ( ( u_ice(ji,jj) * r1_e2u(ji,jj) - u_ice(ji-1,jj) * r1_e2u(ji-1,jj) ) * e2t(ji,jj) * e2t(ji,jj)   &
             &   - ( v_ice(ji,jj) * r1_e1v(ji,jj) - v_ice(ji,jj-1) * r1_e1v(ji,jj-1) ) * e1t(ji,jj) * e1t(ji,jj)   &
-            &   ) * r1_e1e2t(ji,jj)
+            &   ) * r1_e1e2t(ji,jj) * (1._wp - fast_tmask(ji,jj)) * (1._wp - icb_tmask(ji,jj))
          zdt2 = zdt * zdt
 
          zten_i(ji,jj) = zdt
@@ -758,7 +785,7 @@ CONTAINS
          ! shear**2 at T points (doc eq. A16), warning: add () for the North Pole reproducibility
          zds2 = ( ( zds(ji,jj  ) * zds(ji,jj  ) * e1e2f(ji,jj  ) + zds(ji-1,jj  ) * zds(ji-1,jj  ) * e1e2f(ji-1,jj  ) )  &
             &   + ( zds(ji,jj-1) * zds(ji,jj-1) * e1e2f(ji,jj-1) + zds(ji-1,jj-1) * zds(ji-1,jj-1) * e1e2f(ji-1,jj-1) )  &
-            &   ) * 0.25_wp * r1_e1e2t(ji,jj)
+            &   ) * 0.25_wp * r1_e1e2t(ji,jj) * (1._wp - fast_tmask(ji,jj)) * (1._wp - icb_tmask(ji,jj))
 
          ! maximum shear rate at T points (includes tension, output only)
          pshear_i(ji,jj) = SQRT( zdt2 + zds2 )
@@ -769,19 +796,21 @@ CONTAINS
          ! divergence at T points, warning: add () for the North Pole reproducibility
          pdivu_i(ji,jj) = ( ( e2u(ji,jj) * u_ice(ji,jj) - e2u(ji-1,jj) * u_ice(ji-1,jj) )   &
             &             + ( e1v(ji,jj) * v_ice(ji,jj) - e1v(ji,jj-1) * v_ice(ji,jj-1) )   &
-            &             ) * r1_e1e2t(ji,jj)
+            &             ) * r1_e1e2t(ji,jj) * (1._wp - fast_tmask(ji,jj)) * (1._wp - icb_tmask(ji,jj))
 
          ! delta at T points
          zdelta(ji,jj)   = SQRT( pdivu_i(ji,jj) * pdivu_i(ji,jj) + ( zdt2 + zds2 ) * z1_ecc2 ) ! delta
 
-         ! delta at T points
-         zswitch         = 1._wp - MAX( 0._wp, SIGN( 1._wp, -zdelta(ji,jj) ) ) ! 0 if delta=0
-         pdelta_i(ji,jj) = zdelta(ji,jj) + rn_creepl * zswitch  
+         ! delta* at T points (pdelta_i)
+         IF( zdelta(ji,jj) > 0._wp ) THEN   ;   pdelta_i(ji,jj) = zdelta(ji,jj) !!clem + rn_creepl
+         ELSE                               ;   pdelta_i(ji,jj) = 0._wp
+         ENDIF
                            ! it seems that deformation used for advection and mech redistribution is delta*
                            ! MV in principle adding creep limit is a regularization for viscosity not for delta
                            ! delta_star should not (in my view) be used in a replacement for delta
 
       END_2D
+
       CALL lbc_lnk( 'icedyn_rhg_eap', pshear_i, 'T', 1.0_wp, pdivu_i, 'T', 1.0_wp, pdelta_i, 'T', 1.0_wp, &
          &                                 zs1, 'T', 1.0_wp, zs2    , 'T', 1.0_wp, &
          &                                zs12, 'F', 1.0_wp )
