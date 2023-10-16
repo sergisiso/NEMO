@@ -51,7 +51,8 @@ MODULE icedyn
    REAL(wp) ::   rn_uice          !    prescribed u-vel (case np_dynADV1D & np_dynADV2D)
    REAL(wp) ::   rn_vice          !    prescribed v-vel (case np_dynADV1D & np_dynADV2D)
 
-   TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_icbmsk   ! structure of input grounded icebergs mask (file informations, fields read)
+   TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_icbmsk  ! structure of input grounded icebergs mask (file informations, fields read)
+   TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_fastmsk ! structure of input landfast ice mask      (file informations, fields read)
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -108,11 +109,21 @@ CONTAINS
          h_il(:,:,:) = 0._wp
       END WHERE
       !
-      IF( ln_landfast_L16 ) THEN
-         CALL fld_read( kt, 1, sf_icbmsk )
-         icb_mask(:,:) = sf_icbmsk(1)%fnow(:,:,1)
-      ENDIF
+      ! read grounded icebergs and landfast masks
+      ! ----------------------------------------
+      CALL fld_read( kt, 1, sf_icbmsk  )
+      CALL fld_read( kt, 1, sf_fastmsk )
+      icb_tmask (:,:) = sf_icbmsk (1)%fnow(:,:,1)
+      fast_tmask(:,:) = sf_fastmsk(1)%fnow(:,:,1)
       !
+      ! mask at u-, v-points (computed from tmask)
+      DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+         fast_umask(ji,jj) = MAX( fast_tmask(ji,jj), fast_tmask(ji+1,jj  ) )
+         icb_umask (ji,jj) = MAX( icb_tmask (ji,jj), icb_tmask (ji+1,jj  ) )
+         fast_vmask(ji,jj) = MAX( fast_tmask(ji,jj), fast_tmask(ji  ,jj+1) )
+         icb_vmask (ji,jj) = MAX( icb_tmask (ji,jj), icb_tmask (ji  ,jj+1) )
+      END_2D
+
       SELECT CASE( nice_dyn )          !-- Set which dynamics is running
 
       CASE ( np_dynALL )           !==  all dynamical processes  ==!
@@ -238,11 +249,12 @@ CONTAINS
       !
       CHARACTER(len=256) ::   cn_dir     ! Root directory for location of ice files
       TYPE(FLD_N)        ::   sn_icbmsk  ! informations about the grounded icebergs field to be read
+      TYPE(FLD_N)        ::   sn_fastmsk ! informations about the landfast ice field to be read
       !!
       NAMELIST/namdyn/ ln_dynALL, ln_dynRHGADV, ln_dynADV1D, ln_dynADV2D, rn_uice, rn_vice,  &
          &             rn_ishlat ,                                                           &
          &             ln_landfast_L16, rn_lf_depfra, rn_lf_bfr, rn_lf_relax, rn_lf_tensile, &
-         &             sn_icbmsk, cn_dir
+         &             sn_icbmsk, sn_fastmsk, cn_dir
       !!-------------------------------------------------------------------
       !
       READ  ( numnam_ice_ref, namdyn, IOSTAT = ios, ERR = 901)
@@ -291,22 +303,23 @@ CONTAINS
       !                                      !--- Landfast ice
       IF( .NOT.ln_landfast_L16 )   tau_icebfr(:,:) = 0._wp
       !
-      !                                      !--- allocate and fill structure for grounded icebergs mask
-      IF( ln_landfast_L16 ) THEN
-         ALLOCATE( sf_icbmsk(1), STAT=ierror )
-         IF( ierror > 0 ) THEN
-            CALL ctl_stop( 'ice_dyn_init: unable to allocate sf_icbmsk structure' ) ; RETURN
-         ENDIF
-         !
-         CALL fld_fill( sf_icbmsk, (/ sn_icbmsk /), cn_dir, 'ice_dyn_init',   &
-            &                                               'landfast ice is a function of read grounded icebergs', 'icedyn' )
-         !
-         ALLOCATE( sf_icbmsk(1)%fnow(jpi,jpj,1) )
-         IF( sf_icbmsk(1)%ln_tint )   ALLOCATE( sf_icbmsk(1)%fdta(jpi,jpj,1,2) )
-         IF( TRIM(sf_icbmsk(1)%clrootname) == 'NOT USED' ) sf_icbmsk(1)%fnow(:,:,1) = 0._wp   ! not used field  (set to 0)
-      ELSE
-         icb_mask(:,:) = 0._wp
+      !                                      !--- allocate and fill structure for grounded icebergs and landfast masks
+      ALLOCATE( sf_icbmsk(1), sf_fastmsk(1), STAT=ierror )
+      IF( ierror > 0 ) THEN
+         CALL ctl_stop( 'ice_dyn_init: unable to allocate sf_icbmsk and sf_fastmsk structures' ) ; RETURN
       ENDIF
+      !
+      CALL fld_fill( sf_icbmsk , (/ sn_icbmsk /) , cn_dir, 'ice_dyn_init',   &
+         &                                                 'landfast ice is a function of read grounded icebergs', 'icedyn' )
+      CALL fld_fill( sf_fastmsk, (/ sn_fastmsk /), cn_dir, 'ice_dyn_init',   &
+         &                                                 'landfast ice is read in a file', 'icedyn' )
+      !
+      ALLOCATE( sf_icbmsk(1)%fnow(jpi,jpj,1), sf_fastmsk(1)%fnow(jpi,jpj,1) )
+      IF( sf_icbmsk (1)%ln_tint )   ALLOCATE( sf_icbmsk (1)%fdta(jpi,jpj,1,2) )
+      IF( sf_fastmsk(1)%ln_tint )   ALLOCATE( sf_fastmsk(1)%fdta(jpi,jpj,1,2) )
+      IF( TRIM(sf_icbmsk (1)%clrootname) == 'NOT USED' )   sf_icbmsk (1)%fnow(:,:,1) = 0._wp   ! not used field  (set to 0)
+      IF( TRIM(sf_fastmsk(1)%clrootname) == 'NOT USED' )   sf_fastmsk(1)%fnow(:,:,1) = 0._wp   ! not used field  (set to 0)
+      !
       !                                      !--- other init
       CALL ice_dyn_rdgrft_init          ! set ice ridging/rafting parameters
       CALL ice_dyn_rhg_init             ! set ice rheology parameters

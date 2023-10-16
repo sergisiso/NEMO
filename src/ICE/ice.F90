@@ -140,7 +140,7 @@ MODULE ice
 
    !                                     !!** ice-dynamics namelist (namdyn) **
    REAL(wp), PUBLIC ::   rn_ishlat        !: lateral boundary condition for sea-ice
-   LOGICAL , PUBLIC ::   ln_landfast_L16  !: landfast ice parameterizationfrom lemieux2016
+   LOGICAL , PUBLIC ::   ln_landfast_L16  !: landfast ice parameterization from lemieux2016
    REAL(wp), PUBLIC ::   rn_lf_depfra     !:    fraction of ocean depth that ice must reach to initiate landfast ice
    REAL(wp), PUBLIC ::   rn_lf_bfr        !:    maximum bottom stress per unit area of contact (lemieux2016) or per unit volume (home)
    REAL(wp), PUBLIC ::   rn_lf_relax      !:    relaxation time scale (s-1) to reach static friction
@@ -373,7 +373,8 @@ MODULE ice
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   hm_s          !: mean snow thickness over all categories                 (m)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   om_i          !: mean ice age over all categories                        (s)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   tau_icebfr    !: ice friction on ocean bottom (landfast param activated)
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   icb_mask      !: mask of grounded icebergs if landfast [0-1]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   icb_tmask , icb_umask , icb_vmask  !: mask of grounded icebergs if landfast [0-1]
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   fast_tmask, fast_umask, fast_vmask !: mask of landfast ice [0-1]
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   t_s           !: Snow temperatures     [K]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   e_s           !: Snow enthalpy         [J/m2]
@@ -500,10 +501,11 @@ CONTAINS
 
       ! * ice rheology
       ii = ii+1
-      ALLOCATE( u_oce    (jpi,jpj) , v_oce    (jpi,jpj) ,  &
-         &      strength (jpi,jpj) , stress1_i(jpi,jpj) , stress2_i(jpi,jpj) , stress12_i(jpi,jpj) ,  &
-         &      aniso_11 (jpi,jpj) , aniso_12 (jpi,jpj) , rdg_conv (jpi,jpj) , &
-         &      icb_mask (jpi,jpj) , STAT=ierr(ii) )
+      ALLOCATE( u_oce     (jpi,jpj) , v_oce     (jpi,jpj) ,  &
+         &      strength  (jpi,jpj) , stress1_i (jpi,jpj) , stress2_i (jpi,jpj) , stress12_i(jpi,jpj) ,  &
+         &      aniso_11  (jpi,jpj) , aniso_12  (jpi,jpj) , rdg_conv  (jpi,jpj) , &
+         &      icb_tmask (jpi,jpj) , icb_umask (jpi,jpj) , icb_vmask (jpi,jpj) , &
+         &      fast_tmask(jpi,jpj) , fast_umask(jpi,jpj) , fast_vmask(jpi,jpj) , STAT=ierr(ii) )
 
       ! * mean and total
       ii = ii + 1

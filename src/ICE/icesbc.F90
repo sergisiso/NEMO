@@ -379,9 +379,11 @@ CONTAINS
             qlead(ji,jj) = 0._wp
          ENDIF
          !
-         ! If ice is landfast and ice concentration reaches its max
-         ! => stop ice formation in open water
-         IF(  zvel(ji,jj) <= 5.e-04_wp .AND. at_i(ji,jj) >= rn_amax_2d(ji,jj)-epsi06 )   qlead(ji,jj) = 0._wp
+         ! stop ice formation in open water if ice is very slow (i.e. landfast) and ice concentration reaches its max (minus a threshold at 0.01)
+         !    Note: This threshold is necessary when reading a landfast mask otherwise ice grows up to its limit at 20m
+         !          The limit for ice velocity should be 0.5 mm/s as for observations of landfast but it works better with larger values
+         !          Hence, we use 5 mm/s 
+         IF(  zvel(ji,jj) <= 5.e-03_wp .AND. at_i(ji,jj) >= (rn_amax_2d(ji,jj)-0.01_wp) )   qlead(ji,jj) = 0._wp
          !
          ! If the grid cell is almost fully covered by ice (no leads)
          ! => stop ice formation in open water
