@@ -370,9 +370,12 @@ CONTAINS
          END_2D
       ELSE                               !-- no landfast or landfast read in a file
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            ! ice-bottom stress at U, V, T points
+            ! ice-bottom stress at U, V points
             ztaux_base(ji,jj) = 0._wp
             ztauy_base(ji,jj) = 0._wp
+         END_2D
+         DO_2D( 0, 0, 0, 0 )
+            ! ice-bottom stress at T points
             tau_icebfr(ji,jj) = 0._wp
          END_2D
       ENDIF
