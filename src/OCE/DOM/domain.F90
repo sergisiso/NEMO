@@ -305,11 +305,6 @@ CONTAINS
       !
 #endif
       !
-      IF( l_SAS .AND. .NOT.ln_linssh ) THEN
-         CALL ctl_warn( 'SAS requires linear ssh : force ln_linssh = T' )
-         ln_linssh = .TRUE.
-      ENDIF
-      !
 #if defined key_qco
       IF( ln_linssh )   CALL ctl_stop( 'STOP','domain: key_qco and ln_linssh=T or key_linssh are incompatible' )
 #endif
