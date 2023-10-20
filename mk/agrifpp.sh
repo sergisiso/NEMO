@@ -66,5 +66,5 @@ if [ "$MYFILE" == "agrif2model.f90" ];then
       \cp ${MYDIR}/../src/${MYFILE/.f90/.F90} ${MYDIR}/obj/$MYFILE
    fi
 else
-   cd ${MYDIR}/ppsrc/nemo ; ${MYDIR}/conv ${MYDIR}/agrif_oce.in -rm -incdir ${MYDIR}/inc -comdirout ${MYDIR}/obj -convfile ${MYFILE} > /dev/null 
+   cd ${MYDIR}/ppsrc/nemo ; ${MYDIR}/conv ${MYDIR}/agrif_oce.in -rm -incdir ${MYDIR}/inc -comdirout ${MYDIR}/obj -convfile ${MYFILE} #  > /dev/null 
 fi

@@ -96,9 +96,6 @@
             END DO   ;   END DO
          END DO   ! jf
          !
-         ! start waiting time measurement
-         IF( ln_timing ) CALL tic_tac(.TRUE.)
-         !
          ! send the same buffer data to all neighbourgs as soon as possible
          DO jn = 1, nfd_nbnei
             iproc = nfd_rknei(jn)
@@ -151,8 +148,6 @@
 #if ! defined key_mpi_off
          CALL mpi_waitall(nfd_nbnei, ireq_r, MPI_STATUSES_IGNORE, ierr)   ! wait for all Irecv
 #endif
-         !
-         IF( ln_timing ) CALL tic_tac(.FALSE.)
          !
          ! Apply the North pole folding
          !
@@ -237,10 +232,8 @@
          !
          ! start waiting time measurement
 #if ! defined key_mpi_off
-         IF( ln_timing )   CALL tic_tac( .TRUE.)   ! start waiting time measurement
          ! fill znorthall with the znorthloc of each northern process
          CALL MPI_ALLGATHER( znorthloc, ibuffsize, MPI_TYPE, znorthall, ibuffsize, MPI_TYPE, ncomm_north, ierr )
-         IF( ln_timing )   CALL tic_tac(.FALSE.)   ! stop waiting time measurement
 #endif
          DEALLOCATE( znorthloc )                                 ! no more need of znorthloc
          !

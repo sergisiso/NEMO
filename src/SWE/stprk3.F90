@@ -72,8 +72,6 @@ CONTAINS
       REAL(wp)::   zve3a, zve3b, zva, zrhs_v    !   -      -
       !! ---------------------------------------------------------------------
       !
-      IF( ln_timing )   CALL timing_start('stp_RK3')
-      !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! model timestep
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -335,8 +333,6 @@ CONTAINS
          CALL iom_context_finalize( cxios_context )
       ENDIF
 #endif
-      !
-      IF( ln_timing )   CALL timing_stop('stp_RK3')
       !
    END SUBROUTINE stp_RK3
 

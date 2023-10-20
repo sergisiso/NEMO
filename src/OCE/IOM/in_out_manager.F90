@@ -133,7 +133,6 @@ MODULE in_out_manager
    !!                        logical units
    !!----------------------------------------------------------------------
    INTEGER ::   numstp          =   -1      !: logical unit for time step
-   INTEGER ::   numtime         =   -1      !: logical unit for timing
    INTEGER ::   numout          =    6      !: logical unit for output print; Set to stdout to ensure any
    INTEGER ::   numnul          =   -1      !: logical unit for /dev/null
       !                                     !  early output can be collected; do not change

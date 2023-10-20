@@ -3,82 +3,71 @@ MODULE timing
    !!                     ***  MODULE  timing  ***
    !!========================================================================
    !! History : 4.0  ! 2001-05  (R. Benshila)
+   !!           4.x  ! 2023-05  (G. Irrmann, S. Masson)
    !!------------------------------------------------------------------------
 
    !!------------------------------------------------------------------------
-   !!   timming_init    : initialize timing process
+   !!   timing_open     : open timing.output file
    !!   timing_start    : start Timer
    !!   timing_stop     : stop  Timer
-   !!   timing_reset    : end timing variable creation
-   !!   timing_finalize : compute stats and write output in calling w*_info
-   !!   timing_ini_var  : create timing variables
-   !!   timing_listing  : print instumented subroutines in ocean.output
-   !!   wcurrent_info   : compute and print detailed stats on the current CPU
-   !!   wave_info       : compute and print averaged statson all processors
-   !!   wmpi_info       : compute and write global stats
-   !!   supress         : suppress an element of the timing linked list
-   !!   insert          : insert an element of the timing linked list
+   !!   timing_finalize : compute stats and write timing.output
    !!------------------------------------------------------------------------
-   USE in_out_manager  ! I/O manager
-   USE dom_oce         ! ocean domain
-   USE lib_mpp
+   USE par_kind, ONLY: dp
+   USE par_oce , ONLY: ntile
+#if defined key_agrif
+   USE dom_oce , ONLY: l_istiled
+#else
+   USE dom_oce , ONLY: l_istiled, Agrif_Root, Agrif_CFixed
+#endif
+   !! WARNING: we cannot use lib_mpp because of circular dependencies
+   
+#if ! defined key_mpi_off
+   USE MPI
+#endif
 
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   timing_init, timing_finalize   ! called in nemogcm module
-   PUBLIC   timing_reset                   ! called in step module
-   PUBLIC   timing_start, timing_stop      ! called in each routine to time
-
-#if ! defined key_mpi_off
-   INCLUDE 'mpif.h'
-#endif
-
+   PUBLIC   timing_start, timing_stop, timing_open      ! called in each routine to time
+   
+#if ! defined key_agrif
    ! Variables for fine grain timing
    TYPE timer
-      CHARACTER(LEN=20)  :: cname
-      CHARACTER(LEN=20)  :: surname
-      INTEGER :: rank
-      REAL(dp)  :: t_cpu, t_clock, tsum_cpu, tsum_clock, tmax_cpu, tmax_clock, tmin_cpu, tmin_clock, tsub_cpu, tsub_clock
-      INTEGER :: ncount, ncount_max, ncount_rate
+      CHARACTER(LEN=32)  :: cname
+      INTEGER(8) :: n8start, n8tnet, n8tfull, n8childsum
       INTEGER :: niter
-      LOGICAL :: l_tdone
-      TYPE(timer), POINTER :: next => NULL()
-      TYPE(timer), POINTER :: prev => NULL()
-      TYPE(timer), POINTER :: parent_section => NULL()
+      LOGICAL :: ldone, lstatplot
+      REAL(dp) ::  tnet , tnetavg,  tnetmin,  tnetmax
+      REAL(dp) :: tfull, tfullavg, tfullmin, tfullmax
+      TYPE(timer), POINTER :: s_next, s_prev, s_parent
    END TYPE timer
-
-   TYPE alltimer
-      CHARACTER(LEN=20), DIMENSION(:), POINTER :: cname => NULL()
-      REAL(dp), DIMENSION(:), POINTER :: tsum_cpu   => NULL()
-      REAL(dp), DIMENSION(:), POINTER :: tsum_clock => NULL()
-      INTEGER, DIMENSION(:), POINTER :: niter => NULL()
-      TYPE(alltimer), POINTER :: next => NULL()
-      TYPE(alltimer), POINTER :: prev => NULL()
-   END TYPE alltimer
 
    TYPE(timer), POINTER :: s_timer_root => NULL()
    TYPE(timer), POINTER :: s_timer      => NULL()
-   TYPE(timer), POINTER :: s_timer_old      => NULL()
 
-   TYPE(timer), POINTER :: s_wrk        => NULL()
-   REAL(dp) :: t_overclock, t_overcpu
-   LOGICAL :: l_initdone = .FALSE.
-   INTEGER :: nsize
+   INTEGER    :: numtime         =   -1      !: logical unit for timing
+   INTEGER    :: ncall_clock
+   INTEGER    :: nmpicom   !: we cannot use mpi_comm_oce as we cannot use lib_mpp
+   INTEGER(8) :: n8start000
+   REAL(dp)   :: secondclock
 
-   ! Variables for coarse grain timing
-   REAL(dp) :: tot_etime, tot_ctime
-   REAL(kind=dp), DIMENSION(2)     :: t_elaps, t_cpu
-   REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_etime, all_ctime
-   INTEGER :: nfinal_count, ncount, ncount_rate, ncount_max
+   INTEGER :: jp_cname = 1
+   INTEGER :: jp_tnet  = 2
+   INTEGER :: jp_tavg  = 3
+   INTEGER :: jp_tmin  = 4
+   INTEGER :: jp_tmax  = 5
+
+   INTEGER :: jpmaxline = 20   !: max number of line to be printed
+
    INTEGER, DIMENSION(8)           :: nvalues
-   CHARACTER(LEN=8), DIMENSION(2)  :: cdate
+   CHARACTER(LEN= 8), DIMENSION(2) :: cdate
    CHARACTER(LEN=10), DIMENSION(2) :: ctime
-   CHARACTER(LEN=5)                :: czone
+   CHARACTER(LEN= 5)               :: czone
+#else
+   INTEGER    :: numtime         =   -1      !: logical unit for timing
+   INTEGER    :: nmpicom   !: we cannot use mpi_comm_oce as we cannot use lib_mpp
+#endif
 
-   ! From of ouput file (1/proc or one global)   !RB to put in nammpp or namctl
-   LOGICAL :: ln_onefile = .TRUE.
-   LOGICAL :: lwriter
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: timing.F90 14834 2021-05-11 09:24:44Z hadcv $
@@ -86,792 +75,780 @@ MODULE timing
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE timing_start(cdinfo)
+   SUBROUTINE timing_open( ldwp, kmpicom, cdname )
+      !!----------------------------------------------------------------------
+      !!               ***  ROUTINE timing_open  ***
+      !! ** Purpose :   Open timing output file.
+      !!----------------------------------------------------------------------
+      LOGICAL                   , INTENT(in) :: ldwp
+      INTEGER                   , INTENT(in) :: kmpicom
+      CHARACTER(len=*), OPTIONAL, INTENT(in) :: cdname
+      !
+      CHARACTER(len=32) ::   cln
+      CHARACTER(LEN=10) ::   clfmt
+      INTEGER           ::   idg, irank, isize, icode
+      !!----------------------------------------------------------------------
+
+      IF( .NOT. Agrif_Root() ) RETURN
+
+#if ! defined key_mpi_off
+      nmpicom = kmpicom
+      CALL MPI_COMM_RANK( nmpicom, irank, icode )
+      CALL MPI_COMM_SIZE( nmpicom, isize, icode )
+#else
+      nmpicom = -1
+      irank = 0
+      isize = 1
+#endif
+
+      IF( PRESENT(cdname) ) THEN   ;   cln = cdname
+      ELSE                         ;   cln = 'timing.output'
+      ENDIF
+
+      IF( ldwp ) THEN
+         ! we cannot use ctl_open as we cannot use lib_mpp
+         IF( irank > 0 ) THEN
+            idg = MAX( INT(LOG10(REAL(MAX(1,isize)))) + 1, 4 )      ! how many digits to we need to write? min=4, max=9
+            WRITE(clfmt, "('(a,a,i', i1, '.', i1, ')')") idg, idg   ! '(a,a,ix.x)'
+            WRITE(cln, clfmt) TRIM(cln), '_', irank
+         ENDIF
+         OPEN(NEWUNIT = numtime, FILE = TRIM(cln), STATUS = "REPLACE", ACTION = "write")
+         WRITE(numtime,*)
+         WRITE(numtime,*) '      CNRS - NERC - Met OFFICE - MERCATOR-ocean - CMCC'
+         WRITE(numtime,*) '                             NEMO team'
+         WRITE(numtime,*) '                  Ocean General Circulation Model'
+         WRITE(numtime,*) '                        version 4.x  (2023) '
+         WRITE(numtime,*)
+#if ! defined key_agrif
+         WRITE(numtime,*) '                        Timing Informations '
+         WRITE(numtime,*)
+         WRITE(numtime,*)
+#else
+         WRITE(numtime,*) '              The timing is not yet working with AGRIF'
+         WRITE(numtime,*) '           because the conv is not abble to conv timing.F90'
+         CLOSE(numtime)
+#endif
+      ELSE
+         numtime = -1
+      ENDIF
+      !
+   END SUBROUTINE timing_open
+
+
+#if ! defined key_agrif
+   SUBROUTINE timing_start( cdinfo, ldstatplot )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE timing_start  ***
       !! ** Purpose :   collect execution time
       !!----------------------------------------------------------------------
-      CHARACTER(len=*), INTENT(in) :: cdinfo
+      CHARACTER(len=*) , INTENT(in) :: cdinfo
+      LOGICAL, OPTIONAL, INTENT(in) :: ldstatplot   ! .true. if you want to call gnuplot analyses on this timing
       !
-       IF(ASSOCIATED(s_timer) ) s_timer_old => s_timer
-       !
-      ! Create timing structure at first call of the routine
-       CALL timing_ini_var(cdinfo)
-   !   write(*,*) 'after inivar ', s_timer%cname
+      CHARACTER(LEN=32)  :: clinfo
+      TYPE(timer), POINTER :: s_wrk
+      INTEGER(8) :: i8rate
+      !!----------------------------------------------------------------------
+      !
+      clinfo = cdinfo
+      IF( .NOT. Agrif_Root() )   clinfo = TRIM(Agrif_CFixed())//'_'//clinfo
+      
+      IF( .NOT. ASSOCIATED(s_timer_root) ) THEN              ! this is the first call to timing_start
+         s_timer_root => def_newlink( clinfo, ldstatplot )   ! define the root link
+         CALL SYSTEM_CLOCK( COUNT_RATE = i8rate )            ! define rateclock
+         secondclock = 1._dp / REAL(i8rate, dp)
+         CALL DATE_AND_TIME( cdate(1), ctime(1), czone, nvalues )
+         ncall_clock = 0
+      ENDIF
+      
+      ! store s_timer chain link in s_wrk
+      s_wrk => s_timer
+      !
+      ! make s_timer pointing toward the chain link corresponding to clinfo
+      s_timer => find_link( clinfo, s_timer_root, ldstatplot )
 
-      ! ici timing_ini_var a soit retrouve s_timer et fait return soit ajoute un maillon
-      ! maintenant on regarde si le call d'avant corrsspond a un parent ou si il est ferme
-      IF( .NOT. s_timer_old%l_tdone ) THEN
-         s_timer%parent_section => s_timer_old
-      ELSE
-         s_timer%parent_section => NULL()
+      ! we must take care if we do a timing inside another timing...
+      ! if s_wrk did not finish is timing, this means that s_timer in part of s_wrk.
+      ! in this case we link s_timer to s_wrk
+      s_timer%s_parent => NULL()             ! default not the part of another timing
+      IF( ASSOCIATED(s_wrk) ) THEN
+         IF( .NOT. s_wrk%ldone )   s_timer%s_parent => s_wrk
       ENDIF
 
-      s_timer%l_tdone = .FALSE.
-      IF( .NOT. l_istiled .OR. ntile == 1 ) s_timer%niter = s_timer%niter + 1      ! All tiles count as one iteration
-      s_timer%t_cpu = 0.
-      s_timer%t_clock = 0.
+      ! initialisation
+      s_timer%ldone = .FALSE.                                                   ! we are just starting the timing (not done)
+      s_timer%n8childsum = 0_8                                                  ! not yet any my children count
 
-      ! CPU time collection
-      CALL CPU_TIME( s_timer%t_cpu  )
       ! clock time collection
-#if ! defined key_mpi_off
-      s_timer%t_clock= MPI_Wtime()
-#else
-      CALL SYSTEM_CLOCK(COUNT_RATE=s_timer%ncount_rate, COUNT_MAX=s_timer%ncount_max)
-      CALL SYSTEM_CLOCK(COUNT = s_timer%ncount)
-#endif
-!      write(*,*) 'end of start ', s_timer%cname
-
-      !
+      CALL SYSTEM_CLOCK( COUNT = s_timer%n8start )   ;   ncall_clock = ncall_clock + 1
+      IF( ncall_clock == 1 )   n8start000 =  s_timer%n8start   ! keep track of the first call
+      
    END SUBROUTINE timing_start
 
 
-   SUBROUTINE timing_stop(cdinfo, csection)
+   SUBROUTINE timing_stop( cdinfo, kt, ld_finalize )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE timing_stop  ***
-      !! ** Purpose :   finalize timing and output
+      !! ** Purpose :   stop timing window
       !!----------------------------------------------------------------------
-      CHARACTER(len=*), INTENT(in) :: cdinfo
-      CHARACTER(len=*), INTENT(in), OPTIONAL :: csection
+      CHARACTER(len=*) , INTENT(in) ::   cdinfo
+      INTEGER, OPTIONAL, INTENT(in) ::   kt
+      LOGICAL, OPTIONAL, INTENT(in) ::   ld_finalize
       !
-      INTEGER  :: ifinal_count, iperiods
-      REAL(dp) :: zcpu_end, zmpitime,zcpu_raw,zclock_raw
+      CHARACTER(LEN=32)  :: clinfo
+      INTEGER(8) :: i8end, i8full, i8net
+      INTEGER    :: icode
+      LOGICAL    :: ll_finalize
+      !!----------------------------------------------------------------------
       !
-      s_wrk => NULL()
+      clinfo = cdinfo
+      IF( .NOT. Agrif_Root() )   clinfo = TRIM(Agrif_CFixed())//'_'//clinfo
 
-      ! clock time collection
+      IF( s_timer%cname /= clinfo ) THEN   ! we cannot use ctl_stop as we cannot use lib_mpp
+         WRITE(*,*) ' STOP from timing_stop: try to stop '//TRIM(clinfo)//' but we point toward '//TRIM(s_timer%cname)
 #if ! defined key_mpi_off
-      zmpitime = MPI_Wtime()
+         CALL mpi_abort( MPI_COMM_WORLD, 123, icode )
 #else
-      CALL SYSTEM_CLOCK(COUNT = ifinal_count)
+         STOP 123
 #endif
-      ! CPU time collection
-      CALL CPU_TIME( zcpu_end )
-
-!!$      IF(associated(s_timer%parent_section))then
-!!$        write(*,*) s_timer%cname,' <-- ', s_timer%parent_section%cname
-!!$      ENDIF
-
- !     No need to search ... : s_timer has the last value defined in start
- !     s_timer => s_timer_root
- !     DO WHILE( TRIM(s_timer%cname) /= TRIM(cdinfo) )
- !        IF( ASSOCIATED(s_timer%next) ) s_timer => s_timer%next
- !     END DO
-
-      ! CPU time correction
-      zcpu_raw = zcpu_end - s_timer%t_cpu - t_overcpu ! total time including child
-      s_timer%t_cpu  = zcpu_raw - s_timer%tsub_cpu
-  !    IF(s_timer%cname==trim('lbc_lnk_2d'))  write(*,*) s_timer%tsub_cpu,zcpu_end
-
-      ! clock time correction
-#if ! defined key_mpi_off
-      zclock_raw = zmpitime - s_timer%t_clock - t_overclock ! total time including child
-      s_timer%t_clock = zclock_raw - t_overclock - s_timer%tsub_clock
-#else
-      iperiods = ifinal_count - s_timer%ncount
-      IF( ifinal_count < s_timer%ncount )  &
-         iperiods = iperiods + s_timer%ncount_max
-         zclock_raw = REAL(iperiods) / s_timer%ncount_rate !- t_overclock
-         s_timer%t_clock  = zclock_raw - s_timer%tsub_clock
-#endif
- !     IF(s_timer%cname==trim('lbc_lnk_2d')) write(*,*) zclock_raw , s_timer%tsub_clock
-
-      ! Correction of parent section
-      IF( .NOT. PRESENT(csection) ) THEN
-         IF ( ASSOCIATED(s_timer%parent_section ) ) THEN
-            s_timer%parent_section%tsub_cpu   = zcpu_raw   + s_timer%parent_section%tsub_cpu
-            s_timer%parent_section%tsub_clock = zclock_raw + s_timer%parent_section%tsub_clock
-         ENDIF
+      ENDIF
+      IF( PRESENT(ld_finalize) ) THEN   ;   ll_finalize = ld_finalize
+      ELSE                              ;   ll_finalize = .FALSE.
       ENDIF
 
+      IF( .NOT. l_istiled .OR. ntile == 1 ) s_timer%niter = s_timer%niter + 1   ! All tiles count as one iteration
+
+      ! clock time collection
+      CALL SYSTEM_CLOCK( COUNT = i8end )   ;   ncall_clock = ncall_clock + 1
+      i8full = i8end - s_timer%n8start  ! count between  timing_start and timing_stop
+      s_timer%n8tfull = s_timer%n8tfull + i8full   ! cumulate my full time
+
+      ! time print
+      IF( s_timer%lstatplot .AND. numtime /= -1 )   &
+         &   WRITE(numtime,*) 'timing '//TRIM(clinfo)//' ', kt, ' : ', REAL(i8full,dp) * secondclock
+
       ! time diagnostics
-      s_timer%tsum_clock = s_timer%tsum_clock + s_timer%t_clock
-      s_timer%tsum_cpu   = s_timer%tsum_cpu   + s_timer%t_cpu
-!RB to use to get min/max during a time integration
-!      IF( .NOT. l_initdone ) THEN
-!         s_timer%tmin_clock = s_timer%t_clock
-!         s_timer%tmin_cpu   = s_timer%t_cpu
-!      ELSE
-!         s_timer%tmin_clock = MIN( s_timer%tmin_clock, s_timer%t_clock )
-!         s_timer%tmin_cpu   = MIN( s_timer%tmin_cpu  , s_timer%t_cpu   )
-!      ENDIF
-!      s_timer%tmax_clock = MAX( s_timer%tmax_clock, s_timer%t_clock )
-!      s_timer%tmax_cpu   = MAX( s_timer%tmax_cpu  , s_timer%t_cpu   )
-      !
-      s_timer%tsub_clock = 0.
-      s_timer%tsub_cpu = 0.
-      s_timer%l_tdone = .TRUE.
-      !
-      !
-      ! we come back
-      IF ( ASSOCIATED(s_timer%parent_section ) ) s_timer => s_timer%parent_section
+      i8net = i8full - s_timer%n8childsum       ! don't take into account my cildren count
+      s_timer%n8tnet = s_timer%n8tnet + i8net   ! cumulate my net time
+      s_timer%ldone  = .TRUE.                   ! I am done with this counting
+        
+      ! we come back to the parent
+      s_timer => s_timer%s_parent
+      IF ( ASSOCIATED(s_timer) )   s_timer%n8childsum = s_timer%n8childsum + i8full   ! add myself to the children of my parents
 
-!      write(*,*) 'end of stop ', s_timer%cname
-
+      IF( ll_finalize ) CALL timing_finalize( s_timer_root )
+      
    END SUBROUTINE timing_stop
 
 
-   SUBROUTINE timing_init( clname )
-      !!----------------------------------------------------------------------
-      !!               ***  ROUTINE timing_init  ***
-      !! ** Purpose :   open timing output file
-      !!----------------------------------------------------------------------
-      INTEGER :: iperiods, istart_count, ifinal_count
-      REAL(dp) :: zdum
-      LOGICAL :: ll_f
-      CHARACTER(len=*), INTENT(in), OPTIONAL :: clname
-      CHARACTER(len=20)                      :: cln
-
-      IF( PRESENT(clname) ) THEN   ;   cln = clname
-      ELSE                         ;   cln = 'timing.output'
-      ENDIF
-
-      IF( ln_onefile ) THEN
-         IF( lwp) CALL ctl_opn( numtime, cln, 'REPLACE', 'FORMATTED', 'SEQUENTIAL', -1, numout,.TRUE., narea )
-         lwriter = lwp
-      ELSE
-         CALL ctl_opn( numtime, cln, 'REPLACE', 'FORMATTED', 'SEQUENTIAL', -1, numout,.FALSE., narea )
-         lwriter = .TRUE.
-      ENDIF
-
-      IF( lwriter) THEN
-         WRITE(numtime,*)
-         WRITE(numtime,*) '      CNRS - NERC - Met OFFICE - MERCATOR-ocean - CMCC - INGV'
-         WRITE(numtime,*) '                             NEMO team'
-         WRITE(numtime,*) '                  Ocean General Circulation Model'
-         WRITE(numtime,*) '                        version 4.0  (2019) '
-         WRITE(numtime,*)
-         WRITE(numtime,*) '                        Timing Informations '
-         WRITE(numtime,*)
-         WRITE(numtime,*)
-      ENDIF
-
-      ! Compute clock function overhead
-#if ! defined key_mpi_off
-      t_overclock = MPI_WTIME()
-      t_overclock = MPI_WTIME() - t_overclock
-#else
-      CALL SYSTEM_CLOCK(COUNT_RATE=ncount_rate, COUNT_MAX=ncount_max)
-      CALL SYSTEM_CLOCK(COUNT = istart_count)
-      CALL SYSTEM_CLOCK(COUNT = ifinal_count)
-      iperiods = ifinal_count - istart_count
-      IF( ifinal_count < istart_count )  &
-          iperiods = iperiods + ncount_max
-      t_overclock = REAL(iperiods) / ncount_rate
-#endif
-
-      ! Compute cpu_time function overhead
-      CALL CPU_TIME(zdum)
-      CALL CPU_TIME(t_overcpu)
-
-      ! End overhead omputation
-      t_overcpu = t_overcpu - zdum
-      t_overclock = t_overcpu + t_overclock
-
-      ! Timing on date and time
-      CALL DATE_AND_TIME(cdate(1),ctime(1),czone,nvalues)
-
-      CALL CPU_TIME(t_cpu(1))
-#if ! defined key_mpi_off
-      ! Start elapsed and CPU time counters
-      t_elaps(1) = MPI_WTIME()
-#else
-      CALL SYSTEM_CLOCK(COUNT_RATE=ncount_rate, COUNT_MAX=ncount_max)
-      CALL SYSTEM_CLOCK(COUNT = ncount)
-#endif
-      !
-   END SUBROUTINE timing_init
-
-
-   SUBROUTINE timing_finalize
+   SUBROUTINE timing_finalize( sd_root )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE timing_finalize ***
       !! ** Purpose :  compute average time
       !!               write timing output file
       !!----------------------------------------------------------------------
-      TYPE(timer), POINTER :: s_temp
-      INTEGER :: idum, iperiods, icode
+      TYPE(timer), POINTER, INTENT(inout) :: sd_root      ! root chain link of the chain
+      !
+      TYPE(timer), POINTER :: s_wrk
+      REAL(dp) :: zmytime, zval, zavgtime, zavgextra, zmin, zmax
+      REAL(dp), DIMENSION(:), ALLOCATABLE :: zalltime
+      INTEGER :: idum, isize, icode
+      INTEGER :: jpnbtest = 100
       INTEGER :: ji
-      LOGICAL :: ll_ord, ll_averep
-      CHARACTER(len=120) :: clfmt
-      REAL(dp), DIMENSION(:), ALLOCATABLE ::   timing_glob
-      REAL(dp) ::   zsypd   ! simulated years per day (Balaji 2017)
-      REAL(dp) ::   zperc, ztot
+      INTEGER, DIMENSION(:), ALLOCATABLE :: iallmpi
+      INTEGER(8) :: i8start, i8end
+      CHARACTER(len=128) :: clfmt
+      LOGICAL :: ll_avg, llwrt
+      !!----------------------------------------------------------------------
 
-      ll_averep = .TRUE.
+      llwrt = numtime /= -1
 
-      ! total CPU and elapse
-      CALL CPU_TIME(t_cpu(2))
-      t_cpu(2)   = t_cpu(2)    - t_cpu(1)   - t_overcpu
+      ! check that all timing are done (all childrend count are properly reported)
+      s_wrk => sd_root
+      DO WHILE( ASSOCIATED(s_wrk) )
+         IF( .NOT. s_wrk%ldone ) THEN   ! we cannot use ctl_stop as we cannot use lib_mpp
+            WRITE(*,*) 'STOP from timing_finalize: '//TRIM(s_wrk%cname)//'did not finish its timing'
 #if ! defined key_mpi_off
-      t_elaps(2) = MPI_WTIME() - t_elaps(1) - t_overclock
+            CALL mpi_abort( MPI_COMM_WORLD, 123, icode )
 #else
-      CALL SYSTEM_CLOCK(COUNT = nfinal_count)
-      iperiods = nfinal_count - ncount
-      IF( nfinal_count < ncount )  &
-          iperiods = iperiods + ncount_max
-      t_elaps(2) = REAL(iperiods) / ncount_rate - t_overclock
+            STOP 123
 #endif
+         ENDIF
+         s_wrk => s_wrk%s_next
+      END DO
+
+      ! get elapsed time between now and the first call to timing start
+      CALL SYSTEM_CLOCK( COUNT = i8end )
+      zmytime = REAL(i8end - n8start000, dp) * secondclock
 
       ! End of timings on date & time
-      CALL DATE_AND_TIME(cdate(2),ctime(2),czone,nvalues)
-
-      ! Compute the numer of routines
-      nsize = 0
-      s_timer => s_timer_root
-      DO WHILE( ASSOCIATED(s_timer) )
-         nsize = nsize + 1
-         s_timer => s_timer%next
-      END DO
-      idum = nsize
-      CALL mpp_sum('timing', idum)
-      IF( idum/jpnij /= nsize ) THEN
-         IF( lwriter ) WRITE(numtime,*) '        ===> W A R N I N G: '
-         IF( lwriter ) WRITE(numtime,*) ' Some CPU have different number of routines instrumented for timing'
-         IF( lwriter ) WRITE(numtime,*) ' No detailed report on averaged timing can be provided'
-         IF( lwriter ) WRITE(numtime,*) ' The following detailed report only deals with the current processor'
-         IF( lwriter ) WRITE(numtime,*)
-         ll_averep = .FALSE.
+      CALL DATE_AND_TIME( cdate(2), ctime(2), czone, nvalues )      
+      !
+      IF( llwrt ) THEN
+         WRITE(numtime,*)
+         WRITE(numtime,*) '   ================= timing report ================='
+         WRITE(numtime,*)
+         clfmt='(1X,"Timing started on ",2(A2,"/"),A4," at ",2(A2,":"),A2," MET ",A3,":",A2," from GMT")'
+         WRITE(numtime, clfmt) &
+            &       cdate(1)(7:8), cdate(1)(5:6), cdate(1)(1:4),   &
+            &       ctime(1)(1:2), ctime(1)(3:4), ctime(1)(5:6),   &
+            &       czone(1:3),    czone(4:5)
+         clfmt='(1X,"Timing   ended on ",2(A2,"/"),A4," at ",2(A2,":"),A2," MET ",A3,":",A2," from GMT")'
+         WRITE(numtime, clfmt) &
+            &       cdate(2)(7:8), cdate(2)(5:6), cdate(2)(1:4),   &
+            &       ctime(2)(1:2), ctime(2)(3:4), ctime(2)(5:6),   &
+            &       czone(1:3),    czone(4:5)
+         CALL write_separator()
       ENDIF
 
-#if ! defined key_mpi_off
-      ! in MPI gather some info
-      ALLOCATE( all_etime(jpnij), all_ctime(jpnij) )
-      CALL MPI_ALLGATHER(t_elaps(2), 1, MPI_DOUBLE_PRECISION,   &
-                         all_etime , 1, MPI_DOUBLE_PRECISION,   &
-                         MPI_COMM_OCE, icode)
-      CALL MPI_ALLGATHER(t_cpu(2) , 1, MPI_DOUBLE_PRECISION,   &
-                         all_ctime, 1, MPI_DOUBLE_PRECISION,   &
-                         MPI_COMM_OCE, icode)
-      tot_etime = SUM(all_etime(:))
-      tot_ctime = SUM(all_ctime(:))
-#else
-      tot_etime = t_elaps(2)
-      tot_ctime = t_cpu  (2)
-#endif
-
-      ! write output file
-      IF( lwriter ) WRITE(numtime,*)
-      IF( lwriter ) WRITE(numtime,*)
-      IF( lwriter ) WRITE(numtime,*) 'Total timing (sum) :'
-      IF( lwriter ) WRITE(numtime,*) '--------------------'
-      IF( lwriter ) WRITE(numtime,"('Elapsed Time (s)  CPU Time (s)')")
-      IF( lwriter ) WRITE(numtime,'(5x,f12.3,1x,f12.3)')  tot_etime, tot_ctime
-      IF( lwriter ) WRITE(numtime,*)
-#if ! defined key_mpi_off
-      IF( ll_averep ) CALL waver_info
-      CALL wmpi_info
-#endif
-      IF( lwriter ) CALL wcurrent_info
-
-      clfmt='(1X,"Timing started on ",2(A2,"/"),A4," at ",2(A2,":"),A2," MET ",A3,":",A2," from GMT")'
-      IF( lwriter ) WRITE(numtime, TRIM(clfmt)) &
-      &       cdate(1)(7:8), cdate(1)(5:6), cdate(1)(1:4),   &
-      &       ctime(1)(1:2), ctime(1)(3:4), ctime(1)(5:6),   &
-      &       czone(1:3),    czone(4:5)
-      clfmt='(1X,  "Timing   ended on ",2(A2,"/"),A4," at ",2(A2,":"),A2," MET ",A3,":",A2," from GMT")'
-      IF( lwriter ) WRITE(numtime, TRIM(clfmt)) &
-      &       cdate(2)(7:8), cdate(2)(5:6), cdate(2)(1:4),   &
-      &       ctime(2)(1:2), ctime(2)(3:4), ctime(2)(5:6),   &
-      &       czone(1:3),    czone(4:5)
-
-#if ! defined key_mpi_off
-      ALLOCATE(timing_glob(4*jpnij), stat=icode)
-      CALL MPI_GATHER( (/compute_time, waiting_time(1), waiting_time(2), elapsed_time/),   &
-         &             4, MPI_DOUBLE_PRECISION, timing_glob, 4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_OCE, icode)
-      IF( narea == 1 ) THEN
-         WRITE(numtime,*) ' '
-         WRITE(numtime,*) ' Report on time spent on waiting MPI messages '
-         WRITE(numtime,*) '    total timing measured between nit000+1 and nitend-1 '
-         WRITE(numtime,*) '    warning: includes restarts writing time if output before nitend... '
-         WRITE(numtime,*) ' '
-         DO ji = 1, jpnij
-            zperc = 0._dp ; zsypd = 0._dp
-            ztot = SUM( timing_glob(4*ji-3:4*ji-1) )
-            WRITE(numtime,'(A28,F11.6,            A34,I8)') 'Computing       time : ',timing_glob(4*ji-3), ' on MPI rank : ', ji
-            IF ( ztot /= 0._dp ) zperc = timing_glob(4*ji-2) / ztot * 100.
-            WRITE(numtime,'(A28,F11.6,A2, F4.1,A3,A25,I8)') 'Waiting lbc_lnk time : ',timing_glob(4*ji-2)   &
-               &                                                         , ' (',      zperc,' %)',   ' on MPI rank : ', ji
-            IF ( ztot /= 0._dp ) zperc = timing_glob(4*ji-1) / ztot * 100.
-            WRITE(numtime,'(A28,F11.6,A2, F4.1,A3,A25,I8)') 'Waiting  global time : ',timing_glob(4*ji-1)   &
-               &                                                         , ' (',      zperc,' %)',   ' on MPI rank : ', ji
-            IF ( timing_glob(4*ji) /= 0._dp ) zsypd = rn_Dt * REAL(nitend-nit000-1, dp) / (timing_glob(4*ji) * 365.)
-            WRITE(numtime,'(A28,F11.6,A7,F10.3,A2,A15,I8)') 'Total           time : ',timing_glob(4*ji  )   &
-               &                                                         , ' (SYPD: ', zsypd, ')',   ' on MPI rank : ', ji
+      ! call gnuplot statplot
+      IF( llwrt ) THEN
+         s_wrk => sd_root
+         DO WHILE( ASSOCIATED(s_wrk) )
+            IF( s_wrk%lstatplot ) CALL gnuplot_statplot( 'timing', s_wrk%cname ) 
+            s_wrk => s_wrk%s_next
          END DO
       ENDIF
-      DEALLOCATE(timing_glob)
-#endif
 
-      IF( lwriter ) CLOSE(numtime)
+#if ! defined key_mpi_off
+      ! Compute the number of routines
+      idum = 0
+      s_wrk => sd_root
+      DO WHILE( ASSOCIATED(s_wrk) )
+         idum = idum + 1
+         s_wrk => s_wrk%s_next
+      END DO
+      CALL MPI_COMM_SIZE( nmpicom, isize, icode )
+      ALLOCATE(iallmpi(isize))
+      CALL MPI_ALLGATHER(   idum , 1, MPI_INTEGER,   &
+         &                iallmpi, 1, MPI_INTEGER, nmpicom, icode)
+      IF( SUM( iallmpi ) /= idum*isize ) THEN
+         IF( llwrt ) THEN
+            WRITE(numtime,*) '        ===> W A R N I N G: '
+            WRITE(numtime,*) ' Some CPU have different number of routines instrumented for timing'
+            WRITE(numtime,*) ' No detailed report on averaged timing can be provided'
+            WRITE(numtime,*) ' The following detailed report only deals with the current processor'
+            CALL write_separator()
+         ENDIF
+         ll_avg = .FALSE.
+      ELSE
+         ll_avg = .TRUE.
+      ENDIF
+      DEALLOCATE(iallmpi)
+#else
+      ll_avg = .FALSE.
+#endif      
+
+      ! get largest elapsed time
+      CALL mpp_avgminmax( zmytime, zavgtime, zmin, zmax, ll_avg )
+      IF( llwrt ) THEN
+         WRITE(numtime,'(a)') ' Elapsed Time mesured by timing (s):'
+         WRITE(numtime,'(a)') ' ----------------------------------'
+         WRITE(clfmt, "('(a,f',i2.2,'.6,''s'')')") INT(LOG10(MAX(1._dp,zmax))) + 8
+         IF(ll_avg) THEN
+            WRITE(numtime,clfmt) '       avg over all MPI processes = ', zavgtime
+            WRITE(numtime,clfmt) '       min over all MPI processes = ', zmin
+            WRITE(numtime,clfmt) '       max over all MPI processes = ', zmax 
+            WRITE(numtime,clfmt) '              local MPI process   = ', zmytime
+         ELSE
+            WRITE(numtime,clfmt) '                    local process = ', zmytime
+         ENDIF
+         CALL write_separator()
+      ENDIF
+
+      ! add an aveluation of the timing itself...
+      CALL SYSTEM_CLOCK( COUNT = i8start ) 
+      DO ji = 1, jpnbtest
+         CALL SYSTEM_CLOCK( COUNT = i8end )
+      ENDDO
+      zval = REAL( (i8end-i8start) * ncall_clock, dp) * secondclock / REAL(jpnbtest, dp)      
+      CALL mpp_avgminmax( zval, zavgextra, zmin, zmax, ll_avg )
+      IF( llwrt ) THEN
+         WRITE(numtime,'(a)') ' Evaluation of the extra coast due to the timing itself (% of avg elapsed):'
+         WRITE(numtime,'(a)') ' -------------------------------------------------------------------------'
+         WRITE(numtime,*) '   Number calls to SYSTEM_CLOCK = ', ncall_clock
+         WRITE(numtime,'(a,i3,a)') '    Avg Estimation over ', jpnbtest,' tests'
+         WRITE(clfmt, "('(a,f',i2.2,'.6,''s ('', f6.3,''%)'')')") INT(LOG10(MAX(1._dp,zmax))) + 8
+         IF(ll_avg) THEN
+            WRITE(numtime,clfmt) '       avg over all MPI processes = ', zavgextra, zavgextra / zavgtime * 100._dp 
+            WRITE(numtime,clfmt) '       min over all MPI processes = ', zmin, zmin / zavgtime * 100._dp
+            WRITE(numtime,clfmt) '       max over all MPI processes = ', zmax, zmax / zavgtime * 100._dp 
+            WRITE(numtime,clfmt) '              local MPI process   = ', zval, zval / zavgtime * 100._dp
+         ELSE
+            WRITE(numtime,clfmt) '                    local process = ', zval, zval / zavgtime * 100._dp
+         ENDIF
+         CALL write_separator()
+      ENDIF
+
+      ! reorder the chain list accprding to cname to make sure that each MPI process has the chain links in the same order
+      CALL sort_chain( sd_root, jp_cname )   ! I think it is not necessary... 
+      
+      s_wrk => sd_root
+      DO WHILE ( ASSOCIATED(s_wrk) )
+         s_wrk%tnet  = REAL(s_wrk%n8tnet , dp) * secondclock
+         s_wrk%tfull = REAL(s_wrk%n8tfull, dp) * secondclock
+         CALL mpp_avgminmax( s_wrk%tnet , s_wrk%tnetavg , s_wrk%tnetmin , s_wrk%tnetmax , ll_avg, s_wrk%cname )
+         CALL mpp_avgminmax( s_wrk%tfull, s_wrk%tfullavg, s_wrk%tfullmin, s_wrk%tfullmax, ll_avg )
+         s_wrk => s_wrk%s_next
+      END DO
+
+      IF( ll_avg .AND. llwrt ) THEN
+         CALL timer_write( ' Timing : AVG values over all processors :', sd_root, jp_tavg, zavgtime, zavgextra )
+         CALL timer_write( ' Timing : MIN values over all processors :', sd_root, jp_tmin, zavgtime, zavgextra )
+         CALL timer_write( ' Timing : MAX values over all processors :', sd_root, jp_tmax, zavgtime, zavgextra )
+      ENDIF
+      IF( llwrt ) THEN
+         CALL timer_write( ' Timing : values for local MPI process   :', sd_root, jp_tnet, zmytime, zavgextra )
+      ENDIF
+
+      IF( llwrt ) CLOSE(numtime)
       !
    END SUBROUTINE timing_finalize
 
 
-   SUBROUTINE wcurrent_info
+   SUBROUTINE timer_write( cdinfo, sd_root, kswitch, ptimetot, ptextra )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE wcurrent_info ***
       !! ** Purpose :  compute and write timing output file
       !!----------------------------------------------------------------------
-      LOGICAL :: ll_ord
-      CHARACTER(len=2048) :: clfmt
+      CHARACTER(len=*), INTENT(in) :: cdinfo
+      TYPE(timer), POINTER, INTENT(inout) :: sd_root      ! root chain link of the chain
+      INTEGER,              INTENT(in   ) :: kswitch      ! select the variable to be printed
+      REAL(dp),             INTENT(in   ) :: ptimetot     ! total elapsed time
+      REAL(dp),             INTENT(in   ) :: ptextra      ! extrat total elapsed time from the calls to system_clock
+      ! 
+      TYPE(timer), POINTER :: s_wrk
+      REAL(dp) :: ztnet, ztfull, zpcent
+      INTEGER  :: icnt
+      INTEGER  :: idgnet, idgfull, idgpct
+      INTEGER  :: itot0, itot1, itot2, itot3
+      INTEGER  :: iblk1, iblk2
+      CHARACTER(len= 32) :: cltitle0, cltitle1, cltitle2, cltitle3
+      CHARACTER(len=128) :: clfmt, clflt1, clflt2
+      LOGICAL :: llwarning
+      !!----------------------------------------------------------------------
 
-      ! reorder the current list by elapse time
-      s_wrk => NULL()
-      s_timer => s_timer_root
-      DO
+      llwarning = .FALSE.
+      zpcent = 100._dp / ptimetot
+      
+      CALL sort_chain( sd_root, kswitch )   ! reorder the current list by decreassing values of kswitch
+
+      IF(     kswitch == jp_tnet ) THEN   ;   ztnet = sd_root%tnet
+      ELSEIF( kswitch == jp_tavg ) THEN   ;   ztnet = sd_root%tnetavg
+      ELSEIF( kswitch == jp_tmin ) THEN   ;   ztnet = sd_root%tnetmin
+      ELSEIF( kswitch == jp_tmax ) THEN   ;   ztnet = sd_root%tnetmax
+      ENDIF
+      idgnet  = INT(LOG10(MAX(1._dp,ztnet   ))) + 1 + 7   ! how many digits to we need to write? add 7 difgits for '.6'
+      idgfull = INT(LOG10(MAX(1._dp,ptimetot))) + 1 + 7   ! how many digits to we need to write? add 7 difgits for '.6'
+      idgpct  =                                   3 + 4   ! add 4 digits for '.3'
+
+      cltitle0 = 'Section'
+      cltitle1 = 'Net elapsed Time'
+      cltitle2 = 'Full elapsed Time'
+      cltitle3 = 'Frequency'
+
+      itot0 = MAX(LEN_TRIM(cltitle0),               12)
+      itot1 = MAX(LEN_TRIM(cltitle1), idgnet +idgpct+6)   ;   iblk1 = itot1 - (idgnet +idgpct+6) + 1   ! add 6 for 's ( %)'
+      itot2 = MAX(LEN_TRIM(cltitle1), idgfull+idgpct+6)   ;   iblk2 = itot2 - (idgfull+idgpct+6) + 1   ! add 6 for 's ( %)'
+      itot3 = MAX(LEN_TRIM(cltitle3),                9) 
+      
+      ! write current info
+      WRITE(numtime,*) cdinfo
+      WRITE(numtime,*) ' ----------------------------------------'
+      WRITE(numtime,*)
+      WRITE(clfmt, '(a,i2.2,a,i2.2,a,i2.2,a,i2.2,a)')  &
+         &         '(1x,a', itot0, ",' | ',a", itot1, ",' | ',a", itot2, ",' | ',a", itot3, ')'
+       WRITE(numtime,clfmt) cltitle0, cltitle1, cltitle2, cltitle3
+      
+      WRITE(clfmt, "('(1x,',i2,a,i2,a,i2,a,i2,a)")   &
+         &         itot0+1, "('-'),'|',", itot1+2, "('-'),'|',", itot2+2, "('-'),'|',", itot3+1,"('-'))"
+      WRITE(numtime,clfmt)   
+
+      WRITE(clflt1, "('f',i2.2,'.6,',a,',f',i2.2,'.3,',a)") idgnet , "'s ('", idgpct, "' %) |',"    ! "fx.6,'s (',fx.3,' %) |',"
+      WRITE(clflt2, "('f',i2.2,'.6,',a,',f',i2.2,'.3,',a)") idgfull, "'s ('", idgpct, "' %) |',i"   ! "fx.6,'s (',fx.3,' %) | ,i'"
+      WRITE(clfmt, "('(1x,a',i2.2,a,i2,'x,',a,i2,'x,',a,i2.2,')')")   &
+         &         itot0, ",' |',", iblk1, TRIM(clflt1), iblk2, TRIM(clflt2), itot3+1
+
+      icnt = 0
+      s_wrk => sd_root
+      DO WHILE ( ASSOCIATED(s_wrk) .AND. icnt < jpmaxline )   ! we print only the first imaxline lines
+         IF(     kswitch == jp_tnet ) THEN   ;   ztnet = s_wrk%tnet      ;   ztfull = s_wrk%tfull
+         ELSEIF( kswitch == jp_tavg ) THEN   ;   ztnet = s_wrk%tnetavg   ;   ztfull = s_wrk%tfullavg
+         ELSEIF( kswitch == jp_tmin ) THEN   ;   ztnet = s_wrk%tnetmin   ;   ztfull = s_wrk%tfullmin
+         ELSEIF( kswitch == jp_tmax ) THEN   ;   ztnet = s_wrk%tnetmax   ;   ztfull = s_wrk%tfullmax
+         ENDIF
+         IF( ztnet < ptextra .AND. .NOT. llwarning ) THEN
+            WRITE(clflt1, "('(a,f',i2.2,'.6,''s'')')")   INT(LOG10(MAX(1._dp,ptextra)))+8   ! "(a,fx.6,'s')"
+            WRITE(numtime,clflt1) 'WARNING: timings bellow are smaller than the estimation of the timing itself: ', ptextra
+            llwarning = .TRUE.
+         ENDIF
+         WRITE(numtime,clfmt) s_wrk%cname, ztnet, ztnet*zpcent, ztfull, ztfull*zpcent, s_wrk%niter
+         s_wrk => s_wrk%s_next
+         icnt = icnt + 1
+      END DO
+
+      IF(  ASSOCIATED(s_wrk) )   WRITE(numtime,*) '...'   ! show that there is still more lines that could have been printed
+      CALL write_separator()
+     !
+   END SUBROUTINE timer_write
+
+
+   FUNCTION find_link( cdinfo, sd_root, ldstatplot )   RESULT( ptr )
+      !!----------------------------------------------------------------------
+      !!               ***  FUNCTION find_link  ***
+      !! ** Purpose :   find the link named cdinfo in the chain link starting with the link sd_root
+      !!----------------------------------------------------------------------
+      CHARACTER(len=*)    , INTENT(in   ) :: cdinfo
+      TYPE(timer), POINTER, INTENT(inout) :: sd_root      ! root chain link of the chain
+      LOGICAL, OPTIONAL   , INTENT(in   ) :: ldstatplot   ! .true. if you want to call gnuplot analyses on this timing
+      ! 
+      TYPE(timer), POINTER :: ptr, s_wrk
+      !!----------------------------------------------------------------------
+
+      ! case of already existing area (typically inside a loop)
+      ptr => sd_root
+      DO WHILE( ASSOCIATED(ptr) )
+         IF( ptr%cname == cdinfo )   RETURN   ! cdinfo is already in the chain
+         s_wrk => ptr                         ! store ptr in s_wrk
+         ptr   => ptr%s_next
+      END DO
+
+      ! cdinfo not found, we earch the end of the chain list -> ptr is NULL() 
+      ptr => s_wrk   ! go back to the last chain link.
+
+      ! we are at the end of the chain -> add a new chain link
+      ptr%s_next => def_newlink( cdinfo, ldstatplot )   ! define a new chain link and link it to the end of the chain
+      ptr%s_next%s_prev => ptr                          ! link the new chain link to the current chain link
+      ptr => ptr%s_next                                 ! move the current chain link to this new chain link
+      !
+   END FUNCTION find_link
+
+   
+   FUNCTION def_newlink( cdinfo, ldstatplot )   RESULT( ptr )
+      !!----------------------------------------------------------------------
+      !!               ***  FUNCTION def_newlink  ***
+      !! ** Purpose :   add a new link to the chain link
+      !!----------------------------------------------------------------------
+      CHARACTER(len=*) , INTENT(in) :: cdinfo
+      LOGICAL, OPTIONAL, INTENT(in) :: ldstatplot
+      !
+      TYPE(timer), POINTER :: ptr
+      LOGICAL :: ll_statplot
+      !!----------------------------------------------------------------------
+
+      IF( PRESENT(ldstatplot) ) THEN   ;   ll_statplot = ldstatplot
+      ELSE                             ;   ll_statplot = .FALSE.
+      ENDIF
+      
+      ALLOCATE(ptr)   ! allocate memory space associated with ptr
+      ! default required definitions
+      ptr%cname     = cdinfo
+      ptr%n8tnet    = 0_8
+      ptr%n8tfull   = 0_8
+      ptr%niter     = 0
+      ptr%lstatplot = ll_statplot
+      ptr%s_parent  => NULL()
+      ptr%s_prev    => NULL()
+      ptr%s_next    => NULL()
+      
+   END FUNCTION def_newlink
+
+
+   SUBROUTINE switch_links(sd_root, sd_current)
+      !!----------------------------------------------------------------------
+      !!               ***  ROUTINE switch_links  ***
+      !! ** Purpose :   switch current and current%s_next chain links
+      !!                switch_links is called only if current%s_next is associated 
+      !!----------------------------------------------------------------------
+      TYPE(timer), POINTER, INTENT(inout) :: sd_root      ! root chain link of the chain
+      TYPE(timer), POINTER, INTENT(inout) :: sd_current   ! current chain link
+      !!----------------------------------------------------------------------
+      !
+      ! initial setup: current%prev <-> current <-> current%next <-> current%next%next
+      ! --------------
+      !
+      !                      current
+      !                         2
+      !        current%prev 1       4 current%next%next 
+      !                         3
+      !                    current%next
+      !
+      ! after switch: current%prev%prev <-> current%prev <-> current <-> current%next
+      ! ------------
+      !                      current
+      !                         3
+      !   current%prev%prev 1       4 current%next
+      !                         2
+      !                   current*prev
+      !
+      ! link current%s_prev and current%s_next
+      IF( ASSOCIATED( sd_current%s_prev ) ) THEN
+         sd_current%s_prev%s_next => sd_current%s_next   ! link forward current%s_prev to current%s_next
+         sd_current%s_next%s_prev => sd_current%s_prev   ! link backward current%s_next to current%s_prev
+      ELSE
+         sd_current%s_next%s_prev => NULL()              ! current%next becomes the new root of the chain
+         sd_root => sd_current%s_next
+      ENDIF
+         
+      sd_current%s_prev => sd_current%s_next             ! link backward current to its new prev (former next)
+      
+      ! cannot yet modify sd_current%s_prev%s_next (which is also sd_current%s_next%s_next) as
+      IF( ASSOCIATED( sd_current%s_next%s_next ) ) THEN
+         sd_current%s_next => sd_current%s_next%s_next   ! link forward current to its new next (former next%next)
+         sd_current%s_next%s_prev => sd_current          ! link backward new current next to current
+      ELSE
+         sd_current%s_next => NULL()   ! current is now at the end of the chain
+      ENDIF
+      ! we can now update sd_current%s_prev%s_next
+      sd_current%s_prev%s_next => sd_current   ! link new current prev to current
+            !
+   END SUBROUTINE switch_links
+
+
+   SUBROUTINE sort_chain( sd_root, kswitch )
+      !!----------------------------------------------------------------------
+      !!               ***  ROUTINE sort_chain  ***
+      !! ** Purpose :   sort the chain link
+      !!----------------------------------------------------------------------
+      TYPE(timer), POINTER, INTENT(inout) :: sd_root      ! root chain link of the chain
+      INTEGER,              INTENT(in   ) :: kswitch      ! select the sorting variable
+      !
+      TYPE(timer), POINTER :: s_wrk
+      LOGICAL              :: ll_ord, ll_test
+      !!----------------------------------------------------------------------
+      
+      ll_ord = .FALSE.
+      DO WHILE ( .NOT. ll_ord )
          ll_ord = .TRUE.
-         s_timer => s_timer_root
-         DO WHILE ( ASSOCIATED( s_timer%next ) )
-            IF (.NOT. ASSOCIATED(s_timer%next)) EXIT
-            IF ( s_timer%tsum_clock < s_timer%next%tsum_clock ) THEN
-               ALLOCATE(s_wrk)
-               s_wrk = s_timer%next
-               CALL insert  (s_timer, s_timer_root, s_wrk)
-               CALL suppress(s_timer%next)
+         s_wrk => sd_root
+         DO WHILE ( ASSOCIATED( s_wrk%s_next ) )
+            IF(     kswitch == jp_cname ) THEN   ;   ll_test = s_wrk%cname    < s_wrk%s_next%cname
+            ELSEIF( kswitch == jp_tnet  ) THEN   ;   ll_test = s_wrk%tnet     < s_wrk%s_next%tnet
+            ELSEIF( kswitch == jp_tavg  ) THEN   ;   ll_test = s_wrk%tnetavg  < s_wrk%s_next%tnetavg
+            ELSEIF( kswitch == jp_tmin  ) THEN   ;   ll_test = s_wrk%tnetmin  < s_wrk%s_next%tnetmin
+            ELSEIF( kswitch == jp_tmax  ) THEN   ;   ll_test = s_wrk%tnetmax  < s_wrk%s_next%tnetmax
+            ENDIF
+            IF ( ll_test ) THEN
+               CALL switch_links(sd_root, s_wrk)
                ll_ord = .FALSE.
                CYCLE
             ENDIF
-            IF( ASSOCIATED(s_timer%next) ) s_timer => s_timer%next
+            IF( ASSOCIATED(s_wrk%s_next) ) s_wrk => s_wrk%s_next
          END DO
-         IF( ll_ord ) EXIT
       END DO
+      
+   END SUBROUTINE sort_chain
 
-      ! write current info
-      WRITE(numtime,*) 'Detailed timing for proc :', narea-1
-      WRITE(numtime,*) '--------------------------'
-      WRITE(numtime,*) 'Section             ',            &
-      &   'Elapsed Time (s)  ','Elapsed Time (%)  ',   &
-      &   'CPU Time(s)  ','CPU Time (%)  ','CPU/Elapsed  ','Frequency'
-      s_timer => s_timer_root
-      clfmt = '(1x,a,4x,f12.3,6x,f12.3,x,f12.3,2x,f12.3,6x,f7.3,2x,i9)'
-      DO WHILE ( ASSOCIATED(s_timer) )
-         IF( s_timer%tsum_clock > 0._dp )                                &
-            WRITE(numtime,TRIM(clfmt))   s_timer%cname,                  &
-            &   s_timer%tsum_clock,s_timer%tsum_clock*100./t_elaps(2),   &
-            &   s_timer%tsum_cpu  ,s_timer%tsum_cpu*100./t_cpu(2)    ,   &
-            &   s_timer%tsum_cpu/s_timer%tsum_clock, s_timer%niter
-         s_timer => s_timer%next
-      END DO
-      WRITE(numtime,*)
+
+   SUBROUTINE mpp_avgminmax( pval, pavg, pmin, pmax, ld_mpi, cdname )
+      !!----------------------------------------------------------------------
+      !!               ***  ROUTINE mpp_avgminmax  ***
+      !! ** Purpose :   get average, min, max over all MPI processes
+      !!----------------------------------------------------------------------
+      REAL(dp)                  , INTENT(in   ) ::   pval
+      REAL(dp)                  , INTENT(  out) ::   pavg, pmin, pmax
+      LOGICAL                   , INTENT(in   ) ::   ld_mpi
+      CHARACTER(len=*), OPTIONAL, INTENT(in   ) ::   cdname
       !
-   END SUBROUTINE wcurrent_info
+      REAL(dp), DIMENSION(:), ALLOCATABLE ::  zallmpi
+      INTEGER :: icode, isize
+      !!----------------------------------------------------------------------
+     
+      IF( ld_mpi ) THEN
+#if ! defined key_mpi_off
+         CALL MPI_COMM_SIZE( nmpicom, isize, icode )
+         ALLOCATE(zallmpi(isize))
+         CALL MPI_ALLGATHER(    pval, 1, MPI_DOUBLE_PRECISION,   &
+            &                zallmpi, 1, MPI_DOUBLE_PRECISION, nmpicom, icode)
+#endif
+         pavg = SUM(    zallmpi ) / REAL(isize, dp)
+         pmin = MINVAL( zallmpi )
+         pmax = MAXVAL( zallmpi )
+         IF( PRESENT(cdname) )   CALL gnuplot_statplot( 'timing_mpitasks', cdname, zallmpi )
+         DEALLOCATE(    zallmpi )
+      ELSE
+         pavg = pval
+         pmin = pval
+         pmax = pval
+      ENDIF
+         
+   END SUBROUTINE mpp_avgminmax
+  
+
+   SUBROUTINE write_separator()
+      WRITE(numtime,*)
+      WRITE(numtime,*) '   -------------------------------------------------'
+      WRITE(numtime,*)
+   END SUBROUTINE write_separator
+
+
+   SUBROUTINE gnuplot_statplot( cdprefix, cdname, pmpitime )
+      !!----------------------------------------------------------------------
+      !!               ***  ROUTINE gnuplot_statplot  ***
+      !! ** Purpose :   Perform gnuplot statplot/plots
+      !!----------------------------------------------------------------------
+      CHARACTER(len=*)                , INTENT(in) :: cdprefix
+      CHARACTER(len=*)                , INTENT(in) :: cdname
+      REAL(dp), DIMENSION(:), OPTIONAL, INTENT(in) :: pmpitime
+      !
+      INTEGER :: ji
+      INTEGER :: istatus, isz1, isz2, isz3, inumsh
+      INTEGER :: irank, isize, icode
+      CHARACTER(LEN=512) :: clcmd
+      CHARACTER(LEN=256) :: clfile
+      CHARACTER(LEN=1  ) :: cl1
+      CHARACTER(LEN=10 ) :: clfmt
+      CHARACTER(:), ALLOCATABLE :: clname
+      LOGICAL :: ll_execmd, llwm, llwrt
+      !!----------------------------------------------------------------------
 
 #if ! defined key_mpi_off
-   SUBROUTINE waver_info
-      !!----------------------------------------------------------------------
-      !!               ***  ROUTINE wcurrent_info ***
-      !! ** Purpose :  compute and write averaged timing informations
-      !!----------------------------------------------------------------------
-      TYPE(alltimer), POINTER :: sl_timer_glob_root => NULL()
-      TYPE(alltimer), POINTER :: sl_timer_glob      => NULL()
-      TYPE(timer), POINTER :: sl_timer_ave_root => NULL()
-      TYPE(timer), POINTER :: sl_timer_ave      => NULL()
-      INTEGER :: icode
-      INTEGER :: ierr
-      LOGICAL :: ll_ord
-      CHARACTER(len=200) :: clfmt
-
-      ! Initialised the global strucutre
-      ALLOCATE(sl_timer_glob_root, Stat=ierr)
-      IF(ierr /= 0)THEN
-         WRITE(numtime,*) 'Failed to allocate global timing structure in waver_info'
-         RETURN
-      END IF
-
-      ALLOCATE(sl_timer_glob_root%cname     (jpnij), &
-               sl_timer_glob_root%tsum_cpu  (jpnij), &
-               sl_timer_glob_root%tsum_clock(jpnij), &
-               sl_timer_glob_root%niter     (jpnij), Stat=ierr)
-      IF(ierr /= 0)THEN
-         WRITE(numtime,*) 'Failed to allocate global timing structure in waver_info'
-         RETURN
-      END IF
-      sl_timer_glob_root%cname(:)       = ''
-      sl_timer_glob_root%tsum_cpu(:)   = 0._dp
-      sl_timer_glob_root%tsum_clock(:) = 0._dp
-      sl_timer_glob_root%niter(:)      = 0
-      sl_timer_glob_root%next => NULL()
-      sl_timer_glob_root%prev => NULL()
-      !ARPDBG - don't need to allocate a pointer that's immediately then
-      !         set to point to some other object.
-      !ALLOCATE(sl_timer_glob)
-      !ALLOCATE(sl_timer_glob%cname     (jpnij))
-      !ALLOCATE(sl_timer_glob%tsum_cpu  (jpnij))
-      !ALLOCATE(sl_timer_glob%tsum_clock(jpnij))
-      !ALLOCATE(sl_timer_glob%niter     (jpnij))
-      sl_timer_glob => sl_timer_glob_root
-      !
-      IF( narea .EQ. 1 ) THEN
-         ALLOCATE(sl_timer_ave_root)
-         sl_timer_ave_root%cname       = ''
-         sl_timer_ave_root%t_cpu      = 0._dp
-         sl_timer_ave_root%t_clock    = 0._dp
-         sl_timer_ave_root%tsum_cpu   = 0._dp
-         sl_timer_ave_root%tsum_clock = 0._dp
-         sl_timer_ave_root%tmax_cpu   = 0._dp
-         sl_timer_ave_root%tmax_clock = 0._dp
-         sl_timer_ave_root%tmin_cpu   = 0._dp
-         sl_timer_ave_root%tmin_clock = 0._dp
-         sl_timer_ave_root%tsub_cpu   = 0._dp
-         sl_timer_ave_root%tsub_clock = 0._dp
-         sl_timer_ave_root%ncount      = 0
-         sl_timer_ave_root%ncount_rate = 0
-         sl_timer_ave_root%ncount_max  = 0
-         sl_timer_ave_root%niter       = 0
-         sl_timer_ave_root%l_tdone  = .FALSE.
-         sl_timer_ave_root%next => NULL()
-         sl_timer_ave_root%prev => NULL()
-         ALLOCATE(sl_timer_ave)
-         sl_timer_ave => sl_timer_ave_root
-      ENDIF
-
-      ! Gather info from all processors
-      s_timer => s_timer_root
-      DO WHILE ( ASSOCIATED(s_timer) )
-         CALL MPI_GATHER(s_timer%cname     , 20, MPI_CHARACTER,   &
-                         sl_timer_glob%cname, 20, MPI_CHARACTER,   &
-                         0, MPI_COMM_OCE, icode)
-         CALL MPI_GATHER(s_timer%tsum_clock     , 1, MPI_DOUBLE_PRECISION,   &
-                         sl_timer_glob%tsum_clock, 1, MPI_DOUBLE_PRECISION,   &
-                         0, MPI_COMM_OCE, icode)
-         CALL MPI_GATHER(s_timer%tsum_cpu     , 1, MPI_DOUBLE_PRECISION,   &
-                         sl_timer_glob%tsum_cpu, 1, MPI_DOUBLE_PRECISION,   &
-                         0, MPI_COMM_OCE, icode)
-         CALL MPI_GATHER(s_timer%niter     , 1, MPI_INTEGER,   &
-                         sl_timer_glob%niter, 1, MPI_INTEGER,   &
-                         0, MPI_COMM_OCE, icode)
-
-         IF( narea == 1 .AND. ASSOCIATED(s_timer%next) ) THEN
-            ALLOCATE(sl_timer_glob%next)
-            ALLOCATE(sl_timer_glob%next%cname     (jpnij))
-            ALLOCATE(sl_timer_glob%next%tsum_cpu  (jpnij))
-            ALLOCATE(sl_timer_glob%next%tsum_clock(jpnij))
-            ALLOCATE(sl_timer_glob%next%niter     (jpnij))
-            sl_timer_glob%next%prev => sl_timer_glob
-            sl_timer_glob%next%next => NULL()
-            sl_timer_glob           => sl_timer_glob%next
-         ENDIF
-         s_timer => s_timer%next
-      END DO
-
-      IF( narea == 1 ) THEN
-         ! Compute some stats
-         sl_timer_glob => sl_timer_glob_root
-         DO WHILE( ASSOCIATED(sl_timer_glob) )
-            sl_timer_ave%cname  = sl_timer_glob%cname(1)
-            sl_timer_ave%tsum_cpu   = SUM   (sl_timer_glob%tsum_cpu  (:)) / jpnij
-            sl_timer_ave%tsum_clock = SUM   (sl_timer_glob%tsum_clock(:)) / jpnij
-            sl_timer_ave%tmax_cpu   = MAXVAL(sl_timer_glob%tsum_cpu  (:))
-            sl_timer_ave%tmax_clock = MAXVAL(sl_timer_glob%tsum_clock(:))
-            sl_timer_ave%tmin_cpu   = MINVAL(sl_timer_glob%tsum_cpu  (:))
-            sl_timer_ave%tmin_clock = MINVAL(sl_timer_glob%tsum_clock(:))
-            sl_timer_ave%niter      = SUM   (sl_timer_glob%niter     (:))
-            !
-            IF( ASSOCIATED(sl_timer_glob%next) ) THEN
-               ALLOCATE(sl_timer_ave%next)
-               sl_timer_ave%next%prev => sl_timer_ave
-               sl_timer_ave%next%next => NULL()
-               sl_timer_ave           => sl_timer_ave%next
-            ENDIF
-            sl_timer_glob => sl_timer_glob%next
-         END DO
-
-         ! reorder the averaged list by CPU time
-         s_wrk => NULL()
-         sl_timer_ave => sl_timer_ave_root
-         DO
-            ll_ord = .TRUE.
-            sl_timer_ave => sl_timer_ave_root
-            DO WHILE( ASSOCIATED( sl_timer_ave%next ) )
-
-               IF( .NOT. ASSOCIATED(sl_timer_ave%next) ) EXIT
-
-               IF ( sl_timer_ave%tsum_clock < sl_timer_ave%next%tsum_clock ) THEN
-                  ALLOCATE(s_wrk)
-                  ! Copy data into the new object pointed to by s_wrk
-                  s_wrk = sl_timer_ave%next
-                  ! Insert this new timer object before our current position
-                  CALL insert  (sl_timer_ave, sl_timer_ave_root, s_wrk)
-                  ! Remove the old object from the list
-                  CALL suppress(sl_timer_ave%next)
-                  ll_ord = .FALSE.
-                  CYCLE
-               ENDIF
-               IF( ASSOCIATED(sl_timer_ave%next) ) sl_timer_ave => sl_timer_ave%next
-            END DO
-            IF( ll_ord ) EXIT
-         END DO
-
-         ! write averaged info
-         WRITE(numtime,"('Averaged timing on all processors :')")
-         WRITE(numtime,"('-----------------------------------')")
-         WRITE(numtime,"('Section',13x,'Elap. Time(s)',2x,'Elap. Time(%)',2x, &
-         &   'CPU Time(s)',2x,'CPU Time(%)',2x,'CPU/Elap',1x,   &
-         &   'Max elap(%)',2x,'Min elap(%)',2x,            &
-         &   'Freq')")
-         sl_timer_ave => sl_timer_ave_root
-         clfmt = '((A),E15.7,2x,f6.2,5x,f12.2,5x,f6.2,5x,f7.2,2x,f12.2,4x,f6.2,2x,f9.2)'
-         DO WHILE ( ASSOCIATED(sl_timer_ave) )
-            IF( sl_timer_ave%tsum_clock > 0. )                                             &
-               WRITE(numtime,TRIM(clfmt))   sl_timer_ave%cname(1:18),                      &
-               &   sl_timer_ave%tsum_clock,sl_timer_ave%tsum_clock*100.*jpnij/tot_etime,   &
-               &   sl_timer_ave%tsum_cpu  ,sl_timer_ave%tsum_cpu*100.*jpnij/tot_ctime  ,   &
-               &   sl_timer_ave%tsum_cpu/sl_timer_ave%tsum_clock,                          &
-               &   sl_timer_ave%tmax_clock*100.*jpnij/tot_etime,                           &
-               &   sl_timer_ave%tmin_clock*100.*jpnij/tot_etime,                           &
-               &   sl_timer_ave%niter/REAL(jpnij)
-            sl_timer_ave => sl_timer_ave%next
-         END DO
-         WRITE(numtime,*)
-         !
-         DEALLOCATE(sl_timer_ave_root)
-      ENDIF
-      !
-      DEALLOCATE(sl_timer_glob_root)
-      !
-   END SUBROUTINE waver_info
-
-
-   SUBROUTINE wmpi_info
-      !!----------------------------------------------------------------------
-      !!               ***  ROUTINE wmpi_time  ***
-      !! ** Purpose :   compute and write a summary of MPI infos
-      !!----------------------------------------------------------------------
-      !
-      INTEGER                            :: idum, icode
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: iall_rank
-      REAL(dp) :: ztot_ratio
-      REAL(dp) :: zmax_etime, zmax_ctime, zmax_ratio, zmin_etime, zmin_ctime, zmin_ratio
-      REAL(dp) :: zavg_etime, zavg_ctime, zavg_ratio
-      REAL(dp), ALLOCATABLE, DIMENSION(:) :: zall_ratio
-      CHARACTER(LEN=128), dimension(8) :: cllignes
-      CHARACTER(LEN=128)               :: clhline, clstart_date, clfinal_date
-      CHARACTER(LEN=2048)              :: clfmt
-
-      ! Gather all times
-      ALLOCATE( zall_ratio(jpnij), iall_rank(jpnij) )
-      IF( narea == 1 ) THEN
-         iall_rank(:) = (/ (idum,idum=0,jpnij-1) /)
-
-         ! Compute elapse user time
-         zavg_etime = tot_etime/REAL(jpnij,dp)
-         zmax_etime = MAXVAL(all_etime(:))
-         zmin_etime = MINVAL(all_etime(:))
-
-         ! Compute CPU user time
-         zavg_ctime = tot_ctime/REAL(jpnij,dp)
-         zmax_ctime = MAXVAL(all_ctime(:))
-         zmin_ctime = MINVAL(all_ctime(:))
-
-         ! Compute cpu/elapsed ratio
-         zall_ratio(:) = all_ctime(:) / all_etime(:)
-         ztot_ratio    = SUM(all_ctime(:))/SUM(all_etime(:))
-         zavg_ratio    = SUM(zall_ratio(:))/REAL(jpnij,dp)
-         zmax_ratio    = MAXVAL(zall_ratio(:))
-         zmin_ratio    = MINVAL(zall_ratio(:))
-
-         ! Output Format
-         clhline    ='1x,13("-"),"|",18("-"),"|",14("-"),"|",18("-"),/,'
-         cllignes(1)='(1x,"MPI summary report :",/,'
-         cllignes(2)='1x,"--------------------",//,'
-         cllignes(3)='1x,"Process Rank |"," Elapsed Time (s) |"," CPU Time (s) |"," Ratio CPU/Elapsed",/,'
-         cllignes(4)='      (4x,i6,4x,"|",f12.3,6x,"|",f12.3,2x,"|",4x,f7.3,/),'
-         WRITE(cllignes(4)(1:6),'(I6)') jpnij
-         cllignes(5)='1x,"Total        |",f12.3,6x,"|",F12.3,2x,"|",4x,f7.3,/,'
-         cllignes(6)='1x,"Minimum      |",f12.3,6x,"|",F12.3,2x,"|",4x,f7.3,/,'
-         cllignes(7)='1x,"Maximum      |",f12.3,6x,"|",F12.3,2x,"|",4x,f7.3,/,'
-         cllignes(8)='1x,"Average      |",f12.3,6x,"|",F12.3,2x,"|",4x,f7.3)'
-         clfmt=TRIM(cllignes(1))// TRIM(cllignes(2))//TRIM(cllignes(3))//          &
-           & TRIM(clhline)//TRIM(cllignes(4))//TRIM(clhline)//TRIM(cllignes(5))//  &
-           & TRIM(clhline)//TRIM(cllignes(6))//TRIM(clhline)//TRIM(cllignes(7))//  &
-           & TRIM(clhline)//TRIM(cllignes(8))
-         WRITE(numtime, TRIM(clfmt)) &
-             (iall_rank(idum),all_etime(idum),all_ctime(idum),zall_ratio(idum),idum=1, jpnij), &
-             tot_etime,     tot_ctime,     ztot_ratio,   &
-             zmin_etime,    zmin_ctime,    zmin_ratio,   &
-             zmax_etime,    zmax_ctime,    zmax_ratio,   &
-             zavg_etime,    zavg_ctime,    zavg_ratio
-         WRITE(numtime,*)
-      END IF
-      !
-      DEALLOCATE(zall_ratio, iall_rank)
-      !
-   END SUBROUTINE wmpi_info
+      CALL MPI_COMM_RANK( nmpicom, irank, icode )
+      CALL MPI_COMM_SIZE( nmpicom, isize, icode )
+#else
+      irank = 0
+      isize = 1
 #endif
 
+      llwm = irank == 0   ! local definition of lwm, as we minimize the number of USE in this module (avoid circular dependency)
 
-   SUBROUTINE timing_ini_var(cdinfo)
-      !!----------------------------------------------------------------------
-      !!               ***  ROUTINE timing_ini_var  ***
-      !! ** Purpose :   create timing structure
-      !!----------------------------------------------------------------------
-      CHARACTER(len=*), INTENT(in) :: cdinfo
-      LOGICAL :: ll_section
+      llwrt = numtime /= -1                              ! this process is writing a timing.output file
+      IF( PRESENT(pmpitime) ) llwrt = llwrt .AND. llwm   ! only the first process is doing the plot (same for all plots)
+      IF( .NOT. llwrt )   RETURN
 
-      !
-      IF( .NOT. ASSOCIATED(s_timer_root) ) THEN
-         ALLOCATE(s_timer_root)
-         s_timer_root%cname       = cdinfo
-         s_timer_root%t_cpu      = 0._dp
-         s_timer_root%t_clock    = 0._dp
-         s_timer_root%tsum_cpu   = 0._dp
-         s_timer_root%tsum_clock = 0._dp
-         s_timer_root%tmax_cpu   = 0._dp
-         s_timer_root%tmax_clock = 0._dp
-         s_timer_root%tmin_cpu   = 0._dp
-         s_timer_root%tmin_clock = 0._dp
-         s_timer_root%tsub_cpu   = 0._dp
-         s_timer_root%tsub_clock = 0._dp
-         s_timer_root%ncount      = 0
-         s_timer_root%ncount_rate = 0
-         s_timer_root%ncount_max  = 0
-         s_timer_root%niter       = 0
-         s_timer_root%l_tdone  = .FALSE.
-         s_timer_root%next => NULL()
-         s_timer_root%prev => NULL()
-         s_timer => s_timer_root
-         !
-         ALLOCATE(s_wrk)
-         s_wrk => NULL()
-         !
-         ALLOCATE(s_timer_old)
-         s_timer_old%cname       = cdinfo
-         s_timer_old%t_cpu      = 0._dp
-         s_timer_old%t_clock    = 0._dp
-         s_timer_old%tsum_cpu   = 0._dp
-         s_timer_old%tsum_clock = 0._dp
-         s_timer_old%tmax_cpu   = 0._dp
-         s_timer_old%tmax_clock = 0._dp
-         s_timer_old%tmin_cpu   = 0._dp
-         s_timer_old%tmin_clock = 0._dp
-         s_timer_old%tsub_cpu   = 0._dp
-         s_timer_old%tsub_clock = 0._dp
-         s_timer_old%ncount      = 0
-         s_timer_old%ncount_rate = 0
-         s_timer_old%ncount_max  = 0
-         s_timer_old%niter       = 0
-         s_timer_old%l_tdone  = .TRUE.
-         s_timer_old%next => NULL()
-         s_timer_old%prev => NULL()
+      ! do we have gnuplot on the machine?
+      CALL EXECUTE_COMMAND_LINE('which gnuplot &> /dev/null', EXITSTAT = istatus)
+      ll_execmd = istatus == 0
 
-      ELSE
-         s_timer => s_timer_root
-         ! case of already existing area (typically inside a loop)
-   !         write(*,*) 'in ini_var for routine : ', cdinfo
-         DO WHILE( ASSOCIATED(s_timer) )
-            IF( TRIM(s_timer%cname) .EQ. TRIM(cdinfo) ) THEN
- !             write(*,*) 'in ini_var for routine : ', cdinfo,' we return'
-               RETURN ! cdinfo is already in the chain
-            ENDIF
-            s_timer => s_timer%next
-         END DO
-
-         ! end of the chain
-         s_timer => s_timer_root
-         DO WHILE( ASSOCIATED(s_timer%next) )
-            s_timer => s_timer%next
-         END DO
-
-    !     write(*,*) 'after search', s_timer%cname
-         ! cdinfo is not part of the chain so we add it with initialisation
-          ALLOCATE(s_timer%next)
-    !     write(*,*) 'after allocation of next'
-
-         s_timer%next%cname       = cdinfo
-         s_timer%next%t_cpu      = 0._dp
-         s_timer%next%t_clock    = 0._dp
-         s_timer%next%tsum_cpu   = 0._dp
-         s_timer%next%tsum_clock = 0._dp
-         s_timer%next%tmax_cpu   = 0._dp
-         s_timer%next%tmax_clock = 0._dp
-         s_timer%next%tmin_cpu   = 0._dp
-         s_timer%next%tmin_clock = 0._dp
-         s_timer%next%tsub_cpu   = 0._dp
-         s_timer%next%tsub_clock = 0._dp
-         s_timer%next%ncount      = 0
-         s_timer%next%ncount_rate = 0
-         s_timer%next%ncount_max  = 0
-         s_timer%next%niter       = 0
-         s_timer%next%l_tdone  = .FALSE.
-         s_timer%next%parent_section => NULL()
-         s_timer%next%prev => s_timer
-         s_timer%next%next => NULL()
-         s_timer => s_timer%next
+      ! define clname
+      ! proc 0 => cdprefix//'_'//cdname         + all non-alphanumeric characters are replaced by '_'
+      ! orhers => cdprefix//'_'//cdname//'_xxx' + all non-alphanumeric characters are replaced by '_'     
+      isz1 = LEN_TRIM(cdprefix) + 1
+      isz2 = LEN_TRIM(cdname)
+      IF ( llwm ) THEN   ;   isz3 = -1   ! to make 0 when we do isz3+1 bellow
+      ELSE               ;   isz3 = MAX( INT(LOG10(REAL(MAX(1,isize)))) + 1, 4 )   ! 'xxx'
       ENDIF
-      !    write(*,*) 'after allocation'
-     !
-   END SUBROUTINE timing_ini_var
-
-
-   SUBROUTINE timing_reset
-      !!----------------------------------------------------------------------
-      !!               ***  ROUTINE timing_reset  ***
-      !! ** Purpose :   go to root of timing tree
-      !!----------------------------------------------------------------------
-      l_initdone = .TRUE.
-!      IF(lwp) WRITE(numout,*)
-!      IF(lwp) WRITE(numout,*) 'timing_reset : instrumented routines for timing'
-!      IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~'
-      CALL timing_list(s_timer_root)
-!      WRITE(numout,*)
+      ALLOCATE(CHARACTER(isz1+isz2+isz3+1) :: clname)
+      clname(1:isz1) = TRIM(cdprefix)//'_'   ! must use this syntaxe.
+      DO ji = isz1+1, isz1+isz2
+         cl1 = cdname(ji-isz1:ji-isz1)
+         IF( ('0' <= cl1 .AND. cl1 <= '9') .OR. ('A' <= cl1 .AND. cl1 <= 'Z') .OR. ('a' <= cl1 .AND. cl1 <= 'z') ) THEN
+            clname(ji:ji) = cl1   ! alphanumeric characters: keep it
+         ELSE
+            clname(ji:ji) = '_'   ! non-alphanumeric characters: replace it by '_'
+         ENDIF
+      END DO
+      IF( .NOT. llwm ) THEN   ! add proc number to the name
+         WRITE(clfmt, "('( a, i', i1, '.', i1, ')')") isz3, isz3   ! '(a,a,ix.x)'
+         WRITE(clname(isz1+isz2+1:isz1+isz2+isz3+1), clfmt) '_', irank
+      ENDIF
       !
-   END SUBROUTINE timing_reset
+      IF( .NOT. PRESENT(pmpitime) ) THEN
+         WRITE(numtime,*)
+         WRITE(numtime,*) '   ========== stats report on timing '//TRIM(cdname)//' =========='
+         WRITE(numtime,*)
 
+         ! get numtime file name (i.e. timing.output)
+         INQUIRE(unit = numtime, NAME = clfile)
+         ! write gnoplot stats in clfile (i.e. timing.output)
+         IF( ll_execmd ) THEN
+            clcmd = 'grep "^ *timing '//TRIM(cdname)//' *[0-9]* *: *[0-9]" '//TRIM(clfile)//' | sed -e "s/.*: *//" | gnuplot -p -e ''stats "/dev/stdin"'' &>> '//TRIM(clfile)
+            CLOSE(numtime)       ! close it EXECUTE_COMMAND_LINE will do a grep and write in this file
+            CALL EXECUTE_COMMAND_LINE(TRIM(clcmd), EXITSTAT = istatus)
+            OPEN(NEWUNIT = numtime, FILE = TRIM(clfile), POSITION = "append", STATUS = "old", ACTION = "write")
+         ENDIF
+      ENDIF
 
-   RECURSIVE SUBROUTINE timing_list(ptr)
-
-      TYPE(timer), POINTER, INTENT(inout) :: ptr
-      !
-      IF( ASSOCIATED(ptr%next) ) CALL timing_list(ptr%next)
-      IF(lwp) WRITE(numout,*)'   ', ptr%cname
-      !
-   END SUBROUTINE timing_list
-
-
-   SUBROUTINE insert(sd_current, sd_root ,sd_ptr)
-      !!----------------------------------------------------------------------
-      !!               ***  ROUTINE insert  ***
-      !! ** Purpose :   insert an element in timer structure
-      !!----------------------------------------------------------------------
-      TYPE(timer), POINTER, INTENT(inout) :: sd_current, sd_root, sd_ptr
-      !
-
-      IF( ASSOCIATED( sd_current, sd_root ) ) THEN
-         ! If our current element is the root element then
-         ! replace it with the one being inserted
-         sd_root => sd_ptr
+      ! write the shell script to perform gnuplot stats and plots
+      OPEN(NEWUNIT = inumsh, FILE = clname//'.sh', POSITION = "rewind", STATUS = "replace", ACTION = "write")
+      WRITE(inumsh,'(a)') '#!/bin/sh'
+      WRITE(inumsh,'(a)') '#'
+      WRITE(inumsh,'(a)') 'if [ "$1" == "--help" ] ; then'
+      WRITE(inumsh,'(a)') '    echo "   Usage:"'
+      WRITE(inumsh,'(a)') '    echo "      ./'//clname//'.sh         # to create the plots on screen"'
+      WRITE(inumsh,'(a)') '    echo "      ./'//clname//'.sh --png   # to create the plots in '//clname//'.png"'
+      WRITE(inumsh,'(a)') '    exit 0'
+      WRITE(inumsh,'(a)') 'fi'
+      WRITE(inumsh,'(a)') '[ "$1" == "--png" ] && dopng=1 || dopng=0'
+      WRITE(inumsh,'(a)') '#'
+      WRITE(inumsh,'(a)') 'which gnuplot &> /dev/null'
+      WRITE(inumsh,'(a)') '[ $? -ne 0 ] && echo "$( basename $0 ) uses gnuplot which was not found" && exit 1'
+      WRITE(inumsh,'(a)') '#'
+     ! write the timing data directly in clname//'.sh' so its becomes a stand alone script
+      IF( PRESENT(pmpitime) ) THEN
+         DO ji = 1, SIZE(pmpitime)
+            WRITE(inumsh,'(a,i9,a,f12.6)') '# timing '//TRIM(cdname)//' MPI rank ', ji-1, ' : ', pmpitime(ji)   ! micro second
+         END DO
       ELSE
-         sd_current%prev%next => sd_ptr
-      END IF
-      sd_ptr%next     => sd_current
-      sd_ptr%prev     => sd_current%prev
-      sd_current%prev => sd_ptr
-      ! Nullify the pointer to the new element now that it is held
-      ! within the list. If we don't do this then a subsequent call
-      ! to ALLOCATE memory to this pointer will fail.
-      sd_ptr => NULL()
-      !
-   END SUBROUTINE insert
+         clcmd = 'grep "^ *timing '//TRIM(cdname)//' *[0-9]* *: *[0-9]" '//TRIM(clfile)//' | sed -e "s/^/#/" &>> '//clname//'.sh'
+         CLOSE(inumsh )       ! close it as EXECUTE_COMMAND_LINE will write in this file
+         CLOSE(numtime)       ! close it as EXECUTE_COMMAND_LINE will do a grep on this file
+         CALL EXECUTE_COMMAND_LINE(TRIM(clcmd), EXITSTAT = istatus)
+         OPEN(NEWUNIT = numtime, FILE = TRIM(clfile) , POSITION = "append", STATUS = "old", ACTION = "write")
+         OPEN(NEWUNIT = inumsh , FILE = clname//'.sh', POSITION = "append", STATUS = "old", ACTION = "write")
+      ENDIF
+      WRITE(inumsh,'(a)') '#'
+      WRITE(inumsh,'(a)') 'grep "^# *timing .* *[0-9]* *: *[0-9]" $( basename $0 ) | sed -e "s/.*: *//" > '//clname//'.txt'
+      WRITE(inumsh,'(a)') '#'
+      WRITE(inumsh,'(a)') 'gnuplot -persist << EOF'
+      WRITE(inumsh,'(a)') 'dopng=$dopng'
+      WRITE(inumsh,'(a)') 'if ( dopng == 0 ) {'
+      WRITE(inumsh,'(a)') '   set terminal x11 size 800,800'
+      WRITE(inumsh,'(a)') '} else {'
+      WRITE(inumsh,'(a)') '   set terminal png size 800,800'
+      WRITE(inumsh,'(a)') '   set output "'//clname//'.png"'
+      WRITE(inumsh,'(a)') '}'
+      WRITE(inumsh,'(a)') 'stats "'//clname//'.txt" name "ST"'
+      WRITE(inumsh,'(a)') 'mn = ST_mean ; md = ST_median ; std = ST_stddev'
+      WRITE(inumsh,'(a)') 'lo = ST_lo_quartile ; up = ST_up_quartile ; iqr = up-lo'
+      WRITE(inumsh,'(a)') 'set xrange [0:ST_records]'
+      WRITE(inumsh,'(a)') 'set multiplot layout 2,1'
+      WRITE(inumsh,'(a)') 'set title sprintf("FULL RANGE: timing '//TRIM(cdname)//', mean = %f, median = %f", mn, md)'
+      WRITE(inumsh,'(a)') 'plot "'//clname//'.txt" notitle, mn title "Mean" lw 2, mn-std title "Mean-StdDev" lw 2, mn+std title "Mean+StdDev" lw 2'
+      WRITE(inumsh,'(a)') 'set yrange [lo-1.5*iqr:up+1.5*iqr]'
+      WRITE(inumsh,'(a)') 'set title sprintf("ZOOM: timing '//TRIM(cdname)//', mean = %f, median = %f", mn, md)'
+      WRITE(inumsh,'(a)') 'plot "'//clname//'.txt" notitle, md title "Median" lw 2, lo title "1st Quatile" lw 2, up title "3rd Quartile" lw 2'
+      WRITE(inumsh,'(a)') 'EOF'
+      WRITE(inumsh,'(a)') '#'
+      WRITE(inumsh,'(a)') 'rm -f '//clname//'.txt &>/dev/null'
+      CLOSE(inumsh)
+      CALL EXECUTE_COMMAND_LINE('chmod u+x '//clname//'.sh', EXITSTAT = istatus)
 
+      IF( .NOT. PRESENT(pmpitime) ) THEN
+         WRITE(numtime,*) '   ==== info:'
+         IF( ll_execmd .AND. llwm )  THEN   ! by default, create the png only for proc 0
+            CALL EXECUTE_COMMAND_LINE('./'//clname//'.sh --png &>/dev/null', EXITSTAT = istatus)
+            WRITE(numtime,*) '        Shell script used to create '//clname//'.png: '//clname//'.sh'
+         ELSE
+            WRITE(numtime,*) '        Gnuplot not found, we created the shell script'//clname//'.sh'
+            WRITE(numtime,*) '        that can be used to create gnuplot stats and analyses'      
+         ENDIF
+         WRITE(numtime,*) '        Usage:'
+         WRITE(numtime,*) '           ./'//clname//'.sh         # to create the plots on screen'
+         WRITE(numtime,*) '           ./'//clname//'.sh --png   # to create the plots in '//clname//'.png'
+         WRITE(numtime,*)
+      ENDIF
 
-   SUBROUTINE suppress(sd_ptr)
-      !!----------------------------------------------------------------------
-      !!               ***  ROUTINE suppress  ***
-      !! ** Purpose :   supress an element in timer structure
-      !!----------------------------------------------------------------------
-      TYPE(timer), POINTER, INTENT(inout) :: sd_ptr
-      !
-      TYPE(timer), POINTER :: sl_temp
+      DEALLOCATE(clname)
 
-      sl_temp => sd_ptr
-      sd_ptr => sd_ptr%next
-      IF ( ASSOCIATED(sl_temp%next) ) sl_temp%next%prev => sl_temp%prev
-      DEALLOCATE(sl_temp)
-      sl_temp => NULL()
-      !
-    END SUBROUTINE suppress
+   END SUBROUTINE gnuplot_statplot
+   
+#else
+   ! Dummy routines for AGRIF : they must do nothing
+   SUBROUTINE timing_start( cdinfo, ldstatplot )
+      CHARACTER(len=*) , INTENT(in) :: cdinfo
+      LOGICAL, OPTIONAL, INTENT(in) :: ldstatplot
+      IF(.FALSE.)   WRITE(*,*) cdinfo, PRESENT(ldstatplot)   ! to avoid compilation warnings
+   END SUBROUTINE timing_start
+   
+   SUBROUTINE timing_stop( cdinfo, kt, ld_finalize )
+      CHARACTER(len=*) , INTENT(in) ::   cdinfo
+      INTEGER, OPTIONAL, INTENT(in) ::   kt
+      LOGICAL, OPTIONAL, INTENT(in) ::   ld_finalize
+      IF(.FALSE.)   WRITE(*,*) cdinfo, kt, PRESENT(ld_finalize)   ! to avoid compilation warnings
+   END SUBROUTINE timing_stop
+#endif
+ 
+
 
    !!=====================================================================
 END MODULE timing

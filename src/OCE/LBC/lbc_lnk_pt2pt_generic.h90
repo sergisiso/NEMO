@@ -286,10 +286,8 @@
          ENDIF
       END DO
 #if ! defined key_mpi_off
-      IF( ln_timing ) CALL tic_tac(.TRUE.)
       ! next: non-blocking send using local buffer. use mpiSnei(n_hlsmax,jn), see mppini
       CALL MPI_ISEND( BUFFSND(ishtS(jn)+1), ibufszS(jn), MPI_TYPE, mpiSnei(n_hlsmax,jn), iStag(jn), icomm, nreq_p2p(jn), ierr )
-      IF( ln_timing ) CALL tic_tac(.FALSE.)
 #endif
    ENDIF
 
@@ -358,10 +356,8 @@
 #if defined BLOCK_FILL_MPI_RECV
    IF( ibufszR(jn) > 0 ) THEN          ! we must receive some data
 #if ! defined key_mpi_off
-      IF( ln_timing ) CALL tic_tac(.TRUE.)
       ! blocking receive in local buffer. use mpiRnei(n_hlsmax,jn), see mppini
       CALL MPI_RECV( BUFFRCV(ishtR(jn)+1), ibufszR(jn), MPI_TYPE, mpiRnei(n_hlsmax,jn), iRtag(jn), icomm, MPI_STATUS_IGNORE, ierr )
-      IF( ln_timing ) CALL tic_tac(.FALSE.)
 #endif
       DO jf = 1, kfld
          IF( ifill(jn,jf) == jpfillmpi ) THEN    ! Use MPI-received data

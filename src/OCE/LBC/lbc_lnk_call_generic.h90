@@ -70,6 +70,8 @@
       REAL(PRECISION)  , DIMENSION(48) ::   psgn_ptr    ! sign used across the north fold boundary
       !!---------------------------------------------------------------------
       !
+      IF( ln_timing )   CALL timing_start( 'lbc_lnk' )
+      !
       kfld = 0          ! initial array of pointer size
       !
       !                 ! Load the first array
@@ -129,6 +131,8 @@
       ELSE
          CALL lbc_lnk_neicoll( cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
       ENDIF
+      !
+      IF( ln_timing )   CALL timing_stop( 'lbc_lnk' )
       !
    END SUBROUTINE lbc_lnk_call_/**/XD/**/_/**/PRECISION
 

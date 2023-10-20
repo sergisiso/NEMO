@@ -47,6 +47,7 @@ MODULE nemogcm
    USE agrif_ice_update ! ice update
 #endif
    USE halo_mng
+   USE timing         ! timing
 
    IMPLICIT NONE
    PRIVATE
@@ -55,11 +56,6 @@ MODULE nemogcm
    PUBLIC   nemo_init   ! needed by AGRIF
 
    CHARACTER(lc) ::   cform_aaa="( /, 'AAAAAAAA', / ) "     ! flag for output listing
-
-#if ! defined key_mpi_off
-   ! need MPI_Wtime
-   INCLUDE 'mpif.h'
-#endif
 
    !!----------------------------------------------------------------------
    !! NEMO/SAS 4.0 , NEMO Consortium (2018)
@@ -83,8 +79,10 @@ CONTAINS
       !!              Madec, 2008, internal report, IPSL.
       !!----------------------------------------------------------------------
       INTEGER ::   istp   ! time step index
-      REAL(wp)::   zstptiming   ! elapsed time for 1 time step
       !!----------------------------------------------------------------------
+      !
+      CALL timing_start( 'full code' )     ! do it as soon as possible, no need to test ln_timing (that is not yet defined)
+      CALL timing_start( 'before step' )
       !
 #if defined key_agrif
       CALL Agrif_Init_Grids()      ! AGRIF: set the meshes
@@ -104,6 +102,7 @@ CONTAINS
       CALL mpp_max( 'nemogcm', nstop )
 
       IF(lwp) WRITE(numout,cform_aaa)   ! Flag AAAAAAA
+      IF( ln_timing )   CALL timing_stop( 'before step' )
 
       !                            !-----------------------!
       !                            !==   time stepping   ==!
@@ -125,7 +124,9 @@ CONTAINS
       !
       DO WHILE( istp <= nitend .AND. nstop == 0 )
          ncom_stp = istp
+         IF( ln_timing )   CALL timing_start( 'step', ldstatplot = .TRUE. )
          CALL stp
+         IF( ln_timing )   CALL timing_stop( 'step', istp )
          istp = istp + 1
       END DO
       !
@@ -134,25 +135,19 @@ CONTAINS
       IF( .NOT.ln_diurnal_only ) THEN                 !==  Standard time-stepping  ==!
          !
          DO WHILE( istp <= nitend .AND. nstop == 0 )
-
             ncom_stp = istp
-            IF( ln_timing ) THEN
-               zstptiming = MPI_Wtime()
-               IF ( istp == ( nit000 + 1 ) ) elapsed_time = zstptiming
-               IF ( istp ==         nitend ) elapsed_time = zstptiming - elapsed_time
-            ENDIF
-            
-            CALL stp        ( istp ) 
+            IF( ln_timing )   CALL timing_start( 'step', ldstatplot = .TRUE. )
+            CALL stp( istp ) 
+            IF( ln_timing )   CALL timing_stop( 'step', istp )
             istp = istp + 1
-
-            IF( lwp .AND. ln_timing )   WRITE(numtime,*) 'timing step ', istp-1, ' : ', MPI_Wtime() - zstptiming
-
          END DO
          !
       ELSE                                            !==  diurnal SST time-steeping only  ==!
          !
          DO WHILE( istp <= nitend .AND. nstop == 0 )
+            IF( ln_timing )   CALL timing_start( 'stp_diurnal', ldstatplot = .TRUE. )
             CALL stp_diurnal( istp )   ! time step only the diurnal SST 
+            IF( ln_timing )   CALL timing_stop( 'stp_diurnal', istp )
             istp = istp + 1
          END DO
          !
@@ -180,7 +175,7 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      IF( ln_timing )   CALL timing_finalize
+      IF( ln_timing )   CALL timing_stop( 'full code', ld_finalize = .TRUE. )
       !
       CALL nemo_closefile
       !
@@ -367,7 +362,7 @@ CONTAINS
       CALL nemo_ctl                          ! Control prints
       !
       !                                      ! General initialization
-      IF( ln_timing    )   CALL timing_init ( 'timing_sas.output' )
+      IF( ln_timing    )   CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
       IF( ln_timing    )   CALL timing_start( 'nemo_init')
 
                            CALL phy_cst         ! Physical constants
@@ -455,7 +450,7 @@ CONTAINS
          &                                                '--> add -Dkey_nosignedzero to the definition of %CPP in your arch file' )
       !
 #if defined key_agrif
-      IF( ln_timing )   CALL ctl_stop( 'AGRIF not implemented with ln_timing = true')
+      IF( ln_timing )   CALL ctl_warn( 'AGRIF not yet implemented with ln_timing = true')
 #endif
       !
    END SUBROUTINE nemo_ctl

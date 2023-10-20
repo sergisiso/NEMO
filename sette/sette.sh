@@ -119,7 +119,7 @@ if [ $# -gt 0 ]; then
            echo "-u: sette.sh will not expect any user interaction == no safety net!" 
            echo "";;
         h | *) echo 'sette.sh with no arguments (in this case all configuration will be tested with default options)'
-               echo '-T to set ln_timing false for all non-AGRIF configurations (default: true)'
+               echo '-T to set ln_timing false for configurations (default: true)'
                echo '-t set ln_tile false in all tests that support it (default: true)'
                echo '-e set nn_hls=3 but it is not yet supported (default: nn_hls=2)'
                echo '-i set ln_icebergs false (default: true)'

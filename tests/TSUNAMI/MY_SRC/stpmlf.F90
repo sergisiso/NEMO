@@ -102,8 +102,6 @@ CONTAINS
 # endif
 #endif
       !
-      IF( ln_timing )   CALL timing_start('stp_MLF')
-      !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! model timestep
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -136,6 +134,7 @@ CONTAINS
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       IF( .NOT.lk_linssh ) THEN
                          CALL dom_qco_r3c( ssh(:,:,Naa), r3t(:,:,Naa), r3u(:,:,Naa), r3v(:,:,Naa)           )   ! "after" ssh/h_0 ratio at t,u,v pts
+                         CALL lbc_lnk( 'stpmlf', r3u(:,:,Naa), 'U', 1._wp, r3v(:,:,Naa), 'V', 1._wp )
          IF( ln_dynspg_exp )   &
             &            CALL dom_qco_r3c( ssh(:,:,Nnn), r3t(:,:,Nnn), r3u(:,:,Nnn), r3v(:,:,Nnn), r3f(:,:) )   ! spg_exp : needed only for "now" ssh/h_0 ratio at f point
       ENDIF
@@ -194,8 +193,6 @@ CONTAINS
          r1_Dt = 1._wp / rDt
          l_1st_euler = .FALSE.
       ENDIF
-      !
-      IF( ln_timing )   CALL timing_stop('stp_MLF')
       !
    END SUBROUTINE stp_MLF
 

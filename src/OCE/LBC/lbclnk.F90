@@ -22,6 +22,7 @@ MODULE lbclnk
    USE lib_mpp        ! distributed memory computing library
    USE lbcnfd         ! north fold
    USE in_out_manager ! I/O manager
+   USE timing
 #if ! defined key_mpi_off
    USE MPI
 #endif

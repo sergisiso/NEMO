@@ -13,7 +13,6 @@ MODULE step_diu
    USE oce
    USE daymod
    USE restart          ! ocean restart                    (rst_wri routine)
-   USE timing           ! Timing
    
    IMPLICIT NONE
    PRIVATE
@@ -72,8 +71,7 @@ MODULE step_diu
          !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 
          IF( kstp == nit000   )   CALL iom_close( numror )     ! close input  ocean restart file 
          IF( lrst_oce         )   CALL rst_write    ( kstp, Nbb, Nnn )   ! write output ocean restart file
-     
-         IF( ln_timing .AND.  kstp == nit000  )   CALL timing_reset 
+         
       ENDIF
        
    END SUBROUTINE stp_diurnal  

@@ -58,8 +58,6 @@ CONTAINS
       REAL(wp)::   zrhs_v, zve3a, zve3n, zve3b, zva   !   -      -
       !! ---------------------------------------------------------------------
       !
-      IF( ln_timing )   CALL timing_start('stp_MLF')
-      !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! model timestep
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -243,8 +241,6 @@ CONTAINS
          r1_Dt = 1._wp / rDt
          l_1st_euler = .FALSE.      
       ENDIF
-      !
-      IF( ln_timing )   CALL timing_stop('stp_MLF')
       !
    END SUBROUTINE stp_MLF
 
