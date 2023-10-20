@@ -146,6 +146,7 @@ int fortran_error(const char *s)
 %token TOK_RECL
 %token TOK_STATUS
 %token TOK_UNIT
+%token TOK_NEWUNIT
 %token TOK_OPENED
 %token TOK_FMT
 %token TOK_NML
@@ -3736,6 +3737,7 @@ connect-spec: file-unit-number
       | TOK_FORM scalar-default-char-expr
       | TOK_IOMSG iomsg-variable
       | TOK_IOSTAT scalar-int-variable
+      | TOK_NEWUNIT scalar-int-variable
       | TOK_POSITION scalar-default-char-expr
       | TOK_RECL scalar-int-expr
       | TOK_STATUS '=' scalar-default-char-expr

@@ -29,8 +29,6 @@ MODULE step
    USE in_out_manager   ! I/O manager
    USE prtctl           ! Print control                    (prt_ctl routine)
    USE iom              !
-   USE lbclnk           !
-   USE timing           ! Timing            
 #if defined key_xios
    USE xios
 #endif
@@ -170,8 +168,6 @@ CONTAINS
          CALL iom_context_finalize( cxios_context ) ! needed for XIOS+AGRIF
       ENDIF
 #endif
-      !
-      IF( ln_timing .AND.  kstp == nit000  )   CALL timing_reset
       !
    END SUBROUTINE stp
 

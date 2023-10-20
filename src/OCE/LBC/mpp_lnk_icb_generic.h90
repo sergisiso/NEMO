@@ -111,16 +111,12 @@
       !                           ! Migrations
       imigr = ipreci * ( jpj + 2*kextj )
       !
-      IF( ln_timing ) CALL tic_tac(.TRUE.)
-      !
       IF( mpinei(jpwe) >= 0  )   CALL SENDROUTINE( 1, r2dew(1-kextj,1,1), imigr, mpinei(jpwe), ml_req1 )
       IF( mpinei(jpea) >= 0  )   CALL SENDROUTINE( 2, r2dwe(1-kextj,1,1), imigr, mpinei(jpea), ml_req2 )
       IF( mpinei(jpwe) >= 0  )   CALL RECVROUTINE( 2, r2dwe(1-kextj,1,2), imigr, mpinei(jpwe) )
       IF( mpinei(jpea) >= 0  )   CALL RECVROUTINE( 1, r2dew(1-kextj,1,2), imigr, mpinei(jpea) )
       IF( mpinei(jpwe) >= 0  )   CALL mpi_wait(ml_req1,ml_stat,ml_err)
       IF( mpinei(jpea) >= 0  )   CALL mpi_wait(ml_req2,ml_stat,ml_err)
-      !
-      IF( ln_timing ) CALL tic_tac(.FALSE.)
       !
       !                           ! Write Dirichlet lateral conditions
       iihom = jpi - nn_hls
@@ -150,16 +146,12 @@
       !                           ! Migrations
       imigr = iprecj * ( jpi + 2*kexti )
       !
-      IF( ln_timing ) CALL tic_tac(.TRUE.)
-      !
       IF( mpinei(jpso) >= 0  )   CALL SENDROUTINE( 3, r2dns(1-kexti,1,1), imigr, mpinei(jpso), ml_req1 )
       IF( mpinei(jpno) >= 0  )   CALL SENDROUTINE( 4, r2dsn(1-kexti,1,1), imigr, mpinei(jpno), ml_req2 )
       IF( mpinei(jpso) >= 0  )   CALL RECVROUTINE( 4, r2dsn(1-kexti,1,2), imigr, mpinei(jpso) )
       IF( mpinei(jpno) >= 0  )   CALL RECVROUTINE( 3, r2dns(1-kexti,1,2), imigr, mpinei(jpno) )
       IF( mpinei(jpso) >= 0  )   CALL mpi_wait(ml_req1,ml_stat,ml_err)
       IF( mpinei(jpno) >= 0  )   CALL mpi_wait(ml_req2,ml_stat,ml_err)
-      !
-      IF( ln_timing ) CALL tic_tac(.FALSE.)
       !
       !                           ! Write Dirichlet lateral conditions
       ijhom = jpj - nn_hls

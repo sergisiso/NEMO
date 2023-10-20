@@ -99,9 +99,7 @@
       zain(2,:) = REAL(index0, PRECISION)
       !
 #if ! defined key_mpi_off
-      IF( ln_timing ) CALL tic_tac(.TRUE., ld_global = .TRUE.)
       CALL MPI_ALLREDUCE( zain, zaout, 1, MPI_TYPE, MPI_OPERATION ,MPI_COMM_OCE, ierror)
-      IF( ln_timing ) CALL tic_tac(.FALSE., ld_global = .TRUE.)
 #else
       zaout(:,:) = zain(:,:)
 #endif

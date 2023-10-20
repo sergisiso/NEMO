@@ -65,14 +65,11 @@
       !
       itaille = jpimax * ( ipj + 2*kextj )
       !
-      IF( ln_timing ) CALL tic_tac(.TRUE.)
 #if ! defined key_mpi_off
       CALL MPI_ALLGATHER( znorthloc_e(1,1-kextj)    , itaille, MPI_TYPE,    &
          &                znorthgloio_e(1,1-kextj,1), itaille, MPI_TYPE,    &
          &                ncomm_north, ierr )
 #endif
-      !
-      IF( ln_timing ) CALL tic_tac(.FALSE.)
       !
       ijnr = 0
       DO jr = 1, ndim_rank_north            ! recover the global north array

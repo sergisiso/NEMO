@@ -56,5 +56,5 @@
 %USER_INC            %XIOS_INC %OASIS_INC %NCDF_INC
 %USER_LIB            %XIOS_LIB %OASIS_LIB %NCDF_LIB
 
-%CC                  cc
+%CC                  icc
 %CFLAGS              -O0

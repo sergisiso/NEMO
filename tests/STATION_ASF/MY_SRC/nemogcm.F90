@@ -36,6 +36,7 @@ MODULE nemogcm
 #if defined key_xios
    USE xios           ! xIOserver
 #endif
+   USE timing         ! timing
 
    IMPLICIT NONE
    PRIVATE
@@ -44,11 +45,6 @@ MODULE nemogcm
    PUBLIC   nemo_init   ! needed by AGRIF
 
    CHARACTER(lc) ::   cform_aaa="( /, 'AAAAAAAA', / ) "     ! flag for output listing
-
-#if ! defined key_mpi_off
-   ! need MPI_Wtime
-   INCLUDE 'mpif.h'
-#endif
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -72,8 +68,10 @@ CONTAINS
       !!              Madec, 2008, internal report, IPSL.
       !!----------------------------------------------------------------------
       INTEGER ::   istp   ! time step index
-      REAL(wp)::   zstptiming   ! elapsed time for 1 time step
       !!----------------------------------------------------------------------
+      !
+      CALL timing_start( 'full code' )     ! do it as soon as possible, no need to test ln_timing (that is not yet defined)
+      CALL timing_start( 'before step' )
       !
       !                            !-----------------------!
       CALL nemo_init               !==  Initialisations  ==!
@@ -83,6 +81,7 @@ CONTAINS
       CALL mpp_max( 'nemogcm', nstop )
 
       IF(lwp) WRITE(numout,cform_aaa)   ! Flag AAAAAAA
+      IF( ln_timing )   CALL timing_stop( 'before step' )
 
       !                            !-----------------------!
       !                            !==   time stepping   ==!
@@ -93,7 +92,10 @@ CONTAINS
       istp = nit000
       !
       DO WHILE ( istp <= nitend .AND. nstop == 0 )    !==  C1D time-stepping  ==!
+         ncom_stp = istp
+         IF( ln_timing )   CALL timing_start( 'stp_c1d', ldstatplot = .TRUE. )
          CALL stp_c1d( istp )
+         IF( ln_timing )   CALL timing_stop( 'stp_c1d', istp )
          istp = istp + 1
       END DO
       !
@@ -108,7 +110,7 @@ CONTAINS
          CALL ctl_stop( ' ', ctmp1, ' ', ctmp2 )
       ENDIF
       !
-      IF( ln_timing )   CALL timing_finalize
+      IF( ln_timing )   CALL timing_stop( 'full code', ld_finalize = .TRUE. )
       !
       CALL nemo_closefile
       !
@@ -267,7 +269,7 @@ CONTAINS
       CALL nemo_ctl                          ! Control prints
       !
       !                                      ! General initialization
-      IF( ln_timing    )   CALL timing_init     ! timing
+      IF( ln_timing    )   CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
       IF( ln_timing    )   CALL timing_start( 'nemo_init')
       !
                            CALL     phy_cst         ! Physical constants

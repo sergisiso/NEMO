@@ -54,6 +54,7 @@ MODULE lib_mpp
    !!----------------------------------------------------------------------
    USE dom_oce        ! ocean space and time domain
    USE in_out_manager ! I/O manager
+   USE timing
 #if ! defined key_mpi_off
    USE MPI
 #endif
@@ -74,11 +75,9 @@ MODULE lib_mpp
    PUBLIC   mppsend_dp, mpprecv_dp                          ! needed by TAM and ICB routines
    PUBLIC   mpp_report
    PUBLIC   mpp_bcast_nml
-   PUBLIC   tic_tac
 #if defined key_mpi_off
    PUBLIC   MPI_wait
    PUBLIC   MPI_waitall
-   PUBLIC   MPI_Wtime
 #endif
 
    !! * Interfaces
@@ -202,12 +201,6 @@ MODULE lib_mpp
    END TYPE DELAYARR
    TYPE( DELAYARR ), DIMENSION(nbdelay), PUBLIC, SAVE  ::   todelay         !: must have SAVE for default initialization of DELAYARR
    INTEGER,          DIMENSION(nbdelay), PUBLIC        ::   ndelayid = -1   !: mpi request id of the delayed operations
-
-   ! timing summary report
-   REAL(dp), DIMENSION(2), PUBLIC ::  waiting_time = 0._dp
-   REAL(dp)              , PUBLIC ::  compute_time = 0._dp, elapsed_time = 0._dp
-
-   REAL(wp), DIMENSION(:), ALLOCATABLE, SAVE ::   tampon   ! buffer in case of bsend
 
    LOGICAL, PUBLIC ::   ln_nnogather                !: namelist control of northfold comms
    INTEGER, PUBLIC ::   nn_comm                     !: namelist control of comms
@@ -554,17 +547,15 @@ CONTAINS
 
       ! send y_in into todelay(idvar)%y1d with a non-blocking communication
 # if defined key_mpi2
-      IF( ln_timing ) CALL tic_tac( .TRUE., ld_global = .TRUE.)
       CALL  mpi_allreduce( y_in(:), todelay(idvar)%y1d(:), isz, MPI_DOUBLE_COMPLEX, mpi_sumdd, ilocalcomm, ierr )
       ndelayid(idvar) = MPI_REQUEST_NULL
-      IF( ln_timing ) CALL tic_tac(.FALSE., ld_global = .TRUE.)
 # else
       CALL mpi_iallreduce( y_in(:), todelay(idvar)%y1d(:), isz, MPI_DOUBLE_COMPLEX, mpi_sumdd, ilocalcomm, ndelayid(idvar), ierr )
 # endif
 #else
       pout(:) = REAL(y_in(:), wp)
 #endif
-
+      
    END SUBROUTINE mpp_delay_sum
 
 
@@ -637,9 +628,7 @@ CONTAINS
       ! send p_in into todelay(idvar)%z1d with a non-blocking communication
       ! (PM) Should we get rid of MPI2 option ? MPI3 was release in 2013. Who is still using MPI2 ?
 # if defined key_mpi2
-      IF( ln_timing ) CALL tic_tac( .TRUE., ld_global = .TRUE.)
       CALL  mpi_allreduce( p_in(:), todelay(idvar)%z1d(:), isz, MPI_TYPE, mpi_max, ilocalcomm, ierr )
-      IF( ln_timing ) CALL tic_tac(.FALSE., ld_global = .TRUE.)
 # else
       CALL mpi_iallreduce( p_in(:), todelay(idvar)%z1d(:), isz, MPI_TYPE, mpi_max, ilocalcomm, ndelayid(idvar), ierr )
 # endif
@@ -661,10 +650,8 @@ CONTAINS
       INTEGER ::   ierr
       !!----------------------------------------------------------------------
 #if ! defined key_mpi_off
-      IF( ln_timing ) CALL tic_tac( .TRUE., ld_global = .TRUE.)
       ! test on ndelayid(kid) useless as mpi_wait return immediatly if the request handle is MPI_REQUEST_NULL
       CALL mpi_wait( ndelayid(kid), MPI_STATUS_IGNORE, ierr ) ! after this ndelayid(kid) = MPI_REQUEST_NULL
-      IF( ln_timing ) CALL tic_tac( .FALSE., ld_global = .TRUE.)
       IF( ASSOCIATED(todelay(kid)%y1d) )   todelay(kid)%z1d(:) = REAL(todelay(kid)%y1d(:), wp)  ! define %z1d from %y1d
 #endif
    END SUBROUTINE mpp_delay_rcv
@@ -1362,6 +1349,8 @@ CONTAINS
          WRITE(numcom,*) ' '
          WRITE(numcom,*) ' -----------------------------------------------'
          WRITE(numcom,*) ' '
+         CLOSE(numcom)
+         numcom = HUGE(0)   ! use this value to get .false. when testing numcom == -1 to decide if we need to call mpp_report
          DEALLOCATE(ncomm_sequence)
          DEALLOCATE(crname_lbc)
       ENDIF
@@ -1369,32 +1358,36 @@ CONTAINS
    END SUBROUTINE mpp_report
 
 
-   SUBROUTINE tic_tac (ld_tic, ld_global)
-
-    LOGICAL,           INTENT(IN) :: ld_tic
-    LOGICAL, OPTIONAL, INTENT(IN) :: ld_global
-    REAL(dp), DIMENSION(2), SAVE :: tic_wt
-    REAL(dp),               SAVE :: tic_ct = 0._dp
-    INTEGER :: ii
-#if ! defined key_mpi_off
-
-    IF( ncom_stp <= nit000 ) RETURN
-    IF( ncom_stp == nitend ) RETURN
-    ii = 1
-    IF( PRESENT( ld_global ) ) THEN
-       IF( ld_global ) ii = 2
-    END IF
-
-    IF ( ld_tic ) THEN
-       tic_wt(ii) = MPI_Wtime()                                                    ! start count tic->tac (waiting time)
-       IF ( tic_ct > 0.0_dp ) compute_time = compute_time + MPI_Wtime() - tic_ct   ! cumulate count tac->tic
-    ELSE
-       waiting_time(ii) = waiting_time(ii) + MPI_Wtime() - tic_wt(ii)              ! cumulate count tic->tac
-       tic_ct = MPI_Wtime()                                                        ! start count tac->tic (waiting time)
-    ENDIF
-#endif
-
-   END SUBROUTINE tic_tac
+!!$   SUBROUTINE tic_tac (ld_tic, ld_global)
+!!$
+!!$    LOGICAL,           INTENT(IN) :: ld_tic
+!!$    LOGICAL, OPTIONAL, INTENT(IN) :: ld_global
+!!$    INTEGER(8), DIMENSION(2), SAVE :: waiting_clock = 0
+!!$    INTEGER(8)              , SAVE :: compute_clock = 0, elapsed_clock = 0
+!!$    INTEGER(8), DIMENSION(2), SAVE :: tic_wt
+!!$    INTEGER(8),               SAVE :: tic_ct = 0
+!!$    INTEGER(8) :: iclktictac
+!!$    INTEGER :: ii
+!!$#if ! defined key_mpi_off
+!!$
+!!$    IF( ncom_stp <= nit000 ) RETURN
+!!$    IF( ncom_stp == nitend ) RETURN
+!!$    ii = 1
+!!$    IF( PRESENT( ld_global ) ) THEN
+!!$       IF( ld_global ) ii = 2
+!!$    END IF
+!!$
+!!$    CALL SYSTEM_CLOCK( count = iclktictac )
+!!$    IF ( ld_tic ) THEN
+!!$       tic_wt(ii) = iclktictac                                                 ! start count tic->tac (waiting time)
+!!$       IF ( tic_ct > 0 ) compute_clock = compute_clock + iclktictac - tic_ct   ! cumulate count tac->tic
+!!$    ELSE
+!!$       waiting_clock(ii) = waiting_clock(ii) + iclktictac - tic_wt(ii)         ! cumulate count tic->tac
+!!$       tic_ct = iclktictac                                                     ! start count tac->tic (waiting time)
+!!$    ENDIF
+!!$#endif
+!!$
+!!$   END SUBROUTINE tic_tac
 
 #if defined key_mpi_off
    SUBROUTINE mpi_wait(request, status, ierror)
@@ -1418,10 +1411,6 @@ CONTAINS
       ENDIF
    END SUBROUTINE mpi_waitall
 
-   FUNCTION MPI_Wtime()
-      REAL(wp) ::  MPI_Wtime
-      MPI_Wtime = -1.
-   END FUNCTION MPI_Wtime
 #endif
 
    !!----------------------------------------------------------------------

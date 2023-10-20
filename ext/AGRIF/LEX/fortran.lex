@@ -255,6 +255,7 @@ access[ \t]*\=                { return TOK_ACCESS; }
 action[ \t]*\=                { return TOK_ACTION; }
 iolength[ \t]*\=                { return TOK_IOLENGTH; }
 unit[ \t]*\=                { return TOK_UNIT; }
+newunit[ \t]*\=             { return TOK_NEWUNIT; }
 opened[ \t]*\=                { return TOK_OPENED; }
 fmt[ \t]*\=                 { return TOK_FMT; }
 nml[ \t]*\=                 { return TOK_NML; }

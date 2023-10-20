@@ -37,6 +37,7 @@ MODULE nemogcm
    USE xios           ! xIOserver
 #endif
    USE halo_mng
+   USE timing         ! timing
 
    IMPLICIT NONE
    PRIVATE
@@ -67,6 +68,8 @@ CONTAINS
          !!             4. Write results to file
          !!----------------------------------------------------------------------
          !
+         CALL timing_start( 'full code' )     ! do it as soon as possible, no need to test ln_timing (that is not yet defined)
+         !
          CALL nemo_init       ! Initialise NEMO
          !
          CALL sao_data_init   ! Initialise Stand Alone Observation operator data
@@ -78,6 +81,8 @@ CONTAINS
          CALL dia_obs_wri     ! Pipe to output files
          !
          CALL dia_obs_dealloc ! Reset the obs_oper between
+         !
+         IF( ln_timing )   CALL timing_stop( 'full code', ld_finalize = .TRUE. )
          !
          IF(lk_mpp)   CALL mppstop  ! Safely stop MPI (end mpp communications)
          !
@@ -228,7 +233,7 @@ CONTAINS
       CALL nemo_ctl                          ! Control prints
       !
       !                                         ! General initialization
-      IF( ln_timing    )   CALL timing_init     ! timing
+      IF( ln_timing    )   CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
       IF( ln_timing    )   CALL timing_start( 'nemo_init')
       !
                            CALL phy_cst            ! Physical constants
@@ -240,7 +245,9 @@ CONTAINS
          &                 CALL prt_ctl_init       ! Print control
 
                            CALL istate_init        ! ocean initial state (Dynamics and tracers)
-   END SUBROUTINE nemo_init
+      IF( ln_timing    )   CALL timing_stop( 'nemo_init' )
+                           
+  END SUBROUTINE nemo_init
 
 
    SUBROUTINE nemo_ctl

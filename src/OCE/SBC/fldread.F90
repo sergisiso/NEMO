@@ -1061,10 +1061,7 @@ CONTAINS
       !! because agrif nest part of filenames are now added in iom_open
       !! to distinguish between weights files on the different grids, need to track
       !! nest number explicitly
-      nestid = 0
-#if defined key_agrif
       nestid = Agrif_Fixed()
-#endif
       DO kw = 1, nxt_wgt-1
          IF( ref_wgts(kw)%wgtname == sd%wgtname .AND. &
              ref_wgts(kw)%nestid  == nestid) THEN
@@ -1164,10 +1161,8 @@ CONTAINS
          ref_wgts(nxt_wgt)%wgtname = sd%wgtname
          ref_wgts(nxt_wgt)%overlap = zwrap
          ref_wgts(nxt_wgt)%cyclic = cyclical
-         ref_wgts(nxt_wgt)%nestid = 0
-#if defined key_agrif
          ref_wgts(nxt_wgt)%nestid = Agrif_Fixed()
-#endif
+
          !! weights file is stored as a set of weights (wgt01->wgt04 or wgt01->wgt16)
          !! for each weight wgtNN there is an integer array srcNN which gives the point in
          !! the input data grid which is to be multiplied by the weight
