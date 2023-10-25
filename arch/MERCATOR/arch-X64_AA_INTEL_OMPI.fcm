@@ -42,7 +42,7 @@
 %NCDF_LIB            ${NETCDF4_LIB} -L${HDF5_DIR}/lib -Wl,-rpath,${HDF5_DIR}/lib -lhdf5_hl -lhdf5 -lz
 %XIOS_INC            -I${XIOS_INC}
 %XIOS_LIB            -L${XIOS_LIB} -lxios -lstdc++
-%OASIS_INC           -I${OASIS_DIR}/build/lib/mct -I${OASIS_DIR}/build/lib/psmile.MPI1
+%OASIS_INC           -I${OASIS_DIR}/include
 %OASIS_LIB           -L${OASIS_DIR}/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 
 %CPP                 cpp
@@ -55,9 +55,9 @@
 %FPPFLAGS            -P -traditional
 %AR                  ar
 %ARFLAGS             rs
-%MK                  gmake
+%MK                  make
 %USER_INC            %XIOS_INC %OASIS_INC %NCDF_INC
 %USER_LIB            %XIOS_LIB %OASIS_LIB %NCDF_LIB
 
-%CC                  mpicc
-%CFLAGS              -O0
+%CC                  gcc
+%CFLAGS              -O0 -fcommon

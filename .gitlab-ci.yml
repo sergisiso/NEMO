@@ -46,9 +46,11 @@ before_script:
   - declare -A HOST_NAME=( ["kara"]="KR" ["aa"]="AA" ["ab"]="AA" ["ac"]="AA" ["ad"]="AA" 
                            ["belenoslogin"]="BL" ["irene"]="IR" ["jean-zay"]="JZ" )
   - SETTE_MOD=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_MOD
-  - if [ -d ${HOME}/modules ]; then module use ${HOME}/modules; fi
-  - module purge || true   # force to always have 0 as error code (needed for irene)
-  - module load ${!SETTE_MOD}
+  - if [ -n "${!SETTE_MOD}" ]; then
+      if [ -d ${HOME}/modules ]; then module use ${HOME}/modules; fi;
+      module purge || true;
+      module load ${!SETTE_MOD};
+    fi
   - set -x   # debug prints
   - SETTE_CFG=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_CFG
   - cp -av ${!SETTE_CFG} sette/param.cfg

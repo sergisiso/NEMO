@@ -692,7 +692,7 @@ CONTAINS
       !
       INTEGER :: ji
       INTEGER :: istatus, isz1, isz2, isz3, inumsh
-      INTEGER :: irank, isize, icode
+      INTEGER :: irank, isize, icode, icmdstat
       CHARACTER(LEN=512) :: clcmd
       CHARACTER(LEN=256) :: clfile
       CHARACTER(LEN=1  ) :: cl1
@@ -716,7 +716,8 @@ CONTAINS
       IF( .NOT. llwrt )   RETURN
 
       ! do we have gnuplot on the machine?
-      CALL EXECUTE_COMMAND_LINE('which gnuplot &> /dev/null', EXITSTAT = istatus)
+      CALL EXECUTE_COMMAND_LINE('which gnuplot &> /dev/null', EXITSTAT = istatus, CMDSTAT = icmdstat)
+      IF( icmdstat /= 0 )   RETURN   ! EXECUTE_COMMAND_LINE is not properly working on this machine
       ll_execmd = istatus == 0
 
       ! define clname
@@ -753,8 +754,9 @@ CONTAINS
          IF( ll_execmd ) THEN
             clcmd = 'grep "^ *timing '//TRIM(cdname)//' *[0-9]* *: *[0-9]" '//TRIM(clfile)//' | sed -e "s/.*: *//" | gnuplot -p -e ''stats "/dev/stdin"'' &>> '//TRIM(clfile)
             CLOSE(numtime)       ! close it EXECUTE_COMMAND_LINE will do a grep and write in this file
-            CALL EXECUTE_COMMAND_LINE(TRIM(clcmd), EXITSTAT = istatus)
+            CALL EXECUTE_COMMAND_LINE(TRIM(clcmd), CMDSTAT = icmdstat)
             OPEN(NEWUNIT = numtime, FILE = TRIM(clfile), POSITION = "append", STATUS = "old", ACTION = "write")
+            IF( icmdstat /= 0 )   RETURN   ! EXECUTE_COMMAND_LINE is not properly working on this machine
          ENDIF
       ENDIF
 
@@ -782,8 +784,9 @@ CONTAINS
          clcmd = 'grep "^ *timing '//TRIM(cdname)//' *[0-9]* *: *[0-9]" '//TRIM(clfile)//' | sed -e "s/^/#/" &>> '//clname//'.sh'
          CLOSE(inumsh )       ! close it as EXECUTE_COMMAND_LINE will write in this file
          CLOSE(numtime)       ! close it as EXECUTE_COMMAND_LINE will do a grep on this file
-         CALL EXECUTE_COMMAND_LINE(TRIM(clcmd), EXITSTAT = istatus)
+         CALL EXECUTE_COMMAND_LINE(TRIM(clcmd), CMDSTAT = icmdstat)
          OPEN(NEWUNIT = numtime, FILE = TRIM(clfile) , POSITION = "append", STATUS = "old", ACTION = "write")
+         IF( icmdstat /= 0 )   RETURN   ! EXECUTE_COMMAND_LINE is not properly working on this machine
          OPEN(NEWUNIT = inumsh , FILE = clname//'.sh', POSITION = "append", STATUS = "old", ACTION = "write")
       ENDIF
       WRITE(inumsh,'(a)') '#'
@@ -811,12 +814,14 @@ CONTAINS
       WRITE(inumsh,'(a)') '#'
       WRITE(inumsh,'(a)') 'rm -f '//clname//'.txt &>/dev/null'
       CLOSE(inumsh)
-      CALL EXECUTE_COMMAND_LINE('chmod u+x '//clname//'.sh', EXITSTAT = istatus)
+      CALL EXECUTE_COMMAND_LINE('chmod u+x '//clname//'.sh', CMDSTAT = icmdstat)
+      IF( icmdstat /= 0 )   RETURN   ! EXECUTE_COMMAND_LINE is not properly working on this machine
 
       IF( .NOT. PRESENT(pmpitime) ) THEN
          WRITE(numtime,*) '   ==== info:'
          IF( ll_execmd .AND. llwm )  THEN   ! by default, create the png only for proc 0
-            CALL EXECUTE_COMMAND_LINE('./'//clname//'.sh --png &>/dev/null', EXITSTAT = istatus)
+            CALL EXECUTE_COMMAND_LINE('./'//clname//'.sh --png &>/dev/null', CMDSTAT = icmdstat)
+            IF( icmdstat /= 0 )   RETURN   ! EXECUTE_COMMAND_LINE is not properly working on this machine
             WRITE(numtime,*) '        Shell script used to create '//clname//'.png: '//clname//'.sh'
          ELSE
             WRITE(numtime,*) '        Gnuplot not found, we created the shell script'//clname//'.sh'
