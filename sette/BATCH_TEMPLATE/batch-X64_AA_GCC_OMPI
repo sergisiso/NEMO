@@ -53,9 +53,9 @@ export MPIRUN="srun"
   export EXE_DIR=DEF_EXE_DIR
 
   # Load modules
-  module purge &> /dev/null
+  module purge
   module use /home/ar0s/modules
-  module load prgenv/intel intel/2021.4.0 openmpi/4.1.1.1 hdf5-parallel/may21 netcdf4-parallel/may21 xios/trunk/r2515_intel-ompi.may21 &> /dev/null
+  module load prgenv/gnu gcc/12.2.0 hpcx-openmpi/2.9.0 hdf5-parallel/1.12.2 netcdf4-parallel/4.9.1 xios/trunk/r2515_gcc-xmpi &> /dev/null
   module list
 
   ulimit -a
@@ -67,7 +67,7 @@ export MPIRUN="srun"
 # change to the working directory 
 #
   cd ${EXE_DIR}
-  if [[ ${NEW_CONF} =~ "ICE_AGRIF" ]]; then
+  if [[ ${NEW_CONF} =~ "ICE_AGRIF" || ${NEW_CONF} =~ "WED025" ]]; then
     sed -i'' -e 's/detect_missing_value="true"/detect_missing_value="false"/' field_def_nemo-ice.xml
   fi
   echo Running on host `hostname`

@@ -1,63 +1,34 @@
-# compiler options for AA (using GCC compiler & OpenMPI)
 #
-# module use /home/ar0s/modules
-# prgenv/gnu gcc/11.2.0 openmpi/4.1.1.1 hdf5-parallel/1.10.6 netcdf4-parallel/4.7.4 xios/trunk/rev2320-impi
+# This arch file was automatically created by ./build_arch-auto.sh
+# Mon Oct 23 18:43:28 CEST 2023 
 #
-#
-# NCDF_INC    netcdf4 include file
-# NCDF_LIB    netcdf4 library
-# XIOS_INC    xios include file    (taken into accound only if key_xios is activated)
-# XIOS_LIB    xios library         (taken into accound only if key_xios is activated)
-# OASIS_INC   oasis include file   (taken into accound only if key_oasis3 is activated)
-# OASIS_LIB   oasis library        (taken into accound only if key_oasis3 is activated)
-#
-# FC          Fortran compiler command
-# FCFLAGS     Fortran compiler flags
-# FFLAGS      Fortran 77 compiler flags
-# LD          linker
-# LDFLAGS     linker flags, e.g. -L<lib dir> if you have libraries
-# FPPFLAGS    pre-processing flags
-# AR          assembler
-# ARFLAGS     assembler flags
-# MK          make
-# USER_INC    complete list of include files
-# USER_LIB    complete list of libraries to pass to the linker
-# CC          C compiler used to compile conv for AGRIF
-# CFLAGS      compiler flags used with CC
-#
-# Note that:
-#  - unix variables "$..." are accpeted and will be evaluated before calling fcm.
-#  - fcm variables are starting with a % (and not a $)
-#
-#---------------------------------------------------------------------------------------------
-#---------------------------------------------------------------------------------------------
-# All NETCDF and HDF paths are empty as they are automatically defined through environment
-# variables by the load of modules
-#---------------------------------------------------------------------------------------------
-#---------------------------------------------------------------------------------------------
-#
-#
-%NCDF_INC            ${NETCDF4_INCLUDE}
-#%NCDF_LIB            ${NETCDF4_LIB} ${HDF5_LIB}
-%NCDF_LIB            ${NETCDF4_LIB} -L/usr/local/apps/hdf5-parallel/1.10.6/GNU/8.4/OMPI/4.1/lib -Wl,-rpath,/usr/local/apps/hdf5-parallel/1.10.6/GNU/8.4/OMPI/4.1/lib -lhdf5hl_fortran -lhdf5_hl_cpp -lhdf5_hl -lhdf5_fortran -lhdf5_cpp -lhdf5 -lm -lhdf5_hl -lhdf5
-%XIOS_INC            -I${XIOS_INC}
-%XIOS_LIB            -L${XIOS_LIB} -lxios
-%OASIS_INC           -I${OASIS_DIR}/build/lib/mct -I${OASIS_DIR}/build/lib/psmile.MPI1
-%OASIS_LIB           -L${OASIS_DIR}/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
+%NCDF_C_PREFIX       $NETCDF4_DIR
+%NCDF_F_PREFIX       $NETCDF4_DIR
+%HDF5_PREFIX         $HDF5_DIR
+%XIOS_PREFIX         $XIOS_DIR
+%OASIS_PREFIX        notdef
+%PSYCLONE_HOME       notdef
 
-%CPP                 cpp -Dkey_nosignedzero
-%FC                  mpif90 -c -cpp
-#%FCFLAGS             -fdefault-real-8 -O2 -ftree-vectorize -funroll-all-loops -ffree-line-length-none -Wno-missing-include-dirs
-%FCFLAGS             -fdefault-real-8 -O3 -ffree-line-length-none -Wno-missing-include-dirs -fallow-argument-mismatch
+%NCDF_INC            -I%NCDF_F_PREFIX/include -I%NCDF_C_PREFIX/include
+%NCDF_LIB            -L%NCDF_F_PREFIX/lib -lnetcdff -L%NCDF_C_PREFIX/lib -lnetcdf -L%HDF5_PREFIX/lib -lhdf5_hl -lhdf5   -lz  -lm
+%XIOS_INC            -I%XIOS_PREFIX/inc
+%XIOS_LIB            -L%XIOS_PREFIX/lib -lxios -lstdc++
+%OASIS_INC           
+%OASIS_LIB           
+
+%CPP	               cpp -Dkey_nosignedzero
+%FC                  mpif90 
+%PROD_FCFLAGS        -fdefault-real-8 -O3 -march=native -funroll-all-loops -fcray-pointer -ffree-line-length-none -fallow-argument-mismatch
+%DEBUG_FCFLAGS       -fdefault-real-8 -Og -g -fbacktrace -funroll-all-loops -fcray-pointer -ffree-line-length-none -fcheck=all,no-array-temps -finit-real=nan -ffpe-trap=invalid,zero,overflow -ffpe-summary=invalid,zero,overflow -fallow-argument-mismatch
 %FFLAGS              %FCFLAGS
-%LD                  mpif90
-%LDFLAGS             -lstdc++
+%LD                  %FC
+%LDFLAGS             -Wl,-rpath=%HDF5_PREFIX/lib -Wl,-rpath=%NCDF_F_PREFIX/lib -Wl,-rpath=%XIOS_PREFIX/lib
 %FPPFLAGS            -P -traditional
 %AR                  ar
 %ARFLAGS             rs
-%MK                  gmake
+%MK                  make
 %USER_INC            %XIOS_INC %OASIS_INC %NCDF_INC
 %USER_LIB            %XIOS_LIB %OASIS_LIB %NCDF_LIB
 
-%CC                  mpicc
-%CFLAGS              -O0
+%CC                  gcc
+%CFLAGS              -O0 -fcommon
