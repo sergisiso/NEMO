@@ -255,6 +255,14 @@ function reprotest(){
   fi
 }
 
+function getavgtime() {
+    if [ `grep -c -e 'Average ' $1` -eq 1 ]; then
+	grep -e 'Average ' $1 | cut -d '|' -f 3
+    else
+	grep -e 'avg over all MPI processes ' $1 | head -n 1 | sed -e 's/[^0-9\.]//g'
+    fi
+}
+
 function transformtest() {
 #
 # Transformability checks
@@ -298,8 +306,8 @@ function transformtest() {
             f2t=${vdir}/${mach}/${dorv}/${dirnam}/${RUNNAME}/timing.output
             ntime="-1"
             if [ -f ${f1t} -a -f ${f2t} ]; then
-              t0=`grep -e 'Average ' $f1t | cut -d '|' -f 3`
-              t1=`grep -e 'Average ' $f2t | cut -d '|' -f 3`
+	      t0=$( getavgtime $f1t )
+	      t1=$( getavgtime $f2t )
               if [[ ${t0} ]] && [[ ${t1} ]]; then
                 rt=`echo "100 * (${t1} - ${t0}) / ${t0}" | bc -l`
                 ntime=`echo "${t1} > ${t0}" | bc -l`
@@ -489,8 +497,8 @@ function runcmptim(){
 # Report average CPU time differences (if available)
 #
     if  [ -f $f1a ] && [ -f $f2a ] ; then
-      tnew=$(grep 'Average ' $f1a  | awk '{print $5}')
-      tref=$(grep 'Average ' $f2a  | awk '{print $5}')
+      tnew=$( getavgtime $f1a )
+      tref=$( getavgtime $f2a )
       if [ $? == 0 ]; then
         if [ $pass == 0 ]; then
           tdif=$( echo ${tnew} ${tref} | awk '{print $1 - $2}')
