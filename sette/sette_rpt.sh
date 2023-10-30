@@ -257,7 +257,7 @@ function reprotest(){
 
 function getavgtime() {
     if [ `grep -c -e 'Average ' $1` -eq 1 ]; then
-	grep -e 'Average ' $1 | cut -d '|' -f 3
+	grep -e 'Average ' $1 | cut -d '|' -f 3 | sed -e 's/[^0-9\.]//g'
     else
 	grep -e 'avg over all MPI processes ' $1 | head -n 1 | sed -e 's/[^0-9\.]//g'
     fi
@@ -308,7 +308,7 @@ function transformtest() {
             if [ -f ${f1t} -a -f ${f2t} ]; then
 	      t0=$( getavgtime $f1t )
 	      t1=$( getavgtime $f2t )
-              if [[ ${t0} ]] && [[ ${t1} ]]; then
+              if [[ -n "${t0}" ]] && [[ -n "${t1}" ]]; then
                 rt=`echo "100 * (${t1} - ${t0}) / ${t0}" | bc -l`
                 ntime=`echo "${t1} > ${t0}" | bc -l`
               fi
@@ -499,7 +499,7 @@ function runcmptim(){
     if  [ -f $f1a ] && [ -f $f2a ] ; then
       tnew=$( getavgtime $f1a )
       tref=$( getavgtime $f2a )
-      if [ $? == 0 ]; then
+      if [[ $? == 0 ]] && [[ -n "${tnew}" ]] && [[ -n "${tref}" ]]; then
         if [ $pass == 0 ]; then
           tdif=$( echo ${tnew} ${tref} | awk '{print $1 - $2}')
           if (( $(echo "$tnew > $tref" |bc -l) )); then
