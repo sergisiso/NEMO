@@ -58,7 +58,7 @@ set -o posix
 # Initialization of the options
 x_d=''; x_h=''; x_n=''; x_r=''; x_c='';
 x_u=''; x_a=''; x_m=''; x_t=''; x_b='';
-x_j='1'; x_e=''; x_s='src'; x_v='1'; x_p=''
+x_j='1'; x_e=''; x_s='src'; x_v='0'; x_p=''
 list_key='0'; chk_key='1'
 list_add_key=''; list_def_key=''; list_del_key=''
 x_c_cfg=0; x_nocdf=0
@@ -171,7 +171,7 @@ EOF
         -s|--srcpath|--src_path)
             x_s=${2} ; shift ;;
         -v|--verbose)
-            x_v=${2} ; shift ;;
+            case ${2} in [0-3]) x_v="${2}" ;; esac ; shift ;;
         -k|--chkkey)
             chk_key=${2} ; shift ;;
         --nonc|--nocdf|--nonetcdf|--no_nc|--no_cdf|--no_netcdf)
@@ -477,7 +477,7 @@ if [ "${NBR_PRC}" -gt 0 ]; then
         if [[ ${NEMO_BLD_STAGE} == 'BLD_SCT_AGRIF'    ]]; then
             NEMO_FC="${COMPIL_DIR}/agrifpp.sh"
             cp ${COMPIL_DIR}/bld_preproagr.cfg ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/bld.cfg
-            NEMO_BLD_OPT="--ignore-lock -j 1"
+            NEMO_BLD_OPT="--ignore-lock -v ${x_v} -j 1"
             # Note, the source-code processing build target is updated
             NEMO_BLD_TARGET="${NEMO_BLD_TARGET} agrif_user.f90 agrif2model.f90"
             if [ ! -f ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h ]; then
