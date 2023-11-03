@@ -88,12 +88,13 @@ x_b="";
 x_t="";
 x_c="";
 x_j=1;
-while getopts :hbm:n:r:j:t: V
+x_v="0";
+while getopts :hbm:n:r:j:t:v: V
   do
     case $V in
         (h)  x_h=${OPTARG};
             echo "Usage	 : "${b_n} \
-                 " [-h] [-n name] [-m arch] [-j No] [-t tmpdir]";
+                 " [-h] [-n name] [-m arch] [-j No] [-t tmpdir] [-v n]";
             echo " -h	 : help";
             echo " -h institute : specific help for consortium members";
             echo " -n name : tool name, [-n help] to list existing tools";
@@ -101,6 +102,7 @@ while getopts :hbm:n:r:j:t: V
             echo " -b      : compile with debug options";
             echo " -j No	 : number of processes used to compile (0=nocompilation)";
             echo " -t dir  : remporary directory for compilation"
+            echo " -v n    : level of verbosity (0-3)";
             echo "";
             echo "Example to compile Agrif Nesting tools";
             echo "maketools -n NESTING" ;
@@ -116,6 +118,7 @@ while getopts :hbm:n:r:j:t: V
         (b)  x_b=1;;
         (j)  x_j=${OPTARG};;
         (t)  x_t=${OPTARG};;
+        (v)  case ${OPTARG} in [0-3]) x_v="${OPTARG}" ;; esac ;;
         (:)  echo ${b_n}" : -"${OPTARG}" option : missing value" 1>&2;
             exit 2;;
         (\?) echo ${b_n}" : -"${OPTARG}" option : not supported" 1>&2;
@@ -194,7 +197,7 @@ if [ "${NBR_PRC}" -gt 0 ]; then
         mkdir -p ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}
 
         # Common settings
-        NEMO_BLD_OPT="${x_c} --ignore-lock -v 1 -j ${NBR_PRC}"
+        NEMO_BLD_OPT="${x_c} --ignore-lock -v ${x_v} -j ${NBR_PRC}"
         NEMO_FC="%FC"
 
         # Specific settings for the final compilation stage
@@ -206,12 +209,12 @@ if [ "${NBR_PRC}" -gt 0 ]; then
         # Specific settings for AGRIF processing
         if [[ ${NEMO_BLD_STAGE} == 'BLD_AGRIFLIB' ]]; then
             NEMO_BLD_CFG="conv.cfg"
-            NEMO_BLD_OPT=""
+            NEMO_BLD_OPT="-v ${x_v}"
         fi
         if [[ ${NEMO_BLD_STAGE} == 'BLD_SCT_AGRIF'    ]]; then
             NEMO_FC="${COMPIL_DIR}/agrifpp.sh"
             NEMO_BLD_CFG="bld_preproagr_tools.cfg"
-            NEMO_BLD_OPT="--ignore-lock -j 1"
+            NEMO_BLD_OPT="--ignore-lock -v ${x_v} -j 1"
             NEMO_BLD_TARGET="${NEMO_TARGET_SCT} agrif_user.f90 agrif2model.f90"
             if [ ! -f ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h ]; then
                 printf "#if ! defined key_mpi_off\n#define AGRIF_MPI\n#endif\n" > ${MAIN_DIR}/ext/AGRIF/nemo_mpi.h
