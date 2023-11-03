@@ -21,7 +21,9 @@ MODULE obs_mpp
    USE in_out_manager
 #if ! defined key_mpi_off
    USE lib_mpp, ONLY :   mpi_comm_oce      ! MPP library
+   USE MPI
 #endif
+
    IMPLICIT NONE
    PRIVATE
 
@@ -62,8 +64,6 @@ CONTAINS
 #if ! defined key_mpi_off
       !
       INTEGER :: ierr 
-      !
-INCLUDE 'mpif.h'
       !!----------------------------------------------------------------------
 
       ! Call the MPI library to broadcast data
@@ -97,8 +97,6 @@ INCLUDE 'mpif.h'
       !
       INTEGER :: ierr 
       INTEGER, DIMENSION(kno) ::   ivals
-      !
-INCLUDE 'mpif.h'
       !!----------------------------------------------------------------------
 
       ! Call the MPI library to find the maximum across processors
@@ -193,8 +191,6 @@ INCLUDE 'mpif.h'
 #if ! defined key_mpi_off
       !
       INTEGER :: ierr
-      !
-INCLUDE 'mpif.h'
       !!----------------------------------------------------------------------
       !
       !-----------------------------------------------------------------------
@@ -231,8 +227,6 @@ INCLUDE 'mpif.h'
 #if ! defined key_mpi_off
       !
       INTEGER :: ierr
-      !
-INCLUDE 'mpif.h'
       !!----------------------------------------------------------------------
       !
       !-----------------------------------------------------------------------
@@ -269,8 +263,6 @@ INCLUDE 'mpif.h'
       INTEGER :: ierr
       !
 #if ! defined key_mpi_off
-      !
-INCLUDE 'mpif.h'
       REAL(KIND=wp), DIMENSION(:,:), ALLOCATABLE ::   zcp
       !!----------------------------------------------------------------------
 
@@ -317,8 +309,6 @@ INCLUDE 'mpif.h'
       INTEGER :: ierr
       !
 #if ! defined key_mpi_off
-      !
-INCLUDE 'mpif.h'
       !-----------------------------------------------------------------------
       ! Call the MPI library to do the all to all operation of the data
       !-----------------------------------------------------------------------
@@ -359,8 +349,6 @@ INCLUDE 'mpif.h'
       INTEGER :: jproc
       !
 #if ! defined key_mpi_off
-      !
-INCLUDE 'mpif.h'
       INTEGER, DIMENSION(jpnij) ::   irdsp, isdsp
       !-----------------------------------------------------------------------
       ! Compute displacements
@@ -411,8 +399,6 @@ INCLUDE 'mpif.h'
       INTEGER :: jproc
       !
 #if ! defined key_mpi_off
-      !
-INCLUDE 'mpif.h'
       INTEGER, DIMENSION(jpnij) ::   irdsp, isdsp
       !!----------------------------------------------------------------------
       !

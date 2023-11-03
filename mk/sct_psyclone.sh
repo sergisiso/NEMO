@@ -20,6 +20,8 @@
 # ----------------------------------------------------------------------
 set -o posix
 #
+# PSyclone version 2.4.0 (default) or 2.3.1
+PSYCLONE_VERSION="2.4.0"
 # Path to PSyclone installation
 PSYCLONE_PATH=$1
 # Transformation or 'passthrough'
@@ -31,32 +33,45 @@ FILENAME=$(basename "$4")
 #
 # Set action for the file to transformation,
 ACTION='TRANSFORM'
-#    but downgrade to passthrough if the passthrough mode is active,
+#    but explicitly disable the processing of files that PSyclone version 2.4.0
+#    would fail to process or not correctly reproduce in the PSyclone
+#    passthrough,
+[[ "${FILENAME}" == 'diaptr.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' constructs
+[[ "${FILENAME}" == 'icedyn_rhg_eap.f90'    ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
+[[ "${FILENAME}" == 'iceistate.f90'         ]] && ACTION='EXCLUDE'   # protect reduction inside 'WHERE' conditional expression
+[[ "${FILENAME}" == 'icethd_do.f90'         ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
+[[ "${FILENAME}" == 'icewri.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
+[[ "${FILENAME}" == 'iom.f90'               ]] && ACTION='EXCLUDE'   # see PSyclone issue #2340
+                                                                     # (https://github.com/stfc/PSyclone/issues/2340)
+[[ "${FILENAME}" == 'isfpar.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
+[[ "${FILENAME}" == 'lib_fortran.f90'       ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
+[[ "${FILENAME}" == 'p4zpoc.f90'            ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
+[[ "${FILENAME}" == 'sbc_phy.f90'           ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
+[[ "${FILENAME}" == 'sbcblk.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' constructs
+[[ "${FILENAME}" == 'sbcblk_skin_coare.f90' ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
+[[ "${FILENAME}" == 'sbcdcy.f90'            ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
+[[ "${FILENAME}" == 'trosk.f90'             ]] && ACTION='EXCLUDE'   # see PSyclone issue #1254
+                                                                     # (https://github.com/stfc/PSyclone/issues/1254)
+[[ "${FILENAME}" == 'vremap.f90'            ]] && ACTION='EXCLUDE'   # protect bulk assignment of a structure component in
+                                                                     # structure arrays
+#    adjust the action for some files when using PSyclone 2.3.1,
+if [ ${PSYCLONE_VERSION} == "2.3.1" ]; then
+    [[ "${FILENAME}" == 'diu_layers.f90'        ]] && ACTION='EXCLUDE'
+    [[ "${FILENAME}" == 'eosbn2.f90'            ]] && ACTION='EXCLUDE'
+    [[ "${FILENAME}" == 'icedyn_rhg_eap.f90'    ]] && ACTION='TRANSFORM'
+    [[ "${FILENAME}" == 'iom.f90'               ]] && ACTION='TRANSFORM'
+    [[ "${FILENAME}" == 'isftbl.f90'            ]] && ACTION='EXCLUDE'
+    [[ "${FILENAME}" == 'julian.f90'            ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix
+    [[ "${FILENAME}" == 'lbcnfd.f90'            ]] && ACTION='EXCLUDE'
+    [[ "${FILENAME}" == 'step.f90'              ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix (AGRIF)
+    [[ "${FILENAME}" == 'storng.f90'            ]] && ACTION='EXCLUDE'
+    [[ "${FILENAME}" == 'stpmlf.f90'            ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix (AGRIF)
+    [[ "${FILENAME}" == 'timing.f90'            ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix
+    [[ "${FILENAME}" == 'trosk.f90'             ]] && ACTION='TRANSFORM'
+fi
+#    and downgrade the transformation action to passthrough if the passthrough
+#    mode is active.
 [[ "${TPSYCLONE}" == 'passthrough' ]] && [[ ${ACTION} == 'TRANSFORM' ]] && ACTION='PASSTHROUGH'
-#    and explictely disable any processing of files that after having passed
-#    through PSyclone version 2.3.1 would cause a compilation or run-time
-#    failure
-[[ "${FILENAME}" == 'diaptr.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'diu_layers.f90'        ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'eosbn2.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'icblbc.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'iceistate.f90'         ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'icethd_do.f90'         ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'icewri.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'isftbl.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'isfpar.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'lbcnfd.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'mpp_map.f90'           ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'nemogcm.f90'           ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'obs_mpp.f90'           ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'p4zpoc.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'storng.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'sbc_phy.f90'           ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'sbcblk.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'sbcblk_skin_coare.f90' ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'sbcdcy.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'timing.f90'            ]] && ACTION='EXCLUDE'
-[[ "${FILENAME}" == 'vremap.f90'            ]] && ACTION='EXCLUDE'
 #
 # Exit if PSyclone path has not been set or 'psyclone' command is not available
 if [[ "${PSYCLONE_PATH}" == "%PSYCLONE_HOME" ]] || [[ -z "${PSYCLONE_PATH}" ]] || [[ ! -x "${PSYCLONE_PATH}/bin/psyclone" ]]; then
