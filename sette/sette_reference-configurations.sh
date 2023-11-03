@@ -175,499 +175,263 @@ if [ ${config} == "GYRE_PISCES" ] ; then
     SETTE_CONFIG="GYRE_PISCES"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=12    # 1 day
+        ITEND=12    # 1 day
     else
-	ITEND=1080  # 90 days
+        ITEND=1080  # 90 days
     fi
-    ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
 
-if [ ${DO_COMPILE} -eq 1 ] ;  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    # GYRE uses linssh so remove key_qco if added by default
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
-fi
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        # GYRE uses linssh so remove key_qco if added by default
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+    fi
 
-## Restartability tests for GYRE_PISCES
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    export TEST_NAME="LONG"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=8
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-fi
+    # Configure and submit test runs for the GYRE_PISCES SETTE configuration
+    # (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-if [ ${DO_RESTART_1} == "1" ] ;  then
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}  
-    set_namelist namelist_cfg cn_exp \"GYREPIS_LONG\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg ln_linssh .true.
-    set_namelist namelist_cfg jpni 2
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-
-if [ ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="SHORT"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"GYREPIS_SHORT\"
-    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg ln_rstart .true.
-    set_namelist namelist_cfg nn_rstctl 2
-    set_namelist namelist_cfg ln_linssh .true.
-    set_namelist namelist_cfg jpni 2
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_top_cfg ln_rsttr .true.
-    set_namelist namelist_top_cfg nn_rsttr 2
+        # Default test-run configuration for the GYRE_PISCES SETTE
+        # configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"GYREPIS\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg ln_linssh .true.
+        set_namelist namelist_cfg jpni 2
+        set_namelist namelist_cfg jpnj 4
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
         set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist namelist_cfg cn_ocerst_in \"GYREPIS_LONG_${ITRST}_restart\"
-    set_namelist namelist_top_cfg cn_trcrst_in \"GYREPIS_LONG_${ITRST}_restart_trc\"
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    for (( i=1; i<=$NPROC; i++)) ; do
-        L_NPROC=$(( $i - 1 ))
-        L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/GYREPIS_LONG_${ITRST}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/GYREPIS_LONG_${ITRST}_restart_trc_${L_NPROC}.nc .
-    done
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        # put ln_ironsed, ln_hydrofe to false
+        # if not you need input files, and for tests is not necessary
+        set_namelist namelist_pisces_cfg ln_varpar .false.
+        set_namelist namelist_pisces_cfg ln_ironsed .false.
+        set_namelist namelist_pisces_cfg ln_ironice .false.
+        set_namelist namelist_pisces_cfg ln_hydrofe .false.
+        # put ln_pisdmp to false : no restoring to global mean value
+        set_namelist namelist_pisces_cfg ln_pisdmp .false.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=8
 
-fi
+        ## Restartability tests for GYRE_PISCES
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"GYREPIS_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"GYREPIS_SHORT\"
+            set_namelist_rst namelist ${ITEND} "GYREPIS_LONG" "OCE TOP"
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
 
-## Reproducibility tests for GYRE_PISCES
-if [ ${DO_REPRO_1} == "1" ] ;  then
-    export TEST_NAME="REPRO_2_4"
-    cd ${MAIN_DIR}
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=8
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"GYREPIS_48\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg ln_linssh .true.
-    set_namelist namelist_cfg jpni 2
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-        set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
+        ## Reproducibility tests for GYRE_PISCES
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_2_4"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_4_2"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            if [[ ${name} == "REPRO_2_4" ]]; then
+                set_namelist namelist_cfg cn_exp \"GYREPIS_48\"
+            else
+                set_namelist namelist_cfg cn_exp \"GYREPIS_84\"
+                set_namelist namelist_cfg jpni 4
+                set_namelist namelist_cfg jpnj 2
+            fi
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
 
-if [ ${DO_REPRO_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="REPRO_4_2"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=8
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"GYREPIS_84\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg ln_linssh .true.
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 2
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-
-fi
+    fi
 
 fi # GYRE_PISCES
 
-
-# -----------------
+# ----------------
 # ORCA2_ICE_PISCES
-# -----------------
+# ----------------
 if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
     SETTE_CONFIG="ORCA2_ICE_PISCES"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=16   # 1 day
+        ITEND=16   # 1 day
     else
-	ITEND=992  # 62 days
+        ITEND=992  # 62 days
     fi
-    ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
 
-if [ ${DO_COMPILE} -eq 1 ] ;  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT}  add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
-fi
-
-## Restartability tests for ORCA2_ICE_PISCES
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    export TEST_NAME="LONG"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-fi
-
-if [ ${DO_RESTART_1} == "1" ] ;  then
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"O2L3P_LONG\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_use_calving .true.
-    set_namelist namelist_cfg ln_wave .true.
-    set_namelist namelist_cfg ln_cdgw .false.
-    set_namelist namelist_cfg ln_sdw  .true.
-    set_namelist namelist_cfg ln_stcor .true.
-    if [ ${USING_ABL} == "yes" ]; then
-      set_namelist namelist_cfg nn_date0 20130101
-      set_namelist namelist_cfg ln_blk .false.
-      set_namelist namelist_cfg ln_abl .true.
-      set_namelist namelist_cfg ln_tair_pot .true.
-      sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
-              /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg 
-      sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
-              /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg 
-      sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
-              /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg 
-      sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
-              /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg 
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
     fi
-    #
-    set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, -55.0
-    #
-    set_namelist namelist_ice_cfg ln_icediachk .true.
-    set_namelist namelist_top_cfg ln_trcdta .false.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-    
-if [ ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="SHORT"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"O2L3P_SHORT\"
-    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg ln_rstart .true.
-    set_namelist namelist_cfg ln_rstart_abl .true.
-    set_namelist namelist_cfg nn_rstctl 2
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg nn_test_icebergs -1
-    set_namelist namelist_cfg ln_wave .true.
-    set_namelist namelist_cfg ln_cdgw .false.
-    set_namelist namelist_cfg ln_sdw  .true.
-    set_namelist namelist_cfg ln_stcor .true.
-    if [ ${USING_ABL} == "yes" ]; then
-        set_namelist namelist_cfg nn_date0 20130101
-        set_namelist namelist_cfg ln_blk .false.
-        set_namelist namelist_cfg ln_abl .true.
-        set_namelist namelist_cfg ln_tair_pot .true.
-        sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
-                /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg 
-        sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
-                /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg 
-        sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
-                /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg 
-        sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
-                /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg 
-    fi
-    #
-    set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, -55.0
-    #
-    set_namelist namelist_ice_cfg ln_icediachk .true.
-    set_namelist namelist_top_cfg ln_rsttr .true.
-    set_namelist namelist_top_cfg nn_rsttr 2
-    set_namelist namelist_cfg cn_ocerst_in \"O2L3P_LONG_${ITRST}_restart\"
-    set_namelist namelist_cfg cn_icbrst_in \"O2L3P_LONG_${ITRST}_restart_icb\"
-    set_namelist namelist_top_cfg cn_trcrst_in \"O2L3P_LONG_${ITRST}_restart_trc\"
-    set_namelist namelist_ice_cfg cn_icerst_in \"O2L3P_LONG_${ITRST}_restart_ice\"
-    set_namelist namelist_cfg cn_ablrst_in \"O2L3P_LONG_${ITRST}_restart_abl\"
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    for (( i=1; i<=$NPROC; i++)) ; do
-        L_NPROC=$(( $i - 1 ))
-        L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_trc_${L_NPROC}.nc .
-        ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_ice_${L_NPROC}.nc .
+
+    # Configure and submit test runs for the ORCA2_ICE_PISCES SETTE
+    # configuration (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
+
+        # Default test-run configuration for the ORCA2_ICE_PISCES SETTE
+        # configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"O2L3P\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg jpni 4
+        set_namelist namelist_cfg jpnj 8
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+        set_namelist namelist_cfg ln_wave .true.
+        set_namelist namelist_cfg ln_cdgw .false.
+        set_namelist namelist_cfg ln_sdw  .true.
+        set_namelist namelist_cfg ln_stcor .true.
         if [ ${USING_ABL} == "yes" ]; then
-            ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_abl_${L_NPROC}.nc .
+            set_namelist namelist_cfg nn_date0 20130101
+            set_namelist namelist_cfg ln_blk .false.
+            set_namelist namelist_cfg ln_abl .true.
+            set_namelist namelist_cfg ln_tair_pot .true.
+            sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
+                    /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg
+            sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
+                    /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg
+            sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
+                    /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg
+            sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
+                    /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg
         fi
-        if [ ${USING_ICEBERGS} == "yes" ]
-            then
-             ln -sf ../LONG/O2L3P_LONG_${ITRST}_restart_icb_${L_NPROC}.nc O2L3P_LONG_${ITRST}_restart_icb_${L_NPROC}.nc
+        set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, -55.0
+        set_namelist namelist_top_cfg ln_trcbc  .false.
+        # put ln_ironsed, ln_hydrofe to false
+        # if not you need input files, and for tests is not necessary
+        set_namelist namelist_pisces_cfg ln_varpar .false.
+        set_namelist namelist_pisces_cfg ln_ironsed .false.
+        set_namelist namelist_pisces_cfg ln_ironice .false.
+        set_namelist namelist_pisces_cfg ln_hydrofe .false.
+        # put ln_pisdmp to false : no restoring to global mean value
+        set_namelist namelist_pisces_cfg ln_pisdmp .false.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=32
+
+        ## Restartability tests for ORCA2_ICE_PISCES
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
         fi
-    done
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"O2L3P_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            set_namelist namelist_cfg ln_use_calving .true.
+            set_namelist namelist_ice_cfg ln_icediachk .true.
+            set_namelist namelist_top_cfg ln_trcdta .false.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"O2L3P_SHORT\"
+            set_namelist_rst namelist ${ITEND} "O2L3P_LONG" "OCE ICE TOP ABL ICB"
+            set_namelist namelist_cfg nn_test_icebergs -1
+            set_namelist namelist_ice_cfg ln_icediachk .true.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
 
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        ## Reproducibility tests for ORCA2_ICE_PISCES
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_4_8"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_8_4"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            if [[ ${name} == "REPRO_4_8" ]]; then
+                set_namelist namelist_cfg cn_exp \"O2L3P_48\"
+            else
+                set_namelist namelist_cfg cn_exp \"O2L3P_84\"
+                set_namelist namelist_cfg jpni 8
+                set_namelist namelist_cfg jpnj 4
+            fi
+            set_namelist namelist_top_cfg ln_trcdta .false.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
 
-fi
-
-## Reproducibility tests for ORCA2_ICE_PISCES
-if [ ${DO_REPRO_1} == "1" ] ;  then
-    export TEST_NAME="REPRO_4_8"
-    cd ${MAIN_DIR}
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"O2L3P_48\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_wave .true.
-    set_namelist namelist_cfg ln_cdgw .false.
-    set_namelist namelist_cfg ln_sdw  .true.
-    set_namelist namelist_cfg ln_stcor .true.
-    if [ ${USING_ABL} == "yes" ]; then
-        set_namelist namelist_cfg nn_date0 20130101
-        set_namelist namelist_cfg ln_blk .false.
-        set_namelist namelist_cfg ln_abl .true.
-        set_namelist namelist_cfg ln_tair_pot .true.
-        sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
-                /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg 
-        sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
-                /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg 
-        sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
-                /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg 
-        sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
-                /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg 
     fi
-    set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, -55.0
-
-    set_namelist namelist_top_cfg ln_trcdta .false.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
-
-if [ ${DO_REPRO_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="REPRO_8_4"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"O2L3P_84\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 8
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_wave .true.
-    set_namelist namelist_cfg ln_cdgw .false.
-    set_namelist namelist_cfg ln_sdw  .true.
-    set_namelist namelist_cfg ln_stcor .true.
-    if [ ${USING_ABL} == "yes" ]; then
-        set_namelist namelist_cfg nn_date0 20130101
-        set_namelist namelist_cfg ln_blk .false.
-        set_namelist namelist_cfg ln_abl .true.
-        set_namelist namelist_cfg ln_tair_pot .true.
-        sed -i "/sn_wndi/s/u_10.15JUNE2009_fill/uwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndi/s/ 6./24./; /sn_wndi/s/U_10_MOD/uwnd/; \
-                /sn_wndi/s/true/false/; /sn_wndi/s/yearly/monthly/; /sn_wndi/s/weights_core2_orca2_bicub//" namelist_cfg 
-        sed -i "/sn_wndj/s/v_10.15JUNE2009_fill/vwnd_ERAI_L25Z10_ORCA2_ana1d/; /sn_wndj/s/ 6./24./; /sn_wndj/s/V_10_MOD/vwnd/; \
-                /sn_wndj/s/true/false/; /sn_wndj/s/yearly/monthly/; /sn_wndj/s/weights_core2_orca2_bicub//" namelist_cfg 
-        sed -i "/sn_tair/s/t_10.15JUNE2009_fill/tair_ERAI_L25Z10_ORCA2_ana1d/; /sn_tair/s/ 6./24./; /sn_tair/s/T_10_MOD/tair/; \
-                /sn_tair/s/true/false/; /sn_tair/s/yearly/monthly/; /sn_tair/s/weights_core2_orca2_bilin//" namelist_cfg 
-        sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
-                /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg 
-    fi
-
-    set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, -55.0
-
-    set_namelist namelist_top_cfg ln_trcdta .false.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
 
 fi # ORCA2_ICE_PISCES
-
 
 # ----------------
 # ORCA2_OFF_PISCES
@@ -676,192 +440,118 @@ if [ ${config} == "ORCA2_OFF_PISCES" ]  ;  then
     SETTE_CONFIG="ORCA2_OFF_PISCES"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=16   # 4 days
+        ITEND=16   # 4 days
     else
-	ITEND=380  # 95 days
+        ITEND=380  # 95 days
     fi
-    ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
 
-if [ ${DO_COMPILE} -eq 1 ];  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    # ORCA2_OFF_PISCES uses linssh so remove key_qco if added by default
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
-fi
+    if [ ${DO_COMPILE} -eq 1 ];  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        # ORCA2_OFF_PISCES uses linssh so remove key_qco if added by default
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+    fi
 
-## Restartability tests for ORCA2_OFF_PISCES
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    export TEST_NAME="LONG"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-fi
+    # Configure and submit test runs for the ORCA2_OFF_PISCES SETTE
+    # configuration (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-if [ ${DO_RESTART_1} == "1" ] ;  then
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"OFFP_LONG\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_qsr_rgb .true.
-    set_namelist namelist_top_cfg ln_trcdta .false.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_OFF_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    
-fi
+        # Default test-run configuration for the ORCA2_OFF_PISCES SETTE
+        # configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"OFFP\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg jpni 4
+        set_namelist namelist_cfg jpnj 8
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+        set_namelist namelist_cfg ln_qsr_rgb .true.
+        set_namelist namelist_top_cfg ln_trcbc  .false.
+        # put ln_ironsed, ln_hydrofe to false
+        # if not you need input files, and for tests is not necessary
+        set_namelist namelist_pisces_cfg ln_varpar .false.
+        set_namelist namelist_pisces_cfg ln_ironsed .false.
+        set_namelist namelist_pisces_cfg ln_ironice .false.
+        set_namelist namelist_pisces_cfg ln_hydrofe .false.
+        # put ln_pisdmp to false : no restoring to global mean value
+        set_namelist namelist_pisces_cfg ln_pisdmp .false.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
+        NPROC=32
 
-if [ ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="SHORT"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"OFFP_SHORT\"
-    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_qsr_rgb .true.
-    set_namelist namelist_top_cfg ln_rsttr .true.
-    set_namelist namelist_top_cfg nn_rsttr 2
-    set_namelist namelist_top_cfg cn_trcrst_in \"OFFP_LONG_${ITRST}_restart_trc\"
-    for (( i=1; i<=$NPROC; i++)) ; do
-        L_NPROC=$(( $i - 1 ))
-        L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/OFFP_LONG_${ITRST}_restart_trc_${L_NPROC}.nc .
-    done
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_OFF_PISCES.cfg $NPROC ${TEST_NAME}  ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC  ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        ## Restartability tests for ORCA2_OFF_PISCES
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"OFFP_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            set_namelist namelist_top_cfg ln_trcdta .false.
+            set_xio_using_server iodef.xml ${USING_MPMD}
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_OFF_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"OFFP_SHORT\"
+            set_namelist_rst namelist ${ITEND} "OFFP_LONG" "TOP"
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_OFF_PISCES.cfg $NPROC ${TEST_NAME}  ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC  ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
 
-fi
+        ## Reproducibility tests for ORCA2_OFF_PISCES
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_4_8"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_8_4"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            if [[ ${name} == "REPRO_4_8" ]]; then
+                set_namelist namelist_cfg cn_exp \"OFFP_48\"
+            else
+                set_namelist namelist_cfg cn_exp \"OFFP_84\"
+                set_namelist namelist_cfg jpni 8
+                set_namelist namelist_cfg jpnj 4
+            fi
+            set_namelist namelist_top_cfg ln_trcdta .false.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_OFF_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
 
-## Reproducibility tests for ORCA2_OFF_PISCES
-if [ ${DO_REPRO_1} == "1" ] ;  then
-    export TEST_NAME="REPRO_4_8"
-    cd ${MAIN_DIR}
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"OFFP_48\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_qsr_rgb .true.
-    set_namelist namelist_top_cfg ln_trcdta .false.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_OFF_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
-
-if [ ${DO_REPRO_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="REPRO_8_4"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"OFFP_84\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 8
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_qsr_rgb .true.
-    set_namelist namelist_top_cfg ln_trcdta .false.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_hydrofe to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    # put ln_pisdmp to false : no restoring to global mean value
-    set_namelist namelist_pisces_cfg ln_pisdmp .false. 
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_OFF_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC  ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
+    fi
 
 fi # ORCA2_OFF_PISCES
 
@@ -872,1082 +562,735 @@ if [ ${config} == "AMM12" ] ;  then
     SETTE_CONFIG="AMM12"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=12   # 3 h
+        ITEND=12   # 3 h
     else
-	ITEND=576  # 4 days
+        ITEND=576  # 4 days
     fi
-    ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
 
-if [ ${DO_COMPILE} -eq 1 ] ;  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
-fi
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
+    fi
 
-## Restartability tests for AMM12
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    export TEST_NAME="LONG"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-fi
+    # Configure and submit test runs for the AMM12 SETTE configuration (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-if [ ${DO_RESTART_1} == "1" ] ;  then
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AMM12_LONG\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AMM12.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
+        # Default test-run configuration for the AMM12 SETTE configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg jpni 4
+        set_namelist namelist_cfg jpnj 8
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=32
 
-if [ ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="SHORT"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AMM12_SHORT\"
-    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg ln_rstart .true.
-    set_namelist namelist_cfg nn_rstctl 2
-    set_namelist namelist_cfg cn_ocerst_in \"AMM12_LONG_${ITRST}_restart\"
-    set_namelist namelist_cfg nn_date0 20120102
-    for (( i=1; i<=$NPROC; i++)) ; do
-        L_NPROC=$(( $i - 1 ))
-        L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/AMM12_LONG_${ITRST}_restart_${L_NPROC}.nc .
-    done
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AMM12.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        ## Restartability tests for AMM12
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"AMM12_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_AMM12.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"AMM12_SHORT\"
+            set_namelist_rst namelist ${ITEND} "AMM12_LONG" "OCE"
+            set_namelist namelist_cfg nn_date0 20120102
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_AMM12.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
 
-fi
+        ## Reproducibility tests for AMM12
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_8_4"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_4_8"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            if [[ ${name} == "REPRO_8_4" ]]; then
+                set_namelist namelist_cfg cn_exp \"AMM12_84\"
+                set_namelist namelist_cfg jpni 8
+                set_namelist namelist_cfg jpnj 4
+            else
+                set_namelist namelist_cfg cn_exp \"AMM12_48\"
+            fi
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_AMM12.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
 
-## Reproducibility tests for AMM12
-if [ ${DO_REPRO_1} == "1" ] ;  then
-    export TEST_NAME="REPRO_8_4"
-    cd ${MAIN_DIR}
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AMM12_84\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 8
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AMM12.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
-
-if [ ${DO_REPRO_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="REPRO_4_8"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AMM12_48\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AMM12.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
+    fi
 
 fi # AMM12
 
-
-# ---------
+# -------------
 # ORCA2_SAS_ICE
-# ---------
+# -------------
 if [ ${config} == "ORCA2_SAS_ICE" ] ;  then
     SETTE_CONFIG="ORCA2_SAS_ICE"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=16   # 1 day
+        ITEND=16   # 1 day
     else
-	ITEND=256  # 16 days
+        ITEND=256  # 16 days
     fi
-    ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
 
-if [ ${DO_COMPILE} -eq 1 ] ;  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    # ORCA2_SAS_ICE uses linssh so remove key_qco if added by default
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
-fi
-
-## Restartability tests
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    export TEST_NAME="LONG"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-fi
-
-if [ ${DO_RESTART_1} == "1" ] ;  then
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_ice_cfg ln_icediachk .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-
-if [ ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="SHORT"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE\"
-    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg ln_rstart .true.
-    set_namelist namelist_cfg nn_rstctl 2
-    set_namelist namelist_cfg nn_date0 010109
-    set_namelist namelist_cfg cn_ocerst_in \"ORCA2_SAS_ICE_${ITRST}_restart\"
-    set_namelist namelist_ice_cfg cn_icerst_in \"ORCA2_SAS_ICE_${ITRST}_restart_ice\"
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    for (( i=1; i<=$NPROC; i++)) ; do
-        L_NPROC=$(( $i - 1 ))
-        L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/ORCA2_SAS_ICE_${ITRST}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/ORCA2_SAS_ICE_${ITRST}_restart_ice_${L_NPROC}.nc .
-    done
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-
-fi
-
-## Reproducibility tests
-if [ ${DO_REPRO_1} == "1" ] ;  then
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
-    then
-	ITEND=16  # 1 day
-    else
-	ITEND=80  # 5 days
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        # ORCA2_SAS_ICE uses linssh so remove key_qco if added by default
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
     fi
-    export TEST_NAME="REPRO_4_8"
-    cd ${MAIN_DIR}
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE_48\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+
+    # Configure and submit test runs for the ORCA2_SAS_ICE SETTE configuration
+    # (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
+
+        # Default test-run configuration for the ORCA2_SAS_ICE SETTE
+        # configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg jpni 4
+        set_namelist namelist_cfg jpnj 8
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=32
+
+        ## Restartability tests
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist_rst namelist ${ITEND}
+            set_namelist namelist_ice_cfg ln_icediachk .true.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist_rst namelist ${ITEND} "ORCA2_SAS_ICE" "OCE ICE"
+            set_namelist namelist_cfg nn_date0 010109
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
+
+        ## Reproducibility tests
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_4_8"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_8_4"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            if [[ ${name} == "REPRO_4_8" ]]; then
+                if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
+                then
+                    ITEND=16  # 1 day
+                else
+                    ITEND=80  # 5 days
+                fi
+            fi
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            if [[ ${name} == "REPRO_4_8" ]]; then
+                set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE_48\"
+            else
+                set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE_84\"
+                set_namelist namelist_cfg jpni 8
+                set_namelist namelist_cfg jpnj 4
+            fi
+            set_namelist namelist_cfg nn_itend ${ITEND}
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
+
+    fi
+
 fi
 
-if [ ${DO_REPRO_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="REPRO_8_4"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"ORCA2_SAS_ICE_84\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 8
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_SAS_ICE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-
-fi
-
-fi
-
-
-# --------------
+# -------------
 # ORCA2_ICE_OBS
-# --------------
+# -------------
 ## Test assimilation interface code, OBS and ASM for reproducibility
 ## Restartability not tested (ASM code not restartable while increments are being applied)
 if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
     SETTE_CONFIG="ORCA2_ICE_OBS"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=16  # 1 day
+        ITEND=16  # 1 day
     else
-	ITEND=80  # 5 days
+        ITEND=80  # 5 days
     fi
 
-if [ ${DO_COMPILE} -eq 1 ] ;  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}" || exit
-fi
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}" || exit
+    fi
 
-## Reproducibility tests
-if [ ${DO_REPRO_1} == "1" ] ;  then
-    export TEST_NAME="REPRO_4_8"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"O2L3OBS_48\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg ln_read_cfg .true.
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_diaobs .true.
-    set_namelist namelist_cfg ln_t3d .true.
-    set_namelist namelist_cfg ln_s3d .true.
-    set_namelist namelist_cfg ln_sst .true.
-    set_namelist namelist_cfg ln_sla .true.
-    set_namelist namelist_cfg ln_sic .true.
-    set_namelist namelist_cfg ln_vel3d .true.
-    set_namelist namelist_cfg ln_bkgwri .true.
-    set_namelist namelist_cfg ln_trainc .true.
-    set_namelist namelist_cfg ln_dyninc .true.
-    set_namelist namelist_cfg ln_sshinc .true.
-    set_namelist namelist_cfg ln_asmiau .true.
-    #remove all useless options for pisces (due to ORCA2_ICE_PISCES reference configuration)
-    set_namelist namelist_top_cfg ln_trcdta .false. 
-    set_namelist namelist_top_cfg ln_trcbc  .false. 
-    # put ln_ironsed, ln_river, ln_ndepo, ln_dust to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_ICE_OBS.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
+    # Configure and submit test runs for the ORCA2_ICE_OBS SETTE configuration
+    # (if any)
+    if [ ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-if [ ${DO_REPRO_2} == "1" ] ;  then
-   cd ${SETTE_DIR}
-    export TEST_NAME="REPRO_8_4"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"O2L3OBS_84\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg ln_read_cfg .true.
-    set_namelist namelist_cfg jpni 8
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_diaobs .true.
-    set_namelist namelist_cfg ln_t3d .true.
-    set_namelist namelist_cfg ln_s3d .true.
-    set_namelist namelist_cfg ln_sst .true.
-    set_namelist namelist_cfg ln_sla .true.
-    set_namelist namelist_cfg ln_sic .true.
-    set_namelist namelist_cfg ln_vel3d .true.
-    set_namelist namelist_cfg ln_bkgwri .true.
-    set_namelist namelist_cfg ln_trainc .true.
-    set_namelist namelist_cfg ln_dyninc .true.
-    set_namelist namelist_cfg ln_sshinc .true.
-    set_namelist namelist_cfg ln_asmiau .true.
-    #remove all useless options for pisces (due to ORCA2_ICE_PISCES reference configuration)
-    set_namelist namelist_top_cfg ln_trcdta .false.
-    set_namelist namelist_top_cfg ln_trcbc  .false.
-    # put ln_ironsed, ln_river, ln_ndepo, ln_dust to false
-    # if not you need input files, and for tests is not necessary
-    set_namelist namelist_pisces_cfg ln_varpar .false.
-    set_namelist namelist_pisces_cfg ln_ironsed .false.
-    set_namelist namelist_pisces_cfg ln_ironice .false.
-    set_namelist namelist_pisces_cfg ln_hydrofe .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_ORCA2_ICE_OBS.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
+        # Default test-run configuration for the ORCA2_ICE_OBS SETTE
+        # configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"O2L3OBS\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg ln_read_cfg .true.
+        set_namelist namelist_cfg jpni 4
+        set_namelist namelist_cfg jpnj 8
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+        set_namelist namelist_cfg ln_diaobs .true.
+        set_namelist namelist_cfg ln_t3d .true.
+        set_namelist namelist_cfg ln_s3d .true.
+        set_namelist namelist_cfg ln_sst .true.
+        set_namelist namelist_cfg ln_sla .true.
+        set_namelist namelist_cfg ln_sic .true.
+        set_namelist namelist_cfg ln_vel3d .true.
+        set_namelist namelist_cfg ln_bkgwri .true.
+        set_namelist namelist_cfg ln_trainc .true.
+        set_namelist namelist_cfg ln_dyninc .true.
+        set_namelist namelist_cfg ln_sshinc .true.
+        set_namelist namelist_cfg ln_asmiau .true.
+        #remove all useless options for pisces (due to ORCA2_ICE_PISCES reference configuration)
+        set_namelist namelist_top_cfg ln_trcdta .false.
+        set_namelist namelist_top_cfg ln_trcbc  .false.
+        # put ln_ironsed, ln_river, ln_ndepo, ln_dust to false
+        # if not you need input files, and for tests is not necessary
+        set_namelist namelist_pisces_cfg ln_varpar .false.
+        set_namelist namelist_pisces_cfg ln_ironsed .false.
+        set_namelist namelist_pisces_cfg ln_ironice .false.
+        set_namelist namelist_pisces_cfg ln_hydrofe .false.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=32
+
+        ## Reproducibility tests
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_4_8"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_8_4"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            if [[ ${name} == "REPRO_4_8" ]]; then
+                set_namelist namelist_cfg cn_exp \"O2L3OBS_48\"
+            else
+                set_namelist namelist_cfg cn_exp \"O2L3OBS_84\"
+                set_namelist namelist_cfg jpni 8
+                set_namelist namelist_cfg jpnj 4
+            fi
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_ORCA2_ICE_OBS.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
+
+    fi
 
 fi
 
-
-# ------------
+# ----------
 # AGRIF_DEMO
-# -----------
+# ----------
 if [ ${config} == "AGRIF_DEMO" ] ;  then
     SETTE_CONFIG="AGRIF_DEMO"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=4   # 6h
+        ITEND=4   # 6h
     else
-	ITEND=20  # 1d and 6h
+        ITEND=20  # 1d and 6h
     fi
-    ITRST=$(   printf "%08d" $(( ${ITEND} / 2 )) )
-    ITRST_1=$( printf "%08d" $(( ${ITEND} / 2 )) )
-    ITRST_2=$( printf "%08d" $(( ${ITEND} * 4 / 2 )) )
-    ITRST_3=$( printf "%08d" $(( ${ITEND} * 4 * 3 / 2 )) )
 
-if [ ${DO_COMPILE} -eq 1 ] ;  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
-fi
-
-## Restartability tests
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    export TEST_NAME="LONG"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=16
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-fi
-
-if [ ${DO_RESTART_1} == "1" ] ;  then
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
-    set_namelist 1_namelist_cfg nn_it000 1
-    set_namelist 1_namelist_cfg nn_itend ${ITEND}
-    set_namelist 1_namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
-    set_namelist 2_namelist_cfg nn_it000 1
-    set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
-    set_namelist 2_namelist_cfg nn_stock $(( ${ITEND} * 4 / 2 ))
-    set_namelist 2_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 2_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
-    set_namelist 3_namelist_cfg nn_it000 1
-    set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
-    set_namelist 3_namelist_cfg nn_stock $(( ${ITEND} * 4 * 3 / 2 ))
-    set_namelist 3_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 3_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 2_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 2_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 3_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 3_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 3_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-    
-if [ ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="SHORT"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
-    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg ln_rstart .true.
-    set_namelist namelist_cfg nn_rstctl 2
-    set_namelist namelist_top_cfg ln_rsttr .true.
-    set_namelist namelist_top_cfg nn_rsttr 2 
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
-    set_namelist 1_namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist 1_namelist_cfg nn_itend ${ITEND}
-    set_namelist 1_namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist 1_namelist_cfg ln_rstart .true.
-    set_namelist 1_namelist_cfg nn_rstctl 2
-    set_namelist 1_namelist_top_cfg ln_rsttr .true.
-    set_namelist 1_namelist_cfg ln_init_chfrpar .false.
-    set_namelist 1_namelist_top_cfg nn_rsttr 2 
-    set_namelist_opt 1_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
-    set_namelist 2_namelist_cfg nn_it000 $(( ${ITEND} * 4 / 2 + 1 ))
-    set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
-    set_namelist 2_namelist_cfg nn_stock $(( ${ITEND} * 4 / 2 ))
-    set_namelist 2_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist 2_namelist_cfg ln_rstart .true.
-    set_namelist 2_namelist_cfg nn_rstctl 2
-    set_namelist 2_namelist_cfg ln_init_chfrpar .false.
-    set_namelist 2_namelist_top_cfg ln_rsttr .true.
-    set_namelist 2_namelist_top_cfg nn_rsttr 2 
-    set_namelist_opt 2_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
-    set_namelist 3_namelist_cfg nn_it000 $(( ${ITEND} * 4 * 3 / 2 + 1 ))
-    set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
-    set_namelist 3_namelist_cfg nn_stock $(( ${ITEND} * 4 * 3 / 2 ))
-    set_namelist 3_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist 3_namelist_cfg ln_rstart .true.
-    set_namelist 3_namelist_cfg nn_rstctl 2
-    set_namelist 3_namelist_cfg ln_init_chfrpar .false.
-    set_namelist 3_namelist_top_cfg ln_rsttr .true.
-    set_namelist 3_namelist_top_cfg nn_rsttr 2 
-    set_namelist_opt 3_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist namelist_cfg cn_ocerst_in \"AGRIF_DEMO_LONG_${ITRST}_restart\"
-    set_namelist namelist_ice_cfg cn_icerst_in \"AGRIF_DEMO_LONG_${ITRST}_restart_ice\"
-    set_namelist namelist_top_cfg cn_trcrst_in \"AGRIF_DEMO_LONG_${ITRST}_restart_trc\"
-    set_namelist 1_namelist_cfg cn_ocerst_in \"AGRIF_DEMO_LONG_${ITRST_1}_restart\"
-    set_namelist 1_namelist_ice_cfg cn_icerst_in \"AGRIF_DEMO_LONG_${ITRST_1}_restart_ice\"
-    set_namelist 1_namelist_top_cfg cn_trcrst_in \"AGRIF_DEMO_LONG_${ITRST_1}_restart_trc\"
-    set_namelist 2_namelist_cfg cn_ocerst_in \"AGRIF_DEMO_LONG_${ITRST_2}_restart\"
-    set_namelist 2_namelist_ice_cfg cn_icerst_in \"AGRIF_DEMO_LONG_${ITRST_2}_restart_ice\"
-    set_namelist 2_namelist_top_cfg cn_trcrst_in \"AGRIF_DEMO_LONG_${ITRST_2}_restart_trc\"
-    set_namelist 3_namelist_cfg cn_ocerst_in \"AGRIF_DEMO_LONG_${ITRST_3}_restart\"
-    set_namelist 3_namelist_ice_cfg cn_icerst_in \"AGRIF_DEMO_LONG_${ITRST_3}_restart_ice\"
-    set_namelist 3_namelist_top_cfg cn_trcrst_in \"AGRIF_DEMO_LONG_${ITRST_3}_restart_trc\"
-#
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 2_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 2_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 3_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 3_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 3_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-
-    for (( i=1; i<=$NPROC; i++)) ; do
-        L_NPROC=$(( $i - 1 ))
-        L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/AGRIF_DEMO_LONG_${ITRST}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/AGRIF_DEMO_LONG_${ITRST}_restart_ice_${L_NPROC}.nc .
-        ln -sf ../LONG/AGRIF_DEMO_LONG_${ITRST}_restart_trc_${L_NPROC}.nc .
-        ln -sf ../LONG/1_AGRIF_DEMO_LONG_${ITRST_1}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/1_AGRIF_DEMO_LONG_${ITRST_1}_restart_ice_${L_NPROC}.nc .
-        ln -sf ../LONG/1_AGRIF_DEMO_LONG_${ITRST_1}_restart_trc_${L_NPROC}.nc .
-        ln -sf ../LONG/2_AGRIF_DEMO_LONG_${ITRST_2}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/2_AGRIF_DEMO_LONG_${ITRST_2}_restart_ice_${L_NPROC}.nc .
-        ln -sf ../LONG/2_AGRIF_DEMO_LONG_${ITRST_2}_restart_trc_${L_NPROC}.nc .
-        ln -sf ../LONG/3_AGRIF_DEMO_LONG_${ITRST_3}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/3_AGRIF_DEMO_LONG_${ITRST_3}_restart_ice_${L_NPROC}.nc .
-        ln -sf ../LONG/3_AGRIF_DEMO_LONG_${ITRST_3}_restart_trc_${L_NPROC}.nc .
-    done
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-
-fi
-
-## Reproducibility tests
-if [ ${DO_REPRO_1} == "1" ] ;  then
-    export TEST_NAME="REPRO_2_8"
-    cd ${MAIN_DIR}
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=16
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_28\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 2
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_28\"
-    set_namelist 1_namelist_cfg nn_it000 1
-    set_namelist 1_namelist_cfg nn_itend ${ITEND}
-    set_namelist 1_namelist_cfg jpni 2
-    set_namelist 1_namelist_cfg jpnj 8
-    set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 1_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_28\"
-    set_namelist 2_namelist_cfg nn_it000 1
-    set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
-    set_namelist 2_namelist_cfg jpni 2
-    set_namelist 2_namelist_cfg jpnj 8
-    set_namelist 2_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 2_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 2_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 2_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_28\"
-    set_namelist 3_namelist_cfg nn_it000 1
-    set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
-    set_namelist 3_namelist_cfg jpni 2
-    set_namelist 3_namelist_cfg jpnj 8
-    set_namelist 3_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 3_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 3_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 3_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 3_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
-
-if [ ${DO_REPRO_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="REPRO_4_4"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=16
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_44\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_44\"
-    set_namelist 1_namelist_cfg nn_it000 1
-    set_namelist 1_namelist_cfg nn_itend ${ITEND}
-    set_namelist 1_namelist_cfg jpni 4
-    set_namelist 1_namelist_cfg jpnj 4
-    set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 1_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_44\"
-    set_namelist 2_namelist_cfg nn_it000 1
-    set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
-    set_namelist 2_namelist_cfg jpni 4
-    set_namelist 2_namelist_cfg jpnj 4
-    set_namelist 2_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 2_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 2_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 2_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_44\"
-    set_namelist 3_namelist_cfg nn_it000 1
-    set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
-    set_namelist 3_namelist_cfg jpni 4
-    set_namelist 3_namelist_cfg jpnj 4
-    set_namelist 3_namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt 3_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt 3_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt 3_namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_namelist_opt 3_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-
-fi
-
-## test code corruption with AGRIF_DEMO (phase 1) ==> Compile with key_agrif but run with no zoom
-if [ ${DO_CORRUPT_0} == "1" ] ;  then
-    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
-    then
-	ITEND=16   # 1d
-    else
-	ITEND=150  # 5d and 9h 
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
     fi
-    export TEST_NAME="ORCA2"
-    cd ${MAIN_DIR}
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"ORCA2\"
-    # Use "original" parent grid bathymetry
-    set_namelist namelist_cfg cn_domcfg "'ORCA_R2_zps_domcfg.nc'"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
 
-#   Set the number of fine grids to zero:    
-    sed -i "1s/.*/0/" ${EXE_DIR}/AGRIF_FixedGrids.in
+    # Configure and submit test runs for the AGRIF_DEMO configuration (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_CORRUPT} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        # Default test-run configuration for the AGRIF_DEMO SETTE configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"AGRIF_DEMO\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO\"
+        set_namelist 1_namelist_cfg nn_it000 1
+        set_namelist 1_namelist_cfg nn_itend ${ITEND}
+        set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist_opt 1_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO\"
+        set_namelist 2_namelist_cfg nn_it000 1
+        set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
+        set_namelist 2_namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist_opt 2_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO\"
+        set_namelist 3_namelist_cfg nn_it000 1
+        set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
+        set_namelist 3_namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist_opt 3_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_namelist_opt 2_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt 2_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_namelist_opt 3_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt 3_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt 3_namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=16
+
+        ## Restartability tests
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
+            set_namelist_rst 1_namelist ${ITEND}
+            set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
+            set_namelist_rst 2_namelist $(( ${ITEND} * 4 ))
+            set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_LONG\"
+            set_namelist_rst 3_namelist $(( ${ITEND} * 4 * 3 ))
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
+            set_namelist_rst namelist ${ITEND} "AGRIF_DEMO_LONG" "OCE ICE TOP"
+            set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
+            set_namelist_rst 1_namelist ${ITEND} "AGRIF_DEMO_LONG" "OCE ICE TOP"
+            set_namelist 1_namelist_cfg ln_init_chfrpar .false.
+            set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
+            set_namelist_rst 2_namelist $(( ${ITEND} * 4 )) "AGRIF_DEMO_LONG" "OCE ICE TOP"
+            set_namelist 2_namelist_cfg ln_init_chfrpar .false.
+            set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO_SHORT\"
+            set_namelist_rst 3_namelist $(( ${ITEND} * 4 * 3 )) "AGRIF_DEMO_LONG" "OCE ICE TOP"
+            set_namelist 3_namelist_cfg ln_init_chfrpar .false.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
+
+        ## Reproducibility tests
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_2_8"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_4_4"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            for nname in namelist_cfg 1_namelist_cfg 2_namelist_cfg 3_namelist_cfg; do
+                if [[ ${name} == "REPRO_2_8" ]]; then
+                    set_namelist ${nname} cn_exp \"AGRIF_DEMO_28\"
+                    set_namelist ${nname} jpni 2
+                    set_namelist ${nname} jpnj 8
+                else
+                    set_namelist ${nname} cn_exp \"AGRIF_DEMO_44\"
+                    set_namelist ${nname} jpni 4
+                    set_namelist ${nname} jpnj 4
+                fi
+            done
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
+
+        ## test code corruption with AGRIF_DEMO (phase 1) ==> Compile with key_agrif but run with no zoom
+        if [ ${DO_CORRUPT_0} == "1" ] ;  then
+            if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
+            then
+                ITEND=16   # 1d
+            else
+                ITEND=150  # 5d and 9h 
+            fi
+            export TEST_NAME="ORCA2"
+            cd ${MAIN_DIR}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            NPROC=32
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"ORCA2\"
+            set_namelist namelist_cfg nn_itend ${ITEND}
+            # Use "original" parent grid bathymetry
+            set_namelist namelist_cfg cn_domcfg "'ORCA_R2_zps_domcfg.nc'"
+            # Set the number of fine grids to zero:    
+            sed -i "1s/.*/0/" ${EXE_DIR}/AGRIF_FixedGrids.in
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+
+            ## test code corruption with AGRIF_DEMO (phase 2) ==> Compile without key_agrif (to be compared with AGRIF_DEMO_ST/ORCA2)
+            SETTE_CONFIG="AGRIF_DEMO_NOAGRIF"${CONFIG_SUFFIX}
+            export TEST_NAME="ORCA2"
+            cd ${MAIN_DIR}
+            #
+            # syncronisation if target directory/file exist (not done by makenemo)
+            clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+            sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+            #
+            ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                       -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "key_agrif ${DEL_KEYS}" || exit
+            EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"ORCA2\"
+            # Use "original" parent grid bathymetry
+            set_namelist namelist_cfg cn_domcfg "'ORCA_R2_zps_domcfg.nc'"
+            set_namelist namelist_cfg nn_it000 1
+            set_namelist namelist_cfg nn_itend ${ITEND}
+            set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+            set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+            set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+            set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+            set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+            set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
+            set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+            set_xio_using_server iodef.xml ${USING_MPMD}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            NPROC=32
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
+
+    fi
 
 fi
 
-## test code corruption with AGRIF_DEMO (phase 2) ==> Compile without key_agrif (to be compared with AGRIF_DEMO_ST/ORCA2)
-if [ ${DO_CORRUPT_0} == "1" ] ;  then
-    SETTE_CONFIG="AGRIF_DEMO_NOAGRIF"${CONFIG_SUFFIX}
-    export TEST_NAME="ORCA2"
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "key_agrif ${DEL_KEYS}" || exit
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"ORCA2\"
-    # Use "original" parent grid bathymetry
-    set_namelist namelist_cfg cn_domcfg "'ORCA_R2_zps_domcfg.nc'"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-#
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-
-fi
-
-fi
-
-
-# -------
+# ------
 # WED025
-# -------
+# ------
 if [ ${config} == "WED025" ] ;  then
     SETTE_CONFIG="WED025"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=12   # 4h
+        ITEND=12   # 4h
     else
-	ITEND=720  # 10 days
+        ITEND=720  # 10 days
     fi
-    ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
 
-if [ ${DO_COMPILE} -eq 1 ] ;  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    # WED025 uses ln_hpg_isf so remove key_qco if added by default
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
-fi
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        # WED025 uses ln_hpg_isf so remove key_qco if added by default
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+    fi
 
-## Restartability tests
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    export TEST_NAME="LONG"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-fi
+    # Configure and submit test runs for the WED025 configuration (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-if [ ${DO_RESTART_1} == "1" ] ;  then
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"WED025_LONG\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg nn_date0 20000115
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    #set_namelist namelist_ice_cfg ln_icediachk .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_WED025.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-    
-if [ ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="SHORT"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"WED025_SHORT\"
-    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg ln_rstart .true.
-    set_namelist namelist_cfg nn_rstctl 2
-    set_namelist namelist_cfg jpni 4
-    set_namelist namelist_cfg jpnj 8
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg cn_ocerst_in \"WED025_LONG_${ITRST}_restart\"
-    set_namelist namelist_ice_cfg cn_icerst_in \"WED025_LONG_${ITRST}_restart_ice\"
-    for (( i=1; i<=$NPROC; i++)) ; do
-        L_NPROC=$(( $i - 1 ))
-        L_NPROC=`printf "%04d\n" ${L_NPROC}`
-        ln -sf ../LONG/WED025_LONG_${ITRST}_restart_${L_NPROC}.nc .
-        ln -sf ../LONG/WED025_LONG_${ITRST}_restart_ice_${L_NPROC}.nc .
-    done
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_WED025.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        # Default test-run configuration for the WED025 configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"WED025\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg jpni 4
+        set_namelist namelist_cfg jpnj 8
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=32
 
-fi
+        ## Restartability tests
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"WED025_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            set_namelist namelist_cfg nn_date0 20000115
+            #set_namelist namelist_ice_cfg ln_icediachk .true.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_WED025.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"WED025_SHORT\"
+            set_namelist_rst namelist ${ITEND} "WED025_LONG" "OCE ICE"
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_WED025.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
 
-## Reproducibility tests
-if [ ${DO_REPRO_1} == "1" ] ;  then
-    export TEST_NAME="REPRO_6_7"
-    cd ${MAIN_DIR}
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"WED025_67\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_date0 20000115
-    set_namelist namelist_cfg jpni 6
-    set_namelist namelist_cfg jpnj 7
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_WED025.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
+        ## Reproducibility tests
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_6_7"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_8_4"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            if [[ ${name} == "REPRO_6_7" ]]; then
+                set_namelist namelist_cfg cn_exp \"WED025_67\"
+                set_namelist namelist_cfg jpni 6
+                set_namelist namelist_cfg jpnj 7
+            else
+                set_namelist namelist_cfg cn_exp \"WED025_84\"
+                set_namelist namelist_cfg jpni 8
+                set_namelist namelist_cfg jpnj 4
+            fi
+            set_namelist namelist_cfg nn_date0 20000115
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_WED025.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
 
-if [ ${DO_REPRO_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="REPRO_8_4"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=32
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"WED025_84\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_date0 20000115
-    set_namelist namelist_cfg jpni 8
-    set_namelist namelist_cfg jpnj 4
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_WED025.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
-fi
+    fi
 
 fi
 
-
-# -----------
+# --------
 # C1D_PAPA
-# -----------
+# --------
 if [ ${config} == "C1D_PAPA" ] ; then
     SETTE_CONFIG=${config}${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-	ITEND=240   # 1 day
+        ITEND=240   # 1 day
     else
-	ITEND=87600 # 365 days
+        ITEND=87600 # 365 days
     fi
-    ITRST=$( printf "%08d" $(( ${ITEND} / 2 )) )
 
-if [ ${DO_COMPILE} -eq 1 ] ;  then
-    cd ${MAIN_DIR}
-    #
-    # syncronisation if target directory/file exist (not done by makenemo)
-    clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-    #
-    # C1D_PAPA uses linssh so remove key_qco if added by default
-    ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
-fi
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        # C1D_PAPA uses linssh so remove key_qco if added by default
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+    fi
 
-## Restartability tests for C1D_PAPA
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    export TEST_NAME="LONG"
-    cd ${SETTE_DIR}
-    . ./prepare_exe_dir.sh
-    JOB_FILE=${EXE_DIR}/run_job.sh
-    NPROC=1
-    if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
-fi
+    # Configure and submit test runs for the C1D_PAPA configuration (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-if [ ${DO_RESTART_1} == "1" ] ;  then
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"C1DPAPA_LONG\"
-    set_namelist namelist_cfg nn_it000 1
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg jpni 1
-    set_namelist namelist_cfg jpnj 1
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 1
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_${config}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
+        # Default test-run configuration for the C1D_PAPA configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"C1DPAPA\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg jpni 1
+        set_namelist namelist_cfg jpnj 1
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 1
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=1
 
-if [ ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    export TEST_NAME="SHORT"
-    . ./prepare_exe_dir.sh
-    set_valid_dir
-    clean_valid_dir
-    cd ${EXE_DIR}
-    set_namelist namelist_cfg cn_exp \"C1DPAPA_SHORT\"
-    set_namelist namelist_cfg nn_it000 $(( ${ITEND} / 2 + 1 ))
-    set_namelist namelist_cfg nn_itend ${ITEND}
-    set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
-    set_namelist namelist_cfg ln_rstart .true.
-    set_namelist namelist_cfg nn_rstctl 2
-    set_namelist namelist_cfg jpni 1
-    set_namelist namelist_cfg jpnj 1
-    set_namelist namelist_cfg sn_cfctl%l_runstat .true.
-    set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
-    set_namelist namelist_cfg cn_ocerst_in \"C1DPAPA_LONG_${ITRST}_restart\"
-    set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 1
-    set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-    set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-    set_xio_using_server iodef.xml ${USING_MPMD}
-    ln -sf ../LONG/C1DPAPA_LONG_${ITRST}_restart.nc .
-    cd ${SETTE_DIR}
-    . ./prepare_job.sh input_${config}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
-fi
-if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
-    cd ${SETTE_DIR}
-    . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        ## Restartability tests for C1D_PAPA
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"C1DPAPA_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_${config}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"C1DPAPA_SHORT\"
+            set_namelist_rst namelist ${ITEND} "C1DPAPA_LONG" "OCE"
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_${config}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
+
+    fi
 
 fi
-
-fi
-
 
     done
 done

@@ -230,7 +230,78 @@ set_namelist_opt () {
                 set_namelist $1 $2 $5
         fi
 }
-        
+
+# set_namelist_rst: if the test-run name (TEST_NAME) is "SHORT", this function
+# configures test runs to restart at half the specified number of timesteps
+# (argument 2) by adding corresponding entries to namelist input files with the
+# supplied base name (argument 1) and by creating symbolic links to restart
+# files produced by a corresponding test run "LONG" and with a specified base
+# name (argument 3, without AGRIF prefix), taking into account the specified
+# components/options (argument 4, subset of "OCE ICE TOP ABL ICB"); otherwise
+# it configures test runs to output restart files halfway through the run.
+set_namelist_rst () {
+    ITRST=$(( ${2} / 2 ))
+    set_namelist ${1}_cfg nn_stock ${ITRST}
+    if [[ ${TEST_NAME} == "SHORT" ]]; then
+        NEMO_COMPONENTS="${4} "
+        ITRST8=$( printf "%08d" ${ITRST} )
+        aprefix=${1%${1#[0-9]_}}
+        set_namelist ${1}_cfg nn_it000 $(( ${ITRST} + 1 ))
+        if [[ ${NEMO_COMPONENTS} =~ "OCE " ]]; then
+            set_namelist ${1}_cfg ln_rstart .true.
+            set_namelist ${1}_cfg nn_rstctl 2
+            set_namelist ${1}_cfg cn_ocerst_in \"${3}_${ITRST8}_restart\"
+            if [[ ${NPROC} -eq 1 ]]; then
+                ln -sf ../LONG/${aprefix}${3}_${ITRST8}_restart.nc .
+            else
+                for (( i=1; i<=${NPROC}; i++ )); do
+                    L_NPROC=$(printf "%04d\n" $(( $i - 1 )) )
+                    ln -sf ../LONG/${aprefix}${3}_${ITRST8}_restart_${L_NPROC}.nc .
+                done
+            fi
+        fi
+        if [[ "${NEMO_COMPONENTS} " =~ "ICE " ]]; then
+            set_namelist ${1}_ice_cfg cn_icerst_in \"${3}_${ITRST8}_restart_ice\"
+            if [[ ${NPROC} -eq 1 ]]; then
+                ln -sf ../LONG/${aprefix}${3}_${ITRST8}_restart_ice.nc .
+            else
+                for (( i=1; i<=${NPROC}; i++ )); do
+                    L_NPROC=$(printf "%04d\n" $(( $i - 1 )) )
+                    ln -sf ../LONG/${aprefix}${3}_${ITRST8}_restart_ice_${L_NPROC}.nc .
+                done
+            fi
+        fi
+        if [[ "${NEMO_COMPONENTS} " =~ "TOP " ]]; then
+            set_namelist ${1}_top_cfg ln_rsttr .true.
+            set_namelist ${1}_top_cfg nn_rsttr 2
+            set_namelist ${1}_top_cfg cn_trcrst_in \"${3}_${ITRST8}_restart_trc\"
+            for (( i=1; i<=${NPROC}; i++ )); do
+                L_NPROC=$(printf "%04d\n" $(( $i - 1 )) )
+                ln -sf ../LONG/${aprefix}${3}_${ITRST8}_restart_trc_${L_NPROC}.nc .
+            done
+        fi
+        if [[ "${NEMO_COMPONENTS} " =~ "ABL " ]]; then
+            set_namelist ${1}_cfg ln_rstart_abl .true.
+            set_namelist ${1}_cfg cn_ablrst_in \"${3}_${ITRST8}_restart_abl\"
+            for (( i=1; i<=${NPROC}; i++ )); do
+                L_NPROC=$(printf "%04d\n" $(( $i - 1 )) )
+                if [[ ${USING_ABL} == "yes" ]]; then
+                    ln -sf ../LONG/${aprefix}${3}_${ITRST8}_restart_abl_${L_NPROC}.nc .
+                fi
+            done
+        fi
+        if [[ "${NEMO_COMPONENTS} " =~ "ICB " ]]; then
+            set_namelist ${1}_cfg cn_icbrst_in \"${3}_${ITRST8}_restart_icb\"
+            if [[ ${USING_ICEBERGS} == "yes" ]]; then
+                for (( i=1; i<=${NPROC}; i++ )); do
+                    L_NPROC=$(printf "%04d\n" $(( $i - 1 )) )
+                    ln -sf ../LONG/${aprefix}${3}_${ITRST8}_restart_icb_${L_NPROC}.nc .
+                done
+            fi
+        fi
+    fi
+}
+
 # set_namelist: function to set namelists parameters
 set_namelist () {
 	minargcount=3
