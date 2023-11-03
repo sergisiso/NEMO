@@ -31,15 +31,16 @@ MODULE icblbc
    USE lib_mpp                             ! MPI code and lk_mpp in particular
    USE icb_oce                             ! define iceberg arrays
    USE icbutl                              ! iceberg utility routines
+#if ! defined key_mpi_off
+!$AGRIF_DO_NOT_TREAT
+   USE MPI
+!$AGRIF_END_DO_NOT_TREAT
+#endif
 
    IMPLICIT NONE
    PRIVATE
 
 #if ! defined key_mpi_off
-
-!$AGRIF_DO_NOT_TREAT
-   INCLUDE 'mpif.h'
-!$AGRIF_END_DO_NOT_TREAT
 
    TYPE, PUBLIC :: buffer
       INTEGER :: size = 0

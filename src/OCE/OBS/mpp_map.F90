@@ -14,6 +14,7 @@ MODULE mpp_map
    USE dom_oce , ONLY :   mig, mjg, narea                            ! Ocean space and time domain variables
 #if ! defined key_mpi_off
    USE lib_mpp , ONLY :   mpi_comm_oce   ! MPP library
+   USE MPI
 #endif
    USE in_out_manager   ! I/O manager
 
@@ -46,8 +47,6 @@ CONTAINS
       INTEGER, DIMENSION(:,:), ALLOCATABLE ::   imppmap   !
 #if ! defined key_mpi_off
       INTEGER :: ierr
-
-INCLUDE 'mpif.h'
 #endif
       !!----------------------------------------------------------------------
 

@@ -27,6 +27,8 @@ MODULE trcbbl
    USE trabbl         ! bottom boundary layer 
    USE prtctl         ! Print control for debbuging
 
+   IMPLICIT NONE
+
    PUBLIC   trc_bbl   !  routine called by trctrp.F90
 
    !! Substitutions
@@ -51,7 +53,7 @@ CONTAINS
       INTEGER,                                    INTENT( in  ) :: kt              ! ocean time-step 
       INTEGER,                                    INTENT( in  ) :: Kbb, Kmm, Krhs  ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) :: ptr             ! passive tracers and RHS of tracer equation
-      INTEGER :: jn                   ! loop index
+      INTEGER ::   ji, jj, jk, jn   ! loop indices
       CHARACTER (len=22) :: charout
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ztrtrd
       !!----------------------------------------------------------------------

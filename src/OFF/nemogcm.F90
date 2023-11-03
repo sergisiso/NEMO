@@ -65,6 +65,10 @@ MODULE nemogcm
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
    USE stpmlf , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
    USE halo_mng
+#if ! defined key_mpi_off
+   ! need MPI_Wtime
+   USE MPI
+#endif
 
    IMPLICIT NONE
    PRIVATE
