@@ -84,6 +84,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), TARGET, INTENT(inout) ::   puu, pvv              ! ocean velocities and RHS of momentum equation
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw         ! advective velocity
       !
+      LOGICAL  ::   lltrp        ! local logical
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp) ::   zzu, zui, zFuj, zl_u, zzFu_kp1, zlu_uw_kp1, zFwi     ! local scalars
       REAL(wp) ::   zzv, zvj, zFvi, zl_v, zzFv_kp1, zlv_vw_kp1, zFwj     !   -      -
@@ -103,6 +104,10 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
          ENDIF
       ENDIF
+      !                             ! RK3: check the presence of 3D advective transport 
+      lltrp = PRESENT( pFu ) .AND. PRESENT( pFv ) .AND. PRESENT( pFw )
+      IF( ( .NOT. lltrp ) .AND. ( PRESENT( pFu ) .OR. PRESENT( pFv ) .OR. PRESENT( pFw ) ) )   &
+         &     CALL ctl_stop('STOP','dynadv_up3: provide either 3D or none advective transport (pFu, pFv, pFw)' )
       !
       IF( l_trddyn ) THEN           ! trends: send trend to trddyn for diagnostic  
          ALLOCATE( zu_trd(A2D(2),jpkm1), zv_trd(A2D(2),jpkm1) )
@@ -277,6 +282,8 @@ CONTAINS
          CALL trd_dyn( zu_trd, zv_trd, jpdyn_zad, kt, Kmm )
          DEALLOCATE( zu_trd, zv_trd )
       ENDIF
+      !
+      IF( .NOT. PRESENT( pFu ) )   DEALLOCATE( zwu, zwv ) 
       !
 #undef zFwu
 #undef zFwv

@@ -60,14 +60,15 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                                     , INTENT(in   ) ::   kt , Kmm, Krhs   ! ocean time-step and level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), TARGET, INTENT(inout) ::   puu, pvv         ! ocean velocities and RHS of momentum equation
-      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw    ! advective velocity
+      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw    ! advective transport
       !
-      INTEGER  ::   ji, jj, jk   ! dummy loop indices
-      REAL(wp) ::   zzu, zzFwu_kp1     ! local scalars
-      REAL(wp) ::   zzv, zzFwv_kp1     !   -      -
+      LOGICAL  ::   lltrp            ! local logical 
+      INTEGER  ::   ji, jj, jk       ! dummy loop indices
+      REAL(wp) ::   zzu, zzFwu_kp1   ! local scalars
+      REAL(wp) ::   zzv, zzFwv_kp1   !   -      -
       REAL(wp), DIMENSION(T2D(1)) ::   zFu_t, zFu_f
       REAL(wp), DIMENSION(T2D(1)) ::   zFv_t, zFv_f
-      REAL(wp), DIMENSION(:,:)  , POINTER             ::   zFu, zFv
+      REAL(wp), DIMENSION(:,:)  , POINTER             ::   zFu, zFv, zFw
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, TARGET ::   zwu, zwv
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE         ::   zu_trd, zv_trd
       !!----------------------------------------------------------------------
@@ -79,6 +80,10 @@ CONTAINS
             WRITE(numout,*) '~~~~~~~~~~~~'
          ENDIF
       ENDIF
+      !                             ! RK3: check the presence of 3D advective transport 
+      lltrp = PRESENT( pFu ) .AND. PRESENT( pFv ) .AND. PRESENT( pFw )
+      IF( ( .NOT. lltrp ) .AND. ( PRESENT( pFu ) .OR. PRESENT( pFv ) .OR. PRESENT( pFw ) ) )   & 
+         &     CALL ctl_stop('STOP','dynadv_cen2: provide either 3D or none advective transport (pFu, pFv, pFw)' )
       !
       IF( l_trddyn ) THEN           ! trends: store the input trends
          ALLOCATE( zu_trd(A2D(0),jpkm1), zv_trd(A2D(0),jpkm1) )
@@ -92,10 +97,8 @@ CONTAINS
       !
       DO jk = 1, jpkm1                    ! horizontal transport
          IF( PRESENT( pFu ) ) THEN
-            DO_2D( 1, 1, 1, 1 )
-               zFu => pFu(:,:,jk)
-               zFv => pFv(:,:,jk)
-            END_2D
+            zFu => pFu(:,:,jk)
+            zFv => pFv(:,:,jk)
          ELSE
             zFu => zwu(:,:)
             zFv => zwv(:,:)
@@ -131,15 +134,14 @@ CONTAINS
       ENDIF
       !
 #define zFwu   zFu_t
-#define zFwv   zFv
-#define zFw    zFu
+#define zFwv   zFv_t
 #define zww    zwu
       !                          !==  Vertical advection  ==!
       !
       !                              ! surface vertical fluxes
       !
       IF( ln_linssh ) THEN                ! linear free surface: advection through the surface z=0
-         IF( PRESENT( pFu ) ) THEN
+         IF( PRESENT( pFw ) ) THEN
             zFw => pFw(:,:,1)
          ELSE
             zFw => zww(:,:)
@@ -153,6 +155,10 @@ CONTAINS
             zFwv(ji,jj) = 0.5_wp * ( zFw(ji,jj) + zFw(ji  ,jj+1) ) * pvv(ji,jj,1,Kmm)
          END_2D
       ELSE                                ! non linear free: surface advective fluxes set to zero
+         IF(.NOT. PRESENT( pFw ) ) THEN
+            zFw => zww(:,:)
+         ENDIF
+         !
          DO_2D( 0, 0, 0, 0 )
             zFwu(ji,jj) = 0._wp
             zFwv(ji,jj) = 0._wp
@@ -160,11 +166,8 @@ CONTAINS
       ENDIF
       !
       DO jk = 1, jpk-2               !  divergence of advective fluxes
-         !
-         IF( PRESENT( pFu ) ) THEN        ! vertical transport at level k+1
-            DO_2D( 0, 1, 0, 1 )
-               zFw => pFw(:,:,jk+1)
-            END_2D
+         IF( PRESENT( pFw ) ) THEN        ! vertical transport at level k+1
+            zFw => pFw(:,:,jk+1)
          ELSE
             DO_2D( 0, 1, 0, 1 )
                zFw(ji,jj) = e1e2t(ji,jj) * ww(ji,jj,jk+1)
@@ -203,8 +206,10 @@ CONTAINS
       !
 #undef zFwu
 #undef zFwv
-#undef zFw
 #undef zww
+      !
+      IF( .NOT. PRESENT( pFu ) )   DEALLOCATE( zwu, zwv )
+      !
       !                                   ! Control print
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=puu(:,:,:,Krhs), clinfo1=' cen2 adv - Ua: ', mask1=umask,   &
          &                                  tab3d_2=pvv(:,:,:,Krhs), clinfo2=           ' Va: ', mask2=vmask, clinfo3='dyn' )
