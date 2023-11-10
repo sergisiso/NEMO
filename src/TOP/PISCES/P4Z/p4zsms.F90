@@ -65,6 +65,7 @@ CONTAINS
       INTEGER, INTENT( in ) ::   Kbb, Kmm, Krhs  ! time level index
       !!
       INTEGER ::   ji, jj, jk, jnt, jn, jl
+      INTEGER ::   imm      ! local time-level index
       REAL(wp) ::  ztra
       CHARACTER (len=25) :: charout
       REAL(wp), ALLOCATABLE, DIMENSION(:,:    ) :: zw2d
@@ -89,7 +90,13 @@ CONTAINS
         !
       ENDIF
       !
-      IF( ln_pisdmp .AND. MOD( kt - 1, nn_pisdmp ) == 0 )   CALL p4z_dmp( kt, Kbb, Kmm )      ! Relaxation of some tracers
+#if defined key_RK3
+      imm = Kbb
+#else
+      imm = Kmm
+#endif
+      !
+      IF( ln_pisdmp .AND. MOD( kt - 1, nn_pisdmp ) == 0 )   CALL p4z_dmp( kt, Kbb, imm )      ! Relaxation of some tracers
       !
       rfact = rDt_trc  ! time step of PISCES
       !
@@ -247,14 +254,14 @@ CONTAINS
       !
       IF( l_trdtrc ) THEN
          DO jn = jp_pcs0, jp_pcs1
-           CALL trd_trc( tr(:,:,:,jn,Krhs), jn, jptra_sms, kt, Kmm )   ! save trends
+           CALL trd_trc( tr(:,:,:,jn,Krhs), jn, jptra_sms, kt, imm )   ! save trends
          END DO
       END IF
       !  
       IF( lrst_trc )  CALL p4z_rst( kt, Kbb, Kmm,  'WRITE' )           !* Write PISCES informations in restart file 
       !
 
-      IF( lk_iomput .OR. ln_check_mass )  CALL p4z_chk_mass( kt, Kmm ) ! Mass conservation checking
+      IF( lk_iomput .OR. ln_check_mass )  CALL p4z_chk_mass( kt, imm ) ! Mass conservation checking
 
       IF( lwm .AND. kt == nittrc000    )  CALL FLUSH( numonp )         ! flush output namelist PISCES
       !
