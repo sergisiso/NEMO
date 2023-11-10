@@ -37,8 +37,8 @@ MODULE timing
       INTEGER(8) :: n8start, n8tnet, n8tfull, n8childsum
       INTEGER :: niter
       LOGICAL :: ldone, lstatplot
-      REAL(dp) ::  tnet , tnetavg,  tnetmin,  tnetmax
-      REAL(dp) :: tfull, tfullavg, tfullmin, tfullmax
+      REAL(dp) ::  tnet , tnetavg,  tnetmin,  tnetmax,  tnetblc   ! net  time average, min, max and load balance (max-min)
+      REAL(dp) :: tfull, tfullavg, tfullmin, tfullmax, tfullblc   ! full time average, min, max and load balance (max-min)
       TYPE(timer), POINTER :: s_next, s_prev, s_parent
    END TYPE timer
 
@@ -52,12 +52,13 @@ MODULE timing
    REAL(dp)   :: secondclock
 
    INTEGER :: jp_cname = 1
-   INTEGER :: jp_tnet  = 2
-   INTEGER :: jp_tavg  = 3
-   INTEGER :: jp_tmin  = 4
-   INTEGER :: jp_tmax  = 5
+   INTEGER :: jp_tnet  = 2   ! local net time (of the current MPI process)
+   INTEGER :: jp_tavg  = 3   ! mean net time (among MPI processes)
+   INTEGER :: jp_tmin  = 4   ! min net time (among MPI processes)
+   INTEGER :: jp_tmax  = 5   ! max net time (among MPI processes)
+   INTEGER :: jp_tblc  = 6   ! load balance between MPI processes (max-min)
 
-   INTEGER :: jpmaxline = 20   !: max number of line to be printed
+   INTEGER :: jpmaxline = 50   !: max number of line to be printed
 
    INTEGER, DIMENSION(8)           :: nvalues
    CHARACTER(LEN= 8), DIMENSION(2) :: cdate
@@ -121,8 +122,7 @@ CONTAINS
          WRITE(numtime,*)
 #if ! defined key_agrif
          WRITE(numtime,*) '                        Timing Informations '
-         WRITE(numtime,*)
-         WRITE(numtime,*)
+         CALL write_separator()
 #else
          WRITE(numtime,*) '              The timing is not yet working with AGRIF'
          WRITE(numtime,*) '           because the conv is not abble to conv timing.F90'
@@ -249,7 +249,7 @@ CONTAINS
       TYPE(timer), POINTER, INTENT(inout) :: sd_root      ! root chain link of the chain
       !
       TYPE(timer), POINTER :: s_wrk
-      REAL(dp) :: zmytime, zval, zavgtime, zavgextra, zmin, zmax
+      REAL(dp) :: zmytime, zval, zavgtime, zavgextra, zmin, zmax, zblc, zsum
       REAL(dp), DIMENSION(:), ALLOCATABLE :: zalltime
       INTEGER :: idum, isize, icode
       INTEGER :: jpnbtest = 100
@@ -284,9 +284,7 @@ CONTAINS
       CALL DATE_AND_TIME( cdate(2), ctime(2), czone, nvalues )      
       !
       IF( llwrt ) THEN
-         WRITE(numtime,*)
-         WRITE(numtime,*) '   ================= timing report ================='
-         WRITE(numtime,*)
+         CALL write_header('Timing report:')
          clfmt='(1X,"Timing started on ",2(A2,"/"),A4," at ",2(A2,":"),A2," MET ",A3,":",A2," from GMT")'
          WRITE(numtime, clfmt) &
             &       cdate(1)(7:8), cdate(1)(5:6), cdate(1)(1:4),   &
@@ -297,7 +295,6 @@ CONTAINS
             &       cdate(2)(7:8), cdate(2)(5:6), cdate(2)(1:4),   &
             &       ctime(2)(1:2), ctime(2)(3:4), ctime(2)(5:6),   &
             &       czone(1:3),    czone(4:5)
-         CALL write_separator()
       ENDIF
 
       ! call gnuplot statplot
@@ -323,11 +320,11 @@ CONTAINS
          &                iallmpi, 1, MPI_INTEGER, nmpicom, icode)
       IF( SUM( iallmpi ) /= idum*isize ) THEN
          IF( llwrt ) THEN
+            CALL write_separator()
             WRITE(numtime,*) '        ===> W A R N I N G: '
             WRITE(numtime,*) ' Some CPU have different number of routines instrumented for timing'
             WRITE(numtime,*) ' No detailed report on averaged timing can be provided'
             WRITE(numtime,*) ' The following detailed report only deals with the current processor'
-            CALL write_separator()
          ENDIF
          ll_avg = .FALSE.
       ELSE
@@ -339,10 +336,9 @@ CONTAINS
 #endif      
 
       ! get largest elapsed time
-      CALL mpp_avgminmax( zmytime, zavgtime, zmin, zmax, ll_avg )
+      CALL mpp_avgminmax( zmytime, zavgtime, zmin, zmax, zblc, ll_avg )
       IF( llwrt ) THEN
-         WRITE(numtime,'(a)') ' Elapsed Time mesured by timing (s):'
-         WRITE(numtime,'(a)') ' ----------------------------------'
+         CALL write_header('Elapsed Time mesured by timing (s):')
          WRITE(clfmt, "('(a,f',i2.2,'.6,''s'')')") INT(LOG10(MAX(1._dp,zmax))) + 8
          IF(ll_avg) THEN
             WRITE(numtime,clfmt) '       avg over all MPI processes = ', zavgtime
@@ -352,7 +348,6 @@ CONTAINS
          ELSE
             WRITE(numtime,clfmt) '                    local process = ', zmytime
          ENDIF
-         CALL write_separator()
       ENDIF
 
       ! add an aveluation of the timing itself...
@@ -361,10 +356,9 @@ CONTAINS
          CALL SYSTEM_CLOCK( COUNT = i8end )
       ENDDO
       zval = REAL( (i8end-i8start) * ncall_clock, dp) * secondclock / REAL(jpnbtest, dp)      
-      CALL mpp_avgminmax( zval, zavgextra, zmin, zmax, ll_avg )
+      CALL mpp_avgminmax( zval, zavgextra, zmin, zmax, zblc, ll_avg )
       IF( llwrt ) THEN
-         WRITE(numtime,'(a)') ' Evaluation of the extra coast due to the timing itself (% of avg elapsed):'
-         WRITE(numtime,'(a)') ' -------------------------------------------------------------------------'
+         CALL write_header('Evaluation of the extra coast due to the timing itself (% of avg elapsed):')
          WRITE(numtime,*) '   Number calls to SYSTEM_CLOCK = ', ncall_clock
          WRITE(numtime,'(a,i3,a)') '    Avg Estimation over ', jpnbtest,' tests'
          WRITE(clfmt, "('(a,f',i2.2,'.6,''s ('', f6.3,''%)'')')") INT(LOG10(MAX(1._dp,zmax))) + 8
@@ -376,7 +370,6 @@ CONTAINS
          ELSE
             WRITE(numtime,clfmt) '                    local process = ', zval, zval / zavgtime * 100._dp
          ENDIF
-         CALL write_separator()
       ENDIF
 
       ! reorder the chain list accprding to cname to make sure that each MPI process has the chain links in the same order
@@ -386,18 +379,25 @@ CONTAINS
       DO WHILE ( ASSOCIATED(s_wrk) )
          s_wrk%tnet  = REAL(s_wrk%n8tnet , dp) * secondclock
          s_wrk%tfull = REAL(s_wrk%n8tfull, dp) * secondclock
-         CALL mpp_avgminmax( s_wrk%tnet , s_wrk%tnetavg , s_wrk%tnetmin , s_wrk%tnetmax , ll_avg, s_wrk%cname )
-         CALL mpp_avgminmax( s_wrk%tfull, s_wrk%tfullavg, s_wrk%tfullmin, s_wrk%tfullmax, ll_avg )
+         CALL mpp_avgminmax( s_wrk%tnet , s_wrk%tnetavg , s_wrk%tnetmin , s_wrk%tnetmax , s_wrk%tnetblc , ll_avg, s_wrk%cname )
+         CALL mpp_avgminmax( s_wrk%tfull, s_wrk%tfullavg, s_wrk%tfullmin, s_wrk%tfullmax, s_wrk%tfullblc, ll_avg )
          s_wrk => s_wrk%s_next
       END DO
 
       IF( ll_avg .AND. llwrt ) THEN
-         CALL timer_write( ' Timing : AVG values over all processors :', sd_root, jp_tavg, zavgtime, zavgextra )
-         CALL timer_write( ' Timing : MIN values over all processors :', sd_root, jp_tmin, zavgtime, zavgextra )
-         CALL timer_write( ' Timing : MAX values over all processors :', sd_root, jp_tmax, zavgtime, zavgextra )
+         CALL timer_write( 'Timing : AVG values over all MPI processes:', sd_root, jp_tavg, zavgtime, zavgextra )
+         zsum = 0._dp
+         s_wrk => sd_root
+         DO WHILE ( ASSOCIATED(s_wrk) )
+            zsum = zsum + s_wrk%tnetblc
+            s_wrk => s_wrk%s_next
+         END DO
+         CALL timer_write( 'Timing : Load unbalance over all MPI processes (max-min) :', sd_root, jp_tblc, zsum, 0. )
+         CALL timer_write( 'Timing : MIN values over all MPI processes:', sd_root, jp_tmin, zavgtime, zavgextra )
+         CALL timer_write( 'Timing : MAX values over all MPI processes:', sd_root, jp_tmax, zavgtime, zavgextra )
       ENDIF
       IF( llwrt ) THEN
-         CALL timer_write( ' Timing : values for local MPI process   :', sd_root, jp_tnet, zmytime, zavgextra )
+         CALL timer_write( 'Timing : values for local MPI process:', sd_root, jp_tnet, zmytime, zavgextra )
       ENDIF
 
       IF( llwrt ) CLOSE(numtime)
@@ -436,6 +436,7 @@ CONTAINS
       ELSEIF( kswitch == jp_tavg ) THEN   ;   ztnet = sd_root%tnetavg
       ELSEIF( kswitch == jp_tmin ) THEN   ;   ztnet = sd_root%tnetmin
       ELSEIF( kswitch == jp_tmax ) THEN   ;   ztnet = sd_root%tnetmax
+      ELSEIF( kswitch == jp_tblc ) THEN   ;   ztnet = sd_root%tnetblc
       ENDIF
       idgnet  = INT(LOG10(MAX(1._dp,ztnet   ))) + 1 + 7   ! how many digits to we need to write? add 7 difgits for '.6'
       idgfull = INT(LOG10(MAX(1._dp,ptimetot))) + 1 + 7   ! how many digits to we need to write? add 7 difgits for '.6'
@@ -452,9 +453,7 @@ CONTAINS
       itot3 = MAX(LEN_TRIM(cltitle3),                9) 
       
       ! write current info
-      WRITE(numtime,*) cdinfo
-      WRITE(numtime,*) ' ----------------------------------------'
-      WRITE(numtime,*)
+      CALL write_header(cdinfo)
       WRITE(clfmt, '(a,i2.2,a,i2.2,a,i2.2,a,i2.2,a)')  &
          &         '(1x,a', itot0, ",' | ',a", itot1, ",' | ',a", itot2, ",' | ',a", itot3, ')'
        WRITE(numtime,clfmt) cltitle0, cltitle1, cltitle2, cltitle3
@@ -475,6 +474,7 @@ CONTAINS
          ELSEIF( kswitch == jp_tavg ) THEN   ;   ztnet = s_wrk%tnetavg   ;   ztfull = s_wrk%tfullavg
          ELSEIF( kswitch == jp_tmin ) THEN   ;   ztnet = s_wrk%tnetmin   ;   ztfull = s_wrk%tfullmin
          ELSEIF( kswitch == jp_tmax ) THEN   ;   ztnet = s_wrk%tnetmax   ;   ztfull = s_wrk%tfullmax
+         ELSEIF( kswitch == jp_tblc ) THEN   ;   ztnet = s_wrk%tnetblc   ;   ztfull = s_wrk%tfullblc
          ENDIF
          IF( ztnet < ptextra .AND. .NOT. llwarning ) THEN
             WRITE(clflt1, "('(a,f',i2.2,'.6,''s'')')")   INT(LOG10(MAX(1._dp,ptextra)))+8   ! "(a,fx.6,'s')"
@@ -487,7 +487,6 @@ CONTAINS
       END DO
 
       IF(  ASSOCIATED(s_wrk) )   WRITE(numtime,*) '...'   ! show that there is still more lines that could have been printed
-      CALL write_separator()
      !
    END SUBROUTINE timer_write
 
@@ -626,6 +625,7 @@ CONTAINS
             ELSEIF( kswitch == jp_tavg  ) THEN   ;   ll_test = s_wrk%tnetavg  < s_wrk%s_next%tnetavg
             ELSEIF( kswitch == jp_tmin  ) THEN   ;   ll_test = s_wrk%tnetmin  < s_wrk%s_next%tnetmin
             ELSEIF( kswitch == jp_tmax  ) THEN   ;   ll_test = s_wrk%tnetmax  < s_wrk%s_next%tnetmax
+            ELSEIF( kswitch == jp_tblc  ) THEN   ;   ll_test = s_wrk%tnetblc  < s_wrk%s_next%tnetblc
             ENDIF
             IF ( ll_test ) THEN
                CALL switch_links(sd_root, s_wrk)
@@ -639,13 +639,13 @@ CONTAINS
    END SUBROUTINE sort_chain
 
 
-   SUBROUTINE mpp_avgminmax( pval, pavg, pmin, pmax, ld_mpi, cdname )
+   SUBROUTINE mpp_avgminmax( pval, pavg, pmin, pmax, pblc, ld_mpi, cdname )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE mpp_avgminmax  ***
       !! ** Purpose :   get average, min, max over all MPI processes
       !!----------------------------------------------------------------------
-      REAL(dp)                  , INTENT(in   ) ::   pval
-      REAL(dp)                  , INTENT(  out) ::   pavg, pmin, pmax
+      REAL(dp)                  , INTENT(in   ) ::   pval                    ! local value (of the current MPI process)
+      REAL(dp)                  , INTENT(  out) ::   pavg, pmin, pmax, pblc  ! mean, min, max and load balance (among MPI processes)
       LOGICAL                   , INTENT(in   ) ::   ld_mpi
       CHARACTER(len=*), OPTIONAL, INTENT(in   ) ::   cdname
       !
@@ -670,13 +670,35 @@ CONTAINS
          pmin = pval
          pmax = pval
       ENDIF
+      pblc = pmax - pmin
          
    END SUBROUTINE mpp_avgminmax
   
 
+   SUBROUTINE write_header(cdname)
+      !!----------------------------------------------------------------------
+      CHARACTER(len=*), INTENT(in) :: cdname
+      !
+      INTEGER :: ji
+      CHARACTER(LEN=128) :: cldash
+      !!----------------------------------------------------------------------
+      
+      CALL write_separator()
+      WRITE(numtime,'(a)') ' '//TRIM(cdname)
+      cldash(1:128) = " "
+      DO ji = 1, LEN_TRIM(cdname)
+         cldash(ji+1:ji+1) = "-"
+      ENDDO
+      WRITE(numtime,'(a)') TRIM(cldash)
+      WRITE(numtime,*)
+
+   END SUBROUTINE write_header
+  
+
    SUBROUTINE write_separator()
       WRITE(numtime,*)
-      WRITE(numtime,*) '   -------------------------------------------------'
+      WRITE(numtime,*) '   ================================================='
+      WRITE(numtime,*)
       WRITE(numtime,*)
    END SUBROUTINE write_separator
 
@@ -744,10 +766,7 @@ CONTAINS
       ENDIF
       !
       IF( .NOT. PRESENT(pmpitime) ) THEN
-         WRITE(numtime,*)
-         WRITE(numtime,*) '   ========== stats report on timing '//TRIM(cdname)//' =========='
-         WRITE(numtime,*)
-
+         CALL write_header('Stats report on timing '//TRIM(cdname)//':')
          ! get numtime file name (i.e. timing.output)
          INQUIRE(unit = numtime, NAME = clfile)
          ! write gnoplot stats in clfile (i.e. timing.output)
@@ -830,7 +849,6 @@ CONTAINS
          WRITE(numtime,*) '        Usage:'
          WRITE(numtime,*) '           ./'//clname//'.sh         # to create the plots on screen'
          WRITE(numtime,*) '           ./'//clname//'.sh --png   # to create the plots in '//clname//'.png'
-         WRITE(numtime,*)
       ENDIF
 
       DEALLOCATE(clname)
