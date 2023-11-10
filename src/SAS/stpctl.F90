@@ -26,6 +26,7 @@ MODULE stpctl
    USE in_out_manager  ! I/O manager
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
    USE lib_mpp         ! distributed memory computing
+   USE timing          ! timing
    !
    USE netcdf          ! NetCDF library
    IMPLICIT NONE
@@ -78,6 +79,8 @@ CONTAINS
       CHARACTER(len=20)               ::   clname
       !!----------------------------------------------------------------------
       IF( nstop > 0 .AND. ngrdstop > -1 )   RETURN   !   stpctl was already called by a child grid
+      !
+      IF( ln_timing )   CALL timing_start( 'stp_ctl' )
       !
       ll_wrtstp  = ( MOD( kt-nit000, sn_cfctl%ptimincr ) == 0 ) .OR. ( kt == nitend )
       ll_colruns = sn_cfctl%l_runstat .AND. ll_wrtstp .AND. jpnij > 1
@@ -227,6 +230,8 @@ CONTAINS
       ENDIF
       !
 9500  FORMAT(' it :', i8, '    vt_i_max: ', D23.16, ' |u|_max: ', D23.16,' tm_i_min: ', D23.16)
+      !
+      IF( ln_timing )   CALL timing_stop( 'stp_ctl' )
       !
    END SUBROUTINE stp_ctl
 
