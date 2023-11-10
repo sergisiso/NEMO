@@ -325,11 +325,12 @@ CONTAINS
          !                                         !==  advection of passive tracers  ==!
          rDt_trc = rDt
          !
+         CALL trc_sms    ( kstp, Kbb, Kmm, Krhs      )       ! tracers: sinks and sources
+         !
          CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
          !
          CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zFu, zFv, zFw ) ! horizontal & vertical advection
          !
-         CALL trc_sms    ( kstp, Kbb, Kbb, Krhs      )       ! tracers: sinks and sources
          CALL trc_trp    ( kstp, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers (without advection)
          !
          !
