@@ -2,14 +2,14 @@
 .parallel_HPC_CFG:
   parallel:
     matrix:
-      - HPC: [aa,belenos]
+      - HPC: [belenos]
         CONFIG: [ORCA2_ICE_PISCES,ORCA2_OFF_PISCES,AMM12,AGRIF_DEMO,WED025,GYRE_PISCES,ORCA2_SAS_ICE,ORCA2_ICE_OBS,C1D_PAPA]
 
 # HPC & testcases lists to be tested with SETTE
 .parallel_HPC_TST:
   parallel:
     matrix:
-      - HPC: [aa,belenos]
+      - HPC: [belenos]
         CONFIG: [SWG,ICE_AGRIF,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+]
 
 
