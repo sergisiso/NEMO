@@ -328,7 +328,7 @@ CONTAINS
          ENDIF
          ll_avg = .FALSE.
       ELSE
-         ll_avg = .TRUE.
+         ll_avg = isize > 1
       ENDIF
       DEALLOCATE(iallmpi)
 #else
