@@ -748,7 +748,7 @@
       EXTERNAL :: init_e2t, init_e2u, init_e2v, init_e2f
 
       ln_perio=.FALSE.
-      if( jperio ==1 .OR. jperio==2 .OR. jperio==4) ln_perio=.TRUE.
+      IF( jperio == 1 .OR. jperio == 2 .OR. jperio == 4 .OR. jperio == 6 ) ln_perio=.TRUE.
 
       CALL Agrif_Init_variable(e1t_id, procname = init_e1t)
       CALL Agrif_Init_variable(e1u_id, procname = init_e1u)
@@ -1216,8 +1216,8 @@
             CALL ctl_stop( 'STOP', 'AGRIF zoom imin must be < imax' ) 
          ENDIF
 
-         IF ( (Agrif_Parent(jperio)==4).OR.(Agrif_Parent(jperio)==1) ) THEN 
-            IF ( (jperio==4).OR.(jperio==1) ) THEN ! Cyclic east-west zoom
+         IF ( Agrif_Parent(jperio) == 1 .OR. Agrif_Parent(jperio) == 4 .OR. Agrif_Parent(jperio) == 6 ) THEN 
+            IF ( jperio == 1 .OR. jperio == 4 .OR. jperio == 6 ) THEN ! Cyclic east-west zoom
                lk_west = .FALSE. ; lk_east = .FALSE. 
                ! Checks:
                IF ( imin/=1-Agrif_Parent(nbghostcells_x_w) ) THEN
@@ -1258,8 +1258,8 @@
             CALL ctl_stop( 'STOP', 'AGRIF zoom jmin must be < jmax' ) 
          ENDIF
 
-         IF ( Agrif_Parent(jperio)==4 ) THEN 
-            IF (jperio==4) THEN ! North-Fold 
+         IF ( Agrif_Parent(jperio) == 4 .OR. Agrif_Parent(jperio) == 6 ) THEN 
+            IF ( jperio == 4 .OR. jperio == 6 ) THEN ! North-Fold 
                lk_north = .FALSE. 
                ! Checks:
                IF ( jmax/=Agrif_Parent(Nj0glo)+1-Agrif_Parent(nbghostcells_y_s)) THEN
@@ -1300,10 +1300,10 @@
       IF (.NOT.lk_south) nbghostcells_y_s = 1 
       IF (.NOT.lk_north) nbghostcells_y_n = 1 
 
-      IF ((jperio == 1).OR.(jperio == 4)) THEN
+      IF ( jperio == 1 .OR. jperio == 4 .OR. jperio == 6 ) THEN
          nbghostcells_x_w = 0 ; nbghostcells_x_e = 0
       ENDIF
-      IF (jperio == 4) THEN
+      IF (                  jperio == 4 .OR. jperio == 6 ) THEN
          nbghostcells_y_n = 0
       ENDIF
 
