@@ -1,16 +1,4 @@
-# compiler options for BELENOS/TARANIS (using INTEL compiler + MVAPICH2 MPI)
-#
-# --------------------------------
-# INTEL_MVAP (NEMO 4.0 + XIOS-2.5)
-# --------------------------------
-# module use /home/ext/mr/smer/samsong/modules
-# module load intel/2018.5.274 mvapich2-2.3.5 hdf5-1.8.18-mvapich2 netcdf-4.7.1-mvapich2 xios/2.5/rev1903-mvapich2
-#
-# ----------------------------------
-# INTEL_MVAP (NEMO 4.2 + XIOS-TRUNK)
-# ----------------------------------
-# module use /home/ext/mr/smer/samsong/modules
-# module load gcc/9.2.0 intel/2018.5.274 mvapich2-2.3.5 hdf5-1.8.18-mvapich2 netcdf-4.7.1-mvapich2 xios/trink/rev2134-mvapich2
+# compiler options for AA (using INTEL compiler)
 #
 #
 # NCDF_INC    netcdf4 include file
@@ -46,26 +34,26 @@
 #---------------------------------------------------------------------------------------------
 #
 #
-%NCDF_INC            -I${NETCDF_INC}
-%NCDF_LIB            -L${NETCDF_LIB} -lnetcdff -lnetcdf -L${PHDF5_LIB_DIR} -lhdf5_hl -lhdf5
+%NCDF_INC            ${NETCDF4_INCLUDE}
+%NCDF_LIB            ${NETCDF4_LIB} ${HDF5_LIB}
 %XIOS_INC            -I${XIOS_INC}
 %XIOS_LIB            -L${XIOS_LIB} -lxios -lstdc++
 %OASIS_INC           -I${OASIS_DIR}/include
 %OASIS_LIB           -L${OASIS_DIR}/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 
 %CPP                 cpp
-%FC                  mpiifort -c -cpp
+%FC                  mpifort -c -cpp
 %PROD_FCFLAGS        -march=core-avx2 -i4 -r8 -O3 -fp-model strict -fno-alias -align array64byte
 %DEBUG_FCFLAGS       -march=core-avx2 -i4 -r8 -g -O0 -debug all -traceback -fp-model strict -ftrapuv -check all,noarg_temp_created -fpe-all0 -ftz -init=arrays,snan,huge
 %FFLAGS              %FCFLAGS
-%LD                  mpiifort
+%LD                  mpifort
 %LDFLAGS             
 %FPPFLAGS            -P -traditional
 %AR                  ar
 %ARFLAGS             rs
-%MK                  gmake
+%MK                  make
 %USER_INC            %XIOS_INC %OASIS_INC %NCDF_INC
 %USER_LIB            %XIOS_LIB %OASIS_LIB %NCDF_LIB
 
-%CC                  mpiicc
+%CC                  icc
 %CFLAGS              -O0

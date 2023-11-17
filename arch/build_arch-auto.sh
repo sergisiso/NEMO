@@ -137,8 +137,8 @@ find_fortran_wrapper () {
 }
 # find the fortran compiler associated with the fortran wrapper $FCnemo
 find_fortran_compiler () {
-    if   [ $( $FCnemo --version | head -n 1 | grep -ci            gcc ) -eq 1 ] ; then ftncomp="gnu"
-    elif [ $( $FCnemo --version | head -n 1 | grep -ci          ifort ) -eq 1 ] ; then ftncomp="intel"
+    if   [ $( $FCnemo --version | head -n 1 | grep -ci "\(gcc\|gnu\)" ) -eq 1 ] ; then ftncomp="gnu"
+    elif [ $( $FCnemo --version | head -n 1 | grep -ci        "ifort" ) -eq 1 ] ; then ftncomp="intel"
     elif [ $( $FCnemo --version | head -n 1 | grep -ci "Cray Fortran" ) -eq 1 ] ; then ftncomp="cray"
     else
 	echo_red "ERROR: the fortran wrapper $FCnemo does not correspond to the gnu, the intel or the cray compiler" \
@@ -312,7 +312,7 @@ else
 		CURLpath=""
 	    fi    
 	fi
-	CURLlib="$CURLpath -lcurl"
+	CURLlib="${CURLpath:-""} -lcurl"
     else
 	CURLlib=""
     fi
@@ -325,6 +325,7 @@ else
     
     # NCDF_INC and NCDF_LIB
     NCDF_INC="-I%NCDF_F_PREFIX/include -I%NCDF_C_PREFIX/include"
+    #NCDF_LIB="-L%NCDF_F_PREFIX/lib -lnetcdff -L%NCDF_C_PREFIX/lib -lnetcdf -Wl,-rpath=%NCDF_F_PREFIX/lib -L%HDF5_PREFIX/lib -lhdf5_hl -lhdf5 $CURLlib $Zlib $libM -Wl,-rpath=%HDF5_PREFIX/lib"
     NCDF_LIB="-L%NCDF_F_PREFIX/lib -lnetcdff -L%NCDF_C_PREFIX/lib -lnetcdf -L%HDF5_PREFIX/lib -lhdf5_hl -lhdf5 $CURLlib $Zlib $libM"
 
 fi
@@ -477,7 +478,8 @@ then
 	XIOS_LIB=""
     else
 	XIOS_INC="-I%XIOS_PREFIX/inc"
-	XIOS_LIB="-L%XIOS_PREFIX/lib -lxios -lstdc++ "    
+	#XIOS_LIB="-L%XIOS_PREFIX/lib -lxios -lstdc++ -Wl,-rpath=%XIOS_PREFIX/lib"
+	XIOS_LIB="-L%XIOS_PREFIX/lib -lxios -lstdc++"
     fi
 
     # OASIS
@@ -592,13 +594,13 @@ cat > $archname << EOF
 %OASIS_INC           $OASIS_INC
 %OASIS_LIB           $OASIS_LIB
 
-%CPP	             $CPPnemo
+%CPP	               $CPPnemo
 %FC                  $FCnemo 
 %PROD_FCFLAGS        $PROD_FCFLAGS
 %DEBUG_FCFLAGS       $DEBUG_FCFLAGS
 %FFLAGS              %FCFLAGS
 %LD                  %FC
-%LDFLAGS             
+%LDFLAGS             -Wl,-rpath=%HDF5_PREFIX/lib -Wl,-rpath=%NCDF_F_PREFIX/lib -Wl,-rpath=%XIOS_PREFIX/lib
 %FPPFLAGS            -P -traditional
 %AR                  $ARnemo
 %ARFLAGS             rs

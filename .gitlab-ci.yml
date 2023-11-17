@@ -5,9 +5,17 @@
 
 workflow:
   rules:
+    - if: $CI_PIPELINE_SOURCE == 'web'
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_COMMIT_TITLE =~ /(?i).*\[ci\].*/
     - if: $CI_PIPELINE_SOURCE == 'schedule'
-    - if: $CI_PIPELINE_SOURCE == 'web'
+
+variables:
+  NEMO_DEBUG:
+    description: "Nemo compilation debug mode"
+    value: "yes"
+    options:
+      - "yes"
+      - "no"
 
 include:
   # default values (will be overwritten after)
@@ -55,7 +63,10 @@ before_script:
   - SETTE_CFG=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_CFG
   - cp -av ${!SETTE_CFG} sette/param.cfg
   - git config core.filemode false   # ignore git(lab) symlinks permissions changes when pushing then pulling cache ("old mode 100755 -> new mode 100644")
-  - SETTE_OPT="-b -u -w"
+  - SETTE_OPT="-u -w"
+  - if [[ ${NEMO_DEBUG} == "yes" ]]; then SETTE_OPT="${SETTE_OPT} -b"; fi
+  - 'echo "CI_COMMIT_REF_NAME: ${CI_COMMIT_REF_NAME}"'
+  - 'echo "CI_COMMIT_BRANCH: ${CI_COMMIT_BRANCH}"'
 
 
 # JOBS
