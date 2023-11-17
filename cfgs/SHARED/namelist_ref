@@ -1529,6 +1529,7 @@
     ln_trainc  = .false.   !  Logical switch for applying tracer increments
     ln_dyninc  = .false.   !  Logical switch for applying velocity increments
     ln_sshinc  = .false.   !  Logical switch for applying SSH increments
+    ln_seaiceinc = .false. !  Logical switch for applying Sea ice concentration increments
     ln_asmdin  = .false.   !  Logical switch for Direct Initialization (DI)
     ln_asmiau  = .false.   !  Logical switch for Incremental Analysis Updating (IAU)
     nitbkg     = 0         !  Timestep of background in [0,nitend-nit000-1]
@@ -1538,6 +1539,7 @@
     niaufn     = 0         !  Type of IAU weighting function
     ln_salfix  = .false.   !  Logical switch for ensuring that the sa > salfixmin
     salfixmin  = -9999     !  Minimum salinity after applying the increments
+    ln_temnofreeze=.false. !  Don't allow the temperature to drop below freezing
     nn_divdmp  = 0         !  Number of iterations of divergence damping operator
 /
 

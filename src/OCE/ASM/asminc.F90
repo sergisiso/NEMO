@@ -55,16 +55,17 @@ MODULE asminc
 #else
     LOGICAL, PUBLIC, PARAMETER :: lk_asminc = .FALSE.  !: No assimilation increments
 #endif
-   LOGICAL, PUBLIC :: ln_bkgwri     !: No output of the background state fields
-   LOGICAL, PUBLIC :: ln_asmiau     !: No applying forcing with an assimilation increment
-   LOGICAL, PUBLIC :: ln_asmdin     !: No direct initialization
-   LOGICAL, PUBLIC :: ln_trainc     !: No tracer (T and S) assimilation increments
-   LOGICAL, PUBLIC :: ln_dyninc     !: No dynamics (u and v) assimilation increments
-   LOGICAL, PUBLIC :: ln_sshinc     !: No sea surface height assimilation increment
-   LOGICAL, PUBLIC :: ln_seaiceinc  !: No sea ice concentration increment
-   LOGICAL, PUBLIC :: ln_salfix     !: Apply minimum salinity check
-   LOGICAL, PUBLIC :: ln_temnofreeze = .FALSE. !: Don't allow the temperature to drop below freezing
-   INTEGER, PUBLIC :: nn_divdmp     !: Apply divergence damping filter nn_divdmp times
+
+   LOGICAL, PUBLIC :: ln_bkgwri     !: Logical switch for writing out background state
+   LOGICAL, PUBLIC :: ln_asmiau     !: Logical switch for Incremental Analysis Updating (IAU)
+   LOGICAL, PUBLIC :: ln_asmdin     !: Logical switch for Direct Initialization (DI)
+   LOGICAL, PUBLIC :: ln_trainc     !: Logical switch for applying tracer increments
+   LOGICAL, PUBLIC :: ln_dyninc     !: Logical switch for applying velocity increments
+   LOGICAL, PUBLIC :: ln_sshinc     !: Logical switch for applying SSH increments
+   LOGICAL, PUBLIC :: ln_seaiceinc  !: Logical switch for applying Sea ice concentration increments
+   LOGICAL, PUBLIC :: ln_salfix     !: Logical switch for ensuring that the sa > salfixmin 
+   LOGICAL, PUBLIC :: ln_temnofreeze!: Don't allow the temperature to drop below freezing
+   INTEGER, PUBLIC :: nn_divdmp     !: Number of iterations of divergence damping operator
 
    REAL(wp), PUBLIC, DIMENSION(:,:,:), ALLOCATABLE ::   t_bkg   , s_bkg      !: Background temperature and salinity
    REAL(wp), PUBLIC, DIMENSION(:,:,:), ALLOCATABLE ::   u_bkg   , v_bkg      !: Background u- & v- velocity components
@@ -136,15 +137,13 @@ CONTAINS
          &                 ln_trainc, ln_dyninc, ln_sshinc,                &
          &                 ln_asmdin, ln_asmiau,                           &
          &                 nitbkg, nitdin, nitiaustr, nitiaufin, niaufn,   &
-         &                 ln_salfix, salfixmin, nn_divdmp
+         &                 ln_seaiceinc, ln_salfix, salfixmin,             &
+         &                 ln_temnofreeze, nn_divdmp
       !!----------------------------------------------------------------------
 
       !-----------------------------------------------------------------------
       ! Read Namelist nam_asminc : assimilation increment interface
       !-----------------------------------------------------------------------
-      ln_seaiceinc   = .FALSE.
-      ln_temnofreeze = .FALSE.
-
       READ  ( numnam_ref, nam_asminc, IOSTAT = ios, ERR = 901)
 901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nam_asminc in reference namelist' )
       READ  ( numnam_cfg, nam_asminc, IOSTAT = ios, ERR = 902 )
@@ -171,6 +170,7 @@ CONTAINS
          WRITE(numout,*) '      Type of IAU weighting function                           niaufn    = ', niaufn
          WRITE(numout,*) '      Logical switch for ensuring that the sa > salfixmin      ln_salfix = ', ln_salfix
          WRITE(numout,*) '      Minimum salinity after applying the increments           salfixmin = ', salfixmin
+         WRITE(numout,*) '      Do not apply negative increments if the T < freezing     ln_temnofreeze = ',ln_temnofreeze
       ENDIF
 
       nitbkg_r    = nitbkg    + nit000 - 1            ! Background time referenced to nit000
