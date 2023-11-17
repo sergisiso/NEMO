@@ -1,18 +1,5 @@
 # compiler options for BELENOS/TARANIS (using INTEL compiler + Open MPI)
 #
-# --------------------------------
-# INTEL_OMPI (NEMO 4.0 + XIOS-2.5)
-# --------------------------------
-# module use /home/ext/mr/smer/samsong/modules
-# module load intel/2018.5.274 openmpi/intel/4.0.2.2 hdf5-1.8.18-ompi netcdf-4.7.1-ompi_V2 xios/2.5/rev1903-ompi
-#
-# ----------------------------------
-# INTEL_OMPI (NEMO 4.2 + XIOS-TRUNK)
-# ----------------------------------
-# module use /home/ext/mr/smer/samsong/modules
-# module load gcc/9.2.0 intel/2018.5.274 openmpi/intel/4.0.2.2 hdf5-1.8.18-ompi netcdf-4.7.1-ompi_V2 xios/trunk/rev2134-ompi
-#
-#
 # NCDF_INC    netcdf4 include file
 # NCDF_LIB    netcdf4 library
 # XIOS_INC    xios include file    (taken into accound only if key_xios is activated)
@@ -50,13 +37,15 @@
 %NCDF_LIB            -L${NETCDF_LIB} -lnetcdff -lnetcdf -L${PHDF5_LIB_DIR} -lhdf5_hl -lhdf5
 %XIOS_INC            -I${XIOS_INC}
 %XIOS_LIB            -L${XIOS_LIB} -lxios -lstdc++
-%OASIS_INC           -I${OASIS_DIR}/build/lib/mct -I${OASIS_DIR}/build/lib/psmile.MPI1
+#%OASIS_INC           -I${OASIS_DIR}/build/lib/mct -I${OASIS_DIR}/build/lib/psmile.MPI1
+%OASIS_INC           -I${OASIS_DIR}/build-static/mct -I${OASIS_DIR}/build-static/lib/psmile.MPI1
 %OASIS_LIB           -L${OASIS_DIR}/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 
 %CPP                 cpp
 %FC                  mpifort -c -cpp
-%PROD_FCFLAGS        -march=core-avx2 -i4 -r8 -O3 -fp-model strict -fno-alias -align array64byte
-%DEBUG_FCFLAGS       -march=core-avx2 -i4 -r8 -g -O0 -debug all -traceback -fp-model strict -ftrapuv -check all,noarg_temp_created -fpe-all0 -ftz -init=arrays,snan,huge
+%BASE_FCFLAGS        -march=core-avx2 -i4 -r8 -fp-model strict -fno-alias -align array64byte
+%PROD_FCFLAGS        %BASE_FCFLAGS -O3
+%DEBUG_FCFLAGS       %BASE_FCFLAGS -O0 -g -debug all -traceback -ftrapuv -check all,noarg_temp_created -fpe-all0 -ftz -init=arrays,snan,huge
 %FFLAGS              %FCFLAGS
 %LD                  mpifort
 %LDFLAGS             
@@ -67,5 +56,5 @@
 %USER_INC            %XIOS_INC %OASIS_INC %NCDF_INC
 %USER_LIB            %XIOS_LIB %OASIS_LIB %NCDF_LIB
 
-%CC                  mpicc
-%CFLAGS              -O0
+%CC                  gcc
+%CFLAGS              -O0 -fcommon
