@@ -168,7 +168,7 @@ sette_rpt_cfgs:
     - $HPC
   script:
     - cd sette
-    - ./sette_rpt.sh -b -u -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
   artifacts:
     paths:
       - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
@@ -184,7 +184,7 @@ sette_rpt_tsts:
     - $HPC
   script:
     - cd sette
-    - ./sette_rpt.sh -b -u -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
   artifacts:
     paths:
       - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
