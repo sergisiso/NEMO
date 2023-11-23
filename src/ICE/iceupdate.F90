@@ -402,9 +402,9 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )                             !* update the stress WITHOUT an ice-ocean rotation angle
          !                                                   ! linearized quadratic drag formulation
          zutau_ice   = 0.5_wp * tmod_io(ji,jj)   &
-            &                 * ( ( u_ice(ji,jj) + u_ice(ji-1,jj) ) - ( pu_oce(ji,jj) + pu_oce(ji-1,jj) ) )   ! add () for
+            &                 * ( ( u_ice(ji,jj) + u_ice(ji-1,jj) ) - zflagi * ( pu_oce(ji,jj) + pu_oce(ji-1,jj) ) ) ! add () for
          zvtau_ice   = 0.5_wp * tmod_io(ji,jj)   &
-            &                 * ( ( v_ice(ji,jj) + v_ice(ji,jj-1) ) - ( pv_oce(ji,jj) + pv_oce(ji,jj-1) ) )   ! NP repro
+            &                 * ( ( v_ice(ji,jj) + v_ice(ji,jj-1) ) - zflagi * ( pv_oce(ji,jj) + pv_oce(ji,jj-1) ) ) ! NP repro
          !                                                   ! stresses at the ocean surface
          utau(ji,jj) = ( 1._wp - at_i(ji,jj) ) * utau_oce(ji,jj) + at_i(ji,jj) * zutau_ice
          vtau(ji,jj) = ( 1._wp - at_i(ji,jj) ) * vtau_oce(ji,jj) + at_i(ji,jj) * zvtau_ice
