@@ -75,6 +75,7 @@ MODULE sbcmod
    INTEGER ::   nsbc   ! type of surface boundary condition (deduced from namsbc informations)
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcmod.F90 15372 2021-10-14 15:47:24Z davestorkey $
@@ -114,10 +115,8 @@ CONTAINS
       ENDIF
       !
       !                       !**  read Surface Module namelist
-      READ  ( numnam_ref, namsbc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc in reference namelist' )
-      READ  ( numnam_cfg, namsbc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc in configuration namelist' )
+      READ_NML_REF(numnam,namsbc)
+      READ_NML_CFG(numnam,namsbc)
       IF(lwm) WRITE( numond, namsbc )
       !
 #if ! defined key_mpi_off

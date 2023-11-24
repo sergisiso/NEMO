@@ -48,6 +48,9 @@ MODULE usrdef_nam
    !
    REAL(wp), PUBLIC ::   r1_abp             ! inverse alpha boundary parameter                            [-]
    !
+
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 11536 2019-09-11 13:54:18Z smasson $ 
@@ -85,9 +88,7 @@ CONTAINS
          &                 rn_abp, nn_cnp, rn_fsp                   ! penalisation parameters
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       IF(lwm)   WRITE( numond, namusr_def )
       !
       cd_cfg = 'SWG'               ! name & resolution (not used)

@@ -93,6 +93,7 @@ MODULE asminc
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -144,10 +145,8 @@ CONTAINS
       !-----------------------------------------------------------------------
       ! Read Namelist nam_asminc : assimilation increment interface
       !-----------------------------------------------------------------------
-      READ  ( numnam_ref, nam_asminc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nam_asminc in reference namelist' )
-      READ  ( numnam_cfg, nam_asminc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nam_asminc in configuration namelist' )
+      READ_NML_REF(numnam,nam_asminc)
+      READ_NML_CFG(numnam,nam_asminc)
       IF(lwm) WRITE ( numond, nam_asminc )
 
       ! Control print

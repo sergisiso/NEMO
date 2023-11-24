@@ -30,6 +30,8 @@ MODULE trcbdy
    PUBLIC trc_bdy       ! routine called in trcnxt.F90 
    PUBLIC trc_bdy_dmp   ! routine called in trcstp.F90 
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcbdy.F90 15354 2021-10-12 13:44:46Z smasson $ 
@@ -61,14 +63,12 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~'
       END IF
       !
-      READ( numnat_ref, namtrc_bdy, IOSTAT = ios, ERR = 903 )
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_bdy in reference namelist'     )
+      READ_NML_REF(numnat,namtrc_bdy)
       ! make sure that all elements of the namelist variables have a default definition from namelist_top_ref
       cn_trc       (2:jp_bdy) = cn_trc       (1)
       cn_trc_dflt  (2:jp_bdy) = cn_trc_dflt  (1)
       nn_trcdmp_bdy(2:jp_bdy) = nn_trcdmp_bdy(1)
-      READ( numnat_cfg, namtrc_bdy, IOSTAT = ios, ERR = 904 )
-904   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_bdy in configuration namelist' )
+      READ_NML_CFG(numnat,namtrc_bdy)
       IF(lwm) WRITE ( numont, namtrc_bdy )
       ! setup up preliminary information for BDY structure
       DO jn = 1, ntrc

@@ -26,6 +26,7 @@ MODULE p2zmort
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: p4zmort.F90 15459 2021-10-29 08:19:18Z cetlod $ 
@@ -121,11 +122,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, namp2zmort, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namp4zmort in reference namelist' )
-
-      READ  ( numnatp_cfg, namp2zmort, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namp4zmort in configuration namelist' )
+      READ_NML_REF(numnatp,namp2zmort)
+      READ_NML_CFG(numnatp,namp2zmort)
       IF(lwm) WRITE( numonp, namp2zmort )
       !
       IF(lwp) THEN                         ! control print

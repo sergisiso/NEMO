@@ -169,6 +169,7 @@ MODULE sbcblk
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcblk.F90 15551 2021-11-28 20:19:36Z gsamson $
@@ -239,12 +240,8 @@ CONTAINS
 #endif
       !
       !                             !** read bulk namelist
-      READ  ( numnam_ref, namsbc_blk, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_blk in reference namelist' )
-      !
-      READ  ( numnam_cfg, namsbc_blk, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_blk in configuration namelist' )
-      !
+      READ_NML_REF(numnam,namsbc_blk)
+      READ_NML_CFG(numnam,namsbc_blk)
       IF(lwm) WRITE( numond, namsbc_blk )
       !
       !                             !** initialization of the chosen bulk formulae (+ check)

@@ -38,6 +38,7 @@ MODULE trcopt
    
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2020)
@@ -317,10 +318,8 @@ CONTAINS
          WRITE(numout,*) 'trc_opt_ini : Initialize light module'
          WRITE(numout,*) '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
       ENDIF
-      READ  ( numnat_ref, namtrc_opt, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_opt in reference namelist' )
-      READ  ( numnat_cfg, namtrc_opt, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_opt in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_opt)
+      READ_NML_CFG(numnat,namtrc_opt)
       IF(lwm) WRITE ( numont, namtrc_opt )
 
       IF(lwp) THEN

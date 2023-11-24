@@ -59,6 +59,7 @@ MODULE sbcfwb
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcfwb.F90 15439 2021-10-22 17:53:09Z clem $
@@ -98,10 +99,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       IF( kt == nit000 ) THEN
-         READ( numnam_ref, namsbc_fwb, IOSTAT = ios, ERR = 901 )
-901      IF( ios /= 0 ) CALL ctl_nam( ios, 'namsbc_fwb in reference namelist'     )
-         READ( numnam_cfg, namsbc_fwb, IOSTAT = ios, ERR = 902 )
-902      IF( ios >  0 ) CALL ctl_nam( ios, 'namsbc_fwb in configuration namelist' )
+         READ_NML_REF(numnam,namsbc_fwb)
+         READ_NML_CFG(numnam,namsbc_fwb)
          IF(lwm) WRITE( numond, namsbc_fwb )
 #if defined key_agrif
          IF ( .NOT.Agrif_Root() ) THEN ! Copy namelist values from parent (for print)

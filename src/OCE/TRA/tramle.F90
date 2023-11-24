@@ -56,6 +56,7 @@ MODULE tramle
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -526,11 +527,8 @@ CONTAINS
       NAMELIST/namtra_mle/ ln_mle , nn_mle, rn_ce, rn_lf, rn_time, rn_lat, nn_mld_uv, nn_conv, rn_rho_c_mle
       !!----------------------------------------------------------------------
 
-      READ  ( numnam_ref, namtra_mle, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtra_mle in reference namelist' )
-
-      READ  ( numnam_cfg, namtra_mle, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtra_mle in configuration namelist' )
+      READ_NML_REF(numnam,namtra_mle)
+      READ_NML_CFG(numnam,namtra_mle)
       IF(lwm) WRITE ( numond, namtra_mle )
 
       IF(lwp) THEN                     ! Namelist print

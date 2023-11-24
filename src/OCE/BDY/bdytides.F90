@@ -47,6 +47,7 @@ MODULE bdytides
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: bdytides.F90 14169 2020-12-14 18:32:36Z jchanut $
@@ -99,8 +100,7 @@ CONTAINS
             ! Namelist nambdy_tide : tidal harmonic forcing at open boundaries
             filtide(:) = ''
 
-            READ  ( numnam_ref, nambdy_tide, IOSTAT = ios, ERR = 901)
-901         IF( ios /= 0 )   CALL ctl_nam ( ios , 'nambdy_tide in reference namelist' )
+            READ_NML_REF(numnam,nambdy_tide)
             !
             ! Need to support possibility of reading more than one
             ! nambdy_tide from the namelist_cfg internal file.
@@ -115,8 +115,8 @@ CONTAINS
                ios = -1
                CALL ctl_nam ( ios , cerrmsg )
             ENDIF
-            READ  ( numnam_cfg( MAX( 1, nbdy_rdstart - 2 ): ), nambdy_tide, IOSTAT = ios, ERR = 902)
-902         IF( ios >  0 )   CALL ctl_nam ( ios , 'nambdy_tide in configuration namelist' )
+            READ( numnam_cfg( MAX( 1, nbdy_rdstart - 2 ): ), nambdy_tide, IOSTAT = ios )
+            CALL ctl_nam ( ios , 'nambdy_tide (numnam_cfg)', .FALSE. )
             IF(lwm) WRITE ( numond, nambdy_tide )
             !                                               ! Parameter control and print
             IF(lwp) WRITE(numout,*) '  '

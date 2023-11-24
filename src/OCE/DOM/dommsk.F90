@@ -46,6 +46,7 @@ MODULE dommsk
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: dommsk.F90 15556 2021-11-29 15:23:06Z jchanut $ 
@@ -94,10 +95,8 @@ CONTAINS
          &             ln_vol, nn_volctl, nn_rimwidth
       !!---------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namlbc, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namlbc in reference namelist' )
-      READ  ( numnam_cfg, namlbc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namlbc in configuration namelist' )
+      READ_NML_REF(numnam,namlbc)
+      READ_NML_CFG(numnam,namlbc)
       IF(lwm) WRITE ( numond, namlbc )
       
       IF(lwp) THEN                  ! control print
@@ -131,10 +130,8 @@ CONTAINS
       END_2D
       !
       ! Mask corrections for bdy (read in mppini2)
-      READ  ( numnam_ref, nambdy, IOSTAT = ios, ERR = 903)
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nambdy in reference namelist' )
-      READ  ( numnam_cfg, nambdy, IOSTAT = ios, ERR = 904 )
-904   IF( ios >  0 )   CALL ctl_nam ( ios , 'nambdy in configuration namelist' )
+      READ_NML_REF(numnam,nambdy)
+      READ_NML_CFG(numnam,nambdy)
       ! ------------------------
       IF ( ln_bdy .AND. ln_mask_file ) THEN
          CALL iom_open( cn_mask_file, inum )

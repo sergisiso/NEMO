@@ -29,6 +29,7 @@ MODULE crsini
 
    !! * Substitutions
 #  include "domzgr_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: crsini.F90 13237 2020-07-03 09:12:53Z smasson $
@@ -83,11 +84,9 @@ CONTAINS
      ! 1. Read Namelist file
      !---------------------------------------------------------
      !
-      READ  ( numnam_ref, namcrs, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namcrs in reference namelist' )
-      READ  ( numnam_cfg, namcrs, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namcrs in configuration namelist' )
-      IF(lwm) WRITE ( numond, namcrs )
+     READ_NML_REF(numnam,namcrs)
+     READ_NML_CFG(numnam,namcrs)
+     IF(lwm) WRITE ( numond, namcrs )
 
      IF(lwp) THEN
         WRITE(numout,*)

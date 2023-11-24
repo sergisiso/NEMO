@@ -74,6 +74,7 @@ MODULE zdfdrg
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -231,10 +232,8 @@ CONTAINS
       !
       !                     !==  drag nature  ==!
       !
-      READ  ( numnam_ref, namdrg, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam( ios , 'namdrg in reference namelist' )
-      READ  ( numnam_cfg, namdrg, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam( ios , 'namdrg in configuration namelist' )
+      READ_NML_REF(numnam,namdrg)
+      READ_NML_CFG(numnam,namdrg)
       IF(lwm) WRITE ( numond, namdrg )
       !
       IF ( ln_drgice_imp .AND.   nn_ice /= 2  )   ln_drgice_imp = .FALSE.
@@ -336,12 +335,14 @@ CONTAINS
       !
       !                          !==  read namlist  ==!
       !
-      IF(ll_top)   READ  ( numnam_ref, namdrg_top, IOSTAT = ios, ERR = 901)
-      IF(ll_bot)   READ  ( numnam_ref, namdrg_bot, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam( ios , TRIM(cl_namref) )
-      IF(ll_top)   READ  ( numnam_cfg, namdrg_top, IOSTAT = ios, ERR = 902 )
-      IF(ll_bot)   READ  ( numnam_cfg, namdrg_bot, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam( ios , TRIM(cl_namcfg) )
+      IF(ll_top) THEN
+         READ_NML_REF(numnam,namdrg_top)
+         READ_NML_CFG(numnam,namdrg_top)
+      END IF
+      IF(ll_bot) THEN
+         READ_NML_REF(numnam,namdrg_bot)
+         READ_NML_CFG(numnam,namdrg_bot)
+      END IF
       IF(lwm .AND. ll_top)   WRITE ( numond, namdrg_top )
       IF(lwm .AND. ll_bot)   WRITE ( numond, namdrg_bot )
       !

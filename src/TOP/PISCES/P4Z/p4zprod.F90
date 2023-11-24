@@ -47,6 +47,7 @@ MODULE p4zprod
    LOGICAL  :: l_dia_mu, l_dia_light, l_dia_lprod
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -523,11 +524,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, namp4zprod, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namp4zprod in reference namelist' )
-
-      READ  ( numnatp_cfg, namp4zprod, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namp4zprod in configuration namelist' )
+      READ_NML_REF(numnatp,namp4zprod)
+      READ_NML_CFG(numnatp,namp4zprod)
       IF(lwm) WRITE( numonp, namp4zprod )
 
       IF(lwp) THEN                         ! control print

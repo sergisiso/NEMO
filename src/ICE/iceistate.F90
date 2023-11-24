@@ -78,6 +78,7 @@ MODULE iceistate
    !
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: iceistate.F90 15530 2021-11-23 15:09:32Z clem $
@@ -476,10 +477,8 @@ CONTAINS
          &             sn_hti, sn_hts, sn_ati, sn_tsu, sn_tmi, sn_smi, sn_tms, sn_apd, sn_hpd, sn_hld, cn_dir
       !!-----------------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namini, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namini in reference namelist' )
-      READ  ( numnam_ice_cfg, namini, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namini in configuration namelist' )
+      READ_NML_REF(numnam_ice,namini)
+      READ_NML_CFG(numnam_ice,namini)
       IF(lwm) WRITE ( numoni, namini )
       !
       slf_i(jp_hti) = sn_hti  ;  slf_i(jp_hts) = sn_hts

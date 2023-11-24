@@ -32,6 +32,7 @@ MODULE trcrad
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcrad.F90 15561 2021-11-30 13:25:02Z techene $ 
@@ -91,10 +92,8 @@ CONTAINS
       NAMELIST/namtrc_rad/ ln_trcrad
       !!----------------------------------------------------------------------
       !
-      READ  ( numnat_ref, namtrc_rad, IOSTAT = ios, ERR = 907)
-907   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_rad in reference namelist' )
-      READ  ( numnat_cfg, namtrc_rad, IOSTAT = ios, ERR = 908 )
-908   IF( ios > 0 )   CALL ctl_nam ( ios , 'namtrc_rad in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_rad)
+      READ_NML_CFG(numnat,namtrc_rad)
       IF(lwm) WRITE( numont, namtrc_rad )
 
       IF(lwp) THEN                     !   ! Control print

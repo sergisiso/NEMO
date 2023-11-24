@@ -45,6 +45,7 @@ MODULE trcdmp
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -178,10 +179,8 @@ CONTAINS
       NAMELIST/namtrc_dmp/ nn_zdmp_tr , cn_resto_tr
       !!----------------------------------------------------------------------
       !
-      READ  ( numnat_ref, namtrc_dmp, IOSTAT = ios, ERR = 909)
-909   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_dmp in reference namelist' )
-      READ  ( numnat_cfg, namtrc_dmp, IOSTAT = ios, ERR = 910)
-910   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_dmp in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_dmp)
+      READ_NML_CFG(numnat,namtrc_dmp)
       IF(lwm) WRITE ( numont, namtrc_dmp )
 
       IF(lwp) THEN                       ! Namelist print

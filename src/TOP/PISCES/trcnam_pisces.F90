@@ -22,6 +22,8 @@ MODULE trcnam_pisces
 
    PUBLIC   trc_nam_pisces   ! called by trcnam.F90 module
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcnam_pisces.F90 12377 2020-02-12 14:39:06Z acc $ 
@@ -54,10 +56,8 @@ CONTAINS
       CALL load_nml( numnatp_cfg, TRIM( clname )//'_cfg', numout, lwm )
       IF(lwm) CALL ctl_opn( numonp     , 'output.namelist.pis' , 'UNKNOWN', 'FORMATTED', 'SEQUENTIAL', -1, numout, .FALSE. )
       !
-      READ  ( numnatp_ref, nampismod, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampismod in reference namelist' )
-      READ  ( numnatp_cfg, nampismod, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampismod in configuration namelist' )
+      READ_NML_REF(numnatp,nampismod)
+      READ_NML_CFG(numnatp,nampismod)
       IF(lwm) WRITE( numonp, nampismod )
       !
       IF(lwp) THEN                  ! control print

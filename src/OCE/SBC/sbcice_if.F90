@@ -36,6 +36,7 @@ MODULE sbcice_if
    
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcice_if.F90 13295 2020-07-10 18:24:21Z acc $
@@ -76,11 +77,8 @@ CONTAINS
       IF( kt == nit000 ) THEN                   !  First call kt=nit000  !
          !                                      ! ====================== !
          ! set file information
-         READ  ( numnam_ref, namsbc_iif, IOSTAT = ios, ERR = 901)
-901      IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_iif in reference namelist' )
-
-         READ  ( numnam_cfg, namsbc_iif, IOSTAT = ios, ERR = 902 )
-902      IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_iif in configuration namelist' )
+         READ_NML_REF(numnam,namsbc_iif)
+         READ_NML_CFG(numnam,namsbc_iif)
          IF(lwm) WRITE ( numond, namsbc_iif )
 
          ALLOCATE( sf_ice(1), STAT=ierror )

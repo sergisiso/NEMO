@@ -87,6 +87,7 @@ MODULE icedyn_rdgrft
    !
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icedyn_rdgrft.F90 15549 2021-11-28 20:00:36Z clem $
@@ -1052,10 +1053,8 @@ CONTAINS
          &                    ln_rafting, rn_hraft, rn_craft  , rn_fsnwrft, rn_fpndrft
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namdyn_rdgrft, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdyn_rdgrft in reference namelist' )
-      READ  ( numnam_ice_cfg, namdyn_rdgrft, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdyn_rdgrft in configuration namelist' )
+      READ_NML_REF(numnam_ice,namdyn_rdgrft)
+      READ_NML_CFG(numnam_ice,namdyn_rdgrft)
       IF(lwm) WRITE ( numoni, namdyn_rdgrft )
       !
       IF (lwp) THEN                          ! control print

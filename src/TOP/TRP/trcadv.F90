@@ -68,6 +68,7 @@ MODULE trcadv
 #  include "do_loop_substitute.h90"
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -216,10 +217,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       !                                !==  Namelist  ==!
-      READ  ( numnat_ref, namtrc_adv, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_adv in reference namelist' )
-      READ  ( numnat_cfg, namtrc_adv, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_adv in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_adv)
+      READ_NML_CFG(numnat,namtrc_adv)
       IF(lwm) WRITE ( numont, namtrc_adv )
       !
       IF(lwp) THEN                           ! Namelist print

@@ -63,6 +63,7 @@ MODULE domqco
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: domvvl.F90 12377 2020-02-12 14:39:06Z acc $
@@ -278,10 +279,8 @@ CONTAINS
          &              nn_vvl_interp
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, nam_vvl, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nam_vvl in reference namelist' )
-      READ  ( numnam_cfg, nam_vvl, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'nam_vvl in configuration namelist' )
+      READ_NML_REF(numnam,nam_vvl)
+      READ_NML_CFG(numnam,nam_vvl)
       IF(lwm) WRITE ( numond, nam_vvl )
       !
       IF(lwp) THEN                    ! Namelist print

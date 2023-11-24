@@ -21,6 +21,8 @@ MODULE usrdef_nam
 
    PUBLIC   usr_def_nam   ! called by nemogcm.F90
    
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 4.0 , NEMO Consortium (2016)
    !! $Id$ 
@@ -63,9 +65,7 @@ CONTAINS
       NAMELIST/nammpp/ jpni, jpnj, nn_hls, ln_nnogather, ln_listonly, nn_comm
       !!----------------------------------------------------------------------     
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 903 )
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       IF(lwm)   WRITE( numond, namusr_def )      
       !
       cd_cfg = 'BENCH'             ! name & resolution (not used)
@@ -73,11 +73,8 @@ CONTAINS
       !
       IF( nn_isize < 0 .AND. nn_jsize < 0 ) THEN
       !
-         READ  ( numnam_ref, nammpp, IOSTAT = ios, ERR = 901)
-901      IF( ios /= 0 )   CALL ctl_nam ( ios , 'nammpp in reference namelist' )
-         !
-         READ  ( numnam_cfg, nammpp, IOSTAT = ios, ERR = 902 )
-902      IF( ios >  0 )   CALL ctl_nam ( ios , 'nammpp in configuration namelist' )
+         READ_NML_REF(numnam,nammpp)
+         READ_NML_CFG(numnam,nammpp)
 
          kpi = -nn_isize * jpni
          kpj = -nn_jsize * jpnj

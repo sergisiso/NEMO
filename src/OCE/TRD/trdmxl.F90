@@ -56,6 +56,7 @@ MODULE trdmxl
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -702,11 +703,8 @@ CONTAINS
          &                 nn_ctls, cn_trdrst_out, ln_trdmxl_instant, rn_ucf, rn_rho_c
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namtrd_mxl, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrd_mxl in reference namelist' )
-
-      READ  ( numnam_cfg, namtrd_mxl, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrd_mxl in configuration namelist' )
+      READ_NML_REF(numnam,namtrd_mxl)
+      READ_NML_CFG(numnam,namtrd_mxl)
       IF(lwm) WRITE( numond, namtrd_mxl )
       !
       IF(lwp) THEN                      ! control print

@@ -56,6 +56,7 @@ MODULE p5zmicro
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: p5zmicro.F90 15459 2021-10-29 08:19:18Z cetlod $ 
@@ -429,11 +430,8 @@ CONTAINS
          &                xsigma, xsigmadel   
       !!----------------------------------------------------------------------
       !
-      READ  ( numnatp_ref, namp5zzoo, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namp5zzoo in reference namelist' )
-      !
-      READ  ( numnatp_cfg, namp5zzoo, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namp5zzoo in configuration namelist' )
+      READ_NML_REF(numnatp,namp5zzoo)
+      READ_NML_CFG(numnatp,namp5zzoo)
       IF(lwm) WRITE ( numonp, namp5zzoo )
       !
       IF(lwp) THEN                         ! control print

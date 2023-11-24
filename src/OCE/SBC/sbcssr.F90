@@ -50,6 +50,7 @@ MODULE sbcssr
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcssr.F90 14834 2021-05-11 09:24:44Z hadcv $
@@ -180,11 +181,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~ '
       ENDIF
       ! 
-      READ  ( numnam_ref, namsbc_ssr, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_ssr in reference namelist' )
-
-      READ  ( numnam_cfg, namsbc_ssr, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_ssr in configuration namelist' )
+      READ_NML_REF(numnam,namsbc_ssr)
+      READ_NML_CFG(numnam,namsbc_ssr)
       IF(lwm) WRITE ( numond, namsbc_ssr )
 
       IF(lwp) THEN                 !* control print

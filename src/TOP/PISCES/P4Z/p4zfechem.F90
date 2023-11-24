@@ -34,6 +34,7 @@ MODULE p4zfechem
    LOGICAL  :: l_dia_fechem
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -305,10 +306,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, nampisfer, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampisfer in reference namelist' )
-      READ  ( numnatp_cfg, nampisfer, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampisfer in configuration namelist' )
+      READ_NML_REF(numnatp,nampisfer)
+      READ_NML_CFG(numnatp,nampisfer)
       IF(lwm) WRITE( numonp, nampisfer )
 
       IF(lwp) THEN                     ! control print

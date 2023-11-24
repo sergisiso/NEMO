@@ -53,6 +53,7 @@ MODULE zdfiwm
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -364,11 +365,8 @@ CONTAINS
           &                cn_dir, sn_mpb, sn_mpc, sn_mpn, sn_mps, sn_dsb, sn_dsc
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namzdf_iwm, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namzdf_iwm in reference namelist' )
-      !
-      READ  ( numnam_cfg, namzdf_iwm, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namzdf_iwm in configuration namelist' )
+      READ_NML_REF(numnam,namzdf_iwm)
+      READ_NML_CFG(numnam,namzdf_iwm)
       IF(lwm) WRITE ( numond, namzdf_iwm )
       !
       IF(lwp) THEN                  ! Control print

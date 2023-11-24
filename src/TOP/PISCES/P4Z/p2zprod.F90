@@ -41,6 +41,7 @@ MODULE p2zprod
    LOGICAL  :: l_dia_mu, l_dia_light, l_dia_lprod
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -284,11 +285,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, namp2zprod, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namp2zprod in reference namelist' )
-
-      READ  ( numnatp_cfg, namp2zprod, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namp2zprod in configuration namelist' )
+      READ_NML_REF(numnatp,namp2zprod)
+      READ_NML_CFG(numnatp,namp2zprod)
       IF(lwm) WRITE( numonp, namp2zprod )
 
       IF(lwp) THEN                         ! control print

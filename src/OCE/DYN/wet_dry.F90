@@ -30,6 +30,7 @@ MODULE wet_dry
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! critical depths,filters, limiters,and masks for  Wetting and Drying
@@ -74,10 +75,8 @@ CONTAINS
          &             ln_wd_dl_bc, ln_wd_dl_rmp, rn_wd_sbcdep,rn_wd_sbcfra
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namwad, IOSTAT = ios, ERR = 905)
-905   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namwad in reference namelist' ) 
-      READ  ( numnam_cfg, namwad, IOSTAT = ios, ERR = 906)
-906   IF( ios >  0 )   CALL ctl_nam ( ios , 'namwad in configuration namelist' )
+      READ_NML_REF(numnam,namwad)
+      READ_NML_CFG(numnam,namwad)
       IF(lwm) WRITE ( numond, namwad )
       !
       IF( rn_wd_sbcfra>=1 )   CALL ctl_stop( 'STOP', 'rn_wd_sbcfra >=1 : must be < 1' )

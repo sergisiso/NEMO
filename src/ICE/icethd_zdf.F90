@@ -36,6 +36,8 @@ MODULE icethd_zdf
    !!** namelist (namthd_zdf) **
    LOGICAL ::   ln_zdf_BL99    ! Heat diffusion follows Bitz and Lipscomb (1999)
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icethd_zdf.F90 13472 2020-09-16 13:05:19Z smasson $
@@ -88,10 +90,8 @@ CONTAINS
          &                 rn_kappa_i, rn_kappa_s, rn_kappa_smlt, rn_kappa_sdry, ln_zdf_chkcvg
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namthd_zdf, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namthd_zdf in reference namelist' )
-      READ  ( numnam_ice_cfg, namthd_zdf, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namthd_zdf in configuration namelist' )
+      READ_NML_REF(numnam_ice,namthd_zdf)
+      READ_NML_CFG(numnam_ice,namthd_zdf)
       IF(lwm) WRITE( numoni, namthd_zdf )
       !
       IF(lwp) THEN                          ! control print

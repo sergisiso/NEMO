@@ -86,6 +86,7 @@ MODULE sbcwave
    REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::   ZMX             !: Kz*N2
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -359,11 +360,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~~ '
       ENDIF
       !
-      READ  ( numnam_ref, namsbc_wave, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_wave in reference namelist')
-
-      READ  ( numnam_cfg, namsbc_wave, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_wave in configuration namelist' )
+      READ_NML_REF(numnam,namsbc_wave)
+      READ_NML_CFG(numnam,namsbc_wave)
       IF(lwm) WRITE ( numond, namsbc_wave )
       !
       IF(lwp) THEN

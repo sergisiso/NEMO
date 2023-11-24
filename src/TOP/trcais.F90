@@ -37,6 +37,7 @@ MODULE trcais
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -83,10 +84,8 @@ CONTAINS
       n_trc_indais(:) = 0
       !
       ! Read Antarctic Ice Sheet Namelist
-      READ  ( numnat_ref, namtrc_ais, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_ais in reference namelist' )
-      READ  ( numnat_cfg, namtrc_ais, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_ais in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_ais)
+      READ_NML_CFG(numnat,namtrc_ais)
       IF(lwm) WRITE ( numont, namtrc_ais )
       ! 
       IF( lwp ) THEN

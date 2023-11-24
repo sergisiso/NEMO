@@ -43,6 +43,7 @@ MODULE dyndmp
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -79,10 +80,8 @@ CONTAINS
       NAMELIST/namc1d_dyndmp/ ln_dyndmp
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namc1d_dyndmp, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namc1d_dyndmp in reference namelist' )
-      READ  ( numnam_cfg, namc1d_dyndmp, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namc1d_dyndmp in configuration namelist' )
+      READ_NML_REF(numnam,namc1d_dyndmp)
+      READ_NML_CFG(numnam,namc1d_dyndmp)
       IF(lwm) WRITE ( numond, namc1d_dyndmp )
       !
       IF(lwp) THEN                           ! control print

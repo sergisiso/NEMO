@@ -29,6 +29,8 @@ MODULE floats
    PUBLIC   flo_stp    ! routine called by step.F90
    PUBLIC   flo_init   ! routine called by nemogcm.F90
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: floats.F90 12377 2020-02-12 14:39:06Z acc $ 
@@ -88,11 +90,8 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 'flo_stp : call floats routine '
       IF(lwp) WRITE(numout,*) '~~~~~~~'
 
-      READ  ( numnam_ref, namflo, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namflo in reference namelist' )
-
-      READ  ( numnam_cfg, namflo, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namflo in configuration namelist' )
+      READ_NML_REF(numnam,namflo)
+      READ_NML_CFG(numnam,namflo)
       IF(lwm) WRITE ( numond, namflo )
       !
       IF(lwp) THEN                  ! control print

@@ -39,6 +39,8 @@ MODULE sbcapr
 
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_apr   ! structure of input fields (file informations, fields read)
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcapr.F90 14072 2020-12-04 07:48:38Z laurent $
@@ -67,11 +69,8 @@ CONTAINS
       !!
       NAMELIST/namsbc_apr/ cn_dir, sn_apr, ln_ref_apr, rn_pref, ln_apr_obc
       !!----------------------------------------------------------------------
-      READ  ( numnam_ref, namsbc_apr, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_apr in reference namelist' )
-
-      READ  ( numnam_cfg, namsbc_apr, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_apr in configuration namelist' )
+      READ_NML_REF(numnam,namsbc_apr)
+      READ_NML_CFG(numnam,namsbc_apr)
       IF(lwm) WRITE ( numond, namsbc_apr )
       !
       ALLOCATE( sf_apr(1), STAT=ierror )           !* allocate and fill sf_sst (forcing structure) with sn_sst

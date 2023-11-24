@@ -100,6 +100,7 @@ MODULE p5zlim
     LOGICAL  :: l_dia_size_lim, l_dia_size_pro
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: p5zlim.F90 10070 2018-08-28 14:30:54Z nicolasmartin $ 
@@ -565,11 +566,8 @@ CONTAINS
          &                  qfnopt, qfpopt, qfdopt
       !!----------------------------------------------------------------------
       !
-      READ  ( numnatp_ref, namp5zlim, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namp5zlim in reference namelist' )
-      !
-      READ  ( numnatp_cfg, namp5zlim, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namp5zlim in configuration namelist' )
+      READ_NML_REF(numnatp,namp5zlim)
+      READ_NML_CFG(numnatp,namp5zlim)
       IF(lwm) WRITE ( numonp, namp5zlim )
       !
       IF(lwp) THEN                         ! control print
@@ -605,11 +603,8 @@ CONTAINS
          WRITE(numout,*) '    halk saturation constant for anoxia       oxymin   =' , oxymin
       ENDIF
 
-      READ  ( numnatp_ref, namp5zquota, IOSTAT = ios, ERR = 903)
-903   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nampisquota in reference namelist' )
-      !
-      READ  ( numnatp_cfg, namp5zquota, IOSTAT = ios, ERR = 904 )
-904   IF( ios >  0 ) CALL ctl_nam ( ios , 'nampisquota in configuration namelist' )
+      READ_NML_REF(numnatp,namp5zquota)
+      READ_NML_CFG(numnatp,namp5zquota)
       IF(lwm) WRITE ( numonp, namp5zquota )
       !
       IF(lwp) THEN                         ! control print

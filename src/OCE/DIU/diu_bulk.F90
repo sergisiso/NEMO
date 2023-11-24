@@ -37,6 +37,7 @@ MODULE diu_bulk
    PUBLIC diurnal_sst_bulk_init, diurnal_sst_takaya_step
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    
    !!----------------------------------------------------------------------
 CONTAINS 
@@ -53,10 +54,8 @@ CONTAINS
       !!----------------------------------------------------------------------      
 
       ! Read the namelist
-      READ  ( numnam_ref, namdiu, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdiu in reference namelist' )
-      READ  ( numnam_cfg, namdiu, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdiu in configuration namelist' )      
+      READ_NML_REF(numnam,namdiu)
+      READ_NML_CFG(numnam,namdiu)
       !
       IF( ln_diurnal_only .AND. ( .NOT. ln_diurnal ) ) THEN
          CALL ctl_stop( "ln_diurnal_only set, but ln_diurnal = FALSE !" )

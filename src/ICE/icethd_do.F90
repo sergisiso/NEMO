@@ -37,6 +37,7 @@ MODULE icethd_do
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icethd_do.F90 15388 2021-10-17 11:33:47Z clem $
@@ -429,10 +430,8 @@ CONTAINS
       NAMELIST/namthd_do/ rn_hinew, ln_frazil, rn_maxfraz, rn_vfraz, rn_Cfraz
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namthd_do, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namthd_do in reference namelist' )
-      READ  ( numnam_ice_cfg, namthd_do, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namthd_do in configuration namelist' )
+      READ_NML_REF(numnam_ice,namthd_do)
+      READ_NML_CFG(numnam_ice,namthd_do)
       IF(lwm) WRITE( numoni, namthd_do )
       !
       IF(lwp) THEN                          ! control print

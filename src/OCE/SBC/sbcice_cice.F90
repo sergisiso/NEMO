@@ -93,6 +93,7 @@ MODULE sbcice_cice
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcice_cice.F90 14595 2021-03-05 22:36:50Z clem $
@@ -715,11 +716,8 @@ taum(:,:)=(1.0-fr_i(:,:))*taum(:,:)+fr_i(:,:)*SQRT(ztmp1*ztmp1 + ztmp2*ztmp2)
          sn_bot4 = FLD_N( 'botmeltn4_1m' ,    -1.    ,  'botmeltn4' ,  .true.    , .true.  ,  ' yearly'  , ''       , ''         ,  ''    )
          sn_bot5 = FLD_N( 'botmeltn5_1m' ,    -1.    ,  'botmeltn5' ,  .true.    , .true.  ,  ' yearly'  , ''       , ''         ,  ''    )
 
-         READ  ( numnam_ref, namsbc_cice, IOSTAT = ios, ERR = 901)
-901      IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_cice in reference namelist' )
-
-         READ  ( numnam_cfg, namsbc_cice, IOSTAT = ios, ERR = 902 )
-902      IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_cice in configuration namelist' )
+         READ_NML_REF(numnam,namsbc_cice)
+         READ_NML_CFG(numnam,namsbc_cice)
          IF(lwm) WRITE ( numond, namsbc_cice )
 
          ! store namelist information in an array

@@ -47,6 +47,7 @@ MODULE p4zbc
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -302,10 +303,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~ '
       ENDIF
       !                            !* set file information
-      READ  ( numnatp_ref, nampisbc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampisbc in reference namelist' )
-      READ  ( numnatp_cfg, nampisbc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampisbc in configuration namelist' )
+      READ_NML_REF(numnatp,nampisbc)
+      READ_NML_CFG(numnatp,nampisbc)
       IF(lwm) WRITE ( numonp, nampisbc )
 
 

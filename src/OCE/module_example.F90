@@ -16,8 +16,9 @@ MODULE exampl
    !!   exa_mpl_init  : name of the module for a routine)
    !!   exa_mpl_stp   : Please try to use 3 letter block for routine names
    !!----------------------------------------------------------------------
-   USE module_name1   ! brief description of the used module
-   USE module_name2   ! ....
+   USE module_name1              ! brief description of the used module
+   USE module_name2              ! ....
+   USE lib_mpp, ONLY : nam_ctl   ! subroutine nam_ctl is utilised for namelist-input error handling
 
    IMPLICIT NONE
    PRIVATE
@@ -50,6 +51,8 @@ MODULE exampl
    !! * Substitutions
    ! for DO macro
 #  include "do_loop_substitute.h90"
+   ! namelist-input macros
+#  include "read_nml_substitute.h90"
    !for other substitutions
 #  include "exampl_substitute.h90"
    !!----------------------------------------------------------------------
@@ -149,13 +152,10 @@ CONTAINS
       NAMELIST/namexa/ exa_v1, exa_v2, nexa_0, sn_ex     
       !!----------------------------------------------------------------------
       !
-      REWIND( numnam_ref )              ! Namelist namexa in reference namelist : Example
-      READ  ( numnam_ref, namexa, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namexa in reference namelist' )
-      !
-      REWIND( numnam_cfg )              ! Namelist namexa in configuration namelist : Example
-      READ  ( numnam_cfg, namexa, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namexa in configuration namelist' )
+      ! Namelist group namexa in reference namelist input file : Example
+      READ_NML_REF(numnam,namexa)
+      ! Namelist group namexa in configuration namelist input file : Example
+      READ_NML_CFG(numnam,namexa)
    ! Output namelist for control
       WRITE ( numond, namexa )
       !

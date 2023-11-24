@@ -42,6 +42,7 @@ MODULE icedyn_adv
    !
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icedyn_adv.F90 13472 2020-09-16 13:05:19Z smasson $
@@ -135,10 +136,8 @@ CONTAINS
       NAMELIST/namdyn_adv/ ln_adv_Pra, ln_adv_UMx, nn_UMx
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namdyn_adv, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdyn_adv in reference namelist' )
-      READ  ( numnam_ice_cfg, namdyn_adv, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdyn_adv in configuration namelist' )
+      READ_NML_REF(numnam_ice,namdyn_adv)
+      READ_NML_CFG(numnam_ice,namdyn_adv)
       IF(lwm) WRITE( numoni, namdyn_adv )
       !
       IF(lwp) THEN                     ! control print

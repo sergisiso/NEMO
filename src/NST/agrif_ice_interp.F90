@@ -38,6 +38,8 @@ MODULE agrif_ice_interp
    PUBLIC   agrif_istate_ice     ! called by icerst.F90
    PUBLIC   agrif_istate_icevol  ! called by restart.F90
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 4.0 , NEMO Consortium (2018)
    !! $Id: agrif_ice_interp.F90 15031 2021-06-21 10:05:41Z jchanut $
@@ -118,10 +120,8 @@ CONTAINS
       !                       !**  read Surface Module namelist
       !                       (we only need nn_ice actually which is unknown at the 
       !                        time this subroutine is called)
-      READ  ( numnam_ref, namsbc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc in reference namelist' )
-      READ  ( numnam_cfg, namsbc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc in configuration namelist' )
+      READ_NML_REF(numnam,namsbc)
+      READ_NML_CFG(numnam,namsbc)
       !
       IF ( (nn_ice/=2).AND.((Agrif_Parent(nn_ice)==2).AND.           &
                   &   (.NOT.(Agrif_Parent(ln_rstart)                 & 

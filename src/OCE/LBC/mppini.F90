@@ -42,6 +42,8 @@ MODULE mppini
    INTEGER ::   numbot = -1   ! 'bottom_level' local logical unit
    INTEGER ::   numbdy = -1   ! 'bdy_msk'      local logical unit
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: mppini.F90 15302 2021-09-29 15:00:15Z smasson $
@@ -164,10 +166,8 @@ CONTAINS
       !  0. read namelists parameters
       ! -----------------------------------
       !
-      READ  ( numnam_ref, nammpp, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nammpp in reference namelist' )
-      READ  ( numnam_cfg, nammpp, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nammpp in configuration namelist' )
+      READ_NML_REF(numnam,nammpp)
+      READ_NML_CFG(numnam,nammpp)
       !
       nn_hls = MAX(2, nn_hls)   ! nn_hls must be > 1
 # if defined key_mpi2
@@ -193,10 +193,8 @@ CONTAINS
       jpjglo = Nj0glo + 2 * nn_hls
       !
       ! do we need to take into account bdy_msk?
-      READ  ( numnam_ref, nambdy, IOSTAT = ios, ERR = 903)
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nambdy in reference namelist (mppini)' )
-      READ  ( numnam_cfg, nambdy, IOSTAT = ios, ERR = 904 )
-904   IF( ios >  0 )   CALL ctl_nam ( ios , 'nambdy in configuration namelist (mppini)' )
+      READ_NML_REF(numnam,nambdy)
+      READ_NML_CFG(numnam,nambdy)
       !
       IF(               ln_read_cfg ) CALL iom_open( cn_domcfg,    numbot )
       IF( ln_bdy .AND. ln_mask_file ) CALL iom_open( cn_mask_file, numbdy )

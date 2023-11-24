@@ -33,6 +33,7 @@ MODULE dia25h
 
 !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: dia25h.F90 15249 2021-09-13 09:59:09Z hadcv $
@@ -57,10 +58,8 @@ CONTAINS
       NAMELIST/nam_dia25h/ ln_dia25h
       !!----------------------------------------------------------------------
       !
-      READ   ( numnam_ref, nam_dia25h, IOSTAT=ios, ERR= 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nam_dia25h in reference namelist' )
-      READ  ( numnam_cfg, nam_dia25h, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nam_dia25h in configuration namelist' )
+      READ_NML_REF(numnam,nam_dia25h)
+      READ_NML_CFG(numnam,nam_dia25h)
       IF(lwm) WRITE ( numond, nam_dia25h )
 
       IF(lwp) THEN                   ! Control print

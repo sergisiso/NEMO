@@ -213,6 +213,7 @@ MODULE lib_mpp
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: lib_mpp.F90 15267 2021-09-17 09:04:34Z smasson $
@@ -1594,7 +1595,7 @@ CONTAINS
    END SUBROUTINE ctl_opn
 
 
-   SUBROUTINE ctl_nam ( kios, cdnam )
+   SUBROUTINE ctl_nam ( kios, cdnam, ldwarn )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE ctl_nam  ***
       !!
@@ -1602,21 +1603,23 @@ CONTAINS
       !!
       !! ** Method  :   Fortan open
       !!----------------------------------------------------------------------
-      INTEGER                                , INTENT(inout) ::   kios    ! IO status after reading the namelist
-      CHARACTER(len=*)                       , INTENT(in   ) ::   cdnam   ! group name of namelist for which error occurs
+      INTEGER          , INTENT(inout) ::   kios     ! IO status after reading the namelist
+      CHARACTER(len=*) , INTENT(in   ) ::   cdnam    ! group name of namelist for which error occurs
+      LOGICAL, OPTIONAL, INTENT(in   ) ::   ldwarn   ! if absent or .TRUE., missing namelist-group records trigger a warning
       !
-      CHARACTER(len=5) ::   clios   ! string to convert iostat in character for print
+      CHARACTER(len=5) ::   clios    ! string to convert iostat in character for print
+      LOGICAL          ::   llwarn   ! auxiliary variable
       !!----------------------------------------------------------------------
       !
       WRITE (clios, '(I5.0)')   kios
-      IF( kios < 0 ) THEN
-         CALL ctl_warn( 'end of record or file while reading namelist '   &
-            &           // TRIM(cdnam) // ' iostat = ' // TRIM(clios) )
+      llwarn = .TRUE.
+      IF ( PRESENT( ldwarn ) ) llwarn = ldwarn
+      IF( llwarn .AND. kios < 0 ) THEN
+         CALL ctl_warn( 'end of record or file while reading namelist ' // TRIM(cdnam) // ' iostat = ' // TRIM(clios) )
       ENDIF
       !
-      IF( kios > 0 ) THEN
-         CALL ctl_stop( 'misspelled variable in namelist '   &
-            &           // TRIM(cdnam) // ' iostat = ' // TRIM(clios) )
+      IF ( kios > 0 ) THEN
+         CALL ctl_stop( 'misspelled variable in namelist ' // TRIM(cdnam) // ' iostat = ' // TRIM(clios) )
       ENDIF
       kios = 0
       !
@@ -1649,9 +1652,13 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN )                :: cdnamfile
       CHARACTER(LEN=256)                           :: chline
       CHARACTER(LEN=1)                             :: csp
+      CHARACTER(LEN=32)                            :: cltest             ! internal file for namelist-group-input testing
       INTEGER, INTENT(IN)                          :: kout
       LOGICAL, INTENT(IN)                          :: ldwp  !: .true. only for the root broadcaster
       INTEGER                                      :: itot, iun, iltc, inl, ios, itotsav
+      INTEGER, SAVE                                :: itest = 0          ! namelist-group-input testing status
+      !!
+      NAMELIST/nl1/ itest /nl2/ itest                                    ! namelists for namelist-group-input testing
       !
       !csp = NEW_LINE('A')
       ! a new line character is the best seperator but some systems (e.g.Cray)
@@ -1661,6 +1668,17 @@ CONTAINS
       !
       ! Check if the namelist buffer has already been allocated. Return if it has.
       !
+      IF( itest == 0 ) THEN
+         cltest = '&nl1 itest=1/'//csp//'&nl2 itest=2/'
+         READ_NML_(cltest,test,nl1,.TRUE.)
+         IF( itest /= 1 ) CALL ctl_stop( 'load_nml: failure to read a namelist-group record from an internal file' )
+         READ_NML_(cltest,test,nl2,.TRUE.)
+         IF( itest /= 2 ) CALL ctl_stop( 'load_nml: failure to read the second namelist-group record stored in an internal',    &
+            &                            'file',                                                                                &
+            &                            '--> a workaround can be activated by fully rebuilding the executable after the',      &
+            &                            "    addition of '-Dkey_nomultnlg' to the '%FPPFLAGS' value in the architecture",      &
+            &                            '    configuration file' )
+      END IF
       IF ( ALLOCATED( cdnambuff ) ) RETURN
       IF( ldwp ) THEN
          !

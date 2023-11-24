@@ -40,6 +40,7 @@ MODULE p4zsms
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -294,10 +295,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
 
-      READ  ( numnatp_ref, nampisbio, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampisbio in reference namelist' )
-      READ  ( numnatp_cfg, nampisbio, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampisbio in configuration namelist' )
+      READ_NML_REF(numnatp,nampisbio)
+      READ_NML_CFG(numnatp,nampisbio)
       IF(lwm) WRITE( numonp, nampisbio )
       !
       IF(lwp) THEN                         ! control print
@@ -324,10 +323,8 @@ CONTAINS
       ENDIF
 
 
-      READ  ( numnatp_ref, nampisdmp, IOSTAT = ios, ERR = 905)
-905   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampisdmp in reference namelist' )
-      READ  ( numnatp_cfg, nampisdmp, IOSTAT = ios, ERR = 906 )
-906   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampisdmp in configuration namelist' )
+      READ_NML_REF(numnatp,nampisdmp)
+      READ_NML_CFG(numnatp,nampisdmp)
       IF(lwm) WRITE( numonp, nampisdmp )
       !
       IF(lwp) THEN                         ! control print
@@ -337,10 +334,8 @@ CONTAINS
          WRITE(numout,*) '      Frequency of Relaxation                     nn_pisdmp =', nn_pisdmp
       ENDIF
 
-      READ  ( numnatp_ref, nampismass, IOSTAT = ios, ERR = 907)
-907   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampismass in reference namelist' )
-      READ  ( numnatp_cfg, nampismass, IOSTAT = ios, ERR = 908 )
-908   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampismass in configuration namelist' )
+      READ_NML_REF(numnatp,nampismass)
+      READ_NML_CFG(numnatp,nampismass)
       IF(lwm) WRITE( numonp, nampismass )
 
       IF(lwp) THEN                         ! control print

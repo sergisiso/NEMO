@@ -100,6 +100,7 @@ MODULE dynvor
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
 
    !!----------------------------------------------------------------------
@@ -988,10 +989,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnam_ref, namdyn_vor, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdyn_vor in reference namelist' )
-      READ  ( numnam_cfg, namdyn_vor, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdyn_vor in configuration namelist' )
+      READ_NML_REF(numnam,namdyn_vor)
+      READ_NML_CFG(numnam,namdyn_vor)
       IF(lwm) WRITE ( numond, namdyn_vor )
       !
       IF(lwp) THEN                    ! Namelist print

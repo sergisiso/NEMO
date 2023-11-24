@@ -84,6 +84,7 @@ MODULE traqsr
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -787,10 +788,8 @@ CONTAINS
          &                  nn_chldta, rn_abs, rn_si0, rn_si1
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namtra_qsr, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtra_qsr in reference namelist' )
-      READ  ( numnam_cfg, namtra_qsr, IOSTAT = ios, ERR = 902)
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtra_qsr in configuration namelist' )
+      READ_NML_REF(numnam,namtra_qsr)
+      READ_NML_CFG(numnam,namtra_qsr)
       IF(lwm) WRITE ( numond, namtra_qsr )
       !
       IF(lwp) THEN            !**  control print  **!

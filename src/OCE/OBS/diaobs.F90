@@ -98,7 +98,9 @@ MODULE diaobs
 
    CHARACTER(len=lca), PUBLIC, DIMENSION(:), ALLOCATABLE ::   cobstypesprof, cobstypessurf   !: Profile & surface obs types
 
+   !! * Substitutions
 #  include "domzgr_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: diaobs.F90 15077 2021-07-03 10:16:35Z jchanut $
@@ -212,10 +214,8 @@ CONTAINS
       CALL fin_date( rn_dobsend )
 
       ! Read namelist namobs : control observation diagnostics
-      READ  ( numnam_ref, namobs, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namobs in reference namelist' )
-      READ  ( numnam_cfg, namobs, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namobs in configuration namelist' )
+      READ_NML_REF(numnam,namobs)
+      READ_NML_CFG(numnam,namobs)
       IF(lwm) WRITE ( numond, namobs )
 
       IF( .NOT.ln_diaobs ) THEN

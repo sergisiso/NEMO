@@ -32,6 +32,8 @@ MODULE icethd_da
    REAL(wp) ::   rn_beta   ! coef. beta for lateral melting param.
    REAL(wp) ::   rn_dmin   ! minimum floe diameter for lateral melting param.
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icethd_da.F90 15385 2021-10-15 13:52:48Z clem $
@@ -180,10 +182,8 @@ CONTAINS
       NAMELIST/namthd_da/ rn_beta, rn_dmin
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namthd_da, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namthd_da in reference namelist' )
-      READ  ( numnam_ice_cfg, namthd_da, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namthd_da in configuration namelist' )
+      READ_NML_REF(numnam_ice,namthd_da)
+      READ_NML_CFG(numnam_ice,namthd_da)
       IF(lwm) WRITE( numoni, namthd_da )
       !
       IF(lwp) THEN                          ! control print

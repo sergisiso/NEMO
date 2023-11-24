@@ -41,6 +41,7 @@ MODULE icealb
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icealb.F90 15549 2021-11-28 20:00:36Z clem $
@@ -196,10 +197,8 @@ CONTAINS
       NAMELIST/namalb/ rn_alb_sdry, rn_alb_smlt, rn_alb_idry, rn_alb_imlt, rn_alb_dpnd, rn_alb_hpiv
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namalb, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namalb in reference namelist' )
-      READ  ( numnam_ice_cfg, namalb, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namalb in configuration namelist' )
+      READ_NML_REF(numnam_ice,namalb)
+      READ_NML_CFG(numnam_ice,namalb)
       IF(lwm) WRITE( numoni, namalb )
       !
       IF(lwp) THEN                      ! Control print

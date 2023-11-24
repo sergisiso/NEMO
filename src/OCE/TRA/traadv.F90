@@ -76,6 +76,7 @@ MODULE traadv
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -311,11 +312,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       !                                !==  Namelist  ==!
-      READ  ( numnam_ref, namtra_adv, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtra_adv in reference namelist' )
-      !
-      READ  ( numnam_cfg, namtra_adv, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtra_adv in configuration namelist' )
+      READ_NML_REF(numnam,namtra_adv)
+      READ_NML_CFG(numnam,namtra_adv)
       IF(lwm) WRITE( numond, namtra_adv )
       !
       IF(lwp) THEN                           ! Namelist print

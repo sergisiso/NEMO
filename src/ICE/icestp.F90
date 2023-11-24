@@ -86,6 +86,7 @@ MODULE icestp
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icestp.F90 15023 2021-06-18 14:35:25Z gsamson $
@@ -334,10 +335,8 @@ CONTAINS
          &             cn_icerst_in, cn_icerst_indir, cn_icerst_out, cn_icerst_outdir
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, nampar, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampar in reference namelist' )
-      READ  ( numnam_ice_cfg, nampar, IOSTAT = ios, ERR = 902 )
-902   IF( ios > 0 )   CALL ctl_nam ( ios , 'nampar in configuration namelist' )
+      READ_NML_REF(numnam_ice,nampar)
+      READ_NML_CFG(numnam_ice,nampar)
       IF(lwm) WRITE( numoni, nampar )
       !
       IF(lwp) THEN                  ! control print

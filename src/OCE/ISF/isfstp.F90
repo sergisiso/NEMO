@@ -38,6 +38,7 @@ MODULE isfstp
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -343,11 +344,8 @@ CONTAINS
          &             rn_isfpar_bg03_gt0
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namisf, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namisf in reference namelist' )
-      !
-      READ  ( numnam_cfg, namisf, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namisf in configuration namelist' )
+      READ_NML_REF(numnam,namisf)
+      READ_NML_CFG(numnam,namisf)
       IF(lwm) WRITE ( numond, namisf )
 
    END SUBROUTINE isf_nam
