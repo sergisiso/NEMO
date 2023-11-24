@@ -45,6 +45,7 @@ MODULE trabbc
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -136,11 +137,8 @@ CONTAINS
       NAMELIST/nambbc/ln_trabbc, nn_geoflx, rn_geoflx_cst, sn_qgh, cn_dir
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, nambbc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nambbc in reference namelist' )
-      !
-      READ  ( numnam_cfg, nambbc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nambbc in configuration namelist' )
+      READ_NML_REF(numnam,nambbc)
+      READ_NML_CFG(numnam,nambbc)
       IF(lwm) WRITE ( numond, nambbc )
       !
       IF(lwp) THEN                     ! Control print

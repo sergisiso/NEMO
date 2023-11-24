@@ -29,6 +29,8 @@ MODULE usrdef_nam
    REAL(wp), PUBLIC ::   rn_dx     ! resolution in meters defining the horizontal domain size
    REAL(wp), PUBLIC ::   rn_dz     ! resolution in meters defining the vertical   domain size
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 14433 2021-02-11 08:06:49Z smasson $ 
@@ -60,9 +62,7 @@ CONTAINS
       NAMELIST/namusr_def/ rn_dx, rn_dz
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       IF(lwm)   WRITE( numond, namusr_def )
       !
       !

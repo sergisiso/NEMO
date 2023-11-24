@@ -17,6 +17,9 @@ MODULE trcnam_c14
    !!
    PUBLIC   trc_nam_c14   ! called by trcnam.F90 module
    !!
+
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcnam_c14.F90 14871 2021-05-17 09:50:39Z rlod $ 
@@ -61,10 +64,8 @@ CONTAINS
       ln_trc_obc(jp_c14) = .false.
       ln_trc_ais(jp_c14) = .false.
       !
-      READ  ( numtrc_ref, namc14_typ, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namc14_typ in reference namelist' )
-      READ  ( numtrc_cfg, namc14_typ, IOSTAT = ios, ERR = 902)
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namc14_typ in configuration namelist' )
+      READ_NML_REF(numtrc,namc14_typ)
+      READ_NML_CFG(numtrc,namc14_typ)
       IF(lwm) WRITE ( numonr, namc14_typ )
       !
       IF(lwp) THEN                  ! control print
@@ -76,10 +77,8 @@ CONTAINS
          WRITE(numout,*)
       ENDIF
 
-      READ  ( numtrc_ref, namc14_sbc, IOSTAT = ios, ERR = 903)
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namc14_sbc in reference namelist' )
-      READ  ( numtrc_cfg, namc14_sbc, IOSTAT = ios, ERR = 904)
-904   IF( ios >  0 )   CALL ctl_nam ( ios , 'namc14_sbc in configuration namelist' )
+      READ_NML_REF(numtrc,namc14_sbc)
+      READ_NML_CFG(numtrc,namc14_sbc)
       IF(lwm) WRITE( numonr, namc14_sbc )
       !
       IF(lwp) THEN                  ! control print
@@ -90,10 +89,8 @@ CONTAINS
          WRITE(numout,*)
       ENDIF
 
-      READ  ( numtrc_ref, namc14_fcg, IOSTAT = ios, ERR = 905)
-905   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namc14_fcg in reference namelist' )
-      READ  ( numtrc_cfg, namc14_fcg, IOSTAT = ios, ERR = 906)
-906   IF( ios >  0 )   CALL ctl_nam ( ios , 'namc14_fcg in configuration namelist' )
+      READ_NML_REF(numtrc,namc14_fcg)
+      READ_NML_CFG(numtrc,namc14_fcg)
       IF(lwm) WRITE ( numonr, namc14_fcg )
       !
       IF(lwp) THEN                  ! control print

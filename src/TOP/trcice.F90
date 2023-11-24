@@ -25,6 +25,8 @@ MODULE trcice
    
    PUBLIC   trc_ice_ini   ! called by trc_nam
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcice.F90 14086 2020-12-04 11:37:14Z cetlod $ 
@@ -85,10 +87,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnat_ref, namtrc_ice, IOSTAT = ios, ERR = 901)
- 901  IF( ios /= 0 )   CALL ctl_nam ( ios , ' namtrc_ice in reference namelist ' )
-      READ  ( numnat_cfg, namtrc_ice, IOSTAT = ios, ERR = 902 )
- 902  IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_ice in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_ice)
+      READ_NML_CFG(numnat,namtrc_ice)
 
       IF( lwp ) THEN
          WRITE(numout,*) ' '

@@ -34,6 +34,8 @@ MODULE usrdef_nam
    REAL(wp), PUBLIC ::   rn_ppumax  ! vortex velocity 
    INTEGER,  PUBLIC ::   nn_rot     ! vortex velocity 
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 15265 2021-09-16 11:13:13Z jchanut $ 
@@ -67,8 +69,7 @@ CONTAINS
       NAMELIST/namusr_def/  rn_dx, rn_dy, rn_dz, rn_ppgphi0, rn_ppumax, nn_rot
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       !
       IF( nn_rot  < 0   .OR.  nn_rot  > 3 )   CALL ctl_stop( 'bad namelist flag: nn_rot is 0, 1, 2 or 3' )
       !

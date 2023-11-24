@@ -37,7 +37,8 @@ MODULE icedyn_rhg
    INTEGER, PARAMETER ::   np_rhgEAP = 2   ! EAP rheology
    INTEGER, PARAMETER ::   np_rhgVP  = 3   ! VP rheology
 
-   !
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icedyn_rhg.F90 14072 2020-12-04 07:48:38Z laurent $
@@ -123,10 +124,8 @@ CONTAINS
          &                  ln_rhg_VP, nn_vp_nout, nn_vp_ninn, nn_vp_chkcvg                                            !-- vp
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namdyn_rhg, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namdyn_rhg in reference namelist' )
-      READ  ( numnam_ice_cfg, namdyn_rhg, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namdyn_rhg in configuration namelist' )
+      READ_NML_REF(numnam_ice,namdyn_rhg)
+      READ_NML_CFG(numnam_ice,namdyn_rhg)
       IF(lwm) WRITE ( numoni, namdyn_rhg )
       !
       IF(lwp) THEN                     ! control print

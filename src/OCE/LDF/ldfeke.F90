@@ -62,6 +62,7 @@ MODULE ldfeke
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 4.0 , NEMO Consortium (2017)
@@ -436,11 +437,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       !
-      READ  ( numnam_ref, namldf_eke, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namldf_eke in reference namelist' )
-
-      READ  ( numnam_cfg, namldf_eke, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namldf_eke in configuration namelist' )
+      READ_NML_REF(numnam,namldf_eke)
+      READ_NML_(numnam_cfg,cfg,namldf_eke,.TRUE.)
       IF(lwm) WRITE ( numond, namldf_eke )
       !
       IF(lwp) THEN                    !* Control print

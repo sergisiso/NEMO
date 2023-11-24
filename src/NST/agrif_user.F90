@@ -2,6 +2,7 @@
 #if defined key_agrif
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 4.0 , NEMO Consortium (2018)
    !! $Id: agrif_user.F90 15265 2021-09-16 11:13:13Z jchanut $
@@ -939,10 +940,8 @@
       !
       IF ( .NOT.Agrif_Root() ) THEN
          !
-         READ  ( numnam_ref, namagrif, IOSTAT = ios, ERR = 901)
-901 IF( ios /= 0 )   CALL ctl_nam ( ios , 'namagrif in reference namelist' )
-         READ  ( numnam_cfg, namagrif, IOSTAT = ios, ERR = 902 )
-902 IF( ios >  0 )   CALL ctl_nam ( ios , 'namagrif in configuration namelist' )
+         READ_NML_REF(numnam,namagrif)
+         READ_NML_CFG(numnam,namagrif)
          IF(lwm) WRITE ( numond, namagrif )
          !
          IF(lwp) THEN                    ! control print
@@ -1177,10 +1176,8 @@
       CALL load_nml( numnam_ref,        'namelist_ref',                                           -1, lwm )
       CALL load_nml( numnam_cfg,        'namelist_cfg',                                           -1, lwm )
 
-      READ  ( numnam_ref, namcfg, IOSTAT = ios, ERR = 903 )
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namcfg in reference namelist' )
-      READ  ( numnam_cfg, namcfg, IOSTAT = ios, ERR = 904 )
-904   IF( ios >  0 )   CALL ctl_nam ( ios , 'namcfg in configuration namelist' )
+      READ_NML_REF(numnam,namcfg)
+      READ_NML_CFG(numnam,namcfg)
 
       IF( ln_read_cfg ) THEN            ! Read sizes in domain configuration file
          CALL domain_cfg ( cn_cfg, nn_cfg, Ni0glo, Nj0glo, jpkglo, l_Iperio, l_Jperio, l_NFold, c_NFtype )
@@ -1188,10 +1185,8 @@
          CALL usr_def_nam( cn_cfg, nn_cfg, Ni0glo, Nj0glo, jpkglo, l_Iperio, l_Jperio, l_NFold, c_NFtype )
       ENDIF
 
-      READ  ( numnam_ref, nammpp, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nammpp in reference namelist' )
-      READ  ( numnam_cfg, nammpp, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nammpp in configuration namelist' )
+      READ_NML_REF(numnam,nammpp)
+      READ_NML_CFG(numnam,nammpp)
       !
       nn_hls = MAX(1, nn_hls)   ! nn_hls must be > 0
 

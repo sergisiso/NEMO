@@ -40,6 +40,8 @@ MODULE icedia
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   vol_loc_ini, sal_loc_ini, tem_loc_ini                    ! initial volume, salt and heat contents
    REAL(wp)                              ::   frc_sal, frc_voltop, frc_volbot, frc_temtop, frc_tembot  ! global forcing trends
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icedia.F90 15048 2021-06-23 16:02:14Z clem $
@@ -198,10 +200,8 @@ CONTAINS
       NAMELIST/namdia/ ln_icediachk, rn_icechk_cel, rn_icechk_glo, ln_icediahsb, ln_icectl, iiceprt, jiceprt
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namdia, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdia in reference namelist' )
-      READ  ( numnam_ice_cfg, namdia, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdia in configuration namelist' )
+      READ_NML_REF(numnam_ice,namdia)
+      READ_NML_CFG(numnam_ice,namdia)
       IF(lwm) WRITE ( numoni, namdia )
       !
       IF(lwp) THEN                  ! control print

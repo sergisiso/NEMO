@@ -61,6 +61,8 @@ MODULE sbcssm
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_ssm_3d  ! structure of input fields (file information, fields read)
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_ssm_2d  ! structure of input fields (file information, fields read)
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/SAS 4.0 , NEMO Consortium (2018)
    !! $Id: sbcssm.F90 13286 2020-07-09 15:48:29Z smasson $
@@ -193,10 +195,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~ '
       ENDIF
       !
-      READ  ( numnam_ref, namsbc_sas, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_sas in reference namelist' )
-      READ  ( numnam_cfg, namsbc_sas, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_sas in configuration namelist' )
+      READ_NML_REF(numnam,namsbc_sas)
+      READ_NML_CFG(numnam,namsbc_sas)
       IF(lwm) WRITE ( numond, namsbc_sas )
       !
       IF(lwp) THEN                              ! Control print

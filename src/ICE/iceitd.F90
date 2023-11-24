@@ -51,6 +51,7 @@ MODULE iceitd
    !
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: iceitd.F90 15046 2021-06-23 10:46:01Z clem $
@@ -674,10 +675,8 @@ CONTAINS
       !
       rn_catbnd(:) =  0._wp ! Circumvent possible initialization by compiler
                             ! to prevent from errors when writing output
-      READ  ( numnam_ice_ref, namitd, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namitd in reference namelist' )
-      READ  ( numnam_ice_cfg, namitd, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namitd in configuration namelist' )
+      READ_NML_REF(numnam_ice,namitd)
+      READ_NML_CFG(numnam_ice,namitd)
       IF(lwm) WRITE( numoni, namitd )
       !
       IF(lwp) THEN                  ! control print

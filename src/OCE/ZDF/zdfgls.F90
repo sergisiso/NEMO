@@ -113,6 +113,7 @@ MODULE zdfgls
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -889,11 +890,8 @@ CONTAINS
          &            nn_stab_func, nn_clos
       !!----------------------------------------------------------
       !
-      READ  ( numnam_ref, namzdf_gls, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namzdf_gls in reference namelist' )
-
-      READ  ( numnam_cfg, namzdf_gls, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namzdf_gls in configuration namelist' )
+      READ_NML_REF(numnam,namzdf_gls)
+      READ_NML_CFG(numnam,namzdf_gls)
       IF(lwm) WRITE ( numond, namzdf_gls )
 
       IF(lwp) THEN                     !* Control print

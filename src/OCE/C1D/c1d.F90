@@ -24,6 +24,8 @@ MODULE c1d
    REAL(wp), PUBLIC ::  rn_lat1d     !: Column latitude
    REAL(wp), PUBLIC ::  rn_lon1d     !: Column longitude
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: c1d.F90 15023 2021-06-18 14:35:25Z gsamson $ 
@@ -44,11 +46,8 @@ CONTAINS
       NAMELIST/namc1d/ rn_lat1d, rn_lon1d
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namc1d, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namc1d in reference namelist' )
-      !
-      READ  ( numnam_cfg, namc1d, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namc1d in configuration namelist' )
+      READ_NML_REF(numnam,namc1d)
+      READ_NML_CFG(numnam,namc1d)
       IF(lwm) WRITE ( numond, namc1d )
       !
       IF(lwp) THEN                    ! Control print

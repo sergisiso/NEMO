@@ -56,6 +56,7 @@
    !
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.2 , NEMO Consortium (2018)
@@ -451,13 +452,10 @@ CONTAINS
       !!----------------------------------------------------------
       !
       !
-!      REWIND( numnam_ref )              ! Namelist namzdf_mfc in reference namelist : Vertical eddy diffivity mass flux
-      READ  ( numnam_ref, namzdf_mfc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namzdf_edmf in reference namelist' )
-
-!      REWIND( numnam_cfg )              ! Namelist namzdf_mfc in configuration namelist : Vertical eddy diffivity mass flux
-      READ  ( numnam_cfg, namzdf_mfc, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namzdf_edmf in configuration namelist' )
+      ! Namelist namzdf_mfc in reference namelist : Vertical eddy diffivity mass flux
+      READ_NML_REF(numnam,namzdf_mfc)
+      ! Namelist namzdf_mfc in configuration namelist : Vertical eddy diffivity mass flux
+      READ_NML_(numnam_cfg,cfg,namzdf_mfc,.TRUE.)
       IF(lwm) WRITE ( numond, namzdf_mfc )
 
       IF(lwp) THEN                     !* Control print

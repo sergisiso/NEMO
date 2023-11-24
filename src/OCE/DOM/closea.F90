@@ -53,6 +53,7 @@ MODULE closea
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: closea.F90 13558 2020-10-02 15:30:22Z smasson $
@@ -78,10 +79,8 @@ CONTAINS
       NAMELIST/namclo/ ln_maskcs, ln_mask_csundef, ln_clo_rnf
       !!---------------------------------------------------------------------
       !!
-      READ  ( numnam_ref, namclo, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namclo in reference namelist' )
-      READ  ( numnam_cfg, namclo, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namclo in configuration namelist' )
+      READ_NML_REF(numnam,namclo)
+      READ_NML_CFG(numnam,namclo)
       IF(lwm) WRITE ( numond, namclo )
       !!
       IF(lwp) WRITE(numout,*)

@@ -56,6 +56,7 @@ MODULE icedyn
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icedyn.F90 14997 2021-06-16 06:43:57Z smasson $
@@ -257,10 +258,8 @@ CONTAINS
          &             sn_icbmsk, sn_fastmsk, cn_dir
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namdyn, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdyn in reference namelist' )
-      READ  ( numnam_ice_cfg, namdyn, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdyn in configuration namelist' )
+      READ_NML_REF(numnam_ice,namdyn)
+      READ_NML_CFG(numnam_ice,namdyn)
       IF(lwm) WRITE( numoni, namdyn )
       !
       IF(lwp) THEN                     ! control print

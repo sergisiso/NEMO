@@ -47,6 +47,7 @@ MODULE bdyini
    
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: bdyini.F90 15368 2021-10-14 08:25:34Z smasson $ 
@@ -79,8 +80,7 @@ CONTAINS
       ! ------------------------
       ! Read namelist parameters
       ! ------------------------
-      READ  ( numnam_ref, nambdy, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nambdy in reference namelist' )
+      READ_NML_REF(numnam,nambdy)
       ! make sur that all elements of the namelist variables have a default definition from namelist_ref
       ln_coords_file (2:jp_bdy) = ln_coords_file (1)
       cn_coords_file (2:jp_bdy) = cn_coords_file (1)
@@ -97,8 +97,7 @@ CONTAINS
       cn_ice         (2:jp_bdy) = cn_ice         (1)
       nn_ice_dta     (2:jp_bdy) = nn_ice_dta     (1)
       nn_rimwidth    (2:jp_bdy) = nn_rimwidth    (1)
-      READ  ( numnam_cfg, nambdy, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nambdy in configuration namelist' )
+      READ_NML_CFG(numnam,nambdy)
       IF(lwm) WRITE ( numond, nambdy )
 
       IF( .NOT. Agrif_Root() ) ln_bdy = .FALSE.   ! forced for Agrif children
@@ -1322,8 +1321,8 @@ CONTAINS
        ENDIF
       END DO
       nbdy_rdstart = MAX( 1, nbdy_rdstart - 2 )
-      READ  ( numnam_cfg( nbdy_rdstart: ), nambdy_index, IOSTAT = ios, ERR = 904)
-904   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nambdy_index in configuration namelist' )
+      READ( numnam_cfg( nbdy_rdstart: ), nambdy_index, IOSTAT=ios )
+      CALL ctl_nam( ios, 'nambdy_index (numnam_cfg)' )
       IF(lwm) WRITE ( numond, nambdy_index )
       
       SELECT CASE ( TRIM(ctypebdy) )

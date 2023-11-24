@@ -62,6 +62,7 @@ MODULE p5zmeso
    LOGICAL          :: l_dia_fezoo2, l_dia_graz2, l_dia_lprodz2
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -617,11 +618,8 @@ CONTAINS
          &                unass2n, unass2p, srespir2, xsigma2, xsigma2del, grazflux, ln_dvm_meso, xfracmig
       !!----------------------------------------------------------------------
       !
-      READ  ( numnatp_ref, namp5zmes, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namp5zmes in reference namelist' )
-      !
-      READ  ( numnatp_cfg, namp5zmes, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namp5zmes in configuration namelist' )
+      READ_NML_REF(numnatp,namp5zmes)
+      READ_NML_CFG(numnatp,namp5zmes)
       IF(lwm) WRITE ( numonp, namp5zmes )
       !
       IF(lwp) THEN                         ! control print

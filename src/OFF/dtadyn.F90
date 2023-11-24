@@ -90,6 +90,7 @@ MODULE dtadyn
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    
    !!----------------------------------------------------------------------
@@ -234,10 +235,8 @@ CONTAINS
          &                sn_empb, sn_div 
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namdta_dyn, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdta_dyn in reference namelist' )
-      READ  ( numnam_cfg, namdta_dyn, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdta_dyn in configuration namelist' )
+      READ_NML_REF(numnam,namdta_dyn)
+      READ_NML_CFG(numnam,namdta_dyn)
       IF(lwm) WRITE ( numond, namdta_dyn )
       !                                         ! store namelist information in an array
       !                                         ! Control print

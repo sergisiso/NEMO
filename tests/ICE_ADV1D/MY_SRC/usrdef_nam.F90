@@ -31,6 +31,8 @@ MODULE usrdef_nam
    REAL(wp), PUBLIC ::   rn_ppgphi0 ! reference latitude for beta-plane 
    LOGICAL , PUBLIC ::   ln_corio   ! set coriolis at 0 (ln_corio=F) or not 
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 10074 2018-08-28 16:15:49Z nicolasmartin $ 
@@ -63,9 +65,7 @@ CONTAINS
       NAMELIST/namusr_def/ rn_dx, rn_dy, ln_corio, rn_ppgphi0
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       IF(lwm)   WRITE( numond, namusr_def )
       !
       cd_cfg = 'ICE_ADV1D'           ! name & resolution (not used)

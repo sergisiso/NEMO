@@ -44,6 +44,7 @@ MODULE p4zlys
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -374,10 +375,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, nampiscal, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampiscal in reference namelist' )
-      READ  ( numnatp_cfg, nampiscal, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampiscal in configuration namelist' )
+      READ_NML_REF(numnatp,nampiscal)
+      READ_NML_CFG(numnatp,nampiscal)
       IF(lwm) WRITE( numonp, nampiscal )
       !
       IF(lwp) THEN                         ! control print

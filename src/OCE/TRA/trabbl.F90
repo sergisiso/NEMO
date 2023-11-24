@@ -65,6 +65,7 @@ MODULE trabbl
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -467,11 +468,8 @@ CONTAINS
       NAMELIST/nambbl/ ln_trabbl, nn_bbl_ldf, nn_bbl_adv, rn_ahtbbl, rn_gambbl
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, nambbl, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nambbl in reference namelist' )
-      !
-      READ  ( numnam_cfg, nambbl, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nambbl in configuration namelist' )
+      READ_NML_REF(numnam,nambbl)
+      READ_NML_CFG(numnam,nambbl)
       IF(lwm) WRITE ( numond, nambbl )
       !
       IF(lwp) THEN                   !* Parameter control and print

@@ -48,6 +48,7 @@ MODULE trcbc
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -131,10 +132,8 @@ CONTAINS
       rn_trcfac(:)    = 1._wp
       !
       ! Read Boundary Conditions Namelists
-      READ  ( numnat_ref, namtrc_bc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_bc in reference namelist' )
-      READ  ( numnat_cfg, namtrc_bc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_bc in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_bc)
+      READ_NML_CFG(numnat,namtrc_bc)
       IF(lwm) WRITE ( numont, namtrc_bc )
 
       ! Disable passive-tracer OBC data input if BDY is inactive

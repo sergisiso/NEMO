@@ -113,6 +113,7 @@ MODULE stopar
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: stopar.F90 13295 2020-07-10 18:24:21Z acc $
@@ -262,11 +263,8 @@ CONTAINS
       INTEGER  ::   ios                 ! Local integer output status for namelist read
 
       ! Read namsto namelist : stochastic parameterization
-      READ  ( numnam_ref, namsto, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namsto in reference namelist' )
-
-      READ  ( numnam_cfg, namsto, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namsto in configuration namelist' )
+      READ_NML_REF(numnam,namsto)
+      READ_NML_CFG(numnam,namsto)
       IF(lwm) WRITE ( numond, namsto )
 
       IF( .NOT.ln_sto_eos ) THEN   ! no use of stochastic parameterization

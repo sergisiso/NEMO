@@ -46,6 +46,7 @@ MODULE sbcabl
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 3.7 , NEMO-consortium (2014)
    !! $Id: sbcabl.F90 6416 2016-04-01 12:22:17Z clem $
@@ -76,14 +77,8 @@ CONTAINS
          &                 rn_vfac, ln_smth_pblh, ln_pga_abl
       !!---------------------------------------------------------------------
 
-                                        ! Namelist namsbc_abl in reference namelist : ABL parameters
-      READ  ( numnam_ref, namsbc_abl, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namsbc_abl in reference namelist' )
-      !
-                                        ! Namelist namsbc_abl in configuration namelist : ABL parameters
-      READ  ( numnam_cfg, namsbc_abl, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namsbc_abl in configuration namelist' )
-      !
+      READ_NML_REF(numnam,namsbc_abl)               ! Namelist namsbc_abl in reference namelist : ABL parameters
+      READ_NML_(numnam_cfg,cfg,namsbc_abl,.TRUE.)   ! Namelist namsbc_abl in configuration namelist : ABL parameters
       IF(lwm) WRITE( numond, namsbc_abl )
       !
       ! Check ABL mixing length option

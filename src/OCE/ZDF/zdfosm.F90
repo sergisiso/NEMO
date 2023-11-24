@@ -243,6 +243,7 @@ MODULE zdfosm
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -3014,11 +3015,8 @@ CONTAINS
          &                 rn_osm_mle_rho_c, rn_osm_mle_thresh, rn_osm_mle_tau, ln_osm_hmle_limit, rn_osm_hmle_limit
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namzdf_osm, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namzdf_osm in reference namelist' )
-
-      READ  ( numnam_cfg, namzdf_osm, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namzdf_osm in configuration namelist' )
+      READ_NML_REF(numnam,namzdf_osm)
+      READ_NML_CFG(numnam,namzdf_osm)
       IF(lwm) WRITE ( numond, namzdf_osm )
 
       IF(lwp) THEN                    ! Control print
@@ -3086,10 +3084,8 @@ CONTAINS
       IF( zdf_osm_alloc() /= 0 ) CALL ctl_stop( 'STOP', 'zdf_osm_init : unable to allocate arrays' )
       !
       IF( ln_osm_mle ) THEN   ! Initialise Fox-Kemper parametrization
-         READ  ( numnam_ref, namosm_mle, IOSTAT = ios, ERR = 903)
-903      IF( ios /= 0 ) CALL ctl_nam( ios, 'namosm_mle in reference namelist' )
-         READ  ( numnam_cfg, namosm_mle, IOSTAT = ios, ERR = 904 )
-904      IF( ios >  0 ) CALL ctl_nam( ios, 'namosm_mle in configuration namelist' )
+         READ_NML_REF(numnam,namosm_mle)
+         READ_NML_CFG(numnam,namosm_mle)
          IF(lwm) WRITE ( numond, namosm_mle )
          !
          IF(lwp) THEN   ! Namelist print

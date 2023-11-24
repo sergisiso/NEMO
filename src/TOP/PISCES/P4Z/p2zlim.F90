@@ -43,6 +43,7 @@ MODULE p2zlim
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: p2zlim.F90 10069 2018-08-28 14:12:24Z nicolasmartin $ 
@@ -208,10 +209,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, namp2zlim, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namp2zlim in reference namelist' )
-      READ  ( numnatp_cfg, namp2zlim, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namp2zlim in configuration namelist' )
+      READ_NML_REF(numnatp,namp2zlim)
+      READ_NML_CFG(numnatp,namp2zlim)
       IF(lwm) WRITE( numonp, namp2zlim )
 
       !

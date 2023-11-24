@@ -47,6 +47,8 @@ MODULE dynadv
    REAL(wp), PUBLIC            ::   r_stb_thres_dyn  ! starting Courant number threshold for adaptive implicit vertical advection
    REAL(wp), PUBLIC            ::   r_stb_cstra_dyn  ! stability constraint for dynamic advection
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: dynadv.F90 14419 2021-02-09 12:22:16Z techene $
@@ -111,10 +113,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnam_ref, namdyn_adv, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdyn_adv in reference namelist' )
-      READ  ( numnam_cfg, namdyn_adv, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdyn_adv in configuration namelist' )
+      READ_NML_REF(numnam,namdyn_adv)
+      READ_NML_CFG(numnam,namdyn_adv)
       IF(lwm) WRITE ( numond, namdyn_adv )
 
       IF(lwp) THEN                    ! Namelist print

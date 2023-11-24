@@ -34,6 +34,7 @@ MODULE p5zmort
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: p5zmort.F90 15459 2021-10-29 08:19:18Z cetlod $ 
@@ -292,11 +293,8 @@ CONTAINS
       NAMELIST/namp5zmort/ wchln, wchlp, wchld, mpratn, mpratp, mpratd
       !!----------------------------------------------------------------------
 
-      READ  ( numnatp_ref, namp5zmort, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namp5zmort in reference namelist' )
-
-      READ  ( numnatp_cfg, namp5zmort, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namp5zmort in configuration namelist' )
+      READ_NML_REF(numnatp,namp5zmort)
+      READ_NML_CFG(numnatp,namp5zmort)
       IF(lwm) WRITE ( numonp, namp5zmort )
 
       IF(lwp) THEN                         ! control print

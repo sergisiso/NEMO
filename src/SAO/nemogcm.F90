@@ -48,6 +48,8 @@ MODULE nemogcm
 
    CHARACTER(lc) ::   cform_aaa="( /, 'AAAAAAAA', / ) "     ! flag for output listing
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: nemogcm.F90 15267 2021-09-17 09:04:34Z smasson $
@@ -157,10 +159,8 @@ CONTAINS
       !                             ! Open listing units !  -> need sn_cfctl from namctl to define lwp
       !                             !--------------------!
       !
-      READ  ( numnam_ref, namctl, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namctl in reference namelist' )
-      READ  ( numnam_cfg, namctl, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namctl in configuration namelist' )
+      READ_NML_REF(numnam,namctl)
+      READ_NML_CFG(numnam,namctl)
       !
       ! finalize the definition of namctl variables
       IF( narea < sn_cfctl%procmin .OR. narea > sn_cfctl%procmax .OR. MOD( narea - sn_cfctl%procmin, sn_cfctl%procincr ) /= 0 )   &
@@ -204,10 +204,8 @@ CONTAINS
       !                             !  Set global domain size parameters !
       !                             !------------------------------------!
       !
-      READ  ( numnam_ref, namcfg, IOSTAT = ios, ERR = 903 )
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namcfg in reference namelist' )
-      READ  ( numnam_cfg, namcfg, IOSTAT = ios, ERR = 904 )
-904   IF( ios >  0 )   CALL ctl_nam ( ios , 'namcfg in configuration namelist' )   
+      READ_NML_REF(numnam,namcfg)
+      READ_NML_CFG(numnam,namcfg)
       !
       IF( ln_read_cfg ) THEN            ! Read sizes in domain configuration file
          CALL domain_cfg ( cn_cfg, nn_cfg, Ni0glo, Nj0glo, jpkglo, l_Iperio, l_Jperio, l_NFold, c_NFtype )

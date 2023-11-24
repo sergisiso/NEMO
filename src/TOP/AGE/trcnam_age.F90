@@ -16,6 +16,8 @@ MODULE trcnam_age
 
    PUBLIC   trc_nam_age   ! called by trcnam.F90 module
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcnam_age.F90 14842 2021-05-11 13:17:26Z acc $
@@ -54,10 +56,8 @@ CONTAINS
       ln_trc_obc(jp_age) = .false.
       ln_trc_ais(jp_age) = .false.
       !
-      READ  ( numnat_ref, namage, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namage in reference namelist' )
-      READ  ( numnat_cfg, namage, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namage in configuration namelist' )
+      READ_NML_REF(numnat,namage)
+      READ_NML_CFG(numnat,namage)
       IF(lwm) WRITE ( numont, namage )
       !
       IF(lwp) THEN                  ! control print

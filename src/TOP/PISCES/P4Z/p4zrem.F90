@@ -48,6 +48,7 @@ MODULE p4zrem
    LOGICAL         :: l_dia_remin, l_dia_febact, l_dia_bact, l_dia_denit
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -459,10 +460,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, nampisrem, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampisrem in reference namelist' )
-      READ  ( numnatp_cfg, nampisrem, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampisrem in configuration namelist' )
+      READ_NML_REF(numnatp,nampisrem)
+      READ_NML_CFG(numnatp,nampisrem)
       IF(lwm) WRITE( numonp, nampisrem )
 
       IF(lwp) THEN                         ! control print

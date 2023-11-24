@@ -18,6 +18,8 @@ MODULE trcnam_cfc
 
    PUBLIC   trc_nam_cfc   ! called by trcnam.F90 module
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcnam_cfc.F90 14871 2021-05-17 09:50:39Z rlod $ 
@@ -50,10 +52,8 @@ CONTAINS
          WRITE(numout,*) ' ~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numtrc_ref, namcfc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namcfc in reference namelist' )
-      READ  ( numtrc_cfg, namcfc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namcfc in configuration namelist' )
+      READ_NML_REF(numtrc,namcfc)
+      READ_NML_CFG(numtrc,namcfc)
       IF(lwm) WRITE( numonr, namcfc )
       IF(lwm) CALL FLUSH ( numonr )     ! flush output namelist CFC
 

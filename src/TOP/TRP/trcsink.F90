@@ -25,6 +25,7 @@ MODULE trcsink
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -196,10 +197,8 @@ CONTAINS
       NAMELIST/namtrc_snk/ nitermax
       !!----------------------------------------------------------------------
       !
-      READ  ( numnat_ref, namtrc_snk, IOSTAT = ios, ERR = 907)
-907   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_snk in reference namelist' )
-      READ  ( numnat_cfg, namtrc_snk, IOSTAT = ios, ERR = 908 )
-908   IF( ios > 0 )   CALL ctl_nam ( ios , 'namtrc_snk in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_snk)
+      READ_NML_CFG(numnat,namtrc_snk)
       IF(lwm) WRITE( numont, namtrc_snk )
 
       IF(lwp) THEN                     !   ! Control print

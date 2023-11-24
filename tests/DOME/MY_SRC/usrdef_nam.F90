@@ -32,6 +32,8 @@ MODULE usrdef_nam
    REAL(wp), PUBLIC ::   rn_dz      ! vertical resolution 
    REAL(wp), PUBLIC ::   rn_f0      ! Coriolis frequency 
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 14086 2020-12-04 11:37:14Z cetlod $ 
@@ -65,8 +67,7 @@ CONTAINS
       NAMELIST/namusr_def/  l_zco, l_zps, l_sco, rn_dx, rn_dz, rn_f0
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       !
       rn_dy = rn_dx
 #if defined key_agrif 

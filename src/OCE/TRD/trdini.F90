@@ -25,6 +25,8 @@ MODULE trdini
 
    PUBLIC   trd_init   ! called by nemogcm.F90 module
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: trdini.F90 14834 2021-05-11 09:24:44Z hadcv $
@@ -45,11 +47,8 @@ CONTAINS
          &             ln_tra_trd, ln_PE_trd, ln_glo_trd, ln_tra_mxl, nn_trd
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namtrd, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrd in reference namelist' )
-      !
-      READ  ( numnam_cfg, namtrd, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrd in configuration namelist' )
+      READ_NML_REF(numnam,namtrd)
+      READ_NML_CFG(numnam,namtrd)
       IF(lwm) WRITE( numond, namtrd )
       !
       IF(lwp) THEN                  ! control print

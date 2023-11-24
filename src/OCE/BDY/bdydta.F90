@@ -70,6 +70,7 @@ MODULE bdydta
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -426,8 +427,7 @@ CONTAINS
          WRITE(ctmp2, '(a,i2)') 'block nambdy_dta number ', jbdy
 
          ! There is only one nambdy_dta block in namelist_ref -> use it for each bdy so we read from the beginning
-         READ  ( numnam_ref, nambdy_dta, IOSTAT = ios, ERR = 901)
-901      IF( ios /= 0 )   CALL ctl_nam ( ios , 'nambdy_dta in reference namelist' )
+         READ_NML_REF(numnam,nambdy_dta)
 
          !   by-pass nambdy_dta reading if no input data used in this bdy   
          IF(       ( dta_bdy(jbdy)%lneed_dyn2d .AND. MOD(nn_dyn2d_dta(jbdy),2) == 1 )   &
@@ -448,8 +448,8 @@ CONTAINS
                ios = -1
                CALL ctl_nam ( ios , cerrmsg )
             ENDIF
-            READ  ( numnam_cfg( MAX( 1, nbdy_rdstart - 2 ): ), nambdy_dta, IOSTAT = ios, ERR = 902)
-902         IF( ios >  0 )   CALL ctl_nam ( ios , 'nambdy_dta in configuration namelist' )
+            READ( numnam_cfg( MAX( 1, nbdy_rdstart - 2 ): ), nambdy_dta, IOSTAT=ios )
+            CALL ctl_nam( ios, 'nambdy_dta (numnam_cfg)', .FALSE.)
             IF(lwm) WRITE( numond, nambdy_dta )           
          ENDIF
 

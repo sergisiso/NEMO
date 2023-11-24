@@ -52,6 +52,7 @@ MODULE p5zprod
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -749,11 +750,8 @@ CONTAINS
          &                 chlcmin, grosip, bresp
       !!----------------------------------------------------------------------
 
-      READ  ( numnatp_ref, namp5zprod, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'namp5zprod in reference namelist' )
-
-      READ  ( numnatp_cfg, namp5zprod, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 ) CALL ctl_nam ( ios , 'namp5zprod in configuration namelist' )
+      READ_NML_REF(numnatp,namp5zprod)
+      READ_NML_CFG(numnatp,namp5zprod)
       IF(lwm) WRITE ( numonp, namp5zprod )
 
       IF(lwp) THEN                         ! control print

@@ -89,6 +89,7 @@ MODULE diadct
 
 
    !! * Substitutions
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -124,11 +125,8 @@ CONTAINS
       NAMELIST/nam_diadct/ln_diadct, nn_dct, nn_dctwri, nn_secdebug
       !!---------------------------------------------------------------------
 
-     READ  ( numnam_ref, nam_diadct, IOSTAT = ios, ERR = 901)
-901  IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_diadct in reference namelist' )
-
-     READ  ( numnam_cfg, nam_diadct, IOSTAT = ios, ERR = 902 )
-902  IF( ios >  0 ) CALL ctl_nam ( ios , 'nam_diadct in configuration namelist' )
+     READ_NML_REF(numnam,nam_diadct)
+     READ_NML_CFG(numnam,nam_diadct)
      IF(lwm) WRITE ( numond, nam_diadct )
 
      IF( lwp ) THEN

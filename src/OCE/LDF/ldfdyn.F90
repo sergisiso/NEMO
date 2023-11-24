@@ -79,6 +79,7 @@ MODULE ldfdyn
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: ldfdyn.F90 15014 2021-06-17 17:02:04Z smasson $ 
@@ -120,11 +121,8 @@ CONTAINS
          &                 rn_csmc      , rn_minfac    , rn_maxfac                           ! Smagorinsky settings
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namdyn_ldf, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdyn_ldf in reference namelist' )
-
-      READ  ( numnam_cfg, namdyn_ldf, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdyn_ldf in configuration namelist' )
+      READ_NML_REF(numnam,namdyn_ldf)
+      READ_NML_CFG(numnam,namdyn_ldf)
       IF(lwm) WRITE ( numond, namdyn_ldf )
 
       IF(lwp) THEN                      ! Parameter print

@@ -106,6 +106,7 @@ MODULE ldftra
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -164,10 +165,8 @@ CONTAINS
       !  Choice of lateral tracer physics
       ! =================================
       !
-      READ  ( numnam_ref, namtra_ldf, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtra_ldf in reference namelist' )
-      READ  ( numnam_cfg, namtra_ldf, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtra_ldf in configuration namelist' )
+      READ_NML_REF(numnam,namtra_ldf)
+      READ_NML_CFG(numnam,namtra_ldf)
       IF(lwm) WRITE( numond, namtra_ldf )
       !
       IF(lwp) THEN                      ! control print
@@ -509,11 +508,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~ '
       ENDIF
       !
-      READ  ( numnam_ref, namtra_eiv, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtra_eiv in reference namelist' )
-      !
-      READ  ( numnam_cfg, namtra_eiv, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtra_eiv in configuration namelist' )
+      READ_NML_REF(numnam,namtra_eiv)
+      READ_NML_CFG(numnam,namtra_eiv)
       IF(lwm)  WRITE ( numond, namtra_eiv )
 
       IF(lwp) THEN                      ! control print

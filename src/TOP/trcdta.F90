@@ -38,8 +38,9 @@ MODULE trcdta
    TYPE(FLD),         ALLOCATABLE, DIMENSION(:)  :: sf_trcdta   ! structure of input SST (file informations, fields read)
 
    !! Substitutions
-#include "do_loop_substitute.h90"
-#include "domzgr_substitute.h90"
+#  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
+#  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcdta.F90 15446 2021-10-26 14:34:38Z cetlod $ 
@@ -99,10 +100,8 @@ CONTAINS
          WRITE(numout,*) '   number of passive tracers to be initialize by data :', ntra
       ENDIF
       !
-      READ  ( numnat_ref, namtrc_dta, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_dta_ini in reference namelist' )
-      READ  ( numnat_cfg, namtrc_dta, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_dta_ini in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_dta)
+      READ_NML_CFG(numnat,namtrc_dta)
       IF(lwm) WRITE ( numont, namtrc_dta )
 
       IF( lwp ) THEN

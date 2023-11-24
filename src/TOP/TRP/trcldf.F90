@@ -45,6 +45,7 @@ MODULE trcldf
    
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -163,11 +164,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnat_ref, namtrc_ldf, IOSTAT = ios, ERR = 903)
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_ldf in reference namelist' )
-      !
-      READ  ( numnat_cfg, namtrc_ldf, IOSTAT = ios, ERR = 904 )
-904   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_ldf in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_ldf)
+      READ_NML_CFG(numnat,namtrc_ldf)
       IF(lwm) WRITE ( numont, namtrc_ldf )
       !
       IF(lwp) THEN                     ! Namelist print

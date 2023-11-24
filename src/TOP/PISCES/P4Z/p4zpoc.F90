@@ -42,6 +42,7 @@ MODULE p4zpoc
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -501,10 +502,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, nampispoc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampispoc in reference namelist' )
-      READ  ( numnatp_cfg, nampispoc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampispoc in configuration namelist' )
+      READ_NML_REF(numnatp,nampispoc)
+      READ_NML_CFG(numnatp,nampispoc)
       IF(lwm) WRITE( numonp, nampispoc )
 
       IF(lwp) THEN                         ! control print

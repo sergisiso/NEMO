@@ -50,6 +50,8 @@ MODULE usrdef_nam
    LOGICAL , PUBLIC ::   ln_sshnoise=.false. ! add random noise on initial ssh
    REAL(wp), PUBLIC ::   rn_lambda  = 50.    ! gaussian lambda
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 15119 2021-07-13 14:43:22Z jchanut $ 
@@ -86,9 +88,7 @@ CONTAINS
          &                 , nn_botcase, nn_initcase, ln_sshnoise, rn_lambda, ln_Iperio, ln_Jperio
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       IF(lwm)   WRITE( numond, namusr_def )
       !
 #if defined key_agrif 

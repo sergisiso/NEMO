@@ -28,6 +28,8 @@ MODULE usrdef_nam
    !                              !!* namusr_def namelist *!!
    REAL(wp), PUBLIC::   rn_dept1   ! Depth (m) at which the SST is taken/measured == depth of first T point!
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 13216 2020-07-02 09:25:49Z rblod $
@@ -59,9 +61,7 @@ CONTAINS
       NAMELIST/namusr_def/ rn_dept1
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       IF(lwm)   WRITE( numond, namusr_def )
       !
       cd_cfg = 'STATION_ASF'               ! name & resolution (not used)

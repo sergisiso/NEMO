@@ -32,6 +32,8 @@ MODULE trcnam
 
    TYPE(PTRACER), DIMENSION(jpmaxtrc), PUBLIC  :: sn_tracer  !: type of tracer for saving if not key_xios
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trcnam.F90 14239 2020-12-23 08:57:16Z smasson $
@@ -104,10 +106,8 @@ CONTAINS
       CALL load_nml( numnat_cfg, 'namelist_top_cfg' , numout, lwm )
       IF(lwm) CALL ctl_opn( numont, 'output.namelist.top', 'UNKNOWN', 'FORMATTED', 'SEQUENTIAL', -1, numout, .FALSE., 1 )
       !
-      READ  ( numnat_ref, namtrc_run, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc in reference namelist' )
-      READ  ( numnat_cfg, namtrc_run, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_run)
+      READ_NML_CFG(numnat,namtrc_run)
       IF(lwm) WRITE( numont, namtrc_run )
 
       nittrc000 = nit000             ! first time step of tracer model
@@ -144,10 +144,8 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 'trc_nam_trc : read the passive tracer namelists'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
 
-      READ  ( numnat_ref, namtrc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc in reference namelist' )
-      READ  ( numnat_cfg, namtrc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc in configuration namelist' )
+      READ_NML_REF(numnat,namtrc)
+      READ_NML_CFG(numnat,namtrc)
       IF(lwm) WRITE( numont, namtrc )
 
       ! Control settings
@@ -238,10 +236,8 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 'trc_nam_dcy : read the passive tracer diurnal cycle options'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
       !
-      READ  ( numnat_ref, namtrc_dcy, IOSTAT = ios, ERR = 905)
-905   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_dcy in reference namelist' )
-      READ  ( numnat_cfg, namtrc_dcy, IOSTAT = ios, ERR = 906 )
-906   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_dcy in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_dcy)
+      READ_NML_CFG(numnat,namtrc_dcy)
       IF(lwm) WRITE( numont, namtrc_dcy )
 
       IF(lwp) THEN
@@ -281,10 +277,8 @@ CONTAINS
       !
       ALLOCATE( ln_trdtrc(jptra) ) 
       !
-      READ  ( numnat_ref, namtrc_trd, IOSTAT = ios, ERR = 905)
-905   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtrc_trd in reference namelist' )
-      READ  ( numnat_cfg, namtrc_trd, IOSTAT = ios, ERR = 906 )
-906   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtrc_trd in configuration namelist' )
+      READ_NML_REF(numnat,namtrc_trd)
+      READ_NML_CFG(numnat,namtrc_trd)
       IF(lwm) WRITE( numont, namtrc_trd )
 
       IF(lwp) THEN

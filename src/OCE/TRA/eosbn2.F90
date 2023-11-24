@@ -180,6 +180,7 @@ MODULE eosbn2
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -1875,11 +1876,8 @@ CONTAINS
          &                                           rn_lambda2, rn_mu2, rn_nu
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, nameos, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nameos in reference namelist' )
-      !
-      READ  ( numnam_cfg, nameos, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nameos in configuration namelist' )
+      READ_NML_REF(numnam,nameos)
+      READ_NML_CFG(numnam,nameos)
       IF(lwm) WRITE( numond, nameos )
       !
       rho0        = 1026._wp                 !: volumic mass of reference     [kg/m3]

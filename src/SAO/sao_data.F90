@@ -18,6 +18,8 @@ MODULE sao_data
    INTEGER           :: nn_sao_idx(MaxNumFiles)    !: time_counter indices
    INTEGER           :: nn_sao_freq                !: read frequency in time steps
    
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sao_data.F90 12377 2020-02-12 14:39:06Z acc $
@@ -51,10 +53,8 @@ CONTAINS
       nn_sao_freq   = -1         ! input frequency in time steps
 
       ! Standard offline obs_oper settings
-      READ  ( numnam_ref, namsao, IOSTAT = ios, ERR = 901 )
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsao in reference namelist' )
-      READ  ( numnam_cfg, namsao, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsao in configuration namelist' )
+      READ_NML_REF(numnam,namsao)
+      READ_NML_CFG(numnam,namsao)
      
       lmask(:) = .FALSE.               ! count input files
       WHERE( sao_files(:) /= '' )   lmask(:) = .TRUE.

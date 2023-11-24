@@ -50,6 +50,8 @@ MODULE icethd_sal
    REAL(wp) ::   rn_sal_himin  ! min ice thickness for gravity drainage and flushing calculation
    REAL(wp) ::   rn_vbrc       ! critical brines volume above which flushing can occur
    
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icethd_sal.F90 13472 2020-09-16 13:05:19Z smasson $
@@ -643,10 +645,8 @@ CONTAINS
          &                 nn_sal_scheme, rn_alpha_RJW, rn_Rc_RJW, rn_alpha_GN, rn_Rc_GN, rn_alpha_CW, ln_sal_chk
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namthd_sal, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namthd_sal in reference namelist' )
-      READ  ( numnam_ice_cfg, namthd_sal, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namthd_sal in configuration namelist' )
+      READ_NML_REF(numnam_ice,namthd_sal)
+      READ_NML_CFG(numnam_ice,namthd_sal)
       IF(lwm) WRITE ( numoni, namthd_sal )
       !
       IF(lwp) THEN                           ! control print

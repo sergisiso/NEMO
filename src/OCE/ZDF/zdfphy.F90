@@ -60,6 +60,7 @@ MODULE zdfphy
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: zdfphy.F90 15553 2021-11-29 11:36:23Z jchanut $
@@ -100,11 +101,8 @@ CONTAINS
       ENDIF
       !
       !                           !==  Namelist  ==!
-      READ  ( numnam_ref, namzdf, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namzdf in reference namelist' )
-      !
-      READ  ( numnam_cfg, namzdf, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namzdf in configuration namelist' )
+      READ_NML_REF(numnam,namzdf)
+      READ_NML_CFG(numnam,namzdf)
       IF(lwm)   WRITE ( numond, namzdf )
       !
       IF(lwp) THEN                      ! Parameter print

@@ -224,6 +224,7 @@ MODULE sbccpl
 
    !! Substitution
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -291,11 +292,8 @@ CONTAINS
       !      Namelist informations       !
       ! ================================ !
       !
-      READ  ( numnam_ref, namsbc_cpl, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_cpl in reference namelist' )
-      !
-      READ  ( numnam_cfg, namsbc_cpl, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_cpl in configuration namelist' )
+      READ_NML_REF(numnam,namsbc_cpl)
+      READ_NML_CFG(numnam,namsbc_cpl)
       IF(lwm) WRITE ( numond, namsbc_cpl )
       !
       IF(lwp) THEN                        ! control print

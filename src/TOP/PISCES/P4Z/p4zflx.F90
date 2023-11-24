@@ -57,6 +57,7 @@ MODULE p4zflx
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -273,10 +274,8 @@ CONTAINS
          WRITE(numout,*) ' ~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnatp_ref, nampisext, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nampisext in reference namelist' )
-      READ  ( numnatp_cfg, nampisext, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nampisext in configuration namelist' )
+      READ_NML_REF(numnatp,nampisext)
+      READ_NML_CFG(numnatp,nampisext)
       IF(lwm) WRITE ( numonp, nampisext )
       !
       IF(lwp) THEN                         ! control print
@@ -353,10 +352,8 @@ CONTAINS
             WRITE(numout,*) ' ~~~~~~~~'
          ENDIF
          !
-         READ  ( numnatp_ref, nampisatm, IOSTAT = ios, ERR = 901)
-901      IF( ios /= 0 ) CALL ctl_nam ( ios , 'nampisatm in reference namelist' )
-         READ  ( numnatp_cfg, nampisatm, IOSTAT = ios, ERR = 902 )
-902      IF( ios >  0 )   CALL ctl_nam ( ios , 'nampisatm in configuration namelist' )
+         READ_NML_REF(numnatp,nampisatm)
+         READ_NML_CFG(numnatp,nampisatm)
          IF(lwm) WRITE ( numonp, nampisatm )
          !
          !

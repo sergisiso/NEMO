@@ -76,6 +76,7 @@ MODULE dynhpg
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
 
    !!----------------------------------------------------------------------
@@ -158,11 +159,8 @@ CONTAINS
          &                 ln_hpg_djc_vnh, ln_hpg_djc_vnv
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_ref, namdyn_hpg, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdyn_hpg in reference namelist' )
-      !
-      READ  ( numnam_cfg, namdyn_hpg, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdyn_hpg in configuration namelist' )
+      READ_NML_REF(numnam,namdyn_hpg)
+      READ_NML_CFG(numnam,namdyn_hpg)
       IF(lwm) WRITE ( numond, namdyn_hpg )
       !
       IF(lwp) THEN                   ! Control print

@@ -29,6 +29,8 @@ MODULE usrdef_nam
    INTEGER, PUBLIC ::   nn_GYRE    ! 1/nn_GYRE = the resolution chosen in degrees and thus defining the horizontal domain size
    REAL(wp), PUBLIC::   rn_bathy   ! Depth in meters for 1D configuration
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 12377 2020-02-12 14:39:06Z acc $
@@ -60,8 +62,7 @@ CONTAINS
       NAMELIST/namusr_def/ rn_bathy
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       !
       IF(lwm)   WRITE( numond, namusr_def )
       !

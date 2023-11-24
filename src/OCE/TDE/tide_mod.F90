@@ -106,6 +106,8 @@ MODULE tide_mod
    ! according to two equations given in the explanation of Table 6 of S58
    REAL(wp) ::   rxinu1, rxinu2
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: tide_mod.F90 13286 2020-07-09 15:48:29Z smasson $ 
@@ -131,11 +133,8 @@ CONTAINS
       ! typically do not appear in namelist_ref or namelist_cfg
       sn_tide_cnames(:) = ''
       ! Read Namelist nam_tide
-      READ  ( numnam_ref, nam_tide, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'nam_tide in reference namelist' )
-      !
-      READ  ( numnam_cfg, nam_tide, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'nam_tide in configuration namelist' )
+      READ_NML_REF(numnam,nam_tide)
+      READ_NML_CFG(numnam,nam_tide)
       IF(lwm) WRITE ( numond, nam_tide )
       !
       IF( ln_tide ) THEN

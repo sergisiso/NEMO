@@ -49,6 +49,7 @@ MODULE dynspg
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: dynspg.F90 14547 2021-02-25 17:07:15Z techene $
@@ -203,11 +204,8 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
       ENDIF
       !
-      READ  ( numnam_ref, namdyn_spg, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdyn_spg in reference namelist' )
-      !
-      READ  ( numnam_cfg, namdyn_spg, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdyn_spg in configuration namelist' )
+      READ_NML_REF(numnam,namdyn_spg)
+      READ_NML_CFG(numnam,namdyn_spg)
       IF(lwm) WRITE ( numond, namdyn_spg )
       !
       IF(lwp) THEN             ! Namelist print

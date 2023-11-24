@@ -37,6 +37,7 @@ MODULE icesbc
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icesbc.F90 15388 2021-10-17 11:33:47Z clem $
@@ -422,10 +423,8 @@ CONTAINS
       NAMELIST/namsbc/ rn_cio, nn_snwfra, rn_snwblow, nn_flxdist, ln_cndflx, ln_cndemulate, nn_qtrice
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namsbc, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc in reference namelist' )
-      READ  ( numnam_ice_cfg, namsbc, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc in configuration namelist' )
+      READ_NML_REF(numnam_ice,namsbc)
+      READ_NML_CFG(numnam_ice,namsbc)
       IF(lwm) WRITE( numoni, namsbc )
       !
       IF(lwp) THEN                     ! control print

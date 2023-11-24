@@ -44,6 +44,7 @@ MODULE sbcflx
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: sbcflx.F90 14433 2021-02-11 08:06:49Z smasson $
@@ -97,11 +98,8 @@ CONTAINS
       !
       IF( kt == nit000 ) THEN                ! First call kt=nit000
          ! set file information
-         READ  ( numnam_ref, namsbc_flx, IOSTAT = ios, ERR = 901)
-901      IF( ios /= 0 )   CALL ctl_nam ( ios , 'namsbc_flx in reference namelist' )
-
-         READ  ( numnam_cfg, namsbc_flx, IOSTAT = ios, ERR = 902 )
-902      IF( ios >  0 )   CALL ctl_nam ( ios , 'namsbc_flx in configuration namelist' )
+         READ_NML_REF(numnam,namsbc_flx)
+         READ_NML_CFG(numnam,namsbc_flx)
          IF(lwm) WRITE ( numond, namsbc_flx )
          !
          !                                         ! check: do we plan to use ln_dm2dc with non-daily forcing?

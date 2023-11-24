@@ -63,6 +63,7 @@ MODULE domain
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!-------------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
@@ -255,10 +256,8 @@ CONTAINS
       !                       !==  namelist namdom  ==!
       !                       !=======================!
       !
-      READ  ( numnam_ref, namdom, IOSTAT = ios, ERR = 903)
-903   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namdom in reference namelist' )
-      READ  ( numnam_cfg, namdom, IOSTAT = ios, ERR = 904 )
-904   IF( ios >  0 )   CALL ctl_nam ( ios , 'namdom in configuration namelist' )
+      READ_NML_REF(numnam,namdom)
+      READ_NML_CFG(numnam,namdom)
       IF(lwm) WRITE( numond, namdom )
       !
 #if defined key_linssh
@@ -313,10 +312,8 @@ CONTAINS
       !                       !==  namelist namrun  ==!
       !                       !=======================!
       !
-      READ  ( numnam_ref, namrun, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namrun in reference namelist' )
-      READ  ( numnam_cfg, namrun, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namrun in configuration namelist' )
+      READ_NML_REF(numnam,namrun)
+      READ_NML_CFG(numnam,namrun)
       IF(lwm) WRITE ( numond, namrun )
 
 #if defined key_agrif
@@ -466,10 +463,8 @@ CONTAINS
       !                       !==  namelist namtile  ==!
       !                       !========================!
       !
-      READ  ( numnam_ref, namtile, IOSTAT = ios, ERR = 905 )
-905   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namtile in reference namelist' )
-      READ  ( numnam_cfg, namtile, IOSTAT = ios, ERR = 906 )
-906   IF( ios >  0 )   CALL ctl_nam ( ios , 'namtile in configuration namelist' )
+      READ_NML_REF(numnam,namtile)
+      READ_NML_CFG(numnam,namtile)
       IF(lwm) WRITE( numond, namtile )
 
       IF(lwp) THEN
@@ -523,10 +518,8 @@ CONTAINS
       !                       !==  namelist namnc4  ==!   NetCDF 4 case   ("key_netcdf4" defined)
       !                       !=======================!
       !
-      READ  ( numnam_ref, namnc4, IOSTAT = ios, ERR = 907)
-907   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namnc4 in reference namelist' )
-      READ  ( numnam_cfg, namnc4, IOSTAT = ios, ERR = 908 )
-908   IF( ios >  0 )   CALL ctl_nam ( ios , 'namnc4 in configuration namelist' )
+      READ_NML_REF(numnam,namnc4)
+      READ_NML_CFG(numnam,namnc4)
       IF(lwm) WRITE( numond, namnc4 )
 
       IF(lwp) THEN                        ! control print

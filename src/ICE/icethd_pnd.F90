@@ -66,6 +66,7 @@ MODULE icethd_pnd
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)
    !! $Id: icethd_pnd.F90 15244 2021-09-10 09:56:20Z clem $
@@ -1355,10 +1356,8 @@ CONTAINS
          &                          ln_pnd_lids, ln_pnd_alb
       !!-------------------------------------------------------------------
       !
-      READ  ( numnam_ice_ref, namthd_pnd, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namthd_pnd  in reference namelist' )
-      READ  ( numnam_ice_cfg, namthd_pnd, IOSTAT = ios, ERR = 902 )
-902   IF( ios >  0 )   CALL ctl_nam ( ios , 'namthd_pnd in configuration namelist' )
+      READ_NML_REF(numnam_ice,namthd_pnd)
+      READ_NML_CFG(numnam_ice,namthd_pnd)
       IF(lwm) WRITE ( numoni, namthd_pnd )
       !
       IF(lwp) THEN                        ! control print

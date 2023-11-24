@@ -30,6 +30,9 @@ MODULE usrdef_nam
    REAL(wp), PUBLIC ::   rn_dz     ! resolution in meters defining the vertical domain size
    REAL(wp), PUBLIC ::   rn_dy
    LOGICAL , PUBLIC ::   ln_STOKES_ADIAB         !Shallow/Inter water formula for the Stokes drift
+
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 14433 2021-02-11 08:06:49Z smasson $
@@ -61,9 +64,7 @@ CONTAINS
       NAMELIST/namusr_def/ ln_zco, ln_zps, ln_sco, rn_dx, rn_dy, rn_dz, ln_STOKES_ADIAB
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       IF(lwm)   WRITE( numond, namusr_def )
       !
       cd_cfg = 'ADIAB_WAVE'           ! name & resolution

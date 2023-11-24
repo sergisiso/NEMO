@@ -37,6 +37,8 @@ MODULE usrdef_nam
    INTEGER , PUBLIC ::   nn_fcase   =    1   ! F computation (0:f0, 1:Beta, 2:real)
    REAL(wp), PUBLIC ::   rn_ppgphi0 =   38.5 ! reference latitude for beta-plane 
 
+   !! * Substitutions
+#  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: usrdef_nam.F90 13472 2020-09-16 13:05:19Z smasson $ 
@@ -70,9 +72,7 @@ CONTAINS
          &                 , nn_fcase, rn_ppgphi0, ln_Iperio, ln_Jperio
       !!----------------------------------------------------------------------
       !
-      READ  ( numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902 )
-902   IF( ios /= 0 )   CALL ctl_nam ( ios , 'namusr_def in configuration namelist' )
-      !
+      READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
       IF(lwm)   WRITE( numond, namusr_def )
       !
 #if defined key_agrif 
