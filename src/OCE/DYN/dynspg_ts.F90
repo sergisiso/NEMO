@@ -491,8 +491,12 @@ CONTAINS
          !--        m+1/2               m                m-1           m-2       --!
          !--       u      = (3/2+beta) u   -(1/2+2beta) u      + beta u          --!
          !-------------------------------------------------------------------------!
-         ua_e(:,:) = za1 * un_e(:,:) + za2 * ub_e(:,:) + za3 * ubb_e(:,:)
-         va_e(:,:) = za1 * vn_e(:,:) + za2 * vb_e(:,:) + za3 * vbb_e(:,:)
+         DO_2D( 2, 1, 1, 1 )
+            ua_e(ji,jj) = za1 * un_e(ji,jj) + za2 * ub_e(ji,jj) + za3 * ubb_e(ji,jj)
+         END_2D
+         DO_2D( 1, 1, 2, 1 )
+            va_e(ji,jj) = za1 * vn_e(ji,jj) + za2 * vb_e(ji,jj) + za3 * vbb_e(ji,jj)
+         END_2D
 
          IF( .NOT.ln_linssh ) THEN                        !* Update ocean depth (variable volume case only)
             !                                             !  ------------------
@@ -506,25 +510,27 @@ CONTAINS
             IF( ln_wd_dl )   CALL wad_tmsk( zsshp2_e, ztwdmask )
             !
             !                          ! ocean t-depth at mid-step
-            zhtp2_e(:,:) = ht_0(:,:) + zsshp2_e(:,:)
+            DO_2D( 0, 1, 0, 1 )
+               zhtp2_e(ji,jj) = ht_0(ji,jj) + zsshp2_e(ji,jj)
+            END_2D
             !
             !                          ! ocean u- and v-depth at mid-step   (separate DO-loops remove the need of a lbc_lnk)
 #if defined key_qcoTest_FluxForm
             !                                ! 'key_qcoTest_FluxForm' : simple ssh average
-            DO_2D( 1, 0, 1, 1 )   ! not jpi-column
+            DO_2D( 2, 1, 1, 1 )   ! not jpi-column
                zhup2_e(ji,jj) = hu_0(ji,jj) + r1_2 * (  zsshp2_e(ji,jj) + zsshp2_e(ji+1,jj  )  ) * ssumask(ji,jj)
             END_2D
-            DO_2D( 1, 1, 1, 0 )
+            DO_2D( 1, 1, 2, 1 )
                zhvp2_e(ji,jj) = hv_0(ji,jj) + r1_2 * (  zsshp2_e(ji,jj) + zsshp2_e(ji  ,jj+1)  ) * ssvmask(ji,jj)
             END_2D
 #else
             !                                ! no 'key_qcoTest_FluxForm' : surface weighted ssh average
-            DO_2D( 1, 0, 1, 1 )   ! not jpi-column
+            DO_2D( 2, 1, 1, 1 )   ! not jpi-column
                zhup2_e(ji,jj) = hu_0(ji,jj) + r1_2 * r1_e1e2u(ji,jj)                        &
                     &                              * (  e1e2t(ji  ,jj) * zsshp2_e(ji  ,jj)  &
                     &                                 + e1e2t(ji+1,jj) * zsshp2_e(ji+1,jj)  ) * ssumask(ji,jj)
             END_2D
-            DO_2D( 1, 1, 1, 0 )   ! not jpj-row
+            DO_2D( 1, 1, 2, 1 )   ! not jpj-row
                zhvp2_e(ji,jj) = hv_0(ji,jj) + r1_2 * r1_e1e2v(ji,jj)                        &
                     &                              * (  e1e2t(ji,jj  ) * zsshp2_e(ji,jj  )  &
                     &                                 + e1e2t(ji,jj+1) * zsshp2_e(ji,jj+1)  ) * ssvmask(ji,jj)
@@ -540,10 +546,10 @@ CONTAINS
          IF( ln_bdy .AND. ln_vol ) CALL bdy_vol2d( kt, jn, ua_e, va_e, zhup2_e, zhvp2_e )
          !      
          !                             ! resulting flux at mid-step (not over the full domain)
-         DO_2D( 1, 0, 1, 1 )   ! not jpi-column
+         DO_2D( 2, 1, 1, 1 )   ! not jpi-column
             zhU(ji,jj) = e2u(ji,jj) * ua_e(ji,jj) * zhup2_e(ji,jj)
          END_2D
-         DO_2D( 1, 1, 1, 0 )   ! not jpj-row
+         DO_2D( 1, 1, 2, 1 )   ! not jpj-row
             zhV(ji,jj) = e1v(ji,jj) * va_e(ji,jj) * zhvp2_e(ji,jj)
          END_2D
          !
@@ -563,12 +569,10 @@ CONTAINS
          !--           m+1        m                               m+1/2          --!
          !--        ssh    =  ssh   - delta_t' * [ frc + div( flux      ) ]      --!
          !-------------------------------------------------------------------------!
-         DO_2D( 0, 0, 0, 0 )
+         DO_2D( 1, 1, 1, 1 )
             zhdiv = (   ( zhU(ji,jj) - zhU(ji-1,jj) ) + ( zhV(ji,jj) - zhV(ji,jj-1) )  ) * r1_e1e2t(ji,jj)
             ssha_e(ji,jj) = (  sshn_e(ji,jj) - rDt_e * ( ssh_frc(ji,jj) + zhdiv )  ) * ssmask(ji,jj)
          END_2D
-         !
-         CALL lbc_lnk( 'dynspg_ts', ssha_e, 'T', 1._wp,  zhU, 'U', -1._wp,  zhV, 'V', -1._wp )
          !
          ! Duplicate sea level across open boundaries (this is only cosmetic if linssh=T)
          IF( ln_bdy )   CALL bdy_ssh( ssha_e )
@@ -578,14 +582,14 @@ CONTAINS
          !
          !                             ! Sum over sub-time-steps to compute advective velocities
          za2 = wgtbtp2(jn)             ! zhU, zhV hold fluxes extrapolated at jn+0.5
-         un_adv(:,:) = un_adv(:,:) + za2 * zhU(:,:) * r1_e2u(:,:)
-         vn_adv(:,:) = vn_adv(:,:) + za2 * zhV(:,:) * r1_e1v(:,:)
+         DO_2D( 0, 0, 0, 0 )
+            un_adv(ji,jj) = un_adv(ji,jj) + za2 * zhU(ji,jj) * r1_e2u(ji,jj)
+            vn_adv(ji,jj) = vn_adv(ji,jj) + za2 * zhV(ji,jj) * r1_e1v(ji,jj)
+         END_2D
          ! sum over sub-time-steps to decide which baroclinic velocities to set to zero (zuwdav2 is only used when ln_wd_dl_bc=True) 
          IF ( ln_wd_dl_bc ) THEN
-            DO_2D( 1, 0, 1, 1 )   ! not jpi-column
+            DO_2D( 0, 0, 0, 0 )
                zuwdav2(ji,jj) = zuwdav2(ji,jj) + za2 * zuwdmask(ji,jj)
-            END_2D
-            DO_2D( 1, 1, 1, 0 )   ! not jpj-row
                zvwdav2(ji,jj) = zvwdav2(ji,jj) + za2 * zvwdmask(ji,jj)
             END_2D
          END IF
@@ -595,10 +599,8 @@ CONTAINS
          IF( .NOT.ln_linssh ) THEN
 #if defined key_qcoTest_FluxForm
             !                                ! 'key_qcoTest_FluxForm' : simple ssh average
-            DO_2D( 1, 0, 1, 1 )
+            DO_2D( 0, 0, 0, 0 )
                zsshu_a(ji,jj) = r1_2 * (  ssha_e(ji,jj) + ssha_e(ji+1,jj  )  ) * ssumask(ji,jj)
-            END_2D
-            DO_2D( 1, 1, 1, 0 )
                zsshv_a(ji,jj) = r1_2 * (  ssha_e(ji,jj) + ssha_e(ji  ,jj+1)  ) * ssvmask(ji,jj)
             END_2D
 #else
@@ -616,8 +618,10 @@ CONTAINS
          !--        ssh'    =  za0 * ssh     +  za1 * ssh   +  za2 * ssh      +  za3 * ssh        --!
          !------------------------------------------------------------------------------------------!
          CALL ts_bck_interp( jn, ll_init, za0, za1, za2, za3 )   ! coeficients of the interpolation
-         zsshp2_e(:,:) = za0 *  ssha_e(:,:) + za1 *  sshn_e (:,:)   &
-            &          + za2 *  sshb_e(:,:) + za3 *  sshbb_e(:,:)
+         DO_2D( 1, 1, 1, 1 )
+            zsshp2_e(ji,jj) = za0 *  ssha_e(ji,jj) + za1 *  sshn_e (ji,jj)   &
+               &            + za2 *  sshb_e(ji,jj) + za3 *  sshbb_e(ji,jj)
+         END_2D
          !
          !                             ! Surface pressure gradient
          zldg = ( 1._wp - rn_scal_load ) * grav    ! local factor
@@ -722,11 +726,23 @@ CONTAINS
          ENDIF
          !
          IF( .NOT.ln_linssh ) THEN   !* Update ocean depth (variable volume case only)
-            CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  &
-                 &                   , hu_e , 'U',  1._wp, hv_e , 'V',  1._wp  &
-                 &                   , hur_e, 'U',  1._wp, hvr_e, 'V',  1._wp  )
+            IF( ln_wd_dl ) THEN
+               CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  &
+                    &                   , hu_e , 'U',  1._wp, hv_e , 'V',  1._wp  &
+                    &                   , hur_e, 'U',  1._wp, hvr_e, 'V',  1._wp  , ssha_e, 'T', 1._wp  & 
+                    &                   , zuwdmask, 'U', -1._wp, zvwdmask, 'V', -1._wp )
+            ELSE
+               CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  &
+                    &                   , hu_e , 'U',  1._wp, hv_e , 'V',  1._wp  &
+                    &                   , hur_e, 'U',  1._wp, hvr_e, 'V',  1._wp  , ssha_e, 'T', 1._wp )
+            ENDIF
          ELSE
-            CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  )
+            IF( ln_wd_dl ) THEN
+               CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  , ssha_e, 'T', 1._wp  &
+                    &                   , zuwdmask, 'U', -1._wp, zvwdmask, 'V', -1._wp )
+            ELSE
+               CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  , ssha_e, 'T', 1._wp )
+            ENDIF
          ENDIF
          !                                                 ! open boundaries
          IF( ln_bdy )   CALL bdy_dyn2d( jn, ua_e, va_e, un_e, vn_e, hur_e, hvr_e, ssha_e )
@@ -770,7 +786,11 @@ CONTAINS
          !                                                 ! ==================== !
       END DO                                               !        end loop      !
       !                                                    ! ==================== !
-
+      IF( ln_wd_dl .AND. ln_wd_dl_bc ) THEN
+         CALL lbc_lnk( 'dynspg_ts', un_adv, 'U', -1._wp, vn_adv, 'V', -1._wp, zuwdav2, 'U', -1._wp, zvwdav2, 'V', -1._wp ) ! Boundary conditions
+      ELSE
+         CALL lbc_lnk( 'dynspg_ts', un_adv, 'U', -1._wp, vn_adv, 'V', -1._wp ) ! Boundary conditions
+      ENDIF
       
       ! -----------------------------------------------------------------------------
       ! Phase 3. update the general trend with the barotropic trend
@@ -872,12 +892,12 @@ CONTAINS
             !
 # if defined key_qcoTest_FluxForm
             !                                ! 'key_qcoTest_FluxForm' : simple ssh average
-            DO_2D( 1, 0, 1, 0 )
+            DO_2D( 0, 0, 0, 0 )
                zsshu_a(ji,jj) = r1_2 * ( pssh(ji,jj,Kaa) + pssh(ji+1,jj  ,Kaa) ) * ssumask(ji,jj)
                zsshv_a(ji,jj) = r1_2 * ( pssh(ji,jj,Kaa) + pssh(ji  ,jj+1,Kaa) ) * ssvmask(ji,jj)
             END_2D
 # else
-            DO_2D( 1, 0, 1, 0 )
+            DO_2D( 0, 0, 0, 0 )
                zsshu_a(ji,jj) = r1_2 * r1_e1e2u(ji,jj) * ( e1e2t(ji  ,jj) * pssh(ji  ,jj,Kaa)   &
                   &                                      + e1e2t(ji+1,jj) * pssh(ji+1,jj,Kaa) ) * ssumask(ji,jj)
                zsshv_a(ji,jj) = r1_2 * r1_e1e2v(ji,jj) * ( e1e2t(ji,jj  ) * pssh(ji,jj  ,Kaa)   &
@@ -1373,7 +1393,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       IF( ln_wd_dl_rmp ) THEN     
-         DO_2D( 1, 1, 1, 1 )
+         DO_2D( 0, 1, 0, 1 )
             IF    ( pssh(ji,jj) + ht_0(ji,jj) >  2._wp * rn_wdmin1 ) THEN 
                !           IF    ( pssh(ji,jj) + ht_0(ji,jj) >          rn_wdmin2 ) THEN 
                ptmsk(ji,jj) = 1._wp
@@ -1384,7 +1404,7 @@ CONTAINS
             ENDIF
          END_2D
       ELSE  
-         DO_2D( 1, 1, 1, 1 )
+         DO_2D( 0, 1, 0, 1 )
             IF ( pssh(ji,jj) + ht_0(ji,jj) >  rn_wdmin1 ) THEN   ;   ptmsk(ji,jj) = 1._wp
             ELSE                                                 ;   ptmsk(ji,jj) = 0._wp
             ENDIF
@@ -1412,7 +1432,7 @@ CONTAINS
       INTEGER  ::   ji, jj   ! dummy loop indices
       !!----------------------------------------------------------------------
       !
-      DO_2D( 1, 0, 1, 1 )   ! not jpi-column
+      DO_2D( 0, 0, 0, 0 )   ! not jpi-column
          IF ( phU(ji,jj) > 0._wp ) THEN   ;   pUmsk(ji,jj) = pTmsk(ji  ,jj) 
          ELSE                             ;   pUmsk(ji,jj) = pTmsk(ji+1,jj)  
          ENDIF
@@ -1420,7 +1440,7 @@ CONTAINS
          pu (ji,jj) = pUmsk(ji,jj)*pu (ji,jj)
       END_2D
       !
-      DO_2D( 1, 1, 1, 0 )   ! not jpj-row
+      DO_2D( 0, 0, 0, 0 )   ! not jpj-row
          IF ( phV(ji,jj) > 0._wp ) THEN   ;   pVmsk(ji,jj) = pTmsk(ji,jj  )
          ELSE                             ;   pVmsk(ji,jj) = pTmsk(ji,jj+1)  
          ENDIF
