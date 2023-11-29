@@ -197,6 +197,19 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~   free surface with time splitting'
          IF(lwp) WRITE(numout,*)
          !
+#if defined key_RK3
+         !                    ! RK3: read bb and b field or start from 0
+         ll_init=.TRUE.
+         IF( .NOT. ln_bt_av .AND. ln_rstart ) THEN
+            ll_init=.FALSE.
+         ENDIF
+         !
+         IF( ln_bt_fw ) THEN
+            ll_fw_start =.TRUE.
+            noffset     = 0
+         ENDIF
+#else
+         !                    ! MLF: start from 0 except if restart+!euler
          IF( l_1st_euler )   ll_init=.TRUE.
          !
          IF( ln_bt_fw .OR. l_1st_euler ) THEN
@@ -205,6 +218,7 @@ CONTAINS
          ELSE
             ll_fw_start =.FALSE.
          ENDIF
+#endif
          !                    ! Set averaging weights and cycle length:
          CALL ts_wgt( ln_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
          !
@@ -801,7 +815,7 @@ CONTAINS
          pvv_b(:,:,Kaa) = va_e  (:,:)
          pssh (:,:,Kaa) = ssha_e(:,:)
       ENDIF
-
+      !
 #if defined key_RK3
       !                                                !*  RK3 case
       !
@@ -1064,14 +1078,16 @@ CONTAINS
       !
       IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise 
          !                                   ! ---------------
-         IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN    !* Read the restart file
 # if ! defined key_RK3
+         IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN    !* MLF: Read the restart file
             IF ( ln_bt_fw ) THEN
                CALL iom_get( numror, jpdom_auto, 'ub2_b'  , ub2_b  (:,:), cd_type = 'U', psgn = -1._wp )   
                CALL iom_get( numror, jpdom_auto, 'vb2_b'  , vb2_b  (:,:), cd_type = 'V', psgn = -1._wp ) 
                CALL iom_get( numror, jpdom_auto, 'un_bf'  , un_bf  (:,:), cd_type = 'U', psgn = -1._wp )   
                CALL iom_get( numror, jpdom_auto, 'vn_bf'  , vn_bf  (:,:), cd_type = 'V', psgn = -1._wp ) 
             ENDIF
+# else
+         IF( ln_rstart ) THEN                           !* RK3: Read the restart file
 # endif
             IF( .NOT.ln_bt_av ) THEN
                CALL iom_get( numror, jpdom_auto, 'sshbb_e'  , sshbb_e(:,:), cd_type = 'T', psgn =  1._wp )   
