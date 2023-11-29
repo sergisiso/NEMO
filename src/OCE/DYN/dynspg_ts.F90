@@ -1239,6 +1239,9 @@ CONTAINS
       !                             ! Allocate time-splitting arrays
       IF( dyn_spg_ts_alloc() /= 0    )   CALL ctl_stop('STOP', 'dyn_spg_init: failed to allocate dynspg_ts  arrays' )
       !
+      ! init some arrays for debug sette
+      ssha_e(:,:) = 0._wp
+      !
       !                      !: restart/initialise
       CALL ts_rst( nit000, 'READ' )
       !
