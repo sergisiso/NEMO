@@ -368,8 +368,8 @@ CONTAINS
          ENDIF
 
          IF ( ln_dyninc ) THEN
-            CALL iom_get( inum, jpdom_auto, 'bckinu', u_bkginc, 1 )
-            CALL iom_get( inum, jpdom_auto, 'bckinv', v_bkginc, 1 )
+            CALL iom_get( inum, jpdom_auto, 'bckinu', u_bkginc, 1, cd_type = 'U', psgn = -1._wp )
+            CALL iom_get( inum, jpdom_auto, 'bckinv', v_bkginc, 1, cd_type = 'V', psgn = -1._wp )
             ! Apply the masks
             u_bkginc(:,:,:) = u_bkginc(:,:,:) * umask(:,:,:)
             v_bkginc(:,:,:) = v_bkginc(:,:,:) * vmask(:,:,:)
@@ -470,8 +470,8 @@ CONTAINS
          ENDIF
          !
          IF ( ln_dyninc ) THEN
-            CALL iom_get( inum, jpdom_auto, 'un', u_bkg, cd_type = 'U', psgn = 1._wp )
-            CALL iom_get( inum, jpdom_auto, 'vn', v_bkg, cd_type = 'V', psgn = 1._wp )
+            CALL iom_get( inum, jpdom_auto, 'un', u_bkg, cd_type = 'U', psgn = -1._wp )
+            CALL iom_get( inum, jpdom_auto, 'vn', v_bkg, cd_type = 'V', psgn = -1._wp )
             u_bkg(:,:,:) = u_bkg(:,:,:) * umask(:,:,:)
             v_bkg(:,:,:) = v_bkg(:,:,:) * vmask(:,:,:)
          ENDIF
