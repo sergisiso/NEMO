@@ -25,6 +25,8 @@ MODULE stpctl
    USE timing          ! timing
    !
    USE netcdf          ! NetCDF library
+   USE, INTRINSIC :: ieee_arithmetic, ONLY : ieee_is_nan
+
    IMPLICIT NONE
    PRIVATE
 
@@ -159,9 +161,9 @@ CONTAINS
       !                                   !==               error handling               ==!
       !                                   !==  done by all processes at every time step  ==!
       !
-      IF(   zmax(1) <=   0._wp .OR.           &               ! negative e3t_Kmm
-         &  zmax(2) >   10._wp .OR.           &               ! too large velocity ( > 10 m/s)
-         & ISNAN( SUM(zmax(1:jptst)) ) .OR.   &               ! NaN encounter in the tests
+      IF(   zmax(1) <=   0._wp .OR.                 &         ! negative e3t_Kmm
+         &  zmax(2) >   10._wp .OR.                 &         ! too large velocity ( > 10 m/s)
+         & ieee_is_nan( SUM(zmax(1:jptst)) ) .OR.   &         ! NaN encounter in the tests
          & ABS(   SUM(zmax(1:jptst)) ) > HUGE(1._wp) ) THEN   ! Infinity encounter in the tests
          !
          iloc(:,:) = 0
