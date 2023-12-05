@@ -97,7 +97,13 @@
 !-----------------------------------------------------------------------
 &namtrc_snk      !  Sedimentation of particles
 !-----------------------------------------------------------------------
-   nitermax      =  2   !  number of iterations for sedimentation
+   ln_sink_mus   = .true. ! MUSCL sinking scheme
+      nitermax      =  2   !  number of iterations for sedimentation
+   ln_sink_slg   = .false. ! Semi-Lagrangian sinking scheme
+      nn_sink_lbc   =  0   !  Type of boundary conditions
+   !                       !  0 - Strictly monotonic conditions ( default )
+   !                       !  1 - Dirichlet condition : linear continuation
+   !                       !  2 - Neumann condition
 /
 !-----------------------------------------------------------------------
 &namtrc_dcy      !  Diurnal cycle
