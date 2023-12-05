@@ -28,6 +28,8 @@ MODULE stpctl
    USE timing          ! timing
    !
    USE netcdf          ! NetCDF library
+   USE, INTRINSIC :: ieee_arithmetic, ONLY : ieee_is_nan
+
    IMPLICIT NONE
    PRIVATE
 
@@ -228,13 +230,13 @@ CONTAINS
          zminsal =   0._wp
       ENDIF 
       ! 
-      IF(  zmax(1) >   20._wp .OR.   &                        ! too large sea surface height ( > 20 m )
-         & zmax(2) >   10._wp .OR.   &                        ! too large velocity ( > 10 m/s)
-         & zmax(3) >   10._wp .OR.   &                        ! too large velocity ( > 10 m/s)
-         & zmax(4) <= zminsal .OR.   &                        ! negative or zero sea surface salinity
-         & zmax(5) >= zmaxsal .OR.   &                        ! too large sea surface salinity ( > 100 )
-         & zmax(5) <  zminsal .OR.   &                        ! too large sea surface salinity (keep this line for sea-ice)
-         & ISNAN( SUM(zmax(1:jptst)) ) .OR.   &               ! NaN encounter in the tests
+      IF(  zmax(1) >   20._wp .OR.                  &         ! too large sea surface height ( > 20 m )
+         & zmax(2) >   10._wp .OR.                  &         ! too large velocity ( > 10 m/s)
+         & zmax(3) >   10._wp .OR.                  &         ! too large velocity ( > 10 m/s)
+         & zmax(4) <= zminsal .OR.                  &         ! negative or zero sea surface salinity
+         & zmax(5) >= zmaxsal .OR.                  &         ! too large sea surface salinity ( > 100 )
+         & zmax(5) <  zminsal .OR.                  &         ! too large sea surface salinity (keep this line for sea-ice)
+         & ieee_is_nan( SUM(zmax(1:jptst)) ) .OR.   &         ! NaN encounter in the tests
          & ABS(   SUM(zmax(1:jptst)) ) > HUGE(1._wp) ) THEN   ! Infinity encounter in the tests
          !
          iloc(:,:) = 0

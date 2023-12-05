@@ -29,6 +29,8 @@ MODULE stpctl
    USE timing          ! timing
    !
    USE netcdf          ! NetCDF library
+   USE, INTRINSIC :: ieee_arithmetic, ONLY : ieee_is_nan
+
    IMPLICIT NONE
    PRIVATE
 
@@ -167,10 +169,10 @@ CONTAINS
       !                                   !==               error handling               ==!
       !                                   !==  done by all processes at every time step  ==!
       !
-      IF(   zmax(1) >  100._wp .OR.   &                       ! too large ice thickness maximum ( > 100 m)
-         &  zmax(2) >   10._wp .OR.   &                       ! too large ice velocity ( > 10 m/s)
-         &  zmax(3) < -101._wp .OR.   &                       ! too cold ice temperature ( < -100 degC)
-         & ISNAN( SUM(zmax(1:jptst)) ) .OR.   &               ! NaN encounter in the tests
+      IF(   zmax(1) >  100._wp .OR.                 &         ! too large ice thickness maximum ( > 100 m)
+         &  zmax(2) >   10._wp .OR.                 &         ! too large ice velocity ( > 10 m/s)
+         &  zmax(3) < -101._wp .OR.                 &         ! too cold ice temperature ( < -100 degC)
+         & ieee_is_nan( SUM(zmax(1:jptst)) ) .OR.   &         ! NaN encounter in the tests
          & ABS(   SUM(zmax(1:jptst)) ) > HUGE(1._wp) ) THEN   ! Infinity encounter in the tests
          !
          iloc(:,:) = 0
