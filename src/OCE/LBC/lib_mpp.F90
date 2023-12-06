@@ -1665,6 +1665,19 @@ CONTAINS
       ! seem to terminate namelist reads from internal files early if they
       ! encounter new-lines. Use a single space for safety.
       csp = ' '
+#if defined key_nomultnlg
+      ! For the "nomultnlg" namelist-group-input workaround ('key_nomultnlg',
+      ! see src/OCE/read_nml_substitute.h90) to be functional, the names of
+      ! namelist-group records in internal files have to be followed by the end
+      ! marker (space character) that is included in the search pattern used to
+      ! seek the appropriate record in the internal file; the line "csp = ' '"
+      ! below configures the substitution of newline characters during the
+      ! transfer of the namelist-group records from the original into the
+      ! internal namelist-input file to provide the appropriate end marker for
+      ! transferred namelist-group names that are directly followed by a newline
+      ! character or a comment in the original file.
+      csp = ' '
+#endif
       !
       ! Check if the namelist buffer has already been allocated. Return if it has.
       !
