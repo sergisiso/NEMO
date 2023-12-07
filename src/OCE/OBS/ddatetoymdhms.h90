@@ -32,7 +32,7 @@
       INTEGER :: ihhmmss
       
       iyymmdd = INT( ddate )
-      ihhmmss = INT( ( ddate - iyymmdd ) * 1000000 )
+      ihhmmss = NINT( ( ddate - iyymmdd ) * 1000000 )
       kyea = iyymmdd/10000
       kmon = iyymmdd / 100 - 100 * kyea
       kday = MOD( iyymmdd, 100 )

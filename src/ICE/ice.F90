@@ -263,6 +263,7 @@ MODULE ice
    REAL(wp), PUBLIC ::   r1_nlay_i        !: 1 / nlay_i
    REAL(wp), PUBLIC ::   r1_nlay_s        !: 1 / nlay_s
    REAL(wp), PUBLIC ::   rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft   !: conservation diagnostics
+   REAL(wp), PUBLIC, PARAMETER ::   ppepsi02 = 1.e-02_wp   !: Small number
    REAL(wp), PUBLIC, PARAMETER ::   epsi06 = 1.e-06_wp  !: small number
    REAL(wp), PUBLIC, PARAMETER ::   epsi10 = 1.e-10_wp  !: small number
    REAL(wp), PUBLIC, PARAMETER ::   epsi20 = 1.e-20_wp  !: small number

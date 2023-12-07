@@ -1,9 +1,8 @@
    SUBROUTINE obs_grd_bruteforce( kpi, kpj, kpiglo, kpjglo,       &
-      &                            kldi, klei, kldj, klej,         &
-      &                            kmyproc, ktotproc,              &
-      &                            pglam, pgphi, pmask,            &
-      &                            kobs, plam, pphi, kobsi, kobsj, &
-      &                                   kproc)
+     &                            kmyproc, ktotproc,              &
+     &                            pglam, pgphi, pmask,            &
+     &                            kobs, plam, pphi, kobsi, kobsj, &
+      &                           kproc )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE obs_grd_bruteforce ***
       !!
@@ -27,10 +26,6 @@
       INTEGER, INTENT(IN) :: kpj                ! Number of local latitudes
       INTEGER, INTENT(IN) :: kpiglo             ! Number of global longitudes
       INTEGER, INTENT(IN) :: kpjglo             ! Number of global latitudes
-      INTEGER, INTENT(IN) :: kldi               ! Start of inner domain in i
-      INTEGER, INTENT(IN) :: klei               ! End of inner domain in i
-      INTEGER, INTENT(IN) :: kldj               ! Start of inner domain in j
-      INTEGER, INTENT(IN) :: klej               ! End of inner domain in j
       INTEGER, INTENT(IN) :: kmyproc            ! Processor number for MPP
       INTEGER, INTENT(IN) :: ktotproc           ! Total number of processors
       REAL(KIND=wp), DIMENSION(kpi,kpj), INTENT(IN) :: &
@@ -106,19 +101,40 @@
       ! Copy data to local arrays
       !-----------------------------------------------------------------------
       IF (ln_grid_global) THEN
+
          zlamg(:,:) = -1.e+10
          zphig(:,:) = -1.e+10
          zmskg(:,:) = -1.e+10
-         DO jj = kldj, klej
-            DO ji = kldi, klei
-               zlamg(mig(ji,nn_hls),mjg(jj,nn_hls)) = pglam(ji,jj)
-               zphig(mig(ji,nn_hls),mjg(jj,nn_hls)) = pgphi(ji,jj)
-               zmskg(mig(ji,nn_hls),mjg(jj,nn_hls)) = pmask(ji,jj)
-            END DO
-         END DO
+
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            zlamg(mig(ji,nn_hls),mjg(jj,nn_hls)) = pglam(ji,jj)
+            zphig(mig(ji,nn_hls),mjg(jj,nn_hls)) = pgphi(ji,jj)
+            zmskg(mig(ji,nn_hls),mjg(jj,nn_hls)) = pmask(ji,jj)
+         END_2D
+
+         !--------------------------------------------------------------------
+         ! Halo exchanges with land-only subdomains are suppressed,
+         ! so as a workaround to avoid spurious results in these cases,
+         ! add a large number to the arrays before mpp_global_max,
+         ! then subtract afterwards. This gives precedence to interior
+         ! domain values over halo values
+         !--------------------------------------------------------------------
+         DO_2D( 0, 0, 0, 0 )
+            zlamg(mig(ji,nn_hls),mjg(jj,nn_hls)) = pglam(ji,jj) + 1000000.0_wp
+            zphig(mig(ji,nn_hls),mjg(jj,nn_hls)) = pgphi(ji,jj) + 1000000.0_wp
+            zmskg(mig(ji,nn_hls),mjg(jj,nn_hls)) = pmask(ji,jj) + 1000000.0_wp
+         END_2D
+
          CALL mpp_global_max( zlamg )
          CALL mpp_global_max( zphig )
          CALL mpp_global_max( zmskg )
+
+         WHERE( zmskg(:,:) >= 1000000.0_wp )
+            zlamg(:,:) = zlamg(:,:) - 1000000.0_wp
+            zphig(:,:) = zphig(:,:) - 1000000.0_wp
+            zmskg(:,:) = zmskg(:,:) - 1000000.0_wp
+         END WHERE
+
       ELSE
          DO jj = 1, jlat
             DO ji = 1, jlon

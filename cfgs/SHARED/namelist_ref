@@ -1459,88 +1459,88 @@
 !!               ***  Observation & Assimilation  ***                 !!
 !!                                                                    !!
 !!   namobs       observation and model comparison                      (default: OFF)
+!!   namobs_dta   observation and model comparison - external data      (see: namobs)
 !!   nam_asminc   assimilation increments                               ('key_asminc')
 !!======================================================================
 !
 !-----------------------------------------------------------------------
-&namobs        !  observation usage switch                              (default: OFF)
+&namobs       !  observation and model comparison                       (default: OFF)
 !-----------------------------------------------------------------------
-   ln_diaobs   = .false.             ! Logical switch for the observation operator
-   !
-   ln_t3d      = .false.             ! Logical switch for T profile observations
-   ln_s3d      = .false.             ! Logical switch for S profile observations
-   ln_sla      = .false.             ! Logical switch for SLA observations
-   ln_sst      = .false.             ! Logical switch for SST observations
-   ln_sss      = .false.             ! Logical swithc for SSS observations
-   ln_sic      = .false.             ! Logical switch for Sea Ice observations
-   ln_vel3d    = .false.             ! Logical switch for velocity observations
-   ln_altbias  = .false.             ! Logical switch for altimeter bias correction
-   ln_sstbias  = .false.             ! Logical switch for SST bias correction
-   ln_nea      = .false.             ! Logical switch for rejection of observations near land
-   ln_grid_global = .true.           ! Logical switch for global distribution of observations
-   ln_grid_search_lookup = .false.   ! Logical switch for obs grid search w/lookup table
-   ln_ignmis   = .true.              ! Logical switch for ignoring missing files
-   ln_s_at_t   = .false.             ! Logical switch for computing model S at T obs if not there
-   ln_sstnight = .false.             ! Logical switch for calculating night-time average for SST obs
-   ln_bound_reject  = .false.        ! Logical to remove obs near boundaries in LAMs.
-   ln_default_fp_indegs = .true.     ! Logical: T=> averaging footprint is in degrees, F=> in metres
-   ln_sla_fp_indegs = .true.         ! Logical for SLA: T=> averaging footprint is in degrees, F=> in metres
-   ln_sst_fp_indegs = .true.         ! Logical for SST: T=> averaging footprint is in degrees, F=> in metres
-   ln_sss_fp_indegs = .true.         ! Logical for SSS: T=> averaging footprint is in degrees, F=> in metres
-   ln_sic_fp_indegs = .true.         ! Logical for SIC: T=> averaging footprint is in degrees, F=> in metres
-! All of the *files* variables below are arrays. Use namelist_cfg to add more files
-   cn_profbfiles = 'profiles_01.nc'  ! Profile feedback input observation file names
-   cn_slafbfiles = 'sla_01.nc'       ! SLA feedback input observation file names
-   cn_sstfbfiles = 'sst_01.nc'       ! SST feedback input observation file names
-   cn_sssfbfiles = 'sss_01.nc'       ! SSS feedback input observation file names
-   cn_sicfbfiles = 'sic_01.nc'       ! SIC feedback input observation file names
-   cn_velfbfiles = 'vel_01.nc'       ! Velocity feedback input observation file names
-   cn_altbiasfile = 'altbias.nc'     ! Altimeter bias input file name
-   cn_sstbiasfiles = 'sstbias.nc'    ! SST bias input file name
-   cn_gridsearchfile ='gridsearch.nc' ! Grid search file name
-   rn_gridsearchres = 0.5            ! Grid search resolution
-   rn_default_avglamscl = 0.         ! Default E/W diameter of observation footprint (metres/degrees)
-   rn_default_avgphiscl = 0.         ! Default N/S diameter of observation footprint (metres/degrees)
-   rn_mdtcorr  = 1.61                ! MDT  correction
-   rn_mdtcutoff = 65.0               ! MDT cutoff for computed correction
-   rn_dobsini  = 00010101.000000     ! Initial date in window YYYYMMDD.HHMMSS
-   rn_dobsend  = 00010102.000000     ! Final date in window YYYYMMDD.HHMMSS
-   rn_sla_avglamscl = 0.             ! E/W diameter of SLA observation footprint (metres/degrees)
-   rn_sla_avgphiscl = 0.             ! N/S diameter of SLA observation footprint (metres/degrees)
-   rn_sst_avglamscl = 0.             ! E/W diameter of SST observation footprint (metres/degrees)
-   rn_sst_avgphiscl = 0.             ! N/S diameter of SST observation footprint (metres/degrees)
-   rn_sss_avglamscl = 0.             ! E/W diameter of SSS observation footprint (metres/degrees)
-   rn_sss_avgphiscl = 0.             ! N/S diameter of SSS observation footprint (metres/degrees)
-   rn_sic_avglamscl = 0.             ! E/W diameter of SIC observation footprint (metres/degrees)
-   rn_sic_avgphiscl = 0.             ! N/S diameter of SIC observation footprint (metres/degrees)
-   nn_1dint = 0                      ! Type of vertical interpolation method
-   nn_2dint_default = 0              ! Default horizontal interpolation method
-   nn_2dint_sla = 0                  ! Horizontal interpolation method for SLA
-   nn_2dint_sst = 0                  ! Horizontal interpolation method for SST
-   nn_2dint_sss = 0                  ! Horizontal interpolation method for SSS
-   nn_2dint_sic = 0                  ! Horizontal interpolation method for SIC
-   nn_msshc     = 0                  ! MSSH correction scheme
-   nn_profdavtypes = -1              ! Profile daily average types - array
+   ln_diaobs             = .false.         ! Logical switch for the observation operator
+   nn_obsgroups          = 0               ! Number of observation group namelists (namobs_dta) to read in
+   ln_grid_global        = .true.          ! Logical switch for global distribution of observations
+   ln_grid_search_lookup = .false.         ! Logical switch for obs grid search w/lookup table
+   cn_gridsearchfile     = 'grid_search'   ! Grid search file name header
+   rn_gridsearchres      = 0.5             ! Grid search resolution
+   dn_dobsini            = 00010101.000000 ! Initial date in window YYYYMMDD.HHMMSS
+   dn_dobsend            = 99991231.000000 ! Final date in window YYYYMMDD.HHMMSS
+/
+!-----------------------------------------------------------------------
+&namobs_dta    !  observation and model comparison - external data      (see: namobs)
+!-----------------------------------------------------------------------
+   cn_groupname           = ''             ! Name of obs group (output file will be cn_groupname//'fb_????.nc')
+   ln_enabled             = .true.         ! Logical switch for group being processed not ignored
+   ln_prof                = .false.        ! Logical switch for profile data
+   ln_surf                = .false.        ! Logical switch for surface data
+   cn_obsfiles            = ''             ! Observation file names
+   cn_obstypes            = ''             ! Observation types to read from files
+   ln_nea                 = .false.        ! Logical switch for rejecting observations near land
+   ln_bound_reject        = .false.        ! Logical switch for rejecting obs near the boundary
+   ln_ignmis              = .true.         ! Logical switch for ignoring missing files
+   nn_2dint               = 0              ! Type of horizontal interpolation method
+                                           ! Relevant if ln_prof = .true.:
+   nn_1dint               = 0              !    Type of vertical interpolation method
+   nn_profdavtypes        = -1             !    Profile data types representing a daily average
+   ln_all_at_all          = .false.        !    Logical switch for computing all model variables at all obs points
+                                           ! Relevant if ln_surf = .true.:
+   ln_fp_indegs           = .true.         !    Logical: T=> averaging footprint is in degrees, F=> in metres
+   rn_avglamscl           = 0.             !    E/W diameter of observation footprint (metres/degrees)
+   rn_avgphiscl           = 0.             !    N/S diameter of observation footprint (metres/degrees)
+   ln_night               = .false.        !    Logical switch for calculating night-time average for obs
+   ln_time_mean_bkg       = .false.        !    Logical switch for applying time mean of background (e.g. to remove tidal signal)
+   rn_time_mean_period    = 24.8333        !    Meaning period in hours if ln_time_mean_bkg (default is AMM tidal period)
+   ln_obsbias             = .false.        !    Logical switch for bias correction
+   cn_obsbiasfiles        = ''             !    Bias input file names
+   cn_type_to_biascorrect = ''             !    Observation type to bias correct
+   cn_obsbiasfile_varname = ''             !    Bias variable name in input file
+                                           ! Relevant if 'SLA' in cn_obstypes:
+   ln_altbias             = .false.        !    Logical switch for altimeter bias correction
+   cn_altbiasfile         = ''             !    Altimeter bias input file name
+   nn_msshc               = 0              !    MSSH correction scheme
+   rn_mdtcorr             = 1.61           !    MDT correction
+   rn_mdtcutoff           = 65.0           !    MDT cutoff for computed correction
+                                           ! Relevant if 'POTM', 'PSAL', 'SST', or 'SSS' in cn_obstypes:
+   ln_output_clim         = .false.        !    Logical switch to output climatological temperature/salinity (if ln_tradmp)
+                                           ! Relevant if 'FBD' in cn_obstypes:
+   rn_radar_snow_penetr   = 1.0            !    Snow depth penetration factor for radar ice freeboard conversion
 /
 !-----------------------------------------------------------------------
 &nam_asminc    !   assimilation increments                              ('key_asminc')
 !-----------------------------------------------------------------------
-    ln_bkgwri  = .false.   !  Logical switch for writing out background state
-    ln_trainc  = .false.   !  Logical switch for applying tracer increments
-    ln_dyninc  = .false.   !  Logical switch for applying velocity increments
-    ln_sshinc  = .false.   !  Logical switch for applying SSH increments
-    ln_seaiceinc = .false. !  Logical switch for applying Sea ice concentration increments
-    ln_asmdin  = .false.   !  Logical switch for Direct Initialization (DI)
-    ln_asmiau  = .false.   !  Logical switch for Incremental Analysis Updating (IAU)
-    nitbkg     = 0         !  Timestep of background in [0,nitend-nit000-1]
-    nitdin     = 0         !  Timestep of background for DI in [0,nitend-nit000-1]
-    nitiaustr  = 1         !  Timestep of start of IAU interval in [0,nitend-nit000-1]
-    nitiaufin  = 15        !  Timestep of end of IAU interval in [0,nitend-nit000-1]
-    niaufn     = 0         !  Type of IAU weighting function
-    ln_salfix  = .false.   !  Logical switch for ensuring that the sa > salfixmin
-    salfixmin  = -9999     !  Minimum salinity after applying the increments
-    ln_temnofreeze=.false. !  Don't allow the temperature to drop below freezing
-    nn_divdmp  = 0         !  Number of iterations of divergence damping operator
+   ln_bkgwri     = .false.    ! Logical switch for writing out background state
+   ln_trainc     = .false.    ! Logical switch for applying tracer increments
+   ln_dyninc     = .false.    ! Logical switch for applying velocity increments
+   ln_sshinc     = .false.    ! Logical switch for applying SSH increments
+   ln_sicinc     = .false.    ! Logical switch for applying sea ice concentration increments
+   ln_sitinc     = .false.    ! Logical switch for applying sea ice thickness increments
+   ln_asmdin     = .false.    ! Logical switch for Direct Initialization (DI)
+   ln_asmiau     = .false.    ! Logical switch for Incremental Analysis Updating (IAU)
+   nn_itbkg      = 0          ! Timestep of background in [0,nitend-nit000-1]
+   nn_itdin      = 0          ! Timestep of background for DI in [0,nitend-nit000-1]
+   nn_itiaustr   = 1          ! Timestep of start of IAU interval in [0,nitend-nit000-1]
+   nn_itiaufin   = 15         ! Timestep of end of IAU interval in [0,nitend-nit000-1]
+   nn_iaufn      = 0          ! Type of IAU weighting function
+   ln_temnofreeze=.false.     ! Don't allow the temperature to drop below freezing
+   nn_divdmp     = 0          ! Number of iterations of divergence damping operator
+   ln_bv_check   = .false.    ! Don't apply T/S increments where Brunt-Vaisala (N2) checks fail
+   rn_bv_thres   = 0.0        ! Brunt-Vaisala threshold for applying T/S increments
+   rn_zmin_bv    = 400.0      ! Min depth to verify Brunt-Vaisala (N2) values
+   rn_zmax_bv    = 1500.0     ! Max depth to verify Brunt-Vaisala (N2) values
+   ln_salfix     = .false.    ! Logical switch for ensuring that the sa > salfixmin
+   rn_salfixmin  = -9999.0    ! Minimum salinity after applying the increments
+   rn_zhi_damin  = 0.45       ! Ice thickness for new sea ice from DA increment
+   rn_ai_damin   = 0.15       ! Minimum total ice concentration to apply ice thickness increments
+   rn_acat_damin = 0.01       ! Minimum ice concentration at category level to apply ice thickness increments
 /
 
 !!======================================================================
@@ -1572,6 +1572,7 @@
    sn_cfctl%l_prtctl  = .FALSE.   !
    sn_cfctl%l_prttrc  = .FALSE.   !
    sn_cfctl%l_oasout  = .FALSE.   !
+   sn_cfctl%l_obsstat = .FALSE.   !
    sn_cfctl%procmin   = 0         ! Minimum area number for reporting [default:0]
    sn_cfctl%procmax   = 1000000   ! Maximum area number for reporting [default:1000000]
    sn_cfctl%procincr  = 1         ! Increment for optional subsetting of areas [default:1]

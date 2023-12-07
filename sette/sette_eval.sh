@@ -94,8 +94,10 @@ function runcmpres(){
     fi
     f1s=$vdir/$mach/$dorv/$nam/$TESTD/run.stat
     f1t=$vdir/$mach/$dorv/$nam/$TESTD/tracer.stat
+    f1h=$vdir/$mach/$dorv/$nam/$TESTD/obs.stat
     f2s=$vdirref/$mach/$dorvref/$nam/$TESTD/run.stat
     f2t=$vdirref/$mach/$dorvref/$nam/$TESTD/tracer.stat
+    f2h=$vdirref/$mach/$dorvref/$nam/$TESTD/obs.stat
     if  [ ! -f $f1s ] && [ ! -f $f1t ] ; then
       printf "%-20s %s\n" $nam " incomplete test";
       return;
@@ -135,6 +137,24 @@ function runcmpres(){
         get_ktdiff2 $f1t $f2t
         if [ $silent == 0 ]; then          
          printf "%-20s %s %s %-5s (%s)\n" $nam  " tracer.stat files are DIFFERENT (results are different after " $ktdiff " time steps) " $TESTD
+        else
+         errcnt=$(( $errcnt + 1 ))
+        fi
+      fi
+#
+    fi
+    # Check obs.stat files (if they exist)
+#
+    if  [ -f $f1h ] && [ -f $f2h ] ; then
+      cmp -s $f1h $f2h
+      if [ $? == 0 ]; then
+        if [ $silent == 0 ]; then          
+          printf "%-20s %s (%s)\n" $nam  " obs.stat    files are identical " $TESTD
+        fi
+      else
+        get_ktdiff2 $f1h $f2h
+        if [ $silent == 0 ]; then          
+         printf "%-20s %s %s %-5s (%s)\n" $nam  " obs.stat    files are DIFFERENT (results are different after " $ktdiff " time steps) " $TESTD
         else
          errcnt=$(( $errcnt + 1 ))
         fi

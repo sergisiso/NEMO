@@ -22,6 +22,7 @@ MODULE obs_surf_def
       & wp         
    USE obs_mpp, ONLY : &  ! MPP tools 
       obs_mpp_sum_integer
+   USE obs_fbm            ! Obs feedback format
 
    IMPLICIT NONE
 
@@ -44,6 +45,7 @@ MODULE obs_surf_def
       INTEGER :: nsurf      !: Local number of surface data within window
       INTEGER :: nsurfmpp   !: Global number of surface data within window
       INTEGER :: nvar       !: Number of variables at observation points
+      INTEGER :: nadd       !: Number of additional fields at observation points
       INTEGER :: nextra     !: Number of extra fields at observation points
       INTEGER :: nstp       !: Number of time steps
       INTEGER :: npi        !: Number of 3D grid points
@@ -54,8 +56,6 @@ MODULE obs_surf_def
       ! Arrays with size equal to the number of surface observations
 
       INTEGER, POINTER, DIMENSION(:) :: &
-         & mi,   &        !: i-th grid coord. for interpolating to surface observation
-         & mj,   &        !: j-th grid coord. for interpolating to surface observation
          & mt,   &        !: time record number for gridded data
          & nsidx,&        !: Surface observation number
          & nsfil,&        !: Surface observation number in file
@@ -68,10 +68,33 @@ MODULE obs_surf_def
          & nqc,  &        !: Surface observation qc flag
          & ntyp           !: Type of surface observation product
 
-      CHARACTER(len=8), POINTER, DIMENSION(:) :: &
-         & cvars          !: Variable names
+      INTEGER, POINTER, DIMENSION(:,:) :: &
+         & mi,   &        !: i-th grid coord. for interpolating to surface observation
+         & mj             !: j-th grid coord. for interpolating to surface observation
 
-      CHARACTER(LEN=8), POINTER, DIMENSION(:) :: &
+      CHARACTER(len=ilenname), POINTER, DIMENSION(:) :: &
+         & cvars,    &    !: Variable names
+         & cextvars, &    !: Extra variable names
+         & caddvars       !: Additional variable names
+
+      CHARACTER(len=ilenlong), POINTER, DIMENSION(:) :: &
+         & clong,    &    !: Variable long names
+         & cextlong       !: Extra variable long names
+
+      CHARACTER(len=ilenlong), POINTER, DIMENSION(:,:) :: &
+         & caddlong       !: Additional variable long names
+
+      CHARACTER(len=ilenunit), POINTER, DIMENSION(:) :: &
+         & cunit,    &    !: Variable units
+         & cextunit       !: Extra variable units
+
+      CHARACTER(len=ilenunit), POINTER, DIMENSION(:,:) :: &
+         & caddunit       !: Additional variable units
+
+      CHARACTER(len=ilengrid), POINTER, DIMENSION(:) :: &
+         & cgrid          !: Variable grids
+
+      CHARACTER(LEN=ilenwmo), POINTER, DIMENSION(:) :: &
          & cwmo           !: WMO indentifier
          
       REAL(KIND=wp), POINTER, DIMENSION(:) :: &
@@ -85,7 +108,10 @@ MODULE obs_surf_def
       REAL(KIND=wp), POINTER, DIMENSION(:,:) :: &
          & rext           !: Extra fields interpolated to observation points
 
-      REAL(KIND=wp), POINTER, DIMENSION(:,:) :: &
+      REAL(KIND=wp), POINTER, DIMENSION(:,:,:) :: &
+         & radd           !: Additional fields interpolated to observation points
+
+      REAL(KIND=wp), POINTER, DIMENSION(:,:,:) :: &
          & vdmean         !: Time averaged of model field
 
       ! Arrays with size equal to the number of time steps in the window
@@ -120,7 +146,7 @@ MODULE obs_surf_def
 
 CONTAINS
    
-   SUBROUTINE obs_surf_alloc( surf, ksurf, kvar, kextra, kstp, kpi, kpj )
+   SUBROUTINE obs_surf_alloc( surf, ksurf, kvar, kadd, kextra, kstp, kpi, kpj )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE obs_surf_alloc  ***
       !!                      
@@ -135,6 +161,7 @@ CONTAINS
       TYPE(obs_surf), INTENT(INOUT) ::  surf      ! Surface data to be allocated
       INTEGER, INTENT(IN) :: ksurf   ! Number of surface observations
       INTEGER, INTENT(IN) :: kvar    ! Number of surface variables
+      INTEGER, INTENT(IN) :: kadd    ! Number of additional fields at observation points
       INTEGER, INTENT(IN) :: kextra  ! Number of extra fields at observation points
       INTEGER, INTENT(IN) :: kstp    ! Number of time steps
       INTEGER, INTENT(IN) :: kpi     ! Number of 3D grid points
@@ -142,12 +169,13 @@ CONTAINS
 
       !!* Local variables
       INTEGER :: ji
-      INTEGER :: jvar
+      INTEGER :: jvar, jadd, jext
 
       ! Set bookkeeping variables
 
       surf%nsurf    = ksurf
       surf%nsurfmpp = 0
+      surf%nadd     = kadd
       surf%nextra   = kextra
       surf%nvar     = kvar
       surf%nstp     = kstp
@@ -157,18 +185,47 @@ CONTAINS
       ! Allocate arrays of size number of variables
 
       ALLOCATE( &
-         & surf%cvars(kvar)    &
+         & surf%cvars(kvar), &
+         & surf%clong(kvar), &
+         & surf%cunit(kvar), &
+         & surf%cgrid(kvar)  &
          & )
 
       DO jvar = 1, kvar
          surf%cvars(jvar) = "NotSet"
+         surf%clong(jvar) = "NotSet"
+         surf%cunit(jvar) = "NotSet"
+         surf%cgrid(jvar) = ""
+      END DO
+
+      ! Allocate additional/extra variable metadata
+
+      ALLOCATE( &
+         & surf%caddvars(kadd),      &
+         & surf%caddlong(kadd,kvar), &
+         & surf%caddunit(kadd,kvar), &
+         & surf%cextvars(kextra),    &
+         & surf%cextlong(kextra),    &
+         & surf%cextunit(kextra)     &
+         )
+         
+      DO jadd = 1, kadd
+         surf%caddvars(jadd) = "NotSet"
+         DO jvar = 1, kvar
+            surf%caddlong(jadd,jvar) = "NotSet"
+            surf%caddunit(jadd,jvar) = "NotSet"
+         END DO
+      END DO
+         
+      DO jext = 1, kextra
+         surf%cextvars(jext) = "NotSet"
+         surf%cextlong(jext) = "NotSet"
+         surf%cextunit(jext) = "NotSet"
       END DO
       
       ! Allocate arrays of number of surface data size
 
       ALLOCATE( &
-         & surf%mi(ksurf),      &
-         & surf%mj(ksurf),      &
          & surf%mt(ksurf),      &
          & surf%nsidx(ksurf),   &
          & surf%nsfil(ksurf),   &
@@ -184,6 +241,11 @@ CONTAINS
          & surf%rlam(ksurf),    &
          & surf%rphi(ksurf),    &
          & surf%nsind(ksurf)    &
+         & )
+
+      ALLOCATE( &
+         & surf%mi(ksurf,kvar), &
+         & surf%mj(ksurf,kvar)  &
          & )
 
       surf%mt(:) = -1
@@ -204,6 +266,14 @@ CONTAINS
 
       surf%rext(:,:) = 0.0_wp 
 
+      ! Allocate arrays of number of additional fields at observation points
+
+      ALLOCATE( & 
+         & surf%radd(ksurf,kadd,kvar) &
+         & )
+
+      surf%radd(:,:,:) = 0.0_wp 
+
       ! Allocate arrays of number of time step size
 
       ALLOCATE( &
@@ -214,7 +284,7 @@ CONTAINS
       ! Allocate arrays of size number of grid points
 
       ALLOCATE( &
-         & surf%vdmean(kpi,kpj) &
+         & surf%vdmean(kpi,kpj,kvar) &
          & )
 
       ! Set defaults for compression indices
@@ -290,6 +360,12 @@ CONTAINS
          & surf%rext &
          & )
 
+      ! Deallocate arrays of number of additional fields at observation points
+
+      DEALLOCATE( & 
+         & surf%radd &
+         & )
+
       ! Deallocate arrays of size number of grid points size times
       ! number of variables
 
@@ -307,8 +383,22 @@ CONTAINS
       ! Dellocate arrays of size number of variables
 
       DEALLOCATE( &
-         & surf%cvars     &
+         & surf%cvars, &
+         & surf%clong, &
+         & surf%cunit, &
+         & surf%cgrid  &
          & )
+
+      ! Dellocate additional/extra variables metadata
+
+      DEALLOCATE( &
+         & surf%caddvars, &
+         & surf%caddlong, &
+         & surf%caddunit, &
+         & surf%cextvars, &
+         & surf%cextlong, &
+         & surf%cextunit  &
+         )
 
    END SUBROUTINE obs_surf_dealloc
 
@@ -342,6 +432,7 @@ CONTAINS
       INTEGER :: insurf
       INTEGER :: ji
       INTEGER :: jk
+      INTEGER :: jadd
       LOGICAL, DIMENSION(:), ALLOCATABLE :: llvalid
 
       ! Count how many elements there should be in the new data structure
@@ -360,7 +451,7 @@ CONTAINS
       ! Optionally allocate data in the new data structure
 
       IF ( lallocate ) THEN
-         CALL obs_surf_alloc( newsurf,  insurf, surf%nvar, &
+         CALL obs_surf_alloc( newsurf,  insurf, surf%nvar, surf%nadd, &
             & surf%nextra, surf%nstp, surf%npi, surf%npj )
       ENDIF
 
@@ -387,8 +478,8 @@ CONTAINS
 
             insurf = insurf + 1
 
-            newsurf%mi(insurf)    = surf%mi(ji)
-            newsurf%mj(insurf)    = surf%mj(ji)
+            newsurf%mi(insurf,:)  = surf%mi(ji,:)
+            newsurf%mj(insurf,:)  = surf%mj(ji,:)
             newsurf%mt(insurf)    = surf%mt(ji)
             newsurf%nsidx(insurf) = surf%nsidx(ji)
             newsurf%nsfil(insurf) = surf%nsfil(ji)
@@ -408,6 +499,10 @@ CONTAINS
 
                newsurf%robs(insurf,jk)  = surf%robs(ji,jk)
                newsurf%rmod(insurf,jk)  = surf%rmod(ji,jk)
+               
+               DO jadd = 1, surf%nadd
+                  newsurf%radd(insurf,jadd,jk) = surf%radd(ji,jadd,jk)
+               END DO
                
             END DO
 
@@ -432,8 +527,17 @@ CONTAINS
 
       ! Set book keeping variables which do not depend on number of obs.
 
-      newsurf%nstp     = surf%nstp
-      newsurf%cvars(:) = surf%cvars(:)
+      newsurf%nstp          = surf%nstp
+      newsurf%cvars(:)      = surf%cvars(:)
+      newsurf%clong(:)      = surf%clong(:)
+      newsurf%cunit(:)      = surf%cunit(:)
+      newsurf%cgrid(:)      = surf%cgrid(:)
+      newsurf%caddvars(:)   = surf%caddvars(:)
+      newsurf%caddlong(:,:) = surf%caddlong(:,:)
+      newsurf%caddunit(:,:) = surf%caddunit(:,:)
+      newsurf%cextvars(:)   = surf%cextvars(:)
+      newsurf%cextlong(:)   = surf%cextlong(:)
+      newsurf%cextunit(:)   = surf%cextunit(:)
       
       ! Set gridded stuff
       
@@ -469,15 +573,16 @@ CONTAINS
       INTEGER :: ji
       INTEGER :: jj
       INTEGER :: jk
+      INTEGER :: jadd
 
       ! Copy data from surf to old surf
 
       DO ji = 1, surf%nsurf
 
-         jj=surf%nsind(ji)
+         jj = surf%nsind(ji)
 
-         oldsurf%mi(jj)    = surf%mi(ji)
-         oldsurf%mj(jj)    = surf%mj(ji)
+         oldsurf%mi(jj,:)  = surf%mi(ji,:)
+         oldsurf%mj(jj,:)  = surf%mj(ji,:)
          oldsurf%mt(jj)    = surf%mt(ji)
          oldsurf%nsidx(jj) = surf%nsidx(ji)
          oldsurf%nsfil(jj) = surf%nsfil(ji)
@@ -499,10 +604,14 @@ CONTAINS
 
          DO ji = 1, surf%nsurf
             
-            jj=surf%nsind(ji)
+            jj = surf%nsind(ji)
 
             oldsurf%robs(jj,jk)  = surf%robs(ji,jk)
             oldsurf%rmod(jj,jk)  = surf%rmod(ji,jk)
+               
+            DO jadd = 1, surf%nadd
+               oldsurf%radd(jj,jadd,jk) = surf%radd(ji,jadd,jk)
+            END DO
 
          END DO
 
@@ -512,7 +621,7 @@ CONTAINS
 
          DO ji = 1, surf%nsurf
             
-            jj=surf%nsind(ji)
+            jj = surf%nsind(ji)
 
             oldsurf%rext(jj,jk)  = surf%rext(ji,jk)
 

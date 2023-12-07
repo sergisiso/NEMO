@@ -17,7 +17,11 @@ MODULE obs_oper
    USE dom_oce,       ONLY :   glamt, glamf, gphit, gphif   ! lat/lon of ocean grid-points
    USE lib_mpp,       ONLY :   ctl_warn, ctl_stop           ! Warning and stopping routines
    USE sbcdcy,        ONLY :   sbc_dcy, nday_qsr            ! For calculation of where it is night-time
-   USE obs_grid,      ONLY :   obs_level_search     
+   USE obs_grid,      ONLY :   obs_level_search
+   USE obs_group_def, ONLY : cobsname_sla, cobsname_fbd, jpmaxavtypes
+#if defined key_si3 || defined key_cice
+   USE phycst,        ONLY : rhos, rhoi                     ! For conversion from sea ice freeboard to thickness
+#endif
    !
    USE par_kind     , ONLY :   wp   ! Precision variables
    USE in_out_manager               ! I/O manager
@@ -27,8 +31,6 @@ MODULE obs_oper
 
    PUBLIC   obs_prof_opt   !: Compute the model counterpart of profile obs
    PUBLIC   obs_surf_opt   !: Compute the model counterpart of surface obs
-
-   INTEGER, PARAMETER, PUBLIC ::   imaxavtypes = 20   !: Max number of daily avgd obs types
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -41,10 +43,13 @@ CONTAINS
 
    SUBROUTINE obs_prof_opt( prodatqc, kt, kpi, kpj, kpk, &
       &                     kit000, kdaystp, kvar,       &
-      &                     pvar, pgdept, pgdepw,        &
+      &                     pvar,                        &
+      &                     ldclim, kclim, pclim,        &
+      &                     pgdept, pgdepw,              &
       &                     pmask,                       &  
       &                     plam, pphi,                  &
-      &                     k1dint, k2dint, kdailyavtypes )
+      &                     k1dint, k2dint,              &
+      &                     knavtypes, kdailyavtypes )
       !!-----------------------------------------------------------------------
       !!                     ***  ROUTINE obs_pro_opt  ***
       !!
@@ -104,13 +109,17 @@ CONTAINS
       INTEGER       , INTENT(in   ) ::   k1dint          ! Vertical interpolation type (see header)
       INTEGER       , INTENT(in   ) ::   k2dint          ! Horizontal interpolation type (see header)
       INTEGER       , INTENT(in   ) ::   kdaystp         ! Number of time steps per day
-      INTEGER       , INTENT(in   ) ::   kvar            ! Number of variables in prodatqc
+      INTEGER       , INTENT(in   ) ::   kvar            ! Index of variable in prodatqc
+      INTEGER       , INTENT(in   ) ::   kclim           ! Index of climatology in prodatqc
+      LOGICAL       , INTENT(in   ) ::   ldclim          ! Switch to interpolate climatology
       REAL(KIND=wp) , INTENT(in   ), DIMENSION(kpi,kpj,kpk) ::   pvar             ! Model field
+      REAL(KIND=wp) , INTENT(in   ), DIMENSION(kpi,kpj,kpk) ::   pclim            ! Climatology field
       REAL(KIND=wp) , INTENT(in   ), DIMENSION(kpi,kpj,kpk) ::   pmask            ! Land-sea mask
       REAL(KIND=wp) , INTENT(in   ), DIMENSION(kpi,kpj)     ::   plam             ! Model longitude
       REAL(KIND=wp) , INTENT(in   ), DIMENSION(kpi,kpj)     ::   pphi             ! Model latitudes
       REAL(KIND=wp) , INTENT(in   ), DIMENSION(kpi,kpj,kpk) ::   pgdept, pgdepw   ! depth of T and W levels 
-      INTEGER, DIMENSION(imaxavtypes), OPTIONAL ::   kdailyavtypes             ! Types for daily averages
+      INTEGER       , INTENT(in   )                         ::   knavtypes        ! Number of daily average types
+      INTEGER, DIMENSION(knavtypes), INTENT(in), OPTIONAL   ::   kdailyavtypes    ! Types for daily averages
 
       !! * Local declarations
       INTEGER ::   ji
@@ -125,7 +134,7 @@ CONTAINS
       INTEGER ::   iobs
       INTEGER ::   iin, ijn, ikn, ik   ! looping indices over interpolation nodes 
       INTEGER ::   inum_obs
-      INTEGER, DIMENSION(imaxavtypes) :: &
+      INTEGER, DIMENSION(knavtypes) :: &
          & idailyavtypes
       INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: &
          & igrdi, &
@@ -137,12 +146,14 @@ CONTAINS
       REAL(KIND=wp) :: zdaystp
       REAL(KIND=wp), DIMENSION(kpk) :: &
          & zobsk,  &
-         & zobs2k
+         & zobs2k, &
+         & zclm2k
       REAL(KIND=wp), DIMENSION(2,2,1) :: &
          & zweig1, &
          & zweig
       REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE :: &
          & zmask,  &
+         & zclim,  &
          & zint,   &
          & zinm,   &
          & zgdept, & 
@@ -152,6 +163,7 @@ CONTAINS
          & zgphi
       REAL(KIND=wp), DIMENSION(1) :: zmsk
       REAL(KIND=wp), DIMENSION(:,:,:), ALLOCATABLE :: interp_corner
+      REAL(KIND=wp), DIMENSION(:,:,:), ALLOCATABLE :: interp_corner_clim
 
       LOGICAL :: ld_dailyav
 
@@ -164,7 +176,7 @@ CONTAINS
 
       ! Daily average types
       ld_dailyav = .FALSE.
-      IF ( PRESENT(kdailyavtypes) ) THEN
+      IF ( PRESENT(kdailyavtypes) .AND. ( knavtypes > 0 ) ) THEN
          idailyavtypes(:) = kdailyavtypes(:)
          IF ( ANY (idailyavtypes(:) /= -1) ) ld_dailyav = .TRUE.
       ELSE
@@ -179,26 +191,16 @@ CONTAINS
 
          ! Initialize daily mean for first timestep of the day
          IF ( idayend == 1 .OR. kt == 0 ) THEN
-            DO_3D( 1, 1, 1, 1, 1, jpk )
-               prodatqc%vdmean(ji,jj,jk,kvar) = 0.0
-            END_3D
+            prodatqc%vdmean(:,:,:,kvar) = 0.0_wp
          ENDIF
 
-         DO_3D( 1, 1, 1, 1, 1, jpk )
-            ! Increment field 1 for computing daily mean
-            prodatqc%vdmean(ji,jj,jk,kvar) = prodatqc%vdmean(ji,jj,jk,kvar) &
-               &                           + pvar(ji,jj,jk)
-         END_3D
+         ! Increment field 1 for computing daily mean
+         prodatqc%vdmean(:,:,:,kvar) = prodatqc%vdmean(:,:,:,kvar) + pvar(:,:,:)
 
          ! Compute the daily mean at the end of day
-         zdaystp = 1.0 / REAL( kdaystp )
-         IF ( idayend == 0 ) THEN
-            IF (lwp) WRITE(numout,*) 'Calculating prodatqc%vdmean on time-step: ',kt
-            CALL FLUSH(numout)
-            DO_3D( 1, 1, 1, 1, 1, jpk )
-               prodatqc%vdmean(ji,jj,jk,kvar) = prodatqc%vdmean(ji,jj,jk,kvar) &
-                  &                           * zdaystp
-            END_3D
+         zdaystp = 1.0_wp / REAL( kdaystp, KIND=wp )
+         IF ( ( idayend == 0 ) .AND. ( kt > 0 ) ) THEN
+            prodatqc%vdmean(:,:,:,kvar) = prodatqc%vdmean(:,:,:,kvar) * zdaystp
          ENDIF
 
       ENDIF
@@ -214,6 +216,10 @@ CONTAINS
          & zgdept(2,2,kpk,ipro), & 
          & zgdepw(2,2,kpk,ipro)  & 
          & )
+
+      IF ( ldclim ) THEN
+         ALLOCATE( zclim(2,2,kpk,ipro) )
+      ENDIF
 
       DO jobs = prodatqc%nprofup + 1, prodatqc%nprofup + ipro
          iobs = jobs - prodatqc%nprofup
@@ -238,6 +244,10 @@ CONTAINS
 
       CALL obs_int_comm_3d( 2, 2, ipro, kpi, kpj, kpk, igrdi, igrdj, pgdept, zgdept ) 
       CALL obs_int_comm_3d( 2, 2, ipro, kpi, kpj, kpk, igrdi, igrdj, pgdepw, zgdepw ) 
+
+      IF ( ldclim ) THEN
+         CALL obs_int_comm_3d( 2, 2, ipro, kpi, kpj, kpk, igrdi, igrdj, pclim, zclim )
+      ENDIF
 
       ! At the end of the day also get interpolated means
       IF ( ld_dailyav .AND. idayend == 0 ) THEN
@@ -301,7 +311,10 @@ CONTAINS
                   ista = prodatqc%npvsta(jobs,kvar) 
                   iend = prodatqc%npvend(jobs,kvar) 
                   inum_obs = iend - ista + 1 
-                  ALLOCATE(interp_corner(2,2,inum_obs),iv_indic(inum_obs)) 
+                  ALLOCATE(interp_corner(2,2,inum_obs),iv_indic(inum_obs))
+                  IF ( ldclim ) THEN
+                     ALLOCATE( interp_corner_clim(2,2,inum_obs) )
+                  ENDIF
 
                   DO iin=1,2 
                      DO ijn=1,2 
@@ -310,8 +323,15 @@ CONTAINS
                            CALL obs_int_z1d_spl( kpk, & 
                               &     zinm(iin,ijn,:,iobs), & 
                               &     zobs2k, zgdept(iin,ijn,:,iobs), & 
-                              &     zmask(iin,ijn,:,iobs)) 
-                        ENDIF 
+                              &     zmask(iin,ijn,:,iobs))
+
+                           IF ( ldclim ) THEN
+                              CALL obs_int_z1d_spl( kpk, &
+                                 &     zclim(iin,ijn,:,iobs), &
+                                 &     zclm2k, zgdept(iin,ijn,:,iobs), &
+                                 &     zmask(iin,ijn,:,iobs))
+                           ENDIF
+                        ENDIF
        
                         CALL obs_level_search(kpk, & 
                            &    zgdept(iin,ijn,:,iobs), & 
@@ -323,8 +343,17 @@ CONTAINS
                            &    zinm(iin,ijn,:,iobs), & 
                            &    zobs2k, interp_corner(iin,ijn,:), & 
                            &    zgdept(iin,ijn,:,iobs), & 
-                           &    zmask(iin,ijn,:,iobs)) 
-       
+                           &    zmask(iin,ijn,:,iobs))
+
+                        IF ( ldclim ) THEN
+                           CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, &
+                              &    prodatqc%var(kvar)%vdep(ista:iend), &
+                              &    zclim(iin,ijn,:,iobs), &
+                              &    zclm2k, interp_corner_clim(iin,ijn,:), &
+                              &    zgdept(iin,ijn,:,iobs), &
+                              &    zmask(iin,ijn,:,iobs))
+                        ENDIF
+
                      ENDDO 
                   ENDDO 
 
@@ -338,17 +367,26 @@ CONTAINS
                ista = prodatqc%npvsta(jobs,kvar) 
                iend = prodatqc%npvend(jobs,kvar) 
                inum_obs = iend - ista + 1 
-               ALLOCATE(interp_corner(2,2,inum_obs), iv_indic(inum_obs)) 
-               DO iin=1,2  
+               ALLOCATE(interp_corner(2,2,inum_obs), iv_indic(inum_obs))
+               IF ( ldclim ) THEN
+                  ALLOCATE( interp_corner_clim(2,2,inum_obs) )
+               ENDIF
+               DO iin=1,2
                   DO ijn=1,2 
                     
                      IF ( k1dint == 1 ) THEN 
                         CALL obs_int_z1d_spl( kpk, & 
                            &    zint(iin,ijn,:,iobs),& 
                            &    zobs2k, zgdept(iin,ijn,:,iobs), & 
-                           &    zmask(iin,ijn,:,iobs)) 
-  
-                     ENDIF 
+                           &    zmask(iin,ijn,:,iobs))
+
+                        IF ( ldclim ) THEN
+                           CALL obs_int_z1d_spl( kpk, &
+                              &    zclim(iin,ijn,:,iobs),&
+                              &    zclm2k, zgdept(iin,ijn,:,iobs), &
+                              &    zmask(iin,ijn,:,iobs))
+                        ENDIF
+                     ENDIF
        
                      CALL obs_level_search(kpk, & 
                          &        zgdept(iin,ijn,:,iobs),& 
@@ -360,8 +398,17 @@ CONTAINS
                          &          zint(iin,ijn,:,iobs),            & 
                          &          zobs2k,interp_corner(iin,ijn,:), & 
                          &          zgdept(iin,ijn,:,iobs),         & 
-                         &          zmask(iin,ijn,:,iobs) )      
-         
+                         &          zmask(iin,ijn,:,iobs) )
+
+                     IF ( ldclim ) THEN
+                        CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs,     &
+                            &          prodatqc%var(kvar)%vdep(ista:iend),     &
+                            &          zclim(iin,ijn,:,iobs),            &
+                            &          zclm2k,interp_corner_clim(iin,ijn,:), &
+                            &          zgdept(iin,ijn,:,iobs),         &
+                            &          zmask(iin,ijn,:,iobs) )
+                     ENDIF
+
                   ENDDO 
                ENDDO 
              
@@ -404,14 +451,22 @@ CONTAINS
                CALL obs_int_h2d( 1, 1, zweig, interp_corner(:,:,ikn), & 
                   &              prodatqc%var(kvar)%vmod(iend:iend) ) 
 
-                  ! Set QC flag for any observations found below the bottom
-                  ! needed as the check here is more strict than that in obs_prep
+               IF ( ldclim ) THEN
+                  CALL obs_int_h2d( 1, 1, zweig, interp_corner_clim(:,:,ikn), &
+                     &              prodatqc%var(kvar)%vadd(iend:iend,kclim) )
+               ENDIF
+
+               ! Set QC flag for any observations found below the bottom
+               ! needed as the check here is more strict than that in obs_prep
                IF (sum(zweig) == 0.0_wp) prodatqc%var(kvar)%nvqc(iend:iend)=4
  
             ENDDO 
  
-            DEALLOCATE(interp_corner,iv_indic) 
-          
+            DEALLOCATE(interp_corner,iv_indic)
+            IF ( ldclim ) THEN
+               DEALLOCATE( interp_corner_clim )
+            ENDIF
+
          ENDIF
 
       ENDDO
@@ -428,6 +483,10 @@ CONTAINS
          & zgdepw  &
          & )
 
+      IF ( ldclim ) THEN
+         DEALLOCATE( zclim )
+      ENDIF
+
       ! At the end of the day also get interpolated means
       IF ( ld_dailyav .AND. idayend == 0 ) THEN
          DEALLOCATE( zinm )
@@ -439,10 +498,13 @@ CONTAINS
 
    END SUBROUTINE obs_prof_opt
 
-   SUBROUTINE obs_surf_opt( surfdataqc, kt, kpi, kpj,            &
-      &                     kit000, kdaystp, psurf, psurfmask,   &
-      &                     k2dint, ldnightav, plamscl, pphiscl, &
-      &                     lindegrees )
+   SUBROUTINE obs_surf_opt( surfdataqc, kt, kpi, kpj,                     &
+      &                     kit000, kdaystp, cdgroupname, kvar, psurf,    &
+      &                     ldclim, kclim, pclim, psurfmask,              &
+      &                     k2dint, ldnightav, plamscl, pphiscl,          &
+      &                     lindegrees, ldtime_mean, kmeanstp,            &
+      &                     kssh, kmdt, kfbd, ksnow, krhosw,              &
+      &                     kradar_snow_penetr )
 
       !!-----------------------------------------------------------------------
       !!
@@ -488,9 +550,15 @@ CONTAINS
       INTEGER, INTENT(IN) :: kit000    ! Number of the first time step 
                                        !   (kit000-1 = restart time)
       INTEGER, INTENT(IN) :: kdaystp   ! Number of time steps per day
+      CHARACTER(LEN=25), INTENT(IN) :: &
+         & cdgroupname                 ! Name of observation group
+      INTEGER, INTENT(IN) :: kvar      ! Index of variable in surfdataqc
+      INTEGER, INTENT(IN) :: kclim     ! Index of climatology in surfdataqc
       INTEGER, INTENT(IN) :: k2dint    ! Horizontal interpolation type (see header)
+      LOGICAL, INTENT(IN) :: ldclim    ! Switch to interpolate climatology
       REAL(wp), INTENT(IN), DIMENSION(kpi,kpj) :: &
          & psurf,  &                   ! Model surface field
+         & pclim,  &                   ! Climatology surface field
          & psurfmask                   ! Land-sea mask
       LOGICAL, INTENT(IN) :: ldnightav ! Logical for averaging night-time data
       REAL(KIND=wp), INTENT(IN) :: &
@@ -498,6 +566,21 @@ CONTAINS
          & pphiscl                     ! This is the full width (rather than half-width)
       LOGICAL, INTENT(IN) :: &
          & lindegrees                  ! T=> plamscl and pphiscl are specified in degrees, F=> in metres
+      LOGICAL, INTENT(IN) :: &
+         & ldtime_mean                 ! Observations/background represent a time mean
+      INTEGER, INTENT(IN) :: kmeanstp  ! Number of time steps for meaning if ldtime_mean
+      INTEGER, OPTIONAL, INTENT(IN)  :: &
+         & kssh                        ! Index of additional variable representing SSH
+      INTEGER, OPTIONAL, INTENT(IN)  :: &
+         & kmdt                        ! Index of extra variable representing MDT
+      INTEGER, OPTIONAL, INTENT(IN)  :: &
+         & kfbd                        ! Index of additional variable representing ice freeboard
+      INTEGER, OPTIONAL, INTENT(IN)  :: &
+         & ksnow                       ! Index of extra variable representing ice snow thickness
+      INTEGER, OPTIONAL, INTENT(IN)  :: &
+         & krhosw                      ! Index of extra variable representing seawater density
+      REAL(wp), OPTIONAL, INTENT(IN) :: &
+         & kradar_snow_penetr          ! Snow depth penetration factor for radar ice freeboard conversion
 
       !! * Local declarations
       INTEGER :: ji
@@ -509,6 +592,7 @@ CONTAINS
       INTEGER :: imaxifp, imaxjfp
       INTEGER :: imodi, imodj
       INTEGER :: idayend
+      INTEGER :: imeanend
       INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: &
          & igrdi,   &
          & igrdj,   &
@@ -519,14 +603,16 @@ CONTAINS
          & imask_night
       REAL(wp) :: zlam
       REAL(wp) :: zphi
-      REAL(wp), DIMENSION(1) :: zext, zobsmask
+      REAL(wp), DIMENSION(1) :: zext, zobsmask, zclm
       REAL(wp) :: zdaystp
+      REAL(wp) :: zmeanstp
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: &
          & zweig,  &
          & zmask,  &
          & zsurf,  &
          & zsurfm, &
          & zsurftmp, &
+         & zclim,  &
          & zglam,  &
          & zgphi,  &
          & zglamf, &
@@ -549,10 +635,57 @@ CONTAINS
 
       CALL obs_max_fpsize( k2dint, plamscl, pphiscl, lindegrees, psurfmask, imaxifp, imaxjfp )
 
+      IF ( ldtime_mean .AND. ldnightav ) THEN
+         CALL ctl_stop( 'obs_surf_opt: Can have ldtime_mean or ldnightav but not both, in group', &
+            &           TRIM(cdgroupname) )
+      ENDIF
+
+      ! Initialize time mean for first timestep
+      imeanend = MOD( kt - kit000 + 1, kmeanstp )
+
+      IF ( ldtime_mean ) THEN
+         IF (lwp) WRITE(numout,*) 'Obs time mean ', kt, kit000, kmeanstp, imeanend
+
+         ! Added kt == 0 test to catch restart case
+         IF ( ( imeanend == 1 ) .OR. ( kt == 0 ) ) THEN
+            IF (lwp) WRITE(numout,*) 'Reset surfdataqc%vdmean on time-step: ', kt
+            DO jj = 1, jpj
+               DO ji = 1, jpi
+                  surfdataqc%vdmean(ji,jj,kvar) = 0.0_wp
+               END DO
+            END DO
+         ENDIF
+
+         ! On each time-step, increment the field for computing time mean
+         IF (lwp) WRITE(numout,*)'Accumulating surfdataqc%vdmean on time-step: ', kt
+         DO jj = 1, jpj
+            DO ji = 1, jpi
+               surfdataqc%vdmean(ji,jj,kvar) = surfdataqc%vdmean(ji,jj,kvar) &
+                  &                            + psurf(ji,jj)
+            END DO
+         END DO
+
+         ! Compute the time mean at the end of time period
+         IF ( imeanend == 0 ) THEN
+            zmeanstp = 1.0_wp / REAL( kmeanstp, KIND=wp )
+            IF (lwp) WRITE(numout,*) 'Calculating surfdataqc%vdmean time mean on time-step: ', &
+               &                     kt, ' with weight: ', zmeanstp
+            DO jj = 1, jpj
+               DO ji = 1, jpi
+                  surfdataqc%vdmean(ji,jj,kvar) = surfdataqc%vdmean(ji,jj,kvar) &
+                     &                            * zmeanstp
+               END DO
+            END DO
+         ENDIF
+      ENDIF
+
+      ! Night-time means are calculated for night-time values over timesteps:
+      !  [1 <= kt <= kdaystp], [kdaystp+1 <= kt <= 2*kdaystp], .....
+      idayend = MOD( kt - kit000 + 1, kdaystp )
 
       IF ( ldnightav ) THEN
 
-      ! Initialize array for night mean
+         ! Initialize array for night mean
          IF ( kt == 0 ) THEN
             ALLOCATE ( icount_night(kpi,kpj) )
             ALLOCATE ( imask_night(kpi,kpj) )
@@ -562,14 +695,10 @@ CONTAINS
             nday_qsr = -1   ! initialisation flag for nbc_dcy
          ENDIF
 
-         ! Night-time means are calculated for night-time values over timesteps:
-         !  [1 <= kt <= kdaystp], [kdaystp+1 <= kt <= 2*kdaystp], .....
-         idayend = MOD( kt - kit000 + 1, kdaystp )
-
          ! Initialize night-time mean for first timestep of the day
          IF ( idayend == 1 .OR. kt == 0 ) THEN
             DO_2D( 1, 1, 1, 1 )
-               surfdataqc%vdmean(ji,jj) = 0.0
+               surfdataqc%vdmean(ji,jj,kvar) = 0.0_wp
                zmeanday(ji,jj) = 0.0
                icount_night(ji,jj) = 0
             END_2D
@@ -581,8 +710,8 @@ CONTAINS
 
          DO_2D( 1, 1, 1, 1 )
             ! Increment the temperature field for computing night mean and counter
-            surfdataqc%vdmean(ji,jj) = surfdataqc%vdmean(ji,jj)  &
-                   &                    + psurf(ji,jj) * REAL( imask_night(ji,jj) )
+            surfdataqc%vdmean(ji,jj,kvar) = surfdataqc%vdmean(ji,jj,kvar)  &
+                   &                        + psurf(ji,jj) * REAL( imask_night(ji,jj), KIND=wp )
             zmeanday(ji,jj)          = zmeanday(ji,jj) + psurf(ji,jj)
             icount_night(ji,jj)      = icount_night(ji,jj) + imask_night(ji,jj)
          END_2D
@@ -594,12 +723,12 @@ CONTAINS
             DO_2D( 1, 1, 1, 1 )
                ! Test if "no night" point
                IF ( icount_night(ji,jj) > 0 ) THEN
-                  surfdataqc%vdmean(ji,jj) = surfdataqc%vdmean(ji,jj) &
-                    &                        / REAL( icount_night(ji,jj) )
+                  surfdataqc%vdmean(ji,jj,kvar) = surfdataqc%vdmean(ji,jj,kvar) &
+                    &                             / REAL( icount_night(ji,jj), KIND=wp )
                ELSE
                   !At locations where there is no night (e.g. poles),
                   ! calculate daily mean instead of night-time mean.
-                  surfdataqc%vdmean(ji,jj) = zmeanday(ji,jj) * zdaystp
+                  surfdataqc%vdmean(ji,jj,kvar) = zmeanday(ji,jj) * zdaystp
                ENDIF
             END_2D
          ENDIF
@@ -616,31 +745,42 @@ CONTAINS
          & zgphi(imaxifp,imaxjfp,isurf), &
          & zmask(imaxifp,imaxjfp,isurf), &
          & zsurf(imaxifp,imaxjfp,isurf), &
-         & zsurftmp(imaxifp,imaxjfp,isurf),  &
-         & zglamf(imaxifp+1,imaxjfp+1,isurf), &
-         & zgphif(imaxifp+1,imaxjfp+1,isurf), &
-         & igrdip1(imaxifp+1,imaxjfp+1,isurf), &
-         & igrdjp1(imaxifp+1,imaxjfp+1,isurf) &
+         & zsurftmp(imaxifp,imaxjfp,isurf) &
          & )
+
+      IF ( k2dint > 4 ) THEN
+         ALLOCATE( &
+            & zglamf(imaxifp+1,imaxjfp+1,isurf),  &
+            & zgphif(imaxifp+1,imaxjfp+1,isurf),  &
+            & igrdip1(imaxifp+1,imaxjfp+1,isurf), &
+            & igrdjp1(imaxifp+1,imaxjfp+1,isurf)  &
+            & )
+      ENDIF
+
+      IF ( ldclim ) THEN
+         ALLOCATE( zclim(imaxifp,imaxjfp,isurf) )
+      ENDIF
 
       DO jobs = surfdataqc%nsurfup + 1, surfdataqc%nsurfup + isurf
          iobs = jobs - surfdataqc%nsurfup
          DO ji = 0, imaxifp
-            imodi = surfdataqc%mi(jobs) - int(imaxifp/2) + ji - 1
+            imodi = surfdataqc%mi(jobs,kvar) - int(imaxifp/2) + ji - 1
             !
             !Deal with wrap around in longitude
             IF ( imodi < 1      ) imodi = imodi + jpiglo
             IF ( imodi > jpiglo ) imodi = imodi - jpiglo
             !
             DO jj = 0, imaxjfp
-               imodj = surfdataqc%mj(jobs) - int(imaxjfp/2) + jj - 1
+               imodj = surfdataqc%mj(jobs,kvar) - int(imaxjfp/2) + jj - 1
                !If model values are out of the domain to the north/south then
                !set them to be the edge of the domain
                IF ( imodj < 1      ) imodj = 1
                IF ( imodj > jpjglo ) imodj = jpjglo
                !
-               igrdip1(ji+1,jj+1,iobs) = imodi
-               igrdjp1(ji+1,jj+1,iobs) = imodj
+               IF ( k2dint > 4 ) THEN
+                  igrdip1(ji+1,jj+1,iobs) = imodi
+                  igrdjp1(ji+1,jj+1,iobs) = imodj
+               ENDIF
                !
                IF ( ji >= 1 .AND. jj >= 1 ) THEN
                   igrdi(ji,jj,iobs) = imodi
@@ -657,12 +797,31 @@ CONTAINS
          &                  igrdi, igrdj, gphit, zgphi )
       CALL obs_int_comm_2d( imaxifp, imaxjfp, isurf, kpi, kpj, &
          &                  igrdi, igrdj, psurfmask, zmask )
-      CALL obs_int_comm_2d( imaxifp, imaxjfp, isurf, kpi, kpj, &
-         &                  igrdi, igrdj, psurf, zsurf )
-      CALL obs_int_comm_2d( imaxifp+1, imaxjfp+1, isurf, kpi, kpj, &
-         &                  igrdip1, igrdjp1, glamf, zglamf )
-      CALL obs_int_comm_2d( imaxifp+1, imaxjfp+1, isurf, kpi, kpj, &
-         &                  igrdip1, igrdjp1, gphif, zgphif )
+
+      ! At the end of the averaging period get interpolated means
+      IF ( ldtime_mean ) THEN
+         IF ( imeanend == 0 ) THEN
+            ALLOCATE( zsurfm(imaxifp,imaxjfp,isurf) )
+            IF (lwp) WRITE(numout,*)' Interpolating the time mean values on time step: ', kt
+            CALL obs_int_comm_2d( imaxifp, imaxjfp, isurf, kpi, kpj, &
+               &                  igrdi, igrdj, surfdataqc%vdmean(:,:,kvar), zsurfm )
+         ENDIF
+      ELSE
+         CALL obs_int_comm_2d( imaxifp, imaxjfp, isurf, kpi, kpj, &
+            &                  igrdi, igrdj, psurf, zsurf )
+      ENDIF
+
+      IF ( k2dint > 4 ) THEN
+         CALL obs_int_comm_2d( imaxifp+1, imaxjfp+1, isurf, kpi, kpj, &
+            &                  igrdip1, igrdjp1, glamf, zglamf )
+         CALL obs_int_comm_2d( imaxifp+1, imaxjfp+1, isurf, kpi, kpj, &
+            &                  igrdip1, igrdjp1, gphif, zgphif )
+      ENDIF
+
+      IF ( ldclim ) THEN
+         CALL obs_int_comm_2d( imaxifp, imaxjfp, isurf, kpi, kpj, &
+            &                  igrdi, igrdj, pclim, zclim )
+      ENDIF
 
       ! At the end of the day get interpolated means
       IF ( ldnightav ) THEN
@@ -673,7 +832,7 @@ CONTAINS
                & )
 
             CALL obs_int_comm_2d( imaxifp,imaxjfp, isurf, kpi, kpj, igrdi, igrdj, &
-               &               surfdataqc%vdmean(:,:), zsurfm )
+            &               surfdataqc%vdmean(:,:,kvar), zsurfm )
 
          ENDIF
       ENDIF
@@ -697,56 +856,104 @@ CONTAINS
                   &            ' mstp    = ', surfdataqc%mstp(jobs), &
                   &            ' ntyp    = ', surfdataqc%ntyp(jobs)
             ENDIF
-            CALL ctl_stop( 'obs_surf_opt', 'Inconsistent time' )
+            CALL ctl_stop( 'obs_surf_opt', 'Inconsistent time in group:', TRIM(cdgroupname) )
 
          ENDIF
 
          zlam = surfdataqc%rlam(jobs)
          zphi = surfdataqc%rphi(jobs)
 
-         IF ( ldnightav .AND. idayend == 0 ) THEN
-            ! Night-time averaged data
+         IF ( ( ldnightav .AND. idayend == 0 ) .OR. (ldtime_mean .AND. imeanend == 0) ) THEN
+            ! Night-time or N=kmeanstp timestep averaged data
             zsurftmp(:,:,iobs) = zsurfm(:,:,iobs)
          ELSE
             zsurftmp(:,:,iobs) = zsurf(:,:,iobs)
          ENDIF
 
-         IF ( k2dint <= 4 ) THEN
+         IF ( ( .NOT. ldtime_mean ) .OR. ( ldtime_mean .AND. imeanend == 0) ) THEN
 
-            ! Get weights to interpolate the model value to the observation point
-            CALL obs_int_h2d_init( 1, 1, k2dint, zlam, zphi,         &
-               &                   zglam(:,:,iobs), zgphi(:,:,iobs), &
-               &                   zmask(:,:,iobs), zweig, zobsmask )
+            IF ( k2dint <= 4 ) THEN
 
-            ! Interpolate the model value to the observation point 
-            CALL obs_int_h2d( 1, 1, zweig, zsurftmp(:,:,iobs), zext )
+               ! Get weights to interpolate the model value to the observation point
+               CALL obs_int_h2d_init( 1, 1, k2dint, zlam, zphi,         &
+                  &                   zglam(:,:,iobs), zgphi(:,:,iobs), &
+                  &                   zmask(:,:,iobs), zweig, zobsmask )
 
-         ELSE
+               ! Interpolate the model value to the observation point
+               CALL obs_int_h2d( 1, 1, zweig, zsurftmp(:,:,iobs), zext )
 
-            ! Get weights to average the model SLA to the observation footprint
-            CALL obs_avg_h2d_init( 1, 1, imaxifp, imaxjfp, k2dint, zlam,  zphi, &
-               &                   zglam(:,:,iobs), zgphi(:,:,iobs), &
-               &                   zglamf(:,:,iobs), zgphif(:,:,iobs), &
-               &                   zmask(:,:,iobs), plamscl, pphiscl, &
-               &                   lindegrees, zweig )
+               IF ( ldclim ) THEN
+                  CALL obs_int_h2d( 1, 1, zweig, zclim(:,:,iobs), zclm )
+               ENDIF
 
-            ! Average the model SST to the observation footprint
-            CALL obs_avg_h2d( 1, 1, imaxifp, imaxjfp, &
-               &              zweig, zsurftmp(:,:,iobs),  zext )
+            ELSE
 
-         ENDIF
+               ! Get weights to average the model field to the observation footprint
+               CALL obs_avg_h2d_init( 1, 1, imaxifp, imaxjfp, k2dint, zlam,  zphi, &
+                  &                   zglam(:,:,iobs), zgphi(:,:,iobs), &
+                  &                   zglamf(:,:,iobs), zgphif(:,:,iobs), &
+                  &                   zmask(:,:,iobs), plamscl, pphiscl, &
+                  &                   lindegrees, zweig )
 
-         IF ( TRIM(surfdataqc%cvars(1)) == 'SLA' .AND. surfdataqc%nextra == 2 ) THEN
-            ! ... Remove the MDT from the SSH at the observation point to get the SLA
-            surfdataqc%rext(jobs,1) = zext(1)
-            surfdataqc%rmod(jobs,1) = surfdataqc%rext(jobs,1) - surfdataqc%rext(jobs,2)
-         ELSE
-            surfdataqc%rmod(jobs,1) = zext(1)
-         ENDIF
-         
-         IF ( zext(1) == obfillflt ) THEN
-            ! If the observation value is a fill value, set QC flag to bad
-            surfdataqc%nqc(jobs) = 4
+               ! Average the model field to the observation footprint
+               CALL obs_avg_h2d( 1, 1, imaxifp, imaxjfp, &
+                  &              zweig, zsurftmp(:,:,iobs),  zext )
+
+               IF ( ldclim ) THEN
+                  CALL obs_avg_h2d( 1, 1, imaxifp, imaxjfp, &
+                     &              zweig, zclim(:,:,iobs),  zclm )
+               ENDIF
+
+            ENDIF
+
+            IF ( TRIM(surfdataqc%cvars(kvar)) == cobsname_sla .AND. PRESENT(kssh) .AND. PRESENT(kmdt) ) THEN
+               ! ... Remove the MDT from the SSH at the observation point to get the SLA
+               surfdataqc%radd(jobs,kssh,kvar) = zext(1)
+               surfdataqc%rmod(jobs,kvar) = surfdataqc%radd(jobs,kssh,kvar) - surfdataqc%rext(jobs,kmdt)
+#if defined key_si3 || defined key_cice
+            ELSE IF ( TRIM(surfdataqc%cvars(kvar)) == cobsname_fbd ) THEN
+               ! Checking all required variables are present for freeboard conversion into thickness
+               IF ( ( .NOT. PRESENT(kfbd) ) .OR. ( .NOT. PRESENT(ksnow) ) .OR. ( .NOT. PRESENT(krhosw) ) ) THEN
+                  IF (lwp) THEN
+                     WRITE(numout,*)
+                     WRITE(numout,*) ' E R R O R : Required variables for',  &
+                  &            ' freeboard conversion into thickness',       &
+                  &            ' are not present in group',                  &
+                  &            TRIM(cdgroupname)
+                     WRITE(numout,*) ' ========='
+                     WRITE(numout,*)
+                  ENDIF
+                  CALL ctl_stop( 'obs_surf_opt: Required variables for freeboard conversion are missing' )
+               ENDIF
+               surfdataqc%rmod(jobs,kvar) = zext(1)
+               ! Convert radar freeboard to true freeboard
+               ! (add 1/4 snow depth; 1/4 based on ratio of speed of light in vacuum
+               !  compared to snow (3.0e8 vs 2.4e8 m/s))
+               surfdataqc%radd(jobs,kfbd,kvar) = surfdataqc%robs(jobs,kvar)
+               surfdataqc%robs(jobs,kvar) = surfdataqc%radd(jobs,kfbd,kvar) -                            &
+                  &                         (1.0_wp - kradar_snow_penetr)*surfdataqc%rext(jobs,ksnow) +  &
+                  &                         kradar_snow_penetr * 0.25_wp * surfdataqc%rext(jobs,ksnow)
+               ! If the corrected freeboard observation is outside -0.3 to 3.0 m (CPOM) then set the QC flag to bad
+               IF ((surfdataqc%robs(jobs,kvar) < -0.3_wp) .OR. (surfdataqc%robs(jobs,kvar) > 3.0_wp)) THEN
+                  surfdataqc%nqc(jobs) = 4
+               ENDIF
+               ! Convert corrected freeboard to ice thickness following Tilling et al. (2016)
+               surfdataqc%robs(jobs,kvar) = (surfdataqc%robs(jobs,kvar)*surfdataqc%rext(jobs,krhosw) +  &
+                  &                          surfdataqc%rext(jobs,ksnow)*rhos)/(surfdataqc%rext(jobs,krhosw) - rhoi)
+#endif
+            ELSE
+               surfdataqc%rmod(jobs,kvar) = zext(1)
+            ENDIF
+
+            IF ( ldclim ) THEN
+               surfdataqc%radd(jobs,kclim,kvar) = zclm(1)
+            ENDIF
+
+            IF ( zext(1) == obfillflt ) THEN
+               ! If the observation value is a fill value, set QC flag to bad
+               surfdataqc%nqc(jobs) = 4
+            ENDIF
+
          ENDIF
 
       END DO
@@ -760,23 +967,32 @@ CONTAINS
          & zgphi, &
          & zmask, &
          & zsurf, &
-         & zsurftmp, &
-         & zglamf, &
-         & zgphif, &
-         & igrdip1,&
-         & igrdjp1 &
+         & zsurftmp &
          & )
 
-      ! At the end of the day also deallocate night-time mean array
-      IF ( ldnightav ) THEN
-         IF ( idayend == 0 ) THEN
-            DEALLOCATE( &
-               & zsurfm  &
-               & )
-         ENDIF
+      IF ( k2dint > 4 ) THEN
+         DEALLOCATE( &
+            & zglamf, &
+            & zgphif, &
+            & igrdip1,&
+            & igrdjp1 &
+            & )
+      ENDIF
+
+      IF ( ldclim ) THEN
+         DEALLOCATE( zclim )
+      ENDIF
+
+      ! At the end of the day also deallocate time mean array
+      IF ( ( idayend == 0 .AND. ldnightav ) .OR. ( imeanend == 0 .AND. ldtime_mean ) ) THEN
+         DEALLOCATE( &
+            & zsurfm  &
+            & )
       ENDIF
       !
-      surfdataqc%nsurfup = surfdataqc%nsurfup + isurf
+      IF ( kvar == surfdataqc%nvar ) THEN
+         surfdataqc%nsurfup = surfdataqc%nsurfup + isurf
+      ENDIF
       !
    END SUBROUTINE obs_surf_opt
 

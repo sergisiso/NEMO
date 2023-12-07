@@ -106,6 +106,7 @@ MODULE in_out_manager
    TYPE :: sn_ctl                !: structure for control over output selection
       LOGICAL :: l_runstat = .FALSE.  !: Produce/do not produce run.stat file (T/F)
       LOGICAL :: l_trcstat = .FALSE.  !: Produce/do not produce tracer.stat file (T/F)
+      LOGICAL :: l_obsstat = .FALSE.  !: Produce/do not produce obs.stat file (T/F)
       LOGICAL :: l_oceout  = .FALSE.  !: Produce all ocean.outputs    (T) or just one (F)
       LOGICAL :: l_layout  = .FALSE.  !: Produce all layout.dat files (T) or just one (F)
       LOGICAL :: l_prtctl  = .FALSE.  !: Produce/do not produce mpp.output_XXXX files (T/F)
@@ -140,6 +141,7 @@ MODULE in_out_manager
    INTEGER ::   numoni          =   -1      !: logical unit for Output Namelist Ice
    INTEGER ::   numevo_ice      =   -1      !: logical unit for ice variables (temp. evolution)
    INTEGER ::   numrun          =   -1      !: logical unit for run statistics
+   INTEGER ::   numobsstat      =   -1      !: logical unit for obs statistics
    INTEGER ::   numdct_in       =   -1      !: logical unit for transports computing
    INTEGER ::   numdct_vol      =   -1      !: logical unit for volume transports output
    INTEGER ::   numdct_heat     =   -1      !: logical unit for heat   transports output
