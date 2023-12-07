@@ -106,6 +106,7 @@ CONTAINS
                 CALL iom_rstput( kt, nitbkg_r, inum, 'tn'     , ts(:,:,:,jp_tem,Kmm) )
                 CALL iom_rstput( kt, nitbkg_r, inum, 'sn'     , ts(:,:,:,jp_sal,Kmm) )
                 CALL iom_rstput( kt, nitbkg_r, inum, 'sshn'   , ssh(:,:,Kmm)         )
+                CALL iom_rstput( kt, nitbkg_r, inum, 'avt'    , avt_k                )
                 IF( ln_zdftke )   CALL iom_rstput( kt, nitbkg_r, inum, 'en'     , en )
                 !
                 CALL iom_close( inum )

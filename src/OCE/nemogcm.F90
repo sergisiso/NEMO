@@ -535,6 +535,7 @@ CONTAINS
          WRITE(numout,*) '   Namelist namctl'
          WRITE(numout,*) '                              sn_cfctl%l_runstat = ', sn_cfctl%l_runstat
          WRITE(numout,*) '                              sn_cfctl%l_trcstat = ', sn_cfctl%l_trcstat
+         WRITE(numout,*) '                              sn_cfctl%l_obsstat = ', sn_cfctl%l_obsstat
          WRITE(numout,*) '                              sn_cfctl%l_oceout  = ', sn_cfctl%l_oceout
          WRITE(numout,*) '                              sn_cfctl%l_layout  = ', sn_cfctl%l_layout
          WRITE(numout,*) '                              sn_cfctl%l_prtctl  = ', sn_cfctl%l_prtctl
@@ -640,6 +641,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       sn_cfctl%l_runstat = setto
       sn_cfctl%l_trcstat = setto
+      sn_cfctl%l_obsstat = setto
       sn_cfctl%l_oceout  = setto
       sn_cfctl%l_layout  = setto
       sn_cfctl%l_prtctl  = setto

@@ -821,13 +821,51 @@ if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
         set_namelist namelist_cfg jpnj 8
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
+        set_namelist namelist_cfg sn_cfctl%l_obsstat .true.
         set_namelist namelist_cfg ln_diaobs .true.
-        set_namelist namelist_cfg ln_t3d .true.
-        set_namelist namelist_cfg ln_s3d .true.
-        set_namelist namelist_cfg ln_sst .true.
-        set_namelist namelist_cfg ln_sla .true.
-        set_namelist namelist_cfg ln_sic .true.
-        set_namelist namelist_cfg ln_vel3d .true.
+        set_namelist namelist_cfg nn_obsgroups 5
+        set_namelist namelist_cfg dn_dobsini 00010101.000000
+        set_namelist namelist_cfg dn_dobsend 00010102.000000
+        # Create namobs_dta namelists to append
+        temp_obs_namelist=${EXE_DIR}/temp_obs_namelist_cfg
+cat > ${temp_obs_namelist} << EOF
+&namobs_dta
+cn_groupname = 'pro'
+ln_enabled = .true.
+ln_prof = .true.
+cn_obsfiles = 'profiles_01.nc'
+cn_obstypes = 'POTM','PSAL'
+/
+&namobs_dta
+cn_groupname = 'vel3d'
+ln_enabled = .true.
+ln_prof = .true.
+cn_obsfiles = 'vel_01.nc'
+cn_obstypes = 'UVEL','VVEL'
+/
+&namobs_dta
+cn_groupname = 'sst'
+ln_enabled = .true.
+ln_surf = .true.
+cn_obsfiles = 'sst_01.nc'
+cn_obstypes = 'SST'
+/
+&namobs_dta
+cn_groupname = 'sla'
+ln_enabled = .true.
+ln_surf = .true.
+cn_obsfiles = 'sla_01.nc'
+cn_obstypes = 'SLA'
+/
+&namobs_dta
+cn_groupname = 'sic'
+ln_enabled = .true.
+ln_surf = .true.
+cn_obsfiles = 'sic_01.nc'
+cn_obstypes = 'ICECONC'
+/
+EOF
+        cat temp_obs_namelist_cfg >> namelist_cfg
         set_namelist namelist_cfg ln_bkgwri .true.
         set_namelist namelist_cfg ln_trainc .true.
         set_namelist namelist_cfg ln_dyninc .true.
@@ -1031,7 +1069,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
             then
                 ITEND=16   # 1d
             else
-                ITEND=150  # 5d and 9h 
+                ITEND=150  # 5d and 9h
             fi
             export TEST_NAME="ORCA2"
             cd ${MAIN_DIR}
@@ -1047,7 +1085,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
             set_namelist namelist_cfg nn_itend ${ITEND}
             # Use "original" parent grid bathymetry
             set_namelist namelist_cfg cn_domcfg "'ORCA_R2_zps_domcfg.nc'"
-            # Set the number of fine grids to zero:    
+            # Set the number of fine grids to zero:
             sed -i "1s/.*/0/" ${EXE_DIR}/AGRIF_FixedGrids.in
             cd ${SETTE_DIR}
             . ./prepare_job.sh input_AGRIF_DEMO.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}

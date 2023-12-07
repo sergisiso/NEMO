@@ -200,6 +200,7 @@ clean_valid_dir () {
       [ -f ${NEMO_VALID}/ocean.output ] && mv ${NEMO_VALID}/ocean.output ${NEMO_VALID}/ocean.output_old
       [ -f ${NEMO_VALID}/run.stat ]     && mv ${NEMO_VALID}/run.stat     ${NEMO_VALID}/run.stat_old
       [ -f ${NEMO_VALID}/tracer.stat ]  && mv ${NEMO_VALID}/tracer.stat  ${NEMO_VALID}/tracer.stat_old
+      [ -f ${NEMO_VALID}/obs.stat ]     && mv ${NEMO_VALID}/obs.stat     ${NEMO_VALID}/obs.stat_old
    fi
 }
 
@@ -458,6 +459,7 @@ echo "TOOLS directory is : ${TOOLS_DIR}"
     [ -f ${EXE_DIR}/output.namelist.dyn ] && cp ${EXE_DIR}/*output.nam* ${NEMO_VALIDATION_DIR}/.
     [ -f ${EXE_DIR}/namelist_cfg ] && cp ${EXE_DIR}/*nam*_cfg ${NEMO_VALIDATION_DIR}/.
     [ -f ${EXE_DIR}/tracer.stat ] && cp ${EXE_DIR}/*tracer.stat ${NEMO_VALIDATION_DIR}/.
+    [ -f ${EXE_DIR}/obs.stat ] && cp ${EXE_DIR}/*obs.stat ${NEMO_VALIDATION_DIR}/.
     [ -f ${EXE_DIR}/timing.output ] && cp ${EXE_DIR}/*timing.output ${NEMO_VALIDATION_DIR}/.
     [ -f ${EXE_DIR}/sette_config ] && cp ${EXE_DIR}/sette_config ${NEMO_VALIDATION_DIR}/.
 
@@ -481,6 +483,13 @@ echo "TOOLS directory is : ${TOOLS_DIR}"
     else
         echo "problem in looking for tracer.stat file in ${NEMO_VALIDATION_DIR} directory"  >> ${SETTE_DIR}/output.sette
         echo "tracer.stat IS NOT in ${NEMO_VALIDATION_DIR} directory"
+    fi
+    if [ -n "$(ls ${NEMO_VALIDATION_DIR}/*obs.stat*)" ] ; then
+        echo "moved obs.stat in ${NEMO_VALIDATION_DIR} directory"  >> ${SETTE_DIR}/output.sette
+        echo "moved obs.stat in ${NEMO_VALIDATION_DIR} directory"
+    else
+        echo "problem in looking for obs.stat file in ${NEMO_VALIDATION_DIR} directory"  >> ${SETTE_DIR}/output.sette
+        echo "obs.stat IS NOT in ${NEMO_VALIDATION_DIR} directory"
     fi
 }
 

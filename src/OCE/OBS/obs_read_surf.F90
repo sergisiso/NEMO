@@ -21,6 +21,9 @@ MODULE obs_read_surf
    USE obs_types                ! Observation type definitions
    USE obs_fbm                  ! Feedback routines
    USE netcdf                   ! NetCDF library
+   USE obs_group_def, ONLY : &  ! Observation variable information
+      & cobsname_uvel, &
+      & cobsname_vvel
 
    IMPLICIT NONE
 
@@ -38,7 +41,8 @@ MODULE obs_read_surf
 CONTAINS
 
    SUBROUTINE obs_rea_surf( surfdata, knumfiles, cdfilenames, &
-      &                     kvars, kextr, kstp, ddobsini, ddobsend, &
+      &                     kvars, kadd, kextr, kstp, ddobsini, ddobsend, &
+      &                     ptime_mean_period, ld_time_mean_bkg, &
       &                     ldignmis, ldmod, ldnightav, cdvars )
       !!---------------------------------------------------------------------
       !!
@@ -60,27 +64,49 @@ CONTAINS
 
       !! * Arguments
       TYPE(obs_surf), INTENT(INOUT) :: &
-         & surfdata                     ! Surface data to be read
-      INTEGER, INTENT(IN) :: knumfiles  ! Number of corio format files to read
+         & surfdata                             ! Surface data to be read
+      INTEGER,  INTENT(IN) :: knumfiles         ! Number of corio format files to read
       CHARACTER(LEN=128), INTENT(IN) :: &
-         & cdfilenames(knumfiles)       ! File names to read in
-      INTEGER, INTENT(IN) :: kvars      ! Number of variables in surfdata
-      INTEGER, INTENT(IN) :: kextr      ! Number of extra fields for each var
-      INTEGER, INTENT(IN) :: kstp       ! Ocean time-step index
-      LOGICAL, INTENT(IN) :: ldignmis   ! Ignore missing files
-      LOGICAL, INTENT(IN) :: ldmod      ! Initialize model from input data
-      LOGICAL, INTENT(IN) :: ldnightav  ! Observations represent a night-time average
-      REAL(dp), INTENT(IN) :: ddobsini   ! Obs. ini time in YYYYMMDD.HHMMSS
-      REAL(dp), INTENT(IN) :: ddobsend   ! Obs. end time in YYYYMMDD.HHMMSS
-      CHARACTER(len=8), DIMENSION(kvars), INTENT(IN) :: cdvars
+         & cdfilenames(knumfiles)               ! File names to read in
+      INTEGER,  INTENT(IN) :: kvars             ! Number of variables in surfdata
+      INTEGER,  INTENT(IN) :: kadd              ! Number of additional fields
+                                                !   in addition to those in the input file(s)
+      INTEGER,  INTENT(IN) :: kextr             ! Number of extra fields
+                                                !   in addition to those in the input file(s)
+      INTEGER,  INTENT(IN) :: kstp              ! Ocean time-step index
+      REAL(dp), INTENT(IN) :: ddobsini          ! Obs. ini time in YYYYMMDD.HHMMSS
+      REAL(dp), INTENT(IN) :: ddobsend          ! Obs. end time in YYYYMMDD.HHMMSS
+      REAL(wp), INTENT(IN) :: ptime_mean_period ! Averaging period in hours
+      LOGICAL,  INTENT(IN) :: ld_time_mean_bkg  ! Will reset times to end of averaging period
+      LOGICAL,  INTENT(IN) :: ldignmis          ! Ignore missing files
+      LOGICAL,  INTENT(IN) :: ldmod             ! Initialize model from input data
+      LOGICAL,  INTENT(IN) :: ldnightav         ! Observations represent a night-time average
+      CHARACTER(len=8), DIMENSION(kvars), INTENT(IN) :: cdvars  ! Expected variable names
 
       !! * Local declarations
-      CHARACTER(LEN=11), PARAMETER :: cpname='obs_rea_surf'
+      CHARACTER(LEN=12), PARAMETER :: cpname = 'obs_rea_surf'
       CHARACTER(len=8) :: clrefdate
-      CHARACTER(len=8), DIMENSION(:), ALLOCATABLE :: clvarsin
+      CHARACTER(len=ilenname), DIMENSION(:),   ALLOCATABLE :: clvarsin
+      CHARACTER(len=ilenlong), DIMENSION(:),   ALLOCATABLE :: cllongin
+      CHARACTER(len=ilenunit), DIMENSION(:),   ALLOCATABLE :: clunitin
+      CHARACTER(len=ilengrid), DIMENSION(:),   ALLOCATABLE :: clgridin
+      CHARACTER(len=ilenname), DIMENSION(:),   ALLOCATABLE :: claddvarsin
+      CHARACTER(len=ilenlong), DIMENSION(:,:), ALLOCATABLE :: claddlongin
+      CHARACTER(len=ilenunit), DIMENSION(:,:), ALLOCATABLE :: claddunitin
+      CHARACTER(len=ilenname), DIMENSION(:),   ALLOCATABLE :: clextvarsin
+      CHARACTER(len=ilenlong), DIMENSION(:),   ALLOCATABLE :: clextlongin
+      CHARACTER(len=ilenunit), DIMENSION(:),   ALLOCATABLE :: clextunitin
       INTEGER :: ji
       INTEGER :: jj
       INTEGER :: jk
+      INTEGER :: jind
+      INTEGER :: jvar
+      INTEGER :: jext
+      INTEGER :: jadd
+      INTEGER :: jadd2
+      INTEGER :: iadd
+      INTEGER :: iaddin
+      INTEGER :: iextr
       INTEGER :: iflag
       INTEGER :: inobf
       INTEGER :: i_file_id
@@ -102,10 +128,11 @@ CONTAINS
       INTEGER, DIMENSION(jpsurfmaxtype+1) :: &
          & ityp, &
          & itypmpp
-      INTEGER, DIMENSION(:), ALLOCATABLE :: &
+      INTEGER, DIMENSION(:,:), ALLOCATABLE :: &
          & iobsi,    &
          & iobsj,    &
-         & iproc,    &
+         & iproc
+      INTEGER, DIMENSION(:), ALLOCATABLE :: &
          & iindx,    &
          & ifileidx, &
          & isurfidx
@@ -114,12 +141,11 @@ CONTAINS
          & zlam
       REAL(dp), DIMENSION(:), ALLOCATABLE :: &
          & zdat
-      REAL(dp), DIMENSION(knumfiles) :: &
-         & djulini, &
-         & djulend
+      REAL(dp), DIMENSION(knumfiles) ::   dljulini, dljulend
       LOGICAL :: llvalprof
       TYPE(obfbdata), POINTER, DIMENSION(:) :: &
          & inpfiles
+      CHARACTER(LEN=256) ::   clout1   ! Diagnostic output line
 
       ! Local initialization
       iobs = 0
@@ -131,6 +157,9 @@ CONTAINS
       inobf = knumfiles
 
       ALLOCATE( inpfiles(inobf) )
+
+      iadd  = 0
+      iextr = 0
 
       surf_files : DO jj = 1, inobf
 
@@ -180,33 +209,121 @@ CONTAINS
 
             IF ( inpfiles(jj)%nvar /= kvars ) THEN
                CALL ctl_stop( 'Feedback format error: ', &
-                  &           ' unexpected number of vars in feedback file' )
+                  &           ' unexpected number of vars in feedback file', &
+                  &           TRIM(cdfilenames(jj)) )
             ENDIF
 
             IF ( ldmod .AND. ( inpfiles(jj)%nadd == 0 ) ) THEN
-               CALL ctl_stop( 'Model not in input data' )
+               CALL ctl_stop( 'Model not in input data in', &
+                  &           TRIM(cdfilenames(jj)) )
                RETURN
+            ENDIF
+
+            IF ( (iextr > 0) .AND. (inpfiles(jj)%next /= iextr) ) THEN
+               CALL ctl_stop( 'Number of extra variables not consistent', &
+                  &           ' with previous files for this type in', &
+                  &           TRIM(cdfilenames(jj)) )
+            ELSE
+               iextr = inpfiles(jj)%next
+            ENDIF
+
+            ! Ignore model counterpart
+            iaddin = inpfiles(jj)%nadd
+            DO ji = 1, iaddin
+               IF ( TRIM(inpfiles(jj)%caddname(ji)) == 'Hx' ) THEN
+                  iaddin = iaddin - 1
+                  EXIT
+               ENDIF
+            END DO
+            IF ( ldmod .AND. ( inpfiles(jj)%nadd == iaddin ) ) THEN
+               CALL ctl_stop( 'Model not in input data', &
+                  &           TRIM(cdfilenames(jj)) )
+            ENDIF
+
+            IF ( (iadd > 0) .AND. (iaddin /= iadd) ) THEN
+               CALL ctl_stop( 'Number of additional variables not consistent', &
+                  &           ' with previous files for this type in', &
+                  &           TRIM(cdfilenames(jj)) )
+            ELSE
+               iadd = iaddin
             ENDIF
 
             IF ( jj == 1 ) THEN
                ALLOCATE( clvarsin( inpfiles(jj)%nvar ) )
+               ALLOCATE( cllongin( inpfiles(jj)%nvar ) )
+               ALLOCATE( clunitin( inpfiles(jj)%nvar ) )
+               ALLOCATE( clgridin( inpfiles(jj)%nvar ) )
                DO ji = 1, inpfiles(jj)%nvar
                  clvarsin(ji) = inpfiles(jj)%cname(ji)
+                 cllongin(ji) = inpfiles(jj)%coblong(ji)
+                 clunitin(ji) = inpfiles(jj)%cobunit(ji)
+                 clgridin(ji) = inpfiles(jj)%cgrid(ji)
                  IF ( clvarsin(ji) /= cdvars(ji) ) THEN
                     CALL ctl_stop( 'Feedback file variables do not match', &
-                        &           ' expected variable names for this type' )
+                        &           ' expected variable names for this type in', &
+                        &           TRIM(cdfilenames(jj)) )
                  ENDIF
                END DO
+               IF ( iadd > 0 ) THEN
+                  ALLOCATE( claddvarsin( iadd ) )
+                  ALLOCATE( claddlongin( iadd, inpfiles(jj)%nvar ) )
+                  ALLOCATE( claddunitin( iadd, inpfiles(jj)%nvar ) )
+                  jadd = 0
+                  DO ji = 1, inpfiles(jj)%nadd
+                    IF ( TRIM(inpfiles(jj)%caddname(ji)) /= 'Hx' ) THEN
+                       jadd = jadd + 1
+                       claddvarsin(jadd) = inpfiles(jj)%caddname(ji)
+                       DO jk = 1, inpfiles(jj)%nvar
+                          claddlongin(jadd,jk) = inpfiles(jj)%caddlong(ji,jk)
+                          claddunitin(jadd,jk) = inpfiles(jj)%caddunit(ji,jk)
+                       END DO
+                    ENDIF
+                  END DO
+               ENDIF
+               IF ( iextr > 0 ) THEN
+                  ALLOCATE( clextvarsin( iextr ) )
+                  ALLOCATE( clextlongin( iextr ) )
+                  ALLOCATE( clextunitin( iextr ) )
+                  DO ji = 1, iextr
+                    clextvarsin(ji) = inpfiles(jj)%cextname(ji)
+                    clextlongin(ji) = inpfiles(jj)%cextlong(ji)
+                    clextunitin(ji) = inpfiles(jj)%cextunit(ji)
+                  END DO
+               ENDIF
             ELSE
                DO ji = 1, inpfiles(jj)%nvar
                   IF ( inpfiles(jj)%cname(ji) /= clvarsin(ji) ) THEN
                      CALL ctl_stop( 'Feedback file variables not consistent', &
-                        &           ' with previous files for this type' )
+                        &           ' with previous files for this type in', &
+                        &           TRIM(cdfilenames(jj)) )
                   ENDIF
                END DO
+               IF ( iadd > 0 ) THEN
+                  jadd = 0
+                  DO ji = 1, inpfiles(jj)%nadd
+                     IF ( TRIM(inpfiles(jj)%caddname(ji)) /= 'Hx' ) THEN
+                        jadd = jadd + 1
+                        IF ( inpfiles(jj)%caddname(ji) /= claddvarsin(jadd) ) THEN
+                           CALL ctl_stop( 'Feedback file additional variables not consistent', &
+                              &           ' with previous files for this type in', &
+                              &           TRIM(cdfilenames(jj)) )
+                        ENDIF
+                     ENDIF
+                  END DO
+               ENDIF
+               IF ( iextr > 0 ) THEN
+                  DO ji = 1, iextr
+                     IF ( inpfiles(jj)%cextname(ji) /= clextvarsin(ji) ) THEN
+                        CALL ctl_stop( 'Feedback file extra variables not consistent', &
+                           &           ' with previous files for this type in', &
+                           &           TRIM(cdfilenames(jj)) )
+                     ENDIF
+                  END DO
+               ENDIF
+
             ENDIF
 
-            IF (lwp) WRITE(numout,*)'Observation file contains ',inpfiles(jj)%nobs,' observations'
+            IF (lwp) WRITE(numout,*) 'Observation file contains ', inpfiles(jj)%nobs, ' observations'
 
             !------------------------------------------------------------------
             !  Change longitude (-180,180)
@@ -229,10 +346,10 @@ CONTAINS
             READ(clrefdate,'(I8)') irefdate(jj)
 
             CALL ddatetoymdhms( ddobsini, iyea, imon, iday, ihou, imin, isec )
-            CALL greg2jul( isec, imin, ihou, iday, imon, iyea, djulini(jj), &
+            CALL greg2jul( isec, imin, ihou, iday, imon, iyea, dljulini(jj), &
                &           krefdate = irefdate(jj) )
             CALL ddatetoymdhms( ddobsend, iyea, imon, iday, ihou, imin, isec )
-            CALL greg2jul( isec, imin, ihou, iday, imon, iyea, djulend(jj), &
+            CALL greg2jul( isec, imin, ihou, iday, imon, iyea, dljulend(jj), &
                &           krefdate = irefdate(jj) )
 
             IF ( ldnightav ) THEN
@@ -256,49 +373,86 @@ CONTAINS
             ENDIF
 
             IF ( inpfiles(jj)%nobs > 0 ) THEN
-               inpfiles(jj)%iproc = -1
-               inpfiles(jj)%iobsi = -1
-               inpfiles(jj)%iobsj = -1
+               inpfiles(jj)%iproc(:,:) = -1
+               inpfiles(jj)%iobsi(:,:) = -1
+               inpfiles(jj)%iobsj(:,:) = -1
             ENDIF
+
+            ! If observations are representing a time mean then set the time
+            ! of the obs to the end of that meaning period relative to the start of the run
+            IF ( ld_time_mean_bkg ) THEN
+               DO ji = 1, inpfiles(jj)%nobs
+                  ! Only do this for obs within time window
+                  IF ( ( inpfiles(jj)%ptim(ji) >  dljulini(jj) ) .AND. &
+                     & ( inpfiles(jj)%ptim(ji) <= dljulend(jj) ) ) THEN
+                     inpfiles(jj)%ptim(ji) = dljulini(jj) + ( ptime_mean_period / 24.0_wp )
+                  ENDIF
+               END DO
+            ENDIF
+
             inowin = 0
             DO ji = 1, inpfiles(jj)%nobs
-               IF ( ( inpfiles(jj)%ptim(ji) >  djulini(jj) ) .AND. &
-                  & ( inpfiles(jj)%ptim(ji) <= djulend(jj) )       ) THEN
+               IF ( ( inpfiles(jj)%ptim(ji) >  dljulini(jj) ) .AND. &
+                  & ( inpfiles(jj)%ptim(ji) <= dljulend(jj) )       ) THEN
                   inowin = inowin + 1
                ENDIF
             END DO
-            ALLOCATE( zlam(inowin)  )
-            ALLOCATE( zphi(inowin)  )
-            ALLOCATE( iobsi(inowin) )
-            ALLOCATE( iobsj(inowin) )
-            ALLOCATE( iproc(inowin) )
+            ALLOCATE( zlam (inowin)       )
+            ALLOCATE( zphi (inowin)       )
+            ALLOCATE( iobsi(inowin,kvars) )
+            ALLOCATE( iobsj(inowin,kvars) )
+            ALLOCATE( iproc(inowin,kvars) )
             inowin = 0
             DO ji = 1, inpfiles(jj)%nobs
-               IF ( ( inpfiles(jj)%ptim(ji) >  djulini(jj) ) .AND. &
-                  & ( inpfiles(jj)%ptim(ji) <= djulend(jj) )       ) THEN
+               IF ( ( inpfiles(jj)%ptim(ji) >  dljulini(jj) ) .AND. &
+                  & ( inpfiles(jj)%ptim(ji) <= dljulend(jj) )       ) THEN
                   inowin = inowin + 1
                   zlam(inowin) = inpfiles(jj)%plam(ji)
                   zphi(inowin) = inpfiles(jj)%pphi(ji)
                ENDIF
             END DO
 
-            CALL obs_grid_search( inowin, zlam, zphi, iobsi, iobsj, iproc, 'T' )
+            ! Do grid search
+            ! Assume anything other than velocity is on T grid
+            ! Save resource by not repeating for variables on the same grid
+            jind = 0
+            DO jvar = 1, kvars
+               IF ( TRIM(inpfiles(jj)%cname(jvar)) == cobsname_uvel ) THEN
+                  CALL obs_grid_search( inowin, zlam, zphi, iobsi(:,jvar), iobsj(:,jvar), &
+                     &                  iproc(:,jvar), 'U' )
+               ELSE IF ( TRIM(inpfiles(jj)%cname(jvar)) == cobsname_vvel ) THEN
+                  CALL obs_grid_search( inowin, zlam, zphi, iobsi(:,jvar), iobsj(:,jvar), &
+                     &                  iproc(:,jvar), 'V' )
+               ELSE
+                  IF ( jind > 0 ) THEN
+                     iobsi(:,jvar) = iobsi(:,jind)
+                     iobsj(:,jvar) = iobsj(:,jind)
+                     iproc(:,jvar) = iproc(:,jind)
+                  ELSE
+                     jind = jvar
+                     CALL obs_grid_search( inowin, zlam, zphi, iobsi(:,jvar), iobsj(:,jvar), &
+                        &                  iproc(:,jvar), 'T' )
+                  ENDIF
+               ENDIF
+            END DO
 
             inowin = 0
             DO ji = 1, inpfiles(jj)%nobs
-               IF ( ( inpfiles(jj)%ptim(ji) >  djulini(jj) ) .AND. &
-                  & ( inpfiles(jj)%ptim(ji) <= djulend(jj) )       ) THEN
+               IF ( ( inpfiles(jj)%ptim(ji) >  dljulini(jj) ) .AND. &
+                  & ( inpfiles(jj)%ptim(ji) <= dljulend(jj) )       ) THEN
                   inowin = inowin + 1
-                  inpfiles(jj)%iproc(ji,1) = iproc(inowin)
-                  inpfiles(jj)%iobsi(ji,1) = iobsi(inowin)
-                  inpfiles(jj)%iobsj(ji,1) = iobsj(inowin)
+                  DO jvar = 1, kvars
+                     inpfiles(jj)%iproc(ji,jvar) = iproc(inowin,jvar)
+                     inpfiles(jj)%iobsi(ji,jvar) = iobsi(inowin,jvar)
+                     inpfiles(jj)%iobsj(ji,jvar) = iobsj(inowin,jvar)
+                  END DO
                ENDIF
             END DO
             DEALLOCATE( zlam, zphi, iobsi, iobsj, iproc )
 
             DO ji = 1, inpfiles(jj)%nobs
-               IF ( ( inpfiles(jj)%ptim(ji) >  djulini(jj) ) .AND. &
-                  & ( inpfiles(jj)%ptim(ji) <= djulend(jj) )       ) THEN
+               IF ( ( inpfiles(jj)%ptim(ji) >  dljulini(jj) ) .AND. &
+                  & ( inpfiles(jj)%ptim(ji) <= dljulend(jj) )       ) THEN
                   IF ( narea == 1 ) THEN
                      IF ( inpfiles(jj)%iproc(ji,1) >  narea-1 ) CYCLE
                   ELSE
@@ -325,8 +479,8 @@ CONTAINS
       iobstot = 0
       DO jj = 1, inobf
          DO ji = 1, inpfiles(jj)%nobs
-            IF ( ( inpfiles(jj)%ptim(ji) >  djulini(jj) ) .AND. &
-               & ( inpfiles(jj)%ptim(ji) <= djulend(jj) )       ) THEN
+            IF ( ( inpfiles(jj)%ptim(ji) >  dljulini(jj) ) .AND. &
+               & ( inpfiles(jj)%ptim(ji) <= dljulend(jj) )       ) THEN
                iobstot = iobstot + 1
             ENDIF
          END DO
@@ -337,8 +491,8 @@ CONTAINS
       jk = 0
       DO jj = 1, inobf
          DO ji = 1, inpfiles(jj)%nobs
-            IF ( ( inpfiles(jj)%ptim(ji) >  djulini(jj) ) .AND. &
-               & ( inpfiles(jj)%ptim(ji) <= djulend(jj) )       ) THEN
+            IF ( ( inpfiles(jj)%ptim(ji) >  dljulini(jj) ) .AND. &
+               & ( inpfiles(jj)%ptim(ji) <= dljulend(jj) )       ) THEN
                jk = jk + 1
                ifileidx(jk) = jj
                isurfidx(jk) = ji
@@ -350,13 +504,26 @@ CONTAINS
          &               zdat,     &
          &               iindx   )
 
-      CALL obs_surf_alloc( surfdata, iobs, kvars, kextr, kstp, jpi, jpj )
+      CALL obs_surf_alloc( surfdata, iobs, kvars, kadd+iadd, kextr+iextr, kstp, jpi, jpj )
 
       ! Read obs/positions, QC, all variable and assign to surfdata
 
       iobs = 0
 
       surfdata%cvars(:)  = clvarsin(:)
+      surfdata%clong(:)  = cllongin(:)
+      surfdata%cunit(:)  = clunitin(:)
+      surfdata%cgrid(:)  = clgridin(:)
+      IF ( iadd > 0 ) THEN
+         surfdata%caddvars(kadd+1:)   = claddvarsin(:)
+         surfdata%caddlong(kadd+1:,:) = claddlongin(:,:)
+         surfdata%caddunit(kadd+1:,:) = claddunitin(:,:)
+      ENDIF
+      IF ( iextr > 0 ) THEN
+         surfdata%cextvars(kextr+1:) = clextvarsin(:)
+         surfdata%cextlong(kextr+1:) = clextlongin(:)
+         surfdata%cextunit(kextr+1:) = clextunitin(:)
+      ENDIF
 
       ityp   (:) = 0
       itypmpp(:) = 0
@@ -367,8 +534,8 @@ CONTAINS
 
          jj = ifileidx(iindx(jk))
          ji = isurfidx(iindx(jk))
-         IF ( ( inpfiles(jj)%ptim(ji) >  djulini(jj) ) .AND.  &
-            & ( inpfiles(jj)%ptim(ji) <= djulend(jj) ) ) THEN
+         IF ( ( inpfiles(jj)%ptim(ji) >  dljulini(jj) ) .AND.  &
+            & ( inpfiles(jj)%ptim(ji) <= dljulend(jj) ) ) THEN
 
             IF ( narea == 1 ) THEN
                IF ( inpfiles(jj)%iproc(ji,1) >  narea-1 ) CYCLE
@@ -404,8 +571,10 @@ CONTAINS
                surfdata%rphi(iobs) = inpfiles(jj)%pphi(ji)
 
                ! Coordinate search parameters
-               surfdata%mi  (iobs) = inpfiles(jj)%iobsi(ji,1)
-               surfdata%mj  (iobs) = inpfiles(jj)%iobsj(ji,1)
+               DO jvar = 1, kvars
+                  surfdata%mi(iobs,jvar) = inpfiles(jj)%iobsi(ji,jvar)
+                  surfdata%mj(iobs,jvar) = inpfiles(jj)%iobsj(ji,jvar)
+               END DO
 
                ! WMO number
                surfdata%cwmo(iobs) = inpfiles(jj)%cdwmo(ji)
@@ -424,31 +593,46 @@ CONTAINS
                IF ( itype < jpsurfmaxtype + 1 ) THEN
                   ityp(itype+1) = ityp(itype+1) + 1
                ELSE
-                  IF(lwp)WRITE(numout,*)'WARNING:Increase jpsurfmaxtype in ',&
-                     &                  cpname
+                  CALL ctl_warn ( 'Increase jpsurfmaxtype in ', &
+                     &            cpname )
                ENDIF
 
                ! Bookkeeping data to match observations
                surfdata%nsidx(iobs) = iobs
                surfdata%nsfil(iobs) = iindx(jk)
 
-               ! QC flags
-               surfdata%nqc(iobs) = inpfiles(jj)%ivqc(ji,1)
+               DO jvar = 1, kvars
 
-               ! Observed value
-               surfdata%robs(iobs,1) = inpfiles(jj)%pob(1,ji,1)
+                  ! QC flags
+                  surfdata%nqc(iobs) = inpfiles(jj)%ivqc(ji,jvar)
 
+                  ! Observed value
+                  surfdata%robs(iobs,jvar) = inpfiles(jj)%pob(1,ji,jvar)
 
-               ! Model and MDT is set to fbrmdi unless read from file
-               IF ( ldmod ) THEN
-                  surfdata%rmod(iobs,1) = inpfiles(jj)%padd(1,ji,1,1)
-                  IF ( TRIM(surfdata%cvars(1)) == 'SLA' ) THEN
-                     surfdata%rext(iobs,1) = inpfiles(jj)%padd(1,ji,2,1)
-                     surfdata%rext(iobs,2) = inpfiles(jj)%pext(1,ji,1)
+                  ! Additional variables
+                  surfdata%rmod(iobs,jvar) = fbrmdi
+                  IF ( iadd > 0 ) THEN
+                     jadd2 = 0
+                     DO jadd = 1, inpfiles(jj)%nadd
+                        IF ( TRIM(inpfiles(jj)%caddname(jadd)) == 'Hx' ) THEN
+                           IF ( ldmod ) THEN
+                              surfdata%rmod(iobs,jvar) = inpfiles(jj)%padd(1,ji,jadd,jvar)
+                           ENDIF
+                        ELSE
+                           jadd2 = jadd2 + 1
+                           surfdata%radd(iobs,kadd+jadd2,jvar) = &
+                              &                inpfiles(jj)%padd(1,ji,jadd,jvar)
+                        ENDIF
+                     END DO
                   ENDIF
-                ELSE
-                  surfdata%rmod(iobs,1) = fbrmdi
-                  IF ( TRIM(surfdata%cvars(1)) == 'SLA' ) surfdata%rext(iobs,:) = fbrmdi
+
+               END DO
+                  
+               ! Extra variables
+               IF ( iextr > 0 ) THEN
+                  DO jext = 1, iextr
+                     surfdata%rext(iobs,kextr+jext) = inpfiles(jj)%pext(1,ji,jext)
+                  END DO
                ENDIF
             ENDIF
          ENDIF
@@ -466,19 +650,26 @@ CONTAINS
       ! Output number of observations.
       !-----------------------------------------------------------------------
       IF (lwp) THEN
-
+         DO jvar = 1, surfdata%nvar       
+            IF ( jvar == 1 ) THEN
+               clout1=TRIM(surfdata%cvars(1))
+            ELSE
+               WRITE(clout1,'(A,A1,A)') TRIM(clout1), '/', TRIM(surfdata%cvars(jvar))
+            ENDIF
+         END DO
+ 
          WRITE(numout,*)
-         WRITE(numout,'(1X,A)')TRIM( surfdata%cvars(1) )//' data'
+         WRITE(numout,'(1X,A)')TRIM( clout1 )//' data'
          WRITE(numout,'(1X,A)')'--------------'
          DO jj = 1,8
             IF ( itypmpp(jj) > 0 ) THEN
-               WRITE(numout,'(1X,A4,I4,A3,I10)')'Type ', jj,' = ',itypmpp(jj)
+               WRITE(numout,'(1X,A4,I4,A3,I10)') 'Type ', jj, ' = ', itypmpp(jj)
             ENDIF
          END DO
          WRITE(numout,'(1X,A)') &
             & '---------------------------------------------------------------'
          WRITE(numout,'(1X,A,I8)') &
-            & 'Total data for variable '//TRIM( surfdata%cvars(1) )// &
+            & 'Total data for variable '//TRIM( clout1 )// &
             & '           = ', iobsmpp
          WRITE(numout,'(1X,A)') &
             & '---------------------------------------------------------------'
@@ -489,7 +680,14 @@ CONTAINS
       !-----------------------------------------------------------------------
       ! Deallocate temporary data
       !-----------------------------------------------------------------------
-      DEALLOCATE( ifileidx, isurfidx, zdat, clvarsin )
+      DEALLOCATE( ifileidx, isurfidx, zdat, clvarsin, &
+         &        cllongin, clunitin, clgridin )
+      IF ( iadd > 0 ) THEN
+         DEALLOCATE( claddvarsin, claddlongin, claddunitin)
+      ENDIF
+      IF ( iextr > 0 ) THEN
+         DEALLOCATE( clextvarsin, clextlongin, clextunitin )
+      ENDIF
 
       !-----------------------------------------------------------------------
       ! Deallocate input data

@@ -60,9 +60,11 @@ function resttest() {
     f1o=$vdir/$mach/$dorv/$nam/LONG/ocean.output
     f1s=$vdir/$mach/$dorv/$nam/LONG/run.stat
     f1t=$vdir/$mach/$dorv/$nam/LONG/tracer.stat
+    f1h=$vdir/$mach/$dorv/$nam/LONG/obs.stat
     f2o=$vdir/$mach/$dorv/$nam/SHORT/ocean.output
     f2s=$vdir/$mach/$dorv/$nam/SHORT/run.stat
     f2t=$vdir/$mach/$dorv/$nam/SHORT/tracer.stat
+    f2h=$vdir/$mach/$dorv/$nam/SHORT/obs.stat
 
     if  [ ! -f $f1s ] &&  [ ! -f $f1t ] ; then 
       printf "%-27s %s\n" $nam " incomplete test"
@@ -140,6 +142,41 @@ function resttest() {
         fi
       fi
     fi
+#
+# Check obs.stat files (if they exist)
+#
+    if  [  -f $f1h ] && [  -f $f2h ]; then
+      nl=(`wc -l $f2h`)
+      tail -${nl[0]} $f1h > f1.tmp$$
+      cmp -s f1.tmp$$ $f2h
+      if [ $? == 0 ]; then
+        if [ $pass == 0 ]; then 
+          printf "%-27s %s %s\n" $nam  " obs.stat    restartability   passed  :" $dorv
+        fi
+      else
+        get_ktdiff2 f1.tmp$$ $f2h
+        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " obs.stat    restartability   FAILED  :" $dorv " (results are different after " $ktdiff " time steps)"
+        RESTA_EC=1
+#
+# Offer view of differences on the second pass
+#
+        if [ $pass == 1 ]; then
+          echo "<return> to view obs.stat differences"
+          read y
+          sdiff f1.tmp$$ $f2h
+#
+# Only offer ocean.output view if it has not been viewed previously
+#
+          if [ $done_oce == 0 ]; then
+            echo "<return> to view ocean.output differences"
+            read y
+            sdiff $f1o $f2o | grep "|"
+          fi
+          echo "<return> to continue"
+          read y
+        fi
+      fi
+    fi
     rm f1.tmp$$
   fi
 }
@@ -177,9 +214,11 @@ function reprotest(){
     f1o=$vdir/$mach/$dorv/$nam/$rep1/ocean.output
     f1s=$vdir/$mach/$dorv/$nam/$rep1/run.stat
     f1t=$vdir/$mach/$dorv/$nam/$rep1/tracer.stat
+    f1h=$vdir/$mach/$dorv/$nam/$rep1/obs.stat
     f2o=$vdir/$mach/$dorv/$nam/$rep2/ocean.output
     f2s=$vdir/$mach/$dorv/$nam/$rep2/run.stat
     f2t=$vdir/$mach/$dorv/$nam/$rep2/tracer.stat
+    f2h=$vdir/$mach/$dorv/$nam/$rep2/obs.stat
 
     if  [ ! -f $f1s ] && [ ! -f $f1t ] ; then 
       printf "%-27s %s\n" $nam " incomplete test"
@@ -239,6 +278,38 @@ function reprotest(){
           echo "<return> to view tracer.stat differences"
           read y
           sdiff $f1t $f2t
+#
+# Only offer ocean.output view if it has not been viewed previously
+#
+          if [ $done_oce == 0 ]; then
+            echo "<return> to view ocean.output differences"
+            read y
+            sdiff $f1o $f2o | grep "|"
+          fi
+          echo "<return> to continue"
+          read y
+        fi
+      fi
+    fi
+#
+# Check obs.stat files (if they exist)
+#
+    if  [ -f $f1h ] && [ -f $f2h ] ; then
+      cmp -s $f1h $f2h
+      if [ $? == 0 ]; then
+        if [ $pass == 0 ]; then           printf "%-27s %s %s\n" $nam  " obs.stat    reproducibility  passed  :" $dorv
+        fi
+      else
+        get_ktdiff2 $f1h $f2h
+        printf "\e[38;5;196m%-27s %s %s %s %-5s %s\e[0m\n" $nam  " obs.stat    reproducibility  FAILED  :" $dorv " (results are different after " $ktdiff " time steps)"
+        REPRO_EC=1
+#
+# Offer view of differences on the second pass
+#
+        if [ $pass == 1 ]; then
+          echo "<return> to view obs.stat differences"
+          read y
+          sdiff $f1h $f2h
 #
 # Only offer ocean.output view if it has not been viewed previously
 #
@@ -401,8 +472,10 @@ function runcmpres(){
     TESTD=$(ls -1 ${vdir}/${mach}/${dorv}/${nam}/ | grep -m 1 -e '^LONG$' -e '^REPRO_'); TESTD=${TESTD:-LONG}
     f1s=$vdir/$mach/$dorv/${nam}/${TESTD}/run.stat
     f1t=$vdir/$mach/$dorv/${nam}/${TESTD}/tracer.stat
+    f1h=$vdir/$mach/$dorv/${nam}/${TESTD}/obs.stat
     f2s=$vdirref/$mach/$dorvref/${nam}/${TESTD}/run.stat
     f2t=$vdirref/$mach/$dorvref/${nam}/${TESTD}/tracer.stat
+    f2h=$vdirref/$mach/$dorvref/${nam}/${TESTD}/obs.stat
     if  [ ! -f $f1s ] && [ ! -f $f1t ] ; then
       printf "%-20s %s\n" $nam " incomplete test"
       REFCMP_EC=1
@@ -458,6 +531,28 @@ function runcmpres(){
           echo "<return> to view tracer.stat differences"
           read y
           sdiff $f1t $f2t
+        fi
+      fi
+    fi
+    # Check obs.stat files (if they exist)
+#
+    if  [ -f $f1h ] && [ -f $f2h ] ; then
+      cmp -s $f1h $f2h
+      if [ $? == 0 ]; then
+        if [ $pass == 0 ]; then          
+          printf "%-20s %s (%s)\n" $nam  " obs.stat    files are identical " ${TESTD}
+        fi
+      else
+        get_ktdiff2 $f1h $f2h
+        printf "%-20s %s %s %-5s (%s)\n" $nam  " obs.stat    files are DIFFERENT (results are different after " $ktdiff " time steps) " ${TESTD}
+        REFCMP_EC=1
+#
+# Offer view of differences on the second pass
+#
+        if [ $pass == 1 ]; then
+          echo "<return> to view obs.stat differences"
+          read y
+          sdiff $f1h $f2h
         fi
       fi
     fi

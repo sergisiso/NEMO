@@ -20,7 +20,8 @@ MODULE asminc
    !!   dyn_asm_inc    : Apply the dynamic (u and v) increments
    !!   ssh_asm_inc    : Apply the SSH increment
    !!   ssh_asm_div    : Apply divergence associated with SSH increment
-   !!   seaice_asm_inc : Apply the seaice increment
+   !!   sic_asm_inc    : Apply the sea-ice concentration increment
+   !!   sit_asm_inc    : Apply the sea-ice thickness increment
    !!----------------------------------------------------------------------
    USE oce             ! Dynamics and active tracers defined in memory
    USE par_oce         ! Ocean space and time domain variables
@@ -32,8 +33,11 @@ MODULE asminc
    USE c1d             ! 1D initialization
    USE sbc_oce         ! Surface boundary condition variables.
    USE diaobs   , ONLY : calc_date     ! Compute the calendar date on a given step
-#if defined key_si3
-   USE ice      , ONLY : hm_i, at_i, at_i_b
+#if defined key_si3 && defined key_asminc
+   USE phycst         ! physical constants
+   USE ice1D          ! sea-ice: thermodynamics variables
+   USE icetab         ! sea-ice: 3D <==> 2D, 2D <==> 1D
+   USE ice
 #endif
    !
    USE in_out_manager  ! I/O manager
@@ -48,7 +52,8 @@ MODULE asminc
    PUBLIC   dyn_asm_inc    !: Apply the dynamic (u and v) increments
    PUBLIC   ssh_asm_inc    !: Apply the SSH increment
    PUBLIC   ssh_asm_div    !: Apply the SSH divergence
-   PUBLIC   seaice_asm_inc !: Apply the seaice increment
+   PUBLIC   sic_asm_inc    !: Apply the sea-ice concentration increment
+   PUBLIC   sit_asm_inc    !: Apply the sea-ice thickness increment
 
 #if defined key_asminc
     LOGICAL, PUBLIC, PARAMETER :: lk_asminc = .TRUE.   !: Logical switch for assimilation increment interface
@@ -62,9 +67,11 @@ MODULE asminc
    LOGICAL, PUBLIC :: ln_trainc     !: Logical switch for applying tracer increments
    LOGICAL, PUBLIC :: ln_dyninc     !: Logical switch for applying velocity increments
    LOGICAL, PUBLIC :: ln_sshinc     !: Logical switch for applying SSH increments
-   LOGICAL, PUBLIC :: ln_seaiceinc  !: Logical switch for applying Sea ice concentration increments
-   LOGICAL, PUBLIC :: ln_salfix     !: Logical switch for ensuring that the sa > salfixmin 
+   LOGICAL, PUBLIC :: ln_sicinc     !: No sea ice concentration increment
+   LOGICAL, PUBLIC :: ln_sitinc     !: No sea ice thickness increment
+   LOGICAL, PUBLIC :: ln_salfix     !: Logical switch for ensuring that the sa > salfixmin
    LOGICAL, PUBLIC :: ln_temnofreeze!: Don't allow the temperature to drop below freezing
+   LOGICAL, PUBLIC :: ln_bv_check = .FALSE.    !: Don't apply T/S increments where Brunt-Vaisala (N2) checks fail
    INTEGER, PUBLIC :: nn_divdmp     !: Number of iterations of divergence damping operator
 
    REAL(wp), PUBLIC, DIMENSION(:,:,:), ALLOCATABLE ::   t_bkg   , s_bkg      !: Background temperature and salinity
@@ -76,17 +83,29 @@ MODULE asminc
    REAL(wp), PUBLIC, DIMENSION(:,:)  , ALLOCATABLE ::   ssh_iau              !: IAU-weighted sea surface height increment
 #endif
    !                                !!! time steps relative to the cycle interval [0,nitend-nit000-1]
-   INTEGER , PUBLIC ::   nitbkg      !: Time step of the background state used in the Jb term
-   INTEGER , PUBLIC ::   nitdin      !: Time step of the background state for direct initialization
-   INTEGER , PUBLIC ::   nitiaustr   !: Time step of the start of the IAU interval
-   INTEGER , PUBLIC ::   nitiaufin   !: Time step of the end of the IAU interval
+   INTEGER , PUBLIC ::   nn_itbkg     !: Time step of the background state used in the Jb term
+   INTEGER , PUBLIC ::   nn_itdin     !: Time step of the background state for direct initialization
+   INTEGER , PUBLIC ::   nn_itiaustr  !: Time step of the start of the IAU interval
+   INTEGER , PUBLIC ::   nn_itiaufin  !: Time step of the end of the IAU interval
    !
-   INTEGER , PUBLIC ::   niaufn      !: Type of IAU weighing function: = 0   Constant weighting
-   !                                 !: = 1   Linear hat-like, centred in middle of IAU interval
-   REAL(wp), PUBLIC ::   salfixmin   !: Ensure that the salinity is larger than this  value if (ln_salfix)
+   INTEGER , PUBLIC ::   nn_iaufn     !: Type of IAU weighing function: = 0   Constant weighting
+   !                                  !  = 1   Linear hat-like, centred in middle of IAU interval
+   REAL(wp), PUBLIC ::   rn_salfixmin !: Ensure that the salinity is larger than this  value if (ln_salfix)
+   REAL(wp), PUBLIC ::   rn_bv_thres  !: Brunt-Vaisala threshold for applying T/S increments
+   REAL(wp), PUBLIC ::   rn_zmin_bv   !: Min depth to verify Brunt-Vaisala (N2) values
+   REAL(wp), PUBLIC ::   rn_zmax_bv   !: Max depth to verify Brunt-Vaisala (N2) values
 
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   ssh_bkg, ssh_bkginc   ! Background sea surface height and its increment
-   REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   seaice_bkginc         ! Increment to the background sea ice conc
+   REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   sic_bkginc            ! Increment to the background sea ice concentration
+   REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   sit_bkginc            ! Increment to the background sea ice thickness
+   REAL(wp) :: rn_zhi_damin                                         ! Ice thickness for new sea ice from DA increment
+   REAL(wp) :: rn_ai_damin                                          ! Minimum total ice concentration to apply thickness DA
+   REAL(wp) :: rn_acat_damin                                        ! Minimum ice concentration at category level to apply
+                                                                    ! thickness DA increments
+#if defined key_si3 && defined key_asminc
+   REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   a_i_bkginc          ! Increment to the background sea ice conc categories
+   LOGICAL, PUBLIC, DIMENSION(:,:,:), ALLOCATABLE :: lincr_newice   !: Mask .TRUE.=DA positive ice increment to open water
+#endif
 #if defined key_cice && defined key_asminc
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   ndaice_da             ! ice increment tendency into CICE
 #endif
@@ -114,17 +133,17 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::  Kbb, Kmm, Krhs  ! time level indices
       !
-      INTEGER :: ji, jj, jk, jt  ! dummy loop indices
-      INTEGER :: imid, inum      ! local integers
-      INTEGER :: ios             ! Local integer output status for namelist read
-      INTEGER :: iiauper         ! Number of time steps in the IAU period
-      INTEGER :: icycper         ! Number of time steps in the cycle
-      REAL(KIND=dp) :: ditend_date     ! Date YYYYMMDD.HHMMSS of final time step
-      REAL(KIND=dp) :: ditbkg_date     ! Date YYYYMMDD.HHMMSS of background time step for Jb term
-      REAL(KIND=dp) :: ditdin_date     ! Date YYYYMMDD.HHMMSS of background time step for DI
-      REAL(KIND=dp) :: ditiaustr_date  ! Date YYYYMMDD.HHMMSS of IAU interval start time step
-      REAL(KIND=dp) :: ditiaufin_date  ! Date YYYYMMDD.HHMMSS of IAU interval final time step
-
+      INTEGER :: ji, jj, jk, jt, jl     ! dummy loop indices
+      INTEGER :: imid, inum             ! local integers
+      INTEGER :: ios                    ! Local integer output status for namelist read
+      INTEGER :: iiauper                ! Number of time steps in the IAU period
+      INTEGER :: icycper                ! Number of time steps in the cycle
+      REAL(dp) ::   dlditend_date      ! Date YYYYMMDD.HHMMSS of final time step
+      REAL(dp) ::   dlditbkg_date      ! Date YYYYMMDD.HHMMSS of background time step for Jb term
+      REAL(dp) ::   dlditdin_date      ! Date YYYYMMDD.HHMMSS of background time step for DI
+      REAL(dp) ::   dlditiaustr_date   ! Date YYYYMMDD.HHMMSS of IAU interval start time step
+      REAL(dp) ::   dlditiaufin_date   ! Date YYYYMMDD.HHMMSS of IAU interval final time step
+      !
       REAL(wp) :: znorm        ! Normalization factor for IAU weights
       REAL(wp) :: ztotwgt      ! Value of time-integrated IAU weights (should be equal to one)
       REAL(wp) :: z_inc_dateb  ! Start date of interval on which increment is valid
@@ -132,19 +151,26 @@ CONTAINS
       REAL(wp) :: zdate_bkg    ! Date in background state file for DI
       REAL(wp) :: zdate_inc    ! Time axis in increments file
       !
+      REAL(wp), PARAMETER ::   pplarge = 1e10_wp   ! Large number
+      REAL(wp), PARAMETER ::   ppsmall = 1e-3_wp   ! Small number
+      !
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zhdiv   ! 2D workspace
+      REAL(wp) :: zremaining_increment
       !!
-      NAMELIST/nam_asminc/ ln_bkgwri,                                      &
-         &                 ln_trainc, ln_dyninc, ln_sshinc,                &
-         &                 ln_asmdin, ln_asmiau,                           &
-         &                 nitbkg, nitdin, nitiaustr, nitiaufin, niaufn,   &
-         &                 ln_seaiceinc, ln_salfix, salfixmin,             &
-         &                 ln_temnofreeze, nn_divdmp
+      NAMELIST/nam_asminc/ ln_bkgwri, ln_trainc, ln_dyninc, ln_sshinc,     &
+         &                 ln_sicinc, ln_sitinc, ln_asmdin, ln_asmiau,     &
+         &                 nn_itbkg, nn_itdin, nn_itiaustr, nn_itiaufin,   &
+         &                 nn_iaufn, ln_bv_check, rn_bv_thres, rn_zmin_bv, &
+         &                 rn_zmax_bv, ln_salfix, rn_salfixmin,            &
+         &                 ln_temnofreeze, nn_divdmp,                      &
+         &                 rn_zhi_damin, rn_ai_damin, rn_acat_damin
       !!----------------------------------------------------------------------
 
       !-----------------------------------------------------------------------
       ! Read Namelist nam_asminc : assimilation increment interface
       !-----------------------------------------------------------------------
+      ln_sicinc      = .FALSE.
+      ln_sitinc      = .FALSE.
       READ_NML_REF(numnam,nam_asminc)
       READ_NML_CFG(numnam,nam_asminc)
       IF(lwm) WRITE ( numond, nam_asminc )
@@ -155,36 +181,45 @@ CONTAINS
          WRITE(numout,*) 'asm_inc_init : Assimilation increment initialization :'
          WRITE(numout,*) '~~~~~~~~~~~~'
          WRITE(numout,*) '   Namelist namasm : set assimilation increment parameters'
-         WRITE(numout,*) '      Logical switch for writing out background state          ln_bkgwri = ', ln_bkgwri
-         WRITE(numout,*) '      Logical switch for applying tracer increments            ln_trainc = ', ln_trainc
-         WRITE(numout,*) '      Logical switch for applying velocity increments          ln_dyninc = ', ln_dyninc
-         WRITE(numout,*) '      Logical switch for applying SSH increments               ln_sshinc = ', ln_sshinc
-         WRITE(numout,*) '      Logical switch for Direct Initialization (DI)            ln_asmdin = ', ln_asmdin
-         WRITE(numout,*) '      Logical switch for applying sea ice increments        ln_seaiceinc = ', ln_seaiceinc
-         WRITE(numout,*) '      Logical switch for Incremental Analysis Updating (IAU)   ln_asmiau = ', ln_asmiau
-         WRITE(numout,*) '      Timestep of background in [0,nitend-nit000-1]            nitbkg    = ', nitbkg
-         WRITE(numout,*) '      Timestep of background for DI in [0,nitend-nit000-1]     nitdin    = ', nitdin
-         WRITE(numout,*) '      Timestep of start of IAU interval in [0,nitend-nit000-1] nitiaustr = ', nitiaustr
-         WRITE(numout,*) '      Timestep of end of IAU interval in [0,nitend-nit000-1]   nitiaufin = ', nitiaufin
-         WRITE(numout,*) '      Type of IAU weighting function                           niaufn    = ', niaufn
-         WRITE(numout,*) '      Logical switch for ensuring that the sa > salfixmin      ln_salfix = ', ln_salfix
-         WRITE(numout,*) '      Minimum salinity after applying the increments           salfixmin = ', salfixmin
+         WRITE(numout,*) '      Logical switch for writing out background state          ln_bkgwri     = ', ln_bkgwri
+         WRITE(numout,*) '      Logical switch for applying tracer increments            ln_trainc     = ', ln_trainc
+         WRITE(numout,*) '      Logical switch for applying velocity increments          ln_dyninc     = ', ln_dyninc
+         WRITE(numout,*) '      Logical switch for applying SSH increments               ln_sshinc     = ', ln_sshinc
+         WRITE(numout,*) '      Logical switch for Direct Initialization (DI)            ln_asmdin     = ', ln_asmdin
+         WRITE(numout,*) '      Logical switch for applying ice concentration increments ln_sicinc     = ', ln_sicinc
+         WRITE(numout,*) '      Logical switch for applying ice thickness increments     ln_sitinc     = ', ln_sitinc
+         WRITE(numout,*) '      Logical switch for Incremental Analysis Updating (IAU)   ln_asmiau     = ', ln_asmiau
+         WRITE(numout,*) '      Logical switch to use Brunt-Vaisala to reject T/S inc    ln_bv_check   = ', ln_bv_check
+         WRITE(numout,*) '      Timestep of background in [0,nitend-nit000-1]            nn_itbkg      = ', nn_itbkg
+         WRITE(numout,*) '      Timestep of background for DI in [0,nitend-nit000-1]     nn_itdin      = ', nn_itdin
+         WRITE(numout,*) '      Timestep of start of IAU interval in [0,nitend-nit000-1] nn_itiaustr   = ', nn_itiaustr
+         WRITE(numout,*) '      Timestep of end of IAU interval in [0,nitend-nit000-1]   nn_itiaufin   = ', nn_itiaufin
+         WRITE(numout,*) '      Type of IAU weighting function                           nn_iaufn      = ', nn_iaufn
+         WRITE(numout,*) '      Number of iterations of divergence damping operator      nn_divdmp     = ', nn_divdmp
+         WRITE(numout,*) '      Logical switch for ensuring that the sa > salfixmin      ln_salfix     = ', ln_salfix
          WRITE(numout,*) '      Do not apply negative increments if the T < freezing     ln_temnofreeze = ',ln_temnofreeze
+         WRITE(numout,*) '      Minimum salinity after applying the increments           rn_salfixmin  = ', rn_salfixmin
+         WRITE(numout,*) '      Minimum ice thickness for new ice from DA                rn_zhi_damin  = ', rn_zhi_damin
+         WRITE(numout,*) '      Minimum total ice conc required for applying sit inc     rn_ai_damin   = ', rn_ai_damin
+         WRITE(numout,*) '      Minimum category ice conc required for applying sit inc  rn_acat_damin = ', rn_acat_damin
+         WRITE(numout,*) '      Brunt-Vaisala threshold to reject T/S increments         rn_bv_thres   = ', rn_bv_thres
+         WRITE(numout,*) '      Min depth to verify Brunt-Vaisala values                 rn_zmin_bv    = ', rn_zmin_bv
+         WRITE(numout,*) '      Max depth to verify Brunt-Vaisala values                 rn_zmax_bv    = ', rn_zmax_bv
       ENDIF
 
-      nitbkg_r    = nitbkg    + nit000 - 1            ! Background time referenced to nit000
-      nitdin_r    = nitdin    + nit000 - 1            ! Background time for DI referenced to nit000
-      nitiaustr_r = nitiaustr + nit000 - 1            ! Start of IAU interval referenced to nit000
-      nitiaufin_r = nitiaufin + nit000 - 1            ! End of IAU interval referenced to nit000
+      nitbkg_r    = nn_itbkg    + nit000 - 1            ! Background time referenced to nit000
+      nitdin_r    = nn_itdin    + nit000 - 1            ! Background time for DI referenced to nit000
+      nitiaustr_r = nn_itiaustr + nit000 - 1            ! Start of IAU interval referenced to nit000
+      nitiaufin_r = nn_itiaufin + nit000 - 1            ! End of IAU interval referenced to nit000
 
       iiauper     = nitiaufin_r - nitiaustr_r + 1     ! IAU interval length
       icycper     = nitend      - nit000      + 1     ! Cycle interval length
 
-      CALL calc_date( nitend     , ditend_date    )   ! Date of final time step
-      CALL calc_date( nitbkg_r   , ditbkg_date    )   ! Background time for Jb referenced to ndate0
-      CALL calc_date( nitdin_r   , ditdin_date    )   ! Background time for DI referenced to ndate0
-      CALL calc_date( nitiaustr_r, ditiaustr_date )   ! IAU start time referenced to ndate0
-      CALL calc_date( nitiaufin_r, ditiaufin_date )   ! IAU end time referenced to ndate0
+      CALL calc_date( nitend     , dlditend_date    )   ! Date of final time step
+      CALL calc_date( nitbkg_r   , dlditbkg_date    )   ! Background time for Jb referenced to ndate0
+      CALL calc_date( nitdin_r   , dlditdin_date    )   ! Background time for DI referenced to ndate0
+      CALL calc_date( nitiaustr_r, dlditiaustr_date )   ! IAU start time referenced to ndate0
+      CALL calc_date( nitiaufin_r, dlditiaufin_date )   ! IAU end time referenced to ndate0
 
       IF(lwp) THEN
          WRITE(numout,*)
@@ -198,14 +233,14 @@ CONTAINS
          WRITE(numout,*) '       nitiaufin_r = ', nitiaufin_r
          WRITE(numout,*)
          WRITE(numout,*) '   Dates referenced to current cycle:'
-         WRITE(numout,*) '       ndastp         = ', ndastp
-         WRITE(numout,*) '       ndate0         = ', ndate0
-         WRITE(numout,*) '       nn_time0       = ', nn_time0
-         WRITE(numout,*) '       ditend_date    = ', ditend_date
-         WRITE(numout,*) '       ditbkg_date    = ', ditbkg_date
-         WRITE(numout,*) '       ditdin_date    = ', ditdin_date
-         WRITE(numout,*) '       ditiaustr_date = ', ditiaustr_date
-         WRITE(numout,*) '       ditiaufin_date = ', ditiaufin_date
+         WRITE(numout,*) '       ndastp           = ', ndastp
+         WRITE(numout,*) '       ndate0           = ', ndate0
+         WRITE(numout,*) '       nn_time0         = ', nn_time0
+         WRITE(numout,*) '       dlditend_date    = ', dlditend_date
+         WRITE(numout,*) '       dlditbkg_date    = ', dlditbkg_date
+         WRITE(numout,*) '       dlditdin_date    = ', dlditdin_date
+         WRITE(numout,*) '       dlditiaustr_date = ', dlditiaustr_date
+         WRITE(numout,*) '       dlditiaufin_date = ', dlditiaufin_date
       ENDIF
 
 
@@ -214,22 +249,22 @@ CONTAINS
          &                ' Choose Direct Initialization OR Incremental Analysis Updating')
 
       IF (      ( ( .NOT. ln_asmdin ).AND.( .NOT. ln_asmiau ) ) &
-           .AND.( ( ln_trainc ).OR.( ln_dyninc ).OR.( ln_sshinc ) .OR. ( ln_seaiceinc) )) &
-         & CALL ctl_stop( ' One or more of ln_trainc, ln_dyninc, ln_sshinc and ln_seaiceinc is set to .true.', &
+           .AND.( ( ln_trainc ).OR.( ln_dyninc ).OR.( ln_sshinc ) .OR. ( ln_sicinc ) .OR. ( ln_sitinc ) )) &
+         & CALL ctl_stop( ' One or more of ln_trainc, ln_dyninc, ln_sshinc, ln_sicinc, ln_sitinc is set to .true.', &
          &                ' but ln_asmdin and ln_asmiau are both set to .false. :', &
          &                ' Inconsistent options')
 
-      IF ( ( niaufn /= 0 ).AND.( niaufn /= 1 ) ) &
-         & CALL ctl_stop( ' niaufn /= 0 or niaufn /=1 :',  &
+      IF ( ( nn_iaufn /= 0 ).AND.( nn_iaufn /= 1 ) ) &
+         & CALL ctl_stop( ' nn_iaufn /= 0 or nn_iaufn /=1 :',  &
          &                ' Type IAU weighting function is invalid')
 
-      IF ( ( .NOT. ln_trainc ).AND.( .NOT. ln_dyninc ).AND.( .NOT. ln_sshinc ).AND.( .NOT. ln_seaiceinc ) &
-         &                     )  &
-         & CALL ctl_warn( ' ln_trainc, ln_dyninc, ln_sshinc and ln_seaiceinc are set to .false. :', &
+      IF ( ( .NOT. ln_trainc ).AND.( .NOT. ln_dyninc ).AND.( .NOT. ln_sshinc ).AND.( .NOT. ln_sicinc ) &
+         & .AND.( .NOT. ln_sitinc ) )  &
+         & CALL ctl_warn( ' ln_trainc, ln_dyninc, ln_sshinc, ln_sicinc and ln_sitinc are set to .false. :', &
          &                ' The assimilation increments are not applied')
 
-      IF ( ( ln_asmiau ).AND.( nitiaustr == nitiaufin ) ) &
-         & CALL ctl_stop( ' nitiaustr = nitiaufin :',  &
+      IF ( ( ln_asmiau ).AND.( nn_itiaustr == nn_itiaufin ) ) &
+         & CALL ctl_stop( ' nn_itiaustr = nn_itiaufin :',  &
          &                ' IAU interval is of zero length')
 
       IF ( ( ln_asmiau ).AND.( ( nitiaustr_r < nit000 ).OR.( nitiaufin_r > nitend ) ) ) &
@@ -238,11 +273,11 @@ CONTAINS
          &                 ' Valid range nit000 to nitend')
 
       IF ( ( nitbkg_r < nit000 - 1 ).OR.( nitbkg_r > nitend ) ) &
-         & CALL ctl_stop( ' nitbkg :',  &
+         & CALL ctl_stop( ' nn_itbkg :',  &
          &                ' Background time step is outside the cycle interval')
 
       IF ( ( nitdin_r < nit000 - 1 ).OR.( nitdin_r > nitend ) ) &
-         & CALL ctl_stop( ' nitdin :',  &
+         & CALL ctl_stop( ' nn_itdin :',  &
          &                ' Background time step for Direct Initialization is outside', &
          &                ' the cycle interval')
 
@@ -259,13 +294,13 @@ CONTAINS
          wgtiau(:) = 0._wp
          !
          !                                !---------------------------------------------------------
-         IF( niaufn == 0 ) THEN           ! Constant IAU forcing
+         IF( nn_iaufn == 0 ) THEN         ! Constant IAU forcing
             !                             !---------------------------------------------------------
             DO jt = 1, iiauper
-               wgtiau(jt+nitiaustr-1) = 1.0 / REAL( iiauper )
+               wgtiau(jt+nn_itiaustr-1) = 1.0_wp / REAL( iiauper, KIND=wp )
             END DO
             !                             !---------------------------------------------------------
-         ELSEIF ( niaufn == 1 ) THEN      ! Linear hat-like, centred in middle of IAU interval
+         ELSEIF ( nn_iaufn == 1 ) THEN    ! Linear hat-like, centred in middle of IAU interval
             !                             !---------------------------------------------------------
             ! Compute the normalization factor
             znorm = 0._wp
@@ -285,10 +320,10 @@ CONTAINS
             znorm = 1.0 / znorm
             !
             DO jt = 1, imid - 1
-               wgtiau(jt+nitiaustr-1) = REAL( jt ) * znorm
+               wgtiau(jt+nn_itiaustr-1) = REAL( jt ) * znorm
             END DO
             DO jt = imid, iiauper
-               wgtiau(jt+nitiaustr-1) = REAL( iiauper - jt + 1 ) * znorm
+               wgtiau(jt+nn_itiaustr-1) = REAL( iiauper - jt + 1 ) * znorm
             END DO
             !
          ENDIF
@@ -321,7 +356,12 @@ CONTAINS
       ALLOCATE( u_bkginc     (jpi,jpj,jpk) )   ;   u_bkginc     (:,:,:) = 0._wp
       ALLOCATE( v_bkginc     (jpi,jpj,jpk) )   ;   v_bkginc     (:,:,:) = 0._wp
       ALLOCATE( ssh_bkginc   (jpi,jpj)     )   ;   ssh_bkginc   (:,:)   = 0._wp
-      ALLOCATE( seaice_bkginc(jpi,jpj)     )   ;   seaice_bkginc(:,:)   = 0._wp
+      ALLOCATE( sic_bkginc   (jpi,jpj)     )   ;   sic_bkginc   (:,:)   = 0._wp
+      ALLOCATE( sit_bkginc(jpi,jpj)        )   ;   sit_bkginc   (:,:)   = 0._wp
+#if defined key_si3 && defined key_asminc
+      ALLOCATE( a_i_bkginc   (jpi,jpj,jpl) )   ;   a_i_bkginc   (:,:,:) = 0._wp
+      ALLOCATE( lincr_newice(jpi,jpj,jpl) )    ;   lincr_newice (:,:,:) = .FALSE.
+#endif
 #if defined key_asminc
       ALLOCATE( ssh_iau      (jpi,jpj)     )   ;   ssh_iau      (:,:)   = 0._wp
 #endif
@@ -329,9 +369,9 @@ CONTAINS
       ALLOCATE( ndaice_da    (jpi,jpj)     )   ;   ndaice_da    (:,:)   = 0._wp
 #endif
       !
-      IF ( ln_trainc .OR. ln_dyninc .OR.   &       !--------------------------------------
-         & ln_sshinc .OR. ln_seaiceinc   ) THEN    ! Read the increments from file
-         !                                         !--------------------------------------
+      IF ( ln_trainc .OR. ln_dyninc .OR.   &                   !--------------------------------------
+         & ln_sshinc .OR. ln_sicinc .OR. ln_sitinc   ) THEN    ! Read the increments from file
+         !                                                     !--------------------------------------
          CALL iom_open( c_asminc, inum )
          !
          CALL iom_get( inum, 'time'       , zdate_inc   )
@@ -347,11 +387,11 @@ CONTAINS
          ENDIF
          !
          IF ( ( z_inc_dateb < ndastp + nn_time0*0.0001_wp ) .OR.   &
-            & ( z_inc_datef > ditend_date ) ) &
+            & ( z_inc_datef > dlditend_date ) ) &
             &    CALL ctl_warn( ' Validity time of assimilation increments is ', &
             &                   ' outside the assimilation interval' )
 
-         IF ( ( ln_asmdin ).AND.( zdate_inc /= ditdin_date ) ) &
+         IF ( ( ln_asmdin ).AND.( zdate_inc /= dlditdin_date ) ) &
             & CALL ctl_warn( ' Validity time of assimilation increments does ', &
             &                ' not agree with Direct Initialization time' )
 
@@ -363,8 +403,8 @@ CONTAINS
             s_bkginc(:,:,:) = s_bkginc(:,:,:) * tmask(:,:,:)
             ! Set missing increments to 0.0 rather than 1e+20
             ! to allow for differences in masks
-            WHERE( ABS( t_bkginc(:,:,:) ) > 1.0e+10 ) t_bkginc(:,:,:) = 0.0
-            WHERE( ABS( s_bkginc(:,:,:) ) > 1.0e+10 ) s_bkginc(:,:,:) = 0.0
+            WHERE( ABS( t_bkginc(:,:,:) ) > pplarge ) t_bkginc(:,:,:) = 0.0_wp
+            WHERE( ABS( s_bkginc(:,:,:) ) > pplarge ) s_bkginc(:,:,:) = 0.0_wp
          ENDIF
 
          IF ( ln_dyninc ) THEN
@@ -375,8 +415,8 @@ CONTAINS
             v_bkginc(:,:,:) = v_bkginc(:,:,:) * vmask(:,:,:)
             ! Set missing increments to 0.0 rather than 1e+20
             ! to allow for differences in masks
-            WHERE( ABS( u_bkginc(:,:,:) ) > 1.0e+10 ) u_bkginc(:,:,:) = 0.0
-            WHERE( ABS( v_bkginc(:,:,:) ) > 1.0e+10 ) v_bkginc(:,:,:) = 0.0
+            WHERE( ABS( u_bkginc(:,:,:) ) > pplarge ) u_bkginc(:,:,:) = 0.0_wp
+            WHERE( ABS( v_bkginc(:,:,:) ) > pplarge ) v_bkginc(:,:,:) = 0.0_wp
          ENDIF
 
          IF ( ln_sshinc ) THEN
@@ -385,16 +425,81 @@ CONTAINS
             ssh_bkginc(:,:) = ssh_bkginc(:,:) * tmask(:,:,1)
             ! Set missing increments to 0.0 rather than 1e+20
             ! to allow for differences in masks
-            WHERE( ABS( ssh_bkginc(:,:) ) > 1.0e+10 ) ssh_bkginc(:,:) = 0.0
+            WHERE( ABS( ssh_bkginc(:,:) ) > pplarge ) ssh_bkginc(:,:) = 0.0_wp
          ENDIF
 
-         IF ( ln_seaiceinc ) THEN
-            CALL iom_get( inum, jpdom_auto, 'bckinseaice', seaice_bkginc, 1 )
+         IF ( ln_sitinc ) THEN
+            CALL iom_get( inum, jpdom_auto, 'bckinsit', sit_bkginc, 1 )
             ! Apply the masks
-            seaice_bkginc(:,:) = seaice_bkginc(:,:) * tmask(:,:,1)
+            sit_bkginc(:,:) = sit_bkginc(:,:) * tmask(:,:,1)
             ! Set missing increments to 0.0 rather than 1e+20
             ! to allow for differences in masks
-            WHERE( ABS( seaice_bkginc(:,:) ) > 1.0e+10 ) seaice_bkginc(:,:) = 0.0
+            WHERE( ABS( sit_bkginc(:,:) ) > pplarge ) sit_bkginc(:,:) = 0.0_wp
+         ENDIF
+
+         IF ( ln_sicinc ) THEN
+            CALL iom_get( inum, jpdom_auto, 'bckinseaice', sic_bkginc, 1 )
+            ! Apply the masks
+            sic_bkginc(:,:) = sic_bkginc(:,:) * tmask(:,:,1)
+            ! Set missing increments to 0.0 rather than 1e+20
+            ! to allow for differences in masks
+            ! very small increments are also set to zero
+            WHERE( ABS( sic_bkginc(:,:) ) > pplarge .OR. &
+              &    ABS( sic_bkginc(:,:) ) < ppsmall ) sic_bkginc(:,:) = 0.0_wp
+
+#if defined key_si3 && defined key_asminc
+            IF (lwp) THEN
+               WRITE(numout,*)
+               WRITE(numout,*) 'asm_inc_init : Converting single category increment to multi-category'
+               WRITE(numout,*) '~~~~~~~~~~~~'
+            END IF
+
+            !single category increment for sea ice conc
+            !convert single category increment to multi category
+            at_i = SUM( a_i(:,:,:), DIM=3 )
+
+            ! ensure rn_zhi_damin lies within 1st category
+            IF ( rn_zhi_damin > hi_max(1) ) THEN
+               IF (lwp) THEN
+                  WRITE(numout,*)
+                  WRITE(numout,*) 'minimum DA thickness > hmax(1): setting minimum DA thickness to hmax(1)'
+                  WRITE(numout,*) '~~~~~~~~~~~~'
+               END IF
+               rn_zhi_damin = hi_max(1) - ppepsi02
+            END IF
+
+            DO jj = 1, jpj
+               DO ji = 1, jpi
+                  IF ( sic_bkginc(ji,jj) > 0.0_wp ) THEN
+                     !positive ice concentration increments are always
+                     !added to the thinnest category of ice
+                     a_i_bkginc(ji,jj,1) = sic_bkginc(ji,jj)
+                  ELSE
+                     !negative increments are first removed from the thinnest
+                     !available category until it reaches zero concentration
+                     !and then progressively removed from thicker categories
+
+                     !NOTE: might consider the remote possibility that zremaining_increment
+                     !left over is not zero, particulary if SI3 is being run
+                     !as a single category
+                     zremaining_increment = sic_bkginc(ji,jj)
+                     DO jl = 1, jpl
+                        ! assign as much increment as possible to current category
+                        a_i_bkginc(ji,jj,jl) = -MIN( a_i(ji,jj,jl), -zremaining_increment )
+                        ! update remaining amount of increment
+                        zremaining_increment = zremaining_increment - a_i_bkginc(ji,jj,jl)
+                     END DO
+                  END IF
+               END DO
+            END DO
+            ! find model points where DA new ice should be added to open water
+            ! in any ice category
+            DO jl = 1,jpl
+               WHERE ( at_i(:,:) < ppepsi02 .AND. sic_bkginc(:,:) > 0.0_wp )
+                  lincr_newice(:,:,jl) = .TRUE.
+               END WHERE
+            END DO
+#endif
          ENDIF
          !
          CALL iom_close( inum )
@@ -458,7 +563,7 @@ CONTAINS
             WRITE(numout,*)
          ENDIF
          !
-         IF ( zdate_bkg /= ditdin_date )   &
+         IF ( zdate_bkg /= dlditdin_date )   &
             & CALL ctl_warn( ' Validity time of assimilation background state does', &
             &                ' not agree with Direct Initialization time' )
          !
@@ -516,7 +621,9 @@ CONTAINS
       INTEGER  :: ji, jj, jk
       INTEGER  :: it
       REAL(wp) :: zincwgt  ! IAU weight for current time step
-      REAL(wp), DIMENSION(:,:),   ALLOCATABLE :: fzptnz, zdep2d ! freezing point values
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zfzptnz, zdep2d   ! Freezing point values
+      REAL(wp), DIMENSION(jpi,jpj,jpk)      ::   zvalid_bv         ! Mask representing Brunt-Vaisala (N2) checks used to reject T/S
+                                                                   ! increments
       !!----------------------------------------------------------------------
          !                             !--------------------------------------
       IF ( ln_asmiau ) THEN            ! Incremental Analysis Updating
@@ -535,7 +642,11 @@ CONTAINS
                ENDIF
             ENDIF
             !
-            IF( ln_temnofreeze ) ALLOCATE( fzptnz(T2D(0)), zdep2d(T2D(0)) )
+            IF( ln_temnofreeze ) ALLOCATE( zfzptnz(T2D(0)), zdep2d(T2D(0)) )
+            !
+            ! Call Brunt-Vaisala checks to reject T/S increments
+            zvalid_bv(:,:,:) = 1.0_wp
+            IF ( ln_bv_check ) CALL verify_incs_bv( wgtiau(it), Kmm, pts, zvalid_bv )
             !
             ! Update the tracer tendencies
             DO jk = 1, jpkm1
@@ -545,32 +656,32 @@ CONTAINS
                   DO_2D( 0, 0, 0, 0 )
                      zdep2d(ji,jj) = gdept(ji,jj,jk,Kmm)   ! better solution: define an interface for eos_fzp when gdept(ji,jj,jk,Kmm) is a scalar
                   END_2D
-                  CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), fzptnz(:,:), zdep2d(:,:), kbnd=0 )
+                  CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), zfzptnz(:,:), zdep2d(:,:), kbnd=0 )
                   !
                   WHERE(t_bkginc(T2D(0),jk) > 0.0_wp .OR. &
-                     &   pts(T2D(0),jk,jp_tem,Kmm) + pts(T2D(0),jk,jp_tem,Krhs) + t_bkginc(T2D(0),jk) * wgtiau(it) > fzptnz(:,:) )
-                     pts(T2D(0),jk,jp_tem,Krhs) = pts(T2D(0),jk,jp_tem,Krhs) + t_bkginc(T2D(0),jk) * zincwgt
+                     &   pts(T2D(0),jk,jp_tem,Kmm) + pts(T2D(0),jk,jp_tem,Krhs) + t_bkginc(T2D(0),jk) * wgtiau(it) > zfzptnz(:,:) )
+                     pts(T2D(0),jk,jp_tem,Krhs) = pts(T2D(0),jk,jp_tem,Krhs) + t_bkginc(T2D(0),jk) * zvalid_bv(ji,jj,jk) * zincwgt
                   END WHERE
                ELSE
                   DO_2D( 0, 0, 0, 0 )
-                     pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + t_bkginc(ji,jj,jk) * zincwgt
+                     pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + t_bkginc(ji,jj,jk) * zvalid_bv(ji,jj,jk) * zincwgt
                   END_2D
                ENDIF
                IF (ln_salfix) THEN
                   ! Do not apply negative increments if the salinity will fall below a specified
-                  ! minimum value salfixmin
+                  ! minimum value rn_salfixmin
                   WHERE(s_bkginc(T2D(0),jk) > 0.0_wp .OR. &
-                     &   pts(T2D(0),jk,jp_sal,Kmm) + pts(T2D(0),jk,jp_sal,Krhs) + s_bkginc(T2D(0),jk) * wgtiau(it) > salfixmin )
-                     pts(T2D(0),jk,jp_sal,Krhs) = pts(T2D(0),jk,jp_sal,Krhs) + s_bkginc(T2D(0),jk) * zincwgt
+                     &   pts(T2D(0),jk,jp_sal,Kmm) + pts(T2D(0),jk,jp_sal,Krhs) + s_bkginc(T2D(0),jk) * wgtiau(it) > rn_salfixmin )
+                     pts(T2D(0),jk,jp_sal,Krhs) = pts(T2D(0),jk,jp_sal,Krhs) + s_bkginc(T2D(0),jk) * zvalid_bv(ji,jj,jk) * zincwgt
                   END WHERE
                ELSE
                   DO_2D( 0, 0, 0, 0 )
-                     pts(ji,jj,jk,jp_sal,Krhs) = pts(ji,jj,jk,jp_sal,Krhs) + s_bkginc(ji,jj,jk) * zincwgt
+                     pts(ji,jj,jk,jp_sal,Krhs) = pts(ji,jj,jk,jp_sal,Krhs) + s_bkginc(ji,jj,jk) * zvalid_bv(ji,jj,jk) * zincwgt
                   END_2D
                ENDIF
             END DO
             !
-            IF( ln_temnofreeze ) DEALLOCATE( fzptnz, zdep2d )
+            IF( ln_temnofreeze ) DEALLOCATE( zfzptnz, zdep2d )
             !
          ENDIF
          !
@@ -588,34 +699,38 @@ CONTAINS
             !
             l_1st_euler = .TRUE.  ! Force Euler forward step
             !
+            ! Call Brunt-Vaisala checks to reject T/S increments
+            zvalid_bv(:,:,:) = 1.0_wp
+            IF ( ln_bv_check ) CALL verify_incs_bv( 1.0_wp, Kmm, pts, zvalid_bv )
+            !
             ! Initialize the now fields with the background + increment
             IF (ln_temnofreeze) THEN
                ! Do not apply negative increments if the temperature will fall below freezing
-               ALLOCATE( fzptnz(A2D(nn_hls)), zdep2d(T2D(nn_hls)) )
+               ALLOCATE( zfzptnz(T2D(nn_hls)), zdep2d(T2D(nn_hls)) )
                !
                DO jk = 1, jpkm1
                   DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
                      zdep2d(ji,jj) = gdept(ji,jj,jk,Kmm)   ! better solution: define an interface for eos_fzp when gdept(ji,jj,jk,Kmm) is a scalar
                   END_2D
-                  CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), fzptnz(:,:), zdep2d(:,:) )
+                  CALL eos_fzp( pts(:,:,jk,jp_sal,Kmm), zfzptnz(:,:), zdep2d(:,:) )
                   !
-                  WHERE( t_bkginc(:,:,jk) > 0.0_wp .OR. pts(:,:,jk,jp_tem,Kmm) + t_bkginc(:,:,jk) > fzptnz(:,:) )
-                     pts(:,:,jk,jp_tem,Kmm) = t_bkg(:,:,jk) + t_bkginc(:,:,jk)
+                  WHERE( t_bkginc(:,:,jk) > 0.0_wp .OR. pts(:,:,jk,jp_tem,Kmm) + t_bkginc(:,:,jk) > zfzptnz(:,:) )
+                     pts(:,:,jk,jp_tem,Kmm) = t_bkg(:,:,jk) + t_bkginc(:,:,jk) * zvalid_bv(:,:,jk)
                   END WHERE
                END DO
                !
-               DEALLOCATE( fzptnz, zdep2d )
+               DEALLOCATE( zfzptnz, zdep2d )
             ELSE
-               pts(:,:,:,jp_tem,Kmm) = t_bkg(:,:,:) + t_bkginc(:,:,:)
+               pts(:,:,:,jp_tem,Kmm) = t_bkg(:,:,:) + t_bkginc(:,:,:) * zvalid_bv(:,:,:)
             ENDIF
             IF (ln_salfix) THEN
                ! Do not apply negative increments if the salinity will fall below a specified
-               ! minimum value salfixmin
-               WHERE( s_bkginc(:,:,:) > 0.0_wp .OR. pts(:,:,:,jp_sal,Kmm) + s_bkginc(:,:,:) > salfixmin )
-                  pts(:,:,:,jp_sal,Kmm) = s_bkg(:,:,:) + s_bkginc(:,:,:)
+               ! minimum value rn_salfixmin
+               WHERE( s_bkginc(:,:,:) > 0.0_wp .OR. pts(:,:,:,jp_sal,Kmm) + s_bkginc(:,:,:) > rn_salfixmin )
+                  pts(:,:,:,jp_sal,Kmm) = s_bkg(:,:,:) + s_bkginc(:,:,:) * zvalid_bv(:,:,:)
                END WHERE
             ELSE
-               pts(:,:,:,jp_sal,Kmm) = s_bkg(:,:,:) + s_bkginc(:,:,:)
+               pts(:,:,:,jp_sal,Kmm) = s_bkg(:,:,:) + s_bkginc(:,:,:) * zvalid_bv(:,:,:)
             ENDIF
 
             pts(:,:,:,:,Kbb) = pts(:,:,:,:,Kmm)                 ! Update before fields
@@ -629,7 +744,8 @@ CONTAINS
          !
       ENDIF
       ! Perhaps the following call should be in step
-      IF ( ln_seaiceinc  )   CALL seaice_asm_inc ( kt )   ! apply sea ice concentration increment
+      IF ( ln_sicinc )   CALL sic_asm_inc ( kt )      ! apply sea ice concentration increment
+      IF ( ln_sitinc )   CALL sit_asm_inc ( kt )      ! apply sea ice thickness increment
       !
    END SUBROUTINE tra_asm_inc
 
@@ -838,11 +954,11 @@ CONTAINS
    END SUBROUTINE ssh_asm_div
 
 
-   SUBROUTINE seaice_asm_inc( kt, kindic )
+   SUBROUTINE sic_asm_inc( kt, kindic )
       !!----------------------------------------------------------------------
-      !!                    ***  ROUTINE seaice_asm_inc  ***
+      !!                    ***  ROUTINE sic_asm_inc  ***
       !!
-      !! ** Purpose : Apply the sea ice assimilation increment.
+      !! ** Purpose : Apply the sea ice concentration assimilation increment.
       !!
       !! ** Method  : Direct initialization or Incremental Analysis Updating.
       !!
@@ -852,12 +968,14 @@ CONTAINS
       INTEGER, INTENT(in)           ::   kt       ! Current time step
       INTEGER, INTENT(in), OPTIONAL ::   kindic   ! flag for disabling the deallocation
       !
-      INTEGER  ::   ji, jj
-      INTEGER  ::   it
-      REAL(wp) ::   zincwgt   ! IAU weight for current time step
-#if defined key_si3
-      REAL(wp), DIMENSION(T2D(0)) ::   zofrld, zohicif, zseaicendg, zhicifinc
-      REAL(wp) ::   zhicifmin = 0.5_wp      ! ice minimum depth in metres
+      INTEGER  ::   it, jk
+      REAL(wp) ::   zincwgt                            ! IAU weight for current time step
+#if defined key_si3 && defined key_asminc
+      REAL(wp), DIMENSION(jpi,jpj,jpl) :: zda_i        ! change in ice concentration
+      REAL(wp), DIMENSION(jpi,jpj,jpl) :: zdv_i        ! change in ice volume
+      REAL(wp), DIMENSION(jpi,jpj,jpl) :: z1_a_i       ! inverse of ice concentration before current IAU step
+      REAL(wp), DIMENSION(jpi,jpj,jpl) :: z1_v_i       ! inverse of ice volume before current IAU step
+      REAL(wp), DIMENSION(jpi,jpj)     :: zhi_damin_2D ! array with DA thickness for lincr_newice
 #endif
       !!----------------------------------------------------------------------
       !
@@ -869,64 +987,122 @@ CONTAINS
             !
             it = kt - nit000 + 1
             zincwgt = wgtiau(it)      ! IAU weight for the current time step
-            ! note this is not a tendency so should not be divided by rn_Dt (as with the tracer and other increments)
+            ! note this is not a tendency so should not be divided by rdt (as with the tracer and other increments)
             !
-            IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-               IF(lwp) THEN
-                  WRITE(numout,*)
-                  WRITE(numout,*) 'seaice_asm_inc : sea ice conc IAU at time step = ', kt,' with IAU weight = ', wgtiau(it)
-                  WRITE(numout,*) '~~~~~~~~~~~~'
-               ENDIF
+            IF(lwp) THEN
+               WRITE(numout,*)
+               WRITE(numout,*) 'sic_asm_inc : sea ice conc IAU at time step = ', kt,' with IAU weight = ', wgtiau(it)
+               WRITE(numout,*) '~~~~~~~~~~~~'
             ENDIF
             !
             ! Sea-ice : SI3 case
             !
-#if defined key_si3
-            DO_2D( 0, 0, 0, 0 )
-               zofrld (ji,jj) = 1._wp - at_i(ji,jj)
-               zohicif(ji,jj) = hm_i(ji,jj)
-               !
-               at_i  (ji,jj) = 1. - MIN( MAX( 1.-at_i  (ji,jj) - seaice_bkginc(ji,jj) * zincwgt, 0.0_wp), 1.0_wp)
-               at_i_b(ji,jj) = 1. - MIN( MAX( 1.-at_i_b(ji,jj) - seaice_bkginc(ji,jj) * zincwgt, 0.0_wp), 1.0_wp)
-               fr_i(ji,jj) = at_i(ji,jj)        ! adjust ice fraction
-               !
-               zseaicendg(ji,jj) = zofrld(ji,jj) - (1. - at_i(ji,jj))   ! find out actual sea ice nudge applied
-            END_2D
-            !
-            ! Nudge sea ice depth to bring it up to a required minimum depth
-            WHERE( zseaicendg(:,:) > 0.0_wp .AND. hm_i(T2D(0)) < zhicifmin )
-               zhicifinc(:,:) = (zhicifmin - hm_i(T2D(0))) * zincwgt
+#if defined key_si3 && defined key_asminc
+            ! compute the inverse of key sea ice variables
+            ! to be used later in the code
+            WHERE( a_i(:,:,:) > epsi10 )
+               z1_a_i(:,:,:) = 1.0_wp / a_i(:,:,:)
+               z1_v_i(:,:,:) = 1.0_wp / v_i(:,:,:)
             ELSEWHERE
-               zhicifinc(:,:) = 0.0_wp
+               z1_a_i(:,:,:) = 0.0_wp
+               z1_v_i(:,:,:) = 0.0_wp
             END WHERE
-            !
-            ! nudge ice depth
-            DO_2D( 0, 0, 0, 0 )
-               hm_i (ji,jj) = hm_i (ji,jj) + zhicifinc(ji,jj)
-            END_2D
-            !
-            ! seaice salinity balancing (to add)
+
+            ! add positive concentration increments to regions where ice
+            ! is already present and bound them to 1
+            ! ice volume is added based on rn_zhi_damin
+            WHERE ( .NOT. lincr_newice .AND. a_i_bkginc(:,:,:) > 0.0_wp )
+               a_i(:,:,:) = a_i(:,:,:) + MIN( 1.0_wp - a_i(:,:,:), a_i_bkginc(:,:,:) * zincwgt )
+               v_i(:,:,:) = v_i(:,:,:) + MIN( 1.0_wp - a_i(:,:,:), a_i_bkginc(:,:,:) * zincwgt ) * rn_zhi_damin
+            END WHERE
+
+            ! add negative concentration increments to regions where ice
+            ! is already present and bound them to 0
+            ! in this case ice volume is changed based on the current thickness
+            WHERE ( .NOT. lincr_newice .AND. a_i_bkginc(:,:,:) < 0.0_wp )
+               a_i(:,:,:) = MAX( a_i(:,:,:) + a_i_bkginc(:,:,:) * zincwgt, 0.0_wp )
+               v_i(:,:,:) = a_i(:,:,:) * h_i(:,:,:)
+            END WHERE
+
+            ! compute changes in ice concentration and volume
+            WHERE ( lincr_newice )
+               zda_i(:,:,:) = 1.0_wp
+               zdv_i(:,:,:) = 1.0_wp
+            ELSEWHERE
+               zda_i(:,:,:) = a_i(:,:,:) * z1_a_i(:,:,:)
+               zdv_i(:,:,:) = v_i(:,:,:) * z1_v_i(:,:,:)
+            END WHERE
+
+            ! initialise thermodynamics of new ice being added to open water
+            ! just do it once since next IAU steps assume that new ice has
+            ! already been added in
+            IF ( kt == nitiaustr_r ) THEN
+
+               ! assign rn_zhi_damin to ice forming in open water
+               WHERE ( ANY( lincr_newice, DIM=3 ) )
+                  zhi_damin_2D(:,:) = rn_zhi_damin
+               ELSEWHERE
+                  zhi_damin_2D(:,:) = 0.0_wp
+               END WHERE
+
+               ! add ice concentration and volume
+               ! ensure the other prognostic variables are set to zero
+               WHERE ( lincr_newice )
+                  a_i(:,:,:) = MIN( 1.0_wp, a_i_bkginc(:,:,:) * zincwgt )
+                  v_i(:,:,:) = MIN( 1.0_wp, a_i_bkginc(:,:,:) * zincwgt ) * rn_zhi_damin
+                  v_s (:,:,:) = 0.0_wp
+                  a_ip(:,:,:) = 0.0_wp
+                  v_ip(:,:,:) = 0.0_wp
+                  sv_i(:,:,:) = 0.0_wp
+               END WHERE
+               DO jk = 1, nlay_i
+                  WHERE ( lincr_newice )
+                     e_i(:,:,jk,:) = 0.0_wp
+                  END WHERE
+               END DO
+               DO jk = 1, nlay_s
+                  WHERE ( lincr_newice )
+                     e_s(:,:,jk,:) = 0.0_wp
+                  END WHERE
+               END DO
+
+               ! Initialisation of the salt content and ice enthalpy
+               ! set flag of new ice to false after this
+               CALL init_new_ice_thd( zhi_damin_2D )
+               lincr_newice(:,:,:) = .FALSE.
+            END IF
+
+            ! maintain equivalent values for key prognostic variables
+            v_s(:,:,:) = v_s(:,:,:) * zda_i(:,:,:)
+            DO jk = 1, nlay_s
+               e_s(:,:,jk,:) = e_s(:,:,jk,:) * zda_i(:,:,:)
+            END DO
+            a_ip (:,:,:) = a_ip(:,:,:) * zda_i(:,:,:)
+            v_ip (:,:,:) = v_ip(:,:,:) * zda_i(:,:,:)
+
+            ! ice volume dependent variables
+            DO jk = 1, nlay_i
+               e_i(:,:,jk,:) = e_i(:,:,jk,:) * zdv_i(:,:,:)
+            END DO
 #endif
-            !
+
 #if defined key_cice && defined key_asminc
             ! Sea-ice : CICE case. Pass ice increment tendency into CICE
-            DO_2D( 0, 0, 0, 0 )
-               ndaice_da(ji,jj) = seaice_bkginc(ji,jj) * zincwgt / rn_Dt
-            END_2D
+            ndaice_da(:,:) = sic_bkginc(:,:) * zincwgt / rdt
 #endif
             !
-            IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
-               IF ( kt == nitiaufin_r ) THEN
-                  DEALLOCATE( seaice_bkginc )
-               ENDIF
+            IF ( kt == nitiaufin_r ) THEN
+               DEALLOCATE( sic_bkginc )
+#if defined key_si3 && defined key_asminc
+               DEALLOCATE( lincr_newice )
+               DEALLOCATE( a_i_bkginc )
+#endif
             ENDIF
             !
          ELSE
             !
 #if defined key_cice && defined key_asminc
-            DO_2D( 0, 0, 0, 0 )
-               ndaice_da(ji,jj) = 0._wp        ! Sea-ice : CICE case. Zero ice increment tendency into CICE
-            END_2D
+            ndaice_da(:,:) = 0._wp        ! Sea-ice : CICE case. Zero ice increment tendency into CICE
 #endif
             !
          ENDIF
@@ -936,138 +1112,301 @@ CONTAINS
          !
          IF ( kt == nitdin_r ) THEN
             !
-            l_1st_euler = .TRUE.              ! Force Euler forward step
-            !
-            ! Sea-ice : SI3 case
-            !
-#if defined key_si3
-            DO_2D( 0, 0, 0, 0 )
-               zofrld (ji,jj) = 1._wp - at_i(ji,jj)
-               zohicif(ji,jj) = hm_i(ji,jj)
-               !
-               ! Initialize the now fields the background + increment
-               at_i(ji,jj) = 1. - MIN( MAX( 1.-at_i(ji,jj) - seaice_bkginc(ji,jj), 0.0_wp), 1.0_wp)
-               at_i_b(ji,jj) = at_i(ji,jj)
-               fr_i(ji,jj) = at_i(ji,jj)        ! adjust ice fraction
-               !
-               zseaicendg(ji,jj) = zofrld(ji,jj) - (1. - at_i(ji,jj))   ! find out actual sea ice nudge applied
-            END_2D
-            !
-            ! Nudge sea ice depth to bring it up to a required minimum depth
-            WHERE( zseaicendg(:,:) > 0.0_wp .AND. hm_i(T2D(0)) < zhicifmin )
-               zhicifinc(:,:) = zhicifmin - hm_i(T2D(0))
-            ELSEWHERE
-               zhicifinc(:,:) = 0.0_wp
-            END WHERE
-            !
-            ! nudge ice depth
-            DO_2D( 0, 0, 0, 0 )
-               hm_i(ji,jj) = hm_i (ji,jj) + zhicifinc(ji,jj)
-            END_2D
-            !
-            ! seaice salinity balancing (to add)
-#endif
+            l_1st_euler = .TRUE.                    ! Force Euler forward step
+
+            IF(lwp) THEN
+               WRITE(numout,*)
+               WRITE(numout,*) 'sic_asm_inc : sea ice direct initialization at time step = ', kt
+               WRITE(numout,*) '~~~~~~~~~~~~'
+            ENDIF
             !
 #if defined key_cice && defined key_asminc
             ! Sea-ice : CICE case. Pass ice increment tendency into CICE
-            DO_2D( 0, 0, 0, 0 )
-               ndaice_da(ji,jj) = seaice_bkginc(ji,jj) / rn_Dt
-            END_2D
+           ndaice_da(:,:) = sic_bkginc(:,:) / rdt
 #endif
-            IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
-               IF ( .NOT. PRESENT(kindic) ) THEN
-                  DEALLOCATE( seaice_bkginc )
-               END IF
+            IF ( .NOT. PRESENT(kindic) ) THEN
+               DEALLOCATE( sic_bkginc )
+            END IF
+            !
+         ELSE
+            !
+#if defined key_cice && defined key_asminc
+            ndaice_da(:,:) = 0._wp     ! Sea-ice : CICE case. Zero ice increment tendency into CICE
+#endif
+            !
+         ENDIF
+         !
+      ENDIF
+      !
+   END SUBROUTINE sic_asm_inc
+
+
+   SUBROUTINE sit_asm_inc( kt, kindic )
+      !!----------------------------------------------------------------------
+      !!                    ***  ROUTINE sit_asm_inc  ***
+      !!
+      !! ** Purpose : Apply the sea ice thickness assimilation increment.
+      !!
+      !! ** Method  : Direct initialization or Incremental Analysis Updating.
+      !!
+      !! ** Action  :
+      !!
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in)           ::   kt       ! Current time step
+      INTEGER, INTENT(in), OPTIONAL ::   kindic   ! flag for disabling the deallocation
+      !
+      INTEGER  ::   it, jl
+      REAL(wp) ::   zincwgt                            ! IAU weight for current time step
+      !!----------------------------------------------------------------------
+      !
+      !                             !-----------------------------------------
+      IF ( ln_asmiau ) THEN         ! Incremental Analysis Updating
+         !                          !-----------------------------------------
+         !
+         IF ( ( kt >= nitiaustr_r ).AND.( kt <= nitiaufin_r ) ) THEN
+            !
+            it = kt - nit000 + 1
+            zincwgt = wgtiau(it)      ! IAU weight for the current time step
+            ! note this is not a tendency so should not be divided by rdt (as with the tracer and other increments)
+            !
+            IF(lwp) THEN
+               WRITE(numout,*)
+               WRITE(numout,*) 'sit_asm_inc : sea ice thickness IAU at time step = ', kt,' with IAU weight = ', wgtiau(it)
+               WRITE(numout,*) '~~~~~~~~~~~~'
+            ENDIF
+            !
+#if defined key_si3 && defined key_asminc
+            ! Sea-ice thickess: SI3 case
+            at_i = SUM( a_i(:,:,:), DIM=3 )
+            vt_i = SUM( v_i(:,:,:), DIM=3 )
+
+            ! Apply Grid-Box Mean (GBM) thickness increments where total ice concentration
+            ! is greater than minimum concentration required (rn_ai_damin)
+            ! This is done by calculating the initial volume fraction in each category and
+            ! then adding that fraction of GBM thickness increments to each category if
+            ! its ice concentration is greater than rn_acat_damin
+            DO jl = 1, jpl
+               WHERE( ABS( sit_bkginc(:,:) ) > epsi10 .AND. at_i(:,:) > rn_ai_damin .AND. a_i(:,:,jl) > rn_acat_damin )
+                   v_i(:,:,jl) = v_i(:,:,jl) + ( sit_bkginc(:,:) * zincwgt ) * v_i(:,:,jl) / vt_i(:,:)
+               END WHERE
+            END DO
+
+            ! Making sure that there are no negative ice volumes after GBM thickness
+            ! increments are applied
+            WHERE( v_i(:,:,:) < 0.0_wp )
+                v_i(:,:,:) = 0.0_wp
+                a_i(:,:,:) = 0.0_wp
+            END WHERE
+#endif
+
+#if defined key_cice && defined key_asminc
+            ! Sea-ice thickness: CICE case. Pass ice increment tendency into CICE
+            ndaice_da(:,:) = sit_bkginc(:,:) * zincwgt / rdt
+#endif
+            !
+            IF ( kt == nitiaufin_r ) THEN
+               DEALLOCATE( sit_bkginc )
             ENDIF
             !
          ELSE
             !
 #if defined key_cice && defined key_asminc
-            DO_2D( 0, 0, 0, 0 )
-               ndaice_da(ji,jj) = 0._wp     ! Sea-ice : CICE case. Zero ice increment tendency into CICE
-            END_2D
+            ndaice_da(:,:) = 0._wp        ! Sea-ice thickness: CICE case. Zero ice increment tendency into CICE
 #endif
             !
          ENDIF
+         !                          !-----------------------------------------
+      ELSEIF ( ln_asmdin ) THEN     ! Direct Initialization
+         !                          !-----------------------------------------
+         !
+         IF ( kt == nitdin_r ) THEN
+            !
+            l_1st_euler = .TRUE.                    ! Force Euler forward step
 
-!#if defined defined key_si3 || defined key_cice
-!
-!            IF (ln_seaicebal ) THEN
-!             !! balancing salinity increments
-!             !! simple case from limflx.F90 (doesn't include a mass flux)
-!             !! assumption is that as ice concentration is reduced or increased
-!             !! the snow and ice depths remain constant
-!             !! note that snow is being created where ice concentration is being increased
-!             !! - could be more sophisticated and
-!             !! not do this (but would need to alter h_snow)
-!
-!             usave(:,:,:)=sb(:,:,:)   ! use array as a temporary store
-!
-!             DO jj = 1, jpj
-!               DO ji = 1, jpi
-!           ! calculate change in ice and snow mass per unit area
-!           ! positive values imply adding salt to the ocean (results from ice formation)
-!           ! fwf : ice formation and melting
-!
-!                 zfons = ( -nfresh_da(ji,jj)*soce + nfsalt_da(ji,jj) )*rn_Dt
-!
-!           ! change salinity down to mixed layer depth
-!                 mld=hmld_kara(ji,jj)
-!
-!           ! prevent small mld
-!           ! less than 10m can cause salinity instability
-!                 IF (mld < 10) mld=10
-!
-!           ! set to bottom of a level
-!                 DO jk = jpk-1, 2, -1
-!                   IF ((mld > gdepw(ji,jj,jk,Kmm)) .and. (mld < gdepw(ji,jj,jk+1,Kmm))) THEN
-!                     mld=gdepw(ji,jj,jk+1,Kmm)
-!                     jkmax=jk
-!                   ENDIF
-!                 ENDDO
-!
-!            ! avoid applying salinity balancing in shallow water or on land
-!            !
-!
-!            ! dsal_ocn (psu kg m^-2) / (kg m^-3 * m)
-!
-!                 dsal_ocn=0.0_wp
-!                 sal_thresh=5.0_wp        ! minimum salinity threshold for salinity balancing
-!
-!                 if (tmask(ji,jj,1) > 0 .AND. tmask(ji,jj,jkmax) > 0 ) &
-!                              dsal_ocn = zfons / (rhop(ji,jj,1) * mld)
-!
-!           ! put increments in for levels in the mixed layer
-!           ! but prevent salinity below a threshold value
-!
-!                   DO jk = 1, jkmax
-!
-!                     IF (dsal_ocn > 0.0_wp .or. sb(ji,jj,jk)+dsal_ocn > sal_thresh) THEN
-!                           sb(ji,jj,jk) = sb(ji,jj,jk) + dsal_ocn
-!                           sn(ji,jj,jk) = sn(ji,jj,jk) + dsal_ocn
-!                     ENDIF
-!
-!                   ENDDO
-!
-!      !            !  salt exchanges at the ice/ocean interface
-!      !            zpmess         = zfons / rDt_ice    ! rDt_ice is ice timestep
-!      !
-!      !! Adjust fsalt. A +ve fsalt means adding salt to ocean
-!      !!           fsalt(ji,jj) =  fsalt(ji,jj) + zpmess     ! adjust fsalt
-!      !!
-!      !!           emps(ji,jj) = emps(ji,jj) + zpmess        ! or adjust emps (see icestp1d)
-!      !!                                                     ! E-P (kg m-2 s-2)
-!      !            emp(ji,jj) = emp(ji,jj) + zpmess          ! E-P (kg m-2 s-2)
-!               ENDDO !ji
-!             ENDDO !jj!
-!
-!            ENDIF !ln_seaicebal
-!
-!#endif
+            IF(lwp) THEN
+               WRITE(numout,*)
+               WRITE(numout,*) 'sit_asm_inc : sea ice thickness direct initialization at time step = ', kt
+               WRITE(numout,*) '~~~~~~~~~~~~'
+            ENDIF
+            !
+#if defined key_si3 && defined key_asminc
+            ! Sea-ice thickess: SI3 case
+            at_i = SUM( a_i(:,:,:), DIM=3 )
+            vt_i = SUM( v_i(:,:,:), DIM=3 )
+
+            ! Apply Grid-Box Mean (GBM) thickness increments where total ice concentration
+            ! is greater than minimum concentration required (rn_ai_damin)
+            ! This is done by calculating the initial volume fraction in each category and
+            ! then adding that fraction of GBM thickness increments to each category if
+            ! its ice concentration is greater than rn_acat_damin
+            DO jl = 1, jpl
+               WHERE( ABS( sit_bkginc(:,:) ) > epsi10 .AND. at_i(:,:) > rn_ai_damin .AND. a_i(:,:,jl) > rn_acat_damin )
+                   v_i(:,:,jl) = v_i(:,:,jl) + sit_bkginc(:,:) * v_i(:,:,jl) / vt_i(:,:)
+               END WHERE
+            END DO
+
+            ! Making sure that there are no negative ice volumes after GBM thickness
+            ! increments are applied
+            WHERE( v_i(:,:,:) < 0.0_wp )
+                v_i(:,:,:) = 0.0_wp
+                a_i(:,:,:) = 0.0_wp
+            END WHERE
+#endif
+
+#if defined key_cice && defined key_asminc
+            ! Sea-ice thickness: CICE case. Pass ice increment tendency into CICE
+            ndaice_da(:,:) = sit_bkginc(:,:) / rdt
+#endif
+            IF ( .NOT. PRESENT(kindic) ) THEN
+               DEALLOCATE( sit_bkginc )
+            END IF
+            !
+         ELSE
+            !
+#if defined key_cice && defined key_asminc
+            ndaice_da(:,:) = 0._wp     ! Sea-ice thickness: CICE case. Zero ice increment tendency into CICE
+#endif
+            !
+         ENDIF
          !
       ENDIF
       !
-   END SUBROUTINE seaice_asm_inc
+   END SUBROUTINE sit_asm_inc
+
+#if defined key_si3 && defined key_asminc
+   SUBROUTINE init_new_ice_thd( hi_new )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE init_new_ice_thd  ***
+      !!
+      !! ** Purpose :   Initialise thermodynamics of new ice
+      !!                forming at 1st category with thickness hi_new
+      !!
+      !! ** Method  :   Apply SI3  equations to initialise
+      !!                thermodynamics of new ice
+      !!
+      !! ** Action  :   Update sea ice thermodynamics
+      !!----------------------------------------------------------------------
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in)    ::   hi_new  ! total thickness of new ice
+
+      INTEGER             :: jj, ji, jk          ! loop variables
+      REAL(wp)            :: ztmelts             ! melting point
+      REAL(wp), PARAMETER :: ppSice_Fz = 2.3_wp  ! Salinity of the ice = F(z) [multiyear ice]
+
+      REAL(wp), DIMENSION(jpij) ::   zh_newice   ! 1d version of hi_new
+      REAL(wp), DIMENSION(jpij) ::   zs_newice   ! salinity of new ice
+      !!----------------------------------------------------------------------
+
+      ! Identify grid points where new ice forms
+      npti = 0   ;   nptidx(:) = 0
+      DO jj = 1, jpj
+         DO ji = 1, jpi
+            IF ( hi_new(ji,jj) > 0._wp ) THEN
+               npti = npti + 1
+               nptidx( npti ) = (jj - 1) * jpi + ji
+            ENDIF
+         END DO
+      END DO
+
+      ! Move from 2-D to 1-D vectors
+      IF ( npti > 0 ) THEN
+         CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,1:jpl), sv_i(:,:,:) )
+         CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d (1:npti,1:jpl), v_i (:,:,:) )
+         CALL tab_2d_1d( npti, nptidx(1:npti), zh_newice (1:npti) , hi_new        )
+         CALL tab_2d_1d( npti, nptidx(1:npti), sss_1d    (1:npti) , sss_m         )
+         CALL tab_2d_1d( npti, nptidx(1:npti), t_bo_1d   (1:npti) , t_bo          )
+         DO jk = 1, nlay_i
+            CALL tab_2d_1d( npti, nptidx(1:npti), e_i_1d(1:npti,jk), e_i(:,:,jk,1) )
+         END DO
+
+         ! --- Salinity of new ice --- !
+         SELECT CASE ( nn_icesal )
+         CASE ( 1 )                    ! Sice = constant
+            zs_newice(1:npti) = rn_icesal
+         CASE ( 2 )                    ! Sice = F(z,t) [Vancoppenolle et al (2005)]
+            DO ji = 1, npti
+               zs_newice(ji) = MIN(  4.606_wp + 0.91_wp / zh_newice(ji) , 0.5_wp * sss_1d(ji) )
+            END DO
+         CASE ( 3 )                    ! Sice = F(z) [multiyear ice]
+            zs_newice(1:npti) = ppSice_Fz
+         END SELECT
+
+         ! --- Update ice salt content --- !
+         DO ji = 1, npti
+            sv_i_2d(ji,1) = sv_i_2d(ji,1) + zs_newice(ji) * ( v_i_2d(ji,1) )
+         END DO
+
+         ! --- Heat content of new ice --- !
+         ! We assume that new ice is formed at the seawater freezing point
+         DO ji = 1, npti
+               ztmelts       = - rTmlt * zs_newice(ji)                  ! Melting point (C)
+               e_i_1d(ji,:)  =   rhoi * (  rcpi  * ( ztmelts - ( t_bo_1d(ji) - rt0 ) )                        &
+                  &                      + rLfus * ( 1.0_wp - ztmelts / MIN( t_bo_1d(ji) - rt0, -epsi10 ) )   &
+                  &                      - rcp   *         ztmelts )
+         END DO
+
+         ! Change units for e_i
+         DO jk = 1, nlay_i
+            e_i_1d(1:npti,jk) = e_i_1d(1:npti,jk) * v_i_2d(1:npti,1) * r1_nlay_i
+         END DO
+
+         ! Reforming full thermodynamic variables
+         CALL tab_2d_3d( npti, nptidx(1:npti), sv_i_2d(1:npti,1:jpl), sv_i(:,:,:) )
+         DO jk = 1, nlay_i
+               CALL tab_1d_2d( npti, nptidx(1:npti), e_i_1d(1:npti,jk), e_i(:,:,jk,1) )
+         END DO
+      END IF
+
+   END SUBROUTINE init_new_ice_thd
+#endif
+
+   SUBROUTINE verify_incs_bv( pwgt, Kmm, pts, punstab )
+      !!----------------------------------------------------------------------
+      !!                    ***  ROUTINE   ***
+      !!
+      !! ** Purpose : Map water column instabilities after applying increments
+      !!
+      !! ** Method  : Calculate Brunt-Vaisala N2 values
+      !!
+      !! ** Action  : Return mask where increments should not be applied
+      !!
+      !!----------------------------------------------------------------------
+      !!
+      !!
+      !!----------------------------------------------------------------------
+      IMPLICIT NONE
+      !
+      REAL(wp),                                  INTENT(IN)    :: pwgt       ! Weights applied to increments
+      INTEGER,                                   INTENT(IN)    :: Kmm        ! Time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(IN)    :: pts        ! Active tracers and RHS of tracer equation
+      REAL(wp), DIMENSION(jpi,jpj,jpk),          INTENT(INOUT) :: punstab    ! Flag grid points where water column is unstable (=0)
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts)                    ::   zntsn    ! T and S fields after applying increments
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts)                    :: zab        ! thermal/haline expansion ratio
+      REAL(wp), DIMENSION(jpi,jpj,jpk)                         :: zn2        ! Brunt-Vaisala frequency squared (s^2)
+      INTEGER                                                  :: jk, jj, ji ! Loop counters
+
+      ! T/S after applying increments
+      zntsn(:,:,:,jp_tem) = pts(:,:,:,jp_tem,Kmm) + t_bkginc(:,:,:) * pwgt
+      zntsn(:,:,:,jp_sal) = pts(:,:,:,jp_sal,Kmm) + s_bkginc(:,:,:) * pwgt
+
+      ! Get thermal/haline expansion ratio
+      CALL eos_rab( zntsn, zab, Kmm )
+
+      ! Compute Brunt-Vaisala frequency squared (given on W grid)
+      CALL bn2( zntsn, zab, zn2, Kmm )
+
+      jj_loop: DO jj = 1, jpj
+         ji_loop: DO ji = 1, jpi
+            jk_loop: DO jk = 1, jpk
+               IF ( gdepw(ji,jj,jk,Kmm) >= rn_zmin_bv .AND. gdepw(ji,jj,jk,Kmm) <= rn_zmax_bv .AND. &
+                 &  zn2(ji,jj,jk) < rn_bv_thres ) THEN
+                  punstab(ji,jj,:) = 0.0_wp
+                  EXIT jk_loop
+               END IF
+            END DO jk_loop
+         END DO ji_loop
+      END DO jj_loop
+
+   END SUBROUTINE verify_incs_bv
 
    !!======================================================================
 END MODULE asminc

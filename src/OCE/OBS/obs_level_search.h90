@@ -12,7 +12,10 @@
       !!
       !! ** Method  : Straightforward search
       !!
-      !! ** Action  : 
+      !! ** Action  : Will return level associated with T-point below the obs
+      !!              depth, except when observation is in the top box will 
+      !!              return level 2. Also, if obs depth greater than depth 
+      !!              of last wet T-point (kpk-1) will return level kpk.
       !!
       !! History :
       !!        !  2001-11  (N. Daget, A. Weaver)
@@ -42,7 +45,7 @@
       !------------------------------------------------------------------------
       DO ji = 1, kobs 
          kobsk(ji) = 1
-         depk: DO jk = 2, kgrd
+         depk: DO jk = 2, kgrd-1
             IF ( pgrddep(jk) >= pobsdep(ji) ) EXIT depk
          END DO depk
          kobsk(ji) = jk

@@ -48,6 +48,8 @@ MODULE tradmp
    CHARACTER(LEN=200) , PUBLIC ::   cn_resto    !: name of netcdf file containing restoration coefficient field
    !
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   resto    !: restoring coeff. on T and S (s-1)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   tclim    !: temperature climatology on each time step(Celcius)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sclim    !: salinity climatology on each time step (psu)
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -64,7 +66,9 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                ***  FUNCTION tra_dmp_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( resto(jpi,jpj,jpk), STAT= tra_dmp_alloc )
+      ALLOCATE( resto(jpi,jpj,jpk), &
+         &      tclim(jpi,jpj,jpk), &
+         &      sclim(jpi,jpj,jpk), STAT= tra_dmp_alloc )
       !
       CALL mpp_sum ( 'tradmp', tra_dmp_alloc )
       IF( tra_dmp_alloc > 0 )   CALL ctl_warn('tra_dmp_alloc: allocation of arrays failed')
@@ -112,6 +116,11 @@ CONTAINS
       ENDIF
       !                           !==  input T-S data at kt  ==!
       CALL dta_tsd( kt, zts_dta )            ! read and interpolates T-S data at kt
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         tclim(ji,jj,jk) = zts_dta(ji,jj,jk,jp_tem)
+         sclim(ji,jj,jk) = zts_dta(ji,jj,jk,jp_sal)
+      END_3D
       !
       SELECT CASE ( nn_zdmp )     !==  type of damping  ==!
       !

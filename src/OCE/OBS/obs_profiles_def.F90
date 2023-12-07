@@ -42,10 +42,12 @@ MODULE obs_profiles_def
       & obs_prof_valid,     &
       & obs_prof_alloc,     &
       & obs_prof_alloc_var, &
+      & obs_prof_alloc_ext, &
       & obs_prof_dealloc,   &
       & obs_prof_compress,  &
       & obs_prof_decompress,&
-      & obs_prof_staend
+      & obs_prof_staend,    &
+      & obs_prof_staend_ext
 
    !! * Type definition for valid observations
 
@@ -74,7 +76,7 @@ MODULE obs_profiles_def
          & vmod           !: Model counterpart of the profile data vector
 
       REAL(KIND=wp), POINTER, DIMENSION(:,:) :: &
-         & vext           !: Extra variables
+         & vadd           !: Additional variables
 
       INTEGER, POINTER, DIMENSION(:) :: &
          & nvind          !: Source indices of temp. data in compressed data
@@ -86,6 +88,24 @@ MODULE obs_profiles_def
 
    END TYPE obs_prof_var
 
+   !! * Type definition for extra variables
+
+   TYPE obs_prof_ext
+
+      ! Arrays with size equal to the number of observations
+
+      INTEGER, POINTER, DIMENSION(:) :: &
+         & nepidx,&       !: Profile number
+         & nelidx         !: Level number in profile
+
+      REAL(KIND=wp), POINTER, DIMENSION(:,:) :: &
+         & eobs           !: Profile data
+
+      INTEGER, POINTER, DIMENSION(:) :: &
+         & neind          !: Source indices of temp. data in compressed data
+
+   END TYPE obs_prof_ext
+
    !! * Type definition for profile observation type
 
    TYPE obs_prof
@@ -93,7 +113,8 @@ MODULE obs_profiles_def
       ! Bookkeeping
 
       INTEGER :: nvar     !: Number of variables
-      INTEGER :: next     !: Number of extra fields
+      INTEGER :: next     !: Number of extra variables
+      INTEGER :: nadd     !: Number of additional variables
       INTEGER :: nprof    !: Total number of profiles within window.
       INTEGER :: nstp     !: Number of time steps
       INTEGER :: npi      !: Number of 3D grid points
@@ -103,12 +124,31 @@ MODULE obs_profiles_def
 
       ! Bookkeeping arrays with sizes equal to number of variables
 
-      CHARACTER(len=8), POINTER, DIMENSION(:) :: &
-         & cvars          !: Variable names
+      CHARACTER(len=ilenname), POINTER, DIMENSION(:) :: &
+         & cvars,    &    !: Variable names
+         & cextvars, &    !: Extra variable names
+         & caddvars       !: Additional variable names
+
+      CHARACTER(len=ilenlong), POINTER, DIMENSION(:) :: &
+         & clong,    &    !: Variable long names
+         & cextlong       !: Extra variable long names
+
+      CHARACTER(len=ilenlong), POINTER, DIMENSION(:,:) :: &
+         & caddlong       !: Additional variable long names
+
+      CHARACTER(len=ilenunit), POINTER, DIMENSION(:) :: &
+         & cunit,    &    !: Variable units
+         & cextunit       !: Extra variable units
+
+      CHARACTER(len=ilenunit), POINTER, DIMENSION(:,:) :: &
+         & caddunit       !: Additional variable units
+
+      CHARACTER(len=ilengrid), POINTER, DIMENSION(:) :: &
+         & cgrid          !: Variable grids
 
       INTEGER, POINTER, DIMENSION(:) :: &
-         & nvprot,   &    !: Local total number of profile T data
-         & nvprotmpp      !: Global total number of profile T data
+         & nvprot,   &    !: Local total number of profile data
+         & nvprotmpp      !: Global total number of profile data
       
       ! Arrays with size equal to the number of profiles
 
@@ -130,7 +170,7 @@ MODULE obs_profiles_def
          & rlam, &        !: Longitude coordinate of profile data
          & rphi           !: Latitude coordinate of profile data
 
-      CHARACTER(LEN=8), POINTER, DIMENSION(:) :: &
+      CHARACTER(LEN=ilenwmo), POINTER, DIMENSION(:) :: &
          & cwmo           !: Profile WMO indentifier
       
       ! Arrays with size equal to the number of profiles times
@@ -139,8 +179,8 @@ MODULE obs_profiles_def
       INTEGER, POINTER, DIMENSION(:,:) :: &
          & npvsta, &      !: Start of each variable profile in full arrays
          & npvend, &      !: End of each variable profile in full arrays
-         & mi,     &      !: i-th grid coord. for interpolating to profile T data
-         & mj,     &      !: j-th grid coord. for interpolating to profile T data
+         & mi,     &      !: i-th grid coord. for interpolating to profile data
+         & mj,     &      !: j-th grid coord. for interpolating to profile data
          & ivqc           !: QC flags for all levels for a variable
 
       ! Arrays with size equal to idefnqcf
@@ -158,6 +198,16 @@ MODULE obs_profiles_def
       ! Arrays of variables
 
       TYPE(obs_prof_var), POINTER, DIMENSION(:) :: var
+
+      ! Extra variables
+
+      TYPE(obs_prof_ext) :: vext
+
+      INTEGER :: nvprotext  !: Local total number of extra variable profile data
+
+      INTEGER, POINTER, DIMENSION(:) :: &
+         & npvstaext, &      !: Start of extra variable profiles in full arrays
+         & npvendext         !: End of extra variable profiles in full arrays
 
       ! Arrays with size equal to the number of time steps in the window
 
@@ -196,8 +246,8 @@ MODULE obs_profiles_def
 
 CONTAINS
    
-   SUBROUTINE obs_prof_alloc( prof,  kvar, kext, kprof,  &
-      &                       ko3dt, kstp, kpi, kpj, kpk )
+   SUBROUTINE obs_prof_alloc( prof,  kvar, kadd, kext, kprof,  &
+      &                       ko3dt, ke3dt, kstp, kpi, kpj, kpk )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE obs_prof_alloc  ***
       !!                      
@@ -213,21 +263,24 @@ CONTAINS
       TYPE(obs_prof), INTENT(INOUT) :: prof      ! Profile data to be allocated
       INTEGER, INTENT(IN) :: kprof  ! Number of profiles
       INTEGER, INTENT(IN) :: kvar   ! Number of variables
-      INTEGER, INTENT(IN) :: kext   ! Number of extra fields within each variable
+      INTEGER, INTENT(IN) :: kadd   ! Number of additional fields within each variable
+      INTEGER, INTENT(IN) :: kext   ! Number of extra fields
       INTEGER, INTENT(IN), DIMENSION(kvar) :: &
          & ko3dt     ! Number of observations per variables
+      INTEGER, INTENT(IN) :: ke3dt  ! Number of observations per extra variables
       INTEGER, INTENT(IN) :: kstp   ! Number of time steps
       INTEGER, INTENT(IN) :: kpi    ! Number of 3D grid points
       INTEGER, INTENT(IN) :: kpj
       INTEGER, INTENT(IN) :: kpk
 
       !!* Local variables
-      INTEGER :: jvar
+      INTEGER :: jvar, jadd, jext
       INTEGER :: ji
 
       ! Set bookkeeping variables
 
       prof%nvar      = kvar
+      prof%nadd      = kadd
       prof%next      = kext
       prof%nprof     = kprof
 
@@ -240,14 +293,45 @@ CONTAINS
 
       ALLOCATE( &
          & prof%cvars(kvar),    &
+         & prof%clong(kvar),    &
+         & prof%cunit(kvar),    &
+         & prof%cgrid(kvar),    &
          & prof%nvprot(kvar),   &
          & prof%nvprotmpp(kvar) &
          )
          
       DO jvar = 1, kvar
          prof%cvars    (jvar) = "NotSet"
+         prof%clong    (jvar) = "NotSet"
+         prof%cunit    (jvar) = "NotSet"
+         prof%cgrid    (jvar) = ""
          prof%nvprot   (jvar) = ko3dt(jvar)
          prof%nvprotmpp(jvar) = 0
+      END DO
+
+      ! Allocate additional/extra variable metadata
+
+      ALLOCATE( &
+         & prof%caddvars(kadd),      &
+         & prof%caddlong(kadd,kvar), &
+         & prof%caddunit(kadd,kvar), &
+         & prof%cextvars(kext),      &
+         & prof%cextlong(kext),      &
+         & prof%cextunit(kext)       &
+         )
+         
+      DO jadd = 1, kadd
+         prof%caddvars(jadd) = "NotSet"
+         DO jvar = 1, kvar
+            prof%caddlong(jadd,jvar) = "NotSet"
+            prof%caddunit(jadd,jvar) = "NotSet"
+         END DO
+      END DO
+         
+      DO jext = 1, kext
+         prof%cextvars(jext) = "NotSet"
+         prof%cextlong(jext) = "NotSet"
+         prof%cextunit(jext) = "NotSet"
       END DO
 
       ! Allocate arrays of size number of profiles
@@ -305,12 +389,22 @@ CONTAINS
       ! For each variables allocate arrays of size number of observations
 
       DO jvar = 1, kvar
-
          IF ( ko3dt(jvar) >= 0 ) THEN
-            CALL obs_prof_alloc_var( prof, jvar, kext, ko3dt(jvar) )
+            CALL obs_prof_alloc_var( prof, jvar, kadd, ko3dt(jvar) )
          ENDIF
-         
       END DO
+      
+      ! Extra variables
+
+      IF ( kext > 0 ) THEN
+         prof%nvprotext = ke3dt
+         ALLOCATE( &
+            & prof%npvstaext(kprof), &  
+            & prof%npvendext(kprof) )
+         CALL obs_prof_alloc_ext( prof, kext, ke3dt )
+      ELSE
+         prof%nvprotext = 0
+      ENDIF
 
       ! Allocate arrays of size number of time step size
 
@@ -346,6 +440,12 @@ CONTAINS
          END DO
       END DO
 
+      IF ( kext > 0 ) THEN
+         DO ji = 1, ke3dt
+            prof%vext%neind(ji) = ji
+         END DO
+      ENDIF
+
       ! Set defaults for number of observations per time step
 
       prof%npstp(:)      = 0
@@ -376,7 +476,8 @@ CONTAINS
 
       !!* Local variables
       INTEGER :: &
-         & jvar
+         & jvar, &
+         & jext
 
       ! Deallocate arrays of size number of profiles
       ! times number of variables
@@ -417,13 +518,9 @@ CONTAINS
       ! For each variables allocate arrays of size number of observations
 
       DO jvar = 1, prof%nvar
-
          IF ( prof%nvprot(jvar) >= 0 ) THEN
-
             CALL obs_prof_dealloc_var( prof, jvar )
-
          ENDIF
-         
       END DO
 
       ! Dellocate obs_prof_var type
@@ -431,6 +528,15 @@ CONTAINS
          & prof%var &
          & )
 
+      ! Deallocate extra variables
+      IF ( prof%next > 0 ) THEN
+         DEALLOCATE( &
+            & prof%npvstaext, &  
+            & prof%npvendext  &
+            )
+         CALL obs_prof_dealloc_ext( prof )
+      ENDIF
+      
       ! Deallocate arrays of size number of time step size
 
       DEALLOCATE( &
@@ -457,15 +563,28 @@ CONTAINS
 
       DEALLOCATE( &
          & prof%cvars,    &
+         & prof%clong,    &
+         & prof%cunit,    &
+         & prof%cgrid,    &
          & prof%nvprot,   &
          & prof%nvprotmpp &
          )
 
+      ! Dellocate additional/extra variables metadata
+
+      DEALLOCATE( &
+         & prof%caddvars, &
+         & prof%caddlong, &
+         & prof%caddunit, &
+         & prof%cextvars, &
+         & prof%cextlong, &
+         & prof%cextunit  &
+         )
 
    END SUBROUTINE obs_prof_dealloc
 
 
-   SUBROUTINE obs_prof_alloc_var( prof, kvar, kext, kobs )
+   SUBROUTINE obs_prof_alloc_var( prof, kvar, kadd, kobs )
 
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE obs_prof_alloc_var  ***
@@ -479,7 +598,7 @@ CONTAINS
       !! * Arguments
       TYPE(obs_prof), INTENT(INOUT) :: prof   ! Profile data to be allocated
       INTEGER, INTENT(IN) :: kvar   ! Variable number
-      INTEGER, INTENT(IN) :: kext   ! Number of extra fields within each variable
+      INTEGER, INTENT(IN) :: kadd   ! Number of additional fields within each variable
       INTEGER, INTENT(IN) :: kobs   ! Number of observations
       
       ALLOCATE( & 
@@ -497,27 +616,28 @@ CONTAINS
          & prof%var(kvar)%idqcf(idefnqcf,kobs), &
          & prof%var(kvar)%nvqcf(idefnqcf,kobs)  &
          & )
-      IF (kext>0) THEN
+      IF (kadd>0) THEN
          ALLOCATE( & 
-            & prof%var(kvar)%vext(kobs,kext) &
+            & prof%var(kvar)%vadd(kobs,kadd) &
             & )
       ENDIF
 
    END SUBROUTINE obs_prof_alloc_var
 
+
    SUBROUTINE obs_prof_dealloc_var( prof, kvar )
 
       !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE obs_prof_alloc_var  ***
+      !!                     ***  ROUTINE obs_prof_dealloc_var  ***
       !!                      
-      !! ** Purpose : - Allocate data for variable data in profile arrays
+      !! ** Purpose : - Deallocate data for variable data in profile arrays
       !! 
       !! ** Method  : - Fortran-90 dynamic arrays
       !!
       !! History :
       !!        !  07-03  (K. Mogensen) Original code
       !! * Arguments
-      TYPE(obs_prof), INTENT(INOUT) :: prof   ! Profile data to be allocated
+      TYPE(obs_prof), INTENT(INOUT) :: prof   ! Profile data to be deallocated
       INTEGER, INTENT(IN) :: kvar      ! Variable number
       
       DEALLOCATE( & 
@@ -533,16 +653,67 @@ CONTAINS
          & prof%var(kvar)%idqcf,  &
          & prof%var(kvar)%nvqcf   &
          & )
-      IF (prof%next>0) THEN
+      IF (prof%nadd>0) THEN
          DEALLOCATE( & 
-            & prof%var(kvar)%vext  &
+            & prof%var(kvar)%vadd  &
             & )
       ENDIF
 
    END SUBROUTINE obs_prof_dealloc_var
 
+
+   SUBROUTINE obs_prof_alloc_ext( prof, kext, kobs )
+
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE obs_prof_alloc_ext  ***
+      !!                      
+      !! ** Purpose : - Allocate data for extra variables in profile arrays
+      !! 
+      !! ** Method  : - Fortran-90 dynamic arrays
+      !!
+      !! History :
+      !!        !  07-03  (K. Mogensen) Original code
+      !! * Arguments
+      TYPE(obs_prof), INTENT(INOUT) :: prof   ! Profile data to be allocated
+      INTEGER,        INTENT(IN)    :: kext   ! Number of extra variables
+      INTEGER,        INTENT(IN)    :: kobs   ! Number of observations
+
+      ALLOCATE( &
+         & prof%vext%nepidx(kobs),   &
+         & prof%vext%nelidx(kobs),   &
+         & prof%vext%neind(kobs),    &
+         & prof%vext%eobs(kobs,kext) &
+         & )
+
+   END SUBROUTINE obs_prof_alloc_ext
+
+
+   SUBROUTINE obs_prof_dealloc_ext( prof )
+
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE obs_prof_dealloc_var  ***
+      !!                      
+      !! ** Purpose : - Deallocate data for extra variables in profile arrays
+      !! 
+      !! ** Method  : - Fortran-90 dynamic arrays
+      !!
+      !! History :
+      !!        !  07-03  (K. Mogensen) Original code
+      !! * Arguments
+      TYPE(obs_prof), INTENT(INOUT) :: prof   ! Profile data to be deallocated
+      
+      DEALLOCATE( &
+         & prof%vext%nepidx, &
+         & prof%vext%nelidx, &
+         & prof%vext%eobs,   &
+         & prof%vext%neind   &
+         & )
+
+   END SUBROUTINE obs_prof_dealloc_ext
+
+
    SUBROUTINE obs_prof_compress( prof,   newprof, lallocate, &
-      &                          kumout, lvalid,   lvvalid )
+      &                          kumout, lvalid,  lvvalid )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE obs_prof_compress  ***
       !!                      
@@ -563,8 +734,8 @@ CONTAINS
       !! * Arguments
       TYPE(obs_prof), INTENT(IN)    :: prof      ! Original profile
       TYPE(obs_prof), INTENT(INOUT) :: newprof   ! New profile with the copy of the data
-      LOGICAL :: lallocate                ! Allocate newprof data
-      INTEGER,INTENT(IN) :: kumout        ! Fortran unit for messages
+      LOGICAL,        INTENT(IN)    :: lallocate ! Allocate newprof data
+      INTEGER,        INTENT(IN)    :: kumout    ! Fortran unit for messages
       TYPE(obs_prof_valid), OPTIONAL, INTENT(in) :: &
          & lvalid        ! Valid profiles
       TYPE(obs_prof_valid), OPTIONAL, INTENT(in), DIMENSION(prof%nvar) :: &
@@ -574,7 +745,9 @@ CONTAINS
       INTEGER :: inprof
       INTEGER, DIMENSION(prof%nvar) :: &
          & invpro
+      INTEGER :: invproext
       INTEGER :: jvar
+      INTEGER :: jadd
       INTEGER :: jext
       INTEGER :: ji
       INTEGER :: jj 
@@ -586,7 +759,7 @@ CONTAINS
       LOGICAL :: lallpresent
       LOGICAL :: lnonepresent
 
-      ! Check that either all or none of the masks are persent.
+      ! Check that either all or none of the masks are present.
 
       lallpresent  = .FALSE.
       lnonepresent = .FALSE.
@@ -606,28 +779,36 @@ CONTAINS
       IF ( lallpresent ) THEN
          inprof = 0
          invpro(:) = 0
+         invproext = 0
          DO ji = 1, prof%nprof
             IF ( lvalid%luse(ji) ) THEN
-               inprof=inprof+1
+               inprof = inprof + 1
                DO jvar = 1, prof%nvar
                   DO jj = prof%npvsta(ji,jvar), prof%npvend(ji,jvar)
                      IF ( lvvalid(jvar)%luse(jj) ) &
                         &           invpro(jvar) = invpro(jvar) +1
                   END DO
                END DO
+               IF ( prof%next > 0 ) THEN
+                  DO jj = prof%npvstaext(ji), prof%npvendext(ji)
+                     invproext = invproext + 1
+                  END DO
+               ENDIF
             ENDIF
          END DO
       ELSE
          inprof    = prof%nprof
          invpro(:) = prof%nvprot(:)
+         invproext = prof%nvprotext
       ENDIF
 
       ! Optionally allocate data in the new data structure
 
       IF ( lallocate ) THEN
          CALL obs_prof_alloc( newprof,   prof%nvar, &
-            &                 prof%next,            &
+            &                 prof%nadd, prof%next, &
             &                 inprof,    invpro,    &
+            &                 invproext,            &
             &                 prof%nstp, prof%npi,  &
             &                 prof%npj,  prof%npk )
       ENDIF
@@ -654,9 +835,14 @@ CONTAINS
 
       inprof    = 0
       invpro(:) = 0
+      invproext = 0
 
-      newprof%npvsta(:,:) =  0
-      newprof%npvend(:,:) = -1
+      newprof%npvsta(:,:)  =  0
+      newprof%npvend(:,:)  = -1
+      IF ( prof%next > 0 ) THEN
+         newprof%npvstaext(:) =  0
+         newprof%npvendext(:) = -1
+      ENDIF
       
       ! Loop over source profiles
 
@@ -669,7 +855,7 @@ CONTAINS
             inprof = inprof + 1
 
             newprof%mi(inprof,:)  = prof%mi(ji,:)
-            newprof%mj(inprof,:) = prof%mj(ji,:)
+            newprof%mj(inprof,:)  = prof%mj(ji,:)
             newprof%npidx(inprof) = prof%npidx(ji)
             newprof%npfil(inprof) = prof%npfil(ji)
             newprof%nyea(inprof)  = prof%nyea(ji)
@@ -740,9 +926,9 @@ CONTAINS
                         &                           prof%var(jvar)%vobs(jj)
                      newprof%var(jvar)%vmod(invpro(jvar))   = &
                         &                           prof%var(jvar)%vmod(jj)
-                     DO jext = 1, prof%next
-                        newprof%var(jvar)%vext(invpro(jvar),jext) = &
-                           &                      prof%var(jvar)%vext(jj,jext)
+                     DO jadd = 1, prof%nadd
+                        newprof%var(jvar)%vadd(invpro(jvar),jadd) = &
+                           &                      prof%var(jvar)%vadd(jj,jadd)
                      END DO
                   
                      ! nvind is the index of the original variable data
@@ -755,6 +941,40 @@ CONTAINS
 
             END DO
 
+            IF ( prof%next > 0 ) THEN
+
+               ! Extra variables
+
+               lfirst = .TRUE.
+
+               DO jj = prof%npvstaext(ji), prof%npvendext(ji)
+
+                  invproext = invproext + 1
+
+                  ! Book keeping information
+
+                  IF ( lfirst ) THEN
+                     lfirst = .FALSE.
+                     newprof%npvstaext(inprof) = invproext
+                  ENDIF
+                  newprof%npvendext(inprof) = invproext
+
+                  ! Variable data
+
+                  newprof%vext%nepidx(invproext) = prof%vext%nepidx(jj)
+                  newprof%vext%nelidx(invproext) = prof%vext%nelidx(jj)
+                  DO jext = 1, prof%next
+                     newprof%vext%eobs(invproext,jext) = prof%vext%eobs(jj,jext)
+                  END DO
+
+                  ! nvind is the index of the original variable data
+
+                  newprof%vext%neind(invproext)  = jj
+
+               END DO
+
+            ENDIF
+
          ENDIF
 
       END DO
@@ -766,16 +986,27 @@ CONTAINS
       END DO
       CALL obs_mpp_sum_integers ( newprof%nvprot, newprof%nvprotmpp,&
          &                        prof%nvar )
+      newprof%nvprotext = invproext
       
       ! Set book keeping variables which do not depend on number of obs.
 
       newprof%nvar     = prof%nvar
+      newprof%nadd     = prof%nadd
       newprof%next     = prof%next
       newprof%nstp     = prof%nstp
       newprof%npi      = prof%npi
       newprof%npj      = prof%npj
       newprof%npk      = prof%npk
       newprof%cvars(:) = prof%cvars(:)
+      newprof%clong(:) = prof%clong(:)
+      newprof%cunit(:) = prof%cunit(:)
+      newprof%cgrid(:) = prof%cgrid(:)
+      newprof%caddvars(:)   = prof%caddvars(:)
+      newprof%caddlong(:,:) = prof%caddlong(:,:)
+      newprof%caddunit(:,:) = prof%caddunit(:,:)
+      newprof%cextvars(:)   = prof%cextvars(:)
+      newprof%cextlong(:)   = prof%cextlong(:)
+      newprof%cextunit(:)   = prof%cextunit(:)
  
       ! Deallocate temporary data
 
@@ -809,6 +1040,7 @@ CONTAINS
       
       !!* Local variables
       INTEGER :: jvar
+      INTEGER :: jadd
       INTEGER :: jext
       INTEGER :: ji
       INTEGER :: jj
@@ -865,14 +1097,30 @@ CONTAINS
                oldprof%var(jvar)%vmod(jl)   = prof%var(jvar)%vmod(jj)
                oldprof%var(jvar)%idqcf(:,jl) = prof%var(jvar)%idqcf(:,jj)
                oldprof%var(jvar)%nvqcf(:,jl) = prof%var(jvar)%nvqcf(:,jj)
-               DO jext = 1, prof%next
-                  oldprof%var(jvar)%vext(jl,jext) = &
-                     &                        prof%var(jvar)%vext(jj,jext)
+               DO jadd = 1, prof%nadd
+                  oldprof%var(jvar)%vadd(jl,jadd) = &
+                     &                        prof%var(jvar)%vadd(jj,jadd)
                END DO
                
             END DO
 
          END DO
+
+         IF ( prof%next > 0 ) THEN
+
+            DO jj = prof%npvstaext(ji), prof%npvendext(ji)
+
+               jl = prof%vext%neind(jj)
+
+               oldprof%vext%nepidx(jl) = prof%vext%nepidx(jj)
+               oldprof%vext%nelidx(jl) = prof%vext%nelidx(jj)
+               DO jext = 1, prof%next
+                  oldprof%vext%eobs(jl,jext) = prof%vext%eobs(jj,jext)
+               END DO
+
+            END DO
+
+         ENDIF
          
       END DO
 
@@ -882,9 +1130,10 @@ CONTAINS
       
    END SUBROUTINE obs_prof_decompress
 
+
    SUBROUTINE obs_prof_staend( prof, kvarno )
       !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE obs_prof_decompress  ***
+      !!                     ***  ROUTINE obs_prof_staend  ***
       !!                      
       !! ** Purpose : - Set npvsta and npvend of a variable within 
       !!                an obs_prof_var type
@@ -923,6 +1172,48 @@ CONTAINS
       END DO
 
    END SUBROUTINE obs_prof_staend
+
+
+   SUBROUTINE obs_prof_staend_ext( prof )
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE obs_prof_staend_ext  ***
+      !!                      
+      !! ** Purpose : - Set npvsta and npvend within 
+      !!                an obs_prof_ext type
+      !!
+      !! ** Method  : - Find the start and stop of a profile by searching 
+      !!                through the data
+      !! 
+      !! History :
+      !!        !  07-04  (K. Mogensen) Original code
+      !!----------------------------------------------------------------------
+      !! * Arguments
+      TYPE(obs_prof),INTENT(INOUT) :: prof     ! Profile data
+
+      !!* Local variables
+      INTEGER :: ji
+      INTEGER :: iprofno
+
+      !-----------------------------------------------------------------------
+      ! Compute start and end bookkeeping arrays
+      !-----------------------------------------------------------------------
+
+      prof%npvstaext(:) = prof%nvprotext + 1
+      prof%npvendext(:) = -1
+      DO ji = 1, prof%nvprotext
+         iprofno = prof%vext%nepidx(ji)
+         prof%npvstaext(iprofno) = &
+            & MIN( ji, prof%npvstaext(iprofno) )
+         prof%npvendext(iprofno) = &
+            & MAX( ji, prof%npvendext(iprofno) )
+      END DO
+
+      DO ji = 1, prof%nprof
+         IF ( prof%npvstaext(ji) == ( prof%nvprotext + 1 ) ) &
+            & prof%npvstaext(ji) = 0
+      END DO
+
+   END SUBROUTINE obs_prof_staend_ext
    
 END MODULE obs_profiles_def
 

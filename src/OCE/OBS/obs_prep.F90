@@ -21,6 +21,10 @@ MODULE obs_prep
       & obs_mpp_sum_integers
    USE obs_inter_sup      ! Interpolation support
    USE obs_oper           ! Observation operators
+   USE obs_group_def, ONLY : &  ! Observation variable information
+      & cobsname_uvel, &
+      & cobsname_vvel, &
+      & jpmaxavtypes
    USE lib_mpp, ONLY :   ctl_warn, ctl_stop
    USE bdy_oce, ONLY : &        ! Boundary information
       idx_bdy, nb_bdy, ln_bdy
@@ -42,10 +46,13 @@ MODULE obs_prep
 
 CONTAINS
 
-   SUBROUTINE obs_pre_surf( surfdata, surfdataqc, ld_nea, ld_bound_reject, &
-                            kqc_cutoff )
+   SUBROUTINE obs_pre_surf( surfdata, surfdataqc, &
+      &                     kpi, kpj, &   
+      &                     pmask, pglam, pgphi, &
+      &                     ld_nea, ld_bound_reject, &
+      &                     kqc_cutoff )
       !!----------------------------------------------------------------------
-      !!                    ***  ROUTINE obs_pre_sla  ***
+      !!                    ***  ROUTINE obs_pre_surf  ***
       !!
       !! ** Purpose : First level check and screening of surface observations
       !!
@@ -62,13 +69,17 @@ CONTAINS
       !!----------------------------------------------------------------------
       !! * Modules used
       USE par_oce             ! Ocean parameters
-      USE dom_oce, ONLY       :   glamt, gphit, tmask   ! Geographical information
       !! * Arguments
       TYPE(obs_surf), INTENT(INOUT) :: surfdata    ! Full set of surface data
-      TYPE(obs_surf), INTENT(INOUT) :: surfdataqc   ! Subset of surface data not failing screening
-      LOGICAL, INTENT(IN) :: ld_nea         ! Switch for rejecting observation near land
+      TYPE(obs_surf), INTENT(INOUT) :: surfdataqc  ! Subset of surface data not failing screening
+      INTEGER, INTENT(IN) :: kpi, kpj              ! Local domain sizes      
+      REAL(wp), INTENT(IN), DIMENSION(kpi,kpj,surfdata%nvar) ::   pmask
+      REAL(wp), INTENT(IN), DIMENSION(kpi,kpj,surfdata%nvar) :: &
+         & pglam, &
+         & pgphi
+      LOGICAL, INTENT(IN) :: ld_nea                ! Switch for rejecting observation near land
       LOGICAL, INTENT(IN) :: ld_bound_reject       ! Switch for rejecting obs near the boundary
-      INTEGER, INTENT(IN), OPTIONAL :: kqc_cutoff   ! cut off for QC value
+      INTEGER, INTENT(IN), OPTIONAL :: kqc_cutoff  ! cut off for QC value
       !! * Local declarations
       INTEGER :: iqc_cutoff = 255   ! cut off for QC value
       INTEGER :: iyea0        ! Initial date
@@ -77,25 +88,28 @@ CONTAINS
       INTEGER :: ihou0    
       INTEGER :: imin0
       INTEGER :: icycle       ! Current assimilation cycle
-                              ! Counters for observations that
-      INTEGER :: iotdobs      !  - outside time domain
-      INTEGER :: iosdsobs     !  - outside space domain
-      INTEGER :: ilansobs     !  - within a model land cell
-      INTEGER :: inlasobs     !  - close to land
-      INTEGER :: igrdobs      !  - fail the grid search
-      INTEGER :: ibdysobs     !  - close to open boundary
-                              ! Global counters for observations that
-      INTEGER :: iotdobsmpp     !  - outside time domain
-      INTEGER :: iosdsobsmpp    !  - outside space domain
-      INTEGER :: ilansobsmpp    !  - within a model land cell
-      INTEGER :: inlasobsmpp    !  - close to land
-      INTEGER :: igrdobsmpp     !  - fail the grid search
-      INTEGER :: ibdysobsmpp  !  - close to open boundary
+                                                        ! Counters for observations that are
+      INTEGER                           :: iotdobs      !  - outside time domain
+      INTEGER, DIMENSION(surfdata%nvar) :: iosdsobs     !  - outside space domain
+      INTEGER, DIMENSION(surfdata%nvar) :: ilansobs     !  - within a model land cell
+      INTEGER, DIMENSION(surfdata%nvar) :: inlasobs     !  - close to land
+      INTEGER, DIMENSION(surfdata%nvar) :: ibdysobs     !  - close to open boundary
+      INTEGER                           :: igrdobs      !  - fail the grid search      
+                                                        ! Global counters for observations that
+      INTEGER                           :: iotdobsmpp   !  - outside time domain
+      INTEGER, DIMENSION(surfdata%nvar) :: iosdsobsmpp  !  - outside space domain
+      INTEGER, DIMENSION(surfdata%nvar) :: ilansobsmpp  !  - within a model land cell
+      INTEGER, DIMENSION(surfdata%nvar) :: inlasobsmpp  !  - close to land
+      INTEGER, DIMENSION(surfdata%nvar) :: ibdysobsmpp  !  - close to open boundary
+      INTEGER                           :: igrdobsmpp   !  - fail the grid search
+
       LOGICAL, DIMENSION(:), ALLOCATABLE :: & 
          & llvalid            ! SLA data selection
-      INTEGER :: jobs         ! Obs. loop variable
+      INTEGER :: jobs         ! Obs. loop counter
+      INTEGER :: jvar         ! Variable loop counter
       INTEGER :: jstp         ! Time loop variable
       INTEGER :: inrc         ! Time index variable
+      CHARACTER(LEN=256) ::   clout1  ! Diagnostic output line
       !!----------------------------------------------------------------------
 
       IF(lwp) WRITE(numout,*) 'obs_pre_surf : Preparing the surface observations...'
@@ -110,17 +124,17 @@ CONTAINS
 
       icycle = nn_no     ! Assimilation cycle
 
-      ! Diagnotics counters for various failures.
+      ! Diagnostic counters for various failures.
 
       iotdobs  = 0
       igrdobs  = 0
-      iosdsobs = 0
-      ilansobs = 0
-      inlasobs = 0
-      ibdysobs = 0 
+      iosdsobs(:) = 0
+      ilansobs(:) = 0
+      inlasobs(:) = 0
+      ibdysobs(:) = 0 
 
       ! Set QC cutoff to optional value if provided
-      IF ( PRESENT(kqc_cutoff) ) iqc_cutoff=kqc_cutoff
+      IF ( PRESENT(kqc_cutoff) ) iqc_cutoff = kqc_cutoff
 
       ! -----------------------------------------------------------------------
       ! Find time coordinate for surface data
@@ -138,8 +152,10 @@ CONTAINS
       ! Check for surface data failing the grid search
       ! -----------------------------------------------------------------------
 
-      CALL obs_coo_grd( surfdata%nsurf,   surfdata%mi, surfdata%mj, &
-         &              surfdata%nqc,     igrdobs                         )
+      DO jvar = 1, surfdata%nvar
+         CALL obs_coo_grd( surfdata%nsurf,      surfdata%mi(:,jvar),         &
+            &              surfdata%mj(:,jvar), surfdata%nqc,        igrdobs )
+      END DO
 
       CALL obs_mpp_sum_integer( igrdobs, igrdobsmpp )
 
@@ -147,21 +163,22 @@ CONTAINS
       ! Check for land points. 
       ! -----------------------------------------------------------------------
 
-      CALL obs_coo_spc_2d( surfdata%nsurf,              &
-         &                 jpi,          jpj,          &
-         &                 surfdata%mi,   surfdata%mj,   & 
-         &                 surfdata%rlam, surfdata%rphi, &
-         &                 glamt,        gphit,        &
-         &                 tmask(:,:,1), surfdata%nqc,  &
-         &                 iosdsobs,     ilansobs,     &
-         &                 inlasobs,     ld_nea,       &
-         &                 ibdysobs,     ld_bound_reject, &
-         &                 iqc_cutoff                     )
-
-      CALL obs_mpp_sum_integer( iosdsobs, iosdsobsmpp )
-      CALL obs_mpp_sum_integer( ilansobs, ilansobsmpp )
-      CALL obs_mpp_sum_integer( inlasobs, inlasobsmpp )
-      CALL obs_mpp_sum_integer( ibdysobs, ibdysobsmpp )
+      DO jvar = 1, surfdata%nvar
+         CALL obs_coo_spc_2d( surfdata%nsurf,                           &
+            &                 jpi,                 jpj,                 &
+            &                 surfdata%mi(:,jvar), surfdata%mj(:,jvar), & 
+            &                 surfdata%rlam,       surfdata%rphi,       &
+            &                 pglam(:,:,jvar),     pgphi(:,:,jvar),     &
+            &                 pmask(:,:,jvar),     surfdata%nqc,        &
+            &                 iosdsobs(jvar),      ilansobs(jvar),      &
+            &                 inlasobs(jvar),      ld_nea,              &
+            &                 ibdysobs(jvar),      ld_bound_reject,     &
+            &                 iqc_cutoff                     )
+         CALL obs_mpp_sum_integer( iosdsobs(jvar), iosdsobsmpp(jvar) )
+         CALL obs_mpp_sum_integer( ilansobs(jvar), ilansobsmpp(jvar) )
+         CALL obs_mpp_sum_integer( inlasobs(jvar), inlasobsmpp(jvar) )
+         CALL obs_mpp_sum_integer( ibdysobs(jvar), ibdysobsmpp(jvar) )
+      END DO
 
       ! -----------------------------------------------------------------------
       ! Copy useful data from the surfdata data structure to
@@ -191,32 +208,43 @@ CONTAINS
       ! Update the total observation counter array
       
       IF(lwp) THEN
+         DO jvar = 1, surfdataqc%nvar       
+            IF ( jvar == 1 ) THEN
+               clout1 = TRIM(surfdataqc%cvars(1))
+            ELSE
+               WRITE(clout1,'(A,A1,A)') TRIM(clout1), '/', TRIM(surfdataqc%cvars(jvar))
+            ENDIF
+         END DO
+               
          WRITE(numout,*)
-         WRITE(numout,*) ' '//surfdataqc%cvars(1)//' data outside time domain                  = ', &
+         WRITE(numout,*) ' '//TRIM(clout1)//' data outside time domain                  = ', &
             &            iotdobsmpp
-         WRITE(numout,*) ' Remaining '//surfdataqc%cvars(1)//' data that failed grid search    = ', &
+         WRITE(numout,*) ' Remaining '//TRIM(clout1)//' data that failed grid search    = ', &
             &            igrdobsmpp
-         WRITE(numout,*) ' Remaining '//surfdataqc%cvars(1)//' data outside space domain       = ', &
-            &            iosdsobsmpp
-         WRITE(numout,*) ' Remaining '//surfdataqc%cvars(1)//' data at land points             = ', &
-            &            ilansobsmpp
-         IF (ld_nea) THEN
-            WRITE(numout,*) ' Remaining '//surfdataqc%cvars(1)//' data near land points (removed) = ', &
-               &            inlasobsmpp
-         ELSE
-            WRITE(numout,*) ' Remaining '//surfdataqc%cvars(1)//' data near land points (kept)    = ', &
-               &            inlasobsmpp
-         ENDIF
-         WRITE(numout,*) ' Remaining '//surfdataqc%cvars(1)//' data near open boundary (removed) = ', &
-            &            ibdysobsmpp  
-         WRITE(numout,*) ' '//surfdataqc%cvars(1)//' data accepted                             = ', &
-            &            surfdataqc%nsurfmpp
+
+         DO jvar = 1, surfdataqc%nvar            
+            WRITE(numout,*) ' Remaining '//surfdataqc%cvars(jvar)//' data outside space domain       = ', &
+                &            iosdsobsmpp(jvar)
+             WRITE(numout,*) ' Remaining '//surfdataqc%cvars(jvar)//' data at land points             = ', &
+                &            ilansobsmpp(jvar)
+             IF (ld_nea) THEN
+                WRITE(numout,*) ' Remaining '//surfdataqc%cvars(jvar)//' data near land points (removed) = ', &
+                   &            inlasobsmpp(jvar)
+             ELSE
+                WRITE(numout,*) ' Remaining '//surfdataqc%cvars(jvar)//' data near land points (kept)    = ', &
+                   &            inlasobsmpp(jvar)
+             ENDIF     
+             WRITE(numout,*) ' Remaining '//surfdataqc%cvars(jvar)//' data near open boundary (removed) = ', &
+                &            ibdysobsmpp(jvar)
+          END DO
+          WRITE(numout,*) ' '//TRIM(clout1)//' data accepted                             = ', &
+             &            surfdataqc%nsurfmpp
 
          WRITE(numout,*)
          WRITE(numout,*) ' Number of observations per time step :'
          WRITE(numout,*)
-         WRITE(numout,'(10X,A,10X,A)')'Time step',surfdataqc%cvars(1)
-         WRITE(numout,'(10X,A,5X,A)')'---------','-----------------'
+         WRITE(numout,'(10X,A,10X,A)') 'Time step', TRIM(clout1)
+         WRITE(numout,'(10X,A,5X,A)')  '---------', '-----------------'
          CALL FLUSH(numout)
       ENDIF
       
@@ -243,8 +271,9 @@ CONTAINS
 
    SUBROUTINE obs_pre_prof( profdata, prodatqc, ld_var, &
       &                     kpi, kpj, kpk, &
-      &                     zmask, pglam, pgphi,  &
-      &                     ld_nea, ld_bound_reject, Kmm, kdailyavtypes,  kqc_cutoff )
+      &                     pmask, pglam, pgphi,  &
+      &                     ld_nea, ld_bound_reject, Kmm, &
+      &                     knavtypes, kdailyavtypes, kqc_cutoff )
 
 !!----------------------------------------------------------------------
       !!                    ***  ROUTINE obs_pre_prof  ***
@@ -274,10 +303,10 @@ CONTAINS
       LOGICAL, INTENT(IN) :: ld_bound_reject      ! Switch for rejecting observations near the boundary
       INTEGER, INTENT(IN) :: kpi, kpj, kpk        ! Local domain sizes
       INTEGER, INTENT(IN) :: Kmm                  ! time-level index
-      INTEGER, DIMENSION(imaxavtypes), OPTIONAL :: &
+      INTEGER, INTENT(IN) :: knavtypes            ! Number of daily average types
+      INTEGER, INTENT(IN), DIMENSION(knavtypes), OPTIONAL :: &
          & kdailyavtypes                          ! Types for daily averages
-      REAL(wp), INTENT(IN), DIMENSION(kpi,kpj,kpk,profdata%nvar) :: &
-         & zmask
+      REAL(wp), INTENT(IN), DIMENSION(kpi,kpj,kpk,profdata%nvar) ::   pmask
       REAL(wp), INTENT(IN), DIMENSION(kpi,kpj,profdata%nvar) :: &
          & pglam, &
          & pgphi
@@ -309,6 +338,8 @@ CONTAINS
       INTEGER :: igrdobsmpp                            !  - fail the grid search
       INTEGER :: iuvchkumpp                            !  - reject UVEL if VVEL rejected
       INTEGER :: iuvchkvmpp                            !  - reject VVEL if UVEL rejected
+      INTEGER :: iuvar                                 !  - UVEL index
+      INTEGER :: ivvar                                 !  - VVEL index
       TYPE(obs_prof_valid) ::  llvalid      ! Profile selection 
       TYPE(obs_prof_valid), DIMENSION(profdata%nvar) :: &
          & llvvalid           ! var selection 
@@ -316,8 +347,7 @@ CONTAINS
       INTEGER :: jobs         ! Obs. loop variable
       INTEGER :: jstp         ! Time loop variable
       INTEGER :: inrc         ! Time index variable
-      CHARACTER(LEN=256) :: cout1  ! Diagnostic output line
-      CHARACTER(LEN=256) :: cout2  ! Diagnostic output line
+      CHARACTER(LEN=256) ::   clout1, clout2   ! Diagnostic output lines
       !!----------------------------------------------------------------------
 
       IF(lwp) WRITE(numout,*)'obs_pre_prof: Preparing the profile data...'
@@ -345,13 +375,13 @@ CONTAINS
 
 
       ! Set QC cutoff to optional value if provided
-      IF ( PRESENT(kqc_cutoff) ) iqc_cutoff=kqc_cutoff
+      IF ( PRESENT(kqc_cutoff) ) iqc_cutoff = kqc_cutoff
 
       ! -----------------------------------------------------------------------
       ! Find time coordinate for profiles
       ! -----------------------------------------------------------------------
 
-      IF ( PRESENT(kdailyavtypes) ) THEN
+      IF ( PRESENT(kdailyavtypes) .AND. ( knavtypes > 0 ) ) THEN
          CALL obs_coo_tim_prof( icycle, &
             &              iyea0,   imon0,   iday0,   ihou0,   imin0,      &
             &              profdata%nprof,   profdata%nyea, profdata%nmon, &
@@ -402,7 +432,7 @@ CONTAINS
             &                 profdata%rlam,           profdata%rphi,           &
             &                 profdata%var(jvar)%vdep,                          &
             &                 pglam(:,:,jvar),         pgphi(:,:,jvar),         &
-            &                 gdept_1d,                zmask(:,:,:,jvar),       &
+            &                 gdept_1d,                pmask(:,:,:,jvar),       &
             &                 profdata%nqc,            profdata%var(jvar)%nvqc, &
             &                 iosdvobs(jvar),          ilanvobs(jvar),          &
             &                 inlavobs(jvar),          ld_nea,                  &
@@ -419,8 +449,17 @@ CONTAINS
       ! Reject u if v is rejected and vice versa
       ! -----------------------------------------------------------------------
 
-      IF ( TRIM(profdata%cvars(1)) == 'UVEL' ) THEN
-         CALL obs_uv_rej( profdata, iuvchku, iuvchkv, iqc_cutoff )
+      iuvar = 0
+      ivvar = 0
+      DO jvar = 1,profdata%nvar
+         IF ( TRIM(profdata%cvars(jvar)) == cobsname_uvel ) THEN
+            iuvar = jvar
+         ELSEIF ( TRIM(profdata%cvars(jvar)) == cobsname_vvel ) THEN
+            ivvar = jvar
+         ENDIF
+      END DO
+      IF ( (iuvar > 0) .AND. (ivvar > 0) ) THEN
+         CALL obs_uv_rej( profdata, iuvchku, iuvchkv, iqc_cutoff, iuvar, ivvar )
          CALL obs_mpp_sum_integer( iuvchku, iuvchkumpp )
          CALL obs_mpp_sum_integer( iuvchkv, iuvchkvmpp )
       ENDIF
@@ -474,20 +513,22 @@ CONTAINS
             WRITE(numout,*) ' Remaining '//prodatqc%cvars(jvar)//' data at land points             = ', &
                &            ilanvobsmpp(jvar)
             IF (ld_nea) THEN
-               WRITE(numout,*) ' Remaining '//prodatqc%cvars(jvar)//' data near land points (removed) = ',&
+               WRITE(numout,*) ' Remaining '//prodatqc%cvars(jvar)//' data near land points (removed) = ', &
                   &            inlavobsmpp(jvar)
             ELSE
-               WRITE(numout,*) ' Remaining '//prodatqc%cvars(jvar)//' data near land points (kept)    = ',&
+               WRITE(numout,*) ' Remaining '//prodatqc%cvars(jvar)//' data near land points (kept)    = ', &
                   &            inlavobsmpp(jvar)
             ENDIF
-            IF ( TRIM(profdata%cvars(jvar)) == 'UVEL' ) THEN
-               WRITE(numout,*) ' U observation rejected since V rejected     = ', &
-                  &            iuvchku
-            ELSE IF ( TRIM(profdata%cvars(jvar)) == 'VVEL' ) THEN
-               WRITE(numout,*) ' V observation rejected since U rejected     = ', &
-                  &            iuvchkv
+            IF ( (iuvar > 0) .AND. (ivvar > 0) ) THEN
+               IF ( TRIM(profdata%cvars(jvar)) == cobsname_uvel ) THEN
+                  WRITE(numout,*) ' U observation rejected since V rejected     = ', &
+                     &            iuvchku
+               ELSE IF ( TRIM(profdata%cvars(jvar)) == cobsname_vvel ) THEN
+                  WRITE(numout,*) ' V observation rejected since U rejected     = ', &
+                     &            iuvchkv
+               ENDIF
             ENDIF
-            WRITE(numout,*) ' Remaining '//prodatqc%cvars(jvar)//' data near open boundary (removed) = ',&
+            WRITE(numout,*) ' Remaining '//prodatqc%cvars(jvar)//' data near open boundary (removed) = ', &
                   &            ibdyvobsmpp(jvar)
             WRITE(numout,*) ' '//prodatqc%cvars(jvar)//' data accepted                             = ', &
                &            prodatqc%nvprotmpp(jvar)
@@ -496,14 +537,14 @@ CONTAINS
          WRITE(numout,*)
          WRITE(numout,*) ' Number of observations per time step :'
          WRITE(numout,*)
-         WRITE(cout1,'(10X,A9,5X,A8)') 'Time step', 'Profiles'
-         WRITE(cout2,'(10X,A9,5X,A8)') '---------', '--------'
+         WRITE(clout1,'(10X,A9,5X,A8)') 'Time step', 'Profiles'
+         WRITE(clout2,'(10X,A9,5X,A8)') '---------', '--------'
          DO jvar = 1, prodatqc%nvar
-            WRITE(cout1,'(A,5X,A11)') TRIM(cout1), TRIM(prodatqc%cvars(jvar))
-            WRITE(cout2,'(A,5X,A11)') TRIM(cout2), '-----------'
+            WRITE(clout1,'(A,5X,A11)') TRIM(clout1), TRIM(prodatqc%cvars(jvar))
+            WRITE(clout2,'(A,5X,A11)') TRIM(clout2), '-----------'
          END DO
-         WRITE(numout,*) cout1
-         WRITE(numout,*) cout2
+         WRITE(numout,*) clout1
+         WRITE(numout,*) clout2
       ENDIF
       
       DO jobs = 1, prodatqc%nprof
@@ -530,11 +571,11 @@ CONTAINS
       IF ( lwp ) THEN
          DO jstp = nit000 - 1, nitend
             inrc = jstp - nit000 + 2
-            WRITE(cout1,'(10X,I9,5X,I8)') jstp, prodatqc%npstpmpp(inrc)
+            WRITE(clout1,'(10X,I9,5X,I8)') jstp, prodatqc%npstpmpp(inrc)
             DO jvar = 1, prodatqc%nvar
-               WRITE(cout1,'(A,5X,I11)') TRIM(cout1), prodatqc%nvstpmpp(inrc,jvar)
+               WRITE(clout1,'(A,5X,I11)') TRIM(clout1), prodatqc%nvstpmpp(inrc,jvar)
             END DO
-            WRITE(numout,*) cout1
+            WRITE(numout,*) clout1
          END DO
       ENDIF
 
@@ -783,13 +824,12 @@ CONTAINS
       INTEGER, DIMENSION(kobsno), INTENT(OUT) :: &
          & kobsstp          ! Number of time steps up to the 
                             ! observation time
-      INTEGER, DIMENSION(imaxavtypes), OPTIONAL :: &
-         & kdailyavtypes    ! Types for daily averages
+      INTEGER, DIMENSION(jpmaxavtypes), OPTIONAL ::   kdailyavtypes   ! Types for daily averages
       INTEGER, OPTIONAL, INTENT(IN) :: kqc_cutoff           ! QC cutoff value
 
       !! * Local declarations
       INTEGER :: jobs
-      INTEGER :: iqc_cutoff=255
+      INTEGER :: iqc_cutoff = 255
 
       !-----------------------------------------------------------------------
       ! Call standard obs_coo_tim
@@ -1118,10 +1158,13 @@ CONTAINS
          & zbmsk              ! Boundary mask
       REAL(KIND=wp), DIMENSION(jpi,jpj) :: zbdymask
       REAL(KIND=wp), DIMENSION(2,2,kpk,kprofno) :: &
+         & zgdept, &
          & zgdepw
       REAL(KIND=wp), DIMENSION(2,2,kprofno) :: &
          & zglam, &           ! Model longitude at grid points
-         & zgphi              ! Model latitude at grid points
+         & zgphi, &           ! Model latitude at grid points
+         & zbathy             ! Index of deepest wet level at grid points
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdept
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdepw
       INTEGER, DIMENSION(2,2,kprofno) :: &
          & igrdi, &           ! Grid i,j
@@ -1130,6 +1173,7 @@ CONTAINS
       LOGICAL :: ll_next_to_land    ! Is a profile next to land 
       INTEGER :: iig, ijg           ! i,j of observation on model grid point.
       INTEGER :: jobs, jobsp, jk, ji, jj
+      REAL(KIND=wp) ::   zmaxdept, zmaxdepw
       !!----------------------------------------------------------------------
 
       ! Get grid point indices
@@ -1181,10 +1225,14 @@ CONTAINS
       CALL obs_int_comm_3d( 2, 2, kprofno, kpi, kpj, kpk, igrdi, igrdj, pmask, zgmsk )
       CALL obs_int_comm_2d( 2, 2, kprofno, kpi, kpj, igrdi, igrdj, plam, zglam )
       CALL obs_int_comm_2d( 2, 2, kprofno, kpi, kpj, igrdi, igrdj, pphi, zgphi )
+      CALL obs_int_comm_2d( 2, 2, kprofno, kpi, kpj, igrdi, igrdj, REAL(mbkt), zbathy )
       DO jk = 1, jpk
+         zdept(:,:,jk) = gdept(:,:,jk,Kmm)
          zdepw(:,:,jk) = gdepw(:,:,jk,Kmm)
       END DO
-      CALL obs_int_comm_3d( 2, 2, kprofno, kpi, kpj, kpk, igrdi, igrdj, zdepw(:,:,:), zgdepw )
+      ! Need to know the bathy depth for each observation for sco
+      CALL obs_int_comm_3d( 2, 2, kprofno, kpi, kpj, kpk, igrdi, igrdj, zdepw, zgdepw )
+      CALL obs_int_comm_3d( 2, 2, kprofno, kpi, kpj, kpk, igrdi, igrdj, zdept, zgdept )
 
       DO jobs = 1, kprofno
 
@@ -1219,6 +1267,20 @@ CONTAINS
          ! Reject observations
 
          DO jobsp = kpstart(jobs), kpend(jobs)
+
+            ! Calculate max T and W depths of 2x2 grid
+            zmaxdept = zgdept(1,1,NINT(zbathy(1,1,jobs)),jobs)
+            zmaxdepw = zgdepw(1,1,NINT(zbathy(1,1,jobs))+1,jobs)
+            DO jj = 1, 2
+               DO ji = 1, 2
+                  IF ( zgdept(ji,jj,NINT(zbathy(ji,jj,jobs)),jobs) > zmaxdept ) THEN
+                     zmaxdept = zgdept(ji,jj,NINT(zbathy(ji,jj,jobs)),jobs)
+                  END IF
+                  IF ( zgdepw(ji,jj,NINT(zbathy(ji,jj,jobs))+1,jobs) > zmaxdepw ) THEN
+                     zmaxdepw = zgdepw(ji,jj,NINT(zbathy(ji,jj,jobs))+1,jobs)
+                  END IF
+               END DO
+            END DO
 
             ! Flag if the observation falls outside the model spatial domain
             IF (       ( pobslam(jobs) < -180.         )       &
@@ -1273,7 +1335,7 @@ CONTAINS
 
             ! Set observation depth equal to that of the first model depth
             IF ( pobsdep(jobsp) <= pdep(1) ) THEN
-               pobsdep(jobsp) = pdep(1)  
+               pobsdep(jobsp) = pdep(1)
             ENDIF
             
             IF (ln_bdy) THEN
@@ -1348,7 +1410,7 @@ CONTAINS
    END SUBROUTINE obs_pro_rej
 
 
-   SUBROUTINE obs_uv_rej( profdata, knumu, knumv, kqc_cutoff )
+   SUBROUTINE obs_uv_rej( profdata, knumu, knumv, kqc_cutoff, kuvar, kvvar )
       !!----------------------------------------------------------------------
       !!                    ***  ROUTINE obs_uv_rej ***
       !!
@@ -1365,7 +1427,9 @@ CONTAINS
       TYPE(obs_prof), INTENT(INOUT) :: profdata   ! Profile data
       INTEGER, INTENT(INOUT) :: knumu             ! Number of u rejected
       INTEGER, INTENT(INOUT) :: knumv             ! Number of v rejected
-      INTEGER, INTENT(IN) :: kqc_cutoff           ! QC cutoff value
+      INTEGER, INTENT(IN)    :: kqc_cutoff        ! QC cutoff value
+      INTEGER, INTENT(IN)    :: kuvar             ! Index of u
+      INTEGER, INTENT(IN)    :: kvvar             ! Index of v
       !
       INTEGER :: jprof
       INTEGER :: jvar
@@ -1374,24 +1438,24 @@ CONTAINS
 
       DO jprof = 1, profdata%nprof      !==  Loop over profiles  ==!
          !
-         IF ( ( profdata%npvsta(jprof,1) /= profdata%npvsta(jprof,2) ) .OR. &
-            & ( profdata%npvend(jprof,1) /= profdata%npvend(jprof,2) ) ) THEN
+         IF ( ( profdata%npvsta(jprof,kuvar) /= profdata%npvsta(jprof,kvvar) ) .OR. &
+            & ( profdata%npvend(jprof,kuvar) /= profdata%npvend(jprof,kvvar) ) ) THEN
             !
             CALL ctl_stop('U,V profiles inconsistent in obs_uv_rej')
             RETURN
             !
          ENDIF
          !
-         DO jobs = profdata%npvsta(jprof,1), profdata%npvend(jprof,1)
+         DO jobs = profdata%npvsta(jprof,kuvar), profdata%npvend(jprof,kuvar)
             !  
-            IF ( ( profdata%var(1)%nvqc(jobs) >  kqc_cutoff ) .AND. &
-               & ( profdata%var(2)%nvqc(jobs) <=  kqc_cutoff) ) THEN
-               profdata%var(2)%nvqc(jobs) = IBSET(profdata%var(1)%nvqc(jobs),15)
+            IF ( ( profdata%var(kuvar)%nvqc(jobs) >  kqc_cutoff ) .AND. &
+               & ( profdata%var(kvvar)%nvqc(jobs) <=  kqc_cutoff) ) THEN
+               profdata%var(kvvar)%nvqc(jobs) = IBSET(profdata%var(kuvar)%nvqc(jobs),15)
                knumv = knumv + 1
             ENDIF
-            IF ( ( profdata%var(2)%nvqc(jobs) >  kqc_cutoff ) .AND. &
-               & ( profdata%var(1)%nvqc(jobs) <=  kqc_cutoff) ) THEN
-               profdata%var(1)%nvqc(jobs) = IBSET(profdata%var(1)%nvqc(jobs),15)
+            IF ( ( profdata%var(kvvar)%nvqc(jobs) >  kqc_cutoff ) .AND. &
+               & ( profdata%var(kuvar)%nvqc(jobs) <=  kqc_cutoff) ) THEN
+               profdata%var(kuvar)%nvqc(jobs) = IBSET(profdata%var(kuvar)%nvqc(jobs),15)
                knumu = knumu + 1
             ENDIF
             !

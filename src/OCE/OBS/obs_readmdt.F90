@@ -30,11 +30,6 @@ MODULE obs_readmdt
    PRIVATE
    
    PUBLIC   obs_rea_mdt     ! called by dia_obs_init
-   PUBLIC   obs_offset_mdt  ! called by obs_rea_mdt
-
-   INTEGER , PUBLIC :: nn_msshc    = 1         ! MDT correction scheme
-   REAL(wp), PUBLIC :: rn_mdtcorr   = 1.61_wp  ! User specified MDT correction
-   REAL(wp), PUBLIC :: rn_mdtcutoff = 65.0_wp  ! MDT cutoff for computed correction
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -45,7 +40,8 @@ MODULE obs_readmdt
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE obs_rea_mdt( sladata, k2dint, Kmm )
+   SUBROUTINE obs_rea_mdt( sobsdata, k2dint, Kmm, ksla, kmdt, kmsshc, &
+                           pmdtcorr, pmdtcutoff )
       !!---------------------------------------------------------------------
       !!
       !!                   *** ROUTINE obs_rea_mdt ***
@@ -58,9 +54,14 @@ CONTAINS
       !!----------------------------------------------------------------------
       USE iom
       !
-      TYPE(obs_surf), INTENT(inout) ::   sladata   ! SLA data
-      INTEGER       , INTENT(in)    ::   k2dint    ! ?
-      INTEGER       , INTENT(in)    ::   Kmm       ! ?
+      TYPE(obs_surf), INTENT(inout) :: sobsdata     ! Observation data
+      INTEGER       , INTENT(in)    :: k2dint       ! Interpolation type
+      INTEGER       , INTENT(in)    :: Kmm          ! Time step
+      INTEGER       , INTENT(in)    :: ksla         ! Index of SLA var
+      INTEGER       , INTENT(in)    :: kmdt         ! Index of MDT extra var
+      INTEGER       , INTENT(in)    ::   kmsshc       ! MDT correction scheme
+      REAL(wp)      , INTENT(in)    ::   pmdtcorr     ! User specified MDT correction
+      REAL(wp)      , INTENT(in)    ::   pmdtcutoff   ! MDT cutoff for computed correction
       !
       CHARACTER(LEN=12), PARAMETER ::   cpname  = 'obs_rea_mdt'
       CHARACTER(LEN=20), PARAMETER ::   mdtname = 'slaReferenceLevel.nc'
@@ -107,56 +108,58 @@ CONTAINS
       END WHERE
 
       ! Remove the offset between the MDT used with the sla and the model MDT
-      IF( nn_msshc == 1 .OR. nn_msshc == 2 ) &
-         & CALL obs_offset_mdt( jpi, jpj, z_mdt, zfill, Kmm )
+      IF( kmsshc == 1 .OR. kmsshc == 2 ) THEN
+         CALL obs_offset_mdt( jpi, jpj, z_mdt, zfill, Kmm, &
+            &                 kmsshc, pmdtcorr, pmdtcutoff )
+      ENDIF
 
-      ! Intepolate the MDT already on the model grid at the observation point
-  
+      ! Interpolate the MDT already on the model grid at the observation point
+
       ALLOCATE( &
-         & igrdi(2,2,sladata%nsurf), &
-         & igrdj(2,2,sladata%nsurf), &
-         & zglam(2,2,sladata%nsurf), &
-         & zgphi(2,2,sladata%nsurf), &
-         & zmask(2,2,sladata%nsurf), &
-         & zmdtl(2,2,sladata%nsurf)  &
+         & igrdi(2,2,sobsdata%nsurf), &
+         & igrdj(2,2,sobsdata%nsurf), &
+         & zglam(2,2,sobsdata%nsurf), &
+         & zgphi(2,2,sobsdata%nsurf), &
+         & zmask(2,2,sobsdata%nsurf), &
+         & zmdtl(2,2,sobsdata%nsurf)  &
          & )
-         
-      DO jobs = 1, sladata%nsurf
 
-         igrdi(1,1,jobs) = sladata%mi(jobs)-1
-         igrdj(1,1,jobs) = sladata%mj(jobs)-1
-         igrdi(1,2,jobs) = sladata%mi(jobs)-1
-         igrdj(1,2,jobs) = sladata%mj(jobs)
-         igrdi(2,1,jobs) = sladata%mi(jobs)
-         igrdj(2,1,jobs) = sladata%mj(jobs)-1
-         igrdi(2,2,jobs) = sladata%mi(jobs)
-         igrdj(2,2,jobs) = sladata%mj(jobs)
+      DO jobs = 1, sobsdata%nsurf
+
+         igrdi(1,1,jobs) = sobsdata%mi(jobs,ksla)-1
+         igrdj(1,1,jobs) = sobsdata%mj(jobs,ksla)-1
+         igrdi(1,2,jobs) = sobsdata%mi(jobs,ksla)-1
+         igrdj(1,2,jobs) = sobsdata%mj(jobs,ksla)
+         igrdi(2,1,jobs) = sobsdata%mi(jobs,ksla)
+         igrdj(2,1,jobs) = sobsdata%mj(jobs,ksla)-1
+         igrdi(2,2,jobs) = sobsdata%mi(jobs,ksla)
+         igrdj(2,2,jobs) = sobsdata%mj(jobs,ksla)
 
       END DO
 
-      CALL obs_int_comm_2d( 2, 2, sladata%nsurf, jpi, jpj, igrdi, igrdj, glamt  , zglam )
-      CALL obs_int_comm_2d( 2, 2, sladata%nsurf, jpi, jpj, igrdi, igrdj, gphit  , zgphi )
-      CALL obs_int_comm_2d( 2, 2, sladata%nsurf, jpi, jpj, igrdi, igrdj, mdtmask, zmask )
-      CALL obs_int_comm_2d( 2, 2, sladata%nsurf, jpi, jpj, igrdi, igrdj, z_mdt  , zmdtl )
+      CALL obs_int_comm_2d( 2, 2, sobsdata%nsurf, jpi, jpj, igrdi, igrdj, glamt  , zglam )
+      CALL obs_int_comm_2d( 2, 2, sobsdata%nsurf, jpi, jpj, igrdi, igrdj, gphit  , zgphi )
+      CALL obs_int_comm_2d( 2, 2, sobsdata%nsurf, jpi, jpj, igrdi, igrdj, mdtmask, zmask )
+      CALL obs_int_comm_2d( 2, 2, sobsdata%nsurf, jpi, jpj, igrdi, igrdj, z_mdt  , zmdtl )
 
-      DO jobs = 1, sladata%nsurf
+      DO jobs = 1, sobsdata%nsurf
             
-         zlam = sladata%rlam(jobs)
-         zphi = sladata%rphi(jobs)
+         zlam = sobsdata%rlam(jobs)
+         zphi = sobsdata%rphi(jobs)
 
          CALL obs_int_h2d_init( 1, 1, k2dint, zlam, zphi,         &
             &                   zglam(:,:,jobs), zgphi(:,:,jobs), &
             &                   zmask(:,:,jobs), zweig, zobsmask )
             
          CALL obs_int_h2d( 1, 1, zweig, zmdtl(:,:,jobs),  zext )
- 
-         sladata%rext(jobs,2) = zext(1)
+
+         sobsdata%rext(jobs,kmdt) = zext(1)
 
 ! mark any masked data with a QC flag
-         IF( zobsmask(1) == 0 )   sladata%nqc(jobs) = IBSET(sladata%nqc(jobs),15)
+         IF( zobsmask(1) == 0.0_wp )   sobsdata%nqc(jobs) = IBSET(sobsdata%nqc(jobs),15)
 
-         END DO
-         
+      END DO
+
       DEALLOCATE( &
          & igrdi, &
          & igrdj, &
@@ -171,7 +174,8 @@ CONTAINS
    END SUBROUTINE obs_rea_mdt
 
 
-   SUBROUTINE obs_offset_mdt( kpi, kpj, mdt, zfill, Kmm )
+   SUBROUTINE obs_offset_mdt( kpi, kpj, mdt, zfill, Kmm, kmsshc, &
+                              pmdtcorr, pmdtcutoff )
       !!---------------------------------------------------------------------
       !!
       !!                   *** ROUTINE obs_offset_mdt ***
@@ -186,8 +190,11 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(IN) ::  kpi, kpj
       INTEGER, INTENT(IN) ::  Kmm
-      REAL(wp), DIMENSION(kpi,kpj), INTENT(INOUT) ::   mdt     ! MDT used on the model grid
-      REAL(wp)                    , INTENT(IN   ) ::   zfill 
+      REAL(wp), DIMENSION(kpi,kpj), INTENT(INOUT) :: mdt          ! MDT used on the model grid
+      REAL(wp)                    , INTENT(IN   ) :: zfill        ! Fill value
+      INTEGER                     , INTENT(IN   ) ::   kmsshc       ! MDT correction scheme
+      REAL(wp)                    , INTENT(IN   ) ::   pmdtcorr     ! User specified MDT correction
+      REAL(wp)                    , INTENT(IN   ) ::   pmdtcutoff   ! MDT cutoff for computed correction
       ! 
       INTEGER  :: ji, jj
       REAL(wp) :: zdxdy, zarea, zeta1, zeta2, zcorr_mdt, zcorr_bcketa, zcorr     ! local scalar
@@ -201,14 +208,14 @@ CONTAINS
       DO ji = 1, jpi
         DO jj = 1, jpj
            zpromsk(ji,jj) = tmask_i(ji,jj)
-           IF (    ( gphit(ji,jj) .GT.  rn_mdtcutoff ) &
-              &.OR.( gphit(ji,jj) .LT. -rn_mdtcutoff ) &
+           IF (    ( gphit(ji,jj) .GT.  pmdtcutoff ) &
+              &.OR.( gphit(ji,jj) .LT. -pmdtcutoff ) &
               &.OR.( mdt(ji,jj) .EQ. zfill ) ) &
               &        zpromsk(ji,jj) = 0.0
         END DO
       END DO 
 
-      ! Compute MSSH mean over [0,360] x [-rn_mdtcutoff,rn_mdtcutoff]
+      ! Compute MSSH mean over [0,360] x [-pmdtcutoff,pmdtcutoff]
 
       zarea = 0.0
       zeta1 = 0.0
@@ -234,24 +241,24 @@ CONTAINS
 
       !  Correct spatial mean of the MSSH
 
-      IF( nn_msshc == 1 )   mdt(:,:) = mdt(:,:) - zcorr  
+      IF( kmsshc == 1 )   mdt(:,:) = mdt(:,:) - zcorr
 
       ! User defined value : 1.6 m for the Rio MDT compared to ORCA2 MDT
 
-      IF( nn_msshc == 2 )   mdt(:,:) = mdt(:,:) - rn_mdtcorr
+      IF( kmsshc == 2 )   mdt(:,:) = mdt(:,:) - pmdtcorr
 
       IF(lwp) THEN
          WRITE(numout,*)
-         WRITE(numout,*) ' obs_readmdt : rn_mdtcutoff     = ', rn_mdtcutoff
+         WRITE(numout,*) ' obs_readmdt : pmdtcutoff    = ', pmdtcutoff
          WRITE(numout,*) ' -----------   zcorr_mdt     = ', zcorr_mdt
          WRITE(numout,*) '               zcorr_bcketa  = ', zcorr_bcketa
          WRITE(numout,*) '               zcorr         = ', zcorr
-         WRITE(numout,*) '               nn_msshc        = ', nn_msshc
-      ENDIF
+         WRITE(numout,*) '               kmsshc        = ', kmsshc
 
-      IF ( nn_msshc == 0 ) WRITE(numout,*) '           MSSH correction is not applied'
-      IF ( nn_msshc == 1 ) WRITE(numout,*) '           MSSH correction is applied'
-      IF ( nn_msshc == 2 ) WRITE(numout,*) '           User defined MSSH correction' 
+         IF ( kmsshc == 0 ) WRITE(numout,*) '           MSSH correction is not applied'
+         IF ( kmsshc == 1 ) WRITE(numout,*) '           MSSH correction is applied'
+         IF ( kmsshc == 2 ) WRITE(numout,*) '           User defined MSSH correction'
+      ENDIF
 
       !
    END SUBROUTINE obs_offset_mdt
