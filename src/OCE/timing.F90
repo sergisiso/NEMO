@@ -31,12 +31,20 @@ MODULE timing
    PUBLIC   timing_start, timing_stop, timing_open      ! called in each routine to time
    
 #if ! defined key_agrif
+
+   INTEGER, PARAMETER :: ntest = 2
+   INTEGER, DIMENSION(ntest) :: n1st = 0
+   INTEGER, DIMENSION(ntest) :: nend = 0
+   LOGICAL, DIMENSION(ntest) :: luse = .FALSE.
+  
    ! Variables for fine grain timing
    TYPE timer
       CHARACTER(LEN=32)  :: cname
-      INTEGER(8) :: n8start, n8tnet, n8tfull, n8childsum
-      INTEGER :: niter
-      LOGICAL :: ldone, lstatplot
+      INTEGER(8)                   :: n8start, n8childsum
+      INTEGER(8), DIMENSION(ntest) :: n8tnet, n8tfull
+      INTEGER   , DIMENSION(ntest) :: ncalls
+      INTEGER  :: ncall
+      LOGICAL  :: ldone, lstatplot
       REAL(dp) ::  tnet , tnetavg,  tnetmin,  tnetmax,  tnetblc   ! net  time average, min, max and load balance (max-min)
       REAL(dp) :: tfull, tfullavg, tfullmin, tfullmax, tfullblc   ! full time average, min, max and load balance (max-min)
       TYPE(timer), POINTER :: s_next, s_prev, s_parent
@@ -44,9 +52,10 @@ MODULE timing
 
    TYPE(timer), POINTER :: s_timer_root => NULL()
    TYPE(timer), POINTER :: s_timer      => NULL()
-
-   INTEGER    :: numtime         =   -1      !: logical unit for timing
+   
+   INTEGER    :: numtime   = -1      ! logical unit for timing
    INTEGER    :: ncall_clock
+   
    INTEGER    :: nmpicom   !: we cannot use mpi_comm_oce as we cannot use lib_mpp
    INTEGER(8) :: n8start000
    REAL(dp)   :: secondclock
@@ -58,15 +67,16 @@ MODULE timing
    INTEGER :: jp_tmax  = 5   ! max net time (among MPI processes)
    INTEGER :: jp_tblc  = 6   ! load balance between MPI processes (max-min)
 
-   INTEGER :: jpmaxline = 50   !: max number of line to be printed
+   INTEGER :: jpmaxline = 50   ! max number of line to be printed
+   INTEGER :: nbequal   = 70   ! number of "=" sign in separation print lines
 
    INTEGER, DIMENSION(8)           :: nvalues
    CHARACTER(LEN= 8), DIMENSION(2) :: cdate
    CHARACTER(LEN=10), DIMENSION(2) :: ctime
    CHARACTER(LEN= 5)               :: czone
 #else
-   INTEGER    :: numtime         =   -1      !: logical unit for timing
-   INTEGER    :: nmpicom   !: we cannot use mpi_comm_oce as we cannot use lib_mpp
+   INTEGER    :: numtime   = -1      ! logical unit for timing
+   INTEGER    :: nmpicom             ! we cannot use mpi_comm_oce as we cannot use lib_mpp
 #endif
 
    !!----------------------------------------------------------------------
@@ -136,18 +146,34 @@ CONTAINS
 
 
 #if ! defined key_agrif
-   SUBROUTINE timing_start( cdinfo, ldstatplot )
+   SUBROUTINE timing_start( cdinfo, kt, kt000, ktend, kfsbc, ldstatplot )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE timing_start  ***
       !! ** Purpose :   collect execution time
       !!----------------------------------------------------------------------
       CHARACTER(len=*) , INTENT(in) :: cdinfo
+      INTEGER, OPTIONAL, INTENT(in) :: kt, kt000, ktend, kfsbc
       LOGICAL, OPTIONAL, INTENT(in) :: ldstatplot   ! .true. if you want to call gnuplot analyses on this timing
       !
-      CHARACTER(LEN=32)  :: clinfo
+      CHARACTER(LEN=32)    :: clinfo
       TYPE(timer), POINTER :: s_wrk
-      INTEGER(8) :: i8rate
+      INTEGER(8)           :: i8rate
+      INTEGER              :: ji
       !!----------------------------------------------------------------------
+      !
+      IF( .NOT. luse(1) )   luse(1) = .TRUE.   ! switch on the timing for the entire simulation 
+      !
+      IF( PRESENT(kt000) .AND. n1st(1) == 0 ) THEN   ! definition of n1st and nend according to kt000, ktend and kfsbc
+         n1st(1) = kt000
+         nend(1) = ktend
+         n1st(2) = kt000 + 3 * kfsbc   ! exclude open(write) communication report at kt000 + 1(2) * kfsbc
+         nend(2) = ktend - 2 * kfsbc   ! exclude open(write) restarts at ktend - 2(1) * kfsbc + 1
+      ENDIF
+      IF( PRESENT(kt) ) THEN
+         DO ji = 2, ntest
+            luse(ji) = kt >= n1st(ji) .AND. kt <= nend(ji)
+         END DO
+      ENDIF
       !
       clinfo = cdinfo
       IF( .NOT. Agrif_Root() )   clinfo = TRIM(Agrif_CFixed())//'_'//clinfo
@@ -175,8 +201,8 @@ CONTAINS
       ENDIF
 
       ! initialisation
-      s_timer%ldone = .FALSE.                                                   ! we are just starting the timing (not done)
-      s_timer%n8childsum = 0_8                                                  ! not yet any my children count
+      s_timer%ldone = .FALSE.                ! we are just starting the timing (not done)
+      s_timer%n8childsum = 0_8               ! not yet any my children count
 
       ! clock time collection
       CALL SYSTEM_CLOCK( COUNT = s_timer%n8start )   ;   ncall_clock = ncall_clock + 1
@@ -196,6 +222,7 @@ CONTAINS
       !
       CHARACTER(LEN=32)  :: clinfo
       INTEGER(8) :: i8end, i8full, i8net
+      INTEGER    :: ji
       INTEGER    :: icode
       LOGICAL    :: ll_finalize
       !!----------------------------------------------------------------------
@@ -215,22 +242,30 @@ CONTAINS
       ELSE                              ;   ll_finalize = .FALSE.
       ENDIF
 
-      IF( .NOT. l_istiled .OR. ntile == 1 ) s_timer%niter = s_timer%niter + 1   ! All tiles count as one iteration
+      IF( .NOT. l_istiled .OR. ntile == 1 ) THEN
+         DO ji = 1, ntest
+            IF( luse(ji) )   s_timer%ncalls(ji)  = s_timer%ncalls(ji) + 1      ! All tiles count as one iteration
+         END DO
+      ENDIF
 
       ! clock time collection
       CALL SYSTEM_CLOCK( COUNT = i8end )   ;   ncall_clock = ncall_clock + 1
-      i8full = i8end - s_timer%n8start  ! count between  timing_start and timing_stop
-      s_timer%n8tfull = s_timer%n8tfull + i8full   ! cumulate my full time
-
+      i8full = i8end - s_timer%n8start                                         ! count between  timing_start and timing_stop
+      DO ji = 1, ntest
+         IF( luse(ji) )   s_timer%n8tfull(ji) = s_timer%n8tfull(ji) + i8full   ! cumulate my full time
+      END DO
+      
       ! time print
       IF( s_timer%lstatplot .AND. numtime /= -1 )   &
          &   WRITE(numtime,*) 'timing '//TRIM(clinfo)//' ', kt, ' : ', REAL(i8full,dp) * secondclock
 
       ! time diagnostics
-      i8net = i8full - s_timer%n8childsum       ! don't take into account my cildren count
-      s_timer%n8tnet = s_timer%n8tnet + i8net   ! cumulate my net time
-      s_timer%ldone  = .TRUE.                   ! I am done with this counting
-        
+      i8net = i8full - s_timer%n8childsum                                      ! don't take into account my cildren count
+      DO ji = 1, ntest
+         IF( luse(ji) )   s_timer%n8tnet(ji) = s_timer%n8tnet(ji) + i8net      ! cumulate my net time
+      END DO
+      s_timer%ldone = .TRUE.                                                   ! I am done with this counting
+      
       ! we come back to the parent
       s_timer => s_timer%s_parent
       IF ( ASSOCIATED(s_timer) )   s_timer%n8childsum = s_timer%n8childsum + i8full   ! add myself to the children of my parents
@@ -253,10 +288,11 @@ CONTAINS
       REAL(dp), DIMENSION(:), ALLOCATABLE :: zalltime
       INTEGER :: idum, isize, icode
       INTEGER :: jpnbtest = 100
+      INTEGER :: idg1, idg2
       INTEGER :: ji
       INTEGER, DIMENSION(:), ALLOCATABLE :: iallmpi
       INTEGER(8) :: i8start, i8end
-      CHARACTER(len=128) :: clfmt
+      CHARACTER(len=128) :: clfmt, cline
       LOGICAL :: ll_avg, llwrt
       !!----------------------------------------------------------------------
 
@@ -372,33 +408,61 @@ CONTAINS
          ENDIF
       ENDIF
 
-      ! reorder the chain list accprding to cname to make sure that each MPI process has the chain links in the same order
-      CALL sort_chain( sd_root, jp_cname )   ! I think it is not necessary... 
-      
-      s_wrk => sd_root
-      DO WHILE ( ASSOCIATED(s_wrk) )
-         s_wrk%tnet  = REAL(s_wrk%n8tnet , dp) * secondclock
-         s_wrk%tfull = REAL(s_wrk%n8tfull, dp) * secondclock
-         CALL mpp_avgminmax( s_wrk%tnet , s_wrk%tnetavg , s_wrk%tnetmin , s_wrk%tnetmax , s_wrk%tnetblc , ll_avg, s_wrk%cname )
-         CALL mpp_avgminmax( s_wrk%tfull, s_wrk%tfullavg, s_wrk%tfullmin, s_wrk%tfullmax, s_wrk%tfullblc, ll_avg )
-         s_wrk => s_wrk%s_next
-      END DO
+      DO ji = 1, ntest
 
-      IF( ll_avg .AND. llwrt ) THEN
-         CALL timer_write( 'Timing : AVG values over all MPI processes:', sd_root, jp_tavg, zavgtime, zavgextra )
-         zsum = 0._dp
+         IF( n1st(ji) == 0 .OR. nend(ji) < n1st(ji) )   CYCLE   ! no timing taken
+         
+         ! reorder the chain list according to cname to make sure that each MPI process has the chain links in the same order
+         CALL sort_chain( sd_root, jp_cname )   ! needed when ji > 1 
+         
          s_wrk => sd_root
          DO WHILE ( ASSOCIATED(s_wrk) )
-            zsum = zsum + s_wrk%tnetblc
+            s_wrk%tnet  = REAL(s_wrk%n8tnet(ji) , dp) * secondclock
+            s_wrk%tfull = REAL(s_wrk%n8tfull(ji), dp) * secondclock
+            s_wrk%ncall = s_wrk%ncalls(ji)
+            IF( ji == ntest ) THEN   ! write gnuplot script to plot statistics on the spread of the MPI processes
+               CALL mpp_avgminmax( s_wrk%tnet , s_wrk%tnetavg , s_wrk%tnetmin , s_wrk%tnetmax , s_wrk%tnetblc , ll_avg, s_wrk%cname )
+            ELSE
+               CALL mpp_avgminmax( s_wrk%tnet , s_wrk%tnetavg , s_wrk%tnetmin , s_wrk%tnetmax , s_wrk%tnetblc , ll_avg )
+            ENDIF
+            CALL mpp_avgminmax( s_wrk%tfull, s_wrk%tfullavg, s_wrk%tfullmin, s_wrk%tfullmax, s_wrk%tfullblc, ll_avg )
             s_wrk => s_wrk%s_next
          END DO
-         CALL timer_write( 'Timing : Load unbalance over all MPI processes (max-min) :', sd_root, jp_tblc, zsum, 0. )
-         CALL timer_write( 'Timing : MIN values over all MPI processes:', sd_root, jp_tmin, zavgtime, zavgextra )
-         CALL timer_write( 'Timing : MAX values over all MPI processes:', sd_root, jp_tmax, zavgtime, zavgextra )
-      ENDIF
-      IF( llwrt ) THEN
-         CALL timer_write( 'Timing : values for local MPI process:', sd_root, jp_tnet, zmytime, zavgextra )
-      ENDIF
+         
+         zmytime = 0._dp
+         s_wrk => sd_root
+         DO WHILE ( ASSOCIATED(s_wrk) )
+            zmytime = zmytime + s_wrk%tnet
+            s_wrk => s_wrk%s_next
+         END DO
+         CALL mpp_avgminmax( zmytime, zavgtime, zmin, zmax, zblc, ll_avg )
+
+         IF( llwrt ) THEN
+            IF( ji == 1 ) THEN
+               cline = 'Performance statistics for the ENTIRE simulation'
+            ELSE
+               idg1 = INT(LOG10(REAL(n1st(ji)))) + 1
+               idg2 = INT(LOG10(REAL(nend(ji)))) + 1
+               WRITE(clfmt, "('(a,i',i1,'.',i1,','' and '',i',i1,'.',i1,')')") idg1, idg1, idg2, idg2
+               WRITE(cline, clfmt) 'Performance statistics between time step ', n1st(ji), nend(ji)
+            ENDIF
+            CALL write_bigheader(cline)
+            IF( ll_avg  ) THEN
+               CALL timer_write( 'Timing : AVG values over all MPI processes:', sd_root, jp_tavg, zavgtime, zavgextra )
+               zsum = 0._dp
+               s_wrk => sd_root
+               DO WHILE ( ASSOCIATED(s_wrk) )
+                  zsum = zsum + s_wrk%tnetblc
+                  s_wrk => s_wrk%s_next
+               END DO
+               CALL timer_write( 'Timing : Load unbalance over all MPI processes (max-min) :', sd_root, jp_tblc, zsum, 0. )
+               CALL timer_write( 'Timing : MIN values over all MPI processes:', sd_root, jp_tmin, zavgtime, zavgextra )
+               CALL timer_write( 'Timing : MAX values over all MPI processes:', sd_root, jp_tmax, zavgtime, zavgextra )
+            ENDIF
+            CALL timer_write( 'Timing : values for local MPI process:', sd_root, jp_tnet, zmytime, zavgextra )
+         ENDIF
+
+      END DO
 
       IF( llwrt ) CLOSE(numtime)
       !
@@ -427,6 +491,8 @@ CONTAINS
       LOGICAL :: llwarning
       !!----------------------------------------------------------------------
 
+      IF( ptimetot == 0._dp )   RETURN
+      
       llwarning = .FALSE.
       zpcent = 100._dp / ptimetot
       
@@ -476,18 +542,19 @@ CONTAINS
          ELSEIF( kswitch == jp_tmax ) THEN   ;   ztnet = s_wrk%tnetmax   ;   ztfull = s_wrk%tfullmax
          ELSEIF( kswitch == jp_tblc ) THEN   ;   ztnet = s_wrk%tnetblc   ;   ztfull = s_wrk%tfullblc
          ENDIF
+         IF( ztnet == 0._dp )   RETURN
          IF( ztnet < ptextra .AND. .NOT. llwarning ) THEN
             WRITE(clflt1, "('(a,f',i2.2,'.6,''s'')')")   INT(LOG10(MAX(1._dp,ptextra)))+8   ! "(a,fx.6,'s')"
-            WRITE(numtime,clflt1) 'WARNING: timings bellow are smaller than the estimation of the timing itself: ', ptextra
+            WRITE(numtime,clflt1) 'WARNING: timings below are smaller than the estimation of the timing itself: ', ptextra
             llwarning = .TRUE.
          ENDIF
-         WRITE(numtime,clfmt) s_wrk%cname, ztnet, ztnet*zpcent, ztfull, ztfull*zpcent, s_wrk%niter
+         WRITE(numtime,clfmt) s_wrk%cname, ztnet, ztnet*zpcent, ztfull, ztfull*zpcent, s_wrk%ncall
          s_wrk => s_wrk%s_next
          icnt = icnt + 1
       END DO
 
       IF(  ASSOCIATED(s_wrk) )   WRITE(numtime,*) '...'   ! show that there is still more lines that could have been printed
-     !
+      !
    END SUBROUTINE timer_write
 
 
@@ -540,14 +607,14 @@ CONTAINS
       
       ALLOCATE(ptr)   ! allocate memory space associated with ptr
       ! default required definitions
-      ptr%cname     = cdinfo
-      ptr%n8tnet    = 0_8
-      ptr%n8tfull   = 0_8
-      ptr%niter     = 0
-      ptr%lstatplot = ll_statplot
-      ptr%s_parent  => NULL()
-      ptr%s_prev    => NULL()
-      ptr%s_next    => NULL()
+      ptr%cname      = cdinfo
+      ptr%n8tnet(:)  = 0_8
+      ptr%n8tfull(:) = 0_8
+      ptr%ncalls(:)  = 0
+      ptr%lstatplot  = ll_statplot
+      ptr%s_parent   => NULL()
+      ptr%s_prev     => NULL()
+      ptr%s_next     => NULL()
       
    END FUNCTION def_newlink
 
@@ -679,27 +746,65 @@ CONTAINS
       !!----------------------------------------------------------------------
       CHARACTER(len=*), INTENT(in) :: cdname
       !
-      INTEGER :: ji
+      CHARACTER(len=64 ) :: clfmt
       CHARACTER(LEN=128) :: cldash
       !!----------------------------------------------------------------------
-      
+      !
       CALL write_separator()
       WRITE(numtime,'(a)') ' '//TRIM(cdname)
-      cldash(1:128) = " "
-      DO ji = 1, LEN_TRIM(cdname)
-         cldash(ji+1:ji+1) = "-"
-      ENDDO
+      WRITE(clfmt, "('(x,',i2,'(''-''))')") LEN_TRIM(cdname)
+      WRITE(cldash, clfmt)
       WRITE(numtime,'(a)') TRIM(cldash)
       WRITE(numtime,*)
-
+      !
    END SUBROUTINE write_header
+
+   
+   SUBROUTINE write_bigheader(cdname)
+      !!----------------------------------------------------------------------
+      CHARACTER(len=*), INTENT(in) :: cdname
+      !
+      INTEGER :: inb1, inb2
+      CHARACTER(len=64 ) :: clfmt
+      CHARACTER(LEN=128) :: clequal, cldash, cline
+      !!----------------------------------------------------------------------
+      !
+      WRITE(clfmt, "('(3x,',i2,'(''-''))')") nbequal
+      WRITE(cldash , clfmt)
+      WRITE(clfmt, "('(3x,',i2,'(''=''))')") nbequal
+      WRITE(clequal, clfmt)
+
+      inb1 = ( nbequal - LEN_TRIM(cdname) - 2 + 1 ) / 2
+      inb2 = ( nbequal - LEN_TRIM(cdname) - 2     ) / 2
+      WRITE(clfmt, "('(3x,''|'',', i2,'('' ''),a,', i2,'('' ''),''|'')')") inb1, inb2
+      WRITE(cline,clfmt) TRIM(cdname)
+      
+      WRITE(numtime,*)
+      WRITE(numtime,*)
+      WRITE(numtime,'(a)') TRIM(cldash)
+      WRITE(numtime,'(a)') TRIM(clequal)
+      WRITE(numtime,'(a)') TRIM(cline)
+      WRITE(numtime,'(a)') TRIM(clequal)
+      WRITE(numtime,'(a)') TRIM(cldash)
+      WRITE(numtime,*)
+      !
+   END SUBROUTINE write_bigheader
   
 
    SUBROUTINE write_separator()
+      !!----------------------------------------------------------------------
+      CHARACTER(len=64 ) ::   clfmt
+      CHARACTER(LEN=128) :: clequal
+      !!----------------------------------------------------------------------
+      !
+      WRITE(clfmt, "('(3x,',i2,'(''=''))')") nbequal
+      WRITE(clequal, clfmt)
+     
       WRITE(numtime,*)
-      WRITE(numtime,*) '   ================================================='
+      WRITE(numtime,'(a)') TRIM(clequal)
       WRITE(numtime,*)
       WRITE(numtime,*)
+      !
    END SUBROUTINE write_separator
 
 
@@ -747,7 +852,7 @@ CONTAINS
       ! orhers => cdprefix//'_'//cdname//'_xxx' + all non-alphanumeric characters are replaced by '_'     
       isz1 = LEN_TRIM(cdprefix) + 1
       isz2 = LEN_TRIM(cdname)
-      IF ( llwm ) THEN   ;   isz3 = -1   ! to make 0 when we do isz3+1 bellow
+      IF ( llwm ) THEN   ;   isz3 = -1   ! to make 0 when we do isz3+1 below
       ELSE               ;   isz3 = MAX( INT(LOG10(REAL(MAX(1,isize)))) + 1, 4 )   ! 'xxx'
       ENDIF
       ALLOCATE(CHARACTER(isz1+isz2+isz3+1) :: clname)
@@ -857,8 +962,9 @@ CONTAINS
    
 #else
    ! Dummy routines for AGRIF : they must do nothing
-   SUBROUTINE timing_start( cdinfo, ldstatplot )
+   SUBROUTINE timing_start( cdinfo, kt, kt000, ktend, kfsbc, ldstatplot )
       CHARACTER(len=*) , INTENT(in) :: cdinfo
+      INTEGER, OPTIONAL, INTENT(in) :: kt, kt000, ktend, kfsbc
       LOGICAL, OPTIONAL, INTENT(in) :: ldstatplot
       IF(.FALSE.)   WRITE(*,*) cdinfo, PRESENT(ldstatplot)   ! to avoid compilation warnings
    END SUBROUTINE timing_start

@@ -165,7 +165,7 @@ CONTAINS
       DO WHILE( istp <= nitend .AND. nstop == 0 )
          !
          ncom_stp = istp
-         IF( ln_timing )   CALL timing_start( 'step', ldstatplot = .TRUE. )
+         IF( ln_timing )   CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
 #   if defined key_RK3
          CALL stp_RK3
 #   else
@@ -182,7 +182,7 @@ CONTAINS
          DO WHILE( istp <= nitend .AND. nstop == 0 )
             !
             ncom_stp = istp
-            IF( ln_timing )   CALL timing_start( 'step', ldstatplot = .TRUE. )
+            IF( ln_timing )   CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
             !
 #   if defined key_RK3
             CALL stp_RK3( istp )
@@ -198,7 +198,7 @@ CONTAINS
          !
          DO WHILE( istp <= nitend .AND. nstop == 0 )
             ncom_stp = istp
-            IF( ln_timing )   CALL timing_start( 'stp_diurnal', ldstatplot = .TRUE. )
+            IF( ln_timing )   CALL timing_start( 'stp_diurnal', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
             CALL stp_diurnal( istp )   ! time step only the diurnal SST
             IF( ln_timing )   CALL timing_stop( 'stp_diurnal', istp )
             istp = istp + 1

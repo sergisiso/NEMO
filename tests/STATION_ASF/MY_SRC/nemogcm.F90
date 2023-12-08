@@ -95,7 +95,7 @@ CONTAINS
       !
       DO WHILE ( istp <= nitend .AND. nstop == 0 )    !==  C1D time-stepping  ==!
          ncom_stp = istp
-         IF( ln_timing )   CALL timing_start( 'stp_c1d', ldstatplot = .TRUE. )
+         IF( ln_timing )   CALL timing_start( 'stp_c1d', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
          CALL stp_c1d( istp )
          IF( ln_timing )   CALL timing_stop( 'stp_c1d', istp )
          istp = istp + 1
