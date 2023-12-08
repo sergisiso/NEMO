@@ -104,7 +104,7 @@ CONTAINS
       DO WHILE( istp <= nitend .AND. nstop == 0 )
          !
          ncom_stp = istp
-         IF( ln_timing )   CALL timing_start( 'step', ldstatplot = .TRUE. )
+         IF( ln_timing )   CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
          ! 
 #if defined key_RK3
          CALL stp_RK3( istp )

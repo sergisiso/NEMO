@@ -85,7 +85,7 @@ MODULE dom_oce
    INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) ::   ntsj_a       !
    INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) ::   ntei_a       !: end of internal part of tile domain
    INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) ::   ntej_a       !
-   LOGICAL, PUBLIC                            ::   l_istiled    ! whether tiling is currently active or not
+   LOGICAL, PUBLIC  ::   l_istiled = .FALSE.   ! whether tiling is currently active or not, default definition needed by timing.F90
 
    !                             !: domain MPP decomposition parameters
    INTEGER              , PUBLIC ::   nimpp, njmpp     !: i- & j-indexes for mpp-subdomain left bottom

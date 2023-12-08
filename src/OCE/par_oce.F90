@@ -66,7 +66,7 @@ MODULE par_oce
 
    ! Domain tiling
    INTEGER, PUBLIC ::   nijtile    !: number of tiles in total
-   INTEGER, PUBLIC ::   ntile      !: current tile number
+   INTEGER, PUBLIC ::   ntile = 0  !: current tile number, default definition needed by timing.F90
    INTEGER, PUBLIC ::   ntsi       !: start of internal part of tile domain
    INTEGER, PUBLIC ::   ntsj       !
    INTEGER, PUBLIC ::   ntei       !: end of internal part of tile domain

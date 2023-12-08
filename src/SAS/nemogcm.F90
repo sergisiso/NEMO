@@ -126,7 +126,7 @@ CONTAINS
       !
       DO WHILE( istp <= nitend .AND. nstop == 0 )
          ncom_stp = istp
-         IF( ln_timing )   CALL timing_start( 'step', ldstatplot = .TRUE. )
+         IF( ln_timing )   CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
          CALL stp
          IF( ln_timing )   CALL timing_stop( 'step', istp )
          istp = istp + 1
@@ -138,7 +138,7 @@ CONTAINS
          !
          DO WHILE( istp <= nitend .AND. nstop == 0 )
             ncom_stp = istp
-            IF( ln_timing )   CALL timing_start( 'step', ldstatplot = .TRUE. )
+            IF( ln_timing )   CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
             CALL stp( istp ) 
             IF( ln_timing )   CALL timing_stop( 'step', istp )
             istp = istp + 1
@@ -147,7 +147,7 @@ CONTAINS
       ELSE                                            !==  diurnal SST time-steeping only  ==!
          !
          DO WHILE( istp <= nitend .AND. nstop == 0 )
-            IF( ln_timing )   CALL timing_start( 'stp_diurnal', ldstatplot = .TRUE. )
+            IF( ln_timing )   CALL timing_start( 'stp_diurnal', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
             CALL stp_diurnal( istp )   ! time step only the diurnal SST 
             IF( ln_timing )   CALL timing_stop( 'stp_diurnal', istp )
             istp = istp + 1

@@ -124,7 +124,7 @@ CONTAINS
       ! 
       DO WHILE ( istp <= nitend .AND. nstop == 0 )    !==  OFF time-stepping  ==!
          ncom_stp = istp
-         IF( ln_timing )   CALL timing_start( 'step', ldstatplot = .TRUE. )
+         IF( ln_timing )   CALL timing_start( 'step', istp, nit000, nitend, 1, ldstatplot = .TRUE. )
          !
       IF((istp == nitrst) .AND. lwxios) THEN
          CALL iom_swap(      cw_toprst_cxt          )
