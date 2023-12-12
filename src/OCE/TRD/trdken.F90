@@ -192,7 +192,7 @@ CONTAINS
       !!
       !! ** Method  : - compute conv defined as -rau*g*w on T-grid points
       !! 
-      !! ** Work only for full steps and partial steps (ln_hpg_zco or ln_hpg_zps)
+      !! ** Work only for full steps and partial steps (ln_hpg_zco)
       !!---------------------------------------------------------------------- 
       INTEGER                   , INTENT(in   ) ::   kt      ! ocean time-step index
       INTEGER                   , INTENT(in   ) ::   Kmm     ! time level index

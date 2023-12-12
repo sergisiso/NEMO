@@ -17,6 +17,7 @@ MODULE dynhpg
    !!                 !           (A. Coward) suppression of hel, wdj and rot options
    !!            3.6  !  2014-11  (P. Mathiot) hpg_isf: original code for ice shelf cavity
    !!            4.2  !  2020-12  (M. Bell, A. Young) hpg_djc: revised djc scheme
+   !!            5.0  !  2022-12  (S. Techene, G. Madec) remove hpg_zps
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -54,7 +55,6 @@ MODULE dynhpg
 
    !                                !!* Namelist namdyn_hpg : hydrostatic pressure gradient
    LOGICAL, PUBLIC ::   ln_hpg_zco   !: z-coordinate - full steps
-   LOGICAL, PUBLIC ::   ln_hpg_zps   !: z-coordinate - partial steps (interpolation)
    LOGICAL, PUBLIC ::   ln_hpg_sco   !: s-coordinate (standard jacobian formulation)
    LOGICAL, PUBLIC ::   ln_hpg_djc   !: s-coordinate (Density Jacobian with Cubic polynomial)
    LOGICAL, PUBLIC ::   ln_hpg_prj   !: s-coordinate (Pressure Jacobian scheme)
@@ -63,11 +63,10 @@ MODULE dynhpg
    !                                !! Flag to control the type of hydrostatic pressure gradient
    INTEGER, PARAMETER ::   np_ERROR  =-10   ! error in specification of lateral diffusion
    INTEGER, PARAMETER ::   np_zco    =  0   ! z-coordinate - full steps
-   INTEGER, PARAMETER ::   np_zps    =  1   ! z-coordinate - partial steps (interpolation)
-   INTEGER, PARAMETER ::   np_sco    =  2   ! s-coordinate (standard jacobian formulation)
-   INTEGER, PARAMETER ::   np_djc    =  3   ! s-coordinate (Density Jacobian with Cubic polynomial)
-   INTEGER, PARAMETER ::   np_prj    =  4   ! s-coordinate (Pressure Jacobian scheme)
-   INTEGER, PARAMETER ::   np_isf    =  5   ! s-coordinate similar to sco modify for isf
+   INTEGER, PARAMETER ::   np_sco    =  1   ! s-coordinate (standard jacobian formulation)
+   INTEGER, PARAMETER ::   np_djc    =  2   ! s-coordinate (Density Jacobian with Cubic polynomial)
+   INTEGER, PARAMETER ::   np_prj    =  3   ! s-coordinate (Pressure Jacobian scheme)
+   INTEGER, PARAMETER ::   np_isf    =  4   ! s-coordinate similar to sco modify for isf
    !
    INTEGER, PUBLIC  ::   nhpg         !: type of pressure gradient scheme used ! (deduced from ln_hpg_... flags) (PUBLIC for TAM)
    !
@@ -154,7 +153,7 @@ CONTAINS
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::  zrhdtop_isf    ! density at bottom of ISF
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::  ziceload       ! density at bottom of ISF
       !!
-      NAMELIST/namdyn_hpg/ ln_hpg_zco, ln_hpg_zps, ln_hpg_sco,     &
+      NAMELIST/namdyn_hpg/ ln_hpg_zco, ln_hpg_sco,                 &
          &                 ln_hpg_djc, ln_hpg_prj, ln_hpg_isf,     &
          &                 ln_hpg_djc_vnh, ln_hpg_djc_vnv
       !!----------------------------------------------------------------------
@@ -169,15 +168,14 @@ CONTAINS
          WRITE(numout,*) '~~~~~~~~~~~~'
          WRITE(numout,*) '   Namelist namdyn_hpg : choice of hpg scheme'
          WRITE(numout,*) '      z-coord. - full steps                             ln_hpg_zco    = ', ln_hpg_zco
-         WRITE(numout,*) '      z-coord. - partial steps (interpolation)          ln_hpg_zps    = ', ln_hpg_zps
          WRITE(numout,*) '      s-coord. (standard jacobian formulation)          ln_hpg_sco    = ', ln_hpg_sco
          WRITE(numout,*) '      s-coord. (standard jacobian formulation) for isf  ln_hpg_isf    = ', ln_hpg_isf
          WRITE(numout,*) '      s-coord. (Density Jacobian: Cubic polynomial)     ln_hpg_djc    = ', ln_hpg_djc
          WRITE(numout,*) '      s-coord. (Pressure Jacobian: Cubic polynomial)    ln_hpg_prj    = ', ln_hpg_prj
       ENDIF
       !
-      IF( .NOT.ln_linssh .AND. (ln_hpg_zco.OR.ln_hpg_zps) )   &
-         &   CALL ctl_stop( 'dyn_hpg_init : non-linear free surface incompatible with hpg_zco or hpg_zps' )
+      IF( .NOT.ln_linssh .AND. ln_hpg_zco )   &
+         &   CALL ctl_stop( 'dyn_hpg_init : non-linear free surface incompatible with hpg_zco' )
       !
       IF( (.NOT.ln_hpg_isf .AND. ln_isfcav) .OR. (ln_hpg_isf .AND. .NOT.ln_isfcav) )                  &
          &   CALL ctl_stop( 'dyn_hpg_init : ln_hpg_isf=T requires ln_isfcav=T and vice versa' )  
@@ -187,7 +185,6 @@ CONTAINS
       nhpg   = np_ERROR
       ioptio = 0
       IF( ln_hpg_zco ) THEN   ;   nhpg = np_zco   ;   ioptio = ioptio +1   ;   ENDIF
-      IF( ln_hpg_zps ) THEN   ;   nhpg = np_zps   ;   ioptio = ioptio +1   ;   ENDIF
       IF( ln_hpg_sco ) THEN   ;   nhpg = np_sco   ;   ioptio = ioptio +1   ;   ENDIF
       IF( ln_hpg_djc ) THEN   ;   nhpg = np_djc   ;   ioptio = ioptio +1   ;   ENDIF
       IF( ln_hpg_prj ) THEN   ;   nhpg = np_prj   ;   ioptio = ioptio +1   ;   ENDIF
@@ -199,7 +196,6 @@ CONTAINS
          WRITE(numout,*)
          SELECT CASE( nhpg )
          CASE( np_zco )   ;   WRITE(numout,*) '   ==>>>   z-coord. - full steps '
-         CASE( np_zps )   ;   WRITE(numout,*) '   ==>>>   z-coord. - partial steps (interpolation)'
          CASE( np_sco )   ;   WRITE(numout,*) '   ==>>>   s-coord. (standard jacobian formulation)'
          CASE( np_djc )   ;   WRITE(numout,*) '   ==>>>   s-coord. (Density Jacobian: Cubic polynomial)'
          CASE( np_prj )   ;   WRITE(numout,*) '   ==>>>   s-coord. (Pressure Jacobian: Cubic polynomial)'
