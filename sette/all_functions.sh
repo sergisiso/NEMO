@@ -159,10 +159,10 @@ clean_config() {
       echo '-------------------------------------------------------------------------------'
       echo '                         CLEANING CONFIGURATION                                '
       echo ''
-      echo "./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean"
+      echo "./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} -y clean"
       echo ''
       if [ -d $lCFG ]; then
-        ./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} clean
+        ./makenemo -n $(basename $lCFG) ${CUSTOM_DIR:+-t ${CMP_DIR}} -y clean
         echo ''
         echo "$(basename $lCFG) configuration has been cleaned"
       else

@@ -58,7 +58,7 @@ set -o posix
 # Initialization of the options
 x_d=''; x_h=''; x_n=''; x_r=''; x_c='';
 x_u=''; x_a=''; x_m=''; x_t=''; x_b='';
-x_j='1'; x_e=''; x_s='src'; x_v='0'; x_p=''
+x_j='1'; x_e=''; x_s='src'; x_v='0'; x_p=''; x_y=''
 list_key='0'; chk_key='1'
 list_add_key=''; list_def_key=''; list_del_key=''
 x_c_cfg=0; x_nocdf=0
@@ -138,6 +138,8 @@ Optional
             Path for alter build  location (default: 'BLD' in configuration folder)
    -v, --verbose <0/1/2/3>
             Level of verbosity ([0-3])
+   -y
+            Answer "y" to user input prompts
 
 Examples
    ¤ Configuration creation
@@ -174,6 +176,8 @@ EOF
             case ${2} in [0-3]) x_v="${2}" ;; esac ; shift ;;
         -k|--chkkey)
             chk_key=${2} ; shift ;;
+        -y)
+            x_y="y" ;;
         --nonc|--nocdf|--nonetcdf|--no_nc|--no_cdf|--no_netcdf)
             x_nocdf=1  ;;
         --clean|--clean_compil|clean)
@@ -306,7 +310,11 @@ if [ -d ${NEMO_TDIR}/${CUR_CONF} ]; then
         ${COMPIL_DIR}/Fclean_config.sh ${NEMO_TDIR}/${CUR_CONF}
         exit 0
     elif [ ${#x_c} -ne 0 ]; then
+        if [ -z ${x_y} ] ; then
         read -p "Are you sure that you want to clean the build directories of configuration ${CUR_CONF}? " -n 1 -r; echo
+        else
+            REPLY=${x_y}
+        fi
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             for dir in BLD BLD_SCT_PSYCLONE BLD_SCT_AGRIF BLD_AGRIFLIB; do
                 # Only clean build directories that contain a build configuration
