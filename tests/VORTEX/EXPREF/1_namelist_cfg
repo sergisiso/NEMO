@@ -204,7 +204,6 @@
 !-----------------------------------------------------------------------
 &namdyn_hpg    !   Hydrostatic pressure gradient option                 (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_hpg_zps  = .false.  !  z-coordinate - partial steps (interpolation)
    ln_hpg_sco  = .true.   !  s-coordinate (standard jacobian formulation)
 /
 !-----------------------------------------------------------------------
