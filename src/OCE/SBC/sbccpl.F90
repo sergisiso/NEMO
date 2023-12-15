@@ -1054,10 +1054,10 @@ CONTAINS
          CALL iom_get( inum, jpdom_unknown, 'cplmask', xcplmask(:,:,1:nn_cplmodel),   &
             &          kstart = (/ mig(Nis0,0),mjg(Njs0,0),1 /), kcount = (/ Ni_0,Nj_0,nn_cplmodel /) )
          CALL iom_close( inum )
+         xcplmask(:,:,0) = 1. - SUM( xcplmask(:,:,1:nn_cplmodel), dim = 3 )
       ELSE
          xcplmask(:,:,:) = 1.
       ENDIF
-      xcplmask(:,:,0) = 1. - SUM( xcplmask(:,:,1:nn_cplmodel), dim = 3 )
       !
    END SUBROUTINE sbc_cpl_init
 
