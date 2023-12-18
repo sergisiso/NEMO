@@ -117,8 +117,6 @@ CONTAINS
       zalk1 = zalkb
       CALL sed_co3( kt )
       preac = 0.0
-      psmsdic = 0.0
-      psmsalk = 0.0
       xirrigtrd(:,jwdic) = 0.0
       xirrigtrd(:,jwalk) = 0.0
 
@@ -163,9 +161,7 @@ CONTAINS
             zdissol = reac_cal * zsolid1 * zunder / &
             &                ( 1. + reac_cal * 2.0 * dtsed / 9.0 * zunder )
             psmsdic(ji,jk) = rearatpom(ji,jk) + zdissol
-
             psmsalk(ji,jk) = pwcpaa(ji,jk,jwalk) + 2.0 * zdissol
-
          END DO
       END DO
 

@@ -87,7 +87,10 @@ CONTAINS
 
       pwcpaa(:,:,jwalk) = 0.0
       pwcpaa(:,:,jwpo4) = 0.0
-      xirrigtrd(:,:) = 0.0
+      DO jn = 1, jpvode
+         js = jsvode(jn)
+         IF (js <= jpwat) xirrigtrd(:,js) = 0.0
+      END DO
 
       ! Apply bioturbation and compute the impact of the slow SMS on species
       CALL sed_btb( kt )
