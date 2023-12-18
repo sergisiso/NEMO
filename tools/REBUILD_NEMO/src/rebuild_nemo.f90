@@ -1,5 +1,4 @@
 PROGRAM rebuild_nemo
-#define key_netcdf4
    !!=========================================================================
    !!                        ***  rebuild_nemo  ***
    !!=========================================================================
@@ -178,9 +177,11 @@ PROGRAM rebuild_nemo
    LOGICAL :: l_findDims  = .true.
    LOGICAL :: l_maskout   = .false.
    LOGICAL :: l_namexist  = .false.
+   LOGICAL :: l_timestamp = .false. ! flag to add timestamp attribute
 
    NAMELIST/nam_rebuild/ filebase, ndomain, dims, nslicesize, l_maskout, deflate_level, &
-                       & nc4_xchunk, nc4_ychunk, nc4_zchunk, nc4_tchunk, fchunksize         
+                       & nc4_xchunk, nc4_ychunk, nc4_zchunk, nc4_tchunk, fchunksize,    &
+                       & l_timestamp
 
    !external      :: getarg
 
@@ -235,7 +236,7 @@ PROGRAM rebuild_nemo
 
    dims(:) = ""
    nslicesize = 0
-   deflate_level = 0
+   deflate_level = 1 ! same default value as in mpp option
    OPEN( UNIT=numnam, FILE=TRIM(cnampath), FORM='FORMATTED', STATUS='OLD' )
    READ( numnam, nam_rebuild )
    CLOSE( numnam )
@@ -269,11 +270,7 @@ PROGRAM rebuild_nemo
    ENDIF
   
 !2.1 Set up the output file
-#if defined key_netcdf4
    CALL check_nf90( nf90_create( TRIM(filebase)//'.nc', nf90_netcdf4, outid, chunksize=fchunksize ) )
-#else
-   CALL check_nf90( nf90_create( TRIM(filebase)//'.nc', nf90_64bit_offset, outid, chunksize=fchunksize ) )
-#endif
 
 !2.2 Set up dimensions in output file
 
@@ -367,14 +364,18 @@ PROGRAM rebuild_nemo
       IF (l_verbose) WRITE(numout,*) 'Copying attribute '//TRIM(attname)//' into destination file...'
       CALL check_nf90( nf90_copy_att( ncid, nf90_global, attname, outid, nf90_global ) )
    END DO
-   CALL check_nf90( nf90_put_att( outid, nf90_global, "file_name", TRIM(filebase)//'.nc') )
-   IF (l_verbose) WRITE(numout,*) 'Writing new file_name attribute'  
-   CALL DATE_AND_TIME ( date=date, time=time, zone=zone )
-   timestamp = date(7:8) // "/" // date(5:6) // "/" // date(1:4) // " " // &
-               time(1:2) // ":" // time(3:4) // ":" // time(5:6) // " " // &
-               zone  
-   CALL check_nf90( nf90_put_att( outid, nf90_global, "TimeStamp", timestamp ) )
-   IF (l_verbose) WRITE(numout,*) 'Writing new TimeStamp attribute'
+
+   IF (l_timestamp) THEN
+      CALL check_nf90( nf90_put_att( outid, nf90_global, "file_name", TRIM(filebase)//'.nc') )
+      IF (l_verbose) WRITE(numout,*) 'Writing new file_name attribute'  
+
+      CALL DATE_AND_TIME ( date=date, time=time, zone=zone )
+      timestamp = date(7:8) // "/" // date(5:6) // "/" // date(1:4) // " " // &
+                  time(1:2) // ":" // time(3:4) // ":" // time(5:6) // " " // &
+                  zone  
+      CALL check_nf90( nf90_put_att( outid, nf90_global, "TimeStamp", timestamp ) )
+      IF (l_verbose) WRITE(numout,*) 'Writing new TimeStamp attribute'
+   END IF
   
 !2.2.3 Copy the variable definitions and attributes into the output file.
    ALLOCATE(mdiVals(nvars))
@@ -407,10 +408,8 @@ PROGRAM rebuild_nemo
     &                             chunksizes(idim) = min(outdimlens(dimids(idim)), max(nc4_tchunk,1))
 
         END DO
-#if defined key_netcdf4
         CALL check_nf90( nf90_def_var( outid, varname, xtype, outdimids, varid, &
                                        deflate_level=deflate_level ) )
-        IF (l_verbose) WRITE(numout,*) 'Dims    : ',ndims, outdimids(1:ndims)
         IF (l_verbose) WRITE(numout,*) 'names   : ',(TRIM(indimnames(dimids(idim)))//' ',idim=1,ndims)
         IF (l_verbose) WRITE(numout,*) 'lens    : ',(outdimlens(dimids(idim)),idim=1,ndims)
         IF (l_verbose) WRITE(numout,*) 'Chunking: ',chunksizes
@@ -420,9 +419,6 @@ PROGRAM rebuild_nemo
    &                                 chunksizes ) )
       ELSE
         CALL check_nf90( nf90_def_var( outid, varname, xtype, outdimids, varid ) )
-#else
-      CALL check_nf90( nf90_def_var( outid, varname, xtype, outdimids, varid ) )
-#endif
       ENDIF
       DEALLOCATE(outdimids)
       DEALLOCATE(chunksizes)
@@ -444,7 +440,7 @@ PROGRAM rebuild_nemo
    CALL check_nf90( nf90_enddef( outid ) )
    inncids(1) = ncid
    IF (l_verbose) WRITE(numout,*) 'Finished defining output file.'
-  
+ 
 !---------------------------------------------------------------------------
 !3. Read in data from each file for each variable 
 
@@ -1453,7 +1449,6 @@ PROGRAM rebuild_nemo
                WRITE(numerr,*) '4d write unknown nf90 type: ', xtype
                STOP 4
          END SELECT     
-         ! why only for big data set, test the cost.
          CALL check_nf90( nf90_sync( outid ) )    ! flush buffers to disk after writing big 4D datasets
 
       ELSEIF( ndims == 5 ) THEN
@@ -1478,7 +1473,6 @@ PROGRAM rebuild_nemo
                WRITE(numerr,*) '5d write unknown nf90 type: ', xtype
                STOP 4
          END SELECT
-         ! why only for big data set, test the cost.
          CALL check_nf90( nf90_sync( outid ) )    ! flush buffers to disk after writing big 4D datasets
     
       ENDIF
