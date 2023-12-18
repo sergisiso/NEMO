@@ -84,6 +84,7 @@ MODULE sedini
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
+#  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !! $Id: sedini.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
@@ -114,6 +115,7 @@ CONTAINS
       !---------------------------------------
 
       CALL ctl_opn( numsed, 'sediment.output', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', -1, numout, .FALSE. )
+      IF(lwm) CALL ctl_opn( numons     , 'output.namelist.sed' , 'UNKNOWN', 'FORMATTED', 'SEQUENTIAL', -1, numout, .FALSE. )
 
       IF (lwp) THEN
          WRITE(numsed,*)
@@ -164,6 +166,7 @@ CONTAINS
       ALLOCATE( temp(jpoce) )                ;  ALLOCATE( salt(jpoce) )  
       ALLOCATE( diff(jpoce,jpksed,jpwat ) )  ;  ALLOCATE( irrig(jpoce, jpksed) )
       ALLOCATE( wacc(jpoce) )                ;  ALLOCATE( fecratio(jpoce) )
+      ALLOCATE( xlabil(jpoce) )
       ALLOCATE( densSW(jpoce) )              ;  ALLOCATE( saturco3(jpoce,jpksed) ) 
       ALLOCATE( hipor(jpoce,jpksed) )        ;  ALLOCATE( co3por(jpoce,jpksed) )
       ALLOCATE( volw3d(jpoce,jpksed) )       ;  ALLOCATE( vols3d(jpoce,jpksed) )
@@ -174,7 +177,7 @@ CONTAINS
       ! Initialization of global variables
       pwcp  (:,:,:) = 0.   ;  pwcp_dta  (:,:) = 0.  
       pwcpa (:,:,:) = 0.   ;  solcpa(:,:,:) = 0.
-      solcp (:,:,:) = 0.
+      solcp (:,:,:) = 0.   ;  xlabil(:) = 0.
       rainrg(:,:  ) = 0.
       dzdep (:    ) = 0.   ;  dzkbot (:   ) = 0.
       temp  (:    ) = 0.   ;  salt   (:   ) = 0.  ; zkbot     (:  ) = 0.
@@ -270,6 +273,8 @@ CONTAINS
          rads1sol(jk,jwnh4) = adsnh4 * por1(jk)
          rads1sol(jk,jwfe2) = adsfe2 * por1(jk)
       END DO
+
+      xlabil(:) = 4.0 * exp(-zkbot(:) / 1000.0 ) + 1.0
 
       ! ---------------------------
       ! Conversion of volume units
@@ -409,10 +414,10 @@ CONTAINS
       !!        !  06-07  (C. Ethe)  Original
       !!----------------------------------------------------------------------
 
-      INTEGER ::   numnamsed_ref = -1           !! Logical units for namelist sediment
-      INTEGER ::   numnamsed_cfg = -1           !! Logical units for namelist sediment
-      INTEGER :: ios                 ! Local integer output status for namelist read
+      CHARACTER(:), ALLOCATABLE ::   numnamsed_ref   !! Character buffer for reference namelist sediment
+      CHARACTER(:), ALLOCATABLE ::   numnamsed_cfg   !! Character buffer for configuration namelist sediment
       CHARACTER(LEN=20)   ::   clname
+      INTEGER ::   ios   ! Local integer
 
       TYPE PSED
          CHARACTER(len = 20)  :: snamesed   !: short name
@@ -455,20 +460,16 @@ CONTAINS
       clname = 'namelist_sediment'
       IF(lwp) WRITE(numsed,*) ' sed_ini_nam : read SEDIMENT namelist'
       IF(lwp) WRITE(numsed,*) ' ~~~~~~~~~~~~~~'
-      CALL ctl_opn( numnamsed_ref, TRIM( clname )//'_ref', 'OLD'    , 'FORMATTED', 'SEQUENTIAL', -1, numout, .FALSE. )
-      CALL ctl_opn( numnamsed_cfg, TRIM( clname )//'_cfg', 'OLD'    , 'FORMATTED', 'SEQUENTIAL', -1, numout, .FALSE. )
+      CALL load_nml( numnamsed_ref, TRIM( clname )//'_ref', numout, lwm )
+      CALL load_nml( numnamsed_cfg, TRIM( clname )//'_cfg', numout, lwm )
 
       nitsed000 = nittrc000
       nitsedend = nitend
 
       ! Namelist nam_run
-      REWIND( numnamsed_ref )              ! Namelist nam_run in reference namelist : Pisces variables
-      READ  ( numnamsed_ref, nam_run, IOSTAT = ios, ERR = 901)
-901   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_run in reference namelist' )
-
-      REWIND( numnamsed_cfg )              ! Namelist nam_run in reference namelist : Pisces variables
-      READ  ( numnamsed_cfg, nam_run, IOSTAT = ios, ERR = 902)
-902   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_run in configuration namelist' )
+      READ_NML_REF(numnamsed,nam_run)
+      READ_NML_CFG(numnamsed,nam_run)
+      IF(lwm) WRITE( numons, nam_run )
 
       IF (lwp) THEN
          WRITE(numsed,*) ' namelist nam_run'
@@ -480,13 +481,10 @@ CONTAINS
 
       IF ( ln_p5z .AND. ln_sed_2way ) CALL ctl_stop( '2 ways coupling with sediment cannot be activated with PISCES-QUOTA' )
 
-      REWIND( numnamsed_ref )              ! Namelist nam_geom in reference namelist : Pisces variables
-      READ  ( numnamsed_ref, nam_geom, IOSTAT = ios, ERR = 903)
-903   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_geom in reference namelist' )
-
-      REWIND( numnamsed_cfg )              ! Namelist nam_geom in reference namelist : Pisces variables
-      READ  ( numnamsed_cfg, nam_geom, IOSTAT = ios, ERR = 904)
-904   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_geom in configuration namelist' )
+      ! Namelist nam_geom 
+      READ_NML_REF(numnamsed,nam_geom)
+      READ_NML_CFG(numnamsed,nam_geom)
+      IF(lwm) WRITE( numons, nam_geom )
 
       IF (lwp) THEN 
          WRITE(numsed,*) ' namelist nam_geom'
@@ -500,13 +498,10 @@ CONTAINS
          WRITE(numsed,*) ' Length scale of porosity variation   rhox    = ', rhox
       ENDIF
 
-      REWIND( numnamsed_ref )              ! Namelist nam_trased in reference namelist : Pisces variables
-      READ  ( numnamsed_ref, nam_trased, IOSTAT = ios, ERR = 905)
-905   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_trased in reference namelist' )
-
-      REWIND( numnamsed_cfg )              ! Namelist nam_trased in reference namelist : Pisces variables
-      READ  ( numnamsed_cfg, nam_trased, IOSTAT = ios, ERR = 906)
-906   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_trased in configuration namelist' )
+      ! Namelist nam_trased
+      READ_NML_REF(numnamsed,nam_trased)
+      READ_NML_CFG(numnamsed,nam_trased)
+      IF(lwm) WRITE( numons, nam_trased )
 
       DO jn = 1, jpsol
          sedtrcd(jn) = sedsol(jn)%snamesed
@@ -533,13 +528,10 @@ CONTAINS
          WRITE(numsed,*) ' '
       ENDIF
 
-      REWIND( numnamsed_ref )              ! Namelist nam_diased in reference namelist : Pisces variables
-      READ  ( numnamsed_ref, nam_diased, IOSTAT = ios, ERR = 907)
-907   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_diased in reference namelist' )
-
-      REWIND( numnamsed_cfg )              ! Namelist nam_diased in reference namelist : Pisces variables
-      READ  ( numnamsed_cfg, nam_diased, IOSTAT = ios, ERR = 908)
-908   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_diased in configuration namelist' )
+      ! Namelist nam_diased
+      READ_NML_REF(numnamsed,nam_diased)
+      READ_NML_CFG(numnamsed,nam_diased)
+      IF(lwm) WRITE( numons, nam_diased )
 
       DO jn = 1, jpdia2dsed
          seddia2d(jn) = seddiag2d(jn)%snamesed
@@ -563,13 +555,10 @@ CONTAINS
 
       ! Inorganic chemistry parameters
       !----------------------------------
-      REWIND( numnamsed_ref )              ! Namelist nam_inorg in reference namelist : Pisces variables
-      READ  ( numnamsed_ref, nam_inorg, IOSTAT = ios, ERR = 909)
-909   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_inorg in reference namelist' )
-
-      REWIND( numnamsed_cfg )              ! Namelist nam_inorg in reference namelist : Pisces variables
-      READ  ( numnamsed_cfg, nam_inorg, IOSTAT = ios, ERR = 910)
-910   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_inorg in configuration namelist' )
+      ! Namelist nam_inorg
+      READ_NML_REF(numnamsed,nam_inorg)
+      READ_NML_CFG(numnamsed,nam_inorg)
+      IF(lwm) WRITE( numons, nam_inorg )
 
       IF (lwp) THEN
          WRITE(numsed,*) ' namelist nam_inorg'
@@ -588,13 +577,10 @@ CONTAINS
 
       ! Additional parameter linked to POC/O2/No3/Po4
       !----------------------------------------------
-      REWIND( numnamsed_ref )              ! Namelist nam_poc in reference namelist : Pisces variables
-      READ  ( numnamsed_ref, nam_poc, IOSTAT = ios, ERR = 911)
-911   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_poc in reference namelist' )
-
-      REWIND( numnamsed_cfg )              ! Namelist nam_poc in reference namelist : Pisces variables
-      READ  ( numnamsed_cfg, nam_poc, IOSTAT = ios, ERR = 912)
-912   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_poc in configuration namelist' )
+      ! Namelist nam_poc
+      READ_NML_REF(numnamsed,nam_poc)
+      READ_NML_CFG(numnamsed,nam_poc)
+      IF(lwm) WRITE( numons, nam_poc )
 
       IF (lwp) THEN
          WRITE(numsed,*) ' namelist nam_poc'
@@ -649,13 +635,10 @@ CONTAINS
 
       ! Bioturbation parameter
       !------------------------
-      REWIND( numnamsed_ref )              ! Namelist nam_btb in reference namelist : Pisces variables
-      READ  ( numnamsed_ref, nam_btb, IOSTAT = ios, ERR = 913)
-913   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_btb in reference namelist' )
-
-      REWIND( numnamsed_cfg )              ! Namelist nam_btb in reference namelist : Pisces variables
-      READ  ( numnamsed_cfg, nam_btb, IOSTAT = ios, ERR = 914)
-914   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_btb in configuration namelist' )
+      ! Namelist nam_btb 
+      READ_NML_REF(numnamsed,nam_btb)
+      READ_NML_CFG(numnamsed,nam_btb)
+      IF(lwm) WRITE( numons, nam_btb )
 
       IF (lwp) THEN
          WRITE(numsed,*) ' namelist nam_btb ' 
@@ -671,22 +654,16 @@ CONTAINS
 
       ! Initial value (t=0) for sediment pore water and solid components
       !----------------------------------------------------------------
-      REWIND( numnamsed_ref )              ! Namelist nam_rst in reference namelist : Pisces variables
-      READ  ( numnamsed_ref, nam_rst, IOSTAT = ios, ERR = 915)
-915   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_rst in reference namelist' )
-
-      REWIND( numnamsed_cfg )              ! Namelist nam_rst in reference namelist : Pisces variables
-      READ  ( numnamsed_cfg, nam_rst, IOSTAT = ios, ERR = 916)
-916   IF( ios /= 0 ) CALL ctl_nam ( ios , 'nam_rst in configuration namelist' )
+      ! Namelist nam_rst 
+      READ_NML_REF(numnamsed,nam_rst)
+      READ_NML_CFG(numnamsed,nam_rst)
+      IF(lwm) WRITE( numons, nam_rst )
 
       IF (lwp) THEN
          WRITE(numsed,*) ' namelist  nam_rst ' 
          WRITE(numsed,*) '  boolean term for restart (T or F) ln_rst_sed = ', ln_rst_sed 
          WRITE(numsed,*) ' '
       ENDIF
-
-      CLOSE( numnamsed_cfg )
-      CLOSE( numnamsed_ref )
 
    END SUBROUTINE sed_ini_nam
 

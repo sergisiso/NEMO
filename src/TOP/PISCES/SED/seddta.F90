@@ -135,12 +135,12 @@ CONTAINS
 
       !  Sinking fluxes for POC in mol.m-2.s-1 ; conversion in mol.cm-2.s-1
       zdtap = PACK( trc_data(:,:,13), sedmask == 1.0 )
-      zzf1 = 0.5187
-      zzf2 = 0.3525
-      zzf3 = 0.0963
-      zzf4 = 0.0243
-      zzf5 = 0.0061
-      zzf6 = 0.0022
+      zzf1 = 0.4471
+      zzf2 = 0.3027
+      zzf3 = 0.1393
+      zzf4 = 0.0618
+      zzf5 = 0.0273
+      zzf6 = 0.0217
       DO ji = 1, jpoce
          rainrg(ji,jspoc1) = zzf1 * zdtap(ji)
          rainrg(ji,jspoc2) = zzf2 * zdtap(ji)
