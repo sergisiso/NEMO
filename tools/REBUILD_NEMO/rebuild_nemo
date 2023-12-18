@@ -9,14 +9,18 @@ usage ()
    echo "  NEMO Rebuild"
    echo "  ************"
    echo
-   echo "  usage: ${0##*/} [-l -p -s -m -n -r -d -x -y -z -t -c] filebase ndomain [rebuild dimensions]"
+   echo "  usage: ${0##*/} [-l -p -s -m -n -r -i -d -x -y -z -t -c -o] filebase ndomain [rebuild dimensions]"
    echo
    echo "  flags:    -l arch            submit to compute node"
-   echo "            -p num             use num threads"
+   echo "            -p                 add a timestamp and filename attribute in the netcdf"
    echo "            -s num             split 4D vars into time slice of size num"
    echo "            -m                 force masking of global arrays (zero if no mdi)"
+   echo "            -i                 rebuild icb restart"
    echo "            -n namelist        full path to namelist file to be created (otherwise default nam_rebuild+_process_id is used)"
    echo "            -r memory          Memory to request on compute node including units (Default = 10Gb)"
+   echo ""
+   echo "      mpp version only "
+   echo "            -o ifstart         file suffix offset. Associate this numbered suffix with rank 0 instead of 0"
    echo ""
    echo "      key_netcdf4 only "
    echo "            -d deflate_level     deflate level for output files"
@@ -29,7 +33,7 @@ usage ()
    exit 1
 }
 
-while getopts l:p:s:n:r:d:x:y:z:t:c:m opt
+while getopts l:s:n:r:d:x:y:z:t:c:o:mpi opt
 do
   case ${opt} in
       l) 
@@ -37,7 +41,7 @@ do
          ARCH=${OPTARG}
       ;;
       p)
-         OMP_NUM_THREADS=${OPTARG}
+         LSTAMP="TRUE"
       ;;
       s)
          NSLICESIZE=${OPTARG}
@@ -46,6 +50,12 @@ do
          NMASK="TRUE"
          echo ""
          echo "output is mask using netcdf missing value (_Fillvalue attribute) or 0 if missing value not in the netcdf."
+         echo ""
+      ;;
+      i)
+         LBERG="TRUE"
+         echo ""
+         echo "we rebuild an icb restart => extra step to add icb in adition of 2d variables"
          echo ""
       ;;
       d)
@@ -72,6 +82,9 @@ do
       c)
          CHUNKSIZE=${OPTARG}
       ;;
+      o)
+         IFSTART=${OPTARG}
+      ;;
   esac
 done
 shift $(expr ${OPTIND} - 1)
@@ -89,6 +102,7 @@ DIM2=$4
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
 nam_rebuild=${nam_rebuild:-nam_rebuild_$$}
 MEMORY=${MEMORY:-10Gb}
+IFSTART=${IFSTART:-1}
 
 #Find out the maximum number of files that can be opened and increase if necessary)
 nopen=$(ulimit -n)
@@ -106,6 +120,7 @@ echo "file ${file},  num_domains ${ndomain}, num_threads ${OMP_NUM_THREADS}${dim
 cat > $nam_rebuild << EOC
 &nam_rebuild
 filebase='${file}'
+ifstart=${IFSTART}
 ndomain=${ndomain}
 EOC
 if [[ -n ${dims} ]] ; then
@@ -113,6 +128,9 @@ if [[ -n ${dims} ]] ; then
 fi
 if [[ -n ${NCSLICESIZE} ]] ; then
    echo " nslicesize=${NCSLICESIZE}" >> $nam_rebuild
+fi
+if [[ -n ${LSTAMP} ]] ; then
+   echo " l_timestamp=.true." >> $nam_rebuild
 fi
 if [[ -n ${NMASK} ]] ; then
    echo " l_maskout=.true." >> $nam_rebuild
@@ -170,6 +188,7 @@ if [[ ${BATCH} == "yes" ]] ; then
       -e"s/MEMORY/${MEMORY}/" \
       -e"s:INDIR:${script_dir}:" \
       -e"s/NOPEN/${nopen}/" \
+      -e"s/LBERG/${LBERG}/" \
       -e"s/NAMELIST/${nam_rebuild}/" > ${batch_file}_$$.sh
    
    #Submit the job
@@ -179,5 +198,11 @@ if [[ ${BATCH} == "yes" ]] ; then
 else
    ulimit -n $nopen
    ${script_dir}/rebuild_nemo.exe $nam_rebuild
+
+   if [[ -n $LBERG ]]; then
+      echo 'rebuild iceberg'
+      python ${script_dir}/icb_combrest.py -f ${file}_ -n ${ndomain} -o ${file}.nc || exit $?
+   fi
+
 fi
 

@@ -28,10 +28,17 @@ and errors are written to numerr (default 0 - stderr).
 It does this by breaking down the 4D input variables over their 4th dimension 
 (generally time) by way of a while loop.
 
+For large applications like rebuilding high resolution configuration restart, 
+a mpp version has been developed. This version called `mpp_rebuild_nemo.exe` works exactly as the
+sequential version (same namelist options) but required at least 2 cores (one core to read variables
+and send it to a writer). The advantage is that readers read data at the same time that the writer writes the data.
+This version is automatically used when rebuild_nemo submit to compute node (-l option, see below)
+
 How to compile it
 =================
 REBUILD_NEMO is compiled in the same manner as all the other tools. 
 The compilation script is maketools and the option are very similar to makenemo. 
+Both versions (sequential and mpp) are compiled at the same time.
 
 Here an example of how to compile REBUILD_NEMO on the MetOffice XC40 HPC:
 
@@ -54,14 +61,20 @@ If the rebuild_nemo shell script it used, the namelist is filled automatically d
   NEMO Rebuild
   ************
 
-  usage: rebuild_nemo [-l -p -s -m -n -r -d -x -y -z -t -c] filebase ndomain [rebuild dimensions]
+  usage: rebuild_nemo [-l -p -s -m -n -r -d -x -y -z -t -c -i] filebase ndomain [rebuild dimensions]
 
   flags:    -l arch            submit to compute node
             -p num             use num threads
             -s num             split 4D vars into time slice of size num
             -m                 force masking of global arrays (zero if no mdi)
+            -i                 rebuild icb restart
             -n namelist        full path to namelist file to be created (otherwise default nam_rebuild+_process_id is used)
             -r memory          Memory to request on compute node including units (Default = 10Gb)
+
+      mpp version only "
+            -o ifstart         file suffix offset. Associate this numbered suffix with rank 0 instead of 0
+                               (it is useful to rebuild iceberg restart is case the default rebuild failed because of unfound dimension for 
+                               one of the readers).
 
       key_netcdf4 only 
             -d deflate_level     deflate level for output files
@@ -71,8 +84,8 @@ If the rebuild_nemo shell script it used, the namelist is filled automatically d
             -t chunksize along t 
             -c total size of the chunk cache 
 
-In case the option '-l arch' is used, a template for the batch script and parameter for job submission has to be provided in BATCH_TEMPLATES (param_arch and rebuild_nemo_batch_arch). 
-Exemple from the XC40_METO architecture can be found in the directory. 
+In case the option '-l arch' is used, a template for the batch script and parameter for job submission has to be provided in BATCH_TEMPLATES (param_arch and rebuild_nemo_batch_arch). In this case, the mpp version of the tool is used.
+Exemple from the `irene` architecture can be found in the directory. 
 Some keywords (NTHREADS, MEMORY, INDIR, NAMELIST and NOPEN) from the template are replaced by the rebuild_nemo script.
 
 * **rebuild_nemo.exe + namelist**
@@ -99,6 +112,8 @@ Some option can be added (the value mentioned here are the default value):
          nc4_zchunk=1           !(-z option)
          nc4_tchunk=1           !(-t option)
          fchunksize=32000000    !(-c option)
+
+Same logic is applicable for the mpp version.
 
 Example
 =======
