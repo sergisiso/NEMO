@@ -106,7 +106,7 @@ CONTAINS
    END SUBROUTINE zdf_ric_init
 
 
-   SUBROUTINE zdf_ric( kt, Kmm, p_sh2, p_avm, p_avt )
+   SUBROUTINE zdf_ric( kt, Kbb, Kmm, p_avm, p_avt )
       !!----------------------------------------------------------------------
       !!                 ***  ROUTINE zdfric  ***
       !!
@@ -146,19 +146,23 @@ CONTAINS
       !!              PFJ Lermusiaux 2001.
       !!----------------------------------------------------------------------
       INTEGER                         , INTENT(in   ) ::   kt             ! ocean time-step
-      INTEGER                         , INTENT(in   ) ::   Kmm            ! ocean time level index
-      REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(in   ) ::   p_sh2          ! shear production term
+      INTEGER                         , INTENT(in   ) ::   Kmm, Kbb       ! ocean time level index
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
       REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt          ! vertical eddy diffusivity (w-points)
       !!
       INTEGER  ::   ji, jj, jk                  ! dummy loop indices
-      REAL(wp) ::   zcfRi, zav, zustar, zhek    ! local scalars
+      REAL(wp) ::   zcfRi, zav, zustar, zhek, zdku, zdkv, zwx    ! local scalars
       REAL(wp), DIMENSION(T2D(0)) ::   zh_ekm  ! 2D workspace
       !!----------------------------------------------------------------------
       !
       !                       !==  avm and avt = F(Richardson number)  ==!
       DO_3D( 0, 0, 0, 0, 2, jpkm1 )       ! coefficient = F(richardson number) (avm-weighted Ri)
-         zcfRi = 1._wp / (  1._wp + rn_alp * MAX(  0._wp , avm(ji,jj,jk) * rn2(ji,jj,jk) / ( p_sh2(ji,jj,jk) + 1.e-20 ) )  )
+         zdku = 0.5 / e3uw(ji,jj,jk,Kbb) * (  uu(ji-1,jj,jk-1,Kbb) + uu(ji,jj,jk-1,Kbb)   &
+              &                            -  uu(ji-1,jj,jk,Kbb) - uu(ji,jj,jk,Kbb)  )* wumask(ji,jj,jk)
+         zdkv = 0.5 / e3vw(ji,jj,jk,Kbb) * (  vv(ji,jj-1,jk-1,Kbb) + vv(ji,jj,jk-1,Kbb)   &
+              &                            -  vv(ji,jj-1,jk,Kbb) - vv(ji,jj,jk,Kbb)  )* wvmask(ji,jj,jk)
+         zwx =  zdku * zdku + zdkv * zdkv
+         zcfRi = 1._wp / (  1._wp + rn_alp * MAX(  0._wp , rn2(ji,jj,jk) / (zwx + 1.e-20 ) )  )
          zav   = rn_avmri * zcfRi**nn_ric
          !                          ! avm and avt coefficients
          p_avm(ji,jj,jk) = MAX(  zav         , avmb(jk)  ) * wmask(ji,jj,jk)
