@@ -300,7 +300,7 @@ CONTAINS
       !                       !==  Kz from chosen turbulent closure  ==!   (avm_k, avt_k)
       !
       SELECT CASE ( nzdf_phy )                  !* Vertical eddy viscosity and diffusivity coefficients at w-points
-      CASE( np_RIC )   ;   CALL zdf_ric( kt,      Kmm, sh2, avm_k, avt_k )    ! Richardson number dependent Kz
+      CASE( np_RIC )   ;   CALL zdf_ric( kt, Kbb, Kmm, avm_k, avt_k )    ! Richardson number dependent Kz
       CASE( np_TKE )   ;   CALL zdf_tke( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! TKE closure scheme for Kz
       CASE( np_GLS )   ;   CALL zdf_gls( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! GLS closure scheme for Kz
       CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )    ! OSMOSIS closure scheme for Kz
