@@ -120,9 +120,11 @@ echo "file ${file},  num_domains ${ndomain}, num_threads ${OMP_NUM_THREADS}${dim
 cat > $nam_rebuild << EOC
 &nam_rebuild
 filebase='${file}'
-ifstart=${IFSTART}
 ndomain=${ndomain}
 EOC
+if [[ ${BATCH} == "yes" ]] ; then
+   echo " ifstart=${IFSTART}" >> $nam_rebuild
+fi
 if [[ -n ${dims} ]] ; then
    echo ${dims} >> $nam_rebuild
 fi

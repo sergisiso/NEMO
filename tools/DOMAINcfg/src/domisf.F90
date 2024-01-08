@@ -106,39 +106,65 @@ CONTAINS
       !!              - bathy and isfdraft are modified
       !!----------------------------------------------------------------------
       !!  
-      INTEGER  :: ji, jj                             ! loop indexes
+      INTEGER  :: ji, jj, jn                         ! loop indexes
       INTEGER  :: imskjp1, imskjm1, imskip1, imskim1 ! local variable
       INTEGER, DIMENSION(jpi,jpj) :: imask           ! isf mask
       !
       REAL(wp) ::   zisfdep_min  ! minimal ice shelf draft allowed
+      REAL(wp) ::   zbathymin    ! minimal bathymetry within the 4 neigbourg cells + the current cell
+      REAL(wp), DIMENSION(jpi,jpj) :: zmask  ! tmp array
       !!---------------------------------------------------------------------
       !
-      ! 1.0 set iceshelf to the minimum depth allowed
+      ! 1.1.0 set iceshelf to the minimum depth allowed
       zisfdep_min = MAX(rn_isfdep_min,e3t_1d(1))
       WHERE(risfdep(:,:) > 0.0_wp .AND. risfdep(:,:) < zisfdep_min)
          risfdep(:,:) = zisfdep_min
       END WHERE
       !  
-      ! 1.1 ground ice shelf if water column less than rn_glhw_min m 
+      ! 1.1.1 ground ice shelf if water column less than rn_glhw_min m 
       ! => set the grounding line position
       WHERE( bathy(:,:) - risfdep(:,:) < rn_glhw_min .AND. risfdep(:,:) > 0.0_wp ) 
          bathy  (:,:) = 0._wp ; risfdep(:,:) = 0._wp
       END WHERE
       !
-      ! 1.2 ensure a minimum thickness for iceshelf cavity 
-      ! => avoid to negative e3t if ssh + sum(e3t_0*tmask) < 0
-      DO jj = 1, jpj
-         DO ji = 1, jpi
-            IF ( bathy(ji,jj) - risfdep(ji,jj) < rn_isfhw_min .AND. risfdep(ji,jj) > 0.0_wp ) THEN
-               risfdep(ji,jj) = bathy(ji,jj) - rn_isfhw_min
-               ! sanity check on risfdep (if < zisfdep_min)
-               ! => we ground it as it failed to respect condition 1.0 and 1.1
-               IF ( risfdep(ji,jj) < zisfdep_min ) THEN 
-                  bathy(ji,jj)=0._wp ; risfdep(ji,jj)=0._wp
+      ! 1.1.2 minimum bathy under a cavity is zisfdep_min + rn_isfhw_min =>
+      ! grounding if not
+      WHERE( bathy(:,:) < zisfdep_min + rn_isfhw_min .AND. risfdep(:,:) > 0.0_wp )
+         bathy  (:,:) = 0._wp ; risfdep(:,:) = 0._wp
+      END WHERE
+      !
+      ! 1.2.0 ensure a minimum thickness for iceshelf cavity 
+      ! => avoid negative e3t if ssh + sum(e3t_0*tmask) < 0
+      ! It need 4 iterations: if un-luky, digging cell U-1 can trigger case for
+      ! U+1, then V-1, then V+1
+      DO jn = 1, 4
+         DO jj = 2, jpjm1
+            DO ji = 2, jpim1
+               IF ( risfdep(ji,jj) > 0.0_wp ) THEN
+                  ! check neigbourg bathymetry and be sure the isfdraft is shallow
+                  ! enough to allow at least rn_isfhw_min m on each side when
+                  ! connected
+                  zbathymin=bathy(ji,jj)
+                  IF ( risfdep(ji,jj) < bathy(ji+1,jj) ) zbathymin=MIN(zbathymin,bathy(ji+1,jj))
+                  IF ( risfdep(ji,jj) < bathy(ji-1,jj) ) zbathymin=MIN(zbathymin,bathy(ji-1,jj))
+                  IF ( risfdep(ji,jj) < bathy(ji,jj+1) ) zbathymin=MIN(zbathymin,bathy(ji,jj+1))
+                  IF ( risfdep(ji,jj) < bathy(ji,jj-1) ) zbathymin=MIN(zbathymin,bathy(ji,jj-1))
+   
+                  IF ( zbathymin - risfdep(ji,jj) < rn_isfhw_min ) risfdep(ji,jj) = zbathymin - rn_isfhw_min
+   
                END IF
-            END IF
+            END DO
          END DO
       END DO
+
+      ! 1.2.1 sanity check on risfdep (if < zisfdep_min)
+      !       => we ground it as it failed to respect condition 1.1.*
+      WHERE ( risfdep < zisfdep_min .AND. risfdep > 0.0_wp )
+         bathy=0._wp ; risfdep=0._wp
+      END WHERE
+
+      ! ensure halo correct 
+      CALL lbc_lnk_multi( 'domisf', risfdep, 'T', 1._wp, bathy  , 'T', 1._wp )
       !
       ! 1.3 Remove channels and single point 'bay' using bathy mask.
       ! => channel could be created if connectivity is enforced later.
@@ -192,15 +218,16 @@ CONTAINS
       !! ** Action  : - compute misfdep
       !!              - isf draft is modified if needed
       !!----------------------------------------------------------------------
-      INTEGER  ::   ji, jj, jk, jn
+      INTEGER  ::   ji, jj, jk, jn, ik
       INTEGER  ::   icompt
       INTEGER  ::   ibtest,           ibtestim1, ibtestip1, ibtestjm1, ibtestjp1
       INTEGER  ::   ibathy, ibathyij, ibathyim1, ibathyip1, ibathyjm1, ibathyjp1
       INTEGER  ::   imskjp1  , imskjm1  , imskip1  , imskim1
       INTEGER  ::   imskip1_r, imskim1_r, imskjp1_r, imskjm1_r
       INTEGER , DIMENSION(jpi,jpj) :: imbathy, imisfdep, imask
+      INTEGER  :: ishl, jshl, jmin, imin
       !
-      REAL(wp) ::   zdepth
+      REAL(wp) ::   zdepth, zhw, zbathy, zmin
       REAL(wp), DIMENSION(jpi,jpj) :: zrisfdep, zdummy   ! 2D workspace (ISH)
       !!---------------------------------------------------------------------
       !
@@ -220,6 +247,19 @@ CONTAINS
          WHERE( risfdep(:,:) > 0._wp .AND. risfdep(:,:) >= zdepth )   misfdep(:,:) = jk+1 
       END DO 
       !
+      ! set bathy to the same value as in zgr_zps  => in case bathy below gdepw_1d(ik+1)
+      ! set isfdep to the same value as in zps_isf => in case isfdep shallow than gdepw_1d(ik)
+      ! It need to be enforce here to ensure conditions on water levels thickness and water thickness (at least 2 levels and 
+      ! rn_isfhw_min) is fullfilled. 
+      DO jj = 1, jpj
+         DO ji = 1, jpi
+            ik=mbathy(ji,jj)
+            IF( bathy(ji,jj) >= gdepw_1d(ik+1) .AND. misfdep(ji,jj) > 1 ) bathy(ji,jj) = gdepw_1d(ik+1)
+            ik=misfdep(ji,jj)
+            IF( risfdep(ji,jj) <= gdepw_1d(ik) .AND. misfdep(ji,jj) > 1 ) risfdep(ji,jj) = gdepw_1d(ik)
+         END DO
+      END DO
+
       ! 2.1 fill isolated grid point in the bathymetry
       ! will be done again later on in zgr_bat_ctl, but need to be done here to adjust misfdep respectively
       icompt = 0
@@ -249,52 +289,14 @@ CONTAINS
       ! risfdep of these cells will be fix later on (see 3)
       WHERE( misfdep > mbathy ) misfdep(:,:) = MAX( 1, mbathy(:,:) )
       !
-      ! 3.0 Assure 2 wet cells in the water column at T point and along the edge.
-      ! find the deepest isfdep level that fit the 2 wet cell on the water column
-      ! on all the sides (still need 4 pass)
-      ! It need 4 iterations: if un-luky, digging cell U-1 can trigger case for U+1, then V-1, then V+1
-      DO jn = 1, 4
-         imisfdep = misfdep
-         DO jj = 2, jpjm1
-            DO ji = 2, jpim1
-               ! ISF cell only
-               IF(  (misfdep(ji,jj) > 1) .AND. (mbathy(ji,jj) > 0) ) THEN
-                  ibathyij  = mbathy(ji  ,jj)
-                  !
-                  ! set ground edge value to jpk to skip it later on
-                  ibathyip1 = mbathy(ji+1,jj) ; IF ( ibathyip1 < misfdep(ji,jj) ) ibathyip1 = jpk ! no wet cell in common on this edge
-                  ibathyim1 = mbathy(ji-1,jj) ; IF ( ibathyim1 < misfdep(ji,jj) ) ibathyim1 = jpk ! no wet cell in common on this edge
-                  ibathyjp1 = mbathy(ji,jj+1) ; IF ( ibathyjp1 < misfdep(ji,jj) ) ibathyjp1 = jpk ! no wet cell in common on this edge
-                  ibathyjm1 = mbathy(ji,jj-1) ; IF ( ibathyjm1 < misfdep(ji,jj) ) ibathyjm1 = jpk ! no wet cell in common on this edge
-                  !
-                  ! find shallowest bathy level among the current cell and the neigbourging cells
-                  ibathy = MIN(ibathyij,ibathyip1,ibathyim1,ibathyjp1,ibathyjm1)
-                  !
-                  ! update misfdep and risfdep if needed
-                  ! misfdep need to be <= zmbathyij-1 to fit 2 wet cell on the water column
-                  jk = MIN(misfdep(ji,jj),ibathy-1)
-                  IF ( jk < misfdep(ji,jj) ) THEN
-                     imisfdep(ji,jj) = jk
-                     risfdep(ji,jj)  = gdepw_1d(jk+1) - MIN( e3zps_min, e3t_1d(jk)*e3zps_rat )
-                  END IF
-               ENDIF
-            END DO
-         END DO
-         misfdep=imisfdep
-         !
-         ! ensure halo correct before new pass 
-         zdummy(:,:) = FLOAT( misfdep(:,:) ); CALL lbc_lnk('domisf', zdummy, 'T', 1. ); misfdep(:,:) = INT( zdummy(:,:) )
-         CALL lbc_lnk('domisf', risfdep, 'T', 1. )
-      END DO ! jn
-      !
-      ! 3.1 condition block to inssure connectivity everywhere beneath an ice shelf
+      ! 3.0: condition to inssure connectivity everywhere beneath an ice shelf
       IF (ln_isfconnect) THEN
          imask(:,:) = 1
          imbathy  = mbathy
          imisfdep = misfdep
          zrisfdep = risfdep
          WHERE ( mbathy(:,:) == 0 )
-            imask(:,:) = jpk 
+            imask(:,:) = jpk
             imbathy(:,:) = jpk
          END WHERE
          DO jj = 2, jpjm1
@@ -315,8 +317,8 @@ CONTAINS
                   IF (misfdep(ji,jj) > imbathy(ji  ,jj-1)) imskjm1_r=1.0 ! 1 = no effective connection
                   !
                   ! defining level needed for connectivity
-                  ! imskip1 * imskip1_r == 1 means connections need to be enforce
-                  ! imskip1 * imskip1_r >= jpk means no connection need to be enforce          
+                  ! imskip1 * imskip1_r == 1   means    connection need to be enforce
+                  ! imskip1 * imskip1_r >= jpk means no connection need to be enforce
                   jk=MIN(imbathy(ji+1,jj  ) * imskip1_r * imskip1, &
                      &   imbathy(ji-1,jj  ) * imskim1_r * imskim1, &
                      &   imbathy(ji  ,jj+1) * imskjp1_r * imskjp1, &
@@ -336,8 +338,9 @@ CONTAINS
                   ! check if we dig more than nn_kisfmax level or reach the surface
                   ! check if we dig more than rn_zisfmax meter
                   ! => if this is the case, undo what has been done before
+                  !    and keep the connection closed
                   IF (      (misfdep(ji,jj)-imisfdep(ji,jj) > MIN(nn_kisfmax,misfdep(ji,jj)-2)) &
-                     & .OR. (risfdep(ji,jj)-zrisfdep(ji,jj) > MIN(rn_zisfmax,risfdep(ji,jj)  )) ) THEN
+                     & .OR. (risfdep(ji,jj)-zrisfdep(ji,jj) > MIN(rn_zisfmax,risfdep(ji,jj)-MAX(rn_isfdep_min,e3t_1d(1))  )) ) THEN
                      imisfdep(ji,jj)=misfdep(ji,jj) 
                      zrisfdep(ji,jj)=risfdep(ji,jj)
                   END IF
@@ -351,6 +354,66 @@ CONTAINS
          zdummy(:,:) = FLOAT( misfdep(:,:) ); CALL lbc_lnk('domisf', zdummy, 'T', 1. ); misfdep(:,:) = INT( zdummy(:,:) )
          CALL lbc_lnk('domisf', risfdep, 'T', 1. )
       END IF
+      !
+      ! 3.1 Assure 2 wet cells in the water column at T point and along the edge.
+      !     and ensure, it is more than rn_isfhw_min because block before to
+      !     ensure connectivity can break it.
+      ! find the deepest isfdep level that fit the 2 wet cell on the water column
+      ! on all the sides (still need 4 pass)
+      ! It need 4 iterations: if un-luky, digging cell U-1 can trigger case for U+1, then V-1, then V+1
+      DO jn = 1, 4
+         zrisfdep = risfdep
+         imisfdep = misfdep
+         DO jj = 2, jpjm1
+            DO ji = 2, jpim1
+               ! ISF cell only
+               IF(  (misfdep(ji,jj) > 1) .AND. (mbathy(ji,jj) > 0) ) THEN
+                  !
+                  ! find shallowest bathy level among the current cell and the neigbourging cells
+                  ishl=ji; jshl=jj
+                  ibathy=mbathy(ishl,jshl); zbathy=bathy(ishl,jshl)
+                  DO imin = -1,1
+                     IF ( bathy(ji+imin,jj) < zbathy .AND. mbathy(ji+imin,jj) >= misfdep(ji,jj) ) THEN
+                        ishl=ji+imin; jshl=jj
+                        ibathy=mbathy(ishl,jshl); zbathy=bathy(ishl,jshl)
+                     END IF
+                  END DO
+                  DO jmin = -1,1
+                     IF ( bathy(ji,jj+jmin) < zbathy .AND. mbathy(ji,jj+jmin) >= misfdep(ji,jj) ) THEN
+                        ishl=ji; jshl=jj+jmin
+                        ibathy=mbathy(ishl,jshl); zbathy=bathy(ishl,jshl)
+                     END IF
+                  END DO
+                  !
+                  ! update misfdep and risfdep if needed
+                  ! misfdep need to be <= zmbathyij-1 to fit 2 wet cell on the water column
+                  jk = MIN(misfdep(ji,jj),ibathy-1)
+                  IF ( jk < misfdep(ji,jj) ) THEN
+                     imisfdep(ji,jj) = jk
+                     zrisfdep(ji,jj) = gdepw_1d(jk+1) - MIN( e3zps_min, e3t_1d(jk)*e3zps_rat )
+                  END IF
+                  !
+                  ! sanity check on edge water thickness
+                  ! water column need to be rn_isfhw_min m on U, T and V points
+                  zhw = bathy(ishl,jshl) - zrisfdep(ji,jj)
+                  IF ( zhw < rn_isfhw_min ) THEN
+                     zrisfdep(ji,jj) = bathy(ishl,jshl) - rn_isfhw_min
+                     DO jk = 2, jpkm1
+                        IF( zrisfdep(ji,jj) > 0._wp .AND. zrisfdep(ji,jj) >= gdepw_1d(jk) ) imisfdep(ji,jj) = jk
+                     END DO
+                     zmin=gdepw_1d(imisfdep(ji,jj)+1) - MIN( e3zps_min, e3t_1d(imisfdep(ji,jj))*e3zps_rat )
+                     IF ( zrisfdep(ji,jj) > 0._wp .AND. zrisfdep(ji,jj) >= zmin ) zrisfdep(ji,jj) = zmin
+                  END IF
+               ENDIF
+            END DO
+         END DO
+         misfdep=imisfdep
+         risfdep=zrisfdep
+         !
+         ! ensure halo correct before new pass 
+         zdummy(:,:) = FLOAT( misfdep(:,:) ); CALL lbc_lnk('domisf', zdummy, 'T', 1. ); misfdep(:,:) = INT( zdummy(:,:) )
+         CALL lbc_lnk('domisf', risfdep, 'T', 1. )
+      END DO ! jn
       !
       ! 3.2 fill hole in ice shelf (ie cell with no velocity point)
       !      => misfdep = MIN(misfdep at U, U-1, V, V-1)
