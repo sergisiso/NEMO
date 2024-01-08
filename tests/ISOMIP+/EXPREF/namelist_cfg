@@ -316,8 +316,8 @@ rn_Dt = 720.
    !                             !    dT = T-rn_T0 ; dS = S-rn_S0
    rn_T0       = -1.             !  reference temperature
    rn_S0       = 34.2            !  reference salinity
-   rn_a0       =  3.7330e-5      !  thermal expension coefficient
-   rn_b0       =  7.8430e-4      !  saline  expension coefficient
+   rn_a0       =  0.038357       !  thermal expension coefficient
+   rn_b0       =  0.805876       !  saline  expension coefficient
    rn_lambda1  =  0.             !  cabbeling coeff in T^2  (=0 for linear eos)
    rn_lambda2  =  0.             !  cabbeling coeff in S^2  (=0 for linear eos)
    rn_mu1      =  0.             !  thermobaric coeff. in T (=0 for linear eos)
