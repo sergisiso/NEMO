@@ -85,11 +85,9 @@ MODULE par_oce
    !!   Domain decomposition
    !!----------------------------------------------------------------------
    !! if we dont use massively parallel computer (parameters jpni=jpnj=1) so jpiglo=jpi and jpjglo=jpj
-   INTEGER, PUBLIC            ::   jpni         !: number of processors following i
-   INTEGER, PUBLIC            ::   jpnj         !: number of processors following j
-   INTEGER, PUBLIC            ::   jpnij        !: nb of local domain = nb of processors ( <= jpni x jpnj )
-   INTEGER, PUBLIC, PARAMETER ::   jpr2di = 0   !: number of columns for extra outer halo
-   INTEGER, PUBLIC, PARAMETER ::   jpr2dj = 0   !: number of rows    for extra outer halo
+   INTEGER, PUBLIC ::   jpni         !: number of processors following i
+   INTEGER, PUBLIC ::   jpnj         !: number of processors following j
+   INTEGER, PUBLIC ::   jpnij        !: nb of local domain = nb of processors ( <= jpni x jpnj )
 
    ! halo with and starting/inding DO-loop indices
    INTEGER, PUBLIC ::   nn_hls           !: halo width (applies to both rows and columns)

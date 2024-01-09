@@ -583,70 +583,70 @@ CONTAINS
                !
                ! check if point has to be sent     to   a neighbour
                IF( ii >= Nis0 .AND. ii < Nis0 + nn_hls .AND. ij >= Njs0 .AND. ij <= Nje0         ) THEN   ! we inner side
-                  IF( mpiSnei(nn_hls,jpwe) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpwe,ir) = .TRUE.
+                  IF( mpiSnei(jpwe,nn_hls) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpwe,ir) = .TRUE.
                ENDIF
                IF( ii <= Nie0 .AND. ii > Nie0 - nn_hls .AND. ij >= Njs0 .AND. ij <= Nje0         ) THEN   ! ea inner side
-                  IF( mpiSnei(nn_hls,jpea) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpea,ir) = .TRUE.
+                  IF( mpiSnei(jpea,nn_hls) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpea,ir) = .TRUE.
                ENDIF
                IF( ii >= Nis0 .AND. ii <= Nie0         .AND. ij >= Njs0 .AND. ij < Njs0 + nn_hls ) THEN   ! so inner side
-                  IF( mpiSnei(nn_hls,jpso) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
+                  IF( mpiSnei(jpso,nn_hls) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
                ENDIF
                IF( ii  < Nis0                          .AND. ij >= Njs0 .AND. ij < Njs0 + nn_hls ) THEN   ! so side we-halo
-                  IF( mpiSnei(nn_hls,jpso) > -1 .AND. nn_comm == 1 )   lsend_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
+                  IF( mpiSnei(jpso,nn_hls) > -1 .AND. nn_comm == 1 )   lsend_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
                ENDIF
                IF( ii  > Nie0                          .AND. ij >= Njs0 .AND. ij < Njs0 + nn_hls ) THEN   ! so side ea-halo 
-                  IF( mpiSnei(nn_hls,jpso) > -1 .AND. nn_comm == 1 )   lsend_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
+                  IF( mpiSnei(jpso,nn_hls) > -1 .AND. nn_comm == 1 )   lsend_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
                ENDIF
                IF( ii >= Nis0 .AND. ii <= Nie0         .AND. ij <= Nje0 .AND. ij > Nje0 - nn_hls ) THEN   ! no inner side
-                  IF( mpiSnei(nn_hls,jpno) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
+                  IF( mpiSnei(jpno,nn_hls) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
                ENDIF
                IF( ii  < Nis0                          .AND. ij <= Nje0 .AND. ij > Nje0 - nn_hls ) THEN   ! no side we-halo
-                  IF( mpiSnei(nn_hls,jpno) > -1 .AND. nn_comm == 1 )   lsend_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
+                  IF( mpiSnei(jpno,nn_hls) > -1 .AND. nn_comm == 1 )   lsend_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
                ENDIF
                IF( ii  > Nie0                          .AND. ij <= Nje0 .AND. ij > Nje0 - nn_hls ) THEN   ! no side ea-halo
-                  IF( mpiSnei(nn_hls,jpno) > -1 .AND. nn_comm == 1 )   lsend_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
+                  IF( mpiSnei(jpno,nn_hls) > -1 .AND. nn_comm == 1 )   lsend_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
                ENDIF
                IF( ii >= Nis0 .AND. ii < Nis0 + nn_hls .AND. ij >= Njs0 .AND. ij < Njs0 + nn_hls ) THEN   ! sw inner corner
-                  IF( mpiSnei(nn_hls,jpsw) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpsw,ir) = .TRUE.
+                  IF( mpiSnei(jpsw,nn_hls) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpsw,ir) = .TRUE.
                ENDIF
                IF( ii <= Nie0 .AND. ii > Nie0 - nn_hls .AND. ij >= Njs0 .AND. ij < Njs0 + nn_hls ) THEN   ! se inner corner
-                  IF( mpiSnei(nn_hls,jpse) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpse,ir) = .TRUE.
+                  IF( mpiSnei(jpse,nn_hls) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpse,ir) = .TRUE.
                ENDIF
                IF( ii >= Nis0 .AND. ii < Nis0 + nn_hls .AND. ij <= Nje0 .AND. ij > Nje0 - nn_hls ) THEN   ! nw inner corner
-                  IF( mpiSnei(nn_hls,jpnw) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpnw,ir) = .TRUE.
+                  IF( mpiSnei(jpnw,nn_hls) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpnw,ir) = .TRUE.
                ENDIF
                IF( ii <= Nie0 .AND. ii > Nie0 - nn_hls .AND. ij <= Nje0 .AND. ij > Nje0 - nn_hls ) THEN   ! ne inner corner
-                  IF( mpiSnei(nn_hls,jpne) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpne,ir) = .TRUE.
+                  IF( mpiSnei(jpne,nn_hls) > -1                    )   lsend_bdyolr(ib_bdy,igrd,jpne,ir) = .TRUE.
                ENDIF
                !
                ! check if point has to be received from a neighbour
                IF( ii  < Nis0                  .AND. ij >= Njs0 .AND. ij <= Nje0 ) THEN   ! we side
-                  IF( mpiRnei(nn_hls,jpwe) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpwe,ir) = .TRUE.
+                  IF( mpiRnei(jpwe,nn_hls) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpwe,ir) = .TRUE.
                ENDIF
                IF( ii  > Nie0                  .AND. ij >= Njs0 .AND. ij <= Nje0 ) THEN   ! ea side
-                  IF( mpiRnei(nn_hls,jpea) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpea,ir) = .TRUE.
+                  IF( mpiRnei(jpea,nn_hls) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpea,ir) = .TRUE.
                ENDIF
                IF( ii >= Nis0 .AND. ii <= Nie0 .AND. ij  < Njs0                  ) THEN   ! so side
-                  IF( mpiRnei(nn_hls,jpso) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
+                  IF( mpiRnei(jpso,nn_hls) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
                ENDIF
                IF( ii >= Nis0 .AND. ii <= Nie0 .AND. ij  > Nje0                  ) THEN   ! no side
-                  IF( mpiRnei(nn_hls,jpno) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
+                  IF( mpiRnei(jpno,nn_hls) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
                ENDIF
                IF( ii  < Nis0                  .AND. ij  < Njs0                  ) THEN   ! sw corner
-                  IF( mpiRnei(nn_hls,jpsw) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpsw,ir) = .TRUE.
-                  IF( mpiRnei(nn_hls,jpso) > -1 .AND. nn_comm == 1 )   lrecv_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
+                  IF( mpiRnei(jpsw,nn_hls) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpsw,ir) = .TRUE.
+                  IF( mpiRnei(jpso,nn_hls) > -1 .AND. nn_comm == 1 )   lrecv_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
                ENDIF
                IF( ii  > Nie0                  .AND. ij  < Njs0                  ) THEN   ! se corner
-                  IF( mpiRnei(nn_hls,jpse) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpse,ir) = .TRUE.
-                  IF( mpiRnei(nn_hls,jpso) > -1 .AND. nn_comm == 1 )   lrecv_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
+                  IF( mpiRnei(jpse,nn_hls) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpse,ir) = .TRUE.
+                  IF( mpiRnei(jpso,nn_hls) > -1 .AND. nn_comm == 1 )   lrecv_bdyolr(ib_bdy,igrd,jpso,ir) = .TRUE.
                ENDIF
                IF( ii  < Nis0                  .AND. ij  > Nje0                  ) THEN   ! nw corner
-                  IF( mpiRnei(nn_hls,jpnw) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpnw,ir) = .TRUE.
-                  IF( mpiRnei(nn_hls,jpno) > -1 .AND. nn_comm == 1 )   lrecv_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
+                  IF( mpiRnei(jpnw,nn_hls) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpnw,ir) = .TRUE.
+                  IF( mpiRnei(jpno,nn_hls) > -1 .AND. nn_comm == 1 )   lrecv_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
                ENDIF
                IF( ii  > Nie0                  .AND. ij  > Nje0                  ) THEN   ! ne corner
-                  IF( mpiRnei(nn_hls,jpne) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpne,ir) = .TRUE.
-                  IF( mpiRnei(nn_hls,jpno) > -1 .AND. nn_comm == 1 )   lrecv_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
+                  IF( mpiRnei(jpne,nn_hls) > -1                    )   lrecv_bdyolr(ib_bdy,igrd,jpne,ir) = .TRUE.
+                  IF( mpiRnei(jpno,nn_hls) > -1 .AND. nn_comm == 1 )   lrecv_bdyolr(ib_bdy,igrd,jpno,ir) = .TRUE.
                ENDIF
                !
             END DO
@@ -852,11 +852,11 @@ CONTAINS
                      ! take care of neighbourg(s) in the interior of the computational domain
                      IF(  iibi==iiout .OR. ii1==iiout .OR. ii2==iiout .OR. ii3==iiout .OR.   &   ! Neib outside of the MPI domain
                         & ijbi==ijout .OR. ij1==ijout .OR. ij2==ijout .OR. ij3==ijout ) THEN     ! -> I cannot compute it -> recv it
-                        IF( mpiRnei(nn_hls,iRnei) > -1 )   lrecv_bdyint(ib_bdy,igrd,iRnei,ir) = .TRUE.
+                        IF( mpiRnei(iRnei,nn_hls) > -1 )   lrecv_bdyint(ib_bdy,igrd,iRnei,ir) = .TRUE.
                      ENDIF
                      ! take care of neighbourg in the exterior of the computational domain
                      IF(  iibe==iiout .OR. ijbe==ijout ) THEN   ! Neib outside of the MPI domain -> I cannot compute it -> recv it
-                        IF( mpiRnei(nn_hls,iRnei) > -1 )   lrecv_bdyext(ib_bdy,igrd,iRnei,ir) = .TRUE.
+                        IF( mpiRnei(iRnei,nn_hls) > -1 )   lrecv_bdyext(ib_bdy,igrd,iRnei,ir) = .TRUE.
                      ENDIF
                   ENDIF
                   
@@ -865,11 +865,11 @@ CONTAINS
                      ! take care of neighbourg(s) in the interior of the computational domain
                      IF(  iibi==iiout .OR. ii1==iiout .OR. ii2==iiout .OR. ii3==iiout .OR.   &   ! Neib outside of nei MPI domain
                         & ijbi==ijout .OR. ij1==ijout .OR. ij2==ijout .OR. ij3==ijout ) THEN     ! -> nei cannot compute it
-                        IF( mpiSnei(nn_hls,iSnei) > -1 )   lsend_bdyint(ib_bdy,igrd,iSnei,ir) = .TRUE.   ! -> send to nei
+                        IF( mpiSnei(iSnei,nn_hls) > -1 )   lsend_bdyint(ib_bdy,igrd,iSnei,ir) = .TRUE.   ! -> send to nei
                      ENDIF
                      ! take care of neighbourg in the exterior of the computational domain
                      IF( iibe == iiout .OR. ijbe == ijout ) THEN   ! Neib outside of the nei MPI domain -> nei cannot compute it
-                        IF( mpiSnei(nn_hls,iSnei) > -1 )   lsend_bdyext(ib_bdy,igrd,iSnei,ir) = .TRUE.   ! -> send to nei
+                        IF( mpiSnei(iSnei,nn_hls) > -1 )   lsend_bdyext(ib_bdy,igrd,iSnei,ir) = .TRUE.   ! -> send to nei
                      ENDIF
                   END IF
 
@@ -943,20 +943,20 @@ CONTAINS
                      ! take care of neighbourg(s) in the interior of the computational domain
                      IF(  iibi==iiout .OR. ii1==iiout .OR. ii2==iiout .OR. ii3==iiout .OR.   &   ! Neib outside of the MPI domain
                         & ijbi==ijout .OR. ij1==ijout .OR. ij2==ijout .OR. ij3==ijout ) THEN     ! -> I cannot compute it -> recv it
-                        IF( mpiRnei(nn_hls,iRdiag) > -1                    )   lrecv_bdyint(ib_bdy,igrd,iRdiag,ir) = .TRUE.   ! Receive directly from diagonal neighbourg
-                        IF( mpiRnei(nn_hls,iRsono) > -1 .AND. nn_comm == 1 )   lrecv_bdyint(ib_bdy,igrd,iRsono,ir) = .TRUE.   ! Receive through the South/North neighbourg
+                        IF( mpiRnei(iRdiag,nn_hls) > -1                    )   lrecv_bdyint(ib_bdy,igrd,iRdiag,ir) = .TRUE.   ! Receive directly from diagonal neighbourg
+                        IF( mpiRnei(iRsono,nn_hls) > -1 .AND. nn_comm == 1 )   lrecv_bdyint(ib_bdy,igrd,iRsono,ir) = .TRUE.   ! Receive through the South/North neighbourg
                      ENDIF
                      ! take care of neighbourg in the exterior of the computational domain
                      IF(  iibe==iiout .OR. ijbe==ijout ) THEN   ! Neib outside of the MPI domain -> I cannot compute it -> recv it
-                        IF( mpiRnei(nn_hls,iRdiag) > -1                    )   lrecv_bdyext(ib_bdy,igrd,iRdiag,ir) = .TRUE.   ! Receive directly from diagonal neighbourg
-                        IF( mpiRnei(nn_hls,iRsono) > -1 .AND. nn_comm == 1 )   lrecv_bdyext(ib_bdy,igrd,iRsono,ir) = .TRUE.   ! Receive through the South/North neighbourg
+                        IF( mpiRnei(iRdiag,nn_hls) > -1                    )   lrecv_bdyext(ib_bdy,igrd,iRdiag,ir) = .TRUE.   ! Receive directly from diagonal neighbourg
+                        IF( mpiRnei(iRsono,nn_hls) > -1 .AND. nn_comm == 1 )   lrecv_bdyext(ib_bdy,igrd,iRsono,ir) = .TRUE.   ! Receive through the South/North neighbourg
                      ENDIF
                   ENDIF
                   !
                   ! Check if this rim point corresponds to the corner of one neighbourg. if yes, do we need to send data?
                   ! Direct send to diag: Is this rim point the corner point of a diag neighbour with which we communicate?
                   IF( ii >= iiSstdiag .AND. ii <= iiSnddiag .AND. ij >= ijSstdiag .AND. ij <= ijSnddiag   &
-                     &                .AND. mpiSnei(nn_hls,iSdiag) > -1 ) THEN
+                     &                .AND. mpiSnei(iSdiag,nn_hls) > -1 ) THEN
                      iiout = ii+iioutdir ; ijout = ij+ijoutdir        ! in which direction do we go outside of the nei MPI domain?
                      ! take care of neighbourg(s) in the interior of the computational domain
                      IF(  iibi==iiout .OR. ii1==iiout .OR. ii2==iiout .OR. ii3==iiout .OR.   &   ! Neib outside of diag nei MPI 
@@ -968,7 +968,7 @@ CONTAINS
                   ENDIF
                   ! Indirect send to diag (through so/no): rim point is the corner point of a so/no nei with which we communicate
                   IF( ii >= iiSstsono .AND. ii <= iiSndsono .AND. ij >= ijSstsono .AND. ij <= ijSndsono   &
-                     &                .AND. mpiSnei(nn_hls,iSsono) > -1 .AND. nn_comm == 1 ) THEN
+                     &                .AND. mpiSnei(iSsono,nn_hls) > -1 .AND. nn_comm == 1 ) THEN
                      iiout = ii+iioutdir ; ijout = ij+ijoutdir        ! in which direction do we go outside of the nei MPI domain?
                      ! take care of neighbourg(s) in the interior of the computational domain
                      IF(  iibi==iiout .OR. ii1==iiout .OR. ii2==iiout .OR. ii3==iiout .OR.   &   ! Neib outside of so/no nei MPI

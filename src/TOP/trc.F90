@@ -14,7 +14,8 @@ MODULE trc
    IMPLICIT NONE
    PUBLIC
 
-   PUBLIC   trc_alloc   ! called by nemogcm.F90
+   PUBLIC   trc_alloc   ! called by trcini.F90
+   PUBLIC   trc_dealloc ! called by trcini.F90
 
    !                                     !!- logical units of passive tracers
    INTEGER, PUBLIC ::   numont     = -1   !: reference passive tracer namelist output output.namelist.top
@@ -184,6 +185,23 @@ CONTAINS
       IF( trc_alloc /= 0 )   CALL ctl_stop( 'STOP', 'trc_alloc: failed to allocate arrays' )
       !
    END FUNCTION trc_alloc
+
+   SUBROUTINE trc_dealloc()
+      IF( ALLOCATED(tr) )   &
+         DEALLOCATE( tr, gtru, gtrv, gtrui, gtrvi, trc_i, trc_o,       &
+         &      trc_ice_ratio , trc_ice_prescr, cn_trc_o,              &
+         &      neln , heup, heup_01, etot , etot_ndcy, sbc_trc_b, sbc_trc,&  
+         &      cvol, trai, ctrcnm , ctrcln, ctrcun,                   &
+         &      ln_trc_ini,ln_trc_sbc, ln_trc_cbc, ln_trc_obc, ln_trc_ais )
+      !
+      IF( ALLOCATED(trcdta_bdy) )   DEALLOCATE( trcdta_bdy )
+      !
+      IF( ALLOCATED(trc3d     ) )   DEALLOCATE( trc3d )
+      !
+      IF( ALLOCATED(trc2d     ) )   DEALLOCATE( trc2d )
+
+   END SUBROUTINE trc_dealloc
+   
 
    !!======================================================================
 END MODULE trc

@@ -153,6 +153,32 @@ CONTAINS
       !
    END FUNCTION trd_trc_oce_alloc
 
+
+   SUBROUTINE trd_trc_oce_dealloc()
+# if defined key_trdmxl_trc
+      IF( .NOT. ALLOCATED(nmld_trc) )   RETURN
+      DEALLOCATE(nmld_trc,          nbol_trc,           &
+               wkx_trc,       rmld_trc,           &
+               rmld_sum_trc,      rmldbn_trc,         &
+               tml_trc,     tmlb_trc,     &
+               tmlbb_trc,   tmlbn_trc,    &
+               tml_sum_trc, tml_sumb_trc, &
+               tmltrd_atf_sumb_trc,                      &
+               tmltrd_rad_sumb_trc,                      &
+               !
+               tmlatfb_trc, tmlatfn_trc,  &
+               tmlatfm_trc, tmlradb_trc,  &
+               tmlradn_trc, tmlradm_trc,  &
+               !
+               tmltrd_trc(jpi,jpj,jpltrd_trc,jptra)         , &
+               tmltrd_sum_trc(jpi,jpj,jpltrd_trc,jptra)     , &
+               tmltrd_csum_ln_trc(jpi,jpj,jpltrd_trc,jptra) , &
+               tmltrd_csum_ub_trc(jpi,jpj,jpltrd_trc,jptra) , &
+               !
+               tmltrdm_trc )
+#endif
+   END SUBROUTINE trd_trc_oce_dealloc
+   
 #else
    !!----------------------------------------------------------------------
    !!  Empty module :                                     No passive tracer

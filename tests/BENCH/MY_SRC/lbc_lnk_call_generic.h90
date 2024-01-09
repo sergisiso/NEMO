@@ -126,10 +126,16 @@
       IF( PRESENT(psgn47) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt47, cdna47, psgn47, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
       IF( PRESENT(psgn48) )   CALL load_ptr_/**/XD/**/_/**/PRECISION( pt48, cdna48, psgn48, ptab_ptr, cdna_ptr, psgn_ptr, kfld )
       !
-      IF( nn_comm <= 1 ) THEN 
+      IF(     nn_comm <= 1  ) THEN 
          CALL lbc_lnk_pt2pt(   cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
-      ELSE
+      ELSEIF( nn_comm == 2  ) THEN 
          CALL lbc_lnk_neicoll( cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
+      ELSEIF( nn_comm == 30 ) THEN 
+         CALL lbc_lnk_iprobe( cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
+      ELSEIF( nn_comm == 31 ) THEN 
+         CALL lbc_lnk_waitany( cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
+      ELSEIF( nn_comm == 32 ) THEN 
+         CALL lbc_lnk_waitall( cdname, ptab_ptr, cdna_ptr, psgn_ptr, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop( 'lbc_lnk' )

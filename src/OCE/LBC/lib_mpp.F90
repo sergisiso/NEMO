@@ -140,9 +140,9 @@ MODULE lib_mpp
 
    ! Neighbourgs informations
    INTEGER,    PARAMETER, PUBLIC ::   n_hlsmax = 2
-   INTEGER, DIMENSION(           8), PUBLIC ::   mpinei      !: 8-neighbourg MPI indexes (starting at 0, -1 if no neighbourg)
-   INTEGER, DIMENSION(0:n_hlsmax,8), PUBLIC ::   mpiSnei     !: 8-neighbourg Send MPI indexes (starting at 0, -1 if no neighbourg)
-   INTEGER, DIMENSION(0:n_hlsmax,8), PUBLIC ::   mpiRnei     !: 8-neighbourg Recv MPI indexes (starting at 0, -1 if no neighbourg)
+   INTEGER, DIMENSION(8           ), PUBLIC ::   mpinei      !: 8-neighbourg MPI indexes (starting at 0, -1 if no neighbourg)
+   INTEGER, DIMENSION(8,0:n_hlsmax), PUBLIC ::   mpiSnei     !: 8-neighbourg Send MPI indexes (starting at 0, -1 if no neighbourg)
+   INTEGER, DIMENSION(8,0:n_hlsmax), PUBLIC ::   mpiRnei     !: 8-neighbourg Recv MPI indexes (starting at 0, -1 if no neighbourg)
    INTEGER,    PARAMETER, PUBLIC ::   jpwe = 1   !: WEst
    INTEGER,    PARAMETER, PUBLIC ::   jpea = 2   !: EAst
    INTEGER,    PARAMETER, PUBLIC ::   jpso = 3   !: SOuth
@@ -261,6 +261,7 @@ CONTAINS
       CALL MPI_OP_CREATE(DDPDD_MPI, .TRUE., MPI_SUMDD, ierr)
       !
 #else
+      mpi_comm_oce = -1   ! default
       IF( PRESENT( localComm ) ) mpi_comm_oce = localComm
       mppsize = 1
       mpprank = 0
@@ -1105,17 +1106,17 @@ CONTAINS
       !!----------------------------------------------------------------------
 #if ! defined key_mpi_off
       
-      iScnt4 = COUNT( mpiSnei(khls,1:4) >= 0 )
-      iRcnt4 = COUNT( mpiRnei(khls,1:4) >= 0 )
-      iScnt8 = COUNT( mpiSnei(khls,1:8) >= 0 )
-      iRcnt8 = COUNT( mpiRnei(khls,1:8) >= 0 )
+      iScnt4 = COUNT( mpiSnei(1:4,khls) >= 0 )
+      iRcnt4 = COUNT( mpiRnei(1:4,khls) >= 0 )
+      iScnt8 = COUNT( mpiSnei(1:8,khls) >= 0 )
+      iRcnt8 = COUNT( mpiRnei(1:8,khls) >= 0 )
 
       ALLOCATE( iSnei4(iScnt4), iRnei4(iRcnt4), iSnei8(iScnt8), iRnei8(iRcnt8) )   ! ok if icnt4 or icnt8 = 0
 
-      iSnei4 = PACK( mpiSnei(khls,1:4), mask = mpiSnei(khls,1:4) >= 0 )
-      iRnei4 = PACK( mpiRnei(khls,1:4), mask = mpiRnei(khls,1:4) >= 0 )
-      iSnei8 = PACK( mpiSnei(khls,1:8), mask = mpiSnei(khls,1:8) >= 0 )
-      iRnei8 = PACK( mpiRnei(khls,1:8), mask = mpiRnei(khls,1:8) >= 0 )
+      iSnei4 = PACK( mpiSnei(1:4,khls), mask = mpiSnei(1:4,khls) >= 0 )
+      iRnei4 = PACK( mpiRnei(1:4,khls), mask = mpiRnei(1:4,khls) >= 0 )
+      iSnei8 = PACK( mpiSnei(1:8,khls), mask = mpiSnei(1:8,khls) >= 0 )
+      iRnei8 = PACK( mpiRnei(1:8,khls), mask = mpiRnei(1:8,khls) >= 0 )
 
       ! Isolated processes (i.e., processes WITH no outgoing or incoming edges, that is, processes that have specied
       ! indegree and outdegree as zero and thus DO not occur as source or destination rank in the graph specication)

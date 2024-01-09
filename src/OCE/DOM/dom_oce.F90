@@ -25,7 +25,8 @@ MODULE dom_oce
    IMPLICIT NONE
    PUBLIC             ! allows the acces to par_oce when dom_oce is used (exception to coding rules)
 
-   PUBLIC dom_oce_alloc  ! Called from nemogcm.F90
+   PUBLIC dom_oce_alloc    ! Called from nemogcm.F90
+   PUBLIC dom_oce_dealloc  ! Called from nemogcm.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -90,6 +91,7 @@ MODULE dom_oce
    !                             !: domain MPP decomposition parameters
    INTEGER              , PUBLIC ::   nimpp, njmpp     !: i- & j-indexes for mpp-subdomain left bottom
    INTEGER              , PUBLIC ::   narea            !: number for local area (starting at 1) = MPI rank + 1
+   INTEGER              , PUBLIC ::   nimpi, njmpi     !: i and j position in the MPI domain decomposition
    INTEGER,               PUBLIC ::   nidom      !: IOIPSL things...
 
    INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   mig        !: local ==> global domain, i-index
@@ -427,5 +429,45 @@ CONTAINS
       !
    END FUNCTION dom_oce_alloc
 
+
+   SUBROUTINE dom_oce_dealloc()
+
+      DEALLOCATE(  &
+         &   glamt , glamu, glamv , glamf ,   &
+         &   gphit , gphiu, gphiv , gphif ,   &
+         &   e1t   , e2t  , r1_e1t, r1_e2t,   &
+         &   e1u   , e2u  , r1_e1u, r1_e2u,   &
+         &   e1v   , e2v  , r1_e1v, r1_e2v,   &
+         &   e1f   , e2f  , r1_e1f, r1_e2f,   &
+         &   e1e2t , r1_e1e2t             ,   &
+         &   e1e2u , r1_e1e2u , e2_e1u    ,   &
+         &   e1e2v , r1_e1e2v , e1_e2v    ,   &
+         &   e1e2f , r1_e1e2f             ,   &
+         &   ff_f  , ff_t  )
+      
+      IF( ALLOCATED(ht_0    ) )   DEALLOCATE( ht_0, r1_ht_0, hu_0, r1_hu_0, hv_0, r1_hv_0, hf_0, r1_hf_0 )
+      IF( ALLOCATED(gdept_3d) )   DEALLOCATE( gdept_3d, gdepw_3d)
+      IF( ALLOCATED(e3t_3d  ) )   DEALLOCATE( e3t_3d, e3u_3d, e3v_3d, e3f_3d  )
+      IF( ALLOCATED(e3w_3d  ) )   DEALLOCATE( e3w_3d, e3uw_3d, e3vw_3d )
+      IF( ALLOCATED(r3t     ) )   DEALLOCATE( r3t, r3u, r3v, r3f )
+      IF( ALLOCATED(r3t_f   ) )   DEALLOCATE( r3t_f, r3u_f, r3v_f )
+      IF( ALLOCATED(ht      ) )   DEALLOCATE( ht, hu, hv, r1_hu, r1_hv )
+      IF( ALLOCATED(gdept   ) )   DEALLOCATE( gdept, gdepw, e3t, e3u, e3v, e3f, e3w,e3uw, e3vw )
+
+      DEALLOCATE(                                      &
+         &   risfdep , bathy   ,                       &
+         &   tmask_i , smask0  , smask0_i,             &
+         &   ssmask  , ssumask , ssvmask , ssfmask ,   &
+         &   mbkt    , mbku    , mbkv    , mbkf    ,   &
+         &   mikt    , miku    , mikv    , mikf    ,   &
+         &   tmask   , umask   , vmask   , fmask   ,   &
+         &   wmask   , wumask  , wvmask  , fe3mask )
+
+#if defined key_agrif
+      DEALLOCATE( tmask_upd , umask_upd, vmask_upd, tmask_agrif )
+#endif
+ 
+   END SUBROUTINE dom_oce_dealloc
+   
    !!======================================================================
 END MODULE dom_oce

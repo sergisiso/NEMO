@@ -1,5 +1,6 @@
 
-   SUBROUTINE lbc_lnk_neicoll_/**/PRECISION( cdname, ptab, cd_nat, psgn, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
+#if ! defined BLOCK_ISEND
+   SUBROUTINE lbc_lnk_iprobe_/**/PRECISION( cdname, ptab, cd_nat, psgn, kfld, kfillmode, pfillval, lsend, lrecv, ld4only, ldfull )
       CHARACTER(len=*)              , INTENT(in   ) ::   cdname      ! name of the calling subroutine
       TYPE(PTR_4d_/**/PRECISION),  DIMENSION(:), INTENT(inout) ::   ptab        ! pointer of arrays on which apply the b.c.
       CHARACTER(len=1), DIMENSION(:), INTENT(in   ) ::   cd_nat      ! nature of array grid-points
@@ -17,20 +18,20 @@
       INTEGER  ::   ishti, ishtj, ishti1, ishtj1, ishti2, ishtj2
       INTEGER  ::                 isgni1, isgni2, isgnj1, isgnj2
       INTEGER  ::                    ii1,    ii2,    ij1,    ij2
-      INTEGER  ::   inbS, inbR, iszS, iszR
-      INTEGER  ::   ierr
+      INTEGER  ::   icomm, ierr
       INTEGER  ::   ihls, ihlsmax, idx
       INTEGER  ::   impi_nc
       INTEGER  ::   ifill_nfd
       INTEGER, DIMENSION(4)  ::   iwewe, issnn
+      INTEGER, DIMENSION(8)  ::   ibufszS, ibufszR, ishtS, ishtR
+      INTEGER, DIMENSION(8)  ::   iStag, iRtag     ! Send and Recv mpi_tag id
       INTEGER, DIMENSION(  kfld)  ::   ipi, ipj, ipk, ipl   ! dimension of the input array
       INTEGER, DIMENSION(8,kfld)  ::   ifill
       INTEGER, DIMENSION(8,kfld)  ::   isizei, ishtSi, ishtRi, ishtPi
       INTEGER, DIMENSION(8,kfld)  ::   isizej, ishtSj, ishtRj, ishtPj
       INTEGER, DIMENSION(8)       ::   jnf
-      INTEGER, DIMENSION(:), ALLOCATABLE  ::   iScnt, iRcnt    ! number of elements to be sent/received
-      INTEGER, DIMENSION(:), ALLOCATABLE  ::   iSdpl, iRdpl    ! displacement in halos arrays
       LOGICAL, DIMENSION(8,kfld)  ::   llsend, llrecv
+      LOGICAL, DIMENSION(8)       ::   llrdy, ll2do
       LOGICAL  ::   ll4only                                    ! default: 8 neighbourgs
       REAL(PRECISION) ::   zland
       !!----------------------------------------------------------------------
@@ -38,6 +39,7 @@
       ! ----------------------------------------- !
       !     1. local variables initialization     !
       ! ----------------------------------------- !
+      icomm = mpi_comm_oce        ! shorter name
       !
       ! take care of optional parameters
       !
@@ -143,85 +145,60 @@
       END DO   ! jf
       !
       IF( narea == 1 .AND. numcom == -1 )   CALL mpp_report( cdname, SUM(ipk(:))/kfld, SUM(ipl(:))/kfld, kfld, ld_lbc = .TRUE. )
+
       !
       ! -------------------------------- !
       !     2. Prepare MPI exchanges     !
       ! -------------------------------- !
       !
-      ! Allocate local temporary arrays to be sent/received.
-      inbS = COUNT( ANY(llsend,dim=2) )   ! number of snd neighbourgs
-      inbR = COUNT( ANY(llrecv,dim=2) )   ! number of rcv neighbourgs
-      ALLOCATE( iScnt(inbS), iRcnt(inbR), iSdpl(inbS), iRdpl(inbR) )   ! ok if iszS = 0 or iszR = 0
-
-      iScnt(:) = 0   ;   idx = 0
-      DO jn = 1, 8
-         IF( COUNT( llsend(jn,:) ) > 0 ) THEN   ! we send something to neighbourg jn
-            idx = idx + 1
-            DO jf = 1, kfld
-               IF( llsend(jn,jf) ) iScnt(idx) = iScnt(idx) + isizei(jn,jf) * isizej(jn,jf) * ipk(jf) * ipl(jf)
-            END DO
-         ENDIF
-      END DO
-      IF( inbS > 0 )   iSdpl(1) = 0
-      DO jn = 2,inbS
-         iSdpl(jn) = iSdpl(jn-1) + iScnt(jn-1)   ! with _alltoallv: in units of sendtype
-      END DO
-
-      iRcnt(:) = 0   ;   idx = 0
-      DO jn = 1, 8
-         IF( COUNT( llrecv(jn,:) ) > 0 ) THEN   ! we get something from neighbourg jn
-            idx = idx + 1
-            DO jf = 1, kfld
-               IF( llrecv(jn,jf) ) iRcnt(idx) = iRcnt(idx) + isizei(jn,jf) * isizej(jn,jf) * ipk(jf) * ipl(jf)
-            END DO
-         ENDIF
-      END DO
-      IF( inbR > 0 )   iRdpl(1) = 0
-      DO jn = 2,inbR
-         iRdpl(jn) = iRdpl(jn-1) + iRcnt(jn-1)   ! with _alltoallv: in units of sendtype
-      END DO
+      iStag = (/ 1, 2, 3, 4, 5, 6, 7, 8 /)   ! can be any value but each value must be unique
+      ! define iRtag with the corresponding iStag, e.g. data received at west where sent at east.
+      iRtag(jpwe) = iStag(jpea)   ;   iRtag(jpea) = iStag(jpwe)   ;   iRtag(jpso) = iStag(jpno)   ;   iRtag(jpno) = iStag(jpso)
+      iRtag(jpsw) = iStag(jpne)   ;   iRtag(jpse) = iStag(jpnw)   ;   iRtag(jpnw) = iStag(jpse)   ;   iRtag(jpne) = iStag(jpsw)
       !
-      ! Allocate buffer arrays to be sent/received if needed
-      iszS = SUM(iScnt)                             ! send buffer size
-      IF( ALLOCATED(BUFFSND) ) THEN
-         CALL mpi_waitall(8, nreq_p2p, MPI_STATUSES_IGNORE, ierr)   ! needed only if PREVIOUS call was using nn_comm = 1 (for tests)
-         IF( SIZE(BUFFSND) < iszS )    DEALLOCATE(BUFFSND)          ! send buffer is too small
-      ENDIF
-      IF( .NOT. ALLOCATED(BUFFSND) )   ALLOCATE( BUFFSND(iszS) )
-      iszR = SUM(iRcnt)                             ! recv buffer size
-      IF( ALLOCATED(BUFFRCV) ) THEN
-         IF( SIZE(BUFFRCV) < iszR )    DEALLOCATE(BUFFRCV)          ! recv buffer is too small
-      ENDIF
-      IF( .NOT. ALLOCATED(BUFFRCV) )   ALLOCATE( BUFFRCV(iszR) )
-      !
-      ! fill sending buffer with ptab(jf)%pt4d
-      idx = 0
-      DO jn = 1, 8
-         DO jf = 1, kfld
-            IF( llsend(jn,jf) ) THEN
-               ishti = ishtSi(jn,jf)
-               ishtj = ishtSj(jn,jf)
-               DO jl = 1, ipl(jf)   ;   DO jk = 1, ipk(jf)   ;   DO jj = 1,isizej(jn,jf)   ;   DO ji = 1,isizei(jn,jf)
-                  idx = idx + 1
-                  BUFFSND(idx) = ptab(jf)%pt4d(ishti+ji,ishtj+jj,jk,jl)
-               END DO   ;   END DO   ;   END DO   ;   END DO
-            ENDIF
+      ! size of the buffer to be sent/recv in each direction
+      ibufszS(:) = 0   ! defaut definition
+      ibufszR(:) = 0
+      DO jf = 1, kfld
+         DO jn = 1, 8
+            IF( llsend(jn,jf) )   ibufszS(jn) = ibufszS(jn) + isizei(jn,jf) * isizej(jn,jf) * ipk(jf) * ipl(jf)
+            IF( llrecv(jn,jf) )   ibufszR(jn) = ibufszR(jn) + isizei(jn,jf) * isizej(jn,jf) * ipk(jf) * ipl(jf)
          END DO
       END DO
       !
-      ! ------------------------------------------------ !
-      !     3. Do all MPI exchanges in 1 unique call     !
-      ! ------------------------------------------------ !
+      ! offset to apply to find the position of the sent/recv data within the buffer
+      ishtS(1) = 0
+      DO jn = 2, 8
+         ishtS(jn) = ishtS(jn-1) + ibufszS(jn-1)
+      END DO
+      ishtR(1) = 0
+      DO jn = 2, 8
+         ishtR(jn) = ishtR(jn-1) + ibufszR(jn-1)
+      END DO
+      
+      ! Default definition when no communication is done. Understood by mpi_waitall
+      nreq_p2p(:) = MPI_REQUEST_NULL   ! WARNING: Must be done after the call to mpi_waitall just above
+
+      ! -------------------------------- !
+      !     2. Allocate, fill and send (non-blocking) arrays    !
+      ! ------------------------------------------------------- !
       !
-      IF( ihlsmax > 0 ) THEN
-         impi_nc = mpi_nc_com8( ihlsmax )
-         IF( ll4only )   impi_nc = mpi_nc_com4( ihlsmax )
-#if ! defined key_mpi2 && ! defined key_mpi_off
-         CALL mpi_Ineighbor_alltoallv(BUFFSND, iScnt, iSdpl, MPI_TYPE, BUFFRCV, iRcnt, iRdpl, MPI_TYPE, impi_nc, nreq_nei, ierr)
-#endif
-      ENDIF
-      nreq_p2p = MPI_REQUEST_NULL   ! needed only if we switch between nn_comm = 1 and 2 (for tests)
+      ! Allocate buffer arrays to be sent/received if needed
+      ALLOCATE( BUFFSND(SUM(ibufszS)) )
       !
+      ! send diagonals first as there is less copying to be done
+      DO jn = 5, 8
+#define BLOCK_ISEND
+#  include "lbc_lnk_iprobe_generic.h90"         
+#undef  BLOCK_ISEND
+      END DO
+      !                                            ! not diagonals !
+      DO jn = 1, 4
+#define BLOCK_ISEND
+#  include "lbc_lnk_iprobe_generic.h90"         
+#undef  BLOCK_ISEND
+      END DO
+
       ! --------------------------------- !
       !     4. Fill all Non-MPI halos     !
       ! --------------------------------- !
@@ -251,8 +228,8 @@
                   ELSE                                     ;   ishti2 = ishtRi(jpea,jf) + 1   ;   isgni2 = -1
                   ENDIF
                ELSE                                                        ! southern/northern side
-                                                               ishti1 = ishtRi(jn,jf)   ;   isgni1 =  1
-                                                               ishti2 = ishtSi(jn,jf)   ;   isgni2 =  1
+                                                               ishti1 = ishtRi(jn,jf)         ;   isgni1 =  1
+                                                               ishti2 = ishtSi(jn,jf)         ;   isgni2 =  1
                ENDIF
                IF(     jn == jpso .OR. jn == jpsw .OR. jn == jpse ) THEN   ! southern side
                                                                ishtj1 = ishtSj(jpso,jf) + 1   ;   isgnj1 = -1
@@ -265,8 +242,8 @@
                   ELSE                                     ;   ishtj2 = ishtRj(jpno,jf) + 1   ;   isgnj2 = -1
                   ENDIF
                ELSE                                                        ! western/eastern side
-                                                               ishtj1 = ishtRj(jn,jf)   ;   isgnj1 =  1
-                                                               ishtj2 = ishtSj(jn,jf)   ;   isgnj2 =  1  
+                                                               ishtj1 = ishtRj(jn,jf)         ;   isgnj1 =  1
+                                                               ishtj2 = ishtSj(jn,jf)         ;   isgnj2 =  1  
                ENDIF
                !
                DO jl = 1, ipl(jf)  ;  DO jk = 1, ipk(jf)  ;  DO jj = 1,isizej(jn,jf)  ;  DO ji = 1,isizei(jn,jf)
@@ -283,47 +260,44 @@
          END DO   ! jf
       END DO   ! jn
       !
-      ! ----------------------------- !
-      !     5. Fill all MPI halos     !
-      ! ----------------------------- !
-      !
-      CALL mpi_wait( nreq_nei, MPI_STATUS_IGNORE, ierr )
-      !
-      ! --------------------------------------------------------- !
-      ! MPI3 bug fix when domain decomposition has 2 columns/rows !
-      ! --------------------------------------------------------- !
-      !
-      IF( jpni == 2 ) THEN
-         IF( jpnj == 2 ) THEN
-            jnf(1:8) = (/ 2, 1, 4, 3, 8, 7, 6, 5 /)
-         ELSE
-            jnf(1:8) = (/ 2, 1, 3, 4, 6, 5, 8, 7 /)
-         ENDIF
-      ELSE
-         IF( jpnj == 2 ) THEN
-            jnf(1:8) = (/ 1, 2, 4, 3, 7, 8, 5, 6 /)
-         ELSE
-            jnf(1:8) = (/ 1, 2, 3, 4, 5, 6, 7, 8 /)
-         ENDIF
-      ENDIF
-      !
-      idx = 0
-      DO jn = 1, 8
-         DO jf = 1, kfld
-            IF( ifill(jnf(jn),jf) == jpfillmpi ) THEN   ! fill with data received by MPI
-               ishti = ishtRi(jnf(jn),jf)
-               ishtj = ishtRj(jnf(jn),jf)
-               DO jl = 1, ipl(jf)   ;   DO jk = 1, ipk(jf)   ;   DO jj = 1,isizej(jnf(jn),jf)   ;  DO ji = 1,isizei(jnf(jn),jf)
-                  idx = idx + 1
-                  ptab(jf)%pt4d(ishti+ji,ishtj+jj,jk,jl) = BUFFRCV(idx)
-               END DO;   END DO   ;   END DO   ;   END DO
+      ! ------------------------------------------------- !
+      !     3. Fill  halos with values from neighbours    !
+      ! ------------------------------------------------- !
+
+      ALLOCATE( BUFFRCV(SUM(ibufszR)) )
+
+      llrdy(:) = .FALSE.
+      ll2do(:) = ibufszR(:) > 0
+      
+      DO WHILE ( COUNT(ll2do) > 0 )   ! there are still communications to be received
+         
+         DO jn = 1, 8   
+            IF( ll2do(jn) ) CALL mpi_iprobe( mpiRnei(jn,n_hlsmax), iRtag(jn), icomm, llrdy(jn), MPI_STATUS_IGNORE, ierr )
+         END DO
+         
+         DO jn = 1, 8
+            IF( llrdy(jn) .AND. ll2do(jn) ) THEN          ! we must receive some data
+#if ! defined key_mpi_off
+      ! blocking receive in local buffer. use mpiRnei(jn,n_hlsmax), see mppini
+               CALL MPI_RECV( BUFFRCV(ishtR(jn)+1), ibufszR(jn), MPI_TYPE, mpiRnei(jn,n_hlsmax), iRtag(jn), icomm, MPI_STATUS_IGNORE, ierr )
+#endif
+               ll2do(jn) = .FALSE.
+               !
+               idx = ishtR(jn)
+               DO jf = 1, kfld
+                  IF( ifill(jn,jf) == jpfillmpi ) THEN    ! Use MPI-received data
+                     ishti = ishtRi(jn,jf)
+                     ishtj = ishtRj(jn,jf)
+                     DO jl = 1, ipl(jf)  ;  DO jk = 1, ipk(jf)  ;  DO jj = 1,isizej(jn,jf)  ;  DO ji = 1,isizei(jn,jf)
+                        idx = idx + 1
+                        ptab(jf)%pt4d(ishti+ji,ishtj+jj,jk,jl) = BUFFRCV(idx)
+                     END DO   ;   END DO   ;   END DO   ;   END DO
+                  ENDIF
+               END DO
             ENDIF
          END DO
-      END DO
-
-      DEALLOCATE( iScnt, iRcnt, iSdpl, iRdpl )
-      IF( iszS > jpi*jpj )   DEALLOCATE(BUFFSND)                    ! blocking Send -> can directly deallocate
-      IF( iszR > jpi*jpj )   DEALLOCATE(BUFFRCV)                    ! blocking Recv -> can directly deallocate
+         
+      END DO   ! while llrcv (there are still communications to be received)
       !
       ! ---------------------------------------------------------------- !
       !     6. Potential "indirect self-periodicity" for the corners     !
@@ -364,5 +338,38 @@
          ENDIF
       ENDIF
       !
-   END SUBROUTINE lbc_lnk_neicoll_/**/PRECISION
+      !
+      ! -------------------------------------------- !
+      !     5. deallocate local temporary arrays     !
+      ! -------------------------------------------- !
+      !
+      DO jn = 1, 8
+         CALL mpi_wait( nreq_p2p(jn), MPI_STATUS_IGNORE, ierr )
+      END DO
+      
+      DEALLOCATE(BUFFSND)
+      DEALLOCATE(BUFFRCV)
 
+   END SUBROUTINE lbc_lnk_iprobe_/**/PRECISION
+#endif
+
+
+#if defined BLOCK_ISEND
+   IF( ibufszS(jn) > 0 ) THEN          ! we must send some data
+      idx = ishtS(jn)
+      DO jf = 1, kfld                  ! first: fill the buffer to be sent
+         IF( llsend(jn,jf) ) THEN
+            ishti = ishtSi(jn,jf)
+            ishtj = ishtSj(jn,jf)
+            DO jl = 1, ipl(jf)  ;  DO jk = 1, ipk(jf)  ;  DO jj = 1,isizej(jn,jf)  ;  DO ji = 1,isizei(jn,jf)
+               idx = idx + 1
+               BUFFSND(idx) = ptab(jf)%pt4d(ishti+ji,ishtj+jj,jk,jl)
+            END DO   ;   END DO   ;   END DO   ;   END DO
+         ENDIF
+      END DO
+#if ! defined key_mpi_off
+      ! next: non-blocking send using local buffer. use mpiSnei(jn,n_hlsmax), see mppini
+      CALL MPI_ISEND( BUFFSND(ishtS(jn)+1), ibufszS(jn), MPI_TYPE, mpiSnei(jn,n_hlsmax), iStag(jn), icomm, nreq_p2p(jn), ierr )
+#endif
+   ENDIF
+#endif

@@ -69,8 +69,10 @@ MODULE diawri
    PUBLIC   dia_wri                 ! routines called by step.F90
    PUBLIC   dia_wri_state
    PUBLIC   dia_wri_alloc           ! Called by nemogcm module
+   PUBLIC   dia_wri_dealloc         ! Called by nemogcm module
 #if ! defined key_xios   
    PUBLIC   dia_wri_alloc_abl       ! Called by sbcabl  module (if ln_abl = .true.)
+   PUBLIC   dia_wri_dealloc_abl     ! Called by ?
 #endif
    INTEGER ::   nid_T, nz_T, nh_T, ndim_T, ndim_hT   ! grid_T file
    INTEGER ::          nb_T              , ndim_bT   ! grid_T file
@@ -104,6 +106,9 @@ CONTAINS
       !
    END FUNCTION dia_wri_alloc
 
+   SUBROUTINE dia_wri_dealloc()
+      IF(.FALSE.) WRITE(numout,*) 'to avoid compilation warning'
+   END SUBROUTINE dia_wri_dealloc
    
    SUBROUTINE dia_wri( kt, Kmm )
       !!---------------------------------------------------------------------
@@ -567,14 +572,23 @@ CONTAINS
       ENDIF
       !
    END FUNCTION dia_wri_alloc
+
+
+   SUBROUTINE dia_wri_dealloc()
+      IF( ALLOCATED(ndex_hT) )   DEALLOCATE( ndex_hT, ndex_T, ndex_hU, ndex_U, ndex_hV, ndex_V )
+   END SUBROUTINE dia_wri_dealloc
+   
  
    INTEGER FUNCTION dia_wri_alloc_abl()
-      !!----------------------------------------------------------------------
-	  ALLOCATE(   ndex_hA(jpi*jpj), ndex_A (jpi*jpj*jpkam1), STAT=dia_wri_alloc_abl)
+      ALLOCATE(   ndex_hA(jpi*jpj), ndex_A (jpi*jpj*jpkam1), STAT=dia_wri_alloc_abl)
       CALL mpp_sum( 'diawri', dia_wri_alloc_abl )
-      !
    END FUNCTION dia_wri_alloc_abl
 
+
+   SUBROUTINE dia_wri_dealloc_abl()
+      IF( ALLOCATED(ndex_hA) )    DEALLOCATE( ndex_hA, ndex_A )
+   END SUBROUTINE dia_wri_dealloc_abl
+   
    
    SUBROUTINE dia_wri( kt, Kmm )
       !!---------------------------------------------------------------------

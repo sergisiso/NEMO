@@ -36,7 +36,6 @@ MODULE nemogcm
 #if defined key_xios
    USE xios           ! xIOserver
 #endif
-   USE halo_mng
    USE timing         ! timing
 
    IMPLICIT NONE
@@ -84,7 +83,9 @@ CONTAINS
          !
          CALL dia_obs_dealloc ! Reset the obs_oper between
          !
-         IF( ln_timing )   CALL timing_stop( 'full code', ld_finalize = .TRUE. )
+         CALL nemo_dealloc()  ! free memory as soon as possible as the timing finalization can use large arrays if jpnij is big...
+         !
+         CALL timing_stop( 'full code', ld_finalize = .TRUE. )
          !
          IF(lk_mpp)   CALL mppstop  ! Safely stop MPI (end mpp communications)
          !
@@ -220,7 +221,6 @@ CONTAINS
       !                             !-----------------------------------------!
       CALL mpp_init
 
-      CALL halo_mng_init()
       ! Now we know the dimensions of the grid and numout has been set: we can allocate arrays
       CALL nemo_alloc()
 
@@ -231,8 +231,8 @@ CONTAINS
       CALL nemo_ctl                          ! Control prints
       !
       !                                         ! General initialization
-      IF( ln_timing    )   CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
-      IF( ln_timing    )   CALL timing_start( 'nemo_init')
+                           CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
+      IF( ln_timing    )   CALL timing_start( 'nemo_init' )
       !
                            CALL phy_cst            ! Physical constants
                            CALL eos_init           ! Equation of state
@@ -344,6 +344,24 @@ CONTAINS
       IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'nemo_alloc : unable to allocate standard ocean arrays' )
       !
    END SUBROUTINE nemo_alloc
+
+   SUBROUTINE nemo_dealloc()
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE nemo_alloc  ***
+      !!
+      !! ** Purpose :   Allocate all the dynamic arrays of the OCE modules
+      !!
+      !! ** Method  :
+      !!----------------------------------------------------------------------
+      USE diawri    , ONLY : dia_wri_dealloc
+      USE dom_oce   , ONLY : dom_oce_dealloc
+      !!----------------------------------------------------------------------
+      !
+      CALL     oce_dealloc()    ! ocean
+      CALL dia_wri_dealloc()    ! 
+      CALL dom_oce_dealloc()    ! ocean domain
+      !
+   END SUBROUTINE nemo_dealloc
 
    SUBROUTINE nemo_set_cfctl(sn_cfctl, setto )
       !!----------------------------------------------------------------------

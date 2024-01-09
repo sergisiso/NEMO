@@ -88,9 +88,9 @@
             WRITE(ctmp1,*) TRIM(cdname), ' is calling lbc_lnk with only one of the two arguments lsend or lrecv'
             CALL ctl_stop( 'STOP', ctmp1 )
          ELSE                                              ! default neighbours
-            llsend(:,jf) = mpiSnei(ihls,:) >= 0
+            llsend(:,jf) = mpiSnei(:,ihls) >= 0
             IF( ll4only )   llsend(5:8,jf) = .FALSE.       ! exclude corners
-            llrecv(:,jf) = mpiRnei(ihls,:) >= 0
+            llrecv(:,jf) = mpiRnei(:,ihls) >= 0
             IF( ll4only )   llrecv(5:8,jf) = .FALSE.       ! exclude corners
          ENDIF
          !
@@ -286,8 +286,8 @@
          ENDIF
       END DO
 #if ! defined key_mpi_off
-      ! next: non-blocking send using local buffer. use mpiSnei(n_hlsmax,jn), see mppini
-      CALL MPI_ISEND( BUFFSND(ishtS(jn)+1), ibufszS(jn), MPI_TYPE, mpiSnei(n_hlsmax,jn), iStag(jn), icomm, nreq_p2p(jn), ierr )
+      ! next: non-blocking send using local buffer. use mpiSnei(jn,n_hlsmax), see mppini
+      CALL MPI_ISEND( BUFFSND(ishtS(jn)+1), ibufszS(jn), MPI_TYPE, mpiSnei(jn,n_hlsmax), iStag(jn), icomm, nreq_p2p(jn), ierr )
 #endif
    ENDIF
 
@@ -356,8 +356,8 @@
 #if defined BLOCK_FILL_MPI_RECV
    IF( ibufszR(jn) > 0 ) THEN          ! we must receive some data
 #if ! defined key_mpi_off
-      ! blocking receive in local buffer. use mpiRnei(n_hlsmax,jn), see mppini
-      CALL MPI_RECV( BUFFRCV(ishtR(jn)+1), ibufszR(jn), MPI_TYPE, mpiRnei(n_hlsmax,jn), iRtag(jn), icomm, MPI_STATUS_IGNORE, ierr )
+      ! blocking receive in local buffer. use mpiRnei(jn,n_hlsmax), see mppini
+      CALL MPI_RECV( BUFFRCV(ishtR(jn)+1), ibufszR(jn), MPI_TYPE, mpiRnei(jn,n_hlsmax), iRtag(jn), icomm, MPI_STATUS_IGNORE, ierr )
 #endif
       DO jf = 1, kfld
          IF( ifill(jn,jf) == jpfillmpi ) THEN    ! Use MPI-received data

@@ -28,6 +28,7 @@ MODULE sbc_ice
    PRIVATE
 
    PUBLIC   sbc_ice_alloc   ! called in sbcmod.F90 or sbcice_cice.F90
+   PUBLIC   sbc_ice_dealloc ! called in nemogcm.F90
 
 # if defined  key_si3
    LOGICAL         , PUBLIC, PARAMETER ::   lk_si3     = .TRUE.   !: SI3 ice model
@@ -166,6 +167,25 @@ CONTAINS
       IF( sbc_ice_alloc > 0 )   CALL ctl_warn('sbc_ice_alloc: allocation of arrays failed')
    END FUNCTION sbc_ice_alloc
 
+   
+   SUBROUTINE sbc_ice_dealloc()
+      IF( ALLOCATED(snwice_mass) )   DEALLOCATE( snwice_mass , snwice_mass_b, snwice_fmass )
+#if defined key_si3
+      IF( ALLOCATED(utau_ice) )   DEALLOCATE( utau_ice , vtau_ice ,  rCdU_ice )
+      IF( ALLOCATED(wndm_ice) )  &
+         &    DEALLOCATE( wndm_ice   , &
+         &      qns_ice  , qsr_ice   ,     &
+         &      qla_ice  , dqla_ice  ,     &
+         &      dqns_ice , tn_ice    , alb_ice     ,   &
+         &      qml_ice  , qcn_ice   , qtr_ice_top ,   &
+         &      evap_ice , devap_ice , qprec_ice       ,   &
+         &      qemp_ice , qevap_ice , qemp_oce        ,   &
+         &      qns_oce  , qsr_oce   , emp_oce         ,   &
+         &      emp_ice  , sstfrz  )
+#endif
+
+   END SUBROUTINE sbc_ice_dealloc
+
 #else
    !!----------------------------------------------------------------------
    !!   Default option                      NO SI3 or CICE sea-ice model
@@ -176,7 +196,8 @@ CONTAINS
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   sbc_ice_alloc   !
+   PUBLIC   sbc_ice_alloc     !
+   PUBLIC   sbc_ice_dealloc   !
 
    LOGICAL         , PUBLIC, PARAMETER ::   lk_si3     = .FALSE.  !: no SI3 ice model
    LOGICAL         , PUBLIC, PARAMETER ::   lk_cice    = .FALSE.  !: no CICE ice model
@@ -212,6 +233,11 @@ CONTAINS
       CALL mpp_sum ( 'sbc_ice', sbc_ice_alloc )
       IF( sbc_ice_alloc > 0 )   CALL ctl_warn('sbc_ice_alloc: allocation of arrays failed')
    END FUNCTION sbc_ice_alloc
+
+   SUBROUTINE sbc_ice_dealloc()
+      IF( ALLOCATED(snwice_mass) ) DEALLOCATE( snwice_mass, snwice_mass_b, snwice_fmass )
+   END SUBROUTINE sbc_ice_dealloc
+   
 #endif
 
    !!======================================================================

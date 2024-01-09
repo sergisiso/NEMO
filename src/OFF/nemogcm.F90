@@ -64,11 +64,6 @@ MODULE nemogcm
    USE timing         ! Timing
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
    USE stpmlf , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
-   USE halo_mng
-#if ! defined key_mpi_off
-   ! need MPI_Wtime
-   USE MPI
-#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -112,7 +107,6 @@ CONTAINS
       ! they will never enter in step and other processes will wait until the end of the cpu time!
       CALL mpp_max( 'nemogcm', nstop )
 
-      IF( ln_timing )   CALL timing_stop( 'before step' )
       !                            !-----------------------!
       !                            !==   time stepping   ==!
       !                            !-----------------------!
@@ -121,10 +115,12 @@ CONTAINS
       IF( ln_rnf )   CALL sbc_rnf(istp)   ! runoffs initialization 
       ! 
       CALL iom_init( cxios_context )      ! iom_put initialization (must be done after nemo_init for AGRIF+XIOS+OASIS)
+      !
+      CALL timing_stop( 'before step' )
       ! 
       DO WHILE ( istp <= nitend .AND. nstop == 0 )    !==  OFF time-stepping  ==!
          ncom_stp = istp
-         IF( ln_timing )   CALL timing_start( 'step', istp, nit000, nitend, 1, ldstatplot = .TRUE. )
+         CALL timing_start( 'step', istp, nit000, nitend, 1, 1000 )
          !
       IF((istp == nitrst) .AND. lwxios) THEN
          CALL iom_swap(      cw_toprst_cxt          )
@@ -156,7 +152,7 @@ CONTAINS
 # endif  
 
          CALL stp_ctl    ( istp )             ! Time loop: control and print
-         IF( ln_timing )   CALL timing_stop( 'step', istp )
+         CALL timing_stop( 'step', istp )
          istp = istp + 1
 
       END DO
@@ -176,7 +172,9 @@ CONTAINS
          CALL ctl_stop( ' ', ctmp1, ' ', ctmp2 )
       ENDIF
       !
-      IF( ln_timing )   CALL timing_stop( 'full code', ld_finalize = .TRUE. )
+      CALL nemo_dealloc()   ! free memory as soon as possible as the timing finalization can use large arrays if jpnij is big...
+      !
+      CALL timing_stop( 'full code', ld_finalize = .TRUE. )
       !
       CALL nemo_closefile
       !
@@ -312,7 +310,6 @@ CONTAINS
       !
       CALL mpp_init
 
-      CALL halo_mng_init()
       ! Now we know the dimensions of the grid and numout has been set: we can allocate arrays
       CALL nemo_alloc()
 
@@ -326,8 +323,8 @@ CONTAINS
       CALL nemo_ctl                          ! Control prints
       !
       !                                      ! General initialization
-      IF( ln_timing    )   CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
-      IF( ln_timing    )   CALL timing_start( 'nemo_init')
+                           CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
+      IF( ln_timing    )   CALL timing_start( 'nemo_init' )
       !
                            CALL     phy_cst         ! Physical constants
                            CALL     eos_init        ! Equation of state
@@ -360,7 +357,7 @@ CONTAINS
                            
       IF(lwp) WRITE(numout,cform_aaa)           ! Flag AAAAAAA
       !
-      IF( ln_timing    )   CALL timing_stop( 'nemo_init')
+      IF( ln_timing    )   CALL timing_stop( 'nemo_init' )
       !
    END SUBROUTINE nemo_init
 
@@ -459,6 +456,33 @@ CONTAINS
       IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'nemo_alloc: unable to allocate standard ocean arrays' )
       !
    END SUBROUTINE nemo_alloc
+
+   SUBROUTINE nemo_dealloc
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE nemo_dealloc  ***
+      !!
+      !! ** Purpose :   Deallocate all the dynamic arrays of the OCE modules
+      !!
+      !! ** Method  :
+      !!----------------------------------------------------------------------
+      USE diawri ,   ONLY : dia_wri_dealloc
+      USE dom_oce,   ONLY : dom_oce_dealloc
+      USE zdf_oce,   ONLY : zdf_oce_dealloc
+      USE trc_oce,   ONLY : trc_oce_dealloc
+      USE bdy_oce,   ONLY : bdy_oce_dealloc
+      !!----------------------------------------------------------------------
+      !
+      CALL     oce_dealloc()          ! ocean 
+      CALL dia_wri_dealloc()
+      CALL dom_oce_dealloc()          ! ocean domain
+      CALL zdf_oce_dealloc()          ! ocean vertical physics
+      CALL trc_oce_dealloc()          ! shared TRC / TRA arrays
+      CALL bdy_oce_dealloc()          ! bdy masks (incl. initialization)      
+#if defined key_top
+      CALL top_dealloc()
+#endif
+      !
+   END SUBROUTINE nemo_dealloc
 
    SUBROUTINE nemo_set_cfctl(sn_cfctl, setto )
       !!----------------------------------------------------------------------

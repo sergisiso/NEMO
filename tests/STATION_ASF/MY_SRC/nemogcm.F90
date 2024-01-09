@@ -83,7 +83,7 @@ CONTAINS
       CALL mpp_max( 'nemogcm', nstop )
 
       IF(lwp) WRITE(numout,cform_aaa)   ! Flag AAAAAAA
-      IF( ln_timing )   CALL timing_stop( 'before step' )
+      CALL timing_stop( 'before step' )
 
       !                            !-----------------------!
       !                            !==   time stepping   ==!
@@ -95,9 +95,9 @@ CONTAINS
       !
       DO WHILE ( istp <= nitend .AND. nstop == 0 )    !==  C1D time-stepping  ==!
          ncom_stp = istp
-         IF( ln_timing )   CALL timing_start( 'stp_c1d', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
+         CALL timing_start( 'stp_c1d', istp, nit000, nitend, nn_fsbc, 1000 )
          CALL stp_c1d( istp )
-         IF( ln_timing )   CALL timing_stop( 'stp_c1d', istp )
+         CALL timing_stop( 'stp_c1d', istp )
          istp = istp + 1
       END DO
       !
@@ -112,7 +112,9 @@ CONTAINS
          CALL ctl_stop( ' ', ctmp1, ' ', ctmp2 )
       ENDIF
       !
-      IF( ln_timing )   CALL timing_stop( 'full code', ld_finalize = .TRUE. )
+      CALL nemo_dealloc()   ! free memory as soon as possible as the timing finalization can use large arrays if jpnij is big...
+      !
+      CALL timing_stop( 'full code', ld_finalize = .TRUE. )
       !
       CALL nemo_closefile
       !
@@ -267,8 +269,8 @@ CONTAINS
       CALL nemo_ctl                          ! Control prints
       !
       !                                      ! General initialization
-      IF( ln_timing    )   CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
-      IF( ln_timing    )   CALL timing_start( 'nemo_init')
+                           CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
+      IF( ln_timing    )   CALL timing_start( 'nemo_init' )
       !
                            CALL     phy_cst         ! Physical constants
                            CALL     eos_init        ! Equation of state
@@ -292,7 +294,7 @@ CONTAINS
       !
       IF(lwp) WRITE(numout,cform_aaa)           ! Flag AAAAAAA
       !
-      IF( ln_timing    )   CALL timing_stop( 'nemo_init')
+      IF( ln_timing    )   CALL timing_stop( 'nemo_init' )
       !
    END SUBROUTINE nemo_init
 
@@ -391,7 +393,26 @@ CONTAINS
       !
    END SUBROUTINE nemo_alloc
 
+   
+   SUBROUTINE nemo_dealloc()
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE nemo_alloc  ***
+      !!
+      !! ** Purpose :   Allocate all the dynamic arrays of the OCE modules
+      !!
+      !! ** Method  :
+      !!----------------------------------------------------------------------
+      USE diawri    , ONLY : dia_wri_dealloc
+      USE dom_oce   , ONLY : dom_oce_dealloc
+      !!----------------------------------------------------------------------
+      !
+      CALL     oce_dealloc()    ! ocean
+      CALL dia_wri_dealloc()    ! 
+      CALL dom_oce_dealloc()    ! ocean domain
+      !
+   END SUBROUTINE nemo_dealloc
 
+   
    SUBROUTINE nemo_set_cfctl(sn_cfctl, setto )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE nemo_set_cfctl  ***

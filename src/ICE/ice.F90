@@ -17,6 +17,7 @@ MODULE ice
    PRIVATE
 
    PUBLIC   ice_alloc   ! called by icestp.F90
+   PUBLIC   ice_dealloc ! called by ?
 
    !!======================================================================
    !!                                                                     |
@@ -593,6 +594,60 @@ CONTAINS
 
    END FUNCTION ice_alloc
 
+
+   SUBROUTINE ice_dealloc()
+      IF( .NOT. ALLOCATED(u_ice) ) RETURN
+      DEALLOCATE( u_ice , v_ice )
+      DEALLOCATE( h_i   , a_i  , v_i  , v_s , &
+         &      h_s   , s_i  , sv_i , o_i , oa_i , &
+         &      h_ip  , a_ip , v_ip , &
+         &      h_il  , v_il , t_su , &
+         &      t_s   , t_i  , sz_i , &
+         &      ato_i )
+      DEALLOCATE( e_s , e_i , szv_i )
+      DEALLOCATE( u_ice_b , v_ice_b )
+      DEALLOCATE( u_oce      , v_oce      ,  &
+         &      strength   , stress1_i  , stress2_i  , stress12_i ,  &
+         &      aniso_11   , aniso_12   , rdg_conv   , &
+         &      icb_tmask  , icb_umask  , icb_vmask  , &
+         &      fast_tmask , fast_umask , fast_vmask )
+      DEALLOCATE( vt_i  , vt_s  , at_i  , vt_ip , vt_il , at_ip )
+      DEALLOCATE( rn_amax_2d )
+      DEALLOCATE( v_ibr , a_ip_frac , a_ip_eff )
+      DEALLOCATE( at_i_b     , h_i_b  , a_i_b , v_i_b ,  &
+         &      v_s_b  , h_s_b  ,                                          &
+         &      v_ip_b , v_il_b , sv_i_b ,                     &
+         &      e_i_b  , e_s_b , szv_i_b  )
+      DEALLOCATE( qsb_ice_bot , qlead       , qt_atm_oi   , qt_oce_ai   , fhld        , &
+         &      wfx_snw_sni , wfx_snw     , wfx_snw_dyn , wfx_snw_sum , wfx_snw_sub , &
+         &      wfx_ice     , wfx_sub     , wfx_ice_sub , wfx_lam     ,                       &
+         &      wfx_pnd     , wfx_bog     , wfx_dyn     , wfx_bom     , wfx_sum     , &
+         &      wfx_sni     , wfx_opw     , wfx_spr ,                                     &
+         &      sfx_bri     , sfx_dyn     , sfx_sub , sfx_lam ,                   &
+         &      sfx_bog     , sfx_bom     , sfx_sum , sfx_sni , sfx_opw , &
+         &      hfx_snw     , hfx_sub     ,                                                       &
+         &      hfx_sum     , hfx_bom     , hfx_bog , hfx_dif ,                   &
+         &      hfx_opw     , hfx_thd     , hfx_dyn , hfx_spr ,                   &
+         &      hfx_err_dif , wfx_err_sub  )
+      DEALLOCATE( wfx_res , sfx_res , hfx_res )
+      DEALLOCATE( qtr_ice_bot , cnd_ice , t1_ice )
+      DEALLOCATE( delta_i , divu_i , shear_i ) 
+      DEALLOCATE( t_bo  , st_i  , et_i , et_s   , hm_i  ,  &
+         &      hm_ip , hm_il , tm_i , tm_s   ,  &
+         &      sm_i  , hm_s  , om_i , vm_ibr ,  &
+         &      tm_su )
+      DEALLOCATE( tau_icebfr , dh_i_sum_2d , dh_s_sum_2d )
+      DEALLOCATE( ht_i_new  , fraz_frac )
+      DEALLOCATE( hi_max, hi_mean )
+      DEALLOCATE( diag_trp_vi   , diag_trp_vs   , diag_trp_ei   ,                                         &
+         &      diag_trp_es   , diag_trp_sv   , diag_heat     ,                                         &
+         &      diag_sice     , diag_vice     , diag_vsnw     , diag_aice , diag_vpnd , &
+         &      diag_adv_mass , diag_adv_salt , diag_adv_heat )
+      DEALLOCATE( diag_v  , diag_s  , diag_t ,   &
+         &      diag_fv , diag_fs , diag_ft )
+      DEALLOCATE( t_si , tm_si , qcn_ice_bot , qcn_ice_top )      
+   END SUBROUTINE ice_dealloc
+   
 #else
    !!----------------------------------------------------------------------
    !!   Default option         Empty module           NO SI3 sea-ice model
