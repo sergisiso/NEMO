@@ -26,6 +26,7 @@ MODULE sbc_oce
    PRIVATE
 
    PUBLIC   sbc_oce_alloc   ! routine called in sbcmod.F90
+   PUBLIC   sbc_oce_dealloc ! routine called in nemogcm.F90
    PUBLIC   sbc_tau2wnd     ! routine called in several sbc modules
 
    !!----------------------------------------------------------------------
@@ -217,6 +218,18 @@ CONTAINS
    END FUNCTION sbc_oce_alloc
 
 
+   SUBROUTINE sbc_oce_dealloc()
+      IF( ALLOCATED(utau) ) THEN
+         DEALLOCATE( utau , utau_b, utauU , vtau , vtau_b, vtauV )
+         DEALLOCATE( emp  , emp_b , rnf   , rnf_b )
+         DEALLOCATE( fr_i , ssu_m , sst_m , frq_m, ssv_m , sss_m, ssh_m, e3t_m )
+         DEALLOCATE( qns, qns_b, qsr,  qns_tot , qsr_tot , qsr_hc , qsr_hc_b )
+         DEALLOCATE( sbc_tsc, sbc_tsc_b   ,  sfx , sfx_b , emp_tot, fwfice, fwficb, wndm , taum )
+         DEALLOCATE( tprecip , sprecip , atm_co2 , tsk_m, cloud_fra )
+         DEALLOCATE( rhoa , q_air_zt , theta_air_zt )
+      ENDIF
+   END SUBROUTINE sbc_oce_dealloc
+   
    !!clem => this subroutine is never used in nemo
    SUBROUTINE sbc_tau2wnd
       !!---------------------------------------------------------------------

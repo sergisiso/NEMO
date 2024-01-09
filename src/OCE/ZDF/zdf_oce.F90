@@ -15,6 +15,7 @@ MODULE zdf_oce
    PRIVATE
 
    PUBLIC  zdf_oce_alloc    ! Called in nemogcm.F90
+   PUBLIC  zdf_oce_dealloc  ! Called in nemogcm.F90
 
    !                            !!* namelist namzdf: vertical physics *
    !                             ! Adaptive-implicit vertical advection flag
@@ -74,6 +75,12 @@ CONTAINS
       IF( zdf_oce_alloc /= 0 )   CALL ctl_stop( 'STOP', 'zdf_oce_alloc: failed to allocate arrays' )
       !
    END FUNCTION zdf_oce_alloc
+
+
+   SUBROUTINE zdf_oce_dealloc()
+      IF( ALLOCATED(avm) )   DEALLOCATE( avm, avm_k, avs, avt, avt_k, en, avmb, avtb, avtb_2d )
+   END SUBROUTINE zdf_oce_dealloc
+
 
    !!======================================================================
 END MODULE zdf_oce

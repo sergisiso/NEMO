@@ -22,6 +22,7 @@ MODULE trc_oce
    PUBLIC   trc_oce_rgb_read   ! routine called by traqsr.F90
    PUBLIC   trc_oce_ext_lev    ! function called by traqsr.F90 at least
    PUBLIC   trc_oce_alloc      ! function called by nemogcm.F90
+   PUBLIC   trc_oce_dealloc    ! function called by nemogcm.F90
 
    LOGICAL , PUBLIC ::   l_co2cpl  = .false.   !: atmospheric pco2 recieved from oasis
    LOGICAL , PUBLIC ::   l_offline = .false.   !: offline passive tracers flag
@@ -63,6 +64,11 @@ CONTAINS
       !
    END FUNCTION trc_oce_alloc
 
+
+   SUBROUTINE trc_oce_dealloc()
+      IF (ALLOCATED(etot3) )   DEALLOCATE( etot3, oce_co2, qsr_mean )
+   END SUBROUTINE trc_oce_dealloc
+   
 
    SUBROUTINE trc_oce_rgb( prgb )
       !!---------------------------------------------------------------------

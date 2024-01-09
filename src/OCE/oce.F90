@@ -16,7 +16,9 @@ MODULE oce
    PRIVATE
 
    PUBLIC oce_alloc       ! routine called by nemo_init in     nemogcm.F90
+   PUBLIC oce_dealloc     ! routine called by nemo_init in     nemogcm.F90
    PUBLIC oce_SWE_alloc   ! routine called by nemo_init in SWE/nemogcm.F90 (Shallow Water Eq. case)
+   PUBLIC oce_SWE_dealloc ! routine called by nemo_init in SWE/nemogcm.F90 (Shallow Water Eq. case)
 
    !! dynamics and tracer fields
    !! --------------------------                            
@@ -123,6 +125,23 @@ CONTAINS
    END FUNCTION oce_alloc
 
 
+   SUBROUTINE oce_dealloc()
+      DEALLOCATE( uu, vv, ww, hdiv, ts, rab_b, rab_n, rn2b, rn2, rhd, rhop )
+      DEALLOCATE( ssh, uu_b, vv_b, ssh_frc, riceload )
+      DEALLOCATE( fraqsr_1lev )
+      DEALLOCATE( ssha_e, sshn_e, sshb_e, sshbb_e, ua_e,  un_e, ub_e, ubb_e,  &
+         &        va_e  ,   vn_e,   vb_e,   vbb_e, hu_e, hur_e, hv_e, hvr_e,   & 
+         &        un_adv,  vn_adv )
+         !
+#if ! defined key_RK3
+      DEALLOCATE( un_bf, vn_bf, ub2_b, vb2_b )
+#endif
+#if defined key_agrif
+      DEALLOCATE( ub2_i_b, vb2_i_b )
+#endif
+   END SUBROUTINE oce_dealloc
+
+   
    INTEGER FUNCTION oce_SWE_alloc()
       !!----------------------------------------------------------------------
       !!                   ***  FUNCTION oce_SWE_alloc  ***
@@ -143,6 +162,12 @@ CONTAINS
       IF( oce_SWE_alloc /= 0 )   CALL ctl_stop( 'STOP', 'oce_SWE_alloc: failed to allocate arrays' )
       !
    END FUNCTION oce_SWE_alloc
+
+   
+   SUBROUTINE oce_SWE_dealloc()
+      IF( ALLOCATED(uu) )   DEALLOCATE( uu, vv, ww, hdiv, ssh )
+      IF( ALLOCATED(ts) )   DEALLOCATE( ts, fraqsr_1lev, uu_b, vv_b, rn2 )
+   END SUBROUTINE oce_SWE_dealloc
 
    !!======================================================================
 END MODULE oce

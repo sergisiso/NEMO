@@ -31,8 +31,9 @@ MODULE dynldf_iso
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dyn_ldf_iso           ! called by step.F90
-   PUBLIC   dyn_ldf_iso_alloc     ! called by nemogcm.F90
+   PUBLIC   dyn_ldf_iso           ! called by dynldf.F90
+!!$   PUBLIC   dyn_ldf_iso_alloc     ! called by dynldf_iso.F90
+!!$   PUBLIC   dyn_ldf_iso_dealloc   ! called by ?
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   akzu, akzv   !: vertical component of rotated lateral viscosity
 
@@ -58,6 +59,11 @@ CONTAINS
       ENDIF
    END FUNCTION dyn_ldf_iso_alloc
 
+
+   SUBROUTINE dyn_ldf_iso_dealloc()
+      IF( ALLOCATED(akzu) ) DEALLOCATE( akzu, akzv )
+   END SUBROUTINE dyn_ldf_iso_dealloc
+   
 
    SUBROUTINE dyn_ldf_iso( kt, Kbb, Kmm, puu, pvv, Krhs )
       !!----------------------------------------------------------------------

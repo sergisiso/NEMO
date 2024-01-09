@@ -171,6 +171,11 @@ CONTAINS
       !
    END FUNCTION bdy_oce_alloc
 
+   
+   SUBROUTINE bdy_oce_dealloc()
+      IF( ALLOCATED(bdytmask) )   DEALLOCATE( bdytmask, bdyumask, bdyvmask )
+   END SUBROUTINE bdy_oce_dealloc
+
    !!======================================================================
 END MODULE bdy_oce
 

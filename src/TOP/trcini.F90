@@ -12,8 +12,9 @@ MODULE trcini
    !!----------------------------------------------------------------------
    !!   'key_top'                                                TOP models
    !!----------------------------------------------------------------------
-   !!   trc_init  :   Initialization for passive tracer
-   !!   top_alloc :   allocate the TOP arrays
+   !!   trc_init    :   Initialization for passive tracer
+   !!   top_alloc   :   allocate the TOP arrays
+   !!   top_dealloc :   deallocate the TOP arrays
    !!----------------------------------------------------------------------
    USE par_trc         ! need jptra, number of passive tracers
    USE oce_trc         ! shared variables between ocean and passive tracers
@@ -31,7 +32,8 @@ MODULE trcini
    IMPLICIT NONE
    PRIVATE
    
-   PUBLIC   trc_init   ! called by opa
+   PUBLIC   trc_init      ! called by nemogcm.F90
+   PUBLIC   top_dealloc   ! called by nemogcm.F90
 
       !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -284,7 +286,6 @@ CONTAINS
       !!
       !! ** Purpose :   Allocate all the dynamic arrays of the OCE modules
       !!----------------------------------------------------------------------
-      USE trc           , ONLY:   trc_alloc
       USE trdtrc_oce    , ONLY:   trd_trc_oce_alloc
 #if defined key_trdmxl_trc 
       USE trdmxl_trc    , ONLY:   trd_mxl_trc_alloc
@@ -304,6 +305,20 @@ CONTAINS
       !
    END SUBROUTINE top_alloc
 
+
+   SUBROUTINE top_dealloc()
+      USE trdtrc_oce    , ONLY:   trd_trc_oce_dealloc
+#if defined key_trdmxl_trc 
+      USE trdmxl_trc    , ONLY:   trd_mxl_trc_dealloc
+#endif
+      CALL trc_dealloc()  
+      CALL trd_trc_oce_dealloc()
+#if defined key_trdmxl_trc 
+      CALL trd_mxl_trc_dealloc()
+#endif
+   END SUBROUTINE top_dealloc
+   
+   
 #else
    !!----------------------------------------------------------------------
    !!  Empty module :                                     No passive tracer

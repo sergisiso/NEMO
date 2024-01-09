@@ -101,6 +101,10 @@ CONTAINS
       !
       !                       !==  Coriolis parameter  ==!
       kff = 0                 !  indicate to compute Coriolis parameter afterward
+      IF( .FALSE.) THEN       ! just to avoid compilation warning...
+         pff_f(1,1) = -1._wp
+         pff_t(1,1) = -1._wp
+      ENDIF
       !
    END SUBROUTINE usr_def_hgr
 

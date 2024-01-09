@@ -35,6 +35,7 @@ MODULE trdmxl_trc
 
    PUBLIC trd_mxl_trc
    PUBLIC trd_mxl_trc_alloc
+   PUBLIC trd_mxl_trc_dealloc
    PUBLIC trd_mxl_trc_init
    PUBLIC trd_mxl_trc_zint
 
@@ -69,6 +70,11 @@ CONTAINS
       IF( trd_mxl_trc_alloc /=0 )   CALL ctl_stop( 'STOP', 'trd_mxl_trc_alloc: failed to allocate arrays' )
       !
    END FUNCTION trd_mxl_trc_alloc
+
+
+   SUBROUTINE trd_mxl_trc_dealloc()
+      IF( ALLOCATED(ztmltrd2) )   DEALLOCATE( ztmltrd2, ndextrd1, nidtrd, nh_t )
+   END SUBROUTINE trd_mxl_trc_dealloc
 
 
    SUBROUTINE trd_mxl_trc_zint( ptrc_trdmxl, ktrd, ctype, kjn, Kmm )

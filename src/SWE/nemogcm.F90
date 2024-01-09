@@ -34,7 +34,6 @@ MODULE nemogcm
    USE lib_mpp        ! distributed memory computing
    USE mppini         ! shared/distributed memory setting (mpp_init routine)
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
-   USE halo_mng       ! halo manager
    USE timing         ! timing
 
    IMPLICIT NONE
@@ -89,7 +88,7 @@ CONTAINS
       CALL mpp_max( 'nemogcm', nstop )
 
       IF(lwp) WRITE(numout,cform_aaa)   ! Flag AAAAAAA
-      IF( ln_timing )   CALL timing_stop( 'before step' )
+      CALL timing_stop( 'before step' )
 
       !                            !-----------------------!
       !                            !==   time stepping   ==!
@@ -104,14 +103,14 @@ CONTAINS
       DO WHILE( istp <= nitend .AND. nstop == 0 )
          !
          ncom_stp = istp
-         IF( ln_timing )   CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, ldstatplot = .TRUE. )
+         CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, 1000 )
          ! 
 #if defined key_RK3
          CALL stp_RK3( istp )
 #else
          CALL stp_MLF( istp )
 #endif
-         IF( ln_timing )   CALL timing_stop( 'step', istp )
+         CALL timing_stop( 'step', istp )
          istp = istp + 1
          !
       END DO
@@ -128,7 +127,9 @@ CONTAINS
          CALL ctl_stop( ' ', ctmp1, ' ', ctmp2 )
       ENDIF
       !
-      IF( ln_timing )   CALL timing_stop( 'full code', ld_finalize = .TRUE. )
+      CALL nemo_dealloc()   ! free memory as soon as possible as the timing finalization can use large arrays if jpnij is big...
+      !
+      CALL timing_stop( 'full code', ld_finalize = .TRUE. )
       !
       CALL nemo_closefile
       !
@@ -266,7 +267,6 @@ CONTAINS
       !                             !-----------------------------------------!
       CALL mpp_init
 
-      CALL halo_mng_init()
       ! Now we know the dimensions of the grid and numout has been set: we can allocate arrays
       CALL nemo_alloc()
 
@@ -280,8 +280,8 @@ CONTAINS
       CALL nemo_ctl                          ! Control prints of namctl and namcfg
       !
       !                                      ! General initialization
-      IF( ln_timing    )   CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
-      IF( ln_timing    )   CALL timing_start( 'nemo_init')
+                           CALL timing_open( lwp, mpi_comm_oce )   ! open timing report file
+      IF( ln_timing    )   CALL timing_start( 'nemo_init' )
       !
                            CALL     phy_cst         ! Physical constants
                            ln_wd_dl = .FALSE.   ;   ln_wd_dl_bc = .FALSE.  ! No wetting and drying
@@ -329,7 +329,7 @@ CONTAINS
 
       IF(lwp) WRITE(numout,cform_aaa)           ! Flag AAAAAAA
       !
-      IF( ln_timing    )   CALL timing_stop( 'nemo_init')
+      IF( ln_timing    )   CALL timing_stop( 'nemo_init' )
       !
    END SUBROUTINE nemo_init
 
@@ -435,7 +435,25 @@ CONTAINS
       IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'nemo_alloc: unable to allocate standard ocean arrays' )
       !
    END SUBROUTINE nemo_alloc
-
+   
+   SUBROUTINE nemo_dealloc()
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE nemo_alloc  ***
+      !!
+      !! ** Purpose :   Allocate all the dynamic arrays of the OCE modules
+      !!
+      !! ** Method  :
+      !!----------------------------------------------------------------------
+      USE diawri    , ONLY : dia_wri_dealloc
+      USE dom_oce   , ONLY : dom_oce_dealloc
+      !!----------------------------------------------------------------------
+      !
+      CALL oce_SWE_dealloc()    ! ocean
+      CALL dia_wri_dealloc()    ! 
+      CALL dom_oce_dealloc()    ! ocean domain
+      CALL zdf_oce_dealloc()    ! ocean vertical physics
+      !
+   END SUBROUTINE nemo_dealloc
 
    SUBROUTINE nemo_set_cfctl(sn_cfctl, setto )
       !!----------------------------------------------------------------------
