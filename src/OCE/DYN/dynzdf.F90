@@ -70,7 +70,9 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk           ! dummy loop indices
       INTEGER  ::   iku, ikv             ! local integers
-      REAL(wp) ::   zzwi, ze3ua, zDt_2   ! local scalars
+      REAL(wp) ::   zzwi, ze3ua          ! local scalars
+      REAL(wp) ::   zDt_2, zDt_4         !   -      -
+      REAL(wp) ::   zzWp_e3, zzWn_e3     !   -      -
       REAL(wp) ::   zzws, ze3va          !   -      -
       REAL(wp) ::   z1_e3ua, z1_e3va     !   -      -
       REAL(wp) ::   zWu , zWv            !   -      -
@@ -91,6 +93,7 @@ CONTAINS
       ENDIF
       !
       zDt_2 = rDt * 0.5_wp
+      zDt_4 = rDt * 0.25_wp
       !
       !                             !* explicit top/bottom drag case
       IF( .NOT.ln_drgimp )   CALL zdf_drg_exp( kt, Kmm, puu(:,:,:,Kbb), pvv(:,:,:,Kbb), puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! add top/bottom friction trend to (puu(Kaa),pvv(Kaa))
@@ -159,29 +162,78 @@ CONTAINS
          !
          !                    !* Matrix construction
          IF( ln_zad_Aimp ) THEN      !- including terms associated with partly implicit vertical advection
+            IF( ln_dynadv_vec ) THEN   !---- Vector form ----!
             SELECT CASE( nldf_dyn )
             CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzu)
-               DO_2Dik( 0, 0,   1, jpkm1, 1 )
+               DO_2Dik( 0, 0,   2, jpkm1, 1 )
+                  zzwi = - zDt_2 * ( ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) ) + akzu(ji,jj,jk  ) )   &   ! add () for NP repro
+                     &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
+                  zzws = - zDt_2 * ( ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) ) + akzu(ji,jj,jk+1) )   &   ! add () for NP repro
+                     &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
+                  !                    ! w at u-point
+                  zWu  = zDt_4 * (  ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk  ) )  &
+                     &            + ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk+1) )  ) * r1_e1e2u(ji,jj)
+                  zzWn_e3 = MIN( zWu, 0._wp ) / e3uw(ji,jj,jk  ,Kaa)
+                  zzWp_e3 = MAX( zWu, 0._wp ) / e3uw(ji,jj,jk+1,Kaa)
+                  zwi(ji,jk) = zzwi + zzWn_e3
+                  zws(ji,jk) = zzws - zzWp_e3
+                  zwd(ji,jk) = 1._wp - zzwi - zzws - zzWn_e3 + zzWp_e3
+               END_2D
+            CASE DEFAULT               ! iso-level lateral mixing
+               DO_2Dik( 0, 0,   2, jpkm1, 1 )
+                  zzwi = - zDt_2 * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) )   &
+                     &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
+                  zzws = - zDt_2 * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) )   &
+                     &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
+                  !                    ! w at u-point
+                  zWu  = zDt_4 * (  ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk  ) )  &
+                     &            + ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk+1) )  ) * r1_e1e2u(ji,jj)
+                  zzWn_e3 = MIN( zWu, 0._wp ) / e3uw(ji,jj,jk  ,Kaa)
+                  zzWp_e3 = MAX( zWu, 0._wp ) / e3uw(ji,jj,jk+1,Kaa)
+                  zwi(ji,jk) = zzwi + zzWn_e3
+                  zws(ji,jk) = zzws - zzWp_e3
+                  zwd(ji,jk) = 1._wp - zzwi - zzws - zzWn_e3 + zzWp_e3 
+               END_2D
+            END SELECT
+            !
+            DO_1Di( 0, 0 )     !* Surface boundary conditions
+               zwi(ji,1) = 0._wp
+               zzws = - zDt_2 * ( avm(ji+1,jj,2) + avm(ji  ,jj,2) )   &
+                  &           / ( e3u(ji,jj,1,Kaa) * e3uw(ji,jj,2,Kmm) ) * wumask(ji,jj,2)
+               !                    ! w at u-point
+               zWu  = zDt_4 * ( e1e2t(ji,jj)*wi(ji,jj,2) + e1e2t(ji+1,jj)*wi(ji+1,jj,2) ) * r1_e1e2u(ji,jj)
+               zzWp_e3 = MAX( zWu, 0._wp ) / e3uw(ji,jj,2,Kaa)
+               zws(ji,1) = zzws - zzWp_e3
+               zwd(ji,1) = 1._wp - zzws + zzWp_e3
+            END_1D            
+            ELSE                    !---- Flux form ----!
+            SELECT CASE( nldf_dyn )
+            CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzu)
+               DO_2Dik( 0, 0,   2, jpkm1, 1 )
                   zzwi = - zDt_2 * ( ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) ) + akzu(ji,jj,jk  ) )   &   ! add () for NP repro
                      &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
                   zzws = - zDt_2 * ( ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) ) + akzu(ji,jj,jk+1) )   &   ! add () for NP repro
                      &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
                   z1_e3ua =  1._wp  / e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
-                  zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) * z1_e3ua
-                  zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) * z1_e3ua
+!!st                  zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) * z1_e3ua
+!!st                  zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) * z1_e3ua
+             zWui = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk  ) ) * r1_e1e2u(ji,jj) * z1_e3ua
+             zWus = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk+1) ) * r1_e1e2u(ji,jj) * z1_e3ua
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWui, 0._wp )
                   zws(ji,jk) = zzws - zDt_2 * MAX( zWus, 0._wp )
                   zwd(ji,jk) = 1._wp - zzwi - zzws + zDt_2 * ( MAX( zWui, 0._wp ) - MIN( zWus, 0._wp ) )
                END_2D
             CASE DEFAULT               ! iso-level lateral mixing
-               DO_2Dik( 0, 0,   1, jpkm1, 1 )
+               DO_2Dik( 0, 0,   2, jpkm1, 1 )
                   zzwi = - zDt_2 * ( avm(ji+1,jj,jk  ) + avm(ji,jj,jk  ) )   &
                      &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk  ,Kmm) ) * wumask(ji,jj,jk  )
                   zzws = - zDt_2 * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) )   &
                      &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
                   z1_e3ua =  1._wp  / e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
-                  zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) * z1_e3ua
-                  zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) * z1_e3ua
+             zWui = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk  ) ) * r1_e1e2u(ji,jj) * z1_e3ua 
+             zWus = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk+1) ) * r1_e1e2u(ji,jj) * z1_e3ua
+!!st                  zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) * z1_e3ua
+!!st                  zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) * z1_e3ua
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWui, 0._wp )
                   zws(ji,jk) = zzws - zDt_2 * MAX( zWus, 0._wp )
                   zwd(ji,jk) = 1._wp - zzwi - zzws + zDt_2 * ( MAX( zWui, 0._wp ) - MIN( zWus, 0._wp ) )
@@ -193,10 +245,12 @@ CONTAINS
                zwi(ji,1) = 0._wp
                zzws = - zDt_2 * ( avm(ji+1,jj,2) + avm(ji  ,jj,2) )   &
                   &           / ( e3u(ji,jj,1,Kaa) * e3uw(ji,jj,2,Kmm) ) * wumask(ji,jj,2)
-               zWus = ( wi(ji  ,jj,2) +  wi(ji+1,jj,2) ) / e3u(ji,jj,1,Kaa)
+!!st           zWus = ( wi(ji  ,jj,2) +  wi(ji+1,jj,2) ) / e3u(ji,jj,1,Kaa)
+           zWus = ( e1e2t(ji,jj)*wi(ji  ,jj,2) +  e1e2t(ji+1,jj)*wi(ji+1,jj,2) ) * r1_e1e2u(ji,jj) / e3u(ji,jj,1,Kaa)
                zws(ji,1) = zzws - zDt_2 * MAX( zWus, 0._wp )
                zwd(ji,1) = 1._wp - zzws - zDt_2 * ( MIN( zWus, 0._wp ) )
             END_1D
+            ENDIF
          ELSE                       !- only vertical diffusive terms
             SELECT CASE( nldf_dyn )
             CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzu)
@@ -294,6 +348,50 @@ CONTAINS
          !
          !                       !* Matrix construction
          IF( ln_zad_Aimp ) THEN   !!
+            IF( ln_dynadv_vec ) THEN   !---- Vector form ----!
+            SELECT CASE( nldf_dyn )
+            CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzv)
+               DO_2Dik( 0, 0,    1, jpkm1, 1 )
+                  zzwi = - zDt_2 * ( ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) ) + akzv(ji,jj,jk  ) )   &   ! add () for NP repro
+                     &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk  ,Kmm) ) * wvmask(ji,jj,jk  )
+                  zzws = - zDt_2 * ( ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) ) + akzv(ji,jj,jk+1) )   &   ! add () for NP repro
+                     &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
+                  !                    ! w at u-point
+                  zWv  = zDt_4 * (  ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk  ) )  &
+                     &            + ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk+1) )  ) * r1_e1e2v(ji,jj)
+                  zzWn_e3 = MIN( zWv, 0._wp ) / e3vw(ji,jj,jk  ,Kaa)
+                  zzWp_e3 = MAX( zWv, 0._wp ) / e3vw(ji,jj,jk+1,Kaa)
+                  zwi(ji,jk) = zzwi + zzWn_e3
+                  zws(ji,jk) = zzws - zzWp_e3
+                  zwd(ji,jk) = 1._wp - zzwi - zzws - zzWn_e3 + zzWp_e3
+               END_2D
+            CASE DEFAULT               ! iso-level lateral mixing
+               DO_2Dik( 0, 0,    1, jpkm1, 1 )
+                  zzwi = - zDt_2 * ( avm(ji,jj+1,jk  ) + avm(ji,jj,jk  ) )    &
+                     &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk  ,Kmm) ) * wvmask(ji,jj,jk  )
+                  zzws = - zDt_2 * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) )    &
+                     &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
+                  !                    ! w at u-point
+                  zWv  = zDt_4 * (  ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk  ) )  &
+                     &            + ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk+1) )  ) * r1_e1e2v(ji,jj)
+                  zzWn_e3 = MIN( zWv, 0._wp ) / e3vw(ji,jj,jk  ,Kaa)
+                  zzWp_e3 = MAX( zWv, 0._wp ) / e3vw(ji,jj,jk+1,Kaa)
+                  zwi(ji,jk) = zzwi + zzWn_e3
+                  zws(ji,jk) = zzws - zzWp_e3
+                  zwd(ji,jk) = 1._wp - zzwi - zzws - zzWn_e3 + zzWp_e3
+               END_2D
+            END SELECT
+            DO_1Di( 0, 0 )   !* Surface boundary conditions
+               zwi(ji,1) = 0._wp
+               zzws = - zDt_2 * ( avm(ji,jj+1,2) + avm(ji,jj,2) )    &
+                  &           / ( e3v(ji,jj,1,Kaa) * e3vw(ji,jj,2,Kmm) ) * wvmask(ji,jj,2)
+               !                    ! w at u-point
+               zWv = zDt_4 * ( e1e2t(ji,jj)*wi(ji  ,jj,2) +  e1e2t(ji,jj+1)*wi(ji,jj+1,2) )
+               zzWp_e3 = MAX( zWv, 0._wp ) / e3vw(ji,jj,2,Kaa)
+               zws(ji,1) = zzws - zzWn_e3
+               zwd(ji,1) = 1._wp - zzws + zzWp_e3
+            END_1D
+            ELSE                       !---- Flux form ----!
             SELECT CASE( nldf_dyn )
             CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzv)
                DO_2Dik( 0, 0,    1, jpkm1, 1 )
@@ -302,8 +400,10 @@ CONTAINS
                   zzws = - zDt_2 * ( ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) ) + akzv(ji,jj,jk+1) )   &   ! add () for NP repro
                      &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
                   z1_e3va = 1._wp / e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
-                  zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) * z1_e3va
-                  zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) * z1_e3va
+!!st                  zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) * z1_e3va
+!!st                  zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) * z1_e3va
+             zWvi = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk  ) ) * r1_e1e2v(ji,jj) * z1_e3va
+             zWvs = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk+1) ) * r1_e1e2v(ji,jj) * z1_e3va
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWvi, 0._wp )
                   zws(ji,jk) = zzws - zDt_2 * MAX( zWvs, 0._wp )
                   zwd(ji,jk) = 1._wp - zzwi - zzws - zDt_2 * ( - MAX( zWvi, 0._wp ) + MIN( zWvs, 0._wp ) )
@@ -315,8 +415,10 @@ CONTAINS
                   zzws = - zDt_2 * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) )    &
                      &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
                   z1_e3va = 1._wp / e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
-                  zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) * z1_e3va
-                  zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) * z1_e3va
+!!st                  zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) * z1_e3va
+!!st                  zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) * z1_e3va
+             zWvi = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk  ) ) * r1_e1e2v(ji,jj) * z1_e3va
+             zWvs = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk+1) ) * r1_e1e2v(ji,jj) * z1_e3va
                   zwi(ji,jk) = zzwi  + zDt_2 * MIN( zWvi, 0._wp )
                   zws(ji,jk) = zzws  - zDt_2 * MAX( zWvs, 0._wp )
                   zwd(ji,jk) = 1._wp - zzwi - zzws - zDt_2 * ( - MAX( zWvi, 0._wp ) + MIN( zWvs, 0._wp ) )
@@ -326,10 +428,12 @@ CONTAINS
                zwi(ji,1) = 0._wp
                zzws = - zDt_2 * ( avm(ji,jj+1,2) + avm(ji,jj,2) )    &
                   &           / ( e3v(ji,jj,1,Kaa) * e3vw(ji,jj,2,Kmm) ) * wvmask(ji,jj,2)
-               zWvs = ( wi(ji,jj  ,2) +  wi(ji,jj+1,2) ) / e3v(ji,jj,1,Kaa)
+!!st               zWvs = ( wi(ji,jj  ,2) +  wi(ji,jj+1,2) ) / e3v(ji,jj,1,Kaa)
+           zWvs = ( e1e2t(ji,jj)*wi(ji  ,jj,2) +  e1e2t(ji,jj+1)*wi(ji,jj+1,2) ) * r1_e1e2v(ji,jj) / e3v(ji,jj,1,Kaa)
                zws(ji,1 ) = zzws - zDt_2 * MAX( zWvs, 0._wp )
                zwd(ji,1 ) = 1._wp - zzws - zDt_2 * ( MIN( zWvs, 0._wp ) )
             END_1D
+            ENDIF
          ELSE
             SELECT CASE( nldf_dyn )
             CASE( np_lap_i )           ! rotated lateral mixing: add its vertical mixing (akzu)
