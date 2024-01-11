@@ -12,7 +12,7 @@ MODULE timing
    !!   timing_stop     : stop  Timer
    !!   timing_finalize : compute stats and write timing.output
    !!------------------------------------------------------------------------
-   USE par_kind, ONLY: dp
+   USE par_kind, ONLY: dp, i4
    USE par_oce , ONLY: ntile, jpni, jpnj, jpnij
 #if defined key_agrif
    USE dom_oce , ONLY: l_istiled, narea, nimpi, njmpi
@@ -902,7 +902,7 @@ CONTAINS
          !
          CALL nf90chk( NF90_DEF_VAR( incid, 'mpirank', NF90_INT, (/ icuti, icutj /), ivid ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid,       'name', 'MPI rank' ) )
-         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1 ) )
+         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1_i4 ) )
          !
          CALL sort_chain( sd_root, jp_tavg )   ! sort accoring to tnetavg
          s_wrk => sd_root
@@ -1103,7 +1103,7 @@ CONTAINS
                CALL nf90chk( NF90_DEF_VAR( incid,      'kt', NF90_INT, (/ idtime       /), ivid ) )
                CALL nf90chk( NF90_DEF_VAR( incid, 'mpirank', NF90_INT, (/ icuti, icutj /), ivid ) )
                CALL nf90chk( NF90_PUT_ATT( incid, ivid,       'name', 'MPI rank' ) )
-               CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1 ) )
+               CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1_i4 ) )
                !
                CALL nf90chk( NF90_DEF_VAR( incid, 'timing_mpiavg_'//TRIM(s_wrk%cleanm), NF90_DOUBLE, (/ idtime /), ivid ) )
                CALL nf90chk( NF90_PUT_ATT( incid, ivid,       'name', 'MPI averaged elapse of the time spent on each call to '//TRIM(s_wrk%cleanm) ) )
