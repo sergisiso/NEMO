@@ -1664,7 +1664,7 @@ ENDIF
       !
       INTEGER ::   ji, ii, ij
       INTEGER ::   incid, ivid, ioldMode, icode, ierr
-      INTEGER ::   icuti, icutj, iside, ihlsz, imyint
+      INTEGER ::   icuti, icutj, iside, ihlsz
       INTEGER, DIMENSION(:,:,:  ), ALLOCATABLE ::   iallnei1d
       INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE ::   iallnei2d
       !!----------------------------------------------------------------------
@@ -1678,34 +1678,29 @@ ENDIF
          CALL nf90chk( NF90_DEF_DIM( incid,  'side',        8, iside ) )
          CALL nf90chk( NF90_DEF_DIM( incid,  'hlsz', n_hlsmax, ihlsz ) )
 
-         IF(     jpnij <= HUGE(0_1) ) THEN   ;   imyint = NF90_BYTE
-         ELSEIF( jpnij <= HUGE(0_2) ) THEN   ;   imyint = NF90_SHORT
-         ELSE                                ;   imyint = NF90_INT
-         ENDIF
-
          CALL nf90chk( NF90_DEF_VAR( incid, 'hlsz', NF90_BYTE, (/ ihlsz /), ivid ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, 'name', 'halo size' ) )
 
-         CALL nf90chk( NF90_DEF_VAR( incid, 'mpirank', imyint, (/ icuti, icutj /), ivid ) )
+         CALL nf90chk( NF90_DEF_VAR( incid, 'mpirank', NF90_INT, (/ icuti, icutj /), ivid ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, 'name', 'MPI rank' ) )
-         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1 ) )
+         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1_i4 ) )
 
          CALL nf90chk( NF90_DEF_VAR( incid,   'jpi', NF90_SHORT, (/ icuti, icutj /), ivid ) )
-         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0 ) )
+         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0_2 ) )
          CALL nf90chk( NF90_DEF_VAR( incid,   'jpj', NF90_SHORT, (/ icuti, icutj /), ivid ) )
-         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0 ) )
+         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0_2 ) )
          CALL nf90chk( NF90_DEF_VAR( incid, 'nimpp', NF90_SHORT, (/ icuti, icutj /), ivid ) )
-         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0 ) )
+         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0_2 ) )
          CALL nf90chk( NF90_DEF_VAR( incid, 'njmpp', NF90_SHORT, (/ icuti, icutj /), ivid ) )
-         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0 ) )
+         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0_2 ) )
 
-         CALL nf90chk( NF90_DEF_VAR( incid, 'mpiSnei', imyint, (/ icuti, icutj, iside, ihlsz /), ivid ) )
+         CALL nf90chk( NF90_DEF_VAR( incid, 'mpiSnei', NF90_INT, (/ icuti, icutj, iside, ihlsz /), ivid ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, 'name', 'mpi neighbour rank (send)' ) )
-         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1 ) )
+         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1_i4 ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, 'side_definition', 'W, E, S, N, SW, SE, NW, NE' ) )
-         CALL nf90chk( NF90_DEF_VAR( incid, 'mpiRnei', imyint, (/ icuti, icutj, iside, ihlsz /), ivid ) )
+         CALL nf90chk( NF90_DEF_VAR( incid, 'mpiRnei', NF90_INT, (/ icuti, icutj, iside, ihlsz /), ivid ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, 'name', 'mpi neighbour rank (receive)' ) )
-         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1 ) )
+         CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1_i4 ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, 'side_definition', 'W, E, S, N, SW, SE, NW, NE' ) )
 
          CALL nf90chk( NF90_ENDDEF(incid) )
