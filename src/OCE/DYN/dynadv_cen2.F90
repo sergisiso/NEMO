@@ -117,10 +117,10 @@ CONTAINS
          !
          DO_2D( 0, 0, 0, 0 )              ! divergence of horizontal momentum fluxes
             puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - (  ( zFu_t(ji+1,jj) - zFu_t(ji,jj  ) )    &   ! add () for NP repro
-               &                                       + ( zFv_f(ji  ,jj) - zFv_f(ji,jj-1) )  ) * r1_e1e2u(ji,jj)   &
+               &                                       + ( zFv_f(ji  ,jj) - zFv_f(ji,jj-1) )  ) * 0.25_wp * r1_e1e2u(ji,jj)   &
                &                                    / e3u(ji,jj,jk,Kmm)
             pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - (  ( zFu_f(ji,jj  ) - zFu_f(ji-1,jj) )    &   ! add () for NP repro
-               &                                       + ( zFv_t(ji,jj+1) - zFv_t(ji  ,jj) )  ) * r1_e1e2v(ji,jj)   &
+               &                                       + ( zFv_t(ji,jj+1) - zFv_t(ji  ,jj) )  ) * 0.25_wp * r1_e1e2v(ji,jj)   &
                &                                    / e3v(ji,jj,jk,Kmm)
          END_2D
       END DO
