@@ -26,6 +26,8 @@ MODULE stpctl
    USE timing          ! timing
    !
    USE netcdf          ! NetCDF library
+   USE, INTRINSIC :: ieee_arithmetic, ONLY : ieee_is_nan
+
    IMPLICIT NONE
    PRIVATE
 
@@ -151,10 +153,10 @@ CONTAINS
       !                                   !==               error handling               ==!
       !                                   !==  done by all processes at every time step  ==!
       !
-      IF(   zmax(1) >    5._wp .OR.   &                       ! too large wind stress         ( > 5 N/m^2 )
-         &  zmax(2) > 2000._wp .OR.   &                       ! too large non-solar heat flux ( > 2000 W/m^2 )
-         &  zmax(3) > 1.E-3_wp .OR.   &                       ! too large net freshwater flux ( > 1.E-3 kg/m^2/s )
-         & ISNAN( SUM(zmax(1:jptst)) ) .OR.   &               ! NaN encounter in the tests
+      IF(  zmax(1) >    5._wp .OR.                  &         ! too large wind stress         ( > 5 N/m^2 )
+         & zmax(2) > 2000._wp .OR.                  &         ! too large non-solar heat flux ( > 2000 W/m^2 )
+         & zmax(3) > 1.E-3_wp .OR.                  &         ! too large net freshwater flux ( > 1.E-3 kg/m^2/s )
+         & ieee_is_nan( SUM(zmax(1:jptst)) ) .OR.   &         ! NaN encounter in the tests
          & ABS(   SUM(zmax(1:jptst)) ) > HUGE(1._wp) ) THEN   ! Infinity encounter in the tests
          !
          iloc(:,:) = 0
