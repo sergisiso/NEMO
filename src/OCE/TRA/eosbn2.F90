@@ -307,7 +307,7 @@ CONTAINS
          !
       END SELECT
       !
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=prd, clinfo1=' eos-insitu  : ', kdim=jpk )
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=prd, clinfo1=' eos-insitu  : ' )
       !
       IF( ln_timing )   CALL timing_stop('eos-insitu')
       !
