@@ -6,11 +6,12 @@ MODULE prtctl
    !! History :  9.0  !  05-07  (C. Talandier) original code
    !!            3.4  !  11-11  (C. Harris) decomposition changes for running with CICE
    !!----------------------------------------------------------------------
-   USE dom_oce          ! ocean space and time domain variables
+   USE dom_oce                     ! ocean space and time domain variables
    USE domutl, ONLY : lbnd_ij
-   USE in_out_manager   ! I/O manager
-   USE mppini           ! distributed memory computing
-   USE lib_mpp          ! distributed memory computing
+   USE in_out_manager              ! I/O manager
+   USE mppini                      ! distributed memory computing
+   USE lib_mpp                     ! distributed memory computing
+   USE lib_fortran, ONLY : DDPDD   ! high-precision summation
 
    IMPLICIT NONE
    PRIVATE
@@ -26,6 +27,10 @@ MODULE prtctl
    PUBLIC prt_ctl_info    ! called by all subroutines
    PUBLIC prt_ctl_init    ! called by nemogcm.F90 and prt_ctl_trc_init
 
+   INTERFACE prt_ctl_sum
+      PROCEDURE prt_ctl_sum_2d, prt_ctl_sum_3d
+   END INTERFACE prt_ctl_sum
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
@@ -37,64 +42,8 @@ CONTAINS
 
    SUBROUTINE prt_ctl (tab2d_1, tab3d_1, tab4d_1, tab2d_2, tab3d_2, mask1, mask2,   &
       &                 clinfo, clinfo1, clinfo2, clinfo3, kdim )
-      !!
-      REAL(wp),         DIMENSION(:,:)    , INTENT(in), OPTIONAL ::   tab2d_1
-      REAL(wp),         DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   tab3d_1
-      REAL(wp),         DIMENSION(:,:,:,:), INTENT(in), OPTIONAL ::   tab4d_1
-      REAL(wp),         DIMENSION(:,:)    , INTENT(in), OPTIONAL ::   tab2d_2
-      REAL(wp),         DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   tab3d_2
-      REAL(wp),         DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   mask1
-      REAL(wp),         DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   mask2
-      CHARACTER(len=*), DIMENSION(:)      , INTENT(in), OPTIONAL ::   clinfo    ! information about the tab3d array
-      CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo1
-      CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo2
-      CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo3
-      INTEGER                             , INTENT(in), OPTIONAL ::   kdim
-      INTEGER,          DIMENSION(2)                             ::   ibndg, ibndm1, ibndm2
-      !
-      ibndg(1) = Nis0 ; ibndg(2) = Njs0
-      IF( PRESENT(mask1) ) THEN ; ibndm1 = lbnd_ij(mask1) ; ELSE ; ibndm1 = ibndg ; ENDIF
-      IF( PRESENT(mask2) ) THEN ; ibndm2 = lbnd_ij(mask2) ; ELSE ; ibndm2 = ibndg ; ENDIF
-
-      IF(     PRESENT(tab2d_2) ) THEN
-         CALL prt_ctl_t(ktab2d_1=lbnd_ij(tab2d_1), ktab3d_1=ibndg, ktab4d_1=ibndg, &
-            &           ktab2d_2=lbnd_ij(tab2d_2), ktab3d_2=ibndg,                 &
-            &           tab2d_1=REAL(tab2d_1, 2*wp), tab2d_2=REAL(tab2d_2, 2*wp),  &
-            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1, mask2=mask2,    &
-            &           clinfo=clinfo, clinfo1=clinfo1, clinfo2=clinfo2, clinfo3=clinfo3 )
-      ELSEIF( PRESENT(tab3d_2) ) THEN
-         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=lbnd_ij(tab3d_1), ktab4d_1=ibndg, &
-            &           ktab2d_2=ibndg, ktab3d_2=lbnd_ij(tab3d_2),                 &
-            &           tab3d_1=REAL(tab3d_1, 2*wp), tab3d_2=REAL(tab3d_2, 2*wp),  &
-            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1, mask2=mask2,    &
-            &           clinfo=clinfo, clinfo1=clinfo1, clinfo2=clinfo2, clinfo3=clinfo3, kdim=kdim )
-      ELSEIF( PRESENT(tab2d_1) ) THEN
-         CALL prt_ctl_t(ktab2d_1=lbnd_ij(tab2d_1), ktab3d_1=ibndg, ktab4d_1=ibndg, &
-            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
-            &           tab2d_1=REAL(tab2d_1, 2*wp),                               &
-            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1,                 &
-            &           clinfo=clinfo, clinfo1=clinfo1, clinfo3=clinfo3 )
-      ELSEIF( PRESENT(tab3d_1) ) THEN
-         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=lbnd_ij(tab3d_1), ktab4d_1=ibndg, &
-            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
-            &           tab3d_1=REAL(tab3d_1, 2*wp),                               &
-            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1,                 &
-            &           clinfo=clinfo, clinfo1=clinfo1, clinfo3=clinfo3, kdim=kdim )
-      ELSEIF( PRESENT(tab4d_1) ) THEN     
-         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=ibndg, ktab4d_1=lbnd_ij(tab4d_1), &
-            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
-            &           tab4d_1=REAL(tab4d_1, 2*wp),                               &
-            &           kmask1=ibndm1, kmask2=ibndm2, mask1=mask1,                 &
-            &           clinfo=clinfo, clinfo1=clinfo1, clinfo3=clinfo3, kdim=kdim )
-      ENDIF
-
-   END SUBROUTINE prt_ctl
-
-
-   SUBROUTINE prt_ctl_t (tab2d_1, ktab2d_1, tab3d_1, ktab3d_1, tab4d_1, ktab4d_1, tab2d_2, ktab2d_2, tab3d_2, ktab3d_2,  &
-      &                  mask1, kmask1, mask2, kmask2, clinfo, clinfo1, clinfo2, clinfo3, kdim )
       !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE prt_ctl  ***
+      !!                      ***  ROUTINE prt_ctl  ***
       !!
       !! ** Purpose : - print sum control of 2D or 3D arrays over the same area
       !!                in mono and mpp case. This way can be usefull when
@@ -128,19 +77,84 @@ CONTAINS
       !!                    kdim    : k- direction for 3D arrays
       !!                    clinfo3 : additional information
       !!----------------------------------------------------------------------
-      INTEGER, DIMENSION(2), INTENT(in) :: ktab2d_1, ktab3d_1, ktab4d_1, ktab2d_2, ktab3d_2, kmask1, kmask2
-      REAL(2*wp),         DIMENSION(AB2D(ktab2d_1))     , INTENT(in), OPTIONAL ::   tab2d_1
-      REAL(2*wp),         DIMENSION(AB2D(ktab3d_1),:)   , INTENT(in), OPTIONAL ::   tab3d_1
-      REAL(2*wp),         DIMENSION(AB2D(ktab4d_1),:,:) , INTENT(in), OPTIONAL ::   tab4d_1
-      REAL(2*wp),         DIMENSION(AB2D(ktab2d_2))     , INTENT(in), OPTIONAL ::   tab2d_2
-      REAL(2*wp),         DIMENSION(AB2D(ktab3d_2),:)   , INTENT(in), OPTIONAL ::   tab3d_2
-      REAL(wp),           DIMENSION(AB2D(kmask1),:)     , INTENT(in), OPTIONAL ::   mask1
-      REAL(wp),           DIMENSION(AB2D(kmask2),:)     , INTENT(in), OPTIONAL ::   mask2
+      REAL(wp),         DIMENSION(:,:)    , INTENT(in), OPTIONAL ::   tab2d_1
+      REAL(wp),         DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   tab3d_1
+      REAL(wp),         DIMENSION(:,:,:,:), INTENT(in), OPTIONAL ::   tab4d_1
+      REAL(wp),         DIMENSION(:,:)    , INTENT(in), OPTIONAL ::   tab2d_2
+      REAL(wp),         DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   tab3d_2
+      REAL(wp),         DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   mask1
+      REAL(wp),         DIMENSION(:,:,:)  , INTENT(in), OPTIONAL ::   mask2
       CHARACTER(len=*), DIMENSION(:)      , INTENT(in), OPTIONAL ::   clinfo    ! information about the tab3d array
       CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo1
       CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo2
       CHARACTER(len=*)                    , INTENT(in), OPTIONAL ::   clinfo3
       INTEGER                             , INTENT(in), OPTIONAL ::   kdim
+      INTEGER,          DIMENSION(2)                             ::   ibndg, ibndm1, ibndm2
+      !
+      ibndg(1) = Nis0 ; ibndg(2) = Njs0
+      IF( PRESENT(mask1) ) THEN ; ibndm1 = lbnd_ij(mask1) ; ELSE ; ibndm1 = ibndg ; ENDIF
+      IF( PRESENT(mask2) ) THEN ; ibndm2 = lbnd_ij(mask2) ; ELSE ; ibndm2 = ibndg ; ENDIF
+
+      IF(     PRESENT(tab2d_2) ) THEN
+         CALL prt_ctl_t(ktab2d_1=lbnd_ij(tab2d_1), ktab3d_1=ibndg, ktab4d_1=ibndg, &
+            &           ktab2d_2=lbnd_ij(tab2d_2), ktab3d_2=ibndg,                 &
+            &           ptab2d_1=tab2d_1, ptab2d_2=tab2d_2,                        &
+            &           kmask1=ibndm1, kmask2=ibndm2, pmask1=mask1, pmask2=mask2,  &
+            &           cdinfo=clinfo, cdinfo1=clinfo1, cdinfo2=clinfo2, cdinfo3=clinfo3 )
+      ELSEIF( PRESENT(tab3d_2) ) THEN
+         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=lbnd_ij(tab3d_1), ktab4d_1=ibndg, &
+            &           ktab2d_2=ibndg, ktab3d_2=lbnd_ij(tab3d_2),                 &
+            &           ptab3d_1=tab3d_1, ptab3d_2=tab3d_2,                        &
+            &           kmask1=ibndm1, kmask2=ibndm2, pmask1=mask1, pmask2=mask2,  &
+            &           cdinfo=clinfo, cdinfo1=clinfo1, cdinfo2=clinfo2, cdinfo3=clinfo3, kdim=kdim )
+      ELSEIF( PRESENT(tab2d_1) ) THEN
+         CALL prt_ctl_t(ktab2d_1=lbnd_ij(tab2d_1), ktab3d_1=ibndg, ktab4d_1=ibndg, &
+            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
+            &           ptab2d_1=tab2d_1,                                          &
+            &           kmask1=ibndm1, kmask2=ibndm2, pmask1=mask1,                &
+            &           cdinfo=clinfo, cdinfo1=clinfo1, cdinfo3=clinfo3 )
+      ELSEIF( PRESENT(tab3d_1) ) THEN
+         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=lbnd_ij(tab3d_1), ktab4d_1=ibndg, &
+            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
+            &           ptab3d_1=tab3d_1,                                          &
+            &           kmask1=ibndm1, kmask2=ibndm2, pmask1=mask1,                &
+            &           cdinfo=clinfo, cdinfo1=clinfo1, cdinfo3=clinfo3, kdim=kdim )
+      ELSEIF( PRESENT(tab4d_1) ) THEN     
+         CALL prt_ctl_t(ktab2d_1=ibndg, ktab3d_1=ibndg, ktab4d_1=lbnd_ij(tab4d_1), &
+            &           ktab2d_2=ibndg, ktab3d_2=ibndg,                            &
+            &           ptab4d_1=tab4d_1,                                          &
+            &           kmask1=ibndm1, kmask2=ibndm2, pmask1=mask1,                &
+            &           cdinfo=clinfo, cdinfo1=clinfo1, cdinfo3=clinfo3, kdim=kdim )
+      ENDIF
+
+   END SUBROUTINE prt_ctl
+
+   SUBROUTINE prt_ctl_t (ptab2d_1, ktab2d_1, ptab3d_1, ktab3d_1, ptab4d_1,   &
+      &                  ktab4d_1, ptab2d_2, ktab2d_2, ptab3d_2, ktab3d_2,   &
+      &                  pmask1,   kmask1,   pmask2,   kmask2,   cdinfo,     &
+      &                  cdinfo1,  cdinfo2,  cdinfo3,  kdim )
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE prt_ctl_t  ***
+      !!
+      !! ** Purpose : see wrapper subroutine 'prt_ctl' above
+      !!
+      !! ** Method : see wrapper subroutine 'prt_ctl' above
+      !!
+      !!----------------------------------------------------------------------
+      INTEGER,          DIMENSION(2),                  INTENT(in)           ::   ktab2d_1, ktab3d_1, ktab4d_1, ktab2d_2, ktab3d_2
+      INTEGER,          DIMENSION(2),                  INTENT(in)           ::   kmask1, kmask2
+      REAL(wp),         DIMENSION(AB2D(ktab2d_1)),     INTENT(in), OPTIONAL ::   ptab2d_1
+      REAL(wp),         DIMENSION(AB2D(ktab3d_1),:),   INTENT(in), OPTIONAL ::   ptab3d_1
+      REAL(wp),         DIMENSION(AB2D(ktab4d_1),:,:), INTENT(in), OPTIONAL ::   ptab4d_1
+      REAL(wp),         DIMENSION(AB2D(ktab2d_2)),     INTENT(in), OPTIONAL ::   ptab2d_2
+      REAL(wp),         DIMENSION(AB2D(ktab3d_2),:),   INTENT(in), OPTIONAL ::   ptab3d_2
+      REAL(wp),         DIMENSION(AB2D(kmask1),:),     INTENT(in), OPTIONAL ::   pmask1
+      REAL(wp),         DIMENSION(AB2D(kmask2),:),     INTENT(in), OPTIONAL ::   pmask2
+      CHARACTER(len=*), DIMENSION(:),                  INTENT(in), OPTIONAL ::   cdinfo    ! information about the ptab3d array
+      CHARACTER(len=*),                                INTENT(in), OPTIONAL ::   cdinfo1
+      CHARACTER(len=*),                                INTENT(in), OPTIONAL ::   cdinfo2
+      CHARACTER(len=*),                                INTENT(in), OPTIONAL ::   cdinfo3
+      INTEGER,                                         INTENT(in), OPTIONAL ::   kdim
       !
       CHARACTER(len=30) :: cl1, cl2, cl3
       CHARACTER(len=6) :: clfmt
@@ -148,7 +162,11 @@ CONTAINS
       INTEGER ::  jn, jl, kdir
       INTEGER ::  iis, iie, jjs, jje
       INTEGER ::  itra, inum
-      REAL(2*wp) :: zsum1, zsum2, zvctl1, zvctl2
+      COMPLEX(dp)       ::   ylsum1, ylsum2     ! Summation results
+      COMPLEX(dp)       ::   yltmp1, yltmp2     ! Temporary variables
+      INTEGER           ::   jk                 ! Loop index
+      INTEGER           ::   isig               ! Number of significant digits in sums output
+      CHARACTER(LEN=41) ::   clsum1, clsum2     ! String representation of sums
       !!----------------------------------------------------------------------
       !
       ! Arrays, scalars initialization
@@ -158,13 +176,14 @@ CONTAINS
       itra = 1
 
       ! Control of optional arguments
-      IF( PRESENT(clinfo1) )   cl1  = clinfo1
-      IF( PRESENT(clinfo2) )   cl2  = clinfo2
-      IF( PRESENT(kdim)    )   kdir = kdim
-      IF( PRESENT(tab4d_1) )   itra = SIZE(tab4d_1,dim=4)
+      IF( PRESENT(cdinfo1) )  cl1  = cdinfo1
+      IF( PRESENT(cdinfo2) )  cl2  = cdinfo2
+      IF( PRESENT(kdim)    )  kdir = kdim
+      IF( PRESENT(ptab4d_1) ) itra = SIZE(ptab4d_1,dim=4)
 
-      IF( wp == sp )   clfmt = 'D23.16'   ! 16 significant numbers
-      IF( wp == dp )   clfmt = 'D41.34'   ! 34 significant numbers
+      IF( wp == sp ) isig = 16   ! 16 significant digits
+      IF( wp == dp ) isig = 34   ! 34 significant digits
+      WRITE( clfmt, "(a1,i02,a1,i02)" ) 'D', isig+7, '.', isig
       
       ! Loop over each sub-domain, i.e. the total number of processors ijsplt
       DO jl = 1, SIZE(nall_ictls)
@@ -174,7 +193,7 @@ CONTAINS
          jjs = MAX( nall_jctls(jl), ntsj )
          jje = MIN( nall_jctle(jl), ntej )
 
-         IF( PRESENT(clinfo) ) THEN   ;   inum = numprt_top(jl)
+         IF( PRESENT(cdinfo) ) THEN   ;   inum = numprt_top(jl)
          ELSE                         ;   inum = numprt_oce(jl)
          ENDIF
 
@@ -184,100 +203,102 @@ CONTAINS
          IF( iie >= iis .AND. jje >= jjs ) THEN
             DO jn = 1, itra
 
-               IF( PRESENT(clinfo3) ) THEN
-                  IF    ( clinfo3 == 'tra-ta' )   THEN
-                     zvctl1 = t_ctl(jl)
-                  ELSEIF( clinfo3 == 'tra'    )   THEN
-                     zvctl1 = t_ctl(jl)
-                     zvctl2 = s_ctl(jl)
-                  ELSEIF( clinfo3 == 'dyn'    )   THEN
-                     zvctl1 = u_ctl(jl)
-                     zvctl2 = v_ctl(jl)
-                  ELSE
-                     zvctl1 = tra_ctl(jn,jl)
-                  ENDIF
-               ENDIF
-
                ! 2D arrays
-               IF( PRESENT(tab2d_1) ) THEN
-                  IF( PRESENT(mask1) ) THEN ; zsum1 = SUM( tab2d_1(iis:iie,jjs:jje) * mask1(iis:iie,jjs:jje,1) )
-                  ELSE                      ; zsum1 = SUM( tab2d_1(iis:iie,jjs:jje)                            )
-                  ENDIF
+               IF( PRESENT(ptab2d_1) ) THEN
+                  IF( PRESENT(pmask1) ) THEN
+                     ylsum1 = prt_ctl_sum( ptab2d_1(iis:iie,jjs:jje) * pmask1(iis:iie,jjs:jje,1) )
+                  ELSE
+                     ylsum1 = prt_ctl_sum( ptab2d_1(iis:iie,jjs:jje) )
+                  END IF
                ENDIF
-               IF( PRESENT(tab2d_2) ) THEN
-                  IF( PRESENT(mask2) ) THEN ; zsum2 = SUM( tab2d_2(iis:iie,jjs:jje) * mask2(iis:iie,jjs:jje,1) )
-                  ELSE                      ; zsum2 = SUM( tab2d_2(iis:iie,jjs:jje)                            )
-                  ENDIF
+               IF( PRESENT(ptab2d_2) ) THEN
+                  IF( PRESENT(pmask2) ) THEN
+                     ylsum2 = prt_ctl_sum( ptab2d_2(iis:iie,jjs:jje) * pmask2(iis:iie,jjs:jje,1) )
+                  ELSE
+                     ylsum2 = prt_ctl_sum( ptab2d_2(iis:iie,jjs:jje) )
+                  END IF
                ENDIF
 
                ! 3D arrays
-               IF( PRESENT(tab3d_1) ) THEN
-                  IF( PRESENT(mask1) ) THEN ; zsum1 = SUM( tab3d_1(iis:iie,jjs:jje,1:kdir) * mask1(iis:iie,jjs:jje,1:kdir) )
-                  ELSE                      ; zsum1 = SUM( tab3d_1(iis:iie,jjs:jje,1:kdir)                                 )
-                  ENDIF
+               IF( PRESENT(ptab3d_1) ) THEN
+                  IF( PRESENT(pmask1) ) THEN
+                     ylsum1 = prt_ctl_sum( ptab3d_1(iis:iie,jjs:jje,1:kdir) * pmask1(iis:iie,jjs:jje,1:kdir) )
+                  ELSE
+                     ylsum1 = prt_ctl_sum( ptab3d_1(iis:iie,jjs:jje,1:kdir) )
+                  END IF
                ENDIF
-               IF( PRESENT(tab3d_2) ) THEN
-                  IF( PRESENT(mask2) ) THEN ; zsum2 = SUM( tab3d_2(iis:iie,jjs:jje,1:kdir) * mask2(iis:iie,jjs:jje,1:kdir) )
-                  ELSE                      ; zsum2 = SUM( tab3d_2(iis:iie,jjs:jje,1:kdir)                                 )
-                  ENDIF
+               IF( PRESENT(ptab3d_2) ) THEN
+                  IF( PRESENT(pmask2) ) THEN
+                     ylsum2 = prt_ctl_sum( ptab3d_2(iis:iie,jjs:jje,1:kdir) * pmask2(iis:iie,jjs:jje,1:kdir) )
+                  ELSE
+                     ylsum2 = prt_ctl_sum( ptab3d_2(iis:iie,jjs:jje,1:kdir) )
+                  END IF
                ENDIF
 
                ! 4D arrays
-               IF( PRESENT(tab4d_1) ) THEN
-                  IF( PRESENT(mask1) ) THEN ; zsum1 = SUM( tab4d_1(iis:iie,jjs:jje,1:kdir,jn) * mask1(iis:iie,jjs:jje,1:kdir) )
-                  ELSE                      ; zsum1 = SUM( tab4d_1(iis:iie,jjs:jje,1:kdir,jn)                                 )
-                  ENDIF
+               IF( PRESENT(ptab4d_1) ) THEN
+                  IF( PRESENT(pmask1) ) THEN
+                     ylsum1 = prt_ctl_sum( ptab4d_1(iis:iie,jjs:jje,1:kdir,jn) * pmask1(iis:iie,jjs:jje,1:kdir) )
+                  ELSE
+                     ylsum1 = prt_ctl_sum( ptab4d_1(iis:iie,jjs:jje,1:kdir,jn) )
+                  END IF
                ENDIF
 
                ! Print the result
-               IF( PRESENT(clinfo ) )   cl1  = clinfo(jn)
-               IF( PRESENT(clinfo3) )   THEN
-                  !
-                  IF( PRESENT(tab2d_2) .OR. PRESENT(tab3d_2) ) THEN
-                     WRITE(inum, "(3x,a,' : ',"//clfmt//",3x,a,' : ',"//clfmt//")") cl1, zsum1 - zvctl1, cl2, zsum2 - zvctl2
-                  ELSE
-                     WRITE(inum, "(3x,a,' : ',"//clfmt//"                       )") cl1, zsum1 - zvctl1
-                  ENDIF
-                  !
-                  SELECT CASE( clinfo3 )
+               IF( PRESENT(cdinfo ) ) cl1  = cdinfo(jn)
+               IF( PRESENT(cdinfo3) ) THEN
+                  ! Replace sums with their difference to the corresponding sum
+                  ! at the previous time step and record the current sums for
+                  ! use during next time step
+                  SELECT CASE( cdinfo3 )
                   CASE ( 'tra-ta' )
-                     t_ctl(jl) = zsum1
+                     yltmp1 = t_ctl(jl)
+                     t_ctl(jl) = ylsum1
                   CASE ( 'tra' )
-                     t_ctl(jl) = zsum1
-                     s_ctl(jl) = zsum2
+                     yltmp1 = t_ctl(jl)
+                     t_ctl(jl) = ylsum1
+                     yltmp2 = s_ctl(jl)
+                     s_ctl(jl) = ylsum2
                   CASE ( 'dyn' )
-                     u_ctl(jl) = zsum1
-                     v_ctl(jl) = zsum2
+                     yltmp1 = u_ctl(jl)
+                     u_ctl(jl) = ylsum1
+                     yltmp2 = v_ctl(jl)
+                     v_ctl(jl) = ylsum2
                   CASE default
-                     tra_ctl(jn,jl) = zsum1
+                     yltmp1 = tra_ctl(jn,jl)
+                     tra_ctl(jn,jl) = ylsum1
                   END SELECT
-               ELSEIF ( PRESENT(tab2d_2) .OR. PRESENT(tab3d_2) )   THEN
-                  WRITE(inum, "(3x,a,' : ',"//clfmt//",3x,a,' : ',"//clfmt//")") cl1, zsum1, cl2, zsum2
+                  CALL DDPDD( -1._wp * yltmp1, ylsum1 )
+                  IF ( PRESENT(ptab2d_2) .OR. PRESENT(ptab3d_2) ) CALL DDPDD( -1._wp * yltmp2, ylsum2 )
+               END IF
+               clsum1 = prt_ctl_write_sum( ylsum1, isig )
+               IF ( PRESENT(ptab2d_2) .OR. PRESENT(ptab3d_2) ) THEN
+                  clsum2 = prt_ctl_write_sum( ylsum2, isig )
+                  WRITE(inum, "(3x,a,' : ',a,3x,a,' : ',a)") cl1, TRIM(clsum1), cl2, TRIM(clsum2)
                ELSE
-                  WRITE(inum, "(3x,a,' : ',"//clfmt//"                       )") cl1, zsum1
-
-               ENDIF
+                  WRITE(inum, "(3x,a,' : ',a)") cl1, TRIM(clsum1)
+               END IF
                ! replace .false. by .true. to switch on theses prints of the last inner line
                IF( .FALSE. .AND. l_IdoNFold .AND. jje == Nje0 ) THEN
-                  IF( PRESENT(tab2d_1) ) THEN
+                  IF( PRESENT(ptab2d_1) ) THEN
                      WRITE(cli1, '(i1)') INT(LOG10(REAL(iie-iis+1,wp))) + 1            ! how many digits to we need to write ?
                      WRITE(cl3, "(i"//cli1//")") iie-iis+1
-                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl1)//' ', tab2d_1(iis:iie,jje)
+                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl1)//' ', ptab2d_1(iis:iie,jje)
                   ENDIF
-                  IF( PRESENT(tab3d_1) ) THEN
+                  IF( PRESENT(ptab3d_1) ) THEN
                      WRITE(cli1, '(i1)') INT(LOG10(REAL((iie-iis+1)*kdir,wp))) + 1     ! how many digits to we need to write ?
                      WRITE(cl3, "(i"//cli1//")") (iie-iis+1)*kdir
-                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl1)//' ', tab3d_1(iis:iie,jje,1:kdir)
+                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl1)//' ', ptab3d_1(iis:iie,jje,1:kdir)
                   ENDIF
-                  IF( PRESENT(tab2d_2) ) THEN
+                  IF( PRESENT(ptab2d_2) ) THEN
                      WRITE(cli1, '(i1)') INT(LOG10(REAL(iie-iis+1,wp))) + 1            ! how many digits to we need to write ?
                      WRITE(cl3, "(i"//cli1//")") iie-iis+1
-                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl2)//' ', tab2d_2(iis:iie,jje)
+                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl2)//' ', ptab2d_2(iis:iie,jje)
                   ENDIF
-                  IF( PRESENT(tab3d_2) ) THEN
+                  IF( PRESENT(ptab3d_2) ) THEN
                      WRITE(cli1, '(i1)') INT(LOG10(REAL((iie-iis+1)*kdir,wp))) + 1     ! how many digits to we need to write ?
                      WRITE(cl3, "(i"//cli1//")") (iie-iis+1)*kdir
-                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl2)//' ', tab3d_2(iis:iie,jje,1:kdir)
+                     WRITE(inum, "(a,"//TRIM(cl3)//clfmt//")") 'Last line '//TRIM(cl2)//' ', ptab3d_2(iis:iie,jje,1:kdir)
                   ENDIF
                ENDIF
             END DO
@@ -287,18 +308,136 @@ CONTAINS
       !
    END SUBROUTINE prt_ctl_t
 
+   FUNCTION prt_ctl_sum_2d( ptab ) RESULT( ydsum )
+      !!----------------------------------------------------------------------
+      !!                 ***  FUNCTION prt_ctl_sum_3d  ***
+      !!
+      !! ** Purpose : summation of 2-dimensional real-valued arrays using
+      !!              subroutine 'DDPDD' (of module 'lib_fortran'), which
+      !!              returns the sum as REAL( ydsum ) + AIMAG( ydsum ) of the
+      !!              complex value ydsum
+      !!
+      !!----------------------------------------------------------------------
+      REAL(wp), DIMENSION(:,:) ::   ptab
+      COMPLEX(dp)              ::   ydsum    ! Sum
+      INTEGER                  ::   ji, jj   ! Loop indices
+      !
+      ydsum = CMPLX( 0._wp, 0._wp )
+      DO jj = 1, SIZE( ptab, 2 )
+         DO ji = 1, SIZE( ptab, 1 )
+            CALL DDPDD( CMPLX( ptab(ji,jj), 0._wp ), ydsum )
+         END DO
+      END DO
+      !
+   END FUNCTION prt_ctl_sum_2d
 
-   SUBROUTINE prt_ctl_info (clinfo, ivar, cdcomp )
+   FUNCTION prt_ctl_sum_3d( ptab ) RESULT( ydsum )
+      !!----------------------------------------------------------------------
+      !!                 ***  FUNCTION prt_ctl_sum_3d  ***
+      !!
+      !! ** Purpose : summation of 3-dimensional real-valued arrays using
+      !!              subroutine 'DDPDD' (of module 'lib_fortran'), which
+      !!              returns the sum as REAL( ydsum ) + AIMAG( ydsum ) of the
+      !!              complex value ydsum
+      !!
+      !!----------------------------------------------------------------------
+      REAL(wp), DIMENSION(:,:,:) ::   ptab
+      COMPLEX(dp)                ::   ydsum        ! Sum
+      INTEGER                    ::   ji, jj, jk   ! Loop indices
+      !
+      ydsum = CMPLX( 0._wp, 0._wp )
+      DO jk = 1, SIZE( ptab, 3 )
+         DO jj = 1, SIZE( ptab, 2 )
+            DO ji = 1, SIZE( ptab, 1 )
+               CALL DDPDD( CMPLX( ptab(ji,jj,jk), 0._wp ), ydsum )
+            END DO
+         END DO
+      END DO
+      !
+   END FUNCTION prt_ctl_sum_3d
+
+   FUNCTION prt_ctl_write_sum( ydsum, ksig ) RESULT( cdsum )
+      !!----------------------------------------------------------------------
+      !!                    ***  FUNCTION prt_ctl_write_sum  ***
+      !!
+      !! ** Purpose : convert the sum REAL(ydsum) + AIMAG(ydsum) into a string
+      !!              representation with ksig significant digits
+      !!
+      !! ** Method : convert the two components of the sum into strings with 
+      !!             one significant digits more than the target precision,
+      !!             add the two components in string representation, and
+      !!             round the result according the last digit of the
+      !!             significand
+      !!
+      !!----------------------------------------------------------------------
+      COMPLEX(dp), INTENT(IN   ) ::   ydsum           ! Summands (REAL(ydsum) and AIMAG(ydsum))
+      INTEGER, INTENT(IN   )     ::   ksig            ! Requested number of significant digits
+      CHARACTER(LEN=ksig+7)      ::   cdsum           ! Converted value (string of length ksig+7)
+      !
+      CHARACTER(LEN=8)           ::   clfmt           ! Format string for conversion of real values to strings
+      CHARACTER(LEN=ksig+8)      ::   clv1, clv2      ! String representation of the components
+      INTEGER                    ::   id1, id2, idp   ! Exponents of the values in string representation and their difference
+      LOGICAL                    ::   lzero           ! Indicator of zero value
+      INTEGER                    ::   ico             ! Carry-over value
+      INTEGER                    ::   jd              ! Loop counter
+      !
+      ! Sort the two components by absolute value and convert them to a string
+      ! representations in the range (-1, 1) with one significant digit more
+      ! than the target precision (ksig)
+      WRITE( clfmt, "(a2,i02,a1,i02,a1)" ) '(D', ksig+8, '.', ksig+1, ')'
+      IF( ABS( REAL( ydsum ) ) >= ABS ( AIMAG( ydsum ) ) ) THEN
+         WRITE( clv1, clfmt ) REAL(ydsum)
+         WRITE( clv2, clfmt ) AIMAG(ydsum)
+         lzero = ABS( AIMAG(ydsum) ) == 0._wp
+      ELSE
+         WRITE( clv1(:ksig+8), clfmt ) AIMAG(ydsum)
+         WRITE( clv2(:ksig+8), clfmt ) REAL(ydsum)
+         lzero = ABS( REAL(ydsum) ) == 0._wp
+      END IF
+      IF( .NOT. lzero ) THEN
+         ! Align exponents of the string representations of the two components
+         READ( clv1(ksig+6:ksig+8), "(i3)" ) id1               ! Exponent of value 1
+         READ( clv2(ksig+6:ksig+8), "(i3)" ) id2               ! Exponent of value 2
+         clv2(id1-id2+4:ksig+8-4) = clv2(4:ksig+8-4-id1+id2)   ! Re-aligned significand of value 2
+         DO jd = 4, id1-id2+3                                  ! Backfilling of freed digits of value 2
+            clv2(jd:jd) = '0'
+         END DO
+         ! Add each digit of the aligned string separately with carry-over and rounding to the value with larger absolute value,
+         ! retain its sign, and reposition its exponent
+         ico = 0
+         DO jd = ksig+8-4, 4, -1                  ! Move through significand from right to left
+            READ( clv1(jd:jd), "(i1)" ) id1                       ! Current digit of value 1
+            READ( clv2(jd:jd), "(i1)" ) id2                       ! Current digit of value 2
+            id2 = id2 + ico                                       ! Add carry-over value
+            IF( clv1(1:1) .NE. clv2(1:1) ) THEN                   ! Subtraction if the sign differs
+               ico = ( id2 - id1 + 9 ) / 10                       !    Update carry-over value
+               id1 = MOD( 10 + id1 - id2, 10 )                    !    Compute current digit
+               IF( jd == ksig+8-4 .AND. id1 > 5 ) ico = ico - 1   !    Adjust initial carry-over value if rounding occurs
+            ELSE                                                  ! Addition if the sign matches
+               ico = ( id1 + id2 ) / 10                           !    Update carry-over value
+               id1 = MOD( id1 + id2 , 10 )                        !    Compute current digit
+               IF( jd == ksig+8-4 .AND. id1 > 5 ) ico = ico + 1   !    Adjust initial carry-over value if rounding occurs
+            END IF
+            WRITE( clv1(jd:jd), "(i1)" ) id1                      ! Record current digit
+         END DO
+         IF( ico > 0 ) WRITE( clv1(2:2), "(i1)" ) ico             ! If required, add carry-over value beyond decimal point
+      END IF
+      clv1(ksig+4:ksig+7) = clv1(ksig+5:ksig+8)   ! Re-position exponent with regard to the target format
+      cdsum = clv1(:ksig+7)                       ! Return string
+      !
+   END FUNCTION prt_ctl_write_sum
+
+   SUBROUTINE prt_ctl_info (cdinfo, ivar, cdcomp )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE prt_ctl_info  ***
       !!
       !! ** Purpose : - print information without any computation
       !!
       !! ** Action  : - input arguments
-      !!                    clinfo : information about the ivar
+      !!                    cdinfo : information about the ivar
       !!                    ivar   : value to print
       !!----------------------------------------------------------------------
-      CHARACTER(len=*),           INTENT(in) ::   clinfo
+      CHARACTER(len=*),           INTENT(in) ::   cdinfo
       INTEGER         , OPTIONAL, INTENT(in) ::   ivar
       CHARACTER(len=3), OPTIONAL, INTENT(in) ::   cdcomp   ! only 'top' is accepted
       !
@@ -315,8 +454,8 @@ CONTAINS
          IF( clcomp == 'oce' )   inum = numprt_oce(jl)
          IF( clcomp == 'top' )   inum = numprt_top(jl)
          !
-         IF ( PRESENT(ivar) ) THEN   ;   WRITE(inum,*) clinfo, ivar
-         ELSE                        ;   WRITE(inum,*) clinfo
+         IF ( PRESENT(ivar) ) THEN   ;   WRITE(inum,*) cdinfo, ivar
+         ELSE                        ;   WRITE(inum,*) cdinfo
          ENDIF
          !
       END DO
