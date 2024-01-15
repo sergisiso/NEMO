@@ -343,6 +343,13 @@ CONTAINS
       !
       CALL mpp_basesplit( jpiglo, jpjglo, nn_hls, jpni, jpnj, jpimax, jpjmax, iimppt, ijmppt, ijpi, ijpj )
       CALL mpp_getnum( llisOce, ipproc, iin, ijn )
+      !
+      ! Store informations for the north pole folding communications before any further modification
+      nfproc(:) = ipproc(:,jpnj)
+      nfimpp(:) = iimppt(:,jpnj)
+      nfjpi (:) =   ijpi(:,jpnj)   ! needed only for mpp_lbc_north_icb_generic.h90
+      nfni_0(:) =   ijpi(:,jpnj) - 2 * nn_hls
+      
       ! update iimppt, ijmppt, ijpi, ijpj if we removed the associated domain. needed for layout files
       DO jj = 1, jpnj
          DO ji = 1, jpni
@@ -423,12 +430,6 @@ CONTAINS
 9403  FORMAT(7x,    '*',5(13x,a1))
 9404  FORMAT(7x,    '*',5(3x,i7,3x,'*'))
 
-      !
-      ! Store informations for the north pole folding communications
-      nfproc(:) = ipproc(:,jpnj)
-      nfimpp(:) = iimppt(:,jpnj)
-      nfjpi (:) =   ijpi(:,jpnj)   ! needed only for mpp_lbc_north_icb_generic.h90
-      nfni_0(:) =   ijpi(:,jpnj) - 2 * nn_hls
       !
       ! 3. Define Western, Eastern, Southern and Northern neighbors + corners in the subdomain grid reference
       ! ------------------------------------------------------------------------------------------------------
