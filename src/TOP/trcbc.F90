@@ -301,7 +301,7 @@ CONTAINS
    END SUBROUTINE trc_bc_ini
 
 
-   SUBROUTINE trc_bc(kt, Kmm, ptr, Krhs, jit)
+   SUBROUTINE trc_bc(kt, Kbb, Kmm, ptr, Krhs, jit)
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE trc_bc  ***
       !!
@@ -313,7 +313,7 @@ CONTAINS
       USE fldread
       !!      
       INTEGER                                   , INTENT(in)           ::   kt        ! ocean time-step index
-      INTEGER                                   , INTENT(in)           ::   Kmm, Krhs ! time level indices
+      INTEGER                                   , INTENT(in)           ::   Kbb, Kmm, Krhs ! time level indices
       INTEGER                                   , INTENT(in), OPTIONAL ::   jit       ! subcycle time-step index (for timesplitting option)
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) :: ptr            ! passive tracers and RHS of tracer equation
       !!
@@ -394,11 +394,11 @@ CONTAINS
             DO_2D( 0, 0, 0, 0 )
                DO jk = 1, nk_rnf(ji,jj)
 #if defined key_RK3
-                  zrnf =  rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)
+                  zrnf =  rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj) * ptr(ji,jj,jk,jn,Kbb)
 #else
-                  zrnf = (rnf(ji,jj) + rnf_b(ji,jj)) * 0.5_wp * r1_rho0 / h_rnf(ji,jj)
+                  zrnf = ( rnf(ji,jj) + rnf_b(ji,jj) ) * 0.5_wp * r1_rho0 / h_rnf(ji,jj) * ptr(ji,jj,jk,jn,Kmm) 
 #endif
-                  ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs)  + (ptr(ji,jj,jk,jn,Kmm) * zrnf)
+                  ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs)  + zrnf
                END DO
             END_2D
          ENDIF
@@ -444,9 +444,9 @@ CONTAINS
       INTEGER, INTENT(in) :: Kmm                            ! time level index
       WRITE(*,*) 'trc_bc_ini: You should not have seen this print! error?', ntrc, Kmm
    END SUBROUTINE trc_bc_ini
-   SUBROUTINE trc_bc( kt, Kmm, Krhs )        ! Empty routine
-      INTEGER, INTENT(in) :: kt, Kmm, Krhs ! time level indices
-      WRITE(*,*) 'trc_bc: You should not have seen this print! error?', kt, Kmm, Krhs 
+   SUBROUTINE trc_bc( kt, Kbb, Kmm, Krhs )        ! Empty routine
+      INTEGER, INTENT(in) :: kt, Kbb, Kmm, Krhs ! time level indices
+      WRITE(*,*) 'trc_bc: You should not have seen this print! error?', kt, Kbb, Kmm, Krhs 
    END SUBROUTINE trc_bc
 #endif
 

@@ -16,10 +16,15 @@ MODULE trcstp_rk3
    USE oce_trc        ! ocean dynamics and active tracers variables
    USE sbc_oce
    USE trc
+   USE trc_oce , ONLY :   l_offline   ! offline flag
    USE trctrp         ! passive tracers transport
    USE trcsms         ! passive tracers sources and sinks
    USE trcwri
    USE trcrst
+   USE trcadv         ! passive tracers advection      (trc_adv routine)
+   USE trcsbc         ! passive tracers surface boundary condition !!st WARNING USELESS TO BE REMOVED
+   USE trcbdy         ! passive tracers transport open boundary
+
    USE trdtrc_oce
    USE trdmxl_trc
    USE sms_pisces,  ONLY : ln_check_mass
@@ -31,8 +36,7 @@ MODULE trcstp_rk3
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trc_stp_start   ! called by stprk3_stg
-   PUBLIC   trc_stp_end     ! called by stprk3_stg
+   PUBLIC  trc_stp_rk3
 
    LOGICAL  ::   llnew                   ! ???
    LOGICAL  ::   l_trcstat               ! flag for tracer statistics
@@ -51,6 +55,104 @@ MODULE trcstp_rk3
    !!----------------------------------------------------------------------
 CONTAINS
   
+    SUBROUTINE trc_stp_rk3( kstg, kt, Kbb, Kmm, Krhs, Kaa, pFu, pFv, pFw )
+      !!-------------------------------------------------------------------
+      !!                     ***  ROUTINE trc_stp_start  ***
+      !!                      
+      !! ** Purpose :   Prepare time loop of opa for passive tracer
+      !! 
+      !! ** Method  :   Compute the passive tracers trends 
+      !!                Update the passive tracers
+      !!                Manage restart file
+      !!-------------------------------------------------------------------
+      INTEGER, INTENT( in ) :: kstg                        ! RK3 stage
+      INTEGER, INTENT( in ) :: kt                  ! ocean time-step index
+      INTEGER, INTENT( in ) :: Kbb, Kmm, Krhs, Kaa ! time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk), OPTIONAL, INTENT(in) ::   pFu, pFv, pFw  ! advective transport
+      !
+      INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
+      REAL(wp) ::   ze3Tb, ze3Tr, z1_e3t     ! local scalars
+      CHARACTER (len=25) ::   charout   !
+      !!-------------------------------------------------------------------
+
+      IF( ln_timing )   CALL timing_start('trc_stp_rk3')
+      !
+      IF( kt == nit000 ) THEN
+         IF(lwp) WRITE(numout,*)
+         IF(lwp) WRITE(numout,*) 'trc_stp_rk3 : Runge Kutta 3rd order at stage ', kstg
+         IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
+      ENDIF
+     !
+      SELECT CASE( kstg )
+      !                    !-------------------!
+      CASE ( 1 , 2 )       !==  Stage 1 & 2  ==!   stg1:  Kbb = N  ;  Kaa = N+1/3
+         !                 !-------------------!   stg2:  Kbb = N  ;  Kmm = N+1/3  ;  Kaa = N+1/2
+         !
+         IF( kstg == 1 ) CALL trc_stp_start( kt, Kbb, Kmm, Krhs, Kaa )
+         !
+!!st+gm : probably QUICK 
+         IF( .NOT.ln_trcadv_mus .AND. .NOT.ln_trcadv_qck ) THEN
+            !
+            DO jn = 1, jptra
+               tr(:,:,:,jn,Krhs) = 0._wp        ! set tracer trends to zero !!st ::: required because of tra_adv new loops
+            END DO
+            !                                   !==  advection of passive tracers  ==!
+            rDt_trc = rDt
+            !
+            CALL trc_sbc_RK3( kt, Kbb, Kmm, tr, Krhs, kstg )              ! surface boundary condition
+            !
+            IF( l_offline ) THEN
+               CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs ) ! horizontal & vertical advection
+            ELSE
+               CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs, pFu, pFv, pFw ) ! horizontal & vertical advection
+            ENDIF
+            !
+            !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
+            DO jn = 1, jptra
+               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+                  ze3Tb  = e3t(ji,jj,jk,Kbb) * tr(ji,jj,jk,jn,Kbb )
+                  ze3Tr  = e3t(ji,jj,jk,Kmm) * tr(ji,jj,jk,jn,Krhs)
+                  z1_e3t = 1._wp / e3t(ji,jj,jk, Kaa)
+                  tr(ji,jj,jk,jn,Kaa) = ( ze3Tb + rDt_trc * ze3Tr * tmask(ji,jj,jk) ) * z1_e3t
+               END_3D
+            END DO
+            !
+!!st need a lnc lkn at stage 1 & 2 otherwise tr@Kmm will not be usable in trc_adv
+            CALL lbc_lnk( 'stprk3_stg', tr(:,:,:,:,Kaa), 'T', 1._wp )
+
+         ENDIF
+         !                 !---------------!
+      CASE ( 3 )           !==  Stage 3  ==!   add all RHS terms but advection (=> Kbb only)
+         !                 !---------------!
+         !
+         DO jn = 1, jptra
+            tr(:,:,:,jn,Krhs) = 0._wp
+         END DO
+         !                                         !==  advection of passive tracers  ==!
+         rDt_trc = rDt
+         !
+         CALL trc_sms    ( kt, Kbb, Kmm, Krhs      )       ! tracers: sinks and sources
+         !
+         CALL trc_sbc_RK3( kt, Kbb, Kmm, tr, Krhs, kstg )              ! surface boundary condition
+         !
+         IF( l_offline ) THEN
+            CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs ) ! horizontal & vertical advection
+         ELSE
+            CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs, pFu, pFv, pFw ) ! horizontal & vertical advection
+         ENDIF
+         !
+         CALL trc_trp    ( kt, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers (without advection)
+         !
+         !
+         CALL trc_stp_end( kt, Kbb, Kmm,       Kaa )
+         !
+      END SELECT
+      !
+      IF( ln_timing )   CALL timing_stop('trc_stp_rk3')
+      !
+   END SUBROUTINE trc_stp_rk3
+
+      !
    SUBROUTINE trc_stp_start( kt, Kbb, Kmm, Krhs, Kaa )
       !!-------------------------------------------------------------------
       !!                     ***  ROUTINE trc_stp_start  ***
@@ -67,7 +169,6 @@ CONTAINS
       INTEGER ::   jk, jn   ! dummy loop indices
       CHARACTER (len=25) ::   charout   !
       !!-------------------------------------------------------------------
-      !
       IF( ln_timing )   CALL timing_start('trc_stp_start')
       !
       l_trcstat  = ( sn_cfctl%l_trcstat ) .AND. &
@@ -109,7 +210,8 @@ CONTAINS
       INTEGER, INTENT( in ) :: Kbb, Kmm, Kaa ! time level indices
       !
       INTEGER ::   jk, jn   ! dummy loop indices
-      REAL(wp)::   ztrai    ! local scalar
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: z4d
+      REAL(wp), ALLOCATABLE, DIMENSION(:) :: ztraa
       CHARACTER (len=25) ::   charout   !
       !!-------------------------------------------------------------------
       !
@@ -129,12 +231,17 @@ CONTAINS
       IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kbb, Kmm, Kaa )       ! write tracer restart file
       IF( lk_trdmxl_trc  )      CALL trd_mxl_trc  ( kt,           Kaa )       ! trends: Mixed-layer
       !
-      IF (l_trcstat) THEN
-         ztrai = 0._wp                                    !  content of all tracers
+      IF ( l_trcstat ) THEN
+         !
+         ALLOCATE( z4d(jpi,jpj,jpk,jptra), ztraa(jptra) )
          DO jn = 1, jptra
-            ztrai = ztrai + glob_sum( 'trcstp_rk3', tr(:,:,:,jn,Kaa) * cvol(:,:,:)   ) !!st cvol@Kmm weird !!
-         END DO
-         IF( lwm ) WRITE(numstr,9300) kt,  ztrai / areatot
+            z4d(:,:,:,jn) = tr(:,:,:,jn,Kaa) * cvol(:,:,:)
+         ENDDO
+         !
+         ztraa(1:jptra) = glob_sum_vec( 'trcstp_rk3', z4d(:,:,:,1:jptra) )
+         IF( lwm ) WRITE(numstr,9300) kt,  SUM( ztraa ) / areatot
+         !
+         DEALLOCATE( z4d, ztraa )
       ENDIF
       !
 9300  FORMAT(i10,D23.16)
@@ -264,9 +371,9 @@ CONTAINS
    !!   Default key                                     NO passive tracers
    !!----------------------------------------------------------------------
 CONTAINS
-   SUBROUTINE trc_stp( kt )        ! Empty routine
+   SUBROUTINE trc_stp_rk3( kt )        ! Empty routine
       WRITE(*,*) 'trc_stp: You should not have seen this print! error?', kt
-   END SUBROUTINE trc_stp
+   END SUBROUTINE trc_stp_rk3
 #endif
 
    !!======================================================================

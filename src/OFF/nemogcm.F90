@@ -27,9 +27,7 @@ MODULE nemogcm
    USE closea         ! treatment of closed seas (for ln_closea)
    USE usrdef_nam     ! user defined configuration
    USE eosbn2         ! equation of state            (eos bn2 routine)
-#if defined key_qco
    USE domqco         ! tools for scale factor         (dom_qco_r3c  routine)
-#endif
    USE bdyini         ! open boundary cond. setting        (bdy_init routine)
    !              ! ocean physics
    USE ldftra         ! lateral diffusivity setting    (ldf_tra_init routine)
@@ -52,6 +50,14 @@ MODULE nemogcm
    USE trcrst         ! passive tracer restart
    USE sbc_oce , ONLY : ln_rnf
    USE sbcrnf         ! surface boundary condition : runoffs
+#if defined key_qco   ||   defined key_linssh
+#if  defined key_RK3
+   USE stprk3 , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
+   USE trcstp_rk3
+#else
+   USE stpmlf , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
+#endif
+#endif
    !              ! I/O & MPP
    USE iom            ! I/O library
    USE in_out_manager ! I/O manager
@@ -63,10 +69,23 @@ MODULE nemogcm
    USE prtctl         ! Print control                    (prt_ctl_init routine)
    USE timing         ! Timing
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
-   USE stpmlf , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
+   USE halo_mng
+#if ! defined key_mpi_off
+   ! need MPI_Wtime
+   USE MPI
+#endif
 
    IMPLICIT NONE
    PRIVATE
+
+#if defined key_RK3
+   REAL(wp) ::   r1_2 = 1._wp / 2._wp
+   REAL(wp) ::   r1_3 = 1._wp / 3._wp
+   REAL(wp) ::   r2_3 = 2._wp / 3._wp
+
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) :: ssha         ! sea-surface height  at N+1
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) :: r3ta, r3ua, r3va   ! ssh/h_0 ratio at t,u,v-column at N+1
+#endif   
    
    PUBLIC   nemo_gcm   ! called by nemo.F90
 
@@ -122,34 +141,20 @@ CONTAINS
          ncom_stp = istp
          CALL timing_start( 'step', istp, nit000, nitend, 1, 1000 )
          !
-      IF((istp == nitrst) .AND. lwxios) THEN
-         CALL iom_swap(      cw_toprst_cxt          )
-         CALL iom_init_closedef(cw_toprst_cxt)
-         CALL iom_setkt( istp - nit000 + 1,      cw_toprst_cxt          )
-      ENDIF
+         IF( ( istp == nitrst ) .AND. lwxios ) THEN
+            CALL iom_swap(      cw_toprst_cxt          )
+            CALL iom_init_closedef(cw_toprst_cxt)
+            CALL iom_setkt( istp - nit000 + 1,      cw_toprst_cxt          )
+         ENDIF
 
          IF( istp /= nit000 )   CALL day        ( istp )         ! Calendar (day was already called at nit000 in day_init)
                                 CALL iom_setkt  ( istp - nit000 + 1, cxios_context )   ! say to iom that we are at time step kstp
-                                CALL dta_dyn    ( istp, Nbb, Nnn, Naa )       ! Interpolation of the dynamical fields
-         IF( .NOT.ln_linssh ) THEN
-                                CALL dta_dyn_atf( istp, Nbb, Nnn, Naa )       ! time filter of sea  surface height and vertical scale factors
-# if defined key_qco
-                                CALL dom_qco_r3c( ssh(:,:,Nnn), r3t_f, r3u_f, r3v_f )
-# endif
-         ENDIF
 
-         IF( l_ldftra_time .OR. l_ldfeiv_time )  CALL ldf_tra( istp, Nbb, Nnn )  ! eddy diffusivity coeff. and/or eiv coeff.
-
-                                CALL trc_stp    ( istp, Nbb, Nnn, Nrhs, Naa )    ! time-stepping
-         ! Swap time levels
-         Nrhs = Nbb
-         Nbb  = Nnn
-         Nnn  = Naa
-         Naa  = Nrhs
-         !
-# if ! defined key_qco && ! defined key_linssh
-         IF( .NOT.ln_linssh )   CALL dta_dyn_sf_interp( istp, Nnn )  ! calculate now grid parameters
-# endif  
+#   if defined key_RK3
+         CALL stp_RK3( istp )
+#   else
+         CALL stp_MLF( istp )
+#   endif
 
          CALL stp_ctl    ( istp )             ! Time loop: control and print
          CALL timing_stop( 'step', istp )
@@ -192,6 +197,207 @@ CONTAINS
       !
    END SUBROUTINE nemo_gcm
 
+#if ! defined key_RK3
+
+   SUBROUTINE stp_MLF( kstp )
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE stp_MLF  ***
+      !!
+      !!              - Time stepping of TRC  (passive tracer eqs.)
+      !!----------------------------------------------------------------------
+
+      INTEGER, INTENT(in) ::   kstp   ! ocean time-step index
+      !!----------------------------------------------------------------------
+
+      !
+      IF( ln_timing )   CALL timing_start('stp_MLF')
+      !
+
+      CALL dta_dyn( kstp, Nbb, Nnn, Naa )       ! Interpolation of the dynamical fields
+
+      IF( .NOT.ln_linssh ) THEN
+         CALL dta_dyn_atf( kstp, Nbb, Nnn, Naa )       ! time filter of sea  surface height and vertical scale factors
+         IF( .NOT.lk_linssh )  CALL dom_qco_r3c( ssh(:,:,Nnn), r3t_f, r3u_f, r3v_f )
+      ENDIF
+
+      IF( l_ldftra_time .OR. l_ldfeiv_time )  &
+         &  CALL ldf_tra( kstp, Nbb, Nnn )  ! eddy diffusivity coeff. and/or eiv coeff.
+
+      CALL trc_stp( kstp, Nbb, Nnn, Nrhs, Naa )    ! time-stepping
+
+      ! Swap time levels
+      Nrhs = Nbb
+      Nbb  = Nnn
+      Nnn  = Naa
+      Naa  = Nrhs
+      !
+      IF( ln_timing )   CALL timing_stop('stp_MLF')
+   
+   END SUBROUTINE stp_MLF
+
+# else
+
+   SUBROUTINE stp_RK3( kstp )
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE stp_RK3  ***
+      !!
+      !!              - Time stepping of TRC  (passive tracer eqs.)
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kstp   ! ocean time-step index
+
+      !!----------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('stp_RK3')
+      !
+
+      CALL dta_dyn( kstp, Nbb, Nnn, Naa )       ! Interpolation of the dynamical fields
+
+      IF( l_ldftra_time .OR. l_ldfeiv_time )  &
+        &  CALL ldf_tra( kstp, Nbb, Nnn )  ! eddy diffusivity coeff. and/or eiv coeff.
+
+        ! Stage 1 :
+      CALL stp_RK3_stg( 1, kstp, Nbb, Nbb, Nrhs, Naa )
+      !
+      Nrhs = Nnn   ;   Nnn  = Naa   ;   Naa  = Nrhs    ! Swap: Nbb unchanged, Nnn <==> Naa
+      !
+      ! Stage 2 :
+      CALL stp_RK3_stg( 2, kstp, Nbb, Nnn, Nrhs, Naa )
+      !
+      Nrhs = Nnn   ;   Nnn  = Naa   ;   Naa  = Nrhs    ! Swap: Nbb unchanged, Nnn <==> Naa
+      !
+      ! Stage 3 :
+      !
+      CALL stp_RK3_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
+      !
+      Nrhs = Nbb   ;   Nbb  = Naa   ;   Naa  = Nrhs    ! Swap: Nnn unchanged, Nbb <==> Naa
+
+      IF( .NOT. ln_linssh ) THEN
+         ! linear extrapolation of ssh to compute ww at the beginning of the next time-step
+         ! ssh(n+1) = 2*ssh(n) - ssh(n-1)    
+         ssh(:,:,Naa) = 2 * ssh(:,:,Nbb) - ssh(:,:,Naa) 
+      ENDIF
+
+      IF( ln_timing )   CALL timing_stop('stp_RK3')
+      !
+   
+   END SUBROUTINE stp_RK3
+
+   SUBROUTINE stp_RK3_stg( kstg, kstp, Kbb, Kmm, Krhs, Kaa )
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE stp_RK3_stg  ***
+      !!
+      !! ** Purpose : - stage of RK3 time stepping of OCE and TOP
+      !!
+      !! ** Method  :   input: computed in dynspg_ts
+      !!              ssh             shea surface height at N+1           (oce.F90)
+      !!              (uu_b,vv_b)     barotropic velocity at N, N+1        (oce.F90)
+      !!              (un_adv,vn_adv) barotropic transport from N to N+1   (dynspg_ts.F90)
+      !!              ,
+      !!              -1- set ssh(Naa) (Naa=N+1/3, N+1/2, or N)
+      !!              -2- set the advective velocity (zadU,zaV)
+      !!              -4- Compute the after (Naa) T-S
+      !!              -5- Update now
+      !!              -6- Update the horizontal velocity
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kstg                        ! RK3 stage
+      INTEGER, INTENT(in) ::   kstp, Kbb, Kmm, Krhs, Kaa   ! ocean time-step and time-level indices
+      !
+      !! ---------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('stp_RK3_stg')
+      !
+      IF( kstp == nit000 ) THEN
+         IF(lwp) WRITE(numout,*)
+         IF(lwp) WRITE(numout,*) 'stp_RK3_stg : Runge Kutta 3rd order at stage ', kstg
+         IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
+      ENDIF
+      !
+      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      !  ssh, uu_b, vv_b, and  ssh/h0 at Kaa
+      !  3D advective velocity at Kmm
+      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+      !
+      SELECT CASE( kstg )
+      !                    !---------------!
+      CASE ( 1 )           !==  Stage 1  ==!   Kbb = Kmm = N  ;  Kaa = N+1/3
+         !                 !---------------!
+         !
+         !
+         rDt = r1_3 * rn_Dt            ! set time-step : rn_Dt/3
+         r1_Dt = 1._wp / rDt
+         !
+         IF( .NOT.ln_linssh ) THEN
+            ALLOCATE( ssha(jpi,jpj) )
+            ssha(:,:) = ssh(:,:,Kaa)     ! save ssh, at N+1  (computed in dtadyn)
+            !                             ! interpolated ssh and (uu_b,vv_b) at Kaa (N+1/3)
+            ssh(:,:,Kaa) = r2_3 * ssh(:,:,Kbb) + r1_3 * ssha(:,:)
+            !
+            !
+            !                     !==  ssh/h0 ratio at Kaa  ==!
+            !
+            IF( .NOT.lk_linssh ) THEN     ! "after" ssh/h_0 ratio at t,u,v-column computed at N+1 stored in r3.a
+              !
+              ALLOCATE( r3ta(jpi,jpj) , r3ua(jpi,jpj) , r3va(jpi,jpj) )
+              !
+              CALL dom_qco_r3c( ssha, r3ta, r3ua, r3va )
+              !
+              CALL lbc_lnk( 'stprk3_stg', r3ua, 'U', 1._wp, r3va, 'V', 1._wp )
+              !                          !
+              r3t(:,:,Kaa) = r2_3 * r3t(:,:,Kbb) + r1_3 * r3ta(:,:)   ! at N+1/3 (Kaa)
+              r3u(:,:,Kaa) = r2_3 * r3u(:,:,Kbb) + r1_3 * r3ua(:,:)
+              r3v(:,:,Kaa) = r2_3 * r3v(:,:,Kbb) + r1_3 * r3va(:,:)
+           ENDIF
+           !
+         ENDIF
+         !                 !---------------!
+      CASE ( 2 )           !==  Stage 2  ==!   Kbb = N   ;   Kmm = N+1/3   ;   Kaa = N+1/2
+         !                 !---------------!
+         !
+         rDt = r1_2 * rn_Dt            ! set time-step : rn_Dt/2
+         r1_Dt = 1._wp / rDt
+         !
+         IF( .NOT.ln_linssh ) THEN
+            !                             ! set ssh  at N+1/2  (Kaa)
+            ssh (:,:,Kaa) = r1_2 * ( ssh (:,:,Kbb) + ssha(:,:) )
+            !
+            IF( .NOT.lk_linssh ) THEN
+               r3t(:,:,Kaa) = r1_2 * ( r3t(:,:,Kbb) + r3ta(:,:) )   ! at N+1/2 (Kaa)
+               r3u(:,:,Kaa) = r1_2 * ( r3u(:,:,Kbb) + r3ua(:,:) )
+               r3v(:,:,Kaa) = r1_2 * ( r3v(:,:,Kbb) + r3va(:,:) )
+            ENDIF
+            !
+         ENDIF
+         !                 !---------------!
+      CASE ( 3 )           !==  Stage 3  ==!   Kbb = N   ;   Kmm = N+1/2   ;   Kaa = N+1
+         !                 !---------------!
+         !
+         rDt = rn_Dt                   ! set time-step : rn_Dt
+         r1_Dt = 1._wp / rDt
+         !
+         IF( .NOT.ln_linssh ) THEN
+            ssh (:,:,Kaa) = ssha(:,:)     ! recover ssh at N + 1
+            !
+            DEALLOCATE( ssha )
+            !
+            IF( .NOT.lk_linssh ) THEN
+               r3t(:,:,Kaa) = r3ta(:,:)                          ! at N+1   (Kaa)
+               r3u(:,:,Kaa) = r3ua(:,:)
+               r3v(:,:,Kaa) = r3va(:,:)
+               DEALLOCATE( r3ta, r3ua, r3va )              ! deallocate all r3. 
+               !
+            ENDIF
+         !
+         ENDIF
+         !
+      END SELECT
+      !
+      CALL trc_stp_rk3( kstg,  kstp, Kbb, Kmm, Krhs, Kaa )
+      !
+      IF( ln_timing )   CALL timing_stop('stp_RK3_stg')
+      !
+   END SUBROUTINE stp_RK3_stg
+
+#endif
 
    SUBROUTINE nemo_init
       !!----------------------------------------------------------------------
@@ -352,8 +558,10 @@ CONTAINS
       !                                      ! Passive tracers
                            CALL trc_nam_run    ! Needed to get restart parameters for passive tracers
                            CALL trc_rst_cal( nit000, 'READ' )   ! calendar
+
                            CALL dta_dyn_init( Nbb, Nnn, Naa )        ! Initialization for the dynamics
-                           CALL     trc_init( Nbb, Nnn, Naa )        ! Passive tracers initialization
+                           CALL     trc_init( Nbb, Nnn, Naa )
+                           
                            
       IF(lwp) WRITE(numout,cform_aaa)           ! Flag AAAAAAA
       !
@@ -521,6 +729,7 @@ CONTAINS
       ts  (:,:,:,:,Kmm) = 0._wp   !                       !
       !
       rhd  (:,:,:) = 0.e0
+      rhop (:,:,:) = 0.e0
       rn2  (:,:,:) = 0.e0
       !
    END SUBROUTINE istate_init

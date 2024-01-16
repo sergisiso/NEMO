@@ -128,7 +128,7 @@ CONTAINS
       !
    END SUBROUTINE trc_ais_ini
 
-   SUBROUTINE trc_ais(kt, Kmm, ptr, Krhs)
+   SUBROUTINE trc_ais(kt, Kbb, Kmm, ptr, Krhs)
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE trc_ais  ***
       !!
@@ -140,13 +140,13 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!
       INTEGER                                   , INTENT(in)           ::   kt ! ocean time-step index
-      INTEGER                                   , INTENT(in)           ::   Kmm, Krhs ! time level indices
+      INTEGER                                   , INTENT(in)           ::   Kbb, Kmm, Krhs ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout)        ::   ptr ! passive tracers and RHS of tracer equation
       !!
       INTEGER  :: ji, jj, jk, jn, jl             ! Loop index
       INTEGER  :: ikt, ikb  ! top and bottom level of the tbl
       CHARACTER (len=22) :: charout
-      REAL(wp) :: zfact, zcalv, zfrac
+      REAL(wp) :: zfact, zcalv, zfrac, ztra
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_ais')
@@ -172,7 +172,8 @@ CONTAINS
                   jl = n_trc_indais(jn)
                   DO_2D( 0, 0, 0, 0 )
                      zfact = 1. / e3t(ji,jj,1,Kmm)
-                     ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + fwficb(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm) * zfact
+                     ztra = fwficb(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kbb) * zfact
+                     ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + ztra
                   END_2D
                END IF
             END DO   
@@ -197,10 +198,10 @@ CONTAINS
                      END IF   
                      ! level fully include in the ice shelf boundary layer
                      DO jk = ikt, ikb - 1
-                        ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs) + zcalv * ptr(ji,jj,jk,jn,Kmm)
+                        ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs) + zcalv * ptr(ji,jj,jk,jn,Kbb)
                      END DO
                      ! level partially include in ice shelf boundary layer
-                     ptr(ji,jj,ikb,jn,Krhs) = ptr(ji,jj,ikb,jn,Krhs) +  zcalv * ptr(ji,jj,ikb,jn,Kmm) * zfrac 
+                     ptr(ji,jj,ikb,jn,Krhs) = ptr(ji,jj,ikb,jn,Krhs) +  zcalv * ptr(ji,jj,ikb,jn,Kbb) * zfrac 
                   END_2D
                ENDIF   
             END DO
@@ -273,9 +274,9 @@ CONTAINS
 CONTAINS
    SUBROUTINE trc_ais_ini   ! Empty routine
    END SUBROUTINE trc_ais_ini
-   SUBROUTINE trc_ais( kt, Kmm, Krhs )        ! Empty routine
-      INTEGER, INTENT(in) :: kt, Kmm, Krhs ! time level indices
-      WRITE(*,*) 'trc_ais: You should not have seen this print! error?', kt, Kmm, Krhs
+   SUBROUTINE trc_ais( kt, Kbb, Kmm, Krhs )        ! Empty routine
+      INTEGER, INTENT(in) :: kt, Kbb, Kmm, Krhs ! time level indices
+      WRITE(*,*) 'trc_ais: You should not have seen this print! error?', kt, Kbb, Kmm, Krhs
    END SUBROUTINE trc_ais
 #endif
 

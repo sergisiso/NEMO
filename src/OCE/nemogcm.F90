@@ -478,11 +478,7 @@ CONTAINS
                            CALL isf_init( Nbb, Nnn, Naa )
 #if defined key_top
       !                                      ! Passive tracers
-# if defined key_RK3
-                           CALL     trc_init( Nbb, Nbb, Naa )
-# else
                            CALL     trc_init( Nbb, Nnn, Naa )
-# endif
 #endif
       IF( l_ldfslp     )   CALL ldf_slp_init    ! slope of lateral mixing
 

@@ -75,7 +75,7 @@ CONTAINS
       IF( ln_rsttr .AND. .NOT. l_offline ) CALL trc_rst_cal( nit000, 'READ' )   ! calendar
       IF(lwp) WRITE(numout,*)
       !
-      CALL trc_ini_sms( Kmm )   ! SMS
+      CALL trc_ini_sms( Kbb )   ! SMS
       CALL trc_ini_trp          ! passive tracers transport
       CALL trc_ice_ini          ! Tracers in sea ice
       !
@@ -100,24 +100,31 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kmm    ! time level index
       INTEGER             ::  ji, jj, jk, jn  ! dummy loop indices
       CHARACTER (len=25) :: charout
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: z4d
+      REAL(wp), ALLOCATABLE, DIMENSION(:) :: ztra
+
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
       IF(lwp) WRITE(numout,*) 'trc_ini_inv : initial passive tracers inventories'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
       !
+      ALLOCATE( z4d(jpi,jpj,jpk,jptra+1), ztra(jptra+1) )
       !                          ! masked grid volume
       DO jk = 1, jpk
          cvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
       END DO
-      !                          ! total volume of the ocean 
-      areatot = glob_sum( 'trcini', cvol(:,:,:) )
-      !
-      trai(:) = 0._wp            ! initial content of all tracers
+      ! 
       DO jn = 1, jptra
-         trai(jn) = trai(jn) + glob_sum( 'trcini', tr(:,:,:,jn,Kmm) * cvol(:,:,:)   )
-      END DO
-
+         z4d(:,:,:,jn) = tr(:,:,:,jn,Kmm) * cvol(:,:,:)
+      ENDDO
+      z4d(:,:,:,jptra+1)  = cvol(:,:,:) 
+      !
+      ztra(1:jptra+1) = glob_sum_vec( 'trcini', z4d(:,:,:,1:jptra+1) )
+      !
+      trai(1:jptra) = ztra(1:jptra)      !  initial content of all tracers
+      areatot       = ztra(jptra+1)      ! total volume of the ocean 
+      !
       IF(lwp) THEN               ! control print
          WRITE(numout,*)
          WRITE(numout,*) '   ==>>>   Total number of passive tracer jptra = ', jptra
@@ -138,10 +145,12 @@ CONTAINS
       ENDIF
 9000  FORMAT('      tracer nb : ',i2,'      name :',a10,'      initial content :',e18.10)
       !
+      DEALLOCATE( z4d, ztra )
+      !
    END SUBROUTINE trc_ini_inv
 
 
-   SUBROUTINE trc_ini_sms( Kmm )
+   SUBROUTINE trc_ini_sms( Kbb )
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE trc_ini_sms  ***
       !! ** Purpose :   SMS initialisation
@@ -152,7 +161,7 @@ CONTAINS
       USE trcini_age     ! age initialisation
       USE trcini_my_trc  ! MY_TRC   initialisation
       !
-      INTEGER, INTENT(in) ::   Kmm ! time level indices
+      INTEGER, INTENT(in) ::   Kbb ! time level indices
       INTEGER :: jn
       !!----------------------------------------------------------------------
       !
@@ -178,11 +187,11 @@ CONTAINS
      
       lltrcbc = ( COUNT(ln_trc_sbc) + COUNT(ln_trc_obc) + COUNT(ln_trc_cbc) ) > 0 
       !    
-      IF( ln_pisces      )   CALL trc_ini_pisces( Kmm )     !  PISCES model
-      IF( ln_my_trc      )   CALL trc_ini_my_trc( Kmm )     !  MY_TRC model
-      IF( ll_cfc         )   CALL trc_ini_cfc   ( Kmm )     !  CFC's
-      IF( ln_c14         )   CALL trc_ini_c14   ( Kmm )     !  C14 model
-      IF( ln_age         )   CALL trc_ini_age   ( Kmm )     !  AGE
+      IF( ln_pisces      )   CALL trc_ini_pisces( Kbb )     !  PISCES model
+      IF( ln_my_trc      )   CALL trc_ini_my_trc( Kbb )     !  MY_TRC model
+      IF( ll_cfc         )   CALL trc_ini_cfc   ( Kbb )     !  CFC's
+      IF( ln_c14         )   CALL trc_ini_c14   ( Kbb )     !  C14 model
+      IF( ln_age         )   CALL trc_ini_age   ( Kbb )     !  AGE
       !
       IF(lwp) THEN                   ! control print
          WRITE(numout,*)
@@ -259,20 +268,20 @@ CONTAINS
             DO jn = 1, jptra
                IF( ln_trc_ini(jn) ) THEN
                   jl = n_trc_index(jn) 
-                  CALL trc_dta( nit000, jl, tr(:,:,:,jn,Kmm) )
+                  CALL trc_dta( nit000, jl, tr(:,:,:,jn,Kbb) )
                ENDIF
             END DO
             !
         ENDIF
         !
-        tr(:,:,:,:,Kbb) = tr(:,:,:,:,Kmm)
+        tr(:,:,:,:,Kmm) = tr(:,:,:,:,Kbb)
         ! 
       ENDIF
       !
       IF( ln_bdy ) CALL trc_bdy_ini( jptra )
       IF( ln_trcbc .AND. lltrcbc ) THEN
-        CALL trc_bc_ini ( jptra, Kmm  )            ! set tracers Boundary Conditions
-        CALL trc_bc     ( nit000, Kmm, tr, Kaa )   ! tracers: surface and lateral Boundary Conditions
+        CALL trc_bc_ini ( jptra, Kbb  )            ! set tracers Boundary Conditions
+        CALL trc_bc     ( nit000, Kbb, Kmm, tr, Kaa )   ! tracers: surface and lateral Boundary Conditions
       ENDIF
       !
       IF( ln_trcais ) CALL trc_ais_ini   ! set tracers from Antarctic Ice Sheet

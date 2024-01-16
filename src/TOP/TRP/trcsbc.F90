@@ -212,7 +212,7 @@ CONTAINS
    END SUBROUTINE trc_sbc
 
 
-   SUBROUTINE trc_sbc_RK3 ( kt, Kmm, ptr, Krhs, kstg )
+   SUBROUTINE trc_sbc_RK3 ( kt, Kbb, Kmm, ptr, Krhs, kstg )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trc_sbc_RK3  ***
       !!                   
@@ -233,7 +233,7 @@ CONTAINS
       !!                with the tracer surface boundary condition 
       !!
       !!----------------------------------------------------------------------
-      INTEGER                                   , INTENT(in   ) ::   kt, Kmm, Krhs   ! ocean time-step and time-level indices
+      INTEGER                                   , INTENT(in   ) ::   kt, Kbb, Kmm, Krhs   ! ocean time-step and time-level indices
       INTEGER                                   , INTENT(in   ) ::   kstg            ! RK3 stage index
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) ::   ptr       ! passive tracers and RHS of tracer equation
       !
@@ -264,7 +264,7 @@ CONTAINS
             DO jn = 1, jptra
                DO_2D( 0, 0, 0, 0 )              !!st WHY 1 : exterior here ? 
                   z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
-                  ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) - emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) * z1_rho0_e3t
+                  ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) - emp(ji,jj) * ptr(ji,jj,1,jn,Kbb) * z1_rho0_e3t
                END_2D
             END DO
             !
@@ -288,7 +288,7 @@ CONTAINS
                DO jn = 1, jptra
                   DO_2D( 0, 0, 0, 0 )
                      z1_rho0_e3t = r1_rho0  / e3t(ji,jj,1,Kmm)
-                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + emp(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
+                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + emp(ji,jj) *  ptr(ji,jj,1,jn,Kbb)  * z1_rho0_e3t
                   END_2D
                END DO
                !
@@ -297,7 +297,7 @@ CONTAINS
                DO jn = 1, jptra
                   DO_2D( 0, 0, 0, 0 )
                      z1_rho0_e3t = r1_rho0  / e3t(ji,jj,1,Kmm)
-                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + ( emp(ji,jj) + fwfice(ji,jj) ) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
+                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + ( emp(ji,jj) + fwfice(ji,jj) ) * ptr(ji,jj,1,jn,Kbb)  * z1_rho0_e3t
                   END_2D
                END DO
                !
@@ -313,9 +313,9 @@ CONTAINS
                      ! tracer and mass fluxes : no concentration dilution term in net tracer flux, F-M term in volume flux
                      ztfx  = zftra                        ! net tracer flux
                      !
-                     zdtra = r1_rho0 * ( ztfx +  ( emp(ji,jj) + fwfice(ji,jj) ) * ptr(ji,jj,1,jn,Kmm) ) 
+                     zdtra =  z1_rho0_e3t * ( ztfx +  ( emp(ji,jj) + fwfice(ji,jj) ) * ptr(ji,jj,1,jn,Kbb) ) 
                      IF ( zdtra < 0. ) THEN
-                        zdtra  = MAX(zdtra, -ptr(ji,jj,1,jn,Kmm) * e3t(ji,jj,1,Kmm) / rDt_trc )   ! avoid negative concentrations to arise
+                        zdtra  = MAX(zdtra, -ptr(ji,jj,1,jn,Kbb) * e3t(ji,jj,1,Kmm) / rDt_trc )   ! avoid negative concentrations to arise
                      ENDIF
                      ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + zdtra
                   END_2D
@@ -333,7 +333,7 @@ CONTAINS
                DO jn = 1, jptra
                   DO_2D( 0, 0, 0, 0 )
                      z1_rho0_e3t = r1_rho0  / e3t(ji,jj,1,Kmm)
-                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + fwfice(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
+                     ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + fwfice(ji,jj) * ptr(ji,jj,1,jn,Kbb) * z1_rho0_e3t
                   END_2D
                END DO
                !
@@ -348,9 +348,9 @@ CONTAINS
                      ! tracer and mass fluxes : no concentration dilution term in net tracer flux, F-M term in volume flux
                      ztfx  = zftra                        ! net tracer flux
                      !
-                     zdtra = r1_rho0 * ( ztfx + fwfice(ji,jj) * ptr(ji,jj,1,jn,Kmm) ) 
+                     zdtra = z1_rho0_e3t * ( ztfx + fwfice(ji,jj) * ptr(ji,jj,1,jn,Kbb) ) 
                      IF ( zdtra < 0. ) THEN
-                        zdtra  = MAX(zdtra, -ptr(ji,jj,1,jn,Kmm) * e3t(ji,jj,1,Kmm) / rDt_trc )   ! avoid negative concentrations to arise
+                        zdtra  = MAX(zdtra, -ptr(ji,jj,1,jn,Kbb) * e3t(ji,jj,1,Kmm) / rDt_trc )   ! avoid negative concentrations to arise
                      ENDIF
                      ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + zdtra
                   END_2D
@@ -365,13 +365,9 @@ CONTAINS
          !                                       Concentration dilution effect on tracers due to evaporation & precipitation 
          DO jn = 1, jptra
             !
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) 'trc_sbc_RK3 : Runge Kutta 3rd order at stage ', kstg, jn
-            IF(lwp) WRITE(numout,*)
-            !
             IF( l_trdtrc ) THEN
                ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs) - ztrtrd(:,:,:)
-               CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_nsr, ztrtrd )
+               CALL trd_tra( kt, Kbb, Krhs, 'TRC', jn, jptra_nsr, ztrtrd )
             END IF
             !
          END DO
@@ -397,9 +393,9 @@ CONTAINS
    USE par_oce
    USE par_trc
 CONTAINS
-   SUBROUTINE trc_sbc ( kt, Kmm, ptr, Krhs )      ! Empty routine
+   SUBROUTINE trc_sbc ( kt, Kbb, Kmm, ptr, Krhs )      ! Empty routine
       INTEGER,                                    INTENT(in   ) :: kt        ! ocean time-step index
-      INTEGER,                                    INTENT(in   ) :: Kmm, Krhs ! time level indices
+      INTEGER,                                    INTENT(in   ) :: Kbb, Kmm, Krhs ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) :: ptr       ! passive tracers and RHS of tracer equation
       WRITE(*,*) 'trc_sbc: You should not have seen this print! error?', kt
    END SUBROUTINE trc_sbc
