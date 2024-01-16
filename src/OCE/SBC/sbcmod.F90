@@ -393,6 +393,7 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('sbc')
       !
+#if ! defined key_RK3
       !                                            ! ---------------------------------------- !
       IF( kt /= nit000 ) THEN                      !          Swap of forcing fields          !
          !                                         ! ---------------------------------------- !
@@ -407,6 +408,7 @@ CONTAINS
          ENDIF
          !
       ENDIF
+#endif
       !                                            ! ---------------------------------------- !
       !                                            !        forcing field computation         !
       !                                            ! ---------------------------------------- !

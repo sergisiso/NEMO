@@ -156,6 +156,7 @@ CONTAINS
          IF( iom_use('sflx_rnf_cea') )   CALL iom_put( 'sflx_rnf_cea', rnf_tsc(:,:,jp_sal) * rho0       )   ! output runoff salt flux (g/m2/s)
       ENDIF
       !
+#if ! defined key_RK3
       !                                                ! ---------------------------------------- !
       IF( kt == nit000 ) THEN                          !   set the forcing field at nit000 - 1    !
          !                                             ! ---------------------------------------- !
@@ -184,6 +185,7 @@ CONTAINS
          CALL iom_rstput( kt, nitrst, numrow, 'rnf_sc_b', rnf_tsc(:,:,jp_sal) )
       ENDIF
       !
+#endif
    END SUBROUTINE sbc_rnf
 
 

@@ -314,6 +314,7 @@ CONTAINS
             ENDDO
          ENDIF
 
+#if ! defined key_RK3
          IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
             ! Add asselin part
             DO jn = 1, jpts
@@ -332,6 +333,7 @@ CONTAINS
                END DO
             END DO
          ENDIF
+#endif
          DO jn = 1,jpts
             DO jk = 1, jpkm1
                DO jj = j1, j2
@@ -342,9 +344,11 @@ CONTAINS
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             ts(i1:i2,j1:j2,1:jpkm1,1:jpts,Kbb_a)  = ts(i1:i2,j1:j2,1:jpkm1,1:jpts,Kmm_a)
          ENDIF         
+#endif
       ENDIF
       ! 
    END SUBROUTINE updateTS
@@ -481,6 +485,7 @@ CONTAINS
                       &  (uu_b(ji,jj,Kmm_a) - zpgu(ji,jj) * r1_hu(ji,jj,Kmm_a)) * umask(ji,jj,jk)           
                END DO
                !
+#if ! defined key_RK3
                zpgu(ji,jj) = 0._wp
                DO jk=1,jpkm1
                   zpgu(ji,jj) = zpgu(ji,jj) + e3u(ji,jj,jk,Kbb_a) * uu(ji,jj,jk,Kbb_a)
@@ -490,13 +495,16 @@ CONTAINS
                   uu(ji,jj,jk,Kbb_a) = uu(ji,jj,jk,Kbb_a) + &
                       &  (uu_b(ji,jj,Kbb_a) - zpgu(ji,jj) * r1_hu(ji,jj,Kbb_a)) * umask(ji,jj,jk)           
                END DO
+#endif
                !
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             uu(i1:i2,j1:j2,1:jpkm1,Kbb_a)  = uu(i1:i2,j1:j2,1:jpkm1,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
       ! 
@@ -632,6 +640,7 @@ CONTAINS
                       &  (vv_b(ji,jj,Kmm_a) - zpgv(ji,jj) * r1_hv(ji,jj,Kmm_a)) * vmask(ji,jj,jk)           
                END DO
                !
+#if ! defined key_RK3
                zpgv(ji,jj) = 0._wp
                DO jk=1,jpkm1
                   zpgv(ji,jj) = zpgv(ji,jj) + e3v(ji,jj,jk,Kbb_a) * vv(ji,jj,jk,Kbb_a)
@@ -642,12 +651,15 @@ CONTAINS
                       &  (vv_b(ji,jj,Kbb_a) - zpgv(ji,jj) * r1_hv(ji,jj,Kbb_a)) * vmask(ji,jj,jk)           
                END DO
                !
+#endif
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             vv(i1:i2,j1:j2,1:jpkm1,Kbb_a)  = vv(i1:i2,j1:j2,1:jpkm1,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
       ! 
@@ -705,6 +717,7 @@ CONTAINS
                   &  (uu_b(ji,jj,Kmm_a) - zpgu(ji,jj) * r1_hu(ji,jj,Kmm_a))  * umask(ji,jj,jk)
                END DO
                !
+#if ! defined key_RK3
                zpgu(ji,jj) = 0._wp
                DO jk=1,jpkm1
                   zpgu(ji,jj) = zpgu(ji,jj) + e3u(ji,jj,jk,Kbb_a) * uu(ji,jj,jk,Kbb_a)
@@ -714,13 +727,16 @@ CONTAINS
                   uu(ji,jj,jk,Kbb_a) = uu(ji,jj,jk,Kbb_a) + &
                   &  (uu_b(ji,jj,Kbb_a) - zpgu(ji,jj) * r1_hu(ji,jj,Kbb_a)) * umask(ji,jj,jk)
                END DO
+#endif
                !
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             uu_b(i1:i2,j1:j2,Kbb_a)  = uu_b(i1:i2,j1:j2,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
       !
@@ -777,6 +793,7 @@ CONTAINS
                    &  (vv_b(ji,jj,Kmm_a) - zpgv(ji,jj) * r1_hv(ji,jj,Kmm_a)) * vmask(ji,jj,jk)
                END DO
                !
+#if ! defined key_RK3
                zpgv(ji,jj) = 0._wp
                DO jk=1,jpkm1
                   zpgv(ji,jj) = zpgv(ji,jj) + e3v(ji,jj,jk,Kbb_a) * vv(ji,jj,jk,Kbb_a)
@@ -786,13 +803,16 @@ CONTAINS
                   vv(ji,jj,jk,Kbb_a) = vv(ji,jj,jk,Kbb_a) + &
                       &  (vv_b(ji,jj,Kbb_a) - zpgv(ji,jj) * r1_hv(ji,jj,Kbb_a)) * vmask(ji,jj,jk)
                END DO
+#endif
                !
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             vv_b(i1:i2,j1:j2,Kbb_a)  = vv_b(i1:i2,j1:j2,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
       ! 
@@ -835,9 +855,11 @@ CONTAINS
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             ssh(i1:i2,j1:j2,Kbb_a)  = ssh(i1:i2,j1:j2,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
       !
@@ -1239,12 +1261,14 @@ CONTAINS
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             e3t (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3t (i1:i2,j1:j2,1:jpkm1,Kmm_a)
             e3w (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3w (i1:i2,j1:j2,1:jpkm1,Kmm_a)
             gdepw(i1:i2,j1:j2,1:jpkm1,Kbb_a) = gdepw(i1:i2,j1:j2,1:jpkm1,Kmm_a)
             gdept(i1:i2,j1:j2,1:jpkm1,Kbb_a) = gdept(i1:i2,j1:j2,1:jpkm1,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
       !
@@ -1291,6 +1315,7 @@ CONTAINS
             END DO
          ENDIF
          !
+#if ! defined key_RK3
          ! 1) Updates at BEFORE time step:
          ! -------------------------------
          !
@@ -1328,6 +1353,7 @@ CONTAINS
             END DO
             !
          ENDIF        
+#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------
@@ -1355,12 +1381,14 @@ CONTAINS
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             e3u (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3u (i1:i2,j1:j2,1:jpkm1,Kmm_a)
             e3uw(i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3uw(i1:i2,j1:j2,1:jpkm1,Kmm_a)
             hu   (i1:i2,j1:j2,Kbb_a)         = hu   (i1:i2,j1:j2,Kmm_a)
             r1_hu(i1:i2,j1:j2,Kbb_a)         = r1_hu(i1:i2,j1:j2,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
       !
@@ -1407,6 +1435,7 @@ CONTAINS
             END DO
          ENDIF
          !
+#if ! defined key_RK3
          ! 1) Updates at BEFORE time step:
          ! -------------------------------
          !
@@ -1444,6 +1473,7 @@ CONTAINS
             END DO
             !
          ENDIF        
+#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------
@@ -1471,12 +1501,14 @@ CONTAINS
             END DO
          END DO
          !
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             e3v  (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3v  (i1:i2,j1:j2,1:jpkm1,Kmm_a)
             e3vw (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3vw (i1:i2,j1:j2,1:jpkm1,Kmm_a)
             hv   (i1:i2,j1:j2,Kbb_a)          = hv   (i1:i2,j1:j2,Kmm_a)
             r1_hv(i1:i2,j1:j2,Kbb_a)          = r1_hv(i1:i2,j1:j2,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
       !
@@ -1555,11 +1587,12 @@ CONTAINS
          ! Save "old" array (prior update) for subsequent asselin correction
          ! of prognostic variables
          r3t(i1:i2,j1:j2,Krhs_a) = r3t(i1:i2,j1:j2,Kmm_a)
-
+#if ! defined key_RK3
          IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
             r3t(i1:i2,j1:j2,Kbb_a) =  r3t(i1:i2,j1:j2,Kbb_a) &
                    & + rn_atfp * ( tabres(i1:i2,j1:j2) - r3t(i1:i2,j1:j2,Kmm_a) )
          ENDIF   
+#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------
@@ -1567,9 +1600,11 @@ CONTAINS
          !
          ! 3) Special case for euler startup only:
          ! ---------------------------------------
+#if ! defined key_RK3
          IF  ( (l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             r3t(i1:i2,j1:j2,Kbb_a)  = r3t(i1:i2,j1:j2,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
    END SUBROUTINE update_r3t
@@ -1598,11 +1633,12 @@ CONTAINS
          ! Save "old" array (prior update) for subsequent asselin correction
          ! of prognostic variables
          r3u(i1:i2,j1:j2,Krhs_a) = r3u(i1:i2,j1:j2,Kmm_a)
-
+#if ! defined key_RK3
          IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
             r3u(i1:i2,j1:j2,Kbb_a) =  r3u(i1:i2,j1:j2,Kbb_a) &
                    & + rn_atfp * ( tabres(i1:i2,j1:j2) - r3u(i1:i2,j1:j2,Kmm_a) )
          ENDIF   
+#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------
@@ -1610,9 +1646,11 @@ CONTAINS
          !
          ! 3) Special case for euler startup only:
          ! ---------------------------------------
+#if ! defined key_RK3
          IF  ( (l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             r3u(i1:i2,j1:j2,Kbb_a)  = r3u(i1:i2,j1:j2,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
    END SUBROUTINE update_r3u
@@ -1641,11 +1679,12 @@ CONTAINS
          ! Save "old" array (prior update) for subsequent asselin correction
          ! of prognostic variables
          r3v(i1:i2,j1:j2,Krhs_a) = r3v(i1:i2,j1:j2,Kmm_a)
-
+#if ! defined key_RK3
          IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
             r3v(i1:i2,j1:j2,Kbb_a) =  r3v(i1:i2,j1:j2,Kbb_a) &
                    & + rn_atfp * ( tabres(i1:i2,j1:j2) - r3v(i1:i2,j1:j2,Kmm_a) )
          ENDIF   
+#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------
@@ -1653,9 +1692,11 @@ CONTAINS
          !
          ! 3) Special case for euler startup only:
          ! ---------------------------------------
+#if ! defined key_RK3
          IF  ( (l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             r3v(i1:i2,j1:j2,Kbb_a)  = r3v(i1:i2,j1:j2,Kmm_a)
          ENDIF
+#endif
          !
       ENDIF
    END SUBROUTINE update_r3v
