@@ -196,9 +196,11 @@ CONTAINS
             END DO
             !
          ENDIF
+#if ! defined key_RK3
          IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
             tr(i1:i2,j1:j2,1:jpkm1,1:jptra,Kbb_a)  = tr(i1:i2,j1:j2,1:jpkm1,1:jptra,Kmm_a)
          ENDIF
+#endif
       ENDIF
       !
    END SUBROUTINE updateTRC

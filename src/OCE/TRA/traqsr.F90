@@ -222,7 +222,9 @@ CONTAINS
       !
       IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
          IF( lrst_oce ) THEN     ! write in the ocean restart file
+#if ! defined key_RK3
             CALL iom_rstput( kt, nitrst, numrow, 'qsr_hc_b'   , qsr_hc      )
+#endif
             CALL iom_rstput( kt, nitrst, numrow, 'fraqsr_1lev', fraqsr_1lev )
          ENDIF
       ENDIF
