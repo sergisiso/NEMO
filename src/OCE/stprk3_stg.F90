@@ -23,12 +23,6 @@ MODULE stprk3_stg
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE tramle         ! ML eddy induced transport (tra_adv_mle  routine)
 # if defined key_top
-   USE trc            ! ocean passive tracers variables
-   USE trcadv         ! passive tracers advection      (trc_adv routine)
-   USE trcsms         ! passive tracers source and sink
-   USE trctrp         ! passive tracers transport
-   USE trcsbc         ! passive tracers surface boundary condition !!st WARNING USELESS TO BE REMOVED
-   USE trcbdy         ! passive tracers transport open boundary
    USE trcstp_rk3
 # endif
 # if defined key_agrif
@@ -278,65 +272,8 @@ CONTAINS
       !
 # if defined key_top
       !                       !==  Passive Tracer  ==!
+      CALL trc_stp_rk3( kstg, kstp, Kbb, Kmm, Krhs, Kaa, zFu, zFv, zFw )
       !
-      SELECT CASE( kstg )
-      !                    !-------------------!
-      CASE ( 1 , 2 )       !==  Stage 1 & 2  ==!   stg1:  Kbb = N  ;  Kaa = N+1/3
-         !                 !-------------------!   stg2:  Kbb = N  ;  Kmm = N+1/3  ;  Kaa = N+1/2
-         !
-         IF( kstg == 1 ) THEN
-            CALL trc_stp_start( kstp, Kbb, Kmm, Krhs, Kaa )
-         ENDIF
-         !
-!!st+gm : probably QUICK 
-         IF( .NOT.ln_trcadv_mus .AND. .NOT.ln_trcadv_qck ) THEN
-            !
-            DO jn = 1, jptra
-               tr(:,:,:,jn,Krhs) = 0._wp                              ! set tracer trends to zero !!st ::: required because of tra_adv new loops
-            END DO
-            !                                      !==  advection of passive tracers  ==!
-            rDt_trc = rDt
-            !
-            CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
-            !
-            CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zFu, zFv, zFw ) ! horizontal & vertical advection
-            !
-            !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
-            DO jn = 1, jptra
-               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               ze3Tb = e3t(ji,jj,jk,Kbb) * tr(ji,jj,jk,jn,Kbb )
-               ze3Tr = e3t(ji,jj,jk,Kmm) * tr(ji,jj,jk,jn,Krhs)
-               z1_e3t= 1._wp / e3t(ji,jj,jk, Kaa)
-               tr(ji,jj,jk,jn,Kaa) = ( ze3Tb + rDt * ze3Tr*tmask(ji,jj,jk) ) * z1_e3t
-               END_3D
-            END DO
-            !
-!!st need a lnc lkn at stage 1 & 2 otherwise tr@Kmm will not be usable in trc_adv
-            CALL lbc_lnk( 'stprk3_stg', tr(:,:,:,:,Kaa), 'T', 1._wp )
-
-         ENDIF
-         !                 !---------------!
-      CASE ( 3 )           !==  Stage 3  ==!   add all RHS terms but advection (=> Kbb only)
-         !                 !---------------!
-         !
-         DO jn = 1, jptra
-            tr(:,:,:,jn,Krhs) = 0._wp
-         END DO
-         !                                         !==  advection of passive tracers  ==!
-         rDt_trc = rDt
-         !
-         CALL trc_sms    ( kstp, Kbb, Kmm, Krhs      )       ! tracers: sinks and sources
-         !
-         CALL trc_sbc_RK3( kstp,      Kmm, tr, Krhs, kstg )              ! surface boundary condition
-         !
-         CALL trc_adv    ( kstp, Kbb, Kmm, Kaa, tr, Krhs, zFu, zFv, zFw ) ! horizontal & vertical advection
-         !
-         CALL trc_trp    ( kstp, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers (without advection)
-         !
-         !
-         CALL trc_stp_end( kstp, Kbb, Kmm,       Kaa )
-         !
-      END SELECT
 # endif
 
       !                       !==  T-S Tracers  ==!
@@ -350,7 +287,7 @@ CONTAINS
 
 !===>>>>>> stg1&2:  Verify the necessity of these trends (we may need it as there are in the RHS of dynspg_ts ?)
 !!gm ====>>>>   needed for heat and salt fluxes associated with mass/volume flux
-                        CALL tra_sbc_RK3( kstp,      Kmm, ts, Krhs, kstg )   ! surface boundary condition
+                        CALL tra_sbc_RK3( kstp, Kbb, Kmm, ts, Krhs, kstg )   ! surface boundary condition
 
       IF( ln_isf )      CALL tra_isf    ( kstp,      Kmm, ts, Krhs )   ! ice shelf heat flux
 !!gm

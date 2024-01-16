@@ -224,7 +224,7 @@ CONTAINS
    END SUBROUTINE tra_sbc
     
 
-   SUBROUTINE tra_sbc_RK3 ( kt, Kmm, pts, Krhs, kstg )
+   SUBROUTINE tra_sbc_RK3 ( kt, Kbb, Kmm, pts, Krhs, kstg )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_sbc_RK3  ***
       !!
@@ -245,7 +245,7 @@ CONTAINS
       !! ** Action  : - Update ts(Krhs) with the surface boundary condition trend
       !!              - send trends to trdtra module for further diagnostics(l_trdtra=T)
       !!----------------------------------------------------------------------
-      INTEGER                                  , INTENT(in   ) ::   kt, Kmm, Krhs   ! ocean time-step and time-level indices
+      INTEGER                                  , INTENT(in   ) ::   kt, Kbb, Kmm, Krhs   ! ocean time-step and time-level indices
       INTEGER                                  , INTENT(in   ) ::   kstg            ! RK3 stage index
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) ::   pts             ! active tracers and RHS of tracer Eq.
       !
@@ -292,8 +292,8 @@ CONTAINS
          IF( .NOT.ln_linssh ) THEN           !* only heat and salt fluxes associated with mass fluxes
             DO_2D( 0, 0, 0, 0 )
             z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
-            pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_tem,Kmm) * z1_rho0_e3t
-            pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_sal,Kmm) * z1_rho0_e3t
+            pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_tem,Kbb) * z1_rho0_e3t
+            pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_sal,Kbb) * z1_rho0_e3t
             END_2D
          ENDIF
          !
@@ -303,13 +303,13 @@ CONTAINS
             DO_2D( 0, 0, 0, 0 )
                z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
                pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + (  r1_rcp * qns(ji,jj)   &                                ! non solar heat flux
-                  &                                                +             emp(ji,jj)*pts(ji,jj,1,jp_tem,Kmm)  ) * z1_rho0_e3t  ! add concentration/dilution effect due to constant volume cell
+                  &                                                +             emp(ji,jj)*pts(ji,jj,1,jp_tem,Kbb)  ) * z1_rho0_e3t  ! add concentration/dilution effect due to constant volume cell
                pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) + (           sfx(ji,jj)    &                               ! salt flux due to freezing/melting
-                  &                                                +             emp(ji,jj)*pts(ji,jj,1,jp_sal,Kmm)  ) * z1_rho0_e3t  ! add concentration/dilution effect due to constant volume cell
+                  &                                                +             emp(ji,jj)*pts(ji,jj,1,jp_sal,Kbb)  ) * z1_rho0_e3t  ! add concentration/dilution effect due to constant volume cell
             END_2D
             IF( ntile == 0 .OR. ntile == nijtile ) THEN             ! Do only on the last tile
-               IF( iom_use('emp_x_sst') )   CALL iom_put( "emp_x_sst", emp (:,:) * pts(:,:,1,jp_tem,Kmm) )
-               IF( iom_use('emp_x_sss') )   CALL iom_put( "emp_x_sss", emp (:,:) * pts(:,:,1,jp_sal,Kmm) )
+               IF( iom_use('emp_x_sst') )   CALL iom_put( "emp_x_sst", emp (:,:) * pts(:,:,1,jp_tem,Kbb) )
+               IF( iom_use('emp_x_sss') )   CALL iom_put( "emp_x_sss", emp (:,:) * pts(:,:,1,jp_sal,Kbb) )
             ENDIF
          ELSE
             DO_2D( 0, 0, 0, 0 )
@@ -338,8 +338,8 @@ CONTAINS
       ENDIF
       !
       IF( ntile == 0 .OR. ntile == nijtile )  THEN                ! Do only on the last tile
-         IF( iom_use('rnf_x_sst') )   CALL iom_put( "rnf_x_sst", rnf*pts(:,:,1,jp_tem,Kmm) )   ! runoff term on sst
-         IF( iom_use('rnf_x_sss') )   CALL iom_put( "rnf_x_sss", rnf*pts(:,:,1,jp_sal,Kmm) )   ! runoff term on sss
+         IF( iom_use('rnf_x_sst') )   CALL iom_put( "rnf_x_sst", rnf*pts(:,:,1,jp_tem,Kbb) )   ! runoff term on sst
+         IF( iom_use('rnf_x_sss') )   CALL iom_put( "rnf_x_sss", rnf*pts(:,:,1,jp_sal,Kbb) )   ! runoff term on sss
       ENDIF
 
 #if defined key_asminc
@@ -354,14 +354,14 @@ CONTAINS
          IF( ln_linssh ) THEN
             DO_2D( 0, 0, 0, 0 )
                ztim = ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm)
-               pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + pts(ji,jj,1,jp_tem,Kmm) * ztim
-               pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) + pts(ji,jj,1,jp_sal,Kmm) * ztim
+               pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + pts(ji,jj,1,jp_tem,Kbb) * ztim
+               pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) + pts(ji,jj,1,jp_sal,Kbb) * ztim
             END_2D
          ELSE
             DO_2D( 0, 0, 0, 0 )
                ztim = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1. - ssmask(ji, jj) )
-               pts(ji,jj,:,jp_tem,Krhs) = pts(ji,jj,:,jp_tem,Krhs) + pts(ji,jj,:,jp_tem,Kmm) * ztim
-               pts(ji,jj,:,jp_sal,Krhs) = pts(ji,jj,:,jp_sal,Krhs) + pts(ji,jj,:,jp_sal,Kmm) * ztim
+               pts(ji,jj,:,jp_tem,Krhs) = pts(ji,jj,:,jp_tem,Krhs) + pts(ji,jj,:,jp_tem,Kbb) * ztim
+               pts(ji,jj,:,jp_sal,Krhs) = pts(ji,jj,:,jp_sal,Krhs) + pts(ji,jj,:,jp_sal,Kbb) * ztim
             END_2D
          ENDIF
          !
@@ -373,8 +373,8 @@ CONTAINS
          IF( ntile == 0 .OR. ntile == nijtile )  THEN
             ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
             ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs) - ztrds(:,:,:)
-            CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_nsr, ztrdt )
-            CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_nsr, ztrds )
+            CALL trd_tra( kt, Kbb, Krhs, 'TRA', jp_tem, jptra_nsr, ztrdt )
+            CALL trd_tra( kt, Kbb, Krhs, 'TRA', jp_sal, jptra_nsr, ztrds )
             DEALLOCATE( ztrdt , ztrds )
          ENDIF
       ENDIF

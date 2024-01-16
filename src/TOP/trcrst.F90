@@ -133,6 +133,7 @@ CONTAINS
 #if defined key_RK3
       DO jn = 1, jptra      ! RK3: Before time step
          CALL iom_get( numrtr, jpdom_auto, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kbb) )
+         tr(:,:,:,1:jptra,Kmm) = tr(:,:,:,1:jptra,Kbb)
       END DO
 #else
       DO jn = 1, jptra      ! MLF only : Now time step
@@ -361,8 +362,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT( in ) ::   Kmm, Krhs  ! time level indices
       INTEGER  :: jk, jn
-      REAL(wp) :: ztraf, zmin, zmax, zmean, zdrift
+      REAL(wp) :: zmin, zmax, zmean, zdrift
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zvol
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: z4d
+      REAL(wp), ALLOCATABLE, DIMENSION(:) :: ztraf
       !!----------------------------------------------------------------------
 
       IF( lwp ) THEN
@@ -375,21 +378,30 @@ CONTAINS
          zvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
       END DO
       !
+      ALLOCATE( z4d(jpi,jpj,jpk,jptra), ztraf(jptra) )
+      !
       DO jn = 1, jptra
-         ztraf = glob_sum( 'trcrst', tr(:,:,:,jn,Kmm) * zvol(:,:,:) )
+         z4d(:,:,:,jn) = tr(:,:,:,jn,Kmm) * zvol(:,:,:)
+      ENDDO
+      !
+      ztraf(1:jptra) = glob_sum_vec( 'trcrst', z4d(:,:,:,1:jptra) )
+
+      DO jn = 1, jptra
          zmin  = MINVAL( tr(:,:,:,jn,Kmm), mask= ((tmask*SPREAD(tmask_i,DIM=3,NCOPIES=jpk).NE.0.)) )
          zmax  = MAXVAL( tr(:,:,:,jn,Kmm), mask= ((tmask*SPREAD(tmask_i,DIM=3,NCOPIES=jpk).NE.0.)) )
          IF( lk_mpp ) THEN
             CALL mpp_min( 'trcrst', zmin )      ! min over the global domain
             CALL mpp_max( 'trcrst', zmax )      ! max over the global domain
          END IF
-         zmean  = ztraf / areatot
-         zdrift = ( ( ztraf - trai(jn) ) / ( trai(jn) + 1.e-12 )  ) * 100._wp
+         zmean  = ztraf(jn) / areatot
+         zdrift = ( ( ztraf(jn) - trai(jn) ) / ( trai(jn) + 1.e-12 )  ) * 100._wp
          IF(lwp) WRITE(numout,9000) jn, TRIM( ctrcnm(jn) ), zmean, zmin, zmax, zdrift
       END DO
       IF(lwp) WRITE(numout,*) 
 9000  FORMAT(' tracer nb :',i2,'    name :',a10,'    mean :',e18.10,'    min :',e18.10, &
       &      '    max :',e18.10,'    drift :',e18.10, ' %')
+      !
+      DEALLOCATE( z4d, ztraf )
       !
    END SUBROUTINE trc_rst_stat
 
