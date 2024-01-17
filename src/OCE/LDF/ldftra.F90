@@ -36,7 +36,7 @@ MODULE ldftra
    PRIVATE
    !                  !! * Interface
    INTERFACE ldf_eiv_trp
-      MODULE PROCEDURE ldf_eiv_trp_old, ldf_eiv_trp_RK3
+      MODULE PROCEDURE ldf_eiv_trp_MLF, ldf_eiv_trp_RK3
    END INTERFACE ldf_eiv_trp
    
    PUBLIC   ldf_tra_init   ! called by nemogcm.F90
@@ -323,7 +323,7 @@ CONTAINS
          CASE(  20  )      !== fixed horizontal shape  ==!
             IF(lwp) WRITE(numout,*) '   ==>>>   eddy diffusivity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap or blp case)'
             IF(lwp) WRITE(numout,*) '           using a fixed diffusive velocity = ', rn_Ud,' m/s   and   Ld = Max(e1,e2)'
-            IF(lwp) WRITE(numout,*) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
+            IF(lwp) WRITE(numout,*) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1Â°)'
             CALL ldf_c2d( 'TRA', zUfac      , inn        , ahtu, ahtv )    ! value proportional to scale factor^inn
             !
          CASE(  21  )      !==  time varying 2D field  ==!
@@ -347,7 +347,7 @@ CONTAINS
          CASE(  30  )      !==  fixed 3D shape  ==!
             IF(lwp) WRITE(numout,*) '   ==>>>   eddy diffusivity = F( latitude, longitude, depth )'
             IF(lwp) WRITE(numout,*) '           using a fixed diffusive velocity = ', rn_Ud,' m/s   and   Ld = Max(e1,e2)'
-            IF(lwp) WRITE(numout,*) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
+            IF(lwp) WRITE(numout,*) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1Â°)'
             CALL ldf_c2d( 'TRA', zUfac      , inn        , ahtu, ahtv )    ! surface value proportional to scale factor^inn
             CALL ldf_c1d( 'TRA', ahtu(:,:,1), ahtv(:,:,1), ahtu, ahtv )    ! reduction with depth
             !
@@ -582,7 +582,7 @@ CONTAINS
          CASE(  20  )                        !--  fixed horizontal shape  --!
             IF(lwp) WRITE(numout,*) '   ==>>>   eddy induced velocity coef. = F( e1, e2 )'
             IF(lwp) WRITE(numout,*) '           using a fixed diffusive velocity = ', rn_Ue, ' m/s   and   Le = Max(e1,e2)'
-            IF(lwp) WRITE(numout,*) '           maximum reachable coefficient (at the Equator) = ', zah_max, ' m2/s   for e1=1°)'
+            IF(lwp) WRITE(numout,*) '           maximum reachable coefficient (at the Equator) = ', zah_max, ' m2/s   for e1=1Â°)'
             CALL ldf_c2d( 'TRA', zUfac      , inn        , aeiu, aeiv )    ! value proportional to scale factor^inn
             !
          CASE(  21  )                        !--  time varying 2D field  --!
@@ -720,7 +720,7 @@ CONTAINS
    END SUBROUTINE ldf_eiv
 
    
-   SUBROUTINE ldf_eiv_trp_old( kt, kit000, puu, pvv, pww, Kmm, Krhs, cdtype )
+   SUBROUTINE ldf_eiv_trp_MLF( kt, kit000, puu, pvv, pww, Kmm, Krhs, cdtype )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE ldf_eiv_trp  ***
       !!
@@ -749,9 +749,15 @@ CONTAINS
       INTEGER  ::   ji, jj, jk                 ! dummy loop indices
       REAL(wp) ::   zuwk, zuwk1, zuwi, zuwi1   ! local scalars
       REAL(wp) ::   zvwk, zvwk1, zvwj, zvwj1   !   -      -
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zpsi_uw, zpsi_vw
+      REAL(wp), DIMENSION(T2D(nn_hls),2)      ::   zpsi_uw, zpsi_vw
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrpu, ztrpv
       !!----------------------------------------------------------------------
       !
+      IF( ln_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
+         ALLOCATE( ztrpu(T2D(nn_hls),jpk), ztrpv(T2D(nn_hls),jpk) )
+         ztrpu(:,:,jpk) = 0._wp ; ztrpv(:,:,jpk) = 0._wp
+      ENDIF
+      
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == kit000 )  THEN
             IF(lwp) WRITE(numout,*)
@@ -760,29 +766,44 @@ CONTAINS
          ENDIF
       ENDIF
 
-
-      zpsi_uw(:,:, 1 ) = 0._wp   ;   zpsi_vw(:,:, 1 ) = 0._wp
-      zpsi_uw(:,:,jpk) = 0._wp   ;   zpsi_vw(:,:,jpk) = 0._wp
-      !
-      DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 2, jpkm1 )
-         zpsi_uw(ji,jj,jk) = - r1_4 * e2u(ji,jj) * ( wslpi(ji,jj,jk  ) + wslpi(ji+1,jj,jk) )   &
-            &                                    * ( aeiu (ji,jj,jk-1) + aeiu (ji  ,jj,jk) ) * wumask(ji,jj,jk)
-         zpsi_vw(ji,jj,jk) = - r1_4 * e1v(ji,jj) * ( wslpj(ji,jj,jk  ) + wslpj(ji,jj+1,jk) )   &
-            &                                    * ( aeiv (ji,jj,jk-1) + aeiv (ji,jj  ,jk) ) * wvmask(ji,jj,jk)
-      END_3D
-      !
-      DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-         puu(ji,jj,jk) = puu(ji,jj,jk) - ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji,jj,jk+1) )
-         pvv(ji,jj,jk) = pvv(ji,jj,jk) - ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj,jk+1) )
-      END_3D
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-         pww(ji,jj,jk) = pww(ji,jj,jk) + (  ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj  ,jk) )   &   ! add () for NP repro
-            &                             + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji  ,jj-1,jk) ) )
-      END_3D
+      zpsi_uw(:,:,:) = 0._wp ! surface value = 0
+      zpsi_vw(:,:,:) = 0._wp
+      DO jk = 1, jpkm1
+         !
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            ! value at jk -> swap
+            zpsi_uw(ji,jj,1) = zpsi_uw(ji,jj,2)
+            zpsi_vw(ji,jj,1) = zpsi_vw(ji,jj,2)
+            ! value at jk+1
+            zpsi_uw(ji,jj,2) = - r1_4 * e2u(ji,jj) * ( wslpi(ji,jj,jk+1) + wslpi(ji+1,jj,jk+1) )   &
+               &                                   * ( aeiu (ji,jj,jk  ) + aeiu (ji  ,jj,jk+1) ) * wumask(ji,jj,jk+1)
+            zpsi_vw(ji,jj,2) = - r1_4 * e1v(ji,jj) * ( wslpj(ji,jj,jk+1) + wslpj(ji,jj+1,jk+1) )   &
+               &                                   * ( aeiv (ji,jj,jk  ) + aeiv (ji,jj  ,jk+1) ) * wvmask(ji,jj,jk+1)
+         END_2D
+         !
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            puu(ji,jj,jk) = puu(ji,jj,jk) - ( zpsi_uw(ji,jj,1) - zpsi_uw(ji,jj,2) )
+            pvv(ji,jj,jk) = pvv(ji,jj,jk) - ( zpsi_vw(ji,jj,1) - zpsi_vw(ji,jj,2) )
+         END_2D
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            pww(ji,jj,jk) = pww(ji,jj,jk) + (  ( zpsi_uw(ji,jj,1) - zpsi_uw(ji-1,jj  ,1) )   &   ! add () for NP repro
+               &                             + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji  ,jj-1,1) ) )
+         END_2D
+         !
+         IF( ln_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
+            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+               ztrpu(ji,jj,jk) = zpsi_uw(ji,jj,1)
+               ztrpv(ji,jj,jk) = zpsi_vw(ji,jj,1)
+            END_2D
+         ENDIF
+      ENDDO
       !                              ! diagnose the eddy induced velocity and associated heat transport
-      IF( ln_ldfeiv_dia .AND. cdtype == 'TRA' )   CALL ldf_eiv_dia( zpsi_uw, zpsi_vw, Kmm )
+      IF( ln_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
+         CALL ldf_eiv_dia( ztrpu, ztrpv, Kmm )
+         DEALLOCATE( ztrpu, ztrpv )
+      ENDIF
       !
-    END SUBROUTINE ldf_eiv_trp_old
+    END SUBROUTINE ldf_eiv_trp_MLF
 
     
     SUBROUTINE ldf_eiv_trp_RK3( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
@@ -813,8 +834,14 @@ CONTAINS
       INTEGER  ::   ji, jj, jk                 ! dummy loop indices
       REAL(wp) ::   zuwk, zuwk1, zuwi, zuwi1   ! local scalars
       REAL(wp) ::   zvwk, zvwk1, zvwj, zvwj1   !   -      -
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zpsi_uw, zpsi_vw
+      REAL(wp), DIMENSION(T2D(nn_hls),2)      ::   zpsi_uw, zpsi_vw
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrpu, ztrpv
       !!----------------------------------------------------------------------
+      !
+      IF( ln_ldfeiv_dia ) THEN
+         ALLOCATE( ztrpu(T2D(nn_hls),jpk), ztrpv(T2D(nn_hls),jpk) )
+         ztrpu(:,:,jpk) = 0._wp ; ztrpv(:,:,jpk) = 0._wp
+      ENDIF
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == kit000 )  THEN
@@ -824,27 +851,43 @@ CONTAINS
          ENDIF
       ENDIF
 
-      zpsi_uw(:,:, 1 ) = 0._wp   ;   zpsi_vw(:,:, 1 ) = 0._wp
-      zpsi_uw(:,:,jpk) = 0._wp   ;   zpsi_vw(:,:,jpk) = 0._wp
-      !
-      DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 2, jpkm1 )
-         zpsi_uw(ji,jj,jk) = - r1_4 * e2u(ji,jj) * ( wslpi(ji,jj,jk  ) + wslpi(ji+1,jj,jk) )   &
-            &                                    * ( aeiu (ji,jj,jk-1) + aeiu (ji  ,jj,jk) ) * wumask(ji,jj,jk)
-         zpsi_vw(ji,jj,jk) = - r1_4 * e1v(ji,jj) * ( wslpj(ji,jj,jk  ) + wslpj(ji,jj+1,jk) )   &
-            &                                    * ( aeiv (ji,jj,jk-1) + aeiv (ji,jj  ,jk) ) * wvmask(ji,jj,jk)
-      END_3D
-      !
-      DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-         pFu(ji,jj,jk) = pFu(ji,jj,jk) - ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji,jj,jk+1) )
-         pFv(ji,jj,jk) = pFv(ji,jj,jk) - ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj,jk+1) )
-      END_3D
-      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-         pFw(ji,jj,jk) = pFw(ji,jj,jk) + (  ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj  ,jk) )   &   ! add () for NP repro
-            &                             + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji  ,jj-1,jk) ) )
-      END_3D
+      zpsi_uw(:,:,:) = 0._wp
+      zpsi_vw(:,:,:) = 0._wp
+      DO jk = 1, jpkm1
+         !
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            ! value at jk -> swap
+            zpsi_uw(ji,jj,1) = zpsi_uw(ji,jj,2)
+            zpsi_vw(ji,jj,1) = zpsi_vw(ji,jj,2)
+            ! value at jk+1
+            zpsi_uw(ji,jj,2) = - r1_4 * e2u(ji,jj) * ( wslpi(ji,jj,jk+1) + wslpi(ji+1,jj,jk+1) )   &
+               &                                   * ( aeiu (ji,jj,jk  ) + aeiu (ji  ,jj,jk+1) ) * wumask(ji,jj,jk+1)
+            zpsi_vw(ji,jj,2) = - r1_4 * e1v(ji,jj) * ( wslpj(ji,jj,jk+1) + wslpj(ji,jj+1,jk+1) )   &
+               &                                   * ( aeiv (ji,jj,jk  ) + aeiv (ji,jj  ,jk+1) ) * wvmask(ji,jj,jk+1)
+         END_2D
+         !
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            pFu(ji,jj,jk) = pFu(ji,jj,jk) - ( zpsi_uw(ji,jj,1) - zpsi_uw(ji,jj,2) )
+            pFv(ji,jj,jk) = pFv(ji,jj,jk) - ( zpsi_vw(ji,jj,1) - zpsi_vw(ji,jj,2) )
+         END_2D
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            pFw(ji,jj,jk) = pFw(ji,jj,jk) + (  ( zpsi_uw(ji,jj,1) - zpsi_uw(ji-1,jj  ,1) )   &   ! add () for NP repro
+               &                             + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji  ,jj-1,1) ) )
+         END_2D
+         !
+         IF( ln_ldfeiv_dia ) THEN
+            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+               ztrpu(ji,jj,jk) = zpsi_uw(ji,jj,1)
+               ztrpv(ji,jj,jk) = zpsi_vw(ji,jj,1)
+            END_2D
+         ENDIF
+      ENDDO
       !
       !                              ! diagnose the eddy induced velocity and associated heat transport
-      IF( l_ldfeiv_dia )   CALL ldf_eiv_dia( zpsi_uw, zpsi_vw, Kmm )
+      IF( l_ldfeiv_dia ) THEN
+         CALL ldf_eiv_dia( ztrpu, ztrpv, Kmm )
+         DEALLOCATE( ztrpu, ztrpv )
+      ENDIF
       !
    END SUBROUTINE ldf_eiv_trp_RK3
 
