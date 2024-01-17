@@ -136,23 +136,30 @@ CONTAINS
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp), SAVE :: zztmp
       !
-      REAL(wp), DIMENSION(T2D(0))     ::   zfact       ! Used for vertical structure
-      REAL(wp), DIMENSION(T2D(0),jpk) ::   zReb        ! Turbulence intensity parameter
-      REAL(wp), DIMENSION(T2D(0),jpk) ::   zemx_iwm    ! local energy density available for mixing (W/kg)
-      REAL(wp), DIMENSION(T2D(0),jpk) ::   zav_ratio   ! S/T diffusivity ratio (only for ln_tsdiff=T)
-      REAL(wp), DIMENSION(T2D(0),jpk) ::   zav_wave    ! Internal wave-induced diffusivity
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   z3d  ! 3D workspace used for iom_put 
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   z2d  ! 2D     -      -    -     -
+      REAL(wp), DIMENSION(T2D(0)) ::   zfact1, zfact2, zfact3, zfact4 ! Used for vertical structure
+      REAL(wp), DIMENSION(T2D(0)) ::   zReb        ! Turbulence intensity parameter
+      REAL(wp), DIMENSION(T2D(0)) ::   zemx_iwm    ! local energy density available for mixing (W/kg)
+      REAL(wp), DIMENSION(T2D(0)) ::   zav_ratio   ! S/T diffusivity ratio (only for ln_tsdiff=T)
+      REAL(wp), DIMENSION(T2D(0)) ::   zav_wave    ! Internal wave-induced diffusivity
+      REAL(wp), DIMENSION(T2D(0)) ::   z2d         ! 2D workspace used for iom_put
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztmp0, ztmp1, ztmp2 ! 3D workspace used for iom_put 
       !!----------------------------------------------------------------------
       !
-      !                       !* Initialize variables at 1 & jpk for diagnostics
-      zav_ratio(:,:,1  ) = 1._wp * wmask(T2D(0),1  )  ! important to set it to 1 here
-      zav_ratio(:,:,jpk) = 1._wp * wmask(T2D(0),jpk)
-      IF( iom_use("emix_iwm") ) THEN
-         zemx_iwm(:,:,1) = 0._wp ; zemx_iwm(:,:,jpk) = 0._wp
+      ! Initialize variables at 1 & jpk for diagnostics
+      IF( iom_use( 'bflx_iwm') .OR. iom_use('pcmap_iwm') ) THEN
+         ALLOCATE( ztmp0(T2D(0),jpk) )
+         ztmp0(:,:,1  ) = 0._wp
+         ztmp0(:,:,jpk) = 0._wp
       ENDIF
-      IF( iom_use("av_wave") .OR. sn_cfctl%l_prtctl ) THEN
-         zav_wave(:,:,1) = 0._wp ; zav_wave(:,:,jpk) = 0._wp
+      IF( iom_use('emix_iwm') ) THEN
+         ALLOCATE( ztmp1(T2D(0),jpk) )
+         ztmp1(:,:,1  ) = 0._wp
+         ztmp1(:,:,jpk) = 0._wp
+      ENDIF
+      IF( iom_use('av_ratio') ) THEN
+         ALLOCATE( ztmp2(T2D(0),jpk) )
+         ztmp2(:,:,1  ) = 1._wp * wmask(T2D(0),1)       
+         ztmp2(:,:,jpk) = 1._wp * wmask(T2D(0),jpk)
       ENDIF
       !
       !                       ! ----------------------------- !
@@ -160,138 +167,121 @@ CONTAINS
       !                       ! ----------------------------- !
       !                             
       !                       !* 'cri' component: distribute energy over the time-varying
-      !                       !* ocean depth using an exponential decay from the seafloor.
       DO_2D( 0, 0, 0, 0 )                ! part independent of the level
-         IF( ht(ji,jj,Kmm) /= 0._wp ) THEN ; zfact(ji,jj) = ecri_iwm(ji,jj) * r1_rho0 / ( 1._wp - EXP( -ht(ji,jj,Kmm) * hcri_iwm(ji,jj) ) )
-         ELSE                              ; zfact(ji,jj) = 0._wp
+         IF( ht(ji,jj,Kmm) /= 0._wp ) THEN ; zfact1(ji,jj) = ecri_iwm(ji,jj) * r1_rho0  &
+            &                                                                / ( 1._wp - EXP( -ht(ji,jj,Kmm) * hcri_iwm(ji,jj) ) )
+         ELSE                              ; zfact1(ji,jj) = 0._wp
          ENDIF
       END_2D
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )      ! complete with the level-dependent part
-         zemx_iwm(ji,jj,jk) = zfact(ji,jj) * (  EXP( ( gdept(ji,jj,jk  ,Kmm) - ht(ji,jj,Kmm) ) * hcri_iwm(ji,jj) )   &
-            &                                 - EXP( ( gdept(ji,jj,jk-1,Kmm) - ht(ji,jj,Kmm) ) * hcri_iwm(ji,jj) )   &
-            &                                ) * wmask(ji,jj,jk) / e3w(ji,jj,jk,Kmm)
-      END_3D
-                               !* 'bot' component: distribute energy over the time-varying
-                               !* ocean depth using an algebraic decay above the seafloor.
-
+      !                       !* 'bot' component: distribute energy over the time-varying
       DO_2D( 0, 0, 0, 0 )               ! part independent of the level
-         IF( ht(ji,jj,Kmm) /= 0._wp ) THEN ; zfact(ji,jj) = ebot_iwm(ji,jj) * ( 1._wp +  hbot_iwm(ji,jj) / ht(ji,jj,Kmm)  ) * r1_rho0
-         ELSE                              ; zfact(ji,jj) = 0._wp
+         IF( ht(ji,jj,Kmm) /= 0._wp ) THEN ; zfact2(ji,jj) = ebot_iwm(ji,jj) * ( 1._wp +  hbot_iwm(ji,jj) / ht(ji,jj,Kmm) ) * r1_rho0
+         ELSE                              ; zfact2(ji,jj) = 0._wp
          ENDIF
       END_2D
-
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! complete with the level-dependent part
-         zemx_iwm(ji,jj,jk) = zemx_iwm(ji,jj,jk) +                                                                           & 
-            &                 zfact(ji,jj) * (  1._wp / ( 1._wp + ( ht(ji,jj,Kmm) - gdept(ji,jj,jk  ,Kmm) ) / hbot_iwm(ji,jj) )  &
-            &                                 - 1._wp / ( 1._wp + ( ht(ji,jj,Kmm) - gdept(ji,jj,jk-1,Kmm) ) / hbot_iwm(ji,jj) )  &
-            &                                ) * wmask(ji,jj,jk) / e3w(ji,jj,jk,Kmm)
-      END_3D
-
-                               !* 'nsq' component: distribute energy over the time-varying 
-                               !* ocean depth as proportional to rn2
-      DO_2D( 0, 0, 0, 0 )
-         zfact(ji,jj) = 0._wp
-      END_2D
+      !                       !* 'nsq' and 'sho' components: distribute energy over the time-varying 
+      zfact3(:,:) = 0._wp
+      zfact4(:,:) = 0._wp
       DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! part independent of the level
-         zfact(ji,jj) = zfact(ji,jj) + e3w(ji,jj,jk,Kmm) * MAX( 0._wp, rn2(ji,jj,jk) )
+         zfact3(ji,jj) = zfact3(ji,jj) + e3w(ji,jj,jk,Kmm) *       MAX( 0._wp, rn2(ji,jj,jk) )
+         zfact4(ji,jj) = zfact4(ji,jj) + e3w(ji,jj,jk,Kmm) * SQRT( MAX( 0._wp, rn2(ji,jj,jk) ) )
       END_3D
-      !
       DO_2D( 0, 0, 0, 0 )
-         IF( zfact(ji,jj) /= 0._wp )   zfact(ji,jj) = ensq_iwm(ji,jj) * r1_rho0 / zfact(ji,jj)
+         IF( zfact3(ji,jj) /= 0._wp )   zfact3(ji,jj) = ensq_iwm(ji,jj) * r1_rho0 / zfact3(ji,jj)
+         IF( zfact4(ji,jj) /= 0._wp )   zfact4(ji,jj) = esho_iwm(ji,jj) * r1_rho0 / zfact4(ji,jj)
       END_2D
-      !
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! complete with the level-dependent part
-         zemx_iwm(ji,jj,jk) = zemx_iwm(ji,jj,jk) + zfact(ji,jj) * MAX( 0._wp, rn2(ji,jj,jk) )
-      END_3D
 
-                               !* 'sho' component: distribute energy over the time-varying 
-                               !* ocean depth as proportional to sqrt(rn2)
-      DO_2D( 0, 0, 0, 0 )
-         zfact(ji,jj) = 0._wp
-      END_2D
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! part independent of the level
-         zfact(ji,jj) = zfact(ji,jj) + e3w(ji,jj,jk,Kmm) * SQRT( MAX( 0._wp, rn2(ji,jj,jk) ) )
-      END_3D
-      !
-      DO_2D( 0, 0, 0, 0 )
-         IF( zfact(ji,jj) /= 0._wp )   zfact(ji,jj) = esho_iwm(ji,jj) * r1_rho0 / zfact(ji,jj)
-      END_2D
-      !
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! complete with the level-dependent part
-         zemx_iwm(ji,jj,jk) = zemx_iwm(ji,jj,jk) + zfact(ji,jj) * SQRT( MAX( 0._wp, rn2(ji,jj,jk) ) )
-      END_3D
+      
+      DO jk = 2, jpkm1     ! complete with the level-dependent part
+         
+         DO_2D( 0, 0, 0, 0 ) 
+            !                          !* 'cri' component: distribute energy over the time-varying
+            !                          !* ocean depth using an exponential decay from the seafloor.
+            zemx_iwm(ji,jj) = ( zfact1(ji,jj) * (  EXP( ( gdept(ji,jj,jk  ,Kmm) - ht(ji,jj,Kmm) ) * hcri_iwm(ji,jj) )   &
+               &                                 - EXP( ( gdept(ji,jj,jk-1,Kmm) - ht(ji,jj,Kmm) ) * hcri_iwm(ji,jj) ) ) &
+               !                       !* 'bot' component: distribute energy over the time-varying
+               !                       !* ocean depth using an algebraic decay above the seafloor.
+               &              + zfact2(ji,jj) * ( 1._wp / ( 1._wp + ( ht(ji,jj,Kmm) - gdept(ji,jj,jk  ,Kmm) ) / hbot_iwm(ji,jj) )   &
+               &                                 -1._wp / ( 1._wp + ( ht(ji,jj,Kmm) - gdept(ji,jj,jk-1,Kmm) ) / hbot_iwm(ji,jj) ) ) &
+               &              ) * wmask(ji,jj,jk) / e3w(ji,jj,jk,Kmm) &
+               !                       !* 'nsq' component: distribute energy over the time-varying 
+               !                       !* ocean depth as proportional to rn2
+               &              + zfact3(ji,jj) *       MAX( 0._wp, rn2(ji,jj,jk) ) &
+               !                       !* 'sho' component: distribute energy over the time-varying 
+               !                       !* ocean depth as proportional to sqrt(rn2)
+               &              + zfact4(ji,jj) * SQRT( MAX( 0._wp, rn2(ji,jj,jk) ) )
+            !
+            ! Calculate turbulence intensity parameter Reb
+            zReb(ji,jj) = zemx_iwm(ji,jj) / MAX( 1.e-20_wp, rnu * rn2(ji,jj,jk) )
+            ! Define internal wave-induced diffusivity
+            zav_wave(ji,jj) = zReb(ji,jj) * r1_6 * rnu  ! This corresponds to a constant mixing efficiency of 1/6
+         END_2D
+         !
+         IF( ln_mevar ) THEN    ! Variable mixing efficiency case : modify zav_wave in the
+            DO_2D( 0, 0, 0, 0 ) ! energetic (Reb > 480) and buoyancy-controlled (Reb <10.224) regimes
+               IF( zReb(ji,jj) > 480.00_wp ) THEN
+                  zav_wave(ji,jj) = 3.6515_wp  * rnu                * SQRT( MAX( 0._wp, zReb(ji,jj) ) )
+               ELSEIF( zReb(ji,jj) < 10.224_wp ) THEN
+                  zav_wave(ji,jj) = 0.052125_wp * rnu * zReb(ji,jj) * SQRT( MAX( 0._wp, zReb(ji,jj) ) )
+               ENDIF
+            END_2D
+         ENDIF
+         !
+         DO_2D( 0, 0, 0, 0 )    ! Bound diffusivity by molecular value and 100 cm2/s
+            zav_wave(ji,jj) = MIN( MAX( 1.4e-7_wp, zav_wave(ji,jj) ), 1.e-2_wp ) * wmask(ji,jj,jk)
+         END_2D
+         !
+         !                          ! ----------------------- !
+         !                          !   Update  mixing coefs  !                          
+         !                          ! ----------------------- !
+         !
+         IF( ln_tsdiff ) THEN                !* Option for differential mixing of salinity and temperature
+            DO_2D( 0, 0, 0, 0 ) ! Calculate S/T diffusivity ratio as a function of Reb (else it is set to 1)
+               zav_ratio(ji,jj) = ( 0.505_wp + &
+                  &                 0.495_wp * TANH( 0.92_wp * ( LOG10( MAX( 1.e-20, zReb(ji,jj) * 5._wp * r1_6 ) ) - 0.60_wp ) ) &
+                  &               ) * wmask(ji,jj,jk)
+            END_2D
+         ELSE
+            DO_2D( 0, 0, 0, 0 )
+               zav_ratio(ji,jj) = 1._wp * wmask(ji,jj,jk)
+            END_2D
+         ENDIF
+         !
+         DO_2D( 0, 0, 0, 0 ) !* update momentum & tracer diffusivity with wave-driven mixing
+            p_avs(ji,jj,jk) = p_avs(ji,jj,jk) + zav_wave(ji,jj) * zav_ratio(ji,jj)
+            p_avt(ji,jj,jk) = p_avt(ji,jj,jk) + zav_wave(ji,jj)
+            p_avm(ji,jj,jk) = p_avm(ji,jj,jk) + zav_wave(ji,jj)
+         END_2D
 
-      ! Calculate turbulence intensity parameter Reb
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-         zReb(ji,jj,jk) = zemx_iwm(ji,jj,jk) / MAX( 1.e-20_wp, rnu * rn2(ji,jj,jk) )
-      END_3D
-      !
-      ! Define internal wave-induced diffusivity
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-         zav_wave(ji,jj,jk) = zReb(ji,jj,jk) * r1_6 * rnu  ! This corresponds to a constant mixing efficiency of 1/6
-      END_3D
-      !
-      IF( ln_mevar ) THEN                                          ! Variable mixing efficiency case : modify zav_wave in the
-         DO_3D( 0, 0, 0, 0, 2, jpkm1 ) ! energetic (Reb > 480) and buoyancy-controlled (Reb <10.224) regimes
-            IF( zReb(ji,jj,jk) > 480.00_wp ) THEN
-               zav_wave(ji,jj,jk) = 3.6515_wp * rnu * SQRT( MAX( 0._wp, zReb(ji,jj,jk) ) )
-            ELSEIF( zReb(ji,jj,jk) < 10.224_wp ) THEN
-               zav_wave(ji,jj,jk) = 0.052125_wp * rnu * zReb(ji,jj,jk) * SQRT( MAX( 0._wp, zReb(ji,jj,jk) ) )
-            ENDIF
-         END_3D
-      ENDIF
-      !
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )    ! Bound diffusivity by molecular value and 100 cm2/s
-         zav_wave(ji,jj,jk) = MIN( MAX( 1.4e-7_wp, zav_wave(ji,jj,jk) ), 1.e-2_wp ) * wmask(ji,jj,jk)
-      END_3D
-      !
-      !                          ! ----------------------- !
-      !                          !   Update  mixing coefs  !                          
-      !                          ! ----------------------- !
-      !
-      IF( ln_tsdiff ) THEN                !* Option for differential mixing of salinity and temperature
-         DO_3D( 0, 0, 0, 0, 2, jpkm1 ) ! Calculate S/T diffusivity ratio as a function of Reb (else it is set to 1)
-            zav_ratio(ji,jj,jk) = ( 0.505_wp + &
-               &                    0.495_wp * TANH( 0.92_wp * ( LOG10( MAX( 1.e-20, zReb(ji,jj,jk) * 5._wp * r1_6 ) ) - 0.60_wp ) ) &
-               &                  ) * wmask(ji,jj,jk)
-         END_3D
-      ELSE
+         ! record jk for outputs
+         IF( iom_use( 'bflx_iwm') .OR. iom_use('pcmap_iwm') )   ztmp0(:,:,jk) = zav_wave (:,:)
+         IF( iom_use('emix_iwm') )                              ztmp1(:,:,jk) = zemx_iwm (:,:)
+         IF( iom_use('av_ratio') )                              ztmp2(:,:,jk) = zav_ratio(:,:)        
+         
+      ENDDO
+
+      ! outputs
+      IF( iom_use('av_wave' ) )   CALL iom_put( "av_wave" , ztmp0 )
+      IF( iom_use('emix_iwm') )   CALL iom_put( "emix_iwm", ztmp1 )
+      IF( iom_use('av_ratio') )   CALL iom_put( "av_ratio", ztmp2 )
+
+      !* output useful diagnostics: Kz*N^2 , 
+      !  vertical integral of rho0 * Kz * N^2 , energy density (zemx_iwm)
+      IF( iom_use( 'bflx_iwm') .OR. iom_use('pcmap_iwm') ) THEN
+         z2d(:,:) = 0._wp      
          DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-            zav_ratio(ji,jj,jk) = 1._wp * wmask(ji,jj,jk)
+            ztmp0(ji,jj,jk) = MAX( 0._wp, rn2(ji,jj,jk) ) * ztmp0(ji,jj,jk)
+            z2d(ji,jj) = z2d(ji,jj) + rho0 * e3w(ji,jj,jk,Kmm) * ztmp0(ji,jj,jk) * wmask(ji,jj,jk)
          END_3D
+         CALL iom_put(  "bflx_iwm", ztmp0 )
+         CALL iom_put( "pcmap_iwm", z2d   )
       ENDIF
-      CALL iom_put( "av_ratio", zav_ratio )
       !
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 ) !* update momentum & tracer diffusivity with wave-driven mixing
-         p_avs(ji,jj,jk) = p_avs(ji,jj,jk) + zav_wave(ji,jj,jk) * zav_ratio(ji,jj,jk)
-         p_avt(ji,jj,jk) = p_avt(ji,jj,jk) + zav_wave(ji,jj,jk)
-         p_avm(ji,jj,jk) = p_avm(ji,jj,jk) + zav_wave(ji,jj,jk)
-      END_3D
-      !                             !* output internal wave-driven mixing coefficient
-      CALL iom_put( "av_wave", zav_wave )
-                                    !* output useful diagnostics: Kz*N^2 , 
-                                    !  vertical integral of rho0 * Kz * N^2 , energy density (zemx_iwm)
-      IF( iom_use("bflx_iwm") .OR. iom_use("pcmap_iwm") ) THEN
-         ALLOCATE( z2d(T2D(0)), z3d(T2D(0),jpk) )
-         ! Initialise 1 & jpk for diagnostics
-         z2d(:,:) = 0._wp ; z3d(:,:,1) = 0._wp ; z3d(:,:,jpk) = 0._wp
-
-         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-            z3d(ji,jj,jk) = MAX( 0._wp, rn2(ji,jj,jk) ) * zav_wave(ji,jj,jk)
-            z2d(ji,jj) = z2d(ji,jj) + rho0 * e3w(ji,jj,jk,Kmm) * z3d(ji,jj,jk) * wmask(ji,jj,jk)
-         END_3D
-         CALL iom_put(  "bflx_iwm", z3d )
-         CALL iom_put( "pcmap_iwm", z2d )
-         DEALLOCATE( z2d , z3d )
-      ENDIF
-      CALL iom_put( "emix_iwm", zemx_iwm )
-
-      !
-      IF( kt == nit000 ) THEN        !* Control print at first time-step: diagnose the energy consumed by zav_wave
+      !* Control print at first time-step: diagnose the energy consumed by zav_wave
+      IF( kt == nit000 .AND. ( iom_use( 'bflx_iwm') .OR. iom_use('pcmap_iwm') ) ) THEN
          IF( .NOT. l_istiled .OR. ntile == 1 ) zztmp = 0._wp                    ! Do only on the first tile
          DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-            zztmp = zztmp + e3w(ji,jj,jk,Kmm) * e1e2t(ji,jj)   &
-               &          * MAX( 0._wp, rn2(ji,jj,jk) ) * zav_wave(ji,jj,jk) * wmask(ji,jj,jk) * smask0_i(ji,jj)
+            zztmp = zztmp + e3w(ji,jj,jk,Kmm) * e1e2t(ji,jj) * ztmp0(ji,jj,jk) * wmask(ji,jj,jk) * smask0_i(ji,jj)
          END_3D
 
          IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
@@ -308,7 +298,11 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl(tab3d_1=zav_wave , clinfo1=' iwm - av_wave: ', tab3d_2=p_avt, clinfo2=' avt: ')
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl(tab3d_1=ztmp0 , clinfo1=' iwm - N2*av_wave: ', tab3d_2=p_avt, clinfo2=' avt: ')
+      !
+      IF( iom_use( 'bflx_iwm') .OR. iom_use('pcmap_iwm') )   DEALLOCATE( ztmp0 )
+      IF( iom_use('emix_iwm') )                              DEALLOCATE( ztmp1 )
+      IF( iom_use('av_ratio') )                              DEALLOCATE( ztmp2 )
       !
    END SUBROUTINE zdf_iwm
 

@@ -628,7 +628,7 @@ that are available in the tidal-forcing implementation (see
     <field id="aeiu_3d"      long_name=" 3D u-EIV coefficient"                     unit="m2/s"         grid_ref="grid_U_3D" />
 
     <!-- variables available with MLE (ln_mle=T) -->
-    <field id="psiu_mle"     long_name="MLE streamfunction along i-axis"           unit="m3/s"         grid_ref="grid_U_3D" />
+    <field id="psiu_mle"     long_name="MLE streamfunction along i-axis"           unit="m3/s"         grid_ref="grid_U_3D_inner" />
 
     <!-- uoce_eiv: available EIV (ln_ldfeiv=T and ln_ldfeiv_dia=T) -->
     <field id="uoce_eiv"      long_name="EIV ocean current along i-axis"            standard_name="bolus_sea_water_x_velocity"                     unit="m/s"   grid_ref="grid_U_3D_inner" />
@@ -684,7 +684,7 @@ that are available in the tidal-forcing implementation (see
     <field id="aeiv_3d"      long_name=" 3D v-EIV coefficient"                       unit="m2/s"               grid_ref="grid_V_3D" />
 
     <!-- variables available with MLE (ln_mle=T) -->
-    <field id="psiv_mle"     long_name="MLE streamfunction along j-axis"             unit="m3/s"               grid_ref="grid_V_3D" />
+    <field id="psiv_mle"     long_name="MLE streamfunction along j-axis"             unit="m3/s"               grid_ref="grid_V_3D_inner" />
 
     <!-- voce_eiv: available EIV (ln_ldfeiv=T and ln_ldfeiv_dia=T)  -->
     <field id="voce_eiv"      long_name="EIV ocean current along j-axis"           standard_name="bolus_sea_water_y_velocity"                     unit="m/s"  grid_ref="grid_V_3D_inner" />

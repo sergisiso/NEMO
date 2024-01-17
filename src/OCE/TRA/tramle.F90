@@ -28,7 +28,7 @@ MODULE tramle
    PRIVATE
    !                  !! * Interface
    INTERFACE tra_mle_trp
-      MODULE PROCEDURE tra_mle_trp_old, tra_mle_trp_RK3
+      MODULE PROCEDURE tra_mle_trp_MLF, tra_mle_trp_RK3
    END INTERFACE tra_mle_trp
 
    PUBLIC   tra_mle_trp        ! routine called in traadv.F90
@@ -93,15 +93,23 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pFv         ! out: same 3  transport components
       REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pFw         !   increased by the MLE induced transport
       !
-      INTEGER  ::   ji, jj, jk          ! dummy loop indices
-      INTEGER  ::   ii, ij, ik, ikmax   ! local integers
-      REAL(wp) ::   zcuw, zmuw, zc      ! local scalar
-      REAL(wp) ::   zcvw, zmvw          !   -      -
-      INTEGER , DIMENSION(T2D(nn_hls))     :: inml_mle
-      REAL(wp), DIMENSION(T2D(nn_hls))     :: zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk) :: zpsi_uw, zpsi_vw
+      INTEGER  ::   ji, jj, jk, ik           ! dummy loop indices
+      INTEGER  ::   ii, ij, jkk, ikmax       ! local integers
+      REAL(wp) ::   zcuw, zmuw, zc           ! local scalar
+      REAL(wp) ::   zcvw, zmvw               !   -      -
+      LOGICAL  ::   ll_output
+      INTEGER , DIMENSION(T2D(nn_hls))        ::   inml_mle
+      REAL(wp), DIMENSION(T2D(nn_hls))        ::   zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
+      REAL(wp), DIMENSION(T2D(nn_hls),2)      ::   zpsi_uw, zpsi_vw
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zstreamu, zstreamv
       !!----------------------------------------------------------------------
       !
+      IF( iom_use('psiu_mle') .OR. iom_use('psiv_mle') ) THEN
+         ll_output = .TRUE. 
+         ALLOCATE( zstreamu(T2D(0),jpk), zstreamv(T2D(0),jpk) )
+      ELSE
+         ll_output = .FALSE.
+      ENDIF
       !
       IF(ln_osm_mle.and.ln_zdfosm) THEN
          ikmax = MIN( MAXVAL( mld_prof(:,:) ), jpkm1 )                  ! max level of the computation
@@ -228,66 +236,77 @@ CONTAINS
          ENDIF
          !
       ENDIF  ! end of ln_osm_mle conditional
-    !                                      !==  structure function value at uw- and vw-points  ==!
-    DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-       zhu(ji,jj) = 1._wp / MAX(zhu(ji,jj), rsmall)                   ! hu --> 1/hu
-       zhv(ji,jj) = 1._wp / MAX(zhv(ji,jj), rsmall) 
-    END_2D
-    !
-    zpsi_uw(:,:,:) = 0._wp
-    zpsi_vw(:,:,:) = 0._wp
-    !
-      DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 2, ikmax )                ! start from 2 : surface value = 0
-      
-         zcuw = 1._wp - ( gdepw(ji+1,jj,jk,Kmm) + gdepw(ji,jj,jk,Kmm) ) * zhu(ji,jj)
-         zcvw = 1._wp - ( gdepw(ji,jj+1,jk,Kmm) + gdepw(ji,jj,jk,Kmm) ) * zhv(ji,jj)
-         zcuw = zcuw * zcuw
-         zcvw = zcvw * zcvw
-         zmuw = MAX(  0._wp , ( 1._wp - zcuw ) * ( 1._wp + r5_21 * zcuw )  )
-         zmvw = MAX(  0._wp , ( 1._wp - zcvw ) * ( 1._wp + r5_21 * zcvw )  )
-         !
-         zpsi_uw(ji,jj,jk) = zpsim_u(ji,jj) * zmuw * wumask(ji,jj,jk) * wumask(ji,jj,1)
-         zpsi_vw(ji,jj,jk) = zpsim_v(ji,jj) * zmvw * wvmask(ji,jj,jk) * wvmask(ji,jj,1)
-      END_3D
+      !                                      !==  structure function value at uw- and vw-points  ==!
+      DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+         zhu(ji,jj) = 1._wp / MAX(zhu(ji,jj), rsmall)                   ! hu --> 1/hu
+         zhv(ji,jj) = 1._wp / MAX(zhv(ji,jj), rsmall) 
+      END_2D
       !
-      !                                      !==  transport increased by the MLE induced transport ==!
+      zpsi_uw(:,:,:) = 0._wp   ! surface value = 0
+      zpsi_vw(:,:,:) = 0._wp
       DO jk = 1, ikmax
+         !
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            pFu(ji,jj,jk) = pFu(ji,jj,jk) + ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji,jj,jk+1) )         ! add () for NO repro
-            pFv(ji,jj,jk) = pFv(ji,jj,jk) + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj,jk+1) )
+            ! value at jk -> swap
+            zpsi_uw(ji,jj,1) =  zpsi_uw(ji,jj,2)
+            zpsi_vw(ji,jj,1) =  zpsi_vw(ji,jj,2)
+            !
+            ! value at jk+1
+            zcuw = 1._wp - ( gdepw(ji+1,jj  ,jk+1,Kmm) + gdepw(ji,jj,jk+1,Kmm) ) * zhu(ji,jj)
+            zcvw = 1._wp - ( gdepw(ji  ,jj+1,jk+1,Kmm) + gdepw(ji,jj,jk+1,Kmm) ) * zhv(ji,jj)
+            zcuw = zcuw * zcuw
+            zcvw = zcvw * zcvw
+            zmuw = MAX(  0._wp , ( 1._wp - zcuw ) * ( 1._wp + r5_21 * zcuw )  )
+            zmvw = MAX(  0._wp , ( 1._wp - zcvw ) * ( 1._wp + r5_21 * zcvw )  )
+            !
+            zpsi_uw(ji,jj,2) = zpsim_u(ji,jj) * zmuw * wumask(ji,jj,jk+1) * wumask(ji,jj,1)
+            zpsi_vw(ji,jj,2) = zpsim_v(ji,jj) * zmvw * wvmask(ji,jj,jk+1) * wvmask(ji,jj,1)
+            !
+         END_2D
+         !                                      !==  transport increased by the MLE induced transport ==!
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            pFu(ji,jj,jk) = pFu(ji,jj,jk) + ( zpsi_uw(ji,jj,1) - zpsi_uw(ji,jj,2) )         ! add () for NO repro
+            pFv(ji,jj,jk) = pFv(ji,jj,jk) + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji,jj,2) )
          END_2D
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            pFw(ji,jj,jk) = pFw(ji,jj,jk) - ( ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj,jk) )   &   ! add () for NO repro
-               &                            + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj-1,jk) ) ) * wmask(ji,jj,1)
+            pFw(ji,jj,jk) = pFw(ji,jj,jk) - ( ( zpsi_uw(ji,jj,1) - zpsi_uw(ji-1,jj  ,1) )   &   ! add () for NO repro
+               &                            + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji  ,jj-1,1) ) ) * wmask(ji,jj,1)
          END_2D
-      END DO
-
          !
-         IF (ln_osm_mle.and.ln_zdfosm) THEN
+         IF( ll_output ) THEN
+            ! divide by cross distance to give streamfunction with dimensions m^2/s
             DO_2D( 0, 0, 0, 0 )
-               zLf_NH(ji,jj) = SQRT( rb_c * hmle(ji,jj) ) * r1_ft(ji,jj)      ! Lf = N H / f
-            END_2D
-         ELSE
-            DO_2D( 0, 0, 0, 0 )
-               zLf_NH(ji,jj) = SQRT( rb_c * zmld(ji,jj) ) * r1_ft(ji,jj)      ! Lf = N H / f
+               zstreamu(ji,jj,jk) = zpsi_uw(ji,jj,1) * r1_e2u(ji,jj)
+               zstreamv(ji,jj,jk) = zpsi_vw(ji,jj,1) * r1_e1v(ji,jj)
             END_2D
          ENDIF
          !
-         CALL iom_put( "Lf_NHpf" , zLf_NH  )    ! Lf = N H / f
-         !
-         ! divide by cross distance to give streamfunction with dimensions m^2/s
-         DO_3D( 0, 0, 0, 0, 1, ikmax+1 )
-            zpsi_uw(ji,jj,jk) = zpsi_uw(ji,jj,jk) * r1_e2u(ji,jj)
-            zpsi_vw(ji,jj,jk) = zpsi_vw(ji,jj,jk) * r1_e1v(ji,jj)
-         END_3D
-         CALL iom_put( "psiu_mle", zpsi_uw )    ! i-mle streamfunction
-         CALL iom_put( "psiv_mle", zpsi_vw )    ! j-mle streamfunction
-
+      ENDDO
+      !
+      IF( ll_output ) THEN
+         zstreamu(:,:,ikmax+1:jpk) = 0._wp
+         zstreamv(:,:,ikmax+1:jpk) = 0._wp
+         CALL iom_put( "psiu_mle", zstreamu )    ! i-mle streamfunction
+         CALL iom_put( "psiv_mle", zstreamv )    ! j-mle streamfunction
+         DEALLOCATE( zstreamu, zstreamv )
+      ENDIF
+      !
+      IF (ln_osm_mle.AND.ln_zdfosm) THEN
+         DO_2D( 0, 0, 0, 0 )
+            zLf_NH(ji,jj) = SQRT( rb_c * hmle(ji,jj) ) * r1_ft(ji,jj)      ! Lf = N H / f
+         END_2D
+      ELSE
+         DO_2D( 0, 0, 0, 0 )
+            zLf_NH(ji,jj) = SQRT( rb_c * zmld(ji,jj) ) * r1_ft(ji,jj)      ! Lf = N H / f
+         END_2D
+      ENDIF
+      !
+      CALL iom_put( "Lf_NHpf" , zLf_NH  )    ! Lf = N H / f
       !
    END SUBROUTINE tra_mle_trp_RK3
 
    
-   SUBROUTINE tra_mle_trp_old( kt, pu, pv, pw, Kmm, kit000, cdtype )
+   SUBROUTINE tra_mle_trp_MLF( kt, pu, pv, pw, Kmm, kit000, cdtype )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_mle_trp  ***
       !!
@@ -318,14 +337,22 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pw         !   increased by the MLE induced transport
       !
       INTEGER  ::   ji, jj, jk          ! dummy loop indices
-      INTEGER  ::   ii, ij, ik, ikmax   ! local integers
+      INTEGER  ::   ii, ij, ikmax       ! local integers
       REAL(wp) ::   zcuw, zmuw, zc      ! local scalar
       REAL(wp) ::   zcvw, zmvw          !   -      -
-      INTEGER , DIMENSION(T2D(nn_hls))     :: inml_mle
-      REAL(wp), DIMENSION(T2D(nn_hls))     :: zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk) :: zpsi_uw, zpsi_vw
+      LOGICAL  ::   ll_output
+      INTEGER , DIMENSION(T2D(nn_hls))        ::   inml_mle
+      REAL(wp), DIMENSION(T2D(nn_hls))        ::   zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
+      REAL(wp), DIMENSION(T2D(nn_hls),2)      ::   zpsi_uw, zpsi_vw
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zstreamu, zstreamv
       !!----------------------------------------------------------------------
       !
+      IF( cdtype == 'TRA' .AND. (iom_use('psiu_mle') .OR. iom_use('psiv_mle')) ) THEN
+         ll_output = .TRUE. 
+         ALLOCATE( zstreamu(T2D(0),jpk), zstreamv(T2D(0),jpk) )
+      ELSE
+         ll_output = .FALSE.
+      ENDIF
       !
       IF(ln_osm_mle.and.ln_zdfosm) THEN
          ikmax = MIN( MAXVAL( mld_prof(:,:) ), jpkm1 )                  ! max level of the computation
@@ -452,43 +479,64 @@ CONTAINS
          ENDIF
          !
       ENDIF  ! end of ln_osm_mle conditional
-    !                                      !==  structure function value at uw- and vw-points  ==!
-    DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-       zhu(ji,jj) = 1._wp / MAX(zhu(ji,jj), rsmall)                   ! hu --> 1/hu
-       zhv(ji,jj) = 1._wp / MAX(zhv(ji,jj), rsmall) 
-    END_2D
-    !
-    zpsi_uw(:,:,:) = 0._wp
-    zpsi_vw(:,:,:) = 0._wp
-    !
-      DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 2, ikmax )                ! start from 2 : surface value = 0
-      
-         zcuw = 1._wp - ( gdepw(ji+1,jj,jk,Kmm) + gdepw(ji,jj,jk,Kmm) ) * zhu(ji,jj)
-         zcvw = 1._wp - ( gdepw(ji,jj+1,jk,Kmm) + gdepw(ji,jj,jk,Kmm) ) * zhv(ji,jj)
-         zcuw = zcuw * zcuw
-         zcvw = zcvw * zcvw
-         zmuw = MAX(  0._wp , ( 1._wp - zcuw ) * ( 1._wp + r5_21 * zcuw )  )
-         zmvw = MAX(  0._wp , ( 1._wp - zcvw ) * ( 1._wp + r5_21 * zcvw )  )
-         !
-         zpsi_uw(ji,jj,jk) = zpsim_u(ji,jj) * zmuw * wumask(ji,jj,jk) * wumask(ji,jj,1)
-         zpsi_vw(ji,jj,jk) = zpsim_v(ji,jj) * zmvw * wvmask(ji,jj,jk) * wvmask(ji,jj,1)
-      END_3D
+      !                                      !==  structure function value at uw- and vw-points  ==!
+      DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+         zhu(ji,jj) = 1._wp / MAX(zhu(ji,jj), rsmall)                   ! hu --> 1/hu
+         zhv(ji,jj) = 1._wp / MAX(zhv(ji,jj), rsmall) 
+      END_2D
       !
-      !                                      !==  transport increased by the MLE induced transport ==!
+      zpsi_uw(:,:,:) = 0._wp   ! surface value = 0
+      zpsi_vw(:,:,:) = 0._wp
       DO jk = 1, ikmax
+         !
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            pu(ji,jj,jk) = pu(ji,jj,jk) + ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji,jj,jk+1) )         ! add () for NO repro
-            pv(ji,jj,jk) = pv(ji,jj,jk) + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj,jk+1) )
+            ! value at jk -> swap
+            zpsi_uw(ji,jj,1) = zpsi_uw(ji,jj,2)
+            zpsi_vw(ji,jj,1) = zpsi_vw(ji,jj,2)
+            !
+            ! value at jk+1
+            zcuw = 1._wp - ( gdepw(ji+1,jj  ,jk+1,Kmm) + gdepw(ji,jj,jk+1,Kmm) ) * zhu(ji,jj)
+            zcvw = 1._wp - ( gdepw(ji  ,jj+1,jk+1,Kmm) + gdepw(ji,jj,jk+1,Kmm) ) * zhv(ji,jj)
+            zcuw = zcuw * zcuw
+            zcvw = zcvw * zcvw
+            zmuw = MAX(  0._wp , ( 1._wp - zcuw ) * ( 1._wp + r5_21 * zcuw )  )
+            zmvw = MAX(  0._wp , ( 1._wp - zcvw ) * ( 1._wp + r5_21 * zcvw )  )
+            !
+            zpsi_uw(ji,jj,2) = zpsim_u(ji,jj) * zmuw * wumask(ji,jj,jk+1) * wumask(ji,jj,1)
+            zpsi_vw(ji,jj,2) = zpsim_v(ji,jj) * zmvw * wvmask(ji,jj,jk+1) * wvmask(ji,jj,1)
+            !
+         END_2D
+         !                                      !==  transport increased by the MLE induced transport ==!
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+            pu(ji,jj,jk) = pu(ji,jj,jk) + ( zpsi_uw(ji,jj,1) - zpsi_uw(ji,jj,2) )         ! add () for NO repro
+            pv(ji,jj,jk) = pv(ji,jj,jk) + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji,jj,2) )
          END_2D
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            pw(ji,jj,jk) = pw(ji,jj,jk) - ( ( zpsi_uw(ji,jj,jk) - zpsi_uw(ji-1,jj,jk) )   &   ! add () for NO repro
-               &                          + ( zpsi_vw(ji,jj,jk) - zpsi_vw(ji,jj-1,jk) ) ) * wmask(ji,jj,1)
+            pw(ji,jj,jk) = pw(ji,jj,jk) - ( ( zpsi_uw(ji,jj,1) - zpsi_uw(ji-1,jj  ,1) )   &   ! add () for NO repro
+               &                          + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji  ,jj-1,1) ) ) * wmask(ji,jj,1)
          END_2D
-      END DO
+         !
+         IF( cdtype == 'TRA' .AND. ll_output ) THEN
+            ! divide by cross distance to give streamfunction with dimensions m^2/s
+            DO_2D( 0, 0, 0, 0 )
+               zstreamu(ji,jj,jk) = zpsi_uw(ji,jj,1) * r1_e2u(ji,jj)
+               zstreamv(ji,jj,jk) = zpsi_vw(ji,jj,1) * r1_e1v(ji,jj)
+            END_2D
+         ENDIF
+         !
+      ENDDO
       !
       IF( cdtype == 'TRA') THEN              !==  outputs  ==!
          !
-         IF (ln_osm_mle.and.ln_zdfosm) THEN
+         IF( ll_output ) THEN
+            zstreamu(:,:,ikmax+1:jpk) = 0._wp
+            zstreamv(:,:,ikmax+1:jpk) = 0._wp
+            CALL iom_put( "psiu_mle", zstreamu )    ! i-mle streamfunction
+            CALL iom_put( "psiv_mle", zstreamv )    ! j-mle streamfunction
+            DEALLOCATE( zstreamu, zstreamv )
+         ENDIF
+         !
+         IF (ln_osm_mle.AND.ln_zdfosm) THEN
             DO_2D( 0, 0, 0, 0 )
                zLf_NH(ji,jj) = SQRT( rb_c * hmle(ji,jj) ) * r1_ft(ji,jj)      ! Lf = N H / f
             END_2D
@@ -500,17 +548,10 @@ CONTAINS
          !
          CALL iom_put( "Lf_NHpf" , zLf_NH  )    ! Lf = N H / f
          !
-         ! divide by cross distance to give streamfunction with dimensions m^2/s
-         DO_3D( 0, 0, 0, 0, 1, ikmax+1 )
-            zpsi_uw(ji,jj,jk) = zpsi_uw(ji,jj,jk) * r1_e2u(ji,jj)
-            zpsi_vw(ji,jj,jk) = zpsi_vw(ji,jj,jk) * r1_e1v(ji,jj)
-         END_3D
-         CALL iom_put( "psiu_mle", zpsi_uw )    ! i-mle streamfunction
-         CALL iom_put( "psiv_mle", zpsi_vw )    ! j-mle streamfunction
       ENDIF
       !
-   END SUBROUTINE tra_mle_trp_old
-
+   END SUBROUTINE tra_mle_trp_MLF
+   
    
    SUBROUTINE tra_mle_init
       !!---------------------------------------------------------------------

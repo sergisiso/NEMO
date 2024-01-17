@@ -78,9 +78,9 @@ CONTAINS
       INTEGER  ::   ierr             ! local integer
       REAL(wp) ::   zC2t_u, zC4t_u   ! local scalars
       REAL(wp) ::   zC2t_v, zC4t_v   !   -      -
-      REAL(wp) ::   zftw_kp1
-      REAL(wp), DIMENSION(T2D(1))              ::   zft_u, zft_v
-      REAL(wp), DIMENSION(:,:)   , ALLOCATABLE ::   zdt_u, zdt_v
+      REAL(wp) ::   ztFw_kp1
+      REAL(wp), DIMENSION(T2D(1))              ::   ztFu, ztFv
+      REAL(wp), DIMENSION(:,:)   , ALLOCATABLE ::   ztu, ztv
       REAL(wp), DIMENSION(:,:,:) , ALLOCATABLE ::   ztw
       !!----------------------------------------------------------------------
       !
@@ -100,8 +100,8 @@ CONTAINS
             &                          iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )  l_hst = .TRUE.
       ENDIF
       !
-      IF( kn_cen_h == 4 )   ALLOCATE( zdt_u(T2D(2)) , zdt_v(T2D(2)) )   ! horizontal 4th order only
-      IF( kn_cen_v == 4 )   ALLOCATE( ztw(T2D(nn_hls),jpk) )            ! vertical   4th order only
+      IF( kn_cen_h == 4 )   ALLOCATE( ztu(T2D(2)) , ztv(T2D(2)) )   ! horizontal 4th order only
+      IF( kn_cen_v == 4 )   ALLOCATE( ztw(T2D(0),jpk) )             ! vertical   4th order only
       !
       DO jn = 1, kjpt            !==  loop over the tracers  ==!
          !
@@ -113,63 +113,63 @@ CONTAINS
             DO jk = 1, jpkm1
                !
                DO_2D( 1, 0, 1, 0 )                     ! Horizontal fluxes at layer jk
-                  zft_u(ji,jj) = 0.5_wp * pU(ji,jj,jk) * ( pt(ji,jj,jk,jn,Kmm) + pt(ji+1,jj  ,jk,jn,Kmm) )
-                  zft_v(ji,jj) = 0.5_wp * pV(ji,jj,jk) * ( pt(ji,jj,jk,jn,Kmm) + pt(ji  ,jj+1,jk,jn,Kmm) )
+                  ztFu(ji,jj) = 0.5_wp * pU(ji,jj,jk) * ( pt(ji,jj,jk,jn,Kmm) + pt(ji+1,jj  ,jk,jn,Kmm) )
+                  ztFv(ji,jj) = 0.5_wp * pV(ji,jj,jk) * ( pt(ji,jj,jk,jn,Kmm) + pt(ji  ,jj+1,jk,jn,Kmm) )
                END_2D
                !
                DO_2D( 0, 0, 0, 0 )                     ! Horizontal divergence of advective fluxes
-                  pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - (  ( zft_u(ji,jj) - zft_u(ji-1,jj  ) )    &   ! add () for NP repro
-                     &                                           + ( zft_v(ji,jj) - zft_v(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)   &
+                  pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - (  ( ztFu(ji,jj) - ztFu(ji-1,jj  ) )    &   ! add () for NP repro
+                     &                                           + ( ztFv(ji,jj) - ztFv(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)   &
                      &                                        / e3t(ji,jj,jk,Kmm)
                END_2D
                !                                 ! "Poleward" heat and salt transports
-               IF( l_ptr )   CALL dia_ptr_hst( jn, 'adv', zft_v(:,:) )
+               IF( l_ptr )   CALL dia_ptr_hst( jn, 'adv', ztFv(:,:) )
                !                                 !  heat and salt transport
-               IF( l_hst )   CALL dia_ar5_hst( jn, 'adv', zft_u(:,:), zft_v(:,:), ldfin=(jk == jpkm1) )
+               IF( l_hst )   CALL dia_ar5_hst( jn, 'adv', ztFu(:,:), ztFv(:,:), ldfin=(jk == jpkm1) )
             END DO
             !
          CASE(  4  )                         !* 4th order centered
             DO jk = 1, jpkm1
                DO_2D( 2, 1, 2, 1 )          ! masked gradient
-                  zdt_u(ji,jj) = ( pt(ji+1,jj  ,jk,jn,Kmm) - pt(ji,jj,jk,jn,Kmm) ) * umask(ji,jj,jk)
-                  zdt_v(ji,jj) = ( pt(ji  ,jj+1,jk,jn,Kmm) - pt(ji,jj,jk,jn,Kmm) ) * vmask(ji,jj,jk)
+                  ztu(ji,jj) = ( pt(ji+1,jj  ,jk,jn,Kmm) - pt(ji,jj,jk,jn,Kmm) ) * umask(ji,jj,jk)
+                  ztv(ji,jj) = ( pt(ji  ,jj+1,jk,jn,Kmm) - pt(ji,jj,jk,jn,Kmm) ) * vmask(ji,jj,jk)
                END_2D
                !
                DO_2D( 1, 0, 1, 0 )                    ! Horizontal advective fluxes
                   zC2t_u = pt(ji,jj,jk,jn,Kmm) + pt(ji+1,jj  ,jk,jn,Kmm)   ! C2 interpolation of T at u- & v-points (x2)
                   zC2t_v = pt(ji,jj,jk,jn,Kmm) + pt(ji  ,jj+1,jk,jn,Kmm)
                   !                                                        ! C4 interpolation of T at u- & v-points (x2)
-                  zC4t_u =  zC2t_u + r1_6 * ( zdt_u(ji-1,jj  ) - zdt_u(ji+1,jj  ) )
-                  zC4t_v =  zC2t_v + r1_6 * ( zdt_v(ji  ,jj-1) - zdt_v(ji  ,jj+1) )
+                  zC4t_u =  zC2t_u + r1_6 * ( ztu(ji-1,jj  ) - ztu(ji+1,jj  ) )
+                  zC4t_v =  zC2t_v + r1_6 * ( ztv(ji  ,jj-1) - ztv(ji  ,jj+1) )
                   !                                                        ! C4 fluxes
-                  zft_u(ji,jj) =  0.5_wp * pU(ji,jj,jk) * zC4t_u
-                  zft_v(ji,jj) =  0.5_wp * pV(ji,jj,jk) * zC4t_v
+                  ztFu(ji,jj) =  0.5_wp * pU(ji,jj,jk) * zC4t_u
+                  ztFv(ji,jj) =  0.5_wp * pV(ji,jj,jk) * zC4t_v
                END_2D
                !
                DO_2D( 0, 0, 0, 0 )                                         ! Horizontal divergence of advective fluxes
-                  pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - (  ( zft_u(ji,jj) - zft_u(ji-1,jj  ) )    &   ! add () for NP repro
-                     &                                           + ( zft_v(ji,jj) - zft_v(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)   &
+                  pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - (  ( ztFu(ji,jj) - ztFu(ji-1,jj  ) )    &   ! add () for NP repro
+                     &                                           + ( ztFv(ji,jj) - ztFv(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)   &
                      &                                        / e3t(ji,jj,jk,Kmm)
                END_2D
                !                                 ! "Poleward" heat and salt transports
-               IF( l_ptr )   CALL dia_ptr_hst( jn, 'adv', zft_v(:,:) )
+               IF( l_ptr )   CALL dia_ptr_hst( jn, 'adv', ztFv(:,:) )
                !                                 !  heat and salt transport
-               IF( l_hst )   CALL dia_ar5_hst( jn, 'adv', zft_u(:,:), zft_v(:,:), ldfin=(jk == jpkm1) )
+               IF( l_hst )   CALL dia_ar5_hst( jn, 'adv', ztFu(:,:), ztFv(:,:), ldfin=(jk == jpkm1) )
             END DO
             !
          CASE DEFAULT
             CALL ctl_stop( 'traadv_cen: wrong value for nn_cen' )
          END SELECT
          !
-#define zft_w  zft_u
+#define ztFw  ztFu
          !
          IF( ln_linssh ) THEN                !* top value   (linear free surf. only as zwz is multiplied by wmask)
             DO_2D( 0, 0, 0, 0 )
-               zft_w(ji,jj) = pW(ji,jj,1) * pt(ji,jj,1,jn,Kmm)
+               ztFw(ji,jj) = pW(ji,jj,1) * pt(ji,jj,1,jn,Kmm)
             END_2D
          ELSE
             DO_2D( 0, 0, 0, 0 )
-               zft_w(ji,jj) = 0._wp
+               ztFw(ji,jj) = 0._wp
             END_2D
          ENDIF
          !
@@ -178,16 +178,16 @@ CONTAINS
          CASE(  2  )                         !* 2nd order centered
             DO jk = 1, jpk-2
                DO_2D( 0, 0, 0, 0 )                             ! Vertical fluxes
-                  zftw_kp1 = 0.5 * pW(ji,jj,jk+1) * ( pt(ji,jj,jk+1,jn,Kmm) + pt(ji,jj,jk,jn,Kmm) ) * wmask(ji,jj,jk+1)
+                  ztFw_kp1 = 0.5_wp * pW(ji,jj,jk+1) * ( pt(ji,jj,jk+1,jn,Kmm) + pt(ji,jj,jk,jn,Kmm) ) * wmask(ji,jj,jk+1)
                   !
-                  pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - (  zft_w(ji,jj) - zftw_kp1  ) * r1_e1e2t(ji,jj)   &
+                  pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - (  ztFw(ji,jj) - ztFw_kp1  ) * r1_e1e2t(ji,jj)   &
                        &                                        / e3t(ji,jj,jk,Kmm)
-                  zft_w(ji,jj) = zftw_kp1
+                  ztFw(ji,jj) = ztFw_kp1
                END_2D
             END DO
             jk = jpkm1                                         ! bottom vertical flux set to zero for all tracers
             DO_2D( 0, 0, 0, 0 )
-               pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - zft_w(ji,jj) * r1_e1e2t(ji,jj)   &
+               pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - ztFw(ji,jj) * r1_e1e2t(ji,jj)   &
                   &                                        / e3t(ji,jj,jk,Kmm)
             END_2D
             !
@@ -197,25 +197,25 @@ CONTAINS
             DO jk = 1, jpk-2
                !
                DO_2D( 0, 0, 0, 0 )
-                  zftw_kp1 = pW(ji,jj,jk+1) * ztw(ji,jj,jk+1) * wmask(ji,jj,jk+1)
+                  ztFw_kp1 = pW(ji,jj,jk+1) * ztw(ji,jj,jk+1) * wmask(ji,jj,jk+1)
                   !                          ! Divergence of advective fluxes
-                  pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - (  zft_w(ji,jj) - zftw_kp1  ) * r1_e1e2t(ji,jj)   &
+                  pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - (  ztFw(ji,jj) - ztFw_kp1  ) * r1_e1e2t(ji,jj)   &
                      &                                        / e3t(ji,jj,jk,Kmm)
                   !                          ! update
-                  zft_w(ji,jj) = zftw_kp1
+                  ztFw(ji,jj) = ztFw_kp1
                END_2D
                !
             END DO
             !
             jk = jpkm1       ! bottom vertical flux set to zero for all tracers
             DO_2D( 0, 0, 0, 0 )
-               pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - zft_w(ji,jj) * r1_e1e2t(ji,jj)   &
+               pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) - ztFw(ji,jj) * r1_e1e2t(ji,jj)   &
                   &                                        / e3t(ji,jj,jk,Kmm)
             END_2D
             !
          END SELECT
          !
-#undef zft_w
+#undef ztFw
          !                               ! trend diagnostics
 !!gm + !!st to be done with the whole rewritting of trd
 !!          trd routine arguments MUST be changed adding jk and zwx, zwy in 2D
@@ -227,7 +227,7 @@ CONTAINS
          !
       END DO
       !
-      IF( kn_cen_h == 4 )   DEALLOCATE( zdt_u , zdt_v )   ! horizontal 4th order only
+      IF( kn_cen_h == 4 )   DEALLOCATE( ztu , ztv )   ! horizontal 4th order only
       IF( kn_cen_v == 4 )   DEALLOCATE( ztw )             ! vertical   4th order only
       !
    END SUBROUTINE tra_adv_cen

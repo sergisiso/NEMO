@@ -37,6 +37,7 @@ MODULE traadv
 #if defined key_RK3
    USE eosbn2
 #endif
+   USE zdf_oce , ONLY : ln_zad_Aimp
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O module
@@ -59,6 +60,7 @@ MODULE traadv
    INTEGER ::      nn_cen_h, nn_cen_v   ! =2/4 : horizontal and vertical choices of the order of CEN scheme
    LOGICAL ::   ln_traadv_fct    ! FCT scheme flag
    INTEGER ::      nn_fct_h, nn_fct_v   ! =2/4 : horizontal and vertical choices of the order of FCT scheme
+   INTEGER ::      nn_fct_imp           ! =1/2 : optimized or accurate treatment of implicit
    LOGICAL ::   ln_traadv_mus    ! MUSCL scheme flag
    LOGICAL ::      ln_mus_ups           ! use upstream scheme in vivcinity of river mouths
    LOGICAL ::   ln_traadv_ubs    ! UBS scheme flag
@@ -152,9 +154,9 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)   , INTENT(inout) ::   pts                 ! active tracers and RHS of tracer equation
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
-      REAL(wp), DIMENSION(:,:,:), POINTER ::   zptu, zptv, zptw
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zuu, zvv, zww   ! 3D workspace
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: ztrdt, ztrds
+      REAL(wp), DIMENSION(:,:,:), POINTER             ::   zptu, zptv, zptw
+      REAL(wp), DIMENSION(:,:,:), TARGET, ALLOCATABLE ::   zuu, zvv, zww   ! 3D workspace
+      REAL(wp), DIMENSION(:,:,:),         ALLOCATABLE ::   ztrdt, ztrds
       ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       LOGICAL ::   lskip
       LOGICAL ::   ll_dofct
@@ -162,7 +164,7 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('tra_adv')
       !
-      lskip = .FALSE.
+      lskip    = .FALSE.
       ll_dofct = .TRUE.
 
       ! FCT at last stage only with RK3
@@ -180,7 +182,6 @@ CONTAINS
       ENDIF
       !
       IF( .NOT. lskip ) THEN
-         ALLOCATE( zuu(T2D(nn_hls),jpk), zvv(T2D(nn_hls),jpk), zww(T2D(nn_hls),jpk) )
          !                                         !==  effective advective transport  ==!
          !
          IF( PRESENT( pau ) ) THEN     ! RK3: advective velocity (pau,pav,paw) /= advected velocity (uu,vv,ww)
@@ -193,15 +194,16 @@ CONTAINS
             zptw => ww(:,:,:    )
          ENDIF
          !
-#if defined key_RK3
-         DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpk ) 
-            zuu(ji,jj,jk) = zptu(ji,jj,jk)
-            zvv(ji,jj,jk) = zptv(ji,jj,jk)
-         END_3D
-         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
-            zww(ji,jj,jk) = zptw(ji,jj,jk)
-         END_3D
-#else
+         IF( l_trdtra )   THEN                    !* Save ta and sa trends
+            ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
+            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
+            ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
+         ENDIF
+         !
+#if ! defined key_RK3
+         !
+         ALLOCATE( zuu(T2D(nn_hls),jpk), zvv(T2D(nn_hls),jpk), zww(T2D(nn_hls),jpk) )
+         !
          IF( ln_wave .AND. ln_sdw )  THEN
             DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
                zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
@@ -220,7 +222,6 @@ CONTAINS
             END_3D
          ENDIF
          !
-!!st QUESTION gm dans quelle mesure on doit faire ça AUSSI pour les traveurs PASSIFS ? 
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
             zuu(ji,jj,jpk) = 0._wp                                                      ! no transport trough the bottom 
             zvv(ji,jj,jpk) = 0._wp
@@ -232,43 +233,46 @@ CONTAINS
          !
          IF( ln_mle    )   CALL tra_mle_trp( kt        , zuu, zvv, zww, Kmm, nit000, 'TRA' )   ! add the mle transport (if necessary)
          !
+         ! Change pointers to use in advection
+         zptu => zuu(:,:,:)
+         zptv => zvv(:,:,:)
+         zptw => zww(:,:,:)
+         !
 #endif
-         IF( l_iom ) THEN
-            CALL iom_put( "uocetr_eff", zuu )                                        ! output effective transport
-            CALL iom_put( "vocetr_eff", zvv )
-            CALL iom_put( "wocetr_eff", zww )
-         ENDIF
-         !
-!!gm ???
-         IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zvv(:,:,:) )                                    ! diagnose the effective MSF
-!!gm ???
-         !
-         !
-
-         IF( l_trdtra )   THEN                    !* Save ta and sa trends
-            ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
-            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
-            ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
-         ENDIF
          !
          SELECT CASE ( nadv )                      !==  compute advection trend and add it to general trend  ==!
          !
          CASE ( np_CEN )                                 ! Centered scheme : 2nd / 4th order
-            CALL tra_adv_cen( kt, nit000, 'TRA',      zuu, zvv, zww,      Kmm,      pts, jpts, Krhs, nn_cen_h, nn_cen_v )
+            CALL tra_adv_cen    ( kt, nit000, 'TRA',      zptu, zptv, zptw,      Kmm,      pts, jpts, Krhs, nn_cen_h, nn_cen_v )
          CASE ( np_FCT )                                 ! FCT scheme      : 2nd / 4th order
             IF ( ll_dofct ) THEN
-               CALL tra_adv_fct ( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm, Kaa, pts, jpts, Krhs, nn_fct_h, nn_fct_v )
+               CALL tra_adv_fct ( kt, nit000, 'TRA', rDt, zptu, zptv, zptw, Kbb, Kmm, Kaa, pts, jpts, Krhs, nn_fct_h, nn_fct_v, &
+                  &                                                                                                   nn_fct_imp )
             ELSE
-               CALL tra_adv_cen ( kt, nit000, 'TRA',      zuu, zvv, zww, Kmm, pts, jpts, Krhs, nn_fct_h, nn_fct_v      )
+               CALL tra_adv_cen ( kt, nit000, 'TRA',      zptu, zptv, zptw,      Kmm,      pts, jpts, Krhs, nn_fct_h, nn_fct_v )
             ENDIF
          CASE ( np_MUS )                                 ! MUSCL
-            CALL tra_adv_mus( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm,      pts, jpts, Krhs, ln_mus_ups         )
+            CALL tra_adv_mus    ( kt, nit000, 'TRA', rDt, zptu, zptv, zptw, Kbb, Kmm,      pts, jpts, Krhs, ln_mus_ups         )
          CASE ( np_UBS )                                 ! UBS
-            CALL tra_adv_ubs( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm,      pts, jpts, Krhs, nn_ubs_v           )
+            CALL tra_adv_ubs    ( kt, nit000, 'TRA', rDt, zptu, zptv, zptw, Kbb, Kmm,      pts, jpts, Krhs, nn_ubs_v           )
          CASE ( np_QCK )                                 ! QUICKEST
-            CALL tra_adv_qck( kt, nit000, 'TRA', rDt, zuu, zvv, zww, Kbb, Kmm,      pts, jpts, Krhs                     )
+            CALL tra_adv_qck    ( kt, nit000, 'TRA', rDt, zptu, zptv, zptw, Kbb, Kmm,      pts, jpts, Krhs                     )
          !
          END SELECT
+         !
+         IF( l_iom ) THEN
+            CALL iom_put( "uocetr_eff", zptu )                                        ! output effective transport
+            CALL iom_put( "vocetr_eff", zptv )
+            CALL iom_put( "wocetr_eff", zptw )
+         ENDIF
+         !
+!!gm ???
+         IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zptv(:,:,:) )                          ! diagnose the effective MSF
+!!gm ???
+         !
+#if ! defined key_RK3
+         DEALLOCATE( zuu, zvv, zww )
+#endif
          !
          IF( l_trdtra )   THEN                      ! save the advective trends for further diagnostics
             DO jk = 1, jpkm1
@@ -282,8 +286,7 @@ CONTAINS
 
          ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
          IF( ln_tile .AND. .NOT. l_istiled ) CALL dom_tile_start( ldhold=.TRUE. )
-
-         DEALLOCATE( zuu, zvv, zww )
+         !
       ENDIF
       !                                              ! print mean trends (used for debugging)
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pts(:,:,:,jp_tem,Krhs), clinfo1=' adv  - Ta: ', mask1=tmask, &
@@ -303,12 +306,12 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER ::   ioptio, ios   ! Local integers
       !
-      NAMELIST/namtra_adv/ ln_traadv_OFF,                        &   ! No advection
-         &                 ln_traadv_cen , nn_cen_h, nn_cen_v,   &   ! CEN
-         &                 ln_traadv_fct , nn_fct_h, nn_fct_v,   &   ! FCT
-         &                 ln_traadv_mus , ln_mus_ups,           &   ! MUSCL
-         &                 ln_traadv_ubs ,           nn_ubs_v,   &   ! UBS
-         &                 ln_traadv_qck                             ! QCK
+      NAMELIST/namtra_adv/ ln_traadv_OFF,                                    &   ! No advection
+         &                 ln_traadv_cen , nn_cen_h, nn_cen_v,               &   ! CEN
+         &                 ln_traadv_fct , nn_fct_h, nn_fct_v, nn_fct_imp,   &   ! FCT
+         &                 ln_traadv_mus , ln_mus_ups,                       &   ! MUSCL
+         &                 ln_traadv_ubs ,           nn_ubs_v,               &   ! UBS
+         &                 ln_traadv_qck                                         ! QCK
       !!----------------------------------------------------------------------
       !
       !                                !==  Namelist  ==!
@@ -328,6 +331,7 @@ CONTAINS
          WRITE(numout,*) '      Flux Corrected Transport scheme           ln_traadv_fct = ', ln_traadv_fct
          WRITE(numout,*) '            horizontal 2nd/4th order               nn_fct_h   = ', nn_fct_h
          WRITE(numout,*) '            vertical   2nd/4th order               nn_fct_v   = ', nn_fct_v
+         WRITE(numout,*) '            implicit   optimized(1)/accurate(2)    nn_fct_imp = ', nn_fct_imp
          WRITE(numout,*) '      MUSCL scheme                              ln_traadv_mus = ', ln_traadv_mus
          WRITE(numout,*) '            + upstream scheme near river mouths    ln_mus_ups = ', ln_mus_ups
          WRITE(numout,*) '      UBS scheme                                ln_traadv_ubs = ', ln_traadv_ubs
@@ -351,19 +355,20 @@ CONTAINS
         CALL ctl_stop( 'tra_adv_init: CEN scheme, choose 2nd or 4th order' )
       ENDIF
       IF( ln_traadv_fct .AND. ( nn_fct_h /= 2 .AND. nn_fct_h /= 4 )   &          ! FCT
-                        .AND. ( nn_fct_v /= 2 .AND. nn_fct_v /= 4 )   ) THEN
-        CALL ctl_stop( 'tra_adv_init: FCT scheme, choose 2nd or 4th order' )
+         &              .AND. ( nn_fct_v /= 2 .AND. nn_fct_v /= 4 ) .AND. ( nn_fct_imp /= 1 .AND. nn_fct_imp /= 2 ) ) THEN
+        CALL ctl_stop( 'tra_adv_init: FCT scheme, choose 2nd or 4th order, and optimized or accurate treatment of implicit' )
       ENDIF
       ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       IF( ln_traadv_fct .AND. ln_tile ) THEN
          CALL ctl_warn( 'tra_adv_init: FCT scheme does not yet work with tiling' )
       ENDIF
       IF( ln_traadv_ubs .AND. ( nn_ubs_v /= 2 .AND. nn_ubs_v /= 4 )   ) THEN     ! UBS
-        CALL ctl_stop( 'tra_adv_init: UBS scheme, choose 2nd or 4th order' )
+         CALL ctl_stop( 'tra_adv_init: UBS scheme, choose 2nd or 4th order' )
       ENDIF
       IF( ln_traadv_ubs .AND. nn_ubs_v == 4 ) THEN
          CALL ctl_warn( 'tra_adv_init: UBS scheme, only 2nd FCT scheme available on the vertical. It will be used' )
       ENDIF
+      IF( ln_traadv_ubs .AND. ln_zad_Aimp )   CALL ctl_stop( 'tra_adv_init: UBS scheme, vertical implicit is not coded' )
       IF( ln_isfcav ) THEN                                                       ! ice-shelf cavities
          IF(  ln_traadv_cen .AND. nn_cen_v == 4    .OR.   &                            ! NO 4th order with ISF
             & ln_traadv_fct .AND. nn_fct_v == 4   )   CALL ctl_stop( 'tra_adv_init: 4th order COMPACT scheme not allowed with ISF' )
@@ -374,10 +379,11 @@ CONTAINS
          WRITE(numout,*)
          SELECT CASE ( nadv )
          CASE( np_NO_adv  )   ;   WRITE(numout,*) '   ==>>>   NO T-S advection'
-         CASE( np_CEN     )   ;   WRITE(numout,*) '   ==>>>   CEN      scheme is used. Horizontal order: ', nn_cen_h,   &
-            &                                                                        ' Vertical   order: ', nn_cen_v
-         CASE( np_FCT     )   ;   WRITE(numout,*) '   ==>>>   FCT      scheme is used. Horizontal order: ', nn_fct_h,   &
-            &                                                                        ' Vertical   order: ', nn_fct_v
+         CASE( np_CEN     )   ;   WRITE(numout,*) '   ==>>>   CEN      scheme is used. Horizontal order  : ', nn_cen_h, &
+            &                                                                        ' Vertical   order  : ', nn_cen_v
+         CASE( np_FCT     )   ;   WRITE(numout,*) '   ==>>>   FCT      scheme is used. Horizontal order  : ', nn_fct_h, &
+            &                                                                        ' Vertical   order  : ', nn_fct_v, &
+            &                                                                        ' Implicit treatment: ', nn_fct_imp
          CASE( np_MUS     )   ;   WRITE(numout,*) '   ==>>>   MUSCL    scheme is used'
          CASE( np_UBS     )   ;   WRITE(numout,*) '   ==>>>   UBS      scheme is used'
          CASE( np_QCK     )   ;   WRITE(numout,*) '   ==>>>   QUICKEST scheme is used'
