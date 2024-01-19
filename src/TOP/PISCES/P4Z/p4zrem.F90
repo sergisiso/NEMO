@@ -42,10 +42,10 @@ MODULE p4zrem
    REAL(wp), PUBLIC ::   xsilab     !: fraction of labile biogenic silica 
    REAL(wp), PUBLIC ::   feratb     !: Fe/C quota in bacteria
    REAL(wp), PUBLIC ::   xkferb     !: Half-saturation constant for bacterial Fe/C
+   !
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: denitr   !: denitrification array
 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr   !: denitrification array
-
-   LOGICAL         :: l_dia_remin, l_dia_febact, l_dia_bact, l_dia_denit
+   LOGICAL         :: l_dia_remin, l_dia_bact, l_dia_denit
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
@@ -78,24 +78,22 @@ CONTAINS
       REAL(wp) ::   zremik, zremikc, zfact
       REAL(wp) ::   zdep, zdepmin, zfactdep
       REAL(wp) ::   zammonic, zoxyremc, zolimic
+      !
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zdepbac
       REAL(wp), DIMENSION(A2D(0)    ) :: ztempbac
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zw3d, zolimi
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::  zolimi
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p2z_rem')
       !
       IF( kt == nittrc000 )  THEN
          l_dia_remin  = iom_use( "REMIN" )
-         l_dia_denit  = iom_use( "DENIT" )
+         l_dia_denit  = iom_use( "DENIT" ) 
          l_dia_bact   = iom_use( "BACT" )
       ENDIF
       IF( l_dia_remin ) THEN
-         ALLOCATE( zolimi(A2D(0),jpk) )    ;   zolimi(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpk)
-            zolimi(ji,jj,jk) = tr(ji,jj,jk,jpoxy,Krhs)
-         END_3D
+         ALLOCATE( zolimi(A2D(0),jpk) )    ;   zolimi(A2D(0),:) = tr(A2D(0),:,jpoxy,Krhs)
       ENDIF
 
       ! Computation of the mean bacterial concentration
@@ -152,35 +150,19 @@ CONTAINS
          CALL prt_ctl_info( charout, cdcomp = 'top' )
          CALL prt_ctl(tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm)
       ENDIF
-
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN
+      !
+      IF( knt == nrdttrc ) THEN
+!            zfact = rno3 * 1.e+3 * rfact2r !  conversion from molC/l/kt  to molN/m3/s
           !
           IF( l_dia_remin ) THEN    ! Remineralisation rate
-             DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zolimi(ji,jj,jk) = ( zolimi(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Krhs) ) / o2ut &
-                   &               * rfact2r * tmask(ji,jj,jk) ! 
-             END_3D
-             CALL iom_put( "REMIN", zolimi )
+             CALL iom_put( "REMIN", ( zolimi(:,:,:) - tr(A2D(0),:,jpoxy,Krhs) ) / o2ut * rfact2r * tmask(A2D(0),:) )
              DEALLOCATE( zolimi )
           ENDIF
-          !
-          IF( l_dia_bact ) THEN   ! Bacterial biomass
-             ALLOCATE( zw3d(A2D(0),jpk) )    ;    zw3d(A2D(0),jpk) = 0._wp
-             DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zw3d(ji,jj,jk) = zdepbac(ji,jj,jk) * 1.E6 * tmask(ji,jj,jk)
-             END_3D
-             CALL iom_put( "BACT", zw3d )
-             DEALLOCATE( zw3d )
+          IF( l_dia_bact )  THEN
+            zdepbac(:,:,jpk) = 0._wp
+            CALL iom_put( "BACT", zdepbac(:,:,:) * 1.E6 * tmask(A2D(0),:) )  ! Bacterial biomass 
           ENDIF
-          !
-          IF( l_dia_denit )  THEN ! Denitrification
-             ALLOCATE( zw3d(A2D(0),jpk) )    ;    zw3d(A2D(0),jpk) = 0._wp
-             DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zw3d(ji,jj,jk) = denitr(ji,jj,jk) * 1E+3 * rfact2r * rno3 * tmask(ji,jj,jk)
-             END_3D
-             CALL iom_put( "DENIT", zw3d )
-             DEALLOCATE( zw3d )
-          ENDIF
+          IF( l_dia_denit )  CALL iom_put( "DENIT", denitr(:,:,:) * 1.E3 * rfact2r * rno3 * tmask(A2D(0),:) ) ! Denitrification
           !
       ENDIF
       !
@@ -211,32 +193,27 @@ CONTAINS
       REAL(wp) ::   zbactfer, zonitr
       REAL(wp) ::   zammonic, zoxyremc, zosil, ztem, zdenitnh4, zolimic
       REAL(wp) ::   zfacsi, zdepeff
+      !
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zdepbac, zfacsib
       REAL(wp), DIMENSION(A2D(0)    ) :: ztempbac
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zw3d, zolimi, zfebact
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zolimi, zfebact
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_rem')
       !
       IF( kt == nittrc000 )  THEN
-         l_dia_remin  = iom_use( "REMIN" )
-         l_dia_febact = iom_use( "FEBACT" )
+         l_dia_remin  = iom_use( "REMIN" )  .OR. iom_use( "Remino2" )
+         l_dia_bact   = iom_use( "FEBACT" ) .OR. iom_use( "BACT" )
          l_dia_denit  = iom_use( "DENIT" )
-         l_dia_bact   = iom_use( "BACT" )
       ENDIF
       IF( l_dia_remin ) THEN
-         ALLOCATE( zolimi(A2D(0),jpk) )    ;   zolimi(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpk)
-            zolimi(ji,jj,jk) = tr(ji,jj,jk,jpoxy,Krhs)
-         END_3D
+         ALLOCATE( zolimi(A2D(0),jpk) ) ;   zolimi(A2D(0),:) = tr(A2D(0),:,jpoxy,Krhs)
       ENDIF
-      IF( l_dia_febact ) THEN
-         ALLOCATE( zfebact(A2D(0),jpk) )   ;   zfebact(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpk)
-            zfebact(ji,jj,jk) = tr(ji,jj,jk,jpfer,Krhs)
-         END_3D
+      IF( l_dia_bact ) THEN
+         ALLOCATE( zfebact(A2D(0),jpk) ) ;   zfebact(A2D(0),:) = tr(A2D(0),:,jpfer,Krhs)  ;  zdepbac(:,:,jpk) = 0._wp
       ENDIF
+
       ! Initialisation of arrays
       zfacsib(:,:,:)  = xsilab / ( 1.0 - xsilab )
 
@@ -341,9 +318,9 @@ CONTAINS
          ! Only the transfer of iron from its dissolved form to particles
          ! is treated here. The GGE of bacteria supposed to be equal to 
          ! 0.33. This is hard-coded. 
-         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) - zbactfer*0.1
-         tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zbactfer*0.08
-         tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zbactfer*0.02
+         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) - zbactfer * 0.1
+         tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zbactfer * 0.08
+         tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zbactfer * 0.02
          blim(ji,jj,jk)          = xlimbacl(ji,jj,jk)  * zdepbac(ji,jj,jk) / 1.e-6
       END_3D
 
@@ -393,42 +370,20 @@ CONTAINS
          CALL prt_ctl(tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm)
       ENDIF
 
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN
+      IF( knt == nrdttrc ) THEN
+!            zfact = rno3 * 1.e+3 * rfact2r !  conversion from molC/l/kt  to molN/m3/s
           !
-          IF( l_dia_febact ) THEN
-             DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zfebact(ji,jj,jk) = ( zfebact(ji,jj,jk) - tr(ji,jj,jk,jpfer,Krhs) ) &
-                   &              * 1e9 * rfact2r * tmask(ji,jj,jk) ! conversion in nmol/m2/s
-             END_3D
-             CALL iom_put( "FEBACT", zfebact )
-             DEALLOCATE( zfebact )
-          ENDIF
-          IF( l_dia_remin ) THEN    ! Remineralisation rate
-             DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zolimi(ji,jj,jk) = ( zolimi(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Krhs) ) / o2ut &
-                   &               * rfact2r * tmask(ji,jj,jk) ! 
-             END_3D
-             CALL iom_put( "REMIN", zolimi )
+          IF( l_dia_remin ) THEN   
+             CALL iom_put( "REMIN", ( zolimi(:,:,:) - tr(A2D(0),:,jpoxy,Krhs) ) / o2ut * rfact2r * tmask(A2D(0),:) ) ! Remineralisation rate
+             CALL iom_put( "Remino2", -1. * ( zolimi(:,:,:) - tr(A2D(0),:,jpoxy,Krhs) ) * rfact2r * tmask(A2D(0),:) ) ! O2 consumption by nitrification
              DEALLOCATE( zolimi )
           ENDIF
-          !
-          IF( l_dia_bact ) THEN   ! Bacterial biomass
-             ALLOCATE( zw3d(A2D(0),jpk) )    ;    zw3d(A2D(0),jpk) = 0._wp
-             DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zw3d(ji,jj,jk) = zdepbac(ji,jj,jk) * 1.E6 * tmask(ji,jj,jk)
-             END_3D
-             CALL iom_put( "BACT", zw3d )
-             DEALLOCATE( zw3d )
+          IF( l_dia_bact )  THEN
+              CALL iom_put( "BACT", zdepbac(:,:,:) * 1.E6 * tmask(A2D(0),:) )  ! Bacterial biomass
+              CALL iom_put( "FEBACT", ( zfebact(:,:,:) - tr(A2D(0),:,jpfer,Krhs) ) * 1e9 * rfact2r * tmask(A2D(0),:) )
+             DEALLOCATE( zfebact )
           ENDIF
-          !
-          IF( l_dia_denit )  THEN ! Denitrification
-             ALLOCATE( zw3d(A2D(0),jpk) )    ;    zw3d(A2D(0),jpk) = 0._wp
-             DO_3D( 0, 0, 0, 0, 1, jpkm1)
-                zw3d(ji,jj,jk) = denitr(ji,jj,jk) * 1E+3 * rfact2r * rno3 * tmask(ji,jj,jk)
-             END_3D
-             CALL iom_put( "DENIT", zw3d )
-             DEALLOCATE( zw3d )
-          ENDIF
+          IF( l_dia_denit )  CALL iom_put( "DENIT", denitr(:,:,:) * 1.E3 * rfact2r * rno3 * tmask(A2D(0),:) ) ! Denitrification
           !
       ENDIF
       !
@@ -449,8 +404,8 @@ CONTAINS
       !! ** input   :   Namelist nampisrem
       !!
       !!----------------------------------------------------------------------
-      NAMELIST/nampisrem/ nitrif, xsirem, xsiremlab, xsilab, feratb, xkferb, & 
-         &                xremikc, xremikn, xremikp
+      NAMELIST/nampisrem/nitrif, xsirem, xsiremlab, xsilab, feratb, xkferb, & 
+         &               xremikc, xremikn, xremikp
       INTEGER :: ios                 ! Local integer output status for namelist read
       !!----------------------------------------------------------------------
       !
@@ -482,7 +437,8 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      denitr(:,:,:) = 0._wp
+      denitr(:,:,jpk) = 0._wp
+      blim  (:,:,jpk) = 0._wp
       !
    END SUBROUTINE p4z_rem_init
 
@@ -491,7 +447,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE p4z_rem_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( denitr(jpi,jpj,jpk), STAT=p4z_rem_alloc )
+      ALLOCATE( denitr(A2D(0),jpk), STAT=p4z_rem_alloc )
       !
       IF( p4z_rem_alloc /= 0 )   CALL ctl_stop( 'STOP', 'p4z_rem_alloc: failed to allocate arrays' )
       !

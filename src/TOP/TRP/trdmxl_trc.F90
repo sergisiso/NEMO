@@ -5,7 +5,6 @@ MODULE trdmxl_trc
    !!======================================================================
    !! History :  9.0  !  06-08  (C. Deltel)  Original code (from trdmxl.F90)
    !!                 !  07-04  (C. Deltel)  Bug fix : add trcrad trends
-   !!                 !  07-06  (C. Deltel)  key_gyre : do not call lbc_lnk
    !!----------------------------------------------------------------------
 #if   defined key_top   &&   defined key_trdmxl_trc
    !!----------------------------------------------------------------------
@@ -24,7 +23,6 @@ MODULE trdmxl_trc
    USE dianam            ! build the name of file (routine)
    USE ldfslp            ! iso-neutral slopes 
    USE ioipsl            ! NetCDF library
-   USE lbclnk            ! ocean lateral boundary conditions (or mpp link)
    USE lib_mpp           ! MPP library
    USE trdmxl_trc_rst    ! restart for diagnosing the ML trends
    USE prtctl            ! print control
@@ -123,7 +121,6 @@ CONTAINS
                DO_2D( 0, 0, 0, 0 )
                   zvlmsk(ji,jj) = REAL( nmln(ji,jj), wp )
                END_2D
-               CALL lbc_lnk( 'trdmxl_trc', zvlmsk, 'T', 1.0_wp, kfillmode=jpfillcopy )  ! No 0 over closed boundaries
                nmld_trc(:,:) = NINT( zvlmsk(:,:) )                    !     -> ML with density criterion (see zdfmxl)
             CASE (  1  )   ;   nmld_trc(:,:) = nbol_trc(:,:)          !     -> read index from file
             CASE (  2: )   ;   nn_ctls_trc = MIN( nn_ctls_trc, jpktrd_trc - 1 )
@@ -288,19 +285,6 @@ CONTAINS
          !      
       ENDIF
 
-!!gm Test removed, nothing specific to a configuration should survive out of usrdef modules
-!!gm      IF ( cn_cfg .NE. 'gyre' ) THEN            ! other than GYRE configuration
-!!gm      ! GYRE : for diagnostic fields, are needed if cyclic B.C. are present, but not for purely MPI comm. 
-!!gm      ! therefore we do not call lbc_lnk in GYRE config. (closed basin, no cyclic B.C.)
-         DO jn = 1, jptra
-            IF( ln_trdtrc(jn) ) THEN
-               DO jl = 1, jpltrd_trc
-                  CALL lbc_lnk( 'trdmxl_trc', tmltrd_trc(:,:,jl,jn), 'T', 1._wp )        ! lateral boundary conditions
-               END DO
-            ENDIF
-         END DO
-!!gm      ENDIF
-      
       ! ======================================================================
       ! II. Cumulate the trends over the analysis window
       ! ======================================================================
@@ -428,13 +412,6 @@ CONTAINS
                ztmlatf(:,:,jn) = tmlatfm_trc(:,:,jn) - tmlatfn_trc(:,:,jn) + tmlatfb_trc(:,:,jn)
                ztmlrad(:,:,jn) = tmlradm_trc(:,:,jn) - tmlradn_trc(:,:,jn) + tmlradb_trc(:,:,jn)
                
-         !-- Lateral boundary conditions
-               IF ( cn_cfg .NE. 'gyre' ) THEN
-                  CALL lbc_lnk( 'trdmxl_trc', ztmltot(:,:,jn) , 'T', 1._wp , ztmlres(:,:,jn) , 'T', 1._wp, &
-                     &                        ztmlatf(:,:,jn) , 'T', 1._wp , ztmlrad(:,:,jn) , 'T', 1._wp )
-               ENDIF
-
-
 #if defined key_diainstant
                CALL ctl_stop( 'STOP', 'tmltrd_trc : key_diainstant was never checked within trdmxl. Comment this to proceed.' )
 #endif
@@ -478,14 +455,6 @@ CONTAINS
                   &                                               + tmltrd_atf_sumb_trc(:,:,jn)
                ztmlrad2(:,:,jn) = ztmltrd2(:,:,jpmxl_trc_radb,jn) - tmltrd_sum_trc(:,:,jpmxl_trc_radb,jn) &
                   &                                               + tmltrd_rad_sumb_trc(:,:,jn)
-
-         !-- Lateral boundary conditions 
-               IF ( cn_cfg .NE. 'gyre' ) THEN            ! other than GYRE configuration    
-                  CALL lbc_lnk( 'trdmxl_trc', ztmltot2(:,:,jn), 'T', 1._wp, ztmlres2(:,:,jn), 'T', 1._wp )
-                  DO jl = 1, jpltrd_trc
-                     CALL lbc_lnk( 'trdmxl_trc', ztmltrd2(:,:,jl,jn), 'T', 1._wp )       ! will be output in the NetCDF trends file
-                  END DO
-               ENDIF
 
             ENDIF
          END DO

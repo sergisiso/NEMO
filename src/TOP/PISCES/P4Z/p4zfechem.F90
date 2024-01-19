@@ -31,6 +31,7 @@ MODULE p4zfechem
    REAL(wp), PUBLIC ::   kfep         !: rate constant for nanoparticle formation
    REAL(wp), PUBLIC ::   scaveff      !: Fraction of scavenged iron that is considered as being subject to solubilization
 
+   REAL(wp)         ::   xcons = 10**(-6.3) 
    LOGICAL  :: l_dia_fechem
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -59,12 +60,13 @@ CONTAINS
       REAL(wp) ::   zlam1a, zlam1b
       REAL(wp) ::   zkeq, zfesatur, fe3sol, zligco
       REAL(wp) ::   zscave, zaggdfea, zaggdfeb, ztrc, zdust, zklight
-      REAL(wp) ::   ztfe, zhplus, zxlam, zaggliga, zaggligb
+      REAL(wp) ::   ztfe, zxlam, zaggliga, zaggligb
+      REAL(wp) ::   zhplus, zhplus2, zhplus3
       REAL(wp) ::   zprecip, zprecipno3,  zconsfe, za1, ztl1, zfel1
       REAL(wp) ::   zrfact2
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) ::   zFe3, ztotlig,  zfecoll
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d, zcoll3d, zscav3d, zfeprecip
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zcoll3d, zscav3d, zfeprecip
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_fechem')
@@ -106,13 +108,13 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
           ztl1            = ztotlig(ji,jj,jk)
           zkeq            = fekeq(ji,jj,jk)
-          zklight         = 4.77E-7 * etot(ji,jj,jk) * 0.5 / ( 10**(-6.3) )
-          zconsfe         = consfe3(ji,jj,jk) / ( 10**(-6.3) )
+          zklight         = 4.77E-7 * etot(ji,jj,jk) * 0.5 / xcons
+          zconsfe         = consfe3(ji,jj,jk) / xcons
           zfesatur        = ztl1 * 1E-9
           ztfe            = (1.0 + zklight) * tr(ji,jj,jk,jpfer,Kbb) 
           ! Fe' is the root of a 2nd order polynom
           za1 =  1. + zfesatur * zkeq + zklight +  zconsfe - zkeq * tr(ji,jj,jk,jpfer,Kbb)
-          zFe3 (ji,jj,jk) = ( -1 * za1 + SQRT( za1**2 + 4. * ztfe * zkeq) ) / ( 2. * zkeq + rtrn )
+          zFe3 (ji,jj,jk) = ( -1 * za1 + SQRT( ( za1 * za1 ) + 4. * ztfe * zkeq) ) / ( 2. * zkeq + rtrn )
       END_3D
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
@@ -160,7 +162,9 @@ CONTAINS
          ! Scavenging onto dust is also included as evidenced from the DUNE experiments.
          ! --------------------------------------------------------------------------------------
          zhplus  = max( rtrn, hi(ji,jj,jk) )
-         fe3sol  = fesol(ji,jj,jk,1) * ( zhplus**3 + fesol(ji,jj,jk,2) * zhplus**2  &
+         zhplus2 = zhplus * zhplus
+         zhplus3 = zhplus2 * zhplus
+         fe3sol  = fesol(ji,jj,jk,1) * ( zhplus3 + fesol(ji,jj,jk,2) * zhplus2  &
          &         + fesol(ji,jj,jk,3) * zhplus + fesol(ji,jj,jk,4)     &
          &         + fesol(ji,jj,jk,5) / zhplus )
          !
@@ -236,39 +240,21 @@ CONTAINS
       !
       !  Output of some diagnostics variables
       !     ---------------------------------
-      IF( lk_iomput .AND.  knt == nrdttrc ) THEN
+      IF( l_dia_fechem .AND. knt == nrdttrc ) THEN
         !
-        IF( l_dia_fechem ) THEN
-           zrfact2 = 1.e3 * rfact2r  ! conversion from mol/L/timestep into mol/m3/s
-           ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-           ! Fe3+
-           zw3d(A2D(0),1:jpkm1) = zFe3(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-           CALL iom_put( "Fe3", zw3d )
-           !  FeL1
-           zw3d(A2D(0),1:jpkm1) = MAX( 0., tr(A2D(0),1:jpkm1,jpfer,Kbb) - zFe3(A2D(0),1:jpkm1) ) * tmask(A2D(0),1:jpkm1)
-           CALL iom_put( "FeL1", zw3d )
-           ! TL1 = Totlig
-           zw3d(A2D(0),1:jpkm1) = ztotlig(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-           CALL iom_put( "TL1", zw3d )
-           ! Totlig
-           zw3d(A2D(0),1:jpkm1) = ztotlig(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-           CALL iom_put( "Totlig", zw3d )
-           ! biron
-           zw3d(A2D(0),1:jpkm1) = biron(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-           CALL iom_put( "Biron", zw3d )
-           ! FESCAV
-           zw3d(A2D(0),1:jpkm1) = zscav3d(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1) * zrfact2
-           CALL iom_put( "FESCAV", zw3d )
-           ! FECOLL
-           zw3d(A2D(0),1:jpkm1) = zcoll3d(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1) * zrfact2
-           CALL iom_put( "FECOLL", zw3d )
-           ! FEPREC
-           zw3d(A2D(0),1:jpkm1) = zfeprecip(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1) * zrfact2
-           CALL iom_put( "FEPREC", zw3d )
-           !
-           DEALLOCATE( zcoll3d, zscav3d, zfeprecip, zw3d ) 
-           !
-        ENDIF
+         zFe3(:,:,jpk)    = 0.   ;   ztotlig(:,:,jpk) = 0.   ;   biron(:,:,jpk)     = 0.
+         zcoll3d(:,:,jpk) = 0.   ;   zscav3d(:,:,jpk) = 0.   ;   zfeprecip(:,:,jpk) = 0.
+!        zrfact2 = 1.e3 * rfact2r  ! conversion from mol/L/timestep into mol/m3/s
+        CALL iom_put( "Fe3"   , zFe3(:,:,:)      * tmask(A2D(0),:) )  ! Fe3+
+        CALL iom_put( "FeL1"  , MAX( 0., tr(A2D(0),:,jpfer,Kbb) - zFe3(:,:,:) ) * tmask(A2D(0),:) )  !  FeL1
+        CALL iom_put( "TL1"   , ztotlig(:,:,:)   * tmask(A2D(0),:) )  ! TL1 = Totlig
+        CALL iom_put( "Totlig",  ztotlig(:,:,:)  * tmask(A2D(0),:) ) ! Totlig
+        CALL iom_put( "Biron" , biron(:,:,:)     * tmask(A2D(0),:) )  ! biron
+        CALL iom_put( "FESCAV", zscav3d(:,:,:)   * tmask(A2D(0),:) * 1.e3 * rfact2r )  ! FESCAV
+        CALL iom_put( "FECOLL", zcoll3d(:,:,:)   * tmask(A2D(0),:) * 1.e3 * rfact2r ) ! FECOLL
+        CALL iom_put( "FEPREC", zfeprecip(:,:,:) * tmask(A2D(0),:) * 1.e3 * rfact2r ) ! FEPREC
+        !
+        DEALLOCATE( zcoll3d, zscav3d, zfeprecip ) 
         !
       ENDIF
 
@@ -319,6 +305,10 @@ CONTAINS
          WRITE(numout,*) '      rate constant for nanoparticle formation  kfep         =', kfep
          WRITE(numout,*) '      Scavenged iron that is added to POFe      scaveff      =', scaveff
       ENDIF
+      !
+      plig     (:,:,:jpk) = 0._wp
+      xfecolagg(:,:,:jpk) = 0._wp
+      xcoagfe  (:,:,:jpk) = 0._wp
       !
    END SUBROUTINE p4z_fechem_init
    

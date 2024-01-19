@@ -37,8 +37,8 @@ MODULE p2zprod
    REAL(wp) ::   r1_rday    ! 1 / rday
    REAL(wp) ::   texcretn   ! 1 - excretn 
 
-   LOGICAL  :: l_dia_ppphy
-   LOGICAL  :: l_dia_mu, l_dia_light, l_dia_lprod
+   LOGICAL  :: l_dia_pp, l_dia_mu, l_dia_light, l_dia_lprod
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
@@ -69,13 +69,13 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0),jpk) :: zprmax, zmxl
       REAL(wp), DIMENSION(A2D(0),jpk) :: zprbio, zprchln
       REAL(wp), DIMENSION(A2D(0),jpk) :: zprorcan
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p2z_prod')
       !
       IF( kt == nittrc000 ) THEN
-         l_dia_ppphy = iom_use( "PPPHYN" ) .OR. iom_use( "TPP"  ) 
+         l_dia_pp    = iom_use( "PPPHYN" ) .OR. iom_use( "TPP" ) .OR. iom_use( "PPNEWo2" ) &
+                       .OR.  iom_use( "THETANANO" ) .OR. iom_use( "CHL" )
          l_dia_mu    = iom_use( "Mumax"  ) .OR. iom_use( "MuN"    )
          l_dia_light = iom_use( "LNlight")
       ENDIF
@@ -143,7 +143,7 @@ CONTAINS
       !  Computation of a proxy of the N/C quota from nutrient limitation 
       !  and light limitation. Steady state is assumed to allow the computation
       !  ----------------------------------------------------------------------
-!      thetanano(:,:,:) = chlcnm
+      thetanano(:,:,:) = chlcnm
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
           zval = xnanono3(ji,jj,jk) * zprmax(ji,jj,jk) / ( zprbio(ji,jj,jk) + rtrn )
           quotan(ji,jj,jk) = MIN( 1., 0.3 + 0.7 * zval )
@@ -202,51 +202,23 @@ CONTAINS
       END_3D
 
     ! Total primary production per year
-    IF( l_dia_ppphy .OR. ( ln_check_mass .AND. kt == nitend .AND. knt == nrdttrc )  )  THEN
-       ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-          zw3d(ji,jj,jk) = zprorcan(ji,jj,jk) * cvol(ji,jj,jk)
-       END_3D
-       tpp = glob_sum( 'p2zprod', zw3d )
-       DEALLOCATE ( zw3d )
-    ENDIF
-    
-    IF( lk_iomput .AND.  knt == nrdttrc ) THEN
-       !
-       ! Diagnostic Chl:C ratio
-       CALL iom_put( "THETANANO", thetanano(:,:,:) )
-       IF( l_dia_ppphy ) THEN
-          zfact = 1.e+3 * rfact2r  !  conversion from mol/l/kt to  mol/m3/s
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp  
-          ! primary production by nanophyto
-          zw3d(A2D(0),1:jpkm1) = zprorcan(A2D(0),1:jpkm1) * zfact * tmask(A2D(0),1:jpkm1) 
-          CALL iom_put( "PPPHYN", zw3d )  
-          ! total primary production
-          zw3d(A2D(0),1:jpkm1) = zprorcan(A2D(0),1:jpkm1) * zfact * tmask(A2D(0),1:jpkm1) 
-          CALL iom_put( "TPP", zw3d )  
-          CALL iom_put( "tintpp"  , tpp * zfact )  !  global total integrated primary production molC/s
-          DEALLOCATE ( zw3d ) 
+    IF( l_dia_pp  )  tpp = glob_sum( 'p2zprod', zprorcan(:,:,:) * cvol(:,:,:) )
+    IF( knt == nrdttrc ) THEN
+       IF( l_dia_pp ) THEN
+ !         zfact = 1.e+3 * rfact2r  !  conversion from mol/l/kt to  mol/m3/s
+          CALL iom_put( "THETANANO", thetanano(:,:,:) )  ! Diagnostic Chl:C ratio
+          CALL iom_put( "CHL"      , thetanano(:,:,:) * 12. * tr(A2D(0),:,jpphy,Kbb) * 1.0e+6 * tmask(A2D(0),:) ) ! Total chlorophyll
+          CALL iom_put( "TPP"      , zprorcan(:,:,:) * 1.e+3 * rfact2r * tmask(A2D(0),:) )   ! primary production 
+          CALL iom_put( "PPNEWo2"  , zprorcan(:,:,:) * ( o2ut + o2nit ) * 1.e+3 * rfact2r * tmask(A2D(0),:) ) ! Oxygen production by the New Produc
+          CALL iom_put( "tintpp"   , tpp * 1.e+3 * rfact2r )  !  global total integrated primary production molC/s
        ENDIF
        !
        IF( l_dia_mu ) THEN
-          zfact = 1.e+3 * rfact2r  !  conversion from mol/l/kt to  mol/m3/s
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp  
-          zw3d(A2D(0),1:jpkm1) = zprmax(A2D(0),1:jpkm1)  * tmask(A2D(0),1:jpkm1) 
-          CALL iom_put( "Mumax", zw3d )  
-          ! Realized growth rate for nanophyto
-          zw3d(A2D(0),1:jpkm1) = zprbio(A2D(0),1:jpkm1) * xlimphy(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1) 
-          CALL iom_put( "MuN", zw3d )  
-          DEALLOCATE ( zw3d ) 
+          CALL iom_put( "Mumax", zprmax(:,:,:) * tmask(A2D(0),:) )  
+          CALL iom_put( "MuN", zprbio(:,:,:) * xlimphy(:,:,:) * tmask(A2D(0),:) )   ! Realized growth rate for nanophyto
        ENDIF
        !
-       IF( l_dia_light ) THEN
-          zfact = 1.e+3 * rfact2r  !  conversion from mol/l/kt to  mol/m3/s
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp  
-          ! light limitation term for nano
-          zw3d(A2D(0),1:jpkm1) = zprbio(A2D(0),1:jpkm1) / ( zprmax(A2D(0),1:jpkm1) + rtrn ) * tmask(A2D(0),1:jpkm1) 
-          CALL iom_put( "LNlight", zw3d )  
-          DEALLOCATE ( zw3d ) 
-       ENDIF
+       IF( l_dia_light ) CALL iom_put( "LNlight", zprbio(:,:,:) / ( zprmax(:,:,:) + rtrn ) * tmask(A2D(0),:) )  ! light limitation term for nano
        !
      ENDIF
 

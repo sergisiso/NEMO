@@ -394,6 +394,13 @@
    xremipp   =  0.032     ! remineralisation rate of POP
 /
 !-----------------------------------------------------------------------
+&nampisdiaz     !   Namelist parameters for diazotrophy
+!-----------------------------------------------------------------------
+   nitrfix     =  2.e-7    ! Nitrogen fixation rate
+   diazolight  =  30.      ! Diazotrophs sensitivity to light (W/m2)
+   concfediaz  =  1.e-10   ! Diazotrophs half-saturation Cste for Iron
+/
+!-----------------------------------------------------------------------
 &nampiscal     !   parameters for Calcite chemistry
 !-----------------------------------------------------------------------
    kdca       =  100.     ! calcite dissolution rate constant (1/time)
@@ -431,11 +438,10 @@
    xklig       =  1.E-9    ! 1/2 saturation constant of photolysis
 /
 !-----------------------------------------------------------------------
-&nampissed     !   Namelist parameters for sediment mobilisation
+&nampissed     !   Namelist parameters for burial in sediments ( Dune et Al. 2007 )
 !-----------------------------------------------------------------------
-   nitrfix     =  2.e-7    ! Nitrogen fixation rate
-   diazolight  =  30.      ! Diazotrophs sensitivity to light (W/m2)
-   concfediaz  =  1.e-10   ! Diazotrophs half-saturation Cste for Iron
+    bureffmin  = 0.013     !: Minimum burial efficiency
+    bureffvar  = 0.53      !: Variable coef. for burial efficiency
 /
 !-----------------------------------------------------------------------
 &nampisice     !   Prescribed sea ice tracers
@@ -486,9 +492,4 @@
 !-----------------------------------------------------------------------
    ln_pisdmp    =  .true.     !  Relaxation for some tracers to a mean value
    nn_pisdmp    =  5475       !  Frequency of Relaxation 
-/
-!-----------------------------------------------------------------------
-&nampismass    !   Mass conservation
-!-----------------------------------------------------------------------
-   ln_check_mass =  .false.    !  Check mass conservation
 /

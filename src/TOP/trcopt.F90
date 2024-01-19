@@ -35,6 +35,8 @@ MODULE trcopt
 
    ! TL: This array should come directly from traqsr module
    REAL(wp), DIMENSION(3,61) ::   xkrgb   ! tabulated attenuation coefficients for RGB absorption
+
+   LOGICAL  :: l_dia
    
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -65,11 +67,12 @@ CONTAINS
       REAL(wp) ::   ztmp
       REAL(wp), DIMENSION(A2D(0)    ) :: parsw, zqsr100, zqsr_corr
       REAL(wp), DIMENSION(A2D(0),jpk) :: ze0
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zw2d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_opt')
+
+      IF( kt == nittrc000 ) l_dia = iom_use( "Heup") .OR. iom_use( "xbla") 
+
 
       !     Initialisation of variables used to compute PAR
       !     -----------------------------------------------
@@ -190,19 +193,9 @@ CONTAINS
       heup   (:,:) = MIN( 300., heup   (:,:) )
       heup_01(:,:) = MIN( 300., heup_01(:,:) )
       !
-      IF( lk_iomput ) THEN
-        IF( iom_use( "Heup" ) ) THEN
-           ALLOCATE( zw2d(A2D(0)) )
-           zw2d(A2D(0)) = heup(A2D(0)) * tmask(A2D(0),1)
-           CALL iom_put( "Heup", zw2d )  ! Euphotic layer depth
-           DEALLOCATE( zw2d )
-        ENDIF
-        IF( iom_use( "xbla" ) ) THEN
-           ALLOCATE( zw3d(A2D(0),jpk))   ;    zw3d(A2D(0),jpk) = 0._wp
-           zw3d(A2D(0),1:jpkm1) = zeps(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-           CALL iom_put( "xbla", zw3d )  ! Euphotic layer depth
-           DEALLOCATE( zw3d )
-        ENDIF
+      IF( l_dia ) THEN
+        CALL iom_put( "Heup", heup(:,:)   * tmask(A2D(0),1) )  ! Euphotic layer depth
+        CALL iom_put( "xbla", zeps(:,:,:) * tmask(A2D(0),:) )  ! weighted diffusion coefficient
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('trc_opt')
@@ -358,6 +351,7 @@ CONTAINS
                          ekg      (:,:,:) = 0._wp
                          etot     (:,:,:) = 0._wp
                          etot_ndcy(:,:,:) = 0._wp
+                         zeps     (:,:,:) = 0._wp
       IF( ln_qsr_bio )   etot3    (:,:,:) = 0._wp
       ! 
    END SUBROUTINE trc_opt_ini

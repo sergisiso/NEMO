@@ -19,13 +19,15 @@ MODULE trcwri_cfc
 
 CONTAINS
 
-   SUBROUTINE trc_wri_cfc( Kmm )
+   SUBROUTINE trc_wri_cfc( kt, Kmm )
       !!---------------------------------------------------------------------
       !!                     ***  ROUTINE trc_wri_trc  ***
       !!
       !! ** Purpose :   output passive tracers fields 
       !!---------------------------------------------------------------------
+      INTEGER, INTENT(in)  :: kt    ! time step
       INTEGER, INTENT(in)  :: Kmm   ! time level indices
+      !
       CHARACTER (len=20)   :: cltra
       INTEGER              :: jn
       !!---------------------------------------------------------------------

@@ -20,13 +20,15 @@ MODULE trcwri_age
 
 CONTAINS
 
-   SUBROUTINE trc_wri_age( Kmm )
+   SUBROUTINE trc_wri_age( kt, Kmm )
       !!---------------------------------------------------------------------
       !!                     ***  ROUTINE trc_wri_trc  ***
       !!
       !! ** Purpose :   output passive tracers fields 
       !!---------------------------------------------------------------------
-      INTEGER, INTENT(in)  :: Kmm  ! time level indices
+      INTEGER, INTENT(in)  :: kt    ! time step
+      INTEGER, INTENT(in)  :: Kmm   ! time level indices
+      !
       CHARACTER (len=20)   :: cltra
       !!---------------------------------------------------------------------
 

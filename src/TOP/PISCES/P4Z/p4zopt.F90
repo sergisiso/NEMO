@@ -66,12 +66,11 @@ CONTAINS
       INTEGER  ::   irgb
       REAL(wp) ::   zchl
       REAL(wp) ::   zc0 , zc1 , zc2, zc3, z1_dep
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zetmp4
-      REAL(wp), DIMENSION(A2D(0)    ) :: zdepmoy, zetmp1, zetmp2, zetmp3
+      REAL(wp), DIMENSION(A2D(0)    ) :: zdepmoy, zetmp1, zetmp2
       REAL(wp), DIMENSION(A2D(0)    ) :: zqsr100, zqsr_corr
-      REAL(wp), DIMENSION(A2D(0),jpk) :: zpar, ze0, ze1, ze2, ze3
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zw2d
+      REAL(wp), DIMENSION(A2D(0),jpk) ::  ze0, ze1, ze2, ze3
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zpar
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zetmp3
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_opt')
@@ -293,36 +292,30 @@ CONTAINS
       ! -----------------------------
       zdepmoy(:,:)   = 0.e0             
       zetmp1 (:,:)   = 0.e0
-      zetmp2 (:,:)   = 0.e0
-
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
-            zetmp1 (ji,jj) = zetmp1 (ji,jj) + etot     (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Actual PAR for remineralisation
-            zetmp2 (ji,jj) = zetmp2 (ji,jj) + etot_ndcy(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Par averaged over 24h for production
+            zetmp1 (ji,jj) = zetmp1 (ji,jj) + etot(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Actual PAR for remineralisation
             zdepmoy(ji,jj) = zdepmoy(ji,jj) +                       e3t(ji,jj,jk,Kmm)
          ENDIF
       END_3D
       !
       emoy(:,:,:) = etot(:,:,:)       ! remineralisation
-      zpar(:,:,:) = etot_ndcy(:,:,:)  ! diagnostic : PAR with no diurnal cycle 
-      !
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
             z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
             emoy (ji,jj,jk) = zetmp1(ji,jj) * z1_dep
-            zpar (ji,jj,jk) = zetmp2(ji,jj) * z1_dep
          ENDIF
       END_3D
 
       ! Computation of the mean usable light for the different phytoplankton
       ! groups based on their absorption characteristics.
       zdepmoy(:,:)   = 0.e0
-      zetmp3 (:,:)   = 0.e0
+      zetmp2 (:,:)   = 0.e0
       !
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
-            zetmp3 (ji,jj) = zetmp3 (ji,jj) + enano    (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Nanophytoplankton
-            zdepmoy(ji,jj) = zdepmoy(ji,jj) +                       e3t(ji,jj,jk,Kmm)
+            zetmp2 (ji,jj) = zetmp2(ji,jj)  + enano(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Nanophytoplankton
+            zdepmoy(ji,jj) = zdepmoy(ji,jj) +                   e3t(ji,jj,jk,Kmm)
          ENDIF
       END_3D
       enanom(:,:,:) = enano(:,:,:)
@@ -330,17 +323,16 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
             z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
-            enanom(ji,jj,jk) = zetmp3(ji,jj) * z1_dep
+            enanom(ji,jj,jk) = zetmp2(ji,jj) * z1_dep
          ENDIF
       END_3D
       !
       IF( .NOT. ln_p2z ) THEN
          ! Diatoms when using PISCES-operational or PISCES-QUOTA
-         ALLOCATE( zetmp4(A2D(0)) )  ;   zetmp4 (:,:) = 0.e0
-         !
+         ALLOCATE( zetmp3(A2D(0)) )  ;   zetmp3(:,:) = 0.e0
          DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
-               zetmp4 (ji,jj) = zetmp4 (ji,jj) + ediat    (ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Diatoms
+               zetmp3(ji,jj) = zetmp3(ji,jj) + ediat(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Diatoms
             ENDIF
          END_3D
          !
@@ -349,17 +341,17 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
                z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
-               ediatm(ji,jj,jk) = zetmp4(ji,jj) * z1_dep
+               ediatm(ji,jj,jk) = zetmp3(ji,jj) * z1_dep
             ENDIF
          END_3D
-         DEALLOCATE( zetmp4 )
+         DEALLOCATE( zetmp3 )
       ENDIF
       IF( ln_p5z ) THEN
          ! Picophytoplankton when using PISCES-QUOTA
-         ALLOCATE( zetmp4(A2D(0)) )  ;   zetmp4 (:,:) = 0.e0
+         ALLOCATE( zetmp3(A2D(0)) )  ;   zetmp3(:,:) = 0.e0
          DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
-               zetmp4(ji,jj)  = zetmp4 (ji,jj) + epico(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
+               zetmp3(ji,jj)  = zetmp3(ji,jj) + epico(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
             ENDIF
          END_3D
          !
@@ -368,31 +360,31 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
                z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
-               epicom(ji,jj,jk) = zetmp4(ji,jj) * z1_dep
+               epicom(ji,jj,jk) = zetmp3(ji,jj) * z1_dep
             ENDIF
          END_3D
-         DEALLOCATE( zetmp4 )
+         DEALLOCATE( zetmp3 )
       ENDIF
       !
-      IF( lk_iomput .AND.  knt == nrdttrc ) THEN
-         IF( l_dia_heup ) THEN
-           ALLOCATE( zw2d(A2D(0)) ) 
-           DO_2D( 0, 0, 0, 0 )
-             zw2d(ji,jj) = heup(ji,jj) * tmask(ji,jj,1)
-           END_2D
-           CALL iom_put( "Heup", zw2d )  ! Euphotic layer depth
-           DEALLOCATE( zw2d ) 
-        ENDIF
-        IF( l_dia_par ) THEN
-           ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-           DO_2D( 0, 0, 0, 0 )
-              zw3d(ji,jj,1) = zpar(ji,jj,1) * ( 1._wp - fr_i(ji,jj) ) * tmask(ji,jj,1)
-           END_2D
-           DO_3D( 0, 0, 0, 0, 2, jpkm1)
-              zw3d(ji,jj,jk) = zpar(ji,jj,jk) * tmask(ji,jj,jk)
+      IF( knt == nrdttrc ) THEN
+         IF( l_dia_heup ) CALL iom_put( "Heup", heup(:,:) * tmask(A2D(0),1) )  ! Euphotic layer depth
+         IF( l_dia_par ) THEN   ! diagnostic : PAR with no diurnal cycle
+           ALLOCATE( zpar(A2D(0),jpk) )  ;  zpar(:,:,:) = etot_ndcy(:,:,:)  
+           ALLOCATE( zetmp3(A2D(0) ) )   ;  zetmp3(:,:)   = 0.e0
+           DO_3D( 0, 0, 0, 0, 1, nksr)
+              IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
+                 zetmp3(ji,jj) = zetmp3(ji,jj) + etot_ndcy(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Par averaged over 24h for production
+              ENDIF
            END_3D
-           CALL iom_put( "PAR", zw3d )  ! Photosynthetically Available Radiation
-           DEALLOCATE( zw3d ) 
+           DO_3D( 0, 0, 0, 0, 1, nksr)
+              IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
+                 z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
+                 zpar (ji,jj,jk) = zetmp3(ji,jj) * z1_dep
+              ENDIF
+           END_3D
+           zpar(:,:,1) = zpar(:,:,1) * ( 1._wp - fr_i(A2D(0)) ) 
+           CALL iom_put( "PAR", zpar(:,:,:) * tmask(A2D(0),:) ) 
+           DEALLOCATE( zpar, zetmp3 ) 
          ENDIF
       ENDIF
       !

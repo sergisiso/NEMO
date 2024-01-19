@@ -38,7 +38,7 @@ MODULE p4zpoc
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   alphap           !: lability distribution of small particles
 
    REAL(wp )   :: solgoc
-   LOGICAL     :: l_dia_remin_part
+   LOGICAL     :: l_dia_remin
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -84,13 +84,10 @@ CONTAINS
       IF( ln_timing )  CALL timing_start('p4z_poc')
       !
       IF( kt == nittrc000 ) & 
-          &      l_dia_remin_part = iom_use( "REMINP" ) .OR. iom_use( "REMING" ) .OR. iom_use( "REMINF" )
+          &      l_dia_remin = iom_use( "REMINP" ) .OR. iom_use( "REMING" ) .OR. iom_use( "REMINF" )
       !
-      IF( l_dia_remin_part ) THEN
-         ALLOCATE( zfolimi (A2D(0),jpk) )  ;  zfolimi (A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zfolimi (ji,jj,jk) = tr(ji,jj,jk,jpfer,Krhs)
-         END_3D
+      IF( l_dia_remin ) THEN
+         ALLOCATE( zfolimi (A2D(0),jpk) )  ;  zfolimi(A2D(0),:) = tr(A2D(0),:,jpfer,Krhs)
       ENDIF
 
       ! Initialisation of temporary arrays
@@ -191,11 +188,8 @@ CONTAINS
            ENDIF
         END_3D
         !
-        IF( l_dia_remin_part ) THEN
-           ALLOCATE( zremigoc(A2D(0),jpk) )  ;  zremigoc(A2D(0),jpk) = 0._wp
-           DO_3D( 0, 0, 0, 0, 1, jpkm1)
-              zremigoc(ji,jj,jk) = tr(ji,jj,jk,jpdoc,Krhs)
-           END_3D
+        IF( l_dia_remin ) THEN
+           ALLOCATE( zremigoc(A2D(0),jpk) )  ;  zremigoc(A2D(0),:) = tr(A2D(0),:,jpdoc,Krhs) 
         ENDIF
         !
         ! The standard PISCES part
@@ -239,11 +233,11 @@ CONTAINS
               tr(ji,jj,jk,jpgop,Krhs) = tr(ji,jj,jk,jpgop,Krhs) - zopop2 * (1. + solgoc)
            END_3D
         ENDIF
-        IF( l_dia_remin_part ) THEN
-           DO_3D( 0, 0, 0, 0, 1, jpkm1)
-              zremigoc(ji,jj,jk) = ( tr(ji,jj,jk,jpdoc,Krhs) - zremigoc(ji,jj,jk) ) / &
-              &                  ( xstep * tgfunc(ji,jj,jk) * tr(ji,jj,jk,jpgoc,Kbb) + rtrn ) * tmask(ji,jj,jk) ! =zremipart
-           END_3D
+        ! Remineralisation rate of large particles diag.
+        IF( l_dia_remin .AND. knt == nrdttrc ) THEN
+           CALL iom_put( "REMING", ( tr(A2D(0),:,jpdoc,Krhs) - zremigoc(:,:,:) ) / &
+              &                    ( xstep * tgfunc(:,:,:) * tr(A2D(0),:,jpgoc,Kbb) + rtrn ) * tmask(A2D(0),:) ) 
+           DEALLOCATE ( zremigoc )
         ENDIF
 
         IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
@@ -380,11 +374,8 @@ CONTAINS
         ENDIF
      END_3D
 
-     IF( l_dia_remin_part ) THEN
-         ALLOCATE( zremipoc(A2D(0),jpk) )  ;  zremipoc(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zremipoc(ji,jj,jk) = tr(ji,jj,jk,jpdoc,Krhs)
-         END_3D
+     IF( l_dia_remin ) THEN
+         ALLOCATE( zremipoc(A2D(0),jpk) )  ;  zremipoc(A2D(0),:) = tr(A2D(0),:,jpdoc,Krhs) 
      ENDIF
      DO_3D( 0, 0, 0, 0, 1, jpkm1)
         ! POC disaggregation by turbulence and bacterial activity.It is a function
@@ -443,26 +434,13 @@ CONTAINS
            tr(ji,jj,jk,jpdop,Krhs) = tr(ji,jj,jk,jpdop,Krhs) + zopop 
         END_3D
      ENDIF
-     IF( l_dia_remin_part ) THEN
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zremipoc(ji,jj,jk) = ( tr(ji,jj,jk,jpdoc,Krhs) - zremipoc(ji,jj,jk) ) / &
-                                 ( xstep * tgfunc(ji,jj,jk) * tr(ji,jj,jk,jppoc,Kbb) + rtrn ) * tmask(ji,jj,jk)
-         END_3D
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zfolimi (ji,jj,jk) = ( tr(ji,jj,jk,jpfer,Krhs) - zfolimi (ji,jj,jk) ) * tmask(ji,jj,jk)
-         END_3D
-     ENDIF
-
-     IF( lk_iomput .AND. knt == nrdttrc ) THEN
-        IF( l_dia_remin_part ) THEN
-           CALL iom_put( "REMINP", zremipoc )  ! Remineralisation rate of small particles
-           IF( .NOT. ln_p2z ) THEN
-              CALL iom_put( "REMING", zremigoc ) ! Remineralisation rate of large particles
-              DEALLOCATE ( zremigoc )
-           ENDIF
-           CALL iom_put( "REMINF", zfolimi * 1.e+9 * 1.e3 * rfact2r ) ! Remineralisation of biogenic particulate iron
-           DEALLOCATE ( zremipoc, zfolimi )
-        ENDIF
+     IF( l_dia_remin .AND. knt == nrdttrc ) THEN
+         ! Remineralisation rate of small particles diag.
+         CALL iom_put( "REMINP", ( tr(A2D(0),:,jpdoc,Krhs) - zremipoc(:,:,:) ) / &
+              &                  ( xstep * tgfunc(:,:,:) * tr(A2D(0),:,jppoc,Kbb) + rtrn ) * tmask(A2D(0),:) ) 
+         ! Remineralisation of biogenic particulate iron
+         CALL iom_put( "REMINF", ( tr(A2D(0),:,jpfer,Krhs) - zfolimi(:,:,:) ) * 1.e+9 * 1.e3 * rfact2r * tmask(A2D(0),:) )
+        DEALLOCATE ( zfolimi, zremipoc )
      ENDIF
 
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)

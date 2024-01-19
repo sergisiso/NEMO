@@ -45,8 +45,8 @@
    sn_trcdta(2)  = 'data_ALK_nomask.nc',        -12        ,  'TALK'   ,    .false.   , .true. , 'yearly'  , 'weights_3D_r360x180_bilin.nc'       , ''   , ''
    sn_trcdta(3)  = 'data_OXY_nomask.nc',        -1         ,  'O2'     ,    .true.    , .true. , 'yearly'  , 'weights_3D_r360x180_bilin.nc'       , ''   , ''
    sn_trcdta(7)  = 'data_DOC_nomask.nc',        -1         ,  'DOC'    ,    .true.    , .true. , 'yearly'  , 'weights_3D_r360x180_bilin.nc'       , ''   , ''
-   sn_trcdta(8)  = 'data_FER_nomask.nc',        -1         ,  'Fer'    ,    .true.    , .true. , 'yearly'  , 'weights_3D_r360x180_bilin.nc'       , ''   , ''
-   sn_trcdta(9)  = 'data_NO3_nomask.nc',        -1         ,  'NO3'    ,    .true.    , .true. , 'yearly'  , 'weights_3D_r360x180_bilin.nc'       , ''   , ''
+   sn_trcdta(8)  = 'data_NO3_nomask.nc',        -1         ,  'NO3'    ,    .true.    , .true. , 'yearly'  , 'weights_3D_r360x180_bilin.nc'       , ''   , ''
+   sn_trcdta(9)  = 'data_FER_nomask.nc',        -1         ,  'Fer'    ,    .true.    , .true. , 'yearly'  , 'weights_3D_r360x180_bilin.nc'       , ''   , ''
    rn_trfac(1)   =   1.028e-06   !  multiplicative factor
    rn_trfac(2)   =   1.028e-06   !  -      -      -     -
    rn_trfac(3)   =  44.6e-06     !  -      -      -     -

@@ -469,46 +469,28 @@ CONTAINS
          xfracal(ji,jj,jk) = MAX( 0.02, MIN( 0.8 , xfracal(ji,jj,jk) ) )
       END_3D
       !
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN        ! save output diagnostics
+      IF( knt == nrdttrc ) THEN        ! save output diagnostics
         !
         IF( l_dia_fracal ) THEN   ! fraction of calcifiers
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = xfracal(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "xfracal",  zw3d)
-          DEALLOCATE( zw3d )
+          CALL iom_put( "xfracal",  xfracal(:,:,:) * tmask(A2D(0),:) )
         ENDIF
         !
         IF( l_dia_nut_lim ) THEN   ! Nutrient limitation term
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = xlimphy(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LNnut",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = xlimdia(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LDnut",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = xlimpic(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LPnut",  zw3d)
-          DEALLOCATE( zw3d )
+          CALL iom_put( "LNnut",  xlimphy(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "LDnut",  xlimdia(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "LPnut",  xlimpic(:,:,:) * tmask(A2D(0),:) )
         ENDIF
         !
         IF( l_dia_iron_lim ) THEN   ! Iron limitation term
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = xlimnfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LNFe",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = xlimdfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LDFe",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = xlimpfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LPFe",  zw3d)
-          DEALLOCATE( zw3d )
+          CALL iom_put( "LNFe",  xlimnfe(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "LDFe",  xlimdfe(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "LPFe",  xlimpfe(:,:,:) * tmask(A2D(0),:) )
         ENDIF
         !
         IF( l_dia_size_lim ) THEN   ! Size limitation term
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = sizen(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "SIZEN",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = sized(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "SIZED",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = sizep(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "SIZEP",  zw3d)
-          DEALLOCATE( zw3d )
+          CALL iom_put( "SIZEN",  sizen(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "SIZED",  sized(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "SIZEP",  sizep(:,:,:) * tmask(A2D(0),:) )
         ENDIF
         !
         IF( l_dia_size_pro ) THEN   ! Size of the protein machinery
@@ -636,17 +618,21 @@ CONTAINS
       xpsinh4  = 1.8 * rno3
       xpsiuptk = 1.0 / 6.625
       !
-      xfracal(:,:,jpk) = 0._wp
-      xlimphy(:,:,jpk) = 0._wp
-      xlimpic(:,:,jpk) = 0._wp
-      xlimdia(:,:,jpk) = 0._wp
-      xlimnfe(:,:,jpk) = 0._wp
-      xlimpfe(:,:,jpk) = 0._wp
-      xlimdfe(:,:,jpk) = 0._wp
-      sizen  (:,:,jpk) = 0._wp
-      sizep  (:,:,jpk) = 0._wp
-      sized  (:,:,jpk) = 0._wp
-      !
+      xfracal (:,:,jpk) = 0._wp
+      xlimphy (:,:,jpk) = 0._wp    ;   xlimdia (:,:,jpk) = 0._wp   ;   xlimpic (:,:,jpk) = 0._wp
+      xlimnfe (:,:,jpk) = 0._wp    ;   xlimdfe (:,:,jpk) = 0._wp   ;   xlimpfe (:,:,jpk) = 0._wp
+      xnanono3(:,:,jpk) = 0._wp    ;   xdiatno3(:,:,jpk) = 0._wp   ;   xpicono3(:,:,jpk) = 0._wp
+      xnanonh4(:,:,jpk) = 0._wp    ;   xdiatnh4(:,:,jpk) = 0._wp   ;   xpiconh4(:,:,jpk) = 0._wp
+      xnanofer(:,:,jpk) = 0._wp    ;   xdiatfer(:,:,jpk) = 0._wp   ;   xpicofer(:,:,jpk) = 0._wp
+      xnanopo4(:,:,jpk) = 0._wp    ;   xdiatpo4(:,:,jpk) = 0._wp   ;   xpicopo4(:,:,jpk) = 0._wp
+      xlimbac (:,:,jpk) = 0._wp    ;   xlimbacl(:,:,jpk) = 0._wp
+      sizen   (:,:,jpk) = 0._wp    ;   sizep   (:,:,jpk) = 0._wp   ;   sized   (:,:,jpk) = 0._wp
+      xqfuncfecn(:,:,jpk) = 0._wp  ;   xqfuncfecd(:,:,jpk) = 0._wp ;   xqfuncfecp(:,:,jpk) = 0._wp
+      fvnuptk (:,:,jpk) = 0._wp    ;   fvduptk (:,:,jpk) = 0._wp   ;   fvpuptk(:,:,jpk)  = 0._wp
+      xlimphys(:,:,jpk) = 0._wp    ;   xlimdias(:,:,jpk) = 0._wp
+      xlimnpp (:,:,jpk) = 0._wp    ;   xlimnpn (:,:,jpk) = 0._wp   ;   xlimnpd (:,:,jpk) = 0._wp
+      xlimpics(:,:,jpk) = 0._wp   
+
    END SUBROUTINE p5z_lim_init
 
 

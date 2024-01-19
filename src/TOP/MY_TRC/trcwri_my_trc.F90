@@ -24,13 +24,15 @@ MODULE trcwri_my_trc
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE trc_wri_my_trc( Kmm )
+   SUBROUTINE trc_wri_my_trc( kt, Kmm )
       !!---------------------------------------------------------------------
       !!                     ***  ROUTINE trc_wri_trc  ***
       !!
       !! ** Purpose :   output passive tracers fields 
       !!---------------------------------------------------------------------
+      INTEGER, INTENT(in)  :: kt    ! time step
       INTEGER, INTENT(in)  :: Kmm   ! time level indices
+      !
       CHARACTER (len=20)   :: cltra
       INTEGER              :: jn
       !!---------------------------------------------------------------------

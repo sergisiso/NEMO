@@ -33,8 +33,9 @@ MODULE p4zbio
    USE p4zrem          !  Remineralisation of organic matter
    USE p4zpoc          !  Remineralization of organic particles
    USE p4zagg          !  Aggregation of particles
-   USE p4zfechem
+   USE p4zfechem       !  Iron chemistry
    USE p4zligand       !  Prognostic ligand model
+   USE p4zdiaz         !  Diazotrophy
    USE prtctl          !  print control for debugging
    USE iom             !  I/O manager
   
@@ -80,6 +81,13 @@ CONTAINS
          IF( gdepw(ji,jj,jk+1,Kmm) > hmld(ji,jj) )   xdiss(ji,jj,jk) = 0.01
       END_3D
 
+      ! Initialization of POC/GOC production and consumption
+      ! --------------------------------------------------
+         prodpoc(:,:,:) = 0.    ;   conspoc(:,:,:) = 0.
+      IF( .NOT. ln_p2z ) THEN
+         prodgoc(:,:,:) = 0.    ;   consgoc(:,:,:) = 0.
+      ENDIF
+
       CALL p4z_opt     ( kt, knt, Kbb, Kmm       )     ! Optic: PAR in the water column
       CALL p4z_sink    ( kt, knt, Kbb, Kmm, Krhs )     ! vertical flux of particulate organic matter
       CALL p4z_fechem  ( kt, knt, Kbb, Kmm, Krhs )     ! Iron chemistry/scavenging
@@ -110,23 +118,25 @@ CONTAINS
       ENDIF
       !
       IF( ln_p2z ) THEN
-         CALL p2z_rem     ( kt, knt, Kbb, Kmm, Krhs )     ! remineralization terms of organic matter+scavenging of Fe
+         CALL p2z_rem( kt, knt, Kbb, Kmm, Krhs )     ! remineralization terms of organic matter+scavenging of Fe
       ELSE
-         CALL p4z_agg     ( kt, knt, Kbb,      Krhs )     ! Aggregation of particles
-         CALL p4z_rem     ( kt, knt, Kbb, Kmm, Krhs )     ! remineralization terms of organic matter+scavenging of Fe
+         CALL p4z_agg( kt, knt, Kbb,      Krhs )     ! Aggregation of particles
+         CALL p4z_rem( kt, knt, Kbb, Kmm, Krhs )     ! remineralization terms of organic matter+scavenging of Fe
       ENDIF
-      CALL p4z_poc     ( kt, knt, Kbb, Kmm, Krhs )     ! Remineralization of organic particles
+      CALL p4z_poc   ( kt, knt, Kbb, Kmm, Krhs )     ! Remineralization of organic particles
       !
       ! Ligand production. ln_ligand should be set .true. to activate
       IF( ln_ligand )  &
       & CALL p4z_ligand( kt, knt, Kbb,      Krhs )
 
+      CALL p4z_diaz( kt, knt, Kbb, Kmm, Krhs )     ! Diazotrophy
+
       ! Update of the size of the different phytoplankton groups
-      sizen(:,:,:) = MAX(1.0, sizena(:,:,:) )
+      sizen(:,:,:) = MAX( 1.0, sizena(:,:,:) )
       IF( .NOT. ln_p2z ) THEN
-         sized(:,:,:) = MAX(1.0, sizeda(:,:,:) )
+         sized(:,:,:) = MAX( 1.0, sizeda(:,:,:) )
          IF (ln_p5z) THEN
-            sizep(:,:,:) = MAX(1.0, sizepa(:,:,:) )
+            sizep(:,:,:) = MAX( 1.0, sizepa(:,:,:) )
          ENDIF
       ENDIF
       !                                                             !

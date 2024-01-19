@@ -308,7 +308,7 @@ CONTAINS
          WRITE(numout,*) '    picophyto. mortality rate                 mpratp    =', mpratp
          WRITE(numout,*) '    Diatoms mortality rate                    mpratd    =', mpratd
       ENDIF
-
+      !
    END SUBROUTINE p5z_mort_init
 
    !!======================================================================
