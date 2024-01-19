@@ -90,7 +90,8 @@ CONTAINS
       REAL(wp) :: zgraznc, zgraznn, zgraznp, zgrazpoc, zgrazpon, zgrazpop, zgrazpof
       REAL(wp) :: zgrazdc, zgrazdn, zgrazdp, zgrazdf, zgraznf, zgrazz
       REAL(wp) :: zgrazpc, zgrazpn, zgrazpp, zgrazpf, zbeta, zrfact2, zmetexcess
-      REAL(wp) :: zsigma, zsigma2, zdiffdn, zdiffpn, zdiffdp, zproport, zproport2
+      REAL(wp) :: zsigma, zsigma2, zproport, zproport2
+      REAL(wp) :: zsizepn, zsizedn, zsizedp, zdiffdn, zdiffpn, zdiffdp
       REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE :: zgrazing, zfezoo, zzligprod
       CHARACTER (len=25) :: charout
       !!---------------------------------------------------------------------
@@ -185,9 +186,13 @@ CONTAINS
          zsigma = 1.0 - zdenom3/( 0.05 * 0.05 * 0.05 + zdenom3 )
          zsigma = xsigma + xsigmadel * zsigma
          zsigma2 = zsigma * zsigma
-         zdiffpn = exp( -ABS(log(0.7 * sizep(ji,jj,jk) / (3.0 * sizen(ji,jj,jk) + rtrn )) )**2 / zsigma*2 )
-         zdiffdn = exp( -ABS(log(3.0 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )**2 / zsigma*2)
-         zdiffdp = exp( -ABS(log(0.7 * sizep(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )**2 / zsigma*2)
+         !
+         zsizepn = -ABS(LOG(0.7 * sizep(ji,jj,jk) / (3.0 * sizen(ji,jj,jk) + rtrn )) )
+         zsizedn = -ABS(LOG(3.0 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zsizedp = -ABS(LOG(0.7 * sizep(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zdiffpn = EXP( zsizepn * zsizepn / zsigma2 )
+         zdiffdn = EXP( zsizedn * zsizedn / zsigma2 )
+         zdiffdp = EXP( zsizedp * zsizedp / zsigma2 )
          ztmp1 = xprefn * zcompaph * ( zcompaph + zdiffdn * zcompadi + zdiffpn * zcompapi )
          ztmp2 = xprefp * zcompapi * ( zcompapi + zdiffpn * zcompaph + zdiffdp * zcompadi )
          ztmp3 = xprefc * zcompapoc * zcompapoc
