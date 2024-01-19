@@ -20,7 +20,6 @@ MODULE trcstp
    USE trcrst
    USE trdtrc_oce
    USE trdmxl_trc
-   USE sms_pisces,  ONLY : ln_check_mass
    !
    USE prtctl         ! Print control for debbuging
    USE iom            !
@@ -61,7 +60,8 @@ CONTAINS
       !
       INTEGER ::   jk, jn   ! dummy loop indices
       INTEGER ::   ibb      ! local time-level index
-      REAL(wp)::   ztrai    ! local scalar
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: z4d
+      REAL(wp), ALLOCATABLE, DIMENSION(:) :: ztraa
       LOGICAL ::   ll_trcstat ! local logical
       CHARACTER (len=25) ::   charout   !
       !!-------------------------------------------------------------------
@@ -128,11 +128,16 @@ CONTAINS
 !     IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kmm, Kaa, Kbb  )       ! write tracer restart file
       !
       IF (ll_trcstat) THEN
-         ztrai = 0._wp                                                   !  content of all tracers
+         !
+         ALLOCATE( z4d(jpi,jpj,jpk,jptra), ztraa(jptra) )
          DO jn = 1, jptra
-            ztrai = ztrai + glob_sum( 'trcstp', tr(:,:,:,jn,Kaa) * cvol(:,:,:)   )
-         END DO
-         IF( lwm ) WRITE(numstr,9300) kt,  ztrai / areatot
+            z4d(:,:,:,jn) = tr(:,:,:,jn,Kaa) * cvol(:,:,:)
+         ENDDO
+         !
+         ztraa(1:jptra) = glob_sum_vec( 'trcstp', z4d(:,:,:,1:jptra) )
+         IF( lwm ) WRITE(numstr,9300) kt,  SUM( ztraa ) / areatot
+         !
+         DEALLOCATE( z4d, ztraa )
       ENDIF
 9300  FORMAT(i10,D23.16)
       !

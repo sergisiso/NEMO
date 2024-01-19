@@ -112,11 +112,11 @@ CONTAINS
       !
       ! write the tracer concentrations in the file
       ! ---------------------------------------
-      IF( ln_pisces  )   CALL trc_wri_pisces( Kmm )     ! PISCES 
-      IF( ll_cfc     )   CALL trc_wri_cfc   ( Kmm )     ! surface fluxes of CFC
-      IF( ln_c14     )   CALL trc_wri_c14   ( Kmm )     ! surface fluxes of C14
-      IF( ln_age     )   CALL trc_wri_age   ( Kmm )     ! AGE tracer
-      IF( ln_my_trc  )   CALL trc_wri_my_trc( Kmm )     ! MY_TRC  tracers
+      IF( ln_pisces  )   CALL trc_wri_pisces( kt, Kmm )     ! PISCES 
+      IF( ll_cfc     )   CALL trc_wri_cfc   ( kt, Kmm )     ! surface fluxes of CFC
+      IF( ln_c14     )   CALL trc_wri_c14   ( kt, Kmm )     ! surface fluxes of C14
+      IF( ln_age     )   CALL trc_wri_age   ( kt, Kmm )     ! AGE tracer
+      IF( ln_my_trc  )   CALL trc_wri_my_trc( kt, Kmm )     ! MY_TRC  tracers
       !
       IF( ln_timing )   CALL timing_stop('trc_wri')
       !

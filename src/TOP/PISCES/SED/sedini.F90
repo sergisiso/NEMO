@@ -176,14 +176,18 @@ CONTAINS
 
       ! Initialization of global variables
       pwcp  (:,:,:) = 0.   ;  pwcp_dta  (:,:) = 0.  
-      pwcpa (:,:,:) = 0.   ;  solcpa(:,:,:) = 0.
+      pwcpa (:,:,:) = 0.   ;  solcpa  (:,:,:) = 0.
+      pwcpa (:,:,:) = 0.
       solcp (:,:,:) = 0.   ;  xlabil(:) = 0.
-      rainrg(:,:  ) = 0.
+      rainrg(:,:  ) = 0.   ;  wacc  (:) = 0.
+      xirrigtrd(:,:) = 0.0 ;  xirrigtrdtmp(:,:) = 0.0
       dzdep (:    ) = 0.   ;  dzkbot (:   ) = 0.
+      slatit(:    ) = 0.   ;  slongit(:   ) = 0.
+      zkbot(:     ) = 0.   ;  diff  (:,:,:) = 0. 
       temp  (:    ) = 0.   ;  salt   (:   ) = 0.  ; zkbot     (:  ) = 0.
-      densSW (:   ) = 0.   ;  db     (:,:)  = 0. 
+      densSW (:   ) = 0.   ;  db     (:,:)  = 0.  ; saturco3  (:,:) = 0.
       hipor (:,:  ) = 0.   ;  co3por (:,: ) = 0.  ; irrig     (:,:) = 0. 
-      volw3d (:,: ) = 0.   ;  vols3d  (:,:) = 0. 
+      volw3d (:,: ) = 0.   ;  vols3d  (:,:) = 0.  ; volc     (:,:,:) = 0.     
       fecratio(:)   = 1E-5 ;  rearatpom(:,:)= 0. 
       radssol(:,:)  = 1.0  ;  rads1sol(:,:) = 0.
       apluss(:,:)   = 0.0  ;  aminuss(:,:)  = 0.0

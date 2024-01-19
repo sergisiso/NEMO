@@ -170,8 +170,6 @@ CONTAINS
          !                             
       END SELECT
       !
-      CALL lbc_lnk( 'trcsbc', sbc_trc(:,:,:), 'T', 1.0_wp )
-      !                                       Concentration dilution effect on tracers due to evaporation & precipitation 
       DO jn = 1, jptra
          !
          IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs)  ! save trends
@@ -361,7 +359,6 @@ CONTAINS
          ENDIF
          !
          !
-!!st useless trc_sbc only in the interior even in MLF case         CALL lbc_lnk( 'trcsbc', sbc_trc(:,:,:), 'T', 1.0_wp )
          !                                       Concentration dilution effect on tracers due to evaporation & precipitation 
          DO jn = 1, jptra
             !

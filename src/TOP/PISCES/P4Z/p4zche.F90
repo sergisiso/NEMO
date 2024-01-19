@@ -150,7 +150,8 @@ CONTAINS
       !!---------------------------------------------------------------------
       INTEGER, INTENT(in) ::   Kbb, Kmm  ! time level indices
       INTEGER  ::   ji, jj, jk
-      REAL(wp) ::   ztkel, ztkel1, zt , zsal  , zsal2 , zbuf1 , zbuf2
+      REAL(wp) ::   ztkel, ztkel1, ztkel2, ztkel3
+      REAL(wp) ::   zt , zsal  , zsal2 , zbuf1 , zbuf2
       REAL(wp) ::   ztgg , ztgg2, ztgg3 , ztgg4 , ztgg5
       REAL(wp) ::   zpres, ztc  , zcl   , zcpexp, zoxy  , zcpexp2
       REAL(wp) ::   zsqrt, ztr  , zlogt , zcek1, zc1, zplat
@@ -194,7 +195,9 @@ CONTAINS
       ! ----------------------------------
       DO_2D( 0, 0, 0, 0 )
          !                             ! SET ABSOLUTE TEMPERATURE
-         ztkel = tempis(ji,jj,1) + 273.15
+         ztkel  = tempis(ji,jj,1) + 273.15
+         ztkel2 = ztkel * ztkel
+         ztkel3 = ztkel2 * ztkel 
          zt    = ztkel * 0.01
          zsal  = salinprac(ji,jj,1) + ( 1.- tmask(ji,jj,1) ) * 35.
          !                             ! LN(K0) OF SOLUBILITY OF CO2 (EQ. 12, WEISS, 1980)
@@ -208,13 +211,13 @@ CONTAINS
          !&       + 0.0047036e-4*ztkel**2)
          ! NEW - Coefficients for CO2 soulbility in mol/(L*atm) (Weiss, 1974, Table 1, column 1)
          zcek1 = 9050.69/ztkel - 58.0931 + 22.2940 * LOG(zt) + zsal*(0.027766 - 0.00025888*ztkel    &
-                 &       + 0.0050578e-4*ztkel**2)
+                 &       + 0.0050578e-4*ztkel2)
          !
          ! OLD:  chemc(ji,jj,1) = EXP( zcek1 ) * 1E-6 * rhop(ji,jj,1) / 1000. ! mol/(L atm)
          ! The units indicated in the above line are wrong. They are actually "mol/(L*uatm)"
          ! NEW:
          chemc(ji,jj,1) = EXP( zcek1 ) * 1E-6 ! mol/(L * uatm)
-         chemc(ji,jj,2) = -1636.75 + 12.0408*ztkel - 0.0327957*ztkel**2 + 0.0000316528*ztkel**3
+         chemc(ji,jj,2) = -1636.75 + 12.0408*ztkel - 0.0327957*ztkel2 + 0.0000316528*ztkel3
          chemc(ji,jj,3) = 57.7 - 0.118*ztkel
       END_2D
 
@@ -242,7 +245,7 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpk )
           ! SET PRESSION ACCORDING TO SAUNDER (1980)
           zplat   = SIN ( ABS(gphit(ji,jj)*3.141592654/180.) )
-          zc1 = 5.92E-3 + zplat**2 * 5.25E-3
+          zc1 = 5.92E-3 + zplat*zplat * 5.25E-3
           zpres = ((1-zc1)-SQRT(((1-zc1)**2)-(8.84E-6*gdept(ji,jj,jk,Kmm)))) / 4.42E-6
           zpres = zpres / 10.0
 
@@ -430,12 +433,13 @@ CONTAINS
           fekeq (ji,jj,jk) = 10**( 17.27 - 1565.7 / ztkel ) 
 
           ! Liu and Millero (1999) only valid 5 - 50 degC
-          ztkel1 = MAX( 5. , tempis(ji,jj,jk) ) + 273.16
-          fesol(ji,jj,jk,1) = 10**(-13.486 - 0.1856* zis**0.5 + 0.3073*zis + 5254.0/ztkel1)
-          fesol(ji,jj,jk,2) = 10**(2.517 - 0.8885*zis**0.5 + 0.2139 * zis - 1320.0/ztkel1 )
-          fesol(ji,jj,jk,3) = 10**(0.4511 - 0.3305*zis**0.5 - 1996.0/ztkel1 )
-          fesol(ji,jj,jk,4) = 10**(-0.2965 - 0.7881*zis**0.5 - 4086.0/ztkel1 )
-          fesol(ji,jj,jk,5) = 10**(4.4466 - 0.8505*zis**0.5 - 7980.0/ztkel1 )
+          ztkel1 = MAX( 5. , tempis(ji,jj,jk) ) + 273.16 
+          ztr = 1. / ztkel1
+          fesol(ji,jj,jk,1) = 10**(-13.486 - 0.1856* zisqrt + 0.3073*zis + 5254.0*ztr)
+          fesol(ji,jj,jk,2) = 10**(2.517 - 0.8885*zisqrt + 0.2139 * zis - 1320.0*ztr )
+          fesol(ji,jj,jk,3) = 10**(0.4511 - 0.3305*zisqrt - 1996.0*ztr )
+          fesol(ji,jj,jk,4) = 10**(-0.2965 - 0.7881*zisqrt - 4086.0*ztr )
+          fesol(ji,jj,jk,5) = 10**(4.4466 - 0.8505*zisqrt - 7980.0*ztr )
       END_3D
       ! Iron and SIO3 saturation concentration from ...
       IF( .NOT. ln_p2z) THEN

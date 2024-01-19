@@ -42,7 +42,7 @@ MODULE p2zmicro
    REAL(wp), PUBLIC ::   epsher      !: growth efficiency for grazing 1 
    REAL(wp), PUBLIC ::   epshermin   !: minimum growth efficiency for grazing 1
 
-   LOGICAL          ::   l_dia_graz1, l_dia_lprodz
+   LOGICAL          ::   l_dia_graz, l_dia_lprodz
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -86,12 +86,8 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('p2z_micro')
       !
-      IF( kt == nittrc000 )  THEN
-         l_dia_graz1  = iom_use( "GRAZ1" )
-      ENDIF
-      IF( l_dia_graz1 ) THEN
-         ALLOCATE( zgrazing(A2D(0),jpk) ) 
-      ENDIF
+      IF( kt == nittrc000 )  l_dia_graz  = iom_use( "GRAZ1" ) .OR. iom_use( "MicroZo2" )
+      IF( l_dia_graz )  ALLOCATE( zgrazing(A2D(0),jpk) ) 
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompaz = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - 1.e-9 ), 0.e0 )
@@ -99,7 +95,9 @@ CONTAINS
 
          ! Proportion of diatoms that are within the size range
          ! accessible to microzooplankton. 
-         zproport  = MAX(sizen(ji,jj,jk)/3.0,1.0)**(-0.48)*(1.0 - (sizen(ji,jj,jk)**2.0 - 1.0) / 160.0)
+         ztmp1  = MAX(sizen(ji,jj,jk)/3.0,1.0)
+         ztmp2  = sizen(ji,jj,jk) * sizen(ji,jj,jk)
+         zproport  = ztmp1**(-0.48) * ( 1.0 - ( ztmp2 - 1.0 ) / 160.0)
          zproport2 = MIN(1.0, ( wsbio2 - wsbio3(ji,jj,jk) ) / ( wsbio2 - wsbio ) )
 
          !  linear mortality of mesozooplankton
@@ -151,23 +149,23 @@ CONTAINS
          ! have low abundance, .i.e. zooplankton become less specific 
          ! to avoid starvation.
          ! ----------------------------------------------------------
-         ztmp1 = xprefn * zcompaph**2
-         ztmp2 = xprefc * zcompapoc**2
-         ztmp3 = xprefz * zcompaz**2
+         ztmp1 = xprefn * zcompaph * zcompaph
+         ztmp2 = xprefc * zcompapoc * zcompapoc
+         ztmp3 = xprefz * zcompaz * zcompaz
          ztmptot = ztmp1 + ztmp2 + ztmp3 + rtrn
          ztmp1 = ztmp1 / ztmptot
          ztmp2 = ztmp2 / ztmptot
          ztmp3 = ztmp3 / ztmptot
 
          ! Ingestion terms on the different preys of microzooplankton
-         zgraznc   = zgraze   * ztmp1 * zdenom  ! Nanophytoplankton
-         zgrazpoc  = zgraze   * ztmp2 * zdenom  ! POC
-         zgrazz    = zgraze   * ztmp3 * zdenom  ! Microzoo
+         zgraznc   = zgraze * ztmp1 * zdenom  ! Nanophytoplankton
+         zgrazpoc  = zgraze * ztmp2 * zdenom  ! POC
+         zgrazz    = zgraze * ztmp3 * zdenom  ! Microzoo
 
          ! Ingestion terms on the iron content of the different preys
          ! Total ingestion rate in C, Fe, N units
          zgraztotc = zgraznc + zgrazpoc + zgrazz
-         IF( l_dia_graz1 )   zgrazing(ji,jj,jk) = zgraztotc
+         IF( l_dia_graz )   zgrazing(ji,jj,jk) = zgraztotc
          zgraztotn = zgraznc * quotan(ji,jj,jk) + zgrazpoc + zgrazz
 
          !   Stoichiometruc ratios of the food ingested by zooplanton 
@@ -225,14 +223,13 @@ CONTAINS
          tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - 2. * zprcaca
       END_3D
       !
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN
+      IF( knt == nrdttrc ) THEN
         !
-        IF( l_dia_graz1 ) THEN  !   Total grazing of phyto by zooplankton
+        IF( l_dia_graz ) THEN  
             zgrazing(A2D(0),jpk) = 0._wp
-            DO_3D( 0, 0, 0, 0, 1, jpkm1)
-               zgrazing(ji,jj,jk) = zgrazing(ji,jj,jk) *  1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in mol/m2/s
-            END_3D
-            CALL iom_put( "GRAZ1" , zgrazing )
+            CALL iom_put( "GRAZ1"    , zgrazing(:,:,:) * 1.e+3 * rfact2r * tmask(A2D(0),:) )  ! grazing of phyto by zoo
+            CALL iom_put( "MicroZo2" , zgrazing(:,:,:) * ( 1. - epsher - unass ) * (-o2ut) * sigma1  &
+                 &                      * 1.e+3 * rfact2r * tmask(A2D(0),:) ) ! o2 consumption by Microzoo
             DEALLOCATE( zgrazing )
         ENDIF
         !

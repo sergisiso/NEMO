@@ -28,13 +28,15 @@ MODULE trcwri_pisces
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE trc_wri_pisces( Kmm )
+   SUBROUTINE trc_wri_pisces( kt, Kmm )
       !!---------------------------------------------------------------------
       !!                     ***  ROUTINE trc_wri_trc  ***
       !!
       !! ** Purpose :   output passive tracers fields 
       !!---------------------------------------------------------------------
-      INTEGER, INTENT(in)          :: Kmm      ! time level indices
+      INTEGER, INTENT(in)  :: kt    ! time step
+      INTEGER, INTENT(in)  :: Kmm   ! time level indices
+      !
       CHARACTER (len=20)           :: cltra
       REAL(wp)                     :: zfact
       INTEGER                      :: ji, jj, jk, jn

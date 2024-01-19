@@ -54,7 +54,8 @@ MODULE p4zmeso
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) :: depmig  !: DVM of mesozooplankton : migration depth
    INTEGER , ALLOCATABLE, SAVE, DIMENSION(:,:) :: kmig    !: Vertical indice of the the migration depth
 
-   LOGICAL          :: l_dia_fezoo2, l_dia_graz2, l_dia_lprodz2
+   REAL(wp)         ::  xfracmigm1     !: Fractional biomass of meso that performs DVM
+   LOGICAL          :: l_dia_graz, l_dia_lprodz
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
@@ -85,35 +86,34 @@ CONTAINS
       !
       INTEGER  :: ji, jj, jk, jkt
       REAL(wp) :: zcompadi, zcompaph, zcompapoc, zcompaz, zcompam, zcompames
-      REAL(wp) :: zgraze2, zdenom, zfact, zfood, zfoodlim, zproport, zbeta
+      REAL(wp) :: zgraze2, zdenom, zdenom2, zfact, zfood, zfoodlim, zproport, zproportm1, zbeta
       REAL(wp) :: zmortzgoc, zfrac, zfracfe, zratio, zratio2, zfracal, zgrazcal
       REAL(wp) :: zepsherf, zepshert, zepsherq, zepsherv, zgraztotc, zgraztotn, zgraztotf
       REAL(wp) :: zmigreltime, zprcaca, zmortz, zgrasratf, zgrasratn
       REAL(wp) :: zrespz, ztortz, zgrazdc, zgrazz, zgrazpof, zgraznc, zgrazpoc, zgraznf, zgrazdf
       REAL(wp) :: zgrazm, zgrazfffp, zgrazfffg, zgrazffep, zgrazffeg, zdep
-      REAL(wp) :: zsigma, zdiffdn, ztmp1, ztmp2, ztmp3, ztmp4, ztmp5, ztmptot, zmigthick 
+      REAL(wp) :: zsigma, zsigma2, zdiffdn, ztmp1, ztmp2, ztmp3, ztmp4, ztmp5, ztmptot, zmigthick 
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zgrarem, zgraref, zgrapoc, zgrapof, zgrabsi
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigrem, zgramigref, zgramigpoc, zgramigpof
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigbsi
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zgrazing2, zfezoo2, zzligprod2, zw3d
+      REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE :: zgrazing2, zzligprod
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_meso')
       !
       IF( kt == nittrc000 )  THEN
-         l_dia_graz2   = iom_use( "GRAZ2" )
-         l_dia_fezoo2  = iom_use( "FEZOO2" )
-         l_dia_lprodz2 = ln_ligand .AND. iom_use( "LPRODZ2" )
+         l_dia_graz    = iom_use( "GRAZ2" ) .OR. iom_use( "FEZOO2" ) .OR. iom_use( "MesoZo2" )
+         l_dia_lprodz  = ln_ligand .AND. iom_use( "LPRODZ2" )
       ENDIF
-      IF( l_dia_lprodz2 ) THEN
-         ALLOCATE( zzligprod2(A2D(0),jpk) )
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zzligprod2(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
-         END_3D
+
+      IF( l_dia_graz ) THEN
+         ALLOCATE( zgrazing2(A2D(0),jpk) )     ;    zgrazing2(A2D(0),:) = 0.
       ENDIF
-      IF( l_dia_graz2 ) THEN
-         ALLOCATE( zgrazing2(A2D(0),jpk) )
+      !
+      IF( l_dia_lprodz ) THEN
+         ALLOCATE( zzligprod(A2D(0),jpk) )
+         zzligprod(A2D(0),:) = tr(A2D(0),:,jplgw,Krhs)
       ENDIF
       !
       zgrapoc(:,:,:) = 0._wp    ;  zgrarem(:,:,:) = 0._wp
@@ -180,17 +180,19 @@ CONTAINS
          ! have low abundance, .i.e. zooplankton become less specific 
          ! to avoid starvation.
          ! ----------------------------------------------------------
-         zsigma = 1.0 - zdenom**2/(0.05**2+zdenom**2)
-         zsigma = xsigma2 + xsigma2del * zsigma
+         zdenom2 = zdenom * zdenom
+         zsigma  = 1.0 - zdenom2/(0.05*0.05*0.05+zdenom2)
+         zsigma  = xsigma2 + xsigma2del * zsigma
+         zsigma2 = zsigma * zsigma
          ! Nanophytoplankton and diatoms are the only preys considered
          ! to be close enough to have potential interference
          ! -----------------------------------------------------------
-         zdiffdn = exp( -ABS(log(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )**2 / zsigma**2 )
+         zdiffdn = exp( -ABS(log(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )**2 / zsigma2 )
          ztmp1 = xpref2n * zcompaph * ( zcompaph + zdiffdn * zcompadi )
-         ztmp2 = xpref2m * zcompames**2
-         ztmp3 = xpref2c * zcompapoc**2
+         ztmp2 = xpref2m * zcompames*zcompames
+         ztmp3 = xpref2c * zcompapoc*zcompapoc
          ztmp4 = xpref2d * zcompadi * ( zcompadi + zdiffdn * zcompaph )
-         ztmp5 = xpref2z * zcompaz**2
+         ztmp5 = xpref2z * zcompaz*zcompaz
          ztmptot = ztmp1 + ztmp2 + ztmp3 + ztmp4 + ztmp5 + rtrn
          ztmp1 = ztmp1 / ztmptot
          ztmp2 = ztmp2 / ztmptot
@@ -228,7 +230,7 @@ CONTAINS
          ! Compute the proportion of filter feeders. It is assumed steady state.
          ! ---------------------------------------------------------------------
          zproport  = (zgrazffep + zgrazffeg)/(rtrn + zgraztotc)
-         zproport = zproport**2
+         zproport = zproport * zproport
 
          ! Compute fractionation of aggregates. It is assumed that 
          ! diatoms based aggregates are more prone to fractionation
@@ -250,18 +252,19 @@ CONTAINS
          zgrazffeg = zproport * zgrazffeg
          zgrazfffp = zproport * zgrazfffp
          zgrazfffg = zproport * zgrazfffg
-         zgrazdc   = (1.0 - zproport) * zgrazdc
-         zgraznc   = (1.0 - zproport) * zgraznc
-         zgrazz    = (1.0 - zproport) * zgrazz
-         zgrazpoc  = (1.0 - zproport) * zgrazpoc
-         zgrazm    = (1.0 - zproport) * zgrazm
-         zgrazdf   = (1.0 - zproport) * zgrazdf
-         zgraznf   = (1.0 - zproport) * zgraznf
-         zgrazpof  = (1.0 - zproport) * zgrazpof
+         zproportm1 = 1.0 - zproport
+         zgrazdc   = zproportm1 * zgrazdc
+         zgraznc   = zproportm1 * zgraznc
+         zgrazz    = zproportm1 * zgrazz
+         zgrazpoc  = zproportm1 * zgrazpoc
+         zgrazm    = zproportm1 * zgrazm
+         zgrazdf   = zproportm1 * zgrazdf
+         zgraznf   = zproportm1 * zgraznf
+         zgrazpof  = zproportm1 * zgrazpof
 
          ! Total ingestion rates in C, N, Fe
          zgraztotc = zgrazdc + zgrazz + zgraznc + zgrazpoc + zgrazm + zgrazffep + zgrazffeg  ! grazing by mesozooplankton
-         IF( l_dia_graz2 ) zgrazing2(ji,jj,jk) = zgraztotc
+         IF( l_dia_graz ) zgrazing2(ji,jj,jk) = zgraztotc
 
          zgraztotn = zgrazdc * quotad(ji,jj,jk) + zgrazz + zgraznc * quotan(ji,jj,jk)   &
          &   + zgrazm + zgrazpoc + zgrazffep + zgrazffeg
@@ -369,11 +372,11 @@ CONTAINS
                zgramigpof(ji,jj) = zgramigpof(ji,jj) + xfracmig * zgrapof(ji,jj,jk) * zmigthick 
                zgramigbsi(ji,jj) = zgramigbsi(ji,jj) + xfracmig * zgrabsi(ji,jj,jk) * zmigthick 
 
-               zgrarem(ji,jj,jk) = zgrarem(ji,jj,jk) * ( (1.0 - xfracmig) + xfracmig * zmigreltime )
-               zgraref(ji,jj,jk) = zgraref(ji,jj,jk) * ( (1.0 - xfracmig) + xfracmig * zmigreltime )
-               zgrapoc(ji,jj,jk) = zgrapoc(ji,jj,jk) * ( (1.0 - xfracmig) + xfracmig * zmigreltime )
-               zgrapof(ji,jj,jk) = zgrapof(ji,jj,jk) * ( (1.0 - xfracmig) + xfracmig * zmigreltime )
-               zgrabsi(ji,jj,jk) = zgrabsi(ji,jj,jk) * ( (1.0 - xfracmig) + xfracmig * zmigreltime )
+               zgrarem(ji,jj,jk) = zgrarem(ji,jj,jk) * ( xfracmigm1 + xfracmig * zmigreltime )
+               zgraref(ji,jj,jk) = zgraref(ji,jj,jk) * ( xfracmigm1 + xfracmig * zmigreltime )
+               zgrapoc(ji,jj,jk) = zgrapoc(ji,jj,jk) * ( xfracmigm1 + xfracmig * zmigreltime )
+               zgrapof(ji,jj,jk) = zgrapof(ji,jj,jk) * ( xfracmigm1 + xfracmig * zmigreltime )
+               zgrabsi(ji,jj,jk) = zgrabsi(ji,jj,jk) * ( xfracmigm1 + xfracmig * zmigreltime )
             ENDIF
          END_3D
       
@@ -405,10 +408,6 @@ CONTAINS
          tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zgrarem(ji,jj,jk) * sigma2
          tr(ji,jj,jk,jpnh4,Krhs) = tr(ji,jj,jk,jpnh4,Krhs) + zgrarem(ji,jj,jk) * sigma2
          tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) + zgrarem(ji,jj,jk) * ( 1. - sigma2 )
-         !
-         IF( ln_ligand ) & 
-          &  tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + zgrarem(ji,jj,jk) * ( 1. - sigma2 ) * ldocz
-         !
          tr(ji,jj,jk,jpoxy,Krhs) = tr(ji,jj,jk,jpoxy,Krhs) - o2ut * zgrarem(ji,jj,jk) * sigma2
          tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + zgraref(ji,jj,jk)
          tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) + zgrarem(ji,jj,jk) * sigma2
@@ -419,35 +418,25 @@ CONTAINS
          tr(ji,jj,jk,jpgsi,Krhs) = tr(ji,jj,jk,jpgsi,Krhs) + zgrabsi(ji,jj,jk)
       END_3D
       !
+      IF( ln_ligand ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpk)
+            tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + zgrarem(ji,jj,jk) * ( 1. - sigma2 ) * ldocz
+         END_3D
+      ENDIF
       ! Write the output
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN
+      IF( knt == nrdttrc ) THEN
         !
-        IF( l_dia_graz2 ) THEN  !   Total grazing of phyto by zooplankton
-            zgrazing2(A2D(0),jpk) = 0._wp
-            DO_3D( 0, 0, 0, 0, 1, jpkm1)
-               zgrazing2(ji,jj,jk) =  zgrazing2(ji,jj,jk) *  1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in mol/m2/s
-            END_3D
-            CALL iom_put( "GRAZ2" , zgrazing2 )
+        IF( l_dia_graz ) THEN  !
+            CALL iom_put( "GRAZ2"   , zgrazing2(:,:,:)       * 1.e+3 * rfact2r * tmask(A2D(0),:) )
+            CALL iom_put( "MesoZo2" , zgrazing2(:,:,:) * ( 1. - epsher2 - unass2 ) * (-o2ut) * sigma2  &
+                 &                      * 1.e+3 * rfact2r * tmask(A2D(0),:) ) ! o2 consumption by Mesozoo
+            CALL iom_put( "FEZOO2", zgraref  (:,:,:) * 1e9 * 1.e+3 * rfact2r * tmask(A2D(0),:) )
             DEALLOCATE( zgrazing2 )
         ENDIF
         !
-        IF( l_dia_fezoo2 ) THEN
-            ALLOCATE( zfezoo2(A2D(0),jpk) )   ;     zfezoo2(A2D(0),jpk) = 0._wp
-            DO_3D( 0, 0, 0, 0, 1, jpkm1)
-               zfezoo2(ji,jj,jk) =  zgraref(ji,jj,jk) * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in nmol/m2/s
-            END_3D
-           CALL iom_put( "FEZOO2", zfezoo2 )
-           DEALLOCATE( zfezoo2 )
-        ENDIF
-        !
-        IF( l_dia_lprodz2 ) THEN
-            zzligprod2(A2D(0),jpk) = 0._wp
-            DO_3D( 0, 0, 0, 0, 1, jpkm1)
-               zzligprod2(ji,jj,jk) = ( tr(ji,jj,jk,jplgw,Krhs) - zzligprod2(ji,jj,jk) ) &
-                   &                * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk) ! conversion in nmol/m2/s
-            END_3D
-           CALL iom_put( "LPRODZ2", zzligprod2 )
-           DEALLOCATE( zzligprod2 )
+        IF( l_dia_lprodz ) THEN
+           CALL iom_put( "LPRODZ2", ( tr(A2D(0),:,jplgw,Krhs) - zzligprod(:,:,:) ) * 1e9 * 1.e+3 * rfact2r * tmask(A2D(0),:) )
+           DEALLOCATE( zzligprod )
         ENDIF
         !
       ENDIF
@@ -520,6 +509,8 @@ CONTAINS
          WRITE(numout,*) '      Diurnal vertical migration of mesozoo.         ln_dvm_meso  =', ln_dvm_meso
          WRITE(numout,*) '      Fractional biomass of meso  that performs DVM  xfracmig     =', xfracmig
       ENDIF
+      !
+      xfracmigm1 = 1.0 - xfracmig
       !
    END SUBROUTINE p4z_meso_init
 

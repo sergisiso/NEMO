@@ -27,7 +27,6 @@ MODULE trcstp_rk3
 
    USE trdtrc_oce
    USE trdmxl_trc
-   USE sms_pisces,  ONLY : ln_check_mass
    !
    USE prtctl         ! Print control for debbuging
    USE iom            !

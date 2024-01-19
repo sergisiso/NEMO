@@ -90,7 +90,6 @@ CONTAINS
       REAL(wp) ::   zconc1d, zconc1dnh4, zconc0n, zconc0nnh4   
       REAL(wp) ::   fananof, fadiatf, znutlim, zfalim
       REAL(wp) ::   znutlimtot, zlimno3, zlimnh4, zbiron
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_lim')
@@ -250,40 +249,25 @@ CONTAINS
          xfracal(ji,jj,jk) = MAX( 0.02, xfracal(ji,jj,jk) )
       END_3D
       !
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN        ! save output diagnostics
+      IF( knt == nrdttrc ) THEN        ! save output diagnostics
         !
         IF( l_dia_fracal ) THEN   ! fraction of calcifiers
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = xfracal(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "xfracal",  zw3d)
-          DEALLOCATE( zw3d )
+          CALL iom_put( "xfracal",  xfracal(:,:,:) * tmask(A2D(0),:) ) 
         ENDIF
         !
         IF( l_dia_nut_lim ) THEN   ! Nutrient limitation term
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = xlimphy(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LNnut",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = xlimdia(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LDnut",  zw3d)
-          DEALLOCATE( zw3d )
+          CALL iom_put( "LNnut",  xlimphy(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "LDnut",  xlimdia(:,:,:) * tmask(A2D(0),:) )
         ENDIF
         !
         IF( l_dia_iron_lim ) THEN   ! Iron limitation term
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = xlimnfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LNFe",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = xlimdfe(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LDFe",  zw3d)
-          DEALLOCATE( zw3d )
+          CALL iom_put( "LNFe",  xlimnfe(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "LDFe",  xlimdfe(:,:,:) * tmask(A2D(0),:) )
         ENDIF
         !
         IF( l_dia_size_lim ) THEN   ! Size limitation term
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = sizen(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "SIZEN",  zw3d)
-          zw3d(A2D(0),1:jpkm1) = sized(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "SIZED",  zw3d)
-          DEALLOCATE( zw3d )
+          CALL iom_put( "SIZEN",  sizen(:,:,:) * tmask(A2D(0),:) )
+          CALL iom_put( "SIZED",  sized(:,:,:) * tmask(A2D(0),:) )
         ENDIF
         !
       ENDIF
@@ -350,10 +334,18 @@ CONTAINS
       ENDIF
       !
       xfracal (:,:,jpk) = 0._wp
-      xlimphy (:,:,jpk) = 0._wp
-      xlimdia (:,:,jpk) = 0._wp
-      xlimnfe (:,:,jpk) = 0._wp
-      xlimdfe (:,:,jpk) = 0._wp
+      xlimphy (:,:,jpk) = 0._wp    ;      xlimdia (:,:,jpk) = 0._wp
+      xlimnfe (:,:,jpk) = 0._wp    ;      xlimdfe (:,:,jpk) = 0._wp
+      xnanono3(:,:,jpk) = 0._wp    ;      xdiatno3(:,:,jpk) = 0._wp
+      xnanofer(:,:,jpk) = 0._wp    ;      xdiatfer(:,:,jpk) = 0._wp
+      xnanonh4(:,:,jpk) = 0._wp    ;      xdiatnh4(:,:,jpk) = 0._wp
+      xnanopo4(:,:,jpk) = 0._wp    ;      xdiatpo4(:,:,jpk) = 0._wp
+      xdiatpo4(:,:,jpk) = 0._wp    ;      xdiatpo4(:,:,jpk) = 0._wp
+      xlimdia (:,:,jpk) = 0._wp    ;      xlimdfe (:,:,jpk) = 0._wp
+      concnfe (:,:,jpk) = 0._wp    ;      concdfe (:,:,jpk) = 0._wp
+      xqfuncfecn(:,:,jpk) = 0._wp    ;    xqfuncfecd(:,:,jpk) = 0._wp
+      xlimsi  (:,:,jpk) = 0._wp
+      xlimbac (:,:,jpk) = 0._wp    ;      xlimbacl(:,:,jpk) = 0._wp
       !
    END SUBROUTINE p4z_lim_init
 

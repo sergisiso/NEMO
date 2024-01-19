@@ -83,12 +83,11 @@ CONTAINS
       INTEGER  ::   ji, jj, jm, iind, iindm1
       REAL(wp) ::   ztc, ztc2, ztc3, ztc4, zws, zkgwan
       REAL(wp) ::   zfld, zflu, zfld16, zflu16, zrhd
-      REAL(wp) ::   zvapsw, zsal, zfco2, zxc2, xCO2approx, ztkel, zfugcoeff
-      REAL(wp) ::   zph, zdic, zsch_o2, zsch_co2
+      REAL(wp) ::   zvapsw, zsal, zfco2, zxc, zxc2, xCO2approx, ztkel, zfugcoeff
+      REAL(wp) ::   zph, zph2, zdic, zsch_o2, zsch_co2
       REAL(wp) ::   zyr_dec, zdco2dt
       CHARACTER (len=25) ::   charout
       REAL(wp), DIMENSION(A2D(0)) ::   zkgco2, zkgo2, zh2co3, zoflx,  zpco2atm, zpco2oce  
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zw2d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_flx')
@@ -132,8 +131,9 @@ CONTAINS
          zrhd = rhd(ji,jj,1) + 1._wp
          zdic  = tr(ji,jj,1,jpdic,Kbb)
          zph   = MAX( hi(ji,jj,1), 1.e-10 ) / ( zrhd + rtrn )
+         zph2  = zph * zph 
          ! CALCULATE [H2CO3]
-         zh2co3(ji,jj) = zdic/(1. + ak13(ji,jj,1)/zph + ak13(ji,jj,1)*ak23(ji,jj,1)/zph**2)
+         zh2co3(ji,jj) = zdic/(1. + ak13(ji,jj,1)/zph + ak13(ji,jj,1)*ak23(ji,jj,1)/zph2)
       END_2D
 
       ! --------------
@@ -167,7 +167,8 @@ CONTAINS
          zsal  = salinprac(ji,jj,1) + ( 1.- tmask(ji,jj,1) ) * 35.
          zvapsw    = EXP(24.4543 - 67.4509*(100.0/ztkel) - 4.8489*LOG(ztkel/100) - 0.000544*zsal)
          zpco2atm(ji,jj) = satmco2(ji,jj) * ( patm(ji,jj) - zvapsw )
-         zxc2      = ( 1.0 - zpco2atm(ji,jj) * 1E-6 )**2
+         zxc       = ( 1.0 - zpco2atm(ji,jj) * 1E-6 )
+         zxc2      = zxc * zxc
          zfugcoeff = EXP( patm(ji,jj) * (chemc(ji,jj,2) + 2.0 * zxc2 * chemc(ji,jj,3) )   &
          &           / ( 82.05736 * ztkel ))
          zfco2 = zpco2atm(ji,jj) * zfugcoeff
@@ -187,15 +188,11 @@ CONTAINS
          tr(ji,jj,1,jpoxy,Krhs) = tr(ji,jj,1,jpoxy,Krhs) + zoflx(ji,jj) * rfact2 / e3t(ji,jj,1,Kmm)
       END_2D
 
-      IF( l_dia_tcflx .OR. kt == nitrst   &
-         &           .OR. (ln_check_mass .AND. kt == nitend) )  THEN
-         ALLOCATE( zw2d(A2D(0)) )
-         zw2d(A2D(0)) = oce_co2(A2D(0)) * e1e2t(A2D(0)) * 1000._wp
-         t_oce_co2_flx  = glob_sum( 'p4zflx',  zw2d(:,:) )                    !  Total Flux of Carbon
+      IF( l_dia_tcflx .OR. kt == nitrst )  THEN
+         t_oce_co2_flx  = glob_sum( 'p4zflx',  oce_co2(:,:) * e1e2t(:,:) * 1000._wp)   !  Total Flux of Carbon
          t_oce_co2_flx_cum = t_oce_co2_flx_cum + t_oce_co2_flx       !  Cumulative Total Flux of Carbon
 !        t_atm_co2_flx     = glob_sum( 'p4zflx', satmco2(:,:) * e1e2t(:,:) )       ! Total atmospheric pCO2
          t_atm_co2_flx     =  atcco2      ! Total atmospheric pCO2
-         DEALLOCATE( zw2d )
       ENDIF
  
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
@@ -204,43 +201,22 @@ CONTAINS
          CALL prt_ctl(tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm)
       ENDIF
 
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN
+      IF( knt == nrdttrc ) THEN
         !
         IF( l_dia_cflx ) THEN
-           ALLOCATE( zw2d(A2D(0)) ) 
-           ! Atmospheric CO2 concentration
-           zw2d(A2D(0)) = satmco2(A2D(0)) * tmask(A2D(0),1)
-           CALL iom_put( "AtmCo2", zw2d )
-           ! Carbon flux
-           zw2d(A2D(0)) = oce_co2(A2D(0)) * 1000._wp
-           CALL iom_put( "Cflx", zw2d )
-           ! atmospheric Dpco2 
-           zw2d(A2D(0)) =  ( zpco2atm(A2D(0)) - zpco2oce(A2D(0)) ) * tmask(A2D(0),1)
-           CALL iom_put( "Dpco2", zw2d )
-           ! oceanic Dpco2 
-           zw2d(A2D(0)) =  zpco2oce(A2D(0)) * tmask(A2D(0),1)
-           CALL iom_put( "pCO2sea", zw2d )
-           !
-           DEALLOCATE( zw2d )
+           CALL iom_put( "AtmCo2" , satmco2(:,:) * tmask(A2D(0),1) )   ! Atmospheric CO2 concentration
+           CALL iom_put( "Cflx"   , oce_co2(:,:) * 1000._wp )         ! Carbon flux
+           CALL iom_put( "Dpco2"  ,  ( zpco2atm(:,:) - zpco2oce(:,:) ) * tmask(A2D(0),1) ) ! atmospheric Dpco2
+           CALL iom_put( "pCO2sea", zpco2oce(:,:) * tmask(A2D(0),1) ) ! oceanic Dpco2
         ENDIF
         !
         IF( l_dia_oflx ) THEN
-           ALLOCATE( zw2d(A2D(0)) ) 
-           !  oxygen flux 
-           CALL iom_put( "Oflx", zoflx * 1000._wp )
-           !  Dpo2 
-           zw2d(A2D(0)) =  ( atcox * patm(A2D(0)) - atcox * tr(A2D(0),1,jpoxy,Kbb) &
-                            / ( chemo2(A2D(0),1) + rtrn ) ) * tmask(A2D(0),1) 
-           CALL iom_put( "Dpo2", zw2d )
-           DEALLOCATE( zw2d )
+           CALL iom_put( "Oflx", zoflx * 1000._wp )     ! oxygen flux
+           CALL iom_put( "Dpo2", ( atcox * patm(:,:) - atcox * tr(:,:,1,jpoxy,Kbb) &  !  Dpo2
+                 &              / ( chemo2(:,:,1) + rtrn ) ) * tmask(A2D(0),1) )
         ENDIF
         !
-        IF( l_dia_kg ) THEN
-           ALLOCATE( zw2d(A2D(0)) ) 
-           zw2d(A2D(0)) = zkgco2(A2D(0)) * tmask(A2D(0),1)
-           CALL iom_put( "Kg", zw2d )
-           DEALLOCATE( zw2d )
-        ENDIF
+        IF( l_dia_kg )   CALL iom_put( "Kg", zkgco2(:,:) * tmask(A2D(0),1) )
         IF( l_dia_tcflx ) THEN
           CALL iom_put( "tcflx"   , t_oce_co2_flx )    ! global flux of carbon
           CALL iom_put( "tcflxcum", t_oce_co2_flx_cum )   !  Cumulative flux of carbon

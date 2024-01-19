@@ -39,7 +39,7 @@ MODULE p2zlim
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimbacl   !: Bacterial limitation term
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimnfe    !: Nanophyto limitation by Iron
 
-   LOGICAL  :: l_dia_nut_lim, l_dia_size_lim, l_dia_fracal
+   LOGICAL  :: l_dia
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -67,16 +67,12 @@ CONTAINS
       REAL(wp) ::   zcoef, zconc0n, zconcnf, zlim1, zlim2, zlim3
       REAL(wp) ::   zbiron, ztem1, ztem2, zetot1, zetot2, zsize
       REAL(wp) ::   zferlim, zno3
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p2z_lim')
       !
-      IF( kt == nittrc000 )  THEN
-         l_dia_nut_lim  = iom_use( "LNnut"   )
-         l_dia_size_lim = iom_use( "SIZEN"   )
-         l_dia_fracal   = iom_use( "xfracal" )
-      ENDIF
+      IF( kt == nittrc000 )  &
+         &     l_dia = iom_use( "LNnut" ) .OR. iom_use( "SIZEN" ) .OR. iom_use( "xfracal" )
       !
       sizena(:,:,:) = 1.0
       !
@@ -154,28 +150,11 @@ CONTAINS
          xfracal(ji,jj,jk) = MAX( 0.02, xfracal(ji,jj,jk) )
       END_3D
       !
-      IF( lk_iomput .AND. knt == nrdttrc ) THEN        ! save output diagnostics
+      IF( l_dia .AND. knt == nrdttrc ) THEN        ! save output diagnostics
         !
-        IF( l_dia_fracal ) THEN   ! fraction of calcifiers
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = xfracal(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "xfracal",  zw3d)
-          DEALLOCATE( zw3d )
-        ENDIF
-        !
-        IF( l_dia_nut_lim ) THEN   ! Nutrient limitation term
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = xlimphy(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "LNnut",  zw3d)
-          DEALLOCATE( zw3d )
-        ENDIF
-        !
-        IF( l_dia_size_lim ) THEN   ! Size limitation term
-          ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),jpk) = 0._wp
-          zw3d(A2D(0),1:jpkm1) = sizen(A2D(0),1:jpkm1) * tmask(A2D(0),1:jpkm1)
-          CALL iom_put( "SIZEN",  zw3d)
-          DEALLOCATE( zw3d )
-        ENDIF
+        CALL iom_put( "xfracal", xfracal(:,:,:) * tmask(A2D(0),:) ) ! fraction of calcifiers
+        CALL iom_put( "LNnut"  , xlimphy(:,:,:) * tmask(A2D(0),:) ) ! Nutrient limitation term
+        CALL iom_put( "SIZEN"  , sizen(:,:,:)   * tmask(A2D(0),:) ) ! Size limitation term
         !
       ENDIF
       !
@@ -228,7 +207,11 @@ CONTAINS
       ENDIF
       !
       xfracal (:,:,jpk) = 0._wp
+      xnanono3(:,:,jpk) = 0._wp
       xlimphy (:,:,jpk) = 0._wp
+      xlimnfe (:,:,jpk) = 0._wp
+      xlimbac (:,:,jpk) = 0._wp
+      xlimbacl(:,:,jpk) = 0._wp
       !
    END SUBROUTINE p2z_lim_init
 

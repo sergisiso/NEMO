@@ -65,11 +65,10 @@ CONTAINS
       !!---------------------------------------------------------------------
       INTEGER, INTENT(in) :: kt, knt
       INTEGER, INTENT(in) :: Kbb, Kmm, Krhs  ! time level indices
-      INTEGER  ::   ji, jj, jk
+      INTEGER  ::   ji, jj, jk, ikb
       CHARACTER (len=25) :: charout
       REAL(wp) :: zmax, zfact
-      REAL(wp), DIMENSION(A2D(0),jpk) :: zsinking
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zsinking, zsinking2
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_sink')
@@ -81,13 +80,10 @@ CONTAINS
          !
          xfact = 1.e+3 * rfact2r  !  conversion from mol/l/kt to  mol/m3/s
       ENDIF
-      l_diag = l_dia_sink .OR. ( ln_check_mass .AND. kt == nitend )
-      l_diag = l_diag .AND. knt == nrdttrc
+      l_diag = l_dia_sink .AND. knt == nrdttrc
 
-      ! Initialization of some global variables
-      ! ---------------------------------------
-      prodpoc(:,:,:) = 0.
-      conspoc(:,:,:) = 0.
+      ! Initialize the local arrays
+      zsinking(:,:,:) = 0._wp ; zsinking2(:,:,:) = 0._wp
 
       ! Sinking speeds of big detritus is increased with depth as shown
       ! by data and from the coagulation theory. This is controled by
@@ -101,6 +97,8 @@ CONTAINS
          zfact = MAX( 0., gdepw(ji,jj,jk+1,Kmm) - zmax ) / wsbio2scale
          wsbio4(ji,jj,jk) = wsbio2 + MAX(0., ( wsbio2max - wsbio2 )) * zfact
       END_3D
+
+      wsbio4(:,:,jpk) = wsbio2
 
       ! Sinking speed of the small particles is always constant
       ! except in PISCES reduced
@@ -118,98 +116,72 @@ CONTAINS
 
       ! Compute the sedimentation term using trc_sink for all the sinking particles
       ! ---------------------------------------------------------------------------
+      !
       CALL trc_sink( kt, Kbb, Kmm, wsbio3, zsinking , jppoc, rfact2 )
-      DO_2D( 0, 0, 0, 0 )
-         sinkpocb(ji,jj) = zsinking(ji,jj,mbkt(ji,jj)+1)
-      END_2D
-      IF( l_diag ) THEN
-         ALLOCATE( zw3d(A2D(0),jpk) )  ;  zw3d(A2D(0),:) = 0._wp
-         zw3d(A2D(0),1:jpkm1) = zsinking(A2D(0),1:jpkm1) * xfact * tmask(A2D(0),1:jpkm1)
-      ENDIF
-
-
       IF( .NOT. ln_p2z ) THEN
-         prodgoc(:,:,:) = 0.
-         consgoc(:,:,:) = 0.
-
-         ! Compute the sedimentation term using trc_sink for all the sinking particles
-         ! ---------------------------------------------------------------------------
-         CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking, jpgoc, rfact2 )
-         DO_2D( 0, 0, 0, 0 )
-            sinkpocb(ji,jj) = sinkpocb(ji,jj) + zsinking(ji,jj,mbkt(ji,jj)+1)
-         END_2D
-         IF( l_diag ) THEN
-            zw3d(A2D(0),1:jpkm1) = zw3d(A2D(0),1:jpkm1) + zsinking(A2D(0),1:jpkm1) * xfact * tmask(A2D(0),1:jpkm1)
-         ENDIF
+         CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking2, jpgoc, rfact2 )
       ENDIF
-
+      DO_2D( 0, 0, 0, 0 )
+         ikb = mbkt(ji,jj)+1
+         sinkpocb(ji,jj) = zsinking(ji,jj,ikb) + zsinking2(ji,jj,ikb)
+      END_2D
+      !
       IF( l_diag ) THEN
-         t_oce_co2_exp = glob_sum( 'p4zsink', zw3d(A2D(0),ik100) * e1e2t(A2D(0)) * tmask(A2D(0),1) )
-         CALL iom_put( "EPC100",  zw3d(:,:,ik100) )  ! Export of carbon at 100m
-         CALL iom_put( "EXPC"  ,  zw3d )             ! Export of carbon in the water column
-         CALL iom_put( "tcexp", t_oce_co2_exp )      ! Total cabon exort
+         t_oce_co2_exp = glob_sum( 'p4zsink', ( zsinking(A2D(0),ik100) + zsinking2(A2D(0),ik100) ) &
+            &                                    * xfact * e1e2t(A2D(0)) * tmask(A2D(0),ik100) )
+         CALL iom_put( "EPC100", ( zsinking(A2D(0),ik100) + zsinking2(A2D(0),ik100) ) * xfact * tmask(A2D(0),ik100) )  ! Export of carbon at 100m
+         CALL iom_put( "EXPC"  , ( zsinking(A2D(0),:)     + zsinking2(A2D(0),:) )     * xfact * tmask(A2D(0),:) )      ! Export of carbon in the water column
+         CALL iom_put( "tcexp" , t_oce_co2_exp )      ! Total cabon exort
       ENDIF
       !
       IF( .NOT. ln_p2z ) THEN
-
-         zsinking(:,:,:) = 0.e0
+         !
          CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking, jpcal, rfact2 )
          DO_2D( 0, 0, 0, 0 )
-            sinkcalb(ji,jj) = zsinking(ji,jj,mbkt(ji,jj)+1)
+            ikb = mbkt(ji,jj)+1
+            sinkcalb(ji,jj) = zsinking(ji,jj,ikb)
          END_2D
          IF( l_diag ) THEN
-            zw3d(A2D(0),1:jpkm1) = zsinking(A2D(0),1:jpkm1) * xfact * tmask(A2D(0),1:jpkm1)
-            CALL iom_put( "EPCAL100",  zw3d(:,:,ik100) )  ! Export of calcite at 100m
-            CALL iom_put( "EXPCAL"  ,  zw3d )             ! Export of calcite in the water column
+            CALL iom_put( "EPCAL100",  zsinking(A2D(0),ik100) * xfact * tmask(A2D(0),ik100) )  ! Export of calcite at 100m
+            CALL iom_put( "EXPCAL"  ,  zsinking(A2D(0),:)     * xfact * tmask(A2D(0),:) )             ! Export of calcite in the water column
          ENDIF
 
          CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking, jpgsi, rfact2 )
          DO_2D( 0, 0, 0, 0 )
-            sinksilb(ji,jj) = zsinking(ji,jj,mbkt(ji,jj)+1)
+            ikb = mbkt(ji,jj)+1
+            sinksilb(ji,jj) = zsinking(ji,jj,ikb)
          END_2D
          IF( l_diag ) THEN
-            zw3d(A2D(0),1:jpkm1) = zsinking(A2D(0),1:jpkm1) * xfact * tmask(A2D(0),1:jpkm1)
-            CALL iom_put( "EPSI100",  zw3d(:,:,ik100) )  ! Export of Silicate at 100m
-            CALL iom_put( "EXPSI"  ,  zw3d )             ! Export of Silicate in the water column
+            CALL iom_put( "EPSI100", zsinking(A2D(0),ik100) * xfact * tmask(A2D(0),ik100) )  ! Export of Silicate at 100m
+            CALL iom_put( "EXPSI"  , zsinking(A2D(0),:)     * xfact * tmask(A2D(0),:)   )             ! Export of Silicate in the water column
          ENDIF
          !
-         CALL trc_sink( kt, Kbb, Kmm, wsbio3, zsinking, jpsfe, rfact2 )
+         CALL trc_sink( kt, Kbb, Kmm, wsbio3, zsinking , jpsfe, rfact2 )
+         CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking2, jpbfe, rfact2 )
          IF( l_diag ) THEN
-            zw3d(A2D(0),1:jpkm1) = zsinking(A2D(0),1:jpkm1) * xfact * tmask(A2D(0),1:jpkm1)
-         ENDIF
-         CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking, jpbfe, rfact2 )
-         IF( l_diag ) THEN
-            zw3d(A2D(0),1:jpkm1) = zw3d(A2D(0),1:jpkm1) + zsinking(A2D(0),1:jpkm1) * xfact * tmask(A2D(0),1:jpkm1)
-            CALL iom_put( "EPFE100",  zw3d(:,:,ik100) )  ! Export of iron at 100m
-            CALL iom_put( "EXPFE"  ,  zw3d )             ! Export of iron in the water column
+            CALL iom_put( "EPFE100", ( zsinking(A2D(0),ik100) + zsinking2(A2D(0),ik100) ) * xfact * tmask(A2D(0),ik100) )  ! Export of iron at 100m
+            CALL iom_put( "EXPFE"  , ( zsinking(A2D(0),:)     + zsinking2(A2D(0),:) )     * xfact * tmask(A2D(0),:) )      ! Export of iron in the water column
          ENDIF
       ENDIF
       !
       ! PISCES-QUOTA part
       IF( ln_p5z ) THEN
          !
-         CALL trc_sink( kt, Kbb, Kmm, wsbio3, zsinking, jppon, rfact2 )
+         CALL trc_sink( kt, Kbb, Kmm, wsbio3, zsinking , jppon, rfact2 )
+         CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking2, jpgon, rfact2 )
          DO_2D( 0, 0, 0, 0 )
-            sinkponb(ji,jj) = zsinking(ji,jj,mbkt(ji,jj)+1)
+            ikb = mbkt(ji,jj)+1
+            sinkponb(ji,jj) = zsinking(ji,jj,ikb) + zsinking2(ji,jj,ikb)
          END_2D
          !
-         CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking, jpgon, rfact2 )
+         CALL trc_sink( kt, Kbb, Kmm, wsbio3, zsinking , jppop, rfact2 )
+         CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking2, jpgop, rfact2 )
          DO_2D( 0, 0, 0, 0 )
-            sinkponb(ji,jj) = sinkponb(ji,jj) + zsinking(ji,jj,mbkt(ji,jj)+1)
+            ikb = mbkt(ji,jj)+1
+            sinkpopb(ji,jj) = zsinking(ji,jj,ikb) + zsinking2(ji,jj,ikb)
          END_2D
          !
-         CALL trc_sink( kt, Kbb, Kmm, wsbio3, zsinking, jppop, rfact2 )
-         DO_2D( 0, 0, 0, 0 )
-            sinkpopb(ji,jj) = zsinking(ji,jj,mbkt(ji,jj)+1)
-         END_2D
-         !
-         CALL trc_sink( kt, Kbb, Kmm, wsbio4, zsinking, jpgop, rfact2 )
-         DO_2D( 0, 0, 0, 0 )
-            sinkpopb(ji,jj) = sinkpopb(ji,jj) + zsinking(ji,jj,mbkt(ji,jj)+1)
-         END_2D
       ENDIF
-      !
-      IF( l_diag )  DEALLOCATE( zw3d )
       !
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
          WRITE(charout, FMT="('sink')")

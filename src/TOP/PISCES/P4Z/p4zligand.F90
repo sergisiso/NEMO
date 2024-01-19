@@ -26,6 +26,7 @@ MODULE p4zligand
    REAL(wp), PUBLIC ::  prlgw    !: Photochemical of weak ligand
    REAL(wp), PUBLIC ::  xklig    !: 1/2 saturation constant of photolysis
 
+   REAL(wp) ::  xklig2    !: xklig * xklig 
    LOGICAL  ::  l_dia_ligand
 
    !! * Substitutions
@@ -48,9 +49,9 @@ CONTAINS
       INTEGER, INTENT(in)  ::  Kbb, Krhs ! time level indices
       !
       INTEGER  :: ji, jj, jk
+      REAL(wp) :: zlig, zlig2, zlig3
       REAL(wp) :: zlgwp, zlgwpr, zlgwr, zlablgw 
-      REAL(wp) :: zlam1a, zlam1b, zaggliga, zligco
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zligrem, zligpr, zligprod, zlcoll3d
+      REAL(wp) :: zfecoag, zaggliga, zligco
       CHARACTER (len=25) ::   charout
       !!---------------------------------------------------------------------
       !
@@ -65,99 +66,43 @@ CONTAINS
       ! ------------------------------------------------------------------
 
       ! production from remineralisation of organic matter
-      IF( l_dia_ligand ) THEN
-         ALLOCATE( zligprod(A2D(0),jpk) )   ;    zligprod(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zligprod(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
-         END_3D
-      ENDIF
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         zlig  = tr(ji,jj,jk,jplgw,Kbb)
+         zlig2 = zlig  * zlig
+         zlig3 = zlig2 * zlig
+         zfecoag = xfecolagg(ji,jj,jk) * 1.0E-9
+         zligco  = MAX(0., zlig -  zfecoag)
+         !
+         ! production from remineralisation of organic matter
          zlgwp = orem(ji,jj,jk) * rlig
-         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + zlgwp 
+         ! Decay of weak ligand
+         ! This is based on the idea that as LGW is lower
+         ! there is a larger fraction of refractory OM
+         !
+         zlgwr = ( 1.0 / rlgs * zligco + 1.0 / rlgw * zfecoag ) / ( rtrn + zlig )
+         zlgwr = zlgwr * tgfunc(ji,jj,jk) * ( xstep / nyear_len(1) ) * blim(ji,jj,jk) * zlig 
+         !
+         ! photochem loss of weak ligand
+         zlgwpr = prlgw * xstep * etot(ji,jj,jk) * zlig3 * (1. - fr_i(ji,jj) ) / ( zlig2 + xklig2 )
+         !
+         ! Coagulation of ligands due to various processes (Brownian, shear, diff. sedimentation
+         ! xcoagfe is computed in p4zfechem
+         ! 50% of the ligands are supposed to be in the colloidal size fraction as for FeL
+         zaggliga = xcoagfe(ji,jj,jk) * xstep * 0.5 * zligco
+         !
+         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + zlgwp  - zlgwr - zlgwpr - zaggliga
          !
       END_3D
       !
-      IF( l_dia_ligand .AND. ( lk_iomput .AND. knt == nrdttrc ) ) THEN
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zligprod(ji,jj,jk) = ( tr(ji,jj,jk,jplgw,Krhs) - zligprod(ji,jj,jk) )  &
-                &               * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk)
-         END_3D
-         CALL iom_put( "LPRODR", zligprod )
-         DEALLOCATE( zligprod ) 
-      ENDIF
-
-      ! Decay of weak ligand
-      ! This is based on the idea that as LGW is lower
-      ! there is a larger fraction of refractory OM
-      IF( l_dia_ligand ) THEN
-         ALLOCATE( zligrem(A2D(0),jpk) )   ;    zligrem(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zligrem(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
-         END_3D
-      ENDIF
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zlgwr = ( 1.0 / rlgs * MAX(0., tr(ji,jj,jk,jplgw,Kbb) - xfecolagg(ji,jj,jk) * 1.0E-9 )    &
-         &       + 1.0 / rlgw * xfecolagg(ji,jj,jk) * 1.0E-9 ) / ( rtrn + tr(ji,jj,jk,jplgw,Kbb) )
-         zlgwr = zlgwr * tgfunc(ji,jj,jk) * ( xstep / nyear_len(1) ) * blim(ji,jj,jk) * tr(ji,jj,jk,jplgw,Kbb)
-         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) - zlgwr 
-      END_3D
-      !
-      IF( l_dia_ligand .AND. ( lk_iomput .AND. knt == nrdttrc ) ) THEN
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zligrem(ji,jj,jk) = - ( tr(ji,jj,jk,jplgw,Krhs) - zligrem(ji,jj,jk) )  &
-                &               * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk)
-         END_3D
-         CALL iom_put( "LIGREM", zligrem )
-         DEALLOCATE( zligrem ) 
-      ENDIF
-
-      ! photochem loss of weak ligand
-      IF( l_dia_ligand ) THEN
-         ALLOCATE( zligpr(A2D(0),jpk) )   ;    zligpr(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zligpr(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
-         END_3D
-      ENDIF
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zlgwpr = prlgw * xstep * etot(ji,jj,jk) * tr(ji,jj,jk,jplgw,Kbb)**3 * (1. - fr_i(ji,jj))   &
-         &        / ( tr(ji,jj,jk,jplgw,Kbb)**2 + (xklig)**2)
-
-         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) - zlgwpr
-      END_3D
-      !
-      IF( l_dia_ligand .AND. ( lk_iomput .AND. knt == nrdttrc ) ) THEN
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zligpr(ji,jj,jk) = - ( tr(ji,jj,jk,jplgw,Krhs) - zligpr(ji,jj,jk) )  &
-               &               * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk)
-         END_3D
-         CALL iom_put( "LIGPR", zligpr )
-         DEALLOCATE( zligpr ) 
-      ENDIF
-
-      ! Coagulation of ligands due to various processes (Brownian, shear, diff. sedimentation
-      ! xcoagfe is computed in p4zfechem
-      ! -------------------------------------------------------------------------------------
-      ! 50% of the ligands are supposed to be in the colloidal size fraction as for FeL
-      IF( l_dia_ligand ) THEN
-         ALLOCATE( zlcoll3d(A2D(0),jpk) )   ;    zlcoll3d(A2D(0),jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zlcoll3d(ji,jj,jk) = tr(ji,jj,jk,jplgw,Krhs)
-         END_3D
-      ENDIF
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zligco   = 0.5 * MAX(0., tr(ji,jj,jk,jplgw,Kbb) - xfecolagg(ji,jj,jk) * 1.0E-9 )
-         zaggliga = xcoagfe(ji,jj,jk) * xstep * zligco
-
-         tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) - zaggliga
-      END_3D
-      !
-      IF( l_dia_ligand .AND. ( lk_iomput .AND. knt == nrdttrc ) ) THEN
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            zlcoll3d(ji,jj,jk) = - ( tr(ji,jj,jk,jplgw,Krhs) - zlcoll3d(ji,jj,jk) )  &
-                &                 * 1e9 * 1.e+3 * rfact2r * tmask(ji,jj,jk)
-         END_3D
-         CALL iom_put( "LGWCOLL", zlcoll3d )
-         DEALLOCATE( zlcoll3d ) 
+      IF( l_dia_ligand .AND. knt == nrdttrc ) THEN
+         CALL iom_put( "LPRODR", orem(:,:,:) * rlig * 1e9 * 1.e+3 * rfact2r * tmask(A2D(0),:) )
+         CALL iom_put( "LIGREM", ( 1.0 / rlgs * MAX(0., tr(A2D(0),:,jplgw,Kbb) - xfecolagg(:,:,:) * 1.0E-9 )    &
+              &                  + 1.0 / rlgw * xfecolagg(:,:,:) * 1.0E-9 ) / ( rtrn + tr(A2D(0),:,jplgw,Kbb) ) &
+              &                 * tgfunc(:,:,:) * ( xstep / nyear_len(1) ) * blim(:,:,:) * tr(A2D(0),:,jplgw,Kbb) )
+         CALL iom_put( "LIGPR",  prlgw * xstep * etot(:,:,:) * tr(A2D(0),:,jplgw,Kbb)**3 &
+              &          * SPREAD( fr_i(A2D(0)), DIM=3,NCOPIES=jpk ) / ( tr(A2D(0),:,jplgw,Kbb)**2 + xklig2 ) )
+         CALL iom_put( "LGWCOLL",  xcoagfe(:,:,:) * xstep &
+              &        * 0.5 * MAX(0., tr(A2D(0),:,jplgw,Kbb) - xfecolagg(:,:,:) * 1.0E-9 ) )
       ENDIF
       !
       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
@@ -203,6 +148,7 @@ CONTAINS
          WRITE(numout,*) '      Lifetime (years) of strong ligands           rlgs  =', rlgs
          WRITE(numout,*) '      1/2 saturation for photolysis                xklig =', xklig
       ENDIF
+      xklig2 = xklig * xklig
       !
    END SUBROUTINE p4z_ligand_init
 

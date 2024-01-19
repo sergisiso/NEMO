@@ -184,14 +184,12 @@ CONTAINS
          END DO
       ENDIF                                            
       !
-      IF( lk_iomput ) THEN
-         jl = 0
-         DO jn = jp_cfc0, jp_cfc1
-            jl = jl + 1
-            CALL iom_put( 'qtr_'//TRIM(ctrcnm(jn)) , qtr_cfc (:,:,jl) )
-            CALL iom_put( 'qint_'//TRIM(ctrcnm(jn)), qint_cfc(:,:,jl) )
-         ENDDO
-      END IF
+      jl = 0
+      DO jn = jp_cfc0, jp_cfc1
+         jl = jl + 1
+         CALL iom_put( 'qtr_'//TRIM(ctrcnm(jn)) , qtr_cfc (:,:,jl) )
+         CALL iom_put( 'qint_'//TRIM(ctrcnm(jn)), qint_cfc(:,:,jl) )
+      ENDDO
       !
       IF( l_trdtrc ) THEN
           DO jn = jp_cfc0, jp_cfc1

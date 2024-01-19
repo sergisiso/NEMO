@@ -62,8 +62,6 @@ MODULE sms_pisces
    LOGICAL  ::  ln_pisdmp         !: restoring or not of nutrients to a mean value
    INTEGER  ::  nn_pisdmp         !: frequency of relaxation or not of nutrients to a mean value
 
-   !!* Mass conservation
-   LOGICAL  ::  ln_check_mass     !: Flag to check mass conservation
    LOGICAL, PUBLIC ::   ln_ironice   !: boolean for Fe input from sea ice
 
    !!* Diurnal cycle in PISCES

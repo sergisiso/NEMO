@@ -231,6 +231,7 @@
     <field id="SIZEP"       long_name="Mean relative size of picophyto."        unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="SIZED"       long_name="Mean relative size of diatoms"           unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="THETANANO"   long_name="Diagnostic Chl:C ratio"                  unit="mgChl/mgC"  grid_ref="grid_T_3D_inner" />
+    <field id="CHL"         long_name="Total Chl"                               unit="gChl/m3"    grid_ref="grid_T_3D_inner"/>
     <field id="RASSD"       long_name="Size of the protein machinery (Diat.)"   unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="RASSN"       long_name="Size of the protein machinery (Nano.)"   unit="-"          grid_ref="grid_T_3D_inner" />
     <field id="RASSP"       long_name="Size of the protein machinery (Pico.)"   unit="-"          grid_ref="grid_T_3D_inner" />
@@ -280,6 +281,17 @@
     <field id="LPRODZ"      long_name="microzooplankton ligand production rate" unit="nmol-L/m3/s"         grid_ref="grid_T_3D_inner" />
     <field id="FEZOO"       long_name="microzooplankton iron recycling rate"    unit="nmol-FeL/m3/s"       grid_ref="grid_T_3D_inner" />
     <field id="FEZOO2"      long_name="mesozooplankton iron recycling rate"     unit="nmol-FeL/m3/s"       grid_ref="grid_T_3D_inner" />
+    <field id="MicroZo2"    long_name="O2 consumption by microzooplankton"       unit="molC/m2/s"          grid_ref="grid_T_3D_inner" />
+    <field id="Remino2"     long_name="O2 consumption by remineralisation"       unit="molC/m2/s"          grid_ref="grid_T_3D_inner" />
+    <field id="Nfixo2"      long_name="O2 production by Nfix"                    unit="molN/m2/s"          grid_ref="grid_T_3D_inner" />
+    <field id="PPNEWo2"     long_name="Oxygen production by the New Produc."     unit="molC/m3/s"          grid_ref="grid_T_3D_inner" />
+    <field id="PPRego2"     long_name="Oxygen production by the Regen Produc."   unit="molC/m3/s"          grid_ref="grid_T_3D_inner" />
+    <field id="MesoZo2"     long_name="O2 consumption by mesozooplankton"        unit="molC/m2/s"          grid_ref="grid_T_3D_inner" />
+    <field id="Nitrifo2"    long_name="O2 consumption by nitrification"          unit="molC/m2/s"          grid_ref="grid_T_3D_inner" />
+    <field id="No3dep"      long_name="Nitrate deposition at surface"            unit="molN/m2/s"     />
+    <field id="Sildep"      long_name="silicate deposition at surface"           unit="molC/m2/s"     />
+    <field id="Po4dep"      long_name="Phosphorus deposition at surface"         unit="molP/m2/s"     />
+    <field id="Nh4dep"      long_name="Ammonium deposition at surface"           unit="molN/m2/s"     />
 
     <!-- PISCES tracers trends -->
     <field id="INTdtAlk"    long_name="Vertically int. of change of alkalinity"             unit="mol/m2/s" />
