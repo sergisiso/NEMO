@@ -81,7 +81,7 @@ CONTAINS
       REAL(wp) :: zgrarem, zgrafer, zgrapoc, zprcaca, zmortz
       REAL(wp) :: zrespz, ztortz, zgrasratf, zgrasratn
       REAL(wp) :: zgraznc, zgrazz, zgrazpoc, zgrazdc, zgrazpof, zgrazdf, zgraznf
-      REAL(wp) :: zsigma, zsigma2, zdiffdn, ztmp1, ztmp2, ztmp3, ztmp4, ztmptot, zproport
+      REAL(wp) :: zsigma, zsigma2, zsizedn, zdiffdn, ztmp1, ztmp2, ztmp3, ztmp4, ztmptot, zproport
       REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE :: zgrazing, zfezoo, zzligprod
       CHARACTER (len=25) :: charout
 
@@ -166,7 +166,9 @@ CONTAINS
          zsigma = 1.0 - zdenom2/(0.05 * 0.05 + zdenom2)
          zsigma = xsigma + xsigmadel * zsigma
          zsigma2 = zsigma * zsigma
-         zdiffdn = EXP( -ABS(LOG(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )**2 / zsigma2)
+         !
+         zsizedn = -ABS(LOG(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zdiffdn = EXP( zsizedn * zsizedn / zsigma2 )
          ztmp1 = xprefn * zcompaph * ( zcompaph + zdiffdn * zcompadi ) 
          ztmp2 = xprefd * zcompadi * ( zdiffdn * zcompaph + zcompadi )
          ztmp3 = xprefc * zcompapoc * zcompapoc 
