@@ -162,7 +162,7 @@ CONTAINS
          !
          IF( ln_icedyn .AND. .NOT.ln_c1d )   &
             &                           CALL ice_dyn( kt, Kmm )       ! -- Ice dynamics
-         ! ==> clem: here, all the global variables are correctly defined in the halos
+         ! ==> clem: here, all the global variables are correctly defined in the halos if no thermo or if bdy
          !         
                                         CALL diag_trends( 1 )         ! record dyn trends
          !
@@ -170,7 +170,7 @@ CONTAINS
          ! --- Thermodynamics BDY  --- !
          !-----------------------------!
          IF( ln_icethd .AND. ln_bdy )   CALL bdy_ice( kt )            ! -- bdy ice thermo
-         ! ==> clem: here, all the global variables are correctly defined in the halos
+         ! ==> clem: here, all the global variables are NOT correctly defined in the halos
          !
          !-------------------------------------------------!
          ! --- Change from global to equivalent arrays --- !

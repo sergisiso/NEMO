@@ -114,8 +114,8 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(A2D(nn_hls),jpk,jpts)     , INTENT(inout) ::   pts
-      INTEGER , DIMENSION(A2D(0))                   , INTENT(in   ) ::   ktop , kbot
-      REAL(wp), DIMENSION(A2D(0))                   , INTENT(in   ) ::   phtbl, pfrac
+      INTEGER , DIMENSION(A2D(2))                   , INTENT(in   ) ::   ktop , kbot
+      REAL(wp), DIMENSION(A2D(2))                   , INTENT(in   ) ::   phtbl, pfrac
       REAL(wp), DIMENSION(A2D(0),jpts)              , INTENT(in   ) ::   ptsc
       REAL(wp), DIMENSION(A2D(0),jpts)    , OPTIONAL, INTENT(in   ) ::   ptsc_b
       !!
@@ -127,11 +127,15 @@ CONTAINS
       ! update pts(:,:,:,:,Krhs)
       DO_2D( 0, 0, 0, 0 )
          !
+         IF( phtbl(ji,jj) /= 0._wp ) THEN
 #if defined key_RK3
-         ztc = ptsc(ji,jj,jp_tem) / phtbl(ji,jj)
+            ztc = ptsc(ji,jj,jp_tem) / phtbl(ji,jj)
 #else
-         ztc = 0.5_wp * ( ptsc(ji,jj,jp_tem) + ptsc_b(ji,jj,jp_tem) ) / phtbl(ji,jj)
+            ztc = 0.5_wp * ( ptsc(ji,jj,jp_tem) + ptsc_b(ji,jj,jp_tem) ) / phtbl(ji,jj)
 #endif
+         ELSE
+            ztc = 0._wp
+         ENDIF
          ! level fully include in the ice shelf boundary layer
          ikt = ktop(ji,jj)
          ikb = kbot(ji,jj)

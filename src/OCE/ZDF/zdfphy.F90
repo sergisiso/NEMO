@@ -283,7 +283,7 @@ CONTAINS
 #if defined key_si3
       IF ( ln_drgice_imp) THEN
          IF ( ln_isfcav ) THEN
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( 1, 1, 1, 1 )
                rCdU_top(ji,jj) = rCdU_top(ji,jj) + ssmask(ji,jj) * tmask(ji,jj,1) * rCdU_ice(ji,jj)
             END_2D
          ELSE
@@ -349,15 +349,9 @@ CONTAINS
       IF( ln_zdfiwm )   CALL zdf_iwm( kt, Kmm, avm, avt, avs )   ! internal wave (de Lavergne et al 2017)
 
       !                                         !* Lateral boundary conditions (sign unchanged)
-      ! Subroutines requiring halo points: zdf_sh2 (avm_k), dia_wri (rCdU_bot), dyn_zdf (avm, rCdU_bot, rCdU_top)
+      ! Subroutines requiring halo points: zdf_sh2 (avm_k), dyn_zdf (avm)
       IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
-         CALL lbc_lnk( 'zdfphy', avm, 'W', 1.0_wp ) ! lbc_lnk for avm_k is in stp
-
-         IF( l_zdfdrg ) THEN     ! drag  have been updated (non-linear cases)
-            IF( ln_isfcav ) THEN   ;  CALL lbc_lnk( 'zdfphy', rCdU_top, 'T', 1.0_wp , rCdU_bot, 'T', 1.0_wp )   ! top & bot drag
-            ELSE                   ;  CALL lbc_lnk( 'zdfphy', rCdU_bot, 'T', 1.0_wp )                           ! bottom drag only
-            ENDIF
-         ENDIF
+         CALL lbc_lnk( 'zdfphy', avm, 'W', 1.0_wp )
       ENDIF
       !
       CALL zdf_mxl_turb( kt, Kmm )                   !* turbocline depth

@@ -136,12 +136,8 @@ CONTAINS
       zvslp_hml(:,:) = 0._wp   ;   zwslpj_hml(:,:) = 0._wp
       !
       ! nmln calculation in zdfmxl is only on internal points
-      DO_2D( 0, 0, 0, 0 )
-         zhmlpt(ji,jj) = REAL( nmln(ji,jj), wp )
-      END_2D
-      CALL lbc_lnk( 'ldfslp', zhmlpt, 'T', 1.0_wp, hmlp, 'W', 1.0_wp, kfillmode=jpfillcopy )  ! No 0 over closed boundaries
       DO_2D( 1, 2, 1, 2 )
-         nmln(ji,jj) = NINT( zhmlpt(ji,jj) )
+         zhmlpt(ji,jj) = REAL( nmln(ji,jj), wp )
       END_2D
       !
       DO_2D( 1, 2, 1, 2 )                  ! depth of the last T-point inside the mixed layer

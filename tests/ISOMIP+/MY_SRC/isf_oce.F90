@@ -123,19 +123,25 @@ CONTAINS
       !! ** Method  : 
       !!
       !!----------------------------------------------------------------------
-      INTEGER :: ierr, ialloc
+      INTEGER ::   ierr(2)
+      INTEGER ::   ialloc
       !!----------------------------------------------------------------------
-      ierr = 0       ! set to zero if no array to be allocated
+      ierr(:) = 0       ! set to zero if no array to be allocated
+
+      ! ----------------- !
+      ! == FULL ARRAYS == !
+      ! ----------------- !
+      ALLOCATE( misfkt_par  (A2D(2)) , misfkb_par(A2D(2)) , rfrac_tbl_par (A2D(2)) , &
+         &     rhisf_tbl_par(A2D(2)) , mskisf_par(A2D(2)) , rhisf0_tbl_par(A2D(2)) , STAT=ierr(1) )
       ! -------------------- !
       ! == REDUCED ARRAYS == !
       ! -------------------- !
-      ALLOCATE( misfkt_par  (A2D(0)) , misfkb_par    (A2D(0)) , rfrac_tbl_par(A2D(0)) , &
-         &     rhisf_tbl_par(A2D(0)) , rhisf0_tbl_par(A2D(0)) , &
-         &     risfLeff     (A2D(0)) , mskisf_par    (A2D(0)) , STAT=ialloc )
-      ierr = ierr + ialloc
+      ALLOCATE( risfLeff(A2D(0)) , STAT=ierr(2) )
       !
-      CALL mpp_sum ( 'isf', ierr )
-      IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'isf: failed to allocate arrays.' )
+      ialloc = MAXVAL(ierr)
+      !
+      CALL mpp_sum ( 'isf', ialloc )
+      IF( ialloc /= 0 )   CALL ctl_stop( 'STOP', 'isf: failed to allocate arrays.' )
       !
    END SUBROUTINE isf_alloc_par
 
@@ -149,17 +155,18 @@ CONTAINS
       !! ** Method  : 
       !!
       !!----------------------------------------------------------------------
-      INTEGER :: ierr, ialloc
+      INTEGER ::   ialloc
       !!----------------------------------------------------------------------
-      ierr = 0       ! set to zero if no array to be allocated
-      ! -------------------- !
-      ! == REDUCED ARRAYS == !
-      ! -------------------- !
-      ALLOCATE( misfkt_cav(A2D(0)), misfkb_cav(A2D(0)), rfrac_tbl_cav(A2D(0)) , rhisf_tbl_cav(A2D(0)) , STAT=ialloc )
-      ierr = ierr + ialloc
+      ialloc = 0       ! set to zero if no array to be allocated
+
+      ! ----------------- !
+      ! == FULL ARRAYS == !
+      ! ----------------- !
+      ALLOCATE( misfkt_cav   (A2D(2)) , misfkb_cav(A2D(2)), rfrac_tbl_cav(A2D(2)) , &
+         &      rhisf_tbl_cav(A2D(2)) , mskisf_cav(A2D(2)), STAT=ialloc )
       !
-      CALL mpp_sum ( 'isf', ierr )
-      IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'isf: failed to allocate arrays.' )
+      CALL mpp_sum ( 'isf', ialloc )
+      IF( ialloc /= 0 )   CALL ctl_stop( 'STOP', 'isf: failed to allocate arrays.' )
       !
    END SUBROUTINE isf_alloc_cav
 
@@ -218,7 +225,7 @@ CONTAINS
       ! -------------------- !
       ! == REDUCED ARRAYS == !
       ! -------------------- !
-      ALLOCATE( fwfisf_oasis(A2D(0)) , risf_par_tsc  (A2D(0),jpts) , risf_cav_tsc  (A2D(0),jpts) , mskisf_cav(A2D(0)) , &
+      ALLOCATE( fwfisf_oasis(A2D(0)) , risf_par_tsc  (A2D(0),jpts) , risf_cav_tsc  (A2D(0),jpts) , &
 #if ! defined key_RK3
          &                             risf_par_tsc_b(A2D(0),jpts) , risf_cav_tsc_b(A2D(0),jpts) , &  ! MLF : need to allocate before arrays
 #endif
