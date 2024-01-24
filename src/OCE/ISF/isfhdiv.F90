@@ -21,7 +21,6 @@ MODULE isfhdiv
    USE in_out_manager         !
 
    IMPLICIT NONE
-
    PRIVATE
 
    PUBLIC isf_hdiv
@@ -97,11 +96,11 @@ CONTAINS
       !!
       !! ** Action  :   phdivn   increased by the ice shelf outflow
       !!----------------------------------------------------------------------
-      INTEGER , DIMENSION(A2D(0))           , INTENT(in   ) ::   ktop , kbot
-      REAL(wp), DIMENSION(A2D(0))           , INTENT(in   ) ::   pfrac, phtbl
-      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) ::   pfwf
-      REAL(wp), DIMENSION(jpi,jpj,jpk)      , INTENT(inout) ::   phdiv
-      REAL(wp), DIMENSION(:,:)    , OPTIONAL, INTENT(in   ) ::   pfwf_b
+      INTEGER , DIMENSION(:,:)             , INTENT(in   ) ::   ktop , kbot
+      REAL(wp), DIMENSION(:,:)             , INTENT(in   ) ::   pfrac, phtbl
+      REAL(wp), DIMENSION(:,:)             , INTENT(in   ) ::   pfwf
+      REAL(wp), DIMENSION(:,:,:)           , INTENT(inout) ::   phdiv
+      REAL(wp), DIMENSION(:,:)   , OPTIONAL, INTENT(in   ) ::   pfwf_b
       !!----------------------------------------------------------------------
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   ikt, ikb 
@@ -111,13 +110,17 @@ CONTAINS
       !==   fwf distributed over several levels   ==!
       !
       ! update divergence at each level affected by ice shelf top boundary layer
-      DO_2D( 0, 0, 0, 0 )
+      DO_2D( 1, 2, 1, 2 )
          ! compute integrated divergence correction
+         IF( phtbl(ji,jj) /= 0._wp ) THEN
 #if defined key_RK3
-         zhdiv = pfwf(ji,jj) * r1_rho0 / phtbl(ji,jj)
+            zhdiv = pfwf(ji,jj) * r1_rho0 / phtbl(ji,jj)
 #else
-         zhdiv = 0.5_wp * ( pfwf(ji,jj) + pfwf_b(ji,jj) ) * r1_rho0 / phtbl(ji,jj)
+            zhdiv = 0.5_wp * ( pfwf(ji,jj) + pfwf_b(ji,jj) ) * r1_rho0 / phtbl(ji,jj)
 #endif
+         ELSE
+            zhdiv = 0._wp
+         ENDIF
          !
          ikt = ktop(ji,jj)
          ikb = kbot(ji,jj)
@@ -145,14 +148,14 @@ CONTAINS
       !! ** Action  :   phdivn   increased by the ice shelf outflow
       !!
       !!----------------------------------------------------------------------
-      INTEGER,                          INTENT(in)    ::   Kmm     ! ocean time level index
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pqvol
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   phdiv
+      INTEGER,                    INTENT(in)    ::   Kmm     ! ocean time level index
+      REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pqvol
+      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   phdiv
       !!----------------------------------------------------------------------
       INTEGER ::   ji, jj, jk
       !!----------------------------------------------------------------------
       !
-      DO_3D( 0, 0, 0, 0, 1, jpk )
+      DO_3D( 1, 2, 1, 2, 1, jpk )
          phdiv(ji,jj,jk) = phdiv(ji,jj,jk) + pqvol(ji,jj,jk) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
       END_3D
       !

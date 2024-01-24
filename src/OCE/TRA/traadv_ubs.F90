@@ -229,7 +229,7 @@ CONTAINS
             !
          CASE(  4  )                               ! 4th order COMPACT
             !
-            ALLOCATE( ztw(T2D(0),jpk) )
+            ALLOCATE( ztw(T2D(1),jpk) )
             !
             CALL interp_4th_cpt( pt(:,:,:,jn,Kmm) , ztw )         ! 4th order compact interpolation of T at w-point
             DO_3D( 0, 0, 0, 0, 2, jpkm1 )

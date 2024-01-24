@@ -104,9 +104,10 @@ CONTAINS
       !                           !    i.e. inputs have not the same ice thickness distribution (set by rn_himean)
       !                           !         than the regional simulation
       !                           ! -- lbc_lnk needed because of iceitd_reb that is called in icecor.F90
-      CALL lbc_lnk( 'bdyice', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s  , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
-         &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip , 'T', 1._wp, v_il, 'T', 1._wp )
-      CALL lbc_lnk( 'bdyice', e_i , 'T', 1._wp, e_s , 'T', 1._wp, szv_i, 'T', 1._wp )
+      !!clem: unnecessary since thermo is calculated in the inner domain
+      !!CALL lbc_lnk( 'bdyice', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s  , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
+      !!   &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip , 'T', 1._wp, v_il, 'T', 1._wp )
+      !!CALL lbc_lnk( 'bdyice', e_i , 'T', 1._wp, e_s , 'T', 1._wp, szv_i, 'T', 1._wp )
       !
       CALL ice_var_agg(1)
       !

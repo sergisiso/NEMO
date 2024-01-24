@@ -101,7 +101,7 @@ CONTAINS
       ENDIF
       !
       IF( kn_cen_h == 4 )   ALLOCATE( ztu(T2D(2)) , ztv(T2D(2)) )   ! horizontal 4th order only
-      IF( kn_cen_v == 4 )   ALLOCATE( ztw(T2D(0),jpk) )             ! vertical   4th order only
+      IF( kn_cen_v == 4 )   ALLOCATE( ztw(T2D(1),jpk) )             ! vertical   4th order only
       !
       DO jn = 1, kjpt            !==  loop over the tracers  ==!
          !

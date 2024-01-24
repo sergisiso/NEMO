@@ -50,7 +50,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       zdf_mxl_alloc = 0      ! set to zero if no array to be allocated
       IF( .NOT. ALLOCATED( nmln ) ) THEN
-         ALLOCATE( hmld(A2D(0)), nmln(jpi,jpj), hmlp(A2D(1)), STAT= zdf_mxl_alloc )
+         ALLOCATE( hmld(A2D(0)), nmln(A2D(2)), hmlp(A2D(2)), STAT= zdf_mxl_alloc )
          !
          CALL mpp_sum ( 'zdfmxl', zdf_mxl_alloc )
          IF( zdf_mxl_alloc /= 0 )   CALL ctl_stop( 'STOP', 'zdf_mxl_alloc: failed to allocate arrays.' )
@@ -89,19 +89,18 @@ CONTAINS
       ENDIF
       !
       ! w-level of the mixing and mixed layers
-      DO_2D( 0, 0, 0, 0 )
+      DO_2D( 2, 2, 2, 2 )
          nmln(ji,jj)  = nlb10                  ! Initialization to the number of w ocean point
          hmlp(ji,jj)  = 0._wp                  ! here hmlp used as a dummy variable, integrating vertically N^2
       END_2D
       zN2_c = grav * rho_c * r1_rho0      ! convert density criteria into N^2 criteria
-      DO_3D( 0, 0, 0, 0, nlb10, jpkm1 )   ! Mixed layer level: w-level
+      DO_3D( 2, 2, 2, 2, nlb10, jpkm1 )   ! Mixed layer level: w-level
          ikt = mbkt(ji,jj)
-         hmlp(ji,jj) =   &
-            & hmlp(ji,jj) + MAX( rn2b(ji,jj,jk) , 0._wp ) * e3w(ji,jj,jk,Kmm)
+         hmlp(ji,jj) =  hmlp(ji,jj) + MAX( rn2b(ji,jj,jk) , 0._wp ) * e3w(ji,jj,jk,Kmm)
          IF( hmlp(ji,jj) < zN2_c )   nmln(ji,jj) = MIN( jk , ikt ) + 1   ! Mixed layer level
       END_3D
       ! depth of the mixed layer
-      DO_2D( 0, 0, 0, 0 )
+      DO_2D( 2, 2, 2, 2 )
          iik = nmln(ji,jj)
          hmlp(ji,jj) = gdepw(ji,jj,iik  ,Kmm) * ssmask(ji,jj)    ! Mixed layer depth
       END_2D

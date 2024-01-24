@@ -935,12 +935,12 @@ CONTAINS
       CALL ssh_asm_inc( kt, Kbb, Kmm ) !==   (calculate increments)
       !
       IF( ln_linssh ) THEN
-         DO_2D( 0, 0, 0, 0 )
+         DO_2D( 1, 2, 1, 2 )
             phdivn(ji,jj,1) = phdivn(ji,jj,1) - ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm) * tmask(ji,jj,1)
          END_2D
       ELSE
-         ALLOCATE( ztim(T2D(0)) )
-         DO_2D( 0, 0, 0, 0 )
+         ALLOCATE( ztim(T2D(2)) )
+         DO_2D( 1, 2, 1, 2 )
             ztim(ji,jj) = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1.0 - ssmask(ji,jj) )
             DO jk = 1, jpkm1
                phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ztim(ji,jj) * tmask(ji,jj,jk)
@@ -1292,7 +1292,6 @@ CONTAINS
       REAL(wp)            :: ztmelts             ! melting point
       REAL(wp), PARAMETER :: ppSice_Fz = 2.3_wp  ! Salinity of the ice = F(z) [multiyear ice]
 
-      REAL(wp), DIMENSION(jpij) ::   zh_newice   ! 1d version of hi_new
       REAL(wp), DIMENSION(jpij) ::   zs_newice   ! salinity of new ice
       !!----------------------------------------------------------------------
 
@@ -1311,7 +1310,6 @@ CONTAINS
       IF ( npti > 0 ) THEN
          CALL tab_3d_2d( npti, nptidx(1:npti), sv_i_2d(1:npti,1:jpl), sv_i(:,:,:) )
          CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d (1:npti,1:jpl), v_i (:,:,:) )
-         CALL tab_2d_1d( npti, nptidx(1:npti), zh_newice (1:npti) , hi_new        )
          CALL tab_2d_1d( npti, nptidx(1:npti), sss_1d    (1:npti) , sss_m         )
          CALL tab_2d_1d( npti, nptidx(1:npti), t_bo_1d   (1:npti) , t_bo          )
          DO jk = 1, nlay_i
@@ -1322,10 +1320,8 @@ CONTAINS
          SELECT CASE ( nn_icesal )
          CASE ( 1 )                    ! Sice = constant
             zs_newice(1:npti) = rn_icesal
-         CASE ( 2 )                    ! Sice = F(z,t) [Vancoppenolle et al (2005)]
-            DO ji = 1, npti
-               zs_newice(ji) = MIN(  4.606_wp + 0.91_wp / zh_newice(ji) , 0.5_wp * sss_1d(ji) )
-            END DO
+         CASE ( 2 , 4 )                ! Sice = F(z,t) [Griewank and Notz 2013 ; Rees Jones and Worster 2014]
+            zs_newice(1:npti) = rn_sinew * sss_1d(1:npti)
          CASE ( 3 )                    ! Sice = F(z) [multiyear ice]
             zs_newice(1:npti) = ppSice_Fz
          END SELECT

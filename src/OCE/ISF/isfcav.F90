@@ -96,11 +96,11 @@ CONTAINS
       !===============================
       ! 1.: compute T and S in the tbl
       !===============================
-      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(:,:,:,jp_tem,Kmm), & ! <<== in
-         &                                                                                           zttbl  )    ! ==>> out
+      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(A2D(0),:,jp_tem,Kmm), & ! <<== in
+         &                                                                                           zttbl  ) ! ==>> out
       !
-      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(:,:,:,jp_sal,Kmm), & ! <<== in
-         &                                                                                           zstbl  )    ! ==>> out
+      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(A2D(0),:,jp_sal,Kmm), & ! <<== in
+         &                                                                                           zstbl  ) ! ==>> out
       !
       !==========================================
       ! 2.: compute velocity in the tbl if needed
@@ -111,13 +111,13 @@ CONTAINS
             zvel(ji,jj,jk) = 0.5_wp * ( uu(ji-1,jj,jk,Kmm) + uu(ji,jj,jk,Kmm) )
          END_3D
          CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, zvel, & ! <<== in
-            &                                                                        zutbl  )    ! ==>> out
+            &                                                                        zutbl  ) ! ==>> out
          !
          DO_3D( 0, 0, 0, 0, 1, jpk )
             zvel(ji,jj,jk) = 0.5_wp * ( vv(ji,jj-1,jk,Kmm) + vv(ji,jj,jk,Kmm) )
          END_3D
          CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, zvel, & ! <<== in
-            &                                                                        zvtbl  )    ! ==>> out
+            &                                                                        zvtbl  ) ! ==>> out
          !
          ! compute ustar (AD15 eq. 27)
          DO_2D( 0, 0, 0, 0 )         
@@ -213,18 +213,18 @@ CONTAINS
       CALL isf_diags_flx( Kmm, misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, 'cav', pfwf, zqoce, zqlat, zqhc )
       !
       ! --- output --- !
-      CALL iom_put( 'ttbl_cav' , zttbl  (:,:) * mskisf_cav(:,:) )
-      CALL iom_put( 'stbl'     , zstbl  (:,:) * mskisf_cav(:,:) )
-      CALL iom_put( 'isfgammat', zgammat(:,:) * mskisf_cav(:,:) )
-      CALL iom_put( 'isfgammas', zgammas(:,:) * mskisf_cav(:,:) )
+      CALL iom_put( 'ttbl_cav' , zttbl  (:,:) * mskisf_cav(A2D(0)) )
+      CALL iom_put( 'stbl'     , zstbl  (:,:) * mskisf_cav(A2D(0)) )
+      CALL iom_put( 'isfgammat', zgammat(:,:) * mskisf_cav(A2D(0)) )
+      CALL iom_put( 'isfgammas', zgammas(:,:) * mskisf_cav(A2D(0)) )
       IF ( TRIM(cn_gammablk) == 'vel_stab' .OR. TRIM(cn_gammablk) == 'vel' ) THEN
          CALL iom_put( 'isfustar', zustar              )
-         CALL iom_put( 'utbl'    , zutbl  * mskisf_cav )
-         CALL iom_put( 'vtbl'    , zvtbl  * mskisf_cav )
+         CALL iom_put( 'utbl'    , zutbl  * mskisf_cav(A2D(0)) )
+         CALL iom_put( 'vtbl'    , zvtbl  * mskisf_cav(A2D(0)) )
       ENDIF
       !
-      CALL iom_put('isftfrz_cav'    ,                ztfrz(:,:)   * mskisf_cav(:,:) )   ! freezing point at the interface
-      CALL iom_put('isfthermald_cav', ( zttbl(:,:) - ztfrz(:,:) ) * mskisf_cav(:,:) )   ! thermal driving at the interface
+      CALL iom_put('isftfrz_cav'    ,                ztfrz(:,:)   * mskisf_cav(A2D(0)) )   ! freezing point at the interface
+      CALL iom_put('isfthermald_cav', ( zttbl(:,:) - ztfrz(:,:) ) * mskisf_cav(A2D(0)) )   ! thermal driving at the interface
       !
       IF( cn_isfcav_mlt == '3eq' ) THEN                                                 ! conductive heat flux through the ice
          ALLOCATE( ztmp(A2D(0)) )
@@ -269,7 +269,7 @@ CONTAINS
       !==================
       ! 1: initialisation
       !==================
-      DO_2D( 0, 0, 0, 0 )
+      DO_2D( 2, 2, 2, 2 )
          ! top and bottom level of the 'top boundary layer'
          misfkt_cav(ji,jj)    = mikt(ji,jj)
          misfkb_cav(ji,jj)    = 1
@@ -304,7 +304,7 @@ CONTAINS
       CASE( 'spe' )
 
          ALLOCATE( sf_isfcav_fwf(1), STAT=ierr )
-         ALLOCATE( sf_isfcav_fwf(1)%fnow(A2D(0),1), sf_isfcav_fwf(1)%fdta(A2D(0),1,2) )
+         ALLOCATE( sf_isfcav_fwf(1)%fnow(jpi,jpj,1), sf_isfcav_fwf(1)%fdta(jpi,jpj,1,2) )
          CALL fld_fill( sf_isfcav_fwf, (/ sn_isfcav_fwf /), cn_isfdir, 'isf_cav_init', 'read fresh water flux isf data', 'namisf' )
 
          IF(lwp) WRITE(numout,*)

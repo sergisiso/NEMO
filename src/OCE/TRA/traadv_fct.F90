@@ -86,6 +86,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn                 ! dummy loop indices
+      INTEGER  ::   kbnd
       REAL(wp) ::   ztra                           ! local scalar
       REAL(wp) ::   zC2t_u, zC4t_u, zC2t_v, zC4t_v !   -      -
       !
@@ -150,6 +151,7 @@ CONTAINS
 #else
          CALL fct_up1_1stp( Kbb, Kmm, Kaa, p2dt, pt(:,:,:,jn,Kbb), pU, pV, pW, ztFu, ztFv, ztFw, zta_up1, pt(:,:,:,jn,Krhs) )
 #endif
+         ! output => ztFu(1,0,1,0), ztFv(1,0,1,0), zta_up1(0,0,0,0), ztFw(0,0,0,0) if Amip2 or ztFw(1,1,1,1) if .not.Aimp2
          !
          IF( l_trd .OR. l_hst )  THEN             ! trend diagnostics (contribution of upstream fluxes)
             ztrdx(:,:,:) = ztFu(:,:,:)   ;   ztrdy(:,:,:) = ztFv(:,:,:)   ;   ztrdz(:,:,:) = ztFw(:,:,:)
@@ -223,21 +225,25 @@ CONTAINS
             !
          END SELECT
          !
+         ! loop boundaries for ztFw (avoid a communication if .not.Aimp2)
+         IF( ll_zAimp2 ) THEN ; kbnd = 0
+         ELSE                 ; kbnd = 1 ; ENDIF
+         !
          SELECT CASE( kn_fct_v )    !* vertical anti-diffusive fluxes (w-masked interior values)
          !
          CASE(  2  )                   !- 2nd order centered
             !
-            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+            DO_3D( kbnd, kbnd, kbnd, kbnd, 2, jpkm1 )
                ztFw(ji,jj,jk) =  (  pW(ji,jj,jk) * 0.5_wp * ( pt(ji,jj,jk,jn,Kmm) + pt(ji,jj,jk-1,jn,Kmm) )   &
                   &              - ztFw(ji,jj,jk)  ) * wmask(ji,jj,jk)
             END_3D
             !
          CASE(  4  )                   !- 4th order COMPACT
             !
-            ALLOCATE( ztw(T2D(0),jpk) )
+            ALLOCATE( ztw(T2D(1),jpk) )
             !
             CALL interp_4th_cpt( pt(:,:,:,jn,Kmm) , ztw )   ! zwt = COMPACT interpolation of T at w-point
-            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+            DO_3D( kbnd, kbnd, kbnd, kbnd, 2, jpkm1 )
                ztFw(ji,jj,jk) = ( pW(ji,jj,jk) * ztw(ji,jj,jk) - ztFw(ji,jj,jk) ) * wmask(ji,jj,jk)
             END_3D
             !
@@ -247,7 +253,7 @@ CONTAINS
 
          IF( ln_linssh ) THEN    ! top ocean value: high order = upstream  ==>>  ztFw=0
             !                    !            note: for non linear ssh, ztFw at surface is alreay set to 0
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( kbnd, kbnd, kbnd, kbnd )
                ztFw(ji,jj,1) = 0._wp   ! only ocean surface as interior ztFw values have been w-masked
             END_2D
          ENDIF
@@ -271,7 +277,11 @@ CONTAINS
          !
          !        !==  monotonicity algorithm  ==!
          !
-         CALL lbc_lnk( 'traadv_fct', ztFu, 'U', -1.0_wp, ztFv, 'V', -1.0_wp, ztFw, 'T', 1.0_wp, zta_up1, 'T', 1.0_wp )
+         IF( ll_zAimp2 ) THEN
+            CALL lbc_lnk( 'traadv_fct', ztFu, 'U', -1.0_wp, ztFv, 'V', -1.0_wp, ztFw, 'T', 1.0_wp, zta_up1, 'T', 1.0_wp )
+         ELSE
+            CALL lbc_lnk( 'traadv_fct', ztFu, 'U', -1.0_wp, ztFv, 'V', -1.0_wp, zta_up1, 'T', 1.0_wp )
+         ENDIF
          !
          ! -- Flux limiter
          ! ---------------
@@ -364,23 +374,23 @@ CONTAINS
       END_3D
       
       ! vertical
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+      DO_3D( 1, 1, 1, 1, 2, jpkm1 )
          ptFw(ji,jj,jk) = ( MAX( pW(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk) + MIN( pW(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk-1)   ) * wmask(ji,jj,jk) !!clem
          !                                                                                                                    ! should not be necessary to mask by wmask because W is already masked
       END_3D
       IF( ln_linssh ) THEN               ! top ocean value (only in linear free surface as ptFw has been w-masked)
          IF( ln_isfcav ) THEN                        ! top of the ice-shelf cavities and at the ocean surface
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( 1, 1, 1, 1 )
                ik = mikt(ji,jj)
                ptFw(ji,jj,ik) = pW(ji,jj,ik) * pt_b(ji,jj,ik)
             END_2D
          ELSE                                        ! no cavities: only at the ocean surface
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( 1, 1, 1, 1 )
                ptFw(ji,jj,1) = pW(ji,jj,1) * pt_b(ji,jj,1)
             END_2D
          ENDIF
       ELSE
-         DO_2D( 0, 0, 0, 0 )
+         DO_2D( 1, 1, 1, 1 )
             ptFw(ji,jj,1) = 0._wp
          END_2D
       ENDIF
@@ -529,14 +539,14 @@ CONTAINS
       END_3D
       
       ! vertical
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+      DO_3D( 1, 1, 1, 1, 2, jpkm1 )
          ptFw(ji,jj,jk) = 0.5_wp * ( ptFw(ji,jj,jk) + ( MAX( pW(ji,jj,jk) , 0._wp ) * pt_up1(ji,jj,jk  ) &
             &                                       +   MIN( pW(ji,jj,jk) , 0._wp ) * pt_up1(ji,jj,jk-1) ) * wmask(ji,jj,jk) ) ! wmask for cavities and linssh
          !                                                                                                                       
       END_3D
       IF( ln_linssh ) THEN               ! top ocean value (only in linear free surface as ptFw has been w-masked)
          IF( ln_isfcav ) THEN                        ! top of the ice-shelf cavities and at the ocean surface
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( 1, 1, 1, 1 )
                ik = mikt(ji,jj)
                IF( ik == 1 ) THEN
                   ptFw(ji,jj,ik) = 0.5_wp * ( ptFw(ji,jj,ik) + pW(ji,jj,ik) * pt_up1(ji,jj,ik) )
@@ -545,7 +555,7 @@ CONTAINS
                ENDIF
             END_2D
          ELSE                                        ! no cavities: only at the ocean surface
-            DO_2D( 0, 0, 0, 0 )
+            DO_2D( 1, 1, 1, 1 )
                ptFw(ji,jj,1) = 0.5_wp * ( ptFw(ji,jj,1) + pW(ji,jj,1) * pt_up1(ji,jj,1) )
             END_2D
          ENDIF
@@ -966,16 +976,16 @@ CONTAINS
       !! **  Method  :   4th order compact interpolation
       !!----------------------------------------------------------------------
       REAL(wp),DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pt_in    ! field at t-point
-      REAL(wp),DIMENSION(T2D(0) ,jpk), INTENT(  out) ::   pt_out   ! field interpolated at w-point
+      REAL(wp),DIMENSION(T2D(1) ,jpk), INTENT(  out) ::   pt_out   ! field interpolated at w-point
       !
       INTEGER ::   ji, jj, jk   ! dummy loop integers
       INTEGER ::   ikt, ikb     ! local integers
-      REAL(wp),DIMENSION(T2D(0),jpk) :: zwd, zwi, zws, zwrm, zwt
+      REAL(wp),DIMENSION(T2D(1),jpk) :: zwd, zwi, zws, zwrm, zwt
       !!----------------------------------------------------------------------
       !
       !                      !==  build the three diagonal matrix & the RHS  ==!
       !
-      DO_3D( 0, 0, 0, 0, 3, jpkm1 )    ! interior (from jk=3 to jpk-1)
+      DO_3D( 1, 1, 1, 1, 3, jpkm1 )    ! interior (from jk=3 to jpk-1)
          zwd (ji,jj,jk) = 3._wp * wmask(ji,jj,jk) + 1._wp                 !       diagonal
          zwi (ji,jj,jk) =         wmask(ji,jj,jk)                         ! lower diagonal
          zws (ji,jj,jk) =         wmask(ji,jj,jk)                         ! upper diagonal
@@ -991,7 +1001,7 @@ CONTAINS
 !!gm
       !
       IF ( ln_isfcav ) THEN            ! set level two values which may not be set in ISF case
-         DO_2D( 0, 0, 0, 0 )
+         DO_2D( 1, 1, 1, 1 )
             zwd (ji,jj,2) = 1._wp
             zwi (ji,jj,2) = 0._wp
             zws (ji,jj,2) = 0._wp
@@ -999,7 +1009,7 @@ CONTAINS
          END_2D
       END IF
       !
-      DO_2D( 0, 0, 0, 0 )              ! 2nd order centered at top & bottom
+      DO_2D( 1, 1, 1, 1 )              ! 2nd order centered at top & bottom
          ikt = mikt(ji,jj) + 1            ! w-point below the 1st  wet point
          ikb = MAX(mbkt(ji,jj), 2)        !     -   above the last wet point
          !
@@ -1016,24 +1026,24 @@ CONTAINS
       !
       !                       !==  tridiagonal solver  ==!
       !
-      DO_2D( 0, 0, 0, 0 )           !* 1st recurrence:   Tk = Dk - Ik Sk-1 / Tk-1
+      DO_2D( 1, 1, 1, 1 )           !* 1st recurrence:   Tk = Dk - Ik Sk-1 / Tk-1
          zwt(ji,jj,2) = zwd(ji,jj,2)
       END_2D
-      DO_3D( 0, 0, 0, 0, 3, jpkm1 )
+      DO_3D( 1, 1, 1, 1, 3, jpkm1 )
          zwt(ji,jj,jk) = zwd(ji,jj,jk) - zwi(ji,jj,jk) * zws(ji,jj,jk-1) /zwt(ji,jj,jk-1)
       END_3D
       !
-      DO_2D( 0, 0, 0, 0 )           !* 2nd recurrence:    Zk = Yk - Ik / Tk-1  Zk-1
+      DO_2D( 1, 1, 1, 1 )           !* 2nd recurrence:    Zk = Yk - Ik / Tk-1  Zk-1
          pt_out(ji,jj,2) = zwrm(ji,jj,2)
       END_2D
-      DO_3D( 0, 0, 0, 0, 3, jpkm1 )
+      DO_3D( 1, 1, 1, 1, 3, jpkm1 )
          pt_out(ji,jj,jk) = zwrm(ji,jj,jk) - zwi(ji,jj,jk) / zwt(ji,jj,jk-1) *pt_out(ji,jj,jk-1)
       END_3D
 
-      DO_2D( 0, 0, 0, 0 )           !* 3d recurrence:    Xk = (Zk - Sk Xk+1 ) / Tk
+      DO_2D( 1, 1, 1, 1 )           !* 3d recurrence:    Xk = (Zk - Sk Xk+1 ) / Tk
          pt_out(ji,jj,jpkm1) = pt_out(ji,jj,jpkm1) / zwt(ji,jj,jpkm1)
       END_2D
-      DO_3DS( 0, 0, 0, 0, jpk-2, 2, -1 )
+      DO_3DS( 1, 1, 1, 1, jpk-2, 2, -1 )
          pt_out(ji,jj,jk) = ( pt_out(ji,jj,jk) - zws(ji,jj,jk) * pt_out(ji,jj,jk+1) ) / zwt(ji,jj,jk)
       END_3D
       !

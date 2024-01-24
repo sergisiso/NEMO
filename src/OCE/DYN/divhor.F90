@@ -29,7 +29,6 @@ MODULE divhor
 #endif
    !
    USE in_out_manager  ! I/O manager
-   USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
    USE lib_mpp         ! MPP library
    USE timing          ! Timing
 
@@ -95,7 +94,7 @@ CONTAINS
       !
       SELECT CASE ( ik_ind )
       CASE ( np_velocity )
-         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         DO_3D( 1, 2, 1, 2, 1, jpkm1 )
             hdiv(ji,jj,jk) = (  (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * pu(ji  ,jj,jk)       &   ! add () for NP repro
                &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * pu(ji-1,jj,jk) )     &
                &              + (  e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * pv(ji,jj  ,jk)       &
@@ -103,7 +102,7 @@ CONTAINS
                &             ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
          END_3D
       CASE ( np_transport )
-         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         DO_3D( 1, 2, 1, 2, 1, jpkm1 )
             hdiv(ji,jj,jk) = (  (  pu(ji  ,jj,jk)       &   ! add () for NP repro
                &                 - pu(ji-1,jj,jk) )     &
                &              + (  pv(ji,jj  ,jk)       &
@@ -121,14 +120,12 @@ CONTAINS
       !
       IF( ln_isf )   CALL isf_hdiv( kt, Kmm, hdiv )            !==  + ice-shelf mass exchange ==!
       !
-      CALL lbc_lnk( 'divhor', hdiv, 'T', 1._wp )   !   (no sign change)
-      !
 !!gm Patch before suppression of hdiv from all modules that use it
 !      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                            !==  e3t * Horizontal divergence  ==!
 !         pe3divUh(ji,jj,jk) = hdiv(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
 !      END_3D
 !JC: over whole domain, and after lbclnk on hdiv to prevent from reproducibility issues
-      DO_3D_OVR( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+      DO_3D_OVR( 1, 2, 1, 2, 1, jpkm1 )
          pe3divUh(ji,jj,jk) = hdiv(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
       END_3D
 !!gm end
@@ -169,7 +166,7 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                          !==  Horizontal divergence  ==!
+      DO_3D( 1, 2, 1, 2, 1, jpkm1 )                                          !==  Horizontal divergence  ==!
          hdiv(ji,jj,jk) = (  (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * uu(ji  ,jj,jk,Kmm)     &   ! add () for NP repro
             &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * uu(ji-1,jj,jk,Kmm) )   &
             &              + (  e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vv(ji,jj  ,jk,Kmm)     &
@@ -185,12 +182,6 @@ CONTAINS
 #endif
       IF( ln_isf )   CALL isf_hdiv( kt, Kmm, hdiv )                              !==  ice shelf  ==!   (update hdiv field)
       !
-      ! hdiv is needed on haloes by wzv and ssh_nxt, but these are not called in the same tiling
-      ! loop as div_hor, so we can keep this lbc_lnk here and call it after all tiles are finished
-      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                           ! Do only on the last tile
-         CALL lbc_lnk( 'divhor', hdiv, 'T', 1.0_wp )   ! needed for ww in sshwzv  (no sign change)
-      ENDIF
-      ! 
       IF( ln_timing )   CALL timing_stop('div_hor')
       !
    END SUBROUTINE div_hor_old

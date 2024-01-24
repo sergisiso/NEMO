@@ -65,19 +65,19 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kmm   ! ocean time level index
       !
       INTEGER ::   ji, jj, jk, ikt                     ! loop index
-      REAL(wp), DIMENSION(A2D(0))     ::   zhtmp  ! temporary array for thickness
-      REAL(wp), DIMENSION(A2D(0),jpk) ::   ze3t   ! 3D workspace for key_qco
+      REAL(wp), DIMENSION(A2D(2))     ::   zhtmp  ! temporary array for thickness
+      REAL(wp), DIMENSION(A2D(2),jpk) ::   ze3t   ! 3D workspace for key_qco
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('isf')
       !
       ! temporary arrays for key_qco
-      DO_2D( 0 ,0, 0, 0 )
+      DO_2D( 2 ,2, 2, 2 )
          zhtmp(ji,jj) = ht(ji,jj,Kmm)
-         DO jk = 1, jpk
-            ze3t(ji,jj,jk) = e3t(ji,jj,jk,Kmm)
-         ENDDO
       END_2D
+      DO_3D( 2, 2, 2, 2, 1, jpk )
+         ze3t(ji,jj,jk) = e3t(ji,jj,jk,Kmm)
+      END_3D
       !
       !=======================================================================
       ! 1.: compute melt and associated heat fluxes in the ice shelf cavities
@@ -88,15 +88,17 @@ CONTAINS
          ! --- before time step --- ! 
 #if ! defined key_RK3
          IF ( kt /= nit000 ) THEN         ! MLF : need risf_cav_tsc_b update 
-            DO_2D( 0, 0, 0, 0 )
-               risf_cav_tsc_b(ji,jj,:) = risf_cav_tsc(ji,jj,:)
-               fwfisf_cav_b  (ji,jj)   = fwfisf_cav  (ji,jj)
+            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               fwfisf_cav_b(ji,jj) = fwfisf_cav(ji,jj)
             END_2D
+            DO_3D( 0, 0, 0, 0, 1, jpts )
+               risf_cav_tsc_b(ji,jj,jk) = risf_cav_tsc(ji,jj,jk)
+            END_3D
          END IF
 #endif
          !
          ! --- deepest level (misfkb), thickness (rhisf) & fraction of deepest cell affected by tbl (rfrac) --- !
-         DO_2D( 0 ,0, 0, 0 )
+         DO_2D( 2 ,2, 2, 2 )
             ! limit the tbl to water depth and to the top level thickness
             ikt = misfkt_cav(ji,jj)  ! tbl top indices
             rhisf_tbl_cav(ji,jj) = MAX( MIN( rn_htbl * mskisf_cav(ji,jj), zhtmp(ji,jj) ), ze3t(ji,jj,ikt) )
@@ -119,17 +121,19 @@ CONTAINS
          ! --- before time step --- ! 
 #if ! defined key_RK3
          IF ( kt /= nit000 ) THEN          ! MLF : need risf_par_tsc_b update
-            DO_2D( 0, 0, 0, 0 )
-               risf_par_tsc_b(ji,jj,:) = risf_par_tsc(ji,jj,:)
-               fwfisf_par_b  (ji,jj)   = fwfisf_par  (ji,jj)
+            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               fwfisf_par_b(ji,jj)   = fwfisf_par(ji,jj)
             END_2D
+            DO_3D( 0, 0, 0, 0, 1, jpts )
+               risf_par_tsc_b(ji,jj,jk) = risf_par_tsc(ji,jj,jk)
+            END_3D
          END IF
 #endif
          !
          ! --- deepest level (misfkb), thickness (rhisf) & fraction of deepest cell affected by tbl (rfrac) --- !
          ! by simplicity, we assume the top level where param applied do not change with time (done in init part)
          !      limit the tbl to water depth and to the top level thickness
-         DO_2D( 0 ,0, 0, 0 )
+         DO_2D( 2 ,2, 2, 2 )
             ikt = misfkt_par(ji,jj)  ! tbl top indices
             rhisf_tbl_par(ji,jj) = MAX( MIN( rhisf0_tbl_par(ji,jj), zhtmp(ji,jj) ), ze3t(ji,jj,ikt) )
          END_2D
@@ -143,19 +147,19 @@ CONTAINS
       END IF
       !
       !
-      !clem: these lbc are needed since we calculate everything in the interior now
+      !clem: these lbc are needed since we calculate fwf only in the interior
       IF( ln_isfcpl ) THEN
          CALL lbc_lnk( 'isf_stp', fwfisf_par  , 'T', 1.0_wp, fwfisf_cav  , 'T', 1.0_wp, &
-#if ! defined key_RK3
-            &                     fwfisf_par_b, 'T', 1.0_wp, fwfisf_cav_b, 'T', 1.0_wp, &
-#endif
+!!clem#if ! defined key_RK3
+!!            &                     fwfisf_par_b, 'T', 1.0_wp, fwfisf_cav_b, 'T', 1.0_wp, &
+!!#endif
             &                     risfcpl_ssh, 'T', 1.0_wp, risfcpl_cons_ssh, 'T', 1.0_wp ) ! needed in dynspg_ts, stp2d
-         CALL lbc_lnk( 'isf_stp', risfcpl_vol, 'T', 1.0_wp )                                ! needed in dynspg_ts, stp2d, sshwzv, dynatf
+         CALL lbc_lnk( 'isf_stp', risfcpl_vol, 'T', 1.0_wp, risfcpl_cons_vol, 'T', 1.0_wp ) ! needed in dynspg_ts, stp2d, sshwzv, dynatf
       ELSE
          CALL lbc_lnk( 'isf_stp', fwfisf_par  , 'T', 1.0_wp, fwfisf_cav  , 'T', 1.0_wp  &
-#if ! defined key_RK3
-            &                   , fwfisf_par_b, 'T', 1.0_wp, fwfisf_cav_b, 'T', 1.0_wp  &
-#endif
+!!clem#if ! defined key_RK3
+!!            &                   , fwfisf_par_b, 'T', 1.0_wp, fwfisf_cav_b, 'T', 1.0_wp  &
+!!#endif
             &        )     
       ENDIF
       !
@@ -190,6 +194,7 @@ CONTAINS
       !!              - call cav/param/isfcpl init routine
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   Kbb, Kmm, Kaa   ! ocean time level indices
+      INTEGER ::   ji, jj, jk                  ! loop index
       !!----------------------------------------------------------------------
       !
       ! constrain: l_isfoasis need to be known
@@ -199,12 +204,27 @@ CONTAINS
       CALL isf_alloc()                                            ! Allocate public array
       !
       ! initalisation of fwf and tsc array to 0
-      risfload    (:,:)   = 0._wp
-      fwfisf_oasis(:,:)   = 0._wp ; fwfisf_par  (:,:)   = 0._wp ; fwfisf_cav(:,:) = 0._wp
-      risf_cav_tsc(:,:,:) = 0._wp ; risf_par_tsc(:,:,:) = 0._wp
+      DO_2D( 0, 0, 0, 0 )
+         fwfisf_oasis(ji,jj) = 0._wp
+      END_2D
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+         risfload    (ji,jj) = 0._wp
+         fwfisf_par  (ji,jj) = 0._wp
+         fwfisf_cav  (ji,jj) = 0._wp
+      END_2D
+      DO_3D( 0, 0, 0, 0, 1, jpts )
+         risf_cav_tsc(ji,jj,jk) = 0._wp
+         risf_par_tsc(ji,jj,jk) = 0._wp
+      END_3D
 #if ! defined key_RK3
-      fwfisf_par_b  (:,:)   = 0._wp ; fwfisf_cav_b  (:,:)   = 0._wp
-      risf_cav_tsc_b(:,:,:) = 0._wp ; risf_par_tsc_b(:,:,:) = 0._wp
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )      
+         fwfisf_par_b(ji,jj) = 0._wp
+         fwfisf_cav_b(ji,jj) = 0._wp
+      END_2D
+      DO_3D( 0, 0, 0, 0, 1, jpts )
+         risf_cav_tsc_b(ji,jj,jk) = 0._wp
+         risf_par_tsc_b(ji,jj,jk) = 0._wp
+      END_3D
 #endif
       !
       CALL isf_ctl()                                              ! check option compatibility

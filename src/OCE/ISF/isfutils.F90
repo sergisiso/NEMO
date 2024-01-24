@@ -39,9 +39,9 @@ CONTAINS
       !! ** Purpose : read input file
       !!
       !!--------------------------------------------------------------------
-      CHARACTER(len=*)           , INTENT(in   ) ::   cdfile   ! input file name
-      CHARACTER(len=*)           , INTENT(in   ) ::   cdvar    ! variable name
-      REAL(wp), DIMENSION(A2D(0)), INTENT(inout) ::   pvar     ! output variable
+      CHARACTER(len=*)         , INTENT(in   ) ::   cdfile   ! input file name
+      CHARACTER(len=*)         , INTENT(in   ) ::   cdvar    ! variable name
+      REAL(wp), DIMENSION(:,:) , INTENT(inout) ::   pvar     ! output variable
       !!--------------------------------------------------------------------
       INTEGER :: inum
       !!--------------------------------------------------------------------

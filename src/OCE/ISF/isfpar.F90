@@ -106,10 +106,10 @@ CONTAINS
       CALL isf_diags_flx( Kmm, misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, 'par', pfwf, zqoce, zqlat, zqhc )
       !
       ! outputs
-      CALL iom_put('isftfrz_par', ztfrz(:,:) * mskisf_par(:,:) ) ! freezing temperature
+      CALL iom_put('isftfrz_par', ztfrz(:,:) * mskisf_par(A2D(0)) ) ! freezing temperature
       IF( cn_isfpar_mlt == 'bg03' ) THEN
-         CALL iom_put('ttbl_par',         ztavg(:,:)                * mskisf_par(:,:) )      ! ttbl
-         CALL iom_put('isfthermald_par',( ztavg(:,:) - ztfrz(:,:) ) * mskisf_par(:,:) )      ! thermal driving
+         CALL iom_put('ttbl_par',         ztavg(:,:)                * mskisf_par(A2D(0)) )      ! ttbl
+         CALL iom_put('isfthermald_par',( ztavg(:,:) - ztfrz(:,:) ) * mskisf_par(A2D(0)) )      ! thermal driving
       ENDIF
       !
       ! debugs
@@ -134,7 +134,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER ::   ierr
       INTEGER ::   ji, jj     ! dummy loop indices
-      REAL(wp), DIMENSION(A2D(0)) ::   ztblmax, ztblmin
+      REAL(wp), DIMENSION(A2D(2)) ::   ztblmax, ztblmin
       !!----------------------------------------------------------------------
       !
       !==============
@@ -145,7 +145,7 @@ CONTAINS
       !==================
       ! 1: initialisation
       !==================
-      DO_2D( 0, 0, 0, 0 )
+      DO_2D( 2, 2, 2, 2 )
          misfkt_par   (ji,jj) = 1
          misfkb_par   (ji,jj) = 1         
          rhisf_tbl_par(ji,jj) = 1e-20
@@ -156,7 +156,7 @@ CONTAINS
       CALL read_2dcstdta( TRIM(sn_isfpar_zmax%clname), TRIM(sn_isfpar_zmax%clvar), ztblmax )
       CALL read_2dcstdta( TRIM(sn_isfpar_zmin%clname), TRIM(sn_isfpar_zmin%clvar), ztblmin )
       !
-      DO_2D( 0, 0, 0, 0 )
+      DO_2D( 2, 2, 2, 2 )
          ! mask ice shelf parametrisation location
          ztblmax(ji,jj) = ztblmax(ji,jj) * ssmask(ji,jj)
          ztblmin(ji,jj) = ztblmin(ji,jj) * ssmask(ji,jj)
