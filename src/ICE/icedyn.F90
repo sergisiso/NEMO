@@ -192,16 +192,14 @@ CONTAINS
       ! --- Lateral boundary conditions --- !
       !     caution: t_su update needed from itd_reb
       !              plus, one needs ldfull=T to deal with the NorthFold in case of Prather advection
-      IF( .NOT.ln_icethd .OR. ln_bdy ) THEN
-         IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
-            CALL lbc_lnk( 'icedyn', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
-               &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp, ldfull = .TRUE. )
-         ELSE
-            CALL lbc_lnk( 'icedyn', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
-               &                    t_su, 'T', 1._wp, ldfull = .TRUE. )
-         ENDIF
-         CALL lbc_lnk( 'icedyn', e_i, 'T', 1._wp, e_s, 'T', 1._wp, szv_i, 'T', 1._wp, ldfull = .TRUE. )
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+         CALL lbc_lnk( 'icedyn', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
+            &                    t_su, 'T', 1._wp, a_ip, 'T', 1._wp, v_ip, 'T', 1._wp, v_il, 'T', 1._wp, ldfull = .TRUE. )
+      ELSE
+         CALL lbc_lnk( 'icedyn', a_i , 'T', 1._wp, v_i , 'T', 1._wp, v_s , 'T', 1._wp, sv_i, 'T', 1._wp, oa_i, 'T', 1._wp, &
+            &                    t_su, 'T', 1._wp, ldfull = .TRUE. )
       ENDIF
+      CALL lbc_lnk( 'icedyn', e_i, 'T', 1._wp, e_s, 'T', 1._wp, szv_i, 'T', 1._wp, ldfull = .TRUE. )
       !
       ! controls
       IF( ln_timing )   CALL timing_stop ('ice_dyn')
