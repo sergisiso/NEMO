@@ -124,6 +124,17 @@ CONTAINS
             IF( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR.                   &
             &   iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  )   l_hst = .TRUE.
          ENDIF
+
+         ! triadi(:,:,:,1,:)/triadi_g(:,:,:,1,:) not defined at jpi, triadj(:,:,:,1,:)/triadj_g(:,:,:,1,:) not defined at jpj
+         ! In the bilaplacian case we need these points defined.
+         IF( nldf_tra == np_blp_it .AND. kpass == 1 ) THEN
+            IF( ln_ldfeiv ) THEN
+               CALL lbc_lnk( 'traldf_triad', triadi_g(:,:,:,1,:), 'U', -1.0_wp,  &
+                  &                          triadj_g(:,:,:,1,:), 'V', -1.0_wp, ldfull=.TRUE.   )
+            ENDIF
+            CALL lbc_lnk( 'traldf_triad', triadi(:,:,:,1,:), 'U', -1.0_wp,  &
+               &                          triadj(:,:,:,1,:), 'V', -1.0_wp, ldfull=.TRUE.   )
+         ENDIF
       ENDIF
       !
       ! Define pt_rhs halo points for multi-point haloes in bilaplacian case

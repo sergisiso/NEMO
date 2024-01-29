@@ -210,9 +210,6 @@ that are available in the tidal-forcing implementation (see
     <field id="BLT"          long_name="Barrier Layer Thickness"                                                                                                                          unit="m"      grid_ref="grid_T_2D_inner" > topthdep - pycndep </field>
     <field id="tinv"         long_name="Max of vertical invertion of temperature"                                                                                                         unit="degC"   grid_ref="grid_T_2D_inner" />
     <field id="depti"        long_name="Depth of max. vert. inv. of temperature"                                                                                                          unit="m"      grid_ref="grid_T_2D_inner" />
-    <field id="20d"          long_name="Depth of 20C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature"                            unit="m"      grid_ref="grid_T_2D_inner"  axis_ref="iax_20C" />
-    <field id="26d"          long_name="Depth of 26C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature"                            unit="m"      grid_ref="grid_T_2D_inner"  axis_ref="iax_26C"   />
-    <field id="28d"          long_name="Depth of 28C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature"                            unit="m"      grid_ref="grid_T_2D_inner"  axis_ref="iax_28C" />
     <field id="hc300"        long_name="Heat content 0-300m"                            standard_name="integral_of_sea_water_potential_temperature_wrt_depth_expressed_as_heat_content"   unit="J/m2"   grid_ref="grid_T_2D_inner"  />
     <field id="hc700"        long_name="Heat content 0-700m"                            standard_name="integral_of_sea_water_potential_temperature_wrt_depth_expressed_as_heat_content"   unit="J/m2"   grid_ref="grid_T_2D_inner"  />
     <field id="hc2000"       long_name="Heat content 0-2000m"                           standard_name="integral_of_sea_water_potential_temperature_wrt_depth_expressed_as_heat_content"   unit="J/m2"   grid_ref="grid_T_2D_inner"  />
@@ -288,6 +285,12 @@ that are available in the tidal-forcing implementation (see
     <field id="isfustar"        long_name="ustar at T point used in ice shelf melting"                       unit="m/s"   grid_ref="grid_T_2D_inner" />
 
   </field_group> <!-- grid_T -->
+
+  <field_group id="grid_T_iso" domain_ref="grid_T_inner" >
+    <field id="20d"          long_name="Depth of 20C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature" unit="m" axis_ref="iax_20C" />
+    <field id="26d"          long_name="Depth of 26C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature" unit="m" axis_ref="iax_26C" />
+    <field id="28d"          long_name="Depth of 28C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature" unit="m" axis_ref="iax_28C" />
+  </field_group>
 
   <!-- Tides -->
 
@@ -441,6 +444,7 @@ that are available in the tidal-forcing implementation (see
       <field id="qt"           long_name="Net Downward Heat Flux"                standard_name="surface_downward_heat_flux_in_sea_water"                              unit="W/m2"                      />
       <field id="qns"          long_name="non solar Downward Heat Flux"                                                                                               unit="W/m2"                      />
       <field id="qsr"          long_name="Shortwave Radiation"                   standard_name="net_downward_shortwave_flux_at_sea_water_surface"                     unit="W/m2"                      />
+      <!-- qsr3d: MLF only -->
       <field id="qsr3d"        long_name="Shortwave Radiation 3D distribution"   standard_name="downwelling_shortwave_flux_in_sea_water"                              unit="W/m2" grid_ref="grid_T_3D_inner" />
       <field id="qrp"          long_name="Surface Heat Flux: Damping"            standard_name="heat_flux_into_sea_water_due_to_newtonian_relaxation"                 unit="W/m2"                      />
       <field id="qclosea"      long_name="closed sea heat content flux"          standard_name="closea_heat_content_downward_flux"                                    unit="W/m2"     />

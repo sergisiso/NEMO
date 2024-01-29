@@ -122,22 +122,22 @@ CONTAINS
       REAL(wp), DIMENSION(T1Di(nn_hls),jpk) ::   zfvw, zdiv, zdjv, zdj1v  !  -      -
       !!----------------------------------------------------------------------
       !
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == nit000 ) THEN
+      IF( kt == nit000 ) THEN
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'dyn_ldf_iso : iso-neutral laplacian diffusive operator or '
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~   s-coordinate horizontal diffusive operator'
             !                                      ! allocate dyn_ldf_iso arrays
             IF( dyn_ldf_iso_alloc() /= 0 )   CALL ctl_stop('STOP', 'dyn_ldf_iso: failed to allocate arrays')
-            !
-            DO_2D( 0, 0, 0, 0 )
-               akzu(ji,jj,1)   = 0._wp
-               akzu(ji,jj,jpk) = 0._wp
-               akzv(ji,jj,1)   = 0._wp
-               akzv(ji,jj,jpk) = 0._wp
-            END_2D
-            !
          ENDIF
+         !
+         DO_2D( 0, 0, 0, 0 )
+            akzu(ji,jj,1)   = 0._wp
+            akzu(ji,jj,jpk) = 0._wp
+            akzv(ji,jj,1)   = 0._wp
+            akzv(ji,jj,jpk) = 0._wp
+         END_2D
+         !
       ENDIF
 
 !!gm bug is dyn_ldf_iso called before tra_ldf_iso ....   <<<<<===== TO BE CHECKED

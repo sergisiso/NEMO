@@ -401,12 +401,12 @@ CONTAINS
       !
       !                                       !==  intialisations to zero  ==!
       !
-      wslp2  (:,:,:)     = 0._wp              ! wslp2 will be cumulated 3D field set to zero
-      triadi_g(:,:,1,:,:) = 0._wp   ;   triadi_g(:,:,jpk,:,:) = 0._wp   ! set surface and bottom slope to zero
-      triadj_g(:,:,1,:,:) = 0._wp   ;   triadj_g(:,:,jpk,:,:) = 0._wp
+      wslp2   (:,:,:)     = 0._wp             ! wslp2 will be cumulated 3D field set to zero
+      triadi_g(:,:,:,:,:) = 0._wp             ! set surface and bottom slope to zero, fill undefined points at jpi/jpj
+      triadj_g(:,:,:,:,:) = 0._wp
       !!gm _iso set to zero missing
-      triadi  (:,:,1,:,:) = 0._wp   ;   triadj  (:,:,jpk,:,:) = 0._wp   ! set surface and bottom slope to zero
-      triadj  (:,:,1,:,:) = 0._wp   ;   triadj  (:,:,jpk,:,:) = 0._wp
+      triadi  (:,:,:,:,:) = 0._wp
+      triadj  (:,:,:,:,:) = 0._wp
 
       !-------------------------------------!
       !  Triads just below the Mixed Layer  !

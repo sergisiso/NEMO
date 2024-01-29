@@ -96,6 +96,7 @@ CONTAINS
                              CALL iom_init_closedef
          IF( ln_crs      )   CALL iom_init( TRIM(cxios_context)//"_crs" )  ! for coarse grid
                              CALL dia_ptr_init        ! called here since it uses iom_use
+                             CALL rk3_dia( -1 )       ! Store diagnostic logicals
       ENDIF
       IF( kstp == nitrst .AND. lwxios ) THEN
                              CALL iom_swap(                     cw_ocerst_cxt )
@@ -181,7 +182,7 @@ CONTAINS
       !  RK3 time integration
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-      CALL rk3_dia( kstp, 0 )                          ! Diagnostics switched off for stage 1 & 2
+      CALL rk3_dia( 0 )                                ! Diagnostics switched off for stage 1 & 2
       !
       ! Stage 1 :
       CALL stp_RK3_stg( 1, kstp, Nbb, Nbb, Nrhs, Naa )
@@ -194,7 +195,7 @@ CONTAINS
       Nrhs = Nnn   ;   Nnn  = Naa   ;   Naa  = Nrhs    ! Swap: Nbb unchanged, Nnn <==> Naa
       !
       ! Stage 3 :
-      CALL rk3_dia( kstp, 1 )                          ! Diagnostics switched on for stage 3
+      CALL rk3_dia( 1 )                                ! Diagnostics switched on for stage 3
       !
       CALL stp_RK3_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
       !
@@ -337,23 +338,14 @@ CONTAINS
    END SUBROUTINE mlf_baro_corr
 
 
-   SUBROUTINE rk3_dia( kstp, kswitch )
+   SUBROUTINE rk3_dia( kswitch )
       !!----------------------------------------------------------------------
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in) ::   kstp      ! ocean time-step index
-      INTEGER, INTENT(in) ::   kswitch   ! on/off = 1/0
+      INTEGER, INTENT(in) ::   kswitch   ! on/off/init = 1/0/-1
       !!
       LOGICAL, SAVE ::   ll_trddyn, ll_trdtrc, ll_trdtra  ! call trd at stage 3 only
-      LOGICAL, SAVE ::   ll_diaptr, ll_ldfeiv_dia
+      LOGICAL, SAVE ::   ll_diaptr
       !!----------------------------------------------------------------------
-      !
-      IF( kstp == nit000 ) THEN   ! save diagnotic logical
-         ll_trdtra = l_trdtra
-         ll_trdtrc = l_trdtrc
-         ll_trddyn = l_trddyn
-         ll_diaptr = l_diaptr
-         ll_ldfeiv_dia = l_ldfeiv_dia
-      ENDIF
       !
       SELECT CASE( kswitch ) 
       CASE ( 1 )                ! diagnostic activated (on)
@@ -361,13 +353,18 @@ CONTAINS
          l_trdtrc = ll_trdtrc
          l_trddyn = ll_trddyn
          l_diaptr = ll_diaptr
-         l_ldfeiv_dia = ll_ldfeiv_dia
+         l_ldfeiv_dia = ln_ldfeiv_dia
       CASE ( 0 )                ! diagnostic desactivated (off)
          l_trdtra  = .FALSE.
          l_trdtrc  = .FALSE.
          l_trddyn  = .FALSE.
          l_diaptr  = .FALSE.
          l_ldfeiv_dia  = .FALSE.
+      CASE ( -1 )
+         ll_trdtra = l_trdtra
+         ll_trdtrc = l_trdtrc
+         ll_trddyn = l_trddyn
+         ll_diaptr = l_diaptr
       END SELECT
       !
    END SUBROUTINE rk3_dia

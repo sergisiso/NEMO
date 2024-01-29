@@ -334,6 +334,9 @@ CONTAINS
          ENDIF
       ENDIF
       !
+      SELECT CASE( kvor )        ! allocate zwz if necessary
+      CASE ( np_RVO , np_CRV )   ;   ALLOCATE( zwz(T2D(1)) )
+      END SELECT
       !
       !                                                ! ===============
       DO jk = 1, jpkm1                                 ! Horizontal slab
@@ -342,7 +345,6 @@ CONTAINS
          SELECT CASE( kvor )                 !== relative vorticity considered  ==!
             !
          CASE ( np_RVO , np_CRV )                  !* relative vorticity at f-point is used
-            ALLOCATE( zwz(T2D(1)) )
             DO_2D( 1, 1, 1, 1 )
                zwz(ji,jj) = (  ( e2v(ji+1,jj) * pv(ji+1,jj,jk) - e2v(ji,jj) * pv(ji,jj,jk) )  &                   ! add () for
                   &          - ( e1u(ji,jj+1) * pu(ji,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) * r1_e1e2f(ji,jj) ! NP repro
