@@ -696,8 +696,8 @@ CONTAINS
             ! =============
             ! trick: is defined to 0 => dimension variable are defined but not yet written
             IF( iom_file(kiomid)%dimsz(1, 4) == 0 ) THEN   ! time_counter = 0
-               CALL iom_nf90_check(    NF90_PUT_VAR( if90id, 1,                                      glamt(T2D(0)) ), clinfo )
-               CALL iom_nf90_check(    NF90_PUT_VAR( if90id, 2,                                      gphit(T2D(0)) ), clinfo )
+               CALL iom_nf90_check(    NF90_PUT_VAR( if90id, 1,                                      glamt(A2D(0)) ), clinfo )
+               CALL iom_nf90_check(    NF90_PUT_VAR( if90id, 2,                                      gphit(A2D(0)) ), clinfo )
                SELECT CASE (iom_file(kiomid)%comp)
                CASE ('OCE')
                   CALL iom_nf90_check( NF90_PUT_VAR( if90id, 3,                                           gdept_1d ), clinfo )

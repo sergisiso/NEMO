@@ -140,33 +140,26 @@ CONTAINS
          ENDIF
       ENDIF
 
-      ! Output of initial vertical scale factor
-      IF( lk_vco_3d ) THEN
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-            z3d(ji,jj,jk) =  e3t_0(ji,jj,jk)
-         END_3D
-         CALL iom_put( "e3t_0", z3d )
-         !
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-            z3d(ji,jj,jk) =  e3u_0(ji,jj,jk)
-         END_3D
-         CALL iom_put( "e3u_0", z3d )
-         !
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-            z3d(ji,jj,jk) =  e3v_0(ji,jj,jk)
-         END_3D
-         CALL iom_put( "e3v_0", z3d )
-         !
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-            z3d(ji,jj,jk) =  e3f_0(ji,jj,jk)
-         END_3D
-         CALL iom_put( "e3f_0", z3d )
-      ELSE
-         CALL iom_put( "e3t_0", e3t_0(:,:,:) )
-         CALL iom_put( "e3u_0", e3u_0(:,:,:) )
-         CALL iom_put( "e3v_0", e3v_0(:,:,:) )
-         CALL iom_put( "e3f_0", e3f_0(:,:,:) )
-      ENDIF
+      ! Output of initial vertical scale factor (this may be 1D or 3D, and we want only the internal part)
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         z3d(ji,jj,jk) =  e3t_0(ji,jj,jk)
+      END_3D
+      CALL iom_put( "e3t_0", z3d )
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         z3d(ji,jj,jk) =  e3u_0(ji,jj,jk)
+      END_3D
+      CALL iom_put( "e3u_0", z3d )
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         z3d(ji,jj,jk) =  e3v_0(ji,jj,jk)
+      END_3D
+      CALL iom_put( "e3v_0", z3d )
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpk )
+         z3d(ji,jj,jk) =  e3f_0(ji,jj,jk)
+      END_3D
+      CALL iom_put( "e3f_0", z3d )
       !
       IF ( iom_use("tpt_dep") ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpk )

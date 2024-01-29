@@ -744,18 +744,18 @@ CONTAINS
                CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  &
                     &                   , hu_e , 'U',  1._wp, hv_e , 'V',  1._wp  &
                     &                   , hur_e, 'U',  1._wp, hvr_e, 'V',  1._wp  , ssha_e, 'T', 1._wp  & 
-                    &                   , zuwdmask, 'U', -1._wp, zvwdmask, 'V', -1._wp )
+                    &                   , zuwdmask, 'U', -1._wp, zvwdmask, 'V', -1._wp, ldfull=.TRUE. )
             ELSE
                CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  &
                     &                   , hu_e , 'U',  1._wp, hv_e , 'V',  1._wp  &
-                    &                   , hur_e, 'U',  1._wp, hvr_e, 'V',  1._wp  , ssha_e, 'T', 1._wp )
+                    &                   , hur_e, 'U',  1._wp, hvr_e, 'V',  1._wp  , ssha_e, 'T', 1._wp, ldfull=.TRUE. )
             ENDIF
          ELSE
             IF( ln_wd_dl ) THEN
                CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  , ssha_e, 'T', 1._wp  &
-                    &                   , zuwdmask, 'U', -1._wp, zvwdmask, 'V', -1._wp )
+                    &                   , zuwdmask, 'U', -1._wp, zvwdmask, 'V', -1._wp, ldfull=.TRUE. )
             ELSE
-               CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  , ssha_e, 'T', 1._wp )
+               CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  , ssha_e, 'T', 1._wp, ldfull=.TRUE. )
             ENDIF
          ENDIF
          !                                                 ! open boundaries

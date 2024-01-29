@@ -210,6 +210,7 @@ CONTAINS
          DEALLOCATE( ztrdt )
       ENDIF
       !
+#if ! defined key_RK3
       IF( iom_use('qsr3d') ) THEN      ! output the shortwave Radiation distribution
          ALLOCATE( zetot(T2D(0),jpk) )
          zetot(:,:,nksr+1:jpk) = 0._wp     ! below ~400m set to zero
@@ -219,6 +220,7 @@ CONTAINS
          CALL iom_put( 'qsr3d', zetot )   ! 3D distribution of shortwave Radiation
          DEALLOCATE( zetot )
       ENDIF
+#endif
       !
       IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
          IF( lrst_oce ) THEN     ! write in the ocean restart file

@@ -558,7 +558,7 @@ CONTAINS
 # endif
       !                                        ! local domain boundaries  (T-point, unchanged sign)
       CALL lbc_lnk( 'finalize_lbc', puu(:,:,:,       Kaa), 'U', -1._wp, pvv(:,:,:       ,Kaa), 'V', -1._wp   &
-                       &          , pts(:,:,:,jp_tem,Kaa), 'T',  1._wp, pts(:,:,:,jp_sal,Kaa), 'T',  1._wp )
+                       &          , pts(:,:,:,jp_tem,Kaa), 'T',  1._wp, pts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
       !
       ! lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
       IF( l_zdfsh2 ) CALL lbc_lnk( 'stp', avm_k, 'W', 1.0_wp )
@@ -566,7 +566,7 @@ CONTAINS
       ! dom_qco_r3c defines over [nn_hls, nn_hls-1, nn_hls, nn_hls-1]
       IF( .NOT. lk_linssh ) THEN
          CALL lbc_lnk( 'finalize_lbc', r3u(:,:,Kaa), 'U', 1._wp, r3v(:,:,Kaa), 'V', 1._wp, &
-            &                          r3u_f(:,:),   'U', 1._wp, r3v_f(:,:),   'V', 1._wp )
+            &                          r3u_f(:,:),   'U', 1._wp, r3v_f(:,:),   'V', 1._wp  )
       ENDIF
       !                                        !* BDY open boundaries
       IF( ln_bdy )   THEN

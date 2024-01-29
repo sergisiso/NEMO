@@ -113,6 +113,11 @@ CONTAINS
          IF(   l_iom    .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR.  &
               &                                       iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )  l_hst = .TRUE.
       ENDIF
+      ! Initialization of the last level otherwise mpi communications at north fold crash
+      zta_up1(:,:,jpk) = 0._wp
+      ztFu   (:,:,jpk) = 0._wp
+      ztFv   (:,:,jpk) = 0._wp
+      ztFw   (:,:,jpk) = 0._wp
       !
       IF( l_trd .OR. l_hst )  THEN
          ALLOCATE( ztrdx(T2D(nn_hls),jpk), ztrdy(T2D(nn_hls),jpk), ztrdz(T2D(nn_hls),jpk) )
@@ -121,7 +126,7 @@ CONTAINS
       !
       IF( l_ptr ) THEN
          ALLOCATE( zptry(T2D(0),jpk) )
-         zptry(:,:,:) = 0._wp
+         zptry(:,:,jpk) = 0._wp
       ENDIF
       !
       ! If adaptive vertical advection, check if it is needed on this PE at this time
@@ -136,11 +141,6 @@ CONTAINS
       !
       DO jn = 1, kjpt            !==  loop over the tracers  ==!
          !
-         !intialization of the last level otherwise mpi communications at north fold crash
-         zta_up1(:,:,jpk) = 0._wp
-         ztFu   (:,:,jpk) = 0._wp
-         ztFv   (:,:,jpk) = 0._wp
-         ztFw   (:,:,jpk) = 0._wp
          !
          !        !==  Upstream and high order fluxes  ==!
          !
@@ -154,10 +154,18 @@ CONTAINS
          ! output => ztFu(1,0,1,0), ztFv(1,0,1,0), zta_up1(0,0,0,0), ztFw(0,0,0,0) if Amip2 or ztFw(1,1,1,1) if .not.Aimp2
          !
          IF( l_trd .OR. l_hst )  THEN             ! trend diagnostics (contribution of upstream fluxes)
-            ztrdx(:,:,:) = ztFu(:,:,:)   ;   ztrdy(:,:,:) = ztFv(:,:,:)   ;   ztrdz(:,:,:) = ztFw(:,:,:)
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               ztrdx(ji,jj,jk) = ztFu(ji,jj,jk)
+               ztrdy(ji,jj,jk) = ztFv(ji,jj,jk)
+               ztrdz(ji,jj,jk) = ztFw(ji,jj,jk)
+            END_3D
          END IF
          !                             ! "Poleward" heat and salt transports (contribution of upstream fluxes)
-         IF( l_ptr )   zptry(:,:,:) = ztFv(T2D(0),:)
+         IF( l_ptr ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               zptry(ji,jj,jk) = ztFv(ji,jj,jk)
+            END_3D
+         ENDIF
          !
          !
          ! -- Anti-diffusive fluxes : high order minus low order
@@ -316,9 +324,11 @@ CONTAINS
          END IF
          !
          IF( l_trd .OR. l_hst ) THEN   ! trend diagnostics // heat/salt transport
-            ztrdx(:,:,:) = ztrdx(:,:,:) + ztFu(:,:,:)  ! <<< add anti-diffusive fluxes
-            ztrdy(:,:,:) = ztrdy(:,:,:) + ztFv(:,:,:)  !     to upstream fluxes
-            ztrdz(:,:,:) = ztrdz(:,:,:) + ztFw(:,:,:)  !
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               ztrdx(ji,jj,jk) = ztrdx(ji,jj,jk) + ztFu(ji,jj,jk)  ! <<< add anti-diffusive fluxes
+               ztrdy(ji,jj,jk) = ztrdy(ji,jj,jk) + ztFv(ji,jj,jk)  !     to upstream fluxes
+               ztrdz(ji,jj,jk) = ztrdz(ji,jj,jk) + ztFw(ji,jj,jk)  !
+            END_3D
             !
             IF( l_trd ) THEN              ! trend diagnostics
                CALL trd_tra( kt, Kmm, Krhs, cdtype, jn, jptra_xad, ztrdx, pU, pt(:,:,:,jn,Kmm) )
@@ -330,7 +340,9 @@ CONTAINS
             !
          ENDIF
          IF( l_ptr ) THEN              ! "Poleward" transports
-            zptry(:,:,:) = zptry(:,:,:) + ztFv(T2D(0),:)  ! <<< add anti-diffusive fluxes
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               zptry(ji,jj,jk) = zptry(ji,jj,jk) + ztFv(ji,jj,jk)  ! <<< add anti-diffusive fluxes
+            END_3D
             CALL dia_ptr_hst( jn, 'adv', zptry(:,:,:) )
          ENDIF
          !

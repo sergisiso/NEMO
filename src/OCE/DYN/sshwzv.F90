@@ -126,7 +126,7 @@ CONTAINS
 #endif
       END_2D
       ! pssh must be defined everywhere (true for dyn_spg_ts, not for dyn_spg_exp)
-      IF ( .NOT. ln_dynspg_ts ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp )
+      IF ( .NOT. ln_dynspg_ts ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp, ldfull=.TRUE. )
       !
 #if defined key_agrif
       Kbb_a = Kbb   ;   Kmm_a = Kmm   ;   Krhs_a = Kaa
