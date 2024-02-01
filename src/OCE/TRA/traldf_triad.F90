@@ -153,15 +153,15 @@ CONTAINS
       !
       IF( kpass == 1 ) THEN         !==  first pass only  and whatever the tracer is  ==!
          !
-         IF( kt /= kit000 ) THEN    ! Already zeroed on first timestep in ldf_slp_init
-            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+         IF( (l_istiled .AND. ntile > 1) .OR. kt /= kit000 ) THEN    ! Already zeroed on first timestep in ldf_slp_init
+            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
                akz     (ji,jj,jk) = 0._wp
                ah_wslp2(ji,jj,jk) = 0._wp
             END_3D
          ENDIF
          !
          DO kp = 0, 1                            ! i-k triads
-            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                ze3wr = 1._wp / e3w(ji,jj,jk+kp,Kmm)
                zbu   = e1e2u(ji,jj) * e3u(ji,jj,jk,Kmm)
                zbu1  = e1e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm)
@@ -184,7 +184,7 @@ CONTAINS
          END DO
          !
          DO kp = 0, 1                            ! j-k triads
-            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
+            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                ze3wr = 1.0_wp / e3w(ji,jj,jk+kp,Kmm)
                zbv   = e1e2v(ji,jj) * e3v(ji,jj,jk,Kmm)
                zbv1   = e1e2v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm)
@@ -210,7 +210,7 @@ CONTAINS
          IF( ln_traldf_msc ) THEN                ! stabilizing vertical diffusivity coefficient
             !
             IF( ln_traldf_blp ) THEN                ! bilaplacian operator
-               DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+               DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
                   akz(ji,jj,jk) = 16._wp           &
                      &   * ah_wslp2   (ji,jj,jk)   &
                      &   * (  akz     (ji,jj,jk)   &
@@ -218,7 +218,7 @@ CONTAINS
                      &        / ( e3w(ji,jj,jk,Kmm) * e3w(ji,jj,jk,Kmm) )  )
                END_3D
             ELSEIF( ln_traldf_lap ) THEN              ! laplacian operator
-               DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
+               DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jpkm1 )
                   ze3w_2 = e3w(ji,jj,jk,Kmm) * e3w(ji,jj,jk,Kmm)
                   zcoef0 = rDt * (  akz(ji,jj,jk) + ah_wslp2(ji,jj,jk) / ze3w_2  )
                   akz(ji,jj,jk) = MAX( zcoef0 - 0.5_wp , 0._wp ) * ze3w_2 * r1_Dt
@@ -226,7 +226,7 @@ CONTAINS
            ENDIF
            !
          ELSE                                    ! 33 flux set to zero with akz=ah_wslp2 ==>> computed in full implicit
-            DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
                akz(ji,jj,jk) = ah_wslp2(ji,jj,jk)
             END_3D
          ENDIF

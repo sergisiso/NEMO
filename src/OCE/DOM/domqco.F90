@@ -158,13 +158,13 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       !
-      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
          pr3t(ji,jj) = pssh(ji,jj) * r1_ht_0(ji,jj)   !==  ratio at t-point  ==!
       END_2D
       !
       !                                      !==  ratio at u-,v-point  ==!
       !
-      DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+      DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
          pr3u(ji,jj) = 0.5_wp * (  e1e2t(ji  ,jj) * pssh(ji  ,jj)  &
             &                    + e1e2t(ji+1,jj) * pssh(ji+1,jj)  ) * r1_hu_0(ji,jj) * r1_e1e2u(ji,jj)
          pr3v(ji,jj) = 0.5_wp * (  e1e2t(ji,jj  ) * pssh(ji,jj  )  &
@@ -173,7 +173,7 @@ CONTAINS
       !
       IF( PRESENT( pr3f ) ) THEN             !==  ratio at f-point  ==!
          !
-         DO_2D_OVR( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
             ! round brackets added to fix the order of floating point operations
             ! needed to ensure halo 1 - halo 2 compatibility
             pr3f(ji,jj) = 0.25_wp * (   (  e1e2t(ji  ,jj  ) * pssh(ji  ,jj  )      &

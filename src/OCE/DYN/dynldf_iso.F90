@@ -144,7 +144,7 @@ CONTAINS
       ! s-coordinate: Iso-level diffusion on momentum but not on tracer
       IF( ln_dynldf_hor .AND. ln_traldf_iso ) THEN
          !
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )      ! set the slopes of iso-level
+         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )      ! set the slopes of iso-level
             uslp (ji,jj,jk) = - ( gdept(ji+1,jj,jk,Kbb) - gdept(ji ,jj ,jk,Kbb) ) * r1_e1u(ji,jj) * umask(ji,jj,jk)
             vslp (ji,jj,jk) = - ( gdept(ji,jj+1,jk,Kbb) - gdept(ji ,jj ,jk,Kbb) ) * r1_e2v(ji,jj) * vmask(ji,jj,jk)
             wslpi(ji,jj,jk) = - ( gdepw(ji+1,jj,jk,Kbb) - gdepw(ji-1,jj,jk,Kbb) ) * r1_e1t(ji,jj) * tmask(ji,jj,jk) * 0.5

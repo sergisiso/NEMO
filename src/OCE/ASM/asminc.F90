@@ -865,7 +865,7 @@ CONTAINS
             ! Save the tendency associated with the IAU weighted SSH increment
             ! (applied in dynspg.*)
 #if defined key_asminc
-            DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
                ssh_iau(ji,jj) = ssh_bkginc(ji,jj) * zincwgt
             END_2D
 #endif
@@ -878,7 +878,7 @@ CONTAINS
             ENDIF
             !
 #if defined key_asminc
-            DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
                ssh_iau(ji,jj) = 0._wp
             END_2D
 #endif
