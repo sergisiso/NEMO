@@ -204,17 +204,48 @@ CONTAINS
    END FUNCTION arr_hls
 
 
+   LOGICAL FUNCTION check_hdom( kasi, kasj )
+      !!----------------------------------------------------------------------
+      !!                  ***  FUNCTION check_hdom  ***
+      !!
+      !! ** Purpose :   Determine if an array's shape corresponds to the horizontal domain
+      !!
+      !! ** Method  :   The array must be at least as large as the internal domain,
+      !!                but have no more than 2 * nn_hls halo points in total.
+      !!                This must be true for either the tile or MPI domain.
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) :: kasi, kasj                           ! Size of i, j dimensions
+      INTEGER :: imini, imaxi, iminj, imaxj
+      LOGICAL :: lltile, llmpi                                    ! Whether array is on the tile / MPI domain
+      !!----------------------------------------------------------------------
+      imini = ntei - ntsi + 1 ; iminj = ntej - ntsj + 1
+      imaxi = imini + 2 * nn_hls ; imaxj = iminj + 2 * nn_hls
+
+      lltile = (imini <= kasi .AND. kasi <= imaxi) .AND. (iminj <= kasj .AND. kasj <= imaxj)
+      llmpi = (Ni_0 <= kasi .AND. kasi <= jpi) .AND. (Nj_0 <= kasj .AND. kasj <= jpj)
+      check_hdom = lltile .OR. llmpi
+   END FUNCTION check_hdom
+
+
    LOGICAL FUNCTION is_tile( kasi, kasj )
       !!----------------------------------------------------------------------
       !!                  ***  FUNCTION is_tile  ***
       !!
-      !! ** Purpose :   Determine whether an array's shape corresponds to a tile or MPI domain
+      !! ** Purpose :   Determine whether an array's shape corresponds to the tile or MPI domain
       !!
       !! ** Method  :   Compare the array shape to that of the MPI domain internal area.
       !!                The maximum tile size is limited (in domain.F90) to ensure this is not ambiguous.
+      !!                If the array shape is not valid for either the tile or MPI domain, raise an error.
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) :: kasi, kasj                           ! Size of i, j dimensions
       !!----------------------------------------------------------------------
+      ! kas[ij] must represent a valid shape for either the tile or MPI domain
+      IF( .NOT. check_hdom(kasi, kasj) ) THEN
+         WRITE(ctmp1,*) 'is_tile: the following i-j shape does not represent an array on the horizontal domain:'
+         WRITE(ctmp2,*) kasi, 'x', kasj
+         CALL ctl_stop('STOP', ctmp1, ctmp2)                         ! Stop before out of bounds errors
+      ENDIF
+
       is_tile = l_istiled .AND. (kasi < Ni_0 .OR. kasj < Nj_0)
    END FUNCTION is_tile
 

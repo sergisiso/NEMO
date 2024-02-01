@@ -205,7 +205,6 @@ CONTAINS
    END SUBROUTINE tra_bbl_dif
 
 
-   ! NOTE: [tiling] tiling changes the results, but only the order of floating point operations is different
    SUBROUTINE tra_bbl_adv( pt, pt_rhs, kjpt, Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trc_bbl  ***
@@ -235,49 +234,55 @@ CONTAINS
       !                                                          ! ===========
       DO jn = 1, kjpt                                            ! tracer loop
          !                                                       ! ===========
-         DO_2D_OVR( 1, 0, 1, 0 )            ! CAUTION start from i=1 to update i=2 when cyclic east-west
-            IF( utr_bbl(ji,jj) /= 0.e0 ) THEN            ! non-zero i-direction bbl advection
+         DO_2D( 1, 0, 1, 0 )            ! CAUTION start from i=1 to update i=2 when cyclic east-west
+            IF( utr_bbl(ji,jj) /= 0.e0 .AND. ntsj <= jj ) THEN            ! non-zero i-direction bbl advection
                ! down-slope i/k-indices (deep)      &   up-slope i/k indices (shelf)
                iid  = ji + MAX( 0, mgrhu(ji,jj) )   ;   iis  = ji + 1 - MAX( 0, mgrhu(ji,jj) )
                ikud = mbku_d(ji,jj)                 ;   ikus = mbku(ji,jj)
                zu_bbl = ABS( utr_bbl(ji,jj) )
                !
-               !                                               ! up  -slope T-point (shelf bottom point)
-               zbtr = r1_e1e2t(iis,jj) / e3t(iis,jj,ikus,Kmm)
-               ztra = zu_bbl * ( pt(iid,jj,ikus,jn) - pt(iis,jj,ikus,jn) ) * zbtr
-               pt_rhs(iis,jj,ikus,jn) = pt_rhs(iis,jj,ikus,jn) + ztra
+               IF( ntsi <= iis .AND. iis <= ntei ) THEN        ! up  -slope T-point (shelf bottom point)
+                  zbtr = r1_e1e2t(iis,jj) / e3t(iis,jj,ikus,Kmm)
+                  ztra = zu_bbl * ( pt(iid,jj,ikus,jn) - pt(iis,jj,ikus,jn) ) * zbtr
+                  pt_rhs(iis,jj,ikus,jn) = pt_rhs(iis,jj,ikus,jn) + ztra
+               ENDIF
                !
-               DO jk = ikus, ikud-1                            ! down-slope upper to down T-point (deep column)
-                  zbtr = r1_e1e2t(iid,jj) / e3t(iid,jj,jk,Kmm)
-                  ztra = zu_bbl * ( pt(iid,jj,jk+1,jn) - pt(iid,jj,jk,jn) ) * zbtr
-                  pt_rhs(iid,jj,jk,jn) = pt_rhs(iid,jj,jk,jn) + ztra
-               END DO
-               !
-               zbtr = r1_e1e2t(iid,jj) / e3t(iid,jj,ikud,Kmm)
-               ztra = zu_bbl * ( pt(iis,jj,ikus,jn) - pt(iid,jj,ikud,jn) ) * zbtr
-               pt_rhs(iid,jj,ikud,jn) = pt_rhs(iid,jj,ikud,jn) + ztra
+               IF( ntsi <= iid .AND. iid <= ntei ) THEN        ! down-slope upper to down T-point (deep column)
+                  DO jk = ikus, ikud-1
+                     zbtr = r1_e1e2t(iid,jj) / e3t(iid,jj,jk,Kmm)
+                     ztra = zu_bbl * ( pt(iid,jj,jk+1,jn) - pt(iid,jj,jk,jn) ) * zbtr
+                     pt_rhs(iid,jj,jk,jn) = pt_rhs(iid,jj,jk,jn) + ztra
+                  END DO
+                  !
+                  zbtr = r1_e1e2t(iid,jj) / e3t(iid,jj,ikud,Kmm)
+                  ztra = zu_bbl * ( pt(iis,jj,ikus,jn) - pt(iid,jj,ikud,jn) ) * zbtr
+                  pt_rhs(iid,jj,ikud,jn) = pt_rhs(iid,jj,ikud,jn) + ztra
+               ENDIF
             ENDIF
             !
-            IF( vtr_bbl(ji,jj) /= 0.e0 ) THEN            ! non-zero j-direction bbl advection
+            IF( vtr_bbl(ji,jj) /= 0.e0 .AND. ntsi <= ji ) THEN            ! non-zero j-direction bbl advection
                ! down-slope j/k-indices (deep)        &   up-slope j/k indices (shelf)
                ijd  = jj + MAX( 0, mgrhv(ji,jj) )     ;   ijs  = jj + 1 - MAX( 0, mgrhv(ji,jj) )
                ikvd = mbkv_d(ji,jj)                   ;   ikvs = mbkv(ji,jj)
                zv_bbl = ABS( vtr_bbl(ji,jj) )
                !
-               ! up  -slope T-point (shelf bottom point)
-               zbtr = r1_e1e2t(ji,ijs) / e3t(ji,ijs,ikvs,Kmm)
-               ztra = zv_bbl * ( pt(ji,ijd,ikvs,jn) - pt(ji,ijs,ikvs,jn) ) * zbtr
-               pt_rhs(ji,ijs,ikvs,jn) = pt_rhs(ji,ijs,ikvs,jn) + ztra
+               IF( ntsj <= ijs .AND. ijs <= ntej ) THEN           ! up  -slope T-point (shelf bottom point)
+                  zbtr = r1_e1e2t(ji,ijs) / e3t(ji,ijs,ikvs,Kmm)
+                  ztra = zv_bbl * ( pt(ji,ijd,ikvs,jn) - pt(ji,ijs,ikvs,jn) ) * zbtr
+                  pt_rhs(ji,ijs,ikvs,jn) = pt_rhs(ji,ijs,ikvs,jn) + ztra
+               ENDIF
                !
-               DO jk = ikvs, ikvd-1                            ! down-slope upper to down T-point (deep column)
-                  zbtr = r1_e1e2t(ji,ijd) / e3t(ji,ijd,jk,Kmm)
-                  ztra = zv_bbl * ( pt(ji,ijd,jk+1,jn) - pt(ji,ijd,jk,jn) ) * zbtr
-                  pt_rhs(ji,ijd,jk,jn) = pt_rhs(ji,ijd,jk,jn)  + ztra
-               END DO
-               !                                               ! down-slope T-point (deep bottom point)
-               zbtr = r1_e1e2t(ji,ijd) / e3t(ji,ijd,ikvd,Kmm)
-               ztra = zv_bbl * ( pt(ji,ijs,ikvs,jn) - pt(ji,ijd,ikvd,jn) ) * zbtr
-               pt_rhs(ji,ijd,ikvd,jn) = pt_rhs(ji,ijd,ikvd,jn) + ztra
+               IF( ntsj <= ijd .AND. ijd <= ntej ) THEN           ! down-slope upper to down T-point (deep column)
+                  DO jk = ikvs, ikvd-1
+                     zbtr = r1_e1e2t(ji,ijd) / e3t(ji,ijd,jk,Kmm)
+                     ztra = zv_bbl * ( pt(ji,ijd,jk+1,jn) - pt(ji,ijd,jk,jn) ) * zbtr
+                     pt_rhs(ji,ijd,jk,jn) = pt_rhs(ji,ijd,jk,jn)  + ztra
+                  END DO
+                  !                                               ! down-slope T-point (deep bottom point)
+                  zbtr = r1_e1e2t(ji,ijd) / e3t(ji,ijd,ikvd,Kmm)
+                  ztra = zv_bbl * ( pt(ji,ijs,ikvs,jn) - pt(ji,ijd,ikvd,jn) ) * zbtr
+                  pt_rhs(ji,ijd,ikvd,jn) = pt_rhs(ji,ijd,ikvd,jn) + ztra
+               ENDIF
             ENDIF
          END_2D
          !                                                       ! ===========
@@ -349,7 +354,7 @@ CONTAINS
       !                                   !-------------------!
       IF( nn_bbl_ldf == 1 ) THEN          !   diffusive bbl   !
          !                                !-------------------!
-         DO_2D_OVR( 1, 0, 1, 0 )                   ! (criteria for non zero flux: grad(rho).grad(h) < 0 )
+         DO_2D( 1, 0, 1, 0 )                   ! (criteria for non zero flux: grad(rho).grad(h) < 0 )
             !                                                   ! i-direction
             za = zab(ji+1,jj,jp_tem) + zab(ji,jj,jp_tem)              ! 2*(alpha,beta) at u-point
             zb = zab(ji+1,jj,jp_sal) + zab(ji,jj,jp_sal)
@@ -379,7 +384,7 @@ CONTAINS
          SELECT CASE ( nn_bbl_adv )             !* bbl transport type
          !
          CASE( 1 )                                   != use of upper velocity
-            DO_2D_OVR( 1, 0, 1, 0 )                              ! criteria: grad(rho).grad(h)<0  and grad(rho).grad(h)<0
+            DO_2D( 1, 0, 1, 0 )                              ! criteria: grad(rho).grad(h)<0  and grad(rho).grad(h)<0
                !                                                  ! i-direction
                za = zab(ji+1,jj,jp_tem) + zab(ji,jj,jp_tem)               ! 2*(alpha,beta) at u-point
                zb = zab(ji+1,jj,jp_sal) + zab(ji,jj,jp_sal)
@@ -408,7 +413,7 @@ CONTAINS
             !
          CASE( 2 )                                 != bbl velocity = F( delta rho )
             zgbbl = grav * rn_gambbl
-            DO_2D_OVR( 1, 0, 1, 0 )                         ! criteria: rho_up > rho_down
+            DO_2D( 1, 0, 1, 0 )                         ! criteria: rho_up > rho_down
                !                                                  ! i-direction
                ! down-slope T-point i/k-index (deep)  &   up-slope T-point i/k-index (shelf)
                iid  = ji + MAX( 0, mgrhu(ji,jj) )

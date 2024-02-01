@@ -118,7 +118,7 @@ CONTAINS
       ! In time-split case we need a first guess of the ssh after (using the baroclinic timestep) in order to
       ! compute the vertical velocity which can be used to compute the non-linear terms of the momentum equations.
       !
-      DO_2D_OVR( 1, nn_hls, 1, nn_hls )                ! Loop bounds limited by hdiv definition in div_hor
+      DO_2D( 1, nn_hls, 1, nn_hls )                ! Loop bounds limited by hdiv definition in div_hor
 #if defined key_RK3
       pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( r1_rho0 * emp(ji,jj) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
 #else
