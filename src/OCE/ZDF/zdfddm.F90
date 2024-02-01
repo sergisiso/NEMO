@@ -82,7 +82,7 @@ CONTAINS
       REAL(wp) ::   zavft           !   -      -
       REAL(dp) ::          zavfs    !   -      -
       REAL(wp) ::   zavdt, zavds    !   -      -
-      REAL(wp), DIMENSION(T2D(0)) ::   zrau, zmsks, zmskf, zmskd1, zmskd2, zmskd3
+      REAL(wp) ::   zrau, zmsks, zmskf, zmskd1, zmskd2, zmskd3
       !!----------------------------------------------------------------------
       !
       !                                                ! ===============
@@ -94,7 +94,9 @@ CONTAINS
 !!gm                     ==>>>  test in the loop instead of use of mask arrays
 !!gm                            and many acces in memory
          
-         DO_2D( 0, 0, 0, 0 )           !==  R=zrau = (alpha / beta) (dk[t] / dk[s])  ==!
+         DO_2D( 0, 0, 0, 0 )
+            !==  R=zrau = (alpha / beta) (dk[t] / dk[s])  ==!
+
             zrw =   ( gdepw(ji,jj,jk  ,Kmm) - gdept(ji,jj,jk,Kmm) )   &
 !!gm please, use e3w at Kmm below 
                &  / ( gdept(ji,jj,jk-1,Kmm) - gdept(ji,jj,jk,Kmm) ) 
@@ -107,47 +109,45 @@ CONTAINS
             zdt = zaw * ( ts(ji,jj,jk-1,jp_tem,Kmm) - ts(ji,jj,jk,jp_tem,Kmm) )
             zds = zbw * ( ts(ji,jj,jk-1,jp_sal,Kmm) - ts(ji,jj,jk,jp_sal,Kmm) ) 
             IF( ABS( zds) <= 1.e-20_wp )   zds = 1.e-20_wp
-            zrau(ji,jj) = MAX(  1.e-20, zdt / zds  )    ! only retains positive value of zrau
-         END_2D
+            zrau = MAX(  1.e-20, zdt / zds  )    ! only retains positive value of zrau
 
-         DO_2D( 0, 0, 0, 0 )           !==  indicators  ==!
+            !==  indicators  ==!
+
             ! stability indicator: msks=1 if rn2>0; 0 elsewhere
-            IF( rn2(ji,jj,jk) + 1.e-12  <= 0. ) THEN   ;   zmsks(ji,jj) = 0._wp
-            ELSE                                       ;   zmsks(ji,jj) = 1._wp * wmask(ji,jj,jk)   ! mask so avt and avs masked
+            IF( rn2(ji,jj,jk) + 1.e-12  <= 0. ) THEN   ;   zmsks = 0._wp
+            ELSE                                       ;   zmsks = 1._wp * wmask(ji,jj,jk)   ! mask so avt and avs masked
             ENDIF
             ! salt fingering indicator: msksf=1 if R>1; 0 elsewhere            
-            IF( zrau(ji,jj) <= 1.             ) THEN   ;   zmskf(ji,jj) = 0._wp
-            ELSE                                       ;   zmskf(ji,jj) = 1._wp
+            IF( zrau <= 1.                    ) THEN   ;   zmskf = 0._wp
+            ELSE                                       ;   zmskf = 1._wp
             ENDIF
             ! diffusive layering indicators: 
             !     ! mskdl1=1 if 0< R <1; 0 elsewhere
-            IF( zrau(ji,jj) >= 1.             ) THEN   ;   zmskd1(ji,jj) = 0._wp
-            ELSE                                       ;   zmskd1(ji,jj) = 1._wp
+            IF( zrau >= 1.                    ) THEN   ;   zmskd1 = 0._wp
+            ELSE                                       ;   zmskd1 = 1._wp
             ENDIF
             !     ! mskdl2=1 if 0< R <0.5; 0 elsewhere
-            IF( zrau(ji,jj) >= 0.5            ) THEN   ;   zmskd2(ji,jj) = 0._wp
-            ELSE                                       ;   zmskd2(ji,jj) = 1._wp
+            IF( zrau >= 0.5                   ) THEN   ;   zmskd2 = 0._wp
+            ELSE                                       ;   zmskd2 = 1._wp
             ENDIF
             !   mskdl3=1 if 0.5< R <1; 0 elsewhere
-            IF( zrau(ji,jj) <= 0.5 .OR. zrau(ji,jj) >= 1. ) THEN   ;   zmskd3(ji,jj) = 0._wp
-            ELSE                                                   ;   zmskd3(ji,jj) = 1._wp
+            IF( zrau <= 0.5 .OR. zrau >= 1.   ) THEN   ;   zmskd3 = 0._wp
+            ELSE                                       ;   zmskd3 = 1._wp
             ENDIF
-         END_2D
 
-         ! Update avt and avs
-         ! ------------------
-         ! Constant eddy coefficient: reset to the background value
-         DO_2D( 0, 0, 0, 0 )
-            zinr = 1._wp / zrau(ji,jj)
+            !==  Update avt and avs  ==!
+         
+            ! Constant eddy coefficient: reset to the background value
+            zinr = 1._wp / zrau
             ! salt fingering
-            zrr = zrau(ji,jj) / rn_hsbfr
+            zrr = zrau / rn_hsbfr
             zrr = zrr * zrr
-            zavfs = rn_avts / ( 1. + zrr*zrr*zrr ) * zmsks(ji,jj) * zmskf(ji,jj)
+            zavfs = rn_avts / ( 1. + zrr*zrr*zrr ) * zmsks * zmskf
             zavft = 0.7 * zavfs * zinr
             ! diffusive layering
-            zavdt = 1.3635e-6 * EXP(  4.6 * EXP( -0.54*(zinr-1.) )  ) * zmsks(ji,jj) * zmskd1(ji,jj)
-            zavds = zavdt * zmsks(ji,jj) * (  ( 1.85 * zrau(ji,jj) - 0.85 ) * zmskd3(ji,jj)   &
-               &                             +  0.15 * zrau(ji,jj)          * zmskd2(ji,jj)  )
+            zavdt = 1.3635e-6 * EXP(  4.6 * EXP( -0.54*(zinr-1.) )  ) * zmsks * zmskd1
+            zavds = zavdt * zmsks * (  ( 1.85 * zrau - 0.85 ) * zmskd3   &
+               &                      +  0.15 * zrau          * zmskd2  )
             ! add to the eddy viscosity coef. previously computed
             p_avs(ji,jj,jk) = p_avt(ji,jj,jk) + zavfs + zavds
             p_avt(ji,jj,jk) = p_avt(ji,jj,jk) + zavft + zavdt
