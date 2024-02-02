@@ -1355,7 +1355,7 @@ CONTAINS
                   ! Developing shear layer, additional shear production possible.
 
                   !    pshear_u = MAX( zustar(ji,jj)**2 * MAX( av_du_ml(ji,jj), 0._wp ) /  phbl(ji,jj), 0._wp )
-                  !    pshear(ji,jj) = pshear(ji,jj) + pshear_u * ( 1.0 - MIN( zri_p(ji,jj) / pp_ri_p_thresh, 1.d0 )**2 )
+                  !    pshear(ji,jj) = pshear(ji,jj) + pshear_u * ( 1.0 - MIN( zri_p(ji,jj) / pp_ri_p_thresh, 1._wp )**2 )
                   !    pshear(ji,jj) = MIN( pshear(ji,jj), pshear_u )
 
                   !    zwb_shr = zwb_shr - 0.25 * MAX ( pshear_u, 0._wp) * ( 1.0 - MIN( zri_p(ji,jj) / pp_ri_p_thresh, 1._wp )**2 )

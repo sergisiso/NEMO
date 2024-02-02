@@ -57,7 +57,7 @@ CONTAINS
       REAL(wp), INTENT(inout), DIMENSION(kjpk_out, kn_var) ::   ptout      ! Remapped data
       !
       INTEGER             :: jk, jn, k1, kbox, ktop, ka, kbot
-      REAL(wp), PARAMETER :: dpthin = 1.D-3, dsmll = 1.0D-8
+      REAL(wp), PARAMETER :: dpthin = 1.e-3_wp, dsmll = 1.0e-8_wp
       REAL(wp)            :: q, q01, q02, q001, q002, q0
       REAL(wp)            :: tsum, qbot, rpsum, zbox, ztop, zthk, zbot, offset, qtop
       REAL(wp)            :: coeffremap(kjpk_in,3), zwork(kjpk_in,3), zwork2(kjpk_in+1,3)
