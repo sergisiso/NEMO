@@ -79,8 +79,8 @@ CONTAINS
                z3d(ji,jj,jk) = tr(ji,jj,jk,jp_c14,Kmm)
             ENDIF
          END_3D
-         CALL iom_put( "C14Age"   , rrage * LOG( z3d(:,:,:) ) )            !  Radiocarbon age [yr]
-         CALL iom_put( "DeltaC14" ,  1.d03 * ( z3d(:,:,:) - 1._wp ) )  ! Delta C14 [permil]
+         CALL iom_put( "C14Age"   ,  rrage * LOG( z3d(:,:,:) ) )            !  Radiocarbon age [yr]
+         CALL iom_put( "DeltaC14" ,  1.e03_wp * ( z3d(:,:,:) - 1._wp ) )    ! Delta C14 [permil]
 
          ! Reservoir age [yr]
          z2d(:,:) = 0._wp

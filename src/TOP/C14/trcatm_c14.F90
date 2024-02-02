@@ -272,7 +272,7 @@ CONTAINS
             IF(lwp .AND.  kt == nitend )  &
                  &      WRITE(numout, *)  'C14:',bomb(m1_c14,1),zonbc14(1),bomb(m2_c14,1)
       !   Transform DeltaC14 --> C14 ratio
-            zonbc14(:) = 1._wp + zonbc14(:)/1.d03
+            zonbc14(:) = 1._wp + zonbc14(:)/1.e03_wp
       !
       !  For each (i,j)-box, with information from the fractional area
       !  (zonmean), computes area-weighted mean to give the atmospheric C-14
@@ -292,7 +292,7 @@ CONTAINS
             IF(lwp .AND.  kt == nitend )  &
                  &      WRITE(numout, *)  'C14: ',atmc14(m1_c14),zonbc14(1),atmc14(m2_c14)
       !   Transform DeltaC14 --> C14 ratio
-            c14sbc(:,:) = 1._wp + zonbc14(1)/1.d03
+            c14sbc(:,:) = 1._wp + zonbc14(1)/1.e03_wp
          ENDIF
       !
       ENDIF

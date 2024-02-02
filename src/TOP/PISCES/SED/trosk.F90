@@ -166,7 +166,7 @@ SUBROUTINE rosk(ROSM,N,X,Y,XEND,H, RTOL,ATOL,                  &
 ! -------- NMAX , THE MAXIMAL NUMBER OF STEPS -----
       NMAX = 100000
 ! -------- UROUND   SMALLEST NUMBER SATISFYING 1.D0+UROUND>1.D0
-      UROUND = 1.E-16
+      UROUND = 1.E-16_wp
 ! -------- MAXIMAL STEP SIZE
       HMAX = XEND-X
 ! -------  FAC1,FAC2     PARAMETERS FOR STEP SIZE SELECTION
@@ -250,7 +250,7 @@ SUBROUTINE rosk(ROSM,N,X,Y,XEND,H, RTOL,ATOL,                  &
       CALL ROS2 (A21,C21,B1,B2,E1,E2,DGAMMA)
 ! --- INITIAL PREPARATIONS
       DO ji = 1, jpoce
-         H(ji)=MIN(MAX(1.E-10,H(ji)),HMAX)
+         H(ji)=MIN(MAX(1.E-10_wp,H(ji)),HMAX)
          REJECT(ji)=.FALSE.
          XI(ji) = X
       END DO
@@ -484,7 +484,7 @@ SUBROUTINE rosk(ROSM,N,X,Y,XEND,H, RTOL,ATOL,                  &
 
 ! --- INITIAL PREPARATIONS
       DO ji = 1, jpoce
-         H(ji)=MIN(MAX(1.E-10,H(ji)),HMAX)
+         H(ji)=MIN(MAX(1.E-10_wp,H(ji)),HMAX)
          REJECT(ji)=.FALSE.
          XI(ji) = X
       END DO
@@ -773,7 +773,7 @@ SUBROUTINE rosk(ROSM,N,X,Y,XEND,H, RTOL,ATOL,                  &
 
 ! --- INITIAL PREPARATIONS
       DO ji = 1, jpoce
-         H(ji) = MIN(MAX(1.E-10,H(ji)),HMAX)
+         H(ji) = MIN(MAX(1.E-10_wp,H(ji)),HMAX)
          REJECT(ji) = .FALSE.
          XI(ji) = X
       END DO
@@ -1049,8 +1049,8 @@ SUBROUTINE rosk(ROSM,N,X,Y,XEND,H, RTOL,ATOL,                  &
       REAL(wp), INTENT(out) :: DGAMMA
 
          DGAMMA= 1.0 + 1.0/SQRT(2.)
-         A21=1.D0/DGAMMA
-         C21=-2.D0/DGAMMA
+         A21=1._wp/DGAMMA
+         C21=-2._wp/DGAMMA
          B1=3./2./DGAMMA
          B2=1./2./DGAMMA
          E1=1./2./DGAMMA
