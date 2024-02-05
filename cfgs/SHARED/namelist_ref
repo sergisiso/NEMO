@@ -77,7 +77,10 @@
    ln_crs      = .false.   !  Logical switch for coarsening module      (T => fill namcrs)
    ln_c1d      = .false.   !  Single column domain (1x1pt)              (T => fill namc1d)
    !
-   ln_meshmask = .true.   !  =T create a mesh file
+   ln_meshmask = .true.    !  =T create a mesh file
+   !
+   ln_shuman   = .false.   !  =T  shuman averaging active  (RK3 only)
+   rn_stfp     =   0.16666666    !  shuman time filter parameter (1/6)
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)
@@ -1565,7 +1568,7 @@
 !-----------------------------------------------------------------------
 &namctl        !   Control prints                                       (default: OFF)
 !-----------------------------------------------------------------------
-   sn_cfctl%l_runstat = .TRUE.    ! switches and which areas produce reports with the proc integer settings.
+   sn_cfctl%l_runstat = .FALSE.    ! switches and which areas produce reports with the proc integer settings.
    sn_cfctl%l_trcstat = .FALSE.   ! The default settings for the proc integers should ensure
    sn_cfctl%l_oceout  = .FALSE.   ! that  all areas report.
    sn_cfctl%l_layout  = .FALSE.   !

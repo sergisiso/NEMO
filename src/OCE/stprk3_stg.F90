@@ -6,6 +6,7 @@ MODULE stprk3_stg
    !!======================================================================
    !! History :  4.5  !  2021-01  (S. Techene, G. Madec, N. Ducousso, F. Lemarie)  Original code
    !!   NEMO
+   !!            5.0  !  2024_01  (S.Techene, G. Madec)  add Shuman averaging option
    !!----------------------------------------------------------------------
 #if defined key_qco   ||   defined key_linssh
    !!----------------------------------------------------------------------
@@ -92,8 +93,7 @@ CONTAINS
       ENDIF
       !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      !  ssh, uu_b, vv_b, and  ssh/h0 at Kaa
-      !  3D advective velocity at Kmm
+      !>>>             Set ∆t and external mode fields at Kaa              <<<
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
       SELECT CASE( kstg )
@@ -176,27 +176,36 @@ CONTAINS
          !
       END SELECT
       !
-      !                     !==  advective velocity at Kmm  ==!
+      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      !>>>            Dynamic : RHS computation + time-stepping            <<<
+      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
-      !                                            !- horizontal components -!   (zFu,zFv) 
-      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
-         zub(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
-         zvb(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
-      END_2D
+      !                        !=============================================!
+      !                        !==   Set fields used in advection at Kmm   ==!
+      !                        !=============================================!
       !
-      DO jk = 1, jpkm1                                                    ! advective transport
-         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-            zFu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + zub(ji,jj)*umask(ji,jj,jk) )
-            zFv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + zvb(ji,jj)*vmask(ji,jj,jk) )
-         END_2D
-      END DO
-      !                                            !- vertical components -!   ww or zFw
+      IF( ln_zad_Aimp )  wi(:,:,:) = 0.0_wp        !* adaptive-implicit vertical advection is zero at stages 1 and 2
       !
-      IF( ln_zad_Aimp )  wi(:,:,:) = 0.0_wp                                                      !                              ! ensure adaptive-implicit vertical advection part is zero for stages 1 and 2
-      IF( ln_dynadv_vec ) THEN                                            ! ww cross-level velocity consistent with uu/vv at Kmm
+      IF( ln_dynadv_vec ) THEN                     !* Vector invariant Form : vertical velocity from uu, vv
+         !                                               ! ww cross-level velocity consistent with uu/vv at Kmm
          CALL wzv( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, np_velocity )
          IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, np_velocity )   ! Partition at stage 3 only
-      ELSE                                                                ! zFw cross-level transport consistent with (zFu,zFv)
+         !
+      ELSE                                         !* Flux Form : set advective transport
+         !                                               !- horizontal components -!   (zFu,zFv) 
+         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+            zub(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
+            zvb(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
+         END_2D
+         !
+         DO jk = 1, jpkm1                                                    ! advective transport
+            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               zFu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + zub(ji,jj)*umask(ji,jj,jk) )
+               zFv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + zvb(ji,jj)*vmask(ji,jj,jk) )
+            END_2D
+         END DO
+         !                                               !- vertical components -!   zFw = e1e2*ww
+         !
          CALL wzv( kstp, Kbb, Kmm, Kaa, zFu          , zFv          , ww, np_transport )
          IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, zFu, zFv, ww, wi, np_transport )                      ! Partition at stage 3 only
          DO jk = 1, jpkm1
@@ -206,29 +215,25 @@ CONTAINS
          END DO
       ENDIF
       !
+      !                        !============================================!
+      !                        !==   RHS : part computed at each stages   ==!   (ADV + COR + HPG)
+      !                        !============================================!
       !
-      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      !  RHS of ocean dynamics : ADV + VOR/COR + HPG (+ ASM )      <<<===  Question:  Stokes drift ?
-      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-      !
+!!gm===>>>>>> Modify dyn_adv_... dyn_keg routines so that Krhs to zero useless
       uu(:,:,:,Krhs) = 0._wp           ! set dynamics trends to zero
       vv(:,:,:,Krhs) = 0._wp
-      !
-!===>>>>>> Modify dyn_adv_... dyn_keg routines so that Krhs to zero useless
-      !                                         ! advection (VF or FF)	==> RHS
-      IF( ln_dynadv_vec ) THEN                                            ! uu and vv used for momentum advection
+!!gm end
+      !                                         ! advection (VIF or FF)  ==> RHS
+      IF( ln_dynadv_vec ) THEN                                  ! VIF: uu and vv used for momentum advection
          CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs)
-      ELSE                                                                ! advective transport used for momentum advection
+      ELSE                                                      ! FF : advective transport used for momentum advection
          CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs, zFu, zFv, zFw )
       ENDIF
       !                                         ! Coriolis / vorticity  ==> RHS
-      CALL dyn_vor( kstp,      Kmm      , uu, vv, Krhs )
+      CALL    dyn_vor( kstp,      Kmm      , uu, vv, Krhs )
       !
-
-!===>>>>>> Modify dyn_hpg & dyn_hpg_...  routines : rhd computed in dyn_hpg and pass in argument to dyn_hpg_...
-
+!!gm===>>>>>> Modify dyn_hpg & dyn_hpg_...  routines : rhd computed in dyn_hpg and pass in argument to dyn_hpg_...
       CALL eos    ( ts, Kmm, rhd )              ! Kmm in situ density anomaly for hpg computation
-
 !!gm end
       CALL dyn_hpg( kstp,      Kmm      , uu, vv, Krhs )
       !
@@ -241,30 +246,79 @@ CONTAINS
 !         vv(ji,jj,jk,Krhs) = vv(ji,jj,jk,Krhs) - grav * ( ssh(ji  ,jj+1,Kmm) - ssh(ji,jj,Kmm) )
 !      END_3D
 !!gm
-
+      !                        !=================================================================!
+      !                        !==   stage 1 & 2 : time-stepping                               ==!
+      !                        !==   stage 3     : time-stepping with all remaining RHS trends ==!
+      !                        !=================================================================!
+      SELECT CASE( kstg )
+      !                    !-------------------!
+      CASE ( 1 , 2 )       !==  Stage 1 & 2  ==!   stg1:  Kbb = N  ;  Kaa = N+1/3
+         !                 !-------------------!   stg2:  Kbb = N  ;  Kmm = N+1/3  ;  Kaa = N+1/2
+         !
+         !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
+         IF( ln_dynadv_vec .OR. ln_linssh ) THEN   ! applied on velocity
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               uu(ji,jj,jk,Kaa) = ( uu(ji,jj,jk,Kbb) + rDt * uu(ji,jj,jk,Krhs) ) * umask(ji,jj,jk)
+               vv(ji,jj,jk,Kaa) = ( vv(ji,jj,jk,Kbb) + rDt * vv(ji,jj,jk,Krhs) ) * vmask(ji,jj,jk)
+            END_3D
+         ELSE                                      ! applied on thickness weighted velocity
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               uu(ji,jj,jk,Kaa) = (         e3u(ji,jj,jk,Kbb) * uu(ji,jj,jk,Kbb )  &
+                  &                 + rDt * e3u(ji,jj,jk,Kmm) * uu(ji,jj,jk,Krhs)  ) &
+                  &                       / e3u(ji,jj,jk,Kaa) * umask(ji,jj,jk)
+               vv(ji,jj,jk,Kaa) = (         e3v(ji,jj,jk,Kbb) * vv(ji,jj,jk,Kbb )  &
+                  &                 + rDt * e3v(ji,jj,jk,Kmm) * vv(ji,jj,jk,Krhs)  ) &
+                  &                       / e3v(ji,jj,jk,Kaa) * vmask(ji,jj,jk)
+            END_3D
+         ENDIF
+         !
+         !
+         IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=uu(:,:,:,Kaa), clinfo1='stp stg   - Ua: ', mask1=umask,   &
+            &                                  tab3d_2=vv(:,:,:,Kaa), clinfo2=           ' Va: ', mask2=vmask, clinfo3='dyn' )
+         !
+         !
+         !                 !---------------!
+      CASE ( 3 )           !==  Stage 3  ==!   add all remaining RHS terms
+         !                 !---------------!
+         !                                      !==  complete the momentum RHS ==!   except ZDF (implicit)
+         !                                                   ! lateral mixing                    ==> RHS
+                            CALL dyn_ldf( kstp, Kbb, Kmm, uu, vv, Krhs )
+         !                                                   ! OSMOSIS non-local velocity fluxes ==> RHS
+         IF( ln_zdfosm  )   CALL dyn_osm( kstp,      Kmm, uu, vv, Krhs )
+         !
+         IF( ln_bdy     ) THEN                               ! bdy damping trends     ==> RHS
+                            CALL bdy_dyn3d_dmp ( kstp, Kbb, uu, vv, Krhs )
+         ENDIF
+# if defined key_agrif
+         IF(.NOT. Agrif_Root() ) THEN                        ! AGRIF:   sponge ==> momentum and tracer RHS
+            CALL Agrif_Sponge_dyn
+         ENDIF
+# endif
+         !                                      !==  DYN time integration + ZDF  ==!   ∆t = rDt
+         !
+                            CALL dyn_zdf( kstp, Kbb, Kmm, Krhs, uu, vv, Kaa  )  ! vertical diffusion and time integration
+      END SELECT
+      !
+      !                                         !==  correction of the barotropic (all stages)  ==!    at Kaa = N+1/3, N+1/2 or N+1
+      !                                                           ! barotropic velocity correction
+      DO_2D( 0, 0, 0, 0 )
+         zub(ji,jj) = uu_b(ji,jj,Kaa) - SUM( e3u_0(ji,jj,:)*uu(ji,jj,:,Kaa) ) * r1_hu_0(ji,jj)
+         zvb(ji,jj) = vv_b(ji,jj,Kaa) - SUM( e3v_0(ji,jj,:)*vv(ji,jj,:,Kaa) ) * r1_hv_0(ji,jj)
+      END_2D
+      !
+      DO jk = 1, jpkm1                                            ! corrected horizontal velocity
+         uu(T2D(0),jk,Kaa) = uu(T2D(0),jk,Kaa) + zub(T2D(0))*umask(T2D(0),jk)
+         vv(T2D(0),jk,Kaa) = vv(T2D(0),jk,Kaa) + zvb(T2D(0))*vmask(T2D(0),jk)
+      END DO
+      !
+      IF ( ln_shuman ) CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp) 
+      !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      ! RHS of tracers : ADV only using (zFu,zFv,zFw)
+      !>>>            Tracers : RHS computation + time-stepping            <<<
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
-      !                                            ! Advective velocity needed for tracers advection - already computed if ln_dynadv_vec=F
-      IF( ln_dynadv_vec )   THEN
-         CALL wzv  ( kstp, Kbb, Kmm, Kaa, zFU, zFV, ww, np_transport )
-         !                                              ! Partition at stage 3 only
-         IF( ln_zad_Aimp .AND. kstg == 3 )  CALL wAimp( kstp, Kmm, zFu, zFv, ww, wi, np_transport )
-         DO jk = 1, jpkm1
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               zFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
-            END_2D
-         END DO
-      ENDIF
-      !
-      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      ! advective transport
-      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      !
-!===>>> CAUTION here may be without GM velocity but stokes drift required ! 0 barotropic divergence for GM  != 0 barotropic divergence for SD
-      !                                       ! Update advective transport
-      CALL tra_adv_trp( kstp, kstg, nit000, Kmm, Krhs, zFu, zFv, zFw )
+      !                                         !== Update or Compute (VIF) advective transport
+      CALL tra_adv_trp( kstp, kstg, nit000, Kbb, Kmm, Kaa, Krhs, zFu, zFv, zFw )
       !
       !                                            ! BBL coefficients required for both passive- and active-tracer transport within
       !                                            ! the BBL (stage 3 only, requires uu, vv, gdept at Kmm)
@@ -307,23 +361,6 @@ CONTAINS
       CASE ( 1 , 2 )       !==  Stage 1 & 2  ==!   stg1:  Kbb = N  ;  Kaa = N+1/3
          !                 !-------------------!   stg2:  Kbb = N  ;  Kmm = N+1/3  ;  Kaa = N+1/2
          !
-         !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
-         IF( ln_dynadv_vec .OR. ln_linssh ) THEN   ! applied on velocity
-            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               uu(ji,jj,jk,Kaa) = ( uu(ji,jj,jk,Kbb) + rDt * uu(ji,jj,jk,Krhs) ) * umask(ji,jj,jk)
-               vv(ji,jj,jk,Kaa) = ( vv(ji,jj,jk,Kbb) + rDt * vv(ji,jj,jk,Krhs) ) * vmask(ji,jj,jk)
-            END_3D
-         ELSE                                      ! applied on thickness weighted velocity
-            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               uu(ji,jj,jk,Kaa) = (         e3u(ji,jj,jk,Kbb) * uu(ji,jj,jk,Kbb )  &
-                  &                 + rDt * e3u(ji,jj,jk,Kmm) * uu(ji,jj,jk,Krhs)  ) &
-                  &                       / e3u(ji,jj,jk,Kaa) * umask(ji,jj,jk)
-               vv(ji,jj,jk,Kaa) = (         e3v(ji,jj,jk,Kbb) * vv(ji,jj,jk,Kbb )  &
-                  &                 + rDt * e3v(ji,jj,jk,Kmm) * vv(ji,jj,jk,Krhs)  ) &
-                  &                       / e3v(ji,jj,jk,Kaa) * vmask(ji,jj,jk)
-            END_3D
-         ENDIF
-         !
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             ze3Tb = e3t(ji,jj,jk,Kbb) * ts(ji,jj,jk,jp_tem,Kbb )
             ze3Sb = e3t(ji,jj,jk,Kbb) * ts(ji,jj,jk,jp_sal,Kbb )
@@ -334,10 +371,6 @@ CONTAINS
             ts(ji,jj,jk,jp_sal,Kaa) = ( ze3Sb + rDt * ze3Sr*tmask(ji,jj,jk) ) * z1_e3t
          END_3D
          !
-         !
-         IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=uu(:,:,:,Kaa), clinfo1='stp stg   - Ua: ', mask1=umask,   &
-            &                                  tab3d_2=vv(:,:,:,Kaa), clinfo2=           ' Va: ', mask2=vmask, clinfo3='dyn' )
-         !
          IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=ts(:,:,:,jp_tem,Kaa), clinfo1='stp stg   - Ta: ', mask1=tmask,   &
             &                                  tab3d_2=ts(:,:,:,jp_sal,Kaa), clinfo2=           ' Sa: ', mask2=tmask, clinfo3='tra' )
          !
@@ -346,19 +379,13 @@ CONTAINS
          !                 !---------------!
          !
          !                                      !==  complete the momentum RHS ==!   except ZDF (implicit)
-         !                                                   ! lateral mixing                    ==> RHS
-                            CALL dyn_ldf( kstp, Kbb, Kmm, uu, vv, Krhs )
-         !                                                   ! OSMOSIS non-local velocity fluxes ==> RHS
-         IF( ln_zdfosm  )   CALL dyn_osm( kstp,      Kmm, uu, vv, Krhs )
          !
          IF( ln_bdy     ) THEN                               ! bdy damping trends     ==> RHS
-                            CALL bdy_dyn3d_dmp ( kstp, Kbb, uu, vv, Krhs )
                             CALL bdy_tra_dmp   ( kstp, Kbb, ts    , Krhs )
          ENDIF
 
 # if defined key_agrif
          IF(.NOT. Agrif_Root() ) THEN                        ! AGRIF:   sponge ==> momentum and tracer RHS
-            CALL Agrif_Sponge_dyn
             CALL Agrif_Sponge_tra
          ENDIF
 # endif
@@ -377,9 +404,8 @@ CONTAINS
             IF( lrst_oce )  CALL osm_rst( kstp,      Kmm, 'WRITE'  )  ! write OSMOSIS outputs + ww (so must do here) to restarts
          ENDIF
          !
-         !                                      !==  DYN & TRA time integration + ZDF  ==!   ∆t = rDt
+         !                                      !==  TRA time integration + ZDF  ==!   ∆t = rDt
          !
-                            CALL dyn_zdf( kstp, Kbb, Kmm, Krhs, uu, vv, Kaa  )  ! vertical diffusion and time integration
                             CALL tra_zdf( kstp, Kbb, Kmm, Krhs, ts    , Kaa  )  ! vertical mixing and after tracer fields
          IF( ln_zdfnpc  )   CALL tra_npc( kstp,      Kmm, Krhs, ts    , Kaa  )  ! update after fields by non-penetrative convection
          !
@@ -389,17 +415,6 @@ CONTAINS
          ENDIF
          !
       END SELECT
-      !                                         !==  correction of the barotropic (all stages)  ==!    at Kaa = N+1/3, N+1/2 or N+1
-      !                                                           ! barotropic velocity correction
-      DO_2D( 0, 0, 0, 0 )
-         zub(ji,jj) = uu_b(ji,jj,Kaa) - SUM( e3u_0(ji,jj,:)*uu(ji,jj,:,Kaa) ) * r1_hu_0(ji,jj)
-         zvb(ji,jj) = vv_b(ji,jj,Kaa) - SUM( e3v_0(ji,jj,:)*vv(ji,jj,:,Kaa) ) * r1_hv_0(ji,jj)
-      END_2D
-      !
-      DO jk = 1, jpkm1                                            ! corrected horizontal velocity
-         uu(T2D(0),jk,Kaa) = uu(T2D(0),jk,Kaa) + zub(T2D(0))*umask(T2D(0),jk)
-         vv(T2D(0),jk,Kaa) = vv(T2D(0),jk,Kaa) + zvb(T2D(0))*vmask(T2D(0),jk)
-      END DO
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Set boundary conditions
@@ -410,13 +425,23 @@ CONTAINS
             CALL Agrif_dyn( kstp, kstg )
 # endif
       !                                              !* local domain boundaries
-      IF( l_zdfsh2 ) THEN
-        CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
-           &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
-           &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
+      IF( l_zdfsh2 .OR. ln_shuman ) THEN
+         IF( l_zdfsh2 .AND. ln_shuman ) THEN
+            CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
+               &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
+         ELSE
+            IF( ln_shuman ) THEN 
+               CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
+            ENDIF
+            IF( l_zdfsh2 ) THEN
+               CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+                  &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
+                  &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
+            ENDIF
+         ENDIF
       ELSE
-        CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
-           &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
+         CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+            &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
       ENDIF
       !                                              !* BDY open boundaries
       IF( ln_bdy )   THEN
