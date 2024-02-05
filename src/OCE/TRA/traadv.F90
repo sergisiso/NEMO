@@ -36,6 +36,10 @@ MODULE traadv
    USE diaptr         ! Poleward heat transport
 #if defined key_RK3
    USE eosbn2
+   USE divhor         ! horizontal divergence
+   USE sshwzv         ! vertical velocity and ssh
+   USE zdf_oce , ONLY : ln_zad_Aimp
+   USE dynadv  , ONLY : ln_dynadv_vec
 #endif
    USE zdf_oce , ONLY : ln_zad_Aimp
    !
@@ -88,7 +92,11 @@ MODULE traadv
 CONTAINS
 
 #if defined key_RK3
-   SUBROUTINE tra_adv_trp( kt, kstg, kit000, Kmm, Krhs, pFu, pFv, pFw )
+   !!----------------------------------------------------------------------
+   !!   'key_RK3'                                         RK3 time-stepping
+   !!----------------------------------------------------------------------
+
+   SUBROUTINE tra_adv_trp( kt, kstg, kit000, Kbb, Kmm, Kaa, Krhs, pFu, pFv, pFw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_trp  ***
       !!
@@ -98,22 +106,84 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
       INTEGER                                     , INTENT(in   ) ::   kstg, kit000        ! RK3 stage and init index
-      INTEGER                                     , INTENT(in   ) ::   Kmm, Krhs           ! time level indices
+      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk)            , INTENT(inout) ::   pFu, pFv, pFw       ! advective transport
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
+      REAL(wp)::   z_2stfp      ! local scalar 2 x rn_stfp
+      LOGICAL ::   ll_Fw        ! local logical
+      REAL(wp), DIMENSION(:,:)  , ALLOCATABLE :: zFu_cor, zFv_cor   ! 2D workspace
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('tra_adv_trp')
       !
+      ll_Fw = .false.
+      !
+      IF( ln_dynadv_vec ) THEN
+         ll_Fw = .true. 
+         !                                                  !- horizontal components -!   (zFu,zFv)
+         ALLOCATE( zFu_cor(T2D(nn_hls)), zFv_cor(T2D(nn_hls)) )
+         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+            zFu_cor(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
+            zFv_cor(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
+         END_2D
+         !
+         DO jk = 1, jpkm1                                                        ! advective transport
+            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+               pFu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + zFu_cor(ji,jj)*umask(ji,jj,jk) )
+               pFv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + zFv_cor(ji,jj)*vmask(ji,jj,jk) )
+            END_2D
+         END DO
+         DEALLOCATE( zFu_cor, zFv_cor )
+         !
+      ENDIF
+      !
+      IF( ln_shuman .AND. kstg == 3 ) THEN      ! shuman averaging (stage 3 only)
+         ll_Fw = .true.
+         !
+         z_2stfp = 2._wp * rn_stfp
+         !
+         ALLOCATE( zFu_cor(T2D(nn_hls)), zFv_cor(T2D(nn_hls)) )
+         !
+         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+            zFu_cor(ji,jj) = ( z_2stfp * un_adv(ji,jj) * r1_hu_0(ji,jj)   &
+               &             - rn_stfp * (  ( 1._wp + r3u(ji,jj,Kaa) ) / ( 1._wp + r3u(ji,jj,Kmm) ) * uu_b(ji,jj,Kaa)   &
+               &                          + ( 1._wp + r3u(ji,jj,Kbb) ) / ( 1._wp + r3u(ji,jj,Kmm) ) * uu_b(ji,jj,Kbb)  ) &
+               &             ) * e2u(ji,jj)
+            zFv_cor(ji,jj) = ( z_2stfp * vn_adv(ji,jj) * r1_hv_0(ji,jj)   &
+               &             - rn_stfp * (  ( 1._wp + r3v(ji,jj,Kaa) ) / ( 1._wp + r3v(ji,jj,Kmm) ) * vv_b(ji,jj,Kaa)   &
+               &                          + ( 1._wp + r3v(ji,jj,Kbb) ) / ( 1._wp + r3v(ji,jj,Kmm) ) * vv_b(ji,jj,Kbb)  )&
+               &             ) * e1v(ji,jj)
+         END_2D
+         !
+         DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
+            pFu(ji,jj,jk) = (            (1._wp - z_2stfp) * pFu(ji,jj,jk)                                    &
+               &          + rn_stfp * (                  e3u(ji,jj,jk,Kbb)*uu(ji,jj,jk,Kbb)                   &
+               &                                       + e3u(ji,jj,jk,Kaa)*uu(ji,jj,jk,Kaa)  ) * e2u(ji,jj)   &
+               &          + e3u_0(ji,jj,jk) * zFu_cor(ji,jj)                                                  &
+               &            ) * umask(ji,jj,jk)
+            !
+            pFv(ji,jj,jk) = (            (1._wp - z_2stfp) * pFv(ji,jj,jk)                                    &
+               &          + rn_stfp * (                  e3v(ji,jj,jk,Kbb)*vv(ji,jj,jk,Kbb)                   &
+               &                                       + e3v(ji,jj,jk,Kaa)*vv(ji,jj,jk,Kaa)  ) * e1v(ji,jj)   &
+               &          + e3v_0(ji,jj,jk) * zFv_cor(ji,jj)                                                  &
+               &            ) * vmask(ji,jj,jk)
+         END_3D
+         !
+         ! Correct fluxes so that vertical integral matches barotropic mode
+         ! estimate
+         !
+         DEALLOCATE( zFu_cor, zFv_cor )
+         !
+      ENDIF
+      !
       IF( ln_wave .AND. ln_sdw )  THEN
+         ll_Fw = .true.
+         !
          DO jk = 1, jpkm1                                    ! At all stages : Add the Stokes Drift
             DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1)
                pFu(ji,jj,jk) = pFu(ji,jj,jk) + e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * usd(ji,jj,jk)
                pFv(ji,jj,jk) = pFv(ji,jj,jk) + e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * vsd(ji,jj,jk)
-            END_2D
-            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1)
-               pFw(ji,jj,jk) = pFw(ji,jj,jk) + e1e2t(ji,jj)                   * wsd(ji,jj,jk)
             END_2D
          END DO
       ENDIF
@@ -125,18 +195,37 @@ CONTAINS
       END_2D
       !
       IF( kstg == 3 ) THEN                                   ! At stage 3 only
-         IF( ln_ldfeiv .AND. .NOT. ln_traldf_triad )   &                     ! Add the eiv transport
-            &   CALL ldf_eiv_trp( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
+         IF( ln_ldfeiv .AND. .NOT. ln_traldf_triad ) THEN                     ! Add the eiv transport
+            ll_Fw = .true.
+                 CALL ldf_eiv_trp( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
+         ENDIF
          !
          IF( ln_mle    )   THEN                                              ! Add the mle transport
+            ll_Fw = .true.
                 CALL eos( ts, Kmm, rhd, rhop )                                    ! now in potential density for tra_mle computation
                 CALL tra_mle_trp( kt, pFu, pFv, pFw, Kmm )
          ENDIF
       ENDIF
       !
+      IF( ll_Fw ) THEN
+         !
+         ww(:,:,jpk) = 0._wp
+         !
+         CALL wzv( kt, Kbb, Kmm, Kaa, pFu, pFv, ww, np_transport )
+         !                                              ! Partition ww/wwi at stage 3 only
+         IF( ln_zad_Aimp ) CALL wAimp( kt, Kmm, pFu, pFv, ww, wi, np_transport )
+         DO jk = 1, jpkm1
+            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+               pFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
+            END_2D
+         END DO
+         !
+      ENDIF
+      !
       IF( ln_timing )   CALL timing_stop( 'tra_adv_trp' )
       !
    END SUBROUTINE tra_adv_trp
+
 #endif
 
    SUBROUTINE tra_adv( kt, Kbb, Kmm, Kaa, pts, Krhs, pau, pav, paw, kstg )

@@ -268,10 +268,6 @@ CONTAINS
             pFu(ji,jj,jk) = pFu(ji,jj,jk) + ( zpsi_uw(ji,jj,1) - zpsi_uw(ji,jj,2) )         ! add () for NO repro
             pFv(ji,jj,jk) = pFv(ji,jj,jk) + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji,jj,2) )
          END_2D
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            pFw(ji,jj,jk) = pFw(ji,jj,jk) - ( ( zpsi_uw(ji,jj,1) - zpsi_uw(ji-1,jj  ,1) )   &   ! add () for NO repro
-               &                            + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji  ,jj-1,1) ) ) * wmask(ji,jj,1)
-         END_2D
          !
          IF( ll_output ) THEN
             ! divide by cross distance to give streamfunction with dimensions m^2/s

@@ -315,7 +315,7 @@ CONTAINS
          !                                            !==========================================!
          DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
             !                                                              ! NB: [e3t[a] -e3t[b] ]=e3t_0*[r3t[a]-r3t[b]]
-            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  ze3div(ji,jj,jk)                            &
+            pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  ze3div(ji,jj,jk)                             &
                &                               + r1_Dt * e3t_0(ji,jj,jk) * ( r3t(ji,jj,Kaa) - r3t(ji,jj,Kbb) )  ) * tmask(ji,jj,jk)
          END_3D
       ENDIF
