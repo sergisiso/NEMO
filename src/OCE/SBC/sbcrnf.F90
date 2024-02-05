@@ -222,10 +222,14 @@ CONTAINS
                END DO
             END_2D
          ELSE                    !* variable volume case
-            DO_2D( 1, 2, 1, 2 )         ! update the depth over which runoffs are distributed
+            DO_2D( 1, 2, 1, 2 )         ! compute the depth over which runoffs are distributed
                h_rnf(ji,jj) = 0._wp
                DO jk = 1, nk_rnf(ji,jj)
                   h_rnf(ji,jj)     = h_rnf(ji,jj) + e3t(ji,jj,jk,Kmm) ! recalculates h_rnf to be the depth in metres to the bottom of the relevant grid box
+               END DO
+            END_2D
+            DO_2D( 1, 2, 1, 2 )         ! update phdivn
+               DO jk = 1, nk_rnf(ji,jj)
 #if defined key_RK3
                   phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
 #else
