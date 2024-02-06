@@ -71,11 +71,11 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk
       REAL(wp) ::   zsilfac, znanotot, zdiattot
-      REAL(wp) ::   zratio, zmax, zsilim, zlim, zsiborn
+      REAL(wp) ::   zratio, zratio2, zmax, zsilim, zlim, zsiborn
       REAL(wp) ::   zpptot, zpnewtot, zpregtot, zprochln, zprochld
       REAL(wp) ::   zproddoc, zprodsil, zprodfer, zprodlig, zprod1
       REAL(wp) ::   zpislopen, zpisloped, zfact
-      REAL(wp) ::   zratiosi, zmaxsi, zlimfac, zsizetmp, zfecnm, zfecdm
+      REAL(wp) ::   zratiosi, zratiosi_4, zmaxsi, zlimfac, zlimfac3, zsizetmp, zfecnm, zfecdm
       REAL(wp) ::   zprod, zval, zmxl_fac, zmxl_chl, zpronewn, zpronewd
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zprmax, zmxl
@@ -211,13 +211,14 @@ CONTAINS
             zsilim = xlimdia(ji,jj,jk) * zprdia(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
             zsiborn = tr(ji,jj,jk,jpsil,Kbb) * tr(ji,jj,jk,jpsil,Kbb) * tr(ji,jj,jk,jpsil,Kbb)
             IF (gphit(ji,jj) < -30 ) THEN
-              zsilfac = 1. + 2. * zsiborn / ( zsiborn + xksi2**3 )
+              zsilfac = 1. + 2. * zsiborn / ( zsiborn + xksi2_3 )
             ELSE
-              zsilfac = 1. +      zsiborn / ( zsiborn + xksi2**3 )
+              zsilfac = 1. +      zsiborn / ( zsiborn + xksi2_3 )
             ENDIF
             zratiosi = 1.0 - tr(ji,jj,jk,jpdsi,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn ) / ( zsilfac * grosip * 3.0 + rtrn )
             zratiosi = MAX(0., MIN(1.0, zratiosi) )
-            zmaxsi  = (1.0 + 0.1**4) * zratiosi**4 / ( zratiosi**4 + 0.1**4 )
+            zratiosi_4 = zratiosi * zratiosi * zratiosi * zratiosi 
+            zmaxsi  = ( 1.0 + 1.E-4 ) * zratiosi_4 / ( zratiosi_4 + 1.E-4 )
             IF( xlimsi(ji,jj,jk) /= xlimdia(ji,jj,jk) ) THEN
                zysopt(ji,jj,jk) = zlim * zsilfac * grosip * 1.0 * zmaxsi
             ELSE
@@ -249,7 +250,8 @@ CONTAINS
             ! current time step
             ! --------------------------------------------------------------------
             zlimfac = xlimphy(ji,jj,jk) * zprchln(ji,jj,jk)
-            zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac**3/(0.3 + zlimfac**3)
+            zlimfac3 = zlimfac * zlimfac * zlimfac
+            zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
             sizena(ji,jj,jk) = min(xsizern, max( sizena(ji,jj,jk), zsizetmp ) )
 
             ! Iron uptake rates of nanophytoplankton. Upregulation is  
@@ -258,7 +260,8 @@ CONTAINS
             ! downregulated when the quota is close to the maximum quota
             zfecnm = xqfuncfecn(ji,jj,jk) + ( fecnm - xqfuncfecn(ji,jj,jk) ) * ( xnanono3(ji,jj,jk) + xnanonh4(ji,jj,jk) )
             zratio = 1.0 - MIN(1.0,tr(ji,jj,jk,jpnfe,Kbb) / ( tr(ji,jj,jk,jpphy,Kbb) * zfecnm + rtrn ) )
-            zmax   = MAX( 0., MIN( 1.0, zratio**2/ (0.05**2+zratio**2) ) ) 
+            zratio2 = zratio * zratio
+            zmax   = MAX( 0., MIN( 1.0, zratio2/ (0.0025+zratio2) ) ) 
             zprofen(ji,jj,jk) = zfecnm * zprmax(ji,jj,jk) * ( 1.0 - fr_i(ji,jj) )  &
             &          * (1. + 0.8 * xnanono3(ji,jj,jk) / ( rtrn + xnanono3(ji,jj,jk)  &
             &          + xnanonh4(ji,jj,jk) ) * (1. - xnanofer(ji,jj,jk) ) )   &
@@ -273,7 +276,8 @@ CONTAINS
             ! current time step. 
             ! --------------------------------------------------------------------
             zlimfac = zprchld(ji,jj,jk) * xlimdia(ji,jj,jk)
-            zsizetmp = 1.0 + 1.3 * ( xsizerd - 1.0 ) * zlimfac**3/(0.3 + zlimfac**3)
+            zlimfac3 = zlimfac * zlimfac * zlimfac
+            zsizetmp = 1.0 + 1.3 * ( xsizerd - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
             sizeda(ji,jj,jk) = min(xsizerd, max( sizeda(ji,jj,jk), zsizetmp ) )
 
             ! Iron uptake rates of diatoms. Upregulation is  
@@ -282,7 +286,8 @@ CONTAINS
             ! downregulated when the quota is close to the maximum quota
             zfecdm = xqfuncfecd(ji,jj,jk) + ( fecdm - xqfuncfecd(ji,jj,jk) ) * ( xdiatno3(ji,jj,jk) + xdiatnh4(ji,jj,jk) )
             zratio = 1.0 - MIN(1.0, tr(ji,jj,jk,jpdfe,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) * zfecdm + rtrn ) )
-            zmax   = MAX( 0., MIN( 1.0, zratio**2/ (0.05**2+zratio**2) ) ) 
+            zratio2 = zratio * zratio 
+            zmax   = MAX( 0., MIN( 1.0, zratio2/ (0.0025+zratio2) ) ) 
             zprofed(ji,jj,jk) = zfecdm * zprmax(ji,jj,jk) * (1.0 - fr_i(ji,jj) )  &
             &          * (1. + 0.8 * xdiatno3(ji,jj,jk) / ( rtrn + xdiatno3(ji,jj,jk)  &
             &          + xdiatnh4(ji,jj,jk) ) * (1. - xdiatfer(ji,jj,jk) ) )   &

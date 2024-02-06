@@ -76,7 +76,7 @@ CONTAINS
       INTEGER  ::   ji, jj, jk
       REAL(wp) ::   zsilfac, znanotot, zpicotot, zdiattot
       REAL(wp) ::   zration, zratiop, zratiof, zmax
-      REAL(wp) ::   zprofmax, zratio
+      REAL(wp) ::   zprofmax, zratio, zratio2
       REAL(wp) ::   zpronewn, zpronewp, zpronewd
       REAL(wp) ::   zproregn, zproregp, zproregd
       REAL(wp) ::   zpropo4n, zpropo4p, zpropo4d
@@ -88,7 +88,8 @@ CONTAINS
       REAL(wp) ::   zval, zpo4tot, zpptot, zpnewtot, zpregtot
       REAL(wp) ::   zmxl_chl, zmxl_fac
       REAL(wp) ::   zqfpmax, zqfnmax, zqfdmax
-      REAL(wp) ::   zfact, zrfact2, zmaxsi, zratiosi, zsizetmp, zlimfac, zsilim
+      REAL(wp) ::   zfact, zrfact2, zmaxsi, zratiosi, zratiosi_4
+      REAL(wp) ::   zsizetmp, zlimfac, zlimfac3, zsilim
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zprorcan, zprorcap, zprorcad
       REAL(wp), DIMENSION(A2D(0),jpk) :: zpislopeadn, zpislopeadp, zpislopeadd
@@ -226,13 +227,14 @@ CONTAINS
             zsilim = MIN(1.0, xlimdia(ji,jj,jk) * zprdia(ji,jj,jk) / ( zprnut(ji,jj,jk) + rtrn ) )
             zsiborn = tr(ji,jj,jk,jpsil,Kbb) * tr(ji,jj,jk,jpsil,Kbb) * tr(ji,jj,jk,jpsil,Kbb)
             IF (gphit(ji,jj) < -30 ) THEN
-              zsilfac = 1. + 2. * zsiborn / ( zsiborn + xksi2**3 )
+              zsilfac = 1. + 2. * zsiborn / ( zsiborn + xksi2_3 )
             ELSE
-              zsilfac = 1. + 1. * zsiborn / ( zsiborn + xksi2**3 )
+              zsilfac = 1. + 1. * zsiborn / ( zsiborn + xksi2_3 )
             ENDIF
             zratiosi = 1.0 - tr(ji,jj,jk,jpdsi,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) * zsilfac * grosip * 3.0 + rtrn )
             zratiosi = MAX(0., MIN(1.0, zratiosi) )
-            zmaxsi  = (1.0 + 0.1**4) * zratiosi**4 / ( zratiosi**4 + 0.1**4 )
+            zratiosi_4 = zratiosi * zratiosi * zratiosi * zratiosi 
+            zmaxsi  = ( 1.0 + 1.E-4 ) * zratiosi_4 / ( zratiosi_4 + 1.E-4 )
             IF ( xlimsi(ji,jj,jk) /= xlimdia(ji,jj,jk) ) THEN
                zysopt(ji,jj,jk) = zlim * zsilfac * grosip * 1.0 * zmaxsi
             ELSE
@@ -273,7 +275,8 @@ CONTAINS
             ! current time step
             ! --------------------------------------------------------------------
             zlimfac = xlimphys(ji,jj,jk) * zprchln(ji,jj,jk)
-            zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac**3/(0.3 + zlimfac**3)
+            zlimfac3 = zlimfac * zlimfac * zlimfac
+            zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
             sizena(ji,jj,jk) = MIN(xsizern, MAX( sizena(ji,jj,jk), zsizetmp ) )
             ! Maximum potential uptake rate
             zration = tr(ji,jj,jk,jpnph,Kbb) / ( tr(ji,jj,jk,jpphy,Kbb) + rtrn )
@@ -282,18 +285,21 @@ CONTAINS
             zprnutmax = zprnut(ji,jj,jk) * fvnuptk(ji,jj,jk) / rno3 * tr(ji,jj,jk,jpphy,Kbb) * rfact2
             ! Uptake of nitrogen
             zratio = 1.0 - MIN( 1., zration / (xqnnmax(ji,jj,jk) + rtrn) )
-            zmax = MAX(0., MIN(1., zratio**2 / (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zpronmaxn(ji,jj,jk) = zprnutmax * zmax * MAX(0., MIN(1., ( zratiop - xqpnmin(ji,jj,jk) )   &
             &          / ( xqpnmax(ji,jj,jk) - xqpnmin(ji,jj,jk) + rtrn ), xlimnfe(ji,jj,jk) ) )
 
             ! Uptake of phosphorus and DOP
             zratio = 1.0 - MIN( 1., zratiop / (xqpnmax(ji,jj,jk) + rtrn) )
-            zmax = MAX(0., MIN(1., zratio**2 / (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zpropmaxn(ji,jj,jk) = 2.0 * zprnutmax * zmax * xlimnfe(ji,jj,jk)
             ! Uptake of iron
             zqfnmax = xqfuncfecn(ji,jj,jk) + ( qfnmax - xqfuncfecn(ji,jj,jk) ) * xlimnpn(ji,jj,jk)
             zratio = 1.0 - MIN( 1., zratiof / zqfnmax )
-            zmax = MAX(0., MIN(1., zratio**2/ (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zprofmax = zprnutmax * zqfnmax * zmax 
             zprofen(ji,jj,jk) = zprofmax * xnanofer(ji,jj,jk)    &
             &          * (1. + 0.8 * xnanono3(ji,jj,jk) / ( rtrn  &
@@ -320,7 +326,8 @@ CONTAINS
             ! current time step
             ! --------------------------------------------------------------------
             zlimfac = zprchlp(ji,jj,jk)  * xlimpics(ji,jj,jk)
-            zsizetmp = 1.0 + 1.3 * ( xsizerp - 1.0 ) * zlimfac**3/(0.3 + zlimfac**3)
+            zlimfac3 = zlimfac * zlimfac * zlimfac
+            zsizetmp = 1.0 + 1.3 * ( xsizerp - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
             sizepa(ji,jj,jk) = min(xsizerp, max( sizepa(ji,jj,jk), zsizetmp ) )
             ! Maximum potential uptake rate of nutrients
             zration = tr(ji,jj,jk,jpnpi,Kbb) / ( tr(ji,jj,jk,jppic,Kbb) + rtrn )
@@ -329,18 +336,21 @@ CONTAINS
             zprnutmax = zprnut(ji,jj,jk) * fvpuptk(ji,jj,jk) / rno3 * tr(ji,jj,jk,jppic,Kbb) * rfact2
             ! Uptake of nitrogen
             zratio = 1.0 - MIN( 1., zration / (xqnpmax(ji,jj,jk) + rtrn) )
-            zmax = MAX(0., MIN(1., zratio**2/ (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zpronmaxp(ji,jj,jk) = zprnutmax * zmax * MAX(0., MIN(1., ( zratiop - xqppmin(ji,jj,jk) )   &
             &          / ( xqppmax(ji,jj,jk) - xqppmin(ji,jj,jk) + rtrn ), xlimpfe(ji,jj,jk) ) )
 
             ! Uptake of phosphorus
             zratio = 1.0 - MIN( 1., zratiop / (xqppmax(ji,jj,jk) + rtrn) )
-            zmax = MAX(0., MIN(1., zratio**2 / (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zpropmaxp(ji,jj,jk) = 2.0 * zprnutmax * zmax * xlimpfe(ji,jj,jk) 
             ! Uptake of iron
             zqfpmax = xqfuncfecp(ji,jj,jk) + ( qfpmax - xqfuncfecp(ji,jj,jk) ) * xlimnpp(ji,jj,jk)
             zratio = 1.0 - MIN( 1., zratiof / zqfpmax )
-            zmax = MAX(0., MIN(1., zratio**2 / (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zprofmax = zprnutmax * zqfpmax * zmax
             zprofep(ji,jj,jk) = zprofmax * xpicofer(ji,jj,jk)  &
             &          * (1. + 0.8 * xpicono3(ji,jj,jk) / ( rtrn   &
@@ -367,7 +377,8 @@ CONTAINS
             ! current time step. 
             ! --------------------------------------------------------------------
             zlimfac = zprchld(ji,jj,jk) * xlimdias(ji,jj,jk)
-            zsizetmp = 1.0 + 1.3 * ( xsizerd - 1.0 ) * zlimfac**3/(0.3 + zlimfac**3)
+            zlimfac3 = zlimfac * zlimfac * zlimfac
+            zsizetmp = 1.0 + 1.3 * ( xsizerd - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
             sizeda(ji,jj,jk) = min(xsizerd, max( sizeda(ji,jj,jk), zsizetmp ) )
             ! Maximum potential uptake rate of nutrients
             zration = tr(ji,jj,jk,jpndi,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
@@ -376,18 +387,21 @@ CONTAINS
             zprnutmax = zprnut(ji,jj,jk) * fvduptk(ji,jj,jk) / rno3 * tr(ji,jj,jk,jpdia,Kbb) * rfact2
             ! Uptake of nitrogen
             zratio = 1.0 - MIN( 1., zration / (xqndmax(ji,jj,jk) + rtrn) )
-            zmax = MAX(0., MIN(1., zratio**2 / (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zpronmaxd(ji,jj,jk) = zprnutmax * zmax * MAX(0., MIN(1., ( zratiop - xqpdmin(ji,jj,jk) )   &
             &          / ( xqpdmax(ji,jj,jk) - xqpdmin(ji,jj,jk) + rtrn ), xlimdfe(ji,jj,jk) ) )
 
             ! Uptake of phosphorus
             zratio = 1.0 - MIN( 1., zratiop / (xqpdmax(ji,jj,jk) + rtrn) )
-            zmax = MAX(0., MIN(1., zratio**2/ (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zpropmaxd(ji,jj,jk) = 2.0 * zprnutmax * zmax * xlimdfe(ji,jj,jk)
             ! Uptake of iron
             zqfdmax = xqfuncfecd(ji,jj,jk) + ( qfdmax - xqfuncfecd(ji,jj,jk) ) * xlimnpd(ji,jj,jk)
             zratio = 1.0 - MIN( 1., zratiof / zqfdmax )
-            zmax = MAX(0., MIN(1., zratio**2 / (0.05**2 + zratio**2) ) )
+            zratio2 = zratio * zratio
+            zmax = MAX(0., MIN(1., zratio2/ (0.0025 + zratio2) ) )
             zprofmax = zprnutmax * zqfdmax * zmax
             zprofed(ji,jj,jk) = zprofmax * xdiatfer(ji,jj,jk)    &
             &          * (1. + 0.8 * xdiatno3(ji,jj,jk) / ( rtrn   &

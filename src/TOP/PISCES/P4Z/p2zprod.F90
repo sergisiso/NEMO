@@ -63,8 +63,8 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk
       REAL(wp) ::   znanotot, zpislopen, zfact
-      REAL(wp) ::   zlimfac, zsizetmp, zprodfer, zprprod
-      REAL(wp) ::   zprod, zval, zmxl_fac
+      REAL(wp) ::   zlimfac, zlimfac3, zsizetmp, zprodfer, zprprod
+      REAL(wp) ::   zprod, zval, zmxl_fac, zmxl_chl 
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zprmax, zmxl
       REAL(wp), DIMENSION(A2D(0),jpk) :: zprbio, zprchln
@@ -124,8 +124,9 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
             zmxl_fac = 1.0 - EXP( -0.26 * zmxl(ji,jj,jk) )
-            zprprod = zprmax(ji,jj,jk) * zmxl_fac
+            zmxl_chl = zmxl(ji,jj,jk) / 24.
             !
+            zprbio(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
             ! The initial slope of the PI curve can be increased for nano
             ! to account for photadaptation, for instance in the DCM
             ! This parameterization is adhoc and should be either 
@@ -134,16 +135,19 @@ CONTAINS
             ! Computation of production function for Carbon
             ! Actual light levels are used here 
             ! ----------------------------------------------
-            zpislopen = pislopen * thetanano(ji,jj,jk) / ( zprprod * rday * xlimphy(ji,jj,jk) + rtrn )
-            zprchln(ji,jj,jk) = zprprod * ( 1.- EXP( -zpislopen * enanom(ji,jj,jk) )  )
-            zprbio(ji,jj,jk)  = zprprod * ( 1.- EXP( -zpislopen * enano(ji,jj,jk) )  )
+            zpislopen = pislopen * thetanano(ji,jj,jk) / &
+              &    ( zprmax(ji,jj,jk) * xlimphy(ji,jj,jk) * zmxl_fac * rday + rtrn )
+            zprbio(ji,jj,jk)  = zprbio(ji,jj,jk) * ( 1.- EXP( -zpislopen * enano(ji,jj,jk) )  )
+            !
+            zpislopen = zpislopen * zmxl_fac / ( zmxl_chl + rtrn )
+            zprchln(ji,jj,jk) = ( 1.- EXP( -zpislopen * enanom(ji,jj,jk) ) )
          ENDIF
       END_3D
 
       !  Computation of a proxy of the N/C quota from nutrient limitation 
       !  and light limitation. Steady state is assumed to allow the computation
       !  ----------------------------------------------------------------------
-      thetanano(:,:,:) = chlcnm
+      !thetanano(:,:,:) = chlcnm
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
           zval = xnanono3(ji,jj,jk) * zprmax(ji,jj,jk) / ( zprbio(ji,jj,jk) + rtrn )
           quotan(ji,jj,jk) = MIN( 1., 0.3 + 0.7 * zval )
@@ -176,8 +180,9 @@ CONTAINS
             ! size at time step t+1 and is thus updated at the end of the 
             ! current time step
             ! --------------------------------------------------------------------
-            zlimfac = xlimphy(ji,jj,jk) * zprchln(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
-            zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac**3/(0.3 + zlimfac**3)
+            zlimfac = xlimphy(ji,jj,jk) * zprchln(ji,jj,jk) 
+            zlimfac3 = zlimfac * zlimfac * zlimfac
+            zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
             sizena(ji,jj,jk) = min(xsizern, max( sizena(ji,jj,jk), zsizetmp ) )
          ENDIF
       END_3D

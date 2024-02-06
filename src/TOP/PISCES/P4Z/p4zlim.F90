@@ -37,6 +37,8 @@ MODULE p4zlim
    REAL(wp), PUBLIC ::  qdfelim     !:  optimal Fe quota for diatoms
    REAL(wp), PUBLIC ::  ratchl      !:  C associated with Chlorophyll
 
+   REAL(wp), PUBLIC ::  xksi2_3     !:  xksi2**3 
+
    !!* Phytoplankton limitation terms
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatno3   !: Diatoms limitation by NO3
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanonh4   !: Nanophyto limitation by NH4
@@ -46,8 +48,6 @@ MODULE p4zlim
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimdia    !: Nutrient limitation term of diatoms
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimdfe    !: Diatoms limitation by iron
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimsi     !: Diatoms limitation by Si
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   concdfe    !: Limitation of diatoms uptake of Fe
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   concnfe    !: Limitation of Nano uptake of Fe
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanofer   !: Limitation of Fe uptake by nanophyto
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatfer   !: Limitation of Fe uptake by diatoms
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xqfuncfecd, xqfuncfecn
@@ -89,6 +89,7 @@ CONTAINS
       REAL(wp) ::   zdenom, zratio, zironmin, zbactno3, zbactnh4
       REAL(wp) ::   zconc1d, zconc1dnh4, zconc0n, zconc0nnh4   
       REAL(wp) ::   fananof, fadiatf, znutlim, zfalim
+      REAL(wp) ::   zsizen, zsized, zconcnfe, zconcdfe
       REAL(wp) ::   znutlimtot, zlimno3, zlimnh4, zbiron
       !!---------------------------------------------------------------------
       !
@@ -112,13 +113,16 @@ CONTAINS
          z1_trbphy   = 1. / ( tr(ji,jj,jk,jpphy,Kbb) + rtrn )
          z1_trbdia   = 1. / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
 
-         concnfe(ji,jj,jk) = concnfer * sizen(ji,jj,jk)**0.81
-         zconc0n           = concnno3 * sizen(ji,jj,jk)**0.81
-         zconc0nnh4        = concnnh4 * sizen(ji,jj,jk)**0.81
+         zsizen            = sizen(ji,jj,jk)**0.81
+         zconcnfe          = concnfer * zsizen
+         zconc0n           = concnno3 * zsizen
+         zconc0nnh4        = concnnh4 * zsizen
 
-         concdfe(ji,jj,jk) = concdfer * sized(ji,jj,jk)**0.81 
-         zconc1d           = concdno3 * sized(ji,jj,jk)**0.81 
-         zconc1dnh4        = concdnh4 * sized(ji,jj,jk)**0.81  
+         zsized            = sized(ji,jj,jk)**0.81
+         zconcdfe          = concdfer * zsized
+         zconc1d           = concdno3 * zsized
+         zconc1dnh4        = concdnh4 * zsized
+
 
           ! Computation of the optimal allocation parameters
           ! Based on the different papers by Pahlow et al., and 
@@ -127,11 +131,11 @@ CONTAINS
 
           ! Nanophytoplankton
           zbiron = ( 75.0 * ( 1.0 - plig(ji,jj,jk) ) + plig(ji,jj,jk) ) * biron(ji,jj,jk)
-          znutlim = zbiron / concnfe(ji,jj,jk)
+          znutlim = zbiron / zconcnfe
           fananof = MAX(0.01, MIN(0.99, 1. / ( SQRT(znutlim) + 1.) ) )
 
           ! Diatoms
-          znutlim = zbiron / concdfe(ji,jj,jk)
+          znutlim = zbiron / zconcdfe
           fadiatf = MAX(0.01, MIN(0.99, 1. / ( SQRT(znutlim) + 1.) ) )
 
           ! Michaelis-Menten Limitation term by nutrients of
@@ -161,7 +165,7 @@ CONTAINS
 
           ! Limitation of Fe uptake (Quota formalism)
           zfalim = (1.-fananof) / fananof
-          xnanofer(ji,jj,jk) = (1. - fananof) * zbiron / ( zbiron + zfalim * concnfe(ji,jj,jk) )
+          xnanofer(ji,jj,jk) = (1. - fananof) * zbiron / ( zbiron + zfalim * zconcnfe )
 
           ! Limitation of nanophytoplankton growth
           zlimnh4 = tr(ji,jj,jk,jpnh4,Kbb) / ( zconc0n + tr(ji,jj,jk,jpnh4,Kbb) )
@@ -188,7 +192,7 @@ CONTAINS
           !   -------------------------------------------------------
           ! Limitation of Fe uptake (Quota formalism)
           zfalim = (1.-fadiatf) / fadiatf
-          xdiatfer(ji,jj,jk) = (1. - fadiatf) * zbiron / ( zbiron + zfalim * concdfe(ji,jj,jk) )
+          xdiatfer(ji,jj,jk) = (1. - fadiatf) * zbiron / ( zbiron + zfalim * zconcdfe )
 
           ! Limitation of diatoms growth
           zlimnh4 = tr(ji,jj,jk,jpnh4,Kbb) / ( zconc1d + tr(ji,jj,jk,jpnh4,Kbb) )
@@ -333,6 +337,8 @@ CONTAINS
          WRITE(numout,*) '      Optimal Fe quota for diatoms             qdfelim   = ', qdfelim
       ENDIF
       !
+      xksi2_3 = xksi2 * xksi2 * xksi2
+      !
       xfracal (:,:,jpk) = 0._wp
       xlimphy (:,:,jpk) = 0._wp    ;      xlimdia (:,:,jpk) = 0._wp
       xlimnfe (:,:,jpk) = 0._wp    ;      xlimdfe (:,:,jpk) = 0._wp
@@ -342,7 +348,6 @@ CONTAINS
       xnanopo4(:,:,jpk) = 0._wp    ;      xdiatpo4(:,:,jpk) = 0._wp
       xdiatpo4(:,:,jpk) = 0._wp    ;      xdiatpo4(:,:,jpk) = 0._wp
       xlimdia (:,:,jpk) = 0._wp    ;      xlimdfe (:,:,jpk) = 0._wp
-      concnfe (:,:,jpk) = 0._wp    ;      concdfe (:,:,jpk) = 0._wp
       xqfuncfecn(:,:,jpk) = 0._wp    ;    xqfuncfecd(:,:,jpk) = 0._wp
       xlimsi  (:,:,jpk) = 0._wp
       xlimbac (:,:,jpk) = 0._wp    ;      xlimbacl(:,:,jpk) = 0._wp
@@ -365,7 +370,6 @@ CONTAINS
          &      xnanopo4(A2D(0),jpk), xdiatpo4(A2D(0),jpk),       &
          &      xnanofer(A2D(0),jpk), xdiatfer(A2D(0),jpk),       &
          &      xlimdia (A2D(0),jpk), xlimdfe (A2D(0),jpk),       &
-         &      concnfe (A2D(0),jpk), concdfe (A2D(0),jpk),       &
          &      xqfuncfecn(A2D(0),jpk), xqfuncfecd(A2D(0),jpk),   &
          &      xlimsi  (A2D(0),jpk), STAT=p4z_lim_alloc )
       !
