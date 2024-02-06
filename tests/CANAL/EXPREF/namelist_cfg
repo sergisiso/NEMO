@@ -59,15 +59,15 @@
    nn_it000    =       1   !  first time step
    nn_itend    =     100   !  last time step 
    nn_istate   =       0   !  output the initial state (1) or not (0)
-   nn_stock    =   99999   !  frequency of creation of a restart file (modulo referenced to 1)
-   nn_write    =   99999   !  frequency of write in the output file   (modulo referenced to nn_it000)
+   nn_stock    =      -1   !  frequency of creation of a restart file (modulo referenced to 1)
+   nn_write    =      -1   !  frequency of write in the output file   (modulo referenced to nn_it000)
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-   ln_linssh   =  .false.  !  =T  linear free surface  ==>>  model level are fixed in time
-   rn_Dt      =   1200.    !  time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp     =   0.0     !  asselin time filter parameter
+   rn_Dt      =    900.    !  900. for mlf, 1350 for rk3
+   rn_atfp     =   0.01    !  asselin time filter parameter
+   ln_meshmask = .false.   !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)
@@ -238,7 +238,7 @@
    ln_dynvor_ene = .true.  !  energy    conserving scheme
    ln_dynvor_ens = .false. !  enstrophy conserving scheme
    ln_dynvor_mix = .false. !  mixed scheme
-   ln_dynvor_enT = .false. !  energy conserving scheme (T-point)
+   ln_dynvor_enT =  .true. !  energy conserving scheme (T-point)
    ln_dynvor_een = .false. !  energy & enstrophy scheme
    !
    nn_e3f_typ = 0          !  type of e3f (EEN, ENE, ENS, MIX only)  =0  e3f = mi(mj(e3t))/4
@@ -335,7 +335,7 @@
 &namtrd        !   trend diagnostics                                    (default: OFF)
 !-----------------------------------------------------------------------
    ln_glo_trd  = .false.   ! (T) global domain averaged diag for T, T^2, KE, and PE
-   ln_dyn_trd  = .true.    ! (T) 3D momentum trend output
+   ln_dyn_trd  = .false.   ! (T) 3D momentum trend output
    ln_dyn_mxl  = .false.   ! (T) 2D momentum trends averaged over the mixed layer (not coded yet)
    ln_vor_trd  = .false.   ! (T) 2D barotropic vorticity trends (not coded yet)
    ln_KE_trd   = .false.   ! (T) 3D Kinetic   Energy     trends

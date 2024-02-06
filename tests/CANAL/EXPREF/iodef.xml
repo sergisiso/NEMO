@@ -12,7 +12,6 @@
           <variable id="info_level"                type="int">10</variable>
           <variable id="using_server"              type="bool">false</variable>
           <variable id="using_oasis"               type="bool">false</variable>
-          <variable id="oasis_codes_id"            type="string" >oceanx</variable>
 
       </variable_definition>
   </context>
