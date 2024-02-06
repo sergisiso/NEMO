@@ -59,15 +59,15 @@ CONTAINS
       REAL(wp) :: zpsurf, zdyPs, zdxPs
       REAL(wp) :: zdt, zdu, zdv
       REAL(wp) :: zjetx, zjety, zbeta
-      REAL(wp), DIMENSION(jpi,jpj)  ::   zrandom
+      REAL(wp), DIMENSION(:,:), ALLOCATABLE  ::   zrandom
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
       IF(lwp) WRITE(numout,*) 'usr_def_istate : CANAL configuration, analytical definition of initial state'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~   '
       !
-      zjetx = ABS(rn_ujetszx)/2.
-      zjety = ABS(rn_ujetszy)/2.
+      zjetx = ABS(rn_ujetszx)/2._wp
+      zjety = ABS(rn_ujetszy)/2._wp
       !
       zf0   = 2._wp * omega * SIN( rad * rn_ppgphi0 )
       !
@@ -81,8 +81,8 @@ CONTAINS
          ! salinity:  
          pts(:,:,:,jp_sal) = 35._wp
          ! velocities:
-         pu(:,:,:) = 0.
-         pv(:,:,:) = 0.
+         pu(:,:,:) = 0._wp
+         pv(:,:,:) = 0._wp
 
       CASE(0)    ! rest
          !
@@ -91,85 +91,87 @@ CONTAINS
          ! salinity:  
          pts(:,:,:,jp_sal) = 35._wp
          ! velocities:
-         pu(:,:,:) = 0.
-         pv(:,:,:) = 0.
+         pu(:,:,:) = 0._wp
+         pv(:,:,:) = 0._wp
          
       CASE(1)    ! geostrophic zonal jet from -zjety to +zjety
          !
          ! temperature:
          pts(:,:,:,jp_tem) = 10._wp
          ! salinity:  
-         pts(:,:,jpk,jp_sal) = 0.
+         pts(:,:,jpk,jp_sal) = 0._wp
          DO jk=1, jpkm1
             WHERE( ABS(gphit) <= zjety )
 !!$            WHERE( ABS(gphit) <= zjety*0.5 .AND. ABS(glamt) <= zjety*0.5 ) ! for a square of salt
-               pts(:,:,jk,jp_sal) = 35.
+               pts(:,:,jk,jp_sal) = 35._wp
             ELSEWHERE
-               pts(:,:,jk,jp_sal) = 30.
+               pts(:,:,jk,jp_sal) = 30._wp
             END WHERE                    
          END DO
          ! velocities:
-         pu(:,:,:) = 0.
+         pu(:,:,:) = 0._wp
          DO jk=1, jpkm1
             WHERE( ABS(gphit) <= zjety ) pu(:,:,jk) = rn_uzonal
          END DO
-         pv(:,:,:) = 0.
+         pv(:,:,:) = 0._wp
          !                  
       CASE(2)    ! geostrophic zonal current shear
          !
          ! temperature:
          pts(:,:,:,jp_tem) = 10._wp
          ! salinity:  
-         pts(:,:,:,jp_sal) = 30.
+         pts(:,:,:,jp_sal) = 30._wp
          DO jk=1, jpkm1
-            WHERE( ABS(gphiv) <= zjety ) pts(:,:,jk,jp_sal) = 30. + SIGN(1.,gphiv(:,:))
+            WHERE( ABS(gphiv) <= zjety ) pts(:,:,jk,jp_sal) = 30._wp + SIGN(1._wp,gphiv(:,:))
          END DO
          ! velocities:
-         pu(:,:,:) = 0.
+         pu(:,:,:) = 0._wp
          DO jk=1, jpkm1
-            WHERE( ABS(gphiv) <= zjety ) pu(:,:,jk) = SIGN(rn_uzonal,gphit(:,:))*SIGN(1.,rn_uzonal)
-            WHERE( ABS(gphiv) == 0.    ) pu(:,:,jk) = 0.  
+            WHERE( ABS(gphiv) <= zjety ) pu(:,:,jk) = SIGN(rn_uzonal,gphit(:,:))*SIGN(1._wp,rn_uzonal)
+            WHERE( ABS(gphiv) == 0._wp ) pu(:,:,jk) = 0._wp
          END DO
-         pv(:,:,:) = 0.
-         !                  
+         pv(:,:,:) = 0._wp
+          !                  
       CASE(3)    ! gaussian zonal currant
          !
          ! zonal current
+         pu(:,:,jpk) = 0._wp
          DO jk=1, jpkm1
             ! gphit and lambda are both in km
-            pu(:,:,jk) = rn_uzonal * EXP( - 0.5 * gphit(:,:)**2 / rn_lambda**2 )
+            pu(:,:,jk) = rn_uzonal * EXP( - 0.5_wp * gphit(:,:)**2 / rn_lambda**2 )
          END DO
          ! temperature:
          pts(:,:,:,jp_tem) = 10._wp
          ! salinity:  
+         pts(:,:,jpk,jp_sal) = 0._wp
          DO jk=1, jpkm1
             pts(:,:,jk,jp_sal) = gphit(:,:)
          END DO
          ! velocities:
-         pv(:,:,:) = 0.
+         pv(:,:,:) = 0._wp
          !            
       CASE(4)    ! geostrophic zonal pulse
          !
          DO_2D( 1, 1, 1, 1 )
             IF ( ABS(glamt(ji,jj)) <= zjetx ) THEN
                zdu = rn_uzonal
-            ELSEIF ( ABS(glamt(ji,jj)) <= zjetx + 100. ) THEN
-               zdu = rn_uzonal * ( ( zjetx-ABS(glamt(ji,jj)) )/100. + 1. )
+            ELSEIF ( ABS(glamt(ji,jj)) <= zjetx + 100._wp ) THEN
+               zdu = rn_uzonal * ( ( zjetx-ABS(glamt(ji,jj)) )/100._wp + 1._wp )
             ELSE
-               zdu = 0.
+               zdu = 0._wp
             ENDIF
             IF ( ABS(gphit(ji,jj)) <= zjety ) THEN
                pu(ji,jj,:) = zdu
-               pts(ji,jj,:,jp_sal) = zdu / rn_uzonal + 1.
+               pts(ji,jj,:,jp_sal) = zdu / rn_uzonal + 1._wp
             ELSE
-               pu(ji,jj,:) = 0.
-               pts(ji,jj,:,jp_sal) = 1.
+               pu(ji,jj,:) = 0._wp
+               pts(ji,jj,:,jp_sal) = 1._wp
             ENDIF
          END_2D
          !
          ! temperature:
          pts(:,:,:,jp_tem) = 10._wp * ptmask(:,:,:)        
-         pv(:,:,:) = 0.
+         pv(:,:,:) = 0._wp
          !
       CASE(5)    ! vortex
          !
@@ -237,6 +239,17 @@ CONTAINS
          !            
       END SELECT
       !
+      !                          !==  add noise  ==!
+      IF (ln_sshnoise) THEN
+         ALLOCATE(zrandom(Ni0glo,Nj0glo))
+!!$         CALL RANDOM_SEED()   ! uncomment to get a new seed at eachg run. 
+         CALL RANDOM_NUMBER(zrandom)
+         DO_2D( 0, 0, 0, 0 )
+            pv(ji,jj,1) = pv(ji,jj,1) + 0.5_wp * ( zrandom(mig(ji,0),mjg(jj,0)) - 0.5_wp )
+         END_2D
+         DEALLOCATE(zrandom)
+      ENDIF
+      !
       CALL lbc_lnk( 'usrdef_istate', pts , 'T',  1._wp )
       CALL lbc_lnk( 'usrdef_istate', pu, 'U', -1._wp, pv, 'V', -1._wp )
 
@@ -260,38 +273,37 @@ CONTAINS
       REAL(wp) :: zpsurf, zdyPs, zdxPs
       REAL(wp) :: zdt, zdu, zdv
       REAL(wp) :: zjetx, zjety, zbeta
-      REAL(wp), DIMENSION(jpi,jpj)  ::   zrandom
       !!----------------------------------------------------------------------
       !
       IF(lwp) WRITE(numout,*)
       IF(lwp) WRITE(numout,*) 'usr_def_istate_ssh : CANAL configuration, analytical definition of initial state'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~   '
       !
-      IF (ln_sshnoise) CALL RANDOM_NUMBER(zrandom)
-      zjetx = ABS(rn_ujetszx)/2.
-      zjety = ABS(rn_ujetszy)/2.
+      zjetx = ABS(rn_ujetszx)/2._wp
+      zjety = ABS(rn_ujetszy)/2._wp
       !
       SELECT CASE(nn_initcase)
       CASE(0)                      !==   rest  ==!
          !
-         pssh(:,:) = 0.
+         pssh(:,:) = 0._wp
          !
       CASE(1)                      !==  geostrophic zonal jet from -zjety to +zjety  ==!
          !
          SELECT CASE( nn_fcase )
          CASE(0)                          !* f = f0 : ssh = - fuy / g
             WHERE( ABS(gphit) <= zjety )
-               pssh(:,:) = - ff_t(:,:) * rn_uzonal * gphit(:,:) * 1.e3 / grav
+               pssh(:,:) = - ff_t(:,:) * rn_uzonal * gphit(:,:) * 1.e3_wp / grav
             ELSEWHERE
-               pssh(:,:) = - ff_t(:,:) * rn_uzonal * SIGN(zjety, gphit(:,:)) * 1.e3 / grav
+               pssh(:,:) = - ff_t(:,:) * rn_uzonal * SIGN(zjety, gphit(:,:)) * 1.e3_wp / grav
             END WHERE
          CASE(1)                          !* f = f0 + beta*y : ssh = - u / g * ( fy + 0.5 * beta * y^2 )
             zbeta = 2._wp * omega * COS( rad * rn_ppgphi0 ) / ra
             WHERE( ABS(gphit) <= zjety )
-               pssh(:,:) = - rn_uzonal / grav * ( ff_t(:,:) * gphit(:,:) * 1.e3 + 0.5 * zbeta * gphit(:,:) * gphit(:,:) * 1.e6 )
+               pssh(:,:) = - rn_uzonal / grav * ( ff_t(:,:) * gphit(:,:) * 1.e3_wp   &
+                  &                             + 0.5_wp * zbeta * gphit(:,:) * gphit(:,:) * 1.e6_wp )
             ELSEWHERE
-               pssh(:,:) = - rn_uzonal / grav * ( ff_t(:,:) * SIGN(zjety, gphit(:,:)) * 1.e3   &
-                  &                             + 0.5 * zbeta * zjety * zjety * 1.e6 )
+               pssh(:,:) = - rn_uzonal / grav * ( ff_t(:,:) * SIGN(zjety, gphit(:,:)) * 1.e3_wp   &
+                  &                             + 0.5_wp * zbeta * zjety * zjety * 1.e6_wp )
             END WHERE
          END SELECT
          !                  
@@ -300,27 +312,29 @@ CONTAINS
          SELECT CASE( nn_fcase )
          CASE(0)                          !* f = f0 : ssh = - fuy / g
             WHERE( ABS(gphit) <= zjety )
-               pssh(:,:) = - ff_t(:,:) * rn_uzonal * ABS(gphit(:,:)) * 1.e3 / grav
+               pssh(:,:) = - ff_t(:,:) * rn_uzonal * ABS(gphit(:,:)) * 1.e3_wp / grav
             ELSEWHERE
-               pssh(:,:) = - ff_t(:,:) * rn_uzonal * zjety * 1.e3 / grav
+               pssh(:,:) = - ff_t(:,:) * rn_uzonal * zjety * 1.e3_wp / grav
             END WHERE
          CASE(1)                          !* f = f0 + beta*y : ssh = - u / g * ( fy + 0.5 * beta * y^2 )
             zbeta = 2._wp * omega * COS( rad * rn_ppgphi0 ) / ra
             WHERE( ABS(gphit) <= zjety )
                pssh(:,:) = - SIGN(rn_uzonal, gphit(:,:)) / grav   &
-                  &        * ( ff_t(:,:) * gphit(:,:) * 1.e3 + 0.5 * zbeta * gphit(:,:) * gphit(:,:) * 1.e6 )
+                  &        * ( ff_t(:,:) * gphit(:,:) * 1.e3_wp   &
+                  &          + 0.5_wp * zbeta * gphit(:,:) * gphit(:,:) * 1.e6_wp )
             ELSEWHERE
                pssh(:,:) = - SIGN(rn_uzonal, gphit(:,:)) / grav   &
-                  &        * ( ff_t(:,:) * SIGN(zjety, gphit(:,:)) * 1.e3 + 0.5 * zbeta * zjety * zjety * 1.e6 )
+                  &        * ( ff_t(:,:) * SIGN(zjety, gphit(:,:)) * 1.e3_wp   &
+                  &          + 0.5_wp * zbeta * zjety * zjety * 1.e6_wp )
             END WHERE
          END SELECT
          !                  
       CASE(3)                      !==  gaussian zonal currant  ==!
          !
-         pssh(:,1) = - ff_t(:,1) / grav * e2t(:,1) * rn_uzonal * EXP( - 0.5 * gphit(:,1)**2 / rn_lambda**2 )
+         pssh(:,1) = - ff_t(:,1) / grav * e2t(:,1) * rn_uzonal * EXP( - 0.5_wp * gphit(:,1)**2 / rn_lambda**2 )
          DO jl=1, jpnj
             DO_2D( 0, 0, 0, 0 )
-               pssh(ji,jj) = pssh(ji,jj-1) - ff_t(ji,jj) / grav * rn_uzonal * EXP( - 0.5 * gphit(ji,jj)**2 / rn_lambda**2 ) * e2t(ji,jj)
+               pssh(ji,jj) = pssh(ji,jj-1) - ff_t(ji,jj) / grav * rn_uzonal * EXP( - 0.5_wp * gphit(ji,jj)**2 / rn_lambda**2 ) * e2t(ji,jj)
             END_2D
             CALL lbc_lnk( 'usrdef_istate_ssh', pssh, 'T',  1._wp )
          END DO
@@ -330,15 +344,15 @@ CONTAINS
          DO_2D( 1, 1, 1, 1 )
             IF ( ABS(glamt(ji,jj)) <= zjetx ) THEN
                zdu = rn_uzonal
-            ELSEIF ( ABS(glamt(ji,jj)) <= zjetx + 100. ) THEN
-               zdu = rn_uzonal * ( ( zjetx-ABS(glamt(ji,jj)) )/100. + 1. )
+            ELSEIF ( ABS(glamt(ji,jj)) <= zjetx + 100._wp ) THEN
+               zdu = rn_uzonal * ( ( zjetx-ABS(glamt(ji,jj)) )/100._wp + 1._wp )
             ELSE
-               zdu = 0.
+               zdu = 0._wp
             ENDIF
             IF ( ABS(gphit(ji,jj)) <= zjety ) THEN
-               pssh(ji,jj) = - ff_t(ji,jj) * zdu * gphit(ji,jj) * 1.e3 / grav
+               pssh(ji,jj) = - ff_t(ji,jj) * zdu * gphit(ji,jj) * 1.e3_wp / grav
             ELSE
-               pssh(ji,jj) = - ff_t(ji,jj) * zdu * SIGN(zjety,gphit(ji,jj)) * 1.e3 / grav 
+               pssh(ji,jj) = - ff_t(ji,jj) * zdu * SIGN(zjety,gphit(ji,jj)) * 1.e3_wp / grav 
             ENDIF
          END_2D
          !
@@ -368,12 +382,7 @@ CONTAINS
          END_2D
          !            
       END SELECT
-      !                          !==  add noise  ==!
-      IF (ln_sshnoise) THEN
-         CALL RANDOM_SEED()
-         CALL RANDOM_NUMBER(zrandom)
-         pssh(:,:) = pssh(:,:) + ( 0.1  * zrandom(:,:) - 0.05 )
-      ENDIF
+      !
       CALL lbc_lnk( 'usrdef_istate_ssh', pssh, 'T',  1._wp )
       !
    END SUBROUTINE usr_def_istate_ssh
