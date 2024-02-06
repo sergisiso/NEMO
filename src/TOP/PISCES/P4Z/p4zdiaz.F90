@@ -81,7 +81,6 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          !                      ! Potential nitrogen fixation dependant on temperature and iron
          zlight  =  ( 1.- EXP( -etot_ndcy(ji,jj,jk) / diazolight ) ) * ( 1. - fr_i(ji,jj) )
-         zsoufer = zlight * 2E-11 / ( 2E-11 + biron(ji,jj,jk) )
          !
          ztemp = ts(ji,jj,jk,jp_tem,Kmm)
          zmudia = MAX( 0.,-0.001096*ztemp*ztemp + 0.057*ztemp -0.637 ) / rno3
@@ -112,6 +111,9 @@ CONTAINS
       IF( ln_p2z ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
             zfact = nitrpot(ji,jj,jk) * nitrfix
+            zlight  =  ( 1.- EXP( -etot_ndcy(ji,jj,jk) / diazolight ) ) * ( 1. - fr_i(ji,jj) )
+            zsoufer = zlight * 2E-11 / ( 2E-11 + biron(ji,jj,jk) )
+            !
             tr(ji,jj,jk,jpno3,Krhs) = tr(ji,jj,jk,jpno3,Krhs) + zfact / 3.0
             tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - rno3 * zfact / 3.0
             tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) - zfact * 2.0 / 3.0
@@ -124,6 +126,9 @@ CONTAINS
       ELSE
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
             zfact = nitrpot(ji,jj,jk) * nitrfix
+            zlight  =  ( 1.- EXP( -etot_ndcy(ji,jj,jk) / diazolight ) ) * ( 1. - fr_i(ji,jj) )
+            zsoufer = zlight * 2E-11 / ( 2E-11 + biron(ji,jj,jk) )
+            !
             tr(ji,jj,jk,jpnh4,Krhs) = tr(ji,jj,jk,jpnh4,Krhs) + zfact / 3.0
             tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + rno3 * zfact / 3.0
             tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) - zfact * 2.0 / 3.0

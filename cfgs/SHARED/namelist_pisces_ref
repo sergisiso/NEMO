@@ -440,8 +440,8 @@
 !-----------------------------------------------------------------------
 &nampissed     !   Namelist parameters for burial in sediments ( Dune et Al. 2007 )
 !-----------------------------------------------------------------------
-    bureffmin  = 0.013     !: Minimum burial efficiency
-    bureffvar  = 0.53      !: Variable coef. for burial efficiency
+    bureffmin  = 0.020     !: Minimum burial efficiency
+    bureffvar  = 0.053      !: Variable coef. for burial efficiency
 /
 !-----------------------------------------------------------------------
 &nampisice     !   Prescribed sea ice tracers

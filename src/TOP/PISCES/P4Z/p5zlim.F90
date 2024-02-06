@@ -584,7 +584,9 @@ CONTAINS
          WRITE(numout,*) '    Fe half saturation for bacteria          concbfe   = ', concbfe
          WRITE(numout,*) '    halk saturation constant for anoxia       oxymin   =' , oxymin
       ENDIF
-
+      !
+      xksi2_3 = xksi2 * xksi2 * xksi2
+      !
       READ_NML_REF(numnatp,namp5zquota)
       READ_NML_CFG(numnatp,namp5zquota)
       IF(lwm) WRITE ( numonp, namp5zquota )
