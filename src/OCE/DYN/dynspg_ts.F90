@@ -106,7 +106,7 @@ CONTAINS
       ierr(:) = 0
       !
       ALLOCATE( wgtbtp1(3*nn_e), wgtbtp2(3*nn_e), zwz(jpi,jpj), STAT=ierr(1) )
-      IF( ln_dynvor_een .OR. ln_dynvor_eeT )   &
+      IF( ln_dynvor_een )   &
          &     ALLOCATE( ftnw(jpi,jpj) , ftne(jpi,jpj) , ftsw(jpi,jpj) , ftse(jpi,jpj), STAT=ierr(2)   )
          !
       !

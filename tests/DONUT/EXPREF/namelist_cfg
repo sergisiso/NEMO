@@ -229,7 +229,7 @@
 !-----------------------------------------------------------------------
 &namdyn_vor    !   Vorticity / Coriolis scheme                          (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_dynvor_eeT = .true. !  energy conserving scheme (een using e3t)
+   ln_dynvor_een = .true. !  energy & enstrophy scheme  
 /
 !-----------------------------------------------------------------------
 &namdyn_hpg    !   Hydrostatic pressure gradient option                 (default: NO selection)

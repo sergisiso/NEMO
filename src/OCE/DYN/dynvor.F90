@@ -31,7 +31,6 @@ MODULE dynvor
    !!       vor_ene   : energy conserving scheme          (ln_dynvor_ene=T)
    !!       vor_ens   : enstrophy conserving scheme       (ln_dynvor_ens=T)
    !!       vor_een   : energy and enstrophy conserving   (ln_dynvor_een=T)
-   !!       vor_eeT   : energy conserving at T-pt         (ln_dynvor_eeT=T)
    !!   dyn_vor_init  : set and control of the different vorticity option
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers
@@ -63,7 +62,6 @@ MODULE dynvor
    LOGICAL, PUBLIC ::   ln_dynvor_ens   !: enstrophy conserving scheme          (ENS)
    LOGICAL, PUBLIC ::   ln_dynvor_ene   !: f-point energy conserving scheme     (ENE)
    LOGICAL, PUBLIC ::   ln_dynvor_enT   !: t-point energy conserving scheme     (ENT)
-   LOGICAL, PUBLIC ::   ln_dynvor_eeT   !: t-point energy conserving scheme     (EET)
    LOGICAL, PUBLIC ::   ln_dynvor_een   !: energy & enstrophy conserving scheme (EEN)
    LOGICAL, PUBLIC ::   ln_dynvor_mix   !: mixed scheme                         (MIX)
    LOGICAL, PUBLIC ::   ln_dynvor_msk   !: vorticity multiplied by fmask (=T) or not (=F) (all vorticity schemes)
@@ -139,7 +137,6 @@ CONTAINS
          CASE( np_ENS )           ;   CALL vor_ens( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! enstrophy conserving scheme
          CASE( np_ENE, np_MIX )   ;   CALL vor_ene( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! energy conserving scheme
          CASE( np_ENT )           ;   CALL vor_enT( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! energy conserving scheme (T-pts)
-         CASE( np_EET )           ;   CALL vor_eeT( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! energy conserving scheme (een with e3t)
          CASE( np_EEN )           ;   CALL vor_een( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! energy & enstrophy scheme
          END SELECT
          ztrdu(:,:,:) = puu(:,:,:,Krhs) - ztrdu(:,:,:)
@@ -151,7 +148,6 @@ CONTAINS
             ztrdv(:,:,:) = pvv(:,:,:,Krhs)
             SELECT CASE( nvor_scheme )
             CASE( np_ENT )           ;   CALL vor_enT( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! energy conserving scheme (T-pts)
-            CASE( np_EET )           ;   CALL vor_eeT( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! energy conserving scheme (een with e3t)
             CASE( np_ENE )           ;   CALL vor_ene( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! energy conserving scheme
             CASE( np_ENS, np_MIX )   ;   CALL vor_ens( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! enstrophy conserving scheme
             CASE( np_EEN )           ;   CALL vor_een( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! energy & enstrophy scheme
@@ -173,13 +169,6 @@ CONTAINS
             ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
                              CALL vor_enT( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
             ENDIF
-         CASE( np_EET )                        !* energy conserving scheme (een scheme using e3t)
-                             CALL vor_eeT( kt, Kmm, ntot, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
-               IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
-                             CALL vor_eeT( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
-               ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
-                             CALL vor_eeT( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
-               ENDIF
          CASE( np_ENE )                        !* energy conserving scheme
                              CALL vor_ene( kt, Kmm, ntot, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
             IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
@@ -251,13 +240,6 @@ CONTAINS
                              CALL vor_enT( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
             ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
                              CALL vor_enT( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
-            ENDIF
-         CASE( np_EET )                        !* energy conserving scheme (een scheme using e3t)
-                             CALL vor_eeT( kt, Kmm, knoco, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
-            IF( ln_stcor .AND. .NOT. ln_vortex_force )  THEN
-                             CALL vor_eeT( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend
-            ELSE IF( ln_stcor .AND. ln_vortex_force )   THEN
-                             CALL vor_eeT( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add the Stokes-Coriolis trend and vortex force
             ENDIF
          CASE( np_ENE )                        !* energy conserving scheme
                              CALL vor_ene( kt, Kmm, knoco, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! total vorticity trend
@@ -854,122 +836,6 @@ CONTAINS
    END SUBROUTINE vor_een
 
 
-   SUBROUTINE vor_eeT( kt, Kmm, kvor, pu, pv, pu_rhs, pv_rhs )
-      !!----------------------------------------------------------------------
-      !!                ***  ROUTINE vor_eeT  ***
-      !!
-      !! ** Purpose :   Compute the now total vorticity trend and add it to
-      !!      the general trend of the momentum equation.
-      !!
-      !! ** Method  :   Trend evaluated using now fields (centered in time)
-      !!      and the Arakawa and Lamb (1980) vector form formulation using
-      !!      a modified version of Arakawa and Lamb (1980) scheme (see vor_een).
-      !!      The change consists in
-      !!      Add this trend to the general momentum trend (pu_rhs,pv_rhs).
-      !!
-      !! ** Action : - Update (pu_rhs,pv_rhs) with the now vorticity term trend
-      !!
-      !! References : Arakawa and Lamb 1980, Mon. Wea. Rev., 109, 18-36
-      !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in   ) ::   kt               ! ocean time-step index
-      INTEGER                         , INTENT(in   ) ::   Kmm              ! ocean time level index
-      INTEGER                         , INTENT(in   ) ::   kvor             ! total, planetary, relative, or metric
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pu, pv           ! now velocities
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pu_rhs, pv_rhs   ! total v-trend
-      !
-      INTEGER  ::   ji, jj, jk     ! dummy loop indices
-      INTEGER  ::   ierr           ! local integer
-      REAL(wp) ::   zua, zva       ! local scalars
-      REAL(wp) ::   zmsk, z1_e3t   ! local scalars
-      REAL(wp), DIMENSION(T2D(1)) ::   zwx , zwy
-      REAL(wp), DIMENSION(T2D(1)) ::   ztnw, ztne, ztsw, ztse
-      REAL(wp), DIMENSION(T2D(1)) ::   zwz   ! 3D workspace, avoid lbc_lnk on jpk that is not defined
-      !!----------------------------------------------------------------------
-      !
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == nit000 ) THEN
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) 'dyn:vor_eeT : vorticity term: energy and enstrophy conserving scheme'
-            IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
-         ENDIF
-      ENDIF
-      !
-      !                                                ! ===============
-      DO jk = 1, jpkm1                                 ! Horizontal slab
-         !                                             ! ===============
-         !
-         !
-         SELECT CASE( kvor )                 !==  vorticity considered  ==!
-         CASE ( np_COR )                           !* Coriolis (planetary vorticity)
-            DO_2D( 1, 1, 1, 1 )
-               zwz(ji,jj) = ff_f(ji,jj)
-            END_2D
-         CASE ( np_RVO )                           !* relative vorticity
-            DO_2D( 1, 1, 1, 1 )
-               zwz(ji,jj) = (  ( e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk) )    & ! add () for
-                  &          - ( e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) & ! NP reproducibility
-                  &       * r1_e1e2f(ji,jj)
-            END_2D
-            IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity
-               DO_2D( 1, 1, 1, 1 )
-                  zwz(ji,jj) = zwz(ji,jj) * fmask(ji,jj,jk)
-               END_2D
-            ENDIF
-         CASE ( np_MET )                           !* metric term
-            DO_2D( 1, 1, 1, 1 )
-               zwz(ji,jj) = ( pv(ji+1,jj  ,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
-                  &       - ( pu(ji  ,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)
-            END_2D
-         CASE ( np_CRV )                           !* Coriolis + relative vorticity
-            DO_2D( 1, 1, 1, 1 )
-               zwz(ji,jj) = (  ff_f(ji,jj) + (  ( e2v(ji+1,jj  ) * pv(ji+1,jj  ,jk) - e2v(ji,jj) * pv(ji,jj,jk) )    & ! add () for
-                  &                           - ( e1u(ji  ,jj+1) * pu(ji  ,jj+1,jk) - e1u(ji,jj) * pu(ji,jj,jk) )  ) & ! NP repro
-                  &                        * r1_e1e2f(ji,jj)    )
-            END_2D
-            IF( ln_dynvor_msk ) THEN                     ! mask the relative vorticity
-               DO_2D( 1, 1, 1, 1 )
-                  zwz(ji,jj) = ( zwz(ji,jj) - ff_f(ji,jj) ) * fmask(ji,jj,jk) + ff_f(ji,jj)
-               END_2D
-            ENDIF
-         CASE ( np_CME )                           !* Coriolis + metric
-            DO_2D( 1, 1, 1, 1 )
-               zwz(ji,jj) = ff_f(ji,jj) + ( pv(ji+1,jj  ,jk) + pv(ji,jj,jk) ) * di_e2v_2e1e2f(ji,jj)   &
-                  &                     - ( pu(ji  ,jj+1,jk) + pu(ji,jj,jk) ) * dj_e1u_2e1e2f(ji,jj)
-            END_2D
-         CASE DEFAULT                                             ! error
-            CALL ctl_stop('STOP','dyn_vor: wrong value for kvor'  )
-         END SELECT
-         !
-         !
-         !                                   !==  horizontal fluxes  ==!
-         DO_2D( 1, 1, 1, 1 )
-            zwx(ji,jj) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * pu(ji,jj,jk)
-            zwy(ji,jj) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * pv(ji,jj,jk)
-         END_2D
-         !
-         !                                   !==  compute and add the vorticity term trend  =!
-         DO_2D( 0, 1, 0, 1 )
-            z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-            ztne(ji,jj) = ( zwz(ji-1,jj  ) + zwz(ji  ,jj  ) + zwz(ji  ,jj-1) ) * z1_e3t
-            ztnw(ji,jj) = ( zwz(ji-1,jj-1) + zwz(ji-1,jj  ) + zwz(ji  ,jj  ) ) * z1_e3t
-            ztse(ji,jj) = ( zwz(ji  ,jj  ) + zwz(ji  ,jj-1) + zwz(ji-1,jj-1) ) * z1_e3t
-            ztsw(ji,jj) = ( zwz(ji  ,jj-1) + zwz(ji-1,jj-1) + zwz(ji-1,jj  ) ) * z1_e3t
-         END_2D
-         !
-         DO_2D( 0, 0, 0, 0 )
-            zua = + r1_12 * r1_e1u(ji,jj) * (  ( ztne(ji,jj  ) * zwy(ji  ,jj  ) + ztnw(ji+1,jj) * zwy(ji+1,jj  ) )   & ! add () for
-               &                             + ( ztse(ji,jj  ) * zwy(ji  ,jj-1) + ztsw(ji+1,jj) * zwy(ji+1,jj-1) ) )   ! NP repro
-            zva = - r1_12 * r1_e2v(ji,jj) * (  ( ztsw(ji,jj+1) * zwx(ji-1,jj+1) + ztse(ji,jj+1) * zwx(ji  ,jj+1) )   &
-               &                             + ( ztnw(ji,jj  ) * zwx(ji-1,jj  ) + ztne(ji,jj  ) * zwx(ji  ,jj  ) ) )
-            pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zua
-            pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zva
-         END_2D
-         !                                             ! ===============
-      END DO                                           !   End of slab
-      !                                                ! ===============
-   END SUBROUTINE vor_eeT
-
-
    SUBROUTINE dyn_vor_init
       !!---------------------------------------------------------------------
       !!                  ***  ROUTINE dyn_vor_init  ***
@@ -981,7 +847,7 @@ CONTAINS
       INTEGER ::   ioptio, ios   ! local integer
       REAL(wp) ::   zmsk    ! local scalars
       !!
-      NAMELIST/namdyn_vor/ ln_dynvor_ens, ln_dynvor_ene, ln_dynvor_enT, ln_dynvor_eeT,   &
+      NAMELIST/namdyn_vor/ ln_dynvor_ens, ln_dynvor_ene, ln_dynvor_enT,   &
          &                 ln_dynvor_een, nn_e3f_typ   , ln_dynvor_mix, ln_dynvor_msk
       !!----------------------------------------------------------------------
       !
@@ -1000,7 +866,6 @@ CONTAINS
          WRITE(numout,*) '      enstrophy conserving scheme                    ln_dynvor_ens = ', ln_dynvor_ens
          WRITE(numout,*) '      f-point energy conserving scheme               ln_dynvor_ene = ', ln_dynvor_ene
          WRITE(numout,*) '      t-point energy conserving scheme               ln_dynvor_enT = ', ln_dynvor_enT
-         WRITE(numout,*) '      energy conserving scheme  (een using e3t)      ln_dynvor_eeT = ', ln_dynvor_eeT
          WRITE(numout,*) '      enstrophy and energy conserving scheme         ln_dynvor_een = ', ln_dynvor_een
          WRITE(numout,*) '         e3f = averaging /4 (=0) or /sum(tmask) (=1)    nn_e3f_typ = ', nn_e3f_typ
          WRITE(numout,*) '      mixed enstrophy/energy conserving scheme       ln_dynvor_mix = ', ln_dynvor_mix
@@ -1027,7 +892,6 @@ CONTAINS
       IF( ln_dynvor_ens ) THEN   ;   ioptio = ioptio + 1   ;   nvor_scheme = np_ENS   ;   ENDIF
       IF( ln_dynvor_ene ) THEN   ;   ioptio = ioptio + 1   ;   nvor_scheme = np_ENE   ;   ENDIF
       IF( ln_dynvor_enT ) THEN   ;   ioptio = ioptio + 1   ;   nvor_scheme = np_ENT   ;   ENDIF
-      IF( ln_dynvor_eeT ) THEN   ;   ioptio = ioptio + 1   ;   nvor_scheme = np_EET   ;   ENDIF
       IF( ln_dynvor_een ) THEN   ;   ioptio = ioptio + 1   ;   nvor_scheme = np_EEN   ;   ENDIF
       IF( ln_dynvor_mix ) THEN   ;   ioptio = ioptio + 1   ;   nvor_scheme = np_MIX   ;   ENDIF
       !
