@@ -444,7 +444,7 @@ CONTAINS
             IF( ll_execmd )   CALL gnuplot_statplot( sd_root, ji )
             IF( ll_avg .AND. narea == 1 ) THEN
                CALL timer_write( 'Timing : AVG values over all MPI processes:', sd_root, ji, jp_tavg, zavgsum, zavgextra )
-               CALL timer_write( 'Timing : MAX load unbalance over all MPI processes (max-min) :', sd_root, ji, jp_tblc, zldsum, 0.)
+               CALL timer_write( 'Timing : MAX load unbalance over all MPI processes (max-min) :', sd_root, ji, jp_tblc, zldsum, 0._dp )
                CALL timer_write( 'Timing : MIN values over all MPI processes:', sd_root, ji, jp_tmin, zavgsum, zavgextra )
                CALL timer_write( 'Timing : MAX values over all MPI processes:', sd_root, ji, jp_tmax, zavgsum, zavgextra )
             ENDIF

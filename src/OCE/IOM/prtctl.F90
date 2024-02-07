@@ -322,10 +322,10 @@ CONTAINS
       COMPLEX(dp)              ::   ydsum    ! Sum
       INTEGER                  ::   ji, jj   ! Loop indices
       !
-      ydsum = CMPLX( 0._wp, 0._wp )
+      ydsum = CMPLX( 0._wp, 0._wp, dp )
       DO jj = 1, SIZE( ptab, 2 )
          DO ji = 1, SIZE( ptab, 1 )
-            CALL DDPDD( CMPLX( ptab(ji,jj), 0._wp ), ydsum )
+            CALL DDPDD( CMPLX( ptab(ji,jj), 0._wp, dp ), ydsum )
          END DO
       END DO
       !
@@ -345,11 +345,11 @@ CONTAINS
       COMPLEX(dp)                ::   ydsum        ! Sum
       INTEGER                    ::   ji, jj, jk   ! Loop indices
       !
-      ydsum = CMPLX( 0._wp, 0._wp )
+      ydsum = CMPLX( 0._wp, 0._wp, dp )
       DO jk = 1, SIZE( ptab, 3 )
          DO jj = 1, SIZE( ptab, 2 )
             DO ji = 1, SIZE( ptab, 1 )
-               CALL DDPDD( CMPLX( ptab(ji,jj,jk), 0._wp ), ydsum )
+               CALL DDPDD( CMPLX( ptab(ji,jj,jk), 0._wp, dp ), ydsum )
             END DO
          END DO
       END DO

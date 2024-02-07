@@ -19,7 +19,7 @@ MODULE par_kind
 
    !                                                                !!** Floating point **
    INTEGER, PUBLIC, PARAMETER ::   sp = SELECTED_REAL_KIND( 6, 37)   !: single precision (real 4)
-   INTEGER, PUBLIC, PARAMETER ::   dp = SELECTED_REAL_KIND(12,307)   !: double precision (real 8)
+   INTEGER, PUBLIC, PARAMETER ::   dp = SELECTED_REAL_KIND(15,307)   !: double precision (real 8)
 # if defined key_single
    INTEGER, PUBLIC, PARAMETER ::   wp = sp                              !: working precision
 # else
