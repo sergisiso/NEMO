@@ -29,6 +29,7 @@ MODULE sbcblk_algo_coare3p6
    USE in_out_manager, ONLY: nit000  ! I/O manager
    USE sbc_phy         ! Catalog of functions for physical/meteorological parameters in the marine boundary layer
    USE sbcblk_skin_coare ! cool-skin/warm layer scheme (CSWL_ECMWF) !LB
+   USE lib_fortran     ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

@@ -72,6 +72,7 @@ CONTAINS
       INTEGER            ::   ichunk           ! temporary storage of nn_chunksz
       INTEGER            ::   imode            ! creation mode flag: NF90_CLOBBER or NF90_NOCLOBBER or NF90_HDF5
       INTEGER            ::   ihdf5            ! local variable for retrieval of value for NF90_HDF5
+      INTEGER            ::   itmp
       LOGICAL            ::   llclobber        ! local definition of ln_clobber
       !---------------------------------------------------------------------
       !
@@ -162,21 +163,24 @@ CONTAINS
       ! =============
       IF( istop == nstop ) THEN   ! no error within this routine
 !does not work with some compilers         kiomid = MINLOC(iom_file(:)%nfid, dim = 1)
-         kiomid = 0
-         DO jl = jpmax_files, 1, -1
-            IF( iom_file(jl)%nfid == 0 )   kiomid = jl
+         DO kiomid = 1, jpmax_files
+            IF( iom_file(kiomid)%nfid == 0 )   EXIT   ! checked in iom_open that we still have a free id
          ENDDO
          iom_file(kiomid)%name   = TRIM(cdname)
          iom_file(kiomid)%comp   = clcomp
          iom_file(kiomid)%nfid   = if90id
-         iom_file(kiomid)%nvars  = 0
          iom_file(kiomid)%irec   = -1   ! useless for NetCDF files, used to know if the file is in define mode
-         CALL iom_nf90_check(NF90_Inquire(if90id, unlimitedDimId = iom_file(kiomid)%iduld), clinfo)
-         IF( iom_file(kiomid)%iduld .GE. 0 ) THEN
+         CALL iom_nf90_check(NF90_Inquire(if90id, nVariables = iom_file(kiomid)%nvars, &
+            &                                 unlimitedDimId = iom_file(kiomid)%iduld), clinfo)
+         IF( iom_file(kiomid)%iduld >= 0 ) THEN
             CALL iom_nf90_check(NF90_Inquire_Dimension(if90id, iom_file(kiomid)%iduld,    &
                &                                       name = iom_file(kiomid)%uldname,   &
                &                                       len  = iom_file(kiomid)%lenuld ), clinfo )
          ENDIF
+         DO jl = 1, iom_file(kiomid)%nvars
+            CALL iom_nf90_check(NF90_Inquire_Variable(if90id, jl, name = cltmp ), clinfo)
+            itmp = iom_nf90_varid( kiomid, cltmp, jl )
+         END DO
          IF(lwp) WRITE(numout,*) '                   ---> '//TRIM(cdname)//' OK'
       ELSE
          kiomid = 0               ! return error flag
@@ -207,7 +211,7 @@ CONTAINS
       !!-----------------------------------------------------------------------
       INTEGER              , INTENT(in   )           ::   kiomid   ! file Identifier
       CHARACTER(len=*)     , INTENT(in   )           ::   cdvar    ! name of the variable
-      INTEGER              , INTENT(in   )           ::   kiv   !
+      INTEGER              , INTENT(in   )           ::   kiv      ! var id in iom file_descriptor
       INTEGER, DIMENSION(:), INTENT(  out), OPTIONAL ::   kdimsz   ! size of each dimension
       INTEGER              , INTENT(  out), OPTIONAL ::   kndims   ! number of dimensions
       LOGICAL              , INTENT(  out), OPTIONAL ::   lduld    ! true if the last dimension is unlimited (time)
@@ -570,6 +574,8 @@ CONTAINS
       INTEGER               :: ichunkalg, ishuffle, ideflate, ideflate_level
       !                                             ! NetCDF4 internally fixed parameters
       INTEGER               :: idlv                 ! local variable
+      INTEGER               :: isz1d, isz3          ! 1D array size, 3rd dimension size
+      INTEGER               :: id1d                 ! dim id for the 1D array
       LOGICAL               :: lchunk               ! logical switch to activate chunking and compression
       !                                             ! when appropriate (currently chunking is applied to 4d fields only)
       LOGICAL               :: llis0d, llis1d, llis2d, llis3d
@@ -631,8 +637,16 @@ CONTAINS
          ! variable definition
          IF(     llis0d ) THEN   ;   idims = 0
          ELSEIF( llis1d ) THEN
-                                     idims = 2   ;   idimid(1:idims) = (/3,4/)
-         ELSEIF( llis2d ) THEN   ;   idims = 3   ;   idimid(1:idims) = (/1,2,4/)
+            IF( PRESENT(pvsp1d) )  isz1d = SIZE(pvsp1d)
+            IF( PRESENT(pvdp1d) )  isz1d = SIZE(pvdp1d)
+            CALL iom_nf90_check(NF90_Inquire_Dimension( if90id, 3, len = isz3 ), clinfo)
+            IF( isz1d /= isz3 ) THEN
+               CALL iom_nf90_check(NF90_DEF_DIM( if90id, 'dim_'//cdvar, isz1d, id1d ), clinfo)
+            ELSE
+               id1d = 3
+            ENDIF
+                                     idims = 2   ;   idimid(1:idims) = (/id1d, 4/)
+         ELSEIF( llis2d ) THEN   ;   idims = 3   ;   idimid(1:idims) = (/1,2,  4/)
          ELSEIF( llis3d ) THEN
                                      idims = 4   ;   idimid(1:idims) = (/1,2,3,4/)
          ENDIF

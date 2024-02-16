@@ -21,7 +21,6 @@ MODULE usrdef_sbc
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! distribued memory computing library
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
-   USE lib_fortran    !
 
    IMPLICIT NONE
    PRIVATE

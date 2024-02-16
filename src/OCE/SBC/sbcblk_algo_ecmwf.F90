@@ -32,6 +32,7 @@ MODULE sbcblk_algo_ecmwf
    USE sbcblk_skin_ecmwf ! cool-skin/warm layer scheme !LB
    USE sbcwave, ONLY : charn
    USE sbc_oce, ONLY : ln_charn ! wave module
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

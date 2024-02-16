@@ -779,6 +779,16 @@ CONTAINS
          WRITE(numout,*) '      mixing length type                          nn_mxl    = ', nn_mxl
          WRITE(numout,*) '         surface mixing length = F(stress) or not    ln_mxl0   = ', ln_mxl0
          WRITE(numout,*) '         surface  mixing length minimum value        rn_mxl0   = ', rn_mxl0
+      ENDIF
+      IF( ln_mxl0 ) THEN
+         IF     ( nn_mxlice > 0 .AND. nn_ice == 0 ) THEN
+            CALL ctl_warn( 'zdf_tke_init: with no ice at all, nn_mxlice is set to 0 ')
+            nn_mxlice = 0   ! must be set for all processes, so out of the "IF(lwp)"
+         ELSEIF ( nn_mxlice > 1 .AND. nn_ice == 1 ) THEN
+            CALL ctl_stop( 'zdf_tke_init: with no ice model, nn_mxlice must be 0 or 1')
+         ENDIF
+      ENDIF
+      IF(lwp) THEN                    !* Control print   
          IF( ln_mxl0 ) THEN
             WRITE(numout,*) '      type of scaling under sea-ice               nn_mxlice = ', nn_mxlice
             IF( nn_mxlice == 1 ) &
@@ -791,12 +801,6 @@ CONTAINS
             CASE DEFAULT
                CALL ctl_stop( 'zdf_tke_init: wrong value for nn_mxlice, should be 0,1,2,3 or 4')
             END SELECT
-            IF     ( (nn_mxlice>0).AND.(nn_ice==0) ) THEN
-               CALL ctl_warn( 'zdf_tke_init: with no ice at all, nn_mxlice is set to 0 ')
-               nn_mxlice = 0
-            ELSEIF ( (nn_mxlice>1).AND.(nn_ice==1) ) THEN
-               CALL ctl_stop( 'zdf_tke_init: with no ice model, nn_mxlice must be 0 or 1')
-            ENDIF
          ENDIF
          WRITE(numout,*) '      Langmuir cells parametrization              ln_lc     = ', ln_lc
          WRITE(numout,*) '         coef to compute vertical velocity of LC     rn_lc  = ', rn_lc

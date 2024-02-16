@@ -20,7 +20,8 @@ MODULE isfcavgam
    USE par_oce        ! ocean space and time domain
    USE dom_oce        ! ocean space and time domain
    USE in_out_manager ! I/O manager
-   !
+   USE lib_fortran    ! to use sign with key_nosignedzero
+  !
    IMPLICIT NONE
    !
    PRIVATE

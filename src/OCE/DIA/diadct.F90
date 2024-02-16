@@ -253,7 +253,7 @@ CONTAINS
               ish2    = (/nb_sec_max,nb_type_class,nb_class_max/)
               DO jsec=1,nb_sec ; zsum(jsec,:,:) = secs(jsec)%transport(:,:) ; ENDDO
               zwork(:)= RESHAPE(zsum(:,:,:), ish )
-              CALL mpp_sum('diadct', zwork, ish(1))
+              CALL mpp_sum('diadct', zwork)
               zsum(:,:,:)= RESHAPE(zwork,ish2)
               DO jsec=1,nb_sec ; secs(jsec)%transport(:,:) = zsum(jsec,:,:) ; ENDDO
            ENDIF

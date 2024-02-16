@@ -15,6 +15,7 @@ MODULE trcsink
    USE oce_trc         !  shared variables between ocean and passive tracers
    USE trc             !  passive tracers common variables 
    USE lib_mpp
+   USE lib_fortran     ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

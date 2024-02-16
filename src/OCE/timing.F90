@@ -45,6 +45,7 @@ MODULE timing
       INTEGER(8)                   :: n8start, n8childsum
       INTEGER(8), DIMENSION(ntest) :: n8tnet, n8tfull
       INTEGER   , DIMENSION(ntest) :: ncalls
+      INTEGER  :: nrecurrent
       INTEGER  :: nwrt, nchunk, ncid
       LOGICAL  :: ldone
       REAL(dp), DIMENSION(:), ALLOCATABLE :: tkeep
@@ -172,6 +173,13 @@ CONTAINS
          CALL DATE_AND_TIME( cdate(1), ctime(1), czone, nvalues )
          ncall_clock = 0
       ENDIF
+
+      IF( ASSOCIATED(s_timer) ) THEN                     ! at the first call, s_timer is not yet associated
+         IF( s_timer%cname == clinfo ) THEN              ! we are timing a recurrent routine (a routine directly calling itself)
+            s_timer%nrecurrent = s_timer%nrecurrent + 1
+            RETURN
+         ENDIF
+      ENDIF
       
       ! store s_timer chain link in s_wrk
       s_wrk => s_timer
@@ -214,6 +222,11 @@ CONTAINS
       INTEGER    :: ivid
       LOGICAL    :: ll_finalize
       !!----------------------------------------------------------------------
+      !
+      IF( s_timer%nrecurrent > 0 ) THEN
+         s_timer%nrecurrent = s_timer%nrecurrent - 1   ! we are timing a recurrent routine (a routine directly calling itself)
+         RETURN
+      ENDIF
       !
       clinfo = cdinfo
       IF( .NOT. Agrif_Root() )   clinfo = TRIM(Agrif_CFixed())//'_'//clinfo
@@ -565,7 +578,11 @@ CONTAINS
       ! case of already existing area (typically inside a loop)
       ptr => sd_root
       DO WHILE( ASSOCIATED(ptr) )
-         IF( ptr%cname == cdinfo )   RETURN   ! cdinfo is already in the chain
+         IF( ptr%cname == cdinfo ) THEN
+            IF( .NOT. ptr%ldone )   &
+               CALL local_stop('Indirect recurrence (A->B->..->A) with '//TRIM(s_timer%cname)//'?? This is not coded...')
+            RETURN   ! cdinfo is already in the chain
+         ENDIF
          s_wrk => ptr                         ! store ptr in s_wrk
          ptr   => ptr%s_next
       END DO
@@ -616,10 +633,12 @@ CONTAINS
       ptr%n8tnet(:)  = 0_8
       ptr%n8tfull(:) = 0_8
       ptr%ncalls(:)  = 0
+      ptr%nrecurrent = 0
+      ptr%ldone      = .TRUE.
+      ptr%ncid       = -1
       ptr%s_parent   => NULL()
       ptr%s_prev     => NULL()
       ptr%s_next     => NULL()
-      ptr%ncid       = -1
      IF( ikeepnc > 0 ) THEN
          IF( numtime /= -1 ) THEN   ! create nc file only if we also opened the timing.output file
             clname = 'timing_'//TRIM(ptr%cleanm)//TRIM(add_xxx())//'.nc'
@@ -1335,7 +1354,7 @@ CONTAINS
          
          IF( s_wrk%ncid /= -1 ) THEN
             
-            CALL write_header('Stats report on the timing of '//TRIM(s_wrk%cleanm)//':')
+            CALL write_header('Stats report on the timing of '//TRIM(s_wrk%cleanm)//' (in microsecond):')
             
             INQUIRE(unit = numtime, NAME = clfile)   ! get numtime file name (i.e. timing.output)
             CLOSE(numtime)                           ! close it as EXECUTE_COMMAND_LINE will write in this file
@@ -1458,9 +1477,11 @@ CONTAINS
       WRITE(inumsh,'(a)') '   if ( vmaxup == -1 ) { ; vmaxup = ST_max ; }'
       WRITE(inumsh,'(a)') '   lo = ST_lo_quartile ; up = ST_up_quartile ; iqr = up-lo'
       WRITE(inumsh,'(a)') '   set xrange [0:ST_records]'
+      WRITE(inumsh,'(a)') '   set xlabel "${vname//_/ } number"'
+      WRITE(inumsh,'(a)') '   set ylabel " ${vname//_/ } elapsed time (microsecond)"'
       WRITE(inumsh,'(a)') '   set multiplot layout 2,1'
       WRITE(inumsh,'(a)') '   set yrange [vminup:vmaxup]'
-      WRITE(inumsh,'(a)') '   set title sprintf("FULL RANGE: timing $vname, mean = %f, median = %f", mn, md)'
+      WRITE(inumsh,'(a)') '   set title sprintf("FULL RANGE: ${vname//_/ } (microsecond), mean = %f, median = %f", mn, md)'
       WRITE(inumsh,'(a)') '   plot "timing_gnuplot.$$" notitle, mn title "Mean" lw 2, md title "Median" lw 2, mn-std title "Mean-StdDev" lw 2, mn+std title "Mean+StdDev" lw 2'
       WRITE(inumsh,'(a)') '   if ( vmindn == -1 ) {'
       WRITE(inumsh,'(a)') '      vmindn = lo - 1.5*iqr'
@@ -1471,7 +1492,7 @@ CONTAINS
       WRITE(inumsh,'(a)') '      if ( vmaxdn > ST_max ) { ; vmaxdn = ST_max ; }'
       WRITE(inumsh,'(a)') '   }'
       WRITE(inumsh,'(a)') '   set yrange [vmindn:vmaxdn]'
-      WRITE(inumsh,'(a)') '   set title sprintf("ZOOM: timing $vname, mean = %f, median = %f", mn, md)'
+      WRITE(inumsh,'(a)') '   set title sprintf("ZOOM: ${vname//_/ } (microsecond), mean = %f, median = %f", mn, md)'
       WRITE(inumsh,'(a)') '   plot "timing_gnuplot.$$" notitle, mn title "Mean" lw 2, md title "Median" lw 2, lo title "1st Quatile" lw 2, up title "3rd Quartile" lw 2'
       WRITE(inumsh,'(a)') '}'
       WRITE(inumsh,'(a)') 'EOF'

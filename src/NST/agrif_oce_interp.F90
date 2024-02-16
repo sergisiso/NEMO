@@ -32,6 +32,7 @@ MODULE agrif_oce_interp
    USE in_out_manager
    USE agrif_oce_sponge
    USE lib_mpp
+   USE lib_fortran
    USE vremap
    USE lbclnk
 #if defined key_si3

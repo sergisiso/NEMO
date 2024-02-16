@@ -49,8 +49,7 @@ MODULE diaptr
    PUBLIC   dia_ptr_init   ! call in stprk3 module
    PUBLIC   dia_ptr_hst    ! called from tra_ldf/tra_adv routines
 
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   hstr_adv, hstr_ldf, hstr_eiv   !: Heat/salt transports(adv, diff, bolus.)
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   hstr_vtr                       !: Heat/salt transports(meridional)
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   hstr_all   !: Heat/salt transports(adv, ldf, eiv) + heat/salt transport (meridional)
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   pvtr_int, pzon_int             !: Other zonal integrals
 
    LOGICAL, PUBLIC    ::   l_diaptr       !: tracers  trend flag
@@ -121,12 +120,10 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
       REAL(wp), DIMENSION(A2D(0))   ::  z2d                   ! 2D workspace
-      REAL(wp), DIMENSION(A1Dj(0))  ::  zvsum, ztsum, zssum   ! 1D workspace
       !
       !overturning calculation
-      REAL(wp), DIMENSION(:,:,:  ), ALLOCATABLE ::   sjk, r1_sjk, v_msf  ! i-mean i-k-surface and its inverse
-      REAL(wp), DIMENSION(:,:,:  ), ALLOCATABLE ::   zt_jk, zs_jk        ! i-mean T and S, j-Stream-Function
-
+      REAL(wp) ::   zmsk0
+      REAL(wp), DIMENSION(:)      , ALLOCATABLE ::   zmsk1
       REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE ::   z4d1, z4d2
       REAL(wp), DIMENSION(:,:,:  ), ALLOCATABLE ::   z3dtr, zstr
       !!----------------------------------------------------------------------
@@ -153,24 +150,21 @@ CONTAINS
             DEALLOCATE( z4d1 )
          ENDIF
          IF( iom_use( 'sopstove' ) .OR. iom_use( 'sophtove' ) ) THEN
-            ALLOCATE( sjk(  A1Dj(0),jpk,nbasin), r1_sjk(A1Dj(0),jpk,nbasin), v_msf(A1Dj(0),jpk,nbasin),   &
-               &      zt_jk(A1Dj(0),jpk,nbasin), zs_jk( A1Dj(0),jpk,nbasin), zstr(A1Dj(0),nbasin,jpts) )
+            ALLOCATE( zstr(A1Dj(0),nbasin,jpts) )
             !
             DO jn = 1, nbasin
-               sjk(:,:,jn) = pvtr_int(:,:,jn,jp_msk)
-               r1_sjk(:,:,jn) = 0._wp
-               WHERE( sjk(:,:,jn) /= 0._wp )   r1_sjk(:,:,jn) = 1._wp / sjk(:,:,jn)
+               zstr(:,jn,jp_tem) = 0._wp
+               zstr(:,jn,jp_sal) = 0._wp
                ! i-mean T and S, j-Stream-Function, basin
                DO jk = 1, jpk
                   DO jj = Njs0, Nje0
-                     zt_jk(jj,jk,jn) = pvtr_int(jj,jk,jn,jp_tem) * r1_sjk(jj,jk,jn)
-                     zs_jk(jj,jk,jn) = pvtr_int(jj,jk,jn,jp_sal) * r1_sjk(jj,jk,jn)
-                     v_msf(jj,jk,jn) = pvtr_int(jj,jk,jn,jp_vtr)
+                     zmsk0 = pvtr_int(jj,jk,jn,jp_msk)
+                     IF( zmsk0 /= 0._wp ) THEN
+                        zstr(jj,jn,jp_tem) = zstr(jj,jn,jp_tem) + pvtr_int(jj,jk,jn,jp_vtr)*pvtr_int(jj,jk,jn,jp_tem) / zmsk0
+                        zstr(jj,jn,jp_sal) = zstr(jj,jn,jp_sal) + pvtr_int(jj,jk,jn,jp_vtr)*pvtr_int(jj,jk,jn,jp_sal) / zmsk0
+                     ENDIF
                   END DO
                END DO
-               zstr(:,jn,jp_tem) = SUM( v_msf(:,:,jn)*zt_jk(:,:,jn), 2 )
-               zstr(:,jn,jp_sal) = SUM( v_msf(:,:,jn)*zs_jk(:,:,jn), 2 )
-               !
             ENDDO
             DO jn = 1, nbasin
                z3dtr(Nis0,:,jn) = zstr(:,jn,jp_tem) * rc_pwatt  !  (conversion in PW)
@@ -187,23 +181,24 @@ CONTAINS
             ENDDO
             CALL iom_put( 'sopstove', z3dtr )
             !
-            DEALLOCATE( sjk, r1_sjk, v_msf, zt_jk, zs_jk, zstr )
+            DEALLOCATE( zstr )
          ENDIF
 
          IF( iom_use( 'sopstbtr' ) .OR. iom_use( 'sophtbtr' ) ) THEN
             ! Calculate barotropic heat and salt transport here
-            ALLOCATE( sjk(A1Dj(0),1,nbasin), r1_sjk(A1Dj(0),1,nbasin), zstr(A1Dj(0),nbasin,jpts) )
+            ALLOCATE( zmsk1(A1Dj(0)), zstr(A1Dj(0),nbasin,jpts) )
             !
             DO jn = 1, nbasin
-               sjk(:,1,jn) = SUM( pvtr_int(:,:,jn,jp_msk), 2 )
-               r1_sjk(:,1,jn) = 0._wp
-               WHERE( sjk(:,1,jn) /= 0._wp )   r1_sjk(:,1,jn) = 1._wp / sjk(:,1,jn)
                !
-               zvsum(:) =    SUM( pvtr_int(:,:,jn,jp_vtr), 2 )
-               ztsum(:) =    SUM( pvtr_int(:,:,jn,jp_tem), 2 )
-               zssum(:) =    SUM( pvtr_int(:,:,jn,jp_sal), 2 )
-               zstr(:,jn,jp_tem) = zvsum(:) * ztsum(:) * r1_sjk(:,1,jn)
-               zstr(:,jn,jp_sal) = zvsum(:) * zssum(:) * r1_sjk(:,1,jn)
+               zmsk1(:) = SUM( pvtr_int(:,:,jn,jp_msk), 2 )
+               !
+               WHERE( zmsk1 /= 0._wp )
+                  zstr(:,jn,jp_tem) = SUM( pvtr_int(:,:,jn,jp_vtr), 2 ) * SUM( pvtr_int(:,:,jn,jp_tem), 2 ) / zmsk1
+                  zstr(:,jn,jp_sal) = SUM( pvtr_int(:,:,jn,jp_vtr), 2 ) * SUM( pvtr_int(:,:,jn,jp_sal), 2 ) / zmsk1
+               ELSEWHERE
+                  zstr(:,jn,jp_tem) = 0._wp
+                  zstr(:,jn,jp_sal) = 0._wp
+               ENDWHERE
                !
             ENDDO
             DO jn = 1, nbasin
@@ -221,16 +216,13 @@ CONTAINS
             ENDDO
             CALL iom_put( 'sopstbtr', z3dtr )
             !
-            DEALLOCATE( sjk, r1_sjk, zstr )
+            DEALLOCATE( zmsk1, zstr )
          ENDIF
          !
          pvtr_int(:,:,:,:) = 0._wp
       ELSE
          IF( lk_mpp ) THEN             ! Call MPI sum
-            CALL ptr_mpp_sum( hstr_adv(:,:,:) )
-            CALL ptr_mpp_sum( hstr_ldf(:,:,:) )
-            CALL ptr_mpp_sum( hstr_eiv(:,:,:) )
-            CALL ptr_mpp_sum( hstr_vtr(:,:,:) )
+            CALL ptr_mpp_sum( hstr_all(:,:,:,:) )
             CALL ptr_mpp_sum( pzon_int(:,:,:,:) )
          ENDIF
 
@@ -280,14 +272,14 @@ CONTAINS
          IF( iom_use( 'sophtadv' ) .OR. iom_use( 'sopstadv' ) ) THEN
             !
             DO jn = 1, nbasin
-               z3dtr(Nis0,:,jn) = hstr_adv(:,jn,jp_tem) * rc_pwatt  !  (conversion in PW)
+               z3dtr(Nis0,:,jn) = hstr_all(:,jn,jp_tem,1) * rc_pwatt  !  (conversion in PW)
                DO ji = Nis0+1, Nie0
                   z3dtr(ji,:,jn) = z3dtr(Nis0,:,jn)
                ENDDO
             ENDDO
             CALL iom_put( 'sophtadv', z3dtr )
             DO jn = 1, nbasin
-               z3dtr(Nis0,:,jn) = hstr_adv(:,jn,jp_sal) * rc_ggram !  (conversion in Gg)
+               z3dtr(Nis0,:,jn) = hstr_all(:,jn,jp_sal,1) * rc_ggram !  (conversion in Gg)
                DO ji = Nis0+1, Nie0
                   z3dtr(ji,:,jn) = z3dtr(Nis0,:,jn)
                ENDDO
@@ -298,14 +290,14 @@ CONTAINS
          IF( iom_use( 'sophtldf' ) .OR. iom_use( 'sopstldf' ) ) THEN
             !
             DO jn = 1, nbasin
-               z3dtr(Nis0,:,jn) = hstr_ldf(:,jn,jp_tem) * rc_pwatt  !  (conversion in PW)
+               z3dtr(Nis0,:,jn) = hstr_all(:,jn,jp_tem,2) * rc_pwatt  !  (conversion in PW)
                DO ji = Nis0+1, Nie0
                   z3dtr(ji,:,jn) = z3dtr(Nis0,:,jn)
                ENDDO
             ENDDO
             CALL iom_put( 'sophtldf', z3dtr )
             DO jn = 1, nbasin
-               z3dtr(Nis0,:,jn) = hstr_ldf(:,jn,jp_sal) * rc_ggram !  (conversion in Gg)
+               z3dtr(Nis0,:,jn) = hstr_all(:,jn,jp_sal,2) * rc_ggram !  (conversion in Gg)
                DO ji = Nis0+1, Nie0
                   z3dtr(ji,:,jn) = z3dtr(Nis0,:,jn)
                ENDDO
@@ -316,14 +308,14 @@ CONTAINS
          IF( iom_use( 'sophteiv' ) .OR. iom_use( 'sopsteiv' ) ) THEN
             !
             DO jn = 1, nbasin
-               z3dtr(Nis0,:,jn) = hstr_eiv(:,jn,jp_tem) * rc_pwatt  !  (conversion in PW)
+               z3dtr(Nis0,:,jn) = hstr_all(:,jn,jp_tem,3) * rc_pwatt  !  (conversion in PW)
                DO ji = Nis0+1, Nie0
                   z3dtr(ji,:,jn) = z3dtr(Nis0,:,jn)
                ENDDO
             ENDDO
             CALL iom_put( 'sophteiv', z3dtr )
             DO jn = 1, nbasin
-               z3dtr(Nis0,:,jn) = hstr_eiv(:,jn,jp_sal) * rc_ggram !  (conversion in Gg)
+               z3dtr(Nis0,:,jn) = hstr_all(:,jn,jp_sal,3) * rc_ggram !  (conversion in Gg)
                DO ji = Nis0+1, Nie0
                   z3dtr(ji,:,jn) = z3dtr(Nis0,:,jn)
                ENDDO
@@ -333,14 +325,14 @@ CONTAINS
          !
          IF( iom_use( 'sopstvtr' ) .OR. iom_use( 'sophtvtr' ) ) THEN
              DO jn = 1, nbasin
-                z3dtr(Nis0,:,jn) = hstr_vtr(:,jn,jp_tem) * rc_pwatt  !  (conversion in PW)
+                z3dtr(Nis0,:,jn) = hstr_all(:,jn,jp_tem,4) * rc_pwatt  !  (conversion in PW)
                 DO ji = Nis0+1, Nie0
                    z3dtr(ji,:,jn) = z3dtr(Nis0,:,jn)
                 ENDDO
              ENDDO
              CALL iom_put( 'sophtvtr', z3dtr )
              DO jn = 1, nbasin
-               z3dtr(Nis0,:,jn) = hstr_vtr(:,jn,jp_sal) * rc_ggram !  (conversion in Gg)
+               z3dtr(Nis0,:,jn) = hstr_all(:,jn,jp_sal,4) * rc_ggram !  (conversion in Gg)
                DO ji = Nis0+1, Nie0
                   z3dtr(ji,:,jn) = z3dtr(Nis0,:,jn)
                ENDDO
@@ -354,10 +346,7 @@ CONTAINS
             CALL iom_put( 'uocetr_vsum_cumul', z2d )
          ENDIF
          !
-         hstr_adv(:,:,:) = 0._wp       ! Zero before next timestep
-         hstr_ldf(:,:,:) = 0._wp
-         hstr_eiv(:,:,:) = 0._wp
-         hstr_vtr(:,:,:) = 0._wp
+         hstr_all(:,:,:,:) = 0._wp       ! Zero before next timestep
          pzon_int(:,:,:,:) = 0._wp
       ENDIF
       !
@@ -381,97 +370,108 @@ CONTAINS
       INTEGER                             , INTENT(in)           :: Kmm  ! time level index
       REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in), OPTIONAL :: pvtr ! j-effective transport
       !
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE            :: zmask        ! 3D workspace
-      REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE          :: zts          ! 4D workspace
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE            :: sjk, v_msf   ! Zonal sum: i-k surface area, j-effective transport
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE            :: zt_jk, zs_jk ! Zonal sum: i-k surface area * (T, S)
-      REAL(wp)                                           :: zsfc, zvfc   ! i-k surface area
-      INTEGER  ::   ji, jj, jk, jn                                       ! dummy loop indices
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zts          ! 4D workspace
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   sjk          ! Zonal sum: i-k surface area, j-effective transport, (T, S)
+      INTEGER  ::   ji, jj, jk, jn                              ! dummy loop indices
       !!----------------------------------------------------------------------
-
+      !
+      ALLOCATE( zts(T2D(0),jpk), sjk(T1Dj(0),jpk,nbasin) )
+      !
       IF( PRESENT( pvtr ) ) THEN
          ! i sum of effective j transport excluding closed seas
          IF( iom_use( 'zomsf' ) .OR. iom_use( 'sopstove' ) .OR. iom_use( 'sophtove' ) ) THEN
-            ALLOCATE( v_msf(T1Dj(0),jpk,nbasin) )
-
+            !
             DO jn = 1, nbasin
-               v_msf(:,:,jn) = ptr_sjk( pvtr(:,:,:), btmsk34(:,:,jn) )
+               sjk(:,:,jn) = ptr_sjk( pvtr(:,:,:), btmsk34(:,:,jn) )
             ENDDO
-
-            CALL ptr_sum( pvtr_int(:,:,:,jp_vtr), v_msf(:,:,:) )
-
-            DEALLOCATE( v_msf )
+            !
+            CALL ptr_sum( pvtr_int(:,:,:,jp_vtr), sjk(:,:,:) )
+            !
          ENDIF
 
          ! i sum of j surface area, j surface area - temperature/salinity product on V grid
-         IF(  iom_use( 'sopstove' ) .OR. iom_use( 'sophtove' ) .OR.          &
-            & iom_use( 'sopstbtr' ) .OR. iom_use( 'sophtbtr' ) ) THEN
-            ALLOCATE( zmask( T2D(0),jpk       ), zts(   T2D(0),jpk,jpts  ),  &
-               &      sjk(  T1Dj(0),jpk,nbasin),                             &
-               &      zt_jk(T1Dj(0),jpk,nbasin), zs_jk(T1Dj(0),jpk,nbasin) )
-
+         IF(  iom_use( 'sopstove' ) .OR. iom_use( 'sophtove' ) .OR. iom_use( 'sopstbtr' ) .OR. iom_use( 'sophtbtr' ) ) THEN
+            !
+            ! mask
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               zvfc = e1v(ji,jj) * e3v(ji,jj,jk,Kmm)
-               zmask(ji,jj,jk)      = vmask(ji,jj,jk)      * zvfc
-               zts(ji,jj,jk,jp_tem) = (ts(ji,jj,jk,jp_tem,Kmm)+ts(ji,jj+1,jk,jp_tem,Kmm)) * 0.5 * zvfc !Tracers averaged onto V grid
-               zts(ji,jj,jk,jp_sal) = (ts(ji,jj,jk,jp_sal,Kmm)+ts(ji,jj+1,jk,jp_sal,Kmm)) * 0.5 * zvfc
+               zts(ji,jj,jk) = vmask(ji,jj,jk) * e1v(ji,jj) * e3v(ji,jj,jk,Kmm)
             END_3D
-
             DO jn = 1, nbasin
-               sjk(:,:,jn)   = ptr_sjk( zmask(:,:,:)     , btmsk(:,:,jn) )
-               zt_jk(:,:,jn) = ptr_sjk( zts(:,:,:,jp_tem), btmsk(:,:,jn) )
-               zs_jk(:,:,jn) = ptr_sjk( zts(:,:,:,jp_sal), btmsk(:,:,jn) )
+               sjk(:,:,jn) = ptr_sjk( zts(:,:,:), btmsk(:,:,jn) )
             ENDDO
-
-            CALL ptr_sum( pvtr_int(:,:,:,jp_msk),   sjk(:,:,:) )
-            CALL ptr_sum( pvtr_int(:,:,:,jp_tem), zt_jk(:,:,:) )
-            CALL ptr_sum( pvtr_int(:,:,:,jp_sal), zs_jk(:,:,:) )
-
-            DEALLOCATE( zmask, zts, sjk, zt_jk, zs_jk )
+            CALL ptr_sum( pvtr_int(:,:,:,jp_msk), sjk(:,:,:) )
+            ! temperature
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               zts(ji,jj,jk) = 0.5 * ( ts(ji,jj,jk,jp_tem,Kmm) + ts(ji,jj+1,jk,jp_tem,Kmm) ) &
+                  &                *  e1v(ji,jj) * e3v(ji,jj,jk,Kmm)  ! Tracers averaged onto V grid
+            END_3D
+            DO jn = 1, nbasin
+               sjk(:,:,jn) = ptr_sjk( zts(:,:,:), btmsk(:,:,jn) )
+            ENDDO
+            CALL ptr_sum( pvtr_int(:,:,:,jp_tem), sjk(:,:,:) )
+            ! salinity
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               zts(ji,jj,jk) = 0.5 * ( ts(ji,jj,jk,jp_sal,Kmm) + ts(ji,jj+1,jk,jp_sal,Kmm) ) &
+                  &                *  e1v(ji,jj) * e3v(ji,jj,jk,Kmm)
+            END_3D
+            DO jn = 1, nbasin
+               sjk(:,:,jn) = ptr_sjk( zts(:,:,:), btmsk(:,:,jn) )
+            ENDDO            
+            CALL ptr_sum( pvtr_int(:,:,:,jp_sal), sjk(:,:,:) )
+            !
          ENDIF
       ELSE
          ! i sum of j surface area - temperature/salinity product on T grid
          IF( iom_use( 'zotem' ) .OR. iom_use( 'zosal' ) .OR. iom_use( 'zosrf' )  ) THEN
-            ALLOCATE( zmask( T2D(0),jpk       ), zts(   T2D(0),jpk,jpts  ),   &
-               &      sjk(  T1Dj(0),jpk,nbasin),                              &
-               &      zt_jk(T1Dj(0),jpk,nbasin), zs_jk(T1Dj(0),jpk,nbasin) )
-
-            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               zsfc = e1t(ji,jj) * e3t(ji,jj,jk,Kmm)
-               zmask(ji,jj,jk)      = tmask(ji,jj,jk)      * zsfc
-               zts(ji,jj,jk,jp_tem) = ts(ji,jj,jk,jp_tem,Kmm) * zsfc
-               zts(ji,jj,jk,jp_sal) = ts(ji,jj,jk,jp_sal,Kmm) * zsfc
-            END_3D
-
-            DO jn = 1, nbasin
-               sjk(:,:,jn)   = ptr_sjk( zmask(:,:,:)     , btmsk(:,:,jn) )
-               zt_jk(:,:,jn) = ptr_sjk( zts(:,:,:,jp_tem), btmsk(:,:,jn) )
-               zs_jk(:,:,jn) = ptr_sjk( zts(:,:,:,jp_sal), btmsk(:,:,jn) )
-            ENDDO
-
-            CALL ptr_sum( pzon_int(:,:,:,jp_msk),   sjk(:,:,:) )
-            CALL ptr_sum( pzon_int(:,:,:,jp_tem), zt_jk(:,:,:) )
-            CALL ptr_sum( pzon_int(:,:,:,jp_sal), zs_jk(:,:,:) )
             !
-            DEALLOCATE( zmask, zts, sjk, zt_jk, zs_jk )
+            ! mask
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               zts(ji,jj,jk) = tmask(ji,jj,jk) * e1t(ji,jj) * e3t(ji,jj,jk,Kmm)
+            END_3D
+            DO jn = 1, nbasin
+               sjk(:,:,jn) = ptr_sjk( zts(:,:,:) , btmsk(:,:,jn) )
+            ENDDO
+            CALL ptr_sum( pzon_int(:,:,:,jp_msk), sjk(:,:,:) )
+            ! temperature
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               zts(ji,jj,jk) = ts(ji,jj,jk,jp_tem,Kmm) * e1t(ji,jj) * e3t(ji,jj,jk,Kmm)
+            END_3D
+            DO jn = 1, nbasin
+               sjk(:,:,jn) = ptr_sjk( zts(:,:,:), btmsk(:,:,jn) )
+            ENDDO       
+            CALL ptr_sum( pzon_int(:,:,:,jp_tem), sjk(:,:,:) )
+            ! salinity
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               zts(ji,jj,jk) = ts(ji,jj,jk,jp_sal,Kmm) * e1t(ji,jj) * e3t(ji,jj,jk,Kmm)
+            END_3D
+            DO jn = 1, nbasin
+               sjk(:,:,jn) = ptr_sjk( zts(:,:,:), btmsk(:,:,jn) )
+            ENDDO       
+            CALL ptr_sum( pzon_int(:,:,:,jp_sal), sjk(:,:,:) )
+            !
          ENDIF
 
          ! i-k sum of j surface area - temperature/salinity product on V grid
          IF( iom_use( 'sopstvtr' ) .OR. iom_use( 'sophtvtr' ) ) THEN
-            ALLOCATE( zts(T2D(0),jpk,jpts) )
-
+            !
+            ! temperature
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               zvfc = e1v(ji,jj) * e3v(ji,jj,jk,Kmm)
-               zts(ji,jj,jk,jp_tem) = (ts(ji,jj,jk,jp_tem,Kmm)+ts(ji,jj+1,jk,jp_tem,Kmm)) * 0.5 * zvfc  !Tracers averaged onto V grid
-               zts(ji,jj,jk,jp_sal) = (ts(ji,jj,jk,jp_sal,Kmm)+ts(ji,jj+1,jk,jp_sal,Kmm)) * 0.5 * zvfc
+               zts(ji,jj,jk) = 0.5 * ( ts(ji,jj,jk,jp_tem,Kmm) + ts(ji,jj+1,jk,jp_tem,Kmm) ) &
+                  &                *  e1v(ji,jj) * e3v(ji,jj,jk,Kmm) !Tracers averaged onto V grid
             END_3D
-
-            CALL dia_ptr_hst( jp_tem, 'vtr', zts(:,:,:,jp_tem) )
-            CALL dia_ptr_hst( jp_sal, 'vtr', zts(:,:,:,jp_sal) )
-
-            DEALLOCATE( zts )
+            CALL dia_ptr_hst( jp_tem, 'vtr', zts(:,:,:) )
+            ! salinity
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               zts(ji,jj,jk) = 0.5 * ( ts(ji,jj,jk,jp_sal,Kmm) + ts(ji,jj+1,jk,jp_sal,Kmm) ) &
+                  &                *  e1v(ji,jj) * e3v(ji,jj,jk,Kmm)
+            END_3D
+            CALL dia_ptr_hst( jp_sal, 'vtr', zts(:,:,:) )
+            !
          ENDIF
       ENDIF
+      !
+      DEALLOCATE( zts, sjk )
+      !
    END SUBROUTINE dia_ptr_zint
 
 
@@ -537,10 +537,7 @@ CONTAINS
 
          ! Initialise arrays to zero because diatpr is called before they are first calculated
          ! Note that this means diagnostics will not be exactly correct when model run is restarted.
-         hstr_adv(:,:,:) = 0._wp
-         hstr_ldf(:,:,:) = 0._wp
-         hstr_eiv(:,:,:) = 0._wp
-         hstr_vtr(:,:,:) = 0._wp           !
+         hstr_all(:,:,:,:) = 0._wp
          pvtr_int(:,:,:,:) = 0._wp
          pzon_int(:,:,:,:) = 0._wp
          !
@@ -598,17 +595,17 @@ CONTAINS
       ENDIF
       !
       IF( cptr == 'adv' ) THEN
-         IF( ktra == jp_tem )  CALL ptr_sum( hstr_adv(:,:,jp_tem), zsj(:,:) )
-         IF( ktra == jp_sal )  CALL ptr_sum( hstr_adv(:,:,jp_sal), zsj(:,:) )
+         IF( ktra == jp_tem )  CALL ptr_sum( hstr_all(:,:,jp_tem,1), zsj(:,:) )
+         IF( ktra == jp_sal )  CALL ptr_sum( hstr_all(:,:,jp_sal,1), zsj(:,:) )
       ELSE IF( cptr == 'ldf' ) THEN
-         IF( ktra == jp_tem )  CALL ptr_sum( hstr_ldf(:,:,jp_tem), zsj(:,:) )
-         IF( ktra == jp_sal )  CALL ptr_sum( hstr_ldf(:,:,jp_sal), zsj(:,:) )
+         IF( ktra == jp_tem )  CALL ptr_sum( hstr_all(:,:,jp_tem,2), zsj(:,:) )
+         IF( ktra == jp_sal )  CALL ptr_sum( hstr_all(:,:,jp_sal,2), zsj(:,:) )
       ELSE IF( cptr == 'eiv' ) THEN
-         IF( ktra == jp_tem )  CALL ptr_sum( hstr_eiv(:,:,jp_tem), zsj(:,:) )
-         IF( ktra == jp_sal )  CALL ptr_sum( hstr_eiv(:,:,jp_sal), zsj(:,:) )
+         IF( ktra == jp_tem )  CALL ptr_sum( hstr_all(:,:,jp_tem,3), zsj(:,:) )
+         IF( ktra == jp_sal )  CALL ptr_sum( hstr_all(:,:,jp_sal,3), zsj(:,:) )
       ELSE IF( cptr == 'vtr' ) THEN
-         IF( ktra == jp_tem )  CALL ptr_sum( hstr_vtr(:,:,jp_tem), zsj(:,:) )
-         IF( ktra == jp_sal )  CALL ptr_sum( hstr_vtr(:,:,jp_sal), zsj(:,:) )
+         IF( ktra == jp_tem )  CALL ptr_sum( hstr_all(:,:,jp_tem,4), zsj(:,:) )
+         IF( ktra == jp_sal )  CALL ptr_sum( hstr_all(:,:,jp_sal,4), zsj(:,:) )
       ENDIF
       !
    END SUBROUTINE dia_ptr_hst_t
@@ -674,7 +671,7 @@ CONTAINS
       isize = SIZE(phstr)
       ALLOCATE( zwork(isize) )
       zwork(:) = RESHAPE( phstr(:,:), (/ isize /) )
-      CALL mpp_sum( 'diaptr', zwork, isize, ncomm_znl )
+      CALL mpp_sum( 'diaptr', zwork, ncomm_znl )
       phstr(:,:) = RESHAPE( zwork, SHAPE(phstr) )
       DEALLOCATE( zwork )
 #endif
@@ -695,7 +692,7 @@ CONTAINS
       isize = SIZE(phstr)
       ALLOCATE( zwork(isize) )
       zwork(:) = RESHAPE( phstr(:,:,:), (/ isize /) )
-      CALL mpp_sum( 'diaptr', zwork, isize, ncomm_znl )
+      CALL mpp_sum( 'diaptr', zwork, ncomm_znl )
       phstr(:,:,:) = RESHAPE( zwork, SHAPE(phstr) )
       DEALLOCATE( zwork )
 #endif
@@ -716,7 +713,7 @@ CONTAINS
       isize = SIZE(phstr)
       ALLOCATE( zwork(isize) )
       zwork(:) = RESHAPE( phstr(:,:,:,:), (/ isize /) )
-      CALL mpp_sum( 'diaptr', zwork, isize, ncomm_znl )
+      CALL mpp_sum( 'diaptr', zwork, ncomm_znl )
       phstr(:,:,:,:) = RESHAPE( zwork, SHAPE(phstr) )
       DEALLOCATE( zwork )
 #endif
@@ -736,8 +733,7 @@ CONTAINS
       !
       IF( .NOT. ALLOCATED( btmsk ) ) THEN
          ALLOCATE( btmsk(A2D(nn_hls),nbasin)    , btmsk34(A2D(nn_hls),nbasin)  , &
-            &      hstr_adv(A1Dj(0),nbasin,jpts), hstr_eiv(A1Dj(0),nbasin,jpts), &
-            &      hstr_ldf(A1Dj(0),nbasin,jpts), hstr_vtr(A1Dj(0),nbasin,jpts), STAT=ierr(1)  )
+            &      hstr_all(A1Dj(0),nbasin,jpts,4), STAT=ierr(1)  )
             !
          ALLOCATE( pvtr_int(A1Dj(0),jpk,nbasin,jpts+2), &
             &      pzon_int(A1Dj(0),jpk,nbasin,jpts+1), STAT=ierr(2) )

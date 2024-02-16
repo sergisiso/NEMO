@@ -23,6 +23,7 @@ MODULE p4zsink
    USE prtctl          !  print control for debugging
    USE iom             !  I/O manager
    USE lib_mpp
+   USE lib_fortran     ! Fortran routines library
 
    IMPLICIT NONE
    PRIVATE
@@ -127,7 +128,7 @@ CONTAINS
       END_2D
       !
       IF( l_diag ) THEN
-         t_oce_co2_exp = glob_sum( 'p4zsink', ( zsinking(A2D(0),ik100) + zsinking2(A2D(0),ik100) ) &
+         t_oce_co2_exp = glob_2Dsum( 'p4zsink', ( zsinking(A2D(0),ik100) + zsinking2(A2D(0),ik100) ) &
             &                                    * xfact * e1e2t(A2D(0)) * tmask(A2D(0),ik100) )
          CALL iom_put( "EPC100", ( zsinking(A2D(0),ik100) + zsinking2(A2D(0),ik100) ) * xfact * tmask(A2D(0),ik100) )  ! Export of carbon at 100m
          CALL iom_put( "EXPC"  , ( zsinking(A2D(0),:)     + zsinking2(A2D(0),:) )     * xfact * tmask(A2D(0),:) )      ! Export of carbon in the water column

@@ -18,6 +18,7 @@ MODULE agrif_oce_sponge
    USE oce
    USE dom_oce
    !
+   USE lib_fortran
    USE in_out_manager
    USE agrif_oce
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)

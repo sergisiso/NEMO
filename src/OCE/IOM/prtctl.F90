@@ -11,7 +11,6 @@ MODULE prtctl
    USE in_out_manager              ! I/O manager
    USE mppini                      ! distributed memory computing
    USE lib_mpp                     ! distributed memory computing
-   USE lib_fortran, ONLY : DDPDD   ! high-precision summation
 
    IMPLICIT NONE
    PRIVATE
@@ -19,9 +18,15 @@ MODULE prtctl
    INTEGER , DIMENSION(  :), ALLOCATABLE ::   numprt_oce, numprt_top
    INTEGER , DIMENSION(  :), ALLOCATABLE ::   nall_ictls, nall_ictle   ! first, last indoor index for each i-domain
    INTEGER , DIMENSION(  :), ALLOCATABLE ::   nall_jctls, nall_jctle   ! first, last indoor index for each j-domain
+#if defined key_agrif
    REAL(wp), DIMENSION(  :), ALLOCATABLE ::   t_ctl , s_ctl            ! previous tracer trend values
    REAL(wp), DIMENSION(  :), ALLOCATABLE ::   u_ctl , v_ctl            ! previous velocity trend values
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   tra_ctl                  ! previous top trend values
+#else
+   COMPLEX(dp), DIMENSION(  :), ALLOCATABLE ::   t_ctl , s_ctl            ! previous tracer trend values
+   COMPLEX(dp), DIMENSION(  :), ALLOCATABLE ::   u_ctl , v_ctl            ! previous velocity trend values
+   COMPLEX(dp), DIMENSION(:,:), ALLOCATABLE ::   tra_ctl                  ! previous top trend values
+#endif
    !
    PUBLIC prt_ctl         ! called by all subroutines
    PUBLIC prt_ctl_info    ! called by all subroutines
@@ -181,8 +186,8 @@ CONTAINS
       IF( PRESENT(kdim)    )  kdir = kdim
       IF( PRESENT(ptab4d_1) ) itra = SIZE(ptab4d_1,dim=4)
 
-      IF( wp == sp ) isig = 16   ! 16 significant digits
-      IF( wp == dp ) isig = 34   ! 34 significant digits
+      IF( wp == sp ) isig = 2 * PRECISION(0._sp)   !  16   ! 16 significant digits
+      IF( wp == dp ) isig = 2 * PRECISION(0._dp)   !  34   ! 34 significant digits
       WRITE( clfmt, "(a1,i02,a1,i02)" ) 'D', isig+7, '.', isig
       
       ! Loop over each sub-domain, i.e. the total number of processors ijsplt
@@ -268,8 +273,8 @@ CONTAINS
                      yltmp1 = tra_ctl(jn,jl)
                      tra_ctl(jn,jl) = ylsum1
                   END SELECT
-                  CALL DDPDD( -1._wp * yltmp1, ylsum1 )
-                  IF ( PRESENT(ptab2d_2) .OR. PRESENT(ptab3d_2) ) CALL DDPDD( -1._wp * yltmp2, ylsum2 )
+                  CALL DDPDD( -1._dp * yltmp1, ylsum1 )
+                  IF ( PRESENT(ptab2d_2) .OR. PRESENT(ptab3d_2) ) CALL DDPDD( -1._dp * yltmp2, ylsum2 )
                END IF
                clsum1 = prt_ctl_write_sum( ylsum1, isig )
                IF ( PRESENT(ptab2d_2) .OR. PRESENT(ptab3d_2) ) THEN
@@ -318,14 +323,14 @@ CONTAINS
       !!              complex value ydsum
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:) ::   ptab
-      COMPLEX(dp)              ::   ydsum    ! Sum
-      INTEGER                  ::   ji, jj   ! Loop indices
+      REAL(wp), DIMENSION(:,:), INTENT(in) ::   ptab
+      COMPLEX(dp)                          ::   ydsum    ! Sum
+      INTEGER                              ::   ji, jj   ! Loop indices
       !
-      ydsum = CMPLX( 0._wp, 0._wp, dp )
+      ydsum = CMPLX( 0._wp, kind = dp )
       DO jj = 1, SIZE( ptab, 2 )
          DO ji = 1, SIZE( ptab, 1 )
-            CALL DDPDD( CMPLX( ptab(ji,jj), 0._wp, dp ), ydsum )
+            CALL DDPDD( CMPLX( ptab(ji,jj), kind = dp ), ydsum )
          END DO
       END DO
       !
@@ -341,15 +346,15 @@ CONTAINS
       !!              complex value ydsum
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:) ::   ptab
-      COMPLEX(dp)                ::   ydsum        ! Sum
+      REAL(wp), DIMENSION(:,:,:), INTENT(in) ::   ptab
+      COMPLEX(dp)                            ::   ydsum        ! Sum
       INTEGER                    ::   ji, jj, jk   ! Loop indices
       !
-      ydsum = CMPLX( 0._wp, 0._wp, dp )
+      ydsum = CMPLX( 0._wp, kind = dp )
       DO jk = 1, SIZE( ptab, 3 )
          DO jj = 1, SIZE( ptab, 2 )
             DO ji = 1, SIZE( ptab, 1 )
-               CALL DDPDD( CMPLX( ptab(ji,jj,jk), 0._wp, dp ), ydsum )
+               CALL DDPDD( CMPLX( ptab(ji,jj,jk), kind = dp ), ydsum )
             END DO
          END DO
       END DO

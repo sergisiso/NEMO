@@ -916,6 +916,14 @@ CONTAINS
          WRITE(numout,*) '      Charnock coefficient                          rn_charn       = ', rn_charn
          WRITE(numout,*) '      Surface roughness formula                     nn_z0_met      = ', nn_z0_met
          WRITE(numout,*) '      surface wave breaking under ice               nn_z0_ice      = ', nn_z0_ice
+      ENDIF
+      IF     ( nn_mxlice > 0 .AND. nn_ice == 0 ) THEN
+         CALL ctl_warn( 'zdf_gls_init: with no ice at all, nn_mxlice is set to 0 ')
+         nn_mxlice = 0   ! must be set for all processes, so out of the "IF(lwp)"
+      ELSEIF ( nn_mxlice > 1 .AND. nn_ice == 1 ) THEN
+         CALL ctl_stop( 'zdf_gls_init: with no ice model, nn_mxlice must be 0 or 1')
+      ENDIF
+      IF(lwp) THEN
          SELECT CASE( nn_z0_ice )
          CASE( 0 )   ;   WRITE(numout,*) '   ==>>>   no impact of ice cover on surface wave breaking'
          CASE( 1 )   ;   WRITE(numout,*) '   ==>>>   roughness uses rn_hsri and is weigthed by 1-TANH( fr_i(:,:) * 10 )'
@@ -939,12 +947,6 @@ CONTAINS
             CASE DEFAULT
                CALL ctl_stop( 'zdf_gls_init: wrong value for nn_mxlice, should be 0,1,2,3 ')
          END SELECT
-         IF     ( (nn_mxlice>0).AND.(nn_ice==0) ) THEN
-            CALL ctl_warn( 'zdf_gls_init: with no ice at all, nn_mxlice is set to 0 ')
-            nn_mxlice = 0
-         ELSEIF ( (nn_mxlice>1).AND.(nn_ice==1) ) THEN
-            CALL ctl_stop( 'zdf_gls_init: with no ice model, nn_mxlice must be 0 or 1')
-         ENDIF
          WRITE(numout,*)
       ENDIF
 

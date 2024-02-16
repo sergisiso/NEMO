@@ -201,7 +201,7 @@ CONTAINS
                CALL mpp_sum( 'trcrad', gainmass(:) )
                DO jn = jp_sms0, jp_sms1
                   IF( gainmass(jn) > 0. ) THEN
-                     ztotmass = glob_sum( 'trcrad', ptr(:,:,:,jn,itime) * cvol(:,:,:) )
+                     ztotmass = glob_3Dsum( 'trcrad', ptr(:,:,:,jn,itime) * cvol(:,:,:) )
                      IF(lwp) WRITE(numout, '(a, i2, a, D23.16, a, D23.16)') 'trcrad ptrb, traceur ', jn  &
                           &        , ' total mass : ', ztotmass, ', mass gain : ',  gainmass(jn)
                   END IF

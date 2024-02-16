@@ -22,6 +22,7 @@ MODULE sbcblk_algo_ice_an05
    USE lib_mpp,  ONLY: ctl_stop         ! distribued memory computing library
    USE phycst          ! physical constants
    USE sbc_phy         ! Catalog of functions for physical/meteorological parameters in the marine boundary layer
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

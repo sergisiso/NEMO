@@ -12,7 +12,7 @@ MODULE isfutils
    !!----------------------------------------------------------------------
 
    USE iom           , ONLY: iom_open, iom_get, iom_close, jpdom_global      ! read input file
-   USE lib_fortran   , ONLY: glob_sum, glob_min, glob_max                    ! compute global value
+   USE lib_fortran
    USE par_oce                                                               ! domain size
    USE dom_oce       , ONLY: narea                                           ! local domain
    USE in_out_manager                                                        ! miscelenious
@@ -71,9 +71,9 @@ CONTAINS
       !!--------------------------------------------------------------------
       !
       ! global min/max/sum to check data range and NaN
-      zsum = glob_sum( 'debug', pvar(:,:) )
-      zmin = glob_min( 'debug', pvar(:,:) )
-      zmax = glob_max( 'debug', pvar(:,:) )
+      zsum = glob_2Dsum( 'debug', pvar(:,:) )
+      zmin = glob_2Dmin( 'debug', pvar(:,:) )
+      zmax = glob_2Dmax( 'debug', pvar(:,:) )
       !
       ! basic check sum to check reproducibility
       ! TRANSFER function find out the integer corresponding to pvar(i,j) bit pattern
@@ -124,9 +124,9 @@ CONTAINS
       !!--------------------------------------------------------------------
       !
       ! global min/max/sum to check data range and NaN
-      zsum = glob_sum( 'debug', pvar(:,:,:) )
-      zmin = glob_min( 'debug', pvar(:,:,:) )
-      zmax = glob_max( 'debug', pvar(:,:,:) )
+      zsum = glob_3Dsum( 'debug', pvar(:,:,:) )
+      zmin = glob_3Dmin( 'debug', pvar(:,:,:) )
+      zmax = glob_3Dmax( 'debug', pvar(:,:,:) )
       !
       ! basic check sum to check reproducibility
       ! TRANSFER function find out the integer corresponding to pvar(i,j) bit pattern

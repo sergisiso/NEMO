@@ -1,11 +1,12 @@
                           !==  IN: ptab is an array  ==!
-#   if defined SINGLE_PRECISION
+#   if defined REALSP_TYPE
 #      define ARRAY_TYPE(i,j,k)    REAL(sp)        , INTENT(in   ) ::   ARRAY_IN(i,j,k)
 #if ! defined key_mpi_off
 #      define MPI_TYPE MPI_2REAL
 #endif
 #      define PRECISION sp
-#   else
+#   endif 
+#   if defined REALDP_TYPE
 #      define ARRAY_TYPE(i,j,k)    REAL(dp)        , INTENT(in   ) ::   ARRAY_IN(i,j,k)
 #if ! defined key_mpi_off
 #      define MPI_TYPE MPI_2DOUBLE_PRECISION
@@ -139,3 +140,5 @@
 #undef LOC_OPERATION
 #undef INDEX_TYPE
 #undef ERRVAL
+
+#     undef ROUTINE_LOC

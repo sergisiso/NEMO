@@ -27,7 +27,6 @@ MODULE sbcabl
    USE iom            ! I/O manager library
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! distribued memory computing library
-   USE lib_fortran    ! to use key_nosignedzero
    USE timing         ! Timing
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE prtctl         ! Print control

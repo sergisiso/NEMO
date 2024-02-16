@@ -20,6 +20,7 @@ MODULE sbc_phy
 
    USE dom_oce        ! ocean space and time domain
    USE phycst         ! physical constants
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PUBLIC !! Haleluja that was the solution for AGRIF

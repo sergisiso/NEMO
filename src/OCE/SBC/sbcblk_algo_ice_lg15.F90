@@ -24,6 +24,7 @@ MODULE sbcblk_algo_ice_lg15
    USE phycst          ! physical constants
    USE sbc_phy         ! Catalog of functions for physical/meteorological parameters in the marine boundary layer
    USE sbcblk_algo_ice_cdn
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

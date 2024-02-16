@@ -21,7 +21,7 @@ MODULE stopar
    USE in_out_manager  ! I/O manager
    USE iom             ! I/O module
    USE lib_mpp
-
+   USE lib_fortran     ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

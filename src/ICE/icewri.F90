@@ -25,7 +25,7 @@ MODULE icewri
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
+   USE lib_fortran
    USE timing         ! Timing
 
    IMPLICIT NONE
@@ -52,15 +52,16 @@ CONTAINS
       INTEGER  ::   ji, jj, jk, jl  ! dummy loop indices
       REAL(wp) ::   z2da, z2db, zrho1, zrho2
       REAL(wp) ::   zmiss           ! missing value retrieved from xios
-      REAL(wp), DIMENSION(A2D(0))            ::   z2d                            ! 2D workspace
-      REAL(wp), DIMENSION(A2D(0))            ::   zmsk00, zmsk05, zmsk15, zmsksn ! O%, 5% and 15% concentration mask and snow mask
-      REAL(wp), DIMENSION(A2D(0),jpl)        ::   zmsk00c, zmsksnc               ! categories masks
-      REAL(wp), DIMENSION(A2D(0),nlay_i,jpl) ::   zmsk00l                        ! layers masks
-      REAL(wp), DIMENSION(:,:), ALLOCATABLE  ::   zfast, zalb, zmskalb           ! 2D workspace
+      REAL(wp), DIMENSION(A2D(0))               ::   z2d                            ! 2D workspace
+      REAL(wp), DIMENSION(A2D(0))               ::   zmsk00, zmsk05, zmsk15, zmsksn ! O%, 5% and 15% concentration mask and snow mask
+      REAL(wp), DIMENSION(A2D(0),jpl)           ::   zmsk00c, zmsksnc               ! categories masks
+      REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE ::   zmsk00l                        ! layers masks
+      REAL(wp), DIMENSION(:,:)    , ALLOCATABLE ::   zfast, zalb, zmskalb           ! 2D workspace
       !
       ! Global ice diagnostics (SIMIP)
-      REAL(wp) ::   zdiag_area_nh, zdiag_extt_nh, zdiag_volu_nh   ! area, extent, volume
-      REAL(wp) ::   zdiag_area_sh, zdiag_extt_sh, zdiag_volu_sh
+      REAL(wp), DIMENSION(A2D(0),6) ::   ztmp
+      COMPLEX(dp), DIMENSION(6)     ::   ysum
+      REAL(wp), DIMENSION(6)        ::   zdiag
       !!-------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('icewri')
@@ -72,34 +73,22 @@ CONTAINS
       IF( iom_use('icebrv') .OR. iom_use('icebrv_cat') )   CALL ice_var_brine
 
       ! tresholds for outputs
-      DO_2D( 0, 0, 0, 0 )
-         IF( at_i(ji,jj) >= epsi06  ) THEN ; zmsk00(ji,jj) = 1._wp ! 1 if ice    , 0 if no ice
-         ELSE                              ; zmsk00(ji,jj) = 0._wp
-         ENDIF
-         IF( at_i(ji,jj) >= 0.05_wp ) THEN ; zmsk05(ji,jj) = 1._wp ! 1 if 5% ice , 0 if less
-         ELSE                              ; zmsk05(ji,jj) = 0._wp
-         ENDIF
-         IF( at_i(ji,jj) >= 0.15_wp ) THEN ; zmsk15(ji,jj) = 1._wp ! 1 if 15% ice, 0 if less
-         ELSE                              ; zmsk15(ji,jj) = 0._wp
-         ENDIF
-         IF( vt_s(ji,jj) >= epsi06  ) THEN ; zmsksn(ji,jj) = 1._wp ! 1 if snow   , 0 if no snow
-         ELSE                              ; zmsksn(ji,jj) = 0._wp
-         ENDIF
-      END_2D
-      DO jl = 1, jpl
-         DO_2D( 0, 0, 0, 0 )
-            IF( a_i(ji,jj,jl) >= epsi06  ) THEN ; zmsk00c(ji,jj,jl) = 1._wp ! 1 if ice    , 0 if no ice
-            ELSE                                ; zmsk00c(ji,jj,jl) = 0._wp
-            ENDIF
-            IF( v_s(ji,jj,jl) >= epsi06  ) THEN ; zmsksnc(ji,jj,jl) = 1._wp ! 1 if snow   , 0 if no snow
-            ELSE                                ; zmsksnc(ji,jj,jl) = 0._wp
-            ENDIF
-         END_2D
-         DO_3D( 0, 0, 0, 0, 1, nlay_i )
-            zmsk00l(ji,jj,jk,jl) = zmsk00c(ji,jj,jl)
-         END_3D
-      ENDDO
+      zmsk00 (:,:)   = MERGE( 1._wp, 0._wp, at_i(A2D(0))  >= epsi06  )
+      zmsk05 (:,:)   = MERGE( 1._wp, 0._wp, at_i(A2D(0))  >= 0.05_wp )
+      zmsk15 (:,:)   = MERGE( 1._wp, 0._wp, at_i(A2D(0))  >= 0.15_wp )
+      zmsksn (:,:)   = MERGE( 1._wp, 0._wp, vt_s(A2D(0))  >= epsi06  )
+      zmsk00c(:,:,:) = MERGE( 1._wp, 0._wp, a_i(A2D(0),:) >= epsi06  )
+      zmsksnc(:,:,:) = MERGE( 1._wp, 0._wp, v_s(A2D(0),:) >= epsi06  )
 
+      IF( iom_use('icetemp_lay' ) .OR. iom_use('icesalt_lay' ) ) THEN
+         ALLOCATE( zmsk00l(A2D(0),nlay_i,jpl) )
+         DO jl = 1, jpl
+            DO_3D( 0, 0, 0, 0, 1, nlay_i )
+               zmsk00l(ji,jj,jk,jl) = zmsk00c(ji,jj,jl)
+            END_3D
+         ENDDO
+      ENDIF
+   
       !-----------------
       ! Standard outputs
       !-----------------
@@ -148,7 +137,6 @@ CONTAINS
       IF( iom_use('vice'    ) )   CALL iom_put( 'vice'   ,   v_ice(:,:) )                                                     ! ice velocity v
       !
       IF( iom_use('icevel') .OR. iom_use('fasticepres') ) THEN                                                                ! module of ice velocity & fast ice
-         ALLOCATE( zfast(A2D(0)) )
          DO_2D( 0, 0, 0, 0 )
             z2da  = u_ice(ji,jj) + u_ice(ji-1,jj)
             z2db  = v_ice(ji,jj) + v_ice(ji,jj-1)
@@ -156,9 +144,8 @@ CONTAINS
          END_2D
          CALL iom_put( 'icevel', z2d )
 
-         WHERE( z2d(:,:) < 5.e-04_wp .AND. zmsk15(:,:) == 1._wp ) ; zfast(:,:) = 1._wp                                        ! record presence of fast ice
-         ELSEWHERE                                                ; zfast(:,:) = 0._wp
-         END WHERE
+         ALLOCATE( zfast(A2D(0)) )
+         zfast(:,:) = MERGE( 1._wp, 0._wp,  z2d(:,:) < 5.e-04_wp .AND. zmsk15(:,:) == 1._wp ) ! record presence of fast ice
          CALL iom_put( 'fasticepres', zfast )
          DEALLOCATE( zfast )
       ENDIF
@@ -202,8 +189,11 @@ CONTAINS
          &                                                                                         + zmiss * ( 1._wp - zmsksnc ) ) ! snow temperature
 
       ! --- layer-dependent fields --- !
-      IF( iom_use('icetemp_lay' ) )   CALL iom_put( 'icetemp_lay' , (t_i(A2D(0),:,:)-rt0) * zmsk00l + zmiss * ( 1._wp - zmsk00l ) ) ! ice temperature
-      IF( iom_use('icesalt_lay' ) )   CALL iom_put( 'icesalt_lay' , sz_i(A2D(0),:,:)      * zmsk00l + zmiss * ( 1._wp - zmsk00l ) ) ! ice salinity
+      IF( iom_use('icetemp_lay' ) .OR. iom_use('icesalt_lay' ) ) THEN
+         CALL iom_put( 'icetemp_lay' , (t_i(A2D(0),:,:)-rt0) * zmsk00l + zmiss * ( 1._wp - zmsk00l ) ) ! ice temperature
+         CALL iom_put( 'icesalt_lay' , sz_i(A2D(0),:,:)      * zmsk00l + zmiss * ( 1._wp - zmsk00l ) ) ! ice salinity
+         DEALLOCATE( zmsk00l )
+      ENDIF
 
       !------------------
       ! Add-ons for SIMIP
@@ -234,26 +224,23 @@ CONTAINS
          ELSEWHERE                       ;   z2d(:,:) = 0.
          END WHERE
          !
-         IF( iom_use('NH_icearea') )   zdiag_area_nh = glob_sum( 'icewri', at_i(A2D(0)) *           z2d   * e1e2t(A2D(0)) &
-            &                                                                                             * 1.e-12 )
-         IF( iom_use('NH_icevolu') )   zdiag_volu_nh = glob_sum( 'icewri', vt_i(A2D(0)) *           z2d   * e1e2t(A2D(0)) &
-            &                                                                                             * 1.e-12 )
-         IF( iom_use('NH_iceextt') )   zdiag_extt_nh = glob_sum( 'icewri',                          z2d   * e1e2t(A2D(0)) &
-            &                                                                                             * 1.e-12 * zmsk15 )
+         ztmp(:,:,1) = at_i(A2D(0)) *           z2d   * e1e2t(A2D(0)) * 1.e-12
+         ztmp(:,:,2) = vt_i(A2D(0)) *           z2d   * e1e2t(A2D(0)) * 1.e-12
+         ztmp(:,:,3) =                          z2d   * e1e2t(A2D(0)) * 1.e-12 * zmsk15
+         ztmp(:,:,4) = at_i(A2D(0)) * ( 1._wp - z2d ) * e1e2t(A2D(0)) * 1.e-12 
+         ztmp(:,:,5) = vt_i(A2D(0)) * ( 1._wp - z2d ) * e1e2t(A2D(0)) * 1.e-12
+         ztmp(:,:,6) =                ( 1._wp - z2d ) * e1e2t(A2D(0)) * 1.e-12 * zmsk15
          !
-         IF( iom_use('SH_icearea') )   zdiag_area_sh = glob_sum( 'icewri', at_i(A2D(0)) * ( 1._wp - z2d ) * e1e2t(A2D(0)) &
-            &                                                                                             * 1.e-12 )
-         IF( iom_use('SH_icevolu') )   zdiag_volu_sh = glob_sum( 'icewri', vt_i(A2D(0)) * ( 1._wp - z2d ) * e1e2t(A2D(0)) &
-            &                                                                                             * 1.e-12 )
-         IF( iom_use('SH_iceextt') )   zdiag_extt_sh = glob_sum( 'icewri',                ( 1._wp - z2d ) * e1e2t(A2D(0)) &
-            &                                                                                             * 1.e-12 * zmsk15 )
+         ysum(:) = local_2Dsum( ztmp )
+         CALL mpp_sum( 'icewri', ysum, cdelay = 'icediags' )
+         zdiag(:) = REAL(ysum, wp)
          !
-         CALL iom_put( 'NH_icearea' , zdiag_area_nh )
-         CALL iom_put( 'NH_icevolu' , zdiag_volu_nh )
-         CALL iom_put( 'NH_iceextt' , zdiag_extt_nh )
-         CALL iom_put( 'SH_icearea' , zdiag_area_sh )
-         CALL iom_put( 'SH_icevolu' , zdiag_volu_sh )
-         CALL iom_put( 'SH_iceextt' , zdiag_extt_sh )
+         CALL iom_put( 'NH_icearea' , zdiag(1) )
+         CALL iom_put( 'NH_icevolu' , zdiag(2) )
+         CALL iom_put( 'NH_iceextt' , zdiag(3) )
+         CALL iom_put( 'SH_icearea' , zdiag(4) )
+         CALL iom_put( 'SH_icevolu' , zdiag(5) )
+         CALL iom_put( 'SH_iceextt' , zdiag(6) )
          !
       ENDIF
       !

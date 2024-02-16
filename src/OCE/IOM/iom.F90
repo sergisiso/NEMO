@@ -42,7 +42,6 @@ MODULE iom
 #if defined key_top
    USE trc, ONLY    :  profsed
 #endif
-   USE lib_fortran
    USE diu_bulk, ONLY : ln_diurnal_only, ln_diurnal
    USE iom_nf90
    USE netcdf
@@ -615,11 +614,9 @@ CONTAINS
       !!---------------------------------------------------------------------
       CHARACTER(len=*), INTENT(in   ) :: cdname      ! File name
       INTEGER                         :: kid      ! identifier of the opened file
-      INTEGER                         :: jl
 
-      kid = 0
-      DO jl = jpmax_files, 1, -1
-         IF( iom_file(jl)%nfid == 0 )   kid = jl
+      DO kid = 1, jpmax_files
+         IF( iom_file(kid)%nfid == 0 )   EXIT
       ENDDO
 
       iom_file(kid)%name   = TRIM(cdname)
@@ -898,7 +895,9 @@ CONTAINS
          DO jf = i_s, i_e
             IF( iom_file(jf)%nfid > 0 ) THEN
                CALL iom_nf90_close( jf )
-               iom_file(jf)%nfid       = 0          ! free the id
+               iom_file(jf)%nfid       = 0          ! free file id
+               iom_file(jf)%nvars      = 0          ! free vars id
+               iom_file(jf)%cn_var(:)  = ''         ! free vars name
                IF( PRESENT(kiomid) )   kiomid = 0   ! return 0 as id to specify that the file was closed
                IF(lwp) WRITE(numout,*) TRIM(clinfo)//' close file: '//TRIM(iom_file(jf)%name)//' ok'
             ELSEIF( PRESENT(kiomid) ) THEN
@@ -962,7 +961,8 @@ CONTAINS
                IF( PRESENT(kdimsz) ) THEN
                   i_nvd = iom_file(kiomid)%ndims(iiv)
                   IF( i_nvd <= size(kdimsz) ) THEN
-                     kdimsz(1:i_nvd) = iom_file(kiomid)%dimsz(1:i_nvd,iiv)
+                     kdimsz(1:i_nvd)  = iom_file(kiomid)%dimsz(1:i_nvd,iiv)
+                     kdimsz(i_nvd+1:) = 0
                   ELSE
                      WRITE(ctmp1,*) i_nvd, size(kdimsz)
                      CALL ctl_stop( TRIM(clinfo), 'error in kdimsz size'//TRIM(ctmp1) )
@@ -1910,51 +1910,88 @@ CONTAINS
    END SUBROUTINE iom_rp0123d
 
 
-  SUBROUTINE iom_delay_rst( cdaction, cdcpnt, kncid )
+   SUBROUTINE iom_delay_rst( cdaction, kncid, kt )
       !!---------------------------------------------------------------------
       !!   Routine iom_delay_rst: used read/write restart related to mpp_delay
       !!
       !!---------------------------------------------------------------------
-      CHARACTER(len=*), INTENT(in   ) ::   cdaction        !
-      CHARACTER(len=*), INTENT(in   ) ::   cdcpnt
-      INTEGER         , INTENT(in   ) ::   kncid
+      CHARACTER(len=*) , INTENT(in) ::   cdaction
+      INTEGER          , INTENT(in) ::   kncid
+      INTEGER, OPTIONAL, INTENT(in) ::   kt
       !
-      INTEGER  :: ji
-      INTEGER  :: indim
-      LOGICAL  :: llattexist
-      REAL(wp), ALLOCATABLE, DIMENSION(:) ::   zreal1d
+      INTEGER :: ji, ii
+      INTEGER :: idvar
+      INTEGER, DIMENSION(2) :: isz   ! need 2 dimensions as restart have a time dimension in the restart...
+      REAL(dp), ALLOCATABLE, DIMENSION(:) ::   zdpreal, zdpimag
       !!---------------------------------------------------------------------
       !
       !                                      ===================================
       IF( TRIM(cdaction) == 'READ' ) THEN   ! read restart related to mpp_delay !
          !                                   ===================================
+         ii = 0
+         DO ji = 1, iom_file(kncid)%nvars
+            IF( iom_file(kncid)%cn_var(ji)(1:10) == 'DELAY_im8_' )   CYCLE   ! delay comm already catched with real part
+            IF( iom_file(kncid)%cn_var(ji)(1: 6) == 'DELAY_'     ) THEN
+               ii = ii + 1
+               c_delaylist(ii) = iom_file(kncid)%cn_var(ji)(11:)   ! 'DELAY_xxx_' 
+            ENDIF
+         END DO
+         !
          DO ji = 1, nbdelay
-            IF ( c_delaycpnt(ji) == cdcpnt ) THEN
-               CALL iom_chkatt( kncid, 'DELAY_'//c_delaylist(ji), llattexist, indim )
-               IF( llattexist )  THEN
-                  ALLOCATE( todelay(ji)%z1d(indim) )
-                  CALL iom_getatt( kncid, 'DELAY_'//c_delaylist(ji), todelay(ji)%z1d(:) )
-                  ndelayid(ji) = 0   ! set to 0 to specify that the value was read in the restart
-               ENDIF
-           ENDIF
+            IF(    ndelayid(ji) ==     ndlrstuse )   CYCLE   ! these restart variables were already read
+            IF( c_delaylist(ji) == 'not defined' )   EXIT    ! we read all the defined variables, exit this do loop
+            idvar = iom_varid( kncid, 'DELAY__i4_'   //c_delaylist(ji), kdimsz = isz, ldstop = .FALSE. )
+            IF( idvar > 0 ) THEN
+               ALLOCATE( todelay(ji)%ibuffin(  isz(1)), todelay(ji)%ibuffout(  isz(1)), zdpreal(isz(1)) )
+               CALL iom_get( kncid, jpdom_unknown, 'DELAY__i4_'//c_delaylist(ji), zdpreal )
+               todelay(ji)%ibuffout = NINT( zdpreal )
+               DEALLOCATE( zdpreal )
+               ndelayid(ji) = ndlrstuse   ! set to ndlrstuse to specify that the value was read in the restart
+            ENDIF
+            idvar = iom_varid( kncid, 'DELAY__r4_'   //c_delaylist(ji), kdimsz = isz, ldstop = .FALSE. )
+            IF( idvar > 0 ) THEN
+               ALLOCATE( todelay(ji)%zspbuffin(isz(1)), todelay(ji)%zspbuffout(isz(1)) )
+               CALL iom_get( kncid, jpdom_unknown, 'DELAY__r4_'//c_delaylist(ji), todelay(ji)%zspbuffout )
+               ndelayid(ji) = ndlrstuse   ! set to ndlrstuse to specify that the value was read in the restart
+            ENDIF
+            idvar = iom_varid( kncid, 'DELAY__r8_'   //c_delaylist(ji), kdimsz = isz, ldstop = .FALSE. )
+            IF( idvar > 0 ) THEN
+               ALLOCATE( todelay(ji)%zdpbuffin(isz(1)), todelay(ji)%zdpbuffout(isz(1)) )
+               CALL iom_get( kncid, jpdom_unknown, 'DELAY__r8_'//c_delaylist(ji), todelay(ji)%zdpbuffout )
+               ndelayid(ji) = ndlrstuse   ! set to ndlrstuse to specify that the value was read in the restart
+            ENDIF
+            idvar = iom_varid( kncid, 'DELAY_re8_'//c_delaylist(ji), kdimsz = isz, ldstop = .FALSE. )
+            IF( idvar > 0 ) THEN
+               ALLOCATE( todelay(ji)%ydpbuffin(isz(1)), todelay(ji)%ydpbuffout(isz(1)), zdpreal(isz(1)), zdpimag(isz(1)) )
+               CALL iom_get( kncid, jpdom_unknown, 'DELAY_re8_'//c_delaylist(ji), zdpreal )
+               CALL iom_get( kncid, jpdom_unknown, 'DELAY_im8_'//c_delaylist(ji), zdpimag )
+               todelay(ji)%ydpbuffout = CMPLX( zdpreal, zdpimag, dp )
+               DEALLOCATE( zdpreal, zdpimag )
+               ndelayid(ji) = ndlrstuse   ! set to ndlrstuse to specify that the value was read in the restart
+            ENDIF
          END DO
          !                                   ====================================
       ELSE                                  ! write restart related to mpp_delay !
          !                                   ====================================
-         DO ji = 1, nbdelay   ! save only ocean delayed global communication variables
-            IF ( c_delaycpnt(ji) == cdcpnt ) THEN
-               IF( ASSOCIATED(todelay(ji)%z1d) ) THEN
-                  CALL mpp_delay_rcv(ji)   ! make sure %z1d is received
-                  CALL iom_putatt( kncid, 'DELAY_'//c_delaylist(ji), todelay(ji)%z1d(:) )
-               ENDIF
+         DO ji = 1, nbdelay
+            IF( c_delaylist(ji) == 'not defined' )   EXIT    ! we read all the defined variables, exit this do loop
+            IF(    ndelayid(ji) ==     ndlrstuse )   CYCLE   ! variable read in the restart but not used in this run...
+            IF( kt == nitrst )   CALL mpp_delay_rcv(ji)      ! make sure %z1d is received, so it can be written
+            IF(     ALLOCATED(todelay(ji)%ibuffout) ) THEN
+               CALL iom_rstput( kt, nitrst, kncid, 'DELAY__i4_'//c_delaylist(ji), REAL(todelay(ji)%ibuffout   ,dp ), jp_r8 )
+            ELSEIF( ALLOCATED(todelay(ji)%zspbuffout) ) THEN
+               CALL iom_rstput( kt, nitrst, kncid, 'DELAY__r4_'//c_delaylist(ji), todelay(ji)%zspbuffout   , jp_r4 )
+            ELSEIF( ALLOCATED(todelay(ji)%zdpbuffout) ) THEN
+               CALL iom_rstput( kt, nitrst, kncid, 'DELAY__r8_'//c_delaylist(ji), todelay(ji)%zdpbuffout   , jp_r8 )
+            ELSEIF( ALLOCATED(todelay(ji)%ydpbuffout) ) THEN
+               CALL iom_rstput( kt, nitrst, kncid, 'DELAY_re8_'//c_delaylist(ji), REAL( todelay(ji)%ydpbuffout   ,dp), jp_r8 )
+               CALL iom_rstput( kt, nitrst, kncid, 'DELAY_im8_'//c_delaylist(ji), AIMAG(todelay(ji)%ydpbuffout      ), jp_r8 )
             ENDIF
          END DO
          !
       ENDIF
 
    END SUBROUTINE iom_delay_rst
-
-
 
    !!----------------------------------------------------------------------
    !!                   INTERFACE iom_put

@@ -24,11 +24,12 @@ MODULE trcini
    USE prtctl          ! Print control passive tracers (prt_ctl_init routine)
    USE trcrst
    USE lib_mpp         ! distribued memory computing library
+   USE lib_fortran     ! Fortran routines library
    USE trcice          ! tracers in sea ice
    USE trcbc           ! generalized Boundary Conditions
    USE trcais          ! tracers from Antartic Ice Sheet
    USE trcbdy          ! passive-tracer open boundary conditions
- 
+
    IMPLICIT NONE
    PRIVATE
    
@@ -120,7 +121,7 @@ CONTAINS
       ENDDO
       z4d(:,:,:,jptra+1)  = cvol(:,:,:) 
       !
-      ztra(1:jptra+1) = glob_sum_vec( 'trcini', z4d(:,:,:,1:jptra+1) )
+      ztra(1:jptra+1) = glob_3Dsum( 'trcini', z4d(:,:,:,1:jptra+1) )
       !
       trai(1:jptra) = ztra(1:jptra)      !  initial content of all tracers
       areatot       = ztra(jptra+1)      ! total volume of the ocean 

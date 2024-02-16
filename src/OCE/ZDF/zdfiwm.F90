@@ -134,7 +134,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt, p_avs   ! vertical eddy diffusivity (w-points)
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
-      REAL(wp), SAVE :: zztmp
+      REAL(wp), SAVE :: zztmp    ! need save for the tile (not working when we will use openmp)
       !
       REAL(wp), DIMENSION(T2D(0)) ::   zfact1, zfact2, zfact3, zfact4 ! Used for vertical structure
       REAL(wp), DIMENSION(T2D(0)) ::   zReb        ! Turbulence intensity parameter
@@ -280,7 +280,7 @@ CONTAINS
       !* Control print at first time-step: diagnose the energy consumed by zav_wave
       IF( kt == nit000 .AND. ( iom_use( 'bflx_iwm') .OR. iom_use('pcmap_iwm') ) ) THEN
          IF( .NOT. l_istiled .OR. ntile == 1 ) zztmp = 0._wp                    ! Do only on the first tile
-         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )   ! would be better to use DDPDD and COMPLEX...
             zztmp = zztmp + e3w(ji,jj,jk,Kmm) * e1e2t(ji,jj) * ztmp0(ji,jj,jk) * wmask(ji,jj,jk) * smask0_i(ji,jj)
          END_3D
 
@@ -298,7 +298,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl(tab3d_1=ztmp0 , clinfo1=' iwm - N2*av_wave: ', tab3d_2=p_avt, clinfo2=' avt: ')
+      IF(sn_cfctl%l_prtctl)   CALL prt_ctl(tab3d_1=p_avt , clinfo1=' iwm - N2*av_wave: ')
       !
       IF( iom_use( 'bflx_iwm') .OR. iom_use('pcmap_iwm') )   DEALLOCATE( ztmp0 )
       IF( iom_use('emix_iwm') )                              DEALLOCATE( ztmp1 )
@@ -431,7 +431,7 @@ CONTAINS
          ztmp(ji,jj,4) = zcte * esho_iwm(ji,jj)
       END_2D
 
-      zdia(1:4) = glob_sum_vec( 'zdfiwm', ztmp )
+      zdia(:) = glob_2Dsum( 'zdfiwm', ztmp )
 
       IF(lwp) THEN
          WRITE(numout,*) '      Dissipation above abyssal hills:        ', zdia(1) * 1.e-12_wp, 'TW'

@@ -28,7 +28,7 @@ MODULE sbcclo
    USE phycst ,     ONLY: rcp                  ! physical constants
    USE sbc_oce,     ONLY: emp, qns, rnf, sst_m ! ocean surface boundary conditions
    USE iom    ,     ONLY: iom_put              ! I/O routines
-   USE lib_fortran, ONLY: glob_sum             ! fortran library
+   USE lib_fortran, ONLY: glob_2Dsum           ! fortran library
    USE lib_mpp    , ONLY: mpp_min, ctl_stop    ! MPP library
    !
    IMPLICIT NONE
@@ -137,30 +137,22 @@ MODULE sbcclo
       !!
       !! ** Purpose : compute closed sea (source) surface area
       !!----------------------------------------------------------------------
-      ! subroutine parameters
-      INTEGER ,                 INTENT(in   ) :: kncs          ! closed sea number
-      INTEGER , DIMENSION(:,:), INTENT(in   ) :: kmaskcs       ! closed sea mask
-      REAL(wp), DIMENSION(:)  , INTENT(  out) :: psurfsrc      ! source surface area
-
+      INTEGER ,                 INTENT(in   ) ::   kncs          ! closed sea number
+      INTEGER , DIMENSION(:,:), INTENT(in   ) ::   kmaskcs       ! closed sea mask
+      REAL(wp), DIMENSION(:)  , INTENT(  out) ::   psurfsrc      ! source surface area
       ! local variables
-      INTEGER :: jcs                                           ! loop index
-      INTEGER, DIMENSION(jpi,jpj) :: imsksrc                   ! source mask
+      INTEGER ::   jcs                                           ! loop index
+      REAL(wp), DIMENSION(jpi,jpj,kncs) ::   zmsksrc        ! source mask
       !!----------------------------------------------------------------------
       !
-      DO jcs = 1,kncs  ! loop over closed seas
-         !
-         ! 0. build river mouth mask for this lake
-         WHERE ( kmaskcs == jcs )
-            imsksrc = 1
-         ELSE WHERE
-            imsksrc = 0
-         END WHERE
-         !
-         ! 1. compute target area
-         psurfsrc(jcs) = glob_sum('closea', e1e2t(:,:) * imsksrc(:,:) )
-         !
-      END DO  ! jcs
-
+      ! 0. build river mouth mask for this lake
+      DO jcs = 1, kncs  ! loop over closed seas
+         zmsksrc(:,:,jcs) = MERGE( e1e2t(:,:), 0._wp, kmaskcs == jcs )
+      END DO
+      !
+      ! 1. compute target area
+      psurfsrc(1:kncs) = glob_2Dsum('closea', zmsksrc )
+      !
    END SUBROUTINE
 
    SUBROUTINE get_cstrgsurf(kncs, kmaskcs, kmaskcsgrp, psurftrg, kcsgrp )
@@ -169,49 +161,46 @@ MODULE sbcclo
       !!
       !! ** Purpose : compute closed sea (target) surface area
       !!----------------------------------------------------------------------
-      ! subroutine parameters
       ! input
-      INTEGER,                 INTENT(in   ) :: kncs                 ! closed sea number
-      INTEGER, DIMENSION(:,:), INTENT(in   ) :: kmaskcs, kmaskcsgrp  ! closed sea and group mask
-
+      INTEGER,                 INTENT(in   ) ::   kncs                 ! closed sea number
+      INTEGER, DIMENSION(:,:), INTENT(in   ) ::   kmaskcs, kmaskcsgrp  ! closed sea and group mask
       ! output
-      INTEGER , DIMENSION(:)  , INTENT(  out) :: kcsgrp              ! closed sea group number
-      REAL(wp), DIMENSION(:)  , INTENT(  out) :: psurftrg            ! target surface area
-
+      INTEGER , DIMENSION(:) , INTENT(  out) ::   kcsgrp               ! closed sea group number
+      REAL(wp), DIMENSION(:) , INTENT(  out) ::   psurftrg             ! target surface area
+      !
       ! local variables
-      INTEGER :: jcs, jtmp                                           ! tmp
-      INTEGER, DIMENSION(jpi,jpj) :: imskgrp, imsksrc, imsktrg, imsk ! tmp group, source, target and tmp mask
+      INTEGER ::   jcs
+      INTEGER , DIMENSION(kncs)         ::   jtmp
+      INTEGER , DIMENSION(jpi,jpj)      ::   imsk    ! tmp mask
+      REAL(wp), DIMENSION(jpi,jpj,kncs) ::   zmsktrg ! tmp target mask
       !!----------------------------------------------------------------------
       !
-      DO jcs = 1,kncs  ! loop over closed seas
-         !
-         !! 0. find group number for cs number jcs
-         imskgrp(:,:) = kmaskcsgrp(:,:)
-         imsksrc(:,:) = kmaskcs(:,:)
+      ! 0. find group number for cs number jcs
+      DO jcs = 1, kncs  ! loop over closed seas
          !
          ! set cs value where cs is defined
          ! imsk = HUGE outside the cs id jcs
-         imsk(:,:) = HUGE(1)
-         WHERE ( imsksrc(:,:) == jcs ) imsk(:,:) = jcs
+         imsk(:,:) = MERGE( jcs, HUGE(1), kmaskcs(:,:) == jcs )
          !
          ! jtmp = jcs - group id for this lake
-         imsk(:,:) = imsk(:,:) - imskgrp(:,:)
-         jtmp = MINVAL(imsk(:,:)) ; CALL mpp_min('closea',jtmp)
-         ! kcsgrp = group id corresponding to the cs id jcs
-         ! kcsgrp(jcs)=(jcs - (jcs - group id))=group id
-         kcsgrp(jcs) = jcs - jtmp
-         !
-         !! 1. build the target river mouth mask for this lake
-         WHERE ( imskgrp(:,:) * mask_opnsea(:,:) == kcsgrp(jcs) )
-            imsktrg(:,:) = 1
-         ELSE WHERE
-            imsktrg(:,:) = 0
-         END WHERE
-         !
-         !! 2. compute target area
-         psurftrg(jcs) = glob_sum('closea', e1e2t(:,:) * imsktrg(:,:) )
-         !
-      END DO ! jcs
+         imsk(:,:) = imsk(:,:) - kmaskcsgrp(:,:)
+         jtmp(jcs) = MINVAL( imsk(:,:) )
+      ENDDO
+      CALL mpp_min( 'closea', jtmp(1:kncs) )
+
+      ! kcsgrp = group id corresponding to the cs id jcs
+      ! kcsgrp(jcs)=(jcs - (jcs - group id))=group id
+      DO jcs = 1, kncs  ! loop over closed seas
+         kcsgrp(jcs) = jcs - jtmp(jcs)
+      ENDDO
+      !
+      ! 1. build the target river mouth mask for this lake
+      DO jcs = 1, kncs  ! loop over closed seas
+         zmsktrg(:,:,jcs) = MERGE( e1e2t(:,:), 0._wp, kmaskcsgrp(:,:) * mask_opnsea(:,:) == kcsgrp(jcs) )
+      END DO
+      
+      ! 2. compute target area
+      psurftrg(1:kncs) = glob_2Dsum( 'closea', zmsktrg )
 
    END SUBROUTINE
 
@@ -256,70 +245,66 @@ MODULE sbcclo
       !! ** Purpose : - compute the net freshwater fluxes over each closed seas
       !!              - apply correction to closed sea source/target net fwf accordingly
       !!----------------------------------------------------------------------
-      ! subroutine parameters
-      CHARACTER(LEN=3)        , INTENT(in   ) :: cdcstype  ! closed sea scheme used for redistribution
+      CHARACTER(LEN=3)        , INTENT(in   ) ::   cdcstype  ! closed sea scheme used for redistribution
       !
-      INTEGER,                 INTENT(in)     :: kncs                                 ! closed sea id
-      INTEGER, DIMENSION(:  ), INTENT(in)     :: kcsgrp                               ! closed sea group id
-      INTEGER, DIMENSION(:,:), INTENT(in)     :: kmsk_src, kmsk_grp, kmsk_opnsea      ! source, target, open ocean mask
-      
-      REAL(wp), DIMENSION(:)  , INTENT(in   ) :: psurfsrc, psurftrg, psurf_opnsea ! source, target and open ocean surface area
-      REAL(wp), DIMENSION(:,:), INTENT(inout) :: pwcs, pqcs                       ! water and heat flux correction due to closed seas
-
-
+      INTEGER,                  INTENT(in)    ::   kncs                                 ! closed sea id
+      INTEGER, DIMENSION(:)   , INTENT(in)    ::   kcsgrp                               ! closed sea group id
+      INTEGER, DIMENSION(:,:) , INTENT(in)    ::   kmsk_src, kmsk_grp, kmsk_opnsea      ! source, target, open ocean mask 
+      REAL(wp), DIMENSION(:)  , INTENT(in   ) ::   psurfsrc, psurftrg, psurf_opnsea     ! source, target and open ocean surface area
+      REAL(wp), DIMENSION(:,:), INTENT(inout) ::   pwcs, pqcs                           ! water and heat flux correction due to closed seas
+      !
       ! local variables
-      INTEGER :: jcs                                     ! loop index over closed sea 
-      INTEGER, DIMENSION(jpi,jpj) :: imsk_src, imsk_trg  ! tmp array source and target closed sea masks
+      INTEGER ::   jcs                                     ! loop index over closed sea 
+      INTEGER , DIMENSION(jpi,jpj,kncs) ::   imsk_src, imsk_trg  ! tmp array source and target closed sea masks
+      REAL(wp), DIMENSION(A2D(0) ,kncs) ::   zmsk_src            ! tmp array source and target closed sea masks
       
-      REAL(wp) :: zcsfw, zcsh        ! total fresh water and associated heat over one closed sea
-      REAL(wp) :: zcsfwf             ! mean fresh water flux over one closed sea
-      REAL(wp) :: zsurftrg, zsurfsrc ! total target surface area
+      REAL(wp), DIMENSION(kncs) ::   zcsfw, zcsh, zsurftrg       ! total fresh water and associated heat over one closed sea
+      REAL(wp) ::   zcsfwf                                                 ! mean fresh water flux over one closed sea
       !!----------------------------------------------------------------------
       !
+      ! 0. get mask and surface of the closed sea
       DO jcs = 1, kncs  ! loop over closed seas
          !
-         !! 0. get mask and surface of the closed sea
-         ! mask src
-         WHERE ( kmsk_src(:,:) == jcs ) 
-            imsk_src(:,:) = 1
-         ELSEWHERE
-            imsk_src(:,:) = 0
-         END WHERE
-         ! area src
-         zsurfsrc = psurfsrc(jcs)
+         imsk_src(:,:,jcs) = MERGE( 1, 0, kmsk_src(:,:) == jcs )
          !
-         !! 1. Work out net freshwater over the closed sea from EMP - RNF.
-         !!    Work out net heat associated with the correction (needed for conservation)
-         !!    (PM: should we consider used delayed glob sum ?)
-         zcsfw  = glob_sum( 'closea', e1e2t(A2D(0)) * ( emp(A2D(0))-rnf(A2D(0)) ) * imsk_src(A2D(0)) )
+         zmsk_src(:,:,jcs) = e1e2t(A2D(0)) * ( emp(A2D(0))-rnf(A2D(0)) ) * imsk_src(A2D(0),jcs)
          !
-         !! 2. Deal with runoff special case (net evaporation spread globally)
-         !!    and compute trg mask
-         IF (cdcstype == 'rnf' .AND. zcsfw  > 0._wp) THEN
-            zsurftrg = psurf_opnsea(1)           ! change the target area surface
-            imsk_trg = kcsgrp(jcs) * kmsk_opnsea ! trg mask is now the open sea mask
+      ENDDO
+      ! 1. Work out net freshwater over the closed sea from EMP - RNF.
+      zcsfw(:) = glob_2Dsum( 'closea', zmsk_src, cdelay = 'cs1' )
+      
+      ! 2. Work out net heat associated with the correction (needed for conservation)
+      DO jcs = 1, kncs  ! loop over closed seas
+         !
+         ! Deal with runoff special case (net evaporation spread globally) and compute trg mask
+         IF( cdcstype == 'rnf' .AND. zcsfw(jcs)  > 0._wp ) THEN
+            zsurftrg(jcs)     = psurf_opnsea(1)                ! change the target area surface
+            imsk_trg(:,:,jcs) = kcsgrp(jcs) * kmsk_opnsea(:,:) ! trg mask is now the open sea mask
          ELSE
-            zsurftrg = psurftrg(jcs)
-            imsk_trg = kmsk_grp * kmsk_opnsea
+            zsurftrg(jcs)     = psurftrg(jcs)
+            imsk_trg(:,:,jcs) = kmsk_grp(:,:) * kmsk_opnsea(:,:)
          END IF
          !
-         IF( zsurftrg > 0._wp ) THEN  ! target area /=0
-            !! 3. Subtract residuals from source points
-            zcsfwf = zcsfw / zsurfsrc
-            pwcs(:,:) = pwcs(:,:) -       zcsfwf              * imsk_src(:,:)
-            pqcs(:,:) = pqcs(:,:) + rcp * zcsfwf * sst_m(:,:) * imsk_src(:,:)
-            !
-            !! 4. Add residuals to target points 
-            !!    Do not use pqcs(:,:) = pqcs(:,:) - rcp * zcsfw  * sst_m(:,:) / zsurftrg 
-            !!    as there is no reason heat will be conserved with this formulation
-            zcsh   = glob_sum( 'closea', e1e2t(:,:) * rcp * zcsfwf * sst_m(:,:) * imsk_src(:,:) )
-            WHERE( imsk_trg(:,:) == kcsgrp(jcs) )
-               pwcs(:,:) = pwcs(:,:) + zcsfw / zsurftrg
-               pqcs(:,:) = pqcs(:,:) - zcsh  / zsurftrg
-            ENDWHERE
+         ! Subtract residuals from source points
+         IF( zsurftrg(jcs) > 0._wp ) THEN  ; zcsfwf = zcsfw(jcs) / psurfsrc(jcs)
+         ELSE                              ; zcsfwf = 0._wp
          ENDIF
+         pwcs(:,:)   = pwcs(:,:) -       zcsfwf              * imsk_src(:,:,jcs)
+         pqcs(:,:)   = pqcs(:,:) + rcp * zcsfwf * sst_m(:,:) * imsk_src(:,:,jcs)
          !
-      END DO ! jcs
+         zmsk_src(:,:,jcs) = e1e2t(A2D(0)) * rcp * zcsfwf * sst_m(A2D(0)) * imsk_src(A2D(0),jcs)
+      ENDDO
+      zcsh(:) = glob_2Dsum( 'closea', zmsk_src, cdelay = 'cs2' )
+      !
+      ! 3. Add residuals to target points 
+      !    Do not use pqcs(:,:) = pqcs(:,:) - rcp * zcsfw  * sst_m(:,:) / zsurftrg 
+      !    as there is no reason heat will be conserved with this formulation
+      DO jcs = 1, kncs  ! loop over closed seas
+         WHERE( imsk_trg(:,:,jcs) == kcsgrp(jcs) .AND. zsurftrg(jcs) > 0._wp )
+            pwcs(:,:) = pwcs(:,:) + zcsfw(jcs) / zsurftrg(jcs)
+            pqcs(:,:) = pqcs(:,:) - zcsh (jcs) / zsurftrg(jcs)
+         ENDWHERE
+      END DO
 
    END SUBROUTINE
 

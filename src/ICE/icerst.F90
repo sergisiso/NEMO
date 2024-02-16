@@ -27,7 +27,6 @@ MODULE icerst
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
 
    IMPLICIT NONE
    PRIVATE
@@ -140,7 +139,7 @@ CONTAINS
       CALL iom_rstput( iter, nitrst, numriw, 'nn_fsbc', REAL( nn_fsbc, wp ) )      ! time-step
       CALL iom_rstput( iter, nitrst, numriw, 'kt_ice' , REAL( iter   , wp ) )      ! date
 
-      IF(.NOT.lwxios) CALL iom_delay_rst( 'WRITE', 'ICE', numriw )   ! save only ice delayed global communication variables
+      CALL iom_delay_rst( 'WRITE', numriw, iter )   ! save all delayed global communication variables
 
       ! Prognostic variables
       CALL iom_rstput( iter, nitrst, numriw, 'v_i'  , v_i   )
@@ -355,7 +354,7 @@ CONTAINS
             ENDDO
          ENDIF
 
-         IF(.NOT.lrxios) CALL iom_delay_rst( 'READ', 'ICE', numrir )   ! read only ice delayed global communication variables
+         CALL iom_delay_rst( 'READ', numrir )   ! read all delayed global communication variables (if not already done)
          !                 ! ---------------------------------- !
       ELSE                 ! == case of a simplified restart == !
          !                 ! ---------------------------------- !

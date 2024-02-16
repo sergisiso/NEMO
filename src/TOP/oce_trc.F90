@@ -26,7 +26,6 @@ MODULE oce_trc
    USE in_out_manager                           !* IO manager *
    USE timing                                   !* Timing * 
    USE lib_mpp                                  !* MPP library                         
-   USE lib_fortran                              !* Fortran utilities                         
    USE lbclnk                                   !* Lateral boundary conditions                         
    USE phycst                                   !* physical constants *
    USE c1d                                      !* 1D configuration

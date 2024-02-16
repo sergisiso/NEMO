@@ -20,7 +20,6 @@ MODULE icbthm
    USE phycst         ! NEMO physical constants
    USE sbc_oce
    USE eosbn2         ! equation of state
-   USE lib_fortran, ONLY : DDPDD
 
    USE icb_oce        ! define iceberg arrays
    USE icbutl         ! iceberg utility routines

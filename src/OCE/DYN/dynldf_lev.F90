@@ -25,6 +25,7 @@ MODULE dynldf_lev
    USE in_out_manager ! I/O manager
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE lib_mpp
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

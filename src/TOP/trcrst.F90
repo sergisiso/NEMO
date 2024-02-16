@@ -25,6 +25,7 @@ MODULE trcrst
    USE iom
    USE daymod
    USE lib_mpp
+   USE lib_fortran
    
    IMPLICIT NONE
    PRIVATE
@@ -149,7 +150,8 @@ CONTAINS
       END IF
 #endif
       !
-      IF(.NOT.lrxios) CALL iom_delay_rst( 'READ', 'TOP', numrtr )   ! read only TOP delayed global communication variables
+      CALL iom_delay_rst( 'READ', numrtr )   ! read all delayed global communication variables (if not already done)
+      
    END SUBROUTINE trc_rst_read
 
 
@@ -180,7 +182,7 @@ CONTAINS
          CALL iom_rstput( kt, nitrst, numrtw, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kmm) )
       END DO
 #endif
-      IF( .NOT. lwxios ) CALL iom_delay_rst( 'WRITE', 'TOP', numrtw )   ! save only TOP delayed global communication variables
+      CALL iom_delay_rst( 'WRITE', numrtw, kt )   ! save delayed global communication variables
     
       IF( kt == nitrst ) THEN
           CALL trc_rst_stat( Kaa, Kbb )             ! statistics Kaa et Kbb
@@ -362,10 +364,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT( in ) ::   Kmm, Krhs  ! time level indices
       INTEGER  :: jk, jn
-      REAL(wp) :: zmin, zmax, zmean, zdrift
+      REAL(wp) :: zmean, zdrift
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zvol
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: z4d
-      REAL(wp), ALLOCATABLE, DIMENSION(:) :: ztraf
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jptra) :: z4d
+      REAL(wp), DIMENSION(jptra) :: zmin, zmax, ztraf
       !!----------------------------------------------------------------------
 
       IF( lwp ) THEN
@@ -378,30 +380,22 @@ CONTAINS
          zvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
       END DO
       !
-      ALLOCATE( z4d(jpi,jpj,jpk,jptra), ztraf(jptra) )
-      !
       DO jn = 1, jptra
          z4d(:,:,:,jn) = tr(:,:,:,jn,Kmm) * zvol(:,:,:)
       ENDDO
       !
-      ztraf(1:jptra) = glob_sum_vec( 'trcrst', z4d(:,:,:,1:jptra) )
+      ztraf(1:jptra) = glob_3Dsum( 'trcrst', z4d(:,:,:,1:jptra) )
+      zmin( 1:jptra) = glob_3Dmin( 'trcrst',  tr(:,:,:,1:jptra,Kmm) )
+      zmax( 1:jptra) = glob_3Dmax( 'trcrst',  tr(:,:,:,1:jptra,Kmm) )
 
       DO jn = 1, jptra
-         zmin  = MINVAL( tr(:,:,:,jn,Kmm), mask= ((tmask*SPREAD(tmask_i,DIM=3,NCOPIES=jpk).NE.0.)) )
-         zmax  = MAXVAL( tr(:,:,:,jn,Kmm), mask= ((tmask*SPREAD(tmask_i,DIM=3,NCOPIES=jpk).NE.0.)) )
-         IF( lk_mpp ) THEN
-            CALL mpp_min( 'trcrst', zmin )      ! min over the global domain
-            CALL mpp_max( 'trcrst', zmax )      ! max over the global domain
-         END IF
          zmean  = ztraf(jn) / areatot
          zdrift = ( ( ztraf(jn) - trai(jn) ) / ( trai(jn) + 1.e-12 )  ) * 100._wp
-         IF(lwp) WRITE(numout,9000) jn, TRIM( ctrcnm(jn) ), zmean, zmin, zmax, zdrift
+         IF(lwp) WRITE(numout,9000) jn, TRIM( ctrcnm(jn) ), zmean, zmin(jn), zmax(jn), zdrift
       END DO
       IF(lwp) WRITE(numout,*) 
 9000  FORMAT(' tracer nb :',i2,'    name :',a10,'    mean :',e18.10,'    min :',e18.10, &
       &      '    max :',e18.10,'    drift :',e18.10, ' %')
-      !
-      DEALLOCATE( z4d, ztraf )
       !
    END SUBROUTINE trc_rst_stat
 

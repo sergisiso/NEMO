@@ -30,7 +30,7 @@ MODULE diahsb
    !
    USE iom            ! I/O manager
    USE in_out_manager ! I/O manager
-   USE lib_fortran    ! glob_sum
+   USE lib_fortran    ! glob_2Dsum
    USE lib_mpp        ! distributed memory computing library
    USE timing         ! preformance summary
 
@@ -96,19 +96,19 @@ CONTAINS
       ! ------------------------- !
       ! 1 - Trends due to forcing !
       ! ------------------------- !
-      z_frc_trd_v = r1_rho0 * glob_sum( 'diahsb', - ( emp(:,:) - rnf(:,:) + fwfisf_cav(:,:) + fwfisf_par(:,:) ) * surf(:,:) )   ! volume fluxes
-      z_frc_trd_t =           glob_sum( 'diahsb', sbc_tsc(:,:,jp_tem) * surf(:,:) )                       ! heat fluxes
-      z_frc_trd_s =           glob_sum( 'diahsb', sbc_tsc(:,:,jp_sal) * surf(:,:) )                       ! salt fluxes
+      z_frc_trd_v = r1_rho0 * glob_2Dsum( 'diahsb', - ( emp(:,:) - rnf(:,:) + fwfisf_cav(:,:) + fwfisf_par(:,:) ) * surf(:,:) )   ! volume fluxes
+      z_frc_trd_t =           glob_2Dsum( 'diahsb', sbc_tsc(:,:,jp_tem) * surf(:,:) )                       ! heat fluxes
+      z_frc_trd_s =           glob_2Dsum( 'diahsb', sbc_tsc(:,:,jp_sal) * surf(:,:) )                       ! salt fluxes
       !                    !  Add runoff    heat & salt input
-      IF( ln_rnf    )   z_frc_trd_t = z_frc_trd_t + glob_sum( 'diahsb', rnf_tsc(:,:,jp_tem) * surf(:,:) )
-      IF( ln_rnf_sal)   z_frc_trd_s = z_frc_trd_s + glob_sum( 'diahsb', rnf_tsc(:,:,jp_sal) * surf(:,:) )
+      IF( ln_rnf    )   z_frc_trd_t = z_frc_trd_t + glob_2Dsum( 'diahsb', rnf_tsc(:,:,jp_tem) * surf(:,:) )
+      IF( ln_rnf_sal)   z_frc_trd_s = z_frc_trd_s + glob_2Dsum( 'diahsb', rnf_tsc(:,:,jp_sal) * surf(:,:) )
       !                    ! Add ice shelf heat & salt input
       IF( ln_isf    )   z_frc_trd_t = z_frc_trd_t &
-         &                          + glob_sum( 'diahsb', ( risf_cav_tsc(:,:,jp_tem) + risf_par_tsc(:,:,jp_tem) ) * surf(:,:) )
+         &                          + glob_2Dsum( 'diahsb', ( risf_cav_tsc(:,:,jp_tem) + risf_par_tsc(:,:,jp_tem) ) * surf(:,:) )
       !                    ! Add penetrative solar radiation
-      IF( ln_traqsr )   z_frc_trd_t = z_frc_trd_t + r1_rho0_rcp * glob_sum( 'diahsb', qsr     (:,:) * surf(:,:) )
+      IF( ln_traqsr )   z_frc_trd_t = z_frc_trd_t + r1_rho0_rcp * glob_2Dsum( 'diahsb', qsr     (:,:) * surf(:,:) )
       !                    ! Add geothermal heat flux
-      IF( ln_trabbc )   z_frc_trd_t = z_frc_trd_t +               glob_sum( 'diahsb', qgh_trd0(:,:) * surf(:,:) )
+      IF( ln_trabbc )   z_frc_trd_t = z_frc_trd_t +               glob_2Dsum( 'diahsb', qgh_trd0(:,:) * surf(:,:) )
       !
       IF( ln_linssh ) THEN
          IF( ln_isfcav ) THEN
@@ -122,8 +122,8 @@ CONTAINS
             z2d0(:,:) = surf(:,:) * ww(:,:,1) * ts(:,:,1,jp_tem,Kbb)
             z2d1(:,:) = surf(:,:) * ww(:,:,1) * ts(:,:,1,jp_sal,Kbb)
          END IF
-         z_wn_trd_t = - glob_sum( 'diahsb', z2d0 )
-         z_wn_trd_s = - glob_sum( 'diahsb', z2d1 )
+         z_wn_trd_t = - glob_2Dsum( 'diahsb', z2d0 )
+         z_wn_trd_s = - glob_2Dsum( 'diahsb', z2d1 )
       ENDIF
 
       frc_v = frc_v + z_frc_trd_v * rn_Dt
@@ -138,10 +138,10 @@ CONTAINS
       ! ------------------------ !
       ! 2 -  Content variations  !
       ! ------------------------ !
-      ! glob_sum_full is needed because you keep the full interior domain to compute the sum (iscpl)
+      ! glob_2Dsum_full is needed because you keep the full interior domain to compute the sum (iscpl)
 
       !                    ! volume variation (calculated with ssh)
-      zdiff_v1 = glob_sum_full( 'diahsb', surf(:,:)*ssh(:,:,Kmm) - surf_ini(:,:)*ssh_ini(:,:) )
+      zdiff_v1 = glob_2Dsum_full( 'diahsb', surf(:,:)*ssh(:,:,Kmm) - surf_ini(:,:)*ssh_ini(:,:) )
 
       !                    ! heat & salt content variation (associated with ssh)
       IF( ln_linssh ) THEN       ! linear free surface case
@@ -156,25 +156,25 @@ CONTAINS
             z2d0(:,:) = surf(:,:) * ( ts(:,:,1,jp_tem,Kmm) * ssh(:,:,Kmm) - ssh_hc_loc_ini(:,:) )
             z2d1(:,:) = surf(:,:) * ( ts(:,:,1,jp_sal,Kmm) * ssh(:,:,Kmm) - ssh_sc_loc_ini(:,:) )
          END IF
-         z_ssh_hc = glob_sum_full( 'diahsb', z2d0 )
-         z_ssh_sc = glob_sum_full( 'diahsb', z2d1 )
+         z_ssh_hc = glob_2Dsum_full( 'diahsb', z2d0 )
+         z_ssh_sc = glob_2Dsum_full( 'diahsb', z2d1 )
       ENDIF
       !
       DO jk = 1, jpkm1           ! volume variation (calculated with scale factors)
          zwrk(:,:,jk) =   surf    (:,:) * e3t    (:,:,jk,Kmm)*tmask    (:,:,jk)   &
             &           - surf_ini(:,:) * e3t_ini(:,:,jk    )*tmask_ini(:,:,jk)
       END DO
-      zdiff_v2 = glob_sum_full( 'diahsb', zwrk(:,:,:) )     ! glob_sum_full needed as tmask and tmask_ini could be different
+      zdiff_v2 = glob_2Dsum_full( 'diahsb', zwrk(:,:,:) )     ! glob_sum_full needed as tmask and tmask_ini could be different
       DO jk = 1, jpkm1           ! heat content variation
          zwrk(:,:,jk) = ( surf    (:,:) * e3t(:,:,jk,Kmm)*ts(:,:,jk,jp_tem,Kmm)   &
             &           - surf_ini(:,:) *         hc_loc_ini(:,:,jk) )
       END DO
-      zdiff_hc = glob_sum_full( 'diahsb', zwrk(:,:,:) )
+      zdiff_hc = glob_2Dsum_full( 'diahsb', zwrk(:,:,:) )
       DO jk = 1, jpkm1           ! salt content variation
          zwrk(:,:,jk) = ( surf    (:,:) * e3t(:,:,jk,Kmm)*ts(:,:,jk,jp_sal,Kmm)   &
             &           - surf_ini(:,:) *         sc_loc_ini(:,:,jk) )
       END DO
-      zdiff_sc = glob_sum_full( 'diahsb', zwrk(:,:,:) )
+      zdiff_sc = glob_2Dsum_full( 'diahsb', zwrk(:,:,:) )
 
       ! ------------------------ !
       ! 3 -  Drifts              !
@@ -196,11 +196,11 @@ CONTAINS
       DO jk = 1, jpkm1           ! total ocean volume (calculated with scale factors)
          zwrk(:,:,jk) = surf(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
       END DO
-      zvol_tot = glob_sum( 'diahsb', zwrk(:,:,:) )
+      zvol_tot = glob_2Dsum( 'diahsb', zwrk(:,:,:) )
 
 !!gm to be added ?
 !      IF( ln_linssh ) THEN            ! fixed volume, add the ssh contribution
-!        zvol_tot = zvol_tot + glob_sum( 'diahsb', surf(:,:) * ssh(:,:,Kmm) )
+!        zvol_tot = zvol_tot + glob_2Dsum( 'diahsb', surf(:,:) * ssh(:,:,Kmm) )
 !      ENDIF
 !!gm end
 
@@ -402,7 +402,7 @@ CONTAINS
       ! 2 - Time independant variables and file opening !
       ! ----------------------------------------------- !
       surf(:,:) = e1e2t(:,:) * tmask_i(:,:)               ! masked surface grid cell area
-      surf_tot  = glob_sum( 'diahsb', surf(:,:) )         ! total ocean surface area
+      surf_tot  = glob_2Dsum( 'diahsb', surf(:,:) )         ! total ocean surface area
 
       IF( ln_bdy ) CALL ctl_warn( 'dia_hsb_init: heat/salt budget does not consider open boundary fluxes' )
       !

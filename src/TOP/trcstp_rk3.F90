@@ -30,6 +30,7 @@ MODULE trcstp_rk3
    !
    USE prtctl         ! Print control for debbuging
    USE iom            !
+   USE lib_fortran    ! Fortran routines library
    USE in_out_manager !
 
    IMPLICIT NONE
@@ -179,7 +180,7 @@ CONTAINS
          DO jk = 1, jpk
             cvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
          END DO
-         IF( l_trcstat .OR. kt == nitrst ) areatot = glob_sum( 'trcstp', cvol(:,:,:) )
+         IF( l_trcstat .OR. kt == nitrst ) areatot = glob_3Dsum( 'trcstp', cvol(:,:,:) )
       ENDIF
       !
       IF( l_trcdm2dc )   CALL trc_mean_qsr( kt )
@@ -237,7 +238,7 @@ CONTAINS
             z4d(:,:,:,jn) = tr(:,:,:,jn,Kaa) * cvol(:,:,:)
          ENDDO
          !
-         ztraa(1:jptra) = glob_sum_vec( 'trcstp_rk3', z4d(:,:,:,1:jptra) )
+         ztraa(1:jptra) = glob_3Dsum( 'trcstp_rk3', z4d(:,:,:,1:jptra) )
          IF( lwm ) WRITE(numstr,9300) kt,  SUM( ztraa ) / areatot
          !
          DEALLOCATE( z4d, ztraa )

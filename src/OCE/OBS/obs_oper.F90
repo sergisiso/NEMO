@@ -25,6 +25,7 @@ MODULE obs_oper
    !
    USE par_kind     , ONLY :   wp   ! Precision variables
    USE in_out_manager               ! I/O manager
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

@@ -30,7 +30,7 @@ MODULE icedyn_rhg_vp
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
+   USE lib_fortran    ! Fortran routines library
    USE lbclnk         ! lateral boundary conditions (or mpp links)
    USE prtctl         ! Print control
 
@@ -273,7 +273,7 @@ CONTAINS
       ! Initialise convergence checks
       IF( nn_rhg_chkcvg /= 0 ) THEN     
          ! ice area for global mean kinetic energy (m2)
-         zglob_area = glob_sum( 'ice_rhg_vp', at_i(:,:) * e1e2t(:,:) * tmask(:,:,1) )
+         zglob_area = glob_2Dsum( 'ice_rhg_vp', at_i(:,:) * e1e2t(:,:) * tmask(:,:,1) )
       ENDIF
 
       ! Landfast param from Lemieux(2016): add isotropic tensile strength (following Konig Beatty and Holland, 2010)
@@ -1490,8 +1490,8 @@ CONTAINS
       END_2D
 
       ! global sum & U-V average
-      zu_mad   = glob_sum( 'icedyn_rhg_vp : ', zu_diff )
-      zv_mad   = glob_sum( 'icedyn_rhg_vp : ', zv_diff )
+      zu_mad   = glob_2Dsum( 'icedyn_rhg_vp : ', zu_diff )
+      zv_mad   = glob_2Dsum( 'icedyn_rhg_vp : ', zv_diff )
 
       zvel_mad = 0.5_wp * ( zu_mad + zv_mad )
 
@@ -1514,8 +1514,8 @@ CONTAINS
          
          ! Global ice-concentration, grid-cell-area weighted mean
 
-         zu_mad_outer   = glob_sum( 'icedyn_rhg_vp : ', zu_diff )
-         zv_mad_outer   = glob_sum( 'icedyn_rhg_vp : ', zv_diff )
+         zu_mad_outer   = glob_2Dsum( 'icedyn_rhg_vp : ', zu_diff )
+         zv_mad_outer   = glob_2Dsum( 'icedyn_rhg_vp : ', zv_diff )
    
          ! Average of both U & V
          zvel_mad_outer = 0.5_wp * ( zu_mad_outer + zv_mad_outer )
@@ -1586,8 +1586,8 @@ CONTAINS
          END_2D
          
          ! Global ice-concentration, grid-cell-area weighted mean   
-         zu_res_mean   = glob_sum( 'ice_rhg_vp', zu_res(:,:) )
-         zv_res_mean   = glob_sum( 'ice_rhg_vp', zv_res(:,:) )
+         zu_res_mean   = glob_2Dsum( 'ice_rhg_vp', zu_res(:,:) )
+         zv_res_mean   = glob_2Dsum( 'ice_rhg_vp', zv_res(:,:) )
          zvel_res_mean = 0.5_wp * ( zu_res_mean + zv_res_mean )
    
          ! --- Global mean kinetic energy per unit area (J/m2)
@@ -1601,7 +1601,7 @@ CONTAINS
 
          END_2D
                    
-         zmke = 0.5_wp * glob_sum( 'ice_rhg_vp', pmt(:,:) * e1e2t(:,:) * zvel2(:,:) ) / pglob_area
+         zmke = 0.5_wp * glob_2Dsum( 'ice_rhg_vp', pmt(:,:) * e1e2t(:,:) * zvel2(:,:) ) / pglob_area
    
       ENDIF ! kitinntot
 

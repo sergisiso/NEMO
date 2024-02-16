@@ -22,7 +22,6 @@ MODULE icethd_sal
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
    USE iom            ! I/O manager library
 
    IMPLICIT NONE
