@@ -24,7 +24,7 @@ MODULE icedia
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
+   USE lib_fortran    ! Fortran routines library
    USE timing         ! Timing
 
    IMPLICIT NONE
@@ -82,7 +82,7 @@ CONTAINS
       ENDIF
 
       IF( kt == nit000 ) THEN
-         r1_area = 1._wp / glob_sum( 'icedia', e1e2t(:,:) )
+         r1_area = 1._wp / glob_2Dsum( 'icedia', e1e2t(:,:) )
       ENDIF
 
       ztmp(:,:,:) = 0._wp ! should be better coded
@@ -119,7 +119,7 @@ CONTAINS
          &                       ztmp(:,:,16) = ( et_i(:,:) + et_s(:,:)                 - tem_loc_ini(:,:) ) * e1e2t(A2D(0)) ! heat content trend
       
       ! global sum
-      zbg(1:16) = glob_sum_vec( 'icedia', ztmp(:,:,1:16) )
+      zbg(1:16) = glob_2Dsum( 'icedia', ztmp(:,:,1:16) )
 
       ! change units for trends
       zbg(1) = zbg(1) * r1_rho0 * 1.e-9  * rDt_ice ! freshwater flux ice/snow-ocean (km3)

@@ -22,7 +22,6 @@ MODULE closea
    !
    USE diu_bulk    , ONLY: ln_diurnal_only            ! used for sanity check
    USE iom         , ONLY: iom_open, iom_get, iom_close, jpdom_global ! I/O routines
-   USE lib_fortran , ONLY: glob_sum                   ! fortran library
    USE lib_mpp     , ONLY: mpp_max, ctl_nam, ctl_stop ! MPP library
 
    IMPLICIT NONE

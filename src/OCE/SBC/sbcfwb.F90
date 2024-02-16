@@ -86,14 +86,13 @@ CONTAINS
       INTEGER, INTENT( in ) ::   kn_fwb   ! ocean time-step index
       INTEGER, INTENT( in ) ::   Kmm      ! ocean time level index
       !
-      INTEGER  ::   ios, inum, ikty, igrid       ! local integers
+      INTEGER  ::   ios, inum, ikty, igrid
       INTEGER  ::   ji, jj, istart, iend, jstart, jend
-      REAL(wp) ::   z_fwf, z_fwf_nsrf, zsum_fwf, zsum_erp         ! local scalars
-      REAL(wp) ::   zsurf_neg, zsurf_pos, zsurf_tospread          !   -      -
+      REAL(wp) ::   z_fwf, z_fwf_nsrf, zsum_fwf, zsum_erp, z_fwfprv  
+      REAL(wp) ::   zsurf_neg, zsurf_pos, zsurf_tospread
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztmsk_neg, ztmsk_pos, z_wgt ! 2D workspaces
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztmsk_tospread, zerp_cor    !   -      -
-      REAL(wp)   ,DIMENSION(1) ::   z_fwfprv  
-      COMPLEX(dp),DIMENSION(1) ::   y_fwfnow  
+      COMPLEX(dp) ::   y_fwfnow  
       !
       NAMELIST/namsbc_fwb/rn_fwb0, nn_fwb_voltype, ln_hvolg_var, rn_hvolg_amp, rn_hvolg_trd, nn_hvolg_mth
       !!----------------------------------------------------------------------
@@ -173,8 +172,8 @@ CONTAINS
 #if defined key_agrif
             ALLOCATE(agrif_tmp(Agrif_nb_fine_grids()+1))
             agrif_tmp(:) = HUGE(1._wp)                     ! Initialize to a big value
-            agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) ) ! Coarse grid value
-            CALL Agrif_step_child_adj(glob_sum_area_agrif)                    ! Get value over child grids
+            agrif_tmp(1) = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) ) ! Coarse grid value
+            CALL Agrif_step_child_adj(glob_2Dsum_area_agrif)                    ! Get value over child grids
             CALL mpp_min('sbcfwb', agrif_tmp(:)) ! Required with // sisters to populate the value of each grid on each processor
             area = SUM(agrif_tmp)                ! Sum over all grids
             IF (lwp) WRITE(numout,*) 'Domain area for each agrif grid (km**2):'
@@ -182,7 +181,7 @@ CONTAINS
                IF (lwp) WRITE(numout,*) '                                        ', igrid, agrif_tmp(igrid)/1000._wp/1000._wp
             END DO
 #else
-            area = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * smask0(:,:) )         ! interior global domain surface
+            area = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * smask0(:,:) )         ! interior global domain surface
 #endif
             IF (lwp) WRITE(numout,*) 'Total Domain area (km**2):', area/1000._wp/1000._wp
             !
@@ -198,7 +197,7 @@ CONTAINS
          ! isf cavities are excluded because it can feedback to the melting with generation of inhibition of plumes
          ! and in case of no melt, it can generate HSSW.
          !
-      ENDIF
+      ENDIF   ! nit000
 
 
          ! If needed, define the volume change to prescribe:
@@ -229,19 +228,15 @@ CONTAINS
                IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
                   SELECT CASE (nn_fwb_voltype)
                   CASE( 1 )
-                     z_fwfprv(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * (  emp(A2D(0)) - rnf(A2D(0))                & 
+                     z_fwfprv = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * (  emp(A2D(0)) - rnf(A2D(0))                & 
                                &                                      - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) & 
-                               &                                      - snwice_fmass(A2D(0)) ) )
-                     !y_fwfnow(1) = local_sum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) - snwice_fmass(A2D(0)) ) )
-                     !CALL mpp_delay_sum( 'sbcfwb', 'fwb', y_fwfnow(:), z_fwfprv(:), kt == nitend - nn_fsbc + 1 )
+                               &                                      - snwice_fmass(A2D(0)) ), cdelay = 'fwb1' )
                   CASE( 2 )
-                     z_fwfprv(1)  = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * (  emp(A2D(0)) - rnf(A2D(0))                & 
-                                &                                      - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ))
-                     !y_fwfnow(1) = local_sum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0))  ) )
-                     !CALL mpp_delay_sum( 'sbcfwb', 'fwb', y_fwfnow(:), z_fwfprv(:), kt == nitend - nn_fsbc + 1 )
+                     z_fwfprv  = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * (  emp(A2D(0)) - rnf(A2D(0))                & 
+                                &                                      - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ), cdelay = 'fwb1')
                   END SELECT
               ENDIF
-              emp_corr = emp_ext - z_fwfprv(1) / area
+              emp_corr = emp_ext - z_fwfprv / area
 #if defined key_agrif
             ELSE
                !
@@ -273,11 +268,11 @@ CONTAINS
                   agrif_tmp(:) = HUGE(1._wp)                   ! Initialize to a big value
                   SELECT CASE (nn_fwb_voltype)
                   CASE( 1 )
-                     agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ))
-                     CALL Agrif_step_child_adj(glob_sum_volume_ice_oce_agrif) 
+                     agrif_tmp(1) = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ))
+                     CALL Agrif_step_child_adj(glob_2Dsum_volume_ice_oce_agrif) 
                   CASE( 2 )
-                     agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ssh(A2D(0),Kmm))
-                     CALL Agrif_step_child_adj(glob_sum_volume_oce_agrif) 
+                     agrif_tmp(1) = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ssh(A2D(0),Kmm))
+                     CALL Agrif_step_child_adj(glob_2Dsum_volume_oce_agrif) 
                   END SELECT
                   CALL mpp_min('sbcfwb', agrif_tmp(:)) ! Required with // sisters to populate the value of each grid on each processor
                   a_fwb = SUM(agrif_tmp) * rho0 / area ! Sum over all grids
@@ -353,20 +348,20 @@ CONTAINS
                agrif_tmp(:) = HUGE(1._wp)                     ! Initialize to a big value
                SELECT CASE (nn_fwb_voltype)
                CASE( 1 )
-                  agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ))
-                  CALL Agrif_step_child_adj(glob_sum_volume_ice_oce_agrif) ! Get value over child grids
+                  agrif_tmp(1) = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ))
+                  CALL Agrif_step_child_adj(glob_2Dsum_volume_ice_oce_agrif) ! Get value over child grids
                CASE( 2 )
-                  agrif_tmp(1) = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ssh(A2D(0),Kmm) )
-                  CALL Agrif_step_child_adj(glob_sum_volume_oce_agrif)     ! Get value over child grids
+                  agrif_tmp(1) = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * tmask_agrif(A2D(0)) * ssh(A2D(0),Kmm) )
+                  CALL Agrif_step_child_adj(glob_2Dsum_volume_oce_agrif)     ! Get value over child grids
                END SELECT
                CALL mpp_min('sbcfwb', agrif_tmp(:)) ! Required with // sisters to populate the value of each grid on each processor
                a_fwb = SUM(agrif_tmp) ! Sum over all grids
 #else          
                SELECT CASE (nn_fwb_voltype)
                CASE( 1 )     
-                  a_fwb   = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ) )
+                  a_fwb   = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * ( ssh(A2D(0),Kmm) + snwice_mass_b(A2D(0)) * r1_rho0 ), cdelay = 'fwb2' )
                CASE( 2 )
-                  a_fwb   = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ssh(A2D(0),Kmm)  )
+                  a_fwb   = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * ssh(A2D(0),Kmm), cdelay = 'fwb2' )
                END SELECT
 #endif
                a_fwb = a_fwb * rho0 / area - hvolg_n * rho0
@@ -427,26 +422,26 @@ CONTAINS
             !                                                  ! fwf global mean (excluding ocean to ice/snow exchanges)
             SELECT CASE (nn_fwb_voltype)
             CASE( 1 )  
-               z_fwf     = -emp_ext + glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) - snwice_fmass(A2D(0)) ) ) / area
+               z_fwf     = -emp_ext + glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) - snwice_fmass(A2D(0)) ), cdelay = 'fwb3.1' ) / area
             CASE( 2 )
-               z_fwf     = -emp_ext + glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ) ) / area
+               z_fwf     = -emp_ext + glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ), cdelay = 'fwb3.1' ) / area
             END SELECT
             !            
             IF( z_fwf < 0._wp ) THEN         ! spread out over >0 erp area to increase evaporation
-               zsurf_pos = glob_sum( 'sbcfwb', e1e2t(A2D(0))*ztmsk_pos(:,:) )
+               zsurf_pos = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0))*ztmsk_pos(:,:), cdelay = 'fwb3.2' )
                zsurf_tospread      = zsurf_pos
                ztmsk_tospread(:,:) = ztmsk_pos(:,:)
             ELSE                             ! spread out over <0 erp area to increase precipitation
-               zsurf_neg = glob_sum( 'sbcfwb', e1e2t(A2D(0))*ztmsk_neg(:,:) )  ! Area filled by <0 and >0 erp 
+               zsurf_neg = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0))*ztmsk_neg(:,:), cdelay = 'fwb3.2' )  ! Area filled by <0 and >0 erp 
                zsurf_tospread      = zsurf_neg
                ztmsk_tospread(:,:) = ztmsk_neg(:,:)
             ENDIF
             !
-            zsum_fwf   = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * z_fwf )         ! fwf global mean over <0 or >0 erp area
+            zsum_fwf   = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * z_fwf, cdelay = 'fwb3.3' )         ! fwf global mean over <0 or >0 erp area
 !!gm :  zsum_fwf   = z_fwf * area   ???  it is right?  I think so....
             z_fwf_nsrf =  zsum_fwf / ( zsurf_tospread + rsmall )
             !                                                  ! weight to respect erp field 2D structure 
-            zsum_erp   = glob_sum( 'sbcfwb', ztmsk_tospread(:,:) * erp(:,:) * e1e2t(A2D(0)) )
+            zsum_erp   = glob_2Dsum( 'sbcfwb', ztmsk_tospread(:,:) * erp(:,:) * e1e2t(A2D(0)), cdelay = 'fwb3.3' )
             z_wgt(:,:) = ztmsk_tospread(:,:) * erp(:,:) / ( zsum_erp + rsmall )
             !                                                  ! final correction term to apply
             zerp_cor(:,:) = -1. * z_fwf_nsrf * zsurf_tospread * z_wgt(:,:)
@@ -481,26 +476,20 @@ CONTAINS
             !                                                  ! fwf global mean (excluding ocean to ice/snow exchanges)
             SELECT CASE (nn_fwb_voltype)
             CASE( 1 )
-               emp_corr = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
-                  &                                                      - snwice_fmass(A2D(0)) ) ) / area
+               y_fwfnow = local_2Dsum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
+                  &                                                      - snwice_fmass(A2D(0)) ) )
             CASE( 2 )
-               emp_corr = glob_sum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
-                  &                                                                             ) ) / area
+               y_fwfnow = local_2Dsum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ) )
             END SELECT
-!!st check with clem
-            ! clem: use y_fwfnow instead to improve performance? 
-            !y_fwfnow(1) = local_sum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
-            !   &                                                   - snwice_fmass(A2D(0)) ) )
             ! correction for ice sheet coupling testing (ie remove the excess through the surface)
             ! test impact on the melt as conservation correction made in depth
             ! test conservation level as sbcfwb is conserving
             ! avoid the model to blow up for large ssh drop (isomip OCEAN3 with melt switch off and uniform T/S)
             IF (ln_isfcpl .AND. ln_isfcpl_cons) THEN
-               emp_corr = emp_corr + glob_sum( 'sbcfwb',  e1e2t(A2D(0)) * risfcpl_cons_ssh(A2D(0)) * rho0 ) / area
-            !   y_fwfnow(1) = y_fwfnow(1) + local_sum( e1e2t(A2D(0)) * risfcpl_cons_ssh(A2D(0)) * rho0 )
+               y_fwfnow = local_2Dsum( e1e2t(A2D(0)) * risfcpl_cons_ssh(A2D(0)) * rho0, y_fwfnow )
             END IF
-            !CALL mpp_delay_sum( 'sbcfwb', 'fwb', y_fwfnow(:), z_fwfprv(:), kt == nitend - nn_fsbc + 1 )
-            !emp_corr = z_fwfprv(1) / area
+            CALL mpp_sum( 'sbcfwb', y_fwfnow, cdelay = 'fwb4' )
+            emp_corr = REAL(y_fwfnow, wp) / area
             !
             emp(A2D(0)) = emp(A2D(0)) - emp_corr                       * smask0(:,:) ! (Eq. 34 AD2015)
             qns(:,:)    = qns(:,:)    + emp_corr * rcp * sst_m(A2D(0)) * smask0(:,:) ! (Eq. 35 AD2015) ! use sst_m to avoid generation of any bouyancy fluxes
@@ -549,7 +538,7 @@ CONTAINS
 
 
 #if defined key_agrif
-   SUBROUTINE glob_sum_area_agrif()
+   SUBROUTINE glob_2Dsum_area_agrif()
       !!---------------------------------------------------------------------
       !!           ***  compute area with embedded zooms ***
       !!----------------------------------------------------------------------
@@ -558,11 +547,11 @@ CONTAINS
       IF (Agrif_root()) RETURN
 
       igrid = agrif_fixed() + 1
-      agrif_tmp(igrid) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:))
+      agrif_tmp(igrid) = glob_2Dsum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:))
 
-   END SUBROUTINE glob_sum_area_agrif   
+   END SUBROUTINE glob_2Dsum_area_agrif   
 
-   SUBROUTINE glob_sum_volume_ice_oce_agrif()
+   SUBROUTINE glob_2Dsum_volume_ice_oce_agrif()
       !!---------------------------------------------------------------------
       !!     ***  Compute volume with embedded zooms (ice + liquid)  ***
       !!----------------------------------------------------------------------
@@ -575,14 +564,14 @@ CONTAINS
          ! NB1: nn_ice is known on child grids at this stage
          ! NB2: we use "now" value for snwice_mass over child grids since it has not been updated yet at the time
          !      this call is made (e.g. when starting a new step over the parent grid)
-         agrif_tmp(igrid) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ( ssh(:,:,Kmm_a) + snwice_mass(:,:) * r1_rho0 ))
+         agrif_tmp(igrid) = glob_2Dsum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ( ssh(:,:,Kmm_a) + snwice_mass(:,:) * r1_rho0 ))
       ELSE
-         agrif_tmp(igrid) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ssh(:,:,Kmm_a) )
+         agrif_tmp(igrid) = glob_2Dsum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ssh(:,:,Kmm_a) )
       ENDIF
 
-   END SUBROUTINE glob_sum_volume_ice_oce_agrif 
+   END SUBROUTINE glob_2Dsum_volume_ice_oce_agrif 
 
-   SUBROUTINE glob_sum_volume_oce_agrif()
+   SUBROUTINE glob_2Dsum_volume_oce_agrif()
       !!---------------------------------------------------------------------
       !!       ***  Compute volume with embedded zooms (liquid only)  ***
       !!---------------------------------------------------------------------
@@ -591,9 +580,9 @@ CONTAINS
       IF (Agrif_root()) RETURN
 
       igrid = agrif_fixed() + 1
-      agrif_tmp(igrid) = glob_sum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ssh(:,:,Kmm_a) )
+      agrif_tmp(igrid) = glob_2Dsum( 'sbcfwb', e1e2t(:,:) * tmask_agrif(:,:) * ssh(:,:,Kmm_a) )
 
-   END SUBROUTINE glob_sum_volume_oce_agrif 
+   END SUBROUTINE glob_2Dsum_volume_oce_agrif 
 
 #endif
 

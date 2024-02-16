@@ -22,7 +22,6 @@ MODULE icethd_dh
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
 
    IMPLICIT NONE
    PRIVATE

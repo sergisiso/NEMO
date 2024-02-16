@@ -10,9 +10,20 @@ MODULE lib_fortran
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   glob_sum    : generic interface for global masked summation over
-   !!                 the interior domain for 1 or 2 2D or 3D arrays
-   !!                 it works only for T points
+   !!   local_2Dmin/max/sum : generic interface for 2D local min/max/sum
+   !!                         masked with tmask_i, for 2D or 3D arrays
+   !!                         it works only for T points
+   !!   local_3Dmin/max/sum : generic interface for 3D local min/max/sum
+   !!                         masked with tmask, for 3D or 4D arrays
+   !!                         it works only for T points
+   !!   glob_2Dmin/max/sum  : generic interface for 2D global min/max/sum
+   !!                         masked with tmask_i, for 2D or 3D arrays
+   !!                         it works only for T points
+   !!                         calls local_2Dmin/max/sum + mpp_min/max/sum
+   !!   glob_3Dmin/max/sum  : generic interface for 3D global min/max/sum
+   !!                         masked with tmask, for 3D or 4D arrays
+   !!                         it works only for T points
+   !!                         calls local_3Dmin/max/sum + mpp_min/max/sum
    !!   SIGN        : generic interface for SIGN to overwrite f95 behaviour
    !!                 of intrinsinc sign function
    !!----------------------------------------------------------------------
@@ -26,42 +37,70 @@ MODULE lib_fortran
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   glob_sum      ! used in many places (masked with tmask_i = ssmask * (excludes halo+duplicated points (NP folding)) )
-   PUBLIC   local_sum     ! used in trcrad, local operation before glob_sum_delay
+   PUBLIC   local_2Dmin, local_2Dmax, local_2Dsum
+   PUBLIC    glob_2Dmin,  glob_2Dmax,  glob_2Dsum 
+   PUBLIC   local_3Dmin, local_3Dmax, local_3Dsum
+   PUBLIC    glob_3Dmin,  glob_3Dmax,  glob_3Dsum 
    PUBLIC   sum3x3        ! used in trcrad, do a sum over 3x3 boxes
-   PUBLIC   DDPDD         ! also used in closea module
-   PUBLIC   glob_min, glob_max
-   PUBLIC   glob_sum_vec
-   PUBLIC   glob_min_vec, glob_max_vec
 #if defined key_nosignedzero
    PUBLIC SIGN
 #endif
 
-   INTERFACE glob_sum
-      MODULE PROCEDURE glob_sum_0d, glob_sum_1d, glob_sum_2d, glob_sum_3d
-   END INTERFACE
-   INTERFACE local_sum
-      MODULE PROCEDURE local_sum_2d, local_sum_3d
-   END INTERFACE
+   INTERFACE local_2Dmin
+      MODULE PROCEDURE local_2Dmin_2Din_sp, local_2Dmin_2Din_dp
+      MODULE PROCEDURE local_2Dmin_3Din_sp, local_2Dmin_3Din_dp
+   END INTERFACE local_2Dmin
+   INTERFACE local_3Dmin
+      MODULE PROCEDURE local_3Dmin_3Din_sp, local_3Dmin_3Din_dp
+      MODULE PROCEDURE local_3Dmin_4Din_sp, local_3Dmin_4Din_dp
+   END INTERFACE local_3Dmin
+   INTERFACE glob_2Dmin
+      MODULE PROCEDURE glob_2Dmin_2Din_sp, glob_2Dmin_2Din_dp
+      MODULE PROCEDURE glob_2Dmin_3Din_sp, glob_2Dmin_3Din_dp
+   END INTERFACE glob_2Dmin
+   INTERFACE glob_3Dmin
+      MODULE PROCEDURE glob_3Dmin_3Din_sp, glob_3Dmin_3Din_dp
+      MODULE PROCEDURE glob_3Dmin_4Din_sp, glob_3Dmin_4Din_dp
+   END INTERFACE glob_3Dmin
+   
+   INTERFACE local_2Dmax
+      MODULE PROCEDURE local_2Dmax_2Din_sp, local_2Dmax_2Din_dp
+      MODULE PROCEDURE local_2Dmax_3Din_sp, local_2Dmax_3Din_dp
+   END INTERFACE local_2Dmax
+   INTERFACE local_3Dmax
+      MODULE PROCEDURE local_3Dmax_3Din_sp, local_3Dmax_3Din_dp
+      MODULE PROCEDURE local_3Dmax_4Din_sp, local_3Dmax_4Din_dp
+   END INTERFACE local_3Dmax
+   INTERFACE glob_2Dmax
+      MODULE PROCEDURE glob_2Dmax_2Din_sp, glob_2Dmax_2Din_dp
+      MODULE PROCEDURE glob_2Dmax_3Din_sp, glob_2Dmax_3Din_dp
+   END INTERFACE glob_2Dmax
+   INTERFACE glob_3Dmax
+      MODULE PROCEDURE glob_3Dmax_3Din_sp, glob_3Dmax_3Din_dp
+      MODULE PROCEDURE glob_3Dmax_4Din_sp, glob_3Dmax_4Din_dp
+   END INTERFACE glob_3Dmax
+
+   INTERFACE local_2Dsum
+      MODULE PROCEDURE local_2Dsum_2Din_sp, local_2Dsum_2Din_dp
+      MODULE PROCEDURE local_2Dsum_3Din_sp, local_2Dsum_3Din_dp
+   END INTERFACE local_2Dsum
+   INTERFACE local_3Dsum
+      MODULE PROCEDURE local_3Dsum_3Din_sp, local_3Dsum_3Din_dp
+      MODULE PROCEDURE local_3Dsum_4Din_sp, local_3Dsum_4Din_dp
+   END INTERFACE local_3Dsum
+   INTERFACE glob_2Dsum
+      MODULE PROCEDURE glob_2Dsum_2Din_sp, glob_2Dsum_2Din_dp
+      MODULE PROCEDURE glob_2Dsum_3Din_sp, glob_2Dsum_3Din_dp
+   END INTERFACE glob_2Dsum
+   INTERFACE glob_3Dsum
+      MODULE PROCEDURE glob_3Dsum_3Din_sp, glob_3Dsum_3Din_dp
+      MODULE PROCEDURE glob_3Dsum_4Din_sp, glob_3Dsum_4Din_dp
+   END INTERFACE glob_3Dsum
+
    INTERFACE sum3x3
       MODULE PROCEDURE sum3x3_2d, sum3x3_3d
-   END INTERFACE
-   INTERFACE glob_min
-      MODULE PROCEDURE glob_min_2d, glob_min_3d
-   END INTERFACE
-   INTERFACE glob_max
-      MODULE PROCEDURE glob_max_2d, glob_max_3d
-   END INTERFACE
-   INTERFACE glob_sum_vec
-      MODULE PROCEDURE glob_sum_vec_3d, glob_sum_vec_4d
-   END INTERFACE
-   INTERFACE glob_min_vec
-      MODULE PROCEDURE glob_min_vec_3d, glob_min_vec_4d
-   END INTERFACE
-   INTERFACE glob_max_vec
-      MODULE PROCEDURE glob_max_vec_3d, glob_max_vec_4d
-   END INTERFACE
-
+   END INTERFACE sum3x3
+   
 #if defined key_nosignedzero
    INTERFACE SIGN
       MODULE PROCEDURE SIGN_SCALAR
@@ -76,74 +115,127 @@ MODULE lib_fortran
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
-
-#  define GLOBSUM_CODE
-#     define DIM_0d
+/**/
+#  define LOCAL_GLOBAL
+/**/
+#   define OPERMIN
+#    define REALSP_TYPE
+#     define XDOPER 2
+#      define XDIN 2
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 3
 #        include "lib_fortran_generic.h90"
-#     undef DIM_0d
-#     define DIM_1d
+#      undef  XDIN
+#     undef  XDOPER
+#     define XDOPER 3
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 4
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef XDOPER
+#    undef  REALSP_TYPE
+#    define REALDP_TYPE
+#     define XDOPER 2
+#      define XDIN 2
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef  XDOPER
+#     define XDOPER 3
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 4
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef  XDOPER
+#    undef  REALDP_TYPE
+#   undef OPERMIN
+/**/
+#   define OPERMAX
+#    define REALSP_TYPE
+#     define XDOPER 2
+#      define XDIN 2
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 3
 #        include "lib_fortran_generic.h90"
-#     undef DIM_1d
-#     define DIM_2d
+#      undef  XDIN
+#     undef  XDOPER
+#     define XDOPER 3
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 4
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef XDOPER
+#    undef  REALSP_TYPE
+#    define REALDP_TYPE
+#     define XDOPER 2
+#      define XDIN 2
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef  XDOPER
+#     define XDOPER 3
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 4
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef  XDOPER
+#    undef  REALDP_TYPE
+#   undef OPERMAX
+/**/
+#   define OPERSUM
+#    define REALSP_TYPE
+#     define XDOPER 2
+#      define XDIN 2
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 3
 #        include "lib_fortran_generic.h90"
-#     undef DIM_2d
-#     define DIM_3d
-#        include "lib_fortran_generic.h90"
-#     undef DIM_3d
-#  define LOCALONLY
-#     define DIM_2d
-#        include "lib_fortran_generic.h90"
-#     undef DIM_2d
-#     define DIM_3d
-#        include "lib_fortran_generic.h90"
-#     undef DIM_3d
-#  undef LOCALONLY
-#  define VEC
-#     define DIM_3d
-#        include "lib_fortran_generic.h90"
-#     undef DIM_3d
-#     define DIM_4d
-#        include "lib_fortran_generic.h90"
-#     undef DIM_4d
-#  undef VEC
-#  undef GLOBSUM_CODE
-
-#  define GLOBMINMAX_CODE
-#     define DIM_2d
-#        define OPERATION_GLOBMIN
-#           include "lib_fortran_generic.h90"
-#        undef OPERATION_GLOBMIN
-#        define OPERATION_GLOBMAX
-#           include "lib_fortran_generic.h90"
-#        undef OPERATION_GLOBMAX
-#     undef DIM_2d
-#     define DIM_3d
-#        define OPERATION_GLOBMIN
-#           include "lib_fortran_generic.h90"
-#        undef OPERATION_GLOBMIN
-#        define OPERATION_GLOBMAX
-#           include "lib_fortran_generic.h90"
-#        undef OPERATION_GLOBMAX
-#     undef DIM_3
-#  define VEC
-#     define DIM_3d
-#        define OPERATION_GLOBMIN
-#           include "lib_fortran_generic.h90"
-#        undef OPERATION_GLOBMIN
-#        define OPERATION_GLOBMAX
-#           include "lib_fortran_generic.h90"
-#        undef OPERATION_GLOBMAX
-#     undef DIM_3d
-#     define DIM_4d
-#        define OPERATION_GLOBMIN
-#           include "lib_fortran_generic.h90"
-#        undef OPERATION_GLOBMIN
-#        define OPERATION_GLOBMAX
-#           include "lib_fortran_generic.h90"
-#        undef OPERATION_GLOBMAX
-#     undef DIM_4d
-#  undef VEC
-#  undef GLOBMINMAX_CODE
+#      undef  XDIN
+#     undef  XDOPER
+#     define XDOPER 3
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 4
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef XDOPER
+#    undef  REALSP_TYPE
+#    define REALDP_TYPE
+#     define XDOPER 2
+#      define XDIN 2
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef  XDOPER
+#     define XDOPER 3
+#      define XDIN 3
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#      define XDIN 4
+#       include "lib_fortran_generic.h90"
+#      undef  XDIN
+#     undef  XDOPER
+#    undef  REALDP_TYPE
+#   undef OPERSUM
+/**/
+#  undef  LOCAL_GLOBAL
 
 !                          ! FUNCTION sum3x3 !
 
@@ -212,40 +304,6 @@ CONTAINS
 
    END SUBROUTINE sum3x3_3d
 
-   
-   ELEMENTAL SUBROUTINE DDPDD( ydda, yddb )
-      !!----------------------------------------------------------------------
-      !!               ***  ROUTINE DDPDD ***
-      !!
-      !! ** Purpose : Add a scalar element to a sum
-      !!
-      !!
-      !! ** Method  : The code uses the compensated summation with doublet
-      !!              (sum,error) emulated useing complex numbers. ydda is the
-      !!               scalar to add to the summ yddb
-      !!
-      !! ** Action  : This does only work for MPI.
-      !!
-      !! References : Using Acurate Arithmetics to Improve Numerical
-      !!              Reproducibility and Sability in Parallel Applications
-      !!              Yun HE and Chris H. Q. DING, Journal of Supercomputing 18, 259-277, 2001
-      !!----------------------------------------------------------------------
-      COMPLEX(dp), INTENT(in   ) ::   ydda
-      COMPLEX(dp), INTENT(inout) ::   yddb
-      !
-      REAL(dp) :: zerr, zt1, zt2  ! local work variables
-      !!-----------------------------------------------------------------------
-      !
-      ! Compute ydda + yddb using Knuth's trick.
-      zt1  = REAL(ydda) + REAL(yddb)
-      zerr = zt1 - REAL(ydda)
-      zt2  = ( (REAL(yddb) - zerr) + (REAL(ydda) - (zt1 - zerr)) )   &
-         &   + AIMAG(ydda)         + AIMAG(yddb)
-      !
-      ! The result is t1 + t2, after normalization.
-      yddb = CMPLX( zt1 + zt2, zt2 - ((zt1 + zt2) - zt1), dp )
-      !
-   END SUBROUTINE DDPDD
 
 #if defined key_nosignedzero
    !!----------------------------------------------------------------------

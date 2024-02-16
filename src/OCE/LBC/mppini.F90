@@ -97,6 +97,8 @@ CONTAINS
       l_SelfPerio(5:8) = l_Iperio .AND. l_Jperio   ! corners bi-periodicity by itself
       l_IdoNFold = l_NFold                         ! is this process doing North fold?
       !
+      CALL init_delay()
+      !
       CALL init_doloop                       ! set start/end indices or do-loop depending on the halo width value (nn_hls)
       CALL init_locglo                       ! define now functions needed to convert indices from/to global to/from local domains
       !
@@ -164,8 +166,10 @@ CONTAINS
            &             ln_tra_dmp, ln_dyn3d_dmp, rn_time_dmp, rn_time_dmp_out, &
            &             cn_ice, nn_ice_dta,                                     &
            &             ln_vol, nn_volctl, nn_rimwidth
-      NAMELIST/nammpp/ jpni, jpnj, nn_hls, ln_nnogather, ln_listonly, nn_comm
+      NAMELIST/nammpp/ jpni, jpnj, nn_hls, ln_nnogather, ln_mppdelay, ln_listonly, nn_comm
       !!----------------------------------------------------------------------
+      !
+      CALL init_delay()
       !
       llwrtlay = lwm .OR. sn_cfctl%l_layout
       !
@@ -191,6 +195,7 @@ CONTAINS
             WRITE(numout,*) '      avoid use of mpi_allgather at the north fold  ln_nnogather = ', ln_nnogather
             WRITE(numout,*) '      halo width (applies to both rows and columns)       nn_hls = ', nn_hls
             WRITE(numout,*) '      choice of communication method                     nn_comm = ', nn_comm
+            WRITE(numout,*) '      use delayed global communications?             ln_mppdelay = ', ln_mppdelay
       ENDIF
       !
       IF( nn_comm == 0 ) THEN

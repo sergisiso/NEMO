@@ -27,8 +27,6 @@ MODULE zdfric
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
-   USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
-
 
    IMPLICIT NONE
    PRIVATE

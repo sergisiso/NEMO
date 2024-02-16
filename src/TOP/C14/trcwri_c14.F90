@@ -11,9 +11,10 @@ MODULE trcwri_c14
    !! trc_wri_c14   :  outputs of ventilation fields
    !!----------------------------------------------------------------------
    USE oce_trc       ! Ocean variables
-   USE trc         ! passive tracers common variables 
-   USE iom         ! I/O manager 
+   USE trc           ! passive tracers common variables 
+   USE iom           ! I/O manager 
    USE sms_c14
+   USE lib_fortran   ! Fortran routines library
 
    IMPLICIT NONE
    PRIVATE
@@ -107,7 +108,7 @@ CONTAINS
             z2d1(ji,jj,4) = exch_co2(ji,jj) * e1e2t(ji,jj)
          END_2D
          !
-         ztemp(1:4) = glob_sum_vec( 'trcwri_c14', z2d1(:,:,1:4)  ) 
+         ztemp(1:4) = glob_2Dsum( 'trcwri_c14', z2d1(:,:,1:4)  ) 
          ! 
          CALL iom_put( "AtmC14" , ( ztemp(2) / ztemp(1) - 1._wp ) * 1000._wp )   ! Global atmospheric DeltaC14 [permil]
          CALL iom_put( "K_C14" , rsiyea * ztemp(3) / ztemp(1) )   ! global mean exchange velocity for C14/C ratio [m/yr]
@@ -116,7 +117,7 @@ CONTAINS
          DEALLOCATE( z2d1 )
       END IF
       IF( iom_use("C14Inv") ) THEN
-         ztemp = glob_sum( 'trcwri_c14', tr(:,:,:,jp_c14,Kmm) * cvol(:,:,:) )
+         ztemp = glob_3Dsum( 'trcwri_c14', tr(:,:,:,jp_c14,Kmm) * cvol(:,:,:) )
          ztemp = atomc14 * xdicsur * ztemp
          CALL iom_put( "C14Inv", ztemp )  !  Radiocarbon ocean inventory [10^26 atoms]
       END IF

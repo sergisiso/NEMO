@@ -11,7 +11,6 @@ MODULE ocealb
    USE phycst         ! physical constants
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)  
 
    IMPLICIT NONE
    PRIVATE

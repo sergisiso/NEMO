@@ -121,7 +121,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       !
       ALLOCATE( ze3divh(jpi,jpj,jpkm1) ) ! jpkm1 -> avoid lbc_lnk on jpk that is not defined
-      ALLOCATE( zk_t(A2D(1)), zk_u(A2D(0)), zk_v(A2D(0)), zu0_sd(A2D(1)), zv0_sd(A2D(1)) )
+      ALLOCATE( zk_t(A2D(1)), zk_u(A2D(1)), zk_v(A2D(1)), zu0_sd(A2D(1)), zv0_sd(A2D(1)) )
       zk_t    (:,:) = 0._wp
       zk_u    (:,:) = 0._wp
       zk_v    (:,:) = 0._wp
@@ -137,7 +137,7 @@ CONTAINS
       !                sdtrp is the norm of Stokes transport
       !
          zfac = 0.166666666667_wp
-         DO_2D( 0, 1, 0, 1 ) ! In the deep-water limit we have ke = ||ust0||/( 6 * ||transport|| )
+         DO_2D( 1, 1, 1, 1 ) ! In the deep-water limit we have ke = ||ust0||/( 6 * ||transport|| )
             zsp0          = SQRT( ut0sd(ji,jj)*ut0sd(ji,jj) + vt0sd(ji,jj)*vt0sd(ji,jj) ) !<-- norm of Surface Stokes drift
             tsd2d(ji,jj)  = zsp0
             IF( cpl_tusd .AND. cpl_tvsd ) THEN  !stokes transport is provided in coupled mode
@@ -152,7 +152,7 @@ CONTAINS
          !
          DO jk = 1, jpkm1
             zfac = 0.166666666667_wp
-            DO_2D( 0, 1, 0, 1 ) !++ Compute the FV Breivik 2016 function at T-points
+            DO_2D( 1, 1, 1, 1 ) !++ Compute the FV Breivik 2016 function at T-points
                ! zInt at jk
                zfac       = - 2._wp * zk_t (ji,jj) * gdepw(ji,jj,jk,Kmm)  !<-- zfac should be negative definite
                ztemp      = EXP ( zfac )
@@ -172,7 +172,7 @@ CONTAINS
                zu0_sd(ji,jj) = ut0sd(ji,jj) * zsp0 * ztemp * tmask(ji,jj,jk)
                zv0_sd(ji,jj) = vt0sd(ji,jj) * zsp0 * ztemp * tmask(ji,jj,jk)
             END_2D
-            DO_2D( 0, 0, 0, 0 ) ! ++ Interpolate at U/V points
+            DO_2D( 1, 0, 1, 0 ) ! ++ Interpolate at U/V points
                zfac          =  1.0_wp / e3u(ji  ,jj,jk,Kmm)
                usd(ji,jj,jk) =  0.5_wp * zfac * ( zu0_sd(ji,jj)+zu0_sd(ji+1,jj) ) * umask(ji,jj,jk)
                zfac          =  1.0_wp / e3v(ji  ,jj,jk,Kmm)
@@ -182,7 +182,7 @@ CONTAINS
          !
       ELSE
          zfac = 2.0_wp * rpi / 16.0_wp
-         DO_2D( 0, 1, 0, 1 )
+         DO_2D( 1, 1, 1, 1 )
             ! Stokes drift velocity estimated from Hs and Tmean
             ztransp = zfac * hsw(ji,jj)*hsw(ji,jj) / MAX( wmp(ji,jj), 0.0000001_wp )
             ! Stokes surface speed
@@ -190,7 +190,7 @@ CONTAINS
             ! Wavenumber scale
             zk_t(ji,jj) = ABS( tsd2d(ji,jj) ) / MAX( ABS( 5.97_wp*ztransp ), 0.0000001_wp )
          END_2D
-         DO_2D( 0, 0, 0, 0 )          ! exp. wave number & Stokes drift velocity at u- & v-points
+         DO_2D( 1, 0, 1, 0 )          ! exp. wave number & Stokes drift velocity at u- & v-points
             zk_u(ji,jj) = 0.5_wp * ( zk_t(ji,jj) + zk_t(ji+1,jj) )
             zk_v(ji,jj) = 0.5_wp * ( zk_t(ji,jj) + zk_t(ji,jj+1) )
             !
@@ -200,7 +200,7 @@ CONTAINS
 
       !                       !==  horizontal Stokes Drift 3D velocity  ==!
 
-         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         DO_3D( 1, 0, 1, 0, 1, jpkm1 )
             zdep_u = 0.5_wp * ( gdept(ji,jj,jk,Kmm) + gdept(ji+1,jj,jk,Kmm) )
             zdep_v = 0.5_wp * ( gdept(ji,jj,jk,Kmm) + gdept(ji,jj+1,jk,Kmm) )
             !
@@ -214,20 +214,17 @@ CONTAINS
             vsd(ji,jj,jk) = zda_v * zv0_sd(ji,jj) * vmask(ji,jj,jk)
          END_3D
       ENDIF
-
-      CALL lbc_lnk( 'sbcwave', usd, 'U', -1.0_wp, vsd, 'V', -1.0_wp )
-
       !
       !                       !==  vertical Stokes Drift 3D velocity  ==!
       !
-      DO_3D( 0, 1, 0, 1, 1, jpkm1 )    ! Horizontal e3*divergence
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )    ! Horizontal e3*divergence
          ze3divh(ji,jj,jk) = (  ( e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * usd(ji  ,jj,jk)     &   ! add () for NP repro
             &                   - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * usd(ji-1,jj,jk) )   &
             &                 + ( e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vsd(ji,jj  ,jk)     &
             &                   - e1v(ji,jj-1) * e3v(ji,jj-1,jk,Kmm) * vsd(ji,jj-1,jk) ) ) * r1_e1e2t(ji,jj)
       END_3D
       !
-      CALL lbc_lnk( 'sbcwave', ze3divh, 'T', 1.0_wp )
+      CALL lbc_lnk( 'sbcwave', ze3divh, 'T', 1.0_wp, usd, 'U', -1.0_wp, vsd, 'V', -1.0_wp )
       !
       IF( ln_linssh ) THEN   ;   ik = 1   ! none zero velocity through the sea surface
       ELSE                   ;   ik = 2   ! w=0 at the surface (set one for all in sbc_wave_init)

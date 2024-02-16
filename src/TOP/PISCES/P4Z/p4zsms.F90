@@ -26,6 +26,7 @@ MODULE p4zsms
    USE sedmodel        ! Sediment model
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
    USE prtctl          ! print control for debugging
+   USE lib_fortran     ! Fortran routines library
 
    IMPLICIT NONE
    PRIVATE
@@ -488,10 +489,10 @@ CONTAINS
          IF( .NOT. ln_c1d ) THEN      ! ORCA configuration (not 1D) !
             !                                                ! --------------------------- !
             ! set total alkalinity, phosphate, nitrate & silicate
-            zarea          = 1._wp / glob_sum( 'p4zsms', cvol(:,:,:) ) * 1e6              
+            zarea          = 1._wp / glob_3Dsum( 'p4zsms', cvol(:,:,:) ) * 1e6              
 
-            zalksumn = glob_sum( 'p4zsms', tr(:,:,:,jptal,Kmm) * cvol(:,:,:)  ) * zarea
-            zno3sumn = glob_sum( 'p4zsms', tr(:,:,:,jpno3,Kmm) * cvol(:,:,:)  ) * zarea * rno3
+            zalksumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jptal,Kmm) * cvol(:,:,:)  ) * zarea
+            zno3sumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jpno3,Kmm) * cvol(:,:,:)  ) * zarea * rno3
  
             ! Correct the trn mean content of alkalinity
             IF(lwp) WRITE(numout,*) '       TALKN mean : ', zalksumn
@@ -502,8 +503,8 @@ CONTAINS
             tr(:,:,:,jpno3,Kmm) = tr(:,:,:,jpno3,Kmm) * no3mean / zno3sumn
 
             IF ( ln_p4z .OR. ln_p5z ) THEN
-               zpo4sumn = glob_sum( 'p4zsms', tr(:,:,:,jppo4,Kmm) * cvol(:,:,:)  ) * zarea * po4r
-               zsilsumn = glob_sum( 'p4zsms', tr(:,:,:,jpsil,Kmm) * cvol(:,:,:)  ) * zarea
+               zpo4sumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jppo4,Kmm) * cvol(:,:,:)  ) * zarea * po4r
+               zsilsumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jpsil,Kmm) * cvol(:,:,:)  ) * zarea
 
                ! Correct the trn mean content of PO4
                IF(lwp) WRITE(numout,*) '       PO4N  mean : ', zpo4sumn
@@ -516,8 +517,8 @@ CONTAINS
             !
             !
             IF( .NOT. ln_top_euler ) THEN
-               zalksumb = glob_sum( 'p4zsms', tr(:,:,:,jptal,Kbb) * cvol(:,:,:)  ) * zarea
-               zno3sumb = glob_sum( 'p4zsms', tr(:,:,:,jpno3,Kbb) * cvol(:,:,:)  ) * zarea * rno3
+               zalksumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jptal,Kbb) * cvol(:,:,:)  ) * zarea
+               zno3sumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jpno3,Kbb) * cvol(:,:,:)  ) * zarea * rno3
  
                IF(lwp) WRITE(numout,*) ' '
                ! Correct the trb mean content of alkalinity
@@ -529,8 +530,8 @@ CONTAINS
                tr(:,:,:,jpno3,Kbb) = tr(:,:,:,jpno3,Kbb) * no3mean / zno3sumb
 
                IF ( ln_p4z .OR. ln_p5z ) THEN
-                  zpo4sumb = glob_sum( 'p4zsms', tr(:,:,:,jppo4,Kbb) * cvol(:,:,:)  ) * zarea * po4r
-                  zsilsumb = glob_sum( 'p4zsms', tr(:,:,:,jpsil,Kbb) * cvol(:,:,:)  ) * zarea
+                  zpo4sumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jppo4,Kbb) * cvol(:,:,:)  ) * zarea * po4r
+                  zsilsumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jpsil,Kbb) * cvol(:,:,:)  ) * zarea
 
                   ! Correct the trb mean content of PO4
                   IF(lwp) WRITE(numout,*) '       PO4B  mean : ', zpo4sumb
@@ -678,9 +679,9 @@ CONTAINS
         ENDIF
         !
         IF ( ln_p2z ) THEN
-           zchk(1:5) = glob_sum_vec( 'p4zsms', zw3d(:,:,:,1:5)  )  
+           zchk(1:5) = glob_3Dsum( 'p4zsms', zw3d(:,:,:,1:5)  )  
         ELSE
-           zchk(1:7) = glob_sum_vec( 'p4zsms', zw3d(:,:,:,1:7)  )  
+           zchk(1:7) = glob_3Dsum( 'p4zsms', zw3d(:,:,:,1:7)  )  
         ENDIF
         !
         zno3budget = zchk(1) / areatot

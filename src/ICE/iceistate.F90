@@ -31,7 +31,7 @@ MODULE iceistate
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
+   USE lib_fortran    ! Fortran routines library
    USE fldread        ! read input fields
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
 
@@ -414,8 +414,8 @@ CONTAINS
          !
       ELSE                              ! levitating sea-ice: deplete the initial ssh over the whole domain
          !                              ! ------------------
-         area    = glob_sum( 'iceistate', e1e2t(:,:) * ssmask(:,:) )
-         zsshadj = glob_sum( 'iceistate', snwice_mass(:,:) * r1_rho0 * e1e2t(:,:) ) / area
+         area    = glob_2Dsum( 'iceistate', e1e2t(:,:) * ssmask(:,:) )
+         zsshadj = glob_2Dsum( 'iceistate', snwice_mass(:,:) * r1_rho0 * e1e2t(:,:) ) / area
 #if defined key_agrif
          ! Override ssh adjustment in nested domains by the root-domain ssh adjustment;
          ! store the adjustment value in a global module variable to make it retrievable in nested domains

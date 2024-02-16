@@ -161,7 +161,7 @@ CONTAINS
          rsumbuf(1) = floating_mass_start
          rsumbuf(2) = bergs_mass_start
          rsumbuf(3) = bits_mass_start
-         CALL mpp_sum( 'icbdia', rsumbuf(1:3), 3 )
+         CALL mpp_sum( 'icbdia', rsumbuf(1:3) )
          floating_mass_start = rsumbuf(1)
          bergs_mass_start = rsumbuf(2)
          bits_mass_start = rsumbuf(3)
@@ -236,7 +236,7 @@ CONTAINS
             rsumbuf(22) = zgrdd_berg_mass
             rsumbuf(23) = zgrdd_bits_mass
             !
-            CALL mpp_sum( 'icbdia', rsumbuf(1:23), 23)
+            CALL mpp_sum( 'icbdia', rsumbuf(1:23) )
             !
             stored_end                = rsumbuf( 1)
             stored_heat_end           = rsumbuf( 2)
@@ -269,7 +269,7 @@ CONTAINS
             DO ik = 1, nclasses
                nsumbuf(4+ik) = nbergs_calved_by_class(ik)
             END DO
-            CALL mpp_sum( 'icbdia', nsumbuf(1:nclasses+4), nclasses+4 )
+            CALL mpp_sum( 'icbdia', nsumbuf(1:nclasses+4) )
             !
             nbergs_end            = nsumbuf(1)
             nbergs_calved         = nsumbuf(2)

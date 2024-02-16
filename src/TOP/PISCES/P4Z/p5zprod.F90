@@ -21,6 +21,7 @@ MODULE p5zprod
    USE p5zlim          !  Co-limitations of differents nutrients
    USE prtctl          !  print control for debugging
    USE iom             !  I/O manager
+   USE lib_fortran     ! Fortran routines library
 
    IMPLICIT NONE
    PRIVATE
@@ -574,7 +575,7 @@ CONTAINS
     ! Output of the diagnostics
     ! Total primary production per year
     IF( l_dia_pp )  &
-        & tpp = glob_sum( 'p5zprod',  ( zprorcan(:,:,:) + zprorcad(:,:,:) + zprorcap(:,:,:)     &
+        & tpp = glob_3Dsum( 'p5zprod',  ( zprorcan(:,:,:) + zprorcad(:,:,:) + zprorcap(:,:,:)     &
               &            - zpronmaxn(:,:,:) * ( xpsino3 * xnanono3(:,:,:) + xpsinh4 * xnanonh4(:,:,:) )   &
               &            - zpronmaxd(:,:,:) * ( xpsino3 * xdiatno3(:,:,:) + xpsinh4 * xdiatnh4(:,:,:) )   &
               &            - zpronmaxp(:,:,:) * ( xpsino3 * xpicono3(:,:,:) + xpsinh4 * xpiconh4(:,:,:) ) ) &

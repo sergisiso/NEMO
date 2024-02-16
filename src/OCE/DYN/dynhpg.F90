@@ -46,6 +46,7 @@ MODULE dynhpg
    USE eosbn2          ! compute density
    USE timing          ! Timing
    USE iom
+   USE lib_fortran     ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

@@ -10,7 +10,6 @@ MODULE seddsrjac
    USE sedini
    USE seddsr
    USE lib_mpp         ! distribued memory computing library
-   USE lib_fortran
 
    IMPLICIT NONE
    PRIVATE

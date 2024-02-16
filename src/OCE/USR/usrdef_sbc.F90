@@ -20,7 +20,7 @@ MODULE usrdef_sbc
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! distribued memory computing library
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
-   USE lib_fortran    !
+   USE lib_fortran    ! for glob_2Dsum
 
    IMPLICIT NONE
    PRIVATE
@@ -132,8 +132,8 @@ CONTAINS
          ENDIF
       END_2D
 
-      zsumemp = GLOB_SUM( 'usrdef_sbc', emp  (:,:)   ) 
-      zsurf   = GLOB_SUM( 'usrdef_sbc', tmask(:,:,1) ) 
+      zsumemp = glob_2Dsum( 'usrdef_sbc', emp  (:,:)   ) 
+      zsurf   = glob_2Dsum( 'usrdef_sbc', tmask(:,:,1) ) 
       zsumemp = zsumemp / zsurf         ! Default GYRE configuration
 
       ! freshwater (mass flux) and update of qns with heat content of emp

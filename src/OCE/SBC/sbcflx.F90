@@ -162,7 +162,7 @@ CONTAINS
          !
          !! Yona : add global qfrz to qns
          !!IF( ln_frz .AND. ln_frzglob ) THEN
-         !!   zqfrz = glob_sum(qfrz_m(:,:) * e1t(A2D(0)) * e2t(A2D(0)) * smask0(:,:)) / glob_sum(e1t(A2D(0)) * e2t(A2D(0)) * smask0(:,:))
+         !!   zqfrz = glob_2Dsum(qfrz_m(:,:) * e1t(A2D(0)) * e2t(A2D(0)) * smask0(:,:)) / glob_2Dsum(e1t(A2D(0)) * e2t(A2D(0)) * smask0(:,:))
          !!   qns(:,:) = ( qns(:,:) - zqfrz ) * smask0(:,:)
          !!ENDIF
          !!Yona

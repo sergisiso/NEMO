@@ -24,7 +24,6 @@ MODULE icedyn_adv_pra
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
    USE lbclnk         ! lateral boundary conditions (or mpp links)
 
    IMPLICIT NONE
@@ -91,7 +90,7 @@ CONTAINS
       INTEGER  ::   icycle                   ! number of sub-timestep for the advection
       REAL(wp) ::   zdt, z1_dt               !   -      -
       REAL(wp) ::   zati2
-      REAL(wp), DIMENSION(1)              ::   zcflprv, zcflnow   ! for global communication
+      REAL(wp) ::   zcfl
       REAL(wp), DIMENSION(A2D(0))         ::   zati1
       REAL(wp), DIMENSION(jpi,jpj)        ::   zudy, zvdx
       REAL(wp), DIMENSION(jpi,jpj)        ::   zh_i, zh_s, zhi_max, zhs_max, zhip_max, zsi_max
@@ -118,15 +117,14 @@ CONTAINS
       ! --- If ice drift is too fast, use  subtime steps for advection (CFL test for stability) --- !
       !        Note: the advection split is applied at the next time-step in order to avoid blocking global comm.
       !              this should not affect too much the stability
-      zcflnow(1) =                  MAXVAL( ABS( pu_ice(:,:) ) * rDt_ice * r1_e1u(:,:) )
-      zcflnow(1) = MAX( zcflnow(1), MAXVAL( ABS( pv_ice(:,:) ) * rDt_ice * r1_e2v(:,:) ) )
+      zcfl =            MAXVAL( ABS( pu_ice(:,:) ) * rDt_ice * r1_e1u(:,:) )
+      zcfl = MAX( zcfl, MAXVAL( ABS( pv_ice(:,:) ) * rDt_ice * r1_e2v(:,:) ) )
 
-      ! non-blocking global communication send zcflnow and receive zcflprv
-      CALL mpp_delay_max( 'icedyn_adv_pra', 'cflice', zcflnow(:), zcflprv(:), kt == nitend - nn_fsbc + 1 )
+      CALL mpp_max( 'icedyn_adv_pra', zcfl, cdelay = 'cflice' )
 
-      IF    ( zcflprv(1) > 1.5 ) THEN   ;   icycle = 3
-      ELSEIF( zcflprv(1) >  .5 ) THEN   ;   icycle = 2
-      ELSE                              ;   icycle = 1
+      IF    ( zcfl > 1.5 ) THEN   ;   icycle = 3
+      ELSEIF( zcfl >  .5 ) THEN   ;   icycle = 2
+      ELSE                        ;   icycle = 1
       ENDIF
 !!$      !!test clem
 !!$      icycle=3

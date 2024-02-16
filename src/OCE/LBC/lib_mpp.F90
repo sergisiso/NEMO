@@ -62,11 +62,12 @@ MODULE lib_mpp
    IMPLICIT NONE
    PRIVATE
    !
+   PUBLIC   DDPDD
    PUBLIC   ctl_stop, ctl_warn, ctl_opn, ctl_nam, load_nml
    PUBLIC   mpp_start, mppstop, mppsync, mpp_comm_free
    PUBLIC   mpp_ini_northgather
    PUBLIC   mpp_min, mpp_max, mpp_sum, mpp_minloc, mpp_maxloc
-   PUBLIC   mpp_delay_max, mpp_delay_sum, mpp_delay_rcv
+   PUBLIC   mpp_delay_rcv, init_delay
    PUBLIC   mppscatter, mppgather
    PUBLIC   mpp_ini_znl
    PUBLIC   mpp_ini_nc
@@ -81,32 +82,30 @@ MODULE lib_mpp
 #endif
 
    !! * Interfaces
-   !! define generic interface for these routine as they are called sometimes
-   !! with scalar arguments instead of array arguments, which causes problems
-   !! for the compilation on AIX system as well as NEC and SGI. Ok on COMPACQ
    INTERFACE mpp_min
-      MODULE PROCEDURE mppmin_a_int, mppmin_int
-      MODULE PROCEDURE mppmin_a_real_sp, mppmin_real_sp
-      MODULE PROCEDURE mppmin_a_real_dp, mppmin_real_dp
+      MODULE PROCEDURE mppmin0d_int    , mppmin1d_int
+      MODULE PROCEDURE mppmin0d_real_sp, mppmin1d_real_sp
+      MODULE PROCEDURE mppmin0d_real_dp, mppmin1d_real_dp
    END INTERFACE
    INTERFACE mpp_max
-      MODULE PROCEDURE mppmax_a_int, mppmax_int
-      MODULE PROCEDURE mppmax_a_real_sp, mppmax_real_sp
-      MODULE PROCEDURE mppmax_a_real_dp, mppmax_real_dp
+      MODULE PROCEDURE mppmax0d_int    , mppmax1d_int
+      MODULE PROCEDURE mppmax0d_real_sp, mppmax1d_real_sp
+      MODULE PROCEDURE mppmax0d_real_dp, mppmax1d_real_dp
    END INTERFACE
    INTERFACE mpp_sum
-      MODULE PROCEDURE mppsum_a_int, mppsum_int
-      MODULE PROCEDURE mppsum_realdd, mppsum_a_realdd
-      MODULE PROCEDURE mppsum_a_real_sp, mppsum_real_sp
-      MODULE PROCEDURE mppsum_a_real_dp, mppsum_real_dp
-   END INTERFACE
+      MODULE PROCEDURE mppsum0d_int    , mppsum1d_int
+      MODULE PROCEDURE mppsum0d_real_sp, mppsum1d_real_sp
+      MODULE PROCEDURE mppsum0d_real_dp, mppsum1d_real_dp
+      MODULE PROCEDURE mppsum0d_cplx_dp, mppsum1d_cplx_dp
+   END INTERFACE mpp_sum
+   
    INTERFACE mpp_minloc
-      MODULE PROCEDURE mpp_minloc2d_sp ,mpp_minloc3d_sp
-      MODULE PROCEDURE mpp_minloc2d_dp ,mpp_minloc3d_dp
+      MODULE PROCEDURE mpp_minloc2d_sp, mpp_minloc3d_sp
+      MODULE PROCEDURE mpp_minloc2d_dp, mpp_minloc3d_dp
    END INTERFACE
    INTERFACE mpp_maxloc
-      MODULE PROCEDURE mpp_maxloc2d_sp ,mpp_maxloc3d_sp
-      MODULE PROCEDURE mpp_maxloc2d_dp ,mpp_maxloc3d_dp
+      MODULE PROCEDURE mpp_maxloc2d_sp, mpp_maxloc3d_sp
+      MODULE PROCEDURE mpp_maxloc2d_dp, mpp_maxloc3d_dp
    END INTERFACE
 
    TYPE, PUBLIC ::   PTR_4D_sp   !: array of 4D pointers (used in lbclnk and lbcnfd)
@@ -189,20 +188,23 @@ MODULE lib_mpp
    INTEGER, PUBLIC                               ::   n_sequence_glb = 0           !: # of global communications
    INTEGER, PUBLIC                               ::   n_sequence_dlg = 0           !: # of delayed global communications
    INTEGER, PUBLIC                               ::   numcom = -1                  !: logical unit for communicaton report
-   INTEGER,                    PARAMETER, PUBLIC ::   nbdelay = 2       !: number of delayed operations
+   INTEGER,                    PARAMETER, PUBLIC ::   nbdelay = 20       !: number of delayed operations
    !: name (used as id) of allreduce-delayed operations
    ! Warning: we must use the same character length in an array constructor (at least for gcc compiler)
-   CHARACTER(len=32), DIMENSION(nbdelay), PUBLIC ::   c_delaylist = (/ 'cflice', 'fwb   ' /)
-   !: component name where the allreduce-delayed operation is performed
-   CHARACTER(len=3),  DIMENSION(nbdelay), PUBLIC ::   c_delaycpnt = (/ 'ICE'   , 'OCE' /)
+   CHARACTER(len=32), DIMENSION(nbdelay), PUBLIC ::   c_delaylist
    TYPE, PUBLIC ::   DELAYARR
-      REAL(   wp), POINTER, DIMENSION(:) ::  z1d => NULL()
-      COMPLEX(dp), POINTER, DIMENSION(:) ::  y1d => NULL()
+      INTEGER    , DIMENSION(:), ALLOCATABLE ::     ibuffin,   ibuffout
+      REAL(   sp), DIMENSION(:), ALLOCATABLE ::   zspbuffin, zspbuffout
+      REAL(   dp), DIMENSION(:), ALLOCATABLE ::   zdpbuffin, zdpbuffout
+      COMPLEX(dp), DIMENSION(:), ALLOCATABLE ::   ydpbuffin, ydpbuffout
    END TYPE DELAYARR
-   TYPE( DELAYARR ), DIMENSION(nbdelay), PUBLIC, SAVE  ::   todelay         !: must have SAVE for default initialization of DELAYARR
-   INTEGER,          DIMENSION(nbdelay), PUBLIC        ::   ndelayid = -1   !: mpi request id of the delayed operations
+   TYPE( DELAYARR ), DIMENSION(nbdelay), PUBLIC ::   todelay
+   INTEGER,          DIMENSION(nbdelay), PUBLIC ::   ndelayid   !: mpi request id of the delayed operations
+   INTEGER, PUBLIC :: ndlrstuse
+   INTEGER, PUBLIC :: ndlrstoff
 
    LOGICAL, PUBLIC ::   ln_nnogather                !: namelist control of northfold comms
+   LOGICAL, PUBLIC ::   ln_mppdelay                 !: namelist control of delayed mpi communications
    INTEGER, PUBLIC ::   nn_comm                     !: namelist control of comms
 
    INTEGER, PUBLIC, PARAMETER ::   jpfillnothing = 1
@@ -487,159 +489,7 @@ CONTAINS
 #endif
       !
    END SUBROUTINE mppscatter
-
-
-   SUBROUTINE mpp_delay_sum( cdname, cdelay, y_in, pout, ldlast, kcom )
-     !!----------------------------------------------------------------------
-      !!                   ***  routine mpp_delay_sum  ***
-      !!
-      !! ** Purpose :   performed delayed mpp_sum, the result is received on next call
-      !!
-      !!----------------------------------------------------------------------
-      CHARACTER(len=*), INTENT(in   )               ::   cdname  ! name of the calling subroutine
-      CHARACTER(len=*), INTENT(in   )               ::   cdelay  ! name (used as id) of the delayed operation
-      COMPLEX(dp),      INTENT(in   ), DIMENSION(:) ::   y_in
-      REAL(wp),         INTENT(  out), DIMENSION(:) ::   pout
-      LOGICAL,          INTENT(in   )               ::   ldlast  ! true if this is the last time we call this routine
-      INTEGER,          INTENT(in   ), OPTIONAL     ::   kcom
-      !!
-      INTEGER ::   ji, isz
-      INTEGER ::   idvar
-      INTEGER ::   ierr, ilocalcomm
-      COMPLEX(dp), ALLOCATABLE, DIMENSION(:) ::   ytmp
-      !!----------------------------------------------------------------------
-#if ! defined key_mpi_off
-      ilocalcomm = mpi_comm_oce
-      IF( PRESENT(kcom) )   ilocalcomm = kcom
-
-      isz = SIZE(y_in)
-
-      IF( narea == 1 .AND. numcom == -1 ) CALL mpp_report( cdname, ld_dlg = .TRUE. )
-
-      idvar = -1
-      DO ji = 1, nbdelay
-         IF( TRIM(cdelay) == TRIM(c_delaylist(ji)) ) idvar = ji
-      END DO
-      IF ( idvar == -1 )   CALL ctl_stop( 'STOP',' mpp_delay_sum : please add a new delayed exchange for '//TRIM(cdname) )
-
-      IF ( ndelayid(idvar) == 0 ) THEN         ! first call    with restart: %z1d defined in iom_delay_rst
-         !                                       --------------------------
-         IF ( SIZE(todelay(idvar)%z1d) /= isz ) THEN                  ! Check dimension coherence
-            IF(lwp) WRITE(numout,*) ' WARNING: the nb of delayed variables in restart file is not the model one'
-            DEALLOCATE(todelay(idvar)%z1d)
-            ndelayid(idvar) = -1                                      ! do as if we had no restart
-         ELSE
-            ALLOCATE(todelay(idvar)%y1d(isz))
-            todelay(idvar)%y1d(:) = CMPLX(todelay(idvar)%z1d(:), 0., wp)   ! create %y1d, complex variable needed by mpi_sumdd
-            ndelayid(idvar) = MPI_REQUEST_NULL                             ! initialised request to a valid value
-         END IF
-      ENDIF
-
-      IF( ndelayid(idvar) == -1 ) THEN         ! first call without restart: define %y1d and %z1d from y_in with blocking allreduce
-         !                                       --------------------------
-         ALLOCATE(todelay(idvar)%z1d(isz), todelay(idvar)%y1d(isz))   ! allocate also %z1d as used for the restart
-         CALL mpi_allreduce( y_in(:), todelay(idvar)%y1d(:), isz, MPI_DOUBLE_COMPLEX, mpi_sumdd, ilocalcomm, ierr )   ! get %y1d
-         ndelayid(idvar) = MPI_REQUEST_NULL
-      ENDIF
-
-      CALL mpp_delay_rcv( idvar )         ! make sure %z1d is received
-
-      ! send back pout from todelay(idvar)%z1d defined at previous call
-      pout(:) = todelay(idvar)%z1d(:)
-
-      ! send y_in into todelay(idvar)%y1d with a non-blocking communication
-# if defined key_mpi2
-      CALL  mpi_allreduce( y_in(:), todelay(idvar)%y1d(:), isz, MPI_DOUBLE_COMPLEX, mpi_sumdd, ilocalcomm, ierr )
-      ndelayid(idvar) = MPI_REQUEST_NULL
-# else
-      CALL mpi_iallreduce( y_in(:), todelay(idvar)%y1d(:), isz, MPI_DOUBLE_COMPLEX, mpi_sumdd, ilocalcomm, ndelayid(idvar), ierr )
-# endif
-#else
-      pout(:) = REAL(y_in(:), wp)
-#endif
-      
-   END SUBROUTINE mpp_delay_sum
-
-
-   SUBROUTINE mpp_delay_max( cdname, cdelay, p_in, pout, ldlast, kcom )
-      !!----------------------------------------------------------------------
-      !!                   ***  routine mpp_delay_max  ***
-      !!
-      !! ** Purpose :   performed delayed mpp_max, the result is received on next call
-      !!
-      !!----------------------------------------------------------------------
-      CHARACTER(len=*), INTENT(in   )                 ::   cdname  ! name of the calling subroutine
-      CHARACTER(len=*), INTENT(in   )                 ::   cdelay  ! name (used as id) of the delayed operation
-      REAL(wp),         INTENT(in   ), DIMENSION(:)   ::   p_in    !
-      REAL(wp),         INTENT(  out), DIMENSION(:)   ::   pout    !
-      LOGICAL,          INTENT(in   )                 ::   ldlast  ! true if this is the last time we call this routine
-      INTEGER,          INTENT(in   ), OPTIONAL       ::   kcom
-      !!
-      INTEGER ::   ji, isz
-      INTEGER ::   idvar
-      INTEGER ::   ierr, ilocalcomm
-      INTEGER ::   MPI_TYPE
-      !!----------------------------------------------------------------------
-
-#if ! defined key_mpi_off
-      if( wp == dp ) then
-         MPI_TYPE = MPI_DOUBLE_PRECISION
-      else if ( wp == sp ) then
-         MPI_TYPE = MPI_REAL
-      else
-        CALL ctl_stop( "Error defining type, wp is neither dp nor sp" )
-
-      end if
-
-      ilocalcomm = mpi_comm_oce
-      IF( PRESENT(kcom) )   ilocalcomm = kcom
-
-      isz = SIZE(p_in)
-
-      IF( narea == 1 .AND. numcom == -1 ) CALL mpp_report( cdname, ld_dlg = .TRUE. )
-
-      idvar = -1
-      DO ji = 1, nbdelay
-         IF( TRIM(cdelay) == TRIM(c_delaylist(ji)) ) idvar = ji
-      END DO
-      IF ( idvar == -1 )   CALL ctl_stop( 'STOP',' mpp_delay_max : please add a new delayed exchange for '//TRIM(cdname) )
-
-      IF ( ndelayid(idvar) == 0 ) THEN         ! first call    with restart: %z1d defined in iom_delay_rst
-         !                                       --------------------------
-         IF ( SIZE(todelay(idvar)%z1d) /= isz ) THEN                  ! Check dimension coherence
-            IF(lwp) WRITE(numout,*) ' WARNING: the nb of delayed variables in restart file is not the model one'
-            DEALLOCATE(todelay(idvar)%z1d)
-            ndelayid(idvar) = -1                                      ! do as if we had no restart
-         ELSE
-            ndelayid(idvar) = MPI_REQUEST_NULL
-         END IF
-      ENDIF
-
-      IF( ndelayid(idvar) == -1 ) THEN         ! first call without restart: define %z1d from p_in with a blocking allreduce
-         !                                       --------------------------
-         ALLOCATE(todelay(idvar)%z1d(isz))
-         CALL mpi_allreduce( p_in(:), todelay(idvar)%z1d(:), isz, MPI_DOUBLE_PRECISION, mpi_max, ilocalcomm, ierr )   ! get %z1d
-         ndelayid(idvar) = MPI_REQUEST_NULL
-      ENDIF
-
-      CALL mpp_delay_rcv( idvar )         ! make sure %z1d is received
-
-      ! send back pout from todelay(idvar)%z1d defined at previous call
-      pout(:) = todelay(idvar)%z1d(:)
-
-      ! send p_in into todelay(idvar)%z1d with a non-blocking communication
-      ! (PM) Should we get rid of MPI2 option ? MPI3 was release in 2013. Who is still using MPI2 ?
-# if defined key_mpi2
-      CALL  mpi_allreduce( p_in(:), todelay(idvar)%z1d(:), isz, MPI_TYPE, mpi_max, ilocalcomm, ierr )
-# else
-      CALL mpi_iallreduce( p_in(:), todelay(idvar)%z1d(:), isz, MPI_TYPE, mpi_max, ilocalcomm, ndelayid(idvar), ierr )
-# endif
-#else
-      pout(:) = p_in(:)
-#endif
-
-   END SUBROUTINE mpp_delay_max
-
+   
 
    SUBROUTINE mpp_delay_rcv( kid )
       !!----------------------------------------------------------------------
@@ -654,9 +504,23 @@ CONTAINS
 #if ! defined key_mpi_off
       ! test on ndelayid(kid) useless as mpi_wait return immediatly if the request handle is MPI_REQUEST_NULL
       CALL mpi_wait( ndelayid(kid), MPI_STATUS_IGNORE, ierr ) ! after this ndelayid(kid) = MPI_REQUEST_NULL
-      IF( ASSOCIATED(todelay(kid)%y1d) )   todelay(kid)%z1d(:) = REAL(todelay(kid)%y1d(:), wp)  ! define %z1d from %y1d
 #endif
    END SUBROUTINE mpp_delay_rcv
+
+
+   SUBROUTINE init_delay()
+      !!----------------------------------------------------------------------
+      !!                   ***  init_delay  ***
+      !!
+      !! ** Purpose :  
+      !!
+      !!----------------------------------------------------------------------
+      ndlrstuse = HUGE(0)/10           ! get a value that won't be used...
+      ndlrstoff = -ndlrstuse           ! get a value that won't be used...
+      ndelayid(:) = ndlrstoff          ! default: no restart
+      c_delaylist(:) = 'not defined'   ! cannot be done at the definition because of AGRIF (pb of character length in an array)
+   END SUBROUTINE init_delay
+
 
    SUBROUTINE mpp_bcast_nml( cdnambuff , kleng )
       CHARACTER(LEN=:)    , ALLOCATABLE, INTENT(INOUT) :: cdnambuff
@@ -685,245 +549,187 @@ CONTAINS
 
 
    !!----------------------------------------------------------------------
-   !!    ***  mppmax_a_int, mppmax_int, mppmax_a_real, mppmax_real  ***
+   !!    ***  mppmax0d_int, mppmax1d_int, mppmax0d_real, mppmax1d_real  ***
    !!
    !!----------------------------------------------------------------------
-   !!
 #  define OPERATION_MAX
+   !
+   !   ----   INTEGER   
 #  define INTEGER_TYPE
 #  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppmax_int
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
+#  undef  DIM_0d
 #  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppmax_a_int
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
 #  undef DIM_1d
 #  undef INTEGER_TYPE
-!
-   !!
-   !!   ----   SINGLE PRECISION VERSIONS
-   !!
-#  define SINGLE_PRECISION
-#  define REAL_TYPE
+   !
+   !   ----   REAL_SP
+#  define REALSP_TYPE
 #  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppmax_real_sp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
+#  undef  DIM_0d
 #  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppmax_a_real_sp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
 #  undef DIM_1d
-#  undef SINGLE_PRECISION
-   !!
-   !!
-   !!   ----   DOUBLE PRECISION VERSIONS
-   !!
-!
+#  undef REALSP_TYPE
+   !
+   !   ----   REAL_DP
+#  define REALDP_TYPE
 #  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppmax_real_dp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
+#  undef  DIM_0d
 #  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppmax_a_real_dp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
 #  undef DIM_1d
-#  undef REAL_TYPE
+#  undef REALDP_TYPE
+   !
 #  undef OPERATION_MAX
+   !
    !!----------------------------------------------------------------------
-   !!    ***  mppmin_a_int, mppmin_int, mppmin_a_real, mppmin_real  ***
+   !!    ***  mppmin0d_int, mppmin1d_int, mppmin0d_real, mppmin1d_real  ***
    !!
    !!----------------------------------------------------------------------
-   !!
 #  define OPERATION_MIN
+   !
+   !   ----   INTEGER
 #  define INTEGER_TYPE
 #  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppmin_int
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
+#  undef  DIM_0d
 #  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppmin_a_int
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
 #  undef DIM_1d
 #  undef INTEGER_TYPE
-!
-   !!
-   !!   ----   SINGLE PRECISION VERSIONS
-   !!
-#  define SINGLE_PRECISION
-#  define REAL_TYPE
+   !
+   !   ----   REAL_SP
+#  define REALSP_TYPE
 #  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppmin_real_sp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
+#  undef  DIM_0d
 #  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppmin_a_real_sp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
 #  undef DIM_1d
-#  undef SINGLE_PRECISION
-   !!
-   !!   ----   DOUBLE PRECISION VERSIONS
-   !!
-
+#  undef REALSP_TYPE
+   !
+   !   ----   REAL_DP
+#  define REALDP_TYPE
 #  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppmin_real_dp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
+#  undef  DIM_0d
 #  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppmin_a_real_dp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
 #  undef DIM_1d
-#  undef REAL_TYPE
+#  undef REALDP_TYPE
+   
 #  undef OPERATION_MIN
-
+   !
    !!----------------------------------------------------------------------
-   !!    ***  mppsum_a_int, mppsum_int, mppsum_a_real, mppsum_real  ***
+   !!    ***  mppsum0d_int, mppsum1d_int, mppsum0d_real, mppsum1d_real  ***
    !!
    !!   Global sum of 1D array or a variable (integer, real or complex)
    !!----------------------------------------------------------------------
-   !!
 #  define OPERATION_SUM
+   !
+   !   ----   INTEGER
 #  define INTEGER_TYPE
 #  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppsum_int
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
+#  undef  DIM_0d
 #  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppsum_a_int
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
 #  undef DIM_1d
 #  undef INTEGER_TYPE
-
-   !!
-   !!   ----   SINGLE PRECISION VERSIONS
-   !!
-#  define OPERATION_SUM
-#  define SINGLE_PRECISION
-#  define REAL_TYPE
+   !
+   !   ----   REAL_SP
+#  define REALSP_TYPE
 #  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppsum_real_sp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
+#  undef  DIM_0d
 #  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppsum_a_real_sp
 #     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
 #  undef DIM_1d
-#  undef REAL_TYPE
+#  undef REALSP_TYPE
+   !
+   !   ----   REAL_DP
+#  define REALDP_TYPE
+#  define DIM_0d
+#     include "mpp_allreduce_generic.h90"
+#  undef  DIM_0d
+#  define DIM_1d
+#     include "mpp_allreduce_generic.h90"
+#  undef DIM_1d
+#  undef REALDP_TYPE
+   !
+   !   ----   COMPLEX_DP needed for DDPDD
+#  define COMPLEXDP_TYPE
+#  define DIM_0d
+#     include "mpp_allreduce_generic.h90"
+#  undef  DIM_0d
+#  define DIM_1d
+#     include "mpp_allreduce_generic.h90"
+#  undef DIM_1d
+#  undef COMPLEXDP_TYPE
+   !
 #  undef OPERATION_SUM
-
-#  undef SINGLE_PRECISION
-
-   !!
-   !!   ----   DOUBLE PRECISION VERSIONS
-   !!
-#  define OPERATION_SUM
-#  define REAL_TYPE
-#  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppsum_real_dp
-#     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
-#  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppsum_a_real_dp
-#     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_1d
-#  undef REAL_TYPE
-#  undef OPERATION_SUM
-
-#  define OPERATION_SUM_DD
-#  define COMPLEX_TYPE
-#  define DIM_0d
-#     define ROUTINE_ALLREDUCE           mppsum_realdd
-#     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_0d
-#  define DIM_1d
-#     define ROUTINE_ALLREDUCE           mppsum_a_realdd
-#     include "mpp_allreduce_generic.h90"
-#     undef ROUTINE_ALLREDUCE
-#  undef DIM_1d
-#  undef COMPLEX_TYPE
-#  undef OPERATION_SUM_DD
 
    !!----------------------------------------------------------------------
    !!    ***  mpp_minloc2d, mpp_minloc3d, mpp_maxloc2d, mpp_maxloc3d
    !!
    !!----------------------------------------------------------------------
-   !!
-   !!
-   !!   ----   SINGLE PRECISION VERSIONS
-   !!
-#  define SINGLE_PRECISION
 #  define OPERATION_MINLOC
+   !
+   !   ----   REAL_SP
+#  define REALSP_TYPE
 #  define DIM_2d
 #     define ROUTINE_LOC           mpp_minloc2d_sp
 #     include "mpp_loc_generic.h90"
-#     undef ROUTINE_LOC
-#  undef DIM_2d
+#  undef  DIM_2d
 #  define DIM_3d
 #     define ROUTINE_LOC           mpp_minloc3d_sp
 #     include "mpp_loc_generic.h90"
-#     undef ROUTINE_LOC
 #  undef DIM_3d
-#  undef OPERATION_MINLOC
-
-#  define OPERATION_MAXLOC
-#  define DIM_2d
-#     define ROUTINE_LOC           mpp_maxloc2d_sp
-#     include "mpp_loc_generic.h90"
-#     undef ROUTINE_LOC
-#  undef DIM_2d
-#  define DIM_3d
-#     define ROUTINE_LOC           mpp_maxloc3d_sp
-#     include "mpp_loc_generic.h90"
-#     undef ROUTINE_LOC
-#  undef DIM_3d
-#  undef OPERATION_MAXLOC
-#  undef SINGLE_PRECISION
-   !!
-   !!   ----   DOUBLE PRECISION VERSIONS
-   !!
-#  define OPERATION_MINLOC
+#  undef REALSP_TYPE
+   !
+   !   ----   REAL_DP
+#  define REALDP_TYPE
 #  define DIM_2d
 #     define ROUTINE_LOC           mpp_minloc2d_dp
 #     include "mpp_loc_generic.h90"
-#     undef ROUTINE_LOC
-#  undef DIM_2d
+#  undef  DIM_2d
 #  define DIM_3d
 #     define ROUTINE_LOC           mpp_minloc3d_dp
 #     include "mpp_loc_generic.h90"
-#     undef ROUTINE_LOC
 #  undef DIM_3d
-#  undef OPERATION_MINLOC
-
+#  undef REALDP_TYPE
+   !
+#  undef  OPERATION_MINLOC
 #  define OPERATION_MAXLOC
+   !
+   !   ----   REAL_SP
+#  define REALSP_TYPE
+#  define DIM_2d
+#     define ROUTINE_LOC           mpp_maxloc2d_sp
+#     include "mpp_loc_generic.h90"
+#  undef  DIM_2d
+#  define DIM_3d
+#     define ROUTINE_LOC           mpp_maxloc3d_sp
+#     include "mpp_loc_generic.h90"
+#  undef DIM_3d
+#  undef REALSP_TYPE
+   !
+   !   ----   REAL_DP
+#  define REALDP_TYPE
 #  define DIM_2d
 #     define ROUTINE_LOC           mpp_maxloc2d_dp
 #     include "mpp_loc_generic.h90"
-#     undef ROUTINE_LOC
-#  undef DIM_2d
+#  undef  DIM_2d
 #  define DIM_3d
 #     define ROUTINE_LOC           mpp_maxloc3d_dp
 #     include "mpp_loc_generic.h90"
-#     undef ROUTINE_LOC
 #  undef DIM_3d
+#  undef REALDP_TYPE
+   !
 #  undef OPERATION_MAXLOC
 
 
@@ -1414,6 +1220,39 @@ CONTAINS
    END SUBROUTINE mpi_waitall
 
 #endif
+   ELEMENTAL SUBROUTINE DDPDD( ydda, yddb )
+      !!----------------------------------------------------------------------
+      !!               ***  ROUTINE DDPDD ***
+      !!
+      !! ** Purpose : Add a scalar element to a sum
+      !!
+      !!
+      !! ** Method  : The code uses the compensated summation with doublet
+      !!              (sum,error) emulated useing complex numbers. ydda is the
+      !!               scalar to add to the summ yddb
+      !!
+      !! ** Action  : This does only work for MPI.
+      !!
+      !! References : Using Acurate Arithmetics to Improve Numerical
+      !!              Reproducibility and Sability in Parallel Applications
+      !!              Yun HE and Chris H. Q. DING, Journal of Supercomputing 18, 259-277, 2001
+      !!----------------------------------------------------------------------
+      COMPLEX(dp), INTENT(in   ) ::   ydda
+      COMPLEX(dp), INTENT(inout) ::   yddb
+      !
+      REAL(dp) :: zerr, zt1, zt2  ! local work variables
+      !!-----------------------------------------------------------------------
+      !
+      ! Compute ydda + yddb using Knuth's trick.
+      zt1  = REAL(ydda) + REAL(yddb)
+      zerr = zt1 - REAL(ydda)
+      zt2  = ( (REAL(yddb) - zerr) + (REAL(ydda) - (zt1 - zerr)) )   &
+         &   + AIMAG(ydda)         + AIMAG(yddb)
+      !
+      ! The result is t1 + t2, after normalization.
+      yddb = CMPLX( zt1 + zt2, zt2 - ((zt1 + zt2) - zt1), dp )
+      !
+   END SUBROUTINE DDPDD
 
    !!----------------------------------------------------------------------
    !!   ctl_stop, ctl_warn, get_unit, ctl_opn, ctl_nam, load_nml   routines

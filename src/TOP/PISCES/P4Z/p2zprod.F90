@@ -17,6 +17,7 @@ MODULE p2zprod
    USE p2zlim          ! Co-limitations of differents nutrients
    USE prtctl          ! print control for debugging
    USE iom             ! I/O manager
+   USE lib_fortran     ! Fortran routines library
 
    IMPLICIT NONE
    PRIVATE
@@ -207,7 +208,7 @@ CONTAINS
       END_3D
 
     ! Total primary production per year
-    IF( l_dia_pp  )  tpp = glob_sum( 'p2zprod', zprorcan(:,:,:) * cvol(:,:,:) )
+    IF( l_dia_pp  )  tpp = glob_3Dsum( 'p2zprod', zprorcan(:,:,:) * cvol(:,:,:) )
     IF( knt == nrdttrc ) THEN
        IF( l_dia_pp ) THEN
  !         zfact = 1.e+3 * rfact2r  !  conversion from mol/l/kt to  mol/m3/s

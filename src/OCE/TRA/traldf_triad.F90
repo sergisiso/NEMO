@@ -26,6 +26,7 @@ MODULE traldf_triad
    USE iom            ! I/O library
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE lib_mpp        ! MPP library
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

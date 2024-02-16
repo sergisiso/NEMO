@@ -26,7 +26,7 @@ MODULE diahsb
    !
    USE iom            ! I/O manager
    USE in_out_manager ! I/O manager
-   USE lib_fortran    ! glob_sum
+   USE lib_fortran    ! glob_2Dsum
    USE lib_mpp        ! distributed memory computing library
    USE timing         ! preformance summary
 
@@ -153,7 +153,7 @@ CONTAINS
       ! --------------------------------- !
       ! 2 -  Content variations with ssh  !
       ! --------------------------------- !
-      ! glob_sum is needed because you keep only the interior domain to compute the sum (iscpl)
+      ! glob_2Dsum is needed because you keep only the interior domain to compute the sum (iscpl)
       !
       !                    ! volume variation (calculated with ssh)
       DO_2D( 0, 0, 0, 0 )
@@ -178,7 +178,7 @@ CONTAINS
       ! --------------------------------- !
       ! 3 -  Content variations with e3t  !
       ! --------------------------------- !
-      ! glob_sum is needed because you keep only the interior domain to compute the sum (iscpl)
+      ! glob_2Dsum is needed because you keep only the interior domain to compute the sum (iscpl)
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          ! volume
@@ -197,7 +197,7 @@ CONTAINS
       ! ----------
       ! global sum
       ! ----------
-      zbg(1:17) = glob_sum_vec( 'dia_hsb', ztmp(:,:,1:17) )
+      zbg(:) = glob_2Dsum( 'dia_hsb', ztmp )
  
       ! 1)
       z_frc_trd_v = zbg(1)  ! volume fluxes
@@ -230,7 +230,7 @@ CONTAINS
       ENDIF
       !
       ! 3)
-      zdiff_v2 = zbg(14)     ! glob_sum needed as tmask and tmask_ini could be different
+      zdiff_v2 = zbg(14)     ! glob_2Dsum needed as tmask and tmask_ini could be different
       zdiff_hc = zbg(15)
       zdiff_sc = zbg(16)
       zvol_tot = zbg(17)
@@ -251,7 +251,7 @@ CONTAINS
 
 !!gm to be added ?
 !      IF( ln_linssh ) THEN            ! fixed volume, add the ssh contribution
-!        zvol_tot = zvol_tot + glob_sum( 'diahsb', surf(:,:) * ssh(:,:,Kmm) )
+!        zvol_tot = zvol_tot + glob_2Dsum( 'diahsb', surf(:,:) * ssh(:,:,Kmm) )
 !      ENDIF
 !!gm end
 
@@ -463,7 +463,7 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )
          surf(ji,jj) = e1e2t(ji,jj) * smask0_i(ji,jj)               ! masked surface grid cell area
       END_2D
-      surf_tot  = glob_sum( 'diahsb', surf(:,:) )         ! total ocean surface area
+      surf_tot  = glob_2Dsum( 'diahsb', surf(:,:) )         ! total ocean surface area
 
       IF( ln_bdy ) CALL ctl_warn( 'dia_hsb_init: heat/salt budget does not consider open boundary fluxes' )
       !

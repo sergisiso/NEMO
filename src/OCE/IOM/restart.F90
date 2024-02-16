@@ -163,9 +163,9 @@ CONTAINS
       INTEGER, OPTIONAL, INTENT(in) ::   Kaa        ! ocean time level index required for RK3
       !!----------------------------------------------------------------------
       !
-         CALL iom_rstput( kt, nitrst, numrow, 'rdt'    , rn_Dt       )   ! dynamics time step
+      CALL iom_rstput( kt, nitrst, numrow, 'rdt', rn_Dt )   ! dynamics time step
       !
-      IF( .NOT.lwxios )   CALL iom_delay_rst( 'WRITE', 'OCE', numrow )   ! save only ocean delayed global communication variables
+      CALL iom_delay_rst( 'WRITE', numrow, kt )   ! save all delayed global communication variables
       !
       IF( .NOT.ln_diurnal_only ) THEN
          !
@@ -277,13 +277,15 @@ CONTAINS
       !!                NB: ssh is read or set in rst_read_ssh
       !!----------------------------------------------------------------------
       INTEGER          , INTENT(in) ::   Kbb, Kmm   ! ocean time level indices
-      INTEGER  ::   jk
+      INTEGER  ::   ji, jk
       INTEGER  ::   id1 
+      INTEGER  ::   idvar
+      INTEGER, DIMENSION(1)  ::   idimsz 
       REAL(wp), DIMENSION(jpi, jpj, jpk) :: w3d
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   :: zgdept       ! 3D workspace for QCO
       !!----------------------------------------------------------------------
       !
-      IF(.NOT.lrxios )   CALL iom_delay_rst( 'READ', 'OCE', numror )   ! read only ocean delayed global communication variables
+      CALL iom_delay_rst( 'READ', numror )   ! read all delayed global communication variables
       !
       !                             !*  Diurnal DSST
       IF( ln_diurnal )   CALL iom_get( numror, jpdom_auto, 'Dsst' , x_dsst )

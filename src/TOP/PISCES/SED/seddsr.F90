@@ -9,7 +9,6 @@ MODULE seddsr
    USE sed_oce
    USE sedini
    USE lib_mpp         ! distribued memory computing library
-   USE lib_fortran
 
    IMPLICIT NONE
    PRIVATE

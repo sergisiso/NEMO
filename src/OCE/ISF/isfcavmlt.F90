@@ -19,7 +19,7 @@ MODULE isfcavmlt
 
    USE in_out_manager              ! I/O manager
    USE fldread    , ONLY: fld_read, FLD, FLD_N !
-   USE lib_fortran, ONLY: glob_sum_vec
+   USE lib_fortran, ONLY: glob_2Dsum
    USE lib_mpp    , ONLY: ctl_stop
 
    IMPLICIT NONE
@@ -257,7 +257,7 @@ CONTAINS
       !
       ! compute glob sum from input file and from atm->oce ice shelf fwf
       ! (PM) should consider delay sum as in fwb (1 time step offset if I well understood)
-      zbg = glob_sum_vec( 'isfcav_mlt', ztmp )
+      zbg(:) = glob_2Dsum( 'isfcav_mlt', ztmp, cdelay = 'fwfisf' )
       !
       ! compute the upward water and heat flux (ocean heat flux is assume to be equal to the latent heat)
       DO_2D( 0, 0, 0, 0 )

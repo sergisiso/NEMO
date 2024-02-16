@@ -17,7 +17,6 @@ MODULE ablrst
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
 
    IMPLICIT NONE
    PRIVATE
@@ -124,8 +123,6 @@ CONTAINS
       CALL iom_rstput( iter, nitrst, numraw, 'nn_fsbc', REAL( nn_fsbc, wp ) )      ! time-step 
       CALL iom_rstput( iter, nitrst, numraw, 'kt_abl' , REAL( iter   , wp ) )      ! date
 
-      IF(.NOT.lwxios) CALL iom_delay_rst( 'WRITE', 'ABL', numraw )   ! save only abl delayed global communication variables
-
       ! Prognostic (after timestep + swap time indices = now timestep) variables
       CALL iom_rstput( iter, nitrst, numraw,   'u_abl',   u_abl(:,:,:,nt_n      ) )
       CALL iom_rstput( iter, nitrst, numraw,   'v_abl',   v_abl(:,:,:,nt_n      ) )
@@ -209,9 +206,7 @@ CONTAINS
       CALL iom_get( numrar, jpdom_auto, 'avt_abl', avt_abl(:,:,:           ) )
       CALL iom_get( numrar, jpdom_auto,'mxld_abl',mxld_abl(:,:,:           ) ) !, kfill = jpfillcopy )
       CALL iom_get( numrar, jpdom_auto,    'pblh',    pblh(:,:             ), kfill = jpfillcopy )
-
-      IF(.NOT.lrxios) CALL iom_delay_rst( 'READ', 'ABL', numrar )   ! read only abl delayed global communication variables
-
+      
    END SUBROUTINE abl_rst_read
 
 

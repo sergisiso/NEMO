@@ -21,6 +21,7 @@ MODULE cyclone
    USE in_out_manager  ! I/O manager
    USE geo2ocean       ! tools for projection on ORCA grid
    USE lib_mpp       
+   USE lib_fortran     ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

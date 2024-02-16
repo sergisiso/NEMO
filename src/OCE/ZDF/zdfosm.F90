@@ -84,7 +84,6 @@ MODULE zdfosm
    USE in_out_manager            ! I/O manager
    USE lbclnk                    ! Ocean lateral boundary conditions (or mpp link)
    USE prtctl                    ! Print control
-   USE lib_fortran               ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
 
    IMPLICIT NONE
    PRIVATE

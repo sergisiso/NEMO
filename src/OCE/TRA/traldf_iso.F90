@@ -32,6 +32,7 @@ MODULE traldf_iso
    USE iom            ! I/O library
    USE phycst         ! physical constants
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

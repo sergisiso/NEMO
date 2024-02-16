@@ -28,7 +28,6 @@ MODULE ldfeke
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE prtctl         ! Print control
    USE timing         ! Timing
-   USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
 
    IMPLICIT NONE
    PRIVATE

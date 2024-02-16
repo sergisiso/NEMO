@@ -29,7 +29,6 @@ MODULE bdyice
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
    USE in_out_manager  ! write to numout file
    USE lib_mpp         ! distributed memory computing
-   USE lib_fortran     ! to use key_nosignedzero
    USE timing          ! Timing
 
    IMPLICIT NONE

@@ -18,7 +18,8 @@ MODULE p4zprod
    USE p4zlim          ! Co-limitations of differents nutrients
    USE prtctl          ! print control for debugging
    USE iom             ! I/O manager
-
+   USE lib_fortran     ! Fortran routines library
+   
    IMPLICIT NONE
    PRIVATE
 
@@ -378,7 +379,7 @@ CONTAINS
      ENDIF
 
     ! Total primary production per year
-    IF( l_dia_pp )  tpp = glob_sum( 'p4zprod', ( zprorcan(:,:,:) + zprorcad(:,:,:) ) * cvol(:,:,:) )
+    IF( l_dia_pp )  tpp = glob_3Dsum( 'p4zprod', ( zprorcan(:,:,:) + zprorcad(:,:,:) ) * cvol(:,:,:) )
     IF( knt == nrdttrc ) THEN
        !
        IF( l_dia_pp ) THEN

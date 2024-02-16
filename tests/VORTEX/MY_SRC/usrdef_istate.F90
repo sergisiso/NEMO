@@ -20,6 +20,7 @@ MODULE usrdef_istate
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
+   USE lib_fortran    ! to use sign with key_nosignedzero
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    !   
    USE usrdef_nam, ONLY : rn_ppgphi0  ! Reference latitude   

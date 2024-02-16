@@ -76,7 +76,7 @@ CONTAINS
       !
       ! Calculate the cumulate surface Flux z_cflxemp (m3/s) over all the domain
       ! -----------------------------------------------------------------------
-      IF ( kc == 1 ) z_cflxemp = glob_sum( 'bdyvol', ( emp(:,:) - rnf(:,:) + fwfisf_cav(:,:) + fwfisf_par(:,:) ) * bdytmask(:,:) * e1e2t(:,:)  ) / rho0
+      IF ( kc == 1 ) z_cflxemp = glob_2Dsum( 'bdyvol', ( emp(:,:) - rnf(:,:) + fwfisf_cav(:,:) + fwfisf_par(:,:) ) * bdytmask(:,:) * e1e2t(:,:)  ) / rho0
 
       ! Compute bdy surface each cycle if non linear free surface
       ! ---------------------------------------------------------

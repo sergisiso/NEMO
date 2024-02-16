@@ -14,6 +14,7 @@ MODULE stopts
    USE lbclnk          ! lateral boundary conditions (or mpp link)
    USE phycst          ! physical constants
    USE stopar          ! stochastic parameterization
+   USE lib_fortran     ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE

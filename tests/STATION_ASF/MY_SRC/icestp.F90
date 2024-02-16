@@ -59,7 +59,6 @@ MODULE icestp
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
    USE timing         ! Timing
    USE prtctl         ! Print control
 

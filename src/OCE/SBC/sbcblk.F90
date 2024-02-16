@@ -40,7 +40,7 @@ MODULE sbcblk
    USE cyclone        ! Cyclone 10m wind form trac of cyclone centres
    USE sbcdcy         ! surface boundary condition: diurnal cycle
    USE sbcwave , ONLY :   cdn_wave ! wave module
-   USE lib_fortran    ! to use key_nosignedzero and glob_sum
+   USE lib_fortran    ! to use key_nosignedzero and glob_2Dsum
    !
 #if defined key_si3
    USE sbc_ice        ! Surface boundary condition: ice fields #LB? ok to be in 'key_si3' ???
@@ -512,8 +512,8 @@ CONTAINS
       ! Sanity/consistence test on humidity at first time step to detect potential screw-up:
       IF( kt == nit000 ) THEN
          ! mean humidity over ocean on proc
-         ztst =   glob_sum( 'sbcblk', sf(jp_humi)%fnow(:,:,1) * e1e2t(A2D(0)) * smask0(:,:) ) &
-            &   / glob_sum( 'sbcblk', e1e2t(A2D(0)) * smask0(:,:) )
+         ztst =   glob_2Dsum( 'sbcblk', sf(jp_humi)%fnow(:,:,1) * e1e2t(A2D(0)) * smask0(:,:) ) &
+            &   / glob_2Dsum( 'sbcblk', e1e2t(A2D(0)) * smask0(:,:) )
          llerr = .FALSE.
          SELECT CASE( nhumi )
          CASE( np_humi_sph ) ! specific humidity => expect: 0. <= something < 0.065 [kg/kg] (0.061 is saturation at 45degC !!!)

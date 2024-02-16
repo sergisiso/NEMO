@@ -24,7 +24,7 @@ MODULE icedyn_adv_umx
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
-   USE lib_fortran    ! fortran utilities (glob_sum + no signed zero)
+   USE lib_fortran    ! to use sign with key_nosignedzero
    USE lbclnk         ! lateral boundary conditions (or mpp links)
 
    IMPLICIT NONE
@@ -94,7 +94,7 @@ CONTAINS
       INTEGER  ::   icycle                  ! number of sub-timestep for the advection
       REAL(wp) ::   zdt, z1_dt, zvi_cen
       REAL(wp) ::   zati2
-      REAL(wp), DIMENSION(1)                  ::   zcflprv, zcflnow   ! for global communication
+      REAL(wp) ::   zcfl
       REAL(wp), DIMENSION(jpi,jpj)            ::   zudy, zvdx, zcu_box, zcv_box
       REAL(wp), DIMENSION(A2D(0))             ::   zati1
       REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   zu_cat, zv_cat
@@ -102,11 +102,11 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   zuap_ho, zvap_ho, zuap_ups, zvap_ups
       REAL(wp), DIMENSION(jpi,jpj,jpl)        ::   z1_ai
       !
-      REAL(wp), DIMENSION(jpi,jpj,nlay_i,jpl) ::   ze_i
-      REAL(wp), DIMENSION(jpi,jpj,nlay_s,jpl) ::   ze_s
-      REAL(wp), DIMENSION(A2D(0),jpl)         ::   zhi_max, zhs_max, zhip_max, zsi_max
-      REAL(wp), DIMENSION(A2D(0),nlay_i,jpl)  ::   zei_max, zszi_max
-      REAL(wp), DIMENSION(A2D(0),nlay_s,jpl)  ::   zes_max
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ze_i
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ze_s
+      REAL(wp), DIMENSION(A2D(0),jpl)           ::   zhi_max, zhs_max, zhip_max, zsi_max
+      REAL(wp), DIMENSION(A2D(0),nlay_i,jpl)    ::   zei_max, zszi_max
+      REAL(wp), DIMENSION(A2D(0),nlay_s,jpl)    ::   zes_max
       !
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   z1_aip
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   zs_i 
@@ -126,10 +126,7 @@ CONTAINS
       !
       ! --- Allocate arrays --- !
       ALLOCATE( zvar(jpi,jpj,jpl,ndim), zhvar(jpi,jpj,jpl,ndim), zamsk(ndim) )
-      IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) ALLOCATE( z1_aip(jpi,jpj,jpl)        )
-      IF( nn_icesal == 4 ) THEN   ;     ALLOCATE( zsz_i (jpi,jpj,nlay_i,jpl) )
-      ELSE                        ;     ALLOCATE( zs_i  (jpi,jpj,jpl)        )
-      ENDIF
+      IF( ln_pnd_LEV .OR. ln_pnd_TOPO )   ALLOCATE( z1_aip(jpi,jpj,jpl) )
       IF( np_advS == 3 )   ALLOCATE( zuv_ho(jpi,jpj,jpl), zvv_ho(jpi,jpj,jpl), zuv_ups(jpi,jpj,jpl), zvv_ups(jpi,jpj,jpl), &
          &                           z1_vi (jpi,jpj,jpl), z1_vs (jpi,jpj,jpl) )
       !
@@ -142,47 +139,55 @@ CONTAINS
       IF( ln_pnd_LEV .OR. ln_pnd_TOPO )   CALL icemax3D_umx( ph_ip, zhip_max)
       !
       ! enthalpies
+      ALLOCATE( ze_i(jpi,jpj,nlay_i,jpl) )
       DO jk = 1, nlay_i
          WHERE( pv_i(:,:,:) >= epsi10 ) ; ze_i(:,:,jk,:) = pe_i(:,:,jk,:) / pv_i(:,:,:)
          ELSEWHERE                      ; ze_i(:,:,jk,:) = 0._wp
          END WHERE
       END DO
+      CALL icemax4D_umx( ze_i , zei_max )
+      DEALLOCATE( ze_i )
+
+      ALLOCATE( ze_s(jpi,jpj,nlay_s,jpl) )
       DO jk = 1, nlay_s
          WHERE( pv_s(:,:,:) >= epsi10 ) ; ze_s(:,:,jk,:) = pe_s(:,:,jk,:) / pv_s(:,:,:)
          ELSEWHERE                      ; ze_s(:,:,jk,:) = 0._wp
          END WHERE
       END DO
-      CALL icemax4D_umx( ze_i , zei_max )
       CALL icemax4D_umx( ze_s , zes_max )
+      DEALLOCATE( ze_s )
       !
       ! salt content
       IF( nn_icesal == 4 ) THEN
+         ALLOCATE( zsz_i(jpi,jpj,nlay_i,jpl) )              
          DO jk = 1, nlay_i
             WHERE( pv_i(:,:,:) >= epsi10 ) ; zsz_i(:,:,jk,:) = pszv_i(:,:,jk,:) / pv_i(:,:,:)
             ELSEWHERE                      ; zsz_i(:,:,jk,:) = 0._wp
             END WHERE
          END DO
          CALL icemax4D_umx( zsz_i , zszi_max )
+         DEALLOCATE( zsz_i )
       ELSE
+         ALLOCATE( zs_i(jpi,jpj,jpl) )     
          WHERE( pv_i(:,:,:) >= epsi10 ) ; zs_i(:,:,:) = psv_i(:,:,:) / pv_i(:,:,:)
          ELSEWHERE                      ; zs_i(:,:,:) = 0._wp
          END WHERE
          CALL icemax3D_umx( zs_i , zsi_max )
+         DEALLOCATE( zs_i )
       ENDIF
       !
       !
       ! --- If ice drift is too fast, use  subtime steps for advection (CFL test for stability) --- !
       !        Note: the advection split is applied at the next time-step in order to avoid blocking global comm.
       !              this should not affect too much the stability
-      zcflnow(1) =                  MAXVAL( ABS( pu_ice(:,:) ) * rDt_ice * r1_e1u(:,:) )
-      zcflnow(1) = MAX( zcflnow(1), MAXVAL( ABS( pv_ice(:,:) ) * rDt_ice * r1_e2v(:,:) ) )
+      zcfl =            MAXVAL( ABS( pu_ice(:,:) ) * rDt_ice * r1_e1u(:,:) )
+      zcfl = MAX( zcfl, MAXVAL( ABS( pv_ice(:,:) ) * rDt_ice * r1_e2v(:,:) ) )
 
-      ! non-blocking global communication send zcflnow and receive zcflprv
-      CALL mpp_delay_max( 'icedyn_adv_umx', 'cflice', zcflnow(:), zcflprv(:), kt == nitend - nn_fsbc + 1 )
+      CALL mpp_max( 'icedyn_adv_umx', zcfl, cdelay = 'cflice' )
 
-      IF    ( zcflprv(1) > 1.5 ) THEN   ;   icycle = 3
-      ELSEIF( zcflprv(1) >  .5 ) THEN   ;   icycle = 2
-      ELSE                              ;   icycle = 1
+      IF    ( zcfl > 1.5 ) THEN   ;   icycle = 3
+      ELSEIF( zcfl >  .5 ) THEN   ;   icycle = 2
+      ELSE                        ;   icycle = 1
       ENDIF
 !!$      !!test clem
 !!$      icycle=3
@@ -582,10 +587,7 @@ CONTAINS
       ! --- Deallocate arrays --- !
       DEALLOCATE( zvar, zhvar, zamsk )
       IF( ln_pnd_LEV .OR. ln_pnd_TOPO ) DEALLOCATE( z1_aip )
-      IF( nn_icesal == 4 ) THEN   ;     DEALLOCATE( zsz_i  )
-      ELSE                        ;     DEALLOCATE( zs_i   )
-      ENDIF
-      IF( np_advS == 3 )   DEALLOCATE( zuv_ho, zvv_ho, zuv_ups, zvv_ups, z1_vi, z1_vs )
+      IF( np_advS == 3 )                DEALLOCATE( zuv_ho, zvv_ho, zuv_ups, zvv_ups, z1_vi, z1_vs )
       !
    END SUBROUTINE ice_dyn_adv_umx
 
@@ -1086,21 +1088,23 @@ CONTAINS
       INTEGER  ::   ji, jj, jl, jm   ! dummy loop indices
       INTEGER  ::   ndim             ! number of variables to advect
       REAL(wp) ::   zcu, zdx2, zdx4        !   -      -
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ztu1, ztu2, ztu3, ztu4
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)     ::   ztu1, ztu3
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ztu2, ztu4
       !!----------------------------------------------------------------------
       ndim = SIZE( pt, dim=4 )
       !
-      ALLOCATE( ztu1(jpi,jpj,jpl,ndim), ztu2(jpi,jpj,jpl,ndim), ztu3(jpi,jpj,jpl,ndim), ztu4(jpi,jpj,jpl,ndim) )
+      IF( kn_umx >= 3 )    ALLOCATE( ztu1(jpi,jpj), ztu2(jpi,jpj,jpl,ndim) )
+      IF( kn_umx == 5 )    ALLOCATE( ztu3(jpi,jpj), ztu4(jpi,jpj,jpl,ndim) )
       !
       DO jm = 1, ndim
          !                                                     !--  Laplacian in i-direction  --!
          IF( kn_umx >= 3 ) THEN
             DO jl = 1, jpl
                DO_2D( 2, 1, kloop, kloop )                ! First derivative (gradient)
-                  ztu1(ji,jj,jl,jm) = ( pt(ji+1,jj,jl,jm) - pt(ji,jj,jl,jm) ) * r1_e1u(ji,jj) * umask(ji,jj,1)
+                  ztu1(ji,jj) = ( pt(ji+1,jj,jl,jm) - pt(ji,jj,jl,jm) ) * r1_e1u(ji,jj) * umask(ji,jj,1)
                END_2D
                DO_2D( 1, 1, kloop, kloop )                ! Second derivative (Laplacian)
-                  ztu2(ji,jj,jl,jm) = ( ztu1(ji,jj,jl,jm) - ztu1(ji-1,jj,jl,jm) ) * r1_e1t(ji,jj)
+                  ztu2(ji,jj,jl,jm) = ( ztu1(ji,jj) - ztu1(ji-1,jj) ) * r1_e1t(ji,jj)
                END_2D
             END DO
          ENDIF
@@ -1108,10 +1112,10 @@ CONTAINS
          IF( kn_umx == 5 ) THEN
             DO jl = 1, jpl
                DO_2D( 1, 0, kloop, kloop )                ! Third derivative
-                  ztu3(ji,jj,jl,jm) = ( ztu2(ji+1,jj,jl,jm) - ztu2(ji,jj,jl,jm) ) * r1_e1u(ji,jj) * umask(ji,jj,1)
+                  ztu3(ji,jj) = ( ztu2(ji+1,jj,jl,jm) - ztu2(ji,jj,jl,jm) ) * r1_e1u(ji,jj) * umask(ji,jj,1)
                END_2D
                DO_2D( 0, 0, kloop, kloop )                ! Fourth derivative
-                  ztu4(ji,jj,jl,jm) = ( ztu3(ji,jj,jl,jm) - ztu3(ji-1,jj,jl,jm) ) * r1_e1t(ji,jj)
+                  ztu4(ji,jj,jl,jm) = ( ztu3(ji,jj) - ztu3(ji-1,jj) ) * r1_e1t(ji,jj)
                END_2D
             END DO
          ENDIF
@@ -1216,7 +1220,8 @@ CONTAINS
          !
       ENDDO
       
-      DEALLOCATE( ztu1, ztu2, ztu3, ztu4 )
+      IF( kn_umx >= 3 )    DEALLOCATE( ztu1, ztu2 )
+      IF( kn_umx == 5 )    DEALLOCATE( ztu3, ztu4 )
       !
    END SUBROUTINE ultimate_x
 
@@ -1243,21 +1248,23 @@ CONTAINS
       INTEGER  ::   ji, jj, jl, jm   ! dummy loop indices
       INTEGER  ::   ndim             ! number of variables to advect
       REAL(wp) ::   zcv, zdy2, zdy4    !   -      -
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ztv1, ztv2, ztv3, ztv4
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)     ::   ztv1, ztv3
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ztv2, ztv4
       !!----------------------------------------------------------------------
       ndim = SIZE( pt, dim=4 )
       !
-      ALLOCATE( ztv1(jpi,jpj,jpl,ndim), ztv2(jpi,jpj,jpl,ndim), ztv3(jpi,jpj,jpl,ndim), ztv4(jpi,jpj,jpl,ndim) )
+      IF( kn_umx >= 3 )    ALLOCATE( ztv1(jpi,jpj), ztv2(jpi,jpj,jpl,ndim) )
+      IF( kn_umx == 5 )    ALLOCATE( ztv3(jpi,jpj), ztv4(jpi,jpj,jpl,ndim) )
       !
       DO jm = 1, ndim
          !                                                     !--  Laplacian in j-direction  --!
          IF( kn_umx >= 3 ) THEN
             DO jl = 1, jpl
                DO_2D( kloop, kloop, 2, 1 )                ! First derivative (gradient)
-                  ztv1(ji,jj,jl,jm) = ( pt(ji,jj+1,jl,jm) - pt(ji,jj,jl,jm) ) * r1_e2v(ji,jj) * vmask(ji,jj,1)
+                  ztv1(ji,jj) = ( pt(ji,jj+1,jl,jm) - pt(ji,jj,jl,jm) ) * r1_e2v(ji,jj) * vmask(ji,jj,1)
                END_2D
                DO_2D( kloop, kloop, 1, 1 )                ! Second derivative (Laplacian)
-                  ztv2(ji,jj,jl,jm) = ( ztv1(ji,jj,jl,jm) - ztv1(ji,jj-1,jl,jm) ) * r1_e2t(ji,jj)
+                  ztv2(ji,jj,jl,jm) = ( ztv1(ji,jj) - ztv1(ji,jj-1) ) * r1_e2t(ji,jj)
                END_2D
             END DO
          ENDIF
@@ -1265,10 +1272,10 @@ CONTAINS
          IF( kn_umx == 5 ) THEN
             DO jl = 1, jpl
                DO_2D( kloop, kloop, 1, 0 )                ! Third derivative
-                  ztv3(ji,jj,jl,jm) = ( ztv2(ji,jj+1,jl,jm) - ztv2(ji,jj,jl,jm) ) * r1_e2v(ji,jj) * vmask(ji,jj,1)
+                  ztv3(ji,jj) = ( ztv2(ji,jj+1,jl,jm) - ztv2(ji,jj,jl,jm) ) * r1_e2v(ji,jj) * vmask(ji,jj,1)
                END_2D
                DO_2D( kloop, kloop, 0, 0 )                ! Fourth derivative
-                  ztv4(ji,jj,jl,jm) = ( ztv3(ji,jj,jl,jm) - ztv3(ji,jj-1,jl,jm) ) * r1_e2t(ji,jj)
+                  ztv4(ji,jj,jl,jm) = ( ztv3(ji,jj) - ztv3(ji,jj-1) ) * r1_e2t(ji,jj)
                END_2D
             END DO
          ENDIF
@@ -1367,7 +1374,8 @@ CONTAINS
          !
       ENDDO
       !
-      DEALLOCATE( ztv1, ztv2, ztv3, ztv4 )
+      IF( kn_umx >= 3 )    DEALLOCATE( ztv1, ztv2 )
+      IF( kn_umx == 5 )    DEALLOCATE( ztv3, ztv4 )
       !
    END SUBROUTINE ultimate_y
 
