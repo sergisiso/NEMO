@@ -83,7 +83,7 @@ CONTAINS
          END DO
          IF( ln_tile ) CALL dom_tile_stop
 
-         IF( ln_bdy )           CALL trc_bdy_dmp( kt, Kbb,          Krhs )      ! BDY damping trends
+         IF( ln_top .AND. ln_bdy ) CALL trc_bdy_dmp( kt, Kbb,      Krhs )      ! BDY damping trends
 #if defined key_agrif
          IF(.NOT. Agrif_Root()) CALL Agrif_Sponge_trc       ! tracers sponge
 #endif

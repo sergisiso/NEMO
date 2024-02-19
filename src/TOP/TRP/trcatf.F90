@@ -103,7 +103,7 @@ CONTAINS
       ! Update after tracer on domain lateral boundaries
       CALL lbc_lnk( 'trcatf', ptr(:,:,:,:,Kaa), 'T', 1._wp )
 
-      IF( ln_bdy )  CALL trc_bdy( kt, Kbb, Kmm, Kaa )
+      IF( ln_top .AND. ln_bdy )  CALL trc_bdy( kt, Kbb, Kmm, Kaa )
 
       IF( l_trdtrc )  THEN             ! trends: store now fields before the Asselin filter application
          ALLOCATE( ztrdt(jpi,jpj,jpk,jptra) )

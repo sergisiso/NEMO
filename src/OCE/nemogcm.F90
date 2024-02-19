@@ -130,7 +130,7 @@ CONTAINS
 # endif
       CALL Agrif_Declare_Var       !  "      "   "   "      "  DYN/TRA
 # if defined key_top
-      CALL Agrif_Declare_Var_top   !  "      "   "   "      "  TOP
+      IF ( ln_top )   CALL Agrif_Declare_Var_top   !  "      "   "   "      "  TOP
 # endif
 #endif
       ! check that all process are still there... If some process have an error,
@@ -478,7 +478,7 @@ CONTAINS
                            CALL isf_init( Nbb, Nnn, Naa )
 #if defined key_top
       !                                      ! Passive tracers
-                           CALL     trc_init( Nbb, Nnn, Naa )
+      IF ( ln_top      )   CALL trc_init( Nbb, Nnn, Naa )
 #endif
       IF( l_ldfslp     )   CALL ldf_slp_init    ! slope of lateral mixing
 

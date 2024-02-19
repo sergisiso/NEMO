@@ -134,9 +134,11 @@ CONTAINS
                              CALL iom_init_closedef(            cw_ocerst_cxt )
                              CALL iom_setkt( kstp - nit000 + 1, cw_ocerst_cxt )
 #if defined key_top
+         IF( ln_top      ) THEN
                              CALL iom_swap(                     cw_toprst_cxt )
                              CALL iom_init_closedef(            cw_toprst_cxt )
                              CALL iom_setkt( kstp - nit000 + 1, cw_toprst_cxt )
+         ENDIF
 #endif
       ENDIF
       IF( kstp + nn_fsbc - 1 == nitrst .AND. lwxios ) THEN
@@ -321,7 +323,7 @@ CONTAINS
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Passive Tracer Model
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                         CALL trc_stp    ( kstp, Nbb, Nnn, Nrhs, Naa )           ! time-stepping
+      IF( ln_top     )   CALL trc_stp    ( kstp, Nbb, Nnn, Nrhs, Naa )           ! time-stepping
 #endif
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

@@ -45,6 +45,7 @@ MODULE in_out_manager
    LOGICAL       ::   ln_xios_read     !: use xios to read single file restart
    INTEGER       ::   nn_wxios         !: write resart using xios 0 - no, 1 - single, 2 - multiple file output
    INTEGER       ::   nn_no            !: Assimilation cycle
+   LOGICAL       ::   ln_top           !: Allow (T) or bypass (F) the TOP calls when the key_top is activated
 
 #if defined key_netcdf4
    !!----------------------------------------------------------------------
