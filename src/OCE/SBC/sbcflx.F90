@@ -139,7 +139,7 @@ CONTAINS
             qsr(:,:) =          sf(jp_qsr)%fnow(:,:,1)   * smask0(:,:)
          ENDIF
 #if defined key_top
-      IF( ln_trcdc2dm )  THEN      !  diurnal cycle in TOP
+      IF( ln_top .AND. ln_trcdc2dm ) THEN        !  diurnal cycle in TOP
          IF( ln_dm2dc )  THEN
             DO_2D( 0, 0, 0, 0 )                  ! set the ocean fluxes from read fields
                qsr_mean(ji,jj) = sf(jp_qsr)%fnow(ji,jj,1) * smask0(ji,jj)

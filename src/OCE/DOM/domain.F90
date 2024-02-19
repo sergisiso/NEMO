@@ -238,7 +238,7 @@ CONTAINS
          &             nn_no   , cn_exp   , cn_ocerst_in, cn_ocerst_out, ln_rstart , nn_rstctl ,     &
          &             nn_it000, nn_itend , nn_date0    , nn_time0     , nn_leapy  , nn_istate ,     &
          &             nn_stock, nn_write , ln_mskland  , ln_clobber   , nn_chunksz, ln_1st_euler  , &
-         &             ln_cfmeta, ln_xios_read, nn_wxios
+         &             ln_cfmeta, ln_xios_read, nn_wxios, ln_top
       NAMELIST/namdom/ ln_linssh, rn_Dt, rn_atfp, ln_crs, ln_c1d, ln_meshmask, ln_shuman, rn_stfp
       NAMELIST/namtile/ ln_tile, nn_ltile_i, nn_ltile_j
 #if defined key_netcdf4
@@ -364,6 +364,11 @@ CONTAINS
             WRITE(numout,*) "      AGRIF: nn_wxios will be ingored. See setting for parent"
             WRITE(numout,*) "      AGRIF: ln_xios_read will be ingored. See setting for parent"
          ENDIF
+#if ! defined key_top
+         IF( ln_top )    ln_top = .FALSE.
+#else
+         WRITE(numout,*) '      Allow (T) or bypass (F) the TOP calls ln_top    = ', ln_top
+#endif
       ENDIF
 
       cexper = cn_exp         ! conversion DOCTOR names into model names (this should disappear soon)

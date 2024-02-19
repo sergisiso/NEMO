@@ -65,6 +65,7 @@
    nn_chunksz  =       0   !  chunksize (bytes) for NetCDF file (works only with iom_nf90 routines)
    ln_xios_read = .false.  !  use XIOS to read restart file (only for a single file restart)
    nn_wxios = 0      !  use XIOS to write restart file 0 - no, 1 - single file output, 2 - multiple file output
+   ln_top      = .true.    !  Consider (T) or bypass (F) the TOP routines when the key_top is activated
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
