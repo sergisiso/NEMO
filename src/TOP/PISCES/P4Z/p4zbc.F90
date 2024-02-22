@@ -343,7 +343,7 @@ CONTAINS
          !
          ALLOCATE( ironsed(A2D(0),jpk) )    ! allocation
          !
-         CALL iom_open ( TRIM( sn_ironsed%clname ), numiron )
+         CALL iom_open ( TRIM( cn_dir )//TRIM( sn_ironsed%clname ), numiron )
          ALLOCATE( zcmask(jpi,jpj,jpk) )
          CALL iom_get  ( numiron, jpdom_global, TRIM( sn_ironsed%clvar ), zcmask(:,:,:), 1 )
          CALL iom_close( numiron )
