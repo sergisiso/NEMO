@@ -62,7 +62,7 @@ CONTAINS
       character(len=1) ::   cn_NFtype
       !!
       NAMELIST/namusr_def/ nn_isize, nn_jsize, nn_ksize, ln_Iperio, ln_Jperio, ln_NFold, cn_NFtype
-      NAMELIST/nammpp/ jpni, jpnj, nn_hls, ln_nnogather, ln_listonly, nn_comm
+      NAMELIST/nammpp/ jpni, jpnj, nn_hls, ln_nnogather, ln_mppdelay, ln_listonly, nn_comm
       !!----------------------------------------------------------------------     
       !
       READ_NML_(numnam_cfg,cfg,namusr_def,.TRUE.)
