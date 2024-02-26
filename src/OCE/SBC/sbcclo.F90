@@ -271,7 +271,7 @@ MODULE sbcclo
          !
       ENDDO
       ! 1. Work out net freshwater over the closed sea from EMP - RNF.
-      zcsfw(:) = glob_2Dsum( 'closea', zmsk_src, cdelay = 'cs1' )
+      zcsfw(:) = glob_2Dsum( 'closea', zmsk_src, cdelay = 'cs1_'//cdcstype )
       
       ! 2. Work out net heat associated with the correction (needed for conservation)
       DO jcs = 1, kncs  ! loop over closed seas
@@ -294,7 +294,7 @@ MODULE sbcclo
          !
          zmsk_src(:,:,jcs) = e1e2t(A2D(0)) * rcp * zcsfwf * sst_m(A2D(0)) * imsk_src(A2D(0),jcs)
       ENDDO
-      zcsh(:) = glob_2Dsum( 'closea', zmsk_src, cdelay = 'cs2' )
+      zcsh(:) = glob_2Dsum( 'closea', zmsk_src, cdelay = 'cs2_'//cdcstype )
       !
       ! 3. Add residuals to target points 
       !    Do not use pqcs(:,:) = pqcs(:,:) - rcp * zcsfw  * sst_m(:,:) / zsurftrg 
