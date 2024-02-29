@@ -93,7 +93,7 @@ CONTAINS
       ENDIF
       !
       IF( l_trddyn ) THEN                       ! Save the input trends
-         ALLOCATE( zu_trd(A2D(0),jpk), zv_trd(A2D(0),jpk) )
+         ALLOCATE( zu_trd(A2D(2),jpk), zv_trd(A2D(2),jpk) )
          zu_trd(A2D(0),:) = puu(A2D(0),:,Krhs)
          zv_trd(A2D(0),:) = pvv(A2D(0),:,Krhs)
       ENDIF

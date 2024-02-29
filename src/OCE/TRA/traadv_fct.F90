@@ -109,7 +109,7 @@ CONTAINS
          ll_zAimp1 = .FALSE.
          ll_zAimp2 = .FALSE.         
          IF( ( cdtype == 'TRA' .AND. l_trdtra  ) .OR. ( cdtype =='TRC' .AND. l_trdtrc ) )                      l_trd = .TRUE.
-         IF(   l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv' ) .OR. iom_use( 'sophtadv' ) ) )     l_ptr = .TRUE.
+         IF( l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv'  ) .OR. iom_use( 'sopstadv'  ) ) )     l_ptr = .TRUE.
          IF(   l_iom    .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR.  &
               &                                       iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )  l_hst = .TRUE.
       ENDIF

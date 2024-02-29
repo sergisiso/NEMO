@@ -73,7 +73,7 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(1)) ::   zfu, zfv
       !!----------------------------------------------------------------------
       ll_ptr = .FALSE. ; ll_hst = .FALSE.
-      IF( PRESENT(ld_ptr) ) ll_ptr = ld_ptr
+      IF( PRESENT(ld_ptr) ) ll_ptr = l_diaptr .AND. ld_ptr
       IF( PRESENT(ld_hst) ) ll_hst = ld_hst
       !
       itra = SIZE( pt, dim=4 )         ! number of tracers
@@ -141,7 +141,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       !
       ll_ptr = .FALSE. ; ll_hst = .FALSE.
-      IF( PRESENT(ld_ptr) ) ll_ptr = ld_ptr
+      IF( PRESENT(ld_ptr) ) ll_ptr = l_diaptr .AND. ld_ptr
       IF( PRESENT(ld_hst) ) ll_hst = ld_hst
       !
       itra = SIZE( pt, dim=4 )      ! number of tracers

@@ -121,7 +121,7 @@ CONTAINS
          l_hst = .FALSE.
          l_ptr = .FALSE.
          IF( cdtype == 'TRA' ) THEN
-            IF( iom_use( 'sophtldf' ) .OR. iom_use( 'sopstldf') )      l_ptr = .TRUE.
+            IF( l_diaptr .AND. iom_use( 'sophtldf'  ) .OR. iom_use( 'sopstldf'  ) )       l_ptr = .TRUE.
             IF( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR.                   &
             &   iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  )   l_hst = .TRUE.
          ENDIF

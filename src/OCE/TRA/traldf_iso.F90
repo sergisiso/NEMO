@@ -121,7 +121,7 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(0)    ) ::   zfw          ! INNER     domain
       !!----------------------------------------------------------------------
       ll_ptr = .FALSE. ; ll_hst = .FALSE.
-      IF( PRESENT(ld_ptr) ) ll_ptr = ld_ptr
+      IF( PRESENT(ld_ptr) ) ll_ptr = l_diaptr .AND. ld_ptr
       IF( PRESENT(ld_hst) ) ll_hst = ld_hst
       !
 !!gm OPTIMIZATION : This part does not depends on tracer  ===>>> put in a routine
@@ -196,7 +196,7 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(1),jpkm1) ::   zlap         ! INNER + 1 doamin (3D laplacian at t-point)
       !!----------------------------------------------------------------------
       ll_ptr = .FALSE. ; ll_hst = .FALSE.
-      IF( PRESENT(ld_ptr) ) ll_ptr = ld_ptr
+      IF( PRESENT(ld_ptr) ) ll_ptr = l_diaptr .AND. ld_ptr
       IF( PRESENT(ld_hst) ) ll_hst = ld_hst
       !
       CALL traldf_iso_a33( Kmm, ah_wslp2, akz )   ! calculate  a33 element   (ah_wslp2 and akz)
