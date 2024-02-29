@@ -213,7 +213,7 @@ CONTAINS
          !
          CALL wzv( kt, Kbb, Kmm, Kaa, pFu, pFv, ww, np_transport )
          !                                              ! Partition ww/wwi at stage 3 only
-         IF( ln_zad_Aimp ) CALL wAimp( kt, Kmm, pFu, pFv, ww, wi, np_transport )
+         IF( ln_zad_Aimp .AND. kstg == 3 ) CALL wAimp( kt, Kmm, pFu, pFv, ww, wi, np_transport )
          DO jk = 1, jpkm1
             DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
                pFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
