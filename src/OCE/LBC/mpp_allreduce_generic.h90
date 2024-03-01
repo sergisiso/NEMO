@@ -110,7 +110,7 @@
       LOGICAL :: llisdelay
       CHARACTER(len=8) :: cldname
       !!-----------------------------------------------------------------------
-      llisdelay = PRESENT(cdelay)
+      llisdelay = ln_mppdelay .AND. PRESENT(cdelay)
       IF( narea == 1 .AND. numcom == -1 ) CALL mpp_report( cdname, ld_glb = .NOT. llisdelay, ld_dlg = llisdelay)
       IF( ln_timing ) THEN
          cldname = ''
@@ -122,7 +122,7 @@
       ilocalcomm = mpi_comm_oce
       IF( PRESENT(kcom) )   ilocalcomm = kcom
       !
-      IF( ln_mppdelay .AND. llisdelay ) THEN
+      IF( llisdelay ) THEN
          idvar = -1
          DO ji = 1, nbdelay
             IF( c_delaylist(ji) == 'not defined' )   c_delaylist(ji) = cdelay   ! use empty tag
