@@ -107,15 +107,22 @@
 # else
       INTEGER :: ipi, ji, idvar, ierr
       INTEGER :: ierror, ilocalcomm
+      LOGICAL :: llisdelay
+      CHARACTER(len=8) :: cldname
       !!-----------------------------------------------------------------------
-      IF( narea == 1 .AND. numcom == -1 ) CALL mpp_report( cdname, ld_glb = .TRUE. )
-      IF( ln_timing )   CALL timing_start( 'global comm' )
+      llisdelay = PRESENT(cdelay)
+      IF( narea == 1 .AND. numcom == -1 ) CALL mpp_report( cdname, ld_glb = .NOT. llisdelay, ld_dlg = llisdelay)
+      IF( ln_timing ) THEN
+         cldname = ''
+         IF( llisdelay ) cldname = ' delayed '
+         CALL timing_start( 'global'//TRIM(cldname)//' comm' )   
+      ENDIF
       !
       ipi = I_SIZE(ptab)   ! 1st dimension
       ilocalcomm = mpi_comm_oce
       IF( PRESENT(kcom) )   ilocalcomm = kcom
       !
-      IF( ln_mppdelay .AND. PRESENT(cdelay) ) THEN
+      IF( ln_mppdelay .AND. llisdelay ) THEN
          idvar = -1
          DO ji = 1, nbdelay
             IF( c_delaylist(ji) == 'not defined' )   c_delaylist(ji) = cdelay   ! use empty tag
@@ -164,7 +171,7 @@
          DEALLOCATE(work)
       ENDIF
 
-      IF( ln_timing )   CALL timing_stop( 'global comm' )
+      IF( ln_timing )   CALL timing_stop( 'global'//TRIM(cldname)//' comm' )
 # endif
 #else
       ! nothing to do if non-mpp case
