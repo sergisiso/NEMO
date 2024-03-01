@@ -56,6 +56,13 @@ MODULE icedyn_rdgrft
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   aridge          ! participating ice ridging
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   araft           ! participating ice rafting
    !
+   ! For ridging diagnostics
+   LOGICAL, PUBLIC                               ::   ll_diag_rdg     ! activate ridging diagnostics or not
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)     ::   airdg1          ! ridging ice area loss
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)     ::   airft1          ! rafting ice area loss
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)     ::   airdg2          ! new ridged ice area gain
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)     ::   airft2          ! new rafted ice area gain
+   !
    REAL(wp), PARAMETER ::   hrdg_hi_min = 1.1_wp    ! min ridge thickness multiplier: min(hrdg/hi)
    REAL(wp), PARAMETER ::   hi_hrft     = 0.5_wp    ! rafting multiplier: (hi/hraft)
    !
@@ -101,6 +108,7 @@ CONTAINS
       ALLOCATE( closing_net(jpij) , opning(jpij)    , closing_gross(jpij),                   &
          &      apartf(jpij,0:jpl), hrmin (jpij,jpl), hraft(jpij,jpl)    , aridge(jpij,jpl), &
          &      hrmax (jpij,jpl)  , hrexp (jpij,jpl), hi_hrdg(jpij,jpl)  , araft(jpij,jpl) , &
+         &      airdg1(jpij)      , airft1(jpij)    , airdg2(jpij)       , airft2(jpij)    , &
          &      STAT=ice_dyn_rdgrft_alloc )
 
       CALL mpp_sum ( 'icedyn_rdgrft', ice_dyn_rdgrft_alloc )
@@ -151,6 +159,18 @@ CONTAINS
       INTEGER , DIMENSION(jpij) ::   iptidx        ! compute ridge/raft or not
       REAL(wp), DIMENSION(jpij) ::   zdivu, zdelt  ! 1D divu_i & delta_i
       REAL(wp), DIMENSION(jpij) ::   zconv         ! 1D rdg_conv (if EAP rheology)
+      !!
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   opning_2d  ! lead opening rate diagnostic
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   dairdg1dt  ! ridging ice area loss rate diagnostic
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   dairft1dt  ! rafting ice area loss rate diagnostic
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   dairdg2dt  ! new ridged ice area gain rate diagnostic
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   dairft2dt  ! new rafted ice area gain rate diagnostic
+      REAL(wp), ALLOCATABLE, DIMENSION(:)   ::   dairdg1dt_1d  ! 1D ridging ice area loss rate diagnostic
+      REAL(wp), ALLOCATABLE, DIMENSION(:)   ::   dairft1dt_1d  ! 1D rafting ice area loss rate diagnostic
+      REAL(wp), ALLOCATABLE, DIMENSION(:)   ::   dairdg2dt_1d  ! 1D new ridged ice area gain rate diagnostic
+      REAL(wp), ALLOCATABLE, DIMENSION(:)   ::   dairft2dt_1d  ! 1D new rafted ice area gain rate diagnostic
+      !!
+      REAL(wp), DIMENSION(A2D(0)) ::   zmsk       ! Temporary array for ice presence mask
       !
       INTEGER, PARAMETER ::   jp_itermax = 20
       !!-------------------------------------------------------------------
@@ -163,6 +183,27 @@ CONTAINS
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*)'ice_dyn_rdgrft: ice ridging and rafting'
          IF(lwp) WRITE(numout,*)'~~~~~~~~~~~~~~'
+      ENDIF     
+
+      ! Initialise ridging diagnostics if required
+      IF( iom_use('lead_open') .OR. iom_use('rdg_loss') .OR. iom_use('rft_loss') .OR. iom_use('rdg_gain') .OR. iom_use('rft_gain') ) THEN
+         !
+         ll_diag_rdg = .TRUE.    
+         !
+         ALLOCATE( opning_2d(A2D(0)) )
+         ALLOCATE( dairdg1dt(A2D(0)) , dairft1dt(A2D(0)) , dairdg2dt(A2D(0)) , dairft2dt(A2D(0)) )
+         ALLOCATE( dairdg1dt_1d(jpij), dairft1dt_1d(jpij), dairdg2dt_1d(jpij), dairft2dt_1d(jpij) )
+         !
+         opning_2d(:,:) = 0.0_wp
+         dairdg1dt(:,:) = 0.0_wp  ; dairdg1dt_1d(:) = 0.0_wp
+         dairft1dt(:,:) = 0.0_wp  ; dairft1dt_1d(:) = 0.0_wp
+         dairdg2dt(:,:) = 0.0_wp  ; dairdg2dt_1d(:) = 0.0_wp
+         dairft2dt(:,:) = 0.0_wp  ; dairft2dt_1d(:) = 0.0_wp
+         !
+      ELSE
+         !
+         ll_diag_rdg = .FALSE.
+         !
       ENDIF
 
       !--------------------------------
@@ -172,6 +213,7 @@ CONTAINS
       !
       npti = 0   ;   nptidx(:) = 0
       ipti = 0   ;   iptidx(:) = 0
+      zmsk = MERGE( 1._wp, 0._wp, at_i(A2D(0)) >= epsi10 ) ! 1 if ice, 0 if no ice
       DO_2D( 0, 0, 0, 0 )
          IF ( at_i(ji,jj) > epsi10 ) THEN
             npti           = npti + 1
@@ -277,7 +319,43 @@ CONTAINS
 
          CALL ice_dyn_1d2d( 2 )            ! --- Move to 2D arrays --- !
 
-      ENDIF
+! --- Ridging diagnostics --- !
+
+         IF( ll_diag_rdg ) THEN
+           !
+           CALL tab_1d_2d( npti, nptidx(1:npti), opning(1:npti), opning_2d(:,:) )
+           !
+           dairdg1dt_1d(1:npti) = airdg1(1:npti) * r1_Dt_ice
+           dairft1dt_1d(1:npti) = airft1(1:npti) * r1_Dt_ice                      
+           dairdg2dt_1d(1:npti) = airdg2(1:npti) * r1_Dt_ice
+           dairft2dt_1d(1:npti) = airft2(1:npti) * r1_Dt_ice   
+           !    
+           CALL tab_1d_2d( npti, nptidx(1:npti), dairdg1dt_1d(1:npti), dairdg1dt(:,:) )
+           CALL tab_1d_2d( npti, nptidx(1:npti), dairft1dt_1d(1:npti), dairft1dt(:,:) )
+           CALL tab_1d_2d( npti, nptidx(1:npti), dairdg2dt_1d(1:npti), dairdg2dt(:,:) )
+           CALL tab_1d_2d( npti, nptidx(1:npti), dairft2dt_1d(1:npti), dairft2dt(:,:) )
+           !
+         ENDIF ! ridging diagnostics
+          ! 
+      ENDIF  ! npti>0
+
+
+      IF( ll_diag_rdg ) THEN
+        !
+        CALL iom_put( 'lead_open', opning_2d(:,:) * zmsk(:,:) )  ! Lead area opening rate
+        CALL iom_put( 'rdg_loss',  dairdg1dt(:,:) * zmsk(:,:) )  ! Ridging ice area loss rate
+        CALL iom_put( 'rft_loss',  dairft1dt(:,:) * zmsk(:,:) )  ! Rafting ice area loss rate
+        CALL iom_put( 'rdg_gain',  dairdg2dt(:,:) * zmsk(:,:) )  ! New ridged ice area gain rate
+        CALL iom_put( 'rft_gain',  dairft2dt(:,:) * zmsk(:,:) )  ! New rafted ice area gain rate
+        !
+        DEALLOCATE( opning_2d )
+        DEALLOCATE( dairdg1dt   , dairft1dt   , dairdg2dt   , dairft2dt    )
+        DEALLOCATE( dairdg1dt_1d, dairft1dt_1d, dairdg2dt_1d, dairft2dt_1d )
+        !
+      ENDIF ! ridging diagnostics
+
+! ------- !
+
       ! clem: those fields must be updated on the halos: ato_i, a_i, v_i, v_s, sv_i, oa_i, a_ip, v_ip, v_il, e_i, e_s, szv_i
 
       ! clem: I think we can comment this line but I am not sure it does not change results
@@ -302,13 +380,14 @@ CONTAINS
       !! ** Method  :   Compute the thickness distribution of the ice and open water
       !!                participating in ridging and of the resulting ridges.
       !!-------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:), INTENT(in)           ::   pa_i, pv_i
-      REAL(wp), DIMENSION(:)  , INTENT(in)           ::   pato_i
+      REAL(wp), DIMENSION(:,:), INTENT(in) ::   pa_i, pv_i
+      REAL(wp), DIMENSION(:)  , INTENT(in) ::   pato_i
       REAL(wp), DIMENSION(:)  , INTENT(in), OPTIONAL ::   pclosing_net
       !!
       INTEGER  ::   ji, jl                     ! dummy loop indices
       REAL(wp) ::   z1_gstar, z1_astar, zhmean, zfac   ! local scalar
-      REAL(wp), DIMENSION(jpij)        ::   zasum, z1_asum, zaksum   ! sum of a_i+ato_i and reverse
+      REAL(wp), DIMENSION(jpij)        ::   zasum, z1_asum           ! sum of a_i+ato_i and inverse
+      REAL(wp), DIMENSION(jpij)        ::   zaksum                   ! normalisation factor
       REAL(wp), DIMENSION(jpij,jpl)    ::   zhi                      ! ice thickness
       REAL(wp), DIMENSION(jpij,-1:jpl) ::   zGsum                    ! zGsum(n) = sum of areas in categories 0 to n
       !--------------------------------------------------------------------
@@ -488,7 +567,6 @@ CONTAINS
                ELSEIF( ln_distf_exp ) THEN
                   hrexp  (ji,jl) = rn_murdg * SQRT( zhi(ji,jl) )
                   hi_hrdg(ji,jl) = zhi(ji,jl) / ( hrmin(ji,jl) + hrexp(ji,jl) )
-                  !!clem: set a mini for zhi??
                ENDIF
                !
                ! Normalization factor : zaksum, ensures mass conservation
@@ -500,7 +578,7 @@ CONTAINS
                hrexp  (ji,jl) = 0._wp
                hraft  (ji,jl) = 0._wp
                hi_hrdg(ji,jl) = 1._wp
-               !!clem zaksum(ji,jl) = 0._wp
+               !zaksum (ji)    = 0._wp
             ENDIF
          END DO
       END DO
@@ -561,9 +639,8 @@ CONTAINS
       REAL(wp) ::   expL, expR                 ! exponentials involving hL, hR
       REAL(wp) ::   vsw                        ! vol of water trapped into ridges
       REAL(wp) ::   afrdg, afrft               ! fraction of category area ridged/rafted
-      REAL(wp)                  ::   airdg1, airft1
-      REAL(wp), DIMENSION(jpij) ::   airdg2, oirdg, aprdg, virdg, vsrdg, vprdg, vlrdg  ! area etc of new ridges
-      REAL(wp), DIMENSION(jpij) ::   airft2, oirft, aprft, virft, vsrft, vprft, vlrft  ! area etc of rafted ice
+      REAL(wp), DIMENSION(jpij) ::   oirdg, aprdg, virdg, vsrdg, vprdg, vlrdg  ! area etc of new ridges
+      REAL(wp), DIMENSION(jpij) ::   oirft, aprft, virft, vsrft, vprft, vlrft  ! area etc of rafted ice
       REAL(wp), DIMENSION(jpij,nlay_i) ::   sirdg, sirft
       !
       REAL(wp) ::   ersw             ! enthalpy of water trapped into ridges
@@ -610,15 +687,15 @@ CONTAINS
                ENDIF
 
                ! area of ridging / rafting ice (airdg1) and of new ridge (airdg2)
-               airdg1 = aridge(ji,jl1) * closing_gross(ji) * rDt_ice
-               airft1 = araft (ji,jl1) * closing_gross(ji) * rDt_ice
+               airdg1(ji) = aridge(ji,jl1) * closing_gross(ji) * rDt_ice
+               airft1(ji) = araft (ji,jl1) * closing_gross(ji) * rDt_ice
 
-               airdg2(ji) = airdg1 * hi_hrdg(ji,jl1)
-               airft2(ji) = airft1 * hi_hrft
+               airdg2(ji) = airdg1(ji) * hi_hrdg(ji,jl1)
+               airft2(ji) = airft1(ji) * hi_hrft
 
                ! ridging /rafting fractions
-               afrdg = airdg1 * z1_ai
-               afrft = airft1 * z1_ai
+               afrdg = airdg1(ji) * z1_ai
+               afrft = airft1(ji) * z1_ai
 
                ! volume and enthalpy (J/m2, >0) of seawater trapped into ridges
                IF    ( zvti(ji) <= 10. ) THEN ; vsw = v_i_2d(ji,jl1) * afrdg * rn_porordg                                           ! v <= 10m then porosity = rn_porordg
@@ -683,7 +760,7 @@ CONTAINS
 
                ! Remove area, volume of new ridge to each category jl1
                !------------------------------------------------------
-               a_i_2d (ji,jl1) = a_i_2d (ji,jl1) - airdg1 - airft1
+               a_i_2d (ji,jl1) = a_i_2d (ji,jl1) - airdg1(ji) - airft1(ji)
                v_i_2d (ji,jl1) = v_i_2d (ji,jl1)     * ( 1._wp - afrdg - afrft ) 
                v_s_2d (ji,jl1) = v_s_2d (ji,jl1)     * ( 1._wp - afrdg - afrft )
                oa_i_2d(ji,jl1) = oa_i_2d(ji,jl1)     * ( 1._wp - afrdg - afrft )
@@ -826,13 +903,16 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER             ::   ji, jj, jl  ! dummy loop indices
       REAL(wp)            ::   z1_3        ! local scalars
-      REAL(wp), DIMENSION(A2D(0))  ::   zworka      ! temporary array used here
+      REAL(wp), DIMENSION(A2D(0))   ::   zworka         ! temporary array used here
+      REAL(wp), DIMENSION(jpij,jpl) ::   za_i_cap       ! local capped ice concentration
       !!
       LOGICAL             ::   ln_str_R75
       REAL(wp)            ::   zhi, zcp
       REAL(wp)            ::   h2rdg                     ! mean value of h^2 for new ridge
-      REAL(wp), PARAMETER ::   zmax_strength = 200.e3_wp ! Richter-Menge and Elder (1998) estimate maximum in Beaufort Sea in wintertime of the order 150 kN/m
-      REAL(wp), DIMENSION(jpij) ::   zstrength, zaksum   ! strength in 1D      
+      REAL(wp), PARAMETER ::   zmax_strength = 200.e3_wp ! Max strength for R75 formulation. Richter-Menge and Elder (1998) estimate maximum in Beaufort Sea in wintertime of the order 150 kN/m.
+      ! Coon et al. (2007) state that 20 kN/m is ~10% of the maximum compressive strength of isotropic ice, giving max strength of 200 kN/m.
+      REAL(wp), DIMENSION(jpij) ::   zstrength           ! strength in 1D   
+      REAL(wp), DIMENSION(jpij) ::   zaksum              ! normalisation factor
       !!----------------------------------------------------------------------
       ! at_i needed for strength
       at_i(:,:) = SUM( a_i, dim=3 )
@@ -855,13 +935,27 @@ CONTAINS
             ENDIF
          END_2D
 
+         ! Initialise local capped a_i to zero
+         ! Note that if 0 < a_i < epsi10, can end up with zhi=0 but apartf>0 rdgrft_prep; za_i_cap avoids this here
+         za_i_cap(:,:) = 0.0
+        
          IF( npti > 0 ) THEN
             CALL tab_3d_2d( npti, nptidx(1:npti), a_i_2d  (1:npti,:), a_i   )
             CALL tab_3d_2d( npti, nptidx(1:npti), v_i_2d  (1:npti,:), v_i   )
             CALL tab_2d_1d( npti, nptidx(1:npti), ato_i_1d(1:npti)  , ato_i )
             CALL tab_2d_1d( npti, nptidx(1:npti), zstrength(1:npti) , strength )
 
-            CALL rdgrft_prep( a_i_2d, v_i_2d, ato_i_1d )
+            ! Cap a_i to avoid zhi in rdgrft_prep going below minimum
+            za_i_cap(1:npti,:) = a_i_2d(1:npti,:)
+            DO jl = 1, jpl
+               DO ji = 1, npti
+                  IF ( a_i_2d(ji,jl) > epsi10 .AND. ( v_i_2d(ji,jl) / a_i_2d(ji,jl) ) .LT. rn_himin ) THEN
+                    za_i_cap(ji,jl) = a_i_2d(ji,jl) * ( v_i_2d(ji,jl) / a_i_2d(ji,jl) ) / rn_himin
+                  ENDIF
+               END DO
+            END DO
+
+            CALL rdgrft_prep( za_i_cap, v_i_2d, ato_i_1d )
             !
             zaksum(1:npti) = apartf(1:npti,0) !clem: aksum should be defined in the header => local to module
             DO jl = 1, jpl
@@ -893,6 +987,14 @@ CONTAINS
                      IF( a_i_2d(ji,jl) > epsi10 ) THEN   ;   zhi = v_i_2d(ji,jl) / a_i_2d(ji,jl)
                      ELSE                                ;   zhi = 0._wp
                      ENDIF
+
+	             ! Make sure ice thickness is not below the minimum
+                     ! Do not adjust concentration as don't want strength routine to be able to do this
+	             IF( a_i_2d(ji,jl) > epsi10 .AND. zhi < rn_himin ) THEN
+                       zhi = rn_himin
+                     ENDIF
+
+
 !!$                     zstrength(ji) = zstrength(ji) -         apartf(ji,jl) * zhi * zhi                  ! PE loss from deforming ice
 !!$                     zstrength(ji) = zstrength(ji) + 2._wp * araft (ji,jl) * zhi * zhi                  ! PE gain from rafting ice
 !!$                     zstrength(ji) = zstrength(ji) +         aridge(ji,jl) * hi_hrdg(ji,jl) * z1_3 *  & ! PE gain from ridging ice
@@ -910,10 +1012,9 @@ CONTAINS
             !
             zstrength(1:npti) = rn_pe_rdg * zcp * zstrength(1:npti) / zaksum(1:npti)
             !
-            ! Enforce a maximum for strength
-            ! Richter-Menge and Elder (1998) estimate maximum in Beaufort Sea in wintertime of the order 150 kN/m
+            ! Enforce a maximum for R75 strength
             WHERE( zstrength(1:npti) > zmax_strength ) ; zstrength(1:npti) = zmax_strength
-            ENDWHERE
+            END WHERE
             !
             CALL tab_1d_2d( npti, nptidx(1:npti), zstrength(1:npti), strength )
             !
