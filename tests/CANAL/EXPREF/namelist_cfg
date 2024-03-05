@@ -238,7 +238,7 @@
    ln_dynvor_ene = .true.  !  energy    conserving scheme
    ln_dynvor_ens = .false. !  enstrophy conserving scheme
    ln_dynvor_mix = .false. !  mixed scheme
-   ln_dynvor_enT =  .true. !  energy conserving scheme (T-point)
+   ln_dynvor_enT = .false. !  energy conserving scheme (T-point)
    ln_dynvor_een = .false. !  energy & enstrophy scheme
    !
    nn_e3f_typ = 0          !  type of e3f (EEN, ENE, ENS, MIX only)  =0  e3f = mi(mj(e3t))/4
