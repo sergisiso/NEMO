@@ -369,7 +369,7 @@ CONTAINS
          !!-------------------------------------------------------------------------------------------
 
          CALL blk_oce_2( tq_abl(:,:,2,nt_n,jp_ta), sf(jp_qlw )%fnow(:,:,1),   &
-            &            sf(jp_prec)%fnow(:,:,1) , sf(jp_snow)%fnow(:,:,1),   &
+            &            precip, sf(jp_snow)%fnow(:,:,1),                     &
             &            tsk_m, zsen, zlat, zevp                              )
 
          CALL abl_rst_opn( kt )                       ! Open abl restart file (if necessary)

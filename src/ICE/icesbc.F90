@@ -156,7 +156,7 @@ CONTAINS
                                   CALL blk_ice_2( t_su(A2D(0),:), h_s(A2D(0),:), h_i(A2D(0),:),       &   ! <<== in 
                                      &            alb_ice(:,:,:), theta_air_zt(:,:), q_air_zt(:,:),   &   ! <<== in
                                      &            sf(jp_slp)%fnow(:,:,1), sf(jp_qlw)%fnow(:,:,1),     &   ! <<== in
-                                     &            sf(jp_prec)%fnow(:,:,1), sf(jp_snow)%fnow(:,:,1) )      ! <<== in
+                                     &            precip, sf(jp_snow)%fnow(:,:,1) )                       ! <<== in
                                   !
          IF( ln_mixcpl        )   CALL sbc_cpl_ice_flx( kt, picefr=at_i_b(:,:), palbi=alb_ice(:,:,:), &
                                      &                      psst=sst_m(A2D(0)), pist=t_su(A2D(0),:),  &
