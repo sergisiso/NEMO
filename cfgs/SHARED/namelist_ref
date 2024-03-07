@@ -265,6 +265,7 @@
    ln_COARE_3p0 = .false.    ! "COARE 3.0" algorithm   (Fairall et al. 2003)
    ln_COARE_3p6 = .false.    ! "COARE 3.6" algorithm   (Edson et al. 2013)
    ln_ECMWF     = .false.    ! "ECMWF"     algorithm   (IFS cycle 45r1)
+   ln_MFS       = .false.    ! "MFS"       algorithm   (MFS/BS Copernicus, Petenuzzo et al 2010)
    ln_ANDREAS   = .false.    ! "ANDREAS"   algorithm   (Andreas et al. 2015)
       rn_zqt       = 10.     !  Air temperature & humidity reference height (m)
       rn_zu        = 10.     !  Wind vector reference height (m)
@@ -283,6 +284,7 @@
    ln_humi_dpt = .false. !  humidity "sn_humi" is dew-point temperature [K]
    ln_humi_rlh = .false. !  humidity "sn_humi" is relative humidity     [%]
    ln_tair_pot = .false. !  air temperature read in "sn_tair" is already POTENTIAL TEMPERATURE, NOT ABSOLUTE (ECMWF => ln_tair_pot=.false.)
+   ln_prec_met = .false. !  precipitation read in "sn_prec" is in [m] 
    !!   
    !! Bulk transfer coefficients over sea-ice: (relevant IF: nn_ice >=1 )
    ln_Cx_ice_cst = .true.     ! use constant ice-air bulk transfer coefficients (value given below)

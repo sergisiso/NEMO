@@ -55,6 +55,7 @@ MODULE sbcblk
    USE sbcblk_algo_coare3p6 ! => turb_coare3p6 : COAREv3.6 (Fairall et al. 2018 + Edson et al. 2013)
    USE sbcblk_algo_ecmwf    ! => turb_ecmwf    : ECMWF (IFS cycle 45r1)
    USE sbcblk_algo_andreas  ! => turb_andreas  : Andreas et al. 2015
+   USE sbcblk_algo_mfs      ! => turb_mfs      : MFS/BS Copernicus (Petenuzzo et al. 2010 doi:10.1029/2009JC005631)
    !
    USE iom            ! I/O manager library
    USE in_out_manager ! I/O manager
@@ -104,6 +105,7 @@ MODULE sbcblk
    LOGICAL  ::   ln_COARE_3p6   ! "COARE 3.6" algorithm   (Edson et al. 2013)
    LOGICAL  ::   ln_ECMWF       ! "ECMWF"     algorithm   (IFS cycle 45r1)
    LOGICAL  ::   ln_ANDREAS     ! "ANDREAS"   algorithm   (Andreas et al. 2015)
+   LOGICAL  ::   ln_MFS         ! "MFS"       algorithm   (Petenuzzo et al 2010)
    !
    !#LB:
    LOGICAL  ::   ln_Cx_ice_cst             ! use constant air-ice bulk transfer coefficients (value given in namelist's rn_Cd_i, rn_Ce_i & rn_Ch_i)
@@ -124,7 +126,8 @@ MODULE sbcblk
    !
    INTEGER          :: nn_iter_algo   !  Number of iterations in bulk param. algo ("stable ABL + weak wind" requires more)
 
-   REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   theta_zu, q_zu           ! air temp. and spec. hum. at wind speed height (L15 bulk scheme)
+   REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   theta_zu, q_zu   ! air temp. and spec. hum. at wind speed height (L15 bulk scheme)
+   REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:) ::   precip   ! precipitation (after optional conversion from [m] to [Kg/m2/s])
 
 #if defined key_si3
    REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: Cd_ice , Ch_ice , Ce_ice   !#LB transfert coefficients over ice
@@ -138,6 +141,7 @@ MODULE sbcblk
    LOGICAL  ::   ln_humi_dpt    ! humidity read in files ("sn_humi") is dew-point temperature [K] if .true. !LB
    LOGICAL  ::   ln_humi_rlh    ! humidity read in files ("sn_humi") is relative humidity     [%] if .true. !LB
    LOGICAL  ::   ln_tair_pot    ! temperature read in files ("sn_tair") is already potential temperature (not absolute)
+   LOGICAL  ::   ln_prec_met    ! precipitation read in files ("sn_prec") is in m and has to be converted to kg/m2/s
    !
    INTEGER  ::   nhumi          ! choice of the bulk algorithm
    !                            ! associated indices:
@@ -151,8 +155,8 @@ MODULE sbcblk
    INTEGER, PARAMETER ::   np_COARE_3p0 = 2   ! "COARE 3.0" algorithm   (Fairall et al. 2003)
    INTEGER, PARAMETER ::   np_COARE_3p6 = 3   ! "COARE 3.6" algorithm   (Edson et al. 2013)
    INTEGER, PARAMETER ::   np_ECMWF     = 4   ! "ECMWF" algorithm       (IFS cycle 45r1)
-   INTEGER, PARAMETER ::   np_ANDREAS   = 5   ! "ANDREAS" algorithm       (Andreas et al. 2015)
-
+   INTEGER, PARAMETER ::   np_ANDREAS   = 5   ! "ANDREAS" algorithm     (Andreas et al. 2015)
+   INTEGER, PARAMETER ::   np_MFS       = 6   ! "MFS" algorithm         (Petenuzzo et al. 2010)
    !#LB:
 #if defined key_si3
    ! Same, over sea-ice:
@@ -181,7 +185,7 @@ CONTAINS
       !!-------------------------------------------------------------------
       !!             ***  ROUTINE sbc_blk_alloc ***
       !!-------------------------------------------------------------------
-      ALLOCATE( theta_zu(A2D(0)), q_zu(A2D(0)), STAT=sbc_blk_alloc )
+      ALLOCATE( theta_zu(A2D(0)), q_zu(A2D(0)), precip(A2D(0)), STAT=sbc_blk_alloc )
       CALL mpp_sum ( 'sbcblk', sbc_blk_alloc )
       IF( sbc_blk_alloc /= 0 )   CALL ctl_stop( 'STOP', 'sbc_blk_alloc: failed to allocate arrays' )
    END FUNCTION sbc_blk_alloc
@@ -217,11 +221,12 @@ CONTAINS
       TYPE(FLD_N) ::   sn_slp , sn_uoatm, sn_voatm             !       "                        "
       TYPE(FLD_N) ::   sn_cc, sn_hpgi, sn_hpgj                 !       "                        "
       INTEGER     ::   ipka                                    ! number of levels in the atmospheric variable
-      NAMELIST/namsbc_blk/ ln_NCAR, ln_COARE_3p0, ln_COARE_3p6, ln_ECMWF, ln_ANDREAS, &   ! bulk algorithm
+      NAMELIST/namsbc_blk/ ln_NCAR, ln_COARE_3p0, ln_COARE_3p6, ln_ECMWF, ln_ANDREAS, ln_MFS, &   ! bulk algorithm
          &                 rn_zqt, rn_zu, nn_iter_algo, ln_skin_cs, ln_skin_wl,       &
          &                 rn_pfac, rn_efac,                                          &
          &                 ln_crt_fbk, rn_stau_a, rn_stau_b,                          &   ! current feedback
          &                 ln_humi_sph, ln_humi_dpt, ln_humi_rlh, ln_tair_pot,        &
+         &                 ln_prec_met,                                               &
          &                 ln_Cx_ice_cst, rn_Cd_i, rn_Ce_i, rn_Ch_i,                  &
          &                 ln_Cx_ice_AN05, ln_Cx_ice_LU12, ln_Cx_ice_LG15,            &
          &                 cn_dir,                                                    &
@@ -259,18 +264,19 @@ CONTAINS
       IF( ln_ECMWF     ) THEN
          nblk =  np_ECMWF       ;   ioptio = ioptio + 1
       ENDIF
-      IF( ln_ANDREAS     ) THEN
-         nblk =  np_ANDREAS       ;   ioptio = ioptio + 1
+      IF( ln_ANDREAS   ) THEN
+         nblk =  np_ANDREAS     ;   ioptio = ioptio + 1
+      ENDIF
+      IF( ln_MFS       ) THEN
+         nblk =  np_MFS         ;   ioptio = ioptio + 1
       ENDIF
       IF( ioptio /= 1 )   CALL ctl_stop( 'sbc_blk_init: Choose one and only one bulk algorithm' )
 
       !                             !** initialization of the cool-skin / warm-layer parametrization
       IF( ln_skin_cs .OR. ln_skin_wl ) THEN
          !! Some namelist sanity tests:
-         IF( ln_NCAR )      &
-            & CALL ctl_stop( 'sbc_blk_init: Cool-skin/warm-layer param. not compatible with NCAR algorithm' )
-         IF( ln_ANDREAS )      &
-            & CALL ctl_stop( 'sbc_blk_init: Cool-skin/warm-layer param. not compatible with ANDREAS algorithm' )
+         IF( ln_NCAR .OR. ln_ANDREAS .OR. ln_MFS )      &
+            & CALL ctl_stop( 'sbc_blk_init: Cool-skin/warm-layer param. not compatible with current bulk algorithm' )
          !IF( nn_fsbc /= 1 ) &
          !   & CALL ctl_stop( 'sbc_blk_init: Please set "nn_fsbc" to 1 when using cool-skin/warm-layer param.')
       END IF
@@ -282,6 +288,9 @@ CONTAINS
          IF( (sn_qsr%freqh == 24.).AND.(.NOT. ln_dm2dc) ) &
             & CALL ctl_stop( 'sbc_blk_init: Please set ln_dm2dc=T for warm-layer param. (ln_skin_wl) to work properly' )
       END IF
+
+      IF ( ln_MFS .AND. .NOT. ln_humi_rlh )    &
+          & CALL ctl_stop( 'sbc_blk_init: MFS bulk only works with relative humidity (ln_humi_rlh)')
 
       ioptio = 0
       IF( ln_humi_sph ) THEN
@@ -375,6 +384,8 @@ CONTAINS
                ENDIF
             ELSEIF( jfpr == jp_cc  ) THEN
                sf(jp_cc)%fnow(:,:,1:ipka) = pp_cldf
+            ELSEIF( jfpr ==jp_qsr .OR. jfpr==jp_qlw ) THEN
+               sf(jfpr)%fnow(:,:,1:ipka) = 0._wp
             ELSE
                WRITE(ctmp1,*) 'sbc_blk_init: no default value defined for field number', jfpr
                CALL ctl_stop( ctmp1 )
@@ -405,6 +416,7 @@ CONTAINS
          WRITE(numout,*) '      "COARE 3.6" algorithm (Fairall 2018 + Edson al 2013) ln_COARE_3p6 = ', ln_COARE_3p6
          WRITE(numout,*) '      "ECMWF"     algorithm   (IFS cycle 45r1)             ln_ECMWF     = ', ln_ECMWF
          WRITE(numout,*) '      "ANDREAS"   algorithm   (Andreas et al. 2015)       ln_ANDREAS   = ', ln_ANDREAS
+         WRITE(numout,*) '      "MFS"       algorithm   (Petenuzzo et al. 2010)     ln_MFS       = ', ln_MFS
          WRITE(numout,*) '      Air temperature and humidity reference height (m)   rn_zqt       = ', rn_zqt
          WRITE(numout,*) '      Wind vector reference height (m)                    rn_zu        = ', rn_zu
          WRITE(numout,*) '      factor applied on precipitation (total & snow)      rn_pfac      = ', rn_pfac
@@ -424,6 +436,7 @@ CONTAINS
          CASE( np_COARE_3p6 )   ;   WRITE(numout,*) '   ==>>>   "COARE 3.6" algorithm (Fairall 2018+Edson et al. 2013)'
          CASE( np_ECMWF     )   ;   WRITE(numout,*) '   ==>>>   "ECMWF" algorithm       (IFS cycle 45r1)'
          CASE( np_ANDREAS   )   ;   WRITE(numout,*) '   ==>>>   "ANDREAS" algorithm (Andreas et al. 2015)'
+         CASE( np_MFS       )   ;   WRITE(numout,*) '   ==>>    "MFS/BS Copernicus" algorithm (Petenuzzo et al. 2010)'     
          END SELECT
          !
          WRITE(numout,*)
@@ -501,7 +514,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   ! ocean time step
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(A2D(0)) ::   zssq, zcd_du, zsen, zlat, zevp, zpre, ztheta
+      REAL(wp), DIMENSION(A2D(0)) ::   zssq, zcd_du, zsen, zlat, zevp, zpre, ztheta, zqlwn
       REAL(wp) :: ztst
       LOGICAL  :: llerr
       INTEGER  :: ji, jj 
@@ -565,17 +578,23 @@ CONTAINS
             theta_air_zt(:,:) = theta_exner( sf(jp_tair)%fnow(:,:,1), zpre(:,:) )
          ENDIF
          !
+         IF( ln_prec_met ) THEN
+            precip(:,:) = MAX(0._wp, sf(jp_prec)%fnow(:,:,1) * 1000._wp /(sf(jp_prec)%freqh * 3600._wp ) )
+         ELSE
+            precip(:,:) = sf(jp_prec)%fnow(:,:,1)
+         ENDIF 
+         !
          CALL blk_oce_1( kt, sf(jp_wndi )%fnow(:,:,1), sf(jp_wndj )%fnow(:,:,1),   &   !   <<= in
             &                theta_air_zt(:,:), q_air_zt(:,:),                     &   !   <<= in
             &                sf(jp_slp  )%fnow(:,:,1), sst_m(A2D(0)), ssu_m(A2D(1)), ssv_m(A2D(1)),        &   !   <<= in
             &                sf(jp_uoatm)%fnow(:,:,1), sf(jp_voatm)%fnow(:,:,1),   &   !   <<= in
             &                sf(jp_qsr  )%fnow(:,:,1), sf(jp_qlw  )%fnow(:,:,1),   &   !   <<= in (wl/cs)
-            &                tsk_m, zssq, zcd_du, zsen, zlat, zevp )                   !   =>> out
+            &                tsk_m, zssq, zcd_du, zsen, zlat, zevp, zqlwn )            !   =>> out
 
          CALL blk_oce_2(     theta_air_zt(:,:),                                    &   !   <<= in
-            &                sf(jp_qlw  )%fnow(:,:,1), sf(jp_prec )%fnow(:,:,1),   &   !   <<= in
+            &                sf(jp_qlw  )%fnow(:,:,1), precip ,                    &   !   <<= in
             &                sf(jp_snow )%fnow(:,:,1), tsk_m,                      &   !   <<= in
-            &                zsen, zlat, zevp )                                        !   <=> in out
+            &                zsen, zlat, zevp, zqlwn )                                 !   <=> in out
       ENDIF
       !
 #if defined key_cice
@@ -588,7 +607,7 @@ CONTAINS
          ENDIF
          tatm_ice(:,:) = sf(jp_tair)%fnow(:,:,1)    !#LB: should it be POTENTIAL temperature (theta_air_zt) instead ????
          qatm_ice(:,:) = q_air_zt(:,:)
-         tprecip(:,:)  = sf(jp_prec)%fnow(:,:,1) * rn_pfac
+         tprecip(:,:)  = precip                  * rn_pfac
          sprecip(:,:)  = sf(jp_snow)%fnow(:,:,1) * rn_pfac
          wndi_ice(:,:) = sf(jp_wndi)%fnow(:,:,1)
          wndj_ice(:,:) = sf(jp_wndj)%fnow(:,:,1)
@@ -615,7 +634,7 @@ CONTAINS
    SUBROUTINE blk_oce_1( kt, pwndi, pwndj, ptair, pqair,         &    ! <<= in
       &                      pslp , pst  , pu   , pv,            &    ! <<= in
       &                      puatm, pvatm, pdqsr , pdqlw ,       &    ! <<= in
-      &                      ptsk , pssq , pcd_du, psen, plat, pevp ) ! =>> out
+      &                      ptsk , pssq , pcd_du, psen, plat, pevp, qlwn ) ! =>> out
       !!---------------------------------------------------------------------
       !!                     ***  ROUTINE blk_oce_1  ***
       !!
@@ -633,8 +652,8 @@ CONTAINS
       !!              - pevp    : evaporation        (mm/s) #lolo
       !!---------------------------------------------------------------------
       INTEGER , INTENT(in   )                    ::   kt     ! time step index
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pwndi  ! atmospheric wind at T-point              [m/s]
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pwndj  ! atmospheric wind at T-point              [m/s]
+      REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   pwndi  ! atmospheric wind at T-point              [m/s]
+      REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   pwndj  ! atmospheric wind at T-point              [m/s]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pqair  ! specific humidity at T-points            [kg/kg]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   ptair  ! potential temperature at T-points        [Kelvin]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pslp   ! sea-level pressure                       [Pa]
@@ -651,6 +670,7 @@ CONTAINS
       REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   psen
       REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   plat
       REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   pevp
+      REAL(wp), INTENT(  out), OPTIONAL, DIMENSION(A2D(0)) ::   qlwn ! net longwave radiation at surface (MFS bulk only) [W/m^2]
       !
       INTEGER  ::   ji, jj               ! dummy loop indices
       REAL(wp) ::   zztmp                ! local variable
@@ -664,6 +684,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)) ::   zce_oce           ! latent   heat transfert coefficient over ocean
       REAL(wp), DIMENSION(A2D(0)) ::   zsspt             ! potential sea-surface temperature [K]
       REAL(wp), DIMENSION(A2D(0)) ::   zpre, ztabs       ! air pressure [Pa] & absolute temperature [K]
+      REAL(wp), DIMENSION(A2D(0)) ::   zrspeed           ! reltive windspeed factor (MFS bulk only)
       REAL(wp), DIMENSION(A2D(0)) ::   zztmp1, zztmp2
       !!---------------------------------------------------------------------
       !
@@ -751,6 +772,14 @@ CONTAINS
          CALL turb_andreas (     rn_zqt, rn_zu, zsspt, ptair, pssq, pqair, wndm, &
             &                zcd_oce, zch_oce, zce_oce, theta_zu, q_zu, zU_zu,   &
             &                nb_iter=nn_iter_algo   )
+      !
+       CASE( np_MFS      )
+         CALL turb_mfs     (     rn_zqt, rn_zu,  ptsk, ptair, sf(jp_humi)%fnow(:,:,1), &
+          &                pssq, wndm, pwndi,pwndj, pu, pv,         &
+          &                cloud_fra, qsr, zsspt,            &
+          &                zcd_oce, zch_oce, zce_oce,               & 
+          &                theta_zu, q_zu, zU_zu, zrspeed, rhoa, qlwn,     &
+          &                nb_iter=nn_iter_algo, slp=pslp(:,:)   )
       CASE DEFAULT
          CALL ctl_stop( 'STOP', 'sbc_oce: non-existing bulk parameterizaton selected' )
       END SELECT
@@ -793,11 +822,12 @@ CONTAINS
          END_2D
 
       ELSE                      !==  BLK formulation  ==!   turbulent fluxes computation
-
-         DO_2D( 0, 0, 0, 0 )
-            zpre(ji,jj) = pres_temp( q_zu(ji,jj), pslp(ji,jj), rn_zu, ptpot=theta_zu(ji,jj), pta=ztabs(ji,jj) )
-            rhoa(ji,jj) = rho_air( ztabs(ji,jj), q_zu(ji,jj), zpre(ji,jj) )
-         END_2D
+         IF( .NOT. ln_MFS) THEN
+            DO_2D( 0, 0, 0, 0 )
+               zpre(ji,jj) = pres_temp( q_zu(ji,jj), pslp(ji,jj), rn_zu, ptpot=theta_zu(ji,jj), pta=ztabs(ji,jj) )
+               rhoa(ji,jj) = rho_air( ztabs(ji,jj), q_zu(ji,jj), zpre(ji,jj) )
+            END_2D
+         ENDIF
 
          CALL BULK_FORMULA( rn_zu, zsspt(:,:), pssq(:,:), theta_zu(:,:), q_zu(:,:), &
             &                      zcd_oce(:,:), zch_oce(:,:), zce_oce(:,:),        &
@@ -837,6 +867,15 @@ CONTAINS
             CALL lbc_lnk( 'sbcblk', utau, 'T', -1._wp, vtau, 'T', -1._wp )
          ENDIF
 
+         IF(ln_MFS) THEN ! use relative wind (MFS bulk only)
+            DO_2D( 0, 0, 0, 0 ) 
+               utau(ji,jj) = zrspeed(ji,jj) * utau(ji,jj)/wndm(ji,jj)
+               vtau(ji,jj) = zrspeed(ji,jj) * vtau(ji,jj)/wndm(ji,jj)
+               taum(ji,jj) = SQRT( utau(ji,jj) * utau(ji,jj) + vtau(ji,jj)* vtau(ji,jj))
+            END_2D 
+            CALL lbc_lnk( 'sbcblk', utau, 'T', -1._wp, vtau, 'T', -1._wp )
+         ENDIF
+
          ! Saving open-ocean wind-stress (module and components)
          CALL iom_put( "taum_oce", taum(:,:) )   ! wind stress module
          !                                       ! LB: These 2 lines below mostly here for 'STATION_ASF' test-case
@@ -864,7 +903,7 @@ CONTAINS
 
 
    SUBROUTINE blk_oce_2( ptair, pdqlw, pprec, psnow, &   ! <<= in
-      &                   ptsk, psen, plat, pevp     )   ! <<= in
+      &                   ptsk, psen, plat, pevp, qlwn     )   ! <<= in
       !!---------------------------------------------------------------------
       !!                     ***  ROUTINE blk_oce_2  ***
       !!
@@ -888,6 +927,7 @@ CONTAINS
       REAL(wp), INTENT(in), DIMENSION(A2D(0)) ::   psen
       REAL(wp), INTENT(in), DIMENSION(A2D(0)) ::   plat
       REAL(wp), INTENT(in), DIMENSION(A2D(0)) ::   pevp
+      REAL(wp), INTENT(in), OPTIONAL, DIMENSION(A2D(0)) ::   qlwn   ! net longwave radiation at surface (MFS only) [W/m^2]
       !
       INTEGER  ::   ji, jj               ! dummy loop indices
       REAL(wp) ::   zztmp,zz1,zz2,zz3    ! local variable
@@ -908,7 +948,7 @@ CONTAINS
       !! #LB: now moved after Turbulent fluxes because must use the skin temperature rather than bulk SST
       !! (ptsk is skin temperature if ln_skin_cs==.TRUE. .OR. ln_skin_wl==.TRUE.)
       zqlw(:,:) = qlw_net( pdqlw(:,:), ptsk(:,:)+rt0 )
-      
+      IF( ln_MFS ) zqlw(:,:) = qlwn(:,:)   ! net LW already computed by MFS
       ! ----------------------------------------------------------------------------- !
       !     IV    Total FLUXES                                                       !
       ! ----------------------------------------------------------------------------- !
