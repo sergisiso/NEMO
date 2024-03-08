@@ -250,7 +250,7 @@ CONTAINS
       !!                                                                   rhoi * Lf * dH/dt = ki * MAX(Tp-Tsu,0) / H
       !!                                                                      H = lid thickness
       !!                                                                      Lf = latent heat of fusion
-      !!                                                                      Tp = -2C
+      !!                                                                      Tp = -0.15C
       !!
       !!                                                                And solved implicitely as:
       !!                                                                   H(t+dt)**2 -H(t) * H(t+dt) -ki * (Tp-Tsu) * dt / (rhoi*Lf) = 0
@@ -281,7 +281,7 @@ CONTAINS
       REAL(wp), DIMENSION(nlay_i) ::   ztmp           ! temporary array
       !!
       REAL(wp), PARAMETER ::   zaspect =  0.8_wp      ! pond aspect ratio
-      REAL(wp), PARAMETER ::   zTp     = -2._wp       ! reference temperature
+      REAL(wp), PARAMETER ::   zTp     = -0.15_wp     ! reference temperature
       REAL(wp), PARAMETER ::   zvisc   =  1.79e-3_wp  ! water viscosity
       !!
       REAL(wp) ::   zfr_mlt, zdv_mlt, zdv_avail       ! fraction and volume of available meltwater retained for melt ponding
