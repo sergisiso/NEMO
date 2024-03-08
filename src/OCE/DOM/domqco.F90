@@ -207,7 +207,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       !
-      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
          pr3t(ji,jj) = pssh(ji,jj) * r1_ht_0(ji,jj)   !==  ratio at t-point  ==!
       END_2D
       !

@@ -88,8 +88,8 @@ CONTAINS
          &                                                                            ztfrz  ) ! ==>> out
 
       ! Mean temperature (only for bg03)
-      CALL isf_tbl_avg( misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, ztmp, ts(A2D(0),:,jp_tem,Kmm), & ! <<== in
-         &                                                                                           ztavg   ) ! ==>> out
+      CALL isf_tbl_avg( misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, ztmp, ts(:,:,:,jp_tem,Kmm), & ! <<== in
+         &                                                                                         ztavg  ) ! ==>> out
 
       ! compute heat content, latent heat and melt fluxes (2d)
       CALL isfpar_mlt( kt, Kmm, ztfrz, ztavg, zqhc, zqoce, pfwf )
@@ -106,10 +106,10 @@ CONTAINS
       CALL isf_diags_flx( Kmm, misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, 'par', pfwf, zqoce, zqlat, zqhc )
       !
       ! outputs
-      CALL iom_put('isftfrz_par', ztfrz(:,:) * mskisf_par(A2D(0)) ) ! freezing temperature
+      CALL iom_put('isftfrz_par', ztfrz(:,:) * mskisf_par(:,:) ) ! freezing temperature
       IF( cn_isfpar_mlt == 'bg03' ) THEN
-         CALL iom_put('ttbl_par',         ztavg(:,:)                * mskisf_par(A2D(0)) )      ! ttbl
-         CALL iom_put('isfthermald_par',( ztavg(:,:) - ztfrz(:,:) ) * mskisf_par(A2D(0)) )      ! thermal driving
+         CALL iom_put('ttbl_par',         ztavg(:,:)                * mskisf_par(:,:) )      ! ttbl
+         CALL iom_put('isfthermald_par',( ztavg(:,:) - ztfrz(:,:) ) * mskisf_par(:,:) )      ! thermal driving
       ENDIF
       !
       ! debugs
@@ -134,7 +134,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER ::   ierr
       INTEGER ::   ji, jj     ! dummy loop indices
-      REAL(wp), DIMENSION(A2D(2)) ::   ztblmax, ztblmin
+      REAL(wp), DIMENSION(A2D(1)) ::   ztblmax, ztblmin
       !!----------------------------------------------------------------------
       !
       !==============
@@ -145,7 +145,7 @@ CONTAINS
       !==================
       ! 1: initialisation
       !==================
-      DO_2D( 2, 2, 2, 2 )
+      DO_2D( 1, 1, 1, 1 )
          misfkt_par   (ji,jj) = 1
          misfkb_par   (ji,jj) = 1         
          rhisf_tbl_par(ji,jj) = 1e-20
@@ -156,7 +156,7 @@ CONTAINS
       CALL read_2dcstdta( TRIM(sn_isfpar_zmax%clname), TRIM(sn_isfpar_zmax%clvar), ztblmax )
       CALL read_2dcstdta( TRIM(sn_isfpar_zmin%clname), TRIM(sn_isfpar_zmin%clvar), ztblmin )
       !
-      DO_2D( 2, 2, 2, 2 )
+      DO_2D( 1, 1, 1, 1 )
          ! mask ice shelf parametrisation location
          ztblmax(ji,jj) = ztblmax(ji,jj) * ssmask(ji,jj)
          ztblmin(ji,jj) = ztblmin(ji,jj) * ssmask(ji,jj)
@@ -173,11 +173,13 @@ CONTAINS
       !                                      ! inout: ztblmin
       !
       ! initial tbl thickness
-      rhisf0_tbl_par(:,:) = ztblmax(:,:) - ztblmin(:,:)
+      DO_2D( 1, 1, 1, 1 )
+         rhisf0_tbl_par(ji,jj) = ztblmax(ji,jj) - ztblmin(ji,jj)
+      END_2D
       !
       ! define iceshelf parametrisation mask
       mskisf_par = 0
-      WHERE ( rhisf0_tbl_par(:,:) > 0._wp )
+      WHERE ( rhisf0_tbl_par(A2D(0)) > 0._wp )
          mskisf_par(:,:) = 1._wp
       END WHERE
       !

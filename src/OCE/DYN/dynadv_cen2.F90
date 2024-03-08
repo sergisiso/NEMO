@@ -58,9 +58,9 @@ CONTAINS
       !!
       !! ** Action  :   (puu,pvv)(:,:,:,Krhs)   updated with the advective trend
       !!----------------------------------------------------------------------
-      INTEGER                                     , INTENT(in   ) ::   kt , Kmm, Krhs   ! ocean time-step and level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), TARGET, INTENT(inout) ::   puu, pvv         ! ocean velocities and RHS of momentum equation
-      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw    ! advective transport
+      INTEGER                                           , INTENT(in   ) ::   kt , Kmm, Krhs   ! ocean time-step and level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt)      , TARGET, INTENT(inout) ::   puu, pvv         ! ocean velocities and RHS of momentum equation
+      REAL(wp), DIMENSION(jpi,jpj,jpk), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw    ! advective transport
       !
       LOGICAL  ::   lltrp            ! local logical 
       INTEGER  ::   ji, jj, jk       ! dummy loop indices
@@ -91,7 +91,7 @@ CONTAINS
          zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs)
       ENDIF
       !                             ! used in MLF and RK3(stp2d) : advective velocity = (puu,pvv,ww)
-      IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(A2D(2)), zwv(A2D(2)) )
+      IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(T2D(1)), zwv(T2D(1)) )
       !
       !                             !==  Horizontal advection  ==!
       !
@@ -100,8 +100,8 @@ CONTAINS
             zFu => pFu(:,:,jk)
             zFv => pFv(:,:,jk)
          ELSE
-            zFu => zwu(:,:)
-            zFv => zwv(:,:)
+            zFu(T2D(1)) => zwu(:,:)
+            zFv(T2D(1)) => zwv(:,:)
             DO_2D( 1, 1, 1, 1 )
                zFu(ji,jj) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * puu(ji,jj,jk,Kmm)
                zFv(ji,jj) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * pvv(ji,jj,jk,Kmm)
@@ -144,7 +144,7 @@ CONTAINS
          IF( PRESENT( pFw ) ) THEN
             zFw => pFw(:,:,1)
          ELSE
-            zFw => zww(:,:)
+            zFw(T2D(1)) => zww(:,:)
             DO_2D( 0, 1, 0, 1 )
                zFw(ji,jj) = e1e2t(ji,jj) * ww(ji,jj,1)
             END_2D
@@ -156,7 +156,7 @@ CONTAINS
          END_2D
       ELSE                                ! non linear free: surface advective fluxes set to zero
          IF(.NOT. PRESENT( pFw ) ) THEN
-            zFw => zww(:,:)
+            zFw(T2D(1)) => zww(:,:)
          ENDIF
          !
          DO_2D( 0, 0, 0, 0 )

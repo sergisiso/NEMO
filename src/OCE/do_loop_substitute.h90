@@ -95,16 +95,10 @@
 
 #define DO_1Di(L, R) DO ji = ntsi-(L), ntei+(R)
 #define DO_1Dj(B, T) DO jj = ntsj-(B), ntej+(T)
-
 #define DO_2D(L, R, B, T) DO_1Dj(B, T) ; DO_1Di(L, R)
 #define DO_2Dik(L, R, ks, ke, ki) DO jk = ks, ke, ki ; DO_1Di(L, R)
-#define DO_2D_OVR(L, R, B, T) DO_2D(L-(L+R)*nthl, R-(R+L)*nthr, B-(B+T)*nthb, T-(T+B)*ntht)
-
 #define DO_3D(L, R, B, T, ks, ke) DO jk = ks, ke ; DO_2D(L, R, B, T)
-#define DO_3D_OVR(L, R, B, T, ks, ke) DO jk = ks, ke ; DO_2D_OVR(L, R, B, T)
-
 #define DO_3DS(L, R, B, T, ks, ke, ki) DO jk = ks, ke, ki ; DO_2D(L, R, B, T)
-#define DO_3DS_OVR(L, R, B, T, ks, ke, ki) DO jk = ks, ke, ki ; DO_2D_OVR(L, R, B, T)
 
 #define END_1D   END DO
 #define END_2D   END DO   ;   END DO

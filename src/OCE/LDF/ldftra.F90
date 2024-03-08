@@ -827,9 +827,9 @@ CONTAINS
       INTEGER                             , INTENT(in   ) :: kt        ! ocean time-step index
       INTEGER                             , INTENT(in   ) :: kit000    ! first time step index
       INTEGER                             , INTENT(in   ) :: Kmm, Krhs ! ocean time level indices
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pFu         ! in : 3 ocean transport components
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pFv         ! out: same 3  transport components
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pFw         !   increased by the eiv induced transport
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFu     ! in : 3 ocean transport components
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFv     ! out: same 3  transport components
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFw     !   increased by the eiv induced transport
       !!
       INTEGER  ::   ji, jj, jk                 ! dummy loop indices
       REAL(wp) ::   zuwk, zuwk1, zuwi, zuwi1   ! local scalars

@@ -43,7 +43,7 @@ MODULE diaar5
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:  ) ::   thick0       ! ocean thickness (interior domain)
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sn0          ! initial salinity
 
-   LOGICAL  :: l_ar5
+   LOGICAL , PUBLIC :: l_diaar5
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -521,7 +521,7 @@ CONTAINS
       !
       !!----------------------------------------------------------------------
       !
-      l_ar5 = .FALSE.
+      l_diaar5 = .FALSE.
       IF(   iom_use( 'voltot'  ) .OR. iom_use( 'sshtot'    )  .OR. iom_use( 'sshdyn' )  .OR.  &
          &  iom_use( 'masstot' ) .OR. iom_use( 'temptot'   )  .OR. iom_use( 'saltot' ) .OR.  &
          &  iom_use( 'botpres' ) .OR. iom_use( 'sshthster' )  .OR. iom_use( 'sshsteric' ) .OR. &
@@ -529,9 +529,9 @@ CONTAINS
          &  iom_use( 'uadv_salttr' ) .OR. iom_use( 'udiff_salttr' ) .OR. &
          &  iom_use( 'vadv_heattr' ) .OR. iom_use( 'vdiff_heattr' ) .OR. &
          &  iom_use( 'vadv_salttr' ) .OR. iom_use( 'vdiff_salttr' ) .OR. &
-         &  iom_use( 'rhop' ) .OR. iom_use( 'sshice' )  ) L_ar5 = .TRUE.
+         &  iom_use( 'rhop' ) .OR. iom_use( 'sshice' )  ) l_diaar5 = .TRUE.
 
-      IF( l_ar5 ) THEN
+      IF( l_diaar5 ) THEN
          !
          !                                      ! allocate dia_ar5 arrays
          IF( dia_ar5_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'dia_ar5_init : unable to allocate arrays' )

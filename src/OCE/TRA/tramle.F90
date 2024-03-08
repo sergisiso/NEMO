@@ -89,30 +89,31 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                             , INTENT(in   ) ::   kt         ! ocean time-step index
       INTEGER                             , INTENT(in   ) ::   Kmm        ! ocean time level index
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pFu         ! in : 3 ocean transport components
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pFv         ! out: same 3  transport components
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   pFw         !   increased by the MLE induced transport
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFu        ! in : 3 ocean transport components
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFv        ! out: same 3  transport components
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFw        !   increased by the MLE induced transport
       !
-      INTEGER  ::   ji, jj, jk, ik           ! dummy loop indices
-      INTEGER  ::   ii, ij, jkk, ikmax       ! local integers
-      REAL(wp) ::   zcuw, zmuw, zc           ! local scalar
-      REAL(wp) ::   zcvw, zmvw               !   -      -
+      INTEGER  ::   ji, jj, jk          ! dummy loop indices
+      INTEGER  ::   ii, ij, ik, ikmax   ! local integers
+      REAL(wp) ::   zcuw, zmuw, zc      ! local scalar
+      REAL(wp) ::   zcvw, zmvw          !   -      -
       LOGICAL  ::   ll_output
-      INTEGER , DIMENSION(T2D(nn_hls))        ::   inml_mle
-      REAL(wp), DIMENSION(T2D(nn_hls))        ::   zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
+      INTEGER , DIMENSION(T2D(nn_hls))        ::    inml_mle
+      REAL(wp), DIMENSION(T2D(0)     )        ::   zLf_NH
+      REAL(wp), DIMENSION(T2D(nn_hls))        ::   zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_MH
       REAL(wp), DIMENSION(T2D(nn_hls),2)      ::   zpsi_uw, zpsi_vw
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zstreamu, zstreamv
       !!----------------------------------------------------------------------
       !
       IF( iom_use('psiu_mle') .OR. iom_use('psiv_mle') ) THEN
-         ll_output = .TRUE. 
+         ll_output = .TRUE.
          ALLOCATE( zstreamu(T2D(0),jpk), zstreamv(T2D(0),jpk) )
       ELSE
          ll_output = .FALSE.
       ENDIF
       !
       IF(ln_osm_mle.and.ln_zdfosm) THEN
-         ikmax = MIN( MAXVAL( mld_prof(:,:) ), jpkm1 )                  ! max level of the computation
+         ikmax = MIN( MAXVAL( mld_prof(T2D(nn_hls)) ), jpkm1 )    ! max level of the computation
          !
          !
          SELECT CASE( nn_mld_uv )                         ! MLD at u- & v-pts
@@ -239,7 +240,7 @@ CONTAINS
       !                                      !==  structure function value at uw- and vw-points  ==!
       DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
          zhu(ji,jj) = 1._wp / MAX(zhu(ji,jj), rsmall)                   ! hu --> 1/hu
-         zhv(ji,jj) = 1._wp / MAX(zhv(ji,jj), rsmall) 
+         zhv(ji,jj) = 1._wp / MAX(zhv(ji,jj), rsmall)
       END_2D
       !
       zpsi_uw(:,:,:) = 0._wp   ! surface value = 0
@@ -338,13 +339,14 @@ CONTAINS
       REAL(wp) ::   zcvw, zmvw          !   -      -
       LOGICAL  ::   ll_output
       INTEGER , DIMENSION(T2D(nn_hls))        ::   inml_mle
-      REAL(wp), DIMENSION(T2D(nn_hls))        ::   zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
+      REAL(wp), DIMENSION(T2D(0)     )        ::   zLf_NH
+      REAL(wp), DIMENSION(T2D(nn_hls))        ::   zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_MH
       REAL(wp), DIMENSION(T2D(nn_hls),2)      ::   zpsi_uw, zpsi_vw
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zstreamu, zstreamv
       !!----------------------------------------------------------------------
       !
       IF( cdtype == 'TRA' .AND. (iom_use('psiu_mle') .OR. iom_use('psiv_mle')) ) THEN
-         ll_output = .TRUE. 
+         ll_output = .TRUE.
          ALLOCATE( zstreamu(T2D(0),jpk), zstreamv(T2D(0),jpk) )
       ELSE
          ll_output = .FALSE.
@@ -478,7 +480,7 @@ CONTAINS
       !                                      !==  structure function value at uw- and vw-points  ==!
       DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
          zhu(ji,jj) = 1._wp / MAX(zhu(ji,jj), rsmall)                   ! hu --> 1/hu
-         zhv(ji,jj) = 1._wp / MAX(zhv(ji,jj), rsmall) 
+         zhv(ji,jj) = 1._wp / MAX(zhv(ji,jj), rsmall)
       END_2D
       !
       zpsi_uw(:,:,:) = 0._wp   ! surface value = 0
@@ -547,7 +549,7 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE tra_mle_trp_MLF
-   
+
    
    SUBROUTINE tra_mle_init
       !!---------------------------------------------------------------------

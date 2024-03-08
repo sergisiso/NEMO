@@ -20,6 +20,7 @@ MODULE traadv_qck
    USE trd_oce         ! trends: ocean variables
    USE trdtra          ! trends manager: tracers
    USE diaptr          ! poleward transport diagnostics
+   USE domutl, ONLY : lbnd_ij
    USE iom
    !
    USE in_out_manager  ! I/O manager
@@ -48,7 +49,7 @@ MODULE traadv_qck
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv_qck ( kt, kit000, cdtype, p2dt, pU, pV, pW, Kbb, Kmm, pt, kjpt, Krhs )
+   SUBROUTINE tra_adv_qck( kt, kit000, cdtype, p2dt, pU, pV, pW, Kbb, Kmm, pt, kjpt, Krhs )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_qck  ***
       !!
@@ -90,7 +91,7 @@ CONTAINS
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
+      REAL(wp), DIMENSION(:,:,:               ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !!----------------------------------------------------------------------
       !
@@ -109,25 +110,26 @@ CONTAINS
       ENDIF
       !
       !        ! horizontal fluxes are computed with the QUICKEST + ULTIMATE scheme
-      CALL tra_adv_qck_i( kt, cdtype, p2dt, pU, Kbb, Kmm, pt, kjpt, Krhs )
-      CALL tra_adv_qck_j( kt, cdtype, p2dt, pV, Kbb, Kmm, pt, kjpt, Krhs )
+      CALL tra_adv_qck_i ( kt, cdtype, p2dt, pU, lbnd_ij(pU), Kbb, Kmm, pt, kjpt, Krhs )
+      CALL tra_adv_qck_j ( kt, cdtype, p2dt, pV, lbnd_ij(pV), Kbb, Kmm, pt, kjpt, Krhs )
 
       !        ! vertical fluxes are computed with the 2nd order centered scheme
-      CALL tra_adv_cen2_k( kt, cdtype, pW, Kmm, pt, kjpt, Krhs )
+      CALL tra_adv_cen2_k( kt, cdtype,       pW, lbnd_ij(pW),      Kmm, pt, kjpt, Krhs )
       !
    END SUBROUTINE tra_adv_qck
 
 
-   SUBROUTINE tra_adv_qck_i( kt, cdtype, p2dt, pU, Kbb, Kmm, pt, kjpt, Krhs )
+   SUBROUTINE tra_adv_qck_i( kt, cdtype, p2dt, pU, ktpu, Kbb, Kmm, pt, kjpt, Krhs )
       !!----------------------------------------------------------------------
       !!
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                   , INTENT(in   ) ::   ktpu
       INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU              ! i-velocity components
+      REAL(wp), DIMENSION(AB2D(ktpu),JPK      ), INTENT(in   ) ::   pU              ! i-velocity components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! active tracers and RHS of tracer equation
       !!
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
@@ -196,16 +198,17 @@ CONTAINS
    END SUBROUTINE tra_adv_qck_i
 
 
-   SUBROUTINE tra_adv_qck_j( kt, cdtype, p2dt, pV, Kbb, Kmm, pt, kjpt, Krhs )
+   SUBROUTINE tra_adv_qck_j( kt, cdtype, p2dt, pV, ktpv, Kbb, Kmm, pt, kjpt, Krhs )
       !!----------------------------------------------------------------------
       !!
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                   , INTENT(in   ) ::   ktpv
       INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pV              ! j-velocity components
+      REAL(wp), DIMENSION(AB2D(ktpv),JPK      ), INTENT(in   ) ::   pV              ! j-velocity components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! active tracers and RHS of tracer equation
       !!
       INTEGER  :: ji, jj, jk, jn                ! dummy loop indices
@@ -279,15 +282,16 @@ CONTAINS
    END SUBROUTINE tra_adv_qck_j
 
 
-   SUBROUTINE tra_adv_cen2_k( kt, cdtype, pW, Kmm, pt, kjpt, Krhs )
+   SUBROUTINE tra_adv_cen2_k( kt, cdtype, pW, ktpw, Kmm, pt, kjpt, Krhs )
       !!----------------------------------------------------------------------
       !!
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                   , INTENT(in   ) ::   ktpw
       INTEGER                                  , INTENT(in   ) ::   kt         ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kmm, Krhs  ! ocean time level indices
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype     ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt       ! number of tracers
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pW         ! vertical velocity
+      REAL(wp), DIMENSION(AB2D(ktpw),JPK      ), INTENT(in   ) ::   pW         ! vertical velocity
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt         ! active tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices

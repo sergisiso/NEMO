@@ -409,7 +409,7 @@ CONTAINS
       REAL(wp), PARAMETER ::   pp_large = -1e10_wp
       !!----------------------------------------------------------------------
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          nmld(ji,jj)   = 0
          sustke(ji,jj) = pp_large
          l_pyc(ji,jj)  = .FALSE.
@@ -427,7 +427,7 @@ CONTAINS
          zdsdy(:,:)  = pp_large
          zwb_fk(:,:) = pp_large ; zvel_mle(:,:) = pp_large
          zhmle(:,:)  = pp_large ; zmld(:,:)     = pp_large
-         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
             dbdx_mle(ji,jj) = pp_large
             dbdy_mle(ji,jj) = pp_large
          END_2D
@@ -437,13 +437,13 @@ CONTAINS
       zdiffut(:,:,:) = 0.0_wp
       zviscos(:,:,:) = 0.0_wp
       !
-      DO_3D_OVR( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
          ghamt(ji,jj,jk) = pp_large
          ghams(ji,jj,jk) = pp_large
          ghamu(ji,jj,jk) = pp_large
          ghamv(ji,jj,jk) = pp_large
       END_3D
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpk )
          ghamt(ji,jj,jk) = 0.0_wp
          ghams(ji,jj,jk) = 0.0_wp
          ghamu(ji,jj,jk) = 0.0_wp
@@ -454,7 +454,7 @@ CONTAINS
       !
       ! Ensure only positive hbl values are accessed when using extended halo
       ! (nn_hls==2)
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          hbl(ji,jj) = MAX( hbl(ji,jj), epsln )
       END_2D
       !
@@ -465,7 +465,7 @@ CONTAINS
       ! Turbulent surface fluxes and fluxes averaged over depth of the OSBL
       zz0 =           rn_abs   ! Assume two-band radiation model for depth of OSBL - surface equi-partition in 2-bands
       zz1 =  1.0_wp - rn_abs
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          zrad0(ji,jj)  = qsr(ji,jj) * r1_rho0_rcp   ! Surface downward irradiance (so always +ve)
          zradh(ji,jj)  = zrad0(ji,jj) *                                &   ! Downwards irradiance at base of boundary layer
             &            ( zz0 * EXP( -1.0_wp * hbl(ji,jj) / rn_si0 ) + zz1 * EXP( -1.0_wp * hbl(ji,jj) / rn_si1 ) )
@@ -476,7 +476,7 @@ CONTAINS
          swthav(ji,jj) = 0.5_wp * swth0(ji,jj) - ( 0.5_wp * ( zrad0(ji,jj) + zradh(ji,jj) ) -   &   ! Turbulent heat flux averaged
             &                                                 zradav )                              !    over depth of OSBL
       END_2D
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          sws0(ji,jj)    = -1.0_wp * ( ( emp(ji,jj) - rnf(ji,jj) ) * ts(ji,jj,1,jp_sal,Kmm) +   &   ! Upwards surface salinity flux
             &                         sfx(ji,jj) ) * r1_rho0 * tmask(ji,jj,1)                      !    for non-local term
          zthermal       = rab_n(ji,jj,1,jp_tem)
@@ -487,7 +487,7 @@ CONTAINS
          swbav(ji,jj)   = grav  * zthermal * swthav(ji,jj) -            &   ! Turbulent buoyancy flux averaged over the depth of the
             &             grav  * zbeta * swsav(ji,jj)                      ! OBSBL
       END_2D
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          suw0(ji,jj)    = - utau(ji,jj) * r1_rho0 * tmask(ji,jj,1)          ! Surface upward velocity fluxes
          zvw0           = - vtau(ji,jj) * r1_rho0 * tmask(ji,jj,1)
          sustar(ji,jj)  = MAX( SQRT( SQRT( suw0(ji,jj) * suw0(ji,jj) + zvw0 * zvw0 ) ),   &   ! Friction velocity (sustar), at
@@ -499,7 +499,7 @@ CONTAINS
       SELECT CASE (nn_osm_wave)
          ! Assume constant La#=0.3
       CASE(0)
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             zus_x = scos_wind(ji,jj) * sustar(ji,jj) / 0.3_wp**2
             zus_y = ssin_wind(ji,jj) * sustar(ji,jj) / 0.3_wp**2
             ! Linearly
@@ -508,7 +508,7 @@ CONTAINS
          END_2D
          ! Assume Pierson-Moskovitz wind-wave spectrum
       CASE(1)
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             ! Use wind speed wndm included in sbc_oce module
             sustke(ji,jj)  = MAX ( 0.016_wp * wndm(ji,jj), 1e-8_wp )
             dstokes(ji,jj) = MAX ( 0.12_wp * wndm(ji,jj)**2 / grav, 5e-1_wp )
@@ -517,7 +517,7 @@ CONTAINS
       CASE(2)
          zfac =  2.0_wp * rpi / 16.0_wp
          !
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             IF ( hsw(ji,jj) > 1e-4_wp ) THEN
                ! Use  wave fields
                zabsstke       = SQRT( ut0sd(ji,jj)**2 + vt0sd(ji,jj)**2 )
@@ -534,7 +534,7 @@ CONTAINS
       !
       IF (ln_zdfosm_ice_shelter) THEN
          ! Reduce both Stokes drift and its depth scale by ocean fraction to represent sheltering by ice
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             sustke(ji,jj)  = sustke(ji,jj)  * ( 1.0_wp - fr_i(ji,jj) )
             dstokes(ji,jj) = dstokes(ji,jj) * ( 1.0_wp - fr_i(ji,jj) )
          END_2D
@@ -547,7 +547,7 @@ CONTAINS
          ! The coefficient rn_zdfosm_adjust_sd = 0.8 gives La=0.3 in this situation.
          ! It could represent the effects of the spread of wave directions around the mean wind. The effect of this adjustment needs to be tested.
          IF(nn_osm_wave > 0) THEN
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
                sustke(ji,jj) = rn_zdfosm_adjust_sd * sustke(ji,jj)
             END_2D
          END IF
@@ -556,7 +556,7 @@ CONTAINS
          ! Assumes approximate depth profile of SD from Breivik (2016)
          zsqrtpi = SQRT(rpi)
          z_two_thirds = 2.0_wp / 3.0_wp
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             zthickness = rn_osm_hblfrac*hbl(ji,jj)
             z2k_times_thickness =  zthickness * 2.0_wp / MAX( ABS( 5.97_wp * dstokes(ji,jj) ), 1e-7_wp )
             zsqrt_depth = SQRT( z2k_times_thickness )
@@ -570,7 +570,7 @@ CONTAINS
          ! Grant (2020): Match to exponential with same SD and d/dz(Sd) at depth 10% of boundary layer
          ! Assumes approximate depth profile of SD from Breivik (2016)
          zsqrtpi = SQRT(rpi)
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             zthickness = rn_osm_hblfrac*hbl(ji,jj)
             z2k_times_thickness =  zthickness * 2.0_wp / MAX( ABS( 5.97_wp * dstokes(ji,jj) ), 1e-7_wp )
             IF( z2k_times_thickness < 50.0_wp ) THEN
@@ -593,7 +593,7 @@ CONTAINS
       !
       ! Langmuir velocity scale (swstrl), La # (sla)
       ! Mixed scale (svstr), convective velocity scale (swstrc)
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          ! Langmuir velocity scale (swstrl), at T-point
          swstrl(ji,jj) = ( sustar(ji,jj) * sustar(ji,jj) * sustke(ji,jj) )**pthird
          sla(ji,jj)    = MAX( MIN( SQRT( sustar(ji,jj) / ( swstrl(ji,jj) + epsln ) )**3, 4.0_wp ), 0.2_wp )
@@ -624,20 +624,20 @@ CONTAINS
       !
       ! agn 23/6/20: not clear all this is needed, as hbl checked after it is re-calculated anyway
       ! ##########################################################################
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          hbl(ji,jj) = MAX(hbl(ji,jj), gdepw(ji,jj,4,Kmm) )
       END_2D
-      DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
          nbld(ji,jj) = 4
       END_2D
-      DO_3D_OVR( nn_hls, nn_hls, nn_hls, nn_hls, 5, jpkm1 )
+      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 5, jpkm1 )
          IF ( MAX( hbl(ji,jj), gdepw(ji,jj,4,Kmm) ) >= gdepw(ji,jj,jk,Kmm) ) THEN
             nbld(ji,jj) = MIN(mbkt(ji,jj)-2, jk)
          ENDIF
       END_3D
       ! ##########################################################################
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          zhbl(ji,jj) = gdepw(ji,jj,nbld(ji,jj),Kmm)
          nmld(ji,jj) = MAX( 3, nbld(ji,jj) - MAX( INT( dh(ji,jj) / e3t(ji,jj,nbld(ji,jj)-1,Kmm) ), 1 ) )
          zhml(ji,jj) = gdepw(ji,jj,nmld(ji,jj),Kmm)
@@ -667,17 +667,17 @@ CONTAINS
       !
       IF ( ln_osm_mle ) THEN
          ! Fox-Kemper Scheme
-         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
             mld_prof(ji,jj) = 4
          END_2D
-         DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 5, jpkm1 )
+         DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 5, jpkm1 )
             IF ( hmle(ji,jj) >= gdepw(ji,jj,jk,Kmm) ) mld_prof(ji,jj) = MIN( mbkt(ji,jj), jk)
          END_3D
          jk_nlev(:,:) = mld_prof(T2D(nn_hls-1))
          CALL zdf_osm_vertical_average( Kbb,      Kmm,      jk_nlev,  av_t_mle, av_s_mle,   &
             &                           av_b_mle, av_u_mle, av_v_mle )
          !
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             zhmle(ji,jj) = gdepw(ji,jj,mld_prof(ji,jj),Kmm)
          END_2D
          !
@@ -692,7 +692,7 @@ CONTAINS
             &                         zdbds_mle, zhbl, zwb0tot )
       ELSE    ! ln_osm_mle
          ! FK not selected, Boundary Layer only.
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             l_pyc(ji,jj)  = .TRUE.
             l_flux(ji,jj) = .FALSE.
             l_mle(ji,jj)  = .FALSE.
@@ -737,7 +737,7 @@ CONTAINS
       CALL zdf_osm_calculate_dhdt( zdhdt, zhbl, zdh, zwb_ent, zwb_min,   &
          &                         zdbdz_bl_ext, zwb_fk_b, zwb_fk, zvel_mle )
       ! Test if surface boundary layer coupled to bottom
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          l_coup(ji,jj) = .FALSE.   ! ag 19/03
          zhbl_t(ji,jj) = hbl(ji,jj) + ( zdhdt(ji,jj) - ww(ji,jj,nbld(ji,jj)) ) * rn_Dt   ! Certainly need ww here, so subtract it
          ! Adjustment to represent limiting by ocean bottom
@@ -750,12 +750,12 @@ CONTAINS
          END IF
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          nmld(ji,jj) = nbld(ji,jj)           ! use nmld to hold previous blayer index
          nbld(ji,jj) = 4
       END_2D
       !
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 4, jpkm1 )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 4, jpkm1 )
          IF ( zhbl_t(ji,jj) >= gdepw(ji,jj,jk,Kmm) ) THEN
             nbld(ji,jj) = jk
          END IF
@@ -779,7 +779,7 @@ CONTAINS
          &                               zwb_ent, zdbdz_bl_ext, zwb_fk_b )
       !
       ! Reset l_pyc before calculating terms in the flux-gradient relationship
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( av_db_bl(ji,jj) < rn_osm_bl_thresh .OR. nbld(ji,jj) >= mbkt(ji,jj) - 2 .OR.   &
             & nbld(ji,jj) - nmld(ji,jj) == 1   .OR. zdhdt(ji,jj) < 0.0_wp ) THEN   ! ag 19/03
             l_pyc(ji,jj) = .FALSE.   ! ag 19/03
@@ -793,7 +793,7 @@ CONTAINS
          ENDIF                                              ! ag 19/03
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )               ! Limit delta for shallow boundary layers for calculating
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )               ! Limit delta for shallow boundary layers for calculating
          dstokes(ji,jj) = MIN ( dstokes(ji,jj), hbl(ji,jj) / 3.0_wp )   !    flux-gradient terms
       END_2D
       !                                                       
@@ -841,7 +841,7 @@ CONTAINS
       ! KPP-style Ri# mixing
       IF ( ln_kpprimix ) THEN
          jkflt = jpk
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             IF ( nbld(ji,jj) < jkflt ) jkflt = nbld(ji,jj)
          END_2D
          DO jk = jkflt+1, jpkm1
@@ -852,7 +852,7 @@ CONTAINS
                z2dv(ji,jj) = 0.5_wp * ( vv(ji,jj,jk-1,Kmm) - vv(ji,jj,jk,Kmm) ) * ( vv(ji,jj,jk-1,Kbb) - vv(ji,jj,jk,Kbb) ) *   &
                   &          wvmask(ji,jj,jk) / ( e3vw(ji,jj,jk,Kmm) * e3vw(ji,jj,jk,Kbb) )
             END_2D
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+            DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
                IF ( jk > nbld(ji,jj) ) THEN
                   ! Shear prod. at w-point weightened by mask
                   zesh2 = ( z2du(ji-1,jj) + z2du(ji,jj) ) / MAX( 1.0_wp , umask(ji-1,jj,jk) + umask(ji,jj,jk) ) +   &
@@ -871,7 +871,7 @@ CONTAINS
       !
       ! KPP-style set diffusivity large if unstable below BL
       IF ( ln_convmix) THEN
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             DO jk = nbld(ji,jj) + 1, jpkm1
                IF ( MIN( rn2(ji,jj,jk), rn2b(ji,jj,jk) ) <= -1e-12_wp ) zdiffut(ji,jj,jk) = MAX( rn_difconv, zdiffut(ji,jj,jk) )
             END DO
@@ -879,7 +879,7 @@ CONTAINS
       END IF   ! ln_convmix = .true.
       !
       IF ( ln_osm_mle ) THEN   ! Set up diffusivity and non-gradient mixing
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             IF ( l_flux(ji,jj) ) THEN   ! MLE mixing extends below boundary layer
                ! Calculate MLE flux contribution from surface fluxes
                DO jk = 1, nbld(ji,jj)
@@ -1056,7 +1056,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       ! Averages over depth of boundary layer
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          pt(ji,jj) = 0.0_wp
          ps(ji,jj) = 0.0_wp
          pu(ji,jj) = 0.0_wp
@@ -1065,11 +1065,11 @@ CONTAINS
       zthick(:,:) = epsln
       jkflt = jpk
       jkmax = 0
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( knlev(ji,jj) < jkflt ) jkflt = knlev(ji,jj)
          IF ( knlev(ji,jj) > jkmax ) jkmax = knlev(ji,jj)
       END_2D
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkflt )   ! Upper, flat part of layer
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkflt )   ! Upper, flat part of layer
          zthick(ji,jj) = zthick(ji,jj) + e3t(ji,jj,jk,Kmm)
          pt(ji,jj)     = pt(ji,jj)     + e3t(ji,jj,jk,Kmm) * ts(ji,jj,jk,jp_tem,Kmm)
          ps(ji,jj)     = ps(ji,jj)     + e3t(ji,jj,jk,Kmm) * ts(ji,jj,jk,jp_sal,Kmm)
@@ -1080,7 +1080,7 @@ CONTAINS
             &                               ( vv(ji,jj,jk,Kbb) + vv(ji,jj - 1,jk,Kbb) ) /           &
             &                               MAX( 1.0_wp , vmask(ji,jj,jk) + vmask(ji,jj - 1,jk) )         
       END_3D
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, jkflt+1, jkmax )   ! Lower, non-flat part of layer
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, jkflt+1, jkmax )   ! Lower, non-flat part of layer
          IF ( knlev(ji,jj) >= jk ) THEN
             zthick(ji,jj) = zthick(ji,jj) + e3t(ji,jj,jk,Kmm)
             pt(ji,jj)     = pt(ji,jj)     + e3t(ji,jj,jk,Kmm) * ts(ji,jj,jk,jp_tem,Kmm)
@@ -1093,7 +1093,7 @@ CONTAINS
                &                               MAX( 1.0_wp , vmask(ji,jj,jk) + vmask(ji,jj - 1,jk) )
          END IF
       END_3D
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          pt(ji,jj) = pt(ji,jj) / zthick(ji,jj)
          ps(ji,jj) = ps(ji,jj) / zthick(ji,jj)
          pu(ji,jj) = pu(ji,jj) / zthick(ji,jj)
@@ -1105,7 +1105,7 @@ CONTAINS
       !
       ! Differences between vertical averages and values at an external layer
       IF ( PRESENT( kp_ext ) ) THEN
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             ibld_ext = knlev(ji,jj) + kp_ext(ji,jj)
             IF ( ibld_ext <= mbkt(ji,jj)-1 ) THEN   ! ag 09/03
                ! Two external levels are available
@@ -1151,7 +1151,7 @@ CONTAINS
       !
       zfwd = 1.0_wp
       IF( PRESENT(fwd) .AND. ( .NOT. fwd ) ) zfwd = -1.0_wp
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          ztmp      = pu(ji,jj)
          pu(ji,jj) = pu(ji,jj) * scos_wind(ji,jj) + zfwd * pv(ji,jj) * ssin_wind(ji,jj)
          pv(ji,jj) = pv(ji,jj) * scos_wind(ji,jj) - zfwd * ztmp      * ssin_wind(ji,jj)
@@ -1189,7 +1189,7 @@ CONTAINS
       IF( PRESENT(ktop) ) jktop = ktop
       IF( PRESENT(knlev) ) THEN
          jkmax = 0
-         DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
             IF ( knlev(ji,jj) > jkmax ) jkmax = knlev(ji,jj)
          END_2D
          llkbot = .FALSE.
@@ -1197,7 +1197,7 @@ CONTAINS
          jkmax = jpk
          llkbot = .TRUE.
       END IF
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, jktop, jkmax )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, jktop, jkmax )
          IF ( llkbot .OR. knlev(ji,jj) >= jk ) THEN
             ztmp         = pu(ji,jj,jk)
             pu(ji,jj,jk) = pu(ji,jj,jk) * scos_wind(ji,jj) + zfwd * pv(ji,jj,jk) * ssin_wind(ji,jj)
@@ -1245,19 +1245,19 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       ! Initialise arrays
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          l_conv(ji,jj)  = .FALSE.
          l_shear(ji,jj) = .FALSE.
          n_ddh(ji,jj)   = 1
       END_2D
       ! Initialise INTENT(  out) arrays
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          pwb_ent(ji,jj) = pp_large
          pwb_min(ji,jj) = pp_large
       END_2D
       !
       ! Determins stability and set flag l_conv
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( shol(ji,jj) < 0.0_wp ) THEN
             l_conv(ji,jj) = .TRUE.
          ELSE
@@ -1265,13 +1265,13 @@ CONTAINS
          ENDIF
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          pshear(ji,jj) = 0.0_wp
       END_2D
       zekman(:,:) = EXP( -1.0_wp * pp_ek * ABS( ff_t(T2D(nn_hls-1)) ) * phbl(T2D(nn_hls-1)) /   &
          &               MAX( sustar(T2D(nn_hls-1)), 1.e-8 ) )
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) ) THEN
             IF ( av_db_bl(ji,jj) > 0.0_wp ) THEN
                zri_p(ji,jj) = MAX (  SQRT( av_db_bl(ji,jj) * pdh(ji,jj) / MAX( av_du_bl(ji,jj)**2 + av_dv_bl(ji,jj)**2,     &
@@ -1324,7 +1324,7 @@ CONTAINS
       END_2D
       !
       ! Calculate entrainment buoyancy flux due to surface fluxes.
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) ) THEN
             zwcor        = ABS( ff_t(ji,jj) ) * phbl(ji,jj) + epsln
             zrf_conv     = TANH( ( swstrc(ji,jj) / zwcor )**0.69_wp )
@@ -1345,7 +1345,7 @@ CONTAINS
          ENDIF
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_shear(ji,jj) ) THEN
             IF ( l_conv(ji,jj) ) THEN
                ! Unstable OSBL
@@ -1394,13 +1394,13 @@ CONTAINS
       REAL(wp), PARAMETER ::   pp_large = -1e10_wp
       !!----------------------------------------------------------------------   
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          pdtdz(ji,jj) = pp_large
          pdsdz(ji,jj) = pp_large
          pdbdz(ji,jj) = pp_large
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( kbase(ji,jj)+1 < mbkt(ji,jj) ) THEN
             zthermal = rab_n(ji,jj,1,jp_tem)   ! Ideally use nbld not 1??
             zbeta    = rab_n(ji,jj,1,jp_sal)
@@ -1447,12 +1447,12 @@ CONTAINS
       REAL(wp), PARAMETER ::   pp_large   = -1e10_wp
       !!----------------------------------------------------------------------
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          pdhdt(ji,jj)    = pp_large
          pwb_fk_b(ji,jj) = pp_large
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          !
          IF ( l_shear(ji,jj) ) THEN
             !
@@ -1609,7 +1609,7 @@ CONTAINS
       REAL(wp) ::   zthermal, zbeta
       !!----------------------------------------------------------------------
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( nbld(ji,jj) - nmld(ji,jj) > 1 ) THEN
             !
             ! If boundary layer changes by more than one level, need to check for stable layers between initial and final depths.
@@ -1714,7 +1714,7 @@ CONTAINS
       REAL, PARAMETER ::   pp_ddh = 2.5_wp, pp_ddh_2 = 3.5_wp   ! Also in pycnocline_depth
       !!----------------------------------------------------------------------
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          !
          IF ( l_shear(ji,jj) ) THEN
             !
@@ -1877,12 +1877,12 @@ CONTAINS
       REAL(wp), PARAMETER ::   pp_large   = -1e10_wp
       !!----------------------------------------------------------------------
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )      
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )      
          pdbdz(ji,jj,:) = pp_large
          palpha(ji,jj)  = pp_large
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          !
          IF ( nbld(ji,jj) + kp_ext(ji,jj) < mbkt(ji,jj) ) THEN
             !
@@ -2000,7 +2000,7 @@ CONTAINS
       !
       zb_coup(:,:) = 0.0_wp
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) ) THEN
             !
             zvel_sc_pyc = ( 0.15_wp * svstr(ji,jj)**3 + swstrc(ji,jj)**3 + 4.25_wp * pshear(ji,jj) * phbl(ji,jj) )**pthird
@@ -2079,7 +2079,7 @@ CONTAINS
          END IF
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) ) THEN
             DO jk = 2, nmld(ji,jj)   ! Mixed layer diffusivity
                zznd_ml = gdepw(ji,jj,jk,Kmm) / phml(ji,jj)
@@ -2220,7 +2220,7 @@ CONTAINS
       jkm_bld = 0
       jkf_mld = jpk
       jkm_mld = 0
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( nbld(ji,jj) > jkm_bld ) jkm_bld = nbld(ji,jj)
          IF ( nmld(ji,jj) < jkf_mld ) jkf_mld = nmld(ji,jj)
          IF ( nmld(ji,jj) > jkm_mld ) jkm_mld = nmld(ji,jj)
@@ -2237,7 +2237,7 @@ CONTAINS
          zsc_wth_1(:,:) = 2.0_wp * swthav(T2D(nn_hls-1))
          zsc_ws_1(:,:)  = 2.0_wp * swsav(T2D(nn_hls-1))
       ENDWHERE
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
             IF ( jk <= nmld(ji,jj) ) THEN
                zznd_d = gdepw(ji,jj,jk,Kmm) / dstokes(ji,jj)
@@ -2280,7 +2280,7 @@ CONTAINS
          zsc_vw_1(:,:) = ff_t(T2D(nn_hls-1)) * phbl(T2D(nn_hls-1)) * sustke(T2D(nn_hls-1))**3 *   &
             &            MIN( sla(T2D(nn_hls-1))**( 8.0_wp / 3.0_wp ), 0.12_wp ) / ( svstr(T2D(nn_hls-1))**2 + epsln )
       ENDWHERE
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
             IF ( jk <= nmld(ji,jj) ) THEN
                zznd_d = gdepw(ji,jj,jk,Kmm) / dstokes(ji,jj)
@@ -2311,7 +2311,7 @@ CONTAINS
          zsc_wth_1(:,:) = 0.0_wp
          zsc_ws_1(:,:)  = 0.0_wp
       ENDWHERE
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
             IF ( jk <= nmld(ji,jj) ) THEN
                zznd_ml = gdepw(ji,jj,jk,Kmm) / phml(ji,jj)
@@ -2332,7 +2332,7 @@ CONTAINS
             END IF
          END IF
       END_3D
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) .AND. l_pyc(ji,jj) ) THEN
             ztau_sc_u(ji,jj)    = phml(ji,jj) / ( svstr(ji,jj)**3 + swstrc(ji,jj)**3 )**pthird *                             &
                &                ( 1.4_wp - 0.4_wp / ( 1.0_wp + EXP( -3.5_wp * LOG10( -1.0_wp * shol(ji,jj) ) ) )**1.5_wp )
@@ -2352,7 +2352,7 @@ CONTAINS
             END IF
          END IF
       END_2D
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
          IF ( l_conv(ji,jj) .AND. l_pyc(ji,jj) .AND. ( jk <= nbld(ji,jj) ) ) THEN
             zznd_pyc = -1.0_wp * ( gdepw(ji,jj,jk,Kmm) - phbl(ji,jj) ) / pdh(ji,jj)
             ghamt(ji,jj,jk) = ghamt(ji,jj,jk) -                                                                                &
@@ -2386,7 +2386,7 @@ CONTAINS
       ELSEWHERE
          zsc_uw_1(:,:) = 0.0_wp
       ENDWHERE
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
             IF ( jk <= nmld(ji,jj) ) THEN
                zznd_d = gdepw(ji,jj,jk,Kmm) / dstokes(ji,jj)
@@ -2403,7 +2403,7 @@ CONTAINS
          ENDIF
       END_3D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) .AND. l_pyc(ji,jj) ) THEN
             IF ( n_ddh(ji,jj) == 0 ) THEN
                ! Place holding code. Parametrization needs checking for these conditions.
@@ -2422,7 +2422,7 @@ CONTAINS
             zc_cubic(ji,jj) = zvw_bse(ji,jj) - zd_cubic(ji,jj)
          END IF
       END_2D
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, jkf_mld, jkm_bld )   ! Need ztau_sc_u to be available. Change to array.
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, jkf_mld, jkm_bld )   ! Need ztau_sc_u to be available. Change to array.
          IF ( l_conv(ji,jj) .AND. l_pyc(ji,jj) .AND. ( jk >= nmld(ji,jj) ) .AND. ( jk <= nbld(ji,jj) ) ) THEN
             zznd_pyc = -1.0_wp * ( gdepw(ji,jj,jk,Kmm) - phbl(ji,jj) ) / pdh(ji,jj)
             ghamu(ji,jj,jk) = ghamu(ji,jj,jk) - 0.045_wp * ( ztau_sc_u(ji,jj)**2 ) * zuw_bse(ji,jj) *                 &
@@ -2455,7 +2455,7 @@ CONTAINS
          zsc_wth_1(:,:) = 2.0_wp * swthav(T2D(nn_hls-1))
          zsc_ws_1(:,:)  =          sws0(T2D(nn_hls-1))
       END WHERE
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, MAX( jkm_mld, jkm_bld ) )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
             IF ( ( jk > 1 ) .AND. ( jk <= nmld(ji,jj) ) ) THEN
                zznd_ml = gdepw(ji,jj,jk,Kmm) / phml(ji,jj)
@@ -2501,7 +2501,7 @@ CONTAINS
          zsc_vw_2(:,:) = -0.11_wp * SIN( 3.14159_wp * ( 2.0_wp + 0.4_wp ) ) * EXP( -1.0_wp * ( 1.5_wp + 2.0_wp )**2 ) *   &
             &            zsc_vw_1(:,:)
       ENDWHERE
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, MAX( jkm_mld, jkm_bld ) )
          IF ( l_conv(ji,jj) ) THEN
             IF ( jk <= nmld(ji,jj) ) THEN
                zznd_ml = gdepw(ji,jj,jk,Kmm) / phml(ji,jj)
@@ -2547,7 +2547,7 @@ CONTAINS
       !
       ! Make surface forced velocity non-gradient terms go to zero at the base
       ! of the boundary layer.
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
          IF ( ( .NOT. l_conv(ji,jj) ) .AND. ( jk <= nbld(ji,jj) ) ) THEN
             znd = -1.0_wp * ( gdepw(ji,jj,jk,Kmm) - phbl(ji,jj) ) / phbl(ji,jj)   ! ALMG to think about
             IF ( znd >= 0.0_wp ) THEN
@@ -2568,7 +2568,7 @@ CONTAINS
          z3ddz_pyc_1(:,:,:) = 0.0_wp
          z3ddz_pyc_2(:,:,:) = 0.0_wp
       END IF
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
          IF ( l_conv (ji,jj) ) THEN
             ! Unstable conditions. Shouldn;t be needed with no pycnocline code.
             !                  zugrad = 0.7 * av_du_ml(ji,jj) / zdh(ji,jj) + 0.3 * zustar(ji,jj)*zustar(ji,jj) / &
@@ -2637,7 +2637,7 @@ CONTAINS
          CALL zdf_osm_iomput( "zdtdz_pyc", wmask(T2D(0),:) * z3ddz_pyc_1(T2D(0),:) )
          CALL zdf_osm_iomput( "zdsdz_pyc", wmask(T2D(0),:) * z3ddz_pyc_2(T2D(0),:) )
       END IF
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 2, jkm_bld )
          IF ( .NOT. l_conv (ji,jj) ) THEN
             IF ( nbld(ji,jj) + kp_ext(ji,jj) < mbkt(ji,jj) ) THEN
                zugrad = 3.25_wp * av_du_bl(ji,jj) / phbl(ji,jj)
@@ -2672,7 +2672,7 @@ CONTAINS
          DEALLOCATE( z3ddz_pyc_1, z3ddz_pyc_2 )
       END IF
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          ghamt(ji,jj,nbld(ji,jj)) = 0.0_wp
          ghams(ji,jj,nbld(ji,jj)) = 0.0_wp
          ghamu(ji,jj,nbld(ji,jj)) = 0.0_wp
@@ -2739,7 +2739,7 @@ CONTAINS
          jk_mld_prof(ji,jj) = MAX( jk_mld_prof(ji,jj), nbld(ji,jj) )   ! Ensure jk_mld_prof .ge. nbld
          pmld(ji,jj)     = gdepw(ji,jj,jk_mld_prof(ji,jj),Kmm)
       END_2D
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          mld_prof(ji,jj) = jk_mld_prof(ji,jj)
       END_2D
       !
@@ -2778,10 +2778,10 @@ CONTAINS
       END_2D
       CALL eos_rab( ztsm_midu, zmld_midu, zabu, Kmm )
       CALL eos_rab( ztsm_midv, zmld_midv, zabv, Kmm )
-      DO_2D_OVR( nn_hls, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls, nn_hls-1, nn_hls-1, nn_hls-1 )
          dbdx_mle(ji,jj) = grav * ( pdtdx(ji,jj) * zabu(ji,jj,jp_tem) - pdsdx(ji,jj) * zabu(ji,jj,jp_sal) )
       END_2D
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls, nn_hls-1 )
          dbdy_mle(ji,jj) = grav * ( pdtdy(ji,jj) * zabv(ji,jj,jp_tem) - pdsdy(ji,jj) * zabv(ji,jj,jp_sal) )
       END_2D
       DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
@@ -2829,12 +2829,12 @@ CONTAINS
       !
       znd_param(:,:) = 0.0_wp
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          ztmp =  r1_ft(ji,jj) *  MIN( 111.e3_wp , e1u(ji,jj) ) / rn_osm_mle_lf
          pwb_fk(ji,jj) = rn_osm_mle_ce * hmle(ji,jj) * hmle(ji,jj) * ztmp * pdbds_mle(ji,jj) * pdbds_mle(ji,jj)
       END_2D
       !
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          !
          IF ( l_conv(ji,jj) ) THEN
             IF ( phmle(ji,jj) > 1.2_wp * phbl(ji,jj) ) THEN
@@ -2862,7 +2862,7 @@ CONTAINS
       END_2D
       !
       ! Diagnosis
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          !
          IF ( l_conv(ji,jj) ) THEN
             IF ( -2.0_wp * pwb_fk(ji,jj) / pwb_ent(ji,jj) > 0.5_wp ) THEN
@@ -2944,7 +2944,7 @@ CONTAINS
       !
       ! Calculate vertical buoyancy, heat and salinity fluxes due to MLE
       ! BUG: [zdfosm_avt_diag] lbc_lnk changes the value of avt on the northfold (see zdfphy.F90 comment). It seems to stem from here- if ztmp is converted to an array, calling lbc_lnk on this array has the same effect as calling lbc_lnk on avt. I think it could be related to l_conv.
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_conv(ji,jj) ) THEN
             ztmp =  r1_ft(ji,jj) * MIN( 111e3_wp, e1u(ji,jj) ) / rn_osm_mle_lf
             ! This velocity scale, defined in Fox-Kemper et al (2008), is needed for calculating dhdt
@@ -2953,7 +2953,7 @@ CONTAINS
          END IF
       END_2D
       ! Timestep mixed layer eddy depth
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          IF ( l_mle(ji,jj) ) THEN   ! MLE layer growing
             ! Buoyancy gradient at base of MLE layer
             zthermal = rab_n(ji,jj,1,jp_tem)
@@ -2975,10 +2975,10 @@ CONTAINS
          hmle(ji,jj) = pmld(ji,jj)   ! For now try just set hmle to pmld
       END_2D
       !
-      DO_3D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 5, jpkm1 )
+      DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 5, jpkm1 )
          IF ( hmle(ji,jj) >= gdepw(ji,jj,jk,Kmm) ) mld_prof(ji,jj) = MIN( mbkt(ji,jj), jk )
       END_3D
-      DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
+      DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          phmle(ji,jj) = gdepw(ji,jj,mld_prof(ji,jj),Kmm)
       END_2D
       !

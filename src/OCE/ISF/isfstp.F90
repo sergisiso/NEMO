@@ -65,17 +65,17 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kmm   ! ocean time level index
       !
       INTEGER ::   ji, jj, jk, ikt                     ! loop index
-      REAL(wp), DIMENSION(A2D(2))     ::   zhtmp  ! temporary array for thickness
-      REAL(wp), DIMENSION(A2D(2),jpk) ::   ze3t   ! 3D workspace for key_qco
+      REAL(wp), DIMENSION(A2D(1))     ::   zhtmp  ! temporary array for thickness
+      REAL(wp), DIMENSION(A2D(1),jpk) ::   ze3t   ! 3D workspace for key_qco
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('isf')
       !
       ! temporary arrays for key_qco
-      DO_2D( 2 ,2, 2, 2 )
+      DO_2D( 1, 1, 1, 1 )
          zhtmp(ji,jj) = ht(ji,jj,Kmm)
       END_2D
-      DO_3D( 2, 2, 2, 2, 1, jpk )
+      DO_3D( 1, 1, 1, 1, 1, jpk )
          ze3t(ji,jj,jk) = e3t(ji,jj,jk,Kmm)
       END_3D
       !
@@ -88,7 +88,7 @@ CONTAINS
          ! --- before time step --- ! 
 #if ! defined key_RK3
          IF ( kt /= nit000 ) THEN         ! MLF : need risf_cav_tsc_b update 
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( 2, 2, 2, 2 )
                fwfisf_cav_b(ji,jj) = fwfisf_cav(ji,jj)
             END_2D
             DO_3D( 0, 0, 0, 0, 1, jpts )
@@ -98,7 +98,7 @@ CONTAINS
 #endif
          !
          ! --- deepest level (misfkb), thickness (rhisf) & fraction of deepest cell affected by tbl (rfrac) --- !
-         DO_2D( 2 ,2, 2, 2 )
+         DO_2D( 1, 1, 1, 1 )
             ! limit the tbl to water depth and to the top level thickness
             ikt = misfkt_cav(ji,jj)  ! tbl top indices
             rhisf_tbl_cav(ji,jj) = MAX( MIN( rn_htbl * mskisf_cav(ji,jj), zhtmp(ji,jj) ), ze3t(ji,jj,ikt) )
@@ -121,7 +121,7 @@ CONTAINS
          ! --- before time step --- ! 
 #if ! defined key_RK3
          IF ( kt /= nit000 ) THEN          ! MLF : need risf_par_tsc_b update
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+            DO_2D( 2, 2, 2, 2 )
                fwfisf_par_b(ji,jj)   = fwfisf_par(ji,jj)
             END_2D
             DO_3D( 0, 0, 0, 0, 1, jpts )
@@ -133,7 +133,7 @@ CONTAINS
          ! --- deepest level (misfkb), thickness (rhisf) & fraction of deepest cell affected by tbl (rfrac) --- !
          ! by simplicity, we assume the top level where param applied do not change with time (done in init part)
          !      limit the tbl to water depth and to the top level thickness
-         DO_2D( 2 ,2, 2, 2 )
+         DO_2D( 1, 1, 1, 1 )
             ikt = misfkt_par(ji,jj)  ! tbl top indices
             rhisf_tbl_par(ji,jj) = MAX( MIN( rhisf0_tbl_par(ji,jj), zhtmp(ji,jj) ), ze3t(ji,jj,ikt) )
          END_2D
@@ -217,7 +217,7 @@ CONTAINS
          risf_par_tsc(ji,jj,jk) = 0._wp
       END_3D
 #if ! defined key_RK3
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )      
+      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
          fwfisf_par_b(ji,jj) = 0._wp
          fwfisf_cav_b(ji,jj) = 0._wp
       END_2D

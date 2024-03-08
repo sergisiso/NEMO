@@ -82,7 +82,6 @@ CONTAINS
 
       !* Advective bbl : bbl upstream advective trends added to the tracer trends
       IF( nn_bbl_adv /= 0 ) THEN
-         ! NOTE: [tiling] tiling changes the results, but only the order of floating point operations is different
          !
          CALL tra_bbl_adv( ptr(:,:,:,:,Kbb), ptr(:,:,:,:,Krhs), jptra, Kmm )  
          IF( sn_cfctl%l_prttrc )   THEN

@@ -24,6 +24,7 @@ MODULE traadv_mus
    USE sbcrnf         ! river runoffs
    USE diaptr         ! poleward transport diagnostics
    USE diaar5         ! AR5 diagnostics
+   USE domutl, ONLY : lbnd_ij
 
    !
    USE iom            ! XIOS library
@@ -58,6 +59,23 @@ CONTAINS
 
    SUBROUTINE tra_adv_mus( kt, kit000, cdtype, p2dt, pU, pV, pW,             &
       &                    Kbb, Kmm, pt, kjpt, Krhs, ld_msc_ups )
+      !!
+      INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
+      INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
+      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
+      INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
+      LOGICAL                                  , INTENT(in   ) ::   ld_msc_ups      ! use upstream scheme within muscl
+      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp), DIMENSION(:,:,:               ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
+      REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
+      !!
+      CALL tra_adv_mus_t( kt, kit000, cdtype, p2dt, pU, pV, pW, lbnd_ij(pU),    &
+        &                 Kbb, Kmm, pt, kjpt, Krhs, ld_msc_ups                  )
+   END SUBROUTINE tra_adv_mus
+
+   SUBROUTINE tra_adv_mus_t( kt, kit000, cdtype, p2dt, pU, pV, pW, ktpuvw,  &
+      &                      Kbb, Kmm, pt, kjpt, Krhs, ld_msc_ups           )
       !!----------------------------------------------------------------------
       !!                    ***  ROUTINE tra_adv_mus  ***
       !!
@@ -75,6 +93,7 @@ CONTAINS
       !! References : Estubier, A., and M. Levy, Notes Techn. Pole de Modelisation
       !!              IPSL, Sept. 2000 (http://www.lodyc.jussieu.fr/opa)
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                   , INTENT(in   ) ::   ktpuvw
       INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
       INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
@@ -82,7 +101,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       LOGICAL                                  , INTENT(in   ) ::   ld_msc_ups      ! use upstream scheme within muscl
       REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
+      REAL(wp), DIMENSION(AB2D(ktpuvw),JPK    ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
@@ -119,12 +138,11 @@ CONTAINS
          l_trd = .FALSE.
          l_hst = .FALSE.
          l_ptr = .FALSE.
-         IF(              ( cdtype == 'TRA' .AND. l_trdtra ) .OR. ( cdtype == 'TRC' .AND. l_trdtrc ) )        l_trd = .TRUE.
-         IF( l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv'  ) .OR. iom_use( 'sopstadv'  ) ) )     l_ptr = .TRUE.
-         IF( l_iom    .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
-            &                                       iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )   l_hst = .TRUE.
+         IF( ( cdtype == 'TRA' .AND. l_trdtra ) .OR. ( cdtype == 'TRC' .AND. l_trdtrc ) )                      l_trd = .TRUE.
+         IF(  l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv' )  .OR. iom_use( 'sopstadv'  ) )  )   l_ptr = .TRUE.
+         IF(  l_diaar5 .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
+            &                                        iom_use("uadv_salttr") .OR. iom_use("vadv_salttr") )  )   l_hst = .TRUE.
       ENDIF
-      !
       !
       DO jn = 1, kjpt            !==  loop over the tracers  ==!
          !
@@ -263,7 +281,7 @@ CONTAINS
          !
       END DO                     ! end of tracer loop
       !
-   END SUBROUTINE tra_adv_mus
+   END SUBROUTINE tra_adv_mus_t
 
    !!======================================================================
 END MODULE traadv_mus

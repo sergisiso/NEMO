@@ -20,6 +20,7 @@ MODULE bdytra
    USE lib_mpp, ONLY: jpfillnothing
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE lib_mpp, ONLY: ctl_stop
+   USE domutl,  ONLY: in_hdom
    USE timing         ! Timing
 
    IMPLICIT NONE
@@ -156,7 +157,6 @@ CONTAINS
       INTEGER  ::   ii, ij         ! 2D addresses
       INTEGER  ::   ib_bdy         ! Loop index
       !!----------------------------------------------------------------------
-      IF( l_istiled .AND. ntile /= 1 ) RETURN                        ! Do only for the full domain
       !
       IF( ln_timing )   CALL timing_start('bdy_tra_dmp')
       !
@@ -167,12 +167,14 @@ CONTAINS
                ii = idx_bdy(ib_bdy)%nbi(ib,igrd)
                ij = idx_bdy(ib_bdy)%nbj(ib,igrd)
                zwgt = idx_bdy(ib_bdy)%nbd(ib,igrd)
-               DO ik = 1, jpkm1
-                  zta = zwgt * ( dta_bdy(ib_bdy)%tem(ib,ik) - pts(ii,ij,ik,jp_tem,Kbb) ) * tmask(ii,ij,ik)
-                  zsa = zwgt * ( dta_bdy(ib_bdy)%sal(ib,ik) - pts(ii,ij,ik,jp_sal,Kbb) ) * tmask(ii,ij,ik)
-                  pts(ii,ij,ik,jp_tem,Krhs) = pts(ii,ij,ik,jp_tem,Krhs) + zta
-                  pts(ii,ij,ik,jp_sal,Krhs) = pts(ii,ij,ik,jp_sal,Krhs) + zsa
-               END DO
+               IF( in_hdom(ii, ij) ) THEN
+                  DO ik = 1, jpkm1
+                     zta = zwgt * ( dta_bdy(ib_bdy)%tem(ib,ik) - pts(ii,ij,ik,jp_tem,Kbb) ) * tmask(ii,ij,ik)
+                     zsa = zwgt * ( dta_bdy(ib_bdy)%sal(ib,ik) - pts(ii,ij,ik,jp_sal,Kbb) ) * tmask(ii,ij,ik)
+                     pts(ii,ij,ik,jp_tem,Krhs) = pts(ii,ij,ik,jp_tem,Krhs) + zta
+                     pts(ii,ij,ik,jp_sal,Krhs) = pts(ii,ij,ik,jp_sal,Krhs) + zsa
+                  END DO
+               ENDIF
             END DO
          ENDIF
       END DO

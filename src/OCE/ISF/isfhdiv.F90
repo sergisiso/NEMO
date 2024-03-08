@@ -41,7 +41,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt
       INTEGER, INTENT(in) ::   Kmm      !  ocean time level index
-      REAL(wp), DIMENSION(:,:,:), INTENT( inout ) ::   phdiv   ! horizontal divergence
+      REAL(wp), DIMENSION(A2D(1),jpk), INTENT( inout ) ::   phdiv   ! horizontal divergence
       !!----------------------------------------------------------------------
       !
       IF ( ln_isf ) THEN
@@ -96,11 +96,11 @@ CONTAINS
       !!
       !! ** Action  :   phdivn   increased by the ice shelf outflow
       !!----------------------------------------------------------------------
-      INTEGER , DIMENSION(:,:)             , INTENT(in   ) ::   ktop , kbot
-      REAL(wp), DIMENSION(:,:)             , INTENT(in   ) ::   pfrac, phtbl
-      REAL(wp), DIMENSION(:,:)             , INTENT(in   ) ::   pfwf
-      REAL(wp), DIMENSION(:,:,:)           , INTENT(inout) ::   phdiv
-      REAL(wp), DIMENSION(:,:)   , OPTIONAL, INTENT(in   ) ::   pfwf_b
+      INTEGER , DIMENSION(A2D(1))           , INTENT(in   ) ::   ktop , kbot
+      REAL(wp), DIMENSION(A2D(1))           , INTENT(in   ) ::   pfrac, phtbl
+      REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) ::   pfwf
+      REAL(wp), DIMENSION(A2D(1),jpk)       , INTENT(inout) ::   phdiv
+      REAL(wp), DIMENSION(:,:)    , OPTIONAL, INTENT(in   ) ::   pfwf_b
       !!----------------------------------------------------------------------
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   ikt, ikb 
@@ -110,7 +110,7 @@ CONTAINS
       !==   fwf distributed over several levels   ==!
       !
       ! update divergence at each level affected by ice shelf top boundary layer
-      DO_2D( 1, 2, 1, 2 )
+      DO_2D( 1, 1, 1, 1 )
          ! compute integrated divergence correction
          IF( phtbl(ji,jj) /= 0._wp ) THEN
 #if defined key_RK3
@@ -148,14 +148,14 @@ CONTAINS
       !! ** Action  :   phdivn   increased by the ice shelf outflow
       !!
       !!----------------------------------------------------------------------
-      INTEGER,                    INTENT(in)    ::   Kmm     ! ocean time level index
-      REAL(wp), DIMENSION(:,:,:), INTENT(in   ) ::   pqvol
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   phdiv
+      INTEGER,                          INTENT(in)    ::   Kmm     ! ocean time level index
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pqvol
+      REAL(wp), DIMENSION(A2D(1) ,jpk), INTENT(inout) ::   phdiv
       !!----------------------------------------------------------------------
       INTEGER ::   ji, jj, jk
       !!----------------------------------------------------------------------
       !
-      DO_3D( 1, 2, 1, 2, 1, jpk )
+      DO_3D( 1, 1, 1, 1, 1, jpkm1 )
          phdiv(ji,jj,jk) = phdiv(ji,jj,jk) + pqvol(ji,jj,jk) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
       END_3D
       !

@@ -146,7 +146,7 @@ CONTAINS
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                                         ! Do only for the full domain
          IF( ln_tile ) CALL dom_tile_stop( ldhold=.TRUE. )             ! Use full domain
-            CALL fld_read( kt, 1, sf_tsd )   !==   read T & S data at kt time step   ==!
+         CALL fld_read( kt, 1, sf_tsd )   !==   read T & S data at kt time step   ==!
       !
       !
 !!gm  This should be removed from the code   ===>>>>  T & S files has to be changed

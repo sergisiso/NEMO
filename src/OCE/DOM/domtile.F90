@@ -49,7 +49,6 @@ MODULE domtile
    PUBLIC dom_tile_copyout
 
    TYPE(TILE_WORK), DIMENSION(20) :: twrk               ! Derived type used by dom_tile_copy(in|out)
-   LOGICAL, ALLOCATABLE, DIMENSION(:) ::   l_tilefin    ! whether a tile is finished or not
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -70,10 +69,7 @@ CONTAINS
       !!              - ntei, ntej     : end of internal part of domain
       !!              - ntile          : current tile number
       !!              - nijtile        : total number of tiles
-      !!              - nthl, nthr     : modifier on DO loop macro bound offset (left, right)
-      !!              - nthb, ntht     :              "         "               (bottom, top)
       !!              - l_istiled      : whether tiling is currently active or not
-      !!              - l_tilefin      : whether a tile is finished or not
       !!----------------------------------------------------------------------
       INTEGER ::   jt                                     ! dummy loop argument
       INTEGER ::   iitile, ijtile                         ! Local integers
@@ -84,10 +80,6 @@ CONTAINS
       ntsj = Njs0
       ntei = Nie0
       ntej = Nje0
-      nthl = 0
-      nthr = 0
-      nthb = 0
-      ntht = 0
       l_istiled = .FALSE.
 
       IF( ln_tile ) THEN            ! Calculate tile domain indices
@@ -97,9 +89,7 @@ CONTAINS
          IF( MOD( Nj_0, nn_ltile_j ) /= 0 ) ijtile = ijtile + 1
 
          nijtile = iitile * ijtile
-         ALLOCATE( ntsi_a(0:nijtile), ntsj_a(0:nijtile), ntei_a(0:nijtile), ntej_a(0:nijtile), l_tilefin(nijtile) )
-
-         l_tilefin(:) = .FALSE.
+         ALLOCATE( ntsi_a(0:nijtile), ntsj_a(0:nijtile), ntei_a(0:nijtile), ntej_a(0:nijtile) )
 
          ntsi_a(0) = Nis0                 ! Full domain
          ntsj_a(0) = Njs0
@@ -146,8 +136,6 @@ CONTAINS
       !!
       !! ** Action  : - ktsi, ktsj     : start of internal part of domain
       !!              - ktei, ktej     : end of internal part of domain
-      !!              - nthl, nthr     : modifier on DO loop macro bound offset (left, right)
-      !!              - nthb, ntht     :              "         "               (bottom, top)
       !!              - ktile          : set the current tile number (ntile)
       !!----------------------------------------------------------------------
       INTEGER, INTENT(out) :: ktsi, ktsj, ktei, ktej      ! Tile domain indices
@@ -157,7 +145,6 @@ CONTAINS
       CHARACTER(len=23) :: clstr
       LOGICAL :: lldone
       CHARACTER(len=11)   :: charout
-      INTEGER :: iitile
       !!----------------------------------------------------------------------
       lldone = .TRUE.
       IF( PRESENT(lddone) ) lldone = lddone
@@ -171,8 +158,6 @@ CONTAINS
             RETURN
          ENDIF
 
-         IF( ntile /= 0 ) l_tilefin(ntile) = .TRUE.         ! If setting a new tile, the current tile is complete
-
          ntile = ktile                                      ! Set the new tile
          IF(sn_cfctl%l_prtctl) THEN
             WRITE(charout, FMT="('ntile =', I4)") ntile
@@ -184,15 +169,6 @@ CONTAINS
       ktsj = ntsj_a(ktile)
       ktei = ntei_a(ktile)
       ktej = ntej_a(ktile)
-
-      ! Calculate the modifying factor on DO loop bounds (1 = do not work on points that have already been processed by a neighbouring tile)
-      nthl = 0 ; nthr = 0 ; nthb = 0 ; ntht = 0
-      iitile = Ni_0 / nn_ltile_i
-      IF( MOD( Ni_0, nn_ltile_i ) /= 0 ) iitile = iitile + 1
-      IF( ktsi > Nis0 ) THEN ; IF( l_tilefin(ktile - 1     ) ) nthl = 1 ; ENDIF    ! Left adjacent tile
-      IF( ktei < Nie0 ) THEN ; IF( l_tilefin(ktile + 1     ) ) nthr = 1 ; ENDIF    ! Right  "  "
-      IF( ktsj > Njs0 ) THEN ; IF( l_tilefin(ktile - iitile) ) nthb = 1 ; ENDIF    ! Bottom "  "
-      IF( ktej < Nje0 ) THEN ; IF( l_tilefin(ktile + iitile) ) ntht = 1 ; ENDIF    ! Top    "  "
    END SUBROUTINE dom_tile
 
 
@@ -271,9 +247,8 @@ CONTAINS
       ENDIF
 
       ! Whether paused or stopped, the tiling is made inactive and the full domain indices are used.
-      ! If stopped, there is no active tile (ntile = 0) and the finished tile indicators are reset
+      ! If stopped, there is no active tile (ntile = 0)
       CALL dom_tile(ntsi, ntsj, ntei, ntej, ktile=0, lddone=(.NOT. llhold), cstr='dom_tile_stop'//clstr)
-      IF( .NOT. llhold ) l_tilefin(:) = .FALSE.
       l_istiled = .FALSE.
    END SUBROUTINE dom_tile_stop
 

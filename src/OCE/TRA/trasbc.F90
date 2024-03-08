@@ -142,8 +142,10 @@ CONTAINS
             sbc_tsc(ji,jj,jp_tem) = sbc_tsc(ji,jj,jp_tem) + r1_rho0 * emp(ji,jj) * pts(ji,jj,1,jp_tem,Kmm)
             sbc_tsc(ji,jj,jp_sal) = sbc_tsc(ji,jj,jp_sal) + r1_rho0 * emp(ji,jj) * pts(ji,jj,1,jp_sal,Kmm)
          END_2D                                 !==>> output c./d. term
-         IF( iom_use('emp_x_sst') )   CALL iom_put( "emp_x_sst", emp (:,:) * pts(:,:,1,jp_tem,Kmm) )
-         IF( iom_use('emp_x_sss') )   CALL iom_put( "emp_x_sss", emp (:,:) * pts(:,:,1,jp_sal,Kmm) )
+         IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN             ! Do only on the last tile
+            IF( iom_use('emp_x_sst') )   CALL iom_put( "emp_x_sst", emp (:,:) * pts(:,:,1,jp_tem,Kmm) )
+            IF( iom_use('emp_x_sss') )   CALL iom_put( "emp_x_sss", emp (:,:) * pts(:,:,1,jp_sal,Kmm) )
+         ENDIF
       ENDIF
       !
       DO jn = 1, jpts               !==  update tracer trend  ==!
@@ -178,9 +180,10 @@ CONTAINS
             ENDIF
          END_2D
       ENDIF
-
-      IF( iom_use('rnf_x_sst') )   CALL iom_put( "rnf_x_sst", rnf*pts(:,:,1,jp_tem,Kmm) )   ! runoff term on sst
-      IF( iom_use('rnf_x_sss') )   CALL iom_put( "rnf_x_sss", rnf*pts(:,:,1,jp_sal,Kmm) )   ! runoff term on sss
+      IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
+         IF( iom_use('rnf_x_sst') )   CALL iom_put( "rnf_x_sst", rnf*pts(:,:,1,jp_tem,Kmm) )   ! runoff term on sst
+         IF( iom_use('rnf_x_sss') )   CALL iom_put( "rnf_x_sss", rnf*pts(:,:,1,jp_sal,Kmm) )   ! runoff term on sss
+      ENDIF
 
 #if defined key_asminc
       !
@@ -256,23 +259,20 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('tra_sbc_RK3')
       !
-      IF( ntile == 0 .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         !
+      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == nit000 ) THEN
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'tra_sbc_RK3 : TRAcer Surface Boundary Condition'
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~ '
          ENDIF
-         !
-         IF( l_trdtra ) THEN                    !* Save ta and sa trends
-            ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
-            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
-            ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
-         ENDIF
-         !
       ENDIF
       !
-            
+      IF( l_trdtra ) THEN                    !* Save ta and sa trends
+         ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
+         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
+         ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
+      ENDIF
+      !
 !!gm  This should be moved into sbcmod.F90 module ? (especially now that ln_traqsr is read in namsbc namelist)
       IF( .NOT.ln_traqsr  .AND. kstg == 1) THEN     ! no solar radiation penetration
          DO_2D( 0, 0, 0, 0 )
@@ -291,9 +291,9 @@ CONTAINS
          !
          IF( .NOT.ln_linssh ) THEN           !* only heat and salt fluxes associated with mass fluxes
             DO_2D( 0, 0, 0, 0 )
-            z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
-            pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_tem,Kbb) * z1_rho0_e3t
-            pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_sal,Kbb) * z1_rho0_e3t
+               z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
+               pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_tem,Kbb) * z1_rho0_e3t
+               pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_sal,Kbb) * z1_rho0_e3t
             END_2D
          ENDIF
          !
@@ -307,7 +307,7 @@ CONTAINS
                pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) + (           sfx(ji,jj)    &                               ! salt flux due to freezing/melting
                   &                                                +             emp(ji,jj)*pts(ji,jj,1,jp_sal,Kbb)  ) * z1_rho0_e3t  ! add concentration/dilution effect due to constant volume cell
             END_2D
-            IF( ntile == 0 .OR. ntile == nijtile ) THEN             ! Do only on the last tile
+            IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN             ! Do only on the last tile
                IF( iom_use('emp_x_sst') )   CALL iom_put( "emp_x_sst", emp (:,:) * pts(:,:,1,jp_tem,Kbb) )
                IF( iom_use('emp_x_sss') )   CALL iom_put( "emp_x_sss", emp (:,:) * pts(:,:,1,jp_sal,Kbb) )
             ENDIF
@@ -337,7 +337,7 @@ CONTAINS
          END_2D
       ENDIF
       !
-      IF( ntile == 0 .OR. ntile == nijtile )  THEN                ! Do only on the last tile
+      IF( kstg == 3 .AND. ( .NOT. l_istiled .OR. ntile == nijtile ) )  THEN                ! Do only on the last tile
          IF( iom_use('rnf_x_sst') )   CALL iom_put( "rnf_x_sst", rnf*pts(:,:,1,jp_tem,Kbb) )   ! runoff term on sst
          IF( iom_use('rnf_x_sss') )   CALL iom_put( "rnf_x_sss", rnf*pts(:,:,1,jp_sal,Kbb) )   ! runoff term on sss
       ENDIF
@@ -370,13 +370,11 @@ CONTAINS
 #endif
       !
       IF( l_trdtra )   THEN                      ! save the horizontal diffusive trends for further diagnostics
-         IF( ntile == 0 .OR. ntile == nijtile )  THEN
-            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
-            ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs) - ztrds(:,:,:)
-            CALL trd_tra( kt, Kbb, Krhs, 'TRA', jp_tem, jptra_nsr, ztrdt )
-            CALL trd_tra( kt, Kbb, Krhs, 'TRA', jp_sal, jptra_nsr, ztrds )
-            DEALLOCATE( ztrdt , ztrds )
-         ENDIF
+         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
+         ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs) - ztrds(:,:,:)
+         CALL trd_tra( kt, Kbb, Krhs, 'TRA', jp_tem, jptra_nsr, ztrdt )
+         CALL trd_tra( kt, Kbb, Krhs, 'TRA', jp_sal, jptra_nsr, ztrds )
+         DEALLOCATE( ztrdt , ztrds )
       ENDIF
       !
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=pts(:,:,:,jp_tem,Krhs), clinfo1=' sbc  - Ta: ', mask1=tmask,   &

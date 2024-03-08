@@ -92,7 +92,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk      ! dummy loop index
       REAL(wp) ::   zcoef   ! local scalar
-      REAL(wp), DIMENSION(jpi,jpj) ::   zhdiv   ! 2D workspace
+      REAL(wp), DIMENSION(A2D(0)) ::   zhdiv   ! 2D workspace
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('ssh_nxt')
@@ -111,22 +111,22 @@ CONTAINS
       CALL div_hor( kt, Kbb, Kmm )                     ! Horizontal divergence
       !
       zhdiv(:,:) = 0._wp
-      DO_3D( 1, nn_hls, 1, nn_hls, 1, jpkm1 )                                 ! Horizontal divergence of barotropic transports
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )                                 ! Horizontal divergence of barotropic transports
         zhdiv(ji,jj) = zhdiv(ji,jj) + e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)
       END_3D
       !                                                ! Sea surface elevation time stepping
       ! In time-split case we need a first guess of the ssh after (using the baroclinic timestep) in order to
       ! compute the vertical velocity which can be used to compute the non-linear terms of the momentum equations.
       !
-      DO_2D( 1, nn_hls, 1, nn_hls )                ! Loop bounds limited by hdiv definition in div_hor
+      DO_2D( 0, 0, 0, 0 )
 #if defined key_RK3
-      pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( r1_rho0 * emp(ji,jj) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
+         pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( r1_rho0 * emp(ji,jj) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
 #else
-      pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( zcoef * ( emp_b(ji,jj) + emp(ji,jj) ) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
+         pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( zcoef * ( emp_b(ji,jj) + emp(ji,jj) ) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
 #endif
       END_2D
-      ! pssh must be defined everywhere (true for dyn_spg_ts, not for dyn_spg_exp)
-      IF ( .NOT. ln_dynspg_ts ) CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp, ldfull=.TRUE. )
+      ! pssh must be defined everywhere
+      CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp, ldfull=.TRUE. )
       !
 #if defined key_agrif
       Kbb_a = Kbb   ;   Kmm_a = Kmm   ;   Krhs_a = Kaa
@@ -167,18 +167,20 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            ! vertical velocity at Kmm
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zhdiv
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('wzv_MLF')
       !
       IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'wzv_MLF : now vertical velocity '
-         IF(lwp) WRITE(numout,*) '~~~~~~~'
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+            IF(lwp) WRITE(numout,*)
+            IF(lwp) WRITE(numout,*) 'wzv_MLF : now vertical velocity '
+            IF(lwp) WRITE(numout,*) '~~~~~~~'
+         ENDIF
          !
-         pww(:,:,:) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
-         !                                   ! needed over the halos for the output (ww+wi) in diawri.F90
+         DO_2D( 1, 1, 1, 1 )
+            pww(ji,jj,jpk) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
+         END_2D
       ENDIF
       !                                           !------------------------------!
       !                                           !     Now Vertical Velocity    !
@@ -187,13 +189,13 @@ CONTAINS
       !                                               !=================================!
       IF( ln_linssh )   THEN                          !==  linear free surface cases  ==!
          !                                            !=================================!
-         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+         DO_3DS( 1, 1, 1, 1, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)  ) * tmask(ji,jj,jk)
          END_3D
          !                                            !==========================================!
       ELSE                                            !==  Quasi-Eulerian vertical coordinate  ==!   ('key_qco')
          !                                            !==========================================!
-         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+         DO_3DS( 1, 1, 1, 1, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
 #if defined key_qco
 !!gm slightly faster
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)    &
@@ -206,50 +208,50 @@ CONTAINS
       ENDIF
 
       IF( ln_bdy ) THEN
-         DO jk = 1, jpkm1
-            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
-               pww(ji,jj,jk) = pww(ji,jj,jk) * bdytmask(ji,jj)
-            END_2D
-         END DO
+         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
+            pww(ji,jj,jk) = pww(ji,jj,jk) * bdytmask(ji,jj)
+         END_3D
       ENDIF
       !
 #if defined key_agrif
-      IF( .NOT. AGRIF_Root() ) THEN
-         !
-         ! Mask vertical velocity at first/last columns/row
-         ! inside computational domain (cosmetic)
-         DO jk = 1, jpkm1
-            IF( lk_west ) THEN                             ! --- West --- !
-               DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
-                  DO jj = 1, jpj
-                     pww(ji,jj,jk) = 0._wp
-                  END DO
-               END DO
-            ENDIF
-            IF( lk_east ) THEN                             ! --- East --- !
-               DO ji = mi0(jpiglo-1-nn_hls,nn_hls), mi1(jpiglo-1-nn_hls,nn_hls)
-                  DO jj = 1, jpj
-                     pww(ji,jj,jk) = 0._wp
-                  END DO
-               END DO
-            ENDIF
-            IF( lk_south ) THEN                            ! --- South --- !
-               DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
-                  DO ji = 1, jpi
-                     pww(ji,jj,jk) = 0._wp
-                  END DO
-               END DO
-            ENDIF
-            IF( lk_north ) THEN                            ! --- North --- !
-               DO jj = mj0(jpjglo-1-nn_hls,nn_hls), mj1(jpjglo-1-nn_hls,nn_hls)
-                  DO ji = 1, jpi
-                     pww(ji,jj,jk) = 0._wp
-                  END DO
-               END DO
-            ENDIF
+      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
+         IF( .NOT. AGRIF_Root() ) THEN
             !
-         END DO
-         !
+            ! Mask vertical velocity at first/last columns/row
+            ! inside computational domain (cosmetic)
+            DO jk = 1, jpkm1
+               IF( lk_west ) THEN                             ! --- West --- !
+                  DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
+                     DO jj = 1, jpj
+                        pww(ji,jj,jk) = 0._wp
+                     END DO
+                  END DO
+               ENDIF
+               IF( lk_east ) THEN                             ! --- East --- !
+                  DO ji = mi0(jpiglo-1-nn_hls,nn_hls), mi1(jpiglo-1-nn_hls,nn_hls)
+                     DO jj = 1, jpj
+                        pww(ji,jj,jk) = 0._wp
+                     END DO
+                  END DO
+               ENDIF
+               IF( lk_south ) THEN                            ! --- South --- !
+                  DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
+                     DO ji = 1, jpi
+                        pww(ji,jj,jk) = 0._wp
+                     END DO
+                  END DO
+               ENDIF
+               IF( lk_north ) THEN                            ! --- North --- !
+                  DO jj = mj0(jpjglo-1-nn_hls,nn_hls), mj1(jpjglo-1-nn_hls,nn_hls)
+                     DO ji = 1, jpi
+                        pww(ji,jj,jk) = 0._wp
+                     END DO
+                  END DO
+               ENDIF
+               !
+            END DO
+            !
+         ENDIF
       ENDIF
 #endif
       !
@@ -280,18 +282,21 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::             pww  ! vertical velocity at Kmm
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zhdiv
-      REAL(wp)             , DIMENSION(jpi,jpj,jpk) ::   ze3div
+      REAL(wp), DIMENSION(T2D(1),jpk) ::   ze3div
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('wzv_RK3')
       !
       IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'wzv_RK3 : now vertical velocity '
-         IF(lwp) WRITE(numout,*) '~~~~~ '
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+            IF(lwp) WRITE(numout,*)
+            IF(lwp) WRITE(numout,*) 'wzv_RK3 : now vertical velocity '
+            IF(lwp) WRITE(numout,*) '~~~~~ '
+         ENDIF
          !
-         pww(:,:,:) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
+         DO_2D( 1, 1, 1, 1 )
+            pww(ji,jj,jpk) = 0._wp                  ! bottom boundary condition: w=0 (set once for all)
+         END_2D
          !                                   ! needed over the halos for the output (ww+wi) in diawri.F90
       ENDIF
       !
@@ -307,13 +312,13 @@ CONTAINS
       !                                               !=================================!
       IF( ln_linssh )   THEN                          !==  linear free surface cases  ==!
          !                                            !=================================!
-         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+         DO_3DS( 1, 1, 1, 1, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - ze3div(ji,jj,jk)
          END_3D
          !                                            !==========================================!
       ELSE                                            !==  Quasi-Eulerian vertical coordinate  ==!   ('key_qco')
          !                                            !==========================================!
-         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
+         DO_3DS( 1, 1, 1, 1, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
             !                                                              ! NB: [e3t[a] -e3t[b] ]=e3t_0*[r3t[a]-r3t[b]]
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  ze3div(ji,jj,jk)                             &
                &                               + r1_Dt * e3t_0(ji,jj,jk) * ( r3t(ji,jj,Kaa) - r3t(ji,jj,Kbb) )  ) * tmask(ji,jj,jk)
@@ -321,50 +326,50 @@ CONTAINS
       ENDIF
 
       IF( ln_bdy ) THEN
-         DO jk = 1, jpkm1
-            DO_2D( nn_hls-1, nn_hls, nn_hls-1, nn_hls )
-               pww(ji,jj,jk) = pww(ji,jj,jk) * bdytmask(ji,jj)
-            END_2D
-         END DO
+         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
+            pww(ji,jj,jk) = pww(ji,jj,jk) * bdytmask(ji,jj)
+         END_3D
       ENDIF
       !
 #if defined key_agrif
-      IF( .NOT. AGRIF_Root() ) THEN
-         !
-         ! Mask vertical velocity at first/last columns/row
-         ! inside computational domain (cosmetic)
-         DO jk = 1, jpkm1
-            IF( lk_west ) THEN                             ! --- West --- !
-               DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
-                  DO jj = 1, jpj
-                     pww(ji,jj,jk) = 0._wp
-                  END DO
-               END DO
-            ENDIF
-            IF( lk_east ) THEN                             ! --- East --- !
-               DO ji = mi0(jpiglo-1-nn_hls,nn_hls), mi1(jpiglo-1-nn_hls,nn_hls)
-                  DO jj = 1, jpj
-                     pww(ji,jj,jk) = 0._wp
-                  END DO
-               END DO
-            ENDIF
-            IF( lk_south ) THEN                            ! --- South --- !
-               DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
-                  DO ji = 1, jpi
-                     pww(ji,jj,jk) = 0._wp
-                  END DO
-               END DO
-            ENDIF
-            IF( lk_north ) THEN                            ! --- North --- !
-               DO jj = mj0(jpjglo-1-nn_hls,nn_hls), mj1(jpjglo-1-nn_hls,nn_hls)
-                  DO ji = 1, jpi
-                     pww(ji,jj,jk) = 0._wp
-                  END DO
-               END DO
-            ENDIF
+      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
+         IF( .NOT. AGRIF_Root() ) THEN
             !
-         END DO
-         !
+            ! Mask vertical velocity at first/last columns/row
+            ! inside computational domain (cosmetic)
+            DO jk = 1, jpkm1
+               IF( lk_west ) THEN                             ! --- West --- !
+                  DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
+                     DO jj = 1, jpj
+                        pww(ji,jj,jk) = 0._wp
+                     END DO
+                  END DO
+               ENDIF
+               IF( lk_east ) THEN                             ! --- East --- !
+                  DO ji = mi0(jpiglo-1-nn_hls,nn_hls), mi1(jpiglo-1-nn_hls,nn_hls)
+                     DO jj = 1, jpj
+                        pww(ji,jj,jk) = 0._wp
+                     END DO
+                  END DO
+               ENDIF
+               IF( lk_south ) THEN                            ! --- South --- !
+                  DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
+                     DO ji = 1, jpi
+                        pww(ji,jj,jk) = 0._wp
+                     END DO
+                  END DO
+               ENDIF
+               IF( lk_north ) THEN                            ! --- North --- !
+                  DO jj = mj0(jpjglo-1-nn_hls,nn_hls), mj1(jpjglo-1-nn_hls,nn_hls)
+                     DO ji = 1, jpi
+                        pww(ji,jj,jk) = 0._wp
+                     END DO
+                  END DO
+               ENDIF
+               !
+            END DO
+            !
+         ENDIF
       ENDIF
 #endif
       !
@@ -429,7 +434,7 @@ CONTAINS
       !
    END SUBROUTINE ssh_atf
 
-   SUBROUTINE wAimp_MLF( kt, Kmm )
+   SUBROUTINE wAimp_MLF( kt, Kmm, lddiag )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wAimp  ***
       !!
@@ -445,57 +450,77 @@ CONTAINS
       !!              implicit scheme for vertical advection in oceanic modeling.
       !!              Ocean Modelling, 91, 38-69.
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in) ::   kt   ! time step
-      INTEGER, INTENT(in) ::   Kmm  ! time level index
+      INTEGER,           INTENT(in) ::   kt      ! time step
+      INTEGER,           INTENT(in) ::   Kmm     ! time level index
+      LOGICAL, OPTIONAL, INTENT(in) ::   lddiag  ! Whether diagnostics should be output
       !
-      INTEGER  ::   ji, jj, jk   ! dummy loop indices
-      REAL(wp)             ::   zCu, zcff, z1_e3t, zdt                 ! local scalars
+      INTEGER        ::   ji, jj, jk                  ! dummy loop indices
+      REAL(wp)       ::   zCu, zcff, z1_e3t, zdt      ! local scalars
+      REAL(wp), DIMENSION(T2D(1),jpk) :: zcu_adv
+      REAL(wp), DIMENSION(:,:  ), ALLOCATABLE :: zdiag2d
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zdiag3d
+      LOGICAL :: lldiag
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('wAimp')
       !
+      lldiag = .FALSE.                                                     ! Ensure diagnostics are only output once
+      IF( PRESENT(lddiag) ) lldiag = lddiag
+      !
       IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'wAimp_MLF : Courant number-based partitioning of now vertical velocity '
-         IF(lwp) WRITE(numout,*) '~~~~~ '
-         Cu_min = r_stb_thres_dyn
-         Cu_cut = r_stb_cstra_dyn
-         Cu_mid = 0.5_wp*(Cu_cut + Cu_min)
-         Fcu    = (Cu_cut*Cu_cut-Cu_min*Cu_min)
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+            IF(lwp) WRITE(numout,*)
+            IF(lwp) WRITE(numout,*) 'wAimp_MLF : Courant number-based partitioning of now vertical velocity '
+            IF(lwp) WRITE(numout,*) '~~~~~ '
+            Cu_min = r_stb_thres_dyn
+            Cu_cut = r_stb_cstra_dyn
+            Cu_mid = 0.5_wp*(Cu_cut + Cu_min)
+            Fcu    = (Cu_cut*Cu_cut-Cu_min*Cu_min)
+         ENDIF
       ENDIF
       !
       ! Calculate Courant numbers
       !
       zdt = 2._wp * rn_Dt                    ! MLF: 2*rn_Dt and not rDt (for restartability)
-      DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+      DO_3D( 1, 1, 1, 1, 1, jpkm1 )
          z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
-         Cu_adv(ji,jj,jk) =   zdt *                                                      &
-            &  ( ( MAX( ww(ji,jj,jk) , 0._wp ) - MIN( ww(ji,jj,jk+1) , 0._wp ) )         &
-            &                             + ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*uu(ji  ,jj,jk,Kmm), 0._wp ) -   &
-            &                                 MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*uu(ji-1,jj,jk,Kmm), 0._wp ) )   &
-            &                               * r1_e1e2t(ji,jj)                                                 &
-            &                             + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*vv(ji,jj  ,jk,Kmm), 0._wp ) -   &
-            &                                 MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*vv(ji,jj-1,jk,Kmm), 0._wp ) )   &
-            &                               * r1_e1e2t(ji,jj)                                                 &
-            &                             ) * z1_e3t
+         zcu_adv(ji,jj,jk) =   zdt *                                                                                 &
+            &   ( ( MAX( ww(ji,jj,jk) , 0._wp ) - MIN( ww(ji,jj,jk+1) , 0._wp ) )                                    &
+            &                              + ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*uu(ji  ,jj,jk,Kmm), 0._wp ) -   &
+            &                                  MIN( e2u(ji-1,jj)*e3u(ji-1,jj,jk,Kmm)*uu(ji-1,jj,jk,Kmm), 0._wp ) )   &
+            &                                * r1_e1e2t(ji,jj)                                                       &
+            &                              + ( MAX( e1v(ji,jj  )*e3v(ji,jj  ,jk,Kmm)*vv(ji,jj  ,jk,Kmm), 0._wp ) -   &
+            &                                  MIN( e1v(ji,jj-1)*e3v(ji,jj-1,jk,Kmm)*vv(ji,jj-1,jk,Kmm), 0._wp ) )   &
+            &                                * r1_e1e2t(ji,jj)                                                       &
+            &                              ) * z1_e3t
       END_3D
-      CALL iom_put("Courant",Cu_adv)
-      IF( iom_use("Aimp_Cmx") )   THEN
-         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values to use as temporary store
-         Cu_adv(:,:,jpk) = MAXVAL(Cu_adv, DIM=3)        ! Use seabed points to hold temporary maximums
-         CALL iom_put('Aimp_Cmx',Cu_adv(:,:,jpk))       ! to record activation locations at each stage
-         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values for possible o/p of Cu_adv in stpctl
+      zcu_adv(:,:,jpk) = 0._wp
+
+      ! NOTE: No need for T2D(0) or zdiag3d here if we allow 1-point halo grids in XIOS (only 0 and nn_hls points allowed currently)
+      IF( lldiag ) THEN
+         IF( iom_use("Courant") ) THEN
+            ALLOCATE( zdiag3d(T2D(0),jpk) )
+            zdiag3d(:,:,:) = zcu_adv(T2D(0),:)
+            CALL iom_put( "Courant", zdiag3d(:,:,:) )
+            DEALLOCATE( zdiag3d )
+         ENDIF
+         IF( iom_use("Aimp_Cmx") ) THEN
+            ALLOCATE( zdiag2d(T2D(0)) )
+            zdiag2d(:,:) = MAXVAL( zcu_adv(T2D(0),:), DIM=3 )
+            CALL iom_put( 'Aimp_Cmx', zdiag2d(:,:) )
+            DEALLOCATE( zdiag2d )
+         ENDIF
       ENDIF
       !
-      IF( MAXVAL( Cu_adv(:,:,:) ) > Cu_min ) THEN       ! Quick check if any breaches anywhere
-         DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 2, -1 )    ! or scan Courant criterion and partition ! w where necessary
+      IF( MAXVAL( zcu_adv(:,:,:) ) > Cu_min ) THEN       ! Quick check if any breaches anywhere
+         DO_3DS( 1, 1, 1, 1, jpkm1, 2, -1 )    ! or scan Courant criterion and partition ! w where necessary
             !
-            zCu = MAX( Cu_adv(ji,jj,jk) , Cu_adv(ji,jj,jk-1) )
+            zCu = MAX( zcu_adv(ji,jj,jk) , zcu_adv(ji,jj,jk-1) )
 ! alt:
 !                  IF ( ww(ji,jj,jk) > 0._wp ) THEN
-!                     zCu =  Cu_adv(ji,jj,jk)
+!                     zCu =  zcu_adv(ji,jj,jk)
 !                  ELSE
-!                     zCu =  Cu_adv(ji,jj,jk-1)
+!                     zCu =  zcu_adv(ji,jj,jk-1)
 !                  ENDIF
             !
             IF( zCu <= Cu_min ) THEN              !<-- Fully explicit
@@ -511,27 +536,38 @@ CONTAINS
             wi(ji,jj,jk) =           zcff   * ww(ji,jj,jk)
             ww(ji,jj,jk) = ( 1._wp - zcff ) * ww(ji,jj,jk)
             !
-            Cu_adv(ji,jj,jk) = zcff               ! Reuse array to output coefficient below and in stp_ctl
+            Cu_adv(ji,jj,jk) = zcff               ! Partitioning coefficient
          END_3D
-         Cu_adv(:,:,1) = 0._wp
       ELSE
          ! Fully explicit everywhere
-         Cu_adv(:,:,:) = 0._wp                    ! Reuse array to output coefficient below and in stp_ctl
-         wi    (:,:,:) = 0._wp
+         DO_3D( 1, 1, 1, 1, 2, jpkm1 )
+            Cu_adv(ji,jj,jk) = 0._wp
+            wi    (ji,jj,jk) = 0._wp
+         END_3D
       ENDIF
-      CALL iom_put("wimp",wi)
-      CALL iom_put("wi_cff",Cu_adv)
-      CALL iom_put("wexp",ww)
-      IF( iom_use("Aimp_loc") )   THEN
-         WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,1) = 1._wp
-         CALL iom_put("Aimp_loc",Cu_adv(:,:,1))
-         Cu_adv(:,:,1) = 0._wp
+      IF( lldiag ) THEN
+         IF( iom_use("wimp") ) THEN
+            ! This is needed to ensure a consistent halo size for this diagnostic in MLF and RK3
+            ALLOCATE( zdiag3d(T2D(0),jpk) )
+            zdiag3d(:,:,:) = wi(T2D(0),:)
+            CALL iom_put( "wimp", zdiag3d(:,:,:) )
+            DEALLOCATE( zdiag3d )
+         ENDIF
+         CALL iom_put( "wi_cff", Cu_adv(:,:,:) )
+         CALL iom_put( "wexp", ww(:,:,:) )
+         IF( iom_use("Aimp_loc") ) THEN
+            ALLOCATE( zdiag2d(T2D(0)) )
+            WHERE( SUM( Cu_adv(T2D(0),:), DIM=3 ) > rsmall ) ; zdiag2d(:,:) = 1._wp
+            ELSEWHERE                                        ; zdiag2d(:,:) = 0._wp
+            ENDWHERE
+            CALL iom_put( "Aimp_loc", zdiag2d(:,:) )
+            DEALLOCATE( zdiag2d )
+         ENDIF
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('wAimp')
       !
    END SUBROUTINE wAimp_MLF
-    
 
    SUBROUTINE wAimp_RK3_alt( kt, Kmm, puu, pvv, pww, pwi, kstage, kalt )
       !!----------------------------------------------------------------------
@@ -673,7 +709,7 @@ CONTAINS
       INTEGER                         , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(out  ) ::   pwi            !  vertical velocity at Kmm (implicit part)
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
 !!st      INTEGER, INTENT(in) ::   kstage                                     !  RK3 stage indictor
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
@@ -685,19 +721,27 @@ CONTAINS
       REAL(wp) , PARAMETER ::   Cu_max_v = 1.1_wp           ! maximum allowable vertical Courant number
       REAL(wp) , PARAMETER ::   Cu_max_h = 1.1_wp           ! maximum allowable horizontal Courant number
       CHARACTER(LEN=10) :: clmname
+      LOGICAL :: lldiag
+      REAL(wp), DIMENSION(:,:        ), ALLOCATABLE :: zdiag2d
+      REAL(wp), DIMENSION(:,:,:      ), ALLOCATABLE :: zdiag3d
+      REAL(wp), DIMENSION(T2D(nn_hls))              :: z2d
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('wAimp')
       !
       IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'wAimp_RK3 : Courant number-based partitioning of now vertical velocity '
-         IF(lwp) WRITE(numout,*) '~~~~~ '
-         Cu_min = r_stb_thres_dyn
-         Cu_cut = r_stb_cstra_dyn
-         IF(lwp) WRITE(numout,'(3(a,F10.4,1x))') 'Partitioning parameters: Cu_min_v= ', Cu_min_v, &
-         &                                       'Cu_max_v= ', Cu_max_v,  'Cu_max_h= ', Cu_max_h
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+            IF(lwp) WRITE(numout,*)
+            IF(lwp) WRITE(numout,*) 'wAimp_RK3 : Courant number-based partitioning of now vertical velocity '
+            IF(lwp) WRITE(numout,*) '~~~~~ '
+            Cu_min = r_stb_thres_dyn
+            Cu_cut = r_stb_cstra_dyn
+            IF(lwp) WRITE(numout,'(3(a,F10.4,1x))') 'Partitioning parameters: Cu_min_v= ', Cu_min_v, &
+            &                                       'Cu_max_v= ', Cu_max_v,  'Cu_max_h= ', Cu_max_h
+         ENDIF
       ENDIF
+      !
+      lldiag = (k_ind == np_velocity)                                      ! Ensure diagnostics are only output once
       !
       ! Calculate Courant numbers
       !
@@ -708,7 +752,7 @@ CONTAINS
       ! JC: Is it still worth saving into a 3d array ? I don't believe.
       SELECT CASE ( k_ind )
       CASE ( np_velocity )
-         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
             z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
             Cu_adv(ji,jj,jk) =   zdt *                                                      &
                &  ( ( MAX( e2u(ji  ,jj)*e3u(ji  ,jj,jk,Kmm)*puu(ji  ,jj,jk), 0._wp ) -   &
@@ -718,7 +762,7 @@ CONTAINS
                &                             ) * z1_e3t * r1_e1e2t(ji,jj)
          END_3D
       CASE ( np_transport )
-         DO_3D( nn_hls-1, nn_hls, nn_hls-1, nn_hls, 1, jpkm1 )
+         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
             z1_e3t = 1._wp / e3t(ji,jj,jk,Kmm)
             Cu_adv(ji,jj,jk) =   zdt *                                                      &
                &  ( ( MAX( puu(ji  ,jj,jk), 0._wp ) -   &
@@ -732,17 +776,17 @@ CONTAINS
       ! JC: Warning: this is the horizontal Courant number this time
       ! not the total as in previous versions of the scheme.
       !
-      IF( iom_use("Aimp_Cmx_h") )   THEN
-         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values to use as temporary store
-         Cu_adv(:,:,jpk) = MAXVAL(Cu_adv, DIM=3)        ! Use seabed points to hold temporary maximums
-         CALL iom_put('Aimp_Cmx_h',Cu_adv(:,:,jpk))     ! o/p column maximum horizontal Courant number
-         Cu_adv(:,:,jpk) = 0._wp                        ! reset seabed values for possible o/p of Cu_adv in stpctl
+      IF( lldiag .AND. iom_use("Aimp_Cmx_h") ) THEN
+         ALLOCATE( zdiag2d(T2D(0)) )
+         zdiag2d(:,:) = MAXVAL(Cu_adv(T2D(0),:), DIM=3)
+         CALL iom_put( 'Aimp_Cmx_h', zdiag2d(:,:) )
+         DEALLOCATE( zdiag2d )
       ENDIF
       !
-      pwi(:,:,:) = 0.0_wp
-      DO_3DS( nn_hls-1, nn_hls, nn_hls-1, nn_hls, jpkm1, 2, -1 )
+      z2d(:,:) = 0._wp
+      DO_3DS( 1, 1, 1, 1, jpkm1, 2, -1 )
          !
-         zcff = Cu_adv(ji,jj,jpk)
+         zcff = z2d(ji,jj)
          IF ( pww(ji,jj,jk) > 0._wp ) THEN
             zCu_h =  Cu_adv(ji,jj,jk  )
          ELSE
@@ -751,7 +795,7 @@ CONTAINS
          ! Vertical Courant Number:
          z1_e3w = 1._wp / e3w(ji,jj,jk,Kmm)
          zCu_v = zdt * z1_e3w * ABS (pww(ji,jj,jk))
-         Cu_adv(ji,jj,jpk) = MAX( zCu_v, zcff )
+         z2d(ji,jj) = MAX( zCu_v, zcff )
          !
          zCu_min = Cu_min_v * (1._wp - zCu_h * zr_Cu_max_h)
          zCu_max = Cu_max_v * (1._wp - zCu_h * zr_Cu_max_h)
@@ -774,17 +818,30 @@ CONTAINS
          !
          Cu_adv(ji,jj,jk) = zcff               ! Reuse array to output coefficient below and in stp_ctl
       END_3D
-      Cu_adv(:,:,1) = 0._wp
+      Cu_adv(T2D(1),1) = 0._wp
       !
+      IF( lldiag ) THEN
 !!st only called when kstg = 3 I think this is not necessary !
 !!      IF( kstage == 3 ) CALL iom_put("wimp",pwi)
-      CALL iom_put("wimp",pwi)
-      CALL iom_put("Aimp_Cmx_v", Cu_adv(:,:,jpk))      ! o/p column maximum vertical Courant number
-      Cu_adv(:,:,jpk) = 0._wp
-      IF( iom_use("Aimp_loc") )   THEN
-         WHERE( SUM( Cu_adv, DIM=3 ) > rsmall ) Cu_adv(:,:,jpk) = 1._wp
-         CALL iom_put("Aimp_loc",Cu_adv(:,:,jpk))      ! o/p active Aimp locations
-         Cu_adv(:,:,jpk) = 0._wp
+         IF( iom_use("wimp") ) THEN
+            ! Fix for tiling: force data to be sent to XIOS by copying pwi to a temporary array.
+            ! The problem: iom_put will only send data on the last tile since pwi has size (jpi,jpj,jpk), and pwi will
+            ! be overwritten by the 2nd call to wAimp. Therefore when pwi is actually sent to XIOS, all tiles except
+            ! the last will have data equivalent to k_ind == np_transport (rather than k_ind == np_velocity).
+            ALLOCATE( zdiag3d(T2D(0),jpk) )
+            zdiag3d(:,:,:) = pwi(T2D(0),:)
+            CALL iom_put( "wimp", zdiag3d(:,:,:) )
+            DEALLOCATE( zdiag3d )
+         ENDIF
+         CALL iom_put( "Aimp_Cmx_v", z2d(:,:) )      ! o/p column maximum vertical Courant number
+         IF( iom_use("Aimp_loc") ) THEN
+            ALLOCATE( zdiag2d(T2D(0)) )
+            WHERE( SUM( Cu_adv(T2D(0),:), DIM=3 ) > rsmall ) ; zdiag2d(:,:) = 1._wp
+            ELSEWHERE                                        ; zdiag2d(:,:) = 0._wp
+            ENDWHERE
+            CALL iom_put( "Aimp_loc", zdiag2d(:,:) )      ! o/p active Aimp locations
+            DEALLOCATE( zdiag2d )
+         ENDIF
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('wAimp')

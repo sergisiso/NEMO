@@ -18,6 +18,7 @@ MODULE traadv_cen
    USE trdtra         ! trends manager: tracers
    USE diaptr         ! poleward transport diagnostics
    USE diaar5         ! AR5 diagnostics
+   USE domutl, ONLY : lbnd_ij
    !
    USE in_out_manager ! I/O manager
    USE iom            ! IOM library
@@ -47,6 +48,23 @@ CONTAINS
 
    SUBROUTINE tra_adv_cen( kt, kit000, cdtype, pU, pV, pW,     &
       &                    Kmm, pt, kjpt, Krhs, kn_cen_h, kn_cen_v )
+      !!
+      INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   Kmm, Krhs       ! ocean time level indices
+      INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
+      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
+      INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
+      INTEGER                                  , INTENT(in   ) ::   kn_cen_h        ! =2/4 (2nd or 4th order scheme)
+      INTEGER                                  , INTENT(in   ) ::   kn_cen_v        ! =2/4 (2nd or 4th order scheme)
+      REAL(wp), DIMENSION(:,:,:               ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
+      REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
+      !!
+      CALL tra_adv_cen_t( kt, kit000, cdtype, pU, pV, pW, lbnd_ij(pU),  &
+         &                Kmm, pt, kjpt, Krhs, kn_cen_h, kn_cen_v       )
+   END SUBROUTINE tra_adv_cen
+
+   SUBROUTINE tra_adv_cen_t( kt, kit000, cdtype, pU, pV, pW, ktpuvw, &
+      &                      Kmm, pt, kjpt, Krhs, kn_cen_h, kn_cen_v )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_cen  ***
       !!
@@ -64,6 +82,7 @@ CONTAINS
       !!             - send trends to trdtra module for further diagnostcs (l_trdtra=T)
       !!             - poleward advective heat and salt transport (l_diaptr=T)
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                   , INTENT(in   ) ::   ktpuvw
       INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kmm, Krhs       ! ocean time level indices
       INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
@@ -71,7 +90,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       INTEGER                                  , INTENT(in   ) ::   kn_cen_h        ! =2/4 (2nd or 4th order scheme)
       INTEGER                                  , INTENT(in   ) ::   kn_cen_v        ! =2/4 (2nd or 4th order scheme)
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
+      REAL(wp), DIMENSION(AB2D(ktpuvw),JPK    ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
@@ -94,10 +113,10 @@ CONTAINS
          l_trd = .FALSE.
          l_hst = .FALSE.
          l_ptr = .FALSE.
-         IF( ( cdtype == 'TRA' .AND. l_trdtra ) .OR. ( cdtype == 'TRC' .AND. l_trdtrc ) )       l_trd = .TRUE.
-         IF( l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv' )  .OR. iom_use( 'sopstadv'  ) ) )     l_ptr = .TRUE.
-         IF(   cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
-            &                          iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )  l_hst = .TRUE.
+         IF( ( cdtype == 'TRA' .AND. l_trdtra ) .OR. ( cdtype == 'TRC' .AND. l_trdtrc ) )                      l_trd = .TRUE.
+         IF(  l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv' )  .OR. iom_use( 'sopstadv'  ) )  )   l_ptr = .TRUE.
+         IF(  l_diaar5 .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
+            &                                        iom_use("uadv_salttr") .OR. iom_use("vadv_salttr") )  )   l_hst = .TRUE.
       ENDIF
       !
       IF( kn_cen_h == 4 )   ALLOCATE( ztu(T2D(2)) , ztv(T2D(2)) )   ! horizontal 4th order only
@@ -230,7 +249,7 @@ CONTAINS
       IF( kn_cen_h == 4 )   DEALLOCATE( ztu , ztv )   ! horizontal 4th order only
       IF( kn_cen_v == 4 )   DEALLOCATE( ztw )             ! vertical   4th order only
       !
-   END SUBROUTINE tra_adv_cen
+   END SUBROUTINE tra_adv_cen_t
 
    !!======================================================================
 END MODULE traadv_cen

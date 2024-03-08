@@ -23,7 +23,6 @@ MODULE dynadv_up3
    !
    USE in_out_manager ! I/O manager
    USE prtctl         ! Print control
-   USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE lib_mpp        ! MPP library
 
    IMPLICIT NONE
@@ -80,18 +79,18 @@ CONTAINS
       !!
       !! Reference : Shchepetkin & McWilliams, 2005, Ocean Modelling. 
       !!----------------------------------------------------------------------
-      INTEGER                                     , INTENT(in   ) ::   kt , Kbb, Kmm, Krhs   ! ocean time-step and level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), TARGET, INTENT(inout) ::   puu, pvv              ! ocean velocities and RHS of momentum equation
-      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw         ! advective velocity
+      INTEGER                                           , INTENT(in   ) ::   kt , Kbb, Kmm, Krhs   ! ocean time-step and level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt)      , TARGET, INTENT(inout) ::   puu, pvv              ! ocean velocities and RHS of momentum equation
+      REAL(wp), DIMENSION(jpi,jpj,jpk), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw         ! advective velocity
       !
       LOGICAL  ::   lltrp        ! local logical
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp) ::   zzu, zui, zFuj, zl_u, zzFu_kp1, zlu_uw_kp1, zFwi     ! local scalars
       REAL(wp) ::   zzv, zvj, zFvi, zl_v, zzFv_kp1, zlv_vw_kp1, zFwj     !   -      -
-      REAL(wp), DIMENSION(T2D(2)) ::   zFu_t, zFu_f
-      REAL(wp), DIMENSION(T2D(2)) ::   zFv_t, zFv_f
-      REAL(wp), DIMENSION(T2D(2)) ::   zlu_uu, zlu_uv
-      REAL(wp), DIMENSION(T2D(2)) ::   zlv_vv, zlv_vu
+      REAL(wp), DIMENSION(T2D(1)) ::   zFu_t, zFu_f
+      REAL(wp), DIMENSION(T2D(1)) ::   zFv_t, zFv_f
+      REAL(wp), DIMENSION(T2D(1)) ::   zlu_uu, zlu_uv
+      REAL(wp), DIMENSION(T2D(1)) ::   zlv_vv, zlv_vu
       REAL(wp), DIMENSION(:,:)  , POINTER             ::   zFu, zFv
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, TARGET ::   zwu, zwv
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE         ::   zu_trd, zv_trd
@@ -115,7 +114,7 @@ CONTAINS
          zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs)
       ENDIF
       !                             ! used in MLF & RK3(stp2d) : advective velocity = (puu,pvv,ww)
-      IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(A2D(2)), zwv(A2D(2)) ) 
+      IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(T2D(1)), zwv(T2D(1)) )
       !
       !                             ! =============================== !
       DO jk = 1, jpkm1              !  Horizontal advection : k-slab  !
@@ -138,8 +137,8 @@ CONTAINS
             zFu => pFu(:,:,jk)
             zFv => pFv(:,:,jk)
          ELSE
-            zFu => zwu(:,:)
-            zFv => zwv(:,:)
+            zFu(T2D(1)) => zwu(:,:)
+            zFv(T2D(1)) => zwv(:,:)
             DO_2D( 1, 1, 1, 1 )
                zFu(ji,jj) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * puu(ji,jj,jk,Kmm)
                zFv(ji,jj) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * pvv(ji,jj,jk,Kmm)
@@ -208,7 +207,7 @@ CONTAINS
          IF( PRESENT( pFu ) ) THEN
             zFw => pFw(:,:,1)
          ELSE
-            zFw => zww(:,:)
+            zFw(T2D(1)) => zww(:,:)
             DO_2D( 0, 1, 0, 1 )
                zFw(ji,jj) = e1e2t(ji,jj) * ww(ji,jj,1)
             END_2D
@@ -235,7 +234,7 @@ CONTAINS
          IF( PRESENT( pFu ) ) THEN
             zFw => pFw(:,:,jk+1)
          ELSE
-            zFw => zww(:,:)
+            zFw(T2D(1)) => zww(:,:)
             DO_2D( 0, 1, 0, 1 )                  ! vertical transport at level k+1
                zFw(ji,jj) = e1e2t(ji,jj) * ww(ji,jj,jk+1)
             END_2D

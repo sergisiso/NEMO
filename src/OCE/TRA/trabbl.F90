@@ -327,8 +327,8 @@ CONTAINS
       INTEGER  ::   ijs, ijd, ikvs, ikvd      !   -       -
       REAL(wp) ::   za, zb, zgdrho            ! local scalars
       REAL(wp) ::   zsign, zsigna, zgbbl      !   -      -
-      REAL(wp), DIMENSION(T2D(nn_hls),jpts)   :: zts, zab         ! 3D workspace
-      REAL(wp), DIMENSION(T2D(nn_hls))        :: zub, zvb, zdep   ! 2D workspace
+      REAL(wp), DIMENSION(T2D(1),jpts)   :: zts, zab         ! 3D workspace
+      REAL(wp), DIMENSION(T2D(1))        :: zub, zvb, zdep   ! 2D workspace
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -339,7 +339,7 @@ CONTAINS
          ENDIF
       ENDIF
       !                                        !* bottom variables (T, S, alpha, beta, depth, velocity)
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 1, 1, 1, 1 )
          ik = mbkt(ji,jj)                             ! bottom T-level index
          zts (ji,jj,jp_tem) = ts(ji,jj,ik,jp_tem,Kbb) ! bottom before T and S
          zts (ji,jj,jp_sal) = ts(ji,jj,ik,jp_sal,Kbb)
@@ -349,7 +349,7 @@ CONTAINS
          zvb (ji,jj) = vv(ji,jj,mbkv(ji,jj),Kmm)
       END_2D
       !
-      CALL eos_rab( zts, zdep, zab, Kmm )
+      CALL eos_rab( zts, zdep, zab, Kmm, kbnd=1 )
       !
       !                                   !-------------------!
       IF( nn_bbl_ldf == 1 ) THEN          !   diffusive bbl   !

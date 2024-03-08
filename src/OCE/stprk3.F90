@@ -96,6 +96,7 @@ CONTAINS
                              CALL iom_init_closedef
          IF( ln_crs      )   CALL iom_init( TRIM(cxios_context)//"_crs" )  ! for coarse grid
                              CALL dia_ptr_init        ! called here since it uses iom_use
+                             CALL dia_ar5_init        ! called here since it uses iom_use
                              CALL rk3_dia( -1 )       ! Store diagnostic logicals
       ENDIF
       IF( kstp == nitrst .AND. lwxios ) THEN
@@ -156,7 +157,12 @@ CONTAINS
 !!gm       or  call zdf_phy at the end !
       !  VERTICAL PHYSICS
 !!st                         CALL zdf_phy( kstp, Nbb, Nnn, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
+      IF( ln_tile ) CALL dom_tile_start         ! [tiling] ZDF tiling loop
+      DO jtile = 1, nijtile
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
                          CALL zdf_phy( kstp, Nbb, Nbb, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
+      END DO
+      IF( ln_tile ) CALL dom_tile_stop
 !!gm gdep
       !  LATERAL  PHYSICS
       !
@@ -215,11 +221,18 @@ CONTAINS
 !==>>>  at Nbb  no more Nnn 
      
       IF( ln_diacfl  )   CALL dia_cfl   ( kstp,      Nbb )      ! Courant number diagnostics
-                         CALL dia_hth   ( kstp,      Nbb )      ! Thermocline depth (20 degres isotherm depth)
       IF( ln_diadct  )   CALL dia_dct   ( kstp,      Nbb )      ! Transports
-!!st                         CALL dia_ar5   ( kstp,      Nbb )      ! ar5 diag
+
+      IF( ln_tile ) CALL dom_tile_start         ! [tiling] DIA tiling loop
+      DO jtile = 1, nijtile
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+                         CALL dia_hth   ( kstp,      Nbb )      ! Thermocline depth (20 degres isotherm depth)
+                         CALL dia_ar5   ( kstp,      Nbb )      ! ar5 diag
                          CALL dia_ptr   ( kstp,      Nbb )      ! Poleward adv/ldf TRansports diagnostics
                          CALL dia_wri   ( kstp,      Nbb )      ! ocean model: outputs
+      END DO
+      IF( ln_tile ) CALL dom_tile_stop
+
       IF( ln_crs     )   CALL crs_fld   ( kstp,      Nbb )      ! ocean model: online field coarsening & output
       IF( lk_diadetide ) CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
       IF( lk_diamlr  )   CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
@@ -293,60 +306,13 @@ CONTAINS
    END SUBROUTINE stp_RK3
 
 
-   SUBROUTINE mlf_baro_corr( Kmm, Kaa, puu, pvv )
-      !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE mlf_baro_corr  ***
-      !!
-      !! ** Purpose :   Finalize after horizontal velocity.
-      !!
-      !! ** Method  : * Ensure after velocities transport matches time splitting
-      !!             estimate (ln_dynspg_ts=T)
-      !!
-      !! ** Action :   puu(Kmm),pvv(Kmm)   updated now horizontal velocity (ln_bt_fw=F)
-      !!               puu(Kaa),pvv(Kaa)   after horizontal velocity
-      !!----------------------------------------------------------------------
-      !!
-      INTEGER                             , INTENT(in   ) ::   Kmm, Kaa   ! before and after time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::   puu, pvv   ! velocities
-      !
-      INTEGER  ::   jk   ! dummy loop indices
-      REAL(wp), DIMENSION(jpi,jpj) ::   zue, zve
-      !!----------------------------------------------------------------------
-
-      ! Ensure below that barotropic velocities match time splitting estimate
-      ! Compute actual transport and replace it with ts estimate at "after" time step
-      zue(:,:) = e3u(:,:,1,Kaa) * puu(:,:,1,Kaa) * umask(:,:,1)
-      zve(:,:) = e3v(:,:,1,Kaa) * pvv(:,:,1,Kaa) * vmask(:,:,1)
-      DO jk = 2, jpkm1
-         zue(:,:) = zue(:,:) + e3u(:,:,jk,Kaa) * puu(:,:,jk,Kaa) * umask(:,:,jk)
-         zve(:,:) = zve(:,:) + e3v(:,:,jk,Kaa) * pvv(:,:,jk,Kaa) * vmask(:,:,jk)
-      END DO
-      DO jk = 1, jpkm1
-         puu(:,:,jk,Kaa) = ( puu(:,:,jk,Kaa) - zue(:,:) * r1_hu(:,:,Kaa) + uu_b(:,:,Kaa) ) * umask(:,:,jk)
-         pvv(:,:,jk,Kaa) = ( pvv(:,:,jk,Kaa) - zve(:,:) * r1_hv(:,:,Kaa) + vv_b(:,:,Kaa) ) * vmask(:,:,jk)
-      END DO
-      !
-!!st      IF( .NOT.ln_bt_fw ) THEN
-!!st         ! Remove advective velocity from "now velocities"
-!!st         ! prior to asselin filtering
-!!st         ! In the forward case, this is done below after asselin filtering
-!!st         ! so that asselin contribution is removed at the same time
-!!st         DO jk = 1, jpkm1
-!!st            puu(:,:,jk,Kmm) = ( puu(:,:,jk,Kmm) - un_adv(:,:)*r1_hu(:,:,Kmm) + uu_b(:,:,Kmm) )*umask(:,:,jk)
-!!st            pvv(:,:,jk,Kmm) = ( pvv(:,:,jk,Kmm) - vn_adv(:,:)*r1_hv(:,:,Kmm) + vv_b(:,:,Kmm) )*vmask(:,:,jk)
-!!st         END DO
-!!st      ENDIF
-      !
-   END SUBROUTINE mlf_baro_corr
-
-
    SUBROUTINE rk3_dia( kswitch )
       !!----------------------------------------------------------------------
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kswitch   ! on/off/init = 1/0/-1
       !!
       LOGICAL, SAVE ::   ll_trddyn, ll_trdtrc, ll_trdtra  ! call trd at stage 3 only
-      LOGICAL, SAVE ::   ll_diaptr
+      LOGICAL, SAVE ::   ll_diaptr, ll_diaar5
       !!----------------------------------------------------------------------
       !
       SELECT CASE( kswitch ) 
@@ -355,18 +321,21 @@ CONTAINS
          l_trdtrc = ll_trdtrc
          l_trddyn = ll_trddyn
          l_diaptr = ll_diaptr
+         l_diaar5 = ll_diaar5
          l_ldfeiv_dia = ln_ldfeiv_dia
       CASE ( 0 )                ! diagnostic desactivated (off)
          l_trdtra  = .FALSE.
          l_trdtrc  = .FALSE.
          l_trddyn  = .FALSE.
          l_diaptr  = .FALSE.
+         l_diaar5  = .FALSE.
          l_ldfeiv_dia  = .FALSE.
       CASE ( -1 )
          ll_trdtra = l_trdtra
          ll_trdtrc = l_trdtrc
          ll_trddyn = l_trddyn
          ll_diaptr = l_diaptr
+         ll_diaar5 = l_diaar5
       END SELECT
       !
    END SUBROUTINE rk3_dia

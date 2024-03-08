@@ -168,7 +168,7 @@ CONTAINS
       ! Sum of 25 hourly instantaneous values to give a 25h mean from 24hours every day
       IF( MOD( kt, i_steps ) == 0  .AND. kt /= nn_it000 ) THEN
 
-         IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN ! Do only for the first tile
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                 ! Do only for the first tile
             IF (lwp) THEN
                WRITE(numout,*) 'dia_wri_tide : Summing instantaneous hourly diagnostics at timestep ',kt
                WRITE(numout,*) '~~~~~~~~~~~~ '
