@@ -96,11 +96,11 @@ CONTAINS
       !===============================
       ! 1.: compute T and S in the tbl
       !===============================
-      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(A2D(0),:,jp_tem,Kmm), & ! <<== in
-         &                                                                                           zttbl  ) ! ==>> out
+      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(:,:,:,jp_tem,Kmm), & ! <<== in
+         &                                                                                        zttbl  ) ! ==>> out
       !
-      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(A2D(0),:,jp_sal,Kmm), & ! <<== in
-         &                                                                                           zstbl  ) ! ==>> out
+      CALL isf_tbl_avg( misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, ze3, ts(:,:,:,jp_sal,Kmm), & ! <<== in
+         &                                                                                        zstbl  ) ! ==>> out
       !
       !==========================================
       ! 2.: compute velocity in the tbl if needed
@@ -269,7 +269,7 @@ CONTAINS
       !==================
       ! 1: initialisation
       !==================
-      DO_2D( 2, 2, 2, 2 )
+      DO_2D( 1, 1, 1, 1 )
          ! top and bottom level of the 'top boundary layer'
          misfkt_cav(ji,jj)    = mikt(ji,jj)
          misfkb_cav(ji,jj)    = 1

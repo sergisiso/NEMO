@@ -412,7 +412,13 @@ CONTAINS
          CALL iom_put( "ssKEf", z2d )
       ENDIF
       !
-      CALL iom_put( "hdiv", hdiv )                 ! Horizontal divergence
+      IF ( iom_use("hdiv") ) THEN                 ! Horizontal divergence
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            z3d(ji,jj,jk) = hdiv(ji,jj,jk)
+         END_3D
+         z3d(:,:,jpk) = 0._wp
+         CALL iom_put( "hdiv", z3d )
+      ENDIF
       !
       IF( iom_use("u_masstr") .OR. iom_use("u_masstr_vint") .OR. iom_use("u_heattr") .OR. iom_use("u_salttr") ) THEN
 

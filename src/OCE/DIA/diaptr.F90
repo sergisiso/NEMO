@@ -80,16 +80,14 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE dia_ptr  ***
       !!----------------------------------------------------------------------
-      INTEGER                              , INTENT(in)           ::   kt     ! ocean time-step index
-      INTEGER                              , INTENT(in)           ::   Kmm    ! time level index
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk) , INTENT(in), OPTIONAL ::   pvtr   ! j-effective transport
+      INTEGER                    , INTENT(in)           ::   kt     ! ocean time-step index
+      INTEGER                    , INTENT(in)           ::   Kmm    ! time level index
+      REAL(wp), DIMENSION(:,:,:) , INTENT(in), OPTIONAL ::   pvtr   ! j-effective transport
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('dia_ptr')
-
-#if ! defined key_RK3
+      !
       IF( kt == nit000 .AND. ll_init )   CALL dia_ptr_init    ! -> will define l_diaptr and nbasin
-#endif
       !
       IF( l_diaptr ) THEN
          ! Calculate zonal integrals
@@ -367,8 +365,8 @@ CONTAINS
       !! ** Action  : pvtr_int - terms for volume streamfunction, heat/salt transport barotropic/overturning terms
       !!              pzon_int - terms for i mean temperature/salinity
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT(in)           :: Kmm  ! time level index
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in), OPTIONAL :: pvtr ! j-effective transport
+      INTEGER                   , INTENT(in)             :: Kmm          ! time level index
+      REAL(wp), DIMENSION(:,:,:), INTENT(in), OPTIONAL   :: pvtr         ! j-effective transport
       !
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zts          ! 4D workspace
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   sjk          ! Zonal sum: i-k surface area, j-effective transport, (T, S)

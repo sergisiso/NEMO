@@ -54,15 +54,15 @@ CONTAINS
 !!$      REAL(wp), DIMENSION(A2D(0)) ::   zhtbl   ! temporary array for thickness
 !!$      INTEGER , DIMENSION(A2D(0)) ::   ikbot   ! bottom level of the tbl
 !!$      REAL(wp), DIMENSION(A2D(0)) ::   zfrac   ! thickness of the tbl
-!!$      REAL(wp), DIMENSION(A2D(0),jpk) ::   ze3 ! e3 
+!!$      REAL(wp), DIMENSION(A2D(0),jpk) ::   ze3 ! e3
 !!$      !!--------------------------------------------------------------------
-!!$      ! 
+!!$      !
 !!$      SELECT CASE ( cd_ptin )
 !!$      CASE ( 'U' )
 !!$         !
 !!$         DO_3D( 0 ,0, 0, 0, 1, jpk )
 !!$            ze3(ji,jj,jk) = e3u(ji,jj,jk,Kmm)
-!!$         END_3D 
+!!$         END_3D
 !!$         !
 !!$         ! compute tbl lvl and thickness
 !!$         DO_2D( 0 ,0, 0, 0 )
@@ -80,7 +80,7 @@ CONTAINS
 !!$         !
 !!$         DO_3D( 0 ,0, 0, 0, 1, jpk )
 !!$            ze3(ji,jj,jk) = e3v(ji,jj,jk,Kmm)
-!!$         END_3D 
+!!$         END_3D
 !!$         !
 !!$         ! compute tbl lvl and thickness
 !!$         DO_2D( 0 ,0, 0, 0 )
@@ -111,12 +111,33 @@ CONTAINS
 
    SUBROUTINE isf_tbl_avg( ktop, kbot, phtbl, pfrac, pe3, pvarin, pvarout )
       !!--------------------------------------------------------------------
-      INTEGER,  DIMENSION(:,:)        , INTENT(in ) ::   ktop         ! top level of the top boundary layer
-      INTEGER,  DIMENSION(:,:)        , INTENT(in ) ::   kbot         ! bottom level of the top boundary layer
-      REAL(wp), DIMENSION(:,:)        , INTENT(in ) ::   phtbl, pfrac ! fraction of bottom level to be affected by the tbl
-      REAL(wp), DIMENSION(A2D(0),jpk) , INTENT(in ) ::   pe3          ! vertical scale factor
-      REAL(wp), DIMENSION(A2D(0),jpk) , INTENT(in ) ::   pvarin       ! tbl property to average between ktop, kbot over phtbl
-      REAL(wp), DIMENSION(A2D(0))     , INTENT(out) ::   pvarout      ! tbl property averaged over phtbl between level ktop and kbot
+      INTEGER,  DIMENSION(A2D(1))    , INTENT(in ) ::   ktop         ! top level of the top boundary layer
+      INTEGER,  DIMENSION(A2D(1))    , INTENT(in ) ::   kbot         ! bottom level of the top boundary layer
+      REAL(wp), DIMENSION(A2D(1))    , INTENT(in ) ::   phtbl, pfrac ! fraction of bottom level to be affected by the tbl
+      REAL(wp), DIMENSION(A2D(0),jpk), INTENT(in ) ::   pe3          ! vertical scale factor
+      REAL(wp), DIMENSION(:,:,:)     , INTENT(in ) ::   pvarin       ! tbl property to average between ktop, kbot over phtbl
+      REAL(wp), DIMENSION(A2D(0))    , INTENT(out) ::   pvarout      ! tbl property averaged over phtbl between level ktop and kbot
+      !!--------------------------------------------------------------------
+      CALL isf_tbl_avg_t( ktop, kbot, phtbl, pfrac, pe3, pvarin, lbnd_ij(pvarin), pvarout )
+   END SUBROUTINE isf_tbl_avg
+
+   SUBROUTINE isf_tbl_avg_t( ktop, kbot, phtbl, pfrac, pe3, pvarin, ktvarin, pvarout )
+      !!--------------------------------------------------------------------
+      !!                  ***  ROUTINE isf_tbl_avg  ***
+      !!
+      !! ** Purpose : compute mean property in the boundary layer
+      !!
+      !! ** Method  : Depth average is made between the top level ktop and the bottom level kbot
+      !!              over a thickness phtbl. The bottom level is partially counted (pfrac).
+      !!
+      !!--------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                , INTENT(in ) ::   ktvarin
+      INTEGER,  DIMENSION(A2D(1))           , INTENT(in ) ::   ktop         ! top level of the top boundary layer
+      INTEGER,  DIMENSION(A2D(1))           , INTENT(in ) ::   kbot         ! bottom level of the top boundary layer
+      REAL(wp), DIMENSION(A2D(1))           , INTENT(in ) ::   phtbl, pfrac ! fraction of bottom level to be affected by the tbl
+      REAL(wp), DIMENSION(A2D(0),jpk)       , INTENT(in ) ::   pe3          ! vertical scale factor
+      REAL(wp), DIMENSION(AB2D(ktvarin),JPK), INTENT(in ) ::   pvarin       ! tbl property to average between ktop, kbot over phtbl
+      REAL(wp), DIMENSION(A2D(0))           , INTENT(out) ::   pvarout      ! tbl property averaged over phtbl between level ktop and kbot
       !!--------------------------------------------------------------------
       INTEGER  ::   ji, jj                        ! loop indices
       INTEGER  ::   ikt, ikb                      ! top and bottom levels
@@ -135,47 +156,8 @@ CONTAINS
          pvarout(ji,jj) = pvarout(ji,jj) + pvarin(ji,jj,ikb) * pe3(ji,jj,ikb) / phtbl(ji,jj) * pfrac(ji,jj)
          !
       END_2D
-!!$      CALL isf_tbl_avg_t( ktop, lbnd_ij(ktop), kbot, phtbl, pfrac, pe3, pvarin, lbnd_ij(pvarin), pvarout, lbnd_ij(pvarout) )
-   END SUBROUTINE isf_tbl_avg
 
-!!$   SUBROUTINE isf_tbl_avg_t( ktop, ktktop, kbot, phtbl, pfrac, pe3, pvarin, ktvarin, pvarout, ktvarout )
-!!$      !!--------------------------------------------------------------------
-!!$      !!                  ***  ROUTINE isf_tbl_avg  ***
-!!$      !!
-!!$      !! ** Purpose : compute mean property in the boundary layer
-!!$      !!
-!!$      !! ** Method  : Depth average is made between the top level ktop and the bottom level kbot
-!!$      !!              over a thickness phtbl. The bottom level is partially counted (pfrac).
-!!$      !!
-!!$      !!--------------------------------------------------------------------
-!!$      INTEGER,  DIMENSION(2)                , INTENT(in ) ::   ktvarin, ktktop, ktvarout
-!!$      INTEGER,  DIMENSION(:,:)     , INTENT(in ) ::   ktop         ! top level of the top boundary layer
-!!$      INTEGER,  DIMENSION(:,:)              , INTENT(in ) ::   kbot         ! bottom level of the top boundary layer
-!!$      REAL(wp), DIMENSION(:,:)              , INTENT(in ) ::   phtbl, pfrac ! fraction of bottom level to be affected by the tbl
-!!$      REAL(wp), DIMENSION(:,:,:)            , INTENT(in ) ::   pe3          ! vertical scale factor
-!!$      REAL(wp), DIMENSION(:,:,:), INTENT(in ) ::   pvarin       ! tbl property to average between ktop, kbot over phtbl
-!!$      REAL(wp), DIMENSION(AB2D(ktvarout))   , INTENT(out) ::   pvarout      ! tbl property averaged over phtbl between level ktop and kbot
-!!$      !!--------------------------------------------------------------------
-!!$      INTEGER  ::   ji, jj                        ! loop indices
-!!$      INTEGER  ::   ikt, ikb                      ! top and bottom levels
-!!$      !!--------------------------------------------------------------------
-!!$      !
-!!$      ! compute tbl top.bottom level and thickness
-!!$      DO_2D( 0, 0, 0, 0 )
-!!$         !
-!!$         ! tbl top/bottom indices initialisation
-!!$         ikt = ktop(ji,jj) ; ikb = kbot(ji,jj)
-!!$         !
-!!$         ! level fully include in the ice shelf boundary layer
-!!$         pvarout(ji,jj) = SUM( pvarin(ji,jj,ikt:ikb-1) * pe3(ji,jj,ikt:ikb-1) ) / phtbl(ji,jj)
-!!$         !
-!!$         ! level partially include in ice shelf boundary layer 
-!!$         pvarout(ji,jj) = pvarout(ji,jj) + pvarin(ji,jj,ikb) * pe3(ji,jj,ikb) / phtbl(ji,jj) * pfrac(ji,jj)
-!!$         !
-!!$      END_2D
-!!$
-!!$   END SUBROUTINE isf_tbl_avg_t
-
+   END SUBROUTINE isf_tbl_avg_t
 
    SUBROUTINE isf_tbl_lvl( pe3, ktop, phtbl, kbot, pfrac )
       !!--------------------------------------------------------------------
@@ -186,17 +168,17 @@ CONTAINS
       !!              - fraction of the bottom level affected by the tbl
       !!
       !!--------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:) , INTENT(in ) ::   pe3    ! vertical scale factor
-      INTEGER,  DIMENSION(:,:)   , INTENT(in ) ::   ktop   ! top level of the top boundary layer
-      REAL(wp), DIMENSION(:,:)   , INTENT(in ) ::   phtbl  ! top boundary layer thickness
-      INTEGER,  DIMENSION(:,:)   , INTENT(out) ::   kbot   ! bottom level of the top boundary layer
-      REAL(wp), DIMENSION(:,:)   , INTENT(out) ::   pfrac  ! fraction of bottom level in the tbl
+      REAL(wp), DIMENSION(A2D(1),jpk), INTENT(in ) ::   pe3    ! vertical scale factor
+      INTEGER,  DIMENSION(A2D(1))    , INTENT(in ) ::   ktop   ! top level of the top boundary layer
+      REAL(wp), DIMENSION(A2D(1))    , INTENT(in ) ::   phtbl  ! top boundary layer thickness
+      INTEGER,  DIMENSION(A2D(1))    , INTENT(out) ::   kbot   ! bottom level of the top boundary layer
+      REAL(wp), DIMENSION(A2D(1))    , INTENT(out) ::   pfrac  ! fraction of bottom level in the tbl
       !!---------------------------------------------------------------------
       INTEGER ::   ji, jj
       INTEGER ::   ikt, ikb
       !!---------------------------------------------------------------------
       !
-      DO_2D( 2, 2, 2, 2 )
+      DO_2D( 1, 1, 1, 1 )
          !
          ikt = ktop(ji,jj)  ! tbl top indices initialisation
          !
@@ -223,8 +205,8 @@ CONTAINS
       !! ** Purpose : compute top level of the isf top boundary layer in case of an ice shelf parametrisation
       !!
       !!--------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:) , INTENT(inout) ::   pdep        ! top depth of the parametrisation influence
-      INTEGER,  DIMENSION(:,:) , INTENT(  out) ::   ktop        ! top level affected by the ice shelf parametrisation
+      REAL(wp), DIMENSION(A2D(1)), INTENT(inout) :: pdep        ! top depth of the parametrisation influence
+      INTEGER,  DIMENSION(A2D(1)), INTENT(  out) :: ktop        ! top level affected by the ice shelf parametrisation
       !!--------------------------------------------------------------------
       INTEGER :: ji, jj
       INTEGER :: ikt
@@ -237,7 +219,7 @@ CONTAINS
       ! test: this routine run on isfdraft should return mikt
       ! test: this routine run with pdep = 0 should return 1
       !
-      DO_2D( 2, 2, 2, 2 )
+      DO_2D( 1, 1, 1, 1 )
          ! comput ktop
          ikt = 2
          DO WHILE ( gdepw_0(ji,jj,ikt) <= pdep(ji,jj) ) ;  ikt = ikt + 1 ;  END DO

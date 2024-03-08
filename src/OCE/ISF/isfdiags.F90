@@ -44,8 +44,8 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                     INTENT(in) ::   Kmm                       ! ocean time level index
-      INTEGER , DIMENSION(:,:)   , INTENT(in) ::   ktop , kbot               ! top and bottom level of the tbl
-      REAL(wp), DIMENSION(:,:)   , INTENT(in) ::   phtbl, pfrac              ! thickness of the tbl and fraction of last cell affected by the tbl
+      INTEGER , DIMENSION(A2D(1)), INTENT(in) ::   ktop , kbot               ! top and bottom level of the tbl
+      REAL(wp), DIMENSION(A2D(1)), INTENT(in) ::   phtbl, pfrac              ! thickness of the tbl and fraction of last cell affected by the tbl
       REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pfwf, pqoce, pqlat, pqhc  ! 2d var to map in 3d
       CHARACTER(LEN=3), INTENT(in) ::   cdisf                                ! parametrisation or interactive melt
       !!---------------------------------------------------------------------
@@ -82,8 +82,8 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER,                     INTENT(in) ::   Kmm           ! ocean time level index
-      INTEGER , DIMENSION(:,:)   , INTENT(in) ::   ktop , kbot   ! top and bottom level of the tbl
-      REAL(wp), DIMENSION(:,:)   , INTENT(in) ::   phtbl, pfrac  ! thickness of the tbl and fraction of last cell affected by the tbl
+      INTEGER , DIMENSION(A2D(1)), INTENT(in) ::   ktop , kbot   ! top and bottom level of the tbl
+      REAL(wp), DIMENSION(A2D(1)), INTENT(in) ::   phtbl, pfrac  ! thickness of the tbl and fraction of last cell affected by the tbl
       REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pvar2d        ! 2d var to map in 3d
       CHARACTER(LEN=*), INTENT(in) ::   cdvar
       !!---------------------------------------------------------------------
@@ -97,9 +97,7 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )
          zvar2d(ji,jj) = pvar2d(ji,jj) / phtbl(ji,jj)
       END_2D
-      DO_3D( 0, 0, 0, 0, 1, jpk )      
-         zvar3d(ji,jj,jk) = 0._wp
-      END_3D
+      zvar3d(:,:,:) = 0._wp
       !
       DO_2D( 0, 0, 0, 0 )
          ikt = ktop(ji,jj)

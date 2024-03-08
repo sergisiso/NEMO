@@ -96,6 +96,9 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrdx, ztrdy, ztrdz, zptry
       !!----------------------------------------------------------------------
       !
+      ! Tiling can't be used with this routine due to lbc_lnk calls. Tiling should be paused in tra_adv as a workaround.
+      IF( l_istiled ) CALL ctl_stop( 'Cannot use FCT advection with tiling active- this should not have happened!' )
+      !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == kit000 )  THEN
             IF(lwp) WRITE(numout,*)
@@ -108,10 +111,10 @@ CONTAINS
          l_ptr = .FALSE.
          ll_zAimp1 = .FALSE.
          ll_zAimp2 = .FALSE.         
-         IF( ( cdtype == 'TRA' .AND. l_trdtra  ) .OR. ( cdtype =='TRC' .AND. l_trdtrc ) )                      l_trd = .TRUE.
-         IF( l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv'  ) .OR. iom_use( 'sopstadv'  ) ) )     l_ptr = .TRUE.
-         IF(   l_iom    .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR.  &
-              &                                       iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) )  l_hst = .TRUE.
+         IF( ( cdtype == 'TRA' .AND. l_trdtra ) .OR. ( cdtype == 'TRC' .AND. l_trdtrc ) )                      l_trd = .TRUE.
+         IF(  l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv' )  .OR. iom_use( 'sopstadv'  ) )  )   l_ptr = .TRUE.
+         IF(  l_diaar5 .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
+            &                                        iom_use("uadv_salttr") .OR. iom_use("vadv_salttr") )  )   l_hst = .TRUE.
       ENDIF
       ! Initialization of the last level otherwise mpi communications at north fold crash
       zta_up1(:,:,jpk) = 0._wp

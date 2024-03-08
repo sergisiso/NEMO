@@ -652,7 +652,6 @@ CONTAINS
             DO jk = 1, jpkm1
                IF (ln_temnofreeze) THEN
                   ! Do not apply negative increments if the temperature will fall below freezing
-                  ! NOTE: @sibylle- I kept this using the old eos_fzp because with the new I have to specify pts(:,:,jk,:,:), which creates a temporary array. I moved the eos_fzp call here (and below in the ln_asmdin part) because then we only need a 2D fzptnz
                   DO_2D( 0, 0, 0, 0 )
                      zdep2d(ji,jj) = gdept(ji,jj,jk,Kmm)   ! better solution: define an interface for eos_fzp when gdept(ji,jj,jk,Kmm) is a scalar
                   END_2D
@@ -923,31 +922,28 @@ CONTAINS
       !!
       !! ** Action  :   phdivn   decreased by the ssh increment
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(IN) :: kt                               ! ocean time-step index
-      INTEGER, INTENT(IN) :: Kbb, Kmm                         ! time level indices
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   phdivn   ! horizontal divergence
+      INTEGER, INTENT(IN) :: kt                                    ! ocean time-step index
+      INTEGER, INTENT(IN) :: Kbb, Kmm                              ! time level indices
+      REAL(wp), DIMENSION(A2D(1),jpk), INTENT(inout) ::   phdivn   ! horizontal divergence
       !!
-      INTEGER  ::   ji, jj, jk                                ! dummy loop index
-      REAL(wp), DIMENSION(:,:)  , POINTER       ::   ztim     ! local array
+      INTEGER  ::   ji, jj, jk   ! dummy loop index
+      REAL(wp) ::   ztim         ! local scalar
       !!----------------------------------------------------------------------
       !
 #if defined key_asminc
       CALL ssh_asm_inc( kt, Kbb, Kmm ) !==   (calculate increments)
       !
       IF( ln_linssh ) THEN
-         DO_2D( 1, 2, 1, 2 )
+         DO_2D( 1, 1, 1, 1 )
             phdivn(ji,jj,1) = phdivn(ji,jj,1) - ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm) * tmask(ji,jj,1)
          END_2D
       ELSE
-         ALLOCATE( ztim(T2D(2)) )
-         DO_2D( 1, 2, 1, 2 )
-            ztim(ji,jj) = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1.0 - ssmask(ji,jj) )
+         DO_2D( 1, 1, 1, 1 )
+            ztim = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1.0 - ssmask(ji,jj) )
             DO jk = 1, jpkm1
-               phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ztim(ji,jj) * tmask(ji,jj,jk)
+               phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ztim * tmask(ji,jj,jk)
             END DO
          END_2D
-         !
-         DEALLOCATE(ztim)
       ENDIF
 #endif
       !

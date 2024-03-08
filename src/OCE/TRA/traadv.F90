@@ -123,17 +123,15 @@ CONTAINS
          ll_Fw = .true. 
          !                                                  !- horizontal components -!   (zFu,zFv)
          ALLOCATE( zFu_cor(T2D(nn_hls)), zFv_cor(T2D(nn_hls)) )
-         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
             zFu_cor(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
             zFv_cor(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
          END_2D
          !
-         DO jk = 1, jpkm1                                                        ! advective transport
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-               pFu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + zFu_cor(ji,jj)*umask(ji,jj,jk) )
-               pFv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + zFv_cor(ji,jj)*vmask(ji,jj,jk) )
-            END_2D
-         END DO
+         DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )                   ! advective transport
+            pFu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + zFu_cor(ji,jj)*umask(ji,jj,jk) )
+            pFv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + zFv_cor(ji,jj)*vmask(ji,jj,jk) )
+         END_3D
          DEALLOCATE( zFu_cor, zFv_cor )
          !
       ENDIF
@@ -145,7 +143,7 @@ CONTAINS
          !
          ALLOCATE( zFu_cor(T2D(nn_hls)), zFv_cor(T2D(nn_hls)) )
          !
-         DO_2D_OVR( nn_hls, nn_hls, nn_hls, nn_hls )
+         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
             zFu_cor(ji,jj) = ( z_2stfp * un_adv(ji,jj) * r1_hu_0(ji,jj)   &
                &             - rn_stfp * (  ( 1._wp + r3u(ji,jj,Kaa) ) / ( 1._wp + r3u(ji,jj,Kmm) ) * uu_b(ji,jj,Kaa)   &
                &                          + ( 1._wp + r3u(ji,jj,Kbb) ) / ( 1._wp + r3u(ji,jj,Kmm) ) * uu_b(ji,jj,Kbb)  ) &
@@ -180,12 +178,10 @@ CONTAINS
       IF( ln_wave .AND. ln_sdw )  THEN
          ll_Fw = .true.
          !
-         DO jk = 1, jpkm1                                    ! At all stages : Add the Stokes Drift
-            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1)
-               pFu(ji,jj,jk) = pFu(ji,jj,jk) + e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * usd(ji,jj,jk)
-               pFv(ji,jj,jk) = pFv(ji,jj,jk) + e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * vsd(ji,jj,jk)
-            END_2D
-         END DO
+         DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )                   ! At all stages : Add the Stokes Drift
+            pFu(ji,jj,jk) = pFu(ji,jj,jk) + e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * usd(ji,jj,jk)
+            pFv(ji,jj,jk) = pFv(ji,jj,jk) + e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * vsd(ji,jj,jk)
+         END_3D
       ENDIF
       !
       DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
@@ -197,28 +193,24 @@ CONTAINS
       IF( kstg == 3 ) THEN                                   ! At stage 3 only
          IF( ln_ldfeiv .AND. .NOT. ln_traldf_triad ) THEN                     ! Add the eiv transport
             ll_Fw = .true.
-                 CALL ldf_eiv_trp( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
+            CALL ldf_eiv_trp( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
          ENDIF
          !
          IF( ln_mle    )   THEN                                              ! Add the mle transport
             ll_Fw = .true.
-                CALL eos( ts, Kmm, rhd, rhop )                                    ! now in potential density for tra_mle computation
-                CALL tra_mle_trp( kt, pFu, pFv, pFw, Kmm )
+            CALL eos( ts, Kmm, rhd, rhop )                                    ! now in potential density for tra_mle computation
+            CALL tra_mle_trp( kt, pFu, pFv, pFw, Kmm )
          ENDIF
       ENDIF
       !
       IF( ll_Fw ) THEN
          !
-         ww(:,:,jpk) = 0._wp
-         !
          CALL wzv( kt, Kbb, Kmm, Kaa, pFu, pFv, ww, np_transport )
          !                                              ! Partition ww/wwi at stage 3 only
          IF( ln_zad_Aimp .AND. kstg == 3 ) CALL wAimp( kt, Kmm, pFu, pFv, ww, wi, np_transport )
-         DO jk = 1, jpkm1
-            DO_2D_OVR( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-               pFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
-            END_2D
-         END DO
+         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
+            pFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
+         END_3D
          !
       ENDIF
       !
@@ -236,11 +228,11 @@ CONTAINS
       !!
       !! ** Method  : - Update ts(Krhs) with the advective trend following nadv
       !!----------------------------------------------------------------------
-      INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
-      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
-      INTEGER,                            OPTIONAL, INTENT(in   ) ::   kstg                ! optional stage indicator
-      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw       ! advective velocity
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)   , INTENT(inout) ::   pts                 ! active tracers and RHS of tracer equation
+      INTEGER                                           , INTENT(in   ) ::   kt                  ! ocean time-step index
+      INTEGER                                           , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
+      INTEGER,                          OPTIONAL        , INTENT(in   ) ::   kstg                ! optional stage indicator
+      REAL(wp), DIMENSION(jpi,jpj,jpk), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw       ! advective velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)         , INTENT(inout) ::   pts                 ! active tracers and RHS of tracer equation
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
       REAL(wp), DIMENSION(:,:,:), POINTER             ::   zptu, zptv, zptw
@@ -262,7 +254,7 @@ CONTAINS
       ENDIF
 
       ! TEMP: [tiling] These changes not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
-      IF( ln_tile .AND. nadv == np_FCT )  THEN
+      IF( l_istiled .AND. nadv == np_FCT .AND. ll_dofct )  THEN
          IF( ntile == 1 ) THEN
             CALL dom_tile_stop( ldhold=.TRUE. )
          ELSE
@@ -349,11 +341,9 @@ CONTAINS
          !
          END SELECT
          !
-         IF( l_iom ) THEN
-            CALL iom_put( "uocetr_eff", zptu )                                        ! output effective transport
-            CALL iom_put( "vocetr_eff", zptv )
-            CALL iom_put( "wocetr_eff", zptw )
-         ENDIF
+         CALL iom_put( "uocetr_eff", zptu )                                        ! output effective transport
+         CALL iom_put( "vocetr_eff", zptv )
+         CALL iom_put( "wocetr_eff", zptw )
          !
 !!gm ???
          IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zptv(:,:,:) )                          ! diagnose the effective MSF

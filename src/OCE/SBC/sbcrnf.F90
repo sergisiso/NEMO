@@ -85,7 +85,7 @@ CONTAINS
       !!                ***  ROUTINE sbc_rnf_alloc  ***
       !!----------------------------------------------------------------------
       ALLOCATE( rnfmsk(jpi,jpj)        , rnfmsk_z(jpk)         ,     & ! needed over the whole domain by muscl (traadv_muscl)
-         &      h_rnf (A2D(2))         , nk_rnf  (A2D(2))      ,     &
+         &      h_rnf (A2D(1))         , nk_rnf  (A2D(1))      ,     &
          &      rnf_tsc_b(A2D(0),jpts) , rnf_tsc (A2D(0),jpts) , STAT=sbc_rnf_alloc )
          !
       CALL mpp_sum ( 'sbcrnf', sbc_rnf_alloc )
@@ -126,16 +126,16 @@ CONTAINS
       IF( MOD( kt - 1, nn_fsbc ) == 0 ) THEN
          !
          IF( .NOT. l_rnfcpl ) THEN
-             rnf(A2D(0)) = rn_rfact * ( sf_rnf(1)%fnow(:,:,1) ) * smask0(:,:)  ! updated runoff value at time step kt
-             IF( ln_rnf_icb ) THEN
-                fwficb(:,:) = rn_rfact * ( sf_i_rnf(1)%fnow(:,:,1) ) * smask0(:,:)  ! updated runoff value at time step kt
-                rnf(A2D(0)) = rnf(A2D(0)) + fwficb(:,:)
-                qns(:,:) = qns(:,:) - fwficb(:,:) * rLfus
-                !!qns_tot(:,:) = qns_tot(:,:) - fwficb(:,:) * rLfus                
-                !!qns_oce(:,:) = qns_oce(:,:) - fwficb(:,:) * rLfus                
-                CALL iom_put( 'iceberg_cea'  ,  fwficb(:,:)  )          ! output iceberg flux
-                CALL iom_put( 'hflx_icb_cea' , -fwficb(:,:) * rLfus )   ! output Heat Flux into Sea Water due to Iceberg Thermodynamics -->
-             ENDIF
+            rnf(A2D(0)) = rn_rfact * ( sf_rnf(1)%fnow(:,:,1) ) * smask0(:,:)  ! updated runoff value at time step kt
+            IF( ln_rnf_icb ) THEN
+               fwficb(:,:) = rn_rfact * ( sf_i_rnf(1)%fnow(:,:,1) ) * smask0(:,:)  ! updated runoff value at time step kt
+               rnf(A2D(0)) = rnf(A2D(0)) + fwficb(:,:)
+               qns(:,:) = qns(:,:) - fwficb(:,:) * rLfus
+               !!qns_tot(:,:) = qns_tot(:,:) - fwficb(:,:) * rLfus
+               !!qns_oce(:,:) = qns_oce(:,:) - fwficb(:,:) * rLfus
+               CALL iom_put( 'iceberg_cea'  ,  fwficb(:,:)  )          ! output iceberg flux
+               CALL iom_put( 'hflx_icb_cea' , -fwficb(:,:) * rLfus )   ! output Heat Flux into Sea Water due to Iceberg Thermodynamics -->
+            ENDIF
          ENDIF
          !
          !                                                           ! set temperature & salinity content of runoffs
@@ -201,8 +201,8 @@ CONTAINS
       !!
       !! ** Action  :   phdivn   decreased by the runoff inflow
       !!----------------------------------------------------------------------
-      INTEGER                   , INTENT(in   ) ::   Kmm      ! ocean time level index
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   phdivn   ! horizontal divergence
+      INTEGER                        , INTENT(in   ) ::   Kmm      ! ocean time level index
+      REAL(wp), DIMENSION(A2D(1),jpk), INTENT(inout) ::   phdivn   ! horizontal divergence
       !!
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp) ::   zfact     ! local scalar
@@ -212,7 +212,7 @@ CONTAINS
       !
       IF( ln_rnf_depth .OR. ln_rnf_depth_ini ) THEN      !==   runoff distributed over several levels   ==!
          IF( ln_linssh ) THEN    !* constant volume case : just apply the runoff input flow
-            DO_2D( 1, 2, 1, 2 )
+            DO_2D( 1, 1, 1, 1 )
                DO jk = 1, nk_rnf(ji,jj)
 #if defined key_RK3
                   phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
@@ -222,13 +222,13 @@ CONTAINS
                END DO
             END_2D
          ELSE                    !* variable volume case
-            DO_2D( 1, 2, 1, 2 )         ! compute the depth over which runoffs are distributed
+            DO_2D( 1, 1, 1, 1 )         ! compute the depth over which runoffs are distributed
                h_rnf(ji,jj) = 0._wp
                DO jk = 1, nk_rnf(ji,jj)
                   h_rnf(ji,jj)     = h_rnf(ji,jj) + e3t(ji,jj,jk,Kmm) ! recalculates h_rnf to be the depth in metres to the bottom of the relevant grid box
                END DO
             END_2D
-            DO_2D( 1, 2, 1, 2 )         ! update phdivn
+            DO_2D( 1, 1, 1, 1 )         ! update phdivn
                DO jk = 1, nk_rnf(ji,jj)
 #if defined key_RK3
                   phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
@@ -239,7 +239,7 @@ CONTAINS
             END_2D
          ENDIF
       ELSE                       !==   runoff put only at the surface   ==!
-         DO_2D( 1, 2, 1, 2 )
+         DO_2D( 1, 1, 1, 1 )
             h_rnf (ji,jj)   = e3t(ji,jj,1,Kmm)        ! update h_rnf to be depth of top box
 #if defined key_RK3
             phdivn(ji,jj,1) = phdivn(ji,jj,1) - rnf(ji,jj) * r1_rho0 / e3t(ji,jj,1,Kmm)                    ! RK3: rnf forcing at n+1/2
@@ -269,7 +269,7 @@ CONTAINS
       INTEGER           ::   ios           ! Local integer output status for namelist read
       INTEGER           ::   nbrec         ! temporary integer
       REAL(wp)          ::   zacoef
-      REAL(wp), DIMENSION(A2D(2),2) :: zrnfcl
+      REAL(wp), DIMENSION(A2D(1),2) :: zrnfcl
       !!
       NAMELIST/namsbc_rnf/ cn_dir            , ln_rnf_depth, ln_rnf_tem, ln_rnf_sal, ln_rnf_icb,   &
          &                 sn_rnf, sn_cnf    , sn_i_rnf, sn_s_rnf    , sn_t_rnf  , sn_dep_rnf,   &
@@ -380,7 +380,7 @@ CONTAINS
          CALL iom_get  ( inum, jpdom_global, sn_dep_rnf%clvar, h_rnf, kfill = jpfillcopy )   ! read the river mouth. no 0 on halos!
          CALL iom_close( inum )                                                              ! close file
          !
-         DO_2D( 1, 2, 1, 2 )      ! set the number of level over which river runoffs are applied
+         DO_2D( 1, 1, 1, 1 )      ! set the number of level over which river runoffs are applied
             IF( h_rnf(ji,jj) > 0._wp ) THEN
                jk = 2
                DO WHILE ( jk < mbkt(ji,jj) .AND. gdept_0(ji,jj,jk) < h_rnf(ji,jj) ) ;  jk = jk + 1
@@ -394,7 +394,7 @@ CONTAINS
             ENDIF
          END_2D
          !
-         DO_2D( 1, 2, 1, 2 )      ! set the associated depth
+         DO_2D( 1, 1, 1, 1 )      ! set the associated depth
             h_rnf(ji,jj) = 0._wp
             DO jk = 1, nk_rnf(ji,jj)
                h_rnf(ji,jj) = h_rnf(ji,jj) + e3t(ji,jj,jk,Kmm)
@@ -424,14 +424,14 @@ CONTAINS
          ELSEWHERE                      ; h_rnf(:,:) = 1._wp
          ENDWHERE
          !
-         DO_2D( 1, 2, 1, 2 )      ! take in account min depth of ocean rn_hmin
+         DO_2D( 1, 1, 1, 1 )      ! take in account min depth of ocean rn_hmin
             IF( zrnfcl(ji,jj,1) > 0._wp ) THEN
                jk = mbkt(ji,jj)
                h_rnf(ji,jj) = MIN( h_rnf(ji,jj), gdept_0(ji,jj,jk ) )
             ENDIF
          END_2D
          !
-         DO_2D( 1, 2, 1, 2 )      ! number of levels on which runoffs are distributed
+         DO_2D( 1, 1, 1, 1 )      ! number of levels on which runoffs are distributed
             IF( zrnfcl(ji,jj,1) > 0._wp ) THEN
                jk = 2
                DO WHILE ( jk < mbkt(ji,jj) .AND. gdept_0(ji,jj,jk) < h_rnf(ji,jj) ) ;  jk = jk + 1
@@ -442,7 +442,7 @@ CONTAINS
             ENDIF
          END_2D
          !
-         DO_2D( 1, 2, 1, 2 )      ! set the associated depth
+         DO_2D( 1, 1, 1, 1 )      ! set the associated depth
             h_rnf(ji,jj) = 0._wp
             DO jk = 1, nk_rnf(ji,jj)
                h_rnf(ji,jj) = h_rnf(ji,jj) + e3t(ji,jj,jk,Kmm)
@@ -456,7 +456,7 @@ CONTAINS
             CALL iom_close ( inum )
          ENDIF
       ELSE                                            ! runoffs applied at the surface
-         DO_2D( 1, 2, 1, 2 )
+         DO_2D( 1, 1, 1, 1 )
             nk_rnf(ji,jj) = 1
             h_rnf (ji,jj) = e3t(ji,jj,1,Kmm)
          END_2D

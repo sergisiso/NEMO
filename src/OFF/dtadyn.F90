@@ -451,7 +451,7 @@ CONTAINS
          CALL iom_close( inum )                                        ! close file
          !
          nk_rnf(:,:) = 0                               ! set the number of level over which river runoffs are applied
-         DO_2D( 1, 2, 1, 2 )
+         DO_2D( 1, 1, 1, 1 )
             IF( h_rnf(ji,jj) > 0._wp ) THEN
                jk = 2
                DO WHILE ( jk /= mbkt(ji,jj) .AND. gdept_0(ji,jj,jk) < h_rnf(ji,jj) ) ;  jk = jk + 1
@@ -466,14 +466,14 @@ CONTAINS
          END_2D
          !
          ! set the associated depth
-         DO_2D( 1, 2, 1, 2 )
+         DO_2D( 1, 1, 1, 1 )
             h_rnf(ji,jj) = 0._wp
             DO jk = 1, nk_rnf(ji,jj)
                h_rnf(ji,jj) = h_rnf(ji,jj) + e3t(ji,jj,jk,Kmm)
             END DO
          END_2D
       ELSE                                       ! runoffs applied at the surface
-         DO_2D( 1, 2, 1, 2 )
+         DO_2D( 1, 1, 1, 1 )
             nk_rnf(ji,jj) = 1
             h_rnf (ji,jj) = e3t(ji,jj,1,Kmm)
          END_2D
@@ -504,7 +504,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       !  update the depth over which runoffs are distributed
-      DO_2D( 1, 2, 1, 2 )
+      DO_2D( 1, 1, 1, 1 )
          h_rnf(ji,jj) = 0._wp
          DO jk = 1, nk_rnf(ji,jj)                           ! recalculates h_rnf to be the depth in metres
              h_rnf(ji,jj) = h_rnf(ji,jj) + e3t(ji,jj,jk,Kmm)   ! to the bottom of the relevant grid box

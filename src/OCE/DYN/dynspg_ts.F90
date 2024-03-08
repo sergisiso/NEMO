@@ -158,8 +158,9 @@ CONTAINS
       REAL(wp) ::   zztmp, zldg               !   -      -
       REAL(wp) ::   zhu_bck, zhv_bck, zhdiv   !   -      -
       REAL(wp) ::   zun_save, zvn_save        !   -      -
-      REAL(wp), DIMENSION(jpi,jpj) :: zu_trd, zu_frc, zu_spg !!st tests , zssh_frc
-      REAL(wp), DIMENSION(jpi,jpj) :: zv_trd, zv_frc, zv_spg
+      REAL(wp), DIMENSION(jpi,jpj) :: zu_trd, zu_spg !!st tests , zssh_frc
+      REAL(wp), DIMENSION(jpi,jpj) :: zv_trd, zv_spg
+      REAL(wp), DIMENSION(A2D(0) ) :: zu_frc, zv_frc
       REAL(wp), DIMENSION(jpi,jpj) :: zsshu_a, zhup2_e, zhtp2_e
       REAL(wp), DIMENSION(jpi,jpj) :: zsshv_a, zhvp2_e, zsshp2_e
       REAL(wp), DIMENSION(jpi,jpj) :: zCdU_u, zCdU_v   ! top/bottom stress at u- & v-points
@@ -284,27 +285,24 @@ CONTAINS
       !                                   !=  zu_frc =  1/H e3*d/dt(Ua)  =!  (Vertical mean of Ua, the 3D trends)
       !                                   !  ---------------------------  !
 # if defined key_qco  || defined key_linssh
-#  if defined key_vco_1d
       ! e3. are substitute by 1D arrays and can't be used in SUM operand
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
+      DO_2D( 0, 0, 0, 0 )
          zu_frc(ji,jj) = SUM( e3u_0(ji,jj,:) * puu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu_0(ji,jj)
          zv_frc(ji,jj) = SUM( e3v_0(ji,jj,:) * pvv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv_0(ji,jj)
       END_2D
-#  else
-      zu_frc(:,:) = SUM( e3u_0(:,:,:  ) * puu(:,:,:,Krhs) * umask(:,:,:), DIM=3 ) * r1_hu_0(:,:)
-      zv_frc(:,:) = SUM( e3v_0(:,:,:  ) * pvv(:,:,:,Krhs) * vmask(:,:,:), DIM=3 ) * r1_hv_0(:,:)
-#  endif
 # else
-      zu_frc(:,:) = SUM( e3u(:,:,:,Kmm) * puu(:,:,:,Krhs) * umask(:,:,:), DIM=3 ) * r1_hu(:,:,Kmm)
-      zv_frc(:,:) = SUM( e3v(:,:,:,Kmm) * pvv(:,:,:,Krhs) * vmask(:,:,:), DIM=3 ) * r1_hv(:,:,Kmm)
-# endif 
+      DO_2D( 0, 0, 0, 0 )
+         zu_frc(ji,jj) = SUM( e3u(ji,jj,:,Kmm) * puu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu(ji,jj,Kmm)
+         zv_frc(ji,jj) = SUM( e3v(ji,jj,:,Kmm) * pvv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv(ji,jj,Kmm)
+      END_2D
+# endif
       !
       !
       !                                   !=  U(Krhs) => baroclinic trend  =!   (remove its vertical mean)
-      DO jk = 1, jpkm1                    !  -----------------------------  !
-         puu(:,:,jk,Krhs) = ( puu(:,:,jk,Krhs) - zu_frc(:,:) ) * umask(:,:,jk)
-         pvv(:,:,jk,Krhs) = ( pvv(:,:,jk,Krhs) - zv_frc(:,:) ) * vmask(:,:,jk)
-      END DO
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )       !  -----------------------------  !
+         puu(ji,jj,jk,Krhs) = ( puu(ji,jj,jk,Krhs) - zu_frc(ji,jj) ) * umask(ji,jj,jk)
+         pvv(ji,jj,jk,Krhs) = ( pvv(ji,jj,jk,Krhs) - zv_frc(ji,jj) ) * vmask(ji,jj,jk)
+      END_3D
       
 !!gm  Question here when removing the Vertically integrated trends, we remove the vertically integrated NL trends on momentum....
 !!gm  Is it correct to do so ?   I think so...
@@ -1482,7 +1480,7 @@ CONTAINS
       INTEGER                             , INTENT(in   ) ::  Kbb, Kmm           ! ocean time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(in   ) ::  puu, pvv           ! ocean velocities and RHS of momentum equation
       REAL(wp), DIMENSION(jpi,jpj,jpt)    , INTENT(in   ) ::  puu_b, pvv_b       ! barotropic velocities at main time levels
-      REAL(wp), DIMENSION(jpi,jpj)        , INTENT(inout) ::  pu_RHSi, pv_RHSi   ! baroclinic part of the barotropic RHS
+      REAL(wp), DIMENSION(A2D(0))         , INTENT(inout) ::  pu_RHSi, pv_RHSi   ! baroclinic part of the barotropic RHS
       REAL(wp), DIMENSION(jpi,jpj)        , INTENT(  out) ::  pCdU_u , pCdU_v    ! barotropic drag coefficients
       !
       INTEGER  ::   ji, jj   ! dummy loop indices

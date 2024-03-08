@@ -29,6 +29,7 @@ MODULE domutl
    PUBLIC dom_ngb    ! routine called in iom.F90 module
    PUBLIC dom_uniq   ! Called by dommsk and domwri
    PUBLIC is_tile
+   PUBLIC in_hdom
    PUBLIC lbnd_ij
    PUBLIC arr_hls
 
@@ -248,6 +249,44 @@ CONTAINS
 
       is_tile = l_istiled .AND. (kasi < Ni_0 .OR. kasj < Nj_0)
    END FUNCTION is_tile
+
+
+   ELEMENTAL FUNCTION in_hdom( ki, kj, khls, cddom )
+      !!----------------------------------------------------------------------
+      !!                  ***  FUNCTION in_hdom  ***
+      !!
+      !! ** Purpose :  Check whether a given index is within the current tile or MPI domain
+      !!
+      !! ** Method  :  Returns true if point (ki,kj) is within:
+      !!
+      !!                   * Nis0:Nie0, Njs0:Nje0  (cddom='mpi', MPI domain)
+      !!                   * ntsi:ntei, ntsj:ntej  (cddom='tile', tile domain)
+      !!
+      !!               `khls` halo points will be added to these bounds if specified.
+      !!----------------------------------------------------------------------
+      LOGICAL                                :: in_hdom
+      INTEGER,          INTENT(in)           :: ki, kj            ! Indices of point to check
+      INTEGER,          INTENT(in), OPTIONAL :: khls              ! Number of halo points to include in domain
+      CHARACTER(len=*), INTENT(in), OPTIONAL :: cddom             ! Domain to check ('tile'|'mpi')
+      !
+      INTEGER :: ihls, isi, iei, isj, iej
+      CHARACTER(len=10) :: cldom
+      !!----------------------------------------------------------------------
+      cldom = 'tile'
+      IF( PRESENT(cddom) ) cldom = cddom
+      ihls = 0
+      IF( PRESENT(khls) ) ihls = khls
+
+      SELECT CASE( TRIM(cldom) )
+         CASE( 'mpi' )        ! The MPI case is redundant but included for completeness
+            isi = Nis0 - ihls ; isj = Njs0 - ihls
+            iei = Nie0 + ihls ; iej = Nje0 + ihls
+         CASE DEFAULT
+            isi = ntsi - ihls ; isj = ntsj - ihls
+            iei = ntei + ihls ; iej = ntej + ihls
+      END SELECT
+      in_hdom = (ki >= isi) .AND. (ki <= iei) .AND. (kj >= isj) .AND. (kj <= iej)
+   END FUNCTION in_hdom
 
 
    FUNCTION arr_lbnd_2d_i( pt ) RESULT(kbnd)

@@ -69,7 +69,8 @@ MODULE oce
    !! Stand-Alone Surface module (SAS)
    LOGICAL, PUBLIC ::   l_SAS = .FALSE.                                    !: SAS flag =T in SAS configurations only
    
-   
+
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: oce.F90 14381 2021-02-03 12:36:25Z techene $ 
@@ -89,7 +90,7 @@ CONTAINS
       !
       ii = ii+1
       ALLOCATE( uu   (jpi,jpj,jpk,jpt)  , vv   (jpi,jpj,jpk,jpt)           ,     &          
-         &      ww   (jpi,jpj,jpk)      , hdiv(jpi,jpj,jpk)                ,     &
+         &      ww   (jpi,jpj,jpk)      , hdiv(A2D(1),jpk)                 ,     &
          &      ts   (jpi,jpj,jpk,jpts,jpt)                                ,     &
          &      rab_b(jpi,jpj,jpk,jpts) , rab_n(jpi,jpj,jpk,jpts)          ,     &
          &      rn2b (jpi,jpj,jpk)      , rn2  (jpi,jpj,jpk)               ,     &
@@ -153,7 +154,7 @@ CONTAINS
       !
       ierr(:) = 0 
       ALLOCATE( uu(jpi,jpj,jpk,jpt) , vv  (jpi,jpj,jpk,jpt) ,     &          
-         &      ww(jpi,jpj,jpk)     , hdiv(jpi,jpj,jpk)     , ssh(jpi,jpj,jpt) , STAT=ierr(1) )
+         &      ww(jpi,jpj,jpk)     , hdiv(A2D(1),jpk)      , ssh(jpi,jpj,jpt) , STAT=ierr(1) )
          !
       ALLOCATE(   ts(jpi,jpj,jpk,jpts,jpt) , fraqsr_1lev(jpi,jpj) ,  &
          &      uu_b(jpi,jpj,jpt) , vv_b(jpi,jpj,jpt)       , rn2(jpi,jpj,jpk) , STAT=ierr(2) )

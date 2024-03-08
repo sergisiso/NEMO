@@ -123,22 +123,15 @@ CONTAINS
       !! ** Method  : 
       !!
       !!----------------------------------------------------------------------
-      INTEGER ::   ierr(2)
-      INTEGER ::   ialloc
+      INTEGER :: ialloc
       !!----------------------------------------------------------------------
-      ierr(:) = 0       ! set to zero if no array to be allocated
-
-      ! ----------------- !
-      ! == FULL ARRAYS == !
-      ! ----------------- !
-      ALLOCATE( misfkt_par  (A2D(2)) , misfkb_par(A2D(2)) , rfrac_tbl_par (A2D(2)) , &
-         &     rhisf_tbl_par(A2D(2)) , mskisf_par(A2D(2)) , rhisf0_tbl_par(A2D(2)) , STAT=ierr(1) )
+      ialloc = 0       ! set to zero if no array to be allocated
       ! -------------------- !
       ! == REDUCED ARRAYS == !
       ! -------------------- !
-      ALLOCATE( risfLeff(A2D(0)) , STAT=ierr(2) )
-      !
-      ialloc = MAXVAL(ierr)
+      ALLOCATE( misfkt_par   (A2D(1)) , misfkb_par    (A2D(1)) , rfrac_tbl_par(A2D(1)) , &
+         &      rhisf_tbl_par(A2D(1)) , rhisf0_tbl_par(A2D(1)) ,                         &
+         &      risfLeff     (A2D(0)) , mskisf_par(A2D(0))     , STAT=ialloc             )
       !
       CALL mpp_sum ( 'isf', ialloc )
       IF( ialloc /= 0 )   CALL ctl_stop( 'STOP', 'isf: failed to allocate arrays.' )
@@ -155,15 +148,14 @@ CONTAINS
       !! ** Method  : 
       !!
       !!----------------------------------------------------------------------
-      INTEGER ::   ialloc
+      INTEGER :: ialloc
       !!----------------------------------------------------------------------
       ialloc = 0       ! set to zero if no array to be allocated
-
-      ! ----------------- !
-      ! == FULL ARRAYS == !
-      ! ----------------- !
-      ALLOCATE( misfkt_cav   (A2D(2)) , misfkb_cav(A2D(2)), rfrac_tbl_cav(A2D(2)) , &
-         &      rhisf_tbl_cav(A2D(2)) , mskisf_cav(A2D(2)), STAT=ialloc )
+      ! -------------------- !
+      ! == REDUCED ARRAYS == !
+      ! -------------------- !
+      ALLOCATE( misfkt_cav   (A2D(1)) , misfkb_cav(A2D(1)) , rfrac_tbl_cav(A2D(1)) , &
+         &      rhisf_tbl_cav(A2D(1)) , mskisf_cav(A2D(1)) , STAT=ialloc             )
       !
       CALL mpp_sum ( 'isf', ialloc )
       IF( ialloc /= 0 )   CALL ctl_stop( 'STOP', 'isf: failed to allocate arrays.' )

@@ -16,6 +16,7 @@ MODULE bdydyn3d
    USE bdylib          ! for orlanski library routines
    USE lib_mpp
    USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
+   USE domutl,  ONLY: in_hdom
    USE in_out_manager  !
    Use phycst
 
@@ -346,7 +347,6 @@ CONTAINS
       INTEGER  ::   ii, ij, igrd   ! local integers
       REAL(wp) ::   zwgt           ! boundary weight
       !!----------------------------------------------------------------------
-      IF( l_istiled .AND. ntile /= 1 ) RETURN                        ! Do only for the full domain
       !
       IF( ln_timing )   CALL timing_start('bdy_dyn3d_dmp')
       !
@@ -357,10 +357,12 @@ CONTAINS
                ii   = idx_bdy(ib_bdy)%nbi(jb,igrd)
                ij   = idx_bdy(ib_bdy)%nbj(jb,igrd)
                zwgt = idx_bdy(ib_bdy)%nbd(jb,igrd)
-               DO jk = 1, jpkm1
-                  puu(ii,ij,jk,Krhs) = ( puu(ii,ij,jk,Krhs) + zwgt * ( dta_bdy(ib_bdy)%u3d(jb,jk) - &
-                                   puu(ii,ij,jk,Kbb) + uu_b(ii,ij,Kbb)) ) * umask(ii,ij,jk)
-               END DO
+               IF( in_hdom(ii, ij) ) THEN
+                  DO jk = 1, jpkm1
+                     puu(ii,ij,jk,Krhs) = ( puu(ii,ij,jk,Krhs) + zwgt * ( dta_bdy(ib_bdy)%u3d(jb,jk) - &
+                                      puu(ii,ij,jk,Kbb) + uu_b(ii,ij,Kbb)) ) * umask(ii,ij,jk)
+                  END DO
+               ENDIF
             END DO
             !
             igrd = 3                      ! Relaxation of meridional velocity
@@ -368,10 +370,12 @@ CONTAINS
                ii   = idx_bdy(ib_bdy)%nbi(jb,igrd)
                ij   = idx_bdy(ib_bdy)%nbj(jb,igrd)
                zwgt = idx_bdy(ib_bdy)%nbd(jb,igrd)
-               DO jk = 1, jpkm1
-                  pvv(ii,ij,jk,Krhs) = ( pvv(ii,ij,jk,Krhs) + zwgt * ( dta_bdy(ib_bdy)%v3d(jb,jk) -  &
-                                   pvv(ii,ij,jk,Kbb) + vv_b(ii,ij,Kbb)) ) * vmask(ii,ij,jk)
-               END DO
+               IF( in_hdom(ii, ij) ) THEN
+                  DO jk = 1, jpkm1
+                     pvv(ii,ij,jk,Krhs) = ( pvv(ii,ij,jk,Krhs) + zwgt * ( dta_bdy(ib_bdy)%v3d(jb,jk) -  &
+                                      pvv(ii,ij,jk,Kbb) + vv_b(ii,ij,Kbb)) ) * vmask(ii,ij,jk)
+                  END DO
+               ENDIF
             END DO
          ENDIF
       END DO

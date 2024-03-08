@@ -54,7 +54,6 @@ MODULE iom
 #else
    LOGICAL, PUBLIC, PARAMETER ::   lk_iomput = .FALSE.       !: iom_put flag
 #endif
-   LOGICAL, PUBLIC            ::   l_iom = .TRUE.            !: RK3 iom flag prevent writing at stage 1&2
    PUBLIC iom_init, iom_init_closedef, iom_swap, iom_open, iom_close, iom_setkt, iom_varid, iom_get, iom_get_var
    PUBLIC iom_chkatt, iom_getatt, iom_putatt, iom_getszuld, iom_rstput, iom_delay_rst, iom_put
    PUBLIC iom_use, iom_context_finalize, iom_update_file_name, iom_miss_val

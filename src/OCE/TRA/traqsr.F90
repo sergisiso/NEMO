@@ -288,10 +288,10 @@ CONTAINS
       !
       !                             !=  Chlorophyll data  =!
       !
-      IF( ntile == 0 .OR. ntile == 1 )  THEN       ! Do only for the full domain
-         IF( ln_tile )   CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = 0 )   ! Use full domain
-         CALL fld_read( kt, 1, sf_chl )                                       ! Read Chl data and provides it at the current time step
-         IF( ln_tile )   CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = 1 )   ! Revert to tile domain
+      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                             ! Do only for the full domain
+         IF( ln_tile ) CALL dom_tile_stop( ldhold=.TRUE. )                       ! Use full domain
+         CALL fld_read( kt, 1, sf_chl )                                          ! Read Chl data and provides it at the current time step
+         IF( ln_tile ) CALL dom_tile_start( ldhold=.TRUE. )                      ! Revert to tile domain
       ENDIF
       !
       DO_3D( 0, 0, 0, 0, 1, ipk )                          ! pre-calculated expensive coefficient

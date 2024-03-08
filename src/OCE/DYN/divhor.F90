@@ -70,7 +70,7 @@ CONTAINS
       INTEGER                         , INTENT(in   ) ::   kt, Kbb, Kmm   ! ocean time-step & time-level indices
       INTEGER , OPTIONAL              , INTENT(in   ) ::   k_ind          ! indicator 
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pu, pv       ! horizontal velocity or transport
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(  out) ::   pe3divUh       ! e3t*div[Uh]
+      REAL(wp), DIMENSION(T2D(1) ,jpk), INTENT(  out) ::   pe3divUh       ! e3t*div[Uh]
       !
       INTEGER  ::   ji, jj, jk    ! dummy loop indices
       INTEGER  ::   ik_ind        ! local indicator
@@ -79,11 +79,11 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('div_hor_RK3')
       !
       IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'div_hor_RK3 : thickness weighted horizontal divergence '
-         IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
-         hdiv(:,:,:) = 0._wp    ! initialize hdiv & pe3divUh for the halos and jpk level at the first time step
-         pe3divUh(:,:,jpk) = 0._wp
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
+            IF(lwp) WRITE(numout,*)
+            IF(lwp) WRITE(numout,*) 'div_hor_RK3 : thickness weighted horizontal divergence '
+            IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
+         ENDIF
       ENDIF
       !
       IF( .NOT. PRESENT( k_ind ) ) THEN
@@ -94,7 +94,7 @@ CONTAINS
       !
       SELECT CASE ( ik_ind )
       CASE ( np_velocity )
-         DO_3D( 1, 2, 1, 2, 1, jpkm1 )
+         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
             hdiv(ji,jj,jk) = (  (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * pu(ji  ,jj,jk)       &   ! add () for NP repro
                &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * pu(ji-1,jj,jk) )     &
                &              + (  e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * pv(ji,jj  ,jk)       &
@@ -102,7 +102,7 @@ CONTAINS
                &             ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
          END_3D
       CASE ( np_transport )
-         DO_3D( 1, 2, 1, 2, 1, jpkm1 )
+         DO_3D( 1, 1, 1, 1, 1, jpkm1 )
             hdiv(ji,jj,jk) = (  (  pu(ji  ,jj,jk)       &   ! add () for NP repro
                &                 - pu(ji-1,jj,jk) )     &
                &              + (  pv(ji,jj  ,jk)       &
@@ -125,7 +125,7 @@ CONTAINS
 !         pe3divUh(ji,jj,jk) = hdiv(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
 !      END_3D
 !JC: over whole domain, and after lbclnk on hdiv to prevent from reproducibility issues
-      DO_3D_OVR( 1, 2, 1, 2, 1, jpkm1 )
+      DO_3D( 1, 1, 1, 1, 1, jpkm1 )
          pe3divUh(ji,jj,jk) = hdiv(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
       END_3D
 !!gm end
@@ -161,12 +161,10 @@ CONTAINS
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'div_hor : horizontal velocity divergence '
             IF(lwp) WRITE(numout,*) '~~~~~~~   '
-
-            hdiv(:,:,:) = 0._wp    ! initialize hdiv for the halos at the first time step
          ENDIF
       ENDIF
       !
-      DO_3D( 1, 2, 1, 2, 1, jpkm1 )                                          !==  Horizontal divergence  ==!
+      DO_3D( 1, 1, 1, 1, 1, jpkm1 )                                          !==  Horizontal divergence  ==!
          hdiv(ji,jj,jk) = (  (  e2u(ji  ,jj) * e3u(ji  ,jj,jk,Kmm) * uu(ji  ,jj,jk,Kmm)     &   ! add () for NP repro
             &                 - e2u(ji-1,jj) * e3u(ji-1,jj,jk,Kmm) * uu(ji-1,jj,jk,Kmm) )   &
             &              + (  e1v(ji,jj  ) * e3v(ji,jj  ,jk,Kmm) * vv(ji,jj  ,jk,Kmm)     &

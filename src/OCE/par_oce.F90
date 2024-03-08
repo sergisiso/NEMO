@@ -71,8 +71,6 @@ MODULE par_oce
    INTEGER, PUBLIC ::   ntsj       !
    INTEGER, PUBLIC ::   ntei       !: end of internal part of tile domain
    INTEGER, PUBLIC ::   ntej       !
-   INTEGER, PUBLIC ::   nthl, nthr !: Modifier on DO loop macro bound offset (left, right)
-   INTEGER, PUBLIC ::   nthb, ntht !:              "         "               (bottom, top)
 
    !!---------------------------------------------------------------------
    !! Active tracer parameters

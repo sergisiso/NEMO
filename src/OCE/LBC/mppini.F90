@@ -1571,10 +1571,6 @@ ENDIF
       ntsj = Njs0
       ntei = Nie0
       ntej = Nje0
-      nthl = 0
-      nthr = 0
-      nthb = 0
-      ntht = 0
       !
    END SUBROUTINE init_doloop
 

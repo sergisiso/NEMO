@@ -220,18 +220,18 @@ CONTAINS
          IF( ln_dynspg_exp )   &
             &            CALL dom_qco_r3c( ssh(:,:,Nnn), r3t(:,:,Nnn), r3u(:,:,Nnn), r3v(:,:,Nnn), r3f(:,:) )   ! spg_exp : needed only for "now" ssh/h_0 ratio at f point
       ENDIF
-                         CALL wzv        ( kstp, Nbb, Nnn, Naa, ww  )    ! Nnn cross-level velocity
-      IF( ln_zad_Aimp )  CALL wAimp      ( kstp,      Nnn           )    ! Adaptive-implicit vertical advection partitioning
-                         CALL eos        ( ts, Nnn, rhd, rhop )          ! now in situ density for hpg computation
 
-                         uu(:,:,:,Nrhs) = 0._wp            ! set dynamics trends to zero
-                         vv(:,:,:,Nrhs) = 0._wp
-
-      IF( ln_dyndmp .AND. ln_c1d )  CALL dyn_dmp( kstp, Nbb, Nnn, uu(:,:,:,Nrhs), vv(:,:,:,Nrhs), Nrhs )   ! internal damping trends- momentum
+      uu(:,:,:,Nrhs) = 0._wp            ! set dynamics trends to zero
+      vv(:,:,:,Nrhs) = 0._wp
 
       IF( ln_tile ) CALL dom_tile_start         ! [tiling] DYN tiling loop (1)
       DO jtile = 1, nijtile
          IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+                            CALL wzv        ( kstp, Nbb, Nnn, Naa, ww       )    ! Nnn cross-level velocity
+         IF( ln_zad_Aimp )  CALL wAimp      ( kstp,      Nnn, lddiag=.TRUE. )    ! Adaptive-implicit vertical advection partitioning
+                            CALL eos        ( ts, Nnn, rhd, rhop )               ! now in situ density for hpg computation
+
+         IF( ln_dyndmp .AND. ln_c1d )  CALL dyn_dmp( kstp, Nbb, Nnn, uu(:,:,:,Nrhs), vv(:,:,:,Nrhs), Nrhs )   ! internal damping trends- momentum
 
          IF(  lk_asminc .AND. ln_asmiau .AND. ln_dyninc )   &
                   &         CALL dyn_asm_inc   ( kstp, Nbb, Nnn, uu, vv, Nrhs )  ! apply dynamics assimilation increment
@@ -268,13 +268,14 @@ CONTAINS
             IF(.NOT.lk_linssh) CALL dom_qco_r3c( ssh(:,:,Naa), r3t(:,:,Naa), r3u(:,:,Naa), r3v(:,:,Naa), r3f(:,:) )   ! update ssh/h_0 ratio at t,u,v,f pts
          ENDIF
                             CALL dyn_zdf    ( kstp, Nbb, Nnn, Nrhs, uu, vv, Naa  )  ! vertical diffusion
+
+            IF( ln_dynspg_ts ) &
+               &            CALL wzv        ( kstp, Nbb, Nnn, Naa, ww )             ! Nnn cross-level velocity
       END DO
       IF( ln_tile ) CALL dom_tile_stop
 
-      IF( ln_dynspg_ts ) THEN                                                       ! vertical scale factors and vertical velocity need to be updated
-                            CALL wzv        ( kstp, Nbb, Nnn, Naa, ww )             ! Nnn cross-level velocity
-         IF( ln_zad_Aimp )  CALL wAimp      ( kstp,      Nnn )                      ! Adaptive-implicit vertical advection partitioning
-      ENDIF
+      IF( ln_dynspg_ts .AND. ln_zad_Aimp )  &
+         &                  CALL wAimp      ( kstp,      Nnn )                      ! Adaptive-implicit vertical advection partitioning
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! cool skin
@@ -497,7 +498,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::   puu, pvv   ! velocities
       !
       INTEGER  ::   ji,jj, jk   ! dummy loop indices
-      REAL(wp), DIMENSION(jpi,jpj) ::   zue, zve
+      REAL(wp), DIMENSION(A2D(0)) ::   zue, zve
       !!----------------------------------------------------------------------
 
       ! Ensure below that barotropic velocities match time splitting estimate
@@ -506,18 +507,14 @@ CONTAINS
          zue(ji,jj) = e3u(ji,jj,1,Kaa) * puu(ji,jj,1,Kaa) * umask(ji,jj,1)
          zve(ji,jj) = e3v(ji,jj,1,Kaa) * pvv(ji,jj,1,Kaa) * vmask(ji,jj,1)
       END_2D
-      DO jk = 2, jpkm1
-         DO_2D( 0, 0, 0, 0 )
-            zue(ji,jj) = zue(ji,jj) + e3u(ji,jj,jk,Kaa) * puu(ji,jj,jk,Kaa) * umask(ji,jj,jk)
-            zve(ji,jj) = zve(ji,jj) + e3v(ji,jj,jk,Kaa) * pvv(ji,jj,jk,Kaa) * vmask(ji,jj,jk)
-         END_2D
-      END DO
-      DO jk = 1, jpkm1
-         DO_2D( 0, 0, 0, 0 )
-            puu(ji,jj,jk,Kaa) = ( puu(ji,jj,jk,Kaa) - zue(ji,jj) * r1_hu(ji,jj,Kaa) + uu_b(ji,jj,Kaa) ) * umask(ji,jj,jk)
-            pvv(ji,jj,jk,Kaa) = ( pvv(ji,jj,jk,Kaa) - zve(ji,jj) * r1_hv(ji,jj,Kaa) + vv_b(ji,jj,Kaa) ) * vmask(ji,jj,jk)
-         END_2D
-      END DO
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+         zue(ji,jj) = zue(ji,jj) + e3u(ji,jj,jk,Kaa) * puu(ji,jj,jk,Kaa) * umask(ji,jj,jk)
+         zve(ji,jj) = zve(ji,jj) + e3v(ji,jj,jk,Kaa) * pvv(ji,jj,jk,Kaa) * vmask(ji,jj,jk)
+      END_3D
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         puu(ji,jj,jk,Kaa) = ( puu(ji,jj,jk,Kaa) - zue(ji,jj) * r1_hu(ji,jj,Kaa) + uu_b(ji,jj,Kaa) ) * umask(ji,jj,jk)
+         pvv(ji,jj,jk,Kaa) = ( pvv(ji,jj,jk,Kaa) - zve(ji,jj) * r1_hv(ji,jj,Kaa) + vv_b(ji,jj,Kaa) ) * vmask(ji,jj,jk)
+      END_3D
       !
       IF( .NOT.ln_bt_fw ) THEN
          ! Remove advective velocity from "now velocities"

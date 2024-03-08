@@ -19,6 +19,7 @@ MODULE traadv_ubs
    USE trdtra         ! trends manager: tracers
    USE diaptr         ! poleward transport diagnostics
    USE diaar5         ! AR5 diagnostics
+   USE domutl, ONLY : lbnd_ij
    !
    USE iom            ! I/O library
    USE in_out_manager ! I/O manager
@@ -47,7 +48,24 @@ MODULE traadv_ubs
 CONTAINS
 
    SUBROUTINE tra_adv_ubs( kt, kit000, cdtype, p2dt, pU, pV, pW,          &
-      &                    Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v )
+   &                       Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v )
+      !!
+      INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
+      INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
+      CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
+      INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
+      INTEGER                                  , INTENT(in   ) ::   kn_ubs_v        ! number of tracers
+      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp), DIMENSION(:,:,:               ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
+      REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
+      !!
+      CALL tra_adv_ubs_t( kt, kit000, cdtype, p2dt, pU, pV, pW, lbnd_ij(pU),  &
+         &                Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v                  )
+   END SUBROUTINE tra_adv_ubs
+
+   SUBROUTINE tra_adv_ubs_t( kt, kit000, cdtype, p2dt, pU, pV, pW, ktpuvw, &
+      &                      Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v            )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_ubs  ***
       !!
@@ -84,6 +102,7 @@ CONTAINS
       !! Reference : Shchepetkin, A. F., J. C. McWilliams, 2005, Ocean Modelling, 9, 347-404.
       !!             Farrow, D.E., Stevens, D.P., 1995, J. Phys. Ocean. 25, 1731Ã¯Â¿Â½1741.
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                   , INTENT(in   ) ::   ktpuvw
       INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
       INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
@@ -91,7 +110,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       INTEGER                                  , INTENT(in   ) ::   kn_ubs_v        ! number of tracers
       REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
+      REAL(wp), DIMENSION(AB2D(ktpuvw),JPK    ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
@@ -114,10 +133,10 @@ CONTAINS
          l_trd = .FALSE.
          l_hst = .FALSE.
          l_ptr = .FALSE.
-         IF( ( cdtype == 'TRA' .AND. l_trdtra ) .OR. ( cdtype == 'TRC' .AND. l_trdtrc ) )      l_trd = .TRUE.
-         IF( l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv'  ) .OR. iom_use( 'sopstadv'  ) ) )     l_ptr = .TRUE.
-         IF(   cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
-            &                          iom_use("uadv_salttr") .OR. iom_use("vadv_salttr")  ) ) l_hst = .TRUE.
+         IF( ( cdtype == 'TRA' .AND. l_trdtra ) .OR. ( cdtype == 'TRC' .AND. l_trdtrc ) )                      l_trd = .TRUE.
+         IF(  l_diaptr .AND. cdtype == 'TRA' .AND. ( iom_use( 'sophtadv' )  .OR. iom_use( 'sopstadv'  ) )  )   l_ptr = .TRUE.
+         IF(  l_diaar5 .AND. cdtype == 'TRA' .AND. ( iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. &
+            &                                        iom_use("uadv_salttr") .OR. iom_use("vadv_salttr") )  )   l_hst = .TRUE.
       ENDIF
       !
       IF( l_trd .OR. l_hst .OR. l_ptr )  THEN
@@ -269,7 +288,7 @@ CONTAINS
       !
       IF( l_trd .OR. l_hst .OR. l_ptr )   DEALLOCATE( ztrdx, ztrdy, ztrdz )
       !
-   END SUBROUTINE tra_adv_ubs
+   END SUBROUTINE tra_adv_ubs_t
 
 
    SUBROUTINE nonosc_z( Kmm, pbef, pcc, paft, p2dt )

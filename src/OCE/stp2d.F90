@@ -93,7 +93,7 @@ CONTAINS
 !!gm  ww(k=1) = div_h(uu_b) ==> modif dans dynadv                        <<<=== TO BE DONE
       ENDIF
 
-      ALLOCATE( sshe_rhs(jpi,jpj) , Ue_rhs(jpi,jpj) , Ve_rhs(jpi,jpj) , CdU_u(jpi,jpj) , CdU_v(jpi,jpj) )
+      ALLOCATE( sshe_rhs(jpi,jpj) , Ue_rhs(A2D(0)) , Ve_rhs(A2D(0)) , CdU_u(jpi,jpj) , CdU_v(jpi,jpj) )
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !   RHS of barotropic momentum  Eq.
@@ -103,110 +103,123 @@ CONTAINS
       !                       !==  Dynamics 2D RHS from 3D trends  ==!   (HADV + LDF + HPG) (No Coriolis trend)
       !                       !======================================!
 
-      uu(:,:,:,Krhs) = 0._wp        ! set dynamics trends to zero
-      vv(:,:,:,Krhs) = 0._wp
-      !
-      !                             !*  compute advection + coriolis  *!
-      !
+      IF( ln_tile ) CALL dom_tile_start         ! [tiling] DYN tiling loop (1)
+         DO jtile = 1, nijtile
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            uu(ji,jj,jk,Krhs) = 0._wp        ! set dynamics trends to zero
+            vv(ji,jj,jk,Krhs) = 0._wp
+         END_3D
+         !
+         !                             !*  compute advection + coriolis  *!
+         !
 !!st should come from restart      CALL ssh_nxt( kt, Kbb, Kbb, ssh, Kaa )
-      !
-      IF( .NOT.lk_linssh ) THEN
-         DO_2D_OVR( 1, nn_hls, 1, nn_hls )      ! loop bounds limited by ssh definition in ssh_nxt
-            r3t(ji,jj,Kaa) =  ssh(ji,jj,Kaa) * r1_ht_0(ji,jj)               ! "after" ssh/h_0 ratio guess at t-column at Kaa (n+1)
-         END_2D
-      ENDIF
-      !
-      CALL wzv    ( kt, Kbb, Kbb, Kaa , uu(:,:,:,Kbb), vv(:,:,:,Kbb), ww )  ! ww guess at Kbb (n)
-      !
-      !                                                                     !   flux form   !   vector invariant form   !
-      CALL dyn_adv( kt, Kbb, Kbb, uu, vv, Krhs )                            !      ADV      !         KEG+ZAD           !
-      !                                                                     !               !                           !
-      CALL dyn_vor( kt,      Kbb, uu, vv, Krhs )                            !    COR+MET    !         COR+RVO           !
-      !
-      !                             !*  lateral viscosity  *!
-      CALL dyn_ldf( kt, Kbb, Kbb, uu, vv, Krhs )
+         !
+         IF( .NOT.lk_linssh ) THEN
+            DO_2D( 1, nn_hls, 1, nn_hls )      ! loop bounds limited by ssh definition in ssh_nxt
+               r3t(ji,jj,Kaa) =  ssh(ji,jj,Kaa) * r1_ht_0(ji,jj)               ! "after" ssh/h_0 ratio guess at t-column at Kaa (n+1)
+            END_2D
+         ENDIF
+         !
+         CALL wzv    ( kt, Kbb, Kbb, Kaa , uu(:,:,:,Kbb), vv(:,:,:,Kbb), ww )  ! ww guess at Kbb (n)
+         !
+         !                                                                     !   flux form   !   vector invariant form   !
+         CALL dyn_adv( kt, Kbb, Kbb, uu, vv, Krhs )                            !      ADV      !         KEG+ZAD           !
+         !                                                                     !               !                           !
+         CALL dyn_vor( kt,      Kbb, uu, vv, Krhs )                            !    COR+MET    !         COR+RVO           !
+         !
+         !                             !*  lateral viscosity  *!
+         CALL dyn_ldf( kt, Kbb, Kbb, uu, vv, Krhs )
 #if defined key_agrif
+      END DO
+      IF( ln_tile ) CALL dom_tile_stop
+
       IF(.NOT. Agrif_Root() ) THEN  !*  AGRIF: sponge  *!
          CALL Agrif_Sponge_dyn
       ENDIF
-#endif
-      !
-      !                             !*  hydrostatic pressure gradient  *!  
-      CALL eos    ( ts, Kbb, rhd )                          ! in situ density anomaly at Kbb
-      CALL dyn_hpg( kt, Kbb     , uu, vv, Krhs )            ! horizontal gradient of Hydrostatic pressure
-      !
-      !                             !*  vertical averaging  *!
-#if defined key_vco_1d
-      DO_2D( 0, 0, 0, 0 )
-         Ue_rhs(ji,jj) = SUM( e3u_0(ji,jj,:) * uu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu_0(ji,jj)
-         Ve_rhs(ji,jj) = SUM( e3v_0(ji,jj,:) * vv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv_0(ji,jj)
-      END_2D
-#else
-      Ue_rhs(:,:) = SUM( e3u_0(:,:,:) * uu(:,:,:,Krhs) * umask(:,:,:), DIM=3 ) * r1_hu_0(:,:)
-      Ve_rhs(:,:) = SUM( e3v_0(:,:,:) * vv(:,:,:,Krhs) * vmask(:,:,:), DIM=3 ) * r1_hv_0(:,:)
-#endif
 
-      !                       !===========================!
-      !                       !==  external 2D forcing  ==!
-      !                       !===========================!
-      !
-      ! 			    !* baroclinic drag forcing *!   (also provide the barotropic drag coeff.)
-      !
-      CALL dyn_drg_init( Kbb, Kbb, uu, vv, uu_b, vv_b, Ue_rhs, Ve_rhs, CdU_u, CdU_v )
-      !
-      !                             !* wind forcing *!
-      IF( ln_bt_fw ) THEN
+      IF( ln_tile ) CALL dom_tile_start         ! [tiling] DYN tiling loop (1, continued)
+      DO jtile = 1, nijtile
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+#endif
+         !
+         !                             !*  hydrostatic pressure gradient  *!
+         CALL eos    ( ts, Kbb, rhd )                          ! in situ density anomaly at Kbb
+         CALL dyn_hpg( kt, Kbb     , uu, vv, Krhs )            ! horizontal gradient of Hydrostatic pressure
+         !
+         !                             !*  vertical averaging  *!
          DO_2D( 0, 0, 0, 0 )
-            Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + r1_rho0 * utauU(ji,jj) * r1_hu(ji,jj,Kbb)
-            Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + r1_rho0 * vtauV(ji,jj) * r1_hv(ji,jj,Kbb)
+            Ue_rhs(ji,jj) = SUM( e3u_0(ji,jj,:) * uu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu_0(ji,jj)
+            Ve_rhs(ji,jj) = SUM( e3v_0(ji,jj,:) * vv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv_0(ji,jj)
          END_2D
-      ELSE
-         zztmp = r1_rho0 * r1_2
-         DO_2D( 0, 0, 0, 0 )
-            Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + zztmp * ( utau_b(ji,jj) + utauU(ji,jj) ) * r1_hu(ji,jj,Kbb)
-            Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + zztmp * ( vtau_b(ji,jj) + vtauV(ji,jj) ) * r1_hv(ji,jj,Kbb)
-         END_2D
-      ENDIF
-      !
-      !                             !* atmospheric pressure forcing *!
-      IF( ln_apr_dyn ) THEN
-         IF( ln_bt_fw ) THEN                          ! FORWARD integration: use kt+1/2 pressure (NOW+1/2)
+
+         !                       !===========================!
+         !                       !==  external 2D forcing  ==!
+         !                       !===========================!
+         !
+         ! 			    !* baroclinic drag forcing *!   (also provide the barotropic drag coeff.)
+         !
+         CALL dyn_drg_init( Kbb, Kbb, uu, vv, uu_b, vv_b, Ue_rhs, Ve_rhs, CdU_u, CdU_v )
+         !
+         !                             !* wind forcing *!
+         IF( ln_bt_fw ) THEN
             DO_2D( 0, 0, 0, 0 )
-               Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + grav * (  ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) ) * r1_e1u(ji,jj)
-               Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + grav * (  ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) ) * r1_e2v(ji,jj)
+               Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + r1_rho0 * utauU(ji,jj) * r1_hu(ji,jj,Kbb)
+               Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + r1_rho0 * vtauV(ji,jj) * r1_hv(ji,jj,Kbb)
             END_2D
-         ELSE                                         ! CENTRED integration: use kt-1/2 + kt+1/2 pressure (NOW)
-            zztmp = grav * r1_2
+         ELSE
+            zztmp = r1_rho0 * r1_2
             DO_2D( 0, 0, 0, 0 )
-               Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + zztmp * (  ( ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) )   &   ! add () for NP repro
-                    &                                   + ( ssh_ibb(ji+1,jj  ) - ssh_ibb(ji,jj) ) ) * r1_e1u(ji,jj)
-               Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + zztmp * (  ( ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) )   &   ! add () for NP repro
-                    &                                   + ( ssh_ibb(ji  ,jj+1) - ssh_ibb(ji,jj) ) ) * r1_e2v(ji,jj)
+               Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + zztmp * ( utau_b(ji,jj) + utauU(ji,jj) ) * r1_hu(ji,jj,Kbb)
+               Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + zztmp * ( vtau_b(ji,jj) + vtauV(ji,jj) ) * r1_hv(ji,jj,Kbb)
             END_2D
          ENDIF
-      ENDIF
-      !
-      !                             !* snow+ice load *!   (embedded sea ice)
-      IF( ln_ice_embd ) THEN
-         ALLOCATE( zpice(jpi,jpj) )
-         zintp = REAL( MOD( kt-1, nn_fsbc ) ) / REAL( nn_fsbc )
-         zgrho0r     = - grav * r1_rho0
-         zpice(:,:) = (  zintp * snwice_mass(:,:) + ( 1.- zintp ) * snwice_mass_b(:,:)  ) * zgrho0r
-         DO_2D( 0, 0, 0, 0 )
-            Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + ( zpice(ji+1,jj) - zpice(ji,jj) ) * r1_e1u(ji,jj)
-            Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + ( zpice(ji,jj+1) - zpice(ji,jj) ) * r1_e2v(ji,jj)
-         END_2D
-         DEALLOCATE( zpice )
-      ENDIF
-      !
-      !                             !* surface wave load *!   (Bernoulli head)
-      !
-      IF( ln_wave .AND. ln_bern_srfc ) THEN
-         DO_2D( 0, 0, 0, 0 )
-            Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + ( bhd_wave(ji+1,jj) - bhd_wave(ji,jj) ) * r1_e1u(ji,jj)   !++ bhd_wave from wave model in m2/s2 [BHD parameters in WW3]
-            Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + ( bhd_wave(ji,jj+1) - bhd_wave(ji,jj) ) * r1_e1u(ji,jj)
-         END_2D
-      ENDIF
+         !
+         !                             !* atmospheric pressure forcing *!
+         IF( ln_apr_dyn ) THEN
+            IF( ln_bt_fw ) THEN                          ! FORWARD integration: use kt+1/2 pressure (NOW+1/2)
+               DO_2D( 0, 0, 0, 0 )
+                  Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + grav * (  ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) ) * r1_e1u(ji,jj)
+                  Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + grav * (  ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) ) * r1_e2v(ji,jj)
+               END_2D
+            ELSE                                         ! CENTRED integration: use kt-1/2 + kt+1/2 pressure (NOW)
+               zztmp = grav * r1_2
+               DO_2D( 0, 0, 0, 0 )
+                  Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + zztmp * (  ( ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) )   &   ! add () for NP repro
+                       &                                   + ( ssh_ibb(ji+1,jj  ) - ssh_ibb(ji,jj) ) ) * r1_e1u(ji,jj)
+                  Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + zztmp * (  ( ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) )   &   ! add () for NP repro
+                       &                                   + ( ssh_ibb(ji  ,jj+1) - ssh_ibb(ji,jj) ) ) * r1_e2v(ji,jj)
+               END_2D
+            ENDIF
+         ENDIF
+         !
+         !                             !* snow+ice load *!   (embedded sea ice)
+         IF( ln_ice_embd ) THEN
+            ALLOCATE( zpice(T2D(1)) )
+            zintp = REAL( MOD( kt-1, nn_fsbc ) ) / REAL( nn_fsbc )
+            zgrho0r = - grav * r1_rho0
+            DO_2D( 1, 1, 1, 1 )
+               zpice(ji,jj) = ( zintp * snwice_mass(ji,jj) + (1._wp - zintp) * snwice_mass_b(ji,jj) ) * zgrho0r
+            END_2D
+            DO_2D( 0, 0, 0, 0 )
+               Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + ( zpice(ji+1,jj) - zpice(ji,jj) ) * r1_e1u(ji,jj)
+               Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + ( zpice(ji,jj+1) - zpice(ji,jj) ) * r1_e2v(ji,jj)
+            END_2D
+            DEALLOCATE( zpice )
+         ENDIF
+         !
+         !                             !* surface wave load *!   (Bernoulli head)
+         !
+         IF( ln_wave .AND. ln_bern_srfc ) THEN
+            DO_2D( 0, 0, 0, 0 )
+               Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + ( bhd_wave(ji+1,jj) - bhd_wave(ji,jj) ) * r1_e1u(ji,jj)   !++ bhd_wave from wave model in m2/s2 [BHD parameters in WW3]
+               Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + ( bhd_wave(ji,jj+1) - bhd_wave(ji,jj) ) * r1_e1u(ji,jj)
+            END_2D
+         ENDIF
+      END DO
+
+      IF( ln_tile ) CALL dom_tile_stop
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !   RHS of see surface height  Eq.

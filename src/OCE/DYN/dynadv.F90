@@ -69,9 +69,9 @@ CONTAINS
       !!      it is the relative vorticity which is added to coriolis term
       !!      (see dynvor module).
       !!----------------------------------------------------------------------
-      INTEGER                                     , INTENT(in   ) ::   kt , Kbb, Kmm, Krhs   ! ocean time step and level indices
-      REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw         ! advective velocity
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), TARGET, INTENT(inout) ::   puu, pvv              ! ocean velocities and RHS of momentum Eq.
+      INTEGER                                          , INTENT(in   ) ::   kt , Kbb, Kmm, Krhs   ! ocean time step and level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk),OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw         ! advective velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt),      TARGET, INTENT(inout) ::   puu, pvv              ! ocean velocities and RHS of momentum Eq.
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start( 'dyn_adv' )
