@@ -64,7 +64,7 @@ CONTAINS
       !!      (2) Fwe , tracer carried with the water that is exchanged with air+ice.
       !!               The input forcing fields (emp, rnf, sfx) contain Fext+Fwe,
       !!             they are simply added to the tracer trend (ts(Krhs)).
-      !!               In linear free surface case (ln_linssh=T), the volume of the
+      !!               In linear free surface case (lk_linssh=T), the volume of the
       !!             ocean does not change with the water exchanges at the (air+ice)-sea
       !!             interface. Therefore another term has to be added, to mimic the
       !!             concentration/dilution effect associated with water exchanges.
@@ -137,7 +137,7 @@ CONTAINS
          sbc_tsc(ji,jj,jp_tem) = r1_rho0_rcp * qns(ji,jj)   ! non solar heat flux
          sbc_tsc(ji,jj,jp_sal) = r1_rho0     * sfx(ji,jj)   ! salt flux due to freezing/melting
       END_2D
-      IF( ln_linssh ) THEN                !* linear free surface
+      IF( lk_linssh ) THEN                !* linear free surface
          DO_2D( 0, 0, 0, 0 )                    !==>> add concentration/dilution effect due to constant volume cell
             sbc_tsc(ji,jj,jp_tem) = sbc_tsc(ji,jj,jp_tem) + r1_rho0 * emp(ji,jj) * pts(ji,jj,1,jp_tem,Kmm)
             sbc_tsc(ji,jj,jp_sal) = sbc_tsc(ji,jj,jp_sal) + r1_rho0 * emp(ji,jj) * pts(ji,jj,1,jp_sal,Kmm)
@@ -192,8 +192,8 @@ CONTAINS
       !----------------------------------------
       !
       IF( ln_sshinc ) THEN         ! input of heat and salt due to assimilation
-      	 !
-         IF( ln_linssh ) THEN
+         !
+         IF( lk_linssh ) THEN
             DO_2D( 0, 0, 0, 0 )
                ztim = ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm)
                pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + pts(ji,jj,1,jp_tem,Kmm) * ztim
@@ -240,7 +240,7 @@ CONTAINS
       !!      (2) Fwe , tracer carried with the water that is exchanged with air+ice.
       !!               The input forcing fields (emp, rnf, sfx) contain Fext+Fwe,
       !!             they are simply added to the tracer trend (ts(Krhs)).
-      !!               In linear free surface case (ln_linssh=T), the volume of the
+      !!               In linear free surface case (lk_linssh=T), the volume of the
       !!             ocean does not change with the water exchanges at the (air+ice)-sea
       !!             interface. Therefore another term has to be added, to mimic the
       !!             concentration/dilution effect associated with water exchanges.
@@ -289,7 +289,7 @@ CONTAINS
          !
       CASE( 1 , 2 )                       !=  stage 1 and 2  =!   only in non linear ssh
          !
-         IF( .NOT.ln_linssh ) THEN           !* only heat and salt fluxes associated with mass fluxes
+         IF( .NOT.lk_linssh ) THEN           !* only heat and salt fluxes associated with mass fluxes
             DO_2D( 0, 0, 0, 0 )
                z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
                pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) - emp(ji,jj)*pts(ji,jj,1,jp_tem,Kbb) * z1_rho0_e3t
@@ -299,7 +299,7 @@ CONTAINS
          !
       CASE( 3 )
          !
-         IF( ln_linssh ) THEN                !* linear free surface
+         IF( lk_linssh ) THEN                !* linear free surface
             DO_2D( 0, 0, 0, 0 )
                z1_rho0_e3t = r1_rho0 / e3t(ji,jj,1,Kmm)
                pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + (  r1_rcp * qns(ji,jj)   &                                ! non solar heat flux
@@ -351,7 +351,7 @@ CONTAINS
       IF( ln_sshinc .AND. kstg == 3 ) THEN         ! input of heat and salt due to assimilation
 !!st a priori this should be done at each stage not only at last stage since it is associated with ssh change (included in step 2D)
          !
-         IF( ln_linssh ) THEN
+         IF( lk_linssh ) THEN
             DO_2D( 0, 0, 0, 0 )
                ztim = ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm)
                pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + pts(ji,jj,1,jp_tem,Kbb) * ztim

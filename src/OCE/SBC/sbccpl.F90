@@ -703,7 +703,7 @@ CONTAINS
          IF( .NOT. ln_cpl ) srcv(:)%clgrid  = 'T'       ! force default definition in case of opa <-> sas coupling
          IF( .NOT. ln_cpl ) srcv(:)%nsgn    = 1.        ! force default definition in case of opa <-> sas coupling
          srcv( (/jpr_toce, jpr_soce, jpr_ssh, jpr_fraqsr, jpr_ocx1, jpr_ocy1/) )%laction = .TRUE.
-         srcv( jpr_e3t1st )%laction = .NOT.ln_linssh
+         srcv( jpr_e3t1st )%laction = .NOT.lk_linssh
          srcv(jpr_ocx1)%clgrid = 'U'        ! oce components given at U-point
          srcv(jpr_ocy1)%clgrid = 'V'        !           and           V-point
          ! Vectors: change of sign at north fold ONLY if on the local grid
@@ -981,7 +981,7 @@ CONTAINS
       IF( nn_components == jp_iam_oce ) THEN
          ssnd(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
          ssnd( (/jps_toce, jps_soce, jps_ssh, jps_fraqsr, jps_ocx1, jps_ocy1/) )%laction = .TRUE.
-         ssnd( jps_e3t1st )%laction = .NOT.ln_linssh
+         ssnd( jps_e3t1st )%laction = .NOT.lk_linssh
          ! vector definition: not used but cleaner...
          ssnd(jps_ocx1)%clgrid  = 'U'        ! oce components given at U-point
          ssnd(jps_ocy1)%clgrid  = 'V'        !           and           V-point

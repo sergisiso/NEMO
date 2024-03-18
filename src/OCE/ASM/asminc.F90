@@ -933,7 +933,7 @@ CONTAINS
 #if defined key_asminc
       CALL ssh_asm_inc( kt, Kbb, Kmm ) !==   (calculate increments)
       !
-      IF( ln_linssh ) THEN
+      IF( lk_linssh ) THEN
          DO_2D( 1, 1, 1, 1 )
             phdivn(ji,jj,1) = phdivn(ji,jj,1) - ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm) * tmask(ji,jj,1)
          END_2D

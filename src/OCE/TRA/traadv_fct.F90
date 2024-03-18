@@ -262,7 +262,7 @@ CONTAINS
             !
          END SELECT
 
-         IF( ln_linssh ) THEN    ! top ocean value: high order = upstream  ==>>  ztFw=0
+         IF( lk_linssh ) THEN    ! top ocean value: high order = upstream  ==>>  ztFw=0
             !                    !            note: for non linear ssh, ztFw at surface is alreay set to 0
             DO_2D( kbnd, kbnd, kbnd, kbnd )
                ztFw(ji,jj,1) = 0._wp   ! only ocean surface as interior ztFw values have been w-masked
@@ -393,7 +393,7 @@ CONTAINS
          ptFw(ji,jj,jk) = ( MAX( pW(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk) + MIN( pW(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk-1)   ) * wmask(ji,jj,jk) !!clem
          !                                                                                                                    ! should not be necessary to mask by wmask because W is already masked
       END_3D
-      IF( ln_linssh ) THEN               ! top ocean value (only in linear free surface as ptFw has been w-masked)
+      IF( lk_linssh ) THEN               ! top ocean value (only in linear free surface as ptFw has been w-masked)
          IF( ln_isfcav ) THEN                        ! top of the ice-shelf cavities and at the ocean surface
             DO_2D( 1, 1, 1, 1 )
                ik = mikt(ji,jj)
@@ -489,7 +489,7 @@ CONTAINS
          ptFw(ji,jj,jk) = MAX( pW(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk) + MIN( pW(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk-1) * wmask(ji,jj,jk) !!clem
          !                                                                                                               ! should not be necessary to mask by wmask because W is already masked
       END_3D
-      IF( ln_linssh ) THEN               ! top ocean value (only in linear free surface as ptFw has been w-masked)
+      IF( lk_linssh ) THEN               ! top ocean value (only in linear free surface as ptFw has been w-masked)
          IF( ln_isfcav ) THEN                        ! top of the ice-shelf cavities and at the ocean surface
             DO_2D( 1, 1, 1, 1 )
                ik = mikt(ji,jj)
@@ -559,7 +559,7 @@ CONTAINS
             &                                       +   MIN( pW(ji,jj,jk) , 0._wp ) * pt_up1(ji,jj,jk-1) ) * wmask(ji,jj,jk) ) ! wmask for cavities and linssh
          !                                                                                                                       
       END_3D
-      IF( ln_linssh ) THEN               ! top ocean value (only in linear free surface as ptFw has been w-masked)
+      IF( lk_linssh ) THEN               ! top ocean value (only in linear free surface as ptFw has been w-masked)
          IF( ln_isfcav ) THEN                        ! top of the ice-shelf cavities and at the ocean surface
             DO_2D( 1, 1, 1, 1 )
                ik = mikt(ji,jj)

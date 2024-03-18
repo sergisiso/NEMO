@@ -96,7 +96,7 @@ CONTAINS
            s2 (ktrd) = s2(ktrd)  + zvs * ts(ji,jj,jk,jp_sal,Kmm)
         END_3D
             !                       ! linear free surface: diagnose advective flux trough the fixed k=1 w-surface
-        IF( ln_linssh .AND. ktrd == jptra_zad ) THEN  
+        IF( lk_linssh .AND. ktrd == jptra_zad ) THEN  
             DO_2D( 0, 0, 0, 0 )   ! global sum of mask volume trend and trend*T (including interior mask)
                zvm = ww(ji,jj,1) * e1e2t(ji,jj) * tmask_i(ji,jj)
                tmo(jptra_sad) = tmo(jptra_sad) + ts(ji,jj,1,jp_tem,Kmm) * zvm

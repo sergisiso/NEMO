@@ -57,7 +57,7 @@ CONTAINS
       !!          - emp, the surface freshwater budget (evaporation minus precipitation + fwfice)
       !!            given in kg/m2/s is divided by 1035 kg/m3 (density of ocean water) to obtain m/s.
       !!          - fwfice, the flux asscociated to freezing-melting of sea-ice 
-      !!            In linear free surface case (ln_linssh=T), the volume of the
+      !!            In linear free surface case (lk_linssh=T), the volume of the
       !!            ocean does not change with the water exchanges at the (air+ice)-sea
       !!
       !! ** Action  : - Update the 1st level of tr(:,:,:,:,Krhs) with the trend associated
@@ -120,7 +120,7 @@ CONTAINS
             END_2D
          END DO
          !
-         IF( ln_linssh ) THEN  !* linear free surface  
+         IF( lk_linssh ) THEN  !* linear free surface  
             DO jn = 1, jptra
                DO_2D( 0, 0, 0, 0 )
                   sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
@@ -136,7 +136,7 @@ CONTAINS
             END_2D
          END DO
          !
-         IF( ln_linssh ) THEN  !* linear free surface  
+         IF( lk_linssh ) THEN  !* linear free surface  
             DO jn = 1, jptra
                DO_2D( 0, 0, 0, 0 )
                   sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
@@ -152,7 +152,7 @@ CONTAINS
             END_2D
          END DO
          !
-         IF( ln_linssh ) THEN  !* linear free surface  
+         IF( lk_linssh ) THEN  !* linear free surface  
             DO jn = 1, jptra
                DO_2D( 0, 0, 0, 0 )
                   sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
@@ -255,7 +255,7 @@ CONTAINS
          !
       CASE( 1 , 2 )                       !=  stage 1 and 2  =!   only in non linear ssh
          !
-         IF( .NOT.ln_linssh ) THEN           !* only passive tracer fluxes associated with mass fluxes
+         IF( .NOT.lk_linssh ) THEN           !* only passive tracer fluxes associated with mass fluxes
             !                                        ! no passive tracer concentration modification due to ssh variation
 !!st emp includes fwfice see iceupdate.F90
 !!not sure about trc_i case... (1)
@@ -277,7 +277,7 @@ CONTAINS
             IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs)  ! save trends
          END DO
          !
-         IF( ln_linssh ) THEN                !* linear free surface (add concentration/dilution effect artificially since no volume variation)
+         IF( lk_linssh ) THEN                !* linear free surface (add concentration/dilution effect artificially since no volume variation)
             !
             SELECT CASE ( nn_ice_tr )
                !

@@ -461,13 +461,13 @@
          ENDIF
 
          ! Check if identical linear free surface option
-         IF ( ( Agrif_Parent(ln_linssh ).AND.(.NOT.ln_linssh )).OR.&
-            & ( (.NOT.Agrif_Parent(ln_linssh)).AND.ln_linssh ) ) THEN
-            WRITE(cl_check1,*)  Agrif_Parent(ln_linssh )
-            WRITE(cl_check2,*)  ln_linssh
+         IF ( ( Agrif_Parent(lk_linssh ).AND.(.NOT.lk_linssh )).OR.&
+            & ( (.NOT.Agrif_Parent(lk_linssh)).AND.lk_linssh ) ) THEN
+            WRITE(cl_check1,*)  Agrif_Parent(lk_linssh )
+            WRITE(cl_check2,*)  lk_linssh
             CALL ctl_stop( 'Incompatible linearized fs option between grids',  &
-                  &               'parent grid ln_linssh  :'//cl_check1     ,  &
-                  &               'child  grid ln_linssh  :'//cl_check2     ,  &
+                  &               'parent grid lk_linssh  :'//cl_check1     ,  &
+                  &               'child  grid lk_linssh  :'//cl_check2     ,  &
                   &               'those logicals should be identical' )                  
             STOP
          ENDIF

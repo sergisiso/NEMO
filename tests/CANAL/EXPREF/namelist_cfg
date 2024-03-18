@@ -65,7 +65,7 @@
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-   rn_Dt      =    900.    !  900. for mlf, 1350 for rk3
+   rn_Dt       =    900.   !  900. for mlf, 1350 for rk3
    rn_atfp     =   0.01    !  asselin time filter parameter
    ln_meshmask = .false.   !  =T create a mesh file
 /

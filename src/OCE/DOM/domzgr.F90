@@ -87,7 +87,7 @@ CONTAINS
          IF( lk_linssh ) WRITE(numout,*) '          linear free surface: the vertical mesh does not change in time'
       ENDIF
       !                                ! Control keys
-      IF(.NOT.( lk_linssh.OR.lk_qco ) .OR. ( lk_linssh.AND.lk_qco ))   &
+      IF(.NOT.( lk_linssh.OR.lk_qco ) .OR. ( lk_linssh.AND.lk_qco ) )   &
          &              CALL ctl_stop( 'STOP','domzgr: either key_linssh or key_qco MUST be set up in cpp_* file !' )
       !
       IF(.NOT.lk_vco_1d .AND. .NOT.lk_vco_1d3d .AND. .NOT.lk_vco_3d )   &

@@ -702,7 +702,7 @@ CONTAINS
                   &   + zvmid*e1v(k%I,k%J) * e3v(k%I,k%J,jk,Kmm) 
 
 !!gm  THIS is WRONG  no transport due to ssh in linear free surface case !!!!!
-               IF( ln_linssh ) THEN              !add transport due to free surface 
+               IF( lk_linssh ) THEN              !add transport due to free surface 
                   IF( jk==1 ) THEN 
                      zTnorm = zTnorm + zumid* e2u(k%I,k%J) * zsshn * umask(k%I,k%J,jk)   & 
                         &            + zvmid* e1v(k%I,k%J) * zsshn * vmask(k%I,k%J,jk) 

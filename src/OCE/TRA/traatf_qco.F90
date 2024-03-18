@@ -125,7 +125,7 @@ CONTAINS
          END DO
          CALL trd_tra( kt, Kmm, Kaa, 'TRA', jp_tem, jptra_tot, ztrdt )
          CALL trd_tra( kt, Kmm, Kaa, 'TRA', jp_sal, jptra_tot, ztrds )
-         IF( ln_linssh ) THEN       ! linear sea surface height only
+         IF( lk_linssh ) THEN       ! linear sea surface height only
             ! Store now fields before applying the Asselin filter
             ! in order to calculate Asselin filter trend later.
             ztrdt(:,:,:) = pts(:,:,:,jp_tem,Kmm)
@@ -135,7 +135,7 @@ CONTAINS
 
       IF( l_1st_euler ) THEN       ! Euler time-stepping
          !
-         IF (l_trdtra .AND. .NOT. ln_linssh ) THEN   ! Zero Asselin filter contribution must be explicitly written out since for quasi-Eulerian
+         IF (l_trdtra .AND. .NOT. lk_linssh ) THEN   ! Zero Asselin filter contribution must be explicitly written out since for quasi-Eulerian
             !                                        ! Asselin filter is output by tra_atf_qco that is not called on this time step
             ztrdt(:,:,:) = 0._wp
             ztrds(:,:,:) = 0._wp
@@ -145,7 +145,7 @@ CONTAINS
          !
       ELSE                                            ! Leap-Frog + Asselin filter time stepping
          !
-         IF ( ln_linssh ) THEN   ;   CALL tra_atf_fix_lf( kt, Kbb, Kmm, Kaa, nit000,        'TRA', pts, jpts )  ! linear free surface
+         IF ( lk_linssh ) THEN   ;   CALL tra_atf_fix_lf( kt, Kbb, Kmm, Kaa, nit000,        'TRA', pts, jpts )  ! linear free surface
          ELSE                    ;   CALL tra_atf_qco_lf( kt, Kbb, Kmm, Kaa, nit000, rn_Dt, 'TRA', pts, sbc_tsc, sbc_tsc_b, jpts )  ! non-linear free surface
          ENDIF
          !
@@ -153,7 +153,7 @@ CONTAINS
          !
       ENDIF
       !
-      IF( l_trdtra .AND. ln_linssh ) THEN      ! trend of the Asselin filter (tb filtered - tb)/dt
+      IF( l_trdtra .AND. lk_linssh ) THEN      ! trend of the Asselin filter (tb filtered - tb)/dt
          DO jk = 1, jpkm1
             ztrdt(:,:,jk) = ( pts(:,:,jk,jp_tem,Kmm) - ztrdt(:,:,jk) ) * r1_Dt
             ztrds(:,:,jk) = ( pts(:,:,jk,jp_sal,Kmm) - ztrds(:,:,jk) ) * r1_Dt

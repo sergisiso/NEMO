@@ -33,8 +33,6 @@ MODULE dom_oce
    !!----------------------------------------------------------------------
    !! time & space domain namelist
    !! ----------------------------
-   !                                   !!* Namelist namdom : time & space domain *
-   LOGICAL , PUBLIC ::   ln_linssh      !: =T  linear free surface ==>> model level are fixed in time
    LOGICAL , PUBLIC ::   ln_meshmask    !: =T  create a mesh-mask file (mesh_mask.nc)
    REAL(wp), PUBLIC ::   rn_Dt          !: time step for the dynamics and tracer
    REAL(wp), PUBLIC ::   rn_atfp        !: asselin time filter parameter
@@ -131,9 +129,9 @@ MODULE dom_oce
    LOGICAL, PUBLIC, PARAMETER ::   lk_qco    = .FALSE.  !: qco key flag
 #endif
 #if defined key_linssh
-   LOGICAL, PUBLIC, PARAMETER ::   lk_linssh = .TRUE.   !: linssh key flag
+   LOGICAL, PUBLIC ::   lk_linssh = .TRUE.   !: linssh key flag
 #else
-   LOGICAL, PUBLIC, PARAMETER ::   lk_linssh = .FALSE.  !: linssh key flag
+   LOGICAL, PUBLIC ::   lk_linssh = .FALSE.  !: linssh key flag
 #endif
 #if defined key_ALE
    LOGICAL, PUBLIC, PARAMETER ::   lk_ALE    = .TRUE.   !: ALE key flag
@@ -156,12 +154,9 @@ MODULE dom_oce
    LOGICAL, PUBLIC, PARAMETER ::   lk_vco_3d   = .FALSE.  !: 3d key flag
 #endif
 
-!!gm obsolescent feature replaced by key_xxx ==>>>  to be removed when z-tilde and or ALE key added (and domvvl removed)
    LOGICAL, PUBLIC ::   l_zco       !: z-coordinate - full step
    LOGICAL, PUBLIC ::   l_zps       !: z-coordinate - partial step
    LOGICAL, PUBLIC ::   l_sco       !: s-coordinate or hybrid z-s coordinate
-!!st for unknown reason this is init at TRUE in dbg mode   LOGICAL, PUBLIC ::   ln_isfcav    !: presence of ISF
-!!gm end
 
    !        !-----------------------------------!
    !        !  split of time & space variation  !      coord(i,j,k,t) = coord_0(i,j,k) * (1+rt(i,j,t))
@@ -382,7 +377,7 @@ CONTAINS
                &       e3v_3d(jpi,jpj,jpk) ,  e3f_3d(jpi,jpj,jpk) ,       &
                &       e3w_3d(jpi,jpj,jpk) , e3uw_3d(jpi,jpj,jpk) ,       &
                &                             e3vw_3d(jpi,jpj,jpk) ,   STAT=ierr(ii) )
-         ENDIF !!st on ne devrait pas mettre un STOP/WARNING quelque part si aucune clé de coordonnée n'est spécifiée ? 
+         ENDIF
          !                                !-------------------------------------!
       ELSEIF( lk_ALE ) THEN               !-  combine time & space variations  -!   (vertical ALE coordinate)
          !                                !-------------------------------------!      NOT yet implemented
@@ -396,12 +391,6 @@ CONTAINS
             &        e3v(jpi,jpj,jpk,jpt) ,   e3f(jpi,jpj,jpk)     ,       &
             &        e3w(jpi,jpj,jpk,jpt) ,  e3uw(jpi,jpj,jpk,jpt) ,       &
             &                                e3vw(jpi,jpj,jpk,jpt) ,   STAT=ierr(ii) )
-         !                                !-------------------------------------!
-      ELSE                                !-       use old domvvl module       -!   (default : old z-tilde coord)
-         !                                !-------------------------------------!
-         !
-         ! mettre un STOP/WARNING 
-         !
       ENDIF
          !
       ii = ii+1

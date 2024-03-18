@@ -153,7 +153,7 @@ CONTAINS
       END DO
 
       ! Print summmary of Boundary Conditions
-      IF( .NOT.ln_rnf .OR. .NOT.ln_linssh )   ln_rnf_ctl = .FALSE.
+      IF( .NOT.ln_rnf .OR. .NOT.lk_linssh )   ln_rnf_ctl = .FALSE.
       IF( lwp ) THEN
          WRITE(numout,*)
          WRITE(numout,'(a,i3)') '   Total tracers to be initialized with SURFACE BCs data:', nb_trcsbc

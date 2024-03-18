@@ -136,7 +136,7 @@ CONTAINS
          END_2D
       END IF
       !
-      IF( ln_linssh ) THEN   ! Advection flux through fixed surface (z=0)
+      IF( lk_linssh ) THEN   ! Advection flux through fixed surface (z=0)
          IF( ln_isfcav ) THEN
             DO_2D( 0, 0, 0, 0 )
                ztmp(ji,jj,9 ) = - surf(ji,jj) * ww(ji,jj,mikt(ji,jj)) * ts(ji,jj,mikt(ji,jj),jp_tem,Kbb)
@@ -161,7 +161,7 @@ CONTAINS
       END_2D
 
       !                    ! heat & salt content variation (associated with ssh)
-      IF( ln_linssh ) THEN       ! linear free surface case
+      IF( lk_linssh ) THEN       ! linear free surface case
          IF( ln_isfcav ) THEN          ! ISF case
             DO_2D( 0, 0, 0, 0 )
                ztmp(ji,jj,12) = surf(ji,jj) * ( ts(ji,jj,mikt(ji,jj),jp_tem,Kmm) * ssh(ji,jj,Kmm) - ssh_hc_loc_ini(ji,jj) )
@@ -213,7 +213,7 @@ CONTAINS
       frc_t = frc_t + z_frc_trd_t * rn_Dt
       frc_s = frc_s + z_frc_trd_s * rn_Dt
       !                                          ! Advection flux through fixed surface (z=0)
-      IF( ln_linssh ) THEN
+      IF( lk_linssh ) THEN
          z_wn_trd_t = zbg(9)
          z_wn_trd_s = zbg(10)
          !
@@ -224,7 +224,7 @@ CONTAINS
       ! 2)
       zdiff_v1 = zbg(11)
       !                    ! heat & salt content variation (associated with ssh)
-      IF( ln_linssh ) THEN       ! linear free surface case
+      IF( lk_linssh ) THEN       ! linear free surface case
          z_ssh_hc = zbg(12)
          z_ssh_sc = zbg(13)
       ENDIF
@@ -239,10 +239,10 @@ CONTAINS
       ! 4 -  Drifts              !
       ! ------------------------ !
       zdiff_v1 = zdiff_v1 - frc_v
-      IF( .NOT.ln_linssh )   zdiff_v2 = zdiff_v2 - frc_v
+      IF( .NOT.lk_linssh )   zdiff_v2 = zdiff_v2 - frc_v
       zdiff_hc = zdiff_hc - frc_t
       zdiff_sc = zdiff_sc - frc_s
-      IF( ln_linssh ) THEN
+      IF( lk_linssh ) THEN
          zdiff_hc1 = zdiff_hc + z_ssh_hc
          zdiff_sc1 = zdiff_sc + z_ssh_sc
          zerr_hc1  = z_ssh_hc - frc_wn_t
@@ -261,7 +261,7 @@ CONTAINS
          &                       ( surf_tot * kt * rn_Dt )        )
       CALL iom_put(   'bgfrcsal' , frc_s    * 1.e-9    )              ! sc  - surface forcing (psu*km3)
 
-      IF( .NOT. ln_linssh ) THEN
+      IF( .NOT. lk_linssh ) THEN
          CALL iom_put( 'bgtemper' , zdiff_hc / zvol_tot )              ! Temperature drift     (C)
          CALL iom_put( 'bgsaline' , zdiff_sc / zvol_tot )              ! Salinity    drift     (PSU)
          CALL iom_put( 'bgheatco' , zdiff_hc * 1.e-20 * rho0 * rcp )   ! Heat content drift    (1.e20 J)
@@ -328,7 +328,7 @@ CONTAINS
             CALL iom_get( numror, 'frc_v', frc_v )
             CALL iom_get( numror, 'frc_t', frc_t )
             CALL iom_get( numror, 'frc_s', frc_s )
-            IF( ln_linssh ) THEN
+            IF( lk_linssh ) THEN
                CALL iom_get( numror, 'frc_wn_t', frc_wn_t )
                CALL iom_get( numror, 'frc_wn_s', frc_wn_s )
             ENDIF
@@ -338,7 +338,7 @@ CONTAINS
             CALL iom_get( numror, jpdom_auto, 'tmask_ini' , tmask_ini  )
             CALL iom_get( numror, jpdom_auto, 'hc_loc_ini', hc_loc_ini )
             CALL iom_get( numror, jpdom_auto, 'sc_loc_ini', sc_loc_ini )
-            IF( ln_linssh ) THEN
+            IF( lk_linssh ) THEN
                CALL iom_get( numror, jpdom_auto, 'ssh_hc_loc_ini', ssh_hc_loc_ini )
                CALL iom_get( numror, jpdom_auto, 'ssh_sc_loc_ini', ssh_sc_loc_ini )
             ENDIF
@@ -360,7 +360,7 @@ CONTAINS
             frc_v = 0._wp                                           ! volume       trend due to forcing
             frc_t = 0._wp                                           ! heat content   -    -   -    -
             frc_s = 0._wp                                           ! salt content   -    -   -    -
-            IF( ln_linssh ) THEN
+            IF( lk_linssh ) THEN
                IF( ln_isfcav ) THEN
                   DO_2D( 0, 0, 0, 0 )
                      ssh_hc_loc_ini(ji,jj) = ts(ji,jj,mikt(ji,jj),jp_tem,Kmm) * ssh(ji,jj,Kmm)   ! initial heat content in ssh
@@ -386,7 +386,7 @@ CONTAINS
          CALL iom_rstput( kt, nitrst, numrow, 'frc_v', frc_v )
          CALL iom_rstput( kt, nitrst, numrow, 'frc_t', frc_t )
          CALL iom_rstput( kt, nitrst, numrow, 'frc_s', frc_s )
-         IF( ln_linssh ) THEN
+         IF( lk_linssh ) THEN
             CALL iom_rstput( kt, nitrst, numrow, 'frc_wn_t', frc_wn_t )
             CALL iom_rstput( kt, nitrst, numrow, 'frc_wn_s', frc_wn_s )
          ENDIF
@@ -396,7 +396,7 @@ CONTAINS
          CALL iom_rstput( kt, nitrst, numrow, 'tmask_ini' , tmask_ini  )
          CALL iom_rstput( kt, nitrst, numrow, 'hc_loc_ini', hc_loc_ini )
          CALL iom_rstput( kt, nitrst, numrow, 'sc_loc_ini', sc_loc_ini )
-         IF( ln_linssh ) THEN
+         IF( lk_linssh ) THEN
             CALL iom_rstput( kt, nitrst, numrow, 'ssh_hc_loc_ini', ssh_hc_loc_ini )
             CALL iom_rstput( kt, nitrst, numrow, 'ssh_sc_loc_ini', ssh_sc_loc_ini )
          ENDIF
@@ -451,7 +451,7 @@ CONTAINS
          CALL ctl_stop( 'dia_hsb_init: unable to allocate hc_loc_ini' )   ;   RETURN
       ENDIF
 
-      IF( ln_linssh )   ALLOCATE( ssh_hc_loc_ini(A2D(0)), ssh_sc_loc_ini(A2D(0)),STAT=ierror )
+      IF( lk_linssh )   ALLOCATE( ssh_hc_loc_ini(A2D(0)), ssh_sc_loc_ini(A2D(0)),STAT=ierror )
       IF( ierror > 0 ) THEN
          CALL ctl_stop( 'dia_hsb: unable to allocate ssh_hc_loc_ini' )   ;   RETURN
       ENDIF

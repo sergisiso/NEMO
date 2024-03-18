@@ -211,7 +211,7 @@ CONTAINS
       zfact = 0.5_wp * r1_rho0
       !
       IF( ln_rnf_depth .OR. ln_rnf_depth_ini ) THEN      !==   runoff distributed over several levels   ==!
-         IF( ln_linssh ) THEN    !* constant volume case : just apply the runoff input flow
+         IF( lk_linssh ) THEN    !* constant volume case : just apply the runoff input flow
             DO_2D( 1, 1, 1, 1 )
                DO jk = 1, nk_rnf(ji,jj)
 #if defined key_RK3

@@ -80,7 +80,7 @@ CONTAINS
 
       ! Compute bdy surface each cycle if non linear free surface
       ! ---------------------------------------------------------
-      IF ( .NOT. ln_linssh ) THEN
+      IF ( .NOT. lk_linssh ) THEN
          ! compute area each time step
          bdysurftot = bdy_segs_surf( phu, phv )
       ELSE

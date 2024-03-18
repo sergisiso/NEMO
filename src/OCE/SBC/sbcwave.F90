@@ -226,7 +226,7 @@ CONTAINS
       !
       CALL lbc_lnk( 'sbcwave', ze3divh, 'T', 1.0_wp, usd, 'U', -1.0_wp, vsd, 'V', -1.0_wp )
       !
-      IF( ln_linssh ) THEN   ;   ik = 1   ! none zero velocity through the sea surface
+      IF( lk_linssh ) THEN   ;   ik = 1   ! none zero velocity through the sea surface
       ELSE                   ;   ik = 2   ! w=0 at the surface (set one for all in sbc_wave_init)
       ENDIF
       DO jk = jpkm1, ik, -1          ! integrate from the bottom the hor. divergence (NB: at k=jpk w is always zero)

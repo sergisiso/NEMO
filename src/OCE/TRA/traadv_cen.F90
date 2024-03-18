@@ -182,7 +182,7 @@ CONTAINS
          !
 #define ztFw  ztFu
          !
-         IF( ln_linssh ) THEN                !* top value   (linear free surf. only as zwz is multiplied by wmask)
+         IF( lk_linssh ) THEN                !* top value   (linear free surf. only as zwz is multiplied by wmask)
             DO_2D( 0, 0, 0, 0 )
                ztFw(ji,jj) = pW(ji,jj,1) * pt(ji,jj,1,jn,Kmm)
             END_2D

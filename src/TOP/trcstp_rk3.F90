@@ -176,7 +176,7 @@ CONTAINS
       !
       IF( kt == nittrc000 .AND. lk_trdmxl_trc )  CALL trd_mxl_trc_init    ! trends: Mixed-layer
       !
-      IF( .NOT.ln_linssh ) THEN                                           ! update ocean volume due to ssh temporal evolution
+      IF( .NOT.lk_linssh ) THEN                                           ! update ocean volume due to ssh temporal evolution
          DO jk = 1, jpk
             cvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
          END DO

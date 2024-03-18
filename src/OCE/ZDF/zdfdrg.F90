@@ -426,7 +426,7 @@ CONTAINS
          !
          l_zdfdrg = .TRUE.          !* Cd*|U| updated at each time-step (it depends on ocean velocity)
          !
-         IF( ln_linssh ) THEN       !* pCd0 = (v log(z/z0))^2   as velocity points have a fixed z position
+         IF( lk_linssh ) THEN       !* pCd0 = (v log(z/z0))^2   as velocity points have a fixed z position
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '   N.B.   linear free surface case, Cd0 computed one for all'
             !

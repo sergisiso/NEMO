@@ -84,7 +84,7 @@ CONTAINS
             CALL iom_put( "e3v_0", e3v_0(:,:,:) )
          ENDIF
          !
-         IF( .NOT.ln_linssh )  CALL iom_put( "ssh" , ssh(:,:,Kmm) )              ! sea surface height
+         IF( .NOT.lk_linssh )  CALL iom_put( "ssh" , ssh(:,:,Kmm) )              ! sea surface height
          !
          ! --- vertical scale factors --- !
          IF( iom_use("e3t") ) THEN  ! time-varying e3t

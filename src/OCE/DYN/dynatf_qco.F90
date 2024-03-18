@@ -129,7 +129,7 @@ CONTAINS
 
       IF( .NOT. l_1st_euler ) THEN    !* Leap-Frog : Asselin time filter
          !                                ! =============!
-         IF( ln_linssh ) THEN             ! Fixed volume !
+         IF( lk_linssh ) THEN             ! Fixed volume !
             !                             ! =============!
             DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
                puu(ji,jj,jk,Kmm) = puu(ji,jj,jk,Kmm) + rn_atfp * ( puu(ji,jj,jk,Kbb) - 2._wp * puu(ji,jj,jk,Kmm) + puu(ji,jj,jk,Kaa) )

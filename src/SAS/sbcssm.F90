@@ -90,7 +90,7 @@ CONTAINS
          IF( nfld_2d > 0 ) CALL fld_read( kt, 1, sf_ssm_2d )      !==   read data at kt time step   ==!
          !
          IF( ln_3d_uve ) THEN
-            IF( .NOT. ln_linssh ) THEN
+            IF( .NOT. lk_linssh ) THEN
                e3t_m(:,:) = sf_ssm_3d(jf_e3t)%fnow(:,:,1) * tmask(:,:,1) ! vertical scale factor
             ELSE
                e3t_m(:,:) = e3t_0(:,:,1)                                 ! vertical scale factor
@@ -98,7 +98,7 @@ CONTAINS
             ssu_m(:,:) = sf_ssm_3d(jf_usp)%fnow(:,:,1) * umask(:,:,1)    ! u-velocity
             ssv_m(:,:) = sf_ssm_3d(jf_vsp)%fnow(:,:,1) * vmask(:,:,1)    ! v-velocity
          ELSE
-            IF( .NOT. ln_linssh ) THEN
+            IF( .NOT. lk_linssh ) THEN
                e3t_m(:,:) = sf_ssm_2d(jf_e3t)%fnow(:,:,1) * tmask(:,:,1) ! vertical scale factor
             ELSE
                e3t_m(:,:) = e3t_0(:,:,1)                                 ! vertical scale factor
@@ -151,7 +151,7 @@ CONTAINS
          CALL prt_ctl(tab2d_1=ssu_m, clinfo1=' ssu_m   - : ', mask1=umask   )
          CALL prt_ctl(tab2d_1=ssv_m, clinfo1=' ssv_m   - : ', mask1=vmask   )
          CALL prt_ctl(tab2d_1=ssh_m, clinfo1=' ssh_m   - : ', mask1=tmask   )
-         IF( .NOT.ln_linssh )   CALL prt_ctl(tab2d_1=ssh_m, clinfo1=' e3t_m   - : ', mask1=tmask   )
+         IF( .NOT.lk_linssh )   CALL prt_ctl(tab2d_1=ssh_m, clinfo1=' e3t_m   - : ', mask1=tmask   )
          IF( ln_read_frq    )   CALL prt_ctl(tab2d_1=frq_m, clinfo1=' frq_m   - : ', mask1=tmask   )
       ENDIF
       !
@@ -254,14 +254,14 @@ CONTAINS
          !
          IF( ln_3d_uve ) THEN
             jf_usp = 1   ;   jf_vsp = 2   ;   jf_e3t = 3     ! define 3D fields index
-            nfld_3d  = 2 + COUNT( (/.NOT.ln_linssh/) )       ! number of 3D fields to read
+            nfld_3d  = 2 + COUNT( (/.NOT.lk_linssh/) )       ! number of 3D fields to read
             nfld_2d  = 3 + COUNT( (/ln_read_frq/) )          ! number of 2D fields to read
          ELSE
             jf_usp = 4   ;   jf_e3t = 6                      ! update 2D fields index
-            jf_vsp = 5   ;   jf_frq = 6 + COUNT( (/.NOT.ln_linssh/) )
+            jf_vsp = 5   ;   jf_frq = 6 + COUNT( (/.NOT.lk_linssh/) )
             !
             nfld_3d  = 0                                     ! no 3D fields to read
-            nfld_2d  = 5 + COUNT( (/.NOT.ln_linssh/) ) + COUNT( (/ln_read_frq/) )    ! number of 2D fields to read
+            nfld_2d  = 5 + COUNT( (/.NOT.lk_linssh/) ) + COUNT( (/ln_read_frq/) )    ! number of 2D fields to read
          ENDIF
          !
          IF( nfld_3d > 0 ) THEN
@@ -271,7 +271,7 @@ CONTAINS
             ENDIF
             slf_3d(jf_usp) = sn_usp
             slf_3d(jf_vsp) = sn_vsp
-            IF( .NOT.ln_linssh )   slf_3d(jf_e3t) = sn_e3t
+            IF( .NOT.lk_linssh )   slf_3d(jf_e3t) = sn_e3t
          ENDIF
          !
          IF( nfld_2d > 0 ) THEN
@@ -283,7 +283,7 @@ CONTAINS
             IF( ln_read_frq )   slf_2d(jf_frq) = sn_frq
             IF( .NOT. ln_3d_uve ) THEN
                slf_2d(jf_usp) = sn_usp ; slf_2d(jf_vsp) = sn_vsp
-               IF( .NOT.ln_linssh )   slf_2d(jf_e3t) = sn_e3t
+               IF( .NOT.lk_linssh )   slf_2d(jf_e3t) = sn_e3t
             ENDIF
          ENDIF
          !

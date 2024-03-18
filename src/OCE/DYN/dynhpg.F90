@@ -175,7 +175,7 @@ CONTAINS
          WRITE(numout,*) '      s-coord. (Pressure Jacobian: Cubic polynomial)    ln_hpg_prj    = ', ln_hpg_prj
       ENDIF
       !
-      IF( .NOT.ln_linssh .AND. ln_hpg_zco )   &
+      IF( .NOT.lk_linssh .AND. ln_hpg_zco )   &
          &   CALL ctl_stop( 'dyn_hpg_init : non-linear free surface incompatible with hpg_zco' )
       !
       IF( (.NOT.ln_hpg_isf .AND. ln_isfcav) .OR. (ln_hpg_isf .AND. .NOT.ln_isfcav) )                  &
@@ -785,7 +785,7 @@ CONTAINS
       ! Local constant initialization
       zcoef0 = - grav
       znad = 1._wp
-      IF( ln_linssh )   znad = 1._wp
+      IF( lk_linssh )   znad = 1._wp
       !
       ! ---------------
       !  Surface pressure gradient to be removed
@@ -936,7 +936,7 @@ CONTAINS
 
             ! update the momentum trends in u direction
             zdpdx1 = zcoef0 * r1_e1u(ji,jj) * ( zhpi(ji+1,jj,jk) - zhpi(ji,jj,jk) )
-            IF( .NOT.ln_linssh ) THEN
+            IF( .NOT.lk_linssh ) THEN
                zdpdx2 = zcoef0 * r1_e1u(ji,jj) * &
                   &    ( REAL(jis-jid, wp) * (zpwes + zpwed) + (ssh(ji+1,jj,Kmm)-ssh(ji,jj,Kmm)) )
             ELSE
@@ -989,7 +989,7 @@ CONTAINS
 
             ! update the momentum trends in v direction
             zdpdy1 = zcoef0 * r1_e2v(ji,jj) * ( zhpi(ji,jj+1,jk) - zhpi(ji,jj,jk) )
-            IF( .NOT.ln_linssh ) THEN
+            IF( .NOT.lk_linssh ) THEN
                zdpdy2 = zcoef0 * r1_e2v(ji,jj) * &
                        ( REAL(jjs-jjd, wp) * (zpnss + zpnsd) + (ssh(ji,jj+1,Kmm)-ssh(ji,jj,Kmm)) )
             ELSE

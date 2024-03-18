@@ -208,7 +208,7 @@ CONTAINS
                zfm_wk = pW(ji,jj,jk) - ABS( pW(ji,jj,jk) )
                ztFw(ji,jj,jk) = 0.5_wp * ( zfp_wk * pt(ji,jj,jk,jn,Kbb) + zfm_wk * pt(ji,jj,jk-1,jn,Kbb) ) * wmask(ji,jj,jk)
             END_3D
-            IF( ln_linssh ) THEN                ! top ocean value (only in linear free surface as ztFw has been w-masked)
+            IF( lk_linssh ) THEN                ! top ocean value (only in linear free surface as ztFw has been w-masked)
                IF( ln_isfcav ) THEN                   ! top of the ice-shelf cavities and at the ocean surface
                   DO_2D( 0, 0, 0, 0 )
                      ztFw(ji,jj, mikt(ji,jj) ) = pW(ji,jj,mikt(ji,jj)) * pt(ji,jj,mikt(ji,jj),jn,Kbb)   ! linear free surface
@@ -239,7 +239,7 @@ CONTAINS
                   &             * wmask(ji,jj,jk)
             END_3D
             !                                            ! top ocean value: high order == upstream  ==>>  zwz=0
-            IF( ln_linssh )   ztFw(:,:,1) = 0._wp        ! only ocean surface as interior zwz values have been w-masked
+            IF( lk_linssh )   ztFw(:,:,1) = 0._wp        ! only ocean surface as interior zwz values have been w-masked
             !
             CALL nonosc_z( Kmm, pt(:,:,:,jn,Kbb), ztFw, zti, p2dt )      !  monotonicity algorithm
             !
@@ -257,7 +257,7 @@ CONTAINS
             !
             DEALLOCATE( ztw )
             !
-            IF( ln_linssh ) THEN
+            IF( lk_linssh ) THEN
                DO_2D( 0, 0, 0, 0 )
                   ztFw(ji,jj,1) = pW(ji,jj,1) * pt(ji,jj,1,jn,Kmm)     !!gm ISF & 4th COMPACT doesn't work
                END_2D

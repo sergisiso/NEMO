@@ -119,7 +119,7 @@ CONTAINS
             END DO
 
             ! Save ssh at last level:
-            IF (.NOT.ln_linssh) THEN
+            IF (.NOT.lk_linssh) THEN
                ptab(i1:i2,j1:j2,k2,jptra+1) = ssh(i1:i2,j1:j2,Kmm_a)*tmask(i1:i2,j1:j2,1) 
             END IF      
          ENDIF
@@ -130,7 +130,7 @@ CONTAINS
          IF( l_ini_child )   Krhs_a = Kbb_a  
 
          IF( l_vremap .OR. l_ini_child ) THEN
-            IF (ln_linssh) THEN
+            IF (lk_linssh) THEN
                ptab(i1:i2,j1:j2,k2,n2) = 0._wp 
 
             ELSE ! Assuming parent volume follows child:
@@ -182,7 +182,7 @@ CONTAINS
                      DO jk=2,N_out
                         z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Krhs_a) 
                      END DO
-                     IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Krhs_a)            
+                     IF (.NOT.lk_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Krhs_a)            
 
                      IF( l_ini_child ) THEN
                         CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),tr(ji,jj,1:N_out,1:jptra,Krhs_a),        &
@@ -211,12 +211,12 @@ CONTAINS
                         z_in(jk) = ptab(ji,jj,jk,n2)
                         tabin(jk,1:jptra) = ptab(ji,jj,jk,1:jptra)
                      END DO
-                     IF (.NOT.ln_linssh) z_in(1:N_in) = z_in(1:N_in) - ptab(ji,jj,k2,n2)
+                     IF (.NOT.lk_linssh) z_in(1:N_in) = z_in(1:N_in) - ptab(ji,jj,k2,n2)
                      z_out(1) = 0.5_wp * e3w(ji,jj,1,Krhs_a)
                      DO jk=2, N_out
                         z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Krhs_a)
                      END DO
-                     IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Krhs_a)
+                     IF (.NOT.lk_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Krhs_a)
                      CALL remap_linear(tabin(1:N_in,1:jptra),z_in(1:N_in),ptab(ji,jj,1:N_out,1:jptra), &
                                    &   z_out(1:N_out),N_in,N_out,jptra)  
                   END DO

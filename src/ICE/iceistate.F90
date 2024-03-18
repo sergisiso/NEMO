@@ -435,7 +435,7 @@ CONTAINS
          !
       ENDIF
       !
-      IF( .NOT.ln_linssh ) THEN
+      IF( .NOT.lk_linssh ) THEN
 #if defined key_qco
          CALL dom_qco_zgr( Kbb, Kmm )        ! upadte of r3=ssh/h0 ratios
 #elif defined key_linssh

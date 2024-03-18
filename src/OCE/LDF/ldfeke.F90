@@ -203,7 +203,7 @@ CONTAINS
 
       !                    !*  upstream advection with initial mass fluxes & intermediate update
       !                          !* upstream tracer flux in the i and j direction
-      IF( .NOT. ln_linssh ) THEN
+      IF( .NOT. lk_linssh ) THEN
          DO_2D( 1, 0, 1, 0 )
             ! upstream scheme
             zfp_ui = un_adv(ji,jj) + ABS( un_adv(ji,jj) )

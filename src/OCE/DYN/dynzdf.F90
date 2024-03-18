@@ -112,7 +112,7 @@ CONTAINS
          !              !==  RHS: Leap-Frog time stepping on all trends but the vertical mixing  ==!   (put in puu(:,:,:,Kaa),pvv(:,:,:,Kaa))
          !
          !                    ! time stepping except vertical diffusion
-         IF( ln_dynadv_vec .OR. ln_linssh ) THEN   ! applied on velocity
+         IF( ln_dynadv_vec .OR. lk_linssh ) THEN   ! applied on velocity
             DO_2Dik( 0, 0,    1, jpkm1, 1 )
                puu(ji,jj,jk,Kaa) = ( puu(ji,jj,jk,Kbb) + rDt * puu(ji,jj,jk,Krhs) ) * umask(ji,jj,jk)
                pvv(ji,jj,jk,Kaa) = ( pvv(ji,jj,jk,Kbb) + rDt * pvv(ji,jj,jk,Krhs) ) * vmask(ji,jj,jk)

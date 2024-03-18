@@ -239,7 +239,7 @@ CONTAINS
          &             nn_it000, nn_itend , nn_date0    , nn_time0     , nn_leapy  , nn_istate ,     &
          &             nn_stock, nn_write , ln_mskland  , ln_clobber   , nn_chunksz, ln_1st_euler  , &
          &             ln_cfmeta, ln_xios_read, nn_wxios, ln_top
-      NAMELIST/namdom/ ln_linssh, rn_Dt, rn_atfp, ln_crs, ln_c1d, ln_meshmask, ln_shuman, rn_stfp
+      NAMELIST/namdom/ rn_Dt, rn_atfp, ln_crs, ln_c1d, ln_meshmask, ln_shuman, rn_stfp
       NAMELIST/namtile/ ln_tile, nn_ltile_i, nn_ltile_j
 #if defined key_netcdf4
       NAMELIST/namnc4/ nn_nchunks_i, nn_nchunks_j, nn_nchunks_k, ln_nc4zip
@@ -260,10 +260,6 @@ CONTAINS
       READ_NML_CFG(numnam,namdom)
       IF(lwm) WRITE( numond, namdom )
       !
-#if defined key_linssh
-      ln_linssh = lk_linssh      ! overwrite ln_linssh with the logical associated with key_linssh
-#endif
-      !
 #if defined key_agrif
       IF( .NOT. Agrif_Root() ) THEN    ! AGRIF child, subdivide the Parent timestep
          rn_Dt = Agrif_Parent (rn_Dt ) / Agrif_Rhot()
@@ -273,7 +269,6 @@ CONTAINS
       IF(lwp) THEN
          WRITE(numout,*)
          WRITE(numout,*) '   Namelist : namdom   ---   space & time domain'
-         WRITE(numout,*) '      linear free surface (=T)                ln_linssh   = ', ln_linssh
          WRITE(numout,*) '      create mesh/mask file                   ln_meshmask = ', ln_meshmask
          WRITE(numout,*) '      ocean time step                         rn_Dt       = ', rn_Dt
          WRITE(numout,*) '      asselin time filter parameter           rn_atfp     = ', rn_atfp
@@ -304,10 +299,6 @@ CONTAINS
          WRITE(numout,*)
       ENDIF
       !
-#endif
-      !
-#if defined key_qco
-      IF( ln_linssh )   CALL ctl_stop( 'STOP','domain: key_qco and ln_linssh=T or key_linssh are incompatible' )
 #endif
       !
       !                       !=======================!

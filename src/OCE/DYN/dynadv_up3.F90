@@ -203,7 +203,7 @@ CONTAINS
 #define zlv_vw   zFv_f
       !                                   != surface vertical fluxes =! (jk = 1)
       !
-      IF( ln_linssh ) THEN                       ! linear free surface: advection through the surface z=0
+      IF( lk_linssh ) THEN                       ! linear free surface: advection through the surface z=0
          IF( PRESENT( pFu ) ) THEN
             zFw => pFw(:,:,1)
          ELSE
