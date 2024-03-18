@@ -1014,7 +1014,7 @@ CONTAINS
             END DO
          
             ! Save ssh at last level:
-            IF (.NOT.ln_linssh) THEN
+            IF (.NOT.lk_linssh) THEN
                ptab(i1:i2,j1:j2,k2,jpts+1) = ssh(i1:i2,j1:j2,Kmm_a)*tmask(i1:i2,j1:j2,1) 
             END IF      
          ENDIF
@@ -1025,7 +1025,7 @@ CONTAINS
          IF( l_ini_child )   Krhs_a = Kbb_a  
 
          IF( l_vremap .OR. l_ini_child ) THEN
-            IF (ln_linssh) THEN
+            IF (lk_linssh) THEN
                ptab(i1:i2,j1:j2,k2,n2) = 0._wp 
 
             ELSE ! Assuming parent volume follows child:
@@ -1077,7 +1077,7 @@ CONTAINS
                      DO jk=2,N_out
                         z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Krhs_a) 
                      END DO
-                     IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Krhs_a)
+                     IF (.NOT.lk_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Krhs_a)
 
                      IF( l_ini_child ) THEN
                         CALL remap_linear(tabin(1:N_in,1:jpts),z_in(1:N_in),ts(ji,jj,1:N_out,1:jpts,Krhs_a),          &
@@ -1106,12 +1106,12 @@ CONTAINS
                         z_in(jk) = ptab(ji,jj,jk,n2)
                         tabin(jk,1:jpts) = ptab(ji,jj,jk,1:jpts)
                      END DO
-                     IF (.NOT.ln_linssh) z_in(1:N_in) = z_in(1:N_in) - ptab(ji,jj,k2,n2)
+                     IF (.NOT.lk_linssh) z_in(1:N_in) = z_in(1:N_in) - ptab(ji,jj,k2,n2)
                      z_out(1) = 0.5_wp * e3w(ji,jj,1,Krhs_a)
                      DO jk=2, N_out
                         z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Krhs_a) 
                      END DO
-                     IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Krhs_a)
+                     IF (.NOT.lk_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Krhs_a)
                      CALL remap_linear(tabin(1:N_in,1:jpts),z_in(1:N_in),ptab(ji,jj,1:N_out,1:jpts), &
                                    &   z_out(1:N_out),N_in,N_out,jpts)  
                   END DO
@@ -1248,7 +1248,7 @@ CONTAINS
 
             zsshu(i1:i2,j1:j2) = 0._wp 
             
-            IF ( .NOT.ln_linssh ) THEN
+            IF ( .NOT.lk_linssh ) THEN
                zsshu(i1:i2,j1:j2) = hu(i1:i2,j1:j2,Krhs_a) - hu_0(i1:i2,j1:j2)   
             ENDIF   
 
@@ -1342,7 +1342,7 @@ CONTAINS
 
             zsshv(i1:i2,j1:j2) = 0._wp 
             
-            IF ( .NOT.ln_linssh ) THEN
+            IF ( .NOT.lk_linssh ) THEN
                zsshv(i1:i2,j1:j2) = hv(i1:i2,j1:j2,Krhs_a) - hv_0(i1:i2,j1:j2)   
             ENDIF   
 
@@ -1888,7 +1888,7 @@ CONTAINS
             END DO
         
            ! Save ssh at last level:
-            IF (.NOT.ln_linssh) THEN
+            IF (.NOT.lk_linssh) THEN
                ptab(ii1:ii2,ij1:ij2,k2,2) = ssh(ii1:ii2,ij1:ij2,Kmm_a)*tmask(ii1:ii2,ij1:ij2,1)
             ELSE
                ptab(ii1:ii2,ij1:ij2,k2,2) = 0._wp
@@ -1898,7 +1898,7 @@ CONTAINS
       ELSE 
 
          IF( l_vremap ) THEN
-            IF (ln_linssh) ptab(ii1:ii2,ij1:ij2,k2,2) = 0._wp
+            IF (lk_linssh) ptab(ii1:ii2,ij1:ij2,k2,2) = 0._wp
             avm_k(ii1:ii2,ij1:ij2,1:jpkm1) = 0._wp
                
             DO jj = ij1, ij2
@@ -1913,7 +1913,7 @@ CONTAINS
                      DO jk = 1, N_out        ! Child vertical grid
                         z_out(jk) = gdepw(ji,jj,jk,Kmm_a) - ssh(ji,jj,Kmm_a)
                      END DO
-                     IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Kmm_a)
+                     IF (.NOT.lk_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Kmm_a)
 
                      CALL remap_linear(tabin(1:N_in),z_in(1:N_in),avm_k(ji,jj,1:N_out),z_out(1:N_out),N_in,N_out,1)
                   ENDIF

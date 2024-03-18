@@ -331,7 +331,7 @@ CONTAINS
 
       ! surface boundary condition
       
-      IF( .NOT. ln_linssh ) THEN 
+      IF( .NOT. lk_linssh ) THEN 
          DO_2D( 0, 0, 0, 0 )
             zthick(ji,jj) = 0._wp 
             phtc  (ji,jj) = 0._wp                                   

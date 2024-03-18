@@ -203,7 +203,6 @@ if [ ${config} == "GYRE_PISCES" ] ; then
         set_namelist namelist_cfg cn_exp \"GYREPIS\"
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
-        set_namelist namelist_cfg ln_linssh .true.
         set_namelist namelist_cfg jpni 2
         set_namelist namelist_cfg jpnj 4
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.

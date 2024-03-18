@@ -96,7 +96,7 @@ CONTAINS
       CASE ( jptra_xad  )   ;   CALL iom_put( "petrd_xad", zpe )   ! zonal    advection
       CASE ( jptra_yad  )   ;   CALL iom_put( "petrd_yad", zpe )   ! merid.   advection
       CASE ( jptra_zad  )   ;   CALL iom_put( "petrd_zad", zpe )   ! vertical advection
-                                IF( ln_linssh ) THEN                   ! cst volume : adv flux through z=0 surface
+                                IF( lk_linssh ) THEN                   ! cst volume : adv flux through z=0 surface
                                    ALLOCATE( z2d(T2D(0)) )
                                    DO_2D( 0, 0, 0, 0 )
                                       z2d(ji,jj) = ww(ji,jj,1) * ( &
@@ -143,7 +143,7 @@ CONTAINS
       !
       rab_pe(:,:,:,:) = 0._wp
       !
-      IF( .NOT.ln_linssh )   CALL ctl_stop('trd_pen_init : PE trends not coded for variable volume')
+      IF( .NOT.lk_linssh )   CALL ctl_stop('trd_pen_init : PE trends not coded for variable volume')
       !
       nkstp     = nit000 - 1
       !

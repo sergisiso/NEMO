@@ -187,7 +187,7 @@ CONTAINS
       !                                           !------------------------------!
       !
       !                                               !=================================!
-      IF( ln_linssh )   THEN                          !==  linear free surface cases  ==!
+      IF( lk_linssh )   THEN                          !==  linear free surface cases  ==!
          !                                            !=================================!
          DO_3DS( 1, 1, 1, 1, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - (  e3t(ji,jj,jk,Kmm) * hdiv(ji,jj,jk)  ) * tmask(ji,jj,jk)
@@ -310,7 +310,7 @@ CONTAINS
       !                                           !------------------------------!
       !
       !                                               !=================================!
-      IF( ln_linssh )   THEN                          !==  linear free surface cases  ==!
+      IF( lk_linssh )   THEN                          !==  linear free surface cases  ==!
          !                                            !=================================!
          DO_3DS( 1, 1, 1, 1, jpkm1, 1, -1 )     ! integrate from the bottom the hor. divergence
             pww(ji,jj,jk) = pww(ji,jj,jk+1) - ze3div(ji,jj,jk)
@@ -410,7 +410,7 @@ CONTAINS
       !
       IF( .NOT.l_1st_euler ) THEN   ! Apply Asselin time filter on Kmm field (not on euler 1st)
          !
-         IF( ln_linssh ) THEN                ! filtered "now" field
+         IF( lk_linssh ) THEN                ! filtered "now" field
             pssh(:,:,Kmm) = pssh(:,:,Kmm) + rn_atfp * ( pssh(:,:,Kbb) - 2 * pssh(:,:,Kmm) + pssh(:,:,Kaa) )
             !
          ELSE                                ! filtered "now" field with forcing removed

@@ -308,7 +308,7 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 2, jpkm1 )       !* Interior point   (w-masked 2nd order centered flux)
             zwz(ji,jj,jk) = 0.5 * pW(ji,jj,jk) * ( pt(ji,jj,jk-1,jn,Kmm) + pt(ji,jj,jk,jn,Kmm) ) * wmask(ji,jj,jk)
          END_3D
-         IF( ln_linssh ) THEN                !* top value   (only in linear free surf. as zwz is multiplied by wmask)
+         IF( lk_linssh ) THEN                !* top value   (only in linear free surf. as zwz is multiplied by wmask)
             IF( ln_isfcav ) THEN                  ! ice-shelf cavities (top of the ocean)
                DO_2D( 0, 0, 0, 0 )
                   zwz(ji,jj, mikt(ji,jj) ) = pW(ji,jj,mikt(ji,jj)) * pt(ji,jj,mikt(ji,jj),jn,Kmm)   ! linear free surface

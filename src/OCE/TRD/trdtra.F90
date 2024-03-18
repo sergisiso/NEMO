@@ -327,7 +327,7 @@ CONTAINS
                                   CALL iom_put( "strd_yad"  , ptrdy )
          CASE( jptra_zad  )   ;   CALL iom_put( "ttrd_zad"  , ptrdx )        ! z- vertical   advection
                                   CALL iom_put( "strd_zad"  , ptrdy )
-                                  IF( ln_linssh ) THEN                   ! cst volume : adv flux through z=0 surface
+                                  IF( lk_linssh ) THEN                   ! cst volume : adv flux through z=0 surface
                                      ALLOCATE( z2dx(T2D(0)), z2dy(T2D(0)) )
                                      DO_2D( 0, 0, 0, 0 )
                                         z1e3 = ww(ji,jj,1) / e3t(ji,jj,1,Kmm)

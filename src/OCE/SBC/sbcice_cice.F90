@@ -238,7 +238,7 @@ CONTAINS
 !!gm This should be put elsewhere....   (same remark for limsbc)
 !!gm especially here it is assumed zstar coordinate, but it can be ztilde....
 #if defined key_qco
-            IF( .NOT.ln_linssh )   CALL dom_qco_zgr( Kbb, Kmm )   ! interpolation scale factor, depth and water column
+            IF( .NOT.lk_linssh )   CALL dom_qco_zgr( Kbb, Kmm )   ! interpolation scale factor, depth and water column
 #elif defined key_linssh
             !
 #endif

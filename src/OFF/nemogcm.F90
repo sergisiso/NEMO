@@ -215,7 +215,7 @@ CONTAINS
 
       CALL dta_dyn( kstp, Nbb, Nnn, Naa )       ! Interpolation of the dynamical fields
 
-      IF( .NOT.ln_linssh ) THEN
+      IF( .NOT.lk_linssh ) THEN
          CALL dta_dyn_atf( kstp, Nbb, Nnn, Naa )       ! time filter of sea  surface height and vertical scale factors
          IF( .NOT.lk_linssh )  CALL dom_qco_r3c( ssh(:,:,Nnn), r3t_f, r3u_f, r3v_f )
       ENDIF
@@ -271,7 +271,7 @@ CONTAINS
       !
       Nrhs = Nbb   ;   Nbb  = Naa   ;   Naa  = Nrhs    ! Swap: Nnn unchanged, Nbb <==> Naa
 
-      IF( .NOT. ln_linssh ) THEN
+      IF( .NOT. lk_linssh ) THEN
          ! linear extrapolation of ssh to compute ww at the beginning of the next time-step
          ! ssh(n+1) = 2*ssh(n) - ssh(n-1)    
          ssh(:,:,Naa) = 2 * ssh(:,:,Nbb) - ssh(:,:,Naa) 
@@ -326,7 +326,7 @@ CONTAINS
          rDt = r1_3 * rn_Dt            ! set time-step : rn_Dt/3
          r1_Dt = 1._wp / rDt
          !
-         IF( .NOT.ln_linssh ) THEN
+         IF( .NOT.lk_linssh ) THEN
             ALLOCATE( ssha(jpi,jpj) )
             ssha(:,:) = ssh(:,:,Kaa)     ! save ssh, at N+1  (computed in dtadyn)
             !                             ! interpolated ssh and (uu_b,vv_b) at Kaa (N+1/3)
@@ -356,7 +356,7 @@ CONTAINS
          rDt = r1_2 * rn_Dt            ! set time-step : rn_Dt/2
          r1_Dt = 1._wp / rDt
          !
-         IF( .NOT.ln_linssh ) THEN
+         IF( .NOT.lk_linssh ) THEN
             !                             ! set ssh  at N+1/2  (Kaa)
             ssh (:,:,Kaa) = r1_2 * ( ssh (:,:,Kbb) + ssha(:,:) )
             !
@@ -374,7 +374,7 @@ CONTAINS
          rDt = rn_Dt                   ! set time-step : rn_Dt
          r1_Dt = 1._wp / rDt
          !
-         IF( .NOT.ln_linssh ) THEN
+         IF( .NOT.lk_linssh ) THEN
             ssh (:,:,Kaa) = ssha(:,:)     ! recover ssh at N + 1
             !
             DEALLOCATE( ssha )

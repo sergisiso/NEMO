@@ -139,14 +139,14 @@ CONTAINS
       emp (:,:)            =   sf_dyn(jf_emp)%fnow(:,:,1) * tmask (:,:,1)  ! E-P
       IF( ln_dynrnf ) THEN 
          rnf (:,:)         = sf_dyn(jf_rnf)%fnow(:,:,1) * tmask (:,:,1)  ! rnf
-         IF( ln_dynrnf_depth .AND. .NOT. ln_linssh )    CALL  dta_dyn_rnf( Kmm )
+         IF( ln_dynrnf_depth .AND. .NOT. lk_linssh )    CALL  dta_dyn_rnf( Kmm )
       ENDIF
       !
       uu(:,:,:,Kmm)        = sf_dyn(jf_uwd)%fnow(:,:,:) * umask(:,:,:)    ! effective u-transport
       vv(:,:,:,Kmm)        = sf_dyn(jf_vwd)%fnow(:,:,:) * vmask(:,:,:)    ! effective v-transport
       ww(:,:,:)            = sf_dyn(jf_wwd)%fnow(:,:,:) * tmask(:,:,:)    ! effective v-transport
       !
-      IF( .NOT.ln_linssh ) THEN
+      IF( .NOT.lk_linssh ) THEN
          ALLOCATE( zemp(jpi,jpj) , zhdivtr(jpi,jpj,jpk) )
          zhdivtr(:,:,:) = sf_dyn(jf_div)%fnow(:,:,:)  * tmask(:,:,:)    ! effective u-transport
          emp_b  (:,:)   = sf_dyn(jf_empb)%fnow(:,:,1) * tmask(:,:,1)    ! E-P
@@ -260,7 +260,7 @@ CONTAINS
       slf_d(jf_qsr)  = sn_qsr    ;   slf_d(jf_wnd)  = sn_wnd   ;   slf_d(jf_ice) = sn_ice
       slf_d(jf_fwf)  = sn_fwf
       !
-      IF( .NOT.ln_linssh ) THEN
+      IF( .NOT.lk_linssh ) THEN
                jf_div  = jfld + 1   ;         jf_empb  = jfld + 2    ;   jfld = jf_empb
          slf_d(jf_div) = sn_div     ;   slf_d(jf_empb) = sn_empb
       ENDIF
@@ -325,7 +325,7 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      IF( .NOT.ln_linssh ) THEN
+      IF( .NOT.lk_linssh ) THEN
         IF( .NOT. sf_dyn(jf_uwd)%ln_clim .AND. ln_rsttr .AND.    &                     ! Restart: read in restart file
            iom_varid( numrtr, 'sshn', ldstop = .FALSE. ) > 0 ) THEN
            IF(lwp) WRITE(numout,*) ' ssh(:,:,Kmm) forcing fields read in the restart file for initialisation'

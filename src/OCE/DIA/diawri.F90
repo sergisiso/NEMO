@@ -777,7 +777,7 @@ CONTAINS
             &          jpi, jpj, nh_T, ipk, 1, ipk, nz_T, 32, clop, zsto, zout )
          CALL histdef( nid_T, "vosaline", "Salinity"                           , "PSU"    ,   &  ! sn
             &          jpi, jpj, nh_T, ipk, 1, ipk, nz_T, 32, clop, zsto, zout )
-         IF(  .NOT.ln_linssh  ) THEN
+         IF(  .NOT.lk_linssh  ) THEN
             CALL histdef( nid_T, "vovvle3t", "Level thickness"                    , "m"      ,&  ! e3t n
             &             jpi, jpj, nh_T, ipk, 1, ipk, nz_T, 32, clop, zsto, zout )
             CALL histdef( nid_T, "vovvldep", "T point depth"                      , "m"      ,&  ! e3t n
@@ -798,7 +798,7 @@ CONTAINS
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
          CALL histdef( nid_T, "sosfldow", "downward salt flux"                 , "PSU/m2/s",  &  ! sfx
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
-         IF(  ln_linssh  ) THEN
+         IF(  lk_linssh  ) THEN
             CALL histdef( nid_T, "sosst_cd", "Concentration/Dilution term on temperature"     &  ! emp * ts(:,:,1,jp_tem,Kmm)
             &                                                                  , "KgC/m2/s",  &  ! sosst_cd
             &             jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
@@ -965,7 +965,7 @@ CONTAINS
          WRITE(numout,*) '~~~~~~ '
       ENDIF
 
-      IF( .NOT.ln_linssh ) THEN
+      IF( .NOT.lk_linssh ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpk )
             z3d(ji,jj,jk) = ts(ji,jj,jk,jp_tem,Kmm) * e3t(ji,jj,jk,Kmm)
          END_3D
@@ -988,7 +988,7 @@ CONTAINS
          CALL histwrite( nid_T, "sosstsst", it, ts(:,:,1,jp_tem,Kmm) , ndim_hT, ndex_hT )   ! sea surface temperature
          CALL histwrite( nid_T, "sosaline", it, ts(:,:,1,jp_sal,Kmm) , ndim_hT, ndex_hT )   ! sea surface salinity
       ENDIF
-      IF( .NOT.ln_linssh ) THEN
+      IF( .NOT.lk_linssh ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpk )
            z3d(ji,jj,jk) = e3t(ji,jj,jk,Kmm)     ! 3D workspace for qco substitution
          END_3D
@@ -1011,7 +1011,7 @@ CONTAINS
       CALL histwrite( nid_T, "sosfldow", it, sfx           , ndim_hT, ndex_hT )   ! downward salt flux 
                                                                                   ! (includes virtual salt flux beneath ice 
                                                                                   ! in linear free surface case)
-      IF( ln_linssh ) THEN
+      IF( lk_linssh ) THEN
          DO_2D( 0, 0, 0, 0 )
             z2d(ji,jj) = emp (ji,jj) * ts(ji,jj,1,jp_tem,Kmm)
          END_2D
@@ -1225,7 +1225,7 @@ CONTAINS
       CALL iom_rstput( 0, 0, inum, 'soicecov', fr_i              )    ! ice fraction
       CALL iom_rstput( 0, 0, inum, 'sozotaux', utau              )    ! i-wind stress
       CALL iom_rstput( 0, 0, inum, 'sometauy', vtau              )    ! j-wind stress
-      IF(  .NOT.ln_linssh  ) THEN
+      IF(  .NOT.lk_linssh  ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpk )
            z3d(ji,jj,jk) = gdept(ji,jj,jk,Kmm)   ! 3D workspace for qco substitution
          END_3D

@@ -325,7 +325,7 @@ CONTAINS
       IF ( ln_isfcpl .AND. (.NOT. ln_isfcav) ) &
          &   CALL ctl_stop('coupling with an ice sheet model detected (ln_isfcpl) but no cavity detected in domcfg (ln_isfcav), STOP' )
       !
-      IF ( ln_isfcpl .AND. ln_isfcpl_cons .AND. ln_linssh ) &
+      IF ( ln_isfcpl .AND. ln_isfcpl_cons .AND. lk_linssh ) &
          &   CALL ctl_stop( 'The coupling between NEMO and an ice sheet model with the conservation option does not work with the linssh option' )
       !
       IF ( l_isfoasis .AND. .NOT. ln_isf ) CALL ctl_stop( ' OASIS send ice shelf fluxes to NEMO but NEMO does not have the isf module activated' )

@@ -228,7 +228,7 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             z2d(ji,jj) = z2d(ji,jj) + e3t(ji,jj,jk,Kmm) * z3d(ji,jj,jk)
          END_3D
-         IF( ln_linssh ) THEN
+         IF( lk_linssh ) THEN
             IF( ln_isfcav ) THEN
                DO_2D( 0, 0, 0, 0 )
                   iks = mikt(ji,jj)
@@ -262,7 +262,7 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             z2d(ji,jj) = z2d(ji,jj) + e3t(ji,jj,jk,Kmm) * rhd(ji,jj,jk)
          END_3D
-         IF( ln_linssh ) THEN
+         IF( lk_linssh ) THEN
             IF ( ln_isfcav ) THEN
                DO_2D( 0, 0, 0, 0 )
                   iks = mikt(ji,jj)
@@ -302,7 +302,7 @@ CONTAINS
             z4d(ji,jj,1,jp_sal) = z4d(ji,jj,1,jp_sal) + zztmp * ts(ji,jj,jk,jp_sal,Kmm)
          END_3D
 
-         IF( ln_linssh ) THEN
+         IF( lk_linssh ) THEN
             IF( ln_isfcav ) THEN
                DO_2D( 0, 0, 0, 0 )
                   iks = mikt(ji,jj)

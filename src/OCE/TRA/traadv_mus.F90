@@ -219,7 +219,7 @@ CONTAINS
          END_2D
          zslpz   (T2D(0)) = 0._wp    ! anciennement zslpx at jk = 1
          !
-         IF( ln_linssh ) THEN                !-- linear ssh : non zero top values
+         IF( lk_linssh ) THEN                !-- linear ssh : non zero top values
             DO_2D( 0, 0, 0, 0 )                       ! at the ocean surface
                zfW(ji,jj) = pW(ji,jj,1) * pt(ji,jj,1,jn,Kbb)    ! surface flux
             END_2D

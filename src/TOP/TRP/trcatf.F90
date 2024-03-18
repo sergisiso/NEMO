@@ -117,7 +117,7 @@ CONTAINS
          ! total trend for the non-time-filtered variables. 
          zfact = 1.0 / rn_Dt
          ! G Nurser 23 Mar 2017. Recalculate trend as Delta(e3ta*Ta)/e3tn; e3tn cancel from ts(Kmm) terms
-         IF( ln_linssh ) THEN       ! linear sea surface height only
+         IF( lk_linssh ) THEN       ! linear sea surface height only
             DO jn = 1, jptra
                DO jk = 1, jpkm1
                   ztrdt(:,:,jk,jn) = ( ptr(:,:,jk,jn,Kaa)*e3t(:,:,jk,Kaa) / e3t(:,:,jk,Kmm) - ptr(:,:,jk,jn,Kmm)) * zfact
@@ -135,7 +135,7 @@ CONTAINS
             CALL trd_tra( kt, Kmm, Kaa, 'TRC', jn, jptra_tot, ztrdt(:,:,:,jn) )
          ENDDO
          !
-         IF( ln_linssh ) THEN       ! linear sea surface height only
+         IF( lk_linssh ) THEN       ! linear sea surface height only
             ! Store now fields before applying the Asselin filter 
             ! in order to calculate Asselin filter trend later.
             ztrdt(:,:,:,:) = ptr(:,:,:,:,Kmm) 
@@ -145,7 +145,7 @@ CONTAINS
       !                                ! Leap-Frog + Asselin filter time stepping
       IF( l_1st_euler .OR. ln_top_euler ) THEN    ! Euler time-stepping 
          !
-         IF (l_trdtrc .AND. .NOT. ln_linssh ) THEN   ! Zero Asselin filter contribution must be explicitly written out since for vvl
+         IF (l_trdtrc .AND. .NOT. lk_linssh ) THEN   ! Zero Asselin filter contribution must be explicitly written out since for vvl
             !                                        ! Asselin filter is output by tra_nxt_vvl that is not called on this time step
             ztrdt(:,:,:,:) = 0._wp            
             DO jn = 1, jptra
@@ -155,7 +155,7 @@ CONTAINS
          !
       ELSE     
          IF( .NOT. l_offline ) THEN ! Leap-Frog + Asselin filter time stepping
-            IF( ln_linssh ) THEN   ;   CALL tra_atf_fix_lf( kt, Kbb, Kmm, Kaa, nittrc000,        'TRC', ptr, jptra )                     !     linear ssh
+            IF( lk_linssh ) THEN   ;   CALL tra_atf_fix_lf( kt, Kbb, Kmm, Kaa, nittrc000,        'TRC', ptr, jptra )                     !     linear ssh
             ELSE                   ;   CALL tra_atf_qco_lf( kt, Kbb, Kmm, Kaa, nittrc000, rn_Dt, 'TRC', ptr, sbc_trc, sbc_trc_b, jptra ) ! non-linear ssh
             ENDIF
          ELSE
@@ -165,7 +165,7 @@ CONTAINS
          CALL lbc_lnk( 'trcatf', ptr(:,:,:,:,Kmm), 'T', 1._wp )
       ENDIF
       !
-      IF( l_trdtrc .AND. ln_linssh ) THEN      ! trend of the Asselin filter (tb filtered - tb)/dt )
+      IF( l_trdtrc .AND. lk_linssh ) THEN      ! trend of the Asselin filter (tb filtered - tb)/dt )
          DO jn = 1, jptra
             DO jk = 1, jpkm1
                zfact = 1._wp / rDt_trc  
@@ -225,7 +225,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) 'trc_atf_off : Asselin time filtering'
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
-         IF( .NOT. ln_linssh ) THEN
+         IF( .NOT. lk_linssh ) THEN
             rfact1 = rn_atfp * rn_Dt
             rfact2 = rfact1 / rho0
          ENDIF
@@ -247,7 +247,7 @@ CONTAINS
             ze3t_f = 1._wp + r3t_f(ji,jj)*tmask(ji,jj,jk)
             ztc_f  = ztc_n  + rn_atfp * ztc_d
             !
-            IF( .NOT. ln_linssh .AND. jk == mikt(ji,jj) ) THEN           ! first level 
+            IF( .NOT. lk_linssh .AND. jk == mikt(ji,jj) ) THEN           ! first level 
                ztc_f  = ztc_f  - rfact1 * ( sbc_trc(ji,jj,jn) - sbc_trc_b(ji,jj,jn) )
             ENDIF
 
@@ -298,7 +298,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) 'trc_atf_off : Asselin time filtering'
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
-         IF( .NOT. ln_linssh ) THEN
+         IF( .NOT. lk_linssh ) THEN
             rfact1 = rn_atfp * rn_Dt
             rfact2 = rfact1 / rho0
          ENDIF
@@ -321,7 +321,7 @@ CONTAINS
             ze3t_f = ze3t_n + rn_atfp * ze3t_d
             ztc_f  = ztc_n  + rn_atfp * ztc_d
             !
-            IF( .NOT. ln_linssh .AND. jk == mikt(ji,jj) ) THEN           ! first level 
+            IF( .NOT. lk_linssh .AND. jk == mikt(ji,jj) ) THEN           ! first level 
                ze3t_f = ze3t_f - rfact2 * ( emp_b(ji,jj)      - emp(ji,jj)   ) 
                ztc_f  = ztc_f  - rfact1 * ( sbc_trc(ji,jj,jn) - sbc_trc_b(ji,jj,jn) )
             ENDIF

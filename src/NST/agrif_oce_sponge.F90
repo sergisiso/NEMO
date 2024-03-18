@@ -434,7 +434,7 @@ CONTAINS
             END DO
 
             ! Save ssh at last level:
-            IF ( .NOT.ln_linssh ) THEN
+            IF ( .NOT.lk_linssh ) THEN
                tabres(i1:i2,j1:j2,k2,jpts+1) = ssh(i1:i2,j1:j2,Kbb_a)*tmask(i1:i2,j1:j2,1) 
             END IF  
     
@@ -444,7 +444,7 @@ CONTAINS
          !
          IF ( l_vremap ) THEN
 
-            IF (ln_linssh) THEN
+            IF (lk_linssh) THEN
                tabres(i1:i2,j1:j2,k2,n2) = 0._wp
 
             ELSE ! Assuming parent volume follows child:
@@ -484,7 +484,7 @@ CONTAINS
                   DO jk=2,N_out
                      z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Kbb_a) 
                   END DO
-                  IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Kbb_a)
+                  IF (.NOT.lk_linssh) z_out(1:N_out) = z_out(1:N_out)  - ssh(ji,jj,Kbb_a)
 
                   ! Account for small differences in the free-surface
                   IF ( sum(h_out(1:N_out)) > sum(h_in_i(1:N_in) )) THEN
@@ -526,13 +526,13 @@ CONTAINS
                         z_in(jk) = tabres(ji,jj,jk,n2)
                         tabin(jk,1:jpts) = tabres(ji,jj,jk,1:jpts)
                      END DO 
-                     IF (.NOT.ln_linssh) z_in(1:N_in) = z_in(1:N_in) - tabres(ji,jj,k2,n2)
+                     IF (.NOT.lk_linssh) z_in(1:N_in) = z_in(1:N_in) - tabres(ji,jj,k2,n2)
 
                      z_out(1) = 0.5_wp * e3w(ji,jj,1,Kbb_a)
                      DO jk=2, N_out
                         z_out(jk) = z_out(jk-1) + e3w(ji,jj,jk,Kbb_a) 
                      END DO 
-                     IF (.NOT.ln_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Kbb_a)
+                     IF (.NOT.lk_linssh) z_out(1:N_out) = z_out(1:N_out) - ssh(ji,jj,Kbb_a)
 
                      CALL remap_linear(tabin(1:N_in,1:jpts), z_in(1:N_in), tabres(ji,jj,1:N_out,1:jpts), &
                                          &   z_out(1:N_out), N_in, N_out, jpts)
@@ -651,7 +651,7 @@ CONTAINS
 
          IF ( l_vremap ) THEN
 
-            IF ( ln_linssh ) THEN
+            IF ( lk_linssh ) THEN
                zsshu(i1:i2,j1:j2) = 0._wp  
             ELSE
                zsshu(i1:i2,j1:j2) = hu(i1:i2,j1:j2,Kbb_a) - hu_0(i1:i2,j1:j2)   
@@ -798,7 +798,7 @@ CONTAINS
 
          IF ( l_vremap ) THEN
             
-            IF ( ln_linssh ) THEN
+            IF ( lk_linssh ) THEN
                zsshv(i1:i2,j1:j2) = 0._wp  
             ELSE
                zsshv(i1:i2,j1:j2) = hv(i1:i2,j1:j2,Kbb_a) - hv_0(i1:i2,j1:j2)   

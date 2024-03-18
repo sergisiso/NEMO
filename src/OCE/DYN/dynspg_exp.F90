@@ -69,7 +69,7 @@ CONTAINS
          !
          zpgu(:,:) = 0._wp   ;   zpgv(:,:) = 0._wp
          !
-         IF( .NOT.ln_linssh .AND. lwp ) WRITE(numout,*) '      non linear free surface: spg is included in dynhpg'
+         IF( .NOT.lk_linssh .AND. lwp ) WRITE(numout,*) '      non linear free surface: spg is included in dynhpg'
       ENDIF
       !
       DO_2D( 0, 0, 0, 0 )

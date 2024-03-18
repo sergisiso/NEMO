@@ -264,7 +264,7 @@ CONTAINS
             !                 !-------------------!   stg2:  Kbb = N  ;  Kmm = N+1/3  ;  Kaa = N+1/2
             !
             !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
-            IF( ln_dynadv_vec .OR. ln_linssh ) THEN   ! applied on velocity
+            IF( ln_dynadv_vec .OR. lk_linssh ) THEN   ! applied on velocity
                DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                   uu(ji,jj,jk,Kaa) = ( uu(ji,jj,jk,Kbb) + rDt * uu(ji,jj,jk,Krhs) ) * umask(ji,jj,jk)
                   vv(ji,jj,jk,Kaa) = ( vv(ji,jj,jk,Kbb) + rDt * vv(ji,jj,jk,Krhs) ) * vmask(ji,jj,jk)

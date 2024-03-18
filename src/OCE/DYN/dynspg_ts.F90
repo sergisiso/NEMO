@@ -261,8 +261,8 @@ CONTAINS
       !                                   !=  remove 2D Coriolis trend  =!
       !                                   !  --------------------------  !
       !
-      IF( kt == nit000 .OR. .NOT. ln_linssh )   CALL dyn_cor_2D_init( Kmm )   ! Set zwz, the barotropic Coriolis force coefficient
-      !                      ! recompute zwz = f/depth  at every time step for (.NOT.ln_linssh) as the water colomn height changes
+      IF( kt == nit000 .OR. .NOT. lk_linssh )   CALL dyn_cor_2D_init( Kmm )   ! Set zwz, the barotropic Coriolis force coefficient
+      !                      ! recompute zwz = f/depth  at every time step for (.NOT.lk_linssh) as the water colomn height changes
       !
       zhU(:,:) = puu_b(:,:,Kmm) * hu(:,:,Kmm) * e2u(:,:)        ! now fluxes 
       zhV(:,:) = pvv_b(:,:,Kmm) * hv(:,:,Kmm) * e1v(:,:)        ! NB: FULL domain : put a value in last row and column
@@ -310,8 +310,8 @@ CONTAINS
       !                                   !=  remove 2D Coriolis trend  =!
       !                                   !  --------------------------  !
       !
-      IF( kt == nit000 .OR. .NOT. ln_linssh )   CALL dyn_cor_2D_init( Kmm )   ! Set zwz, the barotropic Coriolis force coefficient
-      !                      ! recompute zwz = f/depth  at every time step for (.NOT.ln_linssh) as the water colomn height changes
+      IF( kt == nit000 .OR. .NOT. lk_linssh )   CALL dyn_cor_2D_init( Kmm )   ! Set zwz, the barotropic Coriolis force coefficient
+      !                      ! recompute zwz = f/depth  at every time step for (.NOT.lk_linssh) as the water colomn height changes
       !
       zhU(:,:) = puu_b(:,:,Kmm) * hu(:,:,Kmm) * e2u(:,:)        ! now fluxes 
       zhV(:,:) = pvv_b(:,:,Kmm) * hv(:,:,Kmm) * e1v(:,:)        ! NB: FULL domain : put a value in last row and column
@@ -432,7 +432,7 @@ CONTAINS
          vb_e   (:,:) = 0._wp
       ENDIF
       !
-      IF( ln_linssh ) THEN    ! mid-step ocean depth is fixed (hup2_e=hu_n=hu_0)
+      IF( lk_linssh ) THEN    ! mid-step ocean depth is fixed (hup2_e=hu_n=hu_0)
          zhup2_e(:,:) = hu_0(:,:)
          zhvp2_e(:,:) = hv_0(:,:)
          zhtp2_e(:,:) = ht_0(:,:)
@@ -510,7 +510,7 @@ CONTAINS
             va_e(ji,jj) = za1 * vn_e(ji,jj) + za2 * vb_e(ji,jj) + za3 * vbb_e(ji,jj)
          END_2D
 
-         IF( .NOT.ln_linssh ) THEN                        !* Update ocean depth (variable volume case only)
+         IF( .NOT.lk_linssh ) THEN                        !* Update ocean depth (variable volume case only)
             !                                             !  ------------------
             ! Extrapolate Sea Level at step jit+0.5:
             !--         m+1/2                 m                  m-1             m-2       --!
@@ -608,7 +608,7 @@ CONTAINS
          !
          !  
          ! Sea Surface Height at u-,v-points (vvl case only)
-         IF( .NOT.ln_linssh ) THEN
+         IF( .NOT.lk_linssh ) THEN
 #if defined key_qcoTest_FluxForm
             !                                ! 'key_qcoTest_FluxForm' : simple ssh average
             DO_2D( 0, 0, 0, 0 )
@@ -643,7 +643,7 @@ CONTAINS
          END_2D
          !
          ! Add Coriolis trend:
-         ! zwz array below or triads normally depend on sea level with ln_linssh=F and should be updated
+         ! zwz array below or triads normally depend on sea level with lk_linssh=F and should be updated
          ! at each time step. We however keep them constant here for optimization.
          ! Recall that zhU and zhV hold fluxes at jn+0.5 (extrapolated not backward interpolated)
          CALL dyn_cor_2D( zhtp2_e, zhup2_e, zhvp2_e, ua_e, va_e, zhU, zhV,    zu_trd, zv_trd   )
@@ -676,7 +676,7 @@ CONTAINS
          !-- u    =   m+1 |  h  * u   + delta_t' * \ h     * (1-r)*g * grad_x( ssh') - h     * f * k vect u      + h * frc /  | --!
          !--         h     \                                                                                                 /  --!
          !------------------------------------------------------------------------------------------------------------------------!
-         IF( ln_dynadv_vec .OR. ln_linssh ) THEN      !* Vector form
+         IF( ln_dynadv_vec .OR. lk_linssh ) THEN      !* Vector form
             DO_2D( 0, 0, 0, 0 )
                ua_e(ji,jj) = (                                 un_e(ji,jj)   & 
                          &     + rDt_e * (                   zu_spg(ji,jj)   &
@@ -728,7 +728,7 @@ CONTAINS
             END_2D
          ENDIF
        
-         IF( .NOT.ln_linssh ) THEN !* Update ocean depth (variable volume case only)
+         IF( .NOT.lk_linssh ) THEN !* Update ocean depth (variable volume case only)
             DO_2D( 0, 0, 0, 0 )
                hu_e (ji,jj) =    hu_0(ji,jj) + zsshu_a(ji,jj)
                hur_e(ji,jj) = ssumask(ji,jj) / (  hu_e(ji,jj) + 1._wp - ssumask(ji,jj)  )
@@ -737,7 +737,7 @@ CONTAINS
             END_2D
          ENDIF
          !
-         IF( .NOT.ln_linssh ) THEN   !* Update ocean depth (variable volume case only)
+         IF( .NOT.lk_linssh ) THEN   !* Update ocean depth (variable volume case only)
             IF( ln_wd_dl ) THEN
                CALL lbc_lnk( 'dynspg_ts', ua_e , 'U', -1._wp, va_e , 'V', -1._wp  &
                     &                   , hu_e , 'U',  1._wp, hv_e , 'V',  1._wp  &
@@ -779,7 +779,7 @@ CONTAINS
          !                                             !  ----------------------
          IF( ln_bt_av ) THEN
             za1 = wgtbtp1(jn)                                    
-            IF( ln_dynadv_vec .OR. ln_linssh ) THEN    ! Sum velocities
+            IF( ln_dynadv_vec .OR. lk_linssh ) THEN    ! Sum velocities
                puu_b  (:,:,Kaa) = puu_b  (:,:,Kaa) + za1 * ua_e  (:,:) 
                pvv_b  (:,:,Kaa) = pvv_b  (:,:,Kaa) + za1 * va_e  (:,:) 
             ELSE                                       ! Sum transports
@@ -817,7 +817,7 @@ CONTAINS
 #if defined key_RK3
       !                                                !*  RK3 case
       !
-      IF( (.NOT.(ln_dynadv_vec .OR. ln_linssh)) .AND. ln_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
+      IF( (.NOT.(ln_dynadv_vec .OR. lk_linssh)) .AND. ln_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
          !
 # if defined key_qcoTest_FluxForm
          !                                       ! 'key_qcoTest_FluxForm' : simple ssh average
@@ -885,7 +885,7 @@ CONTAINS
       ENDIF
       !
       ! Update barotropic trend:
-      IF( ln_dynadv_vec .OR. ln_linssh ) THEN
+      IF( ln_dynadv_vec .OR. lk_linssh ) THEN
          DO jk=1,jpkm1
             puu(:,:,jk,Krhs) = puu(:,:,jk,Krhs) + ( puu_b(:,:,Kaa) - puu_b(:,:,Kbb) ) * r1_Dt
             pvv(:,:,jk,Krhs) = pvv(:,:,jk,Krhs) + ( pvv_b(:,:,Kaa) - pvv_b(:,:,Kbb) ) * r1_Dt

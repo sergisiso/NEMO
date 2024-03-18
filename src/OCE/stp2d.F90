@@ -88,7 +88,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '~~~~~~'
       ENDIF
       !
-      IF( ln_linssh ) THEN    !==  Compute ww(:,:,1)  ==!   (needed for momentum advection)
+      IF( lk_linssh ) THEN    !==  Compute ww(:,:,1)  ==!   (needed for momentum advection)
 !!gm  only in Flux Form, Vector Form  dzU_z=0 assumed to be zero 
 !!gm  ww(k=1) = div_h(uu_b) ==> modif dans dynadv                        <<<=== TO BE DONE
       ENDIF

@@ -49,7 +49,7 @@ CONTAINS
       !
       CALL Agrif_Update_ssh()                      ! Update sea level
       !
-      IF (.NOT.ln_linssh) CALL Agrif_Update_vvl()  ! Update scale factors
+      IF (.NOT.lk_linssh) CALL Agrif_Update_vvl()  ! Update scale factors
       !
       CALL Agrif_Update_tra()                      ! Update temperature/salinity
       !
