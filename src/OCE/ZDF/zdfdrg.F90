@@ -31,7 +31,10 @@ MODULE zdfdrg
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE lib_mpp        ! distributed memory computing
    USE prtctl         ! Print control
-   USE sbc_oce , ONLY : nn_ice 
+   USE sbc_oce , ONLY : nn_ice
+#if defined key_si3
+   USE sbc_ice , ONLY : rCdU_ice
+#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -83,12 +86,62 @@ MODULE zdfdrg
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE zdf_drg( kt, Kmm, k_mk, pCdmin, pCdmax, pz0, pke0, pCd0,   &   ! <<== in 
-      &                                                     pCdU )      ! ==>> out : bottom drag [m/s]
+   SUBROUTINE zdf_drg( kt, Kmm, cd_topbot )
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE zdf_drg  ***
       !!
-      !! ** Purpose :   update the top/bottom drag coefficient (non-linear case only)
+      !! ** Purpose :   Set/update the top/bottom drag coefficient
+      !!
+      !! ** Action  :   p_Cd   drag coefficient at t-point
+      !!----------------------------------------------------------------------
+      INTEGER         , INTENT(in) :: kt           ! ocean time-step index
+      INTEGER         , INTENT(in) :: Kmm          ! ocean time level index
+      CHARACTER(len=*), INTENT(in) :: cd_topbot    ! surface or bottom drag
+      !
+      INTEGER ::   ji, jj     ! dummy loop indexes
+      !!----------------------------------------------------------------------
+
+      SELECT CASE( TRIM(cd_topbot) )
+         CASE( 'BOTTOM' )     ! Bottom drag
+            IF( l_zdfdrg ) THEN
+               CALL zdf_drg_nonlin( kt, Kmm, mbkt, r_Cdmin_bot, r_Cdmax_bot,        &  ! <<== in
+                  &                                r_z0_bot, r_ke0_bot, rCd0_bot,   &  !
+                  &                                                     rCdU_bot )     ! ==>> out : bottom drag [m/s]
+            ENDIF
+         CASE( 'TOP' )        ! Surface drag
+            IF( l_zdfdrg .AND. ln_isfcav ) THEN
+               CALL zdf_drg_nonlin( kt, Kmm, mikt, r_Cdmin_top, r_Cdmax_top,        &  ! <<== in
+                  &                                r_z0_top, r_ke0_top, rCd0_top,   &  !
+                  &                                                     rCdU_top )     ! ==>> out : surface drag [m/s]
+            ENDIF
+#if defined key_si3
+            IF( ln_drgice_imp ) THEN
+               IF( ln_isfcav ) THEN
+                  ! In the linear case, we must reset rCdU_top on every timestep to avoid a cumulative sum
+                  IF( .NOT. l_zdfdrg ) CALL zdf_drg_lin( rCd0_top(:,:), rCdU_top(:,:) )
+                  DO_2D( 1, 1, 1, 1 )
+                     rCdU_top(ji,jj) = rCdU_top(ji,jj) + ssmask(ji,jj) * tmask(ji,jj,1) * rCdU_ice(ji,jj)
+                  END_2D
+               ELSE
+                  DO_2D( 1, 1, 1, 1 )
+                     rCdU_top(ji,jj) = rCdU_ice(ji,jj)
+                  END_2D
+               ENDIF
+            ENDIF
+#endif
+         CASE DEFAULT
+            CALL ctl_stop( 'zdf_drg: bad value for cd_topbot' )
+      END SELECT
+
+   END SUBROUTINE zdf_drg
+
+
+   SUBROUTINE zdf_drg_nonlin( kt, Kmm, k_mk, pCdmin, pCdmax, pz0, pke0, pCd0,   &   ! <<== in
+      &                                                                 pCdU )      ! ==>> out : drag coefficient [m/s]
+      !!----------------------------------------------------------------------
+      !!                   ***  ROUTINE zdf_drg_nonlin  ***
+      !!
+      !! ** Purpose :   update the top/bottom drag coefficient (non-linear case)
       !!
       !! ** Method  :   In non linear friction case, the drag coeficient is
       !!              a function of the velocity:
@@ -100,16 +153,16 @@ CONTAINS
       !!
       !! ** Action  :   p_Cd   drag coefficient at t-point
       !!----------------------------------------------------------------------
-      INTEGER                 , INTENT(in   ) ::   kt       ! ocean time-step index
-      INTEGER                 , INTENT(in   ) ::   Kmm      ! ocean time level index
-      !                       !               !!         !==  top or bottom variables  ==!
-      INTEGER , DIMENSION(:,:), INTENT(in   ) ::   k_mk     ! wet level (1st or last)
-      REAL(wp)                , INTENT(in   ) ::   pCdmin   ! min drag value
-      REAL(wp)                , INTENT(in   ) ::   pCdmax   ! max drag value
-      REAL(wp)                , INTENT(in   ) ::   pz0      ! roughness
-      REAL(wp)                , INTENT(in   ) ::   pke0     ! background tidal KE
-      REAL(wp), DIMENSION(:,:), INTENT(in   ) ::   pCd0     ! masked precomputed part of Cd0
-      REAL(wp), DIMENSION(:,:), INTENT(  out) ::   pCdU     ! = - Cd*|U|   (t-points) [m/s]
+      INTEGER                    , INTENT(in   ) ::   kt       ! ocean time-step index
+      INTEGER                    , INTENT(in   ) ::   Kmm      ! ocean time level index
+      !                          !               !!         !==  top or bottom variables  ==!
+      INTEGER , DIMENSION(:,:)   , INTENT(in   ) ::   k_mk     ! wet level (1st or last)
+      REAL(wp)                   , INTENT(in   ) ::   pCdmin   ! min drag value
+      REAL(wp)                   , INTENT(in   ) ::   pCdmax   ! max drag value
+      REAL(wp)                   , INTENT(in   ) ::   pz0      ! roughness
+      REAL(wp)                   , INTENT(in   ) ::   pke0     ! background tidal KE
+      REAL(wp), DIMENSION(A2D(2)), INTENT(in   ) ::   pCd0     ! masked precomputed part of Cd0
+      REAL(wp), DIMENSION(A2D(2)), INTENT(inout) ::   pCdU     ! = - Cd*|U|   (t-points) [m/s]
       !!
       INTEGER ::   ji, jj   ! dummy loop indices
       INTEGER ::   imk      ! local integers
@@ -140,7 +193,36 @@ CONTAINS
       !
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab2d_1=pCdU, clinfo1=' Cd*U ')
       !
-   END SUBROUTINE zdf_drg
+   END SUBROUTINE zdf_drg_nonlin
+
+
+   SUBROUTINE zdf_drg_lin( pCd0, pCdU )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE zdf_drg_lin  ***
+      !!
+      !! ** Purpose :   Set the top/bottom drag coefficient (linear case)
+      !!
+      !! ** Method  :   In the linear or no friction cases, the drag coefficient is constant in time.
+      !!
+      !! ** Action  :   p_Cd   drag coefficient at t-point
+      !!----------------------------------------------------------------------
+      REAL(wp), DIMENSION(A2D(2)), INTENT(in   ) ::  pCd0            ! masked precomputed part of the linear drag coefficient
+      REAL(wp), DIMENSION(A2D(2)), INTENT(inout) ::  pCdU            ! minus linear drag*|U| at t-points  [m/s]
+      !
+      INTEGER ::   ji, jj     ! dummy loop indexes
+      !!----------------------------------------------------------------------
+      SELECT CASE( ndrg )
+         CASE( np_lin )
+            DO_2D( 1, 1, 1, 1 )
+               pCdU(ji,jj) = - pCd0(ji,jj) * rn_Uc0   ! linear friction- constant velocity
+            END_2D
+         CASE DEFAULT
+            DO_2D( 1, 1, 1, 1 )
+               pCdU(ji,jj) = 0._wp                    ! No friction
+            END_2D
+      END SELECT
+
+   END SUBROUTINE zdf_drg_lin
 
 
    SUBROUTINE zdf_drg_exp( kt, Kmm, pub, pvb, pua, pva )
@@ -393,8 +475,8 @@ CONTAINS
          !
          l_zdfdrg = .FALSE.         ! no time variation of the drag: set it one for all
          !
-         pCdU(:,:) = 0._wp
          pCd0(:,:) = 0._wp
+         CALL zdf_drg_lin( pCd0(:,:), pCdU(:,:) )
          !
       CASE( np_lin )             !==  linear friction  ==!   (pCdU = Cd0 * Uc0)
          IF(lwp) WRITE(numout,*)
@@ -402,8 +484,8 @@ CONTAINS
          !
          l_zdfdrg = .FALSE.         ! no time variation of the Cd*|U| : set it one for all
          !                      
-         pCd0(:,:) = rn_Cd0 * zmsk_boost(:,:)  !* constant in time drag coefficient (= mask (and boost) Cd0)
-         pCdU(:,:) = - pCd0(:,:) * rn_Uc0      !  using a constant velocity
+         pCd0(:,:) = rn_Cd0 * zmsk_boost(:,:)      !* constant in time drag coefficient (= mask (and boost) Cd0)
+         CALL zdf_drg_lin( pCd0(:,:), pCdU(:,:) )  !  using a constant velocity
          !
       CASE( np_non_lin )         !== non-linear friction  ==!   (pCd0 = Cd0 )
          IF(lwp) WRITE(numout,*)
@@ -414,7 +496,6 @@ CONTAINS
          l_zdfdrg = .TRUE.          !* Cd*|U| updated at each time-step (it depends on ocean velocity)
          !
          pCd0(:,:) = rn_Cd0 * zmsk_boost(:,:)  !* constant in time proportionality coefficient (= mask (and boost) Cd0)
-         pCdU(:,:) = 0._wp                     !  
          !
       CASE( np_loglayer )       !== logarithmic layer formulation of friction  ==!   (CdU = (vkarman log(z/z0))^2 |U| )
          IF(lwp) WRITE(numout,*)
@@ -445,7 +526,6 @@ CONTAINS
             !
             pCd0(:,:) = zmsk_boost(:,:)
          ENDIF
-         pCdU(:,:) = 0._wp          ! initialisation to zero (will be updated at each time step)
          !
       CASE DEFAULT
          CALL ctl_stop( 'drg_init: bad flag value for ndrg ' )

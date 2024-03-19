@@ -28,7 +28,6 @@ MODULE zdfphy
    USE trc_oce        ! variables shared between passive tracer & ocean
    USE sbc_oce        ! surface module (only for nn_isf in the option compatibility test)
    USE sbcrnf         ! surface boundary condition: runoff variables
-   USE sbc_ice        ! sea ice drag
    USE domtile
 #if defined key_agrif
    USE agrif_oce_interp   ! interpavm
@@ -267,33 +266,9 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      IF( l_zdfdrg ) THEN     !==  update top/bottom drag  ==!   (non-linear cases)
-         !
-         !                       !* bottom drag
-         CALL zdf_drg( kt, Kmm, mbkt , r_Cdmin_bot, r_Cdmax_bot,   &   ! <<== in
-            &              r_z0_bot,   r_ke0_bot,    rCd0_bot,   &
-            &                                        rCdU_bot  )     ! ==>> out : bottom drag [m/s]
-         IF( ln_isfcav ) THEN    !* top drag   (ocean cavities)
-            CALL zdf_drg( kt, Kmm, mikt , r_Cdmin_top, r_Cdmax_top,   &   ! <<== in
-               &              r_z0_top,   r_ke0_top,    rCd0_top,   &
-               &                                        rCdU_top  )     ! ==>> out : bottom drag [m/s]
-         ENDIF
-      ENDIF
-      !
-#if defined key_si3
-      IF ( ln_drgice_imp) THEN
-         IF ( ln_isfcav ) THEN
-            DO_2D( 1, 1, 1, 1 )
-               rCdU_top(ji,jj) = rCdU_top(ji,jj) + ssmask(ji,jj) * tmask(ji,jj,1) * rCdU_ice(ji,jj)
-            END_2D
-         ELSE
-            ! Needed on 1st halo points by dyn_zdf (if ln_drgice_imp or ln_isfcav)
-            DO_2D( 1, 1, 1, 1 )
-               rCdU_top(ji,jj) = rCdU_ice(ji,jj)
-            END_2D
-         ENDIF
-      ENDIF
-#endif
+      ! Update top/bottom drag
+                                         CALL zdf_drg( kt, Kmm, 'BOTTOM' )  ! bottom drag
+      IF( ln_isfcav .OR. ln_drgice_imp ) CALL zdf_drg( kt, Kmm, 'TOP'    )  ! top drag (ocean cavities)
       !
       CALL zdf_mxl( kt, Kmm )                        !* mixed layer depth, and level
       !
