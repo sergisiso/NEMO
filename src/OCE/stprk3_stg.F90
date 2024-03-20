@@ -233,9 +233,9 @@ CONTAINS
 !!gm end
          !                                         ! advection (VIF or FF)  ==> RHS
          IF( ln_dynadv_vec ) THEN                                  ! VIF: uu and vv used for momentum advection
-            CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs)
+            CALL dyn_adv( kstp, Kmm, Kmm      , uu, vv, Krhs)
          ELSE                                                      ! FF : advective transport used for momentum advection
-            CALL dyn_adv( kstp, Kbb, Kmm      , uu, vv, Krhs, zFu, zFv, zFw )
+            CALL dyn_adv( kstp, Kmm, Kmm      , uu, vv, Krhs, zFu, zFv, zFw )
          ENDIF
          !                                         ! Coriolis / vorticity  ==> RHS
          CALL    dyn_vor( kstp,      Kmm      , uu, vv, Krhs )

@@ -52,10 +52,7 @@ MODULE nemogcm
    USE sbcrnf         ! surface boundary condition : runoffs
 #if defined key_qco   ||   defined key_linssh
 #if  defined key_RK3
-   USE stprk3 , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
    USE trcstp_rk3
-#else
-   USE stpmlf , ONLY : Nbb, Nnn, Naa, Nrhs   ! time level indices
 #endif
 #endif
    !              ! I/O & MPP

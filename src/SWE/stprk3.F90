@@ -21,9 +21,6 @@ MODULE stprk3
    PRIVATE
 
    PUBLIC   stp_RK3   ! called by nemogcm.F90
-
-   !                                          !**  time level indices  **!
-   INTEGER, PUBLIC ::   Nbb, Nnn, Naa, Nrhs   !: used by nemo_init
       
    !! * Substitutions
 #  include "do_loop_substitute.h90"

@@ -46,10 +46,6 @@ MODULE step
    PUBLIC   stp   ! called by nemogcm.F90
 
    !!----------------------------------------------------------------------
-   !! time level indices
-   !!----------------------------------------------------------------------
-   INTEGER, PUBLIC :: Nbb, Nnn, Naa, Nrhs          !! used by nemo_init
-   !!----------------------------------------------------------------------
    !! NEMO/SAS 4.0 , NEMO Consortium (2018)
    !! $Id: step.F90 14239 2020-12-23 08:57:16Z smasson $
    !! Software governed by the CeCILL license (see ./LICENSE)
