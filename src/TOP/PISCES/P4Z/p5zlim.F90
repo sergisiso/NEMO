@@ -628,7 +628,6 @@ CONTAINS
       xnanofer(:,:,jpk) = 0._wp    ;   xdiatfer(:,:,jpk) = 0._wp   ;   xpicofer(:,:,jpk) = 0._wp
       xnanopo4(:,:,jpk) = 0._wp    ;   xdiatpo4(:,:,jpk) = 0._wp   ;   xpicopo4(:,:,jpk) = 0._wp
       xlimbac (:,:,jpk) = 0._wp    ;   xlimbacl(:,:,jpk) = 0._wp
-      sizen   (:,:,jpk) = 0._wp    ;   sizep   (:,:,jpk) = 0._wp   ;   sized   (:,:,jpk) = 0._wp
       xqfuncfecn(:,:,jpk) = 0._wp  ;   xqfuncfecd(:,:,jpk) = 0._wp ;   xqfuncfecp(:,:,jpk) = 0._wp
       fvnuptk (:,:,jpk) = 0._wp    ;   fvduptk (:,:,jpk) = 0._wp   ;   fvpuptk(:,:,jpk)  = 0._wp
       xlimphys(:,:,jpk) = 0._wp    ;   xlimdias(:,:,jpk) = 0._wp

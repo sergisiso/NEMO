@@ -219,8 +219,8 @@ CONTAINS
          ! Nanophytoplankton and diatoms are the only preys considered
          ! to be close enough to have potential interference
          ! -----------------------------------------------------------
-         zsizedn = -ABS(LOG(3.0 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
-         zdiffdn = EXP( zsizedn * zsizedn / zsigma2 )
+         zsizedn = ABS(LOG(3.0 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zdiffdn = EXP( - zsizedn * zsizedn / zsigma2 )
          ztmp1 = xpref2n * zcompaph * ( zcompaph + zdiffdn * zcompadi )
          ztmp2 = xpref2m * zcompames * zcompames
          ztmp3 = xpref2c * zcompapoc * zcompapoc

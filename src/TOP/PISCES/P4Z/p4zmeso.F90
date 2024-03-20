@@ -181,14 +181,14 @@ CONTAINS
          ! to avoid starvation.
          ! ----------------------------------------------------------
          zdenom2 = zdenom * zdenom
-         zsigma  = 1.0 - zdenom2/(0.05*0.05*0.05+zdenom2)
+         zsigma  = 1.0 - zdenom2/(0.05*0.05+zdenom2)
          zsigma  = xsigma2 + xsigma2del * zsigma
          zsigma2 = zsigma * zsigma
          ! Nanophytoplankton and diatoms are the only preys considered
          ! to be close enough to have potential interference
          ! -----------------------------------------------------------
-         zsizedn = -ABS(LOG(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
-         zdiffdn = EXP( zsizedn * zsizedn / zsigma2 )
+         zsizedn = ABS(LOG(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zdiffdn = EXP( - zsizedn * zsizedn / zsigma2 )
          ztmp1 = xpref2n * zcompaph * ( zcompaph + zdiffdn * zcompadi )
          ztmp2 = xpref2m * zcompames*zcompames
          ztmp3 = xpref2c * zcompapoc*zcompapoc
