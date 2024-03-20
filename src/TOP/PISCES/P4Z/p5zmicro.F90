@@ -183,16 +183,16 @@ CONTAINS
          ! to avoid starvation.
          ! ----------------------------------------------------------
          zdenom3 = zdenom * zdenom * zdenom
-         zsigma = 1.0 - zdenom3/( 0.05 * 0.05 * 0.05 + zdenom3 )
+         zsigma = 1.0 - zdenom3/( 0.1 * 0.1 * 0.1 + zdenom3 )
          zsigma = xsigma + xsigmadel * zsigma
          zsigma2 = zsigma * zsigma
          !
-         zsizepn = -ABS(LOG(0.7 * sizep(ji,jj,jk) / (3.0 * sizen(ji,jj,jk) + rtrn )) )
-         zsizedn = -ABS(LOG(3.0 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
-         zsizedp = -ABS(LOG(0.7 * sizep(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
-         zdiffpn = EXP( zsizepn * zsizepn / zsigma2 )
-         zdiffdn = EXP( zsizedn * zsizedn / zsigma2 )
-         zdiffdp = EXP( zsizedp * zsizedp / zsigma2 )
+         zsizepn = ABS(LOG(0.7 * sizep(ji,jj,jk) / (3.0 * sizen(ji,jj,jk) + rtrn )) )
+         zsizedn = ABS(LOG(3.0 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zsizedp = ABS(LOG(0.7 * sizep(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zdiffpn = EXP( - zsizepn * zsizepn / zsigma2 )
+         zdiffdn = EXP( - zsizedn * zsizedn / zsigma2 )
+         zdiffdp = EXP( - zsizedp * zsizedp / zsigma2 )
          ztmp1 = xprefn * zcompaph * ( zcompaph + zdiffdn * zcompadi + zdiffpn * zcompapi )
          ztmp2 = xprefp * zcompapi * ( zcompapi + zdiffpn * zcompaph + zdiffdp * zcompadi )
          ztmp3 = xprefc * zcompapoc * zcompapoc

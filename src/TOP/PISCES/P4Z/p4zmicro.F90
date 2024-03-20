@@ -167,8 +167,8 @@ CONTAINS
          zsigma = xsigma + xsigmadel * zsigma
          zsigma2 = zsigma * zsigma
          !
-         zsizedn = -ABS(LOG(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
-         zdiffdn = EXP( zsizedn * zsizedn / zsigma2 )
+         zsizedn = ABS(LOG(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zdiffdn = EXP( - zsizedn * zsizedn / zsigma2 )
          ztmp1 = xprefn * zcompaph * ( zcompaph + zdiffdn * zcompadi ) 
          ztmp2 = xprefd * zcompadi * ( zdiffdn * zcompaph + zcompadi )
          ztmp3 = xprefc * zcompapoc * zcompapoc 
