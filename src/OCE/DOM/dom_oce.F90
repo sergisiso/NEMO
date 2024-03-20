@@ -47,6 +47,8 @@ MODULE dom_oce
 #else
    LOGICAL, PUBLIC, PARAMETER ::   lk_RK3    = .FALSE.  !: RK3 key flag
 #endif
+   !                                          !**  time level indices  **!
+   INTEGER, PUBLIC ::   Nbb, Nnn, Naa, Nrhs   !: used by nemo_init
 
    !! Free surface parameters
    !! =======================

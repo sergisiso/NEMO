@@ -1088,12 +1088,21 @@ CONTAINS
          IF( ln_rstart ) THEN                           !* RK3: Read the restart file
 # endif
             IF( .NOT.ln_bt_av ) THEN
-               CALL iom_get( numror, jpdom_auto, 'sshbb_e'  , sshbb_e(:,:), cd_type = 'T', psgn =  1._wp )   
-               CALL iom_get( numror, jpdom_auto, 'ubb_e'    ,   ubb_e(:,:), cd_type = 'U', psgn = -1._wp )   
-               CALL iom_get( numror, jpdom_auto, 'vbb_e'    ,   vbb_e(:,:), cd_type = 'V', psgn = -1._wp )
-               CALL iom_get( numror, jpdom_auto, 'sshb_e'   ,  sshb_e(:,:), cd_type = 'T', psgn =  1._wp ) 
-               CALL iom_get( numror, jpdom_auto, 'ub_e'     ,    ub_e(:,:), cd_type = 'U', psgn = -1._wp )   
-               CALL iom_get( numror, jpdom_auto, 'vb_e'     ,    vb_e(:,:), cd_type = 'V', psgn = -1._wp )
+               IF( iom_varid( numrir, 'sshbb_e', ldstop = .FALSE. ) > 0 ) THEN
+                  CALL iom_get( numror, jpdom_auto, 'sshbb_e'  , sshbb_e(:,:), cd_type = 'T', psgn =  1._wp )
+                  CALL iom_get( numror, jpdom_auto, 'ubb_e'    ,   ubb_e(:,:), cd_type = 'U', psgn = -1._wp )
+                  CALL iom_get( numror, jpdom_auto, 'vbb_e'    ,   vbb_e(:,:), cd_type = 'V', psgn = -1._wp )
+                  CALL iom_get( numror, jpdom_auto, 'sshb_e'   ,  sshb_e(:,:), cd_type = 'T', psgn =  1._wp )
+                  CALL iom_get( numror, jpdom_auto, 'ub_e'     ,    ub_e(:,:), cd_type = 'U', psgn = -1._wp )
+                  CALL iom_get( numror, jpdom_auto, 'vb_e'     ,    vb_e(:,:), cd_type = 'V', psgn = -1._wp )
+               ELSE    ! if restart does not contain these variables, set them to current ssh, ub, vb
+                  sshbb_e(:,:) = ssh (:,:,Nbb)
+                  ubb_e  (:,:) = uu_b(:,:,Nbb)
+                  vbb_e  (:,:) = vv_b(:,:,Nbb)
+                  sshb_e (:,:) = ssh (:,:,Nbb)
+                  ub_e   (:,:) = uu_b(:,:,Nbb)
+                  vb_e   (:,:) = vv_b(:,:,Nbb)
+               ENDIF
             ENDIF
 #if defined key_agrif
             ! Read time integrated fluxes
