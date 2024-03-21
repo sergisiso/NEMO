@@ -116,34 +116,38 @@ CONTAINS
 
       IF( icount == 1 ) THEN
          DO_2D( 0, 0, 0, 0 )
-            ! -- max concentration diag -- !
-            ztmp3(ji,jj,7) = SUM( a_i(ji,jj,:) )
-            !
             ! -- advection scheme is conservative? -- !
-            ztmp3(ji,jj,8 ) = diag_adv_mass(ji,jj) * e1e2t(ji,jj) 
-            ztmp3(ji,jj,9 ) = diag_adv_heat(ji,jj) * e1e2t(ji,jj) 
-            ztmp3(ji,jj,10) = SUM( a_i(ji,jj,:) + epsi10 ) * e1e2t(ji,jj) ! ice area (+epsi10 to set a threshold > 0 when there is no ice)
-         END_2D
-         !
-         ! -- min diags -- !
-         DO_2D( 0, 0, 0, 0 )
-            ztmp3(ji,jj,11) = SUM( v_i  (ji,jj,:) )
-            ztmp3(ji,jj,12) = SUM( v_s  (ji,jj,:) )
-            ztmp3(ji,jj,13) = SUM( v_ip (ji,jj,:) )
-            ztmp3(ji,jj,14) = SUM( v_il (ji,jj,:) )
-            ztmp3(ji,jj,15) = SUM( a_i  (ji,jj,:) )
-            ztmp3(ji,jj,16) = SUM( zsv_i(ji,jj,:) )
-            ztmp3(ji,jj,17) = SUM( e_i  (ji,jj,:,:) )
-            ztmp3(ji,jj,18) = SUM( e_s  (ji,jj,:,:) )
+            ztmp3(ji,jj,7) = diag_adv_mass(ji,jj) * e1e2t(ji,jj) 
+            ztmp3(ji,jj,8) = diag_adv_heat(ji,jj) * e1e2t(ji,jj) 
+            ztmp3(ji,jj,9) = SUM( a_i(ji,jj,:) + epsi10 ) * e1e2t(ji,jj) ! ice area (+epsi10 to set a threshold > 0 when there is no ice)
+
+            ! -- max concentration diag -- !
+            ztmp3(ji,jj,10) = SUM( a_i(ji,jj,:) )
          END_2D
          !
          ! -- global sum -- !
-         zchk3(1:18) = glob_2Dsum( 'icectl', ztmp3(:,:,1:18) )
+         zchk3(1:9) = glob_2Dsum( 'icectl', ztmp3(:,:,1:9) )
+         zchk3(10)  = glob_2Dmax( 'icectl', ztmp3(:,:,10) )
+         !
+         ! -- min diags -- !
+         DO_2D( 0, 0, 0, 0 )
+            ztmp3(ji,jj,11) = MINVAL( v_i  (ji,jj,:) )
+            ztmp3(ji,jj,12) = MINVAL( v_s  (ji,jj,:) )
+            ztmp3(ji,jj,13) = MINVAL( v_ip (ji,jj,:) )
+            ztmp3(ji,jj,14) = MINVAL( v_il (ji,jj,:) )
+            ztmp3(ji,jj,15) = MINVAL( a_i  (ji,jj,:) )
+            ztmp3(ji,jj,16) = MINVAL( zsv_i(ji,jj,:) )
+            ztmp3(ji,jj,17) = MINVAL( e_i  (ji,jj,:,:) )
+            ztmp3(ji,jj,18) = MINVAL( e_s  (ji,jj,:,:) )
+         END_2D
+         !
+         ! -- global min -- !
+         zchk3(11:18) = glob_2Dmin( 'icectl', ztmp3(:,:,11:18) )
       ELSE
-      !
-      ! -- global sum -- !
-      zchk3(1:6) = glob_2Dsum( 'icectl', ztmp3(:,:,1:6) )
-   END IF
+         !
+         ! -- global sum -- !
+         zchk3(1:6) = glob_2Dsum( 'icectl', ztmp3(:,:,1:6) )
+      END IF
    
       IF( icount == 0 ) THEN
          !
@@ -163,11 +167,11 @@ CONTAINS
 
          IF( lwp ) THEN
             ! check conservation issues
-            IF( ABS(zdiag_mass) > rchk_m * rn_icechk_glo * zchk3(10) ) &
+            IF( ABS(zdiag_mass) > rchk_m * rn_icechk_glo * zchk3(9) ) &
                &                   WRITE(numout,*)   cd_routine,' : violation mass cons. [kg] = ',zdiag_mass * rDt_ice
-            IF( ABS(zdiag_salt) > rchk_s * rn_icechk_glo * zchk3(10) ) &
+            IF( ABS(zdiag_salt) > rchk_s * rn_icechk_glo * zchk3(9) ) &
                &                   WRITE(numout,*)   cd_routine,' : violation salt cons. [g]  = ',zdiag_salt * rDt_ice
-            IF( ABS(zdiag_heat) > rchk_t * rn_icechk_glo * zchk3(10) ) &
+            IF( ABS(zdiag_heat) > rchk_t * rn_icechk_glo * zchk3(9) ) &
                &                   WRITE(numout,*)   cd_routine,' : violation heat cons. [J]  = ',zdiag_heat * rDt_ice
             ! check negative values
             IF( zchk3(11) < 0. )   WRITE(numout,*)   cd_routine,' : violation v_i  < 0        = ',zchk3(11)
@@ -179,13 +183,13 @@ CONTAINS
             IF( zchk3(17) < 0. )   WRITE(numout,*)   cd_routine,' : violation e_i  < 0        = ',zchk3(17)
             IF( zchk3(18) < 0. )   WRITE(numout,*)   cd_routine,' : violation e_s  < 0        = ',zchk3(18)
             ! check maximum ice concentration
-            IF( zchk3(7)>MAX(rn_amax_n,rn_amax_s)+epsi10 .AND. cd_routine /= 'icedyn_adv' .AND. cd_routine /= 'icedyn_rdgrft' ) &
-               &                  WRITE(numout,*)   cd_routine,' : violation a_i > amax      = ',zchk3(7)
+            IF( zchk3(10)>MAX(rn_amax_n,rn_amax_s)+epsi10 .AND. cd_routine /= 'icedyn_adv' .AND. cd_routine /= 'icedyn_rdgrft' ) &
+               &                  WRITE(numout,*)   cd_routine,' : violation a_i > amax      = ',zchk3(10)
             ! check if advection scheme is conservative
-            IF( ABS(zchk3(8)) > rchk_m * rn_icechk_glo * zchk3(10) .AND. cd_routine == 'icedyn_adv' ) &
-               &                  WRITE(numout,*)   cd_routine,' : violation adv scheme [kg] = ',zchk3(8) * rDt_ice
-            IF( ABS(zchk3(9)) > rchk_t * rn_icechk_glo * zchk3(10) .AND. cd_routine == 'icedyn_adv' ) &
-               &                  WRITE(numout,*)   cd_routine,' : violation adv scheme [J]  = ',zchk3(9) * rDt_ice
+            IF( ABS(zchk3(7)) > rchk_m * rn_icechk_glo * zchk3(9) .AND. cd_routine == 'icedyn_adv' ) &
+               &                  WRITE(numout,*)   cd_routine,' : violation adv scheme [kg] = ',zchk3(7) * rDt_ice
+            IF( ABS(zchk3(8)) > rchk_t * rn_icechk_glo * zchk3(9) .AND. cd_routine == 'icedyn_adv' ) &
+               &                  WRITE(numout,*)   cd_routine,' : violation adv scheme [J]  = ',zchk3(8) * rDt_ice
          ENDIF
          !
       ENDIF
