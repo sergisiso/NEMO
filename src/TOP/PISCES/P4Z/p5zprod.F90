@@ -579,7 +579,7 @@ CONTAINS
               &            - zpronmaxn(:,:,:) * ( xpsino3 * xnanono3(:,:,:) + xpsinh4 * xnanonh4(:,:,:) )   &
               &            - zpronmaxd(:,:,:) * ( xpsino3 * xdiatno3(:,:,:) + xpsinh4 * xdiatnh4(:,:,:) )   &
               &            - zpronmaxp(:,:,:) * ( xpsino3 * xpicono3(:,:,:) + xpsinh4 * xpiconh4(:,:,:) ) ) &
-              &            * cvol(:,:,:) ) 
+              &            * cvol(:,:,:), cdelay = 'tpp' ) 
 
     IF( knt == nrdttrc ) THEN
        !

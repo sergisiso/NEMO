@@ -26,6 +26,7 @@ MODULE icethd_do
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
+   USE timing         ! Timing
 
    IMPLICIT NONE
    PRIVATE
@@ -97,7 +98,8 @@ CONTAINS
       !
       REAL(wp), DIMENSION(0:nlay_i+1) ::   zh_i_old, ze_i_old, zs_i_old
       !!-----------------------------------------------------------------------!
-
+      !
+      IF( ln_timing    )   CALL timing_start('icethd_do')
       IF( ln_icediachk )   CALL ice_cons_hsm( 0, 'icethd_do', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft )
       IF( ln_icediachk )   CALL ice_cons2D  ( 0, 'icethd_do',  diag_v,  diag_s,  diag_t,  diag_fv,  diag_fs,  diag_ft )
 
@@ -316,6 +318,7 @@ CONTAINS
       !
       IF( ln_icediachk )   CALL ice_cons_hsm(1, 'icethd_do', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
       IF( ln_icediachk )   CALL ice_cons2D  (1, 'icethd_do',  diag_v,  diag_s,  diag_t,  diag_fv,  diag_fs,  diag_ft)
+      IF( ln_timing    )   CALL timing_stop ('icethd_do')
       !
    END SUBROUTINE ice_thd_do
 

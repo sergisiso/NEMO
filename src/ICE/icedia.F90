@@ -119,7 +119,7 @@ CONTAINS
          &                       ztmp(:,:,16) = ( et_i(:,:) + et_s(:,:)                 - tem_loc_ini(:,:) ) * e1e2t(A2D(0)) ! heat content trend
       
       ! global sum
-      zbg(1:16) = glob_2Dsum( 'icedia', ztmp(:,:,1:16) )
+      zbg(1:16) = glob_2Dsum( 'icedia', ztmp(:,:,1:16), cdelay = 'icebg' )
 
       ! change units for trends
       zbg(1) = zbg(1) * r1_rho0 * 1.e-9  * rDt_ice ! freshwater flux ice/snow-ocean (km3)
