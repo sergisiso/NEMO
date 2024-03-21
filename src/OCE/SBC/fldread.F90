@@ -38,6 +38,7 @@ MODULE fldread
    USE ioipsl  , ONLY : ymds2ju, ju2ymds   ! for calendar
    USE lib_mpp        ! MPP library
    USE lbclnk         ! ocean lateral boundary conditions (online interpolation case)
+   USE timing         !
    
    IMPLICIT NONE
    PRIVATE   
@@ -167,6 +168,9 @@ CONTAINS
       REAL(wp) ::   ztintb       ! ratio applied to before records when doing time interpolation
       CHARACTER(LEN=1000) ::   clfmt  ! write format
       !!---------------------------------------------------------------------
+
+      IF( ln_timing )   CALL timing_start( 'fld_read' )
+
       ll_firstcall = kt == nit000
       IF( PRESENT(kit) )   ll_firstcall = ll_firstcall .and. kit == 1
 
@@ -236,6 +240,8 @@ CONTAINS
          END DO                                    ! --- end loop over field --- !
          !
       ENDIF
+      !
+      IF( ln_timing )   CALL timing_stop( 'fld_read' )
       !
    END SUBROUTINE fld_read
 

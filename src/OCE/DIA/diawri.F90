@@ -141,25 +141,27 @@ CONTAINS
       ENDIF
 
       ! Output of initial vertical scale factor (this may be 1D or 3D, and we want only the internal part)
-      DO_3D( 0, 0, 0, 0, 1, jpk )
-         z3d(ji,jj,jk) =  e3t_0(ji,jj,jk)
-      END_3D
-      CALL iom_put( "e3t_0", z3d )
-      !
-      DO_3D( 0, 0, 0, 0, 1, jpk )
-         z3d(ji,jj,jk) =  e3u_0(ji,jj,jk)
-      END_3D
-      CALL iom_put( "e3u_0", z3d )
-      !
-      DO_3D( 0, 0, 0, 0, 1, jpk )
-         z3d(ji,jj,jk) =  e3v_0(ji,jj,jk)
-      END_3D
-      CALL iom_put( "e3v_0", z3d )
-      !
-      DO_3D( 0, 0, 0, 0, 1, jpk )
-         z3d(ji,jj,jk) =  e3f_0(ji,jj,jk)
-      END_3D
-      CALL iom_put( "e3f_0", z3d )
+      IF( iom_use("e3t_0") .OR. iom_use("e3u_0") .OR. iom_use("e3v_0") .OR. iom_use("e3f_0") ) THEN 
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            z3d(ji,jj,jk) =  e3t_0(ji,jj,jk)
+         END_3D
+         CALL iom_put( "e3t_0", z3d )
+         !
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            z3d(ji,jj,jk) =  e3u_0(ji,jj,jk)
+         END_3D
+         CALL iom_put( "e3u_0", z3d )
+         !
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            z3d(ji,jj,jk) =  e3v_0(ji,jj,jk)
+         END_3D
+         CALL iom_put( "e3v_0", z3d )
+         !
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            z3d(ji,jj,jk) =  e3f_0(ji,jj,jk)
+         END_3D
+         CALL iom_put( "e3f_0", z3d )
+      ENDIF
       !
       IF ( iom_use("tpt_dep") ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpk )
@@ -397,7 +399,7 @@ CONTAINS
                &                   + vv(ji,jj-1,1,Kmm) * vv(ji,jj-1,1,Kmm) * e1e2v(ji,jj-1) * e3v(ji,jj-1,1,Kmm)  )  &
                &                 * r1_e1e2t(ji,jj) / e3t(ji,jj,1,Kmm) * ssmask(ji,jj)
          END_2D
-         IF ( iom_use("sKE" ) )  CALL iom_put( "sKE" , z2d )
+         CALL iom_put( "sKE" , z2d )
       ENDIF
       !
       IF ( iom_use("ssKEf") ) THEN                 ! surface kinetic energy at F point

@@ -87,6 +87,8 @@ CONTAINS
       INTEGER ::   ji, jj, jl        ! loop indices
       !!-------------------------------------------------------------------
       !
+      IF( ln_timing )   CALL timing_start('icethd_pnd')
+      !
       IF( ll_diag_pnd ) THEN
          !
          ALLOCATE( diag_dvpn_mlt   (A2D(0)), diag_dvpn_lid   (A2D(0)), diag_dvpn_drn   (A2D(0)), diag_dvpn_rnf(A2D(0))  )
@@ -158,6 +160,8 @@ CONTAINS
          DEALLOCATE( diag_dvpn_mlt_1d, diag_dvpn_lid_1d, diag_dvpn_drn_1d, diag_dvpn_rnf_1d )
          !
       ENDIF
+     
+      IF( ln_timing )   CALL timing_stop('icethd_pnd')
       
    END SUBROUTINE ice_thd_pnd
 

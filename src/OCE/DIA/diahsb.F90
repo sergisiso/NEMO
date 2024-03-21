@@ -197,7 +197,7 @@ CONTAINS
       ! ----------
       ! global sum
       ! ----------
-      zbg(:) = glob_2Dsum( 'dia_hsb', ztmp )
+      zbg(:) = glob_2Dsum( 'dia_hsb', ztmp, cdelay = 'ocebg' )
  
       ! 1)
       z_frc_trd_v = zbg(1)  ! volume fluxes

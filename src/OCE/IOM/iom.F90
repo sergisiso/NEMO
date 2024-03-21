@@ -45,6 +45,7 @@ MODULE iom
    USE diu_bulk, ONLY : ln_diurnal_only, ln_diurnal
    USE iom_nf90
    USE netcdf
+   USE timing          !
 
    IMPLICIT NONE
    PUBLIC   !   must be public to be able to access iom_def through iom
@@ -1999,6 +2000,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(in) ::   cdname
       REAL(sp)        , INTENT(in) ::   pfield0d
       !!      REAL(wp)        , DIMENSION(jpi,jpj) ::   zz     ! masson
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
 #if defined key_xios
 !!clem      zz(:,:)=pfield0d
 !!clem      CALL xios_send_field(cdname, zz)
@@ -2006,6 +2008,7 @@ CONTAINS
 #else
       IF( .FALSE. )   WRITE(numout,*) cdname, pfield0d   ! useless test to avoid compilation warnings
 #endif
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p0d_sp
 
    SUBROUTINE iom_p0d_dp( cdname, pfield0d )
@@ -2025,26 +2028,31 @@ CONTAINS
    SUBROUTINE iom_p1d_sp( cdname, pfield1d )
       CHARACTER(LEN=*)          , INTENT(in) ::   cdname
       REAL(sp),     DIMENSION(:), INTENT(in) ::   pfield1d
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
 #if defined key_xios
       CALL xios_send_field( cdname, RESHAPE( (/pfield1d/), (/1,1,SIZE(pfield1d)/) ) )
 #else
       IF( .FALSE. )   WRITE(numout,*) cdname, pfield1d   ! useless test to avoid compilation warnings
 #endif
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p1d_sp
 
    SUBROUTINE iom_p1d_dp( cdname, pfield1d )
       CHARACTER(LEN=*)          , INTENT(in) ::   cdname
       REAL(dp),     DIMENSION(:), INTENT(in) ::   pfield1d
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
 #if defined key_xios
       CALL xios_send_field( cdname, RESHAPE( (/pfield1d/), (/1,1,SIZE(pfield1d)/) ) )
 #else
       IF( .FALSE. )   WRITE(numout,*) cdname, pfield1d   ! useless test to avoid compilation warnings
 #endif
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p1d_dp
 
    SUBROUTINE iom_p2d_sp( cdname, pfield2d )
       CHARACTER(LEN=*)            , INTENT(in) ::   cdname
       REAL(sp),     DIMENSION(:,:), INTENT(in) ::   pfield2d
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
          IF( is_tile(SIZE(pfield2d, 1), SIZE(pfield2d, 2)) ) THEN
@@ -2058,11 +2066,13 @@ CONTAINS
          WRITE(numout,*) pfield2d   ! iom_use(cdname) = .F. -> useless test to avoid compilation warnings
 #endif
       ENDIF
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p2d_sp
 
    SUBROUTINE iom_p2d_dp( cdname, pfield2d )
       CHARACTER(LEN=*)            , INTENT(in) ::   cdname
       REAL(dp),     DIMENSION(:,:), INTENT(in) ::   pfield2d
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
          IF( is_tile(SIZE(pfield2d, 1), SIZE(pfield2d, 2)) ) THEN
@@ -2076,11 +2086,13 @@ CONTAINS
          WRITE(numout,*) pfield2d   ! iom_use(cdname) = .F. -> useless test to avoid compilation warnings
 #endif
       ENDIF
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p2d_dp
 
    SUBROUTINE iom_p3d_sp( cdname, pfield3d )
       CHARACTER(LEN=*)                , INTENT(in) ::   cdname
       REAL(sp),       DIMENSION(:,:,:), INTENT(in) ::   pfield3d
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
          IF( is_tile(SIZE(pfield3d, 1), SIZE(pfield3d, 2)) ) THEN
@@ -2094,11 +2106,13 @@ CONTAINS
          WRITE(numout,*) pfield3d   ! iom_use(cdname) = .F. -> useless test to avoid compilation warnings
 #endif
       ENDIF
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p3d_sp
 
    SUBROUTINE iom_p3d_dp( cdname, pfield3d )
       CHARACTER(LEN=*)                , INTENT(in) ::   cdname
       REAL(dp),       DIMENSION(:,:,:), INTENT(in) ::   pfield3d
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
          IF( is_tile(SIZE(pfield3d, 1), SIZE(pfield3d, 2)) ) THEN
@@ -2112,11 +2126,13 @@ CONTAINS
          WRITE(numout,*) pfield3d   ! iom_use(cdname) = .F. -> useless test to avoid compilation warnings
 #endif
       ENDIF
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p3d_dp
 
    SUBROUTINE iom_p4d_sp( cdname, pfield4d )
       CHARACTER(LEN=*)                , INTENT(in) ::   cdname
       REAL(sp),       DIMENSION(:,:,:,:), INTENT(in) ::   pfield4d
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
          IF( is_tile(SIZE(pfield4d, 1), SIZE(pfield4d, 2)) ) THEN
@@ -2130,11 +2146,13 @@ CONTAINS
          WRITE(numout,*) pfield4d   ! iom_use(cdname) = .F. -> useless test to avoid compilation warnings
 #endif
       ENDIF
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p4d_sp
 
    SUBROUTINE iom_p4d_dp( cdname, pfield4d )
       CHARACTER(LEN=*)                , INTENT(in) ::   cdname
       REAL(dp),       DIMENSION(:,:,:,:), INTENT(in) ::   pfield4d
+      IF( ln_timing )   CALL timing_start( 'iom_put' )
       IF( iom_use(cdname) ) THEN
 #if defined key_xios
          IF( is_tile(SIZE(pfield4d, 1), SIZE(pfield4d, 2)) ) THEN
@@ -2148,6 +2166,7 @@ CONTAINS
          WRITE(numout,*) pfield4d   ! iom_use(cdname) = .F. -> useless test to avoid compilation warnings
 #endif
       ENDIF
+      IF( ln_timing )   CALL timing_stop( 'iom_put' )
    END SUBROUTINE iom_p4d_dp
 
 #if defined key_xios

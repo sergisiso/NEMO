@@ -129,7 +129,7 @@ CONTAINS
       !
       IF( l_diag ) THEN
          t_oce_co2_exp = glob_2Dsum( 'p4zsink', ( zsinking(A2D(0),ik100) + zsinking2(A2D(0),ik100) ) &
-            &                                    * xfact * e1e2t(A2D(0)) * tmask(A2D(0),ik100) )
+            &                                    * xfact * e1e2t(A2D(0)) * tmask(A2D(0),ik100), cdelay = 'co2exp' )
          CALL iom_put( "EPC100", ( zsinking(A2D(0),ik100) + zsinking2(A2D(0),ik100) ) * xfact * tmask(A2D(0),ik100) )  ! Export of carbon at 100m
          CALL iom_put( "EXPC"  , ( zsinking(A2D(0),:)     + zsinking2(A2D(0),:) )     * xfact * tmask(A2D(0),:) )      ! Export of carbon in the water column
          CALL iom_put( "tcexp" , t_oce_co2_exp )      ! Total cabon exort
