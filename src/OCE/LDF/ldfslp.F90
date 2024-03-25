@@ -587,7 +587,7 @@ CONTAINS
          wslpj(:,:,:) = 0._wp
 
          !!gm I no longer understand this.....
-!!gm         IF( (ln_traldf_hor .OR. ln_dynldf_hor) .AND. .NOT. (.NOT.ln_linssh .AND. ln_rstart) ) THEN
+!!gm         IF( (ln_traldf_hor .OR. ln_dynldf_hor) .AND. .NOT. (.NOT.lk_linssh .AND. ln_rstart) ) THEN
 !            IF(lwp)   WRITE(numout,*) '          Horizontal mixing in s-coordinate: slope = slope of s-surfaces'
 !
 !            ! geopotential diffusion in s-coordinates on tracers and/or momentum
