@@ -40,7 +40,6 @@ MODULE dom_oce
    LOGICAL , PUBLIC ::   ln_crs         !: Apply grid coarsening to dynamical model output or online passive tracers
    LOGICAL , PUBLIC ::   ln_c1d         !: =T  single column domain (1x1 pt)
    LOGICAL , PUBLIC ::   ln_shuman      !: =T  shuman averaging (RK3 only)
-   REAL(wp), PUBLIC ::   rn_stfp        !: shuman time filter parameter
 
 #if defined key_RK3
    LOGICAL, PUBLIC, PARAMETER ::   lk_RK3    = .TRUE.   !: RK3 key flag
