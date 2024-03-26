@@ -109,9 +109,9 @@ CONTAINS
       INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk)            , INTENT(inout) ::   pFu, pFv, pFw       ! advective transport
       !
-      INTEGER ::   ji, jj, jk   ! dummy loop index
-      REAL(wp)::   z_2stfp      ! local scalar 2 x rn_stfp
-      LOGICAL ::   ll_Fw        ! local logical
+      INTEGER ::   ji, jj, jk        ! dummy loop index
+      REAL(wp)::   z_stfp, z_2stfp   ! local scalar
+      LOGICAL ::   ll_Fw             ! local logical
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE :: zFu_cor, zFv_cor   ! 2D workspace
       !!----------------------------------------------------------------------
       !
@@ -139,30 +139,39 @@ CONTAINS
       IF( ln_shuman .AND. kstg == 3 ) THEN      ! shuman averaging (stage 3 only)
          ll_Fw = .true.
          !
-         z_2stfp = 2._wp * rn_stfp
+         !   shuman time filter parameter (1/6)
+         z_stfp  = 0.1666666_wp
+         z_2stfp = 2._wp * z_stfp 
          !
          ALLOCATE( zFu_cor(T2D(nn_hls)), zFv_cor(T2D(nn_hls)) )
          !
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+#if defined key_linssh
             zFu_cor(ji,jj) = ( z_2stfp * un_adv(ji,jj) * r1_hu_0(ji,jj)   &
-               &             - rn_stfp * (  ( 1._wp + r3u(ji,jj,Kaa) ) / ( 1._wp + r3u(ji,jj,Kmm) ) * uu_b(ji,jj,Kaa)   &
+               &             -  z_stfp * (  uu_b(ji,jj,Kaa) + uu_b(ji,jj,Kbb)  ) ) * e2u(ji,jj)
+            zFv_cor(ji,jj) = ( z_2stfp * vn_adv(ji,jj) * r1_hv_0(ji,jj)   &
+               &             -  z_stfp * (  vv_b(ji,jj,Kaa) + vv_b(ji,jj,Kbb)  ) ) * e1v(ji,jj)
+#else
+            zFu_cor(ji,jj) = ( z_2stfp * un_adv(ji,jj) * r1_hu_0(ji,jj)   &
+               &             -  z_stfp * (  ( 1._wp + r3u(ji,jj,Kaa) ) / ( 1._wp + r3u(ji,jj,Kmm) ) * uu_b(ji,jj,Kaa)   &
                &                          + ( 1._wp + r3u(ji,jj,Kbb) ) / ( 1._wp + r3u(ji,jj,Kmm) ) * uu_b(ji,jj,Kbb)  ) &
                &             ) * e2u(ji,jj)
             zFv_cor(ji,jj) = ( z_2stfp * vn_adv(ji,jj) * r1_hv_0(ji,jj)   &
-               &             - rn_stfp * (  ( 1._wp + r3v(ji,jj,Kaa) ) / ( 1._wp + r3v(ji,jj,Kmm) ) * vv_b(ji,jj,Kaa)   &
+               &             -  z_stfp * (  ( 1._wp + r3v(ji,jj,Kaa) ) / ( 1._wp + r3v(ji,jj,Kmm) ) * vv_b(ji,jj,Kaa)   &
                &                          + ( 1._wp + r3v(ji,jj,Kbb) ) / ( 1._wp + r3v(ji,jj,Kmm) ) * vv_b(ji,jj,Kbb)  )&
                &             ) * e1v(ji,jj)
+#endif
          END_2D
          !
          DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
             pFu(ji,jj,jk) = (            (1._wp - z_2stfp) * pFu(ji,jj,jk)                                    &
-               &          + rn_stfp * (                  e3u(ji,jj,jk,Kbb)*uu(ji,jj,jk,Kbb)                   &
+               &          +  z_stfp * (                  e3u(ji,jj,jk,Kbb)*uu(ji,jj,jk,Kbb)                   &
                &                                       + e3u(ji,jj,jk,Kaa)*uu(ji,jj,jk,Kaa)  ) * e2u(ji,jj)   &
                &          + e3u_0(ji,jj,jk) * zFu_cor(ji,jj)                                                  &
                &            ) * umask(ji,jj,jk)
             !
             pFv(ji,jj,jk) = (            (1._wp - z_2stfp) * pFv(ji,jj,jk)                                    &
-               &          + rn_stfp * (                  e3v(ji,jj,jk,Kbb)*vv(ji,jj,jk,Kbb)                   &
+               &          +  z_stfp * (                  e3v(ji,jj,jk,Kbb)*vv(ji,jj,jk,Kbb)                   &
                &                                       + e3v(ji,jj,jk,Kaa)*vv(ji,jj,jk,Kaa)  ) * e1v(ji,jj)   &
                &          + e3v_0(ji,jj,jk) * zFv_cor(ji,jj)                                                  &
                &            ) * vmask(ji,jj,jk)
