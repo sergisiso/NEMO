@@ -208,7 +208,7 @@ CONTAINS
       END_3D
 
     ! Total primary production per year
-    IF( l_dia_pp  )  tpp = glob_3Dsum( 'p2zprod', zprorcan(:,:,:) * cvol(:,:,:), cdelay = 'tpp' )
+    IF( l_dia_pp  )  tpp = glob_3Dsum( 'p2zprod', zprorcan(:,:,:) * cvol(A2D(0),:), cdelay = 'tpp' )
     IF( knt == nrdttrc ) THEN
        IF( l_dia_pp ) THEN
  !         zfact = 1.e+3 * rfact2r  !  conversion from mol/l/kt to  mol/m3/s

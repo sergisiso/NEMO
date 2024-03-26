@@ -190,7 +190,7 @@ CONTAINS
       END_2D
 
       IF( l_dia_tcflx .OR. kt == nitrst )  THEN
-         t_oce_co2_flx  = glob_2Dsum( 'p4zflx',  oce_co2(:,:) * e1e2t(:,:) * 1000._wp, cdelay = 'co2flx' )   !  Total Flux of Carbon
+         t_oce_co2_flx  = glob_2Dsum( 'p4zflx',  oce_co2(:,:) * e1e2t(A2D(0)) * 1000._wp, cdelay = 'co2flx' )   !  Total Flux of Carbon
          t_oce_co2_flx_cum = t_oce_co2_flx_cum + t_oce_co2_flx       !  Cumulative Total Flux of Carbon
 !        t_atm_co2_flx     = glob_2Dsum( 'p4zflx', satmco2(:,:) * e1e2t(:,:) )       ! Total atmospheric pCO2
          t_atm_co2_flx     =  atcco2      ! Total atmospheric pCO2
@@ -213,7 +213,7 @@ CONTAINS
         !
         IF( l_dia_oflx ) THEN
            CALL iom_put( "Oflx", zoflx * 1000._wp )     ! oxygen flux
-           CALL iom_put( "Dpo2", ( atcox * patm(:,:) - atcox * tr(:,:,1,jpoxy,Kbb) &  !  Dpo2
+           CALL iom_put( "Dpo2", ( atcox * patm(:,:) - atcox * tr(A2D(0),1,jpoxy,Kbb) &  !  Dpo2
                  &              / ( chemo2(:,:,1) + rtrn ) ) * tmask(A2D(0),1) )
         ENDIF
         !
