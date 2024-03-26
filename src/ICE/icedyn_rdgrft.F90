@@ -566,7 +566,7 @@ CONTAINS
                   hi_hrdg(ji,jl) = zhi(ji,jl) / MAX( zhmean, epsi20 )
                ELSEIF( ln_distf_exp ) THEN
                   hrexp  (ji,jl) = rn_murdg * SQRT( zhi(ji,jl) )
-                  hi_hrdg(ji,jl) = zhi(ji,jl) / ( hrmin(ji,jl) + hrexp(ji,jl) )
+                  hi_hrdg(ji,jl) = zhi(ji,jl) / MAX( hrmin(ji,jl) + hrexp(ji,jl), epsi20 )
                ENDIF
                !
                ! Normalization factor : zaksum, ensures mass conservation
@@ -818,7 +818,7 @@ CONTAINS
                            expR  = EXP( -( hR - hrmin(ji,jl1) ) / hrexp(ji,jl1) )
                            farea = expL - expR
                            fvol  = ( ( hL + hrexp(ji,jl1) ) * expL  &
-                              &    - ( hR + hrexp(ji,jl1) ) * expR ) / ( hrmin(ji,jl1) + hrexp(ji,jl1) )
+                              &    - ( hR + hrexp(ji,jl1) ) * expR ) / MAX( hrmin(ji,jl1) + hrexp(ji,jl1), epsi20 )
                         ELSE
                            farea = 0._wp
                            fvol  = 0._wp
@@ -829,7 +829,7 @@ CONTAINS
                         hL    = MAX( hrmin(ji,jl1), hi_max(jl2-1) )
                         expL  = EXP(-( hL - hrmin(ji,jl1) ) / hrexp(ji,jl1) )
                         farea = expL
-                        fvol  = ( hL + hrexp(ji,jl1) ) * expL / ( hrmin(ji,jl1) + hrexp(ji,jl1) )
+                        fvol  = ( hL + hrexp(ji,jl1) ) * expL / MAX( hrmin(ji,jl1) + hrexp(ji,jl1), epsi20 )
                         !
                      END IF            ! jl2 < jpl
                      ! 
