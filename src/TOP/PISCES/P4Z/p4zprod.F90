@@ -379,7 +379,7 @@ CONTAINS
      ENDIF
 
     ! Total primary production per year
-    IF( l_dia_pp )  tpp = glob_3Dsum( 'p4zprod', ( zprorcan(:,:,:) + zprorcad(:,:,:) ) * cvol(:,:,:) , cdelay = 'tpp')
+    IF( l_dia_pp )  tpp = glob_3Dsum( 'p4zprod', ( zprorcan(:,:,:) + zprorcad(:,:,:) ) * cvol(A2D(0),:) , cdelay = 'tpp')
     IF( knt == nrdttrc ) THEN
        !
        IF( l_dia_pp ) THEN
