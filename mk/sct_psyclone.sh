@@ -46,6 +46,7 @@ ACTION='TRANSFORM'
 [[ "${FILENAME}" == 'isfpar.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
 [[ "${FILENAME}" == 'lib_fortran.f90'       ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'p4zpoc.f90'            ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
+[[ "${FILENAME}" == 'prtctl.f90'            ]] && ACTION='EXCLUDE'   # protect 'PRECISION' intrinsic-function call
 [[ "${FILENAME}" == 'sbc_phy.f90'           ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'sbcblk.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' constructs
 [[ "${FILENAME}" == 'sbcblk_skin_coare.f90' ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
@@ -63,6 +64,7 @@ if [ ${PSYCLONE_VERSION} == "2.3.1" ]; then
     [[ "${FILENAME}" == 'isftbl.f90'            ]] && ACTION='EXCLUDE'
     [[ "${FILENAME}" == 'julian.f90'            ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix
     [[ "${FILENAME}" == 'lbcnfd.f90'            ]] && ACTION='EXCLUDE'
+    [[ "${FILENAME}" == 'prtctl.f90'            ]] && ACTION='TRANSFORM'
     [[ "${FILENAME}" == 'step.f90'              ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix (AGRIF)
     [[ "${FILENAME}" == 'storng.f90'            ]] && ACTION='EXCLUDE'
     [[ "${FILENAME}" == 'stpmlf.f90'            ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix (AGRIF)
