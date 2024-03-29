@@ -293,7 +293,7 @@ CONTAINS
       !! ** Outputs :   qsb_ice_bot, fhld, qlead
       !!-----------------------------------------------------------------------
       INTEGER  ::   ji, jj             ! dummy loop indices
-      REAL(wp) ::   zfric_u, zqld, zqfr, zqfr_neg, zqfr_pos, zu_io, zv_io, zu_iom1, zv_iom1
+      REAL(wp) ::   zdrag, zfric_u, zqld, zqfr, zqfr_neg, zqfr_pos, zu_io, zv_io, zu_iom1, zv_iom1
       REAL(wp) ::   zswitch
       REAL(wp), PARAMETER ::   zfric_umin = 0._wp       ! lower bound for the friction velocity (cice value=5.e-04)
       REAL(wp), PARAMETER ::   zch        = 0.0057_wp   ! heat transfer coefficient
@@ -308,8 +308,12 @@ CONTAINS
             zv_io   = v_ice(ji  ,jj  ) - ssv_m(ji  ,jj  )
             zv_iom1 = v_ice(ji  ,jj-1) - ssv_m(ji  ,jj-1)
             !
-            zfric(ji,jj) = rn_cio * ( 0.5_wp * (  ( zu_io*zu_io + zu_iom1*zu_iom1 )   &   ! add () for NP repro
-               &                                + ( zv_io*zv_io + zv_iom1*zv_iom1 ) ) ) * smask0(ji,jj)
+            ! FORM-DRAG: for nn_frm = 2 or 3: no impact on ocean-heat transfer coefficient!
+            IF( ln_Cx_ice_frm .AND. nn_frm /= 1  ) THEN   ;   zdrag = drag_io(ji,jj)
+            ELSE                                          ;   zdrag = rn_Cd_io      ; ENDIF
+            !
+            zfric(ji,jj) = zdrag * ( 0.5_wp * (  ( zu_io*zu_io + zu_iom1*zu_iom1 )   &   ! add () for NP repro
+               &                               + ( zv_io*zv_io + zv_iom1*zv_iom1 ) ) ) * smask0(ji,jj)
             zvel (ji,jj) = 0.5_wp * SQRT( ( u_ice(ji-1,jj  ) + u_ice(ji,jj) ) * ( u_ice(ji-1,jj  ) + u_ice(ji,jj) ) + &
                &                          ( v_ice(ji  ,jj-1) + v_ice(ji,jj) ) * ( v_ice(ji  ,jj-1) + v_ice(ji,jj) ) )
          END_2D
@@ -419,7 +423,7 @@ CONTAINS
       !!-------------------------------------------------------------------
       INTEGER ::   ios, ioptio   ! Local integer
       !!
-      NAMELIST/namsbc/ rn_cio, nn_snwfra, rn_snwblow, nn_flxdist, ln_cndflx, ln_cndemulate, nn_qtrice
+      NAMELIST/namsbc/ rn_Cd_io, nn_snwfra, rn_snwblow, nn_flxdist, ln_cndflx, ln_cndemulate, nn_qtrice
       !!-------------------------------------------------------------------
       !
       READ_NML_REF(numnam_ice,namsbc)
@@ -431,7 +435,7 @@ CONTAINS
          WRITE(numout,*) 'ice_sbc_init: ice parameters for ice dynamics '
          WRITE(numout,*) '~~~~~~~~~~~~~~~~'
          WRITE(numout,*) '   Namelist namsbc:'
-         WRITE(numout,*) '      drag coefficient for oceanic stress                       rn_cio        = ', rn_cio
+         WRITE(numout,*) '      drag coefficient for oceanic stress                       rn_Cd_io      = ', rn_Cd_io
          WRITE(numout,*) '      fraction of ice covered by snow (options 0,1,2)           nn_snwfra     = ', nn_snwfra
          WRITE(numout,*) '      coefficient for ice-lead partition of snowfall            rn_snwblow    = ', rn_snwblow
          WRITE(numout,*) '      Multicategory heat flux formulation                       nn_flxdist    = ', nn_flxdist

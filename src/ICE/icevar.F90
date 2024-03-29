@@ -126,9 +126,9 @@ CONTAINS
          vt_s(ji,jj)  = SUM( v_s (ji,jj,:) )
          at_i(ji,jj)  = SUM( a_i (ji,jj,:) )
          !
-         at_ip(ji,jj) = SUM( a_ip(ji,jj,:) ) ! melt ponds
-         vt_ip(ji,jj) = SUM( v_ip(ji,jj,:) )
-         vt_il(ji,jj) = SUM( v_il(ji,jj,:) )
+         at_ip    (ji,jj) = SUM( a_ip    (ji,jj,:) ) ! melt ponds
+         vt_ip    (ji,jj) = SUM( v_ip    (ji,jj,:) )
+         vt_il    (ji,jj) = SUM( v_il    (ji,jj,:) )
          !
          ato_i(ji,jj) = 1._wp - at_i(ji,jj)  ! open water fraction
       END_2D
@@ -136,6 +136,8 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )
          et_s(ji,jj)  = SUM( SUM( e_s (ji,jj,:,:), dim=2 ) )
          et_i(ji,jj)  = SUM( SUM( e_i (ji,jj,:,:), dim=2 ) )
+         !
+         at_ip_eff(ji,jj) = SUM( a_ip_eff(ji,jj,:) * a_i(ji,jj,:) )
          !
          !!GS: tm_su always needed by ABL over sea-ice
          IF( at_i(ji,jj) <= epsi20 ) THEN
@@ -265,8 +267,6 @@ CONTAINS
       REAL(wp) ::   ze_s, ztmelts, zbbb, zccc       !   -      -
       REAL(wp) ::   zhmax, z1_hmax                  !   -      -
       REAL(wp) ::   zlay_i, zlay_s                  !   -      -
-      REAL(wp), PARAMETER ::   zhl_max =  0.015_wp  ! pond lid thickness above which the ponds disappear from the albedo calculation
-      REAL(wp), PARAMETER ::   zhl_min =  0.005_wp  ! pond lid thickness below which the full pond area is used in the albedo calculation
       REAL(wp) ::   z1_hl, z1_a_i, z1_a_ip
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   za_s_fra
       !!-------------------------------------------------------------------
@@ -307,7 +307,7 @@ CONTAINS
       IF( kn == 1 .OR. ln_pnd ) THEN
          ALLOCATE( za_s_fra(A2D(0),jpl) )
          !
-         z1_hl = 1._wp / ( zhl_max - zhl_min )
+         z1_hl = 1._wp / ( rn_pnd_hl_max - rn_pnd_hl_min )
          DO jl = 1, jpl
             DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
                IF( a_ip(ji,jj,jl) > epsi20 ) THEN   ;   z1_a_ip = 1._wp / a_ip(ji,jj,jl)
@@ -322,11 +322,13 @@ CONTAINS
                IF( a_i(ji,jj,jl) > epsi20 ) THEN   ;   a_ip_frac(ji,jj,jl) = a_ip(ji,jj,jl) / a_i(ji,jj,jl)
                ELSE                                ;   a_ip_frac(ji,jj,jl) = 0._wp
                ENDIF
-               IF    ( h_il(ji,jj,jl) <= zhl_min ) THEN   ;   a_ip_eff(ji,jj,jl) = a_ip_frac(ji,jj,jl)       ! lid is very thin.  Expose all the pond
-               ELSEIF( h_il(ji,jj,jl) >= zhl_max ) THEN   ;   a_ip_eff(ji,jj,jl) = 0._wp                     ! lid is very thick. Cover all the pond up with ice and snow
-               ELSE                                       ;   a_ip_eff(ji,jj,jl) = a_ip_frac(ji,jj,jl) * &   ! lid is in between. Expose part of the pond
-                  &                                                         ( zhl_max - h_il(ji,jj,jl) ) * z1_hl 
+               IF    ( h_il(ji,jj,jl) <= rn_pnd_hl_min ) THEN   ;   a_ip_eff(ji,jj,jl) = a_ip_frac(ji,jj,jl)       ! lid is very thin.  Expose all the pond
+               ELSEIF( h_il(ji,jj,jl) >= rn_pnd_hl_max ) THEN   ;   a_ip_eff(ji,jj,jl) = 0._wp                     ! lid is very thick. Cover all the pond up with ice and snow
+               ELSE                                             ;   a_ip_eff(ji,jj,jl) = a_ip_frac(ji,jj,jl) * &   ! lid is in between. Expose part of the pond
+                  &                                                                    ( rn_pnd_hl_max - h_il(ji,jj,jl) ) * z1_hl 
+
                ENDIF
+               IF( h_ip(ji,jj,jl) < h_s(ji,jj,jl) )   a_ip_eff(ji,jj,jl) = 0._wp
                !
             END_2D
          ENDDO
@@ -418,9 +420,11 @@ CONTAINS
       END DO
       !
       ! integrated values
-      vt_i (:,:) = SUM( v_i, dim=3 )
-      vt_s (:,:) = SUM( v_s, dim=3 )
-      at_i (:,:) = SUM( a_i, dim=3 )
+      vt_i (:,:) = SUM( v_i , dim=3 )
+      vt_ip(:,:) = SUM( v_ip, dim=3 )
+      vt_s (:,:) = SUM( v_s , dim=3 )
+      at_i (:,:) = SUM( a_i , dim=3 )
+      at_ip(:,:) = SUM( a_ip, dim=3 )
       !
    END SUBROUTINE ice_var_glo2eqv
 

@@ -20,6 +20,7 @@ MODULE icethd_pnd
    USE ice1D          ! sea-ice: thermodynamics variables
    USE icetab         ! sea-ice: 1D <==> 2D transformation
    USE sbc_ice        ! surface energy budget
+   USE sbc_oce , ONLY : tprecip, sprecip
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
@@ -37,7 +38,7 @@ MODULE icethd_pnd
    INTEGER, PARAMETER ::   np_pndNO   = 0   ! No pond scheme
    INTEGER, PARAMETER ::   np_pndCST  = 1   ! Constant ice pond scheme
    INTEGER, PARAMETER ::   np_pndLEV  = 2   ! Level ice pond scheme
-   INTEGER, PARAMETER ::   np_pndTOPO = 3   ! Level ice pond scheme
+   INTEGER, PARAMETER ::   np_pndTOPO = 3   ! Topo ice pond scheme
    ! permeability
    INTEGER, PARAMETER ::   np_perm_eff = 2  ! 1 = vertical minimum
    !                                          2 = harmonic mean
@@ -529,7 +530,6 @@ CONTAINS
          zomega,  &      ! conduction
          zdTice,  &      ! temperature difference across ice lid (C)
          zdvice,  &      ! change in ice volume (m)
-         zTavg,   &      ! mean surface temperature across categories (C)
          zfsurf,  &      ! net heat flux, excluding conduction and transmitted radiation (W/m2)
          zTp,     &      ! pond freezing temperature (C)
          zrhoi_L, &      ! volumetric latent heat of sea ice (J/m^3)
@@ -552,8 +552,6 @@ CONTAINS
       ! equivalent for CICE translation
       ! a_ip      -> apond
       ! a_ip_frac -> apnd
-
-      CALL ctl_stop( 'STOP', 'icethd_pnd : topographic melt ponds are still an ongoing work' )
 
       !---------------------------------------------------------------
       ! Initialise
@@ -606,12 +604,16 @@ CONTAINS
                   zv_mlt  = - ( dh_i_sum_2d(ji,jj,jl) * rhoi + dh_s_sum_2d(ji,jj,jl) * rhos ) &        ! available volume of surface melt water per grid area
                      &    * z1_rhow * a_i(ji,jj,jl)
                       ! MV -> could move this directly in ice_thd_dh and get an array (ji,jj,jl) for surface melt water volume per grid area
+                  IF ( ln_pnd_rain ) THEN
+                     zv_mlt = zv_mlt &
+                        &   + ( tprecip(ji,jj) - sprecip(ji,jj) ) * z1_rhow * a_i(ji,jj,jl) * rDt_ice
+                  ENDIF
                   zfr_mlt = rn_apnd_min + ( rn_apnd_max - rn_apnd_min ) * at_i(ji,jj)                  ! fraction of surface meltwater going to ponds
                   zv_pnd  = zfr_mlt * zv_mlt                                                           ! contributing meltwater volume for category jl
 
                   IF( ll_diag_pnd ) THEN
-                     diag_dvpn_mlt(ji,jj) = diag_dvpn_mlt(ji,jj) + zv_mlt * r1_Dt_ice                     ! diags
-                     diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) + ( 1. - zfr_mlt ) * zv_mlt * r1_Dt_ice
+                    diag_dvpn_mlt(ji,jj) = diag_dvpn_mlt(ji,jj) + rhow * zv_mlt * r1_Dt_ice              ! diags
+                    diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * ( 1. - zfr_mlt ) * zv_mlt * r1_Dt_ice
                   ENDIF
                   
                   !--- Create possible new ponds
@@ -650,21 +652,17 @@ CONTAINS
 
          DO_2D( 0, 0, 0, 0 )
 
-            IF ( at_i(ji,jj) > 0.01 .AND. hm_i(ji,jj) > rn_himin .AND. zvolp_ini(ji,jj) > zvp_min * at_i(ji,jj) ) THEN
+            IF ( at_i(ji,jj) > 0.01 .AND. vt_i(ji,jj) > (rn_himin*at_i(ji,jj)) .AND. zvolp_ini(ji,jj) > zvp_min * at_i(ji,jj) ) THEN
 
                !--------------------------
                ! Pond lid growth and melt
                !--------------------------
-               ! Mean surface temperature
-               zTavg = 0._wp
-               DO jl = 1, jpl
-                  zTavg = zTavg + t_su(ji,jj,jl)*a_i(ji,jj,jl)
-               END DO
-               zTavg = zTavg / a_i(ji,jj,jl) !!! could get a division by zero here
 
                DO jl = 1, jpl-1
 
                   IF ( v_il(ji,jj,jl) > epsi10 ) THEN
+
+                     zdvice = MIN( -dh_i_sum_2d(ji,jj,jl)*a_ip(ji,jj,jl), v_il(ji,jj,jl) )
 
                      !----------------------------------------------------------------
                      ! Lid melting: floating upper ice layer melts in whole or part
@@ -672,7 +670,6 @@ CONTAINS
                      ! Use Tsfc for each category
                      IF ( t_su(ji,jj,jl) > zTp ) THEN
 
-                        zdvice = MIN( -dh_i_sum_2d(ji,jj,jl)*a_ip(ji,jj,jl), v_il(ji,jj,jl) )
 
                         IF ( zdvice > epsi10 ) THEN
 
@@ -686,11 +683,13 @@ CONTAINS
                            ! ice lid melted and category is pond covered
                               v_ip(ji,jj,jl)  = v_ip(ji,jj,jl)  + v_il(ji,jj,jl)
 !                             zfpond(ji,jj)    = zfpond (ji,jj)    + v_il(ji,jj,jl)
+                              IF ( ll_diag_pnd ) diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + rhow * v_il(ji,jj,jl) * r1_Dt_ice  ! diag
                               v_il(ji,jj,jl)   = 0._wp
                            ENDIF
                            h_ip(ji,jj,jl) = v_ip(ji,jj,jl) / a_ip(ji,jj,jl) !!! could get a division by zero here
 
-                           IF( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + zdvice   ! diag
+                           IF ( ll_diag_pnd ) diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + rhow * zdvice * r1_Dt_ice ! diag
+
                         ENDIF
 
                      !----------------------------------------------------------------
@@ -702,9 +701,11 @@ CONTAINS
                         ! differential growth of base of surface floating ice layer
                         zdTice = MAX( - ( t_su(ji,jj,jl) - zTd ) , 0._wp ) ! > 0
                         zomega = rcnd_i * zdTice / zrhoi_L
-                        zdHui  = SQRT( 2._wp * zomega * rDt_ice + ( v_il(ji,jj,jl) / a_i(ji,jj,jl) )**2 ) &
-                               - v_il(ji,jj,jl) / a_i(ji,jj,jl)
-                        zdvice = min( zdHui*a_ip(ji,jj,jl) , v_ip(ji,jj,jl) )
+                        ! DML: The official code has a_i here where it should
+                        ! have a_ip (two instances).
+                        ! The following corrects that.
+                        zdHui  = SQRT( 2._wp * zomega * rDt_ice + ( v_il(ji,jj,jl) / a_ip(ji,jj,jl) )**2 ) &
+                               - v_il(ji,jj,jl) / a_ip(ji,jj,jl)
 
                         IF ( zdvice > epsi10 ) THEN
                            v_il (ji,jj,jl)  = v_il(ji,jj,jl)   + zdvice
@@ -713,7 +714,7 @@ CONTAINS
 !                          zfpond(ji,jj)   = zfpond(ji,jj)    - zdvice
                            h_ip(ji,jj,jl)   = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
 
-                           IF( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - zdvice    ! diag
+                           IF( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - rhow * zdvice * r1_Dt_ice  ! diag
                         ENDIF
 
                      ENDIF ! Tsfcn(i,j,n)
@@ -741,7 +742,7 @@ CONTAINS
                         v_il (ji,jj,jl)  = v_il(ji,jj,jl)   + zdvice
                         v_ip(ji,jj,jl)   = v_ip(ji,jj,jl)   - zdvice
 
-                        IF( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - zdvice      ! diag
+                        IF ( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - rhow * zdvice * r1_Dt_ice ! diag
 !                       zvolp(ji,jj)     = zvolp(ji,jj)     - zdvice
 !                       zfpond(ji,jj)    = zfpond(ji,jj)    - zdvice
                         h_ip(ji,jj,jl)   = v_ip(ji,jj,jl) / a_ip(ji,jj,jl) ! MV - in principle, this is useless as h_ip is computed in icevar
@@ -752,9 +753,14 @@ CONTAINS
                END DO ! jl
 
             ELSE  ! remove ponds on thin ice
-
+              
+               IF ( ll_diag_pnd ) THEN
+                 diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + rhow * SUM( v_il(ji,jj,:) ) * r1_Dt_ice  ! diags
+                 diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * SUM( v_ip(ji,jj,:) + v_il(ji,jj,:) ) * r1_Dt_ice
+               ENDIF
                v_ip(ji,jj,:) = 0._wp
                v_il(ji,jj,:) = 0._wp
+
 !              zfpond(ji,jj) = zfpond(ji,jj)- zvolp(ji,jj)
 !		            zvolp(ji,jj)    = 0._wp
 
@@ -879,7 +885,7 @@ CONTAINS
 
        DO_2D( 0, 0, 0, 0 )
 
-             IF ( at_i(ji,jj) > 0.01 .AND. hm_i(ji,jj) > rn_himin .AND. zvolp(ji,jj) > zvp_min * at_i(ji,jj) ) THEN
+             IF ( at_i(ji,jj) > 0.01 .AND. vt_i(ji,jj) > (rn_himin*at_i(ji,jj)) .AND. zvolp(ji,jj) > zvp_min * at_i(ji,jj) ) THEN
 
         !-------------------------------------------------------------------
         ! initialize
@@ -985,7 +991,8 @@ CONTAINS
            drain = zvolp(ji,jj) - cum_max_vol(jpl) + epsi10
            zvolp(ji,jj) = zvolp(ji,jj) - drain ! update meltwater volume available
 
-           IF( ll_diag_pnd )   diag_dvpn_rnf(ji,jj) = - drain      ! diag - overflow counted in the runoff part (arbitrary choice)
+           IF( ll_diag_pnd )   diag_dvpn_rnf(ji,jj) = - diag_dvpn_rnf(ji,jj) - rhow * drain * r1_Dt_ice  
+                                  ! diag - overflow counted in the runoff part (arbitrary choice)
 
            zdvolp(ji,jj) = drain         ! this is the drained water
            IF (zvolp(ji,jj) < epsi10) THEN
@@ -1041,14 +1048,17 @@ CONTAINS
                  drain = perm*a_ip(ji,jj,jl)*pressure_head*rDt_ice / &
                                           (viscosity*hicen(jl))
                  zdvolp(ji,jj) = zdvolp(ji,jj) + min(drain, zvolp(ji,jj))
+                 IF( ll_diag_pnd ) diag_dvpn_drn(ji,jj) = diag_dvpn_drn(ji,jj) - rhow * min(drain, zvolp(ji,jj)) * r1_Dt_ice  ! diag
                  zvolp(ji,jj) = max(zvolp(ji,jj) - drain, 0._wp)
 
                  IF( ll_diag_pnd )   diag_dvpn_drn(ji,jj) = - drain ! diag (could be better coded)
 
                  IF (zvolp(ji,jj) < epsi10) THEN
                     zdvolp(ji,jj) = zdvolp(ji,jj) + zvolp(ji,jj)
+                    IF( ll_diag_pnd ) diag_dvpn_drn(ji,jj) = diag_dvpn_drn(ji,jj) - rhow * zvolp(ji,jj) * r1_Dt_ice ! diag
                     zvolp(ji,jj) = 0._wp
                  END IF
+
              END IF
           END DO
 
@@ -1111,6 +1121,7 @@ CONTAINS
                h_ip(ji,jj,jl) = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
            ELSE
               zdvolp(ji,jj) = zdvolp(ji,jj) + v_ip(ji,jj,jl)
+              IF( ll_diag_pnd ) diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * v_ip(ji,jj,jl) * r1_Dt_ice  ! diag
               h_ip(ji,jj,jl) = 0._wp
               v_ip(ji,jj,jl)  = 0._wp
               a_ip(ji,jj,jl) = 0._wp
@@ -1356,7 +1367,8 @@ CONTAINS
       NAMELIST/namthd_pnd/  ln_pnd, ln_pnd_LEV , rn_apnd_min, rn_apnd_max, rn_pnd_flush, &
          &                          ln_pnd_CST , rn_apnd, rn_hpnd,         &
          &                          ln_pnd_TOPO,                           &
-         &                          ln_pnd_lids, ln_pnd_alb
+         &                          ln_pnd_lids, ln_pnd_rain, ln_pnd_alb,  &
+         &                          rn_pnd_hl_min, rn_pnd_hl_max
       !!-------------------------------------------------------------------
       !
       READ_NML_REF(numnam_ice,namthd_pnd)
@@ -1368,17 +1380,20 @@ CONTAINS
          WRITE(numout,*) 'ice_thd_pnd_init: ice parameters for melt ponds'
          WRITE(numout,*) '~~~~~~~~~~~~~~~~'
          WRITE(numout,*) '   Namelist namicethd_pnd:'
-         WRITE(numout,*) '      Melt ponds activated or not                                 ln_pnd       = ', ln_pnd
-         WRITE(numout,*) '         Topographic melt pond scheme                             ln_pnd_TOPO  = ', ln_pnd_TOPO
-         WRITE(numout,*) '         Level ice melt pond scheme                               ln_pnd_LEV   = ', ln_pnd_LEV
-         WRITE(numout,*) '            Minimum ice fraction that contributes to melt ponds   rn_apnd_min  = ', rn_apnd_min
-         WRITE(numout,*) '            Maximum ice fraction that contributes to melt ponds   rn_apnd_max  = ', rn_apnd_max
-         WRITE(numout,*) '            Pond flushing efficiency                              rn_pnd_flush = ', rn_pnd_flush
-         WRITE(numout,*) '         Constant ice melt pond scheme                            ln_pnd_CST   = ', ln_pnd_CST
-         WRITE(numout,*) '            Prescribed pond fraction                              rn_apnd      = ', rn_apnd
-         WRITE(numout,*) '            Prescribed pond depth                                 rn_hpnd      = ', rn_hpnd
-         WRITE(numout,*) '         Frozen lids on top of melt ponds                         ln_pnd_lids  = ', ln_pnd_lids
-         WRITE(numout,*) '         Melt ponds affect albedo or not                          ln_pnd_alb   = ', ln_pnd_alb
+         WRITE(numout,*) '      Melt ponds activated or not ln_pnd         = ', ln_pnd
+         WRITE(numout,*) '         Topographic melt pond scheme ln_pnd_TOPO    = ', ln_pnd_TOPO
+         WRITE(numout,*) '         Level ice melt pond scheme ln_pnd_LEV     = ', ln_pnd_LEV
+         WRITE(numout,*) '            Minimum ice fraction that contributes to melt ponds   rn_apnd_min    = ', rn_apnd_min
+         WRITE(numout,*) '            Maximum ice fraction that contributes to melt ponds   rn_apnd_max    = ', rn_apnd_max
+         WRITE(numout,*) '            Pond flushing efficiency rn_pnd_flush   = ', rn_pnd_flush
+         WRITE(numout,*) '         Constant ice melt pond scheme ln_pnd_CST     = ', ln_pnd_CST
+         WRITE(numout,*) '            Prescribed pond fraction rn_apnd        = ', rn_apnd
+         WRITE(numout,*) '            Prescribed pond depth rn_hpnd        = ', rn_hpnd
+         WRITE(numout,*) '         Frozen lids on top of melt ponds ln_pnd_lids    = ', ln_pnd_lids
+         WRITE(numout,*) '         Rain added to melt ponds ln_pnd_rain    = ', ln_pnd_rain
+         WRITE(numout,*) '         Melt ponds affect albedo or not ln_pnd_alb     = ', ln_pnd_alb
+         WRITE(numout,*) '         Lid thickness below which full pond area used in albedo  rn_pnd_hl_min  = ', rn_pnd_hl_min
+         WRITE(numout,*) '         Lid thickness above which ponds disappear from albedo    rn_pnd_hl_max  = ', rn_pnd_hl_max
       ENDIF
       !
       !                             !== set the choice of ice pond scheme ==!

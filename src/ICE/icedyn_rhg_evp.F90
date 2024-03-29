@@ -121,7 +121,6 @@ CONTAINS
       INTEGER ::   ji, jj       ! dummy loop indices
       INTEGER ::   jter         ! local integers
       !
-      REAL(wp) ::   zrhoco                                              ! rho0 * rn_cio
       REAL(wp) ::   zdtevp, z1_dtevp                                    ! time step for subcycling
       REAL(wp) ::   ecc2, z1_ecc2                                       ! square of yield ellipse eccenticity
       REAL(wp) ::   zalph1, z1_alph1, zalph2, z1_alph2                  ! alpha coef from Bouillon 2009 or Kimmritz 2017
@@ -156,6 +155,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   ztaux_oi, ztauy_oi              ! ice-ocean stress at U-V points
       REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   ztaux_bi, ztauy_bi              ! ice-OceanBottom stress at U-V points (landfast)
       REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   ztaux_base, ztauy_base          ! ice-bottom stress at U-V points (landfast)
+      REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zdragx_oi, zdragy_oi            ! ice-ocean drags at U-V points
       !
       REAL(wp), DIMENSION(jpi,jpj)       ::   zmsk
       REAL(wp), DIMENSION(A2D(nn_hls-1)) ::   zmsk01x, zmsk01y                ! dummy arrays
@@ -227,7 +227,6 @@ CONTAINS
       !------------------------------------------------------------------------------!
       ! 1) define some variables and initialize arrays
       !------------------------------------------------------------------------------!
-      zrhoco = rho0 * rn_cio
 
       ! ecc2: square of yield ellipse eccenticrity
       ecc2    = rn_ecc * rn_ecc
@@ -305,6 +304,14 @@ CONTAINS
          ztauy_ai(ji,jj) = zaV(ji,jj) * 0.5_wp * ( vtau_ice(ji,jj) + vtau_ice(ji,jj+1) ) * &
             &                                    ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) )
 
+         ! Drag ice-ocean
+         !     Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines
+         !      and the use of MAX(tmask(i,j),tmask(i+1,j) is to mask tau over ice shelves
+         zdragx_oi(ji,jj) = rho0 * zaU(ji,jj) * 0.5_wp * ( drag_io(ji,jj) + drag_io(ji+1,jj) ) * &
+            &                                            ( 2. - umask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji+1,jj,1) )
+         zdragy_oi(ji,jj) = rho0 * zaV(ji,jj) * 0.5_wp * ( drag_io(ji,jj) + drag_io(ji,jj+1) ) * &
+            &                                            ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) )
+         
          ! Surface pressure gradient (- m*g*GRAD(ssh)) at U-V points
          zspgU(ji,jj)    = - zmassU * grav * ( zsshdyn(ji+1,jj) - zsshdyn(ji,jj) ) * r1_e1u(ji,jj)
          zspgV(ji,jj)    = - zmassV * grav * ( zsshdyn(ji,jj+1) - zsshdyn(ji,jj) ) * r1_e2v(ji,jj)
@@ -524,8 +531,9 @@ CONTAINS
             !
             DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
                !                 !--- tau_io/(v_oce - v_ice)
-               zTauO = zaV(ji,jj) * zrhoco * SQRT( ( v_ice (ji,jj) - v_oce (ji,jj) ) * ( v_ice (ji,jj) - v_oce (ji,jj) )  &
-                  &                              + ( u_iceV(ji,jj) - u_oceV(ji,jj) ) * ( u_iceV(ji,jj) - u_oceV(ji,jj) ) )
+               zTauO = zdragy_oi(ji,jj) *  &
+                  &    SQRT( ( v_ice (ji,jj) - v_oce (ji,jj) ) * ( v_ice (ji,jj) - v_oce (ji,jj) )  &
+                  &        + ( u_iceV(ji,jj) - u_oceV(ji,jj) ) * ( u_iceV(ji,jj) - u_oceV(ji,jj) ) )
                !                 !--- Ocean-to-Ice stress
                ztauy_oi(ji,jj) = zTauO * ( v_oce(ji,jj) - v_ice(ji,jj) )
                !
@@ -574,8 +582,9 @@ CONTAINS
             !
             DO_2D( 0, 0, 0, 0 )
                !                 !--- tau_io/(u_oce - u_ice)
-               zTauO = zaU(ji,jj) * zrhoco * SQRT( ( u_ice (ji,jj) - u_oce (ji,jj) ) * ( u_ice (ji,jj) - u_oce (ji,jj) )  &
-                  &                              + ( v_iceU(ji,jj) - v_oceU(ji,jj) ) * ( v_iceU(ji,jj) - v_oceU(ji,jj) ) )
+               zTauO = zdragx_oi(ji,jj) *  &
+                  &    SQRT( ( u_ice (ji,jj) - u_oce (ji,jj) ) * ( u_ice (ji,jj) - u_oce (ji,jj) )  &
+                  &        + ( v_iceU(ji,jj) - v_oceU(ji,jj) ) * ( v_iceU(ji,jj) - v_oceU(ji,jj) ) )
                !                 !--- Ocean-to-Ice stress
                ztaux_oi(ji,jj) = zTauO * ( u_oce(ji,jj) - u_ice(ji,jj) )
                !
@@ -628,8 +637,9 @@ CONTAINS
             !
             DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
                !                 !--- tau_io/(u_oce - u_ice)
-               zTauO = zaU(ji,jj) * zrhoco * SQRT( ( u_ice (ji,jj) - u_oce (ji,jj) ) * ( u_ice (ji,jj) - u_oce (ji,jj) )  &
-                  &                              + ( v_iceU(ji,jj) - v_oceU(ji,jj) ) * ( v_iceU(ji,jj) - v_oceU(ji,jj) ) )
+               zTauO = zdragx_oi(ji,jj) *  &
+                  &    SQRT( ( u_ice (ji,jj) - u_oce (ji,jj) ) * ( u_ice (ji,jj) - u_oce (ji,jj) )  &
+                  &        + ( v_iceU(ji,jj) - v_oceU(ji,jj) ) * ( v_iceU(ji,jj) - v_oceU(ji,jj) ) )
                !                 !--- Ocean-to-Ice stress
                ztaux_oi(ji,jj) = zTauO * ( u_oce(ji,jj) - u_ice(ji,jj) )
                !
@@ -679,8 +689,9 @@ CONTAINS
             !
             DO_2D( 0, 0, 0, 0 )
                !                 !--- tau_io/(v_oce - v_ice)
-               zTauO = zaV(ji,jj) * zrhoco * SQRT( ( v_ice (ji,jj) - v_oce (ji,jj) ) * ( v_ice (ji,jj) - v_oce (ji,jj) )  &
-                  &                              + ( u_iceV(ji,jj) - u_oceV(ji,jj) ) * ( u_iceV(ji,jj) - u_oceV(ji,jj) ) )
+               zTauO = zdragy_oi(ji,jj) *  & 
+                  &    SQRT( ( v_ice (ji,jj) - v_oce (ji,jj) ) * ( v_ice (ji,jj) - v_oce (ji,jj) )  &
+                  &        + ( u_iceV(ji,jj) - u_oceV(ji,jj) ) * ( u_iceV(ji,jj) - u_oceV(ji,jj) ) )
                !                 !--- Ocean-to-Ice stress
                ztauy_oi(ji,jj) = zTauO * ( v_oce(ji,jj) - v_ice(ji,jj) )
                !

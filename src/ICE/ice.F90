@@ -113,6 +113,7 @@ MODULE ice
    !! et_s        |      -      |    Total snow enthalpy          | J/m2  |
    !! v_ibr       |      -      |    relative brine volume        | ???   |
    !! at_ip       |      -      |    Total ice pond concentration |       |
+   !! at_ip_eff   !      -      !    Effective pond concentration |       |
    !! hm_ip       |      -      |    Mean ice pond depth          | m     |
    !! vt_ip       |      -      |    Total ice pond vol. per unit area| m |
    !! hm_il       |      -      |    Mean ice pond lid depth      | m     |
@@ -181,7 +182,7 @@ MODULE ice
    !                                      !   = 1  fraction = 1-exp(-0.2*rhos*hsnw) [MetO formulation]
    !                                      !   = 2  fraction = hsnw / (hsnw+0.02)    [CICE formulation]
                                           ! -- icethd -- !
-   REAL(wp), PUBLIC ::   rn_cio           !: drag coefficient for oceanic stress
+   REAL(wp), PUBLIC ::   rn_Cd_io         !: drag coefficient for oceanic stress
    INTEGER , PUBLIC ::   nn_flxdist       !: Redistribute heat flux over ice categories
    !                                      !   =-1  Do nothing (needs N(cat) fluxes)
    !                                      !   = 0  Average N(cat) fluxes then apply the average over the N(cat) ice
@@ -244,9 +245,12 @@ MODULE ice
    REAL(wp), PUBLIC ::   rn_pnd_flush     !: Pond flushing efficiency (tuning parameter)
    LOGICAL , PUBLIC ::   ln_pnd_CST       !: Melt ponds scheme with constant fraction and depth
    REAL(wp), PUBLIC ::   rn_apnd          !: prescribed pond fraction (0<rn_apnd<1)
-   REAL(wp), PUBLIC ::   rn_hpnd          !: prescribed pond depth    (0<rn_hpnd<1)
+   REAL(wp), PUBLIC ::   rn_hpnd          !: prescribed pond depth (0<rn_hpnd<1)
    LOGICAL,  PUBLIC ::   ln_pnd_lids      !: Allow ponds to have frozen lids
+   LOGICAL,  PUBLIC ::   ln_pnd_rain      !: rain added to melt ponds
    LOGICAL , PUBLIC ::   ln_pnd_alb       !: melt ponds affect albedo
+   REAL(wp), PUBLIC ::   rn_pnd_hl_min    !: pond lid thickness below which full pond area used in albedo calculation
+   REAL(wp), PUBLIC ::   rn_pnd_hl_max    !: pond lid thickness above which ponds disappear from albedo calculation
 
    !                                     !!** ice-diagnostics namelist (namdia) **
    LOGICAL , PUBLIC ::   ln_icediachk     !: flag for ice diag (T) or not (F)
@@ -343,6 +347,10 @@ MODULE ice
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   t1_ice          !: temperature of the first layer          (ln_cndflx=T) [K]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   cnd_ice         !: effective conductivity of the 1st layer (ln_cndflx=T) [W.m-2.K-1]
 
+   ! sea ice drag coefficients
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   drag_io         !: ice-ocean drag coefficient
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   drag_ia         !: ice-atmosphere drag coefficient
+
    !!----------------------------------------------------------------------
    !! * Ice global state variables
    !!----------------------------------------------------------------------
@@ -394,6 +402,7 @@ MODULE ice
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::   h_il          !: melt pond lid thickness                  [m]
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   at_ip         !: total melt pond concentration
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   at_ip_eff     !: effective melt pond concentration
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   hm_ip         !: mean melt pond depth                     [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   vt_ip         !: total melt pond volume per gridcell area [m]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   hm_il         !: mean melt pond lid depth                     [m]
@@ -509,6 +518,10 @@ CONTAINS
          &      icb_tmask (jpi,jpj) , icb_umask (jpi,jpj) , icb_vmask (jpi,jpj) , &
          &      fast_tmask(jpi,jpj) , fast_umask(jpi,jpj) , fast_vmask(jpi,jpj) , STAT=ierr(ii) )
 
+      ! * Form Drag
+      ii = ii + 1
+      ALLOCATE( drag_io(jpi,jpj) , drag_ia(jpi,jpj), STAT=ierr(ii) )
+
       ! * mean and total
       ii = ii + 1
       ALLOCATE( vt_i (jpi,jpj) , vt_s (jpi,jpj) , at_i (jpi,jpj) , & ! full arrays since they are used in rheology
@@ -517,7 +530,6 @@ CONTAINS
       ! * others
       ii = ii + 1
       ALLOCATE( rn_amax_2d(jpi,jpj) , STAT=ierr(ii) )
-
 
       ! -------------------- !
       ! == REDUCED ARRAYS == !
@@ -560,7 +572,7 @@ CONTAINS
       ALLOCATE( t_bo (A2D(0)) , st_i (A2D(0)) , et_i(A2D(0)) , et_s  (A2D(0)) , hm_i (A2D(0)) ,  &
          &      hm_ip(A2D(0)) , hm_il(A2D(0)) , tm_i(A2D(0)) , tm_s  (A2D(0)) ,  &
          &      sm_i (A2D(0)) , hm_s (A2D(0)) , om_i(A2D(0)) , vm_ibr(A2D(0)) ,  &
-         &      tm_su(A2D(0)) , STAT=ierr(ii) )
+         &      tm_su(A2D(0)) , at_ip_eff(A2D(0)) , STAT=ierr(ii) )
 
       ! * others
       ii = ii + 1
@@ -631,6 +643,7 @@ CONTAINS
          &      hfx_err_dif , wfx_err_sub  )
       DEALLOCATE( wfx_res , sfx_res , hfx_res )
       DEALLOCATE( qtr_ice_bot , cnd_ice , t1_ice )
+      DEALLOCATE( drag_io, drag_ia )
       DEALLOCATE( delta_i , divu_i , shear_i ) 
       DEALLOCATE( t_bo  , st_i  , et_i , et_s   , hm_i  ,  &
          &      hm_ip , hm_il , tm_i , tm_s   ,  &
