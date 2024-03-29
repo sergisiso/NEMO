@@ -182,7 +182,6 @@ CONTAINS
             v_il(ji,jj,jl) = 0._wp
             h_ip(ji,jj,jl) = 0._wp
             h_il(ji,jj,jl) = 0._wp
-            !
          END_2D
          !
       ENDDO

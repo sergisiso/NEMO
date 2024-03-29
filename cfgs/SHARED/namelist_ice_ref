@@ -83,7 +83,7 @@
    ln_str_smooth    = .true.          !  spatial smoothing of the ice strength
                    ! -- ice_rdgrft -- !
    ln_distf_lin     = .true.          !  redistribution function of ridged ice: linear (Hibler 1980)
-   ln_distf_exp     = .false.         !  redistribution function of ridged ice: exponential => not coded yet
+   ln_distf_exp     = .false.         !  redistribution function of ridged ice: exponential (Lipscomb et al 2017)
       rn_murdg      =   3.0           !     e-folding scale of ridged ice (m**.5)
    rn_csrdg         =   0.5           !  fraction of shearing energy contributing to ridging
               ! -- ice_rdgrft_prep -- !
@@ -133,7 +133,7 @@
 !------------------------------------------------------------------------------
 &namsbc         !   Ice surface boundary conditions
 !------------------------------------------------------------------------------
-   rn_cio           =   5.0e-03       !  ice-ocean drag coefficient (-)
+   rn_Cd_io         =   5.0e-03       !  ice-ocean drag coefficient (-)
    nn_snwfra        =   2             !  calculate the fraction of ice covered by snow (for zdf and albedo)
                                       !     = 0  fraction = 1 (if snow) or 0 (if no snow)
                                       !     = 1  fraction = 1-exp(-0.2*rhos*hsnw) [MetO formulation]
@@ -245,16 +245,22 @@
 &namthd_pnd     !   Melt ponds
 !------------------------------------------------------------------------------
    ln_pnd            = .true.         !  activate melt ponds or not
-      ln_pnd_TOPO    = .false.        !  topographic melt ponds
-      ln_pnd_LEV     = .true.         !  level ice melt ponds
-         rn_apnd_min =   0.15         !     minimum meltwater fraction contributing to pond growth (TOPO and LEV)
-         rn_apnd_max =   0.85         !     maximum meltwater fraction contributing to pond growth (TOPO and LEV)
-         rn_pnd_flush=   0.1          !     pond flushing efficiency (tuning parameter) (LEV)
-      ln_pnd_CST     = .false.        !  constant  melt ponds
-         rn_apnd     =   0.2          !     prescribed pond fraction, at Tsu=0 degC
-         rn_hpnd     =   0.05         !     prescribed pond depth,    at Tsu=0 degC
-      ln_pnd_lids    = .true.         !  frozen lids on top of the ponds (only for ln_pnd_LEV)
-      ln_pnd_alb     = .true.         !  effect of melt ponds on ice albedo
+      !
+      rn_apnd_min    =  0.15          !  minimum meltwater fraction contributing to pond growth (TOPO and LEV)
+      rn_apnd_max    =  0.80          !  maximum meltwater fraction contributing to pond growth (TOPO and LEV)
+      !
+      ln_pnd_TOPO       = .false.     !  topographic melt ponds
+         ln_pnd_rain    = .true.      !    rain added to melt ponds
+      ln_pnd_LEV        = .true.      !  level ice melt ponds
+         rn_pnd_flush   =  0.1        !    pond flushing efficiency (tuning parameter)
+         ln_pnd_lids    = .true.      !    frozen lids on top of the ponds
+      ln_pnd_CST        = .false.     !  constant  melt ponds
+         rn_apnd        =  0.2        !    prescribed pond fraction, at Tsu=0 degC
+         rn_hpnd        =  0.05       !    prescribed pond depth,    at Tsu=0 degC
+      !
+      ln_pnd_alb        = .true.      !  effect of melt ponds on ice albedo
+         rn_pnd_hl_min  =  0.005      !    pond lid thickness below which full pond area used in albedo calculation
+         rn_pnd_hl_max  =  0.015      !    pond lid thickness above which ponds disappear from albedo calculation
 /
 !------------------------------------------------------------------------------
 &namini         !   Ice initialization

@@ -285,9 +285,19 @@
    !!   
    !! Bulk transfer coefficients over sea-ice: (relevant IF: nn_ice >=1 )
    ln_Cx_ice_cst = .true.     ! use constant ice-air bulk transfer coefficients (value given below)
-      rn_Cd_i  = 1.4e-3       ! sea-ice drag coefficient
-      rn_Ce_i  = 1.4e-3       !    "    sublimation coefficient
-      rn_Ch_i  = 1.4e-3       !    "    sensible heat flux coefficient
+      rn_Cd_ia  = 1.4e-3      ! sea-ice drag coefficient
+      rn_Ce_ia  = 1.4e-3      !    "    sublimation coefficient
+      rn_Ch_ia  = 1.4e-3      !    "    sensible heat flux coefficient
+   ln_Cx_ice_frm = .false.    ! use form drag param from Tsamadoes et al. 2014
+      nn_frm = 2              !     = 1 : affects      momentum and heat transfer coefficient (ocean-ice and atmos-ice)
+                              !     = 2 : affects only momentum          transfer coefficient (ocean-ice and atmos-ice) (default)
+                              !     = 3 : affect       momentum and heat transfer coefficient (atmos-ice), and only momentum transfer coefficient (ocean-ice)
+      rn_Cs_io = 0.002        ! ice-ocn skin drag [0.0005,0.005]
+      rn_Cs_ia = 0.0005       ! ice-air skin drag [0.0001,0.001]
+      rn_Cr_ia = 0.2          ! ridge/keel drag coefficient [0,1]
+      rn_Cr_io = 0.2          ! ridge/keel drag coefficient [0,1]
+      rn_Cf_ia = 0.2          ! floe edge atm [0,1]
+      rn_Cf_io = 0.2          ! floe edge ocean [0,1]
    ln_Cx_ice_AN05  = .false.  !  (Andreas et al. 2005)
    ln_Cx_ice_LU12  = .false.  !  (Lupkes et al. 2012)
    ln_Cx_ice_LG15  = .false.  !  (Lupkes & Gryanik 2015)

@@ -163,7 +163,6 @@
    sn_prec     = 'forcing_C1D_PAPA'   ,  3.   , 'sowaprec',   .false.    , .false. , 'yearly'  , ''  , ''   , ''
    sn_snow     = 'forcing_C1D_PAPA'   ,  3.   , 'sososnow',   .false.    , .false. , 'yearly'  , ''  , ''   , ''
    sn_slp      = 'forcing_C1D_PAPA'   ,  3.   , 'somslpre',   .true.     , .false. , 'yearly'  , ''  , ''   , ''
-
 /
 !-----------------------------------------------------------------------
 &namsbc_cpl    !   coupled ocean/atmosphere model                       ("key_oasis3")

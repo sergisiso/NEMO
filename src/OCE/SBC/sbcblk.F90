@@ -44,7 +44,7 @@ MODULE sbcblk
    !
 #if defined key_si3
    USE sbc_ice        ! Surface boundary condition: ice fields #LB? ok to be in 'key_si3' ???
-   USE ice     , ONLY :   u_ice, v_ice, jpl, a_i_b, at_i_b, t_su, rn_cnd_s, hfx_err_dif, nn_qtrice
+   USE ice     , ONLY :   u_ice, v_ice, jpl, a_i_b, at_i_b, t_su, rn_cnd_s, hfx_err_dif, nn_qtrice, drag_ia
    USE icevar         ! for CALL ice_var_snwblow
    USE sbcblk_algo_ice_an05
    USE sbcblk_algo_ice_lu12
@@ -107,13 +107,26 @@ MODULE sbcblk
    LOGICAL  ::   ln_ANDREAS     ! "ANDREAS"   algorithm   (Andreas et al. 2015)
    LOGICAL  ::   ln_MFS         ! "MFS"       algorithm   (Petenuzzo et al 2010)
    !
-   !#LB:
-   LOGICAL  ::   ln_Cx_ice_cst             ! use constant air-ice bulk transfer coefficients (value given in namelist's rn_Cd_i, rn_Ce_i & rn_Ch_i)
-   REAL(wp) ::   rn_Cd_i, rn_Ce_i, rn_Ch_i ! values for  "    "
-   LOGICAL  ::   ln_Cx_ice_AN05            ! air-ice bulk transfer coefficients based on Andreas et al., 2005
-   LOGICAL  ::   ln_Cx_ice_LU12            ! air-ice bulk transfer coefficients based on Lupkes et al., 2012
-   LOGICAL  ::   ln_Cx_ice_LG15            ! air-ice bulk transfer coefficients based on Lupkes & Gryanik, 2015
-   !#LB.
+   LOGICAL          ::   ln_Cx_ice_cst    ! use constant air-ice bulk transfer coefficients (value given in namelist's rn_Cd_ia,rn_Ce_ia & rn_Ch_ia)
+   REAL(wp), PUBLIC ::   rn_Cd_ia
+   REAL(wp)         ::   rn_Ce_ia, rn_Ch_ia
+   LOGICAL          ::   ln_Cx_ice_AN05   ! air-ice bulk transfer coefficients based on Andreas et al., 2005
+   LOGICAL          ::   ln_Cx_ice_LU12   ! air-ice bulk transfer coefficients based on Lupkes et al., 2012
+   LOGICAL          ::   ln_Cx_ice_LG15   ! air-ice bulk transfer coefficients based on Lupkes & Gryanik, 2015
+   LOGICAL , PUBLIC ::   ln_Cx_ice_frm    !: use form drags
+   INTEGER , PUBLIC ::   nn_frm           !: = 1 : affects momentum and heat transfer coefficient 
+                                          !:       for ocean-ice and atmos-ice (default)
+                                          !: = 2 : affects only momentum transfer coefficient 
+                                          !:       for ocean-ice and atmos-ice
+                                          !: = 3 : affect momentum and heat transfer coefficient (atmos-ice), 
+                                          !:       but only momentum transfer
+                                          ! coefficient (ocean-ice)
+   REAL(wp), PUBLIC ::   rn_Cs_io         !: ice-ocn skin drag [0.0005,0.005]
+   REAL(wp), PUBLIC ::   rn_Cs_ia         !: ice-air skin drag [0.0001,0.001]
+   REAL(wp), PUBLIC ::   rn_Cr_ia         !: ridge/sail drag coefficient [0,1]
+   REAL(wp), PUBLIC ::   rn_Cr_io         !: ridge/keel form drag coefficient [0,1]
+   REAL(wp), PUBLIC ::   rn_Cf_ia         !: floe edge atm [0,1]
+   REAL(wp), PUBLIC ::   rn_Cf_io         !: floe edge ocean [0,1]
    !
    LOGICAL  ::   ln_crt_fbk     ! Add surface current feedback to the wind stress computation  (Renault et al. 2020)
    REAL(wp) ::   rn_stau_a      ! Alpha and Beta coefficients of Renault et al. 2020, eq. 10: Stau = Alpha * Wnd + Beta
@@ -166,6 +179,7 @@ MODULE sbcblk
    INTEGER, PARAMETER ::   np_ice_an05 = 2   ! Andreas et al., 2005
    INTEGER, PARAMETER ::   np_ice_lu12 = 3   ! Lupkes el al., 2012
    INTEGER, PARAMETER ::   np_ice_lg15 = 4   ! Lupkes & Gryanik, 2015
+   INTEGER, PARAMETER ::   np_ice_frm  = 5   ! Tsamadoes et al., 2014
 #endif
    !LB.
 
@@ -222,16 +236,19 @@ CONTAINS
       TYPE(FLD_N) ::   sn_cc, sn_hpgi, sn_hpgj                 !       "                        "
       INTEGER     ::   ipka                                    ! number of levels in the atmospheric variable
       NAMELIST/namsbc_blk/ ln_NCAR, ln_COARE_3p0, ln_COARE_3p6, ln_ECMWF, ln_ANDREAS, ln_MFS, &   ! bulk algorithm
-         &                 rn_zqt, rn_zu, nn_iter_algo, ln_skin_cs, ln_skin_wl,       &
-         &                 rn_pfac, rn_efac,                                          &
-         &                 ln_crt_fbk, rn_stau_a, rn_stau_b,                          &   ! current feedback
-         &                 ln_humi_sph, ln_humi_dpt, ln_humi_rlh, ln_tair_pot,        &
-         &                 ln_prec_met,                                               &
-         &                 ln_Cx_ice_cst, rn_Cd_i, rn_Ce_i, rn_Ch_i,                  &
-         &                 ln_Cx_ice_AN05, ln_Cx_ice_LU12, ln_Cx_ice_LG15,            &
-         &                 cn_dir,                                                    &
-         &                 sn_wndi, sn_wndj, sn_qsr, sn_qlw ,                         &   ! input fields
-         &                 sn_tair, sn_humi, sn_prec, sn_snow, sn_slp,                &
+         &                 rn_zqt, rn_zu, nn_iter_algo, ln_skin_cs, ln_skin_wl,        &
+         &                 rn_pfac, rn_efac,                                           &
+         &                 ln_crt_fbk, rn_stau_a, rn_stau_b,                           &   ! current feedback
+         &                 ln_humi_sph, ln_humi_dpt, ln_humi_rlh, ln_tair_pot,         &
+         &                 ln_prec_met,                                                &
+         &                 ln_Cx_ice_cst,                                              &
+         &                 rn_Cd_ia, rn_Ce_ia, rn_Ch_ia,                               &
+         &                 ln_Cx_ice_frm, nn_frm,                                      &
+         &                 rn_Cs_io, rn_Cs_ia, rn_Cr_ia, rn_Cr_io, rn_Cf_ia, rn_Cf_io, &
+         &                 ln_Cx_ice_AN05, ln_Cx_ice_LU12, ln_Cx_ice_LG15,             &
+         &                 cn_dir,                                                     &
+         &                 sn_wndi, sn_wndj, sn_qsr, sn_qlw ,                          &   ! input fields
+         &                 sn_tair, sn_humi, sn_prec, sn_snow, sn_slp,                 &
          &                 sn_uoatm, sn_voatm, sn_cc, sn_hpgi, sn_hpgj
 
       ! cool-skin / warm-layer !LB
@@ -326,6 +343,9 @@ CONTAINS
       ENDIF
       IF( ln_Cx_ice_LG15 ) THEN
          nblk_ice =  np_ice_lg15   ;   ioptio = ioptio + 1
+      ENDIF
+      IF( ln_Cx_ice_frm ) THEN
+         nblk_ice =  np_ice_frm     ;   ioptio = ioptio + 1
       ENDIF
       IF( ioptio /= 1 )   CALL ctl_stop( 'sbc_blk_init: Choose one and only one ice-atm bulk algorithm' )
 #endif
@@ -458,17 +478,32 @@ CONTAINS
             WRITE(numout,*) '      use ice-atm bulk coeff. from Andreas et al., 2005   ln_Cx_ice_AN05 = ', ln_Cx_ice_AN05
             WRITE(numout,*) '      use ice-atm bulk coeff. from Lupkes et al., 2012    ln_Cx_ice_LU12 = ', ln_Cx_ice_LU12
             WRITE(numout,*) '      use ice-atm bulk coeff. from Lupkes & Gryanik, 2015 ln_Cx_ice_LG15 = ', ln_Cx_ice_LG15
+            WRITE(numout,*) '      use form-drag param from Tsamadoes et al.,2014      ln_Cx_ice_frm  = ', ln_Cx_ice_frm
          ENDIF
          WRITE(numout,*)
          SELECT CASE( nblk_ice )              !* Print the choice of bulk algorithm
          CASE( np_ice_cst  )
             WRITE(numout,*) '   ==>>>   Constant bulk transfer coefficients over sea-ice:'
-            WRITE(numout,*) '      => Cd_ice, Ce_ice, Ch_ice =', REAL(rn_Cd_i,4), REAL(rn_Ce_i,4), REAL(rn_Ch_i,4)
-            IF( (rn_Cd_i<0._wp).OR.(rn_Cd_i>1.E-2_wp).OR.(rn_Ce_i<0._wp).OR.(rn_Ce_i>1.E-2_wp).OR.(rn_Ch_i<0._wp).OR.(rn_Ch_i>1.E-2_wp) ) &
+            WRITE(numout,*) '      => Cd_ice, Ce_ice, Ch_ice =', REAL(rn_Cd_ia,4), REAL(rn_Ce_ia,4), REAL(rn_Ch_ia,4)
+            IF( (rn_Cd_ia<0._wp).OR.(rn_Cd_ia>1.E-2_wp).OR.(rn_Ce_ia<0._wp).OR.(rn_Ce_ia>1.E-2_wp).OR.(rn_Ch_ia<0._wp).OR.(rn_Ch_ia>1.E-2_wp) ) &
                & CALL ctl_stop( 'Be realistic in your pick of Cd_ice, Ce_ice & Ch_ice ! (0 < Cx < 1.E-2)')
          CASE( np_ice_an05 )   ;   WRITE(numout,*) '   ==>>> bulk algo over ice: Andreas et al, 2005'
          CASE( np_ice_lu12 )   ;   WRITE(numout,*) '   ==>>> bulk algo over ice: Lupkes et al, 2012'
          CASE( np_ice_lg15 )   ;   WRITE(numout,*) '   ==>>> bulk algo over ice: Lupkes & Gryanik, 2015'
+         CASE( np_ice_frm )
+            WRITE(numout,*) '   ==>>> form-drag param with nn_frm = ', nn_frm
+            WRITE(numout,*) '   1 : affects momentum and heat transfer coefficient'
+            WRITE(numout,*) '       for ocean-ice and atmos-ice (default)'
+            WRITE(numout,*) '   2 : affects only momentum transfer coefficient'
+            WRITE(numout,*) '       for ocean-ice and atmos-ice'
+            WRITE(numout,*) '   3 : affect momentum and heat transfer coefficient (atmos-ice),'
+            WRITE(numout,*) '       but only momentum transfer coefficient (ocean-ice)'
+            WRITE(numout,*) '                with rn_Cs_io    = ', rn_Cs_io
+            WRITE(numout,*) '                with rn_Cs_ia    = ', rn_Cs_ia
+            WRITE(numout,*) '                with rn_Cr_ia    = ', rn_Cr_ia
+            WRITE(numout,*) '                with rn_Cr_io    = ', rn_Cr_io
+            WRITE(numout,*) '                with rn_Cf_ia    = ', rn_Cf_ia
+            WRITE(numout,*) '                with rn_Cf_io    = ', rn_Cf_io
          END SELECT
 #endif
          !#LB.
@@ -1063,9 +1098,9 @@ CONTAINS
          !
       CASE( np_ice_cst  )
          ! Constant bulk transfer coefficients over sea-ice:
-         Cd_ice(:,:) = rn_Cd_i
-         Ch_ice(:,:) = rn_Ch_i
-         Ce_ice(:,:) = rn_Ce_i
+         Cd_ice(:,:) = rn_Cd_ia
+         Ch_ice(:,:) = rn_Ch_ia
+         Ce_ice(:,:) = rn_Ce_ia
          ! no height adjustment, keeping zt values:
          theta_zu_i(:,:) = ptair(:,:)
          q_zu_i(:,:)     = pqair(:,:)
@@ -1084,6 +1119,19 @@ CONTAINS
          ztmp(:,:) = q_sat( ptsui(:,:), pslp(:,:), l_ice=.TRUE. ) ! temporary array for SSQ
          CALL turb_ice_lg15( rn_zqt, rn_zu, zsipt, ptair, ztmp, pqair, wndm_ice, fr_i(A2D(0)), &
             &                      Cd_ice, Ch_ice, Ce_ice, theta_zu_i, q_zu_i )
+         !
+      CASE ( np_ice_frm )
+         Cd_ice(:,:) = drag_ia(A2D(0))
+         IF ( nn_frm == 1 .or. nn_frm == 3 ) THEN
+           Ch_ice(:,:) = drag_ia(A2D(0))
+           Ce_ice(:,:) = drag_ia(A2D(0))
+         ELSE
+           Ch_ice(:,:) = rn_Ch_ia
+           Ce_ice(:,:) = rn_Ce_ia
+         END IF
+         ! no height adjustment, keeping zt values:
+         theta_zu_i(:,:) = ptair(:,:)
+         q_zu_i(:,:)     = pqair(:,:)
          !
       END SELECT
 

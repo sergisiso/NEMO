@@ -50,6 +50,7 @@ MODULE icestp
    USE eosbn2         ! equation of state
    USE sbc_oce        ! Surface boundary condition: ocean fields
    USE sbc_ice        ! Surface boundary condition: ice   fields
+   USE sbcblk ,  ONLY : ln_Cx_ice_frm, rn_Cd_ia
    !
    USE icesbc         ! sea-ice: Surface boundary conditions
    USE icedyn         ! sea-ice: dynamics
@@ -63,6 +64,7 @@ MODULE icestp
    USE iceistate      ! sea-ice: initial state
    USE iceitd         ! sea-ice: remapping thickness distribution
    USE icealb         ! sea-ice: albedo
+   USE icefrm         ! sea-ice: form drag param
    !
    USE bdy_oce , ONLY : ln_bdy   ! flag for bdy
    USE bdyice         ! unstructured open boundary data for sea-ice
@@ -150,6 +152,8 @@ CONTAINS
          !------------------------------------------------!
          ! --- Dynamical coupling with the atmosphere --- !
          !------------------------------------------------!
+         IF ( ln_Cx_ice_frm )           CALL ice_frm ( kt )           ! -- Sea Ice form drag param 
+
                                         ! surface ice stress (utau_ice, vtau_ice) [N/m2]
                                         CALL ice_sbc_tau( kt, ksbc, utau_ice, vtau_ice )
          !
@@ -302,6 +306,9 @@ CONTAINS
       !
       fr_i  (:,:)   = at_i(:,:)        ! initialisation of sea-ice fraction
       tn_ice(:,:,:) = t_su(A2D(0),:)   ! initialisation of surface temp for coupled simu
+      !
+      drag_ia(:,:) = rn_Cd_ia          ! initialisation of ice-atm drags
+      drag_io(:,:) = rn_Cd_io          ! initialisation of ice-oce drags
       !
       IF( ln_rstart )  THEN
          CALL iom_close( numrir )  ! close input ice restart file

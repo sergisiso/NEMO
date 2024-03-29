@@ -348,7 +348,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj   ! dummy loop indices
       REAL(wp) ::   zutau_ice, zu_t, zmodt   ! local scalar
-      REAL(wp) ::   zvtau_ice, zv_t, zrhoco  !   -      -
+      REAL(wp) ::   zvtau_ice, zv_t          !   -      -
       REAL(wp) ::   zflagi                   !   -      -
       !!---------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('iceupdate')
@@ -358,8 +358,6 @@ CONTAINS
          WRITE(numout,*)'ice_update_tau: update stress at the ice-ocean interface'
          WRITE(numout,*)'~~~~~~~~~~~~~~'
       ENDIF
-
-      zrhoco = rho0 * rn_cio
       !
       IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN     !==  Ice time-step only  ==!   (i.e. surface module time-step)
          DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )    !*  rhoco * |U_ice-U_oce| at T-point
@@ -369,17 +367,17 @@ CONTAINS
             !                                               ! |U_ice-U_oce|^2
             zmodt =  0.25_wp * (  zu_t * zu_t + zv_t * zv_t  )
             !
-            tmod_io(ji,jj) = zrhoco * SQRT( zmodt )
+            tmod_io(ji,jj) = rho0 * drag_io(ji,jj) * SQRT( zmodt )
          END_2D
          !
-         DO_2D( 0, 0, 0, 0 )                                !* save the air-ocean stresses at ice time-step
+         DO_2D( 0, 0, 0, 0 )                                !* save the ice-ocean stresses at ice time-step
             !                                               ! 2*(U_ice-U_oce) at T-point
             zu_t = ( u_ice(ji,jj) + u_ice(ji-1,jj) ) - ( u_oce(ji,jj) + u_oce(ji-1,jj) ) ! u_oce = ssu_m       add () for
             zv_t = ( v_ice(ji,jj) + v_ice(ji,jj-1) ) - ( v_oce(ji,jj) + v_oce(ji,jj-1) ) ! v_oce = ssv_m       NP repro
             !                                               ! |U_ice-U_oce|^2
             zmodt =  0.25_wp * (  zu_t * zu_t + zv_t * zv_t  )
             !                                               ! update the ocean stress modulus
-            taum(ji,jj) = ( 1._wp - at_i(ji,jj) ) * taum(ji,jj) + at_i(ji,jj) * zrhoco * zmodt
+            taum(ji,jj) = ( 1._wp - at_i(ji,jj) ) * taum(ji,jj) + at_i(ji,jj) * rho0 * drag_io(ji,jj) * zmodt
             !
             utau_oce(ji,jj) = utau(ji,jj)
             vtau_oce(ji,jj) = vtau(ji,jj)
