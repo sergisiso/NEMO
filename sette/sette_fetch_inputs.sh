@@ -54,6 +54,23 @@
        echo $full_file "already exist. Delete and re-run to fetch a fresh copy"
     fi
   done
+#
+# AMM12 requires an alternative restart file for RK3 tests at v5.0+. All other inputs are unchanged
+# from 4.2.0, so fetch this separately for now
+#
+  amm12rk3="amm12_restart_oce_rk3.nc"
+  wget "https://gws-access.jasmin.ac.uk/public/nemo/sette_inputs/extras/${amm12rk3}" 
+  if [ -f ./${amm12rk3} ] ; then
+    if [ -d ${FORCING_DIR}/AMM12_v${suff} ] ; then
+      mv ${amm12rk3} ${FORCING_DIR}/AMM12_v${suff}
+      echo "${FORCING_DIR}/AMM12_v${suff}/${amm12rk3} has been installed"
+    else
+      echo "${FORCING_DIR}/${amm12rk3} will need to be moved to the ${FORCING_DIR}/AMM12_v${suff} directory"
+      echo "before running RK3 tests for AMM12"
+    fi
+  else
+    echo "Failed to fetch "${amm12rk3}
+  fi
   cd $orgdir
 #
 exit

@@ -1072,6 +1072,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER         , INTENT(in) ::   kt     ! ocean time-step
       CHARACTER(len=*), INTENT(in) ::   cdrw   ! "READ"/"WRITE" flag
+      !!
+      INTEGER ::   id1   ! local integer
       !!----------------------------------------------------------------------
       !
       IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise 
@@ -1088,7 +1090,7 @@ CONTAINS
          IF( ln_rstart ) THEN                           !* RK3: Read the restart file
 # endif
             IF( .NOT.ln_bt_av ) THEN
-               IF( iom_varid( numrir, 'sshbb_e', ldstop = .FALSE. ) > 0 ) THEN
+               IF( iom_varid( numror, 'sshbb_e', ldstop = .FALSE. ) > 0 ) THEN
                   CALL iom_get( numror, jpdom_auto, 'sshbb_e'  , sshbb_e(:,:), cd_type = 'T', psgn =  1._wp )
                   CALL iom_get( numror, jpdom_auto, 'ubb_e'    ,   ubb_e(:,:), cd_type = 'U', psgn = -1._wp )
                   CALL iom_get( numror, jpdom_auto, 'vbb_e'    ,   vbb_e(:,:), cd_type = 'V', psgn = -1._wp )

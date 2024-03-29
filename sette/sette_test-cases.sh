@@ -198,6 +198,11 @@ if [ ${config} == "OVERFLOW" ];  then
         set_namelist namelist_cfg cn_exp \"OVF\"
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
+	if [ ${USING_RK3} == "yes" ] ;  then
+	    set_namelist namelist_cfg rn_Dt 20.
+	    set_namelist namelist_cfg ln_bt_av .false.
+	    set_namelist namelist_cfg rn_bt_alpha 0.07
+	fi
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -311,6 +316,11 @@ if [ ${config} == "LOCK_EXCHANGE" ] ;  then
         set_namelist namelist_cfg cn_exp \"LOCK\"
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
+	if [ ${USING_RK3} == "yes" ] ;  then
+            set_namelist namelist_cfg rn_Dt 2.
+            set_namelist namelist_cfg ln_bt_av .false.
+            set_namelist namelist_cfg rn_bt_alpha 0.07
+        fi
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -426,20 +436,28 @@ if [ ${config} == "VORTEX" ] ;  then
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg nn_stock ${ITEND}
+	if [ ${USING_RK3} == 'yes' ] ; then
+            set_namelist namelist_cfg rn_Dt 2880.
+            set_namelist namelist_cfg nn_e 48
+        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        if [ ${USING_RK3} == "no" ] ; then set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
         set_namelist 1_namelist_cfg cn_exp \"VORTEX\"
         set_namelist 1_namelist_cfg nn_it000 1
         set_namelist 1_namelist_cfg nn_itend $(( ${ITEND} * 3 ))
         set_namelist 1_namelist_cfg nn_stock $(( ${ITEND} * 3 ))
+	if [ ${USING_RK3} == 'yes' ] ; then
+            set_namelist 1_namelist_cfg rn_Dt 960.
+            set_namelist 1_namelist_cfg nn_e 48
+        fi
         set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt 1_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-        set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        if [ ${USING_RK3} == "no" ] ; then set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
         set_xio_using_server iodef.xml ${USING_MPMD}
         NPROC=6
 
@@ -550,20 +568,26 @@ if [ ${config} == "ICE_AGRIF" ] ;  then
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg nn_stock $(( ${ITEND} / 2 ))
+	if [ ${USING_RK3} == 'yes' ] ; then
+            set_namelist namelist_cfg rn_Dt 2400.
+        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        if [ ${USING_RK3} == 'no' ] ; then set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
         set_namelist 1_namelist_cfg cn_exp \"ICE_AGRIF\"
         set_namelist 1_namelist_cfg nn_it000 1
         set_namelist 1_namelist_cfg nn_itend $(( ${ITEND} * 3 ))
         set_namelist 1_namelist_cfg nn_stock $(( ${ITEND} * 3 / 2 ))
+	if [ ${USING_RK3} == 'yes' ] ; then
+            set_namelist 1_namelist_cfg rn_Dt 800.
+        fi
         set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt 1_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-        set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        if [ ${USING_RK3} == 'no' ] ; then set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
         set_xio_using_server iodef.xml ${USING_MPMD}
         NPROC=6
 
@@ -675,6 +699,9 @@ if [ ${config} == "ISOMIP+" ]; then
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg jpni 9
         set_namelist namelist_cfg jpnj 3
+	if [ ${USING_RK3} == 'yes' ] ; then
+            set_namelist namelist_cfg rn_Dt 1440.
+        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
@@ -791,6 +818,9 @@ if [ ${config} == "SWG" ] && [ ${USING_QCO} == "yes" ] ;  then
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg nn_stock ${ITEND}
+	if [ ${USING_RK3} == 'yes' ] ; then
+            set_namelist namelist_cfg rn_Dt 3600.
+        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2

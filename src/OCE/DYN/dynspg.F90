@@ -223,6 +223,9 @@ CONTAINS
       IF( ln_dynspg_exp .AND. ln_isfcav )   &
            &   CALL ctl_stop( ' dynspg_exp not tested with ice shelf cavity ' )
       !
+      IF( ln_dynspg_exp .AND. lk_RK3 )   &
+           &   CALL ctl_stop( ' dynspg_exp not implemented with RK3 time-stepping ' )
+      !
       IF(lwp) THEN
          WRITE(numout,*)
          IF( nspg == np_EXP )   WRITE(numout,*) '   ==>>>   explicit free surface'

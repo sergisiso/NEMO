@@ -26,7 +26,7 @@ export USING_TILING='yes'      # Default: yes => set ln_tile=.true.     ; use -t
 # controls for some common compile-time keys:
 #
 export USING_QCO='yes'         # Default: yes => add key_qco            ; use -q to delete key_qco
-export USING_RK3='no'          # Default: yes => add key_RK3 & key_qco  ; use -Q to delete key_RK3
+export USING_RK3='yes'         # Default: yes => add key_RK3 & key_qco  ; use -Q to delete key_RK3
 export USING_XIOS='yes'        # Default: yes => add key_xios           ; use -X to delete key_xios
                                #    Note: changing USING_XIOS may require a change in arch file
 #
