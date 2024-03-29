@@ -469,7 +469,9 @@ CONTAINS
          WRITE(numout,*)    '   Namelist : namtile   ---   Domain tiling decomposition'
          WRITE(numout,*)    '      Tiling (T) or not (F)                ln_tile    = ', ln_tile
       ENDIF
-
+#if defined key_agrif && key_RK3
+      IF( ln_tile )   CALL ctl_stop( 'AGRIF not operationnal with key_RK3 and tiling. Set ln_tile = .false. !' )
+#endif
       ! is_tile in domutl uses the array size to determine if the array represents a tile or the full domain.
       ! To avoid ambiguity, either the tile must be the size of the full domain (i.e. nn_ltile_i = Ni_0), or the largest
       ! possible tile array (internal and halo points) must be smaller than the internal area of the full domain
