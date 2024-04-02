@@ -40,8 +40,9 @@
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-   rn_Dt       =   1440.   !  time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp     =   0.05    !  asselin time filter parameter
+!MLF   rn_Dt       =   1440.   !  time step for the dynamics (and tracer if nn_acc=0)
+   rn_Dt       =   2880.   !  time step for the dynamics (and tracer if nn_acc=0)
+!MLF   rn_atfp     =   0.05    !  asselin time filter parameter
    ln_meshmask = .false.   !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
@@ -210,7 +211,8 @@
          !                          !                     = 1 Boxcar over   nn_e sub-steps
          !                          !                     = 2 Boxcar over 2*nn_e  "    "
       ln_bt_auto    = .false.    ! Number of sub-step defined from:
-         nn_e      =  24         ! =F : the number of sub-step in rn_Dt seconds
+!MLF         nn_e      =  24         ! =F : the number of sub-step in rn_Dt seconds
+         nn_e      =  48         ! =F : the number of sub-step in rn_Dt seconds
 /
 !-----------------------------------------------------------------------
 &namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)

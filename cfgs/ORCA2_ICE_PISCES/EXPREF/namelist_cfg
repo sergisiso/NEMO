@@ -23,11 +23,13 @@
    nn_it000    =       1   !  first time step
    nn_itend    =    5840   !  last  time step (std 5475)
    nn_istate   =       0   !  output the initial state (1) or not (0)
+   nn_time0    =    0130   !  initial time of day in hhmm
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-   rn_Dt       = 5400.     !  time step for the dynamics and tracer
+!MLF   rn_Dt       = 5400.     !  time step for the dynamics and tracer
+   rn_Dt       = 7200.     !  time step for the dynamics and tracer
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)
@@ -78,7 +80,8 @@
 !-----------------------------------------------------------------------
 &namsbc        !   Surface Boundary Condition manager                   (default: NO selection)
 !-----------------------------------------------------------------------
-   nn_fsbc     = 4         !  frequency of SBC module call
+!MLF   nn_fsbc     = 4         !  frequency of SBC module call
+   nn_fsbc     = 2         !  frequency of SBC module call
                            !     (also = the frequency of sea-ice & iceberg model call)
                      ! Type of air-sea fluxes 
    ln_blk      = .true.    !  Bulk formulation                          (T => fill namsbc_blk )
@@ -359,6 +362,10 @@
 &namdyn_spg    !   surface pressure gradient                            (default: NO selection)
 !-----------------------------------------------------------------------
    ln_dynspg_ts  = .true.  !  split-explicit free surface
+!MLF      ln_bt_av      = .true.     ! Time filtering of barotropic variables
+!MLF      rn_bt_alpha   = 0.         ! Temporal diffusion parameter (if ln_bt_av=F)
+      ln_bt_av      = .false.    ! Time filtering of barotropic variables
+      rn_bt_alpha   = 0.09       ! Temporal diffusion parameter (if ln_bt_av=F)
 /
 !-----------------------------------------------------------------------
 &namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)
