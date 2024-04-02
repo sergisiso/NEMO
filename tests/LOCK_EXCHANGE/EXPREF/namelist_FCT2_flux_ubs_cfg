@@ -96,6 +96,10 @@
 &namdyn_spg    !   surface pressure gradient                            (default: NO selection)
 !-----------------------------------------------------------------------
    ln_dynspg_ts   = .true.    ! split-explicit free surface
+!MLF      ln_bt_av      = .true.     ! Time filtering of barotropic variables
+!MLF      rn_bt_alpha   = 0.         ! Temporal diffusion parameter (if ln_bt_av=F)
+      ln_bt_av      = .false.    ! Time filtering of barotropic variables
+      rn_bt_alpha   = 0.07       ! Temporal diffusion parameter (if ln_bt_av=F)
 /
 !-----------------------------------------------------------------------
 &namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)

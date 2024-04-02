@@ -68,7 +68,8 @@
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
 !   rn_Dt      = 3600.     !  1h    - SWG 1 deg
-   rn_Dt       = 1800.     !  30min - SWG 1/4deg
+!MLF   rn_Dt       = 1800.     !  30min - SWG 1/4deg
+   rn_Dt       = 3600.     !  1h    - SWG 1/4deg
    ln_meshmask = .false.   !  =T create a mesh file
 /
 !!======================================================================
@@ -166,7 +167,10 @@
 &namdyn_spg    !   surface pressure gradient                            (default: NO selection)
 !-----------------------------------------------------------------------
    ln_dynspg_exp  = .true.   ! explicit free surface
-/
+!MLF      ln_bt_av      = .true.     ! Time filtering of barotropic variables
+!MLF      rn_bt_alpha   = 0.         ! Temporal diffusion parameter (if ln_bt_av=F)
+      ln_bt_av      = .false.    ! Time filtering of barotropic variables
+      rn_bt_alpha   = 0.07       ! Temporal diffusion parameter (if ln_bt_av=F)/
 !-----------------------------------------------------------------------
 &namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)
 !-----------------------------------------------------------------------

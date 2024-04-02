@@ -40,8 +40,9 @@
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-   rn_Dt       =    480.   !  time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp     =   0.05    !  asselin time filter parameter
+!MLF   rn_Dt       =    480.   !  time step for the dynamics (and tracer if nn_acc=0)
+   rn_Dt       =    960.   !  time step for the dynamics (and tracer if nn_acc=0)
+!MLF   rn_atfp     =   0.05    !  asselin time filter parameter
    ln_meshmask = .false.   !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
@@ -211,12 +212,15 @@
    ln_dynspg_exp = .false. 
    ln_dynspg_ts  = .true.   ! split-explicit free surface
       ln_bt_fw      = .true.     ! Forward integration of barotropic Eqs.
-      ln_bt_av      = .true.     ! Time filtering of barotropic variables
+!MLF      ln_bt_av      = .true.     ! Time filtering of barotropic variables
+      ln_bt_av      = .false.     ! Time filtering of barotropic variables
          nn_bt_flt     = 1          ! Time filter choice  = 0 None
          !                          !                     = 1 Boxcar over   nn_e sub-steps
          !                          !                     = 2 Boxcar over 2*nn_e  "    "
       ln_bt_auto    = .false.    ! Number of sub-step defined from:
-         nn_e      =  24         ! =F : the number of sub-step in rn_Dt seconds
+!MLF         nn_e      =  24         ! =F : the number of sub-step in rn_Dt seconds
+         nn_e      =  48         ! =F : the number of sub-step in rn_Dt seconds
+      rn_bt_alpha = 0.07
 /
 !-----------------------------------------------------------------------
 &namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)
