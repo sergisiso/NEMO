@@ -387,7 +387,7 @@ CONTAINS
       !           This is not clean and should be changed in the future. 
                            CALL bdy_init
       ! ==>
-                           CALL icb_init( rn_Dt, nit000)   ! initialise icebergs instance
+                           CALL icb_init( rn_Dt, nit000, Nnn)   ! initialise icebergs instance
 
       ! compatibility check
       IF( ln_icebergs .AND. ln_M2016 ) THEN

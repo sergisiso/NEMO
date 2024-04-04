@@ -125,20 +125,25 @@ CONTAINS
       this => first_berg
       DO WHILE( ASSOCIATED(this) )
          pt => this%current_point
-         ijne = INT( pt%yj + 0.5 )
-         IF( pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp ) THEN
+         ijne = INT( pt%yj + 0.5 )  ! +0.5 is needed to extract the offset to add to the new i/j after folding
+         ! if icb above the inner domain boundary
+         IF( pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
             !
-            iine = INT( pt%xi + 0.5 )
-            ipts  = nicbfldpts (mi1(iine,nn_hls))
+            iine = INT( pt%xi + 0.5 ) 
+            ! nicbfldpts is the 1st halo line with point correspondance
+            ! nicbpak=100000
+            ! nicbfldpts value = nicbpak * mjg + mig
+            ipts  = nicbfldpts (mi1(iine + (nn_hls-1),nn_hls))
             !
             ! moving across the cut line means both position and
             ! velocity must change
-            ijglo = INT( ipts/nicbpack )
-            iiglo = ipts - nicbpack*ijglo
-            pt%xi = iiglo - ( pt%xi - REAL(iine,wp) )
-            pt%yj = ijglo - ( pt%yj - REAL(ijne,wp) )
+            ijglo = INT( ipts/nicbpack )  ! mjg
+            iiglo = ipts - nicbpack*ijglo ! mig
+            pt%xi = ( iiglo - ( pt%xi - REAL(iine,wp) ) ) - (nn_hls-1)
+            pt%yj = ( ijglo - ( pt%yj - REAL(ijne,wp) ) ) - (nn_hls-1)
             pt%uvel = -1._wp * pt%uvel
             pt%vvel = -1._wp * pt%vvel
+            !
          ENDIF
          this => this%next
       END DO
@@ -603,8 +608,8 @@ CONTAINS
                         ! velocity must change
                         ijglo = INT( ipts/nicbpack )
                         iiglo = ipts - nicbpack*ijglo
-                        pt%xi = iiglo - ( pt%xi - REAL(iine,wp) )
-                        pt%yj = ijglo - ( pt%yj - REAL(ijne,wp) )
+                        pt%xi = iiglo - ( pt%xi + (nn_hls-1) - REAL(iine,wp) ) - (nn_hls-1)
+                        pt%yj = ijglo - ( pt%yj + (nn_hls-1) - REAL(ijne,wp) ) - (nn_hls-1)
                         pt%uvel = -1._wp * pt%uvel
                         pt%vvel = -1._wp * pt%vvel
                         !

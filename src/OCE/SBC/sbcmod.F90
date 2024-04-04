@@ -475,12 +475,14 @@ CONTAINS
       IF( ln_icebergs ) THEN  ! save pure stresses (with no ice-ocean stress) for use by icebergs
          !     Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines
          !      and the use of MAX(tmask(i,j),tmask(i+1,j) is to mask tau over ice shelves
+         ! (PM) cannot be move to icb because we need pure stresses. Why not extract directly wind from sbcblk i
+         ! (icb only need wind)!
          CALL lbc_lnk( 'sbcmod', utau, 'T', -1.0_wp, vtau, 'T', -1.0_wp )
          DO_2D( 0, 0, 0, 0 )
             utau_icb(ji,jj) = 0.5_wp * ( utau(ji,jj) + utau(ji+1,jj) ) * &
-               &                       ( 2. - umask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji+1,jj,1) )
+               &                       ( 2. - umask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji+1,jj,1) ) * umask(ji,jj,1)
             vtau_icb(ji,jj) = 0.5_wp * ( vtau(ji,jj) + vtau(ji,jj+1) ) * &
-               &                       ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) )
+               &                       ( 2. - vmask(ji,jj,1) ) * MAX( tmask(ji,jj,1), tmask(ji,jj+1,1) ) * vmask(ji,jj,1)
          END_2D
          CALL lbc_lnk( 'sbcmod', utau_icb, 'U', -1.0_wp, vtau_icb, 'V', -1.0_wp )
       ENDIF
@@ -503,6 +505,7 @@ CONTAINS
       ! So emp values over the haloes are no more consistent with the inner domain values.
       ! A lbc_lnk is therefore needed to ensure reproducibility and restartability.
       ! see ticket #2113 for discussion about this lbc_lnk.
+      ! (PM) same consideration on qns (no heat flux from iceberg on haloes.
 !!$      IF( ln_icebergs .AND. .NOT. ln_passive_mode )   CALL lbc_lnk( 'sbcmod', emp, 'T', 1.0_wp )
       !clem: not needed anymore since lbc is done afterwards
       
@@ -543,11 +546,13 @@ CONTAINS
 
       ! clem: these should be the only fields that are needed over the entire domain
       !       (in addition to snwice_mass)
+      ! (PM): ldfull is required for iceberg (need to update all the halo and the inner band of the halo on the north fold)
+      !       lbclnk on qns is needed because of the iceberg (need the inner band of the halo on the north fold to be correct)
       IF( ln_rnf ) THEN
          CALL lbc_lnk( 'sbcmod', utau, 'T', -1.0_wp, vtau  , 'T', -1.0_wp, emp, 'T', 1.0_wp, &
-            &                    rnf , 'T',  1.0_wp )
+            &                    rnf , 'T',  1.0_wp, qns, 'T',  1.0_wp, ldfull=.TRUE. )
       ELSE
-         CALL lbc_lnk( 'sbcmod', utau, 'T', -1.0_wp, vtau  , 'T', -1.0_wp, emp, 'T', 1.0_wp )
+         CALL lbc_lnk( 'sbcmod', utau, 'T', -1.0_wp, vtau  , 'T', -1.0_wp, emp, 'T', 1.0_wp, qns, 'T',  1.0_wp, ldfull=.TRUE. )
       ENDIF
       ! --- calculate utau and vtau on U,V-points --- !
       !     Note the use of 0.5*(2-umask) in order to unmask the stress along coastlines

@@ -92,7 +92,6 @@ CONTAINS
             ! Only proceed if this iceberg is on the local processor (excluding halos).
             IF ( ii >= mig(Nis0,nn_hls) .AND. ii <= mig(Nie0,nn_hls) .AND.   &
            &     ij >= mjg(Njs0,nn_hls) .AND. ij <= mjg(Nje0,nn_hls) ) THEN           
-
                CALL iom_get( ncid, jpdom_unknown, 'number', zdata(:) , ktime=jn, kstart=(/1/), kcount=(/nkounts/) )
                localberg%number(:) = INT(zdata(:))
                imax_icb = MAX( imax_icb, INT(zdata(1)) )
@@ -143,6 +142,9 @@ CONTAINS
       ENDIF
       IF( lwp )   WRITE(numout,'(a,i5,a,i5,a)') 'icebergs, icb_rst_read: there were',ibergs_in_file,   &
          &                                    ' bergs in the restart file and', jn,' bergs have been read'
+      !
+      IF (jn /= ibergs_in_file) CALL ctl_stop('Some icebergs lost during restart read') 
+      !
       ! Close file
       CALL iom_close( ncid )
       !

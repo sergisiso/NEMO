@@ -94,7 +94,7 @@ CONTAINS
     9100 FORMAT('kt= ',i8, ' day= ',i8,' secs=',i8)
          !
          !                                   !* copy nemo forcing arrays into iceberg versions with extra halo
-         CALL icb_utl_copy( Kmm )                 ! only necessary for variables not on T points
+         CALL icb_utl_copy()                 ! only necessary for variables not on T points
          !
          !
          !                       !==  process icebergs  ==!
@@ -106,13 +106,13 @@ CONTAINS
          !
          !                       !==  For each berg, evolve  ==!
          !
-         IF( ASSOCIATED(first_berg) )   CALL icb_dyn( kt )       ! ice berg dynamics
+         IF( ASSOCIATED(first_berg) )   CALL icb_dyn( kt, Kmm )       ! ice berg dynamics
    
          IF( lk_mpp ) THEN   ;          CALL icb_lbc_mpp()       ! Send bergs to other PEs
          ELSE                ;          CALL icb_lbc()           ! Deal with any cyclic boundaries in non-mpp case
          ENDIF
    
-         IF( ASSOCIATED(first_berg) )   CALL icb_thm( kt )       ! Ice berg thermodynamics (melting) + rolling
+         IF( ASSOCIATED(first_berg) )   CALL icb_thm( kt, Kmm )       ! Ice berg thermodynamics (melting) + rolling
          !
          !
          !                       !==  diagnostics and output  ==!

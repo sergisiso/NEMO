@@ -17,6 +17,7 @@ MODULE isfutils
    USE dom_oce       , ONLY: narea                                           ! local domain
    USE in_out_manager                                                        ! miscelenious
    USE lib_mpp
+   USE domutl, ONLY : is_tile
 
    IMPLICIT NONE
 
@@ -60,7 +61,7 @@ CONTAINS
       !!
       !!--------------------------------------------------------------------
       CHARACTER(LEN=*)           , INTENT(in) ::   cdtxt
-      REAL(wp), DIMENSION(A2D(0)), INTENT(in) ::   pvar
+      REAL(wp), INTENT(in) ::   pvar(:,:)
       !!--------------------------------------------------------------------
       REAL(wp)    ::   zmin, zmax, zsum
       INTEGER(i8) ::   imodd, ip
@@ -68,6 +69,10 @@ CONTAINS
       INTEGER     ::   isums, idums
       INTEGER     ::   ji, jj, jk
       INTEGER, DIMENSION(jpnij) ::   itmps
+
+      INTEGER    ::   ipi, ipj, ipk, ipl        ! dimensions
+      INTEGER    ::   iilsht, ijlsht            ! loop shift indices
+      INTEGER    ::   iiasht, ijasht            ! array shift indices
       !!--------------------------------------------------------------------
       !
       ! global min/max/sum to check data range and NaN
@@ -84,12 +89,25 @@ CONTAINS
       isums=0 ; itmps(:)=0 ;
       !
       ! local MOD sum
-      DO jj=Njs0,Nje0
-         DO ji=Nis0,Nie0
-            idums = ABS(MOD(TRANSFER(pvar(ji,jj), ip),imodd))
-            itmps(narea) = MOD(itmps(narea) + idums, imods)
-         END DO
-      END DO
+      !!-----------------------------------------------------------------------
+      !
+      ipi = SIZE(pvar,1)   ! 1st dimension
+      ipj = SIZE(pvar,2)   ! 2nd dimension
+      !
+      IF( .NOT. is_tile(SIZE(pvar,1), SIZE(pvar,2)) ) THEN
+         iilsht = ( jpi - ipi ) / 2
+         ijlsht = ( jpj - ipj ) / 2   ! should be the same as iisht...
+      ELSE ! Tile sized array
+         iilsht = ( ntei - ntsi + 1 - ipi ) / 2 + nn_hls
+         ijlsht = ( ntej - ntsj + 1 - ipj ) / 2 + nn_hls
+      END IF
+      iiasht = iilsht + ntsi - 1 - nn_hls
+      ijasht = ijlsht + ntsj - 1 - nn_hls
+      !
+      DO_2D( 0, 0, 0, 0 )
+         idums = ABS(MOD(TRANSFER(pvar(ji-iiasht,jj-ijasht), ip),imodd))
+         itmps(narea) = MOD(itmps(narea) + idums, imods)
+      END_2D
       !
       ! global MOD sum
       CALL mpp_max('debug',itmps(:))

@@ -39,7 +39,7 @@ MODULE icbthm
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE icb_thm( kt )
+   SUBROUTINE icb_thm( kt, Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE icb_thm  ***
       !!
@@ -48,6 +48,7 @@ CONTAINS
       !! ** Method  : - See Martin & Adcroft, Ocean Modelling 34, 2010
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   ! timestep number, just passed to icb_utl_print_berg
+      INTEGER, INTENT(in) ::   Kmm  ! ocean time levelindex
       !
       INTEGER  ::   ii, ij, ji, jj, jk, ikb
       REAL(wp) ::   zM, zT, zW, zL, zSST, zVol, zLn, zWn, zTn, znVol, zIC, zDn, zD, zvb, zub, ztb
@@ -87,18 +88,18 @@ CONTAINS
          pt => this%current_point
          nknberg = this%number(1)
 
-         CALL icb_utl_interp( pt%xi, pt%yj,            &   ! position
-             &                 pssu=pt%ssu, pua=pt%ua, &   ! oce/atm velocities
-             &                 pssv=pt%ssv, pva=pt%va, &   ! oce/atm velocities
-             &                 psst=pt%sst, pcn=pt%cn, &
-             &                 psss=pt%sss             )
-
+         CALL icb_utl_interp( Kmm, pt%xi, pt%yj,            &   ! position
+             &                      pssu=pt%ssu, pua=pt%ua, &   ! oce/atm velocities
+             &                      pssv=pt%ssv, pva=pt%va, &   ! oce/atm velocities
+             &                      psst=pt%sst, pcn=pt%cn, &
+             &                      psss=pt%sss             )
+         !
          IF ( nn_sample_rate > 0 .AND. MOD(kt-1,nn_sample_rate) == 0 ) THEN
-            CALL icb_utl_interp( pt%xi, pt%yj, pe1=pt%e1, pe2=pt%e2,                 &
-               &                 pui=pt%ui, pssh_i=pt%ssh_x, &
-               &                 pvi=pt%vi, pssh_j=pt%ssh_y, &
-               &                 phi=pt%hi,                  &
-               &                 plat=pt%lat, plon=pt%lon )
+            CALL icb_utl_interp( Kmm, pt%xi, pt%yj, pe1=pt%e1, pe2=pt%e2, &
+               &                       pui=pt%ui, pssh_i=pt%ssh_x,        &
+               &                       pvi=pt%vi, pssh_j=pt%ssh_y,        &
+               &                       phi=pt%hi,                         &
+               &                       plat=pt%lat, plon=pt%lon    )
          END IF
          !
          zSST = pt%sst
@@ -124,7 +125,8 @@ CONTAINS
          IF ( ln_M2016 ) THEN
 
             ! load t, u, v and e3 profile at icb position
-            CALL icb_utl_interp( pt%xi, pt%yj, ptoce=ztoce, puoce=zuoce, pvoce=zvoce, pe3t=ze3t )
+            CALL icb_utl_interp( Kmm, pt%xi, pt%yj, pe3t=ze3t,               &
+                                       ptoce=ztoce, puoce=zuoce, pvoce=zvoce )
             
             !compute bottom level
             CALL icb_utl_getkb( pt%kb, ze3t, zD )

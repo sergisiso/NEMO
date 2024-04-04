@@ -31,7 +31,7 @@ MODULE icbdyn
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE icb_dyn( kt )
+   SUBROUTINE icb_dyn( kt, Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE icb_dyn  ***
       !!
@@ -40,6 +40,7 @@ CONTAINS
       !! ** Method  : - See Martin & Adcroft, Ocean Modelling 34, 2010
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   !
+      INTEGER, INTENT(in) ::   Kmm  ! ocean time levelindex
       !
       LOGICAL  ::   ll_bounced
       REAL(wp) ::   zuvel1 , zvvel1 , zu1, zv1, zax1, zay1, zxi1 , zyj1
@@ -84,8 +85,8 @@ CONTAINS
 
 
          !                                         !**   A1 = A(X1,V1)
-         CALL icb_accel( kt, berg , zxi1, ze1, zuvel1, zuvel1, zax1,     &
-            &                   zyj1, ze2, zvvel1, zvvel1, zay1, zdt_2, 0.5_wp )
+         CALL icb_accel( kt, Kmm, berg, zxi1, ze1, zuvel1, zuvel1, zax1,               &
+            &                           zyj1, ze2, zvvel1, zvvel1, zay1, zdt_2, 0.5_wp )
          !
          zu1 = zuvel1 / ze1                           !**   V1 in d(i,j)/dt
          zv1 = zvvel1 / ze2
@@ -97,12 +98,12 @@ CONTAINS
          zxi2 = zxi1 + zdt_2 * zu1          ;   zuvel2 = zuvel1 + zdt_2 * zax1
          zyj2 = zyj1 + zdt_2 * zv1          ;   zvvel2 = zvvel1 + zdt_2 * zay1
          !
-         CALL icb_ground( berg, zxi2, zxi1, zu1,   &
-            &                   zyj2, zyj1, zv1, ll_bounced )
+         CALL icb_ground( Kmm, berg, zxi2, zxi1, zu1,            &
+            &                        zyj2, zyj1, zv1, ll_bounced )
 
          !                                         !**   A2 = A(X2,V2)
-         CALL icb_accel( kt, berg , zxi2, ze1, zuvel2, zuvel1, zax2,    &
-            &                   zyj2, ze2, zvvel2, zvvel1, zay2, zdt_2, 0.5_wp )
+         CALL icb_accel( kt, Kmm, berg, zxi2, ze1, zuvel2, zuvel1, zax2,               &
+            &                           zyj2, ze2, zvvel2, zvvel1, zay2, zdt_2, 0.5_wp )
          !
          zu2 = zuvel2 / ze1                           !**   V2 in d(i,j)/dt
          zv2 = zvvel2 / ze2
@@ -113,12 +114,12 @@ CONTAINS
          zxi3  = zxi1  + zdt_2 * zu2   ;   zuvel3 = zuvel1 + zdt_2 * zax2
          zyj3  = zyj1  + zdt_2 * zv2   ;   zvvel3 = zvvel1 + zdt_2 * zay2
          !
-         CALL icb_ground( berg, zxi3, zxi1, zu2,   &
-            &                   zyj3, zyj1, zv2, ll_bounced )
+         CALL icb_ground( Kmm, berg, zxi3, zxi1, zu2,            &
+            &                        zyj3, zyj1, zv2, ll_bounced )
 
          !                                         !**   A3 = A(X3,V3)
-         CALL icb_accel( kt, berg , zxi3, ze1, zuvel3, zuvel1, zax3,    &
-            &                   zyj3, ze2, zvvel3, zvvel1, zay3, zdt, 1._wp )
+         CALL icb_accel( kt, Kmm, berg, zxi3, ze1, zuvel3, zuvel1, zax3,            &
+            &                           zyj3, ze2, zvvel3, zvvel1, zay3, zdt, 1._wp )
          !
          zu3 = zuvel3 / ze1                           !**   V3 in d(i,j)/dt
          zv3 = zvvel3 / ze2
@@ -129,12 +130,12 @@ CONTAINS
          zxi4 = zxi1 + zdt * zu3   ;   zuvel4 = zuvel1 + zdt * zax3
          zyj4 = zyj1 + zdt * zv3   ;   zvvel4 = zvvel1 + zdt * zay3
 
-         CALL icb_ground( berg, zxi4, zxi1, zu3,   &
-            &                   zyj4, zyj1, zv3, ll_bounced )
+         CALL icb_ground( Kmm, berg, zxi4, zxi1, zu3,   &
+            &                        zyj4, zyj1, zv3, ll_bounced )
 
          !                                         !**   A4 = A(X4,V4)
-         CALL icb_accel( kt, berg , zxi4, ze1, zuvel4, zuvel1, zax4,    &
-            &                   zyj4, ze2, zvvel4, zvvel1, zay4, zdt, 1._wp )
+         CALL icb_accel( kt, Kmm, berg, zxi4, ze1, zuvel4, zuvel1, zax4,            &
+            &                           zyj4, ze2, zvvel4, zvvel1, zay4, zdt, 1._wp )
 
          zu4 = zuvel4 / ze1                           !**   V4 in d(i,j)/dt
          zv4 = zvvel4 / ze2
@@ -148,8 +149,8 @@ CONTAINS
          zuvel_n = pt%uvel + zdt_6 * (  zax1 + 2.*(zax2 + zax3) + zax4 )
          zvvel_n = pt%vvel + zdt_6 * (  zay1 + 2.*(zay2 + zay3) + zay4 )
 
-         CALL icb_ground( berg, zxi_n, zxi1, zuvel_n,   &
-            &                   zyj_n, zyj1, zvvel_n, ll_bounced )
+         CALL icb_ground( Kmm, berg, zxi_n, zxi1, zuvel_n,            &
+            &                        zyj_n, zyj1, zvvel_n, ll_bounced )
 
          pt%uvel = zuvel_n                        !** save in berg structure
          pt%vvel = zvvel_n
@@ -163,8 +164,8 @@ CONTAINS
    END SUBROUTINE icb_dyn
 
 
-   SUBROUTINE icb_ground( berg, pi, pi0, pu,   &
-      &                         pj, pj0, pv, ld_bounced )
+   SUBROUTINE icb_ground( Kmm, berg, pi, pi0, pu,            &
+      &                              pj, pj0, pv, ld_bounced )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE icb_ground  ***
       !!
@@ -173,6 +174,9 @@ CONTAINS
       !! ** Method  : - adjust velocity and then put iceberg back to start position
       !!                NB two possibilities available one of which is hard-coded here
       !!----------------------------------------------------------------------
+      !
+      INTEGER, INTENT(in) ::   Kmm  ! ocean time levelindex
+      !
       TYPE(iceberg ), POINTER, INTENT(in   ) ::   berg             ! berg
       !
       REAL(wp), INTENT(inout) ::   pi , pj      ! current iceberg position
@@ -209,7 +213,7 @@ CONTAINS
          zD = rho_berg_1_oce * berg%current_point%thickness
          !
          ! interpol needed data
-         CALL icb_utl_interp( pi, pj, pe3t=ze3t )
+         CALL icb_utl_interp( Kmm, pi, pj, pe3t=ze3t )
          ! 
          !compute bottom level
          CALL icb_utl_getkb( ikb, ze3t, zD )
@@ -254,8 +258,8 @@ CONTAINS
    END SUBROUTINE icb_ground
 
 
-   SUBROUTINE icb_accel( kt, berg , pxi, pe1, puvel, puvel0, pax,                 &
-      &                             pyj, pe2, pvvel, pvvel0, pay, pdt, pcfl_scale )
+   SUBROUTINE icb_accel( kt, Kmm, berg , pxi, pe1, puvel, puvel0, pax,                 &
+      &                                  pyj, pe2, pvvel, pvvel0, pay, pdt, pcfl_scale )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE icb_accel  ***
       !!
@@ -263,8 +267,10 @@ CONTAINS
       !!
       !! ** Method  : - sum the terms in the momentum budget
       !!----------------------------------------------------------------------
+      !
       TYPE(iceberg ), POINTER, INTENT(in   ) ::   berg             ! berg
       INTEGER                , INTENT(in   ) ::   kt               ! time step
+      INTEGER                , INTENT(in   ) ::   Kmm              ! ocean time levelindex
       REAL(wp)               , INTENT(in   ) ::   pcfl_scale
       REAL(wp)               , INTENT(in   ) ::   pxi   , pyj      ! berg position in (i,j) referential
       REAL(wp)               , INTENT(in   ) ::   puvel , pvvel    ! berg velocity [m/s]
@@ -293,12 +299,12 @@ CONTAINS
 
       ! Interpolate gridded fields to berg
       nknberg = berg%number(1)
-      CALL icb_utl_interp( pxi, pyj, pe1=pe1, pe2=pe2,     &   ! scale factor
-         &                 pssu=zssu, pui=zui, pua=zua,    &   ! oce/ice/atm velocities
-         &                 pssv=zssv, pvi=zvi, pva=zva,    &   ! oce/ice/atm velocities
-         &                 pssh_i=zssh_x, pssh_j=zssh_y,   &   ! ssh gradient
-         &                 phi=zhi, pff=zff)                   ! ice thickness and coriolis
-
+      CALL icb_utl_interp( Kmm, pxi, pyj, pe1=pe1, pe2=pe2,     &   ! scale factor
+         &                      pssu=zssu, pui=zui, pua=zua,    &   ! oce/ice/atm velocities
+         &                      pssv=zssv, pvi=zvi, pva=zva,    &   ! oce/ice/atm velocities
+         &                      pssh_i=zssh_x, pssh_j=zssh_y,   &   ! ssh gradient
+         &                      phi=zhi, pff=zff)                   ! ice thickness and coriolis
+      !
       zM = berg%current_point%mass
       zT = berg%current_point%thickness               ! total thickness
       zD = rho_berg_1_oce * zT                        ! draught (keel depth)
@@ -309,7 +315,7 @@ CONTAINS
       zhi   = MIN( zhi   , zD    )
       zD_hi = MAX( 0._wp, zD-zhi )
  
-     ! Wave radiation
+      ! Wave radiation
       zuwave = zua - zssu   ;   zvwave = zva - zssv   ! Use wind speed rel. to ocean for wave model
       zwmod  = zuwave*zuwave + zvwave*zvwave          ! The wave amplitude and length depend on the  current;
       !                                               ! wind speed relative to the ocean. Actually wmod is wmod**2 here.
@@ -340,7 +346,7 @@ CONTAINS
       ! ln_M2016: mean velocity along the profile
       IF ( ln_M2016 ) THEN
          ! interpol needed data
-         CALL icb_utl_interp( pxi, pyj, puoce=zuoce, pvoce=zvoce, pe3t=ze3t )   ! 3d velocities
+         CALL icb_utl_interp( Kmm, pxi, pyj, puoce=zuoce, pvoce=zvoce, pe3t=ze3t )   ! 3d velocities
         
          !compute bottom level
          CALL icb_utl_getkb( ikb, ze3t, zD )
