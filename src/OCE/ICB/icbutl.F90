@@ -21,13 +21,12 @@ MODULE icbutl
    USE oce,    ONLY: ts, uu, vv
    USE dom_oce                             ! ocean domain
    USE in_out_manager                      ! IO parameters
-   USE lbclnk                              ! lateral boundary condition
    USE lib_mpp                             ! MPI code and lk_mpp in particular
    USE icb_oce                             ! define iceberg arrays
    USE sbc_oce                             ! ocean surface boundary conditions
 #if defined key_si3
-   USE ice,    ONLY: u_ice, v_ice, at_i, vt_i ! SI3 variables
-   USE icevar                                 ! ice_var_sshdyn
+   USE ice,     ONLY: u_ice, v_ice, at_i, vt_i  ! SI3 variables
+   USE icevar                                   ! ice_var_sshdyn
    USE sbc_ice, ONLY: snwice_mass, snwice_mass_b
 #endif
 
@@ -66,7 +65,7 @@ MODULE icbutl
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE icb_utl_copy( Kmm )
+   SUBROUTINE icb_utl_copy( )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE icb_utl_copy  ***
       !!
@@ -74,78 +73,42 @@ CONTAINS
       !!
       !! ** Method  : - blah blah
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(0:jpi+1,0:jpj+1) :: ztmp
+      REAL(wp), DIMENSION(A2D(2)) :: ztmp
 #if defined key_si3
-      REAL(wp), DIMENSION(jpi,jpj) :: zssh_lead_m    !    ocean surface (ssh_m) if ice is not embedded
-      !                                              !    ocean surface in leads if ice is embedded   
+      REAL(wp), DIMENSION(A2D(2)) :: zssh_lead_m    !    ocean surface (ssh_m) if ice is not embedded
 #endif
-      INTEGER :: jk   ! vertical loop index
-      INTEGER :: Kmm  ! ocean time levelindex
       !
-      ! copy nemo forcing arrays into iceberg versions with extra halo
-      ! only necessary for variables not on T points
-      ! and ssh which is used to calculate gradients
+      ! compute necessary variable from the ice model
+      ! - hi_icb could be replace by hm_i but not done during the cleaning process as it changes results
+      !          need to be done in a second step to ease the verification process
+      ! - sshdyn is slightly more complicated. It is also computed by the sea ice model as tmp variable
+      !          and need also to keep default case sshdyn=ssh_m is no sea-ice model used
       !
-      ! surface forcing
-      !
-      ssu_e(1:jpi,1:jpj) = ssu_m(:,:) * umask(:,:,1)
-      ssv_e(1:jpi,1:jpj) = ssv_m(:,:) * vmask(:,:,1)
-      sst_e(1:jpi,1:jpj) = sst_m(:,:)
-      sss_e(1:jpi,1:jpj) = sss_m(:,:)
-      fr_e (1:jpi,1:jpj) = fr_i (:,:)
-      ua_e (1:jpi,1:jpj) = utau_icb (:,:) * umask(:,:,1) ! maybe mask useless because mask applied in sbcblk
-      va_e (1:jpi,1:jpj) = vtau_icb (:,:) * vmask(:,:,1) ! maybe mask useless because mask applied in sbcblk
-      ff_e(1:jpi,1:jpj) = ff_f (:,:) 
-      !
-      CALL lbc_lnk_icb( 'icbutl', ssu_e, 'U', -1._wp, 1, 1 )
-      CALL lbc_lnk_icb( 'icbutl', ssv_e, 'V', -1._wp, 1, 1 )
-      CALL lbc_lnk_icb( 'icbutl', ua_e , 'U', -1._wp, 1, 1 )
-      CALL lbc_lnk_icb( 'icbutl', va_e , 'V', -1._wp, 1, 1 )
 #if defined key_si3
-      WHERE( at_i(:,:) /= 0._wp )
-         hi_e(1:jpi,1:jpj) = vt_i(:,:) / at_i(:,:)
-      ELSEWHERE
-         hi_e(1:jpi,1:jpj) = 0._wp         
-      ENDWHERE
-      ui_e(1:jpi, 1:jpj) = u_ice(:,:)
-      vi_e(1:jpi, 1:jpj) = v_ice(:,:)
       !      
       ! compute ssh slope using ssh_lead if embedded
       zssh_lead_m(:,:) = ice_var_sshdyn(ssh_m, snwice_mass, snwice_mass_b)
-      ssh_e(1:jpi, 1:jpj) = zssh_lead_m(:,:) * tmask(:,:,1)
+      sshdyn_icb (:,:) = zssh_lead_m(:,:) * tmask(:,:,1)
+
+      WHERE( at_i(:,:) /= 0._wp )
+         hi_icb(:,:) = vt_i(:,:) / at_i(:,:)
+      ELSEWHERE
+         hi_icb(:,:) = 0._wp
+      ENDWHERE
+      !CALL lbc_lnk( 'icb_utl_copy', hm_i    , 'T',  1.0_wp) ! relacing hi_icb by this change results
       !
-      CALL lbc_lnk_icb( 'icbutl', ui_e , 'U', -1._wp, 1, 1 )
-      CALL lbc_lnk_icb( 'icbutl', vi_e , 'V', -1._wp, 1, 1 )
 #else
-      ssh_e(1:jpi, 1:jpj) = ssh_m(:,:) * tmask(:,:,1)         
+      sshdyn_icb (:,:) = ssh_m(:,:) * tmask(:,:,1)         
 #endif
-      !
-      ! (PM) could be improve with a 3d lbclnk gathering both variables
-      ! should be done once extra haloe generalised
-      IF ( ln_M2016 ) THEN
-         DO jk = 1,jpk
-            ! uoce
-            ztmp(1:jpi,1:jpj) = uu(:,:,jk,Kmm)
-            CALL lbc_lnk_icb( 'icbutl', ztmp, 'U', -1._wp, 1, 1 )
-            uoce_e(:,:,jk) = ztmp(:,:)
-            !
-            ! voce
-            ztmp(1:jpi,1:jpj) = vv(:,:,jk,Kmm)
-            CALL lbc_lnk_icb( 'icbutl', ztmp, 'V', -1._wp, 1, 1 )
-            voce_e(:,:,jk) = ztmp(:,:)
-            !
-            e3t_e(1:jpi,1:jpj,jk) = e3t(:,:,jk,Kmm)
-         END DO
-         toce_e(1:jpi,1:jpj,:) = ts(:,:,:,1,Kmm)
-      END IF
       !
    END SUBROUTINE icb_utl_copy
 
 
-   SUBROUTINE icb_utl_interp( pi, pj, pe1 , pssu, pui, pua, pssh_i,         &
-      &                               pe2 , pssv, pvi, pva, pssh_j,         &
-      &                               psst, psss, pcn, phi, pff   ,         &
-      &                               plon, plat, ptoce, puoce, pvoce, pe3t )
+   SUBROUTINE icb_utl_interp( Kmm, pi, pj, pe1 , pssu, pui, pua, pssh_i,         &
+      &                                    pe2 , pssv, pvi, pva, pssh_j,         &
+      &                                    psst, psss, pcn, phi, pff   ,         &
+      &                                    plon, plat, ptoce, puoce, pvoce,      &
+      &                                    pe3t )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE icb_utl_interp  ***
       !!
@@ -162,7 +125,8 @@ CONTAINS
       !!                         - drag coefficient (should it be namelist parameter ?)
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), INTENT(in   ) ::   pi , pj                        ! position in (i,j) referential
+      INTEGER , INTENT(in   ) :: Kmm       ! ocean time levelindex
+      REAL(wp), INTENT(in   ) :: pi , pj   ! position in (i,j) referential
       REAL(wp), INTENT(  out), OPTIONAL ::   pe1, pe2                       ! i- and j scale factors
       REAL(wp), INTENT(  out), OPTIONAL ::   pssu, pssv, pui, pvi, pua, pva ! ocean, ice and wind speeds
       REAL(wp), INTENT(  out), OPTIONAL ::   pssh_i, pssh_j                 ! ssh i- & j-gradients
@@ -188,19 +152,19 @@ CONTAINS
       ! metrics and coordinates
       IF ( PRESENT(pe1 ) ) pe1 = icb_utl_bilin_e( e1t, e1u, e1v, e1f, pi, pj )      ! scale factors
       IF ( PRESENT(pe2 ) ) pe2 = icb_utl_bilin_e( e2t, e2u, e2v, e2f, pi, pj )
-      IF ( PRESENT(plon) ) plon= icb_utl_bilin_h( rlon_e, iiT, ijT, zwT, .true.  )
-      IF ( PRESENT(plat) ) plat= icb_utl_bilin_h( rlat_e, iiT, ijT, zwT, .false. )
+      IF ( PRESENT(plon) ) plon= icb_utl_bilin_h( glamt , iiT, ijT, zwT        , .true.  )
+      IF ( PRESENT(plat) ) plat= icb_utl_bilin_h( gphit , iiT, ijT, zwT        , .false. )
       !
-      IF ( PRESENT(pssu) ) pssu = icb_utl_bilin_h( ssu_e, iiU, ijU, zwU        , .false. ) ! ocean velocities
-      IF ( PRESENT(pssv) ) pssv = icb_utl_bilin_h( ssv_e, iiV, ijV, zwV        , .false. ) !
-      IF ( PRESENT(psst) ) psst = icb_utl_bilin_h( sst_e, iiT, ijT, zwT * zmskT, .false. ) ! sst
-      IF ( PRESENT(psss) ) psss = icb_utl_bilin_h( sss_e, iiT, ijT, zwT * zmskT, .false. ) ! sss
-      IF ( PRESENT(pcn ) ) pcn  = icb_utl_bilin_h( fr_e , iiT, ijT, zwT * zmskT, .false. ) ! ice concentration
-      IF ( PRESENT(pff ) ) pff  = icb_utl_bilin_h( ff_e , iiF, ijF, zwF        , .false. ) ! Coriolis parameter
+      IF ( PRESENT(pssu) ) pssu = icb_utl_bilin_h( ssu_m, iiU, ijU, zwU        , .false. ) ! ocean velocities
+      IF ( PRESENT(pssv) ) pssv = icb_utl_bilin_h( ssv_m, iiV, ijV, zwV        , .false. ) !
+      IF ( PRESENT(psst) ) psst = icb_utl_bilin_h( sst_m, iiT, ijT, zwT * zmskT, .false. ) ! sst
+      IF ( PRESENT(psss) ) psss = icb_utl_bilin_h( sss_m, iiT, ijT, zwT * zmskT, .false. ) ! sss
+      IF ( PRESENT(pcn ) ) pcn  = icb_utl_bilin_h( fr_i , iiT, ijT, zwT * zmskT, .false. ) ! ice concentration
+      IF ( PRESENT(pff ) ) pff  = icb_utl_bilin_h( ff_f , iiF, ijF, zwF        , .false. ) ! Coriolis parameter
       !
       IF ( PRESENT(pua) .AND. PRESENT(pva) ) THEN
-         pua  = icb_utl_bilin_h( ua_e, iiU, ijU, zwU * zmskU, .false. ) ! 10m wind
-         pva  = icb_utl_bilin_h( va_e, iiV, ijV, zwV * zmskV, .false. ) ! here (ua,va) are stress => rough conversion from stress to speed
+         pua  = icb_utl_bilin_h( utau_icb, iiU, ijU, zwU * zmskU, .false. ) ! 10m wind
+         pva  = icb_utl_bilin_h( vtau_icb, iiV, ijV, zwV * zmskV, .false. ) ! here (pua,pva) are stress => rough conversion from stress to speed
          zcd  = 1.22_wp * 1.5e-3_wp                               ! air density * drag coefficient 
          zmod = 1._wp / MAX(  1.e-20, SQRT(  zcd * SQRT( pua*pua + pva*pva)  )  )
          pua  = pua * zmod                                       ! note: stress module=0 necessarly implies ua=va=0
@@ -208,9 +172,10 @@ CONTAINS
       END IF
       !
 #if defined key_si3
-      IF ( PRESENT(pui) ) pui = icb_utl_bilin_h( ui_e , iiU, ijU, zwU        , .false. ) ! sea-ice velocities
-      IF ( PRESENT(pvi) ) pvi = icb_utl_bilin_h( vi_e , iiV, ijV, zwV        , .false. )
-      IF ( PRESENT(phi) ) phi = icb_utl_bilin_h( hi_e , iiT, ijT, zwT * zmskT, .false. ) ! ice thickness
+      IF ( PRESENT(pui) ) pui = icb_utl_bilin_h( u_ice , iiU, ijU, zwU        , .false. ) ! sea-ice velocities
+      IF ( PRESENT(pvi) ) pvi = icb_utl_bilin_h( v_ice , iiV, ijV, zwV        , .false. )
+      IF ( PRESENT(phi) ) phi = icb_utl_bilin_h( hi_icb, iiT, ijT, zwT * zmskT, .false. ) ! ice thickness
+      !IF ( PRESENT(phi) ) phi = icb_utl_bilin_h( hm_i  , iiT, ijT, zwT * zmskT, .false. ) ! ice thickness
 #else
       IF ( PRESENT(pui) ) pui = 0._wp
       IF ( PRESENT(pvi) ) pvi = 0._wp
@@ -223,25 +188,25 @@ CONTAINS
          CALL icb_utl_pos( pi-0.1, pj    , 'T', iiTm, ijTm, zwTm, zmskTm )
          !
          IF ( .NOT. PRESENT(pe1) ) pe1 = icb_utl_bilin_e( e1t, e1u, e1v, e1f, pi, pj )
-         pssh_i = ( icb_utl_bilin_h( ssh_e, iiTp, ijTp, zwTp*zmskTp, .false. ) -   &
-            &       icb_utl_bilin_h( ssh_e, iiTm, ijTm, zwTm*zmskTm, .false. )  ) / ( 0.2_wp * pe1 )
+         pssh_i = ( icb_utl_bilin_h( sshdyn_icb, iiTp, ijTp, zwTp*zmskTp, .false. ) -   &
+            &       icb_utl_bilin_h( sshdyn_icb, iiTm, ijTm, zwTm*zmskTm, .false. )  ) / ( 0.2_wp * pe1 )
          !
          CALL icb_utl_pos( pi    , pj+0.1, 'T', iiTp, ijTp, zwTp, zmskTp )
          CALL icb_utl_pos( pi    , pj-0.1, 'T', iiTm, ijTm, zwTm, zmskTm )
          !
          IF ( .NOT. PRESENT(pe2) ) pe2 = icb_utl_bilin_e( e2t, e2u, e2v, e2f, pi, pj )
-         pssh_j = ( icb_utl_bilin_h( ssh_e, iiTp, ijTp, zwTp*zmskTp, .false. ) -   &
-            &       icb_utl_bilin_h( ssh_e, iiTm, ijTm, zwTm*zmskTm, .false. )  ) / ( 0.2_wp * pe2 )
+         pssh_j = ( icb_utl_bilin_h( sshdyn_icb, iiTp, ijTp, zwTp*zmskTp, .false. ) -   &
+            &       icb_utl_bilin_h( sshdyn_icb, iiTm, ijTm, zwTm*zmskTm, .false. )  ) / ( 0.2_wp * pe2 )
       END IF
       !
       ! 3d interpolation
       IF ( PRESENT(puoce) .AND. PRESENT(pvoce) ) THEN
          ! no need to mask as 0 is a valid data for land
          zw1d(1,:) = zwU(1) ; zw1d(2,:) = zwU(2) ; zw1d(3,:) = zwU(3) ; zw1d(4,:) = zwU(4) ;
-         puoce(:) = icb_utl_bilin_h( uoce_e , iiU, ijU, zw1d )
+         puoce(:) = icb_utl_bilin_h( uu(:,:,:,Kmm), iiU, ijU, zw1d )
 
          zw1d(1,:) = zwV(1) ; zw1d(2,:) = zwV(2) ; zw1d(3,:) = zwV(3) ; zw1d(4,:) = zwV(4) ;
-         pvoce(:) = icb_utl_bilin_h( voce_e , iiV, ijV, zw1d )
+         pvoce(:) = icb_utl_bilin_h( vv(:,:,:,Kmm), iiV, ijV, zw1d )
       END IF
 
       IF ( PRESENT(ptoce) ) THEN
@@ -251,10 +216,10 @@ CONTAINS
          zw1d(2,:) = tmask(iiT+1,ijT  ,:) * zwT(2) * zmskT(2)
          zw1d(3,:) = tmask(iiT  ,ijT+1,:) * zwT(3) * zmskT(3)
          zw1d(4,:) = tmask(iiT+1,ijT+1,:) * zwT(4) * zmskT(4)
-         ptoce(:) = icb_utl_bilin_h( toce_e , iiT, ijT, zw1d )
+         ptoce(:) = icb_utl_bilin_h( ts(:,:,:,1,Kmm) , iiT, ijT, zw1d )
       END IF
       !
-      IF ( PRESENT(pe3t)  ) pe3t(:)  = e3t_e(iiT,ijT,:)    ! as in Nacho tarball need to be fix once we are able to reproduce Nacho results
+      IF ( PRESENT(pe3t)  ) pe3t(:) = e3t(iiT,ijT,:,Kmm) ! as in Nacho tarball need to be fix once we are able to reproduce Nacho results
       !
    END SUBROUTINE icb_utl_interp
 
@@ -353,11 +318,11 @@ CONTAINS
       ! land value is not used in the interpolation
       SELECT CASE ( cd_type )
       CASE ( 'T' )
-         pmsk = (/tmask_e(kii,kij), tmask_e(kii+1,kij), tmask_e(kii,kij+1), tmask_e(kii+1,kij+1)/)
+         pmsk = (/tmask(kii,kij,1), tmask(kii+1,kij,1), tmask(kii,kij+1,1), tmask(kii+1,kij+1,1)/)
       CASE ( 'U' )
-         pmsk = (/umask_e(kii,kij), umask_e(kii+1,kij), umask_e(kii,kij+1), umask_e(kii+1,kij+1)/)
+         pmsk = (/umask(kii,kij,1), umask(kii+1,kij,1), umask(kii,kij+1,1), umask(kii+1,kij+1,1)/)
       CASE ( 'V' )
-         pmsk = (/vmask_e(kii,kij), vmask_e(kii+1,kij), vmask_e(kii,kij+1), vmask_e(kii+1,kij+1)/)
+         pmsk = (/vmask(kii,kij,1), vmask(kii+1,kij,1), vmask(kii,kij+1,1), vmask(kii+1,kij+1,1)/)
       CASE ( 'F' )
          ! F case only used for coriolis, ff_f is not mask so zmask = 1
          pmsk = 1.
@@ -375,7 +340,7 @@ CONTAINS
       !!             the slip/no-slip conditions  ==>>> to be done later
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(0:jpi+1,0:jpj+1), INTENT(in) ::   pfld      ! field to be interpolated
+      REAL(wp), DIMENSION(jpi, jpj)        , INTENT(in) ::   pfld      ! field to be interpolated
       REAL(wp), DIMENSION(4)              , INTENT(in) ::   pw        ! weight
       LOGICAL                             , INTENT(in) ::   pllon     ! input data is a longitude
       INTEGER ,                             INTENT(in) ::   pii, pij  ! bottom left corner
@@ -411,7 +376,7 @@ CONTAINS
       !!             the slip/no-slip conditions  ==>>> to be done later
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(0:jpi+1,0:jpj+1, jpk), INTENT(in) ::   pfld      ! field to be interpolated
+      REAL(wp), DIMENSION(jpi, jpj, jpk), INTENT(in) ::   pfld      ! field to be interpolated
       REAL(wp), DIMENSION(4,jpk)               , INTENT(in) ::   pw        ! weight
       INTEGER ,                                  INTENT(in) ::   pii, pij  ! bottom left corner
       REAL(wp), DIMENSION(jpk) :: icb_utl_bilin_3d_h

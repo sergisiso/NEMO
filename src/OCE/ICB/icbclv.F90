@@ -18,7 +18,6 @@ MODULE icbclv
    USE dom_oce        ! NEMO ocean domain
    USE phycst         ! NEMO physical constants
    USE lib_mpp        ! NEMO MPI library, lk_mpp in particular
-   USE lbclnk         ! NEMO boundary exchanges for gridded data
 
    USE icbdia         ! iceberg diagnostics
    USE icbutl         ! iceberg utility routines

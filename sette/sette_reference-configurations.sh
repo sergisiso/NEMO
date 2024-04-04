@@ -364,7 +364,8 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
         set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
         set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
-        # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, -55.0
+        # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
+	set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
         set_namelist namelist_top_cfg ln_trcbc  .false.
         # put ln_ironsed, ln_hydrofe to false
         # if not you need input files, and for tests is not necessary

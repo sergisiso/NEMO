@@ -472,7 +472,7 @@ CONTAINS
                            CALL dyn_spg_init         ! surface pressure gradient
 
       !                                      ! Icebergs
-                           CALL icb_init( rn_Dt, nit000)   ! initialise icebergs instance
+                           CALL icb_init( rn_Dt, nit000, Nnn )   ! initialise icebergs instance
 
                                                 ! ice shelf
                            CALL isf_init( Nbb, Nnn, Naa )

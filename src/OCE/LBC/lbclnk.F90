@@ -43,12 +43,8 @@ MODULE lbclnk
       MODULE PROCEDURE   lbc_lnk_neicoll_sp ,lbc_lnk_neicoll_dp
    END INTERFACE
    !
-   INTERFACE lbc_lnk_icb
-      MODULE PROCEDURE mpp_lnk_2d_icb_dp, mpp_lnk_2d_icb_sp
-   END INTERFACE
 
    PUBLIC   lbc_lnk            ! ocean/ice lateral boundary conditions
-   PUBLIC   lbc_lnk_icb        ! iceberg lateral boundary conditions
 
    REAL(dp), DIMENSION(:), ALLOCATABLE ::   buffsnd_dp, buffrcv_dp         ! MPI send/recv buffers
    REAL(sp), DIMENSION(:), ALLOCATABLE ::   buffsnd_sp, buffrcv_sp         ! 
@@ -151,56 +147,5 @@ CONTAINS
 #  undef BUFFSND
 #  undef BUFFRCV
 #undef PRECISION
-
-   !!======================================================================
-     !!---------------------------------------------------------------------
-      !!                   ***  routine mpp_lbc_north_icb  ***
-      !!
-      !! ** Purpose :   Ensure proper north fold horizontal bondary condition
-      !!              in mpp configuration in case of jpn1 > 1 and for 2d
-      !!              array with outer extra halo
-      !!
-      !! ** Method  :   North fold condition and mpp with more than one proc
-      !!              in i-direction require a specific treatment. We gather
-      !!              the 4+kextj northern lines of the global domain on 1
-      !!              processor and apply lbc north-fold on this sub array.
-      !!              Then we scatter the north fold array back to the processors.
-      !!              This routine accounts for an extra halo with icebergs
-      !!              and assumes ghost rows and columns have been suppressed.
-      !!
-      !!----------------------------------------------------------------------
-#     define SINGLE_PRECISION
-#     define ROUTINE_LNK           mpp_lbc_north_icb_sp
-#     include "mpp_lbc_north_icb_generic.h90"
-#     undef ROUTINE_LNK
-#     undef SINGLE_PRECISION
-#     define ROUTINE_LNK           mpp_lbc_north_icb_dp
-#     include "mpp_lbc_north_icb_generic.h90"
-#     undef ROUTINE_LNK
-
-
-      !!----------------------------------------------------------------------
-      !!                  ***  routine mpp_lnk_2d_icb  ***
-      !!
-      !! ** Purpose :   Message passing management for 2d array (with extra halo for icebergs)
-      !!                This routine receives a (1-kexti:jpi+kexti,1-kexti:jpj+kextj)
-      !!                array (usually (0:jpi+1, 0:jpj+1)) from lbc_lnk_icb calls.
-      !!
-      !! ** Method  :   Use mppsend and mpprecv function for passing mask
-      !!      between processors following neighboring subdomains.
-      !!            domain parameters
-      !!                    jpi    : first dimension of the local subdomain
-      !!                    jpj    : second dimension of the local subdomain
-      !!                    mpinei : number of neighboring domains (starting at 0, -1 if no neighbourg)
-      !!----------------------------------------------------------------------
-
-#     define SINGLE_PRECISION
-#     define ROUTINE_LNK           mpp_lnk_2d_icb_sp
-#     include "mpp_lnk_icb_generic.h90"
-#     undef ROUTINE_LNK
-#     undef SINGLE_PRECISION
-#     define ROUTINE_LNK           mpp_lnk_2d_icb_dp
-#     include "mpp_lnk_icb_generic.h90"
-#     undef ROUTINE_LNK
 
 END MODULE lbclnk

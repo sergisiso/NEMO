@@ -48,7 +48,7 @@ MODULE icbini
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE icb_init( pdt, kt )
+   SUBROUTINE icb_init( pdt, kt, Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE dom_init  ***
       !!
@@ -62,6 +62,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       REAL(wp), INTENT(in) ::   pdt   ! iceberg time-step (rn_Dt*nn_fsbc)
       INTEGER , INTENT(in) ::   kt    ! time step number
+      INTEGER , INTENT(in) ::   Kmm   ! ocean time level index
       !
       INTEGER ::   ji, jj, jn               ! dummy loop indices
       INTEGER ::   i1, i2, i3               ! local integers
@@ -78,25 +79,6 @@ CONTAINS
       !
       !                          ! allocate gridded fields
       IF( icb_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'icb_alloc : unable to allocate arrays' )
-      !
-      !                          ! initialised variable with extra haloes to zero
-      ssu_e(:,:) = 0._wp   ;   ssv_e(:,:) = 0._wp   ;
-      ua_e(:,:)  = 0._wp   ;   va_e(:,:)  = 0._wp   ;
-      ff_e(:,:)  = 0._wp   ;   sst_e(:,:) = 0._wp   ;
-      fr_e(:,:)  = 0._wp   ;   sss_e(:,:) = 0._wp   ;
-      !
-      IF ( ln_M2016 ) THEN
-         toce_e(:,:,:) = 0._wp
-         uoce_e(:,:,:) = 0._wp
-         voce_e(:,:,:) = 0._wp
-         e3t_e(:,:,:)  = 0._wp
-      END IF
-      !
-#if defined key_si3
-      hi_e(:,:) = 0._wp   ;
-      ui_e(:,:) = 0._wp   ;   vi_e(:,:) = 0._wp   ;
-#endif
-      ssh_e(:,:) = 0._wp  ; 
       !
       !                          ! open ascii output file or files for iceberg status information
       !                          ! note that we choose to do this on all processors since we cannot
@@ -135,8 +117,9 @@ CONTAINS
       ! borrow src_calving arrays for this
       !
       ! pack i and j together using a scaling of a power of 10
-      nicbpack = 10000
-      IF( jpiglo >= nicbpack )   CALL ctl_stop( 'icbini: processor index packing failure' )
+      ! (PM) use 100000 because eORCA36 for example run on more than 10 000 processors
+      nicbpack = 100000
+      IF( (jpiglo >= nicbpack) .OR. (jpjglo*nicbpack+jpiglo > HUGE(src_calving)) )   CALL ctl_stop( 'icbini: processor index packing failure' )
       nicbfldproc(:) = -1
 
       DO_2D( 1, 1, 1, 1 )
@@ -251,24 +234,6 @@ CONTAINS
       src_calving     (:,:) = 0._wp
       src_calving_hflx(:,:) = 0._wp
 
-      ! definition of extended surface masked needed by icb_bilin_h
-      tmask_e(:,:) = 0._wp   ;   tmask_e(1:jpi,1:jpj) = tmask(:,:,1)
-      umask_e(:,:) = 0._wp   ;   umask_e(1:jpi,1:jpj) = umask(:,:,1)
-      vmask_e(:,:) = 0._wp   ;   vmask_e(1:jpi,1:jpj) = vmask(:,:,1)
-      CALL lbc_lnk_icb( 'icbini', tmask_e, 'T', +1._wp, 1, 1 )
-      CALL lbc_lnk_icb( 'icbini', umask_e, 'U', +1._wp, 1, 1 )
-      CALL lbc_lnk_icb( 'icbini', vmask_e, 'V', +1._wp, 1, 1 )
-
-      ! definition of extended lat/lon array needed by icb_bilin_h
-      rlon_e(:,:) = 0._wp     ;  rlon_e(1:jpi,1:jpj) = glamt(:,:) 
-      rlat_e(:,:) = 0._wp     ;  rlat_e(1:jpi,1:jpj) = gphit(:,:)
-      CALL lbc_lnk_icb( 'icbini', rlon_e, 'T', +1._wp, 1, 1 )
-      CALL lbc_lnk_icb( 'icbini', rlat_e, 'T', +1._wp, 1, 1 )
-      !
-      ! definnitionn of extennded ff_f array needed by icb_utl_interp
-      ff_e(:,:) = 0._wp       ;  ff_e(1:jpi,1:jpj) = ff_f(:,:)
-      CALL lbc_lnk_icb( 'icbini', ff_e, 'F', +1._wp, 1, 1 )
-
       ! assign each new iceberg with a unique number constructed from the processor number
       ! and incremented by the total number of processors
       num_bergs(:) = 0
@@ -304,10 +269,10 @@ CONTAINS
       ENDIF
 
       IF( .NOT.ln_rstart ) THEN
-         IF( nn_test_icebergs > 0 )   CALL icb_ini_gen()
+         IF( nn_test_icebergs > 0 )   CALL icb_ini_gen( Kmm )
       ELSE
          IF( nn_test_icebergs > 0 ) THEN
-            CALL icb_ini_gen()
+            CALL icb_ini_gen( Kmm )
          ELSE
             CALL icb_rst_read()
             l_restarted_bergs = .TRUE.
@@ -323,7 +288,7 @@ CONTAINS
    END SUBROUTINE icb_init
 
 
-   SUBROUTINE icb_ini_gen()
+   SUBROUTINE icb_ini_gen( Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE icb_ini_gen  ***
       !!
@@ -333,6 +298,9 @@ CONTAINS
       !!                generate an iceberg in one class determined by the value of
       !!                parameter nn_test_icebergs
       !!----------------------------------------------------------------------
+      !
+      INTEGER, INTENT(in) :: Kmm      ! ocean time level indices
+      !
       INTEGER                         ::   ji, jj, ibergs
       TYPE(iceberg)                   ::   localberg ! NOT a pointer but an actual local variable
       TYPE(point)                     ::   localpt
@@ -355,16 +323,17 @@ CONTAINS
       ! no overlap for icebergs since we want only one instance of each across the whole domain
       ! so restrict area of interest
       ! use tmask here because tmask_i has been doctored on one side of the north fold line
+      ! (PM) tmask_i added because no iceberg should be on the halo at initialisation
 
       DO jj = nicbdj, nicbej
          DO ji = nicbdi, nicbei
-            IF( tmask(ji,jj,1) > 0._wp        .AND.                                       &
+            IF( tmask_i(ji,jj)*tmask(ji,jj,1) > 0._wp        .AND.                                       &
                 rn_test_box(1) < glamt(ji,jj) .AND. glamt(ji,jj) < rn_test_box(2) .AND.   &
                 rn_test_box(3) < gphit(ji,jj) .AND. gphit(ji,jj) < rn_test_box(4) ) THEN
                localberg%mass_scaling = rn_mass_scaling(iberg)
                localpt%xi = REAL( mig(ji,nn_hls) - (nn_hls-1), wp )
                localpt%yj = REAL( mjg(jj,nn_hls) - (nn_hls-1), wp )
-               CALL icb_utl_interp( localpt%xi, localpt%yj, plat=localpt%lat, plon=localpt%lon )   
+               CALL icb_utl_interp( Kmm, localpt%xi, localpt%yj, plat=localpt%lat, plon=localpt%lon )
                localpt%mass      = rn_initial_mass     (iberg)
                localpt%thickness = rn_initial_thickness(iberg)
                localpt%width  = first_width (iberg)

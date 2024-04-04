@@ -36,7 +36,6 @@ MODULE lib_mpp
    !!----------------------------------------------------------------------
    !!   mpp_start     : get local communicator its size and rank
    !!   mpp_lnk       : interface (defined in lbclnk) for message passing of 2d or 3d arrays (mpp_lnk_2d, mpp_lnk_3d)
-   !!   mpp_lnk_icb   : interface for message passing of 2d arrays with extra halo for icebergs (mpp_lnk_2d_icb)
    !!   mpprecv       :
    !!   mppsend       :
    !!   mppscatter    :
@@ -49,7 +48,6 @@ MODULE lib_mpp
    !!   mppsync       :
    !!   mppstop       :
    !!   mpp_ini_northgather : initialisation of north fold with gathering of the communications
-   !!   mpp_lbc_north_icb : alternative to mpp_nfd for extra outer halo with icebergs
    !!   mpp_bcast_nml : broadcast/receive namelist character buffer from reading process to all others
    !!----------------------------------------------------------------------
    USE dom_oce        ! ocean space and time domain

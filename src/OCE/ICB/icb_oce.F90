@@ -82,21 +82,9 @@ MODULE icb_oce
    LOGICAL                             ::   l_restarted_bergs=.FALSE.  ! Indicate whether we read state from a restart or not
    !                                                               ! arbitrary numbers for diawri entry
    REAL(wp), DIMENSION(nclasses), PUBLIC ::   class_num=(/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 /)
-
-   ! Extra arrays with bigger halo, needed when interpolating forcing onto iceberg position
-   ! particularly for MPP when iceberg can lie inside T grid but outside U, V, or f grid
-   REAL(wp), PUBLIC, DIMENSION(:,:), ALLOCATABLE ::   ssu_e, ssv_e
-   REAL(wp), PUBLIC, DIMENSION(:,:), ALLOCATABLE ::   sst_e, sss_e, fr_e
-   REAL(wp), PUBLIC, DIMENSION(:,:), ALLOCATABLE ::   ua_e, va_e
-   REAL(wp), PUBLIC, DIMENSION(:,:), ALLOCATABLE ::   ssh_e
-   REAL(wp), PUBLIC, DIMENSION(:,:), ALLOCATABLE ::   tmask_e, umask_e, vmask_e
-   REAl(wp), PUBLIC, DIMENSION(:,:), ALLOCATABLE ::   rlon_e, rlat_e, ff_e
-   REAl(wp), PUBLIC, DIMENSION(:,:,:), ALLOCATABLE ::   uoce_e, voce_e, toce_e, e3t_e
    !
-#if defined key_si3 || defined key_cice
-   REAL(wp), PUBLIC, DIMENSION(:,:), ALLOCATABLE ::   hi_e, ui_e, vi_e
-#endif
-
+   REAL(wp), PUBLIC, DIMENSION(:,:), ALLOCATABLE ::   sshdyn_icb, hi_icb
+   !
    !!gm almost all those PARAM ARE defined in NEMO
    REAL(wp), PUBLIC, PARAMETER :: pp_rho_ice      = 916.7_wp   !: Density of fresh ice   @ 0oC [kg/m^3]
    REAL(wp), PUBLIC, PARAMETER :: pp_rho_water    = 999.8_wp   !: Density of fresh water @ 0oC [kg/m^3]
@@ -176,36 +164,19 @@ CONTAINS
          &      berg_grid%tmp        (jpi,jpj) , STAT=ill)
       icb_alloc = icb_alloc + ill
       !
-      ! expanded arrays for bilinear interpolation
-      ALLOCATE( ssu_e(0:jpi+1,0:jpj+1) , ua_e(0:jpi+1,0:jpj+1) ,   &
-         &      ssv_e(0:jpi+1,0:jpj+1) , va_e(0:jpi+1,0:jpj+1) ,   &
-#if defined key_si3 || defined key_cice
-         &      ui_e(0:jpi+1,0:jpj+1) ,                            &
-         &      vi_e(0:jpi+1,0:jpj+1) ,                            &
-         &      hi_e(0:jpi+1,0:jpj+1) ,                            &
-#endif
-         &      fr_e(0:jpi+1,0:jpj+1) ,                            &
-         &      sst_e(0:jpi+1,0:jpj+1) , ssh_e(0:jpi+1,0:jpj+1) ,  &
-         &      sss_e(0:jpi+1,0:jpj+1) ,                           & 
-         &      first_width(nclasses) , first_length(nclasses) ,   &
+      ALLOCATE( first_width(nclasses) , first_length(nclasses) ,   &
          &      src_calving (jpi,jpj) ,                            &
          &      src_calving_hflx(jpi,jpj) , STAT=ill)
       icb_alloc = icb_alloc + ill
-
-      IF ( ln_M2016 ) THEN
-         ALLOCATE( uoce_e(0:jpi+1,0:jpj+1,jpk), voce_e(0:jpi+1,0:jpj+1,jpk), &
-            &      toce_e(0:jpi+1,0:jpj+1,jpk), e3t_e(0:jpi+1,0:jpj+1,jpk) , STAT=ill )
-         icb_alloc = icb_alloc + ill
-      END IF
       !
-      ALLOCATE( tmask_e(0:jpi+1,0:jpj+1), umask_e(0:jpi+1,0:jpj+1), vmask_e(0:jpi+1,0:jpj+1), &
-         &      rlon_e(0:jpi+1,0:jpj+1) , rlat_e(0:jpi+1,0:jpj+1) , ff_e(0:jpi+1,0:jpj+1)   , STAT=ill)
-      icb_alloc = icb_alloc + ill
-
       ALLOCATE( nicbfldpts(jpi) , nicbflddest(jpi) , nicbfldproc(jpni) , &
          &      nicbfldnsend(jpni), nicbfldexpect(jpni) , nicbfldreq(jpni), STAT=ill)
       icb_alloc = icb_alloc + ill
+      !
+      ALLOCATE( sshdyn_icb(jpi,jpj), hi_icb(jpi,jpj) , STAT=ill)
+      icb_alloc = icb_alloc + ill
 
+      !
       CALL mpp_sum ( 'icb_oce', icb_alloc )
       IF( icb_alloc > 0 )   CALL ctl_warn('icb_alloc: allocation of arrays failed')
       !
