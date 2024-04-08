@@ -78,7 +78,7 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('trc_sbc')
       !
       ! Allocate temporary workspace
-      IF( l_trdtrc )  ALLOCATE( ztrtrd(jpi,jpj,jpk) )
+      IF( l_trdtrc )  ALLOCATE( ztrtrd(T2D(0),jpk) )
       !
       zrtrn = 1.e-15_wp
 
@@ -172,7 +172,7 @@ CONTAINS
       !
       DO jn = 1, jptra
          !
-         IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs)  ! save trends
+         IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(T2D(0),:,jn,Krhs)  ! save trends
          !
          DO_2D( 0, 0, 0, 0 )
             zse3t = zfact / e3t(ji,jj,1,Kmm)
@@ -180,7 +180,7 @@ CONTAINS
          END_2D
          !
          IF( l_trdtrc ) THEN
-            ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs) - ztrtrd(:,:,:)
+            ztrtrd(:,:,:) = ptr(T2D(0),:,jn,Krhs) - ztrtrd(:,:,:)
             CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_nsr, ztrtrd )
          END IF
          !                                                       ! ===========
@@ -271,10 +271,10 @@ CONTAINS
       CASE( 3 )
          !
          ! Allocate temporary workspace
-         IF( l_trdtrc )  ALLOCATE( ztrtrd(jpi,jpj,jpk) )
+         IF( l_trdtrc )  ALLOCATE( ztrtrd(T2D(0),jpk) )
          !
          DO jn = 1, jptra
-            IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs)  ! save trends
+            IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(T2D(0),:,jn,Krhs)  ! save trends
          END DO
          !
          IF( lk_linssh ) THEN                !* linear free surface (add concentration/dilution effect artificially since no volume variation)
@@ -363,7 +363,7 @@ CONTAINS
          DO jn = 1, jptra
             !
             IF( l_trdtrc ) THEN
-               ztrtrd(:,:,:) = ptr(:,:,:,jn,Krhs) - ztrtrd(:,:,:)
+               ztrtrd(:,:,:) = ptr(T2D(0),:,jn,Krhs) - ztrtrd(:,:,:)
                CALL trd_tra( kt, Kbb, Krhs, 'TRC', jn, jptra_nsr, ztrtrd )
             END IF
             !

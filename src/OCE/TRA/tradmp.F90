@@ -107,9 +107,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('tra_dmp')
       !
       IF( l_trdtra .OR. iom_use('hflx_dmp_cea') .OR. iom_use('sflx_dmp_cea') ) THEN   !* Save ta and sa trends
-         ALLOCATE( ztrdts(T2D(nn_hls),jpk,jpts) )
+         ALLOCATE( ztrdts(T2D(0),jpk,jpts) )
          DO jn = 1, jpts
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+            DO_3D( 0, 0, 0, 0, 1, jpk )
                ztrdts(ji,jj,jk,jn) = pts(ji,jj,jk,jn,Krhs)
             END_3D
          END DO
@@ -176,7 +176,7 @@ CONTAINS
       ENDIF
       !
       IF( l_trdtra )   THEN       ! trend diagnostic
-         ztrdts(:,:,:,:) = pts(:,:,:,:,Krhs) - ztrdts(:,:,:,:)
+         ztrdts(:,:,:,:) = pts(T2D(0),:,:,Krhs) - ztrdts(:,:,:,:)
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_dmp, ztrdts(:,:,:,jp_tem) )
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_dmp, ztrdts(:,:,:,jp_sal) )
          DEALLOCATE( ztrdts )

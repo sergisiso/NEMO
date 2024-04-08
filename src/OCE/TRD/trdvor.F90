@@ -68,9 +68,9 @@ CONTAINS
       !!----------------------------------------------------------------------------
       !!                  ***  ROUTINE trd_vor_alloc  ***
       !!----------------------------------------------------------------------------
-      ALLOCATE( vor_avr   (T2D(0)) , vor_avrb(T2D(0)) , vor_avrbb (T2D(0)) ,   &
-         &      vor_avrbn (T2D(0)) , rotot   (T2D(0)) , vor_avrtot(T2D(0)) ,   &
-         &      vor_avrres(T2D(0)) , vortrd  (T2D(0),jpltot_vor) ,              &
+      ALLOCATE( vor_avr   (A2D(0)) , vor_avrb(A2D(0)) , vor_avrbb (A2D(0)) ,   &
+         &      vor_avrbn (A2D(0)) , rotot   (A2D(0)) , vor_avrtot(A2D(0)) ,   &
+         &      vor_avrres(A2D(0)) , vortrd  (A2D(0),jpltot_vor) ,              &
          &      ndexvor1  (jpi*jpj)                                ,   STAT= trd_vor_alloc )
          !
       CALL mpp_sum ( 'trdvor', trd_vor_alloc )
@@ -85,18 +85,16 @@ CONTAINS
       !! ** Purpose :  computation of cumulated trends over analysis period
       !!               and make outputs (NetCDF format)
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   putrd, pvtrd   ! U and V trends 
-      INTEGER                   , INTENT(in   ) ::   ktrd           ! trend index
-      INTEGER                   , INTENT(in   ) ::   kt             ! time step
-      INTEGER                   , INTENT(in   ) ::   Kmm            ! time level index
+      REAL(wp), DIMENSION(T2D(1),jpk), INTENT(inout) ::   putrd, pvtrd   ! U and V trends
+      INTEGER                        , INTENT(in   ) ::   ktrd           ! trend index
+      INTEGER                        , INTENT(in   ) ::   kt             ! time step
+      INTEGER                        , INTENT(in   ) ::   Kmm            ! time level index
       !
       INTEGER ::   ji, jj   ! dummy loop indices
-      REAL(wp), DIMENSION(jpi,jpj) ::   ztswu, ztswv    ! 2D workspace 
+      REAL(wp), DIMENSION(T2D(1)) ::   ztswu, ztswv    ! 2D workspace
       !!----------------------------------------------------------------------
-
-      CALL lbc_lnk( 'trdvor', putrd, 'U', -1.0_wp , pvtrd, 'V', -1.0_wp )      ! lateral boundary condition
-
-      SELECT CASE( ktrd ) 
+      !
+      SELECT CASE( ktrd )
       CASE( jpdyn_hpg )   ;   CALL trd_vor_zint( putrd, pvtrd, jpvor_prg, Kmm )   ! Hydrostatique Pressure Gradient 
       CASE( jpdyn_keg )   ;   CALL trd_vor_zint( putrd, pvtrd, jpvor_keg, Kmm )   ! KE Gradient 
       CASE( jpdyn_rvo )   ;   CALL trd_vor_zint( putrd, pvtrd, jpvor_rvo, Kmm )   ! Relative Vorticity 
@@ -148,14 +146,14 @@ CONTAINS
       !!
       !!      trends output in netCDF format using ioipsl
       !!----------------------------------------------------------------------
-      INTEGER                     , INTENT(in) ::   ktrd       ! ocean trend index
-      INTEGER                     , INTENT(in) ::   Kmm        ! time level index
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   putrdvor   ! u vorticity trend 
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) ::   pvtrdvor   ! v vorticity trend
+      INTEGER                    , INTENT(in) ::   ktrd       ! ocean trend index
+      INTEGER                    , INTENT(in) ::   Kmm        ! time level index
+      REAL(wp), DIMENSION(T2D(1)), INTENT(in) ::   putrdvor   ! u vorticity trend
+      REAL(wp), DIMENSION(T2D(1)), INTENT(in) ::   pvtrdvor   ! v vorticity trend
       !
       INTEGER ::   ji, jj       ! dummy loop indices
       INTEGER ::   ikbu, ikbv   ! local integers
-      REAL(wp), DIMENSION(jpi,jpj) :: zudpvor, zvdpvor  ! total cmulative trends
+      REAL(wp), DIMENSION(T2D(1)) :: zudpvor, zvdpvor  ! total cmulative trends
       !!----------------------------------------------------------------------
 
       !  =====================================
@@ -229,13 +227,13 @@ CONTAINS
       !!      trends output in netCDF format using ioipsl
       !!----------------------------------------------------------------------
       !
-      INTEGER                         , INTENT(in) ::   ktrd       ! ocean trend index
-      INTEGER                         , INTENT(in) ::   Kmm        ! time level index
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in) ::   putrdvor   ! u vorticity trend 
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in) ::   pvtrdvor   ! v vorticity trend
+      INTEGER                        , INTENT(in) ::   ktrd       ! ocean trend index
+      INTEGER                        , INTENT(in) ::   Kmm        ! time level index
+      REAL(wp), DIMENSION(T2D(1),jpk), INTENT(in) ::   putrdvor   ! u vorticity trend
+      REAL(wp), DIMENSION(T2D(1),jpk), INTENT(in) ::   pvtrdvor   ! v vorticity trend
       !
       INTEGER ::   ji, jj, jk   ! dummy loop indices
-      REAL(wp), DIMENSION(jpi,jpj) :: zudpvor, zvdpvor  ! total cmulative trends
+      REAL(wp), DIMENSION(T2D(1)) :: zudpvor, zvdpvor  ! total cmulative trends
       !!----------------------------------------------------------------------
 
       !  =====================================

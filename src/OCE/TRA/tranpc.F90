@@ -86,9 +86,9 @@ CONTAINS
       IF( MOD( kt, nn_npc ) == 0 ) THEN
          !
          IF( l_trdtra )   THEN                    !* Save initial after fields
-            ALLOCATE( ztrdt(jpi,jpj,jpk) , ztrds(jpi,jpj,jpk) )
-            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Kaa)
-            ztrds(:,:,:) = pts(:,:,:,jp_sal,Kaa)
+            ALLOCATE( ztrdt(T2D(0),jpk) , ztrds(T2D(0),jpk) )
+            ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Kaa)
+            ztrds(:,:,:) = pts(T2D(0),:,jp_sal,Kaa)
          ENDIF
          !
          IF( l_LB_debug ) THEN
@@ -302,8 +302,8 @@ CONTAINS
          END_2D
          !
          IF( l_trdtra ) THEN         ! send the Non penetrative mixing trends for diagnostic
-            ztrdt(:,:,:) = ( pts(:,:,:,jp_tem,Kaa) - ztrdt(:,:,:) ) * r1_Dt
-            ztrds(:,:,:) = ( pts(:,:,:,jp_sal,Kaa) - ztrds(:,:,:) ) * r1_Dt
+            ztrdt(:,:,:) = ( pts(T2D(0),:,jp_tem,Kaa) - ztrdt(:,:,:) ) * r1_Dt
+            ztrds(:,:,:) = ( pts(T2D(0),:,jp_sal,Kaa) - ztrds(:,:,:) ) * r1_Dt
             CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_npc, ztrdt )
             CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_npc, ztrds )
             DEALLOCATE( ztrdt, ztrds )

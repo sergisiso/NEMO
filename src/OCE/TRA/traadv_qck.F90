@@ -134,7 +134,7 @@ CONTAINS
       !!
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
       REAL(wp) ::   ztra, zbtr, zdir, zdx, zmsk   ! local scalars
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zwx, zfu, zfc, zfd
+      REAL(wp), DIMENSION(T2D(1),jpk) ::   zwx, zfu, zfc, zfd
       !----------------------------------------------------------------------
       !
       !                                                          ! ===========
@@ -144,19 +144,19 @@ CONTAINS
          zfd(:,:,:) = 0._wp     ;   zwx(:,:,:) = 0._wp
          !
 !!gm why not using a SHIFT instruction...
-         DO_3D( nn_hls-1, nn_hls-1, 0, 0, 1, jpkm1 )     !--- Computation of the ustream and downstream value of the tracer and the mask
+         DO_3D( 1, 1, 0, 0, 1, jpkm1 )     !--- Computation of the ustream and downstream value of the tracer and the mask
             zfc(ji,jj,jk) = pt(ji-1,jj,jk,jn,Kbb)        ! Upstream   in the x-direction for the tracer
             zfd(ji,jj,jk) = pt(ji+1,jj,jk,jn,Kbb)        ! Downstream in the x-direction for the tracer
          END_3D
          !
          ! Horizontal advective fluxes
          ! ---------------------------
-         DO_3D( nn_hls-1, 0, 0, 0, 1, jpkm1 )
+         DO_3D( 1, 0, 0, 0, 1, jpkm1 )
             zdir = 0.5 + SIGN( 0.5_wp, pU(ji,jj,jk) )   ! if pU > 0 : zdir = 1 otherwise zdir = 0
             zfu(ji,jj,jk) = zdir * zfc(ji,jj,jk ) + ( 1. - zdir ) * zfd(ji+1,jj,jk)  ! FU in the x-direction for T
          END_3D
          !
-         DO_3D( nn_hls-1, 0, 0, 0, 1, jpkm1 )
+         DO_3D( 1, 0, 0, 0, 1, jpkm1 )
             zdir = 0.5 + SIGN( 0.5_wp, pU(ji,jj,jk) )   ! if pU > 0 : zdir = 1 otherwise zdir = 0
             zdx = ( zdir * e1t(ji,jj) + ( 1. - zdir ) * e1t(ji+1,jj) ) * e2u(ji,jj) * e3u(ji,jj,jk,Kmm)
             zwx(ji,jj,jk)  = ABS( pU(ji,jj,jk) ) * p2dt / zdx    ! (0<zc_cfl<1 : Courant number on x-direction)
@@ -168,7 +168,7 @@ CONTAINS
          CALL quickest( zfu, zfd, zfc, zwx )
          !
          ! Mask at the T-points in the x-direction (mask=0 or mask=1)
-         DO_3D( nn_hls-1, nn_hls-1, 0, 0, 1, jpkm1 )
+         DO_3D( 1, 1, 0, 0, 1, jpkm1 )
             zfu(ji,jj,jk) = tmask(ji-1,jj,jk) + tmask(ji,jj,jk) + tmask(ji+1,jj,jk) - 2.
          END_3D
          !
@@ -213,7 +213,7 @@ CONTAINS
       !!
       INTEGER  :: ji, jj, jk, jn                ! dummy loop indices
       REAL(wp) :: ztra, zbtr, zdir, zdx, zmsk   ! local scalars
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zwy, zfu, zfc, zfd   ! 3D workspace
+      REAL(wp), DIMENSION(T2D(1),jpk) ::   zwy, zfu, zfc, zfd   ! 3D workspace
       !----------------------------------------------------------------------
       !
       !                                                          ! ===========
@@ -223,7 +223,7 @@ CONTAINS
          zfd(:,:,:) = 0.0     ;   zwy(:,:,:) = 0.0
          !
          !--- Computation of the ustream and downstream value of the tracer and the mask
-         DO_3D( 0, 0, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 1, 1, 1, jpkm1 )
             ! Upstream in the x-direction for the tracer
             zfc(ji,jj,jk) = pt(ji,jj-1,jk,jn,Kbb)
             ! Downstream in the x-direction for the tracer
@@ -233,12 +233,12 @@ CONTAINS
          ! Horizontal advective fluxes
          ! ---------------------------
          !
-         DO_3D( 0, 0, nn_hls-1, 0, 1, jpkm1 )
+         DO_3D( 0, 0, 1, 0, 1, jpkm1 )
             zdir = 0.5 + SIGN( 0.5_wp, pV(ji,jj,jk) )   ! if pU > 0 : zdir = 1 otherwise zdir = 0
             zfu(ji,jj,jk) = zdir * zfc(ji,jj,jk ) + ( 1. - zdir ) * zfd(ji,jj+1,jk)  ! FU in the x-direction for T
          END_3D
          !
-         DO_3D( 0, 0, nn_hls-1, 0, 1, jpkm1 )
+         DO_3D( 0, 0, 1, 0, 1, jpkm1 )
             zdir = 0.5 + SIGN( 0.5_wp, pV(ji,jj,jk) )   ! if pU > 0 : zdir = 1 otherwise zdir = 0
             zdx = ( zdir * e2t(ji,jj) + ( 1. - zdir ) * e2t(ji,jj+1) ) * e1v(ji,jj) * e3v(ji,jj,jk,Kmm)
             zwy(ji,jj,jk)  = ABS( pV(ji,jj,jk) ) * p2dt / zdx    ! (0<zc_cfl<1 : Courant number on x-direction)
@@ -250,7 +250,7 @@ CONTAINS
          CALL quickest( zfu, zfd, zfc, zwy )
          !
          ! Mask at the T-points in the x-direction (mask=0 or mask=1)
-         DO_3D( 0, 0, nn_hls-1, nn_hls-1, 1, jpkm1 )
+         DO_3D( 0, 0, 1, 1, 1, jpkm1 )
             zfu(ji,jj,jk) = tmask(ji,jj-1,jk) + tmask(ji,jj,jk) + tmask(ji,jj+1,jk) - 2.
          END_3D
          !
@@ -295,7 +295,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt         ! active tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zwz   ! 3D workspace
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   zwz   ! 3D workspace
       !!----------------------------------------------------------------------
       !
       zwz(:,:, 1 ) = 0._wp       ! surface & bottom values set to zero for all tracers
@@ -339,10 +339,10 @@ CONTAINS
       !!
       !! ** Method :
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   pfu   ! second upwind point
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   pfd   ! first douwning point
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   pfc   ! the central point (or the first upwind point)
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   puc   ! input as Courant number ; output as flux
+      REAL(wp), DIMENSION(T2D(1),jpk), INTENT(in   ) ::   pfu   ! second upwind point
+      REAL(wp), DIMENSION(T2D(1),jpk), INTENT(in   ) ::   pfd   ! first douwning point
+      REAL(wp), DIMENSION(T2D(1),jpk), INTENT(in   ) ::   pfc   ! the central point (or the first upwind point)
+      REAL(wp), DIMENSION(T2D(1),jpk), INTENT(inout) ::   puc   ! input as Courant number ; output as flux
       !!
       INTEGER  ::  ji, jj, jk               ! dummy loop indices
       REAL(wp) ::  zcoef1, zcoef2, zcoef3   ! local scalars

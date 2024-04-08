@@ -52,17 +52,29 @@ CONTAINS
       !!              integral constraints, barotropic vorticity, kinetic enrgy, 
       !!              and/or mixed layer budget.
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   putrd, pvtrd   ! U and V trends 
-      INTEGER                   , INTENT(in   ) ::   ktrd           ! trend index
-      INTEGER                   , INTENT(in   ) ::   kt             ! time step
-      INTEGER                   , INTENT(in   ) ::   Kmm            ! time level index
-      INTEGER                                   ::   ji, jj, jk     ! lopp indices
+      REAL(wp), DIMENSION(T2D(0),jpk), INTENT(inout) ::   putrd, pvtrd   ! U and V trends
+      INTEGER                        , INTENT(in   ) ::   ktrd           ! trend index
+      INTEGER                        , INTENT(in   ) ::   kt             ! time step
+      INTEGER                        , INTENT(in   ) ::   Kmm            ! time level index
+      !
+      INTEGER                                 ::   ji, jj, jk     ! loop indices
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zutrd, zvtrd   ! working arrays
       !!----------------------------------------------------------------------
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          putrd(ji,jj,jk) = putrd(ji,jj,jk) * umask(ji,jj,jk)                       ! mask the trends
          pvtrd(ji,jj,jk) = pvtrd(ji,jj,jk) * vmask(ji,jj,jk)
       END_3D
+
+      ! KE and vorticity trends require data on 1st halo points
+      IF( ln_KE_trd .OR. ln_vor_trd ) THEN
+         ALLOCATE( zutrd(T2D(1),jpk), zvtrd(T2D(1),jpk) )
+         DO_3D( 0, 0, 0, 0, 1, jpk )
+            zutrd(ji,jj,jk) = putrd(ji,jj,jk)
+            zvtrd(ji,jj,jk) = pvtrd(ji,jj,jk)
+         END_3D
+         CALL lbc_lnk( 'trddyn', zutrd, 'U', -1.0_wp , zvtrd, 'V', -1.0_wp )
+      ENDIF
       !
 
 !!gm NB : here a lbc_lnk should probably be added
@@ -80,17 +92,19 @@ CONTAINS
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !  Kinetic Energy trends
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      IF( ln_KE_trd  )   CALL trd_ken( putrd, pvtrd, ktrd, kt, Kmm )
+      IF( ln_KE_trd  )   CALL trd_ken( zutrd, zvtrd, ktrd, kt, Kmm )
 
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !  Vorticity trends
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      IF( ln_vor_trd )   CALL trd_vor( putrd, pvtrd, ktrd, kt, Kmm )
+      IF( ln_vor_trd )   CALL trd_vor( zutrd, zvtrd, ktrd, kt, Kmm )
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !  Mixed layer trends for active tracers
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 !!gm      IF( ln_dyn_mxl )   CALL trd_mxl_dyn   
+      !
+      IF( ln_KE_trd .OR. ln_vor_trd ) DEALLOCATE( zutrd, zvtrd )
       !
    END SUBROUTINE trd_dyn
 
@@ -101,10 +115,10 @@ CONTAINS
       !! 
       !! ** Purpose :   output 3D trends using IOM
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   putrd, pvtrd   ! U and V trends
-      INTEGER                   , INTENT(in   ) ::   ktrd           ! trend index
-      INTEGER                   , INTENT(in   ) ::   kt             ! time step
-      INTEGER                   , INTENT(in   ) ::   Kmm            ! time level index
+      REAL(wp), DIMENSION(T2D(0),jpk), INTENT(inout) ::   putrd, pvtrd   ! U and V trends
+      INTEGER                        , INTENT(in   ) ::   ktrd           ! trend index
+      INTEGER                        , INTENT(in   ) ::   kt             ! time step
+      INTEGER                        , INTENT(in   ) ::   Kmm            ! time level index
       !
       INTEGER ::   ji, jj, jk   ! dummy loop indices
       INTEGER ::   ikbu, ikbv   ! local integers
@@ -124,13 +138,12 @@ CONTAINS
       CASE( jpdyn_keg )   ;   CALL iom_put( "utrd_keg", putrd )    ! Kinetic Energy gradient (or had)
                               CALL iom_put( "vtrd_keg", pvtrd )
                               ALLOCATE( z3dx(T2D(0),jpk) , z3dy(T2D(0),jpk) )   ! U.dxU & V.dyV (approximation)
-                              z3dx(T2D(0),jpk) = 0._wp
-                              z3dy(T2D(0),jpk) = 0._wp
+                              z3dx(:,:,jpk) = 0._wp
+                              z3dy(:,:,jpk) = 0._wp
                               DO_3D( 0, 0, 0, 0, 1, jpkm1 )                          ! no mask as un,vn are masked
                                  z3dx(ji,jj,jk) = uu(ji,jj,jk,Kmm) * ( uu(ji+1,jj,jk,Kmm) - uu(ji-1,jj,jk,Kmm) ) / ( 2._wp * e1u(ji,jj) )
                                  z3dy(ji,jj,jk) = vv(ji,jj,jk,Kmm) * ( vv(ji,jj+1,jk,Kmm) - vv(ji,jj-1,jk,Kmm) ) / ( 2._wp * e2v(ji,jj) )
                               END_3D
-                              CALL lbc_lnk( 'trddyn', z3dx, 'U', -1.0_wp, z3dy, 'V', -1.0_wp )
                               CALL iom_put( "utrd_udx", z3dx  )
                               CALL iom_put( "vtrd_vdy", z3dy  )
                               DEALLOCATE( z3dx , z3dy )
@@ -142,6 +155,7 @@ CONTAINS
                               CALL iom_put( "vtrd_zdf", pvtrd )
                               !
                               !                                    ! wind stress trends
+                              ! BUG: Not restartable in RK3, as [uv]tau_b are only set once on the first timestep
                               ALLOCATE( z2dx(T2D(0)) , z2dy(T2D(0)) )
                               DO_2D( 0, 0, 0, 0 )
                                  z2dx(ji,jj) = ( utau_b(ji,jj) + utauU(ji,jj) ) / ( e3u(ji,jj,1,Kmm) * rho0 )

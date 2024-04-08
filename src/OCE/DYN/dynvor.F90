@@ -129,31 +129,31 @@ CONTAINS
       !
       IF( l_trddyn ) THEN     !==  trend diagnostics case : split the added trend in two parts  ==!
          !
-         ALLOCATE( ztrdu(jpi,jpj,jpk), ztrdv(jpi,jpj,jpk) )
+         ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
          !
-         ztrdu(:,:,:) = puu(:,:,:,Krhs)            !* planetary vorticity trend
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs)
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs)            !* planetary vorticity trend
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
          SELECT CASE( nvor_scheme )
          CASE( np_ENS )           ;   CALL vor_ens( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! enstrophy conserving scheme
          CASE( np_ENE, np_MIX )   ;   CALL vor_ene( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! energy conserving scheme
          CASE( np_ENT )           ;   CALL vor_enT( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! energy conserving scheme (T-pts)
          CASE( np_EEN )           ;   CALL vor_een( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! energy & enstrophy scheme
          END SELECT
-         ztrdu(:,:,:) = puu(:,:,:,Krhs) - ztrdu(:,:,:)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs) - ztrdv(:,:,:)
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs) - ztrdu(:,:,:)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs) - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu, ztrdv, jpdyn_pvo, kt, Kmm )
          !
          IF( n_dynadv /= np_LIN_dyn ) THEN   !* relative vorticity or metric trend (only in non-linear case)
-            ztrdu(:,:,:) = puu(:,:,:,Krhs)
-            ztrdv(:,:,:) = pvv(:,:,:,Krhs)
+            ztrdu(:,:,:) = puu(T2D(0),:,Krhs)
+            ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
             SELECT CASE( nvor_scheme )
             CASE( np_ENT )           ;   CALL vor_enT( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! energy conserving scheme (T-pts)
             CASE( np_ENE )           ;   CALL vor_ene( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! energy conserving scheme
             CASE( np_ENS, np_MIX )   ;   CALL vor_ens( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! enstrophy conserving scheme
             CASE( np_EEN )           ;   CALL vor_een( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! energy & enstrophy scheme
             END SELECT
-            ztrdu(:,:,:) = puu(:,:,:,Krhs) - ztrdu(:,:,:)
-            ztrdv(:,:,:) = pvv(:,:,:,Krhs) - ztrdv(:,:,:)
+            ztrdu(:,:,:) = puu(T2D(0),:,Krhs) - ztrdu(:,:,:)
+            ztrdv(:,:,:) = pvv(T2D(0),:,Krhs) - ztrdv(:,:,:)
             CALL trd_dyn( ztrdu, ztrdv, jpdyn_rvo, kt, Kmm )
          ENDIF
          !

@@ -64,18 +64,18 @@ CONTAINS
       !!                constraints, barotropic vorticity, kinetic enrgy, 
       !!                potential energy, and/or mixed layer budget.
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:), INTENT(in) ::   ptrdx, ptrdy   ! Temperature & Salinity trends
-      INTEGER                   , INTENT(in) ::   ktrd           ! tracer trend index
-      INTEGER                   , INTENT(in) ::   kt             ! time step index
-      INTEGER                   , INTENT(in) ::   Kmm            ! time level index
-      REAL(wp)                  , INTENT(in) ::   pdt            ! time step [s]
+      REAL(wp), DIMENSION(T2D(0),jpk), INTENT(in) ::   ptrdx, ptrdy   ! Temperature & Salinity trends
+      INTEGER                        , INTENT(in) ::   ktrd           ! tracer trend index
+      INTEGER                        , INTENT(in) ::   kt             ! time step index
+      INTEGER                        , INTENT(in) ::   Kmm            ! time level index
+      REAL(wp)                       , INTENT(in) ::   pdt            ! time step [s]
       !
       INTEGER ::   ji, jj, jk                                            ! dummy loop indices
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)  ::   z2d            ! 2D workspace 
       REAL(wp), DIMENSION(T2D(0),jpk)        ::   zpe            ! 3D workspace
       !!----------------------------------------------------------------------
       !
-      zpe(T2D(0),:) = 0._wp
+      zpe(:,:,:) = 0._wp
       !
       IF( kt /= nkstp ) THEN     ! full eos: set partial derivatives at the 1st call of kt time step
          nkstp = kt
@@ -85,7 +85,7 @@ CONTAINS
          CALL iom_put( "PEanom" , zpe )
       ENDIF
       !
-      zpe(T2D(0),jpk) = 0._wp
+      zpe(:,:,jpk) = 0._wp
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          zpe(ji,jj,jk) = ( - ( rab_n(ji,jj,jk,jp_tem) + rab_pe(ji,jj,jk,jp_tem) ) * ptrdx(ji,jj,jk)   &

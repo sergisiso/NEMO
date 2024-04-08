@@ -43,6 +43,8 @@ MODULE traldf
    LOGICAL  ::   l_ptr   ! flag to compute the diffusive part of poleward heat & salt transport
    LOGICAL  ::   l_hst   ! flag to compute the diffusive part of heat and salt transport
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: traldf.F90 14834 2021-05-11 09:24:44Z hadcv $
@@ -81,9 +83,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('tra_ldf')
       !
       IF( l_trdtra )   THEN                    !* Save ta and sa trends
-         ALLOCATE( zTtrd(jpi,jpj,jpk) , zStrd(jpi,jpj,jpk) )
-         zTtrd(:,:,:) = pts(:,:,:,jp_tem,Krhs)
-         zStrd(:,:,:) = pts(:,:,:,jp_sal,Krhs)
+         ALLOCATE( zTtrd(T2D(0),jpk) , zStrd(T2D(0),jpk) )
+         zTtrd(:,:,:) = pts(T2D(0),:,jp_tem,Krhs)
+         zStrd(:,:,:) = pts(T2D(0),:,jp_sal,Krhs)
       ENDIF
       !
       SELECT CASE ( nldf_tra )   !* compute lateral mixing trend and add it to the general trend
@@ -106,8 +108,8 @@ CONTAINS
       END SELECT
       !
       IF( l_trdtra )   THEN                    !* save the horizontal diffusive trends for further diagnostics
-         zTtrd(:,:,:) = pts(:,:,:,jp_tem,Krhs) - zTtrd(:,:,:)
-         zStrd(:,:,:) = pts(:,:,:,jp_sal,Krhs) - zStrd(:,:,:)
+         zTtrd(:,:,:) = pts(T2D(0),:,jp_tem,Krhs) - zTtrd(:,:,:)
+         zStrd(:,:,:) = pts(T2D(0),:,jp_sal,Krhs) - zStrd(:,:,:)
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_ldf, zTtrd )
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_ldf, zStrd )
          DEALLOCATE( zTtrd, zStrd )

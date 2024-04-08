@@ -106,9 +106,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('dyn_hpg')
       !
       IF( l_trddyn ) THEN                    ! Temporary saving of puu(:,:,:,Krhs) and pvv(:,:,:,Krhs) trends (l_trddyn)
-         ALLOCATE( ztrdu(jpi,jpj,jpk) , ztrdv(jpi,jpj,jpk) )
-         ztrdu(:,:,:) = puu(:,:,:,Krhs)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs)
+         ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
       !
       SELECT CASE ( nhpg )      ! Hydrostatic pressure gradient computation
@@ -120,8 +120,8 @@ CONTAINS
       END SELECT
       !
       IF( l_trddyn ) THEN      ! save the hydrostatic pressure gradient trends for momentum trend diagnostics
-         ztrdu(:,:,:) = puu(:,:,:,Krhs) - ztrdu(:,:,:)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs) - ztrdv(:,:,:)
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs) - ztrdu(:,:,:)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs) - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu, ztrdv, jpdyn_hpg, kt, Kmm )
          DEALLOCATE( ztrdu , ztrdv )
       ENDIF

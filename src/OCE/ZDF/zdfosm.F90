@@ -3353,9 +3353,9 @@ CONTAINS
       END IF
       !
       IF ( l_trdtra ) THEN   ! Save ta and sa trends
-         ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
-         ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
+         ALLOCATE( ztrdt(T2D(0),jpk), ztrds(T2D(0),jpk) )
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs)
+         ztrds(:,:,:) = pts(T2D(0),:,jp_sal,Krhs)
       END IF
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
@@ -3368,8 +3368,8 @@ CONTAINS
       END_3D
       !
       IF ( l_trdtra ) THEN   ! Save the non-local tracer flux trends for diagnostics
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
-         ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs) - ztrds(:,:,:)
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs) - ztrdt(:,:,:)
+         ztrds(:,:,:) = pts(T2D(0),:,jp_sal,Krhs) - ztrds(:,:,:)
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_osm, ztrdt )
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_osm, ztrds )
          DEALLOCATE( ztrdt, ztrds )

@@ -90,9 +90,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('dyn_spg')
       !
       IF( l_trddyn )   THEN                      ! temporary save of ta and sa trends
-         ALLOCATE( ztrdu(jpi,jpj,jpk) , ztrdv(jpi,jpj,jpk) )
-         ztrdu(:,:,:) = puu(:,:,:,Krhs)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs)
+         ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
       !
       IF(      ln_apr_dyn                                                &   ! atmos. pressure
@@ -170,8 +170,8 @@ CONTAINS
       END SELECT
       !
       IF( l_trddyn )   THEN                  ! save the surface pressure gradient trends for further diagnostics
-         ztrdu(:,:,:) = puu(:,:,:,Krhs) - ztrdu(:,:,:)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs) - ztrdv(:,:,:)
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs) - ztrdu(:,:,:)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs) - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu, ztrdv, jpdyn_spg, kt, Kmm )
          DEALLOCATE( ztrdu , ztrdv )
       ENDIF

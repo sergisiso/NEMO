@@ -71,9 +71,9 @@ CONTAINS
       ENDIF
       !
       IF( l_trdtra )   THEN                  !* Save ta and sa trends
-         ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Kaa)
-         ztrds(:,:,:) = pts(:,:,:,jp_sal,Kaa)
+         ALLOCATE( ztrdt(T2D(0),jpk), ztrds(T2D(0),jpk) )
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Kaa)
+         ztrds(:,:,:) = pts(T2D(0),:,jp_sal,Kaa)
       ENDIF
       !
       !                                      !* compute lateral mixing trend and add it to the general trend
@@ -90,19 +90,16 @@ CONTAINS
 !!gm
 
       IF( l_trdtra )   THEN                      ! save the vertical diffusive trends for further diagnostics
-         DO jk = 1, jpk
-            ztrdt(:,:,jk) = (   (  pts(:,:,jk,jp_tem,Kaa)*e3t(:,:,jk,Kaa)     &
-               &                 - pts(:,:,jk,jp_tem,Kbb)*e3t(:,:,jk,Kbb)  )  &
-               &              / (  e3t(:,:,jk,Kmm)*rDt  )   )                 &
-               &          - ztrdt(:,:,jk)
-            ztrds(:,:,jk) = (   (  pts(:,:,jk,jp_sal,Kaa)*e3t(:,:,jk,Kaa)     &
-               &                 - pts(:,:,jk,jp_sal,Kbb)*e3t(:,:,jk,Kbb)  )  &
-               &             / (   e3t(:,:,jk,Kmm)*rDt  )   )                 &
-               &          - ztrds(:,:,jk)
-         END DO
-!!gm this should be moved in trdtra.F90 and done on all trends
-         CALL lbc_lnk( 'trazdf', ztrdt, 'T', 1.0_wp , ztrds, 'T', 1.0_wp )
-!!gm
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            ztrdt(ji,jj,jk) = (   (  pts(ji,jj,jk,jp_tem,Kaa)*e3t(ji,jj,jk,Kaa)     &
+               &                 - pts(ji,jj,jk,jp_tem,Kbb)*e3t(ji,jj,jk,Kbb)  )  &
+               &              / (  e3t(ji,jj,jk,Kmm)*rDt  )   )                 &
+               &          - ztrdt(ji,jj,jk)
+            ztrds(ji,jj,jk) = (   (  pts(ji,jj,jk,jp_sal,Kaa)*e3t(ji,jj,jk,Kaa)     &
+               &                 - pts(ji,jj,jk,jp_sal,Kbb)*e3t(ji,jj,jk,Kbb)  )  &
+               &             / (   e3t(ji,jj,jk,Kmm)*rDt  )   )                 &
+               &          - ztrds(ji,jj,jk)
+         END_3D
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_zdf, ztrdt )
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_zdf, ztrds )
          DEALLOCATE( ztrdt , ztrds )

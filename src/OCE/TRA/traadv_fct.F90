@@ -123,8 +123,9 @@ CONTAINS
       ztFw   (:,:,jpk) = 0._wp
       !
       IF( l_trd .OR. l_hst )  THEN
-         ALLOCATE( ztrdx(T2D(nn_hls),jpk), ztrdy(T2D(nn_hls),jpk), ztrdz(T2D(nn_hls),jpk) )
-         ztrdx(:,:,:) = 0._wp   ;    ztrdy(:,:,:) = 0._wp   ;   ztrdz(:,:,:) = 0._wp
+         ALLOCATE( ztrdx(T2D(1),jpk), ztrdy(T2D(1),jpk), ztrdz(T2D(0),jpk) )
+         ztrdx(:,:,jpk) = 0._wp   ;   ztrdy(:,:,jpk) = 0._wp
+         ztrdz(:,:,1  ) = 0._wp   ;   ztrdz(:,:,jpk) = 0._wp
       ENDIF
       !
       IF( l_ptr ) THEN
@@ -157,9 +158,11 @@ CONTAINS
          ! output => ztFu(1,0,1,0), ztFv(1,0,1,0), zta_up1(0,0,0,0), ztFw(0,0,0,0) if Amip2 or ztFw(1,1,1,1) if .not.Aimp2
          !
          IF( l_trd .OR. l_hst )  THEN             ! trend diagnostics (contribution of upstream fluxes)
-            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            DO_3D( 1, 0, 1, 0, 1, jpkm1 )
                ztrdx(ji,jj,jk) = ztFu(ji,jj,jk)
                ztrdy(ji,jj,jk) = ztFv(ji,jj,jk)
+            END_3D
+            DO_3D( 0, 0, 0, 0, 2, jpkm1 )
                ztrdz(ji,jj,jk) = ztFw(ji,jj,jk)
             END_3D
          END IF
@@ -327,11 +330,13 @@ CONTAINS
          END IF
          !
          IF( l_trd .OR. l_hst ) THEN   ! trend diagnostics // heat/salt transport
-            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            DO_3D( 1, 0, 1, 0, 1, jpkm1 )
                ztrdx(ji,jj,jk) = ztrdx(ji,jj,jk) + ztFu(ji,jj,jk)  ! <<< add anti-diffusive fluxes
                ztrdy(ji,jj,jk) = ztrdy(ji,jj,jk) + ztFv(ji,jj,jk)  !     to upstream fluxes
+            END_3D                                                 !
+            DO_3D( 0, 0, 0, 0, 2, jpkm1 )                          !
                ztrdz(ji,jj,jk) = ztrdz(ji,jj,jk) + ztFw(ji,jj,jk)  !
-            END_3D
+            END_3D                                                 !
             !
             IF( l_trd ) THEN              ! trend diagnostics
                CALL trd_tra( kt, Kmm, Krhs, cdtype, jn, jptra_xad, ztrdx, pU, pt(:,:,:,jn,Kmm) )

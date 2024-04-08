@@ -61,9 +61,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('trc_bbl')
       !
       IF( l_trdtrc )  THEN
-         ALLOCATE( ztrtrd(A2D(nn_hls),jpk,jptra) ) ! temporary save of trends
+         ALLOCATE( ztrtrd(T2D(0),jpk,jptra) ) ! temporary save of trends
          DO jn = 1, jptra
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+            DO_3D( 0, 0, 0, 0, 1, jpk )
                ztrtrd(ji,jj,jk,jn)  = ptr(ji,jj,jk,jn,Krhs)
             END_3D
          ENDDO
@@ -93,7 +93,7 @@ CONTAINS
 
       IF( l_trdtrc )   THEN                      ! save the horizontal diffusive trends for further diagnostics
         DO jn = 1, jptra
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+            DO_3D( 0, 0, 0, 0, 1, jpk )
                ztrtrd(ji,jj,jk,jn) = ptr(ji,jj,jk,jn,Krhs) - ztrtrd(ji,jj,jk,jn)
             END_3D
            CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_bbl, ztrtrd(:,:,:,jn) )

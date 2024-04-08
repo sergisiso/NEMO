@@ -55,9 +55,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('trc_zdf')
       !
       IF( l_trdtrc ) THEN
-         ALLOCATE( ztrtrd(A2D(nn_hls),jpk,jptra) )
+         ALLOCATE( ztrtrd(T2D(0),jpk,jptra) )
          DO jn = 1, jptra
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+            DO_3D( 0, 0, 0, 0, 1, jpk )
                ztrtrd(ji,jj,jk,jn)  = ptr(ji,jj,jk,jn,Krhs)
             END_3D
          END DO
@@ -67,7 +67,7 @@ CONTAINS
       !
       IF( l_trdtrc )   THEN                      ! save the vertical diffusive trends for further diagnostics
          DO jn = 1, jptra
-            DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ztrtrd(ji,jj,jk,jn) = ( ( ptr(ji,jj,jk,jn,Kaa) - ptr(ji,jj,jk,jn,Kbb) ) / rDt_trc ) - ztrtrd(ji,jj,jk,jn)
             END_3D
             CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_zdf, ztrtrd(:,:,:,jn) )

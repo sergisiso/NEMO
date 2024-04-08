@@ -144,7 +144,7 @@ CONTAINS
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrtrd   ! workspace arrays
       !!----------------------------------------------------------------------
       !
-      IF( l_trdtrc )   ALLOCATE( ztrtrd(A2D(nn_hls),jpk) )
+      IF( l_trdtrc )   ALLOCATE( ztrtrd(T2D(0),jpk) )
       zs2rdt = 1. / ( 2. * rn_Dt )
       !
 #if ! defined key_RK3
@@ -169,7 +169,7 @@ CONTAINS
 
             DO jn = jp_sms0, jp_sms1
                !
-               IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(:,:,:,jn,itime)                       ! save input tr(:,:,:,:,Kbb) for trend computation
+               IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(T2D(0),:,jn,itime)                       ! save input tr(:,:,:,:,Kbb) for trend computation
                !
                DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
                   IF( ztrneg(ji,jj,jn) /= 0. ) THEN                                 ! if negative values over the 3x3 box
@@ -189,7 +189,7 @@ CONTAINS
                END_3D
                !
                IF( l_trdtrc ) THEN
-                  DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+                  DO_3D( 0, 0, 0, 0, 1, jpk )
                      ztrtrd(ji,jj,jk) = ( ptr(ji,jj,jk,jn,itime) - ztrtrd(ji,jj,jk) ) * zs2rdt
                   END_3D
                   CALL trd_tra( kt, Kbb, Kmm, 'TRC', jn, jptra_radb, ztrtrd )       ! Asselin-like trend handling
@@ -214,12 +214,12 @@ CONTAINS
             !
             DO jn = jp_sms0, jp_sms1
                !
-               IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(:,:,:,jn,itime)                 ! save input tr for trend computation
+               IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(T2D(0),:,jn,itime)                 ! save input tr for trend computation
                !
                WHERE( ptr(:,:,:,jn,itime) < 0. )   ptr(:,:,:,jn,itime) = 0.
                !
                IF( l_trdtrc ) THEN
-                  DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
+                  DO_3D( 0, 0, 0, 0, 1, jpk )
                      ztrtrd(ji,jj,jk) = ( ptr(ji,jj,jk,jn,itime) - ztrtrd(ji,jj,jk) ) * zs2rdt
                   END_3D
                   CALL trd_tra( kt, Kbb, Kmm, 'TRC', jn, jptra_radb, ztrtrd )       ! Asselin-like trend handling
