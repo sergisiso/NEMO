@@ -30,7 +30,8 @@ MODULE diadct
    USE dianam          ! build name of file
    USE lib_mpp         ! distributed memory computing library
 #if defined key_si3
-   USE ice
+   USE par_ice         ! SI3 parameters
+   USE ice      , ONLY : u_ice, v_ice, a_i, h_i, h_s
 #endif
    USE timing          ! preformance summary
 

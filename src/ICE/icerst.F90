@@ -13,8 +13,8 @@ MODULE icerst
    !!   ice_rst_write : write restart file
    !!   ice_rst_read  : read  restart file
    !!----------------------------------------------------------------------
+   USE par_ice
    USE ice            ! sea-ice: variables
-   USE dom_oce        ! ocean domain
    USE phycst  , ONLY : rt0
    USE sbc_oce , ONLY : nn_fsbc, ln_cpl
    USE sbc_oce , ONLY : nn_components, jp_iam_sas   ! SAS ss[st]_m init
@@ -22,9 +22,8 @@ MODULE icerst
    USE oce     , ONLY : ts                          ! SAS ss[st]_m init
    USE eosbn2  , ONLY : l_useCT, eos_pt_from_ct     ! SAS ss[st]_m init
    USE iceistate      ! sea-ice: initial state
-   USE icectl         ! sea-ice: control
    !
-   USE in_out_manager ! I/O manager
+   Use in_out_manager ! I/O manager
    USE iom            ! I/O manager library
    USE lib_mpp        ! MPP library
 
@@ -105,7 +104,7 @@ CONTAINS
       ENDIF
       ENDIF
       !
-      IF( ln_icectl )   CALL ice_prt( kt, iiceprt, jiceprt, 1, ' - Beginning the time step - ' )   ! control print
+      !!IF( ln_icectl )   CALL ice_prt( kt, iiceprt, jiceprt, 1, ' - Beginning the time step - ' )   ! control print
       !
    END SUBROUTINE ice_rst_opn
 

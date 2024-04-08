@@ -16,7 +16,7 @@ MODULE sbc_ice
    USE par_oce          ! ocean parameters
    USE sbc_oce          ! surface boundary condition: ocean
 # if defined key_si3
-   USE ice              ! SI3 parameters
+   USE par_ice          ! SI3 parameters
 # endif
 # if defined key_cice
    USE ice_domain_size, only: ncat

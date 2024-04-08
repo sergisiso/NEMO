@@ -13,18 +13,16 @@ MODULE icecor
    !!----------------------------------------------------------------------
    !!    ice_cor      : corrections on sea-ice variables
    !!----------------------------------------------------------------------
-   USE dom_oce        ! ocean domain
+   USE par_ice
+   USE par_oce
    USE phycst         ! physical constants
    USE ice            ! sea-ice: variable
-   USE ice1D          ! sea-ice: thermodynamic variables
-   USE iceitd         ! sea-ice: rebining
-   USE icevar         ! sea-ice: operations
+   USE iceitd  , ONLY : ice_itd_reb
+   USE icevar  , ONLY : ice_var_zapsmall
    USE icectl         ! sea-ice: control prints
    USE sbc_oce,  ONLY : sss_m
-   !
+
    USE in_out_manager ! I/O manager
-   USE iom            ! I/O manager library
-   USE lib_mpp        ! MPP library
    USE timing         ! Timing
 
    IMPLICIT NONE

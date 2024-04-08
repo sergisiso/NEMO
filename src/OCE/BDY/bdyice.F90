@@ -14,6 +14,7 @@ MODULE bdyice
    !!   bdy_ice        : Application of open boundaries to ice
    !!   bdy_ice_frs    : Application of Flow Relaxation Scheme
    !!----------------------------------------------------------------------
+   USE par_ice         ! SI3 parameters
    USE oce             ! ocean dynamics and tracers variables
    USE ice             ! sea-ice: variables
    USE icevar          ! sea-ice: operations

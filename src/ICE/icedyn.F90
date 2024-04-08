@@ -12,16 +12,16 @@ MODULE icedyn
    !!   ice_dyn       : dynamics of sea ice
    !!   ice_dyn_init  : initialization and namelist read
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
+   USE par_icedyn     ! SI3 dynamics parameters
    USE phycst         ! physical constants
-   USE dom_oce        ! ocean space and time domain
    USE ice            ! sea-ice: variables
    USE icedyn_rhg     ! sea-ice: rheology
    USE icedyn_adv     ! sea-ice: advection
    USE icedyn_rdgrft  ! sea-ice: ridging/rafting
    USE icecor         ! sea-ice: corrections
-   USE icevar         ! sea-ice: operations
+   USE icevar  , ONLY : ice_var_zapsmall
    USE icectl         ! sea-ice: control prints
-   USE bdy_oce , ONLY : ln_bdy   ! flag for bdy
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library

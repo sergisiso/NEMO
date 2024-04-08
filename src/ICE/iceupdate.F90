@@ -14,14 +14,13 @@ MODULE iceupdate
    !!   ice_update_flx   : updates mass, heat and salt fluxes at the ocean surface
    !!   ice_update_tau   : update i- and j-stresses, and its modulus at the ocean surface
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constants
-   USE dom_oce        ! ocean domain
    USE ice            ! sea-ice: variables
    USE sbc_ice        ! Surface boundary condition: ice   fields
    USE sbc_oce        ! Surface boundary condition: ocean fields
    USE sbccpl         ! Surface boundary condition: coupled interface
    USE icealb         ! sea-ice: albedo parameters
-   USE traqsr         ! add penetration of solar flux in the calculation of heat budget
    USE icectl         ! sea-ice: control prints
    USE zdfdrg  , ONLY : ln_drgice_imp
    !

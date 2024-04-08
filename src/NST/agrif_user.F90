@@ -672,6 +672,7 @@
       !!----------------------------------------------------------------------
       USE Agrif_Util
       USE sbc_oce, ONLY : nn_fsbc  ! clem: necessary otherwise Agrif_Parent(nn_fsbc) = nn_fsbc
+      USE par_ice
       USE ice
       USE agrif_ice
       USE in_out_manager
@@ -709,6 +710,7 @@
       !!                 *** ROUTINE agrif_declare_var_ice ***
       !!----------------------------------------------------------------------
       USE Agrif_Util
+      USE par_ice
       USE ice
       USE par_oce, ONLY : nbghostcells, nbghostcells_x_w, nbghostcells_y_s
       !

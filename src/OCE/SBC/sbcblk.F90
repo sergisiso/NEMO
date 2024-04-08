@@ -36,15 +36,16 @@ MODULE sbcblk
    USE phycst         ! physical constants
    USE fldread        ! read input fields
    USE sbc_oce        ! Surface boundary condition: ocean fields
-   USE trc_oce         ! share SMS/Ocean variables
+   USE trc_oce        ! share SMS/Ocean variables
    USE cyclone        ! Cyclone 10m wind form trac of cyclone centres
    USE sbcdcy         ! surface boundary condition: diurnal cycle
    USE sbcwave , ONLY :   cdn_wave ! wave module
    USE lib_fortran    ! to use key_nosignedzero and glob_2Dsum
    !
 #if defined key_si3
+   USE par_ice        ! SI3 parameters
    USE sbc_ice        ! Surface boundary condition: ice fields #LB? ok to be in 'key_si3' ???
-   USE ice     , ONLY :   u_ice, v_ice, jpl, a_i_b, at_i_b, t_su, rn_cnd_s, hfx_err_dif, nn_qtrice, drag_ia
+   USE ice     , ONLY : u_ice, v_ice, a_i_b, at_i_b, t_su, hfx_err_dif, drag_ia
    USE icevar         ! for CALL ice_var_snwblow
    USE sbcblk_algo_ice_an05
    USE sbcblk_algo_ice_lu12
@@ -1454,13 +1455,13 @@ CONTAINS
 
       IF( ld_virtual_itd ) THEN
          !
-         zfac  = 1._wp /  ( rn_cnd_s + rcnd_i )
+         zfac  = 1._wp /  ( rcnd_s + rcnd_i )
          zfac2 = EXP(1._wp) * 0.5_wp * zepsilon
          zfac3 = 2._wp / zepsilon
          !
          DO jl = 1, jpl
             DO_2D( 0, 0, 0, 0 )
-               zhe = ( rn_cnd_s * phi(ji,jj,jl) + rcnd_i * phs(ji,jj,jl) ) * zfac                            ! Effective thickness
+               zhe = ( rcnd_s * phi(ji,jj,jl) + rcnd_i * phs(ji,jj,jl) ) * zfac                              ! Effective thickness
                IF( zhe >=  zfac2 )   zgfac(ji,jj,jl) = MIN( 2._wp, 0.5_wp * ( 1._wp + LOG( zhe * zfac3 ) ) ) ! Enhanced conduction factor
             END_2D
          END DO
@@ -1471,13 +1472,13 @@ CONTAINS
       !      II   Surface temperature and conduction flux            !
       ! -------------------------------------------------------------!
       !
-      zfac = rcnd_i * rn_cnd_s
+      zfac = rcnd_i * rcnd_s
       !
       DO jl = 1, jpl
          DO_2D( 0, 0, 0, 0 )
             !
             zkeff_h = zfac * zgfac(ji,jj,jl) / &                                    ! Effective conductivity of the snow-ice system divided by thickness
-               &      ( rcnd_i * phs(ji,jj,jl) + rn_cnd_s * MAX( 0.01, phi(ji,jj,jl) ) )
+               &      ( rcnd_i * phs(ji,jj,jl) + rcnd_s * MAX( 0.01, phi(ji,jj,jl) ) )
             ztsu    = ptsu(ji,jj,jl)                                                ! Store current iteration temperature
             ztsu0   = ptsu(ji,jj,jl)                                                ! Store initial surface temperature
             zqa0    = qsr_ice(ji,jj,jl) - qtr_ice_top(ji,jj,jl) + pqns_ice(ji,jj,jl) ! Net initial atmospheric heat flux

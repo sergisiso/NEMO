@@ -14,15 +14,15 @@ MODULE icethd_sal
    !!   ice_thd_sal      : salinity variations in the ice
    !!   ice_thd_sal_init : initialization
    !!----------------------------------------------------------------------
-   USE dom_oce        ! ocean space and time domain
-   USE phycst         ! physical constants
-   USE ice            ! sea-ice: variables
+   USE par_ice        ! SI3 parameters
+   USE par_kind, ONLY : wp
+   USE phycst
    USE ice1D          ! sea-ice: thermodynamics variables
-   USE icevar         ! sea-ice: operations
+   USE icevar  , ONLY : ice_var_salprof1d
    !
-   USE in_out_manager ! I/O manager
-   USE lib_mpp        ! MPP library
-   USE iom            ! I/O manager library
+   USE in_out_manager , ONLY : numnam_ice_ref, numnam_ice_cfg, numout, numoni, lwp, lwm  ! I/O manager
+   USE lib_mpp        , ONLY : ctl_stop, ctl_warn, ctl_nam                               ! MPP library
+   USE iom            , ONLY : iom_miss_val                                              ! I/O manager library
 
    IMPLICIT NONE
    PRIVATE

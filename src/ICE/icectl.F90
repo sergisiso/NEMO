@@ -18,13 +18,12 @@ MODULE icectl
    !!    ice_prt          : control prints at a given grid point
    !!    ice_prt3D        : control prints of ice arrays
    !!----------------------------------------------------------------------
-   USE phycst         ! physical constants
-   USE oce            ! ocean dynamics and tracers
-   USE dom_oce        ! ocean space and time domain
+   USE par_ice        ! SI3 parameters
+   USE phycst         ! physical constant
+   USE daymod         ! model calendar
+   USE sbc_oce , ONLY : sfx, nn_fsbc, sss_m, sst_m, qsr, qns, utau, vtau, emp
+   USE sbc_ice , ONLY : qsr_ice, qns_ice, utau_ice, vtau_ice
    USE ice            ! sea-ice: variables
-   USE ice1D          ! sea-ice: thermodynamics variables
-   USE sbc_oce        ! Surface boundary condition: ocean fields
-   USE sbc_ice        ! Surface boundary condition: ice   fields
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
@@ -32,7 +31,7 @@ MODULE icectl
    USE lib_fortran
    USE timing         ! Timing
    USE prtctl         ! Print control
-
+ 
    IMPLICIT NONE
    PRIVATE
 

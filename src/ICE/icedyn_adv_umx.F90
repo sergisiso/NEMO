@@ -15,8 +15,8 @@ MODULE icedyn_adv_umx
    !!   macho             : compute the fluxes
    !!   nonosc_ice        : limit the fluxes using a non-oscillatory algorithm
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constant
-   USE dom_oce        ! ocean domain
    USE sbc_oce , ONLY : nn_fsbc   ! update frequency of surface boundary condition
    USE ice            ! sea-ice variables
    USE icevar         ! sea-ice: operations

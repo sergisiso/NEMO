@@ -14,9 +14,9 @@ MODULE iceistate
    !!   ice_istate       :  initialization of diagnostics ice variables
    !!   ice_istate_init  :  initialization of ice state and namelist read
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constant
-   USE oce            ! dynamics and tracers variables
-   USE dom_oce        ! ocean domain
+   USE oce     , ONLY : ssh
    USE sbc_oce , ONLY : sst_m, sss_m, ln_ice_embd 
    USE sbc_ice , ONLY : tn_ice, snwice_mass, snwice_mass_b
    USE eosbn2         ! equation of state
@@ -26,7 +26,7 @@ MODULE iceistate
    USE ice            ! sea-ice: variables
    USE ice1D          ! sea-ice: thermodynamics variables
    USE icetab         ! sea-ice: 1D <==> 2D transformation
-   USE icevar         ! sea-ice: operations
+   USE icevar  , ONLY : ice_var_salprof, ice_var_itd
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library
@@ -46,12 +46,7 @@ MODULE iceistate
    PUBLIC   ice_istate        ! called by icestp.F90
    PUBLIC   ice_istate_init   ! called by icestp.F90
    !
-   !                             !! ** namelist (namini) **
-   LOGICAL, PUBLIC  ::   ln_iceini        !: Ice initialization or not
-   INTEGER, PUBLIC  ::   nn_iceini_file   !: Ice initialization:
-                                  !        0 = Initialise sea ice based on SSTs
-                                  !        1 = Initialise sea ice from single category netcdf file
-                                  !        2 = Initialise sea ice from multi category restart file
+   !                                     !! ** namelist (namini) **
    REAL(wp) ::   rn_thres_sst
    REAL(wp) ::   rn_hti_ini_n, rn_hts_ini_n, rn_ati_ini_n, rn_smi_ini_n, rn_tmi_ini_n, rn_tsu_ini_n, rn_tms_ini_n
    REAL(wp) ::   rn_hti_ini_s, rn_hts_ini_s, rn_ati_ini_s, rn_smi_ini_s, rn_tmi_ini_s, rn_tsu_ini_s, rn_tms_ini_s

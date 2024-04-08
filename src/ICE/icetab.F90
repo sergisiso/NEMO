@@ -14,8 +14,9 @@ MODULE icetab
    !!   tab_2d_1d  : 2-D <==> 1-D
    !!   tab_1d_2d  : 1-D <==> 2-D
    !!----------------------------------------------------------------------
-   USE par_oce
-   USE ice, ONLY : jpl
+   USE par_kind , ONLY :   wp
+   USE par_oce  , ONLY :   jpi, jpj, nn_hls
+   USE par_ice  , ONLY :   jpl
 
    IMPLICIT NONE
    PRIVATE

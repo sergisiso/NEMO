@@ -27,6 +27,7 @@ export USING_TILING='yes'      # Default: yes => set ln_tile=.true.     ; use -t
 #
 export USING_QCO='yes'         # Default: yes => add key_qco            ; use -q to delete key_qco
 export USING_RK3='yes'         # Default: yes => add key_RK3 & key_qco  ; use -Q to delete key_RK3
+export USING_SI3_1D='no'       # Default: no  => add key_si3_1D        
 export USING_XIOS='yes'        # Default: yes => add key_xios           ; use -X to delete key_xios
                                #    Note: changing USING_XIOS may require a change in arch file
 #
@@ -164,6 +165,9 @@ if [ ${USING_QCO} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_qco key_lins
 #
 if [ ${USING_RK3} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_RK3 " ; fi
 if [ ${USING_RK3} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_RK3 " ; fi
+#
+if [ ${USING_SI3_1D} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_si3_1D " ; fi
+if [ ${USING_SI3_1D} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_si3_1D " ; fi
 
 #
 # Set validation record sub-directories (if required)
@@ -213,6 +217,7 @@ printf "%-33s : %s\n" USING_QCO $USING_QCO
 printf "%-33s : %s\n" USING_XIOS $USING_XIOS
 printf "%-33s : %s\n" USING_MPMD $USING_MPMD
 printf "%-33s : %s\n" USING_RK3 $USING_RK3
+printf "%-33s : %s\n" USING_SI3_1D $USING_SI3_1D
 printf "%-33s : %s\n" USER_INPUT $USER_INPUT
 printf "%-33s : %s\n" "Common compile keys to be added" "$ADD_KEYS"
 printf "%-33s : %s\n" "Common compile keys to be deleted" "$DEL_KEYS"

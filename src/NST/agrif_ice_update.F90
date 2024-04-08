@@ -20,6 +20,7 @@ MODULE agrif_ice_update
    !!   update_u_ice      : zonal      ice velocity
    !!   update_v_ice      : meridional ice velocity
    !!----------------------------------------------------------------------
+   USE par_ice
    USE dom_oce
    USE sbc_oce
    USE agrif_oce

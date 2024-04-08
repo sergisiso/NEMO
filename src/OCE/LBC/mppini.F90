@@ -80,7 +80,11 @@ CONTAINS
       jpj     = jpjglo
       jpk     = MAX( 2, jpkglo )
       !jpij   = jpi*jpj
+#if defined key_si3_1D
+      jpij    = 1
+#else
       jpij    = Ni0glo*Nj0glo
+#endif
       jpni    = 1
       jpnj    = 1
       jpnij   = jpni*jpnj

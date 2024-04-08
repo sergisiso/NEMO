@@ -13,13 +13,13 @@ MODULE icethd_zdf
    !!  ice_thd_zdf_BL99 : heat diffusion from Bitz and Lipscomb 1999 
    !!  ice_thd_zdf_init : initialization
    !!----------------------------------------------------------------------
-   USE dom_oce         ! ocean space and time domain
-   USE phycst          ! physical constants (ocean directory) 
-   USE ice             ! sea-ice: variables
+   USE par_ice
+   USE par_kind , ONLY : wp
+   USE phycst   , ONLY : rcnd_s
    USE icethd_zdf_BL99 ! sea-ice: vertical diffusion (Bitz and Lipscomb, 1999) 
    !
-   USE in_out_manager  ! I/O manager
-   USE lib_mpp         ! MPP library
+   USE in_out_manager , ONLY : numnam_ice_ref, numnam_ice_cfg, numout, numoni, lwp, lwm ! I/O manager
+   USE lib_mpp        , ONLY : ctl_stop, ctl_warn, ctl_nam                              ! MPP library
 
    IMPLICIT NONE
    PRIVATE
@@ -33,7 +33,8 @@ MODULE icethd_zdf
 !! INTEGER, PARAMETER ::   np_XXXX = 2
 
    !!** namelist (namthd_zdf) **
-   LOGICAL ::   ln_zdf_BL99    ! Heat diffusion follows Bitz and Lipscomb (1999)
+   LOGICAL  ::   ln_zdf_BL99    ! Heat diffusion follows Bitz and Lipscomb (1999)
+   REAL(wp) ::   rn_cnd_s       ! thermal conductivity of the snow [W/m/K]
 
    !! * Substitutions
 #  include "read_nml_substitute.h90"
@@ -108,6 +109,8 @@ CONTAINS
          WRITE(numout,*) '      extinction radiation parameter in dry  snw (nn_qtrice=1)  rn_kappa_sdry = ', rn_kappa_sdry
          WRITE(numout,*) '      check convergence of heat diffusion scheme                ln_zdf_chkcvg = ', ln_zdf_chkcvg
       ENDIF
+      !
+      rcnd_s = rn_cnd_s ! to be "name compliant" with ice thermal conductivity
       !
       IF ( ( ln_cndi_U64 .AND. ln_cndi_P07 ) .OR. ( .NOT. ln_cndi_U64 .AND. .NOT. ln_cndi_P07 ) ) THEN
          CALL ctl_stop( 'ice_thd_zdf_init: choose 1 and only 1 formulation for thermal conduction (ln_cndi_U64 or ln_cndi_P07)' )

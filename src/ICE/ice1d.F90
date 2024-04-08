@@ -10,7 +10,7 @@ MODULE ice1D
    !!----------------------------------------------------------------------
    !!   'key_si3'                                       SI3 sea-ice model
    !!----------------------------------------------------------------------
-   USE ice     , ONLY :   nlay_i, nlay_s, jpl, ln_zdf_chkcvg, ln_sal_chk   ! number of ice/snow layers and categories
+   USE par_ice , ONLY :   nlay_i, nlay_s, jpl, ln_zdf_chkcvg, ln_sal_chk   ! number of ice/snow layers and categories
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library

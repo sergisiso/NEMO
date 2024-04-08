@@ -29,7 +29,8 @@ MODULE sbccpl
    USE phycst          ! physical constants
    USE isf_oce , ONLY : l_isfoasis, fwfisf_oasis ! ice shelf boundary condition
 #if defined key_si3
-   USE ice            ! ice variables
+   USE par_ice        ! SI3 parameters
+   USE ice     , ONLY : a_i, h_i, h_s, h_ip, a_ip_frac, a_ip_eff, cnd_ice, t1_ice, u_ice, v_ice
 #endif
    USE cpl_oasis3     ! OASIS3 coupling
    USE geo2ocean      !

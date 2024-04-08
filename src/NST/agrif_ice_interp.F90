@@ -17,6 +17,7 @@ MODULE agrif_ice_interp
    !!  interp_v_ice   : atomic routine to interpolate v_ice 
    !!  interp_tra_ice : atomic routine to interpolate ice properties 
    !!----------------------------------------------------------------------
+   USE par_ice
    USE par_oce
    USE dom_oce
    USE sbc_oce

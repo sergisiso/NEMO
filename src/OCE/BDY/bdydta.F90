@@ -22,15 +22,16 @@ MODULE bdydta
    USE dom_oce        ! ocean space and time domain
    USE phycst         ! physical constants
    USE sbcapr         ! atmospheric pressure forcing
-   USE tide_mod, ONLY: ln_tide ! tidal forcing
+   USE tide_mod, ONLY : ln_tide ! tidal forcing
    USE bdy_oce        ! ocean open boundary conditions  
    USE bdytides       ! tidal forcing at boundaries
 #if defined key_si3
-   USE ice            ! sea-ice variables
-   USE icevar         ! redistribute ice input into categories
+   USE par_ice        ! SI3 parameters
+   USE ice     , ONLY : a_i, h_i, h_s, t_i, t_s, t_su, sz_i, a_ip, h_ip, h_il
+   USE icevar  , ONLY : ice_var_itd
 #endif
    !
-   USE lib_mpp, ONLY: ctl_stop, ctl_nam
+   USE lib_mpp , ONLY : ctl_stop, ctl_nam
    USE fldread        ! read input fields
    USE iom            ! IOM library
    USE in_out_manager ! I/O logical units
