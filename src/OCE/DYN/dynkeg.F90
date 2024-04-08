@@ -93,9 +93,9 @@ CONTAINS
       ENDIF
       !
       IF( l_trddyn ) THEN                       ! Save the input trends
-         ALLOCATE( zu_trd(A2D(2),jpk), zv_trd(A2D(2),jpk) )
-         zu_trd(A2D(0),:) = puu(A2D(0),:,Krhs)
-         zv_trd(A2D(0),:) = pvv(A2D(0),:,Krhs)
+         ALLOCATE( zu_trd(T2D(0),jpk), zv_trd(T2D(0),jpk) )
+         zu_trd(:,:,:) = puu(T2D(0),:,Krhs)
+         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
       !
       SELECT CASE ( kscheme )
@@ -147,8 +147,8 @@ CONTAINS
       END SELECT
       !
       IF( l_trddyn ) THEN                        ! save the Kinetic Energy trends for diagnostic
-         zu_trd(A2D(0),:) = puu(A2D(0),:,Krhs) - zu_trd(A2D(0),:)
-         zv_trd(A2D(0),:) = pvv(A2D(0),:,Krhs) - zv_trd(A2D(0),:)
+         zu_trd(:,:,:) = puu(T2D(0),:,Krhs) - zu_trd(:,:,:)
+         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs) - zv_trd(:,:,:)
          CALL trd_dyn( zu_trd, zv_trd, jpdyn_keg, kt, Kmm )
          DEALLOCATE( zu_trd, zv_trd )
       ENDIF

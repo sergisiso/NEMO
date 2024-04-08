@@ -98,8 +98,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       IF( ln_timing    )   CALL timing_start('dyn_atf_qco')
-      IF( ln_dynspg_ts )   ALLOCATE( zue(jpi,jpj)     , zve(jpi,jpj)     )
-      IF( l_trddyn     )   ALLOCATE( zua(jpi,jpj,jpk) , zva(jpi,jpj,jpk) )
+      IF( ln_dynspg_ts )   ALLOCATE( zue(jpi,jpj)   , zve(jpi,jpj)    )
+      IF( l_trddyn     )   ALLOCATE( zua(T2D(0),jpk), zva(T2D(0),jpk) )
       !
       IF( kt == nit000 ) THEN
          IF(lwp) WRITE(numout,*)
@@ -110,17 +110,21 @@ CONTAINS
       IF( l_trddyn ) THEN             ! prepare the atf trend computation + some diagnostics
          !
          !                                  ! Kinetic energy and Conversion
-         IF( ln_KE_trd  )   CALL trd_dyn( puu(:,:,:,Kaa), pvv(:,:,:,Kaa), jpdyn_ken, kt, Kmm )
+         IF( ln_KE_trd  ) THEN
+            zua(:,:,:) = puu(T2D(0),:,Kaa)
+            zva(:,:,:) = pvv(T2D(0),:,Kaa)
+            CALL trd_dyn( zua(:,:,:), zva(:,:,:), jpdyn_ken, kt, Kmm )
+         ENDIF
          !
          IF( ln_dyn_trd ) THEN              ! 3D output: total momentum trends
-            zua(:,:,:) = ( puu(:,:,:,Kaa) - puu(:,:,:,Kbb) ) * r1_Dt
-            zva(:,:,:) = ( pvv(:,:,:,Kaa) - pvv(:,:,:,Kbb) ) * r1_Dt
+            zua(:,:,:) = ( puu(T2D(0),:,Kaa) - puu(T2D(0),:,Kbb) ) * r1_Dt
+            zva(:,:,:) = ( pvv(T2D(0),:,Kaa) - pvv(T2D(0),:,Kbb) ) * r1_Dt
             CALL iom_put( "utrd_tot", zua )        ! total momentum trends, except the asselin time filter
             CALL iom_put( "vtrd_tot", zva )
          ENDIF
          !
-         zua(:,:,:) = puu(:,:,:,Kmm)             ! save the now velocity before the asselin filter
-         zva(:,:,:) = pvv(:,:,:,Kmm)             ! (caution: there will be a shift by 1 timestep in the
+         zua(:,:,:) = puu(T2D(0),:,Kmm)     ! save the now velocity before the asselin filter
+         zva(:,:,:) = pvv(T2D(0),:,Kmm)     ! (caution: there will be a shift by 1 timestep in the
          !                                  !  computation of the asselin filter trends)
       ENDIF
 
@@ -231,8 +235,8 @@ CONTAINS
          CALL iom_put(  "vbar", vv_b(:,:,Kmm) )
       ENDIF
       IF( l_trddyn ) THEN                ! 3D output: asselin filter trends on momentum
-         zua(:,:,:) = ( puu(:,:,:,Kmm) - zua(:,:,:) ) * r1_Dt
-         zva(:,:,:) = ( pvv(:,:,:,Kmm) - zva(:,:,:) ) * r1_Dt
+         zua(:,:,:) = ( puu(T2D(0),:,Kmm) - zua(:,:,:) ) * r1_Dt
+         zva(:,:,:) = ( pvv(T2D(0),:,Kmm) - zva(:,:,:) ) * r1_Dt
          CALL trd_dyn( zua, zva, jpdyn_atf, kt, Kmm )
       ENDIF
       !

@@ -17,6 +17,7 @@ MODULE trdtrc
    USE trdtrc_oce       ! definition of main arrays used for trends computations
    USE trdmxl_trc        ! Mixed layer trends diag.
    USE iom               ! I/O library
+   USE domutl, ONLY : lbnd_ij
    USE par_kind
 
    IMPLICIT NONE
@@ -24,6 +25,8 @@ MODULE trdtrc
 
    PUBLIC trd_trc
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
    !! $Id: trdtrc.F90 13226 2020-07-02 14:24:31Z orioltp $ 
@@ -33,14 +36,27 @@ MODULE trdtrc
 CONTAINS
 
    SUBROUTINE trd_trc( ptrtrd, kjn, ktrd, kt, Kmm )
+      !!
+      INTEGER                   , INTENT(in   )  ::   kt      ! time step
+      INTEGER                   , INTENT(in   )  ::   Kmm     ! time level index
+      INTEGER                   , INTENT(in   )  ::   kjn     ! tracer index
+      INTEGER                   , INTENT(in   )  ::   ktrd    ! tracer trend index
+      REAL(wp), DIMENSION(:,:,:), INTENT(inout)  ::   ptrtrd  ! Temperature or U trend
+      !!
+      CALL trd_trc_t( ptrtrd, lbnd_ij(ptrtrd), kjn, ktrd, kt, Kmm )
+   END SUBROUTINE trd_trc
+
+
+   SUBROUTINE trd_trc_t( ptrtrd, kttrtrd, kjn, ktrd, kt, Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trd_trc  ***
       !!----------------------------------------------------------------------
-      INTEGER, INTENT( in )  ::   kt                                  ! time step
-      INTEGER, INTENT( in )  ::   Kmm                                 ! time level index
-      INTEGER, INTENT( in )  ::   kjn                                 ! tracer index
-      INTEGER, INTENT( in )  ::   ktrd                                ! tracer trend index
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT( inout )  ::   ptrtrd  ! Temperature or U trend
+      INTEGER , DIMENSION(2)                , INTENT(in   )  ::   kttrtrd
+      INTEGER                               , INTENT(in   )  ::   kt          ! time step
+      INTEGER                               , INTENT(in   )  ::   Kmm         ! time level index
+      INTEGER                               , INTENT(in   )  ::   kjn         ! tracer index
+      INTEGER                               , INTENT(in   )  ::   ktrd        ! tracer trend index
+      REAL(wp), DIMENSION(AB2D(kttrtrd),JPK), INTENT(inout)  ::   ptrtrd      ! Temperature or U trend
       CHARACTER (len=20) :: cltra
       !!----------------------------------------------------------------------
 
@@ -100,7 +116,7 @@ CONTAINS
          !
       END IF
 
-   END SUBROUTINE trd_trc
+   END SUBROUTINE trd_trc_t
 
 #else
    !!----------------------------------------------------------------------

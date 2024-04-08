@@ -86,9 +86,9 @@ CONTAINS
          &     CALL ctl_stop('STOP','dynadv_cen2: provide either 3D or none advective transport (pFu, pFv, pFw)' )
       !
       IF( l_trddyn ) THEN           ! trends: store the input trends
-         ALLOCATE( zu_trd(A2D(2),jpkm1), zv_trd(A2D(2),jpkm1) )
-         zu_trd(A2D(0),:) = puu(A2D(0),1:jpkm1,Krhs)
-         zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs)
+         ALLOCATE( zu_trd(T2D(0),jpk), zv_trd(T2D(0),jpk) )
+         zu_trd(:,:,:) = puu(T2D(0),:,Krhs)
+         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
       !                             ! used in MLF and RK3(stp2d) : advective velocity = (puu,pvv,ww)
       IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(T2D(1)), zwv(T2D(1)) )
@@ -126,11 +126,11 @@ CONTAINS
       END DO
       !
       IF( l_trddyn ) THEN           ! trends: send trend to trddyn for diagnostic
-         zu_trd(A2D(0),:) = puu(A2D(0),1:jpkm1,Krhs) - zu_trd(A2D(0),:)
-         zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs) - zv_trd(A2D(0),:)
+         zu_trd(:,:,:) = puu(T2D(0),:,Krhs) - zu_trd(:,:,:)
+         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs) - zv_trd(:,:,:)
          CALL trd_dyn( zu_trd, zv_trd, jpdyn_keg, kt, Kmm )
-         zu_trd(A2D(0),:) = puu(A2D(0),1:jpkm1,Krhs)
-         zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs)
+         zu_trd(:,:,:) = puu(T2D(0),:,Krhs)
+         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
       !
 #define zFwu   zFu_t
@@ -198,8 +198,8 @@ CONTAINS
       END_2D
       !
       IF( l_trddyn ) THEN                 ! trends: send trend to trddyn for diagnostic
-         zu_trd(A2D(0),:) = puu(A2D(0),1:jpkm1,Krhs) - zu_trd(A2D(0),:)
-         zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs) - zv_trd(A2D(0),:)
+         zu_trd(:,:,:) = puu(T2D(0),:,Krhs) - zu_trd(:,:,:)
+         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs) - zv_trd(:,:,:)
          CALL trd_dyn( zu_trd, zv_trd, jpdyn_zad, kt, Kmm )
          DEALLOCATE( zu_trd, zv_trd )
       ENDIF

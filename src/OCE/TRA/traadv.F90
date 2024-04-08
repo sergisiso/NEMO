@@ -285,9 +285,9 @@ CONTAINS
          ENDIF
          !
          IF( l_trdtra )   THEN                    !* Save ta and sa trends
-            ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
-            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
-            ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
+            ALLOCATE( ztrdt(T2D(0),jpk), ztrds(T2D(0),jpk) )
+            ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs)
+            ztrds(:,:,:) = pts(T2D(0),:,jp_sal,Krhs)
          ENDIF
          !
 #if ! defined key_RK3
@@ -363,10 +363,10 @@ CONTAINS
 #endif
          !
          IF( l_trdtra )   THEN                      ! save the advective trends for further diagnostics
-            DO jk = 1, jpkm1
-               ztrdt(:,:,jk) = pts(:,:,jk,jp_tem,Krhs) - ztrdt(:,:,jk)
-               ztrds(:,:,jk) = pts(:,:,jk,jp_sal,Krhs) - ztrds(:,:,jk)
-            END DO
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               ztrdt(ji,jj,jk) = pts(ji,jj,jk,jp_tem,Krhs) - ztrdt(ji,jj,jk)
+               ztrds(ji,jj,jk) = pts(ji,jj,jk,jp_sal,Krhs) - ztrds(ji,jj,jk)
+            END_3D
             CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_totad, ztrdt )
             CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_totad, ztrds )
             DEALLOCATE( ztrdt, ztrds )

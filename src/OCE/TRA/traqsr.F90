@@ -128,8 +128,8 @@ CONTAINS
       ENDIF
       !
       IF( l_trdtra ) THEN     ! trends diagnostic: save the input temperature trend
-         ALLOCATE( ztrdt(jpi,jpj,jpk) )
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
+         ALLOCATE( ztrdt(T2D(0),jpk) )
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs)
       ENDIF
       ! 
 #if ! defined key_RK3
@@ -205,7 +205,7 @@ CONTAINS
 #endif
       !
       IF( l_trdtra ) THEN     ! qsr tracers trends saved for diagnostics
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs) - ztrdt(:,:,:)
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_qsr, ztrdt )
          DEALLOCATE( ztrdt )
       ENDIF

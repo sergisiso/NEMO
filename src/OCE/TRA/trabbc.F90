@@ -87,8 +87,8 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('tra_bbc')
       !
       IF( l_trdtra ) THEN           ! Save the input temperature trend
-         ALLOCATE( ztrdt(jpi,jpj,jpk) )
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
+         ALLOCATE( ztrdt(T2D(0),jpk) )
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs)
       ENDIF
       !                             !  Add the geothermal trend on temperature
       DO_2D( 0, 0, 0, 0 )
@@ -97,7 +97,7 @@ CONTAINS
       END_2D
       !
       IF( l_trdtra ) THEN        ! Send the trend for diagnostics
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs) - ztrdt(:,:,:)
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_bbc, ztrdt )
          DEALLOCATE( ztrdt )
       ENDIF

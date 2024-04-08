@@ -84,7 +84,7 @@ CONTAINS
       INTEGER                                   , INTENT( in )  :: Kbb, Kmm, Kaa ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) :: ptr            ! passive tracers
       !
-      INTEGER  ::   jk, jn   ! dummy loop indices
+      INTEGER  ::   ji, jj, jk, jn   ! dummy loop indices
       REAL(wp) ::   zfact            ! temporary scalar
       CHARACTER (len=22) :: charout
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) ::   ztrdt    ! 4D workspace
@@ -106,7 +106,7 @@ CONTAINS
       IF( ln_top .AND. ln_bdy )  CALL trc_bdy( kt, Kbb, Kmm, Kaa )
 
       IF( l_trdtrc )  THEN             ! trends: store now fields before the Asselin filter application
-         ALLOCATE( ztrdt(jpi,jpj,jpk,jptra) )
+         ALLOCATE( ztrdt(T2D(0),jpk,jptra) )
          ztrdt(:,:,:,:)  = 0._wp
          IF( ln_traldf_iso ) THEN                       ! diagnose the "pure" Kz diffusive trend 
             DO jn = 1, jptra
@@ -119,15 +119,15 @@ CONTAINS
          ! G Nurser 23 Mar 2017. Recalculate trend as Delta(e3ta*Ta)/e3tn; e3tn cancel from ts(Kmm) terms
          IF( lk_linssh ) THEN       ! linear sea surface height only
             DO jn = 1, jptra
-               DO jk = 1, jpkm1
-                  ztrdt(:,:,jk,jn) = ( ptr(:,:,jk,jn,Kaa)*e3t(:,:,jk,Kaa) / e3t(:,:,jk,Kmm) - ptr(:,:,jk,jn,Kmm)) * zfact
-               END DO
+               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+                  ztrdt(ji,jj,jk,jn) = ( ptr(ji,jj,jk,jn,Kaa)*e3t(ji,jj,jk,Kaa) / e3t(ji,jj,jk,Kmm) - ptr(ji,jj,jk,jn,Kmm)) * zfact
+               END_3D
             END DO
          ELSE
             DO jn = 1, jptra
-               DO jk = 1, jpkm1
-                  ztrdt(:,:,jk,jn) = ( ptr(:,:,jk,jn,Kaa) - ptr(:,:,jk,jn,Kmm) ) * zfact
-               END DO
+               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+                  ztrdt(ji,jj,jk,jn) = ( ptr(ji,jj,jk,jn,Kaa) - ptr(ji,jj,jk,jn,Kmm) ) * zfact
+               END_3D
             END DO
          ENDIF
          !
@@ -138,7 +138,7 @@ CONTAINS
          IF( lk_linssh ) THEN       ! linear sea surface height only
             ! Store now fields before applying the Asselin filter 
             ! in order to calculate Asselin filter trend later.
-            ztrdt(:,:,:,:) = ptr(:,:,:,:,Kmm) 
+            ztrdt(:,:,:,:) = ptr(T2D(0),:,:,Kmm)
          ENDIF
 
       ENDIF
@@ -166,11 +166,11 @@ CONTAINS
       ENDIF
       !
       IF( l_trdtrc .AND. lk_linssh ) THEN      ! trend of the Asselin filter (tb filtered - tb)/dt )
+         zfact = 1._wp / rDt_trc
          DO jn = 1, jptra
-            DO jk = 1, jpkm1
-               zfact = 1._wp / rDt_trc  
-               ztrdt(:,:,jk,jn) = ( ptr(:,:,jk,jn,Kbb) - ztrdt(:,:,jk,jn) ) * zfact 
-            END DO
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               ztrdt(ji,jj,jk,jn) = ( ptr(ji,jj,jk,jn,Kbb) - ztrdt(ji,jj,jk,jn) ) * zfact
+            END_3D
             CALL trd_tra( kt, Kmm, Kaa, 'TRC', jn, jptra_atf, ztrdt(:,:,:,jn) )
          END DO
       END IF
@@ -247,7 +247,7 @@ CONTAINS
             ze3t_f = 1._wp + r3t_f(ji,jj)*tmask(ji,jj,jk)
             ztc_f  = ztc_n  + rn_atfp * ztc_d
             !
-            IF( .NOT. lk_linssh .AND. jk == mikt(ji,jj) ) THEN           ! first level 
+            IF( .NOT. lk_linssh .AND. jk == mikt(ji,jj) ) THEN           ! first level
                ztc_f  = ztc_f  - rfact1 * ( sbc_trc(ji,jj,jn) - sbc_trc_b(ji,jj,jn) )
             ENDIF
 
@@ -321,7 +321,7 @@ CONTAINS
             ze3t_f = ze3t_n + rn_atfp * ze3t_d
             ztc_f  = ztc_n  + rn_atfp * ztc_d
             !
-            IF( .NOT. lk_linssh .AND. jk == mikt(ji,jj) ) THEN           ! first level 
+            IF( .NOT. lk_linssh .AND. jk == mikt(ji,jj) ) THEN           ! first level
                ze3t_f = ze3t_f - rfact2 * ( emp_b(ji,jj)      - emp(ji,jj)   ) 
                ztc_f  = ztc_f  - rfact1 * ( sbc_trc(ji,jj,jn) - sbc_trc_b(ji,jj,jn) )
             ENDIF

@@ -253,9 +253,9 @@ CONTAINS
       zm1_2dt = - 1._wp / ( 2._wp * rn_Dt )
 
       IF( l_trddyn ) THEN      ! trends: store the input trends
-         ALLOCATE( ztrdu(jpi,jpj,jpk) , ztrdv(jpi,jpj,jpk) )
-         ztrdu(:,:,:) = pua(:,:,:)
-         ztrdv(:,:,:) = pva(:,:,:)
+         ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
+         ztrdu(:,:,:) = pua(T2D(0),:)
+         ztrdv(:,:,:) = pva(T2D(0),:)
       ENDIF
 
       DO_2D( 0, 0, 0, 0 )
@@ -285,8 +285,8 @@ CONTAINS
       ENDIF
       !
       IF( l_trddyn ) THEN      ! trends: send trends to trddyn for further diagnostics
-         ztrdu(:,:,:) = pua(:,:,:) - ztrdu(:,:,:)
-         ztrdv(:,:,:) = pva(:,:,:) - ztrdv(:,:,:)
+         ztrdu(:,:,:) = pua(T2D(0),:) - ztrdu(:,:,:)
+         ztrdv(:,:,:) = pva(T2D(0),:) - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu(:,:,:), ztrdv(:,:,:), jpdyn_bfr, kt, Kmm )
          DEALLOCATE( ztrdu, ztrdv )
       ENDIF

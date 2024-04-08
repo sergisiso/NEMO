@@ -74,9 +74,9 @@ CONTAINS
       ENDIF
       !
       IF( l_trddyn )   THEN           ! Save puu(:,:,:,Krhs) and pvv(:,:,:,Krhs) trends
-         ALLOCATE( ztrdu(jpi,jpj,jpk) , ztrdv(jpi,jpj,jpk) )
-         ztrdu(:,:,:) = puu(:,:,:,Krhs)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs)
+         ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
       !
       !                                !==  vertical momentum advection ==!   at u- and v-points
@@ -120,8 +120,8 @@ CONTAINS
       END_2D
       !
       IF( l_trddyn ) THEN             ! save the vertical advection trends for diagnostic
-         ztrdu(:,:,:) = puu(:,:,:,Krhs) - ztrdu(:,:,:)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs) - ztrdv(:,:,:)
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs) - ztrdu(:,:,:)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs) - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu, ztrdv, jpdyn_zad, kt, Kmm )
          DEALLOCATE( ztrdu, ztrdv )
       ENDIF

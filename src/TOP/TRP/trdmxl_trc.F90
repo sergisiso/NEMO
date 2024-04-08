@@ -16,6 +16,7 @@ MODULE trdmxl_trc
    !!----------------------------------------------------------------------
    USE trc               ! tracer definitions (tr etc.)
    USE dom_oce           ! domain definition
+   USE domutl  , ONLY : lbnd_ij
    USE zdfmxl  , ONLY : nmln ! number of level in the mixed layer
    USE zdf_oce , ONLY : avs  ! vert. diffusivity coef. at w-point for temp  
    USE trdtrc_oce    ! definition of main arrays used for trends computations
@@ -76,6 +77,17 @@ CONTAINS
 
 
    SUBROUTINE trd_mxl_trc_zint( ptrc_trdmxl, ktrd, ctype, kjn, Kmm )
+      !!
+      INTEGER                   , INTENT(in) ::  ktrd, kjn        ! ocean trend index and passive tracer rank
+      INTEGER                   , INTENT(in) ::  Kmm              ! time level index
+      CHARACTER(len=2)          , INTENT(in) ::  ctype            ! surface/bottom (2D) or interior (3D) physics
+      REAL(wp), DIMENSION(:,:,:), INTENT(in) ::  ptrc_trdmxl      ! passive tracer trend
+      !!
+      CALL trd_mxl_trc_zint_t( ptrc_trdmxl, lbnd_ij(ptrc_trdmxl), ktrd, ctype, kjn, Kmm )
+   END SUBROUTINE trd_mxl_trc_zint
+
+
+   SUBROUTINE trd_mxl_trc_zint_t( ptrc_trdmxl, kttrc_trdmxl, ktrd, ctype, kjn, Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trd_mxl_trc_zint  ***
       !! 
@@ -96,10 +108,11 @@ CONTAINS
       !!            surface and the control surface is called "mixed-layer"
       !!----------------------------------------------------------------------
       !!
-      INTEGER, INTENT( in ) ::   ktrd, kjn                        ! ocean trend index and passive tracer rank
-      INTEGER, INTENT( in ) ::   Kmm                              ! time level index
-      CHARACTER(len=2), INTENT( in ) ::  ctype                    ! surface/bottom (2D) or interior (3D) physics
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT( in ) ::  ptrc_trdmxl ! passive tracer trend
+      INTEGER, DIMENSION(2)                      , INTENT(in) ::  kttrc_trdmxl
+      INTEGER                                    , INTENT(in) ::  ktrd, kjn         ! ocean trend index and passive tracer rank
+      INTEGER                                    , INTENT(in) ::  Kmm               ! time level index
+      CHARACTER(len=2)                           , INTENT(in) ::  ctype             ! surface/bottom (2D) or interior (3D) physics
+      REAL(wp), DIMENSION(AB2D(kttrc_trdmxl),JPK), INTENT(in) ::  ptrc_trdmxl       ! passive tracer trend
       !
       INTEGER ::   ji, jj, jk, isum
       REAL(wp), DIMENSION(jpi,jpj) :: zvlmsk
@@ -178,14 +191,16 @@ CONTAINS
 
       SELECT CASE ( ctype )
          CASE ( '3D' )                                            ! mean passive tracer trends in the mixed-layer
-            DO jk = 1, jpktrd_trc
-               tmltrd_trc(:,:,ktrd,kjn) = tmltrd_trc(:,:,ktrd,kjn) + ptrc_trdmxl(:,:,jk) * wkx_trc(:,:,jk)   
-            END DO
+            DO_3D( 0, 0, 0, 0, 1, jpktrd_trc )
+               tmltrd_trc(ji,jj,ktrd,kjn) = tmltrd_trc(ji,jj,ktrd,kjn) + ptrc_trdmxl(ji,jj,jk) * wkx_trc(ji,jj,jk)
+            END_3D
          CASE ( '2D' )                                            ! forcing at upper boundary of the mixed-layer 
-            tmltrd_trc(:,:,ktrd,kjn) = tmltrd_trc(:,:,ktrd,kjn) + ptrc_trdmxl(:,:,1) * wkx_trc(:,:,1)  ! non penetrative
+            DO_2D( 0, 0, 0, 0 )
+               tmltrd_trc(ji,jj,ktrd,kjn) = tmltrd_trc(ji,jj,ktrd,kjn) + ptrc_trdmxl(ji,jj,1) * wkx_trc(ji,jj,1)  ! non penetrative
+            END_2D
       END SELECT
       !
-   END SUBROUTINE trd_mxl_trc_zint
+   END SUBROUTINE trd_mxl_trc_zint_t
 
 
    SUBROUTINE trd_mxl_trc( kt, Kmm )

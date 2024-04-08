@@ -68,12 +68,12 @@ CONTAINS
       !!              T, T^2, momentum, KE, and KE<->PE
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   ptrdx   ! Temperature or U trend 
-      REAL(wp), DIMENSION(:,:,:), INTENT(inout) ::   ptrdy   ! Salinity    or V trend
-      INTEGER                   , INTENT(in   ) ::   ktrd    ! tracer trend index
-      CHARACTER(len=3)          , INTENT(in   ) ::   ctype   ! momentum or tracers trends type (='DYN'/'TRA')
-      INTEGER                   , INTENT(in   ) ::   kt      ! time step
-      INTEGER                   , INTENT(in   ) ::   Kmm     ! time level index
+      REAL(wp), DIMENSION(T2D(0),jpk), INTENT(inout) ::   ptrdx   ! Temperature or U trend
+      REAL(wp), DIMENSION(T2D(0),jpk), INTENT(inout) ::   ptrdy   ! Salinity    or V trend
+      INTEGER                        , INTENT(in   ) ::   ktrd    ! tracer trend index
+      CHARACTER(len=3)               , INTENT(in   ) ::   ctype   ! momentum or tracers trends type (='DYN'/'TRA')
+      INTEGER                        , INTENT(in   ) ::   kt      ! time step
+      INTEGER                        , INTENT(in   ) ::   Kmm     ! time level index
       !!
       INTEGER ::   ji, jj, jk      ! dummy loop indices
       INTEGER ::   ikbu, ikbv      ! local integers
@@ -83,92 +83,92 @@ CONTAINS
       !
       IF( MOD(kt,nn_trd) == 0 .OR. kt == nit000 .OR. kt == nitend ) THEN
          !
-     SELECT CASE( ctype )
-     !
-     CASE( 'TRA' )          !==  Tracers (T & S)  ==!
-        DO_3D( 0, 0, 0, 0, 1, jpkm1 )   ! global sum of mask volume trend and trend*T (including interior mask)
-           zvm = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * tmask_i(ji,jj)
-           zvt = ptrdx(ji,jj,jk) * zvm
-           zvs = ptrdy(ji,jj,jk) * zvm
-           tmo(ktrd) = tmo(ktrd) + zvt   
-           smo(ktrd) = smo(ktrd) + zvs
-           t2 (ktrd) = t2(ktrd)  + zvt * ts(ji,jj,jk,jp_tem,Kmm)
-           s2 (ktrd) = s2(ktrd)  + zvs * ts(ji,jj,jk,jp_sal,Kmm)
-        END_3D
-            !                       ! linear free surface: diagnose advective flux trough the fixed k=1 w-surface
-        IF( lk_linssh .AND. ktrd == jptra_zad ) THEN  
-            DO_2D( 0, 0, 0, 0 )   ! global sum of mask volume trend and trend*T (including interior mask)
-               zvm = ww(ji,jj,1) * e1e2t(ji,jj) * tmask_i(ji,jj)
-               tmo(jptra_sad) = tmo(jptra_sad) + ts(ji,jj,1,jp_tem,Kmm) * zvm
-               smo(jptra_sad) = smo(jptra_sad) + ts(ji,jj,1,jp_sal,Kmm) * zvm
-               t2 (jptra_sad) = t2 (jptra_sad) + ts(ji,jj,1,jp_tem,Kmm) * ts(ji,jj,1,jp_tem,Kmm) * zvm
-               s2 (jptra_sad) = s2 (jptra_sad) + ts(ji,jj,1,jp_sal,Kmm) * ts(ji,jj,1,jp_sal,Kmm) * zvm
-            END_2D
-        ENDIF
+         SELECT CASE( ctype )
             !
-        IF( ktrd == jptra_atf ) THEN     ! last trend (asselin time filter)
-            ! 
-            CALL glo_tra_wri( kt )             ! print the results in ocean.output
-            !                
-            tmo(:) = 0._wp                     ! prepare the next time step (domain averaged array reset to zero)
-            smo(:) = 0._wp
-            t2 (:) = 0._wp
-            s2 (:) = 0._wp
+            CASE( 'TRA' )          !==  Tracers (T & S)  ==!
+               DO_3D( 0, 0, 0, 0, 1, jpkm1 )   ! global sum of mask volume trend and trend*T (including interior mask)
+                  zvm = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) * tmask_i(ji,jj)
+                  zvt = ptrdx(ji,jj,jk) * zvm
+                  zvs = ptrdy(ji,jj,jk) * zvm
+                  tmo(ktrd) = tmo(ktrd) + zvt
+                  smo(ktrd) = smo(ktrd) + zvs
+                  t2 (ktrd) = t2(ktrd)  + zvt * ts(ji,jj,jk,jp_tem,Kmm)
+                  s2 (ktrd) = s2(ktrd)  + zvs * ts(ji,jj,jk,jp_sal,Kmm)
+               END_3D
+               !                       ! linear free surface: diagnose advective flux trough the fixed k=1 w-surface
+               IF( lk_linssh .AND. ktrd == jptra_zad ) THEN
+                  DO_2D( 0, 0, 0, 0 )   ! global sum of mask volume trend and trend*T (including interior mask)
+                     zvm = ww(ji,jj,1) * e1e2t(ji,jj) * tmask_i(ji,jj)
+                     tmo(jptra_sad) = tmo(jptra_sad) + ts(ji,jj,1,jp_tem,Kmm) * zvm
+                     smo(jptra_sad) = smo(jptra_sad) + ts(ji,jj,1,jp_sal,Kmm) * zvm
+                     t2 (jptra_sad) = t2 (jptra_sad) + ts(ji,jj,1,jp_tem,Kmm) * ts(ji,jj,1,jp_tem,Kmm) * zvm
+                     s2 (jptra_sad) = s2 (jptra_sad) + ts(ji,jj,1,jp_sal,Kmm) * ts(ji,jj,1,jp_sal,Kmm) * zvm
+                  END_2D
+               ENDIF
+               !
+               IF( ktrd == jptra_atf ) THEN     ! last trend (asselin time filter)
+                  !
+                  CALL glo_tra_wri( kt )             ! print the results in ocean.output
+                  !
+                  tmo(:) = 0._wp                     ! prepare the next time step (domain averaged array reset to zero)
+                  smo(:) = 0._wp
+                  t2 (:) = 0._wp
+                  s2 (:) = 0._wp
+                  !
+               ENDIF
             !
-         ENDIF
-            !
-         CASE( 'DYN' )          !==  Momentum and KE  ==!        
-            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               zvt = ptrdx(ji,jj,jk) * tmask_i(ji+1,jj) * tmask_i(ji,jj) * umask(ji,jj,jk)   &
-                  &                                     * e1e2u  (ji,jj) * e3u(ji,jj,jk,Kmm)
-               zvs = ptrdy(ji,jj,jk) * tmask_i(ji,jj+1) * tmask_i(ji,jj) * vmask(ji,jj,jk)   &
-                  &                                     * e1e2v  (ji,jj) * e3u(ji,jj,jk,Kmm)
-               umo(ktrd) = umo(ktrd) + zvt
-               vmo(ktrd) = vmo(ktrd) + zvs
-               hke(ktrd) = hke(ktrd) + uu(ji,jj,jk,Kmm) * zvt + vv(ji,jj,jk,Kmm) * zvs
-            END_3D
-            !                 
-            IF( ktrd == jpdyn_zdf ) THEN      ! zdf trend: compute separately the surface forcing trend
-               z1_2rho0 = 0.5_wp / rho0
-               DO_2D( 0, 0, 0, 0 )
-                  zvt = ( utau_b(ji,jj) + utauU(ji,jj) ) * tmask_i(ji+1,jj) * tmask_i(ji,jj) * umask(ji,jj,jk)   &
-                     &                                                      * z1_2rho0       * e1e2u(ji,jj)
-                  zvs = ( vtau_b(ji,jj) + vtauV(ji,jj) ) * tmask_i(ji,jj+1) * tmask_i(ji,jj) * vmask(ji,jj,jk)   &
-                     &                                                      * z1_2rho0       * e1e2v(ji,jj)
-                  umo(jpdyn_tau) = umo(jpdyn_tau) + zvt
-                  vmo(jpdyn_tau) = vmo(jpdyn_tau) + zvs
-                  hke(jpdyn_tau) = hke(jpdyn_tau) + uu(ji,jj,1,Kmm) * zvt + vv(ji,jj,1,Kmm) * zvs
-               END_2D
-            ENDIF
-            !                       
+            CASE( 'DYN' )          !==  Momentum and KE  ==!
+               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+                  zvt = ptrdx(ji,jj,jk) * tmask_i(ji+1,jj) * tmask_i(ji,jj) * umask(ji,jj,jk)   &
+                     &                                     * e1e2u  (ji,jj) * e3u(ji,jj,jk,Kmm)
+                  zvs = ptrdy(ji,jj,jk) * tmask_i(ji,jj+1) * tmask_i(ji,jj) * vmask(ji,jj,jk)   &
+                     &                                     * e1e2v  (ji,jj) * e3u(ji,jj,jk,Kmm)
+                  umo(ktrd) = umo(ktrd) + zvt
+                  vmo(ktrd) = vmo(ktrd) + zvs
+                  hke(ktrd) = hke(ktrd) + uu(ji,jj,jk,Kmm) * zvt + vv(ji,jj,jk,Kmm) * zvs
+               END_3D
+               !
+               IF( ktrd == jpdyn_zdf ) THEN      ! zdf trend: compute separately the surface forcing trend
+                  z1_2rho0 = 0.5_wp / rho0
+                  DO_2D( 0, 0, 0, 0 )
+                     zvt = ( utau_b(ji,jj) + utauU(ji,jj) ) * tmask_i(ji+1,jj) * tmask_i(ji,jj) * umask(ji,jj,jk)   &
+                        &                                                      * z1_2rho0       * e1e2u(ji,jj)
+                     zvs = ( vtau_b(ji,jj) + vtauV(ji,jj) ) * tmask_i(ji,jj+1) * tmask_i(ji,jj) * vmask(ji,jj,jk)   &
+                        &                                                      * z1_2rho0       * e1e2v(ji,jj)
+                     umo(jpdyn_tau) = umo(jpdyn_tau) + zvt
+                     vmo(jpdyn_tau) = vmo(jpdyn_tau) + zvs
+                     hke(jpdyn_tau) = hke(jpdyn_tau) + uu(ji,jj,1,Kmm) * zvt + vv(ji,jj,1,Kmm) * zvs
+                  END_2D
+               ENDIF
+               !
 !!gm  miss placed calculation   ===>>>> to be done in dynzdf.F90
-!            IF( ktrd == jpdyn_atf ) THEN     ! last trend (asselin time filter)
-!               !
-!               IF( ln_drgimp ) THEN                   ! implicit drag case: compute separately the bottom friction 
-!                  z1_2rho0 = 0.5_wp / rho0
-!                  DO jj = 1, jpjm1
-!                     DO ji = 1, jpim1
-!                        ikbu = mbku(ji,jj)                  ! deepest ocean u- & v-levels
-!                        ikbv = mbkv(ji,jj)
-!                        zvt = 0.5*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) * uu(ji,jj,ikbu,Kmm) * e1e2u(ji,jj)
-!                        zvs = 0.5*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) * vv(ji,jj,ikbv,Kmm) * e1e2v(ji,jj)
-!                        umo(jpdyn_bfri) = umo(jpdyn_bfri) + zvt
-!                        vmo(jpdyn_bfri) = vmo(jpdyn_bfri) + zvs
-!                        hke(jpdyn_bfri) = hke(jpdyn_bfri) + uu(ji,jj,ikbu,Kmm) * zvt + vv(ji,jj,ikbv,Kmm) * zvs
+!               IF( ktrd == jpdyn_atf ) THEN     ! last trend (asselin time filter)
+!                  !
+!                  IF( ln_drgimp ) THEN                   ! implicit drag case: compute separately the bottom friction
+!                     z1_2rho0 = 0.5_wp / rho0
+!                     DO jj = 1, jpjm1
+!                        DO ji = 1, jpim1
+!                           ikbu = mbku(ji,jj)                  ! deepest ocean u- & v-levels
+!                           ikbv = mbkv(ji,jj)
+!                           zvt = 0.5*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) * uu(ji,jj,ikbu,Kmm) * e1e2u(ji,jj)
+!                           zvs = 0.5*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) * vv(ji,jj,ikbv,Kmm) * e1e2v(ji,jj)
+!                           umo(jpdyn_bfri) = umo(jpdyn_bfri) + zvt
+!                           vmo(jpdyn_bfri) = vmo(jpdyn_bfri) + zvs
+!                           hke(jpdyn_bfri) = hke(jpdyn_bfri) + uu(ji,jj,ikbu,Kmm) * zvt + vv(ji,jj,ikbv,Kmm) * zvs
+!                        END DO
 !                     END DO
-!                  END DO
-!               ENDIF
+!                  ENDIF
 !
 !!gm top drag case is missing 
 !
-!               ! 
-!               CALL glo_dyn_wri( kt )                 ! print the results in ocean.output
-!               !                
-!               umo(:) = 0._wp                         ! reset for the next time step
-!               vmo(:) = 0._wp
-!               hke(:) = 0._wp
-!               !
-!            ENDIF
+!                  !
+!                  CALL glo_dyn_wri( kt )                 ! print the results in ocean.output
+!                  !
+!                  umo(:) = 0._wp                         ! reset for the next time step
+!                  vmo(:) = 0._wp
+!                  hke(:) = 0._wp
+!                  !
+!               ENDIF
 !!gm end
             !
          END SELECT

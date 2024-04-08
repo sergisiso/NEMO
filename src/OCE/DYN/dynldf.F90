@@ -34,6 +34,8 @@ MODULE dynldf
    PUBLIC   dyn_ldf       ! called by step module 
    PUBLIC   dyn_ldf_init  ! called by opa  module 
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 4.0 , NEMO Consortium (2018)
    !! $Id: dynldf.F90 12377 2020-02-12 14:39:06Z acc $
@@ -57,9 +59,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('dyn_ldf')
       !
       IF( l_trddyn )   THEN                      ! temporary save of momentum trends
-         ALLOCATE( ztrdu(jpi,jpj,jpk) , ztrdv(jpi,jpj,jpk) )
-         ztrdu(:,:,:) = puu(:,:,:,Krhs) 
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs) 
+         ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
 
       SELECT CASE ( nldf_dyn )                   ! compute lateral mixing trend and add it to the general trend
@@ -76,8 +78,8 @@ CONTAINS
       END SELECT
 
       IF( l_trddyn ) THEN                        ! save the horizontal diffusive trends for further diagnostics
-         ztrdu(:,:,:) = puu(:,:,:,Krhs) - ztrdu(:,:,:)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs) - ztrdv(:,:,:)
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs) - ztrdu(:,:,:)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs) - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu, ztrdv, jpdyn_ldf, kt, Kmm )
          DEALLOCATE ( ztrdu , ztrdv )
       ENDIF

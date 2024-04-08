@@ -100,12 +100,12 @@ CONTAINS
          !
          ALLOCATE( ztrcdta(T2D(nn_hls),jpk) )    ! Memory allocation
          !
-         IF( l_trdtrc )   ALLOCATE( ztrtrd(A2D(nn_hls),jpk) )   ! temporary save of trends
+         IF( l_trdtrc )   ALLOCATE( ztrtrd(T2D(0),jpk) )   ! temporary save of trends
          !                                                          ! ===========
          DO jn = 1, jptra                                           ! tracer loop
             !                                                       ! ===========
             IF( l_trdtrc ) THEN
-               DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk)
+               DO_3D( 0, 0, 0, 0, 1, jpk )
                   ztrtrd(ji,jj,jk) = ptr(ji,jj,jk,jn,Krhs)    ! save trends
                END_3D
             END IF

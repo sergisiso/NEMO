@@ -107,8 +107,8 @@ CONTAINS
 
       ! trends computation initialisation
       IF( l_trdtra )   THEN
-         ALLOCATE( ztrdt(jpi,jpj,jpk) , ztrds(jpi,jpj,jpk) )
-         ztrdt(:,:,jpk) = 0._wp
+         ALLOCATE( ztrdt(T2D(0),jpk) , ztrds(T2D(0),jpk) )
+         ztrdt(:,:,:  ) = 0._wp
          ztrds(:,:,jpk) = 0._wp
          IF( ln_traldf_iso ) THEN              ! diagnose the "pure" Kz diffusive trend
             CALL trd_tra( kt, Kmm, Kaa, 'TRA', jp_tem, jptra_zdfp, ztrdt )
@@ -117,19 +117,21 @@ CONTAINS
          ! total trend for the non-time-filtered variables.
          zfact = 1.0 / rn_Dt
          ! G Nurser 23 Mar 2017. Recalculate trend as Delta(e3t*T)/e3tn; e3tn cancel from pts(Kmm) terms
-         DO jk = 1, jpkm1
-            ztrdt(:,:,jk) = ( pts(:,:,jk,jp_tem,Kaa) * (1._wp + r3t(:,:,Kaa) * tmask(:,:,jk))/(1._wp + r3t(:,:,Kmm) * tmask(:,:,jk))  &
-               &            - pts(:,:,jk,jp_tem,Kmm) ) * zfact
-            ztrds(:,:,jk) = ( pts(:,:,jk,jp_sal,Kaa) * (1._wp + r3t(:,:,Kaa) * tmask(:,:,jk))/(1._wp + r3t(:,:,Kmm) * tmask(:,:,jk))  &
-               &            - pts(:,:,jk,jp_sal,Kmm) ) * zfact
-         END DO
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            ztrdt(ji,jj,jk) = ( pts(ji,jj,jk,jp_tem,Kaa) * (1._wp + r3t(ji,jj,Kaa) * tmask(ji,jj,jk))/(1._wp + r3t(ji,jj,Kmm) * tmask(ji,jj,jk))  &
+               &            - pts(ji,jj,jk,jp_tem,Kmm) ) * zfact
+            ztrds(ji,jj,jk) = ( pts(ji,jj,jk,jp_sal,Kaa) * (1._wp + r3t(ji,jj,Kaa) * tmask(ji,jj,jk))/(1._wp + r3t(ji,jj,Kmm) * tmask(ji,jj,jk))  &
+               &            - pts(ji,jj,jk,jp_sal,Kmm) ) * zfact
+         END_3D
          CALL trd_tra( kt, Kmm, Kaa, 'TRA', jp_tem, jptra_tot, ztrdt )
          CALL trd_tra( kt, Kmm, Kaa, 'TRA', jp_sal, jptra_tot, ztrds )
          IF( lk_linssh ) THEN       ! linear sea surface height only
             ! Store now fields before applying the Asselin filter
             ! in order to calculate Asselin filter trend later.
-            ztrdt(:,:,:) = pts(:,:,:,jp_tem,Kmm)
-            ztrds(:,:,:) = pts(:,:,:,jp_sal,Kmm)
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               ztrdt(ji,jj,jk) = pts(ji,jj,jk,jp_tem,Kmm)
+               ztrds(ji,jj,jk) = pts(ji,jj,jk,jp_sal,Kmm)
+            END_3D
          ENDIF
       ENDIF
 
@@ -154,10 +156,10 @@ CONTAINS
       ENDIF
       !
       IF( l_trdtra .AND. lk_linssh ) THEN      ! trend of the Asselin filter (tb filtered - tb)/dt
-         DO jk = 1, jpkm1
-            ztrdt(:,:,jk) = ( pts(:,:,jk,jp_tem,Kmm) - ztrdt(:,:,jk) ) * r1_Dt
-            ztrds(:,:,jk) = ( pts(:,:,jk,jp_sal,Kmm) - ztrds(:,:,jk) ) * r1_Dt
-         END DO
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            ztrdt(ji,jj,jk) = ( pts(ji,jj,jk,jp_tem,Kmm) - ztrdt(ji,jj,jk) ) * r1_Dt
+            ztrds(ji,jj,jk) = ( pts(ji,jj,jk,jp_sal,Kmm) - ztrds(ji,jj,jk) ) * r1_Dt
+         END_3D
          CALL trd_tra( kt, Kmm, Kaa, 'TRA', jp_tem, jptra_atf, ztrdt )
          CALL trd_tra( kt, Kmm, Kaa, 'TRA', jp_sal, jptra_atf, ztrds )
       END IF

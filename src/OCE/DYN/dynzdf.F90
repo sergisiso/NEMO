@@ -100,9 +100,9 @@ CONTAINS
       !
       !
       IF( l_trddyn )   THEN         !* temporary save of ta and sa trends
-         ALLOCATE( ztrdu(jpi,jpj,jpk), ztrdv(jpi,jpj,jpk) ) 
-         ztrdu(:,:,:) = puu(:,:,:,Krhs)
-         ztrdv(:,:,:) = pvv(:,:,:,Krhs)
+         ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
+         ztrdu(:,:,:) = puu(T2D(0),:,Krhs)
+         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
       !
       !                                               ! ================= !
@@ -529,8 +529,8 @@ CONTAINS
       !                                               ! ================= !
       !
       IF( l_trddyn )   THEN                      ! save the vertical diffusive trends for further diagnostics
-         ztrdu(:,:,:) = ( puu(:,:,:,Kaa) - puu(:,:,:,Kbb) )*r1_Dt - ztrdu(:,:,:)
-         ztrdv(:,:,:) = ( pvv(:,:,:,Kaa) - pvv(:,:,:,Kbb) )*r1_Dt - ztrdv(:,:,:)
+         ztrdu(:,:,:) = ( puu(T2D(0),:,Kaa) - puu(T2D(0),:,Kbb) )*r1_Dt - ztrdu(:,:,:)
+         ztrdv(:,:,:) = ( pvv(T2D(0),:,Kaa) - pvv(T2D(0),:,Kbb) )*r1_Dt - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu, ztrdv, jpdyn_zdf, kt, Kmm )
          DEALLOCATE( ztrdu, ztrdv ) 
       ENDIF

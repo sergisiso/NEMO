@@ -111,9 +111,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start( 'tra_bbl')
       !
       IF( l_trdtra )   THEN                         !* Save the T-S input trends
-         ALLOCATE( ztrdt(jpi,jpj,jpk), ztrds(jpi,jpj,jpk) )
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs)
-         ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs)
+         ALLOCATE( ztrdt(T2D(0),jpk), ztrds(T2D(0),jpk) )
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs)
+         ztrds(:,:,:) = pts(T2D(0),:,jp_sal,Krhs)
       ENDIF
 
       IF( nn_bbl_ldf == 1 ) THEN                    !* Diffusive bbl
@@ -139,8 +139,8 @@ CONTAINS
       ENDIF
 
       IF( l_trdtra )   THEN                      ! send the trends for further diagnostics
-         ztrdt(:,:,:) = pts(:,:,:,jp_tem,Krhs) - ztrdt(:,:,:)
-         ztrds(:,:,:) = pts(:,:,:,jp_sal,Krhs) - ztrds(:,:,:)
+         ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs) - ztrdt(:,:,:)
+         ztrds(:,:,:) = pts(T2D(0),:,jp_sal,Krhs) - ztrds(:,:,:)
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_tem, jptra_bbl, ztrdt )
          CALL trd_tra( kt, Kmm, Krhs, 'TRA', jp_sal, jptra_bbl, ztrds )
          DEALLOCATE( ztrdt, ztrds )
