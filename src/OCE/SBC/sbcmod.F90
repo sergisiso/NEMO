@@ -38,8 +38,8 @@ MODULE sbcmod
    USE sbcabl         ! atmospheric boundary layer
    USE sbcice_if      ! surface boundary condition: ice-if sea-ice model
 #if defined key_si3
+   USE par_ice        ! SI3 parameters
    USE icestp         ! surface boundary condition: SI3 sea-ice model
-   USE ice
 #endif
    USE sbcice_cice    ! surface boundary condition: CICE sea-ice model
    USE sbccpl         ! surface boundary condition: coupled formulation

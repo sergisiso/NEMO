@@ -9,7 +9,8 @@ MODULE icefrm
    !!----------------------------------------------------------------------
    !!   'key_si3'                                       SI3 sea-ice model
    !!----------------------------------------------------------------------
-   USE ice   , ONLY : at_i, at_ip, vt_i, vt_s, epsi06, epsi10, drag_io, drag_ia                ! sea-ice variables
+   USE par_ice
+   USE ice   , ONLY : at_i, at_ip, vt_i, vt_s, drag_io, drag_ia                ! sea-ice variables
    USE in_out_manager       ! I/O manager
    USE iom                  ! for iom_put
    USE timing               ! timing

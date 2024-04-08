@@ -15,8 +15,8 @@ MODULE icedyn_adv_pra
    !!   adv_pra_init    : initialisation of the Prather scheme
    !!   adv_pra_rst     : read/write Prather field in ice restart file, or initialized to zero
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constant
-   USE dom_oce        ! ocean domain
    USE ice            ! sea-ice variables
    USE sbc_oce , ONLY : nn_fsbc   ! frequency of sea-ice call
    USE icevar         ! sea-ice: operations

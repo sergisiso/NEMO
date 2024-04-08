@@ -11,8 +11,8 @@ MODULE icedyn_adv
    !!----------------------------------------------------------------------
    !!   ice_dyn_adv   : advection of sea ice variables
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constant
-   USE dom_oce        ! ocean domain
    USE sbc_oce , ONLY : nn_fsbc   ! frequency of sea-ice call
    USE ice            ! sea-ice: variables
    USE icevar         ! sea-ice: operations
@@ -32,12 +32,14 @@ MODULE icedyn_adv
    PUBLIC   ice_dyn_adv_init   ! called by icedyn
 
    INTEGER ::              nice_adv   ! choice of the type of advection scheme
-   !                                        ! associated indices:
+   !                                       ! associated indices:
    INTEGER, PARAMETER ::   np_advPRA = 1   ! Prather scheme
    INTEGER, PARAMETER ::   np_advUMx = 2   ! Ultimate-Macho scheme
    !
-   ! ** namelist (namdyn_adv) **
-   INTEGER         ::   nn_UMx       ! order of the UMx advection scheme   
+   !                            !!** ice-advection namelist (namdyn_adv) **
+   LOGICAL ::   ln_adv_Pra       ! Prather        advection scheme
+   LOGICAL ::   ln_adv_UMx       ! Ultimate-Macho advection scheme
+   INTEGER ::   nn_UMx           ! order of the UMx advection scheme   
    !
    !! * Substitutions
 #  include "do_loop_substitute.h90"

@@ -30,7 +30,7 @@ MODULE iom
    USE sbc_oce  , ONLY :   nn_fsbc, ght_abl, ghw_abl, e3t_abl, e3w_abl, jpka, jpkam1
    USE icb_oce  , ONLY :   nclasses, class_num       !  !: iceberg classes
 #if defined key_si3
-   USE ice      , ONLY :   jpl, nlay_i
+   USE par_ice  , ONLY :   jpl, nlay_i
 #endif
    USE phycst          ! physical constants
    USE dianam          ! build name of file

@@ -12,8 +12,9 @@ MODULE icedyn_rhg
    !!    ice_dyn_rhg      : computes ice velocities
    !!    ice_dyn_rhg_init : initialization and namelist read
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
+   USE par_icedyn     ! SI3 dynamics parameters
    USE phycst         ! physical constants
-   USE dom_oce        ! ocean space and time domain
    USE ice            ! sea-ice: variables
    USE icedyn_rhg_evp ! sea-ice: EVP rheology
    USE icedyn_rhg_eap ! sea-ice: EAP rheology
@@ -81,7 +82,7 @@ CONTAINS
          !                             !------------------------!
       CASE( np_rhgVP  )                ! Viscous-Plastic        !
          !                             !------------------------!
-         CALL ice_dyn_rhg_vp ( kt, shear_i, divu_i, delta_i )
+         CALL ice_dyn_rhg_vp ( kt,                                        shear_i, divu_i, delta_i )
          !
          !                             !----------------------------!
       CASE( np_rhgEAP )                ! Elasto-Anisotropic-Plastic !

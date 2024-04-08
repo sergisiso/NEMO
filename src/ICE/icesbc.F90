@@ -10,8 +10,7 @@ MODULE icesbc
    !!----------------------------------------------------------------------
    !!   'key_si3' :                                     SI3 sea-ice model
    !!----------------------------------------------------------------------
-   USE oce            ! ocean dynamics and tracers
-   USE dom_oce        ! ocean space and time domain
+   USE par_ice        ! SI3 parameters
    USE ice            ! sea-ice: variables
    USE sbc_oce        ! Surface boundary condition: ocean fields
    USE sbc_ice        ! Surface boundary condition: ice   fields
@@ -29,6 +28,13 @@ MODULE icesbc
 
    IMPLICIT NONE
    PRIVATE
+
+   !                                     !!** ice-surface boundary conditions namelist (namsbc) **
+   INTEGER ::   nn_flxdist       ! Redistribute heat flux over ice categories
+   !                             !   =-1  Do nothing (needs N(cat) fluxes)
+   !                             !   = 0  Average N(cat) fluxes then apply the average over the N(cat) ice
+   !                             !   = 1  Average N(cat) fluxes then redistribute over the N(cat) ice using T-ice and albedo sensitivity
+   !                             !   = 2  Redistribute a single flux over categories
 
    PUBLIC ice_sbc_tau   ! called by icestp.F90
    PUBLIC ice_sbc_flx   ! called by icestp.F90

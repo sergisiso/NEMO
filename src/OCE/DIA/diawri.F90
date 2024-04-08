@@ -55,7 +55,6 @@ MODULE diawri
    USE ioipsl         ! 
 
 #if defined key_si3
-   USE ice 
    USE icewri 
 #endif
    USE lib_mpp         ! MPP library

@@ -13,14 +13,12 @@ MODULE icethd_zdf_BL99
    !!----------------------------------------------------------------------
    !!  ice_thd_zdf_BL99 : vertical diffusion computation
    !!----------------------------------------------------------------------
-   USE dom_oce        ! ocean space and time domain
-   USE phycst         ! physical constants (ocean directory)
-   USE ice            ! sea-ice: variables
+   USE par_ice        ! SI3 parameters
+   USE par_kind, ONLY : wp
+   USE par_oce , ONLY : jpij
+   USE phycst  
    USE ice1D          ! sea-ice: thermodynamics variables
-   USE icevar         ! sea-ice: operations
-   !
-   USE in_out_manager ! I/O manager
-   USE lib_mpp        ! MPP library
+   USE icevar  , ONLY : ice_var_snwfra, ice_var_enthalpy
 
    IMPLICIT NONE
    PRIVATE
@@ -296,8 +294,8 @@ CONTAINS
             !
             zepsilon = 0.1_wp
             DO ji = 1, npti
-               zcnd_i = SUM( ztcond_i(ji,:) ) / REAL( nlay_i+1, wp )                                ! Mean sea ice thermal conductivity
-               zhe = ( rn_cnd_s * h_i_1d(ji) + zcnd_i * h_s_1d(ji) ) / ( rn_cnd_s + zcnd_i )        ! Effective thickness he (zhe)
+               zcnd_i = SUM( ztcond_i(ji,:) ) / REAL( nlay_i+1, wp )                            ! Mean sea ice thermal conductivity
+               zhe = ( rcnd_s * h_i_1d(ji) + zcnd_i * h_s_1d(ji) ) / ( rcnd_s + zcnd_i )        ! Effective thickness he (zhe)
                IF( zhe >=  zepsilon * 0.5_wp * EXP(1._wp) )  &
                   &   zghe(ji) = MIN( 2._wp, 0.5_wp * ( 1._wp + LOG( 2._wp * zhe / zepsilon ) ) )   ! G(he)
             END DO
@@ -315,10 +313,10 @@ CONTAINS
                ! Variable used after iterations
                ! Value must be frozen after convergence for MPP independance reason
                DO jk = 0, nlay_s-1
-                  zkappa_s(ji,jk) = zghe(ji) * rn_cnd_s * z1_h_s(ji)
+                  zkappa_s(ji,jk) = zghe(ji) * rcnd_s * z1_h_s(ji)
                END DO
-               zkappa_s(ji,nlay_s) = isnow(ji) * zghe(ji) * rn_cnd_s * ztcond_i(ji,0) &   ! Snow-ice interface
-                  &                            / ( 0.5_wp * ( ztcond_i(ji,0) * zh_s(ji) + rn_cnd_s * zh_i(ji) ) )
+               zkappa_s(ji,nlay_s) = isnow(ji) * zghe(ji) * rcnd_s * ztcond_i(ji,0) &   ! Snow-ice interface
+                  &                            / ( 0.5_wp * ( ztcond_i(ji,0) * zh_s(ji) + rcnd_s * zh_i(ji) ) )
                !
                !--- Ice
                ! Variable used after iterations
@@ -889,9 +887,9 @@ CONTAINS
       ! --- SIMIP diagnostics (Snow-ice interfacial temperature)
       DO ji = 1, npti
          IF( h_s_1d(ji) >= zhs_ssl ) THEN
-            t_si_1d(ji) = (   rn_cnd_s       * h_i_1d(ji) * r1_nlay_i * t_s_1d(ji,nlay_s)   &
+            t_si_1d(ji) = (   rcnd_s         * h_i_1d(ji) * r1_nlay_i * t_s_1d(ji,nlay_s)   &
                &            + ztcond_i(ji,1) * h_s_1d(ji) * r1_nlay_s * t_i_1d(ji,1)      ) &
-               &          / ( rn_cnd_s       * h_i_1d(ji) * r1_nlay_i &
+               &          / ( rcnd_s         * h_i_1d(ji) * r1_nlay_i &
                &            + ztcond_i(ji,1) * h_s_1d(ji) * r1_nlay_s )
          ELSE
             t_si_1d(ji) = t_su_1d(ji)

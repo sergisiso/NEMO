@@ -12,14 +12,12 @@ MODULE icewri
    !!   ice_wri       : write of the diagnostics variables in ouput file
    !!   ice_wri_state : write for initial state or/and abandon
    !!----------------------------------------------------------------------
-   USE dianam         ! build name of file (routine)
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constant
-   USE dom_oce        ! domain: ocean
-   USE sbc_oce        ! surf. boundary cond.: ocean
+   USE sbc_oce , ONLY : sprecip, qns, qsr, sst_m, sss_m
    USE sbc_ice        ! Surface boundary condition: ice fields
    USE ice            ! sea-ice: variables
-   USE icevar         ! sea-ice: operations
-   USE icealb , ONLY : rn_alb_oce
+   USE icevar  , ONLY : ice_var_brine
    !
    USE ioipsl         !
    USE in_out_manager ! I/O manager
@@ -156,14 +154,14 @@ CONTAINS
          ! ice albedo
          WHERE( at_i_b(:,:) < 1.e-03 )
             zmskalb(:,:) = 0._wp
-            zalb   (:,:) = rn_alb_oce
+            zalb   (:,:) = ralb_oce
          ELSEWHERE
             zmskalb(:,:) = 1._wp
             zalb   (:,:) = SUM( alb_ice(:,:,:) * a_i_b(:,:,:), dim=3 ) / at_i_b(:,:)
          END WHERE
          CALL iom_put( 'icealb' , zalb * zmskalb + zmiss * ( 1._wp - zmskalb ) )
          ! ice+ocean albedo
-         zalb(:,:) = SUM( alb_ice(:,:,:) * a_i_b(:,:,:), dim=3 ) + rn_alb_oce * ( 1._wp - at_i_b(:,:) )
+         zalb(:,:) = SUM( alb_ice(:,:,:) * a_i_b(:,:,:), dim=3 ) + ralb_oce * ( 1._wp - at_i_b(:,:) )
          CALL iom_put( 'albedo' , zalb )
          DEALLOCATE( zalb, zmskalb )
       ENDIF

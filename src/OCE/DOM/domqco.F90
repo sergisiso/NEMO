@@ -25,7 +25,6 @@ MODULE domqco
    USE sbc_oce        ! ocean surface boundary condition
    USE wet_dry        ! wetting and drying
    USE usrdef_istate  ! user defined initial state (wad only)
-   USE restart        ! ocean restart
    !
    USE in_out_manager ! I/O manager
    USE iom            ! I/O manager library

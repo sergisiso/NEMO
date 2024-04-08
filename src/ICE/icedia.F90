@@ -14,10 +14,10 @@ MODULE icedia
    !!    ice_dia_init : initialization of budget calculation
    !!    ice_dia_rst  : read/write budgets restart
    !!----------------------------------------------------------------------
-   USE dom_oce        ! ocean domain
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constant
    USE daymod         ! model calendar
-   USE sbc_oce , ONLY : sfx, nn_fsbc   ! surface boundary condition: ocean fields
+   USE sbc_oce , ONLY : sfx, nn_fsbc
    USE ice            ! sea-ice: variables
    USE icerst         ! sea-ice: restart
    !
@@ -26,21 +26,19 @@ MODULE icedia
    USE lib_mpp        ! MPP library
    USE lib_fortran    ! Fortran routines library
    USE timing         ! Timing
-
+   
    IMPLICIT NONE
    PRIVATE
 
    PUBLIC   ice_dia        ! called by icestp.F90
    PUBLIC   ice_dia_init   ! called in icestp.F90
 
-   !! * Substitutions
-#  include "do_loop_substitute.h90"
-
    REAL(wp), SAVE ::   r1_area  ! inverse of the ocean area
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   vol_loc_ini, sal_loc_ini, tem_loc_ini                    ! initial volume, salt and heat contents
    REAL(wp)                              ::   frc_sal, frc_voltop, frc_volbot, frc_temtop, frc_tembot  ! global forcing trends
-
+   
    !! * Substitutions
+#  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/ICE 4.0 , NEMO Consortium (2018)

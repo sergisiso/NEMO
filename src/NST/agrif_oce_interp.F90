@@ -36,7 +36,8 @@ MODULE agrif_oce_interp
    USE vremap
    USE lbclnk
 #if defined key_si3
-   USE iceistate, ONLY: rsshadj, nn_iceini_file
+   USE par_ice  , ONLY: nn_iceini_file
+   USE iceistate, ONLY: rsshadj
    USE sbc_oce  , ONLY: ln_ice_embd
    USE sbc_ice  , ONLY: snwice_mass
 #endif 

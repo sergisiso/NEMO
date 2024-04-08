@@ -40,9 +40,8 @@ MODULE icestp
    !!   ice_stp       : sea-ice model time-stepping and update ocean SBC over ice-covered area
    !!   ice_init      : initialize sea-ice
    !!----------------------------------------------------------------------
-   USE oce            ! ocean dynamics and tracers
-   USE dom_oce        ! ocean space and time domain
-   USE c1d            ! 1D vertical configuration
+   USE par_ice        ! SI3 parameters
+   USE oce     , ONLY : uu, vv
    USE ice            ! sea-ice: variables
    USE ice1D          ! sea-ice: thermodynamical 1D variables
    !

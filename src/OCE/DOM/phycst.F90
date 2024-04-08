@@ -58,10 +58,12 @@ MODULE phycst
    REAL(wp), PUBLIC ::   rhoi     =  917._wp          !: volumic mass of sea ice (Pounder, 1965)               [kg/m3]
    REAL(wp), PUBLIC ::   rhow     =  1000._wp         !: volumic mass of freshwater in melt ponds              [kg/m3]
    REAL(wp), PUBLIC ::   rcnd_i   =  2.034396_wp      !: thermal conductivity of fresh ice                     [W/m/K]
+   REAL(wp), PUBLIC ::   rcnd_s                       !: thermal conductivity of snow (defined in namelist)    [W/m/K]
    REAL(wp), PUBLIC ::   rcpi     =  2096.7_wp        !: specific heat of fresh ice          (Feistel and Wagner, 2006) (previously 2067.0)   [J/kg/K]
    REAL(wp), PUBLIC ::   rLsub    =  2.8344e+6_wp     !: pure ice latent heat of sublimation (Feistel and Wagner, 2006)                       [J/kg]
    REAL(wp), PUBLIC ::   rLfus    =  0.3333601e+06_wp !: latent heat of fusion of fresh ice  (Feistel and Wagner, 2006) (previously 0.334e+6) [J/kg]
    REAL(wp), PUBLIC ::   rTmlt    =  0.054_wp         !: decrease of seawater meltpoint with salinity
+   REAL(wp), PUBLIC ::   ralb_oce =  0.066_wp         !: ocean or lead albedo used in sea-ice (Pegau and Paulson, Ann. Glac. 2001)
 
    REAL(wp), PUBLIC ::   r1_rhoi                      !: 1 / rhoi
    REAL(wp), PUBLIC ::   r1_rhos                      !: 1 / rhos

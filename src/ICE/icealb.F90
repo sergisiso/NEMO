@@ -14,9 +14,9 @@ MODULE icealb
    !!   ice_alb_init   : initialisation of albedo computation
    !!----------------------------------------------------------------------
    USE phycst         ! physical constants
-   USE dom_oce        ! domain: ocean
-   USE ice, ONLY: jpl ! sea-ice: number of categories
-   USE icevar         ! sea-ice: operations
+   USE dom_oce , ONLY : smask0
+   USE par_ice , ONLY : jpl
+   USE icevar  , ONLY : ice_var_snwfra
    !
    USE in_out_manager ! I/O manager
    USE lib_mpp        ! MPP library
@@ -27,8 +27,6 @@ MODULE icealb
 
    PUBLIC   ice_alb_init   ! called in icestp
    PUBLIC   ice_alb        ! called in icesbc.F90 and iceupdate.F90
-
-   REAL(wp), PUBLIC, PARAMETER ::   rn_alb_oce = 0.066_wp   !: ocean or lead albedo (Pegau and Paulson, Ann. Glac. 2001)
    !
    !                             !!* albedo namelist (namalb)
    REAL(wp) ::   rn_alb_sdry      ! dry snow albedo
@@ -153,7 +151,7 @@ CONTAINS
             IF( 0.05 < ph_ice(ji,jj,jl) .AND. ph_ice(ji,jj,jl) <= rn_alb_hpiv ) THEN      ! 5cm < hi < 100cm
                zalb_ice = zalb_ice    + ( 0.18_wp - zalb_ice   ) * z1_c1 * ( zhpiv - LOG(ph_ice(ji,jj,jl)) )
             ELSEIF( ph_ice(ji,jj,jl) <= 0.05_wp ) THEN                                    ! 0cm < hi < 5cm
-               zalb_ice = rn_alb_oce  + ( 0.18_wp - rn_alb_oce ) * z1_c2 * ph_ice(ji,jj,jl)
+               zalb_ice = ralb_oce  + ( 0.18_wp - ralb_oce ) * z1_c2 * ph_ice(ji,jj,jl)
             ENDIF
             !
             !                       !--- Snow-covered ice albedo (freezing, melting cases)

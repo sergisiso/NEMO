@@ -20,14 +20,15 @@ MODULE icedyn_rhg_evp
    !!   ice_dyn_rhg_evp : computes ice velocities from EVP rheology
    !!   rhg_evp_rst     : read/write EVP fields in ice restart
    !!----------------------------------------------------------------------
-   USE phycst         ! Physical constant
-   USE dom_oce        ! Ocean domain
-   USE sbc_oce , ONLY : ln_ice_embd, nn_fsbc, ssh_m
-   USE sbc_ice , ONLY : utau_ice, vtau_ice, snwice_mass, snwice_mass_b
-   USE ice            ! sea-ice: ice variables
-   USE icevar         ! ice_var_sshdyn
-   USE icedyn_rdgrft  ! sea-ice: ice strength
-   USE bdy_oce , ONLY : ln_bdy
+   USE par_ice              ! SI3 parameters
+   USE par_icedyn           ! SI3 dynamics parameters
+   USE phycst               ! Physical constant
+   USE sbc_oce       , ONLY : ln_ice_embd, nn_fsbc, ssh_m
+   USE sbc_ice       , ONLY : utau_ice, vtau_ice, snwice_mass, snwice_mass_b
+   USE ice                  ! sea-ice: ice variables
+   USE icevar        , ONLY : ice_var_sshdyn
+   USE icedyn_rdgrft , ONLY : ice_strength
+   USE bdy_oce       , ONLY : ln_bdy
    USE bdyice
 #if defined key_agrif
    USE agrif_ice_interp

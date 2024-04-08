@@ -34,6 +34,7 @@ MODULE asminc
    USE sbc_oce         ! Surface boundary condition variables.
    USE diaobs   , ONLY : calc_date     ! Compute the calendar date on a given step
 #if defined key_si3 && defined key_asminc
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constants
    USE ice1D          ! sea-ice: thermodynamics variables
    USE icetab         ! sea-ice: 3D <==> 2D, 2D <==> 1D

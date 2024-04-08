@@ -14,8 +14,9 @@ MODULE icedyn_rhg_vp
    !!----------------------------------------------------------------------
    !!   ice_dyn_rhg_vp : computes ice velocities from VP rheolog with LSR solvery
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
+   USE par_icedyn     ! SI3 dynamics parameters
    USE phycst         ! Physical constants
-   USE dom_oce        ! Ocean domain
    USE sbc_oce , ONLY : ln_ice_embd, nn_fsbc, ssh_m
    USE sbc_ice , ONLY : utau_ice, vtau_ice, snwice_mass, snwice_mass_b
    USE ice            ! sea-ice: ice variables

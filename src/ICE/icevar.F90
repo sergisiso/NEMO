@@ -53,7 +53,7 @@ MODULE icevar
    !!   ice_var_snwfra    : fraction of ice covered by snow
    !!   ice_var_snwblow   : distribute snow fall between ice and ocean
    !!----------------------------------------------------------------------
-   USE dom_oce        ! ocean space and time domain
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constants (ocean directory)
    USE sbc_oce , ONLY : sss_m, sst_m, ln_ice_embd, nn_fsbc
    USE ice            ! sea-ice: variables

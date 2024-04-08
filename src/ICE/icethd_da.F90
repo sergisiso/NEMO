@@ -13,13 +13,13 @@ MODULE icethd_da
    !!   ice_thd_da      : sea ice lateral melting
    !!   ice_thd_da_init : sea ice lateral melting initialization
    !!----------------------------------------------------------------------
-   USE par_oce        ! ocean parameters
-   USE phycst         ! physical constants (ocean directory)
-   USE ice            ! sea-ice: variables
-   USE ice1D          ! sea-ice: thermodynamic 1D variables
+   USE par_kind, ONLY : wp
+   USE par_ice        ! SI3 parameters
+   USE phycst  , ONLY : rpi, rt0, rhoi, rhos
+   USE ice1D          ! sea-ice: thermodynamics variables
    !
-   USE in_out_manager ! I/O manager
-   USE lib_mpp        ! MPP library
+   USE in_out_manager , ONLY : numnam_ice_ref, numnam_ice_cfg, numout, numoni, lwp, lwm  ! I/O manager
+   USE lib_mpp        , ONLY : ctl_stop, ctl_warn, ctl_nam                               ! MPP library
 
    IMPLICIT NONE
    PRIVATE

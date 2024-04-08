@@ -39,7 +39,6 @@ MODULE diawri
    USE iom
    USE ioipsl
 #if defined key_si3
-   USE ice
    USE icewri
 #endif
    USE lib_mpp         ! MPP library
@@ -377,8 +376,8 @@ CONTAINS
             END DO
 		 ELSE
             zw3d_abl(:,:,:) = 1._wp		 
-         ENDIF			
-		 CALL histwrite( nid_A,  "pblh"   , it, pblh(:,:)                  *zw3d_abl(:,:,1     ), ndim_hA, ndex_hA )   ! pblh 
+         ENDIF
+             CALL histwrite( nid_A,  "pblh"   , it, pblh(:,:)                  *zw3d_abl(:,:,1     ), ndim_hA, ndex_hA )   ! pblh 
 	     CALL histwrite( nid_A,  "u_abl"  , it, u_abl   (:,:,2:jpka,nt_n  )*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! u_abl
 	     CALL histwrite( nid_A,  "v_abl"  , it, v_abl   (:,:,2:jpka,nt_n  )*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! v_abl
 	     CALL histwrite( nid_A,  "t_abl"  , it, tq_abl  (:,:,2:jpka,nt_n,1)*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! t_abl

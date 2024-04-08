@@ -13,13 +13,12 @@ MODULE icethd
    !!   ice_thd       : thermodynamics of sea ice
    !!   ice_thd_init  : initialisation of sea-ice thermodynamics
    !!----------------------------------------------------------------------
+   USE par_ice        ! SI3 parameters
    USE phycst         ! physical constants
-   USE dom_oce        ! ocean space and time domain variables
+   USE par_oce
    USE ice            ! sea-ice: variables
-!!gm list trop longue ==>>> why not passage en argument d'appel ?
-   USE sbc_oce , ONLY : sss_m, sst_m, e3t_m, utau, vtau, ssu_m, ssv_m, frq_m, sprecip, ln_cpl
-   USE sbc_ice , ONLY : qsr_oce, qns_oce, qemp_oce, qsr_ice, qns_ice, dqns_ice, evap_ice, qprec_ice, qevap_ice, &
-      &                 qml_ice, qcn_ice, qtr_ice_top
+   USE sbc_oce , ONLY : sss_m, sst_m, frq_m, sprecip
+   USE sbc_ice , ONLY : qsr_ice, qns_ice, dqns_ice, evap_ice, qprec_ice, qml_ice, qcn_ice, qtr_ice_top
    USE ice1D          ! sea-ice: thermodynamics variables
    USE icethd_zdf     ! sea-ice: vertical heat diffusion
    USE icethd_dh      ! sea-ice: ice-snow growth and melt
@@ -27,14 +26,13 @@ MODULE icethd
    USE icethd_sal     ! sea-ice: salinity
    USE icethd_do      ! sea-ice: growth in open water
    USE icethd_pnd     ! sea-ice: melt ponds
-   USE iceitd         ! sea-ice: remapping thickness distribution
+   USE iceitd  , ONLY : ice_itd_rem
    USE icecor         ! sea-ice: corrections
    USE icetab         ! sea-ice: 1D <==> 2D transformation
-   USE icevar         ! sea-ice: operations
    USE icectl         ! sea-ice: control print
    !
    USE in_out_manager ! I/O manager
-   USE iom            ! I/O manager library
+   USE iom            , ONLY : iom_miss_val, iom_put       ! I/O manager library
    USE lib_mpp        ! MPP library
    USE lbclnk         ! lateral boundary conditions (or mpp links)
    USE timing         ! Timing
@@ -78,6 +76,7 @@ CONTAINS
       !!                - call ice_thd_zdf  for vertical heat diffusion
       !!                - call ice_thd_dh   for vertical ice growth and melt
       !!                - call ice_thd_pnd  for melt ponds
+      !!                - call ice_thd_temp to  retrieve temperature from ice enthalpy
       !!                - call ice_thd_sal  for ice desalination
       !!                - call ice_thd_temp to  retrieve temperature from ice enthalpy
       !!                - call ice_thd_mono for extra lateral ice melt if active virtual thickness distribution
@@ -118,6 +117,15 @@ CONTAINS
       !
       DO jl = 1, jpl
 
+#if defined key_si3_1D      
+         DO_2D( 0, 0, 0, 0 )
+            ! select ice covered grid points
+            npti = 0 ; nptidx(:) = 0
+            IF ( a_i(ji,jj,jl) > epsi10 ) THEN
+               npti         = 1
+               nptidx(npti) = (jj - 1) * jpi + ji
+            ENDIF
+#else
          ! select ice covered grid points
          npti = 0 ; nptidx(:) = 0
          DO_2D( 0, 0, 0, 0 )
@@ -126,7 +134,8 @@ CONTAINS
                nptidx(npti) = (jj - 1) * jpi + ji
             ENDIF
          END_2D
-
+#endif
+         
          IF( npti > 0 ) THEN  ! If there is no ice, do nothing.
             !
                               CALL ice_thd_1d2d( jl, 1 )            ! --- Move to 1D arrays --- !
@@ -155,6 +164,10 @@ CONTAINS
                               CALL ice_thd_1d2d( jl, 2 )            ! --- Change units of e_i, e_s from J/m3 to J/m2 --- !
             !                                                       ! --- & Move to 2D arrays --- !
          ENDIF
+         !
+#if defined key_si3_1D
+         END_2D
+#endif
          !
       END DO
       !
@@ -214,20 +227,20 @@ CONTAINS
       !!
       !! ** Method  :   Formula (Bitz and Lipscomb, 1999)
       !!-------------------------------------------------------------------
-      INTEGER  ::   ji, jk   ! dummy loop indices
+      INTEGER  ::   ii, jk   ! dummy loop indices
       REAL(wp) ::   ztmelts, zbbb, zccc  ! local scalar
       !!-------------------------------------------------------------------
       ! Recover ice temperature
       DO jk = 1, nlay_i
-         DO ji = 1, npti
-            IF( h_i_1d(ji) > 0._wp ) THEN
-               ztmelts       = -rTmlt * sz_i_1d(ji,jk)
+         DO ii = 1, npti
+            IF( h_i_1d(ii) > 0._wp ) THEN
+               ztmelts       = -rTmlt * sz_i_1d(ii,jk)
                ! Conversion q(S,T) -> T (second order equation)
-               zbbb          = ( rcp - rcpi ) * ztmelts + e_i_1d(ji,jk) * r1_rhoi - rLfus
+               zbbb          = ( rcp - rcpi ) * ztmelts + e_i_1d(ii,jk) * r1_rhoi - rLfus
                zccc          = SQRT( MAX( zbbb * zbbb - 4._wp * rcpi * rLfus * ztmelts, 0._wp ) )
-               t_i_1d(ji,jk) = rt0 - ( zbbb + zccc ) * 0.5_wp * r1_rcpi
+               t_i_1d(ii,jk) = rt0 - ( zbbb + zccc ) * 0.5_wp * r1_rcpi
             ELSE
-               t_i_1d(ji,jk) = rt0
+               t_i_1d(ii,jk) = rt0
             ENDIF
          END DO
       END DO
@@ -242,26 +255,26 @@ CONTAINS
       !! ** Purpose :   Lateral melting in case virtual_itd
       !!                          ( dA = A/2h dh )
       !!-----------------------------------------------------------------------
-      INTEGER  ::   ji                 ! dummy loop indices
+      INTEGER  ::   ii                 ! dummy loop indices
       REAL(wp) ::   zhi_bef            ! ice thickness before thermo
       REAL(wp) ::   zdh_mel, zda_mel   ! net melting
       REAL(wp) ::   zvi, zvs           ! ice/snow volumes
       !!-----------------------------------------------------------------------
       !
-      DO ji = 1, npti
-         zdh_mel = MIN( 0._wp, dh_i_itm(ji) + dh_i_sum(ji) + dh_i_bom(ji) + dh_snowice(ji) + dh_i_sub(ji) )
-         IF( zdh_mel < 0._wp .AND. a_i_1d(ji) > 0._wp )  THEN
-            zvi          = a_i_1d(ji) * h_i_1d(ji)
-            zvs          = a_i_1d(ji) * h_s_1d(ji)
+      DO ii = 1, npti
+         zdh_mel = MIN( 0._wp, dh_i_itm(ii) + dh_i_sum(ii) + dh_i_bom(ii) + dh_snowice(ii) + dh_i_sub(ii) )
+         IF( zdh_mel < 0._wp .AND. a_i_1d(ii) > 0._wp )  THEN
+            zvi          = a_i_1d(ii) * h_i_1d(ii)
+            zvs          = a_i_1d(ii) * h_s_1d(ii)
             ! lateral melting = concentration change
-            zhi_bef     = h_i_1d(ji) - zdh_mel
-            zda_mel     = MAX( -a_i_1d(ji) , a_i_1d(ji) * zdh_mel / ( 2._wp * MAX( zhi_bef, epsi20 ) ) )
-            a_i_1d(ji)  = MAX( epsi20, a_i_1d(ji) + zda_mel )
+            zhi_bef     = h_i_1d(ii) - zdh_mel
+            zda_mel     = MAX( -a_i_1d(ii) , a_i_1d(ii) * zdh_mel / ( 2._wp * MAX( zhi_bef, epsi20 ) ) )
+            a_i_1d(ii)  = MAX( epsi20, a_i_1d(ii) + zda_mel )
             ! adjust thickness
-            h_i_1d(ji) = zvi / a_i_1d(ji)
-            h_s_1d(ji) = zvs / a_i_1d(ji)
+            h_i_1d(ii) = zvi / a_i_1d(ii)
+            h_s_1d(ii) = zvs / a_i_1d(ii)
             ! retrieve total concentration
-            at_i_1d(ji) = a_i_1d(ji)
+            at_i_1d(ii) = a_i_1d(ii)
          END IF
       END DO
       !
