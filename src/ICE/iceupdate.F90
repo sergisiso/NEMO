@@ -206,8 +206,9 @@ CONTAINS
 
       ! Snow/ice albedo (only if sent to coupler, useless in forced mode)
       !------------------------------------------------------------------
-      CALL ice_alb( ln_pnd_alb, t_su(A2D(0),:), h_i(A2D(0),:), h_s(A2D(0),:), a_ip_eff(:,:,:), h_ip(A2D(0),:), cloud_fra(:,:), & ! <<== in
-         &                                                                                                      alb_ice(:,:,:) ) ! ==>> out
+      CALL ice_alb( ln_pnd_alb, t_su(A2D(0),:), h_i(A2D(0),:), h_s(A2D(0),:), a_ip_eff(:,:,:), &                 ! <<== in
+         &                                                    h_ip(A2D(0),:), h_il(A2D(0),:), cloud_fra(:,:), &  ! <<== in
+         &                                                                                      alb_ice(:,:,:) ) ! ==>> out
       !
       IF( lrst_ice ) THEN                       !* write snwice_mass fields in the restart file
          CALL update_rst( 'WRITE', kt )
