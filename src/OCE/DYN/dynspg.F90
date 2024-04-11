@@ -193,8 +193,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER ::   ioptio, ios   ! local integers
       !
-      NAMELIST/namdyn_spg/ ln_dynspg_exp       , ln_dynspg_ts,   &
-      &                    ln_bt_fw, ln_bt_av  , ln_bt_auto  ,   &
+      NAMELIST/namdyn_spg/ ln_dynspg_exp    , ln_dynspg_ts,   &
+      &                    ln_bt_fw         , ln_bt_auto  ,   &
       &                    nn_e , rn_bt_cmax, nn_bt_flt, rn_bt_alpha
       !!----------------------------------------------------------------------
       !

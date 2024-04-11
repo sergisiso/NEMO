@@ -206,7 +206,7 @@ if [ ${config} == "GYRE_PISCES" ] ; then
         set_namelist namelist_cfg jpni 2
         set_namelist namelist_cfg jpnj 4
         if [ ${USING_RK3} == 'no' ] ; then
-            set_namelist namelist_cfg ln_bt_av .true.
+            set_namelist namelist_cfg nn_bt_flt 1
             set_namelist namelist_cfg rn_bt_alpha 0.
             set_namelist namelist_cfg rn_Dt 7200.
         fi
@@ -356,7 +356,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
 	    set_namelist namelist_cfg rn_Dt 5400.
 	    set_namelist namelist_cfg nn_fsbc 4
 	    set_namelist namelist_cfg nn_time0 0130
-	    set_namelist namelist_cfg ln_bt_av .true.
+	    set_namelist namelist_cfg nn_bt_flt 1
 	    set_namelist namelist_cfg rn_bt_alpha 0.
 	fi
         set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
@@ -607,7 +607,7 @@ if [ ${config} == "AMM12" ] ;  then
         if [ ${USING_RK3} == "no" ]; then
 	    set_namelist namelist_cfg cn_ocerst_in \"amm12_restart_oce\"
             set_namelist namelist_cfg rn_Dt 600.
-            set_namelist namelist_cfg ln_bt_av .true.
+            set_namelist namelist_cfg nn_bt_flt 1
             set_namelist namelist_cfg nn_e 30
             set_namelist namelist_cfg rn_bt_alpha 0.
         fi
@@ -724,7 +724,7 @@ if [ ${config} == "ORCA2_SAS_ICE" ] ;  then
         set_namelist namelist_cfg jpnj 8
 	if [ ${USING_RK3} == "no" ]; then
             set_namelist namelist_cfg rn_Dt 5400.
-            set_namelist namelist_cfg ln_bt_av .true.
+            set_namelist namelist_cfg nn_bt_flt 1
             set_namelist namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
@@ -850,7 +850,7 @@ if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
         set_namelist namelist_cfg jpnj 8
 	if [ ${USING_RK3} == "no" ]; then
             set_namelist namelist_cfg rn_Dt 5400.
-            set_namelist namelist_cfg ln_bt_av .true.
+            set_namelist namelist_cfg nn_bt_flt 1
             set_namelist namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
@@ -986,7 +986,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
         set_namelist namelist_cfg nn_itend ${ITEND}
 	if [ ${USING_RK3} == "no" ]; then
             set_namelist namelist_cfg rn_Dt 5400.
-            set_namelist namelist_cfg ln_bt_av .true.
+            set_namelist namelist_cfg nn_bt_flt 1
             set_namelist namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
@@ -997,7 +997,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
         set_namelist 1_namelist_cfg nn_itend ${ITEND}
 	if [ ${USING_RK3} == "no" ]; then
             set_namelist 1_namelist_cfg rn_Dt 5400.
-            set_namelist 1_namelist_cfg ln_bt_av .true.
+            set_namelist 1_namelist_cfg nn_bt_flt 1
             set_namelist 1_namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
@@ -1007,7 +1007,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
         set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
 	if [ ${USING_RK3} == "no" ]; then
             set_namelist 2_namelist_cfg rn_Dt 1350.
-            set_namelist 2_namelist_cfg ln_bt_av .true.
+            set_namelist 2_namelist_cfg nn_bt_flt 1
             set_namelist 2_namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist 2_namelist_cfg sn_cfctl%l_runstat .true.
@@ -1018,7 +1018,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
         set_namelist 3_namelist_cfg sn_cfctl%l_runstat .true.
 	if [ ${USING_RK3} == "no" ]; then
             set_namelist 3_namelist_cfg rn_Dt 450.
-            set_namelist 3_namelist_cfg ln_bt_av .true.
+            set_namelist 3_namelist_cfg nn_bt_flt 1
             set_namelist 3_namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist_opt 3_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
@@ -1166,7 +1166,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
             set_namelist namelist_cfg nn_itend ${ITEND}
 	    if [ ${USING_RK3} == "no" ]; then
                 set_namelist namelist_cfg rn_Dt 5400.
-                set_namelist namelist_cfg ln_bt_av .true.
+                set_namelist namelist_cfg nn_bt_flt 1
                 set_namelist namelist_cfg rn_bt_alpha 0.
             fi
             set_namelist namelist_cfg sn_cfctl%l_runstat .true.
@@ -1232,7 +1232,7 @@ if [ ${config} == "WED025" ] ;  then
         set_namelist namelist_cfg jpnj 8
 	if [ ${USING_RK3} == "no" ]; then
             set_namelist namelist_cfg rn_Dt 1200.
-            set_namelist namelist_cfg ln_bt_av .true.
+            set_namelist namelist_cfg nn_bt_flt 1
             set_namelist namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.

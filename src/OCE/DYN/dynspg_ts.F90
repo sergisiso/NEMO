@@ -72,6 +72,7 @@ MODULE dynspg_ts
    !
    INTEGER, SAVE :: icycle      ! Number of barotropic sub-steps for each internal step nn_e <= 2.5 nn_e
    REAL(wp),SAVE :: rDt_e       ! Barotropic time step
+!!   LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backward dissipation
    !
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)   ::   wgtbtp1, wgtbtp2   ! 1st & 2nd weights used in time filtering of barotropic fields
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   zwz                ! ff_f/h at F points
@@ -151,20 +152,22 @@ CONTAINS
       INTEGER  ::   ji, jj, jk, jn        ! dummy loop indices
       LOGICAL  ::   ll_fw_start           ! =T : forward integration 
       LOGICAL  ::   ll_init               ! =T : special startup of 2d equations
+LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backward dissipation
       INTEGER  ::   noffset               ! local integers  : time offset for bdy update
       REAL(wp) ::   z1_hu , z1_hv             ! local scalars
       REAL(wp) ::   zzsshu, zzsshv            !   -      -
       REAL(wp) ::   za0, za1, za2, za3        !   -      -
-      REAL(wp) ::   zztmp, zldg               !   -      -
+      REAL(wp) ::   zztmp, zldg, zkmax        !   -      -
       REAL(wp) ::   zhu_bck, zhv_bck, zhdiv   !   -      -
       REAL(wp) ::   zun_save, zvn_save        !   -      -
-      REAL(wp), DIMENSION(jpi,jpj) :: zu_trd, zu_spg !!st tests , zssh_frc
+      REAL(wp), DIMENSION(jpi,jpj) :: zu_trd, zu_spg
       REAL(wp), DIMENSION(jpi,jpj) :: zv_trd, zv_spg
       REAL(wp), DIMENSION(A2D(0) ) :: zu_frc, zv_frc
       REAL(wp), DIMENSION(jpi,jpj) :: zsshu_a, zhup2_e, zhtp2_e
       REAL(wp), DIMENSION(jpi,jpj) :: zsshv_a, zhvp2_e, zsshp2_e
       REAL(wp), DIMENSION(jpi,jpj) :: zCdU_u, zCdU_v   ! top/bottom stress at u- & v-points
       REAL(wp), DIMENSION(jpi,jpj) :: zhU, zhV         ! fluxes
+      REAL(wp), DIMENSION(jpi,jpj) :: zks
       !
       REAL(wp) ::   zwdramp                     ! local scalar - only used if ln_wd_dl = .True. 
 
@@ -184,7 +187,10 @@ CONTAINS
 !     zwdramp = 1._wp / (rn_wdmin2 - rn_wdmin1) ! more general ramp
       !                                         ! inverse of baroclinic time step 
       !
-      ll_init     = ln_bt_av                    ! if no time averaging, then no specific restart 
+      ll_bt_av    = .TRUE.                      ! boxcard or no time-filtering if nn_bt_flt != 3
+      IF( nn_bt_flt==3 )   ll_bt_av = .FALSE.
+      !
+      ll_init     = ll_bt_av                    ! if no time averaging, then no specific restart 
       ll_fw_start = .FALSE.
       !                                         ! time offset in steps for bdy data update
       IF( .NOT.ln_bt_fw ) THEN   ;   noffset = - nn_e
@@ -197,12 +203,14 @@ CONTAINS
          IF(lwp) WRITE(numout,*) 'dyn_spg_ts : surface pressure gradient trend'
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~   free surface with time splitting'
          IF(lwp) WRITE(numout,*)
-         !
 #if defined key_RK3
          !                    ! RK3: read bb and b field or start from 0
-         ll_init=.TRUE.
-         IF( .NOT. ln_bt_av .AND. ln_rstart ) THEN
-            ll_init=.FALSE.
+         IF( nn_bt_flt==3 ) THEN    
+            IF( ln_rstart ) THEN           ! init bb fields with restart
+                ll_init=.FALSE.
+            ELSE                           ! init bb fields with 0
+                ll_init=.TRUE.
+            ENDIF
          ENDIF
          !
          IF( ln_bt_fw ) THEN
@@ -221,7 +229,7 @@ CONTAINS
          ENDIF
 #endif
          !                    ! Set averaging weights and cycle length:
-         CALL ts_wgt( ln_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
+         CALL ts_wgt( ll_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
          !
       ELSEIF( kt == nit000 + 1 ) THEN           !* initialisation 2nd time-step
          !
@@ -231,10 +239,11 @@ CONTAINS
             ! an Euler timestep on the first timestep (because l_1st_euler is reset to .false.
             ! at the end of the first timestep) so just do this in all cases. 
             ll_fw_start = .FALSE.
-            CALL ts_wgt( ln_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
+            CALL ts_wgt( ll_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
          ENDIF
          !
       ENDIF
+      !
       !
       ! -----------------------------------------------------------------------------
       !  Phase 1 : Coupling between general trend and barotropic estimates (1st step)
@@ -777,7 +786,7 @@ CONTAINS
          !
          !                                             !* Sum over whole bt loop (except in weight average)
          !                                             !  ----------------------
-         IF( ln_bt_av ) THEN
+         IF( ll_bt_av ) THEN
             za1 = wgtbtp1(jn)                                    
             IF( ln_dynadv_vec .OR. lk_linssh ) THEN    ! Sum velocities
                puu_b  (:,:,Kaa) = puu_b  (:,:,Kaa) + za1 * ua_e  (:,:) 
@@ -808,7 +817,7 @@ CONTAINS
       ! Phase 3. update the general trend with the barotropic trend
       ! -----------------------------------------------------------------------------
       !
-      IF(.NOT.ln_bt_av ) THEN                          !* Update Kaa barotropic external mode 
+      IF(.NOT.ll_bt_av ) THEN                          !* Update Kaa barotropic external mode 
          puu_b(:,:,Kaa) = ua_e  (:,:)
          pvv_b(:,:,Kaa) = va_e  (:,:)
          pssh (:,:,Kaa) = ssha_e(:,:)
@@ -817,7 +826,7 @@ CONTAINS
 #if defined key_RK3
       !                                                !*  RK3 case
       !
-      IF( (.NOT.(ln_dynadv_vec .OR. lk_linssh)) .AND. ln_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
+      IF( (.NOT.(ln_dynadv_vec .OR. lk_linssh)) .AND. ll_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
          !
 # if defined key_qcoTest_FluxForm
          !                                       ! 'key_qcoTest_FluxForm' : simple ssh average
@@ -891,7 +900,7 @@ CONTAINS
             pvv(:,:,jk,Krhs) = pvv(:,:,jk,Krhs) + ( pvv_b(:,:,Kaa) - pvv_b(:,:,Kbb) ) * r1_Dt
          END DO
       ELSE
-         IF(.NOT.ln_bt_av ) THEN   ! (puu_b,pvv_b)_Kaa is a velocity (hu,hv)_Kaa = (hu_e,hv_e)
+         IF( nn_bt_flt==3 ) THEN   ! (puu_b,pvv_b)_Kaa is a velocity (hu,hv)_Kaa = (hu_e,hv_e)
             ! 
             DO jk=1,jpkm1
                puu(:,:,jk,Krhs) = puu(:,:,jk,Krhs) + r1_hu(:,:,Kmm)   &
@@ -1072,8 +1081,6 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER         , INTENT(in) ::   kt     ! ocean time-step
       CHARACTER(len=*), INTENT(in) ::   cdrw   ! "READ"/"WRITE" flag
-      !!
-      INTEGER ::   id1   ! local integer
       !!----------------------------------------------------------------------
       !
       IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise 
@@ -1081,15 +1088,15 @@ CONTAINS
 # if ! defined key_RK3
          IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN    !* MLF: Read the restart file
             IF ( ln_bt_fw ) THEN
-               CALL iom_get( numror, jpdom_auto, 'ub2_b'  , ub2_b  (:,:), cd_type = 'U', psgn = -1._wp )   
-               CALL iom_get( numror, jpdom_auto, 'vb2_b'  , vb2_b  (:,:), cd_type = 'V', psgn = -1._wp ) 
-               CALL iom_get( numror, jpdom_auto, 'un_bf'  , un_bf  (:,:), cd_type = 'U', psgn = -1._wp )   
-               CALL iom_get( numror, jpdom_auto, 'vn_bf'  , vn_bf  (:,:), cd_type = 'V', psgn = -1._wp ) 
+               CALL iom_get( numror, jpdom_auto, 'ub2_b'  , ub2_b  (:,:), cd_type = 'U', psgn = -1._wp )
+               CALL iom_get( numror, jpdom_auto, 'vb2_b'  , vb2_b  (:,:), cd_type = 'V', psgn = -1._wp )
+               CALL iom_get( numror, jpdom_auto, 'un_bf'  , un_bf  (:,:), cd_type = 'U', psgn = -1._wp )  
+               CALL iom_get( numror, jpdom_auto, 'vn_bf'  , vn_bf  (:,:), cd_type = 'V', psgn = -1._wp )
             ENDIF
 # else
          IF( ln_rstart ) THEN                           !* RK3: Read the restart file
 # endif
-            IF( .NOT.ln_bt_av ) THEN
+            IF( nn_bt_flt == 3 ) THEN
                IF( iom_varid( numror, 'sshbb_e', ldstop = .FALSE. ) > 0 ) THEN
                   CALL iom_get( numror, jpdom_auto, 'sshbb_e'  , sshbb_e(:,:), cd_type = 'T', psgn =  1._wp )
                   CALL iom_get( numror, jpdom_auto, 'ubb_e'    ,   ubb_e(:,:), cd_type = 'U', psgn = -1._wp )
@@ -1109,7 +1116,7 @@ CONTAINS
 #if defined key_agrif
             ! Read time integrated fluxes
             IF ( .NOT.Agrif_Root() ) THEN
-               CALL iom_get( numror, jpdom_auto, 'ub2_i_b'  , ub2_i_b(:,:), cd_type = 'U', psgn = -1._wp )   
+               CALL iom_get( numror, jpdom_auto, 'ub2_i_b'  , ub2_i_b(:,:), cd_type = 'U', psgn = -1._wp )
                CALL iom_get( numror, jpdom_auto, 'vb2_i_b'  , vb2_i_b(:,:), cd_type = 'V', psgn = -1._wp )
             ELSE
                ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
@@ -1146,7 +1153,7 @@ CONTAINS
          ENDIF
 # endif
          !
-         IF (.NOT.ln_bt_av) THEN
+         IF( nn_bt_flt == 3 ) THEN
             CALL iom_rstput( kt, nitrst, numrow, 'sshbb_e'  , sshbb_e(:,:) ) 
             CALL iom_rstput( kt, nitrst, numrow, 'ubb_e'    ,   ubb_e(:,:) )
             CALL iom_rstput( kt, nitrst, numrow, 'vbb_e'    ,   vbb_e(:,:) )
@@ -1179,6 +1186,9 @@ CONTAINS
       INTEGER  ::   ji ,jj              ! dummy loop indices
       REAL(wp) ::   zxr2, zyr2, zcmax   ! local scalar
       REAL(wp), DIMENSION(jpi,jpj) ::   zcu
+#if defined key_RK3
+      REAL(wp) ::   zc0max, zzc0, zzc1, zzd   ! local scalar
+#endif
       !!----------------------------------------------------------------------
       !
       ! Max courant number for ext. grav. waves
@@ -1200,7 +1210,27 @@ CONTAINS
 
       ! Estimate number of iterations to satisfy a max courant number= rn_bt_cmax
       IF( ln_bt_auto )   nn_e = CEILING( rn_Dt / rn_bt_cmax * zcmax)
-      
+!!st: test nn_e value (to be removed)
+      IF(lwp) WRITE(numout,*)    '     Barotropic sub-time step nn_e: ', nn_e
+
+#if defined key_RK3
+      zc0max = rn_Dt * zcmax
+      ! Estimate number of iterations and FB dissipative parameter to satisfy a max courant number= rn_bt_cmax
+      IF( ln_bt_auto ) THEN
+         IF( (nn_bt_flt==3).AND.(rn_bt_alpha==0._wp) ) THEN
+            CALL ctl_warn('dyn_spg_ts: automatic rn_bt_alpha determination scheme may not work for intense stratification')
+            IF(.NOT. ln_rstart ) THEN
+               zzc0 = zc0max*zc0max
+               zzc1 = rpi * rpi * 3._wp / 4._wp
+               zzd  = SQRT(49284._wp * zzc0 - 375._wp * zzc1*zzc1) - 35._wp * zzc1
+               nn_e = 240._wp * zzc0 / zzd
+               rn_bt_alpha = zzc1 / zzc0 * nn_e / 6._wp
+               IF(lwp) WRITE(numout,*)    '     auto: Barotropic sub-time step nn_e: ', nn_e
+               IF(lwp) WRITE(numout,*)    '     auto: Time diffusion parameter rn_bt_alpha: ', rn_bt_alpha
+            ENDIF
+         ENDIF
+      ENDIF
+#endif
       rDt_e = rn_Dt / REAL( nn_e , wp )
       zcmax = zcmax * rDt_e
       ! Print results
@@ -1208,16 +1238,10 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 'dyn_spg_ts_init : split-explicit free surface'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~'
       IF( ln_bt_auto ) THEN
-         IF(lwp) WRITE(numout,*) '     ln_ts_auto =.true. Automatically set nn_e '
+         IF(lwp) WRITE(numout,*) '     ln_ts_auto =.true. Automatically set nn_e'
          IF(lwp) WRITE(numout,*) '     Max. courant number allowed: ', rn_bt_cmax
       ELSE
-         IF(lwp) WRITE(numout,*) '     ln_ts_auto=.false.: Use nn_e in namelist   nn_e = ', nn_e
-      ENDIF
-      !
-      IF(ln_bt_av) THEN
-         IF(lwp) WRITE(numout,*) '     ln_bt_av =.true.  ==> Time averaging over nn_e time steps is on '
-      ELSE
-         IF(lwp) WRITE(numout,*) '     ln_bt_av =.false. => No time averaging of barotropic variables '
+         IF(lwp) WRITE(numout,*) '     ln_ts_auto =.false. Use nn_e and rn_bt_alpha in namelist'
       ENDIF
       !
 # if !  defined key_RK3
@@ -1228,6 +1252,7 @@ CONTAINS
       ENDIF
 # else
       ! Enforce ln_bt_fw = T with RK3
+      IF(lwp) WRITE(numout,*) '     Enforce ln_bt_fw=.true.  => Forward integration of barotropic variables '
       ln_bt_fw = .true.
 # endif
       !
@@ -1241,7 +1266,8 @@ CONTAINS
          CASE( 0 )      ;   IF(lwp) WRITE(numout,*) '           Dirac'
          CASE( 1 )      ;   IF(lwp) WRITE(numout,*) '           Boxcar: width = nn_e'
          CASE( 2 )      ;   IF(lwp) WRITE(numout,*) '           Boxcar: width = 2*nn_e' 
-         CASE DEFAULT   ;   CALL ctl_stop( 'unrecognised value for nn_bt_flt: should 0,1, or 2' )
+         CASE( 3 )      ;   IF(lwp) WRITE(numout,*) '           Time filter'
+         CASE DEFAULT   ;   CALL ctl_stop( 'unrecognised value for nn_bt_flt: should 0,1,2 or 3' )
       END SELECT
       !
       IF(lwp) WRITE(numout,*) ' '
@@ -1250,11 +1276,11 @@ CONTAINS
       IF(lwp) WRITE(numout,*) '     Maximum Courant number is   :', zcmax
       !
       IF(lwp) WRITE(numout,*)    '     Time diffusion parameter rn_bt_alpha: ', rn_bt_alpha
-      IF ((ln_bt_av.AND.nn_bt_flt/=0).AND.(rn_bt_alpha>0._wp)) THEN
-         CALL ctl_stop( 'dynspg_ts ERROR: if rn_bt_alpha > 0, remove temporal averaging' )
+      IF ((nn_bt_flt==1 .OR. nn_bt_flt==2).AND.(rn_bt_alpha>0._wp)) THEN
+         CALL ctl_stop( 'dynspg_ts ERROR: if rn_bt_alpha > 0, remove temporal averaging, nn_bt_flt should be 0 or 3' )
       ENDIF
       !
-      IF( .NOT.ln_bt_av .AND. .NOT.ln_bt_fw ) THEN
+      IF( nn_bt_flt==3 .AND. .NOT.ln_bt_fw ) THEN
          CALL ctl_stop( 'dynspg_ts ERROR: No time averaging => only forward integration is possible' )
       ENDIF
       IF( zcmax>0.9_wp ) THEN
