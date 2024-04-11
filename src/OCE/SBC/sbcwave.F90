@@ -381,7 +381,7 @@ CONTAINS
       IF( .NOT.( ln_cdgw .OR. ln_sdw .OR. ln_tauoc .OR. ln_stcor .OR. ln_charn) )   &
          &     CALL ctl_warn( 'Ask for wave coupling but ln_cdgw=F, ln_sdw=F, ln_tauoc=F, ln_stcor=F')
       IF( ln_cdgw .AND. ln_blk )   &
-         &     CALL ctl_stop( 'drag coefficient read from wave model NOT available yet with aerobulk package')
+         &     CALL ctl_warn( 'drag coefficient read from wave model available ONLY with ln_NCAR and ln_MFS aerobulk options')
       IF( ln_stcor .AND. .NOT.ln_sdw )   &
          &     CALL ctl_stop( 'Stokes-Coriolis term calculated only if activated Stokes Drift ln_sdw=T')
 
