@@ -54,9 +54,7 @@ MODULE traadv
 
    PUBLIC   tra_adv        ! called by step.F90, stpmlf.F90 and stprk3_stg.F90
    PUBLIC   tra_adv_init   ! called by nemogcm.F90
-#if defined key_RK3
    PUBLIC   tra_adv_trp    ! called by stprk3_stg.F90
-#endif
 
    !                            !!* Namelist namtra_adv *
    LOGICAL ::   ln_traadv_OFF    ! no advection on T and S
@@ -226,7 +224,18 @@ CONTAINS
       IF( ln_timing )   CALL timing_stop( 'tra_adv_trp' )
       !
    END SUBROUTINE tra_adv_trp
-
+#else
+   !!---------------------------------------------------------------------------------
+   !!   MLF option                                                    Empty routine
+   !!---------------------------------------------------------------------------------
+   SUBROUTINE tra_adv_trp( kt, kstg, kit000, Kbb, Kmm, Kaa, Krhs, pFu, pFv, pFw )
+      IMPLICIT NONE
+      INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
+      INTEGER                                     , INTENT(in   ) ::   kstg, kit000        ! RK3 stage and init index
+      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk)            , INTENT(inout) ::   pFu, pFv, pFw       ! advective transport
+      WRITE(*,*) 'tra_adv_trp: This routine is dedicated to RK3 time-stepping'
+   END SUBROUTINE tra_adv_trp
 #endif
 
    SUBROUTINE tra_adv( kt, Kbb, Kmm, Kaa, pts, Krhs, pau, pav, paw, kstg )

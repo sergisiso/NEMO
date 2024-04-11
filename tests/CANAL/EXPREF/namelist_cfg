@@ -255,7 +255,6 @@
    ln_dynspg_exp  = .false. 
    ln_dynspg_ts   = .true.   ! split-explicit free surface
       ln_bt_fw      = .true.     ! Forward integration of barotropic Eqs.
-      ln_bt_av      = .true.     ! Time filtering of barotropic variables
          nn_bt_flt     = 1          ! Time filter choice  = 0 None
          !                          !                     = 1 Boxcar over   nn_e sub-steps
          !                          !                     = 2 Boxcar over 2*nn_e  "    "

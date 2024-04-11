@@ -200,7 +200,7 @@ if [ ${config} == "OVERFLOW" ];  then
         set_namelist namelist_cfg nn_itend ${ITEND}
 	if [ ${USING_RK3} == "no" ] ;  then
 	    set_namelist namelist_cfg rn_Dt 10.
-	    set_namelist namelist_cfg ln_bt_av .true.
+	    set_namelist namelist_cfg nn_bt_flt 1
 	    set_namelist namelist_cfg rn_bt_alpha 0.
 	fi
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
@@ -318,7 +318,7 @@ if [ ${config} == "LOCK_EXCHANGE" ] ;  then
         set_namelist namelist_cfg nn_itend ${ITEND}
 	if [ ${USING_RK3} == "no" ] ;  then
             set_namelist namelist_cfg rn_Dt 1.
-            set_namelist namelist_cfg ln_bt_av .true.
+            set_namelist namelist_cfg nn_bt_flt 1
             set_namelist namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
@@ -701,6 +701,8 @@ if [ ${config} == "ISOMIP+" ]; then
         set_namelist namelist_cfg jpnj 3
 	if [ ${USING_RK3} == 'no' ] ; then
             set_namelist namelist_cfg rn_Dt 720.
+	    set_namelist namelist_cfg nn_bt_flt 1
+	    set_namelist namelist_cfg rn_bt_alpha 0.
         fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.

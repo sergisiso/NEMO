@@ -1112,14 +1112,16 @@
    ln_dynspg_exp  = .false.   ! explicit free surface
    ln_dynspg_ts   = .false.   ! split-explicit free surface
       ln_bt_fw      = .true.     ! Forward integration of barotropic Eqs.
-      ln_bt_av      = .true.     ! Time filtering of barotropic variables
-         nn_bt_flt     = 1          ! Time filter choice  = 0 None
-         !                          !                     = 1 Boxcar over   nn_e sub-steps
-         !                          !                     = 2 Boxcar over 2*nn_e  "    "
+      nn_bt_flt     = 1          ! Add dissipation with either nn_e width boxcar averaging 
+      !                          !                         or dissipative Forward-Backward
+      !                          !                     = 0 None
+      !                          !                     = 1 Boxcar over   nn_e sub-steps
+      !                          !                     = 2 Boxcar over 2*nn_e  "    "
+      !                          !                     = 3 Temporal dissipation (Demange 2019)
       ln_bt_auto    = .true.     ! Number of sub-step defined from:
          rn_bt_cmax   =  0.8        ! =T : the Maximum Courant Number allowed
-         nn_e         = 30          ! =F : the number of sub-step in rn_Dt seconds
-      rn_bt_alpha   = 0.         ! Temporal diffusion parameter (if ln_bt_av=F)
+         nn_e         =  30         ! =F : the number of sub-step in rn_Dt seconds
+         rn_bt_alpha  =  0.         ! Temporal diffusion parameter (if nn_bt_flt=3)
 /
 !-----------------------------------------------------------------------
 &namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)
