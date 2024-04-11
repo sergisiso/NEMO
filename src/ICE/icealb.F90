@@ -33,7 +33,8 @@ MODULE icealb
    REAL(wp) ::   rn_alb_smlt      ! melting snow albedo
    REAL(wp) ::   rn_alb_idry      ! dry ice albedo
    REAL(wp) ::   rn_alb_imlt      ! bare puddled ice albedo
-   REAL(wp) ::   rn_alb_dpnd      ! ponded ice albedo
+   REAL(wp) ::   rn_alb_dpnd      ! dark ponded ice albedo
+   REAL(wp) ::   rn_alb_lpnd      ! lidded pond albedo
    REAL(wp) ::   rn_alb_hpiv      ! pivotal ice thickness in meters (above which albedo is constant)
 
    !! * Substitutions
@@ -46,7 +47,7 @@ MODULE icealb
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE ice_alb( ld_pnd_alb, pt_su, ph_ice, ph_snw, pafrac_pnd, ph_pnd, pcloud_fra, palb_ice )
+   SUBROUTINE ice_alb( ld_pnd_alb, pt_su, ph_ice, ph_snw, pafrac_pnd, ph_pnd, ph_lid, pcloud_fra, palb_ice )
       !!----------------------------------------------------------------------
       !!               ***  ROUTINE ice_alb  ***
       !!          
@@ -80,6 +81,13 @@ CONTAINS
       !!                        rn_alb_sdry = 0.87      ! dry snow
       !!                        rn_alb_smlt = 0.82      ! melting snow
       !!                        rn_alb_idry = 0.54      ! bare frozen ice
+      !!                     Light et al 2022 (MOSAIC)
+      !!                        rn_alb_sdry = 0.8-0.9   ! dry snow
+      !!                        rn_alb_smlt = 0.6-0.8   ! melting snow
+      !!                        rn_alb_idry = 0.64+-0.04 ! bare frozen ice
+      !!                        dark  pond  = 0.12-0.25
+      !!                        light pond  = 0.25-0.32
+      !!                        lidded pond = 0.21
       !!
       !! ** Note    :   The old parameterization from Shine & Henderson-Sellers (not here anymore) presented several misconstructions
       !!                  1) ice albedo when ice thick. tends to 0 is different than ocean albedo
@@ -98,6 +106,7 @@ CONTAINS
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_snw       !  snow depth
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   pafrac_pnd   !  melt pond relative fraction (per unit ice area)
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_pnd       !  melt pond depth
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_lid       !  melt pond lid thickness
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0))     ::   pcloud_fra   !  cloud fraction
       REAL(wp), INTENT(  out), DIMENSION(A2D(0),jpl) ::   palb_ice     !  albedo of ice
       !
@@ -161,7 +170,11 @@ CONTAINS
                zalb_snw = rn_alb_smlt - ( rn_alb_smlt - zalb_ice ) * EXP( - ph_snw(ji,jj,jl) * z1_c4 )
             ENDIF
             !                       !--- Ponded ice albedo
-            zalb_pnd = rn_alb_dpnd - ( rn_alb_dpnd - zalb_ice ) * EXP( - ph_pnd(ji,jj,jl) * z1_href_pnd ) 
+            IF( ph_lid(ji,jj,jl) <= 0.02 ) THEN ! do not change pond albedo if the lid is < 2cm
+               zalb_pnd = rn_alb_dpnd - ( rn_alb_dpnd - zalb_ice ) * EXP( - ph_pnd(ji,jj,jl) * z1_href_pnd )
+            ELSE
+               zalb_pnd = rn_alb_lpnd - ( rn_alb_lpnd - zalb_ice ) * EXP( - ph_pnd(ji,jj,jl) * z1_href_pnd )
+            ENDIF
             !
             !                       !--- Surface albedo is weighted mean of snow, ponds and bare ice contributions
             zalb_os = ( zafrac_snw * zalb_snw + zafrac_pnd * zalb_pnd + zafrac_ice * zalb_ice ) * smask0(ji,jj)
@@ -191,7 +204,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER ::   ios   ! Local integer output status for namelist read
       !!
-      NAMELIST/namalb/ rn_alb_sdry, rn_alb_smlt, rn_alb_idry, rn_alb_imlt, rn_alb_dpnd, rn_alb_hpiv
+      NAMELIST/namalb/ rn_alb_sdry, rn_alb_smlt, rn_alb_idry, rn_alb_imlt, rn_alb_dpnd, rn_alb_lpnd, rn_alb_hpiv
       !!----------------------------------------------------------------------
       !
       READ_NML_REF(numnam_ice,namalb)
@@ -207,7 +220,8 @@ CONTAINS
          WRITE(numout,*) '      albedo of melting snow               rn_alb_smlt = ', rn_alb_smlt
          WRITE(numout,*) '      albedo of dry ice                    rn_alb_idry = ', rn_alb_idry
          WRITE(numout,*) '      albedo of bare puddled ice           rn_alb_imlt = ', rn_alb_imlt
-         WRITE(numout,*) '      albedo of ponded ice                 rn_alb_dpnd = ', rn_alb_dpnd
+         WRITE(numout,*) '      albedo of dark pond                  rn_alb_dpnd = ', rn_alb_dpnd
+         WRITE(numout,*) '      albedo of lidded pond                rn_alb_lpnd = ', rn_alb_lpnd
          WRITE(numout,*) '      pivotal ice thickness (m)            rn_alb_hpiv = ', rn_alb_hpiv
       ENDIF
       !
