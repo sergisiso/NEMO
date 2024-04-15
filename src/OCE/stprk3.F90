@@ -179,14 +179,7 @@ CONTAINS
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !  RK3 : single first external mode computation
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-      IF( ln_dynspg_ts ) THEN 
-         CALL stp_2D( kstp, Nbb, Nbb, Naa, Nrhs )   ! out: ssh, (uu_b,vv_b) at Naa and (un_adv,vn_adv) between Nbb and Naa
-      ELSE
-         uu_b(:,:,:) = 0._wp
-         vv_b(:,:,:) = 0._wp
-         un_adv(:,:) = 0._wp
-         vn_adv(:,:) = 0._wp
-      ENDIF
+      CALL stp_2D( kstp, Nbb, Nbb, Naa, Nrhs )         ! out: ssh, (uu_b,vv_b) at Naa and (un_adv,vn_adv) between Nbb and Naa
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !  RK3 time integration

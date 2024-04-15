@@ -78,7 +78,7 @@
    !
    ln_meshmask = .true.    !  =T create a mesh file
    !
-   ln_shuman   = .true.   !  =T  shuman averaging active  (RK3 only)
+   ln_shuman   = .false.   !  =T  shuman averaging active  (RK3 only)
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)

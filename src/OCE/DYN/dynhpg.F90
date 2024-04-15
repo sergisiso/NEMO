@@ -12,41 +12,42 @@ MODULE dynhpg
    !!   NEMO     1.0  !  2005-10  (A. Beckmann, B.W. An)  various s-coordinate options
    !!                 !         Original code for hpg_ctl, hpg_hel hpg_wdj, hpg_djc, hpg_rot
    !!             -   !  2005-11  (G. Madec) style & small optimisation
-   !!            3.3  !  2010-10  (C. Ethe, G. Madec) reorganisation of initialisation phase
-   !!            3.4  !  2011-11  (H. Liu) hpg_prj: Original code for s-coordinates
-   !!                 !           (A. Coward) suppression of hel, wdj and rot options
-   !!            3.6  !  2014-11  (P. Mathiot) hpg_isf: original code for ice shelf cavity
-   !!            4.2  !  2020-12  (M. Bell, A. Young) hpg_djc: revised djc scheme
-   !!            5.0  !  2022-12  (S. Techene, G. Madec) remove hpg_zps
+   !!            3.3  !  2010-10  (C. Ethe, G. Madec)  reorganisation of initialisation phase
+   !!            3.4  !  2011-11  (H. Liu)  hpg_prj: Original code for s-coordinates
+   !!                 !           (A. Coward)  suppression of hel, wdj and rot options
+   !!            3.6  !  2014-11  (P. Mathiot)  hpg_isf: original code for ice shelf cavity
+   !!            4.2  !  2020-12  (M. Bell, A. Young)  hpg_djc: revised djc scheme
+   !!            5.0  !  2022-12  (S. Techene, G. Madec)  remove hpg_zps
+   !!             -   !  2024-02  (S. Techene, G. Madec)  RK3: dyn_hpg always called first
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   dyn_hpg      : update the momentum trend with the now horizontal
-   !!                  gradient of the hydrostatic pressure
-   !!   dyn_hpg_init : initialisation and control of options
-   !!       hpg_zco  : z-coordinate scheme
-   !!       hpg_sco  : s-coordinate (standard jacobian formulation)
-   !!       hpg_isf  : s-coordinate (sco formulation) adapted to ice shelf
-   !!       hpg_djc  : s-coordinate (Density Jacobian with Cubic polynomial)
-   !!       hpg_prj  : s-coordinate (Pressure Jacobian with Cubic polynomial)
+   !!   dyn_hpg       : update the momentum trend with the now horizontal
+   !!                   gradient of the hydrostatic pressure
+   !!   dyn_hpg_init  : initialisation and control of options
+   !!       hpg_zco   : z-coordinate scheme
+   !!       hpg_sco   : s-coordinate (standard jacobian formulation)
+   !!       hpg_isf   : s-coordinate (sco formulation) adapted to ice shelf
+   !!       hpg_djc   : s-coordinate (Density Jacobian with Cubic polynomial)
+   !!       hpg_prj   : s-coordinate (Pressure Jacobian with Cubic polynomial)
    !!----------------------------------------------------------------------
-   USE oce             ! ocean dynamics and tracers
+   USE oce            ! ocean dynamics and tracers
+   USE sbc_oce        ! surface variable (only for the flag with ice shelf)
+   USE dom_oce        ! ocean space and time domain
+   USE eosbn2         ! compute density
    USE isf_oce , ONLY : risfload  ! ice shelf  (risfload variable)
    USE isfload , ONLY : isf_load  ! ice shelf  (isf_load routine )
-   USE sbc_oce         ! surface variable (only for the flag with ice shelf)
-   USE dom_oce         ! ocean space and time domain
-   USE wet_dry         ! wetting and drying
-   USE phycst          ! physical constants
-   USE trd_oce         ! trends: ocean variables
-   USE trddyn          ! trend manager: dynamics
+   USE phycst         ! physical constants
+   USE trd_oce        ! trends: ocean variables
+   USE trddyn         ! trend manager: dynamics
+   USE wet_dry        ! wetting and drying
    !
-   USE in_out_manager  ! I/O manager
-   USE prtctl          ! Print control
-   USE lib_mpp         ! MPP library
-   USE eosbn2          ! compute density
-   USE timing          ! Timing
-   USE iom
-   USE lib_fortran     ! to use sign with key_nosignedzero
+   USE in_out_manager ! I/O manager
+   USE prtctl         ! Print control
+   USE lib_mpp        ! MPP library
+   USE timing         ! Timing
+   USE iom            ! I/O manager
+   USE lib_fortran    ! to use sign with key_nosignedzero
 
    IMPLICIT NONE
    PRIVATE
@@ -93,23 +94,26 @@ CONTAINS
       !! ** Method  :   Call the hydrostatic pressure gradient routine
       !!              using the scheme defined in the namelist
       !!
-      !! ** Action : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now hydrastatic pressure trend
-      !!             - send trends to trd_dyn for futher diagnostics (l_trddyn=T)
+      !! ** Action : - set (puu,pvv)_Krhs with the Kmm HPG trend
+      !!             as in RK3, dyn_hpg always the first computed trend.
+      !!             - send trends to trd_dyn for diagnostics (l_trddyn=T)
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT( in )  ::  kt          ! ocean time-step index
-      INTEGER                             , INTENT( in )  ::  Kmm, Krhs   ! ocean time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv    ! ocean velocities and RHS of momentum equation
-      !
+      INTEGER                             , INTENT(in   ) ::  kt, Kmm, Krhs   ! ocean time-step and -level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv        ! ocean velocities and RHS of momentum Eq.
+#if ! defined key_RK3
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrdu, ztrdv
+#endif
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('dyn_hpg')
       !
+#if ! defined key_RK3
       IF( l_trddyn ) THEN                    ! Temporary saving of puu(:,:,:,Krhs) and pvv(:,:,:,Krhs) trends (l_trddyn)
          ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
          ztrdu(:,:,:) = puu(T2D(0),:,Krhs)
          ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
+#endif
       !
       SELECT CASE ( nhpg )      ! Hydrostatic pressure gradient computation
       CASE ( np_zco )   ;   CALL hpg_zco    ( kt, Kmm, puu, pvv, Krhs )  ! z-coordinate
@@ -119,12 +123,18 @@ CONTAINS
       CASE ( np_isf )   ;   CALL hpg_isf    ( kt, Kmm, puu, pvv, Krhs )  ! s-coordinate similar to sco modify for ice shelf
       END SELECT
       !
+#if defined key_RK3
+      IF( l_trddyn ) THEN      ! RK3 save the HPG trends for diagnostics directly with Krhs field
+         CALL trd_dyn( puu(:,:,:,Krhs), pvv(:,:,:,Krhs), jpdyn_hpg, kt, Kmm )
+      ENDIF
+#else
       IF( l_trddyn ) THEN      ! save the hydrostatic pressure gradient trends for momentum trend diagnostics
          ztrdu(:,:,:) = puu(T2D(0),:,Krhs) - ztrdu(:,:,:)
          ztrdv(:,:,:) = pvv(T2D(0),:,Krhs) - ztrdv(:,:,:)
          CALL trd_dyn( ztrdu, ztrdv, jpdyn_hpg, kt, Kmm )
          DEALLOCATE( ztrdu , ztrdv )
       ENDIF
+#endif
       !
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=puu(:,:,:,Krhs), clinfo1=' hpg  - Ua: ', mask1=umask,   &
          &                                  tab3d_2=pvv(:,:,:,Krhs), clinfo2=       ' Va: ', mask2=vmask, clinfo3='dyn' )
@@ -144,18 +154,12 @@ CONTAINS
       !! ** Action  :   Read the namelist namdyn_hpg and check the consistency
       !!      with the type of vertical coordinate used (zco, zps, sco)
       !!----------------------------------------------------------------------
-      INTEGER, INTENT( in ) :: Kmm   ! ocean time level index
-      !
-      INTEGER ::   ioptio = 0      ! temporary integer
-      INTEGER ::   ios             ! Local integer output status for namelist read
+      INTEGER, INTENT(in   ) ::   Kmm   ! ocean time level index
       !!
-      INTEGER  ::   ji, jj, jk, ikt    ! dummy loop indices      ISF
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::  zts_top, zrhd   ! hypothesys on isf density
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::  zrhdtop_isf    ! density at bottom of ISF
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::  ziceload       ! density at bottom of ISF
+      INTEGER ::   ioptio, ios   ! local integer
       !!
-      NAMELIST/namdyn_hpg/ ln_hpg_zco, ln_hpg_sco,                 &
-         &                 ln_hpg_djc, ln_hpg_prj, ln_hpg_isf,     &
+      NAMELIST/namdyn_hpg/ ln_hpg_zco    , ln_hpg_sco    ,               &
+         &                 ln_hpg_djc    , ln_hpg_prj    , ln_hpg_isf,   &
          &                 ln_hpg_djc_vnh, ln_hpg_djc_vnv
       !!----------------------------------------------------------------------
       !
@@ -239,52 +243,61 @@ CONTAINS
       !!      density gradient along the model level from the suface to that
       !!      level:    zhpi = grav .....
       !!                zhpj = grav .....
-      !!      add it to the general momentum trend (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)).
-      !!            puu(:,:,:,Krhs) = puu(:,:,:,Krhs) - 1/e1u * zhpi
-      !!            pvv(:,:,:,Krhs) = pvv(:,:,:,Krhs) - 1/e2v * zhpj
+      !!      set it to the general momentum trend (puu,pvv)_Krhs.
+      !!            puu_Krhs = puu_Krhs - 1/e1u * zhpi
+      !!            pvv_Krhs = pvv_Krhs - 1/e2v * zhpj
       !!
-      !! ** Action : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now hydrastatic pressure trend
+      !! ** Action : - set (puu,pvv)_Krh with the Kmm HPG trend
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT( in )  ::  kt          ! ocean time-step index
-      INTEGER                             , INTENT( in )  ::  Kmm, Krhs   ! ocean time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv    ! ocean velocities and RHS of momentum equation
+      INTEGER                             , INTENT(in   ) ::  kt, Kmm, Krhs   ! ocean time-step and level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv        ! ocean velocities and RHS of momentum Eq.
       !
       INTEGER  ::   ji, jj, jk       ! dummy loop indices
-      REAL(wp) ::   zcoef0, zcoef1   ! temporary scalars
-      REAL(wp), DIMENSION(T2D(nn_hls)) ::  zhpi, zhpj
+      REAL(wp) ::   zcoef0, zcoef1   ! local scalars
+      REAL(wp), DIMENSION(T2D(nn_hls)) ::   zhpi, zhpj   ! 2D workspace
       !!----------------------------------------------------------------------
       !
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == nit000 ) THEN
+      IF( kt == nit000 ) THEN
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN   ! Do only on the first tile
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'dyn:hpg_zco : hydrostatic pressure gradient trend'
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~   z-coordinate case '
          ENDIF
       ENDIF
       !
-      zcoef0 = - grav * 0.5_wp            ! Local constant initialization
+      zcoef0 = - grav * 0.5_wp         ! Local constant initialization
       !
-      DO_2D( 0, 0, 0, 0 )                 ! Surface value
+      DO_2D( 0, 0, 0, 0 )              ! Surface value
          zcoef1 = zcoef0 * e3w(ji,jj,1,Kmm)
-         !                                   ! hydrostatic pressure gradient
+         !                                ! hydrostatic pressure gradient
          zhpi(ji,jj) = zcoef1 * ( rhd(ji+1,jj,1) - rhd(ji,jj,1) ) * r1_e1u(ji,jj)
          zhpj(ji,jj) = zcoef1 * ( rhd(ji,jj+1,1) - rhd(ji,jj,1) ) * r1_e2v(ji,jj)
-         !                                   ! add to the general momentum trend
+         !                                ! add to the general momentum trend
+#if defined key_RK3
+         puu(ji,jj,1,Krhs) = zhpi(ji,jj)     ! RK3 case: dyn_hpg always called first
+         pvv(ji,jj,1,Krhs) = zhpj(ji,jj)
+#else
          puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj)
          pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj)
+#endif
       END_2D
       !
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )        ! interior value (2=<jk=<jpkm1)
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! interior value (2=<jk=<jpkm1)
          zcoef1 = zcoef0 * e3w(ji,jj,jk,Kmm)
-         !                                   ! hydrostatic pressure gradient
+         !                                ! hydrostatic pressure gradient
          zhpi(ji,jj) = zhpi(ji,jj) + zcoef1 * (  ( rhd(ji+1,jj,jk)+rhd(ji+1,jj,jk-1) )  &
             &                                  - ( rhd(ji  ,jj,jk)+rhd(ji  ,jj,jk-1) )  ) * r1_e1u(ji,jj)
 
          zhpj(ji,jj) = zhpj(ji,jj) + zcoef1 * (  ( rhd(ji,jj+1,jk)+rhd(ji,jj+1,jk-1) )  &
             &                                  - ( rhd(ji,jj,  jk)+rhd(ji,jj  ,jk-1) )  ) * r1_e2v(ji,jj)
-         !                                   ! add to the general momentum trend
+         !                                ! add to the general momentum trend
+#if defined key_RK3
+         puu(ji,jj,jk,Krhs) = zhpi(ji,jj)    ! RK3 case: dyn_hpg always called first
+         pvv(ji,jj,jk,Krhs) = zhpj(ji,jj)
+#else
          puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj)
          pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj)
+#endif
       END_3D
       !
    END SUBROUTINE hpg_zco
@@ -302,11 +315,11 @@ CONTAINS
       !!      to the horizontal pressure gradient :
       !!         zhpi = grav .....  + 1/e1u mi(rhd) di[ grav dep3w ]
       !!         zhpj = grav .....  + 1/e2v mj(rhd) dj[ grav dep3w ]
-      !!      add it to the general momentum trend (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)).
-      !!         puu(:,:,:,Krhs) = puu(:,:,:,Krhs) - 1/e1u * zhpi
-      !!         pvv(:,:,:,Krhs) = pvv(:,:,:,Krhs) - 1/e2v * zhpj
+      !!      add it to the general momentum trend (puu,pvv)_Krhs.
+      !!         puu_Krhs = puu_Krhs - 1/e1u * zhpi
+      !!         pvv_Krhs = pvv_Krhs - 1/e2v * zhpj
       !!
-      !! ** Action : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now hydrastatic pressure trend
+      !! ** Action : - set (puu,pvv)_Krh with the Kmm HPG trend
       !!----------------------------------------------------------------------
       INTEGER                             , INTENT(in   ) ::  kt          ! ocean time-step index
       INTEGER                             , INTENT(in   ) ::  Kmm, Krhs   ! ocean time level indices
@@ -317,9 +330,8 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(0))           ::   zhpi, zhpj
       !!----------------------------------------------------------------------
       !
-      !
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == nit000 ) THEN
+      IF( kt == nit000 ) THEN
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN   ! Do only on the first tile
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'dyn:hpg_sco : hydrostatic pressure gradient trend'
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~   s-coordinate case, OCE original scheme used'
@@ -344,29 +356,37 @@ CONTAINS
             &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !
          !                                   ! add to the general momentum trend
+#if defined key_RK3
+         puu(ji,jj,1,Krhs) = zhpi(ji,jj) + zuap   ! RK3 case: dyn_hpg always called first
+         pvv(ji,jj,1,Krhs) = zhpj(ji,jj) + zvap
+#else
          puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj) + zuap
          pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj) + zvap
+#endif
       END_2D
       !
       DO jk= 2, jpkm1
          DO_2D( 0, 0, 0, 0 )    ! interior value (2=<jk=<jpkm1)
-            !                                   ! hydrostatic pressure gradient along s-surfaces
+            !                          ! hydrostatic pressure gradient along s-surfaces
             zhpi(ji,jj) = zhpi(ji,jj) + zcoef0 * r1_e1u(ji,jj)                         &
                &        * (  e3w(ji+1,jj,jk,Kmm) * ( rhd(ji+1,jj,jk) + rhd(ji+1,jj,jk-1) )  &
                &           - e3w(ji  ,jj,jk,Kmm) * ( rhd(ji  ,jj,jk) + rhd(ji  ,jj,jk-1) )  )
             zhpj(ji,jj) = zhpj(ji,jj) + zcoef0 * r1_e2v(ji,jj)                         &
                &        * (  e3w(ji,jj+1,jk,Kmm) * ( rhd(ji,jj+1,jk) + rhd(ji,jj+1,jk-1) )  &
                &           - e3w(ji,jj  ,jk,Kmm) * ( rhd(ji,jj,  jk) + rhd(ji,jj  ,jk-1) )  )
-            !                                   ! s-coordinate pressure gradient correction
+            !                         ! s-coordinate pressure gradient correction
             zuap = -zcoef0 * ( rhd     (ji+1,jj  ,jk)     + rhd     (ji,jj,jk)     ) &
                &           * ( gdept_z0(ji+1,jj  ,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) * r1_e1u(ji,jj)
             zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk)     ) &
                &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) * r1_e2v(ji,jj)
-            !
-            !
-            ! add to the general momentum trend
+            !                          ! add to the general momentum trend
+#if defined key_RK3
+            puu(ji,jj,jk,Krhs) = zhpi(ji,jj) + zuap   ! RK3 case: dyn_hpg always called first
+            pvv(ji,jj,jk,Krhs) = zhpj(ji,jj) + zvap
+#else
             puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj) + zuap
             pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj) + zvap
+#endif
          END_2D
       END DO
       !
@@ -386,12 +406,12 @@ CONTAINS
       !!      to the horizontal pressure gradient :
       !!         zhpi = grav .....  + 1/e1u mi(rhd) di[ grav dep3w ]
       !!         zhpj = grav .....  + 1/e2v mj(rhd) dj[ grav dep3w ]
-      !!      add it to the general momentum trend (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)).
-      !!         puu(:,:,:,Krhs) = puu(:,:,:,Krhs) - 1/e1u * zhpi
-      !!         pvv(:,:,:,Krhs) = pvv(:,:,:,Krhs) - 1/e2v * zhpj
+      !!      add it to the general momentum trend (puu,pvv)_Krhs.
+      !!         puu_Krhs = puu_Krhs - 1/e1u * zhpi
+      !!         pvv_Krhs = pvv_Krhs - 1/e2v * zhpj
       !!      iceload is added
       !!      
-      !! ** Action : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now hydrastatic pressure trend
+      !! ** Action : - set (puu,pvv)_Krhs with the Kmm HPG trend
       !!----------------------------------------------------------------------
       INTEGER                             , INTENT(in   ) ::  kt          ! ocean time-step index
       INTEGER                             , INTENT(in   ) ::  Kmm, Krhs   ! ocean time level indices
@@ -443,8 +463,13 @@ CONTAINS
          zvap = -zcoef0 * ( rhd     (ji,jj+1,1)     + rhd     (ji,jj,1)     )   &
             &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !                          ! add to the general momentum trend
+#if defined key_RK3
+         puu(ji,jj,1,Krhs) = (zhpi(ji,jj) + zuap) * umask(ji,jj,1)   ! RK3 case: dyn_hpg always called first
+         pvv(ji,jj,1,Krhs) = (zhpj(ji,jj) + zvap) * vmask(ji,jj,1)
+#else
          puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + (zhpi(ji,jj) + zuap) * umask(ji,jj,1)
          pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + (zhpj(ji,jj) + zvap) * vmask(ji,jj,1)
+#endif
       END_2D
       !   
       !                     !=============================!
@@ -468,8 +493,13 @@ CONTAINS
             zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk) )   &
                &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) / e2v(ji,jj)
             !                          ! add to the general momentum trend
+#if defined key_RK3
+            puu(ji,jj,jk,Krhs) = (zhpi(ji,jj) + zuap) * umask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
+            pvv(ji,jj,jk,Krhs) = (zhpj(ji,jj) + zvap) * vmask(ji,jj,jk)
+#else
             puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (zhpi(ji,jj) + zuap) * umask(ji,jj,jk)
             pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (zhpj(ji,jj) + zvap) * vmask(ji,jj,jk)
+#endif
          END_2D
       END DO
       !
@@ -482,7 +512,9 @@ CONTAINS
       !!
       !! ** Method  :   Density Jacobian with Cubic polynomial scheme
       !!
-      !! Reference: Shchepetkin and McWilliams, J. Geophys. Res., 108(C3), 3090, 2003
+      !! ** Action : - set (puu,pvv)_Krhs with the Kmm HPG trend
+      !!
+      !! Reference: Shchepetkin and McWilliams, J. Geophys. Res. 2003
       !!----------------------------------------------------------------------
       INTEGER                             , INTENT( in )  ::  kt          ! ocean time-step index
       INTEGER                             , INTENT( in )  ::  Kmm, Krhs   ! ocean time level indices
@@ -504,19 +536,18 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(nn_hls))     ::   zz_dz_i, zz_dz_j, zz_drho_i, zz_drho_j    ! temporary arrays
       !!----------------------------------------------------------------------
       !
-
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == nit000 ) THEN
+      IF( kt == nit000 ) THEN
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN   ! Do only on the first tile
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'dyn:hpg_djc : hydrostatic pressure gradient trend'
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~   s-coordinate case, density Jacobian with cubic polynomial scheme'
          ENDIF
       ENDIF
-
+      !
       ! Local constant initialization
-      zcoef0 = - grav * 0.5_wp
-      z_grav_10  = grav / 10._wp
-      z1_12  = 1.0_wp / 12._wp
+      zcoef0     = - grav * 0.5_wp
+      z_grav_10  =   grav / 10._wp
+      z1_12      = 1.0_wp / 12._wp
 
       !----------------------------------------------------------------------------------------
       !  1. compute and store elementary vertical differences in provisional arrays 
@@ -720,8 +751,13 @@ CONTAINS
          zhpi(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji+1,jj  ,1) ) - z_rho_i(ji,jj,1) ) * r1_e1u(ji,jj)   ! add () for NP repro
          zhpj(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji  ,jj+1,1) ) - z_rho_j(ji,jj,1) ) * r1_e2v(ji,jj)
          ! add to the general momentum trend
+#if defined key_RK3
+         puu(ji,jj,1,Krhs) = zhpi(ji,jj,1)   ! RK3 case: dyn_hpg always called first
+         pvv(ji,jj,1,Krhs) = zhpj(ji,jj,1)
+#else
          puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj,1)
          pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj,1)
+#endif
       END_2D
 
       ! ----------------
@@ -736,8 +772,13 @@ CONTAINS
             &           + (  ( z_rho_k(ji,jj,jk) - z_rho_k(ji,jj+1,jk  ) )                     &
             &               -( z_rho_j(ji,jj,jk) - z_rho_j(ji,jj  ,jk-1) )  ) * r1_e2v(ji,jj)
          ! add to the general momentum trend
+#if defined key_RK3
+         puu(ji,jj,jk,Krhs) = zhpi(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
+         pvv(ji,jj,jk,Krhs) = zhpj(ji,jj,jk)
+#else
          puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj,jk)
          pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj,jk)
+#endif
       END_3D
       !
       !
@@ -753,7 +794,7 @@ CONTAINS
       !!      based on the constrained cubic-spline interpolation for
       !!      all vertical coordinate systems
       !!
-      !! ** Action : - Update (puu(:,:,:,Krhs),pvv(:,:,:,Krhs)) with the now hydrastatic pressure trend
+      !! ** Action : - set (puu,pvv)_Krhs with the Kmm HPG trend
       !!----------------------------------------------------------------------
       INTEGER, PARAMETER  :: polynomial_type = 1    ! 1: cubic spline, 2: linear
       INTEGER                             , INTENT( in )  ::  kt          ! ocean time-step index
@@ -774,8 +815,8 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zhpi, zu, zv, fsp, xsp, asp, bsp, csp, dsp
       !!----------------------------------------------------------------------
       !
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == nit000 ) THEN
+      IF( kt == nit000 ) THEN
+         IF( .NOT. l_istiled .OR. ntile == 1 )  THEN   ! Do only on the first tile
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'dyn:hpg_prj : hydrostatic pressure gradient trend'
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~   s-coordinate case, cubic spline pressure Jacobian'
@@ -942,7 +983,11 @@ CONTAINS
             ELSE
                zdpdx2 = zcoef0 * r1_e1u(ji,jj) * REAL(jis-jid, wp) * (zpwes + zpwed)
             ENDIF
+#if defined key_RK3
+            puu(ji,jj,jk,Krhs) = ( zdpdx1 + zdpdx2 - zpgu(ji,jj) ) * umask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
+#else
             puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (zdpdx1 + zdpdx2 - zpgu(ji,jj)) * umask(ji,jj,jk)
+#endif
          ENDIF
 
          !!!!!     for v equation
@@ -996,11 +1041,14 @@ CONTAINS
                zdpdy2 = zcoef0 * r1_e2v(ji,jj) * REAL(jjs-jjd, wp) * (zpnss + zpnsd )
             ENDIF
 
+#if defined key_RK3
+            pvv(ji,jj,jk,Krhs) = ( zdpdy1 + zdpdy2 - zpgv(ji,jj) ) * vmask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
+#else
             pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (zdpdy1 + zdpdy2 - zpgv(ji,jj)) * vmask(ji,jj,jk)
+#endif
          ENDIF
          !
       END_3D
-      !
       !
    END SUBROUTINE hpg_prj
 

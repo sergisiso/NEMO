@@ -233,9 +233,20 @@ CONTAINS
          IF( nspg == np_NO  )   WRITE(numout,*) '   ==>>>   No surface surface pressure gradient trend in momentum Eqs.'
       ENDIF
       !
-      IF( nspg == np_TS ) THEN   ! split-explicit scheme initialisation
+      SELECT CASE( nspg )
+      CASE ( np_TS )             ! split-explicit scheme initialisation
          CALL dyn_spg_ts_init          ! do it first: set nn_e used to allocate some arrays later on
-      ENDIF
+      CASE ( np_NO )             ! set barotropic fields to zeros
+         IF( lk_RK3 ) THEN 
+            uu_b(:,:,:) = 0._wp
+            vv_b(:,:,:) = 0._wp
+            un_adv(:,:) = 0._wp
+            vn_adv(:,:) = 0._wp
+         ENDIF
+      END SELECT
+!!      IF( nspg == np_TS ) THEN   ! split-explicit scheme initialisation
+!!         CALL dyn_spg_ts_init          ! do it first: set nn_e used to allocate some arrays later on
+!!      ENDIF
       !
    END SUBROUTINE dyn_spg_init
 
