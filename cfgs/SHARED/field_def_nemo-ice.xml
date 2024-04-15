@@ -454,6 +454,20 @@ standard_name="rft_loss"                                 unit="1/s"  />
       <field field_ref="utau_oi"          name="utau_oi" />
       <field field_ref="vtau_oi"          name="vtau_oi" />
 
+      <!-- drags -->
+      <field field_ref="Cd_ice"           name="Cd_ice"       />
+      <field field_ref="Ch_ice"           name="Ch_ice"       />
+      <field field_ref="Ce_ice"           name="Ce_ice"       />
+      <field field_ref="drag_io"          name="drag_io"      />
+      <field field_ref="drag_io_skin"     name="drag_io_skin" />
+      <field field_ref="drag_io_keel"     name="drag_io_keel" />
+      <field field_ref="drag_io_floe"     name="drag_io_floe" />
+      <field field_ref="drag_ia"          name="drag_ia"      />
+      <field field_ref="drag_ia_skin"     name="drag_ia_skin" />
+      <field field_ref="drag_ia_rdg"      name="drag_ia_rdg"  />
+      <field field_ref="drag_ia_floe"     name="drag_ia_floe" />
+      <field field_ref="drag_ia_pond"     name="drag_ia_pond" />
+
       <!-- rheology -->
       <field field_ref="icediv"           name="sidive"  />
       <field field_ref="iceshe"           name="sishea"  />
@@ -476,18 +490,6 @@ standard_name="rft_loss"                                 unit="1/s"  />
       <field field_ref="albedo"           name="albedo"     />
       <field field_ref="icealb"           name="icealb"     />
 
-      <field field_ref="Cd_ice"           name="Cd_ice"     />
-      <field field_ref="Ch_ice"           name="Ch_ice"     />
-      <field field_ref="Ce_ice"           name="Ce_ice"     />
-      <field field_ref="drag_io"          name="drag_io"     />
-      <field field_ref="drag_io_skin"     name="drag_io_skin"     />
-      <field field_ref="drag_io_keel"     name="drag_io_keel"     />
-      <field field_ref="drag_io_floe"     name="drag_io_floe"     />
-      <field field_ref="drag_ia"          name="drag_ia"     />
-      <field field_ref="drag_ia_skin"     name="drag_ia_skin"     />
-      <field field_ref="drag_ia_rdg"      name="drag_ia_rdg"     />
-      <field field_ref="drag_ia_floe"     name="drag_ia_floe"     />
-      <field field_ref="drag_ia_pond"     name="drag_ia_pond"     />
       <field field_ref="hfxcndtop"        name="hfxcndtop"  />
       <field field_ref="hfxcndbot"        name="hfxcndbot"  />
       <field field_ref="hfxsensib"        name="hfxsensib"  />
