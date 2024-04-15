@@ -4,8 +4,8 @@ MODULE stp2d
    !! Time-stepping   : manager of the ocean, tracer and ice time stepping
    !!                   using a 3rd order Rung Kuta  with fixed or quasi-eulerian coordinate
    !!======================================================================
-   !! History :  4.5  !  2021-01  (S. Techene, G. Madec, N. Ducousso, F. Lemarie)  Original code
-   !!   NEMO     
+   !! History :  5.0  !  2021-01  (S. Techene, G. Madec, N. Ducousso, F. Lemarie)  Original code
+   !!   NEMO     5.0  !  2024-01  (S. Techene, G. Madec)  remove duplicated calcul of 3D RHS in stp_2D and 1st stage of RK3
    !!----------------------------------------------------------------------
 #if defined key_qco   ||   defined key_linssh
    !!----------------------------------------------------------------------
@@ -15,11 +15,15 @@ MODULE stp2d
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!    stp_2D   : RK3 case
+   !!    stp_2D       : RK3 case
    !!----------------------------------------------------------------------
    USE step_oce       ! time stepping used modules
-   USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
+   USE domqco         ! quasi-eulerian coordinate     (dom_qco_r3c  routine)
    USE dynspg_ts      ! 2D mode integration
+   USE dynadv_cen2    ! centred flux form advection   (dyn_adv_cen2 routine)
+   USE dynadv_up3     ! UP3 flux form advection       (dyn_adv_up3  routine)
+   USE dynkeg         ! kinetic energy gradient       (dyn_keg      routine)
+   USE dynzad         ! vertical advection            (dyn_zad      routine)
    USE sbc_ice , ONLY : snwice_mass, snwice_mass_b
    USE sbcapr         ! surface boundary condition: atmospheric pressure
    USE sbcwave,  ONLY : bhd_wave
@@ -30,8 +34,7 @@ MODULE stp2d
 
    PRIVATE
 
-   PUBLIC   stp_2D   ! called by nemogcm.F90
-   REAL (wp) :: r1_2 = 0.5_wp 
+   PUBLIC   stp_2D    ! called by stprk3.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -50,32 +53,41 @@ CONTAINS
       !! ** Purpose : - Compute sea-surface height and barotropic velocity at Kaa
       !!                in single 1st RK3.
       !!
-      !! ** Method  : -1- Compute the 3D to 2D forcing
-      !!                 * Momentum (Ue,Ve)_rhs :
-      !!                      3D to 2D dynamics, i.e. the vertical sum of :
-      !!                        - Hor. adv. : KEG   + RVO in vector form
-      !!                                    : ADV_h + MET in flux   form
-      !!                        - LDF Lateral mixing 
-      !!                        - HPG Hor. pressure gradient
-      !!                      External forcings
-      !!                        - baroclinic drag
-      !!                        - wind 
-      !!                        - atmospheric pressure
-      !!                        - snow+ice load
-      !!                        - surface wave load
+      !! ** Method  : -1- Compute the 3D to 2D Right Hand Side
+      !!                 * Momentum (uu,vv)_rhs is 3D :
+      !!                    -- HPG Hor. pressure gradient
+      !!                    -- LDF Lateral mixing 
+      !!                    -- VOR (COR+RVO) (Vector Inv. Form) (ViF)
+      !!                           (COR+MET) (Flux Form) (FF)
+      !!                    -- KEG + ZAD     (ViF) 
+      !!                       ADV            (FF)
+      !!                    In ViF it is also the 1st stage RHS (not recomputed in stprk3_stg)
+      !!                    In FF  only ADV has to be recomputed at the 1st stage 
+      !!
+      !!                 * (Ue_rhs, Ve_rhs) 3D to 2D dynamics : vertical averaging of 3D RHS
+      !!                    Note that in FF case, ADV return the vertical averaging and does not 
+      !!                    update the 3D RHS, so that ADV can be added to the 3D RHS at 1st stage of RK3 
+      !!
+      !!                 * External forcings added to 2D RHS:
+      !!                    -- baroclinic drag
+      !!                    -- wind 
+      !!                    -- atmospheric pressure
+      !!                    -- snow+ice load
+      !!                    -- surface wave load
       !!                 * ssh (sshe_rhs) :
       !!                      Net column average freshwater flux
       !!
-      !!              -2- Solve the external mode Eqs. using sub-time step
-      !!                  by a call to dyn_spg_ts (will be renamed dyn_2D or stp_2D)
+      !!              -2- Solve the external mode Eqs. using sub-time stepping
+      !!                  by a call to dyn_spg_ts (will be renamed stp_2D_solver)
       !!
-      !! ** action  :   ssh            : N+1 sea surface height (Kaa=N+1)
-      !!                (uu_b,vv_b)    : N+1 barotropic velocity 
-      !!                (un_adv,vn_adv): barotropic transport from N to N+1 
+      !! ** action  :   ssh         at Kaa : N+1 sea surface height 
+      !!                (uu_b,vv_b) at Kaa : N+1 barotropic velocity 
+      !!                (un_adv,vn_adv): barotropic transport from N to N+1  [m2/s]
+      !!                (uu,vv)_rhs : 1st stage RHS in ViF, except ADV in FF
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in) ::   kt, Kbb, Kmm, Kaa, Krhs    ! ocean time-step and time-level indices
+      INTEGER, INTENT(in) ::   kt, Kbb, Kmm, Kaa, Krhs   ! ocean time-step and time-level indices
       !
-      INTEGER  ::   ji, jj, jk   ! dummy loop indices
+      INTEGER  ::   ji, jj, jk                           ! dummy loop indices
       REAL(wp) ::   zg_2, zintp, zgrho0r, zld, zztmp     ! local scalars
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zpice   ! 2D workspace
       !! ---------------------------------------------------------------------
@@ -95,47 +107,29 @@ CONTAINS
 
       ALLOCATE( sshe_rhs(jpi,jpj) , Ue_rhs(A2D(0)) , Ve_rhs(A2D(0)) , CdU_u(jpi,jpj) , CdU_v(jpi,jpj) )
 
-      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      !   RHS of barotropic momentum  Eq.
-      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
+      !                      RHS of barotropic momentum  Eq.                  !
+      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 
-      !                       !======================================!
-      !                       !==  Dynamics 2D RHS from 3D trends  ==!   (HADV + LDF + HPG) (No Coriolis trend)
-      !                       !======================================!
-
+      !                 !======================================!   Flux Form        : HPG (+ LDF) + COR + MET + ADV 
+      !                 !==  Dynamics 2D RHS from 3D trends  ==!
+      !                 !======================================!   Vector Inv. Form : HPG (+ LDF) + VOR + RVO + KEG + ZAD
+      !
       IF( ln_tile ) CALL dom_tile_start         ! [tiling] DYN tiling loop (1)
          DO jtile = 1, nijtile
          IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
 
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-            uu(ji,jj,jk,Krhs) = 0._wp        ! set dynamics trends to zero
-            vv(ji,jj,jk,Krhs) = 0._wp
-         END_3D
+         !                             !*  hydrostatic pressure gradient (HPG))  *!   always called FIRST
+         CALL eos    ( ts, Kbb, rhd )                          ! in situ density anomaly at Kbb
+         CALL dyn_hpg( kt, Kbb     , uu, vv, Krhs )            ! horizontal gradient of Hydrostatic pressure
          !
-         !                             !*  compute advection + coriolis  *!
-         !
-!!st should come from restart      CALL ssh_nxt( kt, Kbb, Kbb, ssh, Kaa )
-         !
-         IF( .NOT.lk_linssh ) THEN
-            DO_2D( 1, nn_hls, 1, nn_hls )      ! loop bounds limited by ssh definition in ssh_nxt
-               r3t(ji,jj,Kaa) =  ssh(ji,jj,Kaa) * r1_ht_0(ji,jj)               ! "after" ssh/h_0 ratio guess at t-column at Kaa (n+1)
-            END_2D
-         ENDIF
-         !
-         CALL wzv    ( kt, Kbb, Kbb, Kaa , uu(:,:,:,Kbb), vv(:,:,:,Kbb), ww )  ! ww guess at Kbb (n)
-         !
-         !                                                                     !   flux form   !   vector invariant form   !
-         CALL dyn_adv( kt, Kbb, Kbb, uu, vv, Krhs )                            !      ADV      !         KEG+ZAD           !
-         !                                                                     !               !                           !
-         CALL dyn_vor( kt,      Kbb, uu, vv, Krhs )                            !    COR+MET    !         COR+RVO           !
-         !
-         !                             !*  lateral viscosity  *!
+         !                             !*  lateral viscosity (LDF)  *!
          CALL dyn_ldf( kt, Kbb, Kbb, uu, vv, Krhs )
 #if defined key_agrif
       END DO
       IF( ln_tile ) CALL dom_tile_stop
 
-      IF(.NOT. Agrif_Root() ) THEN  !*  AGRIF: sponge  *!
+      IF(.NOT. Agrif_Root() ) THEN     !*  AGRIF: sponge  *!
          CALL Agrif_Sponge_dyn
       ENDIF
 
@@ -143,55 +137,77 @@ CONTAINS
       DO jtile = 1, nijtile
          IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
 #endif
+         !                             !*  COR + MET  *!   Flux Form        : Coriolis + Metric Term  
+         !                             !*     VOR     *!   Vector Inv. Form : Coriolis + relative Vorticity
+         CALL dyn_vor( kt,      Kbb, uu, vv, Krhs )
          !
-         !                             !*  hydrostatic pressure gradient  *!
-         CALL eos    ( ts, Kbb, rhd )                          ! in situ density anomaly at Kbb
-         CALL dyn_hpg( kt, Kbb     , uu, vv, Krhs )            ! horizontal gradient of Hydrostatic pressure
-         !
-         !                             !*  vertical averaging  *!
-         DO_2D( 0, 0, 0, 0 )
-            Ue_rhs(ji,jj) = SUM( e3u_0(ji,jj,:) * uu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu_0(ji,jj)
-            Ve_rhs(ji,jj) = SUM( e3v_0(ji,jj,:) * vv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv_0(ji,jj)
-         END_2D
-
-         !                       !===========================!
-         !                       !==  external 2D forcing  ==!
-         !                       !===========================!
-         !
-         ! 			    !* baroclinic drag forcing *!   (also provide the barotropic drag coeff.)
-         !
-         CALL dyn_drg_init( Kbb, Kbb, uu, vv, uu_b, vv_b, Ue_rhs, Ve_rhs, CdU_u, CdU_v )
-         !
-         !                             !* wind forcing *!
-         IF( ln_bt_fw ) THEN
-            DO_2D( 0, 0, 0, 0 )
-               Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + r1_rho0 * utauU(ji,jj) * r1_hu(ji,jj,Kbb)
-               Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + r1_rho0 * vtauV(ji,jj) * r1_hv(ji,jj,Kbb)
-            END_2D
-         ELSE
-            zztmp = r1_rho0 * r1_2
-            DO_2D( 0, 0, 0, 0 )
-               Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + zztmp * ( utau_b(ji,jj) + utauU(ji,jj) ) * r1_hu(ji,jj,Kbb)
-               Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + zztmp * ( vtau_b(ji,jj) + vtauV(ji,jj) ) * r1_hv(ji,jj,Kbb)
+         !                             !*  compute advection  *!   (only KEG + ZAD in Vector Inv. Form)
+         IF( .NOT.lk_linssh ) THEN
+            DO_2D( 1, nn_hls, 1, nn_hls )      ! loop bounds limited by ssh definition in ssh_nxt
+               r3t(ji,jj,Kaa) =  ssh(ji,jj,Kaa) * r1_ht_0(ji,jj)               ! "after" ssh/h_0 ratio guess at t-column at Kaa (n+1)
             END_2D
          ENDIF
          !
+         CALL wzv    ( kt, Kbb, Kbb, Kaa , uu(:,:,:,Kbb), vv(:,:,:,Kbb), ww, np_velocity )  ! ww guess at Kbb (n)
+         !
+         !                             !*  KEG + ZAD  *!   Vector Inv. Form : KE gradient + vertical advection
+         !                             !*     ADV     *!   Flux Form        : flux form advection
+         SELECT CASE( n_dynadv )
+         !
+         CASE( np_VEC_c2  )               != 2nd order Vector Form =!                       ==>> 3D RHS
+            !
+            CALL dyn_keg( kt, nn_dynkeg, Kbb, uu, vv, Krhs )      !- horizontal Gradient of KE
+            !
+            CALL dyn_zad( kt, Kbb, uu, vv, Krhs )                 !- vertical advection
+            !
+         CASE( np_FLX_c2  )               !=  2n order Flux Form =!   (CEN2)                ==>> 2D RHS only
+            !
+            CALL dyn_adv_cen2( kt     , Kbb, uu, vv, Krhs, pUe=Ue_rhs, pVe=Ve_rhs )
+            !
+         CASE( np_FLX_up3 )               != 3rd order Flux Form =!   (UP3)                 ==>> 2D RHS only
+            CALL dyn_adv_up3 ( kt, Kbb, Kbb, uu, vv, Krhs, pUe=Ue_rhs, pVe=Ve_rhs )
+            !
+         END SELECT
+         !
+         !                             !*  vertical averaging  *!
+         SELECT CASE( n_dynadv )
+         CASE( np_VEC_c2  )                  ! Vector Inv. Form   ==>> averaged 3D RHS only
+            DO_2D( 0, 0, 0, 0 )
+               Ue_rhs(ji,jj) = SUM( e3u_0(ji,jj,1:jpkm1)*uu(ji,jj,1:jpkm1,Krhs)*umask(ji,jj,1:jpkm1) ) * r1_hu_0(ji,jj)
+               Ve_rhs(ji,jj) = SUM( e3v_0(ji,jj,1:jpkm1)*vv(ji,jj,1:jpkm1,Krhs)*vmask(ji,jj,1:jpkm1) ) * r1_hv_0(ji,jj)
+            END_2D
+         CASE ( np_FLX_c2, np_FLX_up3 )      ! Flux Form          ==>> cumulated ADV 2D RHS with 3D RHS
+            DO_2D( 0, 0, 0, 0 )
+               Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + SUM( e3u_0(ji,jj,1:jpkm1)*uu(ji,jj,1:jpkm1,Krhs)*umask(ji,jj,1:jpkm1) ) * r1_hu_0(ji,jj)
+               Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + SUM( e3v_0(ji,jj,1:jpkm1)*vv(ji,jj,1:jpkm1,Krhs)*vmask(ji,jj,1:jpkm1) ) * r1_hv_0(ji,jj)
+            END_2D
+         CASE DEFAULT                        ! Quick Fix for ln_dynspg_ts = F
+            DO_2D( 0, 0, 0, 0 )
+               Ue_rhs(ji,jj) = 0._wp
+               Ve_rhs(ji,jj) = 0._wp
+            END_2D
+         END SELECT
+
+         !              !=====================================!
+         !              !==  Dynamics: 2D momentum forcing  ==!
+         !              !=====================================!
+         !
+         !
+         !                             !* baroclinic drag forcing *!   (also provide the barotropic drag coeff.)
+         CALL dyn_drg_init( Kbb, Kbb, uu, vv, uu_b, vv_b, Ue_rhs, Ve_rhs, CdU_u, CdU_v )
+         !
+         !                             !* wind forcing *!
+         DO_2D( 0, 0, 0, 0 )
+            Ue_rhs(ji,jj) =  Ue_rhs(ji,jj) + r1_rho0 * utauU(ji,jj) * r1_hu(ji,jj,Kbb)
+            Ve_rhs(ji,jj) =  Ve_rhs(ji,jj) + r1_rho0 * vtauV(ji,jj) * r1_hv(ji,jj,Kbb)
+         END_2D
+         !
          !                             !* atmospheric pressure forcing *!
          IF( ln_apr_dyn ) THEN
-            IF( ln_bt_fw ) THEN                          ! FORWARD integration: use kt+1/2 pressure (NOW+1/2)
-               DO_2D( 0, 0, 0, 0 )
-                  Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + grav * (  ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) ) * r1_e1u(ji,jj)
-                  Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + grav * (  ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) ) * r1_e2v(ji,jj)
-               END_2D
-            ELSE                                         ! CENTRED integration: use kt-1/2 + kt+1/2 pressure (NOW)
-               zztmp = grav * r1_2
-               DO_2D( 0, 0, 0, 0 )
-                  Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + zztmp * (  ( ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) )   &   ! add () for NP repro
-                       &                                   + ( ssh_ibb(ji+1,jj  ) - ssh_ibb(ji,jj) ) ) * r1_e1u(ji,jj)
-                  Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + zztmp * (  ( ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) )   &   ! add () for NP repro
-                       &                                   + ( ssh_ibb(ji  ,jj+1) - ssh_ibb(ji,jj) ) ) * r1_e2v(ji,jj)
-               END_2D
-            ENDIF
+            DO_2D( 0, 0, 0, 0 )
+               Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + grav * (  ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) ) * r1_e1u(ji,jj)
+               Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + grav * (  ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) ) * r1_e2v(ji,jj)
+            END_2D
          ENDIF
          !
          !                             !* snow+ice load *!   (embedded sea ice)
@@ -221,43 +237,31 @@ CONTAINS
 
       IF( ln_tile ) CALL dom_tile_stop
 
-      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      !   RHS of see surface height  Eq.
-      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+      !                 !=======================================!
+      !                 !==   2D sea surface height forcing   ==!
+      !                 !=======================================!
       !
-      ! 		!==  Net water flux forcing  ==!  (applied to a water column)
+      !                             !*  Net water flux forcing   (applied to a water column)
+      sshe_rhs(:,:) = r1_rho0 * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) )
       !
-      IF (ln_bt_fw) THEN                          ! FORWARD integration: use kt+1/2 fluxes (NOW+1/2)
-         sshe_rhs(:,:) = r1_rho0 * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) )
-      ELSE                                        ! CENTRED integration: use kt-1/2 + kt+1/2 fluxes (NOW)
-         zztmp = r1_rho0 * r1_2
-         sshe_rhs(:,:) = zztmp * (   emp(:,:)        + emp_b(:,:)          &
-            &                      - rnf(:,:)        - rnf_b(:,:)          &
-            &                      - fwfisf_cav(:,:) - fwfisf_cav_b(:,:)   &
-            &                      - fwfisf_par(:,:) - fwfisf_par_b(:,:)   )
-      ENDIF
-      !
-      ! 		!==  Stokes drift divergence  ==!   (if exist)
-      !
-      IF( ln_sdw )    sshe_rhs(:,:) = sshe_rhs(:,:) + div_sd(:,:)
+      !                             !* Stokes drift divergence
+      IF( ln_sdw )   sshe_rhs(:,:) = sshe_rhs(:,:) + div_sd(:,:)
       !
       !
-      ! 		!==  ice sheet coupling  ==!
-      !
+      !                             !* ice sheet coupling
       IF( ln_isf .AND. ln_isfcpl ) THEN
          IF( ln_rstart .AND. kt == nit000 )   sshe_rhs(:,:) = sshe_rhs(:,:) + risfcpl_ssh(:,:)
          IF( ln_isfcpl_cons               )   sshe_rhs(:,:) = sshe_rhs(:,:) + risfcpl_cons_ssh(:,:)
       ENDIF
       !
 #if defined key_asminc
-      !                 !==  Add the IAU weighted SSH increment  ==!
-      !
+      !                             !* Add the IAU weighted SSH increment
       IF( lk_asminc .AND. ln_sshinc .AND. ln_asmiau )   sshe_rhs(:,:) = sshe_rhs(:,:) - ssh_iau(:,:)
 #endif
       !
 #if defined key_agrif
-      !                 !==  AGRIF : fill boundary data arrays (on both )
-         IF( .NOT.Agrif_Root() )   CALL agrif_dta_ts( kt )
+      !                             !* AGRIF : fill boundary data arrays (on both )
+      IF( .NOT.Agrif_Root() )   CALL agrif_dta_ts( kt )
 #endif
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -267,19 +271,11 @@ CONTAINS
       !    using a split-explicit time integration in forward mode 
       !    ( ABM3-AM4 time-integration Shchepetkin et al. OM2005) with temporal diffusion (Demange et al. JCP2019) )
 
-      CALL dyn_spg_ts( kt, Kbb, Kbb, Krhs, uu, vv, ssh, uu_b, vv_b, Kaa ) ! time-splitting
+      IF( ln_dynspg_ts )   &
+         &   CALL dyn_spg_ts( kt, Kbb, Kbb, Krhs, uu, vv, ssh, uu_b, vv_b, Kaa ) ! time-splitting
                    
 
       DEALLOCATE( sshe_rhs , Ue_rhs , Ve_rhs , CdU_u , CdU_v )
-
-!!gm  this is useless I guess : RK3,  done in each stages
-!
-!      IF( ln_dynspg_ts ) THEN      ! With split-explicit free surface, since now transports have been updated and ssh(:,:,Krhs)
-!                                   ! as well as vertical scale factors and vertical velocity need to be updated
-!                            CALL div_hor    ( kstp, Kbb, Kmm )                ! Horizontal divergence  (2nd call in time-split case)
-!         IF(.NOT.lk_linssh) CALL dom_qco_r3c( ssh(:,:,Kaa), r3t(:,:,Kaa), r3u(:,:,Kaa), r3v(:,:,Kaa), r3f(:,:) )   ! update ssh/h_0 ratio at t,u,v,f pts 
-!      ENDIF
-!!gm   
       !
       IF( ln_timing )   CALL timing_stop('stp_2D')
       !

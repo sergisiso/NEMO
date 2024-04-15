@@ -9,6 +9,7 @@ MODULE dynadv_up3
    !!            4.5  ! 2022-06  (S. Techene, G, Madec) refactorization to reduce local memory usage
    !!            5.x  ! 2023-05  (A. Nasser, S. Techene, G. Madec) remove 4th order divergence and 
    !!                                                              implement 3rd order vertical advection
+   !!             -   ! 2024-01  (S. Techene, G. Madec) RK3 optimized 2D RHS computation
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
@@ -51,7 +52,7 @@ MODULE dynadv_up3
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE dyn_adv_up3( kt, Kbb, Kmm, puu, pvv, Krhs, pFu, pFv, pFw )
+   SUBROUTINE dyn_adv_up3( kt, Kbb, Kmm, puu, pvv, Krhs, pFu, pFv, pFw, pUe, pVe )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE dyn_adv_up3  ***
       !!
@@ -75,13 +76,15 @@ CONTAINS
       !!      (pFu,pFv,pFw) are present. They are used as advective velocity  
       !!      while the advected velocity remains (puu,pvv). 
       !!
-      !! ** Action  :   (puu,pvv)(:,:,:,Krhs)   updated with the advective trend
+      !! ** Action  :   (puu,pvv)_Krhs   updated with the advective trend
+      !!        or only (pUe,pVe)   vertically averaged advective trend
       !!
       !! Reference : Shchepetkin & McWilliams, 2005, Ocean Modelling. 
       !!----------------------------------------------------------------------
       INTEGER                                           , INTENT(in   ) ::   kt , Kbb, Kmm, Krhs   ! ocean time-step and level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt)      , TARGET, INTENT(inout) ::   puu, pvv              ! ocean velocities and RHS of momentum equation
       REAL(wp), DIMENSION(jpi,jpj,jpk), OPTIONAL, TARGET, INTENT(in   ) ::   pFu, pFv, pFw         ! advective velocity
+      REAL(wp), DIMENSION(A2D(0))     , OPTIONAL        , INTENT(inout) ::   pUe, pVe              ! advective RHS of the external mode (stp2D)
       !
       LOGICAL  ::   lltrp        ! local logical
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
@@ -101,12 +104,15 @@ CONTAINS
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'dyn_adv_up3 : UP3 flux form momentum advection'
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
+            lltrp = PRESENT( pFu ) .AND. PRESENT( pFv ) .AND. PRESENT( pFw )
+            IF(  .NOT.lltrp .AND. ( PRESENT( pFu ) .OR. PRESENT( pFv ) .OR. PRESENT( pFw ) )  )   &
+               &     CALL ctl_stop('STOP','dynadv_up3: put all the 3 arguments (pFu, pFv, and pFw) or none of them' )
+            lltrp = PRESENT( pUe ) .AND. PRESENT( pVe )
+            IF(  .NOT. lltrp .AND. ( PRESENT( pUe ) .OR. PRESENT( pVe ) )  )   &
+               &     CALL ctl_stop('STOP','dynadv_up3: put all the 2 arguments both (pUe, pVe) or none of them' )
          ENDIF
       ENDIF
       !                             ! RK3: check the presence of 3D advective transport 
-      lltrp = PRESENT( pFu ) .AND. PRESENT( pFv ) .AND. PRESENT( pFw )
-      IF( ( .NOT. lltrp ) .AND. ( PRESENT( pFu ) .OR. PRESENT( pFv ) .OR. PRESENT( pFw ) ) )   &
-         &     CALL ctl_stop('STOP','dynadv_up3: provide either 3D or none advective transport (pFu, pFv, pFw)' )
       !
       IF( l_trddyn ) THEN           ! trends: send trend to trddyn for diagnostic  
          ALLOCATE( zu_trd(T2D(0),jpk), zv_trd(T2D(0),jpk) )
@@ -115,6 +121,12 @@ CONTAINS
       ENDIF
       !                             ! used in MLF & RK3(stp2d) : advective velocity = (puu,pvv,ww)
       IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(T2D(1)), zwv(T2D(1)) )
+      
+      IF( PRESENT( pUe ) ) THEN     ! 3D RHS cumulation : set 2D RHS to zero
+         DO_2D( 0, 0, 0, 0 )
+            pUe(ji,jj) = 0._wp   ;   pVe(ji,jj) = 0._wp
+         END_2D
+      ENDIF
       !
       !                             ! =============================== !
       DO jk = 1, jpkm1              !  Horizontal advection : k-slab  !
@@ -173,25 +185,51 @@ CONTAINS
             zFu_f(ji  ,jj  ) = zFuj * ( ( pvv(ji,jj,jk,Kmm) + pvv(ji+1,jj  ,jk,Kmm) ) - gamma1 * zl_v )   ! add () for NP repro
          END_2D
          !
-         DO_2D( 0, 0, 0, 0 )                       ! divergence of horizontal momentum fluxes
-            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - 0.25_wp * (  ( zFu_t(ji+1,jj) - zFu_t(ji,jj  ) )    &   ! add () for NP repro
-               &                                                 + ( zFv_f(ji  ,jj) - zFv_f(ji,jj-1) )  ) * r1_e1e2u(ji,jj)   &
-               &                                    / e3u(ji,jj,jk,Kmm)
-            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - 0.25_wp * (  ( zFu_f(ji,jj  ) - zFu_f(ji-1,jj) )    &   ! add () for NP repro
-               &                                                 + ( zFv_t(ji,jj+1) - zFv_t(ji  ,jj) )  ) * r1_e1e2v(ji,jj)   &
-               &                                    / e3v(ji,jj,jk,Kmm)
-         END_2D
+         IF( PRESENT( pUe ) ) THEN      !-  2D RHS : vertically cumulated  -!   (here MASKED jk-sum)
+!!gm TO BE tested : UNmasked horizontal trends and NO vertical component   !!!
+            DO_2D( 0, 0, 0, 0 )                       ! divergence of horizontal momentum fluxes
+               pUe(ji,jj) = pUe(ji,jj) - 0.25_wp * (  ( zFu_t(ji+1,jj) - zFu_t(ji,jj  ) )    &   ! add () for NP repro
+                  &                                 + ( zFv_f(ji  ,jj) - zFv_f(ji,jj-1) )  ) * r1_e1e2u(ji,jj)   &
+                  &                              * umask(ji,jj,jk)
+               pVe(ji,jj) = pVe(ji,jj) - 0.25_wp * (  ( zFu_f(ji,jj  ) - zFu_f(ji-1,jj) )    &   ! add () for NP repro
+                  &                                 + ( zFv_t(ji,jj+1) - zFv_t(ji  ,jj) )  ) * r1_e1e2v(ji,jj)   &
+                  &                              * vmask(ji,jj,jk)
+            END_2D
+         ELSE                           !-  added the 3D RHS  -!
+            DO_2D( 0, 0, 0, 0 )                       ! divergence of horizontal momentum fluxes
+               puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - 0.25_wp * (  ( zFu_t(ji+1,jj) - zFu_t(ji,jj  ) )    &   ! add () for NP repro
+                  &                                                 + ( zFv_f(ji  ,jj) - zFv_f(ji,jj-1) )  ) * r1_e1e2u(ji,jj)   &
+                  &                                    / e3u(ji,jj,jk,Kmm)
+               pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - 0.25_wp * (  ( zFu_f(ji,jj  ) - zFu_f(ji-1,jj) )    &   ! add () for NP repro
+                  &                                                 + ( zFv_t(ji,jj+1) - zFv_t(ji  ,jj) )  ) * r1_e1e2v(ji,jj)   &
+                  &                                    / e3v(ji,jj,jk,Kmm)
+            END_2D
+         ENDIF
          !                          ! =============== !
       END DO                        !  End of k-slab  !
       !                             ! =============== !
       !
       IF( l_trddyn ) THEN           ! trends: send trend to trddyn for diagnostic
-         zu_trd(:,:,:) = puu(T2D(0),:,Krhs) - zu_trd(:,:,:)
-         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs) - zv_trd(:,:,:)
-         CALL trd_dyn( zu_trd, zv_trd, jpdyn_keg, kt, Kmm )
-         zu_trd(:,:,:) = puu(T2D(0),:,Krhs)
-         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs)
+         ALLOCATE( zu_trd(A2D(2),jpkm1), zv_trd(A2D(2),jpkm1) )
+         zu_trd(A2D(0),:) = puu(A2D(0),1:jpkm1,Krhs)
+         zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs)
       ENDIF
+
+!!gm TO BE tested : UNmasked horizontal trends and NO vertical component   !!!
+!!     in this case averaging done here + return
+!      IF( PRESENT( pUe ) ) THEN   ! averraging
+!         DO_2D( 0, 0, 0, 0 )
+!            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) / hu(ji,jj,Kmm)
+!            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) / hv(ji,jj,Kmm)
+!         END DO
+!         !
+!         RETURN     ! NO vertical advection component (except in linear ssh  ==>>> to be added before the return or in step2D) 
+!      ENDIF
+!!gm
+
+
+
+
       !                              ! ========================== !
       !                              !  Vertical advection k-slab !
       !                              ! ========================== !
@@ -240,44 +278,90 @@ CONTAINS
             END_2D
          ENDIF
          !
-         DO_2D( 0, 0, 0, 0 )
-            zlu_uw_kp1 = ( puu(ji,jj,jk  ,Kbb) - puu(ji,jj,jk+1,Kbb) ) * wumask(ji,jj,jk+1)   &
-               &       - ( puu(ji,jj,jk+1,Kbb) - puu(ji,jj,jk+2,Kbb) ) * wumask(ji,jj,jk+2)
-            zlv_vw_kp1 = ( pvv(ji,jj,jk  ,Kbb) - pvv(ji,jj,jk+1,Kbb) ) * wvmask(ji,jj,jk+1)   &
-               &       - ( pvv(ji,jj,jk+1,Kbb) - pvv(ji,jj,jk+2,Kbb) ) * wvmask(ji,jj,jk+2)
-            !
-            zFwi = zFw(ji,jj) + zFw(ji+1,jj)
-            IF( zFwi > 0 ) THEN   ;   zl_u = zlu_uw_kp1
-            ELSE                  ;   zl_u = zlu_uw(ji,jj)
-            ENDIF
-            zFwj = zFw(ji,jj) + zFw(ji,jj+1)
-            IF( zFwj > 0 ) THEN   ;   zl_v = zlv_vw_kp1
-            ELSE                  ;   zl_v = zlv_vw(ji,jj)
-            ENDIF
-            !                                    ! vertical flux at level k+1
-            zzFu_kp1 = 0.25_wp * ( zFw(ji,jj) + zFw(ji+1,jj  ) ) * ( puu(ji,jj,jk+1,Kmm) + puu(ji,jj,jk,Kmm) - gamma1 * zl_u )
-            zzFv_kp1 = 0.25_wp * ( zFw(ji,jj) + zFw(ji  ,jj+1) ) * ( pvv(ji,jj,jk+1,Kmm) + pvv(ji,jj,jk,Kmm) - gamma1 * zl_v )
-            !                                    ! divergence of vertical momentum flux
-            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - ( zFwu(ji,jj) - zzFu_kp1 ) * r1_e1e2u(ji,jj) / e3u(ji,jj,jk,Kmm)
-            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zFwv(ji,jj) - zzFv_kp1 ) * r1_e1e2v(ji,jj) / e3v(ji,jj,jk,Kmm) 
-            !                                    ! store vertical flux for next level calculation
-            zFwu(ji,jj) = zzFu_kp1
-            zFwv(ji,jj) = zzFv_kp1
-            !
-            zlu_uw(ji,jj) = zlu_uw_kp1
-            zlv_vw(ji,jj) = zlv_vw_kp1
-         END_2D
+         IF( PRESENT( pUe ) ) THEN   !-  2D RHS : MASKED vertically cumulated  -!
+!!gm TO BE tested : UNmasked horizontal trends and NO vertical component   !!!
+            DO_2D( 0, 0, 0, 0 )
+               zlu_uw_kp1 = ( puu(ji,jj,jk  ,Kbb) - puu(ji,jj,jk+1,Kbb) ) * wumask(ji,jj,jk+1)   &
+                  &       - ( puu(ji,jj,jk+1,Kbb) - puu(ji,jj,jk+2,Kbb) ) * wumask(ji,jj,jk+2)
+               zlv_vw_kp1 = ( pvv(ji,jj,jk  ,Kbb) - pvv(ji,jj,jk+1,Kbb) ) * wvmask(ji,jj,jk+1)   &
+                  &       - ( pvv(ji,jj,jk+1,Kbb) - pvv(ji,jj,jk+2,Kbb) ) * wvmask(ji,jj,jk+2)
+               !
+               zFwi = zFw(ji,jj) + zFw(ji+1,jj)
+               IF( zFwi > 0 ) THEN   ;   zl_u = zlu_uw_kp1
+               ELSE                  ;   zl_u = zlu_uw(ji,jj)
+               ENDIF
+               zFwj = zFw(ji,jj) + zFw(ji,jj+1)
+               IF( zFwj > 0 ) THEN   ;   zl_v = zlv_vw_kp1
+               ELSE                  ;   zl_v = zlv_vw(ji,jj)
+               ENDIF
+               !                                    ! vertical flux at level k+1
+               zzFu_kp1 = 0.25_wp * ( zFw(ji,jj) + zFw(ji+1,jj  ) ) * ( puu(ji,jj,jk+1,Kmm) + puu(ji,jj,jk,Kmm) - gamma1 * zl_u )
+               zzFv_kp1 = 0.25_wp * ( zFw(ji,jj) + zFw(ji  ,jj+1) ) * ( pvv(ji,jj,jk+1,Kmm) + pvv(ji,jj,jk,Kmm) - gamma1 * zl_v )
+               !                                    ! divergence of vertical momentum flux
+               pUe(ji,jj) = pUe(ji,jj) - ( zFwu(ji,jj) - zzFu_kp1 ) * r1_e1e2u(ji,jj) * umask(ji,jj,jk)
+               pVe(ji,jj) = pVe(ji,jj) - ( zFwv(ji,jj) - zzFv_kp1 ) * r1_e1e2v(ji,jj) * vmask(ji,jj,jk) 
+               !                                    ! store vertical flux for next level calculation
+               zFwu(ji,jj) = zzFu_kp1
+               zFwv(ji,jj) = zzFv_kp1
+               !
+               zlu_uw(ji,jj) = zlu_uw_kp1
+               zlv_vw(ji,jj) = zlv_vw_kp1
+            END_2D
+         ELSE                           !-  added the 3D RHS  -!
+            DO_2D( 0, 0, 0, 0 )
+               zlu_uw_kp1 = ( puu(ji,jj,jk  ,Kbb) - puu(ji,jj,jk+1,Kbb) ) * wumask(ji,jj,jk+1)   &
+                  &       - ( puu(ji,jj,jk+1,Kbb) - puu(ji,jj,jk+2,Kbb) ) * wumask(ji,jj,jk+2)
+               zlv_vw_kp1 = ( pvv(ji,jj,jk  ,Kbb) - pvv(ji,jj,jk+1,Kbb) ) * wvmask(ji,jj,jk+1)   &
+                  &       - ( pvv(ji,jj,jk+1,Kbb) - pvv(ji,jj,jk+2,Kbb) ) * wvmask(ji,jj,jk+2)
+               !
+               zFwi = zFw(ji,jj) + zFw(ji+1,jj)
+               IF( zFwi > 0 ) THEN   ;   zl_u = zlu_uw_kp1
+               ELSE                  ;   zl_u = zlu_uw(ji,jj)
+               ENDIF
+               zFwj = zFw(ji,jj) + zFw(ji,jj+1)
+               IF( zFwj > 0 ) THEN   ;   zl_v = zlv_vw_kp1
+               ELSE                  ;   zl_v = zlv_vw(ji,jj)
+               ENDIF
+               !                                    ! vertical flux at level k+1
+               zzFu_kp1 = 0.25_wp * ( zFw(ji,jj) + zFw(ji+1,jj  ) ) * ( puu(ji,jj,jk+1,Kmm) + puu(ji,jj,jk,Kmm) - gamma1 * zl_u )
+               zzFv_kp1 = 0.25_wp * ( zFw(ji,jj) + zFw(ji  ,jj+1) ) * ( pvv(ji,jj,jk+1,Kmm) + pvv(ji,jj,jk,Kmm) - gamma1 * zl_v )
+               !                                    ! divergence of vertical momentum flux
+               puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - ( zFwu(ji,jj) - zzFu_kp1 ) * r1_e1e2u(ji,jj) / e3u(ji,jj,jk,Kmm)
+               pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zFwv(ji,jj) - zzFv_kp1 ) * r1_e1e2v(ji,jj) / e3v(ji,jj,jk,Kmm) 
+               !                                    ! store vertical flux for next level calculation
+               zFwu(ji,jj) = zzFu_kp1
+               zFwv(ji,jj) = zzFv_kp1
+               !
+               zlu_uw(ji,jj) = zlu_uw_kp1
+               zlv_vw(ji,jj) = zlv_vw_kp1
+            END_2D
+         ENDIF
       END DO
       !
-      jk = jpkm1                          != compute last level =! (zzFu_kp1 = zzFv_kp1 = 0)
-      DO_2D( 0, 0, 0, 0 )
-         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - zFwu(ji,jj) * r1_e1e2u(ji,jj) / e3u(ji,jj,jk,Kmm)
-         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - zFwv(ji,jj) * r1_e1e2v(ji,jj) / e3v(ji,jj,jk,Kmm) 
-      END_2D
+      jk = jpkm1                      != compute last level =! (zzFu_kp1 = zzFv_kp1 = 0)
+      IF( PRESENT( pUe ) ) THEN           !-  2D RHS : MASKED vertically cumulated  -!
+!!gm TO BE tested : UNmasked horizontal trends and NO vertical component   !!!
+         DO_2D( 0, 0, 0, 0 )
+            pUe(ji,jj) = pUe(ji,jj) - zFwu(ji,jj) * r1_e1e2u(ji,jj) * umask(ji,jj,jk)
+            pVe(ji,jj) = pVe(ji,jj) - zFwv(ji,jj) * r1_e1e2v(ji,jj) * vmask(ji,jj,jk)
+         END_2D
+      ELSE                                !-  added the 3D RHS  -!
+         DO_2D( 0, 0, 0, 0 )
+            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) - zFwu(ji,jj) * r1_e1e2u(ji,jj) / e3u(ji,jj,jk,Kmm)
+            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - zFwv(ji,jj) * r1_e1e2v(ji,jj) / e3v(ji,jj,jk,Kmm) 
+         END_2D
+      ENDIF
+      !
+      IF( PRESENT( pUe ) ) THEN       != averaging =!
+         DO_2D( 0, 0, 0, 0 )
+            pUe(ji,jj) = pUe(ji,jj) * r1_hu(ji,jj,Kmm)
+            pVe(ji,jj) = pVe(ji,jj) * r1_hv(ji,jj,Kmm)
+         END_2D
+      ENDIF
       !
       IF( l_trddyn ) THEN                 ! trends: send trend to trddyn for diagnostic
-         zu_trd(:,:,:) = puu(T2D(0),:,Krhs) - zu_trd(:,:,:)
-         zv_trd(:,:,:) = pvv(T2D(0),:,Krhs) - zv_trd(:,:,:)
+         zu_trd(A2D(0),:) = puu(A2D(0),1:jpkm1,Krhs) - zu_trd(A2D(0),:)
+         zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs) - zv_trd(A2D(0),:)
          CALL trd_dyn( zu_trd, zv_trd, jpdyn_zad, kt, Kmm )
          DEALLOCATE( zu_trd, zv_trd )
       ENDIF

@@ -117,22 +117,7 @@ CONTAINS
       !
       ll_Fw = .false.
       !
-      IF( ln_dynadv_vec ) THEN
-         ll_Fw = .true. 
-         !                                                  !- horizontal components -!   (zFu,zFv)
-         ALLOCATE( zFu_cor(T2D(nn_hls)), zFv_cor(T2D(nn_hls)) )
-         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            zFu_cor(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
-            zFv_cor(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
-         END_2D
-         !
-         DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )                   ! advective transport
-            pFu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + zFu_cor(ji,jj)*umask(ji,jj,jk) )
-            pFv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + zFv_cor(ji,jj)*vmask(ji,jj,jk) )
-         END_3D
-         DEALLOCATE( zFu_cor, zFv_cor )
-         !
-      ENDIF
+      IF( ln_dynadv_vec )   ll_Fw = .true.                          ! VIF: activate vertical advective transport computation
       !
       IF( ln_shuman .AND. kstg == 3 ) THEN      ! shuman averaging (stage 3 only)
          ll_Fw = .true.
