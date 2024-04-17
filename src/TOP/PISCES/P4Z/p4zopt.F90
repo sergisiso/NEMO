@@ -101,9 +101,9 @@ CONTAINS
          zchl = MIN(  10. , MAX( 0.05, zchl )  )
          irgb = NINT( 41 + 20.* LOG10( zchl ) + rtrn )
          !                                                         
-         ekb(ji,jj,jk) = rkrgb(1,irgb) * e3t(ji,jj,jk,Kmm)
-         ekg(ji,jj,jk) = rkrgb(2,irgb) * e3t(ji,jj,jk,Kmm)
-         ekr(ji,jj,jk) = rkrgb(3,irgb) * e3t(ji,jj,jk,Kmm)
+         ekb(ji,jj,jk) = rktab(1,irgb) * e3t(ji,jj,jk,Kmm)
+         ekg(ji,jj,jk) = rktab(2,irgb) * e3t(ji,jj,jk,Kmm)
+         ekr(ji,jj,jk) = rktab(3,irgb) * e3t(ji,jj,jk,Kmm)
       END_3D
 
 
