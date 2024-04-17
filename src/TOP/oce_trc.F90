@@ -62,7 +62,7 @@ MODULE oce_trc
    USE traqsr  , ONLY :   rn_abs     =>    rn_abs     !: fraction absorbed in the very near surface
    USE traqsr  , ONLY :   rn_si0     =>    rn_si0     !: very near surface depth of extinction
    USE traqsr  , ONLY :   nksr       =>    nksr       !: levels below which the light cannot penetrate (depth larger than 391 m)
-   USE traqsr  , ONLY :   rkrgb      =>    rkrgb      !: tabulated attenuation coefficients for RGB absorption
+   USE traqsr  , ONLY :   rktab      =>    rktab      !: tabulated attenuation coefficients for IR-RGB-UV absorption
    USE traqsr  , ONLY :   ln_qsr_bio =>    ln_qsr_bio !: flag to use or not the biological fluxes for light
    USE sbcrnf  , ONLY :   rnfmsk     =>    rnfmsk     !: mixed adv scheme in runoffs vicinity (hori.) 
    USE sbcrnf  , ONLY :   rnfmsk_z   =>    rnfmsk_z   !: mixed adv scheme in runoffs vicinity (vert.)

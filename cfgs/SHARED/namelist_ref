@@ -451,12 +451,14 @@
    !                       !  type of penetration                        (default: NO selection)
    ln_qsr_rgb  = .false.      !  RGB light penetration (Red-Green-Blue)
    ln_qsr_2bd  = .false.      !  2BD light penetration (two bands)
+   ln_qsr_5bd  = .false.      !  5BD light penetration (IR-Red-Green-Blue-UV)
    ln_qsr_bio  = .false.      !  bio-model light penetration
-   !                       !  RGB & 2BD choices:
+   !                       !  RGB, 2BD & 5BD choices:
    rn_abs      =   0.58       !  RGB & 2BD: fraction absorbed in the very near surface
    rn_si0      =   0.35       !  RGB & 2BD: shortess depth of extinction
    nn_chldta   =      0       !  RGB : 3D Chl data (=2), Surface Chl data (=1) or Cst value (=0)
    rn_si1      =   23.0       !  2BD : longest depth of extinction
+   rn_par      =   0.47       !  5BD : fraction of photosynthetically active radiation
 
    cn_dir      = './'      !  root directory for the chlorophyl data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
