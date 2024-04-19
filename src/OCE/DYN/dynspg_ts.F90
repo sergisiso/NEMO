@@ -1185,106 +1185,100 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !!----------------------------------------------------------------------
       INTEGER  ::   ji ,jj              ! dummy loop indices
       REAL(wp) ::   zxr2, zyr2, zcmax   ! local scalar
+      REAL(wp) ::   zc0max, zzc0, zzc1, zzd   ! local scalar (only RK3)
       REAL(wp), DIMENSION(jpi,jpj) ::   zcu
-#if defined key_RK3
-      REAL(wp) ::   zc0max, zzc0, zzc1, zzd   ! local scalar
-#endif
       !!----------------------------------------------------------------------
       !
-      ! Max courant number for ext. grav. waves
+      IF(lwp) WRITE(numout,*)
+      IF(lwp) WRITE(numout,*) 'dyn_spg_ts_init : split-explicit free surface'
+      IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~'
       !
+      IF( ( nn_bt_flt==1 .OR. nn_bt_flt==2 ) .AND. ( rn_bt_alpha>0._wp ) ) THEN
+         rn_bt_alpha = 0._wp
+         CALL ctl_warn( 'dynspg_ts: remove temporal averaging when nn_bt_flt=1 or 2 ==> rn_bt_alpha = 0' )
+      ENDIF
+#if defined key_RK3
+      IF( nn_bt_flt==3 .AND. rn_bt_alpha<=0._wp ) &
+         &   CALL ctl_stop( 'dynspg_ts ERROR: if nn_bt_flt=3, then rn_bt_alpha must be /=0 (typical value=0.07)' )
+      !
+      IF( .NOT.ln_bt_fw ) CALL ctl_warn( 'dynspg_ts: enforce ln_bt_fw=TRUE with RK3' )
+      ln_bt_fw = .TRUE.
+#endif
+#if defined key_agrif
+      IF( .NOT.ln_bt_fw .AND. .NOT.Agrif_Root() ) THEN      ! Restrict the use of Agrif to the forward case only
+         CALL ctl_warn( 'dynspg_ts: AGRIF not implemented with ln_bt_fw=FALSE => set to TRUE' )
+         ln_bt_fw = .TRUE.
+      ENDIF
+#endif
+      !
+      ! ---------------------------------------
+      ! Max courant number for ext. grav. waves
+      ! ---------------------------------------
       DO_2D( 0, 0, 0, 0 )
          zxr2 = r1_e1t(ji,jj) * r1_e1t(ji,jj)
          zyr2 = r1_e2t(ji,jj) * r1_e2t(ji,jj)
-         zcu(ji,jj) = SQRT( grav * MAX(ht_0(ji,jj),0._wp) * (zxr2 + zyr2) )
+         zcu(ji,jj) = SQRT( grav * MAX( ht_0(ji,jj), 0._wp ) * ( zxr2 + zyr2 ) )
       END_2D
       !
 #if defined key_agrif
-     ! Discard points that are not stepped by 2d mode:
-     zcu(Nis0:Nie0,Njs0:Nje0) = zcu(Nis0:Nie0,Njs0:Nje0) &
-                              & * (1._wp - tmask_upd(Nis0:Nie0,Njs0:Nje0))
+      ! Discard points that are not stepped by 2d mode:
+      zcu(Nis0:Nie0,Njs0:Nje0) = zcu(Nis0:Nie0,Njs0:Nje0) * ( 1._wp - tmask_upd(Nis0:Nie0,Njs0:Nje0) )
 #endif
       !
       zcmax = MAXVAL( zcu(Nis0:Nie0,Njs0:Nje0) )
       CALL mpp_max( 'dynspg_ts', zcmax )
-
-      ! Estimate number of iterations to satisfy a max courant number= rn_bt_cmax
+      !
+      ! -----------------------------
+      ! Estimate number of iterations   ( to satisfy a max courant number = rn_bt_cmax )
+      ! -----------------------------
       IF( ln_bt_auto )   nn_e = CEILING( rn_Dt / rn_bt_cmax * zcmax)
-!!st: test nn_e value (to be removed)
-      IF(lwp) WRITE(numout,*)    '     Barotropic sub-time step nn_e: ', nn_e
 
 #if defined key_RK3
+      ! Estimate number of iterations and FB dissipative parameter (ongoing work) => not working for now
       zc0max = rn_Dt * zcmax
-      ! Estimate number of iterations and FB dissipative parameter to satisfy a max courant number= rn_bt_cmax
-      IF( ln_bt_auto ) THEN
-         IF( (nn_bt_flt==3).AND.(rn_bt_alpha==0._wp) ) THEN
-            CALL ctl_warn('dyn_spg_ts: automatic rn_bt_alpha determination scheme may not work for intense stratification')
-            IF(.NOT. ln_rstart ) THEN
-               zzc0 = zc0max*zc0max
-               zzc1 = rpi * rpi * 3._wp / 4._wp
-               zzd  = SQRT(49284._wp * zzc0 - 375._wp * zzc1*zzc1) - 35._wp * zzc1
-               nn_e = 240._wp * zzc0 / zzd
-               rn_bt_alpha = zzc1 / zzc0 * nn_e / 6._wp
-               IF(lwp) WRITE(numout,*)    '     auto: Barotropic sub-time step nn_e: ', nn_e
-               IF(lwp) WRITE(numout,*)    '     auto: Time diffusion parameter rn_bt_alpha: ', rn_bt_alpha
-            ENDIF
-         ENDIF
+      IF( nn_bt_flt==3 .AND. rn_bt_alpha==0._wp ) THEN
+         zzc0 = zc0max*zc0max
+         zzc1 = rpi * rpi * 3._wp / 4._wp
+         zzd  = SQRT(49284._wp * zzc0 - 375._wp * zzc1*zzc1) - 35._wp * zzc1
+         nn_e = 240._wp * zzc0 / zzd
+         rn_bt_alpha = zzc1 / zzc0 * nn_e / 6._wp
       ENDIF
 #endif
+      !
+      ! --------------
+      ! Courant Number
+      ! --------------
       rDt_e = rn_Dt / REAL( nn_e , wp )
       zcmax = zcmax * rDt_e
+      !
+      IF( zcmax>0.9_wp )   CALL ctl_stop( 'dynspg_ts ERROR: Maximum Courant number is greater than 0.9 => increase nn_e' )          
+      !
+      ! -------------
       ! Print results
-      IF(lwp) WRITE(numout,*)
-      IF(lwp) WRITE(numout,*) 'dyn_spg_ts_init : split-explicit free surface'
-      IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~'
-      IF( ln_bt_auto ) THEN
-         IF(lwp) WRITE(numout,*) '     ln_ts_auto =.true. Automatically set nn_e'
-         IF(lwp) WRITE(numout,*) '     Max. courant number allowed: ', rn_bt_cmax
-      ELSE
-         IF(lwp) WRITE(numout,*) '     ln_ts_auto =.false. Use nn_e and rn_bt_alpha in namelist'
-      ENDIF
-      !
-# if !  defined key_RK3
-      IF(ln_bt_fw) THEN
-         IF(lwp) WRITE(numout,*) '     ln_bt_fw=.true.  => Forward integration of barotropic variables '
-      ELSE
-         IF(lwp) WRITE(numout,*) '     ln_bt_fw =.false.=> Centred integration of barotropic variables '
-      ENDIF
-# else
-      ! Enforce ln_bt_fw = T with RK3
-      IF(lwp) WRITE(numout,*) '     Enforce ln_bt_fw=.true.  => Forward integration of barotropic variables '
-      ln_bt_fw = .true.
-# endif
-      !
-#if defined key_agrif
-      ! Restrict the use of Agrif to the forward case only
-      IF( .NOT.ln_bt_fw .AND. .NOT.Agrif_Root() )   CALL ctl_stop( 'AGRIF not implemented if ln_bt_fw=.FALSE.' )
-#endif
-      !
-      IF(lwp) WRITE(numout,*)    '     Time filter choice, nn_bt_flt: ', nn_bt_flt
+      ! -------------
+      IF(lwp) WRITE(numout,*) '     Barotropic time filter => nn_bt_flt = ', nn_bt_flt
       SELECT CASE ( nn_bt_flt )
-         CASE( 0 )      ;   IF(lwp) WRITE(numout,*) '           Dirac'
-         CASE( 1 )      ;   IF(lwp) WRITE(numout,*) '           Boxcar: width = nn_e'
-         CASE( 2 )      ;   IF(lwp) WRITE(numout,*) '           Boxcar: width = 2*nn_e' 
-         CASE( 3 )      ;   IF(lwp) WRITE(numout,*) '           Time filter'
-         CASE DEFAULT   ;   CALL ctl_stop( 'unrecognised value for nn_bt_flt: should 0,1,2 or 3' )
+      CASE( 0 )      ;   IF(lwp) WRITE(numout,*) '        Dirac'
+      CASE( 1 )      ;   IF(lwp) WRITE(numout,*) '        Boxcar: width = nn_e'
+      CASE( 2 )      ;   IF(lwp) WRITE(numout,*) '        Boxcar: width = 2*nn_e' 
+      CASE( 3 )      ;   IF(lwp) WRITE(numout,*) '        Demange time filter'
+      CASE DEFAULT   ;   CALL ctl_stop( 'unrecognised value for nn_bt_flt: should 0,1,2 or 3' )
       END SELECT
-      !
-      IF(lwp) WRITE(numout,*) ' '
-      IF(lwp) WRITE(numout,*) '     nn_e = ', nn_e
-      IF(lwp) WRITE(numout,*) '     Barotropic time step [s] is :', rDt_e
-      IF(lwp) WRITE(numout,*) '     Maximum Courant number is   :', zcmax
-      !
-      IF(lwp) WRITE(numout,*)    '     Time diffusion parameter rn_bt_alpha: ', rn_bt_alpha
-      IF ((nn_bt_flt==1 .OR. nn_bt_flt==2).AND.(rn_bt_alpha>0._wp)) THEN
-         CALL ctl_stop( 'dynspg_ts ERROR: if rn_bt_alpha > 0, remove temporal averaging, nn_bt_flt should be 0 or 3' )
-      ENDIF
-      !
-      IF( nn_bt_flt==3 .AND. .NOT.ln_bt_fw ) THEN
-         CALL ctl_stop( 'dynspg_ts ERROR: No time averaging => only forward integration is possible' )
-      ENDIF
-      IF( zcmax>0.9_wp ) THEN
-         CALL ctl_stop( 'dynspg_ts ERROR: Maximum Courant number is greater than 0.9: Inc. nn_e !' )          
+      IF( lwp .AND. nn_bt_flt==3 )   WRITE(numout,*) '           rn_bt_alpha: ', rn_bt_alpha
+
+      IF( lwp ) THEN
+         WRITE(numout,*)
+         WRITE(numout,*) '     Barotropic time steps => in seconds         = ', rDt_e
+         WRITE(numout,*) '                              in iterations nn_e = ', nn_e
+         IF( ln_bt_auto ) THEN ; WRITE(numout,*) '        set auto (ln_bt_auto=T) with max courant number = ', zcmax
+         ELSE                  ; WRITE(numout,*) '        set      (ln_bt_auto=F) with the namelist parameter nn_e '
+         ENDIF
+         !
+         WRITE(numout,*)
+         WRITE(numout,*) '     Barotropic integration '
+         IF( ln_bt_fw ) THEN ; WRITE(numout,*) '        ln_bt_fw=T => Forward integration of barotropic variables '
+         ELSE                ; WRITE(numout,*) '        ln_bt_fw=F => Centred integration of barotropic variables '
+         ENDIF
       ENDIF
       !
       !                             ! Allocate time-splitting arrays

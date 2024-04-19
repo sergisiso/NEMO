@@ -364,8 +364,8 @@ CONTAINS
          !>>>            Tracers : RHS computation + time-stepping            <<<
          !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
          !
-         IF( .NOT. ln_shuman ) THEN             ! No Shuman averaging- tra_adv_trp can be in tiling loop
-            !
+         IF( .NOT.ln_shuman ) THEN             ! No Shuman averaging- tra_adv_trp can be in tiling loop
+            !                                  !      clem: check why we cannot use this statement: IF( .NOT.ln_shuman .OR. ( ln_shuman .AND. kstg /= 3 ) )
             !                        !* Update or Compute (VIF) advective transport
             CALL tra_adv_trp( kstp, kstg, nit000, Kbb, Kmm, Kaa, Krhs, zFu, zFv, zFw )
             !
@@ -379,9 +379,9 @@ CONTAINS
       END DO
       IF( ln_tile ) CALL dom_tile_stop
       !
-      IF ( ln_shuman ) THEN                     ! Shuman averaging- tra_adv_trp not in tiling loop due to lbc_lnk
-         !
-         CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,Kaa), 'U', -1._wp, vv(:,:,:,Kaa), 'V', -1._wp)
+      IF( ln_shuman ) THEN                     ! Shuman averaging- tra_adv_trp not in tiling loop due to lbc_lnk
+         !                                     !   clem: check why we cannot use this statement: IF( ln_shuman .AND. kstg == 3 )
+         CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,Kaa), 'U', -1._wp, vv(:,:,:,Kaa), 'V', -1._wp, ldfull=.TRUE. )
          !
          !                           !* Update or Compute (VIF) advective transport
          CALL tra_adv_trp( kstp, kstg, nit000, Kbb, Kmm, Kaa, Krhs, zFu, zFv, zFw )
@@ -437,9 +437,8 @@ CONTAINS
          !
          IF( lk_linssh ) THEN   ! applied on tracer
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-               z1_e3t= 1._wp / e3t(ji,jj,jk, Kaa)
-               ts(ji,jj,jk,jp_tem,Kaa) = ( ts(ji,jj,jk,jp_tem,Kbb ) + rDt * ts(ji,jj,jk,jp_tem,Krhs)*tmask(ji,jj,jk) ) * z1_e3t
-               ts(ji,jj,jk,jp_sal,Kaa) = ( ts(ji,jj,jk,jp_sal,Kbb ) + rDt * ts(ji,jj,jk,jp_sal,Krhs)*tmask(ji,jj,jk) ) * z1_e3t
+               ts(ji,jj,jk,jp_tem,Kaa) = ts(ji,jj,jk,jp_tem,Kbb ) + rDt * ts(ji,jj,jk,jp_tem,Krhs)*tmask(ji,jj,jk)
+               ts(ji,jj,jk,jp_sal,Kaa) = ts(ji,jj,jk,jp_sal,Kbb ) + rDt * ts(ji,jj,jk,jp_sal,Krhs)*tmask(ji,jj,jk)
             END_3D
          ELSE
 !!gm ===>>> Optimistion in qco case (reduction of memory acces !)
@@ -526,25 +525,23 @@ CONTAINS
             CALL Agrif_dyn( kstp, kstg )
 # endif
       !                                              !* local domain boundaries
-!!gm ===>>> Question: why also in Shuman averaging case ??
-      IF( l_zdfsh2 .OR. ln_shuman ) THEN
-         IF( l_zdfsh2 .AND. ln_shuman ) THEN
+      IF( ln_shuman ) THEN   ! for shuman, lbc already applied on uu and vv (see above)
+         IF( l_zdfsh2 ) THEN
             CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
                &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
          ELSE
-            IF( ln_shuman ) THEN
-               CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
-            ENDIF
-            IF( l_zdfsh2 ) THEN
-               CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
-                  &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
-                  &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
-            ENDIF
+            CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
          ENDIF
-      ELSE
-         CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
-            &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
-      ENDIF
+      ELSE 
+         IF( l_zdfsh2 ) THEN
+            CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+               &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
+               &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
+         ELSE
+            CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+               &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
+         ENDIF
+      ENDIF            
       !                                              !* BDY open boundaries
       IF( ln_bdy )   THEN
                                CALL bdy_tra( kstp, Kbb, ts,     Kaa )

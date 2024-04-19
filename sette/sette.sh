@@ -108,7 +108,6 @@ if [ $# -gt 0 ]; then
            echo "";;
         Q) export USING_RK3='no'
            echo "-Q: key_qco and key_RK3 will not be activated"
-           echo "    This is the curent default for now since RK3 is not ready"
            echo "";;
         X) export USING_XIOS='no'
            echo "-X: key_xios will not be activated"
@@ -129,7 +128,7 @@ if [ $# -gt 0 ]; then
                echo '-N set ln_nnogather false for ORCA2 configurations (default: true)'
                echo '-q to remove the key_qco key (default: added)'
                echo '-X to remove the key_xios key (default: added)'
-               echo '-Q to remove the key_RK3 key (currently a null-op since key_RK3 is not used)'
+               echo '-Q to remove the key_RK3 key'
                echo '-A to run tests in attached (SPMD) mode (default: MPMD with key_xios)'
                echo '-n "CFG1_to_test CFG2_to_test ..." to test some specific configurations'
                echo '-x "TEST_type TEST_type ..." to specify particular type(s) of test(s) to run after compilation'
