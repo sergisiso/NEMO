@@ -521,21 +521,6 @@ CONTAINS
                   !------------------------------
                   ! Solve the tridiagonal system with Gauss elimination method.
                   ! Thomas algorithm, from Computational fluid Dynamics, J.D. ANDERSON, McGraw-Hill 1984
-!!$            jm_maxt = 0
-!!$            jm_mint = nlay_i+5
-!!$            DO ji = 1, npti
-!!$               jm_mint = MIN(jm_min,jm_mint)
-!!$               jm_maxt = MAX(jm_max,jm_maxt)
-!!$            END DO
-!!$            !!clem SNWLAY => check why LIM1D does not get this loop. Is nlay_i+5 correct?
-!!$
-!!$            DO jk = jm_mint+1, jm_maxt
-!!$               DO ji = 1, npti
-!!$                  jm = MIN(MAX(jm_min+1,jk),jm_max)
-!!$                  zdiagbis(ji,jm) = ztrid   (ji,jm,2) - ztrid(ji,jm,1) * ztrid   (ji,jm-1,3) / zdiagbis(ji,jm-1)
-!!$                  zindtbis(ji,jm) = zindterm(ji,jm  ) - ztrid(ji,jm,1) * zindtbis(ji,jm-1  ) / zdiagbis(ji,jm-1)
-!!$               END DO
-!!$            END DO
 
                   DO jm = jm_min+1, jm_max
                      zdiagbis(jm) = ztrid   (jm,2) - ztrid(jm,1) * ztrid   (jm-1,3) / zdiagbis(jm-1)
@@ -557,7 +542,7 @@ CONTAINS
                   ! Value must be frozen after convergence for MPP independance reason
                   IF ( h_s_1d(ji) > 0._wp ) &
                      &   t_s_1d(ji,nlay_s) = ( zindtbis(nlay_s+1) - ztrid(nlay_s+1,3) * t_i_1d(ji,1) ) / zdiagbis(nlay_s+1)
-                  !!clem SNWLAY
+
                   DO jm = nlay_s, 2, -1
                      jk = jm - 1
                      IF ( h_s_1d(ji) > 0._wp ) &
@@ -711,20 +696,6 @@ CONTAINS
                   !------------------------------
                   ! Solve the tridiagonal system with Gauss elimination method.
                   ! Thomas algorithm, from Computational fluid Dynamics, J.D. ANDERSON, McGraw-Hill 1984
-!!$            jm_maxt = 0
-!!$            jm_mint = nlay_i+5
-!!$            DO ji = 1, npti
-!!$               jm_mint = MIN(jm_min,jm_mint)
-!!$               jm_maxt = MAX(jm_max,jm_maxt)
-!!$            END DO
-!!$
-!!$            DO jk = jm_mint+1, jm_maxt
-!!$               DO ji = 1, npti
-!!$                  jm = MIN(MAX(jm_min+1,jk),jm_max)
-!!$                  zdiagbis(ji,jm) = ztrid   (ji,jm,2) - ztrid(ji,jm,1) * ztrid   (ji,jm-1,3) / zdiagbis(ji,jm-1)
-!!$                  zindtbis(ji,jm) = zindterm(ji,jm)   - ztrid(ji,jm,1) * zindtbis(ji,jm-1)   / zdiagbis(ji,jm-1)
-!!$               END DO
-!!$            END DO
 
                   DO jm = jm_min+1, jm_max
                      zdiagbis(jm) = ztrid   (jm,2) - ztrid(jm,1) * ztrid   (jm-1,3) / zdiagbis(jm-1)
@@ -746,7 +717,7 @@ CONTAINS
                   ! Value must be frozen after convergence for MPP independance reason
                   IF ( h_s_1d(ji) > 0._wp ) &
                      &   t_s_1d(ji,nlay_s) = ( zindtbis(nlay_s+1) - ztrid(nlay_s+1,3) * t_i_1d(ji,1) ) / zdiagbis(nlay_s+1)
-                  !!clem SNWLAY
+
                   DO jm = nlay_s, 2, -1
                      jk = jm - 1
                      IF ( h_s_1d(ji) > 0._wp ) &

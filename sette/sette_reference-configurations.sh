@@ -330,6 +330,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
         set_namelist namelist_cfg cn_exp \"O2L3P\"
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg ln_shuman .true.
         set_namelist namelist_cfg jpni 4
         set_namelist namelist_cfg jpnj 8
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
@@ -354,6 +355,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
         fi
 	if [ ${USING_RK3} == "no" ]; then
 	    set_namelist namelist_cfg rn_Dt 5400.
+            set_namelist namelist_cfg ln_shuman .false.
 	    set_namelist namelist_cfg nn_fsbc 4
 	    set_namelist namelist_cfg nn_time0 0130
 	    set_namelist namelist_cfg nn_bt_flt 1
