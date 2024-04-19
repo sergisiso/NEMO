@@ -222,7 +222,7 @@
    nn_drainage      =   50            !  maximum number of subcycles for gravity drainage (10 is usually enough)
    nn_flushing      =   5             !  maximum number of subcycles for flushing         ( 1 is usually enough)
    rn_flushrate     =   0.3           !  rate of flushing (fraction of melt water used for flushing)
-   rn_vbrc          =   0.07          !  critical brines volume above which flushing can occur
+   rn_vbrc          =   0.05          !  critical brines volume above which flushing can occur
                                       ! ** drainage convection scheme **
    nn_sal_scheme    =   1             !    1 = Rees Jones and Worster (2014) => RJW2014
                                       !    2 = Griewank and Notz (2013)      => GN2013
@@ -232,7 +232,7 @@
       rn_Rc_RJW     = 4.89            !    1: Critical Rayleigh number     ==>               [2.9  ; 9]
       rn_alpha_GN   = 5.4e-4          !    2: Intensity of the Brine flow  ==>               [0.510e-3 ; 0.681e-3] from Griewank and Notz 2015
       rn_Rc_GN      = 6.4             !    2: Critical Rayleigh number     ==>               [7.10 ; 3.23]         from Griewank and Notz 2015
-      rn_alpha_CW   = 30.e-7          !    3: Intensity of the Brine flow  ==>               [7e-7 ; 30e-7]
+      rn_alpha_CW   = 10.e-7          !    3: Intensity of the Brine flow  ==>               [7e-7 ; 15e-7]
       !
    ln_sal_chk       = .FALSE.         !  sanity checks for drainage and flushing
 /
