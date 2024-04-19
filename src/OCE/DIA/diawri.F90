@@ -56,6 +56,7 @@ MODULE diawri
 
 #if defined key_si3
    USE icewri 
+   USE ice   ,    ONLY: ato_i
 #endif
    USE lib_mpp         ! MPP library
    USE timing          ! preformance summary

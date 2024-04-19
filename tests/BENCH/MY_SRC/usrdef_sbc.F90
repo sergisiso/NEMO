@@ -20,7 +20,8 @@ MODULE usrdef_sbc
    USE sbc_phy, ONLY   : pp_cldf
    USE phycst          ! physical constants
 #if defined key_si3
-   USE ice, ONLY       : jpl, at_i_b, a_i_b
+   USE par_ice, ONLY   : jpl
+   USE ice, ONLY       : at_i_b, a_i_b
 #endif
    USE in_out_manager  ! I/O manager
    USE lib_mpp         ! MPP library
