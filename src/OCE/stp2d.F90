@@ -32,6 +32,7 @@ MODULE stp2d
    USE agrif_oce_sponge
 #endif
 
+   IMPLICIT NONE
    PRIVATE
 
    PUBLIC   stp_2D    ! called by stprk3.F90
@@ -87,7 +88,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt, Kbb, Kmm, Kaa, Krhs   ! ocean time-step and time-level indices
       !
-      INTEGER  ::   ji, jj, jk                           ! dummy loop indices
+      INTEGER  ::   ji, jj, jk, jtile                    ! dummy loop indices
       REAL(wp) ::   zg_2, zintp, zgrho0r, zld, zztmp     ! local scalars
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zpice   ! 2D workspace
       !! ---------------------------------------------------------------------
