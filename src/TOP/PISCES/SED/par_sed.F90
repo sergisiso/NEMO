@@ -19,6 +19,8 @@ MODULE par_sed
 
 !   USE par_pisces
 
+   IMPLICIT NONE
+
    INTEGER, PARAMETER :: jpdta = 17
 
    ! Vertical sediment geometry

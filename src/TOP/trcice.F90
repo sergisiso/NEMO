@@ -109,6 +109,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!  Empty module :                                     No passive tracer
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_ice_ini                   ! Dummy routine   
    END SUBROUTINE trc_ice_ini

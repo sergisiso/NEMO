@@ -242,12 +242,17 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   Dummy module                   NO Unstruct Open Boundary Conditions
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
-   SUBROUTINE trc_bdy(kt)      ! Empty routine
+   SUBROUTINE trc_bdy( kt, Kbb, Kmm, Krhs )        ! Empty routine
+      INTEGER, INTENT(in   ) ::   kt               ! time-step counter
+      INTEGER, INTENT(in   ) ::   Kbb, Kmm, Krhs   ! time-level indices
       WRITE(*,*) 'trc_bdy: You should not have seen this print! error?', kt
    END SUBROUTINE trc_bdy
 
-   SUBROUTINE trc_bdy_dmp(kt)      ! Empty routine
+   SUBROUTINE trc_bdy_dmp( kt, Kbb, Krhs )    ! Empty routine
+      INTEGER, INTENT(in   ) ::   kt          ! time-step counter
+      INTEGER, INTENT(in   ) ::   Kbb, Krhs   ! time-level indices
       WRITE(*,*) 'trc_bdy_dmp: You should not have seen this print! error?', kt
    END SUBROUTINE trc_bdy_dmp
 

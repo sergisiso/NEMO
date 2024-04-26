@@ -333,6 +333,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!  Empty module :                                     No passive tracer
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_init                      ! Dummy routine   
    END SUBROUTINE trc_init

@@ -128,6 +128,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!  Dummy module :                                     No C14 tracer
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
    PUBLIC trc_wri_c14
 CONTAINS
    SUBROUTINE trc_wri_c14                     ! Empty routine  

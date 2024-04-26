@@ -370,8 +370,14 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   Default key                                     NO passive tracers
    !!----------------------------------------------------------------------
+   USE oce_trc
+   IMPLICIT NONE
 CONTAINS
-   SUBROUTINE trc_stp_rk3( kt )        ! Empty routine
+   SUBROUTINE trc_stp_rk3( kstg, kt, Kbb, Kmm, Krhs, Kaa, pFu, pFv, pFw )         ! Empty routine
+      INTEGER, INTENT(in   ) ::   kstg                                            ! RK3 stage
+      INTEGER, INTENT(in   ) ::   kt                                              ! time-step index
+      INTEGER, INTENT(in   ) ::   Kbb, Kmm, Krhs, Kaa                             ! time-level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk), OPTIONAL, INTENT(in) ::   pFu, pFv, pFw   ! advective transport
       WRITE(*,*) 'trc_stp: You should not have seen this print! error?', kt
    END SUBROUTINE trc_stp_rk3
 #endif

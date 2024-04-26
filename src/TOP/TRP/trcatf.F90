@@ -342,6 +342,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    USE par_oce
    USE par_trc
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_atf( kt, Kbb, Kmm, Kaa, ptr )  
       INTEGER                                   , INTENT(in)    :: kt

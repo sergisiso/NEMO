@@ -235,8 +235,13 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   Dummy module                              NO 3D passive tracer data
    !!----------------------------------------------------------------------
+   USE oce_trc
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_dta( kt, kjl, ptrcdta)        ! Empty routine
+      INTEGER,                          INTENT(in   ) ::   kt        ! time-step index
+      INTEGER,                          INTENT(in   ) ::   kjl       ! tracer index
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   ptrcdta   ! data array
       WRITE(*,*) 'trc_dta: You should not have seen this print! error?', kt
    END SUBROUTINE trc_dta
 #endif

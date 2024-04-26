@@ -47,10 +47,11 @@ CONTAINS
    END SUBROUTINE trc_wri_my_trc
 
 #else
-
+   IMPLICIT NONE
 CONTAINS
 
-   SUBROUTINE trc_wri_my_trc
+   SUBROUTINE trc_wri_my_trc( Kmm )
+      INTEGER, INTENT(in   ) ::   Kmm   ! time-level index
       !
    END SUBROUTINE trc_wri_my_trc
 

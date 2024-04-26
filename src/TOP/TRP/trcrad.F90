@@ -239,6 +239,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   Dummy module :                                         NO TOP model
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_rad( kt, Kbb, Kmm )              ! Empty routine
       INTEGER, INTENT(in) ::   kt

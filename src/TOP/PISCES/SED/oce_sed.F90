@@ -59,4 +59,6 @@ MODULE oce_sed
    USE p4zbc, ONLY      : dust      =>   dust
    USE trc  , ONLY      : rDt_trc   =>   rDt_trc
 
+   IMPLICIT NONE
+
 END MODULE oce_sed

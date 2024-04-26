@@ -377,6 +377,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!  Dummy module :                                     No passive tracer
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_dmp( kt )        ! Empty routine
       INTEGER, INTENT(in) :: kt
