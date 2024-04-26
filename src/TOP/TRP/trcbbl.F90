@@ -105,6 +105,8 @@ CONTAINS
       !
    END SUBROUTINE trc_bbl
 
+#else
+   IMPLICIT NONE
 #endif
 
    !!======================================================================

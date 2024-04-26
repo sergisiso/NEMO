@@ -73,6 +73,7 @@ CONTAINS
    !!======================================================================
    !!  Dummy module :                                     No passive tracer
    !!======================================================================
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_sms( kt )                   ! Empty routine
       INTEGER, INTENT( in ) ::   kt

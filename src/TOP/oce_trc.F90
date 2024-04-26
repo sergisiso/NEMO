@@ -94,4 +94,6 @@ MODULE oce_trc
    USE zdfmxl , ONLY :   hmlp        =>   hmlp        !: mixed layer depth  (rho=rho0+zdcrit) (m)
    USE zdfmxl , ONLY :   avt_c       =>   avt_c       !: Kz criterion for the turbocline depth
 
+   IMPLICIT NONE
+
 END MODULE oce_trc

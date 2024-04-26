@@ -44,6 +44,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!  Dummy module :                                     No passive tracer
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
    PUBLIC trc_wri_age
 CONTAINS
    SUBROUTINE trc_wri_age                     ! Empty routine  

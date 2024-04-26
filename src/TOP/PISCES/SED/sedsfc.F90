@@ -8,6 +8,8 @@ MODULE sedsfc
    USE sedini
    USE seddta
 
+   IMPLICIT NONE
+
    PUBLIC sed_sfc
 
    !! * Substitutions

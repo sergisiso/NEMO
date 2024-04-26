@@ -126,6 +126,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!  Dummy module :                                     No passive tracer
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
    PUBLIC trc_wri
 CONTAINS
    SUBROUTINE trc_wri( kt, Kmm )                     ! Empty routine   

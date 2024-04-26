@@ -271,6 +271,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   Dummy module                              NO 3D passive tracer data
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_ais_ini   ! Empty routine
    END SUBROUTINE trc_ais_ini

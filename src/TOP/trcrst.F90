@@ -403,6 +403,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!  Dummy module :                                     No passive tracer
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_rst_read( Kbb, Kmm)                      ! Empty routines
       INTEGER, INTENT( in ) :: Kbb, Kmm  ! time level indices

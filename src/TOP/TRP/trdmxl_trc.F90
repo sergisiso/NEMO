@@ -958,6 +958,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   Default option :                                       Empty module
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trd_mxl_trc( kt, Kmm )                                   ! Empty routine
       INTEGER, INTENT( in) ::   kt

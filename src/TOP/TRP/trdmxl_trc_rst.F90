@@ -190,6 +190,7 @@ CONTAINS
   !!                       ***  MODULE  trdmxl_rst  ***
   !! Ocean dynamic :  Input/Output files for restart on mixed-layer diagnostics
   !!=================================================================================
+   IMPLICIT NONE
 CONTAINS
   SUBROUTINE trd_mxl_trc_rst_opn( kt )
     IMPLICIT NONE

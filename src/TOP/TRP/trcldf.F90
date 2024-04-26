@@ -207,6 +207,8 @@ CONTAINS
       !
    END SUBROUTINE trc_ldf_ini
 
+#else
+   IMPLICIT NONE
 #endif
    !!======================================================================
 END MODULE trcldf

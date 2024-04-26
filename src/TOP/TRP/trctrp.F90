@@ -144,6 +144,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   Dummy module :                                        No TOP models
    !!----------------------------------------------------------------------
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_trp( kt )              ! Empty routine
       INTEGER, INTENT(in) ::   kt

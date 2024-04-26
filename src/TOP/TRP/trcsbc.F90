@@ -389,6 +389,7 @@ CONTAINS
    !!----------------------------------------------------------------------
    USE par_oce
    USE par_trc
+   IMPLICIT NONE
 CONTAINS
    SUBROUTINE trc_sbc ( kt, Kbb, Kmm, ptr, Krhs )      ! Empty routine
       INTEGER,                                    INTENT(in   ) :: kt        ! ocean time-step index
