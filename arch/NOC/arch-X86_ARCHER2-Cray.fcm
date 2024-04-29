@@ -44,8 +44,9 @@
 
 %CPP	             cpp -Dkey_nosignedzero
 %FC                  ftn
-%FCFLAGS             -em -s integer32 -s real64 -O0 -hflex_mp=intolerant -N1023
-%FFLAGS              -em -s integer32 -s real64 -O0 -hflex_mp=intolerant -N1023
+%PROD_FCFLAGS        -em -s integer32 -s real64 -O2 -hvector_classic -hflex_mp=intolerant -N1023 -M878
+%DEBUG_FCFLAGS       -em -s integer32 -s real64 -O0 -hvector_classic -hflex_mp=intolerant -N1023 -M878 -hfp0 -e mCI -G0 -m2 -rl -Rcdsp
+%FFLAGS              %FCFLAGS
 %LD                  CC -Wl,"--allow-multiple-definition"
 %FPPFLAGS            -P -traditional
 %LDFLAGS             -lmpifort_cray

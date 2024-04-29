@@ -195,6 +195,11 @@ CONTAINS
          END_2D
          !
          !
+         ! Cray compiler creates faulty code at vector optimisation levels >= vector1. Possibly it 
+         ! fails to spot the dependency on previous levels either through the zgr[u,v](:,:,[1,2]) 
+         ! toggling or the re-use of zwslp[i,j]_hml(:,:) ? Either way keep this next directive
+         ! and its companion following the 'END_2D' macro
+         !dir$ NOVECTOR
          !                     !==================================!
          DO_2D( 1, 1, 1, 1 )   !==   Slopes at u and v points   ==!
             !                  !==================================!
@@ -232,6 +237,7 @@ CONTAINS
             zuslp_hml(ji,jj) = zmli * zwz(ji,jj) * r1_hmlu(ji,jj) + ( 1._wp - zmli ) * zuslp_hml(ji,jj)
             zvslp_hml(ji,jj) = zmlj * zww(ji,jj) * r1_hmlv(ji,jj) + ( 1._wp - zmlj ) * zvslp_hml(ji,jj)
          END_2D
+         !dir$ VECTOR
          !
          !                          !==  horizontal Shapiro filter + decrease along coastal boundaries  ==!
          DO_2D( 0, 0, 0, 0 )                                 ! rows jj=2 and =jpjm1 only
@@ -251,6 +257,11 @@ CONTAINS
                &                   * ( vmask(ji  ,jj,jk) + vmask(ji  ,jj,jk+1) ) * 0.5_wp
          END_2D
          !
+         ! Cray compiler creates faulty code at vector optimisation levels >= vector1. Possibly it 
+         ! fails to spot the dependency on previous levels either through the zgr[u,v](:,:,[1,2]) 
+         ! toggling or the re-use of zwslp[i,j]_hml(:,:) ? Either way keep this next directive
+         ! and its companion following the 'END_2D' macro
+         !dir$ NOVECTOR
          !                      !============================!
          DO_2D( 1, 1, 1, 1 )    !==   Slopes at w points   ==!
             !                   !============================!
@@ -286,6 +297,7 @@ CONTAINS
             zwslpi_hml(ji,jj) = zmlk * zwz(ji,jj) * r1_hmlw(ji,jj) + ( 1._wp - zmlk ) * zwslpi_hml(ji,jj)
             zwslpj_hml(ji,jj) = zmlk * zww(ji,jj) * r1_hmlw(ji,jj) + ( 1._wp - zmlk ) * zwslpj_hml(ji,jj)
          END_2D
+         !dir$ VECTOR
          !                           !== horizontal Shapiro filter + decrease in vicinity of topography  ==!
          DO_2D( 0, 0, 0, 0 )                             ! rows jj=2 and =jpjm1 only
             zcofw = wmask(ji,jj,jk) * z1_16 * ( umask(ji,jj,jk) + umask(ji-1,jj,jk) )   &
