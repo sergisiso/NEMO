@@ -20,7 +20,7 @@
 # ----------------------------------------------------------------------
 set -o posix
 #
-# PSyclone version 2.4.0 (default) or 2.3.1
+# PSyclone version 2.4.0
 PSYCLONE_VERSION="2.4.0"
 # Path to PSyclone installation
 PSYCLONE_PATH=$1
@@ -36,10 +36,12 @@ ACTION='TRANSFORM'
 #    but explicitly disable the processing of files that PSyclone version 2.4.0
 #    would fail to process or not correctly reproduce in the PSyclone
 #    passthrough,
+[[ "${FILENAME}" == 'asminc.f90'            ]] && ACTION='EXCLUDE'   # protect 'WHERE' constructs
 [[ "${FILENAME}" == 'diaptr.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' constructs
 [[ "${FILENAME}" == 'icedyn_rhg_eap.f90'    ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'iceistate.f90'         ]] && ACTION='EXCLUDE'   # protect reduction inside 'WHERE' conditional expression
 [[ "${FILENAME}" == 'icethd_do.f90'         ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
+[[ "${FILENAME}" == 'icethd_sal.f90'        ]] && ACTION='EXCLUDE'   # protect 'WHERE' constructs
 [[ "${FILENAME}" == 'icewri.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
 [[ "${FILENAME}" == 'iom.f90'               ]] && ACTION='EXCLUDE'   # see PSyclone issue #2340
                                                                      # (https://github.com/stfc/PSyclone/issues/2340)
@@ -55,22 +57,6 @@ ACTION='TRANSFORM'
                                                                      # (https://github.com/stfc/PSyclone/issues/1254)
 [[ "${FILENAME}" == 'vremap.f90'            ]] && ACTION='EXCLUDE'   # protect bulk assignment of a structure component in
                                                                      # structure arrays
-#    adjust the action for some files when using PSyclone 2.3.1,
-if [ ${PSYCLONE_VERSION} == "2.3.1" ]; then
-    [[ "${FILENAME}" == 'diu_layers.f90'        ]] && ACTION='EXCLUDE'
-    [[ "${FILENAME}" == 'eosbn2.f90'            ]] && ACTION='EXCLUDE'
-    [[ "${FILENAME}" == 'icedyn_rhg_eap.f90'    ]] && ACTION='TRANSFORM'
-    [[ "${FILENAME}" == 'iom.f90'               ]] && ACTION='TRANSFORM'
-    [[ "${FILENAME}" == 'isftbl.f90'            ]] && ACTION='EXCLUDE'
-    [[ "${FILENAME}" == 'julian.f90'            ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix
-    [[ "${FILENAME}" == 'lbcnfd.f90'            ]] && ACTION='EXCLUDE'
-    [[ "${FILENAME}" == 'prtctl.f90'            ]] && ACTION='TRANSFORM'
-    [[ "${FILENAME}" == 'step.f90'              ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix (AGRIF)
-    [[ "${FILENAME}" == 'storng.f90'            ]] && ACTION='EXCLUDE'
-    [[ "${FILENAME}" == 'stpmlf.f90'            ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix (AGRIF)
-    [[ "${FILENAME}" == 'timing.f90'            ]] && ACTION='EXCLUDE'   # protect 'RECURSIVE' procedure prefix
-    [[ "${FILENAME}" == 'trosk.f90'             ]] && ACTION='TRANSFORM'
-fi
 #    and downgrade the transformation action to passthrough if the passthrough
 #    mode is active.
 [[ "${TPSYCLONE}" == 'passthrough' ]] && [[ ${ACTION} == 'TRANSFORM' ]] && ACTION='PASSTHROUGH'
