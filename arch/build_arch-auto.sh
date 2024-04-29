@@ -467,8 +467,8 @@ case "$ftncomp" in
 		    "         If it is not the case, replace -march=native by the appropiate option in PROD_FCFLAGS"
 	;;
     cray)
-	PROD_FCFLAGS="-s real64 -s integer32 -O2 -hflex_mp=intolerant"
-	DEBUG_FCFLAGS="-s real64 -s integer32 -Ovector0 -hfp0 -O0 -hflex_mp=intolerant -e mCI -G0 -m2 -rl -Rcdsp -N1023"
+	PROD_FCFLAGS="-em -s real64 -s integer32 -O2 -hvector_classic -hflex_mp=intolerant -N1023 -M878"
+	DEBUG_FCFLAGS="-s real64 -s integer32 -O0 -hvector_classic -hflex_mp=intolerant -N1023 -M878 -hfp0 -e mCI -G0 -m2 -rl -Rcdsp"
 	;;
     *)
 	echo_red "ERROR: compilation options for $ftncomp are not defined..."

@@ -732,19 +732,25 @@ CONTAINS
       kjmppt(:,:) = 1
       !
       IF( knbi > 1 ) THEN
+         ! Cray compiler creates faulty code at vector optimisation levels
+         ! keep the next two pairs of NOVECTOR/VECTOR compiler directives
+         !dir$ NOVECTOR
          DO jj = 1, knbj
             DO ji = 2, knbi
                kimppt(ji,jj) = kimppt(ji-1,jj) + klci(ji-1,jj) - i2hls
             END DO
          END DO
+         !dir$ VECTOR
       ENDIF
       !
       IF( knbj > 1 )THEN
+         !dir$ NOVECTOR
          DO jj = 2, knbj
             DO ji = 1, knbi
                kjmppt(ji,jj) = kjmppt(ji,jj-1) + klcj(ji,jj-1) - i2hls
             END DO
          END DO
+         !dir$ VECTOR
       ENDIF
 
    END SUBROUTINE mpp_basesplit

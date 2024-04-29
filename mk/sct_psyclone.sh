@@ -85,6 +85,21 @@ if [[ "${PSYCLONE_PATH}" == "%PSYCLONE_HOME" ]] || [[ -z "${PSYCLONE_PATH}" ]] |
     [[ ! -x "${PSYCLONE_PATH}/bin/psyclone" ]]   && echo "${PSYCLONE_PATH}/bin/psyclone not executable" && exit 1
 fi
 #
+# Warn about the removal of pre-existing compiler directives
+if [[ ! "$ACTION" == "EXCLUDE" ]]; then
+   grep -q -l -m 1 -i -e '^[[:space:]]*\!dir\$' "${BLD_DIR}/ppsrc/nemo/${FILENAME}" && cat <<EOF
+
+WARNING: compiler-directive removal
+
+   A compiler directive has been detected in source-code file
+   ${BLD_DIR}/ppsrc/nemo/${FILENAME},
+   which is slated for PSyclone processing and as a consequence for removal of
+   the pre-existing compiler directive. Please see comments associated with the
+   pre-existing directive for potential side effects of its removal.
+
+EOF
+fi
+#
 case ${ACTION} in
   TRANSFORM)   "${PSYCLONE_PATH}/bin/psyclone" -api nemo -l output -s "${BLD_DIR}/psct-${TPSYCLONE}.py" -oalg /dev/null -I "${BLD_DIR}/ppsrc/nemo/" \
                                                -opsy "${BLD_DIR}/obj/${FILENAME}" "${BLD_DIR}/ppsrc/nemo/${FILENAME}" ;;
