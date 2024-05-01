@@ -20,8 +20,8 @@
 # ----------------------------------------------------------------------
 set -o posix
 #
-# PSyclone version 2.4.0
-PSYCLONE_VERSION="2.4.0"
+# PSyclone version 2.5.0 (default) or 2.4.0
+PSYCLONE_VERSION="2.5.0"
 # Path to PSyclone installation
 PSYCLONE_PATH=$1
 # Transformation or 'passthrough'
@@ -33,30 +33,34 @@ FILENAME=$(basename "$4")
 #
 # Set action for the file to transformation,
 ACTION='TRANSFORM'
-#    but explicitly disable the processing of files that PSyclone version 2.4.0
+#    but explicitly disable the processing of files that PSyclone version 2.5.0
 #    would fail to process or not correctly reproduce in the PSyclone
 #    passthrough,
 [[ "${FILENAME}" == 'asminc.f90'            ]] && ACTION='EXCLUDE'   # protect 'WHERE' constructs
-[[ "${FILENAME}" == 'diaptr.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' constructs
 [[ "${FILENAME}" == 'icedyn_rhg_eap.f90'    ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
-[[ "${FILENAME}" == 'iceistate.f90'         ]] && ACTION='EXCLUDE'   # protect reduction inside 'WHERE' conditional expression
-[[ "${FILENAME}" == 'icethd_do.f90'         ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
-[[ "${FILENAME}" == 'icethd_sal.f90'        ]] && ACTION='EXCLUDE'   # protect 'WHERE' constructs
-[[ "${FILENAME}" == 'icewri.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
-[[ "${FILENAME}" == 'iom.f90'               ]] && ACTION='EXCLUDE'   # see PSyclone issue #2340
-                                                                     # (https://github.com/stfc/PSyclone/issues/2340)
-[[ "${FILENAME}" == 'isfpar.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
 [[ "${FILENAME}" == 'lib_fortran.f90'       ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'p4zpoc.f90'            ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
-[[ "${FILENAME}" == 'prtctl.f90'            ]] && ACTION='EXCLUDE'   # protect 'PRECISION' intrinsic-function call
 [[ "${FILENAME}" == 'sbc_phy.f90'           ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
-[[ "${FILENAME}" == 'sbcblk.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' constructs
 [[ "${FILENAME}" == 'sbcblk_skin_coare.f90' ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'sbcdcy.f90'            ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'trosk.f90'             ]] && ACTION='EXCLUDE'   # see PSyclone issue #1254
                                                                      # (https://github.com/stfc/PSyclone/issues/1254)
 [[ "${FILENAME}" == 'vremap.f90'            ]] && ACTION='EXCLUDE'   # protect bulk assignment of a structure component in
                                                                      # structure arrays
+#    adjust the action in some cases when using PSyclone 2.4.0
+if [ ${PSYCLONE_VERSION} == "2.4.0" ]; then
+    [[ "${FILENAME}" == 'diaptr.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' constructs
+    [[ "${FILENAME}" == 'iceistate.f90'         ]] && ACTION='EXCLUDE'   # protect reduction inside 'WHERE' conditional expression
+    [[ "${FILENAME}" == 'icethd_do.f90'         ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
+    [[ "${FILENAME}" == 'icethd_sal.f90'        ]] && ACTION='EXCLUDE'   # protect 'WHERE' constructs
+    [[ "${FILENAME}" == 'icewri.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
+    [[ "${FILENAME}" == 'iom.f90'               ]] && ACTION='EXCLUDE'   # see PSyclone issue #2340
+                                                                         # (https://github.com/stfc/PSyclone/issues/2340)
+    [[ "${FILENAME}" == 'isfpar.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' construct
+    [[ "${FILENAME}" == 'prtctl.f90'            ]] && ACTION='EXCLUDE'   # protect 'PRECISION' intrinsic-function call
+    [[ "${FILENAME}" == 'sbcblk.f90'            ]] && ACTION='EXCLUDE'   # protect array bounds in 'WHERE' constructs
+                                                                         # structure arrays
+fi
 #    and downgrade the transformation action to passthrough if the passthrough
 #    mode is active.
 [[ "${TPSYCLONE}" == 'passthrough' ]] && [[ ${ACTION} == 'TRANSFORM' ]] && ACTION='PASSTHROUGH'
