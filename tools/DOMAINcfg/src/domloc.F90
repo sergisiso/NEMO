@@ -36,8 +36,6 @@ MODULE domloc
    REAL(wp), ALLOCATABLE, DIMENSION(:)     :: e3t_1d_in  , e3w_1d_in   !: ref. scale factors (m)
    REAL(wp), ALLOCATABLE, DIMENSION(:)     :: gdept_1d_in, gdepw_1d_in !: ref. depth (m)
    !
-   REAL(wp), ALLOCATABLE, DIMENSION(:,:)   :: mbathy_in
-   !
    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: e3t_in, e3u_in , e3v_in , e3f_in !: scale factors [m]
    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: e3w_in, e3uw_in, e3vw_in         !:   -      -
    ! 
@@ -61,7 +59,7 @@ CONTAINS
       !
       ! Allocating input grid arrays
       ALLOCATE(gdept_1d_in(jpk), gdepw_1d_in(jpk), e3t_1d_in (jpk), e3w_1d_in(jpk), STAT=ierr(1))
-      ALLOCATE(k_top_in(jpi,jpj), k_bot_in(jpi,jpj), mbathy_in(jpi,jpj), STAT=ierr(2))
+      ALLOCATE(k_top_in(jpi,jpj), k_bot_in(jpi,jpj), STAT=ierr(2))
       ALLOCATE(gdept_in(jpi,jpj,jpk), gdepw_in(jpi,jpj,jpk), e3t_in(jpi,jpj,jpk), e3w_in(jpi,jpj,jpk), STAT=ierr(3))
       ALLOCATE(e3u_in(jpi,jpj,jpk), e3v_in(jpi,jpj,jpk), e3f_in(jpi,jpj,jpk), e3uw_in(jpi,jpj,jpk), e3vw_in(jpi,jpj,jpk), STAT=ierr(4))
       IF( MAXVAL(ierr) /= 0 )   CALL ctl_stop( 'STOP', 'loc_zgr: unable to allocate standard ocean arrays' )
@@ -83,7 +81,7 @@ CONTAINS
       ! TO ADD CALL for ln_sco IN THE CASE OF JDHA szt
       !
       DEALLOCATE( gdept_1d_in, gdepw_1d_in, e3t_1d_in  , e3w_1d_in )
-      DEALLOCATE( k_top_in, k_bot_in, mbathy_in )
+      DEALLOCATE( k_top_in, k_bot_in )
       DEALLOCATE( gdept_in, gdepw_in, e3t_in, e3w_in )
       DEALLOCATE( e3u_in  , e3v_in  , e3f_in, e3uw_in, e3vw_in )
 
@@ -214,7 +212,7 @@ CONTAINS
          DO ji = 1,jpi
             SELECT CASE (INT(l2g_msk(ji,jj)))
               CASE (0) ! global zps area
-                   mbathy (ji,jj  ) = mbathy_in(ji,jj)
+                   mbathy (ji,jj  ) = k_bot_in(ji,jj)
                    gdept_0(ji,jj,:) = gdept_in(ji,jj,:)
                    gdepw_0(ji,jj,:) = gdepw_in(ji,jj,:)
                    e3t_0  (ji,jj,:) = e3t_in (ji,jj,:)
