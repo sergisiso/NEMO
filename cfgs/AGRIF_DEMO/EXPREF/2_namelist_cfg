@@ -28,7 +28,7 @@
 !-----------------------------------------------------------------------
 &namdom        !   space and time domain
 !-----------------------------------------------------------------------
-   rn_Dt      = 1350.     !  time step for the dynamics (and tracer if nn_acc=0)
+   rn_Dt      = 2700.     !  time step for the dynamics (and tracer if nn_acc=0)
    ln_meshmask = .false.  !  =T create a mesh file
 /
 !-----------------------------------------------------------------------

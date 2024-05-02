@@ -299,13 +299,9 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
     SETTE_CONFIG="ORCA2_ICE_PISCES"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-        if [ ${USING_RK3} == 'yes' ] ; then
-	    ITEND=12   # 1 day RK3
-	else
-            ITEND=16   # 1 day MLF
-	fi
+        ITEND=8   # 1 day MLF / 2 days RK3
     else
-        ITEND=992  # 62 days
+        ITEND=992  # 62 days MLF / 124 days RK3
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then
@@ -580,9 +576,9 @@ if [ ${config} == "AMM12" ] ;  then
     SETTE_CONFIG="AMM12"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-        ITEND=12   # 3 h
+        ITEND=12   # 4 h
     else
-        ITEND=576  # 4 days
+        ITEND=576  # 8 days
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then
@@ -694,9 +690,9 @@ if [ ${config} == "ORCA2_SAS_ICE" ] ;  then
     SETTE_CONFIG="ORCA2_SAS_ICE"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-        ITEND=16   # 1 day
+        ITEND=16   # 2 days
     else
-        ITEND=256  # 16 days
+        ITEND=256  # 32 days
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then
@@ -961,9 +957,9 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
     SETTE_CONFIG="AGRIF_DEMO"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-        ITEND=4   # 6h
+        ITEND=4   # 12 h
     else
-        ITEND=20  # 1d and 6h
+        ITEND=16  # 2 days
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then
@@ -1123,7 +1119,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
         if [ ${DO_CORRUPT_0} == "1" ] ;  then
             if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
             then
-                ITEND=16   # 1d
+                ITEND=16   # 2 days
             else
                 ITEND=150  # 5d and 9h
             fi
@@ -1204,9 +1200,9 @@ if [ ${config} == "WED025" ] ;  then
     SETTE_CONFIG="WED025"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-        ITEND=12   # 4h
+        ITEND=12   # 8h
     else
-        ITEND=720  # 10 days
+        ITEND=720  # 20 days
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then

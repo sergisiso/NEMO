@@ -25,6 +25,12 @@
    nn_itend    =     100   !  last  time step (std 5475)
 /
 !-----------------------------------------------------------------------
+&namdom        !   time and space domain
+!-----------------------------------------------------------------------
+!MLF   rn_Dt       = 5400.     !  time step for the dynamics and tracer
+   rn_Dt       = 10800.     !  time step for the dynamics and tracer
+/
+!-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: user defined GYRE)
 !-----------------------------------------------------------------------
    ln_read_cfg = .true.    !  (=T) read the domain configuration file

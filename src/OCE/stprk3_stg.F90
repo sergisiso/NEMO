@@ -113,8 +113,12 @@ CONTAINS
          va_b(:,:) = vv_b(:,:,Kaa)
          !                             ! interpolated ssh and (uu_b,vv_b) at Kaa (N+1/3)
          ssh (:,:,Kaa) = r2_3 * ssh (:,:,Kbb) + r1_3 * ssha(:,:)
-         uu_b(:,:,Kaa) = r2_3 * uu_b(:,:,Kbb) + r1_3 * ua_b(:,:)
-         vv_b(:,:,Kaa) = r2_3 * vv_b(:,:,Kbb) + r1_3 * va_b(:,:)
+         !! No interpolation for stability
+         !! uu_b(:,:,Kaa) = r2_3 * uu_b(:,:,Kbb) + r1_3 * ua_b(:,:)
+         !! vv_b(:,:,Kaa) = r2_3 * vv_b(:,:,Kbb) + r1_3 * va_b(:,:)
+         uu_b(:,:,Kaa) = ua_b(:,:)
+         vv_b(:,:,Kaa) = va_b(:,:)
+
          !
          !
          !                     !==  ssh/h0 ratio at Kaa  ==!
@@ -143,8 +147,11 @@ CONTAINS
          !
          !                             ! set ssh and (uu_b,vv_b) at N+1/2  (Kaa)
          ssh (:,:,Kaa) = r1_2 * ( ssh (:,:,Kbb) + ssha(:,:) )
-         uu_b(:,:,Kaa) = r1_2 * ( uu_b(:,:,Kbb) + ua_b(:,:) )
-         vv_b(:,:,Kaa) = r1_2 * ( vv_b(:,:,Kbb) + va_b(:,:) )
+         !! No interpolation for stability
+         !! uu_b(:,:,Kaa) = r1_2 * ( uu_b(:,:,Kbb) + ua_b(:,:) )
+         !! vv_b(:,:,Kaa) = r1_2 * ( vv_b(:,:,Kbb) + va_b(:,:) )
+         uu_b(:,:,Kaa) = ua_b(:,:)
+         vv_b(:,:,Kaa) = va_b(:,:)
          !
          IF( .NOT.lk_linssh ) THEN
             r3t(:,:,Kaa) = r1_2 * ( r3t(:,:,Kbb) + r3ta(:,:) )   ! at N+1/2 (Kaa)

@@ -28,7 +28,7 @@
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
 !MLF   rn_Dt      = 5400.     !  time step for the dynamics and tracer
-   rn_Dt      = 7200.     !  time step for the dynamics and tracer
+   rn_Dt      = 10800.    !  time step for the dynamics and tracer
    ln_meshmask = .false.  !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
