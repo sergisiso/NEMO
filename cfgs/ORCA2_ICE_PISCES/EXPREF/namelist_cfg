@@ -23,13 +23,12 @@
    nn_it000    =       1   !  first time step
    nn_itend    =    5840   !  last  time step (std 5475)
    nn_istate   =       0   !  output the initial state (1) or not (0)
-   nn_time0    =    0130   !  initial time of day in hhmm
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
 !MLF   rn_Dt       = 5400.     !  time step for the dynamics and tracer
-   rn_Dt       = 7200.     !  time step for the dynamics and tracer
+   rn_Dt       = 10800.     !  time step for the dynamics and tracer
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)
