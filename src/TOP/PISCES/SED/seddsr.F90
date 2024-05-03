@@ -99,7 +99,8 @@ CONTAINS
                !-------------------
                ! POC iron reduction
                !-------------------
-               zlimfeo  = ( 1.0 - zlimno3 - zlimo2 ) * solcp(ji,jk,jsfeo) / ( solcp(ji,jk,jsfeo) + xksedfeo )
+               zlimfeo  = ( 1.0 - zlimno3 ) * ( 1.0 - zlimo2 ) * solcp(ji,jk,jsfeo) &
+               &          / ( solcp(ji,jk,jsfeo) + xksedfeo )
                zlimfeo  = MAX(0., zlimfeo )
                zreasat1 = 4.0 * zreasat * zlimfeo
                ! For FEOH
@@ -114,7 +115,8 @@ CONTAINS
                !---------------------
                ! POC sulfatoreduction
                !---------------------
-               zlimso4 = ( 1.0 - zlimno3 - zlimo2 - zlimfeo ) * pwcp(ji,jk,jwso4) / ( pwcp(ji,jk,jwso4) + xksedso4 )
+               zlimso4 = ( 1.0 - zlimno3 ) * ( 1.0 - zlimo2 ) * ( 1.0 - zlimfeo ) &
+               &         * pwcp(ji,jk,jwso4) / ( pwcp(ji,jk,jwso4) + xksedso4 )
                zlimso4 = MAX(0., zlimso4 )
                zreasat1 = 0.5 * zreasat * zlimso4
                ! For sulfur
