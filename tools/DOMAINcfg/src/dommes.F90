@@ -531,7 +531,17 @@ CONTAINS
             END DO ! jj
          END IF    
       END DO ! je     
-      
+        
+      !==================================
+      ! DEPTHS of T-LEVES at cell centers
+      ! if requested (ln_dept_mid=TRUE)
+      !==================================
+      IF ( ln_dept_mid ) THEN
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )   
+              gdept_0(ji,jj,jk) = 0.5_wp * ( gdepw_0(ji,jj,jk) +  gdepw_0(ji,jj,jk+1) )
+         END_3D
+      ENDIF
+
       !=================================
       ! COMPUTE e3t, e3w for ALL levels
       ! as finite differences
