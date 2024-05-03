@@ -42,7 +42,7 @@ MODULE domloc
    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: gdept_in, gdepw_in               !: depths [m]
    !
    !! * Substitutions
-#  include "vectopt_loop_substitute.h90"
+#  include "do_loop_substitute.h90"
  
 CONTAINS
 
@@ -73,6 +73,31 @@ CONTAINS
          &           e3t_in     , e3u_in     , e3v_in   , e3f_in      , &  ! vertical scale factors
          &           e3w_in     , e3uw_in    , e3vw_in  ,               &  ! vertical scale factors
          &           k_top_in   , k_bot_in                              )
+      !
+      ! COMPUTE e3 as finite differences and depth of T-LEVES at cell centers
+      ! ---------------------------------------------------------------------- 
+      IF ( ln_e3_dep.AND.ln_dept_mid ) THEN
+         ! Define depths at cell centers
+         DO jk = 1, jpkm1
+            gdept_1d_in(jk) = 0.5_wp * (gdepw_1d_in(jk)+gdepw_1d_in(jk+1))
+         END DO
+         DO jk = 2, jpk
+            e3w_1d_in(jk) = gdept_1d_in(jk) - gdept_1d_in(jk-1)
+         END DO
+         e3w_1d_in(1  ) = 2._wp * (gdept_1d_in(1) - gdepw_1d_in(1))
+
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )   
+            gdept_in(ji,jj,jk) = 0.5_wp * ( gdepw_in(ji,jj,jk) +  gdepw_in(ji,jj,jk+1) )
+         END_3D
+         e3w_in(:,:,1) = e3t_in(:,:,1)
+         e3uw_in(:,:,1) = e3u_in(:,:,1)
+         e3vw_in(:,:,1) = e3v_in(:,:,1)
+         DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 2, jpk )   
+            e3w_in(ji,jj,jk) = 0.5_wp * (e3t_in(ji,jj,jk)+e3t_in(ji,jj,jk-1))
+            e3uw_in(ji,jj,jk) = 0.5_wp * (e3u_in(ji,jj,jk)+e3u_in(ji,jj,jk-1))
+            e3vw_in(ji,jj,jk) = 0.5_wp * (e3v_in(ji,jj,jk)+e3v_in(ji,jj,jk-1))
+         END_3D
+      ENDIF
       !
       ! Creating the local coordinate system within the global input vertical grid
       ! ---------------------------------------------------------------------------
@@ -208,6 +233,11 @@ CONTAINS
       CALL iom_get( inum, jpdom_data, 's2z_msk', l2g_msk)
       CALL iom_get( inum, jpdom_data, 's2z_wgt', l2g_wgt)
  
+      ! The interpolation routine DOM/dtatsd.F90 assumes that when using ln_sco
+      ! the initial T/S data are defined on the e3t_1d/e3w_1d grid   
+      e3t_1d(:) = e3t_1d_in(:)
+      e3w_1d(:) = e3w_1d_in(:)
+
       DO jj = 1,jpj
          DO ji = 1,jpi
             SELECT CASE (INT(l2g_msk(ji,jj)))
