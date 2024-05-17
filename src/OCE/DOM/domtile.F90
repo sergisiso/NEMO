@@ -12,7 +12,7 @@ MODULE domtile
    USE dom_oce        ! ocean space and time domain
    !
    USE prtctl         ! Print control (prt_ctl_info routine)
-   USE lib_mpp , ONLY : ctl_stop, ctl_warn
+   USE lib_mpp , ONLY : ctl_stop, ctl_warn, mpp_min
    USE domutl  , ONLY : arr_hls
    USE in_out_manager ! I/O manager
    USE timing
@@ -72,7 +72,8 @@ CONTAINS
       !!              - l_istiled      : whether tiling is currently active or not
       !!----------------------------------------------------------------------
       INTEGER ::   jt                                     ! dummy loop argument
-      INTEGER ::   iitile, ijtile                         ! Local integers
+      INTEGER ::   iitile, ijtile, iijtile                ! Local integers
+      LOGICAL ::   ltile                                  ! Value of ln_tile after checks
       !!----------------------------------------------------------------------
       ntile = 0                     ! Initialise to full domain
       nijtile = 1
@@ -81,14 +82,27 @@ CONTAINS
       ntei = Nie0
       ntej = Nje0
       l_istiled = .FALSE.
+      ltile = ln_tile
 
-      IF( ln_tile ) THEN            ! Calculate tile domain indices
-         iitile = Ni_0 / nn_ltile_i       ! Number of tiles
+      IF( ln_tile ) THEN            ! Calculate number of tiles
+         iitile = Ni_0 / nn_ltile_i
          ijtile = Nj_0 / nn_ltile_j
          IF( MOD( Ni_0, nn_ltile_i ) /= 0 ) iitile = iitile + 1
          IF( MOD( Nj_0, nn_ltile_j ) /= 0 ) ijtile = ijtile + 1
 
-         nijtile = iitile * ijtile
+         ! If any process has only one tile, we must disable tiling globally to avoid errors with blocking MPI
+         ! communications within "IF( ntile == nijtile )" type statements. These will be executed on processes with
+         ! only one tile before processes with multiple tiles, leading to incorrect pairing of MPI send/receive calls
+         iijtile = iitile * ijtile
+         CALL mpp_min( 'domtile', iijtile )
+         IF( iijtile == 1 ) THEN
+            ln_tile = .FALSE.
+         ELSE
+            nijtile = iitile * ijtile
+         ENDIF
+      ENDIF
+
+      IF( ln_tile ) THEN            ! Calculate tile domain indices
          ALLOCATE( ntsi_a(0:nijtile), ntsj_a(0:nijtile), ntei_a(0:nijtile), ntej_a(0:nijtile) )
 
          ntsi_a(0) = Nis0                 ! Full domain
@@ -109,18 +123,24 @@ CONTAINS
          WRITE(numout,*) 'dom_tile : Domain tiling decomposition'
          WRITE(numout,*) '~~~~~~~~'
          IF( ln_tile ) THEN
-            WRITE(numout,*) iitile, 'tiles in i'
-            WRITE(numout,*) '    Starting indices'
-            WRITE(numout,*) '        ', (ntsi_a(jt), jt=1, iitile)
-            WRITE(numout,*) '    Ending indices'
-            WRITE(numout,*) '        ', (ntei_a(jt), jt=1, iitile)
-            WRITE(numout,*) ijtile, 'tiles in j'
-            WRITE(numout,*) '    Starting indices'
-            WRITE(numout,*) '        ', (ntsj_a(jt), jt=1, nijtile, iitile)
-            WRITE(numout,*) '    Ending indices'
-            WRITE(numout,*) '        ', (ntej_a(jt), jt=1, nijtile, iitile)
+            WRITE(numout,*) 'The domain will be decomposed into tiles of size', nn_ltile_i, 'x', nn_ltile_j
+            WRITE(numout,*) '    ', iitile, 'tiles in i'
+            WRITE(numout,*) '        Starting indices'
+            WRITE(numout,*) '            ', (ntsi_a(jt), jt=1, iitile)
+            WRITE(numout,*) '        Ending indices'
+            WRITE(numout,*) '            ', (ntei_a(jt), jt=1, iitile)
+            WRITE(numout,*) '    ', ijtile, 'tiles in j'
+            WRITE(numout,*) '        Starting indices'
+            WRITE(numout,*) '            ', (ntsj_a(jt), jt=1, nijtile, iitile)
+            WRITE(numout,*) '        Ending indices'
+            WRITE(numout,*) '            ', (ntej_a(jt), jt=1, nijtile, iitile)
          ELSE
-            WRITE(numout,*) 'No domain tiling'
+            IF( ltile ) THEN
+               WRITE(numout,*) 'The chosen tile sizes', nn_ltile_i, 'x', nn_ltile_j, &
+                  &            'result in a single tile for at least one MPI domain- domain tiling will not be used'
+            ELSE
+               WRITE(numout,*) 'No domain tiling'
+            ENDIF
             WRITE(numout,*) '    i indices =', ntsi, ':', ntei
             WRITE(numout,*) '    j indices =', ntsj, ':', ntej
          ENDIF

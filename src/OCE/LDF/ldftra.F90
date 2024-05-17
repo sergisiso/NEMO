@@ -21,6 +21,7 @@ MODULE ldftra
    !!----------------------------------------------------------------------
    USE oce             ! ocean dynamics and tracers
    USE dom_oce         ! ocean space and time domain
+   USE domutl, ONLY : lbnd_ij
    USE phycst          ! physical constants
    USE ldfslp          ! lateral diffusion: slope of iso-neutral surfaces
    USE ldfc1d_c2d      ! lateral diffusion: 1D & 2D cases
@@ -806,7 +807,20 @@ CONTAINS
     END SUBROUTINE ldf_eiv_trp_MLF
 
     
-    SUBROUTINE ldf_eiv_trp_RK3( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
+   SUBROUTINE ldf_eiv_trp_RK3( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
+      !!
+      INTEGER                             , INTENT(in   ) :: kt        ! ocean time-step index
+      INTEGER                             , INTENT(in   ) :: kit000    ! first time step index
+      INTEGER                             , INTENT(in   ) :: Kmm, Krhs ! ocean time level indices
+      REAL(wp), DIMENSION(:,:,:)          , INTENT(inout) ::   pFu     ! in : 3 ocean transport components
+      REAL(wp), DIMENSION(:,:,:)          , INTENT(inout) ::   pFv     ! out: same 3  transport components
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFw     !   increased by the eiv induced transport
+      !!
+      CALL ldf_eiv_trp_RK3_t( kt, kit000, pFu, pFv, lbnd_ij(pFu), pFw, Kmm, Krhs )
+   END SUBROUTINE ldf_eiv_trp_RK3
+
+
+    SUBROUTINE ldf_eiv_trp_RK3_t( kt, kit000, pFu, pFv, ktFuv, pFw, Kmm, Krhs )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE ldf_eiv_trp  ***
       !!
@@ -824,12 +838,13 @@ CONTAINS
       !!
       !! ** Action  : pu, pv increased by the eiv transport
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)              , INTENT(in   ) :: ktFuv
       INTEGER                             , INTENT(in   ) :: kt        ! ocean time-step index
       INTEGER                             , INTENT(in   ) :: kit000    ! first time step index
       INTEGER                             , INTENT(in   ) :: Kmm, Krhs ! ocean time level indices
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFu     ! in : 3 ocean transport components
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFv     ! out: same 3  transport components
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFw     !   increased by the eiv induced transport
+      REAL(wp), DIMENSION(AB2D(ktFuv),JPK), INTENT(inout) :: pFu       ! in : 3 ocean transport components
+      REAL(wp), DIMENSION(AB2D(ktFuv),JPK), INTENT(inout) :: pFv       ! out: same 3  transport components
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) :: pFw       !   increased by the eiv induced transport
       !!
       INTEGER  ::   ji, jj, jk                 ! dummy loop indices
       REAL(wp) ::   zuwk, zuwk1, zuwi, zuwi1   ! local scalars
@@ -838,7 +853,7 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrpu, ztrpv
       !!----------------------------------------------------------------------
       !
-      IF( ln_ldfeiv_dia ) THEN
+      IF( l_ldfeiv_dia ) THEN
          ALLOCATE( ztrpu(T2D(nn_hls),jpk), ztrpv(T2D(nn_hls),jpk) )
          ztrpu(:,:,jpk) = 0._wp ; ztrpv(:,:,jpk) = 0._wp
       ENDIF
@@ -871,7 +886,7 @@ CONTAINS
             pFv(ji,jj,jk) = pFv(ji,jj,jk) - ( zpsi_vw(ji,jj,1) - zpsi_vw(ji,jj,2) )
          END_2D
          !
-         IF( ln_ldfeiv_dia ) THEN
+         IF( l_ldfeiv_dia ) THEN
             DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
                ztrpu(ji,jj,jk) = zpsi_uw(ji,jj,1)
                ztrpv(ji,jj,jk) = zpsi_vw(ji,jj,1)
@@ -885,7 +900,7 @@ CONTAINS
          DEALLOCATE( ztrpu, ztrpv )
       ENDIF
       !
-   END SUBROUTINE ldf_eiv_trp_RK3
+   END SUBROUTINE ldf_eiv_trp_RK3_t
 
 
    SUBROUTINE ldf_eiv_dia( psi_uw, psi_vw, Kmm )

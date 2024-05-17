@@ -251,93 +251,99 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt         ! ocean time-step index
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs   ! ocean time level indices
       !
-      INTEGER ::   ji, jj, jk   ! dummy loop indice
+      INTEGER ::   ji, jj, jk, jtile   ! dummy loop indice
       !! ---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('zdf_phy')
       !
       IF( l_zdfsh2 ) THEN        !* shear production at w-points (energy conserving form)
-         IF( .NOT. l_istiled .OR. ntile == 1 ) THEN                       ! Do only for the full domain
-            IF( ln_tile ) CALL dom_tile_stop( ldhold=.TRUE. )             ! Use full domain
-            ALLOCATE( sh2(A2D(0),jpk) )
-            CALL zdf_sh2( Kbb, Kmm, avm_k,   &     ! <<== in
-               &                      sh2    )     ! ==>> out : shear production
-            IF( ln_tile ) CALL dom_tile_start( ldhold=.TRUE. )            ! Revert to tile domain
-         ENDIF
+         ALLOCATE( sh2(A2D(0),jpk) )
+         CALL zdf_sh2( Kbb, Kmm, avm_k,   &     ! <<== in
+            &                      sh2    )     ! ==>> out : shear production
       ENDIF
-      !
-      ! Update top/bottom drag
-                                         CALL zdf_drg( kt, Kmm, 'BOTTOM' )  ! bottom drag
-      IF( ln_isfcav .OR. ln_drgice_imp ) CALL zdf_drg( kt, Kmm, 'TOP'    )  ! top drag (ocean cavities)
-      !
-      CALL zdf_mxl( kt, Kmm )                        !* mixed layer depth, and level
-      !
-      !                       !==  Kz from chosen turbulent closure  ==!   (avm_k, avt_k)
-      !
-      SELECT CASE ( nzdf_phy )                  !* Vertical eddy viscosity and diffusivity coefficients at w-points
-      CASE( np_RIC )   ;   CALL zdf_ric( kt, Kbb, Kmm, avm_k, avt_k )    ! Richardson number dependent Kz
-      CASE( np_TKE )   ;   CALL zdf_tke( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! TKE closure scheme for Kz
-      CASE( np_GLS )   ;   CALL zdf_gls( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! GLS closure scheme for Kz
-      CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )    ! OSMOSIS closure scheme for Kz
-         !                                                                     ! clem: osmosis currently cannot work because
-         !                                                                             it uses qns and qsr that are only defined in the interior (A2D(0))
-         !                                                                             we should do calculations in the interior and put a lbc_lnk at the end
-   !     CASE( np_CST )                                  ! Constant Kz (reset avt, avm to the background value)
-   !         ! avt_k and avm_k set one for all at initialisation phase
-!!gm         avt(2:jpim1,2:jpjm1,1:jpkm1) = rn_avt0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
-!!gm         avm(2:jpim1,2:jpjm1,1:jpkm1) = rn_avm0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
-      END SELECT
+
+      IF( ln_tile ) CALL dom_tile_start         ! [tiling] ZDF tiling loop
+      DO jtile = 1, nijtile
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+         !
+         ! Update top/bottom drag
+                                            CALL zdf_drg( kt, Kmm, 'BOTTOM' )  ! bottom drag
+         IF( ln_isfcav .OR. ln_drgice_imp ) CALL zdf_drg( kt, Kmm, 'TOP'    )  ! top drag (ocean cavities)
+         !
+         CALL zdf_mxl( kt, Kmm )                        !* mixed layer depth, and level
+         !
+         !                       !==  Kz from chosen turbulent closure  ==!   (avm_k, avt_k)
+         !
+         SELECT CASE ( nzdf_phy )                  !* Vertical eddy viscosity and diffusivity coefficients at w-points
+            CASE( np_RIC )   ;   CALL zdf_ric( kt, Kbb, Kmm, avm_k, avt_k )    ! Richardson number dependent Kz
+            CASE( np_TKE )   ;   CALL zdf_tke( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! TKE closure scheme for Kz
+            CASE( np_GLS )   ;   CALL zdf_gls( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! GLS closure scheme for Kz
+            CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )    ! OSMOSIS closure scheme for Kz
+            !                                                                     ! clem: osmosis currently cannot work because
+            !                                                                             it uses qns and qsr that are only defined in the interior (A2D(0))
+            !                                                                             we should do calculations in the interior and put a lbc_lnk at the end
+      !     CASE( np_CST )                                  ! Constant Kz (reset avt, avm to the background value)
+      !         ! avt_k and avm_k set one for all at initialisation phase
+!!gm            avt(2:jpim1,2:jpjm1,1:jpkm1) = rn_avt0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
+!!gm            avm(2:jpim1,2:jpjm1,1:jpkm1) = rn_avm0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
+         END SELECT
+         !
+#if defined key_agrif
+      END DO
+      IF( ln_tile ) CALL dom_tile_stop
       !
       !                          !==  ocean Kz  ==!   (avt, avs, avm)
-#if defined key_agrif
+      !
       ! interpolation parent grid => child grid for avm_k ( ex : at west border: update column 1 and 2)
-      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
-         IF( l_zdfsh2 )   CALL Agrif_avm
-      ENDIF
-#endif
-      !
-      !                                         !* start from turbulent closure values
-      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
-         avt(ji,jj,jk) = avt_k(ji,jj,jk)
-         avm(ji,jj,jk) = avm_k(ji,jj,jk)
-      END_3D
-      !
-      IF( ln_rnf_mouth ) THEN                   !* increase diffusivity at rivers mouths
-         DO_3D( 0, 0, 0, 0, 2, nkrnf )
-            avt(ji,jj,jk) = avt(ji,jj,jk) + 2._wp * rn_avt_rnf * rnfmsk(ji,jj) * wmask(ji,jj,jk)
-         END_3D
-      ENDIF
-      !
-      IF( ln_zdfevd )   CALL zdf_evd( kt, Kmm, Krhs, avm, avt )  !* convection: enhanced vertical eddy diffusivity
-      !
-      !                                         !* double diffusive mixing
-      IF( ln_zdfddm ) THEN                            ! update avt and compute avs
-                        CALL zdf_ddm( kt, Kmm,  avm, avt, avs )
-      ELSE                                            ! same mixing on all tracers
-         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-            avs(ji,jj,jk) = avt(ji,jj,jk)
-         END_3D
-      ENDIF
-      !
-      !                                         !* wave-induced mixing
-      IF( ln_zdfswm )   CALL zdf_swm( kt, Kmm, avm, avt, avs )   ! surface  wave (Qiao et al. 2004)
-      IF( ln_zdfiwm )   CALL zdf_iwm( kt, Kmm, avm, avt, avs )   ! internal wave (de Lavergne et al 2017)
+      IF( l_zdfsh2 .AND. .NOT. Agrif_Root() )   CALL Agrif_avm
 
+      IF( ln_tile ) CALL dom_tile_start         ! [tiling] ZDF tiling loop (continued)
+      DO jtile = 1, nijtile
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+#else
+         !                          !==  ocean Kz  ==!   (avt, avs, avm)
+#endif
+         !
+         !                                         !* start from turbulent closure values
+         DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+            avt(ji,jj,jk) = avt_k(ji,jj,jk)
+            avm(ji,jj,jk) = avm_k(ji,jj,jk)
+         END_3D
+         !
+         IF( ln_rnf_mouth ) THEN                   !* increase diffusivity at rivers mouths
+            DO_3D( 0, 0, 0, 0, 2, nkrnf )
+               avt(ji,jj,jk) = avt(ji,jj,jk) + 2._wp * rn_avt_rnf * rnfmsk(ji,jj) * wmask(ji,jj,jk)
+            END_3D
+         ENDIF
+         !
+         IF( ln_zdfevd )   CALL zdf_evd( kt, Kmm, Krhs, avm, avt )  !* convection: enhanced vertical eddy diffusivity
+         !
+         !                                         !* double diffusive mixing
+         IF( ln_zdfddm ) THEN                            ! update avt and compute avs
+                           CALL zdf_ddm( kt, Kmm,  avm, avt, avs )
+         ELSE                                            ! same mixing on all tracers
+            DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+               avs(ji,jj,jk) = avt(ji,jj,jk)
+            END_3D
+         ENDIF
+         !
+         !                                         !* wave-induced mixing
+         IF( ln_zdfswm )   CALL zdf_swm( kt, Kmm, avm, avt, avs )   ! surface  wave (Qiao et al. 2004)
+         IF( ln_zdfiwm )   CALL zdf_iwm( kt, Kmm, avm, avt, avs )   ! internal wave (de Lavergne et al 2017)
+         !
+         CALL zdf_mxl_turb( kt, Kmm )                   !* turbocline depth
+      END DO
+      IF( ln_tile ) CALL dom_tile_stop
+      !
       !                                         !* Lateral boundary conditions (sign unchanged)
       ! Subroutines requiring halo points: zdf_sh2 (avm_k), dyn_zdf (avm)
-      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN
-         CALL lbc_lnk( 'zdfphy', avm, 'W', 1.0_wp )
-      ENDIF
-      !
-      CALL zdf_mxl_turb( kt, Kmm )                   !* turbocline depth
-      !
-      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
-         IF( lrst_oce ) THEN                       !* write TKE, GLS or RIC fields in the restart file
-            IF( ln_zdftke )   CALL tke_rst( kt, 'WRITE' )
-            IF( ln_zdfgls )   CALL gls_rst( kt, 'WRITE' )
-            IF( ln_zdfric )   CALL ric_rst( kt, 'WRITE' )
-            ! NB. OSMOSIS restart (osm_rst) will be called in step.F90 after ww has been updated
-         ENDIF
+      CALL lbc_lnk( 'zdfphy', avm, 'W', 1.0_wp )
+
+      IF( lrst_oce ) THEN                       !* write TKE, GLS or RIC fields in the restart file
+         IF( ln_zdftke )   CALL tke_rst( kt, 'WRITE' )
+         IF( ln_zdfgls )   CALL gls_rst( kt, 'WRITE' )
+         IF( ln_zdfric )   CALL ric_rst( kt, 'WRITE' )
+         ! NB. OSMOSIS restart (osm_rst) will be called in step.F90 after ww has been updated
       ENDIF
       !
       ! diagnostics of energy dissipation
@@ -347,13 +353,11 @@ CONTAINS
                sh2(ji,jj,jk) = sh2(ji,jj,jk) * wmask(ji,jj,jk)
             END_3D
          ENDIF
-         IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
-            IF( iom_use('avt_k'   ) ) CALL iom_put( 'avt_k'   ,   avt_k                 * wmask(A2D(0),:) )
-            IF( iom_use('avm_k'   ) ) CALL iom_put( 'avm_k'   ,   avm_k(A2D(0),:)       * wmask(A2D(0),:) )
-            IF( iom_use('estrat_k') ) CALL iom_put( 'estrat_k', - avt_k * rn2(A2D(0),:) * wmask(A2D(0),:) )
-            IF( iom_use('eshear_k') ) CALL iom_put( 'eshear_k',   sh2                                     )
-            DEALLOCATE( sh2 )
-         ENDIF
+         IF( iom_use('avt_k'   ) ) CALL iom_put( 'avt_k'   ,   avt_k                 * wmask(A2D(0),:) )
+         IF( iom_use('avm_k'   ) ) CALL iom_put( 'avm_k'   ,   avm_k(A2D(0),:)       * wmask(A2D(0),:) )
+         IF( iom_use('estrat_k') ) CALL iom_put( 'estrat_k', - avt_k * rn2(A2D(0),:) * wmask(A2D(0),:) )
+         IF( iom_use('eshear_k') ) CALL iom_put( 'eshear_k',   sh2                                     )
+         DEALLOCATE( sh2 )
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('zdf_phy')

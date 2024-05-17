@@ -614,7 +614,7 @@ if [ ${config} == "AMM12" ] ;  then
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
 	# Disable tiling with RK3 pending further work
-        if [ ${USING_RK3} == "no" ]; then set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
         set_xio_using_server iodef.xml ${USING_MPMD}
         NPROC=32
 
@@ -1023,16 +1023,16 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
         set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-        if [ ${USING_RK3} == "no" ] ; then set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
         set_namelist_opt 1_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt 1_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-        if [ ${USING_RK3} == "no" ] ; then set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
+        set_namelist_opt 1_namelist_cfg ln_tile ${USING_TILING} .true. .false.
         set_namelist_opt 2_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt 2_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-        if [ ${USING_RK3} == "no" ] ; then set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
+        set_namelist_opt 2_namelist_cfg ln_tile ${USING_TILING} .true. .false.
         set_namelist_opt 3_namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt 3_namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-        if [ ${USING_RK3} == "no" ] ; then set_namelist_opt 3_namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
+        set_namelist_opt 3_namelist_cfg ln_tile ${USING_TILING} .true. .false.
         set_xio_using_server iodef.xml ${USING_MPMD}
         NPROC=16
 
@@ -1173,7 +1173,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
             set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
             set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
             set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
-            if [ ${USING_RK3} == "no" ] ; then set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false. ; fi
+            set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
             set_xio_using_server iodef.xml ${USING_MPMD}
             cd ${SETTE_DIR}
             . ./prepare_exe_dir.sh

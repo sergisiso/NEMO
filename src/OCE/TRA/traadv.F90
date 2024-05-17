@@ -21,6 +21,7 @@ MODULE traadv
    USE dom_oce        ! ocean space and time domain
    ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
    USE domtile
+   USE domutl, ONLY : lbnd_ij
    USE sbcwave        ! wave module
    USE sbc_oce        ! surface boundary condition: ocean
    USE traadv_cen     ! centered scheme            (tra_adv_cen  routine)
@@ -95,6 +96,18 @@ CONTAINS
    !!----------------------------------------------------------------------
 
    SUBROUTINE tra_adv_trp( kt, kstg, kit000, Kbb, Kmm, Kaa, Krhs, pFu, pFv, pFw )
+      !!
+      INTEGER                         , INTENT(in   ) ::   kt                  ! ocean time-step index
+      INTEGER                         , INTENT(in   ) ::   kstg, kit000        ! RK3 stage and init index
+      INTEGER                         , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
+      REAL(wp), DIMENSION(:,:,:)      , INTENT(inout) ::   pFu, pFv            ! advective transport
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pFw                 !
+      !!
+      CALL tra_adv_trp_t( kt, kstg, kit000, Kbb, Kmm, Kaa, Krhs, pFu, pFv, lbnd_ij(pFu), pFw )
+   END SUBROUTINE tra_adv_trp
+
+
+   SUBROUTINE tra_adv_trp_t( kt, kstg, kit000, Kbb, Kmm, Kaa, Krhs, pFu, pFv, ktFuv, pFw )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_trp  ***
       !!
@@ -102,10 +115,12 @@ CONTAINS
       !!
       !! ** Method  : - Update pFu/v/w with stoke drift or eiv or mle
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)                      , INTENT(in   ) ::   ktFuv
       INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
       INTEGER                                     , INTENT(in   ) ::   kstg, kit000        ! RK3 stage and init index
       INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk)            , INTENT(inout) ::   pFu, pFv, pFw       ! advective transport
+      REAL(wp), DIMENSION(AB2D(ktFuv),JPK)        , INTENT(inout) ::   pFu, pFv            ! advective transport
+      REAL(wp), DIMENSION(jpi,jpj,jpk)            , INTENT(inout) ::   pFw                 !
       !
       INTEGER ::   ji, jj, jk        ! dummy loop index
       REAL(wp)::   z_stfp, z_2stfp   ! local scalar
@@ -208,7 +223,7 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_stop( 'tra_adv_trp' )
       !
-   END SUBROUTINE tra_adv_trp
+   END SUBROUTINE tra_adv_trp_t
 #else
    !!---------------------------------------------------------------------------------
    !!   MLF option                                                    Empty routine

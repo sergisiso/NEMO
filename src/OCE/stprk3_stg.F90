@@ -82,8 +82,8 @@ CONTAINS
       INTEGER  ::   ji, jj, jk, jn, jtile    ! dummy loop indices
       REAL(wp) ::   ze3Tb, ze3Tr, z1_e3t     ! local scalars
       REAL(wp) ::   ze3Sb, ze3Sr             !   -      -
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:)         ::   zub, zvb        ! barotropic velocity correction at Kmm
-      REAL(wp),              DIMENSION(jpi,jpj,jpk) ::   zFu, zFv, zFw   ! advective transport
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zub, zvb        ! barotropic velocity correction at Kmm
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zFu, zFv, zFw   ! advective transport
       !! ---------------------------------------------------------------------
 
       IF( ln_timing )   CALL timing_start('stp_RK3_stg')
@@ -93,7 +93,9 @@ CONTAINS
          IF(lwp) WRITE(numout,*) 'stp_RK3_stg : Runge Kutta 3rd order at stage ', kstg
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
       ENDIF
-
+      !
+      ALLOCATE( zFu(jpi,jpj,jpk), zFv(jpi,jpj,jpk), zFw(jpi,jpj,jpk) )
+      !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !>>>             Set ∆t and external mode fields at Kaa              <<<
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -343,9 +345,14 @@ CONTAINS
          IF( kstg == 3 )   CALL Agrif_Sponge_dyn
       ENDIF
 
-      IF( ln_tile )   CALL dom_tile_start                               ! [tiling] DYN tiling loop (2, continued)
+      ! [TILING OVERLAP] wi is updated in tra_adv_trp on halo points and read in dyn_zdf
+      IF( ln_tile .AND. kstg == 3 .AND. ln_zad_Aimp .AND. .NOT. ln_shuman ) CALL dom_tile_copyin( 'wi', wi )
+      ! [TILING OVERLAP] zF[uv] are updated in place on halo points in tra_adv_trp
+      IF( ln_tile .AND. .NOT. ln_shuman ) CALL dom_tile_copyin( 'zFu', zFu, 'zFv', zFv )
+      IF( ln_tile ) CALL dom_tile_start                               ! [tiling] DYN tiling loop (2, continued)
       DO jtile = 1, nijtile
-         IF( ln_tile )   CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+         IF( ln_tile .AND. kstg == 3 .AND. ln_zad_Aimp .AND. .NOT. ln_shuman ) CALL dom_tile_copyin( 'wi', wi )
 # endif
          !                     !*  DYN time integration + ZDF  *!   ∆t = rDt
          !
@@ -373,6 +380,10 @@ CONTAINS
          !
          IF( .NOT.ln_shuman ) THEN             ! No Shuman averaging- tra_adv_trp can be in tiling loop
             !                                  !      clem: check why we cannot use this statement: IF( .NOT.ln_shuman .OR. ( ln_shuman .AND. kstg /= 3 ) )
+            !
+#if defined key_agrif
+            IF( ln_tile ) CALL dom_tile_copyin( 'zFu', zFu, 'zFv', zFv )
+#endif
             !                        !* Update or Compute (VIF) advective transport
             CALL tra_adv_trp( kstp, kstg, nit000, Kbb, Kmm, Kaa, Krhs, zFu, zFv, zFw )
             !
@@ -381,11 +392,19 @@ CONTAINS
             !                                            ! the BBL (stage 3 only, requires uu, vv, gdept at Kmm)
             IF( kstg == 3 .AND. ln_trabbl )   CALL bbl( kstp, nit000, Kbb, Kmm )
             !
+#if defined key_agrif
+            IF( ln_tile ) CALL dom_tile_copyout( 'zFu', zFu, 'zFv', zFv )
+            IF( ln_tile .AND. kstg == 3 .AND. ln_zad_Aimp ) CALL dom_tile_copyout( 'wi', wi )
+#endif
          ENDIF
          !
       END DO
       !
-      IF( ln_tile )   CALL dom_tile_stop
+      IF( ln_tile ) CALL dom_tile_stop
+#if defined key_agrif
+      IF( ln_tile .AND. .NOT. ln_shuman ) CALL dom_tile_copyout( 'zFu', zFu, 'zFv', zFv )
+      IF( ln_tile .AND. kstg == 3 .AND. ln_zad_Aimp .AND. .NOT. ln_shuman ) CALL dom_tile_copyout( 'wi', wi )
+#endif
       !
       IF( ln_shuman ) THEN                     ! Shuman averaging- tra_adv_trp not in tiling loop due to lbc_lnk
          !                                     !   clem: check why we cannot use this statement: IF( ln_shuman .AND. kstg == 3 )
@@ -550,6 +569,8 @@ CONTAINS
             IF( ln_dynspg_ts  )   CALL bdy_dyn( kstp, Kbb, uu, vv, Kaa, dyn3d_only=.TRUE. )
          ENDIF
       ENDIF
+      !
+      DEALLOCATE( zFu, zFv, zFw )
       !
       IF( ln_timing )   CALL timing_stop('stp_RK3_stg')
       !

@@ -291,7 +291,7 @@ CONTAINS
          !
          !        !==  monotonicity algorithm  ==!
          !
-         IF( ll_zAimp2 ) THEN
+         IF( ln_zad_Aimp .AND. kn_fct_imp == 2 ) THEN
             CALL lbc_lnk( 'traadv_fct', ztFu, 'U', -1.0_wp, ztFv, 'V', -1.0_wp, ztFw, 'T', 1.0_wp, zta_up1, 'T', 1.0_wp )
          ELSE
             CALL lbc_lnk( 'traadv_fct', ztFu, 'U', -1.0_wp, ztFv, 'V', -1.0_wp, zta_up1, 'T', 1.0_wp )

@@ -12,6 +12,7 @@ MODULE tramle
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers variables
    USE dom_oce        ! ocean space and time domain variables
+   USE domutl, ONLY : lbnd_ij
    USE phycst         ! physical constant
    USE zdfmxl         ! mixed layer depth
    !
@@ -65,7 +66,19 @@ MODULE tramle
    !!----------------------------------------------------------------------
 CONTAINS
 
-  SUBROUTINE tra_mle_trp_RK3( kt, pFu, pFv, pFw, Kmm )
+   SUBROUTINE tra_mle_trp_RK3( kt, pFu, pFv, pFw, Kmm )
+      !!
+      INTEGER                             , INTENT(in   ) ::   kt         ! ocean time-step index
+      INTEGER                             , INTENT(in   ) ::   Kmm        ! ocean time level index
+      REAL(wp), DIMENSION(:,:,:)          , INTENT(inout) ::   pFu        ! in : 3 ocean transport components
+      REAL(wp), DIMENSION(:,:,:)          , INTENT(inout) ::   pFv        ! out: same 3  transport components
+      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFw        !   increased by the MLE induced transport
+      !!
+      CALL tra_mle_trp_RK3_t( kt, pFu, pFv, lbnd_ij(pFu), pFw, Kmm )
+   END SUBROUTINE tra_mle_trp_RK3
+
+
+  SUBROUTINE tra_mle_trp_RK3_t( kt, pFu, pFv, ktFuv, pFw, Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_mle_trp  ***
       !!
@@ -87,10 +100,11 @@ CONTAINS
       !! References: Fox-Kemper et al., JPO, 38, 1145-1165, 2008
       !!             Fox-Kemper and Ferrari, JPO, 38, 1166-1179, 2008
       !!----------------------------------------------------------------------
+      INTEGER,  DIMENSION(2)              , INTENT(in   ) ::   ktFuv
       INTEGER                             , INTENT(in   ) ::   kt         ! ocean time-step index
       INTEGER                             , INTENT(in   ) ::   Kmm        ! ocean time level index
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFu        ! in : 3 ocean transport components
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFv        ! out: same 3  transport components
+      REAL(wp), DIMENSION(AB2D(ktFuv),JPK), INTENT(inout) ::   pFu        ! in : 3 ocean transport components
+      REAL(wp), DIMENSION(AB2D(ktFuv),JPK), INTENT(inout) ::   pFv        ! out: same 3  transport components
       REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFw        !   increased by the MLE induced transport
       !
       INTEGER  ::   ji, jj, jk          ! dummy loop indices
@@ -300,7 +314,7 @@ CONTAINS
       !
       CALL iom_put( "Lf_NHpf" , zLf_NH  )    ! Lf = N H / f
       !
-   END SUBROUTINE tra_mle_trp_RK3
+   END SUBROUTINE tra_mle_trp_RK3_t
 
    
    SUBROUTINE tra_mle_trp_MLF( kt, pu, pv, pw, Kmm, kit000, cdtype )
