@@ -26,6 +26,7 @@ MODULE sshwzv
    USE oce            ! ocean dynamics and tracers variables
    USE isf_oce        ! ice shelf
    USE dom_oce        ! ocean space and time domain variables
+   USE domutl, ONLY : lbnd_ij, in_hdom
    USE sbc_oce        ! surface boundary condition: ocean
    USE divhor         ! horizontal divergence
    USE phycst         ! physical constants
@@ -214,44 +215,42 @@ CONTAINS
       ENDIF
       !
 #if defined key_agrif
-      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
-         IF( .NOT. AGRIF_Root() ) THEN
+      IF( .NOT. AGRIF_Root() ) THEN
+         !
+         ! Mask vertical velocity at first/last columns/row
+         ! inside computational domain (cosmetic)
+         DO jk = 1, jpkm1
+            IF( lk_west ) THEN                             ! --- West --- !
+               DO ji = mi0(1+nn_hls,nn_hls), mi1(1+nn_hls,nn_hls)
+                  DO jj = 2, jpj-1
+                     IF( in_hdom(ji, jj, khls=1) )  pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_east ) THEN                             ! --- East --- !
+               DO ji = mi0(jpiglo-nn_hls,nn_hls), mi1(jpiglo-nn_hls,nn_hls)
+                  DO jj = 2, jpj-1
+                     IF( in_hdom(ji, jj, khls=1) )  pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_south ) THEN                            ! --- South --- !
+               DO jj = mj0(1+nn_hls,nn_hls), mj1(1+nn_hls,nn_hls)
+                  DO ji = 2, jpi-1
+                     IF( in_hdom(ji, jj, khls=1) )  pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_north ) THEN                            ! --- North --- !
+               DO jj = mj0(jpjglo-nn_hls,nn_hls), mj1(jpjglo-nn_hls,nn_hls)
+                  DO ji = 2, jpi-1
+                     IF( in_hdom(ji, jj, khls=1) )  pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
             !
-            ! Mask vertical velocity at first/last columns/row
-            ! inside computational domain (cosmetic)
-            DO jk = 1, jpkm1
-               IF( lk_west ) THEN                             ! --- West --- !
-                  DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
-                     DO jj = 1, jpj
-                        pww(ji,jj,jk) = 0._wp
-                     END DO
-                  END DO
-               ENDIF
-               IF( lk_east ) THEN                             ! --- East --- !
-                  DO ji = mi0(jpiglo-1-nn_hls,nn_hls), mi1(jpiglo-1-nn_hls,nn_hls)
-                     DO jj = 1, jpj
-                        pww(ji,jj,jk) = 0._wp
-                     END DO
-                  END DO
-               ENDIF
-               IF( lk_south ) THEN                            ! --- South --- !
-                  DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
-                     DO ji = 1, jpi
-                        pww(ji,jj,jk) = 0._wp
-                     END DO
-                  END DO
-               ENDIF
-               IF( lk_north ) THEN                            ! --- North --- !
-                  DO jj = mj0(jpjglo-1-nn_hls,nn_hls), mj1(jpjglo-1-nn_hls,nn_hls)
-                     DO ji = 1, jpi
-                        pww(ji,jj,jk) = 0._wp
-                     END DO
-                  END DO
-               ENDIF
-               !
-            END DO
-            !
-         ENDIF
+         END DO
+         !
       ENDIF
 #endif
       !
@@ -261,6 +260,18 @@ CONTAINS
 
 
    SUBROUTINE wzv_RK3( kt, Kbb, Kmm, Kaa, pu, pv, pww, k_ind )
+      !!
+      INTEGER                         , INTENT(in   ) ::   kt             ! time step
+      INTEGER                         , INTENT(in   ) ::   Kbb, Kmm, Kaa  ! time level indices
+      INTEGER , OPTIONAL              , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
+      REAL(wp), DIMENSION(:,:,:)      , INTENT(in   ) ::   pu, pv         ! horizontal velocity at Kmm
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::             pww  ! vertical velocity at Kmm
+      !!
+      CALL wzv_RK3_t( kt, Kbb, Kmm, Kaa, pu, pv, lbnd_ij(pu), pww, k_ind )
+   END SUBROUTINE wzv_RK3
+
+
+   SUBROUTINE wzv_RK3_t( kt, Kbb, Kmm, Kaa, pu, pv, ktuv, pww, k_ind )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wzv_RK3  ***
       !!
@@ -275,11 +286,12 @@ CONTAINS
       !!
       !! Reference  : Leclair, M., and G. Madec, 2009, Ocean Modelling.
       !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in   ) ::   kt             ! time step
-      INTEGER                         , INTENT(in   ) ::   Kbb, Kmm, Kaa  ! time level indices
-      INTEGER , OPTIONAL              , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pu, pv         ! horizontal velocity at Kmm
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::             pww  ! vertical velocity at Kmm
+      INTEGER,  DIMENSION(2)             , INTENT(in   ) ::   ktuv
+      INTEGER                            , INTENT(in   ) ::   kt             ! time step
+      INTEGER                            , INTENT(in   ) ::   Kbb, Kmm, Kaa  ! time level indices
+      INTEGER , OPTIONAL                 , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
+      REAL(wp), DIMENSION(AB2D(ktuv),JPK), INTENT(in   ) ::   pu, pv         ! horizontal velocity at Kmm
+      REAL(wp), DIMENSION(jpi,jpj,jpk)   , INTENT(inout) ::             pww  ! vertical velocity at Kmm
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp), DIMENSION(T2D(1),jpk) ::   ze3div
@@ -332,50 +344,48 @@ CONTAINS
       ENDIF
       !
 #if defined key_agrif
-      IF( .NOT. l_istiled .OR. ntile == nijtile ) THEN                       ! Do only on the last tile
-         IF( .NOT. AGRIF_Root() ) THEN
+      IF( .NOT. AGRIF_Root() ) THEN
+         !
+         ! Mask vertical velocity at first/last columns/row
+         ! inside computational domain (cosmetic)
+         DO jk = 1, jpkm1
+            IF( lk_west ) THEN                             ! --- West --- !
+               DO ji = mi0(1+nn_hls,nn_hls), mi1(1+nn_hls,nn_hls)
+                  DO jj = 2, jpj-1
+                     IF( in_hdom(ji, jj, khls=1) ) pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_east ) THEN                             ! --- East --- !
+               DO ji = mi0(jpiglo-nn_hls,nn_hls), mi1(jpiglo-nn_hls,nn_hls)
+                  DO jj = 2, jpj-1
+                     IF( in_hdom(ji, jj, khls=1) ) pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_south ) THEN                            ! --- South --- !
+               DO jj = mj0(1+nn_hls,nn_hls), mj1(1+nn_hls,nn_hls)
+                  DO ji = 2, jpi-1
+                     IF( in_hdom(ji, jj, khls=1) ) pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
+            IF( lk_north ) THEN                            ! --- North --- !
+               DO jj = mj0(jpjglo-nn_hls,nn_hls), mj1(jpjglo-nn_hls,nn_hls)
+                  DO ji = 2, jpi-1
+                     IF( in_hdom(ji, jj, khls=1) ) pww(ji,jj,jk) = 0._wp
+                  END DO
+               END DO
+            ENDIF
             !
-            ! Mask vertical velocity at first/last columns/row
-            ! inside computational domain (cosmetic)
-            DO jk = 1, jpkm1
-               IF( lk_west ) THEN                             ! --- West --- !
-                  DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
-                     DO jj = 1, jpj
-                        pww(ji,jj,jk) = 0._wp
-                     END DO
-                  END DO
-               ENDIF
-               IF( lk_east ) THEN                             ! --- East --- !
-                  DO ji = mi0(jpiglo-1-nn_hls,nn_hls), mi1(jpiglo-1-nn_hls,nn_hls)
-                     DO jj = 1, jpj
-                        pww(ji,jj,jk) = 0._wp
-                     END DO
-                  END DO
-               ENDIF
-               IF( lk_south ) THEN                            ! --- South --- !
-                  DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
-                     DO ji = 1, jpi
-                        pww(ji,jj,jk) = 0._wp
-                     END DO
-                  END DO
-               ENDIF
-               IF( lk_north ) THEN                            ! --- North --- !
-                  DO jj = mj0(jpjglo-1-nn_hls,nn_hls), mj1(jpjglo-1-nn_hls,nn_hls)
-                     DO ji = 1, jpi
-                        pww(ji,jj,jk) = 0._wp
-                     END DO
-                  END DO
-               ENDIF
-               !
-            END DO
-            !
-         ENDIF
+         END DO
+         !
       ENDIF
 #endif
       !
       IF( ln_timing )   CALL timing_stop('wzv_RK3')
       !
-   END SUBROUTINE wzv_RK3
+   END SUBROUTINE wzv_RK3_t
 
 
    SUBROUTINE ssh_atf( kt, Kbb, Kmm, Kaa, pssh )
@@ -684,6 +694,19 @@ CONTAINS
 
    
    SUBROUTINE wAimp_RK3( kt, Kmm, puu, pvv, pww, pwi, k_ind )
+      !!
+      INTEGER                         , INTENT(in   ) ::   kt             ! time step
+      INTEGER                         , INTENT(in   ) ::   Kmm            ! time level index
+      INTEGER                         , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
+      REAL(wp), DIMENSION(:,:,:)      , INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
+      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
+      REAL(wp), DIMENSION(:,:,:)      , INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
+      !!
+      CALL wAimp_RK3_t( kt, Kmm, puu, pvv, lbnd_ij(puu), pww, pwi, lbnd_ij(pwi), k_ind )
+   END SUBROUTINE wAimp_RK3
+
+
+   SUBROUTINE wAimp_RK3_t( kt, Kmm, puu, pvv, ktuv, pww, pwi, ktwi, k_ind )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wAimp  ***
       !!
@@ -704,12 +727,13 @@ CONTAINS
       !!              Monthly Weather Review, 148:9, 3893-S3910.
       !!              https://doi.org/10.1175/MWR-D-20-0055.1
       !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in   ) ::   kt             ! time step
-      INTEGER                         , INTENT(in   ) ::   Kmm            ! time level index
-      INTEGER                         , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
+      INTEGER,  DIMENSION(2)             , INTENT(in   ) ::   ktuv, ktwi
+      INTEGER                            , INTENT(in   ) ::   kt             ! time step
+      INTEGER                            , INTENT(in   ) ::   Kmm            ! time level index
+      INTEGER                            , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
+      REAL(wp), DIMENSION(AB2D(ktuv),JPK), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
+      REAL(wp), DIMENSION(jpi,jpj,jpk)   , INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
+      REAL(wp), DIMENSION(AB2D(ktwi),JPK), INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
 !!st      INTEGER, INTENT(in) ::   kstage                                     !  RK3 stage indictor
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
@@ -846,6 +870,6 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_stop('wAimp')
       !
-   END SUBROUTINE wAimp_RK3
+   END SUBROUTINE wAimp_RK3_t
    !!======================================================================
 END MODULE sshwzv

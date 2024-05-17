@@ -20,6 +20,7 @@ MODULE divhor
    !!----------------------------------------------------------------------
    USE oce             ! ocean dynamics and tracers
    USE dom_oce         ! ocean space and time domain
+   USE domutl, ONLY : lbnd_ij
    USE sbc_oce, ONLY : ln_rnf      ! river runoff
    USE sbcrnf , ONLY : sbc_rnf_div ! river runoff 
    USE isf_oce, ONLY : ln_isf      ! ice shelf
@@ -56,6 +57,17 @@ MODULE divhor
 CONTAINS
 
    SUBROUTINE div_hor_RK3( kt, Kbb, Kmm, pu, pv, pe3divUh, k_ind )
+      !!
+      INTEGER                        , INTENT(in   ) ::   kt, Kbb, Kmm   ! ocean time-step & time-level indices
+      INTEGER , OPTIONAL             , INTENT(in   ) ::   k_ind          ! indicator
+      REAL(wp), DIMENSION(:,:,:)     , INTENT(in   ) ::   pu, pv         ! horizontal velocity or transport
+      REAL(wp), DIMENSION(T2D(1),jpk), INTENT(  out) ::   pe3divUh       ! e3t*div[Uh]
+      !!
+      CALL div_hor_RK3_t( kt, Kbb, Kmm, pu, pv, lbnd_ij(pu), pe3divUh, k_ind )
+   END SUBROUTINE div_hor_RK3
+
+
+   SUBROUTINE div_hor_RK3_t( kt, Kbb, Kmm, pu, pv, ktuv, pe3divUh, k_ind )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE div_hor_RK3  ***
       !!                    
@@ -67,10 +79,11 @@ CONTAINS
       !!
       !! ** Action  : - thickness weighted horizontal divergence of in input velocity (puu,pvv)
       !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in   ) ::   kt, Kbb, Kmm   ! ocean time-step & time-level indices
-      INTEGER , OPTIONAL              , INTENT(in   ) ::   k_ind          ! indicator 
-      REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(in   ) ::   pu, pv       ! horizontal velocity or transport
-      REAL(wp), DIMENSION(T2D(1) ,jpk), INTENT(  out) ::   pe3divUh       ! e3t*div[Uh]
+      INTEGER,  DIMENSION(2)             , INTENT(in   ) ::   ktuv
+      INTEGER                            , INTENT(in   ) ::   kt, Kbb, Kmm   ! ocean time-step & time-level indices
+      INTEGER , OPTIONAL                 , INTENT(in   ) ::   k_ind          ! indicator
+      REAL(wp), DIMENSION(AB2D(ktuv),JPK), INTENT(in   ) ::   pu, pv         ! horizontal velocity or transport
+      REAL(wp), DIMENSION(T2D(1),jpk)    , INTENT(  out) ::   pe3divUh       ! e3t*div[Uh]
       !
       INTEGER  ::   ji, jj, jk    ! dummy loop indices
       INTEGER  ::   ik_ind        ! local indicator
@@ -133,7 +146,7 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_stop('div_hor_RK3')
       !
-   END SUBROUTINE div_hor_RK3
+   END SUBROUTINE div_hor_RK3_t
 
 
    SUBROUTINE div_hor_old( kt, Kbb, Kmm )

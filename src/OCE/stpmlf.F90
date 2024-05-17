@@ -182,12 +182,7 @@ CONTAINS
                          CALL bn2    ( ts(:,:,:,:,Nnn), rab_n, rn2, Nnn  ) ! now    Brunt-Vaisala frequency
 
       !  VERTICAL PHYSICS
-      IF( ln_tile ) CALL dom_tile_start         ! [tiling] ZDF tiling loop
-      DO jtile = 1, nijtile
-         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
                          CALL zdf_phy( kstp, Nbb, Nnn, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
-      END DO
-      IF( ln_tile ) CALL dom_tile_stop
 
       !  LATERAL  PHYSICS
       !
