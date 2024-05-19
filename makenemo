@@ -58,7 +58,7 @@ set -o posix
 # Initialization of the options
 x_d=''; x_h=''; x_n=''; x_r=''; x_c='';
 x_u=''; x_a=''; x_m=''; x_t=''; x_b='';
-x_j='1'; x_e=''; x_s='src'; x_v='0'; x_p=''; x_y=''
+x_j='1'; x_e=''; x_s='src'; x_v='1'; x_p=''; x_y=''
 list_key='0'; chk_key='1'
 list_add_key=''; list_def_key=''; list_del_key=''
 x_c_cfg=0; x_nocdf=0
