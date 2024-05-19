@@ -159,8 +159,8 @@ CONTAINS
 
       !accumulates days of previous months of this year
       ! day (in hours) since january the 1st
-      ztime = FLOAT( kt ) * rn_Dt / (rmmss * rhhmm)  &  ! incrementation in hour
-         &     - (nyear - 1) * rjjhh * zyydd          !  - nber of hours the precedent years
+      ztime = REAL( kt, wp ) * rn_Dt / (rmmss * rhhmm)  &  ! incrementation in hour
+         &     - (nyear - 1) * rjjhh * zyydd               !  - nber of hours the precedent years
       ztimemax = ((5.*30.)+21.)* 24.               ! 21th june     in hours
       ztimemin = ztimemax + rjjhh * zyydd / 2      ! 21th december in hours
       !                                            ! NB: rjjhh * zyydd / 4 = 1 seasonal cycle in hours

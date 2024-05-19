@@ -405,7 +405,7 @@ CONTAINS
          ztmltot2(:,:,:) = 0.e0
          ztmlres2(:,:,:) = 0.e0
       
-         zfn  = FLOAT( nmoymltrd )    ;    zfn2 = zfn * zfn
+         zfn  = REAL( nmoymltrd,wp )    ;    zfn2 = zfn * zfn
          
          ! III.1 Prepare fields for output ("instantaneous" diagnostics) 
          ! -------------------------------------------------------------

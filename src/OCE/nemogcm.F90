@@ -55,7 +55,6 @@ MODULE nemogcm
    USE cpl_oasis3     ! OASIS3 coupling
    USE dyndmp         ! Momentum damping (C1D only)
    USE step_diu       ! diurnal bulk SST timestepping (called from here if run offline)
-   USE crsini         ! initialise grid coarsening utility
    USE dia25h  , ONLY : dia_25h_init   ! 25h mean output (initialisation)
    USE c1d            ! 1D configuration
 #if defined key_top
@@ -418,7 +417,6 @@ CONTAINS
      CALL Agrif_Declare_Var_ini   !  "      "   "   "      "  DOM
 #endif
                            CALL     dom_init( Nbb, Nnn, Naa )   ! Domain
-      IF( ln_crs       )   CALL     crs_init(      Nnn      )   ! coarsened grid: domain initialization
       IF( sn_cfctl%l_prtctl )   &
          &                 CALL prt_ctl_init        ! Print control
 
@@ -487,7 +485,6 @@ CONTAINS
       IF( ln_sto_eos   )   CALL sto_pts_init    ! RRandom T/S fluctuations
 
       !                                      ! Diagnostics
-                           CALL     flo_init( Nnn )    ! drifting Floats
       IF( ln_diacfl    )   CALL dia_cfl_init    ! Initialise CFL diagnostics
                            CALL dia_dct_init    ! Sections tranports
                            CALL dia_hsb_init( Nnn )    ! heat content, salt content and volume budgets

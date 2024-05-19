@@ -1,7 +1,7 @@
 !!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 !! NEMO/OCE :   Reference namelist_ref                                !!
 !!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-!! NEMO/OCE  :  1 - Domain & run manager (namrun, namcfg, namdom, namtsd, namcrs, namc1d, namc1d_uvd)
+!! NEMO/OCE  :  1 - Domain & run manager (namrun, namcfg, namdom, namtsd, namc1d, namc1d_uvd)
 !! namelists    2 - Surface boundary (namsbc, namsbc_flx, namsbc_blk, namsbc_cpl,
 !!                                    namsbc_sas, namtra_qsr, namsbc_rnf,
 !!                                    namisf, namsbc_apr, 
@@ -11,7 +11,7 @@
 !!              5 - Tracer           (nameos, namtra_adv, namtra_ldf, namtra_eiv, namtra_dmp)
 !!              6 - dynamics         (namdyn_adv, namdyn_vor, namdyn_hpg, namdyn_spg, namdyn_ldf)
 !!              7 - Vertical physics (namzdf, namzdf_ric, namzdf_tke, namzdf_gls, namzdf_iwm)
-!!              8 - diagnostics      (namnc4, namtrd, namspr, namflo, namhsb)
+!!              8 - diagnostics      (namnc4, namtrd, namspr, namhsb)
 !!              9 - Obs & Assim      (namobs, nam_asminc)
 !!             10 - miscellaneous    (nammpp, namctl, namsto)
 !!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -24,7 +24,6 @@
 !!   namcfg       parameters of the configuration                       (default: user defined GYRE)
 !!   namwad       Wetting and drying                                    (default: OFF)
 !!   namtsd       data: temperature & salinity                          (default: OFF)
-!!   namcrs       coarsened grid (for outputs and/or TOP)               (ln_crs =T)
 !!   namc1d       1D configuration options                              (ln_c1d =T)
 !!   namc1d_dyndmp 1D newtonian damping applied on currents             (ln_c1d =T)
 !!   namc1d_uvd   1D data (currents)                                    (ln_c1d =T)
@@ -73,7 +72,6 @@
    rn_Dt       = 5400.     !  time step for the dynamics and tracer
    rn_atfp     =    0.1    !  asselin time filter parameter
    !
-   ln_crs      = .false.   !  Logical switch for coarsening module      (T => fill namcrs)
    ln_c1d      = .false.   !  Single column domain (1x1pt)              (T => fill namc1d)
    !
    ln_meshmask = .true.    !  =T create a mesh file
@@ -143,21 +141,6 @@
    rn_wdld     =  2.5      !  Land elevation below which WaD is allowed
    rn_wd_sbcdep =  5.0     !  Depth at which to taper sbc fluxes
    rn_wd_sbcfra =  0.999   !  Fraction of SBC fluxes at taper depth (Must be <1)
-/
-!-----------------------------------------------------------------------
-&namcrs        !   coarsened grid (for outputs and/or TOP)              (ln_crs =T)
-!-----------------------------------------------------------------------
-   nn_factx    = 3         !  Reduction factor of x-direction
-   nn_facty    = 3         !  Reduction factor of y-direction
-   nn_binref   = 0         !  Bin centering preference: NORTH or EQUAT
-      !                    !  0, coarse grid is binned with preferential treatment of the north fold
-      !                    !  1, coarse grid is binned with centering at the equator
-      !                    !    Symmetry with nn_facty being odd-numbered. Asymmetry with even-numbered nn_facty.
-   ln_msh_crs  = .false.   ! =T create a mesh & mask file
-   nn_crs_kz   = 0         ! 0, MEAN of volume boxes
-      !                    ! 1, MAX of boxes
-      !                    ! 2, MIN of boxes
-   ln_crs_wn   = .true.    ! wn coarsened (T) or computed using horizontal divergence ( F )
 /
 !-----------------------------------------------------------------------
 &namc1d        !   1D configuration options                             (ln_c1d =T default: PAPA station)
@@ -1392,7 +1375,6 @@
 !!   namhsb       Heat and salt budgets                                 (default: OFF)
 !!   namdiu       Cool skin and warm layer models                       (default: OFF)
 !!   namdiu       Cool skin and warm layer models                       (default: OFF)
-!!   namflo       float parameters                                      (default: OFF)
 !!   nam_diadct   transports through some sections                      (default: OFF)
 !!   nam_dia25h   25h Mean Output                                       (default: OFF)
 !!   namnc4       netcdf4 chunking and compression settings             ("key_netcdf4")
@@ -1428,21 +1410,6 @@
 !-----------------------------------------------------------------------
    ln_diurnal      = .false.   !
    ln_diurnal_only = .false.   !
-/
-!-----------------------------------------------------------------------
-&namflo        !   float parameters                                     (default: OFF)
-!-----------------------------------------------------------------------
-   ln_floats   = .false.      ! activate floats or not
-      jpnfl       = 1         !    total number of floats during the run
-      jpnnewflo   = 0         !    number of floats for the restart
-      ln_rstflo   = .false.   !    float restart (T) or not (F)
-      nn_writefl  =      75   !    frequency of writing in float output file
-      nn_stockfl  =    5475   !    frequency of creation of the float restart file
-      ln_argo     = .false.   !    Argo type floats (stay at the surface each 10 days)
-      ln_flork4   = .false.   !    trajectories computed with a 4th order Runge-Kutta (T)
-      !                       !    or computed with Blanke' scheme (F)
-      ln_ariane   = .true.    !    Input with Ariane tool convention(T)
-      ln_flo_ascii= .true.    !    Output with Ariane tool netcdf convention(F) or ascii file (T)
 /
 !-----------------------------------------------------------------------
 &nam_diadct    !   transports through some sections                     (default: OFF)

@@ -223,12 +223,6 @@ CPL_OASIS
 | This test case checks the OASIS interface in OCE/SBC, allowing to set up 
   a coupled configuration through OASIS. See CPL_OASIS/README.md for more information.
 
-DIA_GPU
----------
-| This is a demonstrator of diagnostic DIAHSB ported to GPU using CUDA Fortran. 
-  Memory communications between host and device are asynchronous given the device has that capability. 
-  This experiment is target for ORCA2_ICE_PISCES
-
 TSUNAMI
 ---------
 | just use dynspg_ts to simulate the propagation of an ssh anomaly (cosinus) in a box configuration

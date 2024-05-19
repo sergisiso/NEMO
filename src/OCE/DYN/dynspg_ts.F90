@@ -1345,16 +1345,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             ftsw(ji,jj) = zwz(ji  ,jj-1) + zwz(ji-1,jj-1) + zwz(ji-1,jj  )
          END_2D
          !
-      CASE( np_EET )                            != EEN scheme using e3t energy conserving scheme
-         ftne(1,:) = 0._wp   ;   ftnw(1,:) = 0._wp   ;   ftse(1,:) = 0._wp   ;   ftsw(1,:) = 0._wp
-         DO_2D( 0, 1, 0, 1 )
-            z1_ht = ssmask(ji,jj) / ( ht(ji,jj,Kmm) + 1._wp - ssmask(ji,jj) )
-            ftne(ji,jj) = ( ff_f(ji-1,jj  ) + ff_f(ji  ,jj  ) + ff_f(ji  ,jj-1) ) * z1_ht
-            ftnw(ji,jj) = ( ff_f(ji-1,jj-1) + ff_f(ji-1,jj  ) + ff_f(ji  ,jj  ) ) * z1_ht
-            ftse(ji,jj) = ( ff_f(ji  ,jj  ) + ff_f(ji  ,jj-1) + ff_f(ji-1,jj-1) ) * z1_ht
-            ftsw(ji,jj) = ( ff_f(ji  ,jj-1) + ff_f(ji-1,jj-1) + ff_f(ji-1,jj  ) ) * z1_ht
-         END_2D
-         !
       END SELECT
       !
    END SUBROUTINE dyn_cor_2D_init
@@ -1406,7 +1396,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             zv_trd(ji,jj)  = zx1 * ( zwz(ji-1,jj  ) + zwz(ji,jj) )
          END_2D
          !
-      CASE( np_EET , np_EEN )      ! energy & enstrophy scheme (using e3t or e3f)         
+      CASE( np_EEN )                ! energy & enstrophy scheme (using e3t or e3f)         
          DO_2D( 0, 0, 0, 0 )
             zu_trd(ji,jj) = + r1_12 * r1_e1u(ji,jj) * (  ( ftne(ji,jj  ) * zhV(ji  ,jj  )   &   ! need additional () for
              &                                           + ftnw(ji+1,jj) * zhV(ji+1,jj  ) ) &   ! reproducibility around NP

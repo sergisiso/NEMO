@@ -366,9 +366,9 @@ CONTAINS
       ! sediment layer thickness [cm]
       ! (1st layer= diffusive layer = pur water) 
       !------------------------------------------
-      za1  = (  sedzmin - sedhmax / FLOAT(jpksed-1)  )                                                      &
-         & / ( TANH((1-sedkth)/sedacr) - sedacr/FLOAT(jpksed-1) * (  LOG( COSH( (jpksed - sedkth) / sedacr) )      &
-         &                                                   - LOG( COSH( ( 1  - sedkth) / sedacr) )  )  )
+      za1  = (  sedzmin - sedhmax / REAL(jpksed-1,wp)  )                                                             &
+         & / ( TANH((1-sedkth)/sedacr) - sedacr/REAL(jpksed-1,wp) * (  LOG( COSH( (jpksed - sedkth) / sedacr) )      &
+         &                                                           - LOG( COSH( ( 1     - sedkth) / sedacr) )  )  )
       za0  = sedzmin - za1 * TANH( (1-sedkth) / sedacr )
       zsur = - za0 - za1 * sedacr * LOG( COSH( (1-sedkth) / sedacr )  )
 

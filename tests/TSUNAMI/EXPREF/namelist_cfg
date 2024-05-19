@@ -10,7 +10,6 @@
 !!   namcfg       parameters of the configuration                       (default: user defined GYRE)
 !!   namwad       Wetting and drying                                    (default: OFF)
 !!   namtsd       data: temperature & salinity                          (default: OFF)
-!!   namcrs       coarsened grid (for outputs and/or TOP)               (ln_crs =T)
 !!   namc1d       1D configuration optgions                              (ln_c1d =T)
 !!   namc1d_dyndmp 1D newtonian damping applied on currents             (ln_c1d =T)
 !!   namc1d_uvd   1D data (currents)                                    (ln_c1d =T)

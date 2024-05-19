@@ -121,7 +121,6 @@ CONTAINS
                              CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
          IF( lk_diamlr   )   CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
                              CALL iom_init_closedef
-         IF( ln_crs      )   CALL iom_init( TRIM(cxios_context)//"_crs" )  ! for coarse grid
       ENDIF
       IF( kstp /= nit000 )   CALL day( kstp )         ! Calendar (day was already called at nit000 in day_init)
                              CALL iom_setkt( kstp - nit000 + 1,      cxios_context          )   ! tell IOM we are at time step kstp
@@ -156,7 +155,6 @@ CONTAINS
       IF( kstp == nitend .OR. nstop > 0 ) THEN 
                       CALL iom_context_finalize(      cxios_context          ) ! needed for XIOS+AGRIF
          IF( lrxios ) CALL iom_context_finalize(      crxios_context         )
-         IF( ln_crs ) CALL iom_context_finalize( trim(cxios_context)//"_crs" ) ! 
       ENDIF
 #endif
       !

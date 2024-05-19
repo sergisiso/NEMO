@@ -121,11 +121,6 @@
     <domain domain_ref="1point"/>
   </grid>
   <!--  -->
-  <grid id="grid_T_nfloat" >
-    <domain domain_ref="grid_T" />
-    <axis axis_ref="nfloat" />
-  </grid>
-  <!--  -->
   <grid id="grid_EqT" >
     <domain domain_ref="EqT" />
   </grid>

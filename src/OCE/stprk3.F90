@@ -91,7 +91,6 @@ CONTAINS
                              CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
          IF( lk_diamlr   )   CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
                              CALL iom_init_closedef
-         IF( ln_crs      )   CALL iom_init( TRIM(cxios_context)//"_crs" )  ! for coarse grid
                              CALL dia_ptr_init        ! called here since it uses iom_use
                              CALL dia_ar5_init        ! called here since it uses iom_use
                              CALL rk3_dia( -1 )       ! Store diagnostic logicals
@@ -117,7 +116,6 @@ CONTAINS
 #endif
       IF( kstp /= nit000 )   CALL day( kstp )         ! Calendar (day was already called at nit000 in day_init)
                              CALL iom_setkt( kstp - nit000 + 1,      cxios_context          )   ! tell IOM we are at time step kstp
-      IF( ln_crs         )   CALL iom_setkt( kstp - nit000 + 1, TRIM(cxios_context)//"_crs" )   ! tell IOM we are at time step kstp
 
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -223,12 +221,10 @@ CONTAINS
       END DO
       IF( ln_tile ) CALL dom_tile_stop
 
-      IF( ln_crs     )   CALL crs_fld   ( kstp,      Nbb )      ! ocean model: online field coarsening & output
       IF( lk_diadetide ) CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
       IF( lk_diamlr  )   CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
 
 !!====>>>> to be modified for RK3
-!      IF( ln_floats  )   CALL flo_stp   ( kstp, Nbb, Nnn )      ! drifting Floats
 !      IF( ln_diahsb  )   CALL dia_hsb   ( kstp, Nbb, Nnn )  ! - ML - global conservation diagnostics
 !!st
       IF( ln_diahsb  )   CALL dia_hsb   ( kstp, Nbb, Nbb )  ! - ML - global conservation diagnostics
@@ -287,7 +283,6 @@ CONTAINS
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       IF( kstp == nitend .OR. nstop > 0 ) THEN
                       CALL iom_context_finalize(      cxios_context          ) ! needed for XIOS+AGRIF
-         IF( ln_crs ) CALL iom_context_finalize( trim(cxios_context)//"_crs" ) !
       ENDIF
 #endif
       !

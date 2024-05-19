@@ -72,9 +72,8 @@ MODULE dynvor
    INTEGER, PUBLIC, PARAMETER ::   np_ENS = 0   ! ENS scheme
    INTEGER, PUBLIC, PARAMETER ::   np_ENE = 1   ! ENE scheme
    INTEGER, PUBLIC, PARAMETER ::   np_ENT = 2   ! ENT scheme (t-point vorticity)
-   INTEGER, PUBLIC, PARAMETER ::   np_EET = 3   ! EET scheme (EEN using e3t)
-   INTEGER, PUBLIC, PARAMETER ::   np_EEN = 4   ! EEN scheme
-   INTEGER, PUBLIC, PARAMETER ::   np_MIX = 5   ! MIX scheme
+   INTEGER, PUBLIC, PARAMETER ::   np_EEN = 3   ! EEN scheme
+   INTEGER, PUBLIC, PARAMETER ::   np_MIX = 4   ! MIX scheme
 
    !                                    !: choice of calculated vorticity
    INTEGER, PUBLIC ::   ncor, nrvm, ntot   ! Coriolis, relative vorticity, total vorticity
@@ -981,7 +980,6 @@ CONTAINS
          CASE( np_ENE )   ;   WRITE(numout,*) '   ==>>>   energy conserving scheme (Coriolis at F-points) (ENE)'
          CASE( np_ENT )   ;   WRITE(numout,*) '   ==>>>   energy conserving scheme (Coriolis at T-points) (ENT)'
                               IF( ln_dynadv_vec )   CALL ctl_warn('dyn_vor_init: ENT scheme may not work in vector form')
-         CASE( np_EET )   ;   WRITE(numout,*) '   ==>>>   energy conserving scheme (EEN scheme using e3t) (EET)'
          CASE( np_EEN )   ;   WRITE(numout,*) '   ==>>>   energy and enstrophy conserving scheme (EEN)'
          CASE( np_MIX )   ;   WRITE(numout,*) '   ==>>>   mixed enstrophy/energy conserving scheme (MIX)'
          END SELECT
