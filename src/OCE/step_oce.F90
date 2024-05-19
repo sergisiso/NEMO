@@ -84,10 +84,6 @@ MODULE step_oce
    USE diaobs          ! Observation operator             (dia_obs routine)
    USE diadetide       ! Weights computation for daily detiding of model diagnostics
    USE diamlr          ! IOM context management for multiple-linear-regression analysis
-   USE flo_oce         ! floats variables
-   USE floats          ! floats computation               (flo_stp routine)
-
-   USE crsfld          ! Standard output on coarse grid   (crs_fld routine)
 
    USE asminc          ! assimilation increments      (tra_asm_inc routine)
    !                                                   (dyn_asm_inc routine)

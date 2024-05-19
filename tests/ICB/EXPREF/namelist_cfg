@@ -10,7 +10,6 @@
 !!   namcfg       parameters of the configuration                       (default: user defined GYRE)
 !!   namwad       Wetting and drying                                    (default: OFF)
 !!   namtsd       data: temperature & salinity                          (default: OFF)
-!!   namcrs       coarsened grid (for outputs and/or TOP)               (ln_crs =T)
 !!   namc1d       1D configuration options                              (ln_c1d =T)
 !!   namc1d_dyndmp 1D newtonian damping applied on currents             (ln_c1d =T)
 !!   namc1d_uvd   1D data (currents)                                    (ln_c1d =T)
@@ -60,10 +59,6 @@
 /
 !-----------------------------------------------------------------------
 &namwad        !   Wetting and Drying (WaD)                             (default: OFF)
-!-----------------------------------------------------------------------
-/
-!-----------------------------------------------------------------------
-&namcrs        !   coarsened grid (for outputs and/or TOP)              (ln_crs =T)
 !-----------------------------------------------------------------------
 /
 !-----------------------------------------------------------------------
@@ -401,7 +396,6 @@
 !!   namhsb       Heat and salt budgets                                 (default: OFF)
 !!   namdiu       Cool skin and warm layer models                       (default: OFF)
 !!   namdiu       Cool skin and warm layer models                       (default: OFF)
-!!   namflo       float parameters                                      (default: OFF)
 !!   nam_diadct   transports through some sections                      (default: OFF)
 !!   nam_dia25h   25h Mean Output                                       (default: OFF)
 !!   namnc4       netcdf4 chunking and compression settings             ("key_netcdf4")
@@ -421,10 +415,6 @@
 /
 !-----------------------------------------------------------------------
 &namdiu        !   Cool skin and warm layer models                      (default: OFF)
-!-----------------------------------------------------------------------
-/
-!-----------------------------------------------------------------------
-&namflo        !   float parameters                                     ("key_float")
 !-----------------------------------------------------------------------
 /
 !-----------------------------------------------------------------------

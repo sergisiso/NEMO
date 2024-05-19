@@ -53,9 +53,6 @@ MODULE step_diu
          IF( kstp /= nit000 )   CALL day( kstp )   ! Calendar (day was already called at nit000 in day_init) 
  
          CALL iom_setkt( kstp - nit000 + 1, cxios_context )   ! tell iom we are at time step kstp
-         IF( ln_crs ) THEN
-            CALL iom_setkt( kstp - nit000 + 1, TRIM(cxios_context)//"_crs" ) ! tell iom we are at time step kstp
-         ENDIF
        
             CALL sbc    ( kstp, Nbb, Nnn )            ! Sea Boundary Conditions 
       ENDIF

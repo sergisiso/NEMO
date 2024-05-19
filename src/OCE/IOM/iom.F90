@@ -21,7 +21,6 @@ MODULE iom
    !!----------------------------------------------------------------------
    USE dom_oce         ! ocean space and time domain
    USE domutl          !
-   USE flo_oce         ! floats module declarations
    USE lbclnk          ! lateal boundary condition / mpp exchanges
    USE iom_def         ! iom variables definitions
    USE iom_nf90        ! NetCDF format with native NetCDF library
@@ -38,7 +37,6 @@ MODULE iom
    USE xios
 # endif
    USE ioipsl, ONLY :  ju2ymds    ! for calendar
-   USE crs             ! Grid coarsening
 #if defined key_top
    USE trc, ONLY    :  profsed
 #endif
@@ -198,29 +196,6 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      IF( TRIM(cdname) == TRIM(cxios_context)//"_crs" ) THEN
-         CALL dom_grid_crs   ! Save the parent grid information  & Switch to coarse grid domain
-         !
-         CALL set_grid( "T", glamt_crs, gphit_crs, .FALSE., .FALSE. )
-         CALL set_grid( "U", glamu_crs, gphiu_crs, .FALSE., .FALSE. )
-         CALL set_grid( "V", glamv_crs, gphiv_crs, .FALSE., .FALSE. )
-         CALL set_grid( "W", glamt_crs, gphit_crs, .FALSE., .FALSE. )
-         CALL set_grid_znl( gphit_crs )
-          !
-         CALL dom_grid_glo   ! Return to parent grid domain
-         !
-         IF( ln_cfmeta .AND. .NOT. llrst_context) THEN   ! Add additional grid metadata
-            CALL iom_set_domain_attr("grid_T", area = real(e1e2t_crs(Nis0:Nie0, Njs0:Nje0), dp))
-            CALL iom_set_domain_attr("grid_U", area = real(e1u_crs(Nis0:Nie0, Njs0:Nje0) * e2u_crs(Nis0:Nie0, Njs0:Nje0), dp))
-            CALL iom_set_domain_attr("grid_V", area = real(e1v_crs(Nis0:Nie0, Njs0:Nje0) * e2v_crs(Nis0:Nie0, Njs0:Nje0), dp))
-            CALL iom_set_domain_attr("grid_W", area = real(e1e2t_crs(Nis0:Nie0, Njs0:Nje0), dp))
-            CALL set_grid_bounds( "T", glamf_crs, gphif_crs, glamt_crs, gphit_crs )
-            CALL set_grid_bounds( "U", glamv_crs, gphiv_crs, glamu_crs, gphiu_crs )
-            CALL set_grid_bounds( "V", glamu_crs, gphiu_crs, glamv_crs, gphiv_crs )
-            CALL set_grid_bounds( "W", glamf_crs, gphif_crs, glamt_crs, gphit_crs )
-         ENDIF
-      ENDIF
-      !
       ! vertical grid definition
       IF(.NOT.llrst_context) THEN
          CALL iom_set_axis_attr(  "deptht", paxis = gdept_1d )
@@ -259,7 +234,6 @@ CONTAINS
          za_bnds(2,:) = ght_abl(2:jpka  ) + e3w_abl(2:jpka)
          CALL iom_set_axis_attr( "ghw_abl", bounds=za_bnds )
 
-         CALL iom_set_axis_attr(  "nfloat", (/ (REAL(ji,wp), ji=1,jpnfl) /) )
 # if defined key_si3
          CALL iom_set_axis_attr( "ncatice", (/ (REAL(ji,wp), ji=1,jpl) /) )
          CALL iom_set_axis_attr( "nlayice", (/ (REAL(ji,wp), ji=1,nlay_i) /) )

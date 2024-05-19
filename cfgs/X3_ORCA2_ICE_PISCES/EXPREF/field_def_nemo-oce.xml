@@ -616,8 +616,6 @@ that are available in the tidal-forcing implementation (see
     <field id="sbu"          long_name="ocean bottom current along i-axis"                                                                  unit="m/s"  grid_ref="grid_U_2D_inner" />
     <field id="ubar"         long_name="ocean barotropic current along i-axis"                                                              unit="m/s"                             />
     <field id="uocetr_eff"   long_name="Effective ocean transport along i-axis"                 standard_name="ocean_volume_x_transport"    unit="m3/s"       grid_ref="grid_U_3D" />
-    <field id="uocet"        long_name="ocean transport along i-axis times temperature (CRS)"                                               unit="degC*m/s"   grid_ref="grid_U_3D" />
-    <field id="uoces"        long_name="ocean transport along i-axis times salinity (CRS)"                                                  unit="1e-3*m/s"   grid_ref="grid_U_3D" />
     <field id="ssuww"        long_name="ocean surface wind work along i-axis"                   standard_name="surface_x_wind_work"         unit="N/m*s"                            > utau * ssu </field>
     <!-- AGRIF sponge -->
     <field id="agrif_spu"    long_name=" AGRIF u-sponge coefficient"   unit=" " />
@@ -672,8 +670,6 @@ that are available in the tidal-forcing implementation (see
     <field id="sbv"          long_name="ocean bottom current along j-axis"                                                                  unit="m/s"  grid_ref="grid_V_2D_inner" />
     <field id="vbar"         long_name="ocean barotropic current along j-axis"                                                              unit="m/s"                             />
     <field id="vocetr_eff"   long_name="Effective ocean transport along j-axis"                 standard_name="ocean_volume_y_transport"    unit="m3/s"       grid_ref="grid_V_3D" />
-    <field id="vocet"        long_name="ocean transport along j-axis times temperature (CRS)"                                               unit="degC*m/s"   grid_ref="grid_V_3D" />
-    <field id="voces"        long_name="ocean transport along j-axis times salinity (CRS)"                                                  unit="1e-3*m/s"   grid_ref="grid_V_3D" />
     <field id="ssvww"        long_name="ocean surface wind work along j-axis"                   standard_name="surface_y_wind_work"         unit="N/m*s"                            > vtau * ssv </field>
     <!-- AGRIF sponge -->
     <field id="agrif_spv"    long_name=" AGRIF v-sponge coefficient"   unit=" " />
@@ -848,18 +844,6 @@ that are available in the tidal-forcing implementation (see
     <field id="v_masstr_strait"      long_name="Sea water transport across line in j-direction"  field_ref="vocetr_strait"        grid_ref="grid_V_4strait_hsum" unit="kg/s"> this * maskMFO_v * $rho0 </field>
 
     <field id="masstr_strait"        long_name="Sea water transport across line"                                                  grid_ref="grid_4strait"  > u_masstr_strait + v_masstr_strait </field>
-  </field_group>
-
-  <!-- variables available with ln_floats -->
-
-  <field_group id="floatvar" grid_ref="grid_T_nfloat"  operation="instant" >
-    <field id="traj_lon"      long_name="floats longitude"                                                           unit="degrees_east"  />
-    <field id="traj_lat"      long_name="floats latitude"                                                            unit="degrees_north" />
-    <field id="traj_dep"      long_name="floats depth"                                                               unit="m"             />
-    <field id="traj_temp"     long_name="floats temperature"       standard_name="sea_water_potential_temperature"   unit="degC"          />
-    <field id="traj_salt"     long_name="floats salinity"          standard_name="sea_water_practical_salinity"      unit="1e-3"          />
-    <field id="traj_dens"     long_name="floats in-situ density"   standard_name="sea_water_density"                 unit="kg/m3"         />
-    <field id="traj_group"    long_name="floats group"                                                               unit="1"             />
   </field_group>
 
   <!-- variables available with iceberg trajectories -->

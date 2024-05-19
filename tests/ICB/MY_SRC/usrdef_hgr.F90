@@ -78,8 +78,8 @@ CONTAINS
       zlam0 = 0.0
       zphi0 = 0.0
       DO_2D (1,1,1,1)
-         zti = FLOAT( ji - 1 + nimpp - 1 )          ;  ztj = FLOAT( jj - 1 + njmpp - 1 )
-         zui = FLOAT( ji - 1 + nimpp - 1 ) + 0.5_wp ;  zvj = FLOAT( jj - 1 + njmpp - 1 ) + 0.5_wp
+         zti = REAL( ji - 1 + nimpp - 1, wp )          ;  ztj = REAL( jj - 1 + njmpp - 1, wp )
+         zui = REAL( ji - 1 + nimpp - 1, wp ) + 0.5_wp ;  zvj = REAL( jj - 1 + njmpp - 1, wp ) + 0.5_wp
          
          plamt(ji,jj) = zlam0 + rn_dx * zti
          plamu(ji,jj) = zlam0 + rn_dx * zui

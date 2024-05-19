@@ -1089,7 +1089,7 @@ CONTAINS
          END_2D
          CALL histwrite( nid_T, "sosafldp", it, z2d           , ndim_hT, ndex_hT )   ! salt flux damping
       ENDIF
-!      zw2d(:,:) = FLOAT( nmln(:,:) ) * tmask(:,:,1)
+!      zw2d(:,:) = REAL( nmln(:,:), wp ) * tmask(:,:,1)
 !      CALL histwrite( nid_T, "sobowlin", it, zw2d          , ndim_hT, ndex_hT )   ! ???
 
 #if defined key_diahth

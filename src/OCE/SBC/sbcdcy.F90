@@ -152,7 +152,7 @@ CONTAINS
       END_2D
       !
       IF( PRESENT(l_mask) ) THEN
-         IF ( l_mask ) zqsrout(:,:) = float(imask_night(:,:))
+         IF ( l_mask ) zqsrout(:,:) = REAL(imask_night(:,:),wp)
       ENDIF
       !
    END FUNCTION sbc_dcy

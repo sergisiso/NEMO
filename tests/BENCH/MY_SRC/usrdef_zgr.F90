@@ -129,7 +129,7 @@ CONTAINS
       REAL(wp) ::   zd       ! local scalar
       !!----------------------------------------------------------------------
       !
-      zd = 5000./FLOAT(jpkm1)
+      zd = 5000./REAL(jpkm1,wp)
       !
       IF(lwp) THEN            ! Parameter print
          WRITE(numout,*)

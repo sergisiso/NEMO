@@ -147,9 +147,7 @@ MODULE in_out_manager
    INTEGER ::   numdct_vol      =   -1      !: logical unit for volume transports output
    INTEGER ::   numdct_heat     =   -1      !: logical unit for heat   transports output
    INTEGER ::   numdct_salt     =   -1      !: logical unit for salt   transports output
-   INTEGER ::   numfl           =   -1      !: logical unit for floats ascii output
-   INTEGER ::   numflo          =   -1      !: logical unit for floats ascii output
-      !
+   !
    CHARACTER(LEN=:), ALLOCATABLE :: numnam_ref      !: character buffer for reference namelist
    CHARACTER(LEN=:), ALLOCATABLE :: numnam_cfg      !: character buffer for configuration specific namelist
    CHARACTER(LEN=:), ALLOCATABLE :: numnam_ice_ref  !: character buffer for ice reference namelist

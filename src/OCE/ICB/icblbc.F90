@@ -705,7 +705,7 @@ CONTAINS
       pbuff%data( 4,kb) = berg%current_point%vvel
       pbuff%data( 5,kb) = berg%current_point%xi
       pbuff%data( 6,kb) = berg%current_point%yj
-      pbuff%data( 7,kb) = float(berg%current_point%year)
+      pbuff%DATA( 7,kb) = REAL(berg%current_point%year,wp)
       pbuff%data( 8,kb) = berg%current_point%day
       pbuff%data( 9,kb) = berg%current_point%mass
       pbuff%data(10,kb) = berg%current_point%thickness

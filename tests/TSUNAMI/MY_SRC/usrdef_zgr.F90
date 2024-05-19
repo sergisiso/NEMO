@@ -126,7 +126,7 @@ CONTAINS
       REAL(wp) ::   zd       ! local scalar
       !!----------------------------------------------------------------------
       !
-      zd = rn_domszz/FLOAT(jpkm1)
+      zd = rn_domszz/REAL(jpkm1,wp)
       !
       IF(lwp) THEN            ! Parameter print
          WRITE(numout,*)

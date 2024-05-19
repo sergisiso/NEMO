@@ -124,7 +124,6 @@ CONTAINS
                              CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
          IF( lk_diamlr   )   CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
                              CALL iom_init_closedef
-         IF( ln_crs      )   CALL iom_init( TRIM(cxios_context)//"_crs" )  ! for coarse grid
       ENDIF
       IF( kstp == nitrst .AND. lwxios ) THEN
                              CALL iom_swap(                     cw_ocerst_cxt )
@@ -153,7 +152,6 @@ CONTAINS
       IF( kstp == nit000 )   CALL dia_ar5_init    ! AR5 diagnostics
       IF( kstp /= nit000 )   CALL day( kstp )         ! Calendar (day was already called at nit000 in day_init)
                              CALL iom_setkt( kstp - nit000 + 1,      cxios_context          )   ! tell IOM we are at time step kstp
-      IF( ln_crs         )   CALL iom_setkt( kstp - nit000 + 1, TRIM(cxios_context)//"_crs" )   ! tell IOM we are at time step kstp
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Update external forcing (tides, open boundaries, ice shelf interaction and surface boundary condition (including sea-ice)
@@ -283,7 +281,6 @@ CONTAINS
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! diagnostics and outputs
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-      IF( ln_floats  )   CALL flo_stp   ( kstp, Nbb, Nnn )      ! drifting Floats
       IF( ln_diacfl  )   CALL dia_cfl   ( kstp,      Nnn )      ! Courant number diagnostics
       IF( ln_diadct  )   CALL dia_dct   ( kstp,      Nnn )      ! Transports
 
@@ -303,7 +300,6 @@ CONTAINS
 #if ! defined key_xios
                          CALL dia_wri   ( kstp,      Nnn )      ! Ocean model outputs (default, tiling-unaware variant of 'dia_wri')
 #endif
-      IF( ln_crs     )   CALL crs_fld   ( kstp,      Nnn )      ! ocean model: online field coarsening & output
       IF( lk_diadetide ) CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
       IF( lk_diamlr  )   CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
 
@@ -458,7 +454,6 @@ CONTAINS
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       IF( kstp == nitend .OR. nstop > 0 ) THEN
                       CALL iom_context_finalize(      cxios_context          ) ! needed for XIOS+AGRIF
-         IF( ln_crs ) CALL iom_context_finalize( trim(cxios_context)//"_crs" ) !
       ENDIF
 #endif
       !
