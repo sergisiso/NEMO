@@ -9,6 +9,7 @@ MODULE icetab
    !!----------------------------------------------------------------------
    !!   'key_si3'                                       SI3 sea-ice model
    !!----------------------------------------------------------------------
+   !!   tab_4d_3d  : 4-D <==> 3-D
    !!   tab_3d_2d  : 3-D <==> 2-D
    !!   tab_2d_3d  : 2-D <==> 3-D
    !!   tab_2d_1d  : 2-D <==> 1-D
@@ -35,20 +36,20 @@ MODULE icetab
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tab_4d_3d( ndim1d, tab_ind, tab1d, tab2d )
+   SUBROUTINE tab_4d_3d( ndim1d, tab_ind, tab3d, tab4d )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tab_2d_1d  ***
+      !!                  ***  ROUTINE tab_4d_3d  ***
       !!----------------------------------------------------------------------
       INTEGER                     , INTENT(in   ) ::   ndim1d   ! 1d size
       INTEGER , DIMENSION(ndim1d) , INTENT(in   ) ::   tab_ind  ! input index
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   tab2d    ! input 2D field
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   tab1d    ! output 1D field
+      REAL(wp), DIMENSION(:,:,:,:), INTENT(in   ) ::   tab4d    ! input 4D field
+      REAL(wp), DIMENSION(:,:,:)  , INTENT(inout) ::   tab3d    ! output 3D field
       !
       INTEGER ::   ipi, ipj, ipk, ji0, jj0, jk, jl, jn, jid, jjd
       !!----------------------------------------------------------------------
-      ipi = SIZE(tab2d,1)   ! 1st dimension
-      ipj = SIZE(tab2d,2)   ! 2nd dimension
-      ipk = SIZE(tab2d,3)   ! 3d  dimension
+      ipi = SIZE(tab4d,1)   ! 1st dimension
+      ipj = SIZE(tab4d,2)   ! 2nd dimension
+      ipk = SIZE(tab4d,3)   ! 3d  dimension
       !
       IF( ipi == jpi .AND. ipj == jpj ) THEN   ! full arrays then no need to change index jid and jjd
          ji0 = 0 ; jj0 = 0
@@ -61,26 +62,26 @@ CONTAINS
             DO jn = 1, ndim1d
                jid          = MOD( tab_ind(jn) - 1 , jpi ) + 1 - ji0
                jjd          =    ( tab_ind(jn) - 1 ) / jpi + 1 - jj0
-               tab1d(jn,jk,jl) = tab2d(jid,jjd,jk,jl)
+               tab3d(jn,jk,jl) = tab4d(jid,jjd,jk,jl)
             END DO
          END DO
       END DO
       !
    END SUBROUTINE tab_4d_3d
 
-   SUBROUTINE tab_3d_2d( ndim1d, tab_ind, tab1d, tab2d )
+   SUBROUTINE tab_3d_2d( ndim1d, tab_ind, tab2d, tab3d )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tab_2d_1d  ***
+      !!                  ***  ROUTINE tab_3d_2d  ***
       !!----------------------------------------------------------------------
       INTEGER                         , INTENT(in   ) ::   ndim1d   ! 1d size
       INTEGER , DIMENSION(ndim1d)     , INTENT(in   ) ::   tab_ind  ! input index
-      REAL(wp), DIMENSION(:,:,:)      , INTENT(in   ) ::   tab2d    ! input 2D field
-      REAL(wp), DIMENSION(ndim1d,jpl) , INTENT(inout) ::   tab1d    ! output 1D field
+      REAL(wp), DIMENSION(:,:,:)      , INTENT(in   ) ::   tab3d    ! input 3D field
+      REAL(wp), DIMENSION(ndim1d,jpl) , INTENT(inout) ::   tab2d    ! output 2D field
       !
       INTEGER ::   ipi, ipj, ji0, jj0, jl, jn, jid, jjd
       !!----------------------------------------------------------------------
-      ipi = SIZE(tab2d,1)   ! 1st dimension
-      ipj = SIZE(tab2d,2)   ! 2nd dimension
+      ipi = SIZE(tab3d,1)   ! 1st dimension
+      ipj = SIZE(tab3d,2)   ! 2nd dimension
       !
       IF( ipi == jpi .AND. ipj == jpj ) THEN   ! full arrays then no need to change index jid and jjd
          ji0 = 0 ; jj0 = 0
@@ -92,7 +93,7 @@ CONTAINS
          DO jn = 1, ndim1d
             jid          = MOD( tab_ind(jn) - 1 , jpi ) + 1 - ji0
             jjd          =    ( tab_ind(jn) - 1 ) / jpi + 1 - jj0
-            tab1d(jn,jl) = tab2d(jid,jjd,jl)
+            tab2d(jn,jl) = tab3d(jid,jjd,jl)
          END DO
       END DO
    END SUBROUTINE tab_3d_2d
@@ -119,26 +120,26 @@ CONTAINS
       ENDIF                                    !           (i.e. from hls+1:jpi-hls  to  1:jpi-2*hls)
       !
       DO jn = 1, ndim1d
-         jid        = MOD( tab_ind(jn) - 1 , jpi ) + 1 - ji0
-         jjd        =    ( tab_ind(jn) - 1 ) / jpi + 1 - jj0
-         tab1d( jn) = tab2d( jid, jjd)
+         jid       = MOD( tab_ind(jn) - 1 , jpi ) + 1 - ji0
+         jjd       =    ( tab_ind(jn) - 1 ) / jpi + 1 - jj0
+         tab1d(jn) = tab2d(jid,jjd)
       END DO
    END SUBROUTINE tab_2d_1d
 
-   SUBROUTINE tab_3d_4d( ndim1d, tab_ind, tab1d, tab2d )
+   SUBROUTINE tab_3d_4d( ndim1d, tab_ind, tab3d, tab4d )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tab_2d_1d  ***
+      !!                  ***  ROUTINE tab_3d_4d  ***
       !!----------------------------------------------------------------------
       INTEGER                     , INTENT(in   ) ::   ndim1d    ! 1D size
       INTEGER , DIMENSION(ndim1d) , INTENT(in   ) ::   tab_ind   ! input index
-      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   tab1d     ! input 1D field
-      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   tab2d     ! output 2D field
+      REAL(wp), DIMENSION(:,:,:)  , INTENT(in   ) ::   tab3d     ! input 3D field
+      REAL(wp), DIMENSION(:,:,:,:), INTENT(inout) ::   tab4d     ! output 4D field
       !
       INTEGER ::   ipi, ipj, ipk, ji0, jj0, jk, jl, jn, jid, jjd
       !!----------------------------------------------------------------------
-      ipi = SIZE(tab2d,1)   ! 1st dimension
-      ipj = SIZE(tab2d,2)   ! 2nd dimension
-      ipk = SIZE(tab2d,3)   ! 3d  dimension
+      ipi = SIZE(tab4d,1)   ! 1st dimension
+      ipj = SIZE(tab4d,2)   ! 2nd dimension
+      ipk = SIZE(tab4d,3)   ! 3d  dimension
       !
       IF( ipi == jpi .AND. ipj == jpj ) THEN   ! full arrays then no need to change index jid and jjd
          ji0 = 0 ; jj0 = 0
@@ -151,26 +152,26 @@ CONTAINS
             DO jn = 1, ndim1d
                jid               = MOD( tab_ind(jn) - 1 ,  jpi ) + 1 - ji0
                jjd               =    ( tab_ind(jn) - 1 ) / jpi  + 1 - jj0
-               tab2d(jid,jjd,jk,jl) = tab1d(jn,jk,jl)
+               tab4d(jid,jjd,jk,jl) = tab3d(jn,jk,jl)
             END DO
          END DO
       END DO
       !
    END SUBROUTINE tab_3d_4d
 
-   SUBROUTINE tab_2d_3d( ndim1d, tab_ind, tab1d, tab2d )
+   SUBROUTINE tab_2d_3d( ndim1d, tab_ind, tab2d, tab3d )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tab_2d_1d  ***
+      !!                  ***  ROUTINE tab_2d_3d  ***
       !!----------------------------------------------------------------------
       INTEGER                         , INTENT(in   ) ::   ndim1d    ! 1D size
       INTEGER , DIMENSION(ndim1d)     , INTENT(in   ) ::   tab_ind   ! input index
-      REAL(wp), DIMENSION(ndim1d,jpl) , INTENT(in   ) ::   tab1d     ! input 1D field
-      REAL(wp), DIMENSION(:,:,:)      , INTENT(inout) ::   tab2d     ! output 2D field
+      REAL(wp), DIMENSION(ndim1d,jpl) , INTENT(in   ) ::   tab2d     ! input 2D field
+      REAL(wp), DIMENSION(:,:,:)      , INTENT(inout) ::   tab3d     ! output 3D field
       !
       INTEGER ::   ipi, ipj, ji0, jj0, jl, jn, jid, jjd
       !!----------------------------------------------------------------------
-      ipi = SIZE(tab2d,1)   ! 1st dimension
-      ipj = SIZE(tab2d,2)   ! 2nd dimension
+      ipi = SIZE(tab3d,1)   ! 1st dimension
+      ipj = SIZE(tab3d,2)   ! 2nd dimension
       !
       IF( ipi == jpi .AND. ipj == jpj ) THEN   ! full arrays then no need to change index jid and jjd
          ji0 = 0 ; jj0 = 0
@@ -182,7 +183,7 @@ CONTAINS
          DO jn = 1, ndim1d
             jid               = MOD( tab_ind(jn) - 1 ,  jpi ) + 1 - ji0
             jjd               =    ( tab_ind(jn) - 1 ) / jpi  + 1 - jj0
-            tab2d(jid,jjd,jl) = tab1d(jn,jl)
+            tab3d(jid,jjd,jl) = tab2d(jn,jl)
          END DO
       END DO
    END SUBROUTINE tab_2d_3d
@@ -190,7 +191,7 @@ CONTAINS
 
    SUBROUTINE tab_1d_2d( ndim1d, tab_ind, tab1d, tab2d )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE tab_2d_1d  ***
+      !!                  ***  ROUTINE tab_1d_2d  ***
       !!----------------------------------------------------------------------
       INTEGER                     , INTENT(in   ) ::   ndim1d    ! 1D size
       INTEGER , DIMENSION(ndim1d) , INTENT(in   ) ::   tab_ind   ! input index
@@ -209,9 +210,9 @@ CONTAINS
       ENDIF                                    !           (i.e. from hls+1:jpi-hls  to  1:jpi-2*hls)
       !
       DO jn = 1, ndim1d
-         jid             = MOD( tab_ind(jn) - 1 ,  jpi ) + 1 - ji0
-         jjd             =    ( tab_ind(jn) - 1 ) / jpi  + 1 - jj0
-         tab2d(jid, jjd) = tab1d( jn)
+         jid            = MOD( tab_ind(jn) - 1 ,  jpi ) + 1 - ji0
+         jjd            =    ( tab_ind(jn) - 1 ) / jpi  + 1 - jj0
+         tab2d(jid,jjd) = tab1d(jn)
       END DO
    END SUBROUTINE tab_1d_2d
 
