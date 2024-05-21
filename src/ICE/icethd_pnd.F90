@@ -185,7 +185,7 @@ CONTAINS
       CASE (np_pndTOPO)  ;   CALL pnd_TOPO         !==  Topographic melt ponds  ==!
       END SELECT
       
-      ! the following fields need to be updated in the halos (done in icethd): a_ip, v_ip, v_il, h_ip, h_il
+      ! the following fields need to be updated in the halos (done in icethd): a_ip, v_ip, v_il
 
       !------------------------------------
       !  Diagnostics
@@ -575,14 +575,11 @@ CONTAINS
          zv_mlt          ! total amount of meltwater produced
 
       REAL(wp), DIMENSION(A2D(0)) ::   zvolp_ini , &   !! total melt pond water available before redistribution and drainage
-                                        zvolp     , &   !! total melt pond water volume
-                                        zvolp_res       !! remaining melt pond water available after drainage
+                                       zvolp           !! total melt pond water volume
 
-      REAL(wp), DIMENSION(jpi,jpj,jpl) ::   z1_a_i
+      REAL(wp), DIMENSION(A2D(0)) ::   zdv_pnd1, zdv_pnd2
 
       INTEGER  ::   ji, jj, jk, jl                    ! loop indices
-
-      INTEGER  ::   i_test
 
       ! Note
       ! equivalent for CICE translation
@@ -598,19 +595,8 @@ CONTAINS
       zTp       = rt0 - 0.15_wp          ! pond freezing point, slightly below 0C (ponds are bid saline)
       z1_rhow   = 1._wp / rhow
 
-      ! Set required ice variables (hard-coded here for now)
-!      zfpond(:,:) = 0._wp          ! contributing freshwater flux (?)
-
       at_i (:,:) = SUM( a_i (:,:,:), dim=3 ) ! ice fraction
       vt_i (:,:) = SUM( v_i (:,:,:), dim=3 ) ! volume per grid area
-      vt_ip(:,:) = SUM( v_ip(:,:,:), dim=3 ) ! pond volume per grid area
-      vt_il(:,:) = SUM( v_il(:,:,:), dim=3 ) ! lid volume per grid area
-
-      ! thickness
-      WHERE( a_i(:,:,:) > epsi20 )   ;   z1_a_i(:,:,:) = 1._wp / a_i(:,:,:)
-      ELSEWHERE                      ;   z1_a_i(:,:,:) = 0._wp
-      END WHERE
-      h_i(:,:,:) = v_i (:,:,:) * z1_a_i(:,:,:)
 
       !---------------------------------------------------------------
       ! Change 2D to 1D
@@ -629,56 +615,67 @@ CONTAINS
       ! have a higher runoff fraction to rep- resent the greater proximity of ice to open water."
       ! "This results in the same runoff fraction r for each ice category within a grid cell"
 
+      !clem: conservation (quick fix)
+      zdv_pnd1(:,:) = 0._wp
+      DO jl = 1, jpl
+         DO_2D( 0, 0, 0, 0 )
+           zdv_pnd1(ji,jj) = zdv_pnd1(ji,jj) + v_ip(ji,jj,jl) + v_il(ji,jj,jl)
+         END_2D
+      ENDDO
+
       zvolp(:,:) = 0._wp
 
       DO jl = 1, jpl
          DO_2D( 0, 0, 0, 0 )
+            !                                                                                !----------------------------------------------------!
+            IF( v_i(ji,jj,jl) < rn_himin*a_i(ji,jj,jl) .OR. a_i(ji,jj,jl) < 0.01_wp ) THEN   ! Case ice thickness < rn_himin or tiny ice fraction !
+               !                                                                             !----------------------------------------------------!
+               !--- Remove ponds on thin ice or tiny ice fractions
+               a_ip(ji,jj,jl) = 0._wp
+               v_ip(ji,jj,jl) = 0._wp
+               h_ip(ji,jj,jl) = 0._wp
+               !                                                                             !--------------------------------!
+            ELSE                                                                             ! Case ice thickness >= rn_himin !
+               !                                                                             !--------------------------------!
+               !--- Available and contributing meltwater for melt ponding
+               zv_mlt  = - ( dh_i_sum_2d(ji,jj,jl) * rhoi + dh_s_sum_2d(ji,jj,jl) * rhos ) * z1_rhow * a_i(ji,jj,jl) ! available volume of surface melt water per grid area
+               ! MV -> could move this directly in ice_thd_dh and get an array (ji,jj,jl) for surface melt water volume per grid area
+               IF( ln_pnd_rain )    zv_mlt = zv_mlt + ( tprecip(ji,jj) - sprecip(ji,jj) ) * z1_rhow * a_i(ji,jj,jl) * rDt_ice
 
-               IF ( a_i(ji,jj,jl) > epsi10 ) THEN
+               zfr_mlt = rn_apnd_min + ( rn_apnd_max - rn_apnd_min ) * at_i(ji,jj)                  ! fraction of surface meltwater going to ponds
+               zv_pnd  = zfr_mlt * zv_mlt                                                           ! contributing meltwater volume for category jl
+               
+               IF( ll_diag_pnd ) THEN
+                  diag_dvpn_mlt(ji,jj) = diag_dvpn_mlt(ji,jj) + rhow * zv_mlt * r1_Dt_ice              ! diags
+                  diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * ( 1._wp - zfr_mlt ) * zv_mlt * r1_Dt_ice
+               ENDIF
+               
+               !--- Create possible new ponds
+               ! if pond does not exist, create new pond over full ice area
+               !IF ( a_ip_frac(ji,jj,jl) < epsi10 ) THEN
+               IF( a_ip(ji,jj,jl) < epsi10 ) THEN
+                  a_ip     (ji,jj,jl) = a_i(ji,jj,jl)
+                  a_ip_frac(ji,jj,jl) = 1.0_wp    ! pond fraction of sea ice (apnd for CICE)
+               ENDIF
+               
+               !--- Deepen existing ponds with no change in pond fraction, before redistribution and drainage
+               v_ip(ji,jj,jl) = v_ip(ji,jj,jl) + zv_pnd                                            ! use pond water to increase thickness
+               h_ip(ji,jj,jl) = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
 
-                  !--- Available and contributing meltwater for melt ponding ---!
-                  zv_mlt  = - ( dh_i_sum_2d(ji,jj,jl) * rhoi + dh_s_sum_2d(ji,jj,jl) * rhos ) &        ! available volume of surface melt water per grid area
-                     &    * z1_rhow * a_i(ji,jj,jl)
-                      ! MV -> could move this directly in ice_thd_dh and get an array (ji,jj,jl) for surface melt water volume per grid area
-                  IF ( ln_pnd_rain ) THEN
-                     zv_mlt = zv_mlt &
-                        &   + ( tprecip(ji,jj) - sprecip(ji,jj) ) * z1_rhow * a_i(ji,jj,jl) * rDt_ice
-                  ENDIF
-                  zfr_mlt = rn_apnd_min + ( rn_apnd_max - rn_apnd_min ) * at_i(ji,jj)                  ! fraction of surface meltwater going to ponds
-                  zv_pnd  = zfr_mlt * zv_mlt                                                           ! contributing meltwater volume for category jl
-
-                  IF( ll_diag_pnd ) THEN
-                    diag_dvpn_mlt(ji,jj) = diag_dvpn_mlt(ji,jj) + rhow * zv_mlt * r1_Dt_ice              ! diags
-                    diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * ( 1. - zfr_mlt ) * zv_mlt * r1_Dt_ice
-                  ENDIF
-                  
-                  !--- Create possible new ponds
-                  ! if pond does not exist, create new pond over full ice area
-                  !IF ( a_ip_frac(ji,jj,jl) < epsi10 ) THEN
-                  IF ( a_ip(ji,jj,jl) < epsi10 ) THEN
-                     a_ip(ji,jj,jl)       = a_i(ji,jj,jl)
-                     a_ip_frac(ji,jj,jl)  = 1.0_wp    ! pond fraction of sea ice (apnd for CICE)
-                  ENDIF
-
-                  !--- Deepen existing ponds with no change in pond fraction, before redistribution and drainage
-                  v_ip(ji,jj,jl) = v_ip(ji,jj,jl) +  zv_pnd                                            ! use pond water to increase thickness
-                  h_ip(ji,jj,jl) = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
-
-                  !--- Total available pond water volume (pre-existing + newly produced)j
-                  zvolp(ji,jj)   = zvolp(ji,jj)   + v_ip(ji,jj,jl)
-!                 zfpond(ji,jj) = zfpond(ji,jj) + zpond * a_ip_frac(ji,jj,jl) ! useless for now
-
-               ENDIF ! a_i
+            ENDIF
+            
+            !--- Total available pond water volume (pre-existing + newly produced)
+            zvolp(ji,jj) = zvolp(ji,jj) + v_ip(ji,jj,jl)
 
          END_2D
-      END DO ! ji
+      END DO
 
       zvolp_ini(:,:) = zvolp(:,:)
 
       !--------------------------------------------------------------
       ! Redistribute and drain water from ponds
       !--------------------------------------------------------------
-      CALL ice_thd_pnd_area( zvolp, zvolp_res )
+      CALL ice_thd_pnd_area( zvolp, a_ip, v_ip, h_ip )
 
       !--------------------------------------------------------------
       ! Melt pond lid growth and melt
@@ -688,12 +685,28 @@ CONTAINS
 
          DO_2D( 0, 0, 0, 0 )
 
-            IF ( at_i(ji,jj) > 0.01 .AND. vt_i(ji,jj) > (rn_himin*at_i(ji,jj)) .AND. zvolp_ini(ji,jj) > zvp_min * at_i(ji,jj) ) THEN
+            !-----------------------------------------------------------------------------!
+            ! Case ice thickness < rn_himin or tiny ice fraction or pond volume too small !
+            !-----------------------------------------------------------------------------!
+            IF ( at_i(ji,jj) < 0.01 .OR. vt_i(ji,jj) < (rn_himin*at_i(ji,jj)) .OR. zvolp_ini(ji,jj) < (zvp_min*at_i(ji,jj)) ) THEN
+
+               IF ( ll_diag_pnd ) THEN
+                  diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + rhow * SUM( v_il(ji,jj,:) ) * r1_Dt_ice  ! diags
+                  diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * SUM( v_ip(ji,jj,:) + v_il(ji,jj,:) ) * r1_Dt_ice
+               ENDIF
+               a_ip(ji,jj,:) = 0._wp
+               v_ip(ji,jj,:) = 0._wp
+               v_il(ji,jj,:) = 0._wp
+               h_ip(ji,jj,:) = 0._wp
+
+               !------------------------------------------------------------!
+               ! Case ice thickness > rn_himin and pond volume large enough !
+               !------------------------------------------------------------!
+            ELSE
 
                !--------------------------
                ! Pond lid growth and melt
                !--------------------------
-
                DO jl = 1, jpl-1
 
                   IF ( v_il(ji,jj,jl) > epsi10 ) THEN
@@ -711,14 +724,11 @@ CONTAINS
 
                            v_il (ji,jj,jl) = v_il (ji,jj,jl)   - zdvice
                            v_ip(ji,jj,jl)  = v_ip(ji,jj,jl)    + zdvice ! MV: not sure i understand dh_i_sum seems counted twice -
-                                                                        ! as it is already counted in surface melt
-!                          zvolp(ji,jj)     = zvolp(ji,jj)     + zdvice ! pointless to calculate total volume (done in icevar)
-!                          zfpond(ji,jj)    = fpond(ji,jj)     + zdvice ! pointless to follow fw budget (ponds have no fw)
+                           ! as it is already counted in surface melt
 
                            IF ( v_il(ji,jj,jl) < epsi10 .AND. v_ip(ji,jj,jl) > epsi10) THEN
-                           ! ice lid melted and category is pond covered
+                              ! ice lid melted and category is pond covered
                               v_ip(ji,jj,jl)  = v_ip(ji,jj,jl)  + v_il(ji,jj,jl)
-!                             zfpond(ji,jj)    = zfpond (ji,jj)    + v_il(ji,jj,jl)
                               IF ( ll_diag_pnd ) diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + rhow * v_il(ji,jj,jl) * r1_Dt_ice  ! diag
                               v_il(ji,jj,jl)   = 0._wp
                            ENDIF
@@ -728,9 +738,9 @@ CONTAINS
 
                         ENDIF
 
-                     !----------------------------------------------------------------
-                     ! Freeze pre-existing lid
-                     !----------------------------------------------------------------
+                        !----------------------------------------------------------------
+                        ! Freeze pre-existing lid
+                        !----------------------------------------------------------------
 
                      ELSE IF ( v_ip(ji,jj,jl) > epsi10 ) THEN ! Tsfcn(i,j,n) <= Tp
 
@@ -741,13 +751,11 @@ CONTAINS
                         ! have a_ip (two instances).
                         ! The following corrects that.
                         zdHui  = SQRT( 2._wp * zomega * rDt_ice + ( v_il(ji,jj,jl) / a_ip(ji,jj,jl) )**2 ) &
-                               - v_il(ji,jj,jl) / a_ip(ji,jj,jl)
+                           - v_il(ji,jj,jl) / a_ip(ji,jj,jl)
 
                         IF ( zdvice > epsi10 ) THEN
                            v_il (ji,jj,jl)  = v_il(ji,jj,jl)   + zdvice
                            v_ip(ji,jj,jl)   = v_ip(ji,jj,jl)   - zdvice
-!                          zvolp(ji,jj)    = zvolp(ji,jj)     - zdvice
-!                          zfpond(ji,jj)   = zfpond(ji,jj)    - zdvice
                            h_ip(ji,jj,jl)   = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
 
                            IF( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - rhow * zdvice * r1_Dt_ice  ! diag
@@ -755,11 +763,11 @@ CONTAINS
 
                      ENDIF ! Tsfcn(i,j,n)
 
-                  !----------------------------------------------------------------
-                  ! Freeze new lids
-                  !----------------------------------------------------------------
-                  !  upper ice layer begins to form
-                  ! note: albedo does not change
+                     !----------------------------------------------------------------
+                     ! Freeze new lids
+                     !----------------------------------------------------------------
+                     !  upper ice layer begins to form
+                     ! note: albedo does not change
 
                   ELSE ! v_il < epsi10
 
@@ -768,9 +776,9 @@ CONTAINS
                      ! of the ice underneath (0C), and the thermodynamic surface
                      ! flux is the same
 
-                     !!! we need net surface energy flux, excluding conduction
-                     !!! fsurf is summed over categories in CICE
-                     !!! we have the category-dependent flux, let us use it ?
+                     ! we need net surface energy flux, excluding conduction
+                     ! fsurf is summed over categories in CICE
+                     ! we have the category-dependent flux, let us use it ?
                      zfsurf = qns_ice(ji,jj,jl) + qsr_ice(ji,jj,jl)
                      zdHui  = MAX ( -zfsurf * rDt_ice/zrhoi_L , 0._wp )
                      zdvice = MIN ( zdHui * a_ip(ji,jj,jl) , v_ip(ji,jj,jl) )
@@ -779,8 +787,6 @@ CONTAINS
                         v_ip(ji,jj,jl)   = v_ip(ji,jj,jl)   - zdvice
 
                         IF ( ll_diag_pnd )   diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) - rhow * zdvice * r1_Dt_ice ! diag
-!                       zvolp(ji,jj)     = zvolp(ji,jj)     - zdvice
-!                       zfpond(ji,jj)    = zfpond(ji,jj)    - zdvice
                         h_ip(ji,jj,jl)   = v_ip(ji,jj,jl) / a_ip(ji,jj,jl) ! MV - in principle, this is useless as h_ip is computed in icevar
                      ENDIF
 
@@ -788,60 +794,29 @@ CONTAINS
 
                END DO ! jl
 
-            ELSE  ! remove ponds on thin ice
-              
-               IF ( ll_diag_pnd ) THEN
-                 diag_dvpn_lid(ji,jj) = diag_dvpn_lid(ji,jj) + rhow * SUM( v_il(ji,jj,:) ) * r1_Dt_ice  ! diags
-                 diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * SUM( v_ip(ji,jj,:) + v_il(ji,jj,:) ) * r1_Dt_ice
-               ENDIF
-               v_ip(ji,jj,:) = 0._wp
-               v_il(ji,jj,:) = 0._wp
-
-!              zfpond(ji,jj) = zfpond(ji,jj)- zvolp(ji,jj)
-!		            zvolp(ji,jj)    = 0._wp
-
+               
             ENDIF
 
          END_2D
 
       ENDIF ! ln_pnd_lids
 
-      !---------------------------------------------------------------
-      ! Clean-up variables (probably duplicates what icevar would do)
-      !---------------------------------------------------------------
-      ! MV comment
-      ! In the ideal world, the lines above should update only v_ip, a_ip, v_il
-      ! icevar should recompute all other variables (if needed at all)
-
-      DO jl = 1, jpl
-
+      !clem: conservation (quick fix)
+      zdv_pnd2(:,:) = 0._wp
+      DO jl = 1, jpl 
          DO_2D( 0, 0, 0, 0 )
-
-!              ! zap lids on small ponds
-!              IF ( a_i(ji,jj,jl) > epsi10 .AND. v_ip(ji,jj,jl) < epsi10 &
-!                                          .AND. v_il(ji,jj,jl) > epsi10) THEN
-!                 v_il(ji,jj,jl) = 0._wp ! probably uselesss now since we get zap_small
-!              ENDIF
-
-               ! recalculate equivalent pond variables
-               IF ( a_ip(ji,jj,jl) > epsi10) THEN
-                  h_ip(ji,jj,jl)      = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
-                  a_ip_frac(ji,jj,jl) = a_ip(ji,jj,jl) / a_i(ji,jj,jl) ! MV in principle, useless as computed in icevar
-                  h_il(ji,jj,jl) = v_il(ji,jj,jl) / a_ip(ji,jj,jl) ! MV in principle, useless as computed in icevar
-               ENDIF
-!                 h_ip(ji,jj,jl)      = 0._wp ! MV in principle, useless as computed in icevar
-!                 h_il(ji,jj,jl)      = 0._wp ! MV in principle, useless as omputed in icevar
-!              ENDIF
-
+            zdv_pnd2(ji,jj) = zdv_pnd2(ji,jj) + v_ip(ji,jj,jl) + v_il(ji,jj,jl)
          END_2D
+      ENDDO
 
-      END DO   ! jl
-
+      DO_2D( 0, 0, 0, 0 )
+         wfx_pnd(ji,jj) = wfx_pnd(ji,jj) - ( zdv_pnd2(ji,jj) - zdv_pnd1(ji,jj) ) * rhow * r1_Dt_ice
+      END_2D
 
    END SUBROUTINE pnd_TOPO
 
 
-   SUBROUTINE ice_thd_pnd_area( zvolp , zdvolp )
+   SUBROUTINE ice_thd_pnd_area( zvolp, a_ip, v_ip, h_ip )
 
        !!-------------------------------------------------------------------
        !!                ***  ROUTINE ice_thd_pnd_area ***
@@ -877,9 +852,8 @@ CONTAINS
        !!
        !!------------------------------------------------------------------
 
-       REAL (wp), DIMENSION(A2D(0)), INTENT(INOUT) :: &
-          zvolp,                                       &  ! total available pond water
-          zdvolp                                          ! remaining meltwater after redistribution
+       REAL (wp), DIMENSION(A2D(0)), INTENT(INOUT) :: zvolp ! total available pond water
+       REAL (wp), DIMENSION(:,:,:) , INTENT(INOUT) :: a_ip, v_ip, h_ip
 
        INTEGER ::  &
           ns,      &
@@ -916,262 +890,258 @@ CONTAINS
 
       INTEGER  ::   ji, jj, jk, jl                    ! loop indices
 
-       a_ip(A2D(0),:) = 0._wp
-       h_ip(A2D(0),:) = 0._wp
 
        DO_2D( 0, 0, 0, 0 )
 
-             IF ( at_i(ji,jj) > 0.01 .AND. vt_i(ji,jj) > (rn_himin*at_i(ji,jj)) .AND. zvolp(ji,jj) > zvp_min * at_i(ji,jj) ) THEN
 
-        !-------------------------------------------------------------------
-        ! initialize
-        !-------------------------------------------------------------------
-
-        DO jl = 1, jpl
-
-           !----------------------------------------
-           ! compute the effective snow fraction
-           !----------------------------------------
-
-           IF (a_i(ji,jj,jl) < epsi10)  THEN
-              hicen(jl) =  0._wp
-              hsnon(jl) =  0._wp
-              reduced_aicen(jl) = 0._wp
-              asnon(jl) = 0._wp         !js: in CICE 5.1.2: make sense as the compiler may not initiate the variables
-           ELSE
-              hicen(jl) = v_i(ji,jj,jl) / a_i(ji,jj,jl)
-              hsnon(jl) = v_s(ji,jj,jl) / a_i(ji,jj,jl)
-              reduced_aicen(jl) = 1._wp ! n=jpl
-
-              !js: initial code in NEMO_DEV
-              !IF (n < jpl) reduced_aicen(jl) = aicen(jl) &
-              !                     * (-0.024_wp*hicen(jl) + 0.832_wp)
-
-              !js: from CICE 5.1.2: this limit reduced_aicen to 0.2 when hicen is too large
-              IF (jl < jpl) reduced_aicen(jl) = a_i(ji,jj,jl) &
-                                   * max(0.2_wp,(-0.024_wp*hicen(jl) + 0.832_wp))
-
-              asnon(jl) = reduced_aicen(jl)  ! effective snow fraction (empirical)
-              ! MV should check whether this makes sense to have the same effective snow fraction in here
-              ! OLI: it probably doesn't
-           END IF
-
-  ! This choice for alfa and beta ignores hydrostatic equilibium of categories.
-  ! Hydrostatic equilibium of the entire ITD is accounted for below, assuming
-  ! a surface topography implied by alfa=0.6 and beta=0.4, and rigidity across all
-  ! categories.  alfa and beta partition the ITD - they are areas not thicknesses!
-  ! Multiplying by hicen, alfan and betan (below) are thus volumes per unit area.
-  ! Here, alfa = 60% of the ice area (and since hice is constant in a category,
-  ! alfan = 60% of the ice volume) in each category lies above the reference line,
-  ! and 40% below. Note: p6 is an arbitrary choice, but alfa+beta=1 is required.
-
-  ! MV:
-  ! Note that this choice is not in the original FF07 paper and has been adopted in CICE
-  ! No reason why is explained in the doc, but I guess there is a reason. I'll try to investigate, maybe
-
-  ! Where does that choice come from ? => OLI : Coz' Chuck Norris said so...
-
-           alfan(jl) = 0.6 * hicen(jl)
-           betan(jl) = 0.4 * hicen(jl)
-
-           cum_max_vol(jl)     = 0._wp
-           cum_max_vol_tmp(jl) = 0._wp
-
-        END DO ! jpl
-
-        cum_max_vol_tmp(0) = 0._wp
-        drain = 0._wp
-        zdvolp(ji,jj) = 0._wp
-
-        !----------------------------------------------------------
-        ! Drain overflow water, update pond fraction and volume
-        !----------------------------------------------------------
-
-        !--------------------------------------------------------------------------
-        ! the maximum amount of water that can be contained up to each ice category
-        !--------------------------------------------------------------------------
-        ! If melt ponds are too deep to be sustainable given the ITD (OVERFLOW)
-        ! Then the excess volume cum_max_vol(jl) drains out of the system
-        ! It should be added to wfx_pnd_out
-
-        DO jl = 1, jpl-1 ! last category can not hold any volume
-
-           IF (alfan(jl+1) >= alfan(jl) .AND. alfan(jl+1) > 0._wp ) THEN
-
-              ! total volume in level including snow
-              cum_max_vol_tmp(jl) = cum_max_vol_tmp(jl-1) + &
-                 (alfan(jl+1) - alfan(jl)) * sum(reduced_aicen(1:jl))
-
-              ! subtract snow solid volumes from lower categories in current level
-              DO ns = 1, jl
-                 cum_max_vol_tmp(jl) = cum_max_vol_tmp(jl) &
-                    - rhos/rhow * &     ! free air fraction that can be filled by water
-                      asnon(ns)  * &    ! effective areal fraction of snow in that category
-                      max(min(hsnon(ns)+alfan(ns)-alfan(jl), alfan(jl+1)-alfan(jl)), 0._wp)
-              END DO
-
-           ELSE ! assume higher categories unoccupied
-              cum_max_vol_tmp(jl) = cum_max_vol_tmp(jl-1)
-           END IF
-           !IF (cum_max_vol_tmp(jl) < z0) THEN
-           !   CALL abort_ice('negative melt pond volume')
-           !END IF
-        END DO
-        cum_max_vol_tmp(jpl) = cum_max_vol_tmp(jpl-1)  ! last category holds no volume
-        cum_max_vol  (1:jpl) = cum_max_vol_tmp(1:jpl)
-
-        !----------------------------------------------------------------
-        ! is there more meltwater than can be held in the floe?
-        !----------------------------------------------------------------
-        IF (zvolp(ji,jj) >= cum_max_vol(jpl)) THEN
-           drain = zvolp(ji,jj) - cum_max_vol(jpl) + epsi10
-           zvolp(ji,jj) = zvolp(ji,jj) - drain ! update meltwater volume available
-
-           IF( ll_diag_pnd )   diag_dvpn_rnf(ji,jj) = - diag_dvpn_rnf(ji,jj) - rhow * drain * r1_Dt_ice  
-                                  ! diag - overflow counted in the runoff part (arbitrary choice)
-
-           zdvolp(ji,jj) = drain         ! this is the drained water
-           IF (zvolp(ji,jj) < epsi10) THEN
-              zdvolp(ji,jj) = zdvolp(ji,jj) + zvolp(ji,jj)
-              zvolp(ji,jj) = 0._wp
-           END IF
-        END IF
-
-        ! height and area corresponding to the remaining volume
-        ! routine leaves zvolp unchanged
-        CALL ice_thd_pnd_depth(reduced_aicen, asnon, hsnon, alfan, zvolp(ji,jj), cum_max_vol, hpond, m_index)
-
-        DO jl = 1, m_index
-           !h_ip(jl) = hpond - alfan(jl) + alfan(1) ! here oui choulde update
-           !                                         !  volume instead, no ?
-           h_ip(ji,jj,jl) = max((hpond - alfan(jl) + alfan(1)), 0._wp)      !js: from CICE 5.1.2
-           a_ip(ji,jj,jl) = reduced_aicen(jl)
-           ! in practise, pond fraction depends on the empirical snow fraction
-           ! so in turn on ice thickness
-        END DO
-        !zapond = sum(a_ip(1:m_index))     !js: from CICE 5.1.2; not in Icepack1.1.0-6-gac6195d
-
-        !------------------------------------------------------------------------
-        ! Drainage through brine network (permeability)
-        !------------------------------------------------------------------------
-        !!! drainage due to ice permeability - Darcy's law
-
-        ! sea water level
-        msno = 0._wp
-        DO jl = 1 , jpl
-          msno = msno + v_s(ji,jj,jl) * rhos
-        END DO
-        floe_weight = ( msno + rhoi*vt_i(ji,jj) + rho0*zvolp(ji,jj) ) / at_i(ji,jj)
-        hsl_rel = floe_weight / rho0 &
-                - ( ( sum(betan(:)*a_i(ji,jj,:)) / at_i(ji,jj) ) + alfan(1) )
-
-        deltah = hpond - hsl_rel
-        pressure_head = grav * rho0 * max(deltah, 0._wp)
-
-        ! drain if ice is permeable
-        permflag = 0
-
-        IF (pressure_head > 0._wp) THEN
-           DO jl = 1, jpl-1
-              IF ( hicen(jl) /= 0._wp ) THEN
-
-              !IF (hicen(jl) > 0._wp) THEN           !js: from CICE 5.1.2
-
-                 perm = 0._wp ! MV ugly dummy patch
-                 perm = ice_perm_eff( t_i(ji,jj,:,jl), sz_i(ji,jj,:,jl) ) ! bof
-                 IF (perm > 0._wp) permflag = 1
-
-                 drain = perm*a_ip(ji,jj,jl)*pressure_head*rDt_ice / &
-                                          (viscosity*hicen(jl))
-                 zdvolp(ji,jj) = zdvolp(ji,jj) + min(drain, zvolp(ji,jj))
-                 IF( ll_diag_pnd ) diag_dvpn_drn(ji,jj) = diag_dvpn_drn(ji,jj) - rhow * min(drain, zvolp(ji,jj)) * r1_Dt_ice  ! diag
-                 zvolp(ji,jj) = max(zvolp(ji,jj) - drain, 0._wp)
-
-                 IF( ll_diag_pnd ) diag_dvpn_drn(ji,jj) = - drain ! diag (could be better coded)
-
-                 IF (zvolp(ji,jj) < epsi10) THEN
-                    zdvolp(ji,jj) = zdvolp(ji,jj) + zvolp(ji,jj)
-                    IF( ll_diag_pnd ) diag_dvpn_drn(ji,jj) = diag_dvpn_drn(ji,jj) - rhow * zvolp(ji,jj) * r1_Dt_ice ! diag
-                    zvolp(ji,jj) = 0._wp
-                 END IF
-
-             END IF
-          END DO
-
-           ! adjust melt pond dimensions
-           IF (permflag > 0) THEN
-              ! recompute pond depth
-             CALL ice_thd_pnd_depth(reduced_aicen, asnon, hsnon, alfan, zvolp(ji,jj), cum_max_vol, hpond, m_index)
-              DO jl = 1, m_index
-                 h_ip(ji,jj,jl) = hpond - alfan(jl) + alfan(1)
-                 a_ip(ji,jj,jl) = reduced_aicen(jl)
-              END DO
-              !zapond = sum(a_ip(1:m_index))       !js: from CICE 5.1.2; not in Icepack1.1.0-6-gac6195d
-           END IF
-        END IF ! pressure_head
-
-        !-------------------------------
-        ! remove water from the snow
-        !-------------------------------
-        !------------------------------------------------------------------------
-        ! total melt pond volume in category does not include snow volume
-        ! snow in melt ponds is not melted
-        !------------------------------------------------------------------------
-
-        ! MV here, it seems that we remove some meltwater from the ponds, but I can't really tell
-        ! how much, so I did not diagnose it
-        ! so if there is a problem here, nobody is going to see it...
-
-
-        ! Calculate pond volume for lower categories
-        DO jl = 1,m_index-1
-           v_ip(ji,jj,jl) = a_ip(ji,jj,jl) * h_ip(ji,jj,jl) & ! what is not in the snow
-                          - (rhos/rhow) * asnon(jl) * min(hsnon(jl), h_ip(ji,jj,jl))
-        END DO
-
-        ! Calculate pond volume for highest category = remaining pond volume
-
-        ! The following is completely unclear to Martin at least
-        ! Could we redefine properly and recode in a more readable way ?
-
-        ! m_index = last category with melt pond
-
-        IF (m_index == 1) v_ip(ji,jj,m_index) = zvolp(ji,jj) ! volume of mw in 1st category is the total volume of melt water
-
-        IF (m_index > 1) THEN
-          IF (zvolp(ji,jj) > sum( v_ip(ji,jj,1:m_index-1))) THEN
-             v_ip(ji,jj,m_index) = zvolp(ji,jj) - sum(v_ip(ji,jj,1:m_index-1))
+          !-----------------------------------------------------------------------------!
+          ! Case ice thickness < rn_himin or tiny ice fraction or pond volume too small !
+          !-----------------------------------------------------------------------------!
+          IF ( at_i(ji,jj) < 0.01 .OR. vt_i(ji,jj) < (rn_himin*at_i(ji,jj)) .OR. zvolp(ji,jj) < (zvp_min*at_i(ji,jj)) ) THEN
+             a_ip(ji,jj,:) = 0._wp
+             h_ip(ji,jj,:) = 0._wp
+             v_ip(ji,jj,:) = 0._wp
           ELSE
-             v_ip(ji,jj,m_index) = 0._wp
-             h_ip(ji,jj,m_index) = 0._wp
-             a_ip(ji,jj,m_index) = 0._wp
-             ! If remaining pond volume is negative reduce pond volume of
-             ! lower category
-             IF ( zvolp(ji,jj) + epsi10 < SUM(v_ip(ji,jj,1:m_index-1))) &
-              v_ip(ji,jj,m_index-1) = v_ip(ji,jj,m_index-1) - sum(v_ip(ji,jj,1:m_index-1)) + zvolp(ji,jj)
-          END IF
-        END IF
+             
+             !-------------------------------------------------------------------
+             ! initialize
+             !-------------------------------------------------------------------
+             
+             DO jl = 1, jpl
 
-        DO jl = 1,m_index
-           IF (a_ip(ji,jj,jl) > epsi10) THEN
-               h_ip(ji,jj,jl) = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
-           ELSE
-              zdvolp(ji,jj) = zdvolp(ji,jj) + v_ip(ji,jj,jl)
-              IF( ll_diag_pnd ) diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * v_ip(ji,jj,jl) * r1_Dt_ice  ! diag
-              h_ip(ji,jj,jl) = 0._wp
-              v_ip(ji,jj,jl)  = 0._wp
-              a_ip(ji,jj,jl) = 0._wp
-           END IF
-        END DO
-        DO jl = m_index+1, jpl
-           h_ip(ji,jj,jl) = 0._wp
-           a_ip(ji,jj,jl) = 0._wp
-           v_ip(ji,jj,jl) = 0._wp
-        END DO
+                !----------------------------------------
+                ! compute the effective snow fraction
+                !----------------------------------------
 
-           ENDIF
+                IF (a_i(ji,jj,jl) < epsi10)  THEN
+                   hicen(jl) =  0._wp
+                   hsnon(jl) =  0._wp
+                   reduced_aicen(jl) = 0._wp
+                   asnon(jl) = 0._wp         !js: in CICE 5.1.2: make sense as the compiler may not initiate the variables
+                ELSE
+                   hicen(jl) = v_i(ji,jj,jl) / a_i(ji,jj,jl)
+                   hsnon(jl) = v_s(ji,jj,jl) / a_i(ji,jj,jl)
+                   reduced_aicen(jl) = 1._wp ! n=jpl
 
-     END_2D
+                   !js: initial code in NEMO_DEV
+                   !IF (n < jpl) reduced_aicen(jl) = aicen(jl) &
+                   !                     * (-0.024_wp*hicen(jl) + 0.832_wp)
+
+                   !js: from CICE 5.1.2: this limit reduced_aicen to 0.2 when hicen is too large
+                   IF( jl < jpl )   reduced_aicen(jl) = a_i(ji,jj,jl) * MAX(0.2_wp,(-0.024_wp*hicen(jl) + 0.832_wp))
+
+                   asnon(jl) = reduced_aicen(jl)  ! effective snow fraction (empirical)
+                   ! MV should check whether this makes sense to have the same effective snow fraction in here
+                   ! OLI: it probably doesn't
+                END IF
+
+                ! This choice for alfa and beta ignores hydrostatic equilibium of categories.
+                ! Hydrostatic equilibium of the entire ITD is accounted for below, assuming
+                ! a surface topography implied by alfa=0.6 and beta=0.4, and rigidity across all
+                ! categories.  alfa and beta partition the ITD - they are areas not thicknesses!
+                ! Multiplying by hicen, alfan and betan (below) are thus volumes per unit area.
+                ! Here, alfa = 60% of the ice area (and since hice is constant in a category,
+                ! alfan = 60% of the ice volume) in each category lies above the reference line,
+                ! and 40% below. Note: p6 is an arbitrary choice, but alfa+beta=1 is required.
+
+                ! MV:
+                ! Note that this choice is not in the original FF07 paper and has been adopted in CICE
+                ! No reason why is explained in the doc, but I guess there is a reason. I'll try to investigate, maybe
+
+                ! Where does that choice come from ? => OLI : Coz' Chuck Norris said so...
+
+                alfan(jl) = 0.6 * hicen(jl)
+                betan(jl) = 0.4 * hicen(jl)
+
+                cum_max_vol(jl)     = 0._wp
+                cum_max_vol_tmp(jl) = 0._wp
+
+             END DO ! jpl
+
+             cum_max_vol_tmp(0) = 0._wp
+             drain = 0._wp
+
+             !----------------------------------------------------------
+             ! Drain overflow water, update pond fraction and volume
+             !----------------------------------------------------------
+
+             !--------------------------------------------------------------------------
+             ! the maximum amount of water that can be contained up to each ice category
+             !--------------------------------------------------------------------------
+             ! If melt ponds are too deep to be sustainable given the ITD (OVERFLOW)
+             ! Then the excess volume cum_max_vol(jl) drains out of the system
+             ! It should be added to wfx_pnd_out
+
+             DO jl = 1, jpl-1 ! last category can not hold any volume
+
+                IF (alfan(jl+1) >= alfan(jl) .AND. alfan(jl+1) > 0._wp ) THEN
+
+                   ! total volume in level including snow
+                   cum_max_vol_tmp(jl) = cum_max_vol_tmp(jl-1) + (alfan(jl+1) - alfan(jl)) * SUM(reduced_aicen(1:jl))
+
+                   ! subtract snow solid volumes from lower categories in current level
+                   DO ns = 1, jl
+                      cum_max_vol_tmp(jl) = cum_max_vol_tmp(jl) &
+                         &                  - rhos/rhow * &     ! free air fraction that can be filled by water
+                         &                    asnon(ns) * &     ! effective areal fraction of snow in that category
+                         &                    MAX(MIN(hsnon(ns)+alfan(ns)-alfan(jl), alfan(jl+1)-alfan(jl)), 0._wp)
+                   END DO
+
+                ELSE ! assume higher categories unoccupied
+                   cum_max_vol_tmp(jl) = cum_max_vol_tmp(jl-1)
+                END IF
+                !IF (cum_max_vol_tmp(jl) < z0) THEN
+                !   CALL abort_ice('negative melt pond volume')
+                !END IF
+             END DO
+             cum_max_vol_tmp(jpl) = cum_max_vol_tmp(jpl-1)  ! last category holds no volume
+             cum_max_vol  (1:jpl) = cum_max_vol_tmp(1:jpl)
+
+             !----------------------------------------------------------------
+             ! is there more meltwater than can be held in the floe?
+             !----------------------------------------------------------------
+             IF (zvolp(ji,jj) >= cum_max_vol(jpl)) THEN
+                drain = zvolp(ji,jj) - cum_max_vol(jpl) + epsi10
+                zvolp(ji,jj) = zvolp(ji,jj) - drain ! update meltwater volume available
+
+                IF( ll_diag_pnd )   diag_dvpn_rnf(ji,jj) = - diag_dvpn_rnf(ji,jj) - rhow * drain * r1_Dt_ice  
+                ! diag - overflow counted in the runoff part (arbitrary choice)
+
+                IF (zvolp(ji,jj) < epsi10) THEN
+                   zvolp (ji,jj) = 0._wp
+                END IF
+             END IF
+
+             ! height and area corresponding to the remaining volume
+             ! routine leaves zvolp unchanged
+             CALL ice_thd_pnd_depth(reduced_aicen, asnon, hsnon, alfan, zvolp(ji,jj), cum_max_vol, hpond, m_index)
+
+             DO jl = 1, m_index
+                !h_ip(jl) = hpond - alfan(jl) + alfan(1) ! here oui choulde update
+                !                                         !  volume instead, no ?
+                h_ip(ji,jj,jl) = MAX((hpond - alfan(jl) + alfan(1)), 0._wp)      !js: from CICE 5.1.2
+                a_ip(ji,jj,jl) = reduced_aicen(jl)
+                ! in practise, pond fraction depends on the empirical snow fraction
+                ! so in turn on ice thickness
+             END DO
+             !zapond = sum(a_ip(1:m_index))     !js: from CICE 5.1.2; not in Icepack1.1.0-6-gac6195d
+
+             !------------------------------------------------------------------------
+             ! Drainage through brine network (permeability)
+             !------------------------------------------------------------------------
+             ! drainage due to ice permeability - Darcy's law
+             
+             ! sea water level
+             msno = 0._wp
+             DO jl = 1 , jpl
+                msno = msno + v_s(ji,jj,jl) * rhos
+             END DO
+             floe_weight = ( msno + rhoi*vt_i(ji,jj) + rho0*zvolp(ji,jj) ) / at_i(ji,jj)
+             hsl_rel = floe_weight / rho0 - ( ( SUM(betan(:)*a_i(ji,jj,:)) / at_i(ji,jj) ) + alfan(1) )
+
+             deltah = hpond - hsl_rel
+             pressure_head = grav * rho0 * MAX(deltah, 0._wp)
+
+             ! drain if ice is permeable
+             permflag = 0
+
+             IF (pressure_head > 0._wp) THEN
+                DO jl = 1, jpl-1
+                   IF ( hicen(jl) /= 0._wp ) THEN
+
+                      !IF (hicen(jl) > 0._wp) THEN           !js: from CICE 5.1.2
+
+                      perm = 0._wp ! MV ugly dummy patch
+                      perm = ice_perm_eff( t_i(ji,jj,:,jl), sz_i(ji,jj,:,jl) ) ! bof
+                      IF (perm > 0._wp) permflag = 1
+
+                      drain = perm*a_ip(ji,jj,jl)*pressure_head*rDt_ice / (viscosity*hicen(jl))
+                      IF( ll_diag_pnd ) diag_dvpn_drn(ji,jj) = diag_dvpn_drn(ji,jj) - rhow * MIN(drain, zvolp(ji,jj)) * r1_Dt_ice  ! diag
+                      zvolp(ji,jj) = MAX(zvolp(ji,jj) - drain, 0._wp)
+                      
+                      IF( ll_diag_pnd ) diag_dvpn_drn(ji,jj) = - drain ! diag (could be better coded)
+
+                      IF (zvolp(ji,jj) < epsi10) THEN
+                         IF( ll_diag_pnd ) diag_dvpn_drn(ji,jj) = diag_dvpn_drn(ji,jj) - rhow * zvolp(ji,jj) * r1_Dt_ice ! diag
+                         zvolp(ji,jj) = 0._wp
+                      END IF
+
+                   END IF
+                END DO
+
+                ! adjust melt pond dimensions
+                IF (permflag > 0) THEN
+                   ! recompute pond depth
+                   CALL ice_thd_pnd_depth(reduced_aicen, asnon, hsnon, alfan, zvolp(ji,jj), cum_max_vol, hpond, m_index)
+                   DO jl = 1, m_index
+                      h_ip(ji,jj,jl) = hpond - alfan(jl) + alfan(1)
+                      a_ip(ji,jj,jl) = reduced_aicen(jl)
+                   END DO
+                   !zapond = sum(a_ip(1:m_index))       !js: from CICE 5.1.2; not in Icepack1.1.0-6-gac6195d
+                END IF
+             END IF ! pressure_head
+
+             !-------------------------------
+             ! remove water from the snow
+             !-------------------------------
+             !------------------------------------------------------------------------
+             ! total melt pond volume in category does not include snow volume
+             ! snow in melt ponds is not melted
+             !------------------------------------------------------------------------
+             
+             ! MV here, it seems that we remove some meltwater from the ponds, but I can't really tell
+             ! how much, so I did not diagnose it
+             ! so if there is a problem here, nobody is going to see it...
+             
+             
+             ! Calculate pond volume for lower categories
+             DO jl = 1,m_index-1
+                v_ip(ji,jj,jl) = a_ip(ji,jj,jl) * h_ip(ji,jj,jl) & ! what is not in the snow
+                   &             - (rhos/rhow) * asnon(jl) * MIN(hsnon(jl), h_ip(ji,jj,jl))
+             END DO
+
+             ! Calculate pond volume for highest category = remaining pond volume
+
+             ! The following is completely unclear to Martin at least
+             ! Could we redefine properly and recode in a more readable way ?
+
+             ! m_index = last category with melt pond
+
+             IF (m_index == 1) v_ip(ji,jj,m_index) = zvolp(ji,jj) ! volume of mw in 1st category is the total volume of melt water
+
+             IF (m_index > 1) THEN
+                IF (zvolp(ji,jj) > SUM( v_ip(ji,jj,1:m_index-1))) THEN
+                   v_ip(ji,jj,m_index) = zvolp(ji,jj) - SUM(v_ip(ji,jj,1:m_index-1))
+                ELSE
+                   v_ip(ji,jj,m_index) = 0._wp
+                   h_ip(ji,jj,m_index) = 0._wp
+                   a_ip(ji,jj,m_index) = 0._wp
+                   ! If remaining pond volume is negative reduce pond volume of
+                   ! lower category
+                   IF ( zvolp(ji,jj) + epsi10 < SUM(v_ip(ji,jj,1:m_index-1))) &
+                      v_ip(ji,jj,m_index-1) = v_ip(ji,jj,m_index-1) - SUM(v_ip(ji,jj,1:m_index-1)) + zvolp(ji,jj)
+                END IF
+             END IF
+
+             DO jl = 1,m_index
+                IF (a_ip(ji,jj,jl) > epsi10) THEN
+                   h_ip(ji,jj,jl) = v_ip(ji,jj,jl) / a_ip(ji,jj,jl)
+                ELSE
+                   IF( ll_diag_pnd ) diag_dvpn_rnf(ji,jj) = diag_dvpn_rnf(ji,jj) - rhow * v_ip(ji,jj,jl) * r1_Dt_ice  ! diag
+                   h_ip(ji,jj,jl) = 0._wp
+                   v_ip(ji,jj,jl)  = 0._wp
+                   a_ip(ji,jj,jl) = 0._wp
+                END IF
+             END DO
+             DO jl = m_index+1, jpl
+                h_ip(ji,jj,jl) = 0._wp
+                a_ip(ji,jj,jl) = 0._wp
+                v_ip(ji,jj,jl) = 0._wp
+             END DO
+
+          ENDIF
+
+       END_2D
 
     END SUBROUTINE ice_thd_pnd_area
 
@@ -1215,125 +1185,124 @@ CONTAINS
        !----------------------------------------------------------------
        ! hpond is zero if zvolp is zero - have we fully drained?
        !----------------------------------------------------------------
-
+       
        IF (zvolp < epsi10) THEN
-        hpond = z0
-        m_index = 0
+          hpond = z0
+          m_index = 0
        ELSE
 
-        !----------------------------------------------------------------
-        ! Calculate the category where water fills up to
-        !----------------------------------------------------------------
+          !----------------------------------------------------------------
+          ! Calculate the category where water fills up to
+          !----------------------------------------------------------------
 
-        !----------|
-        !          |
-        !          |
-        !          |----------|                                     -- --
-        !__________|__________|_________________________________________ ^
-        !          |          |             rem_vol     ^                | Semi-filled
-        !          |          |----------|-- -- -- - ---|-- ---- -- -- --v layer
-        !          |          |          |              |
-        !          |          |          |              |hpond
-        !          |          |          |----------|   |     |-------
-        !          |          |          |          |   |     |
-        !          |          |          |          |---v-----|
-        !          |          | m_index  |          |         |
-        !-------------------------------------------------------------
+          !----------|
+          !          |
+          !          |
+          !          |----------|                                     -- --
+          !__________|__________|_________________________________________ ^
+          !          |          |             rem_vol     ^                | Semi-filled
+          !          |          |----------|-- -- -- - ---|-- ---- -- -- --v layer
+          !          |          |          |              |
+          !          |          |          |              |hpond
+          !          |          |          |----------|   |     |-------
+          !          |          |          |          |   |     |
+          !          |          |          |          |---v-----|
+          !          |          | m_index  |          |         |
+          !-------------------------------------------------------------
 
-        m_index = 0  ! 1:m_index categories have water in them
-        DO n = 1, jpl
-           IF (zvolp <= cum_max_vol(n)) THEN
-              m_index = n
-              IF (n == 1) THEN
-                 rem_vol = zvolp
-              ELSE
-                 rem_vol = zvolp - cum_max_vol(n-1)
-              END IF
-              exit ! to break out of the loop
-           END IF
-        END DO
-        m_index = min(jpl-1, m_index)
+          m_index = 0  ! 1:m_index categories have water in them
+          DO n = 1, jpl
+             IF (zvolp <= cum_max_vol(n)) THEN
+                m_index = n
+                IF (n == 1) THEN
+                   rem_vol = zvolp
+                ELSE
+                   rem_vol = zvolp - cum_max_vol(n-1)
+                END IF
+                exit ! to break out of the loop
+             END IF
+          END DO
+          m_index = min(jpl-1, m_index)
 
-        !----------------------------------------------------------------
-        ! semi-filled layer may have m_index different snow in it
-        !----------------------------------------------------------------
+          !----------------------------------------------------------------
+          ! semi-filled layer may have m_index different snow in it
+          !----------------------------------------------------------------
 
-        !-----------------------------------------------------------  ^
-        !                                                             |  alfan(m_index+1)
-        !                                                             |
-        !hitl(3)-->                             |----------|          |
-        !hitl(2)-->                |------------| * * * * *|          |
-        !hitl(1)-->     |----------|* * * * * * |* * * * * |          |
-        !hitl(0)-->-------------------------------------------------  |  ^
-        !                various snow from lower categories          |  |alfa(m_index)
+          !-----------------------------------------------------------  ^
+          !                                                             |  alfan(m_index+1)
+          !                                                             |
+          !hitl(3)-->                             |----------|          |
+          !hitl(2)-->                |------------| * * * * *|          |
+          !hitl(1)-->     |----------|* * * * * * |* * * * * |          |
+          !hitl(0)-->-------------------------------------------------  |  ^
+          !                various snow from lower categories          |  |alfa(m_index)
 
-        ! hitl - heights of the snow layers from thinner and current categories
-        ! aicetl - area of each snow depth in this layer
+          ! hitl - heights of the snow layers from thinner and current categories
+          ! aicetl - area of each snow depth in this layer
 
-        hitl(:) = z0
-        aicetl(:) = z0
-        DO n = 1, m_index
-           hitl(n)   = max(min(hsnon(n) + alfan(n) - alfan(m_index), &
-                                  alfan(m_index+1) - alfan(m_index)), z0)
-           aicetl(n) = asnon(n)
+          hitl(:) = z0
+          aicetl(:) = z0
+          DO n = 1, m_index
+             hitl(n)   = MAX(MIN(hsnon(n) + alfan(n) - alfan(m_index), alfan(m_index+1) - alfan(m_index)), z0)
+             aicetl(n) = asnon(n)
 
-           aicetl(0) = aicetl(0) + (aicen(n) - asnon(n))
-        END DO
+             aicetl(0) = aicetl(0) + (aicen(n) - asnon(n))
+          END DO
 
-        hitl(m_index+1) = alfan(m_index+1) - alfan(m_index)
-        aicetl(m_index+1) = z0
+          hitl(m_index+1) = alfan(m_index+1) - alfan(m_index)
+          aicetl(m_index+1) = z0
 
-        !----------------------------------------------------------------
-        ! reorder array according to hitl
-        ! snow heights not necessarily in height order
-        !----------------------------------------------------------------
+          !----------------------------------------------------------------
+          ! reorder array according to hitl
+          ! snow heights not necessarily in height order
+          !----------------------------------------------------------------
 
-        DO ns = 1, m_index+1
-           DO n = 0, m_index - ns + 1
-              IF (hitl(n) > hitl(n+1)) THEN ! swap order
-                 tmp = hitl(n)
-                 hitl(n) = hitl(n+1)
-                 hitl(n+1) = tmp
-                 tmp = aicetl(n)
-                 aicetl(n) = aicetl(n+1)
-                 aicetl(n+1) = tmp
-              END IF
-           END DO
-        END DO
+          DO ns = 1, m_index+1
+             DO n = 0, m_index - ns + 1
+                IF (hitl(n) > hitl(n+1)) THEN ! swap order
+                   tmp = hitl(n)
+                   hitl(n) = hitl(n+1)
+                   hitl(n+1) = tmp
+                   tmp = aicetl(n)
+                   aicetl(n) = aicetl(n+1)
+                   aicetl(n+1) = tmp
+                END IF
+             END DO
+          END DO
 
-        !----------------------------------------------------------------
-        ! divide semi-filled layer into set of sublayers each vertically homogenous
-        !----------------------------------------------------------------
+          !----------------------------------------------------------------
+          ! divide semi-filled layer into set of sublayers each vertically homogenous
+          !----------------------------------------------------------------
 
-        !hitl(3)----------------------------------------------------------------
-        !                                                       | * * * * * * * *
-        !                                                       |* * * * * * * * *
-        !hitl(2)----------------------------------------------------------------
-        !                                    | * * * * * * * *  | * * * * * * * *
-        !                                    |* * * * * * * * * |* * * * * * * * *
-        !hitl(1)----------------------------------------------------------------
-        !                 | * * * * * * * *  | * * * * * * * *  | * * * * * * * *
-        !                 |* * * * * * * * * |* * * * * * * * * |* * * * * * * * *
-        !hitl(0)----------------------------------------------------------------
-        !    aicetl(0)         aicetl(1)           aicetl(2)          aicetl(3)
+          !hitl(3)----------------------------------------------------------------
+          !                                                       | * * * * * * * *
+          !                                                       |* * * * * * * * *
+          !hitl(2)----------------------------------------------------------------
+          !                                    | * * * * * * * *  | * * * * * * * *
+          !                                    |* * * * * * * * * |* * * * * * * * *
+          !hitl(1)----------------------------------------------------------------
+          !                 | * * * * * * * *  | * * * * * * * *  | * * * * * * * *
+          !                 |* * * * * * * * * |* * * * * * * * * |* * * * * * * * *
+          !hitl(0)----------------------------------------------------------------
+          !    aicetl(0)         aicetl(1)           aicetl(2)          aicetl(3)
 
-        ! move up over layers incrementing volume
-        DO n = 1, m_index+1
+          ! move up over layers incrementing volume
+          DO n = 1, m_index+1
 
-           area = sum(aicetl(:)) - &                 ! total area of sub-layer
-                (rhos/rho0) * sum(aicetl(n:jpl+1)) ! area of sub-layer occupied by snow
+             area = SUM(aicetl(:)) - &                 ! total area of sub-layer
+                &   (rhos/rho0) * SUM(aicetl(n:jpl+1)) ! area of sub-layer occupied by snow
 
-           vol = (hitl(n) - hitl(n-1)) * area      ! thickness of sub-layer times area
+             vol = (hitl(n) - hitl(n-1)) * area      ! thickness of sub-layer times area
 
-           IF (vol >= rem_vol) THEN  ! have reached the sub-layer with the depth within
-              hpond = rem_vol / area + hitl(n-1) + alfan(m_index) - alfan(1)
+             IF (vol >= rem_vol) THEN  ! have reached the sub-layer with the depth within
+                hpond = rem_vol / area + hitl(n-1) + alfan(m_index) - alfan(1)
 
-              exit
-           ELSE  ! still in sub-layer below the sub-layer with the depth
-              rem_vol = rem_vol - vol
-           END IF
+                EXIT
+             ELSE  ! still in sub-layer below the sub-layer with the depth
+                rem_vol = rem_vol - vol
+             END IF
 
-        END DO
+          END DO
 
        END IF
 
