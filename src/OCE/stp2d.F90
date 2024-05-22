@@ -172,7 +172,7 @@ CONTAINS
          !
          !                             !*  vertical averaging  *!
          SELECT CASE( n_dynadv )
-         CASE( np_VEC_c2  )                  ! Vector Inv. Form   ==>> averaged 3D RHS only
+         CASE( np_VEC_c2, np_LIN_dyn )       ! Vector Inv. Form   ==>> averaged 3D RHS only
             DO_2D( 0, 0, 0, 0 )
                Ue_rhs(ji,jj) = SUM( e3u_0(ji,jj,1:jpkm1)*uu(ji,jj,1:jpkm1,Krhs)*umask(ji,jj,1:jpkm1) ) * r1_hu_0(ji,jj)
                Ve_rhs(ji,jj) = SUM( e3v_0(ji,jj,1:jpkm1)*vv(ji,jj,1:jpkm1,Krhs)*vmask(ji,jj,1:jpkm1) ) * r1_hv_0(ji,jj)
@@ -181,11 +181,6 @@ CONTAINS
             DO_2D( 0, 0, 0, 0 )
                Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + SUM( e3u_0(ji,jj,1:jpkm1)*uu(ji,jj,1:jpkm1,Krhs)*umask(ji,jj,1:jpkm1) ) * r1_hu_0(ji,jj)
                Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + SUM( e3v_0(ji,jj,1:jpkm1)*vv(ji,jj,1:jpkm1,Krhs)*vmask(ji,jj,1:jpkm1) ) * r1_hv_0(ji,jj)
-            END_2D
-         CASE DEFAULT                        ! Quick Fix for ln_dynspg_ts = F
-            DO_2D( 0, 0, 0, 0 )
-               Ue_rhs(ji,jj) = 0._wp
-               Ve_rhs(ji,jj) = 0._wp
             END_2D
          END SELECT
 
