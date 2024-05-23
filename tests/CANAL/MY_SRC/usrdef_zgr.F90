@@ -31,8 +31,7 @@ MODULE usrdef_zgr
    PUBLIC   usr_def_zgr        ! called by domzgr.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: usrdef_zgr.F90 14433 2021-02-11 08:06:49Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS             

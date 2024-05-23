@@ -36,8 +36,7 @@ MODULE trcdmp_sed
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 3.3 , NEMO Consortium (2010)
-   !! $Id: trcdmp.F90 7646 2017-02-06 09:25:03Z timgraham $ 
+   !! NEMO/TOP 5.0 , NEMO Consortium (2024)
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

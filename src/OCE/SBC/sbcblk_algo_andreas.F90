@@ -209,7 +209,7 @@ CONTAINS
    END SUBROUTINE turb_andreas
 
 
-   FUNCTION U_STAR_ANDREAS( pun10 )
+   FUNCTION u_star_andreas( pun10 )
       !!----------------------------------------------------------------------------------
       !! Estimate of the friction velocity as a function of the neutral-stability wind
       !! speed at at 10m
@@ -230,7 +230,7 @@ CONTAINS
             zt = za + SQRT( 0.12_wp*za*za + 0.181_wp )
             u_star_andreas(ji,jj) =   0.239_wp + 0.0433_wp * zt
       END_2D
-   END FUNCTION U_STAR_ANDREAS
+   END FUNCTION u_star_andreas
 
 
    FUNCTION psi_m_andreas( pzeta )

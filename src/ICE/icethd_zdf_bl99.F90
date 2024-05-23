@@ -26,8 +26,7 @@ MODULE icethd_zdf_BL99
    PUBLIC   ice_thd_zdf_BL99   ! called by icethd_zdf
 
    !!----------------------------------------------------------------------
-   !! NEMO/ICE 4.0 , NEMO Consortium (2018)
-   !! $Id: icethd_zdf_bl99.F90 14072 2020-12-04 07:48:38Z laurent $
+   !! NEMO/ICE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

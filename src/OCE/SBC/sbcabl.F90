@@ -16,8 +16,7 @@ MODULE sbcabl
    PUBLIC   sbc_abl            ! routine called in sbcmod module
 
    !!----------------------------------------------------------------------
-   !! NEMO/OPA 3.7 , NEMO-consortium (2014)
-   !! $Id: sbcabl.F90 6416 2016-04-01 12:22:17Z clem $
+   !! NEMO/OCE 5.0 , NEMO Consortium (2024)
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

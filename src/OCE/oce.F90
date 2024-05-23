@@ -72,8 +72,7 @@ MODULE oce
 
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: oce.F90 14381 2021-02-03 12:36:25Z techene $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -45,8 +45,7 @@ MODULE asmbkg
    PUBLIC   asm_bkg_wri   !: Write out the background state
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: asmbkg.F90 15417 2021-10-20 14:16:29Z lovato $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

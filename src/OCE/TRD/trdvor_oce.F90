@@ -27,8 +27,7 @@ MODULE trdvor_oce
    INTEGER, PUBLIC, PARAMETER ::   jpvor_bfr = 11   !: bottom friction term
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: trdvor_oce.F90 10068 2018-08-28 14:09:04Z nicolasmartin $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!======================================================================
 END MODULE trdvor_oce

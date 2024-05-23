@@ -20,8 +20,7 @@ MODULE ocealb
    !! Substitution
 #  include "do_loop_substitute.h90"  
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: ocealb.F90 10069 2018-08-28 14:12:24Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

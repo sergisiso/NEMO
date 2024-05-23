@@ -239,8 +239,7 @@ MODULE obs_profiles_def
    END TYPE obs_prof
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_profiles_def.F90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -1033,10 +1032,10 @@ CONTAINS
       !!        !  07-01  (K. Mogensen) Original code
       !!----------------------------------------------------------------------
       !! * Arguments
-      TYPE(obs_prof),INTENT(INOUT) :: prof      ! Updated profile data
-      TYPE(obs_prof),INTENT(INOUT) :: oldprof   ! Original profile data
-      LOGICAL :: ldeallocate         ! Deallocate the updated data of insertion
-      INTEGER,INTENT(in) :: kumout   ! Output unit
+      TYPE(obs_prof), INTENT(INOUT) :: prof      ! Updated profile data
+      TYPE(obs_prof), INTENT(INOUT) :: oldprof   ! Original profile data
+      LOGICAL       , INTENT(IN   ) :: ldeallocate         ! Deallocate the updated data of insertion
+      INTEGER       , INTENT(IN   ) :: kumout    ! Output unit
       
       !!* Local variables
       INTEGER :: jvar

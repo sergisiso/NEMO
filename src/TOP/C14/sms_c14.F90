@@ -54,8 +54,7 @@ MODULE sms_c14
          !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: sms_c14.F90 10071 2018-08-28 14:49:04Z nicolasmartin $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -99,8 +99,7 @@ MODULE agrif_oce
 !$AGRIF_END_DO_NOT_TREAT
    
    !!----------------------------------------------------------------------
-   !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_oce.F90 14086 2020-12-04 11:37:14Z cetlod $
+   !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS 

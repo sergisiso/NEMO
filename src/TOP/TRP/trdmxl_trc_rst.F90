@@ -22,8 +22,7 @@ MODULE trdmxl_trc_rst
    INTEGER ::   nummldw_trc               ! logical unit for mld restart
    
    !!---------------------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trdmxl_trc_rst.F90 15090 2021-07-06 14:25:18Z cetlod $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!---------------------------------------------------------------------------------
 CONTAINS

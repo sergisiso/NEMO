@@ -66,8 +66,7 @@ MODULE icedyn_rhg_eap
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/ICE 4.0 , NEMO Consortium (2018)
-   !! $Id: icedyn_rhg_eap.F90 11536 2019-09-11 13:54:18Z smasson $
+   !! NEMO/ICE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -38,8 +38,7 @@ MODULE obs_mpp
       &   mpp_global_max
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_mpp.F90 14275 2021-01-07 12:13:16Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -339,9 +338,9 @@ CONTAINS
       !!
       !! References : http://www.mpi-forum.org
       !!----------------------------------------------------------------------
-      INTEGER                   , INTENT(in) :: knoin
-      INTEGER                   , INTENT(in) :: knoout
-      INTEGER, DIMENSION(jpnij)                 ::   kinv, koutv
+      INTEGER                   , INTENT(in   ) ::   knoin
+      INTEGER                   , INTENT(in   ) ::   knoout
+      INTEGER, DIMENSION(jpnij) , INTENT(in   ) ::   kinv, koutv
       INTEGER, DIMENSION(knoin) , INTENT(in   ) ::   kvalsin
       INTEGER, DIMENSION(knoout), INTENT(  out) ::   kvalsout
       !!
@@ -389,9 +388,9 @@ CONTAINS
       !!
       !! References : http://www.mpi-forum.org
       !!----------------------------------------------------------------------
-      INTEGER                    , INTENT(in   ) :: knoin
-      INTEGER                    , INTENT(in   ) :: knoout
-      INTEGER , DIMENSION(jpnij)                 ::   kinv, koutv
+      INTEGER                    , INTENT(in   ) ::   knoin
+      INTEGER                    , INTENT(in   ) ::   knoout
+      INTEGER , DIMENSION(jpnij) , INTENT(in   ) ::   kinv, koutv
       REAL(wp), DIMENSION(knoin) , INTENT(in   ) ::   pvalsin
       REAL(wp), DIMENSION(knoout), INTENT(  out) ::   pvalsout
       !!

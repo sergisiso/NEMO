@@ -31,8 +31,7 @@ MODULE bdydyn
    !! * Substitutions
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: bdydyn.F90 13237 2020-07-03 09:12:53Z smasson $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

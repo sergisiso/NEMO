@@ -49,8 +49,7 @@ MODULE bdytides
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: bdytides.F90 14169 2020-12-14 18:32:36Z jchanut $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

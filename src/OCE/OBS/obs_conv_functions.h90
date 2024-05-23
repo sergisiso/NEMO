@@ -1,6 +1,5 @@
     !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_conv_functions.h90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -70,9 +69,9 @@
       !!----------------------------------------------------------------------
 
       !! * Arguments
-      REAL(KIND=wp) :: pft   ! in situ temperature in degrees Celsius
-      REAL(KIND=wp) :: pfs   ! salinity in psu
-      REAL(KIND=wp) :: pfp   ! pressure in bars
+      REAL(KIND=wp), INTENT(in) :: pft   ! in situ temperature in degrees Celsius
+      REAL(KIND=wp), INTENT(in) :: pfs   ! salinity in psu
+      REAL(KIND=wp), INTENT(in) :: pfp   ! pressure in bars
       
       fspott = &
          &  pft - pfp * (   (            3.6504e-4                     &

@@ -61,8 +61,7 @@ MODULE p4zmeso
 #  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: p4zmeso.F90 15482 2021-11-08 20:02:22Z cetlod $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

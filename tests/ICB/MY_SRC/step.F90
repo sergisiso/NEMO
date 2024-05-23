@@ -55,8 +55,7 @@ MODULE step
    INTEGER, PUBLIC :: Nbb, Nnn, Naa, Nrhs          !! used by nemo_init
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: step.F90 13237 2020-07-03 09:12:53Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -34,8 +34,7 @@ MODULE obs_read_mod_fbd_conver
    PUBLIC   obs_rea_rho_seawater  ! called by dia_obs
 
    !!----------------------------------------------------------------------
-   !! NEMO/OPA 3.3 , NEMO Consortium (2010)
-   !! $Id$
+   !! NEMO/OBS 5.0 , NEMO Consortium (2024)
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

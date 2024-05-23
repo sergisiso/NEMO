@@ -59,8 +59,7 @@ MODULE nemogcm
    !! * Substitutions
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/SAS 4.0 , NEMO Consortium (2018)
-   !! $Id: nemogcm.F90 15267 2021-09-17 09:04:34Z smasson $
+   !! NEMO/SAS 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -106,8 +106,7 @@ MODULE trdtrc_oce
 # endif
 
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trdtrc_oce.F90 14239 2020-12-23 08:57:16Z smasson $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

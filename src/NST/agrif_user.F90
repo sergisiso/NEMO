@@ -4,8 +4,7 @@
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_user.F90 15265 2021-09-16 11:13:13Z jchanut $
+   !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
    SUBROUTINE agrif_user

@@ -43,8 +43,7 @@ MODULE stpctl
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/SAS 4.0 , NEMO Consortium (2018)
-   !! $Id: stpctl.F90 14433 2021-02-11 08:06:49Z smasson $
+   !! NEMO/SAS 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

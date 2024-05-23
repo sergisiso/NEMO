@@ -70,8 +70,7 @@ MODULE phycst
    REAL(wp), PUBLIC ::   r1_rcpi                      !: 1 / rcpi
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: phycst.F90 14072 2020-12-04 07:48:38Z laurent $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 

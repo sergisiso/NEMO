@@ -103,8 +103,7 @@ MODULE stp_oce
    USE trcstp, ONLY : trc_stp    ! passive tracer time-stepping      (trc_stp routine)
 #endif
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: stp_oce.F90 14318 2021-01-20 10:49:35Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!======================================================================
 END MODULE stp_oce

@@ -6,8 +6,7 @@
 !!----------------------------------------------------------------------
 !! History :  4.2  !  2020-02  (S. Techene, G. Madec)  star coordinate
 !!----------------------------------------------------------------------
-!! NEMO/OCE 4.2 , NEMO Consortium (2020)
-!! $Id$
+!! NEMO/OCE 5.0, NEMO Consortium (2024)
 !! Software governed by the CeCILL license (see ./LICENSE)
 !!----------------------------------------------------------------------
 #if defined key_vco_1d  ||   defined key_vco_1d3d

@@ -47,8 +47,7 @@ MODULE sbcabl
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OPA 3.7 , NEMO-consortium (2014)
-   !! $Id: sbcabl.F90 6416 2016-04-01 12:22:17Z clem $
+   !! NEMO/ABL 5.0 , NEMO Consortium (2024)
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

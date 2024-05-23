@@ -86,7 +86,6 @@ MODULE sedini
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
-   !! $Id: sedini.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
 
 

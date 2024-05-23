@@ -22,8 +22,7 @@ MODULE asmpar
    INTEGER, PUBLIC ::   nittrjfrq     !: Frequency of trajectory output for 4D-VAR
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: asmpar.F90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!======================================================================
 END MODULE asmpar

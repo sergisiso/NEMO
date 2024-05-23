@@ -29,8 +29,7 @@ MODULE usrdef_sbc
    PUBLIC   usrdef_sbc_ice_flx  ! routine called by icestp.F90 for ice thermo
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: usrdef_sbc.F90 12377 2020-02-12 14:39:06Z acc $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

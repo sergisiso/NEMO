@@ -26,7 +26,6 @@ MODULE sedmat
    PUBLIC sed_mat_btbe
    PUBLIC sed_mat_coef
 
-   !! $Id: sedmat.F90 15450 2021-10-27 14:32:08Z cetlod $
  CONTAINS
 
     SUBROUTINE sed_mat_coef

@@ -26,8 +26,7 @@ MODULE mpp_map
    INTEGER, DIMENSION(:,:), ALLOCATABLE ::   mppmap   ! ???
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: mpp_map.F90 14229 2020-12-20 12:45:55Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -98,8 +98,7 @@ MODULE par_abl
    REAL(wp), PUBLIC, PARAMETER ::   bmx5 =  -72.076052686380677_wp 
 
    !!----------------------------------------------------------------------
-   !! NEMO/ABL 4.0 , NEMO Consortium (2018)
-   !! $Id: sbc_oce.F90 10882 2019-04-17 15:40:17Z clem $
+   !! NEMO/ABL 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!======================================================================
 END MODULE par_abl

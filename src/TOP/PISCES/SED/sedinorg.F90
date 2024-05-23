@@ -17,7 +17,6 @@ MODULE sedinorg
 
    PUBLIC sed_inorg
 
-   !! $Id: seddsr.F90 5215 2015-04-15 16:11:56Z nicolasmartin $
 CONTAINS
    
    SUBROUTINE sed_inorg( kt )

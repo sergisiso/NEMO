@@ -89,8 +89,7 @@ MODULE icbdia
    INTEGER , DIMENSION(nclasses) ::  nbergs_calved_by_class
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: icbdia.F90 14773 2021-04-30 10:23:51Z clem $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

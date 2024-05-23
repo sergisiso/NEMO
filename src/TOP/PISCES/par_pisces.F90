@@ -70,8 +70,7 @@ MODULE par_pisces
    REAL(wp), PUBLIC ::  mMass_Si = 28.00      ! Molar mass of silver
 
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: par_pisces.F90 15459 2021-10-29 08:19:18Z cetlod $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!======================================================================
 END MODULE par_pisces

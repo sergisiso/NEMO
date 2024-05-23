@@ -22,8 +22,7 @@ MODULE dianam
    PUBLIC dia_nam
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: dianam.F90 12489 2020-02-28 15:55:11Z davestorkey $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 

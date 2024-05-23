@@ -59,8 +59,7 @@ MODULE icedyn
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/ICE 4.0 , NEMO Consortium (2018)
-   !! $Id: icedyn.F90 14997 2021-06-16 06:43:57Z smasson $
+   !! NEMO/ICE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL licence     (./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -63,8 +63,7 @@ MODULE diawri
    INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) :: ndex_hA, ndex_A ! ABL
 
    !!----------------------------------------------------------------------
-   !! NEMO/SAS 4.0 , NEMO Consortium (2018)
-   !! $Id: diawri.F90 14239 2020-12-23 08:57:16Z smasson $
+   !! NEMO/SAS 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

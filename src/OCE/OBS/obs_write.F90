@@ -48,8 +48,7 @@ MODULE obs_write
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_write.F90 14275 2021-01-07 12:13:16Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -77,10 +76,10 @@ CONTAINS
       !!-----------------------------------------------------------------------
 
       !! * Arguments
-      TYPE(obs_prof), INTENT(INOUT) :: profdata      ! Full set of profile data
-      CHARACTER(LEN=25), INTENT(IN) ::   cdfiletype   ! Base name for file name
-      TYPE(obswriinfo), OPTIONAL    :: padd          ! Additional info for each variable
-      TYPE(obswriinfo), OPTIONAL    :: pext          ! Extra info
+      TYPE(obs_prof)            , INTENT(INOUT) :: profdata      ! Full set of profile data
+      CHARACTER(LEN=25)         , INTENT(IN   ) :: cdfiletype    ! Base name for file name
+      TYPE(obswriinfo), OPTIONAL, INTENT(IN   ) :: padd          ! Additional info for each variable
+      TYPE(obswriinfo), OPTIONAL, INTENT(IN   ) :: pext          ! Extra info
 
       !! * Local declarations
       TYPE(obfbdata) :: fbdata
@@ -314,10 +313,10 @@ CONTAINS
       IMPLICIT NONE
 
       !! * Arguments
-      TYPE(obs_surf), INTENT(INOUT) :: surfdata      ! Full set of surface data
-      CHARACTER(LEN=25), INTENT(IN) ::   cdfiletype   ! Base name for file name
-      TYPE(obswriinfo), OPTIONAL    :: padd          ! Additional info for each variable
-      TYPE(obswriinfo), OPTIONAL    :: pext          ! Extra info
+      TYPE(obs_surf)            , INTENT(INOUT) :: surfdata      ! Full set of surface data
+      CHARACTER(LEN=25)         , INTENT(IN   ) :: cdfiletype    ! Base name for file name
+      TYPE(obswriinfo), OPTIONAL, INTENT(IN   ) :: padd          ! Additional info for each variable
+      TYPE(obswriinfo), OPTIONAL, INTENT(IN   ) :: pext          ! Extra info
 
       !! * Local declarations
       TYPE(obfbdata) :: fbdata
@@ -488,7 +487,7 @@ CONTAINS
       !!-----------------------------------------------------------------------
 
       !! * Arguments
-      TYPE(obfbdata) :: fbdata
+      TYPE(obfbdata), INTENT(in) :: fbdata
 
       !! * Local declarations
       INTEGER :: jvar

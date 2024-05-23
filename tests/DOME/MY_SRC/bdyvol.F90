@@ -27,8 +27,7 @@ MODULE bdyvol
    PUBLIC   bdy_vol2d    ! called by dynspg_ts
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: bdyvol.F90 12489 2020-02-28 15:55:11Z davestorkey $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

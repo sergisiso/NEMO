@@ -66,8 +66,7 @@ MODULE icblbc
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: icblbc.F90 15088 2021-07-06 13:03:34Z acc $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -687,9 +686,9 @@ CONTAINS
    SUBROUTINE icb_pack_into_buffer( berg, pbuff, kb )
       !!----------------------------------------------------------------------
       !!----------------------------------------------------------------------
-      TYPE(iceberg), POINTER :: berg
-      TYPE(buffer) , POINTER :: pbuff
-      INTEGER               , INTENT(in) :: kb
+      TYPE(iceberg), POINTER, INTENT(in   ) :: berg
+      TYPE(buffer) , POINTER, INTENT(inout) :: pbuff
+      INTEGER               , INTENT(in   ) :: kb
       ! 
       INTEGER ::   k   ! local integer
       !!----------------------------------------------------------------------
@@ -725,8 +724,8 @@ CONTAINS
    SUBROUTINE icb_unpack_from_buffer(first, pbuff, kb)
       !!----------------------------------------------------------------------
       !!----------------------------------------------------------------------
-      TYPE(iceberg),             POINTER :: first
-      TYPE(buffer) ,             POINTER :: pbuff
+      TYPE(iceberg), INTENT(in), POINTER :: first
+      TYPE(buffer) , INTENT(in), POINTER :: pbuff
       INTEGER      , INTENT(in)          :: kb
       ! 
       TYPE(iceberg)                      :: currentberg
@@ -761,8 +760,8 @@ CONTAINS
 
    SUBROUTINE icb_increase_buffer(old,kdelta)
       !!----------------------------------------------------------------------
-      TYPE(buffer), POINTER    :: old
-      INTEGER     , INTENT(in) :: kdelta
+      TYPE(buffer), INTENT(inout), POINTER    :: old
+      INTEGER     , INTENT(in   ) :: kdelta
       ! 
       TYPE(buffer), POINTER ::   new
       INTEGER ::   inew_size
@@ -787,8 +786,8 @@ CONTAINS
    SUBROUTINE icb_increase_ibuffer(old,kdelta)
       !!----------------------------------------------------------------------
       !!----------------------------------------------------------------------
-      TYPE(buffer),            POINTER :: old
-      INTEGER     , INTENT(in)         :: kdelta
+      TYPE(buffer), INTENT(inout), POINTER :: old
+      INTEGER     , INTENT(in)             :: kdelta
       !
       TYPE(buffer),            POINTER :: new
       INTEGER                          :: inew_size, iold_size

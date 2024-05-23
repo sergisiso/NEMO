@@ -53,8 +53,7 @@ MODULE domtile
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.2 , NEMO Consortium (2020)
-   !! $Id: domtile.F90 13982 2020-12-04 10:57:05Z hadcv $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

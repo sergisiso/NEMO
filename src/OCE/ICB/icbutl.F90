@@ -59,8 +59,7 @@ MODULE icbutl
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: icbutl.F90 15372 2021-10-14 15:47:24Z davestorkey $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -340,7 +339,7 @@ CONTAINS
       !!             the slip/no-slip conditions  ==>>> to be done later
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi, jpj)        , INTENT(in) ::   pfld      ! field to be interpolated
+      REAL(wp), DIMENSION(jpi, jpj)       , INTENT(in) ::   pfld      ! field to be interpolated
       REAL(wp), DIMENSION(4)              , INTENT(in) ::   pw        ! weight
       LOGICAL                             , INTENT(in) ::   pllon     ! input data is a longitude
       INTEGER ,                             INTENT(in) ::   pii, pij  ! bottom left corner
@@ -377,8 +376,8 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(jpi, jpj, jpk), INTENT(in) ::   pfld      ! field to be interpolated
-      REAL(wp), DIMENSION(4,jpk)               , INTENT(in) ::   pw        ! weight
-      INTEGER ,                                  INTENT(in) ::   pii, pij  ! bottom left corner
+      REAL(wp), DIMENSION(4,jpk)        , INTENT(in) ::   pw        ! weight
+      INTEGER ,                           INTENT(in) ::   pii, pij  ! bottom left corner
       REAL(wp), DIMENSION(jpk) :: icb_utl_bilin_3d_h
       !
       REAL(wp), DIMENSION(4,jpk) :: zdat ! input data
@@ -491,7 +490,7 @@ CONTAINS
          kb = kb + 1
       END DO
       kb = MIN(kb - 1,jpk)
-   END SUBROUTINE
+   END SUBROUTINE icb_utl_getkb
 
    SUBROUTINE icb_utl_zavg(pzavg, pdat, pe3, pD, kb )
       !!----------------------------------------------------------------------
@@ -516,7 +515,7 @@ CONTAINS
       ! if kb is limited by mbkt  => bottom value is used between bathy and icb tail
       ! if kb not limited by mbkt => ocean value over mask is used (ie 0.0 for u, v)
       pzavg = ( pzavg + (pD - zdep)*pdat(kb)) / pD
-   END SUBROUTINE
+   END SUBROUTINE icb_utl_zavg
 
    SUBROUTINE icb_utl_add( bergvals, ptvals )
       !!----------------------------------------------------------------------
@@ -525,8 +524,8 @@ CONTAINS
       !! ** Purpose :   add a new berg to the iceberg list
       !!
       !!----------------------------------------------------------------------
-      TYPE(iceberg), INTENT(in)           ::   bergvals
-      TYPE(point)  , INTENT(in)           ::   ptvals
+      TYPE(iceberg), INTENT(in) ::   bergvals
+      TYPE(point)  , INTENT(in) ::   ptvals
       !
       TYPE(iceberg), POINTER ::   new => NULL()
       !!----------------------------------------------------------------------
@@ -546,9 +545,9 @@ CONTAINS
       !! ** Purpose :   add a new berg to the iceberg list
       !!
       !!----------------------------------------------------------------------
-      TYPE(iceberg), INTENT(in) ::   bergvals
-      TYPE(point)  , INTENT(in) ::   ptvals
-      TYPE(iceberg), POINTER    ::   berg
+      TYPE(iceberg)         , INTENT(in ) ::   bergvals
+      TYPE(point)           , INTENT(in ) ::   ptvals
+      TYPE(iceberg), POINTER, INTENT(out) ::   berg
       !
       TYPE(point)  , POINTER    ::   pt
       INTEGER                   ::   istat
@@ -577,7 +576,7 @@ CONTAINS
       !! ** Purpose :   add a new berg to the iceberg list
       !!
       !!----------------------------------------------------------------------
-      TYPE(iceberg), POINTER  ::   newberg
+      TYPE(iceberg), POINTER, INTENT(inout) ::   newberg
       !
       TYPE(iceberg), POINTER  ::   this, prev, last
       !!----------------------------------------------------------------------
@@ -627,7 +626,8 @@ CONTAINS
       !! ** Purpose :   
       !!
       !!----------------------------------------------------------------------
-      TYPE(iceberg), POINTER :: first, berg
+      TYPE(iceberg), POINTER, INTENT(  out) :: first
+      TYPE(iceberg), POINTER, INTENT(inout) :: berg
       !!----------------------------------------------------------------------
       ! Connect neighbors to each other
       IF ( ASSOCIATED(berg%prev) ) THEN
@@ -649,7 +649,7 @@ CONTAINS
       !! ** Purpose :   remove a single iceberg instance
       !!
       !!----------------------------------------------------------------------
-      TYPE(iceberg), POINTER :: berg
+      TYPE(iceberg), POINTER, INTENT(inout) :: berg
       !!----------------------------------------------------------------------
       !
       ! Remove any points
@@ -667,9 +667,9 @@ CONTAINS
       !! ** Purpose :   
       !!
       !!----------------------------------------------------------------------
-      INTEGER, DIMENSION(nkounts)    :: knum       ! iceberg number
-      CHARACTER(len=*)               :: cd_label   ! 
-      INTEGER                        :: kt         ! timestep number
+      INTEGER, DIMENSION(nkounts), INTENT(in) :: knum       ! iceberg number
+      CHARACTER(len=*)           , INTENT(in) :: cd_label   ! not used !!!
+      INTEGER                    , INTENT(in) :: kt         ! timestep number
       ! 
       TYPE(iceberg), POINTER         :: this
       LOGICAL                        :: match
@@ -696,9 +696,10 @@ CONTAINS
       !! ** Purpose :   print one
       !!
       !!----------------------------------------------------------------------
-      TYPE(iceberg), POINTER :: berg
+      TYPE(iceberg), POINTER, INTENT(in) :: berg
+      INTEGER               , INTENT(in) :: kt      ! timestep number
+      !
       TYPE(point)  , POINTER :: pt
-      INTEGER                :: kt      ! timestep number
       !!----------------------------------------------------------------------
       !
       IF (nn_verbose_level == 0) RETURN
@@ -719,8 +720,8 @@ CONTAINS
       !! ** Purpose :   print many
       !!
       !!----------------------------------------------------------------------
-      CHARACTER(len=*)       :: cd_label
-      INTEGER                :: kt             ! timestep number
+      CHARACTER(len=*), INTENT(in) :: cd_label
+      INTEGER         , INTENT(in) :: kt             ! timestep number
       ! 
       INTEGER                :: ibergs, inbergs
       TYPE(iceberg), POINTER :: this
@@ -806,10 +807,10 @@ CONTAINS
       !!
       !! ** Purpose :   compute the mass all iceberg, all berg bits or all bergs.
       !!----------------------------------------------------------------------
-      TYPE(iceberg)      , POINTER  ::   first
-      TYPE(point)        , POINTER  ::   pt
-      LOGICAL, INTENT(in), OPTIONAL ::   justbits, justbergs
+      TYPE(iceberg), INTENT(in), POINTER  ::   first
+      LOGICAL      , INTENT(in), OPTIONAL ::   justbits, justbergs
       !
+      TYPE(point)  , POINTER ::   pt
       TYPE(iceberg), POINTER ::   this
       !!----------------------------------------------------------------------
       icb_utl_mass = 0._wp
@@ -844,8 +845,8 @@ CONTAINS
       !!
       !! ** Purpose :   compute the heat in all iceberg, all bergies or all bergs.
       !!----------------------------------------------------------------------
-      TYPE(iceberg)      , POINTER  ::   first
-      LOGICAL, INTENT(in), OPTIONAL ::   justbits, justbergs
+      TYPE(iceberg), INTENT(in), POINTER  ::   first
+      LOGICAL      , INTENT(in), OPTIONAL ::   justbits, justbergs
       !
       TYPE(iceberg)      , POINTER  ::   this
       TYPE(point)        , POINTER  ::   pt

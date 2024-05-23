@@ -34,8 +34,7 @@ MODULE icethd_da
    !! * Substitutions
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/ICE 4.0 , NEMO Consortium (2018)
-   !! $Id: icethd_da.F90 15385 2021-10-15 13:52:48Z clem $
+   !! NEMO/ICE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

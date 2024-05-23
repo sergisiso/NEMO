@@ -26,7 +26,6 @@ MODULE sedstp
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
 
-   !! $Id: sedstp.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
 
    SUBROUTINE sed_stp ( kt, Kbb, Kmm, Krhs )

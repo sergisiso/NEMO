@@ -88,8 +88,7 @@ MODULE obs_grid
 #  include "do_loop_substitute.h90"
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_grid.F90 14275 2021-01-07 12:13:16Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -111,7 +110,7 @@ CONTAINS
       !!------------------------------------------------------------------------
 
       !! * Arguments
-      INTEGER :: &
+      INTEGER, INTENT(IN) :: &
          & kobsin                     ! Size of the observation arrays
       REAL(KIND=wp), DIMENSION(kobsin), INTENT(IN) :: &
          & plam, &                  ! Longitude of obsrvations 
@@ -120,7 +119,7 @@ CONTAINS
          & kobsi, &                 ! I-index of observations 
          & kobsj, &                 ! J-index of observations 
          & kproc                    ! Processor number of observations
-      CHARACTER(LEN=1) :: &
+      CHARACTER(LEN=1), INTENT(IN) :: &
          & cdgrid                   ! Grid to search
 
       IF(kobsin > 0) THEN
@@ -183,7 +182,7 @@ CONTAINS
       !!----------------------------------------------------------------------
 
       !! * Arguments
-      INTEGER :: kobs                     ! Size of the observation arrays
+      INTEGER, INTENT(IN) :: kobs                     ! Size of the observation arrays
       REAL(KIND=wp), DIMENSION(kobs), INTENT(IN) :: &
          & plam, &                  ! Longitude of obsrvations 
          & pphi                     ! Latitude of observations

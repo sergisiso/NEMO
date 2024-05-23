@@ -1,7 +1,7 @@
 #if defined show_comments
 ! These comments are not intended to be retained during preprocessing; i.e. do not define "show_comments"
 !!----------------------------------------------------------------------
-!! NEMO/OCE 4.x , NEMO Consortium (2020)
+!! NEMO/OCE 5.0, NEMO Consortium (2024)
 !! Software governed by the CeCILL license (see ./LICENSE)
 !!----------------------------------------------------------------------
 ! This header file contains preprocessor definitions and macros used in the do-loop substitutions introduced

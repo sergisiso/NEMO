@@ -45,8 +45,7 @@ MODULE p4zpoc
 #  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: p4zpoc.F90 15459 2021-10-29 08:19:18Z cetlod $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -570,7 +569,7 @@ CONTAINS
       !
       !    Output, real ( kind = 8 ) ALNGAM, the logarithm of the gamma function of X.
       !*****************************************************************************80
-  REAL(wp) alngam
+  REAL(wp) :: alngam
   real(wp), parameter :: alr2pi = 0.918938533204673E+00
   real(wp), parameter, dimension ( 9 ) :: r1 = (/ &
     -2.66685511495E+00, &
@@ -769,22 +768,22 @@ CONTAINS
 !    gamma ratio.
 !
 
-  real (wp) gamain
-  real (wp) a
+  real (wp) :: gamain
+  real (wp) :: a
   real (wp), parameter :: acu = 1.0E-08
-  real (wp) an
-  real (wp) arg
-  real (wp) b
-  real (wp) dif
-  real (wp) factor
-  real (wp) g
-  real (wp) gin
-  integer i
+  real (wp) :: an
+  real (wp) :: arg
+  real (wp) :: b
+  real (wp) :: dif
+  real (wp) :: factor
+  real (wp) :: g
+  real (wp) :: gin
+  integer :: i
   real (wp), parameter :: oflo = 1.0E+37
   REAL (wp), INTENT(in) :: p
-  real (wp) pn(6)
-  real (wp) rn
-  real (wp) term
+  real (wp) :: pn(6)
+  real (wp) :: rn
+  real (wp) :: term
   real (wp), parameter :: uflo = 1.0E-37
   REAL (wp), intent(in) :: x
 !

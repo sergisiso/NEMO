@@ -97,8 +97,7 @@ MODULE par_oce
    INTEGER, PUBLIC ::   Ni0glo, Nj0glo   !: global domain size without halo
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: par_oce.F90 15119 2021-07-13 14:43:22Z jchanut $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!======================================================================
 END MODULE par_oce

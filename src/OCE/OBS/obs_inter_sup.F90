@@ -26,8 +26,7 @@ MODULE obs_inter_sup
       &   obs_int_comm_2d    ! Get 2D interpolation stencil
    
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_inter_sup.F90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 

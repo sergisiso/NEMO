@@ -1,6 +1,5 @@
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: grt_cir_dis_saa.h90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -22,9 +21,9 @@
       !!----------------------------------------------------------------------
       
       !! * Arguments
-      REAL(KIND=wp) :: pa   !  lon1 - lon2
-      REAL(KIND=wp) :: pb   !  lat1 - lat2
-      REAL(KIND=wp) :: pc   !  cos(lat2)
+      REAL(KIND=wp), INTENT(in) :: pa   !  lon1 - lon2
+      REAL(KIND=wp), INTENT(in) :: pb   !  lat1 - lat2
+      REAL(KIND=wp), INTENT(in) :: pc   !  cos(lat2)
 
       grt_cir_dis_saa = SQRT( pa * pa + ( pb * pc )**2 )
 

@@ -27,8 +27,7 @@ MODULE trcsms
    PUBLIC   trc_sms    ! called in trcstp.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcsms.F90 15373 2021-10-14 17:01:57Z techene $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

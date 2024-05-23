@@ -60,8 +60,8 @@ CONTAINS
       !! ** Purpose : add debug print for 2d variables
       !!
       !!--------------------------------------------------------------------
-      CHARACTER(LEN=*)           , INTENT(in) ::   cdtxt
-      REAL(wp), INTENT(in) ::   pvar(:,:)
+      CHARACTER(LEN=*)        , INTENT(in) ::   cdtxt
+      REAL(wp), DIMENSION(:,:), INTENT(in) ::   pvar
       !!--------------------------------------------------------------------
       REAL(wp)    ::   zmin, zmax, zsum
       INTEGER(i8) ::   imodd, ip

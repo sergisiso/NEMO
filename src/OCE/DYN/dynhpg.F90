@@ -81,8 +81,7 @@ MODULE dynhpg
 #  include "domzgr_substitute.h90"
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: dynhpg.F90 15157 2021-07-29 08:28:32Z techene $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

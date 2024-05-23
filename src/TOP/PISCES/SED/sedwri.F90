@@ -15,7 +15,6 @@ MODULE sedwri
    !! * Accessibility
    PUBLIC sed_wri 
 
-   !! $Id: sedwri.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
 
    !!----------------------------------------------------------------------

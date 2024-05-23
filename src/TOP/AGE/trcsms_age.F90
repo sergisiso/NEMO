@@ -30,8 +30,7 @@ MODULE trcsms_age
 
 
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcsms_age.F90 15193 2021-08-13 13:18:24Z techene $
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

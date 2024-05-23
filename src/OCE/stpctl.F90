@@ -41,8 +41,7 @@ MODULE stpctl
    INTEGER, DIMENSION(3)      ::   j0oce    ! global integer wet point indicators
    LOGICAL                    ::   l0oce_T, l0oce_U, l0oce_V        ! Logical no wet point indicators
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: stpctl.F90 15023 2021-06-18 14:35:25Z gsamson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -20,8 +20,7 @@ MODULE diu_layers
    PUBLIC diurnal_layers             ! called by step.F90 or step_diu.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: step_diu.F90 10922 2019-05-02 15:10:39Z acc $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 

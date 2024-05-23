@@ -25,8 +25,7 @@ MODULE agrif_all_update
    PUBLIC   Agrif_Update_All
 
    !!----------------------------------------------------------------------
-   !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_all_update.F90 15119 2021-07-13 14:43:22Z jchanut $
+   !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

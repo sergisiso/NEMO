@@ -26,8 +26,7 @@ MODULE usrdef_fmask
    PUBLIC   usr_def_fmask    ! routine called by dommsk.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: usrdef_fmask.F90 10425 2018-12-19 21:54:16Z smasson $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

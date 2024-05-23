@@ -27,8 +27,7 @@ MODULE usrdef_hgr
    PUBLIC   usr_def_hgr   ! called in domhgr.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: usrdef_hgr.F90 13216 2020-07-02 09:25:49Z rblod $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

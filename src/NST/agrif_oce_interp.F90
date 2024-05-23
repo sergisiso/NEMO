@@ -60,8 +60,7 @@ MODULE agrif_oce_interp
 
    !! * Substitutions
 #  include "domzgr_substitute.h90"
-   !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_oce_interp.F90 15119 2021-07-13 14:43:22Z jchanut $
+   !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

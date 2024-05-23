@@ -147,7 +147,6 @@ MODULE sed
 
    INTEGER, PUBLIC ::  numsed = 27    ! units
 
-   !! $Id: sed.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
 
    INTEGER FUNCTION sed_alloc()

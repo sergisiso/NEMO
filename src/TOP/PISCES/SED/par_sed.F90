@@ -6,7 +6,6 @@ MODULE par_sed
    !! History :
    !!        !  06-12  (C. Ethe)  Orignal
    !!----------------------------------------------------------------------
-   !! $Id: par_sed.F90 15450 2021-10-27 14:32:08Z cetlod $
 
    !! Domain characteristics
    USE par_kind

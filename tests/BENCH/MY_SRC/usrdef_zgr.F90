@@ -30,8 +30,7 @@ MODULE usrdef_zgr
    PUBLIC   usr_def_zgr        ! called by domzgr.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OPA 4.0 , NEMO Consortium (2016)
-   !! $Id$
+   !! NEMO/OPA 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS             

@@ -16,7 +16,6 @@ MODULE sedbtb
    PUBLIC sed_btb
 
 
-   !! $Id: sedbtb.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
    
    SUBROUTINE sed_btb( kt )

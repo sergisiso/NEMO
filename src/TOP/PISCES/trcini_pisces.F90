@@ -26,8 +26,7 @@ MODULE trcini_pisces
    PUBLIC   trc_ini_pisces   ! called by trcini.F90 module
 
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcini_pisces.F90 15459 2021-10-29 08:19:18Z cetlod $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
