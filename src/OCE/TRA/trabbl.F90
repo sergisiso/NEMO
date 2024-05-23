@@ -331,6 +331,8 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(1))        :: zub, zvb, zdep   ! 2D workspace
       !!----------------------------------------------------------------------
       !
+      IF( ln_timing ) CALL timing_start('bbl')
+      !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
          IF( kt == kit000 )  THEN
             IF(lwp)  WRITE(numout,*)
@@ -453,6 +455,8 @@ CONTAINS
          END SELECT
          !
       ENDIF
+      !
+      IF( ln_timing ) CALL timing_stop('bbl')
       !
    END SUBROUTINE bbl
 
