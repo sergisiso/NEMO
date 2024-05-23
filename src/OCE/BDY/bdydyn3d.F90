@@ -27,8 +27,7 @@ MODULE bdydyn3d
    PUBLIC   bdy_dyn3d_dmp ! routine called by step
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: bdydyn3d.F90 15368 2021-10-14 08:25:34Z smasson $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

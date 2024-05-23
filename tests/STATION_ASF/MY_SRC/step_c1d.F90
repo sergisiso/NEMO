@@ -24,8 +24,7 @@ MODULE step_c1d
    PUBLIC stp_c1d      ! called by nemogcm.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: step_c1d.F90 13802 2020-11-17 09:21:55Z gsamson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

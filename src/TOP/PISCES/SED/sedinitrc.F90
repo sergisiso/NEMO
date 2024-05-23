@@ -24,7 +24,6 @@ MODULE sedinitrc
    !! *  Routine accessibility
    PUBLIC sed_initrc          ! routine called by opa.F90
 
-   !! $Id: sedini.F90 5215 2015-04-15 16:11:56Z nicolasmartin $
 CONTAINS
 
 

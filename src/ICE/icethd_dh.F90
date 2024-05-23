@@ -26,8 +26,7 @@ MODULE icethd_dh
    PUBLIC   ice_thd_dh        ! called by ice_thd
 
    !!----------------------------------------------------------------------
-   !! NEMO/ICE 4.0 , NEMO Consortium (2018)
-   !! $Id: icethd_dh.F90 14686 2021-04-08 15:36:01Z clem $
+   !! NEMO/ICE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

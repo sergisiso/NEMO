@@ -27,7 +27,6 @@ MODULE usrdef_hgr
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OPA 4.0, NEMO Consortium (2016)
-   !! $Id$ 
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

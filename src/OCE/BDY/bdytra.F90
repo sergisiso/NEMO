@@ -35,8 +35,7 @@ MODULE bdytra
    PUBLIC   bdy_tra_dmp  ! called in step.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: bdytra.F90 15354 2021-10-12 13:44:46Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

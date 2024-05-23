@@ -5,8 +5,7 @@ MODULE par_age
    !!======================================================================
    !! History :   2.0  !  2007-12  (C. Ethe, G. Madec)  revised architecture
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: par_age.F90 10070 2018-08-28 14:30:54Z nicolasmartin $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
    IMPLICIT NONE

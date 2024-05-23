@@ -44,8 +44,7 @@ MODULE abl
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OPA 4.0 , NEMO Consortium (2011)
-   !! $Id: abl.F90 4990 2014-12-15 16:42:49Z timgraham $ 
+   !! NEMO/ABL 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS

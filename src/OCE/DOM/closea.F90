@@ -54,8 +54,7 @@ MODULE closea
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: closea.F90 13558 2020-10-02 15:30:22Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -258,6 +257,6 @@ CONTAINS
       ALLOCATE( kmask(jpi,jpj) , STAT=ierr )
       IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'alloc_csmask: failed to allocate surf array')
       !
-   END SUBROUTINE
+   END SUBROUTINE alloc_csmask
 
 END MODULE closea

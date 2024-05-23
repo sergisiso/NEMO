@@ -68,8 +68,7 @@ MODULE diaobs
 #  include "domzgr_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: diaobs.F90 15077 2021-07-03 10:16:35Z jchanut $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -1054,7 +1053,7 @@ CONTAINS
 
       !! * Arguments
       REAL(KIND=dp), INTENT(OUT) :: ddobs                        ! Date in YYYYMMDD.HHMMSS
-      INTEGER :: kstp
+      INTEGER, INTENT(in) :: kstp
 
       !! * Local declarations
       INTEGER :: iyea        ! date - (year, month, day, hour, minute)

@@ -33,8 +33,7 @@ MODULE obs_read_surf
    PUBLIC obs_rea_surf      ! Read the surface observations from the point data
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_read_surf.F90 14275 2021-01-07 12:13:16Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 

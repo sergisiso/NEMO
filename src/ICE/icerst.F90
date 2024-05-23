@@ -35,8 +35,7 @@ MODULE icerst
    PUBLIC   ice_rst_read    ! called by ice_init
 
    !!----------------------------------------------------------------------
-   !! NEMO/ICE 4.0 , NEMO Consortium (2018)
-   !! $Id: icerst.F90 14239 2020-12-23 08:57:16Z smasson $
+   !! NEMO/ICE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

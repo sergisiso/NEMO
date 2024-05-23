@@ -19,7 +19,6 @@ MODULE sedjac
 
    !! * Module variables
 
-   !! $Id: sedsol.F90 5215 2015-04-15 16:11:56Z nicolasmartin $
 CONTAINS
    
    SUBROUTINE sed_jac( NEQ, X, jacvode, NROWPD, accmask ) 

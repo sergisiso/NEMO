@@ -5,8 +5,7 @@
 !  
 !  wheneq
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: lib_cray.f90 14227 2020-12-20 11:57:00Z smasson $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 SUBROUTINE lib_cray

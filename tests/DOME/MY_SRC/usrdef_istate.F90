@@ -26,8 +26,7 @@ MODULE usrdef_istate
    PUBLIC   usr_def_istate   ! called by istate.F90
    PUBlIC   usr_def_istate_ssh
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: usrdef_istate.F90 12489 2020-02-28 15:55:11Z davestorkey $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
    !! * Substitutions

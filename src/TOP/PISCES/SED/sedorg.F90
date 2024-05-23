@@ -15,7 +15,6 @@ MODULE sedorg
 
    PUBLIC sed_org
 
-   !! $Id: seddsr.F90 5215 2015-04-15 16:11:56Z nicolasmartin $
 CONTAINS
    
    SUBROUTINE sed_org( kt )

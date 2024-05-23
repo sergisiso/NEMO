@@ -45,8 +45,7 @@ MODULE icbstp
    PUBLIC   icb_end        ! routine called in nemogcm.F90 module
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: icbstp.F90 14239 2020-12-23 08:57:16Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

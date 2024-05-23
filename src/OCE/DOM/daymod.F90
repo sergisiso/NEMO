@@ -43,8 +43,7 @@ MODULE daymod
    INTEGER, PUBLIC ::   nsecd, nsecd05, ndt, ndt05   !: (PUBLIC for TAM)
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: daymod.F90 14072 2020-12-04 07:48:38Z laurent $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -198,7 +197,7 @@ CONTAINS
          nmonth_beg(jm) = nmonth_beg(jm+1) - nsecd * nmonth_len(jm)
       END DO
       !
-   END SUBROUTINE
+   END SUBROUTINE day_mth
 
 
    SUBROUTINE day( kt )

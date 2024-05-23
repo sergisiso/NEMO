@@ -37,8 +37,7 @@ MODULE stpctl
    INTEGER                    ::   nrunid   ! netcdf file id
    INTEGER, DIMENSION(jpvar)  ::   nvarid   ! netcdf variable id
    !!----------------------------------------------------------------------
-   !! NEMO/SAS 4.0 , NEMO Consortium (2018)
-   !! $Id: stpctl.F90 10603 2019-01-29 11:18:09Z acc $
+   !! NEMO/SAS 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

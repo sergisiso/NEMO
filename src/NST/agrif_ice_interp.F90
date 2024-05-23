@@ -42,8 +42,7 @@ MODULE agrif_ice_interp
    !! * Substitutions
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_ice_interp.F90 15031 2021-06-21 10:05:41Z jchanut $
+   !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 

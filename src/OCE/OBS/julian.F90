@@ -23,7 +23,6 @@ MODULE julian
    PUBLIC jul2greg,        &  ! Convert relative time to date
       &   greg2jul            ! Convert date to relative time 
   
-   !! $Id: julian.F90 5215 2015-04-15 16:11:56Z nicolasmartin $
 CONTAINS
  
 #include "jul2greg.h90"

@@ -30,8 +30,7 @@ MODULE icetab
    PUBLIC   tab_1d_2d
 
    !!----------------------------------------------------------------------
-   !! NEMO/ICE 4.0 , NEMO Consortium (2018)
-   !! $Id: icetab.F90 14072 2020-12-04 07:48:38Z laurent $
+   !! NEMO/ICE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

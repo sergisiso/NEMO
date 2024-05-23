@@ -51,6 +51,6 @@ CONTAINS
             &                                 - exp ( -pbottom / pp_len(jt) ) )
       END DO
       
-   END FUNCTION
+   END FUNCTION solfrac
    
 END MODULE solfrac_mod

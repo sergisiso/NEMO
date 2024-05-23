@@ -35,8 +35,7 @@ MODULE agrif_ice_update
    PUBLIC   agrif_update_ice   ! called by agrif_user.F90 and icestp.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_ice_update.F90 13472 2020-09-16 13:05:19Z smasson $
+   !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

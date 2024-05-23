@@ -41,8 +41,7 @@ MODULE traadv_ubs
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: traadv_ubs.F90 14922 2021-05-28 13:25:33Z hadcv $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -318,7 +317,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER , INTENT(in   )                             ::   Kmm    ! time level index
       REAL(wp), INTENT(in   )                             ::   p2dt   ! tracer time-step
-      REAL(wp),                DIMENSION(jpi,jpj,jpk)     ::   pbef   ! before field
+      REAL(wp), INTENT(inout), DIMENSION(jpi,jpj,jpk)     ::   pbef   ! before field
       REAL(wp), INTENT(inout), DIMENSION(T2D(nn_hls),jpk) ::   paft   ! after field
       REAL(wp), INTENT(inout), DIMENSION(T2D(nn_hls),jpk) ::   pcc    ! monotonic flux in the k direction
       !

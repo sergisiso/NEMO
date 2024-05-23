@@ -17,7 +17,6 @@ MODULE sed_oce
 
    REAL(wp), PUBLIC, DIMENSION(:    ), ALLOCATABLE ::  profsedw       !: depth of middle of each layer
 
-   !! $Id: sed.F90 7646 2017-02-06 09:25:03Z timgraham $
 CONTAINS
 
    INTEGER FUNCTION sed_oce_alloc()

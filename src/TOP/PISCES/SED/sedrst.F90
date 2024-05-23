@@ -26,7 +26,6 @@ MODULE sedrst
    PUBLIC sed_rst_wri
    PUBLIC sed_rst_cal
 
-   !! $Id: sedrst.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
 
 

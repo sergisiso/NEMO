@@ -21,8 +21,7 @@ MODULE trcini_my_trc
    PUBLIC   trc_ini_my_trc   ! called by trcini.F90 module
 
    !!----------------------------------------------------------------------
-   !! NEMO/TOP 4.0 , NEMO Consortium (2018)
-   !! $Id: trcini_my_trc.F90 12377 2020-02-12 14:39:06Z acc $ 
+   !! NEMO/TOP 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

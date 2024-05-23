@@ -35,8 +35,7 @@ MODULE par_kind
    INTEGER, PUBLIC, PARAMETER ::   lca = 400                          !: Lenght of Character arrays
 
    !!----------------------------------------------------------------------
-   !! NEMO 3.3 , NEMO Consortium (2018)
-   !! $Id: par_kind.F90 14433 2021-02-11 08:06:49Z smasson $ 
+   !! NEMO 5.0/OCE , NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 END MODULE par_kind

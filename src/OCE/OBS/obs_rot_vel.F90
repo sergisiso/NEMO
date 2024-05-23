@@ -30,8 +30,7 @@ MODULE obs_rot_vel
    PUBLIC obs_rotvel_surf       ! Rotate the surface velocity observations
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_rot_vel.F90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -61,7 +60,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: k2dint     ! Horizontal interpolation method
       INTEGER, INTENT(IN) :: kuvar      ! Index of U velocity
       INTEGER, INTENT(IN) :: kvvar      ! Index of V velocity
-      REAL(wp), DIMENSION(*) :: &
+      REAL(wp), DIMENSION(*), INTENT(OUT) :: &
          & pu, &
          & pv
       !! * Local declarations
@@ -253,7 +252,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: k2dint     ! Horizontal interpolation method
       INTEGER, INTENT(IN) :: kuvar      ! Index of U velocity
       INTEGER, INTENT(IN) :: kvvar      ! Index of V velocity
-      REAL(wp), DIMENSION(*) :: &
+      REAL(wp), DIMENSION(*), INTENT(OUT) :: &
          & pu, &
          & pv
       !! * Local declarations

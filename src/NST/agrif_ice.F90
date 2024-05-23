@@ -19,8 +19,7 @@ MODULE agrif_ice
    INTEGER, PUBLIC ::  nbstep_ice = 0    ! child time position in sea-ice model
 
    !!----------------------------------------------------------------------
-   !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif_ice.F90 13216 2020-07-02 09:25:49Z rblod $
+   !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 

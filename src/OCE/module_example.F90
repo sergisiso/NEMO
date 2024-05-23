@@ -16,9 +16,10 @@ MODULE exampl
    !!   exa_mpl_init  : name of the module for a routine)
    !!   exa_mpl_stp   : Please try to use 3 letter block for routine names
    !!----------------------------------------------------------------------
-   USE module_name1              ! brief description of the used module
-   USE module_name2              ! ....
-   USE lib_mpp, ONLY : nam_ctl   ! subroutine nam_ctl is utilised for namelist-input error handling
+   USE module_name1               ! brief description of the used module
+   USE module_name2               ! ....
+   USE par_kind, ONLY : wp        ! definition of the working precision
+   USE lib_mpp , ONLY : nam_ctl   ! subroutine nam_ctl is utilised for namelist-input error handling
 
    IMPLICIT NONE
    PRIVATE
@@ -56,8 +57,7 @@ MODULE exampl
    !for other substitutions
 #  include "exampl_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: module_example.F90 14941 2021-06-03 11:42:27Z acc $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -184,10 +184,12 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   Default option :                                         NO example
    !!----------------------------------------------------------------------
+   USE par_kind, ONLY : wp        ! definition of the working precision
 CONTAINS
    SUBROUTINE exa_mpl( kt, pvar1, pvar2, ptab )              ! Empty routine
-      INTEGER :: kt
-      REAL::   pvar1, pvar2, ptab(:,:)
+      INTEGER                 ::   kt
+      REAL(wp)                ::   pvar1, pvar2
+      REAL(wp),DIMENSION(:,:) ::   ptab
       WRITE(*,*) 'exa_mpl: You should not have seen this print! error?', kt, pvar1, pvar2, ptab(1,1)
    END SUBROUTINE exa_mpl
 #endif

@@ -25,8 +25,7 @@ MODULE icbdyn
    PUBLIC   icb_dyn  ! routine called in icbstp.F90 module
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: icbdyn.F90 15088 2021-07-06 13:03:34Z acc $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

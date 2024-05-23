@@ -95,8 +95,7 @@ MODULE iom
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: iom.F90 15512 2021-11-15 17:22:03Z techene $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -437,7 +436,7 @@ CONTAINS
       !!
       !! ** Purpose :  define file name in XIOS context for writing restart
       !!---------------------------------------------------------------------
-      CHARACTER(len=*) :: cdrst_file
+      CHARACTER(len=*), INTENT(in) :: cdrst_file
 #if defined key_xios
       TYPE(xios_file) :: file_hdl
       TYPE(xios_filegroup) :: filegroup_hdl
@@ -1528,8 +1527,8 @@ CONTAINS
    END SUBROUTINE iom_get_123d
 
    SUBROUTINE iom_get_var( cdname, z2d)
-      CHARACTER(LEN=*), INTENT(in ) ::   cdname
-      REAL(wp), DIMENSION(jpi,jpj) ::   z2d
+      CHARACTER(LEN=*)            , INTENT(in ) ::   cdname
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(out) ::   z2d
 #if defined key_xios
       IF( xios_field_is_active( cdname, at_current_timestep_arg = .TRUE. ) ) THEN
          z2d(:,:) = 0._wp

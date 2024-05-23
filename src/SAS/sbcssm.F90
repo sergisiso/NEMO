@@ -58,8 +58,7 @@ MODULE sbcssm
 #  include "read_nml_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/SAS 4.0 , NEMO Consortium (2018)
-   !! $Id: sbcssm.F90 15023 2021-06-18 14:35:25Z gsamson $
+   !! NEMO/SAS 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

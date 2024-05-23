@@ -20,8 +20,7 @@ MODULE step_diu
    PUBLIC   stp_diurnal   ! called by nemogcm.F90 or step.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: step_diu.F90 12377 2020-02-12 14:39:06Z acc $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 

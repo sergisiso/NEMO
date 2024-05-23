@@ -46,8 +46,7 @@ MODULE icbtrj
    INTEGER ::   nmass_of_bits_id, nheat_density_id
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: icbtrj.F90 14030 2020-12-03 09:26:33Z mathiot $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

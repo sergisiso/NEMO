@@ -127,8 +127,7 @@ MODULE obs_fbm
    PRIVATE putvaratt_obfbdata
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_fbm.F90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -146,7 +145,7 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      TYPE(obfbdata) :: fbdata      ! obsfbdata structure
+      TYPE(obfbdata), INTENT(out) :: fbdata      ! obsfbdata structure
 
       fbdata%nvar   = 0
       fbdata%nobs   = 0
@@ -172,14 +171,14 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      TYPE(obfbdata) ::  fbdata          ! obsfbdata structure to be allocated
+      TYPE(obfbdata), INTENT(out) ::  fbdata          ! obsfbdata structure to be allocated
       INTEGER, INTENT(IN) :: kvar        ! Number of variables
       INTEGER, INTENT(IN) :: kobs        ! Number of observations
       INTEGER, INTENT(IN) :: klev        ! Number of levels
       INTEGER, INTENT(IN) :: kadd        ! Number of additional entries
       INTEGER, INTENT(IN) :: kext        ! Number of extra variables
       LOGICAL, INTENT(IN) :: lgrid       ! Include grid search information
-      INTEGER, OPTIONAL ::  kqcf         ! Number of words for QC flags
+      INTEGER, OPTIONAL, INTENT(IN) ::  kqcf         ! Number of words for QC flags
       !! * Local variables
       INTEGER :: ji
       INTEGER :: jv
@@ -362,7 +361,7 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      TYPE(obfbdata) :: fbdata      ! obsfbdata structure
+      TYPE(obfbdata), INTENT(out) :: fbdata      ! obsfbdata structure
 
       ! Deallocate data 
 
@@ -486,12 +485,12 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      TYPE(obfbdata) :: fbdata1               ! Input obsfbdata structure
-      TYPE(obfbdata) :: fbdata2               ! Output obsfbdata structure
+      TYPE(obfbdata), INTENT(IN ) :: fbdata1               ! Input obsfbdata structure
+      TYPE(obfbdata), INTENT(OUT) :: fbdata2               ! Output obsfbdata structure
       INTEGER, INTENT(IN), OPTIONAL :: kadd   ! Number of additional entries
       INTEGER, INTENT(IN), OPTIONAL :: kext   ! Number of extra variables
       INTEGER, INTENT(IN), OPTIONAL :: kqcf   ! Number of words per qc flags
-      LOGICAL, OPTIONAL :: lgrid              ! Grid info on output file
+      LOGICAL, INTENT(IN), OPTIONAL :: lgrid              ! Grid info on output file
 
       !! * Local variables
       INTEGER :: nadd
@@ -707,9 +706,9 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      TYPE(obfbdata) :: fbdata1           ! Input obsfbdata structure
-      TYPE(obfbdata) :: fbdata2           ! Output obsfbdata structure
-      LOGICAL, DIMENSION(fbdata1%nobs) :: llvalid     ! Grid info on output file
+      TYPE(obfbdata), INTENT(in ) :: fbdata1           ! Input obsfbdata structure
+      TYPE(obfbdata), INTENT(out) :: fbdata2           ! Output obsfbdata structure
+      LOGICAL, DIMENSION(fbdata1%nobs), INTENT(in) :: llvalid     ! Grid info on output file
       !! * Local variables
       INTEGER :: nobs
       INTEGER :: jv
@@ -880,8 +879,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !! * Arguments
       INTEGER, INTENT(IN):: nsets      ! Number of input data sets 
-      TYPE(obfbdata), DIMENSION(nsets) :: fbdatain  ! Input obsfbdata structure
-      TYPE(obfbdata) :: fbdataout      ! Output obsfbdata structure
+      TYPE(obfbdata), DIMENSION(nsets), INTENT(in) :: fbdatain  ! Input obsfbdata structure
+      TYPE(obfbdata), INTENT(inout) :: fbdataout      ! Output obsfbdata structure
       INTEGER, INTENT(IN), DIMENSION(fbdataout%nobs) :: &
          & iset                 ! Set number for a given obs.
       INTEGER, INTENT(IN), DIMENSION(fbdataout%nobs) :: &
@@ -1036,8 +1035,8 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      CHARACTER(len=*) :: cdfilename ! Output filename
-      TYPE(obfbdata)   :: fbdata     ! obsfbdata structure
+      CHARACTER(len=*), INTENT(in) :: cdfilename ! Output filename
+      TYPE(obfbdata)  , INTENT(in) :: fbdata     ! obsfbdata structure
       !! * Local variables
       CHARACTER(LEN=14), PARAMETER :: cpname = 'write_obfbdata'
       ! Dimension ids
@@ -1539,14 +1538,14 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      INTEGER :: idfile                    ! File netcdf id.
-      INTEGER :: idvar                     ! Variable netcdf id.
-      CHARACTER(len=*) :: cdlongname       ! Long name for variable
-      CHARACTER(len=*), OPTIONAL :: cdunits       ! Units for variable
-      CHARACTER(len=*), OPTIONAL :: cfillvalue    ! Fill value for character variables
-      INTEGER, OPTIONAL :: ifillvalue             ! Fill value for integer variables
-      REAL(kind=fbsp), OPTIONAL :: rfillvalue     ! Fill value for real variables
-      CHARACTER(len=*), OPTIONAL :: conventions   ! Conventions for variable
+      INTEGER, INTENT(in) :: idfile                    ! File netcdf id.
+      INTEGER, INTENT(in) :: idvar                     ! Variable netcdf id.
+      CHARACTER(len=*), INTENT(in) :: cdlongname       ! Long name for variable
+      CHARACTER(len=*), INTENT(in), OPTIONAL :: cdunits       ! Units for variable
+      CHARACTER(len=*), INTENT(in), OPTIONAL :: cfillvalue    ! Fill value for character variables
+      INTEGER, INTENT(in), OPTIONAL :: ifillvalue             ! Fill value for integer variables
+      REAL(kind=fbsp), INTENT(in), OPTIONAL :: rfillvalue     ! Fill value for real variables
+      CHARACTER(len=*), INTENT(in), OPTIONAL :: conventions   ! Conventions for variable
       !! * Local variables
       CHARACTER(LEN=18), PARAMETER :: &
          & cpname = 'putvaratt_obfbdata'
@@ -1609,9 +1608,9 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      CHARACTER(len=*) :: cdfilename  ! Input filename
-      TYPE(obfbdata)   :: fbdata      ! obsfbdata structure
-      LOGICAL, OPTIONAL :: ldgrid     ! Allow forcing of grid info
+      CHARACTER(len=*), INTENT(in ) :: cdfilename  ! Input filename
+      TYPE(obfbdata)  , INTENT(out) :: fbdata      ! obsfbdata structure
+      LOGICAL, INTENT(in), OPTIONAL :: ldgrid      ! Allow forcing of grid info
       !! * Local variables
       CHARACTER(LEN=14), PARAMETER :: cpname = 'read_obfbdata'
       INTEGER :: idfile
@@ -1978,10 +1977,10 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !! * Arguments
-      INTEGER :: idfile      ! File netcdf id.
-      INTEGER :: idvar       ! Variable netcdf id.
-      CHARACTER(len=*) :: cdlongname  ! Long name for variable
-      CHARACTER(len=*) :: cdunits     ! Units for variable
+      INTEGER, INTENT(in) :: idfile      ! File netcdf id.
+      INTEGER, INTENT(in) :: idvar       ! Variable netcdf id.
+      CHARACTER(len=*), INTENT(out) :: cdlongname  ! Long name for variable
+      CHARACTER(len=*), INTENT(out) :: cdunits     ! Units for variable
       !! * Local variables
       CHARACTER(LEN=18), PARAMETER :: cpname = 'getvaratt_obfbdata'
 

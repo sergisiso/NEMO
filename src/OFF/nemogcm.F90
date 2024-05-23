@@ -91,8 +91,7 @@ MODULE nemogcm
    !! * Substitutions
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OFF 4.0 , NEMO Consortium (2018)
-   !! $Id: nemogcm.F90 14255 2021-01-04 11:35:00Z cetlod $
+   !! NEMO/OFF 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -187,8 +187,7 @@ MODULE in_out_manager
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: in_out_manager.F90 14553 2021-02-26 17:01:43Z gsamson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!=====================================================================
 END MODULE in_out_manager

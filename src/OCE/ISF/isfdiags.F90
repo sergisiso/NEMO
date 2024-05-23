@@ -28,8 +28,7 @@ MODULE isfdiags
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: sbcisf.F90 10536 2019-01-16 19:21:09Z mathiot $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -71,7 +70,7 @@ CONTAINS
       IF ( iom_use( TRIM(cvarqlat3d) ) ) CALL isf_diags_2dto3d( Kmm, ktop, kbot, phtbl, pfrac, TRIM(cvarqlat3d) , pqoce(:,:))
       IF ( iom_use( TRIM(cvarqhc3d)  ) ) CALL isf_diags_2dto3d( Kmm, ktop, kbot, phtbl, pfrac, TRIM(cvarqhc3d)  , pqhc (:,:))
       !
-   END SUBROUTINE
+   END SUBROUTINE isf_diags_flx
 
    SUBROUTINE isf_diags_2dto3d( Kmm, ktop, kbot, phtbl, pfrac, cdvar, pvar2d )
       !!---------------------------------------------------------------------

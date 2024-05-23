@@ -1,7 +1,6 @@
 #if defined key_agrif
    !!----------------------------------------------------------------------
-   !! NEMO/NST 4.0 , NEMO Consortium (2018)
-   !! $Id: agrif2model.F90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 SUBROUTINE Agrif2Model

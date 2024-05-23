@@ -34,8 +34,7 @@ MODULE domutl
    PUBLIC arr_hls
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.2 , NEMO Consortium (2020)
-   !! $Id: domutl.F90 14834 2021-05-11 09:24:44Z hadcv $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

@@ -29,8 +29,7 @@ MODULE bdylib
    PUBLIC   bdy_orlanski_3d
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: bdylib.F90 13527 2020-09-25 16:00:14Z smasson $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

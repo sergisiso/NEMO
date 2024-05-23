@@ -139,8 +139,7 @@ MODULE obs_surf_def
    END TYPE obs_surf
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_surf_def.F90 10068 2018-08-28 14:09:04Z nicolasmartin $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -421,11 +420,11 @@ CONTAINS
       !!        !  07-03  (K. Mogensen, A. Weaver, E. Remy, S. Ricci) original
       !!----------------------------------------------------------------------
       !! * Arguments
-      TYPE(obs_surf), INTENT(IN)    :: surf      ! Original surface data
-      TYPE(obs_surf), INTENT(INOUT) :: newsurf   ! New surface data with a subset of the original data
-      LOGICAL :: lallocate     ! Allocate newsurf data
-      INTEGER,INTENT(IN) :: kumout        ! Fortran unit for messages
-      LOGICAL, OPTIONAL, INTENT(in), DIMENSION(:) :: &
+      TYPE(obs_surf),    INTENT(IN   ) :: surf      ! Original surface data
+      TYPE(obs_surf),    INTENT(INOUT) :: newsurf   ! New surface data with a subset of the original data
+      LOGICAL,           INTENT(IN   ) :: lallocate     ! Allocate newsurf data
+      INTEGER,           INTENT(IN   ) :: kumout        ! Fortran unit for messages
+      LOGICAL, OPTIONAL, INTENT(IN   ), DIMENSION(:) :: &
          & lvalid         ! Valid of surface observations
       
       !!* Local variables
@@ -564,10 +563,10 @@ CONTAINS
       !!        !  07-03  (K. Mogensen, A. Weaver, E. Remy, S. Ricci) original
       !!----------------------------------------------------------------------
       !! * Arguments
-      TYPE(obs_surf),INTENT(INOUT) :: surf       ! Updated surface data
-      TYPE(obs_surf),INTENT(INOUT) :: oldsurf    ! Original surface data
-      LOGICAL :: ldeallocate ! Deallocate the updated data of insertion
-      INTEGER,INTENT(in) :: kumout      ! Output unit
+      TYPE(obs_surf), INTENT(INOUT) :: surf       ! Updated surface data
+      TYPE(obs_surf), INTENT(INOUT) :: oldsurf    ! Original surface data
+      LOGICAL       , INTENT(IN   ) :: ldeallocate ! Deallocate the updated data of insertion
+      INTEGER       , INTENT(IN   ) :: kumout      ! Output unit
       
       !!* Local variables
       INTEGER :: ji

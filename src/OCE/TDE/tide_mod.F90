@@ -109,8 +109,7 @@ MODULE tide_mod
    !! * Substitutions
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: tide_mod.F90 13286 2020-07-09 15:48:29Z smasson $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -299,10 +298,10 @@ CONTAINS
       !! contain oscillation parameters of the selected harmonic tidal
       !! components
       !! ----------------------------------------------------------------------
-      CHARACTER(LEN=4),             DIMENSION(jpmax_harmo), INTENT(in) ::   pcnames     ! Names of selected components
-      TYPE(tide_harmonic), POINTER, DIMENSION(:)                       ::   ptide_harmo ! Oscillation parameters of tidal components
-      TYPE(tide),          POINTER, DIMENSION(:), OPTIONAL             ::   ptide_comp  ! Selected components
-      TYPE(tide),          POINTER, DIMENSION(:)                       ::   ztcomp      ! Selected components
+      CHARACTER(LEN=4),             DIMENSION(jpmax_harmo), INTENT(in ) ::   pcnames     ! Names of selected components
+      TYPE(tide_harmonic), POINTER, DIMENSION(:)          , INTENT(out) ::   ptide_harmo ! Oscillation parameters of tidal components
+      TYPE(tide),          POINTER, DIMENSION(:), OPTIONAL, INTENT(out) ::   ptide_comp  ! Selected components
+      TYPE(tide),          POINTER, DIMENSION(:)                        ::   ztcomp      ! Selected components
 
       ! Retrieve information about selected tidal components
       ! If requested, prepare tidal component array for returning
@@ -447,9 +446,9 @@ CONTAINS
 
    SUBROUTINE tide_harmo( ptide_comp, ptide_harmo, psec_day )
       !
-      TYPE(tide),          DIMENSION(:), POINTER ::   ptide_comp   ! Array of selected tidal component parameters
-      TYPE(tide_harmonic), DIMENSION(:), POINTER ::   ptide_harmo  ! Oscillation parameters of selected tidal components
-      INTEGER, OPTIONAL ::   psec_day                              ! Number of seconds since the start of the current day
+      TYPE(tide),          DIMENSION(:), POINTER, INTENT(in   ) ::   ptide_comp   ! Array of selected tidal component parameters
+      TYPE(tide_harmonic), DIMENSION(:), POINTER, INTENT(inout) ::   ptide_harmo  ! Oscillation parameters of selected tidal components
+      INTEGER, OPTIONAL                         , INTENT(in   ) ::   psec_day     ! Number of seconds since the start of the current day
       !
       IF (PRESENT(psec_day)) THEN 
          CALL astronomic_angle(psec_day)
@@ -468,7 +467,7 @@ CONTAINS
       !!                      
       !! ** Purpose : Compute astronomic angles
       !!----------------------------------------------------------------------
-      INTEGER  ::   psec_day !   Number of seconds from midnight
+      INTEGER, INTENT(in)  ::   psec_day !   Number of seconds from midnight
       REAL(wp) ::   zp, zq, zt2, zs2, ztgI2, zP1, ztgn2, zat1, zat2
       REAL(wp) ::   zqy , zsy, zday, zdj, zhfrac, zt
       !!----------------------------------------------------------------------
@@ -546,8 +545,8 @@ CONTAINS
       !!                      
       !! ** Purpose : Compute tidal frequencies
       !!----------------------------------------------------------------------
-      TYPE(tide),          DIMENSION(:), POINTER ::   ptide_comp   ! Array of selected tidal component parameters
-      TYPE(tide_harmonic), DIMENSION(:), POINTER ::   ptide_harmo  ! Oscillation parameters of selected tidal components
+      TYPE(tide),          DIMENSION(:), POINTER, INTENT(in   ) ::   ptide_comp   ! Array of selected tidal component parameters
+      TYPE(tide_harmonic), DIMENSION(:), POINTER, INTENT(inout) ::   ptide_harmo  ! Oscillation parameters of selected tidal components
       !
       INTEGER  ::   jh
       REAL(wp) ::   zscale
@@ -576,8 +575,8 @@ CONTAINS
       !!              ut: Phase correction u due to nodal motion (radians)
       !!              ft: Nodal correction factor
       !!----------------------------------------------------------------------
-      TYPE(tide),          DIMENSION(:), POINTER ::   ptide_comp   ! Array of selected tidal component parameters
-      TYPE(tide_harmonic), DIMENSION(:), POINTER ::   ptide_harmo  ! Oscillation parameters of selected tidal components
+      TYPE(tide),          DIMENSION(:), POINTER, INTENT(in   ) ::   ptide_comp   ! Array of selected tidal component parameters
+      TYPE(tide_harmonic), DIMENSION(:), POINTER, INTENT(inout) ::   ptide_harmo  ! Oscillation parameters of selected tidal components
       !
       INTEGER ::   jh   ! dummy loop index
       !!----------------------------------------------------------------------

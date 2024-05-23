@@ -58,8 +58,7 @@ MODULE storng
    !! * Substitutions
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: storng.F90 12649 2020-04-03 07:11:57Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -99,12 +98,14 @@ CONTAINS
       CONTAINS
 
          FUNCTION s(k)
-            INTEGER(KIND=i8) :: s, k
+            INTEGER(KIND=i8), INTENT(in) :: k
+            INTEGER(KIND=i8) :: s
             s = ISHFT(k,-63)
          END FUNCTION s
 
          FUNCTION m(k, n)
-            INTEGER(KIND=i8) :: m, k, n
+            INTEGER(KIND=i8), INTENT(in) :: k, n
+            INTEGER(KIND=i8) :: m
             m =  IEOR(k, ISHFT(k, n) )
          END FUNCTION m
 
@@ -119,7 +120,7 @@ CONTAINS
       !!
       !! --------------------------------------------------------------------
       IMPLICIT NONE
-      INTEGER(KIND=i8) :: ix, iy, iz, iw
+      INTEGER(KIND=i8), INTENT(in) :: ix, iy, iz, iw
 
       x = ix
       y = iy
@@ -137,7 +138,7 @@ CONTAINS
       !!
       !! --------------------------------------------------------------------
       IMPLICIT NONE
-      INTEGER(KIND=i8) :: ix, iy, iz, iw
+      INTEGER(KIND=i8), INTENT(out) :: ix, iy, iz, iw
 
       ix = x
       iy = y
@@ -271,7 +272,7 @@ CONTAINS
       !!
       !! --------------------------------------------------------------------
       IMPLICIT NONE
-      REAL(KIND=wp) :: uran
+      REAL(KIND=wp), INTENT(out) :: uran
 
       uran = half * ( one + REAL(kiss(),wp) / HUGE(1._wp) )
 
@@ -291,7 +292,8 @@ CONTAINS
       !!
       !! --------------------------------------------------------------------
       IMPLICIT NONE
-      REAL(KIND=wp) :: gran, u1, u2, rsq, fac
+      REAL(KIND=wp), INTENT(out) :: gran
+      REAL(KIND=wp) :: u1, u2, rsq, fac
 
       IF (ig.EQ.1) THEN
          rsq = two
@@ -323,10 +325,12 @@ CONTAINS
       !!
       !! --------------------------------------------------------------------
       IMPLICIT NONE
+      REAL(KIND=wp), INTENT(in ) :: k
+      REAL(KIND=wp), INTENT(out) :: gamr
       REAL(KIND=wp), PARAMETER :: p1 = 4.5_8
       REAL(KIND=wp), PARAMETER :: p2 = 2.50407739677627_8  ! 1+LOG(9/2)
       REAL(KIND=wp), PARAMETER :: p3 = 1.38629436111989_8  ! LOG(4)
-      REAL(KIND=wp) :: gamr, k, u1, u2, b, c, d, xx, yy, zz, rr, ee
+      REAL(KIND=wp) :: u1, u2, b, c, d, xx, yy, zz, rr, ee
       LOGICAL :: accepted
 
       IF (k.GT.one) THEN
@@ -389,8 +393,9 @@ CONTAINS
       !!
       !! --------------------------------------------------------------------
       IMPLICIT NONE
-      INTEGER(KIND=i8), DIMENSION(:) :: a
-      INTEGER(KIND=i8) :: n, k, i, j, atmp
+      INTEGER(KIND=i8), DIMENSION(:), INTENT(inout) :: a
+      INTEGER(KIND=i8)              , INTENT(in   ) :: n, k
+      INTEGER(KIND=i8) :: i, j, atmp
       REAL(KIND=wp) :: uran
 
       ! Select the sample using the swapping method

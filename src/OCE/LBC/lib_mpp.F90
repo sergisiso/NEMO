@@ -215,8 +215,7 @@ MODULE lib_mpp
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: lib_mpp.F90 15267 2021-09-17 09:04:34Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
@@ -470,9 +469,9 @@ CONTAINS
       !!      following the vertical level and the local subdomain array.
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(jpi,jpj,jpnij)  ::   pio    ! output array
-      INTEGER                             ::   kp     ! Tag (not used with MPI
-      REAL(wp), DIMENSION(jpi,jpj)        ::   ptab   ! subdomain array input
+      REAL(wp), DIMENSION(jpi,jpj,jpnij), INTENT(in   ) ::   pio
+      INTEGER                           , INTENT(in   ) ::   kp
+      REAL(wp), DIMENSION(jpi,jpj)      , INTENT(  out) ::   ptab
       !!
       INTEGER :: itaille, ierror   ! temporary integer
       !!---------------------------------------------------------------------

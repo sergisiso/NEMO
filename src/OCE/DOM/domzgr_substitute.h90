@@ -9,8 +9,7 @@
 !! History :  4.2  !  2020-02  (S. Techene, G. Madec)  star coordinate
 !!            4.5  !  2022-08  (S. Techene, G. Madec)  simplified formulation
 !!----------------------------------------------------------------------
-!! NEMO/OCE 4.2 , NEMO Consortium (2020)
-!! $Id$
+!! NEMO/OCE 5.0, NEMO Consortium (2024)
 !! Software governed by the CeCILL license (see ./LICENSE)
 !!----------------------------------------------------------------------
 !

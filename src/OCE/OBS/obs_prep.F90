@@ -38,8 +38,7 @@ MODULE obs_prep
 
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_prep.F90 15062 2021-06-28 11:19:48Z jchanut $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -760,8 +759,8 @@ CONTAINS
       !!        !  10-05  (D. Lea)   New routine based on day_init 
       !!----------------------------------------------------------------------
 
-      INTEGER, DIMENSION(12) ::   imonth_len    !: length in days of the months of the current year
-      INTEGER :: iyear         !: year
+      INTEGER, DIMENSION(12), INTENT(out) ::   imonth_len    !: length in days of the months of the current year
+      INTEGER               , INTENT(in ) ::   iyear         !: year
       
       ! length of the month of the current year (from nleapy, read in namelist)
       IF ( nleapy < 2 ) THEN 
@@ -775,7 +774,7 @@ CONTAINS
          imonth_len(:) = nleapy   ! all months with nleapy days per year
       ENDIF
 
-   END SUBROUTINE
+   END SUBROUTINE calc_month_len
 
    SUBROUTINE obs_coo_tim_prof( kcycle,                                   &
       &                    kyea0,   kmon0,   kday0,   khou0,   kmin0,     &
@@ -824,7 +823,7 @@ CONTAINS
       INTEGER, DIMENSION(kobsno), INTENT(OUT) :: &
          & kobsstp          ! Number of time steps up to the 
                             ! observation time
-      INTEGER, DIMENSION(jpmaxavtypes), OPTIONAL ::   kdailyavtypes   ! Types for daily averages
+      INTEGER, DIMENSION(jpmaxavtypes), OPTIONAL, INTENT(IN) ::   kdailyavtypes   ! Types for daily averages
       INTEGER, OPTIONAL, INTENT(IN) :: kqc_cutoff           ! QC cutoff value
 
       !! * Local declarations

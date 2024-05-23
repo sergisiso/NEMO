@@ -19,7 +19,6 @@ MODULE sedadv
    REAL(wp) :: por1clay 
    REAL(wp) :: eps = 1.e-13
 
-   !! $Id: sedadv.F90 15450 2021-10-27 14:32:08Z cetlod $
 CONTAINS
 
    SUBROUTINE sed_adv( kt )

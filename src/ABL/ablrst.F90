@@ -26,8 +26,7 @@ MODULE ablrst
    PUBLIC   abl_rst_read    ! called by abl_init
 
    !!----------------------------------------------------------------------
-   !! NEMO/ABL 4.0 , NEMO Consortium (2018)
-   !! $Id: ablrst.F90 11413 2019-08-06 15:59:22Z gsamson $
+   !! NEMO/ABL 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS

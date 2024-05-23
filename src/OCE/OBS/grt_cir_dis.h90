@@ -1,6 +1,5 @@
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: grt_cir_dis.h90 13226 2020-07-02 14:24:31Z orioltp $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -20,12 +19,12 @@
       !!----------------------------------------------------------------------
       
       !! * Arguments
-      REAL(KIND=wp) :: pa1   !  sin(lat1)
-      REAL(KIND=wp) :: pa2   !  sin(lat2)
-      REAL(KIND=wp) :: pb1   !  cos(lat1) * cos(lon1)
-      REAL(KIND=wp) :: pb2   !  cos(lat2) * cos(lon2)
-      REAL(KIND=wp) :: pc1   !  cos(lat1) * sin(lon1)
-      REAL(KIND=wp) :: pc2   !  cos(lat2) * sin(lon2)
+      REAL(KIND=wp), INTENT(in) :: pa1   !  sin(lat1)
+      REAL(KIND=wp), INTENT(in) :: pa2   !  sin(lat2)
+      REAL(KIND=wp), INTENT(in) :: pb1   !  cos(lat1) * cos(lon1)
+      REAL(KIND=wp), INTENT(in) :: pb2   !  cos(lat2) * cos(lon2)
+      REAL(KIND=wp), INTENT(in) :: pc1   !  cos(lat1) * sin(lon1)
+      REAL(KIND=wp), INTENT(in) :: pc2   !  cos(lat2) * sin(lon2)
 
       REAL(KIND=wp) :: cosdist ! cosine of great circle distance
 

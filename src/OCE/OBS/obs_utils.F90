@@ -34,8 +34,7 @@ MODULE obs_utils
       &   ddatetoymdhms       ! Convert YYYYMMDD.hhmmss to components
          
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: obs_utils.F90 14275 2021-01-07 12:13:16Z smasson $
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 
@@ -67,9 +66,9 @@ CONTAINS
       USE netcdf             ! NetCDF library
 
       !! * Arguments
-      INTEGER :: kstatus
-      INTEGER :: klineno
-      CHARACTER(LEN=*) :: cd_name
+      INTEGER, INTENT(in) :: kstatus
+      INTEGER, INTENT(in) :: klineno
+      CHARACTER(LEN=*), INTENT(in) :: cd_name
       
       !! * Local declarations
       CHARACTER(len=200) :: clineno
@@ -101,12 +100,12 @@ CONTAINS
       USE netcdf             ! NetCDF library
 
       !! * Arguments
-      INTEGER :: kfileid       ! NetCDF file id   
-      INTEGER :: kvarid        ! NetCDF variable id   
-      INTEGER :: kndim         ! Expected number of dimensions
-      INTEGER, DIMENSION(kndim) :: kdim      ! Expected dimensions
-      CHARACTER(LEN=*) :: cd_name            ! Calling routine name
-      INTEGER ::  klineno      ! Calling line number
+      INTEGER, INTENT(in) :: kfileid       ! NetCDF file id   
+      INTEGER, INTENT(in) :: kvarid        ! NetCDF variable id   
+      INTEGER, INTENT(in) :: kndim         ! Expected number of dimensions
+      INTEGER, DIMENSION(kndim), INTENT(in) :: kdim      ! Expected dimensions
+      CHARACTER(LEN=*), INTENT(in) :: cd_name            ! Calling routine name
+      INTEGER, INTENT(in) ::  klineno      ! Calling line number
 
       !! * Local declarations
       INTEGER :: indim
@@ -166,8 +165,8 @@ CONTAINS
       !! * Modules used
 
       !! * Arguments
-      INTEGER :: klineno
-      CHARACTER(LEN=*) :: cd_name
+      INTEGER, INTENT(in) :: klineno
+      CHARACTER(LEN=*) , INTENT(in):: cd_name
       !! * Local declarations
       CHARACTER(len=200) :: clineno
 
@@ -193,8 +192,8 @@ CONTAINS
       !! * Modules used
 
       !! * Arguments
-      INTEGER :: klineno
-      CHARACTER(LEN=*) :: cd_name
+      INTEGER, INTENT(in) :: klineno
+      CHARACTER(LEN=*), INTENT(in) :: cd_name
       !! * Local declarations
       CHARACTER(len=200) :: clineno
 

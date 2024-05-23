@@ -39,8 +39,7 @@ MODULE domhgr
    PUBLIC   dom_hgr   ! called by domain.F90
 
    !!----------------------------------------------------------------------
-   !! NEMO/OCE 4.0 , NEMO Consortium (2018)
-   !! $Id: domhgr.F90 15056 2021-06-25 07:37:44Z smasson $ 
+   !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
