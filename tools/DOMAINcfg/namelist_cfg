@@ -73,8 +73,6 @@
    Nj0glo      =     432   !  2nd    -                  -    --> j  =jpjdta
    jpkglo      =      52
    jperio      =       0   !  lateral cond. type (between 0 and 6)
-   ln_use_jattr = .false.  !  use (T) the file attribute: open_ocean_jstart, if present
-                           !  in netcdf input files, as the start j-row for reading
    ln_domclo = .false.     ! computation of closed sea masks (see namclo)
 /
 !-----------------------------------------------------------------------

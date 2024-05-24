@@ -261,7 +261,7 @@ CONTAINS
       !!
       NAMELIST/namctl/ sn_cfctl, ln_timing, ln_diacfl, nn_isplt, nn_jsplt , nn_ictls,   &
          &                                             nn_ictle, nn_jctls , nn_jctle
-      NAMELIST/namcfg/ ln_read_cfg, cn_domcfg, ln_closea, ln_write_cfg, cn_domcfg_out, ln_use_jattr
+      NAMELIST/namcfg/ ln_read_cfg, cn_domcfg, ln_closea, ln_write_cfg, cn_domcfg_out
       !!----------------------------------------------------------------------
       !
       cxios_context = 'nemo'
@@ -550,7 +550,6 @@ CONTAINS
          WRITE(numout,*) '         keep closed seas in the domain (if exist)     ln_closea     = ', ln_closea
          WRITE(numout,*) '      create a configuration definition file        ln_write_cfg     = ', ln_write_cfg
          WRITE(numout,*) '         filename to be written                        cn_domcfg_out = ', TRIM(cn_domcfg_out)
-         WRITE(numout,*) '      use file attribute if exists as i/p j-start   ln_use_jattr     = ', ln_use_jattr
       ENDIF
       !
       IF( 1._wp /= SIGN(1._wp,-0._wp)  )   CALL ctl_stop( 'nemo_ctl: The intrinsec SIGN function follows f2003 standard.',  &
