@@ -1072,7 +1072,6 @@
            &   'AGRIF children requires jpiglo == nbcellsx + nbghostcells_x_w + nbghostcells_x_e' )
          IF( Nj0glo /= nbcellsy + nbghostcells_y_s + nbghostcells_y_n ) CALL ctl_stop( 'STOP',    &
            &   'AGRIF children requires jpjglo == nbcellsy + nbghostcells_y_s + nbghostcells_y_n' )
-         IF( ln_use_jattr )   CALL ctl_stop( 'STOP', 'AGRIF children requires ln_use_jattr = .false. ' )
 
          IF(lwp) THEN                     ! Control print
             WRITE(numout,*)
@@ -1164,7 +1163,7 @@
       INTEGER :: ji,jj
       REAL(wp) :: max_grid_cost
 
-      NAMELIST/namcfg/ ln_read_cfg, cn_domcfg, ln_closea, ln_write_cfg, cn_domcfg_out, ln_use_jattr
+      NAMELIST/namcfg/ ln_read_cfg, cn_domcfg, ln_closea, ln_write_cfg, cn_domcfg_out
       NAMELIST/nammpp/ jpni, jpnj, nn_hls, ln_nnogather, ln_mppdelay, ln_listonly, nn_comm
 
      ! If not using land supresssion information

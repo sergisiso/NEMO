@@ -20,12 +20,6 @@ MODULE par_oce
    LOGICAL       ::   ln_write_cfg     !: (=T) create the domain configuration file
    CHARACTER(lc) ::      cn_domcfg_out    !: filename the configuration file to be read
    !
-   LOGICAL       ::   ln_use_jattr     !: input file read offset
-   !                                   !  Use file global attribute: open_ocean_jstart to determine start j-row
-   !                                   !  when reading input from those netcdf files that have the
-   !                                   !  attribute defined. This is designed to enable input files associated
-   !                                   !  with the extended grids used in the under ice shelf configurations to
-   !                                   !  be used without redundant rows when the ice shelves are not in use.
    LOGICAL       ::   ln_closea        !: (=T) special treatment of closed sea
    !
 
