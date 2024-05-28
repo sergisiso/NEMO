@@ -11,8 +11,6 @@
 !!   namwad       Wetting and drying                                    (default: OFF)
 !!   namtsd       data: temperature & salinity                          (default: OFF)
 !!   namc1d       1D configuration options                              ("key_c1d")
-!!   namc1d_dyndmp 1D newtonian damping applied on currents             ("key_c1d")
-!!   namc1d_uvd   1D data (currents)                                    ("key_c1d")
 !!======================================================================
 !
 !-----------------------------------------------------------------------

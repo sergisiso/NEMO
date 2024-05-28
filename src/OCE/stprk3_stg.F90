@@ -329,6 +329,8 @@ CONTAINS
             !
             IF( ln_bdy     )   CALL bdy_dyn3d_dmp( kstp, Kbb, uu, vv, Krhs )    ! bdy damping trends
             !
+            IF( ln_dyndmp .AND. ln_c1d )  CALL dyn_dmp( kstp, Kbb, Kmm, uu(:,:,:,Krhs), vv(:,:,:,Krhs), Nrhs )   ! internal damping trends- momentum
+            !
 !!gm ===>>>  Verify the necessity of these trends  at stages 1 and 2. (A priori, required when it is present in the 2D RHS )
 !      IF(  lk_asminc .AND. ln_asmiau ) THEN               ! apply assimilation increment
 !         IF( ln_dyninc )   CALL dyn_asm_inc( kstp, Kbb, Kmm, uu, vv, Krhs )   ! dynamics   ==> RHS

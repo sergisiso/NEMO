@@ -53,7 +53,6 @@ MODULE nemogcm
    USE icbini         ! handle bergs, initialisation
    USE icbstp  , ONLY : icb_end     ! handle bergs, close iceberg files
    USE cpl_oasis3     ! OASIS3 coupling
-   USE dyndmp         ! Momentum damping (C1D only)
    USE step_diu       ! diurnal bulk SST timestepping (called from here if run offline)
    USE dia25h  , ONLY : dia_25h_init   ! 25h mean output (initialisation)
    USE c1d            ! 1D configuration

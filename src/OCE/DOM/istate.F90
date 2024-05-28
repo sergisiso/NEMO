@@ -24,7 +24,8 @@ MODULE istate
    USE dom_oce        ! ocean space and time domain 
    USE daymod         ! calendar
    USE dtatsd         ! data temperature and salinity   (dta_tsd routine)
-   USE dtauvd         ! data: U & V current             (dta_uvd routine)
+!   USE dtauvd         ! data: U & V current             (dta_uvd routine)
+   USE c1d             ! data: U & V current             (dta_uvd routine)
    USE wet_dry         ! wetting and drying (needed for wad_istate)
    USE usrdef_istate   ! User defined initial state
    !
@@ -74,8 +75,8 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 'istate_init : Initialization of the dynamics and tracers'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
 
-      CALL dta_tsd_init                 ! Initialisation of T & S input data
-      IF( ln_c1d) CALL dta_uvd_init     ! Initialisation of U & V input data (c1d only)
+      CALL dta_tsd_init                   ! Initialisation of T & S input data
+      IF( ln_c1d )   CALL dta_uvd_init    ! Initialisation of U & V input data (c1d only)
       !
       ts(:,:,:,:,Kaa) = 0._wp   ;   rn2(:,:,:)     = 0._wp            ! set one for all to 0 at levels 1 and jpk
       uu(:,:,:  ,Kaa) = 0._wp   ;   vv(:,:,:,Kaa)  = 0._wp            ! set one for all to 0 

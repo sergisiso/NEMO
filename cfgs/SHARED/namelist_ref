@@ -144,15 +144,7 @@
 !-----------------------------------------------------------------------
    rn_lat1d    =    50.1   !  Column latitude
    rn_lon1d    =  -144.9   !  Column longitude
-/
-!-----------------------------------------------------------------------
-&namc1d_dyndmp !   U & V newtonian damping                              (ln_c1d =T default: OFF)
-!-----------------------------------------------------------------------
-   ln_dyndmp   =  .false.  !  add a damping term (T) or not (F)
-/
-!-----------------------------------------------------------------------
-&namc1d_uvd    !   data: U & V currents                                 (ln_c1d =T default: OFF)
-!-----------------------------------------------------------------------
+   ln_dyndmp   =  .false.  !  add a  U & V newtonian damping term (T) or not (F)
    !                       !  =T read U-V fields for:
    ln_uvd_init   = .false.       !  ocean initialisation
    ln_uvd_dyndmp = .false.       !  U-V restoring
