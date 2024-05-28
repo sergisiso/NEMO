@@ -58,10 +58,12 @@ MODULE cpl_oasis3
    INTEGER                    ::   OASIS_SentOut     = -1
    INTEGER                    ::   OASIS_ToRest      = -1
    INTEGER                    ::   OASIS_ToRestOut   = -1
+   INTEGER                    ::   OASIS_Output      = -1
    INTEGER                    ::   OASIS_Recvd       = -1
    INTEGER                    ::   OASIS_RecvOut     = -1
    INTEGER                    ::   OASIS_FromRest    = -1
    INTEGER                    ::   OASIS_FromRestOut = -1
+   INTEGER                    ::   OASIS_Input       = -1
 #endif
 
    INTEGER                    ::   nrcv         ! total number of fields received
@@ -329,7 +331,7 @@ CONTAINS
 
                IF ( sn_cfctl%l_oasout ) THEN
                   IF ( kinfo == OASIS_Sent     .OR. kinfo == OASIS_ToRest .OR.   &
-                     & kinfo == OASIS_SentOut  .OR. kinfo == OASIS_ToRestOut ) THEN
+                     & kinfo == OASIS_SentOut  .OR. kinfo == OASIS_ToRestOut .OR. kinfo == OASIS_Output ) THEN
                      WRITE(numout,*) '****************'
                      WRITE(numout,*) 'oasis_put: Outgoing ', ssnd(kid)%clname
                      WRITE(numout,*) 'oasis_put: ivarid ', ssnd(kid)%nid(jc,jm)
@@ -381,7 +383,7 @@ CONTAINS
                CALL oasis_get ( srcv(kid)%nid(jc,jm), kstep, exfld, kinfo )
 
                llaction =  kinfo == OASIS_Recvd   .OR. kinfo == OASIS_FromRest .OR.   &
-                  &        kinfo == OASIS_RecvOut .OR. kinfo == OASIS_FromRestOut
+                  &        kinfo == OASIS_RecvOut .OR. kinfo == OASIS_FromRestOut .OR. kinfo == OASIS_Input
 
                IF ( sn_cfctl%l_oasout )   &
                   &  WRITE(numout,*) "llaction, kinfo, kstep, ivarid: " , llaction, kinfo, kstep, srcv(kid)%nid(jc,jm)
