@@ -124,7 +124,11 @@ CONTAINS
       INTEGER ::   ji, jj, jk        ! dummy loop index
       REAL(wp)::   z_stfp, z_2stfp   ! local scalar
       LOGICAL ::   ll_Fw             ! local logical
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE :: zFu_cor, zFv_cor   ! 2D workspace
+#else
+      REAL(wp), DIMENSION(T2D(nn_hls)) ::   zFu_cor, zFv_cor   ! 2D workspace
+#endif
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('tra_adv_trp')
@@ -140,7 +144,9 @@ CONTAINS
          z_stfp  = 0.1666666_wp
          z_2stfp = 2._wp * z_stfp 
          !
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( zFu_cor(T2D(nn_hls)), zFv_cor(T2D(nn_hls)) )
+#endif
          !
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
 #if defined key_linssh
@@ -177,7 +183,9 @@ CONTAINS
          ! Correct fluxes so that vertical integral matches barotropic mode
          ! estimate
          !
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( zFu_cor, zFv_cor )
+#endif
          !
       ENDIF
       !
@@ -253,7 +261,11 @@ CONTAINS
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
       REAL(wp), DIMENSION(:,:,:), POINTER             ::   zptu, zptv, zptw
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:,:), TARGET, ALLOCATABLE ::   zuu, zvv, zww   ! 3D workspace
+#else
+      REAL(wp), DIMENSION(T2D(nn_hls),jpk), TARGET    ::   zuu, zvv, zww   ! 3D workspace
+#endif
       REAL(wp), DIMENSION(:,:,:),         ALLOCATABLE ::   ztrdt, ztrds
       ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       LOGICAL ::   lskip
@@ -300,7 +312,9 @@ CONTAINS
          !
 #if ! defined key_RK3
          !
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( zuu(T2D(nn_hls),jpk), zvv(T2D(nn_hls),jpk), zww(T2D(nn_hls),jpk) )
+#endif
          !
          IF( ln_wave .AND. ln_sdw )  THEN
             DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
@@ -367,7 +381,9 @@ CONTAINS
 !!gm ???
          !
 #if ! defined key_RK3
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( zuu, zvv, zww )
+#endif
 #endif
          !
          IF( l_trdtra )   THEN                      ! save the advective trends for further diagnostics

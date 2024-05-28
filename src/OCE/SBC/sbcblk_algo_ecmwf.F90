@@ -186,7 +186,11 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)) :: z0, z0t, z0q
       REAL(wp), DIMENSION(A2D(0)) :: zrhoa, zpre, zta ! air pressure [Pa], density [kg/m3] & absolute temperature [k]
       !
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zsst  ! to back up the initial bulk SST
+#else
+      REAL(wp), DIMENSION(A2D(0)) ::   zsst  ! to back up the initial bulk SST
+#endif
       !
       REAL(wp), DIMENSION(A2D(0)) :: func_m, func_h
       REAL(wp), DIMENSION(A2D(0)) :: ztmp0, ztmp1, ztmp2
@@ -207,7 +211,9 @@ CONTAINS
          &   CALL ctl_stop( '['//TRIM(crtnm)//'] => ' , 'you need to provide Qsw, rad_lw & slp to use warm-layer param!' )
 
       IF( l_use_cs .OR. l_use_wl ) THEN
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE ( zsst(A2D(0)) )
+#endif
          zsst = T_s ! backing up the bulk SST
          IF( l_use_cs ) T_s = T_s - 0.25_wp   ! First guess of correction
          q_s    = rdct_qsat_salt*q_sat(MAX(T_s, 200._wp), slp) ! First guess of q_s
@@ -398,7 +404,9 @@ CONTAINS
       IF( l_use_wl .AND. PRESENT(pdT_wl) ) pdT_wl = dT_wl
       IF( l_use_wl .AND. PRESENT(pHz_wl) ) pHz_wl = Hz_wl
 
+#if ! defined key_PSYCLONE_2p5p0
       IF( l_use_cs .OR. l_use_wl ) DEALLOCATE ( zsst )
+#endif
 
    END SUBROUTINE turb_ecmwf
 

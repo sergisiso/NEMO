@@ -77,7 +77,11 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp) ::   zu, zv       ! local scalars
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:  ) , ALLOCATABLE ::   zhke
+#else
+      REAL(wp), DIMENSION(T2D(1))              ::   zhke
+#endif
       REAL(wp), DIMENSION(:,:,:) , ALLOCATABLE ::   zu_trd, zv_trd
       !!----------------------------------------------------------------------
       !
@@ -100,7 +104,9 @@ CONTAINS
       SELECT CASE ( kscheme )
       !
       CASE ( nkeg_C2 )                    !==  Standard scheme  ==!
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( zhke(T2D(1)) )
+#endif
          DO jk = 1, jpkm1
             DO_2D( 0, 1, 0, 1 )                 !* Horizontal kinetic energy at T-point
                zu =    puu(ji-1,jj  ,jk,Kmm) * puu(ji-1,jj  ,jk,Kmm)   &
@@ -115,10 +121,14 @@ CONTAINS
                pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zhke(ji  ,jj+1) - zhke(ji,jj) ) * r1_e2v(ji,jj)
             END_2D
          END DO
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( zhke )
+#endif
          !
       CASE ( nkeg_HW )                           !* Hollingsworth scheme
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( zhke(T2D(1)) )
+#endif
          DO jk = 1, jpkm1
             DO_2D( 0, 1, 0, 1 )
                ! round brackets added to fix the order of floating point operations
@@ -141,7 +151,9 @@ CONTAINS
                pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) - ( zhke(ji  ,jj+1) - zhke(ji,jj) ) * r1_e2v(ji,jj)
             END_2D
          END DO
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( zhke )
+#endif
          !
       END SELECT
       !

@@ -91,13 +91,19 @@ CONTAINS
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp) ::   zue3a, zue3n, zue3b, zcoef    ! local scalars
       REAL(wp) ::   zve3a, zve3n, zve3b           !   -      -
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zue, zve
+#else
+      REAL(wp), DIMENSION(jpi,jpj)            ::   zue, zve
+#endif
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zua, zva
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zutau, zvtau
       !!----------------------------------------------------------------------
       !
       IF( ln_timing    )   CALL timing_start('dyn_atf_qco')
+#if ! defined key_PSYCLONE_2p5p0
       IF( ln_dynspg_ts )   ALLOCATE( zue(jpi,jpj)   , zve(jpi,jpj)    )
+#endif
       IF( l_trddyn     )   ALLOCATE( zua(T2D(0),jpk), zva(T2D(0),jpk) )
       !
       IF( kt == nit000 ) THEN
@@ -272,7 +278,9 @@ CONTAINS
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=puu(:,:,:,Kaa), clinfo1=' nxt  - puu(:,:,:,Kaa): ', mask1=umask,   &
          &                                  tab3d_2=pvv(:,:,:,Kaa), clinfo2=' pvv(:,:,:,Kaa): '       , mask2=vmask )
       !
+#if ! defined key_PSYCLONE_2p5p0
       IF( ln_dynspg_ts )   DEALLOCATE( zue, zve )
+#endif
       IF( l_trddyn     )   DEALLOCATE( zua, zva )
       IF( ln_timing    )   CALL timing_stop('dyn_atf_qco')
       !

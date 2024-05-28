@@ -104,16 +104,23 @@ CONTAINS
       REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xL  ! zeta (zu/L)
       REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xUN10  ! Neutral wind at zu
       !!----------------------------------------------------------------------------------
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: dt_zu, dq_zu, z0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: Ubzu
+#else
+      REAL(wp), DIMENSION(A2D(0)) ::   dt_zu, dq_zu, z0
+      REAL(wp), DIMENSION(A2D(0)) ::   Ubzu
+#endif
       !!
       LOGICAL :: lreturn_cdn=.FALSE., lreturn_chn=.FALSE., lreturn_cen=.FALSE.
       LOGICAL :: lreturn_z0=.FALSE., lreturn_ustar=.FALSE., lreturn_L=.FALSE., lreturn_UN10=.FALSE.
       !!
       CHARACTER(len=40), PARAMETER :: crtnm = 'turb_ice_lu12@sbcblk_algo_ice_lu12.f90'
       !!----------------------------------------------------------------------------------
+#if ! defined key_PSYCLONE_2p5p0
       ALLOCATE ( Ubzu(A2D(0)) )
       ALLOCATE ( dt_zu(A2D(0)), dq_zu(A2D(0)), z0(A2D(0)) )
+#endif
 
       lreturn_cdn   = PRESENT(CdN)
       lreturn_chn   = PRESENT(ChN)
@@ -179,8 +186,10 @@ CONTAINS
          &                          Cd_i/SQRT(Cd_i)*dt_zu, Cd_i/SQRT(Cd_i)*dq_zu)
       IF( lreturn_UN10 )  xUN10   = SQRT(Cd_i)*Ubzu/vkarmn * LOG( 10._wp / z0_from_Cd( zu, Cd_i ) )
 
+#if ! defined key_PSYCLONE_2p5p0
       DEALLOCATE ( dt_zu, dq_zu, z0 )
       DEALLOCATE ( Ubzu )
+#endif
 
    END SUBROUTINE turb_ice_lu12
 

@@ -421,7 +421,11 @@ CONTAINS
       INTEGER  ::   jdof
       REAL(wp) ::   zt , zh , zstemp, zs , ztm   ! local scalars
       REAL(wp) ::   zn , zn0, zn1, zn2, zn3      !   -      -
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:), ALLOCATABLE :: zn0_sto, zn_sto, zsign    ! local vectors
+#else
+      REAL(wp), DIMENSION(1:2*nn_sto_eos) ::   zn0_sto, zn_sto, zsign    ! local vectors
+#endif
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('eos-pot')
@@ -432,9 +436,11 @@ CONTAINS
          !
          ! Stochastic equation of state
          IF ( ln_sto_eos ) THEN
+#if ! defined key_PSYCLONE_2p5p0
             ALLOCATE(zn0_sto(1:2*nn_sto_eos))
             ALLOCATE(zn_sto(1:2*nn_sto_eos))
             ALLOCATE(zsign(1:2*nn_sto_eos))
+#endif
             DO jsmp = 1, 2*nn_sto_eos, 2
               zsign(jsmp)   = 1._wp
               zsign(jsmp+1) = -1._wp
@@ -487,7 +493,9 @@ CONTAINS
                prhop(ji,jj,jk) = 0.5_wp * prhop(ji,jj,jk) * ztm / nn_sto_eos
                prd  (ji,jj,jk) = 0.5_wp * prd  (ji,jj,jk) * ztm / nn_sto_eos
             END_3D
+#if ! defined key_PSYCLONE_2p5p0
             DEALLOCATE(zn0_sto,zn_sto,zsign)
+#endif
          ! Non-stochastic equation of state
          ELSE
             DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )
@@ -721,7 +729,11 @@ CONTAINS
       INTEGER  ::   jdof
       REAL(wp) ::   zt , zh , zstemp, zs , ztm   ! local scalars
       REAL(wp) ::   zn , zn0, zn1, zn2, zn3      !   -      -
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:), ALLOCATABLE :: zn0_sto, zn_sto, zsign    ! local vectors
+#else
+      REAL(wp), DIMENSION(1:2*nn_sto_eos) ::   zn0_sto, zn_sto, zsign    ! local vectors
+#endif
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('eos-pot')
@@ -732,9 +744,11 @@ CONTAINS
          !
          ! Stochastic equation of state
          IF ( ln_sto_eos ) THEN
+#if ! defined key_PSYCLONE_2p5p0
             ALLOCATE(zn0_sto(1:2*nn_sto_eos))
             ALLOCATE(zn_sto(1:2*nn_sto_eos))
             ALLOCATE(zsign(1:2*nn_sto_eos))
+#endif
             DO jsmp = 1, 2*nn_sto_eos, 2
               zsign(jsmp)   = 1._wp
               zsign(jsmp+1) = -1._wp
@@ -787,7 +801,9 @@ CONTAINS
                prhop(ji,jj,jk) = 0.5_wp * prhop(ji,jj,jk) * ztm / nn_sto_eos
                prd  (ji,jj,jk) = 0.5_wp * prd  (ji,jj,jk) * ztm / nn_sto_eos
             END_3D
+#if ! defined key_PSYCLONE_2p5p0
             DEALLOCATE(zn0_sto,zn_sto,zsign)
+#endif
          ! Non-stochastic equation of state
          ELSE
             DO_3D( kbnd, kbnd, kbnd, kbnd, 1, jpkm1 )

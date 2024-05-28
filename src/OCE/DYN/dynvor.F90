@@ -303,7 +303,11 @@ CONTAINS
       INTEGER  ::   ji, jj, jk           ! dummy loop indices
       REAL(wp) ::   zx1, zy1, zx2, zy2   ! local scalars
       REAL(wp), DIMENSION(T2D(1))           ::   zwt   ! 2D workspace
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zwz   ! 3D workspace, jpkm1 -> avoid lbc_lnk on jpk that is not defined
+#else
+      REAL(wp), DIMENSION(T2D(1))           ::   zwz   ! 3D workspace, jpkm1 -> avoid lbc_lnk on jpk that is not defined
+#endif
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -314,9 +318,11 @@ CONTAINS
          ENDIF
       ENDIF
       !
+#if ! defined key_PSYCLONE_2p5p0
       SELECT CASE( kvor )        ! allocate zwz if necessary
       CASE ( np_RVO , np_CRV )   ;   ALLOCATE( zwz(T2D(1)) )
       END SELECT
+#endif
       !
       !                                                ! ===============
       DO jk = 1, jpkm1                                 ! Horizontal slab
@@ -386,9 +392,11 @@ CONTAINS
       END DO                                           !   End of slab
       !                                                ! ===============
       !
+#if ! defined key_PSYCLONE_2p5p0
       SELECT CASE( kvor )        ! deallocate zwz if necessary
       CASE ( np_RVO , np_CRV )   ;   DEALLOCATE( zwz )
       END SELECT
+#endif
       !
    END SUBROUTINE vor_enT
 

@@ -94,7 +94,11 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(1)) ::   zlu_uu, zlu_uv
       REAL(wp), DIMENSION(T2D(1)) ::   zlv_vv, zlv_vu
       REAL(wp), DIMENSION(:,:)  , POINTER             ::   zFu, zFv
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, TARGET ::   zwu, zwv
+#else
+      REAL(wp), DIMENSION(T2D(1)), TARGET             ::   zwu, zwv
+#endif
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE         ::   zu_trd, zv_trd
       !!----------------------------------------------------------------------
       !
@@ -119,7 +123,9 @@ CONTAINS
          zv_trd(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
       !                             ! used in MLF & RK3(stp2d) : advective velocity = (puu,pvv,ww)
+#if ! defined key_PSYCLONE_2p5p0
       IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(T2D(1)), zwv(T2D(1)) )
+#endif
       
       IF( PRESENT( pUe ) ) THEN     ! 3D RHS cumulation : set 2D RHS to zero
          DO_2D( 0, 0, 0, 0 )
@@ -365,7 +371,9 @@ CONTAINS
          DEALLOCATE( zu_trd, zv_trd )
       ENDIF
       !
+#if ! defined key_PSYCLONE_2p5p0
       IF( .NOT. PRESENT( pFu ) )   DEALLOCATE( zwu, zwv ) 
+#endif
       !
 #undef zFwu
 #undef zFwv

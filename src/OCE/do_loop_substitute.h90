@@ -79,6 +79,7 @@
 !
 #endif
 
+#if ! defined key_PSYCLONE_2p5p0
 #define A1Di(H) Nis0-(H):Nie0+(H)
 #define A1Dj(H) Njs0-(H):Nje0+(H)
 #define A2D(H) A1Di(H),A1Dj(H)
@@ -86,6 +87,26 @@
 #define T1Di(H) ntsi-(H):ntei+(H)
 #define T1Dj(H) ntsj-(H):ntej+(H)
 #define T2D(H) T1Di(H),T1Dj(H)
+#else
+#if defined show_comments
+! Workaround to enhance the impact of PSyclone transformations that include the
+! 'HoistLocalArraysTrans' transformation of PSyclone v2.5.0. These macro
+! variants add a tag that can be targeted by PSyclone-processing wrapper script
+! 'mk/sct_psyclone.sh' to tempoarily modify some array bounds during PSyclone
+! processing. This workaround is only active when CPP key 'key_PSYCLONE_2p5p0'
+! is defined, and it is planned to be removed when the PSyclone release version
+! recommended for the PSyclone-processing stage of the NEMO build system fully
+! supports the promotion of automatic arrays with arithmetic bounds
+! expressions.
+#endif
+#define A1Di(H) Nis0__key_psyclone_2_5_0__-(H):Nie0__key_psyclone_2_5_0__+(H)
+#define A1Dj(H) Njs0__key_psyclone_2_5_0__-(H):Nje0__key_psyclone_2_5_0__+(H)
+#define A2D(H) A1Di(H),A1Dj(H)
+
+#define T1Di(H) ntsi__key_psyclone_2_5_0__-(H):ntei__key_psyclone_2_5_0__+(H)
+#define T1Dj(H) ntsj__key_psyclone_2_5_0__-(H):ntej__key_psyclone_2_5_0__+(H)
+#define T2D(H) T1Di(H),T1Dj(H)
+#endif
 
 #define AB2D(B) B(1):,B(2):
 #define JPK  :

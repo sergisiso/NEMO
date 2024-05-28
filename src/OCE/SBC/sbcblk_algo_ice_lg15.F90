@@ -117,11 +117,19 @@ CONTAINS
       REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xL  ! zeta (zu/L)
       REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xUN10  ! Neutral wind at zu
       !!----------------------------------------------------------------------------------
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: Ubzu
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: ztmp1, ztmp2      ! temporary stuff
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: dt_zu, dq_zu
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zz0_s, zz0_f, RiB ! third dimensions (size=2):
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zCdN_s, zChN_s, zCdN_f, zChN_f
+#else
+      REAL(wp), DIMENSION(A2D(0)) ::   Ubzu
+      REAL(wp), DIMENSION(A2D(0)) ::   ztmp1, ztmp2      ! temporary stuff
+      REAL(wp), DIMENSION(A2D(0)) ::   dt_zu, dq_zu
+      REAL(wp), DIMENSION(A2D(0)) ::   zz0_s, zz0_f, RiB ! third dimensions (size=2):
+      REAL(wp), DIMENSION(A2D(0)) ::   zCdN_s, zChN_s, zCdN_f, zChN_f
+#endif
       !!
       INTEGER :: jit
       LOGICAL :: l_zt_equal_zu = .FALSE.      ! if q and t are given at same height as U
@@ -131,11 +139,13 @@ CONTAINS
       !!
       CHARACTER(len=40), PARAMETER :: crtnm = 'turb_ice_lg15@sbcblk_algo_ice_lg15.f90'
       !!----------------------------------------------------------------------------------
+#if ! defined key_PSYCLONE_2p5p0
       ALLOCATE ( Ubzu(A2D(0)) )
       ALLOCATE ( ztmp1(A2D(0)),  ztmp2(A2D(0)) )
       ALLOCATE ( dt_zu(A2D(0)),  dq_zu(A2D(0)) )
       ALLOCATE ( zz0_s(A2D(0)),  zz0_f(A2D(0)),    RiB(A2D(0)), &
          &      zCdN_s(A2D(0)), zChN_s(A2D(0)), zCdN_f(A2D(0)), zChN_f(A2D(0)) )
+#endif
 
       lreturn_cdn   = PRESENT(CdN)
       lreturn_chn   = PRESENT(ChN)
@@ -281,10 +291,12 @@ CONTAINS
          xUN10 = SQRT(Cd_i) * Ubzu/vkarmn * LOG( 10._wp / z0_from_Cd(zu, ztmp1) )
       END IF
 
+#if ! defined key_PSYCLONE_2p5p0
       DEALLOCATE ( Ubzu )
       DEALLOCATE ( ztmp1, ztmp2 )
       DEALLOCATE ( dt_zu, dq_zu )
       DEALLOCATE ( zz0_s, zz0_f, RiB, zCdN_s, zChN_s, zCdN_f, zChN_f )
+#endif
 
    END SUBROUTINE turb_ice_lg15
 

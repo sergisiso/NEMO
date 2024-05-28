@@ -90,6 +90,15 @@ WARNING: compiler-directive removal
 EOF
 fi
 #
+# Workaround to enhance the impact of the 'HoistLocalArraysTrans'
+# transformation of PSyclone v2.5.0, enabled via CPP key 'key_PSYCLONE_2p5p0'.
+# This workaround can be removed when the recommended PSyclone release version
+# fully supports the promotion of automatic arrays with arithmetic bounds
+# expressions.
+if [[ ! "${ACTION}" == "EXCLUDE" ]]; then
+    sed -i -e 's/\([Nn][ijt][se][0ij]__key_psyclone_2_5_0__\)\ \?[-+]\ \?(\([0-3]\))/\1__\2__/g' ${BLD_DIR}/ppsrc/nemo/${FILENAME}
+fi
+#
 case ${ACTION} in
   TRANSFORM)   "${PSYCLONE_PATH}/bin/psyclone" -api nemo -l output -s "${BLD_DIR}/psct-${TPSYCLONE}.py" -oalg /dev/null -I "${BLD_DIR}/ppsrc/nemo/" \
                                                -opsy "${BLD_DIR}/obj/${FILENAME}" "${BLD_DIR}/ppsrc/nemo/${FILENAME}" ;;
@@ -97,3 +106,11 @@ case ${ACTION} in
                                                -opsy "${BLD_DIR}/obj/${FILENAME}" "${BLD_DIR}/ppsrc/nemo/${FILENAME}" ;;
   EXCLUDE|*)   cp "${BLD_DIR}/ppsrc/nemo/${FILENAME}" "${BLD_DIR}/obj/${FILENAME}" ;;
 esac
+#
+# Workaround to enhance the impact of the 'HoistLocalArraysTrans'
+# transformation of PSyclone v2.5.0 (continued).
+if [[ ! "${ACTION}" == "EXCLUDE" ]]; then
+    sed -i -e 's/\([Nn][ijt]s[0ij]__key_psyclone_2_5_0__\)__\([0-3]\)__/\1 - \2/g' \
+           -e 's/\([Nn][ijt]e[0ij]__key_psyclone_2_5_0__\)__\([0-3]\)__/\1 + \2/g' ${BLD_DIR}/obj/${FILENAME}
+fi
+sed -i -e 's/\([Nn][ijt][se][0ij]\)__key_psyclone_2_5_0__/\1/g' ${BLD_DIR}/obj/${FILENAME}

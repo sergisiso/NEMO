@@ -173,14 +173,21 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       INTEGER  :: iwdg, jwdg, kwdg   ! short-hand values for the indices of the output point
 
       REAL(wp) ::   zepsilon, zgamma            !   -      -
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: ztwdmask, zuwdmask, zvwdmask ! ROMS wetting and drying masks at t,u,v points
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zuwdav2, zvwdav2    ! averages over the sub-steps of zuwdmask and zvwdmask
+#else
+      REAL(wp), DIMENSION(jpi,jpj)          :: ztwdmask, zuwdmask, zvwdmask ! ROMS wetting and drying masks at t,u,v points
+      REAL(wp), DIMENSION(jpi,jpj)          :: zuwdav2, zvwdav2    ! averages over the sub-steps of zuwdmask and zvwdmask
+#endif
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: z2d          ! 2D workspace
       REAL(wp) ::   zt0substep !   Time of day at the beginning of the time substep
       !!----------------------------------------------------------------------
       !
       !                                         !* Allocate temporary arrays
+#if ! defined key_PSYCLONE_2p5p0
       IF( ln_wd_dl ) ALLOCATE( ztwdmask(jpi,jpj), zuwdmask(jpi,jpj), zvwdmask(jpi,jpj), zuwdav2(jpi,jpj), zvwdav2(jpi,jpj))
+#endif
       !
       zwdramp = r_rn_wdmin1               ! simplest ramp 
 !     zwdramp = 1._wp / (rn_wdmin2 - rn_wdmin1) ! more general ramp
@@ -986,7 +993,9 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !                                   !: write time-spliting arrays in the restart
       IF( lrst_oce )   CALL ts_rst( kt, 'WRITE' )
       !
+#if ! defined key_PSYCLONE_2p5p0
       IF( ln_wd_dl )   DEALLOCATE( ztwdmask, zuwdmask, zvwdmask, zuwdav2, zvwdav2 )
+#endif
       !
       CALL iom_put( "baro_u" , puu_b(:,:,Kmm) )  ! Barotropic  U Velocity
       CALL iom_put( "baro_v" , pvv_b(:,:,Kmm) )  ! Barotropic  V Velocity

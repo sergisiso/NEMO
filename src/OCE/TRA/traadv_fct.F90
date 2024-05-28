@@ -90,8 +90,13 @@ CONTAINS
       REAL(wp) ::   zC2t_u, zC4t_u, zC2t_v, zC4t_v !   -      -
       !
       REAL(wp), DIMENSION(T2D(nn_hls),jpk)    ::   zta_up1, ztFu, ztFv, ztFw
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztw
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE ::   ztu, ztv !!, zltu, zltv
+#else
+      REAL(wp), DIMENSION(T2D(1),jpk)         ::   ztw
+      REAL(wp), DIMENSION(T2D(2))             ::   ztu, ztv !!, zltu, zltv
+#endif
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrdx, ztrdy, ztrdz, zptry
       !!----------------------------------------------------------------------
       !
@@ -214,7 +219,9 @@ CONTAINS
             !
          CASE(  4  )                   !- 4th order centered
             !
+#if ! defined key_PSYCLONE_2p5p0
             ALLOCATE( ztu(T2D(2)), ztv(T2D(2)) )  
+#endif
             !
             DO jk = 1, jpkm1
                DO_2D( 2, 1, 2, 1 )    ! 1st derivative (gradient)
@@ -234,7 +241,9 @@ CONTAINS
                END_2D
             END DO
             !
+#if ! defined key_PSYCLONE_2p5p0
             DEALLOCATE( ztu, ztv )  
+#endif
             !
          END SELECT
          !
@@ -253,14 +262,18 @@ CONTAINS
             !
          CASE(  4  )                   !- 4th order COMPACT
             !
+#if ! defined key_PSYCLONE_2p5p0
             ALLOCATE( ztw(T2D(1),jpk) )
+#endif
             !
             CALL interp_4th_cpt( pt(:,:,:,jn,Kmm) , ztw )   ! zwt = COMPACT interpolation of T at w-point
             DO_3D( kbnd, kbnd, kbnd, kbnd, 2, jpkm1 )
                ztFw(ji,jj,jk) = ( pW(ji,jj,jk) * ztw(ji,jj,jk) - ztFw(ji,jj,jk) ) * wmask(ji,jj,jk)
             END_3D
             !
+#if ! defined key_PSYCLONE_2p5p0
             DEALLOCATE( ztw )
+#endif
             !
          END SELECT
 

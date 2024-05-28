@@ -115,12 +115,19 @@ CONTAINS
       INTEGER  ::   ik           ! local integer
       REAL(wp) ::  ztransp, zfac, ztemp, zsp0, zsqrt, zbreiv16_w
       REAL(wp) ::  zdep_u, zdep_v, zkh_u, zkh_v, zda_u, zda_v, sdtrp, zInt_w0, zInt_w1
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE ::   zk_t, zk_u, zk_v, zu0_sd, zv0_sd ! 2D workspace
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ze3divh                          ! 3D workspace
+#else
+      REAL(wp), DIMENSION(A2D(1))        ::   zk_t, zk_u, zk_v, zu0_sd, zv0_sd ! 2D workspace
+      REAL(wp), DIMENSION(jpi,jpj,jpkm1) ::   ze3divh                          ! 3D workspace
+#endif
       !!---------------------------------------------------------------------
       !
+#if ! defined key_PSYCLONE_2p5p0
       ALLOCATE( ze3divh(jpi,jpj,jpkm1) ) ! jpkm1 -> avoid lbc_lnk on jpk that is not defined
       ALLOCATE( zk_t(A2D(1)), zk_u(A2D(1)), zk_v(A2D(1)), zu0_sd(A2D(1)), zv0_sd(A2D(1)) )
+#endif
       zk_t    (:,:) = 0._wp
       zk_u    (:,:) = 0._wp
       zk_v    (:,:) = 0._wp
@@ -247,8 +254,10 @@ CONTAINS
       CALL iom_put( "vstokes",  vsd  )
       CALL iom_put( "wstokes",  wsd  )
 !      !
+#if ! defined key_PSYCLONE_2p5p0
       DEALLOCATE( ze3divh )
       DEALLOCATE( zk_t, zk_u, zk_v, zu0_sd, zv0_sd )
+#endif
       !
    END SUBROUTINE sbc_stokes
 !

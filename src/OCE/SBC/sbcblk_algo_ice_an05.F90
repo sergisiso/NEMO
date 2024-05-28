@@ -101,6 +101,7 @@ CONTAINS
       REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xL  ! zeta (zu/L)
       REAL(wp), INTENT(out), DIMENSION(A2D(0)), OPTIONAL :: xUN10  ! Neutral wind at zu
       !!----------------------------------------------------------------------------------
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: Ubzu
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: ztmp0, ztmp1, ztmp2      ! temporary stuff
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: z0, dt_zu, dq_zu
@@ -108,6 +109,15 @@ CONTAINS
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: znu_a                    !: Nu_air = kinematic viscosity of air
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zeta_u, zeta_t           ! stability parameter at height zu
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: z0tq
+#else
+      REAL(wp), DIMENSION(A2D(0))   ::   Ubzu
+      REAL(wp), DIMENSION(A2D(0))   ::   ztmp0, ztmp1, ztmp2      ! temporary stuff
+      REAL(wp), DIMENSION(A2D(0))   ::   z0, dt_zu, dq_zu
+      REAL(wp), DIMENSION(A2D(0))   ::   u_star, t_star, q_star
+      REAL(wp), DIMENSION(A2D(0))   ::   znu_a                    !: Nu_air = kinematic viscosity of air
+      REAL(wp), DIMENSION(A2D(0))   ::   zeta_u, zeta_t           ! stability parameter at height zu
+      REAL(wp), DIMENSION(A2D(0),2) ::   z0tq
+#endif
       !!
       INTEGER :: jit
       LOGICAL :: l_zt_equal_zu = .FALSE.      ! if q and t are given at same height as U
@@ -117,10 +127,12 @@ CONTAINS
       !!
       CHARACTER(len=40), PARAMETER :: crtnm = 'turb_ice_an05@sbcblk_algo_ice_an05.f90'
       !!----------------------------------------------------------------------------------
+#if ! defined key_PSYCLONE_2p5p0
       ALLOCATE (  Ubzu(A2D(0)), u_star(A2D(0)),  t_star(A2D(0)),  q_star(A2D(0)),  &
          &      zeta_u(A2D(0)),  dt_zu(A2D(0)),   dq_zu(A2D(0)),  &
          &       znu_a(A2D(0)),  ztmp1(A2D(0)),   ztmp2(A2D(0)),  &
          &          z0(A2D(0)),   z0tq(A2D(0),2), ztmp0(A2D(0))   )
+#endif
 
       lreturn_cdn   = PRESENT(CdN)
       lreturn_chn   = PRESENT(ChN)
@@ -131,7 +143,9 @@ CONTAINS
       lreturn_UN10  = PRESENT(xUN10)
 
       l_zt_equal_zu = ( ABS(zu - zt) < 0.01_wp )
+#if ! defined key_PSYCLONE_2p5p0
       IF( .NOT. l_zt_equal_zu )  ALLOCATE( zeta_t(A2D(0)) )
+#endif
 
       !! Scalar wind speed cannot be below 0.2 m/s
       Ubzu = MAX( U_zu, wspd_thrshld_ice )
@@ -215,8 +229,10 @@ CONTAINS
       IF( lreturn_L )     xL      = 1./One_on_L(t_zu_i, q_zu_i, u_star, t_star, q_star)
       IF( lreturn_UN10 )  xUN10   = u_star/vkarmn*LOG(10./z0)
 
+#if ! defined key_PSYCLONE_2p5p0
       DEALLOCATE ( Ubzu, u_star, t_star, q_star, zeta_u, dt_zu, dq_zu, z0, z0tq, znu_a, ztmp0, ztmp1, ztmp2 )
       IF( .NOT. l_zt_equal_zu ) DEALLOCATE( zeta_t )
+#endif
 
    END SUBROUTINE turb_ice_an05
 

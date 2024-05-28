@@ -58,7 +58,11 @@ CONTAINS
       INTEGER  ::   ji, jj               ! loop index
       REAL(wp) ::   zcoef, zf_sbc       ! local scalar
       REAL(wp), DIMENSION(jpi,jpj,jpts) :: zts
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: ztc    ! Working array for conservative temperature calculation
+#else
+      REAL(wp), DIMENSION(A2D(nn_hls)) ::   ztc    ! Working array for conservative temperature calculation
+#endif
       !!---------------------------------------------------------------------
       !
       !                                        !* surface T-, U-, V- ocean level variables (T, S, depth, velocity)
@@ -88,7 +92,9 @@ CONTAINS
          frq_m(:,:) = fraqsr_1lev(:,:)
          !
       ELSE
+#if ! defined key_PSYCLONE_2p5p0
          IF( l_useCT ) ALLOCATE( ztc(A2D(nn_hls)) )
+#endif
          !
          !                                                ! ----------------------------------------------- !
          IF( kt == nit000 .AND. .NOT. l_ssm_mean ) THEN   !   Initialisation: 1st time-step, no input means !
@@ -186,7 +192,9 @@ CONTAINS
             !
          ENDIF
          !
+#if ! defined key_PSYCLONE_2p5p0
          IF( l_useCT ) DEALLOCATE( ztc )
+#endif
          !
       ENDIF
       !
