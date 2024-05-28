@@ -118,7 +118,11 @@ CONTAINS
       REAL(wp) ::   zfp_vj, zfm_vj, zcenvt, zeeu, zeev       !   -      -
       REAL(wp), DIMENSION(T2D(nn_hls),jpk) ::   zti, ztFw              ! 3D workspace
       REAL(wp), DIMENSION(T2D(2)) ::   ztu, ztv, zltu, zltv, ztFu, ztFv ! 2D workspace
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztw
+#else
+      REAL(wp), DIMENSION(T2D(1),jpk)         ::   ztw
+#endif
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrdx, ztrdy, ztrdz
       !!----------------------------------------------------------------------
       !
@@ -255,14 +259,18 @@ CONTAINS
             !
          CASE(  4  )                               ! 4th order COMPACT
             !
+#if ! defined key_PSYCLONE_2p5p0
             ALLOCATE( ztw(T2D(1),jpk) )
+#endif
             !
             CALL interp_4th_cpt( pt(:,:,:,jn,Kmm) , ztw )         ! 4th order compact interpolation of T at w-point
             DO_3D( 0, 0, 0, 0, 2, jpkm1 )
                ztFw(ji,jj,jk) = pW(ji,jj,jk) * ztw(ji,jj,jk) * wmask(ji,jj,jk)
             END_3D
             !
+#if ! defined key_PSYCLONE_2p5p0
             DEALLOCATE( ztw )
+#endif
             !
             IF( lk_linssh ) THEN
                DO_2D( 0, 0, 0, 0 )

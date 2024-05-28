@@ -621,7 +621,11 @@ CONTAINS
       INTEGER  :: ji, jj, jk
       INTEGER  :: it
       REAL(wp) :: zincwgt  ! IAU weight for current time step
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   zfzptnz, zdep2d   ! Freezing point values
+#else
+      REAL(wp), DIMENSION(T2D(nn_hls))           ::   zfzptnz, zdep2d   ! Freezing point values
+#endif
       REAL(wp), DIMENSION(jpi,jpj,jpk)      ::   zvalid_bv         ! Mask representing Brunt-Vaisala (N2) checks used to reject T/S
                                                                    ! increments
       !!----------------------------------------------------------------------
@@ -642,7 +646,9 @@ CONTAINS
                ENDIF
             ENDIF
             !
+#if ! defined key_PSYCLONE_2p5p0
             IF( ln_temnofreeze ) ALLOCATE( zfzptnz(T2D(0)), zdep2d(T2D(0)) )
+#endif
             !
             ! Call Brunt-Vaisala checks to reject T/S increments
             zvalid_bv(:,:,:) = 1.0_wp
@@ -680,7 +686,9 @@ CONTAINS
                ENDIF
             END DO
             !
+#if ! defined key_PSYCLONE_2p5p0
             IF( ln_temnofreeze ) DEALLOCATE( zfzptnz, zdep2d )
+#endif
             !
          ENDIF
          !
@@ -705,7 +713,9 @@ CONTAINS
             ! Initialize the now fields with the background + increment
             IF (ln_temnofreeze) THEN
                ! Do not apply negative increments if the temperature will fall below freezing
+#if ! defined key_PSYCLONE_2p5p0
                ALLOCATE( zfzptnz(T2D(nn_hls)), zdep2d(T2D(nn_hls)) )
+#endif
                !
                DO jk = 1, jpkm1
                   DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
@@ -718,7 +728,9 @@ CONTAINS
                   END WHERE
                END DO
                !
+#if ! defined key_PSYCLONE_2p5p0
                DEALLOCATE( zfzptnz, zdep2d )
+#endif
             ELSE
                pts(:,:,:,jp_tem,Kmm) = t_bkg(:,:,:) + t_bkginc(:,:,:) * zvalid_bv(:,:,:)
             ENDIF

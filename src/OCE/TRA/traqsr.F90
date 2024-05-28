@@ -284,12 +284,18 @@ CONTAINS
       REAL(wp) ::   zlogc, zlogze, zlogCtot, zlogCze          !    -         -
       !!
       REAL(wp), DIMENSION(T2D(0)) ::   ze0, zeR, zeG, zeB, zeT
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE ::   zc
+#else
+      REAL(wp), DIMENSION(T2D(0),jpk,0:3) ::   zc
+#endif
       !!----------------------------------------------------------------------
       !
       IF    ( nn_chldta == 1 ) THEN   ;   ipk=1
       ELSEIF( nn_chldta == 2 ) THEN   ;   ipk=jpk   ;   ENDIF
+#if ! defined key_PSYCLONE_2p5p0
       ALLOCATE( zc(T2D(0),ipk,0:3) )
+#endif
       !
       !                       !===========================================!
       !                       !==  R-G-B fluxes using chlorophyll data  ==!    with Morel &Berthon (1989) vertical profile
@@ -480,7 +486,9 @@ CONTAINS
          END_2D
       END DO
       !
+#if ! defined key_PSYCLONE_2p5p0
       DEALLOCATE( zc )
+#endif
       !
    END SUBROUTINE qsr_RGBc
 

@@ -98,8 +98,13 @@ CONTAINS
       REAL(wp) ::   zC2t_v, zC4t_v   !   -      -
       REAL(wp) ::   ztFw_kp1
       REAL(wp), DIMENSION(T2D(1))              ::   ztFu, ztFv
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:)   , ALLOCATABLE ::   ztu, ztv
       REAL(wp), DIMENSION(:,:,:) , ALLOCATABLE ::   ztw
+#else
+      REAL(wp), DIMENSION(T2D(2))              ::   ztu, ztv
+      REAL(wp), DIMENSION(T2D(1),jpk)          ::   ztw
+#endif
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -118,8 +123,10 @@ CONTAINS
             &                                        iom_use("uadv_salttr") .OR. iom_use("vadv_salttr") )  )   l_hst = .TRUE.
       ENDIF
       !
+#if ! defined key_PSYCLONE_2p5p0
       IF( kn_cen_h == 4 )   ALLOCATE( ztu(T2D(2)) , ztv(T2D(2)) )   ! horizontal 4th order only
       IF( kn_cen_v == 4 )   ALLOCATE( ztw(T2D(1),jpk) )             ! vertical   4th order only
+#endif
       !
       DO jn = 1, kjpt            !==  loop over the tracers  ==!
          !
@@ -245,8 +252,10 @@ CONTAINS
          !
       END DO
       !
+#if ! defined key_PSYCLONE_2p5p0
       IF( kn_cen_h == 4 )   DEALLOCATE( ztu , ztv )   ! horizontal 4th order only
       IF( kn_cen_v == 4 )   DEALLOCATE( ztw )             ! vertical   4th order only
+#endif
       !
    END SUBROUTINE tra_adv_cen_t
 

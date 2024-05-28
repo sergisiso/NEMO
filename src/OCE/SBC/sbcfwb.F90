@@ -89,8 +89,13 @@ CONTAINS
       INTEGER  ::   ji, jj, istart, iend, jstart, jend
       REAL(wp) ::   z_fwf, z_fwf_nsrf, zsum_fwf, zsum_erp, z_fwfprv  
       REAL(wp) ::   zsurf_neg, zsurf_pos, zsurf_tospread
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztmsk_neg, ztmsk_pos, z_wgt ! 2D workspaces
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztmsk_tospread, zerp_cor    !   -      -
+#else
+      REAL(wp), DIMENSION(A2D(0)) ::   ztmsk_neg, ztmsk_pos, z_wgt ! 2D workspaces
+      REAL(wp), DIMENSION(A2D(0)) ::   ztmsk_tospread, zerp_cor    !   -      -
+#endif
       COMPLEX(dp) ::   y_fwfnow  
       !
       NAMELIST/namsbc_fwb/rn_fwb0, nn_fwb_voltype, ln_hvolg_var, rn_hvolg_amp, rn_hvolg_trd, nn_hvolg_mth
@@ -412,7 +417,9 @@ CONTAINS
          !
       CASE ( 3 )                   !==  set volume at each time step and spread out the correction over erp area  ==!
          !
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( ztmsk_neg(A2D(0)) , ztmsk_pos(A2D(0)) , ztmsk_tospread(A2D(0)) , z_wgt(A2D(0)) , zerp_cor(A2D(0)) )
+#endif
          !
          IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
             ztmsk_pos(:,:) = smask0_i(:,:)                      ! Select <0 and >0 area of erp
@@ -467,7 +474,9 @@ CONTAINS
                WRITE(numout,*)'   MAX(zerp_cor) = ', MAXVAL(zerp_cor) 
             ENDIF
          ENDIF
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( ztmsk_neg , ztmsk_pos , ztmsk_tospread , z_wgt , zerp_cor )
+#endif
          !
       CASE ( 4 )                             !==  global mean fwf set to zero (ISOMIP case) ==!
          !

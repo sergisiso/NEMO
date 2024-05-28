@@ -71,7 +71,11 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(1)) ::   zFu_t, zFu_f
       REAL(wp), DIMENSION(T2D(1)) ::   zFv_t, zFv_f
       REAL(wp), DIMENSION(:,:)  , POINTER             ::   zFu, zFv, zFw
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, TARGET ::   zwu, zwv
+#else
+      REAL(wp), DIMENSION(T2D(1)), TARGET             ::   zwu, zwv
+#endif
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE         ::   zu_trd, zv_trd
       !!----------------------------------------------------------------------
       !
@@ -96,7 +100,9 @@ CONTAINS
          zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs)
       ENDIF
       !                             ! used in MLF and RK3(stp2d) : advective velocity = (puu,pvv,ww)
+#if ! defined key_PSYCLONE_2p5p0
       IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(T2D(1)), zwv(T2D(1)) )
+#endif
       !
       IF( PRESENT( pUe ) ) THEN     ! 3D RHS cumulation : set 2D RHS to zero
          DO_2D( 0, 0, 0, 0 )
@@ -262,7 +268,9 @@ CONTAINS
 #undef zFwv
 #undef zww
       !
+#if ! defined key_PSYCLONE_2p5p0
       IF( .NOT.PRESENT( pFu ) )   DEALLOCATE( zwu, zwv )
+#endif
       !
       !                                   ! Control print
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=puu(:,:,:,Krhs), clinfo1=' cen2 adv - Ua: ', mask1=umask,   &

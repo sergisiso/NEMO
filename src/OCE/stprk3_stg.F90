@@ -81,8 +81,13 @@ CONTAINS
       INTEGER  ::   ji, jj, jk, jn, jtile    ! dummy loop indices
       REAL(wp) ::   ze3Tb, ze3Tr, z1_e3t     ! local scalars
       REAL(wp) ::   ze3Sb, ze3Sr             !   -      -
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zub, zvb        ! barotropic velocity correction at Kmm
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zFu, zFv, zFw   ! advective transport
+#else
+      REAL(wp), DIMENSION(T2D(nn_hls)) ::   zub, zvb        ! barotropic velocity correction at Kmm
+      REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zFu, zFv, zFw   ! advective transport
+#endif
       !! ---------------------------------------------------------------------
 
       IF( ln_timing )   CALL timing_start('stp_RK3_stg')
@@ -93,7 +98,9 @@ CONTAINS
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
       ENDIF
       !
+#if ! defined key_PSYCLONE_2p5p0
       ALLOCATE( zFu(jpi,jpj,jpk), zFv(jpi,jpj,jpk), zFw(jpi,jpj,jpk) )
+#endif
       !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !>>>             Set ∆t and external mode fields at Kaa              <<<
@@ -198,7 +205,9 @@ CONTAINS
          !           !==   Set fields used in advection at Kmm   ==!
          !           !=============================================!
          !
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( zub(T2D(nn_hls)), zvb(T2D(nn_hls)) )
+#endif
          !              !- horizontal transport (zFu,zFv) -!   VF for tracers only ; FF for momentum & tracers
          !
          DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
@@ -211,7 +220,9 @@ CONTAINS
             zFv(ji,jj,jk) = e1v(ji,jj)*e3v(ji,jj,jk,Kmm) * ( vv(ji,jj,jk,Kmm) + zvb(ji,jj)*vmask(ji,jj,jk) )
          END_3D
 
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( zub, zvb )
+#endif
          !
          !              !- vertical velocity and transport (ww,wi,zFw) -!
          !
@@ -362,7 +373,9 @@ CONTAINS
          !
          !                 !==  All stages: correct the barotropic component ==!   at Kaa = N+1/3, N+1/2 or N+1
          !                                                   
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( zub(T2D(0)), zvb(T2D(0)) )
+#endif
          !
          DO_2D( 0, 0, 0, 0 )             ! barotropic velocity correction
             zub(ji,jj) = uu_b(ji,jj,Kaa) - SUM( e3u_0(ji,jj,:)*uu(ji,jj,:,Kaa) ) * r1_hu_0(ji,jj)
@@ -373,7 +386,9 @@ CONTAINS
             vv(ji,jj,jk,Kaa) = vv(ji,jj,jk,Kaa) + zvb(ji,jj)*vmask(ji,jj,jk)
          END_3D
          !
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( zub, zvb )
+#endif
 
          !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
          !>>>            Tracers : RHS computation + time-stepping            <<<
@@ -571,7 +586,9 @@ CONTAINS
          ENDIF
       ENDIF
       !
+#if ! defined key_PSYCLONE_2p5p0
       DEALLOCATE( zFu, zFv, zFw )
+#endif
       !
       IF( ln_timing )   CALL timing_stop('stp_RK3_stg')
       !

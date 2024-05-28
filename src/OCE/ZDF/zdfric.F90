@@ -149,7 +149,11 @@ CONTAINS
       !!
       INTEGER  ::   ji, jj, jk                                   ! dummy loop indices
       REAL(wp) ::   zcfRi, zav, zustar, zhek, zdku, zdkv, zwx    ! local scalars
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zh_ekm          ! 2D workspace
+#else
+      REAL(wp), DIMENSION(T2D(0)) ::   zh_ekm                    ! 2D workspace
+#endif
       !!----------------------------------------------------------------------
       !
       !                       !==  avm and avt = F(Richardson number)  ==!
@@ -170,7 +174,9 @@ CONTAINS
 !!gm               it provides there much to thick mixed layer ( summer 150m in GYRE configuration !!! )
       !
       IF( ln_mldw ) THEN      !==  set a minimum value in the Ekman layer  ==!
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( zh_ekm(T2D(0)) )
+#endif
          !
          DO_2D( 0, 0, 0, 0 )
             zustar = SQRT( taum(ji,jj) * r1_rho0 )
@@ -184,7 +190,9 @@ CONTAINS
             ENDIF
          END_3D
          !
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( zh_ekm )
+#endif
       ENDIF
       !
    END SUBROUTINE zdf_ric

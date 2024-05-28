@@ -183,7 +183,11 @@ CONTAINS
       INTEGER ::   ji, jj, jk, jl, jkk               ! dummy loop indicies
       INTEGER ::   ik, il0, il1, ii0, ii1, ij0, ij1  ! local integers
       REAL(wp)::   zl, zi                            ! local floats
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:) ::  zup, zvp   ! 1D workspace
+#else
+      REAL(wp), ALLOCATABLE, DIMENSION(jpk) ::  zup, zvp   ! 1D workspace
+#endif
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('dta_uvd')
@@ -195,7 +199,9 @@ CONTAINS
       !
       IF( l_sco ) THEN                   !==   s- or mixed s-zps-coordinate   ==!
          !
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( zup(jpk), zvp(jpk) )
+#endif
          !
          IF( kt == nit000 .AND. lwp )THEN
             WRITE(numout,*)
@@ -229,7 +235,9 @@ CONTAINS
             pvd(ji,jj,jpk) = 0._wp
          END_2D
          ! 
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( zup, zvp )
+#endif
          ! 
       ELSE                                !==   z- or zps- coordinate   ==!
          !                             

@@ -190,8 +190,13 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)) :: ztmp0, ztmp1, ztmp2
       REAL(wp), DIMENSION(A2D(0)) :: zpre, zrhoa, zta ! air pressure [Pa], density [kg/m3] & absolute temperature [k]
       !
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zeta_t  ! stability parameter at height zt
       REAL(wp), DIMENSION(:,:), ALLOCATABLE :: zsst    ! to back up the initial bulk SST
+#else
+      REAL(wp), DIMENSION(A2D(0)) ::   zeta_t  ! stability parameter at height zt
+      REAL(wp), DIMENSION(A2D(0)) ::   zsst    ! to back up the initial bulk SST
+#endif
       !
       CHARACTER(len=40), PARAMETER :: crtnm = 'turb_coare3p0@sbcblk_algo_coare3p0'
       !!----------------------------------------------------------------------------------
@@ -201,7 +206,9 @@ CONTAINS
       IF( PRESENT(nb_iter) ) nbit = nb_iter
 
       l_zt_equal_zu = ( ABS(zu - zt) < 0.01_wp ) ! testing "zu == zt" is risky with double precision
+#if ! defined key_PSYCLONE_2p5p0
       IF( .NOT. l_zt_equal_zu )  ALLOCATE( zeta_t(A2D(0)) )
+#endif
 
       !! Initializations for cool skin and warm layer:
       IF( l_use_cs .AND. (.NOT.(PRESENT(Qsw) .AND. PRESENT(rad_lw) .AND. PRESENT(slp))) ) &
@@ -211,7 +218,9 @@ CONTAINS
          &   CALL ctl_stop( '['//TRIM(crtnm)//'] => ' , 'you need to provide Qsw, rad_lw & slp to use warm-layer param!' )
 
       IF( l_use_cs .OR. l_use_wl ) THEN
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE ( zsst(A2D(0)) )
+#endif
          zsst = T_s ! backing up the bulk SST
          IF( l_use_cs ) T_s = T_s - 0.25_wp   ! First guess of correction
          q_s    = rdct_qsat_salt*q_sat(MAX(T_s, 200._wp), slp) ! First guess of q_s
@@ -365,7 +374,9 @@ CONTAINS
       Ch   = MAX( ztmp0*t_star/dt_zu , Cx_min )
       Ce   = MAX( ztmp0*q_star/dq_zu , Cx_min )
 
+#if ! defined key_PSYCLONE_2p5p0
       IF( .NOT. l_zt_equal_zu ) DEALLOCATE( zeta_t )
+#endif
 
       IF(PRESENT(Cdn)) Cdn = MAX( vkarmn2 / (LOG(zu/z0 )*LOG(zu/z0 )) , Cx_min )
       IF(PRESENT(Chn)) Chn = MAX( vkarmn2 / (LOG(zu/z0t)*LOG(zu/z0t)) , Cx_min )
@@ -375,7 +386,9 @@ CONTAINS
       IF( l_use_wl .AND. PRESENT(pdT_wl) ) pdT_wl = dT_wl
       IF( l_use_wl .AND. PRESENT(pHz_wl) ) pHz_wl = Hz_wl
 
+#if ! defined key_PSYCLONE_2p5p0
       IF( l_use_cs .OR. l_use_wl ) DEALLOCATE ( zsst )
+#endif
 
    END SUBROUTINE turb_coare3p0
 

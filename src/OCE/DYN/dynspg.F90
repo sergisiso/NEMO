@@ -82,7 +82,11 @@ CONTAINS
       INTEGER  ::   ji, jj, jk                   ! dummy loop indices
       REAL(wp) ::   zg_2, zintp, zgrho0r, zld    ! local scalars
       REAL(wp)             , DIMENSION(jpi,jpj) ::   zpgu, zpgv   ! 2D workspace
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)     ::   zpice
+#else
+      REAL(wp), DIMENSION(jpi,jpj)              ::   zpice
+#endif
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)   ::   ztrdu, ztrdv
       !!----------------------------------------------------------------------
       !
@@ -136,7 +140,9 @@ CONTAINS
          ENDIF
          !
          IF( ln_ice_embd ) THEN              !== embedded sea ice: Pressure gradient due to snow-ice mass ==!
+#if ! defined key_PSYCLONE_2p5p0
             ALLOCATE( zpice(jpi,jpj) )
+#endif
             zintp = REAL( MOD( kt-1, nn_fsbc ) ) / REAL( nn_fsbc )
             zgrho0r     = - grav * r1_rho0
             zpice(:,:) = (  zintp * snwice_mass(:,:) + ( 1.- zintp ) * snwice_mass_b(:,:)  ) * zgrho0r
@@ -144,7 +150,9 @@ CONTAINS
                zpgu(ji,jj) = zpgu(ji,jj) + ( zpice(ji+1,jj) - zpice(ji,jj) ) * r1_e1u(ji,jj)
                zpgv(ji,jj) = zpgv(ji,jj) + ( zpice(ji,jj+1) - zpice(ji,jj) ) * r1_e2v(ji,jj)
             END_2D
+#if ! defined key_PSYCLONE_2p5p0
             DEALLOCATE( zpice )
+#endif
          ENDIF
          !
          IF( ln_wave .and. ln_bern_srfc ) THEN          !== Add J terms: depth-independent Bernoulli head

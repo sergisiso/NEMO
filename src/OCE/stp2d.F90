@@ -89,7 +89,11 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, jtile                    ! dummy loop indices
       REAL(wp) ::   zg_2, zintp, zgrho0r, zld, zztmp     ! local scalars
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zpice   ! 2D workspace
+#else
+      REAL(wp), DIMENSION(T2D(1)) ::   zpice             ! 2D workspace
+#endif
       !! ---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('stp_2D')
@@ -207,7 +211,9 @@ CONTAINS
          !
          !                             !* snow+ice load *!   (embedded sea ice)
          IF( ln_ice_embd ) THEN
+#if ! defined key_PSYCLONE_2p5p0
             ALLOCATE( zpice(T2D(1)) )
+#endif
             zintp = REAL( MOD( kt-1, nn_fsbc ) ) / REAL( nn_fsbc )
             zgrho0r = - grav * r1_rho0
             DO_2D( 1, 1, 1, 1 )
@@ -217,7 +223,9 @@ CONTAINS
                Ue_rhs(ji,jj) = Ue_rhs(ji,jj) + ( zpice(ji+1,jj) - zpice(ji,jj) ) * r1_e1u(ji,jj)
                Ve_rhs(ji,jj) = Ve_rhs(ji,jj) + ( zpice(ji,jj+1) - zpice(ji,jj) ) * r1_e2v(ji,jj)
             END_2D
+#if ! defined key_PSYCLONE_2p5p0
             DEALLOCATE( zpice )
+#endif
          ENDIF
          !
          !                             !* surface wave load *!   (Bernoulli head)

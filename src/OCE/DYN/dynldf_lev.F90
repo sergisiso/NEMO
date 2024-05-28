@@ -61,7 +61,11 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp), DIMENSION(T2D(1)) ::   zwf, zwt
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zah_cur2, zah_div2   !  temporaries used to calculate GEOMTERIC source term
+#else
+      REAL(wp), DIMENSION(T2D(1)) ::   zah_cur2, zah_div2   !  temporaries used to calculate GEOMTERIC source term
+#endif
       !!----------------------------------------------------------------------
       !
       IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
@@ -82,7 +86,9 @@ CONTAINS
       CASE ( np_typ_rot )       !==  Vorticity-Divergence operator  ==!
          !
          IF( l_ldfeke .AND. nn_eke_opt == 2 ) THEN        ! GEOMETRIC source term        
+#if ! defined key_PSYCLONE_2p5p0
             ALLOCATE( zah_cur2(T2D(1)) , zah_div2(T2D(1)) )
+#endif
             zah_cur2(:,:) = 0._wp
             zah_div2(:,:) = 0._wp
          ENDIF     
@@ -105,7 +111,9 @@ CONTAINS
                   &                 / MAX(  1._wp ,  fmask   (ji-1,jj  ,1) + fmask   (ji,jj  ,1)          &
                   &                                + fmask   (ji-1,jj-1,1) + fmask   (ji,jj-1,1) ) * r1_e1e2t(ji,jj)
             END_2D  
+#if ! defined key_PSYCLONE_2p5p0
             DEALLOCATE( zah_cur2 , zah_div2 )
+#endif
          ENDIF
          !
       CASE ( np_typ_sym )       !==  Symmetric operator  ==!

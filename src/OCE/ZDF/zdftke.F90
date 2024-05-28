@@ -168,16 +168,24 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
       REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt          ! vertical eddy diffusivity (w-points)
       !
+#if ! defined key_PSYCLONE_2p5p0
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: z_pdlr                   ! inverse of Prandtl number
+#else
+      REAL(wp), DIMENSION(T2D(0),jpk) ::   z_pdlr                         ! inverse of Prandtl number
+#endif
       !!----------------------------------------------------------------------
       !
+#if ! defined key_PSYCLONE_2p5p0
       IF( nn_pdl == 1 ) ALLOCATE( z_pdlr(T2D(0),jpk) )        ! avt multiplied by the inverse Prandtl number
+#endif
       !
       CALL tke_tke( Kbb, Kmm, p_sh2, p_avm, p_avt, z_pdlr )   ! now tke (en)
       !
       CALL tke_avn( Kbb, Kmm,        p_avm, p_avt, z_pdlr )   ! now avt, avm, dissl
       !
+#if ! defined key_PSYCLONE_2p5p0
       IF( nn_pdl == 1 ) DEALLOCATE( z_pdlr )
+#endif
       !
   END SUBROUTINE zdf_tke
 
