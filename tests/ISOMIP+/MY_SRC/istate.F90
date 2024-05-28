@@ -24,7 +24,7 @@ MODULE istate
    USE dom_oce        ! ocean space and time domain 
    USE daymod         ! calendar
    USE dtatsd         ! data temperature and salinity   (dta_tsd routine)
-   USE dtauvd         ! data: U & V current             (dta_uvd routine)
+   USE c1d            ! data: U & V current             (dta_uvd routine)
    USE wet_dry         ! wetting and drying (needed for wad_istate)
    USE usrdef_istate   ! User defined initial state
    !

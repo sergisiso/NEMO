@@ -1,7 +1,7 @@
 !!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 !! NEMO/OCE :   Reference namelist_ref                                !!
 !!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-!! NEMO/OCE  :  1 - Domain & run manager (namrun, namcfg, namdom, namtsd, namc1d, namc1d_uvd)
+!! NEMO/OCE  :  1 - Domain & run manager (namrun, namcfg, namdom, namtsd, namc1d)
 !! namelists    2 - Surface boundary (namsbc, namsbc_flx, namsbc_blk, namsbc_cpl,
 !!                                    namsbc_sas, namtra_qsr, namsbc_rnf,
 !!                                    namisf, namsbc_apr, 
@@ -25,8 +25,6 @@
 !!   namwad       Wetting and drying                                    (default: OFF)
 !!   namtsd       data: temperature & salinity                          (default: OFF)
 !!   namc1d       1D configuration options                              (ln_c1d =T)
-!!   namc1d_dyndmp 1D newtonian damping applied on currents             (ln_c1d =T)
-!!   namc1d_uvd   1D data (currents)                                    (ln_c1d =T)
 !!======================================================================
 !
 !-----------------------------------------------------------------------
@@ -78,14 +76,6 @@
 /
 !-----------------------------------------------------------------------
 &namc1d        !   1D configuration options                             (ln_c1d =T default: PAPA station)
-!-----------------------------------------------------------------------
-/
-!-----------------------------------------------------------------------
-&namc1d_dyndmp !   U & V newtonian damping                              (ln_c1d =T default: OFF)
-!-----------------------------------------------------------------------
-/
-!-----------------------------------------------------------------------
-&namc1d_uvd    !   data: U & V currents                                 (ln_c1d =T default: OFF)
 !-----------------------------------------------------------------------
 /
 
