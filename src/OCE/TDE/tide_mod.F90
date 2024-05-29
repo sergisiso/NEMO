@@ -304,10 +304,10 @@ CONTAINS
       !! contain oscillation parameters of the selected harmonic tidal
       !! components
       !! ----------------------------------------------------------------------
-      CHARACTER(LEN=4),             DIMENSION(jpmax_harmo), INTENT(in ) ::   pcnames     ! Names of selected components
-      TYPE(tide_harmonic), POINTER, DIMENSION(:)          , INTENT(out) ::   ptide_harmo ! Oscillation parameters of tidal components
-      TYPE(tide),          POINTER, DIMENSION(:), OPTIONAL, INTENT(out) ::   ptide_comp  ! Selected components
-      TYPE(tide),          POINTER, DIMENSION(:)                        ::   ztcomp      ! Selected components
+      CHARACTER(LEN=4),             DIMENSION(jpmax_harmo), INTENT(in   ) ::   pcnames     ! Names of selected components
+      TYPE(tide_harmonic), POINTER, DIMENSION(:)          , INTENT(  out) ::   ptide_harmo ! Oscillation parameters of tidal components
+      TYPE(tide),          POINTER, DIMENSION(:), OPTIONAL, INTENT(inout) ::   ptide_comp  ! Selected components
+      TYPE(tide),          POINTER, DIMENSION(:)                          ::   ztcomp      ! Selected components
 
       ! Retrieve information about selected tidal components
       ! If requested, prepare tidal component array for returning
