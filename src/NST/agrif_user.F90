@@ -37,12 +37,12 @@
 # endif
       !
       !                    !* Agrif initialization
-      CALL Agrif_InitValues_cont
+                          CALL Agrif_InitValues_cont
 # if defined key_top
-      CALL Agrif_InitValues_cont_top
+      IF( ln_top )        CALL Agrif_InitValues_cont_top
 # endif
 # if defined key_si3
-      CALL Agrif_InitValues_cont_ice
+      IF( nn_ice /= 0 )   CALL Agrif_InitValues_cont_ice
 # endif
       !    
    END SUBROUTINE Agrif_initvalues
