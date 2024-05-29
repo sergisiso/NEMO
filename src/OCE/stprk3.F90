@@ -88,7 +88,7 @@ CONTAINS
       !
       IF( kstp == nit000 ) THEN                       ! initialize IOM context (must be done after nemo_init for AGRIF+XIOS+OASIS)
                              CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
-         IF( lk_diamlr   )   CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
+         IF( l_diamlr   )    CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
                              CALL iom_init_closedef
                              CALL dia_ptr_init        ! called here since it uses iom_use
                              CALL dia_ar5_init        ! called here since it uses iom_use
@@ -220,13 +220,13 @@ CONTAINS
       END DO
       IF( ln_tile ) CALL dom_tile_stop
 
-      IF( lk_diadetide ) CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
-      IF( lk_diamlr  )   CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
+      IF( l_diadetide )  CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
+      IF( l_diamlr  )    CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
 
 !!====>>>> to be modified for RK3
-!      IF( ln_diahsb  )   CALL dia_hsb   ( kstp, Nbb, Nnn )  ! - ML - global conservation diagnostics
+!      IF( l_diahsb  )   CALL dia_hsb   ( kstp, Nbb, Nnn )  ! - ML - global conservation diagnostics
 !!st
-      IF( ln_diahsb  )   CALL dia_hsb   ( kstp, Nbb, Nbb )  ! - ML - global conservation diagnostics
+      IF( l_diahsb  )    CALL dia_hsb   ( kstp, Nbb, Nbb )  ! - ML - global conservation diagnostics
 !!st
       
 !!gm : This does not only concern the dynamics ==>>> add a new title
@@ -306,7 +306,7 @@ CONTAINS
          l_trddyn = ll_trddyn
          l_diaptr = ll_diaptr
          l_diaar5 = ll_diaar5
-         l_ldfeiv_dia = ln_ldfeiv_dia
+         l_ldfeiv_dia = l_ldfeiv_dia0
       CASE ( 0 )                ! diagnostic desactivated (off)
          l_trdtra  = .FALSE.
          l_trdtrc  = .FALSE.

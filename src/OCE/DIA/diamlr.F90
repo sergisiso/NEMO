@@ -21,8 +21,7 @@ MODULE diamlr
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PUBLIC ::   lk_diamlr = .FALSE.   !:         ===>>>   NOT a DOCTOR norm name :  use l_diamlr
-   !                                                              lk_  is used only for logical controlled by a CPP key
+   LOGICAL, PUBLIC ::   l_diamlr = .FALSE.   !:
 
    PUBLIC ::   dia_mlr_init, dia_mlr_iom_init, dia_mlr
 
@@ -43,7 +42,7 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       !
-      lk_diamlr = .TRUE.
+      l_diamlr = .TRUE.
       !
       IF(lwp) THEN
          WRITE(numout, *)
@@ -97,7 +96,7 @@ CONTAINS
       ! Get handles to multiple-linear-regression analysis configuration (field
       ! group 'diamrl_fields' and file group 'diamlr_files'); if no suitable
       ! configuration is found, disable diamlr
-      IF ( lk_diamlr .AND. xios_is_valid_fieldgroup( "diamlr_fields" ) .AND. xios_is_valid_field( "diamlr_time" ) .AND.   &
+      IF ( l_diamlr .AND. xios_is_valid_fieldgroup( "diamlr_fields" ) .AND. xios_is_valid_field( "diamlr_time" ) .AND.   &
          & xios_is_valid_filegroup( "diamlr_files" ) ) THEN
          CALL xios_get_handle("diamlr_fields", slxhdl_fldgrp)
          CALL xios_get_handle("diamlr_files",  slxhdl_filgrp)
@@ -107,11 +106,11 @@ CONTAINS
             WRITE(numout, *) "        and/or file group 'diamlr_files' and/or field 'diamlr_time' missing);"
             WRITE(numout, *) "        disabling output for multiple-linear-regression analysis."
          END IF
-         lk_diamlr = .FALSE.
+         l_diamlr = .FALSE.
       END IF
 
       ! Set up IOM context for multiple-linear-regression analysis
-      IF ( lk_diamlr ) THEN
+      IF ( l_diamlr ) THEN
 
          ! Set up output files for grid types scalar, grid_T, grid_U, grid_V,
          ! and grid_W

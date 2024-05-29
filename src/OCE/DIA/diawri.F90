@@ -495,7 +495,7 @@ CONTAINS
 
       CALL iom_put( "bn2", rn2 )                   ! Brunt-Vaisala buoyancy frequency (N^2)
 
-      IF (ln_dia25h)   CALL dia_25h( kt, Kmm )     ! 25h averaging
+      IF (l_dia25h)   CALL dia_25h( kt, Kmm )      ! 25h averaging
 
       ! Output of surface vorticity terms
       !

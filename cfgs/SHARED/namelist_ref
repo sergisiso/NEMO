@@ -11,7 +11,7 @@
 !!              5 - Tracer           (nameos, namtra_adv, namtra_ldf, namtra_eiv, namtra_dmp)
 !!              6 - dynamics         (namdyn_adv, namdyn_vor, namdyn_hpg, namdyn_spg, namdyn_ldf)
 !!              7 - Vertical physics (namzdf, namzdf_ric, namzdf_tke, namzdf_gls, namzdf_iwm)
-!!              8 - diagnostics      (namnc4, namtrd, namspr, namhsb)
+!!              8 - diagnostics      (namnc4, namtrd, namspr)
 !!              9 - Obs & Assim      (namobs, nam_asminc)
 !!             10 - miscellaneous    (nammpp, namctl, namsto)
 !!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -702,7 +702,6 @@
    ln_tide     = .false.      ! Activate tides
       nn_tide_var   = 1          !  Variant of tidal parameter set and tide-potential computation
       !                          !     (1: default; 0: compatibility with previous versions)
-      ln_tide_dia   = .false.    !  Enable tidal diagnostic output
       ln_tide_pot   = .false.               !  use tidal potential forcing
          rn_tide_gamma = 0.7                   ! Tidal tilt factor
          ln_scal_load  = .false.               ! Use scalar approximation for
@@ -973,7 +972,6 @@
       rn_Ue        = 0.02           !  lateral diffusive velocity [m/s] (nn_aht_ijk_t= 0, 10, 20, 30)
       rn_Le        = 200.e+3        !  lateral diffusive length   [m]   (nn_aht_ijk_t= 0, 10)
       !
-      ln_ldfeiv_dia =.false.   ! diagnose eiv stream function and velocities
       ln_eke_equ    =.false.   ! switch on update of GEOMETRIC eddy energy equation        (=> fill namldf_eke)
                                ! forced to be true if nn_aei_ijk_t = 32
 /
@@ -1361,11 +1359,9 @@
 !!                  ***  Diagnostics namelists  ***                   !!
 !!                                                                    !!
 !!   namtrd       dynamics and/or tracer trends                         (default: OFF)
-!!   namhsb       Heat and salt budgets                                 (default: OFF)
 !!   namdiu       Cool skin and warm layer models                       (default: OFF)
 !!   namdiu       Cool skin and warm layer models                       (default: OFF)
 !!   nam_diadct   transports through some sections                      (default: OFF)
-!!   nam_dia25h   25h Mean Output                                       (default: OFF)
 !!   namnc4       netcdf4 chunking and compression settings             ("key_netcdf4")
 !!======================================================================
 !
@@ -1390,11 +1386,6 @@
 !!gm   ln_trdmld_instant = .false.         !  flag to diagnose trends of instantantaneous or mean ML T/S
 !!gm
 !-----------------------------------------------------------------------
-&namhsb        !  Heat and salt budgets                                 (default: OFF)
-!-----------------------------------------------------------------------
-   ln_diahsb   = .false.   !  output the heat and salt budgets (T) or not (F)
-/
-!-----------------------------------------------------------------------
 &namdiu        !   Cool skin and warm layer models                      (default: OFF)
 !-----------------------------------------------------------------------
    ln_diurnal      = .false.   !
@@ -1409,11 +1400,6 @@
        nn_secdebug = 112   !      0 : no section to debug
        !                   !     -1 : debug all section
        !                   !  0 < n : debug section number n
-/
-!-----------------------------------------------------------------------
-&nam_dia25h    !  25h Mean Output                                       (default: OFF)
-!-----------------------------------------------------------------------
-   ln_dia25h   = .false.   ! Choose 25h mean output or not
 /
 !-----------------------------------------------------------------------
 &namnc4        !   netcdf4 chunking and compression settings            ("key_netcdf4")

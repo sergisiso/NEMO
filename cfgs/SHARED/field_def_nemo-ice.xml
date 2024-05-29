@@ -379,7 +379,6 @@ standard_name="rft_loss"                                 unit="1/s"  />
       <field id="NH_icearea"      long_name="Sea ice area North"                     standard_name="sea_ice_area_n"                     unit="1e6_km2"  />
       <field id="SH_icearea"      long_name="Sea ice area South"                     standard_name="sea_ice_area_s"                     unit="1e6_km2"  />
 
-      <!-- available with ln_icediahsb -->
       <!-- global forcings  -->
       <field id="ibgfrcvoltop"    long_name="global mean ice/snow forcing at interface ice/snow-atm (volume equivalent ocean volume)"   unit="km3"      />
       <field id="ibgfrcvolbot"    long_name="global mean ice/snow forcing at interface ice/snow-ocean (volume equivalent ocean volume)" unit="km3"      />

@@ -18,7 +18,7 @@ MODULE diadetide
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PUBLIC                               ::   lk_diadetide
+   LOGICAL, PUBLIC                               ::   l_diadetide !:
    INTEGER                                       ::   ndiadetide
    REAL(wp), SAVE, ALLOCATABLE, DIMENSION(:)     ::   tdiadetide
 
@@ -46,12 +46,12 @@ CONTAINS
       CHARACTER (LEN=4), DIMENSION(jpmax_harmo)  ::   ctide_selected = ' n/a '
       TYPE(tide_harmonic), DIMENSION(:), POINTER ::   stideconst
 
-      lk_diadetide = .FALSE.
+      l_diadetide = .FALSE.
 #if defined key_xios
       ! Enquire detiding activation state (test for presence of detiding-related
       ! weights field and output file group)
       IF ( xios_is_valid_field( "diadetide_weight" ).AND.xios_is_valid_filegroup( "diadetide_files" ).AND.ln_tide ) THEN
-         lk_diadetide = .TRUE.
+         l_diadetide = .TRUE.
       END IF
 #endif
 
@@ -59,10 +59,10 @@ CONTAINS
          WRITE (numout, *)
          WRITE (numout, *) 'dia_detide_init : weight computation for daily detided model diagnostics'
          WRITE (numout, *) '~~~~~~~~~~~~~~~'
-         WRITE (numout, *) '                  lk_diadetide = ', lk_diadetide
+         WRITE (numout, *) '                  l_diadetide = ', l_diadetide
       END IF
 
-      IF (lk_diadetide) THEN
+      IF (l_diadetide) THEN
          ! Retrieve information about M2 tidal constituent
          ctide_selected(1) = 'M2'
          CALL tide_init_harmonics(ctide_selected, stideconst) 

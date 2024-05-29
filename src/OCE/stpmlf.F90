@@ -121,7 +121,7 @@ CONTAINS
       !
       IF( kstp == nit000 ) THEN                       ! initialize IOM context (must be done after nemo_init for AGRIF+XIOS+OASIS)
                              CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
-         IF( lk_diamlr   )   CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
+         IF( l_diamlr   )    CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
                              CALL iom_init_closedef
       ENDIF
       IF( kstp == nitrst .AND. lwxios ) THEN
@@ -299,8 +299,8 @@ CONTAINS
 #if ! defined key_xios
                          CALL dia_wri   ( kstp,      Nnn )      ! Ocean model outputs (default, tiling-unaware variant of 'dia_wri')
 #endif
-      IF( lk_diadetide ) CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
-      IF( lk_diamlr  )   CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
+      IF( l_diadetide )  CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
+      IF( l_diamlr  )    CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Now ssh filtering
@@ -398,7 +398,7 @@ CONTAINS
       Naa = Nrhs
       !
       !
-      IF( ln_diahsb  )   CALL dia_hsb       ( kstp, Nbb, Nnn )  ! - ML - global conservation diagnostics
+      IF( l_diahsb  )    CALL dia_hsb       ( kstp, Nbb, Nnn )  ! - ML - global conservation diagnostics
 
 !!gm : This does not only concern the dynamics ==>>> add a new title
 !!gm2: why ouput restart before AGRIF update?
