@@ -265,10 +265,10 @@
                                       !     1 = Initialise sea ice from single category netcdf file
                                       !     2 = Initialise sea ice from multi category restart file
    rn_thres_sst     =   2.0           !  max temp. above Tfreeze with initial ice = (sst - tfreeze)
-   rn_hti_ini_n     =   3.0           !  initial ice thickness       (m), North
+   rn_hti_ini_n     =   2.0           !  initial ice thickness       (m), North
    rn_hti_ini_s     =   1.0           !        "            "             South
-   rn_hts_ini_n     =   0.3           !  initial snow thickness      (m), North
-   rn_hts_ini_s     =   0.3           !        "            "             South
+   rn_hts_ini_n     =   0.2           !  initial snow thickness      (m), North
+   rn_hts_ini_s     =   0.2           !        "            "             South
    rn_ati_ini_n     =   0.9           !  initial ice concentration   (-), North
    rn_ati_ini_s     =   0.9           !        "            "             South
    rn_smi_ini_n     =   6.3           !  initial ice salinity     (g/kg), North
