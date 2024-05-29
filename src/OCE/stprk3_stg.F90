@@ -442,7 +442,7 @@ CONTAINS
       !
 # if defined key_top
       !                       !==  Passive Tracer  ==!
-      CALL trc_stp_rk3( kstg, kstp, Kbb, Kmm, Krhs, Kaa, zFu, zFv, zFw )
+      IF( ln_top )   CALL trc_stp_rk3( kstg, kstp, Kbb, Kmm, Krhs, Kaa, zFu, zFv, zFw )
       !
 # endif
       !

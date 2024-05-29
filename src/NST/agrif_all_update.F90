@@ -53,7 +53,7 @@ CONTAINS
       CALL Agrif_Update_tra()                      ! Update temperature/salinity
       !
 #if defined key_top
-      CALL Agrif_Update_Trc()                      ! Update passive tracers
+      IF( ln_top )   CALL Agrif_Update_Trc()       ! Update passive tracers
 #endif
       !
       CALL Agrif_Update_dyn()                      ! Update dynamics
@@ -62,7 +62,7 @@ CONTAINS
 !!      CALL Agrif_Update_tke()                  ! Update tke 
 
 #if defined key_si3
-      CALL agrif_update_ice()                      ! Update sea ice
+      IF( nn_ice /= 0 )   CALL agrif_update_ice()  ! Update sea ice
 #endif
       !
       Agrif_UseSpecialValueInUpdate = .FALSE.
