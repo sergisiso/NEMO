@@ -299,7 +299,7 @@ CONTAINS
          WRITE(numout,*) '   CNRS - NERC - Met OFFICE - MERCATOR-ocean - CMCC'
          WRITE(numout,*) '                       NEMO team'
          WRITE(numout,*) '            Ocean General Circulation Model'
-         WRITE(numout,*) '                NEMO version 4.0  (2019) '
+         WRITE(numout,*) '                NEMO version 5.0  (2024) '
          WRITE(numout,*) '             StandAlone Surface version (SAS) '
          WRITE(numout,*) "           ._      ._      ._      ._      ._    "
          WRITE(numout,*) "       _.-._)`\_.-._)`\_.-._)`\_.-._)`\_.-._)`\_ "

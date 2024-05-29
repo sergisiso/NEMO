@@ -120,7 +120,7 @@ CONTAINS
          WRITE(numsed,*)
          WRITE(numsed,*) '                 PISCES framework'
          WRITE(numsed,*) '                 SEDIMENT model'
-         WRITE(numsed,*) '                version 3.0  (2018) '
+         WRITE(numsed,*) '                version 5.0  (2024) '
          WRITE(numsed,*)
          WRITE(numsed,*)
       ENDIF

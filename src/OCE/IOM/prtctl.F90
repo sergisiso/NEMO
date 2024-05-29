@@ -614,8 +614,8 @@ CONTAINS
          WRITE(inum,*) '   CNRS - NERC - Met OFFICE - MERCATOR-ocean - CMCC'
          WRITE(inum,*) '                       NEMO team'
          WRITE(inum,*) '            Ocean General Circulation Model'
-         IF( clcomp == 'oce' )   WRITE(inum,*) '                NEMO version 4.x  (2020) '
-         IF( clcomp == 'top' )   WRITE(inum,*) '                 TOP vversion x (2020) '
+         IF( clcomp == 'oce' )   WRITE(inum,*) '                NEMO version 5.0  (2024) '
+         IF( clcomp == 'top' )   WRITE(inum,*) '                 TOP version 5.0  (2024) '
          WRITE(inum,*)
          IF( ijsplt > 1 )   &
             &   WRITE(inum,*) '              MPI-subdomain number: ', jl-1
