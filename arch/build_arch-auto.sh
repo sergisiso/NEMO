@@ -371,7 +371,7 @@ then
     then
 	find_fortran_wrapper
     else
-	FCnemo=$( $NC_CONFIG --fc ) # use nc-config to find the fortran compiler
+	FCnemo=$( $NF_CONFIG --fc ) # use nf-config to find the fortran compiler
 	[ -z $FCnemo ] && find_fortran_wrapper # if $FCnemo is empty try to find it...
 	chk_which FCnemo "fortran compiler"
 
