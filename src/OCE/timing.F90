@@ -119,7 +119,7 @@ CONTAINS
          WRITE(numtime,*) '      CNRS - NERC - Met OFFICE - MERCATOR-ocean - CMCC'
          WRITE(numtime,*) '                             NEMO team'
          WRITE(numtime,*) '                  Ocean General Circulation Model'
-         WRITE(numtime,*) '                        version 4.x  (2023) '
+         WRITE(numtime,*) '                        version 5.0  (2024) '
          WRITE(numtime,*)
 #if ! defined key_agrif
          WRITE(numtime,*) '                        Timing Informations '
