@@ -107,7 +107,6 @@ MODULE par_ice
    LOGICAL , PUBLIC ::   ln_icediachk     !: flag for ice diag (T) or not (F)
    REAL(wp), PUBLIC ::   rn_icechk_cel    !: rate of ice spuriously gained/lost (at any gridcell)
    REAL(wp), PUBLIC ::   rn_icechk_glo    !: rate of ice spuriously gained/lost (globally)
-   LOGICAL , PUBLIC ::   ln_icediahsb     !: flag for ice diag (T) or not (F)
    LOGICAL , PUBLIC ::   ln_icectl        !: flag for sea-ice points output (T) or not (F)
    INTEGER , PUBLIC ::   iiceprt          !: debug i-point
    INTEGER , PUBLIC ::   jiceprt          !: debug j-point

@@ -33,7 +33,8 @@ MODULE icedia
    PUBLIC   ice_dia        ! called by icestp.F90
    PUBLIC   ice_dia_init   ! called in icestp.F90
 
-   REAL(wp), SAVE ::   r1_area  ! inverse of the ocean area
+   LOGICAL , PUBLIC ::   l_icediahsb      !: flag for ice diag (T) or not (F)
+   REAL(wp), SAVE   ::   r1_area          ! inverse of the ocean area
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   vol_loc_ini, sal_loc_ini, tem_loc_ini                    ! initial volume, salt and heat contents
    REAL(wp)                              ::   frc_sal, frc_voltop, frc_volbot, frc_temtop, frc_tembot  ! global forcing trends
    
@@ -194,7 +195,7 @@ CONTAINS
       !!---------------------------------------------------------------------------
       INTEGER            ::   ios, ierror   ! local integer
       !!
-      NAMELIST/namdia/ ln_icediachk, rn_icechk_cel, rn_icechk_glo, ln_icediahsb, ln_icectl, iiceprt, jiceprt
+      NAMELIST/namdia/ ln_icediachk, rn_icechk_cel, rn_icechk_glo, ln_icectl, iiceprt, jiceprt
       !!----------------------------------------------------------------------
       !
       READ_NML_REF(numnam_ice,namdia)
@@ -209,12 +210,22 @@ CONTAINS
          WRITE(numout,*) '      Diagnose online heat/mass/salt conservation ln_icediachk  = ', ln_icediachk
          WRITE(numout,*) '         threshold for conservation (gridcell)    rn_icechk_cel = ', rn_icechk_cel
          WRITE(numout,*) '         threshold for conservation (global)      rn_icechk_glo = ', rn_icechk_glo
-         WRITE(numout,*) '      Output          heat/mass/salt budget       ln_icediahsb  = ', ln_icediahsb
          WRITE(numout,*) '      control prints for a given grid point       ln_icectl     = ', ln_icectl
          WRITE(numout,*) '         chosen grid point position          (iiceprt,jiceprt)  = (', iiceprt,',', jiceprt,')'
       ENDIF
       !
-      IF( ln_icediahsb ) THEN
+      ! diagnostics
+      IF(  iom_use('ibgfrcvoltop') .OR. iom_use('ibgfrcvolbot') .OR. iom_use('ibgfrcsal')    .OR. iom_use('ibgfrctemtop') .OR. &
+         & iom_use('ibgfrctembot') .OR. iom_use('ibgfrchfxtop') .OR. iom_use('ibgfrchfxbot') .OR.                              &
+         & iom_use('ibgvol_tot')   .OR. iom_use('sbgvol_tot')   .OR. iom_use('ibgarea_tot')  .OR. iom_use('ibgsalt_tot')  .OR. &
+         & iom_use('ibgheat_tot')  .OR. iom_use('sbgheat_tot')  .OR. iom_use('ipbgvol_tot')  .OR. iom_use('ilbgvol_tot')  .OR. &
+         & iom_use('ibgvolume')    .OR. iom_use('ibgsaltco')    .OR. iom_use('ibgheatco')                                 ) THEN 
+         l_icediahsb = .TRUE.
+      ELSE
+         l_icediahsb = .FALSE.
+      ENDIF
+
+      IF( l_icediahsb ) THEN
          IF( ice_dia_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'ice_dia_init : unable to allocate arrays' )   ! allocate tke arrays
          CALL ice_dia_rst( 'READ' )   ! read or initialize all required files
       ENDIF

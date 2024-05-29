@@ -331,8 +331,6 @@
       !                           !  time invariant coefficients:  aei0 = 1/2  Ue*Le 
       rn_Ue        = 0.03              !  lateral diffusive velocity [m/s] (nn_aht_ijk_t= 0, 10, 20, 30)
       rn_Le        = 200.e+3           !  lateral diffusive length   [m]   (nn_aht_ijk_t= 0, 10)
-      !
-      ln_ldfeiv_dia =.true.   ! diagnose eiv stream function and velocities
 /
 !-----------------------------------------------------------------------
 &namtra_dmp    !   tracer: T & S newtonian damping                      (default: OFF)

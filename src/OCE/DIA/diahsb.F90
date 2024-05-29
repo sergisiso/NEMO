@@ -36,7 +36,7 @@ MODULE diahsb
    PUBLIC   dia_hsb        ! routine called by step.F90
    PUBLIC   dia_hsb_init   ! routine called by nemogcm.F90
 
-   LOGICAL, PUBLIC ::   ln_diahsb   !: check the heat and salt budgets
+   LOGICAL, PUBLIC ::   l_diahsb   !: check the heat and salt budgets
 
    REAL(wp) ::   surf_tot              ! ocean surface
    REAL(wp) ::   frc_t, frc_s, frc_v   ! global forcing trends
@@ -421,8 +421,6 @@ CONTAINS
       !
       INTEGER ::   ierror, ios   ! local integer
       INTEGER ::   ji, jj        ! loop index
-      !!
-      NAMELIST/namhsb/ ln_diahsb
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -430,17 +428,19 @@ CONTAINS
          WRITE(numout,*) 'dia_hsb_init : heat and salt budgets diagnostics'
          WRITE(numout,*) '~~~~~~~~~~~~ '
       ENDIF
-      READ_NML_REF(numnam,namhsb)
-      READ_NML_CFG(numnam,namhsb)
-      IF(lwm) WRITE( numond, namhsb )
 
-      IF(lwp) THEN
-         WRITE(numout,*) '   Namelist  namhsb :'
-         WRITE(numout,*) '      check the heat and salt budgets (T) or not (F)       ln_diahsb = ', ln_diahsb
+      ! define l_diahsb
+      IF(  iom_use('bgfrcvol') .OR. iom_use('bgfrctem') .OR. iom_use('bgfrchfx') .OR. iom_use('bgfrcsal') .OR. &
+         & iom_use('bgtemper') .OR. iom_use('bgsaline') .OR. iom_use('bgheatco') .OR. iom_use('bgheatfx') .OR. &
+         & iom_use('bgsaltco') .OR. iom_use('bgvolssh') .OR. iom_use('bgvole3t') .OR. &
+         & iom_use('bgmistem') .OR. iom_use('bgmissal') ) THEN
+         l_diahsb = .TRUE.
+      ELSE
+         l_diahsb = .FALSE.
       ENDIF
       !
-      IF( .NOT. ln_diahsb )   RETURN
-
+      IF( .NOT. l_diahsb )   RETURN
+      !
       ! ------------------- !
       ! 1 - Allocate memory !
       ! ------------------- !
@@ -458,7 +458,6 @@ CONTAINS
       ! ----------------------------------------------- !
       ! 2 - Time independant variables and file opening !
       ! ----------------------------------------------- !
- 
       DO_2D( 0, 0, 0, 0 )
          surf(ji,jj) = e1e2t(ji,jj) * smask0_i(ji,jj)               ! masked surface grid cell area
       END_2D

@@ -20,7 +20,7 @@ MODULE dia25h
    PUBLIC   dia_25h_init               ! routine called by nemogcm.F90
    PUBLIC   dia_25h                    ! routine called by diawri.F90
 
-   LOGICAL, PUBLIC ::   ln_dia25h      !:  25h mean output
+   LOGICAL, PUBLIC ::   l_dia25h       !:  25h mean output
 
    ! variables for calculating 25-hourly means
    INTEGER , SAVE ::   cnt_25h           ! Counter for 25 hour means
@@ -54,21 +54,25 @@ CONTAINS
       INTEGER ::   ierror              ! Local integer for memory allocation
       INTEGER ::   ji, jj, jk
       !
-      NAMELIST/nam_dia25h/ ln_dia25h
       !!----------------------------------------------------------------------
       !
-      READ_NML_REF(numnam,nam_dia25h)
-      READ_NML_CFG(numnam,nam_dia25h)
-      IF(lwm) WRITE ( numond, nam_dia25h )
-
+      IF(  iom_use('temper25h')   .OR. iom_use('salin25h')    .OR. iom_use('ssh25h')      .OR. &
+         & iom_use('vozocrtx25h') .OR. iom_use('vomecrty25h') .OR. iom_use('vovecrtz25h') .OR. &
+         & iom_use('avt25h')      .OR. iom_use('avm25h')      .OR. iom_use('tke25h')      .OR. iom_use('mxln25h') ) THEN
+         l_dia25h = .TRUE.
+      ELSE
+         l_dia25h = .FALSE.
+      ENDIF
+      !
       IF(lwp) THEN                   ! Control print
          WRITE(numout,*)
          WRITE(numout,*) 'dia_25h_init : Output 25 hour mean diagnostics'
          WRITE(numout,*) '~~~~~~~~~~~~'
-         WRITE(numout,*) '   Namelist nam_dia25h : set 25h outputs '
-         WRITE(numout,*) '      Switch for 25h diagnostics (T) or not (F)  ln_dia25h  = ', ln_dia25h
+         WRITE(numout,*) '      Switch for 25h diagnostics (T) or not (F)  l_dia25h  = ', l_dia25h
       ENDIF
-      IF( .NOT. ln_dia25h )   RETURN
+      !
+      IF( .NOT. l_dia25h )   RETURN
+      !
       ! ------------------- !
       ! 1 - Allocate memory !
       ! ------------------- !
@@ -91,6 +95,7 @@ CONTAINS
             CALL ctl_stop( 'dia_25h: unable to allocate en_25h and rmxln_25h' )   ;   RETURN
          ENDIF
       ENDIF
+      !
       ! ------------------------- !
       ! 2 - Assign Initial Values !
       ! ------------------------- !

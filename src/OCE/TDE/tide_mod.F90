@@ -57,7 +57,7 @@ MODULE tide_mod
    LOGICAL , PUBLIC ::   ln_tide             !:
    LOGICAL , PUBLIC ::   ln_tide_pot         !:
    INTEGER          ::   nn_tide_var         !  Variant of tidal parameter set and tide-potential computation
-   LOGICAL          ::   ln_tide_dia         !  Enable tidal diagnostic output
+   LOGICAL          ::   ll_diatide         !  Enable tidal diagnostic output
    LOGICAL          ::   ln_read_load        !:
    LOGICAL , PUBLIC ::   ln_scal_load        !:
    LOGICAL , PUBLIC ::   ln_tide_ramp        !:
@@ -122,7 +122,7 @@ CONTAINS
       CHARACTER(LEN=4), DIMENSION(jpmax_harmo) :: sn_tide_cnames ! Names of selected tidal components
       INTEGER  ::   ios                 ! Local integer output status for namelist read
       !
-      NAMELIST/nam_tide/ln_tide, nn_tide_var, ln_tide_dia, ln_tide_pot, rn_tide_gamma, &
+      NAMELIST/nam_tide/ln_tide, nn_tide_var, ln_tide_pot, rn_tide_gamma, &
          &              ln_scal_load, ln_read_load, cn_tide_load,         &
          &              ln_tide_ramp, rn_scal_load, rn_tide_ramp_dt,      &
          &              sn_tide_cnames
@@ -144,7 +144,6 @@ CONTAINS
             WRITE(numout,*) '   Namelist nam_tide'
             WRITE(numout,*) '      Use tidal components                       ln_tide         = ', ln_tide
             WRITE(numout,*) '         Variant (1: default; 0: legacy option)  nn_tide_var     = ', nn_tide_var
-            WRITE(numout,*) '         Tidal diagnostic output                 ln_tide_dia     = ', ln_tide_dia
             WRITE(numout,*) '         Apply astronomical potential            ln_tide_pot     = ', ln_tide_pot
             WRITE(numout,*) '         Tidal tilt factor                       rn_tide_gamma   = ', rn_tide_gamma
             WRITE(numout,*) '         Use scalar approx. for load potential   ln_scal_load    = ', ln_scal_load
@@ -192,9 +191,7 @@ CONTAINS
       !
       IF (.NOT.ln_scal_load ) rn_scal_load = 0._wp
       !
-      ALLOCATE( amp_pot(jpi,jpj,nb_harmo),                      &
-           &      phi_pot(jpi,jpj,nb_harmo), pot_astro(jpi,jpj)   )
-      IF( ln_tide_dia ) ALLOCATE( pot_astro_comp(jpi,jpj) )
+      ALLOCATE( amp_pot(jpi,jpj,nb_harmo), phi_pot(jpi,jpj,nb_harmo), pot_astro(jpi,jpj) )
       IF( ln_read_load ) THEN
          ALLOCATE( amp_load(jpi,jpj,nb_harmo), phi_load(jpi,jpj,nb_harmo) )
          CALL tide_init_load
@@ -204,6 +201,15 @@ CONTAINS
          amp_pot(:,:,:) = 0._wp
          phi_pot(:,:,:) = 0._wp	 
       ENDIF
+      !
+      ! diagnostics
+      ll_diatide = .FALSE.
+      IF ( iom_use( 'tide_pot' ) )   ll_diatide = .TRUE. 
+      DO jk = 1, nb_harmo
+         IF( iom_use( 'tide_pot_' // TRIM( tide_harmonics(jk)%cname_tide ) ) )   ll_diatide = .TRUE.
+      ENDDO
+      !
+      IF( ll_diatide )   ALLOCATE( pot_astro_comp(jpi,jpj) )
       !
    END SUBROUTINE tide_init
 
@@ -736,7 +742,7 @@ CONTAINS
       !
       pot_astro(:,:) = 0._wp          ! update tidal potential (sum of all harmonics)
       DO jk = 1, nb_harmo
-         IF ( .NOT. ln_tide_dia ) THEN
+         IF ( .NOT. ll_diatide ) THEN
             pot_astro(:,:) = pot_astro(:,:) + amp_pot(:,:,jk) * COS( zwt(jk) + phi_pot(:,:,jk) )
          ELSE
             pot_astro_comp(:,:) = amp_pot(:,:,jk) * COS( zwt(jk) + phi_pot(:,:,jk) )
@@ -750,7 +756,7 @@ CONTAINS
       !
       IF ( ln_tide_ramp ) pot_astro(:,:) = zramp * pot_astro(:,:)
       !
-      IF( ln_tide_dia ) THEN          ! Output total tidal potential (incl. load potential)
+      IF( ll_diatide ) THEN          ! Output total tidal potential (incl. load potential)
          IF ( iom_use( "tide_pot" ) ) CALL iom_put( "tide_pot", pot_astro(:,:) + rn_scal_load * ssh(:,:,Kmm) )
       END IF
       !

@@ -11,7 +11,7 @@
 !!              5 - Tracer           (nameos, namtra_adv, namtra_ldf, namtra_eiv, namtra_dmp)
 !!              6 - dynamics         (namdyn_adv, namdyn_vor, namdyn_hpg, namdyn_spg, namdyn_ldf)
 !!              7 - Vertical physics (namzdf, namzdf_ric, namzdf_tke, namzdf_gls, namzdf_iwm)
-!!              8 - diagnostics      (namnc4, namtrd, namspr, namhsb)
+!!              8 - diagnostics      (namnc4, namtrd, namspr)
 !!              9 - Obs & Assim      (namobs, nam_asminc)
 !!             10 - miscellaneous    (nammpp, namctl, namsto)
 !!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -565,22 +565,16 @@
 !!                  ***  Diagnostics namelists  ***                   !!
 !!                                                                    !!
 !!   namtrd       dynamics and/or tracer trends                         (default: OFF)
-!!   namhsb       Heat and salt budgets                                 (default: OFF)
 !!   namdiu       Cool skin and warm layer models                       (default: OFF)
 !!   namdiu       Cool skin and warm layer models                       (default: OFF)
 !!   nam_diaharm  Harmonic analysis of tidal constituents               ("key_diaharm")
 !!   namdct       transports through some sections                      ("key_diadct")
 !!   nam_diatmb   Top Middle Bottom Output                              (default: OFF)
-!!   nam_dia25h   25h Mean Output                                       (default: OFF)
 !!   namnc4       netcdf4 chunking and compression settings             ("key_netcdf4")
 !!======================================================================
 !
 !-----------------------------------------------------------------------
 &namtrd        !   trend diagnostics                                    (default: OFF)
-!-----------------------------------------------------------------------
-/
-!-----------------------------------------------------------------------
-&namhsb        !  Heat and salt budgets                                 (default: OFF)
 !-----------------------------------------------------------------------
 /
 !-----------------------------------------------------------------------
@@ -604,10 +598,6 @@
 /
 !-----------------------------------------------------------------------
 &nam_diatmb    !  Top Middle Bottom Output                              (default: OFF)
-!-----------------------------------------------------------------------
-/
-!-----------------------------------------------------------------------
-&nam_dia25h    !  25h Mean Output                                       (default: OFF)
 !-----------------------------------------------------------------------
 /
 !-----------------------------------------------------------------------

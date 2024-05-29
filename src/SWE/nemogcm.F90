@@ -24,7 +24,7 @@ MODULE nemogcm
    USE wet_dry , ONLY : ln_wd_dl, ln_wd_dl_bc   ! switch off wetting and drying
    USE isf_oce , ONLY : ln_isf           ! ice shelf
    USE trd_oce , ONLY : l_trddyn         ! dynamical trend logical
-   USE dia25h  , ONLY : ln_dia25h        ! 25h mean output
+   USE dia25h  , ONLY : l_dia25h         ! 25h mean output
 #if defined key_RK3
    USE stprk3         ! NEMO time-stepping               (stp_RK3   routine)
 #else
@@ -323,8 +323,8 @@ CONTAINS
       !                                      ! Diagnostics
       IF( ln_diacfl    )   CALL dia_cfl_init    ! Initialise CFL diagnostics
 
-                           l_trddyn  = .FALSE.  ! No trend diagnostics
-                           ln_dia25h = .FALSE.  ! No 25h mean diagnostics (zdf_phy not used)- used in diawri
+                           l_trddyn = .FALSE.  ! No trend diagnostics
+                           l_dia25h = .FALSE.  ! No 25h mean diagnostics (zdf_phy not used)- used in diawri
 
       IF(lwp) WRITE(numout,cform_aaa)           ! Flag AAAAAAA
       !

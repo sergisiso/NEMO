@@ -632,7 +632,7 @@ that are available in the tidal-forcing implementation (see
     <!-- variables available with MLE (ln_mle=T) -->
     <field id="psiu_mle"     long_name="MLE streamfunction along i-axis"           unit="m3/s"         grid_ref="grid_U_3D_inner" />
 
-    <!-- uoce_eiv: available EIV (ln_ldfeiv=T and ln_ldfeiv_dia=T) -->
+    <!-- uoce_eiv: available EIV (ln_ldfeiv=T) -->
     <field id="uoce_eiv"      long_name="EIV ocean current along i-axis"            standard_name="bolus_sea_water_x_velocity"                     unit="m/s"   grid_ref="grid_U_3D_inner" />
     <field id="ueiv_masstr"   long_name="EIV Ocean Mass X Transport"                standard_name="bolus_ocean_mass_x_transport"                   unit="kg/s"  grid_ref="grid_U_3D_inner" />
     <field id="ueiv_heattr"   long_name="ocean bolus heat transport along i-axis"   standard_name="ocean_heat_x_transport_due_to_bolus_advection"  unit="W"     grid_ref="grid_U_2D_inner" />
@@ -686,7 +686,7 @@ that are available in the tidal-forcing implementation (see
     <!-- variables available with MLE (ln_mle=T) -->
     <field id="psiv_mle"     long_name="MLE streamfunction along j-axis"             unit="m3/s"               grid_ref="grid_V_3D_inner" />
 
-    <!-- voce_eiv: available EIV (ln_ldfeiv=T and ln_ldfeiv_dia=T)  -->
+    <!-- voce_eiv: available EIV (ln_ldfeiv=T)  -->
     <field id="voce_eiv"      long_name="EIV ocean current along j-axis"           standard_name="bolus_sea_water_y_velocity"                     unit="m/s"  grid_ref="grid_V_3D_inner" />
     <field id="veiv_masstr"   long_name="EIV Ocean Mass Y Transport"               standard_name="bolus_ocean_mass_y_transport"                   unit="kg/s" grid_ref="grid_V_3D_inner" />
     <field id="veiv_heattr"   long_name="ocean bolus heat transport along j-axis"  standard_name="ocean_heat_y_transport_due_to_bolus_advection"  unit="W"    grid_ref="grid_V_2D_inner" />
@@ -725,11 +725,13 @@ that are available in the tidal-forcing implementation (see
     <!-- variables available with WAVE (ln_wave=T) -->
     <field id="wstokes"      long_name="Stokes Drift vertical velocity"                 standard_name="upward_StokesDrift_velocity"           unit="m/s"  />
 
-    <!-- woce_eiv: available with EIV  (ln_ldfeiv=T and ln_ldfeiv_dia=T)  -->
+    <!-- woce_eiv: available with EIV  (ln_ldfeiv=T)  -->
     <field id="woce_eiv"     long_name="EIV ocean vertical velocity"                    standard_name="bolus_upward_sea_water_velocity"               unit="m/s"  grid_ref="grid_W_3D_inner" />
     <field id="weiv_masstr"  long_name="EIV Upward Ocean Mass Transport"                standard_name="bolus_upward_ocean_mass_transport"             unit="kg/s" grid_ref="grid_W_3D_inner" />
-    <field id="weiv_heattr3d" long_name="ocean bolus heat transport"                    standard_name="ocean_heat_z_transport_due_to_bolus_advection" unit="W"    grid_ref="grid_W_3D_inner" />
-    <field id="weiv_salttr3d" long_name="ocean bolus salt transport"                    standard_name="ocean_salt_z_transport_due_to_bolus_advection" unit="kg"   grid_ref="grid_W_3D_inner" />
+    <!-- currently not coded
+         <field id="weiv_heattr3d" long_name="ocean bolus heat transport"                    standard_name="ocean_heat_z_transport_due_to_bolus_advection" unit="W"    grid_ref="grid_W_3D_inner" />
+         <field id="weiv_salttr3d" long_name="ocean bolus salt transport"                    standard_name="ocean_salt_z_transport_due_to_bolus_advection" unit="kg"   grid_ref="grid_W_3D_inner" />
+    -->
 
     <!-- avt, avm -->
     <field id="avt"          long_name="vertical eddy diffusivity"                      standard_name="ocean_vertical_heat_diffusivity"     unit="m2/s" grid_ref="grid_W_3D_inner" />
@@ -815,7 +817,7 @@ that are available in the tidal-forcing implementation (see
     <!-- EOS = TEOS-10 -->
     <field id="temptot_pot" long_name="global mean potential temperature"            standard_name="sea_water_potential_temperature"               unit="degC" />
 
-    <!-- available with ln_diahsb -->
+    <!-- global diags -->
     <field id="bgtemper"     long_name="drift in global mean temperature wrt timestep 1"                 standard_name="change_over_time_in_sea_water_potential_temperature"   unit="degC"     />
     <field id="bgsaline"     long_name="drift in global mean salinity wrt timestep 1"                    standard_name="change_over_time_in_sea_water_practical_salinity"      unit="1e-3"     />
     <field id="bgheatco"     long_name="drift in global mean heat content wrt timestep 1"                                                                                      unit="1.e20J"   />
