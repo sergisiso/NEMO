@@ -413,6 +413,11 @@ l_bldvar_n=${x_nocdf}
 # Flag up AGRIF processing
 grep key_agrif ${NEMO_TDIR}/${CUR_CONF}/BLD/cpp.fcm 2>/dev/null && l_bldvar_a=1
 # Flag up PSyclone (https://github.com/stfc/PSyclone) source-code processing
+if [[ -z "${x_p}" && -n "$( grep -e '\bkey_PSYCLONE_2p5p0\b' ${NEMO_TDIR}/${CUR_CONF}/BLD/cpp.fcm )" ]]; then
+    x_p='passthrough'; PSCT_VAR='passthrough'
+    echo
+    echo "Warning: activated PSyclone source-code processing, required by CPP key 'key_PSYCLONE_2p5p0'"
+fi
 if [ -n "${x_p}" ]; then
     l_bldvar_p=1
     echo

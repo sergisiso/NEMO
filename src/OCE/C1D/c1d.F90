@@ -186,7 +186,7 @@ CONTAINS
 #if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:) ::  zup, zvp   ! 1D workspace
 #else
-      REAL(wp), ALLOCATABLE, DIMENSION(jpk) ::  zup, zvp   ! 1D workspace
+      REAL(wp), DIMENSION(jpk) ::  zup, zvp          ! 1D workspace
 #endif
       !!----------------------------------------------------------------------
       !
