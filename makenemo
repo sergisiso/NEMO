@@ -478,7 +478,25 @@ if [ "${NBR_PRC}" -gt 0 ]; then
         if [[ ${NEMO_BLD_STAGE} == 'BLD_SCT_PSYCLONE' ]]; then
             NEMO_FC="${COMPIL_DIR}/sct_psyclone.sh \"%PSYCLONE_HOME\" \"${PSCT_VAR}\""
             # Copy PSyclone transformation script (if required)
-            [ "${PSCT_VAR}" != 'passthrough' ] && cp "sct/psct-${PSCT_VAR}.py" ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/
+            if [[ "${PSCT_VAR}" != 'passthrough' ]]; then
+                cp "sct/psct-${PSCT_VAR}.py" ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/
+                # Process inclusion directives in the PSyclone transformation script (if any):
+                #    - search for directives of the form '#psct-include(<MODULE>)' at the beginning of lines;
+                #    - copy the included PSyclone transformation scripts (sct/psct-<MODULE>.py) into the build directory if they
+                #      exist (exit with an error message if not);
+                #    - replace the directives with suitable Python 'import' statements to make the 'trans' procedures of the
+                #      included PSyclone transformation scripts accessible from the top-level script as 'trans_<MODULE>'.
+                for psct_inc in $( grep -e '^#psct-include([a-zA-Z0-9]\+)[[:space:]]*$' "sct/psct-${PSCT_VAR}.py" | cut -d '(' -f 2 | cut -d ')' -f 1 ); do
+                    if [[ -f "sct/psct-${psct_inc}.py" ]]; then
+                        cp "sct/psct-${psct_inc}.py" ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/psct_include_${psct_inc}.py
+                        sed -i -e "s/^#psct-include(\([a-zA-Z0-9]\+\))[[:space:]]*\$/from psct_include_\1 import trans as trans_\1/" \
+                            ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/psct-${PSCT_VAR}.py
+                    else
+                        echo "Error: PSyclone transformation ${psct_inc} is unavailable for inclusion into PSyclone super-transformation script ${PSCT_VAR}"
+                        exit 1
+                    fi
+                done
+            fi
             # Note, the AGRIF-processing configuration with a slight
             # modification can be used
             sed -e "/agrif2model/d" ${COMPIL_DIR}/bld_preproagr.cfg > ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/bld.cfg
