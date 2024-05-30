@@ -161,12 +161,13 @@ CONTAINS
          &             ln_mskland  , ln_clobber   , nn_chunksz,     &
          &             ln_cfmeta, ln_iscpl
 
-      NAMELIST/namdom/ ln_read_cfg, nn_bathy, cn_domcfg, cn_topo, cn_bath, cn_lon, cn_lat, rn_scale, nn_interp, &
-         &             cn_topolvl, cn_fisfd, cn_visfd, cn_bathlvl, cn_fcoord,                        & 
-         &             rn_bathy , rn_e3zps_min, rn_e3zps_rat, nn_msh, rn_hmin,                       &
-         &             rn_atfp , rn_rdt   ,  ln_crs      , jphgr_msh ,                               &
-         &             ppglam0, ppgphi0, ppe1_deg, ppe2_deg, ppe1_m, ppe2_m,                         &
-         &             ppsur, ppa0, ppa1, ppkth, ppacr, ppdzmin, pphmax, ldbletanh,                  &
+      NAMELIST/namdom/ ln_read_cfg, nn_bathy , cn_domcfg , cn_topo, cn_bath, cn_lon, cn_lat, &
+                       rn_scale   , nn_interp, ln_lin_int,                                   &
+         &             cn_topolvl, cn_fisfd, cn_visfd, cn_bathlvl, cn_fcoord,                & 
+         &             rn_bathy , rn_e3zps_min, rn_e3zps_rat, nn_msh, rn_hmin,               &
+         &             rn_atfp , rn_rdt   ,  ln_crs      , jphgr_msh ,                       &
+         &             ppglam0, ppgphi0, ppe1_deg, ppe2_deg, ppe1_m, ppe2_m,                 &
+         &             ppsur, ppa0, ppa1, ppkth, ppacr, ppdzmin, pphmax, ldbletanh,          &
          &             ppa2, ppkth2, ppacr2
 
       INTEGER  ::   ios                 ! Local integer output status for namelist read

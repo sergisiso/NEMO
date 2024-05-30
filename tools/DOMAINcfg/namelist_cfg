@@ -20,6 +20,7 @@
                            ! = 2 compute from external bathymetry
                            ! = 3 compute from parent (if "key_agrif")
    nn_interp   =    1                          ! type of interpolation (nn_bathy =2)
+   ln_lin_int  = .true.                        ! linear (T) or near neighb (F) interp (nn_bathy =3)
    cn_domcfg   =  ''                
    cn_fcoord   =  'coordinates.nc'             ! external coordinates file (jphgr_msh = 0)
    cn_topo     =  'bathy_meter.nc'             ! external topo file (nn_bathy =1)

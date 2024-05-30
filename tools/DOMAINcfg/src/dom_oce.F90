@@ -29,7 +29,7 @@ MODULE dom_oce
    !! ----------------------------
    INTEGER , PUBLIC ::   nmsh            !: = 1 create a mesh-mask file
    !                                    !!* Namelist namdom : time & space domain *
-   INTEGER , PUBLIC ::   nn_bathy        !: = 0/1/2 ,compute/read the bathymetry file
+   INTEGER , PUBLIC ::   nn_bathy        !: = 0/1/2/3 ,compute/read the bathymetry file
    REAL(wp), PUBLIC ::   rn_bathy        !: depth of flat bottom (active if nn_bathy=0; if =0 depth=jpkm1)
    REAL(wp), PUBLIC ::   rn_hmin         !: minimum ocean depth (>0) or minimum number of ocean levels (<0)
    REAL(wp), PUBLIC ::   rn_e3zps_min    !: miminum thickness for partial steps (meters)
@@ -54,11 +54,13 @@ MODULE dom_oce
    CHARACTER(LEN=132), PUBLIC :: cn_lat
    REAL(wp), PUBLIC :: rn_scale
 
-   LOGICAL, PUBLIC ::   lzoom      =  .FALSE.   !: zoom flag
-   LOGICAL, PUBLIC ::   lzoom_e    =  .FALSE.   !: East  zoom type flag
-   LOGICAL, PUBLIC ::   lzoom_w    =  .FALSE.   !: West  zoom type flag
-   LOGICAL, PUBLIC ::   lzoom_s    =  .FALSE.   !: South zoom type flag
-   LOGICAL, PUBLIC ::   lzoom_n    =  .FALSE.   !: North zoom type flag
+   LOGICAL, PUBLIC ::   ln_lin_int =  .FALSE. !: T = AGRIF_linear interp of parent bathy onto child domain
+                                              !: F = AGRIF_constant interp of parent bathy onto child domain
+   LOGICAL, PUBLIC ::   lzoom      =  .FALSE. !: zoom flag
+   LOGICAL, PUBLIC ::   lzoom_e    =  .FALSE. !: East  zoom type flag
+   LOGICAL, PUBLIC ::   lzoom_w    =  .FALSE. !: West  zoom type flag
+   LOGICAL, PUBLIC ::   lzoom_s    =  .FALSE. !: South zoom type flag
+   LOGICAL, PUBLIC ::   lzoom_n    =  .FALSE. !: North zoom type flag
 
    LOGICAL, PUBLIC ::   ln_domclo  =  .FALSE.
 
