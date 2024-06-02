@@ -225,7 +225,7 @@ CONTAINS
       !! ** input   : - namrun namelist
       !!              - namdom namelist
       !!              - namtile namelist
-      !!              - namnc4 namelist   ! "key_netcdf4" only
+      !!              - namnc4 namelist
       !!----------------------------------------------------------------------
       USE ioipsl
       !!
@@ -240,9 +240,7 @@ CONTAINS
          &             ln_cfmeta, ln_xios_read, nn_wxios, ln_top
       NAMELIST/namdom/ rn_Dt, rn_atfp, ln_c1d, ln_meshmask, ln_shuman
       NAMELIST/namtile/ ln_tile, nn_ltile_i, nn_ltile_j
-#if defined key_netcdf4
       NAMELIST/namnc4/ nn_nchunks_i, nn_nchunks_j, nn_nchunks_k, ln_nc4zip
-#endif
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -499,9 +497,8 @@ CONTAINS
          ENDIF
       ENDIF
       !
-#if defined key_netcdf4
       !                       !=======================!
-      !                       !==  namelist namnc4  ==!   NetCDF 4 case   ("key_netcdf4" defined)
+      !                       !==  namelist namnc4  ==!
       !                       !=======================!
       !
       READ_NML_REF(numnam,namnc4)
@@ -510,7 +507,7 @@ CONTAINS
 
       IF(lwp) THEN                        ! control print
          WRITE(numout,*)
-         WRITE(numout,*) '   Namelist namnc4 - Netcdf4 chunking parameters ("key_netcdf4" defined)'
+         WRITE(numout,*) '   Namelist namnc4 - Netcdf4 chunking parameters'
          WRITE(numout,*) '      number of chunks in i-dimension             nn_nchunks_i = ', nn_nchunks_i
          WRITE(numout,*) '      number of chunks in j-dimension             nn_nchunks_j = ', nn_nchunks_j
          WRITE(numout,*) '      number of chunks in k-dimension             nn_nchunks_k = ', nn_nchunks_k
@@ -523,9 +520,6 @@ CONTAINS
       snc4set%nj   = nn_nchunks_j
       snc4set%nk   = nn_nchunks_k
       snc4set%luse = ln_nc4zip
-#else
-      snc4set%luse = .FALSE.        ! No NetCDF 4 case
-#endif
       !
    END SUBROUTINE dom_nam
 

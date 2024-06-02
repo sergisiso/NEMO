@@ -47,15 +47,14 @@ MODULE in_out_manager
    INTEGER       ::   nn_no            !: Assimilation cycle
    LOGICAL       ::   ln_top           !: Allow (T) or bypass (F) the TOP calls when the key_top is activated
 
-#if defined key_netcdf4
    !!----------------------------------------------------------------------
-   !!                   namnc4 namelist parameters                         (key_netcdf4)
+   !!                   namnc4 namelist parameters
    !!----------------------------------------------------------------------
    ! The following four values determine the partitioning of the output fields
    ! into netcdf4 chunks. They are unrelated to the nn_chunk_sz setting which is
    ! for runtime optimisation. The individual netcdf4 chunks can be optionally
    ! gzipped (recommended) leading to significant reductions in I/O volumes
-   !                         !!!**  variables only used with iom_nf90 routines and key_netcdf4 **
+   !                         !!!**  variables only used with iom_nf90 routines **
    INTEGER ::   nn_nchunks_i   !: number of chunks required in the i-dimension
    INTEGER ::   nn_nchunks_j   !: number of chunks required in the j-dimension
    INTEGER ::   nn_nchunks_k   !: number of chunks required in the k-dimension
@@ -63,7 +62,6 @@ MODULE in_out_manager
    LOGICAL ::   ln_nc4zip      !: netcdf4 usage: (T) chunk and compress output using the HDF5 sublayers of netcdf4
    !                           !                 (F) ignore chunking request and use the netcdf4 library
    !                           !                     to produce netcdf3-compatible files
-#endif
 
 !$AGRIF_DO_NOT_TREAT
    TYPE(snc4_ctl)     :: snc4set        !: netcdf4 chunking control structure (always needed for decision making)
