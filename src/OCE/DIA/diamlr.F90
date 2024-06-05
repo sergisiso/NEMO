@@ -21,6 +21,7 @@ MODULE diamlr
    IMPLICIT NONE
    PRIVATE
 
+   REAL(wp), ALLOCATABLE , DIMENSION(:,:) ::   adatrj2d
    LOGICAL, PUBLIC ::   l_diamlr = .FALSE.   !:
 
    PUBLIC ::   dia_mlr_init, dia_mlr_iom_init, dia_mlr
@@ -100,6 +101,7 @@ CONTAINS
          & xios_is_valid_filegroup( "diamlr_files" ) ) THEN
          CALL xios_get_handle("diamlr_fields", slxhdl_fldgrp)
          CALL xios_get_handle("diamlr_files",  slxhdl_filgrp)
+         ALLOCATE( adatrj2d( T2D(0) ) )
       ELSE
          IF (lwp) THEN
             WRITE(numout, *) "diamlr: configuration not found or incomplete (field group 'diamlr_fields'"
@@ -168,11 +170,12 @@ CONTAINS
                CALL xios_get_handle( "diamlr_r"//cl3i, slxhdl_regs(ireg+1) )
                ! Retrieve pre-configured value of "enabled" attribute and
                ! regressor expression
-               CALL xios_get_attr  ( slxhdl_regs(ireg+1), enabled=llxatt_enabled, expr=clxatt_expr )
+               CALL xios_get_attr  ( slxhdl_regs(ireg+1), enabled=llxatt_enabled )
                ! If enabled, keep handle in list of active regressors; also
                ! substitute placeholders for tidal frequencies, phases, and
                ! nodal corrections in regressor expressions
                IF ( llxatt_enabled ) THEN
+                  CALL xios_get_attr  ( slxhdl_regs(ireg+1),  expr=clxatt_expr )
 
                   ! Substitution of placeholders for tidal-constituent
                   ! parameters (amplitudes, angular veloccities, nodal phase
@@ -259,22 +262,22 @@ CONTAINS
          CALL xios_get_handle( "diamlr_file_scalar", slxhdl_fil )
          CALL xios_add_child ( slxhdl_fil, slxhdl_fld, "diamlr_time_average" )
 !$AGRIF_DO_NOT_TREAT
-         CALL xios_set_attr  ( slxhdl_fld, standard_name="diamlr_time",                          &
-            &                  long_name="Elapsed model time at start of regression interval",   &
+         CALL xios_set_attr  ( slxhdl_fld, standard_name="diamlr_time_average",                  &
+            &                  long_name="Elapsed model time at middle of regression interval",  &
             &                  unit="s", operation="average", field_ref="diamlr_time",           &
             &                  grid_ref="diamlr_grid_2D_to_scalar" )
 !$AGRIF_END_DO_NOT_TREAT
          CALL xios_add_child ( slxhdl_fil, slxhdl_fld, "diamlr_time_minimum" )
 !$AGRIF_DO_NOT_TREAT
-         CALL xios_set_attr  ( slxhdl_fld, standard_name="diamlr_time",                          &
+         CALL xios_set_attr  ( slxhdl_fld, standard_name="diamlr_time_minimum",                  &
             &                  long_name="Elapsed model time at start of regression interval",   &
             &                  unit="s", operation="minimum", field_ref="diamlr_time",           &
             &                  grid_ref="diamlr_grid_2D_to_scalar" )
 !$AGRIF_END_DO_NOT_TREAT
          CALL xios_add_child ( slxhdl_fil, slxhdl_fld, "diamlr_time_maximum" )
 !$AGRIF_DO_NOT_TREAT
-         CALL xios_set_attr  ( slxhdl_fld, standard_name="diamlr_time",                          &
-            &                  long_name="Elapsed model time at start of regression interval",   &
+         CALL xios_set_attr  ( slxhdl_fld, standard_name="diamlr_time_maximum",                  &
+            &                  long_name="Elapsed model time at end of regression interval",     &
             &                  unit="s", operation="maximum", field_ref="diamlr_time",           &
             &                  grid_ref="diamlr_grid_2D_to_scalar" )
 !$AGRIF_END_DO_NOT_TREAT
@@ -405,8 +408,6 @@ CONTAINS
       !! ** Purpose : update time used in multiple-linear-regression analysis
       !!
       !!----------------------------------------------------------------------
-      REAL(wp), DIMENSION(T2D(0)) ::   zadatrj2d
-      !!----------------------------------------------------------------------
       INTEGER ::   ji, jj
 
       IF( ln_timing )   CALL timing_start('dia_mlr')
@@ -417,9 +418,9 @@ CONTAINS
       ! A 2-dimensional field of constant value is sent, and subsequently used directly 
       ! or transformed to a scalar or a constant 3-dimensional field as required.
       DO_2D( 0, 0, 0, 0 )
-         zadatrj2d(ji,jj) = adatrj*86400.0_wp
+         adatrj2d(ji,jj) = adatrj*86400.0_wp
       END_2D
-      IF ( iom_use('diamlr_time') ) CALL iom_put('diamlr_time', zadatrj2d)
+      IF ( iom_use('diamlr_time') ) CALL iom_put('diamlr_time', adatrj2d)
       !
       IF( ln_timing )   CALL timing_stop('dia_mlr')
       !
