@@ -402,7 +402,7 @@
   </grid>
   <grid id="diamlr_grid_2D_to_scalar" >
     <scalar>
-      <reduce_domain operation="average" />
+      <reduce_domain operation="average" local="true" />
     </scalar>
     <scalar />
   </grid>
