@@ -403,6 +403,92 @@ if [ ${config} == "LOCK_EXCHANGE" ] ;  then
 fi
 
 # ------
+# IWAVE 
+# ------
+if [ ${config} == "IWAVE" ] ;  then
+    SETTE_CONFIG="IWAVE"${CONFIG_SUFFIX}
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
+    then
+        ITEND=12
+    else
+        ITEND=120
+    fi
+
+    if [ ${DO_COMPILE} == "1" ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -a IWAVE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
+    fi
+
+    # Configure and submit test runs for the IWAVE SETTE configuration
+    # (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_PHYOPTS} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
+
+        # Default test-run configuration for the IWAVE SETTE
+        # configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"IWAVE\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+	if [ ${USING_RK3} == "no" ] ;  then
+            set_namelist namelist_cfg rn_Dt 1.
+            set_namelist namelist_cfg nn_bt_flt 1
+            set_namelist namelist_cfg rn_bt_alpha 0.
+        fi
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=1
+
+        ## Restartability tests for IWAVE 
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"IWAVE_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"IWAVE_SHORT\"
+            set_namelist_rst namelist ${ITEND} "IWAVE_LONG" "OCE"
+            set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
+
+    fi
+
+fi
+
+# ------
 # VORTEX
 # ------
 if [ ${config} == "VORTEX" ] ;  then
