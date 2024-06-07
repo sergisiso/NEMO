@@ -878,7 +878,7 @@ do
  echo "   !----repro----!   "
  for repro_test in ${TEST_CONFIGS[@]/C1D_PAPA}
  do
-   if [[ ${repro_test} != *"OVERFLOW"* && ${repro_test} != *"LOCK_EXCHANGE"* ]]; then
+   if [[ ${repro_test} != *"OVERFLOW"* && ${repro_test} != *"LOCK_EXCHANGE"* && ${repro_test} != *"IWAVE"* ]]; then
       reprotest $NEMO_VALID $repro_test $pass
    fi
  done

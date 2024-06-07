@@ -17,4 +17,5 @@ printf "%-15s \n" VORTEX
 printf "%-15s \n" ICE_AGRIF
 printf "%-15s \n" SWG
 printf "%-15s \n" ISOMIP+
+printf "%-15s \n" IWAVE
 echo ''
