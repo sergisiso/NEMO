@@ -10,7 +10,7 @@
   parallel:
     matrix:
       - HPC: [aa]
-        CONFIG: [SWG,ICE_AGRIF,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+]
+        CONFIG: [SWG,ICE_AGRIF,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+,IWAVE]
 
 
 # variables declared hereafter will be avaible in all jobs
