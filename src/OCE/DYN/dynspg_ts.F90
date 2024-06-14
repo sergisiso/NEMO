@@ -384,13 +384,17 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !                                   !=  Net water flux forcing applied to a water column  =!
       !                                   ! ---------------------------------------------------  !
       IF (ln_bt_fw) THEN                          ! FORWARD integration: use kt+1/2 fluxes (NOW+1/2)
-         ssh_frc(:,:) = r1_rho0 * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) )
+                        ssh_frc(:,:) =                emp(:,:)
+         IF( ln_rnf )   ssh_frc(:,:) = ssh_frc(:,:) - rnf(:,:)
+         IF( ln_isf )   ssh_frc(:,:) = ssh_frc(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:)
+                        ssh_frc(:,:) = r1_rho0 * ssh_frc(:,:)
       ELSE                                        ! CENTRED integration: use kt-1/2 + kt+1/2 fluxes (NOW)
          zztmp = r1_rho0 * r1_2
-         ssh_frc(:,:) = zztmp * (   emp(:,:)        + emp_b(:,:)          &
-            &                     - rnf(:,:)        - rnf_b(:,:)          &
-            &                     - fwfisf_cav(:,:) - fwfisf_cav_b(:,:)   &
-            &                     - fwfisf_par(:,:) - fwfisf_par_b(:,:)   )
+                        ssh_frc(:,:) =                emp(:,:)        + emp_b(:,:)
+         IF( ln_rnf )   ssh_frc(:,:) = ssh_frc(:,:) - rnf(:,:)        - rnf_b(:,:)
+         IF( ln_isf )   ssh_frc(:,:) = ssh_frc(:,:) - fwfisf_cav(:,:) - fwfisf_cav_b(:,:)   &
+            &                                       - fwfisf_par(:,:) - fwfisf_par_b(:,:) 
+                        ssh_frc(:,:) = zztmp * ssh_frc(:,:)
       ENDIF
       !                                   !=  Add Stokes drift divergence  =!   (if exist)
       IF( ln_sdw ) THEN                   !  -----------------------------  !

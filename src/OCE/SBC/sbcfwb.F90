@@ -18,7 +18,7 @@ MODULE sbcfwb
    USE oce            ! ocean dynamics and tracers
    USE dom_oce        ! ocean space and time domain
    USE sbc_oce        ! surface ocean boundary condition
-   USE isf_oce , ONLY : fwfisf_cav, fwfisf_par, ln_isfcpl, ln_isfcpl_cons, risfcpl_cons_ssh ! ice shelf melting contribution
+   USE isf_oce , ONLY : fwfisf_cav, fwfisf_par, ln_isf, ln_isfcpl, ln_isfcpl_cons, risfcpl_cons_ssh ! ice shelf melting contribution
    USE sbc_ice , ONLY : snwice_mass, snwice_mass_b, snwice_fmass
    USE phycst         ! physical constants
    USE sbcrnf         ! ocean runoffs
@@ -87,7 +87,7 @@ CONTAINS
       !
       INTEGER  ::   ios, inum, ikty, igrid
       INTEGER  ::   ji, jj, istart, iend, jstart, jend
-      REAL(wp) ::   z_fwf, z_fwf_nsrf, zsum_fwf, zsum_erp, z_fwfprv  
+      REAL(wp) ::   z_fwf, z_fwf_nsrf, zsum_fwf, zsum_erp
       REAL(wp) ::   zsurf_neg, zsurf_pos, zsurf_tospread
 #if ! defined key_PSYCLONE_2p5p0
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztmsk_neg, ztmsk_pos, z_wgt ! 2D workspaces
@@ -96,6 +96,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)) ::   ztmsk_neg, ztmsk_pos, z_wgt ! 2D workspaces
       REAL(wp), DIMENSION(A2D(0)) ::   ztmsk_tospread, zerp_cor    !   -      -
 #endif
+      REAL(wp), DIMENSION(A2D(0)) ::   zemp
       COMPLEX(dp) ::   y_fwfnow  
       !
       NAMELIST/namsbc_fwb/rn_fwb0, nn_fwb_voltype, ln_hvolg_var, rn_hvolg_amp, rn_hvolg_trd, nn_hvolg_mth
@@ -230,17 +231,12 @@ CONTAINS
                ! No child grid, correct "now" fluxes (i.e. as in the "no agrif" case)
 #endif
                IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
-                  SELECT CASE (nn_fwb_voltype)
-                  CASE( 1 )
-                     z_fwfprv = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * (  emp(A2D(0)) - rnf(A2D(0))                & 
-                               &                                      - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) & 
-                               &                                      - snwice_fmass(A2D(0)) ), cdelay = 'fwb1' )
-                  CASE( 2 )
-                     z_fwfprv  = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * (  emp(A2D(0)) - rnf(A2D(0))                & 
-                                &                                      - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ), cdelay = 'fwb1')
-                  END SELECT
+                                             zemp(A2D(0)) =                emp(A2D(0))
+                  IF( ln_rnf )               zemp(A2D(0)) = zemp(A2D(0)) - rnf(A2D(0))
+                  IF( ln_isf )               zemp(A2D(0)) = zemp(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0))
+                  IF(  nn_fwb_voltype == 1 ) zemp(A2D(0)) = zemp(A2D(0)) - snwice_fmass(A2D(0)) 
+                  emp_corr = emp_ext - glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * zemp(A2D(0)), cdelay = 'fwb1') / area
               ENDIF
-              emp_corr = emp_ext - z_fwfprv / area
 #if defined key_agrif
             ELSE
                !
@@ -426,12 +422,11 @@ CONTAINS
             WHERE( erp < 0._wp )   ztmsk_pos = 0._wp
             ztmsk_neg(:,:) = smask0_i(:,:) - ztmsk_pos(:,:)
             !                                                  ! fwf global mean (excluding ocean to ice/snow exchanges)
-            SELECT CASE (nn_fwb_voltype)
-            CASE( 1 )  
-               z_fwf     = -emp_ext + glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) - snwice_fmass(A2D(0)) ), cdelay = 'fwb3.1' ) / area
-            CASE( 2 )
-               z_fwf     = -emp_ext + glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ), cdelay = 'fwb3.1' ) / area
-            END SELECT
+                                       zemp(A2D(0)) =                emp(A2D(0))
+            IF( ln_rnf )               zemp(A2D(0)) = zemp(A2D(0)) - rnf(A2D(0))
+            IF( ln_isf )               zemp(A2D(0)) = zemp(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0))
+            IF(  nn_fwb_voltype == 1 ) zemp(A2D(0)) = zemp(A2D(0)) - snwice_fmass(A2D(0)) 
+            z_fwf     = -emp_ext + glob_2Dsum( 'sbcfwb', e1e2t(A2D(0)) * zemp(A2D(0)), cdelay = 'fwb3.1' ) / area
             !            
             IF( z_fwf < 0._wp ) THEN         ! spread out over >0 erp area to increase evaporation
                zsurf_pos = glob_2Dsum( 'sbcfwb', e1e2t(A2D(0))*ztmsk_pos(:,:), cdelay = 'fwb3.2' )
@@ -482,13 +477,11 @@ CONTAINS
          !
          IF( MOD( kt-1, kn_fsbc ) == 0 ) THEN
             !                                                  ! fwf global mean (excluding ocean to ice/snow exchanges)
-            SELECT CASE (nn_fwb_voltype)
-            CASE( 1 )
-               y_fwfnow = local_2Dsum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) &
-                  &                                                      - snwice_fmass(A2D(0)) ) )
-            CASE( 2 )
-               y_fwfnow = local_2Dsum( e1e2t(A2D(0)) * ( emp(A2D(0)) - rnf(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0)) ) )
-            END SELECT
+                                       zemp(A2D(0)) =                emp(A2D(0))
+            IF( ln_rnf )               zemp(A2D(0)) = zemp(A2D(0)) - rnf(A2D(0))
+            IF( ln_isf )               zemp(A2D(0)) = zemp(A2D(0)) - fwfisf_cav(A2D(0)) - fwfisf_par(A2D(0))
+            IF(  nn_fwb_voltype == 1 ) zemp(A2D(0)) = zemp(A2D(0)) - snwice_fmass(A2D(0))
+            y_fwfnow = local_2Dsum( e1e2t(A2D(0)) * zemp(A2D(0)) )
             ! correction for ice sheet coupling testing (ie remove the excess through the surface)
             ! test impact on the melt as conservation correction made in depth
             ! test conservation level as sbcfwb is conserving

@@ -13,7 +13,7 @@ MODULE bdyvol
    USE oce            ! ocean dynamics and tracers 
    USE bdy_oce        ! ocean open boundary conditions
    USE sbc_oce        ! ocean surface boundary conditions
-   USE isf_oce, ONLY : fwfisf_cav, fwfisf_par  ! ice shelf
+   USE isf_oce, ONLY : ln_isf, fwfisf_cav, fwfisf_par  ! ice shelf
    USE dom_oce        ! ocean space and time domain 
    USE phycst         ! physical constants
    !
@@ -62,20 +62,26 @@ CONTAINS
       !!            surface. 
       !!            (set nn_volctl to 1 in tne namelist for this option)
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in) ::   kt, kc   ! ocean time-step index, cycle time-step
+      INTEGER                     , INTENT(in   ) :: kt, kc        ! ocean time-step index, cycle time-step
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(inout) :: pua2d, pva2d  ! Barotropic velocities
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: phu, phv      ! Ocean depth at U- and V-points
       !
       INTEGER  ::   ji, jj, jk, jb, jgrd
       INTEGER  ::   ib_bdy, ii, ij
       REAL(wp) ::   zubtpecor, ztranst
-      REAL(wp), SAVE :: z_cflxemp                                  ! cumulated emp flux
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(inout) :: pua2d, pva2d  ! Barotropic velocities
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: phu, phv         ! Ocean depth at U- and V-points
+      REAL(wp), SAVE :: z_cflxemp    ! cumulated emp flux
+      REAL(wp), DIMENSION(jpi,jpj) :: zwght 
       TYPE(OBC_INDEX), POINTER :: idx
       !!-----------------------------------------------------------------------------
       !
       ! Calculate the cumulate surface Flux z_cflxemp (m3/s) over all the domain
       ! -----------------------------------------------------------------------
-      IF ( kc == 1 ) z_cflxemp = glob_2Dsum( 'bdyvol', ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) ) * bdytmask(:,:) * e1e2t(:,:)  ) / rho0
+      IF ( kc == 1 ) THEN
+                       zwght(:,:) =              emp(:,:)
+         IF( ln_rnf )  zwght(:,:) = zwght(:,:) - rnf(:,:)
+         IF( ln_isf )  zwght(:,:) = zwght(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:)
+         z_cflxemp = glob_2Dsum( 'bdyvol', zwght(:,:) * bdytmask(:,:) * e1e2t(:,:) ) * r1_rho0
+      ENDIF
 
       ! Compute bdy surface each cycle if non linear free surface
       ! ---------------------------------------------------------

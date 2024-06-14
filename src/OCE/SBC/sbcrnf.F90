@@ -276,9 +276,6 @@ CONTAINS
          &                 ln_rnf_depth_ini  , rn_dep_max  , rn_rnf_max, nn_rnf_depth_file
       !!----------------------------------------------------------------------
       !
-      !                                         !==  allocate runoff arrays
-      IF( sbc_rnf_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'sbc_rnf_alloc : unable to allocate arrays' )
-      !
       !                                   ! ============
       !                                   !   Namelist
       !                                   ! ============
@@ -292,13 +289,10 @@ CONTAINS
          ln_rnf_tem    = .FALSE.
          ln_rnf_sal    = .FALSE.
          ln_rnf_icb    = .FALSE.
-         nkrnf         = 0
-         rnf     (:,:) = 0.0_wp
-         rnf_b   (:,:) = 0.0_wp
-         rnfmsk  (:,:) = 0.0_wp
-         rnfmsk_z(:)   = 0.0_wp
          RETURN
       ENDIF
+      !                                         !==  allocate runoff arrays
+      IF( sbc_rnf_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'sbc_rnf_alloc : unable to allocate arrays' )
       !
       !                                         ! Control print
       IF(lwp) THEN

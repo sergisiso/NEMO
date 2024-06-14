@@ -407,6 +407,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpt), INTENT(inout) ::   pssh           ! SSH field
       !
       REAL(wp) ::   zcoef   ! local scalar
+      REAL(wp), DIMENSION(jpi,jpj) ::   zwght
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('ssh_atf')
@@ -419,17 +420,15 @@ CONTAINS
       !
       IF( .NOT.l_1st_euler ) THEN   ! Apply Asselin time filter on Kmm field (not on euler 1st)
          !
-         IF( lk_linssh ) THEN                ! filtered "now" field
-            pssh(:,:,Kmm) = pssh(:,:,Kmm) + rn_atfp * ( pssh(:,:,Kbb) - 2 * pssh(:,:,Kmm) + pssh(:,:,Kaa) )
-            !
-         ELSE                                ! filtered "now" field with forcing removed
+         pssh(:,:,Kmm) = pssh(:,:,Kmm) + rn_atfp * ( pssh(:,:,Kbb) - 2 * pssh(:,:,Kmm) + pssh(:,:,Kaa) )
+         !
+         IF( .NOT. lk_linssh ) THEN                ! filtered "now" field with forcing removed
             zcoef = rn_atfp * rn_Dt * r1_rho0
-            pssh(:,:,Kmm) = pssh(:,:,Kmm) + rn_atfp * ( pssh(:,:,Kbb) - 2 * pssh(:,:,Kmm) + pssh(:,:,Kaa) )   &
-               &                          - zcoef   * (         emp_b(:,:) -        emp(:,:)   &
-               &                                              - rnf_b(:,:) +        rnf(:,:)   &
-               &                                       - fwfisf_cav_b(:,:) + fwfisf_cav(:,:)   &
-               &                                       - fwfisf_par_b(:,:) + fwfisf_par(:,:)   ) * ssmask(:,:)
-
+                          zwght(:,:) =              emp_b(:,:)        - emp(:,:)
+            IF( ln_rnf )  zwght(:,:) = zwght(:,:) - rnf_b(:,:)        + rnf(:,:)
+            IF( ln_isf )  zwght(:,:) = zwght(:,:) - fwfisf_cav_b(:,:) + fwfisf_cav(:,:)   &
+               &                                  - fwfisf_par_b(:,:) + fwfisf_par(:,:)
+            pssh(:,:,Kmm) = pssh(:,:,Kmm) - zcoef * zwght(:,:) * ssmask(:,:)
             ! ice sheet coupling
             IF( ln_isf .AND. ln_isfcpl .AND. kt == nit000+1 )   &
                &   pssh(:,:,Kbb) = pssh(:,:,Kbb) - rn_atfp * rn_Dt * ( risfcpl_ssh(:,:) - 0._wp ) * ssmask(:,:)

@@ -431,6 +431,11 @@ CONTAINS
       READ_NML_CFG(numnam,namtra_adv)
       IF(lwm) WRITE( numond, namtra_adv )
       !
+      IF( ln_mus_ups .AND. .NOT. ln_rnf ) THEN
+         CALL ctl_warn( 'tra_adv_init: with no runoff at all, ln_mus_ups is set to .FALSE. ')
+         ln_mus_ups = .FALSE.   ! must be set for all processes, so out of the "IF(lwp)"
+      ENDIF
+      !
       IF(lwp) THEN                           ! Namelist print
          WRITE(numout,*)
          WRITE(numout,*) 'tra_adv_init : choice/control of the tracer advection scheme'

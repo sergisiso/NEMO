@@ -795,6 +795,10 @@ CONTAINS
             CALL ctl_stop( 'zdf_tke_init: with no ice model, nn_mxlice must be 0 or 1')
          ENDIF
       ENDIF
+      IF( nn_eice > 0 .AND. nn_ice == 0 ) THEN
+         CALL ctl_warn( 'zdf_tke_init: with no ice at all, nn_eice is set to 0 ')
+         nn_eice = 0   ! must be set for all processes, so out of the "IF(lwp)"
+      ENDIF
       IF(lwp) THEN                    !* Control print   
          IF( ln_mxl0 ) THEN
             WRITE(numout,*) '      type of scaling under sea-ice               nn_mxlice = ', nn_mxlice
