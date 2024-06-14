@@ -294,10 +294,11 @@ CONTAINS
                &     ztc_f  = ztc_f  - zfact1 * ( qsr_hc(ji,jj,jk) - qsr_hc_b(ji,jj,jk) )
             !
             !
-            IF( ll_rnf .AND. jk <= nk_rnf(ji,jj) )                                          &
+            IF( ll_rnf ) THEN
+               IF( jk <= nk_rnf(ji,jj) )                                          &
                &     ztc_f  = ztc_f  - zfact1 * ( rnf_tsc(ji,jj,jn) - rnf_tsc_b(ji,jj,jn) ) &
                &                              * e3t(ji,jj,jk,Kmm) / h_rnf(ji,jj)
-
+            ENDIF
             !
             ! ice shelf
             IF( ll_isf ) THEN

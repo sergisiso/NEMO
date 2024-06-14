@@ -276,9 +276,9 @@ CONTAINS
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
          CALL histdef( nid_T, "sss_m", "Sea Surface Salinity"               , "PSU"    ,   &  ! sss
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
-         CALL histdef( nid_T, "sowaflup", "Net Upward Water Flux"              , "Kg/m2/s",   &  ! (emp-rnf)
+         CALL histdef( nid_T, "sowaflup", "Net Upward Water Flux"              , "Kg/m2/s",   &  ! emp, no runoff in SAS
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
-         CALL histdef( nid_T, "sosfldow", "downward salt flux"                 , "PSU/m2/s",  &  ! (sfx)
+         CALL histdef( nid_T, "sosfldow", "downward salt flux"                 , "PSU/m2/s",  &  ! sfx
              &         jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
          CALL histdef( nid_T, "sohefldo", "Net Downward Heat Flux"             , "W/m2"   ,   &  ! qns + qsr
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
@@ -355,7 +355,7 @@ CONTAINS
       ! Write fields on T grid
       CALL histwrite( nid_T, "sst_m", it, sst_m, ndim_hT, ndex_hT )   ! sea surface temperature
       CALL histwrite( nid_T, "sss_m", it, sss_m, ndim_hT, ndex_hT )   ! sea surface salinity
-      CALL histwrite( nid_T, "sowaflup", it, (emp - rnf )  , ndim_hT, ndex_hT )   ! upward water flux
+      CALL histwrite( nid_T, "sowaflup", it, emp           , ndim_hT, ndex_hT )   ! upward water flux, no runoff in SAS
       CALL histwrite( nid_T, "sosfldow", it, sfx           , ndim_hT, ndex_hT )   ! downward salt flux 
                                                                                   ! (includes virtual salt flux beneath ice 
                                                                                   ! in linear free surface case)
@@ -443,7 +443,7 @@ CONTAINS
       CALL iom_rstput( 0, 0, inum, 'vozocrtx', uu (:,:,:,       Kmm) )    ! now i-velocity
       CALL iom_rstput( 0, 0, inum, 'vomecrty', vv (:,:,:,       Kmm) )    ! now j-velocity
       CALL iom_rstput( 0, 0, inum, 'vovecrtz', ww                    )    ! now k-velocity
-      CALL iom_rstput( 0, 0, inum, 'sowaflup', emp - rnf             )    ! freshwater budget
+      CALL iom_rstput( 0, 0, inum, 'sowaflup', emp                   )    ! freshwater budget, no runoff in SAS
       CALL iom_rstput( 0, 0, inum, 'sohefldo', qsr + qns             )    ! total heat flux
       CALL iom_rstput( 0, 0, inum, 'soshfldo', qsr                   )    ! solar heat flux
       CALL iom_rstput( 0, 0, inum, 'soicecov', fr_i                  )    ! ice fraction

@@ -245,7 +245,10 @@ CONTAINS
       !                 !=======================================!
       !
       !                             !*  Net water flux forcing   (applied to a water column)
-      sshe_rhs(:,:) = r1_rho0 * ( emp(:,:) - rnf(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:) )
+                     sshe_rhs(:,:) =                 emp(:,:)
+      IF( ln_rnf )   sshe_rhs(:,:) = sshe_rhs(:,:) - rnf(:,:)
+      IF( ln_isf )   sshe_rhs(:,:) = sshe_rhs(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:)
+                     sshe_rhs(:,:) = r1_rho0 * sshe_rhs(:,:)
       !
       !                             !* Stokes drift divergence
       IF( ln_sdw )   sshe_rhs(:,:) = sshe_rhs(:,:) + div_sd(:,:)

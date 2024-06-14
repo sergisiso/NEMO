@@ -135,7 +135,7 @@ CONTAINS
       fwfice(:,:)          = - sf_dyn(jf_fwf)%fnow(:,:,1) * smask0(:,:)    ! ice-ocean freshwater flux (>0 to the ocean)
       fr_i(:,:)            =   sf_dyn(jf_ice)%fnow(:,:,1) * tmask (:,:,1)  ! Sea-ice fraction
       qsr (:,:)            =   sf_dyn(jf_qsr)%fnow(:,:,1) * smask0(:,:)    ! solar radiation
-      emp (:,:)            =   sf_dyn(jf_emp)%fnow(:,:,1) * tmask (:,:,1)  ! E-P
+      emp (:,:)            =   sf_dyn(jf_emp)%fnow(:,:,1) * tmask (:,:,1)  ! E-P-R (  in grid_T output file )
       IF( ln_dynrnf ) THEN 
          rnf (:,:)         = sf_dyn(jf_rnf)%fnow(:,:,1) * tmask (:,:,1)  ! rnf
          IF( ln_dynrnf_depth .AND. .NOT. lk_linssh )    CALL  dta_dyn_rnf( Kmm )
@@ -147,9 +147,16 @@ CONTAINS
       !
       IF( .NOT.lk_linssh ) THEN
          ALLOCATE( zemp(jpi,jpj) , zhdivtr(jpi,jpj,jpk) )
-         zhdivtr(:,:,:) = sf_dyn(jf_div)%fnow(:,:,:)  * tmask(:,:,:)    ! effective u-transport
-         emp_b  (:,:)   = sf_dyn(jf_empb)%fnow(:,:,1) * tmask(:,:,1)    ! E-P
-         zemp   (:,:)   = ( 0.5_wp * ( emp(:,:) + emp_b(:,:) ) + rnf(:,:) ) * tmask(:,:,1)
+         zhdivtr(:,:,:)    = sf_dyn(jf_div)%fnow(:,:,:)  * tmask(:,:,:)    ! horizontal divergence transport including runoffs
+                                                                           ! see  sbc_rnf_div in sbcrnf.F90
+#if  defined key_RK3
+         zemp (:,:)        =  emp(:,:) 
+#else
+         emp_b(:,:)        = sf_dyn(jf_empb)%fnow(:,:,1) * tmask(:,:,1)    ! E-P-R  ( in grid_T output file )
+         zemp (:,:)        =  0.5_wp * ( emp(:,:) + emp_b(:,:) )
+#endif         
+         IF( ln_dynrnf )  zemp(:,:) = zemp(:,:) + rnf(:,:)                 ! remove runoff from emp since it is already included in zhdivtr
+                          zemp(:,:) = zemp(:,:) * tmask(:,:,1)
 #if defined key_qco
          CALL dta_dyn_ssh( kt, zhdivtr, ssh(:,:,Kbb), zemp, ssh(:,:,Kaa) )
          CALL dom_qco_r3c( ssh(:,:,Kaa), r3t(:,:,Kaa), r3u(:,:,Kaa), r3v(:,:,Kaa) )
@@ -272,8 +279,6 @@ CONTAINS
       IF( ln_dynrnf ) THEN
                jf_rnf  = jfld + 1   ;     jfld  = jf_rnf
          slf_d(jf_rnf) = sn_rnf    
-      ELSE
-         rnf(:,:) = 0._wp
       ENDIF
 
       ALLOCATE( sf_dyn(jfld), STAT=ierr )         ! set sf structure
@@ -348,7 +353,7 @@ CONTAINS
       !
       ncpl_qsr_freq = sf_dyn(jf_qsr)%freqh  * 3600   !  Get qsr frequency ( needed if diurnal cycle in TOP
       !
-      CALL dta_dyn_rnf_init( Kmm )
+      IF( ln_rnf )   CALL dta_dyn_rnf_init( Kmm )
       !
       CALL dta_dyn( nit000, Kbb, Kmm, Kaa )
       !
@@ -419,7 +424,7 @@ CONTAINS
       !                                                ! Sea surface  elevation time-stepping
       pssha(:,:) = ( psshb(:,:) - z2dt * ( r1_rho0 * pemp(:,:)  + zhdiv(:,:) ) ) * ssmask(:,:)
       !
-      IF( PRESENT( pe3ta ) ) THEN                      ! After acale factors at t-points ( z_star coordinate )
+      IF( PRESENT( pe3ta ) ) THEN                      ! After scale factors at t-points ( z_star coordinate )
       DO jk = 1, jpkm1
             pe3ta(:,:,jk) = e3t_0(:,:,jk) * ( 1._wp + pssha(:,:) * r1_ht_0(:,:) * tmask(:,:,jk) )
       END DO

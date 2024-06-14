@@ -200,6 +200,8 @@ CONTAINS
       !
       CALL isf_nam()                                              ! Read namelist
       !
+      IF( .NOT. ln_isf ) RETURN
+      !
       CALL isf_alloc()                                            ! Allocate public array
       !
       ! initalisation of fwf and tsc array to 0

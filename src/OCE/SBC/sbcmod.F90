@@ -619,8 +619,13 @@ CONTAINS
       !                                                !        Outputs and control print         !
       !                                                ! ---------------------------------------- !
       IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN
-         CALL iom_put( "empmr"  , emp(A2D(0))-rnf(A2D(0))     )                ! upward water flux
-         CALL iom_put( "empbmr" , emp_b(A2D(0))-rnf(A2D(0))   )                ! before upward water flux (for ssh in offline )
+         IF( ln_rnf ) THEN
+            CALL iom_put( "empmr"  , emp(A2D(0))-rnf(A2D(0))     )                ! upward water flux
+            CALL iom_put( "empbmr" , emp_b(A2D(0))-rnf(A2D(0))   )                ! before upward water flux (for ssh in offline )
+         ELSE
+            CALL iom_put( "empmr"  , emp(A2D(0))    )          ! upward water flux
+            CALL iom_put( "empbmr" , emp_b(A2D(0))  )          ! before upward water flux (for ssh in offline )
+         ENDIF
          CALL iom_put( "saltflx", sfx         )                ! downward salt flux
          CALL iom_put( "fwfice" , fwfice      )                ! ice-ocean freshwater flux
          CALL iom_put( "qt"     , qns+qsr     )                ! total heat flux
@@ -635,8 +640,13 @@ CONTAINS
       !
       IF(sn_cfctl%l_prtctl) THEN     ! print mean trends (used for debugging)
          CALL prt_ctl(tab2d_1=fr_i                , clinfo1=' fr_i     - : ', mask1=tmask )
-         CALL prt_ctl(tab2d_1=(emp-rnf)           , clinfo1=' emp-rnf  - : ', mask1=tmask )
-         CALL prt_ctl(tab2d_1=(sfx-rnf(A2D(0)))   , clinfo1=' sfx-rnf  - : ', mask1=tmask )
+         IF( ln_rnf ) THEN
+            CALL prt_ctl(tab2d_1=emp-rnf          , clinfo1=' emp-rnf  - : ', mask1=tmask )
+            CALL prt_ctl(tab2d_1=sfx-rnf(A2D(0))  , clinfo1=' sfx-rnf  - : ', mask1=tmask )
+         ELSE
+            CALL prt_ctl(tab2d_1=emp              , clinfo1=' emp      - : ', mask1=tmask )
+            CALL prt_ctl(tab2d_1=sfx              , clinfo1=' sfx      - : ', mask1=tmask )
+         ENDIF
          CALL prt_ctl(tab2d_1=qns                 , clinfo1=' qns      - : ', mask1=tmask )
          CALL prt_ctl(tab2d_1=qsr                 , clinfo1=' qsr      - : ', mask1=tmask )
          CALL prt_ctl(tab3d_1=tmask               , clinfo1=' tmask    - : ', mask1=tmask, kdim=jpk )

@@ -96,10 +96,10 @@ CONTAINS
       ! ------------------------- !
       ! prepare trends
       DO_2D( 0, 0, 0, 0 )
-         ztmp(ji,jj,1)  = - r1_rho0 * (   emp(ji,jj)        &                         ! volume
-             &                          - rnf(ji,jj)        &
-             &                          - fwfisf_cav(ji,jj) &
-             &                          - fwfisf_par(ji,jj) ) * surf(ji,jj)
+                        ztmp(ji,jj,1)  =                 emp(ji,jj)                         ! volume
+         IF( ln_rnf )   ztmp(ji,jj,1)  = ztmp(ji,jj,1) - rnf(ji,jj)
+         IF( ln_isf )   ztmp(ji,jj,1)  = ztmp(ji,jj,1) - fwfisf_cav(ji,jj) - fwfisf_par(ji,jj)
+         ztmp(ji,jj,1)  =  - r1_rho0 * ztmp(ji,jj,1) * surf(ji,jj)
 #if defined key_RK3
          ztmp(ji,jj,2)  =   0._wp !!sbc_tsc(ji,jj,jp_tem) * surf(ji,jj)               ! heat => clem: needs to be sorted out for rk3
          ztmp(ji,jj,3)  =   0._wp !!sbc_tsc(ji,jj,jp_sal) * surf(ji,jj)               ! salt => clem: needs to be sorted out for rk3

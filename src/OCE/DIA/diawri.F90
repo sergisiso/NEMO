@@ -795,6 +795,7 @@ CONTAINS
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
          CALL histdef( nid_T, "sowaflup", "Net Upward Water Flux"              , "Kg/m2/s",   &  ! (emp-rnf)
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
+         IF( ln_rnf)   &
          CALL histdef( nid_T, "sorunoff", "River runoffs"                      , "Kg/m2/s",   &  ! runoffs
             &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
          CALL histdef( nid_T, "sosfldow", "downward salt flux"                 , "PSU/m2/s",  &  ! sfx
@@ -1004,11 +1005,15 @@ CONTAINS
          CALL histwrite( nid_T, "vovvldef", it, z3d        , ndim_T , ndex_T  )   ! level thickness deformation
       ENDIF
       CALL histwrite( nid_T, "sossheig", it, ssh(:,:,Kmm)  , ndim_hT, ndex_hT )   ! sea surface height
-      DO_2D( 0, 0, 0, 0 )
-         z2d(ji,jj) = emp(ji,jj) - rnf(ji,jj)
-      END_2D
-      CALL histwrite( nid_T, "sowaflup", it, z2d           , ndim_hT, ndex_hT )   ! upward water flux
-      CALL histwrite( nid_T, "sorunoff", it, rnf           , ndim_hT, ndex_hT )   ! river runoffs
+      IF( ln_rnf ) THEN 
+         DO_2D( 0, 0, 0, 0 )
+            z2d(ji,jj) = emp(ji,jj) - rnf(ji,jj)
+         END_2D
+         CALL histwrite( nid_T, "sowaflup", it, z2d        , ndim_hT, ndex_hT )   ! upward water flux
+         CALL histwrite( nid_T, "sorunoff", it, rnf        , ndim_hT, ndex_hT )   ! river runoffs
+      ELSE
+         CALL histwrite( nid_T, "sowaflup", it, emp        , ndim_hT, ndex_hT )   ! upward water flux
+      ENDIF
       CALL histwrite( nid_T, "sosfldow", it, sfx           , ndim_hT, ndex_hT )   ! downward salt flux 
                                                                                   ! (includes virtual salt flux beneath ice 
                                                                                   ! in linear free surface case)
@@ -1214,10 +1219,14 @@ CONTAINS
          CALL iom_rstput( 0, 0, inum,  'ahmt', ahmt              )    ! ahmt at u-point
          CALL iom_rstput( 0, 0, inum,  'ahmf', ahmf              )    ! ahmf at v-point
       ENDIF
-      DO_2D( 0, 0, 0, 0 )
-         z2d(ji,jj) = emp(ji,jj) - rnf(ji,jj)
-      END_2D
-      CALL iom_rstput( 0, 0, inum, 'sowaflup', z2d               )    ! freshwater budget
+      IF( ln_rnf ) THEN 
+         DO_2D( 0, 0, 0, 0 )
+            z2d(ji,jj) = emp(ji,jj) - rnf(ji,jj)
+         END_2D
+         CALL iom_rstput( 0, 0, inum, 'sowaflup', z2d            )    ! freshwater budget
+      ELSE
+         CALL iom_rstput( 0, 0, inum, 'sowaflup', emp            )    ! freshwater budget
+      ENDIF
       DO_2D( 0, 0, 0, 0 )
          z2d(ji,jj) = qsr(ji,jj) + qns(ji,jj)
       END_2D

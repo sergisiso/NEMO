@@ -116,9 +116,9 @@ CONTAINS
             !
             IF( nn_sssr == 1 ) THEN                                   !* Salinity damping term (salt flux only (sfx))
                zsrp = rn_deds / rday                                  ! from [mm/day] to [kg/m2/s]
+               IF( ln_rnf ) coefice(A2D(0)) = coefice(A2D(0)) * ( 1. - 2.*rnfmsk(A2D(0)) )  ! No damping in vicinity of river mouths
                DO_2D( 0, 0, 0, 0 )
-                  zerp = zsrp * ( 1. - 2.*rnfmsk(ji,jj) )   &      ! No damping in vicinity of river mouths
-                     &        *   coefice(ji,jj)            &      ! Optional control of damping under sea-ice
+                  zerp = zsrp *   coefice(ji,jj)            &      ! Optional control of damping under sea-ice
                      &        * ( sss_m(ji,jj) - sf_sss(1)%fnow(ji,jj,1) ) * smask0(ji,jj)
                   sfx(ji,jj) = sfx(ji,jj) + zerp                 ! salt flux
                   erp(ji,jj) = zerp / MAX( sss_m(ji,jj), 1.e-20 ) ! converted into an equivalent volume flux (diagnostic only)
@@ -127,9 +127,9 @@ CONTAINS
             ELSEIF( nn_sssr == 2 ) THEN                               !* Salinity damping term (volume flux (emp) and associated heat flux (qns)
                zsrp = rn_deds / rday                                  ! from [mm/day] to [kg/m2/s]
                zerp_bnd = rn_sssr_bnd / rday                          !       -              -    
+               IF( ln_rnf ) coefice(A2D(0)) = coefice(A2D(0)) * ( 1. - 2.*rnfmsk(A2D(0)) )  ! No damping in vicinity of river mouths
                DO_2D( 0, 0, 0, 0 )
-                  zerp = zsrp * ( 1. - 2.*rnfmsk(ji,jj) )   &      ! No damping in vicinity of river mouths
-                     &        *   coefice(ji,jj)            &      ! Optional control of damping under sea-ice
+                  zerp = zsrp *   coefice(ji,jj)            &      ! Optional control of damping under sea-ice
                      &        * ( sss_m(ji,jj) - sf_sss(1)%fnow(ji,jj,1) )   &
                      &        / MAX(  sss_m(ji,jj), 1.e-20   ) * smask0(ji,jj)
                   IF( ln_sssr_bnd )   zerp = SIGN( 1.0_wp, zerp ) * MIN( zerp_bnd, ABS(zerp) )

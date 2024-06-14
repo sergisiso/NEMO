@@ -26,7 +26,7 @@ MODULE sbcclo
    !
    USE dom_oce,     ONLY: e1e2t                ! ocean space and time domain
    USE phycst ,     ONLY: rcp                  ! physical constants
-   USE sbc_oce,     ONLY: emp, qns, rnf, sst_m ! ocean surface boundary conditions
+   USE sbc_oce,     ONLY: emp, qns, ln_rnf, rnf, sst_m ! ocean surface boundary conditions
    USE iom    ,     ONLY: iom_put              ! I/O routines
    USE lib_fortran, ONLY: glob_2Dsum           ! fortran library
    USE lib_mpp    , ONLY: mpp_min, ctl_stop    ! MPP library
@@ -257,17 +257,20 @@ MODULE sbcclo
       INTEGER ::   jcs                                     ! loop index over closed sea 
       INTEGER , DIMENSION(jpi,jpj,kncs) ::   imsk_src, imsk_trg  ! tmp array source and target closed sea masks
       REAL(wp), DIMENSION(A2D(0) ,kncs) ::   zmsk_src            ! tmp array source and target closed sea masks
-      
+      REAL(wp), DIMENSION(A2D(0)      ) ::   zemp
       REAL(wp), DIMENSION(kncs) ::   zcsfw, zcsh, zsurftrg       ! total fresh water and associated heat over one closed sea
       REAL(wp) ::   zcsfwf                                                 ! mean fresh water flux over one closed sea
       !!----------------------------------------------------------------------
       !
       ! 0. get mask and surface of the closed sea
+                     zemp(A2D(0)) =                emp(A2D(0))
+      IF( ln_rnf )   zemp(A2D(0)) = zemp(A2D(0)) - rnf(A2D(0))
+                     zemp(A2D(0)) = e1e2t(A2D(0)) * zemp(A2D(0))
       DO jcs = 1, kncs  ! loop over closed seas
          !
          imsk_src(:,:,jcs) = MERGE( 1, 0, kmsk_src(:,:) == jcs )
          !
-         zmsk_src(:,:,jcs) = e1e2t(A2D(0)) * ( emp(A2D(0))-rnf(A2D(0)) ) * imsk_src(A2D(0),jcs)
+         zmsk_src(:,:,jcs) = zemp(A2D(0)) * imsk_src(A2D(0),jcs)
          !
       ENDDO
       ! 1. Work out net freshwater over the closed sea from EMP - RNF.
