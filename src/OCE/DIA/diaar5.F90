@@ -520,15 +520,14 @@ CONTAINS
       !
       !!----------------------------------------------------------------------
       !
-      l_diaar5 = .FALSE.
-      IF(   iom_use( 'voltot'  ) .OR. iom_use( 'sshtot'    )  .OR. iom_use( 'sshdyn' )  .OR.  &
-         &  iom_use( 'masstot' ) .OR. iom_use( 'temptot'   )  .OR. iom_use( 'saltot' ) .OR.  &
-         &  iom_use( 'botpres' ) .OR. iom_use( 'sshthster' )  .OR. iom_use( 'sshsteric' ) .OR. &
-         &  iom_use( 'uadv_heattr' ) .OR. iom_use( 'udiff_heattr' ) .OR. &
-         &  iom_use( 'uadv_salttr' ) .OR. iom_use( 'udiff_salttr' ) .OR. &
-         &  iom_use( 'vadv_heattr' ) .OR. iom_use( 'vdiff_heattr' ) .OR. &
-         &  iom_use( 'vadv_salttr' ) .OR. iom_use( 'vdiff_salttr' ) .OR. &
-         &  iom_use( 'rhop' ) .OR. iom_use( 'sshice' )  ) l_diaar5 = .TRUE.
+      l_diaar5 = iom_use( 'voltot'  )     .OR. iom_use( 'sshtot'    )    .OR. iom_use( 'sshdyn' )    .OR. &
+         &       iom_use( 'masstot' )     .OR. iom_use( 'temptot'   )    .OR. iom_use( 'saltot' )    .OR. &
+         &       iom_use( 'botpres' )     .OR. iom_use( 'sshthster' )    .OR. iom_use( 'sshsteric' ) .OR. &
+         &       iom_use( 'uadv_heattr' ) .OR. iom_use( 'udiff_heattr' ) .OR. &
+         &       iom_use( 'uadv_salttr' ) .OR. iom_use( 'udiff_salttr' ) .OR. &
+         &       iom_use( 'vadv_heattr' ) .OR. iom_use( 'vdiff_heattr' ) .OR. &
+         &       iom_use( 'vadv_salttr' ) .OR. iom_use( 'vdiff_salttr' ) .OR. &
+         &       iom_use( 'rhop' )        .OR. iom_use( 'sshice' )
 
       IF( l_diaar5 ) THEN
          !

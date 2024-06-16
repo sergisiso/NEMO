@@ -18,12 +18,10 @@ MODULE stprk3
    !!   stp_RK3       : NEMO 3rd order Runge-Kutta time-stepping 
    !!----------------------------------------------------------------------
    USE step_oce       ! time stepping used modules
+   USE trd_oce        ! trends: ocean variables
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
    USE stprk3_stg     ! RK3 stages
    USE stp2d          ! external mode solver
-   USE trd_oce        ! trends: ocean variables
-   USE diaptr
-   USE ldftra
 
    IMPLICIT NONE
    PRIVATE
@@ -90,8 +88,11 @@ CONTAINS
                              CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
          IF( l_diamlr   )    CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
                              CALL iom_init_closedef
+                             CALL dia_hth_init        ! called here since it uses iom_use
                              CALL dia_ptr_init        ! called here since it uses iom_use
                              CALL dia_ar5_init        ! called here since it uses iom_use
+                             CALL dia_hsb_init( Nnn ) ! heat content, salt content and volume budgets
+                             CALL dia_25h_init( Nbb ) ! 25h mean  outputs
                              CALL rk3_dia( -1 )       ! Store diagnostic logicals
       ENDIF
       IF( kstp == nitrst .AND. lwxios ) THEN
@@ -99,20 +100,26 @@ CONTAINS
                              CALL iom_init_closedef(            cw_ocerst_cxt )
                              CALL iom_setkt( kstp - nit000 + 1, cw_ocerst_cxt )
 #if defined key_top
-      IF( ln_top      ) THEN
+         IF( ln_top      ) THEN
                              CALL iom_swap(                     cw_toprst_cxt )
                              CALL iom_init_closedef(            cw_toprst_cxt )
                              CALL iom_setkt( kstp - nit000 + 1, cw_toprst_cxt )
-      ENDIF
+         ENDIF
 #endif
       ENDIF
-#if defined key_si3
+
       IF( kstp + nn_fsbc - 1 == nitrst .AND. lwxios ) THEN
+#if defined key_si3
                              CALL iom_swap(                     cw_icerst_cxt )
                              CALL iom_init_closedef(            cw_icerst_cxt )
                              CALL iom_setkt( kstp - nit000 + 1, cw_icerst_cxt )
-      ENDIF
 #endif
+         IF( ln_abl      ) THEN
+                             CALL iom_swap(                     cw_ablrst_cxt )
+                             CALL iom_init_closedef(            cw_ablrst_cxt )
+                             CALL iom_setkt( kstp - nit000 + 1, cw_ablrst_cxt )
+         ENDIF
+      ENDIF
       IF( kstp /= nit000 )   CALL day( kstp )         ! Calendar (day was already called at nit000 in day_init)
                              CALL iom_setkt( kstp - nit000 + 1,      cxios_context          )   ! tell IOM we are at time step kstp
 
@@ -213,13 +220,18 @@ CONTAINS
       IF( ln_tile ) CALL dom_tile_start         ! [tiling] DIA tiling loop
       DO jtile = 1, nijtile
          IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
-                         CALL dia_hth   ( kstp,      Nbb )      ! Thermocline depth (20 degres isotherm depth)
+         IF( l_hth )     CALL dia_hth   ( kstp,      Nbb )      ! Thermocline depth (20 degres isotherm depth)
                          CALL dia_ar5   ( kstp,      Nbb )      ! ar5 diag
-                         CALL dia_ptr   ( kstp,      Nbb )      ! Poleward adv/ldf TRansports diagnostics
+         IF( l_diaptr )  CALL dia_ptr   ( kstp,      Nbb )      ! Poleward adv/ldf TRansports diagnostics
+#if defined key_xios
                          CALL dia_wri   ( kstp,      Nbb )      ! ocean model: outputs
+#endif
       END DO
       IF( ln_tile ) CALL dom_tile_stop
 
+#if ! defined key_xios
+                         CALL dia_wri   ( kstp,      Nnn )      ! Ocean model outputs (default, tiling-unaware variant of 'dia_wri')
+#endif
       IF( l_diadetide )  CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
       IF( l_diamlr  )    CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
 
@@ -296,7 +308,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kswitch   ! on/off/init = 1/0/-1
       !!
       LOGICAL, SAVE ::   ll_trddyn, ll_trdtrc, ll_trdtra  ! call trd at stage 3 only
-      LOGICAL, SAVE ::   ll_diaptr, ll_diaar5
+      LOGICAL, SAVE ::   ll_diaptr, ll_diaar5, ll_ldfeiv_dia
       !!----------------------------------------------------------------------
       !
       SELECT CASE( kswitch ) 
@@ -306,7 +318,7 @@ CONTAINS
          l_trddyn = ll_trddyn
          l_diaptr = ll_diaptr
          l_diaar5 = ll_diaar5
-         l_ldfeiv_dia = l_ldfeiv_dia0
+         l_ldfeiv_dia = ll_ldfeiv_dia
       CASE ( 0 )                ! diagnostic desactivated (off)
          l_trdtra  = .FALSE.
          l_trdtrc  = .FALSE.
@@ -320,6 +332,16 @@ CONTAINS
          ll_trddyn = l_trddyn
          ll_diaptr = l_diaptr
          ll_diaar5 = l_diaar5
+         ! special diags for eiv
+         ll_ldfeiv_dia = iom_use('uoce_eiv')    .OR. iom_use('ueiv_masstr')   .OR. &
+            &            iom_use('ueiv_heattr') .OR. iom_use('ueiv_heattr3d') .OR. &
+            &            iom_use('ueiv_salttr') .OR. iom_use('ueiv_salttr3d') .OR. &
+            &            iom_use('voce_eiv')    .OR. iom_use('veiv_masstr')   .OR. &
+            &            iom_use('veiv_heattr') .OR. iom_use('veiv_heattr3d') .OR. &
+            &            iom_use('veiv_salttr') .OR. iom_use('veiv_salttr3d') .OR. &
+            &            iom_use('woce_eiv')    .OR. iom_use('weiv_masstr')   .OR. &
+            &            iom_use('sophteiv')    .OR. iom_use('sopsteiv')
+         !
       END SELECT
       !
    END SUBROUTINE rk3_dia

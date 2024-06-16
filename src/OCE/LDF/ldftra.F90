@@ -72,9 +72,8 @@ MODULE ldftra
 
    !                                   !!* Namelist namtra_eiv : eddy induced velocity param. *
    !                                    != Use/diagnose eiv =!
-   LOGICAL , PUBLIC ::   ln_ldfeiv           !: eddy induced velocity flag
-   LOGICAL , PUBLIC ::   l_ldfeiv_dia0       !: diagnose & output eiv streamfunction and velocity (IOM)
-   LOGICAL , PUBLIC ::   l_ldfeiv_dia        !: RK3: modified w.r.t. kstg diagnose & output eiv streamfunction and velocity flag
+   LOGICAL , PUBLIC ::   ln_ldfeiv          !: eddy induced velocity flag
+   LOGICAL , PUBLIC ::   l_ldfeiv_dia       !: RK3: modified w.r.t. kstg diagnose & output eiv streamfunction and velocity flag
 
    !                                    != Coefficients =!
    INTEGER , PUBLIC ::   nn_aei_ijk_t        !: choice of time/space variation of the eiv coeff.
@@ -629,22 +628,6 @@ CONTAINS
          l_ldfeke   = .TRUE.          ! GEOMETRIC param initialization done in nemogcm_init
          IF(lwp) WRITE(numout,*) '      GEOMETRIC eddy energy equation to be computed ln_eke_equ = ', ln_eke_equ
       ENDIF
-
-      ! diagnostics
-      !
-      l_ldfeiv_dia0 = .FALSE.
-      !
-      IF( ln_ldfeiv ) THEN
-         IF(  iom_use('uoce_eiv') .OR. iom_use('ueiv_masstr') .OR. iom_use('ueiv_heattr') .OR. iom_use('ueiv_heattr3d') .OR. &
-            &                                                      iom_use('ueiv_salttr') .OR. iom_use('ueiv_salttr3d') .OR. &
-            & iom_use('voce_eiv') .OR. iom_use('veiv_masstr') .OR. iom_use('veiv_heattr') .OR. iom_use('veiv_heattr3d') .OR. &
-            &                                                      iom_use('veiv_salttr') .OR. iom_use('veiv_salttr3d') .OR. &
-            & iom_use('woce_eiv') .OR. iom_use('weiv_masstr') .OR. iom_use('sophteiv')    .OR. iom_use('sopsteiv')    ) THEN
-            !
-            l_ldfeiv_dia0 = .TRUE.
-            !
-         ENDIF
-      ENDIF
       !
    END SUBROUTINE ldf_eiv_init
 
@@ -748,7 +731,7 @@ CONTAINS
       !!                   psi_uw = mk(aeiu) e2u mi(wslpi)   [in m3/s]
       !!                   Utr_eiv = - dk[psi_uw]
       !!                   Vtr_eiv = + di[psi_uw]
-      !!                l_ldfeiv_dia0 = T : output the associated streamfunction,
+      !!                l_ldfeiv_dia = T : output the associated streamfunction,
       !!                                    velocity and heat transport (call ldf_eiv_dia)
       !!
       !! ** Action  : pu, pv increased by the eiv transport
@@ -767,8 +750,8 @@ CONTAINS
       REAL(wp), DIMENSION(T2D(nn_hls),2)      ::   zpsi_uw, zpsi_vw
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrpu, ztrpv
       !!----------------------------------------------------------------------
-      !
-      IF( l_ldfeiv_dia0 .AND. cdtype == 'TRA' ) THEN
+      !      
+      IF( l_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
          ALLOCATE( ztrpu(T2D(nn_hls),jpk), ztrpv(T2D(nn_hls),jpk) )
          ztrpu(:,:,jpk) = 0._wp ; ztrpv(:,:,jpk) = 0._wp
       ENDIF
@@ -805,7 +788,7 @@ CONTAINS
                &                             + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji  ,jj-1,1) ) )
          END_2D
          !
-         IF( l_ldfeiv_dia0 .AND. cdtype == 'TRA' ) THEN
+         IF( l_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
             DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
                ztrpu(ji,jj,jk) = zpsi_uw(ji,jj,1)
                ztrpv(ji,jj,jk) = zpsi_vw(ji,jj,1)
@@ -813,7 +796,7 @@ CONTAINS
          ENDIF
       ENDDO
       !                              ! diagnose the eddy induced velocity and associated heat transport
-      IF( l_ldfeiv_dia0 .AND. cdtype == 'TRA' ) THEN
+      IF( l_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
          CALL ldf_eiv_dia( ztrpu, ztrpv, Kmm )
          DEALLOCATE( ztrpu, ztrpv )
       ENDIF
@@ -847,7 +830,7 @@ CONTAINS
       !!                   psi_uw = mk(aeiu) e2u mi(wslpi)   [in m3/s]
       !!                   Utr_eiv = - dk[psi_uw]
       !!                   Vtr_eiv = + di[psi_uw]
-      !!                l_ldfeiv_dia0 = T : output the associated streamfunction,
+      !!                l_ldfeiv_dia = T : output the associated streamfunction,
       !!                                    velocity and heat transport (call ldf_eiv_dia)
       !!
       !! ** Action  : pu, pv increased by the eiv transport

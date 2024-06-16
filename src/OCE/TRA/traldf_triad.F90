@@ -231,7 +231,7 @@ CONTAINS
             END_3D
          ENDIF
          !
-         IF( l_ldfeiv_dia0 .AND. cdtype == 'TRA' ) THEN
+         IF( l_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
             zpsi_uw(:,:,:) = 0._wp
             zpsi_vw(:,:,:) = 0._wp
 

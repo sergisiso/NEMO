@@ -33,7 +33,7 @@ MODULE icedia
    PUBLIC   ice_dia        ! called by icestp.F90
    PUBLIC   ice_dia_init   ! called in icestp.F90
 
-   LOGICAL , PUBLIC ::   l_icediahsb      !: flag for ice diag (T) or not (F)
+   LOGICAL , SAVE   ::   ll_icediahsb     !: flag for ice diag (T) or not (F)
    REAL(wp), SAVE   ::   r1_area          ! inverse of the ocean area
    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::   vol_loc_ini, sal_loc_ini, tem_loc_ini                    ! initial volume, salt and heat contents
    REAL(wp)                              ::   frc_sal, frc_voltop, frc_volbot, frc_temtop, frc_tembot  ! global forcing trends
@@ -73,108 +73,128 @@ CONTAINS
       !!---------------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('ice_dia')
 
-      IF( kt == nit000 .AND. lwp ) THEN
-         WRITE(numout,*)
-         WRITE(numout,*)'icedia: output ice diagnostics (integrated over the domain)'
-         WRITE(numout,*)'~~~~~~'
-      ENDIF
-
       IF( kt == nit000 ) THEN
-         r1_area = 1._wp / glob_2Dsum( 'icedia', e1e2t(:,:) )
+
+         ! diagnostics
+         ll_icediahsb = iom_use('ibgfrcvoltop') .OR. iom_use('ibgfrcvolbot') .OR. iom_use('ibgfrcsal')    .OR.  &
+            &           iom_use('ibgfrctemtop') .OR. iom_use('ibgfrctembot') .OR. iom_use('ibgfrchfxtop') .OR.  &
+            &           iom_use('ibgfrchfxbot') .OR.                                                            &
+            &           iom_use('ibgvol_tot')   .OR. iom_use('sbgvol_tot')  .OR. iom_use('ibgarea_tot') .OR. iom_use('ibgsalt_tot') .OR. &
+            &           iom_use('ibgheat_tot')  .OR. iom_use('sbgheat_tot') .OR. iom_use('ipbgvol_tot') .OR. iom_use('ilbgvol_tot') .OR. &
+            &           iom_use('ibgvolume')    .OR. iom_use('ibgsaltco')   .OR. iom_use('ibgheatco')
+         !
+         IF( ll_icediahsb ) THEN
+            IF( ice_dia_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'ice_dia_init : unable to allocate arrays' )   ! allocate tke arrays
+            CALL ice_dia_rst( 'READ' )   ! read or initialize all required files
+            !
+            r1_area = 1._wp / glob_2Dsum( 'icedia', e1e2t(:,:) )
+            !
+         ENDIF
+
       ENDIF
 
-      ztmp(:,:,:) = 0._wp ! should be better coded
+      IF( ll_icediahsb ) THEN
+
+         IF( kt == nit000 .AND. lwp ) THEN
+            WRITE(numout,*)
+            WRITE(numout,*)'icedia: output ice diagnostics (integrated over the domain)'
+            WRITE(numout,*)'~~~~~~'
+         ENDIF
+
+         ztmp(:,:,:) = 0._wp ! should be better coded
       
-      ! ---------------------------!
-      ! 1 - Trends due to forcing  !
-      ! ---------------------------!
-      ! they must be kept outside an IF(iom_use) because of the call to dia_rst below
-      DO_2D( 0, 0, 0, 0 )
-         ztmp(ji,jj,1) = - ( wfx_ice(ji,jj) + wfx_snw(ji,jj) + wfx_err_sub(ji,jj) ) * e1e2t(ji,jj) ! freshwater flux ice/snow-ocean
-         ztmp(ji,jj,2) = - ( wfx_sub(ji,jj) + wfx_spr(ji,jj) )                      * e1e2t(ji,jj) ! freshwater flux ice/snow-atm
-         ztmp(ji,jj,3) = -   sfx    (ji,jj)                                         * e1e2t(ji,jj) ! salt fluxes ice/snow-ocean
-         ztmp(ji,jj,4) =   qt_atm_oi(ji,jj)                                         * e1e2t(ji,jj) ! heat on top of ice-ocean
-         ztmp(ji,jj,5) =   qt_oce_ai(ji,jj)                                         * e1e2t(ji,jj) ! heat on top of ocean (and below ice)
-      END_2D
-      ! ----------------------- !
-      ! 2 -  Contents           !
-      ! ----------------------- !
-      IF( iom_use('ibgvol_tot' ) )   ztmp(:,:,6 ) = vt_i (A2D(0)) * e1e2t(A2D(0)) ! ice volume
-      IF( iom_use('sbgvol_tot' ) )   ztmp(:,:,7 ) = vt_s (A2D(0)) * e1e2t(A2D(0)) ! snow volume
-      IF( iom_use('ibgarea_tot') )   ztmp(:,:,8 ) = at_i (A2D(0)) * e1e2t(A2D(0)) ! area
-      IF( iom_use('ibgsalt_tot') )   ztmp(:,:,9 ) = st_i (:,:)    * e1e2t(A2D(0)) ! salt content
-      IF( iom_use('ibgheat_tot') )   ztmp(:,:,10) = et_i (:,:)    * e1e2t(A2D(0)) ! heat content
-      IF( iom_use('sbgheat_tot') )   ztmp(:,:,11) = et_s (:,:)    * e1e2t(A2D(0)) ! heat content
-      IF( iom_use('ipbgvol_tot') )   ztmp(:,:,12) = vt_ip(A2D(0)) * e1e2t(A2D(0)) ! ice pond volume
-      IF( iom_use('ilbgvol_tot') )   ztmp(:,:,13) = vt_il(A2D(0)) * e1e2t(A2D(0)) ! ice pond lid volume
+         ! ---------------------------!
+         ! 1 - Trends due to forcing  !
+         ! ---------------------------!
+         ! they must be kept outside an IF(iom_use) because of the call to dia_rst below
+         DO_2D( 0, 0, 0, 0 )
+            ztmp(ji,jj,1) = - ( wfx_ice(ji,jj) + wfx_snw(ji,jj) + wfx_err_sub(ji,jj) ) * e1e2t(ji,jj) ! freshwater flux ice/snow-ocean
+            ztmp(ji,jj,2) = - ( wfx_sub(ji,jj) + wfx_spr(ji,jj) )                      * e1e2t(ji,jj) ! freshwater flux ice/snow-atm
+            ztmp(ji,jj,3) = -   sfx    (ji,jj)                                         * e1e2t(ji,jj) ! salt fluxes ice/snow-ocean
+            ztmp(ji,jj,4) =   qt_atm_oi(ji,jj)                                         * e1e2t(ji,jj) ! heat on top of ice-ocean
+            ztmp(ji,jj,5) =   qt_oce_ai(ji,jj)                                         * e1e2t(ji,jj) ! heat on top of ocean (and below ice)
+         END_2D
+         ! ----------------------- !
+         ! 2 -  Contents           !
+         ! ----------------------- !
+         IF( iom_use('ibgvol_tot' ) )   ztmp(:,:,6 ) = vt_i (A2D(0)) * e1e2t(A2D(0)) ! ice volume
+         IF( iom_use('sbgvol_tot' ) )   ztmp(:,:,7 ) = vt_s (A2D(0)) * e1e2t(A2D(0)) ! snow volume
+         IF( iom_use('ibgarea_tot') )   ztmp(:,:,8 ) = at_i (A2D(0)) * e1e2t(A2D(0)) ! area
+         IF( iom_use('ibgsalt_tot') )   ztmp(:,:,9 ) = st_i (:,:)    * e1e2t(A2D(0)) ! salt content
+         IF( iom_use('ibgheat_tot') )   ztmp(:,:,10) = et_i (:,:)    * e1e2t(A2D(0)) ! heat content
+         IF( iom_use('sbgheat_tot') )   ztmp(:,:,11) = et_s (:,:)    * e1e2t(A2D(0)) ! heat content
+         IF( iom_use('ipbgvol_tot') )   ztmp(:,:,12) = vt_ip(A2D(0)) * e1e2t(A2D(0)) ! ice pond volume
+         IF( iom_use('ilbgvol_tot') )   ztmp(:,:,13) = vt_il(A2D(0)) * e1e2t(A2D(0)) ! ice pond lid volume
 
-      ! ---------------------------------- !
-      ! 3 -  Content variations and drifts !
-      ! ---------------------------------- !
-      IF( iom_use('ibgvolume') ) ztmp(:,:,14) = ( rhoi*vt_i(A2D(0)) + rhos*vt_s(A2D(0)) - vol_loc_ini(:,:) ) * e1e2t(A2D(0)) ! freshwater trend
-      IF( iom_use('ibgsaltco') ) ztmp(:,:,15) = ( rhoi*st_i(:,:)                        - sal_loc_ini(:,:) ) * e1e2t(A2D(0)) ! salt content trend
-      IF( iom_use('ibgheatco') .OR. iom_use('ibgheatfx') ) &
-         &                       ztmp(:,:,16) = ( et_i(:,:) + et_s(:,:)                 - tem_loc_ini(:,:) ) * e1e2t(A2D(0)) ! heat content trend
+         ! ---------------------------------- !
+         ! 3 -  Content variations and drifts !
+         ! ---------------------------------- !
+         IF( iom_use('ibgvolume') ) ztmp(:,:,14) = ( rhoi*vt_i(A2D(0)) + rhos*vt_s(A2D(0)) - vol_loc_ini(:,:) ) * e1e2t(A2D(0)) ! freshwater trend
+         IF( iom_use('ibgsaltco') ) ztmp(:,:,15) = ( rhoi*st_i(:,:)                        - sal_loc_ini(:,:) ) * e1e2t(A2D(0)) ! salt content trend
+         IF( iom_use('ibgheatco') .OR. iom_use('ibgheatfx') ) &
+            &                       ztmp(:,:,16) = ( et_i(:,:) + et_s(:,:)                 - tem_loc_ini(:,:) ) * e1e2t(A2D(0)) ! heat content trend
       
-      ! global sum
-      zbg(1:16) = glob_2Dsum( 'icedia', ztmp(:,:,1:16), cdelay = 'icebg' )
+         ! global sum
+         zbg(1:16) = glob_2Dsum( 'icedia', ztmp(:,:,1:16), cdelay = 'icebg' )
 
-      ! change units for trends
-      zbg(1) = zbg(1) * r1_rho0 * 1.e-9  * rDt_ice ! freshwater flux ice/snow-ocean (km3)
-      zbg(2) = zbg(2) * r1_rho0 * 1.e-9  * rDt_ice ! freshwater flux ice/snow-atm (km3)
-      zbg(3) = zbg(3) * r1_rho0 * 1.e-9  * rDt_ice ! salt fluxes ice/snow-ocean (km3*pss)
-      zbg(4) = zbg(4)           * 1.e-20 * rDt_ice ! heat on top of ice-ocean (1.e20 J)
-      zbg(5) = zbg(5)           * 1.e-20 * rDt_ice ! heat on top of ocean (and below ice) (1.e20 J)
-      ! cumulative sum
-      frc_voltop  = frc_voltop  + zbg(1)
-      frc_volbot  = frc_volbot  + zbg(2)
-      frc_sal     = frc_sal     + zbg(3)
-      frc_temtop  = frc_temtop  + zbg(4)
-      frc_tembot  = frc_tembot  + zbg(5)
+         ! change units for trends
+         zbg(1) = zbg(1) * r1_rho0 * 1.e-9  * rDt_ice ! freshwater flux ice/snow-ocean (km3)
+         zbg(2) = zbg(2) * r1_rho0 * 1.e-9  * rDt_ice ! freshwater flux ice/snow-atm (km3)
+         zbg(3) = zbg(3) * r1_rho0 * 1.e-9  * rDt_ice ! salt fluxes ice/snow-ocean (km3*pss)
+         zbg(4) = zbg(4)           * 1.e-20 * rDt_ice ! heat on top of ice-ocean (1.e20 J)
+         zbg(5) = zbg(5)           * 1.e-20 * rDt_ice ! heat on top of ocean (and below ice) (1.e20 J)
+         ! cumulative sum
+         frc_voltop  = frc_voltop  + zbg(1)
+         frc_volbot  = frc_volbot  + zbg(2)
+         frc_sal     = frc_sal     + zbg(3)
+         frc_temtop  = frc_temtop  + zbg(4)
+         frc_tembot  = frc_tembot  + zbg(5)
 
-      ! change units for contents
-      zbg(6)  = zbg(6)  * 1.e-9  ! ice volume (km3)
-      zbg(7)  = zbg(7)  * 1.e-9  ! snw volume (km3)
-      zbg(8)  = zbg(8)  * 1.e-6  ! ice area (km2)
-      zbg(9)  = zbg(9)  * 1.e-9  ! salt content (km3*pss)
-      zbg(10) = zbg(10) * 1.e-20 ! ice heat content (1.e20 J)
-      zbg(11) = zbg(11) * 1.e-20 ! snw heat content (1.e20 J)
-      zbg(12) = zbg(12) * 1.e-9  ! pnd volume (km3)
-      zbg(13) = zbg(13) * 1.e-9  ! pnd lid volume (km3)
+         ! change units for contents
+         zbg(6)  = zbg(6)  * 1.e-9  ! ice volume (km3)
+         zbg(7)  = zbg(7)  * 1.e-9  ! snw volume (km3)
+         zbg(8)  = zbg(8)  * 1.e-6  ! ice area (km2)
+         zbg(9)  = zbg(9)  * 1.e-9  ! salt content (km3*pss)
+         zbg(10) = zbg(10) * 1.e-20 ! ice heat content (1.e20 J)
+         zbg(11) = zbg(11) * 1.e-20 ! snw heat content (1.e20 J)
+         zbg(12) = zbg(12) * 1.e-9  ! pnd volume (km3)
+         zbg(13) = zbg(13) * 1.e-9  ! pnd lid volume (km3)
 
-      ! change units for trends
-      zbg(14) = zbg(14) * r1_rho0 * 1.e-9  ! freshwater trend (km3)
-      zbg(15) = zbg(15) * r1_rho0 * 1.e-9  ! salt content trend (km3*pss)
-      zbg(16) = zbg(16)           * 1.e-20 ! heat content trend (1.e20 J)
-      ! difference
-      zbg(14) = zbg(14) - ( frc_voltop + frc_volbot )
-      zbg(15) = zbg(15) -   frc_sal
-      zbg(16) = zbg(16) - ( frc_tembot - frc_temtop )
+         ! change units for trends
+         zbg(14) = zbg(14) * r1_rho0 * 1.e-9  ! freshwater trend (km3)
+         zbg(15) = zbg(15) * r1_rho0 * 1.e-9  ! salt content trend (km3*pss)
+         zbg(16) = zbg(16)           * 1.e-20 ! heat content trend (1.e20 J)
+         ! difference
+         zbg(14) = zbg(14) - ( frc_voltop + frc_volbot )
+         zbg(15) = zbg(15) -   frc_sal
+         zbg(16) = zbg(16) - ( frc_tembot - frc_temtop )
 
-      ! outputs
-      CALL iom_put( 'ibgfrcvoltop' , frc_voltop )   ! vol  forcing ice/snw-atm          (km3 equivalent ocean water)
-      CALL iom_put( 'ibgfrcvolbot' , frc_volbot )   ! vol  forcing ice/snw-ocean        (km3 equivalent ocean water)
-      CALL iom_put( 'ibgfrcsal'    , frc_sal    )   ! sal  forcing                      (psu*km3 equivalent ocean water)
-      CALL iom_put( 'ibgfrctemtop' , frc_temtop )   ! heat on top of ice/snw/ocean      (1.e20 J)
-      CALL iom_put( 'ibgfrctembot' , frc_tembot )   ! heat on top of ocean(below ice)   (1.e20 J)
-      CALL iom_put( 'ibgfrchfxtop' , frc_temtop * r1_area * 1.e-20 * kt*rn_Dt ) ! heat on top of ice/snw/ocean      (W/m2)
-      CALL iom_put( 'ibgfrchfxbot' , frc_tembot * r1_area * 1.e-20 * kt*rn_Dt ) ! heat on top of ocean(below ice)   (W/m2)
+         ! outputs
+         CALL iom_put( 'ibgfrcvoltop' , frc_voltop )   ! vol  forcing ice/snw-atm          (km3 equivalent ocean water)
+         CALL iom_put( 'ibgfrcvolbot' , frc_volbot )   ! vol  forcing ice/snw-ocean        (km3 equivalent ocean water)
+         CALL iom_put( 'ibgfrcsal'    , frc_sal    )   ! sal  forcing                      (psu*km3 equivalent ocean water)
+         CALL iom_put( 'ibgfrctemtop' , frc_temtop )   ! heat on top of ice/snw/ocean      (1.e20 J)
+         CALL iom_put( 'ibgfrctembot' , frc_tembot )   ! heat on top of ocean(below ice)   (1.e20 J)
+         CALL iom_put( 'ibgfrchfxtop' , frc_temtop * r1_area * 1.e-20 * kt*rn_Dt ) ! heat on top of ice/snw/ocean      (W/m2)
+         CALL iom_put( 'ibgfrchfxbot' , frc_tembot * r1_area * 1.e-20 * kt*rn_Dt ) ! heat on top of ocean(below ice)   (W/m2)
 
-      CALL iom_put( 'ibgvol_tot'  , zbg(6)  )
-      CALL iom_put( 'sbgvol_tot'  , zbg(7)  )
-      CALL iom_put( 'ibgarea_tot' , zbg(8)  )
-      CALL iom_put( 'ibgsalt_tot' , zbg(9)  )
-      CALL iom_put( 'ibgheat_tot' , zbg(10) )
-      CALL iom_put( 'sbgheat_tot' , zbg(11) )
-      CALL iom_put( 'ipbgvol_tot' , zbg(12) )
-      CALL iom_put( 'ilbgvol_tot' , zbg(13) )
+         CALL iom_put( 'ibgvol_tot'  , zbg(6)  )
+         CALL iom_put( 'sbgvol_tot'  , zbg(7)  )
+         CALL iom_put( 'ibgarea_tot' , zbg(8)  )
+         CALL iom_put( 'ibgsalt_tot' , zbg(9)  )
+         CALL iom_put( 'ibgheat_tot' , zbg(10) )
+         CALL iom_put( 'sbgheat_tot' , zbg(11) )
+         CALL iom_put( 'ipbgvol_tot' , zbg(12) )
+         CALL iom_put( 'ilbgvol_tot' , zbg(13) )
      
-      CALL iom_put( 'ibgvolume' , zbg(14) )   ! ice/snow volume  drift            (km3 equivalent ocean water)
-      CALL iom_put( 'ibgsaltco' , zbg(15) )   ! ice salt content drift            (psu*km3 equivalent ocean water)
-      CALL iom_put( 'ibgheatco' , zbg(16) )   ! ice/snow heat content drift       (1.e20 J)
-      !
-      ! restarts
-      IF( lrst_ice )   CALL ice_dia_rst( 'WRITE', kt_ice )
+         CALL iom_put( 'ibgvolume' , zbg(14) )   ! ice/snow volume  drift            (km3 equivalent ocean water)
+         CALL iom_put( 'ibgsaltco' , zbg(15) )   ! ice salt content drift            (psu*km3 equivalent ocean water)
+         CALL iom_put( 'ibgheatco' , zbg(16) )   ! ice/snow heat content drift       (1.e20 J)
+         !
+         ! restarts
+         IF( lrst_ice )   CALL ice_dia_rst( 'WRITE', kt_ice )
+         !
+      ENDIF
       !
       IF( ln_timing )   CALL timing_stop('ice_dia')
       !
@@ -212,22 +232,6 @@ CONTAINS
          WRITE(numout,*) '         threshold for conservation (global)      rn_icechk_glo = ', rn_icechk_glo
          WRITE(numout,*) '      control prints for a given grid point       ln_icectl     = ', ln_icectl
          WRITE(numout,*) '         chosen grid point position          (iiceprt,jiceprt)  = (', iiceprt,',', jiceprt,')'
-      ENDIF
-      !
-      ! diagnostics
-      IF(  iom_use('ibgfrcvoltop') .OR. iom_use('ibgfrcvolbot') .OR. iom_use('ibgfrcsal')    .OR. iom_use('ibgfrctemtop') .OR. &
-         & iom_use('ibgfrctembot') .OR. iom_use('ibgfrchfxtop') .OR. iom_use('ibgfrchfxbot') .OR.                              &
-         & iom_use('ibgvol_tot')   .OR. iom_use('sbgvol_tot')   .OR. iom_use('ibgarea_tot')  .OR. iom_use('ibgsalt_tot')  .OR. &
-         & iom_use('ibgheat_tot')  .OR. iom_use('sbgheat_tot')  .OR. iom_use('ipbgvol_tot')  .OR. iom_use('ilbgvol_tot')  .OR. &
-         & iom_use('ibgvolume')    .OR. iom_use('ibgsaltco')    .OR. iom_use('ibgheatco')                                 ) THEN 
-         l_icediahsb = .TRUE.
-      ELSE
-         l_icediahsb = .FALSE.
-      ENDIF
-
-      IF( l_icediahsb ) THEN
-         IF( ice_dia_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'ice_dia_init : unable to allocate arrays' )   ! allocate tke arrays
-         CALL ice_dia_rst( 'READ' )   ! read or initialize all required files
       ENDIF
       !
    END SUBROUTINE ice_dia_init

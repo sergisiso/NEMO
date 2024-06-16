@@ -63,8 +63,6 @@ MODULE diaptr
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: btmsk   ! T-point basin interior masks
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: btmsk34 ! mask out Southern Ocean (=0 south of 34°S)
 
-   LOGICAL ::   ll_init = .TRUE.        !: tracers  trend flag
-
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
@@ -86,19 +84,15 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('dia_ptr')
       !
-      IF( kt == nit000 .AND. ll_init )   CALL dia_ptr_init    ! -> will define l_diaptr and nbasin
-      !
-      IF( l_diaptr ) THEN
-         ! Calculate zonal integrals
-         IF( PRESENT( pvtr ) ) THEN
-            CALL dia_ptr_zint( Kmm, pvtr )
-         ELSE
-            CALL dia_ptr_zint( Kmm )
-         ENDIF
-
-         ! Calculate diagnostics only when zonal integrals have finished
-         IF( .NOT. l_istiled .OR. ntile == nijtile ) CALL dia_ptr_iom(kt, Kmm, pvtr)         ! Do only for the last tile
+      ! Calculate zonal integrals
+      IF( PRESENT( pvtr ) ) THEN
+         CALL dia_ptr_zint( Kmm, pvtr )
+      ELSE
+         CALL dia_ptr_zint( Kmm )
       ENDIF
+
+      ! Calculate diagnostics only when zonal integrals have finished
+      IF( .NOT. l_istiled .OR. ntile == nijtile ) CALL dia_ptr_iom(kt, Kmm, pvtr)         ! Do only for the last tile
 
       IF( ln_timing )   CALL timing_stop('dia_ptr')
       !
@@ -537,8 +531,6 @@ CONTAINS
          hstr_all(:,:,:,:) = 0._wp
          pvtr_int(:,:,:,:) = 0._wp
          pzon_int(:,:,:,:) = 0._wp
-         !
-         ll_init = .FALSE.
          !
       ENDIF
       !
