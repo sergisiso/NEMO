@@ -56,13 +56,9 @@ CONTAINS
       !
       !!----------------------------------------------------------------------
       !
-      IF(  iom_use('temper25h')   .OR. iom_use('salin25h')    .OR. iom_use('ssh25h')      .OR. &
-         & iom_use('vozocrtx25h') .OR. iom_use('vomecrty25h') .OR. iom_use('vovecrtz25h') .OR. &
-         & iom_use('avt25h')      .OR. iom_use('avm25h')      .OR. iom_use('tke25h')      .OR. iom_use('mxln25h') ) THEN
-         l_dia25h = .TRUE.
-      ELSE
-         l_dia25h = .FALSE.
-      ENDIF
+      l_dia25h = iom_use('temper25h')   .OR. iom_use('salin25h')    .OR. iom_use('ssh25h')      .OR. &
+         &       iom_use('vozocrtx25h') .OR. iom_use('vomecrty25h') .OR. iom_use('vovecrtz25h') .OR. &
+         &       iom_use('avt25h')      .OR. iom_use('avm25h')      .OR. iom_use('tke25h')      .OR. iom_use('mxln25h')
       !
       IF(lwp) THEN                   ! Control print
          WRITE(numout,*)

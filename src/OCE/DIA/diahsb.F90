@@ -430,14 +430,10 @@ CONTAINS
       ENDIF
 
       ! define l_diahsb
-      IF(  iom_use('bgfrcvol') .OR. iom_use('bgfrctem') .OR. iom_use('bgfrchfx') .OR. iom_use('bgfrcsal') .OR. &
-         & iom_use('bgtemper') .OR. iom_use('bgsaline') .OR. iom_use('bgheatco') .OR. iom_use('bgheatfx') .OR. &
-         & iom_use('bgsaltco') .OR. iom_use('bgvolssh') .OR. iom_use('bgvole3t') .OR. &
-         & iom_use('bgmistem') .OR. iom_use('bgmissal') ) THEN
-         l_diahsb = .TRUE.
-      ELSE
-         l_diahsb = .FALSE.
-      ENDIF
+      l_diahsb = iom_use('bgfrcvol') .OR. iom_use('bgfrctem') .OR. iom_use('bgfrchfx') .OR. iom_use('bgfrcsal') .OR. &
+         &       iom_use('bgtemper') .OR. iom_use('bgsaline') .OR. iom_use('bgheatco') .OR. iom_use('bgheatfx') .OR. &
+         &       iom_use('bgsaltco') .OR. iom_use('bgvolssh') .OR. iom_use('bgvole3t') .OR. &
+         &       iom_use('bgmistem') .OR. iom_use('bgmissal')
       !
       IF( .NOT. l_diahsb )   RETURN
       !

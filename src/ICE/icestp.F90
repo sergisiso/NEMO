@@ -212,7 +212,7 @@ CONTAINS
          !------------------------!
          ! --- Diag and write --- !
          !------------------------!
-         IF( l_icediahsb )              CALL ice_dia( kt )            ! -- Diagnostics outputs
+                                        CALL ice_dia( kt )            ! -- Diagnostics outputs
          !
          IF( ln_icediachk )             CALL ice_drift_wri( kt )      ! -- Diagnostics outputs for conservation
          !

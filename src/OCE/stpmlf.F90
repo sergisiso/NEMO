@@ -48,8 +48,9 @@ MODULE stpmlf
    USE step_oce       ! time stepping definition modules
    !
    USE domqco         ! quasi-eulerian coordinate
-   USE traatf_qco     ! time filtering                 (tra_atf_qco routine)
-   USE dynatf_qco     ! time filtering                 (dyn_atf_qco routine)
+#if defined key_si3
+   USE icedia         ! ice diagnostics
+#endif
 
    IMPLICIT NONE
    PRIVATE
@@ -123,6 +124,12 @@ CONTAINS
                              CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
          IF( l_diamlr   )    CALL dia_mlr_iom_init    ! with additional setup for multiple-linear-regression analysis
                              CALL iom_init_closedef
+                             CALL dia_hth_init        ! called here since it uses iom_use
+                             CALL dia_ptr_init        ! called here since it uses iom_use
+                             CALL dia_ar5_init        ! called here since it uses iom_use
+                             CALL dia_hsb_init( Nnn ) ! heat content, salt content and volume budgets
+                             CALL dia_25h_init( Nbb ) ! 25h mean  outputs
+                             CALL mlf_dia             ! Store diagnostic logicals
       ENDIF
       IF( kstp == nitrst .AND. lwxios ) THEN
                              CALL iom_swap(                     cw_ocerst_cxt )
@@ -148,7 +155,6 @@ CONTAINS
                              CALL iom_setkt( kstp - nit000 + 1, cw_ablrst_cxt )
          ENDIF
       ENDIF
-      IF( kstp == nit000 )   CALL dia_ar5_init    ! AR5 diagnostics
       IF( kstp /= nit000 )   CALL day( kstp )         ! Calendar (day was already called at nit000 in day_init)
                              CALL iom_setkt( kstp - nit000 + 1,      cxios_context          )   ! tell IOM we are at time step kstp
 
@@ -287,9 +293,9 @@ CONTAINS
 
       DO jtile = 1, nijtile
          IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
-                         CALL dia_hth   ( kstp,      Nnn )      ! Thermocline depth (20 degres isotherm depth)
+         IF( l_hth )     CALL dia_hth   ( kstp,      Nnn )      ! Thermocline depth (20 degres isotherm depth)
                          CALL dia_ar5   ( kstp,      Nnn )      ! ar5 diag
-                         CALL dia_ptr   ( kstp,      Nnn )      ! Poleward adv/ldf TRansports diagnostics
+         IF( l_diaptr )  CALL dia_ptr   ( kstp,      Nnn )      ! Poleward adv/ldf TRansports diagnostics
 #if defined key_xios
                          CALL dia_wri   ( kstp,      Nnn )      ! Ocean model outputs (XIOS-enabled, tiling-aware variant of 'dia_wri')
 #endif
@@ -466,6 +472,19 @@ CONTAINS
       !
    END SUBROUTINE stp_MLF
 
+   SUBROUTINE mlf_dia
+      !!----------------------------------------------------------------------
+      ! special diags for eiv
+      l_ldfeiv_dia = iom_use('uoce_eiv')    .OR. iom_use('ueiv_masstr')   .OR. &
+         &           iom_use('ueiv_heattr') .OR. iom_use('ueiv_heattr3d') .OR. &
+         &           iom_use('ueiv_salttr') .OR. iom_use('ueiv_salttr3d') .OR. &
+         &           iom_use('voce_eiv')    .OR. iom_use('veiv_masstr')   .OR. &
+         &           iom_use('veiv_heattr') .OR. iom_use('veiv_heattr3d') .OR. &
+         &           iom_use('veiv_salttr') .OR. iom_use('veiv_salttr3d') .OR. &
+         &           iom_use('woce_eiv')    .OR. iom_use('weiv_masstr')   .OR. &
+         &           iom_use('sophteiv')    .OR. iom_use('sopsteiv')
+      !
+   END SUBROUTINE mlf_dia
 
    SUBROUTINE mlf_baro_corr( Kmm, Kaa, puu, pvv )
       !!----------------------------------------------------------------------

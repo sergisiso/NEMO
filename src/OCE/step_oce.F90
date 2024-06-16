@@ -83,6 +83,7 @@ MODULE step_oce
    USE diacfl          ! CFL diagnostics                  (dia_cfl routine)
    USE diaobs          ! Observation operator             (dia_obs routine)
    USE diadetide       ! Weights computation for daily detiding of model diagnostics
+   USE dia25h          ! Harmonic analysis of tidal constituents
    USE diamlr          ! IOM context management for multiple-linear-regression analysis
 
    USE asminc          ! assimilation increments      (tra_asm_inc routine)

@@ -24,9 +24,10 @@ MODULE diahth
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dia_hth       ! routine called by step.F90
+   PUBLIC   dia_hth       ! routine called by stprk3.F90
+   PUBLIC   dia_hth_init  ! routine called by stprk3.F90
 
-   LOGICAL, SAVE  ::   l_hth     !: thermocline-20d depths flag
+   LOGICAL, PUBLIC  ::   l_hth     !: thermocline-20d depths flag
 
 
    !! * Substitutions
@@ -82,191 +83,169 @@ CONTAINS
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   z2d        ! 2D working array
       !!---------------------------------------------------------------------
       IF( ln_timing )   CALL timing_start('dia_hth')
-      IF( .NOT. l_istiled .OR. ntile == 1) THEN   ! Do only for the first tile
-         IF( kt == nit000 ) THEN
-            !
-            l_hth = iom_use( 'mlddzt'   ) .OR. iom_use( 'mldr0_3'  ) .OR. iom_use( 'mldr0_1'  )    .OR.  &
-               &    iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' )    .OR.  & 
-               &    iom_use( '20d'      ) .OR. iom_use( '26d'      ) .OR. iom_use( '28d'      )    .OR.  & 
-               &    iom_use( 'hc300'    ) .OR. iom_use( 'hc700'    ) .OR. iom_use( 'hc2000'   )    .OR.  & 
-               &    iom_use( 'pycndep'  ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )
-            !
-            !                                      ! allocate dia_hth array
-            IF( l_hth ) THEN
-               IF(lwp) WRITE(numout,*)
-               IF(lwp) WRITE(numout,*) 'dia_hth : diagnostics of the thermocline depth'
-               IF(lwp) WRITE(numout,*) '~~~~~~~ '
-               IF(lwp) WRITE(numout,*)
-            ENDIF
-         ENDIF
-      ENDIF
       !
-      IF( l_hth ) THEN
-         !
-         ALLOCATE( z2d(T2D(0)), zhth(T2D(0)), zabs2(T2D(0)), ztm2(T2D(0)), zrho10_3(T2D(0)), zpycn(T2D(0)), &
-               & ztinv(T2D(0)), zdepinv(T2D(0)), zrho0_3(T2D(0)), zrho0_1(T2D(0)), zmaxdzT(T2D(0)), zdelr(T2D(0)))
-         ! initialization
-         IF( iom_use( 'tinv'   ) )   ztinv  (:,:) = 0._wp  
-         IF( iom_use( 'depti'  ) )   zdepinv(:,:) = 0._wp  
-         IF( iom_use( 'mlddzt' ) )   zmaxdzT(:,:) = 0._wp  
-         IF( iom_use( 'mlddzt' ) .OR. iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' )   &
-            &                    .OR. iom_use( 'mldr10_3' ) .OR. iom_use( 'pycndep'  ) ) THEN
+      ALLOCATE( z2d  (T2D(0)), zhth   (T2D(0)), zabs2  (T2D(0)), ztm2   (T2D(0)), zrho10_3(T2D(0)), zpycn(T2D(0)), &
+         &      ztinv(T2D(0)), zdepinv(T2D(0)), zrho0_3(T2D(0)), zrho0_1(T2D(0)), zmaxdzT (T2D(0)), zdelr(T2D(0))  )
+
+      ! initialization
+      IF( iom_use( 'tinv'   ) )   ztinv  (:,:) = 0._wp  
+      IF( iom_use( 'depti'  ) )   zdepinv(:,:) = 0._wp  
+      IF( iom_use( 'mlddzt' ) )   zmaxdzT(:,:) = 0._wp  
+      IF( iom_use( 'mlddzt' ) .OR. iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' )   &
+         &                    .OR. iom_use( 'mldr10_3' ) .OR. iom_use( 'pycndep'  ) ) THEN
+         DO_2D( 0, 0, 0, 0 )
+            zztmp = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) 
+            zhth    (ji,jj) = zztmp
+            zabs2   (ji,jj) = zztmp
+            ztm2    (ji,jj) = zztmp
+            zrho10_3(ji,jj) = zztmp
+            zpycn   (ji,jj) = zztmp
+         END_2D
+      ENDIF
+      IF( iom_use( 'mldr0_3' ) .OR. iom_use( 'mldr0_1' ) ) THEN
+         IF( nla10 > 1 ) THEN 
             DO_2D( 0, 0, 0, 0 )
                zztmp = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) 
-               zhth    (ji,jj) = zztmp
-               zabs2   (ji,jj) = zztmp
-               ztm2    (ji,jj) = zztmp
-               zrho10_3(ji,jj) = zztmp
-               zpycn   (ji,jj) = zztmp
+               zrho0_3(ji,jj) = zztmp
+               zrho0_1(ji,jj) = zztmp
             END_2D
          ENDIF
-         IF( iom_use( 'mldr0_3' ) .OR. iom_use( 'mldr0_1' ) ) THEN
-            IF( nla10 > 1 ) THEN 
-               DO_2D( 0, 0, 0, 0 )
-                  zztmp = gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) 
-                  zrho0_3(ji,jj) = zztmp
-                  zrho0_1(ji,jj) = zztmp
-               END_2D
-            ENDIF
-         ENDIF
-     
-         IF( iom_use( 'mlddzt' ) .OR. iom_use( 'mldr0_3' ) .OR. iom_use( 'mldr0_1' ) ) THEN
-            ! ------------------------------------------------------------- !
-            ! thermocline depth: strongest vertical gradient of temperature !
-            ! turbocline depth (mixing layer depth): avt = zavt5            !
-            ! MLD: rho = rho(1) + zrho3                                     !
-            ! MLD: rho = rho(1) + zrho1                                     !
-            ! ------------------------------------------------------------- !
-            DO_3DS( 0, 0, 0, 0, jpkm1, 2, -1 )   ! loop from bottom to 2
-               !
-               zzdep = gdepw(ji,jj,jk,Kmm)
-               zztmp = ( ts(ji,jj,jk-1,jp_tem,Kmm) - ts(ji,jj,jk,jp_tem,Kmm) ) &
-                      & / zzdep * tmask(ji,jj,jk)   ! vertical gradient of temperature (dT/dz)
-               zzdep = zzdep * tmask(ji,jj,1)
-
-               IF( zztmp > zmaxdzT(ji,jj) ) THEN                        
-                   zmaxdzT(ji,jj) = zztmp   
-                   zhth    (ji,jj) = zzdep                ! max and depth of dT/dz
-               ENDIF
-         
-               IF( nla10 > 1 ) THEN 
-                  zztmp = rhop(ji,jj,jk) - rhop(ji,jj,1)                       ! delta rho(1)
-                  IF( zztmp > zrho3 )   zrho0_3(ji,jj) = zzdep                ! > 0.03
-                  IF( zztmp > zrho1 )   zrho0_1(ji,jj) = zzdep                ! > 0.01
-               ENDIF
-            END_3D
-         
-            CALL iom_put( 'mlddzt', zhth )            ! depth of the thermocline
-            IF( nla10 > 1 ) THEN 
-               CALL iom_put( 'mldr0_3', zrho0_3 )   ! MLD delta rho(surf) = 0.03
-               CALL iom_put( 'mldr0_1', zrho0_1 )   ! MLD delta rho(surf) = 0.01
-            ENDIF
-            !
-         ENDIF
-         !
-         IF(  iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' ) .OR.  &    
-            &  iom_use( 'pycndep' ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )  ) THEN
-            !
-            ! Preliminary computation
-            ! computation of zdelr = (dr/dT)(T,S,10m)*(-0.2 degC)
-            DO_2D( 0, 0, 0, 0 )
-               IF( tmask(ji,jj,nla10) == 1. ) THEN
-                  zu  =  1779.50 + 11.250 * ts(ji,jj,nla10,jp_tem,Kmm) - 3.80   * ts(ji,jj,nla10,jp_sal,Kmm)  &
-                     &           - 0.0745 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_tem,Kmm)   &
-                     &           - 0.0100 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_sal,Kmm)
-                  zv  =  5891.00 + 38.000 * ts(ji,jj,nla10,jp_tem,Kmm) + 3.00   * ts(ji,jj,nla10,jp_sal,Kmm)  &
-                     &           - 0.3750 * ts(ji,jj,nla10,jp_tem,Kmm) * ts(ji,jj,nla10,jp_tem,Kmm)
-                  zut =    11.25 -  0.149 * ts(ji,jj,nla10,jp_tem,Kmm) - 0.01   * ts(ji,jj,nla10,jp_sal,Kmm)
-                  zvt =    38.00 -  0.750 * ts(ji,jj,nla10,jp_tem,Kmm)
-                  zw  = (zu + 0.698*zv) * (zu + 0.698*zv)
-                  zdelr(ji,jj) = ztem2 * (1000.*(zut*zv - zvt*zu)/zw)
-               ELSE
-                  zdelr(ji,jj) = 0._wp
-               ENDIF
-            END_2D
-            !
-            ! ------------------------------------------------------------- !
-            ! MLD: abs( tn - tn(10m) ) = ztem2                              !
-            ! Top of thermocline: tn = tn(10m) - ztem2                      !
-            ! MLD: rho = rho10m + zrho3                                     !
-            ! pycnocline: rho = rho10m + (dr/dT)(T,S,10m)*(-0.2 degC)       !
-            ! temperature inversion: max( 0, max of tn - tn(10m) )          !
-            ! depth of temperature inversion                                !
-            ! ------------------------------------------------------------- !
-            DO_3DS( 0, 0, 0, 0, jpkm1, nlb10, -1 )   ! loop from bottom to nlb10
-               !
-               zzdep = gdepw(ji,jj,jk,Kmm) * tmask(ji,jj,1)
-               !
-               zztmp = ts(ji,jj,nla10,jp_tem,Kmm) - ts(ji,jj,jk,jp_tem,Kmm)  ! - delta T(10m)
-               IF( ABS(zztmp) > ztem2 )      zabs2   (ji,jj) = zzdep   ! abs > 0.2
-               IF(     zztmp  > ztem2 )      ztm2    (ji,jj) = zzdep   ! > 0.2
-               zztmp = -zztmp                                          ! delta T(10m)
-               IF( zztmp >  ztinv(ji,jj) ) THEN                        ! temperature inversion
-                  ztinv(ji,jj) = zztmp   
-                  zdepinv (ji,jj) = zzdep   ! max value and depth
-               ENDIF
-
-               zztmp = rhop(ji,jj,jk) - rhop(ji,jj,nla10)              ! delta rho(10m)
-               IF( zztmp > zrho3        )    zrho10_3(ji,jj) = zzdep   ! > 0.03
-               IF( zztmp > zdelr(ji,jj) )    zpycn   (ji,jj) = zzdep   ! > equi. delta T(10m) - 0.2
-               !
-            END_3D
-
-            CALL iom_put( 'mld_dt02', zabs2    )   ! MLD abs(delta t) - 0.2
-            CALL iom_put( 'topthdep', ztm2     )   ! T(10) - 0.2
-            CALL iom_put( 'mldr10_3', zrho10_3 )   ! MLD delta rho(10m) = 0.03
-            CALL iom_put( 'pycndep' , zpycn    )   ! MLD delta rho equi. delta T(10m) = 0.2
-            CALL iom_put( 'tinv'    , ztinv    )   ! max. temp. inv. (t10 ref) 
-            CALL iom_put( 'depti'   , zdepinv  )   ! depth of max. temp. inv. (t10 ref) 
-            !
-         ENDIF
- 
-         ! ------------------------------- !
-         !  Depth of 20C/26C/28C isotherm  !
-         ! ------------------------------- !
-         IF( iom_use ('20d') ) THEN  ! depth of the 20 isotherm
-            CALL dia_hth_dep( Kmm, 20., z2d )
-            CALL iom_put( '20d', z2d )
-         ENDIF
-         !
-         IF( iom_use ('26d') ) THEN  ! depth of the 26 isotherm
-            CALL dia_hth_dep( Kmm, 26., z2d )
-            CALL iom_put( '26d', z2d )
-         ENDIF
-         !
-         IF( iom_use ('28d') ) THEN  ! depth of the 28 isotherm
-            CALL dia_hth_dep( Kmm, 28., z2d )
-            CALL iom_put( '28d', z2d )
-         ENDIF
-        
-         ! ----------------------------- !
-         !  Heat content of first 300 m  !
-         ! ----------------------------- !
-         IF( iom_use ('hc300') ) THEN  
-            CALL  dia_hth_htc( Kmm, 300., ts(:,:,:,jp_tem,Kmm), z2d )
-            CALL iom_put( 'hc300', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
-         ENDIF
-         !
-         ! ----------------------------- !
-         !  Heat content of first 700 m  !
-         ! ----------------------------- !
-         IF( iom_use ('hc700') ) THEN  
-            CALL dia_hth_htc( Kmm, 700., ts(:,:,:,jp_tem,Kmm), z2d )
-            CALL iom_put( 'hc700', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
-         ENDIF
-         !
-         ! ----------------------------- !
-         !  Heat content of first 2000 m  !
-         ! ----------------------------- !
-         IF( iom_use ('hc2000') ) THEN  
-            CALL dia_hth_htc( Kmm, 2000., ts(:,:,:,jp_tem,Kmm), z2d )
-            CALL iom_put( 'hc2000', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
-         ENDIF
-         !
-         DEALLOCATE( z2d, zhth, zabs2, ztm2, zrho10_3, zpycn, ztinv, &
-                   & zdepinv, zrho0_3, zrho0_1, zmaxdzT, zdelr )
       ENDIF
 
+      IF( iom_use( 'mlddzt' ) .OR. iom_use( 'mldr0_3' ) .OR. iom_use( 'mldr0_1' ) ) THEN
+         ! ------------------------------------------------------------- !
+         ! thermocline depth: strongest vertical gradient of temperature !
+         ! turbocline depth (mixing layer depth): avt = zavt5            !
+         ! MLD: rho = rho(1) + zrho3                                     !
+         ! MLD: rho = rho(1) + zrho1                                     !
+         ! ------------------------------------------------------------- !
+         DO_3DS( 0, 0, 0, 0, jpkm1, 2, -1 )   ! loop from bottom to 2
+            !
+            zzdep = gdepw(ji,jj,jk,Kmm)
+            zztmp = ( ts(ji,jj,jk-1,jp_tem,Kmm) - ts(ji,jj,jk,jp_tem,Kmm) ) / zzdep * tmask(ji,jj,jk)  ! vertical gradient of temperature (dT/dz)
+            zzdep = zzdep * tmask(ji,jj,1)
+            
+            IF( zztmp > zmaxdzT(ji,jj) ) THEN                        
+               zmaxdzT(ji,jj) = zztmp   
+               zhth   (ji,jj) = zzdep                ! max and depth of dT/dz
+            ENDIF
+
+            IF( nla10 > 1 ) THEN 
+               zztmp = rhop(ji,jj,jk) - rhop(ji,jj,1)                      ! delta rho(1)
+               IF( zztmp > zrho3 )   zrho0_3(ji,jj) = zzdep                ! > 0.03
+               IF( zztmp > zrho1 )   zrho0_1(ji,jj) = zzdep                ! > 0.01
+            ENDIF
+         END_3D
+         
+         CALL iom_put( 'mlddzt', zhth )          ! depth of the thermocline
+         IF( nla10 > 1 ) THEN 
+            CALL iom_put( 'mldr0_3', zrho0_3 )   ! MLD delta rho(surf) = 0.03
+            CALL iom_put( 'mldr0_1', zrho0_1 )   ! MLD delta rho(surf) = 0.01
+         ENDIF
+         !
+      ENDIF
+      !
+      IF(  iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' ) .OR.  &    
+         & iom_use( 'pycndep'  ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )  ) THEN
+         !
+         ! Preliminary computation
+         ! computation of zdelr = (dr/dT)(T,S,10m)*(-0.2 degC)
+         DO_2D( 0, 0, 0, 0 )
+            IF( tmask(ji,jj,nla10) == 1. ) THEN
+               zu  =  1779.50 + 11.250 * ts(ji,jj,nla10,jp_tem,Kmm) - 3.80   * ts(ji,jj,nla10,jp_sal,Kmm)  &
+                  &           - 0.0745 * ts(ji,jj,nla10,jp_tem,Kmm)          * ts(ji,jj,nla10,jp_tem,Kmm)  &
+                  &           - 0.0100 * ts(ji,jj,nla10,jp_tem,Kmm)          * ts(ji,jj,nla10,jp_sal,Kmm)
+               zv  =  5891.00 + 38.000 * ts(ji,jj,nla10,jp_tem,Kmm) + 3.00   * ts(ji,jj,nla10,jp_sal,Kmm)  &
+                  &           - 0.3750 * ts(ji,jj,nla10,jp_tem,Kmm)          * ts(ji,jj,nla10,jp_tem,Kmm)
+               zut =    11.25 -  0.149 * ts(ji,jj,nla10,jp_tem,Kmm) - 0.01   * ts(ji,jj,nla10,jp_sal,Kmm)
+               zvt =    38.00 -  0.750 * ts(ji,jj,nla10,jp_tem,Kmm)
+               zw  = (zu + 0.698*zv) * (zu + 0.698*zv)
+               zdelr(ji,jj) = ztem2 * (1000.*(zut*zv - zvt*zu)/zw)
+            ELSE
+               zdelr(ji,jj) = 0._wp
+            ENDIF
+         END_2D
+         !
+         ! ------------------------------------------------------------- !
+         ! MLD: abs( tn - tn(10m) ) = ztem2                              !
+         ! Top of thermocline: tn = tn(10m) - ztem2                      !
+         ! MLD: rho = rho10m + zrho3                                     !
+         ! pycnocline: rho = rho10m + (dr/dT)(T,S,10m)*(-0.2 degC)       !
+         ! temperature inversion: max( 0, max of tn - tn(10m) )          !
+         ! depth of temperature inversion                                !
+         ! ------------------------------------------------------------- !
+         DO_3DS( 0, 0, 0, 0, jpkm1, nlb10, -1 )   ! loop from bottom to nlb10
+            !
+            zzdep = gdepw(ji,jj,jk,Kmm) * tmask(ji,jj,1)
+            !
+            zztmp = ts(ji,jj,nla10,jp_tem,Kmm) - ts(ji,jj,jk,jp_tem,Kmm)  ! - delta T(10m)
+            IF( ABS(zztmp) > ztem2 )      zabs2(ji,jj) = zzdep      ! abs > 0.2
+            IF(     zztmp  > ztem2 )      ztm2 (ji,jj) = zzdep      ! > 0.2
+            zztmp = -zztmp                                          ! delta T(10m)
+            IF( zztmp >  ztinv(ji,jj) ) THEN                        ! temperature inversion
+               ztinv  (ji,jj) = zztmp   
+               zdepinv(ji,jj) = zzdep   ! max value and depth
+            ENDIF
+            
+            zztmp = rhop(ji,jj,jk) - rhop(ji,jj,nla10)              ! delta rho(10m)
+            IF( zztmp > zrho3        )    zrho10_3(ji,jj) = zzdep   ! > 0.03
+            IF( zztmp > zdelr(ji,jj) )    zpycn   (ji,jj) = zzdep   ! > equi. delta T(10m) - 0.2
+            !
+         END_3D
+         
+         CALL iom_put( 'mld_dt02', zabs2    )   ! MLD abs(delta t) - 0.2
+         CALL iom_put( 'topthdep', ztm2     )   ! T(10) - 0.2
+         CALL iom_put( 'mldr10_3', zrho10_3 )   ! MLD delta rho(10m) = 0.03
+         CALL iom_put( 'pycndep' , zpycn    )   ! MLD delta rho equi. delta T(10m) = 0.2
+         CALL iom_put( 'tinv'    , ztinv    )   ! max. temp. inv. (t10 ref) 
+         CALL iom_put( 'depti'   , zdepinv  )   ! depth of max. temp. inv. (t10 ref) 
+         !
+      ENDIF
+      
+      ! ------------------------------- !
+      !  Depth of 20C/26C/28C isotherm  !
+      ! ------------------------------- !
+      IF( iom_use ('20d') ) THEN  ! depth of the 20 isotherm
+         CALL dia_hth_dep( Kmm, 20., z2d )
+         CALL iom_put( '20d', z2d )
+      ENDIF
+      !
+      IF( iom_use ('26d') ) THEN  ! depth of the 26 isotherm
+         CALL dia_hth_dep( Kmm, 26., z2d )
+         CALL iom_put( '26d', z2d )
+      ENDIF
+      !
+      IF( iom_use ('28d') ) THEN  ! depth of the 28 isotherm
+         CALL dia_hth_dep( Kmm, 28., z2d )
+         CALL iom_put( '28d', z2d )
+      ENDIF
+
+      ! ----------------------------- !
+      !  Heat content of first 300 m  !
+      ! ----------------------------- !
+      IF( iom_use ('hc300') ) THEN  
+         CALL  dia_hth_htc( Kmm, 300., ts(:,:,:,jp_tem,Kmm), z2d )
+         CALL iom_put( 'hc300', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
+      ENDIF
+      !
+      ! ----------------------------- !
+      !  Heat content of first 700 m  !
+      ! ----------------------------- !
+      IF( iom_use ('hc700') ) THEN  
+         CALL dia_hth_htc( Kmm, 700., ts(:,:,:,jp_tem,Kmm), z2d )
+         CALL iom_put( 'hc700', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
+      ENDIF
+      !
+      ! ----------------------------- !
+      !  Heat content of first 2000 m  !
+      ! ----------------------------- !
+      IF( iom_use ('hc2000') ) THEN  
+         CALL dia_hth_htc( Kmm, 2000., ts(:,:,:,jp_tem,Kmm), z2d )
+         CALL iom_put( 'hc2000', rho0_rcp * z2d )  ! vertically integrated heat content (J/m2)
+      ENDIF
+      !
+      DEALLOCATE( z2d, zhth, zabs2, ztm2, zrho10_3, zpycn, ztinv, &
+         &        zdepinv, zrho0_3, zrho0_1, zmaxdzT, zdelr )
       !
       IF( ln_timing )   CALL timing_stop('dia_hth')
       !
@@ -363,6 +342,28 @@ CONTAINS
       END_2D
       !
    END SUBROUTINE dia_hth_htc
+
+   SUBROUTINE dia_hth_init
+      !!---------------------------------------------------------------------
+      !!                  ***  ROUTINE dia_hth_init  ***
+      !!
+      !! ** Purpose : set logical l_hth to true if any of the outputs is found
+      !!-------------------------------------------------------------------
+      !
+      l_hth = iom_use( 'mlddzt'   ) .OR. iom_use( 'mldr0_3'  ) .OR. iom_use( 'mldr0_1'  ) .OR.  &
+         &    iom_use( 'mld_dt02' ) .OR. iom_use( 'topthdep' ) .OR. iom_use( 'mldr10_3' ) .OR.  & 
+         &    iom_use( '20d'      ) .OR. iom_use( '26d'      ) .OR. iom_use( '28d'      ) .OR.  & 
+         &    iom_use( 'hc300'    ) .OR. iom_use( 'hc700'    ) .OR. iom_use( 'hc2000'   ) .OR.  & 
+         &    iom_use( 'pycndep'  ) .OR. iom_use( 'tinv'     ) .OR. iom_use( 'depti'    )
+      !
+      IF( l_hth ) THEN
+         IF(lwp) WRITE(numout,*)
+         IF(lwp) WRITE(numout,*) 'dia_hth : diagnostics of the thermocline depth'
+         IF(lwp) WRITE(numout,*) '~~~~~~~ '
+         IF(lwp) WRITE(numout,*)
+      ENDIF
+      !
+   END SUBROUTINE dia_hth_init
 
    !!======================================================================
 END MODULE diahth
