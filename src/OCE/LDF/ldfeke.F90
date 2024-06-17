@@ -258,7 +258,7 @@ CONTAINS
             END IF
          END_2D
          !
-         CALL lbc_lnk( 'ldfeke', zc_ros, 'W', 1. )
+         CALL lbc_lnk( 'ldfeke', zc_ros, 'W', 1._wp )
          !
          zwx(:,:) = 0._wp ! wipe the advective contributions from above
          !
@@ -380,7 +380,7 @@ CONTAINS
             zaeiw(ji,jj) = zaeiw(ji,jj) * MIN(  1._wp, ABS( ff_t(ji,jj) * z1_f20 )  )              ! tropical decrease
             zaeiw(ji,jj) = MAX(  rn_aeiv_min, zaeiw(ji,jj)  )                                      ! bound aeiv from below
          END_2D
-         CALL lbc_lnk( 'ldfeke', zaeiw(:,:), 'W', 1. )
+         CALL lbc_lnk( 'ldfeke', zaeiw(:,:), 'W', 1._wp )
          !
          !                          ! inner value
          ! bottom value is already set to zero, use the un-masked zaeiw(ji,jj) with the structure function to

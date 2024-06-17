@@ -110,9 +110,9 @@ CONTAINS
       zshift = jpimax * jpjmax * ( narea - 1 )
       ztstref(:,:) = RESHAPE( (/ (zshift + REAL(ji,wp), ji = 1, jpi*jpj) /), (/ jpi, jpj /) )
       !
-      puniq(:,:) = ztstref(:,:)                    ! default definition
-      CALL lbc_lnk( 'domwri', puniq, cdgrd, 1. )   ! apply boundary conditions
-      lluniq(:,:,1) = puniq(:,:) == ztstref(:,:)   ! check which values have not been changed
+      puniq(:,:) = ztstref(:,:)                       ! default definition
+      CALL lbc_lnk( 'domwri', puniq, cdgrd, 1._wp )   ! apply boundary conditions
+      lluniq(:,:,1) = puniq(:,:) == ztstref(:,:)      ! check which values have not been changed
       !
       puniq(:,:) = REAL( COUNT( lluniq(:,:,:), dim = 3 ), wp )
       !
