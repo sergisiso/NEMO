@@ -194,22 +194,16 @@ CONTAINS
       ENDIF
       !
 
-      IF( iom_use( 'sshice' ) ) THEN   ! total volume of ice+snow 
-         IF( nn_ice == 0 ) THEN
-            yssshice = CMPLX( 0._wp, kind = dp ) 
-         ELSE
-            ztf = REAL(MOD( kt-1, nn_fsbc ), wp) / REAL(nn_fsbc, wp)
-            DO_2D( 0, 0, 0, 0 )
-               z2d(ji,jj) = ztf * snwice_mass(ji,jj) + (1._wp - ztf) * snwice_mass_b(ji,jj)
-            END_2D
+      IF( iom_use( 'sshice' ) .AND. nn_ice /= 0 ) THEN   ! total volume of ice+snow
+         ztf = REAL(MOD( kt-1, nn_fsbc ), wp) / REAL(nn_fsbc, wp)
+         DO_2D( 0, 0, 0, 0 )
+            z2d(ji,jj) = ztf * snwice_mass(ji,jj) + (1._wp - ztf) * snwice_mass_b(ji,jj)
+         END_2D
 #if defined key_agrif  /* COMPLEX is not yet coded with agrif... use real -> no reproducible sum... */
-            yssshice = REAL(local_2Dsum( e1e2t(T2D(0)) * z2d(:,:) * r1_rho0, CMPLX(yssshice)))  ! Sum over tiles (local_sum) and then MPI domains (glob_2Dsum)
+         yssshice = REAL(local_2Dsum( e1e2t(T2D(0)) * z2d(:,:) * r1_rho0, CMPLX(yssshice)))  ! Sum over tiles (local_sum) and then MPI domains (glob_2Dsum)
 #else
-            yssshice = local_2Dsum( e1e2t(T2D(0)) * z2d(:,:) * r1_rho0, yssshice )   ! Sum over tiles (local_sum) and then MPI domains (glob_2Dsum)
+         yssshice = local_2Dsum( e1e2t(T2D(0)) * z2d(:,:) * r1_rho0, yssshice )   ! Sum over tiles (local_sum) and then MPI domains (glob_2Dsum)
 #endif
-         ENDIF
-      ELSE
-         yssshice = CMPLX( 0._wp, kind = dp )
       ENDIF
 
 
@@ -250,8 +244,6 @@ CONTAINS
          !
          DEALLOCATE( z5d )
          !
-      ELSE
-         ysarho = CMPLX( 0._wp, kind = dp )
       ENDIF
 
       
@@ -286,8 +278,6 @@ CONTAINS
          END_2D
          CALL iom_put( 'botpres', z2d )
          !
-      ELSE
-         ysarho2 = CMPLX( 0._wp, kind = dp )
       ENDIF
 
       IF( iom_use( 'temptot' )  .OR. iom_use( 'saltot' ) ) THEN
@@ -325,9 +315,6 @@ CONTAINS
 #endif
          !
          DEALLOCATE( z4d )
-      ELSE
-         ystemp = CMPLX( 0._wp, kind = dp )
-         yssal  = CMPLX( 0._wp, kind = dp )
       ENDIF
 
 
@@ -356,11 +343,7 @@ CONTAINS
          IF( iom_use( 'ssttot' ) )      yssst   = local_2Dsum( e1e2t(T2D(0)) * z3d(:,:,1), yssst   ) ! Output potential temperature in case we use TEOS-10
 #endif
          !
-      ELSE
-         ystemp2 = CMPLX( 0._wp, kind = dp )
-         yssst   = CMPLX( 0._wp, kind = dp )
-      ENDIF
-      IF( .NOT.ln_teos10 .AND. iom_use( 'ssttot' ) ) THEN ! (EOS-80 case)
+      ELSE IF( .NOT. ln_teos10 .AND. iom_use( 'ssttot' ) ) THEN ! (EOS-80 case)
 #if defined key_agrif  /* COMPLEX is not yet coded with agrif... use real -> no reproducible sum... */
          yssst = REAL(local_2Dsum( e1e2t(T2D(0)) * ts(T2D(0),1,jp_tem,Kmm), CMPLX(yssst)))
 #else
