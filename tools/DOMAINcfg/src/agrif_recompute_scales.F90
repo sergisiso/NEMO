@@ -24,6 +24,8 @@ CONTAINS
 
       IF ( ln_sco .OR. ln_mes ) RETURN
 
+      IF(lwp) WRITE(numout,*) 'RECOMPUTING SCALE FACTORS AND BOTTOM LEVELS'
+
       ! Scale factors and depth at U-, V-, UW and VW-points
       DO jk = 1, jpk                        ! initialisation to z-scale factors
          e3u_0 (:,:,jk) = e3t_1d(jk)
@@ -113,6 +115,8 @@ CONTAINS
          END DO
       END DO
       !
+      zk(:,:)   = REAL( mbkt(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'T', 1.)
+      mbkt(:,:) = MAX( NINT( zk(:,:) ), 1 )
       zk(:,:)   = REAL( mbku(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'U', 1.)
       mbku(:,:) = MAX( NINT( zk(:,:) ), 1 )
       zk(:,:)   = REAL( mbkv(:,:), wp )   ;   CALL lbc_lnk( 'domzgr', zk, 'V', 1.)

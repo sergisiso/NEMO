@@ -293,8 +293,10 @@ CONTAINS
       
       ! User defined alteration of fmask (use to reduce ocean transport in specified straits)
       ! -------------------------------- 
+#if ! defined key_agrif
       ! write mesh mask 
       IF ( nn_msh > 0 ) CALL dom_wri 
+#endif
       !
       CALL usr_def_fmask( cp_cfg, jp_cfg, fmask )
       !

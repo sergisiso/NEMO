@@ -168,11 +168,18 @@ CONTAINS
       LOGICAL                               , INTENT(in   ) ::   before
       INTEGER                               , INTENT(in   ) ::   nb , ndir
       !
+      !
+      !            western_bdy  = (nb == 1).AND.(ndir == 1)
+      !            eastern_bdy  = (nb == 1).AND.(ndir == 2)
+      !            southern_bdy = (nb == 2).AND.(ndir == 1)
+      !            northern_bdy = (nb == 2).AND.(ndir == 2)
+
       !!---------------------------------------------------------------------- 
       INTEGER :: ji, jj, jk, ik 
       REAL(wp) :: ze3min, zdepth, zdepwp, zmax, ze3tp, ze3wp, zhmin 
       !
       IF( before) THEN
+
          DO jk=k1, k2
             DO jj=j1,j2
                DO ji=i1,i2
@@ -190,14 +197,27 @@ CONTAINS
                ptab(ji,jj,k2) = SUM ( e3t_0(ji,jj, 1:mbkt(ji,jj) ) ) * ssmask(ji,jj)
             END DO
          END DO
+
       ELSE
 
          bathy(i1:i2, j1:j2) = ptab(i1:i2,j1:j2,k2)
 
-         DO jk=jpk,1,-1
+         WHERE( bathy(i1:i2,j1:j2) == 0._wp ); mbathy(i1:i2,j1:j2) = 0     ! land  : set mbathy to 0
+         ELSE WHERE                          ; mbathy(i1:i2,j1:j2) = jpkm1 ! ocean : initialize mbathy to the max ocean level
+         END WHERE
+
+         DO jk=jpkm1,1,-1
            zdepth = gdepw_1d(jk) + 1.e-6
            WHERE( 0._wp < bathy(i1:i2,j1:j2) .AND. bathy(i1:i2,j1:j2) <= zdepth ) mbathy(i1:i2,j1:j2) = jk-1
          ENDDO
+
+         IF( jperio == 0 ) THEN
+           IF(lwp) WRITE(numout,*) ' mbathy set to 0 along east and west boundary: jperio = ', jperio
+           mbathy(  mi0(     1+nn_hls):mi1(     1+nn_hls),:) = 0
+           mbathy(  mi0(jpiglo-nn_hls):mi1(jpiglo-nn_hls),:) = 0
+           mbathy(:,  mj0(     1+nn_hls):mj1(     1+nn_hls)) = 0
+           mbathy(:,  mj0(jpjglo-nn_hls):mj1(jpjglo-nn_hls)) = 0
+         ENDIF
 
          WHERE (mbathy(i1:i2,j1:j2) == 0); ssmask(i1:i2,j1:j2) = 0
          ELSE WHERE                      ; ssmask(i1:i2,j1:j2) = 1.
