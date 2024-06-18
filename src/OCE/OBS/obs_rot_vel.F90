@@ -60,7 +60,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: k2dint     ! Horizontal interpolation method
       INTEGER, INTENT(IN) :: kuvar      ! Index of U velocity
       INTEGER, INTENT(IN) :: kvvar      ! Index of V velocity
-      REAL(wp), DIMENSION(*), INTENT(OUT) :: &
+      REAL(wp), DIMENSION(:), INTENT(OUT) :: &
          & pu, &
          & pv
       !! * Local declarations
@@ -252,7 +252,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: k2dint     ! Horizontal interpolation method
       INTEGER, INTENT(IN) :: kuvar      ! Index of U velocity
       INTEGER, INTENT(IN) :: kvvar      ! Index of V velocity
-      REAL(wp), DIMENSION(*), INTENT(OUT) :: &
+      REAL(wp), DIMENSION(:), INTENT(OUT) :: &
          & pu, &
          & pv
       !! * Local declarations
