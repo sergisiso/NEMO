@@ -81,7 +81,7 @@ CONTAINS
             &           iom_use('ibgfrchfxbot') .OR.                                                            &
             &           iom_use('ibgvol_tot')   .OR. iom_use('sbgvol_tot')  .OR. iom_use('ibgarea_tot') .OR. iom_use('ibgsalt_tot') .OR. &
             &           iom_use('ibgheat_tot')  .OR. iom_use('sbgheat_tot') .OR. iom_use('ipbgvol_tot') .OR. iom_use('ilbgvol_tot') .OR. &
-            &           iom_use('ibgvolume')    .OR. iom_use('ibgsaltco')   .OR. iom_use('ibgheatco')
+            &           iom_use('ibgvolume')    .OR. iom_use('ibgsaltco')   .OR. iom_use('ibgheatco')   .OR. iom_use('ibgheatfx')
          !
          IF( ll_icediahsb ) THEN
             IF( ice_dia_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'ice_dia_init : unable to allocate arrays' )   ! allocate tke arrays
@@ -190,6 +190,7 @@ CONTAINS
          CALL iom_put( 'ibgvolume' , zbg(14) )   ! ice/snow volume  drift            (km3 equivalent ocean water)
          CALL iom_put( 'ibgsaltco' , zbg(15) )   ! ice salt content drift            (psu*km3 equivalent ocean water)
          CALL iom_put( 'ibgheatco' , zbg(16) )   ! ice/snow heat content drift       (1.e20 J)
+         CALL iom_put( 'ibgheatfx' , zbg(16) * r1_area * 1.e-20 * kt*rn_Dt )   ! ice/snow heat content drift  (W/m2)
          !
          ! restarts
          IF( lrst_ice )   CALL ice_dia_rst( 'WRITE', kt_ice )
