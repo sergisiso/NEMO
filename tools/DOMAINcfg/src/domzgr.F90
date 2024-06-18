@@ -146,19 +146,27 @@ CONTAINS
             &              e3t_0   , e3u_0   , e3v_0 , e3f_0    ,   &    ! vertical scale factors
             &              e3w_0   , e3uw_0  , e3vw_0           ,   &    ! vertical scale factors
             &              k_top   , k_bot            )                  ! 1st & last ocean level
-            !
+
+         ! Compute model bathymetry  
+         DO jj = 1,jpj
+            DO ji = 1,jpi
+               bathy(ji,jj) = SUM ( e3t_0(ji,jj, 1:k_bot(ji,jj) ) ) * k_top(ji,jj)
+            END DO
+         END DO
+
+!
 !!gm to be remove when removing the OLD definition of e3 scale factors so that gde3w disappears
 !      ! Compute gde3w_0 (vertical sum of e3w)
 !      gde3w_0(:,:,1) = 0.5_wp * e3w_0(:,:,1)
 !      DO jk = 2, jpk
 !         gde3w_0(:,:,jk) = gde3w_0(:,:,jk-1) + e3w_0(:,:,jk)
 !      END DO
-      !
+!
 
-      !                                ! top/bottom ocean level indices for t-, u- and v-points (f-point also for top)
+         ! top/bottom ocean level indices for t-, u- and v-points (f-point also for top)
          CALL zgr_top_bot( k_top, k_bot )      ! with a minimum value set to 1
 
-      !                                ! deepest/shallowest W level Above/Below ~10m
+!                                ! deepest/shallowest W level Above/Below ~10m
 !!gm BUG in s-coordinate this does not work!
          zrefdep = 10._wp - 0.1_wp * MINVAL( e3w_1d )                   ! ref. depth with tolerance (10% of minimum layer thickness)
          nlb10 = MINLOC( gdepw_1d, mask = gdepw_1d > zrefdep, dim = 1 ) ! shallowest W level Below ~10m

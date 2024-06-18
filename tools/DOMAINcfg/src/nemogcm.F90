@@ -53,6 +53,7 @@ MODULE nemogcm
    USE lib_fortran    ! Fortran utilities (allows no signed zero when 'key_nosignedzero' defined)
    USE lib_mpp        ! distributed memory computing
 
+   USE domwri
 
    USE agrif_connect
    USE agrif_dom_update
@@ -110,6 +111,8 @@ CONTAINS
       CALL Agrif_Step_Child_adj(agrif_update_all)
       
       CALL Agrif_Step_Child(cfg_write)
+
+      IF ( nn_msh > 0 ) CALL Agrif_Step_Child(dom_wri)
 #endif
 
       ! check that all process are still there... If some process have an error,
