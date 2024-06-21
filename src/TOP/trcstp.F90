@@ -14,6 +14,8 @@ MODULE trcstp
    USE oce_trc        ! ocean dynamics and active tracers variables
    USE sbc_oce
    USE trc
+   USE trcbc          ! Tracers boundary condtions          (trc_bc routine)
+   USE trcais         ! Antarctic Ice Sheet tracers         (trc_ais routine)
    USE trctrp         ! passive tracers transport
    USE trcsms         ! passive tracers sources and sinks
    USE trcwri
@@ -99,9 +101,16 @@ CONTAINS
       tr(:,:,:,:,Krhs) = 0._wp
       !
       CALL trc_rst_opn  ( kt )                            ! Open tracer restart file 
+      !
       IF( lrst_trc )  CALL trc_rst_cal  ( kt, 'WRITE' )   ! calendar
+      !
       CALL trc_wri      ( kt,      Kmm            )       ! output of passive tracers with iom I/O manager
+      !
+      IF( ln_trcbc .AND. lltrcbc )  CALL trc_bc ( kt, Kbb, Kmm, tr, Krhs )   ! tracers: surface and lateral Boundary Conditions
+      IF( ln_trcais )               CALL trc_ais( kt, Kbb, Kmm, tr, Krhs )   ! tracers from Antarctic Ice Sheet (icb, isf)
+      !
       CALL trc_sms      ( kt, ibb, Kmm, Krhs      )       ! tracers: sinks and sources
+      !
       CALL trc_trp      ( kt, ibb, Kmm, Krhs, Kaa )       ! transport of passive tracers
            !
            ! Note passive tracers have been time-filtered in trc_trp but the time level

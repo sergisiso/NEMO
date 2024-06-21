@@ -18,6 +18,8 @@ MODULE trcstp_rk3
    USE trc
    USE trc_oce , ONLY :   l_offline   ! offline flag
    USE trctrp         ! passive tracers transport
+   USE trcbc          ! Tracers boundary condtions          (trc_bc routine)
+   USE trcais         ! Antarctic Ice Sheet tracers         (trc_ais routine)
    USE trcsms         ! passive tracers sources and sinks
    USE trcwri
    USE trcrst
@@ -129,6 +131,9 @@ CONTAINS
          END DO
          !                                         !==  advection of passive tracers  ==!
          rDt_trc = rDt
+         !
+         IF( ln_trcbc .AND. lltrcbc )  CALL trc_bc ( kt, Kbb, Kmm, tr, Krhs )   ! tracers: surface and lateral Boundary Conditions
+         IF( ln_trcais )               CALL trc_ais( kt, Kbb, Kmm, tr, Krhs )   ! tracers from Antarctic Ice Sheet (icb, isf)
          !
          CALL trc_sms    ( kt, Kbb, Kmm, Krhs      )       ! tracers: sinks and sources
          !
