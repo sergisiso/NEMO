@@ -279,10 +279,8 @@ CONTAINS
       ENDIF
       !
       IF( ln_bdy ) CALL trc_bdy_ini( jptra )
-      IF( ln_trcbc .AND. lltrcbc ) THEN
-        CALL trc_bc_ini ( jptra, Kbb  )            ! set tracers Boundary Conditions
-        CALL trc_bc     ( nit000, Kbb, Kmm, tr, Kaa )   ! tracers: surface and lateral Boundary Conditions
-      ENDIF
+      !
+      IF( ln_trcbc .AND. lltrcbc ) CALL trc_bc_ini ( jptra, Kbb  )      ! set tracers Boundary Conditions
       !
       IF( ln_trcais ) CALL trc_ais_ini   ! set tracers from Antarctic Ice Sheet
       !                                                         ! Partial top/bottom cell: GRADh(tr(Kmm))

@@ -24,8 +24,6 @@ MODULE trctrp
    USE trcatf          ! time filtering                      (trc_atf routine)
    USE trcrad          ! positivity                          (trc_rad routine)
    USE trcsbc          ! surface boundary condition          (trc_sbc routine)
-   USE trcbc           ! Tracers boundary condtions          ( trc_bc routine)
-   USE trcais          ! Antarctic Ice Sheet tracers         (trc_ais routine)
    USE bdy_oce   , ONLY: ln_bdy
    USE trcbdy          ! BDY open boundaries
    USE in_out_manager
@@ -74,9 +72,6 @@ CONTAINS
          IF( ln_tile ) CALL dom_tile_start
          DO jtile = 1, nijtile
             IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
-            IF( ln_trcbc .AND. lltrcbc .AND. kt /= nit000 )  &
-                                   CALL trc_bc ( kt, Kbb, Kmm, tr, Krhs )      ! tracers: surface and lateral Boundary Conditions
-            IF( ln_trcais )        CALL trc_ais( kt, Kbb, Kmm, tr, Krhs )      ! tracers from Antarctic Ice Sheet (icb, isf)
             IF( ln_trabbl )        CALL trc_bbl( kt, Kbb, Kmm, tr, Krhs )      ! advective (and/or diffusive) bottom boundary layer scheme
             IF( ln_trcdmp )        CALL trc_dmp( kt, Kbb, Kmm, tr, Krhs )      ! internal damping trends
          END DO
@@ -121,9 +116,6 @@ CONTAINS
          !
       ELSE                                               ! 1D vertical configuration
                                 CALL trc_sbc( kt,      Kmm,       tr, Krhs )  ! surface boundary condition
-         IF( ln_trcbc .AND. lltrcbc .AND. kt /= nit000 )  &
-                                CALL trc_bc ( kt, Kbb, Kmm, tr, Krhs )      ! tracers: surface and lateral Boundary Conditions 
-         IF( ln_trcais )        CALL trc_ais( kt, Kbb, Kmm, tr, Krhs )      ! tracers from Antarctic Ice Sheet (icb, isf)               
          IF( ln_trcdmp )        CALL trc_dmp( kt, Kbb, Kmm, tr, Krhs )  ! internal damping trends
                                 CALL trc_zdf( kt, Kbb, Kmm, Krhs, tr, Kaa  )  ! vert. mixing & after tracer	==> after
                                 CALL trc_atf( kt, Kbb, Kmm, Kaa , tr )        ! time filtering of "now" tracer fields

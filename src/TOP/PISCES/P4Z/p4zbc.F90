@@ -368,7 +368,7 @@ CONTAINS
          END_3D
          !
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-            zexpide   = MIN( 8.,( gdept(ji,jj,jk,Kmm) / 500. )**(-1.5) )
+            zexpide   = MIN( 8.,( gdept_0(ji,jj,jk) / 500. )**(-1.5) )
             zdenitide = -0.9543 + 0.7662 * LOG( zexpide ) - 0.235 * LOG( zexpide )**2
             zcmask(ji,jj,jk) = zcmask(ji,jj,jk) * MIN( 1., EXP( zdenitide ) / 0.5 )
          END_3D
