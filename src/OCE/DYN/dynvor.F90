@@ -784,34 +784,6 @@ CONTAINS
             CALL ctl_stop('STOP','dyn_vor: wrong value for kvor'  )
          END SELECT
          !
-#if defined key_loop_fusion
-         DO_2D( 0, 0, 0, 0 )
-            !                                   !==  horizontal fluxes  ==!
-            zwx         = e2u(ji  ,jj  ) * e3u(ji  ,jj  ,jk,Kmm) * pu(ji  ,jj  ,jk)
-            zwx_im1     = e2u(ji-1,jj  ) * e3u(ji-1,jj  ,jk,Kmm) * pu(ji-1,jj  ,jk)
-            zwx_jp1     = e2u(ji  ,jj+1) * e3u(ji  ,jj+1,jk,Kmm) * pu(ji  ,jj+1,jk)
-            zwx_im1_jp1 = e2u(ji-1,jj+1) * e3u(ji-1,jj+1,jk,Kmm) * pu(ji-1,jj+1,jk)
-            zwy         = e1v(ji  ,jj  ) * e3v(ji  ,jj  ,jk,Kmm) * pv(ji  ,jj  ,jk)
-            zwy_ip1     = e1v(ji+1,jj  ) * e3v(ji+1,jj  ,jk,Kmm) * pv(ji+1,jj  ,jk)
-            zwy_jm1     = e1v(ji  ,jj-1) * e3v(ji  ,jj-1,jk,Kmm) * pv(ji  ,jj-1,jk)
-            zwy_ip1_jm1 = e1v(ji+1,jj-1) * e3v(ji+1,jj-1,jk,Kmm) * pv(ji+1,jj-1,jk)
-            !                                   !==  compute and add the vorticity term trend  =!
-            ztne     = zwz(ji-1,jj  ) + zwz(ji  ,jj  ) + zwz(ji  ,jj-1)
-            ztnw     = zwz(ji-1,jj-1) + zwz(ji-1,jj  ) + zwz(ji  ,jj  )
-            ztnw_ip1 = zwz(ji  ,jj-1) + zwz(ji  ,jj  ) + zwz(ji+1,jj  )
-            ztse     = zwz(ji  ,jj  ) + zwz(ji  ,jj-1) + zwz(ji-1,jj-1)
-            ztse_jp1 = zwz(ji  ,jj+1) + zwz(ji  ,jj  ) + zwz(ji-1,jj  )
-            ztsw_jp1 = zwz(ji  ,jj  ) + zwz(ji-1,jj  ) + zwz(ji-1,jj+1)
-            ztsw_ip1 = zwz(ji+1,jj-1) + zwz(ji  ,jj-1) + zwz(ji  ,jj  )
-            !
-            zua = + r1_12 * r1_e1u(ji,jj) * (  ( ztne * zwy + ztnw_ip1 * zwy_ip1 )              & ! add () for
-               &                             + ( ztse * zwy_jm1 + ztsw_ip1 * zwy_ip1_jm1 ) )      ! NP repro
-            zva = - r1_12 * r1_e2v(ji,jj) * (  ( ztsw_jp1 * zwx_im1_jp1 + ztse_jp1 * zwx_jp1 )  &
-               &                             + ( ztnw * zwx_im1 + ztne * zwx ) )
-            pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zua
-            pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zva
-         END_2D
-#else
          !                                   !==  horizontal fluxes  ==!
          DO_2D( 1, 1, 1, 1 )
             zwx(ji,jj) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * pu(ji,jj,jk)
@@ -834,7 +806,6 @@ CONTAINS
             pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zua
             pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zva
          END_2D
-#endif
       END DO
       !                                                ! ===============
       !                                                !   End of slab
