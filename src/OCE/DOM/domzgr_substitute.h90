@@ -139,8 +139,11 @@
 # define  gdept(i,j,k,t)    ((DEPt_0(i,j,k) Tisf(r3t,risfdep,i,j,t))
 # define  gdepw(i,j,k,t)    ((DEPw_0(i,j,k) Tisf(r3t,risfdep,i,j,t))
 #endif
+#if defined key_linssh
+# define  gdept_z0(i,j,k,t) gdept(i,j,k,t)
+#else
 # define  gdept_z0(i,j,k,t) (gdept(i,j,k,t)-ssh(i,j,t))
-
+#endif
 #if defined show_comments
 !!!!----------------------------------------------------------------------
 !!!!----------------------------------------------------------------------
