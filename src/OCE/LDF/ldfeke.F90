@@ -507,10 +507,6 @@ CONTAINS
             WRITE(numout,*) '         default + advection                                         '
          CASE(   2  )
             WRITE(numout,*) '         default + advection + KE->EKE                               '
-#if defined key_loop_fusion
-            CALL ctl_stop( 'STOP', 'ldf_eke_init : This option of the GEOMETRIC parameterisation is not available with loop fusion' , &
-              &                    ' The source term for KE (eke_keS) is not set in the loop-fused version of dynldf_lap_blp' )
-#endif
          CASE(  88  )
             WRITE(numout,*) '         ONLY advection by z-avg mean flow (no growth or dissipation)'
          CASE(  99  )
