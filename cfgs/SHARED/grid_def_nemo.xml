@@ -12,7 +12,7 @@
     <domain domain_ref="grid_T" />
   </grid>
   <grid id="grid_T_2D_inner" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
   </grid>
   <!--  -->
   <grid id="grid_T_ncatice" >
@@ -20,7 +20,7 @@
     <axis axis_ref="ncatice" />
   </grid>
   <grid id="grid_T_ncatice_inner" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="ncatice" />
   </grid>
   <!--  -->
@@ -30,7 +30,7 @@
     <axis axis_ref="ncatice" />
   </grid>
   <grid id="grid_T_nlayice_inner" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="nlayice" />
     <axis axis_ref="ncatice" />
   </grid>
@@ -40,7 +40,7 @@
     <axis axis_ref="deptht" />
   </grid>
   <grid id="grid_T_3D_inner" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="deptht" />
   </grid>
   <!--  -->
@@ -49,7 +49,7 @@
     <axis axis_ref="profsed" />
   </grid>
   <grid id="grid_T_3DS_inner" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="profsed" />
   </grid>
   <!--  -->
@@ -57,7 +57,7 @@
     <domain domain_ref="grid_U" />
   </grid>
   <grid id="grid_U_2D_inner" >
-    <domain domain_ref="grid_U_inner" name="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" /> <!-- use name="grid_U" so we don't duplicate x, y, dimensions -->
   </grid>
   <!--  -->
   <grid id="grid_U_3D" >
@@ -65,7 +65,7 @@
     <axis axis_ref="depthu" />
   </grid>
   <grid id="grid_U_3D_inner" >
-    <domain domain_ref="grid_U_inner" name="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" /> <!-- use name="grid_U" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthu" />
   </grid>
   <!--  -->
@@ -73,7 +73,7 @@
     <domain domain_ref="grid_V" />
   </grid>
   <grid id="grid_V_2D_inner" >
-    <domain domain_ref="grid_V_inner" name="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" /> <!-- use name="grid_V" so we don't duplicate x, y, dimensions -->
   </grid>
   <!--  -->
   <grid id="grid_V_3D" >
@@ -81,7 +81,7 @@
     <axis axis_ref="depthv" />
   </grid>
   <grid id="grid_V_3D_inner" >
-    <domain domain_ref="grid_V_inner" name="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" /> <!-- use name="grid_V" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthv" />
   </grid>
   <!--  -->
@@ -89,7 +89,7 @@
     <domain domain_ref="grid_W" />
   </grid>
   <grid id="grid_W_2D_inner" >
-    <domain domain_ref="grid_W_inner" name="grid_W" />
+    <domain domain_ref="grid_W_inner" name="grid_W" /> <!-- use name="grid_W" so we don't duplicate x, y, dimensions -->
   </grid>
   <!--  -->
   <grid id="grid_W_3D" >
@@ -97,7 +97,7 @@
     <axis axis_ref="depthw" />
   </grid>
   <grid id="grid_W_3D_inner" >
-    <domain domain_ref="grid_W_inner" name="grid_W" />
+    <domain domain_ref="grid_W_inner" name="grid_W" /> <!-- use name="grid_W" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthw" />
   </grid>
   <!--  -->
@@ -105,7 +105,7 @@
     <domain domain_ref="grid_F" />
   </grid>
   <grid id="grid_F_2D_inner" >
-    <domain domain_ref="grid_F_inner" name="grid_F" />
+    <domain domain_ref="grid_F_inner" name="grid_F" /> <!-- use name="grid_F" so we don't duplicate x, y, dimensions -->
   </grid>
   <!--  -->
   <grid id="grid_F_3D" >
@@ -113,7 +113,7 @@
     <axis axis_ref="depthf" />
   </grid>
   <grid id="grid_F_3D_inner" >
-    <domain domain_ref="grid_F_inner" name="grid_F" />
+    <domain domain_ref="grid_F_inner" name="grid_F" /> <!-- use name="grid_F" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthf" />
   </grid>
   <!--  -->
@@ -191,7 +191,7 @@
     </scalar>
   </grid>
   <grid id="grid_T_SFC_inner">
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <scalar>
       <extract_axis position="0" />
     </scalar>
@@ -204,7 +204,7 @@
     </scalar>
   </grid>
   <grid id="grid_T_vsum_inner">
-    <domain domain_ref="grid_T_inner" name="grid_T"/>
+    <domain domain_ref="grid_T_inner" name="grid_T"/> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <scalar>
       <reduce_axis operation="sum" />
     </scalar>
@@ -251,7 +251,7 @@
     <axis axis_ref="deptht300" />
   </grid>
   <grid id="grid_T_zoom_300_inner">
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="deptht300" />
   </grid>
 
@@ -340,14 +340,14 @@
 
   <!-- ABL grid definition -->
   <grid id="grid_TA_2D">
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
   </grid>
   <grid id="grid_TA_3D">
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis  id="ght_abl" />
   </grid>
   <grid id="grid_WA_3D">
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis  id="ghw_abl" />
   </grid>
   <!--  -->
@@ -358,44 +358,44 @@
     <scalar />
   </grid>
   <grid id="diamlr_grid_T_2D" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <scalar />
   </grid>
   <grid id="diamlr_grid_T_2D_inner" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
   </grid>
   <grid id="diamlr_grid_U_2D" >
-    <domain domain_ref="grid_U_inner" name="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" /> <!-- use name="grid_U" so we don't duplicate x, y, dimensions -->
     <scalar />
   </grid>
   <grid id="diamlr_grid_V_2D" >
-    <domain domain_ref="grid_V_inner" name="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" /> <!-- use name="grid_V" so we don't duplicate x, y, dimensions -->
     <scalar />
   </grid>
   <grid id="diamlr_grid_W_2D" >
-    <domain domain_ref="grid_W_inner" name="grid_W" />
+    <domain domain_ref="grid_W_inner" name="grid_W" /> <!-- use name="grid_W" so we don't duplicate x, y, dimensions -->
     <scalar />
   </grid>
   <grid id="diamlr_grid_2D_to_grid_T_3D" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="deptht">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diamlr_grid_2D_to_grid_U_3D" >
-    <domain domain_ref="grid_U_inner" name="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" /> <!-- use name="grid_U" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthu">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diamlr_grid_2D_to_grid_V_3D" >
-    <domain domain_ref="grid_V_inner" name="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" /> <!-- use name="grid_V" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthv">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diamlr_grid_2D_to_grid_W_3D" >
-    <domain domain_ref="grid_W_inner" name="grid_W" />
+    <domain domain_ref="grid_W_inner" name="grid_W" /> <!-- use name="grid_W" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthw">
       <duplicate_scalar />
     </axis>
@@ -408,37 +408,37 @@
   </grid>
   <!-- grid definitions for the computation of daily detided model diagnostics (diadetide) -->
   <grid id="diadetide_grid_T_2D" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <scalar />
   </grid>
   <grid id="diadetide_grid_U_2D" >
-    <domain domain_ref="grid_U_inner" name="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" /> <!-- use name="grid_U" so we don't duplicate x, y, dimensions -->
     <scalar />
   </grid>
   <grid id="diadetide_grid_V_2D" >
-    <domain domain_ref="grid_V_inner" name="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" /> <!-- use name="grid_V" so we don't duplicate x, y, dimensions -->
     <scalar />
   </grid>
   <grid id="diadetide_grid_2D_to_grid_T_3D" >
-    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <domain domain_ref="grid_T_inner" name="grid_T" /> <!-- use name="grid_T" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="deptht">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diadetide_grid_2D_to_grid_U_3D" >
-    <domain domain_ref="grid_U_inner" name="grid_U" />
+    <domain domain_ref="grid_U_inner" name="grid_U" /> <!-- use name="grid_U" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthu">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diadetide_grid_2D_to_grid_V_3D" >
-    <domain domain_ref="grid_V_inner" name="grid_V" />
+    <domain domain_ref="grid_V_inner" name="grid_V" /> <!-- use name="grid_V" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthv">
       <duplicate_scalar />
     </axis>
   </grid>
   <grid id="diadetide_grid_2D_to_grid_W_3D" >
-    <domain domain_ref="grid_W_inner" name="grid_W" />
+    <domain domain_ref="grid_W_inner" name="grid_W" /> <!-- use name="grid_W" so we don't duplicate x, y, dimensions -->
     <axis axis_ref="depthw">
       <duplicate_scalar />
     </axis>

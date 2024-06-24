@@ -182,11 +182,21 @@ CONTAINS
          CALL set_grid_znl( gphit )
          !
          IF( ln_cfmeta ) THEN   ! Add additional grid metadata
-            CALL iom_set_domain_attr("grid_T", area = real( e1e2t(Nis0:Nie0, Njs0:Nje0), dp))
-            CALL iom_set_domain_attr("grid_U", area = real( e1e2u(Nis0:Nie0, Njs0:Nje0), dp))
-            CALL iom_set_domain_attr("grid_V", area = real( e1e2v(Nis0:Nie0, Njs0:Nje0), dp))
-            CALL iom_set_domain_attr("grid_W", area = REAL( e1e2t(Nis0:Nie0, Njs0:Nje0), dp))
-            CALL iom_set_domain_attr("grid_F", area = real( e1e2f(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_T"      , area = REAL( e1e2t(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_T_halo1", area = REAL( e1e2t(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_T_inner", area = REAL( e1e2t(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_U"      , area = REAL( e1e2u(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_U_halo1", area = REAL( e1e2u(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_U_inner", area = REAL( e1e2u(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_V"      , area = REAL( e1e2v(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_V_halo1", area = REAL( e1e2v(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_V_inner", area = REAL( e1e2v(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_W"      , area = REAL( e1e2t(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_W_halo1", area = REAL( e1e2t(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_W_inner", area = REAL( e1e2t(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_F"      , area = REAL( e1e2f(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_F_halo1", area = REAL( e1e2f(Nis0:Nie0, Njs0:Nje0), dp))
+            CALL iom_set_domain_attr("grid_F_inner", area = REAL( e1e2f(Nis0:Nie0, Njs0:Nje0), dp))
             CALL set_grid_bounds( "T", glamf, gphif, glamt, gphit )
             CALL set_grid_bounds( "U", glamv, gphiv, glamu, gphiu )
             CALL set_grid_bounds( "V", glamu, gphiu, glamv, gphiv )
@@ -2414,8 +2424,14 @@ CONTAINS
 
 !don't define lon and lat for restart reading context.
       IF ( .NOT.ldrxios ) &
-         CALL iom_set_domain_attr("grid_"//cdgrd, lonvalue = real(RESHAPE(plon(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp),   &
-         &                                        latvalue = real(RESHAPE(plat(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp ))
+         CALL iom_set_domain_attr("grid_"//cdgrd, lonvalue = REAL(RESHAPE(plon(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp),   &
+         &                                        latvalue = REAL(RESHAPE(plat(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp ))
+         CALL iom_set_domain_attr("grid_"//cdgrd//"_halo1",  &
+         &                        lonvalue = REAL(RESHAPE(plon(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp),   &
+         &                        latvalue = REAL(RESHAPE(plat(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp ))
+         CALL iom_set_domain_attr("grid_"//cdgrd//"_inner",  &
+         &                        lonvalue = REAL(RESHAPE(plon(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp),   &
+         &                        latvalue = REAL(RESHAPE(plat(Nis0:Nie0, Njs0:Nje0),(/ Ni_0*Nj_0 /)),dp ))
       !
       IF ( ln_mskland .AND. (.NOT.ldxios) ) THEN
          ! mask land points, keep values on coast line -> specific mask for U, V and W points
@@ -2493,8 +2509,15 @@ CONTAINS
          ENDIF
       END_2D
       !
-      CALL iom_set_domain_attr("grid_"//cdgrd, bounds_lat = real(RESHAPE(z_bnds(:,Nis0:Nie0,Njs0:Nje0,1),(/ 4,Ni_0*Nj_0 /)), dp),           &
-          &                                    bounds_lon = real(RESHAPE(z_bnds(:,Nis0:Nie0,Njs0:Nje0,2),(/ 4,Ni_0*Nj_0 /)), dp), nvertex=4 )
+      CALL iom_set_domain_attr("grid_"//cdgrd, &
+           &                   bounds_lat = real(RESHAPE(z_bnds(:,Nis0:Nie0,Njs0:Nje0,1),(/ 4,Ni_0*Nj_0 /)), dp),           &
+           &                   bounds_lon = real(RESHAPE(z_bnds(:,Nis0:Nie0,Njs0:Nje0,2),(/ 4,Ni_0*Nj_0 /)), dp), nvertex=4 )
+      CALL iom_set_domain_attr("grid_"//cdgrd//"_halo1", &
+           &                   bounds_lat = real(RESHAPE(z_bnds(:,Nis0:Nie0,Njs0:Nje0,1),(/ 4,Ni_0*Nj_0 /)), dp),           &
+           &                   bounds_lon = real(RESHAPE(z_bnds(:,Nis0:Nie0,Njs0:Nje0,2),(/ 4,Ni_0*Nj_0 /)), dp), nvertex=4 )
+      CALL iom_set_domain_attr("grid_"//cdgrd//"_inner", &
+           &                   bounds_lat = real(RESHAPE(z_bnds(:,Nis0:Nie0,Njs0:Nje0,1),(/ 4,Ni_0*Nj_0 /)), dp),           &
+           &                   bounds_lon = real(RESHAPE(z_bnds(:,Nis0:Nie0,Njs0:Nje0,2),(/ 4,Ni_0*Nj_0 /)), dp), nvertex=4 )
       !
       DEALLOCATE( z_bnds, z_fld, z_rot )
       !
