@@ -27,9 +27,13 @@ MODULE agrif_top_sponge
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC Agrif_Sponge_trc, interptrn_sponge
+   PUBLIC Agrif_Sponge_trc
 
    !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
+!$AGRIF_DO_NOT_TREAT
+   PROCPTR_PUBLIC(interptrn_sponge)
+!$AGRIF_END_DO_NOT_TREAT
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 5.0, NEMO Consortium (2024)
@@ -56,7 +60,7 @@ CONTAINS
       l_vremap              = ln_vert_remap
       tabspongedone_trn     = .FALSE.
       !
-      CALL Agrif_Bc_Variable( trn_sponge_id, calledweight=zcoef, procname=interptrn_sponge )
+      CALL Agrif_Bc_Variable( trn_sponge_id, calledweight=zcoef, PROCNAME(interptrn_sponge) )
       !
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.

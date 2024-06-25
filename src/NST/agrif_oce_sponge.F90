@@ -29,10 +29,16 @@ MODULE agrif_oce_sponge
    PRIVATE
 
    PUBLIC Agrif_Sponge, Agrif_Sponge_2d, Agrif_Sponge_Tra, Agrif_Sponge_Dyn
-   PUBLIC interptsn_sponge, interpun_sponge, interpvn_sponge
-   PUBLIC interpunb_sponge, interpvnb_sponge
 
    !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
+!$AGRIF_DO_NOT_TREAT
+   PROCPTR_PUBLIC(interptsn_sponge)
+   PROCPTR_PUBLIC(interpun_sponge)
+   PROCPTR_PUBLIC(interpvn_sponge)
+   PROCPTR_PUBLIC(interpunb_sponge)
+   PROCPTR_PUBLIC(interpvnb_sponge)
+!$AGRIF_END_DO_NOT_TREAT
 #  include "domzgr_substitute.h90"
 #  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
@@ -62,7 +68,7 @@ CONTAINS
       l_vremap              = ln_vert_remap
       tabspongedone_tsn     = .FALSE.
       !
-      CALL Agrif_Bc_Variable( ts_sponge_id, calledweight=zcoef, procname=interptsn_sponge )
+      CALL Agrif_Bc_Variable( ts_sponge_id, calledweight=zcoef, PROCNAME(interptsn_sponge) )
       !
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.
@@ -97,21 +103,21 @@ CONTAINS
       !
       tabspongedone_u = .FALSE.
       tabspongedone_v = .FALSE.         
-      CALL Agrif_Bc_Variable( un_sponge_id, calledweight=zcoef, procname=interpun_sponge )
+      CALL Agrif_Bc_Variable( un_sponge_id, calledweight=zcoef, PROCNAME(interpun_sponge) )
       !
       tabspongedone_u = .FALSE.
       tabspongedone_v = .FALSE.
-      CALL Agrif_Bc_Variable( vn_sponge_id, calledweight=zcoef, procname=interpvn_sponge )
+      CALL Agrif_Bc_Variable( vn_sponge_id, calledweight=zcoef, PROCNAME(interpvn_sponge) )
       
       IF ( nn_shift_bar>0 ) THEN ! then split sponge between 2d and 3d
          zcoef = REAL(Agrif_NbStepint(),wp)/REAL(Agrif_rhot()) ! forward tsplit
          tabspongedone_u = .FALSE.
          tabspongedone_v = .FALSE.         
-         CALL Agrif_Bc_Variable( unb_sponge_id, calledweight=zcoef, procname=interpunb_sponge )
+         CALL Agrif_Bc_Variable( unb_sponge_id, calledweight=zcoef, PROCNAME(interpunb_sponge) )
          !
          tabspongedone_u = .FALSE.
          tabspongedone_v = .FALSE.
-         CALL Agrif_Bc_Variable( vnb_sponge_id, calledweight=zcoef, procname=interpvnb_sponge )
+         CALL Agrif_Bc_Variable( vnb_sponge_id, calledweight=zcoef, PROCNAME(interpvnb_sponge) )
       ENDIF
       !
       Agrif_UseSpecialValue = .FALSE.

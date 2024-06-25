@@ -35,9 +35,12 @@ MODULE agrif_oce_update
 
    PUBLIC   Agrif_Update_Tra, Agrif_Update_Dyn, Agrif_Update_vvl, Agrif_Update_ssh
    PUBLIC   Agrif_Check_parent_bat
-   PUBLIC   update_tmask_agrif
 
    !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
+!$AGRIF_DO_NOT_TREAT
+   PROCPTR_PUBLIC(update_tmask_agrif)
+!$AGRIF_END_DO_NOT_TREAT
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 5.0, NEMO Consortium (2024)
@@ -49,6 +52,11 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                   *** ROUTINE Agrif_Update_Tra ***
       !!----------------------------------------------------------------------
+      !
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(updateTS)
+!$AGRIF_END_DO_NOT_TREAT
+      !!----------------------------------------------------------------------
       ! 
       IF (Agrif_Root()) RETURN
       !
@@ -58,13 +66,13 @@ CONTAINS
       Agrif_UseSpecialValueInUpdate = .FALSE. 
       ! 
 # if ! defined DECAL_FEEDBACK
-      CALL Agrif_Update_Variable(ts_update_id, procname=updateTS)
+      CALL Agrif_Update_Variable(ts_update_id, PROCNAME(updateTS) )
 ! near boundary update:
-!      CALL Agrif_Update_Variable(ts_update_id,locupdate=(/0,2/), procname=updateTS)
+!      CALL Agrif_Update_Variable(ts_update_id,locupdate=(/0,2/), PROCNAME(updateTS) )
 # else
-      CALL Agrif_Update_Variable(ts_update_id, locupdate=(/1,0/),procname=updateTS)
+      CALL Agrif_Update_Variable(ts_update_id, locupdate=(/1,0/), PROCNAME(updateTS) )
 ! near boundary update:
-!      CALL Agrif_Update_Variable(ts_update_id,locupdate=(/1,2/), procname=updateTS)
+!      CALL Agrif_Update_Variable(ts_update_id,locupdate=(/1,2/), PROCNAME(updateTS) )
 # endif
       !
       l_vremap                      = .FALSE.
@@ -75,6 +83,18 @@ CONTAINS
    SUBROUTINE Agrif_Update_Dyn( )
       !!----------------------------------------------------------------------
       !!                   *** ROUTINE Agrif_Update_Dyn ***
+      !!----------------------------------------------------------------------
+      !
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(updateU2d)
+      PROCPTR(updateV2d)
+      PROCPTR(updateub2b)
+      PROCPTR(updatevb2b)
+      PROCPTR(updateumsk)
+      PROCPTR(updatevmsk)
+      PROCPTR(updateU)
+      PROCPTR(updateV)
+!$AGRIF_END_DO_NOT_TREAT
       !!----------------------------------------------------------------------
       ! 
       IF (Agrif_Root()) RETURN
@@ -88,42 +108,42 @@ CONTAINS
       sign_north                    = -1._wp     
 !
 # if ! defined DECAL_FEEDBACK_2D
-      CALL Agrif_Update_Variable(unb_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updateU2d)
-      CALL Agrif_Update_Variable(vnb_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updateV2d)
+      CALL Agrif_Update_Variable(unb_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updateU2d) )
+      CALL Agrif_Update_Variable(vnb_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updateV2d) )
 # else
-      CALL Agrif_Update_Variable(unb_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/),procname = updateU2d)
-      CALL Agrif_Update_Variable(vnb_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updateV2d)  
+      CALL Agrif_Update_Variable(unb_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/), PROCNAME(updateU2d) )
+      CALL Agrif_Update_Variable(vnb_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updateV2d) )
 # endif
       ! 
       IF ( ln_dynspg_ts .AND. ln_bt_fw ) THEN
          ! Update time integrated transports
 #  if ! defined key_RK3
 #  if ! defined DECAL_FEEDBACK_2D
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updateub2b)
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updatevb2b)
+         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updateub2b) )
+         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updatevb2b) )
 #  else
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/),procname = updateub2b)
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/),procname = updatevb2b)
+         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/), PROCNAME(updateub2b) )
+         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updatevb2b) )
 #  endif
 #  endif
          IF (lk_agrif_fstep) THEN
-            CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc-1,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc  ,-2/),procname = updateumsk)
-            CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc  ,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc-1,-2/),procname = updatevmsk)
+            CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc-1,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc  ,-2/), PROCNAME(updateumsk) )
+            CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc  ,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc-1,-2/), PROCNAME(updatevmsk) )
          ENDIF
       END IF
 
 # if ! defined DECAL_FEEDBACK
-      CALL Agrif_Update_Variable(un_update_id,procname = updateU)
-      CALL Agrif_Update_Variable(vn_update_id,procname = updateV)
+      CALL Agrif_Update_Variable(un_update_id, PROCNAME(updateU) )
+      CALL Agrif_Update_Variable(vn_update_id, PROCNAME(updateV) )
 ! near boundary update:
-!      CALL Agrif_Update_Variable(un_update_id,locupdate=(/0,1/),procname = updateU)
-!      CALL Agrif_Update_Variable(vn_update_id,locupdate=(/0,1/),procname = updateV)
+!      CALL Agrif_Update_Variable(un_update_id,locupdate=(/0,1/), PROCNAME(updateU) )
+!      CALL Agrif_Update_Variable(vn_update_id,locupdate=(/0,1/), PROCNAME(updateV) )
 # else
-      CALL Agrif_Update_Variable(un_update_id,locupdate1=(/0,-1/),locupdate2=(/1,-2/),procname = updateU)
-      CALL Agrif_Update_Variable(vn_update_id,locupdate1=(/1,-2/),locupdate2=(/0,-1/),procname = updateV)
+      CALL Agrif_Update_Variable(un_update_id,locupdate1=(/0,-1/),locupdate2=(/1,-2/), PROCNAME(updateU) )
+      CALL Agrif_Update_Variable(vn_update_id,locupdate1=(/1,-2/),locupdate2=(/0,-1/), PROCNAME(updateV) )
 ! near boundary update:
-!      CALL Agrif_Update_Variable(un_update_id,locupdate1=(/0,1/),locupdate2=(/1,1/),procname = updateU)
-!      CALL Agrif_Update_Variable(vn_update_id,locupdate1=(/1,1/),locupdate2=(/0,1/),procname = updateV)
+!      CALL Agrif_Update_Variable(un_update_id,locupdate1=(/0,1/),locupdate2=(/1,1/), PROCNAME(updateU) )
+!      CALL Agrif_Update_Variable(vn_update_id,locupdate1=(/1,1/),locupdate2=(/0,1/), PROCNAME(updateV) )
 # endif
       !
       use_sign_north = .FALSE.
@@ -136,17 +156,25 @@ CONTAINS
       !!   *** ROUTINE Agrif_Update_ssh ***
       !!---------------------------------------------
       ! 
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(updateSSH)
+      PROCPTR(updatetmsk)
+      PROCPTR(reflux_sshu)
+      PROCPTR(reflux_sshv)
+!$AGRIF_END_DO_NOT_TREAT
+      !!---------------------------------------------
+      !
       IF (Agrif_Root()) RETURN
       !
       Agrif_UseSpecialValueInUpdate = .FALSE.
       Agrif_SpecialValueFineGrid    = 0._wp
 # if ! defined DECAL_FEEDBACK_2D
-      CALL Agrif_Update_Variable(sshn_id,locupdate=(/  nn_shift_bar,-2/), procname = updateSSH) 
+      CALL Agrif_Update_Variable(sshn_id,locupdate=(/  nn_shift_bar,-2/), PROCNAME(updateSSH) )
 # else
-      CALL Agrif_Update_Variable(sshn_id,locupdate=(/1+nn_shift_bar,-2/), procname = updateSSH)
+      CALL Agrif_Update_Variable(sshn_id,locupdate=(/1+nn_shift_bar,-2/), PROCNAME(updateSSH) )
 # endif
       IF (lk_agrif_fstep) THEN
-         CALL Agrif_Update_Variable(sshn_id,locupdate=(/1+nn_shift_bar+nn_dist_par_bc-1,-2/),procname = updatetmsk)
+         CALL Agrif_Update_Variable(sshn_id,locupdate=(/1+nn_shift_bar+nn_dist_par_bc-1,-2/), PROCNAME(updatetmsk) )
       ENDIF
       !
 #  if defined VOL_REFLUX
@@ -155,11 +183,11 @@ CONTAINS
          sign_north = -1._wp
          ! Refluxing on ssh:
 #  if defined DECAL_FEEDBACK_2D
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/nn_shift_bar,nn_shift_bar/),locupdate2=(/1+nn_shift_bar,1+nn_shift_bar/),procname = reflux_sshu)
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,1+nn_shift_bar/),locupdate2=(/nn_shift_bar,nn_shift_bar/),procname = reflux_sshv)
+         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/nn_shift_bar,nn_shift_bar/),locupdate2=(/1+nn_shift_bar,1+nn_shift_bar/), PROCNAME(reflux_sshu) )
+         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,1+nn_shift_bar/),locupdate2=(/nn_shift_bar,nn_shift_bar/), PROCNAME(reflux_sshv) )
 #  else
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/-1+nn_shift_bar,-1+nn_shift_bar/),locupdate2=(/nn_shift_bar, nn_shift_bar/),procname = reflux_sshu)
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/ nn_shift_bar, nn_shift_bar/),locupdate2=(/-1+nn_shift_bar,-1+nn_shift_bar/),procname = reflux_sshv)
+         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/-1+nn_shift_bar,-1+nn_shift_bar/),locupdate2=(/nn_shift_bar, nn_shift_bar/), PROCNAME(reflux_sshu) )
+         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/ nn_shift_bar, nn_shift_bar/),locupdate2=(/-1+nn_shift_bar,-1+nn_shift_bar/), PROCNAME(reflux_sshv) )
 #  endif
          use_sign_north = .FALSE.
       END IF
@@ -172,16 +200,22 @@ CONTAINS
       !!---------------------------------------------
       !!   *** ROUINE Agrif_Update_Tke ***
       !!---------------------------------------------
-      !!
+      !
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(updateEN)
+      PROCPTR(updateAVT)
+      PROCPTR(updateAVM)
+!$AGRIF_END_DO_NOT_TREAT
+      !!---------------------------------------------
       ! 
       IF (Agrif_Root()) RETURN
       !       
       Agrif_UseSpecialValueInUpdate = .TRUE.
       Agrif_SpecialValueFineGrid = 0._wp
 
-      CALL Agrif_Update_Variable( en_id, locupdate=(/0,0/), procname=updateEN  )
-      CALL Agrif_Update_Variable(avt_id, locupdate=(/0,0/), procname=updateAVT )
-      CALL Agrif_Update_Variable(avm_id, locupdate=(/0,0/), procname=updateAVM )
+      CALL Agrif_Update_Variable( en_id, locupdate=(/0,0/), PROCNAME(updateEN)  )
+      CALL Agrif_Update_Variable(avt_id, locupdate=(/0,0/), PROCNAME(updateAVT) )
+      CALL Agrif_Update_Variable(avm_id, locupdate=(/0,0/), PROCNAME(updateAVM) )
 
       Agrif_UseSpecialValueInUpdate = .FALSE.
       
@@ -192,6 +226,16 @@ CONTAINS
       !!   *** ROUTINE Agrif_Update_vvl ***
       !!---------------------------------------------
       !
+#if defined key_qco
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(update_r3t)
+      PROCPTR(update_r3u)
+      PROCPTR(update_r3v)
+      PROCPTR(update_r3f)
+!$AGRIF_END_DO_NOT_TREAT
+#endif
+      !!---------------------------------------------
+      !
       IF (Agrif_Root()) RETURN
       !
       IF (lwp.AND.lk_agrif_debug) Write(*,*) 'Update e3 from grid Number',Agrif_Fixed(), 'Step', Agrif_Nb_Step()
@@ -200,15 +244,15 @@ CONTAINS
       !
       Agrif_UseSpecialValueInUpdate = .FALSE.
 # if ! defined DECAL_FEEDBACK_2D
-      CALL Agrif_Update_Variable(r3t_id,  locupdate=(/  nn_shift_bar,-2/), procname=update_r3t) 
-      CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3u) 
-      CALL Agrif_Update_Variable(r3v_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3v) 
+      CALL Agrif_Update_Variable(r3t_id,  locupdate=(/  nn_shift_bar,-2/), PROCNAME(update_r3t) )
+      CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), PROCNAME(update_r3u) )
+      CALL Agrif_Update_Variable(r3v_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), PROCNAME(update_r3v) )
 # else
-      CALL Agrif_Update_Variable(r3t_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_r3t) 
-      CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/1+nn_shift_bar,-2/), procname=update_r3u) 
-      CALL Agrif_Update_Variable(r3v_id, locupdate1=(/1+nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), procname=update_r3v) 
+      CALL Agrif_Update_Variable(r3t_id,  locupdate=(/1+nn_shift_bar,-2/), PROCNAME(update_r3t)
+      CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/1+nn_shift_bar,-2/), PROCNAME(update_r3u) )
+      CALL Agrif_Update_Variable(r3v_id, locupdate1=(/1+nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), PROCNAME(update_r3v) )
 # endif
-      CALL Agrif_Update_Variable(r3f_id,  locupdate=(/1+nn_shift_bar,-2/), procname=update_r3f) 
+      CALL Agrif_Update_Variable(r3f_id,  locupdate=(/1+nn_shift_bar,-2/), PROCNAME(update_r3f) )
       !
       ! Old way (update e3 at UVF-points everywhere on parent domain):
 !      CALL Agrif_ChildGrid_To_ParentGrid()
@@ -1727,6 +1771,13 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                   *** ROUTINE Agrif_Check_parent_bat ***
       !!----------------------------------------------------------------------
+      !
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(check_parent_e3t0)
+      PROCPTR(check_parent_e3u0)
+      PROCPTR(check_parent_e3v0)
+!$AGRIF_END_DO_NOT_TREAT
+      !!----------------------------------------------------------------------
       ! 
       IF (( .NOT.ln_agrif_2way ).OR.(.NOT.ln_chk_bathy) & 
       & .OR.(Agrif_Root())) RETURN
@@ -1738,11 +1789,11 @@ CONTAINS
       IF(lwp) WRITE(numout,*) 'AGRIF: Check parent volume at Level:', Agrif_Level()
       !
 # if ! defined DECAL_FEEDBACK
-      CALL Agrif_Update_Variable(e3t_id,procname = check_parent_e3t0)
-      CALL Agrif_Update_Variable(e3u_id,procname = check_parent_e3u0)
-      CALL Agrif_Update_Variable(e3v_id,procname = check_parent_e3v0)
+      CALL Agrif_Update_Variable(e3t_id, PROCNAME(check_parent_e3t0) )
+      CALL Agrif_Update_Variable(e3u_id, PROCNAME(check_parent_e3u0) )
+      CALL Agrif_Update_Variable(e3v_id, PROCNAME(check_parent_e3v0) )
 # else
-      CALL Agrif_Update_Variable(e3t0_interp_id,locupdate=(/1,0/),procname = check_parent_e3t0)
+      CALL Agrif_Update_Variable(e3t0_interp_id,locupdate=(/1,0/), PROCNAME(check_parent_e3t0) )
 # endif
       !
       l_vremap                      = .FALSE. 

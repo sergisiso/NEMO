@@ -46,19 +46,31 @@ MODULE agrif_oce_interp
 
    PUBLIC   Agrif_dyn, Agrif_ssh, Agrif_dyn_ts, Agrif_dyn_ts_flux, Agrif_ssh_ts, Agrif_dta_ts
    PUBLIC   Agrif_tra, Agrif_avm
-   PUBLIC   interpun , interpvn
-   PUBLIC   interptsn, interpsshn, interpavm
-   PUBLIC   interpunb, interpvnb , interpub2b, interpvb2b
+   PUBLIC   interpavm
+   PUBLIC   interpub2b, interpvb2b
    PUBLIC   interpglamt, interpgphit
-   PUBLIC   interpht0, interpmbkt, interpe3t0_vremap
-   PUBLIC   interp_e1e2t_frac, interp_e2u_frac, interp_e1v_frac
    PUBLIC   agrif_istate_oce, agrif_istate_ssh   ! called by icestate.F90 and domvvl.F90
    PUBLIC   agrif_check_bat
-   PUBlIC   interp_tmask_agrif
 
    INTEGER ::   bdy_tinterp = 0
 
    !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
+!$AGRIF_DO_NOT_TREAT
+   PROCPTR_PUBLIC(interptsn)
+   PROCPTR_PUBLIC(interpsshn)
+   PROCPTR_PUBLIC(interp_tmask_agrif)
+   PROCPTR_PUBLIC(interpun)
+   PROCPTR_PUBLIC(interpvn)
+   PROCPTR_PUBLIC(interpunb)
+   PROCPTR_PUBLIC(interpvnb)
+   PROCPTR_PUBLIC(interpe3t0_vremap)
+   PROCPTR_PUBLIC(interpmbkt)
+   PROCPTR_PUBLIC(interpht0)
+   PROCPTR_PUBLIC(interp_e1e2t_frac)
+   PROCPTR_PUBLIC(interp_e2u_frac)
+   PROCPTR_PUBLIC(interp_e1v_frac)
+!$AGRIF_END_DO_NOT_TREAT
 #  include "domzgr_substitute.h90"
    !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
@@ -77,6 +89,7 @@ CONTAINS
       INTEGER, INTENT(in)  :: Kbb, Kmm, Kaa
       INTEGER :: jn
       !!----------------------------------------------------------------------
+      !
       IF(lwp) WRITE(numout,*) ' '
       IF(lwp) WRITE(numout,*) 'Agrif_istate_oce : interp child initial state from parent'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~~'
@@ -99,13 +112,13 @@ CONTAINS
        
       Krhs_a = Kbb   ;   Kmm_a = Kbb
 
-      CALL Agrif_Init_Variable(tsini_id, procname=interptsn)
+      CALL Agrif_Init_Variable(tsini_id, PROCNAME(interptsn) )
 
       Agrif_UseSpecialValue = ln_spc_dyn
       use_sign_north = .TRUE.
       sign_north = -1._wp
-      CALL Agrif_Init_Variable(uini_id , procname=interpun )
-      CALL Agrif_Init_Variable(vini_id , procname=interpvn )
+      CALL Agrif_Init_Variable(uini_id , PROCNAME(interpun) )
+      CALL Agrif_Init_Variable(vini_id , PROCNAME(interpvn) )
       use_sign_north = .FALSE.
 
       Agrif_UseSpecialValue = .FALSE.
@@ -140,6 +153,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL :: ghosts_only
       LOGICAL :: l_do_all
       !!----------------------------------------------------------------------
+      !
       IF(lwp) WRITE(numout,*) ' '
       IF(lwp) WRITE(numout,*) 'Agrif_istate_ssh : interp child ssh from parent'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~~'
@@ -160,9 +174,9 @@ CONTAINS
       l_ini_child           = .TRUE.
       !
       IF (l_do_all) THEN
-         CALL Agrif_Init_Variable(sshini_id, procname=interpsshn)
+         CALL Agrif_Init_Variable(sshini_id, PROCNAME(interpsshn) )
       ELSE
-         CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, procname=interpsshn)
+         CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, PROCNAME(interpsshn) )
       ENDIF
       !
 #if defined key_RK3 
@@ -173,9 +187,9 @@ CONTAINS
       l_ini_child           = .TRUE.
       !
       IF (l_do_all) THEN
-         CALL Agrif_Init_Variable(sshini_id, procname=interpsshn)
+         CALL Agrif_Init_Variable(sshini_id, PROCNAME(interpsshn)
       ELSE
-         CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, procname=interpsshn)
+         CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, PROCNAME(interpsshn) )
       ENDIF
 #else
       ssh(:,:,Kaa) = 0._wp
@@ -204,6 +218,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt
       INTEGER, OPTIONAL, INTENT(in) :: kstg
       REAL(wp) :: ztindex 
+      !!----------------------------------------------------------------------
       !
       IF( Agrif_Root() )   RETURN
       !
@@ -226,7 +241,7 @@ CONTAINS
       Agrif_UseSpecialValue = l_spc_tra
       l_vremap 		    = ln_vert_remap
       !
-      CALL Agrif_Bc_variable( ts_interp_id, calledweight=ztindex, procname=interptsn )
+      CALL Agrif_Bc_variable( ts_interp_id, calledweight=ztindex, PROCNAME(interptsn) )
       !
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.
@@ -247,7 +262,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj) ::   zub, zvb
       REAL(wp), DIMENSION(jpi,jpj) ::   zhub, zhvb
       REAL(wp) :: ztindex
-      !!----------------------------------------------------------------------  
+      !!----------------------------------------------------------------------
       !
       IF( Agrif_Root() )   RETURN
       !
@@ -272,14 +287,14 @@ CONTAINS
       !
       use_sign_north = .TRUE.
       sign_north = -1.0_wp
-      CALL Agrif_Bc_variable( un_interp_id, calledweight=ztindex, procname=interpun )
-      CALL Agrif_Bc_variable( vn_interp_id, calledweight=ztindex, procname=interpvn )
+      CALL Agrif_Bc_variable( un_interp_id, calledweight=ztindex, PROCNAME(interpun) )
+      CALL Agrif_Bc_variable( vn_interp_id, calledweight=ztindex, PROCNAME(interpvn) )
 
       IF( .NOT.ln_dynspg_ts ) THEN ! Get transports
          ubdy(:,:) = 0._wp    ;  vbdy(:,:) = 0._wp
          utint_stage(:,:) = 0 ;  vtint_stage(:,:) = 0
-         CALL Agrif_Bc_variable( unb_interp_id, calledweight=ztindex, procname=interpunb )
-         CALL Agrif_Bc_variable( vnb_interp_id, calledweight=ztindex, procname=interpvnb )
+         CALL Agrif_Bc_variable( unb_interp_id, calledweight=ztindex, PROCNAME(interpunb) )
+         CALL Agrif_Bc_variable( vnb_interp_id, calledweight=ztindex, PROCNAME(interpvnb) )
       ENDIF
 
       use_sign_north = .FALSE.
@@ -736,6 +751,14 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt
       !!
       LOGICAL :: ll_int_cons
+      !
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(interpub2b_const)
+      PROCPTR(interpvb2b_const)
+      PROCPTR(interpub2b)
+      PROCPTR(interpvb2b)
+      PROCPTR(interpsshn_frc)
+!$AGRIF_END_DO_NOT_TREAT
       !!----------------------------------------------------------------------  
       !
       IF( Agrif_Root() )   RETURN
@@ -743,7 +766,7 @@ CONTAINS
 #if defined key_RK3
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = .TRUE.
-      CALL Agrif_Bc_variable(sshn_id, procname=interpsshn )
+      CALL Agrif_Bc_variable(sshn_id, PROCNAME(interpsshn) )
       Agrif_UseSpecialValue = .FALSE.
 #endif
       !
@@ -768,30 +791,30 @@ CONTAINS
          Agrif_UseSpecialValue = .FALSE. ! To ensure divergence conservation 
          !
          IF ( lk_tint2d_constant ) THEN
-            CALL Agrif_Bc_variable( ub2b_interp_id, calledweight=1._wp, procname=interpub2b_const )
-            CALL Agrif_Bc_variable( vb2b_interp_id, calledweight=1._wp, procname=interpvb2b_const ) 
+            CALL Agrif_Bc_variable( ub2b_interp_id, calledweight=1._wp, PROCNAME(interpub2b_const) )
+            CALL Agrif_Bc_variable( vb2b_interp_id, calledweight=1._wp, PROCNAME(interpvb2b_const) )
             ! Divergence conserving correction terms:
 ! JC: Disable this until we found a workaround around masked corners:
-!            IF ( Agrif_Rhox()>1 ) CALL Agrif_Bc_variable(    ub2b_cor_id, calledweight=1._wp, procname=ub2b_cor )
-!            IF ( Agrif_Rhoy()>1 ) CALL Agrif_Bc_variable(    vb2b_cor_id, calledweight=1._wp, procname=vb2b_cor )
+!            IF ( Agrif_Rhox()>1 ) CALL Agrif_Bc_variable(    ub2b_cor_id, calledweight=1._wp, PROCNAME(ub2b_cor) )
+!            IF ( Agrif_Rhoy()>1 ) CALL Agrif_Bc_variable(    vb2b_cor_id, calledweight=1._wp, PROCNAME(vb2b_cor) )
          ELSE
             ! order matters here !!!!!!
-            CALL Agrif_Bc_variable( ub2b_interp_id, calledweight=1._wp, procname=interpub2b ) ! Time integrated
-            CALL Agrif_Bc_variable( vb2b_interp_id, calledweight=1._wp, procname=interpvb2b ) 
+            CALL Agrif_Bc_variable( ub2b_interp_id, calledweight=1._wp, PROCNAME(interpub2b) ) ! Time integrated
+            CALL Agrif_Bc_variable( vb2b_interp_id, calledweight=1._wp, PROCNAME(interpvb2b) )
             !
             bdy_tinterp = 1
-            CALL Agrif_Bc_variable( unb_interp_id , calledweight=1._wp, procname=interpunb  ) ! After
-            CALL Agrif_Bc_variable( vnb_interp_id , calledweight=1._wp, procname=interpvnb  )  
+            CALL Agrif_Bc_variable( unb_interp_id , calledweight=1._wp, PROCNAME(interpunb) ) ! After
+            CALL Agrif_Bc_variable( vnb_interp_id , calledweight=1._wp, PROCNAME(interpvnb) )
             !
             bdy_tinterp = 2
-            CALL Agrif_Bc_variable( unb_interp_id , calledweight=0._wp, procname=interpunb  ) ! Before
-            CALL Agrif_Bc_variable( vnb_interp_id , calledweight=0._wp, procname=interpvnb  )   
+            CALL Agrif_Bc_variable( unb_interp_id , calledweight=0._wp, PROCNAME(interpunb) ) ! Before
+            CALL Agrif_Bc_variable( vnb_interp_id , calledweight=0._wp, PROCNAME(interpvnb) )
          ENDIF
       ELSE ! Linear interpolation
          !
          ubdy(:,:) = 0._wp   ;   vbdy(:,:) = 0._wp 
-         CALL Agrif_Bc_variable( unb_interp_id, procname=interpunb )
-         CALL Agrif_Bc_variable( vnb_interp_id, procname=interpvnb )
+         CALL Agrif_Bc_variable( unb_interp_id, PROCNAME(interpunb) )
+         CALL Agrif_Bc_variable( vnb_interp_id, PROCNAME(interpvnb) )
       ENDIF
       !
       Agrif_UseSpecialValue = .FALSE.
@@ -799,7 +822,7 @@ CONTAINS
       !
       ! Set ssh forcing over ghost zone:
       ! No temporal interpolation here
-      IF (lk_div_cons)  CALL Agrif_Bc_variable( sshn_frc_id, calledweight=1._wp, procname=interpsshn_frc )
+      IF (lk_div_cons)  CALL Agrif_Bc_variable( sshn_frc_id, calledweight=1._wp, PROCNAME(interpsshn_frc) )
       ! 
    END SUBROUTINE Agrif_dta_ts
 
@@ -820,7 +843,7 @@ CONTAINS
       !
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = l_spc_ssh 
-      CALL Agrif_Bc_variable(sshn_id, procname=interpsshn )
+      CALL Agrif_Bc_variable(sshn_id, PROCNAME(interpsshn) )
       Agrif_UseSpecialValue = .FALSE.
       !
       ! --- West --- !
@@ -949,6 +972,10 @@ CONTAINS
       !!                  ***  ROUTINE Agrif_avm  ***
       !!----------------------------------------------------------------------  
       REAL(wp) ::   zalpha
+      !
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(interpavm)
+!$AGRIF_END_DO_NOT_TREAT
       !!----------------------------------------------------------------------  
       !
       IF( Agrif_Root() )   RETURN
@@ -960,7 +987,7 @@ CONTAINS
       Agrif_UseSpecialValue = .TRUE.
       l_vremap              = ln_vert_remap
       !
-      CALL Agrif_Bc_variable( avm_id, calledweight=zalpha, procname=interpavm )       
+      CALL Agrif_Bc_variable( avm_id, calledweight=zalpha, PROCNAME(interpavm) )
       !
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.

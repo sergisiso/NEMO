@@ -24,6 +24,8 @@ MODULE agrif_all_update
 
    PUBLIC   Agrif_Update_All
 
+   !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
@@ -37,13 +39,14 @@ CONTAINS
       !! ** Purpose :: Update nested grids for all components (Ocean, Sea Ice, TOP)
       !!               Order of update matters here !
       !!----------------------------------------------------------------------
+      !
       IF (( .NOT.ln_agrif_2way ).OR.(Agrif_Root())) RETURN
       !
       IF (lwp.AND.lk_agrif_debug) Write(*,*) ' --> START AGRIF UPDATE from grid Number',Agrif_Fixed()
       !
       ! Update computionnal domain mask once:
       IF (lk_agrif_fstep) THEN
-         CALL Agrif_Update_Variable(tmask_id,locupdate=(/ nn_shift_bar,-2/), procname = update_tmask_agrif)
+         CALL Agrif_Update_Variable(tmask_id,locupdate=(/ nn_shift_bar,-2/), PROCNAME(update_tmask_agrif) )
       ENDIF
       !
       CALL Agrif_Update_ssh()                      ! Update sea level

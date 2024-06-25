@@ -40,6 +40,7 @@ MODULE agrif_ice_interp
    PUBLIC   agrif_istate_icevol  ! called by restart.F90
 
    !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 5.0, NEMO Consortium (2024)
@@ -55,6 +56,13 @@ CONTAINS
       !!  ** Method  : Set initial ice fields from parent grid
       !!
       !!-----------------------------------------------------------------------
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(interp_tra_ice)
+      PROCPTR(interp_u_ice)
+      PROCPTR(interp_v_ice)
+!$AGRIF_END_DO_NOT_TREAT
+      !!-----------------------------------------------------------------------
+      !
       IF(lwp) WRITE(numout,*) ' '
       IF(lwp) WRITE(numout,*) 'Agrif_istate_ice : interp child ice initial state from parent'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~~'
@@ -64,7 +72,7 @@ CONTAINS
       Agrif_SpecialValue    = -9999.
       Agrif_UseSpecialValue = .TRUE.
       CALL Agrif_Set_MaskMaxSearch(10)
-      CALL Agrif_init_variable(tra_iceini_id,procname=interp_tra_ice)
+      CALL Agrif_init_variable(tra_iceini_id, PROCNAME(interp_tra_ice) )
       !
       CALL lbc_lnk( 'agrif_istate_ice', a_i,'T',1._wp,  v_i,'T',1._wp, &
                &                        v_s,'T',1._wp, sv_i,'T',1._wp, oa_i,'T',1._wp, &
@@ -79,8 +87,8 @@ CONTAINS
       !     it's likely that the same issue could occur at boundaries
       !     but leave it as is for the time being
       Agrif_SpecialValue = 0._wp
-      CALL Agrif_init_variable(u_iceini_id  ,procname=interp_u_ice)
-      CALL Agrif_init_variable(v_iceini_id  ,procname=interp_v_ice)
+      CALL Agrif_init_variable(u_iceini_id  , PROCNAME(interp_u_ice) )
+      CALL Agrif_init_variable(v_iceini_id  , PROCNAME(interp_v_ice) )
       use_sign_north = .FALSE.
       Agrif_UseSpecialValue = .FALSE.
       CALL Agrif_Set_MaskMaxSearch(3)
@@ -155,6 +163,12 @@ CONTAINS
       INTEGER         , INTENT(in   ), OPTIONAL ::   kiter, kitermax
       !!
       REAL(wp) ::   zbeta   ! local scalar
+      !
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(interp_u_ice)
+      PROCPTR(interp_v_ice)
+      PROCPTR(interp_tra_ice)
+!$AGRIF_END_DO_NOT_TREAT
       !!-----------------------------------------------------------------------
       !
       IF( Agrif_Root() .OR. nn_ice==0 )  RETURN   ! do not interpolate if inside Parent Grid or if child domain does not have ice
@@ -179,9 +193,9 @@ CONTAINS
       if (cd_type == 'T') use_sign_north = .FALSE.
 
       SELECT CASE( cd_type )
-      CASE('U')   ;   CALL Agrif_Bc_variable( u_ice_id  , procname=interp_u_ice  , calledweight=zbeta )
-      CASE('V')   ;   CALL Agrif_Bc_variable( v_ice_id  , procname=interp_v_ice  , calledweight=zbeta )
-      CASE('T')   ;   CALL Agrif_Bc_variable( tra_ice_id, procname=interp_tra_ice, calledweight=zbeta )
+      CASE('U')   ;   CALL Agrif_Bc_variable( u_ice_id  , PROCNAME(interp_u_ice)  , calledweight=zbeta )
+      CASE('V')   ;   CALL Agrif_Bc_variable( v_ice_id  , PROCNAME(interp_v_ice)  , calledweight=zbeta )
+      CASE('T')   ;   CALL Agrif_Bc_variable( tra_ice_id, PROCNAME(interp_tra_ice), calledweight=zbeta )
       END SELECT
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = .FALSE.

@@ -34,6 +34,8 @@ MODULE agrif_ice_update
 
    PUBLIC   agrif_update_ice   ! called by agrif_user.F90 and icestp.F90
 
+   !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
@@ -46,6 +48,12 @@ CONTAINS
       !! ** Method  :   Call the hydrostaticupdate pressure at the boundary or the entire domain 
       !!
       !! ** Action : - Update (u_ice,v_ice) and ice tracers
+      !!----------------------------------------------------------------------
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(update_tra_ice)
+      PROCPTR(update_u_ice)
+      PROCPTR(update_v_ice)
+!$AGRIF_END_DO_NOT_TREAT
       !!----------------------------------------------------------------------
       !
       IF( Agrif_Root() .OR. nn_ice == 0 ) RETURN   ! do not update if inside Parent Grid or if child domain does not have ice
@@ -62,24 +70,24 @@ CONTAINS
       Agrif_UseSpecialValueInUpdate = .TRUE.
 
 # if ! defined DECAL_FEEDBACK
-      CALL Agrif_Update_Variable( tra_ice_id , procname = update_tra_ice  )
+      CALL Agrif_Update_Variable( tra_ice_id , PROCNAME(update_tra_ice) )
 #else
-      CALL Agrif_Update_Variable( tra_ice_id , locupdate=(/1,0/), procname = update_tra_ice  )
+      CALL Agrif_Update_Variable( tra_ice_id , locupdate=(/1,0/), PROCNAME(update_tra_ice) )
 #endif
       use_sign_north = .TRUE.
       sign_north = -1.
 
 # if ! defined DECAL_FEEDBACK
-      CALL Agrif_Update_Variable( u_ice_id   , procname = update_u_ice    )
-      CALL Agrif_Update_Variable( v_ice_id   , procname = update_v_ice    )
+      CALL Agrif_Update_Variable( u_ice_id   , PROCNAME(update_u_ice) )
+      CALL Agrif_Update_Variable( v_ice_id   , PROCNAME(update_v_ice) )
 #else
-      CALL Agrif_Update_Variable( u_ice_id   , locupdate1=(/0,-1/),locupdate2=(/1,-2/),procname=update_u_ice) 
-      CALL Agrif_Update_Variable( v_ice_id   , locupdate1=(/1,-2/),locupdate2=(/0,-1/),procname=update_v_ice)
+      CALL Agrif_Update_Variable( u_ice_id   , locupdate1=(/0,-1/),locupdate2=(/1,-2/), PROCNAME(update_u_ice) ) 
+      CALL Agrif_Update_Variable( v_ice_id   , locupdate1=(/1,-2/),locupdate2=(/0,-1/), PROCNAME(update_v_ice) )
 #endif
       use_sign_north = .FALSE.
-!      CALL Agrif_Update_Variable( tra_ice_id , locupdate=(/0,2/), procname = update_tra_ice  )
-!      CALL Agrif_Update_Variable( u_ice_id   , locupdate=(/0,1/), procname = update_u_ice    )
-!      CALL Agrif_Update_Variable( v_ice_id   , locupdate=(/0,1/), procname = update_v_ice    )
+!      CALL Agrif_Update_Variable( tra_ice_id , locupdate=(/0,2/), PROCNAME(update_tra_ice) )
+!      CALL Agrif_Update_Variable( u_ice_id   , locupdate=(/0,1/), PROCNAME(update_u_ice)   )
+!      CALL Agrif_Update_Variable( v_ice_id   , locupdate=(/0,1/), PROCNAME(update_v_ice)   )
       Agrif_SpecialValueFineGrid    = 0.
       Agrif_UseSpecialValueInUpdate = .FALSE.
       !
