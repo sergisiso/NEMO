@@ -26,6 +26,7 @@ MODULE agrif_top_update
    PUBLIC Agrif_Update_Trc
 
    !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/NST 5.0, NEMO Consortium (2024)
@@ -37,6 +38,11 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                   *** ROUTINE Agrif_Update_Trc ***
       !!----------------------------------------------------------------------
+      !
+!$AGRIF_DO_NOT_TREAT
+      PROCPTR(updateTRC)
+!$AGRIF_END_DO_NOT_TREAT
+      !!----------------------------------------------------------------------
       ! 
       IF (Agrif_Root()) RETURN 
       !
@@ -46,11 +52,11 @@ CONTAINS
 
       ! 
 # if ! defined DECAL_FEEDBACK
-      CALL Agrif_Update_Variable(trn_id, procname=updateTRC )
-!      CALL Agrif_Update_Variable( trn_id, locupdate=(/0,2/), procname=updateTRC )
+      CALL Agrif_Update_Variable(trn_id, PROCNAME(updateTRC) )
+!      CALL Agrif_Update_Variable( trn_id, locupdate=(/0,2/), PROCNAME(updateTRC) )
 # else
-      CALL Agrif_Update_Variable(trn_id, locupdate=(/1,0/),procname=updateTRC )
-!      CALL Agrif_Update_Variable( trn_id, locupdate=(/1,2/), procname=updateTRC )
+      CALL Agrif_Update_Variable(trn_id, locupdate=(/1,0/), PROCNAME(updateTRC) )
+!      CALL Agrif_Update_Variable( trn_id, locupdate=(/1,2/),  PROCNAME(updateTRC) )
 # endif
       !
       Agrif_UseSpecialValueInUpdate = .FALSE.

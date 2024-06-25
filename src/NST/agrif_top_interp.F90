@@ -24,9 +24,13 @@ MODULE agrif_top_interp
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC Agrif_trc, interptrn
+   PUBLIC Agrif_trc
 
    !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
+!$AGRIF_DO_NOT_TREAT
+   PROCPTR_PUBLIC(interptrn)
+!$AGRIF_END_DO_NOT_TREAT
 #  include "domzgr_substitute.h90"
   !!----------------------------------------------------------------------
    !! NEMO/NST 5.0, NEMO Consortium (2024)
@@ -42,6 +46,7 @@ CONTAINS
       INTEGER, OPTIONAL, INTENT(in) :: kstg
       !
       REAL(wp) :: ztindex
+      !!----------------------------------------------------------------------
       !
       IF( Agrif_Root() )   RETURN
       !
@@ -64,7 +69,7 @@ CONTAINS
       Agrif_UseSpecialValue = l_spc_top 
       l_vremap              = ln_vert_remap
       !
-      CALL Agrif_Bc_variable( trn_id,calledweight=ztindex, procname=interptrn )
+      CALL Agrif_Bc_variable( trn_id,calledweight=ztindex, PROCNAME(interptrn) )
       !
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.

@@ -1,6 +1,7 @@
 #undef UPD_HIGH   /* MIX HIGH UPDATE */
 #if defined key_agrif
    !! * Substitutions
+#  include "agrif_procptr_substitute.h90"
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
    !!----------------------------------------------------------------------
@@ -242,7 +243,7 @@
       INTEGER :: ji, jj, jk
       INTEGER :: jpk_parent, ierr
       !!----------------------------------------------------------------------
-    
+      !
      ! CALL Agrif_Declare_Var_ini
 
       IF( agrif_oce_alloc()  > 0 )   CALL ctl_warn('agrif agrif_oce_alloc: allocation of arrays failed')
@@ -254,14 +255,14 @@
       mbkt_parent(:,:) = 0
       !
       ! Build tmask_agrif such that it is zero outside barotropic dynamical interface:
-      CALL Agrif_Bc_variable(tmask_id ,calledweight=1.,procname=interp_tmask_agrif)
-!     CALL Agrif_Bc_variable(ht0_id ,calledweight=1.,procname=interpht0 )
-!     CALL Agrif_Bc_variable(mbkt_id,calledweight=1.,procname=interpmbkt)
-      CALL Agrif_Init_Variable(ht0_id,        procname=interpht0 )
-      CALL Agrif_Init_Variable(mbkt_id,       procname=interpmbkt)
-      CALL Agrif_Init_variable(e1e2t_frac_id, procname=interp_e1e2t_frac) 
-      CALL Agrif_Init_variable(  e2u_frac_id, procname=interp_e2u_frac) 
-      CALL Agrif_Init_variable(  e1v_frac_id, procname=interp_e1v_frac) 
+      CALL Agrif_Bc_variable(tmask_id ,calledweight=1., PROCNAME(interp_tmask_agrif) )
+!     CALL Agrif_Bc_variable(ht0_id ,calledweight=1., PROCNAME(interpht0) )
+!     CALL Agrif_Bc_variable(mbkt_id,calledweight=1., PROCNAME(interpmbkt) )
+      CALL Agrif_Init_Variable(ht0_id,        PROCNAME(interpht0) )
+      CALL Agrif_Init_Variable(mbkt_id,       PROCNAME(interpmbkt) )
+      CALL Agrif_Init_variable(e1e2t_frac_id, PROCNAME(interp_e1e2t_frac) )
+      CALL Agrif_Init_variable(  e2u_frac_id, PROCNAME(interp_e2u_frac) )
+      CALL Agrif_Init_variable(  e1v_frac_id, PROCNAME(interp_e1v_frac) )
       !
       ! Assume step wise change of bathymetry near interface
       ! TODO: Switch to linear interpolation of bathymetry in the s-coordinate case
@@ -304,7 +305,7 @@
       ! Retrieve expected parent scale factors on child grid:
       Agrif_UseSpecialValue = .FALSE.
       e3t0_parent(:,:,:) = 0._wp
-      CALL Agrif_Init_Variable(e3t0_interp_id, procname=interpe3t0_vremap)
+      CALL Agrif_Init_Variable(e3t0_interp_id, PROCNAME(interpe3t0_vremap) )
       !
       ! Deduce scale factors at U and V points:
       DO_3D( 0, 0, 0, 0, 1, jpk_parent )
@@ -377,7 +378,8 @@
       !
       LOGICAL :: check_namelist
       CHARACTER(len=15) :: cl_check1, cl_check2, cl_check3, cl_check4 
-
+      !!----------------------------------------------------------------------
+      !
       ! 1. Declaration of the type of variable which have to be interpolated
       !---------------------------------------------------------------------
       CALL agrif_declare_var
@@ -387,39 +389,39 @@
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = l_spc_tra 
       l_vremap              = ln_vert_remap
-      CALL Agrif_Bc_variable(ts_interp_id,calledweight=1.,procname=interptsn)
+      CALL Agrif_Bc_variable(ts_interp_id,calledweight=1., PROCNAME(interptsn) )
       CALL Agrif_Sponge
       tabspongedone_tsn = .FALSE.
-      CALL Agrif_Bc_variable(ts_sponge_id,calledweight=1.,procname=interptsn_sponge)
+      CALL Agrif_Bc_variable(ts_sponge_id,calledweight=1., PROCNAME(interptsn_sponge) )
       ! reset tsa to zero
       ts(:,:,:,:,Krhs_a) = 0._wp
 
       Agrif_UseSpecialValue = ln_spc_dyn
       use_sign_north = .TRUE.
       sign_north = -1.
-      CALL Agrif_Bc_variable(un_interp_id,calledweight=1.,procname=interpun)
-      CALL Agrif_Bc_variable(vn_interp_id,calledweight=1.,procname=interpvn)
+      CALL Agrif_Bc_variable(un_interp_id,calledweight=1., PROCNAME(interpun) )
+      CALL Agrif_Bc_variable(vn_interp_id,calledweight=1., PROCNAME(interpvn) )
       tabspongedone_u = .FALSE.
       tabspongedone_v = .FALSE.
-      CALL Agrif_Bc_variable(un_sponge_id,calledweight=1.,procname=interpun_sponge)
+      CALL Agrif_Bc_variable(un_sponge_id,calledweight=1., PROCNAME(interpun_sponge) )
       tabspongedone_u = .FALSE.
       tabspongedone_v = .FALSE.
-      CALL Agrif_Bc_variable(vn_sponge_id,calledweight=1.,procname=interpvn_sponge)
+      CALL Agrif_Bc_variable(vn_sponge_id,calledweight=1., PROCNAME(interpvn_sponge) )
       IF (nn_shift_bar>0) THEN
          CALL Agrif_Sponge_2d
          tabspongedone_u = .FALSE.
          tabspongedone_v = .FALSE.
-         CALL Agrif_Bc_variable(unb_sponge_id,calledweight=1.,procname=interpunb_sponge)
+         CALL Agrif_Bc_variable(unb_sponge_id,calledweight=1., PROCNAME(interpunb_sponge) )
          tabspongedone_u = .FALSE.
          tabspongedone_v = .FALSE.
-         CALL Agrif_Bc_variable(vnb_sponge_id,calledweight=1.,procname=interpvnb_sponge)
+         CALL Agrif_Bc_variable(vnb_sponge_id,calledweight=1., PROCNAME(interpvnb_sponge) )
       ENDIF
       use_sign_north = .FALSE.
       uu(:,:,:,Krhs_a) = 0._wp
       vv(:,:,:,Krhs_a) = 0._wp
 
       Agrif_UseSpecialValue = l_spc_ssh 
-      CALL Agrif_Bc_variable(sshn_id,calledweight=1., procname=interpsshn )
+      CALL Agrif_Bc_variable(sshn_id,calledweight=1., PROCNAME(interpsshn) )
       hbdy(:,:) = 0._wp
 #if ! defined key_RK3
       ssh(:,:,Krhs_a) = 0._wp
@@ -430,8 +432,8 @@
       sign_north = -1.
       ubdy(:,:) = 0._wp
       vbdy(:,:) = 0._wp
-      CALL Agrif_Bc_variable( unb_interp_id,calledweight=1.,procname=interpunb )
-      CALL Agrif_Bc_variable( vnb_interp_id,calledweight=1.,procname=interpvnb )
+      CALL Agrif_Bc_variable( unb_interp_id,calledweight=1., PROCNAME(interpunb) )
+      CALL Agrif_Bc_variable( vnb_interp_id,calledweight=1., PROCNAME(interpvnb) )
       use_sign_north = .FALSE.
       ubdy(:,:) = 0._wp
       vbdy(:,:) = 0._wp
@@ -801,7 +803,7 @@
       CHARACTER(len=10) :: cl_check1, cl_check2, cl_check3
       LOGICAL :: check_namelist
       !!----------------------------------------------------------------------
-
+      !
       ! 1. Declaration of the type of variable which have to be interpolated
       !---------------------------------------------------------------------
       CALL agrif_declare_var_top
@@ -811,10 +813,10 @@
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = l_spc_top 
       l_vremap              = ln_vert_remap
-      CALL Agrif_Bc_variable(trn_id,calledweight=1.,procname=interptrn)
+      CALL Agrif_Bc_variable(trn_id,calledweight=1., PROCNAME(interptrn) )
       CALL Agrif_Sponge
       tabspongedone_trn = .FALSE.
-      CALL Agrif_Bc_variable(trn_sponge_id,calledweight=1.,procname=interptrn_sponge)
+      CALL Agrif_Bc_variable(trn_sponge_id,calledweight=1., PROCNAME(interptrn_sponge) )
       Agrif_UseSpecialValue = .FALSE.
       l_vremap              = .FALSE.
       ! reset tsa to zero
