@@ -354,7 +354,7 @@ else
     
     # NCDF_INC and NCDF_LIB
     NCDF_INC="-I%NCDF_F_PREFIX/include -I%NCDF_C_PREFIX/include"
-    #NCDF_LIB="-L%NCDF_F_PREFIX/lib -lnetcdff -L%NCDF_C_PREFIX/lib -lnetcdf -Wl,-rpath=%NCDF_F_PREFIX/lib -L%HDF5_PREFIX/lib -lhdf5_hl -lhdf5 $CURLlib $Zlib $libM -Wl,-rpath=%HDF5_PREFIX/lib"
+    #NCDF_LIB="-L%NCDF_F_PREFIX/lib -lnetcdff -L%NCDF_C_PREFIX/lib -lnetcdf -Wl,-rpath,%NCDF_F_PREFIX/lib -L%HDF5_PREFIX/lib -lhdf5_hl -lhdf5 $CURLlib $Zlib $libM -Wl,-rpath,%HDF5_PREFIX/lib"
     NCDF_LIB="-L%NCDF_F_PREFIX/lib -lnetcdff -L%NCDF_C_PREFIX/lib -lnetcdf -L%HDF5_PREFIX/lib -lhdf5_hl -lhdf5 $CURLlib $Zlib $libM"
 
 fi
@@ -507,7 +507,7 @@ then
 	XIOS_LIB=""
     else
 	XIOS_INC="-I%XIOS_PREFIX/inc"
-	#XIOS_LIB="-L%XIOS_PREFIX/lib -lxios -lstdc++ -Wl,-rpath=%XIOS_PREFIX/lib"
+	#XIOS_LIB="-L%XIOS_PREFIX/lib -lxios -lstdc++ -Wl,-rpath,%XIOS_PREFIX/lib"
 	XIOS_LIB="-L%XIOS_PREFIX/lib -lxios -lstdc++"
     fi
 
@@ -629,7 +629,7 @@ cat > $archname << EOF
 %DEBUG_FCFLAGS       $DEBUG_FCFLAGS
 %FFLAGS              %FCFLAGS
 %LD                  %FC
-%LDFLAGS             -Wl,-rpath=%HDF5_PREFIX/lib -Wl,-rpath=%NCDF_F_PREFIX/lib -Wl,-rpath=%XIOS_PREFIX/lib
+%LDFLAGS             -Wl,-rpath,%HDF5_PREFIX/lib -Wl,-rpath,%NCDF_F_PREFIX/lib -Wl,-rpath,%XIOS_PREFIX/lib
 %FPPFLAGS            -P -traditional
 %AR                  $ARnemo
 %ARFLAGS             rs
