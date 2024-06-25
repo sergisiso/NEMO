@@ -1172,8 +1172,6 @@ CONTAINS
       REAL(wp) ::   zQmax= 1000._wp    ! maximum normal surface irradiance at sea level (W/m2)
       !!----------------------------------------------------------------------
       !
-      zQmax = 1000._wp     ! maximum normal surface irradiance at sea level (W/m2)
-      !
       zcoef    =  zprec * rho0_rcp / ( rDt * zQmax * pfr)
       !
 #if defined key_vco_1d || defined key_vco_1d3d
