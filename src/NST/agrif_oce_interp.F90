@@ -187,7 +187,7 @@ CONTAINS
       l_ini_child           = .TRUE.
       !
       IF (l_do_all) THEN
-         CALL Agrif_Init_Variable(sshini_id, PROCNAME(interpsshn)
+         CALL Agrif_Init_Variable(sshini_id, PROCNAME(interpsshn) )
       ELSE
          CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, PROCNAME(interpsshn) )
       ENDIF
