@@ -88,8 +88,10 @@ CONTAINS
 !$AGRIF_DO_NOT_TREAT
       PROCPTR(updateU2d)
       PROCPTR(updateV2d)
+#if ! defined key_RK3
       PROCPTR(updateub2b)
       PROCPTR(updatevb2b)
+#endif
       PROCPTR(updateumsk)
       PROCPTR(updatevmsk)
       PROCPTR(updateU)
@@ -248,7 +250,7 @@ CONTAINS
       CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), PROCNAME(update_r3u) )
       CALL Agrif_Update_Variable(r3v_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), PROCNAME(update_r3v) )
 # else
-      CALL Agrif_Update_Variable(r3t_id,  locupdate=(/1+nn_shift_bar,-2/), PROCNAME(update_r3t)
+      CALL Agrif_Update_Variable(r3t_id,  locupdate=(/1+nn_shift_bar,-2/), PROCNAME(update_r3t) )
       CALL Agrif_Update_Variable(r3u_id, locupdate1=(/  nn_shift_bar,-2/), locupdate2=(/1+nn_shift_bar,-2/), PROCNAME(update_r3u) )
       CALL Agrif_Update_Variable(r3v_id, locupdate1=(/1+nn_shift_bar,-2/), locupdate2=(/  nn_shift_bar,-2/), PROCNAME(update_r3v) )
 # endif
