@@ -55,7 +55,9 @@ MODULE zdfphy
 
    LOGICAL, PUBLIC ::   l_zdfsh2   ! shear production term flag (=F for CST, =T otherwise (i.e. TKE, GLS, RIC))
 
+#if ! defined key_PSYCLONE_2p5p0
    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   sh2 !: Shear term
+#endif
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -251,12 +253,17 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs   ! ocean time level indices
       !
       INTEGER ::   ji, jj, jk, jtile   ! dummy loop indice
+#if defined key_PSYCLONE_2p5p0
+      REAL(wp), DIMENSION(A2D(0),jpk) ::   sh2   ! shear term
+#endif
       !! ---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('zdf_phy')
       !
       IF( l_zdfsh2 ) THEN        !* shear production at w-points (energy conserving form)
+#if ! defined key_PSYCLONE_2p5p0
          ALLOCATE( sh2(A2D(0),jpk) )
+#endif
          CALL zdf_sh2( Kbb, Kmm, avm_k,   &     ! <<== in
             &                      sh2    )     ! ==>> out : shear production
       ENDIF
@@ -356,7 +363,9 @@ CONTAINS
          IF( iom_use('avm_k'   ) ) CALL iom_put( 'avm_k'   ,   avm_k(A2D(0),:)       * wmask(A2D(0),:) )
          IF( iom_use('estrat_k') ) CALL iom_put( 'estrat_k', - avt_k * rn2(A2D(0),:) * wmask(A2D(0),:) )
          IF( iom_use('eshear_k') ) CALL iom_put( 'eshear_k',   sh2                                     )
+#if ! defined key_PSYCLONE_2p5p0
          DEALLOCATE( sh2 )
+#endif
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('zdf_phy')
