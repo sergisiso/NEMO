@@ -153,10 +153,8 @@ CONTAINS
       IF(lwp) WRITE(numout,*)
 
       ncplmodel = kcplmodel
-      IF( kcplmodel > nmaxcpl ) THEN
-         CALL oasis_abort ( ncomp_id, 'cpl_define', 'ncplmodel is larger than nmaxcpl, increase nmaxcpl')   ;   RETURN
-      ENDIF
-
+      IF( kcplmodel > nmaxcpl )   &
+         CALL oasis_abort ( ncomp_id, 'cpl_define', 'ncplmodel is larger than nmaxcpl, increase nmaxcpl')
       !
       ! ... Define the shape for the area that excludes the halo as we don't want them to be "seen" by oasis
       !
@@ -168,19 +166,18 @@ CONTAINS
       ! ... Allocate memory for data exchange
       !
       ALLOCATE(exfld(Ni_0, Nj_0), stat = nerror)        ! allocate only inner domain (without halos)
-      IF( nerror > 0 ) THEN
-         CALL oasis_abort ( ncomp_id, 'cpl_define', 'Failure in allocating exfld')   ;   RETURN
-      ENDIF
+      IF( nerror > 0 )   &
+         CALL oasis_abort ( ncomp_id, 'cpl_define', 'Failure in allocating exfld')
       !
       ! -----------------------------------------------------------------
       ! ... Define the partition, excluding halos as we don't want them to be "seen" by oasis
       ! -----------------------------------------------------------------
 
-      paral(1) = 2                                        ! box partitioning
-      paral(2) = Ni0glo * mjg(nn_hls,0) + mig(nn_hls,0)   ! NEMO lower left corner global offset, without halos
-      paral(3) = Ni_0                                     ! local extent in i, excluding halos
-      paral(4) = Nj_0                                     ! local extent in j, excluding halos
-      paral(5) = Ni0glo                                   ! global extent in x, excluding halos
+      paral(1) = 2                                          ! box partitioning
+      paral(2) = Ni0glo * (mjg(Njs0,0)-1) + mig(Nis0,0)-1   ! NEMO lower left corner global offset, without halos
+      paral(3) = Ni_0                                       ! local extent in i, excluding halos
+      paral(4) = Nj_0                                       ! local extent in j, excluding halos
+      paral(5) = Ni0glo                                     ! global extent in x, excluding halos
 
       IF( sn_cfctl%l_oasout ) THEN
          WRITE(numout,*) ' multiexchg: paral (1:5)', paral
@@ -198,11 +195,9 @@ CONTAINS
       DO ji = 1, ksnd
          IF( ssnd(ji)%laction ) THEN
 
-            IF( ssnd(ji)%nct > nmaxcat ) THEN
+            IF( ssnd(ji)%nct > nmaxcat )   &
                CALL oasis_abort ( ncomp_id, 'cpl_define', 'Number of categories of '//   &
                   &              TRIM(ssnd(ji)%clname)//' is larger than nmaxcat, increase nmaxcat' )
-               RETURN
-            ENDIF
 
             DO jc = 1, ssnd(ji)%nct
                DO jm = 1, kcplmodel
@@ -243,11 +238,9 @@ CONTAINS
       DO ji = 1, krcv
          IF( srcv(ji)%laction ) THEN
 
-            IF( srcv(ji)%nct > nmaxcat ) THEN
+            IF( srcv(ji)%nct > nmaxcat )   &
                CALL oasis_abort ( ncomp_id, 'cpl_define', 'Number of categories of '//   &
                   &              TRIM(srcv(ji)%clname)//' is larger than nmaxcat, increase nmaxcat' )
-               RETURN
-            ENDIF
 
             DO jc = 1, srcv(ji)%nct
                DO jm = 1, kcplmodel
@@ -321,13 +314,15 @@ CONTAINS
       INTEGER                                   ::   jc,jm     ! local loop index
       !!--------------------------------------------------------------------
       !
-      ! snd data to OASIS3
+      IF( COUNT( SHAPE(pdata(:,:,1)) /= (/Ni_0,Nj_0/) ) > 0 )   &
+         CALL oasis_abort( ncomp_id, 'cpl_snd', TRIM(ssnd(kid)%clname)//' array must be given without halo' )
       !
+      ! snd data to OASIS3
       DO jc = 1, ssnd(kid)%nct
          DO jm = 1, ssnd(kid)%ncplmodel
 
             IF( ssnd(kid)%nid(jc,jm) /= -1 ) THEN   ! exclude halos from data sent to oasis
-               CALL oasis_put ( ssnd(kid)%nid(jc,jm), kstep, pdata(Nis0:Nie0, Njs0:Nje0,jc), kinfo )
+               CALL oasis_put ( ssnd(kid)%nid(jc,jm), kstep, pdata(1:Ni_0,1:Nj_0,jc), kinfo )
 
                IF ( sn_cfctl%l_oasout ) THEN
                   IF ( kinfo == OASIS_Sent     .OR. kinfo == OASIS_ToRest .OR.   &
@@ -337,9 +332,9 @@ CONTAINS
                      WRITE(numout,*) 'oasis_put: ivarid ', ssnd(kid)%nid(jc,jm)
                      WRITE(numout,*) 'oasis_put:  kstep ', kstep
                      WRITE(numout,*) 'oasis_put:   info ', kinfo
-                     WRITE(numout,*) '     - Minimum value is ', MINVAL(pdata(Nis0:Nie0,Njs0:Nje0,jc))
-                     WRITE(numout,*) '     - Maximum value is ', MAXVAL(pdata(Nis0:Nie0,Njs0:Nje0,jc))
-                     WRITE(numout,*) '     -     Sum value is ',    SUM(pdata(Nis0:Nie0,Njs0:Nje0,jc))
+                     WRITE(numout,*) '     - Minimum value is ', MINVAL(pdata(1:Ni_0,1:Nj_0,jc))
+                     WRITE(numout,*) '     - Maximum value is ', MAXVAL(pdata(1:Ni_0,1:Nj_0,jc))
+                     WRITE(numout,*) '     -     Sum value is ',    SUM(pdata(1:Ni_0,1:Nj_0,jc))
                      WRITE(numout,*) '****************'
                   ENDIF
                ENDIF
@@ -392,11 +387,11 @@ CONTAINS
 
                   kinfo = OASIS_Rcv
                   IF( ll_1st ) THEN
-                     pdata(Nis0:Nie0,Njs0:Nje0,jc) =   exfld(:,:) * pmask(Nis0:Nie0,Njs0:Nje0,jm)
+                     pdata(1:Ni_0,1:Nj_0,jc) =    exfld(:,:) * pmask(1:Ni_0,1:Nj_0,jm)
                      ll_1st = .FALSE.
                   ELSE
-                     pdata(Nis0:Nie0,Njs0:Nje0,jc) = pdata(Nis0:Nie0,Njs0:Nje0,jc)   &
-                        &                                + exfld(:,:) * pmask(Nis0:Nie0,Njs0:Nje0,jm)
+                     pdata(1:Ni_0,1:Nj_0,jc) = pdata(1:Ni_0,1:Nj_0,jc)   &
+                        &                       + exfld(:,:) * pmask(1:Ni_0,1:Nj_0,jm)
                   ENDIF
 
                   IF ( sn_cfctl%l_oasout ) THEN
@@ -405,9 +400,9 @@ CONTAINS
                      WRITE(numout,*) 'oasis_get: ivarid '  , srcv(kid)%nid(jc,jm)
                      WRITE(numout,*) 'oasis_get:   kstep', kstep
                      WRITE(numout,*) 'oasis_get:   info ', kinfo
-                     WRITE(numout,*) '     - Minimum value is ', MINVAL(pdata(Nis0:Nie0,Njs0:Nje0,jc))
-                     WRITE(numout,*) '     - Maximum value is ', MAXVAL(pdata(Nis0:Nie0,Njs0:Nje0,jc))
-                     WRITE(numout,*) '     -     Sum value is ',    SUM(pdata(Nis0:Nie0,Njs0:Nje0,jc))
+                     WRITE(numout,*) '     - Minimum value is ', MINVAL(pdata(1:Ni_0,1:Nj_0,jc))
+                     WRITE(numout,*) '     - Maximum value is ', MAXVAL(pdata(1:Ni_0,1:Nj_0,jc))
+                     WRITE(numout,*) '     -     Sum value is ',    SUM(pdata(1:Ni_0,1:Nj_0,jc))
                      WRITE(numout,*) '****************'
                   ENDIF
 
