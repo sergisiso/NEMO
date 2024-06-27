@@ -2390,7 +2390,7 @@ CONTAINS
                ztmp3(:,:,1:jpl) = h_i(A2D(0),1:jpl)
                ztmp4(:,:,1:jpl) = h_s(A2D(0),1:jpl)
             CASE( 'no' )
-               WHERE( SUM( a_i, dim=3 ) /= 0. )
+               WHERE( zat_i(:,:) /= 0. )
                   ztmp3(:,:,1) = SUM( h_i(A2D(0),:) * a_i(A2D(0),:), dim=3 ) / zat_i(:,:)
                   ztmp4(:,:,1) = SUM( h_s(A2D(0),:) * a_i(A2D(0),:), dim=3 ) / zat_i(:,:)
                ELSEWHERE
