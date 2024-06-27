@@ -751,7 +751,9 @@ CONTAINS
                         ! The following corrects that.
                         zdHui  = SQRT( 2._wp * zomega * rDt_ice + ( v_il(ji,jj,jl) / a_ip(ji,jj,jl) )**2 ) &
                            - v_il(ji,jj,jl) / a_ip(ji,jj,jl)
-
+                        ! change volume
+                        zdvice = MIN( zdHui * a_ip(ji,jj,jl) , v_ip(ji,jj,jl) )
+                        !
                         IF ( zdvice > epsi10 ) THEN
                            v_il (ji,jj,jl)  = v_il(ji,jj,jl)   + zdvice
                            v_ip(ji,jj,jl)   = v_ip(ji,jj,jl)   - zdvice
