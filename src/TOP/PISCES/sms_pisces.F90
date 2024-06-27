@@ -60,7 +60,6 @@ MODULE sms_pisces
 
    !!* restoring
    LOGICAL  ::  ln_pisdmp         !: restoring or not of nutrients to a mean value
-   INTEGER  ::  nn_pisdmp         !: frequency of relaxation or not of nutrients to a mean value
 
    LOGICAL, PUBLIC ::   ln_ironice   !: boolean for Fe input from sea ice
 

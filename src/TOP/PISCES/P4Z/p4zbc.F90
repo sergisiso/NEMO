@@ -141,13 +141,21 @@ CONTAINS
       ! ----------------------------------------------------------
       IF( ll_river ) THEN
           jl = n_trc_indcbc(jpno3)
-          DO_2D( 0, 0, 0, 0 )
-             DO jk = 1, nk_rnf(ji,jj)
-                zcoef = rn_rfact / ( e1e2t(ji,jj) * h_rnf(ji,jj) * rn_cbc_time ) * tmask(ji,jj,1)
+          IF( ln_rnf ) THEN
+             DO_2D( 0, 0, 0, 0 )
+                DO jk = 1, nk_rnf(ji,jj)
+                   zcoef = rn_rfact / ( e1e2t(ji,jj) * h_rnf(ji,jj) * rn_cbc_time ) * tmask(ji,jj,1)
+                   zrivdin = rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zcoef
+                   tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - rno3 * zrivdin * rfact
+               ENDDO
+             END_2D
+          ELSE
+             DO_2D( 0, 0, 0, 0 )
+                zcoef = rn_rfact / ( e3t(ji,jj,1,Kmm) * rn_cbc_time ) * tmask(ji,jj,1)
                 zrivdin = rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zcoef
-                tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - rno3 * zrivdin * rfact
-            ENDDO
-          END_2D
+                tr(ji,jj,1,jptal,Krhs) = tr(ji,jj,1,jptal,Krhs) - rno3 * zrivdin * rfact
+             END_2D
+          ENDIF
       ENDIF
       
       ! Add the external input of nutrients from nitrogen deposition

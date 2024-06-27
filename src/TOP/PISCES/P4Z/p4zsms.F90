@@ -66,7 +66,8 @@ CONTAINS
       INTEGER, INTENT( in ) ::   kt              ! ocean time-step index      
       INTEGER, INTENT( in ) ::   Kbb, Kmm, Krhs  ! time level index
       !!
-      INTEGER ::   ji, jj, jk, jnt, jn, jl
+      INTEGER ::   ji, jj, jk, jnt, jn, jl, ikty
+      LOGICAL :: ll_dmp
       INTEGER ::   imm      ! local time-level index
       REAL(wp) ::  ztra
       CHARACTER (len=25) :: charout
@@ -98,7 +99,11 @@ CONTAINS
       imm = Kmm
 #endif
       !
-      IF( ln_pisdmp .AND. MOD( kt - 1, nn_pisdmp ) == 0 )   CALL p4z_dmp( kt, Kbb, imm )      ! Relaxation of some tracers
+      ll_dmp  = ln_pisdmp .AND. ( ln_rsttr .OR. kt /= 1 ) 
+      ikty = nyear_len(1) * rday / NINT(rn_Dt)    ! time-step at the end of a year 
+      ll_dmp = ll_dmp .AND.  MOD( kt-1, ikty ) == 0 
+
+      IF( ll_dmp )    CALL p4z_dmp( kt, Kbb, imm )      ! Relaxation of some tracers
       !
       rfact = rDt_trc  ! time step of PISCES
       !
@@ -287,7 +292,7 @@ CONTAINS
       NAMELIST/nampisbio/ nrdttrc, wsbio, xkmort, feratz, feratm, wsbio2, wsbio2max,    &
          &                wsbio2scale, ldocp, ldocz, lthet, no3rat3, po4rat3
          !
-      NAMELIST/nampisdmp/ ln_pisdmp, nn_pisdmp
+      NAMELIST/nampisdmp/ ln_pisdmp
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -332,7 +337,6 @@ CONTAINS
          WRITE(numout,*)
          WRITE(numout,*) '   Namelist : nampisdmp --- relaxation to GLODAP'
          WRITE(numout,*) '      Relaxation of tracer to glodap mean value   ln_pisdmp =', ln_pisdmp
-         WRITE(numout,*) '      Frequency of Relaxation                     nn_pisdmp =', nn_pisdmp
       ENDIF
       !
    END SUBROUTINE p4z_sms_init
@@ -488,10 +492,10 @@ CONTAINS
          IF( .NOT. ln_c1d ) THEN      ! ORCA configuration (not 1D) !
             !                                                ! --------------------------- !
             ! set total alkalinity, phosphate, nitrate & silicate
-            zarea          = 1._wp / glob_3Dsum( 'p4zsms', cvol(:,:,:), cdelay = 'bioarea' ) * 1e6              
+            zarea          = 1._wp / glob_3Dsum( 'p4zsms', cvol(:,:,:) ) * 1e6              
 
-            zalksumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jptal,Kmm) * cvol(:,:,:), cdelay = 'alkn'  ) * zarea
-            zno3sumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jpno3,Kmm) * cvol(:,:,:), cdelay = 'no3n'  ) * zarea * rno3
+            zalksumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jptal,Kmm) * cvol(:,:,:)  ) * zarea
+            zno3sumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jpno3,Kmm) * cvol(:,:,:)  ) * zarea * rno3
  
             ! Correct the trn mean content of alkalinity
             IF(lwp) WRITE(numout,*) '       TALKN mean : ', zalksumn
@@ -502,8 +506,8 @@ CONTAINS
             tr(:,:,:,jpno3,Kmm) = tr(:,:,:,jpno3,Kmm) * no3mean / zno3sumn
 
             IF ( ln_p4z .OR. ln_p5z ) THEN
-               zpo4sumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jppo4,Kmm) * cvol(:,:,:), cdelay = 'po4n'  ) * zarea * po4r
-               zsilsumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jpsil,Kmm) * cvol(:,:,:), cdelay = 'siln'  ) * zarea
+               zpo4sumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jppo4,Kmm) * cvol(:,:,:) ) * zarea * po4r
+               zsilsumn = glob_3Dsum( 'p4zsms', tr(:,:,:,jpsil,Kmm) * cvol(:,:,:) ) * zarea
 
                ! Correct the trn mean content of PO4
                IF(lwp) WRITE(numout,*) '       PO4N  mean : ', zpo4sumn
@@ -516,8 +520,8 @@ CONTAINS
             !
             !
             IF( .NOT. ln_top_euler ) THEN
-               zalksumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jptal,Kbb) * cvol(:,:,:), cdelay = 'alkb'  ) * zarea
-               zno3sumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jpno3,Kbb) * cvol(:,:,:), cdelay = 'no3b'  ) * zarea * rno3
+               zalksumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jptal,Kbb) * cvol(:,:,:) ) * zarea
+               zno3sumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jpno3,Kbb) * cvol(:,:,:) ) * zarea * rno3
  
                IF(lwp) WRITE(numout,*) ' '
                ! Correct the trb mean content of alkalinity
@@ -529,8 +533,8 @@ CONTAINS
                tr(:,:,:,jpno3,Kbb) = tr(:,:,:,jpno3,Kbb) * no3mean / zno3sumb
 
                IF ( ln_p4z .OR. ln_p5z ) THEN
-                  zpo4sumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jppo4,Kbb) * cvol(:,:,:), cdelay = 'po4b'  ) * zarea * po4r
-                  zsilsumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jpsil,Kbb) * cvol(:,:,:), cdelay = 'silb'  ) * zarea
+                  zpo4sumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jppo4,Kbb) * cvol(:,:,:) ) * zarea * po4r
+                  zsilsumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jpsil,Kbb) * cvol(:,:,:) ) * zarea
 
                   ! Correct the trb mean content of PO4
                   IF(lwp) WRITE(numout,*) '       PO4B  mean : ', zpo4sumb
