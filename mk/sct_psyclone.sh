@@ -97,6 +97,7 @@ fi
 # expressions.
 if [[ ! "${ACTION}" == "EXCLUDE" ]]; then
     sed -i -e 's/\([Nn][ijt][se][0ij]__key_psyclone_2_5_0__\)\ \?[-+]\ \?(\([0-3]\))/\1__\2__/g' ${BLD_DIR}/ppsrc/nemo/${FILENAME}
+    sed -i -e 's/\([Nn][ijt][se][0ij]__key_psyclone_2_5_0__\)\ \?[-+]\ \?(\(nn_hls\))/\1__\2__/g' ${BLD_DIR}/ppsrc/nemo/${FILENAME}
 fi
 #
 case ${ACTION} in
@@ -111,6 +112,9 @@ esac
 # transformation of PSyclone v2.5.0 (continued).
 if [[ ! "${ACTION}" == "EXCLUDE" ]]; then
     sed -i -e 's/\([Nn][ijt]s[0ij]__key_psyclone_2_5_0__\)__\([0-3]\)__/\1 - \2/g' \
-           -e 's/\([Nn][ijt]e[0ij]__key_psyclone_2_5_0__\)__\([0-3]\)__/\1 + \2/g' ${BLD_DIR}/obj/${FILENAME}
+           -e 's/\([Nn][ijt]e[0ij]__key_psyclone_2_5_0__\)__\([0-3]\)__/\1 + \2/g' \
+           -e 's/\([Nn][ijt]s[0ij]__key_psyclone_2_5_0__\)__\(nn_hls\)__/\1 - \2/g' \
+           -e 's/\([Nn][ijt]e[0ij]__key_psyclone_2_5_0__\)__\(nn_hls\)__/\1 + \2/g' \
+           ${BLD_DIR}/obj/${FILENAME}
 fi
 sed -i -e 's/\([Nn][ijt][se][0ij]\)__key_psyclone_2_5_0__/\1/g' ${BLD_DIR}/obj/${FILENAME}
