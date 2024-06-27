@@ -415,16 +415,24 @@ CONTAINS
          ENDIF
          !
          ! COASTAL boundary conditions
-         IF( ( ln_rnf .OR. l_offline ) .AND. ln_trc_cbc(jn) ) THEN
-            IF( l_offline )   rn_rfact = 1._wp
+         IF( ln_trc_cbc(jn) ) THEN
             jl = n_trc_indcbc(jn)
-            DO_2D( 0, 0, 0, 0 )
-               sf_trccbc(jl)%fnow(ji,jj,1) = MAX( rtrn, sf_trccbc(jl)%fnow(ji,jj,1) ) ! avoid nedgative value due to interpolation
-               DO jk = 1, nk_rnf(ji,jj)
-                  zfact = rn_rfact / ( e1e2t(ji,jj) * h_rnf(ji,jj) * rn_cbc_time ) 
-                  ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs) + rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zfact
-               END DO
-            END_2D
+            IF( l_offline )   rn_rfact = 1._wp
+            IF( ln_rnf ) THEN
+               DO_2D( 0, 0, 0, 0 )
+                  sf_trccbc(jl)%fnow(ji,jj,1) = MAX( rtrn, sf_trccbc(jl)%fnow(ji,jj,1) ) ! avoid nedgative value due to interpolation
+                  DO jk = 1, nk_rnf(ji,jj)
+                     zfact = rn_rfact / ( e1e2t(ji,jj) * h_rnf(ji,jj) * rn_cbc_time ) 
+                     ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs) + rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zfact
+                  END DO
+               END_2D
+            ELSE
+               DO_2D( 0, 0, 0, 0 )
+                  sf_trccbc(jl)%fnow(ji,jj,1) = MAX( rtrn, sf_trccbc(jl)%fnow(ji,jj,1) ) ! avoid nedgative value due to interpolation
+                  zfact = rn_rfact / ( e3t(ji,jj,1,Kmm) * rn_cbc_time ) 
+                  ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zfact
+               END_2D
+            ENDIF
          ENDIF
          !                                                       ! ===========
       END DO                                                     ! tracer loop
