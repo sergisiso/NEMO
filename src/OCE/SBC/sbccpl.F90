@@ -2418,11 +2418,26 @@ CONTAINS
                ztmp3(:,:,1:jpl) =  a_ip_eff(:,:,1:jpl)
                ztmp4(:,:,1:jpl) =  h_ip(A2D(0),1:jpl)
             CASE( 'no' )
-               ztmp3(:,:,:) = 0.0
-               ztmp4(:,:,:) = 0.0
+               WHERE( zat_i(:,:) /= 0. )
+                  ztmp3(:,:,1) = SUM( a_i(A2D(0),:) * a_ip_eff(:,:,:), dim=3 ) / zat_i(:,:)
+                  ztmp4(:,:,1) = SUM( a_i(A2D(0),:) * h_ip(A2D(0),:), dim=3 ) / zat_i(:,:)
+               ELSEWHERE
+                 ztmp3(:,:,1) = 0.
+                 ztmp4(:,:,1) = 0.
+               END WHERE
+            CASE default   ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_mpnd%clcat' )
+            END SELECT
+         CASE( 'weighted ice' )
+            SELECT CASE( sn_snd_mpnd%clcat )
+            CASE( 'yes' )
+               ztmp3(:,:,1:jpl) =  a_ip_eff(:,:,1:jpl) * a_i(A2D(0),1:jpl)
+               ztmp4(:,:,1:jpl) =  h_ip(A2D(0),1:jpl) * a_i(A2D(0),1:jpl)
+            CASE( 'no' )
+               ztmp3(:,:,:) = 0.
+               ztmp4(:,:,:) = 0.
                DO jl=1,jpl
-                 ztmp3(:,:,1) = ztmp3(:,:,1) + a_ip_frac(:,:,jpl)
-                 ztmp4(:,:,1) = ztmp4(:,:,1) + h_ip(A2D(0),jpl)
+                 ztmp3(:,:,1) = ztmp3(:,:,1) + a_ip_eff(:,:,jl) * a_i(A2D(0),jl)
+                 ztmp4(:,:,1) = ztmp4(:,:,1) + h_ip(A2D(0),jl) * a_i(A2D(0),jl)
                ENDDO
             CASE default   ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_mpnd%clcat' )
             END SELECT
