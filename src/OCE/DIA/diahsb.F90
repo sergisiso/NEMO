@@ -37,6 +37,7 @@ MODULE diahsb
    PUBLIC   dia_hsb_init   ! routine called by nemogcm.F90
 
    LOGICAL, PUBLIC ::   l_diahsb   !: check the heat and salt budgets
+   LOGICAL, PUBLIC ::   l_diahsb_init ! =T start budget from kt = nit000
 
    REAL(wp) ::   surf_tot              ! ocean surface
    REAL(wp) ::   frc_t, frc_s, frc_v   ! global forcing trends
@@ -101,11 +102,15 @@ CONTAINS
          IF( ln_isf )   ztmp(ji,jj,1)  = ztmp(ji,jj,1) - fwfisf_cav(ji,jj) - fwfisf_par(ji,jj)
          ztmp(ji,jj,1)  =  - r1_rho0 * ztmp(ji,jj,1) * surf(ji,jj)
 #if defined key_RK3
-         ztmp(ji,jj,2)  =   0._wp !!sbc_tsc(ji,jj,jp_tem) * surf(ji,jj)               ! heat => clem: needs to be sorted out for rk3
-         ztmp(ji,jj,3)  =   0._wp !!sbc_tsc(ji,jj,jp_sal) * surf(ji,jj)               ! salt => clem: needs to be sorted out for rk3
+         ztmp(ji,jj,2)  =   r1_rho0_rcp * qns(ji,jj) * surf(ji,jj)                           ! heat
+         ztmp(ji,jj,3)  =   r1_rho0     * sfx(ji,jj) * surf(ji,jj)                           ! salt
+         IF( lk_linssh ) THEN
+            ztmp(ji,jj,2)  =  r1_rho0 * emp(ji,jj) * ts(ji,jj,1,jp_tem,Kmm) * surf(ji,jj)   ! heat
+            ztmp(ji,jj,3)  =  r1_rho0 * emp(ji,jj) * ts(ji,jj,1,jp_sal,Kmm) * surf(ji,jj)   ! salt
+         ENDIF
 #else
-         ztmp(ji,jj,2)  =   sbc_tsc(ji,jj,jp_tem) * surf(ji,jj)                       ! heat
-         ztmp(ji,jj,3)  =   sbc_tsc(ji,jj,jp_sal) * surf(ji,jj)                       ! salt
+         ztmp(ji,jj,2)  =   sbc_tsc(ji,jj,jp_tem) * surf(ji,jj)                              ! heat
+         ztmp(ji,jj,3)  =   sbc_tsc(ji,jj,jp_sal) * surf(ji,jj)                              ! salt
 #endif
       END_2D
       IF( ln_rnf     ) THEN
@@ -197,62 +202,78 @@ CONTAINS
       ! global sum
       ! ----------
       zbg(:) = glob_2Dsum( 'dia_hsb', ztmp, cdelay = 'ocebg' )
- 
-      ! 1)
-      z_frc_trd_v = zbg(1)  ! volume fluxes
-      z_frc_trd_t = zbg(2)  ! heat fluxes
-      z_frc_trd_s = zbg(3)  ! salt fluxes
-      IF( ln_rnf    )   z_frc_trd_t = z_frc_trd_t + zbg(4) ! runoff heat
-      IF( ln_rnf_sal)   z_frc_trd_s = z_frc_trd_s + zbg(5) ! runoff salt
-      IF( ln_isf    )   z_frc_trd_t = z_frc_trd_t + zbg(6) ! isf heat
-      IF( ln_traqsr )   z_frc_trd_t = z_frc_trd_t + zbg(7) ! penetrative solar flux
-      IF( ln_trabbc )   z_frc_trd_t = z_frc_trd_t + zbg(8) ! geothermal heat
       !
-      frc_v = frc_v + z_frc_trd_v * rn_Dt
-      frc_t = frc_t + z_frc_trd_t * rn_Dt
-      frc_s = frc_s + z_frc_trd_s * rn_Dt
-      !                                          ! Advection flux through fixed surface (z=0)
-      IF( lk_linssh ) THEN
-         z_wn_trd_t = zbg(9)
-         z_wn_trd_s = zbg(10)
+      IF ( .NOT.(ln_mppdelay.AND.l_diahsb_init.AND.( kt==nit000 ) ) ) THEN ! skip summation at startup because of delayed global sums
+
+         ! 1)
+         z_frc_trd_v = zbg(1)  ! volume fluxes
+         z_frc_trd_t = zbg(2)  ! heat fluxes
+         z_frc_trd_s = zbg(3)  ! salt fluxes
+         IF( ln_rnf    )   z_frc_trd_t = z_frc_trd_t + zbg(4) ! runoff heat
+         IF( ln_rnf_sal)   z_frc_trd_s = z_frc_trd_s + zbg(5) ! runoff salt
+         IF( ln_isf    )   z_frc_trd_t = z_frc_trd_t + zbg(6) ! isf heat
+         IF( ln_traqsr )   z_frc_trd_t = z_frc_trd_t + zbg(7) ! penetrative solar flux
+         IF( ln_trabbc )   z_frc_trd_t = z_frc_trd_t + zbg(8) ! geothermal heat
          !
-         frc_wn_t = frc_wn_t + z_wn_trd_t * rn_Dt
-         frc_wn_s = frc_wn_s + z_wn_trd_s * rn_Dt
-      ENDIF
+         frc_v = frc_v + z_frc_trd_v * rn_Dt
+         frc_t = frc_t + z_frc_trd_t * rn_Dt
+         frc_s = frc_s + z_frc_trd_s * rn_Dt
+         !                                          ! Advection flux through fixed surface (z=0)
+         IF( lk_linssh ) THEN
+            z_wn_trd_t = zbg(9)
+            z_wn_trd_s = zbg(10)
+            !
+            frc_wn_t = frc_wn_t + z_wn_trd_t * rn_Dt
+            frc_wn_s = frc_wn_s + z_wn_trd_s * rn_Dt
+         ENDIF
+      
+         ! 2)
+         zdiff_v1 = zbg(11)
+         !                    ! heat & salt content variation (associated with ssh)
+         IF( lk_linssh ) THEN       ! linear free surface case
+            z_ssh_hc = zbg(12)
+            z_ssh_sc = zbg(13)
+         ENDIF
+         !
+         ! 3)
+         zdiff_v2 = zbg(14)     ! glob_2Dsum needed as tmask and tmask_ini could be different
+         zdiff_hc = zbg(15)
+         zdiff_sc = zbg(16)
+         zvol_tot = zbg(17)
 
-      ! 2)
-      zdiff_v1 = zbg(11)
-      !                    ! heat & salt content variation (associated with ssh)
-      IF( lk_linssh ) THEN       ! linear free surface case
-         z_ssh_hc = zbg(12)
-         z_ssh_sc = zbg(13)
-      ENDIF
-      !
-      ! 3)
-      zdiff_v2 = zbg(14)     ! glob_2Dsum needed as tmask and tmask_ini could be different
-      zdiff_hc = zbg(15)
-      zdiff_sc = zbg(16)
-      zvol_tot = zbg(17)
-
-      ! ------------------------ !
-      ! 4 -  Drifts              !
-      ! ------------------------ !
-      zdiff_v1 = zdiff_v1 - frc_v
-      IF( .NOT.lk_linssh )   zdiff_v2 = zdiff_v2 - frc_v
-      zdiff_hc = zdiff_hc - frc_t
-      zdiff_sc = zdiff_sc - frc_s
-      IF( lk_linssh ) THEN
-         zdiff_hc1 = zdiff_hc + z_ssh_hc
-         zdiff_sc1 = zdiff_sc + z_ssh_sc
-         zerr_hc1  = z_ssh_hc - frc_wn_t
-         zerr_sc1  = z_ssh_sc - frc_wn_s
-      ENDIF
+         ! ------------------------ !
+         ! 4 -  Drifts              !
+         ! ------------------------ !
+         zdiff_v1 = zdiff_v1 - frc_v
+         IF( .NOT.lk_linssh )   zdiff_v2 = zdiff_v2 - frc_v
+         zdiff_hc = zdiff_hc - frc_t
+         zdiff_sc = zdiff_sc - frc_s
+         IF( lk_linssh ) THEN
+            zdiff_hc1 = zdiff_hc + z_ssh_hc
+            zdiff_sc1 = zdiff_sc + z_ssh_sc
+            zerr_hc1  = z_ssh_hc - frc_wn_t
+            zerr_sc1  = z_ssh_sc - frc_wn_s
+         ENDIF
 
 !!gm to be added ?
 !      IF( ln_linssh ) THEN            ! fixed volume, add the ssh contribution
 !        zvol_tot = zvol_tot + glob_2Dsum( 'diahsb', surf(:,:) * ssh(:,:,Kmm) )
 !      ENDIF
 !!gm end
+      ELSE
+         zvol_tot = -1._wp
+         zdiff_v1  = 0._wp
+         IF( .NOT. lk_linssh ) THEN
+            zdiff_hc  = 0._wp  
+            zdiff_sc  = 0._wp  
+            zdiff_v2  = 0._wp  
+         ELSE
+            zdiff_hc1 = 0._wp  
+            zdiff_sc1 = 0._wp  
+            zerr_hc1  = 0._wp  
+            zerr_sc1  = 0._wp  
+         ENDIF
+      ENDIF
 
       CALL iom_put(   'bgfrcvol' , frc_v    * 1.e-9    )              ! vol - surface forcing (km3)
       CALL iom_put(   'bgfrctem' , frc_t    * rho0 * rcp * 1.e-20 )   ! hc  - surface forcing (1.e20 J)
@@ -272,7 +293,7 @@ CONTAINS
          !
          IF( kt == nitend .AND. lwp ) THEN
             WRITE(numout,*)
-            WRITE(numout,*) 'dia_hsb : last time step hsb diagnostics: at it= ', kt,' date= ', ndastp
+            WRITE(numout,*) 'dia_hsb : last time step hsb diagnostics: at it= ', kt-1,' date= ', ndastp
             WRITE(numout,*) '~~~~~~~'
             WRITE(numout,*) '   Temperature drift = ', zdiff_hc / zvol_tot, ' C'
             WRITE(numout,*) '   Salinity    drift = ', zdiff_sc / zvol_tot, ' PSU'
@@ -319,7 +340,13 @@ CONTAINS
 
          id0 = iom_varid( numror, 'frc_v' , ldstop = .FALSE. ) ! test if this variable exists
 
+#if defined key_RK3
          IF( ln_rstart .AND. id0 > 0 ) THEN      !* Read the restart file
+#else
+         IF( ln_rstart .AND. id0 > 0 .AND. (.NOT.l_1st_euler) ) THEN      !* Read the restart file
+#endif
+            !
+            l_diahsb_init = .FALSE.
             !
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '   dia_hsb_rst : read hsb restart at it= ', kt,' date= ', ndastp
@@ -345,6 +372,9 @@ CONTAINS
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '   dia_hsb_rst : initialise hsb at initial state '
             IF(lwp) WRITE(numout,*)
+            !
+            l_diahsb_init = .TRUE.
+            !
             DO_2D( 0, 0, 0, 0 )
                surf_ini(ji,jj) = e1e2t(ji,jj) * tmask_i(ji,jj)         ! initial ocean surface
                ssh_ini(ji,jj) = ssh(ji,jj,Kmm)                          ! initial ssh

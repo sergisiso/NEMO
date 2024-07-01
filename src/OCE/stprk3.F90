@@ -91,7 +91,7 @@ CONTAINS
                              CALL dia_hth_init        ! called here since it uses iom_use
                              CALL dia_ptr_init        ! called here since it uses iom_use
                              CALL dia_ar5_init        ! called here since it uses iom_use
-                             CALL dia_hsb_init( Nnn ) ! heat content, salt content and volume budgets
+                             CALL dia_hsb_init( Nbb ) ! heat content, salt content and volume budgets
                              CALL dia_25h_init( Nbb ) ! 25h mean  outputs
                              CALL rk3_dia( -1 )       ! Store diagnostic logicals
       ENDIF
@@ -234,12 +234,7 @@ CONTAINS
 #endif
       IF( l_diadetide )  CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
       IF( l_diamlr  )    CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
-
-!!====>>>> to be modified for RK3
-!      IF( l_diahsb  )   CALL dia_hsb   ( kstp, Nbb, Nnn )  ! - ML - global conservation diagnostics
-!!st
-      IF( l_diahsb  )    CALL dia_hsb   ( kstp, Nbb, Nbb )  ! - ML - global conservation diagnostics
-!!st
+      IF( l_diahsb  )    CALL dia_hsb   ( kstp, Nbb, Nbb )      ! - ML - global conservation diagnostics
       
 !!gm : This does not only concern the dynamics ==>>> add a new title
 !!gm2: why ouput restart before AGRIF update?
