@@ -188,7 +188,7 @@ CONTAINS
                   CALL load_nml( numnam_cfg,        'namelist_cfg',                                           -1, lwm )
       IF( lwm )   CALL ctl_opn(     numond, 'output.namelist.dyn', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', -1, -1, .FALSE. )
       ! open /dev/null file to be able to supress output write easily
-                  CALL ctl_opn(     numnul,           '/dev/null', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', -1, -1, .FALSE. )
+                  CALL ctl_opn(     numnul,           '/dev/null', 'UNKNOWN', 'FORMATTED', 'SEQUENTIAL', -1, -1, .FALSE. )
       !
       !                             !--------------------!
       !                             ! Open listing units !  -> need sn_cfctl from namctl to define lwp
