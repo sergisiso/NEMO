@@ -190,7 +190,7 @@ CONTAINS
       ALLOCATE( emp(jpi,jpj) , emp_b(jpi,jpj) ,  &
          &      STAT=ierr(2) )
       !
-      ALLOCATE( rnf(jpi,jpj), rnf_b(jpi,jpj), STAT=ierr(3) )
+      IF(ln_rnf)   ALLOCATE( rnf(jpi,jpj), rnf_b(jpi,jpj), STAT=ierr(3) )
       !
       ALLOCATE( fr_i(jpi,jpj) ,     &
          &      ssu_m  (jpi,jpj) , sst_m(jpi,jpj) , frq_m(jpi,jpj) ,      &
@@ -226,7 +226,7 @@ CONTAINS
    SUBROUTINE sbc_oce_dealloc()
       IF( ALLOCATED(utau) ) THEN
          DEALLOCATE( utau , utau_b, utauU , vtau , vtau_b, vtauV )
-         DEALLOCATE( emp  , emp_b , rnf   , rnf_b )
+         IF(ln_rnf)   DEALLOCATE( emp  , emp_b , rnf   , rnf_b )
          DEALLOCATE( fr_i , ssu_m , sst_m , frq_m, ssv_m , sss_m, ssh_m, e3t_m )
 #if ! defined key_RK3
          DEALLOCATE( qsr_hc , qsr_hc_b )

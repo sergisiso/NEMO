@@ -412,7 +412,9 @@ CONTAINS
 
          ENDDO
 
-         !--- we must call lbc_lnk to fill the halos that where not received.
+         !--- WARNING: here we have no halos
+         !    BUT in some cases of the North Fold, we need to update the last line or half of the last line of the inner domain.
+         !    We need to call lbc_lnk (with ldfull = .TRUE.) that is working without halos
          IF( .NOT. ll_1st ) THEN
             CALL lbc_lnk( 'cpl_oasis3', pdata(:,:,jc), srcv(kid)%clgrid, srcv(kid)%nsgn, ldfull = .TRUE. )
          ENDIF
