@@ -70,9 +70,9 @@ MODULE dynspg_ts
    PUBLIC dyn_drg_init      ! called by stp2d
 
    !
-   INTEGER, SAVE :: icycle      ! Number of barotropic sub-steps for each internal step nn_e <= 2.5 nn_e
-   REAL(wp),SAVE :: rDt_e       ! Barotropic time step
-!!   LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backward dissipation
+   INTEGER         ::   icycle         ! Number of barotropic sub-steps for each internal step nn_e <= 2.5 nn_e
+   REAL(wp)        ::   rDt_e          ! Barotropic time step
+   LOGICAL, PUBLIC ::   ll_cold_start  ! =T : missing restart fields  ==> cold start  =F : ==> hot start 
    !
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)   ::   wgtbtp1, wgtbtp2   ! 1st & 2nd weights used in time filtering of barotropic fields
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   zwz                ! ff_f/h at F points
@@ -213,7 +213,11 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          !                    ! RK3: read bb and b field or start from 0
          IF( nn_bt_flt==3 ) THEN    
             IF( ln_rstart ) THEN           ! init bb fields with restart
-                ll_init=.FALSE.
+                IF( ll_cold_start ) THEN
+                   ll_init=.TRUE.
+                ELSE
+                   ll_init=.FALSE.
+                ENDIF
             ELSE                           ! init bb fields with 0
                 ll_init=.TRUE.
             ENDIF
@@ -1116,13 +1120,8 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
                   CALL iom_get( numror, jpdom_auto, 'sshb_e'   ,  sshb_e(:,:), cd_type = 'T', psgn =  1._wp )
                   CALL iom_get( numror, jpdom_auto, 'ub_e'     ,    ub_e(:,:), cd_type = 'U', psgn = -1._wp )
                   CALL iom_get( numror, jpdom_auto, 'vb_e'     ,    vb_e(:,:), cd_type = 'V', psgn = -1._wp )
-               ELSE    ! if restart does not contain these variables, set them to current ssh, ub, vb
-                  sshbb_e(:,:) = ssh (:,:,Nbb)
-                  ubb_e  (:,:) = uu_b(:,:,Nbb)
-                  vbb_e  (:,:) = vv_b(:,:,Nbb)
-                  sshb_e (:,:) = ssh (:,:,Nbb)
-                  ub_e   (:,:) = uu_b(:,:,Nbb)
-                  vb_e   (:,:) = vv_b(:,:,Nbb)
+               ELSE    ! if restart does not contain these variables, cold barotropic start
+                  ll_cold_start = .TRUE. 
                ENDIF
             ENDIF
 #if defined key_agrif
@@ -1300,6 +1299,8 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       ssha_e(:,:) = 0._wp
       !
       !                      !: restart/initialise
+      ll_cold_start = .FALSE.        ! flag for restart issue
+      !
       CALL ts_rst( nit000, 'READ' )
       !
    END SUBROUTINE dyn_spg_ts_init
