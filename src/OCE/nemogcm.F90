@@ -485,7 +485,6 @@ CONTAINS
       !                                      ! Diagnostics
       IF( ln_diacfl    )   CALL dia_cfl_init    ! Initialise CFL diagnostics
                            CALL dia_dct_init    ! Sections tranports
-      ! move to stprk3 !   CALL dia_hsb_init( Nnn )    ! heat content, salt content and volume budgets
                            CALL     trd_init( Nnn )    ! Mixed-layer/Vorticity/Integral constraints trends
                            CALL dia_obs_init( Nnn )    ! Initialize observational data
       ! move to stprk3 !   CALL dia_25h_init( Nbb )    ! 25h mean  outputs
