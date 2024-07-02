@@ -53,7 +53,7 @@ CONTAINS
       !!      the associated horizontal metrics, and the Coriolis factor (in s-1).
       !!
       !! ** Method  :   Controlled by ln_read_cfg logical
-      !!              =T : all needed arrays are read in mesh_mask.nc file 
+      !!              =T : all needed arrays are read in domcfg file 
       !!              =F : user-defined configuration, all needed arrays 
       !!                   are computed in usr-def_hgr subroutine 
       !!
@@ -87,7 +87,7 @@ CONTAINS
          WRITE(numout,*) '   namcfg : read (=T) or user defined (=F) configuration    ln_read_cfg  = ', ln_read_cfg
       ENDIF
       !
-      IF( ln_read_cfg ) THEN        !==  read in mesh_mask.nc file  ==!
+      IF( ln_read_cfg ) THEN        !==  read in domcfg file  ==!
          !
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   ==>>>   read horizontal mesh in ', TRIM( cn_domcfg ), ' file'
@@ -176,7 +176,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE hgr_read  ***
       !!
-      !! ** Purpose :   Read a mesh_mask file in NetCDF format using IOM
+      !! ** Purpose :   Read a domcfg file in NetCDF format using IOM
       !!
       !!----------------------------------------------------------------------
       REAL(wp), DIMENSION(:,:), INTENT(out) ::   plamt, plamu, plamv, plamf   ! longitude outputs 
@@ -193,8 +193,8 @@ CONTAINS
       !
       IF(lwp) THEN
          WRITE(numout,*)
-         WRITE(numout,*) '   hgr_read : read the horizontal coordinates in mesh_mask'
-         WRITE(numout,*) '   ~~~~~~~~      jpiglo = ', jpiglo, ' jpjglo = ', jpjglo, ' jpk = ', jpk
+         WRITE(numout,*) '   hgr_read : read the horizontal coordinates in the domcfg file'
+         WRITE(numout,*) '   ~~~~~~~~'
       ENDIF
       !
       CALL iom_open( cn_domcfg, inum )

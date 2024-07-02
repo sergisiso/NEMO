@@ -1092,7 +1092,7 @@ CONTAINS
       ENDIF
    END SUBROUTINE iom_g1d_dp
 
-   SUBROUTINE iom_g2d_sp( kiomid, kdom, cdvar, pvar, ktime, cd_type, psgn, kfill, kstart, kcount)
+   SUBROUTINE iom_g2d_sp( kiomid, kdom, cdvar, pvar, ktime, cd_type, psgn, kfill, pval, kstart, kcount)
       INTEGER         , INTENT(in   )                         ::   kiomid    ! Identifier of the file
       INTEGER         , INTENT(in   )                         ::   kdom      ! Type of domain to be read
       CHARACTER(len=*), INTENT(in   )                         ::   cdvar     ! Name of the variable
@@ -1101,17 +1101,18 @@ CONTAINS
       CHARACTER(len=1), INTENT(in   )              , OPTIONAL ::   cd_type   ! nature of grid-points (T, U, V, F, W)
       REAL(sp)        , INTENT(in   )              , OPTIONAL ::   psgn      ! -1.(1.): (not) change sign across the north fold
       INTEGER         , INTENT(in   )              , OPTIONAL ::   kfill     ! value of kfillmode in lbc_lbk
+      REAL(sp)        , INTENT(in   )              , OPTIONAL ::   pval      ! value of pfillval in lbc_lbk
       INTEGER         , INTENT(in   ), DIMENSION(2), OPTIONAL ::   kstart    ! start axis position of the reading
       INTEGER         , INTENT(in   ), DIMENSION(2), OPTIONAL ::   kcount    ! number of points in each axis
       !
       IF( kiomid > 0 ) THEN
          IF( iom_file(kiomid)%nfid > 0 ) CALL iom_get_123d( kiomid, kdom, cdvar, pvsp2d = pvar,                 &
-            &                                               cd_type = cd_type, psgn_sp = psgn, kfill = kfill,   &
+            &                                               cd_type = cd_type, psgn_sp = psgn, kfill = kfill, pval_sp = pval,   &
             &                                               ktime = ktime, kstart = kstart, kcount = kcount )
       ENDIF
    END SUBROUTINE iom_g2d_sp
 
-   SUBROUTINE iom_g2d_dp( kiomid, kdom, cdvar, pvar, ktime, cd_type, psgn, kfill, kstart, kcount)
+   SUBROUTINE iom_g2d_dp( kiomid, kdom, cdvar, pvar, ktime, cd_type, psgn, kfill, pval, kstart, kcount)
       INTEGER         , INTENT(in   )                         ::   kiomid    ! Identifier of the file
       INTEGER         , INTENT(in   )                         ::   kdom      ! Type of domain to be read
       CHARACTER(len=*), INTENT(in   )                         ::   cdvar     ! Name of the variable
@@ -1120,17 +1121,18 @@ CONTAINS
       CHARACTER(len=1), INTENT(in   )              , OPTIONAL ::   cd_type   ! nature of grid-points (T, U, V, F, W)
       REAL(dp)        , INTENT(in   )              , OPTIONAL ::   psgn      ! -1.(1.): (not) change sign across the north fold
       INTEGER         , INTENT(in   )              , OPTIONAL ::   kfill     ! value of kfillmode in lbc_lbk
+      REAL(dp)        , INTENT(in   )              , OPTIONAL ::   pval      ! value of pfillval in lbc_lbk
       INTEGER         , INTENT(in   ), DIMENSION(2), OPTIONAL ::   kstart    ! start axis position of the reading
       INTEGER         , INTENT(in   ), DIMENSION(2), OPTIONAL ::   kcount    ! number of points in each axis
       !
       IF( kiomid > 0 ) THEN
          IF( iom_file(kiomid)%nfid > 0 ) CALL iom_get_123d( kiomid, kdom, cdvar, pvdp2d = pvar,                 &
-            &                                               cd_type = cd_type, psgn_dp = psgn, kfill = kfill,   &
+            &                                               cd_type = cd_type, psgn_dp = psgn, kfill = kfill, pval_dp = pval,   &
             &                                               ktime = ktime, kstart = kstart, kcount = kcount )
       ENDIF
    END SUBROUTINE iom_g2d_dp
 
-   SUBROUTINE iom_g3d_sp( kiomid, kdom, cdvar, pvar, ktime, cd_type, psgn, kfill, kstart, kcount )
+   SUBROUTINE iom_g3d_sp( kiomid, kdom, cdvar, pvar, ktime, cd_type, psgn, kfill, pval, kstart, kcount )
       INTEGER         , INTENT(in   )                         ::   kiomid    ! Identifier of the file
       INTEGER         , INTENT(in   )                         ::   kdom      ! Type of domain to be read
       CHARACTER(len=*), INTENT(in   )                         ::   cdvar     ! Name of the variable
@@ -1139,17 +1141,18 @@ CONTAINS
       CHARACTER(len=1), INTENT(in   )              , OPTIONAL ::   cd_type   ! nature of grid-points (T, U, V, F, W)
       REAL(sp)        , INTENT(in   )              , OPTIONAL ::   psgn      ! -1.(1.) : (not) change sign across the north fold
       INTEGER         , INTENT(in   )              , OPTIONAL ::   kfill     ! value of kfillmode in lbc_lbk
+      REAL(sp)        , INTENT(in   )              , OPTIONAL ::   pval      ! value of pfillval in lbc_lbk
       INTEGER         , INTENT(in   ), DIMENSION(3), OPTIONAL ::   kstart    ! start axis position of the reading
       INTEGER         , INTENT(in   ), DIMENSION(3), OPTIONAL ::   kcount    ! number of points in each axis
       !
       IF( kiomid > 0 ) THEN
          IF( iom_file(kiomid)%nfid > 0 ) CALL iom_get_123d( kiomid, kdom, cdvar, pvsp3d = pvar,                 &
-            &                                               cd_type = cd_type, psgn_sp = psgn, kfill = kfill,   &
+            &                                               cd_type = cd_type, psgn_sp = psgn, kfill = kfill, pval_sp = pval,   &
             &                                               ktime = ktime, kstart = kstart, kcount = kcount )
       ENDIF
    END SUBROUTINE iom_g3d_sp
 
-   SUBROUTINE iom_g3d_dp( kiomid, kdom, cdvar, pvar, ktime, cd_type, psgn, kfill, kstart, kcount )
+   SUBROUTINE iom_g3d_dp( kiomid, kdom, cdvar, pvar, ktime, cd_type, psgn, kfill, pval, kstart, kcount )
       INTEGER         , INTENT(in   )                         ::   kiomid    ! Identifier of the file
       INTEGER         , INTENT(in   )                         ::   kdom      ! Type of domain to be read
       CHARACTER(len=*), INTENT(in   )                         ::   cdvar     ! Name of the variable
@@ -1158,12 +1161,13 @@ CONTAINS
       CHARACTER(len=1), INTENT(in   )              , OPTIONAL ::   cd_type   ! nature of grid-points (T, U, V, F, W)
       REAL(dp)        , INTENT(in   )              , OPTIONAL ::   psgn      ! -1.(1.) : (not) change sign across the north fold
       INTEGER         , INTENT(in   )              , OPTIONAL ::   kfill     ! value of kfillmode in lbc_lbk
+      REAL(dp)        , INTENT(in   )              , OPTIONAL ::   pval      ! value of pfillval in lbc_lbk
       INTEGER         , INTENT(in   ), DIMENSION(3), OPTIONAL ::   kstart    ! start axis position of the reading
       INTEGER         , INTENT(in   ), DIMENSION(3), OPTIONAL ::   kcount    ! number of points in each axis
       !
       IF( kiomid > 0 ) THEN
          IF( iom_file(kiomid)%nfid > 0 ) CALL iom_get_123d( kiomid, kdom, cdvar, pvdp3d = pvar,                 &
-            &                                               cd_type = cd_type, psgn_dp = psgn, kfill = kfill,   &
+            &                                               cd_type = cd_type, psgn_dp = psgn, kfill = kfill, pval_dp = pval,   &
             &                                               ktime = ktime, kstart = kstart, kcount = kcount )
       ENDIF
    END SUBROUTINE iom_g3d_dp
@@ -1171,7 +1175,7 @@ CONTAINS
    !!----------------------------------------------------------------------
 
    SUBROUTINE iom_get_123d( kiomid , kdom, cdvar, pvsp1d, pvsp2d, pvsp3d, pvdp1d, pvdp2d, pvdp3d,   &
-         &                  ktime , cd_type, psgn_sp, psgn_dp, kfill, kstart, kcount )
+         &                  ktime , cd_type, psgn_sp, psgn_dp, kfill, pval_sp, pval_dp, kstart, kcount )
       !!-----------------------------------------------------------------------
       !!                  ***  ROUTINE  iom_get_123d  ***
       !!
@@ -1193,6 +1197,8 @@ CONTAINS
       REAL(sp)                   , INTENT(in   ), OPTIONAL ::   psgn_sp   ! -1.(1.) : (not) change sign across the north fold
       REAL(dp)                   , INTENT(in   ), OPTIONAL ::   psgn_dp   ! -1.(1.) : (not) change sign across the north fold
       INTEGER                    , INTENT(in   ), OPTIONAL ::   kfill     ! value of kfillmode in lbc_lbk
+      REAL(sp)                   , INTENT(in   ), OPTIONAL ::   pval_sp   ! value of pfillval in lbc_lbk
+      REAL(dp)                   , INTENT(in   ), OPTIONAL ::   pval_dp   ! value of pfillval in lbc_lbk
       INTEGER , DIMENSION(:)     , INTENT(in   ), OPTIONAL ::   kstart    ! start position of the reading in each axis
       INTEGER , DIMENSION(:)     , INTENT(in   ), OPTIONAL ::   kcount    ! number of points to be read in each axis
       !
@@ -1409,17 +1415,17 @@ CONTAINS
                   zsgn_sp = 1._sp
                   IF( PRESENT(psgn_sp) )   zsgn_sp = psgn_sp
                   IF(     llis2d .AND. idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-                     CALL lbc_lnk( 'iom', pvsp2d, cl_type, zsgn_sp, kfillmode = kfill, ldfull = .TRUE. )
+                     CALL lbc_lnk( 'iom', pvsp2d, cl_type, zsgn_sp, kfillmode = kfill, pfillval = pval_sp, ldfull = .TRUE. )
                   ELSEIF( llis3d .AND. idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-                     CALL lbc_lnk( 'iom', pvsp3d, cl_type, zsgn_sp, kfillmode = kfill, ldfull = .TRUE. )
+                     CALL lbc_lnk( 'iom', pvsp3d, cl_type, zsgn_sp, kfillmode = kfill, pfillval = pval_sp, ldfull = .TRUE. )
                   ENDIF
                ELSE
                   zsgn_dp = 1._dp
                   IF( PRESENT(psgn_dp) )   zsgn_dp = psgn_dp
                   IF(     llis2d .AND. idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-                     CALL lbc_lnk( 'iom', pvdp2d, cl_type, zsgn_dp, kfillmode = kfill, ldfull = .TRUE. )
+                     CALL lbc_lnk( 'iom', pvdp2d, cl_type, zsgn_dp, kfillmode = kfill, pfillval = pval_dp, ldfull = .TRUE. )
                   ELSEIF( llis3d .AND. idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-                     CALL lbc_lnk( 'iom', pvdp3d, cl_type, zsgn_dp, kfillmode = kfill, ldfull = .TRUE. )
+                     CALL lbc_lnk( 'iom', pvdp3d, cl_type, zsgn_dp, kfillmode = kfill, pfillval = pval_dp, ldfull = .TRUE. )
                   ENDIF
                ENDIF
                !
@@ -1469,8 +1475,10 @@ CONTAINS
                ENDIF
             ENDIF
             IF(idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-               IF( llsp ) THEN   ;   CALL lbc_lnk( 'iom', pvsp3d, cl_type, zsgn_sp, kfillmode = kfill, ldfull = .TRUE. )
-               ELSE              ;   CALL lbc_lnk( 'iom', pvdp3d, cl_type, zsgn_dp, kfillmode = kfill, ldfull = .TRUE. )
+               IF( llsp ) THEN
+                  CALL lbc_lnk( 'iom', pvsp3d, cl_type, zsgn_sp, kfillmode = kfill, pfillval = pval_sp, ldfull = .TRUE. )
+               ELSE
+                  CALL lbc_lnk( 'iom', pvdp3d, cl_type, zsgn_dp, kfillmode = kfill, pfillval = pval_dp, ldfull = .TRUE. )
                ENDIF
             ENDIF
          ELSEIF( llis2d ) THEN
@@ -1488,8 +1496,10 @@ CONTAINS
                ENDIF
             ENDIF
             IF(idom /= jpdom_unknown .AND. cl_type /= 'Z' ) THEN
-               IF( llsp ) THEN   ;   CALL lbc_lnk('iom', pvsp2d, cl_type, zsgn_sp, kfillmode = kfill, ldfull = .TRUE. )
-               ELSE              ;   CALL lbc_lnk('iom', pvdp2d, cl_type, zsgn_dp, kfillmode = kfill, ldfull = .TRUE. )
+               IF( llsp ) THEN
+                  CALL lbc_lnk('iom', pvsp2d, cl_type, zsgn_sp, kfillmode = kfill, pfillval = pval_sp, ldfull = .TRUE. )
+               ELSE
+                  CALL lbc_lnk('iom', pvdp2d, cl_type, zsgn_dp, kfillmode = kfill, pfillval = pval_dp, ldfull = .TRUE. )
                ENDIF
             ENDIF
          ELSEIF( llis1d ) THEN

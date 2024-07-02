@@ -84,6 +84,7 @@ CONTAINS
       INTEGER  ::   ji, jj, jk     ! dummy loop indices
       INTEGER  ::   iktop, ikbot   !   -       -
       INTEGER  ::   ios, inum
+      REAL(wp), DIMENSION(jpi,jpj) ::   zstrshlat
       !!
       NAMELIST/namlbc/ rn_shlat, ln_vorlat
       NAMELIST/nambdy/ ln_bdy ,nb_bdy, ln_coords_file, cn_coords_file,         &
@@ -222,7 +223,26 @@ CONTAINS
       ! User defined alteration of fmask (use to reduce ocean transport in specified straits)
       ! -------------------------------- 
       !
-      CALL usr_def_fmask( cn_cfg, nn_cfg, fmask )
+      IF( ln_read_cfg ) THEN        !==  read in domcfg file  ==!
+         !
+         CALL iom_open( cn_domcfg, inum )
+         IF( iom_varid( inum, 'strait_shlat', ldstop = .FALSE. ) > 0 ) THEN
+            IF(lwp) WRITE(numout,*) '      Read shlat for straits in ', TRIM( cn_domcfg ), ' file'
+            CALL iom_get( inum, jpdom_global, 'strait_shlat', zstrshlat, cd_type = 'F', psgn = 1._wp, pval = -1._wp )
+            DO jk = 1,jpk
+               WHERE( zstrshlat(:,:) >= 0._wp )   fmask(:,:,jk) = zstrshlat(:,:)
+            END DO
+         ELSE
+            IF(lwp) WRITE(numout,*) '      No modification of shlat for straits'
+         ENDIF
+         CALL iom_close( inum )
+      ELSE                          !==  User defined configuration  ==! 
+         IF(lwp) WRITE(numout,*)
+         IF(lwp) WRITE(numout,*) '         User defined shlat for straits'
+         CALL usr_def_fmask( cn_cfg, nn_cfg, fmask )
+         CALL lbc_lnk( 'dommsk', fmask, 'F', 1._wp )      ! Lateral boundary conditions on fmask
+         !
+      ENDIF
       !
 #if defined key_agrif
       ! Reset masks defining updated points over parent grids
