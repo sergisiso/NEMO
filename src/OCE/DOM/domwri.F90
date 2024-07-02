@@ -89,7 +89,7 @@ CONTAINS
       CALL iom_rstput( 0, 0, inum, 'tmask', tmask, ktype = jp_i1 )     !    ! land-sea mask
       CALL iom_rstput( 0, 0, inum, 'umask', umask, ktype = jp_i1 )
       CALL iom_rstput( 0, 0, inum, 'vmask', vmask, ktype = jp_i1 )
-      CALL iom_rstput( 0, 0, inum, 'fmask', fmask, ktype = jp_i1 )
+      CALL iom_rstput( 0, 0, inum, 'fmask', fmask, ktype = jp_r4 )
       
       CALL dom_uniq( zprw, 'T' )
       DO_2D( 1, 1, 1, 1 )
