@@ -9,9 +9,9 @@ MODULE stprk3
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   stp_RK3       : RK3 Shallow Water Eq. time-stepping
+   !!   stp           : RK3 Shallow Water Eq. time-stepping
    !!----------------------------------------------------------------------
-   USE stp_oce        ! modules used in nemo_init and stp_RK3
+   USE stp_oce        ! modules used in nemo_init and stp
    !
    USE domqco         ! quasi-eulerian coordinate
    USE phycst         ! physical constants
@@ -20,7 +20,7 @@ MODULE stprk3
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   stp_RK3   ! called by nemogcm.F90
+   PUBLIC   stp       ! called by nemogcm.F90
       
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -31,9 +31,9 @@ MODULE stprk3
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE stp_RK3( kstp )
+   SUBROUTINE stp( kstp )
       !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE stp_RK3  ***
+      !!                     ***  ROUTINE stp  ***
       !!
       !! ** Purpose : - RK3 Time stepping scheme for shallow water Eq.
       !!
@@ -154,8 +154,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
-      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
+      CALL lbc_lnk( 'stp', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
+      CALL lbc_lnk( 'stp', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
       !
       !                                 !==  Swap time levels  ==!
       Nrhs= Nnn
@@ -211,8 +211,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
-      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
+      CALL lbc_lnk( 'stp', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
+      CALL lbc_lnk( 'stp', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
       !
       !                                 !==  Swap time levels  ==!
       Nrhs= Nnn
@@ -275,8 +275,8 @@ CONTAINS
          END_3D
       ENDIF
       !
-      CALL lbc_lnk( 'stp_RK3', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
-      CALL lbc_lnk( 'stp_RK3', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
+      CALL lbc_lnk( 'stp', uu (:,:,:,Naa), 'U', -1._wp, vv (:,:,:,Naa), 'V', -1._wp )
+      CALL lbc_lnk( 'stp', r3u(:,:,  Naa), 'U',  1._wp, r3v(:,:,  Naa), 'V',  1._wp )
       !
       !                                 !==  Swap time levels  ==!
       !
@@ -311,7 +311,7 @@ CONTAINS
       ENDIF
 #endif
       !
-   END SUBROUTINE stp_RK3
+   END SUBROUTINE stp
 
    !!======================================================================
 END MODULE stprk3

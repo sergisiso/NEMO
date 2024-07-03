@@ -38,7 +38,7 @@ MODULE divhor
 
    !                  !! * Interface
    INTERFACE div_hor
-      MODULE PROCEDURE div_hor_RK3, div_hor_old
+      MODULE PROCEDURE div_hor, div_hor_old
    END INTERFACE
 
    PUBLIC   div_hor    ! routine called by ssh_nxt.F90 and istate.F90
@@ -55,20 +55,20 @@ MODULE divhor
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE div_hor_RK3( kt, Kbb, Kmm, pu, pv, pe3divUh, k_ind )
+   SUBROUTINE div_hor( kt, Kbb, Kmm, pu, pv, pe3divUh, k_ind )
       !!
       INTEGER                        , INTENT(in   ) ::   kt, Kbb, Kmm   ! ocean time-step & time-level indices
       INTEGER , OPTIONAL             , INTENT(in   ) ::   k_ind          ! indicator
       REAL(wp), DIMENSION(:,:,:)     , INTENT(in   ) ::   pu, pv         ! horizontal velocity or transport
       REAL(wp), DIMENSION(T2D(1),jpk), INTENT(  out) ::   pe3divUh       ! e3t*div[Uh]
       !!
-      CALL div_hor_RK3_t( kt, Kbb, Kmm, pu, pv, lbnd_ij(pu), pe3divUh, k_ind )
-   END SUBROUTINE div_hor_RK3
+      CALL div_hor_t( kt, Kbb, Kmm, pu, pv, lbnd_ij(pu), pe3divUh, k_ind )
+   END SUBROUTINE div_hor
 
 
-   SUBROUTINE div_hor_RK3_t( kt, Kbb, Kmm, pu, pv, ktuv, pe3divUh, k_ind )
+   SUBROUTINE div_hor_t( kt, Kbb, Kmm, pu, pv, ktuv, pe3divUh, k_ind )
       !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE div_hor_RK3  ***
+      !!                  ***  ROUTINE div_hor  ***
       !!                    
       !! ** Purpose :   compute the horizontal divergence at now time-step
       !!
@@ -88,12 +88,12 @@ CONTAINS
       INTEGER  ::   ik_ind        ! local indicator
       !!----------------------------------------------------------------------
       !
-      IF( ln_timing )   CALL timing_start('div_hor_RK3')
+      IF( ln_timing )   CALL timing_start('div_hor')
       !
       IF( kt == nit000 ) THEN
          IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
             IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) 'div_hor_RK3 : thickness weighted horizontal divergence '
+            IF(lwp) WRITE(numout,*) 'div_hor : thickness weighted horizontal divergence '
             IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
          ENDIF
       ENDIF
@@ -143,9 +143,9 @@ CONTAINS
 !!gm end
       !
       !
-      IF( ln_timing )   CALL timing_stop('div_hor_RK3')
+      IF( ln_timing )   CALL timing_stop('div_hor')
       !
-   END SUBROUTINE div_hor_RK3_t
+   END SUBROUTINE div_hor_t
 
 
    SUBROUTINE div_hor_old( kt, Kbb, Kmm )

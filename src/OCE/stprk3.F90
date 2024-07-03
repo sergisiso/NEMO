@@ -15,7 +15,7 @@ MODULE stprk3
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   stp_RK3       : NEMO 3rd order Runge-Kutta time-stepping 
+   !!   stp       : NEMO 3rd order Runge-Kutta time-stepping 
    !!----------------------------------------------------------------------
    USE step_oce       ! time stepping used modules
    USE trd_oce        ! trends: ocean variables
@@ -26,7 +26,7 @@ MODULE stprk3
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   stp_RK3   ! called by nemogcm.F90
+   PUBLIC   stp   ! called by nemogcm.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -38,14 +38,14 @@ MODULE stprk3
 CONTAINS
 
 #if defined key_agrif
-   RECURSIVE SUBROUTINE stp_RK3( )
+   RECURSIVE SUBROUTINE stp( )
       INTEGER             ::   kstp   ! ocean time-step index
 #else
-   SUBROUTINE stp_RK3( kstp )
+   SUBROUTINE stp( kstp )
       INTEGER, INTENT(in) ::   kstp   ! ocean time-step index
 #endif
       !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE stp_RK3  ***
+      !!                     ***  ROUTINE stp  ***
       !!
       !! ** Purpose : - Time stepping of OCE  (momentum and active tracer Eqs.) (RK3)
       !!              - Time stepping of SI3 (dynamic and thermodynamic Eqs.)   (FBS)
@@ -78,7 +78,7 @@ CONTAINS
 # endif
 #endif
       !
-      IF( ln_timing )   CALL timing_start('stp_RK3')
+      IF( ln_timing )   CALL timing_start('stp')
       !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! update I/O and calendar
@@ -187,19 +187,19 @@ CONTAINS
       CALL rk3_dia( 0 )                                ! Diagnostics switched off for stage 1 & 2
       !
       ! Stage 1 :
-      CALL stp_RK3_stg( 1, kstp, Nbb, Nbb, Nrhs, Naa )
+      CALL stp_stg( 1, kstp, Nbb, Nbb, Nrhs, Naa )
       !
       Nrhs = Nnn   ;   Nnn  = Naa   ;   Naa  = Nrhs    ! Swap: Nbb unchanged, Nnn <==> Naa
       !
       ! Stage 2 :
-      CALL stp_RK3_stg( 2, kstp, Nbb, Nnn, Nrhs, Naa )
+      CALL stp_stg( 2, kstp, Nbb, Nnn, Nrhs, Naa )
       !
       Nrhs = Nnn   ;   Nnn  = Naa   ;   Naa  = Nrhs    ! Swap: Nbb unchanged, Nnn <==> Naa
       !
       ! Stage 3 :
       CALL rk3_dia( 1 )                                ! Diagnostics switched on for stage 3
       !
-      CALL stp_RK3_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
+      CALL stp_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
       !
       Nrhs = Nbb   ;   Nbb  = Naa   ;   Naa  = Nrhs    ! Swap: Nnn unchanged, Nbb <==> Naa
 
@@ -250,7 +250,7 @@ CONTAINS
       ! AGRIF recursive integration
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                          Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs      ! agrif_oce module copies of time level indices
-                         CALL Agrif_Integrate_ChildGrids( stp_RK3 )       ! allows to finish all the Child Grids before updating
+                         CALL Agrif_Integrate_ChildGrids( stp )       ! allows to finish all the Child Grids before updating
 
 #endif
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -292,9 +292,9 @@ CONTAINS
       ENDIF
 #endif
       !
-      IF( ln_timing )   CALL timing_stop('stp_RK3')
+      IF( ln_timing )   CALL timing_stop('stp')
       !
-   END SUBROUTINE stp_RK3
+   END SUBROUTINE stp
 
 
    SUBROUTINE rk3_dia( kswitch )

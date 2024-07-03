@@ -51,7 +51,7 @@ MODULE nemogcm
    USE sbc_oce , ONLY : ln_rnf
    USE sbcrnf         ! surface boundary condition : runoffs
 #if defined key_qco   ||   defined key_linssh
-   USE trcstp_rk3
+   USE trcstp
 #endif
    !              ! I/O & MPP
    USE iom            ! I/O library
@@ -142,7 +142,7 @@ CONTAINS
          IF( istp /= nit000 )   CALL day        ( istp )         ! Calendar (day was already called at nit000 in day_init)
                                 CALL iom_setkt  ( istp - nit000 + 1, cxios_context )   ! say to iom that we are at time step kstp
 
-         CALL stp_RK3( istp )
+         CALL stp( istp )
 
          CALL stp_ctl    ( istp )             ! Time loop: control and print
          CALL timing_stop( 'step', istp )
@@ -185,9 +185,9 @@ CONTAINS
       !
    END SUBROUTINE nemo_gcm
 
-   SUBROUTINE stp_RK3( kstp )
+   SUBROUTINE stp( kstp )
       !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE stp_RK3  ***
+      !!                     ***  ROUTINE stp  ***
       !!
       !!              - Time stepping of TRC  (passive tracer eqs.)
       !!----------------------------------------------------------------------
@@ -195,7 +195,7 @@ CONTAINS
 
       !!----------------------------------------------------------------------
       !
-      IF( ln_timing )   CALL timing_start('stp_RK3')
+      IF( ln_timing )   CALL timing_start('stp')
       !
 
       CALL dta_dyn( kstp, Nbb, Nnn, Naa )       ! Interpolation of the dynamical fields
@@ -204,18 +204,18 @@ CONTAINS
         &  CALL ldf_tra( kstp, Nbb, Nnn )  ! eddy diffusivity coeff. and/or eiv coeff.
 
         ! Stage 1 :
-      CALL stp_RK3_stg( 1, kstp, Nbb, Nbb, Nrhs, Naa )
+      CALL stp_stg( 1, kstp, Nbb, Nbb, Nrhs, Naa )
       !
       Nrhs = Nnn   ;   Nnn  = Naa   ;   Naa  = Nrhs    ! Swap: Nbb unchanged, Nnn <==> Naa
       !
       ! Stage 2 :
-      CALL stp_RK3_stg( 2, kstp, Nbb, Nnn, Nrhs, Naa )
+      CALL stp_stg( 2, kstp, Nbb, Nnn, Nrhs, Naa )
       !
       Nrhs = Nnn   ;   Nnn  = Naa   ;   Naa  = Nrhs    ! Swap: Nbb unchanged, Nnn <==> Naa
       !
       ! Stage 3 :
       !
-      CALL stp_RK3_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
+      CALL stp_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
       !
       Nrhs = Nbb   ;   Nbb  = Naa   ;   Naa  = Nrhs    ! Swap: Nnn unchanged, Nbb <==> Naa
 
@@ -225,14 +225,14 @@ CONTAINS
          ssh(:,:,Naa) = 2 * ssh(:,:,Nbb) - ssh(:,:,Naa) 
       ENDIF
 
-      IF( ln_timing )   CALL timing_stop('stp_RK3')
+      IF( ln_timing )   CALL timing_stop('stp')
       !
    
-   END SUBROUTINE stp_RK3
+   END SUBROUTINE stp
 
-   SUBROUTINE stp_RK3_stg( kstg, kstp, Kbb, Kmm, Krhs, Kaa )
+   SUBROUTINE stp_stg( kstg, kstp, Kbb, Kmm, Krhs, Kaa )
       !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE stp_RK3_stg  ***
+      !!                     ***  ROUTINE stp_stg  ***
       !!
       !! ** Purpose : - stage of RK3 time stepping of OCE and TOP
       !!
@@ -252,11 +252,11 @@ CONTAINS
       !
       !! ---------------------------------------------------------------------
       !
-      IF( ln_timing )   CALL timing_start('stp_RK3_stg')
+      IF( ln_timing )   CALL timing_start('stp_stg')
       !
       IF( kstp == nit000 ) THEN
          IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'stp_RK3_stg : Runge Kutta 3rd order at stage ', kstg
+         IF(lwp) WRITE(numout,*) 'stp_stg : Runge Kutta 3rd order at stage ', kstg
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
       ENDIF
       !
@@ -339,11 +339,11 @@ CONTAINS
          !
       END SELECT
       !
-      CALL trc_stp_rk3( kstg,  kstp, Kbb, Kmm, Krhs, Kaa )
+      CALL trc_stp( kstg,  kstp, Kbb, Kmm, Krhs, Kaa )
       !
-      IF( ln_timing )   CALL timing_stop('stp_RK3_stg')
+      IF( ln_timing )   CALL timing_stop('stp_stg')
       !
-   END SUBROUTINE stp_RK3_stg
+   END SUBROUTINE stp_stg
 
    SUBROUTINE nemo_init
       !!----------------------------------------------------------------------
