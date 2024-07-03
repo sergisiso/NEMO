@@ -40,7 +40,6 @@ MODULE dom_oce
    LOGICAL , PUBLIC ::   ln_c1d         !: =T  single column domain (1x1 pt)
    LOGICAL , PUBLIC ::   ln_shuman      !: =T  shuman averaging (RK3 only)
 
-   LOGICAL, PUBLIC, PARAMETER ::   lk_RK3    = .TRUE.   !: RK3 key flag
    !                                          !**  time level indices  **!
    INTEGER, PUBLIC ::   Nbb, Nnn, Naa, Nrhs   !: used by nemo_init
 
@@ -344,11 +343,6 @@ CONTAINS
          IF( lk_qco ) THEN                !* qco only :   time variation factor (ssh/h ratio)
             ii = ii+1
             ALLOCATE( r3t(jpi,jpj,jpt) , r3u(jpi,jpj,jpt) , r3v(jpi,jpj,jpt) , r3f(jpi,jpj) ,   STAT=ierr(ii) )
-            !
-            IF( .NOT. lk_RK3 ) THEN       !   +  MLF  :   Asselin filter applied to r3. at f-point
-               ii = ii+1            
-               ALLOCATE( r3t_f(jpi,jpj) , r3u_f(jpi,jpj) , r3v_f(jpi,jpj) ,   STAT=ierr(ii) )
-            ENDIF
          ENDIF
          !
          ii = ii+1
