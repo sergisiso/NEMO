@@ -65,7 +65,6 @@
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
 !   rn_Dt      = 3600.     !  1h    - SWG 1 deg
-!MLF   rn_Dt       = 1800.     !  30min - SWG 1/4deg
    rn_Dt       = 3600.     !  1h    - SWG 1/4deg
    ln_meshmask = .false.   !  =T create a mesh file
 /
@@ -164,8 +163,6 @@
 &namdyn_spg    !   surface pressure gradient                            (default: NO selection)
 !-----------------------------------------------------------------------
    ln_dynspg_exp  = .true.   ! explicit free surface
-!MLF      nn_bt_flt     = 1          ! Time filtering with nn_e width boxcar averaging
-!MLF      rn_bt_alpha   = 0.         ! Dissipative Forward Backward parameter
       nn_bt_flt     = 3          ! Time filtering with dissipative Forward Backward
       rn_bt_alpha   = 0.07       ! Dissipative Forward Backward parameter
 /

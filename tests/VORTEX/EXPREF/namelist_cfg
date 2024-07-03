@@ -37,9 +37,7 @@
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-!MLF   rn_Dt       =   1440.   !  time step for the dynamics (and tracer if nn_acc=0)
    rn_Dt       =   2880.   !  time step for the dynamics (and tracer if nn_acc=0)
-!MLF   rn_atfp     =   0.05    !  asselin time filter parameter
    ln_meshmask = .false.   !  =T create a mesh file
 /
 !-----------------------------------------------------------------------
@@ -203,15 +201,12 @@
    ln_dynspg_exp = .false. 
    ln_dynspg_ts  = .true.   ! split-explicit free surface
       !                          ! Dissipation with nn_e width boxcar averaging or dissipative FB
-!MLF      nn_bt_flt     = 1             ! Averaging filter choice  = 0 None
       nn_bt_flt     = 3             ! Averaging filter choice  = 0 None
       !                             !                          = 1 Boxcar over   nn_e sub-steps
       !                             !                          = 2 Boxcar over 2*nn_e  "    "
       !                             !                          = 3 Dissipative Foreward Backward
       ln_bt_auto    = .false.    ! Number of sub-step defined from:
-!MLF         nn_e      =  24         ! =F : the number of sub-step in rn_Dt seconds
          nn_e      =  48         ! =F : the number of sub-step in rn_Dt seconds
-!MLF      rn_bt_alpha   = 0.         ! Dissipative Forward Backward parameter
       rn_bt_alpha   = 0.07       ! Dissipative Forward Backward parameter
 /
 !-----------------------------------------------------------------------
