@@ -101,17 +101,12 @@ CONTAINS
          IF( ln_rnf )   ztmp(ji,jj,1)  = ztmp(ji,jj,1) - rnf(ji,jj)
          IF( ln_isf )   ztmp(ji,jj,1)  = ztmp(ji,jj,1) - fwfisf_cav(ji,jj) - fwfisf_par(ji,jj)
          ztmp(ji,jj,1)  =  - r1_rho0 * ztmp(ji,jj,1) * surf(ji,jj)
-#if defined key_RK3
          ztmp(ji,jj,2)  =   r1_rho0_rcp * qns(ji,jj) * surf(ji,jj)                           ! heat
          ztmp(ji,jj,3)  =   r1_rho0     * sfx(ji,jj) * surf(ji,jj)                           ! salt
          IF( lk_linssh ) THEN
             ztmp(ji,jj,2)  =  r1_rho0 * emp(ji,jj) * ts(ji,jj,1,jp_tem,Kmm) * surf(ji,jj)   ! heat
             ztmp(ji,jj,3)  =  r1_rho0 * emp(ji,jj) * ts(ji,jj,1,jp_sal,Kmm) * surf(ji,jj)   ! salt
          ENDIF
-#else
-         ztmp(ji,jj,2)  =   sbc_tsc(ji,jj,jp_tem) * surf(ji,jj)                              ! heat
-         ztmp(ji,jj,3)  =   sbc_tsc(ji,jj,jp_sal) * surf(ji,jj)                              ! salt
-#endif
       END_2D
       IF( ln_rnf     ) THEN
          DO_2D( 0, 0, 0, 0 )
@@ -340,11 +335,7 @@ CONTAINS
 
          id0 = iom_varid( numror, 'frc_v' , ldstop = .FALSE. ) ! test if this variable exists
 
-#if defined key_RK3
          IF( ln_rstart .AND. id0 > 0 ) THEN      !* Read the restart file
-#else
-         IF( ln_rstart .AND. id0 > 0 .AND. (.NOT.l_1st_euler) ) THEN      !* Read the restart file
-#endif
             !
             l_diahsb_init = .FALSE.
             !

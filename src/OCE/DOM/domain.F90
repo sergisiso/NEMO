@@ -274,7 +274,6 @@ CONTAINS
       ENDIF
       !
       ! set current model timestep rDt = 2*rn_Dt if MLF or rDt = rn_Dt if RK3
-#if defined key_RK3
       rDt   =         rn_Dt
       r1_Dt = 1._wp / rDt
       !
@@ -284,17 +283,6 @@ CONTAINS
          WRITE(numout,*)
       ENDIF
       !
-#else
-      rDt   = 2._wp * rn_Dt
-      r1_Dt = 1._wp / rDt
-      !
-      IF(lwp) THEN
-         WRITE(numout,*)
-         WRITE(numout,*) '           ===>>>   Modified Leap-Frog (MLF) :   rDt = ', rDt
-         WRITE(numout,*)
-      ENDIF
-      !
-#endif
       !
       !                       !=======================!
       !                       !==  namelist namrun  ==!
@@ -373,50 +361,12 @@ CONTAINS
          nxioso = nn_wxios
       ENDIF
       !
-#if defined key_RK3
       !                                        !==  RK3: Open the restart file  ==!
       IF( ln_rstart ) THEN
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   open the restart file'
          CALL rst_read_open 
       ENDIF
-#else
-      !                                        !==  MLF: Check consistency between ln_rstart and ln_1st_euler  ==!   (i.e. set l_1st_euler)
-      l_1st_euler = ln_1st_euler
-      !
-      IF( ln_rstart ) THEN                              !*  Restart case
-         !
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) '   open the restart file'
-         CALL rst_read_open                                              !- Open the restart file
-         !
-         IF( iom_varid( numror, 'rdt', ldstop = .FALSE. ) > 0 ) THEN     !- Check time-step consistency and force Euler restart if changed
-            CALL iom_get( numror, 'rdt', zrdt )
-            IF( zrdt /= rn_Dt ) THEN
-               IF(lwp) WRITE( numout,*)
-               IF(lwp) WRITE( numout,*) '   rn_Dt = ', rn_Dt,' not equal to the READ one rdt = ', zrdt
-               IF(lwp) WRITE( numout,*)
-               IF(lwp) WRITE( numout,*) '      ==>>>   forced euler first time-step'
-               l_1st_euler =  .TRUE.
-            ENDIF
-         ENDIF
-         !
-         IF( .NOT.l_SAS .AND. iom_varid( numror, 'sshb', ldstop = .FALSE. ) <= 0 ) THEN   !- Check absence of one of the Kbb field (here sshb)
-            !                                                                             !  (any Kbb field is missing ==> all Kbb fields are missing)
-            IF( .NOT.l_1st_euler ) THEN
-               CALL ctl_warn('dom_nam : ssh at Kbb not found in restart files ',   &
-                  &                        'l_1st_euler forced to .true. and ' ,   &
-                  &                        'ssh(Kbb) = ssh(Kmm) '                  )
-               l_1st_euler = .TRUE.
-            ENDIF
-         ENDIF
-      ELSEIF( .NOT.l_1st_euler ) THEN                   !*  Initialization case
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*)'   ==>>>   Start from rest (ln_rstart=F)'
-         IF(lwp) WRITE(numout,*)'           an Euler initial time step is used : l_1st_euler is forced to .true. '
-         l_1st_euler = .TRUE.
-      ENDIF
-#endif
       !
       !                                        !==  control of output frequency  ==!
       !

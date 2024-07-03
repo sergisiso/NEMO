@@ -40,11 +40,7 @@ MODULE dom_oce
    LOGICAL , PUBLIC ::   ln_c1d         !: =T  single column domain (1x1 pt)
    LOGICAL , PUBLIC ::   ln_shuman      !: =T  shuman averaging (RK3 only)
 
-#if defined key_RK3
    LOGICAL, PUBLIC, PARAMETER ::   lk_RK3    = .TRUE.   !: RK3 key flag
-#else
-   LOGICAL, PUBLIC, PARAMETER ::   lk_RK3    = .FALSE.  !: RK3 key flag
-#endif
    !                                          !**  time level indices  **!
    INTEGER, PUBLIC ::   Nbb, Nnn, Naa, Nrhs   !: used by nemo_init
 
