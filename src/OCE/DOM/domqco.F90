@@ -121,15 +121,10 @@ CONTAINS
       !
       !                    !== Set of all other vertical scale factors  ==!  (now and before)
       !                                ! Horizontal interpolation of e3t
-#if defined key_RK3
       CALL dom_qco_r3c( ssh(:,:,Kbb), r3t(:,:,Kbb), r3u(:,:,Kbb), r3v(:,:,Kbb), r3f(:,:) )
       r3t(:,:,Kmm) = r3t(:,:,Kbb)                            !!st r3 at Kmm needed to be initialised for Agrid_Grid call in nemo_gcm        
       r3u(:,:,Kmm) = r3u(:,:,Kbb)                            !!             maybe we only need zeros ??? 
       r3v(:,:,Kmm) = r3v(:,:,Kbb)      
-#else
-      CALL dom_qco_r3c( ssh(:,:,Kbb), r3t(:,:,Kbb), r3u(:,:,Kbb), r3v(:,:,Kbb)           )
-      CALL dom_qco_r3c( ssh(:,:,Kmm), r3t(:,:,Kmm), r3u(:,:,Kmm), r3v(:,:,Kmm), r3f(:,:) )
-#endif
       ! dom_qco_r3c defines over [nn_hls, nn_hls-1, nn_hls, nn_hls-1]
       CALL lbc_lnk( 'dom_qco_zgr', r3u(:,:,Kbb), 'U', 1._wp, r3v(:,:,Kbb), 'V', 1._wp, &
          &                         r3u(:,:,Kmm), 'U', 1._wp, r3v(:,:,Kmm), 'V', 1._wp, r3f(:,:), 'F', 1._wp )
