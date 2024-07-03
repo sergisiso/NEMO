@@ -46,7 +46,6 @@ CONTAINS
       !
       IF ( ln_isf ) THEN
          !
-#if defined key_RK3
          ! ice shelf cavity contribution (RK3)
          IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, &
             &                                                                             fwfisf_cav, phdiv)
@@ -54,15 +53,6 @@ CONTAINS
          ! ice shelf parametrisation contribution (RK3)
          IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, &
                                                                                           fwfisf_par, phdiv)
-#else
-         ! ice shelf cavity contribution (MLF)
-         IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, &
-            &                                                                             fwfisf_cav, phdiv, fwfisf_cav_b)
-         !
-         ! ice shelf parametrisation contribution (MLF)
-         IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, &
-                                                                                          fwfisf_par, phdiv, fwfisf_par_b)
-#endif
          !
          ! ice sheet coupling contribution
          IF ( ln_isfcpl .AND. kt /= 0 ) THEN
@@ -113,11 +103,7 @@ CONTAINS
       DO_2D( 1, 1, 1, 1 )
          ! compute integrated divergence correction
          IF( phtbl(ji,jj) /= 0._wp ) THEN
-#if defined key_RK3
             zhdiv = pfwf(ji,jj) * r1_rho0 / phtbl(ji,jj)
-#else
-            zhdiv = 0.5_wp * ( pfwf(ji,jj) + pfwf_b(ji,jj) ) * r1_rho0 / phtbl(ji,jj)
-#endif
          ELSE
             zhdiv = 0._wp
          ENDIF

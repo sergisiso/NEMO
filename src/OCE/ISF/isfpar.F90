@@ -182,13 +182,6 @@ CONTAINS
          mskisf_par(:,:) = 1._wp
       END WHERE
       !
-#if ! defined key_RK3
-      !================
-      ! 2: read restart
-      !================
-      ! MLF: read par variable from restart
-      IF ( ln_rstart ) CALL isfrst_read( 'par', risf_par_tsc, fwfisf_par, risf_par_tsc_b, fwfisf_par_b )
-#endif
       !
       !==========================================
       ! 3: specific allocation and initialisation (depending of scheme choice)

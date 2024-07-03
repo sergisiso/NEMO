@@ -282,19 +282,6 @@ CONTAINS
          !
       END_2D
       !
-#if ! defined key_RK3
-      !================
-      ! 2: activate restart
-      !================
-      !
-      !================
-      ! 3: read restart
-      !================
-      !
-      ! MLF: read cav variable from restart
-      IF ( ln_rstart ) CALL isfrst_read('cav', risf_cav_tsc, fwfisf_cav, risf_cav_tsc_b, fwfisf_cav_b)
-      !
-#endif
       !==========================================
       ! 3: specific allocation and initialisation (depending of scheme choice)
       !==========================================

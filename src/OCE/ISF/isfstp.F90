@@ -85,16 +85,6 @@ CONTAINS
       IF ( ln_isfcav_mlt ) THEN
          !
          ! --- before time step --- ! 
-#if ! defined key_RK3
-         IF ( kt /= nit000 ) THEN         ! MLF : need risf_cav_tsc_b update 
-            DO_2D( 2, 2, 2, 2 )
-               fwfisf_cav_b(ji,jj) = fwfisf_cav(ji,jj)
-            END_2D
-            DO_3D( 0, 0, 0, 0, 1, jpts )
-               risf_cav_tsc_b(ji,jj,jk) = risf_cav_tsc(ji,jj,jk)
-            END_3D
-         END IF
-#endif
          !
          ! --- deepest level (misfkb), thickness (rhisf) & fraction of deepest cell affected by tbl (rfrac) --- !
          DO_2D( 1, 1, 1, 1 )
@@ -118,16 +108,6 @@ CONTAINS
       IF ( ln_isfpar_mlt ) THEN
          !
          ! --- before time step --- ! 
-#if ! defined key_RK3
-         IF ( kt /= nit000 ) THEN          ! MLF : need risf_par_tsc_b update
-            DO_2D( 2, 2, 2, 2 )
-               fwfisf_par_b(ji,jj)   = fwfisf_par(ji,jj)
-            END_2D
-            DO_3D( 0, 0, 0, 0, 1, jpts )
-               risf_par_tsc_b(ji,jj,jk) = risf_par_tsc(ji,jj,jk)
-            END_3D
-         END IF
-#endif
          !
          ! --- deepest level (misfkb), thickness (rhisf) & fraction of deepest cell affected by tbl (rfrac) --- !
          ! by simplicity, we assume the top level where param applied do not change with time (done in init part)
@@ -149,28 +129,16 @@ CONTAINS
       !clem: these lbc are needed since we calculate fwf only in the interior
       IF( ln_isfcpl ) THEN
          CALL lbc_lnk( 'isf_stp', fwfisf_par  , 'T', 1.0_wp, fwfisf_cav  , 'T', 1.0_wp, &
-!!clem#if ! defined key_RK3
-!!            &                     fwfisf_par_b, 'T', 1.0_wp, fwfisf_cav_b, 'T', 1.0_wp, &
-!!#endif
             &                     risfcpl_ssh, 'T', 1.0_wp, risfcpl_cons_ssh, 'T', 1.0_wp ) ! needed in dynspg_ts, stp2d
          CALL lbc_lnk( 'isf_stp', risfcpl_vol, 'T', 1.0_wp, risfcpl_cons_vol, 'T', 1.0_wp ) ! needed in dynspg_ts, stp2d, sshwzv, dynatf
       ELSE
          CALL lbc_lnk( 'isf_stp', fwfisf_par  , 'T', 1.0_wp, fwfisf_cav  , 'T', 1.0_wp  &
-!!clem#if ! defined key_RK3
-!!            &                   , fwfisf_par_b, 'T', 1.0_wp, fwfisf_cav_b, 'T', 1.0_wp  &
-!!#endif
             &        )     
       ENDIF
       !
       !==================
       ! 3.: write restart
       !==================
-#if ! defined key_RK3
-      ! MLF: write restart variables (qoceisf, qhcisf, fwfisf for now and before)
-      IF( ln_isfcav_mlt .AND. lrst_oce )   CALL isfrst_write( kt, 'cav', risf_cav_tsc , fwfisf_cav )
-      ! MLF: write restart variables (qoceisf, qhcisf, fwfisf for now and before)
-      IF( ln_isfpar_mlt .AND. lrst_oce )   CALL isfrst_write( kt, 'par', risf_par_tsc , fwfisf_par )
-#endif
       IF( ln_isfcpl     .AND. lrst_oce )   CALL isfcpl_rst_write( kt, Kmm )
       !
       IF( ln_timing )   CALL timing_stop('isf')
@@ -217,16 +185,6 @@ CONTAINS
          risf_cav_tsc(ji,jj,jk) = 0._wp
          risf_par_tsc(ji,jj,jk) = 0._wp
       END_3D
-#if ! defined key_RK3
-      DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-         fwfisf_par_b(ji,jj) = 0._wp
-         fwfisf_cav_b(ji,jj) = 0._wp
-      END_2D
-      DO_3D( 0, 0, 0, 0, 1, jpts )
-         risf_cav_tsc_b(ji,jj,jk) = 0._wp
-         risf_par_tsc_b(ji,jj,jk) = 0._wp
-      END_3D
-#endif
       !
       CALL isf_ctl()                                              ! check option compatibility
       !
