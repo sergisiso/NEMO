@@ -38,7 +38,6 @@ ACTION='TRANSFORM'
 #    passthrough,
 [[ "${FILENAME}" == 'asminc.f90'            ]] && ACTION='EXCLUDE'   # protect 'WHERE' constructs
 [[ "${FILENAME}" == 'icedyn_rhg_eap.f90'    ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
-[[ "${FILENAME}" == 'lib_fortran.f90'       ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'p4zpoc.f90'            ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'sbc_phy.f90'           ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'sbcblk_skin_coare.f90' ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
@@ -108,9 +107,27 @@ case ${ACTION} in
   EXCLUDE|*)   cp "${BLD_DIR}/ppsrc/nemo/${FILENAME}" "${BLD_DIR}/obj/${FILENAME}" ;;
 esac
 #
-# Workaround to enhance the impact of the 'HoistLocalArraysTrans'
-# transformation of PSyclone v2.5.0 (continued).
+# Various workarounds to generalise the processed source code
 if [[ ! "${ACTION}" == "EXCLUDE" ]]; then
+    # Workaround to adjust the PSyclone-processed version of file
+    # lib_fortran.f90 when using PSyclone version 2.4.0 or 2.5.0 (avoids loss
+    # of 'ELEMENTAL' attribute); it can be removed when PSyclone supports the
+    # 'ELEMENTAL' attribute. Processing of lib_fortran.f90 permits the 'SIGN'
+    # variant in use with defined 'key_nosignedzero' to be used inside kernels
+    # regions that are executed on accelerators.
+    if [[ "${FILENAME}" == "lib_fortran.f90" ]]; then
+        sed -i -e 's/^[[:space:]]*function SIGN_SCALAR/  elemental function SIGN_SCALAR/i' ${BLD_DIR}/obj/${FILENAME}
+    fi
+    # Workaround to add a clause to OpenACC 'routine' directives added by
+    # PSyclone version 2.4.0 or 2.5.0; it can be removed when PSyclone supports
+    # explicit addition of the 'seq' clause to OpenACC 'routine' directives.
+    # While some compilers presumably apply sequential execution by default
+    # when processing OpenACC 'routine' directives without specified
+    # parallelism clause, at least one compiler appears to insist on explicit
+    # specification of a clause.
+    sed -i -e 's/^[[:space:]]*\!\$acc routine$/!$acc routine seq/' ${BLD_DIR}/obj/${FILENAME}
+    # Workaround to enhance the impact of the 'HoistLocalArraysTrans'
+    # transformation of PSyclone v2.5.0 (continued).
     sed -i -e 's/\([Nn][ijt]s[0ij]__key_psyclone_2_5_0__\)__\([0-3]\)__/\1 - \2/g' \
            -e 's/\([Nn][ijt]e[0ij]__key_psyclone_2_5_0__\)__\([0-3]\)__/\1 + \2/g' \
            -e 's/\([Nn][ijt]s[0ij]__key_psyclone_2_5_0__\)__\(nn_hls\)__/\1 - \2/g' \
