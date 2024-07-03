@@ -130,24 +130,10 @@ CONTAINS
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~'
 
       ! READ prognostic variables and computes diagnostic variable
-#if defined key_RK3
       DO jn = 1, jptra      ! RK3: Before time step
          CALL iom_get( numrtr, jpdom_auto, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kbb) )
          tr(:,:,:,1:jptra,Kmm) = tr(:,:,:,1:jptra,Kbb)
       END DO
-#else
-      DO jn = 1, jptra      ! MLF only : Now time step
-         CALL iom_get( numrtr, jpdom_auto, 'TRN'//ctrcnm(jn), tr(:,:,:,jn,Kmm) )
-      END DO
-      IF( l_1st_euler .OR. ln_top_euler ) THEN
-         IF(lwp) WRITE(numout,*) '              + adjustment for forward Euler time stepping'
-         tr(:,:,:,1:jptra,Kbb) = tr(:,:,:,1:jptra,Kmm)
-      ELSE                  ! MLF only : Before time step
-         DO jn = 1, jptra
-            CALL iom_get( numrtr, jpdom_auto, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kbb) )
-         END DO
-      END IF
-#endif
       !
       CALL iom_delay_rst( 'READ', numrtr )   ! read all delayed global communication variables (if not already done)
       
@@ -169,18 +155,9 @@ CONTAINS
       CALL iom_rstput( kt, nitrst, numrtw, 'rdttrc1', rn_Dt )   ! passive tracer time step (= ocean time step)
       ! prognostic variables 
       ! --------------------
-#if defined key_RK3
       DO jn = 1, jptra      ! RK3 : After time step (before the swap) put in TRB
          CALL iom_rstput( kt, nitrst, numrtw, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kaa) )
       END DO
-#else
-      DO jn = 1, jptra      ! MLF : After time step (before the swap) put in TRN
-         CALL iom_rstput( kt, nitrst, numrtw, 'TRN'//ctrcnm(jn), tr(:,:,:,jn,Kaa) )
-      END DO
-      DO jn = 1, jptra      ! MLF : Now   time step (before the swap) put in TRB
-         CALL iom_rstput( kt, nitrst, numrtw, 'TRB'//ctrcnm(jn), tr(:,:,:,jn,Kmm) )
-      END DO
-#endif
       CALL iom_delay_rst( 'WRITE', numrtw, kt )   ! save delayed global communication variables
     
       IF( kt == nitrst ) THEN

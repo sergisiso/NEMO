@@ -93,11 +93,7 @@ CONTAINS
         !
       ENDIF
       !
-#if defined key_RK3
       imm = Kbb
-#else
-      imm = Kmm
-#endif
       !
       ll_dmp  = ln_pisdmp .AND. ( ln_rsttr .OR. kt /= 1 ) 
       ikty = nyear_len(1) * rday / NINT(rn_Dt)    ! time-step at the end of a year 

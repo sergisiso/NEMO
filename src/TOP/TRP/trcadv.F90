@@ -27,9 +27,6 @@ MODULE trcadv
    USE traadv_mus     ! MUSCL    scheme           (tra_adv_mus  routine)
    USE traadv_ubs     ! UBS      scheme           (tra_adv_ubs  routine)
    USE traadv_qck     ! QUICKEST scheme           (tra_adv_qck  routine)
-#if ! defined key_RK3
-   USE tramle         ! ML eddy induced transport (tra_adv_mle  routine)
-#endif
    USE ldftra         ! lateral diffusion: eddy diffusivity & EIV coeff.
    USE ldfslp         ! Lateral diffusion: slopes of neutral surfaces
    USE domtile        ! tiling utilities
@@ -128,45 +125,6 @@ CONTAINS
                zptw => ww(:,:,:    )
             ENDIF
             !
-#if ! defined key_RK3
-            !
-            ALLOCATE( zuu(T2D(nn_hls),jpk), zvv(T2D(nn_hls),jpk), zww(T2D(nn_hls),jpk))            
-            !
-            IF( ln_wave .AND. ln_sdw )  THEN
-               DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )                            ! eulerian transport + Stokes Drift
-                  zuu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
-                  zvv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * ( zptv(ji,jj,jk) + vsd(ji,jj,jk) )
-               END_3D
-               DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-                  zww(ji,jj,jk) = e1e2t(ji,jj)                   * ( zptw(ji,jj,jk) + wsd(ji,jj,jk) )
-               END_3D
-            ELSE
-               DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-                  zuu(ji,jj,jk) = e2u(ji,jj) * e3u(ji,jj,jk,Kmm) * zptu(ji,jj,jk)           ! eulerian transport
-                  zvv(ji,jj,jk) = e1v(ji,jj) * e3v(ji,jj,jk,Kmm) * zptv(ji,jj,jk)
-               END_3D
-               DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-                  zww(ji,jj,jk) = e1e2t(ji,jj)                   * zptw(ji,jj,jk)
-               END_3D
-            ENDIF
-            !
-            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-               zuu(ji,jj,jpk) = 0._wp                                                      ! no transport trough the bottom 
-               zvv(ji,jj,jpk) = 0._wp
-               zww(ji,jj,jpk) = 0._wp
-            END_2D
-            !
-            IF( ln_ldfeiv .AND. .NOT. ln_traldf_triad )   & 
-               &              CALL ldf_eiv_trp( kt, nittrc000, zuu, zvv, zww, Kmm, Krhs     , 'TRC' )  ! add the eiv transport
-            !
-            IF( ln_mle    )   CALL tra_mle_trp( kt           , zuu, zvv, zww, Kmm, nittrc000, 'TRC' )  ! add the mle transport
-            !
-            ! Change pointers to use in advection
-            zptu => zuu(:,:,:)
-            zptv => zvv(:,:,:)
-            zptw => zww(:,:,:)
-            !
-#endif
          ENDIF
 
          SELECT CASE ( nadv )                      !==  compute advection trend and add it to general trend  ==!
@@ -185,9 +143,6 @@ CONTAINS
             !
          END SELECT
          !
-#if ! defined key_RK3
-         IF( .NOT.l_offline )    DEALLOCATE( zuu, zvv, zww )
-#endif
          ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
          IF( ln_tile .AND. .NOT. l_istiled ) CALL dom_tile_start( ldhold=.TRUE. )
          !

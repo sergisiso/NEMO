@@ -57,11 +57,7 @@ CONTAINS
       IF(sn_cfctl%l_prttrc) THEN                       ! print mean trends (used for debugging)
          WRITE(charout, FMT="('sms ')")
          CALL prt_ctl_info( charout, cdcomp = 'top' )
-#if defined key_RK3
          CALL prt_ctl( tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm )
-#else
-         CALL prt_ctl( tab4d_1=tr(:,:,:,:,Kmm), mask1=tmask, clinfo=ctrcnm )
-#endif
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('trc_sms')

@@ -146,14 +146,8 @@ CONTAINS
       IF( l_trdtrc )   ALLOCATE( ztrtrd(T2D(0),jpk) )
       zs2rdt = 1. / ( 2. * rn_Dt )
       !
-#if ! defined key_RK3
-      DO jt = 1,2  ! Loop over time indices since exactly the same fix is applied to "now" and "after" fields
-         IF( jt == 1 ) itime = Kbb
-         IF( jt == 2 ) itime = Kmm
-#else
       DO jt = 1,1  ! Loop over time indices since exactly the same fix is applied to "now" and "after" fields
          IF( jt == 1 ) itime = Kmm
-#endif
 
          IF( PRESENT( cpreserv )  ) THEN     !==  total tracer concentration is preserved  ==!
             !
