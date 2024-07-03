@@ -154,11 +154,7 @@ CONTAINS
          !
          ! -- Upstream fluxes
          ! ------------------
-#if defined key_RK3
          CALL fct_up1_2stp( Kbb, Kmm, Kaa, p2dt, pt(:,:,:,jn,Kbb), pU, pV, pW, ztFu, ztFv, ztFw, zta_up1, pt(:,:,:,jn,Krhs) )
-#else
-         CALL fct_up1_1stp( Kbb, Kmm, Kaa, p2dt, pt(:,:,:,jn,Kbb), pU, pV, pW, ztFu, ztFv, ztFw, zta_up1, pt(:,:,:,jn,Krhs) )
-#endif
          ! output => ztFu(1,0,1,0), ztFv(1,0,1,0), zta_up1(0,0,0,0), ztFw(0,0,0,0) if Amip2 or ztFw(1,1,1,1) if .not.Aimp2
          !
          IF( l_trd .OR. l_hst )  THEN             ! trend diagnostics (contribution of upstream fluxes)
@@ -395,7 +391,7 @@ CONTAINS
       !!----------------------------------------------------------------------
 !!$      IF( .NOT. ll_upsxy ) THEN         !** no alternate directions **!
 !!$      ELSE                              !** alternate directions **!
-!!$      ENDIF     
+!!$      ENDIF
       !
       ! -- upstream fluxes
 
@@ -404,7 +400,7 @@ CONTAINS
          ptFu(ji,jj,jk) = ( MAX( pU(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk) + MIN( pU(ji,jj,jk) , 0._wp ) * pt_b(ji+1,jj  ,jk) )
          ptFv(ji,jj,jk) = ( MAX( pV(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk) + MIN( pV(ji,jj,jk) , 0._wp ) * pt_b(ji  ,jj+1,jk) )
       END_3D
-      
+
       ! vertical
       DO_3D( 1, 1, 1, 1, 2, jpkm1 )
          ptFw(ji,jj,jk) = ( MAX( pW(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk) + MIN( pW(ji,jj,jk) , 0._wp ) * pt_b(ji,jj,jk-1)   ) * wmask(ji,jj,jk) !!clem
@@ -428,20 +424,20 @@ CONTAINS
       ENDIF
 
       ! -- after tracer with upstream scheme
-      
+
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          ztra = - (  ( ptFu(ji,jj,jk) - ptFu(ji-1,jj  ,jk  ) )   &
             &      + ( ptFv(ji,jj,jk) - ptFv(ji  ,jj-1,jk  ) )   &
             &      + ( ptFw(ji,jj,jk) - ptFw(ji  ,jj  ,jk+1) ) ) * r1_e1e2t(ji,jj)
 
          pt_rhs(ji,jj,jk) = pt_rhs(ji,jj,jk) + ztra / e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) !!clem
-         
+
          IF ( ll_zAimp1 ) THEN
             ztra = ztra - ( wi(ji,jj,jk) - wi(ji,jj,jk+1) ) * pt_b(ji,jj,jk)
          END IF
-         
+
          pt_up1(ji,jj,jk) = ( e3t(ji,jj,jk,Kbb) * pt_b(ji,jj,jk) + pDt * ztra ) / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk) !!clem
-      END_3D 
+      END_3D
 
       IF ( ll_zAimp2 ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
@@ -464,7 +460,7 @@ CONTAINS
             pt_rhs(ji,jj,jk) = pt_rhs(ji,jj,jk) - ( ztmp(ji,jj,jk) - ztmp(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
          END_3D
       ENDIF
-      
+
    END SUBROUTINE fct_up1_1stp
 
    SUBROUTINE fct_up1_2stp( Kbb, Kmm, Kaa, pDt, pt_b, pU, pV, pW, ptFu, ptFv, ptFw, pt_up1, pt_rhs )
