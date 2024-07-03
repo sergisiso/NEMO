@@ -56,8 +56,6 @@ CONTAINS
       !!                 - Swap time indices
       !!       * Outputs and diagnostics
       !!
-      !!       NB: in stages 1 and 2 lateral mixing and forcing are not taken
-      !!           into account in the momentum RHS execpt if key_RK3all is used
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in   ) ::   kstp   ! ocean time-step index
       !
@@ -119,21 +117,13 @@ CONTAINS
 
       CALL dyn_adv( kstp, Nbb, Nbb, uu, vv, Nrhs )  ! advection (VF or FF)	==> RHS
       CALL dyn_vor( kstp,      Nbb, uu, vv, Nrhs )  ! vorticity           	==> RHS
-#if defined key_RK3all 
-      CALL dyn_ldf( kstp, Nbb, Nbb, uu, vv, Nrhs )  ! lateral mixing
-#endif
+
       z5_6 = 5._wp/6._wp
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          !                                          ! horizontal pressure gradient
          zrhs_u =        - grav    * ( ssh(ji+1,jj,Nbb) - ssh(ji,jj,Nbb) ) * r1_e1u(ji,jj)
          zrhs_v =        - grav    * ( ssh(ji,jj+1,Nbb) - ssh(ji,jj,Nbb) ) * r1_e2v(ji,jj)
-#if defined key_RK3all
-         !                                          ! wind stress and layer friction
-         zrhs_u = zrhs_u + r1_rho0 * ( z5_6*utau_b(ji,jj) + (1._wp - z5_6)*utauU(ji,jj) ) / e3u(ji,jj,jk,Nbb)   &
-            &            - rn_rfr  * uu(ji,jj,jk,Nbb)
-         zrhs_v = zrhs_v + r1_rho0 * ( z5_6*vtau_b(ji,jj) + (1._wp - z5_6)*vtauV(ji,jj) ) / e3v(ji,jj,jk,Nbb)   &
-            &            - rn_rfr  * vv(ji,jj,jk,Nbb)
-#endif
+
          !                                          ! ==> RHS
          uu(ji,jj,jk,Nrhs) = uu(ji,jj,jk,Nrhs) + zrhs_u
          vv(ji,jj,jk,Nrhs) = vv(ji,jj,jk,Nrhs) + zrhs_v
@@ -184,22 +174,13 @@ CONTAINS
       vv(:,:,:,Nrhs) = 0._wp
       CALL dyn_adv( kstp, Nbb, Nnn, uu, vv, Nrhs )  ! advection (VF or FF)	==> RHS 
       CALL dyn_vor( kstp,      Nnn, uu, vv, Nrhs )  ! vorticity           	==> RHS
-#if defined key_RK3all  
-      CALL dyn_ldf( kstp, Nbb, Nbb, uu, vv, Nrhs )  ! lateral mixing
-#endif
       !
       z3_4 = 3._wp/4._wp
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
          !                                          ! horizontal pressure gradient
          zrhs_u =        - grav    * ( ssh(ji+1,jj,Nnn) - ssh(ji,jj,Nnn) ) * r1_e1u(ji,jj)
          zrhs_v =        - grav    * ( ssh(ji,jj+1,Nnn) - ssh(ji,jj,Nnn) ) * r1_e2v(ji,jj)
-#if defined key_RK3all
-         !                                          ! wind stress and layer friction
-         zrhs_u = zrhs_u + r1_rho0 * ( z3_4*utau_b(ji,jj) + (1._wp - z3_4)*utauU(ji,jj) ) / e3u(ji,jj,jk,Nnn)   &
-            &            - rn_rfr  * uu(ji,jj,jk,Nbb)
-         zrhs_v = zrhs_v + r1_rho0 * ( z3_4*vtau_b(ji,jj) + (1._wp - z3_4)*vtauV(ji,jj) ) / e3v(ji,jj,jk,Nnn)   &
-            &            - rn_rfr  * vv(ji,jj,jk,Nbb)
-#endif
+
          !                                          ! ==> RHS
          uu(ji,jj,jk,Nrhs) = uu(ji,jj,jk,Nrhs) + zrhs_u
          vv(ji,jj,jk,Nrhs) = vv(ji,jj,jk,Nrhs) + zrhs_v

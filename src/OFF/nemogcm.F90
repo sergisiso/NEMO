@@ -51,9 +51,7 @@ MODULE nemogcm
    USE sbc_oce , ONLY : ln_rnf
    USE sbcrnf         ! surface boundary condition : runoffs
 #if defined key_qco   ||   defined key_linssh
-#if  defined key_RK3
    USE trcstp_rk3
-#endif
 #endif
    !              ! I/O & MPP
    USE iom            ! I/O library
@@ -75,14 +73,12 @@ MODULE nemogcm
    IMPLICIT NONE
    PRIVATE
 
-#if defined key_RK3
    REAL(wp) ::   r1_2 = 1._wp / 2._wp
    REAL(wp) ::   r1_3 = 1._wp / 3._wp
    REAL(wp) ::   r2_3 = 2._wp / 3._wp
 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) :: ssha         ! sea-surface height  at N+1
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) :: r3ta, r3ua, r3va   ! ssh/h_0 ratio at t,u,v-column at N+1
-#endif   
    
    PUBLIC   nemo_gcm   ! called by nemo.F90
 
@@ -146,11 +142,7 @@ CONTAINS
          IF( istp /= nit000 )   CALL day        ( istp )         ! Calendar (day was already called at nit000 in day_init)
                                 CALL iom_setkt  ( istp - nit000 + 1, cxios_context )   ! say to iom that we are at time step kstp
 
-#   if defined key_RK3
          CALL stp_RK3( istp )
-#   else
-         CALL stp_MLF( istp )
-#   endif
 
          CALL stp_ctl    ( istp )             ! Time loop: control and print
          CALL timing_stop( 'step', istp )
@@ -192,46 +184,6 @@ CONTAINS
       ENDIF
       !
    END SUBROUTINE nemo_gcm
-
-#if ! defined key_RK3
-
-   SUBROUTINE stp_MLF( kstp )
-      !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE stp_MLF  ***
-      !!
-      !!              - Time stepping of TRC  (passive tracer eqs.)
-      !!----------------------------------------------------------------------
-
-      INTEGER, INTENT(in) ::   kstp   ! ocean time-step index
-      !!----------------------------------------------------------------------
-
-      !
-      IF( ln_timing )   CALL timing_start('stp_MLF')
-      !
-
-      CALL dta_dyn( kstp, Nbb, Nnn, Naa )       ! Interpolation of the dynamical fields
-
-      IF( .NOT.lk_linssh ) THEN
-         CALL dta_dyn_atf( kstp, Nbb, Nnn, Naa )       ! time filter of sea  surface height and vertical scale factors
-         IF( .NOT.lk_linssh )  CALL dom_qco_r3c( ssh(:,:,Nnn), r3t_f, r3u_f, r3v_f )
-      ENDIF
-
-      IF( l_ldftra_time .OR. l_ldfeiv_time )  &
-         &  CALL ldf_tra( kstp, Nbb, Nnn )  ! eddy diffusivity coeff. and/or eiv coeff.
-
-      CALL trc_stp( kstp, Nbb, Nnn, Nrhs, Naa )    ! time-stepping
-
-      ! Swap time levels
-      Nrhs = Nbb
-      Nbb  = Nnn
-      Nnn  = Naa
-      Naa  = Nrhs
-      !
-      IF( ln_timing )   CALL timing_stop('stp_MLF')
-   
-   END SUBROUTINE stp_MLF
-
-# else
 
    SUBROUTINE stp_RK3( kstp )
       !!----------------------------------------------------------------------
@@ -392,8 +344,6 @@ CONTAINS
       IF( ln_timing )   CALL timing_stop('stp_RK3_stg')
       !
    END SUBROUTINE stp_RK3_stg
-
-#endif
 
    SUBROUTINE nemo_init
       !!----------------------------------------------------------------------
