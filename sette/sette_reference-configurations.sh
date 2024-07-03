@@ -205,11 +205,6 @@ if [ ${config} == "GYRE_PISCES" ] ; then
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg jpni 2
         set_namelist namelist_cfg jpnj 4
-        if [ ${USING_RK3} == 'no' ] ; then
-            set_namelist namelist_cfg nn_bt_flt 1
-            set_namelist namelist_cfg rn_bt_alpha 0.
-            set_namelist namelist_cfg rn_Dt 7200.
-        fi
 	set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
         set_namelist namelist_top_cfg ln_trcbc  .false.
@@ -299,9 +294,9 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
     SETTE_CONFIG="ORCA2_ICE_PISCES"${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
-        ITEND=8   # 1 day MLF / 2 days RK3
+        ITEND=8   # 2 days
     else
-        ITEND=992  # 62 days MLF / 124 days RK3
+        ITEND=992  # 124 days
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then
@@ -349,14 +344,6 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
             sed -i "/sn_humi/s/q_10.15JUNE2009_fill/humi_ERAI_L25Z10_ORCA2_ana1d/; /sn_humi/s/ 6./24./; /sn_humi/s/Q_10_MOD/humi/; \
                     /sn_humi/s/true/false/; /sn_humi/s/yearly/monthly/; /sn_humi/s/weights_core2_orca2_bilin//" namelist_cfg
         fi
-	if [ ${USING_RK3} == "no" ]; then
-	    set_namelist namelist_cfg rn_Dt 5400.
-            set_namelist namelist_cfg ln_shuman .false.
-	    set_namelist namelist_cfg nn_fsbc 4
-	    set_namelist namelist_cfg nn_time0 0130
-	    set_namelist namelist_cfg nn_bt_flt 1
-	    set_namelist namelist_cfg rn_bt_alpha 0.
-	fi
         set_namelist_opt namelist_cfg ln_icebergs ${USING_ICEBERGS} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -602,18 +589,11 @@ if [ ${config} == "AMM12" ] ;  then
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg jpni 4
         set_namelist namelist_cfg jpnj 8
-        if [ ${USING_RK3} == "no" ]; then
-	    set_namelist namelist_cfg cn_ocerst_in \"amm12_restart_oce\"
-            set_namelist namelist_cfg rn_Dt 600.
-            set_namelist namelist_cfg nn_bt_flt 1
-            set_namelist namelist_cfg nn_e 30
-            set_namelist namelist_cfg rn_bt_alpha 0.
-        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
-	# Disable tiling with RK3 pending further work
+	# Disable tiling pending further work
         set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
         set_xio_using_server iodef.xml ${USING_MPMD}
         NPROC=32
@@ -720,11 +700,6 @@ if [ ${config} == "ORCA2_SAS_ICE" ] ;  then
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg jpni 4
         set_namelist namelist_cfg jpnj 8
-	if [ ${USING_RK3} == "no" ]; then
-            set_namelist namelist_cfg rn_Dt 5400.
-            set_namelist namelist_cfg nn_bt_flt 1
-            set_namelist namelist_cfg rn_bt_alpha 0.
-        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
@@ -846,11 +821,6 @@ if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
         set_namelist namelist_cfg ln_read_cfg .true.
         set_namelist namelist_cfg jpni 4
         set_namelist namelist_cfg jpnj 8
-	if [ ${USING_RK3} == "no" ]; then
-            set_namelist namelist_cfg rn_Dt 5400.
-            set_namelist namelist_cfg nn_bt_flt 1
-            set_namelist namelist_cfg rn_bt_alpha 0.
-        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
         set_namelist namelist_cfg sn_cfctl%l_obsstat .true.
@@ -982,43 +952,23 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
         set_namelist namelist_cfg cn_exp \"AGRIF_DEMO\"
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
-	if [ ${USING_RK3} == "no" ]; then
-            set_namelist namelist_cfg rn_Dt 5400.
-            set_namelist namelist_cfg nn_bt_flt 1
-            set_namelist namelist_cfg rn_bt_alpha 0.
-        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist 1_namelist_cfg cn_exp \"AGRIF_DEMO\"
         set_namelist 1_namelist_cfg nn_it000 1
         set_namelist 1_namelist_cfg nn_itend ${ITEND}
-	if [ ${USING_RK3} == "no" ]; then
-            set_namelist 1_namelist_cfg rn_Dt 5400.
-            set_namelist 1_namelist_cfg nn_bt_flt 1
-            set_namelist 1_namelist_cfg rn_bt_alpha 0.
-        fi
         set_namelist 1_namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt 1_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist 2_namelist_cfg cn_exp \"AGRIF_DEMO\"
         set_namelist 2_namelist_cfg nn_it000 1
         set_namelist 2_namelist_cfg nn_itend $(( ${ITEND} * 4 ))
-	if [ ${USING_RK3} == "no" ]; then
-            set_namelist 2_namelist_cfg rn_Dt 1350.
-            set_namelist 2_namelist_cfg nn_bt_flt 1
-            set_namelist 2_namelist_cfg rn_bt_alpha 0.
-        fi
         set_namelist 2_namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt 2_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist 3_namelist_cfg cn_exp \"AGRIF_DEMO\"
         set_namelist 3_namelist_cfg nn_it000 1
         set_namelist 3_namelist_cfg nn_itend $(( ${ITEND} * 4 * 3 ))
         set_namelist 3_namelist_cfg sn_cfctl%l_runstat .true.
-	if [ ${USING_RK3} == "no" ]; then
-            set_namelist 3_namelist_cfg rn_Dt 450.
-            set_namelist 3_namelist_cfg nn_bt_flt 1
-            set_namelist 3_namelist_cfg rn_bt_alpha 0.
-        fi
         set_namelist_opt 3_namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
         set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
@@ -1162,11 +1112,6 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
             set_namelist namelist_cfg cn_domcfg "'ORCA_R2_zps_domcfg.nc'"
             set_namelist namelist_cfg nn_it000 1
             set_namelist namelist_cfg nn_itend ${ITEND}
-	    if [ ${USING_RK3} == "no" ]; then
-                set_namelist namelist_cfg rn_Dt 5400.
-                set_namelist namelist_cfg nn_bt_flt 1
-                set_namelist namelist_cfg rn_bt_alpha 0.
-            fi
             set_namelist namelist_cfg sn_cfctl%l_runstat .true.
             set_namelist namelist_cfg sn_cfctl%l_trcstat .true.
             set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
@@ -1228,11 +1173,6 @@ if [ ${config} == "WED025" ] ;  then
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg jpni 4
         set_namelist namelist_cfg jpnj 8
-	if [ ${USING_RK3} == "no" ]; then
-            set_namelist namelist_cfg rn_Dt 1200.
-            set_namelist namelist_cfg nn_bt_flt 1
-            set_namelist namelist_cfg rn_bt_alpha 0.
-        fi
         set_namelist namelist_cfg sn_cfctl%l_runstat .true.
         set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
         set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2

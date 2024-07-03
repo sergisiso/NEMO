@@ -26,7 +26,6 @@ export USING_TILING='yes'      # Default: yes => set ln_tile=.true.     ; use -t
 # controls for some common compile-time keys:
 #
 export USING_QCO='yes'         # Default: yes => add key_qco            ; use -q to delete key_qco
-export USING_RK3='yes'         # Default: yes => add key_RK3 & key_qco  ; use -Q to delete key_RK3
 export USING_SI3_1D='no'       # Default: no  => add key_si3_1D        
 export USING_XIOS='yes'        # Default: yes => add key_xios           ; use -X to delete key_xios
                                #    Note: changing USING_XIOS may require a change in arch file
@@ -106,9 +105,6 @@ if [ $# -gt 0 ]; then
         q) export USING_QCO='no'
            echo "-q: key_qco and key_linssh will NOT be activated"
            echo "";;
-        Q) export USING_RK3='no'
-           echo "-Q: key_qco and key_RK3 will not be activated"
-           echo "";;
         X) export USING_XIOS='no'
            echo "-X: key_xios will not be activated"
            echo "";;
@@ -128,7 +124,6 @@ if [ $# -gt 0 ]; then
                echo '-N set ln_nnogather false for ORCA2 configurations (default: true)'
                echo '-q to remove the key_qco key (default: added)'
                echo '-X to remove the key_xios key (default: added)'
-               echo '-Q to remove the key_RK3 key'
                echo '-A to run tests in attached (SPMD) mode (default: MPMD with key_xios)'
                echo '-n "CFG1_to_test CFG2_to_test ..." to test some specific configurations'
                echo '-x "TEST_type TEST_type ..." to specify particular type(s) of test(s) to run after compilation'
@@ -161,9 +156,6 @@ if [ ${USING_XIOS} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_xios " ; fi
 #
 if [ ${USING_QCO} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_qco " ; fi
 if [ ${USING_QCO} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_qco key_linssh " ; fi
-#
-if [ ${USING_RK3} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_RK3 " ; fi
-if [ ${USING_RK3} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_RK3 " ; fi
 #
 if [ ${USING_SI3_1D} == "yes" ] ; then export ADD_KEYS="${ADD_KEYS}key_si3_1D " ; fi
 if [ ${USING_SI3_1D} == "no" ]  ; then export DEL_KEYS="${DEL_KEYS}key_si3_1D " ; fi
@@ -215,7 +207,6 @@ printf "%-33s : %s\n" USING_NOGATHER $USING_NOGATHER
 printf "%-33s : %s\n" USING_QCO $USING_QCO
 printf "%-33s : %s\n" USING_XIOS $USING_XIOS
 printf "%-33s : %s\n" USING_MPMD $USING_MPMD
-printf "%-33s : %s\n" USING_RK3 $USING_RK3
 printf "%-33s : %s\n" USING_SI3_1D $USING_SI3_1D
 printf "%-33s : %s\n" USER_INPUT $USER_INPUT
 printf "%-33s : %s\n" "Common compile keys to be added" "$ADD_KEYS"
