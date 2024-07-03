@@ -48,10 +48,6 @@ MODULE oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::                              hur_e  !: inverse of u-depth
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::                              hvr_e  !: inverse of v-depth
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   un_adv, vn_adv                    !: Advective barotropic fluxes 
-#if ! defined key_RK3
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_b  , vb2_b           !: Half step fluxes (ln_bt_fw=T)
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   un_bf  , vn_bf           !: Asselin filtered half step fluxes (ln_bt_fw=T)
-#endif
 #if defined key_agrif
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ub2_i_b, vb2_i_b         !: agrif time integrated fluxes 
 #endif
@@ -110,10 +106,6 @@ CONTAINS
          &        hu_e(jpi,jpj),   hur_e(jpi,jpj),   hv_e(jpi,jpj),   hvr_e(jpi,jpj), & 
          &      un_adv(jpi,jpj),  vn_adv(jpi,jpj)                                   , STAT=ierr(ii) )
          !
-#if ! defined key_RK3
-      ii = ii+1                             ! MLF: arrays related to Asselin filter + ???
-      ALLOCATE( un_bf(jpi,jpj), vn_bf(jpi,jpj), ub2_b(jpi,jpj), vb2_b(jpi,jpj)      , STAT=ierr(ii) )
-#endif
 #if defined key_agrif
       ii = ii+1                             ! AGRIF: ???
       ALLOCATE( ub2_i_b(jpi,jpj), vb2_i_b(jpi,jpj)                                  , STAT=ierr(ii) )
@@ -133,9 +125,6 @@ CONTAINS
          &        va_e  ,   vn_e,   vb_e,   vbb_e, hu_e, hur_e, hv_e, hvr_e,   & 
          &        un_adv,  vn_adv )
          !
-#if ! defined key_RK3
-      DEALLOCATE( un_bf, vn_bf, ub2_b, vb2_b )
-#endif
 #if defined key_agrif
       DEALLOCATE( ub2_i_b, vb2_i_b )
 #endif
