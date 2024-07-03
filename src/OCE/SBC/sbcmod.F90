@@ -392,22 +392,6 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('sbc')
       !
-#if ! defined key_RK3
-      !                                            ! ---------------------------------------- !
-      IF( kt /= nit000 ) THEN                      !          Swap of forcing fields          !
-         !                                         ! ---------------------------------------- !
-         utau_b(:,:) = utauU(:,:)                        ! Swap the ocean forcing fields
-         vtau_b(:,:) = vtauV(:,:)                        ! (except at nit000 where before fields
-         qns_b (:,:) = qns  (:,:)                        !  are set at the end of the routine)
-         emp_b (:,:) = emp  (:,:)
-         sfx_b (:,:) = sfx  (:,:)
-         IF( ln_rnf ) THEN
-            rnf_b    (:,:  ) = rnf    (:,:  )
-            rnf_tsc_b(:,:,:) = rnf_tsc(:,:,:)
-         ENDIF
-         !
-      ENDIF
-#endif
       !                                            ! ---------------------------------------- !
       !                                            !        forcing field computation         !
       !                                            ! ---------------------------------------- !
@@ -565,11 +549,7 @@ CONTAINS
       !
       IF( kt == nit000 ) THEN                          !   set the forcing field at nit000 - 1    !
          !                                             ! ---------------------------------------- !
-#if defined key_RK3
          IF( ln_rstart .AND. lk_SWE ) THEN                      !* RK3 + SWE: Restart: read in restart file
-#else
-         IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN            !* MLF: Restart: read in restart file
-#endif
             IF(lwp) WRITE(numout,*) '          nit000-1 surface forcing fields read in the restart file'
             CALL iom_get( numror, jpdom_auto, 'utau_b', utau_b, cd_type = 'U', psgn = -1._wp )   ! i-stress
             CALL iom_get( numror, jpdom_auto, 'vtau_b', vtau_b, cd_type = 'V', psgn = -1._wp )   ! j-stress
@@ -593,15 +573,9 @@ CONTAINS
       ENDIF
       !
       !
-#if defined key_RK3
       !                                                ! ---------------------------------------- !
       IF( lrst_oce .AND. lk_SWE ) THEN                 !   RK3: Write in the ocean restart file   !
          !                                             ! ---------------------------------------- !
-#else
-      !                                                ! ---------------------------------------- !
-      IF( lrst_oce ) THEN                              !   MLF: Write in the ocean restart file   !
-         !                                             ! ---------------------------------------- !
-#endif
          !
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) 'sbc : ocean surface forcing fields written in ocean restart file ',   &
