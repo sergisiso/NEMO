@@ -73,6 +73,8 @@ MODULE dynspg_ts
    INTEGER         ::   icycle         ! Number of barotropic sub-steps for each internal step nn_e <= 2.5 nn_e
    REAL(wp)        ::   rDt_e          ! Barotropic time step
    LOGICAL, PUBLIC ::   ll_cold_start  ! =T : missing restart fields  ==> cold start  =F : ==> hot start 
+   REAL(wp) ::   r1_wgt1s       ! Temporal weights sums
+   REAL(wp) ::   r1_wgt2s
    !
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)   ::   wgtbtp1, wgtbtp2   ! 1st & 2nd weights used in time filtering of barotropic fields
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   zwz                ! ff_f/h at F points
@@ -240,6 +242,9 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
 #endif
          !                    ! Set averaging weights and cycle length:
          CALL ts_wgt( ll_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
+         ! Save weights sums:
+         r1_wgt1s = SUM(wgtbtp1)
+         r1_wgt2s = SUM(wgtbtp2)
          !
       ELSEIF( kt == nit000 + 1 ) THEN           !* initialisation 2nd time-step
          !
@@ -250,6 +255,9 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             ! at the end of the first timestep) so just do this in all cases. 
             ll_fw_start = .FALSE.
             CALL ts_wgt( ll_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
+            ! Save weights sums:
+            r1_wgt1s = SUM(wgtbtp1)
+            r1_wgt2s = SUM(wgtbtp2)
          ENDIF
          !
       ENDIF
@@ -838,6 +846,14 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          !                                                 ! ==================== !
       END DO                                               !        end loop      !
       !                                                    ! ==================== !
+      ! Finalize sums:
+      ! (Divide by weights sums here to prevent from truncation errors)
+      un_adv(:,:) = un_adv(:,:) / r1_wgt2s 
+      vn_adv(:,:) = vn_adv(:,:) / r1_wgt2s 
+      puu_b  (:,:,Kaa) = puu_b  (:,:,Kaa) / r1_wgt1s 
+      pvv_b  (:,:,Kaa) = pvv_b  (:,:,Kaa) / r1_wgt1s 
+      pssh   (:,:,Kaa) = pssh   (:,:,Kaa) / r1_wgt1s
+
       IF( ln_wd_dl .AND. ln_wd_dl_bc ) THEN
          CALL lbc_lnk( 'dynspg_ts', un_adv, 'U', -1._wp, vn_adv, 'V', -1._wp, zuwdav2, 'U', -1._wp, zvwdav2, 'V', -1._wp ) ! Boundary conditions
       ELSE
@@ -1093,14 +1109,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          DO ji = jn, Kpit
             zwgt2(jn) = zwgt2(jn) + zwgt1(ji)
          END DO
-      END DO
-      !
-      !                          !==  Normalize weigths  ==!
-      za1 = 1._wp / SUM( zwgt1(1:Kpit) )
-      za2 = 1._wp / SUM( zwgt2(1:Kpit) )
-      DO jn = 1, Kpit
-         zwgt1(jn) = zwgt1(jn) * za1
-         zwgt2(jn) = zwgt2(jn) * za2
       END DO
       !
    END SUBROUTINE ts_wgt
