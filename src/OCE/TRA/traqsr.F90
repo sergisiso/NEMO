@@ -136,33 +136,7 @@ CONTAINS
          ALLOCATE( ztrdt(T2D(0),jpk) )
          ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs)
       ENDIF
-      ! 
-#if ! defined key_RK3
-      !                        ! MLF only : heat content trend due to Qsr flux (qsr_hc)
       !
-      !                         !-----------------------------------!
-      !                         !  before qsr induced heat content  !
-      !                         !-----------------------------------!
-      IF( kt == nit000 ) THEN          !==  1st time step  ==!
-         IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN    ! read in restart
-            z1_2 = 0.5_wp
-            IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                        ! Do only on the first tile
-               IF(lwp) WRITE(numout,*) '          nit000-1 qsr tracer content forcing field read in the restart file'
-               CALL iom_get( numror, jpdom_auto, 'qsr_hc_b', qsr_hc_b )   ! before heat content trend due to Qsr flux
-            ENDIF
-         ELSE                                           ! No restart or Euler forward at 1st time step
-            z1_2 = 1._wp
-            DO_3D( 0, 0, 0, 0, 1, jpk )
-               qsr_hc_b(ji,jj,jk) = 0._wp
-            END_3D
-         ENDIF
-      ELSE                             !==  Swap of qsr heat content  ==!
-         z1_2 = 0.5_wp
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-            qsr_hc_b(ji,jj,jk) = qsr_hc(ji,jj,jk)
-         END_3D
-      ENDIF
-#endif
 
       !                       !----------------------------!
       SELECT CASE( nqsr )     !  qsr induced heat content  !
@@ -180,14 +154,9 @@ CONTAINS
          !
       CASE( np_BIO )                                     !==  bio-model fluxes                        ==!
          DO_3D( 0, 0, 0, 0, 1, nkV )
-#if defined key_RK3
             !                                                  !- RK3 : temperature trend at jk t-level
             ze3t   = e3t(ji,jj,jk,Kmm)
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( etot3(ji,jj,jk) - etot3(ji,jj,jk+1) ) / ze3t
-#else
-            !                                                  !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( etot3(ji,jj,jk) - etot3(ji,jj,jk+1) )
-#endif
          END_3D
          !                                                     !- sea-ice : store the 1st level attenuation coefficient
          WHERE( etot3(T2D(0),1) /= 0._wp )   ;   fraqsr_1lev(T2D(0)) = 1._wp - etot3(T2D(0),2) / etot3(T2D(0),1)
@@ -196,22 +165,6 @@ CONTAINS
          !
       END SELECT
       !
-#if ! defined key_RK3
-      !                             ! MLF : add the temperature trend
-      DO_3D( 0, 0, 0, 0, 1, nksr )
-         pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs)   &
-            &                      + z1_2 * ( qsr_hc_b(ji,jj,jk) + qsr_hc(ji,jj,jk) )   &
-            &                             / e3t(ji,jj,jk,Kmm)
-      END_3D
-      !
-      ! sea-ice: store the 1st ocean level attenuation coefficient
-      DO_2D( 0, 0, 0, 0 )
-         zz0 = r1_rho0_rcp * qsr(ji,jj)   ! test zz0 and not qsr for rounding errors in single precision
-         IF( zz0 /= 0._wp ) THEN   ;   fraqsr_1lev(ji,jj) = qsr_hc(ji,jj,1) / zz0
-         ELSE                      ;   fraqsr_1lev(ji,jj) = 1._wp
-         ENDIF
-      END_2D
-#endif
       !
       IF( l_trdtra ) THEN     ! qsr tracers trends saved for diagnostics
          ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs) - ztrdt(:,:,:)
@@ -219,23 +172,9 @@ CONTAINS
          DEALLOCATE( ztrdt )
       ENDIF
       !
-#if ! defined key_RK3
-      IF( iom_use('qsr3d') ) THEN      ! output the shortwave Radiation distribution
-         ALLOCATE( zetot(T2D(0),jpk) )
-         zetot(:,:,nksr+1:jpk) = 0._wp     ! below ~400m set to zero
-         DO_3DS(0, 0, 0, 0, nksr, 1, -1)
-            zetot(ji,jj,jk) = zetot(ji,jj,jk+1) + qsr_hc(ji,jj,jk) * rho0_rcp
-         END_3D
-         CALL iom_put( 'qsr3d', zetot )   ! 3D distribution of shortwave Radiation
-         DEALLOCATE( zetot )
-      ENDIF
-#endif
       !
       IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
          IF( lrst_oce ) THEN     ! write in the ocean restart file
-#if ! defined key_RK3
-            CALL iom_rstput( kt, nitrst, numrow, 'qsr_hc_b'   , qsr_hc      )
-#endif
             CALL iom_rstput( kt, nitrst, numrow, 'fraqsr_1lev', fraqsr_1lev )
          ENDIF
       ENDIF
@@ -362,13 +301,8 @@ CONTAINS
             zzeT = ( zze0 + zzeB + zzeG + zzeR ) * wmask(ji,jj,jk+1)                                 ! Total             -      -
 !!st01            zzeT = ( zze0 + zzeR + zzeG + zzeB ) * wmask(ji,jj,jk+1)                                 ! Total             -      -
             !
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             ze0(ji,jj) = zze0   ;   zeR(ji,jj) = zzeR           ! IR    ; Red  store at jk+1 w-level
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB           ! Green ; Blue   -        -      -
             zeT(ji,jj) = zzeT                                   ! total          -        -      -
@@ -402,13 +336,8 @@ CONTAINS
             zzeG = zeG(ji,jj) * EXP( - ze3t*r1_LG )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t*r1_LB )   ! Green ; Blue      -      -
             zzeT = ( zzeR + zzeG + zzeB ) * wmask(ji,jj,jk+1)                                       ! Total             -      -
             !
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeR(ji,jj) = zzeR                                  ! Red          store at jk+1 w-level
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB          ! Green ; Blue   -        -      -
             zeT(ji,jj) = zzeT                                  ! total          -        -      -
@@ -439,13 +368,8 @@ CONTAINS
             ze3t = e3t(ji,jj,jk,Kmm)
             zzeG = zeG(ji,jj) * EXP( - ze3t * r1_LG )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB ) ! Green ; Blue
             zzeT = ( zzeG + zzeB ) * wmask(ji,jj,jk+1)                                                ! Total             -      -
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB          ! Green ; Blue store at jk+1 w-level
             zeT(ji,jj) = zzeT                                  ! total          -        -      -
          END_2D
@@ -474,13 +398,8 @@ CONTAINS
             ze3t = e3t(ji,jj,jk,Kmm)
             zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB )          ! Blue
             zzeT = ( zzeB ) * wmask(ji,jj,jk+1)                ! Total             -      -
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeB(ji,jj) = zzeB                                  ! Blue store at jk+1 w-level
             zeT(ji,jj) = zzeT                                  ! total  -        -      -
          END_2D
@@ -547,13 +466,8 @@ CONTAINS
             zzeG = zeG(ji,jj) * EXP( - ze3t * r1_LG  )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB )   ! Green ; Blue      -      -
             zzeT = ( zze0 + zzeB + zzeG + zzeR ) * wmask(ji,jj,jk+1)                                     ! Total             -      -
 !!st7-9            zzeT = ( zze0 + zzeR + zzeG + zzeB ) * wmask(ji,jj,jk+1)                                     ! Total             -      -
-#if defined key_RK3
             !                                               ! RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                               ! MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             ze0(ji,jj) = zze0   ;   zeR(ji,jj) = zzeR           ! IR    ; Red  store at jk+1 w-level
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB           ! Green ; Blue   -        -      -
             zeT(ji,jj) = zzeT                                   ! total          -        -      -
@@ -572,13 +486,8 @@ CONTAINS
             zzeG = zeG(ji,jj) * EXP( - ze3t * r1_LG )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB ) ! Green ; Blue      -      -
             zzeT = ( zzeB + zzeG + zzeR ) * wmask(ji,jj,jk+1)                                         ! Total             -      -
 !!st7-11            zzeT = ( zzeR + zzeG + zzeB ) * wmask(ji,jj,jk+1)                                         ! Total             -      -
-#if defined key_RK3
             !                                               ! RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                               ! MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeR(ji,jj) = zzeR                                   ! Red          store at jk+1 w-level
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB           ! Green ; Blue   -        -      -
             zeT(ji,jj) = zzeT                                   ! total          -        -      -
@@ -590,13 +499,8 @@ CONTAINS
             ze3t = e3t(ji,jj,jk,Kmm)
             zzeG = zeG(ji,jj) * EXP( - ze3t * r1_LG )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB ) ! Green ; Blue at jk+1 w-level
             zzeT = ( zzeG + zzeB ) * wmask(ji,jj,jk+1)                                                ! Total             -      -
-#if defined key_RK3
             !                                               ! RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                               ! MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB             ! Green ; Blue store at jk+1 w-level
             zeT(ji,jj) = zzeT                                     ! total          -        -      -
          END_2D
@@ -607,13 +511,8 @@ CONTAINS
             ze3t = e3t(ji,jj,jk,Kmm)
             zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB )             ! Blue at jk+1 w-level
             zzeT = ( zzeB ) * wmask(ji,jj,jk+1)                   ! Total     -      -
-#if defined key_RK3
             !                                               ! RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                               ! MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeB(ji,jj) = zzeB                                     ! Blue store at jk+1 w-level
             zeT(ji,jj) = zzeT                                     ! total  -        -      -
          END_2D
@@ -676,13 +575,8 @@ CONTAINS
             ze3t  = e3t(ji,jj,jk,Kmm)                    ! light attenuation at jk+1 w-level (divided by rho0_rcp)
             zzatt = (   zz0 * EXP( -gdepw(ji,jj,jk+1,Kmm)*r1_si0 )     &
                &      + zz1 * EXP( -gdepw(ji,jj,jk+1,Kmm)*r1_si1 )   ) * wmask(ji,jj,jk+1)
-#if defined key_RK3
             !                                            ! RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + qsr(ji,jj) * ( zatt(ji,jj) - zzatt ) / ze3t
-#else
-            !                                            ! MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) =  qsr(ji,jj) * ( zatt(ji,jj) - zzatt )
-#endif
             zatt(ji,jj) = zzatt                          ! save for the next level computation
          END_2D
 !!stbug         !                                         !* sea-ice *!   store the 1st level attenuation coeff.
@@ -694,13 +588,8 @@ CONTAINS
          DO_2D( 0, 0, 0, 0 )
             ze3t  = e3t(ji,jj,jk,Kmm)                    ! light attenuation at jk+1 w-level (divided by rho0_rcp)
             zzatt = (   zz1 * EXP( -gdepw(ji,jj,jk+1,Kmm)*r1_si1 )   ) * wmask(ji,jj,jk+1)
-#if defined key_RK3
             !                                            ! RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + qsr(ji,jj) * ( zatt(ji,jj) - zzatt ) / ze3t
-#else
-            !                                            ! MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = qsr(ji,jj) * ( zatt(ji,jj) - zzatt )
-#endif
             zatt(ji,jj) = zzatt                       ! save for the next level computation
          END_2D
       END DO      
@@ -818,13 +707,8 @@ CONTAINS
             zzeU = zeU(ji,jj) * EXP( - ze3t*r1_LU  )                                                 !    UV             -      -
             zzeT = ( zze0 + zzeU + zzeB + zzeG + zzeR ) * wmask(ji,jj,jk+1)                          ! Total             -      -
             !
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             ze0(ji,jj) = zze0   ;   zeR(ji,jj) = zzeR           ! IR    ; Red  store at jk+1 w-level
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB           ! Green ; Blue   -        -      -
             zeU(ji,jj) = zzeU   ;   zeT(ji,jj) = zzeT           ! UV    ; total  -        -      -
@@ -858,13 +742,8 @@ CONTAINS
             zzeG = zeG(ji,jj) * EXP( - ze3t*r1_LG )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t*r1_LB )   ! Green ; Blue      -      -
             zzeT = ( zzeR + zzeG + zzeB + zzeU ) * wmask(ji,jj,jk+1)                                ! Total             -      -
             !
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeR(ji,jj) = zzeR   ;   zeU(ji,jj) = zzeU          ! Red   ;   UV store at jk+1 w-level
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB          ! Green ; Blue   -        -      -
             zeT(ji,jj) = zzeT                                  ! total          -        -      -
@@ -896,13 +775,8 @@ CONTAINS
             zzeG = zeG(ji,jj) * EXP( - ze3t * r1_LG )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB ) ! Green ; Blue
             zzeU = zeU(ji,jj) * EXP( - ze3t * r1_LU )                                                 !    UV
             zzeT = ( zzeG + zzeB + zzeU ) * wmask(ji,jj,jk+1)                                         ! Total             -      -
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB          ! Green ; Blue store at jk+1 w-level
             zeU(ji,jj) = zzeU   ;   zeT(ji,jj) = zzeT          !    UV ; total  -        -      -
          END_2D
@@ -932,13 +806,8 @@ CONTAINS
             zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB )          ! Blue
             zzeU = zeU(ji,jj) * EXP( - ze3t * r1_LU )          !   UV 
             zzeT = ( zzeB + zzeU ) * wmask(ji,jj,jk+1)         ! Total             -      -
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeB(ji,jj) = zzeB  ;  zeU(ji,jj) = zzeU            ! Blue ; UV store at jk+1 w-level
             zeT(ji,jj) = zzeT                                  ! total       -        -      -
          END_2D
@@ -967,13 +836,8 @@ CONTAINS
             ze3t = e3t(ji,jj,jk,Kmm)
             zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB )          ! Blue
             zzeT = ( zzeB ) * wmask(ji,jj,jk+1)         ! Total             -      -
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeB(ji,jj) = zzeB                                 ! Blue ; UV store at jk+1 w-level
             zeT(ji,jj) = zzeT                                 ! total       -        -      -
          END_2D
@@ -1045,13 +909,8 @@ CONTAINS
             zzeU = zeU(ji,jj) * EXP( - ze3t*r1_LU )                                                  !    UV             -      -
             zzeT = ( zze0 + zzeU + zzeB + zzeG + zzeR ) * wmask(ji,jj,jk+1)                          ! Total             -      -
             !
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             ze0(ji,jj) = zze0   ;   zeR(ji,jj) = zzeR           ! IR    ; Red  store at jk+1 w-level
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB           ! Green ; Blue   -        -      -
             zeU(ji,jj) = zzeU   ;   zeT(ji,jj) = zzeT           ! UV    ; total  -        -      -
@@ -1066,13 +925,8 @@ CONTAINS
             zzeG = zeG(ji,jj) * EXP( - ze3t*r1_LG )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t*r1_LB )   ! Green ; Blue      -      -
             zzeT = ( zzeR + zzeG + zzeB + zzeU ) * wmask(ji,jj,jk+1)                                ! Total             -      -
             !
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeR(ji,jj) = zzeR   ;   zeU(ji,jj) = zzeU          ! Red   ;   UV store at jk+1 w-level
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB          ! Green ; Blue   -        -      -
             zeT(ji,jj) = zzeT                                  ! total          -        -      -
@@ -1085,13 +939,8 @@ CONTAINS
             zzeG = zeG(ji,jj) * EXP( - ze3t * r1_LG )   ;   zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB ) ! Green ; Blue
             zzeU = zeU(ji,jj) * EXP( - ze3t * r1_LU )                                                 !    UV
             zzeT = ( zzeG + zzeB + zzeU ) * wmask(ji,jj,jk+1)                                         ! Total             -      -
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeG(ji,jj) = zzeG   ;   zeB(ji,jj) = zzeB          ! Green ; Blue store at jk+1 w-level
             zeU(ji,jj) = zzeU   ;   zeT(ji,jj) = zzeT          !    UV ; total  -        -      -
          END_2D
@@ -1103,13 +952,8 @@ CONTAINS
             zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB )          ! Blue
             zzeU = zeU(ji,jj) * EXP( - ze3t * r1_LU )          !   UV 
             zzeT = ( zzeB + zzeU ) * wmask(ji,jj,jk+1)         ! Total             -      -
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeB(ji,jj) = zzeB  ;  zeU(ji,jj) = zzeU            ! Blue ; UV store at jk+1 w-level
             zeT(ji,jj) = zzeT                                  ! total       -        -      -
          END_2D
@@ -1120,13 +964,8 @@ CONTAINS
             ze3t = e3t(ji,jj,jk,Kmm)
             zzeB = zeB(ji,jj) * EXP( - ze3t * r1_LB )          ! Blue
             zzeT = ( zzeB ) * wmask(ji,jj,jk+1)         ! Total             -      -
-#if defined key_RK3
             !                                      !- RK3 : temperature trend at jk t-level
             pts(ji,jj,jk,jp_tem,Krhs) = pts(ji,jj,jk,jp_tem,Krhs) + r1_rho0_rcp * ( zeT(ji,jj) - zzeT ) / ze3t
-#else
-            !                                      !- MLF : heat content trend due to Qsr flux (qsr_hc)
-            qsr_hc(ji,jj,jk) = r1_rho0_rcp * ( zeT(ji,jj) - zzeT )
-#endif
             zeB(ji,jj) = zzeB                                 ! Blue ; UV store at jk+1 w-level
             zeT(ji,jj) = zzeT                                 ! total       -        -      -
          END_2D
@@ -1412,9 +1251,6 @@ CONTAINS
       !
       nksr = nkV       ! name of max level of light extinction used in traatf(_qco).F90
       !
-#if ! defined key_RK3
-      qsr_hc(:,:,:) = 0._wp      ! MLF : now qsr heat content set to zero where it will not be computed
-#endif
       !
       !                          ! Sea-ice :   1st ocean level attenuation coefficient (used in sbcssm)
       IF( iom_varid( numror, 'fraqsr_1lev', ldstop = .FALSE. ) > 0 ) THEN

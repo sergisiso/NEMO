@@ -35,13 +35,11 @@ MODULE traadv
    USE trd_oce        ! trends: ocean variables
    USE trdtra         ! trends manager: tracers
    USE diaptr         ! Poleward heat transport
-#if defined key_RK3
    USE eosbn2
    USE divhor         ! horizontal divergence
    USE sshwzv         ! vertical velocity and ssh
    USE zdf_oce , ONLY : ln_zad_Aimp
    USE dynadv  , ONLY : ln_dynadv_vec
-#endif
    USE zdf_oce , ONLY : ln_zad_Aimp
    !
    USE in_out_manager ! I/O manager
@@ -89,7 +87,6 @@ MODULE traadv
    !!----------------------------------------------------------------------
 CONTAINS
 
-#if defined key_RK3
    !!----------------------------------------------------------------------
    !!   'key_RK3'                                         RK3 time-stepping
    !!----------------------------------------------------------------------
@@ -231,19 +228,6 @@ CONTAINS
       IF( ln_timing )   CALL timing_stop( 'tra_adv_trp' )
       !
    END SUBROUTINE tra_adv_trp_t
-#else
-   !!---------------------------------------------------------------------------------
-   !!   MLF option                                                    Empty routine
-   !!---------------------------------------------------------------------------------
-   SUBROUTINE tra_adv_trp( kt, kstg, kit000, Kbb, Kmm, Kaa, Krhs, pFu, pFv, pFw )
-      IMPLICIT NONE
-      INTEGER                                     , INTENT(in   ) ::   kt                  ! ocean time-step index
-      INTEGER                                     , INTENT(in   ) ::   kstg, kit000        ! RK3 stage and init index
-      INTEGER                                     , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk)            , INTENT(inout) ::   pFu, pFv, pFw       ! advective transport
-      WRITE(*,*) 'tra_adv_trp: This routine is dedicated to RK3 time-stepping'
-   END SUBROUTINE tra_adv_trp
-#endif
 
    SUBROUTINE tra_adv( kt, Kbb, Kmm, Kaa, pts, Krhs, pau, pav, paw, kstg )
       !!----------------------------------------------------------------------
@@ -310,47 +294,6 @@ CONTAINS
             ztrds(:,:,:) = pts(T2D(0),:,jp_sal,Krhs)
          ENDIF
          !
-#if ! defined key_RK3
-         !
-#if ! defined key_PSYCLONE_2p5p0
-         ALLOCATE( zuu(T2D(nn_hls),jpk), zvv(T2D(nn_hls),jpk), zww(T2D(nn_hls),jpk) )
-#endif
-         !
-         IF( ln_wave .AND. ln_sdw )  THEN
-            DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * ( zptu(ji,jj,jk) + usd(ji,jj,jk) )
-               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * ( zptv(ji,jj,jk) + vsd(ji,jj,jk) )
-            END_3D
-            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-               zww(ji,jj,jk) = e1e2t(ji,jj)                     * ( zptw(ji,jj,jk) + wsd(ji,jj,jk) )
-            END_3D
-         ELSE
-            DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )
-               zuu(ji,jj,jk) = e2u  (ji,jj) * e3u(ji,jj,jk,Kmm) * zptu(ji,jj,jk)               ! eulerian transport only
-               zvv(ji,jj,jk) = e1v  (ji,jj) * e3v(ji,jj,jk,Kmm) * zptv(ji,jj,jk)
-            END_3D
-            DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
-               zww(ji,jj,jk) = e1e2t(ji,jj)                     * zptw(ji,jj,jk)
-            END_3D
-         ENDIF
-         !
-         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            zuu(ji,jj,jpk) = 0._wp                                                      ! no transport trough the bottom 
-            zvv(ji,jj,jpk) = 0._wp
-            zww(ji,jj,jpk) = 0._wp
-         END_2D
-         !
-         IF( ln_ldfeiv .AND. .NOT. ln_traldf_triad )   &
-            &              CALL ldf_eiv_trp( kt, nit000, zuu, zvv, zww, Kmm, Krhs  , 'TRA' )   ! add the eiv transport (if necessary)
-         !
-         IF( ln_mle    )   CALL tra_mle_trp( kt        , zuu, zvv, zww, Kmm, nit000, 'TRA' )   ! add the mle transport (if necessary)
-         !
-         ! Change pointers to use in advection
-         zptu => zuu(:,:,:)
-         zptv => zvv(:,:,:)
-         zptw => zww(:,:,:)
-         !
-#endif
          !
          SELECT CASE ( nadv )                      !==  compute advection trend and add it to general trend  ==!
          !
@@ -380,11 +323,6 @@ CONTAINS
          IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zptv(:,:,:) )                          ! diagnose the effective MSF
 !!gm ???
          !
-#if ! defined key_RK3
-#if ! defined key_PSYCLONE_2p5p0
-         DEALLOCATE( zuu, zvv, zww )
-#endif
-#endif
          !
          IF( l_trdtra )   THEN                      ! save the advective trends for further diagnostics
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )

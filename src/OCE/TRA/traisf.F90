@@ -57,19 +57,11 @@ CONTAINS
          ENDIF
       ENDIF
       !
-#if defined key_RK3
       ! cavity case (RK3)
       IF ( ln_isfcav_mlt ) CALL isf_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, risf_cav_tsc, pts(:,:,:,:,Krhs))
       !
       ! parametrisation case (RK3)
       IF ( ln_isfpar_mlt ) CALL isf_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, risf_par_tsc, pts(:,:,:,:,Krhs))
-#else
-      ! cavity case (MLF)
-      IF ( ln_isfcav_mlt ) CALL isf_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, risf_cav_tsc, pts(:,:,:,:,Krhs), risf_cav_tsc_b)
-      !
-      ! parametrisation case (MLF)
-      IF ( ln_isfpar_mlt ) CALL isf_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, risf_par_tsc, pts(:,:,:,:,Krhs), risf_par_tsc_b)
-#endif
       !
       ! ice sheet coupling case
       IF ( ln_isfcpl ) THEN
@@ -127,11 +119,7 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )
          !
          IF( phtbl(ji,jj) /= 0._wp ) THEN
-#if defined key_RK3
             ztc = ptsc(ji,jj,jp_tem) / phtbl(ji,jj)
-#else
-            ztc = 0.5_wp * ( ptsc(ji,jj,jp_tem) + ptsc_b(ji,jj,jp_tem) ) / phtbl(ji,jj)
-#endif
          ELSE
             ztc = 0._wp
          ENDIF
