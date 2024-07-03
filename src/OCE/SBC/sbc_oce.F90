@@ -125,9 +125,6 @@ MODULE sbc_oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fwficb             !: iceberg melting                               [Kg/m2/s]
    !!
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  sbc_tsc, sbc_tsc_b  !: sbc content trend                      [K.m/s] jpi,jpj,jpts
-#if ! defined key_RK3
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  qsr_hc , qsr_hc_b   !: heat content trend due to qsr flux     [K.m/s] jpi,jpj,jpk
-#endif
    !!
    !!
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   tprecip            !: total precipitation                           [Kg/m2/s]
@@ -201,9 +198,6 @@ CONTAINS
       ! -------------------- !
       ALLOCATE( qns    (A2D(0))    , qns_b  (A2D(0))     , qsr   (A2D(0)),    &
          &      qns_tot(A2D(0))    , qsr_tot(A2D(0))     ,                    &
-#if ! defined key_RK3
-         &      qsr_hc(A2D(0),jpk) , qsr_hc_b(A2D(0),jpk),                    &
-#endif
          &      STAT=ierr(5) )
       !
       ALLOCATE( sbc_tsc(A2D(0),jpts) , sbc_tsc_b(A2D(0),jpts) ,  &
@@ -228,9 +222,6 @@ CONTAINS
          DEALLOCATE( utau , utau_b, utauU , vtau , vtau_b, vtauV )
          IF(ln_rnf)   DEALLOCATE( emp  , emp_b , rnf   , rnf_b )
          DEALLOCATE( fr_i , ssu_m , sst_m , frq_m, ssv_m , sss_m, ssh_m, e3t_m )
-#if ! defined key_RK3
-         DEALLOCATE( qsr_hc , qsr_hc_b )
-#endif
          DEALLOCATE( qns, qns_b, qsr,  qns_tot , qsr_tot )
          DEALLOCATE( sbc_tsc, sbc_tsc_b   ,  sfx , sfx_b , emp_tot, fwfice, fwficb, wndm , taum )
          DEALLOCATE( tprecip , sprecip , atm_co2 , tsk_m, cloud_fra )

@@ -79,11 +79,7 @@ CONTAINS
          ENDIF
          sss_m(:,:) = zts(:,:,jp_sal)
          !                          ! removed inverse barometer ssh when Patm forcing is used (for sea-ice dynamics)
-#if defined key_RK3
          IF( ln_apr_dyn ) THEN   ;   ssh_m(:,:) = ssh(:,:,Kmm) - ssh_ib(:,:)                            ! RK3: forcing at n+1/2
-#else
-         IF( ln_apr_dyn ) THEN   ;   ssh_m(:,:) = ssh(:,:,Kmm) - 0.5 * ( ssh_ib(:,:) + ssh_ibb(:,:) )   ! MLF: forcing at n (Kmm)
-#endif
          ELSE                    ;   ssh_m(:,:) = ssh(:,:,Kmm)
          ENDIF
          !
@@ -113,11 +109,7 @@ CONTAINS
             ENDIF
             sss_m(:,:) = zcoef * zts(:,:,jp_sal)
             !                          ! removed inverse barometer ssh when Patm forcing is used (for sea-ice dynamics)
-#if defined key_RK3
             IF( ln_apr_dyn ) THEN   ;   ssh_m(:,:) = zcoef * ( ssh(:,:,Kmm) - ssh_ib(:,:) )
-#else
-            IF( ln_apr_dyn ) THEN   ;   ssh_m(:,:) = zcoef * ( ssh(:,:,Kmm) - 0.5 * ( ssh_ib(:,:) + ssh_ibb(:,:) ) )
-#endif
             ELSE                    ;   ssh_m(:,:) = zcoef *   ssh(:,:,Kmm)
             ENDIF
             !
@@ -148,11 +140,7 @@ CONTAINS
          ENDIF
          sss_m(:,:) = sss_m(:,:) + zts(:,:,jp_sal)
          !                          ! removed inverse barometer ssh when Patm forcing is used (for sea-ice dynamics)
-#if defined key_RK3
          IF( ln_apr_dyn ) THEN   ;   ssh_m(:,:) = ssh_m(:,:) + ssh(:,:,Kmm) - ssh_ib(:,:)
-#else
-         IF( ln_apr_dyn ) THEN   ;   ssh_m(:,:) = ssh_m(:,:) + ssh(:,:,Kmm) - 0.5 * ( ssh_ib(:,:) + ssh_ibb(:,:) )
-#endif
          ELSE                    ;   ssh_m(:,:) = ssh_m(:,:) + ssh(:,:,Kmm)
          ENDIF
          !

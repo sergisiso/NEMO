@@ -127,9 +127,6 @@ CONTAINS
       IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN      !    At each sbc time-step   !
          !                                      ! ===========+++============ !
          !
-#if ! defined key_RK3
-         IF( kt /= nit000 )   ssh_ibb(:,:) = ssh_ib(:,:)    !* Swap of ssh_ib fields
-#endif
          !
          CALL fld_read( kt, nn_fsbc, sf_apr )               !* input Patm provided at kt + nn_fsbc/2
          !
@@ -143,29 +140,6 @@ CONTAINS
          CALL iom_put( "ssh_ib", ssh_ib )                   !* output the inverse barometer ssh
       ENDIF
 
-#if ! defined key_RK3
-      !                                         ! ---------------------------------------- !
-      IF( kt == nit000 ) THEN                   !   set the forcing field at nit000 - 1    !
-         !                                      ! ---------------------------------------- !
-         !                                            !* Restart: read in restart file
-         IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN
-            IF(lwp) WRITE(numout,*) 'sbc_apr:   ssh_ibb read in the restart file'
-            CALL iom_get( numror, jpdom_auto, 'ssh_ibb', ssh_ibb )   ! before inv. barometer ssh
-            !
-         ELSE                                         !* no restart: set from nit000 values
-            IF(lwp) WRITE(numout,*) 'sbc_apr:   ssh_ibb set to nit000 values'
-            ssh_ibb(:,:) = ssh_ib(:,:)
-         ENDIF
-      ENDIF
-      !                                         ! ---------------------------------------- !
-      IF( lrst_oce ) THEN                       !      Write in the ocean restart file     !
-         !                                      ! ---------------------------------------- !
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'sbc_apr : ssh_ib written in ocean restart file at it= ', kt,' date= ', ndastp
-         IF(lwp) WRITE(numout,*) '~~~~'
-         CALL iom_rstput( kt, nitrst, numrow, 'ssh_ibb' , ssh_ib )
-      ENDIF
-#endif
       !
    END SUBROUTINE sbc_apr
 

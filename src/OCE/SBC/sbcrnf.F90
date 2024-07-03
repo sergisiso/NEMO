@@ -155,36 +155,6 @@ CONTAINS
          IF( iom_use('sflx_rnf_cea') )   CALL iom_put( 'sflx_rnf_cea', rnf_tsc(:,:,jp_sal) * rho0       )   ! output runoff salt flux (g/m2/s)
       ENDIF
       !
-#if ! defined key_RK3
-      !                                                ! ---------------------------------------- !
-      IF( kt == nit000 ) THEN                          !   set the forcing field at nit000 - 1    !
-         !                                             ! ---------------------------------------- !
-         IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN         !* Restart: read in restart file
-            IF(lwp) WRITE(numout,*) '          nit000-1 runoff forcing fields red in the restart file', lrxios
-            CALL iom_get( numror, jpdom_auto, 'rnf_b'   , rnf_b                 )   ! before runoff
-            CALL iom_get( numror, jpdom_auto, 'rnf_hc_b', rnf_tsc_b(:,:,jp_tem) )   ! before heat content of runoff
-            CALL iom_get( numror, jpdom_auto, 'rnf_sc_b', rnf_tsc_b(:,:,jp_sal) )   ! before salinity content of runoff
-         ELSE                                                !* no restart: set from nit000 values
-            IF(lwp) WRITE(numout,*) '          nit000-1 runoff forcing fields set to nit000'
-            CALL lbc_lnk( 'sbcrnf', rnf, 'T', 1.0_wp )
-            rnf_b    (:,:)    = rnf    (:,:)
-            rnf_tsc_b(:,:,:)  = rnf_tsc(:,:,:)
-         ENDIF
-      ENDIF
-      !                                                ! ---------------------------------------- !
-      IF( lrst_oce ) THEN                              !      Write in the ocean restart file     !
-         !                                             ! ---------------------------------------- !
-         !
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'sbcrnf : runoff forcing fields written in ocean restart file ',   &
-            &                    'at it= ', kt,' date= ', ndastp
-         IF(lwp) WRITE(numout,*) '~~~~'
-         CALL iom_rstput( kt, nitrst, numrow, 'rnf_b'   , rnf                 )
-         CALL iom_rstput( kt, nitrst, numrow, 'rnf_hc_b', rnf_tsc(:,:,jp_tem) )
-         CALL iom_rstput( kt, nitrst, numrow, 'rnf_sc_b', rnf_tsc(:,:,jp_sal) )
-      ENDIF
-      !
-#endif
    END SUBROUTINE sbc_rnf
 
 
@@ -213,11 +183,7 @@ CONTAINS
          IF( lk_linssh ) THEN    !* constant volume case : just apply the runoff input flow
             DO_2D( 1, 1, 1, 1 )
                DO jk = 1, nk_rnf(ji,jj)
-#if defined key_RK3
                   phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
-#else
-                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact / h_rnf(ji,jj)   ! MLF: rnf forcing at Kmm (n)
-#endif
                END DO
             END_2D
          ELSE                    !* variable volume case
@@ -229,22 +195,14 @@ CONTAINS
             END_2D
             DO_2D( 1, 1, 1, 1 )         ! update phdivn
                DO jk = 1, nk_rnf(ji,jj)
-#if defined key_RK3
                   phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
-#else
-                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact / h_rnf(ji,jj)   ! MLF: rnf forcing at Kmm (n)
-#endif
                END DO
             END_2D
          ENDIF
       ELSE                       !==   runoff put only at the surface   ==!
          DO_2D( 1, 1, 1, 1 )
             h_rnf (ji,jj)   = e3t(ji,jj,1,Kmm)        ! update h_rnf to be depth of top box
-#if defined key_RK3
             phdivn(ji,jj,1) = phdivn(ji,jj,1) - rnf(ji,jj) * r1_rho0 / e3t(ji,jj,1,Kmm)                    ! RK3: rnf forcing at n+1/2
-#else
-            phdivn(ji,jj,1) = phdivn(ji,jj,1) - ( rnf(ji,jj) + rnf_b(ji,jj) ) * zfact / e3t(ji,jj,1,Kmm)   ! MLF: rnf forcing at Kmm (n)
-#endif
          END_2D
       ENDIF
       !
