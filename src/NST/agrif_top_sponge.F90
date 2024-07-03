@@ -49,12 +49,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
 #if defined SPONGE_TOP
-#if defined key_RK3
       zcoef = REAL(Agrif_Nbstepint(), wp)/REAL(Agrif_rhot())
-#else
-      !! Assume persistence:
-      zcoef = REAL(Agrif_rhot()-1,wp)/REAL(Agrif_rhot())
-#endif
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = l_spc_top
       l_vremap              = ln_vert_remap

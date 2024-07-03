@@ -95,11 +95,6 @@ CONTAINS
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~~'
       IF(lwp) WRITE(numout,*) ' '
 
-#if ! defined key_RK3
-      IF ( .NOT.Agrif_Parent(l_1st_euler) ) & 
-         & CALL ctl_stop('AGRIF hot start requires to force Euler first step on parent')
-#endif
-
       l_ini_child           = .TRUE.
       Agrif_SpecialValue    = 0.0_wp
       Agrif_UseSpecialValue = .TRUE.
@@ -159,11 +154,6 @@ CONTAINS
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~~~'
       IF(lwp) WRITE(numout,*) ' '
 
-#if ! defined key_RK3
-      IF ( .NOT.Agrif_Parent(l_1st_euler) ) & 
-         & CALL ctl_stop('AGRIF hot start requires to force Euler first step on parent')
-#endif
-
       l_do_all = .TRUE.
       IF (present(ghosts_only)) l_do_all = .FALSE.
 
@@ -179,7 +169,6 @@ CONTAINS
          CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, PROCNAME(interpsshn) )
       ENDIF
       !
-#if defined key_RK3 
       Krhs_a = Kaa   ;   Kmm_a = Kaa
       !
       Agrif_SpecialValue    = 0._wp
@@ -191,20 +180,13 @@ CONTAINS
       ELSE
          CALL Agrif_Bc_Variable(sshini_id, calledweight=1._wp, PROCNAME(interpsshn) )
       ENDIF
-#else
-      ssh(:,:,Kaa) = 0._wp
-#endif
       !
       Agrif_UseSpecialValue = .FALSE.
       l_ini_child           = .FALSE.
       !
       Krhs_a = Kaa   ;   Kmm_a = Kmm
       !
-#if defined key_RK3
       CALL lbc_lnk( 'Agrif_istate_ssh', ssh(:,:,Kbb), 'T', 1._wp , ssh(:,:,Kaa), 'T', 1._wp )
-#else
-      CALL lbc_lnk( 'Agrif_istate_ssh', ssh(:,:,Kbb), 'T', 1._wp )
-#endif
       !
       ssh(:,:,Kmm) = ssh(:,:,Kbb)
       !
@@ -763,14 +745,12 @@ CONTAINS
       !
       IF( Agrif_Root() )   RETURN
       !
-#if defined key_RK3
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = .TRUE.
       CALL Agrif_Bc_variable(sshn_id, PROCNAME(interpsshn) )
       Agrif_UseSpecialValue = .FALSE.
-#endif
       !
-      ll_int_cons = ln_bt_fw ! Assume conservative temporal integration in the forward case only
+      ll_int_cons = .TRUE. ! Assume conservative temporal integration
       !
       ! Enforce volume conservation if no time refinement:  
       IF ( Agrif_rhot()==1 ) ll_int_cons=.TRUE.  
@@ -1531,12 +1511,7 @@ CONTAINS
       REAL(wp) ::   zrhot, zt0, zt1, zat
       !!----------------------------------------------------------------------  
       IF( before ) THEN
-!         IF ( ln_bt_fw ) THEN
-# if defined key_RK3
-            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2)
-# else
-            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * ub2_b(i1:i2,j1:j2)
-# endif
+         ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2)
       ELSE
          zrhot = Agrif_rhot()
          ! Time indexes bounds for integration
@@ -1565,13 +1540,8 @@ CONTAINS
       REAL(wp) :: zrhoy
       !!----------------------------------------------------------------------  
       IF( before ) THEN
-# if defined key_RK3
             ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * un_adv(i1:i2,j1:j2) &
                                 * umask(i1:i2,j1:j2,1)
-# else
-            ptab(i1:i2,j1:j2) = e2u(i1:i2,j1:j2) * ub2_b(i1:i2,j1:j2) &
-                                * umask(i1:i2,j1:j2,1)
-# endif
       ELSE
          zrhoy = Agrif_Rhoy()
          !
@@ -1601,21 +1571,12 @@ CONTAINS
          jmin = MAX(j1, 2) ; jmax = MIN(j2, jpj-1)
          DO ji=imin,imax
             DO jj=jmin,jmax
-# if defined key_RK3
                ptab(ji,jj) = 0.25_wp *(vmask(ji,jj  ,1)                        & 
                            &       * ( vn_adv(ji+1,jj  )*e1v(ji+1,jj  )        & 
                            &          -vn_adv(ji-1,jj  )*e1v(ji-1,jj  ) )      &
                            &          -vmask(ji,jj-1,1)                        & 
                            &       * ( vn_adv(ji+1,jj-1)*e1v(ji+1,jj-1)        &
                            &          -vn_adv(ji-1,jj-1)*e1v(ji-1,jj-1) ) )      
-# else
-               ptab(ji,jj) = 0.25_wp *(vmask(ji,jj  ,1)                        & 
-                           &       * ( vb2_b(ji+1,jj  )*e1v(ji+1,jj  )         & 
-                           &          -vb2_b(ji-1,jj  )*e1v(ji-1,jj  ) )       &
-                           &          -vmask(ji,jj-1,1)                        & 
-                           &       * ( vb2_b(ji+1,jj-1)*e1v(ji+1,jj-1)         &
-                           &          -vb2_b(ji-1,jj-1)*e1v(ji-1,jj-1) ) )      
-# endif
             END DO
          END DO 
       ELSE
@@ -1651,11 +1612,7 @@ CONTAINS
       !!----------------------------------------------------------------------  
       !
       IF( before ) THEN
-# if defined key_RK3
-            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2)
-# else
-            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vb2_b(i1:i2,j1:j2)
-# endif
+         ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2)
       ELSE      
          zrhot = Agrif_rhot()
          ! Time indexes bounds for integration
@@ -1685,13 +1642,8 @@ CONTAINS
       REAL(wp) :: zrhox
       !!----------------------------------------------------------------------  
       IF( before ) THEN
-# if defined key_RK3
-            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2) &
-                                * vmask(i1:i2,j1:j2,1)
-# else
-            ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vb2_b(i1:i2,j1:j2) &
-                                * vmask(i1:i2,j1:j2,1)
-# endif
+         ptab(i1:i2,j1:j2) = e1v(i1:i2,j1:j2) * vn_adv(i1:i2,j1:j2) &
+                             * vmask(i1:i2,j1:j2,1)
       ELSE
          zrhox = Agrif_Rhox()
          !
@@ -1721,21 +1673,12 @@ CONTAINS
          jmin = MAX(j1, 2) ; jmax = MIN(j2, jpj-1)
          DO ji=imin,imax
             DO jj=jmin,jmax
-# if defined key_RK3
                ptab(ji,jj) = 0.25_wp *(umask(ji  ,jj,1)                      & 
                            &       * ( un_adv(ji  ,jj+1)*e2u(ji  ,jj+1)      & 
                            &          -un_adv(ji  ,jj-1)*e2u(ji  ,jj-1) )    &
                            &          -umask(ji-1,jj,1)                      & 
                            &       * ( un_adv(ji-1,jj+1)*e2u(ji-1,jj+1)      &
                            &          -un_adv(ji-1,jj-1)*e2u(ji-1,jj-1) ) )   
-# else
-               ptab(ji,jj) = 0.25_wp *(umask(ji  ,jj,1)                      & 
-                           &       * ( ub2_b(ji  ,jj+1)*e2u(ji  ,jj+1)       & 
-                           &          -ub2_b(ji  ,jj-1)*e2u(ji  ,jj-1) )     &
-                           &          -umask(ji-1,jj,1)                      & 
-                           &       * ( ub2_b(ji-1,jj+1)*e2u(ji-1,jj+1)       &
-                           &          -ub2_b(ji-1,jj-1)*e2u(ji-1,jj-1) ) )   
-# endif
             END DO
          END DO 
       ELSE

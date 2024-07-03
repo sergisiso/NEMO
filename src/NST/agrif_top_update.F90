@@ -126,28 +126,7 @@ CONTAINS
                   ENDIF
                ENDDO
             ENDDO
-#if ! defined key_RK3
-            IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
-               ! Add asselin part
-               DO jn = 1,jptra
-                  DO jk = 1, jpkm1
-                     DO jj = j1, j2
-                        DO ji = i1, i2
-                           IF( tabres_child(ji,jj,jk,jn) /= 0._wp ) THEN
-                              ze3b = e3t(ji,jj,jk,Kbb_a) & ! Recover e3tb before update
-                                   & - rn_atfp * ( e3t(ji,jj,jk,Kmm_a) - e3t(ji,jj,jk,Krhs_a) )
-                              ztb  = tr(ji,jj,jk,jn,Kbb_a) * ze3b
-                              ztnu = tabres_child(ji,jj,jk,jn) * e3t(ji,jj,jk,Kmm_a)
-                              ztno = tr(ji,jj,jk,jn,Kmm_a) * e3t(ji,jj,jk,Krhs_a)
-                              tr(ji,jj,jk,jn,Kbb_a) = ( ztb + rn_atfp * ( ztnu - ztno) )  &
-                                        &        * tmask(ji,jj,jk) / e3t(ji,jj,jk,Kbb_a)
-                           ENDIF
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            ENDIF
-#endif
+
             DO jn = 1,jptra
                DO jk = 1, jpkm1
                   DO jj = j1, j2
@@ -166,28 +145,7 @@ CONTAINS
                                             & * tmask(i1:i2,j1:j2,jk)
                END DO
             ENDDO
-#if ! defined key_RK3
-            IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
-               ! Add asselin part
-               DO jn = 1,jptra
-                  DO jk = k1, k2
-                     DO jj = j1, j2
-                        DO ji = i1, i2
-                           IF( tabres(ji,jj,jk,jn) /= 0._wp ) THEN
-                              ze3b = e3t(ji,jj,jk,Kbb_a) & ! Recover e3tb before update
-                                   & - rn_atfp * ( e3t(ji,jj,jk,Kmm_a) - e3t(ji,jj,jk,Krhs_a) )
-                              ztb  = tr(ji,jj,jk,jn,Kbb_a) * ze3b
-                              ztnu = tabres(ji,jj,jk,jn)
-                              ztno = tr(ji,jj,jk,jn,Kmm_a) * e3t(ji,jj,jk,Krhs_a)
-                              tr(ji,jj,jk,jn,Kbb_a) = ( ztb + rn_atfp * ( ztnu - ztno) )  &
-                                        &        * tmask(ji,jj,jk) / e3t(ji,jj,jk,Kbb_a)
-                           ENDIF
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            ENDIF
-#endif
+
             DO jn = 1,jptra
                DO jk=k1,k2
                   DO jj=j1,j2
@@ -201,11 +159,6 @@ CONTAINS
             END DO
             !
          ENDIF
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            tr(i1:i2,j1:j2,1:jpkm1,1:jptra,Kbb_a)  = tr(i1:i2,j1:j2,1:jpkm1,1:jptra,Kmm_a)
-         ENDIF
-#endif
       ENDIF
       !
    END SUBROUTINE updateTRC

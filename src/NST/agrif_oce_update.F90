@@ -88,10 +88,6 @@ CONTAINS
 !$AGRIF_DO_NOT_TREAT
       PROCPTR(updateU2d)
       PROCPTR(updateV2d)
-#if ! defined key_RK3
-      PROCPTR(updateub2b)
-      PROCPTR(updatevb2b)
-#endif
       PROCPTR(updateumsk)
       PROCPTR(updatevmsk)
       PROCPTR(updateU)
@@ -117,17 +113,8 @@ CONTAINS
       CALL Agrif_Update_Variable(vnb_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updateV2d) )
 # endif
       ! 
-      IF ( ln_dynspg_ts .AND. ln_bt_fw ) THEN
+      IF ( ln_dynspg_ts ) THEN
          ! Update time integrated transports
-#  if ! defined key_RK3
-#  if ! defined DECAL_FEEDBACK_2D
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updateub2b) )
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updatevb2b) )
-#  else
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/), PROCNAME(updateub2b) )
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updatevb2b) )
-#  endif
-#  endif
          IF (lk_agrif_fstep) THEN
             CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc-1,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc  ,-2/), PROCNAME(updateumsk) )
             CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc  ,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc-1,-2/), PROCNAME(updatevmsk) )
@@ -180,7 +167,7 @@ CONTAINS
       ENDIF
       !
 #  if defined VOL_REFLUX
-      IF ( ln_dynspg_ts.AND.ln_bt_fw ) THEN 
+      IF ( ln_dynspg_ts ) THEN 
          use_sign_north = .TRUE.
          sign_north = -1._wp
          ! Refluxing on ssh:
@@ -359,26 +346,6 @@ CONTAINS
             ENDDO
          ENDIF
 
-#if ! defined key_RK3
-         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
-            ! Add asselin part
-            DO jn = 1, jpts
-               DO jk = 1, jpkm1
-                  DO jj = j1, j2
-                     DO ji = i1, i2
-                        ze3b = e3t(ji,jj,jk,Kbb_a) & ! Recover e3tb before update
-                             & - rn_atfp * ( e3t(ji,jj,jk,Kmm_a) - e3t(ji,jj,jk,Krhs_a) )
-                        ztb  = ts(ji,jj,jk,jn,Kbb_a) * ze3b
-                        ztnu = tabres_child(ji,jj,jk,jn) * e3t(ji,jj,jk,Kmm_a)
-                        ztno = ts(ji,jj,jk,jn,Kmm_a) * e3t(ji,jj,jk,Krhs_a)
-                        ts(ji,jj,jk,jn,Kbb_a) = ( ztb + rn_atfp * ( ztnu - ztno) )  & 
-                                     &          / e3t(ji,jj,jk,Kbb_a)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         ENDIF
-#endif
          DO jn = 1,jpts
             DO jk = 1, jpkm1
                DO jj = j1, j2
@@ -389,11 +356,6 @@ CONTAINS
             END DO
          END DO
          !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            ts(i1:i2,j1:j2,1:jpkm1,1:jpts,Kbb_a)  = ts(i1:i2,j1:j2,1:jpkm1,1:jpts,Kmm_a)
-         ENDIF         
-#endif
       ENDIF
       ! 
    END SUBROUTINE updateTS
@@ -500,18 +462,6 @@ CONTAINS
          DO jk=1,jpkm1
             DO jj=j1,j2
                DO ji=i1,i2
-#if ! defined key_RK3
-                  IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
-                     ze3b = e3u(ji,jj,jk,Kbb_a) & ! Recover e3ub before update
-                          & - rn_atfp * ( e3u(ji,jj,jk,Kmm_a) - e3u(ji,jj,jk,Krhs_a) )
-                     zub  = uu(ji,jj,jk,Kbb_a) * ze3b 
-                     zuno = uu(ji,jj,jk,Kmm_a) * e3u(ji,jj,jk,Krhs_a)
-                     zunu = tabres_child(ji,jj,jk) * e3u(ji,jj,jk,Kmm_a)
-                     uu(ji,jj,jk,Kbb_a) = ( zub + rn_atfp * ( zunu - zuno) ) &      
-                                    & * umask(ji,jj,jk) / e3u(ji,jj,jk,Kbb_a)
-                  ENDIF
-#endif
-                  !
                   uu(ji,jj,jk,Kmm_a) = tabres_child(ji,jj,jk) * umask(ji,jj,jk)
                END DO
             END DO
@@ -530,26 +480,8 @@ CONTAINS
                       &  (uu_b(ji,jj,Kmm_a) - zpgu(ji,jj) * r1_hu(ji,jj,Kmm_a)) * umask(ji,jj,jk)           
                END DO
                !
-#if ! defined key_RK3
-               zpgu(ji,jj) = 0._wp
-               DO jk=1,jpkm1
-                  zpgu(ji,jj) = zpgu(ji,jj) + e3u(ji,jj,jk,Kbb_a) * uu(ji,jj,jk,Kbb_a)
-               END DO
-               !
-               DO jk=1,jpkm1              
-                  uu(ji,jj,jk,Kbb_a) = uu(ji,jj,jk,Kbb_a) + &
-                      &  (uu_b(ji,jj,Kbb_a) - zpgu(ji,jj) * r1_hu(ji,jj,Kbb_a)) * umask(ji,jj,jk)           
-               END DO
-#endif
-               !
             END DO
          END DO
-         !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            uu(i1:i2,j1:j2,1:jpkm1,Kbb_a)  = uu(i1:i2,j1:j2,1:jpkm1,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
       ! 
@@ -655,18 +587,6 @@ CONTAINS
          DO jk=1,jpkm1
             DO jj=j1,j2
                DO ji=i1,i2
-#if ! defined key_RK3
-                  IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
-                     ze3b = e3v(ji,jj,jk,Kbb_a) & ! Recover e3vb before update
-                          & - rn_atfp * ( e3v(ji,jj,jk,Kmm_a) - e3v(ji,jj,jk,Krhs_a) )
-                     zvb  = vv(ji,jj,jk,Kbb_a) * ze3b 
-                     zvno = vv(ji,jj,jk,Kmm_a) * e3v(ji,jj,jk,Krhs_a)
-                     zvnu = tabres_child(ji,jj,jk) * e3v(ji,jj,jk,Kmm_a)
-                     vv(ji,jj,jk,Kbb_a) = ( zvb + rn_atfp * ( zvnu - zvno) ) &      
-                                    & * vmask(ji,jj,jk) / e3v(ji,jj,jk,Kbb_a)
-                  ENDIF
-#endif
-                  !
                   vv(ji,jj,jk,Kmm_a) = tabres_child(ji,jj,jk) * vmask(ji,jj,jk)
                END DO
             END DO
@@ -685,26 +605,8 @@ CONTAINS
                       &  (vv_b(ji,jj,Kmm_a) - zpgv(ji,jj) * r1_hv(ji,jj,Kmm_a)) * vmask(ji,jj,jk)           
                END DO
                !
-#if ! defined key_RK3
-               zpgv(ji,jj) = 0._wp
-               DO jk=1,jpkm1
-                  zpgv(ji,jj) = zpgv(ji,jj) + e3v(ji,jj,jk,Kbb_a) * vv(ji,jj,jk,Kbb_a)
-               END DO
-               !
-               DO jk=1,jpkm1              
-                  vv(ji,jj,jk,Kbb_a) = vv(ji,jj,jk,Kbb_a) + &
-                      &  (vv_b(ji,jj,Kbb_a) - zpgv(ji,jj) * r1_hv(ji,jj,Kbb_a)) * vmask(ji,jj,jk)           
-               END DO
-               !
-#endif
             END DO
          END DO
-         !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            vv(i1:i2,j1:j2,1:jpkm1,Kbb_a)  = vv(i1:i2,j1:j2,1:jpkm1,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
       ! 
@@ -736,14 +638,6 @@ CONTAINS
             DO ji=i1,i2
                !    
                ! Update barotropic velocities:
-#if ! defined key_RK3
-               IF ( .NOT.ln_dynspg_ts .OR. (ln_dynspg_ts.AND.(.NOT.ln_bt_fw)) ) THEN
-                  IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
-                     zcorr = (tabres(ji,jj) - uu_b(ji,jj,Kmm_a) * hu(ji,jj,Krhs_a)) * r1_hu(ji,jj,Kbb_a)
-                     uu_b(ji,jj,Kbb_a) = uu_b(ji,jj,Kbb_a) + rn_atfp * zcorr * umask(ji,jj,1)
-                  END IF
-               ENDIF    
-#endif
                uu_b(ji,jj,Kmm_a) = tabres(ji,jj) * r1_hu(ji,jj,Kmm_a) * umask(ji,jj,1)
                !       
             END DO
@@ -762,26 +656,8 @@ CONTAINS
                   &  (uu_b(ji,jj,Kmm_a) - zpgu(ji,jj) * r1_hu(ji,jj,Kmm_a))  * umask(ji,jj,jk)
                END DO
                !
-#if ! defined key_RK3
-               zpgu(ji,jj) = 0._wp
-               DO jk=1,jpkm1
-                  zpgu(ji,jj) = zpgu(ji,jj) + e3u(ji,jj,jk,Kbb_a) * uu(ji,jj,jk,Kbb_a)
-               END DO
-               !
-               DO jk=1,jpkm1
-                  uu(ji,jj,jk,Kbb_a) = uu(ji,jj,jk,Kbb_a) + &
-                  &  (uu_b(ji,jj,Kbb_a) - zpgu(ji,jj) * r1_hu(ji,jj,Kbb_a)) * umask(ji,jj,jk)
-               END DO
-#endif
-               !
             END DO
          END DO
-         !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            uu_b(i1:i2,j1:j2,Kbb_a)  = uu_b(i1:i2,j1:j2,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
       !
@@ -812,14 +688,6 @@ CONTAINS
          DO jj=j1,j2
             DO ji=i1,i2
                ! Update barotropic velocities:
-#if ! defined key_RK3
-               IF ( .NOT.ln_dynspg_ts .OR. (ln_dynspg_ts.AND.(.NOT.ln_bt_fw)) ) THEN
-                  IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN ! Add asselin part
-                     zcorr = (tabres(ji,jj) - vv_b(ji,jj,Kmm_a) * hv(ji,jj,Krhs_a)) * r1_hv(ji,jj,Kbb_a)
-                     vv_b(ji,jj,Kbb_a) = vv_b(ji,jj,Kbb_a) + rn_atfp * zcorr * vmask(ji,jj,1)
-                  END IF
-               ENDIF              
-#endif
                vv_b(ji,jj,Kmm_a) = tabres(ji,jj) * r1_hv(ji,jj,Kmm_a) * vmask(ji,jj,1)
                !       
             END DO
@@ -838,26 +706,8 @@ CONTAINS
                    &  (vv_b(ji,jj,Kmm_a) - zpgv(ji,jj) * r1_hv(ji,jj,Kmm_a)) * vmask(ji,jj,jk)
                END DO
                !
-#if ! defined key_RK3
-               zpgv(ji,jj) = 0._wp
-               DO jk=1,jpkm1
-                  zpgv(ji,jj) = zpgv(ji,jj) + e3v(ji,jj,jk,Kbb_a) * vv(ji,jj,jk,Kbb_a)
-               END DO
-               !
-               DO jk=1,jpkm1
-                  vv(ji,jj,jk,Kbb_a) = vv(ji,jj,jk,Kbb_a) + &
-                      &  (vv_b(ji,jj,Kbb_a) - zpgv(ji,jj) * r1_hv(ji,jj,Kbb_a)) * vmask(ji,jj,jk)
-               END DO
-#endif
-               !
             END DO
          END DO
-         !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            vv_b(i1:i2,j1:j2,Kbb_a)  = vv_b(i1:i2,j1:j2,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
       ! 
@@ -883,28 +733,11 @@ CONTAINS
          END DO
       ELSE
          !
-#if ! defined key_RK3
-         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
-            DO jj=j1,j2
-               DO ji=i1,i2
-                  ssh(ji,jj,Kbb_a) =   ssh(ji,jj,Kbb_a) &
-                        & + rn_atfp * ( tabres(ji,jj) - ssh(ji,jj,Kmm_a) ) * tmask(ji,jj,1)
-               END DO
-            END DO
-         ENDIF
-#endif
-         !
          DO jj=j1,j2
             DO ji=i1,i2
                ssh(ji,jj,Kmm_a) = tabres(ji,jj) * tmask(ji,jj,1)
             END DO
          END DO
-         !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            ssh(i1:i2,j1:j2,Kbb_a)  = ssh(i1:i2,j1:j2,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
       !
@@ -961,43 +794,6 @@ CONTAINS
       !
    END SUBROUTINE updatevmsk
 
-# if ! defined key_RK3
-   SUBROUTINE updateub2b( tabres, i1, i2, j1, j2, before )
-      !!----------------------------------------------------------------------
-      !!                      *** ROUTINE updateub2b ***
-      !!----------------------------------------------------------------------
-      INTEGER                            , INTENT(in) ::   i1, i2, j1, j2
-      REAL(wp), DIMENSION(i1:i2,j1:j2), INTENT(inout) ::   tabres
-      LOGICAL                            , INTENT(in) ::   before
-      !!
-      INTEGER :: ji, jj
-      REAL(wp) :: za1, zcor
-      !!---------------------------------------------
-      !
-      IF (before) THEN
-         DO jj=j1,j2
-            DO ji=i1,i2
-               tabres(ji,jj) = ub2_i_b(ji,jj) * e2u_frac(ji,jj)
-            END DO
-         END DO
-      ELSE
-         !
-         za1 = 1._wp / REAL(Agrif_rhot(), wp)
-         DO jj=j1,j2
-            DO ji=i1,i2
-               zcor=tabres(ji,jj) - ub2_b(ji,jj)
-               ! Update time integrated fluxes also in case of multiply nested grids:
-               ub2_i_b(ji,jj) = ub2_i_b(ji,jj) + za1 * zcor 
-               ! Update corrective fluxes:
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) un_bf(ji,jj)  = un_bf(ji,jj) + zcor
-               ! Update half step back fluxes:
-               ub2_b(ji,jj) = tabres(ji,jj)
-            END DO
-         END DO
-      ENDIF
-      !
-   END SUBROUTINE updateub2b
-# endif
 
    SUBROUTINE reflux_sshu( tabres, i1, i2, j1, j2, before, nb, ndir )
       !!---------------------------------------------
@@ -1026,28 +822,14 @@ CONTAINS
          !
          IF (western_side) THEN
             DO jj=j1,j2
-# if defined key_RK3
                zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (un_adv(i1,jj)-tabres(i1,jj)) 
-# else
-               zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (ub2_b(i1,jj)-tabres(i1,jj)) 
-# endif
                ssh(i1  ,jj,Kmm_a) = ssh(i1  ,jj,Kmm_a) + zcor
-#if ! defined key_RK3
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i1  ,jj,Kbb_a) = ssh(i1  ,jj,Kbb_a) + rn_atfp * zcor
-#endif
             END DO
          ENDIF
          IF (eastern_side) THEN
             DO jj=j1,j2
-# if defined key_RK3
                zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (un_adv(i2,jj)-tabres(i2,jj))
-# else
-               zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (ub2_b(i2,jj)-tabres(i2,jj))
-# endif
                ssh(i2+1,jj,Kmm_a) = ssh(i2+1,jj,Kmm_a) + zcor
-#if ! defined key_RK3
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i2+1,jj,Kbb_a) = ssh(i2+1,jj,Kbb_a) + rn_atfp * zcor
-#endif
             END DO
          ENDIF
          !
@@ -1055,43 +837,6 @@ CONTAINS
       !
    END SUBROUTINE reflux_sshu
 
-# if ! defined key_RK3
-   SUBROUTINE updatevb2b( tabres, i1, i2, j1, j2, before )
-      !!----------------------------------------------------------------------
-      !!                      *** ROUTINE updatevb2b ***
-      !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in   ) ::   i1, i2, j1, j2
-      REAL(wp), DIMENSION(i1:i2,j1:j2), INTENT(inout) ::   tabres
-      LOGICAL                         , INTENT(in   ) ::   before
-      !!
-      INTEGER :: ji, jj
-      REAL(wp) :: za1, zcor
-      !!---------------------------------------------
-      !
-      IF( before ) THEN
-         DO jj=j1,j2
-            DO ji=i1,i2
-               tabres(ji,jj) = vb2_i_b(ji,jj) * e1v_frac(ji,jj) 
-            END DO
-         END DO
-      ELSE
-         !
-         za1 = 1._wp / REAL(Agrif_rhot(), wp)
-         DO jj=j1,j2
-            DO ji=i1,i2
-               zcor=tabres(ji,jj) - vb2_b(ji,jj)
-               ! Update time integrated fluxes also in case of multiply nested grids:
-               vb2_i_b(ji,jj) = vb2_i_b(ji,jj) + za1 * zcor 
-               ! Update corrective fluxes:
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler)))  vn_bf(ji,jj)  = vn_bf(ji,jj) + zcor
-               ! Update half step back fluxes:
-               vb2_b(ji,jj) = tabres(ji,jj)
-            END DO
-         END DO
-      ENDIF
-      !
-   END SUBROUTINE updatevb2b
-# endif
 
    SUBROUTINE reflux_sshv( tabres, i1, i2, j1, j2, before, nb, ndir )
       !!---------------------------------------------
@@ -1120,28 +865,14 @@ CONTAINS
          !
          IF (southern_side) THEN
             DO ji=i1,i2
-# if defined key_RK3
                zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vn_adv(ji,j1)-tabres(ji,j1))
-# else
-               zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vb2_b(ji,j1)-tabres(ji,j1))
-# endif
                ssh(ji,j1  ,Kmm_a) = ssh(ji,j1  ,Kmm_a) + zcor
-#if ! defined key_RK3
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j1  ,Kbb_a) = ssh(ji,j1,Kbb_a) + rn_atfp * zcor
-#endif
             END DO
          ENDIF
          IF (northern_side) THEN               
             DO ji=i1,i2
-# if defined key_RK3
                zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vn_adv(ji,j2)-tabres(ji,j2))
-# else
-               zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vb2_b(ji,j2)-tabres(ji,j2))
-# endif
                ssh(ji,j2+1,Kmm_a) = ssh(ji,j2+1,Kmm_a) + zcor
-#if ! defined key_RK3
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j2+1,Kbb_a) = ssh(ji,j2+1,Kbb_a) + rn_atfp * zcor
-#endif
             END DO
          ENDIF
          ! 
@@ -1243,38 +974,6 @@ CONTAINS
          ! of prognostic variables
          e3t(i1:i2,j1:j2,1:jpkm1,Krhs_a) = e3t(i1:i2,j1:j2,1:jpkm1,Kmm_a)
 
-#if ! defined key_RK3
-         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
-            DO jk = 1, jpkm1
-               DO jj=j1,j2
-                  DO ji=i1,i2
-                     e3t(ji,jj,jk,Kbb_a) =  e3t(ji,jj,jk,Kbb_a) &
-                           & + rn_atfp * ( tabres_child(ji,jj,jk) - e3t(ji,jj,jk,Kmm_a) )
-                  END DO
-               END DO
-            END DO
-            !
-            e3w  (i1:i2,j1:j2,1,Kbb_a) = e3w_0(i1:i2,j1:j2,1) + e3t(i1:i2,j1:j2,1,Kbb_a) - e3t_0(i1:i2,j1:j2,1)
-            gdepw(i1:i2,j1:j2,1,Kbb_a) = 0.0_wp
-            gdept(i1:i2,j1:j2,1,Kbb_a) = 0.5_wp * e3w(i1:i2,j1:j2,1,Kbb_a)
-            !
-            DO jk = 2, jpkm1
-               DO jj = j1,j2
-                  DO ji = i1,i2            
-                     zcoef = (tmask(ji,jj,jk) - wmask(ji,jj,jk))
-                     e3w(ji,jj,jk,Kbb_a)  = e3w_0(ji,jj,jk) + ( 1.0_wp - 0.5_wp * tmask(ji,jj,jk) ) *        & 
-                     &                                        ( e3t(ji,jj,jk-1,Kbb_a) - e3t_0(ji,jj,jk-1) )  &
-                     &                                  +            0.5_wp * tmask(ji,jj,jk)   *        &
-                     &                                        ( e3t(ji,jj,jk  ,Kbb_a) - e3t_0(ji,jj,jk  ) )
-                     gdepw(ji,jj,jk,Kbb_a) = gdepw(ji,jj,jk-1,Kbb_a) + e3t(ji,jj,jk-1,Kbb_a)
-                     gdept(ji,jj,jk,Kbb_a) =      zcoef  * ( gdepw(ji,jj,jk  ,Kbb_a) + 0.5_wp * e3w(ji,jj,jk,Kbb_a))  &
-                         &               + (1-zcoef) * ( gdept(ji,jj,jk-1,Kbb_a) +       e3w(ji,jj,jk,Kbb_a)) 
-                  END DO
-               END DO
-            END DO
-            !
-         ENDIF        
-#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------
@@ -1305,15 +1004,6 @@ CONTAINS
                END DO
             END DO
          END DO
-         !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            e3t (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3t (i1:i2,j1:j2,1:jpkm1,Kmm_a)
-            e3w (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3w (i1:i2,j1:j2,1:jpkm1,Kmm_a)
-            gdepw(i1:i2,j1:j2,1:jpkm1,Kbb_a) = gdepw(i1:i2,j1:j2,1:jpkm1,Kmm_a)
-            gdept(i1:i2,j1:j2,1:jpkm1,Kbb_a) = gdept(i1:i2,j1:j2,1:jpkm1,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
       !
@@ -1360,45 +1050,6 @@ CONTAINS
             END DO
          ENDIF
          !
-#if ! defined key_RK3
-         ! 1) Updates at BEFORE time step:
-         ! -------------------------------
-         !
-         ! Save "old" scale factor (prior update) for subsequent asselin correction
-         ! of prognostic variables
-         e3u(i1:i2,j1:j2,1:jpkm1,Krhs_a) = e3u(i1:i2,j1:j2,1:jpkm1,Kmm_a)
-
-         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
-            DO jk = 1, jpkm1
-               DO jj = j1, j2
-                  DO ji = i1, i2
-                     e3u(ji,jj,jk,Kbb_a) =  e3u(ji,jj,jk,Kbb_a) &
-                           & + rn_atfp * ( tabres_child(ji,jj,jk) - e3u(ji,jj,jk,Kmm_a) )
-                  END DO
-               END DO
-            END DO
-            !
-            ! Update total depth:
-            hu(i1:i2,j1:j2,Kbb_a) = 0._wp
-            DO jk = 1, jpkm1
-               hu(i1:i2,j1:j2,Kbb_a) = hu(i1:i2,j1:j2,Kbb_a) + e3u(i1:i2,j1:j2,jk,Kbb_a) * umask(i1:i2,j1:j2,jk)
-            END DO
-            r1_hu(i1:i2,j1:j2,Kbb_a) = ssumask(i1:i2,j1:j2) / ( hu(i1:i2,j1:j2,Kbb_a) + 1._wp - ssumask(i1:i2,j1:j2) )
-            !
-            e3uw  (i1:i2,j1:j2,1,Kbb_a) = e3uw_0(i1:i2,j1:j2,1) + e3u(i1:i2,j1:j2,1,Kbb_a) - e3u_0(i1:i2,j1:j2,1)
-            DO jk = 2, jpkm1
-               DO jj = j1,j2
-                  DO ji = i1,i2            
-                     e3uw(ji,jj,jk,Kbb_a)  = e3uw_0(ji,jj,jk) + ( 1.0_wp - 0.5_wp * umask(ji,jj,jk) ) *        & 
-                     &                                        ( e3u(ji,jj,jk-1,Kbb_a) - e3u_0(ji,jj,jk-1) )    &
-                     &                                        +            0.5_wp * umask(ji,jj,jk)   *        &
-                     &                                        ( e3u(ji,jj,jk  ,Kbb_a) - e3u_0(ji,jj,jk  ) )
-                  END DO
-               END DO
-            END DO
-            !
-         ENDIF        
-#endif
          !
          ! 2) Updates at NOW time step:
          ! ----------------------------
@@ -1425,15 +1076,6 @@ CONTAINS
                END DO
             END DO
          END DO
-         !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            e3u (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3u (i1:i2,j1:j2,1:jpkm1,Kmm_a)
-            e3uw(i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3uw(i1:i2,j1:j2,1:jpkm1,Kmm_a)
-            hu   (i1:i2,j1:j2,Kbb_a)         = hu   (i1:i2,j1:j2,Kmm_a)
-            r1_hu(i1:i2,j1:j2,Kbb_a)         = r1_hu(i1:i2,j1:j2,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
       !
@@ -1480,46 +1122,6 @@ CONTAINS
             END DO
          ENDIF
          !
-#if ! defined key_RK3
-         ! 1) Updates at BEFORE time step:
-         ! -------------------------------
-         !
-         ! Save "old" scale factor (prior update) for subsequent asselin correction
-         ! of prognostic variables
-         e3v(i1:i2,j1:j2,k1:k2,Krhs_a) = e3v(i1:i2,j1:j2,k1:k2,Kmm_a)
-
-         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
-            DO jk = 1, jpkm1
-               DO jj = j1, j2
-                  DO ji = i1, i2
-                     e3v(ji,jj,jk,Kbb_a) =  e3v(ji,jj,jk,Kbb_a) &
-                           & + rn_atfp * ( tabres_child(ji,jj,jk) - e3v(ji,jj,jk,Kmm_a) )
-                  END DO
-               END DO
-            END DO
-            !
-            ! Update total depth:
-            hv(i1:i2,j1:j2,Kbb_a) = 0._wp
-            DO jk = 1, jpkm1
-               hv(i1:i2,j1:j2,Kbb_a) = hv(i1:i2,j1:j2,Kbb_a) + e3v(i1:i2,j1:j2,jk,Kbb_a) * vmask(i1:i2,j1:j2,jk)
-            END DO
-            r1_hv(i1:i2,j1:j2,Kbb_a) = ssvmask(i1:i2,j1:j2) / ( hv(i1:i2,j1:j2,Kbb_a) + 1._wp - ssvmask(i1:i2,j1:j2) )
-            !
-            e3vw(i1:i2,j1:j2,1,Kbb_a) = e3vw_0(i1:i2,j1:j2,1) + e3v(i1:i2,j1:j2,1,Kbb_a) - e3v_0(i1:i2,j1:j2,1)
-            DO jk = 2, jpkm1
-               DO jj = j1,j2
-                  DO ji = i1,i2            
-                     e3vw(ji,jj,jk,Kbb_a)  = e3vw_0(ji,jj,jk) + ( 1.0_wp - 0.5_wp * vmask(ji,jj,jk) ) *        & 
-                     &                                        ( e3v(ji,jj,jk-1,Kbb_a) - e3v_0(ji,jj,jk-1) )    &
-                     &                                        +            0.5_wp * vmask(ji,jj,jk)   *        &
-                     &                                        ( e3v(ji,jj,jk  ,Kbb_a) - e3v_0(ji,jj,jk  ) )
-                  END DO
-               END DO
-            END DO
-            !
-         ENDIF        
-#endif
-         !
          ! 2) Updates at NOW time step:
          ! ----------------------------
          !
@@ -1545,15 +1147,6 @@ CONTAINS
                END DO
             END DO
          END DO
-         !
-#if ! defined key_RK3
-         IF  ((l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            e3v  (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3v  (i1:i2,j1:j2,1:jpkm1,Kmm_a)
-            e3vw (i1:i2,j1:j2,1:jpkm1,Kbb_a)  = e3vw (i1:i2,j1:j2,1:jpkm1,Kmm_a)
-            hv   (i1:i2,j1:j2,Kbb_a)          = hv   (i1:i2,j1:j2,Kmm_a)
-            r1_hv(i1:i2,j1:j2,Kbb_a)          = r1_hv(i1:i2,j1:j2,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
       !
@@ -1625,31 +1218,7 @@ CONTAINS
                              &    * tmask(i1:i2,j1:j2,1) 
       ELSE 
          !
-         tabres(i1:i2,j1:j2) = tabres(i1:i2,j1:j2) * r1_ht_0(i1:i2,j1:j2)
-         !
-         ! 1) Update at BEFORE time step:
-         ! ------------------------------
-         ! Save "old" array (prior update) for subsequent asselin correction
-         ! of prognostic variables
-         r3t(i1:i2,j1:j2,Krhs_a) = r3t(i1:i2,j1:j2,Kmm_a)
-#if ! defined key_RK3
-         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
-            r3t(i1:i2,j1:j2,Kbb_a) =  r3t(i1:i2,j1:j2,Kbb_a) &
-                   & + rn_atfp * ( tabres(i1:i2,j1:j2) - r3t(i1:i2,j1:j2,Kmm_a) )
-         ENDIF   
-#endif
-         !
-         ! 2) Updates at NOW time step:
-         ! ----------------------------
-         r3t(i1:i2,j1:j2,Kmm_a) = tabres(i1:i2,j1:j2)
-         !
-         ! 3) Special case for euler startup only:
-         ! ---------------------------------------
-#if ! defined key_RK3
-         IF  ( (l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            r3t(i1:i2,j1:j2,Kbb_a)  = r3t(i1:i2,j1:j2,Kmm_a)
-         ENDIF
-#endif
+         r3t(i1:i2,j1:j2,Kmm_a) = tabres(i1:i2,j1:j2) * r1_ht_0(i1:i2,j1:j2)
          !
       ENDIF
    END SUBROUTINE update_r3t
@@ -1673,29 +1242,7 @@ CONTAINS
          !
          tabres(i1:i2,j1:j2) = tabres(i1:i2,j1:j2) * r1_hu_0(i1:i2,j1:j2)
          !
-         ! 1) Update at BEFORE time step:
-         ! ------------------------------
-         ! Save "old" array (prior update) for subsequent asselin correction
-         ! of prognostic variables
-         r3u(i1:i2,j1:j2,Krhs_a) = r3u(i1:i2,j1:j2,Kmm_a)
-#if ! defined key_RK3
-         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
-            r3u(i1:i2,j1:j2,Kbb_a) =  r3u(i1:i2,j1:j2,Kbb_a) &
-                   & + rn_atfp * ( tabres(i1:i2,j1:j2) - r3u(i1:i2,j1:j2,Kmm_a) )
-         ENDIF   
-#endif
-         !
-         ! 2) Updates at NOW time step:
-         ! ----------------------------
          r3u(i1:i2,j1:j2,Kmm_a) = tabres(i1:i2,j1:j2)
-         !
-         ! 3) Special case for euler startup only:
-         ! ---------------------------------------
-#if ! defined key_RK3
-         IF  ( (l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            r3u(i1:i2,j1:j2,Kbb_a)  = r3u(i1:i2,j1:j2,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
    END SUBROUTINE update_r3u
@@ -1719,29 +1266,7 @@ CONTAINS
          !
          tabres(i1:i2,j1:j2) = tabres(i1:i2,j1:j2) * r1_hv_0(i1:i2,j1:j2)
          !
-         ! 1) Update at BEFORE time step:
-         ! ------------------------------
-         ! Save "old" array (prior update) for subsequent asselin correction
-         ! of prognostic variables
-         r3v(i1:i2,j1:j2,Krhs_a) = r3v(i1:i2,j1:j2,Kmm_a)
-#if ! defined key_RK3
-         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler) )) THEN
-            r3v(i1:i2,j1:j2,Kbb_a) =  r3v(i1:i2,j1:j2,Kbb_a) &
-                   & + rn_atfp * ( tabres(i1:i2,j1:j2) - r3v(i1:i2,j1:j2,Kmm_a) )
-         ENDIF   
-#endif
-         !
-         ! 2) Updates at NOW time step:
-         ! ----------------------------
          r3v(i1:i2,j1:j2,Kmm_a) = tabres(i1:i2,j1:j2)
-         !
-         ! 3) Special case for euler startup only:
-         ! ---------------------------------------
-#if ! defined key_RK3
-         IF  ( (l_1st_euler).AND.(Agrif_Nb_Step()==0) ) THEN
-            r3v(i1:i2,j1:j2,Kbb_a)  = r3v(i1:i2,j1:j2,Kmm_a)
-         ENDIF
-#endif
          !
       ENDIF
    END SUBROUTINE update_r3v
