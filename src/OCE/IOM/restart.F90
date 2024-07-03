@@ -168,7 +168,6 @@ CONTAINS
       !
       IF( .NOT.ln_diurnal_only ) THEN
          !
-#if defined key_RK3
          CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kbb) )     ! before fields
          CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kbb) )
          CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kbb) )
@@ -178,19 +177,6 @@ CONTAINS
          CALL iom_rstput( kt, nitrst, numrow, 'vv_n', vv_b(:,:       ,Kbb) )
          !
          IF( PRESENT(Kaa) )   CALL iom_rstput( kt, nitrst, numrow, 'ssha', ssh(:,:,Kaa) )   ! after  fields
-#else
-         CALL iom_rstput( kt, nitrst, numrow, 'sshb', ssh(:,:        ,Kbb) )     ! before fields
-         CALL iom_rstput( kt, nitrst, numrow, 'ub'  , uu(:,:,:       ,Kbb) )
-         CALL iom_rstput( kt, nitrst, numrow, 'vb'  , vv(:,:,:       ,Kbb) )
-         CALL iom_rstput( kt, nitrst, numrow, 'tb'  , ts(:,:,:,jp_tem,Kbb) )
-         CALL iom_rstput( kt, nitrst, numrow, 'sb'  , ts(:,:,:,jp_sal,Kbb) )
-         !
-         CALL iom_rstput( kt, nitrst, numrow, 'sshn', ssh(:,:        ,Kmm) )     ! now fields 
-         CALL iom_rstput( kt, nitrst, numrow, 'un'  , uu(:,:,:       ,Kmm) )
-         CALL iom_rstput( kt, nitrst, numrow, 'vn'  , vv(:,:,:       ,Kmm) )
-         CALL iom_rstput( kt, nitrst, numrow, 'tn'  , ts(:,:,:,jp_tem,Kmm) )
-         CALL iom_rstput( kt, nitrst, numrow, 'sn'  , ts(:,:,:,jp_sal,Kmm) )
-#endif
       ENDIF
 
       IF( ln_diurnal )   CALL iom_rstput( kt, nitrst, numrow, 'Dsst', x_dsst )
@@ -297,7 +283,6 @@ CONTAINS
          RETURN
       ENDIF
       !
-#if defined key_RK3
       !                             !*  Read Kbb fields   (NB: in RK3 Kmm = Kbb = Nbb)
       IF(lwp) WRITE(numout,*) '           Kbb u, v and T-S fields read in the restart file'
       CALL iom_get( numror, jpdom_auto, 'un'   , uu(:,:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
@@ -324,28 +309,6 @@ CONTAINS
       !
       uu_b(:,:,Kmm)   = uu_b(:,:,Kbb)           ! Kmm value set to Kbb for initialisation in Agrif_Regrid
       vv_b(:,:,Kmm)   = vv_b(:,:,Kbb)
-#else
-      !                             !*  Read Kmm fields   (MLF only)
-      IF(lwp) WRITE(numout,*)    '           Kmm u, v and T-S fields read in the restart file'
-      CALL iom_get( numror, jpdom_auto, 'un', uu(:,:,:       ,Kmm), cd_type = 'U', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'vn', vv(:,:,:       ,Kmm), cd_type = 'V', psgn = -1._wp )
-      CALL iom_get( numror, jpdom_auto, 'tn', ts(:,:,:,jp_tem,Kmm) )
-      CALL iom_get( numror, jpdom_auto, 'sn', ts(:,:,:,jp_sal,Kmm) )
-      !
-      IF( l_1st_euler ) THEN        !*  Euler restart   (MLF only)
-         IF(lwp) WRITE(numout,*) '           Kbb u, v and T-S fields set to Kmm values'
-         uu(:,:,:  ,Kbb) = uu(:,:,:  ,Kmm)         ! all before fields set to now values
-         vv(:,:,:  ,Kbb) = vv(:,:,:  ,Kmm)
-         ts(:,:,:,:,Kbb) = ts(:,:,:,:,Kmm)
-         !
-      ELSE                          !* Leap frog restart   (MLF only)
-         IF(lwp) WRITE(numout,*) '           Kbb u, v and T-S fields read in the restart file'
-         CALL iom_get( numror, jpdom_auto, 'ub', uu(:,:,:       ,Kbb), cd_type = 'U', psgn = -1._wp )
-         CALL iom_get( numror, jpdom_auto, 'vb', vv(:,:,:       ,Kbb), cd_type = 'V', psgn = -1._wp )
-         CALL iom_get( numror, jpdom_auto, 'tb', ts(:,:,:,jp_tem,Kbb) )
-         CALL iom_get( numror, jpdom_auto, 'sb', ts(:,:,:,jp_sal,Kbb) )
-      ENDIF
-#endif
       !
    END SUBROUTINE rst_read
 
@@ -383,7 +346,6 @@ CONTAINS
       IF( ln_rstart ) THEN         !==  Read the restart file  ==!
          !                         !=============================!
          !
-#if defined key_RK3
          !                                     !*  RK3: Read ssh at Kbb
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*)    '      Kbb sea surface height read in the restart file'
@@ -402,30 +364,6 @@ CONTAINS
          ELSE                                      ! restart from MLF run
             ssh(:,:,Kaa) = ssh(:,:,Kbb)               ! no ssh variation in ww computation
          ENDIF
-#else
-         !                                     !*  MLF: Read ssh at Kmm
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*)    '      Kmm sea surface height read in the restart file'
-         CALL iom_get( numror, jpdom_auto, 'sshn'   , ssh(:,:,Kmm) )
-         !
-         IF( l_1st_euler ) THEN                !*  MLF: Euler at first time-step
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) '      Euler first time step : ssh(Kbb) = ssh(Kmm)'
-            ssh(:,:,Kbb) = ssh(:,:,Kmm)
-#if defined key_agrif
-            ! Set ghosts points from parent 
-            IF (.NOT.Agrif_Root()) CALL Agrif_istate_ssh( Kbb, Kmm, Kaa, .true. )
-#endif
-            !
-         ELSE                                  !*  MLF: read ssh at Kbb
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) '      Kbb sea surface height read in the restart file'
-            CALL iom_get( numror, jpdom_auto, 'sshb', ssh(:,:,Kbb) )
-         ENDIF
-         !
-         ssh(:,:,Kaa) = 0._wp                  !*  MLF: set  ssh at Kaa (for AGRIF)
-         !
-#endif
          !                         !============================!
       ELSE                         !==  Initialize at "rest"  ==!
          !                         !============================!

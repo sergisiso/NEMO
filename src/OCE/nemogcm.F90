@@ -62,11 +62,7 @@ MODULE nemogcm
 #if defined key_nemocice_decomp
    USE ice_domain_size, only: nx_global, ny_global
 #endif
-# if defined key_RK3
    USE stprk3
-# else
-   USE stpmlf         ! NEMO time-stepping               (stp_MLF   routine)
-# endif
    !
    USE lib_mpp        ! distributed memory computing
    USE mppini         ! shared/distributed memory setting (mpp_init routine)
@@ -120,11 +116,7 @@ CONTAINS
       CALL nemo_init               !==  Initialisations  ==!
       !                            !-----------------------!
 #if defined key_agrif
-# if defined key_RK3
       Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs   ! RK3: agrif_oce module copies of time level indices
-# else
-      Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! MLF: agrif_oce module copies of time level indices
-# endif
       CALL Agrif_Declare_Var       !  "      "   "   "      "  DYN/TRA
 # if defined key_top
       IF ( ln_top )   CALL Agrif_Declare_Var_top   !  "      "   "   "      "  TOP
@@ -150,11 +142,7 @@ CONTAINS
       CALL Agrif_Regrid()
       !
       ! Recursive update from highest nested level to lowest:
-# if defined key_RK3
       Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs   ! RK3: agrif_oce module copies of time level indices
-# else
-      Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! MLF: agrif_oce module copies of time level indices
-# endif
       CALL Agrif_step_child_adj(Agrif_Update_All)
       CALL Agrif_step_child_adj(Agrif_Check_parent_bat)
       !
@@ -162,11 +150,7 @@ CONTAINS
          !
          ncom_stp = istp
          CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, 1000 )
-#   if defined key_RK3
          CALL stp_RK3
-#   else
-         CALL stp_MLF
-#   endif
          CALL timing_stop( 'step', istp )
          istp = istp + 1
       END DO
@@ -176,18 +160,11 @@ CONTAINS
       IF( .NOT.ln_diurnal_only ) THEN                 !==  Standard time-stepping  ==!
          !
          DO WHILE( istp <= nitend .AND. nstop == 0 )
-            !
             ncom_stp = istp
             CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, 1000 )
-            !
-#   if defined key_RK3
             CALL stp_RK3( istp )
-#   else
-            CALL stp_MLF( istp )
-#   endif
             CALL timing_stop( 'step', istp )
             istp = istp + 1
-            !
          END DO
          !
       ELSE                                            !==  diurnal SST time-steeping only  ==!
@@ -391,11 +368,7 @@ CONTAINS
       ! Initialise time level indices
       Nbb = 1   ;   Nnn = 2   ;   Naa = 3   ;   Nrhs = Naa
 #if defined key_agrif
-# if defined key_RK3
       Kbb_a = Nbb   ;   Kmm_a = Nbb   ;   Krhs_a = Nrhs   ! RK3: agrif_oce module copies of time level indices
-# else
-      Kbb_a = Nbb   ;   Kmm_a = Nnn   ;   Krhs_a = Nrhs   ! MLF: agrif_oce module copies of time level indices
-# endif
 #endif
       !                             !-------------------------------!
       !                             !  NEMO general initialization  !
