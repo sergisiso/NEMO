@@ -230,7 +230,7 @@ CONTAINS
       IF( ln_dynspg_exp .AND. ln_isfcav )   &
            &   CALL ctl_stop( ' dynspg_exp not tested with ice shelf cavity ' )
       !
-      IF( ln_dynspg_exp .AND. lk_RK3 )   &
+      IF( ln_dynspg_exp )   &
            &   CALL ctl_stop( ' dynspg_exp not implemented with RK3 time-stepping ' )
       !
       IF(lwp) THEN
@@ -244,12 +244,10 @@ CONTAINS
       CASE ( np_TS )             ! split-explicit scheme initialisation
          CALL dyn_spg_ts_init          ! do it first: set nn_e used to allocate some arrays later on
       CASE ( np_NO )             ! set barotropic fields to zeros
-         IF( lk_RK3 ) THEN 
-            uu_b(:,:,:) = 0._wp
-            vv_b(:,:,:) = 0._wp
-            un_adv(:,:) = 0._wp
-            vn_adv(:,:) = 0._wp
-         ENDIF
+         uu_b(:,:,:) = 0._wp
+         vv_b(:,:,:) = 0._wp
+         un_adv(:,:) = 0._wp
+         vn_adv(:,:) = 0._wp
       END SELECT
 !!      IF( nspg == np_TS ) THEN   ! split-explicit scheme initialisation
 !!         CALL dyn_spg_ts_init          ! do it first: set nn_e used to allocate some arrays later on
