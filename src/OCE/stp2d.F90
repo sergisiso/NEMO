@@ -193,7 +193,7 @@ CONTAINS
          !
          !
          !                             !* baroclinic drag forcing *!   (also provide the barotropic drag coeff.)
-         CALL dyn_drg_init( Kbb, Kbb, uu, vv, uu_b, vv_b, Ue_rhs, Ve_rhs, CdU_u, CdU_v )
+         CALL dyn_drg_init( Kbb, uu, vv, uu_b, vv_b, Ue_rhs, Ve_rhs, CdU_u, CdU_v )
          !
          !                             !* wind forcing *!
          DO_2D( 0, 0, 0, 0 )

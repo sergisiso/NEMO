@@ -1083,7 +1083,6 @@
 !-----------------------------------------------------------------------
    ln_dynspg_exp  = .false.   ! explicit free surface
    ln_dynspg_ts   = .false.   ! split-explicit free surface
-      ln_bt_fw      = .true.     ! Forward integration of barotropic Eqs.
       nn_bt_flt     = 1          ! Add dissipation with either boxcar averaging or dissipative Forward-Backward
       !                          !                     = 0 None
       !                          !                     = 1 Boxcar over   nn_e sub-steps

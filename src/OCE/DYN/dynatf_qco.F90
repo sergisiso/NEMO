@@ -173,7 +173,7 @@ CONTAINS
             !
          ENDIF
          !
-         IF( ln_dynspg_ts .AND. ln_bt_fw ) THEN
+         IF( ln_dynspg_ts ) THEN
             ! Revert filtered "now" velocities to time split estimate
             ! Doing it here also means that asselin filter contribution is removed
             ! zue(:,:) = pe3u(:,:,1,Kmm) * puu(:,:,1,Kmm) * umask(:,:,1)

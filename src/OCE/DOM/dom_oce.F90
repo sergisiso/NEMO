@@ -50,7 +50,6 @@ MODULE dom_oce
 
    !! Time splitting parameters
    !! =========================
-   LOGICAL,  PUBLIC :: ln_bt_fw         !: Forward integration of barotropic sub-stepping
    LOGICAL,  PUBLIC :: ln_bt_auto       !: Set number of barotropic iterations automatically
    INTEGER,  PUBLIC :: nn_bt_flt        !: Choice of dissipation method for barotropic sub-stepping
    INTEGER,  PUBLIC :: nn_e          !: Number of barotropic iterations during one baroclinic step (rn_Dt)

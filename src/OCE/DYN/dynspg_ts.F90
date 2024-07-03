@@ -128,10 +128,7 @@ CONTAINS
       !!              general momentum trend. 
       !!
       !! ** Method  : - split-explicit schem (time splitting) :
-      !!      Barotropic variables are advanced from internal time steps
-      !!      "n"   to "n+1" if ln_bt_fw=T
-      !!      or from 
-      !!      "n-1" to "n+1" if ln_bt_fw=F
+      !!      Barotropic variables are advanced from internal time steps Kbb to Kaa
       !!      thanks to a generalized forward-backward time stepping (see ref. below).
       !!
       !! ** Action :
@@ -151,10 +148,8 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj    ,jpt), INTENT(inout) ::  pssh, puu_b, pvv_b  ! SSH and barotropic velocities at main time levels
       !
       INTEGER  ::   ji, jj, jk, jn        ! dummy loop indices
-      LOGICAL  ::   ll_fw_start           ! =T : forward integration 
       LOGICAL  ::   ll_init               ! =T : special startup of 2d equations
-LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backward dissipation
-      INTEGER  ::   noffset               ! local integers  : time offset for bdy update
+      LOGICAL, SAVE :: ll_bt_av           ! =T : boxcard time averaging   =F : foreward backward dissipation
       REAL(wp) ::   z1_hu , z1_hv             ! local scalars
       REAL(wp) ::   zzsshu, zzsshv            !   -      -
       REAL(wp) ::   za0, za1, za2, za3        !   -      -
@@ -199,11 +194,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       IF( nn_bt_flt==3 )   ll_bt_av = .FALSE.
       !
       ll_init     = ll_bt_av                    ! if no time averaging, then no specific restart 
-      ll_fw_start = .FALSE.
       !                                         ! time offset in steps for bdy data update
-      IF( .NOT.ln_bt_fw ) THEN   ;   noffset = - nn_e
-      ELSE                       ;   noffset =   0 
-      ENDIF
       !
       IF( kt == nit000 ) THEN                   !* initialisation
          !
@@ -224,29 +215,12 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             ENDIF
          ENDIF
          !
-         IF( ln_bt_fw ) THEN
-            ll_fw_start =.TRUE.
-            noffset     = 0
-         ENDIF
          !                    ! Set averaging weights and cycle length:
-         CALL ts_wgt( ll_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
+         CALL ts_wgt( ll_bt_av, icycle, wgtbtp1, wgtbtp2 )
          ! Save weights sums:
          r1_wgt1s = SUM(wgtbtp1)
          r1_wgt2s = SUM(wgtbtp2)
          !
-      ELSEIF( kt == nit000 + 1 ) THEN           !* initialisation 2nd time-step
-         !
-         IF( .NOT.ln_bt_fw ) THEN
-            ! If we did an Euler timestep on the first timestep we need to reset ll_fw_start
-            ! and the averaging weights. We don't have an easy way of telling whether we did
-            ! an Euler timestep on the first timestep (because l_1st_euler is reset to .false.
-            ! at the end of the first timestep) so just do this in all cases. 
-            ll_fw_start = .FALSE.
-            CALL ts_wgt( ll_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
-            ! Save weights sums:
-            r1_wgt1s = SUM(wgtbtp1)
-            r1_wgt2s = SUM(wgtbtp2)
-         ENDIF
          !
       ENDIF
       !
@@ -258,11 +232,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !                    !========================================!
       !                    !==  Phase 1 for RK3 time integration  ==!
       !                    !========================================!
-      !
-      !                          ! Currently, RK3 requires the forward mode
-      IF( kt == nit000 ) THEN
-         IF( .NOT.ln_bt_fw  )   CALL ctl_stop( 'dyn_spg_ts: RK3 requires forward mode (ln_bt_fw=T)' )
-      ENDIF
       !
       !                          ! set values computed in RK3_ssh
        ssh_frc(:,:) = sshe_rhs(:,:)
@@ -320,26 +289,14 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          zhtp2_e(:,:) = ht_0(:,:)
       ENDIF
       !
-      IF( ln_bt_fw ) THEN                 ! FORWARD integration: start from NOW fields
-         !                                   ! RK3: Kmm = Kbb when calling dynspg_ts
-         sshn_e(:,:) =    pssh (:,:,Kmm)            
-         un_e  (:,:) =    puu_b(:,:,Kmm)            
-         vn_e  (:,:) =    pvv_b(:,:,Kmm)
-         !
-         hu_e  (:,:) =    hu(:,:,Kmm)       
-         hv_e  (:,:) =    hv(:,:,Kmm) 
-         hur_e (:,:) = r1_hu(:,:,Kmm)    
-         hvr_e (:,:) = r1_hv(:,:,Kmm)
-      ELSE                                ! CENTRED integration: start from BEFORE fields
-         sshn_e(:,:) =    pssh (:,:,Kbb)
-         un_e  (:,:) =    puu_b(:,:,Kbb)         
-         vn_e  (:,:) =    pvv_b(:,:,Kbb)
-         !
-         hu_e  (:,:) =    hu(:,:,Kbb)       
-         hv_e  (:,:) =    hv(:,:,Kbb) 
-         hur_e (:,:) = r1_hu(:,:,Kbb)    
-         hvr_e (:,:) = r1_hv(:,:,Kbb)
-      ENDIF
+      sshn_e(:,:) =    pssh (:,:,Kmm)            
+      un_e  (:,:) =    puu_b(:,:,Kmm)            
+      vn_e  (:,:) =    pvv_b(:,:,Kmm)
+      !
+      hu_e  (:,:) =    hu(:,:,Kmm)       
+      hv_e  (:,:) =    hv(:,:,Kmm) 
+      hur_e (:,:) = r1_hu(:,:,Kmm)    
+      hvr_e (:,:) = r1_hv(:,:,Kmm)
       !
       ! Initialize sums:
       puu_b (:,:,Kaa) = 0._wp       ! After barotropic velocities (or transport if flux form)          
@@ -361,10 +318,10 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          !
          !                    !==  Update the forcing ==! (BDY and tides)
          !
-         IF( ln_bdy      .AND. ln_tide )   CALL bdy_dta_tides( kt, kit=jn, pt_offset= REAL(noffset+1,wp) )
+         IF( ln_bdy      .AND. ln_tide )   CALL bdy_dta_tides( kt, kit=jn, pt_offset= 1._wp )
          ! Update tide potential at the beginning of current time substep
          IF( ln_tide_pot .AND. ln_tide ) THEN
-            zt0substep = REAL(nsec_day, wp) - 0.5_wp*rn_Dt + (jn + noffset - 1) * rn_Dt / REAL(nn_e, wp)
+            zt0substep = REAL(nsec_day, wp) - 0.5_wp*rn_Dt + (jn - 1) * rn_Dt / REAL(nn_e, wp)
             CALL upd_tide(zt0substep, Kmm)
          END IF
          !
@@ -449,7 +406,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          !
 #if defined key_agrif
          ! Set fluxes during predictor step to ensure volume conservation
-         IF( ln_bt_fw )   CALL agrif_dyn_ts_flux( jn, zhU, zhV )
+         CALL agrif_dyn_ts_flux( jn, zhU, zhV )
 #endif
 
          IF( ln_wd_dl ) THEN           ! un_e and vn_e are set to zero at faces where 
@@ -776,14 +733,13 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
    END SUBROUTINE dyn_spg_ts
 
    
-   SUBROUTINE ts_wgt( ll_av, ll_fw, Kpit, zwgt1, zwgt2)
+   SUBROUTINE ts_wgt( ll_av, Kpit, zwgt1, zwgt2)
       !!---------------------------------------------------------------------
       !!                   ***  ROUTINE ts_wgt  ***
       !!
       !! ** Purpose : Set time-splitting weights for temporal averaging (or not)
       !!----------------------------------------------------------------------
       LOGICAL, INTENT(in   ) ::   ll_av     ! temporal averaging=.true.
-      LOGICAL, INTENT(in   ) ::   ll_fw     ! forward time splitting =.true.
       INTEGER, INTENT(inout) ::   Kpit      ! cycle length
       !!
       INTEGER ::  jic, jn, ji   ! local integers
@@ -795,9 +751,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       zwgt2(:) = 0._wp
       !
       !                          !==  Set time index when averaged value is requested  ==!
-      IF (ll_fw) THEN   ;   jic =     nn_e
-      ELSE              ;   jic = 2 * nn_e
-      ENDIF
+      jic = nn_e
       !
       !                          !==  Set primary weights  ==!
       !
@@ -941,14 +895,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       IF( nn_bt_flt==3 .AND. rn_bt_alpha<=0._wp ) &
          &   CALL ctl_stop( 'dynspg_ts ERROR: if nn_bt_flt=3, then rn_bt_alpha must be /=0 (typical value=0.07)' )
       !
-      IF( .NOT.ln_bt_fw ) CALL ctl_warn( 'dynspg_ts: enforce ln_bt_fw=TRUE with RK3' )
-      ln_bt_fw = .TRUE.
-#if defined key_agrif
-      IF( .NOT.ln_bt_fw .AND. .NOT.Agrif_Root() ) THEN      ! Restrict the use of Agrif to the forward case only
-         CALL ctl_warn( 'dynspg_ts: AGRIF not implemented with ln_bt_fw=FALSE => set to TRUE' )
-         ln_bt_fw = .TRUE.
-      ENDIF
-#endif
       !
       ! ---------------------------------------
       ! Max courant number for ext. grav. waves
@@ -1009,12 +955,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          WRITE(numout,*) '                              in iterations nn_e = ', nn_e
          IF( ln_bt_auto ) THEN ; WRITE(numout,*) '        set auto (ln_bt_auto=T) with max courant number = ', zcmax
          ELSE                  ; WRITE(numout,*) '        set      (ln_bt_auto=F) with the namelist parameter nn_e '
-         ENDIF
-         !
-         WRITE(numout,*)
-         WRITE(numout,*) '     Barotropic integration '
-         IF( ln_bt_fw ) THEN ; WRITE(numout,*) '        ln_bt_fw=T => Forward integration of barotropic variables '
-         ELSE                ; WRITE(numout,*) '        ln_bt_fw=F => Centred integration of barotropic variables '
          ENDIF
       ENDIF
       !
@@ -1227,7 +1167,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !
    END SUBROUTINE wad_Umsk
 
-   SUBROUTINE dyn_drg_init( Kbb, Kmm, puu, pvv, puu_b ,pvv_b, pu_RHSi, pv_RHSi, pCdU_u, pCdU_v )
+   SUBROUTINE dyn_drg_init( Kbb, puu, pvv, puu_b ,pvv_b, pu_RHSi, pv_RHSi, pCdU_u, pCdU_v )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE dyn_drg_init  ***
       !!                    
@@ -1237,7 +1177,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !!
       !! ** Method  :   computation done over the INNER domain only 
       !!----------------------------------------------------------------------
-      INTEGER                             , INTENT(in   ) ::  Kbb, Kmm           ! ocean time level indices
+      INTEGER                             , INTENT(in   ) ::  Kbb                ! ocean time level indice
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(in   ) ::  puu, pvv           ! ocean velocities and RHS of momentum equation
       REAL(wp), DIMENSION(jpi,jpj,jpt)    , INTENT(in   ) ::  puu_b, pvv_b       ! barotropic velocities at main time levels
       REAL(wp), DIMENSION(A2D(0))         , INTENT(inout) ::  pu_RHSi, pv_RHSi   ! baroclinic part of the barotropic RHS
@@ -1266,52 +1206,34 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !
       !                    !==  BOTTOM stress contribution from baroclinic velocities  ==!
       !
-      IF( ln_bt_fw ) THEN                 ! FORWARD integration: use NOW bottom baroclinic velocities
-         DO_2D( 0, 0, 0, 0 )
-            ikbu = mbku(ji,jj)       
-            ikbv = mbkv(ji,jj)    
-            zu_i(ji,jj) = puu(ji,jj,ikbu,Kmm) - puu_b(ji,jj,Kmm)
-            zv_i(ji,jj) = pvv(ji,jj,ikbv,Kmm) - pvv_b(ji,jj,Kmm)
-         END_2D
-      ELSE                                ! CENTRED integration: use BEFORE bottom baroclinic velocities        
-         DO_2D( 0, 0, 0, 0 )
-            ikbu = mbku(ji,jj)       
-            ikbv = mbkv(ji,jj)    
-            zu_i(ji,jj) = puu(ji,jj,ikbu,Kbb) - puu_b(ji,jj,Kbb)
-            zv_i(ji,jj) = pvv(ji,jj,ikbv,Kbb) - pvv_b(ji,jj,Kbb)
-         END_2D
-      ENDIF
+      DO_2D( 0, 0, 0, 0 )
+         ikbu = mbku(ji,jj)       
+         ikbv = mbkv(ji,jj)    
+         zu_i(ji,jj) = puu(ji,jj,ikbu,Kbb) - puu_b(ji,jj,Kbb)
+         zv_i(ji,jj) = pvv(ji,jj,ikbv,Kbb) - pvv_b(ji,jj,Kbb)
+      END_2D
       !
       ! use "unclipped" drag (even if explicit friction is used in 3D calculation)
          
       DO_2D( 0, 0, 0, 0 )
-         pu_RHSi(ji,jj) = pu_RHSi(ji,jj) + r1_hu(ji,jj,Kmm) * r1_2*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) * zu_i(ji,jj)
-         pv_RHSi(ji,jj) = pv_RHSi(ji,jj) + r1_hv(ji,jj,Kmm) * r1_2*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) * zv_i(ji,jj)
+         pu_RHSi(ji,jj) = pu_RHSi(ji,jj) + r1_hu(ji,jj,Kbb) * r1_2*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) * zu_i(ji,jj)
+         pv_RHSi(ji,jj) = pv_RHSi(ji,jj) + r1_hv(ji,jj,Kbb) * r1_2*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) * zv_i(ji,jj)
       END_2D
       !
       !                    !==  TOP stress contribution from baroclinic velocities  ==!   (no W/D case)
       !
       IF( ln_isfcav.OR.ln_drgice_imp ) THEN
          !
-         IF( ln_bt_fw ) THEN                ! FORWARD integration: use NOW top baroclinic velocity
-            DO_2D( 0, 0, 0, 0 )
-               iktu = miku(ji,jj)
-               iktv = mikv(ji,jj)
-               zu_i(ji,jj) = puu(ji,jj,iktu,Kmm) - puu_b(ji,jj,Kmm)
-               zv_i(ji,jj) = pvv(ji,jj,iktv,Kmm) - pvv_b(ji,jj,Kmm)
-            END_2D
-         ELSE                               ! CENTRED integration: use BEFORE top baroclinic velocity
-            DO_2D( 0, 0, 0, 0 )
-               iktu = miku(ji,jj)
-               iktv = mikv(ji,jj)
-               zu_i(ji,jj) = puu(ji,jj,iktu,Kbb) - puu_b(ji,jj,Kbb)
-               zv_i(ji,jj) = pvv(ji,jj,iktv,Kbb) - pvv_b(ji,jj,Kbb)
-            END_2D
-         ENDIF
+         DO_2D( 0, 0, 0, 0 )
+            iktu = miku(ji,jj)
+            iktv = mikv(ji,jj)
+            zu_i(ji,jj) = puu(ji,jj,iktu,Kbb) - puu_b(ji,jj,Kbb)
+            zv_i(ji,jj) = pvv(ji,jj,iktv,Kbb) - pvv_b(ji,jj,Kbb)
+         END_2D
          !                    ! use "unclipped" top drag (even if explicit friction is used in 3D calculation)       
          DO_2D( 0, 0, 0, 0 )
-            pu_RHSi(ji,jj) = pu_RHSi(ji,jj) + r1_hu(ji,jj,Kmm) * r1_2*( rCdU_top(ji+1,jj)+rCdU_top(ji,jj) ) * zu_i(ji,jj)
-            pv_RHSi(ji,jj) = pv_RHSi(ji,jj) + r1_hv(ji,jj,Kmm) * r1_2*( rCdU_top(ji,jj+1)+rCdU_top(ji,jj) ) * zv_i(ji,jj)
+            pu_RHSi(ji,jj) = pu_RHSi(ji,jj) + r1_hu(ji,jj,Kbb) * r1_2*( rCdU_top(ji+1,jj)+rCdU_top(ji,jj) ) * zu_i(ji,jj)
+            pv_RHSi(ji,jj) = pv_RHSi(ji,jj) + r1_hv(ji,jj,Kbb) * r1_2*( rCdU_top(ji,jj+1)+rCdU_top(ji,jj) ) * zv_i(ji,jj)
          END_2D
          !
       ENDIF
