@@ -99,7 +99,6 @@ printf "%-33s : %s\n" USING_COLLECTIVES $USING_COLLECTIVES        >> ./sette_con
 printf "%-33s : %s\n" USING_QCO $USING_QCO                        >> ./sette_config
 printf "%-33s : %s\n" USING_XIOS $USING_XIOS                      >> ./sette_config
 printf "%-33s : %s\n" USING_MPMD $USING_MPMD                      >> ./sette_config
-printf "%-33s : %s\n" USING_RK3 $USING_RK3                        >> ./sette_config
 printf "%-33s : %s\n" USER_INPUT $USER_INPUT                      >> ./sette_config
 printf "%-33s : %s\n" "Common compile keys added" "$ADD_KEYS"     >> ./sette_config
 printf "%-33s : %s\n" "Common compile keys deleted" "$DEL_KEYS"   >> ./sette_config
