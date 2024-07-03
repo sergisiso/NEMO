@@ -392,11 +392,7 @@ CONTAINS
          IF( ln_rnf_ctl .AND. .NOT.ln_trc_cbc(jn) ) THEN
             DO_2D( 0, 0, 0, 0 )
                DO jk = 1, nk_rnf(ji,jj)
-#if defined key_RK3
                   zrnf =  rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj) * ptr(ji,jj,jk,jn,Kbb)
-#else
-                  zrnf = ( rnf(ji,jj) + rnf_b(ji,jj) ) * 0.5_wp * r1_rho0 / h_rnf(ji,jj) * ptr(ji,jj,jk,jn,Kmm) 
-#endif
                   ptr(ji,jj,jk,jn,Krhs) = ptr(ji,jj,jk,jn,Krhs)  + zrnf
                END DO
             END_2D
