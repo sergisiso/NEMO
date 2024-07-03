@@ -1,6 +1,6 @@
-MODULE trcstp_rk3
+MODULE trcstp
    !!======================================================================
-   !!                       ***  MODULE trcstp_rk3  ***
+   !!                       ***  MODULE trcstp  ***
    !! Time-stepping    : time loop of opa for passive tracer
    !!======================================================================
    !! History :  1.0  !  2004-03  (C. Ethe)  Original
@@ -38,7 +38,7 @@ MODULE trcstp_rk3
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC  trc_stp_rk3
+   PUBLIC  trc_stp
 
    LOGICAL  ::   llnew                   ! ???
    LOGICAL  ::   l_trcstat               ! flag for tracer statistics
@@ -56,7 +56,7 @@ MODULE trcstp_rk3
    !!----------------------------------------------------------------------
 CONTAINS
   
-    SUBROUTINE trc_stp_rk3( kstg, kt, Kbb, Kmm, Krhs, Kaa, pFu, pFv, pFw )
+    SUBROUTINE trc_stp( kstg, kt, Kbb, Kmm, Krhs, Kaa, pFu, pFv, pFw )
       !!-------------------------------------------------------------------
       !!                     ***  ROUTINE trc_stp_start  ***
       !!                      
@@ -76,11 +76,11 @@ CONTAINS
       CHARACTER (len=25) ::   charout   !
       !!-------------------------------------------------------------------
 
-      IF( ln_timing )   CALL timing_start('trc_stp_rk3')
+      IF( ln_timing )   CALL timing_start('trc_stp')
       !
       IF( kt == nit000 ) THEN
          IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'trc_stp_rk3 : Runge Kutta 3rd order at stage ', kstg
+         IF(lwp) WRITE(numout,*) 'trc_stp : Runge Kutta 3rd order at stage ', kstg
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
       ENDIF
      !
@@ -152,9 +152,9 @@ CONTAINS
          !
       END SELECT
       !
-      IF( ln_timing )   CALL timing_stop('trc_stp_rk3')
+      IF( ln_timing )   CALL timing_stop('trc_stp')
       !
-   END SUBROUTINE trc_stp_rk3
+   END SUBROUTINE trc_stp
 
       !
    SUBROUTINE trc_stp_start( kt, Kbb, Kmm, Krhs, Kaa )
@@ -242,7 +242,7 @@ CONTAINS
             z4d(:,:,:,jn) = tr(:,:,:,jn,Kaa) * cvol(:,:,:)
          ENDDO
          !
-         ztraa(1:jptra) = glob_3Dsum( 'trcstp_rk3', z4d(:,:,:,1:jptra) )
+         ztraa(1:jptra) = glob_3Dsum( 'trcstp', z4d(:,:,:,1:jptra) )
          IF( lwm ) WRITE(numstr,9300) kt,  SUM( ztraa ) / areatot
          !
          DEALLOCATE( z4d, ztraa )
@@ -377,14 +377,14 @@ CONTAINS
    USE oce_trc
    IMPLICIT NONE
 CONTAINS
-   SUBROUTINE trc_stp_rk3( kstg, kt, Kbb, Kmm, Krhs, Kaa, pFu, pFv, pFw )         ! Empty routine
+   SUBROUTINE trc_stp( kstg, kt, Kbb, Kmm, Krhs, Kaa, pFu, pFv, pFw )         ! Empty routine
       INTEGER, INTENT(in   ) ::   kstg                                            ! RK3 stage
       INTEGER, INTENT(in   ) ::   kt                                              ! time-step index
       INTEGER, INTENT(in   ) ::   Kbb, Kmm, Krhs, Kaa                             ! time-level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk), OPTIONAL, INTENT(in) ::   pFu, pFv, pFw   ! advective transport
       WRITE(*,*) 'trc_stp: You should not have seen this print! error?', kt
-   END SUBROUTINE trc_stp_rk3
+   END SUBROUTINE trc_stp
 #endif
 
    !!======================================================================
-END MODULE trcstp_rk3
+END MODULE trcstp

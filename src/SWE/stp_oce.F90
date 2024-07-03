@@ -2,7 +2,7 @@ MODULE stp_oce
    !!======================================================================
    !!                       ***  MODULE stp_oce  ***
    !! Ocean time-stepping : module used in both initialisation phase and time stepping
-   !!                                     (i.e. nemo_init and stp or stp_MLF routines)
+   !!                                     (i.e. nemo_init and stp routines)
    !!======================================================================
    !! History :   3.3  !  2010-08  (C. Ethe)  Original code - reorganisation of the initial phase
    !!             3.7  !  2014-01  (G. Madec) LDF simplication 

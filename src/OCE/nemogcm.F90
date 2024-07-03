@@ -150,7 +150,7 @@ CONTAINS
          !
          ncom_stp = istp
          CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, 1000 )
-         CALL stp_RK3
+         CALL stp
          CALL timing_stop( 'step', istp )
          istp = istp + 1
       END DO
@@ -162,7 +162,7 @@ CONTAINS
          DO WHILE( istp <= nitend .AND. nstop == 0 )
             ncom_stp = istp
             CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, 1000 )
-            CALL stp_RK3( istp )
+            CALL stp( istp )
             CALL timing_stop( 'step', istp )
             istp = istp + 1
          END DO

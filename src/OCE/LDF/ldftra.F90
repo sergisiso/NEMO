@@ -35,10 +35,6 @@ MODULE ldftra
 
    IMPLICIT NONE
    PRIVATE
-   !                  !! * Interface
-   INTERFACE ldf_eiv_trp
-      MODULE PROCEDURE ldf_eiv_trp_MLF, ldf_eiv_trp_RK3
-   END INTERFACE ldf_eiv_trp
    
    PUBLIC   ldf_tra_init   ! called by nemogcm.F90
    PUBLIC   ldf_tra        ! called by step.F90
@@ -718,93 +714,7 @@ CONTAINS
    END SUBROUTINE ldf_eiv
 
    
-   SUBROUTINE ldf_eiv_trp_MLF( kt, kit000, puu, pvv, pww, Kmm, Krhs, cdtype )
-      !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE ldf_eiv_trp  ***
-      !!
-      !! ** Purpose :   add to the input ocean transport the contribution of
-      !!              the eddy induced velocity parametrization.
-      !!
-      !! ** Method  :   The eddy induced transport is computed from a flux stream-
-      !!              function which depends on the slope of iso-neutral surfaces
-      !!              (see ldf_slp). For example, in the i-k plan :
-      !!                   psi_uw = mk(aeiu) e2u mi(wslpi)   [in m3/s]
-      !!                   Utr_eiv = - dk[psi_uw]
-      !!                   Vtr_eiv = + di[psi_uw]
-      !!                l_ldfeiv_dia = T : output the associated streamfunction,
-      !!                                    velocity and heat transport (call ldf_eiv_dia)
-      !!
-      !! ** Action  : pu, pv increased by the eiv transport
-      !!----------------------------------------------------------------------
-      INTEGER                             , INTENT(in   ) :: kt        ! ocean time-step index
-      INTEGER                             , INTENT(in   ) :: kit000    ! first time step index
-      INTEGER                             , INTENT(in   ) :: Kmm, Krhs ! ocean time level indices 
-      CHARACTER(len=3)                    , INTENT(in   ) :: cdtype    ! =TRA or TRC (tracer indicator)
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) :: puu       ! in : 3 ocean transport components   [m3/s]
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) :: pvv       ! out: 3 ocean transport components   [m3/s]
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) :: pww       ! increased by the eiv                [m3/s]
-      !!
-      INTEGER  ::   ji, jj, jk                 ! dummy loop indices
-      REAL(wp) ::   zuwk, zuwk1, zuwi, zuwi1   ! local scalars
-      REAL(wp) ::   zvwk, zvwk1, zvwj, zvwj1   !   -      -
-      REAL(wp), DIMENSION(T2D(nn_hls),2)      ::   zpsi_uw, zpsi_vw
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrpu, ztrpv
-      !!----------------------------------------------------------------------
-      !      
-      IF( l_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
-         ALLOCATE( ztrpu(T2D(nn_hls),jpk), ztrpv(T2D(nn_hls),jpk) )
-         ztrpu(:,:,jpk) = 0._wp ; ztrpv(:,:,jpk) = 0._wp
-      ENDIF
-      
-      IF( .NOT. l_istiled .OR. ntile == 1 )  THEN                       ! Do only on the first tile
-         IF( kt == kit000 )  THEN
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) 'ldf_eiv_trp : eddy induced advection on ', cdtype,' :'
-            IF(lwp) WRITE(numout,*) '~~~~~~~~~~~   add to velocity fields the eiv component'
-         ENDIF
-      ENDIF
-
-      zpsi_uw(:,:,:) = 0._wp ! surface value = 0
-      zpsi_vw(:,:,:) = 0._wp
-      DO jk = 1, jpkm1
-         !
-         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            ! value at jk -> swap
-            zpsi_uw(ji,jj,1) = zpsi_uw(ji,jj,2)
-            zpsi_vw(ji,jj,1) = zpsi_vw(ji,jj,2)
-            ! value at jk+1
-            zpsi_uw(ji,jj,2) = - r1_4 * e2u(ji,jj) * ( wslpi(ji,jj,jk+1) + wslpi(ji+1,jj,jk+1) )   &
-               &                                   * ( aeiu (ji,jj,jk  ) + aeiu (ji  ,jj,jk+1) ) * wumask(ji,jj,jk+1)
-            zpsi_vw(ji,jj,2) = - r1_4 * e1v(ji,jj) * ( wslpj(ji,jj,jk+1) + wslpj(ji,jj+1,jk+1) )   &
-               &                                   * ( aeiv (ji,jj,jk  ) + aeiv (ji,jj  ,jk+1) ) * wvmask(ji,jj,jk+1)
-         END_2D
-         !
-         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            puu(ji,jj,jk) = puu(ji,jj,jk) - ( zpsi_uw(ji,jj,1) - zpsi_uw(ji,jj,2) )
-            pvv(ji,jj,jk) = pvv(ji,jj,jk) - ( zpsi_vw(ji,jj,1) - zpsi_vw(ji,jj,2) )
-         END_2D
-         DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
-            pww(ji,jj,jk) = pww(ji,jj,jk) + (  ( zpsi_uw(ji,jj,1) - zpsi_uw(ji-1,jj  ,1) )   &   ! add () for NP repro
-               &                             + ( zpsi_vw(ji,jj,1) - zpsi_vw(ji  ,jj-1,1) ) )
-         END_2D
-         !
-         IF( l_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
-            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-               ztrpu(ji,jj,jk) = zpsi_uw(ji,jj,1)
-               ztrpv(ji,jj,jk) = zpsi_vw(ji,jj,1)
-            END_2D
-         ENDIF
-      ENDDO
-      !                              ! diagnose the eddy induced velocity and associated heat transport
-      IF( l_ldfeiv_dia .AND. cdtype == 'TRA' ) THEN
-         CALL ldf_eiv_dia( ztrpu, ztrpv, Kmm )
-         DEALLOCATE( ztrpu, ztrpv )
-      ENDIF
-      !
-    END SUBROUTINE ldf_eiv_trp_MLF
-
-    
-   SUBROUTINE ldf_eiv_trp_RK3( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
+   SUBROUTINE ldf_eiv_trp( kt, kit000, pFu, pFv, pFw, Kmm, Krhs )
       !!
       INTEGER                             , INTENT(in   ) :: kt        ! ocean time-step index
       INTEGER                             , INTENT(in   ) :: kit000    ! first time step index
@@ -813,11 +723,11 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:)          , INTENT(inout) ::   pFv     ! out: same 3  transport components
       REAL(wp), DIMENSION(A2D(nn_hls),jpk), INTENT(inout) ::   pFw     !   increased by the eiv induced transport
       !!
-      CALL ldf_eiv_trp_RK3_t( kt, kit000, pFu, pFv, lbnd_ij(pFu), pFw, Kmm, Krhs )
-   END SUBROUTINE ldf_eiv_trp_RK3
+      CALL ldf_eiv_trp_t( kt, kit000, pFu, pFv, lbnd_ij(pFu), pFw, Kmm, Krhs )
+   END SUBROUTINE ldf_eiv_trp
 
 
-    SUBROUTINE ldf_eiv_trp_RK3_t( kt, kit000, pFu, pFv, ktFuv, pFw, Kmm, Krhs )
+    SUBROUTINE ldf_eiv_trp_t( kt, kit000, pFu, pFv, ktFuv, pFw, Kmm, Krhs )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE ldf_eiv_trp  ***
       !!
@@ -897,7 +807,7 @@ CONTAINS
          DEALLOCATE( ztrpu, ztrpv )
       ENDIF
       !
-   END SUBROUTINE ldf_eiv_trp_RK3_t
+   END SUBROUTINE ldf_eiv_trp_t
 
 
    SUBROUTINE ldf_eiv_dia( psi_uw, psi_vw, Kmm )

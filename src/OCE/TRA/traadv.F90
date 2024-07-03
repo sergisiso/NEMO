@@ -88,7 +88,7 @@ MODULE traadv
 CONTAINS
 
    !!----------------------------------------------------------------------
-   !!   'key_RK3'                                         RK3 time-stepping
+   !!                                                     RK3 time-stepping
    !!----------------------------------------------------------------------
 
    SUBROUTINE tra_adv_trp( kt, kstg, kit000, Kbb, Kmm, Kaa, Krhs, pFu, pFv, pFw )

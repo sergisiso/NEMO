@@ -1,6 +1,6 @@
 MODULE stprk3_stg
    !!======================================================================
-   !!                       ***  MODULE stprk3_stg  ***
+   !!                       ***  MODULE stp_stg  ***
    !! Time-stepping   : manager of the ocean, tracer and ice time stepping
    !!                   using a 3rd order Runge-Kutta  with fixed or quasi-eulerian coordinate
    !!======================================================================
@@ -16,7 +16,7 @@ MODULE stprk3_stg
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!    stp_RK3_stg  : NEMO 3rd order Runge-Kutta stage with qco or linssh
+   !!    stp_stg  : NEMO 3rd order Runge-Kutta stage with qco or linssh
    !!----------------------------------------------------------------------
    USE step_oce       ! time stepping used modules
    USE domqco         ! quasi-eulerian coordinate      (dom_qco_r3c routine)
@@ -24,7 +24,7 @@ MODULE stprk3_stg
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE tramle         ! ML eddy induced transport (tra_adv_mle  routine)
 # if defined key_top
-   USE trcstp_rk3
+   USE trcstp
 # endif
 # if defined key_agrif
    USE agrif_oce_interp
@@ -35,7 +35,7 @@ MODULE stprk3_stg
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   stp_RK3_stg   ! called by nemogcm.F90
+   PUBLIC   stp_stg   ! called by nemogcm.F90
 
    REAL(wp) ::   r1_2 = 1._wp / 2._wp
    REAL(wp) ::   r1_3 = 1._wp / 3._wp
@@ -55,9 +55,9 @@ MODULE stprk3_stg
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE stp_RK3_stg( kstg, kstp, Kbb, Kmm, Krhs, Kaa )
+   SUBROUTINE stp_stg( kstg, kstp, Kbb, Kmm, Krhs, Kaa )
       !!----------------------------------------------------------------------
-      !!                     ***  ROUTINE stp_RK3_stg  ***
+      !!                     ***  ROUTINE stp_stg  ***
       !!
       !! ** Purpose : - stage of RK3 time stepping of OCE and TOP
       !!
@@ -90,11 +90,11 @@ CONTAINS
 #endif
       !! ---------------------------------------------------------------------
 
-      IF( ln_timing )   CALL timing_start('stp_RK3_stg')
+      IF( ln_timing )   CALL timing_start('stp_stg')
       !
       IF( kstp == nit000 ) THEN
          IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'stp_RK3_stg : Runge Kutta 3rd order at stage ', kstg
+         IF(lwp) WRITE(numout,*) 'stp_stg : Runge Kutta 3rd order at stage ', kstg
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~~'
       ENDIF
       !
@@ -138,7 +138,7 @@ CONTAINS
             r3fb(:,:) = r3f(:,:)
             CALL dom_qco_r3c_RK3( ssha, r3ta, r3ua, r3va, r3fa )
             !
-            CALL lbc_lnk( 'stp_RK3_stg', r3ua, 'U', 1._wp, r3va, 'V', 1._wp, r3fa, 'F', 1._wp )
+            CALL lbc_lnk( 'stp_stg', r3ua, 'U', 1._wp, r3va, 'V', 1._wp, r3fa, 'F', 1._wp )
             !                          !
             r3t(:,:,Kaa) = r2_3 * r3t(:,:,Kbb) + r1_3 * r3ta(:,:)   ! at N+1/3 (Kaa)
             r3u(:,:,Kaa) = r2_3 * r3u(:,:,Kbb) + r1_3 * r3ua(:,:)
@@ -424,7 +424,7 @@ CONTAINS
       !
       IF( ln_shuman ) THEN                     ! Shuman averaging- tra_adv_trp not in tiling loop due to lbc_lnk
          !                                     !   clem: check why we cannot use this statement: IF( ln_shuman .AND. kstg == 3 )
-         CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,Kaa), 'U', -1._wp, vv(:,:,:,Kaa), 'V', -1._wp, ldfull=.TRUE. )
+         CALL lbc_lnk( 'stp_stg', uu(:,:,:,Kaa), 'U', -1._wp, vv(:,:,:,Kaa), 'V', -1._wp, ldfull=.TRUE. )
          !
          IF( ln_bdy ) THEN                               !* BDY open boundaries
             IF( ln_dynspg_exp )   CALL bdy_dyn( kstp, Kbb, uu, vv, Kaa )
@@ -442,7 +442,7 @@ CONTAINS
       !
 # if defined key_top
       !                       !==  Passive Tracer  ==!
-      IF( ln_top )   CALL trc_stp_rk3( kstg, kstp, Kbb, Kmm, Krhs, Kaa, zFu, zFv, zFw )
+      IF( ln_top )   CALL trc_stp( kstg, kstp, Kbb, Kmm, Krhs, Kaa, zFu, zFv, zFw )
       !
 # endif
       !
@@ -459,7 +459,7 @@ CONTAINS
          !
          CALL tra_adv    ( kstp, Kbb, Kmm, Kaa, ts, Krhs, zFu, zFv, zFw, kstg )   ! horizontal & vertical advection
          !
-         CALL tra_sbc_RK3( kstp, Kbb, Kmm,      ts, Krhs,                kstg )   ! surface boundary condition
+         CALL tra_sbc( kstp, Kbb, Kmm,      ts, Krhs,                kstg )   ! surface boundary condition
 
 !!gm ===>>> Question: I'm surprised not to see kstg in argument of tra_isf : potential BUG.to be checked..
          IF( ln_isf )   CALL tra_isf( kstp, Kmm, ts, Krhs )                       ! ice shelf heat flux
@@ -562,18 +562,18 @@ CONTAINS
       !                                              !* local domain boundaries
       IF( ln_shuman ) THEN   ! for shuman, lbc already applied on uu and vv (see above)
          IF( l_zdfsh2 ) THEN
-            CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
+            CALL lbc_lnk( 'stp_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
                &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
          ELSE
-            CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
+            CALL lbc_lnk( 'stp_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
          ENDIF
       ELSE 
          IF( l_zdfsh2 ) THEN
-            CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+            CALL lbc_lnk( 'stp_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
                &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
                &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
          ELSE
-            CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+            CALL lbc_lnk( 'stp_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
                &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
          ENDIF
       ENDIF            
@@ -590,9 +590,9 @@ CONTAINS
       DEALLOCATE( zFu, zFv, zFw )
 #endif
       !
-      IF( ln_timing )   CALL timing_stop('stp_RK3_stg')
+      IF( ln_timing )   CALL timing_stop('stp_stg')
       !
-   END SUBROUTINE stp_RK3_stg
+   END SUBROUTINE stp_stg
 
 #else
    !!----------------------------------------------------------------------
