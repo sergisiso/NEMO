@@ -139,9 +139,7 @@ CONTAINS
       ENDIF
 #endif
       ! 
-#if defined key_RK3
       IF( .NOT. ln_rstart ) THEN
-#endif
          ! Initialize "before" barotropic velocities. "now" values are always set but 
          ! "before" values may have been read from a restart to ensure restartability.
          ! In the non-restart or non-RK3 cases they need to be initialised here:
@@ -153,28 +151,15 @@ CONTAINS
          uu_b(:,:,Kbb) = uu_b(:,:,Kbb) * r1_hu(:,:,Kbb)
          vv_b(:,:,Kbb) = vv_b(:,:,Kbb) * r1_hv(:,:,Kbb)
          ! 
-#if defined key_RK3
       ENDIF
-#endif
       !
       ! Initialize "now" barotropic velocities:
       ! Do it whatever the free surface method, these arrays being used eventually 
       !
-#if  defined key_RK3
       IF( .NOT. ln_rstart ) THEN
          uu_b(:,:,Kmm)   = uu_b(:,:,Kbb)   ! Kmm value set to Kbb for initialisation in Agrif_Regrid in namo_gcm
          vv_b(:,:,Kmm)   = vv_b(:,:,Kbb)
       ENDIF
-#else
-!!gm  the use of umask & vmask is not necessary below as uu(:,:,:,Kmm), vv(:,:,:,Kmm), uu(:,:,:,Kbb), vv(:,:,:,Kbb) are always masked
-      uu_b(:,:,Kmm) = 0._wp   ;   vv_b(:,:,Kmm) = 0._wp
-      DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpkm1 )
-         uu_b(ji,jj,Kmm) = uu_b(ji,jj,Kmm) + e3u(ji,jj,jk,Kmm) * uu(ji,jj,jk,Kmm) * umask(ji,jj,jk)
-         vv_b(ji,jj,Kmm) = vv_b(ji,jj,Kmm) + e3v(ji,jj,jk,Kmm) * vv(ji,jj,jk,Kmm) * vmask(ji,jj,jk)
-      END_3D
-      uu_b(:,:,Kmm) = uu_b(:,:,Kmm) * r1_hu(:,:,Kmm)
-      vv_b(:,:,Kmm) = vv_b(:,:,Kmm) * r1_hv(:,:,Kmm)
-#endif
       !
    END SUBROUTINE istate_init
 

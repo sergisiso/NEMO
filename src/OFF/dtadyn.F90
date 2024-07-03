@@ -149,12 +149,8 @@ CONTAINS
          ALLOCATE( zemp(jpi,jpj) , zhdivtr(jpi,jpj,jpk) )
          zhdivtr(:,:,:)    = sf_dyn(jf_div)%fnow(:,:,:)  * tmask(:,:,:)    ! horizontal divergence transport including runoffs
                                                                            ! see  sbc_rnf_div in sbcrnf.F90
-#if  defined key_RK3
          zemp (:,:)        =  emp(:,:) 
-#else
-         emp_b(:,:)        = sf_dyn(jf_empb)%fnow(:,:,1) * tmask(:,:,1)    ! E-P-R  ( in grid_T output file )
-         zemp (:,:)        =  0.5_wp * ( emp(:,:) + emp_b(:,:) )
-#endif         
+
          IF( ln_dynrnf )  zemp(:,:) = zemp(:,:) + rnf(:,:)                 ! remove runoff from emp since it is already included in zhdivtr
                           zemp(:,:) = zemp(:,:) * tmask(:,:,1)
 #if defined key_qco

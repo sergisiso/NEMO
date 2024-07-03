@@ -207,9 +207,6 @@ CONTAINS
       ! == FULL ARRAYS == !
       ! ----------------- !
       ALLOCATE( fwfisf_par  (jpi,jpj) , fwfisf_cav  (jpi,jpj) , risfload(jpi,jpj) , &
-#if ! defined key_RK3
-         &      fwfisf_par_b(jpi,jpj) , fwfisf_cav_b(jpi,jpj) , &   ! MLF : need to allocate before arrays
-#endif
          &                                                      STAT=ialloc )
       ierr = ierr + ialloc
       !
@@ -217,9 +214,6 @@ CONTAINS
       ! == REDUCED ARRAYS == !
       ! -------------------- !
       ALLOCATE( fwfisf_oasis(A2D(0)) , risf_par_tsc  (A2D(0),jpts) , risf_cav_tsc  (A2D(0),jpts) , &
-#if ! defined key_RK3
-         &                             risf_par_tsc_b(A2D(0),jpts) , risf_cav_tsc_b(A2D(0),jpts) , &  ! MLF : need to allocate before arrays
-#endif
          &                                                                  STAT=ialloc )
       ierr = ierr + ialloc
       !

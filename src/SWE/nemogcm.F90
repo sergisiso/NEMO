@@ -25,11 +25,7 @@ MODULE nemogcm
    USE isf_oce , ONLY : ln_isf           ! ice shelf
    USE trd_oce , ONLY : l_trddyn         ! dynamical trend logical
    USE dia25h  , ONLY : l_dia25h         ! 25h mean output
-#if defined key_RK3
    USE stprk3         ! NEMO time-stepping               (stp_RK3   routine)
-#else
-   USE stpmlf         ! NEMO time-stepping               (stp_MLF   routine)
-#endif
    !
    USE lib_mpp        ! distributed memory computing
    USE mppini         ! shared/distributed memory setting (mpp_init routine)
@@ -104,11 +100,7 @@ CONTAINS
          ncom_stp = istp
          CALL timing_start( 'step', istp, nit000, nitend, nn_fsbc, 1000 )
          ! 
-#if defined key_RK3
          CALL stp_RK3( istp )
-#else
-         CALL stp_MLF( istp )
-#endif
          CALL timing_stop( 'step', istp )
          istp = istp + 1
          !
