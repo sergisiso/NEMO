@@ -305,10 +305,27 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !                                   !  ---------------------------  !
 # if defined key_qco  || defined key_linssh
       ! e3. are substitute by 1D arrays and can't be used in SUM operand
+#  if defined key_GPU_reproducibility
+      ! Substitution of the intrinsic sum with an explicit version to ensure reproducibility between executions of this section on the
+      ! CPU and on a GPU accelerator
+      DO_2D( 0, 0, 0, 0 )
+         zu_frc(ji,jj) = e3u_0(ji,jj,1) * puu(ji,jj,1,Krhs) * umask(ji,jj,1)
+         zv_frc(ji,jj) = e3v_0(ji,jj,1) * pvv(ji,jj,1,Krhs) * vmask(ji,jj,1)
+      END_2D
+      DO_3D( 0, 0, 0, 0, 2, jpk )
+         zu_frc(ji,jj) = zu_frc(ji,jj) + e3u_0(ji,jj,jk) * puu(ji,jj,jk,Krhs) * umask(ji,jj,jk)
+         zv_frc(ji,jj) = zv_frc(ji,jj) + e3v_0(ji,jj,jk) * pvv(ji,jj,jk,Krhs) * vmask(ji,jj,jk)
+      END_3D
+      DO_2D( 0, 0, 0, 0 )
+         zu_frc(ji,jj) = zu_frc(ji,jj) * r1_hu_0(ji,jj)
+         zv_frc(ji,jj) = zv_frc(ji,jj) * r1_hv_0(ji,jj)
+      END_2D
+#  else
       DO_2D( 0, 0, 0, 0 )
          zu_frc(ji,jj) = SUM( e3u_0(ji,jj,:) * puu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu_0(ji,jj)
          zv_frc(ji,jj) = SUM( e3v_0(ji,jj,:) * pvv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv_0(ji,jj)
       END_2D
+#  endif
 # else
       DO_2D( 0, 0, 0, 0 )
          zu_frc(ji,jj) = SUM( e3u(ji,jj,:,Kmm) * puu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu(ji,jj,Kmm)

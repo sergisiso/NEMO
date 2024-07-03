@@ -86,7 +86,7 @@ if [[ ${TEST_TYPES[*]} =~ .*PHYOPTS.* ]]; then export DO_PHYOPTS=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*TRANSFORM.* ]]; then export DO_TRANSFORM=1 ;fi
 # LIST OF SOURCE-CODE TRANSFORMATIONS USED FOR THE TRANSFORM TEST
 # (list of 'passthrough' and/or names of available transformations)
-[ ${DO_TRANSFORM} -eq 1 ] && export SCTRANSFORMS=(passthrough)
+[ ${DO_TRANSFORM} -eq 1 ] && export SCTRANSFORMS=(passthrough OpenACC)
 # ------------------------------------------------------------------------------------------
 #
 # reporting  
