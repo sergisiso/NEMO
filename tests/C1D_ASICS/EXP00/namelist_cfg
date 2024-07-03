@@ -343,7 +343,6 @@
 &namdyn_spg    !   surface pressure gradient                            (default: NO selection)
 !-----------------------------------------------------------------------
     ln_dynspg_ts   = .false.   ! split-explicit free surface
-       ln_bt_fw      = .false.     ! Forward integration of barotropic Eqs.
        ln_bt_av      = .true.     ! Time filtering of barotropic variables
 /
 !-----------------------------------------------------------------------
