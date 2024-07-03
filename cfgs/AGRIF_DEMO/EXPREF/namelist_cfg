@@ -24,7 +24,6 @@
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-!MLF   rn_Dt      = 5400.     !  time step for the dynamics and tracer
    rn_Dt      = 10800.    !  time step for the dynamics and tracer
    ln_meshmask = .false.  !  =T create a mesh file
 /
@@ -308,8 +307,6 @@
 &namdyn_spg    !   surface pressure gradient                            (default: NO selection)
 !-----------------------------------------------------------------------
    ln_dynspg_ts  = .true.  !  split-explicit free surface
-!MLF      nn_bt_flt     = 1          ! Time filtering with nn_e width boxcar averaging
-!MLF      rn_bt_alpha   = 0.         ! Dissipative Forward Backward parameter
       nn_bt_flt     = 3          ! Time filtering with dissipative Forward Backward
       rn_bt_alpha   = 0.09       ! Dissipative Forward Backward parameter
 /
