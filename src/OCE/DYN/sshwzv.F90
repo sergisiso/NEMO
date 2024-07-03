@@ -119,11 +119,7 @@ CONTAINS
       ! compute the vertical velocity which can be used to compute the non-linear terms of the momentum equations.
       !
       DO_2D( 0, 0, 0, 0 )
-#if defined key_RK3
          pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( r1_rho0 * emp(ji,jj) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
-#else
-         pssh(ji,jj,Kaa) = (  pssh(ji,jj,Kbb) - rDt * ( zcoef * ( emp_b(ji,jj) + emp(ji,jj) ) + zhdiv(ji,jj) )  ) * ssmask(ji,jj)
-#endif
       END_2D
       ! pssh must be defined everywhere
       CALL lbc_lnk( 'sshwzv', pssh(:,:,Kaa), 'T', 1.0_wp, ldfull=.TRUE. )

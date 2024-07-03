@@ -211,7 +211,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          IF(lwp) WRITE(numout,*) 'dyn_spg_ts : surface pressure gradient trend'
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~   free surface with time splitting'
          IF(lwp) WRITE(numout,*)
-#if defined key_RK3
          !                    ! RK3: read bb and b field or start from 0
          IF( nn_bt_flt==3 ) THEN    
             IF( ln_rstart ) THEN           ! init bb fields with restart
@@ -229,17 +228,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             ll_fw_start =.TRUE.
             noffset     = 0
          ENDIF
-#else
-         !                    ! MLF: start from 0 except if restart+!euler
-         IF( l_1st_euler )   ll_init=.TRUE.
-         !
-         IF( ln_bt_fw .OR. l_1st_euler ) THEN
-            ll_fw_start =.TRUE.
-            noffset     = 0
-         ELSE
-            ll_fw_start =.FALSE.
-         ENDIF
-#endif
          !                    ! Set averaging weights and cycle length:
          CALL ts_wgt( ll_bt_av, ll_fw_start, icycle, wgtbtp1, wgtbtp2 )
          ! Save weights sums:
@@ -266,7 +254,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       ! -----------------------------------------------------------------------------
       !  Phase 1 : Coupling between general trend and barotropic estimates (1st step)
       ! -----------------------------------------------------------------------------
-#if defined key_RK3
+      !
       !                    !========================================!
       !                    !==  Phase 1 for RK3 time integration  ==!
       !                    !========================================!
@@ -301,160 +289,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          zu_frc(ji,jj) = zu_frc(ji,jj) - zu_trd(ji,jj) * ssumask(ji,jj)
          zv_frc(ji,jj) = zv_frc(ji,jj) - zv_trd(ji,jj) * ssvmask(ji,jj)
       END_2D
-
-#else
-      !                    !========================================!
-      !                    !==  Phase 1 for MLF time integration  ==!
-      !                    !========================================!
-      !
-      !      
-      !
-      !                                   !=  zu_frc =  1/H e3*d/dt(Ua)  =!  (Vertical mean of Ua, the 3D trends)
-      !                                   !  ---------------------------  !
-# if defined key_qco  || defined key_linssh
-      ! e3. are substitute by 1D arrays and can't be used in SUM operand
-#  if defined key_GPU_reproducibility
-      ! Substitution of the intrinsic sum with an explicit version to ensure reproducibility between executions of this section on the
-      ! CPU and on a GPU accelerator
-      DO_2D( 0, 0, 0, 0 )
-         zu_frc(ji,jj) = e3u_0(ji,jj,1) * puu(ji,jj,1,Krhs) * umask(ji,jj,1)
-         zv_frc(ji,jj) = e3v_0(ji,jj,1) * pvv(ji,jj,1,Krhs) * vmask(ji,jj,1)
-      END_2D
-      DO_3D( 0, 0, 0, 0, 2, jpk )
-         zu_frc(ji,jj) = zu_frc(ji,jj) + e3u_0(ji,jj,jk) * puu(ji,jj,jk,Krhs) * umask(ji,jj,jk)
-         zv_frc(ji,jj) = zv_frc(ji,jj) + e3v_0(ji,jj,jk) * pvv(ji,jj,jk,Krhs) * vmask(ji,jj,jk)
-      END_3D
-      DO_2D( 0, 0, 0, 0 )
-         zu_frc(ji,jj) = zu_frc(ji,jj) * r1_hu_0(ji,jj)
-         zv_frc(ji,jj) = zv_frc(ji,jj) * r1_hv_0(ji,jj)
-      END_2D
-#  else
-      DO_2D( 0, 0, 0, 0 )
-         zu_frc(ji,jj) = SUM( e3u_0(ji,jj,:) * puu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu_0(ji,jj)
-         zv_frc(ji,jj) = SUM( e3v_0(ji,jj,:) * pvv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv_0(ji,jj)
-      END_2D
-#  endif
-# else
-      DO_2D( 0, 0, 0, 0 )
-         zu_frc(ji,jj) = SUM( e3u(ji,jj,:,Kmm) * puu(ji,jj,:,Krhs) * umask(ji,jj,:) ) * r1_hu(ji,jj,Kmm)
-         zv_frc(ji,jj) = SUM( e3v(ji,jj,:,Kmm) * pvv(ji,jj,:,Krhs) * vmask(ji,jj,:) ) * r1_hv(ji,jj,Kmm)
-      END_2D
-# endif
-      !
-      !
-      !                                   !=  U(Krhs) => baroclinic trend  =!   (remove its vertical mean)
-      DO_3D( 0, 0, 0, 0, 1, jpkm1 )       !  -----------------------------  !
-         puu(ji,jj,jk,Krhs) = ( puu(ji,jj,jk,Krhs) - zu_frc(ji,jj) ) * umask(ji,jj,jk)
-         pvv(ji,jj,jk,Krhs) = ( pvv(ji,jj,jk,Krhs) - zv_frc(ji,jj) ) * vmask(ji,jj,jk)
-      END_3D
-      
-!!gm  Question here when removing the Vertically integrated trends, we remove the vertically integrated NL trends on momentum....
-!!gm  Is it correct to do so ?   I think so...
-      
-      !                                   !=  remove 2D Coriolis trend  =!
-      !                                   !  --------------------------  !
-      !
-      IF( kt == nit000 .OR. .NOT. lk_linssh )   CALL dyn_cor_2D_init( Kmm )   ! Set zwz, the barotropic Coriolis force coefficient
-      !                      ! recompute zwz = f/depth  at every time step for (.NOT.lk_linssh) as the water colomn height changes
-      !
-      zhU(:,:) = puu_b(:,:,Kmm) * hu(:,:,Kmm) * e2u(:,:)        ! now fluxes 
-      zhV(:,:) = pvv_b(:,:,Kmm) * hv(:,:,Kmm) * e1v(:,:)        ! NB: FULL domain : put a value in last row and column
-      !
-      CALL dyn_cor_2D( ht(:,:,Kmm), hu(:,:,Kmm), hv(:,:,Kmm), puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zhU, zhV,  &   ! <<== in
-         &                                                                              zu_trd, zv_trd   )   ! ==>> out
-      !
-      DO_2D( 0, 0, 0, 0 )                          ! Remove coriolis term (and possibly spg) from barotropic trend
-         zu_frc(ji,jj) = zu_frc(ji,jj) - zu_trd(ji,jj) * ssumask(ji,jj)
-         zv_frc(ji,jj) = zv_frc(ji,jj) - zv_trd(ji,jj) * ssvmask(ji,jj)
-      END_2D
-      !
-      !                                   !=  Add bottom stress contribution from baroclinic velocities  =!
-      !                                   !  -----------------------------------------------------------  !
-      CALL dyn_drg_init( Kbb, Kmm, puu   , pvv   , puu_b , pvv_b  ,   &     !  <<= IN
-         &                         zu_frc, zv_frc, zCdU_u, zCdU_v )         !  =>> OUT
-      !
-      !                                   !=  Add atmospheric pressure forcing  =!
-      !                                   !  ----------------------------------  !
-      IF( ln_apr_dyn ) THEN
-         IF( ln_bt_fw ) THEN                          ! FORWARD integration: use kt+1/2 pressure (NOW+1/2)
-            DO_2D( 0, 0, 0, 0 )
-               zu_frc(ji,jj) = zu_frc(ji,jj) + grav * (  ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) ) * r1_e1u(ji,jj)
-               zv_frc(ji,jj) = zv_frc(ji,jj) + grav * (  ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) ) * r1_e2v(ji,jj)
-            END_2D
-         ELSE                                         ! CENTRED integration: use kt-1/2 + kt+1/2 pressure (NOW)
-            zztmp = grav * r1_2
-            DO_2D( 0, 0, 0, 0 )
-               zu_frc(ji,jj) = zu_frc(ji,jj) + zztmp * (  ( ssh_ib (ji+1,jj  ) - ssh_ib (ji,jj) )  &
-                    &                                   + ( ssh_ibb(ji+1,jj  ) - ssh_ibb(ji,jj) ) ) * r1_e1u(ji,jj)
-               zv_frc(ji,jj) = zv_frc(ji,jj) + zztmp * (  ( ssh_ib (ji  ,jj+1) - ssh_ib (ji,jj) )  &
-                    &                                   + ( ssh_ibb(ji  ,jj+1) - ssh_ibb(ji,jj) ) ) * r1_e2v(ji,jj)
-            END_2D
-         ENDIF
-      ENDIF
-      !
-      !                                   !=  Add wind forcing  =!
-      !                                   !  ------------------  !
-      IF( ln_bt_fw ) THEN
-         DO_2D( 0, 0, 0, 0 )
-            zu_frc(ji,jj) =  zu_frc(ji,jj) + r1_rho0 * utauU(ji,jj) * r1_hu(ji,jj,Kmm)
-            zv_frc(ji,jj) =  zv_frc(ji,jj) + r1_rho0 * vtauV(ji,jj) * r1_hv(ji,jj,Kmm)
-         END_2D
-      ELSE
-         zztmp = r1_rho0 * r1_2
-         DO_2D( 0, 0, 0, 0 )
-            zu_frc(ji,jj) =  zu_frc(ji,jj) + zztmp * ( utau_b(ji,jj) + utauU(ji,jj) ) * r1_hu(ji,jj,Kmm)
-            zv_frc(ji,jj) =  zv_frc(ji,jj) + zztmp * ( vtau_b(ji,jj) + vtauV(ji,jj) ) * r1_hv(ji,jj,Kmm)
-         END_2D
-      ENDIF  
-      !
-      !              !---------------!
-      !              !==  ssh_frc  ==!   Right-Hand-Side of the barotropic ssh equation   (over the FULL domain)
-      !              !---------------!
-      !                                   !=  Net water flux forcing applied to a water column  =!
-      !                                   ! ---------------------------------------------------  !
-      IF (ln_bt_fw) THEN                          ! FORWARD integration: use kt+1/2 fluxes (NOW+1/2)
-                        ssh_frc(:,:) =                emp(:,:)
-         IF( ln_rnf )   ssh_frc(:,:) = ssh_frc(:,:) - rnf(:,:)
-         IF( ln_isf )   ssh_frc(:,:) = ssh_frc(:,:) - fwfisf_cav(:,:) - fwfisf_par(:,:)
-                        ssh_frc(:,:) = r1_rho0 * ssh_frc(:,:)
-      ELSE                                        ! CENTRED integration: use kt-1/2 + kt+1/2 fluxes (NOW)
-         zztmp = r1_rho0 * r1_2
-                        ssh_frc(:,:) =                emp(:,:)        + emp_b(:,:)
-         IF( ln_rnf )   ssh_frc(:,:) = ssh_frc(:,:) - rnf(:,:)        - rnf_b(:,:)
-         IF( ln_isf )   ssh_frc(:,:) = ssh_frc(:,:) - fwfisf_cav(:,:) - fwfisf_cav_b(:,:)   &
-            &                                       - fwfisf_par(:,:) - fwfisf_par_b(:,:) 
-                        ssh_frc(:,:) = zztmp * ssh_frc(:,:)
-      ENDIF
-      !                                   !=  Add Stokes drift divergence  =!   (if exist)
-      IF( ln_sdw ) THEN                   !  -----------------------------  !
-         ssh_frc(:,:) = ssh_frc(:,:) + div_sd(:,:)
-      ENDIF
-      !
-      !                                         ! ice sheet coupling
-      IF ( ln_isf .AND. ln_isfcpl ) THEN
-         !
-         ! ice sheet coupling
-         IF( ln_rstart .AND. kt == nit000 ) THEN
-            ssh_frc(:,:) = ssh_frc(:,:) + risfcpl_ssh(:,:)
-         END IF
-         !
-         ! conservation option
-         IF( ln_isfcpl_cons ) THEN
-            ssh_frc(:,:) = ssh_frc(:,:) + risfcpl_cons_ssh(:,:)
-         END IF
-         !
-      END IF
-      !
-# if defined key_asminc
-      !                                   !=  Add the IAU weighted SSH increment  =!
-      !                                   !  ------------------------------------  !
-      IF( lk_asminc .AND. ln_sshinc .AND. ln_asmiau ) THEN
-         ssh_frc(:,:) = ssh_frc(:,:) - ssh_iau(:,:)
-      ENDIF
-# endif
-
-      !                    !==  END of  Phase 1 for MLF time integration  ==!
-#endif
 
 
       !                                   != Fill boundary data arrays for AGRIF
@@ -870,7 +704,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          pssh (:,:,Kaa) = ssha_e(:,:)
       ENDIF
       !
-#if defined key_RK3
       !                                                !*  RK3 case
       !
       IF( (.NOT.(ln_dynadv_vec .OR. lk_linssh)) .AND. ll_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
@@ -912,102 +745,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       ENDIF
       !
       !                    !==  END Phase 3 for RK3 (forward mode) ==!
-
-#else
-      !                                                !*  MLF case
       !
-      ! Set advective velocity correction:
-      IF( ln_bt_fw ) THEN
-         IF( .NOT.( kt == nit000 .AND. l_1st_euler ) ) THEN
-            DO_2D( nn_hls, nn_hls, nn_hls, nn_hls )
-               zun_save = un_adv(ji,jj)
-               zvn_save = vn_adv(ji,jj)
-               !                          ! apply the previously computed correction 
-               un_adv(ji,jj) = r1_2 * ( ub2_b(ji,jj) + zun_save - rn_atfp * un_bf(ji,jj) )
-               vn_adv(ji,jj) = r1_2 * ( vb2_b(ji,jj) + zvn_save - rn_atfp * vn_bf(ji,jj) )
-               !                          ! Update corrective fluxes for next time step
-               un_bf(ji,jj)  = rn_atfp * un_bf(ji,jj) + ( zun_save - ub2_b(ji,jj) )
-               vn_bf(ji,jj)  = rn_atfp * vn_bf(ji,jj) + ( zvn_save - vb2_b(ji,jj) )
-               !                          ! Save integrated transport for next computation
-               ub2_b(ji,jj) = zun_save
-               vb2_b(ji,jj) = zvn_save
-            END_2D
-         ELSE
-            un_bf(:,:) = 0._wp            ! corrective fluxes for next time step set to zero
-            vn_bf(:,:) = 0._wp
-            ub2_b(:,:) = un_adv(:,:)      ! Save integrated transport for next computation
-            vb2_b(:,:) = vn_adv(:,:)
-         ENDIF
-      ENDIF
-      !
-      ! Update barotropic trend:
-      IF( ln_dynadv_vec .OR. lk_linssh ) THEN
-         DO jk=1,jpkm1
-            puu(:,:,jk,Krhs) = puu(:,:,jk,Krhs) + ( puu_b(:,:,Kaa) - puu_b(:,:,Kbb) ) * r1_Dt
-            pvv(:,:,jk,Krhs) = pvv(:,:,jk,Krhs) + ( pvv_b(:,:,Kaa) - pvv_b(:,:,Kbb) ) * r1_Dt
-         END DO
-      ELSE
-         IF( nn_bt_flt==3 ) THEN   ! (puu_b,pvv_b)_Kaa is a velocity (hu,hv)_Kaa = (hu_e,hv_e)
-            ! 
-            DO jk=1,jpkm1
-               puu(:,:,jk,Krhs) = puu(:,:,jk,Krhs) + r1_hu(:,:,Kmm)   &
-                  &             * ( puu_b(:,:,Kaa)*hu_e(:,:) - puu_b(:,:,Kbb) * hu(:,:,Kbb) ) * r1_Dt
-               pvv(:,:,jk,Krhs) = pvv(:,:,jk,Krhs) + r1_hv(:,:,Kmm)   &
-                  &             * ( pvv_b(:,:,Kaa)*hv_e(:,:) - pvv_b(:,:,Kbb) * hv(:,:,Kbb) ) * r1_Dt
-            END DO
-            !
-         ELSE                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
-            !
-# if defined key_qcoTest_FluxForm
-            !                                ! 'key_qcoTest_FluxForm' : simple ssh average
-            DO_2D( 0, 0, 0, 0 )
-               zsshu_a(ji,jj) = r1_2 * ( pssh(ji,jj,Kaa) + pssh(ji+1,jj  ,Kaa) ) * ssumask(ji,jj)
-               zsshv_a(ji,jj) = r1_2 * ( pssh(ji,jj,Kaa) + pssh(ji  ,jj+1,Kaa) ) * ssvmask(ji,jj)
-            END_2D
-# else
-            DO_2D( 0, 0, 0, 0 )
-               zsshu_a(ji,jj) = r1_2 * r1_e1e2u(ji,jj) * ( e1e2t(ji  ,jj) * pssh(ji  ,jj,Kaa)   &
-                  &                                      + e1e2t(ji+1,jj) * pssh(ji+1,jj,Kaa) ) * ssumask(ji,jj)
-               zsshv_a(ji,jj) = r1_2 * r1_e1e2v(ji,jj) * ( e1e2t(ji,jj  ) * pssh(ji,jj  ,Kaa)   &
-                  &                                      + e1e2t(ji,jj+1) * pssh(ji,jj+1,Kaa) ) * ssvmask(ji,jj)
-            END_2D
-# endif   
-            CALL lbc_lnk( 'dynspg_ts', zsshu_a, 'U', 1._wp, zsshv_a, 'V', 1._wp ) ! Boundary conditions
-            !
-            DO jk=1,jpkm1
-               puu(:,:,jk,Krhs) = puu(:,:,jk,Krhs) + r1_hu(:,:,Kmm)   &
-                  &             * ( puu_b(:,:,Kaa) - puu_b(:,:,Kbb) * hu(:,:,Kbb) ) * r1_Dt
-               pvv(:,:,jk,Krhs) = pvv(:,:,jk,Krhs) + r1_hv(:,:,Kmm)   &
-                  &             * ( pvv_b(:,:,Kaa) - pvv_b(:,:,Kbb) * hv(:,:,Kbb) ) * r1_Dt
-            END DO
-            ! Save barotropic velocities not transport:
-            puu_b(:,:,Kaa) =  puu_b(:,:,Kaa) / ( hu_0(:,:) + zsshu_a(:,:) + 1._wp - ssumask(:,:) )
-            pvv_b(:,:,Kaa) =  pvv_b(:,:,Kaa) / ( hv_0(:,:) + zsshv_a(:,:) + 1._wp - ssvmask(:,:) )
-         ENDIF
-      ENDIF
-
-
-      ! Correct velocities so that the barotropic velocity equals (un_adv, vn_adv) (in all cases)  
-      DO jk = 1, jpkm1
-         puu(:,:,jk,Kmm) = ( puu(:,:,jk,Kmm) + un_adv(:,:)*r1_hu(:,:,Kmm) - puu_b(:,:,Kmm) ) * umask(:,:,jk)
-         pvv(:,:,jk,Kmm) = ( pvv(:,:,jk,Kmm) + vn_adv(:,:)*r1_hv(:,:,Kmm) - pvv_b(:,:,Kmm) ) * vmask(:,:,jk)
-      END DO
-
-      IF( ln_wd_dl .AND. ln_wd_dl_bc) THEN 
-         DO jk = 1, jpkm1
-            puu(:,:,jk,Kmm) = ( un_adv(:,:)*r1_hu(:,:,Kmm) &
-               &            + zuwdav2(:,:)*(puu(:,:,jk,Kmm) - un_adv(:,:)*r1_hu(:,:,Kmm)) ) * umask(:,:,jk)
-            pvv(:,:,jk,Kmm) = ( vn_adv(:,:)*r1_hv(:,:,Kmm) & 
-               &            + zvwdav2(:,:)*(pvv(:,:,jk,Kmm) - vn_adv(:,:)*r1_hv(:,:,Kmm)) ) * vmask(:,:,jk)
-         END DO
-      ENDIF
-            
-      CALL iom_put(  "ubar", un_adv(:,:)*r1_hu(:,:,Kmm) )    ! barotropic i-current
-      CALL iom_put(  "vbar", vn_adv(:,:)*r1_hv(:,:,Kmm) )    ! barotropic j-current
-
-      !                    !==  END Phase 3 for MLF time integration  ==!
-#endif
-
       !
 #if defined key_agrif
       !
@@ -1021,14 +759,8 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          END IF
          !
          za1 = 1._wp / REAL(Agrif_rhot(), wp)
-# if defined key_RK3
          ub2_i_b(:,:) = ub2_i_b(:,:) + za1 * un_adv(:,:)
          vb2_i_b(:,:) = vb2_i_b(:,:) + za1 * vn_adv(:,:)
-# else
-         ub2_i_b(:,:) = ub2_i_b(:,:) + za1 * ub2_b(:,:)
-         vb2_i_b(:,:) = vb2_i_b(:,:) + za1 * vb2_b(:,:)
-
-# endif
       ENDIF
 #endif
       !                                   !: write time-spliting arrays in the restart
@@ -1126,17 +858,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !
       IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise 
          !                                   ! ---------------
-# if ! defined key_RK3
-         IF( ln_rstart .AND. .NOT.l_1st_euler ) THEN    !* MLF: Read the restart file
-            IF ( ln_bt_fw ) THEN
-               CALL iom_get( numror, jpdom_auto, 'ub2_b'  , ub2_b  (:,:), cd_type = 'U', psgn = -1._wp )
-               CALL iom_get( numror, jpdom_auto, 'vb2_b'  , vb2_b  (:,:), cd_type = 'V', psgn = -1._wp )
-               CALL iom_get( numror, jpdom_auto, 'un_bf'  , un_bf  (:,:), cd_type = 'U', psgn = -1._wp )  
-               CALL iom_get( numror, jpdom_auto, 'vn_bf'  , vn_bf  (:,:), cd_type = 'V', psgn = -1._wp )
-            ENDIF
-# else
          IF( ln_rstart ) THEN                           !* RK3: Read the restart file
-# endif
             IF( nn_bt_flt == 3 ) THEN
                IF( iom_varid( numror, 'sshbb_e', ldstop = .FALSE. ) > 0 ) THEN
                   CALL iom_get( numror, jpdom_auto, 'sshbb_e'  , sshbb_e(:,:), cd_type = 'T', psgn =  1._wp )
@@ -1157,21 +879,14 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             ELSE
                ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
             ENDIF
-# if defined key_RK3
             CALL iom_get( numror, jpdom_auto, 'un_adv'      ,  un_adv(:,:), cd_type = 'U', psgn = -1._wp )   
             CALL iom_get( numror, jpdom_auto, 'vn_adv'      ,  vn_adv(:,:), cd_type = 'V', psgn = -1._wp )
-# endif
 #endif
          ELSE
             !                      !* Start from rest or use RK3 time-step
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) '   ==>>>   start from rest: set barotropic values to 0'
-# if ! defined key_RK3
-            ub2_b  (:,:) = 0._wp   ;   vb2_b  (:,:) = 0._wp   ! used in the 1st interpol of agrif
-            un_bf  (:,:) = 0._wp   ;   vn_bf  (:,:) = 0._wp   ! used in the 1st update   of agrif
-#else
             un_adv (:,:) = 0._wp   ;   vn_adv (:,:) = 0._wp   ! used in the 1st interpol of agrif
-#endif
 #if defined key_agrif
             ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
 #endif
@@ -1180,14 +895,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       ELSEIF( TRIM(cdrw) == 'WRITE' ) THEN   ! Create restart file
          !                                   ! -------------------
          IF(lwp) WRITE(numout,*) '---- ts_rst ----'
-# if ! defined key_RK3
-         IF ( ln_bt_fw ) THEN
-            CALL iom_rstput( kt, nitrst, numrow, 'ub2_b'   , ub2_b  (:,:) )
-            CALL iom_rstput( kt, nitrst, numrow, 'vb2_b'   , vb2_b  (:,:) )
-            CALL iom_rstput( kt, nitrst, numrow, 'un_bf'   , un_bf  (:,:) )
-            CALL iom_rstput( kt, nitrst, numrow, 'vn_bf'   , vn_bf  (:,:) )
-         ENDIF
-# endif
          !
          IF( nn_bt_flt == 3 ) THEN
             CALL iom_rstput( kt, nitrst, numrow, 'sshbb_e'  , sshbb_e(:,:) ) 
@@ -1203,10 +910,8 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             CALL iom_rstput( kt, nitrst, numrow, 'ub2_i_b'  , ub2_i_b(:,:) )
             CALL iom_rstput( kt, nitrst, numrow, 'vb2_i_b'  , vb2_i_b(:,:) )
          ENDIF
-# if defined key_RK3
          CALL iom_rstput( kt, nitrst, numrow, 'un_adv'      ,  un_adv(:,:) )
          CALL iom_rstput( kt, nitrst, numrow, 'vn_adv'      ,  vn_adv(:,:) )
-# endif
 #endif
       ENDIF
       !
@@ -1233,13 +938,11 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          rn_bt_alpha = 0._wp
          CALL ctl_warn( 'dynspg_ts: remove temporal averaging when nn_bt_flt=1 or 2 ==> rn_bt_alpha = 0' )
       ENDIF
-#if defined key_RK3
       IF( nn_bt_flt==3 .AND. rn_bt_alpha<=0._wp ) &
          &   CALL ctl_stop( 'dynspg_ts ERROR: if nn_bt_flt=3, then rn_bt_alpha must be /=0 (typical value=0.07)' )
       !
       IF( .NOT.ln_bt_fw ) CALL ctl_warn( 'dynspg_ts: enforce ln_bt_fw=TRUE with RK3' )
       ln_bt_fw = .TRUE.
-#endif
 #if defined key_agrif
       IF( .NOT.ln_bt_fw .AND. .NOT.Agrif_Root() ) THEN      ! Restrict the use of Agrif to the forward case only
          CALL ctl_warn( 'dynspg_ts: AGRIF not implemented with ln_bt_fw=FALSE => set to TRUE' )
@@ -1269,7 +972,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       ! -----------------------------
       IF( ln_bt_auto )   nn_e = CEILING( rn_Dt / rn_bt_cmax * zcmax)
 
-#if defined key_RK3
       ! Estimate number of iterations and FB dissipative parameter (ongoing work) => not working for now
       zc0max = rn_Dt * zcmax
       IF( nn_bt_flt==3 .AND. rn_bt_alpha==0._wp ) THEN
@@ -1279,7 +981,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          nn_e = 240._wp * zzc0 / zzd
          rn_bt_alpha = zzc1 / zzc0 * nn_e / 6._wp
       ENDIF
-#endif
       !
       ! --------------
       ! Courant Number

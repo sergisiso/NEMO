@@ -99,20 +99,9 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                             , INTENT(in   ) ::  kt, Kmm, Krhs   ! ocean time-step and -level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv        ! ocean velocities and RHS of momentum Eq.
-#if ! defined key_RK3
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrdu, ztrdv
-#endif
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('dyn_hpg')
-      !
-#if ! defined key_RK3
-      IF( l_trddyn ) THEN                    ! Temporary saving of puu(:,:,:,Krhs) and pvv(:,:,:,Krhs) trends (l_trddyn)
-         ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
-         ztrdu(:,:,:) = puu(T2D(0),:,Krhs)
-         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs)
-      ENDIF
-#endif
       !
       SELECT CASE ( nhpg )      ! Hydrostatic pressure gradient computation
       CASE ( np_zco )   ;   CALL hpg_zco    ( kt, Kmm, puu, pvv, Krhs )  ! z-coordinate
@@ -122,18 +111,9 @@ CONTAINS
       CASE ( np_isf )   ;   CALL hpg_isf    ( kt, Kmm, puu, pvv, Krhs )  ! s-coordinate similar to sco modify for ice shelf
       END SELECT
       !
-#if defined key_RK3
       IF( l_trddyn ) THEN      ! RK3 save the HPG trends for diagnostics directly with Krhs field
          CALL trd_dyn( puu(:,:,:,Krhs), pvv(:,:,:,Krhs), jpdyn_hpg, kt, Kmm )
       ENDIF
-#else
-      IF( l_trddyn ) THEN      ! save the hydrostatic pressure gradient trends for momentum trend diagnostics
-         ztrdu(:,:,:) = puu(T2D(0),:,Krhs) - ztrdu(:,:,:)
-         ztrdv(:,:,:) = pvv(T2D(0),:,Krhs) - ztrdv(:,:,:)
-         CALL trd_dyn( ztrdu, ztrdv, jpdyn_hpg, kt, Kmm )
-         DEALLOCATE( ztrdu , ztrdv )
-      ENDIF
-#endif
       !
       IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab3d_1=puu(:,:,:,Krhs), clinfo1=' hpg  - Ua: ', mask1=umask,   &
          &                                  tab3d_2=pvv(:,:,:,Krhs), clinfo2=       ' Va: ', mask2=vmask, clinfo3='dyn' )
@@ -272,13 +252,8 @@ CONTAINS
          zhpi(ji,jj) = zcoef1 * ( rhd(ji+1,jj,1) - rhd(ji,jj,1) ) * r1_e1u(ji,jj)
          zhpj(ji,jj) = zcoef1 * ( rhd(ji,jj+1,1) - rhd(ji,jj,1) ) * r1_e2v(ji,jj)
          !                                ! add to the general momentum trend
-#if defined key_RK3
          puu(ji,jj,1,Krhs) = zhpi(ji,jj)     ! RK3 case: dyn_hpg always called first
          pvv(ji,jj,1,Krhs) = zhpj(ji,jj)
-#else
-         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj)
-         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj)
-#endif
       END_2D
       !
       DO_3D( 0, 0, 0, 0, 2, jpkm1 )     ! interior value (2=<jk=<jpkm1)
@@ -290,13 +265,8 @@ CONTAINS
          zhpj(ji,jj) = zhpj(ji,jj) + zcoef1 * (  ( rhd(ji,jj+1,jk)+rhd(ji,jj+1,jk-1) )  &
             &                                  - ( rhd(ji,jj,  jk)+rhd(ji,jj  ,jk-1) )  ) * r1_e2v(ji,jj)
          !                                ! add to the general momentum trend
-#if defined key_RK3
          puu(ji,jj,jk,Krhs) = zhpi(ji,jj)    ! RK3 case: dyn_hpg always called first
          pvv(ji,jj,jk,Krhs) = zhpj(ji,jj)
-#else
-         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj)
-         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj)
-#endif
       END_3D
       !
    END SUBROUTINE hpg_zco
@@ -355,13 +325,8 @@ CONTAINS
             &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !
          !                                   ! add to the general momentum trend
-#if defined key_RK3
          puu(ji,jj,1,Krhs) = zhpi(ji,jj) + zuap   ! RK3 case: dyn_hpg always called first
          pvv(ji,jj,1,Krhs) = zhpj(ji,jj) + zvap
-#else
-         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj) + zuap
-         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj) + zvap
-#endif
       END_2D
       !
       DO jk= 2, jpkm1
@@ -379,13 +344,8 @@ CONTAINS
             zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk)     ) &
                &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) * r1_e2v(ji,jj)
             !                          ! add to the general momentum trend
-#if defined key_RK3
             puu(ji,jj,jk,Krhs) = zhpi(ji,jj) + zuap   ! RK3 case: dyn_hpg always called first
             pvv(ji,jj,jk,Krhs) = zhpj(ji,jj) + zvap
-#else
-            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj) + zuap
-            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj) + zvap
-#endif
          END_2D
       END DO
       !
@@ -462,13 +422,8 @@ CONTAINS
          zvap = -zcoef0 * ( rhd     (ji,jj+1,1)     + rhd     (ji,jj,1)     )   &
             &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !                          ! add to the general momentum trend
-#if defined key_RK3
          puu(ji,jj,1,Krhs) = (zhpi(ji,jj) + zuap) * umask(ji,jj,1)   ! RK3 case: dyn_hpg always called first
          pvv(ji,jj,1,Krhs) = (zhpj(ji,jj) + zvap) * vmask(ji,jj,1)
-#else
-         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + (zhpi(ji,jj) + zuap) * umask(ji,jj,1)
-         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + (zhpj(ji,jj) + zvap) * vmask(ji,jj,1)
-#endif
       END_2D
       !   
       !                     !=============================!
@@ -492,13 +447,8 @@ CONTAINS
             zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk) )   &
                &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) / e2v(ji,jj)
             !                          ! add to the general momentum trend
-#if defined key_RK3
             puu(ji,jj,jk,Krhs) = (zhpi(ji,jj) + zuap) * umask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
             pvv(ji,jj,jk,Krhs) = (zhpj(ji,jj) + zvap) * vmask(ji,jj,jk)
-#else
-            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (zhpi(ji,jj) + zuap) * umask(ji,jj,jk)
-            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (zhpj(ji,jj) + zvap) * vmask(ji,jj,jk)
-#endif
          END_2D
       END DO
       !
@@ -750,13 +700,8 @@ CONTAINS
          zhpi(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji+1,jj  ,1) ) - z_rho_i(ji,jj,1) ) * r1_e1u(ji,jj)   ! add () for NP repro
          zhpj(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji  ,jj+1,1) ) - z_rho_j(ji,jj,1) ) * r1_e2v(ji,jj)
          ! add to the general momentum trend
-#if defined key_RK3
          puu(ji,jj,1,Krhs) = zhpi(ji,jj,1)   ! RK3 case: dyn_hpg always called first
          pvv(ji,jj,1,Krhs) = zhpj(ji,jj,1)
-#else
-         puu(ji,jj,1,Krhs) = puu(ji,jj,1,Krhs) + zhpi(ji,jj,1)
-         pvv(ji,jj,1,Krhs) = pvv(ji,jj,1,Krhs) + zhpj(ji,jj,1)
-#endif
       END_2D
 
       ! ----------------
@@ -771,13 +716,8 @@ CONTAINS
             &           + (  ( z_rho_k(ji,jj,jk) - z_rho_k(ji,jj+1,jk  ) )                     &
             &               -( z_rho_j(ji,jj,jk) - z_rho_j(ji,jj  ,jk-1) )  ) * r1_e2v(ji,jj)
          ! add to the general momentum trend
-#if defined key_RK3
          puu(ji,jj,jk,Krhs) = zhpi(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
          pvv(ji,jj,jk,Krhs) = zhpj(ji,jj,jk)
-#else
-         puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + zhpi(ji,jj,jk)
-         pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + zhpj(ji,jj,jk)
-#endif
       END_3D
       !
       !
@@ -982,11 +922,7 @@ CONTAINS
             ELSE
                zdpdx2 = zcoef0 * r1_e1u(ji,jj) * REAL(jis-jid, wp) * (zpwes + zpwed)
             ENDIF
-#if defined key_RK3
             puu(ji,jj,jk,Krhs) = ( zdpdx1 + zdpdx2 - zpgu(ji,jj) ) * umask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
-#else
-            puu(ji,jj,jk,Krhs) = puu(ji,jj,jk,Krhs) + (zdpdx1 + zdpdx2 - zpgu(ji,jj)) * umask(ji,jj,jk)
-#endif
          ENDIF
 
          !!!!!     for v equation
@@ -1040,11 +976,7 @@ CONTAINS
                zdpdy2 = zcoef0 * r1_e2v(ji,jj) * REAL(jjs-jjd, wp) * (zpnss + zpnsd )
             ENDIF
 
-#if defined key_RK3
             pvv(ji,jj,jk,Krhs) = ( zdpdy1 + zdpdy2 - zpgv(ji,jj) ) * vmask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
-#else
-            pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + (zdpdy1 + zdpdy2 - zpgv(ji,jj)) * vmask(ji,jj,jk)
-#endif
          ENDIF
          !
       END_3D

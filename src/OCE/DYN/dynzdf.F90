@@ -321,15 +321,9 @@ CONTAINS
          END_2D
          !
          DO_1Di( 0, 0 )                    !==  second recurrence:    SOLk = RHSk - Lk / Dk-1  Lk-1  ==!
-#if defined key_RK3
             !                                  ! RK3: use only utau (not utau_b)
             puu(ji,jj,1,Kaa) = puu(ji,jj,1,Kaa) + rDt * utauU(ji,jj)   &
                  &                                    / ( e3u(ji,jj,1,Kaa) * rho0 ) * umask(ji,jj,1)
-#else
-            !                                  ! MLF: average of utau and utau_b
-            puu(ji,jj,1,Kaa) = puu(ji,jj,1,Kaa) + zDt_2 * ( utau_b(ji,jj) + utauU(ji,jj) )   &
-                 &                                      / ( e3u(ji,jj,1,Kaa) * rho0 ) * umask(ji,jj,1)
-#endif
          END_1D
          DO_2Dik( 0, 0,     2, jpkm1, 1 )
             puu(ji,jj,jk,Kaa) = puu(ji,jj,jk,Kaa) - zwi(ji,jk) / zwd(ji,jk-1) * puu(ji,jj,jk-1,Kaa)
@@ -503,15 +497,9 @@ CONTAINS
          END_2D
          !
          DO_1Di( 0, 0 )                    !==  second recurrence:    SOLk = RHSk - Lk / Dk-1  Lk-1  ==!
-#if defined key_RK3
             !                                  ! RK3: use only vtau (not vtau_b)
             pvv(ji,jj,1,Kaa) = pvv(ji,jj,1,Kaa) + rDt * vtauV(ji,jj)   &
                &                                   / ( e3v(ji,jj,1,Kaa) * rho0 ) * vmask(ji,jj,1)
-#else
-            !                                  ! MLF: average of vtau and vtau_b
-            pvv(ji,jj,1,Kaa) = pvv(ji,jj,1,Kaa) + zDt_2*( vtau_b(ji,jj) + vtauV(ji,jj) )   &
-                 &                                 / ( e3v(ji,jj,1,Kaa) * rho0 ) * vmask(ji,jj,1)
-#endif
          END_1D
          DO_2Dik( 0, 0,    2, jpkm1, 1 )
             pvv(ji,jj,jk,Kaa) = pvv(ji,jj,jk,Kaa) - zwi(ji,jk) / zwd(ji,jk-1) * pvv(ji,jj,jk-1,Kaa)
