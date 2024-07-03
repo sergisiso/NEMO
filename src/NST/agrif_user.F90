@@ -31,11 +31,7 @@
       mpi_comm_oce = Agrif_MPI_get_grid_comm()
 
       CALL nemo_init       !* Initializations of each fine grid
-# if defined key_RK3
       Kbb_a = Nbb; Kmm_a = Nbb; Krhs_a = Nrhs
-# else
-      Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
-# endif
       !
       !                    !* Agrif initialization
                           CALL Agrif_InitValues_cont
@@ -423,9 +419,6 @@
       Agrif_UseSpecialValue = l_spc_ssh 
       CALL Agrif_Bc_variable(sshn_id,calledweight=1., PROCNAME(interpsshn) )
       hbdy(:,:) = 0._wp
-#if ! defined key_RK3
-      ssh(:,:,Krhs_a) = 0._wp
-#endif
 
       Agrif_UseSpecialValue = ln_spc_dyn
       use_sign_north = .TRUE.

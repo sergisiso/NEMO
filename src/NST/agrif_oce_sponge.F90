@@ -56,12 +56,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
 #if defined SPONGE
-#if defined key_RK3
       zcoef = REAL(Agrif_Nbstepint(), wp)/REAL(Agrif_rhot())
-#else
-      !! Assume persistence:
-      zcoef = REAL(Agrif_rhot()-1,wp)/REAL(Agrif_rhot())
-#endif
 
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = l_spc_tra 
@@ -89,11 +84,7 @@ CONTAINS
       !
 #if defined SPONGE
 
-#if defined key_RK3
       zcoef = REAL(Agrif_Nbstepint(), wp)/REAL(Agrif_rhot())
-#else
-      zcoef = REAL(Agrif_rhot()-1,wp)/REAL(Agrif_rhot())
-#endif
 
       Agrif_SpecialValue    = 0._wp
       Agrif_UseSpecialValue = ln_spc_dyn
