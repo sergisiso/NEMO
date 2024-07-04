@@ -186,19 +186,19 @@ that are available in the tidal-forcing implementation (see
 
     <!-- Energy - horizontal divergence -->
     <field id="sKE"          long_name="surface kinetic energy"  standard_name="specific_kinetic_energy_of_sea_water"   unit="m2/s2"  grid_ref="grid_T_2D_inner" />
-    <field id="hdiv"         long_name="horizontal divergence"                                                          unit="s-1"    grid_ref="grid_T_3D" />
+    <field id="hdiv"         long_name="horizontal divergence"                                                          unit="s-1"    grid_ref="grid_T_3D_inner" />
 
     <!-- variables available with MLE -->
-    <field id="Lf_NHpf"      long_name="MLE: Lf = N H / f"   unit="m" />
+    <field id="Lf_NHpf"      long_name="MLE: Lf = N H / f"   unit="m"   grid_ref="grid_T_2D_inner" />
 
     <!-- next variables available with ln_zad_Aimp=.true. -->
-    <field id="Courant"      long_name="Courant number"                                                                 unit="#"   grid_ref="grid_T_3D" />
-    <field id="wimp"         long_name="Implicit vertical velocity"                                                     unit="m/s" grid_ref="grid_T_3D" />
+    <field id="Courant"      long_name="Courant number"                                                                 unit="#"   grid_ref="grid_T_3D_inner" />
+    <field id="wimp"         long_name="Implicit vertical velocity"                                                     unit="m/s" grid_ref="grid_T_3D_inner" />
     <field id="wexp"         long_name="Explicit vertical velocity"                                                     unit="m/s" grid_ref="grid_T_3D" />
     <field id="wi_cff"       long_name="Fraction of implicit vertical velocity"                                         unit="#"   grid_ref="grid_T_3D" />
-    <field id="Aimp_loc"     long_name="Locations of columns with active adaptive-implicit vertical advection"          unit="%ts"   grid_ref="grid_T_2D" />
-    <field id="Aimp_Cmx"     long_name="Column maximum of Courant number with active adaptive-implicit vertical advection"             operation="maximum" unit="#"   grid_ref="grid_T_2D" />
-    <field id="Aimp_Cmx_h"   long_name="Column maximum of horizontal Courant number with active adaptive-implicit vertical advection"  operation="maximum" unit="#"   grid_ref="grid_T_2D" />
+    <field id="Aimp_loc"     long_name="Locations of columns with active adaptive-implicit vertical advection"          unit="%ts"   grid_ref="grid_T_2D_inner" />
+    <field id="Aimp_Cmx"     long_name="Column maximum of Courant number with active adaptive-implicit vertical advection"             operation="maximum" unit="#"   grid_ref="grid_T_2D_inner" />
+    <field id="Aimp_Cmx_h"   long_name="Column maximum of horizontal Courant number with active adaptive-implicit vertical advection"  operation="maximum" unit="#"   grid_ref="grid_T_2D_inner" />
     <field id="Aimp_Cmx_v"   long_name="Column maximum of vertical Courant number with active adaptive-implicit vertical advection"    operation="maximum" unit="#"   grid_ref="grid_T_2D" />
     <!-- next variables available with key_diahth -->
     <field id="mlddzt"       long_name="Thermocline Depth (depth of max dT/dz)"         standard_name="depth_at_maximum_upward_derivative_of_sea_water_potential_temperature"             unit="m"      grid_ref="grid_T_2D_inner" />
@@ -211,9 +211,6 @@ that are available in the tidal-forcing implementation (see
     <field id="BLT"          long_name="Barrier Layer Thickness"                                                                                                                          unit="m"      grid_ref="grid_T_2D_inner" > topthdep - pycndep </field>
     <field id="tinv"         long_name="Max of vertical invertion of temperature"                                                                                                         unit="degC"   grid_ref="grid_T_2D_inner" />
     <field id="depti"        long_name="Depth of max. vert. inv. of temperature"                                                                                                          unit="m"      grid_ref="grid_T_2D_inner" />
-    <field id="20d"          long_name="Depth of 20C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature"                            unit="m"      grid_ref="grid_T_2D_inner"  axis_ref="iax_20C" />
-    <field id="26d"          long_name="Depth of 26C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature"                            unit="m"      grid_ref="grid_T_2D_inner"  axis_ref="iax_26C"   />
-    <field id="28d"          long_name="Depth of 28C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature"                            unit="m"      grid_ref="grid_T_2D_inner"  axis_ref="iax_28C" />
     <field id="hc300"        long_name="Heat content 0-300m"                            standard_name="integral_of_sea_water_potential_temperature_wrt_depth_expressed_as_heat_content"   unit="J/m2"   grid_ref="grid_T_2D_inner"  />
     <field id="hc700"        long_name="Heat content 0-700m"                            standard_name="integral_of_sea_water_potential_temperature_wrt_depth_expressed_as_heat_content"   unit="J/m2"   grid_ref="grid_T_2D_inner"  />
     <field id="hc2000"       long_name="Heat content 0-2000m"                           standard_name="integral_of_sea_water_potential_temperature_wrt_depth_expressed_as_heat_content"   unit="J/m2"   grid_ref="grid_T_2D_inner"  />
@@ -289,6 +286,12 @@ that are available in the tidal-forcing implementation (see
     <field id="isfustar"        long_name="ustar at T point used in ice shelf melting"                       unit="m/s"   grid_ref="grid_T_2D_inner" />
 
   </field_group> <!-- grid_T -->
+
+  <field_group id="grid_T_iso" domain_ref="grid_T_inner" >
+    <field id="20d"          long_name="Depth of 20C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature" unit="m" axis_ref="iax_20C" />
+    <field id="26d"          long_name="Depth of 26C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature" unit="m" axis_ref="iax_26C" />
+    <field id="28d"          long_name="Depth of 28C isotherm"                          standard_name="depth_of_isosurface_of_sea_water_potential_temperature" unit="m" axis_ref="iax_28C" />
+  </field_group>
 
   <!-- Tides -->
 
@@ -626,7 +629,7 @@ that are available in the tidal-forcing implementation (see
     <field id="aeiu_3d"      long_name=" 3D u-EIV coefficient"                     unit="m2/s"         grid_ref="grid_U_3D" />
 
     <!-- variables available with MLE (ln_mle=T) -->
-    <field id="psiu_mle"     long_name="MLE streamfunction along i-axis"           unit="m3/s"         grid_ref="grid_U_3D" />
+    <field id="psiu_mle"     long_name="MLE streamfunction along i-axis"           unit="m3/s"         grid_ref="grid_U_3D_inner" />
 
     <!-- uoce_eiv: available EIV (ln_ldfeiv=T) -->
     <field id="uoce_eiv"      long_name="EIV ocean current along i-axis"            standard_name="bolus_sea_water_x_velocity"                     unit="m/s"   grid_ref="grid_U_3D_inner" />
@@ -680,7 +683,7 @@ that are available in the tidal-forcing implementation (see
     <field id="aeiv_3d"      long_name=" 3D v-EIV coefficient"                       unit="m2/s"               grid_ref="grid_V_3D" />
 
     <!-- variables available with MLE (ln_mle=T) -->
-    <field id="psiv_mle"     long_name="MLE streamfunction along j-axis"             unit="m3/s"               grid_ref="grid_V_3D" />
+    <field id="psiv_mle"     long_name="MLE streamfunction along j-axis"             unit="m3/s"               grid_ref="grid_V_3D_inner" />
 
     <!-- voce_eiv: available EIV (ln_ldfeiv=T)  -->
     <field id="voce_eiv"      long_name="EIV ocean current along j-axis"           standard_name="bolus_sea_water_y_velocity"                     unit="m/s"  grid_ref="grid_V_3D_inner" />
@@ -907,7 +910,7 @@ that are available in the tidal-forcing implementation (see
   <!-- variables available with ln_tra_trd -->
 
   <!-- Other trends  calculated on even time steps-->
-  <field_group id="trendT_even" grid_ref="grid_T_3D">
+  <field_group id="trendT_even" grid_ref="grid_T_3D_inner">
     <field id="ttrd_xad"      long_name="temperature-trend: i-advection"                                                                                          unit="degC/s"                        />
     <field id="strd_xad"      long_name="salinity   -trend: i-advection"                                                                                          unit="1e-3/s"                        />
     <field id="ttrd_yad"      long_name="temperature-trend: j-advection"                                                                                          unit="degC/s"                        />
@@ -918,8 +921,8 @@ that are available in the tidal-forcing implementation (see
     <field id="strd_ad"       long_name="salinity   -trend: advection"               standard_name="tendency_of_sea_water_salinity_due_to_advection"              unit="1e-3/s"                         > sqrt( strd_xad^2 + strd_yad^2 + strd_zad^2 ) </field>
     <field id="ttrd_totad"    long_name="temperature-trend: total advection"         standard_name="tendency_of_sea_water_salinity_due_to_advection"              unit="degC/s"                        />
     <field id="strd_totad"    long_name="salinity   -trend: total advection"         standard_name="tendency_of_sea_water_salinity_due_to_advection"              unit="1e-3/s"                        />
-    <field id="ttrd_sad"      long_name="temperature-trend: surface adv. (linssh true)"                                                                           unit="degC/s"   grid_ref="grid_T_2D" />
-    <field id="strd_sad"      long_name="salinity   -trend: surface adv. (linssh true)"                                                                           unit="1e-3/s"   grid_ref="grid_T_2D" />
+    <field id="ttrd_sad"      long_name="temperature-trend: surface adv. (linssh true)"                                                                           unit="degC/s"   grid_ref="grid_T_2D_inner" />
+    <field id="strd_sad"      long_name="salinity   -trend: surface adv. (linssh true)"                                                                           unit="1e-3/s"   grid_ref="grid_T_2D_inner" />
     <field id="ttrd_ldf"      long_name="temperature-trend: lateral  diffusion"      standard_name="tendency_of_sea_water_temperature_due_to_horizontal_mixing"   unit="degC/s"                        />
     <field id="strd_ldf"      long_name="salinity   -trend: lateral  diffusion"      standard_name="tendency_of_sea_water_salinity_due_to_horizontal_mixing"      unit="1e-3/s"                        />
     <field id="ttrd_zdf"      long_name="temperature-trend: vertical diffusion"      standard_name="tendency_of_sea_water_temperature_due_to_vertical_mixing"     unit="degC/s"                        />
@@ -945,8 +948,8 @@ that are available in the tidal-forcing implementation (see
     <field id="strd_bbl"      long_name="salinity   -trend: bottom boundary layer"     unit="1e-3/s" />
     <field id="ttrd_npc"      long_name="temperature-trend: non-penetrative conv."     unit="degC/s" />
     <field id="strd_npc"      long_name="salinity   -trend: non-penetrative conv."     unit="1e-3/s" />
-    <field id="ttrd_qns"      long_name="temperature-trend: non-solar flux + runoff"   unit="degC/s" grid_ref="grid_T_2D" />
-    <field id="strd_cdt"      long_name="salinity   -trend: C/D term       + runoff"   unit="degC/s" grid_ref="grid_T_2D" />
+    <field id="ttrd_qns"      long_name="temperature-trend: non-solar flux + runoff"   unit="degC/s" grid_ref="grid_T_2D_inner" />
+    <field id="strd_cdt"      long_name="salinity   -trend: C/D term       + runoff"   unit="degC/s" grid_ref="grid_T_2D_inner" />
     <field id="ttrd_qsr"      long_name="temperature-trend: solar penetr. heating"     unit="degC/s" />
     <field id="ttrd_bbc"      long_name="temperature-trend: geothermal heating"        unit="degC/s" />
 
@@ -1001,12 +1004,10 @@ that are available in the tidal-forcing implementation (see
     <field id="strd_iso_li"      long_name="layer integrated salt-trend: isopycnal diffusion"     unit="kg/(m^2 s)" > strd_iso_e3t * 1026.0 * 0.001  </field>
     <field id="ttrd_zdfp_li"     long_name="layer integrated heat-trend: pure vert. diffusion"    unit="W/m^2" > ttrd_zdfp_e3t * 1026.0 * 3991.86795711963 </field>
     <field id="strd_zdfp_li"     long_name="layer integrated salt-trend: pure vert. diffusion"    unit="kg/(m^2 s)" > strd_zdfp_e3t * 1026.0 * 0.001  </field>
-    <field id="ttrd_qns_li"      long_name="layer integrated heat-trend: non-solar flux + runoff" unit="W/m^2" grid_ref="grid_T_2D"> ttrd_qns_e3t * 1026.0 * 3991.86795711963 </field>
-    <field id="ttrd_qsr_li"      long_name="layer integrated heat-trend: solar flux"              unit="W/m^2"  grid_ref="grid_T_3D"> ttrd_qsr_e3t * 1026.0 * 3991.86795711963 </field>
+    <field id="ttrd_qns_li"      long_name="layer integrated heat-trend: non-solar flux + runoff" unit="W/m^2" grid_ref="grid_T_2D_inner"> ttrd_qns_e3t * 1026.0 * 3991.86795711963 </field>
+    <field id="ttrd_qsr_li"      long_name="layer integrated heat-trend: solar flux"              unit="W/m^2"  grid_ref="grid_T_3D_inner"> ttrd_qsr_e3t * 1026.0 * 3991.86795711963 </field>
     <field id="ttrd_bbl_li"      long_name="layer integrated heat-trend: bottom boundary layer "  unit="W/m^2" > ttrd_bbl_e3t * 1026.0 * 3991.86795711963 </field>
     <field id="strd_bbl_li"      long_name="layer integrated salt-trend: bottom boundary layer "  unit="kg/(m^2 s)" > strd_bbl_e3t * 1026.0 * 0.001  </field>
-    <field id="ttrd_evd_li"      long_name="layer integrated heat-trend: evd convection "         unit="W/m^2" >ttrd_evd_e3t * 1026.0 * 3991.86795711963  </field>
-    <field id="strd_evd_li"      long_name="layer integrated salt-trend: evd convection "         unit="kg/(m^2 s)" > strd_evd_e3t * 1026.0 * 0.001  </field>
 
   </field_group>
 
@@ -1063,7 +1064,7 @@ that are available in the tidal-forcing implementation (see
     <field id="betaPE"        long_name="partial deriv. of PEanom wrt S"       unit="1e3"                          />
   </field_group>
 
-  <field_group id="trendU" grid_ref="grid_U_3D">
+  <field_group id="trendU" grid_ref="grid_U_3D_inner">
     <!-- variables available with ln_dyn_trd -->
     <field id="utrd_hpg"       long_name="i-trend: hydrostatic pressure gradient"          unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
     <field id="utrd_spg"       long_name="i-trend: surface     pressure gradient"          unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
@@ -1082,7 +1083,7 @@ that are available in the tidal-forcing implementation (see
     <field id="utrd_tot"       long_name="i-trend: total momentum trend"                   unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
   </field_group>
 
-  <field_group id="trendV" grid_ref="grid_V_3D">
+  <field_group id="trendV" grid_ref="grid_V_3D_inner">
     <!-- variables available with ln_dyn_trd -->
     <field id="vtrd_hpg"       long_name="j-trend: hydrostatic pressure gradient"          unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
     <field id="vtrd_spg"       long_name="j-trend: surface     pressure gradient"          unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
