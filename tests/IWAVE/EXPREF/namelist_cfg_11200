@@ -34,7 +34,6 @@
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-   rn_atfp     =    0.05   !  asselin time filter parameter
    rn_Dt       =   960.    !  time step for the dynamics and tracer
    ln_shuman   = .false.   !  =T  shuman averaging active  (RK3 only)
    ln_meshmask = .false.

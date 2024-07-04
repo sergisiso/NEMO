@@ -147,9 +147,6 @@ CONTAINS
 !                                    CALL iom_put( "ketrd_bfr"  , zke2d )   ! bottom friction (explicit case)
 !         ENDIF
 !!gm end
-         CASE( jpdyn_atf )   ;   CALL iom_put( "ketrd_atf"   , zke )    ! asselin filter trends 
-!! a faire !!!!  idee changer dynnxt pour avoir un appel a jpdyn_bfr avant le swap !!!
-!! reflechir a une possible sauvegarde du "vrai" uu(Kmm),vv(Kmm) pour le calcul de atf....
 !
 !         IF( ln_drgimp ) THEN                                          ! bottom friction (implicit case)
 !            DO jj = 1, jpj                                                  ! after velocity known (now filed at this stage)
@@ -170,8 +167,6 @@ CONTAINS
 !                              CALL iom_put( "ketrd_bfri", zke2d )
 !         ENDIF
          CASE( jpdyn_ken )                                              ! kinetic energy
-            ! called in dynnxt.F90 before asselin time filter
-            ! with putrd=uu(Krhs) and pvtrd=vv(Krhs)
             zke(:,:,1:jpkm1) = 0.5_wp * zke(:,:,1:jpkm1)
             CALL iom_put( "KE", zke )
             !

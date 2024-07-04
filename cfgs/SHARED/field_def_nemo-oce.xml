@@ -444,8 +444,6 @@ that are available in the tidal-forcing implementation (see
       <field id="qt"           long_name="Net Downward Heat Flux"                standard_name="surface_downward_heat_flux_in_sea_water"                              unit="W/m2"                      />
       <field id="qns"          long_name="non solar Downward Heat Flux"                                                                                               unit="W/m2"                      />
       <field id="qsr"          long_name="Shortwave Radiation"                   standard_name="net_downward_shortwave_flux_at_sea_water_surface"                     unit="W/m2"                      />
-      <!-- qsr3d: MLF only -->
-      <field id="qsr3d"        long_name="Shortwave Radiation 3D distribution"   standard_name="downwelling_shortwave_flux_in_sea_water"                              unit="W/m2" grid_ref="grid_T_3D_inner" />
       <field id="qrp"          long_name="Surface Heat Flux: Damping"            standard_name="heat_flux_into_sea_water_due_to_newtonian_relaxation"                 unit="W/m2"                      />
       <field id="qclosea"      long_name="closed sea heat content flux"          standard_name="closea_heat_content_downward_flux"                                    unit="W/m2"     />
       <field id="erp"          long_name="Surface Water Flux: Damping"           standard_name="water_flux_out_of_sea_water_due_to_newtonian_relaxation"              unit="kg/m2/s"                   />
@@ -909,17 +907,6 @@ that are available in the tidal-forcing implementation (see
   -->
 
   <!-- variables available with ln_tra_trd -->
-  <!-- Asselin trends  calculated on odd time steps-->
-  <field_group id="trendT_odd"  grid_ref="grid_T_3D_inner">
-    <field id="ttrd_atf"      long_name="temperature-trend: asselin time filter"       unit="degree_C/s" />
-    <field id="strd_atf"      long_name="salinity   -trend: asselin time filter"       unit="0.001/s" />
-    <!-- Thickness weighted versions: -->
-    <field id="ttrd_atf_e3t"      unit="degC/s * m"  >  ttrd_atf * e3t </field>
-    <field id="strd_atf_e3t"      unit="1e-3/s * m"  >  strd_atf * e3t </field>
-    <!-- OMIP  layer-integrated trends -->
-    <field id="ttrd_atf_li"      long_name="layer integrated heat-trend: asselin time filter "       unit="W/m^2" > ttrd_atf_e3t * 1026.0 * 3991.86795711963  </field>
-    <field id="strd_atf_li"      long_name="layer integrated salt   -trend: asselin time filter "       unit="kg/(m^2 s)" > strd_atf_e3t * 1026.0 * 0.001 </field>
-  </field_group>
 
   <!-- Other trends  calculated on even time steps-->
   <field_group id="trendT_even" grid_ref="grid_T_3D_inner">
@@ -1054,7 +1041,6 @@ that are available in the tidal-forcing implementation (see
     <field id="ketrd_tau"     long_name="ke-trend: wind stress "                           unit="W/s^3"   grid_ref="grid_T_2D_inner" />
     <field id="ketrd_bfr"     long_name="ke-trend: bottom friction (explicit)"             unit="W/s^3"                        />
     <field id="ketrd_bfri"    long_name="ke-trend: bottom friction (implicit)"             unit="W/s^3"                        />
-    <field id="ketrd_atf"     long_name="ke-trend: asselin time filter trend"              unit="W/s^3"                        />
     <field id="ketrd_convP2K" long_name="ke-trend: conversion (potential to kinetic)"      unit="W/s^3"                        />
     <field id="KE"            long_name="kinetic energy: u(n)*u(n+1)/2"                    unit="W/s^2"                        />
 
@@ -1072,7 +1058,6 @@ that are available in the tidal-forcing implementation (see
     <field id="petrd_nsr"     long_name="pe-trend: surface forcing + runoff"   unit="W/m^3"                        />
     <field id="petrd_qsr"     long_name="pe-trend: solar penetr. heating"      unit="W/m^3"                        />
     <field id="petrd_bbc"     long_name="pe-trend: geothermal heating"         unit="W/m^3"                        />
-    <field id="petrd_atf"     long_name="pe-trend: asselin time filter"        unit="W/m^3"                        />
     <field id="PEanom"        long_name="potential energy anomaly"             unit="1"                            />
     <field id="alphaPE"       long_name="partial deriv. of PEanom wrt T"       unit="degC-1"                       />
     <field id="betaPE"        long_name="partial deriv. of PEanom wrt S"       unit="1e3"                          />
@@ -1094,8 +1079,7 @@ that are available in the tidal-forcing implementation (see
     <field id="utrd_tau"       long_name="i-trend: wind stress "                           unit="m/s^2"   grid_ref="grid_U_2D_inner"  />
     <field id="utrd_bfr"       long_name="i-trend: bottom friction (explicit)"             unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
     <field id="utrd_bfri"      long_name="i-trend: bottom friction (implicit)"             unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
-    <field id="utrd_tot"       long_name="i-trend: total momentum trend before atf"        unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
-    <field id="utrd_atf"       long_name="i-trend: asselin time filter trend"              unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
+    <field id="utrd_tot"       long_name="i-trend: total momentum trend"                   unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
   </field_group>
 
   <field_group id="trendV" grid_ref="grid_V_3D_inner">
@@ -1114,8 +1098,7 @@ that are available in the tidal-forcing implementation (see
     <field id="vtrd_tau"       long_name="j-trend: wind stress "                           unit="m/s^2"   grid_ref="grid_V_2D_inner"  />
     <field id="vtrd_bfr"       long_name="j-trend: bottom friction (explicit)"             unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
     <field id="vtrd_bfri"      long_name="j-trend: bottom friction (implicit)"             unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
-    <field id="vtrd_tot"       long_name="j-trend: total momentum trend before atf"        unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
-    <field id="vtrd_atf"       long_name="j-trend: asselin time filter trend"              unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
+    <field id="vtrd_tot"       long_name="j-trend: total momentum trend"                   unit="m/s^2"   grid_ref="grid_T_3D_inner"  />
   </field_group>
 
   <!-- shared variables available with TOP interface -->

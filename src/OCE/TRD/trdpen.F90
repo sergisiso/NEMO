@@ -115,7 +115,6 @@ CONTAINS
       CASE ( jptra_nsr  )   ;   CALL iom_put( "petrd_nsr" , zpe )   ! surface forcing + runoff (ln_rnf=T)
       CASE ( jptra_qsr  )   ;   CALL iom_put( "petrd_qsr" , zpe )   ! air-sea : penetrative sol radiat
       CASE ( jptra_bbc  )   ;   CALL iom_put( "petrd_bbc" , zpe )   ! bottom bound cond (geoth flux)
-      CASE ( jptra_atf  )   ;   CALL iom_put( "petrd_atf" , zpe )   ! asselin time filter (last trend)
          !
       END SELECT
       !

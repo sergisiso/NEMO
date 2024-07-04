@@ -48,8 +48,6 @@ MODULE stpmlf
    USE step_oce       ! time stepping definition modules
    !
    USE domqco         ! quasi-eulerian coordinate
-   USE traatf_qco     ! time filtering                 (tra_atf_qco routine)
-   USE dynatf_qco     ! time filtering                 (dyn_atf_qco routine)
    
    USE bdydyn         ! ocean open boundary conditions (define bdy_dyn)
 

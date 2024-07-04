@@ -21,7 +21,6 @@ MODULE trctrp
    USE trcldf          ! lateral mixing                      (trc_ldf routine)
    USE trcadv          ! advection                           (trc_adv routine)
    USE trczdf          ! vertical diffusion                  (trc_zdf routine)
-   USE trcatf          ! time filtering                      (trc_atf routine)
    USE trcrad          ! positivity                          (trc_rad routine)
    USE trcsbc          ! surface boundary condition          (trc_sbc routine)
    USE bdy_oce   , ONLY: ln_bdy
@@ -29,10 +28,10 @@ MODULE trctrp
    USE in_out_manager
    USE domtile         ! tiling utilities
 
-#if defined key_agrif
+# if defined key_agrif
    USE agrif_top_sponge ! tracers sponges
    USE agrif_top_interp
-#endif
+# endif
 
    IMPLICIT NONE
    PRIVATE
@@ -73,9 +72,9 @@ CONTAINS
          IF( ln_tile ) CALL dom_tile_stop
 
          IF( ln_top .AND. ln_bdy ) CALL trc_bdy_dmp( kt, Kbb,      Krhs )      ! BDY damping trends
-#if defined key_agrif
+# if defined key_agrif
          IF(.NOT. Agrif_Root()) CALL Agrif_Sponge_trc       ! tracers sponge
-#endif
+# endif
          !
          IF( ln_tile ) CALL dom_tile_start
          DO jtile = 1, nijtile
@@ -104,7 +103,6 @@ CONTAINS
                                 CALL trc_sbc( kt,      Kmm,       tr, Krhs )  ! surface boundary condition
          IF( ln_trcdmp )        CALL trc_dmp( kt, Kbb, Kmm, tr, Krhs )  ! internal damping trends
                                 CALL trc_zdf( kt, Kbb, Kmm, Krhs, tr, Kaa  )  ! vert. mixing & after tracer	==> after
-                                CALL trc_atf( kt, Kbb, Kmm, Kaa , tr )        ! time filtering of "now" tracer fields
          !
          ! Subsequent calls use the filtered values: Kmm and Kaa 
          ! These are used explicitly here since time levels will not be swapped until after tra_atf/dyn_atf/ssh_atf in stp

@@ -18,7 +18,6 @@
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
    rn_Dt       =    900.   !  time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp     =   0.05    !  asselin time filter parameter
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: use namusr_def in namelist_cfg)

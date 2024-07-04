@@ -45,7 +45,6 @@
 &namdom        !   space and time domain (bathymetry, mesh, timestep)
 !-----------------------------------------------------------------------
    rn_Dt      =   40.     !  time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp    =    0.1    !  asselin time filter parameter
    ln_meshmask = .false.  !  =T create a mesh file
 /
 !-----------------------------------------------------------------------

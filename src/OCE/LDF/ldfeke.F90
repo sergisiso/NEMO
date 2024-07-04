@@ -347,16 +347,6 @@ CONTAINS
       END_2D
       CALL lbc_lnk( 'ldfeke', eke_geom(:,:,Kaa), 'T', 1._wp )   ! Lateral boundary conditions on eke_geom  (unchanged sign)
 
-      IF( .NOT. ( l_1st_euler .AND. kt == nit000 ) ) THEN       ! Apply Asselin filter except if Euler time-stepping at first time-step
-         DO_2D( 1, 1, 1, 1 )
-            !
-            zen = eke_geom(ji,jj,Kmm)
-            zed = eke_geom(ji,jj,Kaa) - 2._wp * zen + eke_geom(ji,jj,Kbb)  ! time laplacian on tracers
-            !
-            eke_geom(ji,jj,Kmm) = zen + rn_atfp * zed           ! filtered eke_n (will be eke_b after level-indicators are shuffled in stpmlf.F90)
-         END_2D
-      ENDIF
-
       ! initialise it here so XIOS stops complaining...
       zross(:,:) = 0._wp
       zaeiw(:,:) = 0._wp

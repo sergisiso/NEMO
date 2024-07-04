@@ -50,8 +50,7 @@ MODULE trd_oce
    INTEGER, PUBLIC, PARAMETER ::   jptra_dmp  = 13     !: internal restoring (damping)
    INTEGER, PUBLIC, PARAMETER ::   jptra_qsr  = 14     !: penetrative solar radiation
    INTEGER, PUBLIC, PARAMETER ::   jptra_nsr  = 15     !: non solar radiation / C/D on salinity  (+runoff if ln_rnf=T)
-   INTEGER, PUBLIC, PARAMETER ::   jptra_atf  = 16     !: Asselin time filter
-   INTEGER, PUBLIC, PARAMETER ::   jptra_tot  = 17     !: Model total trend
+   INTEGER, PUBLIC, PARAMETER ::   jptra_tot  = 16     !: Model total trend
    !
    !                                                  !!!* Passive tracers trends indices (use if "key_top" defined)
    INTEGER, PUBLIC, PARAMETER ::   jptra_sms  = 18     !: sources m. sinks
@@ -70,10 +69,9 @@ MODULE trd_oce
    INTEGER, PUBLIC, PARAMETER ::   jpdyn_ldf  =  7     !: horizontal diffusion   
    INTEGER, PUBLIC, PARAMETER ::   jpdyn_zdf  =  8     !: vertical   diffusion
    INTEGER, PUBLIC, PARAMETER ::   jpdyn_bfr  =  9     !: bottom  stress 
-   INTEGER, PUBLIC, PARAMETER ::   jpdyn_atf  = 10     !: Asselin time filter
-   INTEGER, PUBLIC, PARAMETER ::   jpdyn_tau  = 11     !: surface stress
-   INTEGER, PUBLIC, PARAMETER ::   jpdyn_bfri = 12     !: implicit bottom friction (ln_drgimp=.TRUE.)
-   INTEGER, PUBLIC, PARAMETER ::   jpdyn_ken  = 13     !: use for calculation of KE
+   INTEGER, PUBLIC, PARAMETER ::   jpdyn_tau  = 10     !: surface stress
+   INTEGER, PUBLIC, PARAMETER ::   jpdyn_bfri = 11     !: implicit bottom friction (ln_drgimp=.TRUE.)
+   INTEGER, PUBLIC, PARAMETER ::   jpdyn_ken  = 12     !: use for calculation of KE
    !
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)

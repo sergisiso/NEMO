@@ -190,8 +190,6 @@ CONTAINS
       CASE( jpdyn_bfr )       ! called if ln_drgimp=F
                               CALL iom_put( "utrd_bfr", putrd )    ! bottom friction (explicit case)
                               CALL iom_put( "vtrd_bfr", pvtrd )
-      CASE( jpdyn_atf )   ;   CALL iom_put( "utrd_atf", putrd )        ! asselin filter trends 
-                              CALL iom_put( "vtrd_atf", pvtrd )
       END SELECT
       !
    END SUBROUTINE trd_dyn_iom

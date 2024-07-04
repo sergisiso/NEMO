@@ -49,7 +49,6 @@ MODULE dtadyn
 
    PUBLIC   dta_dyn_init       ! called by nemo_init
    PUBLIC   dta_dyn            ! called by nemo_gcm
-   PUBLIC   dta_dyn_atf        ! called by nemo_gcm
 #if ! defined key_qco && ! defined key_linssh
    PUBLIC   dta_dyn_sf_interp  ! called by nemo_gcm
 #endif
@@ -355,28 +354,6 @@ CONTAINS
       !
    END SUBROUTINE dta_dyn_init
 
-   SUBROUTINE dta_dyn_atf( kt, Kbb, Kmm, Kaa )
-     !!---------------------------------------------------------------------
-      !!                    ***  ROUTINE dta_dyn_swp  ***
-      !!
-      !! ** Purpose :   Asselin time filter of now SSH
-      !!---------------------------------------------------------------------
-      INTEGER, INTENT(in) :: kt             ! time step
-      INTEGER, INTENT(in) :: Kbb, Kmm, Kaa  ! ocean time level indices
-      !
-      !!---------------------------------------------------------------------
-
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'dta_dyn_atf : Asselin time filter of sea surface height'
-         IF(lwp) WRITE(numout,*) '~~~~~~~~~~~ '
-      ENDIF
-
-      ssh(:,:,Kmm) = ssh(:,:,Kmm) + rn_atfp * ( ssh(:,:,Kbb) - 2 * ssh(:,:,Kmm) + ssh(:,:,Kaa))  
-
-      !
-   END SUBROUTINE dta_dyn_atf
-   
    
    SUBROUTINE dta_dyn_ssh( kt, phdivtr, psshb,  pemp, pssha, pe3ta )
       !!----------------------------------------------------------------------

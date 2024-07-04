@@ -243,33 +243,12 @@ CONTAINS
 # endif
       CALL Agrif_Update_Variable(r3f_id,  locupdate=(/1+nn_shift_bar,-2/), PROCNAME(update_r3f) )
       !
-      ! Old way (update e3 at UVF-points everywhere on parent domain):
-!      CALL Agrif_ChildGrid_To_ParentGrid()
-!      CALL Agrif_Update_qco
-!      CALL Agrif_ParentGrid_To_ChildGrid()
 #elif defined key_linssh
       !
       ! DO NOTHING HERE
 #endif
       !
    END SUBROUTINE Agrif_Update_vvl
-
-#if defined key_qco
-   SUBROUTINE Agrif_Update_qco
-      !!---------------------------------------------
-      !!       *** ROUTINE dom_Update_qco ***
-      !!---------------------------------------------
-      !
-      ! Save arrays prior update (needed for asselin correction)
-      r3t(:,:,Krhs_a) = r3t(:,:,Kmm_a)
-      r3u(:,:,Krhs_a) = r3u(:,:,Kmm_a)
-      r3v(:,:,Krhs_a) = r3v(:,:,Kmm_a)
-
-      ! Update r3x arrays from updated ssh
-      CALL dom_qco_zgr( Kbb_a, Kmm_a )
-      !
-   END SUBROUTINE Agrif_Update_qco
-#endif
 
 
    SUBROUTINE updateTS( tabres, i1, i2, j1, j2, k1, k2, n1, n2, before )
@@ -966,17 +945,6 @@ CONTAINS
                 * (1._wp + ssh(i1:i2,j1:j2,Kmm_a)*r1_ht_0(i1:i2,j1:j2))
             END DO
          ENDIF
-         !
-         ! 1) Updates at BEFORE time step:
-         ! -------------------------------
-         !
-         ! Save "old" scale factor (prior update) for subsequent asselin correction
-         ! of prognostic variables
-         e3t(i1:i2,j1:j2,1:jpkm1,Krhs_a) = e3t(i1:i2,j1:j2,1:jpkm1,Kmm_a)
-
-         !
-         ! 2) Updates at NOW time step:
-         ! ----------------------------
          !
          ! Update vertical scale factor at T-points:
          e3t(i1:i2,j1:j2,1:jpkm1,Kmm_a) = tabres_child(i1:i2,j1:j2,1:jpkm1)
