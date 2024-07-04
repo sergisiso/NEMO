@@ -21,7 +21,7 @@ MODULE trcbc
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trc_bc         ! called in trcstp.F90 or within TOP modules
+   PUBLIC   trc_bc         ! called in trcstp_rk3.F90 or within TOP modules
    PUBLIC   trc_bc_ini     ! called in trcini.F90 
 
    INTEGER  , SAVE, PUBLIC                             :: nb_trcobc    ! number of tracers with open BC

@@ -24,7 +24,7 @@ MODULE stprk3_stg
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    USE tramle         ! ML eddy induced transport (tra_adv_mle  routine)
 # if defined key_top
-   USE trcstp
+   USE trcstp_rk3
 # endif
 # if defined key_agrif
    USE agrif_oce_interp

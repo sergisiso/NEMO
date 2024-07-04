@@ -1,7 +1,7 @@
-MODULE trcstp
+MODULE trcstp_rk3
    !!======================================================================
-   !!                       ***  MODULE trcstp  ***
-   !! Time-stepping    : time loop of opa for passive tracer
+   !!                       ***  MODULE trcstp_rk3  ***
+   !! Time-stepping    : time loop for passive tracer
    !!======================================================================
    !! History :  1.0  !  2004-03  (C. Ethe)  Original
    !!            4.1  !  2019-08  (A. Coward, D. Storkey) rewrite in preparation for new timestepping scheme
@@ -184,7 +184,7 @@ CONTAINS
          DO jk = 1, jpk
             cvol(:,:,jk) = e1e2t(:,:) * e3t(:,:,jk,Kmm) * tmask(:,:,jk)
          END DO
-         IF( l_trcstat .OR. kt == nitrst ) areatot = glob_3Dsum( 'trcstp', cvol(:,:,:) )
+         IF( l_trcstat .OR. kt == nitrst ) areatot = glob_3Dsum( 'trc_stp', cvol(:,:,:) )
       ENDIF
       !
       IF( l_trcdm2dc )   CALL trc_mean_qsr( kt )
@@ -242,7 +242,7 @@ CONTAINS
             z4d(:,:,:,jn) = tr(:,:,:,jn,Kaa) * cvol(:,:,:)
          ENDDO
          !
-         ztraa(1:jptra) = glob_3Dsum( 'trcstp', z4d(:,:,:,1:jptra) )
+         ztraa(1:jptra) = glob_3Dsum( 'trc_stp', z4d(:,:,:,1:jptra) )
          IF( lwm ) WRITE(numstr,9300) kt,  SUM( ztraa ) / areatot
          !
          DEALLOCATE( z4d, ztraa )
@@ -387,4 +387,4 @@ CONTAINS
 #endif
 
    !!======================================================================
-END MODULE trcstp
+END MODULE trcstp_rk3
