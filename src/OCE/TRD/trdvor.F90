@@ -111,7 +111,7 @@ CONTAINS
       CASE( jpdyn_bfr )
          CALL trd_vor_zint( putrd, pvtrd, jpvor_bfr, Kmm )                             ! Bottom stress
          !
-      CASE( jpdyn_atf )       ! last trends: perform the output of 2D vorticity trends
+      CASE( jpdyn_ken )       ! last trends: perform the output of 2D vorticity trends... SM: not sure it works...
          CALL trd_vor_iom( kt, Kmm )
       END SELECT
       !

@@ -27,8 +27,7 @@ MODULE trdmxl_oce
    INTEGER, PUBLIC, PARAMETER ::   jpmxl_bbl =  8   !: bottom boundary layer (advective/diffusive)
    INTEGER, PUBLIC, PARAMETER ::   jpmxl_for =  9   !: forcing 
    INTEGER, PUBLIC, PARAMETER ::   jpmxl_dmp = 10   !: internal restoring trend
-   INTEGER, PUBLIC, PARAMETER ::   jpmxl_zdfp = 11  !: ! iso-neutral diffusion:"pure" vertical diffusion
-   INTEGER, PUBLIC, PARAMETER ::   jpmxl_atf  = 12  !: asselin trend (**MUST BE THE LAST ONE**)
+   INTEGER, PUBLIC, PARAMETER ::   jpmxl_zdfp = 11  !: MUST BE the LAST ones iso-neutral diffusion:"pure" vertical diffusion
    !                                                            !!* Namelist namtrd_mxl:  trend diagnostics in the mixed layer *
    INTEGER           , PUBLIC ::   nn_ctls  = 0                  !: control surface type for trends vertical integration
    REAL(wp)          , PUBLIC ::   rn_rho_c = 0.01               !: density criteria for MLD definition
@@ -58,17 +57,9 @@ MODULE trdmxl_oce
       tmltrdm, smltrdm,             & !: total cumulative trends over the analysis window
       tml_sum,                      & !: mixed layer T, summed over the current analysis period
       tml_sumb,                     & !: idem, but from the previous analysis period
-      tmltrd_atf_sumb,              & !: Asselin trends, summed over the previous analysis period
       sml_sum,                      & !: 
       sml_sumb,                     & !:    ( idem for salinity )
-      smltrd_atf_sumb,              & !: 
       hmxl_sum, hmxlbn                !: needed to compute the leap-frog time mean of the ML depth
-
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::  &
-      tmlatfb, tmlatfn ,            & !: "before" Asselin contribution at begining of the averaging
-      smlatfb, smlatfn,             & !: period (i.e. last contrib. from previous such period) and 
-                                      !: "now" Asselin contribution to the ML temp. & salinity trends
-      tmlatfm, smlatfm                !: accumulator for Asselin trends (needed for storage only)
 
    REAL(wp), PUBLIC, ALLOCATABLE, DIMENSION(:,:,:) ::  &
       tmltrd,                       & !: \ physical contributions to the total trend (for T/S),
@@ -110,17 +101,12 @@ CONTAINS
 
      ALLOCATE( tmlbn(T2D(0))  , smlbn(T2D(0)),   &
         &      tmltrdm(T2D(0)), smltrdm(T2D(0)), &
-        &      tml_sum(T2D(0)), tml_sumb(T2D(0)),&
-        &      tmltrd_atf_sumb(T2D(0))           , STAT=ierr(2) )
+        &      tml_sum(T2D(0)), tml_sumb(T2D(0)), STAT=ierr(2) )
 
      ALLOCATE( sml_sum(T2D(0)), sml_sumb(T2D(0)), &
-        &      smltrd_atf_sumb(T2D(0)),           &
-        &      hmxl_sum(T2D(0)), hmxlbn(T2D(0)),  &
-        &      tmlatfb(T2D(0)), tmlatfn(T2D(0)), STAT = ierr(3) )
+        &      hmxl_sum(T2D(0)), hmxlbn(T2D(0)), STAT = ierr(3) )
 
-     ALLOCATE( smlatfb(T2D(0)), smlatfn(T2D(0)), &
-        &      tmlatfm(T2D(0)), smlatfm(T2D(0)), &
-        &      tmltrd(T2D(0),jpltrd),   smltrd(T2D(0),jpltrd), STAT=ierr(4))
+     ALLOCATE( tmltrd(T2D(0),jpltrd),   smltrd(T2D(0),jpltrd), STAT=ierr(4))
 
      ALLOCATE( tmltrd_sum(T2D(0),jpltrd),tmltrd_csum_ln(T2D(0),jpltrd),      &
         &      tmltrd_csum_ub(T2D(0),jpltrd), smltrd_sum(T2D(0),jpltrd),     &

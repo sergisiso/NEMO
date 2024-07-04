@@ -70,7 +70,6 @@
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
    rn_Dt       = 5400.     !  time step for the dynamics and tracer
-   rn_atfp     =    0.1    !  asselin time filter parameter
    !
    ln_c1d      = .false.   !  Single column domain (1x1pt)              (T => fill namc1d)
    !

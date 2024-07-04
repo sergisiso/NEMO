@@ -81,12 +81,10 @@ CONTAINS
          !-- Temperature
          CALL iom_rstput( kt, nitrst, nummxlw, 'tmlbb'           , tmlbb           )
          CALL iom_rstput( kt, nitrst, nummxlw, 'tmlbn'           , tmlbn           )
-         CALL iom_rstput( kt, nitrst, nummxlw, 'tmlatfb'         , tmlatfb         )
 
          !-- Salinity
          CALL iom_rstput( kt, nitrst, nummxlw, 'smlbb'           , smlbb           )
          CALL iom_rstput( kt, nitrst, nummxlw, 'smlbn'           , smlbn           )
-         CALL iom_rstput( kt, nitrst, nummxlw, 'smlatfb'         , smlatfb         )
       ELSE
          CALL iom_rstput( kt, nitrst, nummxlw, 'hmxlbn'          , hmxlbn          )
 
@@ -99,7 +97,6 @@ CONTAINS
             ENDIF
             CALL iom_rstput( kt, nitrst, nummxlw, charout,  tmltrd_csum_ub(:,:,jk) )
          ENDDO
-         CALL iom_rstput( kt, nitrst, nummxlw, 'tmltrd_atf_sumb' , tmltrd_atf_sumb )
 
          !-- Salinity
          CALL iom_rstput( kt, nitrst, nummxlw, 'smlbn'           , smlbn           )
@@ -110,7 +107,6 @@ CONTAINS
             ENDIF
             CALL iom_rstput( kt, nitrst, nummxlw, charout , smltrd_csum_ub(:,:,jk) )
          ENDDO
-         CALL iom_rstput( kt, nitrst, nummxlw, 'smltrd_atf_sumb' , smltrd_atf_sumb )
       ENDIF
       !
       IF( kt == nitrst ) THEN
@@ -149,12 +145,10 @@ CONTAINS
          !-- Temperature
          CALL iom_get( inum, jpdom_auto, 'tmlbb'           , tmlbb          )
          CALL iom_get( inum, jpdom_auto, 'tmlbn'           , tmlbn          )
-         CALL iom_get( inum, jpdom_auto, 'tmlatfb'         , tmlatfb        )
          !
          !-- Salinity
          CALL iom_get( inum, jpdom_auto, 'smlbb'           , smlbb          )
          CALL iom_get( inum, jpdom_auto, 'smlbn'           , smlbn          )
-         CALL iom_get( inum, jpdom_auto, 'smlatfb'         , smlatfb        )
       ELSE
          CALL iom_get( inum, jpdom_auto, 'hmxlbn'          , hmxlbn         ) ! needed for hmxl_sum
          !
@@ -167,7 +161,6 @@ CONTAINS
             ENDIF
             CALL iom_get( inum, jpdom_auto, charout, tmltrd_csum_ub(:,:,jk) )
          END DO
-         CALL iom_get( inum, jpdom_auto, 'tmltrd_atf_sumb' , tmltrd_atf_sumb)
          !
          !-- Salinity
          CALL iom_get( inum, jpdom_auto, 'smlbn'           , smlbn          ) ! needed for sml_sum
@@ -178,7 +171,6 @@ CONTAINS
             ENDIF
             CALL iom_get( inum, jpdom_auto, charout, smltrd_csum_ub(:,:,jk) )
          END DO
-         CALL iom_get( inum, jpdom_auto, 'smltrd_atf_sumb' , smltrd_atf_sumb)
          !
          CALL iom_close( inum )
       ENDIF

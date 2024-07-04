@@ -52,7 +52,6 @@
    ln_linssh   = .true.   !  =T  linear free surface  ==>>  model level are fixed in time
    !
    rn_Dt      =   1. !time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp    =   0.    !  asselin time filter parameter
 /
 !-----------------------------------------------------------------------
 &namtsd        !    Temperature & Salinity Data  (init/dmp)             (default: OFF)

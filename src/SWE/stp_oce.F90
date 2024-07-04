@@ -38,7 +38,6 @@ MODULE stp_oce
    USE dynldf          ! lateral momentum diffusion       (dyn_ldf routine)
    USE dynzdf          ! vertical diffusion               (dyn_zdf routine)
    USE dynspg          ! surface pressure gradient        (dyn_spg routine)
-   USE dynatf_qco          ! time-filtering                   (dyn_atf routine)
 
    USE traqsr          ! solar radiation penetration      (tra_qsr routine)
    USE traisf          ! ice shelf                        (tra_isf routine)
@@ -49,7 +48,6 @@ MODULE stp_oce
    USE traadv          ! advection scheme control     (tra_adv_ctl routine)
    USE traldf          ! lateral mixing                   (tra_ldf routine)
    USE trazdf          ! vertical mixing                  (tra_zdf routine)
-   USE traatf_qco          ! time filtering                   (tra_atf routine)
    USE tranpc          ! non-penetrative convection       (tra_npc routine)
 
    USE eosbn2          ! equation of state                (eos_bn2 routine)

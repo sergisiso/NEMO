@@ -315,7 +315,6 @@ CONTAINS
                                        CALL trd_mxl_zint( ptrdx, ptrdy, jpmxl_for, '2D' )   ! air-sea : non penetr sol radiation
          CASE ( jptra_bbc )        ;   CALL trd_mxl_zint( ptrdx, ptrdy, jpmxl_bbc, '3D' )   ! bottom bound cond (geoth flux)
          CASE ( jptra_npc )        ;   CALL trd_mxl_zint( ptrdx, ptrdy, jpmxl_npc, '3D' )   ! non penetr convect adjustment
-         CASE ( jptra_atf )        ;   CALL trd_mxl_zint( ptrdx, ptrdy, jpmxl_atf, '3D' )   ! asselin time filter (last trend)
                                    !
                                        CALL trd_mxl( kt, rDt )                             ! trends: Mixed-layer (output)
          END SELECT
@@ -392,13 +391,7 @@ CONTAINS
                                   CALL iom_put( "strd_cdt"  , ptrdy(:,:,1) )        ! output as 2D surface fields
          CASE( jptra_qsr  )   ;   CALL iom_put( "ttrd_qsr"  , ptrdx )        ! penetrative solar radiat. (only on temperature)
          END SELECT
-         ! the Asselin filter trend  is also every other time step but needs to be lagged one time step
-         ! Even when 1ts output is selected can go to the same (2ts) file as the trends plotted every even time step.
-      ELSE IF( MOD( kt, 2 ) == 1 ) THEN
-         SELECT CASE( ktrd )
-         CASE( jptra_atf  )   ;   CALL iom_put( "ttrd_atf" , ptrdx )        ! asselin time Filter
-                                  CALL iom_put( "strd_atf" , ptrdy )
-         END SELECT
+         !
       END IF
       !
    END SUBROUTINE trd_tra_iom

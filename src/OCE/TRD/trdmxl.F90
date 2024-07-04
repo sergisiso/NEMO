@@ -140,15 +140,13 @@ CONTAINS
 !      CALL lbc_lnk( 'trdmxl', tmltrd(:,:,jl), 'T', 1.0_wp , smltrd(:,:,jl), 'T', 1.0_wp )
 !!gm end
 
-
-
-         SELECT CASE( ktrd )
-         CASE( jptra_npc  )               ! non-penetrative convection: regrouped with zdf
-!!gm : to be completed ! 
-!		   IF( ....
-!!gm end
-         CASE( jptra_zdfp )               ! iso-neutral diffusion: "pure" vertical diffusion
-!                                   ! regroup iso-neutral diffusion in one term
+      SELECT CASE( ktrd )
+      CASE( jptra_npc  )               ! non-penetrative convection: regrouped with zdf
+         !!gm : to be completed ! 
+         !		   IF( ....
+         !!gm end
+      CASE( jptra_zdfp )               ! iso-neutral diffusion: "pure" vertical diffusion
+         !                                   ! regroup iso-neutral diffusion in one term
          tmltrd(:,:,jpmxl_ldf) = tmltrd(:,:,jpmxl_ldf) + ( tmltrd(:,:,jpmxl_zdf) - tmltrd(:,:,jpmxl_zdfp) )
          smltrd(:,:,jpmxl_ldf) = smltrd(:,:,jpmxl_ldf) + ( smltrd(:,:,jpmxl_zdf) - smltrd(:,:,jpmxl_zdfp) )
          !                                   ! put in zdf the dia-neutral diffusion
@@ -158,32 +156,6 @@ CONTAINS
             tmltrd(:,:,jpmxl_zdf) = tmltrd(:,:,jpmxl_zdf) + tmltrd(:,:,jpmxl_npc)
             smltrd(:,:,jpmxl_zdf) = smltrd(:,:,jpmxl_zdf) + smltrd(:,:,jpmxl_npc)
          ENDIF
-         !
-      CASE( jptra_atf  )               ! last trends of the current time step: perform the time averaging & output
-         !
-         ! after ML           :   zhmla                      NB will be swaped to provide hmln and hmlb
-         !
-         ! entrainement ent_1 :   tb_mln - tb_mlb        ==>> use previous timestep ztn_mla = tb_mln
-         !                                                    "     "         "     tn_mln = tb_mlb  (unfiltered tb!)
-         !                                                   NB: tn_mln itself comes from the 2 time step before (ta_mla)
-         !
-         ! atf trend          :   ztbf_mln - tb_mln      ==>> use previous timestep tn_mla = tb_mln
-         !                                                   need to compute tbf_mln, using the current tb
-         !                                                   which is the before fitered tracer
-         !
-         ! entrainement ent_2 :   zta_mla - zta_mln      ==>> need to compute zta_mla and zta_mln
-         !
-         ! time averaging     :   mean: CALL trd_mean( kt, ptrd, ptrdm )
-         !                              and out put the starting mean value and the total trends
-         !                              (i.e. difference between starting and ending values)
-         !                        hat : CALL trd_hat ( kt, ptrd, ptrdm )
-         !                              and output the starting hat value and the total hat trends
-         !
-         ! swaps              :   hmlb   <==   hmln   <== zhmla
-         !                        tb_mlb <==  tn_mln  <== zta_mla
-         !                        tb_mln <== ztn_mla     ==>> now T over after h, need to be computed here 
-         !                                                    to be used at next time step (unfiltered before)
-         !
       END SELECT
       !
    END SUBROUTINE trd_tra_mxl
@@ -308,7 +280,7 @@ CONTAINS
       !!       In II), the instantaneous mixed-layer T & S are computed, and misc. cumulative
       !!       arrays are updated.
       !!       In III), called only once per analysis window, we compute the total trends,
-      !!       along with the residuals and the Asselin correction terms.
+      !!       along with the residuals.
       !!       In IV), the appropriate trends are written in the trends NetCDF file.
       !!
       !! References :  Vialard et al.,2001, JPO.
@@ -319,10 +291,10 @@ CONTAINS
       INTEGER :: ji, jj, jk, jl, ik, it, itmod
       LOGICAL :: lldebug = .TRUE.
       REAL(wp) :: zavt, zfn, zfn2
-      !                                              ! z(ts)mltot : dT/dt over the anlysis window (including Asselin)
+      !                                              ! z(ts)mltot : dT/dt over the anlysis window
       !                                              ! z(ts)mlres : residual = dh/dt entrainment term
-      REAL(wp), DIMENSION(T2D(0)  )   ::  ztmltot , zsmltot , ztmlres , zsmlres , ztmlatf , zsmlatf
-      REAL(wp), DIMENSION(T2D(0)  )   ::  ztmltot2, zsmltot2, ztmlres2, zsmlres2, ztmlatf2, zsmlatf2, ztmltrdm2, zsmltrdm2
+      REAL(wp), DIMENSION(T2D(0)  )   ::  ztmltot , zsmltot , ztmlres , zsmlres
+      REAL(wp), DIMENSION(T2D(0)  )   ::  ztmltot2, zsmltot2, ztmlres2, zsmlres2, ztmltrdm2, zsmltrdm2
       REAL(wp), DIMENSION(T2D(0),jpk) ::  ztmltrd2, zsmltrd2   ! only needed for mean diagnostics
       !!----------------------------------------------------------------------
   
@@ -333,14 +305,12 @@ CONTAINS
       ztmltrd2(:,:,:) = 0.e0   ;    zsmltrd2(:,:,:) = 0.e0  ! <<< reset arrays to zero
       ztmltot2(:,:)   = 0.e0   ;    zsmltot2(:,:)   = 0.e0
       ztmlres2(:,:)   = 0.e0   ;    zsmlres2(:,:)   = 0.e0
-      ztmlatf2(:,:)   = 0.e0   ;    zsmlatf2(:,:)   = 0.e0
 
       ! II.1 Set before values of vertically average T and S 
       ! ----------------------------------------------------
       IF( kt > nit000 ) THEN
          !   ... temperature ...                    ... salinity ...
          tmlb   (:,:) = tml   (:,:)             ;   smlb   (:,:) = sml   (:,:)
-         tmlatfn(:,:) = tmltrd(:,:,jpmxl_atf)   ;   smlatfn(:,:) = smltrd(:,:,jpmxl_atf)
       END IF
 
 
@@ -351,10 +321,8 @@ CONTAINS
          !   ... temperature ...                ... salinity ...
          tmlbb  (:,:) = tmlb   (:,:)   ;   smlbb  (:,:) = smlb   (:,:)
          tmlbn  (:,:) = tml    (:,:)   ;   smlbn  (:,:) = sml    (:,:)
-         tmlatfb(:,:) = tmlatfn(:,:)   ;   smlatfb(:,:) = smlatfn(:,:)
          
          tmltrd_csum_ub (:,:,:) = 0.e0  ;   smltrd_csum_ub (:,:,:) = 0.e0
-         tmltrd_atf_sumb(:,:)   = 0.e0  ;   smltrd_atf_sumb(:,:)   = 0.e0
 
          hmxlbn(:,:) = hmxl(:,:)
 
@@ -362,7 +330,6 @@ CONTAINS
             WRITE(numout,*) '             we reach kt == nit000 + 1 = ', nit000+1
             CALL prt_ctl(tab2d_1=tmlbb   , clinfo1=' tmlbb   -   : ', mask1=tmask)
             CALL prt_ctl(tab2d_1=tmlbn   , clinfo1=' tmlbn   -   : ', mask1=tmask)
-            CALL prt_ctl(tab2d_1=tmlatfb , clinfo1=' tmlatfb -   : ', mask1=tmask)
          END IF
          !
       END IF
@@ -372,13 +339,11 @@ CONTAINS
             WRITE(numout,*) '             restart from kt == nit000 = ', nit000
             CALL prt_ctl(tab2d_1=tmlbb   , clinfo1=' tmlbb   -   : ', mask1=tmask)
             CALL prt_ctl(tab2d_1=tmlbn   , clinfo1=' tmlbn   -   : ', mask1=tmask)
-            CALL prt_ctl(tab2d_1=tmlatfb , clinfo1=' tmlatfb -   : ', mask1=tmask)
          ELSE
             WRITE(numout,*) '             restart from kt == nit000 = ', nit000
             CALL prt_ctl(tab2d_1=tmlbn          , clinfo1=' tmlbn           -  : ', mask1=tmask)
             CALL prt_ctl(tab2d_1=hmxlbn         , clinfo1=' hmxlbn          -  : ', mask1=tmask)
             CALL prt_ctl(tab2d_1=tml_sumb       , clinfo1=' tml_sumb        -  : ', mask1=tmask)
-            CALL prt_ctl(tab2d_1=tmltrd_atf_sumb, clinfo1=' tmltrd_atf_sumb -  : ', mask1=tmask)
             CALL prt_ctl(tab3d_1=tmltrd_csum_ub , clinfo1=' tmltrd_csum_ub  -  : ', mask1=tmask, kdim=1)
          END IF
       END IF
@@ -401,10 +366,6 @@ CONTAINS
             tmltrdm(:,:) = tmltrdm(:,:) + tmltrd(:,:,jl)
             smltrdm(:,:) = smltrdm(:,:) + smltrd(:,:,jl)
          END DO
-
-         ! ... Special handling of the Asselin trend 
-         tmlatfm(:,:) = tmlatfm(:,:) + tmlatfn(:,:)
-         smlatfm(:,:) = smlatfm(:,:) + smlatfn(:,:)
 
          ! ... Trends associated with the time mean of the ML T/S
          tmltrd_sum    (:,:,:) = tmltrd_sum    (:,:,:) + tmltrd    (:,:,:) ! tem
@@ -443,13 +404,9 @@ CONTAINS
          zsmltot(:,:) = ( sml(:,:) - smlbn(:,:) + smlb(:,:) - smlbb(:,:) ) / p2dt
          
          !-- Compute residuals
-         ztmlres(:,:) = ztmltot(:,:) - ( tmltrdm(:,:) - tmlatfn(:,:) + tmlatfb(:,:) )
-         zsmlres(:,:) = zsmltot(:,:) - ( smltrdm(:,:) - smlatfn(:,:) + smlatfb(:,:) )
+         ztmlres(:,:) = ztmltot(:,:) - tmltrdm(:,:)
+         zsmlres(:,:) = zsmltot(:,:) - smltrdm(:,:)
       
-         !-- Diagnose Asselin trend over the analysis window 
-         ztmlatf(:,:) = tmlatfm(:,:) - tmlatfn(:,:) + tmlatfb(:,:)
-         zsmlatf(:,:) = smlatfm(:,:) - smlatfn(:,:) + smlatfb(:,:)
-         
          ! III.2 Prepare fields for output ("mean" diagnostics) 
          ! ----------------------------------------------------
          
@@ -474,8 +431,7 @@ CONTAINS
             ztmltrdm2(:,:) = ztmltrdm2(:,:) + ztmltrd2(:,:,jl)
          END DO
 
-         ztmlres2(:,:) =  ztmltot2(:,:)  -       &
-              ( ztmltrdm2(:,:) - tmltrd_sum(:,:,jpmxl_atf) + tmltrd_atf_sumb(:,:) )
+         ztmlres2(:,:) =  ztmltot2(:,:) - ztmltrdm2(:,:)
          
          !-- Compute salinity residuals
          DO jl = 1, jpltrd
@@ -487,13 +443,8 @@ CONTAINS
             zsmltrdm2(:,:) = zsmltrdm2(:,:) + zsmltrd2(:,:,jl)
          END DO
 
-         zsmlres2(:,:) =  zsmltot2(:,:)  -       &
-              ( zsmltrdm2(:,:) - smltrd_sum(:,:,jpmxl_atf) + smltrd_atf_sumb(:,:) )
-         
-         !-- Diagnose Asselin trend over the analysis window
-         ztmlatf2(:,:) = ztmltrd2(:,:,jpmxl_atf) - tmltrd_sum(:,:,jpmxl_atf) + tmltrd_atf_sumb(:,:)
-         zsmlatf2(:,:) = zsmltrd2(:,:,jpmxl_atf) - smltrd_sum(:,:,jpmxl_atf) + smltrd_atf_sumb(:,:)
-         
+         zsmlres2(:,:) =  zsmltot2(:,:) - zsmltrdm2(:,:)
+                  
          ! III.3 Time evolution array swap
          ! -------------------------------
          
@@ -501,17 +452,14 @@ CONTAINS
          !   ... temperature ...               ... salinity ...
          tmlbb  (:,:) = tmlb   (:,:)  ;   smlbb  (:,:) = smlb   (:,:)
          tmlbn  (:,:) = tml    (:,:)  ;   smlbn  (:,:) = sml    (:,:)
-         tmlatfb(:,:) = tmlatfn(:,:)  ;   smlatfb(:,:) = smlatfn(:,:)
 
          ! For T mean diagnostics 
          tmltrd_csum_ub (:,:,:) = zfn * tmltrd_sum(:,:,:) - tmltrd_csum_ln(:,:,:)
          tml_sumb       (:,:)   = tml_sum(:,:)
-         tmltrd_atf_sumb(:,:)   = tmltrd_sum(:,:,jpmxl_atf)
          
          ! For S mean diagnostics 
          smltrd_csum_ub (:,:,:) = zfn * smltrd_sum(:,:,:) - smltrd_csum_ln(:,:,:)
          sml_sumb       (:,:)   = sml_sum(:,:)
-         smltrd_atf_sumb(:,:)   = smltrd_sum(:,:,jpmxl_atf)
          
          ! ML depth
          hmxlbn         (:,:)   = hmxl    (:,:)
@@ -520,12 +468,10 @@ CONTAINS
             IF( ln_trdmxl_instant ) THEN
                CALL prt_ctl(tab2d_1=tmlbb   , clinfo1=' tmlbb   -   : ', mask1=tmask)
                CALL prt_ctl(tab2d_1=tmlbn   , clinfo1=' tmlbn   -   : ', mask1=tmask)
-               CALL prt_ctl(tab2d_1=tmlatfb , clinfo1=' tmlatfb -   : ', mask1=tmask)
             ELSE
                CALL prt_ctl(tab2d_1=tmlbn          , clinfo1=' tmlbn           -  : ', mask1=tmask)
                CALL prt_ctl(tab2d_1=hmxlbn         , clinfo1=' hmxlbn          -  : ', mask1=tmask)
                CALL prt_ctl(tab2d_1=tml_sumb       , clinfo1=' tml_sumb        -  : ', mask1=tmask)
-               CALL prt_ctl(tab2d_1=tmltrd_atf_sumb, clinfo1=' tmltrd_atf_sumb -  : ', mask1=tmask)
                CALL prt_ctl(tab3d_1=tmltrd_csum_ub , clinfo1=' tmltrd_csum_ub  -  : ', mask1=tmask, kdim=1)
             END IF
          END IF
@@ -536,12 +482,10 @@ CONTAINS
          !    ... temperature ...                         ... salinity ...
          ztmltot (:,:)   = ztmltot(:,:)   * rn_ucf/zfn  ; zsmltot (:,:)   = zsmltot(:,:)   * rn_ucf/zfn
          ztmlres (:,:)   = ztmlres(:,:)   * rn_ucf/zfn  ; zsmlres (:,:)   = zsmlres(:,:)   * rn_ucf/zfn
-         ztmlatf (:,:)   = ztmlatf(:,:)   * rn_ucf/zfn  ; zsmlatf (:,:)   = zsmlatf(:,:)   * rn_ucf/zfn
 
          tml_sum (:,:)   = tml_sum (:,:)  /  (2*zfn) ; sml_sum (:,:)   = sml_sum (:,:)  /  (2*zfn)
          ztmltot2(:,:)   = ztmltot2(:,:)  * rn_ucf/zfn2 ; zsmltot2(:,:)   = zsmltot2(:,:)  * rn_ucf/zfn2
          ztmltrd2(:,:,:) = ztmltrd2(:,:,:)* rn_ucf/zfn2 ; zsmltrd2(:,:,:) = zsmltrd2(:,:,:)* rn_ucf/zfn2
-         ztmlatf2(:,:)   = ztmlatf2(:,:)  * rn_ucf/zfn2 ; zsmlatf2(:,:)   = zsmlatf2(:,:)  * rn_ucf/zfn2
          ztmlres2(:,:)   = ztmlres2(:,:)  * rn_ucf/zfn2 ; zsmlres2(:,:)   = zsmlres2(:,:)  * rn_ucf/zfn2
 
          hmxl_sum(:,:)   = hmxl_sum(:,:)  /  (2*zfn)  ! similar to tml_sum and sml_sum
@@ -558,8 +502,6 @@ CONTAINS
             WRITE(numout,*) '          TRA ztmlres    : ', SUM(ztmlres(:,:))
             WRITE(numout,*) '          TRA ztmltot    : ', SUM(ztmltot(:,:))
             WRITE(numout,*) '          TRA tmltrdm    : ', SUM(tmltrdm(:,:))
-            WRITE(numout,*) '          TRA tmlatfb    : ', SUM(tmlatfb(:,:))
-            WRITE(numout,*) '          TRA tmlatfn    : ', SUM(tmlatfn(:,:))
             DO jl = 1, jpltrd
                WRITE(numout,*) '          * TRA TREND INDEX jpmxl_xxx = jl = ', jl, &
                     & ' tmltrd : ', SUM(tmltrd(:,:,jl))
@@ -571,8 +513,6 @@ CONTAINS
             WRITE(numout,*) '          TRA zsmlres    : ', SUM(zsmlres(:,:))
             WRITE(numout,*) '          TRA zsmltot    : ', SUM(zsmltot(:,:))
             WRITE(numout,*) '          TRA smltrdm    : ', SUM(smltrdm(:,:))
-            WRITE(numout,*) '          TRA smlatfb    : ', SUM(smlatfb(:,:))
-            WRITE(numout,*) '          TRA smlatfn    : ', SUM(smlatfn(:,:))
             DO jl = 1, jpltrd
                WRITE(numout,*) '          * TRA TREND INDEX jpmxl_xxx = jl = ', jl, &
                     & ' smltrd : ', SUM(smltrd(:,:,jl))
@@ -606,9 +546,7 @@ CONTAINS
          DO jl = 1, jpltrd - 1
             CALL iom_put( trim("tml"//ctrd(jl,2)), tmltrd (:,:,jl) )
          END DO
-         
-         CALL iom_put( trim("tml"//ctrd(jpmxl_atf,2)), ztmlatf(:,:) )
-         
+                  
          !.................................. ( ML salinity ) .....................................
          
          !-- Output the fields
@@ -619,10 +557,6 @@ CONTAINS
          DO jl = 1, jpltrd - 1
             CALL iom_put( trim("sml"//ctrd(jl,2)), smltrd(:,:,jl) )
          END DO
-         
-         CALL iom_put( trim("sml"//ctrd(jpmxl_atf,2)), zsmlatf(:,:) )
-
-
          
       ELSE      !-- Write the trends for T/S mean diagnostics 
 
@@ -638,9 +572,7 @@ CONTAINS
          DO jl = 1, jpltrd - 1
             CALL iom_put( trim("tml"//ctrd(jl,2)), ztmltrd2(:,:,jl) )
          END DO
-         
-         CALL iom_put( trim("tml"//ctrd(jpmxl_atf,2)), ztmlatf2(:,:) )
-         
+        
          !.................................. ( ML salinity ) .....................................
                      
          !-- Output the fields
@@ -651,8 +583,6 @@ CONTAINS
          DO jl = 1, jpltrd - 1
             CALL iom_put( trim("sml"//ctrd(jl,2)), zsmltrd2(:,:,jl) )
          END DO
-         
-         CALL iom_put( trim("sml"//ctrd(jpmxl_atf,2)), zsmlatf2(:,:) )
          !
       END IF
       !
@@ -665,7 +595,6 @@ CONTAINS
          
          !   ... temperature ...               ... salinity ...
          tmltrdm        (:,:)   = 0.e0   ;   smltrdm        (:,:)   = 0.e0
-         tmlatfm        (:,:)   = 0.e0   ;   smlatfm        (:,:)   = 0.e0
          tml_sum        (:,:)   = 0.e0   ;   sml_sum        (:,:)   = 0.e0
          tmltrd_csum_ln (:,:,:) = 0.e0   ;   smltrd_csum_ln (:,:,:) = 0.e0
          tmltrd_sum     (:,:,:) = 0.e0   ;   smltrd_sum     (:,:,:) = 0.e0
@@ -759,7 +688,6 @@ CONTAINS
       !     ... temperature ...                  ... salinity ...
       tml            (:,:)   = 0.e0    ;    sml            (:,:)   = 0.e0     ! inst.
       tmltrdm        (:,:)   = 0.e0    ;    smltrdm        (:,:)   = 0.e0
-      tmlatfm        (:,:)   = 0.e0    ;    smlatfm        (:,:)   = 0.e0
       tml_sum        (:,:)   = 0.e0    ;    sml_sum        (:,:)   = 0.e0     ! mean
       tmltrd_sum     (:,:,:) = 0.e0    ;    smltrd_sum     (:,:,:) = 0.e0
       tmltrd_csum_ln (:,:,:) = 0.e0    ;    smltrd_csum_ln (:,:,:) = 0.e0
@@ -776,7 +704,6 @@ CONTAINS
          tmlbn          (:,:)   = 0.e0    ;    smlbn          (:,:)   = 0.e0  
          tml_sumb       (:,:)   = 0.e0    ;    sml_sumb       (:,:)   = 0.e0  ! mean
          tmltrd_csum_ub (:,:,:) = 0.e0    ;    smltrd_csum_ub (:,:,:) = 0.e0
-         tmltrd_atf_sumb(:,:)   = 0.e0    ;    smltrd_atf_sumb(:,:)   = 0.e0  
       END IF
 
       icount = 1   ;   ionce  = 1                            ! open specifier
@@ -820,7 +747,6 @@ CONTAINS
       ctrd(jpmxl_bbl,1) = " Adv/diff. Bottom boundary layer"  ;   ctrd(jpmxl_bbl,2) = "_bbl"
       ctrd(jpmxl_dmp,1) = " Tracer damping"                   ;   ctrd(jpmxl_dmp,2) = "_dmp"
       ctrd(jpmxl_npc,1) = " Non penetrative convec. adjust."  ;   ctrd(jpmxl_npc,2) = "_npc"
-      ctrd(jpmxl_atf,1) = " Asselin time filter"              ;   ctrd(jpmxl_atf,2) = "_atf"
                                                                   
 
       !-- Define physical units

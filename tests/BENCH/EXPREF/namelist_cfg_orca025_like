@@ -38,7 +38,6 @@
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
    rn_Dt      =     90.    !  time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp     =   0.05    !  asselin time filter parameter
    ln_meshmask = .false.   !  =T create a mesh file
 /
 

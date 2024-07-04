@@ -105,7 +105,7 @@ CONTAINS
                   END_2D
                ENDIF
                !
-               IF( ktrd == jptra_atf ) THEN     ! last trend (asselin time filter)
+               IF( ktrd == jpmxl_zdfp ) THEN     ! last trend
                   !
                   CALL glo_tra_wri( kt )             ! print the results in ocean.output
                   !
@@ -141,7 +141,7 @@ CONTAINS
                ENDIF
                !
 !!gm  miss placed calculation   ===>>>> to be done in dynzdf.F90
-!               IF( ktrd == jpdyn_atf ) THEN     ! last trend (asselin time filter)
+!               IF( ktrd == jpdyn_zdfp ) THEN     ! last trend
 !                  !
 !                  IF( ln_drgimp ) THEN                   ! implicit drag case: compute separately the bottom friction
 !                     z1_2rho0 = 0.5_wp / rho0
@@ -259,15 +259,14 @@ CONTAINS
             WRITE (numout,9507) umo(jpdyn_zdf) / tvolu, vmo(jpdyn_zdf) / tvolv
             WRITE (numout,9508) umo(jpdyn_spg) / tvolu, vmo(jpdyn_spg) / tvolv
             WRITE (numout,9509) umo(jpdyn_bfr) / tvolu, vmo(jpdyn_bfr) / tvolv
-            WRITE (numout,9510) umo(jpdyn_atf) / tvolu, vmo(jpdyn_atf) / tvolv
             WRITE (numout,9511)
             WRITE (numout,9512)                                                 &
             &     (  umo(jpdyn_hpg) + umo(jpdyn_keg) + umo(jpdyn_rvo) + umo(jpdyn_pvo)   &
             &      + umo(jpdyn_zad) + umo(jpdyn_ldf) + umo(jpdyn_zdf) + umo(jpdyn_spg)   &
-            &      + umo(jpdyn_bfr) + umo(jpdyn_atf) ) / tvolu,   &
+            &      + umo(jpdyn_bfr) ) / tvolu,   &
             &     (  vmo(jpdyn_hpg) + vmo(jpdyn_keg) + vmo(jpdyn_rvo) + vmo(jpdyn_pvo)   &
             &      + vmo(jpdyn_zad) + vmo(jpdyn_ldf) + vmo(jpdyn_zdf) + vmo(jpdyn_spg)   &
-            &      + vmo(jpdyn_bfr) + vmo(jpdyn_atf) ) / tvolv
+            &      + vmo(jpdyn_bfr) ) / tvolv
             WRITE (numout,9513) umo(jpdyn_tau) / tvolu, vmo(jpdyn_tau) / tvolv
 !!gm            IF( ln_drgimp )   WRITE (numout,9514) umo(jpdyn_bfri) / tvolu, vmo(jpdyn_bfri) / tvolv
          ENDIF
@@ -282,7 +281,6 @@ CONTAINS
  9507    FORMAT(' vertical diffusion         u= ', e20.13, '    v= ', e20.13)
  9508    FORMAT(' surface pressure gradient  u= ', e20.13, '    v= ', e20.13)
  9509    FORMAT(' explicit bottom friction   u= ', e20.13, '    v= ', e20.13)
- 9510    FORMAT(' Asselin time filter        u= ', e20.13, '    v= ', e20.13)
  9511    FORMAT(' -----------------------------------------------------------------------------')
  9512    FORMAT(' total trend                u= ', e20.13, '    v= ', e20.13)
  9513    FORMAT(' incl. surface wind stress  u= ', e20.13, '    v= ', e20.13)
@@ -301,12 +299,11 @@ CONTAINS
             WRITE (numout,9527) hke(jpdyn_zdf) / tvolt
             WRITE (numout,9528) hke(jpdyn_spg) / tvolt
             WRITE (numout,9529) hke(jpdyn_bfr) / tvolt
-            WRITE (numout,9530) hke(jpdyn_atf) / tvolt
             WRITE (numout,9531)
             WRITE (numout,9532)   &
             &     (  hke(jpdyn_hpg) + hke(jpdyn_keg) + hke(jpdyn_rvo) + hke(jpdyn_pvo)   &
             &      + hke(jpdyn_zad) + hke(jpdyn_ldf) + hke(jpdyn_zdf) + hke(jpdyn_spg)   &
-            &      + hke(jpdyn_bfr) + hke(jpdyn_atf) ) / tvolt
+            &      + hke(jpdyn_bfr) ) / tvolt
             WRITE (numout,9533) hke(jpdyn_tau) / tvolt
 !!gm            IF( ln_drgimp )   WRITE (numout,9534) hke(jpdyn_bfri) / tvolt
          ENDIF
@@ -321,7 +318,6 @@ CONTAINS
  9527    FORMAT(' vertical diffusion        u2= ', e20.13)
  9528    FORMAT(' surface pressure gradient u2= ', e20.13)
  9529    FORMAT(' explicit bottom friction  u2= ', e20.13)
- 9530    FORMAT(' Asselin time filter       u2= ', e20.13)
  9531    FORMAT(' --------------------------------------------------')
  9532    FORMAT(' total trend               u2= ', e20.13)
  9533    FORMAT(' incl. surface wind stress u2= ', e20.13)

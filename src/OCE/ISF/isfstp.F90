@@ -130,7 +130,7 @@ CONTAINS
       IF( ln_isfcpl ) THEN
          CALL lbc_lnk( 'isf_stp', fwfisf_par  , 'T', 1.0_wp, fwfisf_cav  , 'T', 1.0_wp, &
             &                     risfcpl_ssh, 'T', 1.0_wp, risfcpl_cons_ssh, 'T', 1.0_wp ) ! needed in dynspg_ts, stp2d
-         CALL lbc_lnk( 'isf_stp', risfcpl_vol, 'T', 1.0_wp, risfcpl_cons_vol, 'T', 1.0_wp ) ! needed in dynspg_ts, stp2d, sshwzv, dynatf
+         CALL lbc_lnk( 'isf_stp', risfcpl_vol, 'T', 1.0_wp, risfcpl_cons_vol, 'T', 1.0_wp ) ! needed in dynspg_ts, stp2d, sshwzv
       ELSE
          CALL lbc_lnk( 'isf_stp', fwfisf_par  , 'T', 1.0_wp, fwfisf_cav  , 'T', 1.0_wp  &
             &        )     

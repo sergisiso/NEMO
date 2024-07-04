@@ -44,7 +44,6 @@
 !-----------------------------------------------------------------------
    ln_linssh  = .false.
    rn_Dt      =   150.    !  time step for the dynamics (and tracer if nn_acc=0)
-   rn_atfp    =    0.1    !  asselin time filter parameter
    ln_meshmask = .false.  !  =T create a mesh file
 /
 !-----------------------------------------------------------------------

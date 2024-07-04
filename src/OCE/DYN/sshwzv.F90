@@ -15,7 +15,6 @@ MODULE sshwzv
 
    !!----------------------------------------------------------------------
    !!   ssh_nxt       : after ssh
-   !!   ssh_atf       : time filter the ssh arrays
    !!   wzv           : RK3: compute a vertical velocity
    !!   wAimp         : RK3: partition vertical velocity for adaptive implicit option (ln_zad_Aimp=T)
    !!----------------------------------------------------------------------
@@ -49,7 +48,6 @@ MODULE sshwzv
    PUBLIC   ssh_nxt        ! called by step.F90
    PUBLIC   wzv            ! called by step.F90
    PUBLIC   wAimp          ! called by step.F90
-   PUBLIC   ssh_atf        ! called by step.F90
    REAL(wp) ::  Cu_min, Cu_cut, Cu_mid, Fcu   ! Adaptive-implicit vertical advection settings
 
    !! * Substitutions
@@ -260,61 +258,6 @@ CONTAINS
       !
    END SUBROUTINE wzv_t
 
-
-   SUBROUTINE ssh_atf( kt, Kbb, Kmm, Kaa, pssh )
-      !!----------------------------------------------------------------------
-      !!                    ***  ROUTINE ssh_atf  ***
-      !!
-      !! ** Purpose :   Apply Asselin time filter to now SSH.
-      !!
-      !! ** Method  : - apply Asselin time fiter to now ssh (excluding the forcing
-      !!              from the filter, see Leclair and Madec 2010) and swap :
-      !!                pssh(:,:,Kmm) = pssh(:,:,Kaa) + rn_atfp * ( pssh(:,:,Kbb) -2 pssh(:,:,Kmm) + pssh(:,:,Kaa) )
-      !!                            - rn_atfp * rn_Dt * ( emp_b - emp ) / rho0
-      !!
-      !! ** action  : - pssh(:,:,Kmm) time filtered
-      !!
-      !! Reference  : Leclair, M., and G. Madec, 2009, Ocean Modelling.
-      !!----------------------------------------------------------------------
-      INTEGER                         , INTENT(in   ) ::   kt             ! ocean time-step index
-      INTEGER                         , INTENT(in   ) ::   Kbb, Kmm, Kaa  ! ocean time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpt), INTENT(inout) ::   pssh           ! SSH field
-      !
-      REAL(wp) ::   zcoef   ! local scalar
-      REAL(wp), DIMENSION(jpi,jpj) ::   zwght
-      !!----------------------------------------------------------------------
-      !
-      IF( ln_timing )   CALL timing_start('ssh_atf')
-      !
-      IF( kt == nit000 ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'ssh_atf : Asselin time filter of sea surface height'
-         IF(lwp) WRITE(numout,*) '~~~~~~~ '
-      ENDIF
-      !
-      IF( .NOT.l_1st_euler ) THEN   ! Apply Asselin time filter on Kmm field (not on euler 1st)
-         !
-         pssh(:,:,Kmm) = pssh(:,:,Kmm) + rn_atfp * ( pssh(:,:,Kbb) - 2 * pssh(:,:,Kmm) + pssh(:,:,Kaa) )
-         !
-         IF( .NOT. lk_linssh ) THEN                ! filtered "now" field with forcing removed
-            zcoef = rn_atfp * rn_Dt * r1_rho0
-                          zwght(:,:) =              emp_b(:,:)        - emp(:,:)
-            IF( ln_rnf )  zwght(:,:) = zwght(:,:) - rnf_b(:,:)        + rnf(:,:)
-            IF( ln_isf )  zwght(:,:) = zwght(:,:) - fwfisf_cav_b(:,:) + fwfisf_cav(:,:)   &
-               &                                  - fwfisf_par_b(:,:) + fwfisf_par(:,:)
-            pssh(:,:,Kmm) = pssh(:,:,Kmm) - zcoef * zwght(:,:) * ssmask(:,:)
-            ! ice sheet coupling
-            IF( ln_isf .AND. ln_isfcpl .AND. kt == nit000+1 )   &
-               &   pssh(:,:,Kbb) = pssh(:,:,Kbb) - rn_atfp * rn_Dt * ( risfcpl_ssh(:,:) - 0._wp ) * ssmask(:,:)
-
-         ENDIF
-      ENDIF
-      !
-      IF(sn_cfctl%l_prtctl)   CALL prt_ctl( tab2d_1=pssh(:,:,Kmm), clinfo1=' atf  - pssh(:,:,Kmm): ', mask1=tmask )
-      !
-      IF( ln_timing )   CALL timing_stop('ssh_atf')
-      !
-   END SUBROUTINE ssh_atf
 
    SUBROUTINE wAimp( kt, Kmm, puu, pvv, pww, pwi, k_ind )
       !!
