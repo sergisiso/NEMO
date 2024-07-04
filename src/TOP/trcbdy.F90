@@ -28,7 +28,7 @@ MODULE trcbdy
 
    PUBLIC trc_bdy_ini   ! routine called in trcini.F90
    PUBLIC trc_bdy       ! routine called in trcnxt.F90 
-   PUBLIC trc_bdy_dmp   ! routine called in trcstp.F90 
+   PUBLIC trc_bdy_dmp   ! routine called in trcstp_rk3.F90 
 
    !! * Substitutions
 #  include "read_nml_substitute.h90"

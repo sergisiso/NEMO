@@ -26,7 +26,7 @@ MODULE trcais
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trc_ais         ! called in trcstp.F90 or within TOP modules
+   PUBLIC   trc_ais         ! called in trcstp_rk3.F90 or within TOP modules
    PUBLIC   trc_ais_ini     ! called in trcini.F90
 
    INTEGER  , SAVE, PUBLIC                              :: nb_trcais    ! number of tracers in AIS

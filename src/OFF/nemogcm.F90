@@ -42,7 +42,7 @@ MODULE nemogcm
    USE dtadyn         ! Lecture and Interpolation of the dynamical fields
    USE trcini         ! Initilization of the passive tracers
    USE daymod         ! calendar                            (day     routine)
-   USE trcstp         ! passive tracer time-stepping        (trc_stp routine)
+   USE trcstp_rk3     ! passive tracer time-stepping        (trc_stp routine)
    USE dtadyn         ! Lecture and interpolation of the dynamical fields
    !              ! Passive tracers needs
    USE trc            ! passive tracer : variables
@@ -50,9 +50,6 @@ MODULE nemogcm
    USE trcrst         ! passive tracer restart
    USE sbc_oce , ONLY : ln_rnf
    USE sbcrnf         ! surface boundary condition : runoffs
-#if defined key_qco   ||   defined key_linssh
-   USE trcstp
-#endif
    !              ! I/O & MPP
    USE iom            ! I/O library
    USE in_out_manager ! I/O manager

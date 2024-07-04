@@ -24,7 +24,7 @@ MODULE trcsms
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trc_sms    ! called in trcstp.F90
+   PUBLIC   trc_sms    ! called in trcstp_rk3.F90
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 5.0, NEMO Consortium (2024)

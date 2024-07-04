@@ -98,7 +98,7 @@ MODULE stp_oce
    USE agrif_all_update ! Main update driver
 #endif
 #if defined key_top
-   USE trcstp, ONLY : trc_stp    ! passive tracer time-stepping      (trc_stp routine)
+   USE trcstp_rk3, ONLY : trc_stp    ! passive tracer time-stepping      (trc_stp routine)
 #endif
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)
