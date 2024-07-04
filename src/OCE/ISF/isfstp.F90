@@ -13,7 +13,6 @@ MODULE isfstp
    !!   isfstp       : compute iceshelf melt and heat flux
    !!----------------------------------------------------------------------
    USE isf_oce                                      ! isf variables
-   USE isfrst , ONLY: isfrst_write                  ! ice shelf restart read/write subroutine
    USE isfload, ONLY: isf_load                      ! ice shelf load
    USE isftbl , ONLY: isf_tbl_lvl                   ! ice shelf boundary layer
    USE isfpar , ONLY: isf_par, isf_par_init         ! ice shelf parametrisation

@@ -322,7 +322,6 @@ CONTAINS
       !! ** Method  :   set ssh from restart or read configuration, or user_def
       !!              * ln_rstart = T
       !!                   USE of IOM library to read ssh in the restart file
-      !!                   Leap-Frog: Kbb and Kmm are read except for l_1st_euler=T
       !!
       !!              * otherwise 
       !!                   call user defined ssh or

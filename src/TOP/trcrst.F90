@@ -307,10 +307,6 @@ CONTAINS
               WRITE(numout,*)
             ENDIF
             !
-            IF( ln_rsttr )  THEN   ;    l_1st_euler = .false.
-            ELSE                   ;    l_1st_euler = .true.
-            ENDIF
-            !
             CALL day_init          ! compute calendar
             !
          ENDIF

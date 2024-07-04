@@ -590,8 +590,6 @@ CONTAINS
          !
       ENDIF
       !
-      IF(lwp) WRITE(numout,*) '   ==>>>   Euler time step switch is ', l_1st_euler
-      !
       IF( lk_asminc ) THEN                            !==  data assimilation  ==!
          IF( ln_bkgwri )   CALL asm_bkg_wri( nit000 - 1, Kmm )      ! Output background fields
          IF( ln_asmdin ) THEN                                  ! Direct initialization
@@ -704,8 +702,6 @@ CONTAINS
          !
          IF ( kt == nitdin_r ) THEN
             !
-            l_1st_euler = .TRUE.  ! Force Euler forward step
-            !
             ! Call Brunt-Vaisala checks to reject T/S increments
             zvalid_bv(:,:,:) = 1.0_wp
             IF ( ln_bv_check ) CALL verify_incs_bv( 1.0_wp, Kmm, pts, zvalid_bv )
@@ -817,8 +813,6 @@ CONTAINS
          !
          IF ( kt == nitdin_r ) THEN
             !
-            l_1st_euler = .TRUE.                    ! Force Euler forward step
-            !
             ! Initialize the now fields with the background + increment
             puu(:,:,:,Kmm) = u_bkg(:,:,:) + u_bkginc(:,:,:)
             pvv(:,:,:,Kmm) = v_bkg(:,:,:) + v_bkginc(:,:,:)
@@ -900,8 +894,6 @@ CONTAINS
          !                          !-----------------------------------------
          !
          IF ( kt == nitdin_r ) THEN
-            !
-            l_1st_euler = .TRUE.                            ! Force Euler forward step
             !
             ssh(:,:,Kmm) = ssh_bkg(:,:) + ssh_bkginc(:,:)   ! Initialize the now fields the background + increment
             !
@@ -1120,8 +1112,6 @@ CONTAINS
          !
          IF ( kt == nitdin_r ) THEN
             !
-            l_1st_euler = .TRUE.                    ! Force Euler forward step
-
             IF(lwp) THEN
                WRITE(numout,*)
                WRITE(numout,*) 'sic_asm_inc : sea ice direct initialization at time step = ', kt
@@ -1229,8 +1219,6 @@ CONTAINS
          !
          IF ( kt == nitdin_r ) THEN
             !
-            l_1st_euler = .TRUE.                    ! Force Euler forward step
-
             IF(lwp) THEN
                WRITE(numout,*)
                WRITE(numout,*) 'sit_asm_inc : sea ice thickness direct initialization at time step = ', kt

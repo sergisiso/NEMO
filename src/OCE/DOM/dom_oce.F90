@@ -35,7 +35,6 @@ MODULE dom_oce
    !! ----------------------------
    LOGICAL , PUBLIC ::   ln_meshmask    !: =T  create a mesh-mask file (mesh_mask.nc)
    REAL(wp), PUBLIC ::   rn_Dt          !: time step for the dynamics and tracer
-   LOGICAL , PUBLIC ::   ln_1st_euler   !: =T start with forward time step or not (=F)
    LOGICAL , PUBLIC ::   ln_c1d         !: =T  single column domain (1x1 pt)
    LOGICAL , PUBLIC ::   ln_shuman      !: =T  shuman averaging (RK3 only)
 
@@ -57,11 +56,7 @@ MODULE dom_oce
 
 
    !                                   !!! associated variables
-   LOGICAL , PUBLIC ::   l_1st_euler    !: Euler 1st time-step flag (=T if ln_restart=F or ln_1st_euler=T)
    REAL(wp), PUBLIC ::   rDt, r1_Dt     !: Current model timestep and reciprocal
-                                        !: rDt = 2 * rn_Dt if leapfrog and l_1st_euler = F
-                                        !:     =     rn_Dt if leapfrog and l_1st_euler = T
-                                        !:     =     rn_Dt if RK3
 
    !!----------------------------------------------------------------------
    !! space domain parameters
