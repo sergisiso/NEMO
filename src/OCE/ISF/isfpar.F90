@@ -16,7 +16,6 @@ MODULE isfpar
    !!----------------------------------------------------------------------
    USE isf_oce        ! ice shelf
    !
-   USE isfrst   , ONLY: isfrst_read               ! ice shelf restart read/write subroutine
    USE isftbl                                     ! ice shelf top boundary layer properties subroutine
    USE isfparmlt, ONLY: isfpar_mlt                ! ice shelf melt formulation subroutine
    USE isfdiags , ONLY: isf_diags_flx             ! ice shelf diags subroutine

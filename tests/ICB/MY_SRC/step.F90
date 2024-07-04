@@ -107,11 +107,8 @@ CONTAINS
       ! model timestep
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
-      IF( l_1st_euler ) THEN  
-         ! start or restart with Euler 1st time-step
-         rDt =  rn_Dt   
-         r1_Dt = 1._wp / rDt
-      ENDIF
+      rDt =  rn_Dt   
+      r1_Dt = 1._wp / rDt
       !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! update I/O and calendar 
@@ -156,12 +153,6 @@ CONTAINS
          IF( lrxios ) CALL iom_context_finalize(      crxios_context         )
       ENDIF
 #endif
-      !
-      IF( l_1st_euler ) THEN         ! recover Leap-frog timestep
-         rDt = 2._wp * rn_Dt   
-         r1_Dt = 1._wp / rDt
-         l_1st_euler = .FALSE.      
-      ENDIF
       !
       IF( ln_timing )   CALL timing_stop('stp')
       !

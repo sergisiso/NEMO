@@ -236,8 +236,8 @@ CONTAINS
       NAMELIST/namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list,                 &
          &             nn_no   , cn_exp   , cn_ocerst_in, cn_ocerst_out, ln_rstart , nn_rstctl ,     &
          &             nn_it000, nn_itend , nn_date0    , nn_time0     , nn_leapy  , nn_istate ,     &
-         &             nn_stock, nn_write , ln_mskland  , ln_clobber   , nn_chunksz, ln_1st_euler  , &
-         &             ln_cfmeta, ln_xios_read, nn_wxios, ln_top
+         &             nn_stock, nn_write , ln_mskland  , ln_clobber   , nn_chunksz, ln_cfmeta ,     &
+         &             ln_xios_read, nn_wxios, ln_top
       NAMELIST/namdom/ rn_Dt, ln_c1d, ln_meshmask, ln_shuman
       NAMELIST/namtile/ ln_tile, nn_ltile_i, nn_ltile_j
       NAMELIST/namnc4/ nn_nchunks_i, nn_nchunks_j, nn_nchunks_k, ln_nc4zip
@@ -310,7 +310,6 @@ CONTAINS
          WRITE(numout,*) '      file prefix restart output      cn_ocerst_out   = ', TRIM( cn_ocerst_out    )
          WRITE(numout,*) '      restart output directory        cn_ocerst_outdir= ', TRIM( cn_ocerst_outdir )
          WRITE(numout,*) '      restart logical                 ln_rstart       = ', ln_rstart
-         WRITE(numout,*) '      start with forward time step    ln_1st_euler    = ', ln_1st_euler
          WRITE(numout,*) '      control of time step            nn_rstctl       = ', nn_rstctl
          WRITE(numout,*) '      number of the first time step   nn_it000        = ', nn_it000
          WRITE(numout,*) '      number of the last time step    nn_itend        = ', nn_itend

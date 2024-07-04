@@ -843,11 +843,7 @@
             nit000 = (Agrif_Parent(nit000)-1)*Agrif_IRhot() + 1
             nitend =  Agrif_Parent(nitend)   *Agrif_IRhot()
          ENDIF
-      
          !
-         IF (Agrif_Parent(ln_top_euler).OR.ln_top_euler) THEN
-            CALL ctl_stop( 'AGRIF and ln_top_euler=T not implemented')
-         ENDIF 
       ENDIF
       !
    END SUBROUTINE Agrif_InitValues_cont_top

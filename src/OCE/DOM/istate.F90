@@ -90,7 +90,6 @@ CONTAINS
 #if defined key_agrif
       IF ( .NOT.Agrif_root() .AND. ln_init_chfrpar ) THEN
          numror = 0                           ! define numror = 0 -> no restart file to read
-         ln_1st_euler = .true.                ! Set time-step indicator at nit000 (euler forward)
          CALL day_init 
          CALL agrif_istate_oce( Kbb, Kmm, Kaa )   ! Interp from parent
          !
@@ -107,7 +106,6 @@ CONTAINS
          ELSE                                    ! Start from rest
             !                                    ! ---------------
             numror = 0                           ! define numror = 0 -> no restart file to read
-            l_1st_euler = .true.                 ! Set time-step indicator at nit000 (euler forward)
             CALL day_init                        ! model calendar (using both namelist and restart infos)
             !                                    ! Initialization of ocean to zero
             !

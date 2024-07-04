@@ -14,7 +14,6 @@ MODULE isfcav
    !!----------------------------------------------------------------------
    USE isf_oce        ! ice shelf public variables
    !
-   USE isfrst   , ONLY: isfrst_read    ! ice shelf restart read/write subroutine
    USE isfutils , ONLY: debug          ! ice shelf debug subroutine
    USE isftbl                          ! ice shelf top boundary layer properties subroutine
    USE isfcavmlt, ONLY: isfcav_mlt     ! ice shelf melt formulation subroutine

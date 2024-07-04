@@ -70,9 +70,6 @@ CONTAINS
       INTEGER :: id
       !!----------------------------------------------------------------------
       !
-      ! start on an euler time step
-      l_1st_euler = .TRUE.
-      !
       ! allocation and initialisation to 0
       CALL isf_alloc_cpl()
       !
