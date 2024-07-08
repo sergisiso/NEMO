@@ -91,6 +91,17 @@ CONTAINS
             CALL p4z_rst( nittrc000, Kbb, Kmm,  'READ' )  !* read or initialize all required fields
         ENDIF
         !
+        rfact   = rDt_trc  ! time step of PISCES
+        rfactr  = 1. / rfact  ! inverse of the time step
+        rfact2  = rfact / REAL( nrdttrc, wp )  ! time step of the biological SMS
+        rfact2r = 1. / rfact2  ! Inverse of the biological time step
+        xstep   = rfact2 / rday         ! Time step duration for biology relative to a day
+        xfact   = 1.e+3 * rfact2r
+        IF(lwp) WRITE(numout,*) 
+        IF(lwp) WRITE(numout,*) '    Passive Tracer  time step    rfact  = ', rfact, ' rn_Dt = ', rn_Dt
+        IF(lwp) write(numout,*) '    PISCES  Biology time step    rfact2 = ', rfact2
+        IF(lwp) WRITE(numout,*)
+        !
       ENDIF
       !
       imm = Kbb
@@ -101,19 +112,6 @@ CONTAINS
 
       IF( ll_dmp )    CALL p4z_dmp( kt, Kbb, imm )      ! Relaxation of some tracers
       !
-      rfact = rDt_trc  ! time step of PISCES
-      !
-      IF( ( ln_top_euler .AND. kt == nittrc000 )  .OR. ( .NOT.ln_top_euler .AND. kt <= nittrc000 + 1 ) ) THEN
-         rfactr  = 1. / rfact  ! inverse of the time step
-         rfact2  = rfact / REAL( nrdttrc, wp )  ! time step of the biological SMS
-         rfact2r = 1. / rfact2  ! Inverse of the biological time step
-         xstep = rfact2 / rday         ! Time step duration for biology relative to a day
-         xfact = 1.e+3 * rfact2r
-         IF(lwp) WRITE(numout,*) 
-         IF(lwp) WRITE(numout,*) '    Passive Tracer  time step    rfact  = ', rfact, ' rn_Dt = ', rn_Dt
-         IF(lwp) write(numout,*) '    PISCES  Biology time step    rfact2 = ', rfact2
-         IF(lwp) WRITE(numout,*)
-      ENDIF
       !
       DO jn = jp_pcs0, jp_pcs1              !   Store the tracer concentrations before entering PISCES
          ztrbbio(:,:,:,jn) = tr(:,:,:,jn,Kbb)
@@ -512,34 +510,6 @@ CONTAINS
                ! Correct the trn mean content of SiO3
                IF(lwp) WRITE(numout,*) '       SiO3N mean : ', zsilsumn
                tr(:,:,:,jpsil,Kmm) = MIN( 400.e-6,tr(:,:,:,jpsil,Kmm) * silmean / zsilsumn )
-            ENDIF
-            !
-            !
-            IF( .NOT. ln_top_euler ) THEN
-               zalksumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jptal,Kbb) * cvol(:,:,:) ) * zarea
-               zno3sumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jpno3,Kbb) * cvol(:,:,:) ) * zarea * rno3
- 
-               IF(lwp) WRITE(numout,*) ' '
-               ! Correct the trb mean content of alkalinity
-               IF(lwp) WRITE(numout,*) '       TALKB mean : ', zalksumb
-               tr(:,:,:,jptal,Kbb) = tr(:,:,:,jptal,Kbb) * alkmean / zalksumb
-
-               ! Correct the trb mean content of NO3
-               IF(lwp) WRITE(numout,*) '       NO3B  mean : ', zno3sumb
-               tr(:,:,:,jpno3,Kbb) = tr(:,:,:,jpno3,Kbb) * no3mean / zno3sumb
-
-               IF ( ln_p4z .OR. ln_p5z ) THEN
-                  zpo4sumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jppo4,Kbb) * cvol(:,:,:) ) * zarea * po4r
-                  zsilsumb = glob_3Dsum( 'p4zsms', tr(:,:,:,jpsil,Kbb) * cvol(:,:,:) ) * zarea
-
-                  ! Correct the trb mean content of PO4
-                  IF(lwp) WRITE(numout,*) '       PO4B  mean : ', zpo4sumb
-                  tr(:,:,:,jppo4,Kbb) = tr(:,:,:,jppo4,Kbb) * po4mean / zpo4sumb
-
-                  ! Correct the trb mean content of SiO3
-                  IF(lwp) WRITE(numout,*) '       SiO3B mean : ', zsilsumb
-                  tr(:,:,:,jpsil,Kbb) = MIN( 400.e-6,tr(:,:,:,jpsil,Kbb) * silmean / zsilsumb )
-               ENDIF
             ENDIF
          ENDIF
       !

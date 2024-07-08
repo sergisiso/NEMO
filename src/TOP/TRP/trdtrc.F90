@@ -86,9 +86,7 @@ CONTAINS
          CASE ( jptra_dmp     )   ;   CALL trd_mxl_trc_zint( ptrtrd, jpmxl_trc_dmp , '3D', kjn, Kmm )
          CASE ( jptra_nsr     )   ;   CALL trd_mxl_trc_zint( ptrtrd, jpmxl_trc_sbc , '2D', kjn, Kmm )
          CASE ( jptra_sms     )   ;   CALL trd_mxl_trc_zint( ptrtrd, jpmxl_trc_sms , '3D', kjn, Kmm )
-         CASE ( jptra_radb    )   ;   CALL trd_mxl_trc_zint( ptrtrd, jpmxl_trc_radb, '3D', kjn, Kmm )
-         CASE ( jptra_radn    )   ;   CALL trd_mxl_trc_zint( ptrtrd, jpmxl_trc_radn, '3D', kjn, Kmm )
-         CASE ( jptra_atf     )   ;   CALL trd_mxl_trc_zint( ptrtrd, jpmxl_trc_atf , '3D', kjn, Kmm )
+         CASE ( jptra_rad     )   ;   CALL trd_mxl_trc_zint( ptrtrd, jpmxl_trc_rad , '3D', kjn, Kmm )
          END SELECT
          !
       END IF
@@ -108,9 +106,7 @@ CONTAINS
          CASE( jptra_dmp  )  ;  WRITE (cltra,'("DMP_",4a)')  ; cltra = TRIM(cltra)//TRIM(ctrcnm(kjn)) ; CALL iom_put( cltra,  ptrtrd(:,:,:) )
          CASE( jptra_sms  )  ;  WRITE (cltra,'("SMS_",4a)')  ; cltra = TRIM(cltra)//TRIM(ctrcnm(kjn)) ; CALL iom_put( cltra,  ptrtrd(:,:,:) )
          CASE( jptra_tot  )  ;  WRITE (cltra,'("TOT_",4a)')  ; cltra = TRIM(cltra)//TRIM(ctrcnm(kjn)) ; CALL iom_put( cltra,  ptrtrd(:,:,:) )
-         CASE( jptra_atf  )  ;  WRITE (cltra,'("ATF_",4a)')  ; cltra = TRIM(cltra)//TRIM(ctrcnm(kjn)) ; CALL iom_put( cltra,  ptrtrd(:,:,:) )
-         CASE( jptra_radb )  ;  WRITE (cltra,'("RDB_",4a)')  ; cltra = TRIM(cltra)//TRIM(ctrcnm(kjn)) ; CALL iom_put( cltra,  ptrtrd(:,:,:) )
-         CASE( jptra_radn )  ;  WRITE (cltra,'("RDN_",4a)')  ; cltra = TRIM(cltra)//TRIM(ctrcnm(kjn)) ; CALL iom_put( cltra,  ptrtrd(:,:,:) )
+         CASE( jptra_rad  )  ;  WRITE (cltra,'("RDN_",4a)')  ; cltra = TRIM(cltra)//TRIM(ctrcnm(kjn)) ; CALL iom_put( cltra,  ptrtrd(:,:,:) )
          END SELECT
          !
       END IF

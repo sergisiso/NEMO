@@ -425,7 +425,7 @@ CONTAINS
             ELSE
                DO_2D( 0, 0, 0, 0 )
                   sf_trccbc(jl)%fnow(ji,jj,1) = MAX( rtrn, sf_trccbc(jl)%fnow(ji,jj,1) ) ! avoid nedgative value due to interpolation
-                  zfact = rn_rfact / ( e3t(ji,jj,1,Kmm) * rn_cbc_time ) 
+                  zfact = rn_rfact / ( e1e2t(ji,jj) * e3t(ji,jj,1,Kmm) * rn_cbc_time ) 
                   ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zfact
                END_2D
             ENDIF

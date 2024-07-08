@@ -258,13 +258,11 @@ CONTAINS
       !
       REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmltot             ! d(trc)/dt over the anlysis window (incl. Asselin)
       REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmlres             ! residual = dh/dt entrainment term
-      REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmlatf             ! for storage only
       REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmlrad             ! for storage only (for trb<0 corr in trcrad)
       !
       REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmltot2            ! -+
       REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmlres2            !  | working arrays to diagnose the trends
       REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmltrdm2           !  | associated with the time meaned ML
-      REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmlatf2            !  | passive tracers
       REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmlrad2            !  | (-> for trb<0 corr in trcrad)
       !
       CHARACTER (LEN=10) ::   clvar
@@ -304,7 +302,7 @@ CONTAINS
       ! ======================================================================
 
       ztmltrd2(:,:,:,:) = 0.e0   ;   ztmltot2(:,:,:)   = 0.e0     ! <<< reset arrays to zero
-      ztmlres2(:,:,:)   = 0.e0   ;   ztmlatf2(:,:,:)   = 0.e0
+      ztmlres2(:,:,:)   = 0.e0   
       ztmlrad2(:,:,:)   = 0.e0
 
       ! II.1 Set before values of vertically averages passive tracers
@@ -313,8 +311,7 @@ CONTAINS
          DO jn = 1, jptra
             IF( ln_trdtrc(jn) ) THEN
                tmlb_trc   (:,:,jn) = tml_trc   (:,:,jn)
-               tmlatfn_trc(:,:,jn) = tmltrd_trc(:,:,jpmxl_trc_atf,jn)
-               tmlradn_trc(:,:,jn) = tmltrd_trc(:,:,jpmxl_trc_radb,jn)
+               tmlradn_trc(:,:,jn) = tmltrd_trc(:,:,jpmxl_trc_rad,jn)
             ENDIF
          END DO
       ENDIF
@@ -336,9 +333,9 @@ CONTAINS
          DO jn = 1, jptra
             IF( ln_trdtrc(jn) ) THEN
                tmlbb_trc  (:,:,jn) = tmlb_trc   (:,:,jn)   ;   tmlbn_trc  (:,:,jn) = tml_trc    (:,:,jn)
-               tmlatfb_trc(:,:,jn) = tmlatfn_trc(:,:,jn)   ;   tmlradb_trc(:,:,jn) = tmlradn_trc(:,:,jn)
+               tmlradb_trc(:,:,jn) = tmlradn_trc(:,:,jn)
                
-               tmltrd_csum_ub_trc (:,:,:,jn) = 0.e0   ;   tmltrd_atf_sumb_trc  (:,:,jn) = 0.e0
+               tmltrd_csum_ub_trc (:,:,:,jn) = 0.e0  
                tmltrd_rad_sumb_trc  (:,:,jn) = 0.e0
             ENDIF
          END DO
@@ -373,7 +370,6 @@ CONTAINS
          DO jn = 1, jptra
             IF( ln_trdtrc(jn) ) THEN
                ! ... Special handling of the Asselin trend 
-               tmlatfm_trc(:,:,jn) = tmlatfm_trc(:,:,jn) + tmlatfn_trc(:,:,jn)
                tmlradm_trc(:,:,jn) = tmlradm_trc(:,:,jn) + tmlradn_trc(:,:,jn)
 
                ! ... Trends associated with the time mean of the ML passive tracers
@@ -419,11 +415,9 @@ CONTAINS
                ENDIF
                
                !-- Compute residuals
-               ztmlres(:,:,jn) = ztmltot(:,:,jn) - ( tmltrdm_trc(:,:,jn) - tmlatfn_trc(:,:,jn) + tmlatfb_trc(:,:,jn) &
-                  &                                                 - tmlradn_trc(:,:,jn) + tmlradb_trc(:,:,jn)  )
+               ztmlres(:,:,jn) = ztmltot(:,:,jn) - ( tmltrdm_trc(:,:,jn) - tmlradn_trc(:,:,jn) + tmlradb_trc(:,:,jn)  )
                
                !-- Diagnose Asselin trend over the analysis window 
-               ztmlatf(:,:,jn) = tmlatfm_trc(:,:,jn) - tmlatfn_trc(:,:,jn) + tmlatfb_trc(:,:,jn)
                ztmlrad(:,:,jn) = tmlradm_trc(:,:,jn) - tmlradn_trc(:,:,jn) + tmlradb_trc(:,:,jn)
                
 #if defined key_diainstant
@@ -460,14 +454,11 @@ CONTAINS
                END DO
                
                ztmlres2(:,:,jn) =  ztmltot2(:,:,jn)  -       &
-                  & ( ztmltrdm2(:,:,jn) - tmltrd_sum_trc(:,:,jpmxl_trc_atf ,jn) + tmltrd_atf_sumb_trc(:,:,jn) &
-                  &                     - tmltrd_sum_trc(:,:,jpmxl_trc_radb,jn) + tmltrd_rad_sumb_trc(:,:,jn) )
+                  & ( ztmltrdm2(:,:,jn) - tmltrd_sum_trc(:,:,jpmxl_trc_rad,jn) + tmltrd_rad_sumb_trc(:,:,jn) )
                !
 
                !-- Diagnose Asselin trend over the analysis window
-               ztmlatf2(:,:,jn) = ztmltrd2(:,:,jpmxl_trc_atf ,jn) - tmltrd_sum_trc(:,:,jpmxl_trc_atf ,jn) &
-                  &                                               + tmltrd_atf_sumb_trc(:,:,jn)
-               ztmlrad2(:,:,jn) = ztmltrd2(:,:,jpmxl_trc_radb,jn) - tmltrd_sum_trc(:,:,jpmxl_trc_radb,jn) &
+               ztmlrad2(:,:,jn) = ztmltrd2(:,:,jpmxl_trc_rad,jn) - tmltrd_sum_trc(:,:,jpmxl_trc_rad,jn) &
                   &                                               + tmltrd_rad_sumb_trc(:,:,jn)
 
             ENDIF
@@ -495,8 +486,6 @@ CONTAINS
                   WRITE(numout, '(3x,a)') ' -->>>------------------- ztmlres is computed from ------------- '
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM +ztmltot    : ', SUM2D(+ztmltot    (:,:,jn))
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM +tmltrdm_trc: ', SUM2D(+tmltrdm_trc(:,:,jn))
-                  WRITE(numout,98) 'TRC jn =', jn, ' SUM -tmlatfn_trc: ', SUM2D(-tmlatfn_trc(:,:,jn))
-                  WRITE(numout,98) 'TRC jn =', jn, ' SUM +tmlatfb_trc: ', SUM2D(+tmlatfb_trc(:,:,jn))
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM -tmlradn_trc: ', SUM2D(-tmlradn_trc(:,:,jn))
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM +tmlradb_trc: ', SUM2D(+tmlradb_trc(:,:,jn))
                   WRITE(numout, '(3x,a)') ' --<<<----------------------------------------------------------- '
@@ -507,9 +496,7 @@ CONTAINS
                   WRITE(numout, '(3x,a)') ' -->>>------------------- ztmlres2 is computed from ------------ '
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM +ztmltot2            : ', SUM2D(+ztmltot2(:,:,jn))
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM +ztmltrdm2           : ', SUM2D(+ztmltrdm2(:,:,jn)) 
-                  WRITE(numout,98) 'TRC jn =', jn, ' SUM -tmltrd_sum_trc      : ', SUM2D(-tmltrd_sum_trc(:,:,jpmxl_trc_atf,jn)) 
-                  WRITE(numout,98) 'TRC jn =', jn, ' SUM +tmltrd_atf_sumb_trc : ', SUM2D(+tmltrd_atf_sumb_trc(:,:,jn))
-                  WRITE(numout,98) 'TRC jn =', jn, ' SUM -tmltrd_sum_trc      : ', SUM2D(-tmltrd_sum_trc(:,:,jpmxl_trc_radb,jn))
+                  WRITE(numout,98) 'TRC jn =', jn, ' SUM -tmltrd_sum_trc      : ', SUM2D(-tmltrd_sum_trc(:,:,jpmxl_trc_rad,jn))
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM +tmltrd_rad_sumb_trc : ', SUM2D(+tmltrd_rad_sumb_trc(:,:,jn) )
                   WRITE(numout, '(3x,a)') ' --<<<----------------------------------------------------------- '
                   
@@ -524,8 +511,6 @@ CONTAINS
                   
                   WRITE(numout, *)
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM tmltrdm_trc : ', SUM2D(tmltrdm_trc(:,:,jn))
-                  WRITE(numout,98) 'TRC jn =', jn, ' SUM tmlatfb_trc : ', SUM2D(tmlatfb_trc(:,:,jn))
-                  WRITE(numout,98) 'TRC jn =', jn, ' SUM tmlatfn_trc : ', SUM2D(tmlatfn_trc(:,:,jn))
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM tmlradb_trc : ', SUM2D(tmlradb_trc(:,:,jn))
                   WRITE(numout,98) 'TRC jn =', jn, ' SUM tmlradn_trc : ', SUM2D(tmlradn_trc(:,:,jn))
                   
@@ -583,25 +568,22 @@ CONTAINS
             IF( ln_trdtrc(jn) ) THEN        
                ! For passive tracer instantaneous diagnostics
                tmlbb_trc  (:,:,jn) = tmlb_trc   (:,:,jn)   ;   tmlbn_trc  (:,:,jn) = tml_trc    (:,:,jn)
-               tmlatfb_trc(:,:,jn) = tmlatfn_trc(:,:,jn)   ;   tmlradb_trc(:,:,jn) = tmlradn_trc(:,:,jn)
+               tmlradb_trc(:,:,jn) = tmlradn_trc(:,:,jn)
                
                ! For passive tracer mean diagnostics
                tmltrd_csum_ub_trc (:,:,:,jn) = zfn * tmltrd_sum_trc(:,:,:,jn) - tmltrd_csum_ln_trc(:,:,:,jn)
                tml_sumb_trc       (:,:,jn)   = tml_sum_trc(:,:,jn)
-               tmltrd_atf_sumb_trc(:,:,jn)   = tmltrd_sum_trc(:,:,jpmxl_trc_atf ,jn)
-               tmltrd_rad_sumb_trc(:,:,jn)   = tmltrd_sum_trc(:,:,jpmxl_trc_radb,jn)
+               tmltrd_rad_sumb_trc(:,:,jn)   = tmltrd_sum_trc(:,:,jpmxl_trc_rad,jn)
                
                
                ! III.4 Convert to appropriate physical units
                ! -------------------------------------------
                ztmltot     (:,:,jn)   = ztmltot     (:,:,jn)   * rn_ucf_trc/zfn   ! instant diags
                ztmlres     (:,:,jn)   = ztmlres     (:,:,jn)   * rn_ucf_trc/zfn
-               ztmlatf     (:,:,jn)   = ztmlatf     (:,:,jn)   * rn_ucf_trc/zfn
                ztmlrad     (:,:,jn)   = ztmlrad     (:,:,jn)   * rn_ucf_trc/zfn
                tml_sum_trc (:,:,jn)   = tml_sum_trc (:,:,jn)   /      (2*zfn)  ! mean diags
                ztmltot2    (:,:,jn)   = ztmltot2    (:,:,jn)   * rn_ucf_trc/zfn2
                ztmltrd2    (:,:,:,jn) = ztmltrd2    (:,:,:,jn) * rn_ucf_trc/zfn2
-               ztmlatf2    (:,:,jn)   = ztmlatf2    (:,:,jn)   * rn_ucf_trc/zfn2
                ztmlrad2    (:,:,jn)   = ztmlrad2    (:,:,jn)   * rn_ucf_trc/zfn2
                ztmlres2    (:,:,jn)   = ztmlres2    (:,:,jn)   * rn_ucf_trc/zfn2
             ENDIF
@@ -643,12 +625,9 @@ CONTAINS
                     &          it, tmltrd_trc(:,:,jl,jn), ndimtrd1, ndextrd1 )
                END DO
 
-               CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_radb,2)),    &  ! now trcrad    : jpltrd_trc - 1
+               CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_rad,2)),    &  ! now trcrad    : jpltrd_trc - 1
                     &          it, ztmlrad(:,:,jn), ndimtrd1, ndextrd1 )
 
-               CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_atf,2)),     &  ! now Asselin   : jpltrd_trc
-                    &          it, ztmlatf(:,:,jn), ndimtrd1, ndextrd1 )
-                     
             ENDIF
          END DO
 
@@ -676,11 +655,8 @@ CONTAINS
                     &          it, ztmltrd2(:,:,jl,jn), ndimtrd1, ndextrd1 )
                END DO
             
-               CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_radb,2)),   &  ! now trcrad    : jpltrd_trc - 1
+               CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_rad,2)),   &  ! now trcrad    : jpltrd_trc - 1
                  &          it, ztmlrad2(:,:,jn), ndimtrd1, ndextrd1 )
-
-               CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_atf,2)),    &  ! now Asselin   : jpltrd_trc
-                 &          it, ztmlatf2(:,:,jn), ndimtrd1, ndextrd1 )
 
             ENDIF 
             !
@@ -702,7 +678,7 @@ CONTAINS
          ! Reset cumulative arrays to zero
          ! -------------------------------         
          nmoymltrd = 0
-         tmltrdm_trc        (:,:,:)   = 0.e0   ;   tmlatfm_trc        (:,:,:)   = 0.e0
+         tmltrdm_trc        (:,:,:)   = 0.e0   
          tmlradm_trc        (:,:,:)   = 0.e0   ;   tml_sum_trc        (:,:,:)   = 0.e0
          tmltrd_csum_ln_trc (:,:,:,:) = 0.e0   ;   tmltrd_sum_trc     (:,:,:,:) = 0.e0
          rmld_sum_trc       (:,:)     = 0.e0
@@ -797,7 +773,7 @@ CONTAINS
       nmoymltrd   = 0
 
       rmld_trc           (:,:)     = 0.e0   ;   tml_trc            (:,:,:)   = 0.e0       ! inst.
-      tmltrdm_trc        (:,:,:)   = 0.e0   ;   tmlatfm_trc        (:,:,:)   = 0.e0
+      tmltrdm_trc        (:,:,:)   = 0.e0  
       tmlradm_trc        (:,:,:)   = 0.e0
 
       tml_sum_trc        (:,:,:)   = 0.e0   ;   tmltrd_sum_trc     (:,:,:,:) = 0.e0       ! mean
@@ -810,7 +786,7 @@ CONTAINS
          tmlbn_trc          (:,:,:)   = 0.e0
 
          tml_sumb_trc       (:,:,:)   = 0.e0   ;   tmltrd_csum_ub_trc (:,:,:,:) = 0.e0     ! mean
-         tmltrd_atf_sumb_trc(:,:,:)   = 0.e0   ;   tmltrd_rad_sumb_trc(:,:,:)   = 0.e0 
+         tmltrd_rad_sumb_trc(:,:,:)   = 0.e0 
 
        ENDIF
 
@@ -877,18 +853,16 @@ CONTAINS
       !-- Define long and short names for the NetCDF output variables
       !       ==> choose them according to trdmxl_trc_oce.F90 <==
 
-      ctrd_trc(jpmxl_trc_xad    ,1) = " Zonal advection"                 ;   ctrd_trc(jpmxl_trc_xad    ,2) = "_xad"
-      ctrd_trc(jpmxl_trc_yad    ,1) = " Meridional advection"            ;   ctrd_trc(jpmxl_trc_yad    ,2) = "_yad"
-      ctrd_trc(jpmxl_trc_zad    ,1) = " Vertical advection"              ;   ctrd_trc(jpmxl_trc_zad    ,2) = "_zad"
-      ctrd_trc(jpmxl_trc_ldf    ,1) = " Lateral diffusion"               ;   ctrd_trc(jpmxl_trc_ldf    ,2) = "_ldf"
-      ctrd_trc(jpmxl_trc_zdf    ,1) = " Vertical diff. (Kz)"             ;   ctrd_trc(jpmxl_trc_zdf    ,2) = "_zdf"
-      ctrd_trc(jpmxl_trc_bbl    ,1) = " Adv/diff. Bottom boundary layer" ;   ctrd_trc(jpmxl_trc_bbl    ,2) = "_bbl"
-      ctrd_trc(jpmxl_trc_dmp    ,1) = " Tracer damping"                  ;   ctrd_trc(jpmxl_trc_dmp    ,2) = "_dmp"
-      ctrd_trc(jpmxl_trc_sbc    ,1) = " Surface boundary cond."          ;   ctrd_trc(jpmxl_trc_sbc    ,2) = "_sbc"
-      ctrd_trc(jpmxl_trc_sms,    1) = " Sources minus sinks"             ;   ctrd_trc(jpmxl_trc_sms    ,2) = "_sms"
-      ctrd_trc(jpmxl_trc_radb   ,1) = " Correct negative concentrations" ;   ctrd_trc(jpmxl_trc_radb   ,2) = "_radb"
-      ctrd_trc(jpmxl_trc_radn   ,1) = " Correct negative concentrations" ;   ctrd_trc(jpmxl_trc_radn   ,2) = "_radn"
-      ctrd_trc(jpmxl_trc_atf    ,1) = " Asselin time filter"             ;   ctrd_trc(jpmxl_trc_atf    ,2) = "_atf"
+      ctrd_trc(jpmxl_trc_xad,1) = " Zonal advection"                 ;   ctrd_trc(jpmxl_trc_xad,2) = "_xad"
+      ctrd_trc(jpmxl_trc_yad,1) = " Meridional advection"            ;   ctrd_trc(jpmxl_trc_yad,2) = "_yad"
+      ctrd_trc(jpmxl_trc_zad,1) = " Vertical advection"              ;   ctrd_trc(jpmxl_trc_zad,2) = "_zad"
+      ctrd_trc(jpmxl_trc_ldf,1) = " Lateral diffusion"               ;   ctrd_trc(jpmxl_trc_ldf,2) = "_ldf"
+      ctrd_trc(jpmxl_trc_zdf,1) = " Vertical diff. (Kz)"             ;   ctrd_trc(jpmxl_trc_zdf,2) = "_zdf"
+      ctrd_trc(jpmxl_trc_bbl,1) = " Adv/diff. Bottom boundary layer" ;   ctrd_trc(jpmxl_trc_bbl,2) = "_bbl"
+      ctrd_trc(jpmxl_trc_dmp,1) = " Tracer damping"                  ;   ctrd_trc(jpmxl_trc_dmp,2) = "_dmp"
+      ctrd_trc(jpmxl_trc_sbc,1) = " Surface boundary cond."          ;   ctrd_trc(jpmxl_trc_sbc,2) = "_sbc"
+      ctrd_trc(jpmxl_trc_sms,1) = " Sources minus sinks"             ;   ctrd_trc(jpmxl_trc_sms,2) = "_sms"
+      ctrd_trc(jpmxl_trc_rad,1) = " Correct negative concentrations" ;   ctrd_trc(jpmxl_trc_rad,2) = "_rad"
 
       DO jn = 1, jptra      
       !-- Create a NetCDF file and enter the define mode 
@@ -915,8 +889,8 @@ CONTAINS
       ENDIF
 
       !-- Define miscellaneous passive tracer mixed-layer variables 
-      IF( jpltrd_trc /= jpmxl_trc_atf .OR.  jpltrd_trc - 1 /= jpmxl_trc_radb ) THEN
-         CALL ctl_stop( 'STOP', 'Error : jpltrd_trc /= jpmxl_trc_atf .OR.  jpltrd_trc - 1 /= jpmxl_trc_radb' ) ! see below
+      IF( jpltrd_trc /= jpmxl_trc_sms .OR.  jpltrd_trc - 1 /= jpmxl_trc_rad ) THEN
+         CALL ctl_stop( 'STOP', 'Error : jpltrd_trc /= jpmxl_trc_sms .OR.  jpltrd_trc - 1 /= jpmxl_trc_rad' ) ! see below
       ENDIF
 
       DO jn = 1, jptra
@@ -930,17 +904,11 @@ CONTAINS
             CALL histdef(nidtrd(jn), trim(clvar)//"_res"  , clmxl//" "//trim(ctrcnm(jn))//" dh/dt Entrainment (Resid.)",           & 
               &       cltrcu, jpi, jpj, nh_t(jn), 1  , 1, 1  , -99 , 32, clop, zout, zout )                   
          
-            DO jl = 1, jpltrd_trc - 2                                ! <== only true if jpltrd_trc == jpmxl_trc_atf
+            DO jl = 1, jpltrd_trc                               ! <== only true if jpltrd_trc 
                CALL histdef(nidtrd(jn), trim(clvar)//trim(ctrd_trc(jl,2)), clmxl//" "//clvar//ctrd_trc(jl,1),                      & 
                  &    cltrcu, jpi, jpj, nh_t(jn), 1  , 1, 1  , -99 , 32, clop, zsto, zout ) ! IOIPSL: time mean
             END DO                                                                         ! if zsto=rn_Dt above
          
-            CALL histdef(nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_radb,2)), clmxl//" "//clvar//ctrd_trc(jpmxl_trc_radb,1), & 
-              &       cltrcu, jpi, jpj, nh_t(jn), 1  , 1, 1  , -99 , 32, clop, zout, zout ) ! IOIPSL: NO time mean
-         
-            CALL histdef(nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_atf,2)), clmxl//" "//clvar//ctrd_trc(jpmxl_trc_atf,1),   & 
-              &       cltrcu, jpi, jpj, nh_t(jn), 1  , 1, 1  , -99 , 32, clop, zout, zout ) ! IOIPSL: NO time mean
-         !
          ENDIF
       END DO
 

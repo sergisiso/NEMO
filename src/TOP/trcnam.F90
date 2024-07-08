@@ -93,7 +93,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       INTEGER  ::   ios   ! Local integer
       !!
-      NAMELIST/namtrc_run/ ln_rsttr, nn_rsttr, ln_top_euler, &
+      NAMELIST/namtrc_run/ ln_rsttr, nn_rsttr, &
         &                  cn_trcrst_indir, cn_trcrst_outdir, cn_trcrst_in, cn_trcrst_out
       !!---------------------------------------------------------------------
       !
@@ -116,7 +116,6 @@ CONTAINS
          WRITE(numout,*) '      restart  for passive tracer                  ln_rsttr      = ', ln_rsttr
          WRITE(numout,*) '      control of time step for passive tracer      nn_rsttr      = ', nn_rsttr
          WRITE(numout,*) '      first time step for pass. trac.              nittrc000     = ', nittrc000
-         WRITE(numout,*) '      Use euler integration for TRC (y/n)          ln_top_euler  = ', ln_top_euler
       ENDIF
       !
    END SUBROUTINE trc_nam_run

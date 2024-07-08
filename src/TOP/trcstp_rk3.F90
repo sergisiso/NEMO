@@ -92,35 +92,37 @@ CONTAINS
          IF( kstg == 1 ) CALL trc_stp_start( kt, Kbb, Kmm, Krhs, Kaa )
          !
 !!st+gm : probably QUICK 
-         IF( .NOT.ln_trcadv_mus .AND. .NOT.ln_trcadv_qck ) THEN
-            !
-            DO jn = 1, jptra
-               tr(:,:,:,jn,Krhs) = 0._wp        ! set tracer trends to zero !!st ::: required because of tra_adv new loops
-            END DO
-            !                                   !==  advection of passive tracers  ==!
-            rDt_trc = rDt
-            !
-            CALL trc_sbc_RK3( kt, Kbb, Kmm, tr, Krhs, kstg )              ! surface boundary condition
-            !
-            IF( l_offline ) THEN
-               CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs ) ! horizontal & vertical advection
-            ELSE
-               CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs, pFu, pFv, pFw ) ! horizontal & vertical advection
-            ENDIF
-            !
-            !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
-            DO jn = 1, jptra
-               DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-                  ze3Tb  = e3t(ji,jj,jk,Kbb) * tr(ji,jj,jk,jn,Kbb )
-                  ze3Tr  = e3t(ji,jj,jk,Kmm) * tr(ji,jj,jk,jn,Krhs)
-                  z1_e3t = 1._wp / e3t(ji,jj,jk, Kaa)
-                  tr(ji,jj,jk,jn,Kaa) = ( ze3Tb + rDt_trc * ze3Tr * tmask(ji,jj,jk) ) * z1_e3t
-               END_3D
-            END DO
-            !
+         IF( .NOT. ln_c1d ) THEN
+            IF( .NOT.ln_trcadv_mus .AND. .NOT.ln_trcadv_qck ) THEN
+              !
+              DO jn = 1, jptra
+                 tr(:,:,:,jn,Krhs) = 0._wp        ! set tracer trends to zero !!st ::: required because of tra_adv new loops
+              END DO
+              !                                   !==  advection of passive tracers  ==!
+              rDt_trc = rDt
+              !
+              CALL trc_sbc( kt, Kbb, Kmm, tr, Krhs, kstg )              ! surface boundary condition
+              !
+              IF( l_offline ) THEN
+                CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs ) ! horizontal & vertical advection
+              ELSE
+                CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs, pFu, pFv, pFw ) ! horizontal & vertical advection
+              ENDIF
+              !
+              !                                      !==  time integration  ==!   ∆t = rn_Dt/3 (stg1) or rn_Dt/2 (stg2)
+              DO jn = 1, jptra
+                 DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+                   ze3Tb  = e3t(ji,jj,jk,Kbb) * tr(ji,jj,jk,jn,Kbb )
+                   ze3Tr  = e3t(ji,jj,jk,Kmm) * tr(ji,jj,jk,jn,Krhs)
+                   z1_e3t = 1._wp / e3t(ji,jj,jk, Kaa)
+                   tr(ji,jj,jk,jn,Kaa) = ( ze3Tb + rDt_trc * ze3Tr * tmask(ji,jj,jk) ) * z1_e3t
+                END_3D
+              END DO
+              !
 !!st need a lnc lkn at stage 1 & 2 otherwise tr@Kmm will not be usable in trc_adv
-            CALL lbc_lnk( 'stprk3_stg', tr(:,:,:,:,Kaa), 'T', 1._wp )
-
+              CALL lbc_lnk( 'stprk3_stg', tr(:,:,:,:,Kaa), 'T', 1._wp )
+              !
+           ENDIF
          ENDIF
          !                 !---------------!
       CASE ( 3 )           !==  Stage 3  ==!   add all RHS terms but advection (=> Kbb only)
@@ -137,16 +139,19 @@ CONTAINS
          !
          CALL trc_sms    ( kt, Kbb, Kmm, Krhs      )       ! tracers: sinks and sources
          !
-         CALL trc_sbc_RK3( kt, Kbb, Kmm, tr, Krhs, kstg )              ! surface boundary condition
+         CALL trc_sbc( kt, Kbb, Kmm, tr, Krhs, kstg )              ! surface boundary condition
          !
-         IF( l_offline ) THEN
-            CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs ) ! horizontal & vertical advection
-         ELSE
-            CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs, pFu, pFv, pFw ) ! horizontal & vertical advection
-         ENDIF
+         IF( .NOT. ln_c1d ) THEN
+           !
+           IF( l_offline ) THEN
+              CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs ) ! horizontal & vertical advection
+           ELSE
+              CALL trc_adv ( kt, Kbb, Kmm, Kaa, tr, Krhs, pFu, pFv, pFw ) ! horizontal & vertical advection
+           ENDIF
+           !
+         ENDIF       
          !
          CALL trc_trp    ( kt, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers (without advection)
-         !
          !
          CALL trc_stp_end( kt, Kbb, Kmm,       Kaa )
          !
