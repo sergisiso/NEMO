@@ -54,8 +54,7 @@ MODULE trd_oce
    !
    !                                                  !!!* Passive tracers trends indices (use if "key_top" defined)
    INTEGER, PUBLIC, PARAMETER ::   jptra_sms  = 18     !: sources m. sinks
-   INTEGER, PUBLIC, PARAMETER ::   jptra_radn = 19     !: corr. trn<0 in trcrad
-   INTEGER, PUBLIC, PARAMETER ::   jptra_radb = 20     !: corr. trb<0 in trcrad (like atf)
+   INTEGER, PUBLIC, PARAMETER ::   jptra_rad  = 19     !: corr. trn<0 in trcrad
    !
    !                                                  !!!* Momentum trends indices
    INTEGER, PUBLIC, PARAMETER ::   jptot_dyn  = 13     !: Total trend nb: change it when adding/removing one indice below

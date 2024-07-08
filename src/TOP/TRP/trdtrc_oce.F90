@@ -47,13 +47,11 @@ MODULE trdtrc_oce
         jpmxl_trc_sbc     =  8,     & !:     forcing 
         jpmxl_trc_sms     =  9,     & !:     sources minus sinks trend
   !     jpmxl_trc_xxx     = xx,     & !:     add here any additional trend    (** AND UPDATE JPLTRD_TRC BELOW **)
-        jpmxl_trc_radn    = 10,     & !:     corr. trn<0 in trcrad
-        jpmxl_trc_radb    = 11,     & !:     corr. trb<0 in trcrad (like atf) (** MUST BE BEFORE THE LAST ONE **)
-        jpmxl_trc_atf     = 12        !:     asselin trend                    (** MUST BE    THE      LAST ONE**)
+        jpmxl_trc_radn    = 10     & !:     corr. trn<0 in trcrad
 
    !! Trends diagnostics parameters
    !!---------------------------------------------------------------------
-   INTEGER, PARAMETER :: jpltrd_trc = 12    !: number of mixed-layer trends arrays
+   INTEGER, PARAMETER :: jpltrd_trc = 10    !: number of mixed-layer trends arrays
       
    INTEGER            :: jpktrd_trc         !: max level for mixed-layer trends diag.
 
@@ -78,16 +76,7 @@ MODULE trdtrc_oce
       tmlbn_trc  ,                        &      !: /  current analysis window
       tml_sum_trc,                        &      !: mixed layer T, summed over the current analysis period
       tml_sumb_trc,                       &      !: idem, but from the previous analysis period
-      tmltrd_atf_sumb_trc,                &      !: Asselin trends, summed over the previous analysis period
-      tmltrd_rad_sumb_trc                        !: trends due to trb correction in trcrad.F90, summed over the
-                                                 !:     previous analysis period
-                                                 
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  &      
-      tmlatfb_trc, tmlatfn_trc ,          &      !: "before" Asselin contrib. at beginning of the averaging
-                                                 !:     period (i.e. last contrib. from previous such period)
-                                                 !:     and "now" Asselin contrib. to the ML trc. trends
-      tmlatfm_trc,                        &      !: accumulator for Asselin trends (needed for storage only)
-      tmlradb_trc, tmlradn_trc ,          &      !: similar to Asselin above, but for the trend due to trb
+      tmlradn_trc ,          &      !: similar to Asselin above, but for the trend due to trb
                                                  !:     correction in trcrad.F90
       tmlradm_trc                                !: accumulator for the previous trcrad trend
 
@@ -127,11 +116,8 @@ CONTAINS
                tml_trc(jpi,jpj,jptra),     tmlb_trc(jpi,jpj,jptra),     &
                tmlbb_trc(jpi,jpj,jptra),   tmlbn_trc(jpi,jpj,jptra),    &
                tml_sum_trc(jpi,jpj,jptra), tml_sumb_trc(jpi,jpj,jptra), &
-               tmltrd_atf_sumb_trc(jpi,jpj,jptra),                      &
                tmltrd_rad_sumb_trc(jpi,jpj,jptra),                      &
                !
-               tmlatfb_trc(jpi,jpj,jptra), tmlatfn_trc(jpi,jpj,jptra),  &
-               tmlatfm_trc(jpi,jpj,jptra), tmlradb_trc(jpi,jpj,jptra),  &
                tmlradn_trc(jpi,jpj,jptra), tmlradm_trc(jpi,jpj,jptra),  &
                !
                tmltrd_trc(jpi,jpj,jpltrd_trc,jptra)         , &
@@ -162,11 +148,8 @@ CONTAINS
                tml_trc,     tmlb_trc,     &
                tmlbb_trc,   tmlbn_trc,    &
                tml_sum_trc, tml_sumb_trc, &
-               tmltrd_atf_sumb_trc,                      &
                tmltrd_rad_sumb_trc,                      &
                !
-               tmlatfb_trc, tmlatfn_trc,  &
-               tmlatfm_trc, tmlradb_trc,  &
                tmlradn_trc, tmlradm_trc,  &
                !
                tmltrd_trc(jpi,jpj,jpltrd_trc,jptra)         , &

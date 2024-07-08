@@ -149,7 +149,6 @@ CONTAINS
          zhdivtr(:,:,:)    = sf_dyn(jf_div)%fnow(:,:,:)  * tmask(:,:,:)    ! horizontal divergence transport including runoffs
                                                                            ! see  sbc_rnf_div in sbcrnf.F90
          zemp (:,:)        =  emp(:,:) 
-
          IF( ln_dynrnf )  zemp(:,:) = zemp(:,:) + rnf(:,:)                 ! remove runoff from emp since it is already included in zhdivtr
                           zemp(:,:) = zemp(:,:) * tmask(:,:,1)
 #if defined key_qco
@@ -385,17 +384,15 @@ CONTAINS
       !
       INTEGER                       :: jk
       REAL(wp), DIMENSION(jpi,jpj)  :: zhdiv  
-      REAL(wp)  :: z2dt  
       !!----------------------------------------------------------------------
       !
-      z2dt = 2._wp * rn_Dt
       !
       zhdiv(:,:) = 0._wp
       DO jk = 1, jpkm1
          zhdiv(:,:) = zhdiv(:,:) +  phdivtr(:,:,jk) * tmask(:,:,jk)
       END DO
       !                                                ! Sea surface  elevation time-stepping
-      pssha(:,:) = ( psshb(:,:) - z2dt * ( r1_rho0 * pemp(:,:)  + zhdiv(:,:) ) ) * ssmask(:,:)
+      pssha(:,:) = ( psshb(:,:) -  rn_Dt * ( r1_rho0 * pemp(:,:)  + zhdiv(:,:) ) ) * ssmask(:,:)
       !
       IF( PRESENT( pe3ta ) ) THEN                      ! After scale factors at t-points ( z_star coordinate )
       DO jk = 1, jpkm1

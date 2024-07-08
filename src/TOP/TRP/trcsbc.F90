@@ -26,8 +26,7 @@ MODULE trcsbc
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trc_sbc       ! routine called by trctrp.F90
-   PUBLIC   trc_sbc_RK3   ! routine called by stprk3_stg.F90
+   PUBLIC   trc_sbc   ! routine called by stprk3_stg.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -38,178 +37,7 @@ MODULE trcsbc
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE trc_sbc ( kt, Kmm, ptr, Krhs )
-      !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE trc_sbc  ***
-      !!                   
-      !! ** Purpose :   Compute the tracer surface boundary condition trend of
-      !!      (concentration/dilution effect) and add it to the general 
-      !!       trend of tracer equations.
-      !!
-      !! ** Method :
-      !!      * concentration/dilution effect:
-      !!            The surface freshwater flux modify the ocean volume
-      !!         and thus the concentration of a tracer as :
-      !!            tr(Krhs) = tr(Krhs) + emp * tr(Kmm) / e3t_ + fwfice * tri / e3t   for k=1
-      !!          - tr(Kmm) , the concentration of tracer in the ocean
-      !!          - tri, the concentration of tracer in the sea-ice
-      !!          - emp, the surface freshwater budget (evaporation minus precipitation + fwfice)
-      !!            given in kg/m2/s is divided by 1035 kg/m3 (density of ocean water) to obtain m/s.
-      !!          - fwfice, the flux asscociated to freezing-melting of sea-ice 
-      !!            In linear free surface case (lk_linssh=T), the volume of the
-      !!            ocean does not change with the water exchanges at the (air+ice)-sea
-      !!
-      !! ** Action  : - Update the 1st level of tr(:,:,:,:,Krhs) with the trend associated
-      !!                with the tracer surface boundary condition 
-      !!
-      !!----------------------------------------------------------------------
-      INTEGER,                                    INTENT(in   ) :: kt        ! ocean time-step index
-      INTEGER,                                    INTENT(in   ) :: Kmm, Krhs ! time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) :: ptr       ! passive tracers and RHS of tracer equation
-      !
-      INTEGER  ::   ji, jj, jn                      ! dummy loop indices
-      REAL(wp) ::   zse3t, zrtrn, zfact     ! local scalars
-      REAL(wp) ::   zdtra          !   -      -
-      CHARACTER (len=22) :: charout
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrtrd
-      !!---------------------------------------------------------------------
-      !
-      IF( ln_timing )   CALL timing_start('trc_sbc')
-      !
-      ! Allocate temporary workspace
-      IF( l_trdtrc )  ALLOCATE( ztrtrd(T2D(0),jpk) )
-      !
-      zrtrn = 1.e-15_wp
-
-      IF( kt == nittrc000 ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'trc_sbc : Passive tracers surface boundary condition'
-         IF(lwp) WRITE(numout,*) '~~~~~~~ '
-         !
-         IF( ln_rsttr .AND. .NOT.ln_top_euler .AND.   &                     ! Restart: read in restart  file
-            iom_varid( numrtr, 'sbc_'//TRIM(ctrcnm(1))//'_b', ldstop = .FALSE. ) > 0 ) THEN
-            IF(lwp) WRITE(numout,*) '          nittrc000-1 surface tracer content forcing fields read in the restart file'
-            zfact = 0.5_wp
-            DO jn = 1, jptra
-               CALL iom_get( numrtr, jpdom_auto, 'sbc_'//TRIM(ctrcnm(jn))//'_b', sbc_trc_b(:,:,jn) )   ! before tracer content sbc
-            END DO
-         ELSE                                         ! No restart or restart not found: Euler forward time stepping
-           zfact = 1._wp
-           sbc_trc_b(:,:,:) = 0._wp
-         ENDIF
-      ELSE                                         ! Swap of forcing fields
-         IF( ln_top_euler ) THEN
-            zfact = 1._wp
-            sbc_trc_b(:,:,:) = 0._wp
-         ELSE
-            zfact = 0.5_wp
-            sbc_trc_b(:,:,:) = sbc_trc(:,:,:)
-         ENDIF
-         !
-      ENDIF
-
-      ! 0. initialization
-      SELECT CASE ( nn_ice_tr )
-
-      CASE ( -1 ) ! ! No tracers in sea ice ( trc_i = 0 )
-         !
-         DO jn = 1, jptra
-            DO_2D( 0, 0, 0, 0 )
-               sbc_trc(ji,jj,jn) = 0._wp
-            END_2D
-         END DO
-         !
-         IF( lk_linssh ) THEN  !* linear free surface  
-            DO jn = 1, jptra
-               DO_2D( 0, 0, 0, 0 )
-                  sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
-               END_2D
-            END DO
-         ENDIF
-         !
-      CASE ( 0 )  ! Same concentration in sea ice and in the ocean ( trc_i = ptr(...,Kmm)  )
-         !
-         DO jn = 1, jptra
-            DO_2D( 0, 0, 0, 0 )
-               sbc_trc(ji,jj,jn) = fwfice(ji,jj) * r1_rho0 * ptr(ji,jj,1,jn,Kmm)
-            END_2D
-         END DO
-         !
-         IF( lk_linssh ) THEN  !* linear free surface  
-            DO jn = 1, jptra
-               DO_2D( 0, 0, 0, 0 )
-                  sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
-               END_2D
-            END DO
-         ENDIF
-         !
-      CASE ( 1 )  ! Specific treatment of sea ice fluxes with an imposed concentration in sea ice 
-         !
-         DO jn = 1, jptra
-            DO_2D( 0, 0, 0, 0 )
-               sbc_trc(ji,jj,jn) = fwfice(ji,jj) * r1_rho0 * trc_i(ji,jj,jn)
-            END_2D
-         END DO
-         !
-         IF( lk_linssh ) THEN  !* linear free surface  
-            DO jn = 1, jptra
-               DO_2D( 0, 0, 0, 0 )
-                  sbc_trc(ji,jj,jn) = sbc_trc(ji,jj,jn) + r1_rho0 * emp(ji,jj) * ptr(ji,jj,1,jn,Kmm) !==>> add concentration/dilution effect due to constant volume cell
-               END_2D
-            END DO
-         ENDIF
-         !
-         DO jn = 1, jptra
-            DO_2D( 0, 0, 0, 0 )
-               zse3t = rDt_trc / e3t(ji,jj,1,Kmm)
-               zdtra = ptr(ji,jj,1,jn,Kmm) + sbc_trc(ji,jj,jn) * zse3t 
-               IF( zdtra < 0. ) sbc_trc(ji,jj,jn) = MAX( zdtra, -ptr(ji,jj,1,jn,Kmm) / zse3t  ) ! avoid negative concentration that can occurs if trc_i > ptr 
-            END_2D
-         END DO
-         !                             
-      END SELECT
-      !
-      DO jn = 1, jptra
-         !
-         IF( l_trdtrc )   ztrtrd(:,:,:) = ptr(T2D(0),:,jn,Krhs)  ! save trends
-         !
-         DO_2D( 0, 0, 0, 0 )
-            zse3t = zfact / e3t(ji,jj,1,Kmm)
-            ptr(ji,jj,1,jn,Krhs) = ptr(ji,jj,1,jn,Krhs) + ( sbc_trc_b(ji,jj,jn) + sbc_trc(ji,jj,jn) ) * zse3t
-         END_2D
-         !
-         IF( l_trdtrc ) THEN
-            ztrtrd(:,:,:) = ptr(T2D(0),:,jn,Krhs) - ztrtrd(:,:,:)
-            CALL trd_tra( kt, Kmm, Krhs, 'TRC', jn, jptra_nsr, ztrtrd )
-         END IF
-         !                                                       ! ===========
-      END DO                                                     ! tracer loop
-      !                                                          ! ===========
-      !
-      !                                           Write in the tracer restar  file
-      !                                          *******************************
-      IF( lrst_trc .AND. .NOT.ln_top_euler ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) 'sbc : ocean surface tracer content forcing fields written in tracer restart file ',   &
-            &                    'at it= ', kt,' date= ', ndastp
-         IF(lwp) WRITE(numout,*) '~~~~'
-         DO jn = 1, jptra
-            CALL iom_rstput( kt, nitrst, numrtw, 'sbc_'//TRIM(ctrcnm(jn))//'_b', sbc_trc(:,:,jn) )
-         END DO
-      ENDIF
-      !
-      IF( sn_cfctl%l_prttrc )   THEN
-         WRITE(charout, FMT="('sbc ')") ;  CALL prt_ctl_info( charout, cdcomp = 'top' )
-                                           CALL prt_ctl( tab4d_1=ptr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm, clinfo3='trd' )
-      ENDIF
-      IF( l_trdtrc )  DEALLOCATE( ztrtrd )
-      !
-      IF( ln_timing )   CALL timing_stop('trc_sbc')
-      !
-   END SUBROUTINE trc_sbc
-
-
-   SUBROUTINE trc_sbc_RK3 ( kt, Kbb, Kmm, ptr, Krhs, kstg )
+   SUBROUTINE trc_sbc( kt, Kbb, Kmm, ptr, Krhs, kstg )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trc_sbc_RK3  ***
       !!                   
@@ -379,7 +207,7 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_stop('trc_sbc_RK3')
       !
-   END SUBROUTINE trc_sbc_RK3
+   END SUBROUTINE trc_sbc
 
 
 #else

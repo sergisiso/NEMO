@@ -92,22 +92,15 @@ CONTAINS
          !
          IF( ln_bdy )           CALL trc_bdy( kt, Kbb, Kmm, Kaa )
          !
-         ! Subsequent calls use the filtered values: Kmm and Kaa
-         ! These are used explicitly here since time levels will not be swapped until after tra_atf/dyn_atf/ssh_atf in stp
-         !
          IF( ln_trcrad )        CALL trc_rad    ( kt, Kmm, Kaa, tr )    ! Correct artificial negative concentrations
          IF( ln_trcdmp_clo )    CALL trc_dmp_clo( kt, Kmm, Kaa )              ! internal damping trends on closed seas only
 
          !
       ELSE                                               ! 1D vertical configuration
-                                CALL trc_sbc( kt,      Kmm,       tr, Krhs )  ! surface boundary condition
          IF( ln_trcdmp )        CALL trc_dmp( kt, Kbb, Kmm, tr, Krhs )  ! internal damping trends
                                 CALL trc_zdf( kt, Kbb, Kmm, Krhs, tr, Kaa  )  ! vert. mixing & after tracer	==> after
          !
-         ! Subsequent calls use the filtered values: Kmm and Kaa 
-         ! These are used explicitly here since time levels will not be swapped until after tra_atf/dyn_atf/ssh_atf in stp
-         !
-         IF( ln_trcrad )       CALL trc_rad( kt, Kmm, Kaa, tr       )  ! Correct artificial negative concentrations
+         IF( ln_trcrad )        CALL trc_rad( kt, Kmm, Kaa, tr       )  ! Correct artificial negative concentrations
          !
       END IF
       !

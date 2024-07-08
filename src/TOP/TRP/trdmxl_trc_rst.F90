@@ -69,8 +69,6 @@ CONTAINS
             DO jn = 1, jptra
                CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmlbb_trc_'  //ctrcnm(jn), tmlbb_trc  (:,:,jn) )
                CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmlbn_trc_'  //ctrcnm(jn), tmlbn_trc  (:,:,jn) )
-               CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmlatfb_trc_'//ctrcnm(jn), tmlatfb_trc(:,:,jn) )
-               CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmlradb_trc_'//ctrcnm(jn), tmlradb_trc(:,:,jn) )
             END DO
             !
          ELSE
@@ -81,10 +79,7 @@ CONTAINS
             DO jn = 1, jptra                                           ! tracer loop
                !                                                       ! ===========
 
-               CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmlatfb_trc_' //ctrcnm(jn), tmlatfb_trc (:,:,jn) ) ! 2D x jptra
                CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmlbb_trc_'   //ctrcnm(jn), tmlbb_trc   (:,:,jn) ) ! 2D x jptra
-               CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmlradb_trc_' //ctrcnm(jn), tmlradb_trc (:,:,jn) ) ! 2D x jptra
-
                CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmlbn_trc_'   //ctrcnm(jn), tmlbn_trc   (:,:,jn) ) ! 2D x jptra
                CALL iom_rstput( kt, nitrst, nummldw_trc, 'tml_sumb_trc_'//ctrcnm(jn), tml_sumb_trc(:,:,jn) ) ! 2D x jptra
                
@@ -97,9 +92,6 @@ CONTAINS
                   CALL iom_rstput( kt, nitrst, nummldw_trc, charout, tmltrd_csum_ub_trc(:,:,jk,jn) )
                END DO
                
-               CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmltrd_atf_sumb_trc_'//ctrcnm(jn) , &
-                    &           tmltrd_atf_sumb_trc(:,:,jn) ) ! 2D x jptra
-
                CALL iom_rstput( kt, nitrst, nummldw_trc, 'tmltrd_rad_sumb_trc_'//ctrcnm(jn) , &
                     &           tmltrd_rad_sumb_trc(:,:,jn) ) ! 2D x jptra
                !                                                       ! ===========
@@ -144,8 +136,6 @@ CONTAINS
          DO jn = 1, jptra
             CALL iom_get( inum, jpdom_auto, 'tmlbb_trc_'  //ctrcnm(jn), tmlbb_trc  (:,:,jn) )
             CALL iom_get( inum, jpdom_auto, 'tmlbn_trc_'  //ctrcnm(jn), tmlbn_trc  (:,:,jn) )
-            CALL iom_get( inum, jpdom_auto, 'tmlatfb_trc_'//ctrcnm(jn), tmlatfb_trc(:,:,jn) )
-            CALL iom_get( inum, jpdom_auto, 'tmlradb_trc_'//ctrcnm(jn), tmlradb_trc(:,:,jn) )
          END DO
          
       ELSE
@@ -154,10 +144,7 @@ CONTAINS
          !                                                          ! ===========
          DO jn = 1, jptra                                           ! tracer loop
             !                                                       ! ===========
-            CALL iom_get( inum, jpdom_auto, 'tmlatfb_trc_' //ctrcnm(jn), tmlatfb_trc(:,:,jn) )
             CALL iom_get( inum, jpdom_auto, 'tmlbb_trc_'   //ctrcnm(jn), tmlbb_trc  (:,:,jn) )
-            CALL iom_get( inum, jpdom_auto, 'tmlradb_trc_' //ctrcnm(jn), tmlradb_trc(:,:,jn) )
-
             CALL iom_get( inum, jpdom_auto, 'tmlbn_trc_'   //ctrcnm(jn), tmlbn_trc   (:,:,jn) ) ! needed for tml_sum
             CALL iom_get( inum, jpdom_auto, 'tml_sumb_trc_'//ctrcnm(jn), tml_sumb_trc(:,:,jn) )
             
@@ -169,10 +156,6 @@ CONTAINS
                ENDIF
                CALL iom_get( inum, jpdom_auto, charout, tmltrd_csum_ub_trc(:,:,jk,jn) )
             END DO
-            
-            CALL iom_get( inum, jpdom_auto, 'tmltrd_atf_sumb_trc_'//ctrcnm(jn) , &
-                 &        tmltrd_atf_sumb_trc(:,:,jn) )
-
             CALL iom_get( inum, jpdom_auto, 'tmltrd_rad_sumb_trc_'//ctrcnm(jn) , &
                  &        tmltrd_rad_sumb_trc(:,:,jn) )
             !                                                       ! ===========

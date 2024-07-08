@@ -60,7 +60,6 @@ MODULE trc
    CHARACTER(len = 80) , PUBLIC ::   cn_trcrst_out      !: suffix of pass. tracer restart name (output)
    CHARACTER(len = 256), PUBLIC ::   cn_trcrst_outdir   !: restart output directory
    REAL(wp)            , PUBLIC ::   rDt_trc            !: = rn_Dt
-   LOGICAL             , PUBLIC ::   ln_top_euler       !: boolean term for euler integration 
    LOGICAL             , PUBLIC ::   ln_trcdta          !: Read inputs data from files
    LOGICAL             , PUBLIC ::   ln_trcbc           !: Enable surface, lateral or open boundaries conditions
    LOGICAL             , PUBLIC ::   ln_trcais          !: Enable Antarctic Ice Sheet nutrient supply
