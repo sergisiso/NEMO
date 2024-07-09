@@ -55,7 +55,7 @@ MODULE traadv_fct
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv_fct( kt, kit000, cdtype, p2dt, pU, pV, pW,       &
+   SUBROUTINE tra_adv_fct( kt, kit000, cdtype, pdt, pU, pV, pW,       &
       &                    Kbb, Kmm, Kaa, pt, kjpt, Krhs, kn_fct_h, kn_fct_v, kn_fct_imp )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_fct  ***
@@ -80,7 +80,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kn_fct_h        ! order of the FCT scheme (=2 or 4)
       INTEGER                                  , INTENT(in   ) ::   kn_fct_v        ! order of the FCT scheme (=2 or 4)
       INTEGER                                  , INTENT(in   ) ::   kn_fct_imp      ! treatment of implicit optmized(1) or accurate(2)
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                                 , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(T2D(nn_hls),jpk     ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
@@ -154,7 +154,7 @@ CONTAINS
          !
          ! -- Upstream fluxes
          ! ------------------
-         CALL fct_up1_2stp( Kbb, Kmm, Kaa, p2dt, pt(:,:,:,jn,Kbb), pU, pV, pW, ztFu, ztFv, ztFw, zta_up1, pt(:,:,:,jn,Krhs) )
+         CALL fct_up1_2stp( Kbb, Kmm, Kaa, pdt, pt(:,:,:,jn,Kbb), pU, pV, pW, ztFu, ztFv, ztFw, zta_up1, pt(:,:,:,jn,Krhs) )
          ! output => ztFu(1,0,1,0), ztFv(1,0,1,0), zta_up1(0,0,0,0), ztFw(0,0,0,0) if Amip2 or ztFw(1,1,1,1) if .not.Aimp2
          !
          IF( l_trd .OR. l_hst )  THEN             ! trend diagnostics (contribution of upstream fluxes)
@@ -286,7 +286,7 @@ CONTAINS
                ztra = - (  ( ztFu(ji,jj,jk) - ztFu(ji-1,jj  ,jk  ) )   &   ! add () NP halo
                   &      + ( ztFv(ji,jj,jk) - ztFv(ji  ,jj-1,jk  ) )   &
                   &      + ( ztFw(ji,jj,jk) - ztFw(ji  ,jj  ,jk+1) ) ) * r1_e1e2t(ji,jj)
-               ztmp(ji,jj,jk) = zta_up1(ji,jj,jk) + p2Dt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
+               ztmp(ji,jj,jk) = zta_up1(ji,jj,jk) + pdt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
             END_3D
             !
             CALL tridia_solver( zwdia, zwsup, zwinf, ztmp, ztmp , 0 )
@@ -307,7 +307,7 @@ CONTAINS
          !
          ! -- Flux limiter
          ! ---------------
-         CALL nonosc( Kaa, pt(:,:,:,jn,Kbb), ztFu, ztFv, ztFw, zta_up1, p2dt )
+         CALL nonosc( Kaa, pt(:,:,:,jn,Kbb), ztFu, ztFv, ztFw, zta_up1, pdt )
          !
          !        !==  final trend with corrected fluxes  ==!
          !
@@ -320,7 +320,7 @@ CONTAINS
             !
             pt(ji,jj,jk,jn,Krhs) = pt(ji,jj,jk,jn,Krhs) + ztra / e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk) !!clem
             ! update upstream (for implicit)
-            zta_up1(ji,jj,jk) = zta_up1(ji,jj,jk) + p2Dt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
+            zta_up1(ji,jj,jk) = zta_up1(ji,jj,jk) + pdt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
          END_3D
          !
          IF ( ll_zAimp2 ) THEN
@@ -637,7 +637,7 @@ CONTAINS
    END SUBROUTINE fct_up1_2stp
 
    
-   SUBROUTINE nonosc_org( Kaa, pbef, paa, pbb, pcc, paft, p2dt )
+   SUBROUTINE nonosc_org( Kaa, pbef, paa, pbb, pcc, paft, pdt )
       !!---------------------------------------------------------------------
       !!                    ***  ROUTINE nonosc  ***
       !!
@@ -651,7 +651,7 @@ CONTAINS
       !!       in-space based differencing for fluid
       !!----------------------------------------------------------------------
       INTEGER                             , INTENT(in   ) ::   Kaa             ! time level index
-      REAL(wp)                            , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                            , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(jpi,jpj,jpk)    , INTENT(in   ) ::   pbef            ! before field
       REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   paft            ! after field
       REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   paa, pbb, pcc   ! monotonic fluxes in the 3 directions
@@ -706,7 +706,7 @@ CONTAINS
                & + MAX( 0._wp, pcc(ji  ,jj  ,jk  ) ) - MIN( 0._wp, pcc(ji  ,jj  ,jk+1) )
 
             ! up & down beta terms
-            zbt = e1e2t(ji,jj) * e3t(ji,jj,jk,Kaa) / p2dt
+            zbt = e1e2t(ji,jj) * e3t(ji,jj,jk,Kaa) / pdt
             IF( zup /= -zbig .AND. zpos /= 0._wp ) THEN   ;   zbetup(ji,jj,jk) = ( zup - paft(ji,jj,jk) ) / zpos * zbt
             ELSE                                          ;   zbetup(ji,jj,jk) = zbig
             ENDIF
@@ -734,7 +734,7 @@ CONTAINS
       !
    END SUBROUTINE nonosc_org
 
-   SUBROUTINE nonosc( Kaa, pbef, paa, pbb, pcc, paft, p2dt )
+   SUBROUTINE nonosc( Kaa, pbef, paa, pbb, pcc, paft, pdt )
       !!---------------------------------------------------------------------
       !!                    ***  ROUTINE nonosc  ***
       !!
@@ -751,7 +751,7 @@ CONTAINS
       !!       in-space based differencing for fluid
       !!----------------------------------------------------------------------
       INTEGER                             , INTENT(in   ) ::   Kaa             ! time level index
-      REAL(wp)                            , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                            , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(jpi,jpj,jpk)    , INTENT(in   ) ::   pbef            ! masked before field
       REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(in   ) ::   paft            ! masked after  field
       REAL(wp), DIMENSION(T2D(nn_hls),jpk), INTENT(inout) ::   paa, pbb, pcc   ! monotonic fluxes in the 3 directions
@@ -787,7 +787,7 @@ CONTAINS
 !   ===>>>  paa,pbb  update at level jk   using zbetup/do at ikk only
 !           pcc      update at level jk   using zbetup/do at ikk and ikkm1
 
-      z1_Dt = 1._wp / p2dt
+      z1_Dt = 1._wp / pdt
 
       DO jk = 1, jpkm1
          !

@@ -243,14 +243,10 @@ CONTAINS
       !! 
       INTEGER  ::   ji, jj       ! dummy loop indexes
       INTEGER  ::   ikbu, ikbv   ! local integers
-      REAL(wp) ::   zm1_2dt      ! local scalar
       REAL(wp) ::   zCdu, zCdv   !   -      -
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrdu, ztrdv
       !!---------------------------------------------------------------------
       !
-!!gm bug : time step is only rn_Dt (not 2 rn_Dt if euler start !)
-      zm1_2dt = - 1._wp / ( 2._wp * rn_Dt )
-
       IF( l_trddyn ) THEN      ! trends: store the input trends
          ALLOCATE( ztrdu(T2D(0),jpk), ztrdv(T2D(0),jpk) )
          ztrdu(:,:,:) = pua(T2D(0),:)
@@ -261,12 +257,12 @@ CONTAINS
          ikbu = mbku(ji,jj)          ! deepest wet ocean u- & v-levels
          ikbv = mbkv(ji,jj)
          !
-         ! Apply stability criteria on absolute value  : abs(bfr/e3) < 1/(2dt) => bfr/e3 > -1/(2dt)
+         ! Apply stability criteria on absolute value  : abs(bfr/e3) < 1/(dt) => bfr/e3 > -1/(dt)
          zCdu = 0.5*( rCdU_bot(ji+1,jj)+rCdU_bot(ji,jj) ) / e3u(ji,jj,ikbu,Kmm)
          zCdv = 0.5*( rCdU_bot(ji,jj+1)+rCdU_bot(ji,jj) ) / e3v(ji,jj,ikbv,Kmm)
          !
-         pua(ji,jj,ikbu) = pua(ji,jj,ikbu) + MAX(  zCdu , zm1_2dt  ) * pub(ji,jj,ikbu)
-         pva(ji,jj,ikbv) = pva(ji,jj,ikbv) + MAX(  zCdv , zm1_2dt  ) * pvb(ji,jj,ikbv)
+         pua(ji,jj,ikbu) = pua(ji,jj,ikbu) + MAX(  zCdu , -r1_Dt  ) * pub(ji,jj,ikbu)   ! 3rd stg : r1_Dt = 1/rn_Dt
+         pva(ji,jj,ikbv) = pva(ji,jj,ikbv) + MAX(  zCdv , -r1_Dt  ) * pvb(ji,jj,ikbv)
       END_2D
       !
       IF( ln_isfcav ) THEN        ! ocean cavities
@@ -274,12 +270,12 @@ CONTAINS
             ikbu = miku(ji,jj)          ! first wet ocean u- & v-levels
             ikbv = mikv(ji,jj)
             !
-            ! Apply stability criteria on absolute value  : abs(bfr/e3) < 1/(2dt) => bfr/e3 > -1/(2dt)
+            ! Apply stability criteria on absolute value  : abs(bfr/e3) < 1/(dt) => bfr/e3 > -1/(dt)
             zCdu = 0.5*( rCdU_top(ji+1,jj)+rCdU_top(ji,jj) ) / e3u(ji,jj,ikbu,Kmm)    ! NB: Cdtop masked
             zCdv = 0.5*( rCdU_top(ji,jj+1)+rCdU_top(ji,jj) ) / e3v(ji,jj,ikbv,Kmm)
             !
-            pua(ji,jj,ikbu) = pua(ji,jj,ikbu) + MAX(  zCdu , zm1_2dt  ) * pub(ji,jj,ikbu)
-            pva(ji,jj,ikbv) = pva(ji,jj,ikbv) + MAX(  zCdv , zm1_2dt  ) * pvb(ji,jj,ikbv)
+            pua(ji,jj,ikbu) = pua(ji,jj,ikbu) + MAX(  zCdu , -r1_Dt  ) * pub(ji,jj,ikbu)
+            pva(ji,jj,ikbv) = pva(ji,jj,ikbv) + MAX(  zCdv , -r1_Dt  ) * pvb(ji,jj,ikbv)
          END_2D
       ENDIF
       !

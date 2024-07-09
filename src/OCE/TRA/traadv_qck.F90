@@ -48,7 +48,7 @@ MODULE traadv_qck
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv_qck( kt, kit000, cdtype, p2dt, pU, pV, pW, Kbb, Kmm, pt, kjpt, Krhs )
+   SUBROUTINE tra_adv_qck( kt, kit000, cdtype, pdt, pU, pV, pW, Kbb, Kmm, pt, kjpt, Krhs )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_qck  ***
       !!
@@ -89,7 +89,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kit000          ! first time step index
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                                 , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(:,:,:               ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !!----------------------------------------------------------------------
@@ -109,8 +109,8 @@ CONTAINS
       ENDIF
       !
       !        ! horizontal fluxes are computed with the QUICKEST + ULTIMATE scheme
-      CALL tra_adv_qck_i ( kt, cdtype, p2dt, pU, lbnd_ij(pU), Kbb, Kmm, pt, kjpt, Krhs )
-      CALL tra_adv_qck_j ( kt, cdtype, p2dt, pV, lbnd_ij(pV), Kbb, Kmm, pt, kjpt, Krhs )
+      CALL tra_adv_qck_i ( kt, cdtype, pdt, pU, lbnd_ij(pU), Kbb, Kmm, pt, kjpt, Krhs )
+      CALL tra_adv_qck_j ( kt, cdtype, pdt, pV, lbnd_ij(pV), Kbb, Kmm, pt, kjpt, Krhs )
 
       !        ! vertical fluxes are computed with the 2nd order centered scheme
       CALL tra_adv_cen2_k( kt, cdtype,       pW, lbnd_ij(pW),      Kmm, pt, kjpt, Krhs )
@@ -118,7 +118,7 @@ CONTAINS
    END SUBROUTINE tra_adv_qck
 
 
-   SUBROUTINE tra_adv_qck_i( kt, cdtype, p2dt, pU, ktpu, Kbb, Kmm, pt, kjpt, Krhs )
+   SUBROUTINE tra_adv_qck_i( kt, cdtype, pdt, pU, ktpu, Kbb, Kmm, pt, kjpt, Krhs )
       !!----------------------------------------------------------------------
       !!
       !!----------------------------------------------------------------------
@@ -127,7 +127,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                                 , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(AB2D(ktpu),JPK      ), INTENT(in   ) ::   pU              ! i-velocity components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! active tracers and RHS of tracer equation
       !!
@@ -158,7 +158,7 @@ CONTAINS
          DO_3D( 1, 0, 0, 0, 1, jpkm1 )
             zdir = 0.5 + SIGN( 0.5_wp, pU(ji,jj,jk) )   ! if pU > 0 : zdir = 1 otherwise zdir = 0
             zdx = ( zdir * e1t(ji,jj) + ( 1. - zdir ) * e1t(ji+1,jj) ) * e2u(ji,jj) * e3u(ji,jj,jk,Kmm)
-            zwx(ji,jj,jk)  = ABS( pU(ji,jj,jk) ) * p2dt / zdx    ! (0<zc_cfl<1 : Courant number on x-direction)
+            zwx(ji,jj,jk)  = ABS( pU(ji,jj,jk) ) * pdt / zdx    ! (0<zc_cfl<1 : Courant number on x-direction)
             zfc(ji,jj,jk)  = zdir * pt(ji  ,jj,jk,jn,Kbb) + ( 1. - zdir ) * pt(ji+1,jj,jk,jn,Kbb)  ! FC in the x-direction for T
             zfd(ji,jj,jk)  = zdir * pt(ji+1,jj,jk,jn,Kbb) + ( 1. - zdir ) * pt(ji  ,jj,jk,jn,Kbb)  ! FD in the x-direction for T
          END_3D
@@ -197,7 +197,7 @@ CONTAINS
    END SUBROUTINE tra_adv_qck_i
 
 
-   SUBROUTINE tra_adv_qck_j( kt, cdtype, p2dt, pV, ktpv, Kbb, Kmm, pt, kjpt, Krhs )
+   SUBROUTINE tra_adv_qck_j( kt, cdtype, pdt, pV, ktpv, Kbb, Kmm, pt, kjpt, Krhs )
       !!----------------------------------------------------------------------
       !!
       !!----------------------------------------------------------------------
@@ -206,7 +206,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Krhs  ! ocean time level indices
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                                 , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(AB2D(ktpv),JPK      ), INTENT(in   ) ::   pV              ! j-velocity components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! active tracers and RHS of tracer equation
       !!
@@ -240,7 +240,7 @@ CONTAINS
          DO_3D( 0, 0, 1, 0, 1, jpkm1 )
             zdir = 0.5 + SIGN( 0.5_wp, pV(ji,jj,jk) )   ! if pU > 0 : zdir = 1 otherwise zdir = 0
             zdx = ( zdir * e2t(ji,jj) + ( 1. - zdir ) * e2t(ji,jj+1) ) * e1v(ji,jj) * e3v(ji,jj,jk,Kmm)
-            zwy(ji,jj,jk)  = ABS( pV(ji,jj,jk) ) * p2dt / zdx    ! (0<zc_cfl<1 : Courant number on x-direction)
+            zwy(ji,jj,jk)  = ABS( pV(ji,jj,jk) ) * pdt / zdx    ! (0<zc_cfl<1 : Courant number on x-direction)
             zfc(ji,jj,jk)  = zdir * pt(ji,jj  ,jk,jn,Kbb) + ( 1. - zdir ) * pt(ji,jj+1,jk,jn,Kbb)  ! FC in the x-direction for T
             zfd(ji,jj,jk)  = zdir * pt(ji,jj+1,jk,jn,Kbb) + ( 1. - zdir ) * pt(ji,jj  ,jk,jn,Kbb)  ! FD in the x-direction for T
          END_3D
