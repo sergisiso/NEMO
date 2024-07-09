@@ -183,7 +183,7 @@ CONTAINS
          IF( lk_linssh ) THEN    !* constant volume case : just apply the runoff input flow
             DO_2D( 1, 1, 1, 1 )
                DO jk = 1, nk_rnf(ji,jj)
-                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
+                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)         ! rnf forcing at n+1/2
                END DO
             END_2D
          ELSE                    !* variable volume case
@@ -195,14 +195,14 @@ CONTAINS
             END_2D
             DO_2D( 1, 1, 1, 1 )         ! update phdivn
                DO jk = 1, nk_rnf(ji,jj)
-                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)                    ! RK3: rnf forcing at n+1/2
+                  phdivn(ji,jj,jk) = phdivn(ji,jj,jk) - rnf(ji,jj) * r1_rho0 / h_rnf(ji,jj)         ! rnf forcing at n+1/2
                END DO
             END_2D
          ENDIF
       ELSE                       !==   runoff put only at the surface   ==!
          DO_2D( 1, 1, 1, 1 )
             h_rnf (ji,jj)   = e3t(ji,jj,1,Kmm)        ! update h_rnf to be depth of top box
-            phdivn(ji,jj,1) = phdivn(ji,jj,1) - rnf(ji,jj) * r1_rho0 / e3t(ji,jj,1,Kmm)                    ! RK3: rnf forcing at n+1/2
+            phdivn(ji,jj,1) = phdivn(ji,jj,1) - rnf(ji,jj) * r1_rho0 / e3t(ji,jj,1,Kmm)             ! rnf forcing at n+1/2
          END_2D
       ENDIF
       !

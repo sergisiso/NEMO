@@ -71,7 +71,7 @@ CONTAINS
       !!      and add it to the general trend of passive tracer equations.
       !!
       !! ** Method  :   The advection is evaluated by a 2nd or 4th order scheme
-      !!               using now fields (leap-frog scheme).
+      !!               using middle fields.
       !!       kn_cen_h = 2  ==>> 2nd order centered scheme on the horizontal
       !!                = 4  ==>> 4th order    -        -       -      -
       !!       kn_cen_v = 2  ==>> 2nd order centered scheme on the vertical

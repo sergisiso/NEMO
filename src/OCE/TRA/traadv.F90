@@ -51,7 +51,7 @@ MODULE traadv
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_adv        ! called by step.F90, stpmlf.F90 and stprk3_stg.F90
+   PUBLIC   tra_adv        ! called by stprk3_stg.F90
    PUBLIC   tra_adv_init   ! called by nemogcm.F90
    PUBLIC   tra_adv_trp    ! called by stprk3_stg.F90
 
@@ -261,7 +261,7 @@ CONTAINS
       lskip    = .FALSE.
       ll_dofct = .TRUE.
 
-      ! FCT at last stage only with RK3
+      ! FCT at last stage
       IF (PRESENT(kstg)) THEN
          IF (kstg/=3) ll_dofct = .FALSE.
       ENDIF

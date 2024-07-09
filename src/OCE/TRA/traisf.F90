@@ -57,10 +57,10 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      ! cavity case (RK3)
+      ! cavity case
       IF ( ln_isfcav_mlt ) CALL isf_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, risf_cav_tsc, pts(:,:,:,:,Krhs))
       !
-      ! parametrisation case (RK3)
+      ! parametrisation case
       IF ( ln_isfpar_mlt ) CALL isf_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, risf_par_tsc, pts(:,:,:,:,Krhs))
       !
       ! ice sheet coupling case
@@ -68,12 +68,9 @@ CONTAINS
          !
          ! Dynamical stability at start up after change in under ice shelf cavity geometry is achieve by correcting the divergence.
          ! This is achieved by applying a volume flux in order to keep the horizontal divergence after remapping
-         ! the same as at the end of the latest time step. So correction need to be apply at nit000 (euler time step) and
-         ! half of it at nit000+1 (leap frog time step).
-         ! in accordance to this, the heat content flux due to injected water need to be added in the temperature and salt trend
-         ! at time step nit000 and nit000+1
+         ! the same as at the end of the latest time step. So correction need to be apply at nit000. In accordance to this, 
+         ! the heat content flux due to injected water need to be added in the temperature and salt trend at time step nit000
          IF ( kt == nit000  ) CALL isf_cpl(Kmm, risfcpl_tsc       , pts(:,:,:,:,Krhs))
-         IF ( kt == nit000+1) CALL isf_cpl(Kmm, risfcpl_tsc*0.5_wp, pts(:,:,:,:,Krhs))
          !
          ! ensure 0 trend due to unconservation of the ice shelf coupling
          IF ( ln_isfcpl_cons ) CALL isf_cpl(Kmm, risfcpl_cons_tsc, pts(:,:,:,:,Krhs))

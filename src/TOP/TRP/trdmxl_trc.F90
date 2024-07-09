@@ -408,11 +408,7 @@ CONTAINS
          DO jn = 1, jptra
             IF( ln_trdtrc(jn) ) THEN
                !-- Compute total trends 
-               IF ( ln_trcadv_muscl .OR. ln_trcadv_muscl2 ) THEN  ! EULER-FORWARD schemes
-                  ztmltot(:,:,jn) =  ( tml_trc(:,:,jn) - tmlbn_trc(:,:,jn) )/rn_Dt
-               ELSE                                                                     ! LEAP-FROG schemes
-                  ztmltot(:,:,jn) =  ( tml_trc(:,:,jn) - tmlbn_trc(:,:,jn) + tmlb_trc(:,:,jn) - tmlbb_trc(:,:,jn))/(2.*rn_Dt)
-               ENDIF
+               ztmltot(:,:,jn) =  ( tml_trc(:,:,jn) - tmlbn_trc(:,:,jn) ) / rn_Dt
                
                !-- Compute residuals
                ztmlres(:,:,jn) = ztmltot(:,:,jn) - ( tmltrdm_trc(:,:,jn) - tmlradn_trc(:,:,jn) + tmlradb_trc(:,:,jn)  )
@@ -429,7 +425,7 @@ CONTAINS
          ! III.2 Prepare fields for output ("mean" diagnostics) 
          ! ----------------------------------------------------
          
-         !-- Update the ML depth time sum (to build the Leap-Frog time mean)
+         !-- Update the ML depth time sum (to build the time mean)
          rmld_sum_trc(:,:) = rmldbn_trc(:,:) + 2 * ( rmld_sum_trc(:,:) - rmld_trc(:,:) ) + rmld_trc(:,:)
 
                !-- Compute passive tracer total trends

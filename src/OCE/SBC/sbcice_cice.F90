@@ -390,8 +390,7 @@ CONTAINS
       CALL nemo2cice(ztmp,frain,'T', 1._wp ) 
 
 ! Freezing/melting potential
-! Calculated over NEMO leapfrog timestep (hence 2*dt)
-      nfrzmlt(:,:) = rho0 * rcp * e3t_m(:,:) * ( Tocnfrz-sst_m(:,:) ) / ( 2.0*dt )
+      nfrzmlt(:,:) = rho0 * rcp * e3t_m(:,:) * ( Tocnfrz-sst_m(:,:) ) / ( rDt )
 
       ztmp(:,:) = nfrzmlt(:,:)
       CALL nemo2cice(ztmp,frzmlt,'T', 1._wp )

@@ -36,7 +36,7 @@ MODULE dom_oce
    LOGICAL , PUBLIC ::   ln_meshmask    !: =T  create a mesh-mask file (mesh_mask.nc)
    REAL(wp), PUBLIC ::   rn_Dt          !: time step for the dynamics and tracer
    LOGICAL , PUBLIC ::   ln_c1d         !: =T  single column domain (1x1 pt)
-   LOGICAL , PUBLIC ::   ln_shuman      !: =T  shuman averaging (RK3 only)
+   LOGICAL , PUBLIC ::   ln_shuman      !: =T  shuman averaging
 
    !                                          !**  time level indices  **!
    INTEGER, PUBLIC ::   Nbb, Nnn, Naa, Nrhs   !: used by nemo_init

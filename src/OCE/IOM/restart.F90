@@ -345,14 +345,14 @@ CONTAINS
       IF( ln_rstart ) THEN         !==  Read the restart file  ==!
          !                         !=============================!
          !
-         !                                     !*  RK3: Read ssh at Kbb
+         !                                     !*  Read ssh at Kbb
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*)    '      Kbb sea surface height read in the restart file'
          CALL iom_get( numror, jpdom_auto, 'sshn'   , ssh(:,:,Kbb) )
          !
-         !                                     !*  RK3: Set  ssh at Kmm (for AGRIF)
+         !                                     !*  Set  ssh at Kmm (for AGRIF)
          ssh(:,:,Kmm) = ssh(:,:,Kbb)
-         !                                     !*  RK3: Set  ssh at Kaa (for stp2d)
+         !                                     !*  Set  ssh at Kaa (for stp2d)
          id1 = iom_varid( numror, 'ssha', ldstop = .FALSE. )
          !
          IF( id1 > 0 ) THEN                        ! restart from RK3 run

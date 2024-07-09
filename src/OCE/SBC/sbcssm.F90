@@ -79,7 +79,7 @@ CONTAINS
          ENDIF
          sss_m(:,:) = zts(:,:,jp_sal)
          !                          ! removed inverse barometer ssh when Patm forcing is used (for sea-ice dynamics)
-         IF( ln_apr_dyn ) THEN   ;   ssh_m(:,:) = ssh(:,:,Kmm) - ssh_ib(:,:)                            ! RK3: forcing at n+1/2
+         IF( ln_apr_dyn ) THEN   ;   ssh_m(:,:) = ssh(:,:,Kmm) - ssh_ib(:,:)                            ! forcing at n+1/2
          ELSE                    ;   ssh_m(:,:) = ssh(:,:,Kmm)
          ENDIF
          !

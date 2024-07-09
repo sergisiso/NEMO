@@ -46,11 +46,11 @@ CONTAINS
       !
       IF ( ln_isf ) THEN
          !
-         ! ice shelf cavity contribution (RK3)
+         ! ice shelf cavity contribution
          IF ( ln_isfcav_mlt ) CALL isf_hdiv_mlt(misfkt_cav, misfkb_cav, rhisf_tbl_cav, rfrac_tbl_cav, &
             &                                                                             fwfisf_cav, phdiv)
          !
-         ! ice shelf parametrisation contribution (RK3)
+         ! ice shelf parametrisation contribution
          IF ( ln_isfpar_mlt ) CALL isf_hdiv_mlt(misfkt_par, misfkb_par, rhisf_tbl_par, rfrac_tbl_par, &
                                                                                           fwfisf_par, phdiv)
          !
@@ -59,10 +59,8 @@ CONTAINS
             !
             ! Dynamical stability at start up after change in under ice shelf cavity geometry is achieve by correcting the divergence.
             ! This is achieved by applying a volume flux in order to keep the horizontal divergence after remapping 
-            ! the same as at the end of the latest time step. So correction need to be apply at nit000 (euler time step) and
-            ! half of it at nit000+1 (leap frog time step).
+            ! the same as at the end of the latest time step. So correction need to be apply at nit000
             IF ( kt == nit000   ) CALL isf_hdiv_cpl(Kmm, risfcpl_vol       , phdiv)
-            IF ( kt == nit000+1 ) CALL isf_hdiv_cpl(Kmm, risfcpl_vol*0.5_wp, phdiv)
             !
             ! correct divergence every time step to remove any trend due to coupling
             ! conservation option

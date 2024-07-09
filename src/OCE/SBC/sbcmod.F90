@@ -549,7 +549,7 @@ CONTAINS
       !
       IF( kt == nit000 ) THEN                          !   set the forcing field at nit000 - 1    !
          !                                             ! ---------------------------------------- !
-         IF( ln_rstart .AND. lk_SWE ) THEN                      !* RK3 + SWE: Restart: read in restart file
+         IF( ln_rstart .AND. lk_SWE ) THEN                      !* SWE: Restart: read in restart file
             IF(lwp) WRITE(numout,*) '          nit000-1 surface forcing fields read in the restart file'
             CALL iom_get( numror, jpdom_auto, 'utau_b', utau_b, cd_type = 'U', psgn = -1._wp )   ! i-stress
             CALL iom_get( numror, jpdom_auto, 'vtau_b', vtau_b, cd_type = 'V', psgn = -1._wp )   ! j-stress
@@ -573,9 +573,9 @@ CONTAINS
       ENDIF
       !
       !
-      !                                                ! ---------------------------------------- !
-      IF( lrst_oce .AND. lk_SWE ) THEN                 !   RK3: Write in the ocean restart file   !
-         !                                             ! ---------------------------------------- !
+      !                                                ! ----------------------------------- !
+      IF( lrst_oce .AND. lk_SWE ) THEN                 !   Write in the ocean restart file   !
+         !                                             ! ----------------------------------- !
          !
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) 'sbc : ocean surface forcing fields written in ocean restart file ',   &
