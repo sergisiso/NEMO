@@ -57,7 +57,7 @@ PSCT_LOG_PREFIX = "[PSyclone transformation] OpenACC"
 # Reject modules related to profiling and MPI exchanges for now
 MODULES_REJECT_PREFIXES = [ 'timing', 'lbc', 'lib_mpp', 'mpp' ]
 # and for compatibility with PSyclone 2.5.0
-MODULES_REJECT_PREFIXES += [ 'lib_cray', 'agrif2model', 'agrif_user' ]
+MODULES_REJECT_PREFIXES += [ 'agrif2model', 'agrif_user' ]
 # Reject invokes whose compilation would lead to an error with at least one
 # commonly used Fortran compiler
 INVOKES_REJECT_PREFIXES = [ 'copy_obfbdata',             # Derived-type issues at linking stage

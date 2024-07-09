@@ -418,14 +418,12 @@ CONTAINS
       !!
       !! ** Method  :
       !!----------------------------------------------------------------------
-      USE diawri    , ONLY : dia_wri_alloc
       USE dom_oce   , ONLY : dom_oce_alloc
       !
       INTEGER :: ierr
       !!----------------------------------------------------------------------
       !
       ierr =        oce_SWE_alloc()    ! ocean 
-      ierr = ierr + dia_wri_alloc()
       ierr = ierr + dom_oce_alloc()    ! ocean domain
       ierr = ierr + zdf_oce_alloc()    ! ocean vertical physics
       !
@@ -442,12 +440,10 @@ CONTAINS
       !!
       !! ** Method  :
       !!----------------------------------------------------------------------
-      USE diawri    , ONLY : dia_wri_dealloc
       USE dom_oce   , ONLY : dom_oce_dealloc
       !!----------------------------------------------------------------------
       !
       CALL oce_SWE_dealloc()    ! ocean
-      CALL dia_wri_dealloc()    ! 
       CALL dom_oce_dealloc()    ! ocean domain
       CALL zdf_oce_dealloc()    ! ocean vertical physics
       !

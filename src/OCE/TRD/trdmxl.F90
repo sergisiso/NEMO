@@ -50,7 +50,6 @@ MODULE trdmxl
    CHARACTER (LEN=40) ::  clhstnam         ! name of the trends NetCDF file
    INTEGER ::   nh_t, nmoymltrd
    INTEGER ::   nidtrd
-   INTEGER, ALLOCATABLE, SAVE, DIMENSION(:) ::   ndextrd1
    INTEGER ::   ndimtrd1                        
    INTEGER ::   ionce, icount                   
 
@@ -63,16 +62,6 @@ MODULE trdmxl
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
 CONTAINS
-
-   INTEGER FUNCTION trd_mxl_alloc()
-      !!----------------------------------------------------------------------
-      !!                  ***  ROUTINE trd_mxl_alloc  ***
-      !!----------------------------------------------------------------------
-      ALLOCATE( ndextrd1(jpi*jpj) , STAT=trd_mxl_alloc )
-      !
-      CALL mpp_sum ( 'trdmxl', trd_mxl_alloc )
-      IF( trd_mxl_alloc /= 0 )   CALL ctl_warn('trd_mxl_alloc: failed to allocate array ndextrd1')
-   END FUNCTION trd_mxl_alloc
 
 
    SUBROUTINE trd_tra_mxl( ptrdx, ptrdy, ktrd, kt, p2dt, kmxln, Kmm )
@@ -741,7 +730,6 @@ CONTAINS
       END IF
 
       !                                   ! allocate trdmxl arrays
-      IF( trd_mxl_alloc()    /= 0 )   CALL ctl_stop( 'STOP', 'trd_mxl_init : unable to allocate trdmxl     arrays' )
       IF( trdmxl_oce_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'trd_mxl_init : unable to allocate trdmxl_oce arrays' )
 
 

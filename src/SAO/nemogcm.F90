@@ -328,14 +328,12 @@ CONTAINS
       !!
       !! ** Method  :
       !!----------------------------------------------------------------------
-      USE diawri    , ONLY: dia_wri_alloc
       USE dom_oce   , ONLY: dom_oce_alloc
       !
       INTEGER :: ierr
       !!----------------------------------------------------------------------
       !
       ierr =        oce_alloc       ()          ! ocean
-      ierr = ierr + dia_wri_alloc   ()
       ierr = ierr + dom_oce_alloc   ()          ! ocean domain
       !
       CALL mpp_sum( 'nemogcm', ierr )
@@ -351,12 +349,10 @@ CONTAINS
       !!
       !! ** Method  :
       !!----------------------------------------------------------------------
-      USE diawri    , ONLY : dia_wri_dealloc
       USE dom_oce   , ONLY : dom_oce_dealloc
       !!----------------------------------------------------------------------
       !
       CALL     oce_dealloc()    ! ocean
-      CALL dia_wri_dealloc()    ! 
       CALL dom_oce_dealloc()    ! ocean domain
       !
    END SUBROUTINE nemo_dealloc
