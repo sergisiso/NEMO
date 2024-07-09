@@ -202,7 +202,7 @@ CONTAINS
          IF(lwp) WRITE(numout,*) 'dyn_spg_ts : surface pressure gradient trend'
          IF(lwp) WRITE(numout,*) '~~~~~~~~~~   free surface with time splitting'
          IF(lwp) WRITE(numout,*)
-         !                    ! RK3: read bb and b field or start from 0
+         !                    ! read bb and b field or start from 0
          IF( nn_bt_flt==3 ) THEN    
             IF( ln_rstart ) THEN           ! init bb fields with restart
                 IF( ll_cold_start ) THEN
@@ -229,11 +229,11 @@ CONTAINS
       !  Phase 1 : Coupling between general trend and barotropic estimates (1st step)
       ! -----------------------------------------------------------------------------
       !
-      !                    !========================================!
-      !                    !==  Phase 1 for RK3 time integration  ==!
-      !                    !========================================!
+      !                    !====================================!
+      !                    !==  Phase 1 for time integration  ==!
+      !                    !====================================!
       !
-      !                          ! set values computed in RK3_ssh
+      !                          ! set values computed in dynspg_ts
        ssh_frc(:,:) = sshe_rhs(:,:)
         zu_frc(:,:) =   Ue_rhs(:,:)
         zv_frc(:,:) =   Ve_rhs(:,:)
@@ -661,8 +661,6 @@ CONTAINS
          pssh (:,:,Kaa) = ssha_e(:,:)
       ENDIF
       !
-      !                                                !*  RK3 case
-      !
       IF( (.NOT.(ln_dynadv_vec .OR. lk_linssh)) .AND. ll_bt_av ) THEN                  ! at this stage, pssh(:,:,:,Krhs) has been corrected: compute new depths at velocity points
          !
 # if defined key_qcoTest_FluxForm
@@ -692,7 +690,7 @@ CONTAINS
          !
       ENDIF
       !
-      IF( iom_use("ubar") ) THEN    ! RK3 single first: hu[N+1/2] = 1/2 ( hu[N] + hu[N+1] ) 
+      IF( iom_use("ubar") ) THEN    ! single first: hu[N+1/2] = 1/2 ( hu[N] + hu[N+1] ) 
          ALLOCATE( z2d(jpi,jpj) )
          z2d(:,:) = 2._wp / ( hu_e(:,:) + hu(:,:,Kbb) + 1._wp - ssumask(:,:) ) 
          CALL iom_put(  "ubar", un_adv(:,:)*z2d(:,:) )    ! barotropic i-current
@@ -701,7 +699,7 @@ CONTAINS
          DEALLOCATE( z2d )
       ENDIF
       !
-      !                    !==  END Phase 3 for RK3 (forward mode) ==!
+      !                    !==  END Phase 3 (forward mode) ==!
       !
       !
 #if defined key_agrif
@@ -812,7 +810,7 @@ CONTAINS
       !
       IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise 
          !                                   ! ---------------
-         IF( ln_rstart ) THEN                           !* RK3: Read the restart file
+         IF( ln_rstart ) THEN                           !* Read the restart file
             IF( nn_bt_flt == 3 ) THEN
                IF( iom_varid( numror, 'sshbb_e', ldstop = .FALSE. ) > 0 ) THEN
                   CALL iom_get( numror, jpdom_auto, 'sshbb_e'  , sshbb_e(:,:), cd_type = 'T', psgn =  1._wp )
@@ -880,7 +878,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER  ::   ji ,jj              ! dummy loop indices
       REAL(wp) ::   zxr2, zyr2, zcmax   ! local scalar
-      REAL(wp) ::   zc0max, zzc0, zzc1, zzd   ! local scalar (only RK3)
+      REAL(wp) ::   zc0max, zzc0, zzc1, zzd   ! local scalar
       REAL(wp), DIMENSION(jpi,jpj) ::   zcu
       !!----------------------------------------------------------------------
       !

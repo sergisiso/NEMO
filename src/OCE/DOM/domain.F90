@@ -272,7 +272,7 @@ CONTAINS
          WRITE(numout,*) '      shuman averaging (=T)                   ln_shuman   = ', ln_shuman
       ENDIF
       !
-      ! set current model timestep rDt = 2*rn_Dt if MLF or rDt = rn_Dt if RK3
+      ! set current model timestep
       rDt   =         rn_Dt
       r1_Dt = 1._wp / rDt
       !

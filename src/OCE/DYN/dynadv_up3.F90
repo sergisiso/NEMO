@@ -110,14 +110,14 @@ CONTAINS
                &     CALL ctl_stop('STOP','dynadv_up3: put all the 2 arguments both (pUe, pVe) or none of them' )
          ENDIF
       ENDIF
-      !                             ! RK3: check the presence of 3D advective transport 
+      !                             ! check the presence of 3D advective transport 
       !
       IF( l_trddyn ) THEN           ! trends: send trend to trddyn for diagnostic  
          ALLOCATE( zu_trd(T2D(0),jpk), zv_trd(T2D(0),jpk) )
          zu_trd(:,:,:) = puu(T2D(0),:,Krhs)
          zv_trd(:,:,:) = pvv(T2D(0),:,Krhs)
       ENDIF
-      !                             ! used in MLF & RK3(stp2d) : advective velocity = (puu,pvv,ww)
+      !                             ! used in stp2d : advective velocity = (puu,pvv,ww)
 #if ! defined key_PSYCLONE_2p5p0
       IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(T2D(1)), zwv(T2D(1)) )
 #endif

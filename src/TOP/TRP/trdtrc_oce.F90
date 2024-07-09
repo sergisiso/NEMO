@@ -66,7 +66,7 @@ MODULE trdtrc_oce
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  wkx_trc  !:
 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::  rmld_trc     !: ML depth (m) corresponding to nmld_trc
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::  rmld_sum_trc !: needed to compute the leap-frog time mean of ML depth
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::  rmld_sum_trc !: needed to compute the time mean of ML depth
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::  rmldbn_trc   !: idem
 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::  &

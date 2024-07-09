@@ -50,8 +50,7 @@ CONTAINS
       !!              if the water column is statically unstable.
       !!                The test of static instability is performed using
       !!              Brunt-Vaisala frequency (rn2 < -1.e-12) of to successive
-      !!              time-step (Leap-Frog environnement): before and
-      !!              now time-step.
+      !!              time-step : before time-step.
       !!
       !! ** Action  :   avt, avm   enhanced where static instability occurs
       !!----------------------------------------------------------------------

@@ -94,7 +94,7 @@ CONTAINS
       !!              using the scheme defined in the namelist
       !!
       !! ** Action : - set (puu,pvv)_Krhs with the Kmm HPG trend
-      !!             as in RK3, dyn_hpg always the first computed trend.
+      !!             as dyn_hpg always the first computed trend.
       !!             - send trends to trd_dyn for diagnostics (l_trddyn=T)
       !!----------------------------------------------------------------------
       INTEGER                             , INTENT(in   ) ::  kt, Kmm, Krhs   ! ocean time-step and -level indices
@@ -111,7 +111,7 @@ CONTAINS
       CASE ( np_isf )   ;   CALL hpg_isf    ( kt, Kmm, puu, pvv, Krhs )  ! s-coordinate similar to sco modify for ice shelf
       END SELECT
       !
-      IF( l_trddyn ) THEN      ! RK3 save the HPG trends for diagnostics directly with Krhs field
+      IF( l_trddyn ) THEN      ! save the HPG trends for diagnostics directly with Krhs field
          CALL trd_dyn( puu(:,:,:,Krhs), pvv(:,:,:,Krhs), jpdyn_hpg, kt, Kmm )
       ENDIF
       !
@@ -252,7 +252,7 @@ CONTAINS
          zhpi(ji,jj) = zcoef1 * ( rhd(ji+1,jj,1) - rhd(ji,jj,1) ) * r1_e1u(ji,jj)
          zhpj(ji,jj) = zcoef1 * ( rhd(ji,jj+1,1) - rhd(ji,jj,1) ) * r1_e2v(ji,jj)
          !                                ! add to the general momentum trend
-         puu(ji,jj,1,Krhs) = zhpi(ji,jj)     ! RK3 case: dyn_hpg always called first
+         puu(ji,jj,1,Krhs) = zhpi(ji,jj)     ! dyn_hpg always called first
          pvv(ji,jj,1,Krhs) = zhpj(ji,jj)
       END_2D
       !
@@ -265,7 +265,7 @@ CONTAINS
          zhpj(ji,jj) = zhpj(ji,jj) + zcoef1 * (  ( rhd(ji,jj+1,jk)+rhd(ji,jj+1,jk-1) )  &
             &                                  - ( rhd(ji,jj,  jk)+rhd(ji,jj  ,jk-1) )  ) * r1_e2v(ji,jj)
          !                                ! add to the general momentum trend
-         puu(ji,jj,jk,Krhs) = zhpi(ji,jj)    ! RK3 case: dyn_hpg always called first
+         puu(ji,jj,jk,Krhs) = zhpi(ji,jj)    ! dyn_hpg always called first
          pvv(ji,jj,jk,Krhs) = zhpj(ji,jj)
       END_3D
       !
@@ -325,7 +325,7 @@ CONTAINS
             &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !
          !                                   ! add to the general momentum trend
-         puu(ji,jj,1,Krhs) = zhpi(ji,jj) + zuap   ! RK3 case: dyn_hpg always called first
+         puu(ji,jj,1,Krhs) = zhpi(ji,jj) + zuap   ! dyn_hpg always called first
          pvv(ji,jj,1,Krhs) = zhpj(ji,jj) + zvap
       END_2D
       !
@@ -344,7 +344,7 @@ CONTAINS
             zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk)     ) &
                &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) * r1_e2v(ji,jj)
             !                          ! add to the general momentum trend
-            puu(ji,jj,jk,Krhs) = zhpi(ji,jj) + zuap   ! RK3 case: dyn_hpg always called first
+            puu(ji,jj,jk,Krhs) = zhpi(ji,jj) + zuap   ! dyn_hpg always called first
             pvv(ji,jj,jk,Krhs) = zhpj(ji,jj) + zvap
          END_2D
       END DO
@@ -422,7 +422,7 @@ CONTAINS
          zvap = -zcoef0 * ( rhd     (ji,jj+1,1)     + rhd     (ji,jj,1)     )   &
             &           * ( gdept_z0(ji,jj+1,1,Kmm) - gdept_z0(ji,jj,1,Kmm) ) * r1_e2v(ji,jj)
          !                          ! add to the general momentum trend
-         puu(ji,jj,1,Krhs) = (zhpi(ji,jj) + zuap) * umask(ji,jj,1)   ! RK3 case: dyn_hpg always called first
+         puu(ji,jj,1,Krhs) = (zhpi(ji,jj) + zuap) * umask(ji,jj,1)   ! dyn_hpg always called first
          pvv(ji,jj,1,Krhs) = (zhpj(ji,jj) + zvap) * vmask(ji,jj,1)
       END_2D
       !   
@@ -447,7 +447,7 @@ CONTAINS
             zvap = -zcoef0 * ( rhd     (ji  ,jj+1,jk)     + rhd     (ji,jj,jk) )   &
                &           * ( gdept_z0(ji  ,jj+1,jk,Kmm) - gdept_z0(ji,jj,jk,Kmm) ) / e2v(ji,jj)
             !                          ! add to the general momentum trend
-            puu(ji,jj,jk,Krhs) = (zhpi(ji,jj) + zuap) * umask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
+            puu(ji,jj,jk,Krhs) = (zhpi(ji,jj) + zuap) * umask(ji,jj,jk)   ! dyn_hpg always called first
             pvv(ji,jj,jk,Krhs) = (zhpj(ji,jj) + zvap) * vmask(ji,jj,jk)
          END_2D
       END DO
@@ -700,7 +700,7 @@ CONTAINS
          zhpi(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji+1,jj  ,1) ) - z_rho_i(ji,jj,1) ) * r1_e1u(ji,jj)   ! add () for NP repro
          zhpj(ji,jj,1) = ( ( z_rho_k(ji,jj,1) - z_rho_k(ji  ,jj+1,1) ) - z_rho_j(ji,jj,1) ) * r1_e2v(ji,jj)
          ! add to the general momentum trend
-         puu(ji,jj,1,Krhs) = zhpi(ji,jj,1)   ! RK3 case: dyn_hpg always called first
+         puu(ji,jj,1,Krhs) = zhpi(ji,jj,1)   ! dyn_hpg always called first
          pvv(ji,jj,1,Krhs) = zhpj(ji,jj,1)
       END_2D
 
@@ -716,7 +716,7 @@ CONTAINS
             &           + (  ( z_rho_k(ji,jj,jk) - z_rho_k(ji,jj+1,jk  ) )                     &
             &               -( z_rho_j(ji,jj,jk) - z_rho_j(ji,jj  ,jk-1) )  ) * r1_e2v(ji,jj)
          ! add to the general momentum trend
-         puu(ji,jj,jk,Krhs) = zhpi(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
+         puu(ji,jj,jk,Krhs) = zhpi(ji,jj,jk)   ! dyn_hpg always called first
          pvv(ji,jj,jk,Krhs) = zhpj(ji,jj,jk)
       END_3D
       !
@@ -922,7 +922,7 @@ CONTAINS
             ELSE
                zdpdx2 = zcoef0 * r1_e1u(ji,jj) * REAL(jis-jid, wp) * (zpwes + zpwed)
             ENDIF
-            puu(ji,jj,jk,Krhs) = ( zdpdx1 + zdpdx2 - zpgu(ji,jj) ) * umask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
+            puu(ji,jj,jk,Krhs) = ( zdpdx1 + zdpdx2 - zpgu(ji,jj) ) * umask(ji,jj,jk)   ! dyn_hpg always called first
          ENDIF
 
          !!!!!     for v equation
@@ -976,7 +976,7 @@ CONTAINS
                zdpdy2 = zcoef0 * r1_e2v(ji,jj) * REAL(jjs-jjd, wp) * (zpnss + zpnsd )
             ENDIF
 
-            pvv(ji,jj,jk,Krhs) = ( zdpdy1 + zdpdy2 - zpgv(ji,jj) ) * vmask(ji,jj,jk)   ! RK3 case: dyn_hpg always called first
+            pvv(ji,jj,jk,Krhs) = ( zdpdy1 + zdpdy2 - zpgv(ji,jj) ) * vmask(ji,jj,jk)   ! dyn_hpg always called first
          ENDIF
          !
       END_3D

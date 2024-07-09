@@ -15,8 +15,8 @@ MODULE sshwzv
 
    !!----------------------------------------------------------------------
    !!   ssh_nxt       : after ssh
-   !!   wzv           : RK3: compute a vertical velocity
-   !!   wAimp         : RK3: partition vertical velocity for adaptive implicit option (ln_zad_Aimp=T)
+   !!   wzv           : compute a vertical velocity
+   !!   wAimp         : partition vertical velocity for adaptive implicit option (ln_zad_Aimp=T)
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers variables
    USE isf_oce        ! ice shelf
@@ -300,7 +300,6 @@ CONTAINS
       REAL(wp), DIMENSION(AB2D(ktuv),JPK), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
       REAL(wp), DIMENSION(jpi,jpj,jpk)   , INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
       REAL(wp), DIMENSION(AB2D(ktwi),JPK), INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
-!!st      INTEGER, INTENT(in) ::   kstage                                     !  RK3 stage indictor
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp)             ::   zcff, z1_e3t, z1_e3w, zdt, zCu_h, zCu_v   !  local scalars
@@ -335,7 +334,7 @@ CONTAINS
       !
       ! Calculate Courant numbers
       !
-      zdt = rn_Dt                    ! RK3: 3rd stage timestep
+      zdt = rn_Dt                    ! 3rd stage timestep
       zr_Cu_max_h = 1._wp/Cu_max_h
       !
       ! Sort of horizontal Courant number:

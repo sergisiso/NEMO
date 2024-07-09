@@ -48,12 +48,11 @@ CONTAINS
       !!                  ***  ROUTINE dyn_zdf  ***
       !!
       !! ** Purpose :   compute the trend due to the vert. momentum diffusion
-      !!              together with the Leap-Frog time stepping using an 
-      !!              implicit scheme.
+      !!              together with the time stepping using an implicit scheme.
       !!
-      !! ** Method  :  - Leap-Frog time stepping on all trends but the vertical mixing
-      !!         u(after) =         u(before) + 2*dt *       u(rhs)                vector form or linear free surf.
-      !!         u(after) = ( e3u_b*u(before) + 2*dt * e3u_n*u(rhs) ) / e3u_after   otherwise
+      !! ** Method  :  - RK3 time stepping on all trends but the vertical mixing
+      !!         u(after) =         u(before) + dt *       u(rhs)                vector form or linear free surf.
+      !!         u(after) = ( e3u_b*u(before) + dt * e3u_n*u(rhs) ) / e3u_after   otherwise
       !!               - update the after velocity with the implicit vertical mixing.
       !!      This requires to solver the following system: 
       !!         u(after) = u(after) + 1/e3u_after  dk+1[ mi(avm) / e3uw_after dk[ua] ]
@@ -108,7 +107,7 @@ CONTAINS
       DO_1Dj( 0, 0 )                                  !  i-k slices loop  !
          !                                            ! ================= !
          !
-         !              !==  RHS: Leap-Frog time stepping on all trends but the vertical mixing  ==!   (put in puu(:,:,:,Kaa),pvv(:,:,:,Kaa))
+         !              !==  RHS: RK3 time stepping on all trends but the vertical mixing  ==!   (put in puu(:,:,:,Kaa),pvv(:,:,:,Kaa))
          !
          !                    ! time stepping except vertical diffusion
          IF( ln_dynadv_vec .OR. lk_linssh ) THEN   ! applied on velocity
@@ -214,10 +213,8 @@ CONTAINS
                   zzws = - zDt_2 * ( ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) ) + akzu(ji,jj,jk+1) )   &   ! add () for NP repro
                      &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
                   z1_e3ua =  1._wp  / e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
-!!st                  zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) * z1_e3ua
-!!st                  zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) * z1_e3ua
-             zWui = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk  ) ) * r1_e1e2u(ji,jj) * z1_e3ua
-             zWus = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk+1) ) * r1_e1e2u(ji,jj) * z1_e3ua
+                  zWui = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk  ) ) * r1_e1e2u(ji,jj) * z1_e3ua
+                  zWus = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk+1) ) * r1_e1e2u(ji,jj) * z1_e3ua
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWui, 0._wp )
                   zws(ji,jk) = zzws - zDt_2 * MAX( zWus, 0._wp )
                   zwd(ji,jk) = 1._wp - zzwi - zzws + zDt_2 * ( MAX( zWui, 0._wp ) - MIN( zWus, 0._wp ) )
@@ -229,10 +226,8 @@ CONTAINS
                   zzws = - zDt_2 * ( avm(ji+1,jj,jk+1) + avm(ji,jj,jk+1) )   &
                      &           / ( e3u(ji,jj,jk,Kaa) * e3uw(ji,jj,jk+1,Kmm) ) * wumask(ji,jj,jk+1)
                   z1_e3ua =  1._wp  / e3u(ji,jj,jk,Kaa)   ! after scale factor at U-point
-             zWui = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk  ) ) * r1_e1e2u(ji,jj) * z1_e3ua 
-             zWus = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk+1) ) * r1_e1e2u(ji,jj) * z1_e3ua
-!!st                  zWui = ( wi(ji,jj,jk  ) + wi(ji+1,jj,jk  ) ) * z1_e3ua
-!!st                  zWus = ( wi(ji,jj,jk+1) + wi(ji+1,jj,jk+1) ) * z1_e3ua
+                  zWui = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk  ) ) * r1_e1e2u(ji,jj) * z1_e3ua 
+                  zWus = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji+1,jj)*wi(ji+1,jj,jk+1) ) * r1_e1e2u(ji,jj) * z1_e3ua
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWui, 0._wp )
                   zws(ji,jk) = zzws - zDt_2 * MAX( zWus, 0._wp )
                   zwd(ji,jk) = 1._wp - zzwi - zzws + zDt_2 * ( MAX( zWui, 0._wp ) - MIN( zWus, 0._wp ) )
@@ -244,8 +239,7 @@ CONTAINS
                zwi(ji,1) = 0._wp
                zzws = - zDt_2 * ( avm(ji+1,jj,2) + avm(ji  ,jj,2) )   &
                   &           / ( e3u(ji,jj,1,Kaa) * e3uw(ji,jj,2,Kmm) ) * wumask(ji,jj,2)
-!!st           zWus = ( wi(ji  ,jj,2) +  wi(ji+1,jj,2) ) / e3u(ji,jj,1,Kaa)
-           zWus = ( e1e2t(ji,jj)*wi(ji  ,jj,2) +  e1e2t(ji+1,jj)*wi(ji+1,jj,2) ) * r1_e1e2u(ji,jj) / e3u(ji,jj,1,Kaa)
+               zWus = ( e1e2t(ji,jj)*wi(ji  ,jj,2) +  e1e2t(ji+1,jj)*wi(ji+1,jj,2) ) * r1_e1e2u(ji,jj) / e3u(ji,jj,1,Kaa)
                zws(ji,1) = zzws - zDt_2 * MAX( zWus, 0._wp )
                zwd(ji,1) = 1._wp - zzws - zDt_2 * ( MIN( zWus, 0._wp ) )
             END_1D
@@ -321,7 +315,7 @@ CONTAINS
          END_2D
          !
          DO_1Di( 0, 0 )                    !==  second recurrence:    SOLk = RHSk - Lk / Dk-1  Lk-1  ==!
-            !                                  ! RK3: use only utau (not utau_b)
+            !                                  ! use only utau (not utau_b)
             puu(ji,jj,1,Kaa) = puu(ji,jj,1,Kaa) + rDt * utauU(ji,jj)   &
                  &                                    / ( e3u(ji,jj,1,Kaa) * rho0 ) * umask(ji,jj,1)
          END_1D
@@ -393,10 +387,8 @@ CONTAINS
                   zzws = - zDt_2 * ( ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) ) + akzv(ji,jj,jk+1) )   &   ! add () for NP repro
                      &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
                   z1_e3va = 1._wp / e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
-!!st                  zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) * z1_e3va
-!!st                  zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) * z1_e3va
-             zWvi = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk  ) ) * r1_e1e2v(ji,jj) * z1_e3va
-             zWvs = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk+1) ) * r1_e1e2v(ji,jj) * z1_e3va
+                  zWvi = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk  ) ) * r1_e1e2v(ji,jj) * z1_e3va
+                  zWvs = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk+1) ) * r1_e1e2v(ji,jj) * z1_e3va
                   zwi(ji,jk) = zzwi + zDt_2 * MIN( zWvi, 0._wp )
                   zws(ji,jk) = zzws - zDt_2 * MAX( zWvs, 0._wp )
                   zwd(ji,jk) = 1._wp - zzwi - zzws - zDt_2 * ( - MAX( zWvi, 0._wp ) + MIN( zWvs, 0._wp ) )
@@ -408,10 +400,8 @@ CONTAINS
                   zzws = - zDt_2 * ( avm(ji,jj+1,jk+1) + avm(ji,jj,jk+1) )    &
                      &           / ( e3v(ji,jj,jk,Kaa) * e3vw(ji,jj,jk+1,Kmm) ) * wvmask(ji,jj,jk+1)
                   z1_e3va = 1._wp / e3v(ji,jj,jk,Kaa)   ! after scale factor at V-point
-!!st                  zWvi = ( wi(ji,jj,jk  ) + wi(ji,jj+1,jk  ) ) * z1_e3va
-!!st                  zWvs = ( wi(ji,jj,jk+1) + wi(ji,jj+1,jk+1) ) * z1_e3va
-             zWvi = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk  ) ) * r1_e1e2v(ji,jj) * z1_e3va
-             zWvs = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk+1) ) * r1_e1e2v(ji,jj) * z1_e3va
+                  zWvi = ( e1e2t(ji,jj)*wi(ji,jj,jk  ) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk  ) ) * r1_e1e2v(ji,jj) * z1_e3va
+                  zWvs = ( e1e2t(ji,jj)*wi(ji,jj,jk+1) + e1e2t(ji,jj+1)*wi(ji,jj+1,jk+1) ) * r1_e1e2v(ji,jj) * z1_e3va
                   zwi(ji,jk) = zzwi  + zDt_2 * MIN( zWvi, 0._wp )
                   zws(ji,jk) = zzws  - zDt_2 * MAX( zWvs, 0._wp )
                   zwd(ji,jk) = 1._wp - zzwi - zzws - zDt_2 * ( - MAX( zWvi, 0._wp ) + MIN( zWvs, 0._wp ) )
@@ -421,8 +411,7 @@ CONTAINS
                zwi(ji,1) = 0._wp
                zzws = - zDt_2 * ( avm(ji,jj+1,2) + avm(ji,jj,2) )    &
                   &           / ( e3v(ji,jj,1,Kaa) * e3vw(ji,jj,2,Kmm) ) * wvmask(ji,jj,2)
-!!st               zWvs = ( wi(ji,jj  ,2) +  wi(ji,jj+1,2) ) / e3v(ji,jj,1,Kaa)
-           zWvs = ( e1e2t(ji,jj)*wi(ji  ,jj,2) +  e1e2t(ji,jj+1)*wi(ji,jj+1,2) ) * r1_e1e2v(ji,jj) / e3v(ji,jj,1,Kaa)
+               zWvs = ( e1e2t(ji,jj)*wi(ji  ,jj,2) +  e1e2t(ji,jj+1)*wi(ji,jj+1,2) ) * r1_e1e2v(ji,jj) / e3v(ji,jj,1,Kaa)
                zws(ji,1 ) = zzws - zDt_2 * MAX( zWvs, 0._wp )
                zwd(ji,1 ) = 1._wp - zzws - zDt_2 * ( MIN( zWvs, 0._wp ) )
             END_1D
@@ -497,7 +486,7 @@ CONTAINS
          END_2D
          !
          DO_1Di( 0, 0 )                    !==  second recurrence:    SOLk = RHSk - Lk / Dk-1  Lk-1  ==!
-            !                                  ! RK3: use only vtau (not vtau_b)
+            !                                  ! use only vtau (not vtau_b)
             pvv(ji,jj,1,Kaa) = pvv(ji,jj,1,Kaa) + rDt * vtauV(ji,jj)   &
                &                                   / ( e3v(ji,jj,1,Kaa) * rho0 ) * vmask(ji,jj,1)
          END_1D

@@ -218,8 +218,8 @@ CONTAINS
          ELSEIF( lk_ALE ) THEN            !--  ALE-coordinate  --!   combine time & space variations
             !                             !----------------------!               
             !!gm 
-            !    to be done : no restart read the 3D ref coord in domcfg to set coordinate at Nbb (and Nnn in MLF case) 
-            !               :    restart read the 3D ref coord when restart at Nbb (and Nnn in MLF case) 
+            !    to be done : no restart read the 3D ref coord in domcfg to set coordinate at Nbb  
+            !               :    restart read the 3D ref coord when restart at Nbb 
             !
             ! Initialisation only (NO restart)
             !                                   !* depth         :  4D fields   (without partial cell)

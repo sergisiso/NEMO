@@ -69,7 +69,7 @@ MODULE ldftra
    !                                   !!* Namelist namtra_eiv : eddy induced velocity param. *
    !                                    != Use/diagnose eiv =!
    LOGICAL , PUBLIC ::   ln_ldfeiv          !: eddy induced velocity flag
-   LOGICAL , PUBLIC ::   l_ldfeiv_dia       !: RK3: modified w.r.t. kstg diagnose & output eiv streamfunction and velocity flag
+   LOGICAL , PUBLIC ::   l_ldfeiv_dia       !: modified w.r.t. kstg diagnose & output eiv streamfunction and velocity flag
 
    !                                    != Coefficients =!
    INTEGER , PUBLIC ::   nn_aei_ijk_t        !: choice of time/space variation of the eiv coeff.

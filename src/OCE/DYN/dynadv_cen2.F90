@@ -94,7 +94,7 @@ CONTAINS
          zu_trd(A2D(0),:) = puu(A2D(0),1:jpkm1,Krhs)
          zv_trd(A2D(0),:) = pvv(A2D(0),1:jpkm1,Krhs)
       ENDIF
-      !                             ! used in MLF and RK3(stp2d) : advective velocity = (puu,pvv,ww)
+      !                             ! used in stp2d : advective velocity = (puu,pvv,ww)
 #if ! defined key_PSYCLONE_2p5p0
       IF( .NOT. PRESENT( pFu ) )   ALLOCATE( zwu(T2D(1)), zwv(T2D(1)) )
 #endif
