@@ -56,7 +56,7 @@ MODULE traadv_mus
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv_mus( kt, kit000, cdtype, p2dt, pU, pV, pW,             &
+   SUBROUTINE tra_adv_mus( kt, kit000, cdtype, pdt, pU, pV, pW,             &
       &                    Kbb, Kmm, pt, kjpt, Krhs, ld_msc_ups )
       !!
       INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
@@ -65,15 +65,15 @@ CONTAINS
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       LOGICAL                                  , INTENT(in   ) ::   ld_msc_ups      ! use upstream scheme within muscl
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                                 , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(:,:,:               ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !!
-      CALL tra_adv_mus_t( kt, kit000, cdtype, p2dt, pU, pV, pW, lbnd_ij(pU),    &
+      CALL tra_adv_mus_t( kt, kit000, cdtype, pdt, pU, pV, pW, lbnd_ij(pU),    &
         &                 Kbb, Kmm, pt, kjpt, Krhs, ld_msc_ups                  )
    END SUBROUTINE tra_adv_mus
 
-   SUBROUTINE tra_adv_mus_t( kt, kit000, cdtype, p2dt, pU, pV, pW, ktpuvw,  &
+   SUBROUTINE tra_adv_mus_t( kt, kit000, cdtype, pdt, pU, pV, pW, ktpuvw,  &
       &                      Kbb, Kmm, pt, kjpt, Krhs, ld_msc_ups           )
       !!----------------------------------------------------------------------
       !!                    ***  ROUTINE tra_adv_mus  ***
@@ -99,7 +99,7 @@ CONTAINS
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       LOGICAL                                  , INTENT(in   ) ::   ld_msc_ups      ! use upstream scheme within muscl
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                                 , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(AB2D(ktpuvw),JPK    ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume flux components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
@@ -173,14 +173,14 @@ CONTAINS
             DO_2D( 1, 0, 1, 0 )              !-- MUSCL horizontal advective fluxes
                z0u = SIGN( 0.5_wp, pU(ji,jj,jk) )
                zalpha = 0.5_wp - z0u
-               zu  = z0u - 0.5_wp * pU(ji,jj,jk) * p2dt * r1_e1e2u(ji,jj) / e3u(ji,jj,jk,Kmm)
+               zu  = z0u - 0.5_wp * pU(ji,jj,jk) * pdt * r1_e1e2u(ji,jj) / e3u(ji,jj,jk,Kmm)
                zzwx = pt(ji+1,jj,jk,jn,Kbb) + xind(ji,jj,jk) * zu * zslpx(ji+1,jj)
                zzwy = pt(ji  ,jj,jk,jn,Kbb) + xind(ji,jj,jk) * zu * zslpx(ji  ,jj)
                zwx(ji,jj) = pU(ji,jj,jk) * ( zalpha * zzwx + (1._wp-zalpha) * zzwy )
                !
                z0v = SIGN( 0.5_wp, pV(ji,jj,jk) )
                zalpha = 0.5_wp - z0v
-               zv  = z0v - 0.5_wp * pV(ji,jj,jk) * p2dt * r1_e1e2v(ji,jj) / e3v(ji,jj,jk,Kmm)
+               zv  = z0v - 0.5_wp * pV(ji,jj,jk) * pdt * r1_e1e2v(ji,jj) / e3v(ji,jj,jk,Kmm)
                zzwx = pt(ji,jj+1,jk,jn,Kbb) + xind(ji,jj,jk) * zv * zslpy(ji,jj+1)
                zzwy = pt(ji,jj  ,jk,jn,Kbb) + xind(ji,jj,jk) * zv * zslpy(ji,jj  )
                zwy(ji,jj) = pV(ji,jj,jk) * ( zalpha * zzwx + (1._wp-zalpha) * zzwy )
@@ -254,7 +254,7 @@ CONTAINS
                   !                          !    since top fluxes already added to pt(Krhs) before the vertical loop  
                   z0w = SIGN( 0.5_wp, pW(ji,jj,jk+1) )
                   zalpha = 0.5_wp + z0w
-                  zw  = z0w - 0.5_wp * pW(ji,jj,jk+1) * p2dt * r1_e1e2t(ji,jj) / e3w(ji,jj,jk+1,Kmm)
+                  zw  = z0w - 0.5_wp * pW(ji,jj,jk+1) * pdt * r1_e1e2t(ji,jj) / e3w(ji,jj,jk+1,Kmm)
                   zzwx = pt(ji,jj,jk+1,jn,Kbb) + xind(ji,jj,jk) * zw * zslpz_kp1
                   zzwy = pt(ji,jj,jk  ,jn,Kbb) + xind(ji,jj,jk) * zw * zslpz(ji,jj)
                   zfW_kp1 = pW(ji,jj,jk+1) * ( zalpha * zzwx + (1.-zalpha) * zzwy ) * wmask(ji,jj,jk)!!st * wmask(ji,jj,jk+1)

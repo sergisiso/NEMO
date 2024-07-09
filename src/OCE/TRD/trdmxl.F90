@@ -75,7 +75,7 @@ CONTAINS
    END FUNCTION trd_mxl_alloc
 
 
-   SUBROUTINE trd_tra_mxl( ptrdx, ptrdy, ktrd, kt, p2dt, kmxln, Kmm )
+   SUBROUTINE trd_tra_mxl( ptrdx, ptrdy, ktrd, kt, pdt, kmxln, Kmm )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trd_tra_mng  ***
       !! 
@@ -88,7 +88,7 @@ CONTAINS
       INTEGER                   , INTENT(in   ) ::   ktrd    ! tracer trend index
       INTEGER                   , INTENT(in   ) ::   kt      ! time step index
       INTEGER                   , INTENT(in   ) ::   Kmm     ! time level index
-      REAL(wp)                  , INTENT(in   ) ::   p2dt    ! time step  [s]
+      REAL(wp)                  , INTENT(in   ) ::   pdt     ! time step  [s]
       REAL(wp), DIMENSION(:,:)  , INTENT(in   ) ::   kmxln   ! number of t-box for the vertical average 
       !
       INTEGER ::   ji, jj, jk   ! dummy loop indices
@@ -240,7 +240,7 @@ CONTAINS
    END SUBROUTINE trd_mxl_zint
     
 
-   SUBROUTINE trd_mxl( kt, p2dt )
+   SUBROUTINE trd_mxl( kt, pdt )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE trd_mxl  ***
       !! 
@@ -286,7 +286,7 @@ CONTAINS
       !! References :  Vialard et al.,2001, JPO.
       !!----------------------------------------------------------------------
       INTEGER , INTENT(in   ) ::   kt     ! ocean time-step index
-      REAL(wp), INTENT(in   ) ::   p2dt   ! time step  [s]
+      REAL(wp), INTENT(in   ) ::   pdt    ! time step  [s]
       !
       INTEGER :: ji, jj, jk, jl, ik, it, itmod
       LOGICAL :: lldebug = .TRUE.
@@ -400,8 +400,8 @@ CONTAINS
          ! -------------------------------------------------------------
          
          !-- Compute total trends
-         ztmltot(:,:) = ( tml(:,:) - tmlbn(:,:) + tmlb(:,:) - tmlbb(:,:) ) / p2dt
-         zsmltot(:,:) = ( sml(:,:) - smlbn(:,:) + smlb(:,:) - smlbb(:,:) ) / p2dt
+         ztmltot(:,:) = ( tml(:,:) - tmlbn(:,:) + tmlb(:,:) - tmlbb(:,:) ) / pdt
+         zsmltot(:,:) = ( sml(:,:) - smlbn(:,:) + smlb(:,:) - smlbb(:,:) ) / pdt
          
          !-- Compute residuals
          ztmlres(:,:) = ztmltot(:,:) - tmltrdm(:,:)
@@ -415,11 +415,11 @@ CONTAINS
 
          !-- Compute temperature total trends
          tml_sum (:,:) = tmlbn(:,:) + 2._wp * ( tml_sum(:,:) - tml(:,:) ) + tml(:,:)
-         ztmltot2(:,:) = ( tml_sum(:,:) - tml_sumb(:,:) ) / p2dt    ! now in degC/s
+         ztmltot2(:,:) = ( tml_sum(:,:) - tml_sumb(:,:) ) / pdt    ! now in degC/s
          
          !-- Compute salinity total trends
          sml_sum (:,:) = smlbn(:,:) + 2._wp * ( sml_sum(:,:) - sml(:,:) ) + sml(:,:)
-         zsmltot2(:,:) = ( sml_sum(:,:) - sml_sumb(:,:) ) / p2dt    ! now in psu/s
+         zsmltot2(:,:) = ( sml_sum(:,:) - sml_sumb(:,:) ) / pdt    ! now in psu/s
          
          !-- Compute temperature residuals
          DO jl = 1, jpltrd

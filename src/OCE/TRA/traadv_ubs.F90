@@ -46,7 +46,7 @@ MODULE traadv_ubs
    !!----------------------------------------------------------------------
 CONTAINS
 
-   SUBROUTINE tra_adv_ubs( kt, kit000, cdtype, p2dt, pU, pV, pW,          &
+   SUBROUTINE tra_adv_ubs( kt, kit000, cdtype, pdt, pU, pV, pW,          &
    &                       Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v )
       !!
       INTEGER                                  , INTENT(in   ) ::   kt              ! ocean time-step index
@@ -55,16 +55,16 @@ CONTAINS
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       INTEGER                                  , INTENT(in   ) ::   kn_ubs_v        ! number of tracers
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                                 , INTENT(in   ) ::   pdt            ! tracer time-step
       REAL(wp), DIMENSION(:,:,:               ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !!
-      CALL tra_adv_ubs_t( kt, kit000, cdtype, p2dt, pU, pV, pW, lbnd_ij(pU),  &
-         &                Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v                  )
+      CALL tra_adv_ubs_t( kt, kit000, cdtype, pdt, pU, pV, pW, lbnd_ij(pU),  &
+         &                Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v                 )
    END SUBROUTINE tra_adv_ubs
 
-   SUBROUTINE tra_adv_ubs_t( kt, kit000, cdtype, p2dt, pU, pV, pW, ktpuvw, &
-      &                      Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v            )
+   SUBROUTINE tra_adv_ubs_t( kt, kit000, cdtype, pdt, pU, pV, pW, ktpuvw, &
+      &                      Kbb, Kmm, pt, kjpt, Krhs, kn_ubs_v           )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tra_adv_ubs  ***
       !!
@@ -108,7 +108,7 @@ CONTAINS
       CHARACTER(len=3)                         , INTENT(in   ) ::   cdtype          ! =TRA or TRC (tracer indicator)
       INTEGER                                  , INTENT(in   ) ::   kjpt            ! number of tracers
       INTEGER                                  , INTENT(in   ) ::   kn_ubs_v        ! number of tracers
-      REAL(wp)                                 , INTENT(in   ) ::   p2dt            ! tracer time-step
+      REAL(wp)                                 , INTENT(in   ) ::   pdt             ! tracer time-step
       REAL(wp), DIMENSION(AB2D(ktpuvw),JPK    ), INTENT(in   ) ::   pU, pV, pW      ! 3 ocean volume transport components
       REAL(wp), DIMENSION(jpi,jpj,jpk,kjpt,jpt), INTENT(inout) ::   pt              ! tracers and RHS of tracer equation
       !
@@ -186,9 +186,9 @@ CONTAINS
                ztra = - (  ( ztFu(ji,jj) - ztFu(ji-1,jj  ) )   &   ! add () for NP reproducibility
                   &      + ( ztFv(ji,jj) - ztFv(ji  ,jj-1) ) ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
                !
-               pt(ji,jj,jk,jn,Krhs) =   pt(ji,jj,jk,jn,Krhs) +        ztra   * tmask(ji,jj,jk)
+               pt(ji,jj,jk,jn,Krhs) =   pt(ji,jj,jk,jn,Krhs) +       ztra   * tmask(ji,jj,jk)
                !
-               zti(ji,jj,jk)        = ( pt(ji,jj,jk,jn,Kbb ) + p2dt * ztra ) * tmask(ji,jj,jk)
+               zti(ji,jj,jk)        = ( pt(ji,jj,jk,jn,Kbb ) + pdt * ztra ) * tmask(ji,jj,jk)
             END_2D
             !
             IF( l_trd .OR. l_hst .OR. l_ptr ) THEN   ! trend diagnostics // heat/salt transport
@@ -238,8 +238,8 @@ CONTAINS
             DO_3D( 0, 0, 0, 0, 1, jpkm1 )
                ztra = - ( ztFw(ji,jj,jk) - ztFw(ji,jj,jk+1) ) * r1_e1e2t(ji,jj) / e3t(ji,jj,jk,Kmm)
                !
-               pt (ji,jj,jk,jn,Krhs) =   pt (ji,jj,jk,jn,Krhs) +        ztra   * tmask(ji,jj,jk)
-               zti(ji,jj,jk)         = ( zti(ji,jj,jk)         + p2dt * ztra ) * tmask(ji,jj,jk)
+               pt (ji,jj,jk,jn,Krhs) =   pt (ji,jj,jk,jn,Krhs) +       ztra   * tmask(ji,jj,jk)
+               zti(ji,jj,jk)         = ( zti(ji,jj,jk)         + pdt * ztra ) * tmask(ji,jj,jk)
             END_3D
             !                               !==  anti-diffusive flux : high order minus low order ==!
             DO_3D( 0, 0, 0, 0, 2, jpkm1 )
@@ -249,7 +249,7 @@ CONTAINS
             !                                            ! top ocean value: high order == upstream  ==>>  zwz=0
             IF( lk_linssh )   ztFw(:,:,1) = 0._wp        ! only ocean surface as interior zwz values have been w-masked
             !
-            CALL nonosc_z( Kmm, pt(:,:,:,jn,Kbb), ztFw, zti, p2dt )      !  monotonicity algorithm
+            CALL nonosc_z( Kmm, pt(:,:,:,jn,Kbb), ztFw, zti, pdt )      !  monotonicity algorithm
             !
             IF( l_trd ) THEN
                DO_3D( 0, 0, 0, 0, 2, jpkm1 )
@@ -310,7 +310,7 @@ CONTAINS
    END SUBROUTINE tra_adv_ubs_t
 
 
-   SUBROUTINE nonosc_z( Kmm, pbef, pcc, paft, p2dt )
+   SUBROUTINE nonosc_z( Kmm, pbef, pcc, paft, pdt )
       !!---------------------------------------------------------------------
       !!                    ***  ROUTINE nonosc_z  ***
       !!
@@ -324,7 +324,7 @@ CONTAINS
       !!       in-space based differencing for fluid
       !!----------------------------------------------------------------------
       INTEGER , INTENT(in   )                             ::   Kmm    ! time level index
-      REAL(wp), INTENT(in   )                             ::   p2dt   ! tracer time-step
+      REAL(wp), INTENT(in   )                             ::   pdt    ! tracer time-step
       REAL(wp), INTENT(inout), DIMENSION(jpi,jpj,jpk)     ::   pbef   ! before field
       REAL(wp), INTENT(inout), DIMENSION(T2D(nn_hls),jpk) ::   paft   ! after field
       REAL(wp), INTENT(inout), DIMENSION(T2D(nn_hls),jpk) ::   pcc    ! monotonic flux in the k direction
@@ -382,7 +382,7 @@ CONTAINS
          zpos = MAX( 0., pcc(ji  ,jj  ,jk+1) ) - MIN( 0., pcc(ji  ,jj  ,jk  ) )
          zneg = MAX( 0., pcc(ji  ,jj  ,jk  ) ) - MIN( 0., pcc(ji  ,jj  ,jk+1) )
          ! up & down beta terms
-         zbt = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) / p2dt
+         zbt = e1e2t(ji,jj) * e3t(ji,jj,jk,Kmm) / pdt
          zbetup(ji,jj,jk) = ( zbetup(ji,jj,jk) - paft(ji,jj,jk) ) / (zpos+zrtrn) * zbt
          zbetdo(ji,jj,jk) = ( paft(ji,jj,jk) - zbetdo(ji,jj,jk) ) / (zneg+zrtrn) * zbt
       END_3D
