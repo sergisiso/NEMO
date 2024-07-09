@@ -37,6 +37,9 @@ MODULE stprk3_stg
 
    PUBLIC   stp_stg   ! called by nemogcm.F90
 
+   LOGICAL  :: ll_imp_upd = .TRUE.  ! Forward in time update of barotropic mode
+                                    ! at stages 1 & 2
+
    REAL(wp) ::   r1_2 = 1._wp / 2._wp
    REAL(wp) ::   r1_3 = 1._wp / 3._wp
    REAL(wp) ::   r2_3 = 2._wp / 3._wp
@@ -119,14 +122,18 @@ CONTAINS
          ssha(:,:) = ssh (:,:,Kaa)     ! save ssh, uu_b, vv_b at N+1  (computed in dynspg_ts)
          ua_b(:,:) = uu_b(:,:,Kaa)
          va_b(:,:) = vv_b(:,:,Kaa)
-         !                             ! interpolated ssh and (uu_b,vv_b) at Kaa (N+1/3)
-         ssh (:,:,Kaa) = r2_3 * ssh (:,:,Kbb) + r1_3 * ssha(:,:)
-         !! No interpolation for stability
-         !! uu_b(:,:,Kaa) = r2_3 * uu_b(:,:,Kbb) + r1_3 * ua_b(:,:)
-         !! vv_b(:,:,Kaa) = r2_3 * vv_b(:,:,Kbb) + r1_3 * va_b(:,:)
-         uu_b(:,:,Kaa) = ua_b(:,:)
-         vv_b(:,:,Kaa) = va_b(:,:)
 
+         IF ( ll_imp_upd ) THEN
+            !                          ! Set ssh and (uu_b,vv_b) at N+1 value
+            ssh (:,:,Kaa) = ssha(:,:)
+            uu_b(:,:,Kaa) = ua_b(:,:)
+            vv_b(:,:,Kaa) = va_b(:,:)
+         ELSE
+            !                          ! interpolated ssh and (uu_b,vv_b) at Kaa (N+1/3)
+            ssh (:,:,Kaa) = r2_3 * ssh (:,:,Kbb) + r1_3 * ssha(:,:)
+            uu_b(:,:,Kaa) = r2_3 * uu_b(:,:,Kbb) + r1_3 * ua_b(:,:)
+            vv_b(:,:,Kaa) = r2_3 * vv_b(:,:,Kbb) + r1_3 * va_b(:,:)
+         ENDIF
          !
          !
          !                     !==  ssh/h0 ratio at Kaa  ==!
@@ -140,9 +147,15 @@ CONTAINS
             !
             CALL lbc_lnk( 'stp_stg', r3ua, 'U', 1._wp, r3va, 'V', 1._wp, r3fa, 'F', 1._wp )
             !                          !
-            r3t(:,:,Kaa) = r2_3 * r3t(:,:,Kbb) + r1_3 * r3ta(:,:)   ! at N+1/3 (Kaa)
-            r3u(:,:,Kaa) = r2_3 * r3u(:,:,Kbb) + r1_3 * r3ua(:,:)
-            r3v(:,:,Kaa) = r2_3 * r3v(:,:,Kbb) + r1_3 * r3va(:,:)
+            IF ( ll_imp_upd ) THEN
+               r3t(:,:,Kaa) = r3ta(:,:)   ! at N+1
+               r3u(:,:,Kaa) = r3ua(:,:)
+               r3v(:,:,Kaa) = r3va(:,:)
+            ELSE
+               r3t(:,:,Kaa) = r2_3 * r3t(:,:,Kbb) + r1_3 * r3ta(:,:)   ! at N+1/3 (Kaa)
+               r3u(:,:,Kaa) = r2_3 * r3u(:,:,Kbb) + r1_3 * r3ua(:,:)
+               r3v(:,:,Kaa) = r2_3 * r3v(:,:,Kbb) + r1_3 * r3va(:,:)
+            ENDIF
             ! r3f already properly set up                           ! at N     (Kmm)
          ENDIF
          !
@@ -153,19 +166,29 @@ CONTAINS
          rDt = r1_2 * rn_Dt            ! set time-step : rn_Dt/2
          r1_Dt = 1._wp / rDt
          !
-         !                             ! set ssh and (uu_b,vv_b) at N+1/2  (Kaa)
-         ssh (:,:,Kaa) = r1_2 * ( ssh (:,:,Kbb) + ssha(:,:) )
-         !! No interpolation for stability
-         !! uu_b(:,:,Kaa) = r1_2 * ( uu_b(:,:,Kbb) + ua_b(:,:) )
-         !! vv_b(:,:,Kaa) = r1_2 * ( vv_b(:,:,Kbb) + va_b(:,:) )
-         uu_b(:,:,Kaa) = ua_b(:,:)
-         vv_b(:,:,Kaa) = va_b(:,:)
-         !
-         IF( .NOT.lk_linssh ) THEN
-            r3t(:,:,Kaa) = r1_2 * ( r3t(:,:,Kbb) + r3ta(:,:) )   ! at N+1/2 (Kaa)
-            r3u(:,:,Kaa) = r1_2 * ( r3u(:,:,Kbb) + r3ua(:,:) )
-            r3v(:,:,Kaa) = r1_2 * ( r3v(:,:,Kbb) + r3va(:,:) )
-            r3f(:,:)     = r2_3 * r3fb(:,:) + r1_3 * r3fa(:,:)   ! at N+1/3 (Kmm)
+         IF ( ll_imp_upd ) THEN
+            !                          ! set ssh and (uu_b,vv_b) at N+1
+            ssh (:,:,Kaa) = ssha(:,:)
+            uu_b(:,:,Kaa) = ua_b(:,:)
+            vv_b(:,:,Kaa) = va_b(:,:)
+            !
+            IF( .NOT.lk_linssh ) THEN
+               r3t(:,:,Kaa) = r3ta(:,:)    ! at N+1 
+               r3u(:,:,Kaa) = r3ua(:,:)
+               r3v(:,:,Kaa) = r3va(:,:)
+               r3f(:,:)     = r3fa(:,:) 
+            ENDIF
+         ELSE
+            !                          ! set ssh and (uu_b,vv_b) at N+1/2  (Kaa)
+            ssh (:,:,Kaa) = r1_2 * ( ssh (:,:,Kbb) + ssha(:,:) )
+            uu_b(:,:,Kaa) = r1_2 * ( uu_b(:,:,Kbb) + ua_b(:,:) )
+            vv_b(:,:,Kaa) = r1_2 * ( vv_b(:,:,Kbb) + va_b(:,:) )
+            IF( .NOT.lk_linssh ) THEN
+               r3t(:,:,Kaa) = r1_2 * ( r3t(:,:,Kbb) + r3ta(:,:) )   ! at N+1/2 (Kaa)
+               r3u(:,:,Kaa) = r1_2 * ( r3u(:,:,Kbb) + r3ua(:,:) )
+               r3v(:,:,Kaa) = r1_2 * ( r3v(:,:,Kbb) + r3va(:,:) )
+               r3f(:,:)     = r2_3 * r3fb(:,:) + r1_3 * r3fa(:,:)   ! at N+1/3 (Kmm)
+            ENDIF
          ENDIF
          !
          !                 !---------------!
@@ -210,10 +233,17 @@ CONTAINS
 #endif
          !              !- horizontal transport (zFu,zFv) -!   VF for tracers only ; FF for momentum & tracers
          !
-         DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
-            zub(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
-            zvb(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
-         END_2D
+         IF ( ll_imp_upd ) THEN
+            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+               zub(ji,jj) = r1_Dt * rn_Dt * un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
+               zvb(ji,jj) = r1_Dt * rn_Dt * vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
+            END_2D
+         ELSE
+            DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
+               zub(ji,jj) = un_adv(ji,jj)*r1_hu(ji,jj,Kmm) - uu_b(ji,jj,Kmm)    ! barotropic velocity correction
+               zvb(ji,jj) = vn_adv(ji,jj)*r1_hv(ji,jj,Kmm) - vv_b(ji,jj,Kmm)
+            END_2D
+         ENDIF
          !
          DO_3D( nn_hls, nn_hls-1, nn_hls, nn_hls-1, 1, jpkm1 )               ! advective transport
             zFu(ji,jj,jk) = e2u(ji,jj)*e3u(ji,jj,jk,Kmm) * ( uu(ji,jj,jk,Kmm) + zub(ji,jj)*umask(ji,jj,jk) )
