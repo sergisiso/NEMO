@@ -48,7 +48,7 @@ MODULE sshwzv
    PUBLIC   ssh_nxt        ! called by step.F90
    PUBLIC   wzv            ! called by step.F90
    PUBLIC   wAimp          ! called by step.F90
-   REAL(wp) ::  Cu_min, Cu_cut, Cu_mid, Fcu   ! Adaptive-implicit vertical advection settings
+   REAL(wp) ::  Cu_min, Cu_cut   ! Adaptive-implicit vertical advection settings
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

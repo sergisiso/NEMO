@@ -128,7 +128,6 @@ CONTAINS
       REAL(wp) ::   zn_slp2, zn2        !   -      -
       REAL(wp) ::   zmsku, zaeiu_w      !   -      -
       REAL(wp) ::   zmskv, zaeiv_w      !   -      -
-      REAL(wp) ::   zen, zed            !   -      -
       REAL(wp) ::   zeke_rhs            !   -      -
       REAL(wp) ::   zck, zwslpi, zwslpj !   -      -  tapering near coasts
       REAL(wp) ::   zc_rosu, zc_rosv    !   -      -

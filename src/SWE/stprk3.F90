@@ -291,7 +291,7 @@ CONTAINS
       IF( ln_diacfl  )   CALL dia_cfl      ( kstp,      Nbb )      ! Courant number diagnostics
                          CALL dia_wri      ( kstp,      Nbb )      ! ocean model: outputs
       !
-      IF( lrst_oce   )   CALL rst_write    ( kstp, Nbb, Nbb )   ! write output ocean restart file
+      IF( lrst_oce   )   CALL rst_write    ( kstp, Nbb )           ! write output ocean restart file
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Control

@@ -140,14 +140,14 @@ CONTAINS
    END SUBROUTINE trc_rst_read
 
 
-   SUBROUTINE trc_rst_wri( kt, Kbb, Kmm, Kaa )
+   SUBROUTINE trc_rst_wri( kt, Kbb, Kaa )
       !!----------------------------------------------------------------------
       !!                    ***  trc_rst_wri  ***
       !!
       !! ** purpose  :   write passive tracer fields in restart files
       !!----------------------------------------------------------------------
       INTEGER, INTENT( in ) ::   kt              ! ocean time-step index
-      INTEGER, INTENT( in ) ::   Kbb, Kmm, Kaa   ! time level indices
+      INTEGER, INTENT( in ) ::   Kbb, Kaa        ! time level indices
       !!
       INTEGER  :: jn
       !!----------------------------------------------------------------------

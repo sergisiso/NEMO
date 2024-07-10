@@ -230,7 +230,6 @@ CONTAINS
       USE ioipsl
       !!
       INTEGER ::   ios, imax   ! Local integer
-      REAL(wp)::   zrdt
       !!----------------------------------------------------------------------
       !
       NAMELIST/namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list,                 &

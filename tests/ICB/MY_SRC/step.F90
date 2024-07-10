@@ -133,7 +133,7 @@ CONTAINS
 !!
 !!jc: That would be better, but see comment above
 !!
-      IF( lrst_oce   )   CALL rst_write    ( kstp, Nbb, Nnn )   ! write output ocean restart file
+      IF( lrst_oce   )   CALL rst_write    ( kstp, Nbb )        ! write output ocean restart file
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! File manipulation at the end of the first time step

@@ -85,10 +85,8 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw  ! advective velocity
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt)  , INTENT(inout) ::   ptr            ! passive tracers and RHS of tracer equation
       !
-      INTEGER ::   ji, jj, jk   ! dummy loop index
       CHARACTER (len=22) ::   charout
       REAL(wp), DIMENSION(:,:,:), POINTER             ::   zptu, zptv, zptw
-      REAL(wp), DIMENSION(:,:,:), TARGET, ALLOCATABLE ::   zuu, zvv, zww   ! effective velocity
       ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       LOGICAL ::   lskip
       !!----------------------------------------------------------------------
@@ -108,23 +106,14 @@ CONTAINS
       !
       IF( .NOT. lskip ) THEN
          !                                         !==  effective transport  ==!
-         IF( l_offline ) THEN
-            
+         IF( PRESENT( pau ) ) THEN                       ! Online passive tracers (l_offline = F)
+            zptu => pau(:,:,:)
+            zptv => pav(:,:,:)
+            zptw => paw(:,:,:)
+         ELSE                                            ! Offline passive tracers (l_offline = T)
             zptu => uu(:,:,:,Kmm)
             zptv => vv(:,:,:,Kmm)
             zptw => ww(:,:,:    )
-                                  
-         ELSE                                         ! build the effective transport
-            IF( PRESENT( pau ) ) THEN                       ! RK3: advective velocity (pau,pav,paw) /= advected velocity (uu,vv,ww)
-               zptu => pau(:,:,:)
-               zptv => pav(:,:,:)
-               zptw => paw(:,:,:)
-            ELSE                                            ! MLF: advective velocity = (uu,vv,ww)
-               zptu => uu(:,:,:,Kmm)
-               zptv => vv(:,:,:,Kmm)
-               zptw => ww(:,:,:    )
-            ENDIF
-            !
          ENDIF
 
          SELECT CASE ( nadv )                      !==  compute advection trend and add it to general trend  ==!

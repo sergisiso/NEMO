@@ -278,7 +278,7 @@ CONTAINS
       !    ( ABM3-AM4 time-integration Shchepetkin et al. OM2005) with temporal diffusion (Demange et al. JCP2019) )
 
       IF( ln_dynspg_ts )   &
-         &   CALL dyn_spg_ts( kt, Kbb, Kbb, Krhs, uu, vv, ssh, uu_b, vv_b, Kaa ) ! time-splitting
+         &   CALL dyn_spg_ts( kt, Kbb, Kbb, ssh, uu_b, vv_b, Kaa ) ! time-splitting
                    
 
       DEALLOCATE( sshe_rhs , Ue_rhs , Ve_rhs , CdU_u , CdU_v )

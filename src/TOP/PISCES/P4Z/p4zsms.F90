@@ -110,7 +110,7 @@ CONTAINS
       ikty = nyear_len(1) * rday / NINT(rn_Dt)    ! time-step at the end of a year 
       ll_dmp = ll_dmp .AND.  MOD( kt-1, ikty ) == 0 
 
-      IF( ll_dmp )    CALL p4z_dmp( kt, Kbb, imm )      ! Relaxation of some tracers
+      IF( ll_dmp )    CALL p4z_dmp( kt, imm )     ! Relaxation of some tracers
       !
       !
       DO jn = jp_pcs0, jp_pcs1              !   Store the tracer concentrations before entering PISCES
@@ -456,7 +456,7 @@ CONTAINS
    END SUBROUTINE p4z_rst
 
 
-   SUBROUTINE p4z_dmp( kt, Kbb, Kmm )
+   SUBROUTINE p4z_dmp( kt, Kmm )
       !!----------------------------------------------------------------------
       !!                    ***  p4z_dmp  ***
       !!
@@ -466,8 +466,8 @@ CONTAINS
       !!               Elements that may be relaxed : Alk, P, N, Si
       !!----------------------------------------------------------------------
       !
-      INTEGER, INTENT( in )  ::     kt            ! time step
-      INTEGER, INTENT( in )  ::     Kbb, Kmm      ! time level indices
+      INTEGER, INTENT( in )  ::     kt       ! time step
+      INTEGER, INTENT( in )  ::     Kmm      ! time level index
       !
       REAL(wp) ::  alkmean = 2426.     ! mean value of alkalinity ( Glodap ; for Goyet 2391. )
       REAL(wp) ::  po4mean = 2.174     ! mean value of phosphate
@@ -475,7 +475,6 @@ CONTAINS
       REAL(wp) ::  silmean = 90.33     ! mean value of silicate
       !
       REAL(wp) :: zarea, zalksumn, zpo4sumn, zno3sumn, zsilsumn
-      REAL(wp) :: zalksumb, zpo4sumb, zno3sumb, zsilsumb
       !!---------------------------------------------------------------------
 
       IF(lwp)  WRITE(numout,*)

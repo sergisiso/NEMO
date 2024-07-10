@@ -92,7 +92,7 @@ CONTAINS
    END SUBROUTINE tra_isf
 
    
-   SUBROUTINE isf_mlt( ktop, kbot, phtbl, pfrac, ptsc, pts, ptsc_b )
+   SUBROUTINE isf_mlt( ktop, kbot, phtbl, pfrac, ptsc, pts )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE isf_mlt  ***
       !!
@@ -105,7 +105,6 @@ CONTAINS
       INTEGER , DIMENSION(A2D(1))                   , INTENT(in   ) ::   ktop , kbot
       REAL(wp), DIMENSION(A2D(1))                   , INTENT(in   ) ::   phtbl, pfrac
       REAL(wp), DIMENSION(A2D(0),jpts)              , INTENT(in   ) ::   ptsc
-      REAL(wp), DIMENSION(A2D(0),jpts)    , OPTIONAL, INTENT(in   ) ::   ptsc_b
       !!
       INTEGER  ::   ji, jj, jk   ! dummy loop index
       INTEGER  ::   ikt, ikb     ! top and bottom level of the tbl
