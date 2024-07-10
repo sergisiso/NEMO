@@ -483,7 +483,6 @@ CONTAINS
       !!
       !! ** Method  :
       !!----------------------------------------------------------------------
-      USE diawri    , ONLY : dia_wri_alloc
       USE dom_oce   , ONLY : dom_oce_alloc
       USE bdy_oce   , ONLY : ln_bdy, bdy_oce_alloc
       USE oce       ! mandatory for sea-ice because needed for bdy arrays
@@ -491,8 +490,7 @@ CONTAINS
       INTEGER :: ierr
       !!----------------------------------------------------------------------
       !
-      ierr =        dia_wri_alloc()
-      ierr = ierr + dom_oce_alloc()          ! ocean domain
+      ierr =        dom_oce_alloc()          ! ocean domain
       ierr = ierr + oce_alloc    ()          ! (ts...) needed for agrif and/or SI3 and bdy
       ierr = ierr + bdy_oce_alloc()          ! bdy masks (incl. initialization)
       !

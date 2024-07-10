@@ -39,8 +39,7 @@ MODULE trdvor
    PUBLIC   trd_vor_init   ! routine called by opa.F90
    PUBLIC   trd_vor_alloc  ! routine called by nemogcm.F90
 
-   INTEGER ::   nh_t, nmoydpvor, nidvor, nhoridvor, ndimvor1, icount   ! needs for IOIPSL output
-   INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) ::   ndexvor1   ! needed for IOIPSL output
+   INTEGER ::   nh_t, nmoydpvor, nidvor, nhoridvor, icount   ! needs for IOIPSL output
    INTEGER ::   ndebug     ! (0/1) set it to 1 in case of problem to have more print
 
    REAL(wp), SAVE, ALLOCATABLE, DIMENSION(:,:)   ::   vor_avr      ! average
@@ -69,8 +68,7 @@ CONTAINS
       !!----------------------------------------------------------------------------
       ALLOCATE( vor_avr   (A2D(0)) , vor_avrb(A2D(0)) , vor_avrbb (A2D(0)) ,   &
          &      vor_avrbn (A2D(0)) , rotot   (A2D(0)) , vor_avrtot(A2D(0)) ,   &
-         &      vor_avrres(A2D(0)) , vortrd  (A2D(0),jpltot_vor) ,              &
-         &      ndexvor1  (jpi*jpj)                                ,   STAT= trd_vor_alloc )
+         &      vor_avrres(A2D(0)) , vortrd  (A2D(0),jpltot_vor),   STAT= trd_vor_alloc )
          !
       CALL mpp_sum ( 'trdvor', trd_vor_alloc )
       IF( trd_vor_alloc /= 0 )   CALL ctl_stop( 'STOP', 'trd_vor_alloc: failed to allocate arrays' )
@@ -287,7 +285,6 @@ CONTAINS
       INTEGER                   , INTENT(in   ) ::   Kmm            ! time level index
       !
       INTEGER  ::   ji, jj, jk, jl   ! dummy loop indices
-      INTEGER  ::   it, itmod        ! local integers
       REAL(wp) ::   zmean            ! local scalars
       REAL(wp), DIMENSION(jpi,jpj) :: zuu, zvv
       !!----------------------------------------------------------------------
@@ -355,11 +352,7 @@ CONTAINS
       !   III. Output in netCDF + residual computation
       !  =============================================
       
-      ! define time axis
-      it    = kt
-      itmod = kt - nit000 + 1
-
-      IF( MOD( it, nn_trd ) == 0 ) THEN
+      IF( MOD( kt, nn_trd ) == 0 ) THEN
 
          ! III.1 compute total trend
          ! ------------------------
@@ -386,25 +379,25 @@ CONTAINS
 
       IF( kt >=  nit000+1 ) THEN
 
-         IF( lwp .AND. MOD( itmod, nn_trd ) == 0 ) THEN
+         IF( lwp .AND. MOD( kt - nit000 + 1, nn_trd ) == 0 ) THEN
             WRITE(numout,*) ''
             WRITE(numout,*) 'trd_vor : write trends in the NetCDF file at kt = ', kt
             WRITE(numout,*) '~~~~~~~  '
          ENDIF
  
-         CALL histwrite( nidvor,"sovortPh",it,vortrd(:,:,jpvor_prg),ndimvor1,ndexvor1)  ! grad Ph
-         CALL histwrite( nidvor,"sovortEk",it,vortrd(:,:,jpvor_keg),ndimvor1,ndexvor1)  ! Energy
-         CALL histwrite( nidvor,"sovozeta",it,vortrd(:,:,jpvor_rvo),ndimvor1,ndexvor1)  ! rel vorticity
-         CALL histwrite( nidvor,"sovortif",it,vortrd(:,:,jpvor_pvo),ndimvor1,ndexvor1)  ! coriolis
-         CALL histwrite( nidvor,"sovodifl",it,vortrd(:,:,jpvor_ldf),ndimvor1,ndexvor1)  ! lat diff
-         CALL histwrite( nidvor,"sovoadvv",it,vortrd(:,:,jpvor_zad),ndimvor1,ndexvor1)  ! vert adv
-         CALL histwrite( nidvor,"sovodifv",it,vortrd(:,:,jpvor_zdf),ndimvor1,ndexvor1)  ! vert diff
-         CALL histwrite( nidvor,"sovortPs",it,vortrd(:,:,jpvor_spg),ndimvor1,ndexvor1)  ! grad Ps
-         CALL histwrite( nidvor,"sovortbv",it,vortrd(:,:,jpvor_bev),ndimvor1,ndexvor1)  ! beta.V
-         CALL histwrite( nidvor,"sovowind",it,vortrd(:,:,jpvor_swf),ndimvor1,ndexvor1) ! wind stress
-         CALL histwrite( nidvor,"sovobfri",it,vortrd(:,:,jpvor_bfr),ndimvor1,ndexvor1) ! bottom friction
-         CALL histwrite( nidvor,"1st_mbre",it,vor_avrtot    ,ndimvor1,ndexvor1) ! First membre
-         CALL histwrite( nidvor,"sovorgap",it,vor_avrres    ,ndimvor1,ndexvor1) ! gap between 1st and 2 nd mbre
+         CALL histwrite( nidvor,"sovortPh",kt,vortrd(:,:,jpvor_prg),1,(/-1/))  ! grad Ph
+         CALL histwrite( nidvor,"sovortEk",kt,vortrd(:,:,jpvor_keg),1,(/-1/))  ! Energy
+         CALL histwrite( nidvor,"sovozeta",kt,vortrd(:,:,jpvor_rvo),1,(/-1/))  ! rel vorticity
+         CALL histwrite( nidvor,"sovortif",kt,vortrd(:,:,jpvor_pvo),1,(/-1/))  ! coriolis
+         CALL histwrite( nidvor,"sovodifl",kt,vortrd(:,:,jpvor_ldf),1,(/-1/))  ! lat diff
+         CALL histwrite( nidvor,"sovoadvv",kt,vortrd(:,:,jpvor_zad),1,(/-1/))  ! vert adv
+         CALL histwrite( nidvor,"sovodifv",kt,vortrd(:,:,jpvor_zdf),1,(/-1/))  ! vert diff
+         CALL histwrite( nidvor,"sovortPs",kt,vortrd(:,:,jpvor_spg),1,(/-1/))  ! grad Ps
+         CALL histwrite( nidvor,"sovortbv",kt,vortrd(:,:,jpvor_bev),1,(/-1/))  ! beta.V
+         CALL histwrite( nidvor,"sovowind",kt,vortrd(:,:,jpvor_swf),1,(/-1/)) ! wind stress
+         CALL histwrite( nidvor,"sovobfri",kt,vortrd(:,:,jpvor_bfr),1,(/-1/)) ! bottom friction
+         CALL histwrite( nidvor,"1st_mbre",kt,vor_avrtot           ,1,(/-1/)) ! First membre
+         CALL histwrite( nidvor,"sovorgap",kt,vor_avrres           ,1,(/-1/)) ! gap between 1st and 2 nd mbre
          !
          IF( ndebug /= 0 ) THEN
             WRITE(numout,*) ' debuging trd_vor: III.4 done'
@@ -413,7 +406,7 @@ CONTAINS
          !
       ENDIF
       !
-      IF( MOD( it, nn_trd ) == 0 ) rotot(:,:)=0
+      IF( MOD( kt, nn_trd ) == 0 ) rotot(:,:)=0
       !
       IF( kt == nitend )   CALL histclo( nidvor )
       !
@@ -474,9 +467,7 @@ CONTAINS
       !-----------------------------------------
       ! II.1 Define frequency of output and means
       ! -----------------------------------------
-      IF( ln_mskland )   THEN   ;   clop = "only(x)"   ! put 1.e+20 on land (very expensive!!)
-      ELSE                      ;   clop = "x"         ! no use of the mask value (require less cpu time)
-      ENDIF
+      clop = "x"         ! no use of the mask value
 #if defined key_diainstant
       zsto = nn_write*rn_Dt
       clop = "inst("//TRIM(clop)//")"
@@ -503,7 +494,6 @@ CONTAINS
       IF(lwp) WRITE(numout,*) ' Name of NETCDF file ', clhstnam
       CALL histbeg( clhstnam, jpi, glamf, jpj, gphif,1, jpi,   &  ! Horizontal grid : glamt and gphit
          &          1, jpj, nit000-1, zjulian, rn_Dt, nh_t, nidvor, domain_id=nidom, snc4chunks=snc4set )
-      CALL wheneq( jpi*jpj, fmask, 1, 1., ndexvor1, ndimvor1 )    ! surface
 
       ! Declare output fields as netCDF variables
       CALL histdef( nidvor, "sovortPh", cvort//"grad Ph" , "s-2",        & ! grad Ph

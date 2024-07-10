@@ -40,9 +40,8 @@ MODULE trdmxl_trc
 
    CHARACTER (LEN=40) ::  clhstnam                                ! name of the trends NetCDF file
    INTEGER ::   nmoymltrd
-   INTEGER, ALLOCATABLE, SAVE, DIMENSION(:) ::   ndextrd1, nidtrd, nh_t
-   INTEGER ::   ndimtrd1                        
-   INTEGER, SAVE ::  ionce, icount
+   INTEGER, ALLOCATABLE, SAVE, DIMENSION(:) ::   nidtrd, nh_t
+   INTEGER, SAVE ::  icount
    LOGICAL :: llwarn  = .TRUE.                                    ! this should always be .TRUE.
    LOGICAL :: lldebug = .TRUE.
 
@@ -62,7 +61,7 @@ CONTAINS
       !!                  ***  ROUTINE trd_mxl_trc_alloc  ***
       !!----------------------------------------------------------------------
       ALLOCATE( ztmltrd2(jpi,jpj,jpltrd_trc,jptra) ,      &
-         &      ndextrd1(jpi*jpj), nidtrd(jptra), nh_t(jptra),  STAT=trd_mxl_trc_alloc)
+         &      nidtrd(jptra), nh_t(jptra),  STAT=trd_mxl_trc_alloc)
          !
       CALL mpp_sum ( 'trdmxl_trc', trd_mxl_trc_alloc )
       IF( trd_mxl_trc_alloc /=0 )   CALL ctl_stop( 'STOP', 'trd_mxl_trc_alloc: failed to allocate arrays' )
@@ -71,7 +70,7 @@ CONTAINS
 
 
    SUBROUTINE trd_mxl_trc_dealloc()
-      IF( ALLOCATED(ztmltrd2) )   DEALLOCATE( ztmltrd2, ndextrd1, nidtrd, nh_t )
+      IF( ALLOCATED(ztmltrd2) )   DEALLOCATE( ztmltrd2, nidtrd, nh_t )
    END SUBROUTINE trd_mxl_trc_dealloc
 
 
@@ -113,8 +112,7 @@ CONTAINS
       CHARACTER(len=2)                           , INTENT(in) ::  ctype             ! surface/bottom (2D) or interior (3D) physics
       REAL(wp), DIMENSION(AB2D(kttrc_trdmxl),JPK), INTENT(in) ::  ptrc_trdmxl       ! passive tracer trend
       !
-      INTEGER ::   ji, jj, jk, isum
-      REAL(wp), DIMENSION(jpi,jpj) :: zvlmsk
+      INTEGER ::   ji, jj, jk
       !!----------------------------------------------------------------------
 
       ! I. Definition of control surface and integration weights
@@ -130,41 +128,11 @@ CONTAINS
             CASE ( -1  )   ;   nmld_trc(:,:) = neln(:,:)          !     -> euphotic layer with light criterion
             CASE (  0  )
                ! nmln calculation in zdfmxl is only on internal points
-               DO_2D( 0, 0, 0, 0 )
-                  zvlmsk(ji,jj) = REAL( nmln(ji,jj), wp )
-               END_2D
-               nmld_trc(:,:) = NINT( zvlmsk(:,:) )                    !     -> ML with density criterion (see zdfmxl)
+               nmld_trc(A2D(0)) = nmln(A2D(0))                   !     -> ML with density criterion (see zdfmxl)
             CASE (  1  )   ;   nmld_trc(:,:) = nbol_trc(:,:)          !     -> read index from file
             CASE (  2: )   ;   nn_ctls_trc = MIN( nn_ctls_trc, jpktrd_trc - 1 )
                                nmld_trc(:,:) = nn_ctls_trc + 1      !     -> model level
          END SELECT
-
-         ! ... Compute ndextrd1 and ndimtrd1  ??? role de jpktrd_trc
-         IF( ionce == 1 ) THEN
-            !
-            isum  = 0   ;   zvlmsk(:,:) = 0.e0
-
-            IF( jpktrd_trc < jpk ) THEN   
-               DO_2D( nn_hls, nn_hls, nn_hls, nn_hls ) 
-                  IF( nmld_trc(ji,jj) <= jpktrd_trc ) THEN
-                     zvlmsk(ji,jj) = tmask(ji,jj,1)
-                  ELSE
-                     isum = isum + 1
-                     zvlmsk(ji,jj) = 0.e0
-                  ENDIF
-               END_2D
-            ENDIF
-
-            IF( isum > 0 ) THEN                                   ! index of ocean points (2D only)
-               WRITE(numout,*)' tmltrd_trc : Number of invalid points nmld_trc > jpktrd', isum 
-               CALL wheneq( jpi*jpj, zvlmsk(:,:) , 1, 1., ndextrd1, ndimtrd1 )
-            ELSE 
-               CALL wheneq( jpi*jpj, tmask(:,:,1), 1, 1., ndextrd1, ndimtrd1 )
-            ENDIF                                
-
-            ionce = 0                                             ! no more pass here
-            !
-         ENDIF   ! ionce == 1
          
          ! ... Weights for vertical averaging
          wkx_trc(:,:,:) = 0.e0
@@ -253,7 +221,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt   ! ocean time-step index
       INTEGER, INTENT(in) ::   Kmm                              ! time level index
       !
-      INTEGER ::   ji, jj, jk, jl, ik, it, itmod, jn
+      INTEGER ::   ji, jj, jk, jl, ik, itmod, jn
       REAL(wp) ::   zavt, zfn, zfn2
       !
       REAL(wp), DIMENSION(jpi,jpj,jptra) ::   ztmltot             ! d(trc)/dt over the anlysis window (incl. Asselin)
@@ -609,20 +577,20 @@ CONTAINS
          DO jn = 1, jptra
             !
             IF( ln_trdtrc(jn) ) THEN
-               CALL histwrite( nidtrd(jn), "mxl_depth", it, rmld_trc(:,:), ndimtrd1, ndextrd1 )
+               CALL histwrite( nidtrd(jn), "mxl_depth", kt, rmld_trc(:,:), 1, (/-1/) )
                !-- Output the fields
                clvar = trim(ctrcnm(jn))//"ml"                        ! e.g. detml, zooml, nh4ml, etc.
-               CALL histwrite( nidtrd(jn), trim(clvar)         , it, tml_trc(:,:,jn), ndimtrd1, ndextrd1 ) 
-               CALL histwrite( nidtrd(jn), trim(clvar)//"_tot" , it, ztmltot(:,:,jn), ndimtrd1, ndextrd1 ) 
-               CALL histwrite( nidtrd(jn), trim(clvar)//"_res" , it, ztmlres(:,:,jn), ndimtrd1, ndextrd1 ) 
+               CALL histwrite( nidtrd(jn), trim(clvar)         , kt, tml_trc(:,:,jn), 1, (/-1/) ) 
+               CALL histwrite( nidtrd(jn), trim(clvar)//"_tot" , kt, ztmltot(:,:,jn), 1, (/-1/) ) 
+               CALL histwrite( nidtrd(jn), trim(clvar)//"_res" , kt, ztmlres(:,:,jn), 1, (/-1/) ) 
            
                DO jl = 1, jpltrd_trc - 2
                   CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jl,2)),             &
-                    &          it, tmltrd_trc(:,:,jl,jn), ndimtrd1, ndextrd1 )
+                    &          kt, tmltrd_trc(:,:,jl,jn), 1, (/-1/) )
                END DO
 
                CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_rad,2)),    &  ! now trcrad    : jpltrd_trc - 1
-                    &          it, ztmlrad(:,:,jn), ndimtrd1, ndextrd1 )
+                    &          kt, ztmlrad(:,:,jn), 1, (/-1/) )
 
             ENDIF
          END DO
@@ -638,21 +606,21 @@ CONTAINS
          DO jn = 1, jptra
             !
             IF( ln_trdtrc(jn) ) THEN
-               CALL histwrite( nidtrd(jn), "mxl_depth", it, rmld_sum_trc(:,:), ndimtrd1, ndextrd1 ) 
+               CALL histwrite( nidtrd(jn), "mxl_depth", kt, rmld_sum_trc(:,:), 1, (/-1/) ) 
                !-- Output the fields
                clvar = trim(ctrcnm(jn))//"ml"                        ! e.g. detml, zooml, nh4ml, etc.
 
-               CALL histwrite( nidtrd(jn), trim(clvar)         , it, tml_sum_trc(:,:,jn), ndimtrd1, ndextrd1 )
-               CALL histwrite( nidtrd(jn), trim(clvar)//"_tot" , it,    ztmltot2(:,:,jn), ndimtrd1, ndextrd1 ) 
-               CALL histwrite( nidtrd(jn), trim(clvar)//"_res" , it,    ztmlres2(:,:,jn), ndimtrd1, ndextrd1 ) 
+               CALL histwrite( nidtrd(jn), trim(clvar)         , kt, tml_sum_trc(:,:,jn), 1, (/-1/) )
+               CALL histwrite( nidtrd(jn), trim(clvar)//"_tot" , kt,    ztmltot2(:,:,jn), 1, (/-1/) ) 
+               CALL histwrite( nidtrd(jn), trim(clvar)//"_res" , kt,    ztmlres2(:,:,jn), 1, (/-1/) ) 
 
                DO jl = 1, jpltrd_trc - 2
                   CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jl,2)),           &
-                    &          it, ztmltrd2(:,:,jl,jn), ndimtrd1, ndextrd1 )
+                    &          kt, ztmltrd2(:,:,jl,jn), 1, (/-1/) )
                END DO
             
                CALL histwrite( nidtrd(jn), trim(clvar)//trim(ctrd_trc(jpmxl_trc_rad,2)),   &  ! now trcrad    : jpltrd_trc - 1
-                 &          it, ztmlrad2(:,:,jn), ndimtrd1, ndextrd1 )
+                 &          kt, ztmlrad2(:,:,jn), 1, (/-1/) )
 
             ENDIF 
             !
@@ -710,7 +678,7 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       INTEGER :: inum   ! logical unit
-      INTEGER :: ilseq, jl, jn, iiter
+      INTEGER :: ilseq, jl, jn
       REAL(wp) ::   zjulian, zsto, zout
       CHARACTER (LEN=40) ::   clop
       CHARACTER (LEN=15) ::   csuff
@@ -786,7 +754,7 @@ CONTAINS
 
        ENDIF
 
-      icount = 1   ;   ionce  = 1  ! open specifier   
+      icount = 1  ! open specifier   
 
 
       ! I.3 Read control surface from file ctlsurf_idx
@@ -812,25 +780,22 @@ CONTAINS
 
       ! II.1 Define frequency of output and means
       ! -----------------------------------------
-      IF( ln_mskland )   THEN   ;   clop = "only(x)"   ! put 1.e+20 on land (very expensive!!)
-      ELSE                      ;   clop = "x"         ! no use of the mask value (require less cp time)
-      ENDIF
+      clop = "x"         ! no use of the mask value
 #  if defined key_diainstant
       IF( .NOT. ln_trdmxl_trc_instant ) THEN
          CALL ctl_stop( 'STOP', 'trd_mxl_trc : this was never checked. Comment this line to proceed...' )
       ENDIF
-      zsto = nn_trd_trc * rn_Dt
+      zsto = REAL( nn_trd_trc, wp ) * rn_Dt
       clop = "inst("//TRIM(clop)//")"
 #  else
       IF( ln_trdmxl_trc_instant ) THEN
          zsto = rn_Dt                                               ! inst. diags : we use IOIPSL time averaging
       ELSE
-         zsto = nn_trd_trc * rn_Dt                                    ! mean  diags : we DO NOT use any IOIPSL time averaging
+         zsto = REAL( nn_trd_trc, wp ) * rn_Dt                      ! mean  diags : we DO NOT use any IOIPSL time averaging
       ENDIF
       clop = "ave("//TRIM(clop)//")"
 #  endif
-      zout = nn_trd_trc * rn_Dt
-      iiter = nittrc000 - 1
+      zout = REAL( nn_trd_trc, wp ) * rn_Dt
 
       IF(lwp) WRITE (numout,*) '                netCDF initialization'
 
@@ -866,7 +831,7 @@ CONTAINS
             csuff="ML_"//ctrcnm(jn)
             CALL dia_nam( clhstnam, nn_trd_trc, csuff )
             CALL histbeg( clhstnam, jpi, glamt, jpj, gphit,                                            &
-               &        1, jpi, 1, jpj, iiter, zjulian, rn_Dt, nh_t(jn), nidtrd(jn), domain_id=nidom, snc4chunks=snc4set )
+               &        1, jpi, 1, jpj, nittrc000 - 1, zjulian, rn_Dt, nh_t(jn), nidtrd(jn), domain_id=nidom, snc4chunks=snc4set )
       
             !-- Define the ML depth variable
             CALL histdef(nidtrd(jn), "mxl_depth", clmxl//" Mixed Layer Depth", "m",                        &
