@@ -76,6 +76,14 @@ CONTAINS
       IF ( ln_dyn_trd .OR. ln_KE_trd .OR. ln_dyn_mxl .OR.   &
          & ln_vor_trd .OR. ln_glo_trd                       )   l_trddyn = .TRUE.
       !
+      ! #487: the trends diagnostics are functional (they don't crash), but they may not be scientifically valid in RK3.
+      ! They are disabled, pending a full review.
+      IF( l_trdtra .OR. l_trddyn ) THEN
+         CALL ctl_warn('The trends diagnostics are disabled, pending a full review.')
+         l_trdtra = .FALSE.
+         l_trddyn = .FALSE.
+         RETURN
+      ENDIF
 
 !!gm check the stop below
       IF( ln_dyn_mxl )   CALL ctl_stop( 'ML diag on momentum are not yet coded we stop' )
