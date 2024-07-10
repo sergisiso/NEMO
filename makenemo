@@ -302,7 +302,7 @@ NEMO_INC='WORK'
 # Default build target
 NEMO_TARGET='nemo.exe'
 # Default source-code transformation target
-NEMO_TARGET_SCT='lib_cray.f90 nemo.f90'
+NEMO_TARGET_SCT='nemo.f90'
 
 # Config cleaning
 if [ -d ${NEMO_TDIR}/${CUR_CONF} ]; then

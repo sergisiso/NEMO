@@ -68,23 +68,13 @@ MODULE diawri
 
    PUBLIC   dia_wri                 ! routines called by step.F90
    PUBLIC   dia_wri_state
-   PUBLIC   dia_wri_alloc           ! Called by nemogcm module
-   PUBLIC   dia_wri_dealloc         ! Called by nemogcm module
-#if ! defined key_xios   
-   PUBLIC   dia_wri_alloc_abl       ! Called by sbcabl  module (if ln_abl = .true.)
-   PUBLIC   dia_wri_dealloc_abl     ! Called by ?
-#endif
-   INTEGER ::   nid_T, nz_T, nh_T, ndim_T, ndim_hT   ! grid_T file
-   INTEGER ::          nb_T              , ndim_bT   ! grid_T file
-   INTEGER ::   nid_U, nz_U, nh_U, ndim_U, ndim_hU   ! grid_U file
-   INTEGER ::   nid_V, nz_V, nh_V, ndim_V, ndim_hV   ! grid_V file
-   INTEGER ::   nid_W, nz_W, nh_W                    ! grid_W file
-   INTEGER ::   nid_A, nz_A, nh_A, ndim_A, ndim_hA   ! grid_ABL file   
-   INTEGER ::   ndex(1)                              ! ???
-   INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) :: ndex_hT, ndex_hU, ndex_hV
-   INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) :: ndex_hA, ndex_A ! ABL
-   INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) :: ndex_T, ndex_U, ndex_V
-   INTEGER, SAVE, ALLOCATABLE, DIMENSION(:) :: ndex_bT
+   
+   INTEGER ::   nid_T, nz_T, nh_T
+   INTEGER ::          nb_T
+   INTEGER ::   nid_U, nz_U, nh_U
+   INTEGER ::   nid_V, nz_V, nh_V
+   INTEGER ::   nid_W, nz_W, nh_W
+   INTEGER ::   nid_A, nz_A, nh_A
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -99,15 +89,6 @@ CONTAINS
    !!----------------------------------------------------------------------
    !!   'key_xios'                                        use IOM library
    !!----------------------------------------------------------------------
-   INTEGER FUNCTION dia_wri_alloc()
-      !
-      dia_wri_alloc = 0
-      !
-   END FUNCTION dia_wri_alloc
-
-   SUBROUTINE dia_wri_dealloc()
-      IF(.FALSE.) WRITE(numout,*) 'to avoid compilation warning'
-   END SUBROUTINE dia_wri_dealloc
    
    SUBROUTINE dia_wri( kt, Kmm )
       !!---------------------------------------------------------------------
@@ -283,13 +264,9 @@ CONTAINS
       !                                            ! vertical velocity
       IF( iom_use('woce') ) THEN
          IF( ln_zad_Aimp ) THEN  ! explicit plus implicit parts
-            DO_3D( 0, 0, 0, 0, 1, jpk )
-               z3d(ji,jj,jk) = ww(ji,jj,jk) + wi(ji,jj,jk)
-            END_3D
+            z3d(T2D(0),:) = ww(T2D(0),:) + wi(T2D(0),:)
          ELSE
-            DO_3D( 0, 0, 0, 0, 1, jpk )
-               z3d(ji,jj,jk) = ww(ji,jj,jk)
-            END_3D
+            z3d(T2D(0),:) = ww(T2D(0),:)
          ENDIF
          CALL iom_put( "woce", z3d )
       ENDIF
@@ -414,10 +391,8 @@ CONTAINS
       ENDIF
       !
       IF ( iom_use("hdiv") ) THEN                 ! Horizontal divergence
-         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-            z3d(ji,jj,jk) = hdiv(ji,jj,jk)
-         END_3D
-         z3d(:,:,jpk) = 0._wp
+         z3d(T2D(0),1:jpkm1) = hdiv(T2D(0),1:jpkm1)
+         z3d(T2D(0),jpk) = 0._wp
          CALL iom_put( "hdiv", z3d )
       ENDIF
       !
@@ -554,42 +529,6 @@ CONTAINS
    !!   Default option                                  use IOIPSL  library
    !!----------------------------------------------------------------------
 
-   INTEGER FUNCTION dia_wri_alloc()
-      !!----------------------------------------------------------------------
-      INTEGER, DIMENSION(2) :: ierr
-      !!----------------------------------------------------------------------
-      IF( nn_write == -1 ) THEN
-         dia_wri_alloc = 0
-      ELSE    
-         ierr = 0
-         ALLOCATE( ndex_hT(jpi*jpj) , ndex_T(jpi*jpj*jpk) ,     &
-            &      ndex_hU(jpi*jpj) , ndex_U(jpi*jpj*jpk) ,     &
-            &      ndex_hV(jpi*jpj) , ndex_V(jpi*jpj*jpk) , STAT=ierr(1) )
-         !
-         dia_wri_alloc = MAXVAL(ierr)
-         CALL mpp_sum( 'diawri', dia_wri_alloc )
-         !
-      ENDIF
-      !
-   END FUNCTION dia_wri_alloc
-
-
-   SUBROUTINE dia_wri_dealloc()
-      IF( ALLOCATED(ndex_hT) )   DEALLOCATE( ndex_hT, ndex_T, ndex_hU, ndex_U, ndex_hV, ndex_V )
-   END SUBROUTINE dia_wri_dealloc
-   
- 
-   INTEGER FUNCTION dia_wri_alloc_abl()
-      ALLOCATE(   ndex_hA(jpi*jpj), ndex_A (jpi*jpj*jpkam1), STAT=dia_wri_alloc_abl)
-      CALL mpp_sum( 'diawri', dia_wri_alloc_abl )
-   END FUNCTION dia_wri_alloc_abl
-
-
-   SUBROUTINE dia_wri_dealloc_abl()
-      IF( ALLOCATED(ndex_hA) )    DEALLOCATE( ndex_hA, ndex_A )
-   END SUBROUTINE dia_wri_dealloc_abl
-   
-   
    SUBROUTINE dia_wri( kt, Kmm )
       !!---------------------------------------------------------------------
       !!                  ***  ROUTINE dia_wri  ***
@@ -607,17 +546,12 @@ CONTAINS
       !
       LOGICAL ::   ll_print = .FALSE.                        ! =T print and flush numout
       CHARACTER (len=40) ::   clhstnam, clop, clmx           ! local names
-      INTEGER  ::   inum = 11                                ! temporary logical unit
       INTEGER  ::   ji, jj, jk                               ! dummy loop indices
-      INTEGER  ::   ierr                                     ! error code return from allocation
-      INTEGER  ::   iimi, iima, ipk, it, itmod, ijmi, ijma   ! local integers
-      INTEGER  ::   ipka                                     ! ABL
       INTEGER  ::   jn, ierror                               ! local integers
-      REAL(wp) ::   zsto, zout, zmax, zjulian                ! local scalars
-      !
+      REAL(wp) ::   zsto, zout, zjulian                ! local scalars
       REAL(wp), DIMENSION(jpi,jpj    ) :: z2d     ! 2D workspace
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: z3d     ! 3D workspace
-      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zw3d_abl   ! ABL 3D workspace
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: z3dabl     ! 3D workspace
       !!----------------------------------------------------------------------
       !
       IF( ninist == 1 ) THEN     !==  Output the initial state and forcings  ==!
@@ -636,26 +570,15 @@ CONTAINS
       ll_print = ll_print .AND. lwp
 
       ! Define frequency of output and means
-      clop = "x"         ! no use of the mask value (require less cpu time and otherwise the model crashes)
+      clop = "x"         ! no use of the mask value
 #if defined key_diainstant
-      zsto = nn_write * rn_Dt
+      zsto = REAL( nn_write, wp ) * rn_Dt
       clop = "inst("//TRIM(clop)//")"
 #else
       zsto=rn_Dt
       clop = "ave("//TRIM(clop)//")"
 #endif
-      zout = nn_write * rn_Dt
-      zmax = ( nitend - nit000 + 1 ) * rn_Dt
-
-      ! Define indices of the horizontal output zoom and vertical limit storage
-      iimi = Nis0   ;   iima = Nie0
-      ijmi = Njs0   ;   ijma = Nje0
-      ipk = jpk
-      IF(ln_abl) ipka = jpkam1
-
-      ! define time axis
-      it = kt
-      itmod = kt - nit000 + 1
+      zout = REAL( nn_write, wp ) * rn_Dt
 
       ! 1. Define NETCDF files and fields at beginning of first time step
       ! -----------------------------------------------------------------
@@ -670,50 +593,24 @@ CONTAINS
          IF(lwp)WRITE(numout,*)
          IF(lwp)WRITE(numout,*) 'Date 0 used :', nit000, ' YEAR ', nyear,   &
             &                    ' MONTH ', nmonth, ' DAY ', nday, 'Julian day : ', zjulian
-         IF(lwp)WRITE(numout,*) ' indexes of zoom = ', iimi, iima, ijmi, ijma,   &
-                                 ' limit storage in depth = ', ipk
-
-         ! WRITE root name in date.file for use by postpro
-         IF(lwp) THEN
-            CALL dia_nam( clhstnam, nn_write,' ' )
-            CALL ctl_opn( inum, 'date.file', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', -1, numout, lwp, narea )
-            WRITE(inum,*) clhstnam
-            CLOSE(inum)
-         ENDIF
+         IF(lwp)WRITE(numout,*) ' indexes of zoom = ', Nis0, Nie0, Njs0, Nje0,   &
+                                 ' limit storage in depth = ', jpk
 
          ! Define the T grid FILE ( nid_T )
 
          CALL dia_nam( clhstnam, nn_write, 'grid_T' )
          IF(lwp) WRITE(numout,*) " Name of NETCDF file ", clhstnam    ! filename
          CALL histbeg( clhstnam, jpi, glamt, jpj, gphit,           &  ! Horizontal grid: glamt and gphit
-            &          iimi, iima-iimi+1, ijmi, ijma-ijmi+1,       &
+            &          Nis0, Ni_0, Njs0, Nj_0,       &
             &          nit000-1, zjulian, rn_Dt, nh_T, nid_T, domain_id=nidom, snc4chunks=snc4set )
          CALL histvert( nid_T, "deptht", "Vertical T levels",      &  ! Vertical grid: gdept
-            &           "m", ipk, gdept_1d, nz_T, "down" )
-         !                                                            ! Index of ocean points
-         CALL wheneq( jpi*jpj*ipk, tmask, 1, 1., ndex_T , ndim_T  )      ! volume
-         CALL wheneq( jpi*jpj    , tmask, 1, 1., ndex_hT, ndim_hT )      ! surface
+            &           "m", jpk, gdept_1d, nz_T, "down" )
          !
          IF( ln_icebergs ) THEN
-            !
-            !! allocation cant go in dia_wri_alloc because ln_icebergs is only set after 
-            !! that routine is called from nemogcm, so do it here immediately before its needed
-            ALLOCATE( ndex_bT(jpi*jpj*nclasses), STAT=ierror )
-            CALL mpp_sum( 'diawri', ierror )
-            IF( ierror /= 0 ) THEN
-               CALL ctl_stop('dia_wri: failed to allocate iceberg diagnostic array')
-               RETURN
-            ENDIF
             !
             !! iceberg vertical coordinate is class number
             CALL histvert( nid_T, "class", "Iceberg class",      &  ! Vertical grid: class
                &           "number", nclasses, class_num, nb_T )
-            !
-            !! each class just needs the surface index pattern
-            ndim_bT = 3
-            DO jn = 1,nclasses
-               ndex_bT((jn-1)*jpi*jpj+1:jn*jpi*jpj) = ndex_hT(1:jpi*jpj)
-            ENDDO
             !
          ENDIF
 
@@ -722,69 +619,57 @@ CONTAINS
          CALL dia_nam( clhstnam, nn_write, 'grid_U' )
          IF(lwp) WRITE(numout,*) " Name of NETCDF file ", clhstnam    ! filename
          CALL histbeg( clhstnam, jpi, glamu, jpj, gphiu,           &  ! Horizontal grid: glamu and gphiu
-            &          iimi, iima-iimi+1, ijmi, ijma-ijmi+1,       &
+            &          Nis0, Ni_0, Njs0, Nj_0,       &
             &          nit000-1, zjulian, rn_Dt, nh_U, nid_U, domain_id=nidom, snc4chunks=snc4set )
          CALL histvert( nid_U, "depthu", "Vertical U levels",      &  ! Vertical grid: gdept
-            &           "m", ipk, gdept_1d, nz_U, "down" )
-         !                                                            ! Index of ocean points
-         CALL wheneq( jpi*jpj*ipk, umask, 1, 1., ndex_U , ndim_U  )      ! volume
-         CALL wheneq( jpi*jpj    , umask, 1, 1., ndex_hU, ndim_hU )      ! surface
+            &           "m", jpk, gdept_1d, nz_U, "down" )
 
          ! Define the V grid FILE ( nid_V )
 
          CALL dia_nam( clhstnam, nn_write, 'grid_V' )                   ! filename
          IF(lwp) WRITE(numout,*) " Name of NETCDF file ", clhstnam
          CALL histbeg( clhstnam, jpi, glamv, jpj, gphiv,           &  ! Horizontal grid: glamv and gphiv
-            &          iimi, iima-iimi+1, ijmi, ijma-ijmi+1,       &
+            &          Nis0, Ni_0, Njs0, Nj_0,       &
             &          nit000-1, zjulian, rn_Dt, nh_V, nid_V, domain_id=nidom, snc4chunks=snc4set )
          CALL histvert( nid_V, "depthv", "Vertical V levels",      &  ! Vertical grid : gdept
-            &          "m", ipk, gdept_1d, nz_V, "down" )
-         !                                                            ! Index of ocean points
-         CALL wheneq( jpi*jpj*ipk, vmask, 1, 1., ndex_V , ndim_V  )      ! volume
-         CALL wheneq( jpi*jpj    , vmask, 1, 1., ndex_hV, ndim_hV )      ! surface
+            &          "m", jpk, gdept_1d, nz_V, "down" )
 
          ! Define the W grid FILE ( nid_W )
 
          CALL dia_nam( clhstnam, nn_write, 'grid_W' )                   ! filename
          IF(lwp) WRITE(numout,*) " Name of NETCDF file ", clhstnam
          CALL histbeg( clhstnam, jpi, glamt, jpj, gphit,           &  ! Horizontal grid: glamt and gphit
-            &          iimi, iima-iimi+1, ijmi, ijma-ijmi+1,       &
+            &          Nis0, Ni_0, Njs0, Nj_0,       &
             &          nit000-1, zjulian, rn_Dt, nh_W, nid_W, domain_id=nidom, snc4chunks=snc4set )
          CALL histvert( nid_W, "depthw", "Vertical W levels",      &  ! Vertical grid: gdepw
-            &          "m", ipk, gdepw_1d, nz_W, "down" )
+            &          "m", jpk, gdepw_1d, nz_W, "down" )
 
          IF( ln_abl ) THEN 
          ! Define the ABL grid FILE ( nid_A )
             CALL dia_nam( clhstnam, nn_write, 'grid_ABL' )
             IF(lwp) WRITE(numout,*) " Name of NETCDF file ", clhstnam    ! filename
-            CALL histbeg( clhstnam, jpi, glamt, jpj, gphit,           &  ! Horizontal grid: glamt and gphit
-               &          iimi, iima-iimi+1, ijmi, ijma-ijmi+1,       &
+            CALL histbeg( clhstnam, Ni_0, glamt(A2D(0)), Nj_0, gphit(A2D(0)),   &  ! Horizontal grid: glamt and gphit
+               &          1, Ni_0, 1, Nj_0,       &
                &          nit000-1, zjulian, rn_Dt, nh_A, nid_A, domain_id=nidom, snc4chunks=snc4set )
             CALL histvert( nid_A, "ght_abl", "Vertical T levels",      &  ! Vertical grid: gdept
-               &           "m", ipka, ght_abl(2:jpka), nz_A, "up" )
+               &           "m", jpkam1, ght_abl(2:jpka), nz_A, "up" )
             !                                                            ! Index of ocean points
-			ALLOCATE( zw3d_abl(jpi,jpj,ipka) ) 
-			zw3d_abl(:,:,:) = 1._wp 
-			CALL wheneq( jpi*jpj*ipka, zw3d_abl, 1, 1., ndex_A , ndim_A  )      ! volume
-            CALL wheneq( jpi*jpj     , zw3d_abl, 1, 1., ndex_hA, ndim_hA )      ! surface
-			DEALLOCATE(zw3d_abl)
          ENDIF
-         !
 
          ! Declare all the output fields as NETCDF variables
 
          !                                                                                      !!! nid_T : 3D
          CALL histdef( nid_T, "votemper", "Temperature"                        , "C"      ,   &  ! tn
-            &          jpi, jpj, nh_T, ipk, 1, ipk, nz_T, 32, clop, zsto, zout )
+            &          jpi, jpj, nh_T, jpk, 1, jpk, nz_T, 32, clop, zsto, zout )
          CALL histdef( nid_T, "vosaline", "Salinity"                           , "PSU"    ,   &  ! sn
-            &          jpi, jpj, nh_T, ipk, 1, ipk, nz_T, 32, clop, zsto, zout )
+            &          jpi, jpj, nh_T, jpk, 1, jpk, nz_T, 32, clop, zsto, zout )
          IF(  .NOT.lk_linssh  ) THEN
             CALL histdef( nid_T, "vovvle3t", "Level thickness"                    , "m"      ,&  ! e3t n
-            &             jpi, jpj, nh_T, ipk, 1, ipk, nz_T, 32, clop, zsto, zout )
+            &             jpi, jpj, nh_T, jpk, 1, jpk, nz_T, 32, clop, zsto, zout )
             CALL histdef( nid_T, "vovvldep", "T point depth"                      , "m"      ,&  ! e3t n
-            &             jpi, jpj, nh_T, ipk, 1, ipk, nz_T, 32, clop, zsto, zout )
+            &             jpi, jpj, nh_T, jpk, 1, jpk, nz_T, 32, clop, zsto, zout )
             CALL histdef( nid_T, "vovvldef", "Squared level deformation"          , "%^2"    ,&  ! e3t n
-            &             jpi, jpj, nh_T, ipk, 1, ipk, nz_T, 32, clop, zsto, zout )
+            &             jpi, jpj, nh_T, jpk, 1, jpk, nz_T, 32, clop, zsto, zout )
          ENDIF
          !                                                                                      !!! nid_T : 2D
          CALL histdef( nid_T, "sosstsst", "Sea Surface temperature"            , "C"      ,   &  ! sst
@@ -825,24 +710,24 @@ CONTAINS
          !
          IF( ln_abl ) THEN
             CALL histdef( nid_A, "t_abl", "Potential Temperature"     , "K"        ,       &  ! t_abl
-               &          jpi, jpj, nh_A, ipka, 1, ipka, nz_A, 32, clop, zsto, zout )
+               &          Ni_0, Nj_0, nh_A, jpkam1, 1, jpkam1, nz_A, 32, clop, zsto, zout )
             CALL histdef( nid_A, "q_abl", "Humidity"                  , "kg/kg"    ,       &  ! q_abl
-               &          jpi, jpj, nh_A, ipka, 1, ipka, nz_A, 32, clop, zsto, zout ) 
+               &          Ni_0, Nj_0, nh_A, jpkam1, 1, jpkam1, nz_A, 32, clop, zsto, zout ) 
             CALL histdef( nid_A, "u_abl", "Atmospheric U-wind   "     , "m/s"        ,     &  ! u_abl
-               &          jpi, jpj, nh_A, ipka, 1, ipka, nz_A, 32, clop, zsto, zout )
+               &          Ni_0, Nj_0, nh_A, jpkam1, 1, jpkam1, nz_A, 32, clop, zsto, zout )
             CALL histdef( nid_A, "v_abl", "Atmospheric V-wind   "     , "m/s"    ,         &  ! v_abl
-               &          jpi, jpj, nh_A, ipka, 1, ipka, nz_A, 32, clop, zsto, zout ) 
+               &          Ni_0, Nj_0, nh_A, jpkam1, 1, jpkam1, nz_A, 32, clop, zsto, zout ) 
             CALL histdef( nid_A, "tke_abl", "Atmospheric TKE   "     , "m2/s2"    ,        &  ! tke_abl
-               &          jpi, jpj, nh_A, ipka, 1, ipka, nz_A, 32, clop, zsto, zout ) 
+               &          Ni_0, Nj_0, nh_A, jpkam1, 1, jpkam1, nz_A, 32, clop, zsto, zout ) 
             CALL histdef( nid_A, "avm_abl", "Atmospheric turbulent viscosity", "m2/s"   ,  &  ! avm_abl
-               &          jpi, jpj, nh_A, ipka, 1, ipka, nz_A, 32, clop, zsto, zout ) 
+               &          Ni_0, Nj_0, nh_A, jpkam1, 1, jpkam1, nz_A, 32, clop, zsto, zout ) 
             CALL histdef( nid_A, "avt_abl", "Atmospheric turbulent diffusivity", "m2/s2",  &  ! avt_abl
-               &          jpi, jpj, nh_A, ipka, 1, ipka, nz_A, 32, clop, zsto, zout ) 
+               &          Ni_0, Nj_0, nh_A, jpkam1, 1, jpkam1, nz_A, 32, clop, zsto, zout ) 
             CALL histdef( nid_A, "pblh", "Atmospheric boundary layer height "  , "m",      &  ! pblh
-               &          jpi, jpj, nh_A,  1  , 1, 1   , -99 , 32, clop, zsto, zout )		 			   
+               &          Ni_0, Nj_0, nh_A,  1  , 1, 1,        -99 , 32, clop, zsto, zout )		 			   
 #if defined key_si3
             CALL histdef( nid_A, "oce_frac", "Fraction of open ocean"  , " ",      &  ! ato_i
-               &          jpi, jpj, nh_A,  1  , 1, 1   , -99 , 32, clop, zsto, zout )
+               &          Ni_0, Nj_0, nh_A,  1  , 1, 1,        -99 , 32, clop, zsto, zout )
 #endif
             CALL histend( nid_A, snc4chunks=snc4set )
          ENDIF
@@ -892,16 +777,6 @@ CONTAINS
          clmx ="l_max(only(x))"    ! max index on a period
 !         CALL histdef( nid_T, "sobowlin", "Bowl Index"                         , "W-point",   &  ! bowl INDEX 
 !            &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clmx, zsto, zout )
-#if defined key_diahth
-         CALL histdef( nid_T, "sothedep", "Thermocline Depth"                  , "m"      ,   & ! hth
-            &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
-         CALL histdef( nid_T, "so20chgt", "Depth of 20C isotherm"              , "m"      ,   & ! hd20
-            &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
-         CALL histdef( nid_T, "so28chgt", "Depth of 28C isotherm"              , "m"      ,   & ! hd28
-            &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
-         CALL histdef( nid_T, "sohtc300", "Heat content 300 m"                 , "J/m2"   ,   & ! htc3
-            &          jpi, jpj, nh_T, 1  , 1, 1  , -99 , 32, clop, zsto, zout )
-#endif
          CALL histdef( nid_T, "sozotaux", "Wind Stress along i-axis"           , "N/m2"   ,   & ! utau
             &          jpi, jpj, nh_T, 1  , 1, 1  , - 99, 32, clop, zsto, zout )
          CALL histdef( nid_T, "sometauy", "Wind Stress along j-axis"           , "N/m2"   ,   & ! vtau
@@ -911,40 +786,40 @@ CONTAINS
 
          !                                                                                      !!! nid_U : 3D
          CALL histdef( nid_U, "vozocrtx", "Zonal Current"                      , "m/s"    ,   &  ! uu(:,:,:,Kmm)
-            &          jpi, jpj, nh_U, ipk, 1, ipk, nz_U, 32, clop, zsto, zout )
+            &          jpi, jpj, nh_U, jpk, 1, jpk, nz_U, 32, clop, zsto, zout )
          IF( ln_wave .AND. ln_sdw) THEN
             CALL histdef( nid_U, "sdzocrtx", "Stokes Drift Zonal Current"         , "m/s"    ,   &  ! usd
-               &          jpi, jpj, nh_U, ipk, 1, ipk, nz_U, 32, clop, zsto, zout )
+               &          jpi, jpj, nh_U, jpk, 1, jpk, nz_U, 32, clop, zsto, zout )
          ENDIF
          !
          CALL histend( nid_U, snc4chunks=snc4set )
 
          !                                                                                      !!! nid_V : 3D
          CALL histdef( nid_V, "vomecrty", "Meridional Current"                 , "m/s"    ,   &  ! vv(:,:,:,Kmm)
-            &          jpi, jpj, nh_V, ipk, 1, ipk, nz_V, 32, clop, zsto, zout )
+            &          jpi, jpj, nh_V, jpk, 1, jpk, nz_V, 32, clop, zsto, zout )
          IF( ln_wave .AND. ln_sdw) THEN
             CALL histdef( nid_V, "sdmecrty", "Stokes Drift Meridional Current"    , "m/s"    ,   &  ! vsd
-               &          jpi, jpj, nh_V, ipk, 1, ipk, nz_V, 32, clop, zsto, zout )
+               &          jpi, jpj, nh_V, jpk, 1, jpk, nz_V, 32, clop, zsto, zout )
          ENDIF
          !
          CALL histend( nid_V, snc4chunks=snc4set )
 
          !                                                                                      !!! nid_W : 3D
          CALL histdef( nid_W, "vovecrtz", "Vertical Velocity"                  , "m/s"    ,   &  ! ww
-            &          jpi, jpj, nh_W, ipk, 1, ipk, nz_W, 32, clop, zsto, zout )
+            &          jpi, jpj, nh_W, jpk, 1, jpk, nz_W, 32, clop, zsto, zout )
          CALL histdef( nid_W, "votkeavt", "Vertical Eddy Diffusivity"          , "m2/s"   ,   &  ! avt
-            &          jpi, jpj, nh_W, ipk, 1, ipk, nz_W, 32, clop, zsto, zout )
+            &          jpi, jpj, nh_W, jpk, 1, jpk, nz_W, 32, clop, zsto, zout )
          CALL histdef( nid_W, "votkeavm", "Vertical Eddy Viscosity"             , "m2/s"  ,   &  ! avm
-            &          jpi, jpj, nh_W, ipk, 1, ipk, nz_W, 32, clop, zsto, zout )
+            &          jpi, jpj, nh_W, jpk, 1, jpk, nz_W, 32, clop, zsto, zout )
 
          IF( ln_zdfddm ) THEN
             CALL histdef( nid_W,"voddmavs","Salt Vertical Eddy Diffusivity"    , "m2/s"   ,   &  ! avs
-               &          jpi, jpj, nh_W, ipk, 1, ipk, nz_W, 32, clop, zsto, zout )
+               &          jpi, jpj, nh_W, jpk, 1, jpk, nz_W, 32, clop, zsto, zout )
          ENDIF
          
          IF( ln_wave .AND. ln_sdw) THEN
             CALL histdef( nid_W, "sdvecrtz", "Stokes Drift Vertical Current"   , "m/s"    ,   &  ! wsd
-               &          jpi, jpj, nh_W, ipk, 1, ipk, nz_W, 32, clop, zsto, zout )
+               &          jpi, jpj, nh_W, jpk, 1, jpk, nz_W, 32, clop, zsto, zout )
          ENDIF
          !                                                                                      !!! nid_W : 2D
          CALL histend( nid_W, snc4chunks=snc4set )
@@ -962,7 +837,7 @@ CONTAINS
       ! la taille du tableau en sortie. Dans ce cas , l'avant dernier argument
       ! donne le nombre d'elements, et ndex la liste des indices a sortir
 
-      IF( lwp .AND. MOD( itmod, nn_write ) == 0 ) THEN 
+      IF( lwp .AND. MOD( kt - nit000 + 1, nn_write ) == 0 ) THEN 
          WRITE(numout,*) 'dia_wri : write model outputs in NetCDF files at ', kt, 'time-step'
          WRITE(numout,*) '~~~~~~ '
       ENDIF
@@ -971,162 +846,143 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, jpk )
             z3d(ji,jj,jk) = ts(ji,jj,jk,jp_tem,Kmm) * e3t(ji,jj,jk,Kmm)
          END_3D
-         CALL histwrite( nid_T, "votemper", it, z3d, ndim_T , ndex_T  )   ! heat content
+         CALL histwrite( nid_T, "votemper", kt, z3d, 1, (/-1/) )   ! heat content
          DO_3D( 0, 0, 0, 0, 1, jpk )
             z3d(ji,jj,jk) = ts(ji,jj,jk,jp_sal,Kmm) * e3t(ji,jj,jk,Kmm)
          END_3D
-         CALL histwrite( nid_T, "vosaline", it, z3d, ndim_T , ndex_T  )   ! salt content
+         CALL histwrite( nid_T, "vosaline", kt, z3d, 1, (/-1/) )   ! salt content
          DO_2D( 0, 0, 0, 0 )
             z2d(ji,jj   ) = ts(ji,jj, 1,jp_tem,Kmm) * e3t(ji,jj, 1,Kmm)
          END_2D
-         CALL histwrite( nid_T, "sosstsst", it, z2d, ndim_hT, ndex_hT )   ! sea surface heat content
+         CALL histwrite( nid_T, "sosstsst", kt, z2d, 1, (/-1/) )   ! sea surface heat content
          DO_2D( 0, 0, 0, 0 )
             z2d(ji,jj   ) = ts(ji,jj, 1,jp_sal,Kmm) * e3t(ji,jj, 1,Kmm)
          END_2D
-         CALL histwrite( nid_T, "sosaline", it, z2d, ndim_hT, ndex_hT )   ! sea surface salinity content
+         CALL histwrite( nid_T, "sosaline", kt, z2d, 1, (/-1/) )   ! sea surface salinity content
       ELSE
-         CALL histwrite( nid_T, "votemper", it, ts(:,:,:,jp_tem,Kmm) , ndim_T , ndex_T  )   ! temperature
-         CALL histwrite( nid_T, "vosaline", it, ts(:,:,:,jp_sal,Kmm) , ndim_T , ndex_T  )   ! salinity
-         CALL histwrite( nid_T, "sosstsst", it, ts(:,:,1,jp_tem,Kmm) , ndim_hT, ndex_hT )   ! sea surface temperature
-         CALL histwrite( nid_T, "sosaline", it, ts(:,:,1,jp_sal,Kmm) , ndim_hT, ndex_hT )   ! sea surface salinity
+         CALL histwrite( nid_T, "votemper", kt, ts(:,:,:,jp_tem,Kmm), 1, (/-1/) )   ! temperature
+         CALL histwrite( nid_T, "vosaline", kt, ts(:,:,:,jp_sal,Kmm), 1, (/-1/) )   ! salinity
+         CALL histwrite( nid_T, "sosstsst", kt, ts(:,:,1,jp_tem,Kmm), 1, (/-1/) )   ! sea surface temperature
+         CALL histwrite( nid_T, "sosaline", kt, ts(:,:,1,jp_sal,Kmm), 1, (/-1/) )   ! sea surface salinity
       ENDIF
       IF( .NOT.lk_linssh ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpk )
            z3d(ji,jj,jk) = e3t(ji,jj,jk,Kmm)     ! 3D workspace for qco substitution
          END_3D
-         CALL histwrite( nid_T, "vovvle3t", it, z3d        , ndim_T , ndex_T  )   ! level thickness
+         CALL histwrite( nid_T, "vovvle3t", kt, z3d        , 1, (/-1/) )   ! level thickness
          DO_3D( 0, 0, 0, 0, 1, jpk )
            z3d(ji,jj,jk) = gdept(ji,jj,jk,Kmm)   ! 3D workspace for qco substitution
          END_3D
-         CALL histwrite( nid_T, "vovvldep", it, z3d        , ndim_T , ndex_T  )   ! t-point depth
+         CALL histwrite( nid_T, "vovvldep", kt, z3d        , 1, (/-1/) )   ! t-point depth
          DO_3D( 0, 0, 0, 0, 1, jpk )
             z3d(ji,jj,jk) = ( ( e3t(ji,jj,jk,Kmm) - e3t_0(ji,jj,jk) ) / e3t_0(ji,jj,jk) * 100._wp * tmask(ji,jj,jk) ) ** 2
          END_3D         
-         CALL histwrite( nid_T, "vovvldef", it, z3d        , ndim_T , ndex_T  )   ! level thickness deformation
+         CALL histwrite( nid_T, "vovvldef", kt, z3d        , 1, (/-1/) )   ! level thickness deformation
       ENDIF
-      CALL histwrite( nid_T, "sossheig", it, ssh(:,:,Kmm)  , ndim_hT, ndex_hT )   ! sea surface height
+      CALL histwrite( nid_T, "sossheig", kt, ssh(:,:,Kmm)  , 1, (/-1/) )   ! sea surface height
       IF( ln_rnf ) THEN 
-         DO_2D( 0, 0, 0, 0 )
-            z2d(ji,jj) = emp(ji,jj) - rnf(ji,jj)
-         END_2D
-         CALL histwrite( nid_T, "sowaflup", it, z2d        , ndim_hT, ndex_hT )   ! upward water flux
-         CALL histwrite( nid_T, "sorunoff", it, rnf        , ndim_hT, ndex_hT )   ! river runoffs
+         z2d(A2D(0)) = emp(A2D(0)) - rnf(A2D(0))
+         CALL histwrite( nid_T, "sowaflup", kt, z2d        , 1, (/-1/) )   ! upward water flux
+         CALL histwrite( nid_T, "sorunoff", kt, rnf        , 1, (/-1/) )   ! river runoffs
       ELSE
-         CALL histwrite( nid_T, "sowaflup", it, emp        , ndim_hT, ndex_hT )   ! upward water flux
+         CALL histwrite( nid_T, "sowaflup", kt, emp        , 1, (/-1/) )   ! upward water flux
       ENDIF
-      CALL histwrite( nid_T, "sosfldow", it, sfx           , ndim_hT, ndex_hT )   ! downward salt flux 
+      z2d(A2D(0)) = sfx(A2D(0))   ! sfx is an inner domain data
+      CALL histwrite( nid_T, "sosfldow", kt, z2d           , 1, (/-1/) )   ! downward salt flux 
                                                                                   ! (includes virtual salt flux beneath ice 
                                                                                   ! in linear free surface case)
       IF( lk_linssh ) THEN
-         DO_2D( 0, 0, 0, 0 )
-            z2d(ji,jj) = emp (ji,jj) * ts(ji,jj,1,jp_tem,Kmm)
-         END_2D
-         CALL histwrite( nid_T, "sosst_cd", it, z2d, ndim_hT, ndex_hT )          ! c/d term on sst
-         DO_2D( 0, 0, 0, 0 )
-            z2d(ji,jj) = emp (ji,jj) * ts(ji,jj,1,jp_sal,Kmm)
-         END_2D
-         CALL histwrite( nid_T, "sosss_cd", it, z2d, ndim_hT, ndex_hT )          ! c/d term on sss
+         z2d(A2D(0)) = emp(A2D(0)) * ts(A2D(0),1,jp_tem,Kmm)
+         CALL histwrite( nid_T, "sosst_cd", kt, z2d, 1, (/-1/) )          ! c/d term on sst
+         z2d(A2D(0)) = emp(A2D(0)) * ts(A2D(0),1,jp_sal,Kmm)
+         CALL histwrite( nid_T, "sosss_cd", kt, z2d, 1, (/-1/) )          ! c/d term on sss
       ENDIF
-      DO_2D( 0, 0, 0, 0 )
-         z2d(ji,jj) = qsr(ji,jj) + qns(ji,jj)
-      END_2D
-      CALL histwrite( nid_T, "sohefldo", it, z2d           , ndim_hT, ndex_hT )   ! total heat flux
-      CALL histwrite( nid_T, "soshfldo", it, qsr           , ndim_hT, ndex_hT )   ! solar heat flux
+      z2d(A2D(0)) = qsr(A2D(0)) + qns(A2D(0))
+      CALL histwrite( nid_T, "sohefldo", kt, z2d           , 1, (/-1/) )   ! total heat flux
+      z2d(A2D(0)) = qsr(A2D(0))   ! qsr is an inner domain data
+      CALL histwrite( nid_T, "soshfldo", kt, z2d           , 1, (/-1/) )   ! solar heat flux
       IF( ALLOCATED(hmld) ) THEN   ! zdf_mxl not called by SWE
-         CALL histwrite( nid_T, "somixhgt", it, hmld          , ndim_hT, ndex_hT )   ! turbocline depth
-         CALL histwrite( nid_T, "somxl010", it, hmlp          , ndim_hT, ndex_hT )   ! mixed layer depth
+         z2d(A2D(0)) = hmld(A2D(0))   ! hmld is an inner domain data
+         CALL histwrite( nid_T, "somixhgt", kt, z2d        , 1, (/-1/) )   ! turbocline depth
+         CALL histwrite( nid_T, "somxl010", kt, hmlp       , 1, (/-1/) )   ! mixed layer depth
       ENDIF
-      CALL histwrite( nid_T, "soicecov", it, fr_i          , ndim_hT, ndex_hT )   ! ice fraction   
-      CALL histwrite( nid_T, "sowindsp", it, wndm          , ndim_hT, ndex_hT )   ! wind speed   
+      CALL histwrite( nid_T, "soicecov", kt, fr_i          , 1, (/-1/) )   ! ice fraction   
+      z2d(A2D(0)) = wndm(A2D(0))   ! wndm is an inner domain data
+      CALL histwrite( nid_T, "sowindsp", kt, z2d           , 1, (/-1/) )   ! wind speed   
       !
-      IF( ln_abl ) THEN 
-         ALLOCATE( zw3d_abl(jpi,jpj,jpka) )
-         IF( ln_mskland )   THEN 
-            DO jk=1,jpka
-               zw3d_abl(:,:,jk) = tmask(:,:,1)
-            END DO       
-         ELSE
-            zw3d_abl(:,:,:) = 1._wp		 
-         ENDIF			
-         CALL histwrite( nid_A,  "pblh"   , it, pblh(:,:)                  *zw3d_abl(:,:,1     ), ndim_hA, ndex_hA )   ! pblh 
-         CALL histwrite( nid_A,  "u_abl"  , it, u_abl   (:,:,2:jpka,nt_n  )*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! u_abl
-         CALL histwrite( nid_A,  "v_abl"  , it, v_abl   (:,:,2:jpka,nt_n  )*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! v_abl
-         CALL histwrite( nid_A,  "t_abl"  , it, tq_abl  (:,:,2:jpka,nt_n,1)*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! t_abl
-         CALL histwrite( nid_A,  "q_abl"  , it, tq_abl  (:,:,2:jpka,nt_n,2)*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! q_abl		 
-         CALL histwrite( nid_A,  "tke_abl", it, tke_abl (:,:,2:jpka,nt_n  )*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! tke_abl
-         CALL histwrite( nid_A,  "avm_abl", it, avm_abl (:,:,2:jpka       )*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! avm_abl
-         CALL histwrite( nid_A,  "avt_abl", it, avt_abl (:,:,2:jpka       )*zw3d_abl(:,:,2:jpka), ndim_A , ndex_A  )   ! avt_abl	
+      IF( ln_abl ) THEN
+         CALL histwrite( nid_A,  "pblh"	  , kt, pblh(A2D(0))	         , 1, (/-1/) )	  ! pblh 
+	 CALL histwrite( nid_A,  "u_abl"  , kt, u_abl(:,:,2:jpka,nt_n   ), 1, (/-1/) )   ! u_abl
+	 CALL histwrite( nid_A,  "v_abl"  , kt, v_abl(:,:,2:jpka,nt_n   ), 1, (/-1/) )   ! v_abl
+	 CALL histwrite( nid_A,  "t_abl"  , kt, tq_abl(:,:,2:jpka,nt_n,1), 1, (/-1/) )	! t_abl
+	 CALL histwrite( nid_A,  "q_abl"  , kt, tq_abl(:,:,2:jpka,nt_n,2), 1, (/-1/) )	! q_abl		 
+	 CALL histwrite( nid_A,  "tke_abl", kt, tke_abl(:,:,2:jpka,nt_n	), 1, (/-1/) )	 ! tke_abl
+	 CALL histwrite( nid_A,  "avm_abl", kt, avm_abl(:,:,2:jpka      ), 1, (/-1/) )   ! avm_abl
+	 CALL histwrite( nid_A,  "avt_abl", kt, avt_abl(:,:,2:jpka      ), 1, (/-1/) )   ! avt_abl	
 #if defined key_si3
-         CALL histwrite( nid_A,  "oce_frac"   , it, ato_i(:,:)                                  , ndim_hA, ndex_hA )   ! ato_i
+         CALL histwrite( nid_A, "oce_frac", kt, ato_i(A2D(0))            , 1, (/-1/) )   ! ato_i
 #endif
-         DEALLOCATE(zw3d_abl)
       ENDIF
       !
       IF( ln_icebergs ) THEN
          !
-         CALL histwrite( nid_T, "calving"             , it, berg_grid%calving      , ndim_hT, ndex_hT )  
-         CALL histwrite( nid_T, "calving_heat"        , it, berg_grid%calving_hflx , ndim_hT, ndex_hT )         
-         CALL histwrite( nid_T, "berg_floating_melt"  , it, berg_grid%floating_melt, ndim_hT, ndex_hT )  
+         CALL histwrite( nid_T, "calving"             , kt, berg_grid%calving      , 1, (/-1/) )  
+         CALL histwrite( nid_T, "calving_heat"        , kt, berg_grid%calving_hflx , 1, (/-1/) )         
+         CALL histwrite( nid_T, "berg_floating_melt"  , kt, berg_grid%floating_melt, 1, (/-1/) )  
          !
-         CALL histwrite( nid_T, "berg_stored_ice"     , it, berg_grid%stored_ice   , ndim_bT, ndex_bT )
+         CALL histwrite( nid_T, "berg_stored_ice"     , kt, berg_grid%stored_ice   , 1, (/-1/) )
          !
          IF( ln_bergdia ) THEN
-            CALL histwrite( nid_T, "berg_melt"           , it, berg_melt        , ndim_hT, ndex_hT   )  
-            CALL histwrite( nid_T, "berg_buoy_melt"      , it, buoy_melt        , ndim_hT, ndex_hT   )  
-            CALL histwrite( nid_T, "berg_eros_melt"      , it, eros_melt        , ndim_hT, ndex_hT   )  
-            CALL histwrite( nid_T, "berg_conv_melt"      , it, conv_melt        , ndim_hT, ndex_hT   )  
-            CALL histwrite( nid_T, "berg_virtual_area"   , it, virtual_area     , ndim_hT, ndex_hT   )  
-            CALL histwrite( nid_T, "bits_src"            , it, bits_src         , ndim_hT, ndex_hT   )  
-            CALL histwrite( nid_T, "bits_melt"           , it, bits_melt        , ndim_hT, ndex_hT   )  
-            CALL histwrite( nid_T, "bits_mass"           , it, bits_mass        , ndim_hT, ndex_hT   )  
-            CALL histwrite( nid_T, "berg_mass"           , it, berg_mass        , ndim_hT, ndex_hT   )  
+            CALL histwrite( nid_T, "berg_melt"           , kt, berg_melt        , 1, (/-1/) )  
+            CALL histwrite( nid_T, "berg_buoy_melt"      , kt, buoy_melt        , 1, (/-1/) )  
+            CALL histwrite( nid_T, "berg_eros_melt"      , kt, eros_melt        , 1, (/-1/) )  
+            CALL histwrite( nid_T, "berg_conv_melt"      , kt, conv_melt        , 1, (/-1/) )  
+            CALL histwrite( nid_T, "berg_virtual_area"   , kt, virtual_area     , 1, (/-1/) )  
+            CALL histwrite( nid_T, "bits_src"            , kt, bits_src         , 1, (/-1/) )  
+            CALL histwrite( nid_T, "bits_melt"           , kt, bits_melt        , 1, (/-1/) )  
+            CALL histwrite( nid_T, "bits_mass"           , kt, bits_mass        , 1, (/-1/) )  
+            CALL histwrite( nid_T, "berg_mass"           , kt, berg_mass        , 1, (/-1/) )  
             !
-            CALL histwrite( nid_T, "berg_real_calving"   , it, real_calving     , ndim_bT, ndex_bT   )
+            CALL histwrite( nid_T, "berg_real_calving"   , kt, real_calving     , 1, (/-1/) )
          ENDIF
       ENDIF
 
       IF( ln_ssr ) THEN
-         CALL histwrite( nid_T, "sohefldp", it, qrp           , ndim_hT, ndex_hT )   ! heat flux damping
-         CALL histwrite( nid_T, "sowafldp", it, erp           , ndim_hT, ndex_hT )   ! freshwater flux damping
-         DO_2D( 0, 0, 0, 0 )
-            z2d(ji,jj) = erp(ji,jj) * ts(ji,jj,1,jp_sal,Kmm) * tmask(ji,jj,1)
-         END_2D
-         CALL histwrite( nid_T, "sosafldp", it, z2d           , ndim_hT, ndex_hT )   ! salt flux damping
+         z2d(A2D(0)) = qrp(A2D(0))   ! qrp is an inner domain data
+         CALL histwrite( nid_T, "sohefldp", kt, z2d          , 1, (/-1/) )   ! heat flux damping
+         z2d(A2D(0)) = erp(A2D(0))   ! qrp is an inner domain data
+         CALL histwrite( nid_T, "sowafldp", kt, z2d          , 1, (/-1/) )   ! freshwater flux damping
+         z2d(A2D(0)) = erp(A2D(0)) * ts(A2D(0),1,jp_sal,Kmm) * tmask(A2D(0),1)
+         CALL histwrite( nid_T, "sosafldp", kt, z2d          , 1, (/-1/) )   ! salt flux damping
       ENDIF
 !      zw2d(:,:) = REAL( nmln(:,:), wp ) * tmask(:,:,1)
-!      CALL histwrite( nid_T, "sobowlin", it, zw2d          , ndim_hT, ndex_hT )   ! ???
+!      CALL histwrite( nid_T, "sobowlin", kt, zw2d          , 1, (/-1/) )   ! ???
 
-#if defined key_diahth
-      CALL histwrite( nid_T, "sothedep", it, hth           , ndim_hT, ndex_hT )   ! depth of the thermocline
-      CALL histwrite( nid_T, "so20chgt", it, hd20          , ndim_hT, ndex_hT )   ! depth of the 20 isotherm
-      CALL histwrite( nid_T, "so28chgt", it, hd28          , ndim_hT, ndex_hT )   ! depth of the 28 isotherm
-      CALL histwrite( nid_T, "sohtc300", it, htc3          , ndim_hT, ndex_hT )   ! first 300m heaat content
-#endif
-      CALL histwrite( nid_T, "sozotaux", it, utau          , ndim_hT, ndex_hT )   ! i-wind stress
-      CALL histwrite( nid_T, "sometauy", it, vtau          , ndim_hT, ndex_hT )   ! j-wind stress
+      CALL histwrite( nid_T, "sozotaux", kt, utau          , 1, (/-1/) )   ! i-wind stress
+      CALL histwrite( nid_T, "sometauy", kt, vtau          , 1, (/-1/) )   ! j-wind stress
 
-      CALL histwrite( nid_U, "vozocrtx", it, uu(:,:,:,Kmm) , ndim_U , ndex_U )    ! i-current
+      CALL histwrite( nid_U, "vozocrtx", kt, uu(:,:,:,Kmm) , 1, (/-1/) )    ! i-current
 
-      CALL histwrite( nid_V, "vomecrty", it, vv(:,:,:,Kmm) , ndim_V , ndex_V  )   ! j-current
+      CALL histwrite( nid_V, "vomecrty", kt, vv(:,:,:,Kmm) , 1, (/-1/) )    ! j-current
 
       IF( ln_zad_Aimp ) THEN
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-           z3d(ji,jj,jk) = ww(ji,jj,jk) + wi(ji,jj,jk)
-         END_3D         
-         CALL histwrite( nid_W, "vovecrtz", it, z3d         , ndim_T, ndex_T )    ! vert. current
+         z3d(A2D(0),:) = ww(A2D(0),:) + wi(A2D(0),:)
+         CALL histwrite( nid_W, "vovecrtz", kt, z3d         , 1, (/-1/) )    ! vert. current
       ELSE
-         CALL histwrite( nid_W, "vovecrtz", it, ww          , ndim_T, ndex_T )    ! vert. current
+         CALL histwrite( nid_W, "vovecrtz", kt, ww          , 1, (/-1/) )    ! vert. current
       ENDIF
-      CALL histwrite( nid_W, "votkeavt", it, avt            , ndim_T, ndex_T )    ! T vert. eddy diff. coef.
-      CALL histwrite( nid_W, "votkeavm", it, avm            , ndim_T, ndex_T )    ! T vert. eddy visc. coef.
+      z3d(A2D(0),:) = avt(A2D(0),:)      ! avt is an inner domain data
+      CALL histwrite( nid_W, "votkeavt", kt, z3d            , 1, (/-1/) )    ! T vert. eddy diff. coef.
+      CALL histwrite( nid_W, "votkeavm", kt, avm            , 1, (/-1/) )    ! T vert. eddy visc. coef.
       IF( ln_zdfddm ) THEN
-         CALL histwrite( nid_W, "voddmavs", it, avs         , ndim_T, ndex_T )    ! S vert. eddy diff. coef.
+         z3d(A2D(0),:) = avs(A2D(0),:)      ! avs is an inner domain data
+         CALL histwrite( nid_W, "voddmavs", kt, z3d         , 1, (/-1/) )    ! S vert. eddy diff. coef.
       ENDIF
 
       IF( ln_wave .AND. ln_sdw ) THEN
-         CALL histwrite( nid_U, "sdzocrtx", it, usd         , ndim_U , ndex_U )    ! i-StokesDrift-current
-         CALL histwrite( nid_V, "sdmecrty", it, vsd         , ndim_V , ndex_V )    ! j-StokesDrift-current
-         CALL histwrite( nid_W, "sdvecrtz", it, wsd         , ndim_T , ndex_T )    ! StokesDrift vert. current
+         CALL histwrite( nid_U, "sdzocrtx", kt, usd         , 1, (/-1/) )    ! i-StokesDrift-current
+         CALL histwrite( nid_V, "sdmecrty", kt, vsd         , 1, (/-1/) )    ! j-StokesDrift-current
+         CALL histwrite( nid_W, "sdvecrtz", kt, wsd         , 1, (/-1/) )    ! StokesDrift vert. current
       ENDIF
 
       ! 3. Close all files
@@ -1181,9 +1037,7 @@ CONTAINS
       CALL iom_rstput( 0, 0, inum, 'vozocrtx', uu(:,:,:,Kmm)        )    ! now i-velocity
       CALL iom_rstput( 0, 0, inum, 'vomecrty', vv(:,:,:,Kmm)        )    ! now j-velocity
       IF( ln_zad_Aimp ) THEN
-         DO_3D( 0, 0, 0, 0, 1, jpk )
-           z3d(ji,jj,jk) = ww(ji,jj,jk) + wi(ji,jj,jk)
-         END_3D
+         z3d(A2D(0),:) = ww(A2D(0),:) + wi(A2D(0),:)
          CALL iom_rstput( 0, 0, inum, 'vovecrtz', z3d            )    ! now k-velocity
       ELSE
          CALL iom_rstput( 0, 0, inum, 'vovecrtz', ww             )    ! now k-velocity
@@ -1220,16 +1074,12 @@ CONTAINS
          CALL iom_rstput( 0, 0, inum,  'ahmf', ahmf              )    ! ahmf at v-point
       ENDIF
       IF( ln_rnf ) THEN 
-         DO_2D( 0, 0, 0, 0 )
-            z2d(ji,jj) = emp(ji,jj) - rnf(ji,jj)
-         END_2D
+         z2d(A2D(0)) = emp(A2D(0)) - rnf(A2D(0))
          CALL iom_rstput( 0, 0, inum, 'sowaflup', z2d            )    ! freshwater budget
       ELSE
          CALL iom_rstput( 0, 0, inum, 'sowaflup', emp            )    ! freshwater budget
       ENDIF
-      DO_2D( 0, 0, 0, 0 )
-         z2d(ji,jj) = qsr(ji,jj) + qns(ji,jj)
-      END_2D
+      z2d(A2D(0)) = qsr(A2D(0)) + qns(A2D(0))
       CALL iom_rstput( 0, 0, inum, 'sohefldo', z2d               )    ! total heat flux
       CALL iom_rstput( 0, 0, inum, 'soshfldo', qsr               )    ! solar heat flux
       CALL iom_rstput( 0, 0, inum, 'soicecov', fr_i              )    ! ice fraction

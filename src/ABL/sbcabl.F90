@@ -34,9 +34,6 @@ MODULE sbcabl
    USE ice    , ONLY : u_ice, v_ice, tm_su, ato_i      ! ato_i = total open water fractional area
    USE sbc_ice, ONLY : wndm_ice, utau_ice, vtau_ice
 #endif
-#if ! defined key_xios
-   USE diawri    , ONLY : dia_wri_alloc_abl
-#endif
    IMPLICIT NONE
    PRIVATE
 
@@ -145,10 +142,6 @@ CONTAINS
       CALL iom_get( inum, jpdom_unknown, 'ght_abl', ght_abl(:) )
       CALL iom_get( inum, jpdom_unknown, 'ghw_abl', ghw_abl(:) )
       CALL iom_close( inum )
-
-#if ! defined key_xios
-      IF( dia_wri_alloc_abl()  /= 0 ) CALL ctl_stop( 'STOP', 'abl_init : unable to allocate arrays' )
-#endif
 
       IF(lwp) THEN
          WRITE(numout,*)

@@ -586,7 +586,6 @@ CONTAINS
       !!
       !! ** Method  :
       !!----------------------------------------------------------------------
-      USE diawri ,   ONLY : dia_wri_alloc
       USE dom_oce,   ONLY : dom_oce_alloc
       USE zdf_oce,   ONLY : zdf_oce_alloc
       USE trc_oce,   ONLY : trc_oce_alloc
@@ -596,7 +595,6 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       ierr =        oce_alloc    ()          ! ocean 
-      ierr = ierr + dia_wri_alloc()
       ierr = ierr + dom_oce_alloc()          ! ocean domain
       ierr = ierr + zdf_oce_alloc()          ! ocean vertical physics
       ierr = ierr + trc_oce_alloc()          ! shared TRC / TRA arrays
@@ -615,7 +613,6 @@ CONTAINS
       !!
       !! ** Method  :
       !!----------------------------------------------------------------------
-      USE diawri ,   ONLY : dia_wri_dealloc
       USE dom_oce,   ONLY : dom_oce_dealloc
       USE zdf_oce,   ONLY : zdf_oce_dealloc
       USE trc_oce,   ONLY : trc_oce_dealloc
@@ -623,7 +620,6 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       CALL     oce_dealloc()          ! ocean 
-      CALL dia_wri_dealloc()
       CALL dom_oce_dealloc()          ! ocean domain
       CALL zdf_oce_dealloc()          ! ocean vertical physics
       CALL trc_oce_dealloc()          ! shared TRC / TRA arrays

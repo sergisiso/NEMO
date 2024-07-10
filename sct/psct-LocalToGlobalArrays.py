@@ -23,7 +23,7 @@ from psyclone.psyir.transformations import HoistLocalArraysTrans
 # ----------------------------------------------------------------------
 #
 # Reject for compatibility with PSyclone 2.5.0
-MODULES_REJECT = [ 'lib_cray', 'agrif2model', 'agrif_user' ]
+MODULES_REJECT = [ 'agrif2model', 'agrif_user' ]
 # Invokes for which local arrays should not be promoted
 INVOKES_REJECT = [ 'dia_dct' ]   # Issue with RESHAPE operation
 
