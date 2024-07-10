@@ -242,8 +242,8 @@ CONTAINS
 !!jc: That would be better, but see comment above
 !!
 !!====>>>> to be modified for RK3
-      IF( lrst_oce   )   CALL rst_write    ( kstp, Nbb, Nnn, Naa )   ! write output ocean restart file
-      IF( ln_sto_eos )   CALL sto_rst_write( kstp )   ! write restart file for stochastic parameters
+      IF( lrst_oce   )   CALL rst_write    ( kstp, Nbb, Naa )   ! write output ocean restart file
+      IF( ln_sto_eos )   CALL sto_rst_write( kstp )             ! write restart file for stochastic parameters
 
 #if defined key_agrif
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

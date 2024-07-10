@@ -75,7 +75,7 @@ CONTAINS
       INTEGER                                  , INTENT(in   ) ::   kstg            ! RK3 stage index
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) ::   pts             ! active tracers and RHS of tracer Eq.
       !
-      INTEGER  ::   ji, jj, jk, jn               ! dummy loop indices
+      INTEGER  ::   ji, jj, jk                 ! dummy loop indices
       REAL(wp) ::   z1_rho0_e3t, zdep, ztim    ! local scalar
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::  ztrdt, ztrds
       !!----------------------------------------------------------------------

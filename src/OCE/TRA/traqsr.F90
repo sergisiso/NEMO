@@ -118,8 +118,8 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) ::   pts             ! active tracers and RHS of tracer equation
       !
       INTEGER  ::   ji, jj, jk               ! dummy loop indices
-      REAL(wp) ::   z1_2, ze3t                     ! local scalars
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrdt, zetot
+      REAL(wp) ::   ze3t                     ! local scalars
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrdt
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('tra_qsr')

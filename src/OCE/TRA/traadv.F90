@@ -237,20 +237,14 @@ CONTAINS
       !!
       !! ** Method  : - Update ts(Krhs) with the advective trend following nadv
       !!----------------------------------------------------------------------
-      INTEGER                                           , INTENT(in   ) ::   kt                  ! ocean time-step index
-      INTEGER                                           , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
-      INTEGER,                          OPTIONAL        , INTENT(in   ) ::   kstg                ! optional stage indicator
-      REAL(wp), DIMENSION(jpi,jpj,jpk), OPTIONAL, TARGET, INTENT(in   ) ::   pau, pav, paw       ! advective velocity
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt)         , INTENT(inout) ::   pts                 ! active tracers and RHS of tracer equation
+      INTEGER                                  , INTENT(in   ) ::   kt                  ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   Kbb, Kmm, Kaa, Krhs ! time level indices
+      INTEGER                                  , INTENT(in   ) ::   kstg                ! optional stage indicator
+      REAL(wp), DIMENSION(jpi,jpj,jpk)         , INTENT(in   ) ::   pau, pav, paw       ! advective velocity
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) ::   pts                 ! active tracers and RHS of tracer equation
       !
       INTEGER ::   ji, jj, jk   ! dummy loop index
-      REAL(wp), DIMENSION(:,:,:), POINTER             ::   zptu, zptv, zptw
-#if ! defined key_PSYCLONE_2p5p0
-      REAL(wp), DIMENSION(:,:,:), TARGET, ALLOCATABLE ::   zuu, zvv, zww   ! 3D workspace
-#else
-      REAL(wp), DIMENSION(T2D(nn_hls),jpk), TARGET    ::   zuu, zvv, zww   ! 3D workspace
-#endif
-      REAL(wp), DIMENSION(:,:,:),         ALLOCATABLE ::   ztrdt, ztrds
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   ztrdt, ztrds
       ! TEMP: [tiling] This change not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       LOGICAL ::   lskip
       LOGICAL ::   ll_dofct
@@ -262,9 +256,7 @@ CONTAINS
       ll_dofct = .TRUE.
 
       ! FCT at last stage
-      IF (PRESENT(kstg)) THEN
-         IF (kstg/=3) ll_dofct = .FALSE.
-      ENDIF
+      IF( kstg/=3 ) ll_dofct = .FALSE.
 
       ! TEMP: [tiling] These changes not necessary after all lbc_lnks removed in the nn_hls = 2 case in tra_adv_fct
       IF( l_istiled .AND. nadv == np_FCT .AND. ll_dofct )  THEN
@@ -278,16 +270,6 @@ CONTAINS
       IF( .NOT. lskip ) THEN
          !                                         !==  effective advective transport  ==!
          !
-         IF( PRESENT( pau ) ) THEN     ! RK3: advective velocity (pau,pav,paw) /= advected velocity (uu,vv,ww)
-            zptu => pau(:,:,:)
-            zptv => pav(:,:,:)
-            zptw => paw(:,:,:)
-         ELSE                          ! MLF: advective velocity = (uu,vv,ww)
-            zptu => uu(:,:,:,Kmm)
-            zptv => vv(:,:,:,Kmm)
-            zptw => ww(:,:,:    )
-         ENDIF
-         !
          IF( l_trdtra )   THEN                    !* Save ta and sa trends
             ALLOCATE( ztrdt(T2D(0),jpk), ztrds(T2D(0),jpk) )
             ztrdt(:,:,:) = pts(T2D(0),:,jp_tem,Krhs)
@@ -298,29 +280,29 @@ CONTAINS
          SELECT CASE ( nadv )                      !==  compute advection trend and add it to general trend  ==!
          !
          CASE ( np_CEN )                                 ! Centered scheme : 2nd / 4th order
-            CALL tra_adv_cen    ( kt, nit000, 'TRA',      zptu, zptv, zptw,      Kmm,      pts, jpts, Krhs, nn_cen_h, nn_cen_v )
+            CALL tra_adv_cen    ( kt, nit000, 'TRA',      pau, pav, paw,      Kmm,      pts, jpts, Krhs, nn_cen_h, nn_cen_v )
          CASE ( np_FCT )                                 ! FCT scheme      : 2nd / 4th order
             IF ( ll_dofct ) THEN
-               CALL tra_adv_fct ( kt, nit000, 'TRA', rDt, zptu, zptv, zptw, Kbb, Kmm, Kaa, pts, jpts, Krhs, nn_fct_h, nn_fct_v, &
-                  &                                                                                                   nn_fct_imp )
+               CALL tra_adv_fct ( kt, nit000, 'TRA', rDt, pau, pav, paw, Kbb, Kmm, Kaa, pts, jpts, Krhs, nn_fct_h, nn_fct_v, &
+                  &                                                                                                nn_fct_imp )
             ELSE
-               CALL tra_adv_cen ( kt, nit000, 'TRA',      zptu, zptv, zptw,      Kmm,      pts, jpts, Krhs, nn_fct_h, nn_fct_v )
+               CALL tra_adv_cen ( kt, nit000, 'TRA',      pau, pav, paw,      Kmm,      pts, jpts, Krhs, nn_fct_h, nn_fct_v )
             ENDIF
          CASE ( np_MUS )                                 ! MUSCL
-            CALL tra_adv_mus    ( kt, nit000, 'TRA', rDt, zptu, zptv, zptw, Kbb, Kmm,      pts, jpts, Krhs, ln_mus_ups         )
+            CALL tra_adv_mus    ( kt, nit000, 'TRA', rDt, pau, pav, paw, Kbb, Kmm,      pts, jpts, Krhs, ln_mus_ups         )
          CASE ( np_UBS )                                 ! UBS
-            CALL tra_adv_ubs    ( kt, nit000, 'TRA', rDt, zptu, zptv, zptw, Kbb, Kmm,      pts, jpts, Krhs, nn_ubs_v           )
+            CALL tra_adv_ubs    ( kt, nit000, 'TRA', rDt, pau, pav, paw, Kbb, Kmm,      pts, jpts, Krhs, nn_ubs_v           )
          CASE ( np_QCK )                                 ! QUICKEST
-            CALL tra_adv_qck    ( kt, nit000, 'TRA', rDt, zptu, zptv, zptw, Kbb, Kmm,      pts, jpts, Krhs                     )
+            CALL tra_adv_qck    ( kt, nit000, 'TRA', rDt, pau, pav, paw, Kbb, Kmm,      pts, jpts, Krhs                     )
          !
          END SELECT
          !
-         CALL iom_put( "uocetr_eff", zptu )                                        ! output effective transport
-         CALL iom_put( "vocetr_eff", zptv )
-         CALL iom_put( "wocetr_eff", zptw )
+         CALL iom_put( "uocetr_eff", pau )                                        ! output effective transport
+         CALL iom_put( "vocetr_eff", pav )
+         CALL iom_put( "wocetr_eff", paw )
          !
 !!gm ???
-         IF( l_diaptr ) CALL dia_ptr( kt, Kmm, zptv(:,:,:) )                          ! diagnose the effective MSF
+         IF( l_diaptr ) CALL dia_ptr( kt, Kmm, pav(:,:,:) )                          ! diagnose the effective MSF
 !!gm ???
          !
          !

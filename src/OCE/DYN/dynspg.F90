@@ -172,8 +172,8 @@ CONTAINS
       ENDIF
       !
       SELECT CASE ( nspg )                   !== surface pressure gradient computed and add to the general trend ==!
-      CASE ( np_EXP )   ;   CALL dyn_spg_exp( kt,      Kmm,       puu, pvv, Krhs )                    ! explicit
-      CASE ( np_TS  )   ;   CALL dyn_spg_ts ( kt, Kbb, Kmm, Krhs, puu, pvv, pssh, puu_b, pvv_b, Kaa ) ! time-splitting
+      CASE ( np_EXP )   ;   CALL dyn_spg_exp( kt,      Kmm,       puu,   pvv,   Krhs )    ! explicit
+      CASE ( np_TS  )   ;   CALL dyn_spg_ts ( kt, Kbb, Kmm, pssh, puu_b, pvv_b, Kaa  )    ! time-splitting
       END SELECT
       !
       IF( l_trddyn )   THEN                  ! save the surface pressure gradient trends for further diagnostics

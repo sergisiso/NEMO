@@ -145,7 +145,7 @@ CONTAINS
    END SUBROUTINE rst_opn
 
 
-   SUBROUTINE rst_write( kt, Kbb, Kmm, Kaa )
+   SUBROUTINE rst_write( kt, Kbb, Kaa )
       !!---------------------------------------------------------------------
       !!                   ***  ROUTINE rstwrite  ***
       !!
@@ -157,8 +157,8 @@ CONTAINS
       !!                NB: ssh is written here (rst_write)
       !!                    but is read or set in rst_read_ssh
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in) ::   kt         ! ocean time-step
-      INTEGER, INTENT(in) ::   Kbb, Kmm   ! ocean time level indices
+      INTEGER,           INTENT(in) ::   kt         ! ocean time-step
+      INTEGER,           INTENT(in) ::   Kbb        ! ocean time level index
       INTEGER, OPTIONAL, INTENT(in) ::   Kaa        ! ocean time level index required for RK3
       !!----------------------------------------------------------------------
       !

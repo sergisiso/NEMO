@@ -120,7 +120,7 @@ CONTAINS
    END FUNCTION dyn_spg_ts_alloc
 
 
-   SUBROUTINE dyn_spg_ts( kt, Kbb, Kmm, Krhs, puu, pvv, pssh, puu_b, pvv_b, Kaa )
+   SUBROUTINE dyn_spg_ts( kt, Kbb, Kmm, pssh, puu_b, pvv_b, Kaa )
       !!----------------------------------------------------------------------
       !!
       !! ** Purpose : - Compute the now trend due to the explicit time stepping
@@ -142,20 +142,18 @@ CONTAINS
       !!
       !! References : Shchepetkin and McWilliams, Ocean Modelling, 2005. 
       !!---------------------------------------------------------------------
-      INTEGER                             , INTENT( in )  ::  kt                  ! ocean time-step index
-      INTEGER                             , INTENT( in )  ::  Kbb, Kmm, Krhs, Kaa ! ocean time level indices
-      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::  puu, pvv            ! ocean velocities and RHS of momentum equation
-      REAL(wp), DIMENSION(jpi,jpj    ,jpt), INTENT(inout) ::  pssh, puu_b, pvv_b  ! SSH and barotropic velocities at main time levels
+      INTEGER                         , INTENT(in   ) ::  kt                  ! ocean time-step index
+      INTEGER                         , INTENT(in   ) ::  Kbb, Kmm, Kaa       ! ocean time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpt), INTENT(inout) ::  pssh, puu_b, pvv_b  ! SSH and barotropic velocities at main time levels
       !
-      INTEGER  ::   ji, jj, jk, jn        ! dummy loop indices
-      LOGICAL  ::   ll_init               ! =T : special startup of 2d equations
-      LOGICAL, SAVE :: ll_bt_av           ! =T : boxcard time averaging   =F : foreward backward dissipation
+      INTEGER  ::   ji, jj, jn                ! dummy loop indices
+      LOGICAL  ::   ll_init                   ! =T : special startup of 2d equations
+      LOGICAL, SAVE :: ll_bt_av               ! =T : boxcard time averaging   =F : foreward backward dissipation
       REAL(wp) ::   z1_hu , z1_hv             ! local scalars
       REAL(wp) ::   zzsshu, zzsshv            !   -      -
       REAL(wp) ::   za0, za1, za2, za3        !   -      -
-      REAL(wp) ::   zztmp, zldg, zkmax        !   -      -
+      REAL(wp) ::   zldg, zkmax               !   -      -
       REAL(wp) ::   zhu_bck, zhv_bck, zhdiv   !   -      -
-      REAL(wp) ::   zun_save, zvn_save        !   -      -
       REAL(wp), DIMENSION(jpi,jpj) :: zu_trd, zu_spg
       REAL(wp), DIMENSION(jpi,jpj) :: zv_trd, zv_spg
       REAL(wp), DIMENSION(A2D(0) ) :: zu_frc, zv_frc

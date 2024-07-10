@@ -73,7 +73,7 @@ CONTAINS
    END SUBROUTINE isf_hdiv
 
 
-   SUBROUTINE isf_hdiv_mlt( ktop, kbot, phtbl, pfrac, pfwf, phdiv, pfwf_b )
+   SUBROUTINE isf_hdiv_mlt( ktop, kbot, phtbl, pfrac, pfwf, phdiv )
       !!----------------------------------------------------------------------
       !!                  ***  SUBROUTINE sbc_isf_div  ***
       !!       
@@ -88,7 +88,6 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(1))           , INTENT(in   ) ::   pfrac, phtbl
       REAL(wp), DIMENSION(jpi,jpj)          , INTENT(in   ) ::   pfwf
       REAL(wp), DIMENSION(A2D(1),jpk)       , INTENT(inout) ::   phdiv
-      REAL(wp), DIMENSION(:,:)    , OPTIONAL, INTENT(in   ) ::   pfwf_b
       !!----------------------------------------------------------------------
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       INTEGER  ::   ikt, ikb 

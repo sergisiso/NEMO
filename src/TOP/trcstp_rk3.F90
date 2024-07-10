@@ -153,7 +153,7 @@ CONTAINS
          !
          CALL trc_trp    ( kt, Kbb, Kmm, Krhs, Kaa )       ! transport of passive tracers (without advection)
          !
-         CALL trc_stp_end( kt, Kbb, Kmm,       Kaa )
+         CALL trc_stp_end( kt, Kbb,            Kaa )
          !
       END SELECT
       !
@@ -207,7 +207,7 @@ CONTAINS
    END SUBROUTINE trc_stp_start
 
 
-   SUBROUTINE trc_stp_end( kt, Kbb, Kmm, Kaa )
+   SUBROUTINE trc_stp_end( kt, Kbb, Kaa )
       !!-------------------------------------------------------------------
       !!                     ***  ROUTINE trc_stp_end  ***
       !!                      
@@ -216,7 +216,7 @@ CONTAINS
       !! ** Method  :   Write restart and outputs 
       !!-------------------------------------------------------------------
       INTEGER, INTENT( in ) :: kt                  ! ocean time-step index
-      INTEGER, INTENT( in ) :: Kbb, Kmm, Kaa ! time level indices
+      INTEGER, INTENT( in ) :: Kbb, Kaa ! time level indices
       !
       INTEGER ::   jk, jn   ! dummy loop indices
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: z4d
@@ -237,8 +237,8 @@ CONTAINS
          IF(lrxios) CALL iom_context_finalize(      cr_toprst_cxt          )
          IF(lwm) CALL FLUSH( numont )                     ! flush namelist output
       ENDIF
-      IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kbb, Kmm, Kaa )       ! write tracer restart file
-      IF( lk_trdmxl_trc  )      CALL trd_mxl_trc  ( kt,           Kaa )       ! trends: Mixed-layer
+      IF( lrst_trc )            CALL trc_rst_wri  ( kt, Kbb, Kaa )       ! write tracer restart file
+      IF( lk_trdmxl_trc  )      CALL trd_mxl_trc  ( kt,      Kaa )       ! trends: Mixed-layer
       !
       IF ( l_trcstat ) THEN
          !

@@ -74,8 +74,8 @@ CONTAINS
       ! Control and restarts
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                              CALL stp_ctl( kstp, Nnn )
-      IF( kstp == nit000 )   CALL iom_close( numror )          ! close input  ocean restart file
-      IF( lrst_oce       )   CALL rst_write( kstp, Nbb, Nnn )  ! write output ocean restart file
+      IF( kstp == nit000 )   CALL iom_close( numror )     ! close input  ocean restart file
+      IF( lrst_oce       )   CALL rst_write( kstp, Nbb )  ! write output ocean restart file
       !
 #if defined key_xios
       IF( kstp == nitend .OR. nstop > 0 )   CALL xios_context_finalize()   ! needed for XIOS
