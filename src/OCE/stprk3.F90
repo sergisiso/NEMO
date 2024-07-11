@@ -230,7 +230,7 @@ CONTAINS
       IF( ln_tile ) CALL dom_tile_stop
 
 #if ! defined key_xios
-                         CALL dia_wri   ( kstp,      Nnn )      ! Ocean model outputs (default, tiling-unaware variant of 'dia_wri')
+                         CALL dia_wri   ( kstp,      Nbb )      ! Ocean model outputs (default, tiling-unaware variant of 'dia_wri')
 #endif
       IF( l_diadetide )  CALL dia_detide( kstp )                ! Weights computation for daily detiding of model diagnostics
       IF( l_diamlr  )    CALL dia_mlr                           ! Update time used in multiple-linear-regression analysis
