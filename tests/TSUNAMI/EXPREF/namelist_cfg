@@ -161,12 +161,6 @@
 &namdyn_spg    !   surface pressure gradient                            (default: NO selection)
 !-----------------------------------------------------------------------
    ln_dynspg_ts   = .true.   ! split-explicit free surface
-      ln_bt_fw      = .true.     ! Forward integration of barotropic Eqs.
-         nn_bt_flt     = 1          ! Time filter choice  = 0 None
-         !                          !                     = 1 Boxcar over   nn_e sub-steps
-         !                          !                     = 2 Boxcar over 2*nn_e  "    "
-      ln_bt_auto    = .true.    ! Number of sub-step defined from:
-         nn_e      =  24         ! =F : the number of sub-step in rn_Dt seconds
 /
 !-----------------------------------------------------------------------
 &namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)
