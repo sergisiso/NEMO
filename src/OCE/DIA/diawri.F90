@@ -66,7 +66,7 @@ MODULE diawri
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dia_wri                 ! routines called by step.F90
+   PUBLIC   dia_wri                 ! routines called by stprk3.F90
    PUBLIC   dia_wri_state
    
    INTEGER ::   nid_T, nz_T, nh_T

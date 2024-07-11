@@ -28,7 +28,7 @@ MODULE dynkeg
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dyn_keg        ! routine called by step module
+   PUBLIC   dyn_keg        ! routine called by stp2d.F90 and dynadv.F90
    
    INTEGER, PARAMETER, PUBLIC  ::   nkeg_C2  = 0   !: 2nd order centered scheme (standard scheme)
    INTEGER, PARAMETER, PUBLIC  ::   nkeg_HW  = 1   !: Hollingsworth et al., QJRMS, 1983

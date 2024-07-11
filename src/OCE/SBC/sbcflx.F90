@@ -27,7 +27,7 @@ MODULE sbcflx
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC sbc_flx       ! routine called by step.F90
+   PUBLIC   sbc_flx    ! routine called by sbcmod.F90
 
    INTEGER , PARAMETER ::   jp_utau = 1   ! index of wind stress (i-component) file
    INTEGER , PARAMETER ::   jp_vtau = 2   ! index of wind stress (j-component) file

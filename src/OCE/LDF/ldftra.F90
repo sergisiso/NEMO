@@ -37,9 +37,9 @@ MODULE ldftra
    PRIVATE
    
    PUBLIC   ldf_tra_init   ! called by nemogcm.F90
-   PUBLIC   ldf_tra        ! called by step.F90
+   PUBLIC   ldf_tra        ! called by stprk3.F90
    PUBLIC   ldf_eiv_init   ! called by nemogcm.F90
-   PUBLIC   ldf_eiv        ! called by step.F90
+   PUBLIC   ldf_eiv        ! called by ldftra.F90
    PUBLIC   ldf_eiv_trp    ! called by traadv.F90
    PUBLIC   ldf_eiv_dia    ! called by traldf_iso and traldf_iso_triad.F90
 
@@ -327,7 +327,7 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '            min value = 0.2 * aht0 (with aht0= 1/2 rn_Ud*rn_Ld)'
             IF(lwp) WRITE(numout,*) '            max value =       aei0 (with aei0=1/2 rn_Ue*Le  increased to aht0 within 20N-20S'
             !
-            l_ldftra_time = .TRUE.     ! will be calculated by call to ldf_tra routine in step.F90
+            l_ldftra_time = .TRUE.     ! will be calculated by call to ldf_tra routine in stprk3.F90
             !
             IF( ln_traldf_blp )   CALL ctl_stop( 'ldf_tra_init: aht=F( growth rate of baroc. insta .)',   &
                &                                 '              incompatible with bilaplacian operator' )
@@ -350,7 +350,7 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '   ==>>>   eddy diffusivity = F( latitude, longitude, depth , time )'
             IF(lwp) WRITE(numout,*) '           proportional to the velocity : 1/2 |u|e or 1/12 |u|e^3'
             !
-            l_ldftra_time = .TRUE.     ! will be calculated by call to ldf_tra routine in step.F90
+            l_ldftra_time = .TRUE.     ! will be calculated by call to ldf_tra routine in stprk3.F90
             !
          CASE DEFAULT
             CALL ctl_stop('ldf_tra_init: wrong choice for nn_aht_ijk_t, the type of space-time variation of aht')
@@ -583,7 +583,7 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '                                       = F( growth rate of baroclinic instability )'
             IF(lwp) WRITE(numout,*) '           maximum allowed value: aei0 = ', aei0, ' m2/s'
             !
-            l_ldfeiv_time = .TRUE.     ! will be calculated by call to ldf_tra routine in step.F90
+            l_ldfeiv_time = .TRUE.     ! will be calculated by call to ldf_tra routine in stprk3.F90
             !
          CASE( -30  )                        !-- fixed 3D shape read in file  --!
             IF(lwp) WRITE(numout,*) '   ==>>>   eddy induced velocity coef. = F(i,j,k) read in eddy_diffusivity_3D.nc file'
@@ -604,7 +604,7 @@ CONTAINS
             CALL ctl_stop('ldf_tra_init: The GEOMETRIC parameterisation is not yet available with RK3 time-stepping')
             IF(lwp .AND. .NOT. ln_eke_equ ) WRITE(numout,*) '          ln_eke_equ will be set to .true. '
             ln_eke_equ = .TRUE.       ! force the eddy energy equation to be updated
-            l_ldfeiv_time = .TRUE.    ! will be calculated by call to ldf_tra routine in step.F90
+            l_ldfeiv_time = .TRUE.    ! will be calculated by call to ldf_tra routine in stprk3.F90
             l_eke_eiv  = .TRUE.
             !
          CASE DEFAULT

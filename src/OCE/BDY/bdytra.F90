@@ -31,8 +31,8 @@ MODULE bdytra
       REAL(wp), POINTER, DIMENSION(:,:) ::  tra
    END TYPE
 
-   PUBLIC   bdy_tra      ! called in tranxt.F90
-   PUBLIC   bdy_tra_dmp  ! called in step.F90
+   PUBLIC   bdy_tra      ! called in stprk3_stg.F90
+   PUBLIC   bdy_tra_dmp  ! called in stprk3_stg.F90
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)

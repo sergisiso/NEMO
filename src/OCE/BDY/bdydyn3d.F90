@@ -6,25 +6,27 @@ MODULE bdydyn3d
    !! History :  3.4  !  2011     (D. Storkey) new module as part of BDY rewrite 
    !!            3.5  !  2012     (S. Mocavero, I. Epicoco) Optimization of BDY communications
    !!----------------------------------------------------------------------
-   !!   bdy_dyn3d        : apply open boundary conditions to baroclinic velocities
-   !!   bdy_dyn3d_frs    : apply Flow Relaxation Scheme
+
    !!----------------------------------------------------------------------
-   USE timing          ! Timing
-   USE oce             ! ocean dynamics and tracers 
-   USE dom_oce         ! ocean space and time domain
-   USE bdy_oce         ! ocean open boundary conditions
-   USE bdylib          ! for orlanski library routines
+   !!   bdy_dyn3d     : apply open boundary conditions to baroclinic velocities
+   !!   bdy_dyn3d_frs : apply Flow Relaxation Scheme
+   !!----------------------------------------------------------------------
+   USE timing         ! Timing
+   USE oce            ! ocean dynamics and tracers 
+   USE dom_oce        ! ocean space and time domain
+   USE bdy_oce        ! ocean open boundary conditions
+   USE bdylib         ! for orlanski library routines
    USE lib_mpp
-   USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
-   USE domutl,  ONLY: in_hdom
-   USE in_out_manager  !
+   USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
+   USE domutl ,  ONLY : in_hdom
+   USE in_out_manager ! I/O manager
    Use phycst
 
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   bdy_dyn3d     ! routine called by bdy_dyn
-   PUBLIC   bdy_dyn3d_dmp ! routine called by step
+   PUBLIC   bdy_dyn3d     ! routine called by bdy_dyn.F90
+   PUBLIC   bdy_dyn3d_dmp ! routine called by stprk3_stg.F90
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)

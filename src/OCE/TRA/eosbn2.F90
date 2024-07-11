@@ -64,8 +64,8 @@ MODULE eosbn2
       MODULE PROCEDURE eos_fzp_3d, eos_fzp_2d, eos_fzp_0d, eos_fzp_3d_New
    END INTERFACE
    !
-   PUBLIC   eos            ! called by step, istate, tranpc and zpsgrd modules
-   PUBLIC   bn2            ! called by step module
+   PUBLIC   eos            ! called by stp*, isfload.F90, zdfmfc.F90, asminc.F90 and dynhpg.F90
+   PUBLIC   bn2            ! called by stprk3.F90, tranpc.F90, asminc.F90, zdfosm.F90 and dtadyn.F90 (OFF)
    PUBLIC   eos_rab        ! called by ldfslp, zdfddm, trabbl
    PUBLIC   eos_pt_from_ct ! called by sbcssm
    PUBLIC   eos_fzp        ! called by traadv_cen2 and sbcice_... modules

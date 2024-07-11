@@ -12,21 +12,21 @@ MODULE dynldf_iso
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   dyn_ldf_iso  : update the momentum trend with the horizontal part
-   !!                  of the lateral diffusion using isopycnal or horizon-
-   !!                  tal s-coordinate laplacian operator.
+   !!   dyn_ldf_iso   : update the momentum trend with the horizontal part
+   !!                   of the lateral diffusion using isopycnal or horizon-
+   !!                   tal s-coordinate laplacian operator.
    !!----------------------------------------------------------------------
-   USE oce             ! ocean dynamics and tracers
-   USE dom_oce         ! ocean space and time domain
-   USE ldfdyn          ! lateral diffusion: eddy viscosity coef.
-   USE ldftra          ! lateral physics: eddy diffusivity
-   USE zdf_oce         ! ocean vertical physics
-   USE ldfslp          ! iso-neutral slopes 
+   USE oce            ! ocean dynamics and tracers
+   USE dom_oce        ! ocean space and time domain
+   USE ldfdyn         ! lateral diffusion: eddy viscosity coef.
+   USE ldftra         ! lateral physics: eddy diffusivity
+   USE zdf_oce        ! ocean vertical physics
+   USE ldfslp         ! iso-neutral slopes 
    !
-   USE in_out_manager  ! I/O manager
-   USE lib_mpp         ! MPP library
-   USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
-   USE prtctl          ! Print control
+   USE in_out_manager ! I/O manager
+   USE lib_mpp        ! MPP library
+   USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
+   USE prtctl         ! Print control
 
    IMPLICIT NONE
    PRIVATE

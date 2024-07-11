@@ -13,24 +13,24 @@ MODULE stpctl
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   stp_ctl      : Control the run
+   !!   stp_ctl       : Control the run
    !!----------------------------------------------------------------------
-   USE oce             ! ocean dynamics and tracers variables
-   USE dom_oce         ! ocean space and time domain variables 
+   USE oce            ! ocean dynamics and tracers variables
+   USE dom_oce        ! ocean space and time domain variables 
    !  
-   USE diawri          ! Standard run outputs       (dia_wri_state routine)
-   USE in_out_manager  ! I/O manager
-   USE lbclnk          ! ocean lateral boundary conditions (or mpp link)
-   USE lib_mpp         ! distributed memory computing
-   USE timing          ! timing
-   !
-   USE netcdf          ! NetCDF library
+   USE diawri         ! Standard run outputs       (dia_wri_state routine)
+   USE in_out_manager ! I/O manager
+   USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
+   USE lib_mpp        ! distributed memory computing
+   USE timing         ! timing
+   
+   USE netcdf         ! NetCDF library
    USE, INTRINSIC :: ieee_arithmetic, ONLY : ieee_is_nan
 
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC stp_ctl           ! routine called by step.F90
+   PUBLIC stp_ctl           ! routine called by stprk3.F90
 
    INTEGER, PARAMETER         ::   jpvar = 2
    INTEGER                    ::   nrunid   ! netcdf file id

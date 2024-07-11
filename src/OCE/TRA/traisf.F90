@@ -23,7 +23,7 @@ MODULE traisf
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_isf   ! routine called by step.F90
+   PUBLIC   tra_isf   ! routine called by stprk3_stg.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

@@ -30,7 +30,7 @@ MODULE ldfdyn
    PRIVATE
 
    PUBLIC   ldf_dyn_init   ! called by nemogcm.F90
-   PUBLIC   ldf_dyn        ! called by step.F90
+   PUBLIC   ldf_dyn        ! called by stprk3.F90
 
    !                                    !!* Namelist namdyn_ldf : lateral mixing on momentum *
    LOGICAL , PUBLIC ::   ln_dynldf_OFF   !: No operator (i.e. no explicit diffusion)
@@ -303,13 +303,13 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '   ==>>>   eddy viscosity = F( latitude, longitude, depth , time )'
             IF(lwp) WRITE(numout,*) '           proportional to the local velocity : 1/2 |u|e (lap) or 1/12 |u|e^3 (blp)'
             !
-            l_ldfdyn_time = .TRUE.     ! will be calculated by call to ldf_dyn routine in step.F90
+            l_ldfdyn_time = .TRUE.     ! will be calculated by call to ldf_dyn routine in stprk3.F90
             !
          CASE(  32  )       !==  time varying 3D field  ==!
             IF(lwp) WRITE(numout,*) '   ==>>>   eddy viscosity = F( latitude, longitude, depth , time )'
             IF(lwp) WRITE(numout,*) '           proportional to the local deformation rate and gridscale (Smagorinsky)'
             !
-            l_ldfdyn_time = .TRUE.     ! will be calculated by call to ldf_dyn routine in step.F90
+            l_ldfdyn_time = .TRUE.     ! will be calculated by call to ldf_dyn routine in stprk3.F90
             !
             !                          ! allocate arrays used in ldf_dyn. 
             ALLOCATE( dtensq(A2D(1),jpk) , dshesq(A2D(1),jpk) , esqt(A2D(0)) , esqf(A2D(0)) , STAT=ierr )

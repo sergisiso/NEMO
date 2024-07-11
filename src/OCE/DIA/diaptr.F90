@@ -45,8 +45,8 @@ MODULE diaptr
       MODULE PROCEDURE dia_ptr_hst_2d, dia_ptr_hst_3d
    END INTERFACE
 
-   PUBLIC   dia_ptr        ! call in step module
-   PUBLIC   dia_ptr_init   ! call in stprk3 module
+   PUBLIC   dia_ptr        ! call by stprk3.F90
+   PUBLIC   dia_ptr_init   ! call by stprk3.F90
    PUBLIC   dia_ptr_hst    ! called from tra_ldf/tra_adv routines
 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::   hstr_all   !: Heat/salt transports(adv, ldf, eiv) + heat/salt transport (meridional)

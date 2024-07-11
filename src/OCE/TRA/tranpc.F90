@@ -30,7 +30,7 @@ MODULE tranpc
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_npc    ! routine called by step.F90
+   PUBLIC   tra_npc   ! routine called by stprk3_stg.F90
 
    INTEGER  ::   nnpcc        ! number of statically instable water column
 

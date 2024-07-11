@@ -61,7 +61,7 @@ MODULE sbccpl
 
    PUBLIC   sbc_cpl_init      ! routine called by sbcmod.F90
    PUBLIC   sbc_cpl_rcv       ! routine called by icestp.F90
-   PUBLIC   sbc_cpl_snd       ! routine called by step.F90
+   PUBLIC   sbc_cpl_snd       ! routine called by stprk3.F90 and step.F90 (SAS)
    PUBLIC   sbc_cpl_ice_tau   ! routine called by icestp.F90
    PUBLIC   sbc_cpl_ice_flx   ! routine called by icestp.F90
    PUBLIC   sbc_cpl_alloc     ! routine called in sbcice_cice.F90

@@ -36,7 +36,7 @@ MODULE daymod
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   day        ! called by step.F90
+   PUBLIC   day        ! called by stprk3.F90, step_diu.F90 and step.F90 (SAS)
    PUBLIC   day_init   ! called by istate.F90
    PUBLIC   day_mth    ! Needed by TAM
 

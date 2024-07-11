@@ -37,8 +37,8 @@ MODULE ldfslp
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   ldf_slp         ! routine called by step.F90
-   PUBLIC   ldf_slp_triad   ! routine called by step.F90
+   PUBLIC   ldf_slp         ! routine called by stprk3.F90 and dtadyn.F90 (OFF)
+   PUBLIC   ldf_slp_triad   ! routine called by stprk3.F90
    PUBLIC   ldf_slp_init    ! routine called by nemogcm.F90
 
    LOGICAL , PUBLIC ::   l_ldfslp = .FALSE.     !: slopes flag

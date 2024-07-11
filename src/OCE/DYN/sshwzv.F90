@@ -21,7 +21,7 @@ MODULE sshwzv
    USE oce            ! ocean dynamics and tracers variables
    USE isf_oce        ! ice shelf
    USE dom_oce        ! ocean space and time domain variables
-   USE domutl, ONLY : lbnd_ij, in_hdom
+   USE domutl  , ONLY : lbnd_ij, in_hdom
    USE sbc_oce        ! surface boundary condition: ocean
    USE divhor         ! horizontal divergence
    USE phycst         ! physical constants
@@ -45,9 +45,9 @@ MODULE sshwzv
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   ssh_nxt        ! called by step.F90
-   PUBLIC   wzv            ! called by step.F90
-   PUBLIC   wAimp          ! called by step.F90
+   PUBLIC   ssh_nxt        ! called by stprk3.F90 (SWE) 
+   PUBLIC   wzv            ! called by stp2d.F90, stprk3_stg.F90 and traadv.F90
+   PUBLIC   wAimp          ! called by            stprk3_stg.F90 and traadv.F90
    REAL(wp) ::  Cu_min, Cu_cut   ! Adaptive-implicit vertical advection settings
 
    !! * Substitutions

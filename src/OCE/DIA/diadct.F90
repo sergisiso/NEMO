@@ -38,7 +38,7 @@ MODULE diadct
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dia_dct      ! routine called by step.F90
+   PUBLIC   dia_dct      ! routine called by stprk3.F90
    PUBLIC   dia_dct_init ! routine called by nemogcm.F90
 
    !                         !!** namelist variables **

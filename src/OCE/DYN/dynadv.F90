@@ -1,7 +1,7 @@
 MODULE dynadv
    !!==============================================================================
    !!                       ***  MODULE  dynadv  ***
-   !! Ocean active tracers:  advection scheme control
+   !! Ocean dynamics:  advection scheme control
    !!==============================================================================
    !! History :  1.0  !  2006-11  (G. Madec)  Original code
    !!            3.3  !  2010-10  (C. Ethe, G. Madec)  reorganisation of initialisation phase
@@ -11,25 +11,25 @@ MODULE dynadv
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   dyn_adv      : compute the momentum advection trend 
-   !!   dyn_adv_init : control the different options of advection scheme
+   !!   dyn_adv       : compute the momentum advection trend 
+   !!   dyn_adv_init  : control the different options of advection scheme
    !!----------------------------------------------------------------------
-   USE dom_oce         ! ocean space and time domain
-   USE dynadv_cen2     ! centred flux form advection      (dyn_adv_cen2 routine)
-   USE dynadv_up3      ! UP3 flux form advection          (dyn_adv_up3  routine)
-   USE dynkeg          ! kinetic energy gradient          (dyn_keg      routine)
-   USE dynzad          ! vertical advection               (dyn_zad      routine)
+   USE dom_oce        ! ocean space and time domain
+   USE dynadv_cen2    ! centred flux form advection      (dyn_adv_cen2 routine)
+   USE dynadv_up3     ! UP3 flux form advection          (dyn_adv_up3  routine)
+   USE dynkeg         ! kinetic energy gradient          (dyn_keg      routine)
+   USE dynzad         ! vertical advection               (dyn_zad      routine)
    USE zdf_oce,  ONLY : ln_zad_Aimp
    !
-   USE in_out_manager  ! I/O manager
-   USE lib_mpp         ! MPP library
-   USE timing          ! Timing
+   USE in_out_manager ! I/O manager
+   USE lib_mpp        ! MPP library
+   USE timing         ! Timing
 
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC dyn_adv       ! routine called by step module
-   PUBLIC dyn_adv_init  ! routine called by opa  module
+   PUBLIC dyn_adv       ! routine called by stprk3_stg.F90
+   PUBLIC dyn_adv_init  ! routine called by nemogcm.F90
  
    !                                   !!* namdyn_adv namelist *
    LOGICAL, PUBLIC ::   ln_dynadv_OFF   !: linear dynamics (no momentum advection)

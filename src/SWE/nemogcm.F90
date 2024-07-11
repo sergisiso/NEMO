@@ -14,7 +14,7 @@ MODULE nemogcm
    !!   nemo_closefile: close remaining open files
    !!   nemo_alloc    : dynamical allocation
    !!----------------------------------------------------------------------
-   USE step_oce       ! module used in the ocean time stepping module (step.F90)
+   USE step_oce       ! module used in the ocean time stepping module (stprk3.F90)
    !
    USE phycst         ! physical constant                  (par_cst routine)
    USE domain         ! domain initialization   (dom_init & dom_cfg routines)

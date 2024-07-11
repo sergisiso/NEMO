@@ -36,7 +36,7 @@ MODULE c1d
    PUBLIC   dta_uvd_init   ! called by nemogcm.F90
    PUBLIC   dta_uvd        ! called by istate.F90 and dyndmp.90
    PUBLIC   dyn_dmp_init   ! called by nemogcm.F90
-   PUBLIC   dyn_dmp        ! called by step_c1d.F90
+   PUBLIC   dyn_dmp        ! called by stprk3_stg.F90
 
    REAL(wp), PUBLIC ::   rn_lat1d     !: Column latitude
    REAL(wp), PUBLIC ::   rn_lon1d     !: Column longitude

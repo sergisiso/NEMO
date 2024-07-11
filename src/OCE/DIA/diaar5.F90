@@ -33,9 +33,9 @@ MODULE diaar5
       MODULE PROCEDURE dia_ar5_hst_2d, dia_ar5_hst_3d
    END INTERFACE
 
-   PUBLIC   dia_ar5        ! routine called in step.F90 module
+   PUBLIC   dia_ar5        ! routine called in stprk3.F90
    PUBLIC   dia_ar5_init
-   PUBLIC   dia_ar5_alloc  ! routine called in nemogcm.F90 module
+   PUBLIC   dia_ar5_alloc  ! routine called in nemogcm.F90
    PUBLIC   dia_ar5_hst    ! heat/salt transport
 
    REAL(wp)                         ::   vol0         ! ocean volume (interior domain)

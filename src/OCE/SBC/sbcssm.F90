@@ -26,7 +26,7 @@ MODULE sbcssm
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   sbc_ssm        ! routine called by step.F90
+   PUBLIC   sbc_ssm        ! routine called by sbcmod.F90
    PUBLIC   sbc_ssm_init   ! routine called by sbcmod.F90
 
    LOGICAL, SAVE ::   l_ssm_mean = .FALSE.   ! keep track of whether means have been read from restart file

@@ -41,8 +41,8 @@ MODULE trdmxl
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trd_mxl        ! routine called by step.F90
-   PUBLIC   trd_mxl_init   ! routine called by opa.F90
+   PUBLIC   trd_mxl        ! routine called by trdtra.F90
+   PUBLIC   trd_mxl_init   ! routine called by trdini.F90
    PUBLIC   trd_mxl_zint   ! routine called by tracers routines
 
    INTEGER ::   nkstp      ! current time step 

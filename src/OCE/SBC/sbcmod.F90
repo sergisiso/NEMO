@@ -69,8 +69,8 @@ MODULE sbcmod
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   sbc        ! routine called by step.F90
-   PUBLIC   sbc_init   ! routine called by opa.F90
+   PUBLIC   sbc        ! routine called by stprk3.F90 and step.F90 (SAS)
+   PUBLIC   sbc_init   ! routine called by nemogcm.F90
 
    INTEGER ::   nsbc   ! type of surface boundary condition (deduced from namsbc informations)
    !! * Substitutions

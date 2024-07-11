@@ -31,7 +31,7 @@ MODULE traadv_qck
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_adv_qck   ! routine called by step.F90
+   PUBLIC   tra_adv_qck   ! routine called by trcadv.F90
 
    REAL(wp) :: r1_6 = 1./ 6.   ! 1/6 ratio
 

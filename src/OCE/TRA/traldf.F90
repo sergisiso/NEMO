@@ -37,7 +37,7 @@ MODULE traldf
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_ldf        ! called by step.F90
+   PUBLIC   tra_ldf        ! called by stprk3_stg.F90
    PUBLIC   tra_ldf_init   ! called by nemogcm.F90
 
    LOGICAL  ::   l_ptr   ! flag to compute the diffusive part of poleward heat & salt transport

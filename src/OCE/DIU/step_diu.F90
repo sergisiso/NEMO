@@ -17,7 +17,7 @@ MODULE step_diu
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   stp_diurnal   ! called by nemogcm.F90 or step.F90
+   PUBLIC   stp_diurnal   ! called by nemogcm.F90
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)
@@ -53,10 +53,10 @@ MODULE step_diu
  
          CALL iom_setkt( kstp - nit000 + 1, cxios_context )   ! tell iom we are at time step kstp
        
-            CALL sbc    ( kstp, Nbb, Nnn )            ! Sea Boundary Conditions 
+         CALL sbc    ( kstp, Nbb, Nnn )            ! Sea Boundary Conditions 
       ENDIF
      
-      call diurnal_layers( kstp )                     ! coolskin and warm layer calculations
+      CALL diurnal_layers( kstp )                  ! coolskin and warm layer calculations
 
       IF( ln_diurnal_only ) THEN
          ! WILL HAVE TO INCREMENT Nbb and Nnn here in ln_diurnal_only case !

@@ -17,7 +17,7 @@ MODULE trdmxl_trc_rst
    PRIVATE
   
    PUBLIC   trd_mxl_trc_rst_read    ! routine called by trd_mxl_init
-   PUBLIC   trd_mxl_trc_rst_write   ! routine called by step.F90
+   PUBLIC   trd_mxl_trc_rst_write   ! routine called by trdmxl_trc.F90
   
    INTEGER ::   nummldw_trc               ! logical unit for mld restart
    

@@ -40,7 +40,7 @@ MODULE trabbl
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_bbl       !  routine called by step.F90
+   PUBLIC   tra_bbl       !  routine called by stprk3_stg.F90
    PUBLIC   tra_bbl_init  !  routine called by nemogcm.F90
    PUBLIC   tra_bbl_dif   !  routine called by trcbbl.F90
    PUBLIC   tra_bbl_adv   !     -      -          -

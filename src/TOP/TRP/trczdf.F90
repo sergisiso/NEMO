@@ -24,7 +24,7 @@ MODULE trczdf
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   trc_zdf         ! called by step.F90 
+   PUBLIC   trc_zdf         ! called by trctrp.F90 
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

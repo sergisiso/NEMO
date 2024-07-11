@@ -19,7 +19,7 @@ MODULE stopts
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   sto_pts         ! called by step.F90
+   PUBLIC   sto_pts         ! called by stprk3.F90
    PUBLIC   sto_pts_init    ! called by nemogcm.F90
 
    ! Public array with random tracer fluctuations

@@ -40,7 +40,7 @@ MODULE bdydta
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   bdy_dta          ! routine called by step.F90 and dynspg_ts.F90
+   PUBLIC   bdy_dta          ! routine called by stprk3.F90 and step.F90 (SAS)
    PUBLIC   bdy_dta_init     ! routine called by nemogcm.F90
 
    INTEGER , PARAMETER ::   jpbdyfld  = 17    ! maximum number of files to read 

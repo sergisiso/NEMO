@@ -43,7 +43,7 @@ MODULE zdfphy
    PRIVATE
 
    PUBLIC   zdf_phy_init  ! called by nemogcm.F90
-   PUBLIC   zdf_phy       ! called by step.F90
+   PUBLIC   zdf_phy       ! called by stprk3.F90
 
    INTEGER ::   nzdf_phy   ! type of vertical closure used
    !                       ! associated indicators
@@ -349,7 +349,7 @@ CONTAINS
          IF( ln_zdftke )   CALL tke_rst( kt, 'WRITE' )
          IF( ln_zdfgls )   CALL gls_rst( kt, 'WRITE' )
          IF( ln_zdfric )   CALL ric_rst( kt, 'WRITE' )
-         ! NB. OSMOSIS restart (osm_rst) will be called in step.F90 after ww has been updated
+         ! NB. OSMOSIS restart (osm_rst) will be called in stprk3_stg.F90 after ww has been updated
       ENDIF
       !
       ! diagnostics of energy dissipation
