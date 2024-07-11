@@ -37,7 +37,6 @@
 !-----------------------------------------------------------------------
 &namdom        !   space and time domain (bathymetry, mesh, timestep)
 !-----------------------------------------------------------------------
-   ln_linssh  = .false.
    rn_Dt      =   300.    !  time step for the dynamics (and tracer if nn_acc=0)
    ln_meshmask = .false.  !  =T create a mesh file
 /
