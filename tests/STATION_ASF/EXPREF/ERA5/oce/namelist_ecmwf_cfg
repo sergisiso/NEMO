@@ -36,7 +36,6 @@
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain / STATION_ASF
 !-----------------------------------------------------------------------
-   ln_linssh   = .true.    !  =T  linear free surface  ==>>  model level are fixed in time
    rn_Dt       =  3600.    !  time step for the dynamics and tracer => frequency of atmospheric forcing
    ln_meshmask = .false.
 /
