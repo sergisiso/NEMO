@@ -33,7 +33,7 @@ MODULE trazdf
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_zdf       ! called by step.F90
+   PUBLIC   tra_zdf       ! called by stprk3_stg.F90
    PUBLIC   tra_zdf_imp   ! called by trczdf.F90
 
    !! * Substitutions

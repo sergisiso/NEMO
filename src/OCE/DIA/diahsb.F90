@@ -33,7 +33,7 @@ MODULE diahsb
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dia_hsb        ! routine called by step.F90
+   PUBLIC   dia_hsb        ! routine called by stprk3.F90
    PUBLIC   dia_hsb_init   ! routine called by nemogcm.F90
 
    LOGICAL, PUBLIC ::   l_diahsb   !: check the heat and salt budgets

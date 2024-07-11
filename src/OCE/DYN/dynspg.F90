@@ -10,8 +10,8 @@ MODULE dynspg
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   dyn_spg     : update the dynamics trend with surface pressure gradient
-   !!   dyn_spg_init: initialization, namelist read, and parameters control
+   !!   dyn_spg       : update the dynamics trend with surface pressure gradient
+   !!   dyn_spg_init  : initialization, namelist read, and parameters control
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers variables
    USE dom_oce        ! ocean space and time domain variables
@@ -36,7 +36,7 @@ MODULE dynspg
    PRIVATE
 
    PUBLIC   dyn_spg        ! routine called by step module
-   PUBLIC   dyn_spg_init   ! routine called by opa module
+   PUBLIC   dyn_spg_init   ! routine called by nemogcm.F90
 
    INTEGER ::   nspg = 0   ! type of surface pressure gradient scheme defined from lk_dynspg_...
 

@@ -37,7 +37,7 @@ MODULE domqco
 
    PUBLIC  dom_qco_init       ! called by domain.F90
    PUBLIC  dom_qco_zgr        ! called by isfcpl.F90
-   PUBLIC  dom_qco_r3c        ! called by steplf.F90
+   PUBLIC  dom_qco_r3c        ! called by domqco.F90, OFF and SWE
    PUBLIC  dom_qco_r3c_RK3    ! called by stprk3_stg.F90
 
    !                                                      !!* Namelist nam_vvl

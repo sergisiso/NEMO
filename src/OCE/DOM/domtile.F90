@@ -41,7 +41,7 @@ MODULE domtile
       TYPE(TILE_DATA)                            :: data                   ! Stored data- original array
    END TYPE TILE_WORK
 
-   PUBLIC dom_tile         ! called by step.F90
+   PUBLIC dom_tile         ! called by stp*.F90, traqsr.F90, traadv.F90, zdfphy.F90 and in TOP
    PUBLIC dom_tile_start   ! called by various
    PUBLIC dom_tile_stop    ! "      "
    PUBLIC dom_tile_init    ! called by domain.F90

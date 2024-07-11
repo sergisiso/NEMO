@@ -37,7 +37,7 @@ MODULE sbcfwb
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   sbc_fwb    ! routine called by step
+   PUBLIC   sbc_fwb    ! routine called by sbcmod.F90
 
    REAL(wp) ::   rn_fwb0     ! initial freshwater adjustment flux [kg/m2/s] (nn_fwb = 2 only)
    INTEGER  ::   nn_fwb_voltype

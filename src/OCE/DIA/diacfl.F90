@@ -27,8 +27,8 @@ MODULE diacfl
    INTEGER, DIMENSION(3) ::   nCu_loc, nCv_loc, nCw_loc   ! U, V, and W run max locations in the global domain
    REAL(wp)              ::   rCu_max, rCv_max, rCw_max   ! associated run max Courant number 
 
-   PUBLIC   dia_cfl       ! routine called by step.F90
-   PUBLIC   dia_cfl_init  ! routine called by nemogcm
+   PUBLIC   dia_cfl       ! routine called by stprk3.F90
+   PUBLIC   dia_cfl_init  ! routine called by nemogcm.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

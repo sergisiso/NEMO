@@ -47,7 +47,7 @@ MODULE traqsr
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_qsr       ! routine called by step.F90 (ln_traqsr=T)
+   PUBLIC   tra_qsr       ! routine called by stprk3_stg.F90 (ln_traqsr=T)
    PUBLIC   tra_qsr_init  ! routine called by nemogcm.F90
 
    !                                 !!* Namelist namtra_qsr: penetrative solar radiation

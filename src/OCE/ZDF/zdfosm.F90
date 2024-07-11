@@ -89,12 +89,12 @@ MODULE zdfosm
    PRIVATE
 
    ! Public subroutines
-   PUBLIC zdf_osm        ! Routine called by step.F90
+   PUBLIC zdf_osm        ! Routine called by zdfphy.F90
    PUBLIC zdf_osm_init   ! Routine called by nemogcm.F90
-   PUBLIC osm_rst        ! Routine called by step.F90
-   PUBLIC tra_osm        ! Routine called by step.F90
+   PUBLIC osm_rst        ! Routine called by stprk3_stg.F90
+   PUBLIC tra_osm        ! Routine called by stprk3_stg.F90
    PUBLIC trc_osm        ! Routine called by trcstp_rk3.F90
-   PUBLIC dyn_osm        ! Routine called by step.F90
+   PUBLIC dyn_osm        ! Routine called by stprk3_stg.F90
 
    ! Public variables
    LOGICAL,  PUBLIC                                      ::   ln_osm_mle   !: Flag to activate the Mixed Layer Eddy (MLE)

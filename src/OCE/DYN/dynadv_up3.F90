@@ -35,7 +35,7 @@ MODULE dynadv_up3
    REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_dynup3 = 1.25_wp  ! starting Courant number threshold for adaptive implicit vertical advection
    REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_dynup3 = 1.60_wp  ! stability constraint for up3 with RK3 (=1.626 in Lemarie et al 2015)
 
-   PUBLIC   dyn_adv_up3        ! routine called by dynadv.F90
+   PUBLIC   dyn_adv_up3        ! routine called by stp2d.F90 and dynadv.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

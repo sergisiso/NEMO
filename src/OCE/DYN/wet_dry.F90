@@ -55,7 +55,7 @@ MODULE wet_dry
 
    LOGICAL,  PUBLIC  ::   ll_wd = .FALSE. !: Wetting/drying activation switch (ln_wd_dl) <- default def if wad_init not called
 
-   PUBLIC   wad_init                  ! initialisation routine called by step.F90
+   PUBLIC   wad_init                  ! initialisation routine called by nemogcm.F90
 
    !! * Substitutions
    !!----------------------------------------------------------------------

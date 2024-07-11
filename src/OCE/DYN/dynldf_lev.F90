@@ -3,19 +3,19 @@ MODULE dynldf_lev
    !!                   ***  MODULE  dynldf_lev  ***
    !! Ocean dynamics:  lateral viscosity trend (laplacian and bilaplacian)
    !!======================================================================
-   !! History : 3.7  ! 2014-01  (G. Madec, S. Masson)  Original code, re-entrant laplacian
-   !!           4.0  ! 2020-04  (A. Nasser, G. Madec)  Add symmetric mixing tensor
-   !!           4.5  ! 2022-10  (S. Techene, G, Madec)  refactorization to reduce local memory usage
-   !!                !                                + removal of old partial-step treatment
+   !! History :  3.7  ! 2014-01  (G. Madec, S. Masson)  Original code, re-entrant laplacian
+   !!            4.0  ! 2020-04  (A. Nasser, G. Madec)  Add symmetric mixing tensor
+   !!            4.5  ! 2022-10  (S. Techene, G, Madec)  refactorization to reduce local memory usage
+   !!                 !                                + removal of old partial-step treatment
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   dynldf_lev_lap   : update the momentum trend with the lateral viscosity using an iso-level   laplacian operator
-   !!   dynldf_lev_blp   : update the momentum trend with the lateral viscosity using an iso-level bilaplacian operator
+   !!  dynldf_lev_lap : update the momentum trend with the lateral viscosity using an iso-level   laplacian operator
+   !!  dynldf_lev_blp : update the momentum trend with the lateral viscosity using an iso-level bilaplacian operator
    !!----------------------------------------------------------------------
    USE oce            ! ocean dynamics and tracers
    USE dom_oce        ! ocean space and time domain
-   USE domutl, ONLY : is_tile
+   USE domutl  , ONLY : is_tile
    USE ldfdyn         ! lateral diffusion: eddy viscosity coef.
    USE ldfslp         ! iso-neutral slopes 
    USE ldftra  , ONLY : l_ldfeke               ! GEOMETRIC param. activation

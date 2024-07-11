@@ -20,7 +20,7 @@ MODULE trdmxl_rst
    PRIVATE
   
    PUBLIC   trd_mxl_rst_read    ! routine called by trd_mxl_init
-   PUBLIC   trd_mxl_rst_write   ! routine called by step.F90
+   PUBLIC   trd_mxl_rst_write   ! routine called by trdmxl.F90
   
    INTEGER ::   nummxlw         ! logical unit for mxl restart
 

@@ -66,7 +66,7 @@ MODULE step_oce
    USE zdf_oce         ! ocean vertical physics variables
    USE zdfphy          ! vertical physics manager      (zdf_phy_init routine)
    USE zdfdrg   , ONLY : ln_drgimp   ! implicit top/bottom friction
-   USE zdfosm   , ONLY : osm_rst, dyn_osm, tra_osm      ! OSMOSIS routines used in step.F90
+   USE zdfosm   , ONLY : osm_rst, dyn_osm, tra_osm      ! OSMOSIS routines used in stprk3.F90
    USE zdfmfc          ! Mass FLux Convection routine used in step.F90
 
    USE diu_layers      ! diurnal SST bulk and coolskin routines

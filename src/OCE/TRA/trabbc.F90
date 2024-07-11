@@ -31,8 +31,8 @@ MODULE trabbc
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC tra_bbc          ! routine called by step.F90
-   PUBLIC tra_bbc_init     ! routine called by opa.F90
+   PUBLIC tra_bbc          ! routine called by stprk3_stg.F90
+   PUBLIC tra_bbc_init     ! routine called by nemogcm.F90
 
    !                                 !!* Namelist nambbc: bottom boundary condition *
    LOGICAL, PUBLIC ::   ln_trabbc     !: Geothermal heat flux flag

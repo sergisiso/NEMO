@@ -16,32 +16,32 @@ MODULE divhor
    !!----------------------------------------------------------------------
 
    !!----------------------------------------------------------------------
-   !!   div_hor    : Compute the horizontal divergence field
+   !!   div_hor       : Compute the horizontal divergence field
    !!----------------------------------------------------------------------
-   USE oce             ! ocean dynamics and tracers
-   USE dom_oce         ! ocean space and time domain
-   USE domutl, ONLY : lbnd_ij
-   USE sbc_oce, ONLY : ln_rnf      ! river runoff
-   USE sbcrnf , ONLY : sbc_rnf_div ! river runoff 
-   USE isf_oce, ONLY : ln_isf      ! ice shelf
-   USE isfhdiv, ONLY : isf_hdiv    ! ice shelf
+   USE oce            ! ocean dynamics and tracers
+   USE dom_oce        ! ocean space and time domain
+   USE domutl  , ONLY : lbnd_ij
+   USE sbc_oce , ONLY : ln_rnf      ! river runoff
+   USE sbcrnf  , ONLY : sbc_rnf_div ! river runoff 
+   USE isf_oce , ONLY : ln_isf      ! ice shelf
+   USE isfhdiv , ONLY : isf_hdiv    ! ice shelf
 #if defined key_asminc   
-   USE asminc          ! Assimilation increment
+   USE asminc         ! Assimilation increment
 #endif
    !
-   USE in_out_manager  ! I/O manager
-   USE lib_mpp         ! MPP library
-   USE timing          ! Timing
+   USE in_out_manager ! I/O manager
+   USE lib_mpp        ! MPP library
+   USE timing         ! Timing
 
    IMPLICIT NONE
    PRIVATE
 
-   !                  !! * Interface
+   !! * Interface
    INTERFACE div_hor
       MODULE PROCEDURE div_hor, div_hor_old
    END INTERFACE
 
-   PUBLIC   div_hor    ! routine called by ssh_nxt.F90 and istate.F90
+   PUBLIC   div_hor   ! routine called by sshwzv.F90  : ssh_nxt(div_hor_old) and wzv(div_hor)
 
    INTEGER, PUBLIC, PARAMETER ::   np_velocity  = 0   ! velocities given as arguments in wzv
    INTEGER, PUBLIC, PARAMETER ::   np_transport = 1   ! transports given as arguments in wzv

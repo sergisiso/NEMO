@@ -20,7 +20,7 @@ MODULE sedstp
    PRIVATE
 
    !! * Routine accessibility
-   PUBLIC sed_stp  ! called by step.F90
+   PUBLIC sed_stp  ! called by sedmodel.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

@@ -11,7 +11,7 @@ MODULE sedmodel
    PRIVATE
 
    !! * Routine accessibility
-   PUBLIC sed_model  ! called by step.F90
+   PUBLIC sed_model  ! called by p4zsms.F90
 
 CONTAINS
 

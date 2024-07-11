@@ -39,7 +39,7 @@ MODULE tradmp
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_dmp        ! called by step.F90
+   PUBLIC   tra_dmp        ! called by stprk3_stg.F90
    PUBLIC   tra_dmp_init   ! called by nemogcm.F90
 
    !                                           !!* Namelist namtra_dmp : T & S newtonian damping *

@@ -44,8 +44,8 @@ MODULE restart
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   rst_opn         ! called by step.F90
-   PUBLIC   rst_write       ! called by step.F90
+   PUBLIC   rst_opn         ! called by daymod.F90
+   PUBLIC   rst_write       ! called by stprk3.F90
    PUBLIC   rst_read_open   ! called in rst_read_ssh
    PUBLIC   rst_read        ! called by istate.F90
    PUBLIC   rst_read_ssh    ! called by domain.F90

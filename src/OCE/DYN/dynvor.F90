@@ -55,7 +55,7 @@ MODULE dynvor
       MODULE PROCEDURE dyn_vor_3D, dyn_vor_RK3
    END INTERFACE
 
-   PUBLIC   dyn_vor        ! routine called by step.F90
+   PUBLIC   dyn_vor        ! routine called by stp2d.F90 and stprk3_stg.F90
    PUBLIC   dyn_vor_init   ! routine called by nemogcm.F90
 
    !                                   !!* Namelist namdyn_vor: vorticity term

@@ -52,8 +52,8 @@ MODULE dynhpg
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dyn_hpg        ! routine called by step module
-   PUBLIC   dyn_hpg_init   ! routine called by opa module
+   PUBLIC   dyn_hpg        ! routine called by stprk3_stg.F90
+   PUBLIC   dyn_hpg_init   ! routine called by nemogcm.F90
 
    !                                !!* Namelist namdyn_hpg : hydrostatic pressure gradient
    LOGICAL, PUBLIC ::   ln_hpg_zco   !: z-coordinate - full steps

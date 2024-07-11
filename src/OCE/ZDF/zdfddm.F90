@@ -26,7 +26,7 @@ MODULE zdfddm
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   zdf_ddm       ! called by step.F90
+   PUBLIC   zdf_ddm       ! called by zdfphy.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

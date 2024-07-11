@@ -27,8 +27,8 @@ MODULE stopar
    PRIVATE
 
    PUBLIC   sto_par_init    ! called by nemogcm.F90
-   PUBLIC   sto_par         ! called by step.F90
-   PUBLIC   sto_rst_write   ! called by step.F90
+   PUBLIC   sto_par         ! called by stprk3.F90
+   PUBLIC   sto_rst_write   ! called by stprk3.F90
 
    LOGICAL           :: ln_rststo = .FALSE.  ! restart stochastic parameters from restart file
    LOGICAL           :: ln_rstseed = .FALSE. ! read seed of RNG from restart file

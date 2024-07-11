@@ -32,7 +32,7 @@ MODULE dynzdf
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dyn_zdf   !  routine called by step.F90
+   PUBLIC   dyn_zdf   !  routine called by stprk3_stg.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

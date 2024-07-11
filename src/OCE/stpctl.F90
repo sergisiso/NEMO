@@ -33,7 +33,7 @@ MODULE stpctl
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC stp_ctl           ! routine called by step.F90
+   PUBLIC stp_ctl           ! routine called by stprk3.F90
 
    INTEGER, PARAMETER         ::   jpvar = 9
    INTEGER                    ::   nrunid   ! netcdf file id

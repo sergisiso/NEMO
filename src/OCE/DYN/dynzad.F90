@@ -26,7 +26,7 @@ MODULE dynzad
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   dyn_zad       ! routine called by dynadv.F90
+   PUBLIC   dyn_zad       ! routine called by stp2d.F90 and dynadv.F90
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

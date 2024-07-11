@@ -17,7 +17,7 @@ MODULE diu_layers
 
    PUBLIC diurnal_sst_bulk_init      ! called by nemogcm.F90
    PUBLIC diurnal_sst_coolskin_init  ! called by nemogcm.F90
-   PUBLIC diurnal_layers             ! called by step.F90 or step_diu.F90
+   PUBLIC diurnal_layers             ! called by step_diu.F90
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)
