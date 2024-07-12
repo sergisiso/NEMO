@@ -3,7 +3,6 @@ MODULE stpmlf
    !!                       ***  MODULE stpMLF  ***
    !! Time-stepping   : manager of the ocean, tracer and ice time stepping
    !!                   using Modified Leap Frog for OCE
-   !!                   TSUNAMI version: call only dynspg_ts
    !!======================================================================
    !! History :  OPA  !  1991-03  (G. Madec)  Original code
    !!             -   !  1991-11  (G. Madec)
@@ -35,7 +34,8 @@ MODULE stpmlf
    !!            4.1  !  2019-08  (A. Coward, D. Storkey) rewrite in preparation for new timestepping scheme
    !!            4.x  !  2020-08  (S. Techene, G. Madec)  quasi eulerian coordinate time stepping
    !!----------------------------------------------------------------------
-#if defined key_qco   ||   defined key_linssh
+#if ! defined key_RK3
+# if defined key_qco   ||   defined key_linssh
    !!----------------------------------------------------------------------
    !!   'key_qco'                        Quasi-Eulerian vertical coordinate
    !!                          OR
@@ -48,24 +48,14 @@ MODULE stpmlf
    USE step_oce       ! time stepping definition modules
    !
    USE domqco         ! quasi-eulerian coordinate
-   USE traatf_qco     ! time filtering                 (tra_atf_qco routine)
-   USE dynatf_qco     ! time filtering                 (dyn_atf_qco routine)
-   
-   USE bdydyn         ! ocean open boundary conditions (define bdy_dyn)
-
-#if defined key_agrif
-   USE agrif_oce_interp
-#endif
 
    IMPLICIT NONE
    PRIVATE
 
    PUBLIC   stp_MLF   ! called by nemogcm.F90
 
-   !                                          !**  time level indices  **!
-   INTEGER, PUBLIC ::   Nbb, Nnn, Naa, Nrhs   !: used by nemo_init
-
    !! * Substitutions
+#  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)
@@ -73,33 +63,26 @@ MODULE stpmlf
    !!----------------------------------------------------------------------
 CONTAINS
 
-#if defined key_agrif
-   RECURSIVE SUBROUTINE stp_MLF( )
-      INTEGER             ::   kstp   ! ocean time-step index
-#else
    SUBROUTINE stp_MLF( kstp )
       INTEGER, INTENT(in) ::   kstp   ! ocean time-step index
-#endif
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE stp_MLF  ***
       !!
       !! ** Purpose : - Time stepping of OCE  (momentum and active tracer eqs.)
+      !!              - Time stepping of SI3 (dynamic and thermodynamic eqs.)
+      !!              - Time stepping of TRC  (passive tracer eqs.)
       !!
-      !! ** Method  : - call dynspg_ts
+      !! ** Method  : -1- Update forcings and data
+      !!              -2- Update ocean physics
+      !!              -3- Compute the t and s trends
+      !!              -4- Update t and s
+      !!              -5- Compute the momentum trends
+      !!              -6- Update the horizontal velocity
+      !!              -7- Compute the diagnostics variables (rd,N2, hdiv,w)
+      !!              -8- Outputs and diagnostics
       !!----------------------------------------------------------------------
-#if defined key_agrif
-      IF( nstop > 0 ) RETURN   ! avoid to go further if an error was detected during previous time step (child grid)
-      kstp = nit000 + Agrif_Nb_Step()
-      Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs   ! agrif_oce module copies of time level indices
-      IF( lk_agrif_debug ) THEN
-         IF( Agrif_Root() .and. lwp)   WRITE(*,*) '---'
-         IF(lwp)   WRITE(*,*) 'Grid Number', Agrif_Fixed(),' time step ', kstp, 'int tstep', Agrif_NbStepint()
-      ENDIF
-      IF( kstp == nit000 + 1 )   lk_agrif_fstep = .FALSE.
-# if defined key_xios
-      IF( Agrif_Nbstepint() == 0 )   CALL iom_swap( cxios_context )
-# endif
-#endif
+      !
+      IF( ln_timing )   CALL timing_start('stp_MLF')
       !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! model timestep
@@ -115,13 +98,12 @@ CONTAINS
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       !
       IF( kstp == nit000 ) THEN                       ! initialize IOM context (must be done after nemo_init for AGRIF+XIOS+OASIS)
-                         CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
-                         CALL iom_init_closedef
-                         ts  (:,:,:,:,Naa) = ts (:,:,:,:,Nnn)                  ! needed for stpctl
+                             CALL iom_init( cxios_context, ld_closedef=.FALSE. )   ! for model grid (including possible AGRIF zoom)
+                             CALL iom_init_closedef
       ELSE
-                         CALL day( kstp )         ! Calendar (day was already called at nit000 in day_init)    
+                             CALL day( kstp )         ! Calendar (day was already called at nit000 in day_init)
       ENDIF
-                         CALL iom_setkt( kstp - nit000 + 1, cxios_context )   ! tell IOM we are at time step kstp
+                             CALL iom_setkt( kstp - nit000 + 1,      cxios_context          )   ! tell IOM we are at time step kstp
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Update external forcing (tides, open boundaries, ice shelf interaction and surface boundary condition (including sea-ice)
@@ -131,59 +113,40 @@ CONTAINS
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       !  Ocean dynamics : hdiv, ssh, e3, u, v, w
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
       IF( .NOT.lk_linssh ) THEN
                          CALL dom_qco_r3c( ssh(:,:,Naa), r3t(:,:,Naa), r3u(:,:,Naa), r3v(:,:,Naa)           )   ! "after" ssh/h_0 ratio at t,u,v pts
-                         CALL lbc_lnk( 'stpmlf', r3u(:,:,Naa), 'U', 1._wp, r3v(:,:,Naa), 'V', 1._wp )
          IF( ln_dynspg_exp )   &
             &            CALL dom_qco_r3c( ssh(:,:,Nnn), r3t(:,:,Nnn), r3u(:,:,Nnn), r3v(:,:,Nnn), r3f(:,:) )   ! spg_exp : needed only for "now" ssh/h_0 ratio at f point
       ENDIF
-                         uu(:,:,:,Nrhs) = 0._wp            ! set dynamics trends to zero
-                         vv(:,:,:,Nrhs) = 0._wp
-                         CALL dyn_spg( kstp, Nbb, Nnn, Nrhs, uu, vv, ssh, uu_b, vv_b, Naa )  ! surface pressure gradient
-                         CALL iom_put( "ssh" , ssh(:,:,Nnn) )              ! sea surface height
+
+      uu(:,:,:,Nrhs) = 0._wp            ! set dynamics trends to zero
+      vv(:,:,:,Nrhs) = 0._wp
+
+                            CALL dyn_spg( kstp, Nbb, Nnn, Nrhs, uu, vv, ssh, uu_b, vv_b, Naa )  ! surface pressure gradient
+                            CALL iom_put( "ssh" , ssh(:,:,Nnn) )              ! sea surface height
+      
       ! Swap time levels
       Nrhs = Nbb
       Nbb = Nnn
       Nnn = Naa
       Naa = Nrhs
-
-#if defined key_agrif
-      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      ! AGRIF recursive integration
-      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                         Kbb_a = Nbb; Kmm_a = Nnn; Krhs_a = Nrhs      ! agrif_oce module copies of time level indices
-                         CALL Agrif_Integrate_ChildGrids( stp_MLF )       ! allows to finish all the Child Grids before updating
-
-#endif
-      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      ! Control
-      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                         CALL stp_ctl      ( kstp, Nnn )
-
-#if defined key_agrif
-      !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-      ! AGRIF update
-      !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-      IF( Agrif_NbStepint() == 0 .AND. nstop == 0 )   &
-         &               CALL Agrif_update_all( )                  ! Update all components
-      ENDIF
-
-#endif
+      !
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! File manipulation at the end of the first time step
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       IF( kstp == nit000 ) THEN                          ! 1st time step only
                                         CALL iom_close( numror )   ! close input  ocean restart file
          IF(lwm)                        CALL FLUSH    ( numond )   ! flush output namelist oce
-         IF(lwm .AND. numoni /= -1 )    CALL FLUSH    ( numoni )   ! flush output namelist ice (if exist)
       ENDIF
 
+      !
 #if defined key_xios
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Finalize contextes if end of simulation or error detected
       !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       IF( kstp == nitend .OR. nstop > 0 ) THEN
-                      CALL iom_context_finalize( cxios_context ) ! needed for XIOS+AGRIF
+                      CALL iom_context_finalize(      cxios_context          ) ! needed for XIOS+AGRIF
       ENDIF
 #endif
       !
@@ -193,12 +156,98 @@ CONTAINS
          l_1st_euler = .FALSE.
       ENDIF
       !
+      IF( ln_timing )   CALL timing_stop('stp_MLF')
+      !
    END SUBROUTINE stp_MLF
+   
 
-#else
+   SUBROUTINE mlf_baro_corr( Kmm, Kaa, puu, pvv )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE mlf_baro_corr  ***
+      !!
+      !! ** Purpose :   Finalize after horizontal velocity.
+      !!
+      !! ** Method  : * Ensure after velocities transport matches time splitting
+      !!             estimate (ln_dynspg_ts=T)
+      !!
+      !! ** Action :   puu(Kmm),pvv(Kmm)   updated now horizontal velocity (ln_bt_fw=F)
+      !!               puu(Kaa),pvv(Kaa)   after horizontal velocity
+      !!----------------------------------------------------------------------
+      !!
+      INTEGER                             , INTENT(in   ) ::   Kmm, Kaa   ! before and after time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt), INTENT(inout) ::   puu, pvv   ! velocities
+      !
+      INTEGER  ::   ji,jj, jk   ! dummy loop indices
+      REAL(wp), DIMENSION(A2D(0)) ::   zue, zve
+      !!----------------------------------------------------------------------
+
+      ! Ensure below that barotropic velocities match time splitting estimate
+      ! Compute actual transport and replace it with ts estimate at "after" time step
+      DO_2D( 0, 0, 0, 0 )
+         zue(ji,jj) = e3u(ji,jj,1,Kaa) * puu(ji,jj,1,Kaa) * umask(ji,jj,1)
+         zve(ji,jj) = e3v(ji,jj,1,Kaa) * pvv(ji,jj,1,Kaa) * vmask(ji,jj,1)
+      END_2D
+      DO_3D( 0, 0, 0, 0, 2, jpkm1 )
+         zue(ji,jj) = zue(ji,jj) + e3u(ji,jj,jk,Kaa) * puu(ji,jj,jk,Kaa) * umask(ji,jj,jk)
+         zve(ji,jj) = zve(ji,jj) + e3v(ji,jj,jk,Kaa) * pvv(ji,jj,jk,Kaa) * vmask(ji,jj,jk)
+      END_3D
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+         puu(ji,jj,jk,Kaa) = ( puu(ji,jj,jk,Kaa) - zue(ji,jj) * r1_hu(ji,jj,Kaa) + uu_b(ji,jj,Kaa) ) * umask(ji,jj,jk)
+         pvv(ji,jj,jk,Kaa) = ( pvv(ji,jj,jk,Kaa) - zve(ji,jj) * r1_hv(ji,jj,Kaa) + vv_b(ji,jj,Kaa) ) * vmask(ji,jj,jk)
+      END_3D
+      !
+      IF( .NOT.ln_bt_fw ) THEN
+         ! Remove advective velocity from "now velocities"
+         ! prior to asselin filtering
+         ! In the forward case, this is done below after asselin filtering
+         ! so that asselin contribution is removed at the same time
+         DO jk = 1, jpkm1
+            puu(:,:,jk,Kmm) = ( puu(:,:,jk,Kmm) - un_adv(:,:)*r1_hu(:,:,Kmm) + uu_b(:,:,Kmm) )*umask(:,:,jk)
+            pvv(:,:,jk,Kmm) = ( pvv(:,:,jk,Kmm) - vn_adv(:,:)*r1_hv(:,:,Kmm) + vv_b(:,:,Kmm) )*vmask(:,:,jk)
+         END DO
+      ENDIF
+      !
+   END SUBROUTINE mlf_baro_corr
+
+
+   SUBROUTINE finalize_lbc( kt, Kbb, Kaa, puu, pvv, pts )
+      !!----------------------------------------------------------------------
+      !!                  ***  ROUTINE finalize_lbc  ***
+      !!
+      !! ** Purpose :   Apply the boundary condition on the after velocity
+      !!
+      !! ** Method  : * Apply lateral boundary conditions on after velocity
+      !!             at the local domain boundaries through lbc_lnk call,
+      !!             at the one-way open boundaries (ln_bdy=T),
+      !!             at the AGRIF zoom   boundaries (lk_agrif=T)
+      !!
+      !! ** Action :   puu(Kaa),pvv(Kaa)   after horizontal velocity and tracers
+      !!----------------------------------------------------------------------
+      INTEGER                                  , INTENT(in   ) ::   kt         ! ocean time-step index
+      INTEGER                                  , INTENT(in   ) ::   Kbb, Kaa   ! before and after time level indices
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpt)     , INTENT(inout) ::   puu, pvv   ! velocities to be time filtered
+      REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) ::   pts        ! active tracers
+      !!----------------------------------------------------------------------
+      !
+      ! Update after tracer and velocity on domain lateral boundaries
+      !
+      !                                        ! local domain boundaries  (T-point, unchanged sign)
+      CALL lbc_lnk( 'finalize_lbc', puu(:,:,:,Kaa), 'U', -1._wp, pvv(:,:,:,Kaa), 'V', -1._wp, ldfull=.TRUE. )
+      !
+
+      ! dom_qco_r3c defines over [nn_hls, nn_hls-1, nn_hls, nn_hls-1]
+      IF( .NOT. lk_linssh ) THEN
+         CALL lbc_lnk( 'finalize_lbc', r3u(:,:,Kaa), 'U', 1._wp, r3v(:,:,Kaa), 'V', 1._wp, &
+            &                          r3u_f(:,:),   'U', 1._wp, r3v_f(:,:),   'V', 1._wp  )
+      ENDIF
+      !
+   END SUBROUTINE finalize_lbc
+
+# else
    !!----------------------------------------------------------------------
    !!   default option             EMPTY MODULE           qco not activated
    !!----------------------------------------------------------------------
+# endif
 #endif
    
    !!======================================================================
