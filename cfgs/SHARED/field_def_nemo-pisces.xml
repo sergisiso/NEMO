@@ -317,14 +317,14 @@
     <field id="TPNEW_e3t"   long_name="TPNEW * e3t"       unit="mol/m2/s"  grid_ref="grid_T_3D_inner"  > TPNEW  * e3t </field >
     <field id="TPBFE_e3t"   long_name="TPBFE * e3t"       unit="mol/m2/s"  grid_ref="grid_T_3D_inner"  > TPBFE  * e3t </field >
 
-    <field id="INTNFIX"     long_name="Nitrogen fixation rate : vert. integrated"           field_ref="Nfix_e3t"     unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
-    <field id="INTPPPHYN"   long_name="Vertically integrated primary production by nanophy" field_ref="PPPHYN_e3t"   unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
-    <field id="INTPPPHYD"   long_name="Vertically integrated primary production by diatom"  field_ref="PPPHYD_e3t"   unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
-    <field id="INTPPPHYP"   long_name="Vertically integrated primary production by picophy" field_ref="PPPHYP_e3t"   unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
-    <field id="INTPP"       long_name="Vertically integrated primary production by phyto"   field_ref="TPP_e3t"      unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
-    <field id="INTPNEW"     long_name="Vertically integrated new primary production"        field_ref="TPNEW_e3t"    unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
-    <field id="INTPBFE"     long_name="Vertically integrated of biogenic iron production"   field_ref="TPBFE_e3t"    unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
-    <field id="INTPBSI"     long_name="Vertically integrated of biogenic Si production"     field_ref="PBSi_e3t"     unit="mol/m2/s"  grid_ref="grid_T_vsum"  detect_missing_value="true" />
+    <field id="INTNFIX"     long_name="Nitrogen fixation rate : vert. integrated"           field_ref="Nfix_e3t"     unit="mol/m2/s"  grid_ref="grid_T_vsum_inner"  detect_missing_value="true" />
+    <field id="INTPPPHYN"   long_name="Vertically integrated primary production by nanophy" field_ref="PPPHYN_e3t"   unit="mol/m2/s"  grid_ref="grid_T_vsum_inner"  detect_missing_value="true" />
+    <field id="INTPPPHYD"   long_name="Vertically integrated primary production by diatom"  field_ref="PPPHYD_e3t"   unit="mol/m2/s"  grid_ref="grid_T_vsum_inner"  detect_missing_value="true" />
+    <field id="INTPPPHYP"   long_name="Vertically integrated primary production by picophy" field_ref="PPPHYP_e3t"   unit="mol/m2/s"  grid_ref="grid_T_vsum_inner"  detect_missing_value="true" />
+    <field id="INTPP"       long_name="Vertically integrated primary production by phyto"   field_ref="TPP_e3t"      unit="mol/m2/s"  grid_ref="grid_T_vsum_inner"  detect_missing_value="true" />
+    <field id="INTPNEW"     long_name="Vertically integrated new primary production"        field_ref="TPNEW_e3t"    unit="mol/m2/s"  grid_ref="grid_T_vsum_inner"  detect_missing_value="true" />
+    <field id="INTPBFE"     long_name="Vertically integrated of biogenic iron production"   field_ref="TPBFE_e3t"    unit="mol/m2/s"  grid_ref="grid_T_vsum_inner"  detect_missing_value="true" />
+    <field id="INTPBSI"     long_name="Vertically integrated of biogenic Si production"     field_ref="PBSi_e3t"     unit="mol/m2/s"  grid_ref="grid_T_vsum_inner"  detect_missing_value="true" />
 
   </field_group>
 

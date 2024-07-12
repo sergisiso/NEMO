@@ -151,7 +151,7 @@ CONTAINS
              END_2D
           ELSE
              DO_2D( 0, 0, 0, 0 )
-                zcoef = rn_rfact / ( e3t(ji,jj,1,Kmm) * rn_cbc_time ) * tmask(ji,jj,1)
+                zcoef = rn_rfact / ( e1e2t(ji,jj) * e3t(ji,jj,1,Kmm) * rn_cbc_time ) * tmask(ji,jj,1)
                 zrivdin = rf_trcfac(jl) * sf_trccbc(jl)%fnow(ji,jj,1) * zcoef
                 tr(ji,jj,1,jptal,Krhs) = tr(ji,jj,1,jptal,Krhs) - rno3 * zrivdin * rfact
              END_2D
