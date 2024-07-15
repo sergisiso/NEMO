@@ -694,8 +694,8 @@ CONTAINS
          !
          IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
             IF ( kt == nitiaufin_r + 1  ) THEN   ! For bias crcn to work
-               DEALLOCATE( t_bkginc )
-               DEALLOCATE( s_bkginc )
+               IF (ALLOCATED(t_bkginc)) DEALLOCATE( t_bkginc )
+               IF (ALLOCATED(s_bkginc)) DEALLOCATE( s_bkginc )
             ENDIF
          ENDIF
          !                             !--------------------------------------
@@ -803,10 +803,10 @@ CONTAINS
                pvv(ji,jj,jk,Krhs) = pvv(ji,jj,jk,Krhs) + v_bkginc(ji,jj,jk) * zincwgt
             END_3D
             !
-            IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
-               IF ( kt == nitiaufin_r ) THEN
-                  DEALLOCATE( u_bkginc )
-                  DEALLOCATE( v_bkginc )
+            IF ( kt == nitiaufin_r + 1 ) THEN
+               IF( .NOT. l_istiled .OR. ntile == nijtile )  THEN                ! Do only on the last tile
+                  IF (ALLOCATED(u_bkginc)) DEALLOCATE( u_bkginc )
+                  IF (ALLOCATED(v_bkginc)) DEALLOCATE( v_bkginc )
                ENDIF
             ENDIF
             !
@@ -1099,11 +1099,11 @@ CONTAINS
             ndaice_da(:,:) = sic_bkginc(:,:) * zincwgt / rdt
 #endif
             !
-            IF ( kt == nitiaufin_r ) THEN
-               DEALLOCATE( sic_bkginc )
+            IF ( kt == nitiaufin_r + 1 ) THEN
+               IF (ALLOCATED(sic_bkginc)) DEALLOCATE( sic_bkginc )
 #if defined key_si3 && defined key_asminc
-               DEALLOCATE( lincr_newice )
-               DEALLOCATE( a_i_bkginc )
+               IF (ALLOCATED(lincr_newice)) DEALLOCATE( lincr_newice )
+               IF (ALLOCATED(a_i_bkginc)) DEALLOCATE( a_i_bkginc )
 #endif
             ENDIF
             !
@@ -1212,8 +1212,8 @@ CONTAINS
             ndaice_da(:,:) = sit_bkginc(:,:) * zincwgt / rdt
 #endif
             !
-            IF ( kt == nitiaufin_r ) THEN
-               DEALLOCATE( sit_bkginc )
+            IF ( kt == nitiaufin_r + 1 ) THEN
+               IF (ALLOCATED(sit_bkginc)) DEALLOCATE( sit_bkginc )
             ENDIF
             !
          ELSE

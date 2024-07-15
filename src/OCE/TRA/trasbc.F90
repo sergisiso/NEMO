@@ -347,8 +347,8 @@ CONTAINS
       !        Assmilation effects
       !----------------------------------------
       !
-      IF( ln_sshinc .AND. kstg == 3 ) THEN         ! input of heat and salt due to assimilation
-!!st a priori this should be done at each stage not only at last stage since it is associated with ssh change (included in step 2D)
+!!mjb The time-step restrictions on this section of code must be consistent with those in stprk3_stg.F90
+      IF( ln_sshinc ) THEN         ! input of heat and salt due to assimilation
          !
          IF( lk_linssh ) THEN
             DO_2D( 0, 0, 0, 0 )
