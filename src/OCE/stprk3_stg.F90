@@ -319,6 +319,14 @@ CONTAINS
 !            vv(ji,jj,jk,Krhs) = vv(ji,jj,jk,Krhs) - grav * ( ssh(ji  ,jj+1,Kmm) - ssh(ji,jj,Kmm) )
 !         END_3D
 !!gm
+
+!!mjb assimilation increments are applied at all RK3 stages because tests applying them only at stage 3
+!!mjb gave strangely poor results. The additional computational expense is minor.  
+!!mjb tra_sbc_RK3 and ssh_asm_div should almost certainly be applied on all RK3 stages 
+      IF(  lk_asminc .AND. ln_asmiau ) THEN               ! apply assimilation increment
+         IF( ln_dyninc )   CALL dyn_asm_inc( kstp, Kbb, Kmm, uu, vv, Krhs )   ! dynamics   ==> RHS
+      ENDIF
+
          !          !=================================================================!
          !          !==   stage 1 & 2 : time-stepping                               ==!
          !          !==   stage 3     : time-stepping with all remaining RHS trends ==!
@@ -372,11 +380,7 @@ CONTAINS
             !
             IF( ln_dyndmp .AND. ln_c1d )  CALL dyn_dmp( kstp, Kbb, Kmm, uu(:,:,:,Krhs), vv(:,:,:,Krhs), Nrhs )   ! internal damping trends- momentum
             !
-!!gm ===>>>  Verify the necessity of these trends  at stages 1 and 2. (A priori, required when it is present in the 2D RHS )
-!      IF(  lk_asminc .AND. ln_asmiau ) THEN               ! apply assimilation increment
-!         IF( ln_dyninc )   CALL dyn_asm_inc( kstp, Kbb, Kmm, uu, vv, Krhs )   ! dynamics   ==> RHS
-!      ENDIF
-!!gm <<<===  end Verif
+
          END SELECT
 
 # if defined key_agrif
@@ -497,11 +501,11 @@ CONTAINS
       END DO
       IF( ln_tile ) CALL dom_tile_stop
       !
-!!gm ===>>>>>>  Verify the necessity of these trends  at stages 1 and 2 (we need it as they are in the RHS of dynspg_ts ?)
-!      IF(  lk_asminc .AND. ln_asmiau ) THEN               ! apply assimilation increment
-!         IF( ln_trainc )   CALL tra_asm_inc( kstp, Kbb, Kmm, ts    , Krhs )   ! tracers    ==> RHS
-!      ENDIF
-!!gm  end Verif
+!!mjb assimilation increments are applied at all RK3 stages because tests applying them only at stage 3
+!!mjb gave strangely poor results. The additional computational expense is minor.  
+      IF(  lk_asminc .AND. ln_asmiau ) THEN               ! apply assimilation increment
+         IF( ln_trainc )   CALL tra_asm_inc( kstp, Kbb, Kmm, ts    , Krhs )   ! tracers    ==> RHS
+      ENDIF
 
       !   !=============================================================!
       !   !==   stage 1 & 2 : time-stepping                           ==!
