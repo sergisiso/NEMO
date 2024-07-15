@@ -251,7 +251,11 @@ CONTAINS
       IF( Agrif_Root() ) THEN
          IF( lk_oasis ) THEN
             CALL cpl_init( "oceanx", ilocal_comm )                               ! nemo local communicator given by oasis
+# if defined key_xios3
+            CALL xios_initialize( "oceanx"         , local_comm =ilocal_comm )   ! send nemo communicator to xios
+# else
             CALL xios_initialize( "not used"       , local_comm =ilocal_comm )   ! send nemo communicator to xios
+# endif
          ELSE
             CALL xios_initialize( "for_xios_mpi_id", return_comm=ilocal_comm )   ! nemo local communicator given by xios
          ENDIF
