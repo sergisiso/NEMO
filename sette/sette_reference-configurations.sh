@@ -1267,10 +1267,10 @@ if [ ${config} == "C1D_PAPA" ]  ; then
         #
         # syncronisation if target directory/file exist (not done by makenemo)
         clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-        sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config/_PAPA} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         #
         # C1D_PAPA uses linssh so remove key_qco if added by default
-        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config/_PAPA} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
                    -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
     fi
 
