@@ -11,7 +11,6 @@ MODULE p4zlys
    !!                  !  2011-02  (J. Simeon, J. Orr)  Calcon salinity dependence
    !!             3.4  !  2011-06  (O. Aumont, C. Ethe) Improvment of calcite dissolution
    !!             3.6  !  2015-05  (O. Aumont) PISCES quota
-   !!             4.2  !  2020     (J. ORR )  rhop is replaced by "in situ density" rhd
    !!----------------------------------------------------------------------
    !!   p4z_lys        :   Compute the CaCO3 dissolution 
    !!   p4z_lys_init   :   Read the namelist parameters
@@ -202,7 +201,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, jn
       REAL(wp) ::   zdispot, zfact, zcalcon, zdissol
-      REAL(wp) ::   zomegaca, zexcess, zexcess0, zkd
+      REAL(wp) ::   zomegaca, zexcess, zexcess0, zkd, zdens
       CHARACTER (len=25) ::   charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zhinit, zhi, zco3
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:)  :: zcaldiss
@@ -218,7 +217,8 @@ CONTAINS
       ENDIF
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zhinit(ji,jj,jk) = hi(ji,jj,jk) * 1000._wp / ( rhop(ji,jj,jk) + rtrn )
+         zdens = rhop(ji,jj,jk) / 1000._wp
+         zhinit(ji,jj,jk) = hi(ji,jj,jk) / ( zdens + rtrn )
       END_3D
       !
       !     -------------------------------------------
@@ -228,9 +228,10 @@ CONTAINS
       CALL solve_at_general( zhinit, zhi, Kbb )
 
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         zdens = rhop(ji,jj,jk) / 1000._wp
          zco3(ji,jj,jk) = tr(ji,jj,jk,jpdic,Kbb) * ak13(ji,jj,jk) * ak23(ji,jj,jk) / (zhi(ji,jj,jk)**2   &
             &             + ak13(ji,jj,jk) * zhi(ji,jj,jk) + ak13(ji,jj,jk) * ak23(ji,jj,jk) + rtrn )
-         hi  (ji,jj,jk) = zhi(ji,jj,jk) * rhop(ji,jj,jk) / 1000._wp
+         hi  (ji,jj,jk) = zhi(ji,jj,jk) * zdens
       END_3D
 
       !     ---------------------------------------------------------
@@ -242,10 +243,10 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
 
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
-         ! Salinity dependance in zomegaca and divide by rhd to have good units
+         ! Salinity dependance in zomegaca and divide by rhop to have good units
          zcalcon  = calcon * ( salinprac(ji,jj,jk) / 35._wp )
-         zfact    = rhop(ji,jj,jk) / 1000._wp
-         zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zfact + rtrn )
+         zdens    = rhop(ji,jj,jk) / 1000._wp
+         zomegaca = ( zcalcon * zco3(ji,jj,jk) ) / ( aksp(ji,jj,jk) * zdens + rtrn )
 
          ! SET DEGREE OF UNDER-/SUPERSATURATION
          excess(ji,jj,jk) = 1._wp - zomegaca
