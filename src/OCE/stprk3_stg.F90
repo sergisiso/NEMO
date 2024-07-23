@@ -295,7 +295,8 @@ CONTAINS
             !              !-------------------!   Vector Inv. Form : HPG + VOR (COR+RVO) +ADV (KEG +ZAD)
             !
             !                             !*  hydrostatic pressure gradient (HPG))  *!   always called FIRST
-            CALL    eos    (        ts, Kmm, rhd )                 ! Kmm in situ density anomaly for hpg computation
+            CALL    eos    (        ts, Kmm, rhd, rhop )     ! Kmm in situ density anomaly for hpg computation
+            !                                                ! and potential density for BGC 
             CALL    dyn_hpg( kstp,      Kmm, uu, vv, Krhs )  ! Hydrostratic Pressure Gradient (HPG)
             !
             !                             !* Coriolis / vorticity       ==> 3D RHS
