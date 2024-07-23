@@ -293,7 +293,7 @@ CONTAINS
                ztmp(ji,jj,jk) = zta_up1(ji,jj,jk) + p2Dt * ztra / e3t(ji,jj,jk,Kaa) * tmask(ji,jj,jk)
             END_3D
             !
-            CALL tridia_solver( zwdia, zwsup, zwinf, ztmp, ztmp , 0 )
+            CALL tridia_solver( zwdia, zwsup, zwinf, ztmp, ztmp, 0, kbnd=0 )
             !
             DO_3D( 0, 0, 0, 0, 2, jpkm1 )       ! Interior value ( multiplied by wmask)
                ztFw(ji,jj,jk) =  ztFw(ji,jj,jk) + ( MAX( wi(ji,jj,jk) , 0._wp ) * ztmp(ji,jj,jk) + &
@@ -450,7 +450,7 @@ CONTAINS
             zwsup(ji,jj,jk) =       - pDt *   MAX( wi(ji,jj,jk+1) , 0._wp )                                   / e3t(ji,jj,jk,Kaa)
          END_3D
          !
-         CALL tridia_solver( zwdia, zwsup, zwinf, pt_up1, pt_up1 , 0 )
+         CALL tridia_solver( zwdia, zwsup, zwinf, pt_up1, pt_up1, 0, kbnd=0 )
          !
          ztmp(:,:,1) = 0._wp ; ztmp(:,:,jpk) = 0._wp
          DO_3D( 0, 0, 0, 0, 2, jpkm1 )       ! Interior value ( multiplied by wmask)
@@ -544,7 +544,7 @@ CONTAINS
             zwsup(ji,jj,jk) =       - zDt *   MAX( wi(ji,jj,jk+1) , 0._wp )                                   / e3t(ji,jj,jk,Kmm)
          END_3D
          !
-         CALL tridia_solver( zwdia, zwsup, zwinf, pt_up1, pt_up1 , 0 )
+         CALL tridia_solver( zwdia, zwsup, zwinf, pt_up1, pt_up1, 0, kbnd=1 )
          !
          ztmp(:,:,1) = 0._wp ; ztmp(:,:,jpk) = 0._wp
          DO_3D( 1, 1, 1, 1, 2, jpkm1 )       ! Interior value ( multiplied by wmask)
@@ -614,7 +614,7 @@ CONTAINS
             zwsup(ji,jj,jk) =       - 0.5_wp * zDt *   MAX( wi(ji,jj,jk+1) , 0._wp )                                   / e3t(ji,jj,jk,Kaa)
          END_3D
          !
-         CALL tridia_solver( zwdia, zwsup, zwinf, pt_up1, pt_up1 , 0 )
+         CALL tridia_solver( zwdia, zwsup, zwinf, pt_up1, pt_up1, 0, kbnd=0 )
          !
          ztmp(:,:,1) = 0._wp ; ztmp(:,:,jpk) = 0._wp
          DO_3D( 0, 0, 0, 0, 2, jpkm1 )       ! Interior value ( multiplied by wmask)
@@ -1082,7 +1082,7 @@ CONTAINS
    END SUBROUTINE interp_4th_cpt
 
 
-   SUBROUTINE tridia_solver( pD, pU, pL, pRHS, pt_out , klev )
+   SUBROUTINE tridia_solver( pD, pU, pL, pRHS, pt_out, klev, kbnd )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE tridia_solver  ***
       !!
@@ -1102,36 +1102,39 @@ CONTAINS
       !!        The solution is pta.
       !!        The 3d array zwt is used as a work space array.
       !!----------------------------------------------------------------------
-      REAL(wp),DIMENSION(T2D(2),jpk), INTENT(in   ) ::   pD, pU, PL    ! 3-diagonal matrix
-      REAL(wp),DIMENSION(T2D(2),jpk), INTENT(in   ) ::   pRHS          ! Right-Hand-Side
-      REAL(wp),DIMENSION(T2D(2),jpk), INTENT(  out) ::   pt_out        !!gm field at level=F(klev)
-      INTEGER                       , INTENT(in   ) ::   klev          ! =1 pt_out at w-level
-      !                                                                ! =0 pt at t-level
+      REAL(wp),DIMENSION(T2D(2),jpk)          , INTENT(in   ) ::   pD, pU, PL    ! 3-diagonal matrix
+      REAL(wp),DIMENSION(T2D(2),jpk)          , INTENT(in   ) ::   pRHS          ! Right-Hand-Side
+      REAL(wp),DIMENSION(T2D(2),jpk)          , INTENT(  out) ::   pt_out        !!gm field at level=F(klev)
+      INTEGER                                 , INTENT(in   ) ::   klev          ! =1 pt_out at w-level
+      !                                                                          ! =0 pt at t-level
+      INTEGER                       , OPTIONAL, INTENT(in   ) ::   kbnd          ! Loop bounds
       INTEGER ::   ji, jj, jk   ! dummy loop integers
-      INTEGER ::   kstart       ! local indices
+      INTEGER ::   kstart, ibnd ! local indices
       REAL(wp),DIMENSION(T2D(1),jpk) ::   zwt   ! 3D work array
       !!----------------------------------------------------------------------
+      ibnd = 1
+      IF( PRESENT(kbnd) ) ibnd = kbnd
       !
       kstart =  1  + klev
       !
-      DO_2D( 1, 1, 1, 1 )                         !* 1st recurrence:   Tk = Dk - Ik Sk-1 / Tk-1
+      DO_2D( ibnd, ibnd, ibnd, ibnd )                       !* 1st recurrence:   Tk = Dk - Ik Sk-1 / Tk-1
          zwt(ji,jj,kstart) = pD(ji,jj,kstart)
       END_2D
-      DO_3D( 1, 1, 1, 1, kstart+1, jpkm1 )
+      DO_3D( ibnd, ibnd, ibnd, ibnd, kstart+1, jpkm1 )
          zwt(ji,jj,jk) = pD(ji,jj,jk) - pL(ji,jj,jk) * pU(ji,jj,jk-1) /zwt(ji,jj,jk-1)
       END_3D
       !
-      DO_2D( 1, 1, 1, 1 )                        !* 2nd recurrence:    Zk = Yk - Ik / Tk-1  Zk-1
+      DO_2D( ibnd, ibnd, ibnd, ibnd )                       !* 2nd recurrence:    Zk = Yk - Ik / Tk-1  Zk-1
          pt_out(ji,jj,kstart) = pRHS(ji,jj,kstart)
       END_2D
-      DO_3D( 1, 1, 1, 1, kstart+1, jpkm1 )
+      DO_3D( ibnd, ibnd, ibnd, ibnd, kstart+1, jpkm1 )
          pt_out(ji,jj,jk) = pRHS(ji,jj,jk) - pL(ji,jj,jk) / zwt(ji,jj,jk-1) *pt_out(ji,jj,jk-1)
       END_3D
 
-      DO_2D( 1, 1, 1, 1 )                       !* 3d recurrence:    Xk = (Zk - Sk Xk+1 ) / Tk
+      DO_2D( ibnd, ibnd, ibnd, ibnd )                       !* 3d recurrence:    Xk = (Zk - Sk Xk+1 ) / Tk
          pt_out(ji,jj,jpkm1) = pt_out(ji,jj,jpkm1) / zwt(ji,jj,jpkm1)
       END_2D
-      DO_3DS( 1, 1, 1, 1, jpk-2, kstart, -1 )
+      DO_3DS( ibnd, ibnd, ibnd, ibnd, jpk-2, kstart, -1 )
          pt_out(ji,jj,jk) = ( pt_out(ji,jj,jk) - pU(ji,jj,jk) * pt_out(ji,jj,jk+1) ) / zwt(ji,jj,jk)
       END_3D
       !
