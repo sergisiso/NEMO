@@ -9,7 +9,6 @@ MODULE p4zflx
    !!            1.0  !  2004     (O. Aumont) modifications
    !!            2.0  !  2007-12  (C. Ethe, G. Madec)  F90
    !!                 !  2011-02  (J. Simeon, J. Orr) Include total atm P correction 
-   !!             4.2  !  2020     (J. ORR )  rhop is replaced by "in situ density" rhd
    !!----------------------------------------------------------------------
    !!   p4z_flx       :   CALCULATES GAS EXCHANGE AND CHEMISTRY AT SEA SURFACE
    !!   p4z_flx_init  :   Read the namelist
@@ -82,7 +81,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jm, iind, iindm1
       REAL(wp) ::   ztc, ztc2, ztc3, ztc4, zws, zkgwan
-      REAL(wp) ::   zfld, zflu, zfld16, zflu16, zrhd
+      REAL(wp) ::   zfld, zflu, zfld16, zflu16, zdens
       REAL(wp) ::   zvapsw, zsal, zfco2, zxc, zxc2, xCO2approx, ztkel, zfugcoeff
       REAL(wp) ::   zph, zph2, zdic, zsch_o2, zsch_co2
       REAL(wp) ::   zyr_dec, zdco2dt
@@ -128,9 +127,9 @@ CONTAINS
 
       DO_2D( 0, 0, 0, 0 )
          ! DUMMY VARIABLES FOR DIC, H+, AND BORATE
-         zrhd = rhd(ji,jj,1) + 1._wp
+         zdens = rhop(ji,jj,1) / 1000. 
          zdic  = tr(ji,jj,1,jpdic,Kbb)
-         zph   = MAX( hi(ji,jj,1), 1.e-10 ) / ( zrhd + rtrn )
+         zph   = MAX( hi(ji,jj,1), 1.e-10 ) / ( zdens + rtrn )
          zph2  = zph * zph 
          ! CALCULATE [H2CO3]
          zh2co3(ji,jj) = zdic/(1. + ak13(ji,jj,1)/zph + ak13(ji,jj,1)*ak23(ji,jj,1)/zph2)

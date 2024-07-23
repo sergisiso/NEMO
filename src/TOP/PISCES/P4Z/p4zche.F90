@@ -11,7 +11,6 @@ MODULE p4zche
    !!             2.0  !  2007-12  (C. Ethe, G. Madec)  F90
    !!                  !  2011-02  (J. Simeon, J.Orr ) update O2 solubility constants
    !!             3.6  !  2016-03  (O. Aumont) Change chemistry to MOCSY standards
-   !!             4.2  !  2020     (J. ORR )  rhop is replaced by "in situ  density" rhd
    !!----------------------------------------------------------------------
    !!   p4z_che      :  Sea water chemistry computed following OCMIP protocol
    !!----------------------------------------------------------------------
@@ -472,16 +471,16 @@ CONTAINS
       INTEGER  ::   ji, jj, jk
       REAL(wp)  ::  zca1, zba1
       REAL(wp)  ::  zd, zsqrtd, zhmin
-      REAL(wp)  ::  za2, za1, za0, zrhd
+      REAL(wp)  ::  za2, za1, za0, zdens
       REAL(wp)  ::  p_dictot, p_bortot, p_alkcb 
       !!---------------------------------------------------------------------
 
       IF( ln_timing )  CALL timing_start('ahini_for_at')
       !
       DO_3D( 0, 0, 0, 0, 1, jpk )
-      zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
-      p_alkcb  = tr(ji,jj,jk,jptal,Kbb) * zrhd
-      p_dictot = tr(ji,jj,jk,jpdic,Kbb) * zrhd
+      zdens    = rhop(ji,jj,jk) / 1000. 
+      p_alkcb  = tr(ji,jj,jk,jptal,Kbb) / ( zdens + rtrn )
+      p_dictot = tr(ji,jj,jk,jpdic,Kbb) / ( zdens + rtrn )
       p_bortot = borat(ji,jj,jk)
       IF (p_alkcb <= 0.) THEN
           p_hini(ji,jj,jk) = 1.e-3
@@ -531,23 +530,23 @@ CONTAINS
    REAL(wp), DIMENSION(A2D(0),jpk), INTENT(OUT) :: p_alknw_sup
    INTEGER,                          INTENT(in)  ::  Kbb      ! time level indices
    INTEGER  ::   ji, jj, jk
-   REAL(wp)  ::  zrhd
+   REAL(wp)  ::  zdens
 
    IF( ln_p2z ) THEN
       DO_3D( 0, 0, 0, 0, 1, jpk )
-         zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
-         p_alknw_inf(ji,jj,jk) =  -2.174E-6 * zrhd - sulfat(ji,jj,jk) &
+         zdens = rhop(ji,jj,jk) / 1000.
+         p_alknw_inf(ji,jj,jk) =  -2.174E-6 / ( zdens + rtrn ) - sulfat(ji,jj,jk) &
          &              - fluorid(ji,jj,jk)
          p_alknw_sup(ji,jj,jk) =   (2. * tr(ji,jj,jk,jpdic,Kbb) + 2. * 2.174E-6    &
-         &               + 90.33E-6 ) * zrhd + borat(ji,jj,jk)
+         &               + 90.33E-6 ) / ( zdens + rtrn ) + borat(ji,jj,jk)
       END_3D
    ELSE
       DO_3D( 0, 0, 0, 0, 1, jpk )
-         zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
-         p_alknw_inf(ji,jj,jk) =  -tr(ji,jj,jk,jppo4,Kbb) * zrhd * po4r - sulfat(ji,jj,jk) &
+         zdens = rhop(ji,jj,jk) / 1000.
+         p_alknw_inf(ji,jj,jk) =  -tr(ji,jj,jk,jppo4,Kbb) / ( zdens + rtrn ) * po4r - sulfat(ji,jj,jk) &
          &              - fluorid(ji,jj,jk)
          p_alknw_sup(ji,jj,jk) =   (2. * tr(ji,jj,jk,jpdic,Kbb) + 2. * tr(ji,jj,jk,jppo4,Kbb) * po4r    &
-         &               + tr(ji,jj,jk,jpsil,Kbb) ) * zrhd + borat(ji,jj,jk)
+         &               + tr(ji,jj,jk,jpsil,Kbb) ) / ( zdens + rtrn ) + borat(ji,jj,jk)
       END_3D
    ENDIF
 
@@ -579,7 +578,7 @@ CONTAINS
    REAL(wp)  ::  znumer_so4, zdnumer_so4, zdenom_so4, zalk_so4, zdalk_so4
    REAL(wp)  ::  znumer_flu, zdnumer_flu, zdenom_flu, zalk_flu, zdalk_flu
    REAL(wp)  ::  zalk_wat, zdalk_wat
-   REAL(wp)  ::  zrhd, p_alktot, zdic, zbot, zpt, zst, zft, zsit
+   REAL(wp)  ::  zdens, p_alktot, zdic, zbot, zpt, zst, zft, zsit
    LOGICAL   ::  l_exitnow
    REAL(wp), PARAMETER :: pz_exp_threshold = 1.0
    REAL(wp), DIMENSION(A2D(0),jpk) :: zalknw_inf, zalknw_sup, rmask, zh_min, zh_max, zeqn_absmin
@@ -594,8 +593,8 @@ CONTAINS
    ! TOTAL H+ scale: conversion factor for Htot = aphscale * Hfree
    DO_3D( 0, 0, 0, 0, 1, jpk )
       IF (rmask(ji,jj,jk) == 1.) THEN
-         zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
-         p_alktot = tr(ji,jj,jk,jptal,Kbb) * zrhd
+         zdens = rhop(ji,jj,jk) / 1000.
+         p_alktot = tr(ji,jj,jk,jptal,Kbb) / ( zdens + rtrn )
          aphscale = 1. + sulfat(ji,jj,jk)/aks3(ji,jj,jk)
          zh_ini = p_hini(ji,jj,jk)
 
@@ -624,9 +623,9 @@ CONTAINS
    DO jn = 1, jp_maxniter_atgen 
       DO_3D( 0, 0, 0, 0, 1, jpk )
       IF (rmask(ji,jj,jk) == 1.) THEN
-         zrhd = 1._wp / ( rhd(ji,jj,jk) + 1. )
-         p_alktot = tr(ji,jj,jk,jptal,Kbb) * zrhd
-         zdic  = tr(ji,jj,jk,jpdic,Kbb) * zrhd
+         zdens = rhop(ji,jj,jk) / 1000.
+         p_alktot = tr(ji,jj,jk,jptal,Kbb) / ( zdens + rtrn )
+         zdic  = tr(ji,jj,jk,jpdic,Kbb) / ( zdens + rtrn )
          zbot  = borat(ji,jj,jk)
          zst = sulfat (ji,jj,jk)
          zft = fluorid(ji,jj,jk)
@@ -634,11 +633,11 @@ CONTAINS
          zh = zhi(ji,jj,jk)
          zh_prev = zh
          IF( ln_p2z ) THEN
-            zsit = 90.33E-6 * zrhd
-            zpt  = 2.174E-6 * zrhd
+            zsit = 90.33E-6 / ( zdens + rtrn )
+            zpt  = 2.174E-6 / ( zdens + rtrn )
          ELSE
-            zpt  = tr(ji,jj,jk,jppo4,Kbb) * zrhd * po4r
-            zsit = tr(ji,jj,jk,jpsil,Kbb) * zrhd
+            zpt  = tr(ji,jj,jk,jppo4,Kbb) / ( zdens + rtrn ) * po4r
+            zsit = tr(ji,jj,jk,jpsil,Kbb) / ( zdens + rtrn )
          ENDIF
 
          ! H2CO3 - HCO3 - CO3 : n=2, m=0
