@@ -18,9 +18,11 @@ MODULE stpctl
    !!----------------------------------------------------------------------
    USE oce             ! ocean dynamics and tracers variables
    USE dom_oce         ! ocean space and time domain variables 
+#if defined key_si3
    USE ice      , ONLY : vt_i, u_ice, tm_i
+#endif
    USE phycst   , ONLY : rt0
-   USE sbc_oce  , ONLY : lk_oasis
+   USE sbc_oce  , ONLY : lk_oasis, nn_ice
    !
    USE diawri          ! Standard run outputs       (dia_wri_state routine)
    USE in_out_manager  ! I/O manager
@@ -100,7 +102,8 @@ CONTAINS
          ENDIF
          IF( lwm )   CALL ctl_opn( numstp, clname, 'REPLACE', 'FORMATTED', 'SEQUENTIAL', -1, numout, lwp, narea )
          !
-         IF( ll_wrtruns ) THEN
+#if defined key_si3
+         IF( ll_wrtruns .AND. nn_ice > 0 ) THEN
             IF( lk_oasis ) THEN   ;   clname = 'run_sas.stat'
             ELSE                  ;   clname = 'run.stat'
             ENDIF
@@ -117,6 +120,7 @@ CONTAINS
             istatus = NF90_ENDDEF(nrunid)
          ENDIF
          !
+#endif
       ENDIF
       !
       !                                   !==              write current time step              ==!
@@ -125,105 +129,109 @@ CONTAINS
          WRITE ( numstp, '(1x, i8)' )   kt
          REWIND( numstp )
       ENDIF
-      !                                   !==            test of local extrema           ==!
-      !                                   !==  done by all processes at every time step  ==!
-      !
-      llmsk(     1:nn_hls,:) = .FALSE.                                          ! exclude halos from the checked region
-      llmsk(Nie0+1:   jpi,:) = .FALSE.
-      llmsk(:,     1:nn_hls) = .FALSE.
-      llmsk(:,Nje0+1:   jpj) = .FALSE.
-      !
-      llmsk(Nis0:Nie0,Njs0:Nje0) = tmask(Nis0:Nie0,Njs0:Nje0,1) == 1._wp        ! test only the inner domain
-      !
-      ll_0oce = .NOT. ANY( llmsk(:,:) )                                         ! no ocean point in the inner domain?
-      !
-      zmax(1) = MAXVAL(      vt_i (:,:)      , mask = llmsk )                   ! max ice thickness
-      zmax(2) = MAXVAL( ABS( u_ice(:,:) )    , mask = llmsk )                   ! max ice velocity (zonal only)
-      zmax(3) = MAXVAL(     -tm_i (:,:) + rt0, mask = llmsk(A2D(0)) )           ! min ice temperature (in degC)
-      zmax(jpvar+1) = REAL( nstop, wp )                                         ! stop indicator
-      !
-      !                                   !==               get global extrema             ==!
-      !                                   !==  done by all processes if writting run.stat  ==!
-      IF( ll_colruns ) THEN
-         zmaxlocal(:) = zmax(1:jptst)
-         CALL mpp_max( "stpctl", zmax )          ! max over the global domain: ok even of ll_0oce = .true.
-         nstop = NINT( zmax(jpvar+1) )           ! update nstop indicator (now sheared among all local domains)
-      ELSE
-         ! if no ocean point: MAXVAL returns -HUGE => we must overwrite this value to avoid error handling bellow.
-         IF( ll_0oce )   zmax(1:jptst) = 0._wp        ! default "valid" values...
-      ENDIF
-      !
-      zmax(3) = -zmax(3)                              ! move back from max(-zz) to min(zz) : easier to manage!
-      IF( ll_colruns ) zmaxlocal(3) = -zmaxlocal(3)   ! move back from max(-zz) to min(zz) : easier to manage!
-      !
-      !                                   !==              write "run.stat" files              ==!
-      !                                   !==  done only by 1st subdomain at writting timestep  ==!
-      IF( ll_wrtruns ) THEN
-         WRITE(numrun,9500) kt, zmax(1:jptst)
-         DO ji = 1, jpvar
-            istatus = NF90_PUT_VAR( nrunid, nvarid(ji), (/zmax(ji)/), (/kt/), (/1/) )
-         END DO
-         IF( kt == nitend )   istatus = NF90_CLOSE(nrunid)
-      END IF
-      !                                   !==               error handling               ==!
-      !                                   !==  done by all processes at every time step  ==!
-      !
-      IF(   zmax(1) >  100._wp .OR.                 &         ! too large ice thickness maximum ( > 100 m)
-         &  zmax(2) >   10._wp .OR.                 &         ! too large ice velocity ( > 10 m/s)
-         &  zmax(3) < -101._wp .OR.                 &         ! too cold ice temperature ( < -100 degC)
-         & ieee_is_nan( SUM(zmax(1:jptst)) ) .OR.   &         ! NaN encounter in the tests
-         & ABS(   SUM(zmax(1:jptst)) ) > HUGE(1._wp) ) THEN   ! Infinity encounter in the tests
+#if defined key_si3
+      IF( nn_ice > 0 ) THEN
+         !                                !==            test of local extrema           ==!
+         !                                !==  done by all processes at every time step  ==!
          !
-         iloc(:,:) = 0
-         IF( ll_colruns ) THEN   ! zmax is global, so it is the same on all subdomains -> no dead lock with mpp_maxloc
-            ! first: close the netcdf file, so we can read it
-            IF( lwm .AND. kt /= nitend )   istatus = NF90_CLOSE(nrunid)
-            ! get global loc on the min/max
-            CALL mpp_maxloc( 'stpctl',      vt_i(:,:)      , llmsk        , zzz, iloc(1:2,1) )   ! mpp_maxloc ok if mask = F 
-            CALL mpp_maxloc( 'stpctl',ABS( u_ice(:,:) )    , llmsk        , zzz, iloc(1:2,2) )
-            CALL mpp_minloc( 'stpctl',      tm_i(:,:) - rt0, llmsk(A2D(0)), zzz, iloc(1:2,3) )
-            ! find which subdomain has the max.
-            iareamin(:) = jpnij+1   ;   iareamax(:) = 0   ;   iareasum(:) = 0
-            DO ji = 1, jptst
-               IF( zmaxlocal(ji) == zmax(ji) ) THEN
-                  iareamin(ji) = narea   ;   iareamax(ji) = narea   ;   iareasum(ji) = 1
-               ENDIF
-            END DO
-            CALL mpp_min( "stpctl", iareamin )         ! min over the global domain
-            CALL mpp_max( "stpctl", iareamax )         ! max over the global domain
-            CALL mpp_sum( "stpctl", iareasum )         ! sum over the global domain
-         ELSE                    ! find local min and max locations:
-            ! if we are here, this means that the subdomain contains some oce points -> no need to test the mask used in maxloc
-            iloc(1:2,1) = MAXLOC(       vt_i(:,:)      , mask = llmsk         )
-            iloc(1:2,2) = MAXLOC( ABS( u_ice(:,:) )    , mask = llmsk         )
-            iloc(1:2,3) = MINLOC(       tm_i(:,:) - rt0, mask = llmsk(A2D(0)) )
-            DO ji = 1, jptst   ! local domain indices ==> global domain indices, excluding halos
-               iloc(1:2,ji) = (/ mig(iloc(1,ji),0), mjg(iloc(2,ji),0) /)
-            END DO
-            iareamin(:) = narea   ;   iareamax(:) = narea   ;   iareasum(:) = 1         ! this is local information
-         ENDIF
+         llmsk(     1:nn_hls,:) = .FALSE.                                          ! exclude halos from the checked region
+         llmsk(Nie0+1:   jpi,:) = .FALSE.
+         llmsk(:,     1:nn_hls) = .FALSE.
+         llmsk(:,Nje0+1:   jpj) = .FALSE.
          !
-         WRITE(ctmp1,*) ' stp_ctl: ice_thick > 100 m or |ice_vel| > 10 m/s or ice_temp < -100 degC or NaN encounter in the tests'
-         CALL wrt_line( ctmp2, kt, 'ice_thick max', zmax(1), iloc(:,1), iareasum(1), iareamin(1), iareamax(1) )
-         CALL wrt_line( ctmp3, kt, '|ice_vel| max', zmax(2), iloc(:,2), iareasum(2), iareamin(2), iareamax(2) )
-         CALL wrt_line( ctmp4, kt, 'ice_temp  min', zmax(3), iloc(:,3), iareasum(3), iareamin(3), iareamax(3) )
-         IF( Agrif_Root() ) THEN
-            WRITE(ctmp6,*) '      ===> output of last computed fields in output.abort* files'
+         llmsk(Nis0:Nie0,Njs0:Nje0) = tmask(Nis0:Nie0,Njs0:Nje0,1) == 1._wp        ! test only the inner domain
+         !
+         ll_0oce = .NOT. ANY( llmsk(:,:) )                                         ! no ocean point in the inner domain?
+         !
+         zmax(1) = MAXVAL(      vt_i (:,:)      , mask = llmsk )                   ! max ice thickness
+         zmax(2) = MAXVAL( ABS( u_ice(:,:) )    , mask = llmsk )                   ! max ice velocity (zonal only)
+         zmax(3) = MAXVAL(     -tm_i (:,:) + rt0, mask = llmsk(A2D(0)) )           ! min ice temperature (in degC)
+         zmax(jpvar+1) = REAL( nstop, wp )                                         ! stop indicator
+         !
+         !                                   !==               get global extrema             ==!
+         !                                   !==  done by all processes if writting run.stat  ==!
+         IF( ll_colruns ) THEN
+            zmaxlocal(:) = zmax(1:jptst)
+            CALL mpp_max( "stpctl", zmax )          ! max over the global domain: ok even of ll_0oce = .true.
+            nstop = NINT( zmax(jpvar+1) )           ! update nstop indicator (now sheared among all local domains)
          ELSE
-            WRITE(ctmp6,*) '      ===> output of last computed fields in '//TRIM(Agrif_CFixed())//'_output.abort* files'
+            ! if no ocean point: MAXVAL returns -HUGE => we must overwrite this value to avoid error handling bellow.
+            IF( ll_0oce )   zmax(1:jptst) = 0._wp        ! default "valid" values...
          ENDIF
          !
-         CALL dia_wri_state( Kmm, 'output.abort' )     ! create an output.abort file
+         zmax(3) = -zmax(3)                              ! move back from max(-zz) to min(zz) : easier to manage!
+         IF( ll_colruns ) zmaxlocal(3) = -zmaxlocal(3)   ! move back from max(-zz) to min(zz) : easier to manage!
          !
-         IF( ll_colruns .OR. jpnij == 1 ) THEN   ! all processes synchronized -> use lwp to print in opened ocean.output files
-            IF(lwp) THEN   ;   CALL ctl_stop( ctmp1, ' ', ctmp2, ctmp3, ctmp4, ' ', ctmp6 )
-            ELSE           ;   nstop = MAX(1, nstop)   ! make sure nstop > 0 (automatically done when calling ctl_stop)
+         !                                   !==              write "run.stat" files              ==!
+         !                                   !==  done only by 1st subdomain at writting timestep  ==!
+         IF( ll_wrtruns ) THEN
+            WRITE(numrun,9500) kt, zmax(1:jptst)
+            DO ji = 1, jpvar
+               istatus = NF90_PUT_VAR( nrunid, nvarid(ji), (/zmax(ji)/), (/kt/), (/1/) )
+            END DO
+            IF( kt == nitend )   istatus = NF90_CLOSE(nrunid)
+         END IF
+         !                                   !==               error handling               ==!
+         !                                   !==  done by all processes at every time step  ==!
+         !
+         IF(   zmax(1) >  100._wp .OR.                 &         ! too large ice thickness maximum ( > 100 m)
+            &  zmax(2) >   10._wp .OR.                 &         ! too large ice velocity ( > 10 m/s)
+            &  zmax(3) < -101._wp .OR.                 &         ! too cold ice temperature ( < -100 degC)
+            & ieee_is_nan( SUM(zmax(1:jptst)) ) .OR.   &         ! NaN encounter in the tests
+            & ABS(   SUM(zmax(1:jptst)) ) > HUGE(1._wp) ) THEN   ! Infinity encounter in the tests
+            !
+            iloc(:,:) = 0
+            IF( ll_colruns ) THEN   ! zmax is global, so it is the same on all subdomains -> no dead lock with mpp_maxloc
+               ! first: close the netcdf file, so we can read it
+               IF( lwm .AND. kt /= nitend )   istatus = NF90_CLOSE(nrunid)
+               ! get global loc on the min/max
+               CALL mpp_maxloc( 'stpctl',      vt_i(:,:)      , llmsk        , zzz, iloc(1:2,1) )   ! mpp_maxloc ok if mask = F
+               CALL mpp_maxloc( 'stpctl',ABS( u_ice(:,:) )    , llmsk        , zzz, iloc(1:2,2) )
+               CALL mpp_minloc( 'stpctl',      tm_i(:,:) - rt0, llmsk(A2D(0)), zzz, iloc(1:2,3) )
+               ! find which subdomain has the max.
+               iareamin(:) = jpnij+1   ;   iareamax(:) = 0   ;   iareasum(:) = 0
+               DO ji = 1, jptst
+                  IF( zmaxlocal(ji) == zmax(ji) ) THEN
+                     iareamin(ji) = narea   ;   iareamax(ji) = narea   ;   iareasum(ji) = 1
+                  ENDIF
+               END DO
+               CALL mpp_min( "stpctl", iareamin )         ! min over the global domain
+               CALL mpp_max( "stpctl", iareamax )         ! max over the global domain
+               CALL mpp_sum( "stpctl", iareasum )         ! sum over the global domain
+            ELSE                    ! find local min and max locations:
+               ! if we are here, this means that the subdomain contains some oce points -> no need to test the mask used in maxloc
+               iloc(1:2,1) = MAXLOC(       vt_i(:,:)      , mask = llmsk         )
+               iloc(1:2,2) = MAXLOC( ABS( u_ice(:,:) )    , mask = llmsk         )
+               iloc(1:2,3) = MINLOC(       tm_i(:,:) - rt0, mask = llmsk(A2D(0)) )
+               DO ji = 1, jptst   ! local domain indices ==> global domain indices, excluding halos
+                  iloc(1:2,ji) = (/ mig(iloc(1,ji),0), mjg(iloc(2,ji),0) /)
+               END DO
+               iareamin(:) = narea   ;   iareamax(:) = narea   ;   iareasum(:) = 1         ! this is local information
             ENDIF
-         ELSE                                    ! only mpi subdomains with errors are here -> STOP now
-            CALL ctl_stop( 'STOP', ctmp1, ' ', ctmp2, ctmp3, ctmp4, ' ', ctmp6 )
+            !
+            WRITE(ctmp1,*) ' stp_ctl: ice_thick > 100 m or |ice_vel| > 10 m/s or ice_temp < -100 degC or NaN encounter in the tests'
+            CALL wrt_line( ctmp2, kt, 'ice_thick max', zmax(1), iloc(:,1), iareasum(1), iareamin(1), iareamax(1) )
+            CALL wrt_line( ctmp3, kt, '|ice_vel| max', zmax(2), iloc(:,2), iareasum(2), iareamin(2), iareamax(2) )
+            CALL wrt_line( ctmp4, kt, 'ice_temp  min', zmax(3), iloc(:,3), iareasum(3), iareamin(3), iareamax(3) )
+            IF( Agrif_Root() ) THEN
+               WRITE(ctmp6,*) '      ===> output of last computed fields in output.abort* files'
+            ELSE
+               WRITE(ctmp6,*) '      ===> output of last computed fields in '//TRIM(Agrif_CFixed())//'_output.abort* files'
+            ENDIF
+            !
+            CALL dia_wri_state( Kmm, 'output.abort' )     ! create an output.abort file
+            !
+            IF( ll_colruns .OR. jpnij == 1 ) THEN   ! all processes synchronized -> use lwp to print in opened ocean.output files
+               IF(lwp) THEN   ;   CALL ctl_stop( ctmp1, ' ', ctmp2, ctmp3, ctmp4, ' ', ctmp6 )
+               ELSE           ;   nstop = MAX(1, nstop)   ! make sure nstop > 0 (automatically done when calling ctl_stop)
+               ENDIF
+            ELSE                                    ! only mpi subdomains with errors are here -> STOP now
+               CALL ctl_stop( 'STOP', ctmp1, ' ', ctmp2, ctmp3, ctmp4, ' ', ctmp6 )
+            ENDIF
+            !
          ENDIF
-         !
       ENDIF
+#endif
       !
       IF( nstop > 0 ) THEN                                                  ! an error was detected and we did not abort yet...
          ngrdstop = Agrif_Fixed()                                           ! store which grid got this error
