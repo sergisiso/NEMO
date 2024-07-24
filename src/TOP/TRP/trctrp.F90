@@ -115,7 +115,9 @@ CONTAINS
 
          !
       ELSE                                               ! 1D vertical configuration
+#if ! defined key_RK3
                                 CALL trc_sbc( kt,      Kmm,       tr, Krhs )  ! surface boundary condition
+#endif
          IF( ln_trcdmp )        CALL trc_dmp( kt, Kbb, Kmm, tr, Krhs )  ! internal damping trends
                                 CALL trc_zdf( kt, Kbb, Kmm, Krhs, tr, Kaa  )  ! vert. mixing & after tracer	==> after
                                 CALL trc_atf( kt, Kbb, Kmm, Kaa , tr )        ! time filtering of "now" tracer fields
