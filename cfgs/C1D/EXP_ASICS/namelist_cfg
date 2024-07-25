@@ -41,6 +41,7 @@
    nn_date0    = 20130115  !  date at nit_0000 (format yyyymmdd) used if ln_rstart=F or (ln_rstart=T and nn_rstctl=0 or 1)
    nn_stock    =   17040   !  frequency of creation of a restart file (modulo referenced to 1)
    nn_write    =   17040   !  frequency of write in the output file   (modulo referenced to nn_it000)
+   ln_top      =  .false.     !  Consider (T) or bypass (F) the TOP routines when the key_top is activated
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
