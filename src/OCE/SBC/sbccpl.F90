@@ -884,12 +884,13 @@ CONTAINS
       ELSE IF( sn_snd_crt%clvgrd /= 'T' ) THEN
          CALL ctl_stop( 'sn_snd_crt%clvgrd must be equal to T' )
       ENDIF
-      ssnd(jps_ocx1:jps_ivz1)%laction = .TRUE.   ! default: all are send
+      ssnd(jps_ocx1:jps_ivz1)%laction = .TRUE.   ! default: all (ocean and ice, x,y,z components) are send
       IF( TRIM( sn_snd_crt%clvref ) == 'spherical' )   ssnd( (/jps_ocz1, jps_ivz1/) )%laction = .FALSE.
       IF( TRIM( sn_snd_crt%clvor ) == 'eastward-northward' ) ssnd(jps_ocx1:jps_ivz1)%nsgn = 1.
       SELECT CASE( TRIM( sn_snd_crt%cldes ) )
       CASE( 'none'                 )   ;   ssnd(jps_ocx1:jps_ivz1)%laction = .FALSE.
       CASE( 'oce only'             )   ;   ssnd(jps_ivx1:jps_ivz1)%laction = .FALSE.
+      CASE( 'oce and ice'          )   !   nothing to do
       CASE( 'weighted oce and ice' )   !   nothing to do
       CASE( 'mixed oce-ice'        )   ;   ssnd(jps_ivx1:jps_ivz1)%laction = .FALSE.
       CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_crt%cldes' )
@@ -2525,6 +2526,13 @@ CONTAINS
                DO_2D( 0, 0, 0, 0 )
                   zotx1(ji,jj) = 0.5 * ( uu(ji,jj,1,Kmm) + uu(ji-1,jj  ,1,Kmm) )
                   zoty1(ji,jj) = 0.5 * ( vv(ji,jj,1,Kmm) + vv(ji  ,jj-1,1,Kmm) )
+               END_2D
+            CASE( 'oce and ice'          )      ! Ocean and Ice on C-grid ==> T
+               DO_2D( 0, 0, 0, 0 )
+                  zotx1(ji,jj) = 0.5 * ( uu   (ji,jj,1,Kmm) + uu   (ji-1,jj  ,1,Kmm) )
+                  zoty1(ji,jj) = 0.5 * ( vv   (ji,jj,1,Kmm) + vv   (ji  ,jj-1,1,Kmm) )
+                  zitx1(ji,jj) = 0.5 * ( u_ice(ji,jj  )     + u_ice(ji-1,jj    )     )
+                  zity1(ji,jj) = 0.5 * ( v_ice(ji,jj  )     + v_ice(ji  ,jj-1  )     )
                END_2D
             CASE( 'weighted oce and ice' )      ! Ocean and Ice on C-grid ==> T
                DO_2D( 0, 0, 0, 0 )
