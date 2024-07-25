@@ -30,6 +30,7 @@
    !
    nn_stock    =    8760   ! 1 year at dt=3600s / frequency of creation of a restart file (modulo referenced to 1)
    nn_write    =    8760   ! 1 year at dt=3600s / frequency of write in the output file   (modulo referenced to nn_it000)
+   ln_top      = .false.     !  Consider (T) or bypass (F) the TOP routines when the key_top is activated
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
