@@ -205,7 +205,7 @@
    ln_drainage      = .true.          !  activate ice salt gravity drainage
    rn_simin         =   0.1           !  minimum tolerated ice salinity (g/kg)
    rn_sinew         =   0.75          !  fraction of sss that is entrapped in new ice 
-                                      !      (must be set to 0.30 if nn_icesal=2)
+                                      !      (must be set to 0.25 if nn_icesal=2)
                   ! -- nn_icesal=1 -- !
    rn_icesal        =   4.            !  ice salinity (g/kg)
                   ! -- nn_icesal=2 -- !
@@ -228,11 +228,11 @@
                                       !    2 = Griewank and Notz (2013)      => GN2013
                                       !    3 = Cox and Weeks (1988)          => CW1988
                                       ! ** parameters for each scheme **
-      rn_alpha_RJW  = 0.037           !    1: Intensity of the Brine flow  ==> minmax tested [0.03 ; 0.037]?
-      rn_Rc_RJW     = 4.89            !    1: Critical Rayleigh number     ==>               [2.9  ; 9]?
-      rn_alpha_GN   = 5.4e-4          !    2: Intensity of the Brine flow  ==>               [0.510e-3 ; 0.681e-3] from Griewank and Notz 2015
-      rn_Rc_GN      = 6.4             !    2: Critical Rayleigh number     ==>               [7.10 ; 3.23]         from Griewank and Notz 2015
-      rn_alpha_CW   = 9.e-7           !    3: Intensity of the Brine flow  ==>               [7e-7 ; 15e-7]?
+      rn_alpha_RJW  = 0.03            !    1: Intensity of the Brine flow  ==> minmax tested [0.03 ; 0.037]?
+      rn_Rc_RJW     = 9.0             !    1: Critical Rayleigh number     ==>               [2.9  ; 9]?
+      rn_alpha_GN   = 5.1e-4          !    2: Intensity of the Brine flow  ==>               [0.510e-3 ; 0.681e-3] from Griewank and Notz 2015
+      rn_Rc_GN      = 10.0            !    2: Critical Rayleigh number     ==>               [7.10 ; 3.23]         from Griewank and Notz 2015
+      rn_alpha_CW   = 4.8e-7          !    3: Intensity of the Brine flow  ==>               [4e-7 ; 7e-7]?
       !
    ln_sal_chk       = .FALSE.         !  sanity checks for drainage and flushing
 /
