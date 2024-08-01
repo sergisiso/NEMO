@@ -1369,7 +1369,7 @@ if [ ${config} == "C1D_PAPA" ]  ; then
             set_namelist namelist_cfg cn_exp \"C1DPAPA_LONG\"
             set_namelist_rst namelist ${ITEND}
             cd ${SETTE_DIR}
-            . ./prepare_job.sh input_${config}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            . ./prepare_job.sh input_${config/_PAPA}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
         fi
         if [ ${DO_RESTART_2} == "1" ] ;  then
             cd ${SETTE_DIR}
@@ -1381,7 +1381,7 @@ if [ ${config} == "C1D_PAPA" ]  ; then
             set_namelist namelist_cfg cn_exp \"C1DPAPA_SHORT\"
             set_namelist_rst namelist ${ITEND} "C1DPAPA_LONG" "OCE"
             cd ${SETTE_DIR}
-            . ./prepare_job.sh input_${config}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            . ./prepare_job.sh input_${config/_PAPA}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
         fi
         if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
             cd ${SETTE_DIR}
