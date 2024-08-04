@@ -9,16 +9,12 @@
 #
 # LOAD param variable ( only FORCING_DIR required)
   . ./param.cfg
-  get_lite=0
   if [ $# -gt 0 ]; then
     while getopts lh option ; do 
        case $option in
-          l) get_lite=1;;
           h | *) echo ''
                  echo 'sette_fetch_inputs.sh : ' 
-                 echo '     Fetch 4.2.0 input files from remote store'
-                 echo ' -l '
-                 echo '     Fetch the alternative, 4.2.0_LITE input files from remote store'
+                 echo '     Fetch 5.0.0 input files from remote store'
                  exit 42;;
        esac
     done
@@ -39,13 +35,9 @@
   orgdir=`pwd`
   cd ${FORCING_DIR}
 #
-  if [ $get_lite == 0 ] ; then
-   suff="4.2.0"
-  else
-   suff="4.2.0_LITE"
-  fi
+  suff="5.0.0"
 #
-  for file in AGRIF_DEMO AMM12 ICE_AGRIF ISOMIP+ ORCA2_ICE ORCA2_OFF SAS WED025 ORCA2_ABL
+  for file in AGRIF_DEMO AMM12 C1D ICE_AGRIF ISOMIP+ ORCA2_ICE ORCA2_OFF SAS WED025 ORCA2_ABL
   do
     full_file=${file}_v${suff}.tar.gz
     if [ ! -f $full_file ] ; then
@@ -55,22 +47,6 @@
     fi
   done
 #
-# AMM12 requires an alternative restart file for RK3 tests at v5.0+. All other inputs are unchanged
-# from 4.2.0, so fetch this separately for now
-#
-  amm12rk3="amm12_restart_oce_rk3.nc"
-  wget "https://gws-access.jasmin.ac.uk/public/nemo/sette_inputs/extras/${amm12rk3}" 
-  if [ -f ./${amm12rk3} ] ; then
-    if [ -d ${FORCING_DIR}/AMM12_v${suff} ] ; then
-      mv ${amm12rk3} ${FORCING_DIR}/AMM12_v${suff}
-      echo "${FORCING_DIR}/AMM12_v${suff}/${amm12rk3} has been installed"
-    else
-      echo "${FORCING_DIR}/${amm12rk3} will need to be moved to the ${FORCING_DIR}/AMM12_v${suff} directory"
-      echo "before running RK3 tests for AMM12"
-    fi
-  else
-    echo "Failed to fetch "${amm12rk3}
-  fi
   cd $orgdir
 #
 exit
