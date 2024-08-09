@@ -730,14 +730,23 @@ CONTAINS
                sfx_dyn_1d(ii) = sfx_dyn_1d(ii) - vsw * psss(ii) * rhoi * r1_Dt_ice
                hfx_dyn_1d(ii) = hfx_dyn_1d(ii) + ersw * r1_Dt_ice          ! > 0 [W.m-2]
 
-               ! Put the snow lost by ridging into the ocean
+               ! Put the snow and pond lost by ridging into the ocean
                !  Note that esrdg > 0; the ocean must cool to melt snow. If the ocean temp = Tf already, new ice must grow.
                wfx_snw_dyn_1d(ii) = wfx_snw_dyn_1d(ii) + ( rhos * vsrdg(ii) * ( 1._wp - rn_fsnwrdg )   &   ! fresh water source for ocean
                   &                                      + rhos * vsrft(ii) * ( 1._wp - rn_fsnwrft ) ) * r1_Dt_ice
                DO jk = 1, nlay_s
-                  hfx_dyn_1d(ii) = hfx_dyn_1d(ii) + ( - esrdg(ii,jk) * ( 1._wp - rn_fsnwrdg )   &                 ! heat sink for ocean (<0, W.m-2)
+                  hfx_dyn_1d(ii) = hfx_dyn_1d(ii) + ( - esrdg(ii,jk) * ( 1._wp - rn_fsnwrdg )   &          ! heat sink for ocean (<0, W.m-2)
                      &                                - esrft(ii,jk) * ( 1._wp - rn_fsnwrft ) ) * r1_Dt_ice
                END DO
+
+               IF ( ln_pnd_LEV .OR. ln_pnd_TOPO ) THEN
+                  wfx_pnd_1d(ii)    = wfx_pnd_1d(ii)   + ( rhow * vprdg(ii) * ( 1._wp - rn_fpndrdg )   &   ! fresh water source for ocean
+                     &                                   + rhow * vprft(ii) * ( 1._wp - rn_fpndrft ) ) * r1_Dt_ice
+                  IF ( ln_pnd_lids ) THEN
+                     wfx_pnd_1d(ii) = wfx_pnd_1d(ii)   + ( rhow * vlrdg(ii) * ( 1._wp - rn_fpndrdg )   &   ! fresh water source for ocean
+                        &                                + rhow * vlrft(ii) * ( 1._wp - rn_fpndrft ) ) * r1_Dt_ice
+                  ENDIF
+               ENDIF
 
                ! virtual salt flux to keep salinity constant
                IF( nn_icesal == 1 .OR. nn_icesal == 3 )  THEN
