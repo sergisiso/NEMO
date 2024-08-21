@@ -59,14 +59,12 @@ before_script:
       module purge || true;
       module load ${!SETTE_MOD};
     fi
-  - set -x   # debug prints
+  - set +x   # debug prints
   - SETTE_CFG=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_CFG
   - cp -av ${!SETTE_CFG} sette/param.cfg
   - git config core.filemode false   # ignore git(lab) symlinks permissions changes when pushing then pulling cache ("old mode 100755 -> new mode 100644")
   - SETTE_OPT="-u -w"
   - if [[ ${NEMO_DEBUG} == "yes" ]]; then SETTE_OPT="${SETTE_OPT} -b"; fi
-  - 'echo "CI_COMMIT_REF_NAME: ${CI_COMMIT_REF_NAME}"'
-  - 'echo "CI_COMMIT_BRANCH: ${CI_COMMIT_BRANCH}"'
 
 
 # JOBS
