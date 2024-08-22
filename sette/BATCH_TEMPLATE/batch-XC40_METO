@@ -84,8 +84,6 @@
 #
 
 #
-  post_test_tidyup
+(post_test_tidyup) || exit $?
 # END_BODY
 # Don't remove neither change the previous line
-  exit
-
