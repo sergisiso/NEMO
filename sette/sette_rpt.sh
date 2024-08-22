@@ -780,7 +780,7 @@ function identictest(){
   if [[ ! -z $1 ]] ; then rev=$1 ; fi
 
 # https://stackoverflow.com/questions/6059336/how-to-find-the-current-git-branch-in-detached-head-state
-branchname=$(git log -1 --pretty=%D HEAD | sed 's|.*origin/||g;s|, .*||g;s|.*-> ||g' )
+branchname=${CI_COMMIT_BRANCH:-$(git log -1 --pretty=%D HEAD | sed 's|.*origin/||g;s|, .*||g;s|.*-> ||g' )}
 if [ ! -z $SETTE_SUB_VAL ] ; then
    NEMO_VALIDATION_DIR=$NEMO_VALIDATION_DIR/$SETTE_SUB_VAL
    if [ -d $NEMO_VALIDATION_REF/$SETTE_SUB_VAL ] && [ -z $SETTE_SUB_VAL2 ] && [ ${USER_INPUT} == "yes" ] ; then
@@ -823,7 +823,7 @@ fi
 # Show current revision tag and branch name
 #
 echo ""
-nemo_revision=$(git -C ${MAIN_DIR} rev-parse --short HEAD 2> /dev/null)
+nemo_revision=$(git -C ${MAIN_DIR} rev-parse --short=8 HEAD 2> /dev/null)
 rev_date0=`git log -1 | grep Date | sed -e 's/.*Date: *//' -e's/ +.*$//'`
 rev_date=`${DATE_CONV}"${rev_date0}" +"%y%j"`
 revision=${rev_date}_${nemo_revision}

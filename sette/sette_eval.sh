@@ -280,7 +280,7 @@ localchanges=`git status --short -uno | wc -l`
 git branch --show-current >& /dev/null
 if [[ $? == 0 ]] ; then
   branchname="$(git branch --show-current)"
-  revision=`git rev-parse --short HEAD`
+  revision=`git rev-parse --short=8 HEAD`
   if [ -z $branchname ] ; then
    # Probabably on a detached HEAD (possibly testing an old commit).
    # Verify this and try to recover original commit
