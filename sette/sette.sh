@@ -1,5 +1,5 @@
 #!/bin/sh
-#set -x
+set +x
 
 # initialise user dependent variable
 export cmd=$0 ; export cmdargs=$@
@@ -38,9 +38,9 @@ export USER_INPUT='yes'        # Default: yes => request user input on decisions
                                #                 1. regarding mismatched options
                                #                 2. regardin incompatible options
                                #                 3. regarding creation of directories
-export SETTE_THIS_BRANCH=$(git log -1 --pretty=%D HEAD | sed 's|.*origin/||g;s|, .*||g;s|.*-> ||g' )
+export SETTE_THIS_BRANCH=${CI_COMMIT_BRANCH:-$(git log -1 --pretty=%D HEAD | sed 's|.*origin/||g;s|, .*||g;s|.*-> ||g' )}
 export SETTE_SUB_VAL=${SETTE_THIS_BRANCH}
-export NEMO_REV=$(git -C ${MAIN_DIR} rev-parse --short HEAD 2> /dev/null)
+export NEMO_REV=$(git -C ${MAIN_DIR} rev-parse --short=8 HEAD 2> /dev/null)
 
 # Parse command-line arguments
 if [ $# -gt 0 ]; then
@@ -264,18 +264,31 @@ if [[ ${WAIT_SETTE} -eq 1 && "${TEST_TYPES[@]}" =~ (RESTART|REPRO|CORRUPT|PHYOPT
          echo $NRUN "sette jobs still in queue or running ..."
          sleep 10
       else
-         echo "all sette runs completed"
+         echo "all sette jobs completed"
          break
       fi
    done
+   # check jobs exit codes
+   if [[ "${BATCH_STAT}" == "squeue"* && -n "${BATCH_LST[@]}" ]]; then
+     BATCH_EXITCODE=( $(sacct --job=$(tr ' ' ',' <<< ${BATCH_LST[@]}) --format=ExitCode --noheader --allocations | cut -d":" -f 1) )
+     if [ $(IFS=+; echo "$((${BATCH_EXITCODE[*]}))") -gt 0 ]; then
+       echo ""
+       echo "---------------------------------------------------------------"
+       echo "sette jobs failed: please check jobs log and ocean.output files"
+       echo "---------------------------------------------------------------"
+       echo ""
+       exit 42
+     fi
+   fi
 fi
 
 # run sette report
-if [ ${SETTE_REPORT} -eq 1 ] ; then
+if [ ${SETTE_REPORT} -eq 1 ]; then
    echo ""
    echo "-------------------------------------------------------------"
    echo "./sette_rpt.sh"
    echo "-------------------------------------------------------------"
+   echo ""
    ./sette_rpt.sh ${NEMO_DEBUG} -n "${TEST_CONFIGS[*]}"
    if [[ $? != 0 ]]; then
       echo ""

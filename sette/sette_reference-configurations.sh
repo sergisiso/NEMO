@@ -111,7 +111,6 @@ fi
 CONFIG_DIR0=${MAIN_DIR}/cfgs
 TOOLS_DIR=${MAIN_DIR}/tools
 if [ -n "${CUSTOM_DIR}" ]; then
-  #NEMO_REV=$( git rev-parse --short HEAD 2> /dev/null )
   CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
   if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]; then
     export CMP_DIR=${CUSTOM_DIR}/${SETTE_SUB_VAL}_${NEMO_REV}_DEBUG
@@ -124,7 +123,7 @@ CMP_NAM_L=$(echo ${CMP_NAM} | tr '[:upper:]' '[:lower:]')
 
 # Copy job_batch_COMPILER file for specific compiler into job_batch_template
 cd ${SETTE_DIR}
-cp BATCH_TEMPLATE/${JOB_PREFIX}-${COMPILER} job_batch_template || exit
+cp BATCH_TEMPLATE/${JOB_PREFIX}-${COMPILER} job_batch_template || exit 1
 # Description of available configurations:
 # GYRE_PISCES       :
 # ORCA2_ICE_PISCES  :
@@ -189,7 +188,8 @@ if [ ${config} == "GYRE_PISCES" ] ; then
         #
         # GYRE uses linssh so remove key_qco if added by default
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit 1
+        MAKENEMO
     fi
 
     # Configure and submit test runs for the GYRE_PISCES SETTE configuration
@@ -307,7 +307,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
         sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         #
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit 1
     fi
 
     # Configure and submit test runs for the ORCA2_ICE_PISCES SETTE
@@ -455,7 +455,7 @@ if [ ${config} == "ORCA2_OFF_PISCES" ]  ;  then
         #
         # ORCA2_OFF_PISCES uses linssh so remove key_qco if added by default
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_OFF_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit 1
     fi
 
     # Configure and submit test runs for the ORCA2_OFF_PISCES SETTE
@@ -576,7 +576,7 @@ if [ ${config} == "AMM12" ] ;  then
         sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         #
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AMM12 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit 1
     fi
 
     # Configure and submit test runs for the AMM12 SETTE configuration (if any)
@@ -684,7 +684,7 @@ if [ ${config} == "ORCA2_SAS_ICE" ] ;  then
         #
         # ORCA2_SAS_ICE uses linssh so remove key_qco if added by default
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_SAS_ICE ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit 1
     fi
 
     # Configure and submit test runs for the ORCA2_SAS_ICE SETTE configuration
@@ -804,7 +804,7 @@ if [ ${config} == "ORCA2_ICE_OBS" ] ;  then
         sync_config  ${CONFIG_DIR0}/ORCA2_ICE_PISCES ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         #
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ORCA2_ICE_PISCES -d "OCE ICE" ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "key_asminc ${ADD_KEYS}" del_key "key_top ${DEL_KEYS}" || exit 1
     fi
 
     # Configure and submit test runs for the ORCA2_ICE_OBS SETTE configuration
@@ -940,7 +940,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
         sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         #
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "${DEL_KEYS}" || exit 1
     fi
 
     # Configure and submit test runs for the AGRIF_DEMO configuration (if any)
@@ -1104,7 +1104,7 @@ if [ ${config} == "AGRIF_DEMO" ] ;  then
             sync_config  ${CONFIG_DIR0}/${config} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
             #
             ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r AGRIF_DEMO ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                       -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "key_agrif ${DEL_KEYS}" || exit
+                       -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS}" del_key "key_agrif ${DEL_KEYS}" || exit 1
             EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
             cd ${EXE_DIR}
             set_namelist namelist_cfg cn_exp \"ORCA2\"
@@ -1159,7 +1159,7 @@ if [ ${config} == "WED025" ] ;  then
         #
         # WED025 uses ln_hpg_isf so remove key_qco if added by default
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r WED025 ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit 1
     fi
 
     # Configure and submit test runs for the WED025 configuration (if any)
@@ -1271,7 +1271,7 @@ if [ ${config} == "C1D_PAPA" ]  ; then
         #
         # C1D_PAPA uses linssh so remove key_qco if added by default
         ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config/_PAPA} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
-                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit 1
     fi
 
     # Configure and submit test runs for the C1D_PAPA configuration (if any)
