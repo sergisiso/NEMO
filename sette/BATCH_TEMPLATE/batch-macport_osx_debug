@@ -74,9 +74,7 @@ cd ${EXE_DIR}
 
 
 #
-  post_test_tidyup
+(post_test_tidyup) || exit $?
 
 # END_BODY
 # Don't remove neither change the previous comment line
-
-  exit
