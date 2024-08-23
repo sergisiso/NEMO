@@ -634,7 +634,7 @@ CONTAINS
                !                                             ! =====================
                !
                ii0 = 140   ;   ii1 = 140                  ! Gibraltar Strait open 
-               ij0 = 102   ;   ij1 = 102                  ! (Thomson, Ocean Modelling, 1995)
+               ij0 = 102+1 ;   ij1 = 102+1                ! (Thomson, Ocean Modelling, 1995)
                DO ji = mi0(ii0), mi1(ii1)
                   DO jj = mj0(ij0), mj1(ij1)
                      mbathy(ji,jj) = 15
@@ -644,7 +644,7 @@ CONTAINS
                IF(lwp) WRITE(numout,*) '      orca_r2: Gibraltar strait open at i=',ii0,' j=',ij0
                !
                ii0 = 160   ;   ii1 = 160                  ! Bab el mandeb Strait open
-               ij0 = 88    ;   ij1 = 88                   ! (Thomson, Ocean Modelling, 1995)
+               ij0 = 88+1  ;   ij1 = 88+1                 ! (Thomson, Ocean Modelling, 1995)
                DO ji = mi0(ii0), mi1(ii1)
                   DO jj = mj0(ij0), mj1(ij1)
                      mbathy(ji,jj) = 12
@@ -695,7 +695,7 @@ CONTAINS
             IF( cp_cfg == "orca" .AND. jp_cfg == 2 ) THEN    ! ORCA R2 configuration
             !
               ii0 = 140   ;   ii1 = 140                   ! Gibraltar Strait open 
-              ij0 = 102   ;   ij1 = 102                   ! (Thomson, Ocean Modelling, 1995)
+              ij0 = 102+1 ;   ij1 = 102+1                 ! (Thomson, Ocean Modelling, 1995)
               DO ji = mi0(ii0), mi1(ii1)
                  DO jj = mj0(ij0), mj1(ij1)
                     bathy(ji,jj) = 284._wp
@@ -705,7 +705,7 @@ CONTAINS
               IF(lwp) WRITE(numout,*) '      orca_r2: Gibraltar strait open at i=',ii0,' j=',ij0
               !
               ii0 = 160   ;   ii1 = 160                   ! Bab el mandeb Strait open
-              ij0 = 88    ;   ij1 = 88                    ! (Thomson, Ocean Modelling, 1995)
+              ij0 = 88+1  ;   ij1 = 88+1                  ! (Thomson, Ocean Modelling, 1995)
                DO ji = mi0(ii0), mi1(ii1)
                  DO jj = mj0(ij0), mj1(ij1)
                     bathy(ji,jj) = 137._wp
