@@ -103,8 +103,9 @@ MODULE icb_oce
    INTEGER , PUBLIC ::   nn_verbose_level                !: Turn on debugging when level > 0
    INTEGER , PUBLIC ::   nn_test_icebergs                !: Create icebergs in absence of a restart file from the supplied class nb
    REAL(wp), PUBLIC, DIMENSION(4) ::   rn_test_box       !: lon1,lon2,lat1,lat2 box to create them in
-   LOGICAL , PUBLIC ::   ln_use_calving                  !: Force use of calving data even with nn_test_icebergs > 0 
+   LOGICAL , PUBLIC ::   ln_use_calving                  !: Choose whether to use calving data
                                                          !  (default is not to use calving data with test bergs)
+   LOGICAL , PUBLIC ::   ln_use_test                     !: Choose whether to use test icebergs                                       
    INTEGER , PUBLIC ::   nn_sample_rate                  !: Timesteps between sampling of position for trajectory storage
    INTEGER , PUBLIC ::   nn_verbose_write                !: timesteps between verbose messages
    REAL(wp), PUBLIC ::   rn_rho_bergs                    !: Density of icebergs

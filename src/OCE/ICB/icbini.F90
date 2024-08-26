@@ -237,9 +237,31 @@ CONTAINS
       ! and incremented by the total number of processors
       num_bergs(:) = 0
       num_bergs(1) = narea - jpnij
+      
+      ! stop NEMO if (nn_test_icebergs <= 0), while using the test_icebergs option
+      IF( ln_use_test .AND.  nn_test_icebergs <= 0 ) CALL ctl_stop('icbini: You are using the test-icebergs option but the number of icebergs is 0 or negative')
 
+      IF( .NOT. ln_use_test  .AND. .NOT. ln_use_calving ) THEN   ! this if-condition is the default case :
+                                                                 ! the user did not write any parameter in namelist_cfg
+                                                                 ! so there is no iceberg source in the namelist
+
+         ! if no restart to be read at first time step (which could contain icebergs), send E R R O R and STOP Nemo 
+         IF (kt == 1 .AND. ln_rstart == .false. ) THEN
+            CALL ctl_stop('icbini: You are using the Iceberg module but there is no iceberg source at all, so STOP ! you are wasting your time !!')
+
+         ! else (explicitely,  If kt > 1 or if there is a restart to be read), just leave a warning
+         ELSE
+                 
+            WRITE(numout,*)
+            WRITE(numout,*) '    W A R N I N G !!!'
+            WRITE(numout,*)
+            WRITE(numout,*) '    ==>>> icbini: there is no iceberg source in the namelist (see namberg) !!'
+         
+         ENDIF
+      ENDIF
+      
       ! when not generating test icebergs we need to setup calving file
-      IF( nn_test_icebergs < 0 .OR. ln_use_calving ) THEN
+      IF( ln_use_calving ) THEN
          !
          ! maximum distribution class array does not change in time so read it once
          cl_sdist = TRIM( cn_dir )//TRIM( sn_icb%clname )
@@ -265,18 +287,14 @@ CONTAINS
          !                                          ! fill sf_icb with the namelist (sn_icb) and control print
          CALL fld_fill( sf_icb, (/ sn_icb /), cn_dir, 'icb_init', 'read calving data', 'namicb' )
          !
-      ENDIF
-
-      IF( .NOT.ln_rstart ) THEN
-         IF( nn_test_icebergs > 0 )   CALL icb_ini_gen( Kmm )
-      ELSE
-         IF( nn_test_icebergs > 0 ) THEN
-            CALL icb_ini_gen( Kmm )
-         ELSE
-            CALL icb_rst_read()
-            l_restarted_bergs = .TRUE.
-         ENDIF
-      ENDIF
+      ENDIF 
+      !
+      IF( ln_use_test )   CALL icb_ini_gen( Kmm )
+      !
+      IF( ln_rstart ) THEN
+         CALL icb_rst_read()
+         l_restarted_bergs = .TRUE.
+      END IF
       !
       IF( nn_sample_rate .GT. 0 ) CALL icb_trj_init( nitend )
       !
@@ -379,7 +397,7 @@ CONTAINS
          &              ln_time_average_weight          , nn_test_icebergs    , rn_test_box          ,   &
          &              ln_use_calving , rn_speed_limit , cn_dir, sn_icb      , ln_M2016             ,   &
          &              cn_icbrst_indir, cn_icbrst_in   , cn_icbrst_outdir    , cn_icbrst_out        ,   &
-         &              ln_icb_grd
+         &              ln_icb_grd, ln_use_test
       !!----------------------------------------------------------------------
 
 #if defined key_agrif
@@ -418,12 +436,6 @@ CONTAINS
          nn_test_icebergs = nclasses
       ENDIF
       !
-      IF( nn_test_icebergs < 0 .AND. .NOT. ln_use_calving ) THEN
-         IF(lwp) WRITE(numout,*)
-         IF(lwp) WRITE(numout,*) '   ==>>>   Resetting ln_use_calving to .true. since we are not using test icebergs'
-         ln_use_calving = .true.
-      ENDIF
-      !
       IF(lwp) THEN                  ! control print
          WRITE(numout,*)
          WRITE(numout,*) 'icb_nam : iceberg initialization through namberg namelist read'
@@ -458,15 +470,16 @@ CONTAINS
 
          WRITE(numout,*) '   Use icb module modification from Merino et al. (2016) : ln_M2016 = ', ln_M2016
          WRITE(numout,*) '       ground icebergs if icb bottom lvl hit the oce bottom level : ln_icb_grd = ', ln_icb_grd
-
+         
          WRITE(numout,*) '   Shift of sea-ice concentration in erosion flux modulation ',   &
             &                    '(0<sicn_shift<1)    rn_sicn_shift  = ', rn_sicn_shift
          WRITE(numout,*) '   Do not add freshwater flux from icebergs to ocean                ',   &
             &                    '                  passive_mode            = ', ln_passive_mode
          WRITE(numout,*) '   Time average the weight on the ocean   time_average_weight       = ', ln_time_average_weight
+         WRITE(numout,*) '   Use the iceberg test option                         ln_use_test  = ', ln_use_test
          WRITE(numout,*) '   Create icebergs in absence of a restart file   nn_test_icebergs  = ', nn_test_icebergs
          WRITE(numout,*) '                   in lon/lat box                                   = ', rn_test_box
-         WRITE(numout,*) '   Use calving data even if nn_test_icebergs > 0    ln_use_calving  = ', ln_use_calving
+         WRITE(numout,*) '   Use calving data option                          ln_use_calving  = ', ln_use_calving
          WRITE(numout,*) '   CFL speed limit for a berg            speed_limit                = ', rn_speed_limit
          WRITE(numout,*) '   Writing Iceberg status information to icebergs.stat file        '
       ENDIF

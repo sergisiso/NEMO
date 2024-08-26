@@ -72,7 +72,7 @@ CONTAINS
          !
          nktberg = kt
          !
-         IF( nn_test_icebergs < 0 .OR. ln_use_calving ) THEN !* read calving data
+         IF( ln_use_calving ) THEN !* read calving data
             !
             CALL fld_read ( kt, 1, sf_icb )
             src_calving     (:,:) = sf_icb(1)%fnow(:,:,1)    ! calving in km^3/year (water equivalent)
