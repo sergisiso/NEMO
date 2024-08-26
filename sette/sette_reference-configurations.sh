@@ -393,7 +393,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
             cd ${EXE_DIR}
             set_namelist namelist_cfg cn_exp \"O2L3P_SHORT\"
             set_namelist_rst namelist ${ITEND} "O2L3P_LONG" "OCE ICE TOP ABL ICB"
-            set_namelist namelist_cfg nn_test_icebergs -1
+            set_namelist namelist_cfg ln_use_test .false.
             set_namelist namelist_ice_cfg ln_icediachk .true.
             cd ${SETTE_DIR}
             . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
@@ -424,6 +424,9 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
                 set_namelist namelist_cfg jpnj 4
             fi
             set_namelist namelist_top_cfg ln_trcdta .false.
+	    set_namelist namelist_cfg ln_use_test .true.
+            set_namelist namelist_cfg nn_test_icebergs 10
+
             cd ${SETTE_DIR}
             . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
             cd ${SETTE_DIR}
@@ -910,6 +913,10 @@ EOF
                 set_namelist namelist_cfg jpni 8
                 set_namelist namelist_cfg jpnj 4
             fi
+
+            set_namelist namelist_cfg ln_use_test .true.
+            set_namelist namelist_cfg nn_test_icebergs 10
+
             cd ${SETTE_DIR}
             . ./prepare_job.sh input_ORCA2_ICE_OBS.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
             cd ${SETTE_DIR}
