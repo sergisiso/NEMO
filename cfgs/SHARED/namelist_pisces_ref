@@ -93,7 +93,7 @@
    xkdoc      =  417.E-6  ! half-saturation constant of DOC remineralization
    qnfelim    =  10.E-6   ! Optimal quota of phyto
    qdfelim    =  10.E-6   ! Optimal quota of diatoms
-   caco3r     =  0.2      ! mean rain ratio
+   caco3r     =  0.15      ! mean rain ratio
    oxymin     =  1.E-6    ! Half-saturation constant for anoxia
    ratchl     =  10.0     ! C associated with Chlorophyll
 /
@@ -440,8 +440,12 @@
 !-----------------------------------------------------------------------
 &nampissed     !   Namelist parameters for burial in sediments ( Dune et Al. 2007 )
 !-----------------------------------------------------------------------
-    bureffmin  = 0.020     !: Minimum burial efficiency
-    bureffvar  = 0.053      !: Variable coef. for burial efficiency
+   bureffmin     = 0.020   !: Minimum burial efficiency
+   bureffvar     = 0.053   !: Variable coef. for burial efficiency
+   sedsilfrac    = 0.03    ! percentage of silica loss in the sediments
+   sedcalfrac    = 0.78    ! percentage of calcite loss in the sediments ( 0.78 is for river x1.5 )
+   sedfactcalmin = 0.3     !: Minimum value for dissolving calcite at the bottom
+   sedfactcalvar = 0.7     !: Variable  value for dissolving calcite at the bottom
 /
 !-----------------------------------------------------------------------
 &nampisice     !   Prescribed sea ice tracers
@@ -490,5 +494,6 @@
 !-----------------------------------------------------------------------
 &nampisdmp     !   Damping 
 !-----------------------------------------------------------------------
-   ln_pisdmp    =  .false.     !  Relaxation for some tracers to a mean value
+   ln_pisdmp     =  .false.     !  Relaxation for some tracers to a mean value
+   ln_pisdmp_alk = .false.
 /
