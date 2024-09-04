@@ -67,7 +67,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Krhs  ! time level indices
       INTEGER  ::   ji, jj, jk
       REAL(wp) ::   zcompaph
-      REAL(wp) ::   zfactfe, zfactch, zprcaca, zfracal
+      REAL(wp) ::   zfactfe, zfactch, zprcaca
       REAL(wp) ::   ztortp , zrespp , zmortp, zlim1, zlim2 
       CHARACTER (len=25) ::   charout
       !!---------------------------------------------------------------------
@@ -82,14 +82,14 @@ CONTAINS
          ! blooms (Doney et al. 1996)
          ! -----------------------------------------------------
          zlim2   = xlimphy(ji,jj,jk) * xlimphy(ji,jj,jk)
-         zlim1   = 0.25 * ( 1. - zlim2 ) / ( 0.25 + zlim2 ) * tr(ji,jj,jk,jpphy,Kbb)
+         zlim1   = 0.0625 / ( 0.0625 + zlim2 ) * tr(ji,jj,jk,jpphy,Kbb)
          zrespp  = wchln * 1.e6 * xstep * zlim1 * xdiss(ji,jj,jk) * zcompaph
 
          ! Phytoplankton linear mortality
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of nanophyto in highly limited areas
          ! ----------------------------------------------------
-         ztortp = mpratn * xstep * zcompaph / ( xkmort + tr(ji,jj,jk,jpphy,Kbb) ) * tr(ji,jj,jk,jpphy,Kbb)
+         ztortp = mpratn * tgfunc(ji,jj,jk) * xstep * zlim1 / ( xkmort + tr(ji,jj,jk,jpphy,Kbb) ) * zcompaph
 
          zmortp = zrespp + ztortp
          
@@ -106,15 +106,16 @@ CONTAINS
 
          ! POC associated with the shell is supposed to be routed to 
          ! big particles because of the ballasting effect
-         zfracal = 0.5 * xfracal(ji,jj,jk)
          tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) - zprcaca
          tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - 2. * zprcaca
          tr(ji,jj,jk,jpcal,Krhs) = tr(ji,jj,jk,jpcal,Krhs) + zprcaca
-         tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + zmortp
-         prodpoc(ji,jj,jk) = prodpoc(ji,jj,jk) + zmortp
+         tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) + ztortp
+         tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + zrespp
+         prodpoc(ji,jj,jk) = prodpoc(ji,jj,jk) + zrespp
 
          ! Update the arrays TRA which contains the biological sources and sinks
-         tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zmortp * zfactfe
+         tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zrespp * zfactfe
+         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + ztortp * zfactfe
          !
       END_3D
       !
@@ -140,7 +141,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Krhs  ! time level indices
       INTEGER  ::   ji, jj, jk
       REAL(wp) ::   zfactfe,zfactsi,zfactch, zcompadi
-      REAL(wp) ::   zrespp2, ztortp2, zmortp2
+      REAL(wp) ::   zrespp, ztortp, zmortp
       REAL(wp) ::   zlim2, zlim1
       CHARACTER (len=25) ::   charout
       !!---------------------------------------------------------------------
@@ -162,36 +163,34 @@ CONTAINS
          ! sticky and coagulate to sink quickly out of the euphotic zone
          ! ------------------------------------------------------------
          zlim2   = xlimdia(ji,jj,jk) * xlimdia(ji,jj,jk)
-         zlim1   = 0.25 * ( 1. - zlim2 ) / ( 0.25 + zlim2 ) 
-         zrespp2 = 1.e6 * xstep * wchld * zlim1 * xdiss(ji,jj,jk) * zcompadi * tr(ji,jj,jk,jpdia,Kbb)
+         zlim1   = 0.0625 / ( 0.0625 + zlim2 ) * tr(ji,jj,jk,jpdia,Kbb)
+         zrespp  = 1.e6 * xstep * wchld * zlim1 * xdiss(ji,jj,jk) * zcompadi
 
          ! Phytoplankton linear mortality
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of diatoms in highly limited areas
          !  ---------------------------------------------------
-         ztortp2 = mpratd * xstep * tr(ji,jj,jk,jpdia,Kbb)  / ( xkmort + tr(ji,jj,jk,jpdia,Kbb) ) * zcompadi 
-
-         zmortp2 = zrespp2 + ztortp2
+         ztortp = mpratd * xstep * tgfunc(ji,jj,jk) * zlim1  / ( xkmort + tr(ji,jj,jk,jpdia,Kbb) ) * zcompadi 
+         zmortp = zrespp + ztortp
 
          !   Update the arrays trends which contains the biological sources and sinks
          !   ---------------------------------------------------------------------
          zfactch = tr(ji,jj,jk,jpdch,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
          zfactfe = tr(ji,jj,jk,jpdfe,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
          zfactsi = tr(ji,jj,jk,jpdsi,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
-         tr(ji,jj,jk,jpdia,Krhs) = tr(ji,jj,jk,jpdia,Krhs) - zmortp2 
-         tr(ji,jj,jk,jpdch,Krhs) = tr(ji,jj,jk,jpdch,Krhs) - zmortp2 * zfactch
-         tr(ji,jj,jk,jpdfe,Krhs) = tr(ji,jj,jk,jpdfe,Krhs) - zmortp2 * zfactfe
-         tr(ji,jj,jk,jpdsi,Krhs) = tr(ji,jj,jk,jpdsi,Krhs) - zmortp2 * zfactsi
-         tr(ji,jj,jk,jpgsi,Krhs) = tr(ji,jj,jk,jpgsi,Krhs) + zmortp2 * zfactsi
+         tr(ji,jj,jk,jpdia,Krhs) = tr(ji,jj,jk,jpdia,Krhs) - zmortp 
+         tr(ji,jj,jk,jpdch,Krhs) = tr(ji,jj,jk,jpdch,Krhs) - zmortp * zfactch
+         tr(ji,jj,jk,jpdfe,Krhs) = tr(ji,jj,jk,jpdfe,Krhs) - zmortp * zfactfe
+         tr(ji,jj,jk,jpdsi,Krhs) = tr(ji,jj,jk,jpdsi,Krhs) - zmortp * zfactsi
+         tr(ji,jj,jk,jpgsi,Krhs) = tr(ji,jj,jk,jpgsi,Krhs) + zmortp * zfactsi
 
          ! Half of the linear mortality term is routed to big particles
          ! becaue of the ballasting effect
-         tr(ji,jj,jk,jpgoc,Krhs) = tr(ji,jj,jk,jpgoc,Krhs) + zrespp2
-         tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + ztortp2
-         prodpoc(ji,jj,jk) = prodpoc(ji,jj,jk) + ztortp2
-         prodgoc(ji,jj,jk) = prodgoc(ji,jj,jk) + zrespp2
-         tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + ztortp2 * zfactfe
-         tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zrespp2 * zfactfe
+         tr(ji,jj,jk,jpgoc,Krhs) = tr(ji,jj,jk,jpgoc,Krhs) + zrespp
+         tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) + ztortp
+         prodgoc(ji,jj,jk) = prodgoc(ji,jj,jk) + zrespp
+         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + ztortp * zfactfe
+         tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zrespp * zfactfe
       END_3D
       !
       IF(sn_cfctl%l_prttrc) THEN      ! print mean trends (used for debugging)
