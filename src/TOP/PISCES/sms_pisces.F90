@@ -58,6 +58,9 @@ MODULE sms_pisces
    REAL(wp) ::  t_oce_co2_flx_cum !: Cumulative Total ocean carbon flux
    REAL(wp) ::  t_atm_co2_flx     !: global mean of atmospheric pco2
 
+   !!* restoring
+   LOGICAL  ::  ln_pisdmp         !: restoring or not of nutrients to a mean value
+
    LOGICAL, PUBLIC ::   ln_ironice   !: boolean for Fe input from sea ice
 
    !!* Diurnal cycle in PISCES
@@ -94,9 +97,9 @@ MODULE sms_pisces
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   consgoc    !: GOC consumption
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   consfe3    !: GOC consumption
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   blim       !: bacterial production factor
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sizen      !: size of nanophyto
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sizep      !: size of picophyto
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sized      !: size of diatoms 
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sizen, logsizen    !: size of nanophyto
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sizep, logsizep    !: size of picophyto
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sized, logsized    !: size of diatoms 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sizena     !: size of nanophytoplankton, after
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sizepa     !: size of picophyto, after
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   sizeda     !: size of diatomss, after
@@ -161,7 +164,8 @@ CONTAINS
       ALLOCATE( wsbio3 (A2D(0),jpk) , wsbio4 (A2D(0),jpk),     STAT=ierr(6) )
 
       !*  Size of phytoplankton cells
-      ALLOCATE( sizen (A2D(0),jpk), sizena(A2D(0),jpk),        STAT=ierr(7) )
+      ALLOCATE( sizen (A2D(0),jpk), sizena(A2D(0),jpk),       &
+         &      logsizen(A2D(0),jpk),                          STAT=ierr(7) )
 
       ALLOCATE( blim     (A2D(0),jpk), consfe3 (A2D(0),jpk),  &
          &      xfecolagg(A2D(0),jpk), xcoagfe (A2D(0),jpk),   STAT=ierr(8) )
@@ -185,7 +189,8 @@ CONTAINS
          ALLOCATE( xksi (A2D(0))  ,                            STAT=ierr(14) )
 
          !*  Size of phytoplankton cells
-         ALLOCATE( sized (A2D(0),jpk), sizeda(A2D(0),jpk),     STAT=ierr(15) )
+         ALLOCATE( sized (A2D(0),jpk), sizeda(A2D(0),jpk),     &
+            &      logsized(A2D(0),jpk),                       STAT=ierr(15) )
          ! 
       ENDIF
       !
@@ -194,7 +199,8 @@ CONTAINS
          ALLOCATE( epico(A2D(0),jpk)   , epicom(A2D(0),jpk),   STAT=ierr(16) ) 
 
          !*  Size of phytoplankton cells
-         ALLOCATE( sizep(A2D(0),jpk), sizepa(A2D(0),jpk),      STAT=ierr(17) )
+         ALLOCATE( sizep(A2D(0),jpk), sizepa(A2D(0),jpk),      &
+            &      logsizep(A2D(0),jpk),                       STAT=ierr(17) )
       ENDIF
       !
       sms_pisces_alloc = MAXVAL( ierr )

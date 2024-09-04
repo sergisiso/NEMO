@@ -96,7 +96,7 @@ CONTAINS
       ! absolute light level definition of the euphotic zone
       ! ------------------------------------------------------------------------- 
       IF ( ln_p4z_dcyc ) THEN    ! Diurnal cycle in PISCES
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         DO_3D( 0, 0, 0, 0, 1, nksr )
             IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
                zval = 24.0
                IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
@@ -106,7 +106,7 @@ CONTAINS
             ENDIF
          END_3D
       ELSE ! No diurnal cycle in PISCES
-         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         DO_3D( 0, 0, 0, 0, 1, nksr )
             IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
                zval = MAX( 1., strn(ji,jj) )
                IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
@@ -121,7 +121,7 @@ CONTAINS
       ! to exclude the effect of nutrient limitation and temperature in the PI
       ! curve following Vichi et al. (2007)
       ! -----------------------------------------------------------------------
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, nksr )
          IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
             zmxl_fac = 1.0 - EXP( -0.26 * zmxl(ji,jj,jk) )
             zmxl_chl = zmxl(ji,jj,jk) / 24.
@@ -148,7 +148,7 @@ CONTAINS
       !  and light limitation. Steady state is assumed to allow the computation
       !  ----------------------------------------------------------------------
       !thetanano(:,:,:) = chlcnm
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1 )
           zval = xnanono3(ji,jj,jk) * zprmax(ji,jj,jk) / ( zprbio(ji,jj,jk) + rtrn )
           quotan(ji,jj,jk) = MIN( 1., 0.3 + 0.7 * zval )
 
@@ -163,13 +163,13 @@ CONTAINS
       ! Sea-ice effect on production
       ! No production is assumed below sea ice
       ! -------------------------------------- 
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, nksr )
          zprbio(ji,jj,jk) = zprbio(ji,jj,jk) * ( 1. - fr_i(ji,jj) )
       END_3D
 
       ! Computation of the various production  and nutrient uptake terms
       ! ---------------------------------------------------------------
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, nksr )
          IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
             !  production terms for nanophyto. (C)
             zprorcan(ji,jj,jk) = zprbio(ji,jj,jk)  * xlimphy(ji,jj,jk) * tr(ji,jj,jk,jpphy,Kbb) * rfact2
@@ -180,22 +180,24 @@ CONTAINS
             ! size at time step t+1 and is thus updated at the end of the 
             ! current time step
             ! --------------------------------------------------------------------
-            zlimfac = xlimphy(ji,jj,jk) * zprchln(ji,jj,jk) 
+            zlimfac  = xlimphy(ji,jj,jk) * zprbio(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
             zlimfac3 = zlimfac * zlimfac * zlimfac
             zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
-            sizena(ji,jj,jk) = min(xsizern, max( sizena(ji,jj,jk), zsizetmp ) )
+            sizena(ji,jj,jk) = sizen(ji,jj,jk) + zprbio(ji,jj,jk) * xlimphy(ji,jj,jk) * ( 1.0 - xlimphy(ji,jj,jk) )   &
+              &          * rfact2 * ( zsizetmp - sizen(ji,jj,jk) ) * ABS( zsizetmp / sizen(ji,jj,jk) - 1.0 )
+            sizena(ji,jj,jk) = MIN( xsizern, sizena(ji,jj,jk) )
          ENDIF
       END_3D
 
       !   Update the arrays TRA which contain the biological sources and sinks
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+      DO_3D( 0, 0, 0, 0, 1, nksr )
          IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
             zprodfer = zprorcan(ji,jj,jk) * feratz * texcretn
             !
             tr(ji,jj,jk,jpno3,Krhs) = tr(ji,jj,jk,jpno3,Krhs) - zprorcan(ji,jj,jk)
             tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) - zprorcan(ji,jj,jk) * feratz * texcretn
-            consfe3(ji,jj,jk)   = zprodfer * 75.0 / ( rtrn + ( plig(ji,jj,jk) + 75.0 * (1.0 - plig(ji,jj,jk) ) )   &
-            &                   * tr(ji,jj,jk,jpfer,Kbb) ) / rfact2
+            consfe3(ji,jj,jk)       = zprodfer * 75.0 / ( rtrn + ( plig(ji,jj,jk) + 75.0 * (1.0 - plig(ji,jj,jk) ) )   &
+              &                       * tr(ji,jj,jk,jpfer,Kbb) ) / rfact2
             !
             tr(ji,jj,jk,jpphy,Krhs) = tr(ji,jj,jk,jpphy,Krhs) + zprorcan(ji,jj,jk) * texcretn
             tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) + excretn * zprorcan(ji,jj,jk)

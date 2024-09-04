@@ -63,8 +63,8 @@ CONTAINS
       INTEGER, INTENT(in)  :: Kbb, Kmm      ! time level indices
       !
       INTEGER  ::   ji, jj, jk
-      REAL(wp) ::   zcoef, zconc0n, zconcnf, zlim1, zlim2, zlim3
-      REAL(wp) ::   zbiron, ztem1, ztem2, zetot1, zetot2, zsize
+      REAL(wp) ::   zconc0n, zconcnf, zlim1, zlim2, zlim3
+      REAL(wp) ::   ztem1, ztem2, zetot1, zetot2, zsize
       REAL(wp) ::   zferlim, zno3
       !!---------------------------------------------------------------------
       !
@@ -88,19 +88,16 @@ CONTAINS
          ! that increasing biomass is made of generally bigger cells
          ! The allometric relationship is classical.
          !------------------------------------------------
-         zsize    = sizen(ji,jj,jk)**0.81
-         zconc0n  = concnno3 * zsize
-         zconcnf  = concnfer * zsize
-
-         ! Nanophytoplankton
-         zbiron = ( 75.0 * ( 1.0 - plig(ji,jj,jk) ) + plig(ji,jj,jk) ) * biron(ji,jj,jk)
+         zsize   = sizen(ji,jj,jk)**0.81
+         zconc0n = concnno3 * zsize
+         zconcnf = concnfer * zsize
 
          ! Michaelis-Menten Limitation term by nutrients of
          ! heterotrophic bacteria
          ! -------------------------------------------------
-         zlim1  = tr(ji,jj,jk,jpno3,Kbb) / ( concbno3 + tr(ji,jj,jk,jpno3,Kbb) )
-         zlim2  = zbiron / ( concbfe + zbiron )
-         zlim3  = tr(ji,jj,jk,jpdoc,Kbb) / ( xkdoc   + tr(ji,jj,jk,jpdoc,Kbb) )
+         zlim1   = tr(ji,jj,jk,jpno3,Kbb) / ( concbno3 + tr(ji,jj,jk,jpno3,Kbb) )
+         zlim2   = biron(ji,jj,jk) / ( concbfe + biron(ji,jj,jk) )
+         zlim3   = tr(ji,jj,jk,jpdoc,Kbb) / ( xkdoc   + tr(ji,jj,jk,jpdoc,Kbb) )
 
          ! Xlimbac is used for DOC solubilization whereas xlimbacl
          ! is used for all the other bacterial-dependent terms
@@ -116,18 +113,9 @@ CONTAINS
 
          ! Limitation of nanophytoplankton growth
          xnanono3(ji,jj,jk) = tr(ji,jj,jk,jpno3,Kbb) / ( zconc0n + tr(ji,jj,jk,jpno3,Kbb) )
-         xlimnfe (ji,jj,jk) = zbiron / ( zbiron + zconcnf )
+         xlimnfe (ji,jj,jk) = biron(ji,jj,jk) / ( biron(ji,jj,jk) + zconcnf )
          xlimphy (ji,jj,jk) = MIN( xlimnfe(ji,jj,jk), xnanono3(ji,jj,jk) )
       END_3D
-
-      ! Size estimation of phytoplankton based on total biomass
-      ! Assumes that larger biomass implies addition of larger cells
-      ! ------------------------------------------------------------
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zcoef = tr(ji,jj,jk,jpphy,Kbb) - MIN(xsizephy, tr(ji,jj,jk,jpphy,Kbb) )
-         sizena(ji,jj,jk) = 1. + ( xsizern -1.0 ) * zcoef / ( xsizephy + zcoef )
-      END_3D
-
 
       ! Compute the fraction of nanophytoplankton that is made of calcifiers
       ! This is a purely adhoc formulation described in Aumont et al. (2015)
@@ -141,7 +129,7 @@ CONTAINS
 
          xfracal(ji,jj,jk) = caco3r * xlimphy(ji,jj,jk)                              &
             &                       * ztem1 / ( 0.1 + ztem1 )                        &
-            &                       * MAX( 1., tr(ji,jj,jk,jpphy,Kbb) / xsizephy )  &
+            &                       * MAX( 1., tr(ji,jj,jk,jpphy,Kbb) / xsizephy )   &
             &                       * zetot1 * zetot2                                &
             &                       * ( 1. + EXP(-ztem2 * ztem2 / 25. ) )            &
             &                       * MIN( 1., 50. / ( hmld(ji,jj) + rtrn ) )
