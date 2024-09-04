@@ -61,15 +61,14 @@ CONTAINS
          ! blooms (Doney et al. 1996)
          ! -----------------------------------------------------
          zlim2   = xlimphy(ji,jj,jk) * xlimphy(ji,jj,jk)
-         zlim1   = 0.25 * ( 1. - zlim2 ) / ( 0.25 + zlim2 ) * tr(ji,jj,jk,jpphy,Kbb)
+         zlim1   = 0.0625 / ( 0.0625 + zlim2 ) * tr(ji,jj,jk,jpphy,Kbb)
          zrespp  = wchln * 1.e6 * xstep * zlim1 * xdiss(ji,jj,jk) * zcompaph
 
          ! Phytoplankton linear mortality
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of nanophyto in highly limited areas
          ! ----------------------------------------------------
-         ztortp = mpratn * xstep * zcompaph / ( xkmort + tr(ji,jj,jk,jpphy,Kbb) ) * tr(ji,jj,jk,jpphy,Kbb)
-
+         ztortp = mpratn * tgfunc(ji,jj,jk) * xstep * zlim1 / ( xkmort + tr(ji,jj,jk,jpphy,Kbb) ) * zcompaph
          zmortp = zrespp + ztortp
          
          !   Update the arrays TRA which contains the biological sources and sinks
@@ -83,8 +82,11 @@ CONTAINS
          ! big particles because of the ballasting effect
          tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) - zprcaca
          tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - 2. * zprcaca
-         tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + zmortp
-         prodpoc(ji,jj,jk) = prodpoc(ji,jj,jk) + zmortp
+         tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + zrespp
+         tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) + ztortp
+         prodpoc(ji,jj,jk) = prodpoc(ji,jj,jk) + zrespp
+         !
+         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + ztortp * feratz
          !
       END_3D
       !
