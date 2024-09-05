@@ -978,11 +978,11 @@
 !----------------------------------------------------------------------------------
 &namldf_eke !   GEOMETRIC param. (total EKE equation)                           (nn_aei_ijk_t = 32)
 !----------------------------------------------------------------------------------
-   rn_ekedis      =  180.      ! dissipation time scale of EKE [days]
+   rn_ekedis      =  100.      ! dissipation time scale of EKE [days] (orca2 reference value)
       nn_eke_dis  =    0       ! dissipation option
       !                             !   =  0  constant in space
       !                             !   =-20  read in geom_diss_2D.nc file
-   rn_geom        =  0.05      ! geometric parameterization master coefficient (>0 & <1)
+   rn_geom        =  0.06      ! geometric parameterization master coefficient (>0 & <1) (orca2 reference value)
    rn_eke_init    =  1.e-1     ! initial total EKE value
    rn_eke_min     =  1.e+0     ! background value of total EKE
    rn_ross_min    =  4.e+3     ! tapering of aeiv based on min Rossby radius [m]

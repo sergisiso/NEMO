@@ -545,7 +545,11 @@ CONTAINS
       !                                      ! Tracer physics
                            CALL ldf_tra_init              ! Lateral ocean tracer physics
                            CALL ldf_eiv_init              ! Eddy induced velocity param. must be done after ldf_tra_init
-      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb, Nnn )  ! GEOMETRIC param.
+#if defined key_RK3
+      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb )      ! GEOMETRIC param. RK3
+#else
+      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb, Nnn ) ! GEOMETRIC param. MLF
+#endif
                            CALL tra_ldf_init              ! lateral mixing
       IF( l_ldfslp     )   CALL ldf_slp_init              ! slope of lateral mixing
       IF( ln_traqsr    )   CALL tra_qsr_init              ! penetrative solar radiation

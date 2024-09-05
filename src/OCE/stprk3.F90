@@ -7,6 +7,7 @@ MODULE stprk3
    !! History :  4.5  !  2021-01  (S. Techene, G. Madec, N. Ducousso, F. Lemarie)  Original code
    !!   NEMO     
    !!----------------------------------------------------------------------
+#if defined key_RK3
 #if defined key_qco   ||   defined key_linssh
    !!----------------------------------------------------------------------
    !!   'key_qco'                        Quasi-Eulerian vertical coordinate
@@ -172,6 +173,7 @@ CONTAINS
       ENDIF
       !                                                                        ! eddy diffusivity coeff.
       IF( l_ldftra_time .OR. l_ldfeiv_time )   CALL ldf_tra( kstp, Nbb, Nbb )  !       and/or eiv coeff.
+      IF( l_ldfeke                         )   CALL ldf_eke_eiv( kstp, Nbb )   ! GEOMETRIC param. (update of eiv coefficient)
       IF( l_ldfdyn_time                    )   CALL ldf_dyn( kstp, Nbb )       ! eddy viscosity coeff.
 
 
@@ -200,6 +202,8 @@ CONTAINS
       CALL rk3_dia( 1 )                                ! Diagnostics switched on for stage 3
       !
       CALL stp_RK3_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
+      !
+      IF ( l_ldfeke   )  CALL ldf_eke( kstp, Nbb )                ! GEOMETRIC param. (time evolution of eiv coefficient)
       !
       Nrhs = Nbb   ;   Nbb  = Naa   ;   Naa  = Nrhs    ! Swap: Nnn unchanged, Nbb <==> Naa
 
@@ -346,6 +350,10 @@ CONTAINS
    !!   default option             EMPTY MODULE           qco not activated
    !!----------------------------------------------------------------------
 #endif
-   
+#else
+   !!----------------------------------------------------------------------
+   !!   default option             EMPTY MODULE           RK3 not activated
+   !!----------------------------------------------------------------------
+#endif  
    !!======================================================================
 END MODULE stprk3
