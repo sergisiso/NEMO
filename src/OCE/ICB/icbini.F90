@@ -109,8 +109,6 @@ CONTAINS
       src_calving_hflx       (:,:)   = 0._wp
 
       !                          ! domain for icebergs
-      IF( lk_mpp .AND. jpni == 1 )   CALL ctl_stop( 'icbinit: having ONE processor in x currently does not work' )
-      ! NB: the issue here is simply that cyclic east-west boundary condition have not been coded in mpp case
       ! for the north fold we work out which points communicate by asking
       ! lbc_lnk to pass processor number (valid even in single processor case)
       ! borrow src_calving arrays for this
@@ -120,68 +118,66 @@ CONTAINS
       nicbpack = 100000
       IF( (jpiglo >= nicbpack) .OR. (jpjglo*nicbpack+jpiglo > HUGE(src_calving)) )   CALL ctl_stop( 'icbini: processor index packing failure' )
       nicbfldproc(:) = -1
-
+      ! src_calving and src_calving_hflx init : important for mpp exchanges and North fold
+      ! src_calving contains a unique index for each point of the grid (that "gather" its global ji and jj in one number)
       DO_2D( 1, 1, 1, 1 )
          src_calving_hflx(ji,jj) = narea
          src_calving     (ji,jj) = nicbpack * mjg(jj,nn_hls) + mig(ji,nn_hls)
       END_2D
-      CALL lbc_lnk( 'icbini', src_calving_hflx, 'T', 1._wp )
-      CALL lbc_lnk( 'icbini', src_calving     , 'T', 1._wp )
-
-      ! work out interior of processor from exchange array
-      ! first entry with narea for this processor is left hand interior index
-      ! last  entry                               is right hand interior index
-      jj = jpj/2
-      nicbdi = -1
-      nicbei = -1
-      DO ji = 1, jpi
-         i3 = INT( src_calving(ji,jj) )
-         i2 = INT( i3/nicbpack )
-         i1 = i3 - i2*nicbpack
-         i3 = INT( src_calving_hflx(ji,jj) )
-         IF( i1 == mig(ji,nn_hls) .AND. i3 == narea ) THEN
-            IF( nicbdi < 0 ) THEN   ;   nicbdi = ji
-            ELSE                    ;   nicbei = ji
-            ENDIF
-         ENDIF
-      END DO
-      !
-      ! repeat for j direction
-      ji = jpi/2
-      nicbdj = -1
-      nicbej = -1
-      DO jj = 1, jpj
-         i3 = INT( src_calving(ji,jj) )
-         i2 = INT( i3/nicbpack )
-         i1 = i3 - i2*nicbpack
-         i3 = INT( src_calving_hflx(ji,jj) )
-         IF( i2 == mjg(jj,nn_hls) .AND. i3 == narea ) THEN
-            IF( nicbdj < 0 ) THEN   ;   nicbdj = jj
-            ELSE                    ;   nicbej = jj
-            ENDIF
-         ENDIF
-      END DO
-      !   
-      ! special for east-west boundary exchange we save the destination index
-      i1 = MAX( nicbdi-1, 1)
-      i3 = INT( src_calving(i1,jpj/2) )
-      jj = INT( i3/nicbpack )
-      ricb_left = REAL( i3 - nicbpack*jj, wp ) - (nn_hls-1)
-      i1 = MIN( nicbei+1, jpi )
-      i3 = INT( src_calving(i1,jpj/2) )
-      jj = INT( i3/nicbpack )
-      ricb_right = REAL( i3 - nicbpack*jj, wp ) - (nn_hls-1)
       
+      CALL lbc_lnk( 'icbini', src_calving_hflx, 'T', 1._wp)
+      CALL lbc_lnk( 'icbini', src_calving     , 'T', 1._wp)
+
+      !ricb_left and right :  ji-local-destination index for east-west boundary exchange 
+
+      ricb_left = REAL( MOD( INT( src_calving( MAX(Nis0-1,-1) , jpj/2 ) ), nicbpack ) ,wp) - (nn_hls - 1)  
+      ricb_right = REAL( MOD( INT( src_calving( MIN(Nie0+1,jpi) , jpj/2 ) ), nicbpack ) ,wp) - (nn_hls - 1)
+
       ! north fold
       IF( l_IdoNFold ) THEN
-         !
-         ! icebergs in row nicbej+1 get passed across fold
-         nicbfldpts(:)  = INT( src_calving(:,nicbej+1) )
-         nicbflddest(:) = INT( src_calving_hflx(:,nicbej+1) )
-         !
+         
+         !! ---------------------------------------------------
+         !! INITIALIZING ARRAYS FOR bergs through NORTH Fold 
+         !! note that this init englobes both mpp and monoproc / jpni == 1 cases
+         !!   
+         !! nicbfldborder(ji = 1:jpi)  : global position of the nfold border inside the local subdomain of the proc 
+         !! nicbfldpts(ji = 1:jpi)     : value of src_calving(ji,jj) at the destination points of the nfld (example : 1500003)
+         !! nicbflddest(ji = 1:jpi)    : id number of the destination proc(s) of the nfld.
+
+         !! IMPORTANT !! : the case where the T-pivot point for nfld is 
+         !! inside the subdomain of a proc is dealt with. (typically jpni = 1 or jpni = 3)
+         !! concretly,for such a proc, the values of nicbfldborder will be (149 149 .... 149 148 ... 148).
+         !! the transition (149 to 148) is done from the first point to the right of the nfld pivot.
+
+         ! see nemo manual section E.1. North Pole Folding around a T-Point     
+         
+         nicbfldborder(:) = -1
+
+         DO ji = 1, jpi
+           DO jj = 1, jpj
+           
+           ! src_calving has been called by lbc_lnk. Before that we had everywhere
+           ! INT(src_calving) = mjg * nicbpack + mig  
+           
+           ! So, the following if-test is .false. for every point of the nfld halo
+           
+             IF( (mjg(jj,nn_hls) * nicbpack + mig(ji,nn_hls))   == INT( src_calving(ji,jj) )  ) THEN
+                
+                !! for each ji, jj increases until the first halo point is found 
+                !! (either to the left or to the right of the Nfold pivot point ) 
+
+                nicbfldborder(ji) = mjg(jj,nn_hls) - (nn_hls - 1)
+                nicbfldpts(ji) = INT( src_calving(ji,jj+1) )
+                nicbflddest(ji) = INT( src_calving_hflx(ji,jj+1) )
+
+              ENDIF
+            END DO ! Do jpj
+         END DO ! Do jpi
+        
+
          ! work out list of unique processors to talk to
          ! pack them into a fixed size array where empty slots are marked by a -1
-         DO ji = nicbdi, nicbei
+         DO ji = Nis0, Nie0
             ii = nicbflddest(ji)
             IF( ii .GT. 0 ) THEN     ! Needed because land suppression can mean
                                      ! that unused points are not set in edge haloes
@@ -203,8 +199,6 @@ CONTAINS
          WRITE(numicb,*) 'jpi, jpj   ', jpi, jpj
          WRITE(numicb,*) 'Nis0, Nie0 ', Nis0, Nie0
          WRITE(numicb,*) 'Njs0, Nje0 ', Njs0, Nje0
-         WRITE(numicb,*) 'berg i interior ', nicbdi, nicbei
-         WRITE(numicb,*) 'berg j interior ', nicbdj, nicbej
          WRITE(numicb,*) 'berg left       ', ricb_left
          WRITE(numicb,*) 'berg right      ', ricb_right
          jj = jpj/2
@@ -226,6 +220,9 @@ CONTAINS
             WRITE(numicb,*) nicbflddest
             WRITE(numicb,*) 'north fold destination proclist  '
             WRITE(numicb,*) nicbfldproc
+            WRITE(numicb,*) 'north fold border j-index  '
+            WRITE(numicb,*) nicbfldborder
+
          ENDIF
          CALL flush(numicb)
       ENDIF
@@ -239,14 +236,14 @@ CONTAINS
       num_bergs(1) = narea - jpnij
       
       ! stop NEMO if (nn_test_icebergs <= 0), while using the test_icebergs option
-      IF( ln_use_test .AND.  nn_test_icebergs <= 0 ) CALL ctl_stop('icbini: You are using the test-icebergs option but the number of icebergs is 0 or negative')
+      IF( ( ln_use_test ) .AND. ( nn_test_icebergs <= 0 ) ) CALL ctl_stop('icbini: You are using the test-icebergs option but the number of icebergs is 0 or negative')
 
-      IF( .NOT. ln_use_test  .AND. .NOT. ln_use_calving ) THEN   ! this if-condition is the default case :
+      IF( ( .NOT. ln_use_test )  .AND. (  .NOT. ln_use_calving ) )  THEN   ! this if-condition is the default case :
                                                                  ! the user did not write any parameter in namelist_cfg
                                                                  ! so there is no iceberg source in the namelist
 
          ! if no restart to be read at first time step (which could contain icebergs), send E R R O R and STOP Nemo 
-         IF (kt == 1 .AND. ln_rstart == .false. ) THEN
+         IF (  ( kt == 1 )  .AND. ( .NOT. ln_rstart ) ) THEN
             CALL ctl_stop('icbini: You are using the Iceberg module but there is no iceberg source at all, so STOP ! you are wasting your time !!')
 
          ! else (explicitely,  If kt > 1 or if there is a restart to be read), just leave a warning
@@ -342,8 +339,8 @@ CONTAINS
       ! use tmask here because tmask_i has been doctored on one side of the north fold line
       ! (PM) tmask_i added because no iceberg should be on the halo at initialisation
 
-      DO jj = nicbdj, nicbej
-         DO ji = nicbdi, nicbei
+      DO jj = Njs0, Nje0
+         DO ji = Nis0, Nie0
             IF( tmask_i(ji,jj)*tmask(ji,jj,1) > 0._wp        .AND.                                       &
                 rn_test_box(1) < glamt(ji,jj) .AND. glamt(ji,jj) < rn_test_box(2) .AND.   &
                 rn_test_box(3) < gphit(ji,jj) .AND. gphit(ji,jj) < rn_test_box(4) ) THEN
