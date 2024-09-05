@@ -452,7 +452,11 @@ CONTAINS
       !                                      ! Lateral physics
                            CALL ldf_tra_init             ! Lateral ocean tracer physics
                            CALL ldf_eiv_init             ! eddy induced velocity param.
-      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb, Nnn ) ! GEOMETRIC param.
+#if defined key_RK3
+      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb )      ! GEOMETRIC param. RK3
+#else
+      IF( l_ldfeke     )   CALL ldf_eke_init( Nbb, Nnn ) ! GEOMETRIC param. MLF
+#endif
                            CALL ldf_dyn_init             ! Lateral ocean momentum physics
 
       !                                      ! Active tracers
