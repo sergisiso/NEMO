@@ -121,8 +121,8 @@ CONTAINS
       zday    = REAL(nday_year,wp) + REAL(nsec_day,wp)/86400.0_wp
       !
       DO jn = 1, nclasses
-         DO jj = nicbdj, nicbej
-            DO ji = nicbdi, nicbei
+         DO jj = Njs0, Nje0
+            DO ji = Nis0, Nie0
                !
                icnt = 0
                !

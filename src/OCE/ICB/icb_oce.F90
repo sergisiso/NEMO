@@ -132,7 +132,6 @@ MODULE icb_oce
    INTEGER , PUBLIC             , SAVE                     ::   micbkb                           !: deepest level affected by icebergs
    INTEGER , PUBLIC             , SAVE                     ::   numicb                           !: iceberg IO
    INTEGER , PUBLIC             , SAVE, DIMENSION(nkounts) ::   num_bergs                        !: iceberg counter
-   INTEGER , PUBLIC             , SAVE                     ::   nicbdi, nicbei, nicbdj, nicbej   !: processor bounds
    REAL(wp), PUBLIC             , SAVE                     ::   ricb_left, ricb_right            !: cyclical bounds
    INTEGER , PUBLIC             , SAVE                     ::   nicbpack                         !: packing integer
    INTEGER , PUBLIC             , SAVE                     ::   nktberg, nknberg                 !: helpers
@@ -142,6 +141,8 @@ MODULE icb_oce
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)       ::   nicbfldnsend                     !: nfold number of bergs to send to nfold neighbour
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)       ::   nicbfldexpect                    !: nfold expected number of bergs
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)       ::   nicbfldreq                       !: nfold message handle (immediate send)
+   INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)       ::   nicbfldborder                    !: nfold j-index of the north border 
+
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
@@ -169,8 +170,8 @@ CONTAINS
          &      src_calving_hflx(jpi,jpj) , STAT=ill)
       icb_alloc = icb_alloc + ill
       !
-      ALLOCATE( nicbfldpts(jpi) , nicbflddest(jpi) , nicbfldproc(jpni) , &
-         &      nicbfldnsend(jpni), nicbfldexpect(jpni) , nicbfldreq(jpni), STAT=ill)
+      ALLOCATE( nicbfldpts(jpi) , nicbflddest(jpi) , nicbfldborder(jpi) , nicbfldproc(jpni) , &
+         &      nicbfldnsend(jpni) , nicbfldexpect(jpni) , nicbfldreq(jpni) , STAT=ill)
       icb_alloc = icb_alloc + ill
       !
       ALLOCATE( sshdyn_icb(jpi,jpj), hi_icb(jpi,jpj) , STAT=ill)

@@ -43,7 +43,6 @@ MODULE icbstp
 
    PUBLIC   icb_stp        ! routine called in sbcmod.F90 module
    PUBLIC   icb_end        ! routine called in nemogcm.F90 module
-
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
@@ -136,7 +135,7 @@ CONTAINS
          !
          !                                   !* Diagnose budgets
          ll_budget = .FALSE.
-         IF( nn_verbose_write > 0 .AND. MOD(kt-1,nn_verbose_write) == 0 )   ll_budget = ln_bergdia
+         IF( nn_verbose_write > 0 .AND. MOD(kt-1,nn_verbose_write) == 0 ) ll_budget = ln_bergdia
          CALL icb_dia( ll_budget )
          !
       END IF

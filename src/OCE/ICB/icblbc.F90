@@ -84,32 +84,31 @@ CONTAINS
 
       !! periodic east/west boundaries
       !! =============================
-
       IF( l_Iperio ) THEN
 
-         this => first_berg
-         DO WHILE( ASSOCIATED(this) )
-            pt => this%current_point
-            IF( pt%xi > REAL(mig(nicbei,nn_hls),wp) + 0.5_wp ) THEN
-               pt%xi = ricb_right + MOD(pt%xi, 1._wp ) - 1._wp
-            ELSE IF( pt%xi < REAL(mig(nicbdi,nn_hls),wp) - 0.5_wp ) THEN
-               pt%xi = ricb_left + MOD(pt%xi, 1._wp )
-            ENDIF
-            this => this%next
-         END DO
-         !
+            this => first_berg
+            DO WHILE( ASSOCIATED(this) )
+               pt => this%current_point
+               IF( pt%xi > REAL(mig(Nie0,nn_hls),wp) + 0.5_wp  - (nn_hls-1) )  THEN
+                  pt%xi = ricb_right + MOD(pt%xi, 1._wp ) - 1._wp
+               ELSE IF( pt%xi < REAL(mig(Nis0,nn_hls),wp) - 0.5_wp  - (nn_hls-1) ) THEN
+                  pt%xi = ricb_left + MOD(pt%xi, 1._wp )
+               ENDIF
+               this => this%next
+            END DO
+            !
       ENDIF
 
       !! north/south boundaries
       !! ======================
       IF( l_Jperio)      CALL ctl_stop(' north-south periodicity not implemented for icebergs')
       ! north fold
-      IF( l_IdoNFold )   CALL icb_lbc_nfld()
-      !
-   END SUBROUTINE icb_lbc
+      IF( l_IdoNFold )  CALL icb_lbc_nfld() ! monoproc equivalent of icb_lbc_mpp_nfld()
+ 
+ END SUBROUTINE icb_lbc
 
 
-   SUBROUTINE icb_lbc_nfld()
+ SUBROUTINE icb_lbc_nfld()
       !!----------------------------------------------------------------------
       !!                 ***  SUBROUTINE icb_lbc_nfld  ***
       !!
@@ -119,35 +118,41 @@ CONTAINS
       TYPE(point)  , POINTER ::   pt
       INTEGER                ::   iine, ijne, ipts
       INTEGER                ::   iiglo, ijglo
+      REAL(wp)               ::   icb_nfld_threshold
       !!----------------------------------------------------------------------
-      !
+      icb_nfld_threshold = 0._wp
       this => first_berg
       DO WHILE( ASSOCIATED(this) )
          pt => this%current_point
-         ijne = INT( pt%yj + 0.5 )  ! +0.5 is needed to extract the offset to add to the new i/j after folding
-         ! if icb above the inner domain boundary
-         IF( pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
-            !
-            iine = INT( pt%xi + 0.5 ) 
-            ! nicbfldpts is the 1st halo line with point correspondance
-            ! nicbpak=100000
-            ! nicbfldpts value = nicbpak * mjg + mig
-            ipts  = nicbfldpts (mi1(iine + (nn_hls-1),nn_hls))
-            !
+
+         iine = INT( pt%xi + 0.5 ) + (nn_hls-1)  !  +0.5 is needed to extract the offset to add to the new i/j after folding
+         ijne = INT( pt%yj + 0.5 ) + (nn_hls-1)
+
+         ! nicbfldpts is the 1st halo line with point correspondance
+         ! nicbpak=100000
+         ! nicbfldpts value = nicbpak * mjg + mig
+
+         ipts  = nicbfldpts (mi1(iine,nn_hls))
+
+         ! definition of nicbfldborder is in icbini (global j-index of global nfld frontier)
+         icb_nfld_threshold = nicbfldborder( mi1(iine,nn_hls) ) + 0.5
+
+         IF( pt%yj > icb_nfld_threshold ) THEN
             ! moving across the cut line means both position and
             ! velocity must change
             ijglo = INT( ipts/nicbpack )  ! mjg
             iiglo = ipts - nicbpack*ijglo ! mig
-            pt%xi = ( iiglo - ( pt%xi - REAL(iine,wp) ) ) - (nn_hls-1)
-            pt%yj = ( ijglo - ( pt%yj - REAL(ijne,wp) ) ) - (nn_hls-1)
+            pt%xi = ( iiglo - ( pt%xi + (nn_hls-1) - REAL(iine,wp) ) ) - (nn_hls-1)
+            pt%yj = ( ijglo - ( pt%yj + (nn_hls-1) - REAL(ijne,wp) ) ) - (nn_hls-1) 
             pt%uvel = -1._wp * pt%uvel
             pt%vvel = -1._wp * pt%vvel
-            !
+            !    
          ENDIF
          this => this%next
+         
       END DO
       !
-   END SUBROUTINE icb_lbc_nfld
+ END SUBROUTINE icb_lbc_nfld
 
 #if ! defined key_mpi_off
    !!----------------------------------------------------------------------
@@ -173,11 +178,12 @@ CONTAINS
       INTEGER                             ::   ibergs_rcvd_from_n, ibergs_rcvd_from_s
       INTEGER                             ::   i, ibergs_start, ibergs_end
       INTEGER                             ::   ipe_N, ipe_S, ipe_W, ipe_E
+      INTEGER                             ::   iiglo, ijglo, ii, ij
       REAL(wp), DIMENSION(2)              ::   zewbergs, zwebergs, znsbergs, zsnbergs
       INTEGER                             ::   iml_req1, iml_req2, iml_req3, iml_req4
       INTEGER                             ::   iml_req5, iml_req6, iml_req7, iml_req8, iml_err
       INTEGER, DIMENSION(MPI_STATUS_SIZE) ::   iml_stat
-
+   
       ! set up indices of neighbouring processors
       ipe_N = -1
       ipe_S = -1
@@ -211,14 +217,13 @@ CONTAINS
       ! the i direction, but it also has to happen when jpni=1 case so this is dealt with
       ! in icb_lbc and called here
 
-      IF( jpni == 1 ) CALL icb_lbc()
+     IF( jpni == 1 ) CALL icb_lbc() !  East-West + Northfold periodicity (call to icb_lbc_nfld)  are done 
 
-      ! Note that xi is adjusted when swapping because of periodic condition
 
-      IF( nn_verbose_level > 0 ) THEN
+     IF( nn_verbose_level > 0 ) THEN
          ! store the number of icebergs on this processor at start
          ibergs_start = icb_utl_count()
-      ENDIF
+     ENDIF
 
       ibergs_to_send_e   = 0
       ibergs_to_send_w   = 0
@@ -233,7 +238,7 @@ CONTAINS
          this => first_berg
          DO WHILE (ASSOCIATED(this))
             pt => this%current_point
-            IF( ipe_E >= 0 .AND. pt%xi > REAL(mig(nicbei,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
+            IF( ipe_E >= 0 .AND. pt%xi > REAL(mig(Nie0,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
                tmpberg => this
                this => this%next
                ibergs_to_send_e = ibergs_to_send_e + 1
@@ -246,7 +251,7 @@ CONTAINS
                ! now pack it into buffer and delete from list
                CALL icb_pack_into_buffer( tmpberg, obuffer_e, ibergs_to_send_e)
                CALL icb_utl_delete(first_berg, tmpberg)
-            ELSE IF( ipe_W >= 0 .AND. pt%xi < REAL(mig(nicbdi,nn_hls),wp) - 0.5_wp - (nn_hls-1) ) THEN
+            ELSE IF( ipe_W >= 0 .AND. pt%xi < REAL(mig(Nis0,nn_hls),wp) - 0.5_wp - (nn_hls-1) ) THEN
                tmpberg => this
                this => this%next
                ibergs_to_send_w = ibergs_to_send_w + 1
@@ -325,7 +330,7 @@ CONTAINS
          this => first_berg
          DO WHILE (ASSOCIATED(this))
             pt => this%current_point
-            IF( ipe_N >= 0 .AND. pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
+            IF( ipe_N >= 0 .AND. pt%yj > REAL(mjg(Nje0,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
                tmpberg => this
                this => this%next
                ibergs_to_send_n = ibergs_to_send_n + 1
@@ -335,7 +340,7 @@ CONTAINS
                ENDIF
                CALL icb_pack_into_buffer( tmpberg, obuffer_n, ibergs_to_send_n)
                CALL icb_utl_delete(first_berg, tmpberg)
-            ELSE IF( ipe_S >= 0 .AND. pt%yj < REAL(mjg(nicbdj,nn_hls),wp) - 0.5_wp - (nn_hls-1) ) THEN
+            ELSE IF( ipe_S >= 0 .AND. pt%yj < REAL(mjg(Njs0,nn_hls),wp) - 0.5_wp - (nn_hls-1) ) THEN
                tmpberg => this
                this => this%next
                ibergs_to_send_s = ibergs_to_send_s + 1
@@ -446,14 +451,14 @@ CONTAINS
          this => first_berg
          DO WHILE (ASSOCIATED(this))
             pt => this%current_point
-            IF( pt%xi < REAL(mig(nicbdi,nn_hls),wp) - 0.5_wp - (nn_hls-1) .OR. &
-                pt%xi > REAL(mig(nicbei,nn_hls),wp) + 0.5_wp - (nn_hls-1) .OR. &
-                pt%yj < REAL(mjg(nicbdj,nn_hls),wp) - 0.5_wp - (nn_hls-1) .OR. &
-                pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
+            IF( pt%xi < REAL(mig(Nis0,nn_hls),wp) - 0.5_wp - (nn_hls-1) .OR. &
+                pt%xi > REAL(mig(Nie0,nn_hls),wp) + 0.5_wp - (nn_hls-1) .OR. &
+                pt%yj < REAL(mjg(Njs0,nn_hls),wp) - 0.5_wp - (nn_hls-1) .OR. &
+                pt%yj > REAL(mjg(Nje0,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
                i = i + 1
                WRITE(numicb,*) 'berg lost in halo: ', this%number(:)
                WRITE(numicb,*) '                   ', nimpp, njmpp
-               WRITE(numicb,*) '                   ', nicbdi, nicbei, nicbdj, nicbej
+               WRITE(numicb,*) '                   ', Nis0, Nie0, Njs0, Nje0
                CALL flush( numicb )
             ENDIF
             this => this%next
@@ -484,11 +489,12 @@ CONTAINS
       INTEGER                             :: ibergs_to_rcv
       INTEGER                             :: iiglo, ijglo, jk, jn
       INTEGER                             :: ifldproc, iproc, ipts
-      INTEGER                             :: iine, ijne
+      INTEGER                             :: iine, ijne 
       INTEGER                             :: jjn
       REAL(wp), DIMENSION(0:3)            :: zsbergs, znbergs
       INTEGER                             :: iml_req1, iml_req2, iml_err
       INTEGER, DIMENSION(MPI_STATUS_SIZE) :: iml_stat
+      REAL                                :: icb_nfld_threshold 
 
       ! set up indices of neighbouring processors
 
@@ -499,6 +505,10 @@ CONTAINS
       nicbfldnsend(:) = 0
       nicbfldexpect(:) = 0
       nicbfldreq(:) = 0
+
+      ! Initializing threshold of north fold (value beyond which pt%yi must be for north fold transfer)
+      icb_nfld_threshold = 0._wp
+      
       !
       ! Since each processor may be communicating with more than one northern
       ! neighbour, cycle through the sends so that the receive order can be
@@ -519,8 +529,11 @@ CONTAINS
                DO WHILE (ASSOCIATED(this))
                   pt => this%current_point
                   iine = INT( pt%xi + 0.5 ) + (nn_hls-1)
+
+                  ! definition of nicbfldborder is in icbini (global j-index of global nfld frontier)
+                  icb_nfld_threshold = nicbfldborder( mi1(iine,nn_hls) ) + 0.5
                   iproc = nicbflddest(mi1(iine,nn_hls))
-                  IF( pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
+                  IF( pt%yj > icb_nfld_threshold ) THEN 
                      IF( iproc == ifldproc ) THEN
                         !
                         IF( iproc /= narea ) THEN
@@ -600,32 +613,35 @@ CONTAINS
                   ijne = INT( pt%yj + 0.5 ) + (nn_hls-1)
                   ipts  = nicbfldpts (mi1(iine,nn_hls))
                   iproc = nicbflddest(mi1(iine,nn_hls))
-                  IF( pt%yj > REAL(mjg(nicbej,nn_hls),wp) + 0.5_wp - (nn_hls-1) ) THEN
-                     IF( iproc == ifldproc ) THEN
-                        !
-                        ! moving across the cut line means both position and
-                        ! velocity must change
-                        ijglo = INT( ipts/nicbpack )
-                        iiglo = ipts - nicbpack*ijglo
-                        pt%xi = iiglo - ( pt%xi + (nn_hls-1) - REAL(iine,wp) ) - (nn_hls-1)
-                        pt%yj = ijglo - ( pt%yj + (nn_hls-1) - REAL(ijne,wp) ) - (nn_hls-1)
-                        pt%uvel = -1._wp * pt%uvel
-                        pt%vvel = -1._wp * pt%vvel
-                        !
-                        ! now remove berg from list and pack it into a buffer
-                        IF( iproc /= narea ) THEN
-                           tmpberg => this
-                           ibergs_to_send = ibergs_to_send + 1
-                           IF( nn_verbose_level >= 4 ) THEN
-                              WRITE(numicb,*) 'bergstep ',nktberg,' packing berg ',tmpberg%number(:),' for north fold'
-                              CALL flush( numicb )
-                           ENDIF
-                           CALL icb_pack_into_buffer( tmpberg, obuffer_f, ibergs_to_send)
-                           CALL icb_utl_delete(first_berg, tmpberg)
-                        ENDIF
-                        !
-                     ENDIF
-                  ENDIF
+                ! definition of nicbfldborder is in icbini (j-index of global nfld frontier)
+                  icb_nfld_threshold = nicbfldborder( mi1(iine,nn_hls)  ) + 0.5 
+                 
+                  IF( pt%yj > icb_nfld_threshold ) THEN
+                        IF( iproc == ifldproc ) THEN
+                        
+                           ! moving across the cut line means both position and
+                           ! velocity must change
+                           ijglo = INT( ipts/nicbpack )
+                           iiglo = ipts - nicbpack*ijglo
+                           pt%xi = iiglo - ( pt%xi + (nn_hls-1) - REAL(iine,wp) ) - (nn_hls-1)
+                           pt%yj = ijglo - ( pt%yj + (nn_hls-1) - REAL(ijne,wp) ) - (nn_hls-1)
+                           pt%uvel = -1._wp * pt%uvel
+                           pt%vvel = -1._wp * pt%vvel
+                           ! now remove berg from list and pack it into a buffer
+                           IF( iproc /= narea ) THEN
+                              tmpberg => this
+                              ibergs_to_send = ibergs_to_send + 1
+                              IF( nn_verbose_level >= 4 ) THEN
+                                 WRITE(numicb,*) 'bergstep ',nktberg,' packing berg ',tmpberg%number(:),' for north fold'
+                                 CALL flush( numicb )
+                              ENDIF
+                              CALL icb_pack_into_buffer( tmpberg, obuffer_f, ibergs_to_send)
+                              CALL icb_utl_delete(first_berg, tmpberg)
+                           
+                           ENDIF ! end if (iproc /= narea)
+                        
+                        ENDIF ! endif (iproc == ifldproc)  
+                   ENDIF ! endif (pt%yj)
                   this => this%next
                END DO
             ENDIF
