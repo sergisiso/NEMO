@@ -61,7 +61,7 @@ CONTAINS
       REAL(wp) ::   zscave, zaggdfea, zaggdfeb, ztrc, zdust, zklight
       REAL(wp) ::   ztfe, zxlam, zaggliga, zaggligb
       REAL(wp) ::   zhplus, zhplus2, zhplus3
-      REAL(wp) ::   zprecip, zprecipno3,  zconsfe, za1, ztl1, zfel1
+      REAL(wp) ::   zprecip, zprecipno3,  zconsfe, za1, zfel1
       REAL(wp) ::   zrfact2
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) ::   zFe3, ztotlig,  zfecoll
@@ -80,23 +80,22 @@ CONTAINS
       ! Total ligand concentration : Ligands can be chosen to be constant or variable
       ! Parameterization from Pham and Ito (2018)
       ! -------------------------------------------------
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         xfecolagg(ji,jj,jk) = ligand * 1E9 + 0.01 * MAX(0., (chemo2(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Kbb) ) * 1E6 )**0.8
-      END_3D
-      !
-      IF( ln_ligvar ) THEN
+      IF ( ln_ligvar .OR. ln_ligand ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            ztotlig(ji,jj,jk) =  0.07 * 0.667 * (tr(ji,jj,jk,jpdoc,Kbb) * 1E6 )**0.8  + xfecolagg(ji,jj,jk)
-            ztotlig(ji,jj,jk) =  MIN( ztotlig(ji,jj,jk), 10. )
+            xfecolagg(ji,jj,jk) = ligand * 1E9 + 0.01 * MAX(0., (chemo2(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Kbb) ) * 1E6 )**0.8
          END_3D
+         IF ( ln_ligvar ) THEN
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               ztotlig(ji,jj,jk) =  0.07 * 0.667 * (tr(ji,jj,jk,jpdoc,Kbb) * 1E6 )**0.8  + xfecolagg(ji,jj,jk)
+               ztotlig(ji,jj,jk) =  MIN( ztotlig(ji,jj,jk), 10. )
+            END_3D
+         ELSE
+            DO_3D( 0, 0, 0, 0, 1, jpkm1)
+               ztotlig(ji,jj,jk) = tr(ji,jj,jk,jplgw,Kbb) * 1E9
+            END_3D
+         ENDIF
       ELSE
-        IF( ln_ligand ) THEN  
-           DO_3D( 0, 0, 0, 0, 1, jpkm1)
-              ztotlig(ji,jj,jk) = tr(ji,jj,jk,jplgw,Kbb) * 1E9
-           END_3D
-        ELSE
-             ztotlig(:,:,:) = ligand * 1E9 
-        ENDIF
+         ztotlig(:,:,:) = ligand * 1E9 
       ENDIF
 
       ! ------------------------------------------------------------
@@ -105,20 +104,14 @@ CONTAINS
       ! Chemistry is supposed to be fast enough to be at equilibrium
       ! ------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-          ztl1            = ztotlig(ji,jj,jk)
-          zkeq            = fekeq(ji,jj,jk)
-          zklight         = 4.77E-7 * etot(ji,jj,jk) * 0.5 / xcons
-          zconsfe         = consfe3(ji,jj,jk) / xcons
-          zfesatur        = ztl1 * 1E-9
-          ztfe            = (1.0 + zklight) * tr(ji,jj,jk,jpfer,Kbb) 
-          ! Fe' is the root of a 2nd order polynom
-          za1 =  1. + zfesatur * zkeq + zklight +  zconsfe - zkeq * tr(ji,jj,jk,jpfer,Kbb)
-          zFe3 (ji,jj,jk) = ( -1 * za1 + SQRT( ( za1 * za1 ) + 4. * ztfe * zkeq) ) / ( 2. * zkeq + rtrn )
-      END_3D
-      !
-      DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zfel1 = MAX( 0., tr(ji,jj,jk,jpfer,Kbb) - zFe3(ji,jj,jk) )
-         plig(ji,jj,jk) =  MAX( 0., ( zfel1 / ( tr(ji,jj,jk,jpfer,Kbb) + rtrn ) ) )
+         zkeq            = fekeq(ji,jj,jk)
+         zklight         = 4.77E-7 * etot(ji,jj,jk) * 0.5 / xcons
+         zconsfe         = consfe3(ji,jj,jk) / xcons
+         zfesatur        = ztotlig(ji,jj,jk) * 1E-9
+         ztfe            = (1.0 + zklight) * tr(ji,jj,jk,jpfer,Kbb) 
+         ! Fe' is the root of a 2nd order polynom
+         za1 =  1. + zfesatur * zkeq + zklight +  zconsfe - zkeq * tr(ji,jj,jk,jpfer,Kbb)
+         zFe3 (ji,jj,jk) = ( -1 * za1 + SQRT( ( za1 * za1 ) + 4. * ztfe * zkeq) ) / ( 2. * zkeq + rtrn )
       END_3D
       !
       zdust = 0.         ! if no dust available
@@ -134,25 +127,19 @@ CONTAINS
       ! prognostic or non variable, all the colloidal fraction is supposed
       ! to coagulate
       ! ----------------------------------------------------------------------
-      IF (ln_ligand) THEN
+      IF ( ln_ligand .OR. ln_ligvar) THEN
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
             zfel1 = MAX( 0., tr(ji,jj,jk,jpfer,Kbb) - zFe3(ji,jj,jk) )
             zfecoll(ji,jj,jk) = 0.5 * zfel1 * MAX(0., ztotlig(ji,jj,jk) - xfecolagg(ji,jj,jk) ) &
                   &              / ( ztotlig(ji,jj,jk) + rtrn ) 
+            plig(ji,jj,jk) =  ( zfel1 / ( tr(ji,jj,jk,jpfer,Kbb) + rtrn ) )
          END_3D
       ELSE
-         IF (ln_ligvar) THEN
-            DO_3D( 0, 0, 0, 0, 1, jpkm1)
-               zfel1 = MAX( 0., tr(ji,jj,jk,jpfer,Kbb) - zFe3(ji,jj,jk) )
-               zfecoll(ji,jj,jk) = 0.5 * zfel1 * MAX(0., ztotlig(ji,jj,jk) - xfecolagg(ji,jj,jk) ) &
-                  &              / ( ztotlig(ji,jj,jk) + rtrn ) 
-            END_3D
-         ELSE
-            DO_3D( 0, 0, 0, 0, 1, jpkm1)
-               zfel1 = MAX( 0., tr(ji,jj,jk,jpfer,Kbb) - zFe3(ji,jj,jk) )
-               zfecoll(ji,jj,jk) = 0.5 * zfel1
-            END_3D
-         ENDIF
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            zfel1 = MAX( 0., tr(ji,jj,jk,jpfer,Kbb) - zFe3(ji,jj,jk) )
+            zfecoll(ji,jj,jk) = 0.5 * zfel1
+            plig(ji,jj,jk) =  ( zfel1 / ( tr(ji,jj,jk,jpfer,Kbb) + rtrn ) )
+         END_3D
       ENDIF
 
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
@@ -164,8 +151,8 @@ CONTAINS
          zhplus2 = zhplus * zhplus
          zhplus3 = zhplus2 * zhplus
          fe3sol  = fesol(ji,jj,jk,1) * ( zhplus3 + fesol(ji,jj,jk,2) * zhplus2  &
-         &         + fesol(ji,jj,jk,3) * zhplus + fesol(ji,jj,jk,4)     &
-         &         + fesol(ji,jj,jk,5) / zhplus )
+           &       + fesol(ji,jj,jk,3) * zhplus + fesol(ji,jj,jk,4)             &
+           &       + fesol(ji,jj,jk,5) / zhplus )
          !
          ! precipitation of Fe3+, creation of nanoparticles
          zprecip = MAX( 0., ( zFe3(ji,jj,jk) - fe3sol ) ) * kfep * xstep * ( 1.0 - nitrfac(ji,jj,jk) ) 
@@ -177,9 +164,9 @@ CONTAINS
          !  could be thought as an equivalent of colloidal pumping.
          !  It requires certainly some more work as it is very poorly constrained.
          !  ----------------------------------------------------------------
-         zlam1a   = ( 12.0  * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) + 9.05  * tr(ji,jj,jk,jppoc,Kbb) ) * xdiss(ji,jj,jk)    &
-             &    + ( 2.49  * tr(ji,jj,jk,jppoc,Kbb) )     &
-             &    + ( 127.8 * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) + 725.7 * tr(ji,jj,jk,jppoc,Kbb) )
+         zlam1a   = ( 12.0  * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) + 9.05  * tr(ji,jj,jk,jppoc,Kbb) ) * xdiss(ji,jj,jk)  &
+           &        + ( 2.49  * tr(ji,jj,jk,jppoc,Kbb) )                                                         &
+           &        + ( 127.8 * 0.3 * tr(ji,jj,jk,jpdoc,Kbb) + 725.7 * tr(ji,jj,jk,jppoc,Kbb) )
          zaggdfea = zlam1a * xstep * zfecoll(ji,jj,jk)
          !
          IF( ll_dust )  zdust  = dust(ji,jj) / ( wdust / rday ) * tmask(ji,jj,jk)
@@ -220,8 +207,8 @@ CONTAINS
             tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + zaggdfeb
             !
          ENDIF
-         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) - zscave - zaggdfea - zaggdfeb &
-            &                    - ( zprecip + zprecipno3 )
+         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) - zscave - zaggdfea - zaggdfeb   &
+            &                      - ( zprecip + zprecipno3 )
 
          IF( l_dia_fechem ) THEN
             zscav3d(ji,jj,jk)   = zscave 
@@ -234,7 +221,7 @@ CONTAINS
       !  Define the bioavailable fraction of iron
       !  ----------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         biron(ji,jj,jk) = tr(ji,jj,jk,jpfer,Kbb) 
+         biron(ji,jj,jk) = ( 75.0 * ( 1.0 - plig(ji,jj,jk) ) + plig(ji,jj,jk) ) * tr(ji,jj,jk,jpfer,Kbb) 
       END_3D
       !
       !  Output of some diagnostics variables
