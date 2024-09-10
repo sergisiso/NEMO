@@ -497,3 +497,20 @@
   ln_pisdmp    =  .false.     !  Relaxation for some tracers to a mean value
   ln_pisdmp_alk = .false.
 /
+!-----------------------------------------------------------------------
+&nampisdbg     !   Namelist parameters for debugging
+!-----------------------------------------------------------------------
+   ln_bio    = .true.   !  Enable biological processes
+   ln_flx    = .true.   !  Enable air-sea gas exchange
+   ln_sed    = .true.   !  Enable sediment mobilisation processes
+   ln_lys    = .true.   !  Enable carbonate chemistry
+   ln_fechem = .true.   !  Enable Iron chemistry
+   ln_prod   = .true.   !  Enable Phyptoplankton growth rate
+   ln_mort   = .true.   !  Enable Phyptoplankton mortality
+   ln_micro  = .true.   !  Enable microzooplankton
+   ln_meso   = .true.   !  Enable mesozooplankton
+   ln_poc    = .true.   !  Enable organic particles processes
+   ln_agg    = .true.   !  Enable particles Aggregation
+   ln_rem    = .true.   !  Enable Remineralisation
+   ln_diaz   = .true.   !  Enable diazotrophy
+/
