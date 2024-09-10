@@ -20,6 +20,7 @@ MODULE p4zsms
    USE p4zint          ! time interpolation
    USE p4zrem          ! remineralisation
    USE p4zdiaz         !  Diazotrophy
+   USE p4zpoc          !  POC remin
    USE iom             ! I/O manager
    USE trd_oce         ! Ocean trends variables
    USE trdtrc          ! TOP trends variables
@@ -398,7 +399,19 @@ CONTAINS
             consfe3(:,:,:) = 0._wp
          ENDIF
 
-         ! Read the cumulative total flux. If not in the restart file, it is set to 0          
+        ! Read mean remineralisation rate
+         ll_poc_lab = .FALSE.
+         IF( iom_varid( numrtr, 'remintpoc', ldstop = .FALSE. ) > 0 ) THEN
+            CALL iom_get( numrtr, jpdom_auto, 'remintpoc' , remintpoc(:,:,:)  )
+            IF( ln_p4z .OR. ln_p5z ) &
+            CALL iom_get( numrtr, jpdom_auto, 'remintgoc' , remintgoc(:,:,:)  )
+         ELSE
+                                     remintpoc(:,:,:) = 0.03_wp
+            IF( ln_p4z .OR. ln_p5z ) remintgoc(:,:,:) = 0.03_wp
+         ENDIF
+
+
+         ! Read the cumulative total flux. If not in the restart file, it is set to 0
          IF( iom_varid( numrtr, 'tcflxcum', ldstop = .FALSE. ) > 0 ) THEN  ! cumulative total flux of carbon
             CALL iom_get( numrtr, 'tcflxcum' , t_oce_co2_flx_cum  )
          ELSE
@@ -406,34 +419,24 @@ CONTAINS
          ENDIF
          !
          ! PISCES size proxy
-         !
+         ! Read the size of the different phytoplankton groups
+         ! If not in the restart file, they are set to 1
          IF( iom_varid( numrtr, 'sizen', ldstop = .FALSE. ) > 0 ) THEN
             CALL iom_get( numrtr, jpdom_auto, 'sizen' , sizen(:,:,:)  )
-            sizen(:,:,:) = MAX( 1.0, sizen(:,:,:) )
-         ELSE
-            sizen(:,:,:) = 1.
-         ENDIF
-
-         IF( ln_p4z .OR. ln_p5z ) THEN
-            IF( iom_varid( numrtr, 'sized', ldstop = .FALSE. ) > 0 ) THEN
+               sizen(:,:,:) = MAX( 1.0, sizen(:,:,:) )
+            IF( ln_p4z .OR. ln_p5z )THEN
                CALL iom_get( numrtr, jpdom_auto, 'sized' , sized(:,:,:)  )
                sized(:,:,:) = MAX( 1.0, sized(:,:,:) )
-            ELSE
-               sized(:,:,:) = 1.
             ENDIF
-         ENDIF
-
-         ! PISCES-QUOTA specific part
-         IF( ln_p5z ) THEN
-            ! Read the size of the different phytoplankton groups
-            ! If not in the restart file, they are set to 1
-            IF( iom_varid( numrtr, 'sizep', ldstop = .FALSE. ) > 0 ) THEN
+            IF( ln_p5z ) THEN
                CALL iom_get( numrtr, jpdom_auto, 'sizep' , sizep(:,:,:)  )
                sizep(:,:,:) = MAX( 1.0, sizep(:,:,:) )
-            ELSE
-               sizep(:,:,:) = 1.
             ENDIF
-        ENDIF
+         ELSE
+                                     sizen(:,:,:) = 1.
+            IF( ln_p4z .OR. ln_p5z ) sized(:,:,:) = 1.
+            IF( ln_p5z )             sizep(:,:,:) = 1.
+         ENDIF
         !
       ELSEIF( TRIM(cdrw) == 'WRITE' ) THEN
          ! write the specific variables of PISCES
@@ -449,10 +452,12 @@ CONTAINS
             CALL iom_rstput( kt, nitrst, numrtw, 'Thetanano' , thetanano(:,:,:)  )
          ENDIF
 
-         CALL iom_rstput( kt, nitrst, numrtw, 'Consfe3', consfe3(:,:,:) ) ! Si max concentration
+         CALL iom_rstput( kt, nitrst, numrtw, 'Consfe3'  , consfe3(:,:,:) ) ! Si max concentration
+         CALL iom_rstput( kt, nitrst, numrtw, 'remintpoc', remintpoc(:,:,:) ) ! Mean remineralisation rate of POC
          IF ( ln_p4z .OR. ln_p5z ) THEN
             CALL iom_rstput( kt, nitrst, numrtw, 'Silicalim', xksi(:,:)    )
             CALL iom_rstput( kt, nitrst, numrtw, 'Silicamax', xksimax(:,:) )
+            CALL iom_rstput( kt, nitrst, numrtw, 'remintgoc', remintgoc(:,:,:) ) ! Mean remineralisation rate of GOC
             CALL iom_rstput( kt, nitrst, numrtw, 'sized', sized(:,:,:) )  ! Size of diatoms
          ENDIF
          IF( ln_p5z ) CALL iom_rstput( kt, nitrst, numrtw, 'sizep', sizep(:,:,:) )  ! Size of picophytoplankton

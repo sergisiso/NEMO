@@ -74,7 +74,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level indices
       !
       INTEGER  ::   ji, jj, jk
-      REAL(wp) ::   zremik, zremikc, zfact
+      REAL(wp) ::   zremik, zremikc, ztemp
       REAL(wp) ::   zdep, zdepmin, zfactdep
       REAL(wp) ::   zammonic, zoxyremc, zolimic
       !
@@ -104,10 +104,10 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zdep = MAX( hmld(ji,jj), heup_01(ji,jj), gdept(ji,jj,1,Kmm) )
          IF ( gdept(ji,jj,jk,Kmm) <= zdep ) THEN
-            zdepbac(ji,jj,jk) = 0.6 * ( MAX(0.0, tr(ji,jj,jk,jpzoo,Kbb) ) * 1.0E6 )**0.6 * 1.E-6
+            zdepbac(ji,jj,jk) = 0.6 * ( tr(ji,jj,jk,jpzoo,Kbb) * 1.0E6 )**0.6 * 1.E-6
             ztempbac(ji,jj)   = zdepbac(ji,jj,jk)
          ELSE
-            zdepmin = MIN( 1., zdep / gdept(ji,jj,jk,Kmm) )
+            zdepmin = zdep / gdept(ji,jj,jk,Kmm)
             zdepbac(ji,jj,jk) = zdepmin**0.683 * ztempbac(ji,jj)
          ENDIF
       END_3D
@@ -116,13 +116,13 @@ CONTAINS
          ! DOC ammonification. Depends on depth, phytoplankton biomass
          ! and a limitation term which is supposed to be a parameterization of the bacterial activity. 
          ! --------------------------------------------------------------------------
-         zremik = xstep / 1.e-6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk)
-         zremik = MAX( zremik, 2.74e-4 * xstep / xremikc )
-         zremikc = xremikc * zremik
+         zremik   = xstep / 1.e-6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk)
+         zremik   = MAX( zremik, 2.74e-4 * xstep / xremikc )
+         zremikc  = xremikc * zremik
          ! Ammonification in oxic waters with oxygen consumption
          ! -----------------------------------------------------
-         zolimic = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb)
-         zolimic = MAX(0., MIN( ( tr(ji,jj,jk,jpoxy,Kbb) - rtrn ) / o2ut, zolimic ) )
+         zolimic  = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb)
+         zolimic  = MAX(0., MIN( ( tr(ji,jj,jk,jpoxy,Kbb) - rtrn ) / o2ut, zolimic ) )
 
          ! Ammonification in suboxic waters with denitrification
          ! -----------------------------------------------------
@@ -133,14 +133,15 @@ CONTAINS
          ! Ammonification in waters depleted in O2 and NO3 based on 
          ! other redox processes
          ! --------------------------------------------------------
-         zoxyremc          = MAX(0., zammonic - denitr(ji,jj,jk) )
+         zoxyremc = MAX(0., zammonic - denitr(ji,jj,jk) )
 
          ! Update of the the trends arrays
+         ztemp    = zolimic + denitr(ji,jj,jk) + zoxyremc 
          tr(ji,jj,jk,jpno3,Krhs) = tr(ji,jj,jk,jpno3,Krhs) - denitr (ji,jj,jk) * rdenit
-         tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) - ( zolimic + denitr(ji,jj,jk) + zoxyremc )
+         tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) - ztemp
          tr(ji,jj,jk,jpoxy,Krhs) = tr(ji,jj,jk,jpoxy,Krhs) - zolimic * (o2ut + o2nit)
-         tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) + zolimic + denitr(ji,jj,jk) + zoxyremc
-         tr(ji,jj,jk,jpno3,Krhs) = tr(ji,jj,jk,jpno3,Krhs) + zolimic + denitr(ji,jj,jk) + zoxyremc
+         tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) + ztemp
+         tr(ji,jj,jk,jpno3,Krhs) = tr(ji,jj,jk,jpno3,Krhs) + ztemp
          tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - rno3 * ( zolimic + zoxyremc - ( rdenit - 1.) * denitr(ji,jj,jk) )
       END_3D
 
@@ -151,7 +152,6 @@ CONTAINS
       ENDIF
       !
       IF( knt == nrdttrc ) THEN
-!            zfact = rno3 * 1.e+3 * rfact2r !  conversion from molC/l/kt  to molN/m3/s
           !
           IF( l_dia_remin ) THEN    ! Remineralisation rate
              CALL iom_put( "REMIN", ( zolimi(:,:,:) - tr(A2D(0),:,jpoxy,Krhs) ) / o2ut * rfact2r * tmask(A2D(0),:) )
@@ -187,14 +187,14 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level indices
       !
       INTEGER  ::   ji, jj, jk
-      REAL(wp) ::   zremik, zremikc, zremikn, zremikp, zsiremin, zfact 
+      REAL(wp) ::   zremik, zremikc, zremikn, zremikp, zsiremin
       REAL(wp) ::   zsatur, zsatur2, znusil, znusil2, zdep, zdepmin, zfactdep
       REAL(wp) ::   zbactfer, zonitr
       REAL(wp) ::   zammonic, zoxyremc, zosil, ztem, zdenitnh4, zolimic
-      REAL(wp) ::   zfacsi, zdepeff
+      REAL(wp) ::   zfacsi, ztemp
       !
       CHARACTER (len=25) :: charout
-      REAL(wp), DIMENSION(A2D(0),jpk) :: zdepbac, zfacsib
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zdepbac, zdepeff, zfacsib
       REAL(wp), DIMENSION(A2D(0)    ) :: ztempbac
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zolimi, zfebact
       !!---------------------------------------------------------------------
@@ -225,11 +225,13 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zdep = MAX( hmld(ji,jj), heup_01(ji,jj), gdept(ji,jj,1,Kmm) )
          IF ( gdept(ji,jj,jk,Kmm) <= zdep ) THEN
-            zdepbac(ji,jj,jk) = 0.6 * ( MAX(0.0, tr(ji,jj,jk,jpzoo,Kbb) + tr(ji,jj,jk,jpmes,Kbb) ) * 1.0E6 )**0.6 * 1.E-6
+            zdepbac(ji,jj,jk) = 0.6 * ( ( tr(ji,jj,jk,jpzoo,Kbb) + tr(ji,jj,jk,jpmes,Kbb) ) * 1.0E6 )**0.6 * 1.E-6
             ztempbac(ji,jj)   = zdepbac(ji,jj,jk)
+            zdepeff(ji,jj,jk) = 0.3
          ELSE
-            zdepmin = MIN( 1., zdep / gdept(ji,jj,jk,Kmm) )
+            zdepmin           = zdep / gdept(ji,jj,jk,Kmm)
             zdepbac(ji,jj,jk) = zdepmin**0.683 * ztempbac(ji,jj)
+            zdepeff(ji,jj,jk) = 0.3 * zdepmin**0.6
          ENDIF
       END_3D
 
@@ -237,42 +239,43 @@ CONTAINS
          ! DOC ammonification. Depends on depth, phytoplankton biomass
          ! and a limitation term which is supposed to be a parameterization of the bacterial activity. 
          ! --------------------------------------------------------------------------
-         zremik = xstep / 1.e-6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk) 
-         zremik = MAX( zremik, 2.74e-4 * xstep / xremikc )
-         zremikc = xremikc * zremik
+         zremik   = xstep * 1.e6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk) 
+         zremik   = MAX( zremik, 2.74e-4 * xstep / xremikc )
+         zremikc  = xremikc * zremik
          ! Ammonification in oxic waters with oxygen consumption
          ! -----------------------------------------------------
-         zolimic = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb) 
-         zolimic = MAX(0., MIN( ( tr(ji,jj,jk,jpoxy,Kbb) - rtrn ) / o2ut, zolimic ) ) 
+         zolimic  = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb) 
+         zolimic  = MAX(0., MIN( ( tr(ji,jj,jk,jpoxy,Kbb) - rtrn ) / o2ut, zolimic ) ) 
 
          ! Ammonification in suboxic waters with denitrification
          ! -----------------------------------------------------
          zammonic = zremikc * nitrfac(ji,jj,jk) * tr(ji,jj,jk,jpdoc,Kbb)
          denitr(ji,jj,jk)  = zammonic * ( 1. - nitrfac2(ji,jj,jk) )
-         denitr(ji,jj,jk)  = MAX(0., MIN(  ( tr(ji,jj,jk,jpno3,Kbb) - rtrn ) / rdenit, denitr(ji,jj,jk) ) )
+         denitr(ji,jj,jk)  = MAX(0., MIN( ( tr(ji,jj,jk,jpno3,Kbb) - rtrn ) / rdenit, denitr(ji,jj,jk) ) )
 
          ! Ammonification in waters depleted in O2 and NO3 based on 
          ! other redox processes
          ! --------------------------------------------------------
-         zoxyremc          = MAX(0., zammonic - denitr(ji,jj,jk) )
+         zoxyremc = zammonic - denitr(ji,jj,jk)
 
          ! Update of the the trends arrays
+         ztemp    = zolimic + denitr(ji,jj,jk) + zoxyremc
          tr(ji,jj,jk,jpno3,Krhs) = tr(ji,jj,jk,jpno3,Krhs) - denitr (ji,jj,jk) * rdenit
-         tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) - ( zolimic + denitr(ji,jj,jk) + zoxyremc )
+         tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) - ztemp
          tr(ji,jj,jk,jpoxy,Krhs) = tr(ji,jj,jk,jpoxy,Krhs) - zolimic * o2ut
-         tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) + zolimic + denitr(ji,jj,jk) + zoxyremc
+         tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) + ztemp
          IF( ln_p4z ) THEN ! PISCES-std
-            tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zolimic + denitr(ji,jj,jk) + zoxyremc
-            tr(ji,jj,jk,jpnh4,Krhs) = tr(ji,jj,jk,jpnh4,Krhs) + zolimic + denitr(ji,jj,jk) + zoxyremc
-            tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + rno3 * ( zolimic + zoxyremc + ( rdenit + 1.) * denitr(ji,jj,jk) )
+            tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + ztemp
+            tr(ji,jj,jk,jpnh4,Krhs) = tr(ji,jj,jk,jpnh4,Krhs) + ztemp
+            tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + rno3 * ( ztemp + rdenit * denitr(ji,jj,jk) )
          ELSE  ! PISCES-QUOTA (p5z)
             zremikn = xremikn / xremikc * tr(ji,jj,jk,jpdon,kbb) / ( tr(ji,jj,jk,jpdoc,Kbb) + rtrn )
             zremikp = xremikp / xremikc * tr(ji,jj,jk,jpdop,Kbb) / ( tr(ji,jj,jk,jpdoc,Kbb) + rtrn )
-            tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zremikp * ( zolimic + denitr(ji,jj,jk) + zoxyremc )
-            tr(ji,jj,jk,jpnh4,Krhs) = tr(ji,jj,jk,jpnh4,Krhs) + zremikn * ( zolimic + denitr(ji,jj,jk) + zoxyremc )
-            tr(ji,jj,jk,jpdon,Krhs) = tr(ji,jj,jk,jpdon,Krhs) - zremikn * ( zolimic + denitr(ji,jj,jk) + zoxyremc )
-            tr(ji,jj,jk,jpdop,Krhs) = tr(ji,jj,jk,jpdop,Krhs) - zremikp * ( zolimic + denitr(ji,jj,jk) + zoxyremc )
-            tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + rno3 * zremikn * ( zolimic + zoxyremc + ( rdenit + 1.) * denitr(ji,jj,jk) )
+            tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zremikp * ztemp
+            tr(ji,jj,jk,jpnh4,Krhs) = tr(ji,jj,jk,jpnh4,Krhs) + zremikn * ztemp
+            tr(ji,jj,jk,jpdon,Krhs) = tr(ji,jj,jk,jpdon,Krhs) - zremikn * ztemp
+            tr(ji,jj,jk,jpdop,Krhs) = tr(ji,jj,jk,jpdop,Krhs) - zremikp * ztemp
+            tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + rno3 * zremikn * ( ztemp + rdenit * denitr(ji,jj,jk) )
          ENDIF
       END_3D
 
@@ -299,20 +302,12 @@ CONTAINS
       ENDIF
 
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zdep = MAX( hmld(ji,jj), heup_01(ji,jj) )
-         IF( gdept(ji,jj,jk,Kmm) >= zdep ) THEN
-            zdepmin = MIN( 1., zdep / gdept(ji,jj,jk,Kmm) )
-            zdepeff = 0.3_wp * zdepmin**0.6
-         ELSE
-            zdepeff = 0.3_wp
-         ENDIF
-
          ! Bacterial uptake of iron. No iron is available in DOC. So
          ! Bacteries are obliged to take up iron from the water. Some
          ! studies (especially at Papa) have shown this uptake to be significant
          ! ----------------------------------------------------------
          zbactfer = feratb * 0.6_wp * xstep * tgfunc(ji,jj,jk) * xlimbacl(ji,jj,jk) * biron(ji,jj,jk)    &
-           &       / ( xkferb + biron(ji,jj,jk) ) * zdepeff * zdepbac(ji,jj,jk)
+           &        / ( xkferb + biron(ji,jj,jk) ) * zdepeff(ji,jj,jk) * zdepbac(ji,jj,jk)
          
          ! Only the transfer of iron from its dissolved form to particles
          ! is treated here. The GGE of bacteria supposed to be equal to 
@@ -336,10 +331,10 @@ CONTAINS
          ! Remineralization rate of BSi dependent on T and saturation
          ! The parameterization is taken from Ridgwell et al. (2002) 
          ! ---------------------------------------------------------
-         zdep     = MAX( hmld(ji,jj), heup_01(ji,jj) )
+         zdep     = MAX( hmld(ji,jj), heup_01(ji,jj), gdept(ji,jj,1,Kmm) )
          zsatur   = MAX( rtrn, ( sio3eq(ji,jj,jk) - tr(ji,jj,jk,jpsil,Kbb) ) / ( sio3eq(ji,jj,jk) + rtrn ) )
          zsatur2  = ( 1. + ts(ji,jj,jk,jp_tem,Kmm) / 400.)**37
-         znusil   = 0.225  * ( 1. + ts(ji,jj,jk,jp_tem,Kmm) / 15.) * zsatur + 0.775 * zsatur2 * zsatur**9.25
+         znusil   = 0.225 * ( 1. + ts(ji,jj,jk,jp_tem,Kmm) / 15.) * zsatur + 0.775 * zsatur2 * zsatur**9 * SQRT(SQRT(zsatur))
  
          ! Two fractions of bSi are considered : a labile one and a more
          ! refractory one based on the commonly observed two step 
@@ -348,13 +343,12 @@ CONTAINS
          ! Computation of the vertical evolution of the labile fraction
          ! of bSi. This is computed assuming steady state.
          ! --------------------------------------------------------------
-         IF ( gdept(ji,jj,jk,Kmm) > zdep ) THEN
+         zfacsi = xsilab
+         IF ( gdept(ji,jj,jk,Kmm) >= zdep ) THEN
             zfactdep = EXP( -0.5 * ( xsiremlab - xsirem ) * znusil * e3t(ji,jj,jk,Kmm) / wsbio4(ji,jj,jk) )
             zfacsib(ji,jj,jk) = zfacsib(ji,jj,jk-1) * zfactdep
             zfacsi            = zfacsib(ji,jj,jk) / ( 1.0 + zfacsib(ji,jj,jk) )
             zfacsib(ji,jj,jk) = zfacsib(ji,jj,jk) * zfactdep
-         ELSE
-            zfacsi  = xsilab
          ENDIF
          zsiremin = ( xsiremlab * zfacsi + xsirem * ( 1. - zfacsi ) ) * xstep * znusil
          zosil    = zsiremin * tr(ji,jj,jk,jpgsi,Kbb)
@@ -370,7 +364,6 @@ CONTAINS
       ENDIF
 
       IF( knt == nrdttrc ) THEN
-!            zfact = rno3 * 1.e+3 * rfact2r !  conversion from molC/l/kt  to molN/m3/s
           !
           IF( l_dia_remin ) THEN   
              CALL iom_put( "REMIN", ( zolimi(:,:,:) - tr(A2D(0),:,jpoxy,Krhs) ) / o2ut * rfact2r * tmask(A2D(0),:) ) ! Remineralisation rate
