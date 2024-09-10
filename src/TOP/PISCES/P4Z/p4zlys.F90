@@ -104,6 +104,7 @@ CONTAINS
       !        MGCO3)
       !     ---------------------------------------------------------
 
+      zkd = kdca * 0.2**(nca - 0.2)
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
 
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
@@ -117,19 +118,15 @@ CONTAINS
          zexcess0 = MAX( 0., excess(ji,jj,jk) )
 
          IF( zomegaca < 0.8 ) THEN
-            zexcess = zexcess0**nca
-            ! AMOUNT CACO3 THAT RE-ENTERS SOLUTION
-            zdispot = kdca * zexcess 
+            zdispot = kdca * zexcess0**nca
          ELSE
-            zkd = kdca * 0.2**(nca - 0.2)
-            zexcess = zexcess0**0.2
-            zdispot = zkd * zexcess
-        ENDIF
+            zdispot = zkd * zexcess0**0.2
+         ENDIF
 
-        !  CHANGE OF [CO3--] , [ALK], PARTICULATE [CACO3],
-        !       AND [SUM(CO2)] DUE TO CACO3 DISSOLUTION/PRECIPITATION
-        ztra(ji,jj,jk)  = zdispot / rmtss ! calcite dissolution
-        !
+         !  CHANGE OF [CO3--] , [ALK], PARTICULATE [CACO3],
+         !       AND [SUM(CO2)] DUE TO CACO3 DISSOLUTION/PRECIPITATION
+         ztra(ji,jj,jk)  = zdispot / rmtss ! calcite dissolution
+         !
       END_3D
       !
       zcaco3(:,:,:) = 0._wp
@@ -139,18 +136,18 @@ CONTAINS
       END_2D
 
       DO_3D( 0, 0, 0, 0, 2, jpkm1)
-         zdissol = 0.0
-         zwsbio = wsbio4(ji,jj,jk) / rday
          IF ( tmask(ji,jj,1) == 1. ) THEN
+            zwsbio = wsbio4(ji,jj,jk) / rday
             IF ( ztra(ji,jj,jk) == 0.0 ) THEN
                zcaco3(ji,jj,jk) = zcaco3(ji,jj,jk-1) + prodcal(ji,jj,jk) * rfact2r / zwsbio * e3t(ji,jj,jk,Kmm) 
+               zdissol = 0.0
             ELSE
                zdepexp = exp( - ztra(ji,jj,jk) * e3t(ji,jj,jk,Kmm) / zwsbio )
-               zcaco3(ji,jj,jk) = prodcal(ji,jj,jk) * rfact2r / ztra(ji,jj,jk)  &
-                  & * (1.0 - zdepexp ) + zcaco3(ji,jj,jk-1) * zdepexp
+               zcaco3(ji,jj,jk) = prodcal(ji,jj,jk) * rfact2r / ztra(ji,jj,jk)       &
+                 &                * (1.0 - zdepexp ) + zcaco3(ji,jj,jk-1) * zdepexp
                zdissol = prodcal(ji,jj,jk) * e3t(ji,jj,jk,Kmm) + prodcal(ji,jj,jk)   &
-                  &      * zwsbio / ztra(ji,jj,jk) * ( zdepexp - 1.0 )   &
-                  &      + zwsbio * zcaco3(ji,jj,jk-1) * ( 1.0 - zdepexp ) * rfact2 
+                 &       * zwsbio / ztra(ji,jj,jk) * ( zdepexp - 1.0 )               &
+                 &       + zwsbio * zcaco3(ji,jj,jk-1) * ( 1.0 - zdepexp ) * rfact2 
                zdissol = zdissol / e3t(ji,jj,jk,Kmm)
             ENDIF
             tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) + zdissol
@@ -230,7 +227,7 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zdens = rhop(ji,jj,jk) / 1000._wp
          zco3(ji,jj,jk) = tr(ji,jj,jk,jpdic,Kbb) * ak13(ji,jj,jk) * ak23(ji,jj,jk) / (zhi(ji,jj,jk)**2   &
-            &             + ak13(ji,jj,jk) * zhi(ji,jj,jk) + ak13(ji,jj,jk) * ak23(ji,jj,jk) + rtrn )
+           &              + ak13(ji,jj,jk) * zhi(ji,jj,jk) + ak13(ji,jj,jk) * ak23(ji,jj,jk) + rtrn )
          hi  (ji,jj,jk) = zhi(ji,jj,jk) * zdens
       END_3D
 
@@ -240,6 +237,7 @@ CONTAINS
       !        MGCO3)
       !     ---------------------------------------------------------
 
+      zkd = kdca * 0.2**(nca - 0.2)
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
 
          ! DEVIATION OF [CO3--] FROM SATURATION VALUE
@@ -253,25 +251,23 @@ CONTAINS
          zexcess0 = MAX( 0., excess(ji,jj,jk) )
 
          IF( zomegaca < 0.8 ) THEN
-            zexcess = zexcess0**nca
+            zexcess = kdca * zexcess0**nca
             ! AMOUNT CACO3 THAT RE-ENTERS SOLUTION
-            zdispot = kdca * zexcess * tr(ji,jj,jk,jpcal,Kbb)
          ELSE
-            zkd = kdca * 0.2**(nca - 0.2)
-            zexcess = zexcess0**0.2
-            zdispot = zkd * zexcess * tr(ji,jj,jk,jpcal,Kbb)
-        ENDIF
+            zexcess = zkd * zexcess0**0.2
+         ENDIF
 
-        !  CHANGE OF [CO3--] , [ALK], PARTICULATE [CACO3],
-        !       AND [SUM(CO2)] DUE TO CACO3 DISSOLUTION/PRECIPITATION
-        zdissol  = zdispot * rfact2 / rmtss ! calcite dissolution
-        !
-        tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + 2. * zdissol
-        tr(ji,jj,jk,jpcal,Krhs) = tr(ji,jj,jk,jpcal,Krhs) -      zdissol
-        tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) +      zdissol
-        !
-        IF( l_dia )  zcaldiss(ji,jj,jk) = zdissol
-        !
+         ! Calcite dissolution
+         zdissol  = zexcess * tr(ji,jj,jk,jpcal,Kbb) * rfact2 / rmtss
+
+         !  CHANGE OF [CO3--] , [ALK], PARTICULATE [CACO3],
+         !       AND [SUM(CO2)] DUE TO CACO3 DISSOLUTION/PRECIPITATION
+         tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + 2. * zdissol
+         tr(ji,jj,jk,jpcal,Krhs) = tr(ji,jj,jk,jpcal,Krhs) -      zdissol
+         tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) +      zdissol
+         !
+         IF( l_dia )  zcaldiss(ji,jj,jk) = zdissol
+         !
       END_3D
       !
       IF( l_dia .AND. knt == nrdttrc ) THEN

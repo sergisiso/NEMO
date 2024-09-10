@@ -103,7 +103,7 @@ CONTAINS
             iiter(:,:) = MIN( iiter(:,:), nitermax )
          ENDIF
 
-         zwsink(:,:,:) = 0._wp
+         zwsink(:,:,1) = 0._wp
          DO_3D( 0, 0, 0, 0, 1, jpkm1 )
             zwsmax = 0.5 * e3t(ji,jj,jk,Kmm) * rday / rsfact
             zwsink(ji,jj,jk+1) = -MIN( pwsink(ji,jj,jk), zwsmax * REAL( iiter(ji,jj), wp ) ) / rday
@@ -155,7 +155,8 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, jn, jt
       REAL(wp) ::   zigma,z0w,zign, zflx, zstep, zzwx, zzwy, zalpha
-      REAL(wp), DIMENSION(A2D(0),jpk) :: ztraz, zakz, ztrb, zsinking 
+      REAL(wp) ::   ztraz, ztraz_km1
+      REAL(wp), DIMENSION(jpk) :: zakz, ztrb, zsinking
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('trc_sink2_mus')
@@ -164,53 +165,39 @@ CONTAINS
          ! Vertical advective flux
          zstep = rsfact / REAL( kiter(ji,jj), wp ) / 2.
          DO jt = 1, kiter(ji,jj)
-            ztraz(ji,jj,:) = 0.e0
-            zakz (ji,jj,:) = 0.e0
-            ztrb (ji,jj,:) = tr(ji,jj,:,jp_tra,Kbb)
+            zakz (:) = 0.e0
+            ztrb (:) = tr(ji,jj,:,jp_tra,Kbb)
             DO jn = 1, 2
                !              
+               ztraz_km1 = ( ztrb(1) - ztrb(2) ) * tmask(ji,jj,2)
                DO jk = 2, jpkm1
-                  ztraz(ji,jj,jk) = ( tr(ji,jj,jk-1,jp_tra,Kbb) - tr(ji,jj,jk,jp_tra,Kbb) ) * tmask(ji,jj,jk)
-               END DO
-               ztraz(ji,jj,1  ) = 0.0
-               ztraz(ji,jj,jpk) = 0.0
-
-               ! slopes
-               DO jk = 2, jpkm1
-                  zign = 0.25 + SIGN( 0.25_wp, ztraz(ji,jj,jk) * ztraz(ji,jj,jk+1) )
-                  zakz(ji,jj,jk) = ( ztraz(ji,jj,jk) + ztraz(ji,jj,jk+1) ) * zign
-               END DO
-      
-               ! Slopes limitation
-               DO jk = 2, jpkm1
-                  zakz(ji,jj,jk) = SIGN( 1.0_wp, zakz(ji,jj,jk) ) *        &
-                     &             MIN( ABS( zakz(ji,jj,jk) ), 2. * ABS(ztraz(ji,jj,jk+1)), 2. * ABS(ztraz(ji,jj,jk) ) )
+                  ztraz     = ( ztrb(jk) - ztrb(jk+1) ) * tmask(ji,jj,jk+1)
+                  zign      = 0.25 + SIGN( 0.25_wp, ztraz_km1 * ztraz )
+                  zakz(jk)  = ( ztraz_km1 + ztraz ) * zign
+                  zakz(jk)  = SIGN( 1.0_wp, zakz(jk) ) *        &
+                     &        MIN( ABS( zakz(jk) ), 2. * ABS(ztraz), 2. * ABS(ztraz_km1) )
+                  ztraz_km1 = ztraz
                END DO
       
                ! vertical advective flux
+               zsinking(1) = 0.e0
                DO jk = 1, jpkm1
-                  z0w    = SIGN( 0.5_wp, pwsink(ji,jj,jk+1) )
-                  zalpha = 0.5 + z0w 
-                  zigma  = z0w - 0.5 * pwsink(ji,jj,jk+1) * zstep / e3w(ji,jj,jk+1,Kmm)
-                  zzwx   = tr(ji,jj,jk+1,jp_tra,Kbb) + zigma * zakz(ji,jj,jk+1)
-                  zzwy   = tr(ji,jj,jk,jp_tra,Kbb) + zigma * zakz(ji,jj,jk)
-                  zsinking(ji,jj,jk+1) = -pwsink(ji,jj,jk+1) * ( zalpha * zzwx + (1.0 - zalpha) * zzwy ) * zstep
-               END DO
-               !
-               ! Boundary conditions
-               zsinking(ji,jj,1  ) = 0.e0
-               DO jk = 1, jpkm1
-                  zflx = ( zsinking(ji,jj,jk) - zsinking(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
-                  tr(ji,jj,jk,jp_tra,Kbb) = tr(ji,jj,jk,jp_tra,Kbb) + zflx * tmask(ji,jj,jk)
+                  z0w      = SIGN( 0.5_wp, pwsink(ji,jj,jk+1) )
+                  zalpha   = 0.5 + z0w 
+                  zigma    = z0w - 0.5 * pwsink(ji,jj,jk+1) * zstep / e3w(ji,jj,jk+1,Kmm)
+                  zzwx     = ztrb(jk+1) + zigma * zakz(jk+1)
+                  zzwy     = ztrb(jk) + zigma * zakz(jk)
+                  zsinking(jk+1) = -pwsink(ji,jj,jk+1) * ( zalpha * zzwx + (1.0 - zalpha) * zzwy ) * zstep
+                  zflx     = ( zsinking(jk) - zsinking(jk+1) ) / e3t(ji,jj,jk,Kmm)
+                  ztrb(jk) = ztrb(jk) + zflx * tmask(ji,jj,jk)
                END DO
             END DO
             DO jk = 1, jpkm1
-               zflx = ( zsinking(ji,jj,jk) - zsinking(ji,jj,jk+1) ) / e3t(ji,jj,jk,Kmm)
-               ztrb(ji,jj,jk) = ztrb(ji,jj,jk) + 2. * zflx * tmask(ji,jj,jk)
+               zflx = ( zsinking(jk) - zsinking(jk+1) ) / e3t(ji,jj,jk,Kmm)
+               tr(ji,jj,jk,jp_tra,Kbb) = tr(ji,jj,jk,jp_tra,Kbb) + 2. * zflx * tmask(ji,jj,jk)
+               psinkflx(ji,jj,jk)      = psinkflx(ji,jj,jk) + 2. * zsinking(jk)
             END DO
-
-            tr(ji,jj,:,jp_tra,Kbb) = ztrb(ji,jj,:)
-            psinkflx(ji,jj,:)   = psinkflx(ji,jj,:) + 2. * zsinking(ji,jj,:)
+            psinkflx(ji,jj,jpk) = psinkflx(ji,jj,jpk) + 2. * zsinking(jpk)
          END DO
       END_2D
       !

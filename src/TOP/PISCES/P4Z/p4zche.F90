@@ -149,7 +149,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm  ! time level indices
       INTEGER  ::   ji, jj, jk
       REAL(wp) ::   ztkel, ztkel1, ztkel2, ztkel3
-      REAL(wp) ::   zt , zsal  , zsal2 , zbuf1 , zbuf2
+      REAL(wp) ::   zt, zsal, zlogsal, zsal2, zbuf1, zbuf2
       REAL(wp) ::   ztgg , ztgg2, ztgg3 , ztgg4 , ztgg5
       REAL(wp) ::   zpres, ztc  , zcl   , zcpexp, zoxy  , zcpexp2
       REAL(wp) ::   zsqrt, ztr  , zlogt , zcek1, zc1, zplat
@@ -184,9 +184,9 @@ CONTAINS
       ! ---------------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpk )
          zpres = gdept(ji,jj,jk,Kmm) / 1000.
-         za1 = 0.04 * ( 1.0 + 0.185 * ts(ji,jj,jk,jp_tem,Kmm) + 0.035 * (salinprac(ji,jj,jk) - 35.0) )
-         za2 = 0.0075 * ( 1.0 - ts(ji,jj,jk,jp_tem,Kmm) / 30.0 )
-         tempis(ji,jj,jk) = ts(ji,jj,jk,jp_tem,Kmm) - za1 * zpres + za2 * zpres**2
+         za1   = 0.04 * ( 1.0 + 0.185 * ts(ji,jj,jk,jp_tem,Kmm) + 0.035 * (salinprac(ji,jj,jk) - 35.0) )
+         za2   = 0.0075 * ( 1.0 - ts(ji,jj,jk,jp_tem,Kmm) / 30.0 )
+         tempis(ji,jj,jk) = ts(ji,jj,jk,jp_tem,Kmm) - zpres * ( za1 - za2 * zpres )
       END_3D
       !
       ! CHEMICAL CONSTANTS - SURFACE LAYER
@@ -196,8 +196,8 @@ CONTAINS
          ztkel  = tempis(ji,jj,1) + 273.15
          ztkel2 = ztkel * ztkel
          ztkel3 = ztkel2 * ztkel 
-         zt    = ztkel * 0.01
-         zsal  = salinprac(ji,jj,1) + ( 1.- tmask(ji,jj,1) ) * 35.
+         zt     = ztkel * 0.01
+         zsal   = salinprac(ji,jj,1) + ( 1.- tmask(ji,jj,1) ) * 35.
          !                             ! LN(K0) OF SOLUBILITY OF CO2 (EQ. 12, WEISS, 1980)
          !                             !     AND FOR THE ATMOSPHERE FOR NON IDEAL GAS
          ! J. ORR: The previous code has been modified. It computed CO2 solubility in mol/(kg*atm), then converted that to mol/(L*atm).
@@ -209,7 +209,7 @@ CONTAINS
          !&       + 0.0047036e-4*ztkel**2)
          ! NEW - Coefficients for CO2 soulbility in mol/(L*atm) (Weiss, 1974, Table 1, column 1)
          zcek1 = 9050.69/ztkel - 58.0931 + 22.2940 * LOG(zt) + zsal*(0.027766 - 0.00025888*ztkel    &
-                 &       + 0.0050578e-4*ztkel2)
+           &     + 0.0050578e-4*ztkel2)
          !
          ! OLD:  chemc(ji,jj,1) = EXP( zcek1 ) * 1E-6 * rhop(ji,jj,1) / 1000. ! mol/(L atm)
          ! The units indicated in the above line are wrong. They are actually "mol/(L*uatm)"
@@ -231,10 +231,10 @@ CONTAINS
          ztgg4 = ztgg3 * ztgg
          ztgg5 = ztgg4 * ztgg
 
-         zoxy  = 2.00856 + 3.22400 * ztgg + 3.99063 * ztgg2 + 4.80299 * ztgg3    &
-         &       + 9.78188e-1 * ztgg4 + 1.71069 * ztgg5 + zsal * ( -6.24097e-3   &
-         &       - 6.93498e-3 * ztgg - 6.90358e-3 * ztgg2 - 4.29155e-3 * ztgg3 )   &
-         &       - 3.11680e-7 * zsal2
+         zoxy  = 2.00856 + 3.22400 * ztgg + 3.99063 * ztgg2 + 4.80299 * ztgg3      &
+           &     + 9.78188e-1 * ztgg4 + 1.71069 * ztgg5 + zsal * ( -6.24097e-3     &
+           &     - 6.93498e-3 * ztgg - 6.90358e-3 * ztgg2 - 4.29155e-3 * ztgg3 )   &
+           &     - 3.11680e-7 * zsal2
          chemo2(ji,jj,jk) = ( EXP( zoxy ) * o2atm ) * oxyco * atcox     ! mol/(L atm)
       END_3D
 
@@ -243,86 +243,87 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpk )
           ! SET PRESSION ACCORDING TO SAUNDER (1980)
           zplat   = SIN ( ABS(gphit(ji,jj)*3.141592654/180.) )
-          zc1 = 5.92E-3 + zplat*zplat * 5.25E-3
-          zpres = ((1-zc1)-SQRT(((1-zc1)**2)-(8.84E-6*gdept(ji,jj,jk,Kmm)))) / 4.42E-6
-          zpres = zpres / 10.0
+          zc1     = 5.92E-3 + zplat*zplat * 5.25E-3
+          zpres   = ((1-zc1)-SQRT(((1-zc1)**2)-(8.84E-6*gdept(ji,jj,jk,Kmm)))) / 4.42E-6
+          zpres   = zpres / 10.0
 
           ! SET ABSOLUTE TEMPERATURE
           ztkel   = tempis(ji,jj,jk) + 273.15
           zsal    = salinprac(ji,jj,jk) + ( 1.-tmask(ji,jj,jk) ) * 35.
-          zsqrt  = SQRT( zsal )
+          zsal2   = zsal * zsal
+          zsqrt   = SQRT( zsal )
           zsal15  = zsqrt * zsal
-          zlogt  = LOG( ztkel )
-          ztr    = 1. / ztkel
-          zis    = 19.924 * zsal / ( 1000.- 1.005 * zsal )
-          zis2   = zis * zis
-          zisqrt = SQRT( zis )
+          zlogt   = LOG( ztkel )
+          ztr     = 1. / ztkel
+          zis     = 19.924 * zsal / ( 1000.- 1.005 * zsal )
+          zis2    = zis * zis
+          zisqrt  = SQRT( zis )
           ztc     = tempis(ji,jj,jk) + ( 1.- tmask(ji,jj,jk) ) * 20.
+          zlogsal = LOG(1.0 - 0.001005 * zsal)
 
           ! CHLORINITY (WOOSTER ET AL., 1969)
           zcl     = zsal / 1.80655
 
           ! TOTAL SULFATE CONCENTR. [MOLES/kg soln]
-          zst     = 0.14 * zcl /96.062
+          zst     = 0.14 * zcl / 96.062
 
           ! TOTAL FLUORIDE CONCENTR. [MOLES/kg soln]
           zft     = 0.000067 * zcl /18.9984
 
           ! DISSOCIATION CONSTANT FOR SULFATES on free H scale (Dickson 1990)
           zcks    = EXP(-4276.1 * ztr + 141.328 - 23.093 * zlogt         &
-          &         + (-13856. * ztr + 324.57 - 47.986 * zlogt) * zisqrt &
-          &         + (35474. * ztr - 771.54 + 114.723 * zlogt) * zis    &
-          &         - 2698. * ztr * zis**1.5 + 1776.* ztr * zis2         &
-          &         + LOG(1.0 - 0.001005 * zsal))
+            &       + (-13856. * ztr + 324.57 - 47.986 * zlogt) * zisqrt &
+            &       + (35474. * ztr - 771.54 + 114.723 * zlogt) * zis    &
+            &       - 2698. * ztr * zis**1.5 + 1776.* ztr * zis2         &
+            &       + zlogsal)
 
           ! DISSOCIATION CONSTANT FOR FLUORIDES on free H scale (Dickson and Riley 79)
-          zckf    = EXP( 1590.2*ztr - 12.641 + 1.525*zisqrt   &
-          &         + LOG(1.0d0 - 0.001005d0*zsal)            &
-          &         + LOG(1.0d0 + zst/zcks))
+          zckf    = EXP( 1590.2*ztr - 12.641 + 1.525*zisqrt        &
+            &       + zlogsal + LOG(1.0d0 + zst/zcks))
 
           ! DISSOCIATION CONSTANT FOR CARBONATE AND BORATE
-          zckb=  (-8966.90 - 2890.53*zsqrt - 77.942*zsal        &
-          &      + 1.728*zsal15 - 0.0996*zsal*zsal)*ztr         &
-          &      + (148.0248 + 137.1942*zsqrt + 1.62142*zsal)   &
-          &      + (-24.4344 - 25.085*zsqrt - 0.2474*zsal)      & 
-          &      * zlogt + 0.053105*zsqrt*ztkel
+          zckb    = (-8966.90 - 2890.53*zsqrt - 77.942*zsal        &
+            &       + 1.728*zsal15 - 0.0996*zsal2)*ztr             &
+            &       + (148.0248 + 137.1942*zsqrt + 1.62142*zsal)   &
+            &       + (-24.4344 - 25.085*zsqrt - 0.2474*zsal)      & 
+            &       * zlogt + 0.053105*zsqrt*ztkel
 
           ! DISSOCIATION COEFFICIENT FOR CARBONATE ACCORDING TO 
           ! MEHRBACH (1973) REFIT BY MILLERO (1995), seawater scale
-          zck1    = -1.0*(3633.86*ztr - 61.2172 + 9.6777*zlogt  &
-             - 0.011555*zsal + 0.0001152*zsal*zsal)
+          zck1    = -1.0*(3633.86*ztr - 61.2172 + 9.6777*zlogt      &
+            &       - 0.011555*zsal + 0.0001152*zsal2)
           zck2    = -1.0*(471.78*ztr + 25.9290 - 3.16967*zlogt      &
-             - 0.01781*zsal + 0.0001122*zsal*zsal)
+            &       - 0.01781*zsal + 0.0001122*zsal2)
 
           ! PKW (H2O) (MILLERO, 1995) from composite data
           zckw    = -13847.26 * ztr + 148.9652 - 23.6521 * zlogt + ( 118.67 * ztr    &
-                    - 5.977 + 1.0495 * zlogt ) * zsqrt - 0.01615 * zsal
+            &       - 5.977 + 1.0495 * zlogt ) * zsqrt - 0.01615 * zsal
 
           ! CONSTANTS FOR PHOSPHATE (MILLERO, 1995)
-         zck1p    = -4576.752*ztr + 115.540 - 18.453*zlogt   &
-         &          + (-106.736*ztr + 0.69171) * zsqrt       &
-         &          + (-0.65643*ztr - 0.01844) * zsal
+          zck1p   = -4576.752*ztr + 115.540 - 18.453*zlogt   &
+            &       + (-106.736*ztr + 0.69171) * zsqrt       &
+            &       + (-0.65643*ztr - 0.01844) * zsal
 
-         zck2p    = -8814.715*ztr + 172.1033 - 27.927*zlogt  &
-         &          + (-160.340*ztr + 1.3566)*zsqrt          &
-         &          + (0.37335*ztr - 0.05778)*zsal
+          zck2p   = -8814.715*ztr + 172.1033 - 27.927*zlogt  &
+            &       + (-160.340*ztr + 1.3566)*zsqrt          &
+            &       + (0.37335*ztr - 0.05778)*zsal
 
-         zck3p    = -3070.75*ztr - 18.126                    &
-         &          + (17.27039*ztr + 2.81197) * zsqrt       &
-         &          + (-44.99486*ztr - 0.09984) * zsal 
+          zck3p   = -3070.75*ztr - 18.126                    &
+            &       + (17.27039*ztr + 2.81197) * zsqrt       &
+            &       + (-44.99486*ztr - 0.09984) * zsal 
 
-         ! CONSTANT FOR SILICATE, MILLERO (1995)
-         zcksi    = -8904.2*ztr  + 117.400 - 19.334*zlogt   &
-         &          + (-458.79*ztr + 3.5913) * zisqrt       &
-         &          + (188.74*ztr - 1.5998) * zis           &
-         &          + (-12.1652*ztr + 0.07871) * zis2       &
-         &          + LOG(1.0 - 0.001005*zsal)
+          ! CONSTANT FOR SILICATE, MILLERO (1995)
+          zcksi   = -8904.2*ztr  + 117.400 - 19.334*zlogt    &
+            &       + (-458.79*ztr + 3.5913) * zisqrt        &
+            &       + (188.74*ztr - 1.5998) * zis            &
+            &       + (-12.1652*ztr + 0.07871) * zis2        &
+            &       + zlogsal
 
           ! APPARENT SOLUBILITY PRODUCT K'SP OF CALCITE IN SEAWATER
           !       (S=27-43, T=2-25 DEG C) at pres =0 (atmos. pressure) (MUCCI 1983)
           zaksp0  = -171.9065 -0.077993*ztkel + 2839.319*ztr + 71.595*LOG10( ztkel )   &
-             &      + (-0.77712 + 0.00284263*ztkel + 178.34*ztr) * zsqrt  &
-             &      - 0.07711*zsal + 0.0041249*zsal15
+            &       + (-0.77712 + 0.00284263*ztkel + 178.34*ztr) * zsqrt               &
+            &       - 0.07711*zsal + 0.0041249*zsal15
 
           ! CONVERT FROM DIFFERENT PH SCALES
           total2free  = 1.0/(1.0 + zst/zcks)
@@ -331,15 +332,15 @@ CONTAINS
           SWS2total   = 1.0 / total2SWS
 
           ! K1, K2 OF CARBONIC ACID, KB OF BORIC ACID, KW (H2O) (LIT.?)
-          zak1    = 10**(zck1) * total2SWS
-          zak2    = 10**(zck2) * total2SWS
+          zak1    = 10**(zck1)  * total2SWS
+          zak2    = 10**(zck2)  * total2SWS
           zakb    = EXP( zckb ) * total2SWS
           zakw    = EXP( zckw )
           zaksp1  = 10**(zaksp0)
-          zak1p   = exp( zck1p )
-          zak2p   = exp( zck2p )
-          zak3p   = exp( zck3p )
-          zaksi   = exp( zcksi )
+          zak1p   = EXP( zck1p )
+          zak2p   = EXP( zck2p )
+          zak3p   = EXP( zck3p )
+          zaksi   = EXP( zcksi )
           zckf    = zckf * total2SWS
 
           ! FORMULA FOR CPEXP AFTER EDMOND & GIESKES (1970)
@@ -400,8 +401,8 @@ CONTAINS
           aksi3(ji,jj,jk) = zaksi * EXP( zbuf1 * zcpexp + zbuf2 * zcpexp2 )
 
           ! CONVERT FROM DIFFERENT PH SCALES
-          total2free  = 1.0/(1.0 + zst/aks3(ji,jj,jk))
-          free2SWS    = 1. + zst/aks3(ji,jj,jk) + zft/akf3(ji,jj,jk)
+          total2free  = 1.0 / (1.0 + zst/aks3(ji,jj,jk))
+          free2SWS    = 1. + zst / aks3(ji,jj,jk) + zft / akf3(ji,jj,jk)
           total2SWS   = total2free * free2SWS
           SWS2total   = 1.0 / total2SWS
 
@@ -424,11 +425,11 @@ CONTAINS
           aksp(ji,jj,jk) = zaksp1 * EXP( zbuf1 * zcpexp + zbuf2 * zcpexp2 )
 
           ! TOTAL F, S, and BORATE CONCENTR. [MOLES/L]
-          borat(ji,jj,jk) = 0.0002414 * zcl / 10.811
-          sulfat(ji,jj,jk) = zst
+          borat(ji,jj,jk)   = 0.0002414 * zcl / 10.811
+          sulfat(ji,jj,jk)  = zst
           fluorid(ji,jj,jk) = zft 
 
-          fekeq (ji,jj,jk) = 10**( 17.27 - 1565.7 / ztkel ) 
+          fekeq (ji,jj,jk)  = EXP( LOG(10.) * ( 17.27 - 1565.7 / ztkel ) ) 
 
           ! Liu and Millero (1999) only valid 5 - 50 degC
           ztkel1 = MAX( 5. , tempis(ji,jj,jk) ) + 273.16 
@@ -444,7 +445,7 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, jpk )
              ! SET ABSOLUTE TEMPERATURE
              ztkel   = tempis(ji,jj,jk) + 273.15
-             sio3eq(ji,jj,jk) = EXP(  LOG( 10.) * ( 6.44 - 968. / ztkel )  ) * 1.e-6
+             sio3eq(ji,jj,jk) = EXP( LOG(10.) * ( 6.44 - 968. / ztkel )  ) * 1.e-6
             !
          END_3D
       ENDIF
@@ -478,39 +479,39 @@ CONTAINS
       IF( ln_timing )  CALL timing_start('ahini_for_at')
       !
       DO_3D( 0, 0, 0, 0, 1, jpk )
-      zdens    = rhop(ji,jj,jk) / 1000. 
-      p_alkcb  = tr(ji,jj,jk,jptal,Kbb) / ( zdens + rtrn )
-      p_dictot = tr(ji,jj,jk,jpdic,Kbb) / ( zdens + rtrn )
-      p_bortot = borat(ji,jj,jk)
-      IF (p_alkcb <= 0.) THEN
-          p_hini(ji,jj,jk) = 1.e-3
-      ELSEIF (p_alkcb >= (2.*p_dictot + p_bortot)) THEN
-          p_hini(ji,jj,jk) = 1.e-10_wp
-      ELSE
-          zca1 = p_dictot/( p_alkcb + rtrn )
-          zba1 = p_bortot/ (p_alkcb + rtrn )
-     ! Coefficients of the cubic polynomial
-          za2 = aKb3(ji,jj,jk)*(1. - zba1) + ak13(ji,jj,jk)*(1.-zca1)
-          za1 = ak13(ji,jj,jk)*akb3(ji,jj,jk)*(1. - zba1 - zca1)    &
-          &     + ak13(ji,jj,jk)*ak23(ji,jj,jk)*(1. - (zca1+zca1))
-          za0 = ak13(ji,jj,jk)*ak23(ji,jj,jk)*akb3(ji,jj,jk)*(1. - zba1 - (zca1+zca1))
-                                  ! Taylor expansion around the minimum
-          zd = za2*za2 - 3.*za1   ! Discriminant of the quadratic equation
-                                  ! for the minimum close to the root
-
-          IF(zd > 0.) THEN        ! If the discriminant is positive
-            zsqrtd = SQRT(zd)
-            IF(za2 < 0) THEN
-              zhmin = (-za2 + zsqrtd)/3.
+         zdens    = rhop(ji,jj,jk) / 1000. 
+         p_alkcb  = tr(ji,jj,jk,jptal,Kbb) / ( zdens + rtrn )
+         p_dictot = tr(ji,jj,jk,jpdic,Kbb) / ( zdens + rtrn )
+         p_bortot = borat(ji,jj,jk)
+         IF (p_alkcb <= 0.) THEN
+            p_hini(ji,jj,jk) = 1.e-3
+         ELSEIF (p_alkcb >= (2.*p_dictot + p_bortot)) THEN
+            p_hini(ji,jj,jk) = 1.e-10_wp
+         ELSE
+            zca1 = p_dictot/( p_alkcb + rtrn )
+            zba1 = p_bortot/ (p_alkcb + rtrn )
+            ! Coefficients of the cubic polynomial
+            za2  = aKb3(ji,jj,jk)*(1. - zba1) + ak13(ji,jj,jk)*(1.-zca1)
+            za1  = ak13(ji,jj,jk)*akb3(ji,jj,jk)*(1. - zba1 - zca1)    &
+              &    + ak13(ji,jj,jk)*ak23(ji,jj,jk)*(1. - (zca1+zca1))
+            za0  = ak13(ji,jj,jk)*ak23(ji,jj,jk)*akb3(ji,jj,jk)*(1. - zba1 - (zca1+zca1))
+                                    ! Taylor expansion around the minimum
+            zd   = za2*za2 - 3.*za1   ! Discriminant of the quadratic equation
+                                    ! for the minimum close to the root
+ 
+            IF (zd > 0.) THEN        ! If the discriminant is positive
+               zsqrtd = SQRT(zd)
+               IF(za2 < 0) THEN
+                  zhmin = (-za2 + zsqrtd)/3.
+               ELSE
+                  zhmin = -za1/(za2 + zsqrtd)
+               ENDIF
+               p_hini(ji,jj,jk) = zhmin + SQRT(-(za0 + zhmin*(za1 + zhmin*(za2 + zhmin)))/zsqrtd)
             ELSE
-              zhmin = -za1/(za2 + zsqrtd)
+               p_hini(ji,jj,jk) = 1.e-7
             ENDIF
-            p_hini(ji,jj,jk) = zhmin + SQRT(-(za0 + zhmin*(za1 + zhmin*(za2 + zhmin)))/zsqrtd)
-          ELSE
-            p_hini(ji,jj,jk) = 1.e-7
-          ENDIF
        !
-       ENDIF
+         ENDIF
       END_3D
       !
       IF( ln_timing )  CALL timing_stop('ahini_for_at')
@@ -601,17 +602,17 @@ CONTAINS
          zdelta = (p_alktot-zalknw_inf(ji,jj,jk))**2 + 4.*akw3(ji,jj,jk)/aphscale
 
          IF(p_alktot >= zalknw_inf(ji,jj,jk)) THEN
-           zh_min(ji,jj,jk) = 2.*akw3(ji,jj,jk) /( p_alktot-zalknw_inf(ji,jj,jk) + SQRT(zdelta) )
+            zh_min(ji,jj,jk) = 2.*akw3(ji,jj,jk) /( p_alktot-zalknw_inf(ji,jj,jk) + SQRT(zdelta) )
          ELSE
-           zh_min(ji,jj,jk) = aphscale*(-(p_alktot-zalknw_inf(ji,jj,jk)) + SQRT(zdelta) ) / 2.
+            zh_min(ji,jj,jk) = aphscale*(-(p_alktot-zalknw_inf(ji,jj,jk)) + SQRT(zdelta) ) / 2.
          ENDIF
 
          zdelta = (p_alktot-zalknw_sup(ji,jj,jk))**2 + 4.*akw3(ji,jj,jk)/aphscale
 
          IF(p_alktot <= zalknw_sup(ji,jj,jk)) THEN
-           zh_max(ji,jj,jk) = aphscale*(-(p_alktot-zalknw_sup(ji,jj,jk)) + SQRT(zdelta) ) / 2.
+            zh_max(ji,jj,jk) = aphscale*(-(p_alktot-zalknw_sup(ji,jj,jk)) + SQRT(zdelta) ) / 2.
          ELSE
-           zh_max(ji,jj,jk) = 2.*akw3(ji,jj,jk) /( p_alktot-zalknw_sup(ji,jj,jk) + SQRT(zdelta) )
+            zh_max(ji,jj,jk) = 2.*akw3(ji,jj,jk) /( p_alktot-zalknw_sup(ji,jj,jk) + SQRT(zdelta) )
          ENDIF
 
          zhi(ji,jj,jk) = MAX(MIN(zh_max(ji,jj,jk), zh_ini), zh_min(ji,jj,jk))
@@ -623,15 +624,15 @@ CONTAINS
    DO jn = 1, jp_maxniter_atgen 
       DO_3D( 0, 0, 0, 0, 1, jpk )
       IF (rmask(ji,jj,jk) == 1.) THEN
-         zdens = rhop(ji,jj,jk) / 1000.
+         zdens    = rhop(ji,jj,jk) / 1000.
          p_alktot = tr(ji,jj,jk,jptal,Kbb) / ( zdens + rtrn )
-         zdic  = tr(ji,jj,jk,jpdic,Kbb) / ( zdens + rtrn )
-         zbot  = borat(ji,jj,jk)
-         zst = sulfat (ji,jj,jk)
-         zft = fluorid(ji,jj,jk)
-         aphscale = 1. + sulfat(ji,jj,jk)/aks3(ji,jj,jk)
-         zh = zhi(ji,jj,jk)
-         zh_prev = zh
+         zdic     = tr(ji,jj,jk,jpdic,Kbb) / ( zdens + rtrn )
+         zbot     = borat(ji,jj,jk)
+         zst      = sulfat (ji,jj,jk)
+         zft      = fluorid(ji,jj,jk)
+         aphscale = 1. + sulfat(ji,jj,jk) / aks3(ji,jj,jk)
+         zh       = zhi(ji,jj,jk)
+         zh_prev  = zh
          IF( ln_p2z ) THEN
             zsit = 90.33E-6 / ( zdens + rtrn )
             zpt  = 2.174E-6 / ( zdens + rtrn )
@@ -641,72 +642,70 @@ CONTAINS
          ENDIF
 
          ! H2CO3 - HCO3 - CO3 : n=2, m=0
-         znumer_dic = 2.*ak13(ji,jj,jk)*ak23(ji,jj,jk) + zh*ak13(ji,jj,jk)
-         zdenom_dic = ak13(ji,jj,jk)*ak23(ji,jj,jk) + zh*(ak13(ji,jj,jk) + zh)
-         zalk_dic   = zdic * (znumer_dic/zdenom_dic)
+         znumer_dic  = 2.*ak13(ji,jj,jk)*ak23(ji,jj,jk) + zh*ak13(ji,jj,jk)
+         zdenom_dic  = ak13(ji,jj,jk)*ak23(ji,jj,jk) + zh*(ak13(ji,jj,jk) + zh)
+         zalk_dic    = zdic * (znumer_dic/zdenom_dic)
          zdnumer_dic = ak13(ji,jj,jk)*ak13(ji,jj,jk)*ak23(ji,jj,jk) + zh     &
-                       *(4.*ak13(ji,jj,jk)*ak23(ji,jj,jk) + zh*ak13(ji,jj,jk))
+           &           *(4.*ak13(ji,jj,jk)*ak23(ji,jj,jk) + zh*ak13(ji,jj,jk))
          zdalk_dic   = -zdic*(zdnumer_dic/zdenom_dic**2)
 
-
          ! B(OH)3 - B(OH)4 : n=1, m=0
-         znumer_bor = akb3(ji,jj,jk)
-         zdenom_bor = akb3(ji,jj,jk) + zh
-         zalk_bor   = zbot * (znumer_bor/zdenom_bor)
+         znumer_bor  = akb3(ji,jj,jk)
+         zdenom_bor  = akb3(ji,jj,jk) + zh
+         zalk_bor    = zbot * (znumer_bor/zdenom_bor)
          zdnumer_bor = akb3(ji,jj,jk)
          zdalk_bor   = -zbot*(zdnumer_bor/zdenom_bor**2)
 
-
          ! H3PO4 - H2PO4 - HPO4 - PO4 : n=3, m=1
-         znumer_po4 = 3.*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)  &
-         &            + zh*(2.*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk) + zh* ak1p3(ji,jj,jk))
-         zdenom_po4 = ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)     &
-         &            + zh*( ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk) + zh*(ak1p3(ji,jj,jk) + zh))
-         zalk_po4   = zpt * (znumer_po4/zdenom_po4 - 1.) ! Zero level of H3PO4 = 1
+         znumer_po4  = 3.*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)  &
+           &           + zh*(2.*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk) + zh* ak1p3(ji,jj,jk))
+         zdenom_po4  = ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)     &
+           &           + zh*( ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk) + zh*(ak1p3(ji,jj,jk) + zh))
+         zalk_po4    = zpt * (znumer_po4/zdenom_po4 - 1.) ! Zero level of H3PO4 = 1
          zdnumer_po4 = ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)  &
-         &             + zh*(4.*ak1p3(ji,jj,jk)*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)         &
-         &             + zh*(9.*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)                         &
-         &             + ak1p3(ji,jj,jk)*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)                                &
-         &             + zh*(4.*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk) + zh * ak1p3(ji,jj,jk) ) ) )
+           &           + zh*(4.*ak1p3(ji,jj,jk)*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)         &
+           &           + zh*(9.*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)*ak3p3(ji,jj,jk)                         &
+           &           + ak1p3(ji,jj,jk)*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk)                                &
+           &           + zh*(4.*ak1p3(ji,jj,jk)*ak2p3(ji,jj,jk) + zh * ak1p3(ji,jj,jk) ) ) )
          zdalk_po4   = -zpt * (zdnumer_po4/zdenom_po4**2)
 
          ! H4SiO4 - H3SiO4 : n=1, m=0
-         znumer_sil = aksi3(ji,jj,jk)
-         zdenom_sil = aksi3(ji,jj,jk) + zh
-         zalk_sil   = zsit * (znumer_sil/zdenom_sil)
+         znumer_sil  = aksi3(ji,jj,jk)
+         zdenom_sil  = aksi3(ji,jj,jk) + zh
+         zalk_sil    = zsit * (znumer_sil/zdenom_sil)
          zdnumer_sil = aksi3(ji,jj,jk)
          zdalk_sil   = -zsit * (zdnumer_sil/zdenom_sil**2)
 
          ! HSO4 - SO4 : n=1, m=1
-         aphscale = 1.0 + zst/aks3(ji,jj,jk)
-         znumer_so4 = aks3(ji,jj,jk) * aphscale
-         zdenom_so4 = aks3(ji,jj,jk) * aphscale + zh
-         zalk_so4   = zst * (znumer_so4/zdenom_so4 - 1.)
+         aphscale    = 1.0 + zst/aks3(ji,jj,jk)
+         znumer_so4  = aks3(ji,jj,jk) * aphscale
+         zdenom_so4  = aks3(ji,jj,jk) * aphscale + zh
+         zalk_so4    = zst * (znumer_so4/zdenom_so4 - 1.)
          zdnumer_so4 = aks3(ji,jj,jk)
          zdalk_so4   = -zst * (zdnumer_so4/zdenom_so4**2)
 
          ! HF - F : n=1, m=1
-         znumer_flu =  akf3(ji,jj,jk)
-         zdenom_flu =  akf3(ji,jj,jk) + zh
-         zalk_flu   =  zft * (znumer_flu/zdenom_flu - 1.)
-         zdnumer_flu = akf3(ji,jj,jk)
+         znumer_flu  =  akf3(ji,jj,jk)
+         zdenom_flu  =  akf3(ji,jj,jk) + zh
+         zalk_flu    =  zft * (znumer_flu/zdenom_flu - 1.)
+         zdnumer_flu =  akf3(ji,jj,jk)
          zdalk_flu   = -zft * (zdnumer_flu/zdenom_flu**2)
 
          ! H2O - OH
-         aphscale = 1.0 + zst/aks3(ji,jj,jk)
-         zalk_wat   = akw3(ji,jj,jk)/zh - zh/aphscale
-         zdalk_wat  = -akw3(ji,jj,jk)/zh**2 - 1./aphscale
+         aphscale    = 1.0 + zst/aks3(ji,jj,jk)
+         zalk_wat    = akw3(ji,jj,jk)/zh - zh/aphscale
+         zdalk_wat   = -akw3(ji,jj,jk)/zh**2 - 1./aphscale
 
          ! CALCULATE [ALK]([CO3--], [HCO3-])
-         zeqn = zalk_dic + zalk_bor + zalk_po4 + zalk_sil   &
-         &      + zalk_so4 + zalk_flu                       &
-         &      + zalk_wat - p_alktot
+         zeqn        = zalk_dic + zalk_bor + zalk_po4 + zalk_sil     &
+           &           + zalk_so4 + zalk_flu                         &
+           &           + zalk_wat - p_alktot
 
-         zalka = p_alktot - (zalk_bor + zalk_po4 + zalk_sil   &
-         &       + zalk_so4 + zalk_flu + zalk_wat)
+         zalka       = p_alktot - (zalk_bor + zalk_po4 + zalk_sil    &
+           &           + zalk_so4 + zalk_flu + zalk_wat)
 
-         zdeqndh = zdalk_dic + zdalk_bor + zdalk_po4 + zdalk_sil &
-         &         + zdalk_so4 + zdalk_flu + zdalk_wat
+         zdeqndh     = zdalk_dic + zdalk_bor + zdalk_po4 + zdalk_sil &
+           &           + zdalk_so4 + zdalk_flu + zdalk_wat
 
          ! Adapt bracketing interval
          IF(zeqn > 0._wp) THEN

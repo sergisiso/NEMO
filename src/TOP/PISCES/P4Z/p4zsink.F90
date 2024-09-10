@@ -110,6 +110,7 @@ CONTAINS
             wsbio3(ji,jj,jk) = ( wsbio + wsbio2 * ( sizen(ji,jj,1) - 1.0 ) * 0.05 * zfact )    &
                &               / ( 1.0 + ( sizen(ji,jj,1) - 1.0 ) * 0.05 * zfact )
          END_3D
+         wsbio3(:,:,jpk) = wsbio
       ELSE
          wsbio3(:,:,:) = wsbio
       ENDIF

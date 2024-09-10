@@ -69,7 +69,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)    ) :: zqsr100, zqsr_corr
       REAL(wp), DIMENSION(A2D(0),jpk) ::  ze0, ze1, ze2, ze3
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zpar
-      REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zetmp3
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zetmp3
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_opt')
@@ -273,14 +273,14 @@ CONTAINS
       END_2D
 
       DO_3D( 0, 0, 0, 0, 2, nksr)
-        IF( etot_ndcy(ji,jj,jk) * tmask(ji,jj,jk) >=  zqsr100(ji,jj) )  THEN
-           neln(ji,jj) = jk+1                    ! Euphotic level : 1rst T-level strictly below Euphotic layer
-           !                                     ! nb: ensure the compatibility with nmld_trc definition in trd_mld_trc_zint
-           heup(ji,jj) = gdepw(ji,jj,jk+1,Kmm)     ! Euphotic layer depth
-        ENDIF
-        IF( etot_ndcy(ji,jj,jk) * tmask(ji,jj,jk) >= 0.10 )  THEN
-           heup_01(ji,jj) = gdepw(ji,jj,jk+1,Kmm)  ! Euphotic layer depth (light level definition)
-        ENDIF
+         IF( etot_ndcy(ji,jj,jk) * tmask(ji,jj,jk) >=  zqsr100(ji,jj) )  THEN
+            neln(ji,jj) = jk+1                    ! Euphotic level : 1rst T-level strictly below Euphotic layer
+            !                                     ! nb: ensure the compatibility with nmld_trc definition in trd_mld_trc_zint
+            heup(ji,jj) = gdepw(ji,jj,jk+1,Kmm)     ! Euphotic layer depth
+         ENDIF
+         IF( etot_ndcy(ji,jj,jk) * tmask(ji,jj,jk) >= 0.10 )  THEN
+            heup_01(ji,jj) = gdepw(ji,jj,jk+1,Kmm)  ! Euphotic layer depth (light level definition)
+         ENDIF
       END_3D
       !
       ! The euphotic depth can not exceed 300 meters.
@@ -291,38 +291,24 @@ CONTAINS
       ! -----------------------------
       zdepmoy(:,:)   = 0.e0             
       zetmp1 (:,:)   = 0.e0
-      DO_3D( 0, 0, 0, 0, 1, nksr)
-         IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
-            zetmp1 (ji,jj) = zetmp1 (ji,jj) + etot(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Actual PAR for remineralisation
-            zdepmoy(ji,jj) = zdepmoy(ji,jj) +                       e3t(ji,jj,jk,Kmm)
-         ENDIF
-      END_3D
-      !
-      emoy(:,:,:) = etot(:,:,:)       ! remineralisation
-      DO_3D( 0, 0, 0, 0, 1, nksr)
-         IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
-            z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
-            emoy (ji,jj,jk) = zetmp1(ji,jj) * z1_dep
-         ENDIF
-      END_3D
-
-      ! Computation of the mean usable light for the different phytoplankton
-      ! groups based on their absorption characteristics.
-      zdepmoy(:,:)   = 0.e0
       zetmp2 (:,:)   = 0.e0
       !
       DO_3D( 0, 0, 0, 0, 1, nksr)
-         IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
+         IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
+            zetmp1 (ji,jj) = zetmp1 (ji,jj) + etot(ji,jj,jk)  * e3t(ji,jj,jk,Kmm) ! Actual PAR for remineralisation
             zetmp2 (ji,jj) = zetmp2(ji,jj)  + enano(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Nanophytoplankton
             zdepmoy(ji,jj) = zdepmoy(ji,jj) +                   e3t(ji,jj,jk,Kmm)
          ENDIF
       END_3D
-      enanom(:,:,:) = enano(:,:,:)
       !
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
             z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
+            emoy (ji,jj,jk)  = zetmp1(ji,jj) * z1_dep
             enanom(ji,jj,jk) = zetmp2(ji,jj) * z1_dep
+         ELSE
+            emoy  (ji,jj,jk) = etot(ji,jj,jk)
+            enanom(ji,jj,jk) = enano(ji,jj,jk)
          ENDIF
       END_3D
       !
@@ -330,17 +316,17 @@ CONTAINS
          ! Diatoms when using PISCES-operational or PISCES-QUOTA
          ALLOCATE( zetmp3(A2D(0)) )  ;   zetmp3(:,:) = 0.e0
          DO_3D( 0, 0, 0, 0, 1, nksr)
-            IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
+            IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
                zetmp3(ji,jj) = zetmp3(ji,jj) + ediat(ji,jj,jk) * e3t(ji,jj,jk,Kmm) ! Diatoms
             ENDIF
          END_3D
-         !
-         ediatm(:,:,:) = ediat(:,:,:)
          !
          DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
                z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
                ediatm(ji,jj,jk) = zetmp3(ji,jj) * z1_dep
+            ELSE
+               ediatm(ji,jj,jk) = ediat(ji,jj,jk)
             ENDIF
          END_3D
          DEALLOCATE( zetmp3 )
@@ -349,17 +335,17 @@ CONTAINS
          ! Picophytoplankton when using PISCES-QUOTA
          ALLOCATE( zetmp3(A2D(0)) )  ;   zetmp3(:,:) = 0.e0
          DO_3D( 0, 0, 0, 0, 1, nksr)
-            IF( gdepw(ji,jj,jk+1,Kmm) <= MIN(hmld(ji,jj), heup_01(ji,jj)) ) THEN
+            IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
                zetmp3(ji,jj)  = zetmp3(ji,jj) + epico(ji,jj,jk) * e3t(ji,jj,jk,Kmm)
             ENDIF
          END_3D
-         !
-         epicom(:,:,:) = epico(:,:,:)
          !
          DO_3D( 0, 0, 0, 0, 1, nksr)
             IF( gdepw(ji,jj,jk+1,Kmm) <= hmld(ji,jj) ) THEN
                z1_dep = 1. / ( zdepmoy(ji,jj) + rtrn )
                epicom(ji,jj,jk) = zetmp3(ji,jj) * z1_dep
+            ELSE
+               epicom(ji,jj,jk) = epico(ji,jj,jk)
             ENDIF
          END_3D
          DEALLOCATE( zetmp3 )
@@ -411,6 +397,8 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0)) ::  zqsr   ! shortwave
       !!----------------------------------------------------------------------
 
+      IF( ln_timing )   CALL timing_start('p4z_opt_par')
+
       !  Real shortwave
       IF( ln_varpar ) THEN  ;  zqsr(:,:) = par_varsw(:,:) * pqsr(:,:)
       ELSE                  ;  zqsr(:,:) = xparsw         * pqsr(:,:)
@@ -447,6 +435,8 @@ CONTAINS
         !
       ENDIF
       ! 
+      IF( ln_timing )   CALL timing_stop('p4z_opt_par')
+      !
    END SUBROUTINE p4z_opt_par
 
 
@@ -553,6 +543,8 @@ CONTAINS
                          etot     (:,:,:) = 0._wp
                          etot_ndcy(:,:,:) = 0._wp
                          enano    (:,:,:) = 0._wp
+                         emoy     (:,:,:) = 0._wp
+                         enanom   (:,:,:) = 0._wp
       IF( .NOT. ln_p2z)  ediat    (:,:,:) = 0._wp
       IF( ln_p5z      )  epico    (:,:,:) = 0._wp
       IF( ln_qsr_bio  )  etot3    (:,:,:) = 0._wp
