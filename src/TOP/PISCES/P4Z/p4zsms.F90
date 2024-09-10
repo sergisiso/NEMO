@@ -130,15 +130,15 @@ CONTAINS
       !
       DO jnt = 1, nrdttrc          ! Potential time splitting if requested
          !
-         CALL p4z_bio( kt, jnt, Kbb, Kmm, Krhs )   ! Biology
+         IF( ln_bio ) CALL p4z_bio( kt, jnt, Kbb, Kmm, Krhs )   ! Biology
          IF( ln_p2z ) THEN
-            CALL p2z_lys( kt, jnt, Kbb, Kmm, Krhs )   ! Compute CaCO3 saturation
+            IF( ln_lys ) CALL p2z_lys( kt, jnt, Kbb, Kmm, Krhs )   ! Compute CaCO3 saturation
          ELSE
-            CALL p4z_lys( kt, jnt, Kbb,      Krhs )   ! Compute CaCO3 saturation
+            IF( ln_lys ) CALL p4z_lys( kt, jnt, Kbb,      Krhs )   ! Compute CaCO3 saturation
          ENDIF
-         IF( .NOT. lk_sed ) CALL p4z_sed( kt, jnt, Kbb, Kmm, Krhs )   ! Bottom boundary conditions
+         IF( .NOT. lk_sed .AND. ln_sed ) CALL p4z_sed( kt, jnt, Kbb, Kmm, Krhs )   ! Bottom boundary conditions
 
-         CALL p4z_flx ( kt, jnt, Kbb, Kmm, Krhs )   ! Compute surface fluxes
+         IF( ln_flx ) CALL p4z_flx ( kt, jnt, Kbb, Kmm, Krhs )   ! Compute surface fluxes
          !
          ! Handling of the negative concentrations
          ! The biological SMS may generate negative concentrations
@@ -290,8 +290,10 @@ CONTAINS
       !!
       NAMELIST/nampisbio/ nrdttrc, wsbio, xkmort, feratz, feratm, wsbio2, wsbio2max,    &
          &                wsbio2scale, ldocp, ldocz, lthet, no3rat3, po4rat3
-       !
       NAMELIST/nampisdmp/ ln_pisdmp, ln_pisdmp_alk
+      NAMELIST/nampisdbg/ ln_bio, ln_lys, ln_sed, ln_flx, &
+         &                ln_fechem, ln_micro, ln_meso, ln_mort, &
+         &                ln_prod, ln_agg, ln_rem, ln_poc, ln_diaz
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -338,6 +340,10 @@ CONTAINS
          WRITE(numout,*) '      Relaxation of tracer to glodap mean value       ln_pisdmp      =', ln_pisdmp
          WRITE(numout,*) '      Relaxation of alkalinity to glodap mean value   ln_pisdmp_alk  =', ln_pisdmp_alk
       ENDIF
+      !
+      READ_NML_REF(numnatp,nampisdbg)
+      READ_NML_CFG(numnatp,nampisdbg)
+      IF(lwm) WRITE( numonp, nampisdbg )
       !
    END SUBROUTINE p4z_sms_init
 
