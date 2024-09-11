@@ -137,9 +137,7 @@ CONTAINS
          END_3D
       ENDIF
 
-      ! The formulation proposed by Geider et al. (1997) has been modified 
-      ! to exclude the effect of nutrient limitation and temperature in the PI
-      ! curve following Vichi et al. (2007)
+      ! Formulation proposed by Geider et al. (1997) 
       ! -----------------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
@@ -148,10 +146,8 @@ CONTAINS
             zprbio(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
             zprdia(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
             !
-            ! The initial slope of the PI curve can be increased for nano
+            ! The initial slope of the PI curve could be increased for nano
             ! to account for photadaptation, for instance in the DCM
-            ! This parameterization is adhoc and should be either 
-            ! improved or removed in future versions of the model
 
             ! Nanophytoplankton
             zpislopeadn = pislopen * tr(ji,jj,jk,jpnch,Kbb)   &
@@ -249,8 +245,9 @@ CONTAINS
             ! current time step
             ! --------------------------------------------------------------------
             zlimfac  = xlimphy(ji,jj,jk) * zprbio(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
+            zlimfac   = SIN( 3.1416 * zlimfac / 2.0 )
             zlimfac3 = zlimfac * zlimfac * zlimfac
-            zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
+            zsizetmp = 1.0 + ( xsizern - 1.0 ) * zlimfac3
             sizena(ji,jj,jk) = sizen(ji,jj,jk) + zprbio(ji,jj,jk) * xlimphy(ji,jj,jk) * ( 1.0 - xlimphy(ji,jj,jk) )   &
               &          * rfact2 * ( zsizetmp - sizen(ji,jj,jk) ) * ABS( zsizetmp / sizen(ji,jj,jk) - 1.0 )
             sizena(ji,jj,jk) = MIN( xsizern, sizena(ji,jj,jk) )
@@ -277,8 +274,9 @@ CONTAINS
             ! current time step. 
             ! --------------------------------------------------------------------
             zlimfac  = xlimdia(ji,jj,jk) * zprdia(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
+            zlimfac   = SIN( 3.1416 * zlimfac / 2.0 )
             zlimfac3 = zlimfac * zlimfac * zlimfac
-            zsizetmp = 1.0 + 1.3 * ( xsizerd - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
+            zsizetmp = 1.0 + ( xsizerd - 1.0 ) * zlimfac3
             sizeda(ji,jj,jk) = sized(ji,jj,jk) + zprdia(ji,jj,jk) * xlimdia(ji,jj,jk) * ( 1.0 - xlimdia(ji,jj,jk) )   &
               &          * rfact2 * ( zsizetmp - sized(ji,jj,jk) ) * ABS( zsizetmp / sized(ji,jj,jk) - 1.0 )
             sizeda(ji,jj,jk) = MIN( xsizerd, sizeda(ji,jj,jk) )

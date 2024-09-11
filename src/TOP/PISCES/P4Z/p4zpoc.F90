@@ -314,13 +314,13 @@ CONTAINS
               ! See the comments in the previous block.
               ! ---------------------------------------------------
               zfact  = rday / rfact2 / ( tr(ji,jj,jk,jpgoc,Kbb) + rtrn )
-              zpoc1  = consgoc(ji,jj,jk) * zfact
-              zpoc2  = prodgoc(ji,jj,jk) * zfact 
+              zpoc1  = MIN(rbound, MAX(-rbound, consgoc(ji,jj,jk) * zfact ) )
+              zpoc2  = MIN(rbound, MAX(-rbound, prodgoc(ji,jj,jk) * zfact ) )
               !
               DO jn = 1, jcpoc
                  zreminp1 = reminp(jn) * tgfunc(ji,jj,jk) - zpoc1
                  ztemp    = MIN(rbound, MAX(-rbound,  zreminp1 * zsizek ) )
-                 ztemp1   = EXP(-ztemp )
+                 ztemp1   = EXP( -ztemp )
                  ztemp2   = zpoc2 * ( 1. - ztemp1 ) / zreminp1 * alphan(jn)
                  alphag(ji,jj,jk,jn) = alpham1(jn) * ztemp1 + ztemp2
                  alpham1(jn) = alphag(ji,jj,jk,jn) * ztemp1 + ztemp2
@@ -433,9 +433,9 @@ CONTAINS
               ! Special treatment of the level just below the MXL
               ! See the comments in the GOC section
               zfact  = rday / rfact2 / ( tr(ji,jj,jk,jppoc,Kbb) + rtrn )
-              zpoc1  = conspoc(ji,jj,jk) * zfact
-              zpoc2  = prodpoc(ji,jj,jk) * zfact
-              zpoc3  = orem3 (ji,jj,jk) * zfact 
+              zpoc1  = MIN(rbound, MAX(-rbound, conspoc(ji,jj,jk) * zfact ) )
+              zpoc2  = MIN(rbound, MAX(-rbound, prodpoc(ji,jj,jk) * zfact ) )
+              zpoc3  = MIN(rbound, MAX(-rbound, orem3 (ji,jj,jk) * zfact  ) )
               !
               DO jn = 1, jcpoc
                  zreminp1 = reminp(jn) * tgfunc(ji,jj,jk) - zpoc1
@@ -550,7 +550,7 @@ CONTAINS
       ! aggregation
       solgoc = 0.04/ 2.56 * 1./ ( 1.-50**(-0.04) )
       !
-      rbound = 1.e+02_wp
+      rbound = 1.e+01_wp
       !
       orem3(:,:,:) = 0.
 

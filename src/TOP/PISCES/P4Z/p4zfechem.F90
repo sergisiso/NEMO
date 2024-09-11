@@ -82,11 +82,11 @@ CONTAINS
       ! -------------------------------------------------
       IF ( ln_ligvar .OR. ln_ligand ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
-            xfecolagg(ji,jj,jk) = ligand * 1E9 + 0.01 * MAX(0., (chemo2(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Kbb) ) * 1E6 )**0.8
+            xfecolagg(ji,jj,jk) = 0.225 + 0.01 * MAX(0., (chemo2(ji,jj,jk) - tr(ji,jj,jk,jpoxy,Kbb) ) * 1E6 )**0.8
          END_3D
          IF ( ln_ligvar ) THEN
             DO_3D( 0, 0, 0, 0, 1, jpkm1)
-               ztotlig(ji,jj,jk) =  0.07 * 0.667 * (tr(ji,jj,jk,jpdoc,Kbb) * 1E6 )**0.8  + xfecolagg(ji,jj,jk)
+               ztotlig(ji,jj,jk) =  0.225 + 0.07 * 0.667 * (tr(ji,jj,jk,jpdoc,Kbb) * 1E6)**0.8  + xfecolagg(ji,jj,jk)
                ztotlig(ji,jj,jk) =  MIN( ztotlig(ji,jj,jk), 10. )
             END_3D
          ELSE
@@ -127,7 +127,7 @@ CONTAINS
       ! prognostic or non variable, all the colloidal fraction is supposed
       ! to coagulate
       ! ----------------------------------------------------------------------
-      IF ( ln_ligand .OR. ln_ligvar) THEN
+      IF ( ln_ligvar .OR. ln_ligand ) THEN
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
             zfel1 = MAX( 0., tr(ji,jj,jk,jpfer,Kbb) - zFe3(ji,jj,jk) )
             zfecoll(ji,jj,jk) = 0.5 * zfel1 * MAX(0., ztotlig(ji,jj,jk) - xfecolagg(ji,jj,jk) ) &
@@ -170,7 +170,7 @@ CONTAINS
          zaggdfea = zlam1a * xstep * zfecoll(ji,jj,jk)
          !
          IF( ll_dust )  zdust  = dust(ji,jj) / ( wdust / rday ) * tmask(ji,jj,jk)
-         zxlam  = MAX( 1.E-3, (1. - EXP(-2 * tr(ji,jj,jk,jpoxy,Kbb) / 100.E-6 ) ))
+         zxlam  = MAX( 1.E-3, (1. - EXP(-2. * tr(ji,jj,jk,jpoxy,Kbb) / 100.E-6 ) ))
 
          IF( ln_p2z ) THEN
             ztrc = tr(ji,jj,jk,jppoc,Kbb) * 1e6
