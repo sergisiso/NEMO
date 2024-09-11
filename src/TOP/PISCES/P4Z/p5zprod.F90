@@ -275,8 +275,9 @@ CONTAINS
             ! current time step
             ! --------------------------------------------------------------------
             zlimfac   = xlimphys(ji,jj,jk) * zprbio(ji,jj,jk) / ( zprmaxn(ji,jj,jk) + rtrn )
+            zlimfac   = SIN( 3.1416 * zlimfac / 2.0 )
             zlimfac3  = zlimfac * zlimfac * zlimfac
-            zsizetmp  = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
+            zsizetmp  = 1.0 + ( xsizern - 1.0 ) * zlimfac3
             sizena(ji,jj,jk) = sizen(ji,jj,jk) + zprbio(ji,jj,jk) * xlimphys(ji,jj,jk) * ( 1.0 - xlimphys(ji,jj,jk) )   &
               &         * rfact2 * ( zsizetmp - sizen(ji,jj,jk) ) * ABS( zsizetmp / sizen(ji,jj,jk) - 1.0 )
             sizena(ji,jj,jk) = MIN( xsizern, sizena(ji,jj,jk) )
@@ -328,8 +329,9 @@ CONTAINS
             ! current time step
             ! --------------------------------------------------------------------
             zlimfac   = xlimpics(ji,jj,jk)  * zprpic(ji,jj,jk) / ( zprmaxp(ji,jj,jk) + rtrn )
+            zlimfac   = SIN( 3.1416 * zlimfac / 2.0 )
             zlimfac3  = zlimfac * zlimfac * zlimfac
-            zsizetmp  = 1.0 + 1.3 * ( xsizerp - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
+            zsizetmp  = 1.0 + ( xsizerp - 1.0 ) * zlimfac3
             sizepa(ji,jj,jk) = sizep(ji,jj,jk) + zprpic(ji,jj,jk) * xlimpics(ji,jj,jk) * ( 1.0 - xlimpics(ji,jj,jk) )   &
               &          * rfact2 * ( zsizetmp - sizep(ji,jj,jk) ) * ABS( zsizetmp / sizep(ji,jj,jk) - 1.0 )
             sizepa(ji,jj,jk) = MIN( xsizerp, sizepa(ji,jj,jk) )
@@ -384,8 +386,9 @@ CONTAINS
             ! current time step. 
             ! --------------------------------------------------------------------
             zlimfac   = xlimdias(ji,jj,jk) * zprdia(ji,jj,jk) / ( zprmaxd(ji,jj,jk) + rtrn )
+            zlimfac   = SIN( 3.1416 * zlimfac / 2.0 )
             zlimfac3  = zlimfac * zlimfac * zlimfac
-            zsizetmp  = 1.0 + 1.3 * ( xsizerd - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
+            zsizetmp  = 1.0 + ( xsizerd - 1.0 ) * zlimfac3
             sizeda(ji,jj,jk) = sized(ji,jj,jk) + zprdia(ji,jj,jk) * xlimdias(ji,jj,jk) * ( 1.0 - xlimdias(ji,jj,jk) )   &
               &          * rfact2 * ( zsizetmp - sized(ji,jj,jk) ) * ABS( zsizetmp / sized(ji,jj,jk) - 1.0 )
             sizeda(ji,jj,jk) = MIN( xsizerd, sizeda(ji,jj,jk) )

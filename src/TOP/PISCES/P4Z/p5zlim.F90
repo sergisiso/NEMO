@@ -436,7 +436,7 @@ CONTAINS
          ! --------------------
          zfuptk   = 0.2 + 0.12 / ( 5.0 * sized(ji,jj,jk) + rtrn )
          ! Computed from Inomura et al. (2020) using a synechococcus
-         zrpho    = 8.08 * tr(ji,jj,jk,jpdch,Kbb) / ( tr(ji,jj,jk,jpndi,Kbb) * 12. + rtrn )
+         zrpho    = 8.08 * tr(ji,jj,jk,jpdch,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) * 12. + rtrn )
          zrphomin = 8.08 * 0.0025
          zrass    = 0.66 * ( 0.25 + 0.75 * ( 1. - zrpho - zfuptk ) * xlimnpd(ji,jj,jk) )
          xqpdmin(ji,jj,jk) = ( 0.0078 + 0.66 * 0.25 * 0.0783 + zrphomin * 0.0135 ) * 16.
@@ -502,7 +502,7 @@ CONTAINS
           CALL iom_put( "RASSP",  zw3d)
           DO_3D( 0, 0, 0, 0, 1, jpkm1)
              zfuptk = 0.2 + 0.12 / ( 5.0 * sized(ji,jj,jk) + rtrn )
-             zrpho  = 8.08 * tr(ji,jj,jk,jpdch,Kbb) / ( tr(ji,jj,jk,jpndi,Kbb) * 12. + rtrn )
+             zrpho  = 8.08 * tr(ji,jj,jk,jpdch,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) * 12. + rtrn )
              zrass  = 0.66 * ( 0.25 + 0.75 * ( 1. - zrpho - zfuptk ) * xlimnpd(ji,jj,jk) )
              zw3d(ji,jj,jk) = zrass * tmask(ji,jj,jk)
           END_3D

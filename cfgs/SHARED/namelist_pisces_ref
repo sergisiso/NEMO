@@ -65,7 +65,7 @@
    concnno3   =  1.e-6    ! Nitrate half saturation of nanophytoplankton
    concnfer   =  1E-10    ! Iron half saturation for phyto
    concbno3   =  3.E-7    ! Nitrate half saturation for DOC remin.
-   concbfe    =  3.E-11   ! Iron half-saturation for DOC remin.
+   concbfe    =  5.E-11   ! Iron half-saturation for DOC remin.
    xsizephy   =  2.E-6    ! Minimum size criteria for phyto
    xsizern    =  10.0     ! Size ratio for nanophytoplankton
    xkdoc      =  417.E-6  ! half-saturation constant of DOC remineralization
@@ -81,7 +81,7 @@
    concdnh4   =  3.E-6    ! NH4 half saturation for diatoms
    concnfer   =  1.5E-9   ! Iron half saturation for phyto
    concdfer   =  4.5E-9   ! Iron half saturation for diatoms
-   concbfe    =  3.E-11   ! Iron half-saturation for DOC remin.
+   concbfe    =  5.E-11   ! Iron half-saturation for DOC remin.
    concbnh4   =  3.E-7    ! NH4 half saturation for DOC remin.
    concbno3   =  3.E-7    ! Nitrate half saturation for DOC remin.
    xsizedia   =  1.E-6    ! Minimum size criteria for diatoms
@@ -112,7 +112,7 @@
    concnfer   =  3E-9     ! Iron half saturation for phyto
    concpfer   =  1E-9     ! Iron half saturation for picophytoplankton
    concdfer   =  4.5E-9   ! Iron half saturation for diatoms
-   concbfe    =  3E-11    ! Half-saturation for Fe limitation of Bacteria
+   concbfe    =  5E-11    ! Half-saturation for Fe limitation of Bacteria
    concbnh4   =  3.E-7    ! NH4 half saturation for phyto
    concbno3   =  3.E-7    ! Phosphate half saturation for diatoms
    concbpo4   =  3.E-7    ! Phosphate half saturation for bacteria
@@ -260,7 +260,7 @@
    lmzrat2     =  0.005    ! Linear mortality rate of mesozooplankton
    mzrat2      =  0.015    ! mesozooplankton mortality rate
    xpref2d     =  1.       ! meso preference for diatoms
-   xpref2n     =  0.3      ! meso preference for nano
+   xpref2n     =  0.6      ! meso preference for nano
    xpref2z     =  1.       ! meso preference for zoo
    xpref2m     =  0.       ! meso preference for zoo
    xpref2c     =  0.3      ! meso preference for poc
