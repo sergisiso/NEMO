@@ -45,6 +45,7 @@ MODULE p4zmicro
    REAL(wp), PUBLIC ::   xsigma      !: Width of the grazing window
    REAL(wp), PUBLIC ::   xsigmadel   !: Maximum additional width of the grazing window at low food density 
 
+   REAL(wp)         :: rlogfactdn
    LOGICAL          :: l_dia_graz, l_dia_lprodz
 
    !! * Substitutions
@@ -80,7 +81,9 @@ CONTAINS
       REAL(wp) :: zgrarem, zgrafer, zgrapoc, zprcaca, zmortz
       REAL(wp) :: zrespz, ztortz, zgrasratf, zgrasratn
       REAL(wp) :: zgraznc, zgrazz, zgrazpoc, zgrazdc, zgrazpof, zgrazdf, zgraznf
-      REAL(wp) :: zsigma, zsigma2, zsizedn, zdiffdn, ztmp1, ztmp2, ztmp3, ztmp4, ztmptot, zproport
+      REAL(wp) :: zsigma, zsigma2, zdiffdn, zsizedn, ztmp1, ztmp2, ztmp3, ztmp4, ztmptot
+      REAL(wp) :: zmaxsi, zpexpod, zlog10, zlog2
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zproport, zprodlig
       REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE :: zgrazing, zfezoo, zzligprod
       CHARACTER (len=25) :: charout
 
@@ -102,29 +105,49 @@ CONTAINS
          ALLOCATE( zzligprod(A2D(0),jpk) )   
          zzligprod(A2D(0),:) = tr(A2D(0),:,jplgw,Krhs)
       ENDIF
+
+      ! Computation of the proportion of diatoms that escapes predation by microzooplankton
+      ! This is a fit to the actual relationship when a power law distribution is assumed 
+      ! for diatoms.
+      ! ------------------------------------------------------------------------------------
+      zlog10 = LOG(10.0)
+      zlog2  = LOG(2.0)
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         IF ( tmask(ji,jj,jk) == 1 ) THEN
+            zpexpod   = (0.53 * ( sized(ji,jj,jk) - 3.0 )**2 - 3.25 ) / ( sized(ji,jj,jk) - 1.0 + rtrn )
+            zpexpod   = MAX( -25.0, zpexpod ) + 1.0
+            zmaxsi    = EXP( zlog10 * zpexpod )
+            zproport(ji,jj,jk) = EXP((-0.48) * logsized(ji,jj,jk)) * (1.0 - ( zmaxsi - EXP( zlog2 * zpexpod ) ) / ( zmaxsi - 1.0 ) )
+         ELSE
+            zproport(ji,jj,jk) = 1.0
+         ENDIF
+      END_3D
+
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         zcompaz = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - 1.e-9 ), 0.e0 )
-         zfact   = xstep * tgfunc2(ji,jj,jk) * zcompaz
+         zcompaz   = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - 1.e-9 ), 0.e0 )
+         zfact     = xstep * tgfunc2(ji,jj,jk) * zcompaz
 
          ! Proportion of diatoms that are within the size range
          ! accessible to microzooplankton. 
-         zproport  = sized(ji,jj,jk)**(-0.48) * ( 1.0 - ( sized(ji,jj,jk)**1.6 - 1.0 ) / 14.0 )
+         ! Diatoms are supposed to range from 5 to 50 um.
+         ! There may be an issue if zpexpod = 0 which occurs for sized 
+         ! close to 5.476 which can only occur when xsizern s larger than 6)
 
          !  linear mortality of mesozooplankton
          !  A michaelis menten modulation term is used to avoid extinction of 
          !  microzooplankton at very low food concentrations. Mortality is 
          !  enhanced in low O2 waters
          !  -----------------------------------------------------------------
-         zrespz = resrat * zfact * ( tr(ji,jj,jk,jpzoo,Kbb) / ( xkmort + tr(ji,jj,jk,jpzoo,Kbb) )  &
-            &   + 3. * nitrfac(ji,jj,jk) )
+         zrespz    = resrat * zfact * tr(ji,jj,jk,jpzoo,Kbb) / ( xkmort + tr(ji,jj,jk,jpzoo,Kbb) )  &
+           &         * ( 1.0 + 3. * nitrfac(ji,jj,jk) )
 
          !  Zooplankton quadratic mortality. A square function has been selected with
          !  to mimic predation and disease (density dependent mortality). It also tends
          !  to stabilise the model
          !  -------------------------------------------------------------------------
-         ztortz = mzrat * 1.e6 * zfact * tr(ji,jj,jk,jpzoo,Kbb) * (1. - nitrfac(ji,jj,jk))
-         zmortz = ztortz + zrespz
+         ztortz    = mzrat * 1.e6 * zfact * tr(ji,jj,jk,jpzoo,Kbb) * (1. - nitrfac(ji,jj,jk))
+         zmortz    = ztortz + zrespz
 
          !   Computation of the abundance of the preys
          !   A threshold can be specified in the namelist
@@ -132,7 +155,7 @@ CONTAINS
          !   exceed a certain value, diatoms are suppposed to be too 
          !   big for microzooplankton.
          !   --------------------------------------------------------
-         zcompadi  = zproport * MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthreshdia ), 0.e0 )
+         zcompadi  = zproport(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthreshdia ), 0.e0 )
          zcompaph  = MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthreshphy ), 0.e0 )
          zcompapoc = MAX( ( tr(ji,jj,jk,jppoc,Kbb) - xthreshpoc ), 0.e0 )
          zcompaz   = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - xthreshzoo ), 0.e0 )
@@ -145,7 +168,7 @@ CONTAINS
          ! accumulation of food in the mesozoopelagic domain
          ! -------------------------------------------------------------------------------
          zfood     = xprefn * zcompaph + xprefc * zcompapoc + xprefd * zcompadi + xprefz * zcompaz
-         zfoodlim  = MAX( 0. , zfood - MIN(xthresh,0.5*zfood) )
+         zfoodlim  = zfood - MIN(xthresh,0.5*zfood)
          zdenom    = zfoodlim / ( xkgraz + zfoodlim )
          zgraze    = grazrat * xstep * tgfunc2(ji,jj,jk) * tr(ji,jj,jk,jpzoo,Kbb) * (1. - nitrfac(ji,jj,jk))
 
@@ -161,22 +184,22 @@ CONTAINS
          ! have low abundance, .i.e. zooplankton become less specific 
          ! to avoid starvation.
          ! ----------------------------------------------------------
-         zdenom2 = zdenom * zdenom
-         zsigma = 1.0 - zdenom2/(0.05 * 0.05 + zdenom2)
-         zsigma = xsigma + xsigmadel * zsigma
-         zsigma2 = zsigma * zsigma
+         zdenom2   = zdenom * zdenom
+         zsigma    = 1.0 - zdenom2/(0.05 * 0.05 + zdenom2)
+         zsigma    = xsigma + xsigmadel * zsigma
+         zsigma2   = zsigma * zsigma
          !
-         zsizedn = ABS(LOG(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
-         zdiffdn = EXP( - zsizedn * zsizedn / zsigma2 )
-         ztmp1 = xprefn * zcompaph * ( zcompaph + zdiffdn * zcompadi ) 
-         ztmp2 = xprefd * zcompadi * ( zdiffdn * zcompaph + zcompadi )
-         ztmp3 = xprefc * zcompapoc * zcompapoc 
-         ztmp4 = xprefz * zcompaz * zcompaz
-         ztmptot = ztmp1 + ztmp2 + ztmp3 + ztmp4 + rtrn
-         ztmp1 = ztmp1 / ztmptot
-         ztmp2 = ztmp2 / ztmptot
-         ztmp3 = ztmp3 / ztmptot
-         ztmp4 = ztmp4 / ztmptot
+         zsizedn   = rlogfactdn + ( logsizen(ji,jj,jk) - logsized(ji,jj,jk) )
+         zdiffdn   = EXP( -zsizedn * zsizedn / zsigma2 )
+         ztmp1     = xprefn * zcompaph * ( zcompaph + zdiffdn * zcompadi ) 
+         ztmp2     = xprefd * zcompadi * ( zdiffdn * zcompaph + zcompadi )
+         ztmp3     = xprefc * zcompapoc * zcompapoc 
+         ztmp4     = xprefz * zcompaz * zcompaz
+         ztmptot   = ztmp1 + ztmp2 + ztmp3 + ztmp4 + rtrn
+         ztmp1     = ztmp1 / ztmptot
+         ztmp2     = ztmp2 / ztmptot
+         ztmp3     = ztmp3 / ztmptot
+         ztmp4     = ztmp4 / ztmptot
 
          ! Ingestion terms on the different preys of microzooplankton
          zgraznc   = zgraze   * ztmp1 * zdenom  ! Nanophytoplankton
@@ -209,8 +232,8 @@ CONTAINS
          ! GGE can also be decreased when food quantity is high, zepsherf (Montagnes and 
          ! Fulton, 2012)
          ! -----------------------------------------------------------------------------
-         zepshert  =  MIN( 1., zgrasratn, zgrasratf / feratz)
-         zbeta     =  MAX(0., (epsher - epshermin) )
+         zepshert  =  MIN( 1., zgrasratn, zgrasratf / feratz )
+         zbeta     =  MAX( 0., (epsher - epshermin) )
          ! Food quantity deprivation of the GGE
          zepsherf  = epshermin + zbeta / ( 1.0 + 0.04E6 * 12. * zfood * zbeta )
          ! Food quality deprivation of the GGE
@@ -231,15 +254,12 @@ CONTAINS
          tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + zgrarsig
          tr(ji,jj,jk,jpnh4,Krhs) = tr(ji,jj,jk,jpnh4,Krhs) + zgrarsig
          tr(ji,jj,jk,jpdoc,Krhs) = tr(ji,jj,jk,jpdoc,Krhs) + zgrarem - zgrarsig
-         !
-         IF( ln_ligand ) THEN
-            tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + (zgrarem - zgrarsig) * ldocz
-         ENDIF
+         zprodlig(ji,jj,jk)      = (zgrarem - zgrarsig) * ldocz
          !
          tr(ji,jj,jk,jpoxy,Krhs) = tr(ji,jj,jk,jpoxy,Krhs) - o2ut * zgrarsig
          tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + zgrafer
          tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + zgrapoc
-         prodpoc(ji,jj,jk)   = prodpoc(ji,jj,jk) + zgrapoc
+         prodpoc(ji,jj,jk)       = prodpoc(ji,jj,jk) + zgrapoc
          tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + zgraztotf * unass
          tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) + zgrarsig
          tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) + rno3 * zgrarsig
@@ -255,8 +275,8 @@ CONTAINS
          tr(ji,jj,jk,jpnfe,Krhs) = tr(ji,jj,jk,jpnfe,Krhs) - zgraznf
          tr(ji,jj,jk,jpdfe,Krhs) = tr(ji,jj,jk,jpdfe,Krhs) - zgrazdf
          tr(ji,jj,jk,jppoc,Krhs) = tr(ji,jj,jk,jppoc,Krhs) + zmortz - zgrazpoc
-         prodpoc(ji,jj,jk) = prodpoc(ji,jj,jk) + zmortz
-         conspoc(ji,jj,jk) = conspoc(ji,jj,jk) - zgrazpoc
+         prodpoc(ji,jj,jk)       = prodpoc(ji,jj,jk) + zmortz
+         conspoc(ji,jj,jk)       = conspoc(ji,jj,jk) - zgrazpoc
          tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + feratz * zmortz - zgrazpof
          !
          ! Calcite remineralization due to zooplankton activity
@@ -264,13 +284,18 @@ CONTAINS
          ! ----------------------------------------------------------------
          zprcaca = xfracal(ji,jj,jk) * zgraznc
          prodcal(ji,jj,jk) = prodcal(ji,jj,jk) + zprcaca  ! prodcal=prodcal(nanophy)+prodcal(microzoo)+prodcal(mesozoo)
-
          !
          zprcaca = part * zprcaca
          tr(ji,jj,jk,jpdic,Krhs) = tr(ji,jj,jk,jpdic,Krhs) - zprcaca
          tr(ji,jj,jk,jptal,Krhs) = tr(ji,jj,jk,jptal,Krhs) - 2. * zprcaca
          tr(ji,jj,jk,jpcal,Krhs) = tr(ji,jj,jk,jpcal,Krhs) + zprcaca
       END_3D
+
+      IF (ln_ligand ) THEN
+         DO_3D( 0, 0, 0, 0, 1, jpkm1)
+            tr(ji,jj,jk,jplgw,Krhs) = tr(ji,jj,jk,jplgw,Krhs) + zprodlig(ji,jj,jk)
+         END_3D 
+      ENDIF
       !
       IF( knt == nrdttrc ) THEN
         !
@@ -331,6 +356,7 @@ CONTAINS
       IF(lwm) WRITE( numonp, namp4zzoo )
       !
       IF(lwp) THEN                         ! control print
+         !
          WRITE(numout,*) '   Namelist : namp4zzoo'
          WRITE(numout,*) '      part of calcite not dissolved in microzoo guts  part        =', part
          WRITE(numout,*) '      microzoo preference for POC                     xprefc      =', xprefc
@@ -352,8 +378,10 @@ CONTAINS
          WRITE(numout,*) '      half saturation constant for grazing 1          xkgraz      =', xkgraz
          WRITE(numout,*) '      Width of the grazing window                     xsigma      =', xsigma
          WRITE(numout,*) '      Maximum additional width of the grazing window  xsigmadel   =', xsigmadel
-
+         !
       ENDIF
+      !
+      rlogfactdn = LOG(1.67 / 5.0)
       !
    END SUBROUTINE p4z_micro_init
 

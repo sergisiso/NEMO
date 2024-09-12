@@ -181,8 +181,9 @@ CONTAINS
             ! current time step
             ! --------------------------------------------------------------------
             zlimfac  = xlimphy(ji,jj,jk) * zprbio(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
+            zlimfac   = SIN( 3.1416 * zlimfac / 2.0 )
             zlimfac3 = zlimfac * zlimfac * zlimfac
-            zsizetmp = 1.0 + 1.3 * ( xsizern - 1.0 ) * zlimfac3 / ( 0.3 + zlimfac3 )
+            zsizetmp = 1.0 + ( xsizern - 1.0 ) * zlimfac3
             sizena(ji,jj,jk) = sizen(ji,jj,jk) + zprbio(ji,jj,jk) * xlimphy(ji,jj,jk) * ( 1.0 - xlimphy(ji,jj,jk) )   &
               &          * rfact2 * ( zsizetmp - sizen(ji,jj,jk) ) * ABS( zsizetmp / sizen(ji,jj,jk) - 1.0 )
             sizena(ji,jj,jk) = MIN( xsizern, sizena(ji,jj,jk) )
