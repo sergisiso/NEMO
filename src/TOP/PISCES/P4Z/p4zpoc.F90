@@ -95,7 +95,9 @@ CONTAINS
 
       ! Initialisation of arrays
       orem(:,:,jpk) = 0._wp
-      pdep(:,:) = MAX( hmld(:,:), gdept(:,:,1,Kmm) ) 
+      DO_2D( 0, 0, 0, 0 )
+         pdep(ji,jj) = MAX( hmld(ji,jj), gdept(ji,jj,1,Kmm) )
+      END_2D
       !
       ll_newday  = nsec_day == NINT(0.5_wp * rn_Dt)  ! New day
       IF( ll_newday ) THEN   ;  ll_poc_lab = .TRUE.
