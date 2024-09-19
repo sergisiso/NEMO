@@ -767,11 +767,11 @@ that are available in the tidal-forcing implementation (see
     <field id="bn2"          long_name="squared Brunt-Vaisala frequency"                unit="s-2" />
 
     <!-- GEOMETRIC fields (requires nn_aei_ijk_t = 32)  -->
-    <field id="aeiv_geom"    long_name="3D w-EIV coefficient from GEOMETRIC param."     unit="m2/s" />
+    <field id="aeiv_geom"    long_name="3D w-EIV coefficient from GEOMETRIC param."     unit="m2/s" grid_ref="grid_W_3D_inner"/>
     <field id="rossby_rad"   long_name="internal Rossby deformation radius"             unit="m"    grid_ref="grid_W_2D_inner"/>
     <field id="bn2"          long_name="squared Brunt-Vaisala frequency"                unit="s-1"  />
     <field id="c1_vert"      long_name="1st baroclinic mode phase speed"                unit="m/s"  grid_ref="grid_W_2D_inner"/>
-    <field id="c_ros"        long_name="long Rossby phase speed"                        unit="m/s"  grid_ref="grid_W_2D"/>
+    <field id="c_ros"        long_name="long Rossby phase speed"                        unit="m/s"  grid_ref="grid_W_2D_inner"/>
 
     <!-- dissipation diagnostics (note: ediss_k is only available with tke scheme) -->   
     <field id="avt_k"        long_name="vertical eddy diffusivity from closure schemes" standard_name="ocean_vertical_eddy_diffusivity"       unit="m2/s"   grid_ref="grid_W_3D_inner" />
