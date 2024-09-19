@@ -601,7 +601,6 @@ CONTAINS
             IF(lwp) WRITE(numout,*) '          eddy induced velocity coef. = F( latitude, longitude, depth, time )'
             IF(lwp) WRITE(numout,*) '                              = F( total EKE )   GEOMETRIC parameterization'
             !
-            CALL ctl_stop('ldf_tra_init: The GEOMETRIC parameterisation is not yet available with RK3 time-stepping')
             IF(lwp .AND. .NOT. ln_eke_equ ) WRITE(numout,*) '          ln_eke_equ will be set to .true. '
             ln_eke_equ = .TRUE.       ! force the eddy energy equation to be updated
             l_ldfeiv_time = .TRUE.    ! will be calculated by call to ldf_tra routine in stprk3.F90
