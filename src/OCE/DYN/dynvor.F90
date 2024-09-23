@@ -183,7 +183,9 @@ CONTAINS
                              CALL vor_ens( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! add the Stokes-Coriolis trend and vortex force
             ENDIF
          CASE( np_MIX )                        !* mixed ene-ens scheme
+            IF( n_dynadv /= np_LIN_dyn ) THEN
                              CALL vor_ens( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! relative vorticity or metric trend (ens)
+            ENDIF
                              CALL vor_ene( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! planetary vorticity trend (ene)
             IF( ln_stcor )        CALL vor_ene( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )        ! add the Stokes-Coriolis trend
             IF( ln_vortex_force ) CALL vor_ens( kt, Kmm, nrvm, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add vortex force
