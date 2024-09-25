@@ -128,7 +128,7 @@ CONTAINS
    END FUNCTION zdf_gls_alloc
 
 
-   SUBROUTINE zdf_gls( kt, Kbb, Kmm, p_sh2, p_avm, p_avt )
+   SUBROUTINE zdf_gls( kt, Kbb, Kaa, p_sh2, p_avm, p_avt )
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE zdf_gls  ***
       !!
@@ -138,7 +138,7 @@ CONTAINS
       USE zdf_oce , ONLY : en, avtb, avmb   ! ocean vertical physics
       !!
       INTEGER                         , INTENT(in   ) ::   kt             ! ocean time step
-      INTEGER                         , INTENT(in   ) ::   Kbb, Kmm       ! ocean time level indices
+      INTEGER                         , INTENT(in   ) ::   Kbb, Kaa       ! ocean time level indices
       REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(in   ) ::   p_sh2          ! shear production term
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   p_avm          ! vertical eddy viscosity (w-points)
       REAL(wp), DIMENSION(A2D(0) ,jpk), INTENT(inout) ::   p_avt          ! vertical eddy diffusivity (w-points)
@@ -264,8 +264,8 @@ CONTAINS
 !!gm tmask or wmask ????
          IF( nn_clos == 0 ) THEN        ! Mellor-Yamada
             DO_2Dik( 0, 0, 2, jpkm1, 1 )
-               zup   = hmxl_n(ji,jj,jk) * gdepw(ji,jj,mbkt(ji,jj)+1,Kmm)
-               zdown = vkarmn * gdepw(ji,jj,jk,Kmm) * ( -gdepw(ji,jj,jk,Kmm) + gdepw(ji,jj,mbkt(ji,jj)+1,Kmm) )
+               zup   = hmxl_n(ji,jj,jk) * gdepw(ji,jj,mbkt(ji,jj)+1,Kaa)
+               zdown = vkarmn * gdepw(ji,jj,jk,Kaa) * ( -gdepw(ji,jj,jk,Kaa) + gdepw(ji,jj,mbkt(ji,jj)+1,Kaa) )
                zcoef = ( zup / MAX( zdown, rsmall ) )
                zwall(ji,jk) = ( 1._wp + re2 * zcoef*zcoef ) * tmask(ji,jj,jk)
             END_2D
@@ -319,10 +319,10 @@ CONTAINS
             zcof = rfact_tke * tmask(ji,jj,jk)
             !                                        ! lower diagonal, in fact not used for jk = 2 (see surface conditions)
             zd_lw(ji,jk) = zcof * ( p_avm(ji,jj,jk  ) + p_avm(ji,jj,jk-1) )   &
-               &                 / ( e3t(ji,jj,jk-1,Kmm) * e3w(ji,jj,jk,Kmm) )
+               &                 / ( e3t(ji,jj,jk-1,Kaa) * e3w(ji,jj,jk,Kaa) )
             !                                        ! upper diagonal, in fact not used for jk = ibotm1 (see bottom conditions)
             zd_up(ji,jk) = zcof * ( p_avm(ji,jj,jk+1) + p_avm(ji,jj,jk  ) )   &
-               &                 / ( e3t(ji,jj,jk  ,Kmm) * e3w(ji,jj,jk,Kmm) )
+               &                 / ( e3t(ji,jj,jk  ,Kaa) * e3w(ji,jj,jk,Kaa) )
             !                                        ! diagonal
             zdiag(ji,jk) = 1._wp - zd_lw(ji,jk) - zd_up(ji,jk)  + rn_Dt * zzdiss * wmask(ji,jj,jk)
             !                                        ! right hand side in en
@@ -352,7 +352,7 @@ CONTAINS
                   !
                   ! One level below
                   en   (ji,jj,2) =  MAX( rn_emin , rc02r * zstar2_surf(ji) * (1._wp + (1._wp-zice_fra(ji))*rsbc_tke1          &
-                     &                             * ((zhsro(ji)+gdepw(ji,jj,2,Kmm)) / zhsro(ji) )**(1.5_wp*ra_sf)  )**r2_3 )
+                     &                             * ((zhsro(ji)+gdepw(ji,jj,2,Kaa)) / zhsro(ji) )**(1.5_wp*ra_sf)  )**r2_3 )
                   zd_lw(ji,   2) = 0._wp
                   zd_up(ji,   2) = 0._wp
                   zdiag(ji,   2) = 1._wp
@@ -393,11 +393,11 @@ CONTAINS
                   zdiag(ji,   2) = zdiag(ji,2) +  zd_lw(ji,2) ! Remove zd_lw from zdiag
                   zd_lw(ji,   2) = 0._wp
                   !
-                  zkar  = (rl_sf + (vkarmn-rl_sf)*(1.-EXP(-rtrans*gdept(ji,jj,1,Kmm)/zhsro(ji)) ))
+                  zkar  = (rl_sf + (vkarmn-rl_sf)*(1.-EXP(-rtrans*gdept(ji,jj,1,Kaa)/zhsro(ji)) ))
                   zflxs = rsbc_tke2 * (1._wp-zice_fra(ji)) * zstar2_surf(ji)**1.5_wp * zkar &
-                     &                    * (  ( zhsro(ji)+gdept(ji,jj,1,Kmm) ) / zhsro(ji)  )**(1.5_wp*ra_sf)
-!!gm why not   :                        * ( 1._wp + gdept(:,:,1,Kmm) / zhsro(:) )**(1.5_wp*ra_sf)
-                  en(ji,jj,2) = en(ji,jj,2) + zflxs / e3w(ji,jj,2,Kmm)
+                     &                    * (  ( zhsro(ji)+gdept(ji,jj,1,Kaa) ) / zhsro(ji)  )**(1.5_wp*ra_sf)
+!!gm why not   :                        * ( 1._wp + gdept(:,:,1,Kaa) / zhsro(:) )**(1.5_wp*ra_sf)
+                  en(ji,jj,2) = en(ji,jj,2) + zflxs / e3w(ji,jj,2,Kaa)
                END_1D
                !
                IF( ln_isfcav) THEN     ! top boundary   (ocean cavity)
@@ -549,10 +549,10 @@ CONTAINS
             zcof = rfact_psi * zwall_psi(ji,jk) * tmask(ji,jj,jk)
             !                                               ! lower diagonal
             zd_lw(ji,jk) = zcof * ( p_avm(ji,jj,jk  ) + p_avm(ji,jj,jk-1) )   &
-               &                / ( e3t(ji,jj,jk-1,Kmm) * e3w(ji,jj,jk,Kmm) )
+               &                / ( e3t(ji,jj,jk-1,Kaa) * e3w(ji,jj,jk,Kaa) )
             !                                               ! upper diagonal
             zd_up(ji,jk) = zcof * ( p_avm(ji,jj,jk+1) + p_avm(ji,jj,jk  ) )   &
-               &                / ( e3t(ji,jj,jk  ,Kmm) * e3w(ji,jj,jk,Kmm) )
+               &                / ( e3t(ji,jj,jk  ,Kaa) * e3w(ji,jj,jk,Kaa) )
             !                                               ! diagonal
             zdiag(ji,jk) = 1._wp - zd_lw(ji,jk) - zd_up(ji,jk) + rn_Dt * zzdiss * wmask(ji,jj,jk)
             !                                               ! right hand side in psi
@@ -579,8 +579,8 @@ CONTAINS
                   zdiag(ji,1) = 1._wp
                   !
                   ! One level below
-                  zkar = (rl_sf + (vkarmn-rl_sf)*(1._wp-EXP(-rtrans*gdepw(ji,jj,2,Kmm)/zhsro(ji) )))
-                  zdep = (zhsro(ji) + gdepw(ji,jj,2,Kmm)) * zkar
+                  zkar = (rl_sf + (vkarmn-rl_sf)*(1._wp-EXP(-rtrans*gdepw(ji,jj,2,Kaa)/zhsro(ji) )))
+                  zdep = (zhsro(ji) + gdepw(ji,jj,2,Kaa)) * zkar
                   zpsi (ji,2) = rc0**rpp * en(ji,jj,2)**rmm * zdep**rnn * tmask(ji,jj,1)
                   zd_lw(ji,2) = 0._wp
                   zd_up(ji,2) = 0._wp
@@ -602,13 +602,13 @@ CONTAINS
                   zd_lw(ji,2) = 0._wp
                   !
                   ! Set psi vertical flux at the surface:
-                  zkar  = rl_sf + (vkarmn-rl_sf)*(1._wp-EXP(-rtrans*gdept(ji,jj,1,Kmm)/zhsro(ji) )) ! Length scale slope
-                  zdep  = ((zhsro(ji) + gdept(ji,jj,1,Kmm)) / zhsro(ji))**(rmm*ra_sf)
+                  zkar  = rl_sf + (vkarmn-rl_sf)*(1._wp-EXP(-rtrans*gdept(ji,jj,1,Kaa)/zhsro(ji) )) ! Length scale slope
+                  zdep  = ((zhsro(ji) + gdept(ji,jj,1,Kaa)) / zhsro(ji))**(rmm*ra_sf)
                   zflxs = (rnn + (1._wp-zice_fra(ji))*rsbc_tke1 * (rnn + rmm*ra_sf) * zdep) &
                      &           *(1._wp + (1._wp-zice_fra(ji))*rsbc_tke1*zdep)**(2._wp*rmm/3._wp-1._wp)
                   zdep  = rsbc_psi1 * (zwall_psi(ji,1)*p_avm(ji,jj,1)+zwall_psi(ji,2)*p_avm(ji,jj,2)) * &
-                     &           zstar2_surf(ji)**rmm * zkar**rnn * (zhsro(ji) + gdept(ji,jj,1,Kmm))**(rnn-1.)
-                  zpsi (ji,2) = zpsi(ji,2) + (zdep * zflxs) / e3w(ji,jj,2,Kmm)
+                     &           zstar2_surf(ji)**rmm * zkar**rnn * (zhsro(ji) + gdept(ji,jj,1,Kaa))**(rnn-1.)
+                  zpsi (ji,2) = zpsi(ji,2) + (zdep * zflxs) / e3w(ji,jj,2,Kaa)
                END_1D
             !
          END SELECT
@@ -635,7 +635,7 @@ CONTAINS
                   zdiag(ji,ibot) = 1._wp
                   !
                   ! Just above last level, Dirichlet condition again (GOTM like)
-                  zdep = vkarmn * ( r_z0_bot + e3t(ji,jj,ibotm1,Kmm) )
+                  zdep = vkarmn * ( r_z0_bot + e3t(ji,jj,ibotm1,Kaa) )
                   zpsi (ji,ibotm1) = rc0**rpp * en(ji,jj,ibot  )**rmm * zdep**rnn
                   zd_lw(ji,ibotm1) = 0._wp
                   zd_up(ji,ibotm1) = 0._wp
@@ -655,7 +655,7 @@ CONTAINS
                         zdiag(ji,itop) = 1._wp
                         !
                         ! Just above last level, Dirichlet condition again (GOTM like)
-                        zdep = vkarmn * ( r_z0_top + e3t(ji,jj,itopp1,Kmm) )
+                        zdep = vkarmn * ( r_z0_top + e3t(ji,jj,itopp1,Kaa) )
                         zpsi (ji,itopp1) = rc0**rpp * en(ji,jj,itop  )**rmm *zdep**rnn
                         zd_lw(ji,itopp1) = 0._wp
                         zd_up(ji,itopp1) = 0._wp
@@ -683,10 +683,10 @@ CONTAINS
                   zd_up(ji,ibotm1) = 0.
                   !
                   ! Set psi vertical flux at the bottom:
-                  zdep  = r_z0_bot + 0.5_wp*e3t(ji,jj,ibotm1,Kmm)
+                  zdep  = r_z0_bot + 0.5_wp*e3t(ji,jj,ibotm1,Kaa)
                   zflxb = rsbc_psi2 * ( p_avm(ji,jj,ibot) + p_avm(ji,jj,ibotm1) )   &
                      &  * (0.5_wp*(en(ji,jj,ibot)+en(ji,jj,ibotm1)))**rmm * zdep**(rnn-1._wp)
-                  zpsi(ji,ibotm1) = zpsi(ji,ibotm1) + zflxb / e3w(ji,jj,ibotm1,Kmm)
+                  zpsi(ji,ibotm1) = zpsi(ji,ibotm1) + zflxb / e3w(ji,jj,ibotm1,Kaa)
                END_1D
                !
                IF( ln_isfcav) THEN     ! top boundary   (ocean cavity)
@@ -709,10 +709,10 @@ CONTAINS
                         zd_up(ji,itopp1) = 0._wp
                         !
                         ! Set psi vertical flux below cavity:
-                        zdep  = r_z0_top + 0.5_wp*e3t(ji,jj,itopp1,Kmm)
+                        zdep  = r_z0_top + 0.5_wp*e3t(ji,jj,itopp1,Kaa)
                         zflxb = rsbc_psi2 * ( p_avm(ji,jj,itop) + p_avm(ji,jj,itopp1))   &
                            &  * (0.5_wp*(en(ji,jj,itop)+en(ji,jj,itopp1)))**rmm * zdep**(rnn-1._wp)
-                        zpsi(ji,itopp1) = zpsi(ji,itopp1) + zflxb / e3w(ji,jj,itopp1,Kmm)
+                        zpsi(ji,itopp1) = zpsi(ji,itopp1) + zflxb / e3w(ji,jj,itopp1,Kaa)
                      END IF
                   END_1D
                END IF
