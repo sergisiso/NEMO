@@ -24,6 +24,7 @@ MODULE zdfphy
    USE zdfiwm         ! vertical physics: internal wave-induced mixing
    USE zdfswm         ! vertical physics: surface  wave-induced mixing
    USE zdfmxl         ! vertical physics: mixed layer
+   USE eosbn2         ! equation of state: eos routine
    USE tranpc         ! convection: non penetrative adjustment
    USE trc_oce        ! variables shared between passive tracer & ocean
    USE sbc_oce        ! surface module (only for nn_isf in the option compatibility test)
@@ -44,6 +45,7 @@ MODULE zdfphy
 
    PUBLIC   zdf_phy_init  ! called by nemogcm.F90
    PUBLIC   zdf_phy       ! called by stprk3.F90
+   PUBLIC   zdf_nxt       ! called by stprk3.F90
 
    INTEGER ::   nzdf_phy   ! type of vertical closure used
    !                       ! associated indicators
@@ -253,20 +255,10 @@ CONTAINS
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs   ! ocean time level indices
       !
       INTEGER ::   ji, jj, jk, jtile   ! dummy loop indice
-#if defined key_PSYCLONE_2p5p0
-      REAL(wp), DIMENSION(A2D(0),jpk) ::   sh2   ! shear term
-#endif
       !! ---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('zdf_phy')
       !
-      IF( l_zdfsh2 ) THEN        !* shear production at w-points (energy conserving form)
-#if ! defined key_PSYCLONE_2p5p0
-         ALLOCATE( sh2(A2D(0),jpk) )
-#endif
-         CALL zdf_sh2( Kbb, Kmm, avm_k,   &     ! <<== in
-            &                      sh2    )     ! ==>> out : shear production
-      ENDIF
 
       IF( ln_tile ) CALL dom_tile_start         ! [tiling] ZDF tiling loop
       DO jtile = 1, nijtile
@@ -281,34 +273,20 @@ CONTAINS
          !                       !==  Kz from chosen turbulent closure  ==!   (avm_k, avt_k)
          !
          SELECT CASE ( nzdf_phy )                  !* Vertical eddy viscosity and diffusivity coefficients at w-points
-            CASE( np_RIC )   ;   CALL zdf_ric( kt, Kbb, Kmm, avm_k, avt_k )    ! Richardson number dependent Kz
-            CASE( np_TKE )   ;   CALL zdf_tke( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! TKE closure scheme for Kz
-            CASE( np_GLS )   ;   CALL zdf_gls( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! GLS closure scheme for Kz
+            CASE( np_RIC )   ;   CALL zdf_ric( kt, Kbb, Kmm, avm_k, avt_k )          ! Richardson number dependent Kz
             CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )    ! OSMOSIS closure scheme for Kz
             !                                                                     ! clem: osmosis currently cannot work because
             !                                                                             it uses qns and qsr that are only defined in the interior (A2D(0))
             !                                                                             we should do calculations in the interior and put a lbc_lnk at the end
+            !                                                                     ! sib: avt_k and avm_k based on pronostic equations (TKE and GLS)
+            !                                                                             are computed at the end of stprk3
       !     CASE( np_CST )                                  ! Constant Kz (reset avt, avm to the background value)
       !         ! avt_k and avm_k set one for all at initialisation phase
 !!gm            avt(2:jpim1,2:jpjm1,1:jpkm1) = rn_avt0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
 !!gm            avm(2:jpim1,2:jpjm1,1:jpkm1) = rn_avm0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
          END SELECT
          !
-#if defined key_agrif
-      END DO
-      IF( ln_tile ) CALL dom_tile_stop
-      !
-      !                          !==  ocean Kz  ==!   (avt, avs, avm)
-      !
-      ! interpolation parent grid => child grid for avm_k ( ex : at west border: update column 1 and 2)
-      IF( l_zdfsh2 .AND. .NOT. Agrif_Root() )   CALL Agrif_avm
-
-      IF( ln_tile ) CALL dom_tile_start         ! [tiling] ZDF tiling loop (continued)
-      DO jtile = 1, nijtile
-         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
-#else
-         !                          !==  ocean Kz  ==!   (avt, avs, avm)
-#endif
+         !                       !==  ocean Kz  ==!   (avt, avs, avm)
          !
          !                                         !* start from turbulent closure values
          DO_3D( 0, 0, 0, 0, 2, jpkm1 )
@@ -346,10 +324,73 @@ CONTAINS
       CALL lbc_lnk( 'zdfphy', avm, 'W', 1.0_wp )
 
       IF( lrst_oce ) THEN                       !* write TKE, GLS or RIC fields in the restart file
+         IF( ln_zdfric )   CALL ric_rst( kt, 'WRITE' )
+         ! NB. OSMOSIS restart (osm_rst) will be called in step.F90 after ww has been updated
+      ENDIF
+      !
+      IF( ln_timing )   CALL timing_stop('zdf_phy')
+      !
+   END SUBROUTINE zdf_phy
+
+
+   SUBROUTINE zdf_nxt( kt, Kbb, Kaa )
+      !!----------------------------------------------------------------------
+      !!                     ***  ROUTINE zdf_nxt  ***
+      !!
+      !! ** Purpose :  Update ocean physics at each time-step
+      !!
+      !! ** Method  :   compute vertical shear
+      !!                integrate prognostic equations and deduce Kz
+      !!
+      !! ** Action  :   avm_k, avt_k vertical eddy viscosity and diffusivity at w-points
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt               ! ocean time-step index
+      INTEGER, INTENT(in) ::   Kbb, Kaa         ! ocean time level indices
+      !
+      INTEGER ::   ji, jj, jk, jtile            ! dummy loop indice
+#if defined key_PSYCLONE_2p5p0
+      REAL(wp), DIMENSION(A2D(0),jpk) ::   sh2  ! shear term
+#endif
+      !! ---------------------------------------------------------------------
+      !
+      IF( ln_timing )   CALL timing_start('zdf_nxt')
+      !
+      IF( l_zdfsh2 ) THEN        !* shear production at w-points (energy conserving form)
+#if ! defined key_PSYCLONE_2p5p0
+         ALLOCATE( sh2(A2D(0),jpk) )
+#endif
+                                 CALL zdf_sh2( Kbb, Kaa, avm_k,   &     ! <<== in
+            &                                              sh2    )     ! ==>> out : shear production
+      ENDIF
+
+      IF( ln_tile )    CALL dom_tile_start         ! [tiling] ZDF tiling loop
+      DO jtile = 1, nijtile
+         IF( ln_tile ) CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = jtile )
+         !
+                                 CALL eos_rab( ts(:,:,:,:,Kaa), rab_n, Kaa )       ! after    local thermal/haline expension ratio at T-points
+                                 CALL bn2    ( ts(:,:,:,:,Kaa), rab_n, rn2, Kaa  ) ! after    Brunt-Vaisala frequency
+         !
+         !
+         !                       !==  Kz from chosen turbulent closure  ==!   (avm_k, avt_k)
+         !
+         SELECT CASE ( nzdf_phy )                  !* Vertical eddy viscosity and diffusivity coefficients at w-points
+            CASE( np_TKE )   ;   CALL zdf_tke( kt, Kbb, Kaa, sh2, avm_k, avt_k )    ! TKE closure scheme for Kz
+            CASE( np_GLS )   ;   CALL zdf_gls( kt, Kbb, Kaa, sh2, avm_k, avt_k )    ! GLS closure scheme for Kz
+!!st: vertical physics based on pronostic equations is separated from RIC and OSM    
+         END SELECT
+         !
+      END DO
+      IF( ln_tile ) CALL dom_tile_stop
+      !
+# if defined key_agrif
+      ! interpolation parent grid => child grid for avm_k ( ex : at west border: update column 1 and 2)
+      IF( l_zdfsh2 .AND. .NOT. Agrif_Root() )   CALL Agrif_avm
+      IF( l_zdfsh2 ) CALL lbc_lnk( 'stp', avm_k, 'W', 1.0_wp )
+# endif
+      !
+      IF( lrst_oce ) THEN                       !* write TKE, GLS fields in the restart file
          IF( ln_zdftke )   CALL tke_rst( kt, 'WRITE' )
          IF( ln_zdfgls )   CALL gls_rst( kt, 'WRITE' )
-         IF( ln_zdfric )   CALL ric_rst( kt, 'WRITE' )
-         ! NB. OSMOSIS restart (osm_rst) will be called in stprk3_stg.F90 after ww has been updated
       ENDIF
       !
       ! diagnostics of energy dissipation
@@ -368,9 +409,9 @@ CONTAINS
 #endif
       ENDIF
       !
-      IF( ln_timing )   CALL timing_stop('zdf_phy')
+      IF( ln_timing )   CALL timing_stop('zdf_nxt')
       !
-   END SUBROUTINE zdf_phy
+   END SUBROUTINE zdf_nxt
 
 
    INTEGER FUNCTION zdf_phy_alloc()

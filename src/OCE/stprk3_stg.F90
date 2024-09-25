@@ -619,23 +619,12 @@ CONTAINS
             CALL Agrif_dyn( kstp, kstg )
 # endif
       !                                              !* local domain boundaries
-      IF( ln_shuman ) THEN   ! for shuman, lbc already applied on uu and vv (see above)
-         IF( l_zdfsh2 ) THEN
-            CALL lbc_lnk( 'stp_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
-               &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
-         ELSE
-            CALL lbc_lnk( 'stp_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
-         ENDIF
-      ELSE 
-         IF( l_zdfsh2 ) THEN
-            CALL lbc_lnk( 'stp_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
-               &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
-               &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
-         ELSE
-            CALL lbc_lnk( 'stp_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
-               &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
-         ENDIF
-      ENDIF            
+      IF( ln_shuman ) THEN
+         CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp )
+      ELSE
+         CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+            &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp )
+      ENDIF
       !                                              !* BDY open boundaries
       IF( ln_bdy )   THEN
                                   CALL bdy_tra( kstp, Kbb, ts,     Kaa )
