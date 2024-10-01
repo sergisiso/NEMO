@@ -44,7 +44,7 @@
 
 %CPP	             cpp
 %FC                  mpif90 -c -cpp
-%PROD_FCFLAGS        -i4 -r8 -O2 -fp-model strict -fno-alias -xHOST -init=zero -init=arrays
+%PROD_FCFLAGS        -i4 -r8 -O2 -fp-model strict -fno-alias
 %DEBUG_FCFLAGS       -i4 -r8 -g -O0 -debug all -traceback -fp-model strict -ftrapuv -check all,noarg_temp_created -fpe-all0 -ftz -init=arrays,snan,huge
 %FFLAGS              %FCFLAGS
 %LD                  mpif90

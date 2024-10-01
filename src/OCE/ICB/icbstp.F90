@@ -86,7 +86,7 @@ CONTAINS
          !
          !                                   !* write out time
          ll_verbose = .FALSE.
-         IF( nn_verbose_write > 0 .AND. MOD( kt-1 , nn_verbose_write ) == 0 )   ll_verbose = ( nn_verbose_level > 0 )
+         IF( nverbose_write > 0 .AND. MOD( kt-1 , nverbose_write ) == 0 )   ll_verbose = ( nn_verbose_level > 0 )
          !
          IF( ll_verbose )   WRITE(numicb,9100) nktberg, ndastp, nsec_day
     9100 FORMAT('kt= ',i8, ' day= ',i8,' secs=',i8)
@@ -117,7 +117,7 @@ CONTAINS
          !
          !                                   !* For each berg, record trajectory (when needed)
          ll_sample_traj = .FALSE.
-         IF( nn_sample_rate > 0 .AND. MOD(kt-1,nn_sample_rate) == 0 )   ll_sample_traj = .TRUE.
+         IF( nsample_rate > 0 .AND. MOD(kt-1,nsample_rate) == 0 )   ll_sample_traj = .TRUE.
          IF( ll_sample_traj .AND. ASSOCIATED(first_berg) )   CALL icb_trj_write( kt )
    
          !                                   !* Gridded diagnostics
@@ -135,14 +135,14 @@ CONTAINS
          !
          !                                   !* Diagnose budgets
          ll_budget = .FALSE.
-         IF( nn_verbose_write > 0 .AND. MOD(kt-1,nn_verbose_write) == 0 ) ll_budget = ln_bergdia
+         IF( nverbose_write > 0 .AND. MOD(kt-1,nverbose_write) == 0 ) ll_budget = ln_bergdia
          CALL icb_dia( ll_budget )
          !
       END IF
       !
       IF( lrst_oce ) THEN    !* restart
          CALL icb_rst_write( kt )
-         IF( nn_sample_rate > 0 )   CALL icb_trj_sync()
+         IF( nsample_rate > 0 )   CALL icb_trj_sync()
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('icb_stp')
@@ -161,7 +161,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       ! finish with trajectories if they were written
-      IF( nn_sample_rate > 0 )   CALL icb_trj_end()
+      IF( nsample_rate > 0 )   CALL icb_trj_end()
 
       IF(lwp) WRITE(numout,'(a,i6)') 'icebergs: icb_end complete', narea
       !
