@@ -293,7 +293,7 @@ CONTAINS
          l_restarted_bergs = .TRUE.
       END IF
       !
-      IF( nn_sample_rate .GT. 0 ) CALL icb_trj_init( nitend )
+      IF( nsample_rate > 0 ) CALL icb_trj_init( nitend )
       !
       CALL icb_dia_init()
       !
@@ -386,9 +386,11 @@ CONTAINS
       INTEGER  ::   jn      ! dummy loop indices
       INTEGER  ::   ios     ! Local integer output status for namelist read
       REAL(wp) ::   zfact   ! local scalar
+      REAL(wp) ::   zsample_rate   ! local, result of conversion of rn_sample_rate_days into time steps
+      REAL(wp) ::   zverbose_write ! local, result of conversion of rn_verbose_write_days into time steps
       !
-      NAMELIST/namberg/ ln_icebergs    , ln_bergdia     , nn_sample_rate      , rn_initial_mass      ,   &
-         &              rn_distribution, rn_mass_scaling, rn_initial_thickness, nn_verbose_write     ,   &
+      NAMELIST/namberg/ ln_icebergs    , ln_bergdia     , rn_sample_rate_days , rn_initial_mass      ,   &
+         &              rn_distribution, rn_mass_scaling, rn_initial_thickness, rn_verbose_write_days,   &
          &              rn_rho_bergs   , rn_LoW_ratio   , nn_verbose_level    , ln_operator_splitting,   &
          &              rn_bits_erosion_fraction        , rn_sicn_shift       , ln_passive_mode      ,   &
          &              ln_time_average_weight          , nn_test_icebergs    , rn_test_box          ,   &
@@ -438,7 +440,7 @@ CONTAINS
          WRITE(numout,*) 'icb_nam : iceberg initialization through namberg namelist read'
          WRITE(numout,*) '~~~~~~~~ '
          WRITE(numout,*) '   Calculate budgets                                            ln_bergdia       = ', ln_bergdia
-         WRITE(numout,*) '   Period between sampling of position for trajectory storage   nn_sample_rate = ', nn_sample_rate
+         WRITE(numout,*) '   Number of days (or every time step if = -1) between sampling of position for trajectory storage   rn_sample_rate = ', rn_sample_rate_days
          WRITE(numout,*) '   Mass thresholds between iceberg classes (kg)                 rn_initial_mass     ='
          DO jn = 1, nclasses
             WRITE(numout,'(a,f15.2)') '                                                                ', rn_initial_mass(jn)
@@ -455,7 +457,7 @@ CONTAINS
          DO jn = 1, nclasses
             WRITE(numout,'(a,f10.2)') '                                                                ', rn_initial_thickness(jn)
          END DO
-         WRITE(numout,*) '   Timesteps between verbose messages                           nn_verbose_write    = ', nn_verbose_write
+         WRITE(numout,*) '   Number of days (or every time step if = -1) between verbose messages     rn_verbose_write    = ', rn_verbose_write_days
 
          WRITE(numout,*) '   Density of icebergs                           rn_rho_bergs  = ', rn_rho_bergs
          WRITE(numout,*) '   Initial ratio L/W for newly calved icebergs   rn_LoW_ratio  = ', rn_LoW_ratio
@@ -498,16 +500,48 @@ CONTAINS
       IF( MINVAL( rn_distribution(:) ) < 0._wp ) THEN
          CALL ctl_stop( 'icb_nam: a negative rn_distribution value encountered ==>> change your namelist namberg' )
       ENDIF
+
+      ! rn_sample_rate and rn_verbose_write are now measured in days in the namelist
+      ! we need their value in terms of time-step (cf icbstp)
+      ! hence the following conversions
       !
-      ! ensure that nn_verbose_write is a multiple of nn_fsbc
-      IF (MOD(nn_verbose_write, nn_fsbc) /= 0) THEN
-         CALL ctl_stop( 'icb_nam: nn_verbose_write is not a multiple of nn_fsbc')
-      END IF
+      ! 1° verbose write
+      ! checks wether debug mode or error in namelist  
+      IF ( rn_verbose_write_days < 0._wp ) THEN
+         IF (rn_verbose_write_days == -1) THEN
+            nverbose_write = nn_fsbc      ! debug mode, write every icb time step
+         ELSE
+            CALL ctl_stop( 'icb_nam: rn_verbose_write_days < -1 or in ]-1;0] is not allowed ==>> change your namelist namberg')
+         ENDIF 
+      !           
+      ELSE   ! conversion of rn_verbose_write in time steps  
+         ! ensure that nverbose_write is a multiple of nn_fsbc
+         zverbose_write = rn_verbose_write_days * ( rday / rn_Dt ) ! (rday = 86400s = 1 day)
+         IF (MOD( zverbose_write, REAL(nn_fsbc) ) == 0._wp) THEN
+            nverbose_write = INT(zverbose_write)
+         ELSE
+            CALL ctl_stop( 'icb_nam: nverbose_write is not a multiple of nn_fsbc')
+         END IF
+      ENDIF
       !
-      ! ensure that nn_sample_rate is a multiple of nn_fsbc
-      IF (MOD(nn_sample_rate, nn_fsbc) /= 0) THEN
-         CALL ctl_stop( 'icb_nam: nn_sample_rate is not a multiple of nn_fsbc')
-      END IF
+      ! 2° sample rate
+      ! checks wether debug mode or error in namelist  
+      IF ( rn_sample_rate_days < 0._wp ) THEN
+         IF (rn_sample_rate_days == -1) THEN
+            nverbose_write = nn_fsbc      ! debug mode, write every icb time step
+         ELSE
+            CALL ctl_stop( 'icb_nam: rn_sample_rate_days < -1 or in ]-1;0] is not allowed ==>> change your namelist namberg')
+         ENDIF 
+      !
+      ELSE ! conversion for rn_sample_rate in time steps
+         ! ensure that nsample_rate is a multiple of nn_fsbc
+         zsample_rate = rn_sample_rate_days * ( rday / rn_Dt ) ! (rday = 86400s = 1 day)
+         IF (MOD( zsample_rate, REAL(nn_fsbc) ) == 0._wp) THEN
+            nsample_rate = INT(zsample_rate)
+         ELSE
+            CALL ctl_stop( 'icb_nam: nsample_rate is not a multiple of nn_fsbc')
+         END IF
+      ENDIF
       !
    END SUBROUTINE icb_nam
 

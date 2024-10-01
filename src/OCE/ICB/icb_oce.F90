@@ -106,8 +106,8 @@ MODULE icb_oce
    LOGICAL , PUBLIC ::   ln_use_calving                  !: Choose whether to use calving data
                                                          !  (default is not to use calving data with test bergs)
    LOGICAL , PUBLIC ::   ln_use_test                     !: Choose whether to use test icebergs                                       
-   INTEGER , PUBLIC ::   nn_sample_rate                  !: Timesteps between sampling of position for trajectory storage
-   INTEGER , PUBLIC ::   nn_verbose_write                !: timesteps between verbose messages
+   REAL(wp), PUBLIC ::   rn_sample_rate_days             !: Number of days (or of timesteps if == -1 ) between sampling of position for trajectory storage
+   REAL(wp), PUBLIC ::   rn_verbose_write_days           !: Number of days (or of timesteps if == -1 ) between verbose messages
    REAL(wp), PUBLIC ::   rn_rho_bergs                    !: Density of icebergs
    REAL(wp), PUBLIC ::   rho_berg_1_oce                  !: convertion factor (thickness to draft) (rn_rho_bergs/pp_rho_seawater)
    REAL(wp), PUBLIC ::   rn_LoW_ratio                    !: Initial ratio L/W for newly calved icebergs
@@ -122,6 +122,10 @@ MODULE icb_oce
    ! restart
    CHARACTER(len=256), PUBLIC :: cn_icbrst_indir , cn_icbrst_in  !:  in: restart directory, restart name
    CHARACTER(len=256), PUBLIC :: cn_icbrst_outdir, cn_icbrst_out !: out: restart directory, restart name
+   !
+   ! integers for verbose messages and trajectories
+   INTEGER,  PUBLIC ::   nsample_rate                    !: Number of time steps between sampling of position for trajectory storage 
+   INTEGER,  PUBLIC ::   nverbose_write                  !: Number of time steps between verbose messages
    !
    !                                     ! Mass thresholds between iceberg classes [kg]
    REAL(wp), DIMENSION(nclasses), PUBLIC ::   rn_initial_mass      ! Fraction of calving to apply to this class [non-dim]

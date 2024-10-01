@@ -615,10 +615,13 @@
    !                          ! diagnostics:
    ln_bergdia        = .true.        ! Calculate budgets
    nn_verbose_level  = 0             ! Turn on more verbose output if level > 0
-   !
-   ! nn_verbose_write and nn_sample_rate need to be a multiple of nn_fsbc
-   nn_verbose_write  = 16            ! Timesteps between verbose messages
-   nn_sample_rate    = 16            ! Timesteps between sampling for trajectory storage
+   
+   !                          ! trajectories and verbose:
+   ! rn_verbose_write_days and rn_sample_rate_days can be decimals (ex 1.5) 
+   ! "0." is an allowed value, no trajectory and no verbose message will be written
+   ! except "-1", negative values are forbidden 
+   rn_verbose_write_days  = 2.0      ! Number of days between verbose messages (or every timestep if == -1)
+   rn_sample_rate_days    = 2.0      ! Number of days between sampling for trajectory storage (or every timestep if == -1)
    !
    !                          ! iceberg setting:
    !                                 ! Initial mass required for an iceberg of each class
