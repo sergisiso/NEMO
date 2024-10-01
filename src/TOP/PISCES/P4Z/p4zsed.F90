@@ -26,13 +26,13 @@ MODULE p4zsed
    PUBLIC   p4z_sed_alloc
  
    !
-   REAL(wp)         ::   bureffmin      !: Minimum burial efficiency
-   REAL(wp)         ::   bureffvar      !: Variable coef. for burial efficiency
+   REAL(wp) :: bureffmin      !: Minimum burial efficiency
+   REAL(wp) :: bureffvar      !: Variable coef. for burial efficiency
    !
-   REAL(wp)         ::   sedsilfrac    = 0.03    !: percentage of silica loss in the sediments
-   REAL(wp)         ::   sedcalfrac    = 0.99    !: percentage of calcite loss in the sediments
-   REAL(wp)         ::   sedfactcalmin = 0.3 !: Minimum value for dissolving calcite at the bottom
-   REAL(wp)         ::   sedfactcalvar = 0.7 !: Variable  value for dissolving calcite at the bottom
+   REAL(wp) :: sedsilfrac     !: percentage of silica loss in the sediments
+   REAL(wp) :: sedcalfrac     !: percentage of calcite loss in the sediments
+   REAL(wp) :: sedfactcalmin  !: Minimum value for dissolving calcite at the bottom
+   REAL(wp) :: sedfactcalvar  !: Variable  value for dissolving calcite at the bottom
    !
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:  ) :: sdenit     !: Nitrate reduction in the sediments
    !
