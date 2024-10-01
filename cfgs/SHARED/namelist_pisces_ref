@@ -44,7 +44,7 @@
 &nampisbio     !   biological parameters
 !-----------------------------------------------------------------------
    nrdttrc     =  1       ! time step frequency for biology
-   wsbio       =  2.     ! POC sinking speed
+   wsbio       =  2.      ! POC sinking speed
    xkmort      =  1.E-7   ! half saturation constant for mortality
    feratz      =  10.E-6  ! Fe/C in zooplankton 
    feratm      =  15.E-6  ! Fe/C in mesozooplankton
@@ -93,7 +93,7 @@
    xkdoc      =  417.E-6  ! half-saturation constant of DOC remineralization
    qnfelim    =  10.E-6   ! Optimal quota of phyto
    qdfelim    =  10.E-6   ! Optimal quota of diatoms
-   caco3r     =  0.15      ! mean rain ratio
+   caco3r     =  0.12     ! mean rain ratio
    oxymin     =  1.E-6    ! Half-saturation constant for anoxia
    ratchl     =  10.0     ! C associated with Chlorophyll
 /
@@ -106,9 +106,9 @@
    concnnh4   =  2E-6     ! NH4 half saturation for phyto
    concpnh4   =  7E-7     ! NH4 half saturation for picophytoplankton
    concdnh4   =  3E-6     ! NH4 half saturation for diatoms
-   concnpo4   =  6E-6     ! PO4 half saturation for phyto
-   concppo4   =  2E-6     ! PO4 half saturation for picophytoplankton
-   concdpo4   =  9E-6     ! PO4 half saturation for diatoms
+   concnpo4   =  12E-6    ! PO4 half saturation for phyto
+   concppo4   =  4E-6     ! PO4 half saturation for picophytoplankton
+   concdpo4   =  18E-6    ! PO4 half saturation for diatoms
    concnfer   =  3E-9     ! Iron half saturation for phyto
    concpfer   =  1E-9     ! Iron half saturation for picophytoplankton
    concdfer   =  4.5E-9   ! Iron half saturation for diatoms
@@ -257,8 +257,8 @@
    grazrat2    =  0.5      ! maximal mesozoo grazing rate
    bmetexc2    =  .true.   ! Metabolic use of excess carbon 
    resrat2     =  0.005    ! exsudation rate of mesozooplankton
-   lmzrat2     =  0.005    ! Linear mortality rate of mesozooplankton
-   mzrat2      =  0.015    ! mesozooplankton mortality rate
+   lmzrat2     =  0.00     ! Linear mortality rate of mesozooplankton
+   mzrat2      =  0.01     ! mesozooplankton mortality rate
    xpref2d     =  1.       ! meso preference for diatoms
    xpref2n     =  0.6      ! meso preference for nano
    xpref2z     =  1.       ! meso preference for zoo
@@ -335,7 +335,7 @@
    grazrat    =  2.0      ! maximal zoo grazing rate
    bmetexc    =  .true.   ! Metabolic use of excess carbon
    resrat     =  0.02     ! exsudation rate of zooplankton
-   lmzrat     =  0.02     ! Linear mortality rate of zooplankton
+   lmzrat     =  0.0      ! Linear mortality rate of zooplankton
    mzrat      =  0.005    ! zooplankton mortality rate
    xprefc     =  0.15     ! Microzoo preference for POM
    xprefn     =  1.0      ! Microzoo preference for Nanophyto
@@ -398,7 +398,7 @@
 !-----------------------------------------------------------------------
    nitrfix     =  2.e-7    ! Nitrogen fixation rate
    diazolight  =  30.      ! Diazotrophs sensitivity to light (W/m2)
-   concfediaz  =  1.e-10   ! Diazotrophs half-saturation Cste for Iron
+   concfediaz  =  1.5e-10  ! Diazotrophs half-saturation Cste for Iron
 /
 !-----------------------------------------------------------------------
 &nampiscal     !   parameters for Calcite chemistry
