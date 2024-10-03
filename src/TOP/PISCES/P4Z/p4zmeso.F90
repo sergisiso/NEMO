@@ -363,7 +363,7 @@ CONTAINS
         ! the fluxes driven by mesozooplankton in the euphotic zone.
         ! --------------------------------------------------------------------
         DO_3D( 0, 0, 0, 0, 1, jpk)
-            zmigreltime = (1. - strn(ji,jj))
+            zmigreltime = (1. - strn(ji,jj) / 24.)
             zmigthick   = (1. - zmigreltime ) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
             IF ( gdept(ji,jj,jk,Kmm) <= heup(ji,jj) ) THEN
                zgramigrem(ji,jj) = zgramigrem(ji,jj) + xfracmig * zgrarem(ji,jj,jk) * zmigthick 
