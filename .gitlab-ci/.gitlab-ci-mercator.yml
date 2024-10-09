@@ -20,6 +20,6 @@
 
 variables:
   # METEO-FRANCE BELENOS (INTEL_2018+INTELMPI)
-  BL_SETTE_CFG: "/home/ext/mr/smer/samsong/SRC/NEMO/main/sette/param.ci"
+  BL_SETTE_CFG: "/home/ext/mr/smer/samsong/SRC/NEMO/main/sette/param_${NEMO_COMPILER}.ci"
   # ECMWF AA
-  AA_SETTE_CFG: "/home/ar0s/SRC/NEMO/main/sette/param.ci"
+  AA_SETTE_CFG: "/home/ar0s/SRC/NEMO/main/sette/param_${NEMO_COMPILER}.ci"
