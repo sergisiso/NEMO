@@ -22,3 +22,6 @@ tools/tools.txt
 
 # mk
 mk/full_key_list.txt
+
+# arch
+arch/arch-auto.fcm

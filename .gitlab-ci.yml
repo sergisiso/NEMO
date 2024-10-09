@@ -4,23 +4,37 @@
 
 
 workflow:
+  name: "SETTE $NEMO_HPC $NEMO_COMPILER $NEMO_COMPILATION - $CI_COMMIT_BRANCH $CI_COMMIT_SHORT_SHA"
   rules:
     - if: $CI_PIPELINE_SOURCE == 'web'
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_COMMIT_TITLE =~ /(?i).*\[ci\].*/
     - if: $CI_PIPELINE_SOURCE == 'schedule'
 
 variables:
-  NEMO_DEBUG:
-    description: "Nemo compilation debug mode"
-    value: "yes"
+  NEMO_COMPILATION:
+    description: "Nemo compilation mode"
+    value: "debug"
     options:
-      - "yes"
-      - "no"
+      - "debug"
+      - "normal"
+  NEMO_COMPILER:
+    description: "Nemo Fortran compiler"
+    value: "intel"
+    options:
+      - "intel"
+      - "gcc"
+  NEMO_HPC:
+    description: "Nemo HPC"
+    value: "ECMWF"
+    options:
+      - "ECMWF"
 
 include:
   # default values (will be overwritten after)
-  #- local: '.gitlab-ci/.gitlab-ci-default.yml'
+  - local: '.gitlab-ci/.gitlab-ci-default.yml'
   - local: '.gitlab-ci/.gitlab-ci-mercator.yml'
+    rules:
+    - if: $NEMO_HPC == 'ECMWF'
   # example to show how to specify the HPC depending on commit author
   #- local: '.gitlab-ci/.gitlab-ci-cnrs.yml'
   #  rules:
@@ -64,7 +78,7 @@ before_script:
   - cp -av ${!SETTE_CFG} sette/param.cfg
   - git config core.filemode false   # ignore git(lab) symlinks permissions changes when pushing then pulling cache ("old mode 100755 -> new mode 100644")
   - SETTE_OPT="-u -w"
-  - if [[ ${NEMO_DEBUG} == "yes" ]]; then SETTE_OPT="${SETTE_OPT} -b"; fi
+  - if [[ ${NEMO_COMPILATION} == "debug" ]]; then SETTE_OPT="${SETTE_OPT} -b"; fi
 
 
 # JOBS
