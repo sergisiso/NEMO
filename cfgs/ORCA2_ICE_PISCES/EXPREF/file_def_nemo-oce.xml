@@ -39,7 +39,8 @@
 	  <field field_ref="wspd"         name="windsp"   />
 	  <field field_ref="precip"       name="precip"   />
 	  <!-- ice and snow -->
-	  <field field_ref="snowpre" />
+	  <field field_ref="snowpre"   />
+	  <field field_ref="berg_melt" />
 	</file>
 
 	<file id="file12" name_suffix="_grid_U" description="ocean U grid variables" >

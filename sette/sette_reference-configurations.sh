@@ -296,7 +296,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
     then
         ITEND=8   # 2 days
     else
-        ITEND=992  # 124 days
+        ITEND=1040 # 130 days
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then
