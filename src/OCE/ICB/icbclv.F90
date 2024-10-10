@@ -53,11 +53,9 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       ! Adapt calving flux and calving heat flux from coupler for use here
-      ! Use interior mask: so no bergs in overlap areas and convert from km^3/year to kg/s
-      ! this assumes that input is given as equivalent water flux so that pure water density is appropriate
-
-      zfact = ( (1000._wp)**3 / ( NINT(rday) * nyear_len(1) ) ) * rn_rho_bergs
-      berg_grid%calving(:,:) = src_calving(:,:) * zfact * tmask_i(:,:) * tmask(:,:,1)
+      ! Use interior mask: so no bergs in overlap areas
+      ! src_calving already in kg/s (no convertion needed)
+      berg_grid%calving(:,:) = src_calving(:,:) * tmask_i(:,:) * tmask(:,:,1)
 
       ! Heat in units of W/m2, and mask (just in case)
       berg_grid%calving_hflx(:,:) = src_calving_hflx(:,:) * tmask_i(:,:) * tmask(:,:,1)
