@@ -653,6 +653,8 @@
       ln_icb_grd           = .false. ! ground icb when icb bottom level hit oce bottom level (need ln_M2016 to be activated)
    !
    cn_dir      = './'      !  root directory for the calving data location
+   !
+   ! ln_use_calving = .true. required an input file (sn_icb). The unit of the variable 'calvingmask' is kg/s.
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !

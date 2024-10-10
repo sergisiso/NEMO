@@ -378,7 +378,9 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
             cd ${EXE_DIR}
             set_namelist namelist_cfg cn_exp \"O2L3P_LONG\"
             set_namelist_rst namelist ${ITEND}
-            set_namelist namelist_cfg ln_use_calving .true.
+            set_namelist namelist_cfg ln_use_calving .false.
+            set_namelist namelist_cfg ln_use_test .true.
+            set_namelist namelist_cfg nn_test_icebergs 10
             set_namelist namelist_ice_cfg ln_icediachk .true.
             set_namelist namelist_top_cfg ln_trcdta .false.
             cd ${SETTE_DIR}
@@ -393,6 +395,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
             cd ${EXE_DIR}
             set_namelist namelist_cfg cn_exp \"O2L3P_SHORT\"
             set_namelist_rst namelist ${ITEND} "O2L3P_LONG" "OCE ICE TOP ABL ICB"
+            set_namelist namelist_cfg ln_use_calving .false.
             set_namelist namelist_cfg ln_use_test .false.
             set_namelist namelist_ice_cfg ln_icediachk .true.
             cd ${SETTE_DIR}
