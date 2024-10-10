@@ -27,7 +27,7 @@ MODULE sbcapr
 
    !                                          !!* namsbc_apr namelist (Atmospheric PRessure) *
    LOGICAL, PUBLIC ::   ln_apr_obc = .false.   !: inverse barometer added to OBC ssh data
-   LOGICAL, PUBLIC ::   ln_ref_apr             !: ref. pressure: global mean Patm (F) or a constant (F)
+   INTEGER, PUBLIC ::   nn_ref_apr             !: ref. pressure: 0: constant, 1: global mean or 2: read in a file
    REAL(wp)        ::   rn_pref                !  reference atmospheric pressure   [N/m2]
 
    REAL(wp), ALLOCATABLE, SAVE, PUBLIC, DIMENSION(:,:) ::   ssh_ib    ! Inverse barometer now    sea surface height   [m]
@@ -38,6 +38,7 @@ MODULE sbcapr
    REAL(wp) ::   r1_grau              ! = 1.e0 / (grav * rho0)
 
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_apr   ! structure of input fields (file informations, fields read)
+   TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_apref ! structure of input apref  (file informations, fields read)
 
    !! * Substitutions
 #  include "read_nml_substitute.h90"
@@ -63,10 +64,11 @@ CONTAINS
       INTEGER            ::   ierror  ! local integer
       INTEGER            ::   ios     ! Local integer output status for namelist read
       !!
-      CHARACTER(len=100) ::  cn_dir   ! Root directory for location of ssr files
+      CHARACTER(len=256) ::  cn_dir   ! Root directory for location of ssr files
       TYPE(FLD_N)        ::  sn_apr   ! informations about the fields to be read
+      TYPE(FLD_N)        ::  sn_apref ! informations about the fields to be read
       !!
-      NAMELIST/namsbc_apr/ cn_dir, sn_apr, ln_ref_apr, rn_pref, ln_apr_obc
+      NAMELIST/namsbc_apr/ cn_dir, sn_apr, nn_ref_apr, rn_pref, ln_apr_obc, sn_apref
       !!----------------------------------------------------------------------
       READ_NML_REF(numnam,namsbc_apr)
       READ_NML_CFG(numnam,namsbc_apr)
@@ -80,19 +82,31 @@ CONTAINS
       IF( sn_apr%ln_tint )   ALLOCATE( sf_apr(1)%fdta(jpi,jpj,1,2) )
                              ALLOCATE( ssh_ib(jpi,jpj) , ssh_ibb(jpi,jpj) )
                              ALLOCATE( apr (jpi,jpj) )
+
+      ALLOCATE( sf_apref(1), STAT=ierror )         !* allocate and fill sf_sst (forcing structure) with sn_sst
+      IF( ierror > 0 )   CALL ctl_stop( 'STOP', 'sbc_apr: unable to allocate sf_apref structure' )
+      !
+      CALL fld_fill( sf_apref, (/ sn_apref /), cn_dir, 'sbc_apr', 'Global mean Atmospheric pressure ', 'namsbc_apr' )
+                                ALLOCATE( sf_apref(1)%fnow(1,1,1)   )
+      IF( sn_apref%ln_tint )   ALLOCATE( sf_apref(1)%fdta(1,1,1,2) )
       !
       IF( lwp )THEN                                 !* control print
          WRITE(numout,*)
          WRITE(numout,*) '   Namelist namsbc_apr : Atmospheric PRessure as extrenal forcing'
-         WRITE(numout,*) '      ref. pressure: global mean Patm (T) or a constant (F)  ln_ref_apr = ', ln_ref_apr
+         WRITE(numout,*) '      ref. pressure: 0: constant, 1: global mean or 2: read in a file  nn_ref_apr = ', nn_ref_apr
       ENDIF
       !
-      IF( ln_ref_apr ) THEN                        !* Compute whole inner domain mean masked ocean surface
+      SELECT CASE( nn_ref_apr )
+      CASE( 0 )
+         IF(lwp) WRITE(numout,*) '         Reference Patm used : ', rn_pref, ' N/m2'
+      CASE( 1 )
          tarea = glob_2Dsum( 'sbcapr', e1e2t(:,:) )
          IF(lwp) WRITE(numout,*) '         Variable ref. Patm computed over a ocean surface of ', tarea*1e-6, 'km2'
-      ELSE
+      CASE( 2 )
          IF(lwp) WRITE(numout,*) '         Reference Patm used : ', rn_pref, ' N/m2'
-      ENDIF
+      CASE DEFAULT
+         CALL ctl_stop( 'sbc_apr : unsupported value for nn_ref_apr' )
+      END SELECT
       !
       r1_grau = 1.e0 / (grav * rho0)               !* constant for optimization
       !
@@ -134,7 +148,13 @@ CONTAINS
          CALL fld_read( kt, nn_fsbc, sf_apr )               !* input Patm provided at kt + nn_fsbc/2
          !
          !                                                  !* update the reference atmospheric pressure (if necessary)
-         IF( ln_ref_apr )   rn_pref = glob_2Dsum( 'sbcapr', sf_apr(1)%fnow(:,:,1) * e1e2t(:,:), cdelay = 'sbcapr_tag' ) / tarea
+         SELECT CASE( nn_ref_apr )
+         CASE( 1 )
+            rn_pref = glob_2Dsum( 'sbcapr', sf_apr(1)%fnow(:,:,1) * e1e2t(:,:), cdelay = 'sbcapr_tag' ) / tarea
+         CASE( 2 )
+            CALL fld_read( kt, 1, sf_apref )
+            rn_pref = sf_apref(1)%fnow(1,1,1)
+         END SELECT
          !
          !                                                  !* Patm related forcing at kt
          ssh_ib(:,:) = - ( sf_apr(1)%fnow(:,:,1) - rn_pref ) * r1_grau    ! equivalent ssh (inverse barometer)
