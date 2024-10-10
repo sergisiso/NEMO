@@ -357,6 +357,7 @@ CONTAINS
       INTEGER  , OPTIONAL, INTENT(in   ) ::   Kmm    ! ocean time level index
       !
       INTEGER ::   ipk      ! number of vertical levels of sdjf%fdta ( 2D: ipk=1 ; 3D: ipk=jpk )
+      INTEGER ::   ipi, ipj ! needed to discriminate 1D timeseries from 2D field
       INTEGER ::   iaa      ! shorter name for sdjf%naa
       INTEGER ::   iw       ! index into wgts array
       INTEGER ::   idvar    ! variable ID
@@ -369,6 +370,8 @@ CONTAINS
       IF( sdjf%ln_tint ) THEN   ;   dta_alias => sdjf%fdta(:,:,:,iaa)
       ELSE                      ;   dta_alias => sdjf%fnow(:,:,:    )
       ENDIF
+      ipi = SIZE( dta_alias, 1 )
+      ipj = SIZE( dta_alias, 2 )
       ipk = SIZE( dta_alias, 3 )
       !
       IF( LEN_TRIM(sdjf%vcomp) > 0 ) THEN   ;   zsgn = 1._wp        ! geographical vectors -> sign change done later when rotating
@@ -386,8 +389,13 @@ CONTAINS
          idvar  = iom_varid( sdjf%num, sdjf%clvar )
          idmspc = iom_file ( sdjf%num )%ndims( idvar )
          IF( iom_file( sdjf%num )%luld( idvar ) )   idmspc = idmspc - 1   ! id of the last spatial dimension
-         CALL iom_get( sdjf%num,  jpdom_global, sdjf%clvar, dta_alias(:,:,:), sdjf%nrec(1,iaa),   &
-            &          sdjf%cltype, zsgn, kfill = jpfillcopy )
+         IF( ipi /= 1 .AND. ipj /= 1 ) THEN
+            CALL iom_get( sdjf%num,  jpdom_global, sdjf%clvar, dta_alias(:,:,:), sdjf%nrec(1,iaa),   &
+               &          sdjf%cltype, zsgn, kfill = jpfillcopy )
+         ELSE
+            CALL iom_get( sdjf%num,  jpdom_unknown, sdjf%clvar, dta_alias(:,:,:), sdjf%nrec(1,iaa),   &
+               &          sdjf%cltype, zsgn, kfill = jpfillcopy )
+         ENDIF
       ENDIF
       !
       sdjf%rotn(iaa) = .false.   ! vector not yet rotated
