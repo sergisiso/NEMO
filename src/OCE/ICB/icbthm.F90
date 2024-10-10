@@ -20,6 +20,7 @@ MODULE icbthm
    USE phycst         ! NEMO physical constants
    USE sbc_oce
    USE eosbn2         ! equation of state
+   USE bdy_oce, ONLY : bdytmask,ln_bdy
 
    USE icb_oce        ! define iceberg arrays
    USE icbutl         ! iceberg utility routines
@@ -270,7 +271,10 @@ CONTAINS
 !!gm  add a test to avoid over melting ?
 !!pm  I agree, over melting could break conservation (more melt than calving)
 
-         IF( zMnew <= 0._wp ) THEN       ! Delete the berg if completely melted
+         IF( zMnew <= 0._wp ) THEN                      ! Delete the berg if completely melted
+            CALL icb_utl_delete( first_berg, this )
+            !
+         ELSE IF(ln_bdy .AND. bdytmask(ii,ij)==0.) THEN ! Delete the berg if at bdy
             CALL icb_utl_delete( first_berg, this )
             !
          ELSE                            ! Diagnose mass distribution on grid
