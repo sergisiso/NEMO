@@ -53,7 +53,7 @@ CONTAINS
       INTEGER  ::   ii, ij, ji, jj, jk, ikb
       REAL(wp) ::   zM, zT, zW, zL, zSST, zVol, zLn, zWn, zTn, znVol, zIC, zDn, zD, zvb, zub, ztb
       REAL(wp) ::   zMv, zMe, zMb, zmelt, zdvo, zdvob, zdva, zdM, zSs, zdMe, zdMb, zdMv
-      REAL(wp) ::   zSSS, zfzpt
+      REAL(wp) ::   zSSS, zfzpt, zrollc
       REAL(wp) ::   zMnew, zMnew1, zMnew2, zheat_hcflux, zheat_latent, z1_12
       REAL(wp) ::   zMbits, znMbits, zdMbitsE, zdMbitsM, zLbits, zAbits, zMbb
       REAL(wp) ::   zxi, zyj, zff, z1_rday, z1_e1e2, zdt, z1_dt, z1_dt_e1e2, zdepw
@@ -72,6 +72,9 @@ CONTAINS
       z1_12   = 1._wp / 12._wp
       zdt     = berg_dt
       z1_dt   = 1._wp / zdt
+      !
+      ! definition of the rolling criterium (MacAyeal & Scambos 2003, eq. 40)
+      zrollc = SQRT(6.0_wp*rn_rho_bergs*(pp_rho_seawater-rn_rho_bergs)/pp_rho_seawater**2)
       !
       ! we're either going to ignore berg fresh water melt flux and associated heat
       ! or we pass it into the ocean, so at this point we set them both to zero,
@@ -252,8 +255,10 @@ CONTAINS
          ENDIF
 
          ! Rolling
+         ! tabular icebergs in a vertical position are unstable, capsizing spontaneously, 
+         ! for aspect ratios smaller than a critical value (MacAyeal & Scambos 2003, eq. 40) 
          zDn = rho_berg_1_oce * zTn       ! draught (keel depth)
-         IF( zDn > 0._wp .AND. MAX(zWn,zLn) < SQRT( 0.92*(zDn**2) + 58.32*zDn ) ) THEN
+         IF( (zDn > 0._wp) .AND. (MIN(zWn,zLn)/zTn < zrollc) ) THEN
             zT  = zTn
             zTn = zWn
             zWn = zT
