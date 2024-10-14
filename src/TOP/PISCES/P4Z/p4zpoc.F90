@@ -287,7 +287,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, jn
       REAL(wp) ::   zsizek, alphat, zremint, alphatm1
-      REAL(wp) ::   zpoc1, zpoc2, zfact
+      REAL(wp) ::   zpoc1, zpoc2, zfact, zconcpoc
       REAL(wp) ::   zreminp1, zreminp2
       REAL(wp) ::   ztemp, ztemp1, ztemp2
       REAL(wp), DIMENSION(jcpoc) :: alpham1
@@ -317,14 +317,17 @@ CONTAINS
               ! ---------------------------------------------------
               zfact  = rday / rfact2 / ( tr(ji,jj,jk,jpgoc,Kbb) + rtrn )
               zpoc1  = MIN(rbound, MAX(-rbound, consgoc(ji,jj,jk) * zfact ) )
-              zpoc2  = MIN(rbound, MAX(-rbound, prodgoc(ji,jj,jk) * zfact ) )
+              zpoc2  = prodgoc(ji,jj,jk) * rday / rfact2
+              !
+              zconcpoc = ( e3t(ji,jj,jk-1,Kmm) * tr(ji,jj,jk-1,jpgoc,Kbb) + e3t(ji,jj,jk,Kmm) * tr(ji,jj,jk,jpgoc,Kbb) )   &
+                   &        / ( e3t(ji,jj,jk-1,Kmm) + e3t(ji,jj,jk,Kmm) )
               !
               DO jn = 1, jcpoc
                  zreminp1 = reminp(jn) * tgfunc(ji,jj,jk) - zpoc1
-                 ztemp    = MIN(rbound, MAX(-rbound,  zreminp1 * zsizek ) )
-                 ztemp1   = EXP( -ztemp )
-                 ztemp2   = zpoc2 * ( 1. - ztemp1 ) / zreminp1 * alphan(jn)
-                 alphag(ji,jj,jk,jn) = alpham1(jn) * ztemp1 + ztemp2
+                 ztemp    = MIN(rbound, MAX(-rbound,  zreminp1 ) )
+                 ztemp1   = EXP( -ztemp * zsizek)
+                 ztemp2   = zpoc2 * ( 1. - ztemp1 ) / ztemp * alphan(jn)
+                 alphag(ji,jj,jk,jn) = alpham1(jn) * ztemp1 * zconcpoc + ztemp2
                  alpham1(jn) = alphag(ji,jj,jk,jn) * ztemp1 + ztemp2
               END DO
 
@@ -364,7 +367,7 @@ CONTAINS
       !
       INTEGER  ::   ji, jj, jk, jn
       REAL(wp) ::   zsizek, alphat, zremint, alphatm1
-      REAL(wp) ::   zpoc1, zpoc2, zpoc3, zfact
+      REAL(wp) ::   zpoc1, zpoc2, zpoc3, zfact, zconcpoc
       REAL(wp) ::   zreminp1, zreminp2
       REAL(wp) ::   ztemp, ztemp1, ztemp2, ztemp3
       REAL(wp), DIMENSION(A2D(0)  )   :: ztotprod, ztotthick, ztotcons
@@ -389,10 +392,10 @@ CONTAINS
      ! ----------------------------------------------------------------
      DO_3D( 0, 0, 0, 0, 1, jpkm1)
         IF (tmask(ji,jj,jk) == 1. .AND. gdept(ji,jj,jk,Kmm) <= pdep(ji,jj) ) THEN
-          zfact = e3t(ji,jj,jk,Kmm) * rday/ rfact2
+          zfact = e3t(ji,jj,jk,Kmm) * rday / rfact2
           ztotprod(ji,jj)  = ztotprod(ji,jj) + prodpoc(ji,jj,jk) * zfact
           ! The temperature effect is included here
-          ztotthick(ji,jj) = ztotthick(ji,jj) + e3t(ji,jj,jk,Kmm)* tgfunc(ji,jj,jk)
+          ztotthick(ji,jj) = ztotthick(ji,jj) + e3t(ji,jj,jk,Kmm) * tgfunc(ji,jj,jk)
           ztotcons(ji,jj)  = ztotcons(ji,jj) - conspoc(ji,jj,jk) * zfact / ( tr(ji,jj,jk,jppoc,Kbb) + rtrn )
         ENDIF
      END_3D
@@ -436,16 +439,19 @@ CONTAINS
               ! See the comments in the GOC section
               zfact  = rday / rfact2 / ( tr(ji,jj,jk,jppoc,Kbb) + rtrn )
               zpoc1  = MIN(rbound, MAX(-rbound, conspoc(ji,jj,jk) * zfact ) )
-              zpoc2  = MIN(rbound, MAX(-rbound, prodpoc(ji,jj,jk) * zfact ) )
-              zpoc3  = MIN(rbound, MAX(-rbound, orem3 (ji,jj,jk) * zfact  ) )
+              zpoc2  = prodpoc(ji,jj,jk) * rday / rfact2
+              zpoc3  = orem3 (ji,jj,jk) * rday / rfact2
+              !
+              zconcpoc = ( e3t(ji,jj,jk-1,Kmm) * tr(ji,jj,jk-1,jppoc,Kbb) + e3t(ji,jj,jk,Kmm) * tr(ji,jj,jk,jppoc,Kbb) )   &
+                &        / ( e3t(ji,jj,jk-1,Kmm) + e3t(ji,jj,jk,Kmm) )
               !
               DO jn = 1, jcpoc
                  zreminp1 = reminp(jn) * tgfunc(ji,jj,jk) - zpoc1
-                 ztemp    = MIN(rbound, MAX(-rbound,  zreminp1 * zsizek ) )
-                 ztemp1   = EXP( -ztemp )
-                 ztemp2   = zpoc2 * ( 1. - ztemp1 ) / zreminp1 * alphan(jn)
-                 ztemp3   = zpoc3 * ( 1. - ztemp1 ) / zreminp1 * alphag(ji,jj,jk,jn)
-                 alphap(ji,jj,jk,jn) = alpham1(jn) * ztemp1 + ztemp2 + ztemp3
+                 ztemp    = MIN(rbound, MAX(-rbound,  zreminp1 ) )
+                 ztemp1   = EXP( MIN(rbound,-ztemp * zsizek ) )
+                 ztemp2   = zpoc2 * ( 1. - ztemp1 ) / ztemp * alphan(jn)
+                 ztemp3   = zpoc3 * ( 1. - ztemp1 ) / ztemp * alphag(ji,jj,jk,jn)
+                 alphap(ji,jj,jk,jn) = alpham1(jn) * ztemp1 * zconcpoc + ztemp2 + ztemp3
                  alpham1(jn) = alphap(ji,jj,jk,jn) * ztemp1 + ztemp2 + ztemp3
               END DO
               !
