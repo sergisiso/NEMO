@@ -652,6 +652,13 @@
    ln_M2016                = .false. ! use Merino et al. (2016) modification (use of 3d ocean data instead of only sea surface data)
       ln_icb_grd           = .false. ! ground icb when icb bottom level hit oce bottom level (need ln_M2016 to be activated)
    !
+   ln_icb_bas   = .false.  ! activate diagnostics by basin
+      cn_icbbasins_file       = 'icbbasinid.nc' ! file defining the basin location
+      cn_icbbasins_var2d      = 'basinid'       ! basin id map
+      cn_icbbasins_var1d      = 'basins'        ! variable to define the dimension variable in the output (correspondance between basin index and basin id)
+      nn_icb_basins           = 20              ! number of basin (in the netcdf file)
+      ln_rst_test_bas         = .false.         ! is there test iceberg in the restart (ie generated with nn_test_icebergs > -1)
+   !
    cn_dir      = './'      !  root directory for the calving data location
    !
    ! ln_use_calving = .true. required an input file (sn_icb). The unit of the variable 'calvingmask' is kg/s.

@@ -244,7 +244,7 @@ CONTAINS
             CALL DDPDD( CMPLX( ( zheat_hcflux + zheat_latent ) * z1_e1e2, 0.e0, dp ), cicb_hflx(ii,ij) )
             !
             ! diagnostics
-            CALL icb_dia_melt( ii, ij, zMnew, zheat_hcflux, zheat_latent, this%mass_scaling,       &
+            CALL icb_dia_melt( ii, ij, pt%mbasid, zMnew, zheat_hcflux, zheat_latent, this%mass_scaling,       &
                &                       zdM, zdMbitsE, zdMbitsM, zdMb, zdMe,   &
                &                       zdMv, z1_dt_e1e2, z1_e1e2 )
          ELSE
@@ -284,7 +284,7 @@ CONTAINS
             !
          ELSE                            ! Diagnose mass distribution on grid
             z1_e1e2 = r1_e1e2t(ii,ij) * this%mass_scaling
-            CALL icb_dia_size( ii, ij, zWn, zLn, zAbits,   &
+            CALL icb_dia_size( ii, ij, pt%mbasid, zWn, zLn, zTn, zAbits,   &
                &               this%mass_scaling, zMnew, znMbits, z1_e1e2 )
          ENDIF
          !

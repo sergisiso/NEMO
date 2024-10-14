@@ -130,6 +130,7 @@ CONTAINS
                   newpt%lat = gphit(ji,jj)
                   newpt%xi  = REAL( mig(ji,nn_hls), wp ) - ( nn_hls - 1 )
                   newpt%yj  = REAL( mjg(jj,nn_hls), wp ) - ( nn_hls - 1 )
+                  newpt%mbasid = berg_grid%mbasid(ji,jj)
                   !
                   newpt%uvel = 0._wp               ! initially at rest
                   newpt%vvel = 0._wp

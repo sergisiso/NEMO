@@ -60,12 +60,17 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt   ! time step index
       INTEGER, INTENT(in) ::   Kmm  ! ocean time level index
       !
-      LOGICAL ::   ll_sample_traj, ll_budget, ll_verbose   ! local logical
+      LOGICAL ::   ll_sample_traj, ll_budget, ll_verbose, ll_basoutput   ! local logical
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('icb_stp')
 
       !                       !==  start of timestep housekeeping  ==!
+      IF ( kt == nit000 ) THEN
+         ll_basoutput= (iom_use('berg_melt_basins') .OR. iom_use('berg_numb_basins') .OR. iom_use('berg_sumthic_basins') )
+         IF (         ll_basoutput   .AND. ( .NOT. ln_icb_bas ) ) CALL ctl_stop( 'ln_icb_bas need to be activated to output berg_melt_basins'   )
+         IF ( ( .NOT. ll_basoutput ) .AND.         ln_icb_bas   ) CALL ctl_stop( 'No need to activate ln_icb_bas as no related output required' )
+      END IF
 
       IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN
          !

@@ -56,7 +56,7 @@ MODULE icblbc
    TYPE(buffer), POINTER       ::   obuffer_f=>NULL() , ibuffer_f=>NULL()
 
    INTEGER, PARAMETER, PRIVATE ::   jp_delta_buf = 25             ! Size by which to increment buffers
-   INTEGER, PARAMETER, PRIVATE ::   jp_buffer_width = 15+nkounts  ! items to store for each berg
+   INTEGER, PARAMETER, PRIVATE ::   jp_buffer_width = 16+nkounts  ! items to store for each berg
 
 #endif
 
@@ -728,10 +728,11 @@ CONTAINS
       pbuff%data(12,kb) = berg%current_point%length
       pbuff%data(13,kb) = berg%current_point%mass_of_bits
       pbuff%data(14,kb) = berg%current_point%heat_density
+      pbuff%data(15,kb) = float(berg%current_point%mbasid)
 
-      pbuff%data(15,kb) = berg%mass_scaling
+      pbuff%data(16,kb) = berg%mass_scaling
       DO k=1,nkounts
-         pbuff%data(15+k,kb) = REAL( berg%number(k), wp )
+         pbuff%data(16+k,kb) = REAL( berg%number(k), wp )
       END DO
       !
    END SUBROUTINE icb_pack_into_buffer
@@ -763,10 +764,11 @@ CONTAINS
       pt%length         =      pbuff%data(12,kb)
       pt%mass_of_bits   =      pbuff%data(13,kb)
       pt%heat_density   =      pbuff%data(14,kb)
+      pt%mbasid         = INT( pbuff%data(15,kb) )
 
-      currentberg%mass_scaling =      pbuff%data(15,kb)
+      currentberg%mass_scaling =      pbuff%data(16,kb)
       DO ik = 1, nkounts
-         currentberg%number(ik) = INT( pbuff%data(15+ik,kb) )
+         currentberg%number(ik) = INT( pbuff%data(16+ik,kb) )
       END DO
       !
       CALL icb_utl_add(currentberg, pt )

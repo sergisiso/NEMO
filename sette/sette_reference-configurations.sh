@@ -350,7 +350,6 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
         set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
         set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
         # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
-	set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
         set_namelist namelist_top_cfg ln_trcbc  .false.
         # put ln_ironsed, ln_hydrofe to false
         # if not you need input files, and for tests is not necessary
@@ -381,6 +380,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
             set_namelist namelist_cfg ln_use_calving .false.
             set_namelist namelist_cfg ln_use_test .true.
             set_namelist namelist_cfg nn_test_icebergs 10
+	        set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
             set_namelist namelist_ice_cfg ln_icediachk .true.
             set_namelist namelist_top_cfg ln_trcdta .false.
             cd ${SETTE_DIR}
@@ -426,9 +426,11 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
                 set_namelist namelist_cfg jpni 8
                 set_namelist namelist_cfg jpnj 4
             fi
-            set_namelist namelist_top_cfg ln_trcdta .false.
-	    set_namelist namelist_cfg ln_use_test .true.
+            set_namelist namelist_cfg ln_use_calving   .true.
+            set_namelist namelist_cfg ln_use_test      .true.
             set_namelist namelist_cfg nn_test_icebergs 10
+	    set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
+            set_namelist namelist_top_cfg ln_trcdta .false.
 
             cd ${SETTE_DIR}
             . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
