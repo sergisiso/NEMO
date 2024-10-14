@@ -850,6 +850,11 @@ that are available in the tidal-forcing implementation (see
   </field_group>
 
   <!-- variables available with iceberg trajectories -->
+  <field_group id="icbvar_bas" grid_ref="grid_T_icbbas" >
+    <field id="berg_melt_basins"    long_name="icb melt rate of icebergs per basin"             unit="kg/m2/s" />
+    <field id="berg_sumthic_basins" long_name="sum of icb thickness per cell and  per basin"    unit="m"       operation="accumulate" prec="8" />
+    <field id="berg_numb_basins"    long_name="sum of icb number per cell and  per basin"       unit=""        operation="accumulate" prec="8" />
+  </field_group>
 
   <field_group id="icbvar" domain_ref="grid_T"  >
     <field id="berg_melt"          long_name="icb melt rate of icebergs"                       unit="kg/m2/s"                    />

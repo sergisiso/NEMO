@@ -55,6 +55,9 @@ MODULE icbdia
    REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, PUBLIC  ::   buoy_melt       ! Buoyancy component of melting rate   [kg/s/m2]
    REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, PUBLIC  ::   eros_melt       ! Erosion component of melting rate    [kg/s/m2]
    REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, PUBLIC  ::   conv_melt       ! Convective component of melting rate [kg/s/m2]
+   REAL(wp), DIMENSION(:,:,:), ALLOCATABLE, PUBLIC  ::   berg_melt_basins! Melting+erosion rate of icebergs by basin [kg/s/m2]
+   REAL(wp), DIMENSION(:,:,:), ALLOCATABLE, PUBLIC  ::   berg_sumthic_basins! sum icb thickness by basin             [m]
+   REAL(wp), DIMENSION(:,:,:), ALLOCATABLE, PUBLIC  ::   berg_numb_basins! number of icb in each cell by basin       []
    REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, PUBLIC  ::   bits_src        ! Mass flux from berg erosion into bergy bits [kg/s/m2]
    REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, PUBLIC  ::   bits_melt       ! Melting rate of bergy bits           [kg/s/m2]
    REAL(wp), DIMENSION(:,:)  , ALLOCATABLE, PUBLIC  ::   bits_mass       ! Mass distribution of bergy bits      [kg/s/m2]
@@ -101,8 +104,8 @@ CONTAINS
       IF( .NOT.ln_bergdia )   RETURN
 
       ALLOCATE( berg_melt    (jpi,jpj)   )           ;   berg_melt   (:,:)   = 0._wp
-      ALLOCATE( berg_melt_hcflx(jpi,jpj) )           ;   berg_melt_hcflx(:,:)   = 0._wp
-      ALLOCATE( berg_melt_qlat(jpi,jpj)  )           ;   berg_melt_qlat(:,:)   = 0._wp
+      ALLOCATE( berg_melt_hcflx(jpi,jpj) )           ;   berg_melt_hcflx(:,:)= 0._wp
+      ALLOCATE( berg_melt_qlat(jpi,jpj)  )           ;   berg_melt_qlat (:,:)= 0._wp
       ALLOCATE( buoy_melt    (jpi,jpj)   )           ;   buoy_melt   (:,:)   = 0._wp
       ALLOCATE( eros_melt    (jpi,jpj)   )           ;   eros_melt   (:,:)   = 0._wp
       ALLOCATE( conv_melt    (jpi,jpj)   )           ;   conv_melt   (:,:)   = 0._wp
@@ -113,6 +116,12 @@ CONTAINS
       ALLOCATE( berg_mass    (jpi,jpj)   )           ;   berg_mass   (:,:)   = 0._wp
       ALLOCATE( real_calving (jpi,jpj,nclasses) )    ;   real_calving(:,:,:) = 0._wp
       ALLOCATE( tmpc(jpi,jpj) )                      ;   tmpc        (:,:)   = 0._wp
+
+      IF ( ln_icb_bas ) THEN
+         ALLOCATE( berg_melt_basins   (jpi,jpj,nicbbas) )   ;   berg_melt_basins   (:,:,:)= 0._wp
+         ALLOCATE( berg_sumthic_basins(jpi,jpj,nicbbas) )   ;   berg_sumthic_basins(:,:,:)= 0._wp
+         ALLOCATE( berg_numb_basins   (jpi,jpj,nicbbas) )   ;   berg_numb_basins   (:,:,:)= 0._wp
+      END IF
 
       nbergs_start              = 0
       nbergs_end                = 0
@@ -373,8 +382,8 @@ CONTAINS
       !
       IF( .NOT.ln_bergdia )   RETURN
       berg_melt   (:,:)   = 0._wp
-      berg_melt_hcflx(:,:)   = 0._wp
-      berg_melt_qlat(:,:)   = 0._wp
+      berg_melt_hcflx(:,:)= 0._wp
+      berg_melt_qlat (:,:)= 0._wp
       buoy_melt   (:,:)   = 0._wp
       eros_melt   (:,:)   = 0._wp
       conv_melt   (:,:)   = 0._wp
@@ -384,6 +393,11 @@ CONTAINS
       berg_mass   (:,:)   = 0._wp
       virtual_area(:,:)   = 0._wp
       real_calving(:,:,:) = 0._wp
+      IF ( ln_icb_bas ) THEN
+         berg_melt_basins(:,:,:)    = 0._wp
+         berg_sumthic_basins(:,:,:) = 0._wp
+         berg_numb_basins(:,:,:)    = 0._wp
+      END IF
       !
    END SUBROUTINE icb_dia_step
 
@@ -394,6 +408,11 @@ CONTAINS
       !
       IF( .NOT.ln_bergdia )   RETURN            !!gm useless iom will control whether it is output or not
       !
+      IF ( ln_icb_bas ) THEN 
+         CALL iom_put( "berg_melt_basins"   , berg_melt_basins   (:,:,:)) ! Melt rate of icebergs Rby source basin    [kg/m2/s]
+         CALL iom_put( "berg_sumthic_basins", berg_sumthic_basins(:,:,:)) ! Melt rate of icebergs Rby source basin    [kg/m2/s]
+         CALL iom_put( "berg_numb_basins"   , berg_numb_basins   (:,:,:)) ! Melt rate of icebergs Rby source basin    [kg/m2/s]
+      END IF
       CALL iom_put( "berg_melt"        , berg_melt   (:,:)   )   ! Melt rate of icebergs                     [kg/m2/s]
       !! NB. The berg_melt_hcflx field is currently always zero - see comment in icbthm.F90
       CALL iom_put( "berg_melt_hcflx"  , berg_melt_hcflx(:,:))   ! Heat flux to ocean due to heat content of melting icebergs [J/m2/s]
@@ -461,18 +480,21 @@ CONTAINS
    END SUBROUTINE icb_dia_income
 
 
-   SUBROUTINE icb_dia_size(ki, kj, pWn, pLn, pAbits,   &
+   SUBROUTINE icb_dia_size(ki, kj, kb, pWn, pLn, pTn, pAbits,   &
       &                    pmass_scale, pMnew, pnMbits, pz1_e1e2)
       !!----------------------------------------------------------------------
       !!----------------------------------------------------------------------
-      INTEGER , INTENT(in) ::   ki, kj
-      REAL(wp), INTENT(in) ::   pWn, pLn, pAbits, pmass_scale, pMnew, pnMbits, pz1_e1e2
+      INTEGER , INTENT(in) ::   ki, kj, kb
+      REAL(wp), INTENT(in) ::   pWn, pLn, pTn, pAbits, pmass_scale, pMnew, pnMbits, pz1_e1e2
       !!----------------------------------------------------------------------
       !
       IF( .NOT.ln_bergdia )   RETURN
       virtual_area(ki,kj) = virtual_area(ki,kj) + ( pWn * pLn + pAbits ) * pmass_scale      ! m^2
       berg_mass(ki,kj)    = berg_mass(ki,kj) + pMnew * pz1_e1e2                             ! kg/m2
       bits_mass(ki,kj)    = bits_mass(ki,kj) + pnMbits * pz1_e1e2                           ! kg/m2
+      !
+      IF ( iom_use('berg_sumthic_basins') ) berg_sumthic_basins(ki,kj,kb) = berg_sumthic_basins(ki,kj,kb) + pTn * pmass_scale
+      IF ( iom_use('berg_numb_basins'   ) ) berg_numb_basins   (ki,kj,kb) = berg_numb_basins(ki,kj,kb) + 1._wp * pmass_scale
       !
    END SUBROUTINE icb_dia_size
 
@@ -487,12 +509,12 @@ CONTAINS
    END SUBROUTINE icb_dia_speed
 
 
-   SUBROUTINE icb_dia_melt(ki, kj, pmnew, pheat_hcflux, pheat_latent, pmass_scale,     &
+   SUBROUTINE icb_dia_melt(ki, kj, kb, pmnew, pheat_hcflux, pheat_latent, pmass_scale,     &
       &                    pdM, pdMbitsE, pdMbitsM, pdMb, pdMe,   &
       &                    pdMv, pz1_dt_e1e2, pz1_e1e2 )
       !!----------------------------------------------------------------------
       !!----------------------------------------------------------------------
-      INTEGER , INTENT(in) ::   ki, kj
+      INTEGER , INTENT(in) ::   ki, kj, kb
       REAL(wp), INTENT(in) ::   pmnew, pheat_hcflux, pheat_latent, pmass_scale
       REAL(wp), INTENT(in) ::   pdM, pdMbitsE, pdMbitsM, pdMb, pdMe, pdMv, pz1_dt_e1e2, pz1_e1e2
       !!----------------------------------------------------------------------
@@ -509,6 +531,9 @@ CONTAINS
       conv_melt (ki,kj) = conv_melt (ki,kj) + pdMv     * pz1_dt_e1e2   ! kg/m2/s
       heat_to_ocean_net = heat_to_ocean_net + (pheat_hcflux + pheat_latent) * pmass_scale * berg_dt         ! J
       IF( pmnew <= 0._wp ) nbergs_melted = nbergs_melted + 1                        ! Delete the berg if completely melted
+      !
+      ! per basin diags
+      IF ( iom_use('berg_melt_basins') ) berg_melt_basins(ki,kj,kb) = berg_melt_basins(ki,kj,kb) + pdM * pz1_dt_e1e2   ! kg/m2/s
       !
    END SUBROUTINE icb_dia_melt
 

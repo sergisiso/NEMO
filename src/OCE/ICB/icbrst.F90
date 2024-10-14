@@ -33,7 +33,7 @@ MODULE icbrst
    PUBLIC   icb_rst_read    ! routine called in icbini.F90 module
    PUBLIC   icb_rst_write   ! routine called in icbstp.F90 module
    
-   INTEGER ::   nlonid, nlatid, nxid, nyid, nuvelid, nvvelid
+   INTEGER ::   nlonid, nlatid, nxid, nyid, nuvelid, nvvelid, nbasinid
    INTEGER ::   nmassid, nthicknessid, nwidthid, nlengthid
    INTEGER ::   nyearid, ndayid
    INTEGER ::   nscaling_id, nmass_of_bits_id, nheat_density_id, numberid
@@ -58,7 +58,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER                      ::   idim, ivar, iatt
       INTEGER                      ::   jn, iunlim_dim, ibergs_in_file
-      INTEGER                      ::   ii, ij, iclass, ibase_err, imax_icb
+      INTEGER                      ::   ii, ij, iclass, ibase_err, imax_icb, imax_bas
       REAL(wp), DIMENSION(nkounts) ::   zdata      
       LOGICAL                      ::   ll_found_restart
       CHARACTER(len=256)           ::   cl_path
@@ -75,6 +75,7 @@ CONTAINS
       CALL iom_open( TRIM(cl_path)//cl_filename, ncid )
 
       imax_icb = 0
+      imax_bas = 0
       IF( iom_file(ncid)%iduld .GE. 0) THEN
 
          ibergs_in_file = iom_file(ncid)%lenuld
@@ -97,6 +98,8 @@ CONTAINS
                CALL iom_get( ncid, 'mass_scaling' , localberg%mass_scaling, ktime=jn )
                CALL iom_get( ncid, 'lon'          , localpt%lon           , ktime=jn )
                CALL iom_get( ncid, 'lat'          , localpt%lat           , ktime=jn )
+               CALL iom_get( ncid, 'basin'        , zdata(1)              , ktime=jn )
+               localpt%mbasid = INT(zdata(1))
                CALL iom_get( ncid, 'uvel'         , localpt%uvel          , ktime=jn )
                CALL iom_get( ncid, 'vvel'         , localpt%vvel          , ktime=jn )
                CALL iom_get( ncid, 'mass'         , localpt%mass          , ktime=jn )
@@ -111,6 +114,7 @@ CONTAINS
                !
                CALL icb_utl_add( localberg, localpt )
                !
+               imax_bas=MAX(imax_bas, localpt%mbasid)
             ENDIF
             !
          END DO
@@ -175,6 +179,15 @@ CONTAINS
          ENDIF
          num_bergs(1) = imax_icb - jpnij + narea
       ENDIF
+      !
+
+      IF( lk_mpp ) THEN
+         CALL mpp_max('icbrst', imax_bas)
+      ENDIF
+      IF (imax_bas > nicbbas) THEN 
+         IF (lwp) WRITE(numout,*) 'basin restart check :', imax_bas, nicbbas
+         CALL ctl_stop('some iceberg basin id beyond the number of basin allowed in the simulation')
+      END IF
       !
       IF( lwp .AND. nn_verbose_level >= 0 )  WRITE(numout,'(a)') 'icebergs, icb_rst_read: completed'
       !
@@ -288,6 +301,7 @@ CONTAINS
             nret = NF90_DEF_VAR(ncid, 'lat', NF90_DOUBLE, in_dim, nlatid)
             nret = NF90_DEF_VAR(ncid, 'xi', NF90_DOUBLE, in_dim, nxid)
             nret = NF90_DEF_VAR(ncid, 'yj', NF90_DOUBLE, in_dim, nyid)
+            nret = NF90_DEF_VAR(ncid, 'basin', NF90_INT, in_dim, nbasinid)
             nret = NF90_DEF_VAR(ncid, 'uvel', NF90_DOUBLE, in_dim, nuvelid)
             nret = NF90_DEF_VAR(ncid, 'vvel', NF90_DOUBLE, in_dim, nvvelid)
             nret = NF90_DEF_VAR(ncid, 'mass', NF90_DOUBLE, in_dim, nmassid)
@@ -309,7 +323,9 @@ CONTAINS
             nret = NF90_PUT_ATT(ncid, nxid, 'long_name', 'x grid box position')
             nret = NF90_PUT_ATT(ncid, nxid, 'units', 'fractional')
             nret = NF90_PUT_ATT(ncid, nyid, 'long_name', 'y grid box position')
-            nret = NF90_PUT_ATT(ncid, nyid, 'units', 'fractional')
+            nret = NF90_PUT_ATT(ncid, nbasinid, 'units', 'fractional')
+            nret = NF90_PUT_ATT(ncid, nbasinid, 'long_name', 'source basin id')
+            nret = NF90_PUT_ATT(ncid, nyid, 'units', '1')
             nret = NF90_PUT_ATT(ncid, nuvelid, 'long_name', 'zonal velocity')
             nret = NF90_PUT_ATT(ncid, nuvelid, 'units', 'm/s')
             nret = NF90_PUT_ATT(ncid, nvvelid, 'long_name', 'meridional velocity')
@@ -390,6 +406,7 @@ CONTAINS
                nret = NF90_PUT_VAR(ncid, nlatid, pt%lat, (/ jn /) )
                nret = NF90_PUT_VAR(ncid, nxid, pt%xi, (/ jn /) )
                nret = NF90_PUT_VAR(ncid, nyid, pt%yj, (/ jn /) )
+               nret = NF90_PUT_VAR(ncid, nbasinid, pt%mbasid, (/ jn /) )
                nret = NF90_PUT_VAR(ncid, nuvelid, pt%uvel, (/ jn /) )
                nret = NF90_PUT_VAR(ncid, nvvelid, pt%vvel, (/ jn /) )
                nret = NF90_PUT_VAR(ncid, nmassid, pt%mass, (/ jn /) )
