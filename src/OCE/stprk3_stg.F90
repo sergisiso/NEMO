@@ -289,14 +289,14 @@ CONTAINS
                !                                      ! ww cross-level velocity at Kmm consistent with (uu,vv)
                CALL wzv( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, np_velocity )
                !                                      ! ww / wi Partition at stage 3 only
-               IF( ln_zad_Aimp .AND. kstg == 3 )   CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, np_velocity )
+               IF( ln_zad_Aimp .AND. kstg == 3 )   CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, np_velocity, ld_diag=.TRUE. )
                !
             ENDIF
          ELSE                                     !* Flux Form : set ww, wi at 3rd stage and zFw
             !                                         ! ww cross-level velocity at Kmm consistent with (zFu,zFv)
             CALL wzv( kstp, Kbb, Kmm, Kaa, zFu, zFv, ww, np_transport )
             !                                         ! ww / wi Partition at stage 3 only
-            IF( ln_zad_Aimp .AND. kstg == 3 )   CALL wAimp( kstp, Kmm, zFu, zFv, ww, wi, np_transport )
+            IF( ln_zad_Aimp .AND. kstg == 3 )   CALL wAimp( kstp, Kmm, zFu, zFv, ww, wi, np_transport, ld_diag=.TRUE. )
             DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                zFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
             END_3D
