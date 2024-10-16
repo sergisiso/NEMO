@@ -596,6 +596,8 @@ CONTAINS
       !! Reference  : Shchepetkin, A. F. (2015): An adaptive, Courant-number-dependent
       !!              implicit scheme for vertical advection in oceanic modeling.
       !!              Ocean Modelling, 91, 38-69.
+      !!
+      !! WARNING    : this alternative method may not work -------> untested !
       !!----------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt   ! time step
       INTEGER, INTENT(in) ::   Kmm  ! time level index
@@ -691,7 +693,7 @@ CONTAINS
    END SUBROUTINE wAimp_RK3_alt
 
    
-   SUBROUTINE wAimp_RK3( kt, Kmm, puu, pvv, pww, pwi, k_ind )
+   SUBROUTINE wAimp_RK3( kt, Kmm, puu, pvv, pww, pwi, k_ind, ld_diag )
       !!
       INTEGER                         , INTENT(in   ) ::   kt             ! time step
       INTEGER                         , INTENT(in   ) ::   Kmm            ! time level index
@@ -699,12 +701,13 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:)      , INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
       REAL(wp), DIMENSION(:,:,:)      , INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
+      LOGICAL, OPTIONAL               , INTENT(in   ) ::   ld_diag        !  =true : write implicit outputs
       !!
-      CALL wAimp_RK3_t( kt, Kmm, puu, pvv, lbnd_ij(puu), pww, pwi, lbnd_ij(pwi), k_ind )
+      CALL wAimp_RK3_t( kt, Kmm, puu, pvv, lbnd_ij(puu), pww, pwi, lbnd_ij(pwi), k_ind, ld_diag )
    END SUBROUTINE wAimp_RK3
 
 
-   SUBROUTINE wAimp_RK3_t( kt, Kmm, puu, pvv, ktuv, pww, pwi, ktwi, k_ind )
+   SUBROUTINE wAimp_RK3_t( kt, Kmm, puu, pvv, ktuv, pww, pwi, ktwi, k_ind, ld_diag )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wAimp  ***
       !!
@@ -732,18 +735,18 @@ CONTAINS
       REAL(wp), DIMENSION(AB2D(ktuv),JPK), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
       REAL(wp), DIMENSION(jpi,jpj,jpk)   , INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
       REAL(wp), DIMENSION(AB2D(ktwi),JPK), INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
-!!st      INTEGER, INTENT(in) ::   kstage                                     !  RK3 stage indictor
+      LOGICAL, OPTIONAL                  , INTENT(in   ) ::   ld_diag        !  =true : write implicit outputs
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp)             ::   zcff, z1_e3t, z1_e3w, zdt, zCu_h, zCu_v   !  local scalars
-      REAL(wp)             ::   zCu_min, zCu_max, zCu_cut, zr_Cu_max_h    !  local scalars
+      REAL(wp)             ::   zCu_min, zCu_max, zCu_cut, zr_Cu_max_h    !  local scalar
+      LOGICAL  :: ll_diag
       REAL(wp) , PARAMETER ::   Cu_min_v = 0.8_wp           ! minimum Courant number for transitioning
       !REAL(wp) , PARAMETER ::   Cu_max_v = 0.9_wp           ! maximum allowable vertical Courant number
       !REAL(wp) , PARAMETER ::   Cu_max_h = 0.9_wp           ! maximum allowable horizontal Courant number
       REAL(wp) , PARAMETER ::   Cu_max_v = 1.1_wp           ! maximum allowable vertical Courant number
       REAL(wp) , PARAMETER ::   Cu_max_h = 1.1_wp           ! maximum allowable horizontal Courant number
       CHARACTER(LEN=10) :: clmname
-      LOGICAL :: lldiag
       REAL(wp), DIMENSION(:,:        ), ALLOCATABLE :: zdiag2d
       REAL(wp), DIMENSION(:,:,:      ), ALLOCATABLE :: zdiag3d
       REAL(wp), DIMENSION(T2D(nn_hls))              :: z2d
@@ -763,8 +766,8 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      lldiag = (k_ind == np_velocity)                                      ! Ensure diagnostics are only output once
-      !
+      ll_diag = .FALSE.
+      IF( PRESENT(ld_diag) ) ll_diag = ld_diag 
       ! Calculate Courant numbers
       !
       zdt = rn_Dt                    ! RK3: 3rd stage timestep
@@ -798,9 +801,10 @@ CONTAINS
       ! JC: Warning: this is the horizontal Courant number this time
       ! not the total as in previous versions of the scheme.
       !
-      IF( lldiag .AND. iom_use("Aimp_Cmx_h") ) THEN
+      IF( ll_diag .AND. iom_use("Aimp_Cmx_h") ) THEN
          ALLOCATE( zdiag2d(T2D(0)) )
          zdiag2d(:,:) = MAXVAL(Cu_adv(T2D(0),:), DIM=3)
+         zdiag2d(:,:) = Cu_adv(T2D(0),10)
          CALL iom_put( 'Aimp_Cmx_h', zdiag2d(:,:) )
          DEALLOCATE( zdiag2d )
       ENDIF
@@ -842,16 +846,14 @@ CONTAINS
       END_3D
       Cu_adv(T2D(1),1) = 0._wp
       !
-      IF( lldiag ) THEN
-!!st only called when kstg = 3 I think this is not necessary !
-!!      IF( kstage == 3 ) CALL iom_put("wimp",pwi)
+      IF( ll_diag ) THEN
          IF( iom_use("wimp") ) THEN
             ! Fix for tiling: force data to be sent to XIOS by copying pwi to a temporary array.
             ! The problem: iom_put will only send data on the last tile since pwi has size (jpi,jpj,jpk), and pwi will
             ! be overwritten by the 2nd call to wAimp. Therefore when pwi is actually sent to XIOS, all tiles except
             ! the last will have data equivalent to k_ind == np_transport (rather than k_ind == np_velocity).
             ALLOCATE( zdiag3d(T2D(0),jpk) )
-            zdiag3d(:,:,:) = pwi(T2D(0),:)
+            zdiag3d(:,:,1:jpk) = pwi(T2D(0),1:jpk)
             CALL iom_put( "wimp", zdiag3d(:,:,:) )
             DEALLOCATE( zdiag3d )
          ENDIF
