@@ -18,7 +18,8 @@ MODULE usrdef_sbc
    USE sbc_ice         ! Surface boundary condition: ice fields
    USE sbc_phy, ONLY   : pp_cldf
    USE phycst          ! physical constants
-   USE ice, ONLY       : jpl, at_i_b, a_i_b
+   USE par_ice, ONLY   : jpl
+   USE ice, ONLY       : at_i_b, a_i_b
    !
    USE in_out_manager  ! I/O manager
 
