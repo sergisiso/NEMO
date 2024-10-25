@@ -430,7 +430,7 @@
    rn_si1      =   23.0       !  2BD : longest depth of extinction
    rn_par      =   0.47       !  5BD : fraction of photosynthetically active radiation
 
-   cn_dir      = './'      !  root directory for the chlorophyl data location
+   cn_dir      = './'      !  root directory for the chlorophyll data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
