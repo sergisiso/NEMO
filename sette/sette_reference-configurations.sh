@@ -1262,10 +1262,10 @@ if [ ${config} == "WED025" ] ;  then
 
 fi
 
-# --------
-# C1D_PAPA
-# --------
-if [ ${config} == "C1D_PAPA" ]  ; then
+# -----
+# C1D_*
+# -----
+if [[ ${config} =~ "C1D" ]]  ; then
     SETTE_CONFIG=${config}${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -1278,21 +1278,25 @@ if [ ${config} == "C1D_PAPA" ]  ; then
         cd ${MAIN_DIR}
         #
         # syncronisation if target directory/file exist (not done by makenemo)
+        rm -fv ${CONFIG_DIR0}/${config/_*}/EXPREF
+        ln -svr ${CONFIG_DIR0}/${config/_*}/EXP_${config#*_} ${CONFIG_DIR0}/${config/_*}/EXPREF
         clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-        sync_config  ${CONFIG_DIR0}/${config/_PAPA} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config/_*} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         #
-        # C1D_PAPA uses linssh so remove key_qco if added by default
-        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config/_PAPA} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+        # C1D uses linssh so remove key_qco if added by default
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config/_*} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
                    -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit 1
+        rm -fv ${CONFIG_DIR0}/${config/_*}/EXPREF
+        ln -svr ${CONFIG_DIR0}/${config/_*}/EXP_PAPA ${CONFIG_DIR0}/${config/_*}/EXPREF
     fi
 
-    # Configure and submit test runs for the C1D_PAPA configuration (if any)
+    # Configure and submit test runs for the C1D configuration (if any)
     if [ ${DO_RESTART} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-        # Default test-run configuration for the C1D_PAPA configuration
+        # Default test-run configuration for the C1D configuration
         EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
         cd ${EXE_DIR}
-        set_namelist namelist_cfg cn_exp \"C1DPAPA\"
+        set_namelist namelist_cfg cn_exp \"${config//_}\"
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg jpni 1
@@ -1306,7 +1310,7 @@ if [ ${config} == "C1D_PAPA" ]  ; then
         set_xio_using_server iodef.xml ${USING_MPMD}
         NPROC=1
 
-        ## Restartability tests for C1D_PAPA
+        ## Restartability tests for C1D
         if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
             export TEST_NAME="LONG"
             cd ${SETTE_DIR}
@@ -1318,10 +1322,10 @@ if [ ${config} == "C1D_PAPA" ]  ; then
             set_valid_dir
             clean_valid_dir
             cd ${EXE_DIR}
-            set_namelist namelist_cfg cn_exp \"C1DPAPA_LONG\"
+            set_namelist namelist_cfg cn_exp \"${config//_}_LONG\"
             set_namelist_rst namelist ${ITEND}
             cd ${SETTE_DIR}
-            . ./prepare_job.sh input_${config/_PAPA}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            . ./prepare_job.sh input_${config/_*}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
         fi
         if [ ${DO_RESTART_2} == "1" ] ;  then
             cd ${SETTE_DIR}
@@ -1330,10 +1334,10 @@ if [ ${config} == "C1D_PAPA" ]  ; then
             set_valid_dir
             clean_valid_dir
             cd ${EXE_DIR}
-            set_namelist namelist_cfg cn_exp \"C1DPAPA_SHORT\"
-            set_namelist_rst namelist ${ITEND} "C1DPAPA_LONG" "OCE"
+            set_namelist namelist_cfg cn_exp \"${config//_}_SHORT\"
+            set_namelist_rst namelist ${ITEND} "${config//_}_LONG" "OCE"
             cd ${SETTE_DIR}
-            . ./prepare_job.sh input_${config/_PAPA}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            . ./prepare_job.sh input_${config/_*}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
         fi
         if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
             cd ${SETTE_DIR}
