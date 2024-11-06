@@ -1456,7 +1456,7 @@ CONTAINS
       ! flag to detect if start or end of open boundary belongs to a corner
       ! if not (=0), it must be on land.
       ! if a corner is detected, save bdy package number for further tests
-      icorne(:,:)=0 ; icornw(:,:)=0 ; icornn(:,:)=0 ; icorns(:,:)=0
+      icorne(:,:)=0. ; icornw(:,:)=0. ; icornn(:,:)=0. ; icorns(:,:)=0.
       ! South/West crossings
       IF ((nbdysegw > 0).AND.(nbdysegs > 0)) THEN
          DO ib1 = 1, nbdysegw        
@@ -1591,14 +1591,14 @@ CONTAINS
       ! West segments
       DO ib = 1, nbdysegw
          ! get mask at boundary extremities:
-         ztestmask(1:2)=0._wp
+         ztestmask(1:2)=0.
          DO_2D (0, 0, 0, 0) 
             IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
             IF( mig(ji,0) == jpiwob(ib) .AND. mjg(jj,0) == jpjwft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
          END_2D
-         CALL mpp_sum( 'bdyini', ztestmask )   ! sum over the global domain
+         CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
-         IF (ztestmask(1)==1._wp) THEN
+         IF (ztestmask(1)==1) THEN 
             IF (icornw(ib,1)==0) THEN
                WRITE(ctmp1,*) ' Open boundary segment ', npckgw(ib)
                CALL ctl_stop( ctmp1, ' does not start on land or on a corner' )
@@ -1609,7 +1609,7 @@ CONTAINS
                itest=itest+1
             ENDIF
          ENDIF
-         IF (ztestmask(2)==1._wp) THEN
+         IF (ztestmask(2)==1) THEN
             IF (icornw(ib,2)==0) THEN
                WRITE(ctmp1,*) ' Open boundary segment ', npckgw(ib)
                CALL ctl_stop( ' ', ctmp1, ' does not end on land or on a corner' )
@@ -1625,14 +1625,14 @@ CONTAINS
       ! East segments
       DO ib = 1, nbdysege
          ! get mask at boundary extremities:
-         ztestmask(1:2)=0._wp
+         ztestmask(1:2)=0.
          DO_2D (0, 0, 0, 0) 
             IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjedt(ib) )   ztestmask(1) = tmask(ji,jj,1)
             IF( mig(ji,0) == jpieob(ib)+1 .AND. mjg(jj,0) == jpjeft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
          END_2D 
-         CALL mpp_sum( 'bdyini', ztestmask )   ! sum over the global domain
+         CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
-         IF (ztestmask(1)==1._wp) THEN
+         IF (ztestmask(1)==1) THEN
             IF (icorne(ib,1)==0) THEN
                WRITE(ctmp1,*) ' Open boundary segment ', npckge(ib)
                CALL ctl_stop( ctmp1, ' does not start on land or on a corner' )
@@ -1643,7 +1643,7 @@ CONTAINS
                itest=itest+1
             ENDIF
          ENDIF
-         IF (ztestmask(2)==1._wp) THEN
+         IF (ztestmask(2)==1) THEN
             IF (icorne(ib,2)==0) THEN
                WRITE(ctmp1,*) ' Open boundary segment ', npckge(ib)
                CALL ctl_stop( ctmp1, ' does not end on land or on a corner' )
@@ -1659,18 +1659,18 @@ CONTAINS
       ! South segments
       DO ib = 1, nbdysegs
          ! get mask at boundary extremities:
-         ztestmask(1:2)=0._wp
+         ztestmask(1:2)=0.
          DO_2D (0, 0, 0, 0) 
             IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisdt(ib) )   ztestmask(1) = tmask(ji,jj,1)
             IF( mjg(jj,0) == jpjsob(ib) .AND. mig(ji,0) == jpisft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
          END_2D 
-         CALL mpp_sum( 'bdyini', ztestmask )   ! sum over the global domain
+         CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
-         IF ((ztestmask(1)==1._wp).AND.(icorns(ib,1)==0)) THEN
+         IF ((ztestmask(1)==1).AND.(icorns(ib,1)==0)) THEN
             WRITE(ctmp1,*) ' Open boundary segment ', npckgs(ib)
             CALL ctl_stop( ctmp1, ' does not start on land or on a corner' )
          ENDIF
-         IF ((ztestmask(2)==1._wp).AND.(icorns(ib,2)==0)) THEN
+         IF ((ztestmask(2)==1).AND.(icorns(ib,2)==0)) THEN
             WRITE(ctmp1,*) ' Open boundary segment ', npckgs(ib)
             CALL ctl_stop( ctmp1, ' does not end on land or on a corner' )
          ENDIF
@@ -1679,18 +1679,18 @@ CONTAINS
       ! North segments
       DO ib = 1, nbdysegn
          ! get mask at boundary extremities:
-         ztestmask(1:2)=0._wp
+         ztestmask(1:2)=0.
          DO_2D (0, 0, 0, 0) 
             IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpindt(ib) )   ztestmask(1) = tmask(ji,jj,1)
             IF( mjg(jj,0) == jpjnob(ib)+1 .AND. mig(ji,0) == jpinft(ib) )   ztestmask(2) = tmask(ji,jj,1)  
          END_2D
-         CALL mpp_sum( 'bdyini', ztestmask )   ! sum over the global domain
+         CALL mpp_sum( 'bdyini', ztestmask, 2 )   ! sum over the global domain
 
-         IF ((ztestmask(1)==1._wp).AND.(icornn(ib,1)==0)) THEN
+         IF ((ztestmask(1)==1).AND.(icornn(ib,1)==0)) THEN
             WRITE(ctmp1,*) ' Open boundary segment ', npckgn(ib)
             CALL ctl_stop( ctmp1, ' does not start on land' )
          ENDIF
-         IF ((ztestmask(2)==1._wp).AND.(icornn(ib,2)==0)) THEN
+         IF ((ztestmask(2)==1).AND.(icornn(ib,2)==0)) THEN
             WRITE(ctmp1,*) ' Open boundary segment ', npckgn(ib)
             CALL ctl_stop( ctmp1, ' does not end on land' )
          ENDIF
