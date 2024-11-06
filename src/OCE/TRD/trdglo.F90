@@ -238,9 +238,9 @@ CONTAINS
          ! ---------------------------------
          IF( lk_mpp ) THEN
             CALL mpp_sum( 'trdglo', peke )
-            CALL mpp_sum( 'trdglo', umo , jptot_dyn )
-            CALL mpp_sum( 'trdglo', vmo , jptot_dyn )
-            CALL mpp_sum( 'trdglo', hke , jptot_dyn )
+            CALL mpp_sum( 'trdglo', umo  )
+            CALL mpp_sum( 'trdglo', vmo  )
+            CALL mpp_sum( 'trdglo', hke  )
          ENDIF
 
          ! I.2 Print dynamic trends in the ocean.output file
@@ -376,10 +376,10 @@ CONTAINS
          ! I.1 Sums over the global domain
          ! -------------------------------
          IF( lk_mpp ) THEN
-            CALL mpp_sum( 'trdglo', tmo, jptot_tra )   
-            CALL mpp_sum( 'trdglo', smo, jptot_tra )
-            CALL mpp_sum( 'trdglo', t2 , jptot_tra )
-            CALL mpp_sum( 'trdglo', s2 , jptot_tra )
+            CALL mpp_sum( 'trdglo', tmo )
+            CALL mpp_sum( 'trdglo', smo )
+            CALL mpp_sum( 'trdglo', t2  )
+            CALL mpp_sum( 'trdglo', s2  )
          ENDIF
 
          ! I.2 Print tracers trends in the ocean.output file
