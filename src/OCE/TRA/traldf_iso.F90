@@ -323,12 +323,12 @@ CONTAINS
          IF( ln_traldf_blp ) THEN            ! bilaplacian operator
             DO_3D( inn , inn , inn , inn , 2, jpkm1 )
                ze3w_2 = e3w(ji,jj,jk,Kmm) * e3w(ji,jj,jk,Kmm)
-               pakz(ji,jj,jk) = 16._wp * ah_wslp2(ji,jj,jk) * (  akz(ji,jj,jk) + ah_wslp2(ji,jj,jk) / ze3w_2  )
+               pakz(ji,jj,jk) = 16._wp * pah_wslp2(ji,jj,jk) * (  pakz(ji,jj,jk) + pah_wslp2(ji,jj,jk) / ze3w_2  )
             END_3D
          ELSEIF( ln_traldf_lap ) THEN        ! laplacian operator
             DO_3D( inn , inn , inn , inn ,   2, jpkm1 )
                ze3w_2 = e3w(ji,jj,jk,Kmm) * e3w(ji,jj,jk,Kmm)
-               zcoef0 = rDt * (  akz(ji,jj,jk) + ah_wslp2(ji,jj,jk) / ze3w_2  )
+               zcoef0 = rDt * (  pakz(ji,jj,jk) + pah_wslp2(ji,jj,jk) / ze3w_2  )
                pakz(ji,jj,jk) = MAX( zcoef0 - 0.5_wp , 0._wp ) * ze3w_2 * r1_Dt
             END_3D
         ENDIF
