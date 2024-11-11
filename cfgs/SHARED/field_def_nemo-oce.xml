@@ -357,8 +357,6 @@ that are available in the tidal-forcing implementation (see
     <field id="zwbav"               long_name="av turb flux of buoyancy in ml"           unit="m^2/s^3" />
     <field id="zt_ml"               long_name="av T in ml"                               unit="deg"     />
     <field id="zhol"                long_name="Hoenekker number"                         unit="#"       />
-    <field id="zws_ent"            long_name="entrainment turb flux of S"                unit="10^-3 m/s" />
-    <field id="zwth_ent"            long_name="entrainment turb flux of T"               unit="deg m/s" />
     <field id="zwb_ent"            long_name="entrainment turb flux of buoyancy"         unit="m^2/s^-3" />
 
     <field id="zdt_bl"             long_name="temperature jump at base of BL"            unit="deg"      />
@@ -376,6 +374,15 @@ that are available in the tidal-forcing implementation (see
     <field id="zsc_vw_1_f"       long_name="zsc v-momentum flux on T after Coriolis"                       unit="m^2/s^2" />
     <field id="zsc_uw_2_f"       long_name="2nd zsc u-momentum flux on T after Coriolis"                       unit="m^2/s^2" />
     <field id="zsc_vw_2_f"       long_name="2nd zsc v-momentum flux on T after Coriolis"                       unit="m^2/s^2" />
+
+    <!-- Conditional OSMOSIS diagnostics (selectable via ln_osm_cdiags) -->
+    <field id="cmask"   long_name="Convection mask"                                               unit=""        />
+    <field id="wb_lang" long_name="Entrainment buoyancy flux from Langmuire where convective"     unit="m^2/s^3" />
+    <field id="wb_ustr" long_name="Entrainment buoyancy flux from surface shear where convective" unit="m^2/s^3" />
+    <field id="wb_conv" long_name="Convective entrainment buoyancy flux"                          unit="m^2/s^3" />
+    <field id="wb_shr"  long_name="Entrainment buoyancy flux from basal shear where convective"   unit="m^2/s^3" />
+    <field id="shr_prd" long_name="Shear production where convective"                             unit="m^2/s^3" />
+    <field id="h_bl"    long_name="hbl where convective"                                          unit="m"       />
 
     <!-- FK_OSM OSMOSIS diagnostics (require also ln_osm_mle=.true.-->
     <field id="hmle"          long_name="OBL FK-layer thickness"                                     unit="m"        />

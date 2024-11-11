@@ -591,7 +591,6 @@ CONTAINS
             IF( ln_zdfmfc  )   CALL tra_mfc( kstp, Kbb,      ts, Krhs )  ! Mass Flux Convection
             IF( ln_zdfosm  ) THEN
                                CALL tra_osm( kstp,      Kmm, ts, Krhs )  ! OSMOSIS non-local tracer fluxes ==> RHS
-               IF( lrst_oce )  CALL osm_rst( kstp,      Kmm, 'WRITE'  )  ! write OSMOSIS outputs + ww (so must do here) to restarts
             ENDIF
             !
             !           !== TRA time integration + ZDF  ==!   
@@ -601,6 +600,8 @@ CONTAINS
             !
          END DO
          IF( ln_tile ) CALL dom_tile_stop
+         IF( ln_zdfosm .AND. lrst_oce ) CALL osm_rst( kstp, Kmm, 'WRITE' )   ! Write OSMOSIS fields and ww to restart file
+         !
          IF( .NOT.lk_linssh ) THEN
             r3f(:,:) = r3fa(:,:)                                         ! save r3fa in r3f before deallocation
             DEALLOCATE( r3fa )                                           ! (r3f = r3f(Kbb) of the next time step)

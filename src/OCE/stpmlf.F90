@@ -362,7 +362,6 @@ CONTAINS
          IF( ln_zdfmfc  )   CALL tra_mfc    ( kstp, Nbb,      ts, Nrhs )  ! Mass Flux Convection
          IF( ln_zdfosm  ) THEN
                             CALL tra_osm    ( kstp,      Nnn, ts, Nrhs )  ! OSMOSIS non-local tracer fluxes ==> RHS
-            IF( lrst_oce )  CALL osm_rst    ( kstp,      Nnn, 'WRITE'  )  ! write OSMOSIS outputs + ww (so must do here) to restarts
          ENDIF
                             CALL tra_ldf    ( kstp, Nbb, Nnn, ts, Nrhs )  ! lateral mixing
 
@@ -370,6 +369,7 @@ CONTAINS
          IF( ln_zdfnpc  )   CALL tra_npc    ( kstp,      Nnn, Nrhs, ts, Naa  )  ! update after fields by non-penetrative convection
       END DO
       IF( ln_tile ) CALL dom_tile_stop
+      IF( ln_zdfosm .AND. lrst_oce ) CALL osm_rst( kstp, Nnn, 'WRITE' )   ! Write OSMOSIS fields and ww to restart field
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       ! Set boundary conditions, time filter and swap time levels

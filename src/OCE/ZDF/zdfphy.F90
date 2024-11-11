@@ -214,7 +214,8 @@ CONTAINS
       !
       IF( ioptio /= 1 )    CALL ctl_stop( 'zdf_phy_init: one and only one vertical diffusion option has to be defined ' )
       IF( ln_isfcav ) THEN
-      IF( ln_zdfric )      CALL ctl_stop( 'zdf_phy_init: zdfric never tested with ice shelves cavities ' )
+         IF( ln_zdfric ) CALL ctl_stop( 'zdf_phy_init: zdfric never tested with ice shelves cavities ' )
+         IF( ln_zdfosm ) CALL ctl_stop( 'zdf_phy_init: the combination of ice-shelf cavities and the OSMOSIS scheme is not supported' )
       ENDIF
       !                                ! shear production term flag
       IF( ln_zdfcst .OR. ln_zdfosm ) THEN   ;   l_zdfsh2 = .FALSE.
@@ -284,10 +285,7 @@ CONTAINS
             CASE( np_RIC )   ;   CALL zdf_ric( kt, Kbb, Kmm, avm_k, avt_k )    ! Richardson number dependent Kz
             CASE( np_TKE )   ;   CALL zdf_tke( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! TKE closure scheme for Kz
             CASE( np_GLS )   ;   CALL zdf_gls( kt, Kbb, Kmm, sh2, avm_k, avt_k )    ! GLS closure scheme for Kz
-            CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )    ! OSMOSIS closure scheme for Kz
-            !                                                                     ! clem: osmosis currently cannot work because
-            !                                                                             it uses qns and qsr that are only defined in the interior (A2D(0))
-            !                                                                             we should do calculations in the interior and put a lbc_lnk at the end
+            CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )   ! OSMOSIS closure scheme for Kz
       !     CASE( np_CST )                                  ! Constant Kz (reset avt, avm to the background value)
       !         ! avt_k and avm_k set one for all at initialisation phase
 !!gm            avt(2:jpim1,2:jpjm1,1:jpkm1) = rn_avt0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
