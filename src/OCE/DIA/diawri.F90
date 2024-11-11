@@ -1108,7 +1108,6 @@ CONTAINS
       ENDIF
       IF( ln_zdfosm ) THEN
          CALL iom_rstput( 0, 0, inum, 'hbl', hbl*tmask(:,:,1)        )      ! now boundary-layer depth
-         CALL iom_rstput( 0, 0, inum, 'hml', hml*tmask(:,:,1)        )      ! now mixed-layer depth
          CALL iom_rstput( 0, 0, inum, 'avt_k', avt_k*wmask(A2D(0),:) )      ! w-level diffusion
          CALL iom_rstput( 0, 0, inum, 'avm_k', avm_k*wmask           )      ! now w-level viscosity
          CALL iom_rstput( 0, 0, inum, 'ghamt', ghamt*wmask           )      ! non-local t forcing
