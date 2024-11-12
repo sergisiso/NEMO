@@ -30,8 +30,8 @@
 #
 # This script has been developed by building the NEMO BENCH test case from the
 # transformed source code using the Cray Fortran Compiler version 15.0.0 with
-# option '-hacc'; the invokes (module procedures) listed in variable
-# INVOKES_REJECT_PREFIXES are excluded in order to avoid failures during the
+# option '-hacc'; the module procedures listed in variable
+# ROUTINES_REJECT_PREFIXES are excluded in order to avoid failures during the
 # build process of this configuration.
 #
 # ----------------------------------------------------------------------
@@ -39,10 +39,10 @@
 # Software governed by the CeCILL license (see ./LICENSE)
 # ----------------------------------------------------------------------
 
-from psyclone.psyir.nodes                 import Assignment, ACCKernelsDirective, CodeBlock, Call
-from psyclone.psyir.nodes                 import IntrinsicCall, IfBlock, ArrayReference, Literal, Return
-from psyclone.transformations             import ACCKernelsTrans, ACCLoopTrans
-from psyclone.nemo                        import NemoLoop
+from psyclone.psyir.nodes                 import Assignment, ACCKernelsDirective, CodeBlock, Call, Routine
+from psyclone.psyir.nodes                 import IntrinsicCall, IfBlock, ArrayReference, Literal, Return, Loop
+from psyclone.psyir.transformations       import ACCKernelsTrans
+from psyclone.transformations             import ACCLoopTrans, TransformationError
 
 # ----------------------------------------------------------------------
 #                      ***  Configuration  ***
@@ -51,36 +51,36 @@ from psyclone.nemo                        import NemoLoop
 PSCT_LOG_PREFIX = "[PSyclone transformation] OpenACC"
 
 # ----------------------------------------------------------------------
-# Rejection of modules and invokes (all names in lowercase)
+# Rejection of modules and subroutines (all names in lowercase)
 # ----------------------------------------------------------------------
 #
 # Reject modules related to profiling and MPI exchanges for now
 MODULES_REJECT_PREFIXES = [ 'timing', 'lbc', 'lib_mpp', 'mpp' ]
 # and for compatibility with PSyclone 2.5.0
 MODULES_REJECT_PREFIXES += [ 'agrif2model', 'agrif_user' ]
-# Reject invokes whose compilation would lead to an error with at least one
+# Reject routines whose compilation would lead to an error with at least one
 # commonly used Fortran compiler
-INVOKES_REJECT_PREFIXES = [ 'copy_obfbdata',             # Derived-type issues at linking stage
-                            'dia_dct',                   # Issue potentially related to 'RESHAPE' intrinsic
-                            'dia_obs_wri',               # Derived-type issues at linking stage
-                            'merge_obfbdata',            # Derived-type issues at linking stage
-                            'obs_rea_prof',              # Unsupported string operations
-                            'obs_rea_surf',              # Unsupported string operations
-                            'obs_surf_compress',         # Unsupported derived-type assignment
-                            'obs_prof_compress',         # Unsupported derived-type assignment
-                            'obs_prof_decompress',       # Issue at linking stage
-                            'obs_wri_prof',              # Derived-type issue at linking stage
-                            'obs_wri_surf',              # Derived-type issue at linking stage
-                            'prt_ctl_write_sum',         # Unsupported string operations
-                            'ptr_mpp_sum_2d',            # Issue potentially related to 'RESHAPE' intrinsic
-                            'ptr_mpp_sum_3d',            # Issue potentially related to 'RESHAPE' intrinsic
-                            'ptr_mpp_sum_4d',            # Issue potentially related to 'RESHAPE' intrinsic
-                            'put_twrk',                  # Unsupported string assignment
-                            'subsamp_obfbdata' ]         # Derived-type issues at linking stage
+ROUTINES_REJECT_PREFIXES = [ 'copy_obfbdata',             # Derived-type issues at linking stage
+                             'dia_dct',                   # Issue potentially related to 'RESHAPE' intrinsic
+                             'dia_obs_wri',               # Derived-type issues at linking stage
+                             'merge_obfbdata',            # Derived-type issues at linking stage
+                             'obs_rea_prof',              # Unsupported string operations
+                             'obs_rea_surf',              # Unsupported string operations
+                             'obs_surf_compress',         # Unsupported derived-type assignment
+                             'obs_prof_compress',         # Unsupported derived-type assignment
+                             'obs_prof_decompress',       # Issue at linking stage
+                             'obs_wri_prof',              # Derived-type issue at linking stage
+                             'obs_wri_surf',              # Derived-type issue at linking stage
+                             'prt_ctl_write_sum',         # Unsupported string operations
+                             'ptr_mpp_sum_2d',            # Issue potentially related to 'RESHAPE' intrinsic
+                             'ptr_mpp_sum_3d',            # Issue potentially related to 'RESHAPE' intrinsic
+                             'ptr_mpp_sum_4d',            # Issue potentially related to 'RESHAPE' intrinsic
+                             'put_twrk',                  # Unsupported string assignment
+                             'subsamp_obfbdata' ]         # Derived-type issues at linking stage
 # and reject initialisation procedures whose execution on a specific GPU has
 # been found to lead to model-result differences in comparison to the
 # corresponding run without GPU support
-INVOKES_REJECT_PREFIXES += [ 'ldf_c1d', 'ldf_c2d' ]
+ROUTINES_REJECT_PREFIXES += [ 'ldf_c1d', 'ldf_c2d' ]
 
 # ----------------------------------------------------------------------
 # Auxiliary functions
@@ -182,7 +182,7 @@ def is_acceptable_node(node, nodes_in_kernels_regions):
 # ----------------------------------------------------------------------
 #             ***  PSyclone transformation procedure  ***
 # ----------------------------------------------------------------------
-def trans(psy):
+def trans(psyir):
 
     print()
     print("=================================")
@@ -190,30 +190,29 @@ def trans(psy):
     print("=================================")
     print()
 
-    # Overall kernels-region counter and invoke list
+    # Overall kernels-region counter and subroutine list
     nkernels = 0
-    invoke_list = ''
+    subroutine_list = ''
 
-    # List of accepted invokes
-    invokes = []
-    if not len([ m for m in MODULES_REJECT_PREFIXES if psy.name.lower().startswith('psy_'+m) ]):
-        for invoke in psy.invokes.invoke_list:
-            if not len([ m for m in INVOKES_REJECT_PREFIXES if invoke.name.lower().startswith(m) ]):
-                invokes.append(invoke)
+    # List of accepted subroutines
+    routines = []
+    if not len([ m for m in MODULES_REJECT_PREFIXES if psyir.name.lower().startswith(m) ]):
+        for routine in psyir.walk(Routine):
+            if not len([ m for m in ROUTINES_REJECT_PREFIXES if routine.name.lower().startswith(m) ]):
+                routines.append(routine)
             else:
-                print(PSCT_LOG_PREFIX+": module "+psy.name+", invoke "+invoke.name+" rejected")
+                print(PSCT_LOG_PREFIX+": module "+psyir.name+", subroutine "+routine.name+" rejected")
     else:
-        print(PSCT_LOG_PREFIX+": module "+psy.name+" rejected")
+        print(PSCT_LOG_PREFIX+": module "+psyir.name+" rejected")
 
-    # Find kernels regions separately for each invoke
-    for invoke in invokes:
+    # Find kernels regions separately for each subroutine
+    for routine in routines:
 
-        print(PSCT_LOG_PREFIX+": module "+psy.name+", invoke "+invoke.name)
-        schedule = invoke.schedule
+        print(PSCT_LOG_PREFIX+": module "+psyir.name+", subroutine "+routine.name)
 
         # Find seed regions from which to grow kernels regions for
         # parallelisation: these seeds include array assignments as well as the
-        # innermost content of identified NemoLoop nodes or loop nests (loops
+        # innermost content of identified Loop nodes or loop nests (loops
         # with the conventional loop variables jn, jk, jj, ji). The seeds are
         # stored as lists of nodes for which an OpenACC kernel region can be
         # created as 'ACCKernelsTrans().apply(<list of nodes>)' and which
@@ -223,15 +222,15 @@ def trans(psy):
         # region.
         nodes_included = []
         # Find acceptable loop and assignment nodes, but
-        for kernel in [node for node in schedule.walk((NemoLoop,Assignment)) if is_acceptable_node(node, [])]:
+        for kernel in [node for node in routine.walk((Loop,Assignment)) if is_acceptable_node(node, [])]:
             # only accept seeds that solely contain an array assignment
             if [node for node in kernel.walk(Assignment) if node.is_array_assignment]:
                 if isinstance(kernel, Assignment):
                     kernels.append([ kernel ])
                     nodes_included.append(kernel)
-            # or NemoLoop nodes that do not contain another NemoLoop or array
+            # or Loop nodes that do not contain another Loop or array
             # assignment
-            elif isinstance(kernel, NemoLoop) and len(kernel.walk(NemoLoop)) == 1:
+            elif isinstance(kernel, Loop) and len(kernel.walk(Loop)) == 1:
                 kernels.append([ kernel ])
                 nodes_included.append(kernel)
 
@@ -297,11 +296,11 @@ def trans(psy):
                 # Is the kernels region the complete (ordered) content of a
                 # loop?
                 hoisted_region = kernel[0].parent.parent
-                if isinstance(hoisted_region, NemoLoop) and is_acceptable_node(hoisted_region, nodes_included) and complete_ordered_family(kernel):
+                if isinstance(hoisted_region, Loop) and is_acceptable_node(hoisted_region, nodes_included) and complete_ordered_family(kernel):
                     # Do we happen to have found a nested pair of loops of
                     # types 'lat' and 'lon'? If so, the addition of an OpenACC
                     # directive to collpase the horizontal loops is scheduled.
-                    if isinstance(kernel[0], NemoLoop) and kernel[0].loop_type == 'lon' and hoisted_region.loop_type == 'lat' and len(kernel[0].parent.children) == 1:
+                    if isinstance(kernel[0], Loop) and kernel[0].loop_type == 'lon' and hoisted_region.loop_type == 'lat' and len(kernel[0].parent.children) == 1:
                         collapse_loops.append(hoisted_region)
                     # Replace kernels region with hoisted region and mark the
                     # kernels-region list as having changed
@@ -358,7 +357,10 @@ def trans(psy):
         # Insert OpenACC directives:
         #    - kernel regions
         for kernel in kernels:
-            ACCKernelsTrans().apply(kernel)
+            try:
+                ACCKernelsTrans().apply(kernel)
+            except TransformationError:
+                pass
         #    - horizontal-loop collapse
         for loop in collapse_loops:
             # Make sure the loop collapse is inside a kernels region
@@ -366,16 +368,16 @@ def trans(psy):
                 try:
                     ACCLoopTrans().apply(loop, {'independent': True, 'collapse': 2})
                 except:
-                    print(PSCT_LOG_PREFIX+": module "+psy.name+", invoke "+invoke.name+" - OpenACC loop collapse rejected")
+                    print(PSCT_LOG_PREFIX+": module "+psyir.name+", subroutine "+routine.name+" - OpenACC loop collapse rejected")
 
         # Collate information for reporting
         if len(kernels):
             nkernels += len(kernels)
-            if len(invoke_list):
-                invoke_list += ", "
-            invoke_list += invoke.name
+            if len(subroutine_list):
+                subroutine_list += ", "
+            subroutine_list += routine.name
 
     if nkernels > 0:
-        print(PSCT_LOG_PREFIX+": module "+psy.name+" "+str(nkernels)+" kernels regions added to invokes "+invoke_list)
+        print(PSCT_LOG_PREFIX+": module "+psyir.name+" "+str(nkernels)+" kernels regions added to routines "+subroutine_list)
 
     return
