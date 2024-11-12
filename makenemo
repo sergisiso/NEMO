@@ -210,20 +210,20 @@ NEMO_DIR=${MAIN_DIR}/${x_s}
 # If required, test if the selected source-code transformation is available
 # (exit with error if not); if requested, print list of available source-code
 # transformations and exit
-PSCT_VAR=${x_p}
-# if [ -n "${x_p}" ]; then
-#     [ "${x_p}" == 'all' ] && echo "Available source-code transformations"
-#     for fsct in ${MAIN_DIR}/sct/psct-*.py; do
-#         if [ -f "${fsct}" ]; then
-#             tname=$(basename "${fsct}" .py)
-#             [ "${x_p}" == 'all' ]            && echo " - ${tname#psct-}"
-#             [ "${x_p}" == "${tname#psct-}" ] && PSCT_VAR=${tname#psct-}
-#         fi
-#     done
-#     [ "${x_p}" == 'passthrough' ] && PSCT_VAR='passthrough'
-#     [ "${x_p}" == 'all' ] && echo " - passthrough" && exit 0
-#     [ -z "${PSCT_VAR}" ] && echo "Error: source-code transformation ${x_p} is not available" && exit 1
-# fi
+PSCT_VAR=''
+if [ -n "${x_p}" ]; then
+    [ "${x_p}" == 'all' ] && echo "Available source-code transformations"
+    for fsct in ${MAIN_DIR}/sct/psct-*.py; do
+        if [ -f "${fsct}" ]; then
+            tname=$(basename "${fsct}" .py)
+            [ "${x_p}" == 'all' ]            && echo " - ${tname#psct-}"
+            [ "${x_p}" == "${tname#psct-}" ] && PSCT_VAR=${tname#psct-}
+        fi
+    done
+    [ "${x_p}" == 'passthrough' ] && PSCT_VAR='passthrough'
+    [ "${x_p}" == 'all' ] && echo " - passthrough" && exit 0
+    [ -z "${PSCT_VAR}" ] && echo "Error: source-code transformation ${x_p} is not available" && exit 1
+fi
 
 # Load environment if exists
 env_file=`find ${MAIN_DIR}/arch -name arch-${CMP_NAM}.env`
