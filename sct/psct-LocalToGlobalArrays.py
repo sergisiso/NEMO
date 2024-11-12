@@ -24,7 +24,7 @@ from psyclone.psyir.transformations import HoistLocalArraysTrans
 # ----------------------------------------------------------------------
 #
 # Reject for compatibility with PSyclone 2.5.0
-MODULES_REJECT = [ 'agrif2model', 'agrif_user' ]
+MODULES_REJECT = [ 'agrif2model', 'agrif_user', 'sedini' ]
 # Subroutines for which local arrays should not be promoted
 ROUTINE_REJECT = [ 'dia_dct' ]   # Issue with RESHAPE operation
 
@@ -33,7 +33,7 @@ ROUTINE_REJECT = [ 'dia_dct' ]   # Issue with RESHAPE operation
 # ----------------------------------------------------------------------
 def trans(psyir):
 
-    if not len([ m for m in MODULES_REJECT if psyir.name.lower()==m ]):
+    if not len([ m for m in MODULES_REJECT if psyir.name.lower()==m+".f90" ]):
         for routine in psyir.walk(Routine):
             if not routine.name.lower() in ROUTINE_REJECT:
                 HoistLocalArraysTrans().apply(routine)
