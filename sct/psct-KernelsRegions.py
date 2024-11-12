@@ -379,5 +379,3 @@ def trans(psyir):
 
     if nkernels > 0:
         print(PSCT_LOG_PREFIX+": module "+psyir.name+" "+str(nkernels)+" kernels regions added to routines "+subroutine_list)
-
-    return

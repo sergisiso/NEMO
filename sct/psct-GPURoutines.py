@@ -36,5 +36,3 @@ def trans(psyir):
         # Prepare some procedures for execution on the GPU
         if routine.name.lower() in INVOKES_ROUTINES_GPU:
             ACCRoutineTrans().apply(routine)
-
-    return
