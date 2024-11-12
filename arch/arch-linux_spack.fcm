@@ -11,10 +11,10 @@
 
 %CPP	             cpp -Dkey_nosignedzero
 %FC	                 ${MPIF90} -c
-%FCFLAGS             ${FCFLAGS} -I${HOME}/workspace/psyclone/PSyclone/lib/profiling/nvidia
+%FCFLAGS             ${FCFLAGS}
 %FFLAGS              %FCFLAGS
 %LD                  ${MPIF90}
-%LDFLAGS             ${FCFLAGS} -L${HOME}/workspace/psyclone/PSyclone/lib/profiling/nvidia -lnvtx_prof -L/usr/local/cuda/lib64/ -lnvToolsExt -cuda
+%LDFLAGS             ${FCFLAGS}
 %FPPFLAGS            -P -traditional
 %AR                  ar
 %ARFLAGS             rs
