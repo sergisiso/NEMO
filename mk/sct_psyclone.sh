@@ -31,5 +31,5 @@ BLD_DIR=$3
 # Input file
 FILENAME=$(basename "$4")
 
-psyclone -l output -s "${TPSYCLONE}" -I "${BLD_DIR}/ppsrc/nemo/" \
+psyclone -l output -s "${BLD_DIR}/psct-${TPSYCLONE}.py" -I "${BLD_DIR}/ppsrc/nemo/" \
     -o "${BLD_DIR}/obj/${FILENAME}" "${BLD_DIR}/ppsrc/nemo/${FILENAME}"
