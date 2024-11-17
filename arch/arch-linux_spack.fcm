@@ -5,16 +5,15 @@
 #   $ export PSYCLONE_HOME=${PWD}/.venv
 #   $ export FCFLAGS="-i4 -Mr8 -O3 -Minline -Mcray=pointer -Mpre -mp"
 
-%PSYCLONE_HOME       /home/ssiso/workspace/psyclone/.venv
 %NCDF_INC            -I${NCDF_F_HOME}/include -I${NCDF_C_HOME}/include -I${HDF5_HOME}/include
 %NCDF_LIB            -L${NCDF_F_HOME}/lib -lnetcdff -L${NCDF_C_HOME}/lib -lnetcdf
 
 %CPP	             cpp -Dkey_nosignedzero
 %FC	                 ${MPIF90} -c
-%FCFLAGS             ${FCFLAGS} -I${HOME}/workspace/psyclone/PSyclone/lib/profiling/nvidia
+%FCFLAGS             ${FCFLAGS}
 %FFLAGS              %FCFLAGS
 %LD                  ${MPIF90}
-%LDFLAGS             ${FCFLAGS} -L${HOME}/workspace/psyclone/PSyclone/lib/profiling/nvidia -lnvtx_prof -L/usr/local/cuda/lib64/ -lnvToolsExt -cuda
+%LDFLAGS             ${FCFLAGS}
 %FPPFLAGS            -P -traditional
 %AR                  ar
 %ARFLAGS             rs
