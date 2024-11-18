@@ -23,7 +23,7 @@ MODULE tramle
 
    ! where OSMOSIS_OBL is used with integrated FK
    USE zdf_oce, ONLY : ln_zdfosm
-   USE zdfosm, ONLY  : ln_osm_mle, hmle, dbdx_mle, dbdy_mle, mld_prof
+   USE zdfosm, ONLY  : ln_osm_mle, hmle, omle_dbdx, omle_dbdy, mld_prof
 
    IMPLICIT NONE
    PRIVATE
@@ -145,21 +145,21 @@ CONTAINS
          IF( nn_mle == 0 ) THEN           ! Fox-Kemper et al. 2010 formulation
             DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
                zpsim_u(ji,jj) = rn_ce * zhu(ji,jj) * zhu(ji,jj)  * e2u(ji,jj)                                            &
-                    &           * dbdx_mle(ji,jj) * MIN( 111.e3_wp , e1u(ji,jj) )   &
+                    &           * omle_dbdx(ji,jj) * MIN( 111.e3_wp , e1u(ji,jj) )   &
                     &           / (  MAX( rn_lf * rfu(ji,jj) , SQRT( rb_c * zhu(ji,jj) ) )   )
                !
                zpsim_v(ji,jj) = rn_ce * zhv(ji,jj) * zhv(ji,jj)  * e1v(ji,jj)                                            &
-                    &           * dbdy_mle(ji,jj)  * MIN( 111.e3_wp , e2v(ji,jj) )   &
+                    &           * omle_dbdy(ji,jj)  * MIN( 111.e3_wp , e2v(ji,jj) )   &
                     &           / (  MAX( rn_lf * rfv(ji,jj) , SQRT( rb_c * zhv(ji,jj) ) )   )
             END_2D
             !
          ELSEIF( nn_mle == 1 ) THEN       ! New formulation (Lf = 5km fo/ff with fo=Coriolis parameter at latitude rn_lat)
             DO_2D( nn_hls, nn_hls-1, nn_hls, nn_hls-1 )
                zpsim_u(ji,jj) = rc_f *   zhu(ji,jj)   * zhu(ji,jj)   * e2u(ji,jj)               &
-                    &                  * dbdx_mle(ji,jj) * MIN( 111.e3_wp , e1u(ji,jj) )
+                    &                  * omle_dbdx(ji,jj) * MIN( 111.e3_wp , e1u(ji,jj) )
                !
                zpsim_v(ji,jj) = rc_f *   zhv(ji,jj)   * zhv(ji,jj)   * e1v(ji,jj)               &
-                    &                  * dbdy_mle(ji,jj) * MIN( 111.e3_wp , e2v(ji,jj) )
+                    &                  * omle_dbdy(ji,jj) * MIN( 111.e3_wp , e2v(ji,jj) )
             END_2D
          ENDIF
 

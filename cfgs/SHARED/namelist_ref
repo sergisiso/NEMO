@@ -1300,14 +1300,10 @@
 !-----------------------------------------------------------------------
 &namzdf_osm    !   OSM vertical diffusion                               (ln_zdfosm =T)
 !-----------------------------------------------------------------------
-   ln_use_osm_la = .false.     !  Use   rn_osm_la
-   rn_osm_la     = 0.3         !  Turbulent Langmuir number
    rn_zdfosm_adjust_sd = 1.0   ! Stokes drift reduction factor
    rn_osm_hblfrac = 0.1        ! specify top part of hbl for nn_osm_wave = 3 or 4
    rn_osm_bl_thresh   = 5.e-5      !Threshold buoyancy for deepening of OSBL base
-   nn_ave = 0                  ! choice of horizontal averaging on avt, avmu, avmv
    ln_dia_osm = .true.         ! output OSMOSIS-OBL variables
-   rn_osm_hbl0 = 10.           ! initial hbl value
    ln_kpprimix = .true.        ! Use KPP-style Ri# mixing below BL
    rn_riinfty  = 0.7           ! Highest local Ri_g permitting shear instability
    rn_difri  =  0.005          ! max Ri# diffusivity at Ri_g = 0 (m^2/s)
@@ -1329,12 +1325,8 @@
 &namosm_mle    !   mixed layer eddy parametrisation (Fox-Kemper)       (default: OFF)
 !-----------------------------------------------------------------------
    rn_osm_mle_ce       = 0.06      ! magnitude of the MLE (typical value: 0.06 to 0.08)
-   nn_osm_mle          = 0         ! MLE type: =0 standard Fox-Kemper ; =1 new formulation
    rn_osm_mle_lf       = 5.e+3     ! typical scale of mixed layer front (meters)                      (case rn_osm_mle=0)
-   rn_osm_mle_time     = 43200.    ! time scale for mixing momentum across the mixed layer (seconds)  (case rn_osm_mle=0)
-   rn_osm_mle_lat      = 20.       ! reference latitude (degrees) of MLE coef.                        (case rn_mle=1)
    rn_osm_mle_rho_c    = 0.03      ! delta rho criterion used to calculate MLD for FK
-   rn_osm_mle_thresh   = 0.0001    ! delta b criterion used for FK MLE criterion
    rn_osm_mle_tau      = 172800.   ! time scale for FK-OSM (seconds)  (case rn_osm_mle=0)
    ln_osm_hmle_limit   = .true.    ! If true, limit hmle to rn_osm_hmle_limit*hbl
    rn_osm_hmle_limit   = 1.5
