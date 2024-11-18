@@ -216,7 +216,8 @@ CONTAINS
       !
       IF( ioptio /= 1 )    CALL ctl_stop( 'zdf_phy_init: one and only one vertical diffusion option has to be defined ' )
       IF( ln_isfcav ) THEN
-      IF( ln_zdfric )      CALL ctl_stop( 'zdf_phy_init: zdfric never tested with ice shelves cavities ' )
+         IF( ln_zdfric ) CALL ctl_stop( 'zdf_phy_init: zdfric never tested with ice shelves cavities ' )
+         IF( ln_zdfosm ) CALL ctl_stop( 'zdf_phy_init: the combination of ice-shelf cavities and the OSMOSIS scheme is not supported' )
       ENDIF
       !                                ! shear production term flag
       IF( ln_zdfcst .OR. ln_zdfosm ) THEN   ;   l_zdfsh2 = .FALSE.
@@ -273,13 +274,19 @@ CONTAINS
          !                       !==  Kz from chosen turbulent closure  ==!   (avm_k, avt_k)
          !
          SELECT CASE ( nzdf_phy )                  !* Vertical eddy viscosity and diffusivity coefficients at w-points
-            CASE( np_RIC )   ;   CALL zdf_ric( kt, Kbb, Kmm, avm_k, avt_k )          ! Richardson number dependent Kz
-            CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )    ! OSMOSIS closure scheme for Kz
-            !                                                                     ! clem: osmosis currently cannot work because
-            !                                                                             it uses qns and qsr that are only defined in the interior (A2D(0))
-            !                                                                             we should do calculations in the interior and put a lbc_lnk at the end
-            !                                                                     ! sib: avt_k and avm_k based on pronostic equations (TKE and GLS)
-            !                                                                             are computed at the end of stprk3
+            CASE( np_RIC )   ;   CALL zdf_ric( kt, Kbb, Kmm, avm_k, avt_k )         ! Richardson number dependent Kz
+            CASE( np_OSM )   ;   CALL zdf_osm( kt, Kbb, Kmm, Krhs, avm_k, avt_k )   ! OSMOSIS closure scheme for Kz (this
+            !                                                                       !    implementation reflects the version
+            !                                                                       !    available in branch 'branch_5.0' with RK3
+            !                                                                       !    time stepping; the update scheduling of the
+            !                                                                       !    TKE and GLS schemes as implemented in
+            !                                                                       !    'branch_5.0', however, has been revised in
+            !                                                                       !    this main development version, and
+            !                                                                       !    the OSMOSIS implementation should be
+            !                                                                       !    reviewed as to whether it should be
+            !                                                                       !    adjusted accordingly)
+            !                                                                       ! sib: avt_k and avm_k based on pronostic equations (TKE and GLS)
+            !                                                                               are computed at the end of stprk3
       !     CASE( np_CST )                                  ! Constant Kz (reset avt, avm to the background value)
       !         ! avt_k and avm_k set one for all at initialisation phase
 !!gm            avt(2:jpim1,2:jpjm1,1:jpkm1) = rn_avt0 * wmask(2:jpim1,2:jpjm1,1:jpkm1)
