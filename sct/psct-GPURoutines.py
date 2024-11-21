@@ -15,6 +15,7 @@
 # Software governed by the CeCILL license (see ./LICENSE)
 # ----------------------------------------------------------------------
 
+from psyclone.psyir.nodes import Routine
 from psyclone.transformations import ACCRoutineTrans
 
 # ----------------------------------------------------------------------
@@ -29,11 +30,9 @@ INVOKES_ROUTINES_GPU += [ 'psyclone_cmp_int', 'psyclone_cmp_logical' ]   # Proce
 # ----------------------------------------------------------------------
 #              ***  PSyclone transformation procedure  ***
 # ----------------------------------------------------------------------
-def trans(psy):
+def trans(psyir):
 
-    for invoke in psy.invokes.invoke_list:
+    for routine in psyir.walk(Routine):
         # Prepare some procedures for execution on the GPU
-        if invoke.name.lower() in INVOKES_ROUTINES_GPU:
-            ACCRoutineTrans().apply(invoke.schedule)
-
-    return
+        if routine.name.lower() in INVOKES_ROUTINES_GPU:
+            ACCRoutineTrans().apply(routine)

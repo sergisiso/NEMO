@@ -16,25 +16,24 @@
 # Software governed by the CeCILL license (see ./LICENSE)
 # ----------------------------------------------------------------------
 
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.transformations import HoistLocalArraysTrans
 
 # ----------------------------------------------------------------------
-# Rejection of modules and invokes (all names in lowercase)
+# Rejection of modules and subroutines (all names in lowercase)
 # ----------------------------------------------------------------------
 #
 # Reject for compatibility with PSyclone 2.5.0
-MODULES_REJECT = [ 'agrif2model', 'agrif_user' ]
-# Invokes for which local arrays should not be promoted
-INVOKES_REJECT = [ 'dia_dct' ]   # Issue with RESHAPE operation
+MODULES_REJECT = [ 'agrif2model', 'agrif_user', 'sedini' ]
+# Subroutines for which local arrays should not be promoted
+ROUTINE_REJECT = [ 'dia_dct' ]   # Issue with RESHAPE operation
 
 # ----------------------------------------------------------------------
 #              ***  PSyclone transformation procedure  ***
 # ----------------------------------------------------------------------
-def trans(psy):
+def trans(psyir):
 
-    if not len([ m for m in MODULES_REJECT if psy.name.lower()=='psy_'+m+'_psy' ]):
-        for invoke in psy.invokes.invoke_list:
-            if not invoke.name.lower() in INVOKES_REJECT:
-                HoistLocalArraysTrans().apply(invoke.schedule)
-
-    return
+    if not len([ m for m in MODULES_REJECT if psyir.name.lower()==m+".f90" ]):
+        for routine in psyir.walk(Routine):
+            if not routine.name.lower() in ROUTINE_REJECT:
+                HoistLocalArraysTrans().apply(routine)
