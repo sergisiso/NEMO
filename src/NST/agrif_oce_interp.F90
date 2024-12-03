@@ -1,4 +1,4 @@
-#define PARENT_EXT_BDY
+#undef PARENT_EXT_BDY
 MODULE agrif_oce_interp
    !!======================================================================
    !!                   ***  MODULE  agrif_oce_interp  ***
