@@ -280,7 +280,9 @@
       !     3. Fill  halos with values from neighbours    !
       ! ------------------------------------------------- !
          
+#if ! defined key_mpi_off
       CALL MPI_WAITALL(8, ireq_recv,  MPI_STATUSES_IGNORE, ierr)
+#endif
       !
       DO jn = 1, 8
          idx = ishtR(jn)
@@ -340,7 +342,9 @@
       !     5. deallocate local temporary arrays     !
       ! -------------------------------------------- !
       !
+#if ! defined key_mpi_off
       CALL MPI_WAITALL( 8, nreq_p2p, MPI_STATUSES_IGNORE, ierr )
+#endif
       
       DEALLOCATE(BUFFSND)
       DEALLOCATE(BUFFRCV)
