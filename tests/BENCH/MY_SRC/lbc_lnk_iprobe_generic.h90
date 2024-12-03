@@ -272,7 +272,9 @@
       DO WHILE ( COUNT(ll2do) > 0 )   ! there are still communications to be received
          
          DO jn = 1, 8   
+#if ! defined key_mpi_off
             IF( ll2do(jn) ) CALL mpi_iprobe( mpiRnei(jn,n_hlsmax), iRtag(jn), icomm, llrdy(jn), MPI_STATUS_IGNORE, ierr )
+#endif
          END DO
          
          DO jn = 1, 8
@@ -344,7 +346,9 @@
       ! -------------------------------------------- !
       !
       DO jn = 1, 8
+#if ! defined key_mpi_off
          CALL mpi_wait( nreq_p2p(jn), MPI_STATUS_IGNORE, ierr )
+#endif
       END DO
       
       DEALLOCATE(BUFFSND)
