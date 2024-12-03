@@ -282,7 +282,9 @@
 
       DO WHILE ( COUNT( ireq_recv /= MPI_REQUEST_NULL ) > 0 )   ! there are still communications to be received
          
+#if ! defined key_mpi_off
          CALL MPI_WAITANY(8, ireq_recv, jn, MPI_STATUS_IGNORE, ierr)
+#endif
          ireq_recv(jn) = MPI_REQUEST_NULL
          !
          idx = ishtR(jn)
@@ -343,7 +345,9 @@
       ! -------------------------------------------- !
       !
       DO jn = 1, 8
+#if ! defined key_mpi_off
          CALL mpi_wait( nreq_p2p(jn), MPI_STATUS_IGNORE, ierr )
+#endif
       END DO
       
       DEALLOCATE(BUFFSND)
