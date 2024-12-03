@@ -45,6 +45,7 @@ MODULE dynspg_ts
    USE bdydyn2d        ! open boundary conditions on barotropic variables
    USE tide_mod        !
    USE sbcwave         ! surface wave
+   USE dynvor    , ONLY: e3f_0vor 
 #if defined key_agrif
    USE agrif_oce_interp ! agrif
    USE agrif_oce
@@ -68,7 +69,6 @@ MODULE dynspg_ts
    PUBLIC dyn_spg_ts        ! called by dyn_spg 
    PUBLIC dyn_spg_ts_init   !    -    - dyn_spg_init
    PUBLIC dyn_drg_init      ! called by stp2d
-
    !
    INTEGER         ::   icycle         ! Number of barotropic sub-steps for each internal step nn_e <= 2.5 nn_e
    REAL(wp)        ::   rDt_e          ! Barotropic time step
@@ -77,9 +77,10 @@ MODULE dynspg_ts
    REAL(wp) ::   r1_wgt2s
    !
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:)   ::   wgtbtp1, wgtbtp2   ! 1st & 2nd weights used in time filtering of barotropic fields
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   zwz                ! ff_f/h at F points
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ftnw, ftne         ! triad of coriolis parameter
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ftsw, ftse         ! (only used with een vorticity scheme)
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ffu_nw, ffu_ne       ! 
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ffu_sw, ffu_se       ! 
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ffv_nw, ffv_ne       ! 
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   ffv_sw, ffv_se       ! 
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   sshe_rhs           ! RHS of ssh Eq.
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   Ue_rhs, Ve_rhs    ! RHS of barotropic velocity Eq.
@@ -107,9 +108,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       ierr(:) = 0
       !
-      ALLOCATE( wgtbtp1(3*nn_e), wgtbtp2(3*nn_e), zwz(jpi,jpj), STAT=ierr(1) )
-      IF( ln_dynvor_een )   &
-         &     ALLOCATE( ftnw(jpi,jpj) , ftne(jpi,jpj) , ftsw(jpi,jpj) , ftse(jpi,jpj), STAT=ierr(2)   )
+      ALLOCATE( wgtbtp1(3*nn_e), wgtbtp2(3*nn_e), STAT=ierr(1) )
+         !
+      ALLOCATE( ffu_nw(A2D(0)) , ffu_ne(A2D(0)) , ffu_sw(A2D(0)) , ffu_se(A2D(0)), &
+         &      ffv_nw(A2D(0)) , ffv_ne(A2D(0)) , ffv_sw(A2D(0)) , ffv_se(A2D(0)), STAT=ierr(2) )
          !
       !
       dyn_spg_ts_alloc = MAXVAL( ierr(:) )
@@ -291,11 +293,8 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       IF( kt == nit000 .OR. .NOT. lk_linssh )   CALL dyn_cor_2D_init( Kmm )   ! Set zwz, the barotropic Coriolis force coefficient
       !                      ! recompute zwz = f/depth  at every time step for (.NOT.lk_linssh) as the water colomn height changes
       !
-      zhU(:,:) = puu_b(:,:,Kmm) * hu(:,:,Kmm) * e2u(:,:)        ! now fluxes 
-      zhV(:,:) = pvv_b(:,:,Kmm) * hv(:,:,Kmm) * e1v(:,:)        ! NB: FULL domain : put a value in last row and column
       !
-      CALL dyn_cor_2D( ht(:,:,Kmm), hu(:,:,Kmm), hv(:,:,Kmm), puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zhU, zhV,  &   ! <<== in
-         &                                                                              zu_trd, zv_trd   )   ! ==>> out
+      CALL dyn_cor_2D( puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zu_trd, zv_trd )
       !
       DO_2D( 0, 0, 0, 0 )                          ! Remove coriolis term (and possibly spg) from barotropic trend
          zu_frc(ji,jj) = zu_frc(ji,jj) - zu_trd(ji,jj) * ssumask(ji,jj)
@@ -357,11 +356,8 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       IF( kt == nit000 .OR. .NOT. lk_linssh )   CALL dyn_cor_2D_init( Kmm )   ! Set zwz, the barotropic Coriolis force coefficient
       !                      ! recompute zwz = f/depth  at every time step for (.NOT.lk_linssh) as the water colomn height changes
       !
-      zhU(:,:) = puu_b(:,:,Kmm) * hu(:,:,Kmm) * e2u(:,:)        ! now fluxes 
-      zhV(:,:) = pvv_b(:,:,Kmm) * hv(:,:,Kmm) * e1v(:,:)        ! NB: FULL domain : put a value in last row and column
       !
-      CALL dyn_cor_2D( ht(:,:,Kmm), hu(:,:,Kmm), hv(:,:,Kmm), puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zhU, zhV,  &   ! <<== in
-         &                                                                              zu_trd, zv_trd   )   ! ==>> out
+      CALL dyn_cor_2D( puu_b(:,:,Kmm), pvv_b(:,:,Kmm), zu_trd, zv_trd )
       !
       DO_2D( 0, 0, 0, 0 )                          ! Remove coriolis term (and possibly spg) from barotropic trend
          zu_frc(ji,jj) = zu_frc(ji,jj) - zu_trd(ji,jj) * ssumask(ji,jj)
@@ -691,10 +687,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
          END_2D
          !
          ! Add Coriolis trend:
-         ! zwz array below or triads normally depend on sea level with lk_linssh=F and should be updated
-         ! at each time step. We however keep them constant here for optimization.
-         ! Recall that zhU and zhV hold fluxes at jn+0.5 (extrapolated not backward interpolated)
-         CALL dyn_cor_2D( zhtp2_e, zhup2_e, zhvp2_e, ua_e, va_e, zhU, zhV,    zu_trd, zv_trd   )
+         CALL dyn_cor_2D( ua_e, va_e, zu_trd, zv_trd )
          !
          ! Add tidal astronomical forcing if defined
          IF ( ln_tide .AND. ln_tide_pot ) THEN
@@ -1330,7 +1323,7 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !
    END SUBROUTINE dyn_spg_ts_init
 
-   
+
    SUBROUTINE dyn_cor_2D_init( Kmm )
       !!---------------------------------------------------------------------
       !!                   ***  ROUTINE dyn_cor_2D_init  ***
@@ -1343,44 +1336,166 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       !! To remove this approximation, copy lines below inside barotropic loop
       !! and update depths at T- points (ht) at each barotropic time step
       !!
-      !! Compute zwz = f/h              (potential planetary voricity)
-      !! Compute ftne, ftnw, ftse, ftsw (triad of potential planetary voricity)
       !!----------------------------------------------------------------------
       INTEGER,  INTENT(in)         ::  Kmm  ! Time index
       INTEGER  ::   ji ,jj, jk              ! dummy loop indices
-      REAL(wp) ::   z1_ht
+      REAL(wp) ::   z1_ht, zr1_e3f
+      REAL(wp) ::   zpvo_nw, zpvo_ne, zpvo_sw, zpvo_se
       !!----------------------------------------------------------------------
       !
-      SELECT CASE( nvor_scheme )
-      CASE( np_EEN, np_ENE, np_ENS , np_MIX )   !=  schemes using the same e3f definition
-         SELECT CASE( nn_e3f_typ )                  !* ff_f/e3 at F-point
-         CASE ( 0 )                                   ! original formulation  (masked averaging of e3t divided by 4)
-            DO_2D( 0, 0, 0, 0 )
-               zwz(ji,jj) = (  ( ht(ji,jj+1,Kmm) + ht(ji+1,jj+1,Kmm) )   &   ! need additional () for reproducibility around NP
-                    &        + ( ht(ji,jj  ,Kmm) + ht(ji+1,jj  ,Kmm) ) ) * 0.25_wp  
-               IF( zwz(ji,jj) /= 0._wp )   zwz(ji,jj) = ff_f(ji,jj) / zwz(ji,jj)
-            END_2D
-         CASE ( 1 )                                   ! new formulation  (masked averaging of e3t divided by the sum of mask)
-            DO_2D( 0, 0, 0, 0 )
-               zwz(ji,jj) =     (  ( ht(ji,jj+1,Kmm) +     ht(ji+1,jj+1,Kmm) )      &   ! need additional () for
-                    &            + ( ht(ji,jj  ,Kmm) +     ht(ji+1,jj  ,Kmm) )  )   &   ! reproducibility around NP
-                    &    / ( MAX( ( ssmask(ji,jj+1) + ssmask(ji+1,jj+1) )        &
-                    &          +  ( ssmask(ji,jj  ) + ssmask(ji+1,jj  ) ), 1._wp )  )
-               IF( zwz(ji,jj) /= 0._wp )   zwz(ji,jj) = ff_f(ji,jj) / zwz(ji,jj)
-            END_2D
-         END SELECT
-         CALL lbc_lnk( 'dynspg_ts', zwz, 'F', 1._wp )
-      END SELECT
+      ffu_nw(:,:) = 0._wp   ;   ffu_ne(:,:) = 0._wp   ;   ffu_sw(:,:) = 0._wp   ;   ffu_se(:,:) = 0._wp
+      ffv_nw(:,:) = 0._wp   ;   ffv_ne(:,:) = 0._wp   ;   ffv_sw(:,:) = 0._wp   ;   ffv_se(:,:) = 0._wp
       !
       SELECT CASE( nvor_scheme )
       CASE( np_EEN )
          !
-         ftne(1,:) = 0._wp   ;   ftnw(1,:) = 0._wp   ;   ftse(1,:) = 0._wp   ;   ftsw(1,:) = 0._wp
-         DO_2D( 0, 1, 0, 1 )
-            ftne(ji,jj) = zwz(ji-1,jj  ) + zwz(ji  ,jj  ) + zwz(ji  ,jj-1)
-            ftnw(ji,jj) = zwz(ji-1,jj-1) + zwz(ji-1,jj  ) + zwz(ji  ,jj  )
-            ftse(ji,jj) = zwz(ji  ,jj  ) + zwz(ji  ,jj-1) + zwz(ji-1,jj-1)
-            ftsw(ji,jj) = zwz(ji  ,jj-1) + zwz(ji-1,jj-1) + zwz(ji-1,jj  )
+         DO_2D( 0, 0, 0, 0)
+            DO jk = 1, mbku(ji,jj)
+               zpvo_nw = ff_f(ji-1,jj  ) / e3f_vor(ji-1,jj  ,jk) + & 
+                       & ff_f(ji  ,jj  ) / e3f_vor(ji  ,jj  ,jk) + & 
+                       & ff_f(ji  ,jj-1) / e3f_vor(ji  ,jj-1,jk)
+               zpvo_ne = ff_f(ji  ,jj-1) / e3f_vor(ji  ,jj-1,jk) + & 
+                       & ff_f(ji  ,jj  ) / e3f_vor(ji  ,jj  ,jk) + & 
+                       & ff_f(ji+1,jj  ) / e3f_vor(ji+1,jj  ,jk)
+               zpvo_sw = ff_f(ji  ,jj  ) / e3f_vor(ji  ,jj  ,jk) + & 
+                       & ff_f(ji  ,jj-1) / e3f_vor(ji  ,jj-1,jk) + & 
+                       & ff_f(ji-1,jj-1) / e3f_vor(ji-1,jj-1,jk)
+               zpvo_se = ff_f(ji+1,jj-1) / e3f_vor(ji+1,jj-1,jk) + & 
+                       & ff_f(ji  ,jj-1) / e3f_vor(ji  ,jj-1,jk) + & 
+                       & ff_f(ji  ,jj  ) / e3f_vor(ji  ,jj  ,jk)
+               !
+               ffu_nw(ji,jj) = ffu_nw(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji  ,jj  , jk, Kmm) * vmask(ji  ,jj  ,jk) * zpvo_nw
+               ffu_ne(ji,jj) = ffu_ne(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji+1,jj  , jk, Kmm) * vmask(ji+1,jj  ,jk) * zpvo_ne
+               ffu_sw(ji,jj) = ffu_sw(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji  ,jj-1, jk, Kmm) * vmask(ji  ,jj-1,jk) * zpvo_sw
+               ffu_se(ji,jj) = ffu_se(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji+1,jj-1, jk, Kmm) * vmask(ji+1,jj-1,jk) * zpvo_se
+            END DO
+            ffu_nw(ji,jj) = r1_12 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji  ,jj  ) * ffu_nw(ji,jj)
+            ffu_ne(ji,jj) = r1_12 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji+1,jj  ) * ffu_ne(ji,jj)
+            ffu_sw(ji,jj) = r1_12 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji  ,jj-1) * ffu_sw(ji,jj)
+            ffu_se(ji,jj) = r1_12 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji+1,jj-1) * ffu_se(ji,jj)
+            !
+         END_2D
+         !
+         DO_2D( 0, 0, 0, 0)
+            DO jk = 1, mbkv(ji,jj)
+               zpvo_se = ff_f(ji-1,jj  ) / e3f_vor(ji-1,jj  ,jk) + & 
+                       & ff_f(ji  ,jj  ) / e3f_vor(ji  ,jj  ,jk) + & 
+                       & ff_f(ji  ,jj-1) / e3f_vor(ji  ,jj-1,jk)
+               zpvo_sw = ff_f(ji-1,jj-1) / e3f_vor(ji-1,jj-1,jk) + & 
+                       & ff_f(ji-1,jj  ) / e3f_vor(ji-1,jj  ,jk) + & 
+                       & ff_f(ji  ,jj  ) / e3f_vor(ji  ,jj  ,jk)
+               zpvo_ne = ff_f(ji  ,jj+1) / e3f_vor(ji  ,jj+1,jk) + & 
+                       & ff_f(ji  ,jj  ) / e3f_vor(ji  ,jj  ,jk) + & 
+                       & ff_f(ji-1,jj  ) / e3f_vor(ji-1,jj  ,jk)
+               zpvo_nw = ff_f(ji  ,jj  ) / e3f_vor(ji  ,jj  ,jk) + & 
+                       & ff_f(ji-1,jj  ) / e3f_vor(ji-1,jj  ,jk) + & 
+                       & ff_f(ji-1,jj+1) / e3f_vor(ji-1,jj+1,jk)
+               !
+               ffv_nw(ji,jj) = ffv_nw(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji-1,jj+1, jk, Kmm) * umask(ji-1,jj+1, jk) * zpvo_nw
+               ffv_ne(ji,jj) = ffv_ne(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji  ,jj+1, jk, Kmm) * umask(ji  ,jj+1, jk) * zpvo_ne
+               ffv_sw(ji,jj) = ffv_sw(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji-1,jj  , jk, Kmm) * umask(ji-1,jj  , jk) * zpvo_sw
+               ffv_se(ji,jj) = ffv_se(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji  ,jj  , jk, Kmm) * umask(ji  ,jj  , jk) * zpvo_se
+            END DO
+            ffv_nw(ji,jj) = r1_12 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji-1,jj+1) * ffv_nw(ji,jj)
+            ffv_ne(ji,jj) = r1_12 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji  ,jj+1) * ffv_ne(ji,jj)
+            ffv_sw(ji,jj) = r1_12 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji-1,jj  ) * ffv_sw(ji,jj)
+            ffv_se(ji,jj) = r1_12 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji  ,jj  ) * ffv_se(ji,jj)
+            !
+         END_2D
+         !
+      CASE( np_ENE, np_MIX )
+         !
+         DO_2D( 0, 0, 0, 0)
+            DO jk = 1, mbku(ji,jj)
+               ffu_nw(ji,jj) = ffu_nw(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji  ,jj  , jk, Kmm) * vmask(ji  ,jj  ,jk) / e3f_vor(ji,jj  ,jk)
+               ffu_ne(ji,jj) = ffu_ne(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji+1,jj  , jk, Kmm) * vmask(ji+1,jj  ,jk) / e3f_vor(ji,jj  ,jk)
+               ffu_sw(ji,jj) = ffu_sw(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji  ,jj-1, jk, Kmm) * vmask(ji  ,jj-1,jk) / e3f_vor(ji,jj-1,jk)
+               ffu_se(ji,jj) = ffu_se(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji+1,jj-1, jk, Kmm) * vmask(ji+1,jj-1,jk) / e3f_vor(ji,jj-1,jk)
+            END DO
+            ffu_nw(ji,jj) = r1_4 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji  ,jj  ) * ff_f(ji  ,jj  ) * ffu_nw(ji,jj)
+            ffu_ne(ji,jj) = r1_4 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji+1,jj  ) * ff_f(ji  ,jj  ) * ffu_ne(ji,jj)
+            ffu_sw(ji,jj) = r1_4 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji  ,jj-1) * ff_f(ji  ,jj-1) * ffu_sw(ji,jj)
+            ffu_se(ji,jj) = r1_4 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji+1,jj-1) * ff_f(ji  ,jj-1) * ffu_se(ji,jj)
+            !
+         END_2D
+         !
+         DO_2D( 0, 0, 0, 0)
+            DO jk = 1, mbkv(ji,jj)
+               ffv_nw(ji,jj) = ffv_nw(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji-1,jj+1, jk, Kmm) * umask(ji-1,jj+1, jk) / e3f_vor(ji-1,jj,jk)
+               ffv_ne(ji,jj) = ffv_ne(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji  ,jj+1, jk, Kmm) * umask(ji  ,jj+1, jk) / e3f_vor(ji  ,jj,jk)
+               ffv_sw(ji,jj) = ffv_sw(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji-1,jj  , jk, Kmm) * umask(ji-1,jj  , jk) / e3f_vor(ji-1,jj,jk)
+               ffv_se(ji,jj) = ffv_se(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji  ,jj  , jk, Kmm) * umask(ji  ,jj  , jk) / e3f_vor(ji  ,jj,jk)
+            END DO
+            ffv_nw(ji,jj) = r1_4 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji-1,jj+1) * ff_f(ji-1,jj  ) * ffv_nw(ji,jj)
+            ffv_ne(ji,jj) = r1_4 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji  ,jj+1) * ff_f(ji  ,jj  ) * ffv_ne(ji,jj)
+            ffv_sw(ji,jj) = r1_4 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji-1,jj  ) * ff_f(ji-1,jj  ) * ffv_sw(ji,jj)
+            ffv_se(ji,jj) = r1_4 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji  ,jj  ) * ff_f(ji  ,jj  ) * ffv_se(ji,jj)
+            !
+         END_2D
+         !
+      CASE( np_ENS )
+         !
+         DO_2D( 0, 0, 0, 0)
+            DO jk = 1, mbku(ji,jj)
+               zr1_e3f = ff_f(ji,jj) / e3f_vor(ji,jj  ,jk) + ff_f(ji,jj-1) / e3f_vor(ji,jj-1,jk)
+               ffu_nw(ji,jj) = ffu_nw(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji  ,jj  , jk, Kmm) * vmask(ji  ,jj  ,jk) * zr1_e3f
+               ffu_ne(ji,jj) = ffu_ne(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji+1,jj  , jk, Kmm) * vmask(ji+1,jj  ,jk) * zr1_e3f
+               ffu_sw(ji,jj) = ffu_sw(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji  ,jj-1, jk, Kmm) * vmask(ji  ,jj-1,jk) * zr1_e3f
+               ffu_se(ji,jj) = ffu_se(ji,jj) + e3u(ji  ,jj, jk, Kmm) * e3v(ji+1,jj-1, jk, Kmm) * vmask(ji+1,jj-1,jk) * zr1_e3f
+            END DO
+            ffu_nw(ji,jj) = r1_8 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji  ,jj  ) * ffu_nw(ji,jj)
+            ffu_ne(ji,jj) = r1_8 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji+1,jj  ) * ffu_ne(ji,jj)
+            ffu_sw(ji,jj) = r1_8 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji  ,jj-1) * ffu_sw(ji,jj)
+            ffu_se(ji,jj) = r1_8 * r1_e1u(ji,jj) * r1_hu(ji,jj,Kmm) * e1v(ji+1,jj-1) * ffu_se(ji,jj)
+            !
+         END_2D
+         !
+         DO_2D( 0, 0, 0, 0)
+            DO jk = 1, mbkv(ji,jj)
+               zr1_e3f = ff_f(ji,jj) / e3f_vor(ji,jj  ,jk) + ff_f(ji-1,jj) / e3f_vor(ji-1,jj,jk)
+               ffv_nw(ji,jj) = ffv_nw(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji-1,jj+1, jk, Kmm) * umask(ji-1,jj+1, jk) * zr1_e3f
+               ffv_ne(ji,jj) = ffv_ne(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji  ,jj+1, jk, Kmm) * umask(ji  ,jj+1, jk) * zr1_e3f
+               ffv_sw(ji,jj) = ffv_sw(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji-1,jj  , jk, Kmm) * umask(ji-1,jj  , jk) * zr1_e3f
+               ffv_se(ji,jj) = ffv_se(ji,jj) + e3v(ji  ,jj, jk, Kmm) * e3u(ji  ,jj  , jk, Kmm) * umask(ji  ,jj  , jk) * zr1_e3f
+            END DO
+            ffv_nw(ji,jj) = r1_8 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji-1,jj+1) * ffv_nw(ji,jj)
+            ffv_ne(ji,jj) = r1_8 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji  ,jj+1) * ffv_ne(ji,jj)
+            ffv_sw(ji,jj) = r1_8 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji-1,jj  ) * ffv_sw(ji,jj)
+            ffv_se(ji,jj) = r1_8 * r1_e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e2u(ji  ,jj  ) * ffv_se(ji,jj)
+            !
+         END_2D
+         !
+
+      CASE( np_ENT )
+         !
+         DO_2D( 0, 0, 0, 0)
+            !
+            DO jk = 1, mbku(ji,jj)
+               ffu_nw(ji,jj) = ffu_nw(ji,jj) + e3t(ji  ,jj, jk, Kmm) * vmask(ji  , jj  , jk)
+               ffu_ne(ji,jj) = ffu_ne(ji,jj) + e3t(ji+1,jj, jk, Kmm) * vmask(ji+1, jj  , jk)
+               ffu_sw(ji,jj) = ffu_sw(ji,jj) + e3t(ji  ,jj, jk, Kmm) * vmask(ji  , jj-1, jk)
+               ffu_se(ji,jj) = ffu_se(ji,jj) + e3t(ji+1,jj, jk, Kmm) * vmask(ji+1, jj-1, jk)
+            END DO
+            ffu_nw(ji,jj) = r1_4 * r1_e1e2u(ji,jj) * r1_hu(ji,jj,Kmm) * e1e2t(ji  ,jj) * ff_t(ji  ,jj) * ffu_nw(ji,jj)
+            ffu_ne(ji,jj) = r1_4 * r1_e1e2u(ji,jj) * r1_hu(ji,jj,Kmm) * e1e2t(ji+1,jj) * ff_t(ji+1,jj) * ffu_ne(ji,jj)
+            ffu_sw(ji,jj) = r1_4 * r1_e1e2u(ji,jj) * r1_hu(ji,jj,Kmm) * e1e2t(ji  ,jj) * ff_t(ji  ,jj) * ffu_sw(ji,jj)
+            ffu_se(ji,jj) = r1_4 * r1_e1e2u(ji,jj) * r1_hu(ji,jj,Kmm) * e1e2t(ji+1,jj) * ff_t(ji+1,jj) * ffu_se(ji,jj)
+         END_2D
+         !
+         DO_2D( 0, 0, 0, 0)
+            !
+            DO jk = 1, mbkv(ji,jj)
+               ffv_nw(ji,jj) = ffv_nw(ji,jj) + e3t(ji,jj+1, jk, Kmm) * umask(ji-1, jj+1, jk)
+               ffv_sw(ji,jj) = ffv_sw(ji,jj) + e3t(ji,jj  , jk, Kmm) * umask(ji-1, jj  , jk)
+               ffv_ne(ji,jj) = ffv_ne(ji,jj) + e3t(ji,jj+1, jk, Kmm) * umask(ji  , jj+1, jk)
+               ffv_se(ji,jj) = ffv_se(ji,jj) + e3t(ji,jj  , jk, Kmm) * umask(ji  , jj  , jk)
+            END DO
+            ffv_nw(ji,jj) = r1_4 * r1_e1e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e1e2t(ji,jj+1) * ff_t(ji,jj+1) * ffv_nw(ji,jj)
+            ffv_sw(ji,jj) = r1_4 * r1_e1e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e1e2t(ji,jj  ) * ff_t(ji,jj  ) * ffv_sw(ji,jj)
+            ffv_ne(ji,jj) = r1_4 * r1_e1e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e1e2t(ji,jj+1) * ff_t(ji,jj+1) * ffv_ne(ji,jj)
+            ffv_se(ji,jj) = r1_4 * r1_e1e2v(ji,jj) * r1_hv(ji,jj,Kmm) * e1e2t(ji,jj  ) * ff_t(ji,jj  ) * ffv_se(ji,jj)
+            !
+            !
          END_2D
          !
       END SELECT
@@ -1388,65 +1503,28 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
    END SUBROUTINE dyn_cor_2D_init
 
 
-   SUBROUTINE dyn_cor_2D( pht, phu, phv, punb, pvnb, zhU, zhV,    zu_trd, zv_trd   )
+   SUBROUTINE dyn_cor_2D( punb, pvnb, zu_trd, zv_trd   )
       !!---------------------------------------------------------------------
       !!                   ***  ROUTINE dyn_cor_2D  ***
       !!
       !! ** Purpose : Compute u and v coriolis trends
       !!----------------------------------------------------------------------
-      INTEGER  ::   ji ,jj                             ! dummy loop indices
-      REAL(wp) ::   zx1, zx2, zy1, zy2, z1_hu, z1_hv   !   -      -
-      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: pht, phu, phv, punb, pvnb, zhU, zhV
+      INTEGER  ::   ji, jj                             ! dummy loop indices
+      REAL(wp), DIMENSION(jpi,jpj), INTENT(in   ) :: punb, pvnb
       REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) :: zu_trd, zv_trd
       !!----------------------------------------------------------------------
-      SELECT CASE( nvor_scheme )
-      CASE( np_ENT )                ! enstrophy conserving scheme (f-point)
-         DO_2D( 0, 0, 0, 0 )
-            z1_hu = ssumask(ji,jj) / ( phu(ji,jj) + 1._wp - ssumask(ji,jj) )
-            z1_hv = ssvmask(ji,jj) / ( phv(ji,jj) + 1._wp - ssvmask(ji,jj) )
-            zu_trd(ji,jj) = + r1_4 * r1_e1e2u(ji,jj) * z1_hu                    &
-               &               * (  e1e2t(ji+1,jj)*pht(ji+1,jj)*ff_t(ji+1,jj) * ( pvnb(ji+1,jj) + pvnb(ji+1,jj-1) )   &
-               &                  + e1e2t(ji  ,jj)*pht(ji  ,jj)*ff_t(ji  ,jj) * ( pvnb(ji  ,jj) + pvnb(ji  ,jj-1) )   )
-               !
-            zv_trd(ji,jj) = - r1_4 * r1_e1e2v(ji,jj) * z1_hv                    &
-               &               * (  e1e2t(ji,jj+1)*pht(ji,jj+1)*ff_t(ji,jj+1) * ( punb(ji,jj+1) + punb(ji-1,jj+1) )   & 
-               &                  + e1e2t(ji,jj  )*pht(ji,jj  )*ff_t(ji,jj  ) * ( punb(ji,jj  ) + punb(ji-1,jj  ) )   ) 
-         END_2D
-         !         
-      CASE( np_ENE , np_MIX )        ! energy conserving scheme (t-point) ENE or MIX
-         DO_2D( 0, 0, 0, 0 )
-            zy1 = ( zhV(ji,jj-1) + zhV(ji+1,jj-1) ) * r1_e1u(ji,jj)
-            zy2 = ( zhV(ji,jj  ) + zhV(ji+1,jj  ) ) * r1_e1u(ji,jj)
-            zx1 = ( zhU(ji-1,jj) + zhU(ji-1,jj+1) ) * r1_e2v(ji,jj)
-            zx2 = ( zhU(ji  ,jj) + zhU(ji  ,jj+1) ) * r1_e2v(ji,jj)
-            ! energy conserving formulation for planetary vorticity term
-            zu_trd(ji,jj) =   r1_4 * ( zwz(ji  ,jj-1) * zy1 + zwz(ji,jj) * zy2 )
-            zv_trd(ji,jj) = - r1_4 * ( zwz(ji-1,jj  ) * zx1 + zwz(ji,jj) * zx2 )
-         END_2D
-         !
-      CASE( np_ENS )                ! enstrophy conserving scheme (f-point)
-         DO_2D( 0, 0, 0, 0 )
-            zy1 =   r1_8 * ( ( zhV(ji  ,jj-1) + zhV(ji+1,jj-1) ) &                       ! need additional () for
-              &            + ( zhV(ji  ,jj  ) + zhV(ji+1,jj  ) ) ) * r1_e1u(ji,jj)       ! reproducibility around NP
-            zx1 = - r1_8 * ( ( zhU(ji-1,jj  ) + zhU(ji-1,jj+1) ) &                       ! need additional () for
-              &            + ( zhU(ji  ,jj  ) + zhU(ji  ,jj+1) ) ) * r1_e2v(ji,jj)       ! reproducibility around NP
-            zu_trd(ji,jj)  = zy1 * ( zwz(ji  ,jj-1) + zwz(ji,jj) )
-            zv_trd(ji,jj)  = zx1 * ( zwz(ji-1,jj  ) + zwz(ji,jj) )
-         END_2D
-         !
-      CASE( np_EEN )                ! energy & enstrophy scheme (using e3t or e3f)         
-         DO_2D( 0, 0, 0, 0 )
-            zu_trd(ji,jj) = + r1_12 * r1_e1u(ji,jj) * (  ( ftne(ji,jj  ) * zhV(ji  ,jj  )   &   ! need additional () for
-             &                                           + ftnw(ji+1,jj) * zhV(ji+1,jj  ) ) &   ! reproducibility around NP
-             &                                         + ( ftse(ji,jj  ) * zhV(ji  ,jj-1)   &
-             &                                           + ftsw(ji+1,jj) * zhV(ji+1,jj-1) ) )
-            zv_trd(ji,jj) = - r1_12 * r1_e2v(ji,jj) * (  ( ftsw(ji,jj+1) * zhU(ji-1,jj+1)   &
-             &                                           + ftse(ji,jj+1) * zhU(ji  ,jj+1) ) &
-             &                                         + ( ftnw(ji,jj  ) * zhU(ji-1,jj  )   &
-             &                                           + ftne(ji,jj  ) * zhU(ji  ,jj  ) ) )
-         END_2D
-         !
-      END SELECT
+      !
+      DO_2D( 0, 0, 0, 0 )
+         zu_trd(ji,jj) = + (  (  ffu_nw(ji,jj) * pvnb(ji  ,jj  )   & 
+            &                  + ffu_ne(ji,jj) * pvnb(ji+1,jj  ) ) &
+            &               + (  ffu_sw(ji,jj) * pvnb(ji  ,jj-1)   & 
+            &                  + ffu_se(ji,jj) * pvnb(ji+1,jj-1) ) ) 
+            !
+         zv_trd(ji,jj) = - (  (  ffv_sw(ji,jj) * punb(ji-1,jj  )   & 
+            &                  + ffv_se(ji,jj) * punb(ji  ,jj  ) ) &
+            &               + (  ffv_nw(ji,jj) * punb(ji-1,jj+1)   &
+            &                  + ffv_ne(ji,jj) * punb(ji  ,jj+1) ) )
+      END_2D
       !
    END SUBROUTINE dyn_cor_2D
 
