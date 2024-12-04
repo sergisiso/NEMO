@@ -124,7 +124,8 @@ CONTAINS
       vv(:,:,:,Nrhs) = 0._wp
 
                             CALL dyn_spg( kstp, Nbb, Nnn, Nrhs, uu, vv, ssh, uu_b, vv_b, Naa )  ! surface pressure gradient
-                            CALL iom_put( "ssh" , ssh(:,:,Nnn) )              ! sea surface height
+
+                            CALL dia_wri   ( kstp,      Nnn )      ! Ocean model outputs (default, tiling-unaware variant of 'dia_wri')
       
       ! Swap time levels
       Nrhs = Nbb
