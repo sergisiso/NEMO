@@ -11,6 +11,7 @@ MODULE seddta
    USE phycst, ONLY : rday
    USE iom
    USE lib_mpp         ! distribued memory computing library
+   USE trc_oce , ONLY :   l_offline   ! offline flag
 
    IMPLICIT NONE
    PRIVATE
@@ -49,7 +50,7 @@ CONTAINS
       INTEGER, INTENT( in ) ::   Kbb, Kmm ! time level indices
 
       !! * Local declarations
-      INTEGER  ::  ji, jj, js, jw, ikt
+      INTEGER  ::  ji, jj, js, jw, ikt, itt
 
       REAL(wp), DIMENSION(jpoce) :: zdtap, zdtag
       REAL(wp), DIMENSION(jpi,jpj) :: zwsbio4, zwsbio3, zddust
@@ -88,6 +89,15 @@ CONTAINS
       !    Sinking speeds of detritus is increased with depth as shown
       !    by data and from the coagulation theory
       !    -----------------------------------------------------------
+      !
+#if defined key_RK3 
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT):
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
+#else
+      itt = Kmm
+#endif
+      !          
       DO_2D( 0, 0, 0, 0 )
          ikt = mbkt(ji,jj)
          zdep = e3t(ji,jj,ikt,Kmm) / rDt_trc
@@ -107,15 +117,15 @@ CONTAINS
             trc_data(ji,jj,jwalk) = tr(ji,jj,ikt,jptal,Kbb) 
             trc_data(ji,jj,jwnh4) = tr(ji,jj,ikt,jpnh4,Kbb) * redNo3 / redC 
             trc_data(ji,jj,jwh2s) = 0.0
-            trc_data(ji,jj,jwso4) = 0.14 * ts(ji,jj,ikt,jp_sal,Kmm) / 1.80655 / 96.062
+            trc_data(ji,jj,jwso4) = 0.14 * ts(ji,jj,ikt,jp_sal,itt) / 1.80655 / 96.062
             trc_data(ji,jj,jwfe2) = tr(ji,jj,ikt,jpfer,Kbb)
             trc_data(ji,jj,jwlgw) = 1.E-9
             trc_data(ji,jj,12)    = MIN(tr(ji,jj,ikt,jpgsi,Kbb), 1E-4) * zwsbio4(ji,jj)
             trc_data(ji,jj,13)    = MIN(tr(ji,jj,ikt,jppoc,Kbb), 1E-4) * zwsbio3(ji,jj) &
             &                       + MIN(tr(ji,jj,ikt,jpgoc,Kbb), 1E-4) * zwsbio4(ji,jj)
             trc_data(ji,jj,14)    = MIN(tr(ji,jj,ikt,jpcal,Kbb), 1E-4) * zwsbio4(ji,jj)
-            trc_data(ji,jj,15)    = ts(ji,jj,ikt,jp_tem,Kmm)
-            trc_data(ji,jj,16)    = ts(ji,jj,ikt,jp_sal,Kmm)
+            trc_data(ji,jj,15)    = ts(ji,jj,ikt,jp_tem,itt)
+            trc_data(ji,jj,16)    = ts(ji,jj,ikt,jp_sal,itt)
             trc_data(ji,jj,17)    = ( tr(ji,jj,ikt,jpsfe,Kbb) * zwsbio3(ji,jj) + tr(ji,jj,ikt,jpbfe,Kbb)  &
             &                       * zwsbio4(ji,jj) ) / ( trc_data(ji,jj,13) + rtrn )
             trc_data(ji,jj,17)    = MIN(1E-3, trc_data(ji,jj,17) )

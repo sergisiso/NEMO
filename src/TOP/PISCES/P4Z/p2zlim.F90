@@ -62,7 +62,7 @@ CONTAINS
       INTEGER, INTENT(in)  :: kt, knt
       INTEGER, INTENT(in)  :: Kbb, Kmm      ! time level indices
       !
-      INTEGER  ::   ji, jj, jk
+      INTEGER  ::   ji, jj, jk, itt
       REAL(wp) ::   zconc0n, zconcnf, zlim1, zlim2, zlim3
       REAL(wp) ::   ztem1, ztem2, zetot1, zetot2, zsize
       REAL(wp) ::   zferlim, zno3
@@ -121,9 +121,17 @@ CONTAINS
       ! This is a purely adhoc formulation described in Aumont et al. (2015)
       ! This fraction depends on nutrient limitation, light, temperature
       ! --------------------------------------------------------------------
+      !
+#if defined key_RK3
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT):
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
+#else
+      itt = Kmm
+#endif
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         ztem1  = MAX( 0., ts(ji,jj,jk,jp_tem,Kmm) + 1.8)
-         ztem2  = ts(ji,jj,jk,jp_tem,Kmm) - 10.
+         ztem1  = MAX( 0., ts(ji,jj,jk,jp_tem,itt) + 1.8)
+         ztem2  = ts(ji,jj,jk,jp_tem,itt) - 10.
          zetot1 = MAX( 0., etot_ndcy(ji,jj,jk) - 1.) / ( 4. + etot_ndcy(ji,jj,jk) ) 
          zetot2 = 30. / ( 30.0 + etot_ndcy(ji,jj,jk) )
 

@@ -147,7 +147,7 @@ CONTAINS
       !! ** Method  : - ...
       !!---------------------------------------------------------------------
       INTEGER, INTENT(in) ::   Kbb, Kmm  ! time level indices
-      INTEGER  ::   ji, jj, jk
+      INTEGER  ::   ji, jj, jk, itt
       REAL(wp) ::   ztkel, ztkel1, ztkel2, ztkel3
       REAL(wp) ::   zt, zsal, zlogsal, zsal2, zbuf1, zbuf2
       REAL(wp) ::   ztgg , ztgg2, ztgg3 , ztgg4 , ztgg5
@@ -166,13 +166,20 @@ CONTAINS
       ! Thus, when TEOS08 is used, absolute salinity is converted to 
       ! practical salinity
       ! -------------------------------------------------------------
+#if defined key_RK3
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT): 
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
+#else
+      itt = Kmm
+#endif      
       IF (neos == -1) THEN
          DO_3D( 0, 0, 0, 0, 1, jpk )
-            salinprac(ji,jj,jk) = ts(ji,jj,jk,jp_sal,Kmm) * 35.0 / 35.16504
+            salinprac(ji,jj,jk) = ts(ji,jj,jk,jp_sal,itt) * 35.0 / 35.16504
          END_3D
       ELSE
          DO_3D( 0, 0, 0, 0, 1, jpk )
-            salinprac(ji,jj,jk) = ts(ji,jj,jk,jp_sal,Kmm)
+            salinprac(ji,jj,jk) = ts(ji,jj,jk,jp_sal,itt)
          END_3D
       ENDIF
 
@@ -184,9 +191,9 @@ CONTAINS
       ! ---------------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpk )
          zpres = gdept(ji,jj,jk,Kmm) / 1000.
-         za1   = 0.04 * ( 1.0 + 0.185 * ts(ji,jj,jk,jp_tem,Kmm) + 0.035 * (salinprac(ji,jj,jk) - 35.0) )
-         za2   = 0.0075 * ( 1.0 - ts(ji,jj,jk,jp_tem,Kmm) / 30.0 )
-         tempis(ji,jj,jk) = ts(ji,jj,jk,jp_tem,Kmm) - zpres * ( za1 - za2 * zpres )
+         za1   = 0.04 * ( 1.0 + 0.185 * ts(ji,jj,jk,jp_tem,itt) + 0.035 * (salinprac(ji,jj,jk) - 35.0) )
+         za2   = 0.0075 * ( 1.0 - ts(ji,jj,jk,jp_tem,itt) / 30.0 )
+         tempis(ji,jj,jk) = ts(ji,jj,jk,jp_tem,itt) - zpres * ( za1 - za2 * zpres )
       END_3D
       !
       ! CHEMICAL CONSTANTS - SURFACE LAYER
