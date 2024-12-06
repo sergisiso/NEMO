@@ -54,7 +54,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt               ! ocean time-step index
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs   ! ocean time level
       !
-      INTEGER  :: ji, jj, jk        ! dummy loop indices 
+      INTEGER  :: ji, jj, jk, itt   ! dummy loop indices 
       REAL(wp) :: zt, ztp, zsk      ! dummy variables
       REAL(wp) :: zsol              ! solubility
       REAL(wp) :: zsch              ! schmidt number
@@ -78,17 +78,23 @@ CONTAINS
       !  Schmidt number of CO2 in seawater (Wanninkhof, 1992 & 2014)
       !  CO2 solubility (Weiss, 1974; Wanninkhof, 2014) 
       ! -------------------------------------------------------------------
-
+#if defined key_RK3
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT): 
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
+#else
+      itt = Kmm
+#endif
       DO_2D( 0, 0, 0, 0 )
          IF( tmask(ji,jj,1) >  0. ) THEN
             !
-            zt   = MIN( 40. , ts(ji,jj,1,jp_tem,Kmm) )
+            zt   = MIN( 40. , ts(ji,jj,1,jp_tem,itt) )
             !
             !  Computation of solubility zsol in [mol/(L * atm)]
             !   after Wanninkhof (2014) referencing Weiss (1974)
             ztp  = ( zt + 273.16 ) * 0.01
             zsk  = 0.027766 + ztp * ( -0.025888 + 0.0050578 * ztp )   ! [mol/(L * atm)]
-            zsol = EXP( -58.0931 + 90.5069 / ztp  + 22.2940 * LOG( ztp ) + zsk * ts(ji,jj,1,jp_sal,Kmm) )
+            zsol = EXP( -58.0931 + 90.5069 / ztp  + 22.2940 * LOG( ztp ) + zsk * ts(ji,jj,1,jp_sal,itt) )
             ! convert solubilities [mol/(L * atm)] -> [mol/(m^3 * ppm)]
             zsol = zsol * 1.e-03
 

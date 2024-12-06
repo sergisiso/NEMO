@@ -79,7 +79,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt, knt   !
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs      ! time level indices
       !
-      INTEGER  ::   ji, jj, jm, iind, iindm1
+      INTEGER  ::   ji, jj, jm, iind, iindm1, itt
       REAL(wp) ::   ztc, ztc2, ztc3, ztc4, zws, zkgwan
       REAL(wp) ::   zfld, zflu, zfld16, zflu16, zdens
       REAL(wp) ::   zvapsw, zsal, zfco2, zxc, zxc2, xCO2approx, ztkel, zfugcoeff
@@ -141,9 +141,17 @@ CONTAINS
 
       ! FIRST COMPUTE GAS EXCHANGE COEFFICIENTS
       ! -------------------------------------------
+      !
+#if defined key_RK3
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT): 
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF 
+#else 
+      itt = Kmm
+#endif
 
       DO_2D( 0, 0, 0, 0 )
-         ztc  = MIN( 35., ts(ji,jj,1,jp_tem,Kmm) )
+         ztc  = MIN( 35., ts(ji,jj,1,jp_tem,itt) )
          ztc2 = ztc * ztc
          ztc3 = ztc * ztc2 
          ztc4 = ztc2 * ztc2 

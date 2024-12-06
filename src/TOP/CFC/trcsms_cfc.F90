@@ -74,7 +74,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt               ! ocean time-step index
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs   ! ocean time level
       !
-      INTEGER  ::   ji, jj, jn, jl, jm
+      INTEGER  ::   ji, jj, jn, jl, jm, itt
       INTEGER  ::   iyear_beg, iyear_end
       INTEGER  ::   im1, im2, ierr
       REAL(wp) ::   ztap, zdtap        
@@ -95,7 +95,13 @@ CONTAINS
       ENDIF
 
       IF( kt == nittrc000 )   CALL cfc_init
-
+#if defined key_RK3
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT):
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
+#else
+      itt = Kmm
+#endif
       ! Temporal interpolation
       ! ----------------------
       iyear_beg = nyear - 1900
@@ -112,7 +118,6 @@ CONTAINS
       IF( iyear_beg .GE. jpyear )  iyear_beg = jpyear - 1
       !
       iyear_end = iyear_beg + 1
-
       !                                                  !------------!
       DO jl = 1, jp_cfc                                  !  CFC loop  !
          !                                               !------------!
@@ -133,10 +138,10 @@ CONTAINS
             ! Computation of concentration at equilibrium : in picomol/l
             ! coefficient for solubility for CFC-11/12 in  mol/l/atm
             IF( tmask(ji,jj,1) .GE. 0.5 ) THEN
-               ztap  = ( ts(ji,jj,1,jp_tem,Kmm) + 273.16 ) * 0.01
+               ztap  = ( ts(ji,jj,1,jp_tem,itt) + 273.16 ) * 0.01
                zdtap = sob(1,jl) + ztap * ( sob(2,jl) + ztap * sob(3,jl) ) 
                zsol  =  EXP( soa(1,jl) + soa(2,jl) / ztap + soa(3,jl) * LOG( ztap )   &
-                  &                    + soa(4,jl) * ztap * ztap + ts(ji,jj,1,jp_sal,Kmm) * zdtap ) 
+                  &                    + soa(4,jl) * ztap * ztap + ts(ji,jj,1,jp_sal,itt) * zdtap ) 
             ELSE
                zsol  = 0.e0
             ENDIF
@@ -146,7 +151,7 @@ CONTAINS
             zca_cfc = xconv1 * zpp_cfc * zsol * tmask(ji,jj,1)             
             ! Computation of speed transfert
             !    Schmidt number revised in Wanninkhof (2014)
-            zt1  = ts(ji,jj,1,jp_tem,Kmm)
+            zt1  = ts(ji,jj,1,jp_tem,itt)
             zt2  = zt1 * zt1 
             zt3  = zt1 * zt2
             zt4  = zt2 * zt2

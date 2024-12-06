@@ -35,19 +35,27 @@ CONTAINS
       INTEGER, INTENT( in ) ::   kt       ! ocean time-step index
       INTEGER, INTENT( in ) ::   Kbb, Kmm ! time level indices
       !
-      INTEGER  :: ji, jj, jk              ! dummy loop indices
+      INTEGER  :: ji, jj, jk, itt           ! dummy loop indices
       REAL(wp) :: zrum, zcodel, zargu, zvar
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_int')
       !
+#if defined key_RK3
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT): 
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF 
+#else 
+      itt = Kmm
+#endif
+      !
       ! Computation of phyto and zoo metabolic rate
       ! -------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpk )
          ! Generic temperature dependence (Eppley, 1972)
-         tgfunc (ji,jj,jk) = EXP( 0.0631 * ts(ji,jj,jk,jp_tem,Kmm) )
+         tgfunc (ji,jj,jk) = EXP( 0.0631 * ts(ji,jj,jk,jp_tem,itt) )
          ! Temperature dependence of mesozooplankton (Buitenhuis et al. (2005))
-         tgfunc2(ji,jj,jk) = EXP( 0.0761 * ts(ji,jj,jk,jp_tem,Kmm) )
+         tgfunc2(ji,jj,jk) = EXP( 0.0761 * ts(ji,jj,jk,jp_tem,itt) )
       END_3D
 
 
