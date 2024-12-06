@@ -63,7 +63,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt, knt         ! ocean time step
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level indices
       !
-      INTEGER  ::   ji, jj, jk
+      INTEGER  ::   ji, jj, jk, itt
       !
       REAL(wp) ::  ztrfer, ztrpo4s, ztrdp, zwdust, zmudia
       REAL(wp) ::  zsoufer, zlight, ztrpo4, ztrdop, zratpo4
@@ -75,13 +75,17 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('p4z_diaz')
       !
       IF( kt == nittrc000 )  l_dia_nfix   = iom_use( "Nfix" ) .OR. iom_use( "Nfixo2" )
+      !
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT):
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
 
       ! Nitrogen fixation process
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          !                      ! Potential nitrogen fixation dependant on temperature and iron
          zlight  =  ( 1.- EXP( -etot_ndcy(ji,jj,jk) / diazolight ) ) * ( 1. - fr_i(ji,jj) )
          !
-         ztemp = ts(ji,jj,jk,jp_tem,Kmm)
+         ztemp = ts(ji,jj,jk,jp_tem,itt)
          zmudia = MAX( 0.,-0.001096*ztemp*ztemp + 0.057*ztemp -0.637 ) / rno3
          !       Potential nitrogen fixation dependant on temperature and iron
          IF( ln_p2z ) THEN

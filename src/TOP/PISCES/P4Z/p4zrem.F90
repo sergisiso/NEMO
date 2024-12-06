@@ -186,7 +186,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt, knt         ! ocean time step
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level indices
       !
-      INTEGER  ::   ji, jj, jk
+      INTEGER  ::   ji, jj, jk, itt
       REAL(wp) ::   zremik, zremikc, zremikn, zremikp, zsiremin
       REAL(wp) ::   zsatur, zsatur2, znusil, znusil2, zdep, zdepmin, zfactdep
       REAL(wp) ::   zbactfer, zonitr
@@ -327,14 +327,19 @@ CONTAINS
       ! Initialization of the array which contains the labile fraction
       ! of bSi. Set to a constant in the upper ocean
       ! ---------------------------------------------------------------
+      !
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT):
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
+
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          ! Remineralization rate of BSi dependent on T and saturation
          ! The parameterization is taken from Ridgwell et al. (2002) 
          ! ---------------------------------------------------------
          zdep     = MAX( hmld(ji,jj), heup_01(ji,jj), gdept(ji,jj,1,Kmm) )
          zsatur   = MAX( rtrn, ( sio3eq(ji,jj,jk) - tr(ji,jj,jk,jpsil,Kbb) ) / ( sio3eq(ji,jj,jk) + rtrn ) )
-         zsatur2  = ( 1. + ts(ji,jj,jk,jp_tem,Kmm) / 400.)**37
-         znusil   = 0.225 * ( 1. + ts(ji,jj,jk,jp_tem,Kmm) / 15.) * zsatur + 0.775 * zsatur2 * zsatur**9 * SQRT(SQRT(zsatur))
+         zsatur2  = ( 1. + ts(ji,jj,jk,jp_tem,itt) / 400.)**37
+         znusil   = 0.225 * ( 1. + ts(ji,jj,jk,jp_tem,itt) / 15.) * zsatur + 0.775 * zsatur2 * zsatur**9 * SQRT(SQRT(zsatur))
  
          ! Two fractions of bSi are considered : a labile one and a more
          ! refractory one based on the commonly observed two step 
