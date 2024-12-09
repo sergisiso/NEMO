@@ -192,13 +192,8 @@ CONTAINS
       !
       IF( ln_sshinc ) THEN         ! input of heat and salt due to assimilation
          !
-         IF( lk_linssh ) THEN
-            DO_2D( 0, 0, 0, 0 )
-               ztim = ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm)
-               pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + pts(ji,jj,1,jp_tem,Kmm) * ztim
-               pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) + pts(ji,jj,1,jp_sal,Kmm) * ztim
-            END_2D
-         ELSE
+! mjb/gm no increments for linear free surface case (the ocean volume does not change)
+         IF( .NOT. lk_linssh ) THEN
             DO_2D( 0, 0, 0, 0 )
                ztim = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1. - ssmask(ji, jj) )
                pts(ji,jj,:,jp_tem,Krhs) = pts(ji,jj,:,jp_tem,Krhs) + pts(ji,jj,:,jp_tem,Kmm) * ztim
@@ -350,13 +345,8 @@ CONTAINS
 !!mjb The time-step restrictions on this section of code must be consistent with those in stprk3_stg.F90
       IF( ln_sshinc ) THEN         ! input of heat and salt due to assimilation
          !
-         IF( lk_linssh ) THEN
-            DO_2D( 0, 0, 0, 0 )
-               ztim = ssh_iau(ji,jj) / e3t(ji,jj,1,Kmm)
-               pts(ji,jj,1,jp_tem,Krhs) = pts(ji,jj,1,jp_tem,Krhs) + pts(ji,jj,1,jp_tem,Kbb) * ztim
-               pts(ji,jj,1,jp_sal,Krhs) = pts(ji,jj,1,jp_sal,Krhs) + pts(ji,jj,1,jp_sal,Kbb) * ztim
-            END_2D
-         ELSE
+! mjb/gm no increments for linear free surface case (the ocean volume does not change)
+         IF( .NOT. lk_linssh ) THEN
             DO_2D( 0, 0, 0, 0 )
                ztim = ssh_iau(ji,jj) / ( ht(ji,jj,Kmm) + 1. - ssmask(ji, jj) )
                pts(ji,jj,:,jp_tem,Krhs) = pts(ji,jj,:,jp_tem,Krhs) + pts(ji,jj,:,jp_tem,Kbb) * ztim
