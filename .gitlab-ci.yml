@@ -40,11 +40,11 @@ include:
   # MERCATOR (ECMWF) + ALL CONFIGS
   - local: '.gitlab-ci/.gitlab-ci-mercator.yml'
     rules:
-    - if: $NEMO_CONFIG == "ALL" && $NEMO_HPC == 'ECMWF'
+    - if: ($NEMO_CONFIG == "ALL" || $NEMO_CONFIG == null) && $NEMO_HPC == 'ECMWF'
   # MERCATOR (ECMWF) + SELECTED CONFIG
   - local: '.gitlab-ci/.gitlab-ci-mercator_cfg.yml'
     rules:
-    - if: $NEMO_CONFIG != "ALL" && $NEMO_HPC == 'ECMWF'
+    - if: ($NEMO_CONFIG != "ALL" && $NEMO_CONFIG != null) && $NEMO_HPC == 'ECMWF'
 
   # example to show how to specify the HPC depending on commit author
   #- local: '.gitlab-ci/.gitlab-ci-cnrs.yml'
