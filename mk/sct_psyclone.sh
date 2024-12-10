@@ -31,5 +31,7 @@ BLD_DIR=$3
 # Input file
 FILENAME=$(basename "$4")
 
-psyclone -l output -s "${TPSYCLONE}" -I "${BLD_DIR}/ppsrc/nemo/" \
+# python -m cProfile /home/sergi/workspace/psyclone/.venv/bin/psyclone \
+psyclone \
+    -l output -s "${TPSYCLONE}" -I "${BLD_DIR}/ppsrc/nemo/" \
     -o "${BLD_DIR}/obj/${FILENAME}" "${BLD_DIR}/ppsrc/nemo/${FILENAME}"
