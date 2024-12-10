@@ -60,12 +60,17 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt   ! time step index
       INTEGER, INTENT(in) ::   Kmm  ! ocean time level index
       !
-      LOGICAL ::   ll_sample_traj, ll_budget, ll_verbose   ! local logical
+      LOGICAL ::   ll_sample_traj, ll_budget, ll_verbose, ll_basoutput   ! local logical
       !!----------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('icb_stp')
 
       !                       !==  start of timestep housekeeping  ==!
+      IF ( kt == nit000 ) THEN
+         ll_basoutput= (iom_use('berg_melt_basins') .OR. iom_use('berg_numb_basins') .OR. iom_use('berg_sumthic_basins') )
+         IF (         ll_basoutput   .AND. ( .NOT. ln_icb_bas ) ) CALL ctl_stop( 'ln_icb_bas need to be activated to output berg_melt_basins'   )
+         IF ( ( .NOT. ll_basoutput ) .AND.         ln_icb_bas   ) CALL ctl_stop( 'No need to activate ln_icb_bas as no related output required' )
+      END IF
 
       IF( MOD( kt-1, nn_fsbc ) == 0 ) THEN
          !
@@ -74,7 +79,7 @@ CONTAINS
          IF( ln_use_calving ) THEN !* read calving data
             !
             CALL fld_read ( kt, 1, sf_icb )
-            src_calving     (:,:) = sf_icb(1)%fnow(:,:,1)    ! calving in km^3/year (water equivalent)
+            src_calving     (:,:) = sf_icb(1)%fnow(:,:,1)    ! calving in kg/s
             src_calving_hflx(:,:) = 0._wp                    ! NO heat flux for now
             !
          ENDIF
@@ -86,7 +91,7 @@ CONTAINS
          !
          !                                   !* write out time
          ll_verbose = .FALSE.
-         IF( nn_verbose_write > 0 .AND. MOD( kt-1 , nn_verbose_write ) == 0 )   ll_verbose = ( nn_verbose_level > 0 )
+         IF( nverbose_write > 0 .AND. MOD( kt-1 , nverbose_write ) == 0 )   ll_verbose = ( nn_verbose_level > 0 )
          !
          IF( ll_verbose )   WRITE(numicb,9100) nktberg, ndastp, nsec_day
     9100 FORMAT('kt= ',i8, ' day= ',i8,' secs=',i8)
@@ -117,7 +122,7 @@ CONTAINS
          !
          !                                   !* For each berg, record trajectory (when needed)
          ll_sample_traj = .FALSE.
-         IF( nn_sample_rate > 0 .AND. MOD(kt-1,nn_sample_rate) == 0 )   ll_sample_traj = .TRUE.
+         IF( nsample_rate > 0 .AND. MOD(kt-1,nsample_rate) == 0 )   ll_sample_traj = .TRUE.
          IF( ll_sample_traj .AND. ASSOCIATED(first_berg) )   CALL icb_trj_write( kt )
    
          !                                   !* Gridded diagnostics
@@ -135,14 +140,14 @@ CONTAINS
          !
          !                                   !* Diagnose budgets
          ll_budget = .FALSE.
-         IF( nn_verbose_write > 0 .AND. MOD(kt-1,nn_verbose_write) == 0 ) ll_budget = ln_bergdia
+         IF( nverbose_write > 0 .AND. MOD(kt-1,nverbose_write) == 0 ) ll_budget = ln_bergdia
          CALL icb_dia( ll_budget )
          !
       END IF
       !
       IF( lrst_oce ) THEN    !* restart
          CALL icb_rst_write( kt )
-         IF( nn_sample_rate > 0 )   CALL icb_trj_sync()
+         IF( nsample_rate > 0 )   CALL icb_trj_sync()
       ENDIF
       !
       IF( ln_timing )   CALL timing_stop('icb_stp')
@@ -161,7 +166,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       !
       ! finish with trajectories if they were written
-      IF( nn_sample_rate > 0 )   CALL icb_trj_end()
+      IF( nsample_rate > 0 )   CALL icb_trj_end()
 
       IF(lwp) WRITE(numout,'(a,i6)') 'icebergs: icb_end complete', narea
       !

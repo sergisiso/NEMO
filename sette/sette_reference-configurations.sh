@@ -296,7 +296,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
     then
         ITEND=8   # 2 days
     else
-        ITEND=992  # 124 days
+        ITEND=1040 # 130 days
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then
@@ -350,7 +350,6 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
         set_namelist_opt namelist_cfg ln_nnogather ${USING_NOGATHER} .true. .false.
         set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
         # for debugging purposes set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
-	set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
         set_namelist namelist_top_cfg ln_trcbc  .false.
         # put ln_ironsed, ln_hydrofe to false
         # if not you need input files, and for tests is not necessary
@@ -378,7 +377,10 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
             cd ${EXE_DIR}
             set_namelist namelist_cfg cn_exp \"O2L3P_LONG\"
             set_namelist_rst namelist ${ITEND}
-            set_namelist namelist_cfg ln_use_calving .true.
+            set_namelist namelist_cfg ln_use_calving .false.
+            set_namelist namelist_cfg ln_use_test .true.
+            set_namelist namelist_cfg nn_test_icebergs 10
+	        set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
             set_namelist namelist_ice_cfg ln_icediachk .true.
             set_namelist namelist_top_cfg ln_trcdta .false.
             cd ${SETTE_DIR}
@@ -393,6 +395,7 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
             cd ${EXE_DIR}
             set_namelist namelist_cfg cn_exp \"O2L3P_SHORT\"
             set_namelist_rst namelist ${ITEND} "O2L3P_LONG" "OCE ICE TOP ABL ICB"
+            set_namelist namelist_cfg ln_use_calving .false.
             set_namelist namelist_cfg ln_use_test .false.
             set_namelist namelist_ice_cfg ln_icediachk .true.
             cd ${SETTE_DIR}
@@ -423,9 +426,11 @@ if [ ${config} == "ORCA2_ICE_PISCES" ] ; then
                 set_namelist namelist_cfg jpni 8
                 set_namelist namelist_cfg jpnj 4
             fi
-            set_namelist namelist_top_cfg ln_trcdta .false.
-	    set_namelist namelist_cfg ln_use_test .true.
+            set_namelist namelist_cfg ln_use_calving   .true.
+            set_namelist namelist_cfg ln_use_test      .true.
             set_namelist namelist_cfg nn_test_icebergs 10
+	    set_namelist namelist_cfg rn_test_box -180.0, 180.0, -90.0, 90.0
+            set_namelist namelist_top_cfg ln_trcdta .false.
 
             cd ${SETTE_DIR}
             . ./prepare_job.sh input_ORCA2_ICE_PISCES.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
@@ -1257,10 +1262,10 @@ if [ ${config} == "WED025" ] ;  then
 
 fi
 
-# --------
-# C1D_PAPA
-# --------
-if [ ${config} == "C1D_PAPA" ]  ; then
+# -----
+# C1D_*
+# -----
+if [[ ${config} =~ "C1D" ]]  ; then
     SETTE_CONFIG=${config}${CONFIG_SUFFIX}
     if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
     then
@@ -1273,21 +1278,25 @@ if [ ${config} == "C1D_PAPA" ]  ; then
         cd ${MAIN_DIR}
         #
         # syncronisation if target directory/file exist (not done by makenemo)
+        rm -fv ${CONFIG_DIR0}/${config/_*}/EXPREF
+        ln -svr ${CONFIG_DIR0}/${config/_*}/EXP_${config#*_} ${CONFIG_DIR0}/${config/_*}/EXPREF
         clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
-        sync_config  ${CONFIG_DIR0}/${config/_PAPA} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/${config/_*} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         #
-        # C1D_PAPA uses linssh so remove key_qco if added by default
-        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config/_PAPA} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+        # C1D uses linssh so remove key_qco if added by default
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config/_*} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
                    -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit 1
+        rm -fv ${CONFIG_DIR0}/${config/_*}/EXPREF
+        ln -svr ${CONFIG_DIR0}/${config/_*}/EXP_PAPA ${CONFIG_DIR0}/${config/_*}/EXPREF
     fi
 
-    # Configure and submit test runs for the C1D_PAPA configuration (if any)
+    # Configure and submit test runs for the C1D configuration (if any)
     if [ ${DO_RESTART} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
 
-        # Default test-run configuration for the C1D_PAPA configuration
+        # Default test-run configuration for the C1D configuration
         EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
         cd ${EXE_DIR}
-        set_namelist namelist_cfg cn_exp \"C1DPAPA\"
+        set_namelist namelist_cfg cn_exp \"${config//_}\"
         set_namelist namelist_cfg nn_it000 1
         set_namelist namelist_cfg nn_itend ${ITEND}
         set_namelist namelist_cfg jpni 1
@@ -1301,7 +1310,7 @@ if [ ${config} == "C1D_PAPA" ]  ; then
         set_xio_using_server iodef.xml ${USING_MPMD}
         NPROC=1
 
-        ## Restartability tests for C1D_PAPA
+        ## Restartability tests for C1D
         if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
             export TEST_NAME="LONG"
             cd ${SETTE_DIR}
@@ -1313,10 +1322,10 @@ if [ ${config} == "C1D_PAPA" ]  ; then
             set_valid_dir
             clean_valid_dir
             cd ${EXE_DIR}
-            set_namelist namelist_cfg cn_exp \"C1DPAPA_LONG\"
+            set_namelist namelist_cfg cn_exp \"${config//_}_LONG\"
             set_namelist_rst namelist ${ITEND}
             cd ${SETTE_DIR}
-            . ./prepare_job.sh input_${config/_PAPA}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            . ./prepare_job.sh input_${config/_*}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
         fi
         if [ ${DO_RESTART_2} == "1" ] ;  then
             cd ${SETTE_DIR}
@@ -1325,10 +1334,10 @@ if [ ${config} == "C1D_PAPA" ]  ; then
             set_valid_dir
             clean_valid_dir
             cd ${EXE_DIR}
-            set_namelist namelist_cfg cn_exp \"C1DPAPA_SHORT\"
-            set_namelist_rst namelist ${ITEND} "C1DPAPA_LONG" "OCE"
+            set_namelist namelist_cfg cn_exp \"${config//_}_SHORT\"
+            set_namelist_rst namelist ${ITEND} "${config//_}_LONG" "OCE"
             cd ${SETTE_DIR}
-            . ./prepare_job.sh input_${config/_PAPA}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            . ./prepare_job.sh input_${config/_*}.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
         fi
         if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
             cd ${SETTE_DIR}

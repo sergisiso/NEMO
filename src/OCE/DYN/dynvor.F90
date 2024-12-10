@@ -89,7 +89,7 @@ MODULE dynvor
    REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   di_e2v_2e1e2f   ! = di(e2u)/(2*e1e2f)  used in F-point metric term calculation
    REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   dj_e1u_2e1e2f   ! = dj(e1v)/(2*e1e2f)   -        -      -       -
    !
-   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   e3f_0vor   ! e3f used in EEN, ENE and ENS cases (key_qco only)
+   REAL(wp), ALLOCATABLE, DIMENSION(:,:,:), PUBLIC ::   e3f_0vor   ! e3f used in EEN, ENE and ENS cases (key_qco only)
 
    REAL(wp) ::   r1_4  = 0.250_wp         ! =1/4
    REAL(wp) ::   r1_8  = 0.125_wp         ! =1/8
@@ -183,7 +183,9 @@ CONTAINS
                              CALL vor_ens( kt, Kmm, ntot, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )  ! add the Stokes-Coriolis trend and vortex force
             ENDIF
          CASE( np_MIX )                        !* mixed ene-ens scheme
+            IF( n_dynadv /= np_LIN_dyn ) THEN
                              CALL vor_ens( kt, Kmm, nrvm, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! relative vorticity or metric trend (ens)
+            ENDIF
                              CALL vor_ene( kt, Kmm, ncor, puu(:,:,:,Kmm) , pvv(:,:,:,Kmm) , puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! planetary vorticity trend (ene)
             IF( ln_stcor )        CALL vor_ene( kt, Kmm, ncor, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )        ! add the Stokes-Coriolis trend
             IF( ln_vortex_force ) CALL vor_ens( kt, Kmm, nrvm, usd, vsd, puu(:,:,:,Krhs), pvv(:,:,:,Krhs) )   ! add vortex force

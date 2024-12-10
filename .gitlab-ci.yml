@@ -4,23 +4,48 @@
 
 
 workflow:
+  name: "SETTE $NEMO_HPC $NEMO_COMPILER $NEMO_COMPILATION - $NEMO_CONFIG test(s)"
   rules:
     - if: $CI_PIPELINE_SOURCE == 'web'
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_COMMIT_TITLE =~ /(?i).*\[ci\].*/
     - if: $CI_PIPELINE_SOURCE == 'schedule'
 
 variables:
-  NEMO_DEBUG:
-    description: "Nemo compilation debug mode"
-    value: "yes"
+  NEMO_COMPILATION:
+    description: "Nemo compilation mode"
+    value: "debug"
     options:
-      - "yes"
-      - "no"
+      - "debug"
+      - "normal"
+  NEMO_COMPILER:
+    description: "Nemo Fortran compiler"
+    value: "intel"
+    options:
+      - "intel"
+      - "gcc"
+  NEMO_HPC:
+    description: "Nemo HPC"
+    value: "ECMWF"
+    options:
+      - "ECMWF"
+  NEMO_CONFIG:
+    description: "Nemo configuration/testcase"
+    value: "ALL"
+    options:
+      - "ALL"
 
 include:
   # default values (will be overwritten after)
-  #- local: '.gitlab-ci/.gitlab-ci-default.yml'
+  - local: '.gitlab-ci/.gitlab-ci-default.yml'
+  # MERCATOR (ECMWF) + ALL CONFIGS
   - local: '.gitlab-ci/.gitlab-ci-mercator.yml'
+    rules:
+    - if: ($NEMO_CONFIG == "ALL" || $NEMO_CONFIG == null) && $NEMO_HPC == 'ECMWF'
+  # MERCATOR (ECMWF) + SELECTED CONFIG
+  - local: '.gitlab-ci/.gitlab-ci-mercator_cfg.yml'
+    rules:
+    - if: ($NEMO_CONFIG != "ALL" && $NEMO_CONFIG != null) && $NEMO_HPC == 'ECMWF'
+
   # example to show how to specify the HPC depending on commit author
   #- local: '.gitlab-ci/.gitlab-ci-cnrs.yml'
   #  rules:
@@ -30,17 +55,9 @@ include:
 .cache: &cache_CFG
   key: ${CONFIG}_${CI_COMMIT_SHORT_SHA}_${CI_PIPELINE_ID}
   paths:
-    - cfgs/${CONFIG}_ST/EXP*
-    - cfgs/${CONFIG}_ST/BLD/bin
-    - cfgs/${CONFIG}_ST/cpp_${CONFIG}_ST.fcm
-
-.cache: &cache_TST
-  key: ${CONFIG}_${CI_COMMIT_SHORT_SHA}_${CI_PIPELINE_ID}
-  paths:
-    - tests/${CONFIG}_ST/EXP*
-    - tests/${CONFIG}_ST/BLD/bin
-    - tests/${CONFIG}_ST/cpp_${CONFIG}_ST.fcm
-
+    - $CI_PROJECT_DIR/{cfgs,tests}/${CONFIG}_ST/EXP*
+    - $CI_PROJECT_DIR/{cfgs,tests}/${CONFIG}_ST/BLD/bin
+    - $CI_PROJECT_DIR/{cfgs,tests}/${CONFIG}_ST/cpp_${CONFIG}_ST.fcm
 
 stages:
   - compile
@@ -51,8 +68,9 @@ stages:
 before_script:
 # the following commands will be executed at the beginning of each job
 # they are needed to copy param.cfg to SETTE directory and to load the modules
-  - declare -A HOST_NAME=( ["kara"]="KR" ["aa"]="AA" ["ab"]="AA" ["ac"]="AA" ["ad"]="AA" 
-                           ["belenoslogin"]="BL" ["irene"]="IR" ["jean-zay"]="JZ" )
+  - declare -A HOST_NAME=( ["aa"]="ECMWF" ["ab"]="ECMWF" ["ac"]="ECMWF" ["ad"]="ECMWF"
+                           ["belenoslogin"]="METFRA" ["irene"]="IR" ["jean-zay"]="JZ" )
+  # modules should be loaded using .env files in NEMO arch directory
   - SETTE_MOD=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_MOD
   - if [ -n "${!SETTE_MOD}" ]; then
       if [ -d ${HOME}/modules ]; then module use ${HOME}/modules; fi;
@@ -60,22 +78,21 @@ before_script:
       module load ${!SETTE_MOD};
     fi
   - set +x   # debug prints
+  # copy SETTE local param.cfg file
   - SETTE_CFG=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_CFG
   - cp -av ${!SETTE_CFG} sette/param.cfg
   - git config core.filemode false   # ignore git(lab) symlinks permissions changes when pushing then pulling cache ("old mode 100755 -> new mode 100644")
-  - SETTE_OPT="-u -w"
-  - if [[ ${NEMO_DEBUG} == "yes" ]]; then SETTE_OPT="${SETTE_OPT} -b"; fi
+  - SETTE_OPT="-u -w"   # no user interaction + wait for jobs to end options
+  - if [[ ${NEMO_COMPILATION} == "debug" ]]; then SETTE_OPT="${SETTE_OPT} -b"; fi
 
 
 # JOBS
-# sette_cmp_cfgs : compile reference configurations
-# sette_cmp_tsts : compile test cases
-# sette_run_cfgs : run reference configurations
-# sette_run_tsts : run test cases
-# sette_rpt_cfgs : check reference configurations results
-# sette_rpt_tsts : check test cases results
+# sette_cmp : compile reference configurations / testcases
+# sette_run : run reference configurations / testcases
+# sette_rpt : check reference configurations / testcases results
 
-sette_cmp_cfgs:
+
+sette_cmp:
   stage: compile
   extends: .parallel_HPC_CFG   # HPC + configs loop 
   cache:
@@ -93,27 +110,10 @@ sette_cmp_cfgs:
     when: always
     expire_in: 30 days
 
-sette_cmp_tsts:
-  stage: compile
-  extends: .parallel_HPC_TST   # HPC + tests loop
-  cache:
-    <<: *cache_TST
-    policy: push
-  tags:
-    - $HPC
-  script:
-    - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
-    - cd -
-  artifacts:
-    paths:
-      - sette/sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
-    when: always
-    expire_in: 30 days
 
-sette_run_cfgs:
+sette_run:
   stage: run
-  needs: [sette_cmp_cfgs]   # limited to 50 jobs
+  needs: [sette_cmp]   # limited to 50 jobs
   dependencies: []   # do not retrieve previous artifacts
   extends: .parallel_HPC_CFG   # HPC + configs loop
   cache:
@@ -134,32 +134,10 @@ sette_run_cfgs:
     when: always
     expire_in: 30 days
 
-sette_run_tsts:
-  stage: run
-  needs: [sette_cmp_tsts]   # limited to 50 jobs
-  dependencies: []   # do not retrieve previous artifacts
-  extends: .parallel_HPC_TST   # HPC + tests loop
-  cache:
-    <<: *cache_TST
-    policy: pull
-  tags:
-    - $HPC
-  script:
-    - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "RESTART REPRO PHYOPTS CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
-    - cd -
-  artifacts:
-    paths:
-      - sette/sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
-      - tests/${CONFIG}_ST/*/sette.*.out
-      - tests/${CONFIG}_ST/*/sette.*.err
-      - tests/${CONFIG}_ST/*/ocean.output*
-    when: always
-    expire_in: 30 days
 
-sette_rpt_cfgs:
+sette_rpt:
   stage: check
-  needs: [sette_run_cfgs]   # limited to 50 jobs
+  needs: [sette_run]   # limited to 50 jobs
   dependencies: []   # do not retrieve previous artifacts
   extends: .parallel_HPC_CFG   # HPC + configs loop
   tags:
@@ -173,18 +151,3 @@ sette_rpt_cfgs:
     when: always
     expire_in: 30 days
 
-sette_rpt_tsts:
-  stage: check
-  needs: [sette_run_tsts]   # limited to 50 jobs
-  dependencies: []   # do not retrieve previous artifacts
-  extends: .parallel_HPC_TST   # HPC + tests loop
-  tags:
-    - $HPC
-  script:
-    - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
-  artifacts:
-    paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
-    when: always
-    expire_in: 30 days

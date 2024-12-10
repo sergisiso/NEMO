@@ -36,8 +36,8 @@
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   tra_mfc         ! routine called in step module
-   PUBLIC   zdf_mfc_init    ! routine called in nemo module
+   PUBLIC   tra_mfc         ! routine called in stprk3_stg.F90
+   PUBLIC   zdf_mfc_init    ! routine called in zdfphy.F90
    !
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) ::  edmftra        !: y term for matrix inversion
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)   ::  edmfm          !: y term for matrix inversion

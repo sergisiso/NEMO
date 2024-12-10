@@ -35,6 +35,15 @@
     <axis axis_ref="ncatice" />
   </grid>
   <!--  -->
+  <grid id="grid_T_icbbas" >
+    <domain domain_ref="grid_T" />
+    <axis axis_ref="icbbas" />
+  </grid>
+  <grid id="grid_T_icbbas_inner" >
+    <domain domain_ref="grid_T_inner" name="grid_T" />
+    <axis axis_ref="icbbas" />
+  </grid>
+  <!--  -->
   <grid id="grid_T_3D" >
     <domain domain_ref="grid_T" />
     <axis axis_ref="deptht" />

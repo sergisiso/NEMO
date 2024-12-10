@@ -34,8 +34,9 @@ MODULE ldfeke
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC   ldf_eke        ! routine called in step module
-   PUBLIC   ldf_eke_init   ! routine called in opa module
+   PUBLIC   ldf_eke        ! routine called in stprk3.F90
+   PUBLIC   ldf_eke_eiv    ! routine called in stprk3.F90
+   PUBLIC   ldf_eke_init   ! routine called in nemogcm.F90
 
 
    !                                 !!** Namelist  namldf_eke  **
@@ -55,9 +56,9 @@ MODULE ldfeke
    LOGICAL  ::   ln_adv_wav                 !  option for having advection by Rossby wave or not
    LOGICAL  ::   ln_beta_plane              !  option for computing long Rossby phase speed
    !
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   eke_geom              ! vertical sum of total Eddy Kinetic Energy [m3/s2]
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   r1_ekedis             ! linear dissipation rate (= 1/rn_ekedis)   [  /s ]
-   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   zc1, zc_ros, zadv_wav ! 1st baroclinic mode and long Rossby speed [m /s ]
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   eke_geom              ! vertical sum of total Eddy Kinetic Energy [m3/s2]
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   r1_ekedis             ! linear dissipation rate (= 1/rn_ekedis)   [  /s ]
+   
    !
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   eke_keS       ! source term of eke due to KE dissipation
 
@@ -70,12 +71,154 @@ MODULE ldfeke
    !! Software governed by the CeCILL licence     (NEMOGCM/NEMO_CeCILL.txt)
    !!----------------------------------------------------------------------
 CONTAINS
+   
+   SUBROUTINE ldf_eke_eiv( kt, Kbb )
+      !!----------------------------------------------------------------------
+      !!                   ***  ROUTINE ldf_eke_eiv  ***
+      !!
+      !! ** Purpose :   compute the eddy induced velocity coefficient (aeiu/v)
+      !!              from the eddy kinetic energy (eke_geom)
+      !!
+      !! ** Notes   :   If nn_aei_ijk_t = 32 then aeiuw/v is updated
+      !!
+      !! ** Method  :   GEOMETRIC calculates the Gent-McWilliams / eddy induced
+      !!              velocity coefficient according to
+      !!
+      !!                    aeiw = alpha * (\int E dz) / (\int S M^2 / N dz),
+      !!
+      !!              where (\int E dz) is the depth-integrated eddy energy
+      !!              (at the previous time level), informed by a parameterized
+      !!              depth-integrated eddy energy, where
+      !!
+      !! ** Action  : * calculate aeiw
+      !!
+      !! References : Marshall, Maddison, Berloff JPO 2012   ; Mak et al JPO 2018
+      !!----------------------------------------------------------------------
+      INTEGER, INTENT(in) ::   kt       ! ocean time step
+      INTEGER, INTENT(in) ::   Kbb      ! time-level indicators
+      !
+      INTEGER  ::   ji, jj, jk          ! dummy loop arguments
+      INTEGER  ::   ik                  ! local integer
+      REAL(wp) ::   z1_f20, zfw, ze3w   ! local scalar
+      REAL(wp) ::   zn2                 !   -      -  
+      REAL(wp) ::   zck, zwslpi, zwslpj !   -      - 
+      REAL(wp) ::   zn2_min = 1.e-8_wp  ! minimum value of N2 used to compute structure function
+      REAL(wp), DIMENSION(A2D(1),jpk) ::   zwrk3d      ! 3D workspace (structure function and then 3D EIV coeff)
+      REAL(wp), DIMENSION(A2D(1))     ::   zn_slp      ! 2D workspace, PE-KE conversion
+      REAL(wp), DIMENSION(A2D(1))     ::   zn, zross   !  -     -      tapering near coasts
+      REAL(wp), DIMENSION(A2D(1))     ::   zaeiw       ! 2D EIV coefficient
+      !!--------------------------------------------------------------------
+      !
+      IF( ln_timing )  CALL timing_start('ldf_eke_eiv')
+      !
+      IF( kt == nit000 .AND. lwp) THEN       !* Control print
+         WRITE(numout,*)
+         WRITE(numout,*) 'ldf_eke_eiv : GEOMETRIC parameterization: eddy induced velocity coefficient'
+         WRITE(numout,*) '~~~~~~~~~~~'
+      ENDIF
+      !                         work out the 3D structure function (SF) here and
+      !                         store in 3d workspace
+      !
+      ! current: Ferreria et al, SF = N^2 / N^2_ref, W-points
+      !                          capped between rn_SFmax and rn_SFmin
+      zwrk3d(:,:,:) = 0._wp
+      DO_3D( 1, 1, 1, 1, 2, jpkm1 )
+         IF( jk <= nmln(ji,jj) ) THEN ! above and at mixed layer
+            zwrk3d(ji,jj,jk) = rn_SFmax
+         ELSE
+            ik   = MIN( nmln(ji,jj), mbkt(ji,jj) ) + 1     ! one level below the mixed layer (MIN in case ML depth is the ocean depth)
+            zwrk3d(ji,jj,jk) = MAX( 0._wp , rn2b(ji,jj,jk) ) / MAX( zn2_min , rn2b(ji,jj,ik) )      ! Structure Function : N^2 / N^2_ref
+            zwrk3d(ji,jj,jk) = MAX(  rn_SFmin , MIN( zwrk3d(ji,jj,jk) , rn_SFmax )  )
+         ENDIF
+      END_3D
+      !                                                    ! vertical integration
+      zn    (:,:) = 0._wp
+      zn_slp(:,:) = 0._wp
+      DO_3D( 1, 1, 1, 1, 2, jpkm1 )
+         zn2     = MAX( 0._wp , rn2b(ji,jj,jk) )
+         !
+         ze3w      = e3w(ji,jj,jk,Kbb) * tmask(ji,jj,jk)
+         !
+         zn(ji,jj) = zn(ji,jj) + SQRT( zn2 ) * ze3w                         ! for working out taper at small rossby radius regions later
+         !
+         zck     =   ( umask(ji,jj,jk) + umask(ji-1,jj,jk) )   &            ! taken from ldfslp, undo the slope reduction
+            &      * ( vmask(ji,jj,jk) + vmask(ji,jj-1,jk) ) * 0.25_wp      !   near topographic features
+         zwslpi  = wslpi(ji,jj,jk) / MAX( zck, 0.1_wp)                      ! (just to avoid dividing by zeros)
+         zwslpj  = wslpj(ji,jj,jk) / MAX( zck, 0.1_wp)
+         !
+         zn_slp(ji,jj) = zn_slp(ji,jj) + ze3w * zwrk3d(ji,jj,jk)   &        ! note this >=0 and structure function weighted
+            &                          * SQRT( zn2 * ( zwslpi * zwslpi + zwslpj * zwslpj )  )
+      END_3D
+      !
+      IF( l_eke_eiv ) THEN
+         !                    !==  resulting EIV coefficient  ==!
+         !
+         !                          ! surface value
+         z1_f20 = 1._wp / (  2._wp * omega * sin( rad * 20._wp )  )
+         DO_2D( 1, 1, 1, 1 )
+            ! Rossby radius at w-point, Ro = .5 * sum_jpk(N) / f
+            zfw = MAX( ABS( ff_t(ji,jj) ) , 1.e-10_wp )
+            zross(ji,jj) = 0.5_wp * zn(ji,jj) / zfw
+            !
+            zaeiw(ji,jj) = rn_geom * eke_geom(ji,jj) / MAX( 1.e-10_wp , zn_slp(ji,jj) ) * tmask(ji,jj,1)   ! zn_slp has SF multiplied to it
+            zaeiw(ji,jj) = MIN(  rn_aeiv_max, zaeiw(ji,jj)  )                                      ! bound aeiv from above
+            zaeiw(ji,jj) = zaeiw(ji,jj)      &
+               ! tanh taper to deal with some some large values near coast
+               &           * 0.5_wp * (   1._wp - TANH(  ( -ht_0(ji,jj) + 800._wp     ) / 300._wp  )   )   &
+               ! tanh taper of aeiv on internal Rossby radius
+               &           * 0.5_wp * (   1._wp + TANH(  ( zross(ji,jj) - rn_ross_min ) * 0.5_wp   )   )
+            zaeiw(ji,jj) = zaeiw(ji,jj) * MIN(  1._wp, ABS( ff_t(ji,jj) * z1_f20 )  )              ! tropical decrease
+            zaeiw(ji,jj) = MAX(  rn_aeiv_min, zaeiw(ji,jj)  )                                      ! bound aeiv from below
+         END_2D
+         !
+         !                          ! inner value
+         ! bottom value is already set to zero, use the un-masked zaeiw(ji,jj) with the structure function to
+         ! set interior values. Re-purpose 3D workspace, replacing structure function (SF) with 3D eiv coefficient
+         zwrk3d(:,:,1) = zaeiw(:,:)
+         DO_3D( 1, 1, 1, 1, 2, jpkm1 )
+            zwrk3d(ji,jj,jk) = zaeiw(ji,jj) * zwrk3d(ji,jj,jk) * wmask(ji,jj,jk)   ! SF has already been capped
+         END_3D
+         !                          ! aei at u- and v-points
+         aeiu(:,:,jpk) = 0._wp
+         aeiv(:,:,jpk) = 0._wp
+         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
+            aeiu(ji,jj,jk) =    (  ( zwrk3d(ji,jj,jk  ) + zwrk3d(ji+1,jj,jk  ) )    &   ! add () for NP repro
+               &                 + ( zwrk3d(ji,jj,jk+1) + zwrk3d(ji+1,jj,jk+1) )  ) &   ! add () for NP repro
+               &           / MAX(  wmask(ji,jj,jk  ) + wmask(ji+1,jj,jk  )        &
+               &                 + wmask(ji,jj,jk+1) + wmask(ji+1,jj,jk+1) , 1._wp ) * umask(ji,jj,jk)
+            aeiv(ji,jj,jk) =    (  ( zwrk3d(ji,jj,jk  ) + zwrk3d(ji,jj+1,jk  ) )    &   ! add () for NP repro
+               &                 + ( zwrk3d(ji,jj,jk+1) + zwrk3d(ji,jj+1,jk+1) )  ) &   ! add () for NP repro
+               &           / MAX(  wmask(ji,jj,jk  ) + wmask(ji,jj+1,jk  )        &
+               &                 + wmask(ji,jj,jk+1) + wmask(ji,jj+1,jk+1) , 1._wp ) * vmask(ji,jj,jk)
+         END_3D
+         !
+         CALL lbc_lnk( 'ldfeke', aeiu , 'U', 1._wp , aeiv , 'V', 1._wp )
+      END IF
+      !
+      !                    !==  output EKE related variables  ==!
+      !
+      !                    !--  diagnostics  --!
+      CALL iom_put( "aeiv_geom" , zwrk3d(A2D(0),jpk) )      ! eddy induced coefficient from GEOMETRIC param
+      CALL iom_put( "rossby_rad", zross(A2D(0))      )      ! internal Rossby deformation radius
+!!
+!! jm: modified ldf_tra in ldftra.F90 to include the ln_eke_equ flag
+!!     into consideration, otherwise iom_put is called twice aeiu and aeiv
+!!
+      CALL iom_put( "aeiu_2d", aeiu(:,:,1) )      ! surface u-EIV coeff.
+      CALL iom_put( "aeiv_2d", aeiv(:,:,1) )      ! surface v-EIV coeff.
+      CALL iom_put( "aeiu_3d", aeiu(:,:,:) )      ! 3D      u-EIV coeff.
+      CALL iom_put( "aeiv_3d", aeiv(:,:,:) )      ! 3D      v-EIV coeff.
+      !
+      IF( ln_timing )  CALL timing_stop('ldf_eke_eiv')
+      !
+   END SUBROUTINE ldf_eke_eiv
+   
 
-   SUBROUTINE ldf_eke( kt, Kbb, Kmm, Kaa )
+   SUBROUTINE ldf_eke( kt, Kbb )
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE ldf_eke  ***
       !!
-      !! ** Purpose :   implements the GEOMETRIC parameterization
+      !! ** Purpose :   compute eddy kinetic energy wrt GEOMETRIC parametrization
       !!
       !! ** Notes   :   If nn_aei_ijk_t = 32 then eke and aeiw are BOTH updated
       !!                If ln_eke_equ = .true. in namtra_ldfeiv but nn_aei_ijk_t
@@ -112,35 +255,31 @@ CONTAINS
       !!                  =-20 => read in a geom_diss_2D.nc field (give it in days)
       !!
       !! ** Action  : * time step depth-integrated eddy energy budget
-      !!              * calculate aeiw
       !!
       !! References : Marshall, Maddison, Berloff JPO 2012   ; Mak et al JPO 2018
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in) ::   kt              ! ocean time step
-      INTEGER, INTENT(in) ::   Kbb, Kmm, Kaa   ! time-level indicators
+      INTEGER, INTENT(in) ::   kt       ! ocean time step
+      INTEGER, INTENT(in) ::   Kbb      ! time-level indicators
       !
       INTEGER  ::   ji, jj, jk          ! dummy loop arguments
-      INTEGER  ::   ik                  ! local integer
-      REAL(wp) ::   zn2_min = 1.e-8_wp  ! minimum value of N2 used to compute structure function
-      REAL(wp) ::   z1_f20, zfw, ze3w   ! local scalar
+      REAL(wp) ::   z1_f20, ze3w        ! local scalar
       REAL(wp) ::   zfp_ui, zfp_vj      !   -      -
       REAL(wp) ::   zfm_ui, zfm_vj      !   -      -
       REAL(wp) ::   zn_slp2, zn2        !   -      -
       REAL(wp) ::   zmsku, zaeiu_w      !   -      -
       REAL(wp) ::   zmskv, zaeiv_w      !   -      -
+      REAL(wp) ::   zen, zed            !   -      -
       REAL(wp) ::   zeke_rhs            !   -      -
-      REAL(wp) ::   zck, zwslpi, zwslpj !   -      -  tapering near coasts
       REAL(wp) ::   zc_rosu, zc_rosv    !   -      -
-      REAL(wp), DIMENSION(A2D(0))          ::   zeke_peS, zn_slp             ! 2D workspace, PE-KE conversion
-      REAL(wp), DIMENSION(A2D(0))          ::   zadv_ubt                     !  -     -      barotropic advection
-      REAL(wp), DIMENSION(A2D(0))          ::   zlap                         !  -     -      diffusion
-      REAL(wp), DIMENSION(A2D(0))          ::   zdis                         !  -     -      linear dissipation
-      REAL(wp), DIMENSION(A2D(0))          ::   zn, zross                    !  -     -      tapering near coasts
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zwx, zwy, zeke_ht            !  -     -      barotropic advection
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zc_rosi, zc_rosj             !  -     -      wave advection
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zaheeu, zaheev               !  -     -      diffusion
-      REAL(wp), DIMENSION(A2D(nn_hls))     ::   zaeiw                        ! 2D EIV coefficient
-      REAL(wp), DIMENSION(A2D(nn_hls),jpk) ::   zwrk3d                       ! 3D workspace (structure function and then 3D EIV coeff)
+      REAL(wp), DIMENSION(A2D(0))     ::   zeke_peS               ! 2D workspace, PE-KE conversion
+      REAL(wp), DIMENSION(A2D(0))     ::   zadv_ubt               !  -     -      barotropic advection
+      REAL(wp), DIMENSION(A2D(0))     ::   zlap                   !  -     -      diffusion
+      REAL(wp), DIMENSION(A2D(0))     ::   zdis                   !  -     -      linear dissipation
+      REAL(wp), DIMENSION(A2D(0))     ::   zadv_wav               !  -     -      wave advection
+      REAL(wp), DIMENSION(A2D(1))     ::   zn                     !  -     -      tapering near coasts
+      REAL(wp), DIMENSION(A2D(1))     ::   zwx, zwy, zeke_ht      !  -     -      barotropic advection
+      REAL(wp), DIMENSION(A2D(1))     ::   zc_rosi, zc_rosj       !  -     -      wave advection
+      REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zc1, zc_ros      !  1st baroclinic mode and long Rossby speed [m /s ]
       !!--------------------------------------------------------------------
       !
       IF( ln_timing )  CALL timing_start('ldf_eke')
@@ -150,29 +289,10 @@ CONTAINS
          WRITE(numout,*) 'ldf_eke : GEOMETRIC parameterization (total EKE time evolution equation)'
          WRITE(numout,*) '~~~~~~~'
       ENDIF
-
       !                    !==  EIV mean conversion to EKE (ah N^2 slp2) & N slp  ==!
-      !
-      !                         work out the 3D structure function (SF) here and
-      !                         store in 3d workspace
-      !
-      ! current: Ferreria et al, SF = N^2 / N^2_ref, W-points
-      !                          capped between rn_SFmax and rn_SFmin
-      zwrk3d(:,:,:) = 0._wp
-      DO_3D( 1, 1, 1, 1, 2, jpkm1 )
-         IF( jk <= nmln(ji,jj) ) THEN ! above and at mixed layer
-            zwrk3d(ji,jj,jk) = rn_SFmax
-         ELSE
-            ik   = MIN( nmln(ji,jj), mbkt(ji,jj) ) + 1     ! one level below the mixed layer (MIN in case ML depth is the ocean depth)
-            zwrk3d(ji,jj,jk) = MAX( 0._wp , rn2b(ji,jj,jk) ) / MAX( zn2_min , rn2b(ji,jj,ik) )      ! Structure Function : N^2 / N^2_ref
-            zwrk3d(ji,jj,jk) = MAX(  rn_SFmin , MIN( zwrk3d(ji,jj,jk) , rn_SFmax )  )
-         ENDIF
-      END_3D
       !
       !                         !*  parametrized PE_EKE conversion due to eddy induced velocity
       zeke_peS(:,:) = 0._wp
-      zn_slp  (:,:) = 0._wp
-      zn      (:,:) = 0._wp
       DO_3D( 0, 0, 0, 0, 2, jpkm1 )
          zmsku = wmask(ji,jj,jk) / MAX(   umask(ji  ,jj,jk-1) + umask(ji-1,jj,jk)          &
             &                           + umask(ji-1,jj,jk-1) + umask(ji  ,jj,jk) , 1._wp  )
@@ -189,75 +309,76 @@ CONTAINS
          zn2     = MAX( 0._wp , rn2b(ji,jj,jk) )
          !
          ze3w      = e3w(ji,jj,jk,Kbb) * tmask(ji,jj,jk)
-         zn(ji,jj) = zn(ji,jj) + SQRT( zn2 ) * ze3w                         ! for working out taper at small rossby radius regions later
          !
          zeke_peS(ji,jj) = zeke_peS(ji,jj) + ze3w * zn2 * zn_slp2           ! note this is >=0
-         !
-         zck     =   ( umask(ji,jj,jk) + umask(ji-1,jj,jk) )   &            ! taken from ldfslp, undo the slope reduction
-            &      * ( vmask(ji,jj,jk) + vmask(ji,jj-1,jk) ) * 0.25_wp      !   near topographic features
-         zwslpi  = wslpi(ji,jj,jk) / MAX( zck, 0.1_wp)                      ! (just to avoid dividing by zeros)
-         zwslpj  = wslpj(ji,jj,jk) / MAX( zck, 0.1_wp)
-         !
-         zn_slp(ji,jj) = zn_slp(ji,jj) + ze3w * zwrk3d(ji,jj,jk)   &          ! note this >=0 and structure function weighted
-            &                          * SQRT( zn2 * ( zwslpi * zwslpi + zwslpj * zwslpj )  )
       END_3D
       !
       ! temporary depth-averaged eke variable for use in advection and diffusion
-      zeke_ht(:,:) = eke_geom(:,:,Kbb) / MAX( ht(:,:,Kbb), 1._wp ) * tmask(:,:,1)
+      DO_2D( 1, 1, 1, 1 )
+         zeke_ht(ji,jj) = eke_geom(ji,jj) / MAX( ht(ji,jj,Kbb), 1._wp ) * tmask(ji,jj,1)
+      END_2D
       !
-      !                    !*  upstream advection with initial mass fluxes & intermediate update
-      !                          !* upstream tracer flux in the i and j direction
-      IF( .NOT. lk_linssh ) THEN
-         DO_2D( 1, 0, 1, 0 )
-            ! upstream scheme by depth-averaged velocity (which should be un_adv * r1_hu etc.)
-            ! however, zwx with depth-averaged eke should then multiplied by hu to restore dimensions, so no r1_h[uv] factor here
-            !
-            zfp_ui = un_adv(ji,jj) + ABS( un_adv(ji,jj) )
-            zfm_ui = un_adv(ji,jj) - ABS( un_adv(ji,jj) )
-            zfp_vj = vn_adv(ji,jj) + ABS( vn_adv(ji,jj) )
-            zfm_vj = vn_adv(ji,jj) - ABS( vn_adv(ji,jj) )
-            ! advection but with dimensions restored (would have a h[uv] factor normally, but cancelled from above)
-            !
-            zwx(ji,jj) = 0.5_wp * e2u(ji,jj) * ( zfp_ui * zeke_ht(ji  ,jj  )   &
-                                               + zfm_ui * zeke_ht(ji+1,jj  ) )
-            zwy(ji,jj) = 0.5_wp * e1v(ji,jj) * ( zfp_vj * zeke_ht(ji  ,jj  )   &
-                                               + zfm_vj * zeke_ht(ji  ,jj+1) )
-         END_2D
-         !                           !* divergence of ubt advective fluxes
+      !                         !*  upstream advection with initial mass fluxes & intermediate update
+      !                               !* upstream tracer flux in the i and j direction
+      DO_2D( 1, 0, 1, 0 )
+         ! upstream scheme by depth-averaged velocity (which should be un_adv * r1_hu etc.)
+         ! however, zwx with depth-averaged eke should then multiplied by hu to restore dimensions, so no r1_h[uv] factor here
+         !
+         zfp_ui = un_adv(ji,jj) + ABS( un_adv(ji,jj) )
+         zfm_ui = un_adv(ji,jj) - ABS( un_adv(ji,jj) )
+         zfp_vj = vn_adv(ji,jj) + ABS( vn_adv(ji,jj) )
+         zfm_vj = vn_adv(ji,jj) - ABS( vn_adv(ji,jj) )
+         ! advection but with dimensions restored (would have a h[uv] factor normally, but cancelled from above)
+         !
+         zwx(ji,jj) = 0.5_wp * e2u(ji,jj) * ( zfp_ui * zeke_ht(ji  ,jj  )   &
+                                            + zfm_ui * zeke_ht(ji+1,jj  ) )
+         zwy(ji,jj) = 0.5_wp * e1v(ji,jj) * ( zfp_vj * zeke_ht(ji  ,jj  )   &
+                                            + zfm_vj * zeke_ht(ji  ,jj+1) )
+      END_2D
+      !                               !* divergence of ubt advective fluxes
+      DO_2D( 0, 0, 0, 0 )
+         zadv_ubt(ji,jj) = - (  ( zwx(ji,jj) - zwx(ji-1,jj  ) )   &
+            &                 + ( zwy(ji,jj) - zwy(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)
+      END_2D
+      !
+      IF( lk_linssh ) THEN            !* linear ssh : add advective fluxes through z=0
          DO_2D( 0, 0, 0, 0 )
-            zadv_ubt(ji,jj) = - (  ( zwx(ji,jj) - zwx(ji-1,jj  ) )   &
-               &                 + ( zwy(ji,jj) - zwy(ji  ,jj-1) )  ) * tmask(ji,jj,1) * r1_e1e2t(ji,jj)
-         END_2D
-      ELSE                                !* top value   (linear free surf. only as zwz is multiplied by wmask)
-         DO_2D( 0, 0, 0, 0 )
-            zadv_ubt(ji,jj) = - ww(ji,jj,1) * eke_geom(ji,jj,Kbb) / ( ht_0(ji,jj) + 1._wp-tmask(ji,jj,1) )   ! jm (03 Mar 18): was eke_n
+            zadv_ubt(ji,jj) = - ww(ji,jj,1) * eke_geom(ji,jj) / ( ht_0(ji,jj) + 1._wp-tmask(ji,jj,1) )   ! jm (03 Mar 18): was eke_n
          END_2D
       ENDIF
       !
-      !                          !* same as above but for advection by Rossby waves
+      !                         !* same as above but for advection by Rossby waves
       zadv_wav(:,:) = 0._wp
-      IF ( ln_adv_wav ) THEN
+      IF( ln_adv_wav ) THEN
+         ALLOCATE( zc1(A2D(1)) , zc_ros(A2D(1)) )
          !
-         DO_2D( 0, 0, 0, 0 )
+         zn(:,:) = 0._wp                        ! for working out taper at small rossby radius regions 
+         DO_3D( 1, 1, 1, 1, 2, jpkm1 )
+            zn2       = MAX( 0._wp , rn2b(ji,jj,jk) )
+            ze3w      = e3w(ji,jj,jk,Kbb) * tmask(ji,jj,jk)
+            zn(ji,jj) = zn(ji,jj) + SQRT( zn2 ) * ze3w
+         END_3D
+         !
+         zc1   (:,:) = 0._wp
+         zc_ros(:,:) = 0._wp
+         DO_2D( 1, 1, 1, 1 )
             ! compute only for deep enough places
-            IF ( ht_0(ji,jj) > 300._wp ) THEN   ! jm: should use something like ht_b really...
+            IF( ht_0(ji,jj) > 300._wp ) THEN   ! jm: should use something like ht_b really...
                ! compute vertical mode phase speed on T point
                zc1(ji,jj) = MIN( 10._wp, zn(ji,jj) / rpi )
                ! compute long Rossby phase speed on T point (minus sign later)
-               IF ( ln_beta_plane ) THEN
+               IF( ln_beta_plane ) THEN
                   zc_ros(ji,jj) = zc1(ji,jj) * zc1(ji,jj) * ABS(zbeta) / (zf0 * zf0)
                ELSE
                   zc_ros(ji,jj) = zc1(ji,jj) * zc1(ji,jj) * COS( rad * gphit(ji,jj) )   &
                                 / (  ra * ff_t(ji,jj) * SIN( rad * gphit(ji,jj) )        &
                                 + rsmall  )
-               END IF
+               ENDIF
                ! cap the Rossby phase speeds by the fastest equatorial Rossby wave speed
                ! the minus sign for westward propagation goes here
                zc_ros(ji,jj) = -MIN( zc1(ji,jj) / 3._wp, zc_ros(ji,jj) )
-            END IF
+            ENDIF
          END_2D
-         !
-         CALL lbc_lnk( 'ldfeke', zc_ros, 'W', 1._wp )
          !
          zwx(:,:) = 0._wp ! wipe the advective contributions from above
          !
@@ -267,165 +388,119 @@ CONTAINS
          !
          DO_2D( 1, 0, 1, 0 )
             ! average onto grid
-            zc_rosu    = 0.5_wp * ( zc_rosi(ji,jj) + zc_rosi(ji+1,jj) ) * umask(ji,jj,1)
-            zc_rosv    = 0.5_wp * ( zc_rosj(ji,jj) + zc_rosj(ji+1,jj) ) * vmask(ji,jj,1)
+            zc_rosu    = 0.5_wp * ( zc_rosi(ji,jj) + zc_rosi(ji+1,jj  ) ) * umask(ji,jj,1)
+            zc_rosv    = 0.5_wp * ( zc_rosj(ji,jj) + zc_rosj(ji  ,jj+1) ) * vmask(ji,jj,1)
             ! upstream advection
             zfp_ui     = zc_rosu + ABS( zc_rosu )
             zfm_ui     = zc_rosu - ABS( zc_rosu )
             zfp_vj     = zc_rosv + ABS( zc_rosv )
             zfm_vj     = zc_rosv - ABS( zc_rosv )
+            !
             ! create trend with appropriate averaging (will be divided e1e2t later)
             zwx(ji,jj) = 0.5_wp * e2u(ji,jj) * hu(ji,jj,Kbb) * ( zfp_ui * zeke_ht(ji  ,jj  )   &
                                                                + zfm_ui * zeke_ht(ji+1,jj  ) )
             zwy(ji,jj) = 0.5_wp * e1v(ji,jj) * hv(ji,jj,Kbb) * ( zfp_vj * zeke_ht(ji  ,jj  )   &
                                                                + zfm_vj * zeke_ht(ji  ,jj+1) )
          END_2D
-         !                    !* divergence of wav advective fluxes
+         !
+         !                            !* divergence of wav advective fluxes
          z1_f20 = 1._wp / (  2._wp * omega * SIN( rad * 20._wp )  )
+        
          DO_2D( 0, 0, 0, 0 )
             zadv_wav(ji,jj) = - (  ( zwx(ji,jj) - zwx(ji-1,jj  ) )   &
-               &                 + ( zwy(ji,jj) - zwy(ji  ,jj-1) )  ) * tmask(ji,jj,1) * r1_e1e2t(ji,jj)
+               &                 + ( zwy(ji,jj) - zwy(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)
             zadv_wav(ji,jj) = zadv_wav(ji,jj) * MIN(  1._wp, ABS( ff_t(ji,jj) * z1_f20 )  )   ! tropical decrease
          END_2D
-      END IF
+      ENDIF
       !
-                                 !* divergence of diffusive fluxes
-                                 !  code adapted from traldf_lap_blp.F90
+      !                         !* divergence of diffusive fluxes
       !
       ! use depth-averaged eke here; zeke_ht already exists from above
       !
-      IF ( rn_eke_lap >= 0._wp ) THEN
+      IF( rn_eke_lap >= 0._wp ) THEN
          DO_2D( 1, 0, 1, 0 )
-            zaheeu(ji,jj) = rn_eke_lap * e2_e1u(ji,jj) * hu(ji,jj,Kbb) * umask(ji,jj,1)   ! rn_eke_lap is constant (for now) and NOT masked
-            zaheev(ji,jj) = rn_eke_lap * e1_e2v(ji,jj) * hv(ji,jj,Kbb) * vmask(ji,jj,1)   !      before it is pahu and pahv which IS masked
+            zwx(ji,jj) = rn_eke_lap * e2_e1u(ji,jj) * hu(ji,jj,Kbb) * ( zeke_ht(ji+1,jj  ) -  zeke_ht(ji,jj) ) * umask(ji,jj,1)   ! rn_eke_lap is constant (for now) and NOT masked
+            zwy(ji,jj) = rn_eke_lap * e1_e2v(ji,jj) * hv(ji,jj,Kbb) * ( zeke_ht(ji  ,jj+1) -  zeke_ht(ji,jj) ) * vmask(ji,jj,1)   !      before it is pahu and pahv which IS masked
          END_2D
          DO_2D( 0, 0, 0, 0 )
-            zlap(ji,jj) = (   ( zaheeu(ji,jj) * zeke_ht(ji+1,jj  ) + zaheeu(ji-1,jj  ) * zeke_ht(ji-1,jj  ) )     &
-               &            - ( zaheeu(ji,jj) * zeke_ht(ji  ,jj  ) + zaheeu(ji-1,jj  ) * zeke_ht(ji  ,jj  ) )     &
-               &            + ( zaheev(ji,jj) * zeke_ht(ji  ,jj+1) + zaheev(ji  ,jj-1) * zeke_ht(ji  ,jj-1) )     &
-               &            - ( zaheev(ji,jj) * zeke_ht(ji  ,jj  ) + zaheev(ji  ,jj-1) * zeke_ht(ji  ,jj  ) )     &
-               &          ) * r1_e1e2t(ji,jj)
+            zlap(ji,jj) = (  ( zwx(ji,jj) - zwx(ji-1,jj  ) )   &
+               &           + ( zwy(ji,jj) - zwy(ji  ,jj-1) )  ) * r1_e1e2t(ji,jj)
          END_2D
       ELSE
          zlap(:,:) = 0._wp
-      END IF
-                                 !* form the trend for linear dissipation
+      ENDIF
+                                !* form the trend for linear dissipation
       DO_2D( 0, 0, 0, 0 )
-         zdis(ji,jj) = - r1_ekedis(ji,jj) * (eke_geom(ji,jj,Kbb) - rn_eke_min) * tmask(ji,jj,1)
+         zdis(ji,jj) = - r1_ekedis(ji,jj) * (eke_geom(ji,jj) - rn_eke_min) * tmask(ji,jj,1)
       END_2D
+      !
       !                    !==  time stepping of EKE Eq.  ==!
       !
       ! note: the rn_eke_min term is a forcing in eddy equation, thus damping in mean equation
       !       added to prevent overshoots and oscillations of energy from exponential growth/decay
       !       maintains a background (depth-integrated) eddy energy level
       !
-      zeke_rhs = 0._wp
-      DO_2D( 0, 0, 0, 0 )
-         !
-         SELECT CASE( nn_eke_opt )   ! Specification of what to include in EKE budget
-         !
-         CASE(   0  )  !  default: just PE->EKE growth and linear dissipation
-            zeke_rhs =                                     zeke_peS(ji,jj) + zdis(ji,jj) + zlap(ji,jj)
-         CASE(   1  )  !  as default but with full advection
-            zeke_rhs = zadv_ubt(ji,jj) + zadv_wav(ji,jj) + zeke_peS(ji,jj) + zdis(ji,jj) + zlap(ji,jj)
-         CASE(   2  )  !  full thing with additional KE->EKE growth
-            zeke_rhs = zadv_ubt(ji,jj) + zadv_wav(ji,jj) + zeke_peS(ji,jj) + zdis(ji,jj) + zlap(ji,jj) + eke_keS(ji,jj)
-         CASE(  77  )  !  ONLY advection by rossby waves
-            zeke_rhs = zadv_wav(ji,jj)
-         CASE(  88  )  !  ONLY advection by mean flow
-            zeke_rhs = zadv_ubt(ji,jj)
-         CASE(  99  )  !  ONLY diffusion
-            zeke_rhs = zlap(ji,jj)
-         CASE DEFAULT
-            CALL ctl_stop('ldf_eke: wrong choice nn_eke_opt, set at least to 0 (default)')
-         END SELECT
-         !
-         ! leap-frog
-         eke_geom(ji,jj,Kaa) = eke_geom(ji,jj,Kbb) + rDt * zeke_rhs * ssmask(ji,jj)
-         !
-      END_2D
-      CALL lbc_lnk( 'ldfeke', eke_geom(:,:,Kaa), 'T', 1._wp )   ! Lateral boundary conditions on eke_geom  (unchanged sign)
-
-      ! initialise it here so XIOS stops complaining...
-      zross(:,:) = 0._wp
-      zaeiw(:,:) = 0._wp
-      IF( l_eke_eiv ) THEN
-         !                    !==  resulting EIV coefficient  ==!
-         !
-         !                          ! surface value
-         z1_f20 = 1._wp / (  2._wp * omega * sin( rad * 20._wp )  )
-         DO_2D( 0, 0, 0, 0 )
-            ! Rossby radius at w-point, Ro = .5 * sum_jpk(N) / f
-            zfw = MAX( ABS( ff_t(ji,jj) ) , 1.e-10_wp )
-            zross(ji,jj) = 0.5_wp * zn(ji,jj) / zfw
-            !
-            zaeiw(ji,jj) = rn_geom * eke_geom(ji,jj,Kmm) / MAX( 1.e-10_wp , zn_slp(ji,jj) ) * tmask(ji,jj,1)   ! zn_slp has SF multiplied to it
-            zaeiw(ji,jj) = MIN(  rn_aeiv_max, zaeiw(ji,jj)  )                                      ! bound aeiv from above
-            zaeiw(ji,jj) = zaeiw(ji,jj)      &
-               ! tanh taper to deal with some some large values near coast
-               &           * 0.5_wp * (   1._wp - TANH(  ( -ht_0(ji,jj) + 800._wp     ) / 300._wp  )   )   &
-               ! tanh taper of aeiv on internal Rossby radius
-               &           * 0.5_wp * (   1._wp + TANH(  ( zross(ji,jj) - rn_ross_min ) * 0.5_wp   )   )
-            zaeiw(ji,jj) = zaeiw(ji,jj) * MIN(  1._wp, ABS( ff_t(ji,jj) * z1_f20 )  )              ! tropical decrease
-            zaeiw(ji,jj) = MAX(  rn_aeiv_min, zaeiw(ji,jj)  )                                      ! bound aeiv from below
-         END_2D
-         CALL lbc_lnk( 'ldfeke', zaeiw(:,:), 'W', 1._wp )
-         !
-         !                          ! inner value
-         ! bottom value is already set to zero, use the un-masked zaeiw(ji,jj) with the structure function to
-         ! set interior values. Re-purpose 3D workspace, replacing structure function (SF) with 3D eiv coefficient
-         zwrk3d(:,:,1) = zaeiw(:,:)
-         DO_3D( 1, 1, 1, 1, 2, jpkm1 )
-            zwrk3d(ji,jj,jk) = zaeiw(ji,jj) * zwrk3d(ji,jj,jk) * wmask(ji,jj,jk)   ! SF has already been capped
-         END_3D
-         !                          ! aei at u- and v-points
-         aeiu(:,:,jpk) = 0._wp
-         aeiv(:,:,jpk) = 0._wp
-         DO_3D( 0, 0, 0, 0, 1, jpkm1 )
-            aeiu(ji,jj,jk) =    (  ( zwrk3d(ji,jj,jk  ) + zwrk3d(ji+1,jj,jk  ) )    &   ! add () for NP repro
-               &                 + ( zwrk3d(ji,jj,jk+1) + zwrk3d(ji+1,jj,jk+1) )  ) &   ! add () for NP repro
-               &           / MAX(  wmask(ji,jj,jk  ) + wmask(ji+1,jj,jk  )        &
-               &                 + wmask(ji,jj,jk+1) + wmask(ji+1,jj,jk+1) , 1._wp ) * umask(ji,jj,jk)
-            aeiv(ji,jj,jk) =    (  ( zwrk3d(ji,jj,jk  ) + zwrk3d(ji,jj+1,jk  ) )    &   ! add () for NP repro
-               &                 + ( zwrk3d(ji,jj,jk+1) + zwrk3d(ji,jj+1,jk+1) )  ) &   ! add () for NP repro
-               &           / MAX(  wmask(ji,jj,jk  ) + wmask(ji,jj+1,jk  )        &
-               &                 + wmask(ji,jj,jk+1) + wmask(ji,jj+1,jk+1) , 1._wp ) * vmask(ji,jj,jk)
-         END_3D
-         !                    !--  diagnostics  --!
-         CALL lbc_lnk( 'ldfeke', aeiu , 'U', 1._wp , aeiv , 'V', 1._wp )
-      END IF
       !
-      IF( lrst_oce .AND. kt == nitrst )   CALL ldf_eke_rst( kt, 'WRITE', Kmm, Kaa )   ! write Kmm and Kaa since time level
-                                                                                      ! indicators will be shuffled before the 
-                                                                                      ! rest of the restart is written
-
+      SELECT CASE( nn_eke_opt )   ! Specification of what to include in EKE budget
+      !
+      CASE(   0  )  !  default: just PE->EKE growth and linear dissipation
+         DO_2D( 0, 0, 0, 0 )
+            zeke_rhs =                                     zeke_peS(ji,jj) + zdis(ji,jj) + zlap(ji,jj)
+            eke_geom(ji,jj) = eke_geom(ji,jj) + rDt * zeke_rhs * ssmask(ji,jj)
+         END_2D
+      CASE(   1  )  !  as default but with full advection
+         DO_2D( 0, 0, 0, 0 )
+            zeke_rhs = zadv_ubt(ji,jj) + zadv_wav(ji,jj) + zeke_peS(ji,jj) + zdis(ji,jj) + zlap(ji,jj)
+            eke_geom(ji,jj) = eke_geom(ji,jj) + rDt * zeke_rhs * ssmask(ji,jj)
+         END_2D
+      CASE(   2  )  !  full thing with additional KE->EKE growth
+         DO_2D( 0, 0, 0, 0 )
+            zeke_rhs = zadv_ubt(ji,jj) + zadv_wav(ji,jj) + zeke_peS(ji,jj) + zdis(ji,jj) + zlap(ji,jj) + eke_keS(ji,jj)
+            eke_geom(ji,jj) = eke_geom(ji,jj) + rDt * zeke_rhs * ssmask(ji,jj)
+         END_2D
+      CASE(  77  )  !  ONLY advection by rossby waves
+         DO_2D( 0, 0, 0, 0 )
+            zeke_rhs = zadv_wav(ji,jj)
+            eke_geom(ji,jj) = eke_geom(ji,jj) + rDt * zeke_rhs * ssmask(ji,jj)
+         END_2D
+      CASE(  88  )  !  ONLY advection by mean flow
+         DO_2D( 0, 0, 0, 0 )
+            zeke_rhs = zadv_ubt(ji,jj)
+            eke_geom(ji,jj) = eke_geom(ji,jj) + rDt * zeke_rhs * ssmask(ji,jj)
+         END_2D
+      CASE(  99  )  !  ONLY diffusion
+         DO_2D( 0, 0, 0, 0 )
+            zeke_rhs = zlap(ji,jj)
+            eke_geom(ji,jj) = eke_geom(ji,jj) + rDt * zeke_rhs * ssmask(ji,jj)
+         END_2D
+      END SELECT
+      !
+      CALL lbc_lnk( 'ldfeke', eke_geom(:,:), 'T', 1._wp )   ! Lateral boundary conditions on eke_geom  (unchanged sign)
+      !
+      IF( lrst_oce .AND. kt == nitrst )   CALL ldf_eke_rst( kt, 'WRITE' )   ! write Kaa since time level
+      !                                                                                ! indicators will be shuffled before the 
+      !                                                                                ! rest of the restart is written
       !                    !==  output EKE related variables  ==!
       !
-      CALL iom_put( "eke"            , eke_geom(:,:,Kaa) )  ! parameterized total EKE (EPE+ EKE)
+      CALL iom_put( "eke"            , eke_geom )           ! parameterized total EKE (EPE+ EKE)
       CALL iom_put( "trd_eke_adv_ubt", zadv_ubt )           ! ubt    advective trend of EKE(LHS)
-      CALL iom_put( "trd_eke_adv_wav", zadv_wav )           ! rossby advective trend of EKE(LHS)
       CALL iom_put( "trd_eke_dis"    , zdis )               ! dissipative trend of EKE     (RHS)
       CALL iom_put( "trd_eke_lap"    , zlap )               ! diffusive trend of EKE       (RHS)
       CALL iom_put( "trd_eke_peS"    , zeke_peS )           ! PE to EKE source trend       (RHS)
       CALL iom_put( "trd_eke_keS"    ,  eke_keS )           ! KE to EKE source trend       (RHS)
-      CALL iom_put( "aeiv_geom"      , zwrk3d )             ! eddy induced coefficient from GEOMETRIC param
-      CALL iom_put( "rossby_rad"     , zross )              ! internal Rossby deformation radius
-      CALL iom_put( "c1_vert"        , zc1   )              ! 1st baroclinic mode phase speed
-      CALL iom_put( "c_ros"          , zc_ros   )           ! long Rossby phase speed
-!!
-!! jm: modified ldf_tra in ldftra.F90 to include the ln_eke_equ flag
-!!     into consideration, otherwise iom_put is called twice aeiu and aeiv
-!!
-      CALL iom_put( "aeiu_2d", aeiu(:,:,1) )       ! surface u-EIV coeff.
-      CALL iom_put( "aeiv_2d", aeiv(:,:,1) )       ! surface v-EIV coeff.
-      CALL iom_put( "aeiu_3d", aeiu(:,:,:) )       ! 3D      u-EIV coeff.
-      CALL iom_put( "aeiv_3d", aeiv(:,:,:) )       ! 3D      v-EIV coeff.
+      IF( ln_adv_wav ) THEN
+         CALL iom_put( "trd_eke_adv_wav", zadv_wav )        ! rossby advective trend of EKE(LHS)
+         CALL iom_put( "c1_vert"        , zc1(A2D(0)) )     ! 1st baroclinic mode phase speed
+         CALL iom_put( "c_ros"          , zc_ros(A2D(0)) )  ! long Rossby phase speed (should be innreer)
+         DEALLOCATE( zc1 , zc_ros )
+      ENDIF
       !
       IF( ln_timing )  CALL timing_stop('ldf_eke')
       !
-   END SUBROUTINE ldf_eke
+   END SUBROUTINE ldf_eke      
 
-   SUBROUTINE ldf_eke_init( Kbb, Kmm )
+   
+   SUBROUTINE ldf_eke_init( Kbb )
       !!----------------------------------------------------------------------
       !!                  ***  ROUTINE ldf_eke_init  ***
       !!
@@ -438,7 +513,7 @@ CONTAINS
       !!
       !! ** input   :   Namlist namldf_eke
       !!----------------------------------------------------------------------
-      INTEGER, INTENT( in ) ::   Kbb, Kmm   ! time level indicator
+      INTEGER, INTENT( in ) ::   Kbb   ! time level indicator
       INTEGER ::   ios, inum
       INTEGER ::   ji, jj
       INTEGER ::   ierr
@@ -496,17 +571,22 @@ CONTAINS
             WRITE(numout,*) '         default + advection                                         '
          CASE(   2  )
             WRITE(numout,*) '         default + advection + KE->EKE                               '
+         CASE(  77  )
+            WRITE(numout,*) '         ONLY advection by rossby waves (no growth or dissipation)   '
          CASE(  88  )
             WRITE(numout,*) '         ONLY advection by z-avg mean flow (no growth or dissipation)'
          CASE(  99  )
             WRITE(numout,*) '         ONLY Laplacian diffusion          (no growth or dissipation)'
+         CASE DEFAULT
+            CALL ctl_stop('ldf_eke: wrong choice nn_eke_opt, set at least to 0 (default)')
          END SELECT
+         !
          WRITE(numout,*)    '      advection of energy by Rossby waves             ln_adv_wav  =  ', ln_adv_wav
+         !
       ENDIF
       !                                ! allocate eke arrays
-      ALLOCATE( eke_geom(A2D(nn_hls),jpt) , eke_keS(A2D(0))        , r1_ekedis(A2D(0)),  &
-         &      zc1(A2D(0))               , zc_ros(A2D(nn_hls))    , zadv_wav(A2D(0)),   &
-         &      STAT=ierr              )
+      ALLOCATE( eke_geom(A2D(nn_hls)) , eke_keS(A2D(0)) , r1_ekedis(A2D(0)) , STAT=ierr )
+      !
       IF( ierr /= 0 )   CALL ctl_stop('STOP', 'ldf_eke_init: failed to allocate arrays')
       !
       eke_keS(:,:) = 0._wp                    ! To avoid unset values in unused array if nn_eke_opt /= 2
@@ -531,15 +611,11 @@ CONTAINS
          CALL ctl_stop('ldf_eke_init: wrong choice for nn_eke_dis, the option for linear dissipation in GEOMETRIC')
       END SELECT
       !
-      CALL ldf_eke_rst( nit000, 'READ', Kbb, Kmm )   !* read or initialize all required files
-      !
-      ! initialise some optional arrays (ln_adv_wave related)
-      zc1(:,:)      = 0._wp
-      zc_ros(:,:)   = 0._wp
+      CALL ldf_eke_rst( nit000, 'READ', Kbb )   !* read or initialize all required files
       !
       ! if using beta_plane, compute beta and f0 using values from the 1st domain
-      IF ( ln_beta_plane ) THEN
-        IF ( narea .eq. 1 ) THEN
+      IF( ln_beta_plane ) THEN
+        IF( narea == 1 ) THEN
            zf0 = ff_f(1,1)
            zbeta = (ff_f(1,2) - zf0) / e2t(1,1)
         ELSE
@@ -551,13 +627,13 @@ CONTAINS
         IF(lwp) WRITE(numout,*)    '         beta plane option is    ln_beta_plane =', ln_beta_plane
         IF(lwp) WRITE(numout,*)    '         f0   = ', zf0,   '    s-1'
         IF(lwp) WRITE(numout,*)    '         beta = ', zbeta, 'm-1 s-1'
-      END IF
+      ENDIF
       !
       !
    END SUBROUTINE ldf_eke_init
 
 
-   SUBROUTINE ldf_eke_rst( kt, cdrw, Kbb, Kmm )
+   SUBROUTINE ldf_eke_rst( kt, cdrw, Kbb )
      !!---------------------------------------------------------------------
      !!                   ***  ROUTINE eke_rst  ***
      !!
@@ -567,53 +643,35 @@ CONTAINS
      !!              if the restart does not contain EKE, eke is set
      !!              according to rn_eke_init, and aeiu = aeiv = 10 m s^-2
      !!----------------------------------------------------------------------
-     INTEGER         , INTENT(in) ::   kt          ! ocean time-step
-     INTEGER         , INTENT(in) ::   Kbb, Kmm    ! time level indicator (needed for 'ht')
-     CHARACTER(len=*), INTENT(in) ::   cdrw        ! "READ"/"WRITE" flag
+     INTEGER                   , INTENT(in) ::   kt       ! ocean time-step
+     INTEGER         , OPTIONAL, INTENT(in) ::   Kbb      ! time level indicator (needed for 'ht')
+     CHARACTER(len=*)          , INTENT(in) ::   cdrw     ! "READ"/"WRITE" flag
      !
-     INTEGER ::   jit, jk                   ! dummy loop indices
-     INTEGER ::   id1, id2, id3, id4, id5   ! local integer
+     INTEGER ::   jit, jk      ! dummy loop indices
+     INTEGER ::   id1          ! local integer
      !!----------------------------------------------------------------------
      !
      IF( TRIM(cdrw) == 'READ' ) THEN        ! Read/initialise
         !                                   ! ---------------
         IF( ln_rstart ) THEN                   !* Read the restart file
            id1 = iom_varid( numror, 'eke_b'   , ldstop = .FALSE. )
-           id2 = iom_varid( numror, 'eke_n'   , ldstop = .FALSE. )
-           id3 = iom_varid( numror, 'aeiu'    , ldstop = .FALSE. )
-           id4 = iom_varid( numror, 'aeiv'    , ldstop = .FALSE. )
            IF(lwp) write(numout,*) ' ldfeke init restart'
-           !
-           IF( MIN( id1, id2, id3, id4 ) > 0 ) THEN        ! all required arrays exist
-              IF(lwp) write(numout,*) ' all files for ldfeke exist, loading ...'
-              CALL iom_get( numror, jpdom_auto, 'eke_b', eke_geom(:,:,Kbb), cd_type = 'T', psgn = 1._wp )
-              CALL iom_get( numror, jpdom_auto, 'eke_n', eke_geom(:,:,Kmm), cd_type = 'T', psgn = 1._wp )
-              CALL iom_get( numror, jpdom_auto, 'aeiu' , aeiu             , cd_type = 'U', psgn = 1._wp )
-              CALL iom_get( numror, jpdom_auto, 'aeiv' , aeiv             , cd_type = 'V', psgn = 1._wp )
-           ELSE                                                 ! one at least array is missing
-              IF(lwp) write(numout,*) ' not all files for ldfeke exist '
-              IF(lwp) write(numout,*) '    --- initialize from namelist'
-              eke_geom(:,:,Kbb)  = rn_eke_init * ht(:,:,Kmm) * ssmask(:,:)
-              eke_geom(:,:,Kmm)  = eke_geom(:,:,Kbb)
-              aeiu(:,:,:) = 10._wp * umask(:,:,:)    ! bottom eddy coeff set to zero at last level
-              aeiv(:,:,:) = 10._wp * vmask(:,:,:)
-           ENDIF
-        ELSE                                          !* Start from rest with a non zero value (required)
-            IF(lwp) write(numout,*) ' ldfeke init restart from namelist'
-            eke_geom(:,:,Kbb)  = rn_eke_init * ht(:,:,Kmm) * ssmask(:,:)
-            eke_geom(:,:,Kmm)  = eke_geom(:,:,Kbb)
-            aeiu(:,:,:) = 10._wp * umask(:,:,:)       ! bottom eddy coeff set to zero at last level
-            aeiv(:,:,:) = 10._wp * vmask(:,:,:)
-            !
+        ELSE                                   !* Start from rest with a non zero value (required)
+           id1 = -1
+        ENDIF
+        !
+        IF( id1 > 0 ) THEN        ! all required arrays exist
+           IF(lwp) write(numout,*) ' ldfeke init from restart file'
+           CALL iom_get( numror, jpdom_auto, 'eke_b', eke_geom(:,:), cd_type = 'T', psgn = 1._wp )
+        ELSE                      ! one at least array is missing
+           IF(lwp) write(numout,*) ' ldfeke init restart from namelist'
+           eke_geom(:,:)  = rn_eke_init * ht(:,:,Kbb) * ssmask(:,:)
         ENDIF
         !
      ELSEIF( TRIM(cdrw) == 'WRITE' ) THEN   ! Create restart file
         !                                   ! -------------------
         IF(lwp) WRITE(numout,*) '---- eke-rst ----'
-        CALL iom_rstput( kt, nitrst, numrow, 'eke_b', eke_geom(:,:,Kbb)  )
-        CALL iom_rstput( kt, nitrst, numrow, 'eke_n', eke_geom(:,:,Kmm)  )
-        CALL iom_rstput( kt, nitrst, numrow, 'aeiu' , aeiu )
-        CALL iom_rstput( kt, nitrst, numrow, 'aeiv' , aeiv )
+        CALL iom_rstput( kt, nitrst, numrow, 'eke_b', eke_geom(:,:)  )
         !
      ENDIF
      !

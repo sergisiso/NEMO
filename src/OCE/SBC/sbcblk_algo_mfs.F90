@@ -30,7 +30,7 @@ MODULE sbcblk_algo_mfs
 
 CONTAINS
 
-   SUBROUTINE turb_mfs( zt, zu, T_s, t_zt, rh, q_s, U_zu, &
+   SUBROUTINE turb_mfs( zt, zu, T_s, t_zt, dpt, q_s, U_zu, &
       &                 wndi, wndj, pu, pv,               &
       &                 cloud_frac, qsw, T_spt,      &
       &                 Cd, Ch, Ce,                       &
@@ -78,7 +78,7 @@ CONTAINS
       REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   cloud_frac ! cloud cover     
       REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   wndi, wndj ! wind components
       REAL(wp), INTENT(in   ), DIMENSION(A2D(1)) ::   pu, pv   ! surface current components
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   rh       ! relative humidity
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   dpt      ! dew point temperature [K] 
       !
       INTEGER , INTENT(in   ), OPTIONAL                    :: nb_iter    ! number of iterations
       REAL(wp), INTENT(in   ), OPTIONAL, DIMENSION(A2D(0)) ::   slp      ! [Pa]
@@ -103,7 +103,7 @@ CONTAINS
       !--- REdefine specific and saturated humidity 
       !---------------------------------------------------------------------    
       q_s(:,:)=rdct_qsat_salt*(1._wp/1.22_wp)*640380._wp*EXP(-5107.4_wp/T_s(:,:))
-      q_zt(:,:)=(1._wp/1.22_wp)*640380._wp*EXP(-5107.4_wp/rh(:,:))
+      q_zt(:,:)=(1._wp/1.22_wp)*640380._wp*EXP(-5107.4_wp/dpt(:,:))
       ! Conversion of the cloud percentage in cloud fraction 
       cloud_frac(:,:)= MAX(0._wp,MIN(1._wp,cloud_frac(:,:) * 0.01_wp))
 

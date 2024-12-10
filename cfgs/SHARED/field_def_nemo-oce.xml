@@ -357,8 +357,6 @@ that are available in the tidal-forcing implementation (see
     <field id="zwbav"               long_name="av turb flux of buoyancy in ml"           unit="m^2/s^3" />
     <field id="zt_ml"               long_name="av T in ml"                               unit="deg"     />
     <field id="zhol"                long_name="Hoenekker number"                         unit="#"       />
-    <field id="zws_ent"            long_name="entrainment turb flux of S"                unit="10^-3 m/s" />
-    <field id="zwth_ent"            long_name="entrainment turb flux of T"               unit="deg m/s" />
     <field id="zwb_ent"            long_name="entrainment turb flux of buoyancy"         unit="m^2/s^-3" />
 
     <field id="zdt_bl"             long_name="temperature jump at base of BL"            unit="deg"      />
@@ -376,6 +374,15 @@ that are available in the tidal-forcing implementation (see
     <field id="zsc_vw_1_f"       long_name="zsc v-momentum flux on T after Coriolis"                       unit="m^2/s^2" />
     <field id="zsc_uw_2_f"       long_name="2nd zsc u-momentum flux on T after Coriolis"                       unit="m^2/s^2" />
     <field id="zsc_vw_2_f"       long_name="2nd zsc v-momentum flux on T after Coriolis"                       unit="m^2/s^2" />
+
+    <!-- Conditional OSMOSIS diagnostics (selectable via ln_osm_cdiags) -->
+    <field id="cmask"   long_name="Convection mask"                                               unit=""        />
+    <field id="wb_lang" long_name="Entrainment buoyancy flux from Langmuire where convective"     unit="m^2/s^3" />
+    <field id="wb_ustr" long_name="Entrainment buoyancy flux from surface shear where convective" unit="m^2/s^3" />
+    <field id="wb_conv" long_name="Convective entrainment buoyancy flux"                          unit="m^2/s^3" />
+    <field id="wb_shr"  long_name="Entrainment buoyancy flux from basal shear where convective"   unit="m^2/s^3" />
+    <field id="shr_prd" long_name="Shear production where convective"                             unit="m^2/s^3" />
+    <field id="h_bl"    long_name="hbl where convective"                                          unit="m"       />
 
     <!-- FK_OSM OSMOSIS diagnostics (require also ln_osm_mle=.true.-->
     <field id="hmle"          long_name="OBL FK-layer thickness"                                     unit="m"        />
@@ -767,11 +774,11 @@ that are available in the tidal-forcing implementation (see
     <field id="bn2"          long_name="squared Brunt-Vaisala frequency"                unit="s-2" />
 
     <!-- GEOMETRIC fields (requires nn_aei_ijk_t = 32)  -->
-    <field id="aeiv_geom"    long_name="3D w-EIV coefficient from GEOMETRIC param."     unit="m2/s" />
+    <field id="aeiv_geom"    long_name="3D w-EIV coefficient from GEOMETRIC param."     unit="m2/s" grid_ref="grid_W_3D_inner"/>
     <field id="rossby_rad"   long_name="internal Rossby deformation radius"             unit="m"    grid_ref="grid_W_2D_inner"/>
     <field id="bn2"          long_name="squared Brunt-Vaisala frequency"                unit="s-1"  />
     <field id="c1_vert"      long_name="1st baroclinic mode phase speed"                unit="m/s"  grid_ref="grid_W_2D_inner"/>
-    <field id="c_ros"        long_name="long Rossby phase speed"                        unit="m/s"  grid_ref="grid_W_2D"/>
+    <field id="c_ros"        long_name="long Rossby phase speed"                        unit="m/s"  grid_ref="grid_W_2D_inner"/>
 
     <!-- dissipation diagnostics (note: ediss_k is only available with tke scheme) -->   
     <field id="avt_k"        long_name="vertical eddy diffusivity from closure schemes" standard_name="ocean_vertical_eddy_diffusivity"       unit="m2/s"   grid_ref="grid_W_3D_inner" />
@@ -850,6 +857,11 @@ that are available in the tidal-forcing implementation (see
   </field_group>
 
   <!-- variables available with iceberg trajectories -->
+  <field_group id="icbvar_bas" grid_ref="grid_T_icbbas" >
+    <field id="berg_melt_basins"    long_name="icb melt rate of icebergs per basin"             unit="kg/m2/s" />
+    <field id="berg_sumthic_basins" long_name="sum of icb thickness per cell and  per basin"    unit="m"       operation="accumulate" prec="8" />
+    <field id="berg_numb_basins"    long_name="sum of icb number per cell and  per basin"       unit=""        operation="accumulate" prec="8" />
+  </field_group>
 
   <field_group id="icbvar" domain_ref="grid_T"  >
     <field id="berg_melt"          long_name="icb melt rate of icebergs"                       unit="kg/m2/s"                    />

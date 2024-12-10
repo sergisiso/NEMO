@@ -17,6 +17,7 @@ MODULE usrdef_sbc
    USE sbc_oce         ! Surface boundary condition: ocean fields
    USE sbc_ice         ! Surface boundary condition: ice fields
    USE phycst          ! physical constants
+   USE par_ice, ONLY   : jpl
    USE ice, ONLY       : at_i_b, a_i_b, at_i, u_ice, v_ice
    USE icethd_dh       ! for CALL ice_thd_snwblow
    USE sbc_phy, ONLY : pp_cldf

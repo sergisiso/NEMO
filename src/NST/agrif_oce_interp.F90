@@ -1,4 +1,4 @@
-#define PARENT_EXT_BDY
+#undef PARENT_EXT_BDY
 MODULE agrif_oce_interp
    !!======================================================================
    !!                   ***  MODULE  agrif_oce_interp  ***
@@ -72,6 +72,7 @@ MODULE agrif_oce_interp
    PROCPTR_PUBLIC(interp_e1v_frac)
 !$AGRIF_END_DO_NOT_TREAT
 #  include "domzgr_substitute.h90"
+#  include "do_loop_substitute.h90"
    !! NEMO/NST 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
    !!----------------------------------------------------------------------
@@ -653,12 +654,16 @@ CONTAINS
       IF( Agrif_Root() ) THEN
 #if defined PARENT_EXT_BDY
          ! Assume persistance for barotropic mode well inside overlapping zone
-         zu(:,:) =              umask_upd(:,:)  * uu_b(:,:,Kmm_a)             &
-                   &                            *   hu(:,:,Kmm_a) * e2u(:,:)  &
-                   & + (1._wp - umask_upd(:,:)) *   zu(:,:)
-         zv(:,:) =              vmask_upd(:,:)  * vv_b(:,:,Kmm_a)             &
-                   &                            *   hv(:,:,Kmm_a) * e1v(:,:)  &
-                   & + (1._wp - vmask_upd(:,:)) *   zv(:,:)
+         DO_2D( 2, 1, 1, 1 )   ! not jpi-column
+            zu(ji,jj) =            umask_upd(ji,jj)  * uu_b(ji,jj,Kmm_a)               &
+                      &                              *   hu(ji,jj,Kmm_a) * e2u(ji,jj)  &
+                      & + (1._wp - umask_upd(ji,jj)) *   zu(ji,jj)
+         END_2D
+         DO_2D( 1, 1, 2, 1 )   ! not jpj-row
+            zv(ji,jj) =            vmask_upd(ji,jj)  * vv_b(ji,jj,Kmm_a)               &
+                      &                              *   hv(ji,jj,Kmm_a) * e1v(ji,jj)  &
+                      & + (1._wp - vmask_upd(ji,jj)) *   zv(ji,jj)
+         END_2D
 #endif
       ELSE 
          !

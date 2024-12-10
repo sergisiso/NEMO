@@ -48,7 +48,7 @@
       !
       INTEGER  ::   ierror, ii, idim
       INTEGER  ::   index0
-      INTEGER  ::   ihls, ipiglo, ipjglo
+      INTEGER  ::   ihls, ishft, ipiglo, ipjglo
       INTEGER , DIMENSION(:), ALLOCATABLE  ::   ilocs
       REAL(PRECISION) ::   zmin     ! local minimum
       REAL(PRECISION), DIMENSION(2,1) ::   zain, zaout
@@ -63,6 +63,7 @@
       !
       idim = SIZE(kindex)
       ihls = ( SIZE(ARRAY_IN(:,:,:), 1) - Ni_0 ) / 2
+      ishft  = nn_hls - ihls
       ipiglo = Ni0glo + 2*ihls
       ipjglo = Nj0glo + 2*ihls
       !
@@ -73,9 +74,9 @@
          ilocs = LOC_OPERATION( ARRAY_IN(:,:,:) , mask= MASK_IN(:,:,:) )
          zmin  = ARRAY_IN(ilocs(1),ilocs(2),ilocs(3))
          !
-         kindex(1) = mig( ilocs(1), ihls )
+         kindex(1) = mig( ilocs(1)+ishft, ihls )
 #if defined DIM_2d || defined DIM_3d    /* avoid warning when kindex has 1 element */
-         kindex(2) = mjg( ilocs(2), ihls )
+         kindex(2) = mjg( ilocs(2)+ishft, ihls )
 #endif
 #if defined DIM_3d                      /* avoid warning when kindex has 2 elements */
          kindex(3) = ilocs(3)

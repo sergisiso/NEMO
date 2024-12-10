@@ -20,6 +20,7 @@ MODULE icbthm
    USE phycst         ! NEMO physical constants
    USE sbc_oce
    USE eosbn2         ! equation of state
+   USE bdy_oce, ONLY : bdytmask,ln_bdy
 
    USE icb_oce        ! define iceberg arrays
    USE icbutl         ! iceberg utility routines
@@ -52,7 +53,7 @@ CONTAINS
       INTEGER  ::   ii, ij, ji, jj, jk, ikb
       REAL(wp) ::   zM, zT, zW, zL, zSST, zVol, zLn, zWn, zTn, znVol, zIC, zDn, zD, zvb, zub, ztb
       REAL(wp) ::   zMv, zMe, zMb, zmelt, zdvo, zdvob, zdva, zdM, zSs, zdMe, zdMb, zdMv
-      REAL(wp) ::   zSSS, zfzpt
+      REAL(wp) ::   zSSS, zfzpt, zrollc
       REAL(wp) ::   zMnew, zMnew1, zMnew2, zheat_hcflux, zheat_latent, z1_12
       REAL(wp) ::   zMbits, znMbits, zdMbitsE, zdMbitsM, zLbits, zAbits, zMbb
       REAL(wp) ::   zxi, zyj, zff, z1_rday, z1_e1e2, zdt, z1_dt, z1_dt_e1e2, zdepw
@@ -71,6 +72,9 @@ CONTAINS
       z1_12   = 1._wp / 12._wp
       zdt     = berg_dt
       z1_dt   = 1._wp / zdt
+      !
+      ! definition of the rolling criterium (MacAyeal & Scambos 2003, eq. 40)
+      zrollc = SQRT(6.0_wp*rn_rho_bergs*(pp_rho_seawater-rn_rho_bergs)/pp_rho_seawater**2)
       !
       ! we're either going to ignore berg fresh water melt flux and associated heat
       ! or we pass it into the ocean, so at this point we set them both to zero,
@@ -93,7 +97,7 @@ CONTAINS
              &                      psst=pt%sst, pcn=pt%cn, &
              &                      psss=pt%sss             )
          !
-         IF ( nn_sample_rate > 0 .AND. MOD(kt-1,nn_sample_rate) == 0 ) THEN
+         IF ( nsample_rate > 0 .AND. MOD(kt-1,nsample_rate) == 0 ) THEN
             CALL icb_utl_interp( Kmm, pt%xi, pt%yj, pe1=pt%e1, pe2=pt%e2, &
                &                       pui=pt%ui, pssh_i=pt%ssh_x,        &
                &                       pvi=pt%vi, pssh_j=pt%ssh_y,        &
@@ -240,7 +244,7 @@ CONTAINS
             CALL DDPDD( CMPLX( ( zheat_hcflux + zheat_latent ) * z1_e1e2, 0.e0, dp ), cicb_hflx(ii,ij) )
             !
             ! diagnostics
-            CALL icb_dia_melt( ii, ij, zMnew, zheat_hcflux, zheat_latent, this%mass_scaling,       &
+            CALL icb_dia_melt( ii, ij, pt%mbasid, zMnew, zheat_hcflux, zheat_latent, this%mass_scaling,       &
                &                       zdM, zdMbitsE, zdMbitsM, zdMb, zdMe,   &
                &                       zdMv, z1_dt_e1e2, z1_e1e2 )
          ELSE
@@ -251,8 +255,10 @@ CONTAINS
          ENDIF
 
          ! Rolling
+         ! tabular icebergs in a vertical position are unstable, capsizing spontaneously, 
+         ! for aspect ratios smaller than a critical value (MacAyeal & Scambos 2003, eq. 40) 
          zDn = rho_berg_1_oce * zTn       ! draught (keel depth)
-         IF( zDn > 0._wp .AND. MAX(zWn,zLn) < SQRT( 0.92*(zDn**2) + 58.32*zDn ) ) THEN
+         IF( (zDn > 0._wp) .AND. (MIN(zWn,zLn)/zTn < zrollc) ) THEN
             zT  = zTn
             zTn = zWn
             zWn = zT
@@ -270,12 +276,15 @@ CONTAINS
 !!gm  add a test to avoid over melting ?
 !!pm  I agree, over melting could break conservation (more melt than calving)
 
-         IF( zMnew <= 0._wp ) THEN       ! Delete the berg if completely melted
+         IF( zMnew <= 0._wp ) THEN                      ! Delete the berg if completely melted
+            CALL icb_utl_delete( first_berg, this )
+            !
+         ELSE IF(ln_bdy .AND. bdytmask(ii,ij)==0.) THEN ! Delete the berg if at bdy
             CALL icb_utl_delete( first_berg, this )
             !
          ELSE                            ! Diagnose mass distribution on grid
             z1_e1e2 = r1_e1e2t(ii,ij) * this%mass_scaling
-            CALL icb_dia_size( ii, ij, zWn, zLn, zAbits,   &
+            CALL icb_dia_size( ii, ij, pt%mbasid, zWn, zLn, zTn, zAbits,   &
                &               this%mass_scaling, zMnew, znMbits, z1_e1e2 )
          ENDIF
          !

@@ -81,7 +81,7 @@ CONTAINS
       !! ** Method  : - ???
       !!---------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt, knt   ! ocean time step and ???
-      INTEGER, INTENT(in)  ::  Kbb, kmm, Krhs ! time level indices
+      INTEGER, INTENT(in)  ::  Kbb, Kmm, Krhs ! time level indices
       !
       INTEGER  :: ji, jj, jk, jkt
       REAL(wp) :: zcompadi, zcompaph, zcompapoc, zcompaz, zcompam, zcompames
@@ -363,7 +363,7 @@ CONTAINS
         ! the fluxes driven by mesozooplankton in the euphotic zone.
         ! --------------------------------------------------------------------
         DO_3D( 0, 0, 0, 0, 1, jpk)
-            zmigreltime = (1. - strn(ji,jj))
+            zmigreltime = (1. - strn(ji,jj) / 24.)
             zmigthick   = (1. - zmigreltime ) * e3t(ji,jj,jk,Kmm) * tmask(ji,jj,jk)
             IF ( gdept(ji,jj,jk,Kmm) <= heup(ji,jj) ) THEN
                zgramigrem(ji,jj) = zgramigrem(ji,jj) + xfracmig * zgrarem(ji,jj,jk) * zmigthick 
@@ -524,9 +524,9 @@ CONTAINS
       !!      temperature and chlorophylle following the parameterization 
       !!      proposed by Bianchi et al. (2013)
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in)  ::  Kbb, kmm ! time level indices
+      INTEGER, INTENT(in)  ::  Kbb, Kmm ! time level indices
       !
-      INTEGER  :: ji, jj, jk
+      INTEGER  :: ji, jj, jk, itt
       !
       REAL(wp) :: ztotchl, z1dep
       REAL(wp), DIMENSION(A2D(0)) :: oxymoy, tempmoy, zdepmoy
@@ -541,15 +541,20 @@ CONTAINS
       depmig (:,:) = 5.
       kmig   (:,:) = 1
       !
+      !
+      ! Don't consider mid-step values if online coupling
+      ! because these are possibly non-monotonic (even with FCT):
+      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
+
       ! Compute the averaged values of oxygen, temperature over the domain 
       ! 150m to 500 m depth.
       ! ------------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpk)
          IF( tmask(ji,jj,jk) == 1.) THEN
-            IF( gdept(ji,jj,jk,Kmm) >= 150. .AND. gdept(ji,jj,jk,kmm) <= 500.) THEN
-               oxymoy(ji,jj)  = oxymoy(ji,jj)  + tr(ji,jj,jk,jpoxy,Kbb) * 1E6 * e3t(ji,jj,jk,Kmm)
-               tempmoy(ji,jj) = tempmoy(ji,jj) + ts(ji,jj,jk,jp_tem,kmm)      * e3t(ji,jj,jk,kmm)
-               zdepmoy(ji,jj) = zdepmoy(ji,jj) + e3t(ji,jj,jk,Kmm)
+            IF( gdept(ji,jj,jk,Kmm) >= 150. .AND. gdept(ji,jj,jk,Kmm) <= 500.) THEN
+               oxymoy(ji,jj)  = oxymoy(ji,jj)  + tr(ji,jj,jk,jpoxy,Kbb) * 1E6 * e3t(ji,jj,jk,itt)
+               tempmoy(ji,jj) = tempmoy(ji,jj) + ts(ji,jj,jk,jp_tem,itt)      * e3t(ji,jj,jk,itt)
+               zdepmoy(ji,jj) = zdepmoy(ji,jj) + e3t(ji,jj,jk,itt)
             ENDIF
          ENDIF
       END_3D
@@ -560,7 +565,7 @@ CONTAINS
       DO_2D( 0, 0, 0, 0 )
          z1dep = 1. / ( zdepmoy(ji,jj) + rtrn )
          oxymoy(ji,jj)  = tr(ji,jj,1,jpoxy,Kbb) * 1E6 - oxymoy(ji,jj)  * z1dep
-         tempmoy(ji,jj) = ts(ji,jj,1,jp_tem,Kmm)      - tempmoy(ji,jj) * z1dep
+         tempmoy(ji,jj) = ts(ji,jj,1,jp_tem,itt)      - tempmoy(ji,jj) * z1dep
       END_2D
       !
       ! Computation of the migration depth based on the parameterization of 

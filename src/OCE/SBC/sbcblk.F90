@@ -306,8 +306,8 @@ CONTAINS
             & CALL ctl_stop( 'sbc_blk_init: Please set ln_dm2dc=T for warm-layer param. (ln_skin_wl) to work properly' )
       END IF
 
-      IF ( ln_MFS .AND. .NOT. ln_humi_rlh )    &
-          & CALL ctl_stop( 'sbc_blk_init: MFS bulk only works with relative humidity (ln_humi_rlh)')
+      IF ( ln_MFS .AND. .NOT. ln_humi_dpt )    &
+          & CALL ctl_stop( 'sbc_blk_init: MFS bulk only works with dew point temperature (ln_humi_dpt)')
 
       ioptio = 0
       IF( ln_humi_sph ) THEN

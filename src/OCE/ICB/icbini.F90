@@ -63,10 +63,11 @@ CONTAINS
       INTEGER , INTENT(in) ::   kt    ! time step number
       INTEGER , INTENT(in) ::   Kmm   ! ocean time level index
       !
-      INTEGER ::   ji, jj, jn               ! dummy loop indices
+      INTEGER ::   ji, jj, jn, jb           ! dummy loop indices
       INTEGER ::   i1, i2, i3               ! local integers
       INTEGER ::   ii, inum, ivar           !   -       -
       INTEGER ::   istat1, istat2, istat3   !   -       -
+      INTEGER ::   nerr
       CHARACTER(len=300) ::   cl_sdist      ! local character
       !!----------------------------------------------------------------------
       !
@@ -98,6 +99,7 @@ CONTAINS
       ! (with z* and z~ the depth of each level change overtime, so the more robust micbkb is jpk)
       micbkb = jpk
 
+      berg_grid%mbasid       (:,:)   = -99
       berg_grid%calving      (:,:)   = 0._wp
       berg_grid%calving_hflx (:,:)   = 0._wp
       berg_grid%stored_heat  (:,:)   = 0._wp
@@ -107,6 +109,7 @@ CONTAINS
       berg_grid%tmp          (:,:)   = 0._wp
       src_calving            (:,:)   = 0._wp
       src_calving_hflx       (:,:)   = 0._wp
+      src_basin              (:,:)   = 0._wp
 
       !                          ! domain for icebergs
       ! for the north fold we work out which points communicate by asking
@@ -234,7 +237,31 @@ CONTAINS
       ! and incremented by the total number of processors
       num_bergs(:) = 0
       num_bergs(1) = narea - jpnij
-      
+
+      ! Initialise icb basin
+      basicb_num(:) = -99 ! value for the 'test' basin (nn_icb_basins+1 if 'test' iceberg
+      IF ( ln_icb_bas ) THEN
+         CALL iom_open(cn_icbbasins_file, inum)
+         CALL iom_get  ( inum, jpdom_global , cn_icbbasins_var2d, src_basin)
+         CALL iom_get  ( inum, jpdom_unknown, cn_icbbasins_var1d, basicb_num(1:nn_icb_basins))
+         CALL iom_close( inum )
+
+         ! define berg_grid%mbasid (if still -999 at calving point => error
+         berg_grid%mbasid(:,:) = -999
+         DO jb = 1,nicbbas
+            DO_2D( 0, 0, 0, 0 )
+               IF( INT( src_basin(ji,jj) ) == INT ( basicb_num(jb) ) ) berg_grid%mbasid(ji,jj) = jb
+            END_2D
+         END DO
+
+         nerr=0
+         DO_2D( 0, 0, 0, 0 )
+            IF( (berg_grid%calving(ji,jj) /= 0.0_wp) .AND. (berg_grid%mbasid(ji,jj) == -999) ) nerr=nerr+1
+         END_2D
+         IF (nerr > 0) CALL ctl_stop( 'failed to initialise basin number' )
+      END IF
+
+
       ! stop NEMO if (nn_test_icebergs <= 0), while using the test_icebergs option
       IF( ( ln_use_test ) .AND. ( nn_test_icebergs <= 0 ) ) CALL ctl_stop('icbini: You are using the test-icebergs option but the number of icebergs is 0 or negative')
 
@@ -293,7 +320,7 @@ CONTAINS
          l_restarted_bergs = .TRUE.
       END IF
       !
-      IF( nn_sample_rate .GT. 0 ) CALL icb_trj_init( nitend )
+      IF( nsample_rate > 0 ) CALL icb_trj_init( nitend )
       !
       CALL icb_dia_init()
       !
@@ -347,6 +374,7 @@ CONTAINS
                localberg%mass_scaling = rn_mass_scaling(iberg)
                localpt%xi = REAL( mig(ji,nn_hls) - (nn_hls-1), wp )
                localpt%yj = REAL( mjg(jj,nn_hls) - (nn_hls-1), wp )
+               localpt%mbasid = nicbbas
                CALL icb_utl_interp( Kmm, localpt%xi, localpt%yj, plat=localpt%lat, plon=localpt%lon )
                localpt%mass      = rn_initial_mass     (iberg)
                localpt%thickness = rn_initial_thickness(iberg)
@@ -386,15 +414,18 @@ CONTAINS
       INTEGER  ::   jn      ! dummy loop indices
       INTEGER  ::   ios     ! Local integer output status for namelist read
       REAL(wp) ::   zfact   ! local scalar
+      REAL(wp) ::   zsample_rate   ! local, result of conversion of rn_sample_rate_days into time steps
+      REAL(wp) ::   zverbose_write ! local, result of conversion of rn_verbose_write_days into time steps
       !
-      NAMELIST/namberg/ ln_icebergs    , ln_bergdia     , nn_sample_rate      , rn_initial_mass      ,   &
-         &              rn_distribution, rn_mass_scaling, rn_initial_thickness, nn_verbose_write     ,   &
+      NAMELIST/namberg/ ln_icebergs    , ln_bergdia     , rn_sample_rate_days , rn_initial_mass      ,   &
+         &              rn_distribution, rn_mass_scaling, rn_initial_thickness, rn_verbose_write_days,   &
          &              rn_rho_bergs   , rn_LoW_ratio   , nn_verbose_level    , ln_operator_splitting,   &
          &              rn_bits_erosion_fraction        , rn_sicn_shift       , ln_passive_mode      ,   &
          &              ln_time_average_weight          , nn_test_icebergs    , rn_test_box          ,   &
          &              ln_use_calving , rn_speed_limit , cn_dir, sn_icb      , ln_M2016             ,   &
          &              cn_icbrst_indir, cn_icbrst_in   , cn_icbrst_outdir    , cn_icbrst_out        ,   &
-         &              ln_icb_grd, ln_use_test
+         &              ln_icb_grd     , ln_use_test    , ln_icb_bas          , ln_rst_test_bas      ,   &
+         &              cn_icbbasins_file, cn_icbbasins_var2d  , cn_icbbasins_var1d   , nn_icb_basins
       !!----------------------------------------------------------------------
 
 #if defined key_agrif
@@ -438,7 +469,7 @@ CONTAINS
          WRITE(numout,*) 'icb_nam : iceberg initialization through namberg namelist read'
          WRITE(numout,*) '~~~~~~~~ '
          WRITE(numout,*) '   Calculate budgets                                            ln_bergdia       = ', ln_bergdia
-         WRITE(numout,*) '   Period between sampling of position for trajectory storage   nn_sample_rate = ', nn_sample_rate
+         WRITE(numout,*) '   Number of days (or every time step if = -1) between sampling of position for trajectory storage   rn_sample_rate = ', rn_sample_rate_days
          WRITE(numout,*) '   Mass thresholds between iceberg classes (kg)                 rn_initial_mass     ='
          DO jn = 1, nclasses
             WRITE(numout,'(a,f15.2)') '                                                                ', rn_initial_mass(jn)
@@ -455,7 +486,14 @@ CONTAINS
          DO jn = 1, nclasses
             WRITE(numout,'(a,f10.2)') '                                                                ', rn_initial_thickness(jn)
          END DO
-         WRITE(numout,*) '   Timesteps between verbose messages                           nn_verbose_write    = ', nn_verbose_write
+         WRITE(numout,*) '   Number of days (or every time step if = -1) between verbose messages     rn_verbose_write    = ', rn_verbose_write_days
+         WRITE(numout,*) '   Iceberg melt by basin activated                              ln_icb_bas          = ',ln_icb_bas
+         IF ( ln_icb_bas ) THEN
+            WRITE(numout,*) '      basin file is ',TRIM(cn_icbbasins_file)
+            WRITE(numout,*) '         basin id source map variable is ',TRIM(cn_icbbasins_var2d)
+            WRITE(numout,*) '         basin id list variable is ',TRIM(cn_icbbasins_var1d)
+            WRITE(numout,*) '         total number of basins is nn_icb_basins = ',nn_icb_basins
+         END IF
 
          WRITE(numout,*) '   Density of icebergs                           rn_rho_bergs  = ', rn_rho_bergs
          WRITE(numout,*) '   Initial ratio L/W for newly calved icebergs   rn_LoW_ratio  = ', rn_LoW_ratio
@@ -498,16 +536,56 @@ CONTAINS
       IF( MINVAL( rn_distribution(:) ) < 0._wp ) THEN
          CALL ctl_stop( 'icb_nam: a negative rn_distribution value encountered ==>> change your namelist namberg' )
       ENDIF
+
+      ! rn_sample_rate and rn_verbose_write are now measured in days in the namelist
+      ! we need their value in terms of time-step (cf icbstp)
+      ! hence the following conversions
       !
-      ! ensure that nn_verbose_write is a multiple of nn_fsbc
-      IF (MOD(nn_verbose_write, nn_fsbc) /= 0) THEN
-         CALL ctl_stop( 'icb_nam: nn_verbose_write is not a multiple of nn_fsbc')
-      END IF
+      ! 1° verbose write
+      ! checks wether debug mode or error in namelist
+      IF ( rn_verbose_write_days < 0._wp ) THEN
+         IF (rn_verbose_write_days == -1) THEN
+            nverbose_write = nn_fsbc      ! debug mode, write every icb time step
+         ELSE
+            CALL ctl_stop( 'icb_nam: rn_verbose_write_days < -1 or in ]-1;0] is not allowed ==>> change your namelist namberg')
+         ENDIF
       !
-      ! ensure that nn_sample_rate is a multiple of nn_fsbc
-      IF (MOD(nn_sample_rate, nn_fsbc) /= 0) THEN
-         CALL ctl_stop( 'icb_nam: nn_sample_rate is not a multiple of nn_fsbc')
-      END IF
+      ELSE   ! conversion of rn_verbose_write in time steps
+         ! ensure that nverbose_write is a multiple of nn_fsbc
+         zverbose_write = rn_verbose_write_days * ( rday / rn_Dt ) ! (rday = 86400s = 1 day)
+         IF (MOD( zverbose_write, REAL(nn_fsbc) ) == 0._wp) THEN
+            nverbose_write = INT(zverbose_write)
+         ELSE
+            CALL ctl_stop( 'icb_nam: nverbose_write is not a multiple of nn_fsbc')
+         END IF
+      ENDIF
+      !
+      ! 2° sample rate
+      ! checks wether debug mode or error in namelist
+      IF ( rn_sample_rate_days < 0._wp ) THEN
+         IF (rn_sample_rate_days == -1) THEN
+            nverbose_write = nn_fsbc      ! debug mode, write every icb time step
+         ELSE
+            CALL ctl_stop( 'icb_nam: rn_sample_rate_days < -1 or in ]-1;0] is not allowed ==>> change your namelist namberg')
+         ENDIF
+      !
+      ELSE ! conversion for rn_sample_rate in time steps
+         ! ensure that nsample_rate is a multiple of nn_fsbc
+         zsample_rate = rn_sample_rate_days * ( rday / rn_Dt ) ! (rday = 86400s = 1 day)
+         IF (MOD( zsample_rate, REAL(nn_fsbc) ) == 0._wp) THEN
+            nsample_rate = INT(zsample_rate)
+         ELSE
+            CALL ctl_stop( 'icb_nam: nsample_rate is not a multiple of nn_fsbc')
+         END IF
+      ENDIF
+      !
+      ! define the number of category
+      nicbbas=0
+      IF ( ln_icb_bas )            nicbbas=nn_icb_basins
+
+      ! testing activated or test iceberg in the restart
+      IF ( ln_use_test .OR. ln_rst_test_bas ) nicbbas=nicbbas+1 ! test icb have a specific basin id
+      nicbbas=MAX(1,nicbbas)                         ! default case is 1 basin
       !
    END SUBROUTINE icb_nam
 

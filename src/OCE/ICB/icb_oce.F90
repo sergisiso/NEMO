@@ -52,6 +52,7 @@ MODULE icb_oce
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE ::   tmp             ! Temporary work space
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   stored_ice      ! Accumulated ice mass flux at calving locations [kg]
       REAL(wp), DIMENSION(:,:)  , ALLOCATABLE ::   stored_heat     ! Heat content of stored ice                      [J]
+      INTEGER , DIMENSION(:,:)  , ALLOCATABLE ::   mbasid          ! source basin number
    END TYPE icebergs_gridded
 
    TYPE, PUBLIC ::   point              !: properties of an individual iceberg (position, mass, size, etc...)
@@ -62,6 +63,7 @@ MODULE icb_oce
       REAL(wp) ::   mass, thickness, width, length, uvel, vvel                ! iceberg physical properties
       REAL(wp) ::   ssu, ssv, ui, vi, ua, va, ssh_x, ssh_y, sst, sss, cn, hi  ! properties of iceberg environment 
       REAL(wp) ::   mass_of_bits, heat_density
+      INTEGER  ::   mbasid                                                    ! basin number at calving
       INTEGER  ::   kb                                                   ! icb bottom level
    END TYPE point
 
@@ -106,8 +108,8 @@ MODULE icb_oce
    LOGICAL , PUBLIC ::   ln_use_calving                  !: Choose whether to use calving data
                                                          !  (default is not to use calving data with test bergs)
    LOGICAL , PUBLIC ::   ln_use_test                     !: Choose whether to use test icebergs                                       
-   INTEGER , PUBLIC ::   nn_sample_rate                  !: Timesteps between sampling of position for trajectory storage
-   INTEGER , PUBLIC ::   nn_verbose_write                !: timesteps between verbose messages
+   REAL(wp), PUBLIC ::   rn_sample_rate_days             !: Number of days (or of timesteps if == -1 ) between sampling of position for trajectory storage
+   REAL(wp), PUBLIC ::   rn_verbose_write_days           !: Number of days (or of timesteps if == -1 ) between verbose messages
    REAL(wp), PUBLIC ::   rn_rho_bergs                    !: Density of icebergs
    REAL(wp), PUBLIC ::   rho_berg_1_oce                  !: convertion factor (thickness to draft) (rn_rho_bergs/pp_rho_seawater)
    REAL(wp), PUBLIC ::   rn_LoW_ratio                    !: Initial ratio L/W for newly calved icebergs
@@ -119,9 +121,20 @@ MODULE icb_oce
    REAL(wp), PUBLIC ::   rn_speed_limit                  !: CFL speed limit for a berg
    LOGICAL , PUBLIC ::   ln_M2016, ln_icb_grd            !: use Nacho's Merino 2016 work
    !
+   LOGICAL , PUBLIC ::   ln_icb_bas                      !: compute melt by basins
+   LOGICAL , PUBLIC ::   ln_rst_test_bas                 !: presence of test icb in restart
+   CHARACTER(len=256), PUBLIC :: cn_icbbasins_file       !: icb basin file
+   CHARACTER(len=256), PUBLIC :: cn_icbbasins_var2d      !: icb basin 2d map
+   CHARACTER(len=256), PUBLIC :: cn_icbbasins_var1d      !: icb basin 1d list id
+   INTEGER , PUBLIC ::   nn_icb_basins
+   !
    ! restart
    CHARACTER(len=256), PUBLIC :: cn_icbrst_indir , cn_icbrst_in  !:  in: restart directory, restart name
    CHARACTER(len=256), PUBLIC :: cn_icbrst_outdir, cn_icbrst_out !: out: restart directory, restart name
+   !
+   ! integers for verbose messages and trajectories
+   INTEGER,  PUBLIC ::   nsample_rate                    !: Number of time steps between sampling of position for trajectory storage 
+   INTEGER,  PUBLIC ::   nverbose_write                  !: Number of time steps between verbose messages
    !
    !                                     ! Mass thresholds between iceberg classes [kg]
    REAL(wp), DIMENSION(nclasses), PUBLIC ::   rn_initial_mass      ! Fraction of calving to apply to this class [non-dim]
@@ -129,6 +142,8 @@ MODULE icb_oce
    REAL(wp), DIMENSION(nclasses), PUBLIC ::   rn_mass_scaling      ! Total thickness of newly calved bergs [m]
    REAL(wp), DIMENSION(nclasses), PUBLIC ::   rn_initial_thickness !  Single instance of an icebergs type initialised in icebergs_init and updated in icebergs_run
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   src_calving, src_calving_hflx    !: accumulate input ice
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)     ::   src_basin                        !: basin source number
+   INTEGER , PUBLIC             , SAVE                     ::   nicbbas                          !: number of basins
    INTEGER , PUBLIC             , SAVE                     ::   micbkb                           !: deepest level affected by icebergs
    INTEGER , PUBLIC             , SAVE                     ::   numicb                           !: iceberg IO
    INTEGER , PUBLIC             , SAVE, DIMENSION(nkounts) ::   num_bergs                        !: iceberg counter
@@ -142,6 +157,7 @@ MODULE icb_oce
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)       ::   nicbfldexpect                    !: nfold expected number of bergs
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)       ::   nicbfldreq                       !: nfold message handle (immediate send)
    INTEGER , PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)       ::   nicbfldborder                    !: nfold j-index of the north border 
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:)       ::   basicb_num                      !: basin id list
 
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)
@@ -159,14 +175,18 @@ CONTAINS
       icb_alloc = 0
       ALLOCATE( berg_grid, STAT=ill )
       icb_alloc = icb_alloc + ill
-      ALLOCATE( berg_grid%calving    (jpi,jpj) , berg_grid%calving_hflx (jpi,jpj)          ,   &
-         &      berg_grid%stored_heat(jpi,jpj) , berg_grid%floating_melt(jpi,jpj)          ,   &
-         &      berg_grid%maxclass   (jpi,jpj) , berg_grid%stored_ice   (jpi,jpj,nclasses) ,   &
-         &      berg_grid%tmp        (jpi,jpj) , STAT=ill)
+      ALLOCATE( berg_grid%calving    (jpi,jpj) , berg_grid%calving_hflx (jpi,jpj)                ,   &
+         &      berg_grid%stored_heat(jpi,jpj) , berg_grid%floating_melt(jpi,jpj)                ,   &
+         &      berg_grid%maxclass   (jpi,jpj) , berg_grid%stored_ice   (jpi,jpj,nclasses)       ,   &
+         &      berg_grid%mbasid     (jpi,jpj) , berg_grid%tmp          (jpi,jpj) , STAT=ill)
+      icb_alloc = icb_alloc + ill
+      !
+      ALLOCATE( basicb_num(nicbbas), STAT=ill)
       icb_alloc = icb_alloc + ill
       !
       ALLOCATE( first_width(nclasses) , first_length(nclasses) ,   &
          &      src_calving (jpi,jpj) ,                            &
+         &      src_basin   (jpi,jpj) ,                            &
          &      src_calving_hflx(jpi,jpj) , STAT=ill)
       icb_alloc = icb_alloc + ill
       !

@@ -157,7 +157,7 @@ CONTAINS
 !!gm sh2 computed at the end of the time-step
 !!gm       or  call zdf_phy at the end !
       !  VERTICAL PHYSICS
-!!st                         CALL zdf_phy( kstp, Nbb, Nnn, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
+      !                                                         ! vertical physics for osm and ric (avm_k, avt_k)
                          CALL zdf_phy( kstp, Nbb, Nbb, Nrhs )   ! vertical physics update (top/bot drag, avt, avs, avm + MLD)
 !!gm gdep
       !  LATERAL  PHYSICS
@@ -171,8 +171,9 @@ CONTAINS
          ENDIF
       ENDIF
       !                                                                        ! eddy diffusivity coeff.
-      IF( l_ldftra_time .OR. l_ldfeiv_time )   CALL ldf_tra( kstp, Nbb, Nbb )  !       and/or eiv coeff.
-      IF( l_ldfdyn_time                    )   CALL ldf_dyn( kstp, Nbb )       ! eddy viscosity coeff.
+      IF( l_ldftra_time .OR. l_ldfeiv_time )   CALL ldf_tra    ( kstp, Nbb, Nbb )  !       and/or eiv coeff.
+      IF( l_ldfeke                         )   CALL ldf_eke_eiv( kstp, Nbb )       ! GEOMETRIC param. (update of eiv coefficient)
+      IF( l_ldfdyn_time                    )   CALL ldf_dyn    ( kstp, Nbb )       ! eddy viscosity coeff.
 
 
       !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -200,6 +201,11 @@ CONTAINS
       CALL rk3_dia( 1 )                                ! Diagnostics switched on for stage 3
       !
       CALL stp_stg( 3, kstp, Nbb, Nnn, Nrhs, Naa )
+      !
+      IF( l_ldfeke )   CALL ldf_eke( kstp, Nbb )                ! GEOMETRIC param. (time evolution of eke)
+      !
+      CALL zdf_nxt( kstp, Nbb, Naa )                   ! vertical physics for tke and gls (avt_k, avm_k)
+      IF( l_zdfsh2 )   CALL lbc_lnk( 'stp', avm_k, 'W', 1.0_wp )
       !
       Nrhs = Nbb   ;   Nbb  = Naa   ;   Naa  = Nrhs    ! Swap: Nnn unchanged, Nbb <==> Naa
 

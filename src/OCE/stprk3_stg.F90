@@ -289,14 +289,14 @@ CONTAINS
                !                                      ! ww cross-level velocity at Kmm consistent with (uu,vv)
                CALL wzv( kstp, Kbb, Kmm, Kaa, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, np_velocity )
                !                                      ! ww / wi Partition at stage 3 only
-               IF( ln_zad_Aimp .AND. kstg == 3 )   CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, np_velocity )
+               IF( ln_zad_Aimp .AND. kstg == 3 )   CALL wAimp( kstp, Kmm, uu(:,:,:,Kmm), vv(:,:,:,Kmm), ww, wi, np_velocity, ld_diag=.TRUE. )
                !
             ENDIF
          ELSE                                     !* Flux Form : set ww, wi at 3rd stage and zFw
             !                                         ! ww cross-level velocity at Kmm consistent with (zFu,zFv)
             CALL wzv( kstp, Kbb, Kmm, Kaa, zFu, zFv, ww, np_transport )
             !                                         ! ww / wi Partition at stage 3 only
-            IF( ln_zad_Aimp .AND. kstg == 3 )   CALL wAimp( kstp, Kmm, zFu, zFv, ww, wi, np_transport )
+            IF( ln_zad_Aimp .AND. kstg == 3 )   CALL wAimp( kstp, Kmm, zFu, zFv, ww, wi, np_transport, ld_diag=.TRUE. )
             DO_3D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1, 1, jpkm1 )
                zFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
             END_3D
@@ -591,7 +591,6 @@ CONTAINS
             IF( ln_zdfmfc  )   CALL tra_mfc( kstp, Kbb,      ts, Krhs )  ! Mass Flux Convection
             IF( ln_zdfosm  ) THEN
                                CALL tra_osm( kstp,      Kmm, ts, Krhs )  ! OSMOSIS non-local tracer fluxes ==> RHS
-               IF( lrst_oce )  CALL osm_rst( kstp,      Kmm, 'WRITE'  )  ! write OSMOSIS outputs + ww (so must do here) to restarts
             ENDIF
             !
             !           !== TRA time integration + ZDF  ==!   
@@ -601,6 +600,8 @@ CONTAINS
             !
          END DO
          IF( ln_tile ) CALL dom_tile_stop
+         IF( ln_zdfosm .AND. lrst_oce ) CALL osm_rst( kstp, Kmm, 'WRITE' )   ! Write OSMOSIS fields and ww to restart file
+         !
          IF( .NOT.lk_linssh ) THEN
             r3f(:,:) = r3fa(:,:)                                         ! save r3fa in r3f before deallocation
             DEALLOCATE( r3fa )                                           ! (r3f = r3f(Kbb) of the next time step)
@@ -619,23 +620,12 @@ CONTAINS
             CALL Agrif_dyn( kstp, kstg )
 # endif
       !                                              !* local domain boundaries
-      IF( ln_shuman ) THEN   ! for shuman, lbc already applied on uu and vv (see above)
-         IF( l_zdfsh2 ) THEN
-            CALL lbc_lnk( 'stp_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
-               &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
-         ELSE
-            CALL lbc_lnk( 'stp_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
-         ENDIF
-      ELSE 
-         IF( l_zdfsh2 ) THEN
-            CALL lbc_lnk( 'stp_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
-               &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp   &
-               &                       , avm_k(:,:,:)        , 'W',  1._wp, ldfull=.TRUE. ) !  lbc_lnk needed for zdf_sh2, moved here to allow tiling in zdf_phy
-         ELSE
-            CALL lbc_lnk( 'stp_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
-               &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp, ldfull=.TRUE. )
-         ENDIF
-      ENDIF            
+      IF( ln_shuman ) THEN
+         CALL lbc_lnk( 'stp_RK3_stg', ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp )
+      ELSE
+         CALL lbc_lnk( 'stp_RK3_stg', uu(:,:,:,       Kaa), 'U', -1._wp, vv(:,:,:       ,Kaa), 'V', -1._wp   &
+            &                       , ts(:,:,:,jp_tem,Kaa), 'T',  1._wp, ts(:,:,:,jp_sal,Kaa), 'T',  1._wp )
+      ENDIF
       !                                              !* BDY open boundaries
       IF( ln_bdy )   THEN
                                   CALL bdy_tra( kstp, Kbb, ts,     Kaa )
