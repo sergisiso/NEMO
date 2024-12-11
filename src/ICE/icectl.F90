@@ -833,9 +833,9 @@ CONTAINS
 
       ! -- 1D budgets -- !
       DO_2D( 0, 0, 0, 0 )
-         ztmp(ji,jj,1) = ztmp(ji,jj,1) * e1e2t(ji,jj) * rDt_ice         ! mass
-         ztmp(ji,jj,2) = ztmp(ji,jj,2) * e1e2t(ji,jj) * rDt_ice * 1.e-3 ! salt
-         ztmp(ji,jj,3) = ztmp(ji,jj,3) * e1e2t(ji,jj)                   ! heat
+         ztmp(ji,jj,1) = ( ztmp(ji,jj,1) + diag_adv_mass(ji,jj) ) * e1e2t(ji,jj) * rDt_ice         ! mass
+         ztmp(ji,jj,2) = ( ztmp(ji,jj,2) + diag_adv_salt(ji,jj) ) * e1e2t(ji,jj) * rDt_ice * 1.e-3 ! salt
+         ztmp(ji,jj,3) = ( ztmp(ji,jj,3) + diag_adv_heat(ji,jj) ) * e1e2t(ji,jj)                   ! heat
          
          ztmp(ji,jj,4) = diag_adv_mass(ji,jj) * e1e2t(ji,jj) * rDt_ice
          ztmp(ji,jj,5) = diag_adv_salt(ji,jj) * e1e2t(ji,jj) * rDt_ice * 1.e-3
