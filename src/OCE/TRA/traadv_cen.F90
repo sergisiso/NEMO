@@ -36,6 +36,13 @@ MODULE traadv_cen
    LOGICAL ::   l_ptr   ! flag to compute poleward transport
    LOGICAL ::   l_hst   ! flag to compute heat/salt transport
 
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_tra_ce2 = 1.35_wp  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_tra_ce2 = 1.60_wp  ! stability constraint for cen2 with RK3 
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_tra_ce4 = 0.85_wp  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_tra_ce4 = 1.00_wp  ! stability constraint for cen4 with RK3 
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_tra_co4 = 0.85_wp  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_tra_co4 = 1.00_wp  ! stability constraint for compact4 with RK3
+
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "domzgr_substitute.h90"

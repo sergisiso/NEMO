@@ -194,7 +194,7 @@ that are available in the tidal-forcing implementation (see
     <field id="Courant"      long_name="Courant number"                                                                 unit="#"   grid_ref="grid_T_3D_inner" />
     <field id="wimp"         long_name="Implicit vertical velocity"                                                     unit="m/s" grid_ref="grid_T_3D_inner" />
     <field id="wexp"         long_name="Explicit vertical velocity"                                                     unit="m/s" grid_ref="grid_T_3D" />
-    <field id="wi_cff"       long_name="Fraction of implicit vertical velocity"                                         unit="#"   grid_ref="grid_T_3D" />
+    <field id="wi_cff"       long_name="Fraction of implicit vertical velocity"                                         unit="#"   grid_ref="grid_T_3D_inner" />
     <field id="Aimp_loc"     long_name="Locations of columns with active adaptive-implicit vertical advection"          unit="%ts"   grid_ref="grid_T_2D_inner" />
     <field id="Aimp_Cmx"     long_name="Column maximum of Courant number with active adaptive-implicit vertical advection"             operation="maximum" unit="#"   grid_ref="grid_T_2D_inner" />
     <field id="Aimp_Cmx_h"   long_name="Column maximum of horizontal Courant number with active adaptive-implicit vertical advection"  operation="maximum" unit="#"   grid_ref="grid_T_2D_inner" />

@@ -35,6 +35,8 @@ MODULE traadv_ubs
    LOGICAL :: l_trd   ! flag to compute trends
    LOGICAL :: l_ptr   ! flag to compute poleward transport
    LOGICAL :: l_hst   ! flag to compute heat transport
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_tra_ubs = 1.35_wp  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_tra_ubs = 1.60_wp  ! stability constraint
 
 
    !! * Substitutions
