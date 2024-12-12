@@ -76,6 +76,10 @@ MODULE traadv
    INTEGER, PARAMETER ::   np_MUS     = 3   ! MUSCL scheme
    INTEGER, PARAMETER ::   np_UBS     = 4   ! 3rd order Upstream Biased Scheme
    INTEGER, PARAMETER ::   np_QCK     = 5   ! QUICK scheme
+   !
+   REAL(wp), PUBLIC            ::   r_stb_thres_tra_v  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC            ::   r_stb_cstra_tra_v  ! stability constraint for tracer advection (vertical)
+   REAL(wp), PUBLIC            ::   r_stb_cstra_tra_h  ! stability constraint for tracer advection (horizontal)
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -217,13 +221,25 @@ CONTAINS
       IF( ll_Fw ) THEN
          !
          CALL wzv( kt, Kbb, Kmm, Kaa, pFu, pFv, ww, np_transport )
-         !                                              ! Partition ww/wwi at stage 3 only
-         IF( ln_zad_Aimp .AND. kstg == 3 ) CALL wAimp( kt, Kmm, pFu, pFv, ww, wi, np_transport )
+         !
+      ELSE 
+         IF( ln_zad_Aimp .AND. kstg == 3 ) THEN 
+            ! Retrieve total vertical velocity for subsequent ww/wi partitioning
+            DO_3D( 1, 1, 1, 1, 2, jpkm1 )
+               ww(ji,jj,jk) = ww(ji,jj,jk) + wi(ji,jj,jk)
+            END_3D
+         ENDIF
+      ENDIF
+      !                                              ! Partition ww/wwi at stage 3 only
+      IF( ln_zad_Aimp .AND. kstg == 3 ) CALL wAimp( kt, Kmm, pFu, pFv, ww, wi, np_transport, &
+                                             & r_stb_thres_tra_v, r_stb_cstra_tra_v, r_stb_cstra_tra_h, ld_diag=.TRUE. )
+      !
+      IF ( ll_Fw .OR. (ln_zad_Aimp.AND.kstg == 3) ) THEN
          DO_3D( 1, 1, 1, 1, 1, jpkm1 )
             pFw(ji,jj,jk) = e1e2t(ji,jj) * ww(ji,jj,jk)
          END_3D
-         !
       ENDIF
+      !
       !
       IF( ln_timing )   CALL timing_stop( 'tra_adv_trp' )
       !
@@ -409,6 +425,28 @@ CONTAINS
       IF( ln_isfcav ) THEN                                                       ! ice-shelf cavities
          IF(  ln_traadv_cen .AND. nn_cen_v == 4    .OR.   &                            ! NO 4th order with ISF
             & ln_traadv_fct .AND. nn_fct_v == 4   )   CALL ctl_stop( 'tra_adv_init: 4th order COMPACT scheme not allowed with ISF' )
+      ENDIF
+      !
+      IF( ln_traadv_cen .OR. ln_traadv_fct) THEN
+         IF ( nn_fct_h==2 ) THEN ; r_stb_cstra_tra_h = pp_stb_cstra_tra_ce2 ; ELSE ; r_stb_cstra_tra_h = pp_stb_cstra_tra_ce4 ; ENDIF
+         IF ( nn_fct_v==2 ) THEN ; r_stb_cstra_tra_v = pp_stb_cstra_tra_ce2 ; ELSE ; r_stb_cstra_tra_v = pp_stb_cstra_tra_co4 ; ENDIF
+         IF ( nn_fct_v==2 ) THEN ; r_stb_thres_tra_v = pp_stb_thres_tra_ce2 ; ELSE ; r_stb_thres_tra_v = pp_stb_thres_tra_co4 ; ENDIF
+         !
+      ELSEIF ( ln_traadv_mus ) THEN
+         r_stb_cstra_tra_h = pp_stb_cstra_tra_mus
+         r_stb_cstra_tra_v = pp_stb_cstra_tra_mus
+         r_stb_thres_tra_v = pp_stb_thres_tra_mus
+         !
+      ELSEIF ( ln_traadv_ubs ) THEN
+         r_stb_cstra_tra_h = pp_stb_cstra_tra_ubs
+         IF ( nn_fct_v==2 ) THEN ; r_stb_cstra_tra_v = pp_stb_cstra_tra_ce2 ; ELSE ; r_stb_cstra_tra_v = pp_stb_cstra_tra_co4 ; ENDIF
+         IF ( nn_fct_v==2 ) THEN ; r_stb_thres_tra_v = pp_stb_thres_tra_ce2 ; ELSE ; r_stb_thres_tra_v = pp_stb_thres_tra_co4 ; ENDIF
+         !
+      ELSEIF ( ln_traadv_qck ) THEN
+         r_stb_cstra_tra_h = pp_stb_cstra_tra_qck
+         r_stb_cstra_tra_v = pp_stb_cstra_tra_qck
+         r_stb_thres_tra_v = pp_stb_thres_tra_qck
+         !
       ENDIF
       !
       !                                !==  Print the choice  ==!

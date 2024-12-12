@@ -28,7 +28,6 @@ MODULE sshwzv
    USE bdy_oce , ONLY : ln_bdy, bdytmask   ! Open BounDarY
    USE bdydyn2d       ! bdy_ssh routine
    USE wet_dry        ! Wetting/Drying flux limiting
-   USE dynadv  , ONLY : r_stb_thres_dyn, r_stb_cstra_dyn  ! Courant number stability settings (advection scheme-dependent)
 #if defined key_agrif
    USE agrif_oce
    USE agrif_oce_interp
@@ -48,7 +47,6 @@ MODULE sshwzv
    PUBLIC   ssh_nxt        ! called by stprk3.F90 (SWE) 
    PUBLIC   wzv            ! called by stp2d.F90, stprk3_stg.F90 and traadv.F90
    PUBLIC   wAimp          ! called by            stprk3_stg.F90 and traadv.F90
-   REAL(wp) ::  Cu_min, Cu_cut   ! Adaptive-implicit vertical advection settings
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -259,7 +257,7 @@ CONTAINS
    END SUBROUTINE wzv_t
 
 
-   SUBROUTINE wAimp( kt, Kmm, puu, pvv, pww, pwi, k_ind, ld_diag )
+   SUBROUTINE wAimp( kt, Kmm, puu, pvv, pww, pwi, k_ind, pCu_min_v, pCu_max_v, pCu_max_h, ld_diag )
       !!
       INTEGER                         , INTENT(in   ) ::   kt             ! time step
       INTEGER                         , INTENT(in   ) ::   Kmm            ! time level index
@@ -267,13 +265,16 @@ CONTAINS
       REAL(wp), DIMENSION(:,:,:)      , INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
       REAL(wp), DIMENSION(jpi,jpj,jpk), INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
       REAL(wp), DIMENSION(:,:,:)      , INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
+      REAL(wp)                        , INTENT(in)    ::   pCu_min_v      ! minimum vertical CFL above which starts the partioning
+      REAL(wp)                        , INTENT(in)    ::   pCu_max_v      ! maximum vertical CFL allowed
+      REAL(wp)                        , INTENT(in)    ::   pCu_max_h      ! maximum horizontal CFL allowed
       LOGICAL, OPTIONAL               , INTENT(in   ) ::   ld_diag        !  =true : write implicit outputs
       !!
-      CALL wAimp_t( kt, Kmm, puu, pvv, lbnd_ij(puu), pww, pwi, lbnd_ij(pwi), k_ind, ld_diag )
+      CALL wAimp_t( kt, Kmm, puu, pvv, lbnd_ij(puu), pww, pwi, lbnd_ij(pwi), k_ind, pCu_min_v, pCu_max_v, pCu_max_h, ld_diag )
    END SUBROUTINE wAimp
 
 
-   SUBROUTINE wAimp_t( kt, Kmm, puu, pvv, ktuv, pww, pwi, ktwi, k_ind, ld_diag )
+   SUBROUTINE wAimp_t( kt, Kmm, puu, pvv, ktuv, pww, pwi, ktwi, k_ind, pCu_min_v, pCu_max_v, pCu_max_h, ld_diag )
       !!----------------------------------------------------------------------
       !!                ***  ROUTINE wAimp  ***
       !!
@@ -298,20 +299,18 @@ CONTAINS
       INTEGER                            , INTENT(in   ) ::   kt             ! time step
       INTEGER                            , INTENT(in   ) ::   Kmm            ! time level index
       INTEGER                            , INTENT(in   ) ::   k_ind          ! indicator (np_transport or np_velocity)
-      REAL(wp), DIMENSION(AB2D(ktuv),JPK), INTENT(in   ) ::   puu, pvv       !  horizontal velocity at Kmm
-      REAL(wp), DIMENSION(jpi,jpj,jpk)   , INTENT(inout) ::   pww            !  vertical velocity at Kmm (explicit part)
-      REAL(wp), DIMENSION(AB2D(ktwi),JPK), INTENT(inout) ::   pwi            !  vertical velocity at Kmm (implicit part)
+      REAL(wp), DIMENSION(AB2D(ktuv),JPK), INTENT(in   ) ::   puu, pvv       ! horizontal velocity at Kmm
+      REAL(wp), DIMENSION(jpi,jpj,jpk)   , INTENT(inout) ::   pww            ! vertical velocity at Kmm (explicit part)
+      REAL(wp), DIMENSION(AB2D(ktwi),JPK), INTENT(inout) ::   pwi            ! vertical velocity at Kmm (implicit part)
+      REAL(wp)                           , INTENT(in)    ::   pCu_min_v      ! minimum vertical CFL above which starts the partioning
+      REAL(wp)                           , INTENT(in)    ::   pCu_max_v      ! maximum vertical CFL allowed
+      REAL(wp)                           , INTENT(in)    ::   pCu_max_h      ! maximum horizontal CFL allowed
       LOGICAL, OPTIONAL                  , INTENT(in   ) ::   ld_diag        !  =true : write implicit outputs
       !
       INTEGER  ::   ji, jj, jk   ! dummy loop indices
       REAL(wp)             ::   zcff, z1_e3t, z1_e3w, zdt, zCu_h, zCu_v   !  local scalars
       REAL(wp)             ::   zCu_min, zCu_max, zCu_cut, zr_Cu_max_h    !  local scalar
       LOGICAL  :: ll_diag
-      REAL(wp) , PARAMETER ::   Cu_min_v = 0.8_wp           ! minimum Courant number for transitioning
-      !REAL(wp) , PARAMETER ::   Cu_max_v = 0.9_wp           ! maximum allowable vertical Courant number
-      !REAL(wp) , PARAMETER ::   Cu_max_h = 0.9_wp           ! maximum allowable horizontal Courant number
-      REAL(wp) , PARAMETER ::   Cu_max_v = 1.1_wp           ! maximum allowable vertical Courant number
-      REAL(wp) , PARAMETER ::   Cu_max_h = 1.1_wp           ! maximum allowable horizontal Courant number
       CHARACTER(LEN=10) :: clmname
       REAL(wp), DIMENSION(:,:        ), ALLOCATABLE :: zdiag2d
       REAL(wp), DIMENSION(:,:,:      ), ALLOCATABLE :: zdiag3d
@@ -325,10 +324,8 @@ CONTAINS
             IF(lwp) WRITE(numout,*)
             IF(lwp) WRITE(numout,*) 'wAimp : Courant number-based partitioning of now vertical velocity '
             IF(lwp) WRITE(numout,*) '~~~~~ '
-            Cu_min = r_stb_thres_dyn
-            Cu_cut = r_stb_cstra_dyn
-            IF(lwp) WRITE(numout,'(3(a,F10.4,1x))') 'Partitioning parameters: Cu_min_v= ', Cu_min_v, &
-            &                                       'Cu_max_v= ', Cu_max_v,  'Cu_max_h= ', Cu_max_h
+            IF(lwp) WRITE(numout,'(3(a,F10.4,1x))') 'Partitioning parameters: Cu_min_v= ', pCu_min_v, &
+            &                                       'Cu_max_v= ', pCu_max_v,  'Cu_max_h= ', pCu_max_h
          ENDIF
       ENDIF
       !
@@ -337,7 +334,7 @@ CONTAINS
       ! Calculate Courant numbers
       !
       zdt = rn_Dt                    ! 3rd stage timestep
-      zr_Cu_max_h = 1._wp/Cu_max_h
+      zr_Cu_max_h = 1._wp/pCu_max_h
       !
       ! Sort of horizontal Courant number:
       ! JC: Is it still worth saving into a 3d array ? I don't believe.
@@ -389,8 +386,8 @@ CONTAINS
          zCu_v = zdt * z1_e3w * ABS (pww(ji,jj,jk))
          z2d(ji,jj) = MAX( zCu_v, zcff )
          !
-         zCu_min = Cu_min_v * (1._wp - zCu_h * zr_Cu_max_h)
-         zCu_max = Cu_max_v * (1._wp - zCu_h * zr_Cu_max_h)
+         zCu_min = pCu_min_v * (1._wp - zCu_h * zr_Cu_max_h)
+         zCu_max = pCu_max_v * (1._wp - zCu_h * zr_Cu_max_h)
          zCu_cut = 2._wp * zCu_max - zCu_min
          !
          IF( zCu_v <= zCu_min ) THEN            !<-- Fully explicit
@@ -421,6 +418,12 @@ CONTAINS
             ALLOCATE( zdiag3d(T2D(0),jpk) )
             zdiag3d(:,:,1:jpk) = pwi(T2D(0),1:jpk)
             CALL iom_put( "wimp", zdiag3d(:,:,:) )
+            DEALLOCATE( zdiag3d )
+         ENDIF
+         IF( iom_use("wi_cff") ) THEN
+            ALLOCATE( zdiag3d(T2D(0),jpk) )
+            zdiag3d(:,:,1:jpk) = Cu_adv(T2D(0),1:jpk)
+            CALL iom_put( "wi_cff", zdiag3d(:,:,:) )
             DEALLOCATE( zdiag3d )
          ENDIF
          CALL iom_put( "Aimp_Cmx_v", z2d(:,:) )      ! o/p column maximum vertical Courant number
