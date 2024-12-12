@@ -51,11 +51,13 @@ MODULE p4zlim
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanofer   !: Limitation of Fe uptake by nanophyto
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatfer   !: Limitation of Fe uptake by diatoms
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xqfuncfecd, xqfuncfecn
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   ratchln, ratchld
 
    ! Coefficient for iron limitation following Flynn and Hipkin (1999)
    REAL(wp) ::  xcoef1   = 0.0016  / 55.85  
    REAL(wp) ::  xcoef2   = 1.21E-5 * 14. / 55.85 / 7.3125 * 0.5 * 1.5
    REAL(wp) ::  xcoef3   = 1.15E-4 * 14. / 55.85 / 7.3125 * 0.5 
+   REAL(wp) ::  rlogfactdn
 
    LOGICAL  :: l_dia_nut_lim, l_dia_iron_lim, l_dia_size_lim, l_dia_fracal
 
@@ -123,6 +125,10 @@ CONTAINS
          zconcdfe   = concdfer * zsized
          zconc1d    = concdno3 * zsized
          zconc1dnh4 = concdnh4 * zsized
+
+         ratchln(ji,jj,jk) = ratchl * EXP( -0.078 * logsizen(ji,jj,jk) )
+         ratchld(ji,jj,jk) = ratchl * EXP( -0.078 * ( rlogfactdn + logsized(ji,jj,jk) ) )
+
 
          ! Computation of the optimal allocation parameters
          ! Based on the different papers by Pahlow et al., and 
@@ -229,7 +235,7 @@ CONTAINS
 #else 
       itt = Kmm
 #endif
-
+      
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          ztem1  = MAX( 0., ts(ji,jj,jk,jp_tem,itt) + 1.8)
          ztem2  = ts(ji,jj,jk,jp_tem,itt) - 10.
@@ -330,6 +336,8 @@ CONTAINS
          WRITE(numout,*) '      Optimal Fe quota for diatoms             qdfelim   = ', qdfelim
       ENDIF
       !
+      rlogfactdn = log(6.0/1.67)
+      !
       xksi2_3 = xksi2 * xksi2 * xksi2
       !
       xfracal (:,:,jpk) = 0._wp
@@ -364,6 +372,7 @@ CONTAINS
          &      xnanofer(A2D(0),jpk), xdiatfer(A2D(0),jpk),       &
          &      xlimdia (A2D(0),jpk), xlimdfe (A2D(0),jpk),       &
          &      xqfuncfecn(A2D(0),jpk), xqfuncfecd(A2D(0),jpk),   &
+         &      ratchln (A2D(0),jpk), ratchld (A2D(0),jpk),       &
          &      xlimsi  (A2D(0),jpk), STAT=p4z_lim_alloc )
       !
       IF( p4z_lim_alloc /= 0 ) CALL ctl_stop( 'STOP', 'p4z_lim_alloc : failed to allocate arrays.' )

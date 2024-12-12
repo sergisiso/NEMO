@@ -108,8 +108,8 @@ CONTAINS
             ENDIF
             nitrpot(ji,jj,jk) =  zmudia * r1_rday * zfact * MIN( ztrfer, ztrpo4 ) * zlight
          ENDIF
-         zsoufer = zlight * 2E-11 / ( 2E-11 + biron(ji,jj,jk) )
-         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + 0.003 * 4E-10 * zsoufer * rfact2 / rday
+         zsoufer = zlight * 1.5E-11**2 / ( 1.5E-11**2 + biron(ji,jj,jk)**2 )
+         tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) + 0.01 * 4E-10 * zsoufer * rfact2 / rday
       END_3D
       !
       ! Nitrogen change due to nitrogen fixation
@@ -140,6 +140,8 @@ CONTAINS
             tr(ji,jj,jk,jpfer,Krhs) = tr(ji,jj,jk,jpfer,Krhs) - 30E-6 * zfact * xtemp13
             tr(ji,jj,jk,jpsfe,Krhs) = tr(ji,jj,jk,jpsfe,Krhs) + 30E-6 * zfact * 2.0 * xtemp23
             tr(ji,jj,jk,jpbfe,Krhs) = tr(ji,jj,jk,jpbfe,Krhs) + 30E-6 * zfact * xtemp23
+            tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + concdnh4 / ( concdnh4 + tr(ji,jj,jk,jppo4,Kbb) ) &
+                 &                    * 3E-4 * tr(ji,jj,jk,jpdoc,Kbb) * xstep
          END_3D
       ENDIF
       !
@@ -147,8 +149,6 @@ CONTAINS
          DO_3D( 0, 0, 0, 0, 1, jpkm1)
             zfact = nitrpot(ji,jj,jk) * nitrfix
             tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) - zfact * 2.0 * xtemp13
-            tr(ji,jj,jk,jppo4,Krhs) = tr(ji,jj,jk,jppo4,Krhs) + concdnh4 / ( concdnh4 + tr(ji,jj,jk,jppo4,Kbb) ) &
-                 &                    * 0.001 * tr(ji,jj,jk,jpdoc,Kbb) * xstep
          END_3D
       ENDIF
       !
