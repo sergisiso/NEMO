@@ -40,6 +40,8 @@
 	  <field field_ref="precip"       name="precip"   />
 	  <!-- ice and snow -->
 	  <field field_ref="snowpre" />
+	  <field field_ref="berg_melt" />
+	  <!-- <field field_ref="berg_melt_basins" /> -->
 	</file>
 
 	<file id="file12" name_suffix="_grid_U" mode="write" gatherer="ugatherer" writer="uwriter" using_server2="true" description="ocean U grid variables" >
