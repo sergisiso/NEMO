@@ -93,7 +93,7 @@ CONTAINS
       REAL(wp) :: zsigma , zsigma2, zr_poc, zr_pic, zr_phy, zr_dia 
       REAL(wp) :: zsizepn, zsizedn, zsizedp, zdiffdn, zdiffpn, zdiffdp
       REAL(wp) :: zpexpod, zmaxsi
-      REAL(wp), DIMENSION(A2D(0),jpk) :: zproport, zproport2, zprodlig
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zproportn, zproportd, zprodlig
       REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE :: zgrazing, zfezoo, zzligprod
       CHARACTER (len=25) :: charout
       !!---------------------------------------------------------------------
@@ -120,18 +120,19 @@ CONTAINS
       IF ( bmetexc ) zmetexcess = 1.0
 
       ! Variables used to compute the preferences
+      ! Proportion of nano and diatoms that are within the size range
+      ! accessible to microzooplankton. 
+      ! -------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
-         ! Proportion of nano and diatoms that are within the size range
-         ! accessible to microzooplankton. 
-         zpexpod   = (0.53 * ( sized(ji,jj,jk) - 3.0 )**2 - 3.25 ) / ( sized(ji,jj,jk) -1.0 + rtrn )
-         zpexpod   = MAX( -25.0, zpexpod ) + 1.0
-         zmaxsi    = 10.0**zpexpod
-         zproport(ji,jj,jk)  = EXP( -0.48 * logsized(ji,jj,jk)) * (1.0 - ( zmaxsi - 2.0**zpexpod ) / ( zmaxsi - 1.0 ) )
-         zpexpod   = (0.75 * ( sizen(ji,jj,jk) - 2.05 )**2 - 2.175 ) / ( sizen(ji,jj,jk) - 0.66 )
-         zpexpod   = MAX( -6.0, zpexpod ) + 1.0
-         zmaxsi    = 10.0**zpexpod
-         zproport2(ji,jj,jk) = EXP( -0.48 * logsizen(ji,jj,jk)) * (1.0 - ( zmaxsi - 5.0**zpexpod ) / ( zmaxsi - 1.0 ) )
+         IF ( tmask(ji,jj,jk) == 1 ) THEN
+            zproportd(ji,jj,jk) = EXP( 0.067 - 0.033 * sized(ji,jj,jk) * 6.0) / ( EXP( 0.067 -0.033 * 6.0 ) )
+            zproportn(ji,jj,jk) = EXP( 0.131 - 0.047 * sizen(ji,jj,jk) * 4.0) / ( EXP( 0.131 -0.047 * 4.0 ) )
+         ELSE
+            zproportn(ji,jj,jk) = 1.0
+            zproportd(ji,jj,jk) = 1.0
+         ENDIF
       END_3D
+         
 
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompaz   = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - 1.e-9 ), 0.e0 )
@@ -163,8 +164,8 @@ CONTAINS
          !   Nanophyto and diatoms have a specific treatment with 
          !   teir preference decreasing with size.
          !   --------------------------------------------------------
-         zcompadi  = zproport (ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthreshdia ), 0.e0 )
-         zcompaph  = zproport2(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthreshphy ), 0.e0 )
+         zcompadi  = zproportd(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthreshdia ), 0.e0 )
+         zcompaph  = zproportn(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthreshphy ), 0.e0 )
          zcompaz   = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - xthreshzoo ), 0.e0 )
          zcompapi  = MAX( ( tr(ji,jj,jk,jppic,Kbb) - xthreshpic ), 0.e0 )
          zcompapoc = MAX( ( tr(ji,jj,jk,jppoc,Kbb) - xthreshpoc ), 0.e0 )
@@ -201,7 +202,7 @@ CONTAINS
          zdenom2   = zdenom * zdenom
          zsigma    = 1.0 - zdenom2/( 0.05 * 0.05 + zdenom2 )
          zsigma    = xsigma + xsigmadel * zsigma
-         zsigma2   = zsigma * zsigma
+         zsigma2   = 2.0 * zsigma * zsigma
          !
          zsizepn   = rlogfactpn + ( logsizep(ji,jj,jk) - logsizen(ji,jj,jk) )
          zsizedn   = rlogfactdn + ( logsizen(ji,jj,jk) - logsized(ji,jj,jk) )
@@ -472,9 +473,9 @@ CONTAINS
          WRITE(numout,*) '      Maximum additional width of the grazing window  xsigmadel   =', xsigmadel
       ENDIF
       !
-      rlogfactpn = LOG(0.7 / 3.0)
-      rlogfactdn = LOG(3.0 / 5.0)
-      rlogfactdp = LOG(0.7 / 5.0)
+      rlogfactpn = LOG(0.8 / 4.0)
+      rlogfactdn = LOG(4.0 / 6.0)
+      rlogfactdp = LOG(0.8 / 6.0)
       !
    END SUBROUTINE p5z_micro_init
 

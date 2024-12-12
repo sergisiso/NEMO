@@ -119,6 +119,7 @@ CONTAINS
          zremik   = xstep / 1.e-6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk)
          zremik   = MAX( zremik, 2.74e-4 * xstep / xremikc )
          zremikc  = xremikc * zremik
+
          ! Ammonification in oxic waters with oxygen consumption
          ! -----------------------------------------------------
          zolimic  = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb)
@@ -186,7 +187,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt, knt         ! ocean time step
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level indices
       !
-      INTEGER  ::   ji, jj, jk, itt
+      INTEGER  ::   ji, jj, jk
       REAL(wp) ::   zremik, zremikc, zremikn, zremikp, zsiremin
       REAL(wp) ::   zsatur, zsatur2, znusil, znusil2, zdep, zdepmin, zfactdep
       REAL(wp) ::   zbactfer, zonitr
@@ -230,8 +231,8 @@ CONTAINS
             zdepeff(ji,jj,jk) = 0.3
          ELSE
             zdepmin           = zdep / gdept(ji,jj,jk,Kmm)
-            zdepbac(ji,jj,jk) = zdepmin**0.683 * ztempbac(ji,jj)
-            zdepeff(ji,jj,jk) = 0.3 * zdepmin**0.6
+            zdepbac(ji,jj,jk) = zdepmin**0.73 * ztempbac(ji,jj)
+            zdepeff(ji,jj,jk) = 0.3 * zdepmin**0.8
          ENDIF
       END_3D
 
@@ -242,6 +243,7 @@ CONTAINS
          zremik   = xstep * 1.e6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk) 
          zremik   = MAX( zremik, 2.74e-4 * xstep / xremikc )
          zremikc  = xremikc * zremik
+
          ! Ammonification in oxic waters with oxygen consumption
          ! -----------------------------------------------------
          zolimic  = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb) 
@@ -306,7 +308,7 @@ CONTAINS
          ! Bacteries are obliged to take up iron from the water. Some
          ! studies (especially at Papa) have shown this uptake to be significant
          ! ----------------------------------------------------------
-         zbactfer = feratb * 0.6_wp * xstep * tgfunc(ji,jj,jk) * xlimbacl(ji,jj,jk) * biron(ji,jj,jk)    &
+         zbactfer = feratb * 0.4_wp * xstep * tgfunc(ji,jj,jk) * xlimbacl(ji,jj,jk) * biron(ji,jj,jk)    &
            &        / ( xkferb + biron(ji,jj,jk) ) * zdepeff(ji,jj,jk) * zdepbac(ji,jj,jk)
          
          ! Only the transfer of iron from its dissolved form to particles
@@ -318,32 +320,23 @@ CONTAINS
          blim(ji,jj,jk)          = xlimbacl(ji,jj,jk)  * zdepbac(ji,jj,jk) / 1.e-6
       END_3D
 
-       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
+      IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
          WRITE(charout, FMT="('rem2')")
          CALL prt_ctl_info( charout, cdcomp = 'top' )
          CALL prt_ctl(tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm)
-       ENDIF
+      ENDIF
 
       ! Initialization of the array which contains the labile fraction
       ! of bSi. Set to a constant in the upper ocean
       ! ---------------------------------------------------------------
-      !
-#if defined key_RK3
-      ! Don't consider mid-step values if online coupling
-      ! because these are possibly non-monotonic (even with FCT): 
-      IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF 
-#else 
-      itt = Kmm
-#endif
-
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          ! Remineralization rate of BSi dependent on T and saturation
          ! The parameterization is taken from Ridgwell et al. (2002) 
          ! ---------------------------------------------------------
          zdep     = MAX( hmld(ji,jj), heup_01(ji,jj), gdept(ji,jj,1,Kmm) )
          zsatur   = MAX( rtrn, ( sio3eq(ji,jj,jk) - tr(ji,jj,jk,jpsil,Kbb) ) / ( sio3eq(ji,jj,jk) + rtrn ) )
-         zsatur2  = ( 1. + ts(ji,jj,jk,jp_tem,itt) / 400.)**37
-         znusil   = 0.225 * ( 1. + ts(ji,jj,jk,jp_tem,itt) / 15.) * zsatur + 0.775 * zsatur2 * zsatur**9 * SQRT(SQRT(zsatur))
+         zsatur2  = ( 1. + ts(ji,jj,jk,jp_tem,Kmm) / 400.)**37
+         znusil   = 0.225 * ( 1. + ts(ji,jj,jk,jp_tem,Kmm) / 15.) * zsatur + 0.775 * zsatur2 * zsatur**9 * SQRT(SQRT(zsatur))
  
          ! Two fractions of bSi are considered : a labile one and a more
          ! refractory one based on the commonly observed two step 

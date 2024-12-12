@@ -76,7 +76,7 @@ CONTAINS
       REAL(wp) ::   zproddoc, zprodsil, zprodfer, zprodlig, zprod1
       REAL(wp) ::   zpislopen, zpisloped, zfact
       REAL(wp) ::   zratiosi, zratiosi_4, zmaxsi, zlimfac, zlimfac3, zsizetmp, zfecnm, zfecdm
-      REAL(wp) ::   zprod, zval, zmxl_fac, zmxl_chl, zpronewn, zpronewd
+      REAL(wp) ::   zprod, zval, zmxl_fac_nano, zmxl_fac_diat, zmxl_chl, zpronewn, zpronewd
       REAL(wp) ::   zpislopeadn, zpislopeadd
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zprmax, zmxl, zysopt
@@ -141,10 +141,11 @@ CONTAINS
       ! -----------------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
-            zmxl_fac = 1.0 - EXP( -0.26 * zmxl(ji,jj,jk) )
+            zmxl_fac_nano = 1.0 - EXP( -0.25 * MAX(0., zmxl(ji,jj,jk) - 2. ) )
+            zmxl_fac_diat = 1.0 - EXP( -0.25 * MAX(0., zmxl(ji,jj,jk) - 1. ) )
             zmxl_chl = zmxl(ji,jj,jk) / 24.
-            zprbio(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
-            zprdia(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac
+            zprbio(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac_nano
+            zprdia(ji,jj,jk) = zprmax(ji,jj,jk) * zmxl_fac_diat
             !
             ! The initial slope of the PI curve could be increased for nano
             ! to account for photadaptation, for instance in the DCM
@@ -161,9 +162,9 @@ CONTAINS
             ! Actual light levels are used here 
             ! ----------------------------------------------
             zpislopen = zpislopeadn / ( zprmax(ji,jj,jk) * xlimphy(ji,jj,jk) &
-              &           * zmxl_fac * rday + rtrn)
+              &           * zmxl_fac_nano * rday + rtrn)
             zpisloped = zpislopeadd / ( zprmax(ji,jj,jk) * xlimdia(ji,jj,jk) &
-              &           * zmxl_fac * rday + rtrn)
+              &           * zmxl_fac_diat * rday + rtrn)
             zprbio(ji,jj,jk) = zprbio(ji,jj,jk) * ( 1.- EXP( -zpislopen * enano(ji,jj,jk) )  )
             zprdia(ji,jj,jk) = zprdia(ji,jj,jk) * ( 1.- EXP( -zpisloped * ediat(ji,jj,jk) )  )
 
@@ -172,8 +173,8 @@ CONTAINS
             !  is used here (acclimation is in general slower than 
             !  the characteristic time scales of vertical mixing)
             !  ------------------------------------------------------
-            zpislopen = zpislopen * zmxl_fac / ( zmxl_chl + rtrn )
-            zpisloped = zpisloped * zmxl_fac / ( zmxl_chl + rtrn )
+            zpislopen = zpislopen * zmxl_fac_nano / ( zmxl_chl + rtrn )
+            zpisloped = zpisloped * zmxl_fac_diat / ( zmxl_chl + rtrn )
             zprchln(ji,jj,jk) = ( 1.- EXP( -zpislopen * enanom(ji,jj,jk) ) )
             zprchld(ji,jj,jk) = ( 1.- EXP( -zpisloped * ediatm(ji,jj,jk) ) )
          ENDIF
@@ -209,7 +210,7 @@ CONTAINS
             IF (gphit(ji,jj) < -30 ) THEN
               zsilfac  = 1. + 2. * zsiborn / ( zsiborn + xksi2_3 )
             ELSE
-              zsilfac  = 1. +      zsiborn / ( zsiborn + xksi2_3 )
+              zsilfac  = 1. 
             ENDIF
             zratiosi   = 1.0 - tr(ji,jj,jk,jpdsi,Kbb) / ( tr(ji,jj,jk,jpdia,Kbb) * zsilfac * grosip * 3.0 + rtrn )
             zratiosi   = MAX(0., zratiosi)
@@ -231,26 +232,33 @@ CONTAINS
          zprdia(ji,jj,jk) = zprdia(ji,jj,jk) * ( 1. - fr_i(ji,jj) )
       END_3D
 
+      !
+      ! Size computation
+      ! Size is made a function of the limitation of of phytoplankton growth
+      ! Strongly limited cells are supposed to be smaller. sizena is the 
+      ! size at time step t+1 and is thus updated at the end of the 
+      ! current time step
+      ! --------------------------------------------------------------------
+
+      DO_3D( 0, 0, 0, 0, 1, nksr)
+         zlimfac  = MIN(1.0, xlimphy(ji,jj,jk), zprbio(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn ) )
+         zsizetmp = MIN( xsizern, 1.0 + xsizern * (1.0 - COS(3.141/2. * MAX(0., zlimfac - 0.2) / 0.8)) )
+         sizena(ji,jj,jk) = sizen(ji,jj,jk) + MAX(zprbio(ji,jj,jk), 1E-2 / rday ) * xlimphy(ji,jj,jk) * ( 1.0 - xlimphy(ji,jj,jk) )   &
+           &          * rfact2 * ( zsizetmp - sizen(ji,jj,jk) )
+         sizena(ji,jj,jk) = MIN( xsizern, sizena(ji,jj,jk) )
+         zlimfac  = MIN( 1.0, xlimdia(ji,jj,jk), zprdia(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn ) )
+         zsizetmp = MIN( xsizerd, 1.0 + xsizerd * (1.0 - COS(3.141/2. * MAX(0., zlimfac - 0.2) / 0.8)) )
+         sizeda(ji,jj,jk) = sized(ji,jj,jk) + MAX(zprdia(ji,jj,jk), 1E-2 / rday ) * xlimdia(ji,jj,jk) * ( 1.0 - xlimdia(ji,jj,jk) )   &
+           &          * rfact2 * ( zsizetmp - sized(ji,jj,jk) )
+         sizeda(ji,jj,jk) = MIN( xsizerd, sizeda(ji,jj,jk) )
+      END_3D
+
       ! Computation of the various production  and nutrient uptake terms
       ! ---------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, nksr)
          IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
             !  production terms for nanophyto. (C)
             zprorcan(ji,jj,jk) = zprbio(ji,jj,jk) * xlimphy(ji,jj,jk) * tr(ji,jj,jk,jpphy,Kbb) * rfact2
-            !
-            ! Size computation
-            ! Size is made a function of the limitation of of phytoplankton growth
-            ! Strongly limited cells are supposed to be smaller. sizena is the 
-            ! size at time step t+1 and is thus updated at the end of the 
-            ! current time step
-            ! --------------------------------------------------------------------
-            zlimfac  = xlimphy(ji,jj,jk) * zprbio(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
-            zlimfac   = SIN( 3.1416 * zlimfac / 2.0 )
-            zlimfac3 = zlimfac * zlimfac * zlimfac
-            zsizetmp = 1.0 + ( xsizern - 1.0 ) * zlimfac3
-            sizena(ji,jj,jk) = sizen(ji,jj,jk) + zprbio(ji,jj,jk) * xlimphy(ji,jj,jk) * ( 1.0 - xlimphy(ji,jj,jk) )   &
-              &          * rfact2 * ( zsizetmp - sizen(ji,jj,jk) ) * ABS( zsizetmp / sizen(ji,jj,jk) - 1.0 )
-            sizena(ji,jj,jk) = MIN( xsizern, sizena(ji,jj,jk) )
 
             ! Iron uptake rates of nanophytoplankton. Upregulation is  
             ! not parameterized at low iron concentrations as observations
@@ -266,20 +274,6 @@ CONTAINS
               &          * xnanofer(ji,jj,jk) * zmax * tr(ji,jj,jk,jpphy,Kbb) * rfact2
             ! production terms of diatoms (C)
             zprorcad(ji,jj,jk) = zprdia(ji,jj,jk) * xlimdia(ji,jj,jk) * tr(ji,jj,jk,jpdia,Kbb) * rfact2
-            !
-            ! Size computation
-            ! Size is made a function of the limitation of of phytoplankton growth
-            ! Strongly limited cells are supposed to be smaller. sizeda is
-            ! size at time step t+1 and is thus updated at the end of the 
-            ! current time step. 
-            ! --------------------------------------------------------------------
-            zlimfac  = xlimdia(ji,jj,jk) * zprdia(ji,jj,jk) / ( zprmax(ji,jj,jk) + rtrn )
-            zlimfac   = SIN( 3.1416 * zlimfac / 2.0 )
-            zlimfac3 = zlimfac * zlimfac * zlimfac
-            zsizetmp = 1.0 + ( xsizerd - 1.0 ) * zlimfac3
-            sizeda(ji,jj,jk) = sized(ji,jj,jk) + zprdia(ji,jj,jk) * xlimdia(ji,jj,jk) * ( 1.0 - xlimdia(ji,jj,jk) )   &
-              &          * rfact2 * ( zsizetmp - sized(ji,jj,jk) ) * ABS( zsizetmp / sized(ji,jj,jk) - 1.0 )
-            sizeda(ji,jj,jk) = MIN( xsizerd, sizeda(ji,jj,jk) )
 
             ! Iron uptake rates of diatoms. Upregulation is  
             ! not parameterized at low iron concentrations as observations
@@ -305,19 +299,19 @@ CONTAINS
             !  production terms for nanophyto. ( chlorophyll )
             znanotot = enanom(ji,jj,jk) / ( zmxl_chl + rtrn )
             zprod1   = zprorcan(ji,jj,jk) * texcretn / ( tr(ji,jj,jk,jpphy,Kbb) + rtrn )
-            zprod    = zprod1 / ratchl * ( pislopen * znanotot / ( zprmax(ji,jj,jk) * rday )              &
-              &        * ( 1.0 - zprchln(ji,jj,jk) ) * MAX(0.0, (1.0 - ratchl * tr(ji,jj,jk,jpnch,Kbb)    &
+            zprod    = zprod1 / ratchln(ji,jj,jk) * ( pislopen * znanotot / ( zprmax(ji,jj,jk) * rday )              &
+              &        * ( 1.0 - zprchln(ji,jj,jk) ) * MAX(0.0, (1.0 - ratchln(ji,jj,jk) * tr(ji,jj,jk,jpnch,Kbb)    &
               &        / ( 12. * tr(ji,jj,jk,jpphy,Kbb) * xlimphy(ji,jj,jk) + rtrn ) ) )                  &
-              &        - ratchl * zprchln(ji,jj,jk) ) + zprod1
+              &        - ratchln(ji,jj,jk) * zprchln(ji,jj,jk) ) + zprod1
             zprochln = MAX(zprod * tr(ji,jj,jk,jpnch,Kbb) , chlcmin * 12 * zprorcan(ji,jj,jk) )
 
             !  production terms for diatoms ( chlorophyll )
             zdiattot = ediatm(ji,jj,jk) / ( zmxl_chl + rtrn )
             zprod1   = zprorcad(ji,jj,jk) * texcretd / ( tr(ji,jj,jk,jpdia,Kbb) + rtrn )
-            zprod    = zprod1 / ratchl * ( pisloped * zdiattot / ( zprmax(ji,jj,jk) * rday )              &
-              &        * ( 1.0 - zprchld(ji,jj,jk) ) * MAX(0.0, (1.0 - ratchl * tr(ji,jj,jk,jpdch,Kbb)    &
+            zprod    = zprod1 / ratchld(ji,jj,jk) * ( pisloped * zdiattot / ( zprmax(ji,jj,jk) * rday )              &
+              &        * ( 1.0 - zprchld(ji,jj,jk) ) * MAX(0.0, (1.0 - ratchld(ji,jj,jk) * tr(ji,jj,jk,jpdch,Kbb)    &
               &        / ( 12. * tr(ji,jj,jk,jpdia,Kbb) * xlimdia(ji,jj,jk) + rtrn ) ) )                  &
-              &        - ratchl * zprchld(ji,jj,jk) ) + zprod1
+              &        - ratchld(ji,jj,jk) * zprchld(ji,jj,jk) ) + zprod1
             zprochld = MAX(zprod * tr(ji,jj,jk,jpdch,Kbb) , chlcmin * 12 * zprorcad(ji,jj,jk) )
 
             !   Update the arrays TRA which contain the Chla sources and sinks
