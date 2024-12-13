@@ -292,6 +292,139 @@ if [ ${config} == "GYRE_PISCES" ] ; then
 
 fi # GYRE_PISCES
 
+# ----------------------------------------------------------------------------
+# GYRE_GO (based on GYRE_PISCES, without TOP and PISCES, with activated
+# GEOMETRIC and OSMOSIS schemes, with QCO, and with higher spatial resolution)
+# ----------------------------------------------------------------------------
+if [ ${config} == "GYRE_GO" ] ; then
+    SETTE_CONFIG="GYRE_GO"${CONFIG_SUFFIX}
+    if [[ -n "${NEMO_DEBUG}" || ${CMP_NAM_L} =~ ("debug"|"dbg") ]]
+    then
+        ITEND=12    # 1 day
+    else
+        ITEND=1080  # 90 days
+    fi
+
+    if [ ${DO_COMPILE} -eq 1 ] ;  then
+        cd ${MAIN_DIR}
+        #
+        # syncronisation if target directory/file exist (not done by makenemo)
+        clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        sync_config  ${CONFIG_DIR0}/GYRE_PISCES ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
+        #
+        # The GYRE_GO SETTE configuration is based on the GYRE_PISCES reference
+        # configuration; in contrast to GYRE_PISCES, the QCO option is selected
+        # and the TOP component is disabled
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r GYRE_PISCES ${CUSTOM_DIR:+-t ${CMP_DIR}} -d "OCE" -k 0 ${NEMO_DEBUG} \
+                   -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_linssh/} key_qco" del_key "${DEL_KEYS} key_linssh key_top" || exit 1
+    fi
+
+    # Configure and submit runs for the GYRE_GO SETTE configuration (if any)
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
+
+        # Default test-run configuration for the GYRE_GO SETTE
+        # configuration
+        EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
+        cd ${EXE_DIR}
+        set_namelist namelist_cfg cn_exp \"GYREPIS\"
+        set_namelist namelist_cfg nn_it000 1
+        set_namelist namelist_cfg nn_itend ${ITEND}
+        set_namelist namelist_cfg jpni 2
+        set_namelist namelist_cfg jpnj 4
+        # Increase horizontal and vertical resolution
+        set_namelist namelist_cfg nn_GYRE 2
+        set_namelist namelist_cfg jpkglo 75
+        set_namelist namelist_cfg rn_Dt 6300.
+        # Accomodate QCO option
+        set_namelist namelist_cfg ln_hpg_zco .false.
+        set_namelist namelist_cfg ln_hpg_sco .true.
+        if [ ${USING_RK3} == 'no' ] ; then
+            set_namelist namelist_cfg nn_bt_flt 1
+            set_namelist namelist_cfg rn_bt_alpha 0.
+            set_namelist namelist_cfg rn_Dt 3150.
+        fi
+        set_namelist namelist_cfg sn_cfctl%l_runstat .true.
+        set_namelist_opt namelist_cfg ln_timing ${USING_TIMING} .true. .false.
+        set_namelist_opt namelist_cfg nn_hls ${USING_EXTRA_HALO} 3 2
+        set_namelist_opt namelist_cfg nn_comm ${USING_COLLECTIVES} 2 1
+        set_namelist_opt namelist_cfg ln_tile ${USING_TILING} .true. .false.
+        # Activate the GEOMETRIC scheme
+        set_namelist namelist_cfg ln_ldfeiv .true.
+        set_namelist namelist_cfg nn_aei_ijk_t 32
+        set_namelist namelist_cfg nn_eke_opt 2
+        set_namelist namelist_cfg ln_adv_wav .true.
+        # Activate the OSMOSIS scheme
+        set_namelist namelist_cfg ln_zdftke .false.
+        set_namelist namelist_cfg ln_zdfevd .false.
+        set_namelist namelist_cfg ln_zdfddm .false.
+        set_namelist namelist_cfg ln_zdfosm .true.
+        set_xio_using_server iodef.xml ${USING_MPMD}
+        NPROC=8
+
+        ## Restartability tests for GYRE_GO
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            export TEST_NAME="LONG"
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+        fi
+        if [ ${DO_RESTART_1} == "1" ] ;  then
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"GYREGO_LONG\"
+            set_namelist_rst namelist ${ITEND}
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            export TEST_NAME="SHORT"
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            cd ${EXE_DIR}
+            set_namelist namelist_cfg cn_exp \"GYREGO_SHORT\"
+            set_namelist_rst namelist ${ITEND} "GYREGO_LONG" "OCE"
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+        fi
+        if [ ${DO_RESTART_1} == "1" -o ${DO_RESTART_2} == "1" ] ;  then
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        fi
+
+        ## Reproducibility tests for GYRE_GO
+        names=""
+        [[ ${DO_REPRO_1} == "1" ]] && names="${names} REPRO_2_4"
+        [[ ${DO_REPRO_2} == "1" ]] && names="${names} REPRO_4_2"
+        for name in ${names}; do
+            export TEST_NAME=${name}
+            cd ${SETTE_DIR}
+            . ./prepare_exe_dir.sh
+            set_valid_dir
+            clean_valid_dir
+            JOB_FILE=${EXE_DIR}/run_job.sh
+            if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+            cd ${EXE_DIR}
+            if [[ ${name} == "REPRO_2_4" ]]; then
+                set_namelist namelist_cfg cn_exp \"GYREGO_48\"
+            else
+                set_namelist namelist_cfg cn_exp \"GYREGO_84\"
+                set_namelist namelist_cfg jpni 4
+                set_namelist namelist_cfg jpnj 2
+            fi
+            cd ${SETTE_DIR}
+            . ./prepare_job.sh input_GYRE.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+            cd ${SETTE_DIR}
+            . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+        done
+
+    fi
+
+fi # GYRE_GO
+
 # ----------------
 # ORCA2_ICE_PISCES
 # ----------------

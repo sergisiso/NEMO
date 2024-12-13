@@ -3,20 +3,20 @@
   parallel:
     matrix:
       - HPC: [irene,jean-zay]
-        CONFIG: [ORCA2_ICE_PISCES,ORCA2_OFF_PISCES,AMM12,AGRIF,WED025,GYRE_PISCES,SAS,ORCA2_ICE_OBS]
+        CONFIG: [ORCA2_ICE_PISCES,ORCA2_OFF_PISCES,AMM12,AGRIF_DEMO,WED025,GYRE_PISCES,GYRE_GO,ORCA2_SAS_ICE,ORCA2_ICE_OBS,C1D_PAPA]
 
 # HPC & testcases lists to be tested with SETTE
 .parallel_HPC_TST:
   parallel:
     matrix:
       - HPC: [irene,jean-zay]
-        CONFIG: [SWG,ICE_AGRIF,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+]
+        CONFIG: [SWG,ICE_AGRIF,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+,IWAVE]
 
 
 # variables declared hereafter will be avaible in all jobs
 # these 2 variables are needed for each HPC to be tested:
 # - SETTE_CFG: SETTE param.cfg file path
-# - SETTE_MOD: SETTE modules list
+# - SETTE_MOD: SETTE modules list -> not needed anymore with new ".env" files
 
 variables:
   # JEAN-ZAY
