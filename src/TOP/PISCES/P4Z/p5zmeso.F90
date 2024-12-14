@@ -15,6 +15,8 @@ MODULE p5zmeso
    USE oce_trc         !  shared variables between ocean and passive tracers
    USE trc             !  passive tracers common variables 
    USE sms_pisces      !  PISCES Source Minus Sink variables
+   USE p2zlim
+   USE p4zlim
    USE prtctl          !  print control for debugging
    USE iom             !  I/O manager
 
@@ -111,6 +113,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0),jpk) :: zgrarem, zgraref, zgrapoc, zgrapof
       REAL(wp), DIMENSION(A2D(0),jpk) :: zgrarep, zgraren, zgrapon, zgrapop
       REAL(wp), DIMENSION(A2D(0),jpk) :: zgradoc, zgradon, zgradop, zgrabsi
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zproportd, zproportn
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigrem, zgramigref, zgramigpoc, zgramigpof
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigrep, zgramigren, zgramigpop, zgramigpon
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigdoc, zgramigdop, zgramigdon, zgramigbsi
@@ -153,6 +156,17 @@ CONTAINS
       zmetexcess = 0.0
       IF ( bmetexc2 ) zmetexcess = 1.0
 
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         IF ( tmask(ji,jj,jk) == 1 ) THEN
+            ztmp1 = 0.09544 - 0.0628 * EXP(-0.078 * 6.0 * xsizerd)
+            zproportd(ji,jj,jk) = (0.09544 - 0.0628 * EXP(-0.078 * sized(ji,jj,jk) * 6.0) ) / ztmp1
+            ztmp1 = 0.004045 + 0.007842 * xsizern * 4.0
+            zproportn(ji,jj,jk) = (0.004045 + 0.007842 * sizen(ji,jj,jk) * 4.0) / ztmp1
+         ELSE
+            zproportd(ji,jj,jk) = 1.0
+            zproportn(ji,jj,jk) = 1.0
+         ENDIF
+      END_3D
 
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompam   = MAX( ( tr(ji,jj,jk,jpmes,Kbb) - 1.e-9 ), 0.e0 )
@@ -181,9 +195,9 @@ CONTAINS
          !   Computation of the abundance of the preys
          !   A threshold can be specified in the namelist
          !   --------------------------------------------
-         zcompadi  = MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthresh2dia ), 0.e0 )
+         zcompadi  = zproportd(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthresh2dia ), 0.e0 )
          zcompaz   = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - xthresh2zoo ), 0.e0 )
-         zcompaph  = MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthresh2phy ), 0.e0 )
+         zcompaph  = zproportn(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthresh2phy ), 0.e0 )
          zcompapoc = MAX( ( tr(ji,jj,jk,jppoc,Kbb) - xthresh2poc ), 0.e0 )
          zcompames = MAX( ( tr(ji,jj,jk,jpmes,Kbb) - xthresh2mes ), 0.e0 )
          zr_goc    = 1.0 / (tr(ji,jj,jk,jpgoc,Kbb) + rtrn)
@@ -220,7 +234,7 @@ CONTAINS
          zdenom2   = zdenom * zdenom
          zsigma    = 1.0 - zdenom2 / ( 0.05 * 0.05 + zdenom2 )
          zsigma    = xsigma2 + xsigma2del * zsigma
-         zsigma2   = zsigma * zsigma
+         zsigma2   = 2.0 * zsigma * zsigma
 
          ! Nanophytoplankton and diatoms are the only preys considered
          ! to be close enough to have potential interference
@@ -638,7 +652,7 @@ CONTAINS
       ENDIF
       !
       xfracmigm1 = 1.0 - xfracmig
-      rlogfactdn = LOG(3.0 / 5.0)
+      rlogfactdn = LOG(4.0 / 6.0)
       !
    END SUBROUTINE p5z_meso_init
 
@@ -679,9 +693,9 @@ CONTAINS
       DO_3D( 0, 0, 0, 0, 1, jpk )
          IF( tmask(ji,jj,jk) == 1.) THEN
             IF( gdept(ji,jj,jk,Kmm) >= 150. .AND. gdept(ji,jj,jk,kmm) <= 500.) THEN
-               oxymoy(ji,jj)  = oxymoy(ji,jj)  + tr(ji,jj,jk,jpoxy,Kbb) * 1E6 * e3t(ji,jj,jk,itt)
-               tempmoy(ji,jj) = tempmoy(ji,jj) + ts(ji,jj,jk,jp_tem,itt)      * e3t(ji,jj,jk,itt)
-               zdepmoy(ji,jj) = zdepmoy(ji,jj) + e3t(ji,jj,jk,itt)
+               oxymoy(ji,jj)  = oxymoy(ji,jj)  + tr(ji,jj,jk,jpoxy,Kbb) * 1E6 * e3t(ji,jj,jk,Kmm)
+               tempmoy(ji,jj) = tempmoy(ji,jj) + ts(ji,jj,jk,jp_tem,itt)      * e3t(ji,jj,jk,kmm)
+               zdepmoy(ji,jj) = zdepmoy(ji,jj) + e3t(ji,jj,jk,Kmm)
             ENDIF
          ENDIF
       END_3D

@@ -35,7 +35,7 @@ CONTAINS
       INTEGER, INTENT( in ) ::   kt       ! ocean time-step index
       INTEGER, INTENT( in ) ::   Kbb, Kmm ! time level indices
       !
-      INTEGER  :: ji, jj, jk, itt           ! dummy loop indices
+      INTEGER  :: ji, jj, jk, itt              ! dummy loop indices
       REAL(wp) :: zrum, zcodel, zargu, zvar
       !!---------------------------------------------------------------------
       !
@@ -44,6 +44,7 @@ CONTAINS
       ! Don't consider mid-step values if online coupling
       ! because these are possibly non-monotonic (even with FCT):
       IF ( l_offline ) THEN ; itt = Kmm ; ELSE ; itt = Kbb ; ENDIF
+
       !
       ! Computation of phyto and zoo metabolic rate
       ! -------------------------------------------
@@ -61,7 +62,7 @@ CONTAINS
          ! --------------------------------------------------------------------------------
          DO_2D( 0, 0, 0, 0 )
             zvar = tr(ji,jj,1,jpsil,Kbb) * tr(ji,jj,1,jpsil,Kbb)
-            xksimax(ji,jj) = MAX( xksimax(ji,jj), ( 1.+ 7.* zvar / ( xksilim * xksilim + zvar ) ) * 1e-6 )
+            xksimax(ji,jj) = MAX( xksimax(ji,jj), ( 1.+ 2.0 * zvar / ( xksilim * xksilim + zvar ) ) * 1e-6 )
          END_2D
          !
          ! At the end of each year, the half saturation constant for silica is 

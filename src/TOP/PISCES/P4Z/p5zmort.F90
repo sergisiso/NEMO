@@ -95,7 +95,8 @@ CONTAINS
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of nanophyto in highly limited areas
          ! ----------------------------------------------------
-         ztortp = mpratn * tgfunc(ji,jj,jk) * xstep * zlim1 / ( xkmort + tr(ji,jj,jk,jpphy,Kbb) ) * zcompaph
+         zlim1  = zlim1 / ( xkmort + tr(ji,jj,jk,jpphy,Kbb) )
+         ztortp = ( mpratn * tgfunc(ji,jj,jk) * zlim1 + 0.01 ) * xstep * zcompaph
          zmortp = zrespp + ztortp
 
          !   Update the arrays TRA which contains the biological sources and sinks
@@ -170,7 +171,8 @@ CONTAINS
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of picophyto in highly limited areas
          ! ----------------------------------------------------
-         ztortp  = mpratp * tgfunc(ji,jj,jk) * xstep  * zlim1 /  ( xkmort + tr(ji,jj,jk,jppic,Kbb) ) * zcompaph
+         zlim1   = zlim1 / ( xkmort + tr(ji,jj,jk,jppic,Kbb) )
+         ztortp  = ( mpratp * tgfunc(ji,jj,jk) * zlim1 + 0.01 ) * xstep * zcompaph
          zmortp  = zrespp + ztortp
 
          !   Update the arrays TRA which contains the biological sources and sinks
@@ -242,7 +244,8 @@ CONTAINS
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of diatoms in highly limited areas
          !  ---------------------------------------------------
-         ztortp   = mpratd * tgfunc(ji,jj,jk) * xstep  * zlim1 /  ( xkmort + tr(ji,jj,jk,jpdia,Kbb) ) * zcompadi
+         zlim1  = zlim1 / ( xkmort + tr(ji,jj,jk,jpdia,Kbb) )
+         ztortp = ( mpratd * tgfunc(ji,jj,jk) * zlim1 + 0.01 ) * xstep * zcompadi
          zmortp  = zrespp + ztortp
 
          !   Update the arrays tr(:,:,:,:,Krhs) which contains the biological sources and sinks

@@ -82,15 +82,15 @@ CONTAINS
          ! blooms (Doney et al. 1996)
          ! -----------------------------------------------------
          zlim2   = xlimphy(ji,jj,jk) * xlimphy(ji,jj,jk)
-         zlim1   = 0.0625 / ( 0.0625 + zlim2 ) * tr(ji,jj,jk,jpphy,Kbb)
+         zlim1   = 0.0625 / ( 0.0625 + zlim2 ) * tr(ji,jj,jk,jpphy,Kbb) 
          zrespp  = wchln * 1.e6 * xstep * zlim1 * xdiss(ji,jj,jk) * zcompaph
 
          ! Phytoplankton linear mortality
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of nanophyto in highly limited areas
          ! ----------------------------------------------------
-         ztortp = mpratn * tgfunc(ji,jj,jk) * xstep * zlim1 / ( xkmort + tr(ji,jj,jk,jpphy,Kbb) ) * zcompaph
-
+         zlim1  = zlim1 / ( xkmort + tr(ji,jj,jk,jpphy,Kbb) ) 
+         ztortp = ( mpratn * tgfunc(ji,jj,jk) * zlim1 + 0.01 ) * xstep * zcompaph
          zmortp = zrespp + ztortp
          
          !   Update the arrays TRA which contains the biological sources and sinks
@@ -170,7 +170,8 @@ CONTAINS
          ! A michaelis-menten like term is introduced to avoid 
          ! extinction of diatoms in highly limited areas
          !  ---------------------------------------------------
-         ztortp = mpratd * xstep * tgfunc(ji,jj,jk) * zlim1  / ( xkmort + tr(ji,jj,jk,jpdia,Kbb) ) * zcompadi 
+         zlim1  = zlim1 / ( xkmort + tr(ji,jj,jk,jpdia,Kbb) )
+         ztortp = ( mpratd * tgfunc(ji,jj,jk) * zlim1 + 0.01 ) * xstep * zcompadi 
          zmortp = zrespp + ztortp
 
          !   Update the arrays trends which contains the biological sources and sinks
