@@ -17,7 +17,7 @@
 # The entry point of the transformation script is procedure 'trans', which is
 # called by the 'psyclone' exectuable (via the NEMO build system, if the
 # transformation is selected via option '-p OpenACC' of 'makenemo') and acts on
-# and returns the provided object 'psy' (for details on the PSyclone
+# the provided 'psyir' (for details on the PSyclone
 # transformation-script convention see
 # https://psyclone.readthedocs.io/en/stable/transformations.html#script).
 #
@@ -34,18 +34,16 @@
 # ----------------------------------------------------------------------
 #              ***  PSyclone transformation procedure  ***
 # ----------------------------------------------------------------------
-def trans(psy):
+def trans(psyir):
 
     # Simplify 'TRA' and/or 'TRC' string comparisons
-    trans_TracerTypeToggles(psy)
-    
+    trans_TracerTypeToggles(psyir)
+
     # Delineate large OpenACC kernels regions
-    trans_KernelsRegions(psy)
+    trans_KernelsRegions(psyir)
 
     # Promote local arrays to module scope
-    trans_LocalToGlobalArrays(psy)
+    trans_LocalToGlobalArrays(psyir)
 
     # Selectively prepare routines for execution on the GPU
-    trans_GPURoutines(psy)
-
-    return
+    trans_GPURoutines(psyir)
