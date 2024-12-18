@@ -151,7 +151,7 @@ CONTAINS
    END SUBROUTINE trc_dta_ini
 
 
-   SUBROUTINE trc_dta( kt, kjl, ptrcdta)
+   SUBROUTINE trc_dta( kt, kjn, ptrcdta)
       !!----------------------------------------------------------------------
       !!                   ***  ROUTINE trc_dta  ***
       !!                    
@@ -164,7 +164,7 @@ CONTAINS
       !! ** Action  :   sf_trcdta   passive tracer data on meld mesh and interpolated at time-step kt
       !!----------------------------------------------------------------------
       INTEGER                              , INTENT(in   )   ::   kt         ! ocean time-step
-      INTEGER                              , INTENT(in   )   ::   kjl        ! tracer index
+      INTEGER                              , INTENT(in   )   ::   kjn        ! tracer index
       REAL(wp),  DIMENSION(T2D(nn_hls),jpk), INTENT(inout  ) ::   ptrcdta    ! 3D data array
       !
       INTEGER ::   ji, jj, jk, jl, jkk, ik    ! dummy loop indices
@@ -183,13 +183,14 @@ CONTAINS
       !
       IF( nb_trcdta > 0 ) THEN
          !
+         jl = n_trc_index(kjn)
          IF( .NOT. l_istiled .OR. ntile == 1 )  THEN              ! Do only for the full domain
             IF( ln_tile ) CALL dom_tile_stop( ldhold=.TRUE. )     ! Use full domain
-            CALL fld_read( kt, 1, sf_trcdta )                     ! read data at kt time step
+            IF( jl == 1 ) CALL fld_read( kt, 1, sf_trcdta )       ! read data at kt time step
             IF( ln_tile ) CALL dom_tile_start( ldhold=.TRUE. )    ! Revert to tile domain
          ENDIF
          DO_3D( nn_hls, nn_hls, nn_hls, nn_hls, 1, jpk )
-            ptrcdta(ji,jj,jk) = sf_trcdta(kjl)%fnow(ji,jj,jk) * tmask(ji,jj,jk)
+            ptrcdta(ji,jj,jk) = sf_trcdta(jl)%fnow(ji,jj,jk) * tmask(ji,jj,jk)
          END_3D
          ! 
          IF( l_sco ) THEN                !== s- or mixed s-zps-coordinate  ==!
@@ -222,7 +223,7 @@ CONTAINS
             ! 
          ENDIF
          ! Scale by multiplicative factor
-         ptrcdta(:,:,:) = ptrcdta(:,:,:) * rf_trfac(kjl)
+         ptrcdta(:,:,:) = ptrcdta(:,:,:) * rf_trfac(jl)
          !
       ENDIF
       !
