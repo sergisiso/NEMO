@@ -87,7 +87,7 @@ CONTAINS
       INTEGER,                                    INTENT(in   ) :: Kbb, Kmm, Krhs  ! time level indices
       REAL(wp), DIMENSION(jpi,jpj,jpk,jptra,jpt), INTENT(inout) :: ptr             ! passive tracers and RHS of tracer equation
       !
-      INTEGER ::   ji, jj, jk, jn, jl   ! dummy loop indices
+      INTEGER ::   ji, jj, jk, jn   ! dummy loop indices
       CHARACTER (len=22) ::   charout
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrtrd
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   ztrcdta   ! 3D  workspace
@@ -111,8 +111,7 @@ CONTAINS
             !
             IF( ln_trc_ini(jn) ) THEN      ! update passive tracers arrays with input data read from file
                !
-               jl = n_trc_index(jn) 
-               CALL trc_dta( kt, jl, ztrcdta )   ! read tracer data at nit000
+               CALL trc_dta( kt, jn, ztrcdta )   ! read tracer data at nit000
                !
                SELECT CASE ( nn_zdmp_tr )
                !
@@ -232,7 +231,7 @@ CONTAINS
       INTEGER, INTENT( in ) ::   kt           ! ocean time-step index
       INTEGER, INTENT( in ) ::   Kbb, Kmm     ! time level indices
       !
-      INTEGER :: ji , jj, jk, jn, jl, jc                    ! dummy loop indicesa
+      INTEGER :: ji , jj, jk, jn, jc                        ! dummy loop indicesa
       INTEGER :: isrow                                      ! local index
       REAL(wp), POINTER, DIMENSION(:,:,:) ::  ztrcdta       ! 3D  workspace
       !!----------------------------------------------------------------------
@@ -353,8 +352,7 @@ CONTAINS
          !
          DO jn = 1, jptra
             IF( ln_trc_ini(jn) ) THEN      ! update passive tracers arrays with input data read from file
-                jl = n_trc_index(jn)
-                CALL trc_dta( kt, jl, ztrcdta )   ! read tracer data at nit000
+                CALL trc_dta( kt, jn, ztrcdta )   ! read tracer data at nit000
                 DO jc = 1, npncts
                    DO jk = 1, jpkm1
                       DO jj = nctsj1(jc), nctsj2(jc)
