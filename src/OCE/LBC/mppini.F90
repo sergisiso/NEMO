@@ -1678,6 +1678,12 @@ ENDIF
       INTEGER ::   icuti, icutj, iside, ihlsz
       INTEGER, DIMENSION(:,:,:  ), ALLOCATABLE ::   iallnei1d
       INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE ::   iallnei2d
+      INTEGER, DIMENSION(:      ), ALLOCATABLE ::   ilallmac
+      INTEGER, DIMENSION(:,:    ), ALLOCATABLE ::   ilallmac2d
+#if ! defined key_mpi_off
+      CHARACTER(len=MPI_MAX_PROCESSOR_NAME) :: clmacname, clmacnum
+#endif
+      INTEGER :: ilmacnum
       !!----------------------------------------------------------------------
 
       IF( narea == 1 ) THEN
@@ -1695,6 +1701,8 @@ ENDIF
          CALL nf90chk( NF90_DEF_VAR( incid, 'mpirank', NF90_INT, (/ icuti, icutj /), ivid ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, 'name', 'MPI rank' ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', -1_i4 ) )
+
+         CALL nf90chk( NF90_DEF_VAR( incid, 'machine', NF90_INT, (/ icuti, icutj /), ivid ) )
 
          CALL nf90chk( NF90_DEF_VAR( incid,   'jpi', NF90_SHORT, (/ icuti, icutj /), ivid ) )
          CALL nf90chk( NF90_PUT_ATT( incid, ivid, '_FillValue', 0_2 ) )
@@ -1773,11 +1781,59 @@ ENDIF
          CALL nf90chk( NF90_INQ_VARID(incid, 'mpiRnei', ivid) )
          CALL nf90chk( NF90_PUT_VAR(  incid, ivid, iallnei2d ) )
 
-         CALL nf90chk( NF90_CLOSE(incid) )
          DEALLOCATE(iallnei2d)
 
       ENDIF
-      DEALLOCATE(iallnei1d)
+
+      IF( narea == 1 ) THEN
+         ALLOCATE( ilallmac(jpnij), STAT=ierr )   ! can be huge if jpnij is big...
+         ilallmac(:) = -1
+      ELSE
+         ALLOCATE( ilallmac(1), STAT=ierr )                                    ! not used, allocate less memory
+      ENDIF
+      IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'mpp_init: unable to allocate ilallmac' )
+      IF( narea == 1 ) THEN
+         ALLOCATE( ilallmac2d(jpni,jpnj), STAT=ierr )   ! can be huge if jpnij is big...
+         ilallmac(:) = -1
+      ELSE
+         ALLOCATE( ilallmac2d(1,1), STAT=ierr )                                    ! not used, allocate less memory
+      ENDIF
+      IF( ierr /= 0 )   CALL ctl_stop( 'STOP', 'mpp_init: unable to allocate ilallmac2d' )
+
+#if ! defined key_mpi_off
+      ! MPI routine to get node name on each MPI process
+      CALL mpi_get_processor_name(clmacname,icode,ierr)
+
+      ! conversion from name to number
+      ii = 1
+      DO ji = 1, len(trim(clmacname))
+       SELECT CASE(clmacname(ji:ji))
+       CASE("0":"9")
+          clmacnum(ii:ii) = clmacname(ji:ji)
+          ii = ii + 1
+       END SELECT
+      END DO
+      READ (clmacnum,'(I5)') ilmacnum
+
+      ! gathering on master
+      CALL MPI_GATHER(ilmacnum, 1, MPI_INTEGER,   &
+         &            ilallmac, 1, MPI_INTEGER, 0, mpi_comm_oce, icode)
+#endif
+
+      IF( narea == 1 ) THEN
+         ilallmac2d(:,:)=0
+         DO ji = 1, jpnij
+            ii = kin(ji)
+            ij = kjn(ji)
+            ilallmac2d(ii,ij) = ilallmac(ji)
+         END DO
+         ! master writes node topology on layout.nc file
+         CALL nf90chk( NF90_INQ_VARID(incid, 'machine', ivid) )
+         CALL nf90chk( NF90_PUT_VAR(  incid, ivid, ilallmac2d ) )
+         CALL nf90chk( NF90_CLOSE(incid) )
+      ENDIF
+
+      DEALLOCATE(ilallmac,ilallmac2d,iallnei1d)
 
 
    END SUBROUTINE write_layoutnc
