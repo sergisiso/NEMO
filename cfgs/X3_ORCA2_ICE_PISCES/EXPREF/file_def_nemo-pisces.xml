@@ -8,11 +8,11 @@
 ============================================================================================================
     -->
    
-    <file_definition type="one_file" compression_level="1" name="@expname@_@freq@_@startdate@_@enddate@" sync_freq="1mo" min_digits="4">
+    <file_definition type="one_file"  compression_level="1" name="@expname@_@freq@_@startdate@_@enddate@" sync_freq="1mo" min_digits="4">
     
       <file_group id="5d" output_freq="5d"  output_level="10" enabled=".TRUE.">  <!-- 5d files -->   
 
-        <file id="file31" compression_level="0" name_suffix="_bioscalar" mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="pisces sms variables" >
+        <file id="file31" name_suffix="_bioscalar" compression_level="0" mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="pisces sms variables" >
           <field field_ref="tdenit"   name="tdenit"    unit="TgN/yr" operation="instant" > tdenit * 14. * 86400. * 365. / 1e12 </field>
           <field field_ref="tnfix"    name="tnfix"     unit="TgN/yr" operation="instant" > tnfix * 14. * 86400. * 365. / 1e12 </field>
           <field field_ref="tcflx"    name="tcflx"     unit="PgC/yr" operation="instant" > tcflx * -1. * 12. * 86400. * 365. / 1e15 </field>
@@ -31,7 +31,7 @@
 
       <file_group id="1m" output_freq="1mo" output_level="10" enabled=".TRUE."> <!-- real monthly files -->
 
-        <file id="file32" name_suffix="_ptrc_T" mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="pisces sms variables" >
+        <file id="file32" name_suffix="_ptrc_T"  mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="pisces sms variables" >
           <field field_ref="DIC"       name="DIC"      operation="average" freq_op="1mo" > @DIC_e3t / @e3t </field>
           <field field_ref="Alkalini"  name="Alkalini" operation="average" freq_op="1mo" > @Alkalini_e3t / @e3t </field>
           <field field_ref="O2"        name="O2"       operation="average" freq_op="1mo" > @O2_e3t / @e3t </field>
@@ -43,7 +43,7 @@
           <field field_ref="NO3"       name="NO3"      operation="average" freq_op="1mo" > @NO3_e3t / @e3t </field>
         </file>
 
-        <file id="file33" name_suffix="_diad_T" mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="additional pisces diagnostics" >
+        <file id="file33" name_suffix="_diad_T"  mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="additional pisces diagnostics" >
           <field field_ref="Cflx"     />
           <field field_ref="Dpco2"    />
         </file>
@@ -52,7 +52,7 @@
 
       <file_group id="1y"  output_freq="1y" output_level="10" enabled=".TRUE."> <!-- real yearly files -->
 
-	<file id="file34" name_suffix="_ptrc_T" mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="pisces sms variables" >
+	<file id="file34" name_suffix="_ptrc_T"  mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="pisces sms variables" >
           <field field_ref="DIC"       name="DIC"      operation="average" freq_op="1y" > @DIC_e3t / @e3t </field>
           <field field_ref="Alkalini"  name="Alkalini" operation="average" freq_op="1y" > @Alkalini_e3t / @e3t </field>
           <field field_ref="O2"        name="O2"       operation="average" freq_op="1y" > @O2_e3t / @e3t </field>
@@ -79,7 +79,7 @@
           <field field_ref="NH4"       name="NH4"      operation="average" freq_op="1y" > @NH4_e3t / @e3t </field>
         </file>
 
-        <file id="file35" name_suffix="_diad_T" mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="additional pisces diagnostics" >
+        <file id="file35" name_suffix="_diad_T"  mode="write" gatherer="pgatherer" writer="pwriter" using_server2="true" description="additional pisces diagnostics" >
           <field field_ref="PH"       />
           <field field_ref="PAR"      />
           <field field_ref="PPPHYN"    />

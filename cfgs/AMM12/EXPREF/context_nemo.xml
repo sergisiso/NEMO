@@ -25,7 +25,7 @@
     <field_definition level="1" prec="4" operation="average" enabled=".TRUE." default_value="1.e20" >
       <field_group id="diamlr_fields">
         <!-- Time -->
-        <field id="diamlr_time" grid_ref="diamlr_grid_T_2D" prec="8" />
+        <field id="diamlr_time" grid_ref="diamlr_grid_T_2D_inner" prec="8" />
         <!-- Regressors for tidal harmonic analysis -->
         <field id="diamlr_r001" field_ref="diamlr_time" expr="sin( __TDE_M2_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M2" />
         <field id="diamlr_r002" field_ref="diamlr_time" expr="cos( __TDE_M2_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M2" />
