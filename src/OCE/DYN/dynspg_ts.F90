@@ -37,7 +37,6 @@ MODULE dynspg_ts
    USE dynadv    , ONLY: ln_dynadv_vec
    USE dynvor          ! vortivity scheme indicators
    USE phycst          ! physical constants
-   USE dynvor          ! vorticity term
    USE wet_dry         ! wetting/drying flux limter
    USE bdy_oce         ! open boundary
    USE bdyvol          ! open boundary volume conservation
@@ -45,7 +44,6 @@ MODULE dynspg_ts
    USE bdydyn2d        ! open boundary conditions on barotropic variables
    USE tide_mod        !
    USE sbcwave         ! surface wave
-   USE dynvor    , ONLY: e3f_0vor 
 #if defined key_agrif
    USE agrif_oce_interp ! agrif
    USE agrif_oce
