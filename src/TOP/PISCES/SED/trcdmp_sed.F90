@@ -74,7 +74,7 @@ CONTAINS
       INTEGER, INTENT(in) ::   kt              ! ocean time-step index
       INTEGER, INTENT(in) ::   Kbb, Kmm, Krhs  ! time level index
       !
-      INTEGER ::   ji, jj, jk, jn, jl, ikt   ! dummy loop indices
+      INTEGER ::   ji, jj, jk, jn, ikt   ! dummy loop indices
       CHARACTER (len=22) ::   charout
       REAL(wp), DIMENSION(jpi,jpj,jpk) ::   ztrcdta   ! 3D  workspace
       !!----------------------------------------------------------------------
@@ -88,8 +88,7 @@ CONTAINS
             !                                                       ! ===========
             IF( ln_trc_ini(jn) ) THEN      ! update passive tracers arrays with input data read from file
                !
-               jl = n_trc_index(jn) 
-               CALL trc_dta( kt, jl, ztrcdta )   ! read tracer data at nit000
+               CALL trc_dta( kt, jn, ztrcdta )   ! read tracer data at nit000
                !
                DO_2D( 0, 0, 0, 0 )
                   ikt = mbkt(ji,jj)
