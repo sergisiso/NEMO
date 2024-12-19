@@ -251,7 +251,7 @@ CONTAINS
       USE trcdta          ! initialisation from files
       !
       INTEGER, INTENT(in) :: Kbb, Kmm, Kaa   ! time level index
-      INTEGER             :: jn, jl          ! dummy loop indices
+      INTEGER             :: jn              ! dummy loop indices
       !!----------------------------------------------------------------------
       !
       IF( ln_trcdta )   CALL trc_dta_ini( jptra )           ! set initial tracers values
@@ -267,8 +267,7 @@ CONTAINS
             ! update passive tracers arrays with input data read from file
             DO jn = 1, jptra
                IF( ln_trc_ini(jn) ) THEN
-                  jl = n_trc_index(jn) 
-                  CALL trc_dta( nit000, jl, tr(:,:,:,jn,Kbb) )
+                  CALL trc_dta( nit000, jn, tr(:,:,:,jn,Kbb) )
                ENDIF
             END DO
             !
