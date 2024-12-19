@@ -134,7 +134,7 @@
    sn_trccbc(10) = 'river.orca'      ,    120            , 'riverdoc'    ,  .true.      , .true. , 'yearly'  , ''       , ''    , ''
    sn_trccbc(14) = 'river.orca'      ,    120            , 'riverdic'    ,  .true.      , .true. , 'yearly'  , ''       , ''    , ''
    sn_trccbc(23) = 'river.orca'      ,    120            , 'riverdin'    ,  .true.      , .true. , 'yearly'  , ''       , ''    , ''
-   rn_trcfac(1)  = 8.333333e+01      !  ( data in Mg/m2/yr : 1e3/12/ryyss)
+   rn_trcfac(1)  = 8.333333e+01      !  ( data in Mg/yr : 1e3/12)
    rn_trcfac(2)  = 8.333333e+01      !  ( 1e3 /12 )
    rn_trcfac(5)  = 3.774193e+03   !  ( 1e3 / 31. * 117 )
    rn_trcfac(7)  = 3.558719e+01   !  ( 1e3 / 28.1 )
