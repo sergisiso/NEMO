@@ -1675,14 +1675,15 @@ ENDIF
       !
       INTEGER ::   ji, ii, ij
       INTEGER ::   incid, ivid, ioldMode, icode, ierr
-      INTEGER ::   icuti, icutj, iside, ihlsz
+      INTEGER ::   icuti, icutj, iside, ihlsz, istrlen
       INTEGER, DIMENSION(:,:,:  ), ALLOCATABLE ::   iallnei1d
       INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE ::   iallnei2d
       INTEGER, DIMENSION(:      ), ALLOCATABLE ::   ilallmac
       INTEGER, DIMENSION(:,:    ), ALLOCATABLE ::   ilallmac2d
 #if ! defined key_mpi_off
-      CHARACTER(len=MPI_MAX_PROCESSOR_NAME) :: clmacname, clmacnum
+      CHARACTER(MPI_MAX_PROCESSOR_NAME) :: clmacname, clmacnum
 #endif
+      CHARACTER(1) :: cl1
       INTEGER :: ilmacnum
       !!----------------------------------------------------------------------
 
@@ -1802,18 +1803,19 @@ ENDIF
 
 #if ! defined key_mpi_off
       ! MPI routine to get node name on each MPI process
-      CALL mpi_get_processor_name(clmacname,icode,ierr)
-
+      CALL mpi_get_processor_name( clmacname, istrlen, ierr )
       ! conversion from name to number
-      ii = 1
-      DO ji = 1, len(trim(clmacname))
-       SELECT CASE(clmacname(ji:ji))
-       CASE("0":"9")
-          clmacnum(ii:ii) = clmacname(ji:ji)
-          ii = ii + 1
-       END SELECT
+      ii = 0
+      DO ji = 1, istrlen
+         cl1 = clmacname(ji:ji)
+         IF( cl1 >= '0' .AND. cl1 <= '9' ) THEN   ! fortran uses ascii values to compare characters
+            ii = ii + 1
+            clmacnum(ii:ii) = cl1
+         ENDIF
       END DO
-      READ (clmacnum,'(I5)') ilmacnum
+
+      ilmacnum = -1   ! default value
+      IF( ii > 0 )   READ( clmacnum(1:ii), '(i)' ) ilmacnum
 
       ! gathering on master
       CALL MPI_GATHER(ilmacnum, 1, MPI_INTEGER,   &
