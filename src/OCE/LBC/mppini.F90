@@ -1683,6 +1683,7 @@ ENDIF
 #if ! defined key_mpi_off
       CHARACTER(MPI_MAX_PROCESSOR_NAME) :: clmacname, clmacnum
 #endif
+      CHARACTER(4) :: clfmt
       CHARACTER(1) :: cl1
       INTEGER :: ilmacnum
       !!----------------------------------------------------------------------
@@ -1814,8 +1815,12 @@ ENDIF
          ENDIF
       END DO
 
-      ilmacnum = -1   ! default value
-      IF( ii > 0 )   READ( clmacnum(1:ii), '(i)' ) ilmacnum
+      IF( ii > 0 ) THEN
+         WRITE( clfmt,'(a,i1,a)' ) '(i',ii,')'
+         READ( clmacnum(1:ii), clfmt ) ilmacnum
+      ELSE
+         ilmacnum = -1   ! default value
+      ENDIF
 
       ! gathering on master
       CALL MPI_GATHER(ilmacnum, 1, MPI_INTEGER,   &
