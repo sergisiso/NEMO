@@ -372,7 +372,7 @@ CONTAINS
          !
          IF( ll_wd ) THEN                      !* wet and dry 
             !
-            IF( ln_read_cfg  ) THEN                 ! read configuration : ssh_ref is read in domain_cfg file
+            IF( ln_read_cfg ) THEN                 ! read configuration : ssh_ref is read in domain_cfg file
 !!st  why ssh is not masked : i.e. ssh(:,:,Kmm) = -ssh_ref*ssmask(:,:),
 !!st  since at the 1st time step lbclnk will be applied on ssh at Kaa but not initially at Kbb and Kmm
                ssh(:,:,Kbb) = -ssh_ref
@@ -382,12 +382,17 @@ CONTAINS
                      ssh(ji,jj,Kbb) = rn_wdmin1 - ht_0(ji,jj)
                   ENDIF
                END_2D
-            ELSE                                    ! user define configuration case  
+            ELSE                                   ! user define configuration case  
                CALL usr_def_istate_ssh( tmask, ssh(:,:,Kbb) )
             ENDIF
             !
-         ELSE                                  !* user defined configuration
-            CALL usr_def_istate_ssh( tmask, ssh(:,:,Kbb) )
+         ELSE                                  !* no wet and dry 
+            IF( ln_read_cfg ) THEN                 ! read configuration : ssh is set to 0
+               IF(lwp) WRITE(numout,*) '      rst_read_ssh : Ocean at rest, ssh is zero'
+               ssh(:,:,Kbb) = 0._wp
+            ELSE                                   ! user define configuration case  
+               CALL usr_def_istate_ssh( tmask, ssh(:,:,Kbb) )
+            ENDIF
             !
          ENDIF
          !
