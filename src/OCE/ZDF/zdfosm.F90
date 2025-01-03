@@ -1186,7 +1186,9 @@ CONTAINS
       !!----------------------------------------------------------------------      
       !
       zfwd = 1.0_wp
-      IF( PRESENT(fwd) .AND. ( .NOT. fwd ) ) zfwd = -1.0_wp
+      IF( PRESENT(fwd) ) THEN
+         IF( .NOT. fwd ) zfwd = -1.0_wp
+      END IF
       DO_2D( nn_hls-1, nn_hls-1, nn_hls-1, nn_hls-1 )
          ztmp      = pu(ji,jj)
          pu(ji,jj) = pu(ji,jj) * scos_wind(ji,jj) + zfwd * pv(ji,jj) * ssin_wind(ji,jj)
@@ -1220,7 +1222,9 @@ CONTAINS
       !!----------------------------------------------------------------------      
       !
       zfwd = 1.0_wp
-      IF( PRESENT(fwd) .AND. ( .NOT. fwd ) ) zfwd = -1.0_wp
+      IF( PRESENT(fwd) ) THEN
+         IF( .NOT. fwd ) zfwd = -1.0_wp
+      END IF
       jktop = 1
       IF( PRESENT(ktop) ) jktop = ktop
       IF( PRESENT(knlev) ) THEN
