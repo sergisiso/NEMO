@@ -91,10 +91,14 @@ CONTAINS
       IF( .NOT. ln_rst_list .AND. nn_stock == -1 )   RETURN   ! we will never do any restart
 
       ! frequency-based restart dumping (nn_stock)
-      IF( .NOT. ln_rst_list .AND. MOD( kt - 1, nn_stock ) == 0 ) THEN
-         ! we use kt - 1 and not kt - nit000 to keep the same periodicity from the beginning of the experiment
-         nitrst = kt + nn_stock - 1                  ! define the next value of nitrst for restart writing
-         IF( nitrst > nitend )   nitrst = nitend   ! make sure we write a restart at the end of the run
+      IF( .NOT. ln_rst_list ) THEN
+         IF  ( nn_stock  == 0 ) THEN
+            nitrst = nitend
+         ELSEIF  (MOD( kt - 1, nn_stock ) == 0 ) THEN
+            ! we use kt - 1 and not kt - nit000 to keep the same periodicity from the beginning of the experiment
+            nitrst = kt + nn_stock - 1                  ! define the next value of nitrst for restart writing
+            IF( nitrst > nitend )   nitrst = nitend   ! make sure we write a restart at the end of the run
+         ENDIF
       ENDIF
       ! to get better performances with NetCDF format:
       ! we open and define the ocean restart file one time step before writing the data (-> at nitrst - 1)
