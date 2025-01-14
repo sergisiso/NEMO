@@ -23,7 +23,7 @@ MODULE usrdef_istate
    USE lib_fortran    ! to use sign with key_nosignedzero
    USE lbclnk         ! ocean lateral boundary conditions (or mpp link)
    !   
-   USE usrdef_nam, ONLY : rn_ppgphi0  ! Reference latitude   
+   USE usrdef_nam, ONLY : rn_ppgphi0, rn_ppumax, nn_rot 
    
    IMPLICIT NONE
    PRIVATE
