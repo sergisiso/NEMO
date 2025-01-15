@@ -15,8 +15,9 @@ MODULE usrdef_hgr
    USE dom_oce         ! ocean space and time domain
    USE par_oce         ! ocean space and time domain
    USE phycst          ! physical constants
-   USE usrdef_nam, ONLY: rn_dx, rn_dy, rn_ppgphi0   ! horizontal resolution in meters
-   !                                                  and reference latitude
+   USE usrdef_nam, ONLY: rn_dx, rn_dy, rn_ppgphi0, nn_rot   ! horizontal resolution in meters, 
+   !                                                          reference latitude
+   !                                                          and domain rotation parameter
    USE in_out_manager  ! I/O manager
    USE lib_mpp         ! MPP library
    
