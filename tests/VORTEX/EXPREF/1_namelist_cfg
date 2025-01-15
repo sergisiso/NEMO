@@ -31,7 +31,7 @@
    nn_no       =       0   !  job number (no more used...)
    cn_exp      = "VORTEX"  !  experience name
    nn_it000    =       1   !  first time step
-   nn_itend    =   18000   !  last time step 
+   nn_itend    =    6000   !  last time step 
    nn_istate   =       0   !  output the initial state (1) or not (0)
    nn_stock    =   99999   !  frequency of creation of a restart file (modulo referenced to 1)
    nn_write    =   99999   !  frequency of write in the output file   (modulo referenced to nn_it000)
@@ -39,7 +39,7 @@
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
 !-----------------------------------------------------------------------
-!MLF   rn_Dt       =    480.   !  time step for the dynamics (and tracer if nn_acc=0)
+!MLF   rn_Dt       =   480.   !  time step for the dynamics (and tracer if nn_acc=0)
    rn_Dt       =    960.   !  time step for the dynamics (and tracer if nn_acc=0)
 !MLF   rn_atfp     =   0.05    !  asselin time filter parameter
    ln_meshmask = .false.   !  =T create a mesh file
