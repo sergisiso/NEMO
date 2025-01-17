@@ -1,6 +1,5 @@
 #define DECAL_FEEDBACK    /* SEPARATION of INTERFACES */
 #undef DECAL_FEEDBACK_2D  /* SEPARATION of INTERFACES (Barotropic mode) */
-#undef VOL_REFLUX         /* VOLUME REFLUXING*/
  
 MODULE agrif_oce_update
    !!======================================================================
@@ -118,15 +117,17 @@ CONTAINS
 # endif
       ! 
       IF ( ln_dynspg_ts .AND. ln_bt_fw ) THEN
-         ! Update time integrated transports
 #  if ! defined key_RK3
+         IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) THEN
+         ! Update time integrated transports
 #  if ! defined DECAL_FEEDBACK_2D
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updateub2b) )
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updatevb2b) )
+            CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updateub2b) )
+            CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updatevb2b) )
 #  else
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/), PROCNAME(updateub2b) )
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updatevb2b) )
+            CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar,-2/),locupdate2=(/1+nn_shift_bar,-2/), PROCNAME(updateub2b) )
+            CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,-2/),locupdate2=(/  nn_shift_bar,-2/), PROCNAME(updatevb2b) )
 #  endif
+         ENDIF
 #  endif
          IF (lk_agrif_fstep) THEN
             CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/  nn_shift_bar+nn_dist_par_bc-1,-2/),locupdate2=(/  nn_shift_bar+nn_dist_par_bc  ,-2/), PROCNAME(updateumsk) )
@@ -161,8 +162,6 @@ CONTAINS
 !$AGRIF_DO_NOT_TREAT
       PROCPTR(updateSSH)
       PROCPTR(updatetmsk)
-      PROCPTR(reflux_sshu)
-      PROCPTR(reflux_sshv)
 !$AGRIF_END_DO_NOT_TREAT
       !!---------------------------------------------
       !
@@ -179,21 +178,6 @@ CONTAINS
          CALL Agrif_Update_Variable(sshn_id,locupdate=(/1+nn_shift_bar+nn_dist_par_bc-1,-2/), PROCNAME(updatetmsk) )
       ENDIF
       !
-#  if defined VOL_REFLUX
-      IF ( ln_dynspg_ts.AND.ln_bt_fw ) THEN 
-         use_sign_north = .TRUE.
-         sign_north = -1._wp
-         ! Refluxing on ssh:
-#  if defined DECAL_FEEDBACK_2D
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/nn_shift_bar,nn_shift_bar/),locupdate2=(/1+nn_shift_bar,1+nn_shift_bar/), PROCNAME(reflux_sshu) )
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/1+nn_shift_bar,1+nn_shift_bar/),locupdate2=(/nn_shift_bar,nn_shift_bar/), PROCNAME(reflux_sshv) )
-#  else
-         CALL Agrif_Update_Variable(ub2b_update_id,locupdate1=(/-1+nn_shift_bar,-1+nn_shift_bar/),locupdate2=(/nn_shift_bar, nn_shift_bar/), PROCNAME(reflux_sshu) )
-         CALL Agrif_Update_Variable(vb2b_update_id,locupdate1=(/ nn_shift_bar, nn_shift_bar/),locupdate2=(/-1+nn_shift_bar,-1+nn_shift_bar/), PROCNAME(reflux_sshv) )
-#  endif
-         use_sign_north = .FALSE.
-      END IF
-#  endif
       Agrif_UseSpecialValueInUpdate = .FALSE.
       !
    END SUBROUTINE Agrif_Update_ssh
@@ -989,7 +973,7 @@ CONTAINS
                ! Update time integrated fluxes also in case of multiply nested grids:
                ub2_i_b(ji,jj) = ub2_i_b(ji,jj) + za1 * zcor 
                ! Update corrective fluxes:
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) un_bf(ji,jj)  = un_bf(ji,jj) + zcor
+               un_bf(ji,jj)  = un_bf(ji,jj) + zcor
                ! Update half step back fluxes:
                ub2_b(ji,jj) = tabres(ji,jj)
             END DO
@@ -998,62 +982,6 @@ CONTAINS
       !
    END SUBROUTINE updateub2b
 # endif
-
-   SUBROUTINE reflux_sshu( tabres, i1, i2, j1, j2, before, nb, ndir )
-      !!---------------------------------------------
-      !!          *** ROUTINE reflux_sshu ***
-      !!---------------------------------------------
-      INTEGER, INTENT(in) :: i1, i2, j1, j2
-      REAL(wp), DIMENSION(i1:i2,j1:j2), INTENT(inout) :: tabres
-      LOGICAL, INTENT(in) :: before
-      INTEGER, INTENT(in) :: nb, ndir
-      !!
-      LOGICAL :: western_side, eastern_side 
-      INTEGER :: ji, jj
-      REAL(wp) :: zcor
-      !!---------------------------------------------
-      !
-      IF (before) THEN
-         DO jj=j1,j2
-            DO ji=i1,i2
-               tabres(ji,jj) = ub2_i_b(ji,jj) * e2u_frac(ji,jj)
-            END DO
-         END DO
-      ELSE
-         !
-         western_side  = (nb == 1).AND.(ndir == 1)
-         eastern_side  = (nb == 1).AND.(ndir == 2)
-         !
-         IF (western_side) THEN
-            DO jj=j1,j2
-# if defined key_RK3
-               zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (un_adv(i1,jj)-tabres(i1,jj)) 
-# else
-               zcor = rn_Dt * r1_e1e2t(i1  ,jj) * e2u(i1,jj) * (ub2_b(i1,jj)-tabres(i1,jj)) 
-# endif
-               ssh(i1  ,jj,Kmm_a) = ssh(i1  ,jj,Kmm_a) + zcor
-#if ! defined key_RK3
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i1  ,jj,Kbb_a) = ssh(i1  ,jj,Kbb_a) + rn_atfp * zcor
-#endif
-            END DO
-         ENDIF
-         IF (eastern_side) THEN
-            DO jj=j1,j2
-# if defined key_RK3
-               zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (un_adv(i2,jj)-tabres(i2,jj))
-# else
-               zcor = - rn_Dt * r1_e1e2t(i2+1,jj) * e2u(i2,jj) * (ub2_b(i2,jj)-tabres(i2,jj))
-# endif
-               ssh(i2+1,jj,Kmm_a) = ssh(i2+1,jj,Kmm_a) + zcor
-#if ! defined key_RK3
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(i2+1,jj,Kbb_a) = ssh(i2+1,jj,Kbb_a) + rn_atfp * zcor
-#endif
-            END DO
-         ENDIF
-         !
-      ENDIF
-      !
-   END SUBROUTINE reflux_sshu
 
 # if ! defined key_RK3
    SUBROUTINE updatevb2b( tabres, i1, i2, j1, j2, before )
@@ -1083,7 +1011,7 @@ CONTAINS
                ! Update time integrated fluxes also in case of multiply nested grids:
                vb2_i_b(ji,jj) = vb2_i_b(ji,jj) + za1 * zcor 
                ! Update corrective fluxes:
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler)))  vn_bf(ji,jj)  = vn_bf(ji,jj) + zcor
+               vn_bf(ji,jj)  = vn_bf(ji,jj) + zcor
                ! Update half step back fluxes:
                vb2_b(ji,jj) = tabres(ji,jj)
             END DO
@@ -1092,62 +1020,6 @@ CONTAINS
       !
    END SUBROUTINE updatevb2b
 # endif
-
-   SUBROUTINE reflux_sshv( tabres, i1, i2, j1, j2, before, nb, ndir )
-      !!---------------------------------------------
-      !!          *** ROUTINE reflux_sshv ***
-      !!---------------------------------------------
-      INTEGER, INTENT(in) :: i1, i2, j1, j2
-      REAL(wp), DIMENSION(i1:i2,j1:j2), INTENT(inout) :: tabres
-      LOGICAL, INTENT(in) :: before
-      INTEGER, INTENT(in) :: nb, ndir
-      !!
-      LOGICAL :: southern_side, northern_side 
-      INTEGER :: ji, jj
-      REAL(wp) :: zcor
-      !!---------------------------------------------
-      !
-      IF (before) THEN
-         DO jj=j1,j2
-            DO ji=i1,i2
-               tabres(ji,jj) = vb2_i_b(ji,jj) * e1v_frac(ji,jj) 
-            END DO
-         END DO
-      ELSE
-         !
-         southern_side = (nb == 2).AND.(ndir == 1)
-         northern_side = (nb == 2).AND.(ndir == 2)
-         !
-         IF (southern_side) THEN
-            DO ji=i1,i2
-# if defined key_RK3
-               zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vn_adv(ji,j1)-tabres(ji,j1))
-# else
-               zcor = rn_Dt * r1_e1e2t(ji,j1  ) * e1v(ji,j1  ) * (vb2_b(ji,j1)-tabres(ji,j1))
-# endif
-               ssh(ji,j1  ,Kmm_a) = ssh(ji,j1  ,Kmm_a) + zcor
-#if ! defined key_RK3
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j1  ,Kbb_a) = ssh(ji,j1,Kbb_a) + rn_atfp * zcor
-#endif
-            END DO
-         ENDIF
-         IF (northern_side) THEN               
-            DO ji=i1,i2
-# if defined key_RK3
-               zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vn_adv(ji,j2)-tabres(ji,j2))
-# else
-               zcor = - rn_Dt * r1_e1e2t(ji,j2+1) * e1v(ji,j2  ) * (vb2_b(ji,j2)-tabres(ji,j2))
-# endif
-               ssh(ji,j2+1,Kmm_a) = ssh(ji,j2+1,Kmm_a) + zcor
-#if ! defined key_RK3
-               IF (.NOT.(lk_agrif_fstep.AND.(l_1st_euler))) ssh(ji,j2+1,Kbb_a) = ssh(ji,j2+1,Kbb_a) + rn_atfp * zcor
-#endif
-            END DO
-         ENDIF
-         ! 
-      ENDIF
-      !
-   END SUBROUTINE reflux_sshv
 
 
    SUBROUTINE updateEN( ptab, i1, i2, j1, j2, k1, k2, before )
