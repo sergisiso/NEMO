@@ -1140,32 +1140,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
                   ll_cold_start = .TRUE. 
                ENDIF
             ENDIF
-#if defined key_agrif
-            ! Read time integrated fluxes
-            IF ( .NOT.Agrif_Root() ) THEN
-               CALL iom_get( numror, jpdom_auto, 'ub2_i_b'  , ub2_i_b(:,:), cd_type = 'U', psgn = -1._wp )
-               CALL iom_get( numror, jpdom_auto, 'vb2_i_b'  , vb2_i_b(:,:), cd_type = 'V', psgn = -1._wp )
-            ELSE
-               ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
-            ENDIF
-# if defined key_RK3
-            CALL iom_get( numror, jpdom_auto, 'un_adv'      ,  un_adv(:,:), cd_type = 'U', psgn = -1._wp )   
-            CALL iom_get( numror, jpdom_auto, 'vn_adv'      ,  vn_adv(:,:), cd_type = 'V', psgn = -1._wp )
-# endif
-#endif
-         ELSE
-            !                      !* Start from rest or use RK3 time-step
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) '   ==>>>   start from rest: set barotropic values to 0'
-# if ! defined key_RK3
-            ub2_b  (:,:) = 0._wp   ;   vb2_b  (:,:) = 0._wp   ! used in the 1st interpol of agrif
-            un_bf  (:,:) = 0._wp   ;   vn_bf  (:,:) = 0._wp   ! used in the 1st update   of agrif
-#else
-            un_adv (:,:) = 0._wp   ;   vn_adv (:,:) = 0._wp   ! used in the 1st interpol of agrif
-#endif
-#if defined key_agrif
-            ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
-#endif
          ENDIF
          !
       ELSEIF( TRIM(cdrw) == 'WRITE' ) THEN   ! Create restart file
@@ -1188,17 +1162,6 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             CALL iom_rstput( kt, nitrst, numrow, 'ub_e'     ,    ub_e(:,:) )
             CALL iom_rstput( kt, nitrst, numrow, 'vb_e'     ,    vb_e(:,:) )
          ENDIF
-#if defined key_agrif
-         ! Save time integrated fluxes
-         IF ( .NOT.Agrif_Root() ) THEN
-            CALL iom_rstput( kt, nitrst, numrow, 'ub2_i_b'  , ub2_i_b(:,:) )
-            CALL iom_rstput( kt, nitrst, numrow, 'vb2_i_b'  , vb2_i_b(:,:) )
-         ENDIF
-# if defined key_RK3
-         CALL iom_rstput( kt, nitrst, numrow, 'un_adv'      ,  un_adv(:,:) )
-         CALL iom_rstput( kt, nitrst, numrow, 'vn_adv'      ,  vn_adv(:,:) )
-# endif
-#endif
       ENDIF
       !
    END SUBROUTINE ts_rst
