@@ -112,12 +112,12 @@ CONTAINS
 
    END SUBROUTINE loc_zgr
   
-   SUBROUTINE zgr_read( ld_zco  , ld_zps  , ld_sco  , ld_isfcav,   &   ! type of vertical coordinate
-      &                 pdept_1d, pdepw_1d, pe3t_1d , pe3w_1d  ,   &   ! 1D reference vertical coordinate
-      &                 pdept , pdepw ,                            &   ! 3D t & w-points depth
-      &                 pe3t  , pe3u  , pe3v   , pe3f ,            &   ! vertical scale factors
-      &                 pe3w  , pe3uw , pe3vw         ,            &   !     -      -      -
-      &                 k_top  , k_bot    )                            ! top & bottom ocean level
+   SUBROUTINE zgr_read( ld_zco  , ld_zps  , ld_sco , ld_isfcav,   &   ! type of vertical coordinate
+      &                 pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d  ,   &   ! 1D reference vertical coordinate
+      &                 pdept   , pdepw   ,                       &   ! 3D t & w-points depth
+      &                 pe3t    , pe3u    , pe3v   , pe3f     ,   &   ! vertical scale factors
+      &                 pe3w    , pe3uw   , pe3vw  ,              &   !     -      -      -
+      &                 k_top   , k_bot   )                           ! top & bottom ocean level
       !!---------------------------------------------------------------------
       !!              ***  ROUTINE zgr_read  ***
       !!
@@ -273,13 +273,35 @@ CONTAINS
                   e3w_0(ji,jj,jk+1) = gdept_0(ji,jj,jk+1) - gdept_0(ji,jj,jk)
                ENDDO
                ! Surface
-               jk = 1
-               e3w_0(ji,jj,jk) = 2.0_wp * (gdept_0(ji,jj,1) - gdepw_0(ji,jj,1))
+               e3w_0(ji,jj,1) = 2.0_wp * (gdept_0(ji,jj,1) - gdepw_0(ji,jj,1))
                !
                ! Bottom
-               jk = jpk
-               e3t_0(ji,jj,jk) = 2.0_wp * (gdept_0(ji,jj,jk) - gdepw_0(ji,jj,jk))
+               e3t_0(ji,jj,jpk) = 2.0_wp * (gdept_0(ji,jj,jpk) - gdepw_0(ji,jj,jpk))
             END IF
+         END DO
+      END DO
+      !
+      ! Checking the vertical coordinate makes sense
+      DO jk = 1, jpk
+         DO jj = 1, jpj
+            DO ji = 1, jpi !mbathy(ji,jj)
+               ! check coordinate is monotonically increasing
+               IF (e3w_0(ji,jj,jk) <= 0._wp .OR. e3t_0(ji,jj,jk) <= 0._wp ) THEN
+                  WRITE(ctmp1,*) 'ERROR loc_zgr_mes: e3w or e3t =< 0 at point (i,j,k) = ', mig0(ji), mjg0(jj), jk
+                  WRITE(numout,*) 'ERROR loc_zgr_mes: e3w or e3t =< 0 at point (i,j,k )= ', mig0(ji), mjg0(jj), jk
+                  WRITE(numout,*) 'e3w', e3w_0(ji,jj,:)
+                  WRITE(numout,*) 'e3t', e3t_0(ji,jj,:)
+                  CALL ctl_stop( ctmp1 )
+               ENDIF
+               ! and check it has never gone negative
+               IF ( gdepw_0(ji,jj,jk) < 0._wp .OR. gdept_0(ji,jj,jk) < 0._wp ) THEN
+                  WRITE(ctmp1,*) 'ERROR loc_zgr_mes: gdepw or gdept =< 0 at point (i,j,k) = ', mig0(ji), mjg0(jj), jk
+                  WRITE(numout,*) 'ERROR loc_zgr_mes: gdepw or gdept =< 0 at point (i,j,k) = ', mig0(ji), mjg0(jj), jk
+                  WRITE(numout,*) 'gdepw',gdepw_0(ji,jj,:)
+                  WRITE(numout,*) 'gdept',gdept_0(ji,jj,:)
+                  CALL ctl_stop( ctmp1 )
+               ENDIF
+            END DO
          END DO
       END DO
       !
@@ -332,6 +354,13 @@ CONTAINS
             END IF
          END DO
       END DO
+
+      WHERE (e3u_0   (:,:,:) == 0.0)  e3u_0(:,:,:) = 1.0
+      WHERE (e3v_0   (:,:,:) == 0.0)  e3v_0(:,:,:) = 1.0
+      WHERE (e3f_0   (:,:,:) == 0.0)  e3f_0(:,:,:) = 1.0
+      WHERE (e3uw_0  (:,:,:) == 0.0)  e3uw_0(:,:,:) = 1.0
+      WHERE (e3vw_0  (:,:,:) == 0.0)  e3vw_0(:,:,:) = 1.0
+
  
       WHERE (e3t_0   (:,:,:) == 0.0)  e3t_0(:,:,:) = 1.0
       WHERE (e3u_0   (:,:,:) == 0.0)  e3u_0(:,:,:) = 1.0
