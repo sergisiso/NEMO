@@ -189,29 +189,31 @@ CONTAINS
          END IF
       END DO
 
-      ! CHECKING THE WHOLE DOMAIN
-      DO ji = 1, jpi
-         DO jj = 1, jpj
-            DO jk = 1, jpk !mbathy(ji,jj)
-               ! check coordinate is monotonically increasing
-               IF (e3w_0(ji,jj,jk) <= 0._wp .OR. e3t_0(ji,jj,jk) <= 0._wp ) THEN
-                  WRITE(ctmp1,*) 'ERROR mes_build:   e3w   or e3t   =< 0  at point (i,j,k)= ', ji, jj, jk
-                  WRITE(numout,*) 'ERROR mes_build:   e3w   or e3t   =< 0  at point (i,j,k)= ', ji, jj, jk
-                  WRITE(numout,*) 'e3w',e3w_0(ji,jj,:)
-                  WRITE(numout,*) 'e3t',e3t_0(ji,jj,:)
-                  CALL ctl_stop( ctmp1 )
-               ENDIF
-               ! and check it has never gone negative
-               IF ( gdepw_0(ji,jj,jk) < 0._wp .OR. gdept_0(ji,jj,jk) < 0._wp ) THEN
-                  WRITE(ctmp1,*) 'ERROR mes_build:   gdepw or gdept =< 0  at point (i,j,k)= ', ji, jj, jk
-                  WRITE(numout,*) 'ERROR mes_build:   gdepw   or gdept   =< 0  at point (i,j,k)= ', ji, jj, jk
-                  WRITE(numout,*) 'gdepw',gdepw_0(ji,jj,:)
-                  WRITE(numout,*) 'gdept',gdept_0(ji,jj,:)
-                  CALL ctl_stop( ctmp1 )
-               ENDIF
+      IF (.NOT. ln_loczgr) THEN
+         ! CHECKING THE WHOLE DOMAIN
+         DO ji = 1, jpi
+            DO jj = 1, jpj
+               DO jk = 1, jpk !mbathy(ji,jj)
+                  ! check coordinate is monotonically increasing
+                  IF (e3w_0(ji,jj,jk) <= 0._wp .OR. e3t_0(ji,jj,jk) <= 0._wp ) THEN
+                     WRITE(ctmp1,*) 'ERROR mes_build:   e3w   or e3t   =< 0  at point (i,j,k)= ', ji, jj, jk
+                     WRITE(numout,*) 'ERROR mes_build:   e3w   or e3t   =< 0  at point (i,j,k)= ', ji, jj, jk
+                     WRITE(numout,*) 'e3w',e3w_0(ji,jj,:)
+                     WRITE(numout,*) 'e3t',e3t_0(ji,jj,:)
+                     CALL ctl_stop( ctmp1 )
+                   ENDIF
+                   ! and check it has never gone negative
+                   IF ( gdepw_0(ji,jj,jk) < 0._wp .OR. gdept_0(ji,jj,jk) < 0._wp ) THEN
+                      WRITE(ctmp1,*) 'ERROR mes_build:   gdepw or gdept =< 0  at point (i,j,k)= ', ji, jj, jk
+                      WRITE(numout,*) 'ERROR mes_build:   gdepw   or gdept   =< 0  at point (i,j,k)= ', ji, jj, jk
+                      WRITE(numout,*) 'gdepw',gdepw_0(ji,jj,:)
+                      WRITE(numout,*) 'gdept',gdept_0(ji,jj,:)
+                      CALL ctl_stop( ctmp1 )
+                   ENDIF
+               END DO
             END DO
          END DO
-      END DO
+      END IF
 
    END SUBROUTINE zgr_mes
 
@@ -551,12 +553,10 @@ CONTAINS
          e3w_0(:,:,jk+1) = gdept_0(:,:,jk+1) - gdept_0(:,:,jk)
       ENDDO
       ! Surface
-      jk = 1
-      e3w_0(:,:,jk) = 2.0_wp * (gdept_0(:,:,1) - gdepw_0(:,:,1))
+      e3w_0(:,:,1) = 2.0_wp * (gdept_0(:,:,1) - gdepw_0(:,:,1))
       !
       ! Bottom
-      jk = jpk
-      e3t_0(:,:,jk) = 2.0_wp * (gdept_0(:,:,jk) - gdepw_0(:,:,jk))
+      e3t_0(:,:,jpk) = 2.0_wp * (gdept_0(:,:,jpk) - gdepw_0(:,:,jpk))
     
       ! Lateral B.C.
       ! ----------------------------------------------- 
@@ -579,6 +579,53 @@ CONTAINS
       END DO
 
       WHERE (bathy(:,:)<=0) mbathy(:,:) = 0
+
+      !=======================================================================
+      ! In sub-zones where the coordinate transformation uses cubic splines, 
+      ! it could happen that the transormation is not monotonic (typically 
+      ! where adjacent envelopes are too close - splines will overshoots).
+      ! 
+      ! When this occurs on land points, we can solve the problem by adjusting 
+      ! e3T/W and recomputing gdepT/W accordingly.
+      !=======================================================================
+      !
+      ! Adjusting cell thinkess and accordingly modifying depths of coordinate 
+      ! interfaces - only for land points in the deepest subzone.
+      !
+      ! Here jks1 is the k-index of the first level belonging to the deepest 
+      ! subzone, its value is set in the main loop of the previous section.
+      !
+      DO jj = 1, jpj
+         DO ji = 1, jpi
+            DO jk = jks1, jpk
+               IF (jk >= mbathy(ji,jj)+1) THEN
+                  ! DB: should it actually be
+                  ! e3t_0(ji,jj,jk) = e3t_0(ji,jj,jk-1)
+                  ! e3w_0(ji,jj,jk) = e3t_0(ji,jj,jk-1)
+                  e3t_0(ji,jj,jk) = e3w_0(ji,jj,jk-1)
+                  e3w_0(ji,jj,jk) = e3w_0(ji,jj,jk-1)
+                  gdepw_0(ji,jj,jk) = gdepw_0(ji,jj,jk-1) + e3t_0(ji,jj,jk-1)
+                  gdept_0(ji,jj,jk) = gdept_0(ji,jj,jk-1) + e3w_0(ji,jj,jk  )
+               END IF
+            END DO
+         END DO
+      END DO  
+      !
+      ! FOR DEBUGGING
+      !=================================
+      ! COMPUTE e3t, e3w for ALL levels
+      ! as finite differences
+      ! ================================
+      DO jk=1,jpkm1
+         e3t_0(:,:,jk)   = gdepw_0(:,:,jk+1) - gdepw_0(:,:,jk)
+         e3w_0(:,:,jk+1) = gdept_0(:,:,jk+1) - gdept_0(:,:,jk)
+      ENDDO
+      ! Surface
+      e3w_0(:,:,1) = 2.0_wp * (gdept_0(:,:,1) - gdepw_0(:,:,1))
+      !
+      ! Bottom
+      e3t_0(:,:,jpk) = 2.0_wp * (gdept_0(:,:,jpk) - gdepw_0(:,:,jpk))
+      ! DB DEBUG
 
       !==============================================
       ! Computing e3u_0, e3v_0, e3f_0, e3uw_0, e3vw_0
@@ -745,14 +792,28 @@ CONTAINS
          IF (MAXVAL(envl(:,:,je+1)) < MAXVAL(envl(:,:,je))) CALL ctl_stop( ctlmes )
       ENDDO
       !
-      ! 3) Checking SF12 stretching function 
-      !    is used only in the upper sub-zone
+      ! 3) Checking SF12 stretching function:
+      !    a) it MUST be used only in the upper sub-zone
       DO je = 2, nn_env
          IF ( nn_strt(je) == 2 ) THEN
             WRITE(ctlmes,*) 'SF12 stretching function MUST be used only in the upper sub-zone'
             CALL ctl_stop( ctlmes )
          END IF     
-      END DO   
+      END DO
+      !    b) the consistency of the rn_e_hc(je) parameter
+      DO je = 1, nn_env
+         IF (nn_strt(je) == 2) THEN
+            IF ( rn_e_hc(je) /= rn_e_th(je)*nn_slev(je) ) THEN
+                 rn_e_hc(je) = rn_e_th(je)*nn_slev(je)
+                 IF ( lwp ) THEN
+                    WRITE(numout,*) 'MEs mbathy: with the SF12 stretching function'
+                    WRITE(numout,*) '            the rn_e_hc(', je, ') MUST be equal'
+                    WRITE(numout,*) '            to ', rn_e_th(je)*nn_slev(je), ':'
+                    WRITE(numout,*) '            it has now been corrected !! '
+                 ENDIF
+            ENDIF
+         ENDIF
+      ENDDO
       !    
       ! 4) Computing max and min depths of envelopes
       DO je = 1, nn_env
@@ -990,7 +1051,7 @@ CONTAINS
                      sech(ca * (s+cb))**2 ) / (2._wp * SINH(ca))
         CASE (1) ! SH94 stretching function
            IF ( ca == 0 ) then      ! uniform sigma
-              pf1 = 1._wp / REAL(kmax,wp)
+              pf1 = 1._wp
            ELSE                     ! stretched sigma
               !pf1 = (1._wp - cb) * ca * COSH(ca*s) / (SINH(ca) * REAL(kmax,wp)) + &
               !       cb * ca * &
