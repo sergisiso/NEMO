@@ -36,6 +36,14 @@ ACTION='TRANSFORM'
 #    but explicitly disable the processing of files that PSyclone version 2.5.0
 #    would fail to process or not correctly reproduce in the PSyclone
 #    passthrough,
+[[ "${FILENAME}" == 'agrif_ice_interp.f90'  ]] && ACTION='EXCLUDE'   # avoid procedure-pointer-initialisation parsing failure
+[[ "${FILENAME}" == 'agrif_ice_update.f90'  ]] && ACTION='EXCLUDE'   # avoid procedure-pointer-initialisation parsing failure
+[[ "${FILENAME}" == 'agrif_oce_interp.f90'  ]] && ACTION='EXCLUDE'   # avoid procedure-pointer-initialisation parsing failure
+[[ "${FILENAME}" == 'agrif_oce_sponge.f90'  ]] && ACTION='EXCLUDE'   # avoid procedure-pointer-initialisation parsing failure
+[[ "${FILENAME}" == 'agrif_oce_update.f90'  ]] && ACTION='EXCLUDE'   # avoid procedure-pointer-initialisation parsing failure
+[[ "${FILENAME}" == 'agrif_top_interp.f90'  ]] && ACTION='EXCLUDE'   # avoid procedure-pointer-initialisation parsing failure
+[[ "${FILENAME}" == 'agrif_top_update.f90'  ]] && ACTION='EXCLUDE'   # avoid procedure-pointer-initialisation parsing failure
+[[ "${FILENAME}" == 'agrif_top_sponge.f90'  ]] && ACTION='EXCLUDE'   # avoid procedure-pointer-initialisation parsing failure
 [[ "${FILENAME}" == 'asminc.f90'            ]] && ACTION='EXCLUDE'   # protect 'WHERE' constructs
 [[ "${FILENAME}" == 'icedyn_rhg_eap.f90'    ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
 [[ "${FILENAME}" == 'p4zpoc.f90'            ]] && ACTION='EXCLUDE'   # protect 'ELEMENTAL' procedure prefix
