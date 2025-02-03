@@ -1124,6 +1124,13 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
                CALL iom_get( numror, jpdom_auto, 'vb2_b'  , vb2_b  (:,:), cd_type = 'V', psgn = -1._wp )
                CALL iom_get( numror, jpdom_auto, 'un_bf'  , un_bf  (:,:), cd_type = 'U', psgn = -1._wp )  
                CALL iom_get( numror, jpdom_auto, 'vn_bf'  , vn_bf  (:,:), cd_type = 'V', psgn = -1._wp )
+               !
+# if defined key_agrif
+               IF ( .NOT.Agrif_Root() ) THEN
+                  CALL iom_get( numror, jpdom_auto, 'ub2_i_b'  , ub2_i_b(:,:), cd_type = 'U', psgn = -1._wp )
+                  CALL iom_get( numror, jpdom_auto, 'vb2_i_b'  , vb2_i_b(:,:), cd_type = 'V', psgn = -1._wp )
+               ENDIF
+# endif
             ENDIF
 # else
          IF( ln_rstart ) THEN                           !* RK3: Read the restart file
@@ -1151,6 +1158,12 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
             CALL iom_rstput( kt, nitrst, numrow, 'vb2_b'   , vb2_b  (:,:) )
             CALL iom_rstput( kt, nitrst, numrow, 'un_bf'   , un_bf  (:,:) )
             CALL iom_rstput( kt, nitrst, numrow, 'vn_bf'   , vn_bf  (:,:) )
+# if defined key_agrif
+            IF ( .NOT.Agrif_Root() ) THEN
+               CALL iom_rstput( kt, nitrst, numrow, 'ub2_i_b'  , ub2_i_b(:,:) )
+               CALL iom_rstput( kt, nitrst, numrow, 'vb2_i_b'  , vb2_i_b(:,:) )
+            ENDIF
+# endif
          ENDIF
 # endif
          !

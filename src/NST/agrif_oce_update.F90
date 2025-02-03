@@ -971,7 +971,7 @@ CONTAINS
             DO ji=i1,i2
                zcor=tabres(ji,jj) - ub2_b(ji,jj)
                ! Update time integrated fluxes also in case of multiply nested grids:
-               ub2_i_b(ji,jj) = ub2_i_b(ji,jj) + za1 * zcor 
+               IF (.NOT.Agrif_Root()) ub2_i_b(ji,jj) = ub2_i_b(ji,jj) + za1 * zcor 
                ! Update corrective fluxes:
                un_bf(ji,jj)  = un_bf(ji,jj) + zcor
                ! Update half step back fluxes:
@@ -1009,7 +1009,7 @@ CONTAINS
             DO ji=i1,i2
                zcor=tabres(ji,jj) - vb2_b(ji,jj)
                ! Update time integrated fluxes also in case of multiply nested grids:
-               vb2_i_b(ji,jj) = vb2_i_b(ji,jj) + za1 * zcor 
+               IF (.NOT.Agrif_Root()) vb2_i_b(ji,jj) = vb2_i_b(ji,jj) + za1 * zcor 
                ! Update corrective fluxes:
                vn_bf(ji,jj)  = vn_bf(ji,jj) + zcor
                ! Update half step back fluxes:

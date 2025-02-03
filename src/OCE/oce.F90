@@ -115,8 +115,10 @@ CONTAINS
       ALLOCATE( un_bf(jpi,jpj), vn_bf(jpi,jpj), ub2_b(jpi,jpj), vb2_b(jpi,jpj)      , STAT=ierr(ii) )
 #endif
 #if defined key_agrif
-      ii = ii+1                             ! AGRIF: ???
-      ALLOCATE( ub2_i_b(jpi,jpj), vb2_i_b(jpi,jpj)                                  , STAT=ierr(ii) )
+      IF (.NOT.Agrif_Root()) THEN
+         ii = ii+1                             ! AGRIF: ???
+         ALLOCATE( ub2_i_b(jpi,jpj), vb2_i_b(jpi,jpj)                               , STAT=ierr(ii) )
+      ENDIF
 #endif
       !
       oce_alloc = MAXVAL( ierr )
@@ -137,7 +139,9 @@ CONTAINS
       DEALLOCATE( un_bf, vn_bf, ub2_b, vb2_b )
 #endif
 #if defined key_agrif
-      DEALLOCATE( ub2_i_b, vb2_i_b )
+      IF (.NOT.Agrif_Root()) THEN
+         DEALLOCATE( ub2_i_b, vb2_i_b )
+      ENDIF
 #endif
    END SUBROUTINE oce_dealloc
 
