@@ -3,6 +3,7 @@
 #                        ***  psct-OpenACC.py  ***
 # ======================================================================
 #  History : 5.0  !  2024  (S. Mueller)
+#            5.0  !  2025-01  (S. Mueller) Update for compatibility with the latest PSyclone release version
 # ----------------------------------------------------------------------
 #
 # This script is a PSyclone (https://github.com/stfc/PSyclone) transformation
@@ -22,7 +23,7 @@
 # https://psyclone.readthedocs.io/en/stable/transformations.html#script).
 #
 # ----------------------------------------------------------------------
-# NEMO 5.0 , NEMO Consortium (2024)
+# NEMO 5.0 , NEMO Consortium (2025)
 # Software governed by the CeCILL license (see ./LICENSE)
 # ----------------------------------------------------------------------
 
@@ -31,10 +32,16 @@
 #psct-include(LocalToGlobalArrays)
 #psct-include(GPURoutines)
 
+# For compatibility with PSyclone release version 3.0.0
+from psct_utils import P3APICompat
+
 # ----------------------------------------------------------------------
 #              ***  PSyclone transformation procedure  ***
 # ----------------------------------------------------------------------
 def trans(psy):
+
+    # For compatibility with PSyclone release version 3.0.0
+    psy = P3APICompat(psy)
 
     # Simplify 'TRA' and/or 'TRC' string comparisons
     trans_TracerTypeToggles(psy)
