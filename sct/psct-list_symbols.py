@@ -2,7 +2,8 @@
 # ======================================================================
 #                     ***  psct-list_symbols.py  ***
 # ======================================================================
-# History : 4.3  ! 2023-06  (S. Mueller) Initial version
+#  History : 4.3  !  2023-06  (S. Mueller) Initial version
+#            5.0  !  2025-01  (S. Mueller) Update for compatibility with the latest PSyclone release version
 # ----------------------------------------------------------------------
 #
 # PSyclone (https://github.com/stfc/PSyclone) transformation script, which,
@@ -15,14 +16,20 @@
 # for information on PSyclone transformation-script conventions.
 #
 # ----------------------------------------------------------------------
-# NEMO 4.3 , NEMO Consortium (2023)
+# NEMO 5.0 , NEMO Consortium (2025)
 # Software governed by the CeCILL license (see ./LICENSE)
 # ----------------------------------------------------------------------
+
+# For compatibility with PSyclone release version 3.0.0
+from psct_utils import P3APICompat
 
 # ----------------------------------------------------------------------
 #               ***  PSyclone transformation procedure  ***
 # ----------------------------------------------------------------------
 def trans(psy):
+
+    # For compatibility with PSyclone release version 3.0.0
+    psy = P3APICompat(psy)
 
     print()
     print("[PSyclone transformation] Passthrough and list of module ('Container') and procedure ('NemoInvokeSchedule') symbols")

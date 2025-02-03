@@ -3,6 +3,7 @@
 #                   ***  psct-TracerTypeToggles.py  ***
 # ======================================================================
 #  History : 5.0  !  2024  (S. Mueller)
+#            5.0  !  2025-01  (S. Mueller) Update for compatibility with the latest PSyclone release version
 # ----------------------------------------------------------------------
 #
 # PSyclone transformation script that replaces comparisons of a string variable
@@ -11,17 +12,23 @@
 # (within which string operations are not accepted) beyond such comparisons.
 #
 # ----------------------------------------------------------------------
-# NEMO 5.0 , NEMO Consortium (2024)
-# Software goverened by the CeCILL license (see ./LICENSE)
+# NEMO 5.0 , NEMO Consortium (2025)
+# Software governed by the CeCILL license (see ./LICENSE)
 # ----------------------------------------------------------------------
 
 from psyclone.psyir.nodes     import Reference, Literal, Assignment, IfBlock, BinaryOperation
 from psyclone.psyir.symbols   import DataSymbol, BOOLEAN_TYPE
 
+# For compatibility with PSyclone release version 3.0.0
+from psct_utils import P3APICompat
+
 # ----------------------------------------------------------------------
 #              ***  PSyclone transformation procedure  ***
 # ----------------------------------------------------------------------
 def trans(psy):
+
+    # For compatibility with PSyclone release version 3.0.0
+    psy = P3APICompat(psy)
 
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
