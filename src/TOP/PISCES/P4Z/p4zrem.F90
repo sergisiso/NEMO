@@ -119,6 +119,7 @@ CONTAINS
          zremik   = xstep / 1.e-6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk)
          zremik   = MAX( zremik, 2.74e-4 * xstep / xremikc )
          zremikc  = xremikc * zremik
+
          ! Ammonification in oxic waters with oxygen consumption
          ! -----------------------------------------------------
          zolimic  = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb)
@@ -230,8 +231,8 @@ CONTAINS
             zdepeff(ji,jj,jk) = 0.3
          ELSE
             zdepmin           = zdep / gdept(ji,jj,jk,Kmm)
-            zdepbac(ji,jj,jk) = zdepmin**0.683 * ztempbac(ji,jj)
-            zdepeff(ji,jj,jk) = 0.3 * zdepmin**0.6
+            zdepbac(ji,jj,jk) = zdepmin**0.73 * ztempbac(ji,jj)
+            zdepeff(ji,jj,jk) = 0.3 * zdepmin**0.8
          ENDIF
       END_3D
 
@@ -242,6 +243,7 @@ CONTAINS
          zremik   = xstep * 1.e6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk) 
          zremik   = MAX( zremik, 2.74e-4 * xstep / xremikc )
          zremikc  = xremikc * zremik
+
          ! Ammonification in oxic waters with oxygen consumption
          ! -----------------------------------------------------
          zolimic  = zremikc * ( 1.- nitrfac(ji,jj,jk) ) * tr(ji,jj,jk,jpdoc,Kbb) 
@@ -306,7 +308,7 @@ CONTAINS
          ! Bacteries are obliged to take up iron from the water. Some
          ! studies (especially at Papa) have shown this uptake to be significant
          ! ----------------------------------------------------------
-         zbactfer = feratb * 0.6_wp * xstep * tgfunc(ji,jj,jk) * xlimbacl(ji,jj,jk) * biron(ji,jj,jk)    &
+         zbactfer = feratb * 0.4_wp * xstep * tgfunc(ji,jj,jk) * xlimbacl(ji,jj,jk) * biron(ji,jj,jk)    &
            &        / ( xkferb + biron(ji,jj,jk) ) * zdepeff(ji,jj,jk) * zdepbac(ji,jj,jk)
          
          ! Only the transfer of iron from its dissolved form to particles
@@ -318,11 +320,11 @@ CONTAINS
          blim(ji,jj,jk)          = xlimbacl(ji,jj,jk)  * zdepbac(ji,jj,jk) / 1.e-6
       END_3D
 
-       IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
+      IF(sn_cfctl%l_prttrc)   THEN  ! print mean trends (used for debugging)
          WRITE(charout, FMT="('rem2')")
          CALL prt_ctl_info( charout, cdcomp = 'top' )
          CALL prt_ctl(tab4d_1=tr(:,:,:,:,Krhs), mask1=tmask, clinfo=ctrcnm)
-       ENDIF
+      ENDIF
 
       ! Initialization of the array which contains the labile fraction
       ! of bSi. Set to a constant in the upper ocean

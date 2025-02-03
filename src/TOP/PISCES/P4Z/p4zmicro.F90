@@ -82,8 +82,8 @@ CONTAINS
       REAL(wp) :: zrespz, ztortz, zgrasratf, zgrasratn
       REAL(wp) :: zgraznc, zgrazz, zgrazpoc, zgrazdc, zgrazpof, zgrazdf, zgraznf
       REAL(wp) :: zsigma, zsigma2, zdiffdn, zsizedn, ztmp1, ztmp2, ztmp3, ztmp4, ztmptot
-      REAL(wp) :: zmaxsi, zpexpod, zlog10, zlog2
-      REAL(wp), DIMENSION(A2D(0),jpk) :: zproport, zprodlig
+      REAL(wp) :: zmaxsi, zpexpod, zrsize, zrsizen, zrsized, znano, zdiat
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zproportn, zproportd, zprodlig
       REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE :: zgrazing, zfezoo, zzligprod
       CHARACTER (len=25) :: charout
 
@@ -110,16 +110,13 @@ CONTAINS
       ! This is a fit to the actual relationship when a power law distribution is assumed 
       ! for diatoms.
       ! ------------------------------------------------------------------------------------
-      zlog10 = LOG(10.0)
-      zlog2  = LOG(2.0)
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
          IF ( tmask(ji,jj,jk) == 1 ) THEN
-            zpexpod   = (0.53 * ( sized(ji,jj,jk) - 3.0 )**2 - 3.25 ) / ( sized(ji,jj,jk) - 1.0 + rtrn )
-            zpexpod   = MAX( -25.0, zpexpod ) + 1.0
-            zmaxsi    = EXP( zlog10 * zpexpod )
-            zproport(ji,jj,jk) = EXP((-0.48) * logsized(ji,jj,jk)) * (1.0 - ( zmaxsi - EXP( zlog2 * zpexpod ) ) / ( zmaxsi - 1.0 ) )
+            zproportd(ji,jj,jk) = EXP( 0.067 - 0.033 * sized(ji,jj,jk) * 6.0) / ( EXP( 0.067 -0.033 * 6.0 ) )
+            zproportn(ji,jj,jk) = EXP( 0.05 - 0.036 * sizen(ji,jj,jk) * 1.67) / ( EXP( 0.05 -0.036 * 1.67 ) )
          ELSE
-            zproport(ji,jj,jk) = 1.0
+            zproportn(ji,jj,jk) = 1.0
+            zproportd(ji,jj,jk) = 1.0
          ENDIF
       END_3D
 
@@ -155,8 +152,8 @@ CONTAINS
          !   exceed a certain value, diatoms are suppposed to be too 
          !   big for microzooplankton.
          !   --------------------------------------------------------
-         zcompadi  = zproport(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthreshdia ), 0.e0 )
-         zcompaph  = MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthreshphy ), 0.e0 )
+         zcompadi  = zproportd(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthreshdia ), 0.e0 )
+         zcompaph  = zproportn(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthreshphy ), 0.e0 )
          zcompapoc = MAX( ( tr(ji,jj,jk,jppoc,Kbb) - xthreshpoc ), 0.e0 )
          zcompaz   = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - xthreshzoo ), 0.e0 )
  
@@ -187,7 +184,7 @@ CONTAINS
          zdenom2   = zdenom * zdenom
          zsigma    = 1.0 - zdenom2/(0.05 * 0.05 + zdenom2)
          zsigma    = xsigma + xsigmadel * zsigma
-         zsigma2   = zsigma * zsigma
+         zsigma2   = 2.0 * zsigma * zsigma
          !
          zsizedn   = rlogfactdn + ( logsizen(ji,jj,jk) - logsized(ji,jj,jk) )
          zdiffdn   = EXP( -zsizedn * zsizedn / zsigma2 )
@@ -381,7 +378,7 @@ CONTAINS
          !
       ENDIF
       !
-      rlogfactdn = LOG(1.67 / 5.0)
+      rlogfactdn = LOG(1.67 / 6.0)
       !
    END SUBROUTINE p4z_micro_init
 

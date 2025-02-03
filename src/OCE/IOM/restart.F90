@@ -91,10 +91,14 @@ CONTAINS
       IF( .NOT. ln_rst_list .AND. nn_stock == -1 )   RETURN   ! we will never do any restart
 
       ! frequency-based restart dumping (nn_stock)
-      IF( .NOT. ln_rst_list .AND. MOD( kt - 1, nn_stock ) == 0 ) THEN
-         ! we use kt - 1 and not kt - nit000 to keep the same periodicity from the beginning of the experiment
-         nitrst = kt + nn_stock - 1                  ! define the next value of nitrst for restart writing
-         IF( nitrst > nitend )   nitrst = nitend   ! make sure we write a restart at the end of the run
+      IF( .NOT. ln_rst_list ) THEN
+         IF  ( nn_stock  == 0 ) THEN
+            nitrst = nitend
+         ELSEIF  (MOD( kt - 1, nn_stock ) == 0 ) THEN
+            ! we use kt - 1 and not kt - nit000 to keep the same periodicity from the beginning of the experiment
+            nitrst = kt + nn_stock - 1                  ! define the next value of nitrst for restart writing
+            IF( nitrst > nitend )   nitrst = nitend   ! make sure we write a restart at the end of the run
+         ENDIF
       ENDIF
       ! to get better performances with NetCDF format:
       ! we open and define the ocean restart file one time step before writing the data (-> at nitrst - 1)
@@ -372,7 +376,7 @@ CONTAINS
          !
          IF( ll_wd ) THEN                      !* wet and dry 
             !
-            IF( ln_read_cfg  ) THEN                 ! read configuration : ssh_ref is read in domain_cfg file
+            IF( ln_read_cfg ) THEN                 ! read configuration : ssh_ref is read in domain_cfg file
 !!st  why ssh is not masked : i.e. ssh(:,:,Kmm) = -ssh_ref*ssmask(:,:),
 !!st  since at the 1st time step lbclnk will be applied on ssh at Kaa but not initially at Kbb and Kmm
                ssh(:,:,Kbb) = -ssh_ref
@@ -382,12 +386,17 @@ CONTAINS
                      ssh(ji,jj,Kbb) = rn_wdmin1 - ht_0(ji,jj)
                   ENDIF
                END_2D
-            ELSE                                    ! user define configuration case  
+            ELSE                                   ! user define configuration case  
                CALL usr_def_istate_ssh( tmask, ssh(:,:,Kbb) )
             ENDIF
             !
-         ELSE                                  !* user defined configuration
-            CALL usr_def_istate_ssh( tmask, ssh(:,:,Kbb) )
+         ELSE                                  !* no wet and dry 
+            IF( ln_read_cfg ) THEN                 ! read configuration : ssh is set to 0
+               IF(lwp) WRITE(numout,*) '      rst_read_ssh : Ocean at rest, ssh is zero'
+               ssh(:,:,Kbb) = 0._wp
+            ELSE                                   ! user define configuration case  
+               CALL usr_def_istate_ssh( tmask, ssh(:,:,Kbb) )
+            ENDIF
             !
          ENDIF
          !

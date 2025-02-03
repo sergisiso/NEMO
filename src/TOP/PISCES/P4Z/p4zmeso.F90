@@ -15,6 +15,8 @@ MODULE p4zmeso
    USE trc             ! passive tracers common variables 
    USE sms_pisces      ! PISCES Source Minus Sink variables
    USE p4zprod         ! production
+   USE p2zlim
+   USE p4zlim
    USE prtctl          ! print control for debugging
    USE iom             ! I/O manager
 
@@ -55,6 +57,7 @@ MODULE p4zmeso
    INTEGER , ALLOCATABLE, SAVE, DIMENSION(:,:) :: kmig    !: Vertical indice of the the migration depth
 
    REAL(wp)         ::  xfracmigm1     !: Fractional biomass of meso that performs DVM
+   REAL(wp)         ::  rlogfactdn     !: Size ratio between diatoms and nanophytoplankton
    LOGICAL          :: l_dia_graz, l_dia_lprodz
    !! * Substitutions
 #  include "do_loop_substitute.h90"
@@ -81,7 +84,7 @@ CONTAINS
       !! ** Method  : - ???
       !!---------------------------------------------------------------------
       INTEGER, INTENT(in) ::   kt, knt   ! ocean time step and ???
-      INTEGER, INTENT(in)  ::  Kbb, Kmm, Krhs ! time level indices
+      INTEGER, INTENT(in)  ::  Kbb, kmm, Krhs ! time level indices
       !
       INTEGER  :: ji, jj, jk, jkt
       REAL(wp) :: zcompadi, zcompaph, zcompapoc, zcompaz, zcompam, zcompames
@@ -94,6 +97,7 @@ CONTAINS
       REAL(wp) :: zsigma, zsigma2, zsizedn, zdiffdn, ztmp1, ztmp2, ztmp3, ztmp4, ztmp5, ztmptot, zmigthick 
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(A2D(0),jpk) :: zgrarem, zgraref, zgrapoc, zgrapof, zgrabsi
+      REAL(wp), DIMENSION(A2D(0),jpk) :: zproportd, zproportn
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigrem, zgramigref, zgramigpoc, zgramigpof
       REAL(wp), ALLOCATABLE, DIMENSION(:,:)   ::   zgramigbsi
       REAL(wp), DIMENSION(:,:,:)  , ALLOCATABLE :: zgrazing2, zzligprod
@@ -126,6 +130,18 @@ CONTAINS
       IF (ln_dvm_meso) CALL p4z_meso_depmig( Kbb, Kmm )
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1)
+         IF ( tmask(ji,jj,jk) == 1 ) THEN
+            ztmp1 = 0.09544 - 0.0628 * EXP(-0.078 * 6.0 * xsizerd)
+            zproportd(ji,jj,jk) = (0.09544 - 0.0628 * EXP(-0.078 * sized(ji,jj,jk) * 6.0) ) / ztmp1
+            ztmp1 = -0.006622 + 0.008891 * xsizern * 1.67
+            zproportn(ji,jj,jk) = (-0.006622 + 0.008891 * sizen(ji,jj,jk) * 1.67) / ztmp1
+         ELSE
+            zproportd(ji,jj,jk) = 1.0
+            zproportn(ji,jj,jk) = 1.0
+         ENDIF
+      END_3D
+      !
+      DO_3D( 0, 0, 0, 0, 1, jpkm1)
          zcompam   = MAX( ( tr(ji,jj,jk,jpmes,Kbb) - 1.e-9 ), 0.e0 )
          zfact     = xstep * tgfunc2(ji,jj,jk) * zcompam
 
@@ -148,11 +164,11 @@ CONTAINS
          !   Computation of the abundance of the preys
          !   A threshold can be specified in the namelist
          !   --------------------------------------------
-         zcompadi  = MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthresh2dia ), 0.e0 )
+         zcompadi  = zproportd(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpdia,Kbb) - xthresh2dia ), 0.e0 )
          zcompaz   = MAX( ( tr(ji,jj,jk,jpzoo,Kbb) - xthresh2zoo ), 0.e0 )
          zcompapoc = MAX( ( tr(ji,jj,jk,jppoc,Kbb) - xthresh2poc ), 0.e0 )
          zcompames = MAX( ( tr(ji,jj,jk,jpmes,Kbb) - xthresh2mes ), 0.e0 )
-         zcompaph  = MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthresh2phy ), 0.e0 )
+         zcompaph  = zproportn(ji,jj,jk) * MAX( ( tr(ji,jj,jk,jpphy,Kbb) - xthresh2phy ), 0.e0 )
 
          ! Mesozooplankton grazing
          ! The total amount of food is the sum of all preys accessible to mesozooplankton 
@@ -182,11 +198,11 @@ CONTAINS
          zdenom2 = zdenom * zdenom
          zsigma  = 1.0 - zdenom2/(0.05*0.05+zdenom2)
          zsigma  = xsigma2 + xsigma2del * zsigma
-         zsigma2 = zsigma * zsigma
+         zsigma2 = 2.0 * zsigma * zsigma
          ! Nanophytoplankton and diatoms are the only preys considered
          ! to be close enough to have potential interference
          ! -----------------------------------------------------------
-         zsizedn = ABS(LOG(1.67 * sizen(ji,jj,jk) / (5.0 * sized(ji,jj,jk) + rtrn )) )
+         zsizedn = rlogfactdn + ( logsizen(ji,jj,jk) - logsized(ji,jj,jk) )
          zdiffdn = EXP( - zsizedn * zsizedn / zsigma2 )
          ztmp1 = xpref2n * zcompaph * ( zcompaph + zdiffdn * zcompadi )
          ztmp2 = xpref2m * zcompames*zcompames
@@ -511,6 +527,7 @@ CONTAINS
       ENDIF
       !
       xfracmigm1 = 1.0 - xfracmig
+      rlogfactdn = LOG(1.67 / 6.0)
       !
    END SUBROUTINE p4z_meso_init
 
@@ -524,7 +541,7 @@ CONTAINS
       !!      temperature and chlorophylle following the parameterization 
       !!      proposed by Bianchi et al. (2013)
       !!----------------------------------------------------------------------
-      INTEGER, INTENT(in)  ::  Kbb, Kmm ! time level indices
+      INTEGER, INTENT(in)  ::  Kbb, kmm ! time level indices
       !
       INTEGER  :: ji, jj, jk, itt
       !
@@ -551,10 +568,10 @@ CONTAINS
       ! ------------------------------------------------------------------
       DO_3D( 0, 0, 0, 0, 1, jpk)
          IF( tmask(ji,jj,jk) == 1.) THEN
-            IF( gdept(ji,jj,jk,Kmm) >= 150. .AND. gdept(ji,jj,jk,Kmm) <= 500.) THEN
-               oxymoy(ji,jj)  = oxymoy(ji,jj)  + tr(ji,jj,jk,jpoxy,Kbb) * 1E6 * e3t(ji,jj,jk,itt)
-               tempmoy(ji,jj) = tempmoy(ji,jj) + ts(ji,jj,jk,jp_tem,itt)      * e3t(ji,jj,jk,itt)
-               zdepmoy(ji,jj) = zdepmoy(ji,jj) + e3t(ji,jj,jk,itt)
+            IF( gdept(ji,jj,jk,Kmm) >= 150. .AND. gdept(ji,jj,jk,kmm) <= 500.) THEN
+               oxymoy(ji,jj)  = oxymoy(ji,jj)  + tr(ji,jj,jk,jpoxy,Kbb) * 1E6 * e3t(ji,jj,jk,Kmm)
+               tempmoy(ji,jj) = tempmoy(ji,jj) + ts(ji,jj,jk,jp_tem,itt)      * e3t(ji,jj,jk,kmm)
+               zdepmoy(ji,jj) = zdepmoy(ji,jj) + e3t(ji,jj,jk,Kmm)
             ENDIF
          ENDIF
       END_3D

@@ -37,7 +37,8 @@ MODULE traadv_qck
 
    LOGICAL  ::   l_trd   ! flag to compute trends
    LOGICAL  ::   l_ptr   ! flag to compute poleward transport
-
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_tra_qck = 0.85_wp  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_tra_qck = 1.00_wp  ! stability constraint
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

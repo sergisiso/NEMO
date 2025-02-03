@@ -81,7 +81,7 @@
    concdnh4   =  3.E-6    ! NH4 half saturation for diatoms
    concnfer   =  1.5E-9   ! Iron half saturation for phyto
    concdfer   =  4.5E-9   ! Iron half saturation for diatoms
-   concbfe    =  5.E-11   ! Iron half-saturation for DOC remin.
+   concbfe    =  4.E-11   ! Iron half-saturation for DOC remin.
    concbnh4   =  3.E-7    ! NH4 half saturation for DOC remin.
    concbno3   =  3.E-7    ! Nitrate half saturation for DOC remin.
    xsizedia   =  1.E-6    ! Minimum size criteria for diatoms
@@ -112,20 +112,20 @@
    concnfer   =  3E-9     ! Iron half saturation for phyto
    concpfer   =  1E-9     ! Iron half saturation for picophytoplankton
    concdfer   =  4.5E-9   ! Iron half saturation for diatoms
-   concbfe    =  5E-11    ! Half-saturation for Fe limitation of Bacteria
+   concbfe    =  4E-11    ! Half-saturation for Fe limitation of Bacteria
    concbnh4   =  3.E-7    ! NH4 half saturation for phyto
    concbno3   =  3.E-7    ! Phosphate half saturation for diatoms
    concbpo4   =  3.E-7    ! Phosphate half saturation for bacteria
    xsizedia   =  1.E-6    ! Minimum size criteria for diatoms
    xsizephy   =  1.E-6    ! Minimum size criteria for phyto
    xsizepic   =  5.E-7    ! Minimum size criteria for picophyto
-   xsizern    =  3.0      ! Size ratio for nanophytoplankton
-   xsizerp    =  2.0      ! Size ratio for picophytoplankton
+   xsizern    =  2.0      ! Size ratio for nanophytoplankton
+   xsizerp    =  1.5      ! Size ratio for picophytoplankton
    xsizerd    =  4.0      ! Size ratio for diatoms
    xksi1      =  8.E-6    ! half saturation constant for Si uptake
    xksi2      =  20E-6    ! half saturation constant for Si/C
    xkdoc      =  417.E-6  ! half-saturation constant of DOC remineralization
-   caco3r     =  0.4      ! mean rain ratio
+   caco3r     =  0.2      ! mean rain ratio
    oxymin     =  1.E-6    ! Half-saturation constant for anoxia
    ratchl     =  10.0     ! C associated with Chlorophyll
 /
@@ -138,7 +138,7 @@
    qnnmin     =  0.69     ! Minimal N quota for nano
    qnnmax     =  1.35     ! Maximal N quota for nano
    qpnmin     =  0.24     ! Minimal P quota for nano
-   qpnmax     =  1.3      ! Maximal P quota for nano
+   qpnmax     =  1.35     ! Maximal P quota for nano
    qnpmin     =  0.9      ! Minimal N quota for pico
    qnpmax     =  1.35     ! Maximal N quota for pico
    qppmin     =  0.2      ! Minimal P quota for pico
@@ -174,15 +174,15 @@
 !-----------------------------------------------------------------------
 &namp4zprod    !   parameters for phytoplankton growth for PISCES std  - ln_p4z
 !-----------------------------------------------------------------------
-   pislopen   =  3.       ! P-I slope
-   pisloped   =  3.       ! P-I slope  for diatoms
+   pislopen   =  3.5      ! P-I slope
+   pisloped   =  3.5      ! P-I slope  for diatoms
    excretn    =  0.05     ! excretion ratio of phytoplankton
    excretd    =  0.05     ! excretion ratio of diatoms
    bresp      =  0.03     ! Basal respiration rate
    chlcmin    =  0.0025   ! Minimum Chl/c in phytoplankton
    fecnm      =  60E-6    ! Maximum Fe/C in nanophytoplankton
    fecdm      =  60E-6    ! Maximum Fe/C in diatoms
-   grosip     =  0.13     ! mean Si/C ratio
+   grosip     =  0.11     ! mean Si/C ratio
 /
 !-----------------------------------------------------------------------
 &namp5zprod    !   parameters for phytoplankton growth for PISCES quota- ln_p5z
@@ -195,7 +195,7 @@
    excretd    =  0.05     ! excretion ratio of diatoms
    bresp      =  0.03     ! Basal respiration rate
    chlcmin    =  0.0025   ! Minimum Chl/c in phytoplankton
-   grosip     =  0.11     ! mean Si/C ratio
+   grosip     =  0.13     ! mean Si/C ratio
 /
 !-----------------------------------------------------------------------
 &namp2zmort    !   parameters for phytoplankton sinks for PISCES std   - ln_p2z
@@ -229,7 +229,7 @@
    resrat2     =  0.005    ! exsudation rate of mesozooplankton
    mzrat2      =  0.01     ! mesozooplankton mortality rate
    xpref2d     =  1.       ! mesozoo preference for diatoms
-   xpref2n     =  0.3      ! mesozoo preference for nanophyto.
+   xpref2n     =  0.45     ! mesozoo preference for nanophyto.
    xpref2z     =  1.       ! mesozoo preference for microzoo.
    xpref2c     =  0.3      ! mesozoo preference for poc
    xpref2m     =  0.0      ! mesozoo preference for meso
@@ -242,11 +242,11 @@
    xkgraz2     =  20.E-6   ! half saturation constant for meso grazing
    epsher2     =  0.4      ! Efficicency of Mesozoo growth
    epsher2min  =  0.4      ! Minimum efficiency of mesozoo growth
-   sigma2      =  0.5      ! Fraction of mesozoo excretion as DOM
+   sigma2      =  0.67     ! Fraction of mesozoo excretion as DOM
    unass2      =  0.3      ! non assimilated fraction of P by mesozoo
    grazflux    =  3.e3     ! flux-feeding rate
    xsigma2     =  0.5      ! Predation window size
-   xsigma2del  =  1.0      ! Predation window size scaling
+   xsigma2del  =  0.5      ! Predation window size scaling
    ln_dvm_meso =  .false.  ! Activates DVM for mesozooplankton
    xfracmig    =  0.3      ! Fraction of mesozooplankton performing DVM
 /
@@ -256,11 +256,11 @@
    part2       =  0.75     ! part of calcite not dissolved in mesozoo guts
    grazrat2    =  0.5      ! maximal mesozoo grazing rate
    bmetexc2    =  .true.   ! Metabolic use of excess carbon 
-   resrat2     =  0.005    ! exsudation rate of mesozooplankton
-   lmzrat2     =  0.00     ! Linear mortality rate of mesozooplankton
+   resrat2     =  0.003    ! exsudation rate of mesozooplankton
+   lmzrat2     =  0.003    ! Linear mortality rate of mesozooplankton
    mzrat2      =  0.01     ! mesozooplankton mortality rate
    xpref2d     =  1.       ! meso preference for diatoms
-   xpref2n     =  0.6      ! meso preference for nano
+   xpref2n     =  0.75     ! meso preference for nano
    xpref2z     =  1.       ! meso preference for zoo
    xpref2m     =  0.       ! meso preference for zoo
    xpref2c     =  0.3      ! meso preference for poc
@@ -273,13 +273,13 @@
    xkgraz2     =  20.E-6   ! half sturation constant for meso grazing
    epsher2     =  0.5      ! Efficicency of Mesozoo growth
    epsher2min  =  0.5      ! Minimum efficiency of mesozoo growth
-   ssigma2     =  0.5      ! Fraction excreted as semi-labile DOM
+   ssigma2     =  0.67     ! Fraction excreted as semi-labile DOM
    srespir2    =  0.15     ! Active respiration
    unass2c     =  0.3      ! non assimilated fraction of C by mesozoo
    unass2n     =  0.3      ! non assimilated fraction of N by mesozoo
    unass2p     =  0.3      ! non assimilated fraction of P by mesozoo
    xsigma2     =  0.5      ! Predation window size
-   xsigma2del  =  1.0      ! Predation window size scaling
+   xsigma2del  =  0.5      ! Predation window size scaling
    grazflux    =  3.e3     ! flux-feeding rate
    ln_dvm_meso =  .false.  ! Activates DVM for mesozooplankton
    xfracmig    =  0.25     ! Fraction of mesozooplankton performing DVM
@@ -310,10 +310,10 @@
    part       =  0.75     ! part of calcite not dissolved in microzoo guts
    grazrat    =  2.0      ! maximal zoo grazing rate
    resrat     =  0.02     ! Linear mortality rate of zooplankton
-   mzrat      =  0.005    ! zooplankton mortality rate
+   mzrat      =  0.01     ! zooplankton mortality rate
    xprefc     =  0.15     ! Microzoo preference for POM
    xprefn     =  1.0      ! Microzoo preference for Nanophyto
-   xprefd     =  1.0      ! Microzoo preference for Diatoms
+   xprefd     =  0.9      ! Microzoo preference for Diatoms
    xprefz     =  0.0      ! Microzoo preference for Microzoo
    xthreshdia =  1.E-8    ! Diatoms feeding threshold for microzooplankton 
    xthreshphy =  1.E-8    ! Nanophyto feeding threshold for microzooplankton 
@@ -323,10 +323,10 @@
    xkgraz     =  20.E-6   ! half sturation constant for grazing
    epsher     =  0.4      ! Efficiency of microzoo growth
    epshermin  =  0.4      ! Minimum efficiency of microzoo growth
-   sigma1     =  0.5      ! Fraction of microzoo excretion as DOM
+   sigma1     =  0.67     ! Fraction of microzoo excretion as DOM
    unass      =  0.3      ! non assimilated fraction of phyto by zoo
    xsigma     =  0.5      ! Predation window size
-   xsigmadel  =  1.0      ! Predation window size scaling
+   xsigmadel  =  0.5      ! Predation window size scaling
 /
 !-----------------------------------------------------------------------
 &namp5zzoo     !   parameters for microzooplankton
@@ -334,13 +334,13 @@
    part       =  0.75     ! part of calcite not dissolved in microzoo gutsa
    grazrat    =  2.0      ! maximal zoo grazing rate
    bmetexc    =  .true.   ! Metabolic use of excess carbon
-   resrat     =  0.02     ! exsudation rate of zooplankton
-   lmzrat     =  0.0      ! Linear mortality rate of zooplankton
-   mzrat      =  0.005    ! zooplankton mortality rate
+   resrat     =  0.01     ! exsudation rate of zooplankton
+   lmzrat     =  0.01     ! Linear mortality rate of zooplankton
+   mzrat      =  0.01     ! zooplankton mortality rate
    xprefc     =  0.15     ! Microzoo preference for POM
-   xprefn     =  1.0      ! Microzoo preference for Nanophyto
+   xprefn     =  0.95     ! Microzoo preference for Nanophyto
    xprefp     =  1.0      ! Microzoo preference for picophyto
-   xprefd     =  0.9      ! Microzoo preference for Diatoms
+   xprefd     =  0.85     ! Microzoo preference for Diatoms
    xprefz     =  0.       ! Microzoo preference for microzooplankton
    xthreshdia =  1.E-8    ! Diatoms feeding threshold for microzooplankton
    xthreshphy =  1.E-8    ! Nanophyto feeding threshold for microzooplankton
@@ -351,13 +351,13 @@
    xkgraz     =  20.E-6   ! half saturation constant for grazing
    epsher     =  0.5      ! Efficiency of microzoo growth
    epshermin  =  0.5      ! Minimum efficiency of microzoo growth
-   ssigma     =  0.5      ! Fraction excreted as semi-labile DOM
+   ssigma     =  0.67     ! Fraction excreted as semi-labile DOM
    srespir    =  0.15     ! Active respiration
    unassc     =  0.3      ! non assimilated fraction of C by zoo
    unassn     =  0.3      ! non assimilated fraction of N by zoo
    unassp     =  0.3      ! non assimilated fraction of P by zoo
    xsigma     =  0.5      ! Predation window size
-   xsigmadel  =  1.0      ! Predation window size scaling
+   xsigmadel  =  0.5      ! Predation window size scaling
 /
 !-----------------------------------------------------------------------
 &nampisfer     !   parameters for iron chemistry
@@ -376,7 +376,7 @@
    xsirem    =  0.003     ! remineralization rate of Si
    xsiremlab =  0.03      ! fast remineralization rate of Si
    xsilab    =  0.5       ! Fraction of labile biogenic silica
-   feratb    =  40.E-6    ! Fe/C quota in bacteria
+   feratb    =  60.E-6    ! Fe/C quota in bacteria
    xkferb    =  3E-10     ! Half-saturation constant for bacteria Fe/C
 !                         ! ln_p5z
    xremikc   =  0.4       ! remineralization rate of DOC
@@ -390,8 +390,8 @@
    rshape    =  1.0       ! Shape of the gamma function
 !                         ! ln_p5z
    xremipc   =  0.035     ! remineralisation rate of POC
-   xremipn   =  0.032     ! remineralisation rate of PON
-   xremipp   =  0.032     ! remineralisation rate of POP
+   xremipn   =  0.03      ! remineralisation rate of PON
+   xremipp   =  0.035     ! remineralisation rate of POP
 /
 !-----------------------------------------------------------------------
 &nampisdiaz     !   Namelist parameters for diazotrophy
@@ -494,8 +494,8 @@
 !-----------------------------------------------------------------------
 &nampisdmp     !   Damping 
 !-----------------------------------------------------------------------
-   ln_pisdmp     =  .false.     !  Relaxation for some tracers to a mean value
-   ln_pisdmp_alk = .false.
+   ln_pisdmp     = .true.     !  Relaxation for some tracers to a mean value
+   ln_pisdmp_alk = .true.
 /
 !-----------------------------------------------------------------------
 &nampisdbg     !   Namelist parameters for debugging

@@ -44,8 +44,9 @@ MODULE dynadv
    INTEGER,  PUBLIC, PARAMETER ::   np_VEC_c2  = 1   ! vector form : 2nd order centered scheme
    INTEGER,  PUBLIC, PARAMETER ::   np_FLX_c2  = 2   ! flux   form : 2nd order centered scheme
    INTEGER,  PUBLIC, PARAMETER ::   np_FLX_up3 = 3   ! flux   form : 3rd order Upstream Biased Scheme
-   REAL(wp), PUBLIC            ::   r_stb_thres_dyn  ! starting Courant number threshold for adaptive implicit vertical advection
-   REAL(wp), PUBLIC            ::   r_stb_cstra_dyn  ! stability constraint for dynamic advection
+   REAL(wp), PUBLIC            ::   r_stb_thres_dyn_v  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC            ::   r_stb_cstra_dyn_v  ! stability constraint for dynamic advection (vertical)
+   REAL(wp), PUBLIC            ::   r_stb_cstra_dyn_h  ! stability constraint for dynamic advection (horizontal)
 
    !! * Substitutions
 #  include "read_nml_substitute.h90"
@@ -127,9 +128,9 @@ CONTAINS
 
       ioptio = 0                      ! parameter control and set n_dynadv
       IF( ln_dynadv_OFF  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_LIN_dyn   ;   ENDIF
-      IF( ln_dynadv_vec  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_VEC_c2    ;   r_stb_thres_dyn = pp_stb_thres_dync2   ;  r_stb_cstra_dyn = pp_stb_cstra_dync2   ;  ENDIF
-      IF( ln_dynadv_cen2 ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_c2    ;   r_stb_thres_dyn = pp_stb_thres_dync2   ;  r_stb_cstra_dyn = pp_stb_cstra_dync2   ;  ENDIF
-      IF( ln_dynadv_up3  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_up3   ;   r_stb_thres_dyn = pp_stb_thres_dynup3  ;  r_stb_cstra_dyn = pp_stb_cstra_dynup3  ;  ENDIF
+      IF( ln_dynadv_vec  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_VEC_c2    ;   r_stb_thres_dyn_v = pp_stb_thres_dync2   ;  r_stb_cstra_dyn_v = pp_stb_cstra_dync2   ;  r_stb_cstra_dyn_h = pp_stb_cstra_dync2  ;  ENDIF
+      IF( ln_dynadv_cen2 ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_c2    ;   r_stb_thres_dyn_v = pp_stb_thres_dync2   ;  r_stb_cstra_dyn_v = pp_stb_cstra_dync2   ;  r_stb_cstra_dyn_h = pp_stb_cstra_dync2  ;  ENDIF
+      IF( ln_dynadv_up3  ) THEN   ;   ioptio = ioptio + 1   ;   n_dynadv = np_FLX_up3   ;   r_stb_thres_dyn_v = pp_stb_thres_dynup3  ;  r_stb_cstra_dyn_v = pp_stb_cstra_dynup3  ;  r_stb_cstra_dyn_h = pp_stb_cstra_dynup3 ;  ENDIF
 
       IF( ioptio /= 1 )   CALL ctl_stop( 'choose ONE and only ONE advection scheme' )
       IF( nn_dynkeg /= nkeg_C2 .AND. nn_dynkeg /= nkeg_HW )   CALL ctl_stop( 'KEG scheme wrong value of nn_dynkeg' )

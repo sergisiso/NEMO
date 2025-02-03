@@ -65,6 +65,36 @@
         <field id="diamlr_r036" enabled=".FALSE." />
         <field id="diamlr_r037" enabled=".FALSE." />
         <field id="diamlr_r038" enabled=".FALSE." />
+        <field id="diamlr_r039" enabled=".FALSE." />
+        <field id="diamlr_r040" enabled=".FALSE." />
+        <field id="diamlr_r041" enabled=".FALSE." />
+        <field id="diamlr_r042" enabled=".FALSE." />
+        <field id="diamlr_r043" enabled=".FALSE." />
+        <field id="diamlr_r044" enabled=".FALSE." />
+        <field id="diamlr_r045" enabled=".FALSE." />
+        <field id="diamlr_r046" enabled=".FALSE." />
+        <field id="diamlr_r047" enabled=".FALSE." />
+        <field id="diamlr_r048" enabled=".FALSE." />
+        <field id="diamlr_r049" enabled=".FALSE." />
+        <field id="diamlr_r050" enabled=".FALSE." />
+        <field id="diamlr_r051" enabled=".FALSE." />
+        <field id="diamlr_r052" enabled=".FALSE." />
+        <field id="diamlr_r053" enabled=".FALSE." />
+        <field id="diamlr_r054" enabled=".FALSE." />
+        <field id="diamlr_r055" enabled=".FALSE." />
+        <field id="diamlr_r056" enabled=".FALSE." />
+        <field id="diamlr_r057" enabled=".FALSE." />
+        <field id="diamlr_r058" enabled=".FALSE." />
+        <field id="diamlr_r059" enabled=".FALSE." />
+        <field id="diamlr_r060" enabled=".FALSE." />
+        <field id="diamlr_r061" enabled=".FALSE." />
+        <field id="diamlr_r062" enabled=".FALSE." />
+        <field id="diamlr_r063" enabled=".FALSE." />
+        <field id="diamlr_r064" enabled=".FALSE." />
+        <field id="diamlr_r065" enabled=".FALSE." />
+        <field id="diamlr_r066" enabled=".FALSE." />
+        <field id="diamlr_r067" enabled=".FALSE." />
+        <field id="diamlr_r068" enabled=".FALSE." />
         <field id="diamlr_r101" field_ref="diamlr_time" expr="diamlr_time^0.0"                       enabled=".TRUE."  comment="mean"            />
         <!-- Fields selected for regression analysis -->
         <field id="diamlr_f001" field_ref="ssh"  enabled=".TRUE." />

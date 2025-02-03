@@ -37,7 +37,6 @@ MODULE dynspg_ts
    USE dynadv    , ONLY: ln_dynadv_vec
    USE dynvor          ! vortivity scheme indicators
    USE phycst          ! physical constants
-   USE dynvor          ! vorticity term
    USE wet_dry         ! wetting/drying flux limter
    USE bdy_oce         ! open boundary
    USE bdyvol          ! open boundary volume conservation
@@ -45,7 +44,6 @@ MODULE dynspg_ts
    USE bdydyn2d        ! open boundary conditions on barotropic variables
    USE tide_mod        !
    USE sbcwave         ! surface wave
-   USE dynvor    , ONLY: e3f_0vor 
 #if defined key_agrif
    USE agrif_oce_interp ! agrif
    USE agrif_oce
@@ -819,25 +817,6 @@ CONTAINS
                   ll_cold_start = .TRUE. 
                ENDIF
             ENDIF
-#if defined key_agrif
-            ! Read time integrated fluxes
-            IF ( .NOT.Agrif_Root() ) THEN
-               CALL iom_get( numror, jpdom_auto, 'ub2_i_b'  , ub2_i_b(:,:), cd_type = 'U', psgn = -1._wp )
-               CALL iom_get( numror, jpdom_auto, 'vb2_i_b'  , vb2_i_b(:,:), cd_type = 'V', psgn = -1._wp )
-            ELSE
-               ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
-            ENDIF
-            CALL iom_get( numror, jpdom_auto, 'un_adv'      ,  un_adv(:,:), cd_type = 'U', psgn = -1._wp )   
-            CALL iom_get( numror, jpdom_auto, 'vn_adv'      ,  vn_adv(:,:), cd_type = 'V', psgn = -1._wp )
-#endif
-         ELSE
-            !                      !* Start from rest or use RK3 time-step
-            IF(lwp) WRITE(numout,*)
-            IF(lwp) WRITE(numout,*) '   ==>>>   start from rest: set barotropic values to 0'
-            un_adv (:,:) = 0._wp   ;   vn_adv (:,:) = 0._wp   ! used in the 1st interpol of agrif
-#if defined key_agrif
-            ub2_i_b(:,:) = 0._wp   ;   vb2_i_b(:,:) = 0._wp   ! used in the 1st update of agrif
-#endif
          ENDIF
          !
       ELSEIF( TRIM(cdrw) == 'WRITE' ) THEN   ! Create restart file
@@ -852,15 +831,6 @@ CONTAINS
             CALL iom_rstput( kt, nitrst, numrow, 'ub_e'     ,    ub_e(:,:) )
             CALL iom_rstput( kt, nitrst, numrow, 'vb_e'     ,    vb_e(:,:) )
          ENDIF
-#if defined key_agrif
-         ! Save time integrated fluxes
-         IF ( .NOT.Agrif_Root() ) THEN
-            CALL iom_rstput( kt, nitrst, numrow, 'ub2_i_b'  , ub2_i_b(:,:) )
-            CALL iom_rstput( kt, nitrst, numrow, 'vb2_i_b'  , vb2_i_b(:,:) )
-         ENDIF
-         CALL iom_rstput( kt, nitrst, numrow, 'un_adv'      ,  un_adv(:,:) )
-         CALL iom_rstput( kt, nitrst, numrow, 'vn_adv'      ,  vn_adv(:,:) )
-#endif
       ENDIF
       !
    END SUBROUTINE ts_rst

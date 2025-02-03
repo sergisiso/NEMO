@@ -381,7 +381,7 @@ CONTAINS
       !!                              and depths (ln_e3_dep=F) 
       !!----------------------------------------------------------------------
       INTEGER           ::   ji, jj, jk   ! dummy loop indices
-      INTEGER           ::   izco, izps, isco, icav
+      INTEGER           ::   izco, izps, isco, iloc, icav
       INTEGER           ::   inum     ! temprary units for 'domain_cfg.nc' file
       CHARACTER(len=21) ::   clnam    ! filename (mesh and mask informations)
       REAL(wp), DIMENSION(jpi,jpj) ::   z2d   ! workspace
@@ -428,6 +428,13 @@ CONTAINS
       IF( ln_isfcav ) THEN   ;   icav = 1   ;   ELSE   ;   icav = 0   ;   ENDIF
       CALL iom_rstput( 0, 0, inum, 'ln_isfcav', REAL( icav, wp), ktype = jp_i4 )
       !
+      !                                   ! local vertical coordinates
+      IF( ln_loczgr          ) THEN   ;   iloc = 1   ;   ELSE   ;   iloc = 0   ;   ENDIF
+      CALL iom_rstput( 0, 0, inum, 'ln_loczgr', REAL( iloc, wp), ktype = jp_i4 )
+      IF( ln_loczgr          ) THEN
+         CALL iom_rstput( 0, 0, inum, 'mask_loczgr', l2g_msk, ktype = jp_r8 )
+      ENDIF
+      !      
       !                             !==  horizontal mesh  !
       !
       CALL iom_rstput( 0, 0, inum, 'glamt', glamt, ktype = jp_r8 )   ! latitude

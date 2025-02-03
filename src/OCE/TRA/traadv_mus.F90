@@ -46,6 +46,8 @@ MODULE traadv_mus
    LOGICAL  ::   l_trd   ! flag to compute trends
    LOGICAL  ::   l_ptr   ! flag to compute poleward transport
    LOGICAL  ::   l_hst   ! flag to compute heat/salt transport
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_thres_tra_mus = 0.85_wp  ! starting Courant number threshold for adaptive implicit vertical advection
+   REAL(wp), PUBLIC, PARAMETER :: pp_stb_cstra_tra_mus = 1.00_wp  ! stability constraint
 
    !! * Substitutions
 #  include "do_loop_substitute.h90"

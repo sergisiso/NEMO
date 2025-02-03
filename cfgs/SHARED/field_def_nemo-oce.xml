@@ -27,45 +27,121 @@ that are available in the tidal-forcing implementation (see
     <!-- Time -->
     <field id="diamlr_time" grid_ref="diamlr_grid_T_2D_inner" prec="8" />
 
-    <!-- Regressors for tidal harmonic analysis -->
-    <field id="diamlr_r001"  field_ref="diamlr_time" expr="sin( __TDE_M2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M2"   />
-    <field id="diamlr_r002"  field_ref="diamlr_time" expr="cos( __TDE_M2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M2"   />
-    <field id="diamlr_r003"  field_ref="diamlr_time" expr="sin( __TDE_N2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:N2"   />
-    <field id="diamlr_r004"  field_ref="diamlr_time" expr="cos( __TDE_N2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:N2"   />
-    <field id="diamlr_r005"  field_ref="diamlr_time" expr="sin( __TDE_2N2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:2N2"  />
-    <field id="diamlr_r006"  field_ref="diamlr_time" expr="cos( __TDE_2N2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:2N2"  />
-    <field id="diamlr_r007"  field_ref="diamlr_time" expr="sin( __TDE_S2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:S2"   />
-    <field id="diamlr_r008"  field_ref="diamlr_time" expr="cos( __TDE_S2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:S2"   />
-    <field id="diamlr_r009"  field_ref="diamlr_time" expr="sin( __TDE_K2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:K2"   />
-    <field id="diamlr_r010"  field_ref="diamlr_time" expr="cos( __TDE_K2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:K2"   />
-    <field id="diamlr_r011"  field_ref="diamlr_time" expr="sin( __TDE_K1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:K1"   />
-    <field id="diamlr_r012"  field_ref="diamlr_time" expr="cos( __TDE_K1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:K1"   />
-    <field id="diamlr_r013"  field_ref="diamlr_time" expr="sin( __TDE_O1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:O1"   />
-    <field id="diamlr_r014"  field_ref="diamlr_time" expr="cos( __TDE_O1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:O1"   />
-    <field id="diamlr_r015"  field_ref="diamlr_time" expr="sin( __TDE_Q1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Q1"   />
-    <field id="diamlr_r016"  field_ref="diamlr_time" expr="cos( __TDE_Q1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Q1"   />
-    <field id="diamlr_r017"  field_ref="diamlr_time" expr="sin( __TDE_P1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:P1"   />
-    <field id="diamlr_r018"  field_ref="diamlr_time" expr="cos( __TDE_P1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:P1"   />
-    <field id="diamlr_r019"  field_ref="diamlr_time" expr="sin( __TDE_M4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M4"   />
-    <field id="diamlr_r020"  field_ref="diamlr_time" expr="cos( __TDE_M4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M4"   />
-    <field id="diamlr_r021"  field_ref="diamlr_time" expr="sin( __TDE_Mf_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mf"   />
-    <field id="diamlr_r022"  field_ref="diamlr_time" expr="cos( __TDE_Mf_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mf"   />
-    <field id="diamlr_r023"  field_ref="diamlr_time" expr="sin( __TDE_Mm_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mm"   />
-    <field id="diamlr_r024"  field_ref="diamlr_time" expr="cos( __TDE_Mm_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mm"   />
-    <field id="diamlr_r025"  field_ref="diamlr_time" expr="sin( __TDE_Msqm_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Msqm" />
-    <field id="diamlr_r026"  field_ref="diamlr_time" expr="cos( __TDE_Msqm_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Msqm" />
-    <field id="diamlr_r027"  field_ref="diamlr_time" expr="sin( __TDE_Mtm_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mtm"  />
-    <field id="diamlr_r028"  field_ref="diamlr_time" expr="cos( __TDE_Mtm_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mtm"  />
-    <field id="diamlr_r029"  field_ref="diamlr_time" expr="sin( __TDE_S1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:S1"   />
-    <field id="diamlr_r030"  field_ref="diamlr_time" expr="cos( __TDE_S1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:S1"   />
-    <field id="diamlr_r031"  field_ref="diamlr_time" expr="sin( __TDE_MU2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:MU2"  />
-    <field id="diamlr_r032"  field_ref="diamlr_time" expr="cos( __TDE_MU2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:MU2"  />
-    <field id="diamlr_r033"  field_ref="diamlr_time" expr="sin( __TDE_NU2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:NU2"  />
-    <field id="diamlr_r034"  field_ref="diamlr_time" expr="cos( __TDE_NU2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:NU2"  />
-    <field id="diamlr_r035"  field_ref="diamlr_time" expr="sin( __TDE_L2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:L2"   />
-    <field id="diamlr_r036"  field_ref="diamlr_time" expr="cos( __TDE_L2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:L2"   />
-    <field id="diamlr_r037"  field_ref="diamlr_time" expr="sin( __TDE_T2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:T2"   />
-    <field id="diamlr_r038"  field_ref="diamlr_time" expr="cos( __TDE_T2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:T2"   />
+    <!-- Regressors for tidal harmonic analysis (nn_tide_var=1, default) -->
+      <!-- long-period constituents -->
+      <field id="diamlr_r001"  field_ref="diamlr_time" expr="sin( __TDE_Mf_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mf"   />
+      <field id="diamlr_r002"  field_ref="diamlr_time" expr="cos( __TDE_Mf_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mf"   />
+      <field id="diamlr_r003"  field_ref="diamlr_time" expr="sin( __TDE_Mm_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mm"   />
+      <field id="diamlr_r004"  field_ref="diamlr_time" expr="cos( __TDE_Mm_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mm"   />
+      <field id="diamlr_r005"  field_ref="diamlr_time" expr="sin( __TDE_Ssa_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Ssa"  />
+      <field id="diamlr_r006"  field_ref="diamlr_time" expr="cos( __TDE_Ssa_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Ssa"  />
+      <field id="diamlr_r007"  field_ref="diamlr_time" expr="sin( __TDE_Mtm_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mtm"  />
+      <field id="diamlr_r008"  field_ref="diamlr_time" expr="cos( __TDE_Mtm_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mtm"  />
+      <field id="diamlr_r009"  field_ref="diamlr_time" expr="sin( __TDE_Msf_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Msf"  />
+      <field id="diamlr_r010"  field_ref="diamlr_time" expr="cos( __TDE_Msf_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Msf"  />
+      <field id="diamlr_r011"  field_ref="diamlr_time" expr="sin( __TDE_Msqm_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Msqm" />
+      <field id="diamlr_r012"  field_ref="diamlr_time" expr="cos( __TDE_Msqm_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Msqm" />
+      <field id="diamlr_r013"  field_ref="diamlr_time" expr="sin( __TDE_Sa_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Sa"   />
+      <field id="diamlr_r014"  field_ref="diamlr_time" expr="cos( __TDE_Sa_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Sa"   />
+      <!-- diurnal constituents -->
+      <field id="diamlr_r015"  field_ref="diamlr_time" expr="sin( __TDE_K1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:K1"   />
+      <field id="diamlr_r016"  field_ref="diamlr_time" expr="cos( __TDE_K1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:K1"   />
+      <field id="diamlr_r017"  field_ref="diamlr_time" expr="sin( __TDE_O1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:O1"   />
+      <field id="diamlr_r018"  field_ref="diamlr_time" expr="cos( __TDE_O1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:O1"   />
+      <field id="diamlr_r019"  field_ref="diamlr_time" expr="sin( __TDE_P1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:P1"   />
+      <field id="diamlr_r020"  field_ref="diamlr_time" expr="cos( __TDE_P1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:P1"   />
+      <field id="diamlr_r021"  field_ref="diamlr_time" expr="sin( __TDE_Q1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Q1"   />
+      <field id="diamlr_r022"  field_ref="diamlr_time" expr="cos( __TDE_Q1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Q1"   />
+      <field id="diamlr_r023"  field_ref="diamlr_time" expr="sin( __TDE_J1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:J1"   />
+      <field id="diamlr_r024"  field_ref="diamlr_time" expr="cos( __TDE_J1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:J1"   />
+      <field id="diamlr_r025"  field_ref="diamlr_time" expr="sin( __TDE_S1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:S1"   />
+      <field id="diamlr_r026"  field_ref="diamlr_time" expr="cos( __TDE_S1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:S1"   />
+      <!-- semidiurnal constituents -->
+      <field id="diamlr_r027"  field_ref="diamlr_time" expr="sin( __TDE_M2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M2"   />
+      <field id="diamlr_r028"  field_ref="diamlr_time" expr="cos( __TDE_M2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M2"   />
+      <field id="diamlr_r029"  field_ref="diamlr_time" expr="sin( __TDE_S2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:S2"   />
+      <field id="diamlr_r030"  field_ref="diamlr_time" expr="cos( __TDE_S2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:S2"   />
+      <field id="diamlr_r031"  field_ref="diamlr_time" expr="sin( __TDE_N2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:N2"   />
+      <field id="diamlr_r032"  field_ref="diamlr_time" expr="cos( __TDE_N2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:N2"   />
+      <field id="diamlr_r033"  field_ref="diamlr_time" expr="sin( __TDE_K2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:K2"   />
+      <field id="diamlr_r034"  field_ref="diamlr_time" expr="cos( __TDE_K2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:K2"   />
+      <field id="diamlr_r035"  field_ref="diamlr_time" expr="sin( __TDE_nu2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:nu2"  />
+      <field id="diamlr_r036"  field_ref="diamlr_time" expr="cos( __TDE_nu2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:nu2"  />
+      <field id="diamlr_r037"  field_ref="diamlr_time" expr="sin( __TDE_mu2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:mu2"  />
+      <field id="diamlr_r038"  field_ref="diamlr_time" expr="cos( __TDE_mu2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:mu2"  />
+      <field id="diamlr_r039"  field_ref="diamlr_time" expr="sin( __TDE_2N2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:2N2"  />
+      <field id="diamlr_r040"  field_ref="diamlr_time" expr="cos( __TDE_2N2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:2N2"  />
+      <field id="diamlr_r041"  field_ref="diamlr_time" expr="sin( __TDE_L2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:L2"   />
+      <field id="diamlr_r042"  field_ref="diamlr_time" expr="cos( __TDE_L2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:L2"   />
+      <field id="diamlr_r043"  field_ref="diamlr_time" expr="sin( __TDE_T2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:T2"   />
+      <field id="diamlr_r044"  field_ref="diamlr_time" expr="cos( __TDE_T2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:T2"   />
+      <field id="diamlr_r045"  field_ref="diamlr_time" expr="sin( __TDE_eps2_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:eps2" />
+      <field id="diamlr_r046"  field_ref="diamlr_time" expr="cos( __TDE_eps2_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:eps2" />
+      <field id="diamlr_r047"  field_ref="diamlr_time" expr="sin( __TDE_lam2_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:lam2" />
+      <field id="diamlr_r048"  field_ref="diamlr_time" expr="cos( __TDE_lam2_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:lam2" />
+      <field id="diamlr_r049"  field_ref="diamlr_time" expr="sin( __TDE_R2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:R2"   />
+      <field id="diamlr_r050"  field_ref="diamlr_time" expr="cos( __TDE_R2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:R2"   />
+      <!-- terdiurnal constituent -->
+      <field id="diamlr_r051"  field_ref="diamlr_time" expr="sin( __TDE_M3_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M3"   />
+      <field id="diamlr_r052"  field_ref="diamlr_time" expr="cos( __TDE_M3_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M3"   />
+      <!-- compound tides -->
+      <field id="diamlr_r053"  field_ref="diamlr_time" expr="sin( __TDE_MKS2_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:MKS2" />
+      <field id="diamlr_r054"  field_ref="diamlr_time" expr="cos( __TDE_MKS2_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:MKS2" />
+      <field id="diamlr_r055"  field_ref="diamlr_time" expr="sin( __TDE_MN4_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:MN4"  />
+      <field id="diamlr_r056"  field_ref="diamlr_time" expr="cos( __TDE_MN4_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:MN4"  />
+      <field id="diamlr_r057"  field_ref="diamlr_time" expr="sin( __TDE_MS4_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:MS4"  />
+      <field id="diamlr_r058"  field_ref="diamlr_time" expr="cos( __TDE_MS4_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:MS4"  />
+      <!-- overtides -->
+      <field id="diamlr_r059"  field_ref="diamlr_time" expr="sin( __TDE_M4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M4"   />
+      <field id="diamlr_r060"  field_ref="diamlr_time" expr="cos( __TDE_M4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M4"   />
+      <field id="diamlr_r061"  field_ref="diamlr_time" expr="sin( __TDE_N4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:N4"   />
+      <field id="diamlr_r062"  field_ref="diamlr_time" expr="cos( __TDE_N4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:N4"   />
+      <field id="diamlr_r063"  field_ref="diamlr_time" expr="sin( __TDE_S4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:S4"   />
+      <field id="diamlr_r064"  field_ref="diamlr_time" expr="cos( __TDE_S4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:S4"   />
+      <field id="diamlr_r065"  field_ref="diamlr_time" expr="sin( __TDE_M6_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M6"   />
+      <field id="diamlr_r066"  field_ref="diamlr_time" expr="cos( __TDE_M6_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M6"   />
+      <field id="diamlr_r067"  field_ref="diamlr_time" expr="sin( __TDE_M8_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M8"   />
+      <field id="diamlr_r068"  field_ref="diamlr_time" expr="cos( __TDE_M8_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M8"   />
+    <!-- legacy option (nn_tide_var=0)
+      <field id="diamlr_r001"  field_ref="diamlr_time" expr="sin( __TDE_M2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M2"   />
+      <field id="diamlr_r002"  field_ref="diamlr_time" expr="cos( __TDE_M2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M2"   />
+      <field id="diamlr_r003"  field_ref="diamlr_time" expr="sin( __TDE_N2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:N2"   />
+      <field id="diamlr_r004"  field_ref="diamlr_time" expr="cos( __TDE_N2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:N2"   />
+      <field id="diamlr_r005"  field_ref="diamlr_time" expr="sin( __TDE_2N2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:2N2"  />
+      <field id="diamlr_r006"  field_ref="diamlr_time" expr="cos( __TDE_2N2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:2N2"  />
+      <field id="diamlr_r007"  field_ref="diamlr_time" expr="sin( __TDE_S2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:S2"   />
+      <field id="diamlr_r008"  field_ref="diamlr_time" expr="cos( __TDE_S2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:S2"   />
+      <field id="diamlr_r009"  field_ref="diamlr_time" expr="sin( __TDE_K2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:K2"   />
+      <field id="diamlr_r010"  field_ref="diamlr_time" expr="cos( __TDE_K2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:K2"   />
+      <field id="diamlr_r011"  field_ref="diamlr_time" expr="sin( __TDE_K1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:K1"   />
+      <field id="diamlr_r012"  field_ref="diamlr_time" expr="cos( __TDE_K1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:K1"   />
+      <field id="diamlr_r013"  field_ref="diamlr_time" expr="sin( __TDE_O1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:O1"   />
+      <field id="diamlr_r014"  field_ref="diamlr_time" expr="cos( __TDE_O1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:O1"   />
+      <field id="diamlr_r015"  field_ref="diamlr_time" expr="sin( __TDE_Q1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Q1"   />
+      <field id="diamlr_r016"  field_ref="diamlr_time" expr="cos( __TDE_Q1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Q1"   />
+      <field id="diamlr_r017"  field_ref="diamlr_time" expr="sin( __TDE_P1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:P1"   />
+      <field id="diamlr_r018"  field_ref="diamlr_time" expr="cos( __TDE_P1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:P1"   />
+      <field id="diamlr_r019"  field_ref="diamlr_time" expr="sin( __TDE_M4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:M4"   />
+      <field id="diamlr_r020"  field_ref="diamlr_time" expr="cos( __TDE_M4_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:M4"   />
+      <field id="diamlr_r021"  field_ref="diamlr_time" expr="sin( __TDE_Mf_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mf"   />
+      <field id="diamlr_r022"  field_ref="diamlr_time" expr="cos( __TDE_Mf_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mf"   />
+      <field id="diamlr_r023"  field_ref="diamlr_time" expr="sin( __TDE_Mm_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mm"   />
+      <field id="diamlr_r024"  field_ref="diamlr_time" expr="cos( __TDE_Mm_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mm"   />
+      <field id="diamlr_r025"  field_ref="diamlr_time" expr="sin( __TDE_Msqm_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Msqm" />
+      <field id="diamlr_r026"  field_ref="diamlr_time" expr="cos( __TDE_Msqm_omega__ * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Msqm" />
+      <field id="diamlr_r027"  field_ref="diamlr_time" expr="sin( __TDE_Mtm_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:Mtm"  />
+      <field id="diamlr_r028"  field_ref="diamlr_time" expr="cos( __TDE_Mtm_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:Mtm"  />
+      <field id="diamlr_r029"  field_ref="diamlr_time" expr="sin( __TDE_S1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:S1"   />
+      <field id="diamlr_r030"  field_ref="diamlr_time" expr="cos( __TDE_S1_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:S1"   />
+      <field id="diamlr_r031"  field_ref="diamlr_time" expr="sin( __TDE_MU2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:MU2"  />
+      <field id="diamlr_r032"  field_ref="diamlr_time" expr="cos( __TDE_MU2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:MU2"  />
+      <field id="diamlr_r033"  field_ref="diamlr_time" expr="sin( __TDE_NU2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:NU2"  />
+      <field id="diamlr_r034"  field_ref="diamlr_time" expr="cos( __TDE_NU2_omega__  * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:NU2"  />
+      <field id="diamlr_r035"  field_ref="diamlr_time" expr="sin( __TDE_L2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:L2"   />
+      <field id="diamlr_r036"  field_ref="diamlr_time" expr="cos( __TDE_L2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:L2"   />
+      <field id="diamlr_r037"  field_ref="diamlr_time" expr="sin( __TDE_T2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:sin:T2"   />
+      <field id="diamlr_r038"  field_ref="diamlr_time" expr="cos( __TDE_T2_omega__   * diamlr_time )" enabled=".TRUE."  comment="harmonic:cos:T2"   />
+    -->
     <field id="diamlr_r101"  field_ref="diamlr_time" expr="diamlr_time^0.0"                         enabled=".TRUE."  comment="mean"              />
 
     <!-- Fields selected for regression analysis -->
@@ -194,7 +270,7 @@ that are available in the tidal-forcing implementation (see
     <field id="Courant"      long_name="Courant number"                                                                 unit="#"   grid_ref="grid_T_3D_inner" />
     <field id="wimp"         long_name="Implicit vertical velocity"                                                     unit="m/s" grid_ref="grid_T_3D_inner" />
     <field id="wexp"         long_name="Explicit vertical velocity"                                                     unit="m/s" grid_ref="grid_T_3D" />
-    <field id="wi_cff"       long_name="Fraction of implicit vertical velocity"                                         unit="#"   grid_ref="grid_T_3D" />
+    <field id="wi_cff"       long_name="Fraction of implicit vertical velocity"                                         unit="#"   grid_ref="grid_T_3D_inner" />
     <field id="Aimp_loc"     long_name="Locations of columns with active adaptive-implicit vertical advection"          unit="%ts"   grid_ref="grid_T_2D_inner" />
     <field id="Aimp_Cmx"     long_name="Column maximum of Courant number with active adaptive-implicit vertical advection"             operation="maximum" unit="#"   grid_ref="grid_T_2D_inner" />
     <field id="Aimp_Cmx_h"   long_name="Column maximum of horizontal Courant number with active adaptive-implicit vertical advection"  operation="maximum" unit="#"   grid_ref="grid_T_2D_inner" />

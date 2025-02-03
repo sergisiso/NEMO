@@ -3,6 +3,7 @@
    !!======================================================================
    !! History :  3.2  !  2007  (O. Le Galloudec)  Original code
    !!                 !  2019  (S. Mueller, N. Bruneau)  Alternative parameter set
+   !!                 !  2024-12, 2025-01  (J. Polton, S. Mueller)  Parameter correction and source clarifications
    !!----------------------------------------------------------------------
    !!
    !! ** Purpose : Inclusion of alternative variants of tidal-constituent
@@ -15,20 +16,22 @@
    !!              previous NEMO versions
    !!
    !! ** References :
+   !!      CE73) Cartwright, D. E. and Edden, A. C. (1973): Corrected Tables of
+   !!            Tidal Harmonics. Geophys. J. R. astr. Soc. 33,
+   !!            pp. 253-264. DOI: 10.1111/j.1365-246X.1973.tb03420.x
+   !!      CT71) Cartwright, D. E. and Tayler, R. J. (1971): New computations of
+   !!            the Tide-generating Potential. Geophys. J. R. astr. Soc. 23,
+   !!            pp. 45-74. DOI: 10.1111/j.1365-246X.1971.tb01803.x
+   !!   FES2014) FES (Finite element Solution) - Global
+   !!            tide. https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html
+   !!       P87) Pugh, D.T (1987) Tides, surges and mean sea-level - a handbook
+   !!            for engineers and scientists. John Wiley & Sons. (Page 111, Table 4.4)
    !!       S58) Schureman, P. (1958): Manual of Harmonic Analysis and
    !!            Prediction of Tides (Revised (1940) Edition (Reprinted 1958
    !!            with corrections). Reprinted June 2001). U.S. Department of
    !!            Commerce, Coast and Geodetic Survey Special Publication
    !!            No. 98. Washington DC, United States Government Printing
    !!            Office. 317 pp. DOI: 10.25607/OBP-155.
-   !!      CT71) Cartwright, D. E. and Tayler, R. J. (1971): New computations of
-   !!            the Tide-generating Potential. Geophys. J. R. astr. Soc. 23,
-   !!            pp. 45-74. DOI: 10.1111/j.1365-246X.1971.tb01803.x
-   !!      CE73) Cartwright, D. E. and Edden, A. C. (1973): Corrected Tables of
-   !!            Tidal Harmonics. Geophys. J. R. astr. Soc. 33,
-   !!            pp. 253-264. DOI: 10.1111/j.1365-246X.1973.tb03420.x
-   !!   FES2014) FES (Finite element Solution) - Global
-   !!            tide. https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html
    !!
    !!----------------------------------------------------------------------
 
@@ -38,110 +41,135 @@
    !!----------------------------------------------------------------------
 #ifndef TIDE_VAR_0
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   !                         | Name   | Equilibrium  | nt | ns | nh | np | np1 | Phase | nxi | nnu0 | nnu1 | nnu2 |  R | Nodal      | Equilibrium    | Parameters source     | Notes  |
-   !                         |        | tide         |    |    |    |    |     | shift |     |      |      |      |    | correction | tide           |                       |        |
+   !                         | Name   | Equilibrium  | nt | ns | nh | np | np1 | Phase | nxi | nnu0 | nnu1 | nnu2 |  R | Nodal      | Equilibrium    | Parameters source     | Extra  |
+   !                         |        | tide         |    |    |    |    |     | shift |     |      |      |      |    | correction | tide           |                       | notes  |
    !                         |        |              |    |    |    |    |     |       |     |      |      |      |    | formula    | source/comment |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
    !                         |                                                            Long-period tidal constituents                                                              |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 1) = tide( 'Mf'   ,  0.042054_wp ,  0 ,  2 ,  1 ,  0 ,   0 ,     0 ,  -2 ,    0 ,    0 ,    0 ,  0 ,  74 )      ! CE73           | S54 (Table 2, A6)     |        |
+   tide_components( 1) = tide( 'Mf'   ,  0.042054_wp ,  0 ,  2 ,  0 ,  0 ,   0 ,     0 ,  -2 ,    0 ,    0 ,    0 ,  0 ,  74 )      ! CE73, note 1   | S58 (Table 2, A6)     |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 2) = tide( 'Mm'   ,  0.022187_wp ,  0 ,  1 ,  0 , -1 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,  73 )      ! CE73           | S54 (Table 2, A2)     |        |
+   tide_components( 2) = tide( 'Mm'   ,  0.022187_wp ,  0 ,  1 ,  0 , -1 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,  73 )      ! CE73, note 1   | S58 (Table 2, A2)     |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 3) = tide( 'Ssa'  ,  0.019572_wp ,  0 ,  0 ,  2 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73           | S54 (Table 2, B6)     |        |
+   tide_components( 3) = tide( 'Ssa'  ,  0.019572_wp ,  0 ,  0 ,  2 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73, note 0,  | S58 (Table 2, B6)     |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | note 1         |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 4) = tide( 'Mtm'  ,  0.008052_wp ,  0 ,  3 ,  0 , -1 ,   0 ,     0 ,  -2 ,    0 ,    0 ,    0 ,  0 ,  74 )      ! CE73           | FES2014 (prediction   |        |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | algorithm); S54       |        |
+   tide_components( 4) = tide( 'Mtm'  ,  0.008052_wp ,  0 ,  3 ,  0 , -1 ,   0 ,     0 ,  -2 ,    0 ,    0 ,    0 ,  0 ,  74 )      ! CE73, note 1   | FES2014 (prediction   |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | algorithm); S58       |        |
    !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | (Table 2, A7)         |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 5) = tide( 'Msf'  ,  0.003677_wp ,  0 ,  2 , -2 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,  73 )      ! CE73           | S54 (Table 2, A5)     |        |
+   tide_components( 5) = tide( 'Msf'  ,  0.003677_wp ,  0 ,  2 , -2 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,  73 )      ! CE73, note 1   | S58 (Table 2, A5)     |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 6) = tide( 'Msqm' ,  0.001287_wp ,  0 ,  4 , -2 ,  0 ,   0 ,     0 ,  -2 ,    0 ,    0 ,    0 ,  0 ,  74 )      ! CE73           | FES2014 (prediction   |        |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | algorithm); S54       |        |
+   tide_components( 6) = tide( 'Msqm' ,  0.001287_wp ,  0 ,  4 , -2 ,  0 ,   0 ,     0 ,  -2 ,    0 ,    0 ,    0 ,  0 ,  74 )      ! CE73, note 1   | FES2014 (prediction   |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | algorithm); S58       |        |
    !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | (Table 2, A12)        |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 7) = tide( 'Sa'   ,  0.000000_wp ,  0 ,  0 ,  1 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! Meteorological | S54 (Table 2, B64)    |        |
+   tide_components( 7) = tide( 'Sa'   ,  0.000000_wp ,  0 ,  0 ,  1 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! Meteorological | S58 (Table 2, B64)    |        |
    !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | tide only      |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
    !                         |                                                              Diurnal tidal constituents                                                                |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 8) = tide( 'K1'   ,  0.142486_wp ,  1 ,  0 ,  1 ,  0 ,   0 ,   -90 ,   0 ,    0 ,   -1 ,    0 ,  0 , 227 )      ! CE73, sign     | S54 (Table 2)         | Note 1 |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | change         |                       |        |
+   tide_components( 8) = tide( 'K1'   ,  0.142486_wp ,  1 ,  0 ,  1 ,  0 ,   0 ,   -90 ,   0 ,    0 ,   -1 ,    0 ,  0 , 227 )      ! CE73, note 1,  | S58 (Table 2)         |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | note 2         |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components( 9) = tide( 'O1'   ,  0.101316_wp ,  1 , -2 ,  1 ,  0 ,   0 ,    90 ,   2 ,   -1 ,    0 ,    0 ,  0 ,  75 )      ! CE73           | S54 (Table 2, A14)    |        |
+   tide_components( 9) = tide( 'O1'   ,  0.101316_wp ,  1 , -2 ,  1 ,  0 ,   0 ,    90 ,   2 ,   -1 ,    0 ,    0 ,  0 ,  75 )      ! CE73, note 1   | S58 (Table 2, A14)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(10) = tide( 'P1'   ,  0.047152_wp ,  1 ,  0 , -1 ,  0 ,   0 ,    90 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73           | S54 (Table 2, B14)    |        |
+   tide_components(10) = tide( 'P1'   ,  0.047152_wp ,  1 ,  0 , -1 ,  0 ,   0 ,    90 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73, note 1   | S58 (Table 2, B14)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(11) = tide( 'Q1'   ,  0.019396_wp ,  1 , -3 ,  1 ,  1 ,   0 ,    90 ,   2 ,   -1 ,    0 ,    0 ,  0 ,  75 )      ! CE73           | S54 (Table 2, A15)    |        |
+   tide_components(11) = tide( 'Q1'   ,  0.019396_wp ,  1 , -3 ,  1 ,  1 ,   0 ,    90 ,   2 ,   -1 ,    0 ,    0 ,  0 ,  75 )      ! CE73, note 1   | S58 (Table 2, A15)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(12) = tide( 'J1'   ,  0.007967_wp ,  1 ,  1 ,  1 , -1 ,   0 ,   -90 ,   0 ,   -1 ,    0 ,    0 ,  0 ,  76 )      ! CE73, sign     | S54 (Table 2, A24)    | Note 1 |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | change         |                       |        |
+   tide_components(12) = tide( 'J1'   ,  0.007967_wp ,  1 ,  1 ,  1 , -1 ,   0 ,   -90 ,   0 ,   -1 ,    0 ,    0 ,  0 ,  76 )      ! CE73, note 1,  | S58 (Table 2, A24)    |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | note 2         |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(13) = tide( 'S1'   ,  0.000000_wp ,  1 ,  0 ,  0 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! Meteorological | S54 (Table 2, B71)    |        |
+   tide_components(13) = tide( 'S1'   ,  0.000000_wp ,  1 ,  0 ,  0 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! Meteorological | S58 (Table 2, B71)    |        |
    !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | tide only      |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
    !                         |                                                            Semidiurnal tidal constituents                                                              |
    !                         +--------+-------------+-----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(14) = tide( 'M2'   ,  0.244081_wp ,  2 , -2 ,  2 ,  0 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73           | S54 (Table 2, A39)    |        |
+   tide_components(14) = tide( 'M2'   ,  0.244081_wp ,  2 , -2 ,  2 ,  0 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73, note 1   | S58 (Table 2, A39)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(15) = tide( 'S2'   ,  0.110242_wp ,  2 ,  0 ,  0 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73           | S54 (Table 2, B39)    |        |
+   tide_components(15) = tide( 'S2'   ,  0.110242_wp ,  2 ,  0 ,  0 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73, note 1   | S58 (Table 2, B39)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(16) = tide( 'N2'   ,  0.046732_wp ,  2 , -3 ,  2 ,  1 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73           | S54 (Table 2, A40)    |        |
+   tide_components(16) = tide( 'N2'   ,  0.046732_wp ,  2 , -3 ,  2 ,  1 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73, note 1   | S58 (Table 2, A40)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(17) = tide( 'K2'   ,  0.030905_wp ,  2 ,  0 ,  2 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,   -2 ,  0 , 235 )      ! CE73           | S54 (Table 2)         |        |
+   tide_components(17) = tide( 'K2'   ,  0.030905_wp ,  2 ,  0 ,  2 ,  0 ,   0 ,     0 ,   0 ,    0 ,    0 ,   -2 ,  0 , 235 )      ! CE73, note 1   | S58 (Table 2)         |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(18) = tide( 'nu2'  ,  0.008877_wp ,  2 , -3 ,  4 , -1 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73           | S54 (Table 2, A43)    |        |
+   tide_components(18) = tide( 'nu2'  ,  0.008877_wp ,  2 , -3 ,  4 , -1 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73, note 1   | S58 (Table 2, A43)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(19) = tide( 'mu2'  ,  0.007463_wp ,  2 , -4 ,  4 ,  0 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73           | S54 (Table 2, A45)    |        |
+   tide_components(19) = tide( 'mu2'  ,  0.007463_wp ,  2 , -4 ,  4 ,  0 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73, note 1   | S58 (Table 2, A45)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(20) = tide( '2N2'  ,  0.006184_wp ,  2 , -4 ,  2 ,  2 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73           | S54 (Table 2, A42)    |        |
+   tide_components(20) = tide( '2N2'  ,  0.006184_wp ,  2 , -4 ,  2 ,  2 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73, note 1   | S58 (Table 2, A42)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(21) = tide( 'L2'   ,  0.006899_wp ,  2 , -1 ,  2 , -1 ,   0 ,   180 ,   2 ,   -2 ,    0 ,    0 , -1 , 215 )      ! CE73, sign     | S54 (Table 2)         | Note 1 |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | change         |                       |        |
+   tide_components(21) = tide( 'L2'   ,  0.006899_wp ,  2 , -1 ,  2 , -1 ,   0 ,   180 ,   2 ,   -2 ,    0 ,    0 , -1 , 215 )      ! CE73, note 1,  | S58 (Table 2)         |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | note 2         |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(22) = tide( 'T2'   ,  0.006655_wp ,  2 ,  0 , -1 ,  0 ,   1 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73           | S54 (Table 2, B40)    |        |
+   tide_components(22) = tide( 'T2'   ,  0.006655_wp ,  2 ,  0 , -1 ,  0 ,   1 ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73, note 1   | S58 (Table 2, B40)    |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(23) = tide( 'eps2' ,  0.001804_wp ,  2 , -5 ,  4 ,  1 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73           | FES2014 (prediction   |        |
+   tide_components(23) = tide( 'eps2' ,  0.001804_wp ,  2 , -5 ,  4 ,  1 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73, note 1   | FES2014 (prediction   |        |
    !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | algorithm)            |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(24) = tide( 'lam2' ,  0.001800_wp ,  2 , -1 ,  0 ,  1 ,   0 ,   180 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73, sign     | S54 (Table 2, A44)    | Note 1 |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | change         |                       |        |
+   tide_components(24) = tide( 'lam2' ,  0.001800_wp ,  2 , -1 ,  0 ,  1 ,   0 ,   180 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! CE73, note 1,  | S58 (Table 2, A44)    |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | note 2         |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(25) = tide( 'R2'   ,  0.000952_wp ,  2 ,  0 ,  1 ,  0 ,  -1 ,   180 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73, sign     | S54 (Table 2, B41)    | Note 1 |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | change         |                       |        |
+   tide_components(25) = tide( 'R2'   ,  0.000952_wp ,  2 ,  0 ,  1 ,  0 ,  -1 ,   180 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! CE73, note 1,  | S58 (Table 2, B41)    |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | note 2         |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
    !                         |                                                            Terdiurnal tidal constituents                                                               |
    !                         +--------+-------------+-----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(26) = tide( 'M3'   ,  0.003192_wp ,  3 , -3 ,  3 ,  0 ,   0 ,     0 ,   3 ,   -3 ,    0 ,    0 ,  0 , 149 )      ! CT71, sign     | S54 (Table 2, A82)    | Note 2 |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | change         |                       |        |
+   tide_components(26) = tide( 'M3'   ,  0.003192_wp ,  3 , -3 ,  3 ,  0 ,   0 ,     0 ,   3 ,   -3 ,    0 ,    0 ,  0 , 149 )      ! CT71, note 1,  | S58 (Table 2, A82)    |        |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            | note 2         |                       |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
    !                         |                                                                    Compound tides                                                                      |
    !                         +--------+-------------+-----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
    tide_components(27) = tide( 'MKS2' ,  0.000000_wp ,  2 , -2 ,  4 ,  0 ,   0 ,     0 ,   2 ,   -2 ,    0 ,   -2 ,  0 ,   4 )      ! Compound tide  | FES2014 (prediction   |        |
    !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | algorithm)            |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(28) = tide( 'MN4'  ,  0.000000_wp ,  4 , -5 ,  4 ,  1 ,   0 ,     0 ,   4 ,   -4 ,    0 ,    0 ,  0 ,   1 )      ! Compound tide  | S54 (Table 2a)        |        |
+   tide_components(28) = tide( 'MN4'  ,  0.000000_wp ,  4 , -5 ,  4 ,  1 ,   0 ,     0 ,   4 ,   -4 ,    0 ,    0 ,  0 ,   1 )      ! Compound tide  | S58 (Table 2a)        |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(29) = tide( 'MS4'  ,  0.000000_wp ,  4 , -2 ,  2 ,  0 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! Compound tide  | FES2014 (prediction   | Note 3 |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | algorithm); S54       |        |
-   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | (Table 2a)            |        |
+   tide_components(29) = tide( 'MS4'  ,  0.000000_wp ,  4 , -2 ,  2 ,  0 ,   0 ,     0 ,   2 ,   -2 ,    0 ,    0 ,  0 ,  78 )      ! Compound tide  | S58 (Table 2a); P87   | Note 3 |
+   !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | (Page 111, Table 4.4) |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
    !                         |                                                                       Overtides                                                                        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(30) = tide( 'M4'   ,  0.000000_wp ,  4 , -4 ,  4 ,  0 ,   0 ,     0 ,   4 ,   -4 ,    0 ,    0 ,  0 ,   1 )      ! Overtide       | S54                   |        |
+   tide_components(30) = tide( 'M4'   ,  0.000000_wp ,  4 , -4 ,  4 ,  0 ,   0 ,     0 ,   4 ,   -4 ,    0 ,    0 ,  0 ,   1 )      ! Overtide       | S58 (Table 2a)        |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
    tide_components(31) = tide( 'N4'   ,  0.000000_wp ,  4 , -6 ,  4 ,  2 ,   0 ,     0 ,   4 ,   -4 ,    0 ,    0 ,  0 ,   1 )      ! Overtide       | FES2014 (prediction   |        |
    !                         |        |              |    |    |    |    |     |       |     |      |      |      |    |            |                | algorithm)            |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(32) = tide( 'S4'   ,  0.000000_wp ,  4 ,  0 ,  0 ,  0 ,  0  ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! Overtide       | S54                   |        | 
+   tide_components(32) = tide( 'S4'   ,  0.000000_wp ,  4 ,  0 ,  0 ,  0 ,  0  ,     0 ,   0 ,    0 ,    0 ,    0 ,  0 ,   0 )      ! Overtide       | S58 (Table 2a)        |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(33) = tide( 'M6'   ,  0.000000_wp ,  6 , -6 ,  6 ,  0 ,  0  ,     0 ,   6 ,   -6 ,    0 ,    0 ,  0 ,  18 )      ! Overtide       | S54                   |        |
+   tide_components(33) = tide( 'M6'   ,  0.000000_wp ,  6 , -6 ,  6 ,  0 ,  0  ,     0 ,   6 ,   -6 ,    0 ,    0 ,  0 ,  18 )      ! Overtide       | S58 (Table 2a)        |        | 
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   tide_components(34) = tide( 'M8'   ,  0.000000_wp ,  8 , -8 ,  8 ,  0 ,  0  ,     0 ,   8 ,   -8 ,    0 ,    0 ,  0 ,  20 )      ! Overtide       | S54                   |        |
+   tide_components(34) = tide( 'M8'   ,  0.000000_wp ,  8 , -8 ,  8 ,  0 ,  0  ,     0 ,   8 ,   -8 ,    0 ,    0 ,  0 ,  20 )      ! Overtide       | S58 (Table 2a)        |        |
    !                         +--------+--------------+----+----+----+----+-----+-------+-----+------+------+------+----+------------+----------------+-----------------------+--------+
-   !   Note 1: the negative sign of the equilibrium-tide value derived from CE73 has been changed to accomodate the phase shift from Table 2 of S54.
-   !   Note 2: the negative sign of the equilibrium-tide value derived from CT71 has been changed to accomodate the phase shift from Table 2 of S54.
-   !   Note 3: the nodal correction factor formulas from FES2014 and S54 differ; here, the version from FES2014 has been selected.
+   !
+   !   Note 0: this constituent is excited by meteorological and gravitational forces; the non-zero equilibrium-tide amplitude
+   !           captures the gravitational component (S58, para. 137, p47)
+   !
+   !   Note 1: the equilibrium-tide value is the amplitude of a spherical harmonic (SH) and has been interpolated from values for
+   !           three epochs published by CE73 or by CT71 to a value for reference epoch 1900.0 according to equation 22 of CT71 and
+   !           subsequently multiplied with the appropriate coefficient from Table 2 of CT71 after excluding the latitude-dependent
+   !           factor (the spatial dependence is applied at runtime by subroutine 'tide_init_potential' of module 'tide_mod'); in
+   !           particular, for the a given constitutent type, the degree and order of the SH used, the constant normalisation factor,
+   !           as well as the longitudinal (lambda) and latitudinal (phi) dependence is listed in the table below (the time-varying
+   !           phase for constituent n, p_n(t), is measured relative to Greenwich).
+   !
+   !             +---------------+--------+-------+------------------------+----------------------+----------------------+
+   !             | Constituent   | SH     | SH    | Constant normalisation | Longitudinal         | Latitudinal          |
+   !             | type          | degree | order | factor (parameter)     | dependence (runtime) | dependence (runtime) |
+   !             +---------------+--------+-------+------------------------+----------------------+----------------------+
+   !             | Long-period   |      2 |     0 |      sqrt(5/(   4*pi)) |                      |   0.5-1.5*sin(phi)^2 |
+   !             | Diurnal       |      2 |     1 | -3/2*sqrt(5/(  24*pi)) | cos(  lambda+p_n(t)) |           sin(2*phi) |
+   !             | Semi-diurnal  |      2 |     2 |    3*sqrt(5/(  96*pi)) | cos(2*lambda+p_n(t)) |           cos(phi)^2 |
+   !             | Ter-diurnal   |      3 |     3 |  -15*sqrt(7/(2880*pi)) | cos(3*lambda+p_n(t)) |           cos(phi)^3 |
+   !             +---------------+--------+-------+------------------------+----------------------+----------------------+
+   !
+   !   Note 2: the negative sign of the equilibrium-tide value derived from CE73 or CT71 has been changed to accomodate the phase
+   !           shift from Table 2 of S58.
+   !
+   !   Note 3: the nodal correction factor formula for MS4 in S58 is incorrect; the correct formula, and justification, is given in
+   !           P87, as f(M2); this is aligned with FES2014.
+   !
 #else
    !                        !! name_tide , equitide , nt , ns , nh , np , np1 , shift , nksi , nnu0 , nnu1 , nnu2 , R , formula !!
    !                        !!           !          !    !    !    !    !     !       !      !      !      !      !   !         !!

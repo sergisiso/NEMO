@@ -33,27 +33,35 @@
 !     from dimensions 2:N+1. The number of values along the first dimension is determined by the
 !     length of the argument character string. 
 !
+! NOTE: The netcdf4.f90 version of this file was created by Ed
+! Hartnett in 2006 to support the netCDF-4 API.
+!
  module netcdf
   use typesizes, only: OneByteInt, TwoByteInt, FourByteInt, EightByteInt, &
                        FourByteReal, EightByteReal
   implicit none
   private
+  
   ! as of version 4.4, the following are merged:
   ! - netcdf_constants.f90 and netcdf4_constants.f90
   !
   ! Update the dependencies in the Makefile.am when modifying the list of
   !     included files.
 #include "netcdf_constants.h90"
+#include "netcdf_externals.h90"
+#include "netcdf4_externals.h90"
 #include "netcdf_overloads.h90"
+#include "netcdf4_overloads.h90"
 #include "netcdf_visibility.h90"
+#include "netcdf4_visibility.h90"
 contains
 #include "netcdf_file.h90"
-#include "netcdf3_file.h90"
+#include "netcdf4_file.h90"
 #include "netcdf_dims.h90"
 #include "netcdf_attributes.h90"
-#include "netcdf_variables.h90"
+#include "netcdf4_variables.h90"
 #include "netcdf_text_variables.h90"
-#include "netcdf_expanded_subset.h90"
-#include "netcdf_get_nd_expanded.h90"
-#include "netcdf_eightbyte_subset.h90"
+#include "netcdf_expanded.h90"
+#include "netcdf4_eightbyte.h90"
+#include "netcdf4_func.h90"
 end module netcdf

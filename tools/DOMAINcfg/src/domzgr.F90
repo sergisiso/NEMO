@@ -220,7 +220,7 @@ CONTAINS
         !
         ! Localising the vert. coord. system if requested
         ! -----------------------------------------------
-        l2g_msk(:,:) = 2.0                        ! Initialise the localisation
+        l2g_msk(:,:) = 0.0                        ! Initialise the localisation
                                                   ! mask to global
         IF( ln_loczgr   )   CALL loc_zgr
         !
@@ -798,13 +798,16 @@ CONTAINS
          
          DO jj = 2, jpjm1
             DO ji = 2, jpim1
-               ibtest = MAX(  mbathy(ji-1,jj), mbathy(ji+1,jj),   &
-                  &           mbathy(ji,jj-1), mbathy(ji,jj+1)  )
-               IF( ibtest < mbathy(ji,jj) ) THEN
-                  IF(lwp) WRITE(numout,*) ' the number of ocean level at ',   &
-                     &   'grid-point (i,j) =  ',ji,jj,' is changed from ', mbathy(ji,jj),' to ', ibtest
-                  mbathy(ji,jj) = ibtest
-                  icompt = icompt + 1
+               IF( .NOT. ln_loczgr .OR. l2g_msk(ji,jj) > 0.0 ) THEN
+                 ibtest = MAX(  mbathy(ji-1,jj), mbathy(ji+1,jj),   &
+                    &           mbathy(ji,jj-1), mbathy(ji,jj+1)  )
+                 IF( ibtest < mbathy(ji,jj) ) THEN
+                   IF(lwp) WRITE(numout,*) ' the number of ocean level at ',   &
+                     &   'grid-point (mig0(i),mjg0(j)) =  ',mig0(ji),mjg0(jj), &
+                     &   ' is changed from ', mbathy(ji,jj),' to ', ibtest
+                   mbathy(ji,jj) = ibtest
+                   icompt = icompt + 1
+                 ENDIF
                ENDIF
             END DO
          END DO
