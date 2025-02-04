@@ -361,15 +361,6 @@ CONTAINS
       WHERE (e3uw_0  (:,:,:) == 0.0)  e3uw_0(:,:,:) = 1.0
       WHERE (e3vw_0  (:,:,:) == 0.0)  e3vw_0(:,:,:) = 1.0
 
- 
-      WHERE (e3t_0   (:,:,:) == 0.0)  e3t_0(:,:,:) = 1.0
-      WHERE (e3u_0   (:,:,:) == 0.0)  e3u_0(:,:,:) = 1.0
-      WHERE (e3v_0   (:,:,:) == 0.0)  e3v_0(:,:,:) = 1.0
-      WHERE (e3f_0   (:,:,:) == 0.0)  e3f_0(:,:,:) = 1.0
-      WHERE (e3w_0   (:,:,:) == 0.0)  e3w_0(:,:,:) = 1.0
-      WHERE (e3uw_0  (:,:,:) == 0.0)  e3uw_0(:,:,:) = 1.0
-      WHERE (e3vw_0  (:,:,:) == 0.0)  e3vw_0(:,:,:) = 1.0
-
    END SUBROUTINE loc_zgr_mes
  
 END MODULE domloc
