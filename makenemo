@@ -479,7 +479,9 @@ if [ "${NBR_PRC}" -gt 0 ]; then
             NEMO_FC="${COMPIL_DIR}/sct_psyclone.sh \"%PSYCLONE_HOME\" \"${PSCT_VAR}\""
             # Copy PSyclone transformation script (if required)
             if [[ "${PSCT_VAR}" != 'passthrough' ]]; then
+                # Copy PSyclone-processing recipe script and utilities to the build directory
                 cp "sct/psct-${PSCT_VAR}.py" ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/
+                cp sct/psct_utils.py ${NEMO_TDIR}/${CUR_CONF}/${NEMO_BLD_STAGE}/
                 # Process inclusion directives in the PSyclone transformation script (if any):
                 #    - search for directives of the form '#psct-include(<MODULE>)' at the beginning of lines;
                 #    - copy the included PSyclone transformation scripts (sct/psct-<MODULE>.py) into the build directory if they
