@@ -3,6 +3,7 @@
 #                    ***  psct-KernelsRegions.py  ***
 # ======================================================================
 #  History : 5.0  !  2024  (S. Mueller)
+#            5.0  !  2025-01  (S. Mueller) Update for compatibility with the latest PSyclone release version
 # ----------------------------------------------------------------------
 #
 # This script is a PSyclone (https://github.com/stfc/PSyclone) transformation
@@ -35,14 +36,22 @@
 # build process of this configuration.
 #
 # ----------------------------------------------------------------------
-# NEMO 5.0 , NEMO Consortium (2024)
+# NEMO 5.0 , NEMO Consortium (2025)
 # Software governed by the CeCILL license (see ./LICENSE)
 # ----------------------------------------------------------------------
 
 from psyclone.psyir.nodes                 import Assignment, ACCKernelsDirective, CodeBlock, Call
 from psyclone.psyir.nodes                 import IntrinsicCall, IfBlock, ArrayReference, Literal, Return
-from psyclone.transformations             import ACCKernelsTrans, ACCLoopTrans
-from psyclone.nemo                        import NemoLoop
+from psyclone.transformations             import ACCLoopTrans
+# For compatibility with PSyclone release version 3.0.0
+from psct_utils                           import P3APICompat, P3API
+if P3API:
+    from psyclone.psyir.nodes             import Loop as NemoLoop
+    from psyclone.psyir.nodes             import WhileLoop
+    from psyclone.psyir.transformations   import ACCKernelsTrans
+else:
+    from psyclone.nemo                    import NemoLoop
+    from psyclone.transformations         import ACCKernelsTrans
 
 # ----------------------------------------------------------------------
 #                      ***  Configuration  ***
@@ -81,6 +90,11 @@ INVOKES_REJECT_PREFIXES = [ 'copy_obfbdata',             # Derived-type issues a
 # been found to lead to model-result differences in comparison to the
 # corresponding run without GPU support
 INVOKES_REJECT_PREFIXES += [ 'ldf_c1d', 'ldf_c2d' ]
+
+# For compatibility with PSyclone release version 3.0.0
+if P3API:
+    MODULES_REJECT_PREFIXES += [ 'domtile' ]   # Unsupported string assignment
+    NemoLoop.set_loop_type_inference_rules({ 'lon' : { 'variable' : 'ji' }, 'lat' : { 'variable' : 'jj' } })
 
 # ----------------------------------------------------------------------
 # Auxiliary functions
@@ -169,20 +183,39 @@ def has_character_literal_or_trim_intrinsic(node):
 def has_return_statement(node):
     return len(node.walk(Return)) > 0
 
+# PSyclone release version 3.0.0 prohibits a range of function calls to be
+# included in kernels regions
+def has_unsupported_call(node):
+    for call in node.walk(Call):
+        if not call.is_available_on_device():
+            return True
+    return False
+
+# PSyclone release version 3.0.0 fully recognises do-while loops, but doesn't
+# permit such loops to be included inside kernels regions
+def has_while_loop(node):
+    return len(node.walk(WhileLoop)) > 0
+
 # Auxiliary function that tests for the absence of a range of elements that are
 # to be avoided in kernels regions, incl. for the absence of nodes that have
-# already been added to a kernels region
+# already been added to a kernels region (conditionally, additional checks are
+# included for compatibility with PSyclone release version 3.0.0)
 def is_acceptable_node(node, nodes_in_kernels_regions):
     return not (has_codeblock(node) or
                 has_nonintrinsic_call(node) or
                 has_character_literal_or_trim_intrinsic(node) or
                 has_return_statement(node) or
+                (P3API and has_unsupported_call(node)) or
+                (P3API and has_while_loop(node)) or
                 is_included(node, nodes_in_kernels_regions))
 
 # ----------------------------------------------------------------------
 #             ***  PSyclone transformation procedure  ***
 # ----------------------------------------------------------------------
 def trans(psy):
+
+    # For compatibility with PSyclone release version 3.0.0
+    psy = P3APICompat(psy)
 
     print()
     print("=================================")
