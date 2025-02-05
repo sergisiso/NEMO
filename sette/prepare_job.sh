@@ -161,7 +161,7 @@ if [ "$(cat ${SETTE_DIR}/$INPUTARFILE | wc -w)" -ne 0 ] ; then
        cd ${FORCING_DIR}/${dir_conf_forc}
        for fida in *
        do
-           [ -f ${EXE_DIR}/${fida} ] || ln -s ${FORCING_DIR}/${dir_conf_forc}/${fida} ${EXE_DIR}/${fida}
+           [ -f ${EXE_DIR}/${fida} ] || ln -sf ${FORCING_DIR}/${dir_conf_forc}/${fida} ${EXE_DIR}/.
        done
    done < ${SETTE_DIR}/$INPUTARFILE
    

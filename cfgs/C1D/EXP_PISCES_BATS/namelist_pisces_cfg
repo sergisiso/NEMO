@@ -38,8 +38,8 @@
 &nampisopt     !   parameters for optics
 !-----------------------------------------------------------------------
    sn_par      = 'par_fr_gewex_clim_BATS.nc'       ,     24.           , 'fr_par'  ,  .true.      , .true. , 'yearly'  , ''       , ''       , ''
-   cn_dir      = './'      !  root directory for the location of the dynamical files
-   ln_varpar   =  .true.   ! boolean for PAR variable
+   cn_dir      = './BATS/'  !  root directory for the location of the dynamical files
+   ln_varpar   =  .true.    ! boolean for PAR variable
    parlux      =  0.43      ! Fraction of shortwave as PAR
 / 
 !-----------------------------------------------------------------------
@@ -104,7 +104,9 @@
 !              !                    !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
    sn_dust     = 'DustNew_BATS'     ,     -1            , 'dust'        ,  .true.      , .true. , 'yearly'  , ''       , ''    , ''
    sn_ironsed  = 'pmarge_etopo_BATS',    -12.           , 'bathy'       ,  .false.     , .true. , 'yearly'  , ''       , ''    , ''
-   ln_ironsed  =  .true.   ! boolean for Fe input from sediments
+!
+   cn_dir      = './BATS/'   !  root directory for the location of the dynamical files
+   ln_ironsed  =  .true.     ! boolean for Fe input from sediments
 /
 !-----------------------------------------------------------------------
 &nampissed     !   parameters for sediments mobilization

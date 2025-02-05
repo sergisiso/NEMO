@@ -63,7 +63,9 @@
    sn_trcdta(10) = 'PISCES_monthly_l75_BATS.nc'   ,       -1.         ,  'DOC'     ,    .true.   , .true. , 'yearly'  , ''       , ''   , ''
    sn_trcdta(14) = 'PISCES_monthly_l75_BATS.nc'   ,       -1.         ,  'Fer'     ,    .true.   , .true. , 'yearly'  , ''       , ''   , ''
    sn_trcdta(23) = 'WOA2009_monthly_l75_BATS.nc' ,        -1.         ,  'NO3'     ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
-!
+   !
+   cn_dir        =  './BATS/'   !  root directory for the location of the data files
+   !
    rn_trfac(1)   =   1.0e-06   !  multiplicative factor
    rn_trfac(2)   =   1.0e-06   !  -      -      -     -
    rn_trfac(3)   =  44.6e-06     !  -      -      -     -
