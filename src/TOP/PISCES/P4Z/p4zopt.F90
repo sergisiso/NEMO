@@ -533,7 +533,7 @@ CONTAINS
                                    ALLOCATE( sf_par(1)%fnow(jpi,jpj,1)   )
          IF( sn_par%ln_tint )      ALLOCATE( sf_par(1)%fdta(jpi,jpj,1,2) )
 
-         CALL iom_open (  TRIM( sn_par%clname ) , numpar )
+         CALL iom_open (  TRIM(cn_dir)//TRIM(sn_par%clname) , numpar )
          ntimes_par = iom_getszuld( numpar )   ! get number of record in file
       ENDIF
       !

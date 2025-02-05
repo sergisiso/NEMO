@@ -1452,21 +1452,34 @@ if [[ ${config} =~ "C1D" ]]  ; then
     then
         ITEND=240   # 1 day
     else
-        ITEND=87600 # 365 days
+        ITEND=87600 # PAPA (365 days)
+        [[ ${config} =~ "ASICS" ]] && ITEND=17040
+        [[ ${config} =~ "BATS"  ]] && ITEND=26280
+        [[ ${config} =~ "SAS"   ]] && ITEND=8760
     fi
 
     if [ ${DO_COMPILE} -eq 1 ] ;  then
         cd ${MAIN_DIR}
         #
-        # syncronisation if target directory/file exist (not done by makenemo)
+        # change EXPREF symlink
         rm -fv ${CONFIG_DIR0}/${config/_*}/EXPREF
-        ln -svr ${CONFIG_DIR0}/${config/_*}/EXP_${config#*_} ${CONFIG_DIR0}/${config/_*}/EXPREF
+        if [[ ${config} == "C1D" || ${config} == "C1D_PAPA" ]]; then
+          ln -svr ${CONFIG_DIR0}/${config/_*}/EXP_PAPA ${CONFIG_DIR0}/${config/_*}/EXPREF
+        else
+          ln -svr ${CONFIG_DIR0}/${config/_*}/EXP_${config#*_} ${CONFIG_DIR0}/${config/_*}/EXPREF
+        fi
+        # syncronisation if target directory/file exist (not done by makenemo)
         clean_config ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         sync_config  ${CONFIG_DIR0}/${config/_*} ${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}
         #
         # C1D uses linssh so remove key_qco if added by default
-        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config/_*} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
+        # if ASICS we remove key_top
+        [[ ${config} =~ "ASICS" ]] && DEL_KEYS="${DEL_KEYS} key_top" || DEL_KEYS=${DEL_KEYS/" key_top"}
+        # if SAS we add SAS src directory
+        [[ ${config} =~ "SAS" ]] && ADD_SRC="OCE ICE TOP SAS" || ADD_SRC=""
+        ./makenemo -m ${CMP_NAM} -n ${SETTE_CONFIG} -r ${config/_*} ${ADD_SRC:+-d "${ADD_SRC}"} ${CUSTOM_DIR:+-t ${CMP_DIR}} -k 0 ${NEMO_DEBUG} \
                    -j ${CMPL_CORES} ${TRANSFORM_OPT} add_key "${ADD_KEYS/key_qco/}" del_key "${DEL_KEYS}" || exit 1
+        # restore EXPREF symlink
         rm -fv ${CONFIG_DIR0}/${config/_*}/EXPREF
         ln -svr ${CONFIG_DIR0}/${config/_*}/EXP_PAPA ${CONFIG_DIR0}/${config/_*}/EXPREF
     fi
