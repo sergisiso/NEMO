@@ -25,3 +25,6 @@ mk/full_key_list.txt
 
 # arch
 arch/arch-auto.fcm
+
+# sette param files
+sette/param*

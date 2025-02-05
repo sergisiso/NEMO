@@ -53,7 +53,7 @@
    ln_uvd_init   = .false.       !  ocean initialisation
    ln_uvd_dyndmp = .false.       !  U-V restoring
 
-   cn_dir      = './'      !  root directory for the U-V data location
+   cn_dir      = './SAS/'   !  root directory for the U-V data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
@@ -103,7 +103,7 @@
    ln_humi_sph = .false. !  humidity "sn_humi" is specific humidity  [kg/kg]
    ln_humi_rlh = .true.  !  humidity "sn_humi" is relative humidity     [%]
    !
-   cn_dir      = './'      !  root directory for the bulk data location
+   cn_dir      = './SAS/'   !  root directory for the bulk data location
    !___________!_________________________!___________________!___________!_____________!________!___________!______________________________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ !       weights filename               ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                                      ! pairing  !    filename   !
@@ -130,7 +130,7 @@
 !-----------------------------------------------------------------------
    l_sasread   = .true.    !  =T Read in file ;  =F set all to 0. (see sbcssm)
    !
-   cn_dir      = './'      !  root directory for the ocean data location
+   cn_dir      = './SAS/'   !  root directory for the ocean data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
