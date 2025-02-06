@@ -35,13 +35,13 @@
 !-----------------------------------------------------------------------
 &namrun        !   parameters of the run
 !-----------------------------------------------------------------------
-   cn_exp      = "C1D_ASICS"!  experience name
+   cn_exp      = "C1D_ASICS" !  experience name
    nn_it000    =       1   !  first time step
    nn_itend    =   17040   !  last  time step (std 5475)
    nn_date0    = 20130115  !  date at nit_0000 (format yyyymmdd) used if ln_rstart=F or (ln_rstart=T and nn_rstctl=0 or 1)
    nn_stock    =   17040   !  frequency of creation of a restart file (modulo referenced to 1)
    nn_write    =   17040   !  frequency of write in the output file   (modulo referenced to nn_it000)
-   ln_top      =  .false.     !  Consider (T) or bypass (F) the TOP routines when the key_top is activated
+   ln_top      =  .false.  !  Consider (T) or bypass (F) the TOP routines when the key_top is activated
 /
 !-----------------------------------------------------------------------
 &namdom        !   time and space domain
@@ -64,7 +64,7 @@
    !                       ! =T  read T-S fields for:
    ln_tsd_init = .true.          !  ocean initialisation
    
-   cn_dir      = './'      !  root directory for the T-S data location
+   cn_dir      = './ASICS/'   !  root directory for the T-S data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
@@ -85,7 +85,7 @@
    ln_uvd_init   = .false.       !  ocean initialisation
    ln_uvd_dyndmp = .false.       !  U-V restoring
    !
-   cn_dir      = './'      !  root directory for the U-V data location
+   cn_dir      = './ASICS/'   !  root directory for the U-V data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
@@ -132,7 +132,7 @@
    sn_qsr      = 'forc_ASICS' ,        1         , 'FSOL2'    , .false.      , .false., 'yearly'  , ''       , ''       , ''
    sn_emp      = 'forc_ASICS' ,        1         , 'EMP2'     , .false.      , .false., 'yearly'  , ''       , ''       , ''
    !
-   cn_dir      = './'      !  root directory for the location of the flux files
+   cn_dir      = './ASICS/'   !  root directory for the location of the flux files
 /
 !-----------------------------------------------------------------------
 &namsbc_blk    !   namsbc_blk  generic Bulk formula                     (ln_blk =T)
@@ -157,7 +157,7 @@
    !                       !  type of penetration                        (default: NO selection)
    ln_qsr_rgb  = .true.      !  RGB light penetration (Red-Green-Blue)
    
-   cn_dir      = './'      !  root directory for the chlorophyl data location
+   cn_dir      = './ASICS/'   !  root directory for the chlorophyl data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
@@ -400,7 +400,7 @@
    ln_mevar    = .true.    !  variable (T) or constant (F) mixing efficiency
    ln_tsdiff   = .true.    !  account for differential T/S mixing (T) or not (F)
 
-   cn_dir      = './'      !  root directory for the iwm data location                                                                           
+   cn_dir      = './ASICS/'   !  root directory for the iwm data location                                                                           
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
    !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
    !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
