@@ -95,10 +95,12 @@ CONTAINS
       IF( kstp /= nit000 )   CALL day( kstp )             ! Calendar (day was already called at nit000 in day_init)
 
 #if defined key_si3
-      IF(((kstp + nn_fsbc - 1) == nitrst) .AND. lwxios) THEN
-         CALL iom_swap(      cw_icerst_cxt          )
-         CALL iom_init_closedef(cw_icerst_cxt)
-         CALL iom_setkt( kstp - nit000 + 1,      cw_icerst_cxt          )
+      IF( kstp + nn_fsbc - 1 == nitrst .AND. lwxios ) THEN
+         IF( nn_ice == 2 ) THEN
+            CALL iom_swap(   cw_icerst_cxt          )
+            CALL iom_init_closedef(cw_icerst_cxt)
+            CALL iom_setkt( kstp - nit000 + 1,   cw_icerst_cxt          )
+         ENDIF
       ENDIF
 #endif
 
