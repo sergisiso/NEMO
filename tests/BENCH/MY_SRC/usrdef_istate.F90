@@ -60,11 +60,17 @@ CONTAINS
       IF(lwp) WRITE(numout,*)
       IF(lwp) WRITE(numout,*) 'usr_def_istate : BENCH configuration, analytical definition of initial state'
       IF(lwp) WRITE(numout,*) '~~~~~~~~~~~~~~   '
-      !
-      ! define unique value on each point of the inner global domain. z2d ranging from 0.05 to -0.05
+      ! from -0.05 to 0.05 ( Southern Hemisphere ) and
+      ! from 0.05 to -0.05 ( Northern Hemisphere )
       !
       DO_2D( 0, 0, 0, 0 )   !  +/- 0.05
-         z2d(ji,jj) = 0.1 * ( 0.5 - REAL( mig(ji,0) + (mjg(jj,0)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) )
+         ! Southern Hemisphere
+         IF ( mjg(jj,0) < ( Nj0glo / 2._wp ) ) THEN
+            z2d(ji,jj) = 0.1 * ( REAL( ( mig(ji,0) * 2 ) - 1 + 2*(mjg(jj,0)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) - 0.5 )
+         ! Northern Hemisphere
+         ELSE
+            z2d(ji,jj) = 0.1 * ( 1.5 - REAL( ( mig(ji,0) * 2 ) + 2*(mjg(jj,0)-1) * Ni0glo, wp ) / REAL( Ni0glo * Nj0glo, wp ) )
+         ENDIF
       END_2D
       !
       DO_3D( 0, 0, 0, 0, 1, jpkm1 )
