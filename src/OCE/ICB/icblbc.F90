@@ -595,7 +595,9 @@ CONTAINS
             IF( ASSOCIATED(first_berg) ) THEN
                this => first_berg
                DO WHILE (ASSOCIATED(this))
-                  pt => this%current_point
+                  tmpberg => this
+                  this => this%next
+                  pt => tmpberg%current_point
                   iine = INT( pt%xi + 0.5 ) + (nn_hls-1)
                   ijne = INT( pt%yj + 0.5 ) + (nn_hls-1)
                   ipts  = nicbfldpts (mi1(iine,nn_hls))
@@ -614,7 +616,6 @@ CONTAINS
                         !
                         ! now remove berg from list and pack it into a buffer
                         IF( iproc /= narea ) THEN
-                           tmpberg => this
                            ibergs_to_send = ibergs_to_send + 1
                            IF( nn_verbose_level >= 4 ) THEN
                               WRITE(numicb,*) 'bergstep ',nktberg,' packing berg ',tmpberg%number(:),' for north fold'
@@ -626,7 +627,6 @@ CONTAINS
                         !
                      ENDIF
                   ENDIF
-                  this => this%next
                END DO
             ENDIF
             if( nn_verbose_level >= 3) then
