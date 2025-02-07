@@ -33,6 +33,8 @@ MODULE domutl
    PUBLIC lbnd_ij
    PUBLIC arr_hls
 
+   !! * Substitutions
+#  include "do_loop_substitute.h90"
    !!----------------------------------------------------------------------
    !! NEMO/OCE 5.0, NEMO Consortium (2024)
    !! Software governed by the CeCILL license (see ./LICENSE)
@@ -54,20 +56,20 @@ CONTAINS
       CHARACTER(len=1), INTENT(in   ) ::   cdgrid       ! grid name 'T', 'U', 'V', 'W'
       !
       INTEGER :: ik         ! working level
-      INTEGER , DIMENSION(2) ::   iloc
-      REAL(wp)               ::   zlon, zmini
-      REAL(wp), DIMENSION(jpi,jpj) ::   zglam, zgphi, zdist
-      LOGICAL , DIMENSION(jpi,jpj) ::   llmsk
+      INTEGER , DIMENSION(2)      ::   iloc
+      REAL(wp)                    ::   zlon, zmini
+      REAL(wp), DIMENSION(A2D(0)) ::   zglam, zgphi, zdist
+      LOGICAL , DIMENSION(A2D(0)) ::   llmsk
       !!--------------------------------------------------------------------
       !
       ik = 1
       IF ( PRESENT(kkk) ) ik=kkk
       !
       SELECT CASE( cdgrid )
-      CASE( 'U' ) ;   zglam(:,:) = glamu(:,:)   ;   zgphi(:,:) = gphiu(:,:)   ;   llmsk(:,:) = tmask_i(:,:) * umask(:,:,ik) == 1._wp
-      CASE( 'V' ) ;   zglam(:,:) = glamv(:,:)   ;   zgphi(:,:) = gphiv(:,:)   ;   llmsk(:,:) = tmask_i(:,:) * vmask(:,:,ik) == 1._wp
-      CASE( 'F' ) ;   zglam(:,:) = glamf(:,:)   ;   zgphi(:,:) = gphif(:,:)   ;   llmsk(:,:) = tmask_i(:,:) * fmask(:,:,ik) == 1._wp
-      CASE DEFAULT;   zglam(:,:) = glamt(:,:)   ;   zgphi(:,:) = gphit(:,:)   ;   llmsk(:,:) = tmask_i(:,:) * tmask(:,:,ik) == 1._wp
+      CASE( 'U' ) ;   zglam(A2D(0)) = glamu(A2D(0))   ;   zgphi(A2D(0)) = gphiu(A2D(0))   ;   llmsk(A2D(0)) = tmask_i(A2D(0)) * umask(A2D(0),ik) == 1._wp
+      CASE( 'V' ) ;   zglam(A2D(0)) = glamv(A2D(0))   ;   zgphi(A2D(0)) = gphiv(A2D(0))   ;   llmsk(A2D(0)) = tmask_i(A2D(0)) * vmask(A2D(0),ik) == 1._wp
+      CASE( 'F' ) ;   zglam(A2D(0)) = glamf(A2D(0))   ;   zgphi(A2D(0)) = gphif(A2D(0))   ;   llmsk(A2D(0)) = tmask_i(A2D(0)) * fmask(A2D(0),ik) == 1._wp
+      CASE DEFAULT;   zglam(A2D(0)) = glamt(A2D(0))   ;   zgphi(A2D(0)) = gphit(A2D(0))   ;   llmsk(A2D(0)) = tmask_i(A2D(0)) * tmask(A2D(0),ik) == 1._wp
       END SELECT
       !
       zlon       = MOD( plon       + 720., 360. )                                     ! plon between    0 and 360
