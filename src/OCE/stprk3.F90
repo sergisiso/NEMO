@@ -111,9 +111,11 @@ CONTAINS
 
       IF( kstp + nn_fsbc - 1 == nitrst .AND. lwxios ) THEN
 #if defined key_si3
+         IF( nn_ice == 2 ) THEN
                              CALL iom_swap(                     cw_icerst_cxt )
                              CALL iom_init_closedef(            cw_icerst_cxt )
                              CALL iom_setkt( kstp - nit000 + 1, cw_icerst_cxt )
+         ENDIF
 #endif
          IF( ln_abl      ) THEN
                              CALL iom_swap(                     cw_ablrst_cxt )
