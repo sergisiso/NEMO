@@ -150,7 +150,7 @@ CONTAINS
       alb_ice (:,:,:) = 0.7_wp  ! useless
       qsr_ice (:,:,:) = 0._wp   ! uniform value for     solar radiation
       qns_ice (:,:,:) = 0._wp   ! uniform value for non-solar heat flux
-      dqns_ice(:,:,:) = 0._wp   ! uniform value for non solar heat flux sensitivity for ice
+      dqns_ice(:,:,:) = -20._wp   ! uniform value for non solar heat flux sensitivity for ice (better if non zero)
       sprecip (:,:)   = 0._wp   ! uniform value for snow precip
       evap_ice(:,:,:) = 0._wp   ! uniform value for sublimation
 
