@@ -55,6 +55,9 @@ CONTAINS
       LOGICAL         , INTENT(out) ::   ldIperio, ldJperio   ! i- and j- periodicity
       LOGICAL         , INTENT(out) ::   ldNFold              ! North pole folding
       CHARACTER(len=1), INTENT(out) ::   cdNFtype             ! Folding type: T or F
+#if defined key_agrif
+      INTEGER :: ighost_n, ighost_s, ighost_w, ighost_e
+#endif
       !
       INTEGER ::   ios   ! Local integer
       !!
@@ -70,14 +73,26 @@ CONTAINS
 #endif
       kk_cfg = nn_GYRE
       !
-      kpi = 30 * nn_GYRE + 2       !
-      kpj = 20 * nn_GYRE + 2
-#if defined key_agrif
-      IF( .NOT.Agrif_Root() ) THEN         ! Global Domain size: add 1 land point on each side
-         kpi  = nbcellsx + 2 * ( nbghostcells + 1 )
-         kpj  = nbcellsy + 2 * ( nbghostcells + 1 )
-!!$         kpi  = nbcellsx + nbghostcells_x   + nbghostcells_x   + 2
-!!$         kpj  = nbcellsy + nbghostcells_y_s + nbghostcells_y_n + 2
+#if defined key_agrif 
+      IF( Agrif_Root() ) THEN
+#endif
+         kpi = 30 * nn_GYRE + 2       !
+         kpj = 20 * nn_GYRE + 2
+#if defined key_agrif 
+      ELSE                          ! Global Domain size: add nbghostcells + 1 "land" point on each side
+         ! At this stage, child ghosts have not been set
+         ighost_w = nbghostcells
+         ighost_e = nbghostcells
+         ighost_s = nbghostcells
+         ighost_n = nbghostcells
+
+         ! In case one sets zoom boundaries over domain edges: 
+         IF  ( Agrif_Ix() == 2 - Agrif_Parent(nbghostcells_x_w) ) ighost_w = 1
+         IF  ( Agrif_Ix() + nbcellsx/AGRIF_Irhox() == Agrif_Parent(Ni0glo) - Agrif_Parent(nbghostcells_x_w) ) ighost_e = 1
+         IF  ( Agrif_Iy() == 2 - Agrif_Parent(nbghostcells_y_s) ) ighost_s = 1
+         IF  ( Agrif_Iy() + nbcellsy/AGRIF_Irhoy() == Agrif_Parent(Nj0glo) - Agrif_Parent(nbghostcells_y_s) ) ighost_n = 1
+         kpi  = nbcellsx + ighost_w + ighost_e
+         kpj  = nbcellsy + ighost_s + ighost_n
       ENDIF
 #endif
       kpk = jpkglo
