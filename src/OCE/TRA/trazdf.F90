@@ -23,6 +23,9 @@ MODULE trazdf
    USE trd_oce        ! trends: ocean variables
    USE trdtra         ! trends: tracer trend manager
    USE eosbn2   , ONLY: ln_SEOS, rn_b0
+# if defined key_top
+   USE trcldf   , ONLY: ln_trcldf_OFF        
+# endif
    !
    USE in_out_manager ! I/O manager
    USE prtctl         ! Print control
@@ -178,7 +181,11 @@ CONTAINS
                   !
                ELSE                                               ! use avs for salinty or passive tracers
                   !
-                  IF( l_ldfslp ) THEN            ! use avs + isoneutral diffusion contribution
+# if defined key_top
+                  IF( l_ldfslp.AND.(.NOT.ln_trcldf_OFF) ) THEN    ! use avs + isoneutral diffusion contribution
+# else
+                  IF( l_ldfslp ) THEN                             ! use avs + isoneutral diffusion contribution
+# endif
                      IF( ln_traldf_msc  ) THEN        ! MSC iso-neutral operator
                         DO_2Dik( 0, 0,   2, jpk, 1 )
                            zwt(ji,jk) = avs(ji,jj,jk) + akz(ji,jj,jk)
