@@ -67,6 +67,7 @@ CONTAINS
       REAL(wp), DIMENSION(:,:), INTENT(out) ::   pe1e2u, pe1e2v               ! u- & v-surfaces (if reduction in strait)   [m2]
       !
       INTEGER  ::   ji, jj               ! dummy loop indices
+      INTEGER  ::   ioffset, joffset     ! agrif indexes offset
       REAL(wp) ::   zlam1, zlam0, zcos_alpha, zim1 , zjm1 , ze1  , ze1deg, zf0 ! local scalars
       REAL(wp) ::   zphi1, zphi0, zsin_alpha, zim05, zjm05, zbeta, znorme      !   -      -
       !!-------------------------------------------------------------------------------
@@ -80,7 +81,7 @@ CONTAINS
       !
       !                       !==  grid point position  ==!
       !
-      zlam1 = -85._wp                           ! position of gridpoint (i,j) = (1,jpjglo)
+      zlam1 = -85._wp                           ! position of F-point at (i,j) = (1,Njglo0-1)
       zphi1 =  29._wp
       !
       ze1 = 106000._wp / REAL( nn_GYRE , wp )   ! gridspacing in meters
@@ -88,19 +89,21 @@ CONTAINS
       zsin_alpha = - SQRT( 2._wp ) * 0.5_wp     ! angle: 45 degrees
       zcos_alpha =   SQRT( 2._wp ) * 0.5_wp
       ze1deg = ze1 / (ra * rad)
-      zlam0 = zlam1 + zcos_alpha * ze1deg * REAL( Ni0glo - 2, wp )
+      ! longitude/latitude of the reference F-point at (i,j) = (1,1)
+      zlam0 = zlam1 + zcos_alpha * ze1deg * REAL( Nj0glo - 2, wp )
       zphi0 = zphi1 + zsin_alpha * ze1deg * REAL( Nj0glo - 2, wp )
 
 #if defined key_agrif
-      ! ! Upper left longitude and latitude from parent:
-      ! Laurent: Should be modify in case of an east-west cyclic parent grid
       IF (.NOT.Agrif_root()) THEN
-         zlam0 = zlam1 + Agrif_irhox() * REAL(Agrif_Parent(Ni0glo) -2, wp) * ze1deg * zcos_alpha  &
-                   &   + ( Agrif_Ix()*Agrif_irhox()-(0.5_wp+nbghostcells)) * ze1deg * zcos_alpha  &
-                   &   + ( Agrif_Iy()*Agrif_irhoy()-(0.5_wp+nbghostcells)) * ze1deg * zsin_alpha
-         zphi0 = zphi1 + Agrif_irhoy() * REAL(Agrif_Parent(Nj0glo) -2, wp) * ze1deg * zsin_alpha  &
-                   &   - ( Agrif_Ix()*Agrif_irhox()-nbghostcells )         * ze1deg * zsin_alpha  &
-                   &   + ( Agrif_Iy()*Agrif_irhoy()-nbghostcells )         * ze1deg * zcos_alpha
+         ! Retrieve Parent longitude/latitude south west corner: 
+         zlam0 = zlam1 + zcos_alpha * ze1deg * (REAL(Agrif_Parent(Nj0glo)-2, wp) * Agrif_Rhoy())
+         zphi0 = zphi1 + zsin_alpha * ze1deg * (REAL(Agrif_Parent(Nj0glo)-2, wp) * Agrif_Rhoy())
+         !
+         ! Offset this point according to the child grid position:
+         ioffset = (Agrif_Ix() + Agrif_Parent(nbghostcells_x_w) - 2) * Agrif_Irhox() - (nbghostcells_x_w - 1)
+         joffset = (Agrif_Iy() + Agrif_Parent(nbghostcells_y_s) - 2) * Agrif_Irhoy() - (nbghostcells_y_s - 1)
+         zlam0   = zlam0 + REAL(ioffset, wp)  * ze1deg * zcos_alpha + REAL(joffset, wp)  * ze1deg * zsin_alpha
+         zphi0   = zphi0 - REAL(ioffset, wp)  * ze1deg * zsin_alpha + REAL(joffset, wp)  * ze1deg * zcos_alpha
       ENDIF 
 #endif
       !   
