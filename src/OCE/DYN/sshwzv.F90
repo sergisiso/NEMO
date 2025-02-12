@@ -220,28 +220,28 @@ CONTAINS
          ! inside computational domain (cosmetic)
          DO jk = 1, jpkm1
             IF( lk_west ) THEN                             ! --- West --- !
-               DO ji = mi0(1+nn_hls,nn_hls), mi1(1+nn_hls,nn_hls)
+               DO ji = mi0(2+nn_hls,nn_hls), mi1(2+nn_hls,nn_hls)
                   DO jj = 2, jpj-1
                      IF( in_hdom(ji, jj, khls=1) )  pww(ji,jj,jk) = 0._wp
                   END DO
                END DO
             ENDIF
             IF( lk_east ) THEN                             ! --- East --- !
-               DO ji = mi0(jpiglo-nn_hls,nn_hls), mi1(jpiglo-nn_hls,nn_hls)
+               DO ji = mi0(jpiglo-nn_hls-1,nn_hls), mi1(jpiglo-nn_hls-1,nn_hls)
                   DO jj = 2, jpj-1
                      IF( in_hdom(ji, jj, khls=1) )  pww(ji,jj,jk) = 0._wp
                   END DO
                END DO
             ENDIF
             IF( lk_south ) THEN                            ! --- South --- !
-               DO jj = mj0(1+nn_hls,nn_hls), mj1(1+nn_hls,nn_hls)
+               DO jj = mj0(2+nn_hls,nn_hls), mj1(2+nn_hls,nn_hls)
                   DO ji = 2, jpi-1
                      IF( in_hdom(ji, jj, khls=1) )  pww(ji,jj,jk) = 0._wp
                   END DO
                END DO
             ENDIF
             IF( lk_north ) THEN                            ! --- North --- !
-               DO jj = mj0(jpjglo-nn_hls,nn_hls), mj1(jpjglo-nn_hls,nn_hls)
+               DO jj = mj0(jpjglo-nn_hls-1,nn_hls), mj1(jpjglo-nn_hls-1,nn_hls)
                   DO ji = 2, jpi-1
                      IF( in_hdom(ji, jj, khls=1) )  pww(ji,jj,jk) = 0._wp
                   END DO
