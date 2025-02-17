@@ -4,7 +4,7 @@
 
 
 workflow:
-  name: "SETTE $NEMO_HPC $NEMO_COMPILER $NEMO_COMPILATION - $NEMO_CONFIG test(s)"
+  name: "SETTE : $NEMO_HPC $NEMO_COMPILER $NEMO_COMPILATION - $NEMO_CONFIG test(s)"
   rules:
     - if: $CI_PIPELINE_SOURCE == 'web'
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_COMMIT_TITLE =~ /(?i).*\[ci\].*/
@@ -33,6 +33,11 @@ variables:
     value: "ALL"
     options:
       - "ALL"
+  NEMO_REFSHA:
+    description: "Nemo short SHA (8 digits) for results comparison (optional)"
+    value: ""
+    options:
+      - ""
 
 include:
   # default values (will be overwritten after)
@@ -135,7 +140,7 @@ sette_run:
     expire_in: 30 days
 
 
-sette_rpt:
+sette_rpt:RESTART:
   stage: check
   needs: [sette_run]   # limited to 50 jobs
   dependencies: []   # do not retrieve previous artifacts
@@ -144,10 +149,83 @@ sette_rpt:
     - $HPC
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -t "RESTART" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
   artifacts:
     paths:
       - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
     when: always
     expire_in: 30 days
 
+
+sette_rpt:REPRO:
+  stage: check
+  needs: [sette_run]   # limited to 50 jobs
+  dependencies: []   # do not retrieve previous artifacts
+  rules:
+    - if: ($CONFIG !~ /C1D.*/ && $NEMO_CONFIG !~ /C1D.*/)
+  extends: .parallel_HPC_CFG   # HPC + configs loop
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -t "REPRO" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+  artifacts:
+    paths:
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    when: always
+    expire_in: 30 days
+
+
+sette_rpt:CORRUPT:
+  stage: check
+  needs: [sette_run]   # limited to 50 jobs
+  dependencies: []   # do not retrieve previous artifacts
+  rules:
+    - if: ($CONFIG =~ /.*AGRIF.*/ || $NEMO_CONFIG =~ /.*AGRIF.*/)
+  extends: .parallel_HPC_CFG   # HPC + configs loop
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -t "CORRUPT" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+  artifacts:
+    paths:
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    when: always
+    expire_in: 30 days
+
+sette_rpt:PHYOPTS:
+  stage: check
+  needs: [sette_run]   # limited to 50 jobs
+  dependencies: []   # do not retrieve previous artifacts
+  rules:
+    - if: ($CONFIG =~ /OVERFLOW|LOCK_EXCHANGE/ || $NEMO_CONFIG =~ /OVERFLOW|LOCK_EXCHANGE/)
+  extends: .parallel_HPC_CFG   # HPC + configs loop
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -t "PHYOPTS" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+  artifacts:
+    paths:
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    when: always
+    expire_in: 30 days
+
+sette_rpt:COMPARE:
+  stage: check
+  needs: [sette_run]   # limited to 50 jobs
+  dependencies: []   # do not retrieve previous artifacts
+  rules:
+    - if: $NEMO_REFSHA != ""
+  extends: .parallel_HPC_CFG   # HPC + configs loop
+  tags:
+    - $HPC
+  script:
+    - cd sette
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -t "COMPARE" ${NEMO_REFSHA:+-S ${NEMO_REFSHA}} ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+  artifacts:
+    paths:
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    when: always
+    expire_in: 30 days
