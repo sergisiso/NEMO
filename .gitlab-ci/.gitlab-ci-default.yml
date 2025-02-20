@@ -1,14 +1,31 @@
 # default (but willingly wrong) values
 
 # HPC & configs lists to be tested with SETTE
-.parallel_HPC_CFG:
+.parallel_HPC_CFG:ALL:
   parallel:
     matrix:
       - HPC: [default]
         CONFIG: [default]
 
-# HPC & testcases lists to be tested with SETTE
-.parallel_HPC_TST:
+.parallel_HPC_CFG:RESTART:
+  parallel:
+    matrix:
+      - HPC: [default]
+        CONFIG: [default]
+
+.parallel_HPC_CFG:REPRO:
+  parallel:
+    matrix:
+      - HPC: [default]
+        CONFIG: [default]
+
+.parallel_HPC_CFG:CORRUPT:
+  parallel:
+    matrix:
+      - HPC: [default]
+        CONFIG: [default]
+
+.parallel_HPC_CFG:PHYOPTS:
   parallel:
     matrix:
       - HPC: [default]
