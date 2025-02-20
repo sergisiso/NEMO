@@ -1,7 +1,35 @@
 
 # HPC & configs/testcases to be tested in parallel with SETTE
 
-.parallel_HPC_CFG:
+.parallel_HPC_CFG:ALL:
+  variables:
+    CONFIG: ${NEMO_CONFIG}
+  parallel:
+    matrix:
+      - HPC: [ecmwf]
+
+.parallel_HPC_CFG:RESTART:
+  variables:
+    CONFIG: ${NEMO_CONFIG}
+  parallel:
+    matrix:
+      - HPC: [ecmwf]
+
+.parallel_HPC_CFG:REPRO:
+  variables:
+    CONFIG: ${NEMO_CONFIG}
+  parallel:
+    matrix:
+      - HPC: [ecmwf]
+
+.parallel_HPC_CFG:CORRUPT:
+  variables:
+    CONFIG: ${NEMO_CONFIG}
+  parallel:
+    matrix:
+      - HPC: [ecmwf]
+
+.parallel_HPC_CFG:PHYOPTS:
   variables:
     CONFIG: ${NEMO_CONFIG}
   parallel:

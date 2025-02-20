@@ -733,7 +733,7 @@ function identictest(){
 # overwrite revision (later) or compiler
   if [ $# -gt 0 ]; then
     echo ""
-    while getopts n:r:R:S:c:t:v:V:ubh option; do
+    while getopts n:r:R:S:c:x:v:V:ubh option; do
        case $option in
           c) mach=$OPTARG;;
           r) rev=$OPTARG
@@ -748,7 +748,7 @@ function identictest(){
              echo ""
              DO_COMPARE=1
              ;;
-          t) TEST_TYPES=$OPTARG
+          x) TEST_TYPES=$OPTARG
              [[ ${TEST_TYPES[*]} =~ .*RESTART.*   ]] && export DO_RESTART=1   || DO_RESTART=0
              [[ ${TEST_TYPES[*]} =~ .*REPRO.*     ]] && export DO_REPRO=1     || DO_REPRO=0
              [[ ${TEST_TYPES[*]} =~ .*CORRUPT.*   ]] && export DO_CORRUPT=1   || DO_CORRUPT=0
@@ -784,8 +784,8 @@ function identictest(){
                  echo '     compare sette results against the specified revision (use to over-ride value set in param.cfg)'
                  echo ' -S REFERENCE commit short (8-digits) SHA :'
                  echo '     compare sette results against the specified SHA (use to over-ride value set in param.cfg)'
-                 echo ' -t test :'
-                 echo '     select specific tests to be reported (RESTART, REPRO, TRANSFORM, PHYOPTS, CORRUPT(AGRIF))'
+                 echo ' -x test :'
+                 echo '     select specific tests to be reported (RESTART, REPRO, PHYOPTS, CORRUPT, TRANSFORM, COMPARE)'
                  echo ' -v sub_dir :'
                  echo '     validation sub-directory below NEMO_VALIDATION_DIR'
                  echo ' -V sub_dir2 :'
@@ -941,7 +941,7 @@ do
   fi
 
   # AGRIF special check to ensure results are unchanged with and without key_agrif
-  if [[ ${TEST_CONFIGS[@]} =~ "AGRIF" && ${DO_CORRUPT} -eq 1 ]]; then
+  if [[ ${TEST_CONFIGS[@]} =~ "AGRIF_DEMO" && ${DO_CORRUPT} -eq 1 ]]; then
      echo ""
      echo "   !----agrif check----!   "
      dir1=AGRIF_DEMO_NOAGRIF
