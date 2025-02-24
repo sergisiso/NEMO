@@ -100,20 +100,24 @@ CONTAINS
            &                                  ts(:,:,:,jp_sal,Kmm_a), 'T',  1._wp,  & 
            &                                  ts(:,:,:,jp_tem,Kbb_a), 'T',  1._wp,  & 
            &                                  ts(:,:,:,jp_sal,Kbb_a), 'T', 1._wp    )
-      CALL lbc_lnk( 'finalize_lbc_for_agrif', ssh(:,:,  Kmm_a), 'T', 1._wp, &
-           &                                  ssh(:,:,  Kbb_a), 'T', 1._wp, &
-           &                                  uu_b(:,:, Kmm_a), 'U',-1._wp, &
-           &                                  uu_b(:,:, Kbb_a), 'U',-1._wp, &
-           &                                  vv_b(:,:, Kmm_a), 'V',-1._wp, &
-           &                                  vv_b(:,:, Kbb_a), 'V',-1._wp, &
+
+      CALL lbc_lnk( 'finalize_lbc_for_agrif', ssh(:,:, Kmm_a), 'T', 1._wp, &
+           &                                  ssh(:,:, Kbb_a), 'T', 1._wp, &
+           &                                 uu_b(:,:, Kmm_a), 'U',-1._wp, &
+           &                                 uu_b(:,:, Kbb_a), 'U',-1._wp, &
+           &                                 vv_b(:,:, Kmm_a), 'V',-1._wp, &
+           &                                 vv_b(:,:, Kbb_a), 'V',-1._wp  )
+
 # if ! defined key_RK3
-           &                                  ub2_b(:,:),   'U',-1._wp,     &
-           &                                  un_bf(:,:),   'U',-1._wp,     &
-           &                                  vb2_b(:,:),   'V',-1._wp,     &
-           &                                  vn_bf(:,:),   'V',-1._wp,     &
-# endif
-           &                                  ub2_i_b(:,:), 'U',-1._wp,     &
-           &                                  vb2_i_b(:,:), 'V',-1._wp      ) 
+      CALL lbc_lnk( 'finalize_lbc_for_agrif', ub2_b(:,:),   'U',-1._wp,    &
+           &                                  un_bf(:,:),   'U',-1._wp,    &
+           &                                  vb2_b(:,:),   'V',-1._wp,    &
+           &                                  vn_bf(:,:),   'V',-1._wp.    )
+           IF (.NOT.Agrif_root()) THEN
+               CALL lbc_lnk( 'finalize_lbc_for_agrif', ub2_i_b(:,:), 'U',-1._wp,    &
+                    &                                  vb2_i_b(:,:), 'V',-1._wp     ) 
+           END IF
+#endif
 
 #if defined key_qco
       CALL dom_qco_zgr( Kbb_a, Kmm_a ) 
