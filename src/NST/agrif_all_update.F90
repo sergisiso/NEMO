@@ -112,7 +112,7 @@ CONTAINS
       CALL lbc_lnk( 'finalize_lbc_for_agrif', ub2_b(:,:),   'U',-1._wp,    &
            &                                  un_bf(:,:),   'U',-1._wp,    &
            &                                  vb2_b(:,:),   'V',-1._wp,    &
-           &                                  vn_bf(:,:),   'V',-1._wp.    )
+           &                                  vn_bf(:,:),   'V',-1._wp     )
            IF (.NOT.Agrif_root()) THEN
                CALL lbc_lnk( 'finalize_lbc_for_agrif', ub2_i_b(:,:), 'U',-1._wp,    &
                     &                                  vb2_i_b(:,:), 'V',-1._wp     ) 
