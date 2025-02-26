@@ -16,6 +16,12 @@ variables:
     options:
       - "yes"
       - "no"
+  NEMO_TIMESTEPPING:
+    description: "Nemo time stepping"
+    value: "RK3"
+    options:
+      - "RK3"
+      - "MLF"
 
 include:
   # default values (will be overwritten after)
@@ -59,14 +65,12 @@ before_script:
       module purge || true;
       module load ${!SETTE_MOD};
     fi
-  - set -x   # debug prints
+  - set +x   # debug prints
   - SETTE_CFG=${HOST_NAME[${HOSTNAME//[0-9,-,.]*}]}_SETTE_CFG
   - cp -av ${!SETTE_CFG} sette/param.cfg
   - git config core.filemode false   # ignore git(lab) symlinks permissions changes when pushing then pulling cache ("old mode 100755 -> new mode 100644")
-  - SETTE_OPT="-u -w"
   - if [[ ${NEMO_DEBUG} == "yes" ]]; then SETTE_OPT="${SETTE_OPT} -b"; fi
-  - 'echo "CI_COMMIT_REF_NAME: ${CI_COMMIT_REF_NAME}"'
-  - 'echo "CI_COMMIT_BRANCH: ${CI_COMMIT_BRANCH}"'
+  - if [[ ${NEMO_TIMESTEPPING} == "MLF" ]]; then SETTE_OPT="${SETTE_OPT} -Q"; fi
 
 
 # JOBS
@@ -87,7 +91,7 @@ sette_cmp_cfgs:
     - $HPC
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh -u -w ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
     - cd -
   artifacts:
     paths:
@@ -105,7 +109,7 @@ sette_cmp_tsts:
     - $HPC
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh -u -w ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
     - cd -
   artifacts:
     paths:
@@ -125,7 +129,7 @@ sette_run_cfgs:
     - $HPC
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "RESTART REPRO PHYOPTS CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh -u -w ${SETTE_OPT} -n ${CONFIG} -x "RESTART REPRO PHYOPTS CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
     - cd -
   artifacts:
     paths:
@@ -148,7 +152,7 @@ sette_run_tsts:
     - $HPC
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "RESTART REPRO PHYOPTS CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh -u -w ${SETTE_OPT} -n ${CONFIG} -x "RESTART REPRO PHYOPTS CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
     - cd -
   artifacts:
     paths:
@@ -168,7 +172,7 @@ sette_rpt_cfgs:
     - $HPC
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/ -Q} -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
   artifacts:
     paths:
       - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
@@ -184,7 +188,7 @@ sette_rpt_tsts:
     - $HPC
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/ -Q} -n "${CONFIG}" | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
   artifacts:
     paths:
       - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
