@@ -78,8 +78,8 @@
 !-----------------------------------------------------------------------
 &namc1d        !   1D configuration options                             (ln_c1d =T default: PAPA station)
 !-----------------------------------------------------------------------
-   rn_lat1d    =      30.  !  Column latitude
-   rn_lon1d    =      15.  !  Column longitude
+   rn_lat1d    =      42.0 !  Column latitude
+   rn_lon1d    =       4.7 !  Column longitude
    ln_dyndmp   =  .false.  !  add a damping term (T) or not (F)
    !                       !  =T read U-V fields for:
    ln_uvd_init   = .false.       !  ocean initialisation
