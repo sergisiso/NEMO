@@ -155,7 +155,11 @@
    ln_qsr_5bd  = .true.       !  5BD light penetration (IR-Red-Green-Blue-UV)
    !                       !  RGB, 2BD & 5BD choices:
    rn_abs      =   0.45       !  RGB, 2BD & 5BD : fraction absorbed in the very near surface
-   nn_chldta   =      1       !  RGB : Chl data (=1) or cst value (=0)
+   nn_chldta   =      1       !  RGB & 5BD: cst value (=0) or Chl data (=1)
+      nn_chlprfl  =      0       !  Chl vertical profile (nn_chldta = 1)
+                                 !  0 = vertical extrapolation of surface data
+                                 !  1 = vertical analytical profile deduced from surface data
+                                 !  2 = 3D Chl data
    rn_par      =   0.47       !  5BD : fraction of photosynthetically active radiation
    
    cn_dir      = './PAPA/' !  root directory for the chlorophyl data location
