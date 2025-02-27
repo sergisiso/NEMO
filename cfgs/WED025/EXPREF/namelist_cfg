@@ -165,6 +165,10 @@
    ln_qsr_rgb  = .true.    !  RGB (Red-Green-Blue) light penetration
    !                       !  RGB & 2BD choices:
    nn_chldta   =      1    !  RGB : 2D Chl data (=1), 3D Chl data (=2) or cst value (=0)
+      nn_chlprfl  =      1       !  Chl vertical profile (nn_chldta = 1)
+                                 !  0 = vertical extrapolation of surface data
+                                 !  1 = vertical analytical profile deduced from surface data
+                                 !  2 = 3D Chl data
 
    cn_dir      = './'      !  root directory for the chlorophyl data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
