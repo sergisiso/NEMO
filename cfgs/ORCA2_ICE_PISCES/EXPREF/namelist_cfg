@@ -134,6 +134,10 @@
    ln_qsr_rgb  = .true.       !  RGB light penetration (Red-Green-Blue)
    !
    nn_chldta   =      1       !  RGB : Chl data (=1) or cst value (=0)
+      nn_chlprfl  =      1       !  Chl vertical profile (nn_chldta = 1)
+                                 !  0 = vertical extrapolation of surface data
+                                 !  1 = vertical analytical profile deduced from surface data
+                                 !  2 = 3D Chl data
 
    cn_dir = './'  !  root directory for the chlorophyl data location
    !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
@@ -197,7 +201,7 @@
 !-----------------------------------------------------------------------
 &namberg       !   iceberg parameters                                   (default: OFF)
 !-----------------------------------------------------------------------
-   ln_icebergs = .true.    ! activate iceberg floats (force =F with "key_agrif")
+   ln_icebergs = .false.   ! activate iceberg floats (force =F with "key_agrif")
 
    cn_dir = './'  !  root directory for the location of drag coefficient files
    !______!___________!___________________!______________!______________!_________!___________!__________!__________!_______________!

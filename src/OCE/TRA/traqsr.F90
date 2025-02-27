@@ -56,7 +56,11 @@ MODULE traqsr
    LOGICAL , PUBLIC ::   ln_qsr_2bd   !: 2 band         light absorption flag
    LOGICAL , PUBLIC ::   ln_qsr_5bd   !: 5 bands        light absorption flag
    LOGICAL , PUBLIC ::   ln_qsr_bio   !: bio-model      light absorption flag
-   INTEGER , PUBLIC ::   nn_chldta    !: use Chlorophyll data 3D/Surface (=2/1) or not (=0)
+   INTEGER , PUBLIC ::   nn_chldta    !: use Chlorophyll data Surface (=1) or not (=0)
+   INTEGER , PUBLIC ::   nn_chlprfl   !: Chlorophyll vertical profile
+                                      !: 0 = vertical extrapolation of surface data
+                                      !: 1 = vertical analytical profile deduced from surface data
+                                      !: 2 = 3D Chl data
    REAL(wp), PUBLIC ::   rn_abs       !: fraction absorbed in the very near surface (RGB, 2 bands & 5 bands)
    REAL(wp), PUBLIC ::   rn_si0       !: very near surface depth of extinction      (RGB, 2 bands & 5 bands)
    REAL(wp), PUBLIC ::   rn_si1       !: deepest depth of extinction (water type I)            (2 bands)
@@ -215,7 +219,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) ::   pts         ! active tracers and RHS of tracer equation
       !!
       INTEGER  ::   ji, jj, jk, ik           ! dummy loop indices
-      INTEGER  ::   ipk, itab                ! local integer
+      INTEGER  ::   ipk, it                  ! local integer
       REAL(wp) ::   zc1 , zc2 , zc3, zchl    ! local scalars
       REAL(wp) ::   zze0, zzeR, zzeG, zzeB, zzeT              !    -         -
       REAL(wp) ::   zz0 , zz1 , ze3t                          !    -         -
@@ -224,16 +228,18 @@ CONTAINS
       !!
       REAL(wp), DIMENSION(T2D(0)) ::   ze0, zeR, zeG, zeB, zeT
 #if ! defined key_PSYCLONE_2p5p0
-      REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE ::   zc
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zc
+      INTEGER,  DIMENSION(:,:,:), ALLOCATABLE ::   itab
 #else
-      REAL(wp), DIMENSION(T2D(0),jpk,0:3) ::   zc
+      REAL(wp), DIMENSION(T2D(0),0:3)   ::   zc
+      INTEGER,  DIMENSION(T2D(0),jpk-1) ::   itab
 #endif
       !!----------------------------------------------------------------------
       !
-      IF    ( nn_chldta == 1 ) THEN   ;   ipk=1
-      ELSEIF( nn_chldta == 2 ) THEN   ;   ipk=jpk   ;   ENDIF
+      IF    ( nn_chlprfl == 0 )                      THEN   ;   ipk=1
+      ELSEIF( nn_chlprfl == 1 .OR. nn_chlprfl == 2 ) THEN   ;   ipk=jpk   ;   ENDIF
 #if ! defined key_PSYCLONE_2p5p0
-      ALLOCATE( zc(T2D(0),ipk,0:3) )
+      ALLOCATE( zc(T2D(0),0:3), itab(T2D(0),jpk-1) )
 #endif
       !
       !                       !===========================================!
@@ -248,18 +254,56 @@ CONTAINS
          IF( ln_tile ) CALL dom_tile_start( ldhold=.TRUE. )                      ! Revert to tile domain
       ENDIF
       !
-      DO_3D( 0, 0, 0, 0, 1, ipk )                          ! pre-calculated expensive coefficient
-         zlogc = LOG(  MAX( 0.03_wp, MIN( sf_chl(1)%fnow(ji,jj,jk) ,10._wp ) )  ) ! zlogc = log(zchl)   with 0.03 <= Chl >= 10. 
-         zc1   = 0.113328685307 + 0.803 * zlogc                                   ! zc1 : log(zCze)  = log (1.12  * zchl**0.803)
-         zc2   = 3.703768066608 + 0.459 * zlogc                                   ! zc2 : log(zCtot) = log(40.6  * zchl**0.459)
-         zc3   = 6.34247346942  - 0.746 * zc2                                     ! zc3 : log(zze)   = log(568.2 * zCtot**(-0.746))
-         IF( zc3 > 4.62497281328 )   zc3 = 5.298317366548 - 0.293 * zc2           ! IF(log(zze)>log(102)) log(zze) = log(200*zCtot**(-0.293))
+      SELECT CASE( nn_chlprfl )
+      CASE( 0 )   ! vertical extrapolation
+         DO_2D( 0, 0, 0, 0 )                                  ! surface attenuation coefficients
+            !                                                        ! make sure zchl value is such that: 0.03 < zchl < 10. 
+            zchl = MAX(  0.03_wp , MIN( sf_chl(1)%fnow(ji,jj,1) , 10._wp )  )
+            !                                                        ! Convert chlorophyll value to attenuation coefficient
+            itab(ji,jj,1 ) = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )             ! look-up table index
+         END_2D
+         DO_3D( 0, 0, 0, 0, 2, jpk-1 )                          ! duplication at other vertical levels
+            itab(ji,jj,jk) = itab(ji,jj,jk-1)
+         END_3D
+      CASE( 1 )   ! analytical vertical profile
+         DO_2D( 0, 0, 0, 0 )                                  ! pre-calculated expensive coefficient
+            zlogc = LOG(  MAX( 0.03_wp, MIN( sf_chl(1)%fnow(ji,jj,1) ,10._wp ) )  )  ! zlogc = log(zchl)   with 0.03 <= Chl >= 10. 
+            zc1   = 0.113328685307 + 0.803 * zlogc                                   ! zc1 : log(zCze)  = log (1.12  * zchl**0.803)
+            zc2   = 3.703768066608 + 0.459 * zlogc                                   ! zc2 : log(zCtot) = log(40.6  * zchl**0.459)
+            zc3   = 6.34247346942  - 0.746 * zc2                                     ! zc3 : log(zze)   = log(568.2 * zCtot**(-0.746))
+            IF( zc3 > 4.62497281328 )   zc3 = 5.298317366548 - 0.293 * zc2           ! IF(log(zze)>log(102)) log(zze) = log(200*zCtot**(-0.293))
+            !
+            zc(ji,jj,0) = zlogc                                                   ! ze(0) = log(zchl)
+            zc(ji,jj,1) = EXP( zc1 )                                              ! ze(1) = zCze
+            zc(ji,jj,2) = 1._wp / ( 0.710 + zlogc * ( 0.159 + zlogc * 0.021 ) )   ! ze(2) = 1/zdelpsi
+            zc(ji,jj,3) = EXP( - zc3 )                                            ! ze(3) = 1/zze
+         END_2D
          !
-         zc(ji,jj,jk,0) = zlogc                                                   ! ze(0) = log(zchl)
-         zc(ji,jj,jk,1) = EXP( zc1 )                                              ! ze(1) = zCze
-         zc(ji,jj,jk,2) = 1._wp / ( 0.710 + zlogc * ( 0.159 + zlogc * 0.021 ) )   ! ze(2) = 1/zdelpsi
-         zc(ji,jj,jk,3) = EXP( - zc3 )                                            ! ze(3) = 1/zze
-      END_3D
+         DO_3D( 0, 0, 0, 0, 1, ipk-1 )
+            !                                      !- inverse of RGB attenuation lengths
+            zlogc     = zc(ji,jj,0)
+            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
+            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
+            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
+            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
+            zCze   = zc(ji,jj,1)
+            zrdpsi = zc(ji,jj,2)                                     ! 1/zdelpsi
+            zpsi   = zc(ji,jj,3) * gdepw(ji,jj,jk+1,Kmm)             ! gdepw/zze
+            !                                                        ! make sure zchl value is such that: 0.03 < zchl < 10. 
+            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
+            !                                                        ! Convert chlorophyll value to attenuation coefficient
+            itab(ji,jj,jk) = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )   ! look-up table index
+         END_3D
+      CASE( 2 )   ! chl 3D data
+         DO_3D( 0, 0, 0, 0, 1, ipk-1 )                          ! 3D attenuation coefficients
+            !                                                        ! make sure zchl value is such that: 0.03 < zchl < 10. 
+            zchl = MAX(  0.03_wp , MIN( sf_chl(1)%fnow(ji,jj,ipk) , 10._wp )  )
+            !                                                        ! Convert chlorophyll value to attenuation coefficient
+            itab(ji,jj,jk) = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )   ! look-up table index
+         END_3D
+      CASE DEFAULT
+         CALL ctl_stop( 'tra_qsr : unsupported value for nn_chlprfl' )
+      END SELECT
       !
       !                             !=  surface light  =!
       !
@@ -278,21 +322,9 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                                     ! 1/zdelpsi
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)               ! gdepw/zze
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)               ! gdepw/zze
-            !                                                        ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                        ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )             ! look-up table index
+            it = itab(ji,jj,jk)
             !       Red             !         Green              !         Blue
-            r1_LR = rktab(3,itab)   ;   r1_LG = rktab(2,itab)    ;   r1_LB = rktab(1,itab)
+            r1_LR = rktab(3,it)     ;   r1_LG = rktab(2,it)      ;   r1_LB = rktab(1,it)
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -314,21 +346,9 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                               ! 1/zdelpsi
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)         ! gdepw/zze
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)         ! gdepw/zze
-            !                                                  ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                  ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )       ! look-up table index
+            it = itab(ji,jj,jk)
             !       Red             !         Green              !         Blue
-            r1_LR = rktab(3,itab)   ;   r1_LG = rktab(2,itab)    ;   r1_LB = rktab(1,itab)
+            r1_LR = rktab(3,it)     ;   r1_LG = rktab(2,it)      ;   r1_LB = rktab(1,it)
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -348,21 +368,9 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                               ! 1/zdelpsi
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)         ! gdepw/zze
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)         ! gdepw/zze
-            !                                                  ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                  ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )       ! look-up table index
+            it = itab(ji,jj,jk)
             !     Green              !         Blue
-            r1_LG = rktab(2,itab)    ;   r1_LB = rktab(1,itab)
+            r1_LG = rktab(2,it)      ;   r1_LB = rktab(1,it)
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -379,20 +387,8 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                               ! 1/zdelpsi
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)         ! gdepw/zze
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)         ! gdepw/zze
-            !                                                  ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                  ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )       ! look-up table index
-            r1_LB = rktab(1,itab)                              ! Blue
+            it = itab(ji,jj,jk)
+            r1_LB = rktab(1,it)                                ! Blue
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -406,7 +402,7 @@ CONTAINS
       END DO
       !
 #if ! defined key_PSYCLONE_2p5p0
-      DEALLOCATE( zc )
+      DEALLOCATE( zc, itab )
 #endif
       !
    END SUBROUTINE qsr_RGBc
@@ -626,7 +622,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk,jpts,jpt), INTENT(inout) ::   pts         ! active tracers and RHS of tracer equation
       !!
       INTEGER  ::   ji, jj, jk, ik           ! dummy loop indices
-      INTEGER  ::   ipk, itab                ! local integer
+      INTEGER  ::   ipk, it                  ! local integer
       REAL(wp) ::   zc1 , zc2 , zc3, zchl    ! local scalars
       REAL(wp) ::   zze0, zzeR, zzeG, zzeB, zzeU, zzeT        !    -         -
       REAL(wp) ::   zz0 , zz1 , zz2, ze3t                     !    -         -
@@ -634,12 +630,18 @@ CONTAINS
       REAL(wp) ::   zlogc, zlogze, zlogCtot, zlogCze          !    -         -
       !!
       REAL(wp), DIMENSION(T2D(0)) ::   ze0, zeR, zeG, zeB, zeU, zeT
-      REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE ::   zc
+#if ! defined key_PSYCLONE_2p5p0
+      REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::   zc
+      INTEGER,  DIMENSION(:,:,:), ALLOCATABLE ::   itab
+#else
+      REAL(wp), DIMENSION(T2D(0),0:3)   ::   zc
+      INTEGER,  DIMENSION(T2D(0),jpk-1) ::   itab
+#endif
       !!----------------------------------------------------------------------
       !
-      IF    ( nn_chldta == 1 ) THEN   ;   ipk=1
-      ELSEIF( nn_chldta == 2 ) THEN   ;   ipk=jpk   ;   ENDIF
-      ALLOCATE( zc(T2D(0),ipk,0:3) )
+      IF    ( nn_chlprfl == 0 )                      THEN   ;   ipk=1
+      ELSEIF( nn_chlprfl == 1 .OR. nn_chlprfl == 2 ) THEN   ;   ipk=jpk   ;   ENDIF
+      ALLOCATE( zc(T2D(0),0:3), itab(T2D(0),jpk-1) )
       !
       !                       !===========================================!
       !                       !==  R-G-B fluxes using chlorophyll data  ==!    with Morel &Berthon (1989) vertical profile
@@ -653,18 +655,56 @@ CONTAINS
          IF( ln_tile )   CALL dom_tile( ntsi, ntsj, ntei, ntej, ktile = 1 )   ! Revert to tile domain
       ENDIF
       !
-      DO_3D( 0, 0, 0, 0, 1, ipk )                          ! pre-calculated expensive coefficient
-         zlogc = LOG(  MAX( 0.03_wp, MIN( sf_chl(1)%fnow(ji,jj,jk) ,10._wp ) )  ) ! zlogc = log(zchl)   with 0.03 <= Chl >= 10. 
-         zc1   = 0.113328685307 + 0.803 * zlogc                                   ! zc1 : log(zCze)  = log (1.12  * zchl**0.803)
-         zc2   = 3.703768066608 + 0.459 * zlogc                                   ! zc2 : log(zCtot) = log(40.6  * zchl**0.459)
-         zc3   = 6.34247346942  - 0.746 * zc2                                     ! zc3 : log(zze)   = log(568.2 * zCtot**(-0.746))
-         IF( zc3 > 4.62497281328 )   zc3 = 5.298317366548 - 0.293 * zc2           ! IF(log(zze)>log(102)) log(zze) = log(200*zCtot**(-0.293))
+      SELECT CASE( nn_chlprfl )
+      CASE( 0 )   ! vertical extrapolation
+         DO_2D( 0, 0, 0, 0 )                                  ! surface attenuation coefficients
+            !                                                        ! make sure zchl value is such that: 0.03 < zchl < 10. 
+            zchl = MAX(  0.03_wp , MIN( sf_chl(1)%fnow(ji,jj,1) , 10._wp )  )
+            !                                                        ! Convert chlorophyll value to attenuation coefficient
+            itab(ji,jj,1 ) = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )             ! look-up table index
+         END_2D
+         DO_3D( 0, 0, 0, 0, 2, jpk-1 )                        ! duplication at other vertical levels
+            itab(ji,jj,jk) = itab(ji,jj,jk-1)
+         END_3D
+      CASE( 1 )   ! analytical vertical profile
+         DO_2D( 0, 0, 0, 0 )                                  ! pre-calculated expensive coefficient
+            zlogc = LOG(  MAX( 0.03_wp, MIN( sf_chl(1)%fnow(ji,jj,1) ,10._wp ) )  )  ! zlogc = log(zchl)   with 0.03 <= Chl >= 10. 
+            zc1   = 0.113328685307 + 0.803 * zlogc                                   ! zc1 : log(zCze)  = log (1.12  * zchl**0.803)
+            zc2   = 3.703768066608 + 0.459 * zlogc                                   ! zc2 : log(zCtot) = log(40.6  * zchl**0.459)
+            zc3   = 6.34247346942  - 0.746 * zc2                                     ! zc3 : log(zze)   = log(568.2 * zCtot**(-0.746))
+            IF( zc3 > 4.62497281328 )   zc3 = 5.298317366548 - 0.293 * zc2           ! IF(log(zze)>log(102)) log(zze) = log(200*zCtot**(-0.293))
+            !
+            zc(ji,jj,0) = zlogc                                                   ! ze(0) = log(zchl)
+            zc(ji,jj,1) = EXP( zc1 )                                              ! ze(1) = zCze
+            zc(ji,jj,2) = 1._wp / ( 0.710 + zlogc * ( 0.159 + zlogc * 0.021 ) )   ! ze(2) = 1/zdelpsi
+            zc(ji,jj,3) = EXP( - zc3 )                                            ! ze(3) = 1/zze
+         END_2D
          !
-         zc(ji,jj,jk,0) = zlogc                                                   ! ze(0) = log(zchl)
-         zc(ji,jj,jk,1) = EXP( zc1 )                                              ! ze(1) = zCze
-         zc(ji,jj,jk,2) = 1._wp / ( 0.710 + zlogc * ( 0.159 + zlogc * 0.021 ) )   ! ze(2) = 1/zdelpsi
-         zc(ji,jj,jk,3) = EXP( - zc3 )                                            ! ze(3) = 1/zze
-      END_3D
+         DO_3D( 0, 0, 0, 0, 1, ipk-1 )
+            !                                      !- inverse of RGB attenuation lengths
+            zlogc     = zc(ji,jj,0)
+            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
+            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
+            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
+            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
+            zCze   = zc(ji,jj,1)
+            zrdpsi = zc(ji,jj,2)                                     ! 1/zdelpsi
+            zpsi   = zc(ji,jj,3) * gdepw(ji,jj,jk+1,Kmm)             ! gdepw/zze
+            !                                                        ! make sure zchl value is such that: 0.03 < zchl < 10. 
+            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
+            !                                                        ! Convert chlorophyll value to attenuation coefficient
+            itab(ji,jj,jk) = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )   ! look-up table index
+         END_3D
+      CASE( 2 )   ! chl 3D data
+         DO_3D( 0, 0, 0, 0, 1, ipk-1 )                        ! 3D attenuation coefficients
+            !                                                        ! make sure zchl value is such that: 0.03 < zchl < 10. 
+            zchl = MAX(  0.03_wp , MIN( sf_chl(1)%fnow(ji,jj,ipk) , 10._wp )  )
+            !                                                        ! Convert chlorophyll value to attenuation coefficient
+            itab(ji,jj,jk) = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )   ! look-up table index
+         END_3D
+      CASE DEFAULT
+         CALL ctl_stop( 'tra_qsr : unsupported value for nn_chlprfl' )
+      END SELECT
       !
       !                             !=  surface light  =!
       !
@@ -684,21 +724,9 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                                     ! 1/zdelpsi
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)               ! gdepw/zze
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)               ! gdepw/zze
-            !                                                        ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                        ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )             ! look-up table index
-            !       Red             !         Green              !         Blue
-            r1_LR = rktab(3,itab)   ;   r1_LG = rktab(2,itab)    ;   r1_LB = rktab(1,itab)    ;   r1_LU = rktab(4,itab)
+            it = itab(ji,jj,jk)
+            !       Red             !         Green              !         Blue               !         UV
+            r1_LR = rktab(3,it)     ;   r1_LG = rktab(2,it)      ;   r1_LB = rktab(1,it)      ;   r1_LU = rktab(4,it)
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -720,21 +748,9 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                               ! 1/zdelpsi
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)         ! gdepw/zze
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)         ! gdepw/zze
-            !                                                  ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                  ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )       ! look-up table index
-            !       Red             !         Green              !         Blue
-            r1_LR = rktab(3,itab)   ;   r1_LG = rktab(2,itab)    ;   r1_LB = rktab(1,itab)    ;   r1_LU = rktab(4,itab)
+            it = itab(ji,jj,jk)
+            !       Red             !         Green              !         Blue               !         UV
+            r1_LR = rktab(3,it)     ;   r1_LG = rktab(2,it)      ;   r1_LB = rktab(1,it)      ;   r1_LU = rktab(4,it)
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -754,21 +770,9 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                               ! 1/zdelpsi
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)         ! gdepw/zze
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)         ! gdepw/zze
-            !                                                  ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                  ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )       ! look-up table index
-            !     Green              !         Blue
-            r1_LG = rktab(2,itab)    ;   r1_LB = rktab(1,itab)    ;   r1_LU = rktab(4,itab)
+            it = itab(ji,jj,jk)
+            !     Green              !         Blue               !         UV
+            r1_LG = rktab(2,it)      ;   r1_LB = rktab(1,it)      ;   r1_LU = rktab(4,it)
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -786,20 +790,9 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                               ! 1/zdelpsi
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)         ! gdepw/zze
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)         ! gdepw/zze
-            !                                                  ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                  ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )       ! look-up table index
-            r1_LB = rktab(1,itab)    ;   r1_LU = rktab(4,itab) ! Blue ; UV
+            it = itab(ji,jj,jk)
+            !     Blue               !         UV
+            r1_LB = rktab(1,it)      ;   r1_LU = rktab(4,it)
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -817,20 +810,9 @@ CONTAINS
          ik = MIN( jk , ipk )
          DO_2D( 0, 0, 0, 0 )
             !                                      !- inverse of RGB attenuation lengths
-            zlogc     = zc(ji,jj,ik,0)
-            zCb       = 0.768 + zlogc * ( 0.087 - zlogc * ( 0.179 + zlogc * 0.025 ) )
-            zCmax     = 0.299 - zlogc * ( 0.289 - zlogc * 0.579 )
-            zpsimax   = 0.6   - zlogc * ( 0.640 - zlogc * ( 0.021 + zlogc * 0.115 ) )
-            ! zdelpsi = 0.710 + zlogc * ( 0.159 + zlogc * 0.021 )
-            zCze   = zc(ji,jj,ik,1)
-            zrdpsi = zc(ji,jj,ik,2)                               ! 1/zdelpsi
-            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk+1,Kmm)         ! gdepw/zze
-!!st05            zpsi   = zc(ji,jj,ik,3) * gdepw(ji,jj,jk,Kmm)         ! gdepw/zze
-            !                                                  ! make sure zchl value is such that: 0.03 < zchl < 10. 
-            zchl = MAX(  0.03_wp , MIN( zCze * ( zCb + zCmax * EXP( -( (zpsi - zpsimax) * zrdpsi )**2 ) ) , 10._wp )  )
-            !                                                  ! Convert chlorophyll value to attenuation coefficient
-            itab = NINT( 41 + 20.*LOG10(zchl) + 1.e-15 )       ! look-up table index
-            r1_LB = rktab(1,itab)                              ! Blue
+            it = itab(ji,jj,jk)
+            !     Blue
+            r1_LB = rktab(1,it)
             !
             !                                      !- fluxes at jk+1 w-level
             ze3t = e3t(ji,jj,jk,Kmm)
@@ -1065,11 +1047,11 @@ CONTAINS
       REAL(wp) ::   zLU, zLB, zLG, zLR    ! local scalar
       REAL(wp) ::   zVlp, zVlu, zchl      !   -      -
       !
-      CHARACTER(len=100) ::   cn_dir   ! Root directory for location of ssr files
+      CHARACTER(len=lc)  ::   cn_dir   ! Root directory for location of ssc files
       TYPE(FLD_N)        ::   sn_chl   ! informations about the chlorofyl field to be read
       !!
       NAMELIST/namtra_qsr/  sn_chl, cn_dir, ln_qsr_rgb, ln_qsr_2bd, ln_qsr_5bd, ln_qsr_bio,  &
-         &                  nn_chldta, rn_abs, rn_par, rn_si0, rn_si1
+         &                  nn_chldta, nn_chlprfl, rn_abs, rn_par, rn_si0, rn_si1
       !!----------------------------------------------------------------------
       !
       READ_NML_REF(numnam,namtra_qsr)
@@ -1085,10 +1067,11 @@ CONTAINS
          WRITE(numout,*) '      2 band               light penetration           ln_qsr_2bd = ', ln_qsr_2bd
          WRITE(numout,*) '      UV-R-G-B-IR          light penetration           ln_qsr_5bd = ', ln_qsr_5bd
          WRITE(numout,*) '      bio-model            light penetration           ln_qsr_bio = ', ln_qsr_bio
-         WRITE(numout,*) '      RGB : 3D/Surface Chl data or Cst value (2,1,0)   nn_chldta  = ', nn_chldta
-         WRITE(numout,*) '      RGB & 2 bands: fraction of light (rn_si1)        rn_abs     = ', rn_abs
-         WRITE(numout,*) '      RGB & 2 bands: shortess attenuation depth        rn_si0     = ', rn_si0
-         WRITE(numout,*) '      2 bands: longest attenuation depth               rn_si1     = ', rn_si1
+         WRITE(numout,*) '      RGB &   5 bands: Chl data (=1) or cst value (=0) nn_chldta  = ', nn_chldta
+         WRITE(numout,*) '      RGB &   5 bands: Chl vertical profile (=0,1,2)   nn_chlprfl = ', nn_chlprfl
+         WRITE(numout,*) '      RGB & 2/5 bands: fraction of light (rn_si1)      rn_abs     = ', rn_abs
+         WRITE(numout,*) '      RGB & 2/5 bands: shortess depth of extinction    rn_si0     = ', rn_si0
+         WRITE(numout,*) '      2 bands: longest depth of extinction             rn_si1     = ', rn_si1
          WRITE(numout,*) '      5 bands: fraction of PAR                         rn_par     = ', rn_par
          WRITE(numout,*)
       ENDIF
@@ -1102,12 +1085,12 @@ CONTAINS
       IF( ioptio /= 1 )   CALL ctl_stop( 'Choose ONE type of light penetration in namelist namtra_qsr',  &
          &                               ' 2 bands, 3 RGB bands, 5 UV-R-G-B-IR bands or bio-model light penetration' )
       !
-      IF( ln_qsr_rgb .AND.   nn_chldta == 0                       )   nqsr = np_RGB
-      IF( ln_qsr_rgb .AND. ( nn_chldta == 1 .OR. nn_chldta == 2 ) )   nqsr = np_RGBc
-      IF( ln_qsr_2bd                                              )   nqsr = np_2BD
-      IF( ln_qsr_5bd .AND.   nn_chldta == 0                       )   nqsr = np_5BD
-      IF( ln_qsr_5bd .AND. ( nn_chldta == 1 .OR. nn_chldta == 2 ) )   nqsr = np_5BDc
-      IF( ln_qsr_bio                                              )   nqsr = np_BIO
+      IF( ln_qsr_rgb .AND. nn_chldta == 0 )   nqsr = np_RGB
+      IF( ln_qsr_rgb .AND. nn_chldta == 1 )   nqsr = np_RGBc
+      IF( ln_qsr_2bd                      )   nqsr = np_2BD
+      IF( ln_qsr_5bd .AND. nn_chldta == 0 )   nqsr = np_5BD
+      IF( ln_qsr_5bd .AND. nn_chldta == 1 )   nqsr = np_5BDc
+      IF( ln_qsr_bio                      )   nqsr = np_BIO
       !
       !                       !**  Initialisation  **!
       !
@@ -1160,13 +1143,16 @@ CONTAINS
             IF( ierror > 0 ) THEN
                CALL ctl_stop( 'tra_qsr_init: unable to allocate sf_chl structure' )   ;   RETURN
             ENDIF
-            IF    ( nn_chldta == 1 ) THEN
+            SELECT CASE( nn_chlprfl )
+            CASE( 0, 1 )
                ALLOCATE( sf_chl(1)%fnow(jpi,jpj,1) )
                IF( sn_chl%ln_tint )   ALLOCATE( sf_chl(1)%fdta(jpi,jpj,1,2) )
-            ELSEIF( nn_chldta == 2 ) THEN
+            CASE( 2 )
                ALLOCATE( sf_chl(1)%fnow(jpi,jpj,jpk) )
                IF( sn_chl%ln_tint )   ALLOCATE( sf_chl(1)%fdta(jpi,jpj,jpk,2) )
-            ENDIF
+            CASE DEFAULT
+               CALL ctl_stop( 'tra_qsr_init: Verify namelist namtra_qsr:  nn_chlprfl not valid' )   ;   RETURN
+            END SELECT
             !                                        ! fill sf_chl with sn_chl and control print
             CALL fld_fill( sf_chl, (/ sn_chl /), cn_dir, 'tra_qsr_init',                             &
                &           'Solar penetration function of read chlorophyll', 'namtra_qsr' , no_print )
@@ -1224,13 +1210,16 @@ CONTAINS
             IF( ierror > 0 ) THEN
                CALL ctl_stop( 'tra_qsr_init: unable to allocate sf_chl structure' )   ;   RETURN
             ENDIF
-            IF    ( nn_chldta == 1 ) THEN
+            SELECT CASE( nn_chlprfl )
+            CASE( 0, 1 )
                ALLOCATE( sf_chl(1)%fnow(jpi,jpj,1) )
                IF( sn_chl%ln_tint )   ALLOCATE( sf_chl(1)%fdta(jpi,jpj,1,2) )
-            ELSEIF( nn_chldta == 2 ) THEN
+            CASE( 2 )
                ALLOCATE( sf_chl(1)%fnow(jpi,jpj,jpk) )
                IF( sn_chl%ln_tint )   ALLOCATE( sf_chl(1)%fdta(jpi,jpj,jpk,2) )
-            ENDIF
+            CASE DEFAULT
+               CALL ctl_stop( 'tra_qsr_init: Verify namelist namtra_qsr:  nn_chlprfl not valid' )   ;   RETURN
+            END SELECT
             !                                        ! fill sf_chl with sn_chl and control print
             CALL fld_fill( sf_chl, (/ sn_chl /), cn_dir, 'tra_qsr_init',                             &
                &           'Solar penetration function of read chlorophyll', 'namtra_qsr' , no_print )
