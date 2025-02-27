@@ -89,7 +89,7 @@ CONTAINS
       REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: qs_i  ! sat. spec. hum. at ice/air interface    [kg/kg]
       REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: q_zt  ! spec. air humidity at zt               [kg/kg]
       REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: U_zu  ! relative wind module at zu                [m/s]
-      REAL(wp), INTENT(in ), DIMENSION(A2D(0)) :: frice ! sea-ice concentration        (fraction)
+      REAL(wp), INTENT(in ), DIMENSION(A2D(nn_hls)) :: frice ! sea-ice concentration        (fraction)
       REAL(wp), INTENT(out), DIMENSION(A2D(0)) :: Cd_i  ! drag coefficient over sea-ice
       REAL(wp), INTENT(out), DIMENSION(A2D(0)) :: Ch_i  ! transfert coefficient for heat over ice
       REAL(wp), INTENT(out), DIMENSION(A2D(0)) :: Ce_i  ! transfert coefficient for sublimation over ice

@@ -63,7 +63,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj), INTENT(  out) ::   utau_ice, vtau_ice   ! air-ice stress   [N/m2]
       !!
       INTEGER  ::   ji, jj                 ! dummy loop index
-      REAL(wp), DIMENSION(A2D(0)) ::   zutau_ice, zvtau_ice
+      REAL(wp), DIMENSION(A2D(nn_hls)) ::   zutau_ice, zvtau_ice   ! must have the same shape as utau_ice for sbc_cpl_ice_tau
       !!-------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('icesbc')
@@ -84,13 +84,13 @@ CONTAINS
          !
          CALL blk_ice_1( sf(jp_wndi)%fnow(:,:,1), sf(jp_wndj)%fnow(:,:,1), theta_air_zt(:,:), q_air_zt(:,:), & ! <<== in
             &            sf(jp_slp )%fnow(:,:,1), tm_su(:,:),                                                & ! <<== in
-            &            putaui=utau_ice(A2D(0)), pvtaui=vtau_ice(A2D(0)) )                                    ! ==>> out
+            &            putaui=utau_ice, pvtaui=vtau_ice )                                                    ! ==>> out
          !
          !CASE( jp_abl    )              !--- ABL formulation (utau_ice & vtau_ice are computed in ablmod)
          !
       CASE( jp_purecpl )                 !--- Coupled formulation
          !
-         CALL sbc_cpl_ice_tau( utau_ice(A2D(0)) , vtau_ice(A2D(0)) )
+         CALL sbc_cpl_ice_tau( utau_ice, vtau_ice )
          !
       END SELECT
       !
