@@ -621,7 +621,7 @@ CONTAINS
          !
          CALL blk_oce_1( kt, sf(jp_wndi )%fnow(:,:,1), sf(jp_wndj )%fnow(:,:,1),   &   !   <<= in
             &                theta_air_zt(:,:), q_air_zt(:,:),                     &   !   <<= in
-            &                sf(jp_slp  )%fnow(:,:,1), sst_m(A2D(0)), ssu_m(A2D(1)), ssv_m(A2D(1)),        &   !   <<= in
+            &                sf(jp_slp  )%fnow(:,:,1), sst_m, ssu_m, ssv_m,        &   !   <<= in
             &                sf(jp_uoatm)%fnow(:,:,1), sf(jp_voatm)%fnow(:,:,1),   &   !   <<= in
             &                sf(jp_qsr  )%fnow(:,:,1), sf(jp_qlw  )%fnow(:,:,1),   &   !   <<= in (wl/cs)
             &                tsk_m, zssq, zcd_du, zsen, zlat, zevp, zqlwn )            !   =>> out
@@ -692,9 +692,9 @@ CONTAINS
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pqair  ! specific humidity at T-points            [kg/kg]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   ptair  ! potential temperature at T-points        [Kelvin]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pslp   ! sea-level pressure                       [Pa]
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pst    ! surface temperature                      [Celsius]
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(1)) ::   pu     ! surface current at U-point (i-component) [m/s]
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(1)) ::   pv     ! surface current at V-point (j-component) [m/s]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls)) :: pst ! surface temperature                      [Celsius]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls)) :: pu  ! surface current at U-point (i-component) [m/s]
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls)) :: pv  ! surface current at V-point (j-component) [m/s]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   puatm  ! surface current seen by the atm at T-point (i-component) [m/s]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pvatm  ! surface current seen by the atm at T-point (j-component) [m/s]
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   pdqsr  ! downwelling solar (shortwave) radiation at surface [W/m^2]
@@ -725,7 +725,7 @@ CONTAINS
       !
       ! local scalars ( place there for vector optimisation purposes)
       !                           ! Temporary conversion from Celcius to Kelvin (and set minimum value far above 0 K)
-      ptsk(:,:) = pst(:,:) + rt0  ! by default: skin temperature = "bulk SST" (will remain this way if NCAR algorithm used!)
+      ptsk(A2D(0)) = pst(A2D(0)) + rt0  ! by default: skin temperature = "bulk SST" (will remain this way if NCAR algorithm used!)
 
       ! sea surface potential temperature [K]
       zsspt(:,:) = theta_exner( ptsk(:,:), pslp(:,:) )
@@ -930,8 +930,8 @@ CONTAINS
       ptsk(:,:) = ( ptsk(:,:) - rt0 ) * smask0(:,:)  ! Back to Celsius
 
       IF( ln_skin_cs .OR. ln_skin_wl ) THEN
-         CALL iom_put( "t_skin" ,  ptsk        )  ! T_skin in Celsius
-         CALL iom_put( "dt_skin" , ptsk - pst  )  ! T_skin - SST temperature difference
+         CALL iom_put( "t_skin" ,  ptsk                        )  ! T_skin in Celsius
+         CALL iom_put( "dt_skin" , ptsk(A2D(0)) - pst(A2D(0))  )  ! T_skin - SST temperature difference
       ENDIF
       !
    END SUBROUTINE blk_oce_1
@@ -1062,8 +1062,8 @@ CONTAINS
       REAL(wp) , INTENT(in   ), DIMENSION(A2D(0)  ) ::   ptair   ! atmospheric potential temperature at T-point [K]
       REAL(wp) , INTENT(in   ), DIMENSION(A2D(0)  ) ::   pqair   ! atmospheric specific humidity at T-point [kg/kg]
       REAL(wp) , INTENT(in   ), DIMENSION(A2D(0)  ) ::   ptsui   ! sea-ice surface temperature [K]
-      REAL(wp) , INTENT(  out), DIMENSION(A2D(0)  ), OPTIONAL ::   putaui  ! if ln_blk
-      REAL(wp) , INTENT(  out), DIMENSION(A2D(0)  ), OPTIONAL ::   pvtaui  ! if ln_blk
+      REAL(wp) , INTENT(  out), DIMENSION(A2D(nn_hls)), OPTIONAL ::   putaui  ! if ln_blk
+      REAL(wp) , INTENT(  out), DIMENSION(A2D(nn_hls)), OPTIONAL ::   pvtaui  ! if ln_blk
       REAL(wp) , INTENT(  out), DIMENSION(A2D(0)  ), OPTIONAL ::   pseni   ! if ln_abl
       REAL(wp) , INTENT(  out), DIMENSION(A2D(0)  ), OPTIONAL ::   pevpi   ! if ln_abl
       REAL(wp) , INTENT(  out), DIMENSION(A2D(0)  ), OPTIONAL ::   pssqi   ! if ln_abl
@@ -1112,12 +1112,12 @@ CONTAINS
          !
       CASE( np_ice_lu12 )  ! from Lupkes(2012) equations
          ztmp(:,:) = q_sat( ptsui(:,:), pslp(:,:), l_ice=.TRUE. ) ! temporary array for SSQ
-         CALL turb_ice_lu12( rn_zqt, rn_zu, zsipt, ptair, ztmp, pqair, wndm_ice, fr_i(A2D(0)), &
+         CALL turb_ice_lu12( rn_zqt, rn_zu, zsipt, ptair, ztmp, pqair, wndm_ice, fr_i, &
             &                      Cd_ice, Ch_ice, Ce_ice, theta_zu_i, q_zu_i )
          !
       CASE( np_ice_lg15 )  ! from Lupkes and Gryanik (2015) equations
          ztmp(:,:) = q_sat( ptsui(:,:), pslp(:,:), l_ice=.TRUE. ) ! temporary array for SSQ
-         CALL turb_ice_lg15( rn_zqt, rn_zu, zsipt, ptair, ztmp, pqair, wndm_ice, fr_i(A2D(0)), &
+         CALL turb_ice_lg15( rn_zqt, rn_zu, zsipt, ptair, ztmp, pqair, wndm_ice, fr_i, &
             &                      Cd_ice, Ch_ice, Ce_ice, theta_zu_i, q_zu_i )
          !
       CASE ( np_ice_frm )

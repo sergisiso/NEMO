@@ -1540,8 +1540,8 @@ CONTAINS
       !!
       !! ** Action  :   return ptau_i, ptau_j, the stress over the ice
       !!----------------------------------------------------------------------
-      REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   p_taui   ! i- & j-components of atmos-ice stress [N/m2]
-      REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   p_tauj   !                   at T-point
+      REAL(wp), INTENT(inout), DIMENSION(A2D(nn_hls)) ::   p_taui   ! i- & j-components of atmos-ice stress [N/m2]
+      REAL(wp), INTENT(inout), DIMENSION(A2D(nn_hls)) ::   p_tauj   !                   at T-point
       !!
       INTEGER ::   ji, jj   ! dummy loop indices
       INTEGER ::   itx      ! index of taux over ice

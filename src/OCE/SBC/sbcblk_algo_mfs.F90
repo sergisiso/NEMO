@@ -77,7 +77,7 @@ CONTAINS
       REAL(wp), INTENT(  out), DIMENSION(A2D(0)) ::   qlwn      ! net long wave radiation                      [W/m2]
       REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   cloud_frac ! cloud cover     
       REAL(wp), INTENT(inout), DIMENSION(A2D(0)) ::   wndi, wndj ! wind components
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(1)) ::   pu, pv   ! surface current components
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls)) ::   pu, pv   ! surface current components
       REAL(wp), INTENT(in   ), DIMENSION(A2D(0)) ::   dpt      ! dew point temperature [K] 
       !
       INTEGER , INTENT(in   ), OPTIONAL                    :: nb_iter    ! number of iterations
