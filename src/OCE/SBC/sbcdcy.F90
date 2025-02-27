@@ -168,11 +168,13 @@ CONTAINS
       IF( nday_qsr == -1 ) THEN       ! first time step only
          ! allocate sbcdcy arrays
          IF( sbc_dcy_alloc() /= 0 )   CALL ctl_stop( 'STOP', 'sbc_dcy_alloc : unable to allocate arrays' )
-         ! Compute rcc needed to compute the time integral of the diurnal cycle
-         rcc(:,:) = rad * glamt(:,:) - rpi
-         ! time of midday
-         rtmd(:,:) = 0.5_wp - glamt(:,:) / 360._wp
-         rtmd(:,:) = MOD( (rtmd(:,:) + 1._wp) , 1._wp)
+         DO_2D( 0, 0, 0, 0 )
+            ! Compute rcc needed to compute the time integral of the diurnal cycle
+            rcc(ji,jj) = rad * glamt(ji,jj) - rpi
+            ! time of midday
+            ztmp = 0.5_wp - glamt(ji,jj) / 360._wp
+            rtmd(ji,jj) = MOD( (ztmp + 1._wp) , 1._wp)
+         END_2D
       ENDIF
 
       ! If this is a new day, we have to update the dawn, dusk and scaling function
