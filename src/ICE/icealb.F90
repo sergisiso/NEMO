@@ -100,16 +100,16 @@ CONTAINS
       !!                Grenfell & Perovich 2004, JGR, vol 109 
       !!----------------------------------------------------------------------
       LOGICAL , INTENT(in   )                        ::   ld_pnd_alb   !  effect of melt ponds on albedo
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   pt_su        !  ice surface temperature (Kelvin)
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_ice       !  sea-ice thickness
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_snw       !  snow depth
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   pafrac_pnd   !  melt pond relative fraction (per unit ice area)
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_pnd       !  melt pond depth
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0),jpl) ::   ph_lid       !  melt pond lid thickness
-      REAL(wp), INTENT(in   ), DIMENSION(A2D(0))     ::   pcloud_fra   !  cloud fraction
-      REAL(wp), INTENT(  out), DIMENSION(A2D(0),jpl) ::   palb_ice     !  albedo of ice
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls),jpl) ::   pt_su        !  ice surface temperature (Kelvin)
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls),jpl) ::   ph_ice       !  sea-ice thickness
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls),jpl) ::   ph_snw       !  snow depth
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0     ),jpl) ::   pafrac_pnd   !  melt pond relative fraction (per unit ice area)
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls),jpl) ::   ph_pnd       !  melt pond depth
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(nn_hls),jpl) ::   ph_lid       !  melt pond lid thickness
+      REAL(wp), INTENT(in   ), DIMENSION(A2D(0     )    ) ::   pcloud_fra   !  cloud fraction
+      REAL(wp), INTENT(  out), DIMENSION(A2D(0     ),jpl) ::   palb_ice     !  albedo of ice
       !
-      REAL(wp), DIMENSION(A2D(0),jpl) :: za_s_fra   ! ice fraction covered by snow
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl) :: za_s_fra   ! ice fraction covered by snow, must have the same shape as ph_snw
       INTEGER  ::   ji, jj, jl                ! dummy loop indices
       REAL(wp) ::   zhpiv, z1_c1, z1_c2,z1_c3, z1_c4 ! local scalar
       REAL(wp) ::   z1_href_pnd               ! inverse of the characteristic length scale (Lecomte et al. 2015)
@@ -129,7 +129,7 @@ CONTAINS
       !
       zhpiv = LOG(rn_alb_hpiv)
       !
-      CALL ice_var_snwfra( ph_snw(:,:,:), za_s_fra(:,:,:) )   ! calculate ice fraction covered by snow
+      CALL ice_var_snwfra( ph_snw, za_s_fra )   ! calculate ice fraction covered by snow
       !
       DO jl = 1, jpl
          DO_2D( 0, 0, 0, 0 )   ! palb_ice used over the full domain in icesbc
