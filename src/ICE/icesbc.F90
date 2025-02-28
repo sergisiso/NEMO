@@ -147,9 +147,9 @@ CONTAINS
          WRITE(numout,*)'~~~~~~~~~~~~~~~'
       ENDIF
       !                     !== ice albedo ==!
-      CALL ice_alb( ln_pnd_alb, t_su(A2D(0),:), h_i(A2D(0),:), h_s(A2D(0),:), a_ip_eff(:,:,:),  & ! <<== in
-         &                                     h_ip(A2D(0),:), h_il(A2D(0),:), cloud_fra(:,:),  & ! <<== in
-         &                                                                       alb_ice(:,:,:) ) ! ==>> out
+      CALL ice_alb( ln_pnd_alb, t_su(:,:,:), h_i(:,:,:), h_s(:,:,:), a_ip_eff(:,:,:), &   ! <<== in
+         &                                  h_ip(:,:,:), h_il(:,:,:), cloud_fra(:,:), &   ! <<== in
+         &                                                             alb_ice(:,:,:) )   ! ==>> out
       !
       SELECT CASE( ksbc )   !== fluxes over sea ice ==!
       !
@@ -159,34 +159,34 @@ CONTAINS
          !
       CASE( jp_blk, jp_abl )      !--- bulk formulation & ABL formulation
          !
-                                  CALL blk_ice_2( t_su(A2D(0),:), h_s(A2D(0),:), h_i(A2D(0),:),       &   ! <<== in 
+                                  CALL blk_ice_2( t_su(:,:,:), h_s(:,:,:), h_i(:,:,:),                &   ! <<== in 
                                      &            alb_ice(:,:,:), theta_air_zt(:,:), q_air_zt(:,:),   &   ! <<== in
                                      &            sf(jp_slp)%fnow(:,:,1), sf(jp_qlw)%fnow(:,:,1),     &   ! <<== in
                                      &            precip, sf(jp_snow)%fnow(:,:,1) )                       ! <<== in
                                   !
          IF( ln_mixcpl        )   CALL sbc_cpl_ice_flx( kt, picefr=at_i_b(:,:), palbi=alb_ice(:,:,:), &
-                                     &                      psst=sst_m(A2D(0)), pist=t_su(A2D(0),:),  &
-                                     &                      phs=h_s(A2D(0),:), phi=h_i(A2D(0),:) )
+                                     &                      psst=sst_m(:,:), pist=t_su(:,:,:),  &
+                                     &                      phs=h_s(:,:,:), phi=h_i(:,:,:) )
          !
-         IF( nn_flxdist /= -1 )   CALL ice_flx_dist( nn_flxdist, at_i(A2D(0)), a_i(A2D(0),:), t_su(A2D(0),:), alb_ice(:,:,:), &   ! <<== in
-            &                                                    qns_ice(:,:,:), qsr_ice(:,:,:), dqns_ice(:,:,:),             &   ! ==>> inout
-            &                                                    evap_ice(:,:,:), devap_ice(:,:,:) )                              ! ==>> inout
+         IF( nn_flxdist /= -1 )   CALL ice_flx_dist( nn_flxdist, at_i(:,:), a_i(:,:,:), t_su(:,:,:), alb_ice(:,:,:), &   ! <<== in
+            &                                                    qns_ice(:,:,:), qsr_ice(:,:,:), dqns_ice(:,:,:),    &   ! ==>> inout
+            &                                                    evap_ice(:,:,:), devap_ice(:,:,:) )                     ! ==>> inout
          !
          !                        !    compute conduction flux and surface temperature (as in Jules surface module)
          IF( ln_cndflx .AND. .NOT.ln_cndemulate ) THEN
-                                  CALL blk_ice_qcn( ln_virtual_itd, t_bo(:,:), h_s(A2D(0),:), h_i(A2D(0),:), &   ! <<== in
+                                  CALL blk_ice_qcn( ln_virtual_itd, t_bo(:,:), h_s(:,:,:), h_i(:,:,:), &   ! <<== in
                                      &                              qcn_ice(:,:,:), qml_ice(:,:,:),          &   ! ==>> out
-                                     &                              qns_ice(:,:,:), t_su(A2D(0),:) )             ! ==>> inout
+                                     &                              qns_ice(:,:,:), t_su(:,:,:) )             ! ==>> inout
          ENDIF
          !
       CASE ( jp_purecpl )         !--- coupled formulation
          !
-                                  CALL sbc_cpl_ice_flx( kt, picefr=at_i_b(:,:), palbi=alb_ice(:,:,:), psst=sst_m(A2D(0)), &
-                                     &                      pist=t_su(A2D(0),:), phs=h_s(A2D(0),:), phi=h_i(A2D(0),:) )
+                                  CALL sbc_cpl_ice_flx( kt, picefr=at_i_b(:,:), palbi=alb_ice(:,:,:), psst=sst_m(:,:), &
+                                     &                      pist=t_su(:,:,:), phs=h_s(:,:,:), phi=h_i(:,:,:) )
                                   !
-         IF( nn_flxdist /= -1 )   CALL ice_flx_dist( nn_flxdist, at_i(A2D(0)), a_i(A2D(0),:), t_su(A2D(0),:), alb_ice(:,:,:), &   ! <<== in
-            &                                                    qns_ice(:,:,:), qsr_ice(:,:,:), dqns_ice(:,:,:),             &   ! ==>> inout
-            &                                                    evap_ice(:,:,:), devap_ice(:,:,:) )                              ! ==>> inout
+         IF( nn_flxdist /= -1 )   CALL ice_flx_dist( nn_flxdist, at_i(:,:), a_i(:,:,:), t_su(:,:,:), alb_ice(:,:,:), &   ! <<== in
+            &                                                    qns_ice(:,:,:), qsr_ice(:,:,:), dqns_ice(:,:,:),    &   ! ==>> inout
+            &                                                    evap_ice(:,:,:), devap_ice(:,:,:) )                     ! ==>> inout
          !
       END SELECT
 !!$      CALL lbc_lnk( 'icesbc', t_su, 'T', 1.0_wp ) ! clem: t_su is needed for Met-Office only => necessary?
@@ -216,20 +216,18 @@ CONTAINS
       !!                                                 using T-ice and albedo sensitivity
       !!                =  2  Redistribute a single flux over categories
       !!-------------------------------------------------------------------
-      INTEGER                        , INTENT(in   ) ::   k_flxdist  ! redistributor
-      REAL(wp), DIMENSION(A2D(0))    , INTENT(in   ) ::   pat_i      ! ice concentration
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   pa_i       ! ice concentration
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   ptn_ice    ! ice surface temperature
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   palb_ice   ! ice albedo
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pqns_ice   ! non solar flux
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pqsr_ice   ! net solar flux
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pdqn_ice   ! non solar flux sensitivity
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pevap_ice  ! sublimation
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pdevap_ice ! sublimation sensitivity
+      INTEGER                             , INTENT(in   ) ::   k_flxdist  ! redistributor
+      REAL(wp), DIMENSION(A2D(nn_hls)    ), INTENT(in   ) ::   pat_i      ! ice concentration
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(in   ) ::   pa_i       ! ice concentration
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(in   ) ::   ptn_ice    ! ice surface temperature
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(in   ) ::   palb_ice   ! ice albedo
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(inout) ::   pqns_ice   ! non solar flux
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(inout) ::   pqsr_ice   ! net solar flux
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(inout) ::   pdqn_ice   ! non solar flux sensitivity
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(inout) ::   pevap_ice  ! sublimation
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(inout) ::   pdevap_ice ! sublimation sensitivity
       !
-      INTEGER  ::   jl      ! dummy loop index
-      !
-      REAL(wp), DIMENSION(A2D(0)) ::   z1_at_i   ! inverse of concentration
+      INTEGER  ::   ji,jj,jl      ! dummy loop index
       !
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   z_qsr_m   ! Mean solar heat flux over all categories
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   z_qns_m   ! Mean non solar heat flux over all categories
@@ -238,29 +236,38 @@ CONTAINS
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   z_devap_m ! Mean d(evap)/dT over all categories
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zalb_m    ! Mean albedo over all categories
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   ztem_m    ! Mean temperature over all categories
+      REAL(wp) :: ztmp
       !!----------------------------------------------------------------------
-      !
-      WHERE ( pat_i(:,:) > 0._wp )   ; z1_at_i(:,:) = 1._wp / pat_i(:,:)
-      ELSEWHERE                      ; z1_at_i(:,:) = 0._wp
-      END WHERE
 
       SELECT CASE( k_flxdist )       !==  averaged on all ice categories  ==!
       !
       CASE( 0 , 1 )
-         !
+         !       
          ALLOCATE( z_qns_m(A2D(0)), z_qsr_m(A2D(0)), z_dqn_m(A2D(0)), z_evap_m(A2D(0)), z_devap_m(A2D(0)) )
          !
-         z_qns_m  (:,:) = SUM( pa_i(:,:,:) * pqns_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
-         z_qsr_m  (:,:) = SUM( pa_i(:,:,:) * pqsr_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
-         z_dqn_m  (:,:) = SUM( pa_i(:,:,:) * pdqn_ice  (:,:,:) , dim=3 ) * z1_at_i(:,:)
-         z_evap_m (:,:) = SUM( pa_i(:,:,:) * pevap_ice (:,:,:) , dim=3 ) * z1_at_i(:,:)
-         z_devap_m(:,:) = SUM( pa_i(:,:,:) * pdevap_ice(:,:,:) , dim=3 ) * z1_at_i(:,:)
+         DO_2D( 0, 0, 0, 0 )
+            IF( pat_i(ji,jj) > 0._wp ) THEN
+               ztmp =  1._wp / pat_i(ji,jj)
+               z_qns_m  (ji,jj) = SUM( pa_i(ji,jj,:) * pqns_ice  (ji,jj,:) ) * ztmp
+               z_qsr_m  (ji,jj) = SUM( pa_i(ji,jj,:) * pqsr_ice  (ji,jj,:) ) * ztmp
+               z_dqn_m  (ji,jj) = SUM( pa_i(ji,jj,:) * pdqn_ice  (ji,jj,:) ) * ztmp
+               z_evap_m (ji,jj) = SUM( pa_i(ji,jj,:) * pevap_ice (ji,jj,:) ) * ztmp
+               z_devap_m(ji,jj) = SUM( pa_i(ji,jj,:) * pdevap_ice(ji,jj,:) ) * ztmp
+            ELSE
+               z_qns_m  (ji,jj) = 0._wp
+               z_qsr_m  (ji,jj) = 0._wp
+               z_dqn_m  (ji,jj) = 0._wp
+               z_evap_m (ji,jj) = 0._wp
+               z_devap_m(ji,jj) = 0._wp
+            ENDIF
+         END_2D
+         !
          DO jl = 1, jpl
-            pqns_ice  (:,:,jl) = z_qns_m (:,:)
-            pqsr_ice  (:,:,jl) = z_qsr_m (:,:)
-            pdqn_ice  (:,:,jl) = z_dqn_m  (:,:)
-            pevap_ice (:,:,jl) = z_evap_m(:,:)
-            pdevap_ice(:,:,jl) = z_devap_m(:,:)
+            pqns_ice  (A2D(0),jl) = z_qns_m  (A2D(0))
+            pqsr_ice  (A2D(0),jl) = z_qsr_m  (A2D(0))
+            pdqn_ice  (A2D(0),jl) = z_dqn_m  (A2D(0))
+            pevap_ice (A2D(0),jl) = z_evap_m (A2D(0))
+            pdevap_ice(A2D(0),jl) = z_devap_m(A2D(0))
          END DO
          !
          DEALLOCATE( z_qns_m, z_qsr_m, z_dqn_m, z_evap_m, z_devap_m )
@@ -273,12 +280,21 @@ CONTAINS
          !
          ALLOCATE( zalb_m(A2D(0)), ztem_m(A2D(0)) )
          !
-         zalb_m(:,:) = SUM( pa_i(:,:,:) * palb_ice(:,:,:) , dim=3 ) * z1_at_i(:,:)
-         ztem_m(:,:) = SUM( pa_i(:,:,:) * ptn_ice (:,:,:) , dim=3 ) * z1_at_i(:,:)
+         DO_2D( 0, 0, 0, 0 )
+            IF( pat_i(ji,jj) > 0._wp ) THEN
+               ztmp =  1._wp / pat_i(ji,jj)
+               zalb_m(ji,jj) = SUM( pa_i(ji,jj,:) * palb_ice(ji,jj,:) ) * ztmp
+               ztem_m(ji,jj) = SUM( pa_i(ji,jj,:) * ptn_ice (ji,jj,:) ) * ztmp
+            ELSE
+               zalb_m(ji,jj) = 0._wp
+               ztem_m(ji,jj) = 0._wp
+            ENDIF
+         END_2D
+         !
          DO jl = 1, jpl
-            pqns_ice (:,:,jl) = pqns_ice (:,:,jl) + pdqn_ice  (:,:,jl) * ( ptn_ice(:,:,jl) - ztem_m(:,:) )
-            pevap_ice(:,:,jl) = pevap_ice(:,:,jl) + pdevap_ice(:,:,jl) * ( ptn_ice(:,:,jl) - ztem_m(:,:) )
-            pqsr_ice (:,:,jl) = pqsr_ice (:,:,jl) * ( 1._wp - palb_ice(:,:,jl) ) / ( 1._wp - zalb_m(:,:) )
+            pqns_ice (A2D(0),jl) = pqns_ice (A2D(0),jl) + pdqn_ice  (A2D(0),jl) * ( ptn_ice(A2D(0),jl) - ztem_m(A2D(0)) )
+            pevap_ice(A2D(0),jl) = pevap_ice(A2D(0),jl) + pdevap_ice(A2D(0),jl) * ( ptn_ice(A2D(0),jl) - ztem_m(A2D(0)) )
+            pqsr_ice (A2D(0),jl) = pqsr_ice (A2D(0),jl) * ( 1._wp - palb_ice(A2D(0),jl) ) / ( 1._wp - zalb_m(A2D(0)) )
          END DO
          !
          DEALLOCATE( zalb_m, ztem_m )
