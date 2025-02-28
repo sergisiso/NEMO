@@ -89,7 +89,7 @@ MODULE icevar
 #  include "do_loop_substitute.h90"
 
    INTERFACE ice_var_snwfra
-      MODULE PROCEDURE ice_var_snwfra_1d, ice_var_snwfra_2d, ice_var_snwfra_3d
+      MODULE PROCEDURE ice_var_snwfra_1d, ice_var_snwfra_3d
    END INTERFACE
 
    INTERFACE ice_var_snwblow
@@ -304,7 +304,6 @@ CONTAINS
       ENDDO
       !
       IF( kn == 1 .OR. ln_pnd ) THEN
-         ALLOCATE( za_s_fra(A2D(0),jpl) )
          !
          z1_hl = 1._wp / ( rn_pnd_hl_max - rn_pnd_hl_min )
          DO jl = 1, jpl
@@ -332,8 +331,9 @@ CONTAINS
             END_2D
          ENDDO
          !
-         CALL ice_var_snwfra( h_s(A2D(0),:), za_s_fra(:,:,:) )               ! calculate ice fraction covered by snow
-         a_ip_eff(:,:,:) = MIN( a_ip_eff(:,:,:), 1._wp - za_s_fra(:,:,:) )   ! make sure (a_ip_eff + a_s_fra) <= 1
+         ALLOCATE( za_s_fra(A2D(nn_hls),jpl) )   ! must have the same shape as h_s
+         CALL ice_var_snwfra( h_s(:,:,:), za_s_fra(:,:,:) )               ! calculate ice fraction covered by snow
+         a_ip_eff(A2D(0),:) = MIN( a_ip_eff(A2D(0),:), 1._wp - za_s_fra(A2D(0),:) )   ! make sure (a_ip_eff + a_s_fra) <= 1
          !
          DEALLOCATE( za_s_fra )
       ENDIF
@@ -1562,32 +1562,29 @@ CONTAINS
    !!
    !!-------------------------------------------------------------------
    SUBROUTINE ice_var_snwfra_3d( ph_s, pa_s_fra )
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   ph_s        ! snow thickness
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(  out) ::   pa_s_fra    ! ice fraction covered by snow
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(in   ) ::   ph_s        ! snow thickness
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(  out) ::   pa_s_fra    ! ice fraction covered by snow
+      INTEGER  ::   ji, jj, jl
       IF    ( nn_snwfra == 0 ) THEN   ! basic 0 or 1 snow cover
-         WHERE( ph_s > 0._wp ) ; pa_s_fra = 1._wp
-         ELSEWHERE             ; pa_s_fra = 0._wp
-         END WHERE
+         DO jl = 1, jpl
+            DO_2D( 0, 0, 0, 0 )
+               pa_s_fra(ji,jj,jl) = MERGE( 1._wp, 0._wp, ph_s(ji,jj,jl) > 0._wp )
+            END_2D
+         END DO
       ELSEIF( nn_snwfra == 1 ) THEN   ! snow cover depends on hsnow (met-office style)
-         pa_s_fra = 1._wp - EXP( -0.2_wp * rhos * ph_s )
+         DO jl = 1, jpl
+            DO_2D( 0, 0, 0, 0 )
+               pa_s_fra(ji,jj,jl) = 1._wp - EXP( -0.2_wp * rhos * ph_s(ji,jj,jl)  )
+            END_2D
+         END DO
       ELSEIF( nn_snwfra == 2 ) THEN   ! snow cover depends on hsnow (cice style)
-         pa_s_fra = ph_s / ( ph_s + 0.02_wp )
+         DO jl = 1, jpl
+            DO_2D( 0, 0, 0, 0 )
+               pa_s_fra(ji,jj,jl) = ph_s(ji,jj,jl) / ( ph_s(ji,jj,jl) + 0.02_wp )
+            END_2D
+         END DO
       ENDIF
    END SUBROUTINE ice_var_snwfra_3d
-
-   SUBROUTINE ice_var_snwfra_2d( ph_s, pa_s_fra )
-      REAL(wp), DIMENSION(:,:), INTENT(in   ) ::   ph_s        ! snow thickness
-      REAL(wp), DIMENSION(:,:), INTENT(  out) ::   pa_s_fra    ! ice fraction covered by snow
-      IF    ( nn_snwfra == 0 ) THEN   ! basic 0 or 1 snow cover
-         WHERE( ph_s > 0._wp ) ; pa_s_fra = 1._wp
-         ELSEWHERE             ; pa_s_fra = 0._wp
-         END WHERE
-      ELSEIF( nn_snwfra == 1 ) THEN   ! snow cover depends on hsnow (met-office style)
-         pa_s_fra = 1._wp - EXP( -0.2_wp * rhos * ph_s )
-      ELSEIF( nn_snwfra == 2 ) THEN   ! snow cover depends on hsnow (cice style)
-         pa_s_fra = ph_s / ( ph_s + 0.02_wp )
-      ENDIF
-   END SUBROUTINE ice_var_snwfra_2d
 
    SUBROUTINE ice_var_snwfra_1d( ph_s, pa_s_fra )
       REAL(wp), DIMENSION(:), INTENT(in   ) ::   ph_s        ! snow thickness

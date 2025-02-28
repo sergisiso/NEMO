@@ -1189,16 +1189,16 @@ CONTAINS
       !!
       !! caution : the net upward water flux has with mm/day unit
       !!---------------------------------------------------------------------
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in)  ::   ptsu   ! sea ice surface temperature [K]
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in)  ::   phs    ! snow thickness
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in)  ::   phi    ! ice thickness
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in)  ::   palb   ! ice albedo (all skies)
-      REAL(wp), DIMENSION(A2D(0)    ), INTENT(in)  ::   ptair  ! potential temperature of air #LB: okay ???
-      REAL(wp), DIMENSION(A2D(0)    ), INTENT(in)  ::   pqair  ! specific humidity of air
-      REAL(wp), DIMENSION(A2D(0)    ), INTENT(in)  ::   pslp
-      REAL(wp), DIMENSION(A2D(0)    ), INTENT(in)  ::   pdqlw
-      REAL(wp), DIMENSION(A2D(0)    ), INTENT(in)  ::   pprec
-      REAL(wp), DIMENSION(A2D(0)    ), INTENT(in)  ::   psnow
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(in)  ::   ptsu   ! sea ice surface temperature [K]
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(in)  ::   phs    ! snow thickness
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(in)  ::   phi    ! ice thickness
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(in)  ::   palb   ! ice albedo (all skies)
+      REAL(wp), DIMENSION(A2D(0     )    ), INTENT(in)  ::   ptair  ! potential temperature of air #LB: okay ???
+      REAL(wp), DIMENSION(A2D(0     )    ), INTENT(in)  ::   pqair  ! specific humidity of air
+      REAL(wp), DIMENSION(A2D(0     )    ), INTENT(in)  ::   pslp
+      REAL(wp), DIMENSION(A2D(0     )    ), INTENT(in)  ::   pdqlw
+      REAL(wp), DIMENSION(A2D(0     )    ), INTENT(in)  ::   pprec
+      REAL(wp), DIMENSION(A2D(0     )    ), INTENT(in)  ::   psnow
       !!
       INTEGER  ::   ji, jj, jl               ! dummy loop indices
       REAL(wp) ::   zst, zst3, zsq, zsipt    ! local variable
@@ -1209,6 +1209,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0),jpl) ::   z_qsb         ! sensible  heat flux over ice
       REAL(wp)                        ::   z_dqlw        ! long wave heat sensitivity over ice
       REAL(wp)                        ::   z_dqsb        ! sensible  heat sensitivity over ice
+      REAL(wp)                        ::   ztmp          ! temporary scalar
       REAL(wp), DIMENSION(A2D(0))     ::   zevap, zsnw   ! evaporation and snw distribution after wind blowing (SI3)
       REAL(wp), DIMENSION(A2D(0))     ::   ztri
       REAL(wp), DIMENSION(A2D(0))     ::   zcptrain, zcptsnw, zcptn ! Heat content per unit mass (J/kg)
@@ -1333,13 +1334,16 @@ CONTAINS
          !    3) tends to 1 for thin ice
          ztri(:,:) = 0.18 * ( 1.0 - cloud_fra(:,:) ) + 0.35 * cloud_fra(:,:)  ! surface transmission when hi>10cm
          DO jl = 1, jpl
-            WHERE    ( phs(:,:,jl) <= 0._wp .AND. phi(:,:,jl) <  0.1_wp )     ! linear decrease from hi=0 to 10cm
-               qtr_ice_top(:,:,jl) = qsr_ice(:,:,jl) * ( ztri(:,:) + ( 1._wp - ztri(:,:) ) * ( 1._wp - phi(:,:,jl) * 10._wp ) )
-            ELSEWHERE( phs(:,:,jl) <= 0._wp .AND. phi(:,:,jl) >= 0.1_wp )     ! constant (ztri) when hi>10cm
-               qtr_ice_top(:,:,jl) = qsr_ice(:,:,jl) * ztri(:,:)
-            ELSEWHERE                                                         ! zero when hs>0
-               qtr_ice_top(:,:,jl) = 0._wp
-            END WHERE
+            DO_2D( 0, 0, 0, 0 )
+               IF( phs(ji,jj,jl) <= 0._wp ) THEN
+                  ztmp = ztri(ji,jj)                                       ! constant (ztri) when hi>10cm
+                  IF( phi(ji,jj,jl) <  0.1_wp )   &                        ! linear decrease from hi=0 to 10cm
+                     & ztmp = ztmp + ( 1._wp - ztmp ) * ( 1._wp - phi(ji,jj,jl) * 10._wp )
+                  qtr_ice_top(ji,jj,jl) = qsr_ice(ji,jj,jl) * ztmp
+               ELSE                                                        ! zero when hs>0
+                  qtr_ice_top(ji,jj,jl) = 0._wp
+               ENDIF              
+            END_2D
          ENDDO
       ELSEIF( nn_qtrice == 1 ) THEN
          ! formulation is derived from the thesis of M. Lebrun (2019).
@@ -1389,7 +1393,7 @@ CONTAINS
 !!$            &         tab3d_2=z_dqlw  , clinfo2=' z_dqlw   : '         , mask2=zmsk, kdim=jpl)
          CALL prt_ctl(tab3d_1=dqns_ice, clinfo1=' blk_ice: dqns_ice : ', mask1=zmsk,   &
             &         tab3d_2=qsr_ice , clinfo2=' qsr_ice  : '         , mask2=zmsk, kdim=jpl)
-         CALL prt_ctl(tab3d_1=ptsu    , clinfo1=' blk_ice: ptsu     : ', mask1=zmsk,   &
+         CALL prt_ctl(tab3d_1=ptsu(A2D(0),:), clinfo1=' blk_ice: ptsu     : ', mask1=zmsk,   &
             &         tab3d_2=qns_ice , clinfo2=' qns_ice  : '         , mask2=zmsk, kdim=jpl)
          CALL prt_ctl(tab2d_1=tprecip , clinfo1=' blk_ice: tprecip  : ', mask1=tmask,   &
             &         tab2d_2=sprecip , clinfo2=' sprecip  : '         , mask2=tmask        )
@@ -1423,14 +1427,14 @@ CONTAINS
       !!              - qcn_ice : surface inner conduction flux (W/m2)
       !!
       !!---------------------------------------------------------------------
-      LOGICAL                        , INTENT(in   ) ::   ld_virtual_itd  ! single-category option
-      REAL(wp), DIMENSION(A2D(0))    , INTENT(in   ) ::   ptb             ! sea ice base temperature
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   phs             ! snow thickness
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(in   ) ::   phi             ! sea ice thickness
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(  out) ::   pqcn_ice
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(  out) ::   pqml_ice
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   pqns_ice
-      REAL(wp), DIMENSION(A2D(0),jpl), INTENT(inout) ::   ptsu            ! sea ice / snow surface temperature
+      LOGICAL                             , INTENT(in   ) ::   ld_virtual_itd  ! single-category option
+      REAL(wp), DIMENSION(A2D(0     )    ), INTENT(in   ) ::   ptb             ! sea ice base temperature
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(in   ) ::   phs             ! snow thickness
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(in   ) ::   phi             ! sea ice thickness
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(  out) ::   pqcn_ice
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(  out) ::   pqml_ice
+      REAL(wp), DIMENSION(A2D(0     ),jpl), INTENT(inout) ::   pqns_ice
+      REAL(wp), DIMENSION(A2D(nn_hls),jpl), INTENT(inout) ::   ptsu            ! sea ice / snow surface temperature
      !
       INTEGER , PARAMETER ::   nit = 10                  ! number of iterations
       REAL(wp), PARAMETER ::   zepsilon = 0.1_wp         ! characteristic thickness for enhanced conduction
