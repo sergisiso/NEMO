@@ -1653,14 +1653,14 @@ CONTAINS
       !!                   dqns_ice          d(non-solar heat flux)/d(Temperature) over the ice
       !!                   sprecip           solid precipitation over the ocean
       !!----------------------------------------------------------------------
-      INTEGER,  INTENT(in)                                     ::   kt         ! ocean model time step index (only for a_i_last_couple)
-      REAL(wp), INTENT(in)   , DIMENSION(A2D(0))               ::   picefr     ! ice fraction                [0 to 1]
+      INTEGER,  INTENT(in)                                          ::   kt         ! ocean model time step index (only for a_i_last_couple)
+      REAL(wp), INTENT(in)   , DIMENSION(A2D(0     )    )           ::   picefr     ! ice fraction                [0 to 1]
       !                                                        !!   optional arguments, used only in 'mixed oce-ice' case or for Met-Office coupling
-      REAL(wp), INTENT(in)   , DIMENSION(A2D(0),jpl), OPTIONAL ::   palbi      ! all skies ice albedo
-      REAL(wp), INTENT(in)   , DIMENSION(A2D(0)    ), OPTIONAL ::   psst       ! sea surface temperature     [Celsius]
-      REAL(wp), INTENT(inout), DIMENSION(A2D(0),jpl), OPTIONAL ::   pist       ! ice surface temperature     [Kelvin] => inout for Met-Office
-      REAL(wp), INTENT(in)   , DIMENSION(A2D(0),jpl), OPTIONAL ::   phs        ! snow depth                  [m]
-      REAL(wp), INTENT(in)   , DIMENSION(A2D(0),jpl), OPTIONAL ::   phi        ! ice thickness               [m]
+      REAL(wp), INTENT(in)   , DIMENSION(A2D(0     ),jpl), OPTIONAL ::   palbi      ! all skies ice albedo
+      REAL(wp), INTENT(in)   , DIMENSION(A2D(nn_hls)    ), OPTIONAL ::   psst       ! sea surface temperature     [Celsius]
+      REAL(wp), INTENT(inout), DIMENSION(A2D(nn_hls),jpl), OPTIONAL ::   pist       ! ice surface temperature     [Kelvin] => inout for Met-Office
+      REAL(wp), INTENT(in)   , DIMENSION(A2D(nn_hls),jpl), OPTIONAL ::   phs        ! snow depth                  [m]
+      REAL(wp), INTENT(in)   , DIMENSION(A2D(nn_hls),jpl), OPTIONAL ::   phi        ! ice thickness               [m]
       !
       INTEGER  ::   ji, jj, jl   ! dummy loop index
       REAL(wp), DIMENSION(A2D(0))     ::   zcptn, zcptrain, zcptsnw, ziceld, zmsk, zsnw
@@ -1670,6 +1670,7 @@ CONTAINS
       REAL(wp), DIMENSION(A2D(0))     ::   ztri
       REAL(wp), DIMENSION(A2D(0),jpl) ::   zqns_ice, zqsr_ice, zdqns_ice, zqevap_ice, zevap_ice, zqtr_ice_top
       REAL(wp), DIMENSION(A2D(0),jpl) ::   ztsu
+      REAL(wp) :: ztmp
       !!----------------------------------------------------------------------
       !
 #if defined key_si3 || defined key_cice
@@ -2114,13 +2115,16 @@ CONTAINS
             !    3) tends to 1 for thin ice
             ztri(A2D(0)) = 0.18 * ( 1.0 - cloud_fra(A2D(0)) ) + 0.35 * cloud_fra(A2D(0))  ! surface transmission when hi>10cm
             DO jl = 1, jpl
-               WHERE    ( phs(A2D(0),jl) <= 0._wp .AND. phi(A2D(0),jl) <  0.1_wp )       ! linear decrease from hi=0 to 10cm
-                  zqtr_ice_top(A2D(0),jl) = zqsr_ice(A2D(0),jl) * ( ztri(A2D(0)) + ( 1._wp - ztri(A2D(0)) ) * ( 1._wp - phi(A2D(0),jl) * 10._wp ) )
-               ELSEWHERE( phs(A2D(0),jl) <= 0._wp .AND. phi(A2D(0),jl) >= 0.1_wp )       ! constant (ztri) when hi>10cm
-                  zqtr_ice_top(A2D(0),jl) = zqsr_ice(A2D(0),jl) * ztri(A2D(0))
-               ELSEWHERE                                                           ! zero when hs>0
-                  zqtr_ice_top(A2D(0),jl) = 0._wp
-               END WHERE
+               DO_2D( 0, 0, 0, 0 )
+                  IF( phs(ji,jj,jl) <= 0._wp ) THEN
+                     ztmp = ztri(ji,jj)                                       ! constant (ztri) when hi>10cm
+                     IF( phi(ji,jj,jl) <  0.1_wp )   &                        ! linear decrease from hi=0 to 10cm
+                        & ztmp = ztmp + ( 1._wp - ztmp ) * ( 1._wp - phi(ji,jj,jl) * 10._wp )
+                     zqtr_ice_top(ji,jj,jl) = zqsr_ice(ji,jj,jl) * ztmp
+                  ELSE                                                        ! zero when hs>0
+                     zqtr_ice_top(ji,jj,jl) = 0._wp
+                  ENDIF
+               END_2D
             ENDDO
          ELSEIF( nn_qtrice == 1 ) THEN
             ! formulation is derived from the thesis of M. Lebrun (2019).
