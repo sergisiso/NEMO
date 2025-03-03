@@ -10,8 +10,8 @@
     
  <file_definition type="one_file" name="@expname@_@freq@_@startdate@_@enddate@" sync_freq="1mo" min_digits="4">
    
-   <file_group id="5d" output_freq="5d"  output_level="10" enabled=".TRUE.">  <!-- 5d files -->   	
-     <file id="file21" name_suffix="_icemod" description="ice variables" enabled=".true." >
+   <file_group id="ice_5d" output_freq="5d"  output_level="10" enabled=".TRUE.">  <!-- 5d files -->   	
+     <file id="file101" name_suffix="_icemod" description="ice variables" enabled=".true." >
 
        <!-- ice mask -->
        <field field_ref="icemask"          name="simsk"   />
@@ -88,7 +88,7 @@
 
      </file>
      
-     <file id="file22" name_suffix="_SBC_scalar" description="scalar variables" enabled=".true." >
+     <file id="file102" name_suffix="_SBC_scalar" description="scalar variables" enabled=".true." >
        <!-- global contents -->
        <field field_ref="ibgvol_tot"     name="ibgvol_tot"   />
        <field field_ref="sbgvol_tot"     name="sbgvol_tot"   />
@@ -115,17 +115,17 @@
      
    </file_group>
    
-   <file_group id="1ts" output_freq="1ts" output_level="10" enabled=".TRUE."/> <!-- 1 time step files -->
-   <file_group id="1h"  output_freq="1h"  output_level="10" enabled=".TRUE."/> <!-- 1h files -->
-   <file_group id="2h"  output_freq="2h"  output_level="10" enabled=".TRUE."/> <!-- 2h files -->
-   <file_group id="3h"  output_freq="3h"  output_level="10" enabled=".TRUE."/> <!-- 3h files -->     
-   <file_group id="4h"  output_freq="4h"  output_level="10" enabled=".TRUE."/> <!-- 4h files -->
-   <file_group id="6h"  output_freq="6h"  output_level="10" enabled=".TRUE."/> <!-- 6h files -->      
+   <file_group id="ice_1ts" output_freq="1ts" output_level="10" enabled=".TRUE."/> <!-- 1 time step files -->
+   <file_group id="ice_1h"  output_freq="1h"  output_level="10" enabled=".TRUE."/> <!-- 1h files -->
+   <file_group id="ice_2h"  output_freq="2h"  output_level="10" enabled=".TRUE."/> <!-- 2h files -->
+   <file_group id="ice_3h"  output_freq="3h"  output_level="10" enabled=".TRUE."/> <!-- 3h files -->     
+   <file_group id="ice_4h"  output_freq="4h"  output_level="10" enabled=".TRUE."/> <!-- 4h files -->
+   <file_group id="ice_6h"  output_freq="6h"  output_level="10" enabled=".TRUE."/> <!-- 6h files -->      
 
-   <file_group id="1m"  output_freq="1mo" output_level="10" enabled=".TRUE."> <!-- real monthly files -->
+   <file_group id="ice_1m"  output_freq="1mo" output_level="10" enabled=".TRUE."> <!-- real monthly files -->
 
      <!-- To compute transport through straits : need to read ice mask at ice iteration at freq_offset = 1mo - nn_fsbc
-      <file id="file23" name_suffix="_strait_ice" description="transport variables through straits" >
+      <file id="file111" name_suffix="_strait_ice" description="transport variables through straits" >
           <field field_ref="strait_mifl"      name="simassacrossline"  freq_offset="1mo-4ts" />
           <field field_ref="strait_msfl"      name="snmassacrossline"  freq_offset="1mo-4ts" />
           <field field_ref="strait_arfl"      name="siareaacrossline"  freq_offset="1mo-4ts" />
@@ -134,14 +134,14 @@
 
     </file_group>
 
-   <file_group id="2m"  output_freq="2mo" output_level="10" enabled=".TRUE."/> <!-- real 2m files -->
-   <file_group id="3m"  output_freq="3mo" output_level="10" enabled=".TRUE."/> <!-- real 3m files -->
-   <file_group id="4m"  output_freq="4mo" output_level="10" enabled=".TRUE."/> <!-- real 4m files -->
-   <file_group id="6m"  output_freq="6mo" output_level="10" enabled=".TRUE."/> <!-- real 6m files -->
-   <file_group id="1y"  output_freq="1y"  output_level="10" enabled=".TRUE."/> <!-- real yearly files -->
-   <file_group id="2y"  output_freq="2y"  output_level="10" enabled=".TRUE."/> <!-- real 2y files -->
-   <file_group id="5y"  output_freq="5y"  output_level="10" enabled=".TRUE."/> <!-- real 5y files -->
-   <file_group id="10y" output_freq="10y" output_level="10" enabled=".TRUE."/> <!-- real 10y files -->
+   <file_group id="ice_2m"  output_freq="2mo" output_level="10" enabled=".TRUE."/> <!-- real 2m files -->
+   <file_group id="ice_3m"  output_freq="3mo" output_level="10" enabled=".TRUE."/> <!-- real 3m files -->
+   <file_group id="ice_4m"  output_freq="4mo" output_level="10" enabled=".TRUE."/> <!-- real 4m files -->
+   <file_group id="ice_6m"  output_freq="6mo" output_level="10" enabled=".TRUE."/> <!-- real 6m files -->
+   <file_group id="ice_1y"  output_freq="1y"  output_level="10" enabled=".TRUE."/> <!-- real yearly files -->
+   <file_group id="ice_2y"  output_freq="2y"  output_level="10" enabled=".TRUE."/> <!-- real 2y files -->
+   <file_group id="ice_5y"  output_freq="5y"  output_level="10" enabled=".TRUE."/> <!-- real 5y files -->
+   <file_group id="ice_10y" output_freq="10y" output_level="10" enabled=".TRUE."/> <!-- real 10y files -->
  
    <!-- To compute transport through straits : need to read ice mask at ice iteration at freq_offset = - nn_fsbc + 1
    <file id="maskMFO" name="maskMFO" enabled="true" mode="read" output_freq="1mo" cyclic="true"  >

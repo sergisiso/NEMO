@@ -10,8 +10,8 @@
    
     <file_definition type="one_file" name="@expname@_@freq@_@startdate@_@enddate@" sync_freq="5d" min_digits="4">
     
-      <file_group id="5d" output_freq="5d"  output_level="10" enabled=".TRUE.">  <!-- 5d files -->   
-        <file id="file11" name_suffix="_grid_T" description="ocean T grid variables" >
+      <file_group id="oce_5d" output_freq="5d"  output_level="10" enabled=".TRUE.">  <!-- 5d files -->   
+        <file id="file1" name_suffix="_grid_T" description="ocean T grid variables" >
           <field field_ref="e3t"      />
           <field field_ref="toce"         name="thetao"                                                                      operation="instant" freq_op="5d" > @toce_e3t / @e3t </field>
           <field field_ref="soce"         name="so"                                                                          operation="instant" freq_op="5d" > @soce_e3t / @e3t </field>
@@ -42,7 +42,7 @@
 	  <field field_ref="snowpre" />
 	</file>
 
-	<file id="file12" name_suffix="_grid_U" description="ocean U grid variables" >
+	<file id="file2" name_suffix="_grid_U" description="ocean U grid variables" >
 	  <field field_ref="e3u" />
 	  <field field_ref="ssu"          name="uos"      />
 	  <field field_ref="uoce"         name="uo"       operation="instant" freq_op="5d" > @uoce_e3u / @e3u </field>
@@ -53,7 +53,7 @@
 	  <field field_ref="u_salttr"     name="sozosatr" />
 	</file>
 	
-	<file id="file13" name_suffix="_grid_V" description="ocean V grid variables" >
+	<file id="file3" name_suffix="_grid_V" description="ocean V grid variables" >
 	  <field field_ref="e3v" />
 	  <field field_ref="ssv"          name="vos"      />
 	  <field field_ref="voce"         name="vo"       operation="instant" freq_op="5d" > @voce_e3v / @e3v </field>
@@ -64,7 +64,7 @@
           <field field_ref="v_salttr"     name="somesatr" />
 	</file>
 	
-	<file id="file14" name_suffix="_grid_W" description="ocean W grid variables" >
+	<file id="file4" name_suffix="_grid_W" description="ocean W grid variables" >
 	  <field field_ref="e3w" />
 	  <field field_ref="woce"         name="wo"       />
 	  <field field_ref="avt"          name="difvho"   />
@@ -82,24 +82,24 @@
       </file_group> 
 
 
-      <file_group id="1m" output_freq="1mo" output_level="10" enabled=".TRUE."> <!-- real monthly files -->
+      <file_group id="oce_1m" output_freq="1mo" output_level="10" enabled=".TRUE."> <!-- real monthly files -->
       </file_group>
 
-      <file_group id="1y"  output_freq="1y" output_level="10" enabled=".TRUE."> <!-- real yearly files -->
+      <file_group id="oce_1y"  output_freq="1y" output_level="10" enabled=".TRUE."> <!-- real yearly files -->
       </file_group>
 	
       
-      <file_group id="2h"  output_freq="2h"  output_level="10" enabled=".TRUE."/> <!-- 2h files -->
-      <file_group id="3h"  output_freq="3h"  output_level="10" enabled=".TRUE."/> <!-- 3h files -->     
-      <file_group id="4h"  output_freq="4h"  output_level="10" enabled=".TRUE."/> <!-- 4h files -->
-      <file_group id="6h"  output_freq="6h"  output_level="10" enabled=".TRUE."/> <!-- 6h files -->     
-      <file_group id="2m"  output_freq="2mo" output_level="10" enabled=".TRUE."/> <!-- real 2m files -->
-      <file_group id="3m"  output_freq="3mo" output_level="10" enabled=".TRUE."/> <!-- real 3m files -->
-      <file_group id="4m"  output_freq="4mo" output_level="10" enabled=".TRUE."/> <!-- real 4m files -->
-      <file_group id="6m"  output_freq="6mo" output_level="10" enabled=".TRUE."/> <!-- real 6m files -->
-      <file_group id="2y"  output_freq="2y"  output_level="10" enabled=".TRUE."/> <!-- real 2y files -->
-      <file_group id="5y"  output_freq="5y"  output_level="10" enabled=".TRUE."/> <!-- real 5y files -->
-      <file_group id="10y" output_freq="10y" output_level="10" enabled=".TRUE."/> <!-- real 10y files -->
+      <file_group id="oce_2h"  output_freq="2h"  output_level="10" enabled=".TRUE."/> <!-- 2h files -->
+      <file_group id="oce_3h"  output_freq="3h"  output_level="10" enabled=".TRUE."/> <!-- 3h files -->     
+      <file_group id="oce_4h"  output_freq="4h"  output_level="10" enabled=".TRUE."/> <!-- 4h files -->
+      <file_group id="oce_6h"  output_freq="6h"  output_level="10" enabled=".TRUE."/> <!-- 6h files -->     
+      <file_group id="oce_2m"  output_freq="2mo" output_level="10" enabled=".TRUE."/> <!-- real 2m files -->
+      <file_group id="oce_3m"  output_freq="3mo" output_level="10" enabled=".TRUE."/> <!-- real 3m files -->
+      <file_group id="oce_4m"  output_freq="4mo" output_level="10" enabled=".TRUE."/> <!-- real 4m files -->
+      <file_group id="oce_6m"  output_freq="6mo" output_level="10" enabled=".TRUE."/> <!-- real 6m files -->
+      <file_group id="oce_2y"  output_freq="2y"  output_level="10" enabled=".TRUE."/> <!-- real 2y files -->
+      <file_group id="oce_5y"  output_freq="5y"  output_level="10" enabled=".TRUE."/> <!-- real 5y files -->
+      <file_group id="oce_10y" output_freq="10y" output_level="10" enabled=".TRUE."/> <!-- real 10y files -->
 
    </file_definition>
     

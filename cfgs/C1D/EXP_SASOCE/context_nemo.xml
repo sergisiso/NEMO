@@ -4,8 +4,6 @@
     ==============================================================================================
 -->
 
-
-
 <context id="nemo">
   <variable_definition>
     <!-- Year/Month/Day of time origin for NetCDF files; defaults to 1800-01-01 -->
@@ -22,7 +20,6 @@
   <!-- Files definition -->
   <file_definition src="./file_def_nemo-oce.xml"/>     <!--  NEMO ocean dynamics                     -->
 
-  
   <!--
       ============================================================================================================
       = grid definition = = DO NOT CHANGE =
