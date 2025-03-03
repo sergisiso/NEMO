@@ -1,5 +1,4 @@
 <?xml version="1.0"?>
-<!-- $id$ -->
 
 <field_definition level="1" prec="4" operation="average" enabled=".TRUE." default_value="1.e20" > <!-- time step automaticaly defined -->
 <field_group id="all_ocean" chunking_blocksize_target="3.0">

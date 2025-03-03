@@ -22,9 +22,7 @@
     <field_definition src="./field_def_nemo-ice.xml"/>    <!--  NEMO sea-ice model      -->
 
 <!-- Files definition -->
-    <file_definition src="./file_def_nemo-oce.xml"/>     <!--  NEMO ocean dynamics      -->
     <file_definition src="./file_def_nemo-ice.xml"/>     <!--  NEMO sea-ice model       -->
-
 
 <!-- Axis definition -->
     <axis_definition src="./axis_def_nemo.xml"/>
