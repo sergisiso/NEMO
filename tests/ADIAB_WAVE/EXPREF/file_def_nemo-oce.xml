@@ -8,7 +8,7 @@
     -->
     
     <file_definition type="one_file" name="@expname@" sync_freq="10d" min_digits="4">
-     <file_group id="1s" output_freq="1s"  output_level="10" enabled=".TRUE." >  <!-- 5d files -->
+     <file_group id="oce_1s" output_freq="1s"  output_level="10" enabled=".TRUE." >  <!-- 5d files -->
 	<file id="file1" name_suffix="_grid_U" description="ocean U grid variables" >
 	  <field field_ref="e3u"          name="e3u_inst"     long_name="instantaneous U-cell thickness"        operation="instant" />
           <field field_ref="uoce"         name="uo_inst"      long_name="instantaneous sea water x velocity"    operation="instant" />

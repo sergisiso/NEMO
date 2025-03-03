@@ -4,7 +4,7 @@
 ============================================================================================== 
 -->
 <context id="nemo">
-    <!-- $id$ -->
+
     <variable_definition>
        <!-- Year/Month/Day of time origin for NetCDF files; defaults to 1800-01-01 -->
        <variable id="ref_year"  type="int"> 1900 </variable>
@@ -106,26 +106,6 @@
 
 <!-- Files definition -->
     <file_definition src="./file_def_nemo-oce.xml"/>     <!--  NEMO ocean dynamics                     -->
-
-    <file_definition type="multiple_file" name="@expname@_@freq@_@startdate@_@enddate@" sync_freq="10d" min_digits="4">
-
-<!-- Activation of intermediate output for multiple-linear-regression analysis (diamlr) -->
-      <file_group id="diamlr_files" output_freq="1d"  output_level="10" enabled=".TRUE."/>
-
-<!-- Activation and selection of daily detided model diagnostics (diadetide) -->
-      <file_group id="diadetide_files" output_freq="1d" output_level="10" enabled=".TRUE.">
-	<file id="file22" name_suffix="_M2detided_grid_T" description="M2-detided ocean T-grid variables">
-	  <field id="diadetide_ssh"  field_ref="diadetide_weight_grid_T_2D" operation="accumulate"> this * ssh </field>
-	</file>
-	<file id="file23" name_suffix="_M2detided_grid_U" description="M2-detided ocean U-grid variables">
-	  <field id="diadetide_uoce" field_ref="diadetide_weight_grid_U_3D" operation="accumulate"> this * uoce </field>
-	</file>
-	<file id="file24" name_suffix="_M2detided_grid_V" description="M2-detided ocean V-grid variables">
-	  <field id="diadetide_voce"  field_ref="diadetide_weight_grid_V_3D" operation="accumulate"> this * voce </field>
-	</file>
-      </field_group>
-
-    </file_definition>
 
 <!-- Axis definition -->
     <axis_definition src="./axis_def_nemo.xml"/>

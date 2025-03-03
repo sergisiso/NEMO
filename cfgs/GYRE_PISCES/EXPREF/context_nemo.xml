@@ -4,7 +4,7 @@
 ============================================================================================== 
 -->
 <context id="nemo">
-    <!-- $id$ -->
+
     <variable_definition>
        <!-- Year/Month/Day of time origin for NetCDF files; defaults to 1800-01-01 -->
        <variable id="ref_year"  type="int"> 1900 </variable>
@@ -21,7 +21,6 @@
 <!-- Fields definition -->
     <field_definition src="./field_def_nemo-oce.xml"/>      <!--  NEMO ocean dynamics                     -->
     <field_definition src="./field_def_nemo-pisces.xml"/>   <!--  NEMO ocean dynamics                     -->
-
 
 <!-- Files definition -->
     <file_definition src="./file_def_nemo.xml"/>     <!--  NEMO ocean dynamics                     -->
