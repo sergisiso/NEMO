@@ -846,6 +846,8 @@ LOGICAL, SAVE :: ll_bt_av    ! =T : boxcard time averaging   =F : foreward backw
       pssh   (:,:,Kaa) = pssh   (:,:,Kaa) / r1_wgt1s
 
       IF( ln_wd_dl .AND. ln_wd_dl_bc ) THEN
+         zuwdav2(:,:) = zuwdav2(:,:) / r1_wgt2s
+         zvwdav2(:,:) = zvwdav2(:,:) / r1_wgt2s
          CALL lbc_lnk( 'dynspg_ts', un_adv, 'U', -1._wp, vn_adv, 'V', -1._wp, zuwdav2, 'U', -1._wp, zvwdav2, 'V', -1._wp ) ! Boundary conditions
       ELSE
          CALL lbc_lnk( 'dynspg_ts', un_adv, 'U', -1._wp, vn_adv, 'V', -1._wp ) ! Boundary conditions
