@@ -454,7 +454,7 @@ case "$ftncomp" in
 		    "         If it is not the case, replace -xHost by the appropiate option in PROD_FCFLAGS"
 	;;
     gnu)
-	PROD_FCFLAGS="-fdefault-real-8 -O3 -march=native -funroll-all-loops -fcray-pointer -ffree-line-length-none" 
+	PROD_FCFLAGS="-fdefault-real-8 -march=native -O2 -fno-expensive-optimizations -funroll-all-loops -fcray-pointer -ffree-line-length-none"
 	DEBUG_FCFLAGS="-fdefault-real-8 -Og -g -fbacktrace -funroll-all-loops -fcray-pointer -ffree-line-length-none -fcheck=all -finit-real=nan -ffpe-trap=invalid,zero,overflow -ffpe-summary=invalid,zero,overflow"
 	rev=$( $FCnemo --version | head -n 1 | sed -e "s/.* \([0-9]*\).*/\1/" )
 	# if gfortran version >= 10 : add -fallow-argument-mismatch 
