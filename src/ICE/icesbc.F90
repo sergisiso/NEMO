@@ -99,8 +99,8 @@ CONTAINS
          CALL sbc_cpl_ice_tau( zutau_ice , zvtau_ice )
          !
          DO_2D( 0, 0, 0, 0 )
-            utau_ice(ji,jj) = utau_ice(ji,jj) * xcplmask(ji,jj,0) + zutau_ice(ji,jj) * ( 1. - xcplmask(ji,jj,0) )
-            vtau_ice(ji,jj) = vtau_ice(ji,jj) * xcplmask(ji,jj,0) + zvtau_ice(ji,jj) * ( 1. - xcplmask(ji,jj,0) )
+            utau_ice(ji,jj) = utau_ice(ji,jj) * xcplmask(ji,jj,1,0) + zutau_ice(ji,jj) * ( 1. - xcplmask(ji,jj,1,0) )
+            vtau_ice(ji,jj) = vtau_ice(ji,jj) * xcplmask(ji,jj,1,0) + zvtau_ice(ji,jj) * ( 1. - xcplmask(ji,jj,1,0) )
          END_2D
          !
       ENDIF

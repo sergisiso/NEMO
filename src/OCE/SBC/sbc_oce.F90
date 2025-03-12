@@ -38,11 +38,6 @@ MODULE sbc_oce
    LOGICAL , PUBLIC ::   ln_blk         !: bulk formulation
    LOGICAL , PUBLIC ::   ln_abl         !: Atmospheric boundary layer model
    LOGICAL , PUBLIC ::   ln_wave        !: wave in the system (forced or coupled)
-#if defined key_oasis3
-   LOGICAL , PUBLIC ::   lk_oasis = .TRUE.  !: OASIS used
-#else
-   LOGICAL , PUBLIC ::   lk_oasis = .FALSE. !: OASIS unused
-#endif
    LOGICAL , PUBLIC ::   ln_cpl         !: ocean-atmosphere coupled formulation
    LOGICAL , PUBLIC ::   ln_mixcpl      !: ocean-atmosphere forced-coupled mixed formulation
    LOGICAL , PUBLIC ::   ln_dm2dc       !: Daily mean to Diurnal Cycle short wave (qsr)
@@ -131,7 +126,7 @@ MODULE sbc_oce
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   sprecip            !: solid precipitation                           [Kg/m2/s]
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   fr_i               !: ice fraction = 1 - lead fraction       (between 0 to 1)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   atm_co2            !: atmospheric pCO2                              [ppm]
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: xcplmask           !: coupling mask for ln_mixcpl (warning: allocated in sbccpl)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: xcplmask         !: coupling mask for ln_mixcpl (warning: allocated in sbccpl)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:) ::   cloud_fra          !: cloud cover (fraction of cloud in a gridcell) [-]
 
    !!---------------------------------------------------------------------

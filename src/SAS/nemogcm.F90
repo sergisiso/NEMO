@@ -350,6 +350,8 @@ CONTAINS
       ! Now we know the dimensions of the grid and numout has been set: we can allocate arrays
       CALL nemo_alloc()
 
+      IF( lk_oasis     )   CALL cpl_domain   ! Define grid for coupling
+      !
       ! Initialise time level indices
       Nbb = 1; Nnn = 2; Naa = 3; Nrhs = Naa
 #if defined key_agrif
@@ -391,7 +393,8 @@ CONTAINS
                            CALL bdy_init
       ! ==>
                            CALL icb_init( rn_Dt, nit000, Nnn)   ! initialise icebergs instance
-
+      IF( lk_oasis     )   CALL cpl_define                      ! terminate coupling initialization
+   
       ! compatibility check
       IF( ln_icebergs .AND. ln_M2016 ) THEN
          IF( lwp ) WRITE(numout,*) '         ==>>>   ln_iceberg and ln_M2016 not compatible with SAS (need 3d data)'

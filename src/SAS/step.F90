@@ -25,6 +25,7 @@ MODULE step
    USE bdy_oce   , ONLY: ln_bdy
    USE bdydta           ! mandatory for sea-ice
    USE stpctl           ! time stepping control            (stp_ctl routine)
+   USE cpl_oasis3, ONLY: lk_oasis
    !
    USE in_out_manager   ! I/O manager
    USE prtctl           ! Print control                    (prt_ctl routine)

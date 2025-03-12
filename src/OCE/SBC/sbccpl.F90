@@ -210,10 +210,6 @@ MODULE sbccpl
                                           !   -> file cplmask.nc with the float variable called cplmask (jpi,jpj,nn_cplmodel)
    LOGICAL     ::   ln_scale_ice_flux     !  use ice fluxes that are already "ice weighted" ( i.e. multiplied ice concentration)
 
-   TYPE ::   DYNARR
-      REAL(wp), POINTER, DIMENSION(:,:,:) ::   z3
-   END TYPE DYNARR
-
    TYPE( DYNARR ), SAVE, DIMENSION(jprcv) ::   frcv                ! all fields recieved from the atmosphere
 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:) ::   alb_oce_mix    ! ocean albedo sent to atmosphere (mix clear/overcast sky)
@@ -246,7 +242,7 @@ CONTAINS
 #if ! defined key_si3 && ! defined key_cice
       ALLOCATE( a_i(jpi,jpj,1) , STAT=ierr(2) )  ! used in sbcice_if.F90 (done here as there is no sbc_ice_if_init)
 #endif
-      ALLOCATE( xcplmask(A2D(0),0:nn_cplmodel) , STAT=ierr(3) )
+      ALLOCATE( xcplmask(A2D(0),1,0:nn_cplmodel) , STAT=ierr(3) )
       !
       IF( .NOT. ln_apr_dyn ) ALLOCATE( ssh_ib(jpi,jpj), ssh_ibb(jpi,jpj), apr(jpi, jpj), STAT=ierr(4) )
 
@@ -383,41 +379,42 @@ CONTAINS
       ! ================================ !
       nrcvinfo(:) = OASIS_idle   ! needed by nrcvinfo(jpr_otx1) if we do not receive ocean stress
 
-      ! for each field: define the OASIS name                              (srcv(:)%clname)
-      !                 define receive or not from the namelist parameters (srcv(:)%laction)
-      !                 define the north fold type of lbc                  (srcv(:)%nsgn)
+      ! for each field: define the OASIS name                              (srcv(nmodsbc)%fld(:)%clname)
+      !                 define receive or not from the namelist parameters (srcv(nmodsbc)%fld(:)%laction)
+      !                 define the north fold type of lbc                  (srcv(nmodsbc)%fld(:)%nsgn)
 
       ! default definitions of srcv
-      ALLOCATE( srcv(jprcv) )
-      srcv(:)%laction = .FALSE.   ;   srcv(:)%clgrid = 'T'   ;   srcv(:)%nsgn = 1.   ;   srcv(:)%nct = 1
+      ALLOCATE( srcv(nmodsbc)%fld(jprcv) )
+      srcv(nmodsbc)%fld(:)%laction = .FALSE.   ;   srcv(nmodsbc)%fld(:)%clgrid = 'T'   ;   srcv(nmodsbc)%fld(:)%nsgn = 1.
+      srcv(nmodsbc)%fld(:)%nct = 1   ;   srcv(nmodsbc)%fld(:)%nlvl = 1
 
       !                                                      ! ------------------------- !
       !                                                      ! ice and ocean wind stress !
       !                                                      ! ------------------------- !
       !                                                           ! Name
-      srcv(jpr_otx1)%clname = 'O_OTaux1'      ! 1st ocean component on grid ONE (T or U)
-      srcv(jpr_oty1)%clname = 'O_OTauy1'      ! 2nd   -      -         -     -
-      srcv(jpr_otz1)%clname = 'O_OTauz1'      ! 3rd   -      -         -     -
+      srcv(nmodsbc)%fld(jpr_otx1)%clname = 'O_OTaux1'      ! 1st ocean component on grid ONE (T or U)
+      srcv(nmodsbc)%fld(jpr_oty1)%clname = 'O_OTauy1'      ! 2nd   -      -         -     -
+      srcv(nmodsbc)%fld(jpr_otz1)%clname = 'O_OTauz1'      ! 3rd   -      -         -     -
       !
-      srcv(jpr_itx1)%clname = 'O_ITaux1'      ! 1st  ice  component on grid ONE (T, F, I or U)
-      srcv(jpr_ity1)%clname = 'O_ITauy1'      ! 2nd   -      -         -     -
-      srcv(jpr_itz1)%clname = 'O_ITauz1'      ! 3rd   -      -         -     -
+      srcv(nmodsbc)%fld(jpr_itx1)%clname = 'O_ITaux1'      ! 1st  ice  component on grid ONE (T, F, I or U)
+      srcv(nmodsbc)%fld(jpr_ity1)%clname = 'O_ITauy1'      ! 2nd   -      -         -     -
+      srcv(nmodsbc)%fld(jpr_itz1)%clname = 'O_ITauz1'      ! 3rd   -      -         -     -
       !
       ! Vectors: change of sign at north fold ONLY if on the local grid
       IF(       TRIM( sn_rcv_tau%cldes ) == 'oce only' .OR. TRIM( sn_rcv_tau%cldes ) == 'oce and ice'  &
            .OR. TRIM( sn_rcv_tau%cldes ) == 'mixed oce-ice' ) THEN ! avoid working with the atmospheric fields if they are not coupled
       !
-      IF( TRIM( sn_rcv_tau%clvor ) == 'local grid' )   srcv(jpr_otx1:jpr_itz1)%nsgn = -1.
+      IF( TRIM( sn_rcv_tau%clvor ) == 'local grid' )   srcv(nmodsbc)%fld(jpr_otx1:jpr_itz1)%nsgn = -1.
 
       !                                                            ! Set grid and action
-      srcv(jpr_otx1:jpr_otz1)%laction = .TRUE.     ! receive oce components on grid 1
-      srcv(jpr_itx1:jpr_itz1)%laction = .TRUE.     ! receive ice components on grid 1
+      srcv(nmodsbc)%fld(jpr_otx1:jpr_otz1)%laction = .TRUE.     ! receive oce components on grid 1
+      srcv(nmodsbc)%fld(jpr_itx1:jpr_itz1)%laction = .TRUE.     ! receive ice components on grid 1
       !
       IF( TRIM( sn_rcv_tau%clvref ) == 'spherical' )   &           ! spherical: 3rd component not received
-         &     srcv( (/jpr_otz1, jpr_itz1/) )%laction = .FALSE.
+         &     srcv(nmodsbc)%fld( (/jpr_otz1, jpr_itz1/) )%laction = .FALSE.
       !
       IF( TRIM( sn_rcv_tau%cldes ) /= 'oce and ice' ) THEN         ! 'oce and ice' case ocean stress on ocean mesh used
-         srcv(jpr_itx1:jpr_itz1)%laction = .FALSE.    ! ice components not received
+         srcv(nmodsbc)%fld(jpr_itx1:jpr_itz1)%laction = .FALSE.    ! ice components not received
       ENDIF
       ENDIF
 
@@ -426,41 +423,41 @@ CONTAINS
       !                                                      ! ------------------------- !
       ! we suppose that atmosphere modele do not make the difference between precipiration (liquide or solid)
       ! over ice of free ocean within the same atmospheric cell.cd
-      srcv(jpr_rain)%clname = 'OTotRain'      ! Rain = liquid precipitation
-      srcv(jpr_snow)%clname = 'OTotSnow'      ! Snow = solid precipitation
-      srcv(jpr_tevp)%clname = 'OTotEvap'      ! total evaporation (over oce + ice sublimation)
-      srcv(jpr_ievp)%clname = 'OIceEvap'      ! evaporation over ice = sublimation
-      srcv(jpr_sbpr)%clname = 'OSubMPre'      ! sublimation - liquid precipitation - solid precipitation
-      srcv(jpr_semp)%clname = 'OISubMSn'      ! ice solid water budget = sublimation - solid precipitation
-      srcv(jpr_oemp)%clname = 'OOEvaMPr'      ! ocean water budget = ocean Evap - ocean precip
+      srcv(nmodsbc)%fld(jpr_rain)%clname = 'OTotRain'      ! Rain = liquid precipitation
+      srcv(nmodsbc)%fld(jpr_snow)%clname = 'OTotSnow'      ! Snow = solid precipitation
+      srcv(nmodsbc)%fld(jpr_tevp)%clname = 'OTotEvap'      ! total evaporation (over oce + ice sublimation)
+      srcv(nmodsbc)%fld(jpr_ievp)%clname = 'OIceEvap'      ! evaporation over ice = sublimation
+      srcv(nmodsbc)%fld(jpr_sbpr)%clname = 'OSubMPre'      ! sublimation - liquid precipitation - solid precipitation
+      srcv(nmodsbc)%fld(jpr_semp)%clname = 'OISubMSn'      ! ice solid water budget = sublimation - solid precipitation
+      srcv(nmodsbc)%fld(jpr_oemp)%clname = 'OOEvaMPr'      ! ocean water budget = ocean Evap - ocean precip
       SELECT CASE( TRIM( sn_rcv_emp%cldes ) )
       CASE( 'none'          )       ! nothing to do
-      CASE( 'oce only'      )   ;   srcv(jpr_oemp)%laction = .TRUE.
+      CASE( 'oce only'      )   ;   srcv(nmodsbc)%fld(jpr_oemp)%laction = .TRUE.
       CASE( 'conservative'  )
-         srcv( (/jpr_rain, jpr_snow, jpr_ievp, jpr_tevp/) )%laction = .TRUE.
-         IF( k_ice <= 1 )  srcv(jpr_ievp)%laction = .FALSE.
-      CASE( 'oce and ice'   )   ;   srcv( (/jpr_ievp, jpr_sbpr, jpr_semp, jpr_oemp/) )%laction = .TRUE.
+         srcv(nmodsbc)%fld( (/jpr_rain, jpr_snow, jpr_ievp, jpr_tevp/) )%laction = .TRUE.
+         IF( k_ice <= 1 )  srcv(nmodsbc)%fld(jpr_ievp)%laction = .FALSE.
+      CASE( 'oce and ice'   )   ;   srcv(nmodsbc)%fld( (/jpr_ievp, jpr_sbpr, jpr_semp, jpr_oemp/) )%laction = .TRUE.
       CASE default              ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_rcv_emp%cldes' )
       END SELECT
       !
       !                                                      ! ------------------------- !
       !                                                      !     Runoffs & Calving     !
       !                                                      ! ------------------------- !
-      srcv(jpr_rnf   )%clname = 'O_Runoff'
+      srcv(nmodsbc)%fld(jpr_rnf   )%clname = 'O_Runoff'
       IF( TRIM( sn_rcv_rnf%cldes ) == 'coupled' ) THEN
          IF( .NOT. ln_rnf ) CALL ctl_stop( 'STOP', 'sbccpl : coupling runoffs requires ln_rnf = .true.' )
-         srcv(jpr_rnf)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_rnf)%laction = .TRUE.
          l_rnfcpl              = .TRUE.                      ! -> no need to read runoffs in sbcrnf
          ln_rnf                = nn_components /= jp_iam_sas ! -> force to go through sbcrnf if not sas
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   runoffs received from oasis -> force ln_rnf = ', ln_rnf
       ENDIF
       !
-      srcv(jpr_cal)%clname = 'OCalving'   ;  IF( TRIM( sn_rcv_cal%cldes) == 'coupled' )   srcv(jpr_cal)%laction = .TRUE.
-      srcv(jpr_isf)%clname = 'OIcshelf'   ;  IF( TRIM( sn_rcv_isf%cldes) == 'coupled' )   srcv(jpr_isf)%laction = .TRUE.
-      srcv(jpr_icb)%clname = 'OIceberg'   ;  IF( TRIM( sn_rcv_icb%cldes) == 'coupled' )   srcv(jpr_icb)%laction = .TRUE.
+      srcv(nmodsbc)%fld(jpr_cal)%clname = 'OCalving'   ;  IF( TRIM( sn_rcv_cal%cldes) == 'coupled' )   srcv(nmodsbc)%fld(jpr_cal)%laction = .TRUE.
+      srcv(nmodsbc)%fld(jpr_isf)%clname = 'OIcshelf'   ;  IF( TRIM( sn_rcv_isf%cldes) == 'coupled' )   srcv(nmodsbc)%fld(jpr_isf)%laction = .TRUE.
+      srcv(nmodsbc)%fld(jpr_icb)%clname = 'OIceberg'   ;  IF( TRIM( sn_rcv_icb%cldes) == 'coupled' )   srcv(nmodsbc)%fld(jpr_icb)%laction = .TRUE.
 
-      IF( srcv(jpr_isf)%laction ) THEN
+      IF( srcv(nmodsbc)%fld(jpr_isf)%laction ) THEN
          l_isfoasis = .TRUE.  ! -> isf fwf comes from oasis
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   iceshelf received from oasis '
@@ -470,15 +467,15 @@ CONTAINS
       !                                                      ! ------------------------- !
       !                                                      !    non solar radiation    !   Qns
       !                                                      ! ------------------------- !
-      srcv(jpr_qnsoce)%clname = 'O_QnsOce'
-      srcv(jpr_qnsice)%clname = 'O_QnsIce'
-      srcv(jpr_qnsmix)%clname = 'O_QnsMix'
+      srcv(nmodsbc)%fld(jpr_qnsoce)%clname = 'O_QnsOce'
+      srcv(nmodsbc)%fld(jpr_qnsice)%clname = 'O_QnsIce'
+      srcv(nmodsbc)%fld(jpr_qnsmix)%clname = 'O_QnsMix'
       SELECT CASE( TRIM( sn_rcv_qns%cldes ) )
       CASE( 'none'          )       ! nothing to do
-      CASE( 'oce only'      )   ;   srcv(               jpr_qnsoce   )%laction = .TRUE.
-      CASE( 'conservative'  )   ;   srcv( (/jpr_qnsice, jpr_qnsmix/) )%laction = .TRUE.
-      CASE( 'oce and ice'   )   ;   srcv( (/jpr_qnsice, jpr_qnsoce/) )%laction = .TRUE.
-      CASE( 'mixed oce-ice' )   ;   srcv(               jpr_qnsmix   )%laction = .TRUE.
+      CASE( 'oce only'      )   ;   srcv(nmodsbc)%fld(               jpr_qnsoce   )%laction = .TRUE.
+      CASE( 'conservative'  )   ;   srcv(nmodsbc)%fld( (/jpr_qnsice, jpr_qnsmix/) )%laction = .TRUE.
+      CASE( 'oce and ice'   )   ;   srcv(nmodsbc)%fld( (/jpr_qnsice, jpr_qnsoce/) )%laction = .TRUE.
+      CASE( 'mixed oce-ice' )   ;   srcv(nmodsbc)%fld(               jpr_qnsmix   )%laction = .TRUE.
       CASE default              ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_rcv_qns%cldes' )
       END SELECT
       IF( TRIM( sn_rcv_qns%cldes ) == 'mixed oce-ice' .AND. nn_cats_cpl > 1 ) &
@@ -487,15 +484,15 @@ CONTAINS
       !                                                      ! ------------------------- !
       !                                                      !    solar radiation        !   Qsr
       !                                                      ! ------------------------- !
-      srcv(jpr_qsroce)%clname = 'O_QsrOce'
-      srcv(jpr_qsrice)%clname = 'O_QsrIce'
-      srcv(jpr_qsrmix)%clname = 'O_QsrMix'
+      srcv(nmodsbc)%fld(jpr_qsroce)%clname = 'O_QsrOce'
+      srcv(nmodsbc)%fld(jpr_qsrice)%clname = 'O_QsrIce'
+      srcv(nmodsbc)%fld(jpr_qsrmix)%clname = 'O_QsrMix'
       SELECT CASE( TRIM( sn_rcv_qsr%cldes ) )
       CASE( 'none'          )       ! nothing to do
-      CASE( 'oce only'      )   ;   srcv(               jpr_qsroce   )%laction = .TRUE.
-      CASE( 'conservative'  )   ;   srcv( (/jpr_qsrice, jpr_qsrmix/) )%laction = .TRUE.
-      CASE( 'oce and ice'   )   ;   srcv( (/jpr_qsrice, jpr_qsroce/) )%laction = .TRUE.
-      CASE( 'mixed oce-ice' )   ;   srcv(               jpr_qsrmix   )%laction = .TRUE.
+      CASE( 'oce only'      )   ;   srcv(nmodsbc)%fld(               jpr_qsroce   )%laction = .TRUE.
+      CASE( 'conservative'  )   ;   srcv(nmodsbc)%fld( (/jpr_qsrice, jpr_qsrmix/) )%laction = .TRUE.
+      CASE( 'oce and ice'   )   ;   srcv(nmodsbc)%fld( (/jpr_qsrice, jpr_qsroce/) )%laction = .TRUE.
+      CASE( 'mixed oce-ice' )   ;   srcv(nmodsbc)%fld(               jpr_qsrmix   )%laction = .TRUE.
       CASE default              ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_rcv_qsr%cldes' )
       END SELECT
       IF( TRIM( sn_rcv_qsr%cldes ) == 'mixed oce-ice' .AND. nn_cats_cpl > 1 ) &
@@ -504,8 +501,8 @@ CONTAINS
       !                                                      ! ------------------------- !
       !                                                      !   non solar sensitivity   !   d(Qns)/d(T)
       !                                                      ! ------------------------- !
-      srcv(jpr_dqnsdt)%clname = 'O_dQnsdT'
-      IF( TRIM( sn_rcv_dqnsdt%cldes ) == 'coupled' )   srcv(jpr_dqnsdt)%laction = .TRUE.
+      srcv(nmodsbc)%fld(jpr_dqnsdt)%clname = 'O_dQnsdT'
+      IF( TRIM( sn_rcv_dqnsdt%cldes ) == 'coupled' )   srcv(nmodsbc)%fld(jpr_dqnsdt)%laction = .TRUE.
       !
       ! non solar sensitivity mandatory for mixed oce-ice solar radiation coupling technique
       IF( TRIM( sn_rcv_dqnsdt%cldes ) == 'none' .AND. TRIM( sn_rcv_qns%cldes ) == 'mixed oce-ice' )  &
@@ -514,19 +511,19 @@ CONTAINS
       !                                                      ! ------------------------- !
       !                                                      !      10m wind module      !
       !                                                      ! ------------------------- !
-      srcv(jpr_w10m)%clname = 'O_Wind10'   ;   IF( TRIM(sn_rcv_w10m%cldes  ) == 'coupled' )   srcv(jpr_w10m)%laction = .TRUE.
+      srcv(nmodsbc)%fld(jpr_w10m)%clname = 'O_Wind10'   ;   IF( TRIM(sn_rcv_w10m%cldes  ) == 'coupled' )   srcv(nmodsbc)%fld(jpr_w10m)%laction = .TRUE.
       !
       !                                                      ! ------------------------- !
       !                                                      !   wind stress module      !
       !                                                      ! ------------------------- !
-      srcv(jpr_taum)%clname = 'O_TauMod'   ;   IF( TRIM(sn_rcv_taumod%cldes) == 'coupled' )   srcv(jpr_taum)%laction = .TRUE.
+      srcv(nmodsbc)%fld(jpr_taum)%clname = 'O_TauMod'   ;   IF( TRIM(sn_rcv_taumod%cldes) == 'coupled' )   srcv(nmodsbc)%fld(jpr_taum)%laction = .TRUE.
       !
       !                                                      ! ------------------------- !
       !                                                      !      Atmospheric CO2      !
       !                                                      ! ------------------------- !
-      srcv(jpr_co2 )%clname = 'O_AtmCO2'
+      srcv(nmodsbc)%fld(jpr_co2 )%clname = 'O_AtmCO2'
       IF( TRIM(sn_rcv_co2%cldes   ) == 'coupled' )  THEN
-         srcv(jpr_co2 )%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_co2 )%laction = .TRUE.
          l_co2cpl = .TRUE.
          IF(lwp) WRITE(numout,*)
          IF(lwp) WRITE(numout,*) '   Atmospheric pco2 received from oasis '
@@ -536,138 +533,138 @@ CONTAINS
       !                                                      ! ------------------------- !
       !                                                      ! Mean Sea Level Pressure   !
       !                                                      ! ------------------------- !
-      srcv(jpr_mslp)%clname = 'O_MSLP'     ;   IF( TRIM(sn_rcv_mslp%cldes  ) == 'coupled' )    srcv(jpr_mslp)%laction = .TRUE.
+      srcv(nmodsbc)%fld(jpr_mslp)%clname = 'O_MSLP'     ;   IF( TRIM(sn_rcv_mslp%cldes  ) == 'coupled' )    srcv(nmodsbc)%fld(jpr_mslp)%laction = .TRUE.
       !
       !                                                      ! --------------------------------- !
       !                                                      !  ice topmelt and conduction flux  !   
       !                                                      ! --------------------------------- !
-      srcv(jpr_topm )%clname = 'OTopMlt'
-      srcv(jpr_botm )%clname = 'OBotMlt'
+      srcv(nmodsbc)%fld(jpr_topm )%clname = 'OTopMlt'
+      srcv(nmodsbc)%fld(jpr_botm )%clname = 'OBotMlt'
       IF( TRIM(sn_rcv_iceflx%cldes) == 'coupled' ) THEN
          IF( TRIM( sn_rcv_iceflx%clcat ) == 'yes' ) THEN
-            srcv(jpr_topm:jpr_botm)%nct = nn_cats_cpl
+            srcv(nmodsbc)%fld(jpr_topm:jpr_botm)%nct = nn_cats_cpl
          ELSE
             CALL ctl_stop( 'sbc_cpl_init: sn_rcv_iceflx%clcat should always be set to yes currently' )
          ENDIF
-         srcv(jpr_topm:jpr_botm)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_topm:jpr_botm)%laction = .TRUE.
       ENDIF
       !                                                      ! --------------------------- !
       !                                                      ! transmitted solar thru ice  !   
       !                                                      ! --------------------------- !
-      srcv(jpr_qtrice)%clname = 'OQtr'
+      srcv(nmodsbc)%fld(jpr_qtrice)%clname = 'OQtr'
       IF( TRIM(sn_rcv_qtrice%cldes) == 'coupled' ) THEN
          IF ( TRIM( sn_rcv_qtrice%clcat ) == 'yes' ) THEN
-            srcv(jpr_qtrice)%nct = nn_cats_cpl
+            srcv(nmodsbc)%fld(jpr_qtrice)%nct = nn_cats_cpl
          ELSE
            CALL ctl_stop( 'sbc_cpl_init: sn_rcv_qtrice%clcat should always be set to yes currently' )
          ENDIF
-         srcv(jpr_qtrice)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_qtrice)%laction = .TRUE.
       ENDIF
       !                                                      ! ------------------------- !
       !                                                      !    ice skin temperature   !
       !                                                      ! ------------------------- !
-      srcv(jpr_ts_ice)%clname = 'OTsfIce'    ! needed by Met Office
-      IF( TRIM( sn_rcv_ts_ice%cldes ) == 'ice' )   srcv(jpr_ts_ice)%laction = .TRUE.
-      IF( TRIM( sn_rcv_ts_ice%clcat ) == 'yes' )   srcv(jpr_ts_ice)%nct     = nn_cats_cpl
-      IF( TRIM( sn_rcv_emp%clcat    ) == 'yes' )   srcv(jpr_ievp)%nct       = nn_cats_cpl
+      srcv(nmodsbc)%fld(jpr_ts_ice)%clname = 'OTsfIce'    ! needed by Met Office
+      IF( TRIM( sn_rcv_ts_ice%cldes ) == 'ice' )   srcv(nmodsbc)%fld(jpr_ts_ice)%laction = .TRUE.
+      IF( TRIM( sn_rcv_ts_ice%clcat ) == 'yes' )   srcv(nmodsbc)%fld(jpr_ts_ice)%nct     = nn_cats_cpl
+      IF( TRIM( sn_rcv_emp%clcat    ) == 'yes' )   srcv(nmodsbc)%fld(jpr_ievp)%nct       = nn_cats_cpl
 
 #if defined key_si3
       IF( ln_cndflx .AND. .NOT.ln_cndemulate ) THEN
-         IF( .NOT.srcv(jpr_ts_ice)%laction )  &
-            &   CALL ctl_stop( 'sbc_cpl_init: srcv(jpr_ts_ice)%laction should be set to true when ln_cndflx=T' )
+         IF( .NOT.srcv(nmodsbc)%fld(jpr_ts_ice)%laction )  &
+            &   CALL ctl_stop( 'sbc_cpl_init: srcv(nmodsbc)%fld(jpr_ts_ice)%laction should be set to true when ln_cndflx=T' )
       ENDIF
 #endif
       !                                                      ! ------------------------- !
       !                                                      !      Wave breaking        !
       !                                                      ! ------------------------- !
-      srcv(jpr_hsig)%clname  = 'O_Hsigwa'    ! significant wave height
+      srcv(nmodsbc)%fld(jpr_hsig)%clname  = 'O_Hsigwa'    ! significant wave height
       IF( TRIM(sn_rcv_hsig%cldes  ) == 'coupled' )  THEN
-         srcv(jpr_hsig)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_hsig)%laction = .TRUE.
          cpl_hsig = .TRUE.
       ENDIF
-      srcv(jpr_phioc)%clname = 'O_PhiOce'    ! wave to ocean energy
+      srcv(nmodsbc)%fld(jpr_phioc)%clname = 'O_PhiOce'    ! wave to ocean energy
       IF( TRIM(sn_rcv_phioc%cldes ) == 'coupled' )  THEN
-         srcv(jpr_phioc)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_phioc)%laction = .TRUE.
          cpl_phioc = .TRUE.
       ENDIF
-      srcv(jpr_sdrftx)%clname = 'O_Sdrfx'    ! Stokes drift in the u direction
+      srcv(nmodsbc)%fld(jpr_sdrftx)%clname = 'O_Sdrfx'    ! Stokes drift in the u direction
       IF( TRIM(sn_rcv_sdrfx%cldes ) == 'coupled' )  THEN
-         srcv(jpr_sdrftx)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_sdrftx)%laction = .TRUE.
          cpl_sdrftx = .TRUE.
       ENDIF
-      srcv(jpr_sdrfty)%clname = 'O_Sdrfy'    ! Stokes drift in the v direction
+      srcv(nmodsbc)%fld(jpr_sdrfty)%clname = 'O_Sdrfy'    ! Stokes drift in the v direction
       IF( TRIM(sn_rcv_sdrfy%cldes ) == 'coupled' )  THEN
-         srcv(jpr_sdrfty)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_sdrfty)%laction = .TRUE.
          cpl_sdrfty = .TRUE.
       ENDIF
-      srcv(jpr_wper)%clname = 'O_WPer'       ! mean wave period
+      srcv(nmodsbc)%fld(jpr_wper)%clname = 'O_WPer'       ! mean wave period
       IF( TRIM(sn_rcv_wper%cldes  ) == 'coupled' )  THEN
-         srcv(jpr_wper)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_wper)%laction = .TRUE.
          cpl_wper = .TRUE.
       ENDIF
-      srcv(jpr_wnum)%clname = 'O_WNum'       ! mean wave number
+      srcv(nmodsbc)%fld(jpr_wnum)%clname = 'O_WNum'       ! mean wave number
       IF( TRIM(sn_rcv_wnum%cldes ) == 'coupled' )  THEN
-         srcv(jpr_wnum)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_wnum)%laction = .TRUE.
          cpl_wnum = .TRUE.
       ENDIF
-      srcv(jpr_wstrf)%clname = 'O_WStrf'     ! stress fraction adsorbed by the wave
+      srcv(nmodsbc)%fld(jpr_wstrf)%clname = 'O_WStrf'     ! stress fraction adsorbed by the wave
       IF( TRIM(sn_rcv_wstrf%cldes ) == 'coupled' )  THEN
-         srcv(jpr_wstrf)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_wstrf)%laction = .TRUE.
          cpl_wstrf = .TRUE.
       ENDIF
-      srcv(jpr_wdrag)%clname = 'O_WDrag'     ! neutral surface drag coefficient
+      srcv(nmodsbc)%fld(jpr_wdrag)%clname = 'O_WDrag'     ! neutral surface drag coefficient
       IF( TRIM(sn_rcv_wdrag%cldes ) == 'coupled' )  THEN
-         srcv(jpr_wdrag)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_wdrag)%laction = .TRUE.
          cpl_wdrag = .TRUE.
       ENDIF
-      srcv(jpr_charn)%clname = 'O_Charn'     ! Chranock coefficient
+      srcv(nmodsbc)%fld(jpr_charn)%clname = 'O_Charn'     ! Chranock coefficient
       IF( TRIM(sn_rcv_charn%cldes ) == 'coupled' )  THEN
-         srcv(jpr_charn)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_charn)%laction = .TRUE.
          cpl_charn = .TRUE.
       ENDIF
-      srcv(jpr_bhd)%clname = 'O_Bhd'     ! Bernoulli head. waves' induced surface pressure
+      srcv(nmodsbc)%fld(jpr_bhd)%clname = 'O_Bhd'     ! Bernoulli head. waves' induced surface pressure
       IF( TRIM(sn_rcv_bhd%cldes ) == 'coupled' )  THEN
-         srcv(jpr_bhd)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_bhd)%laction = .TRUE.
          cpl_bhd = .TRUE.
       ENDIF
-      srcv(jpr_tusd)%clname = 'O_Tusd'     ! zonal stokes transport
+      srcv(nmodsbc)%fld(jpr_tusd)%clname = 'O_Tusd'     ! zonal stokes transport
       IF( TRIM(sn_rcv_tusd%cldes ) == 'coupled' )  THEN
-         srcv(jpr_tusd)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_tusd)%laction = .TRUE.
          cpl_tusd = .TRUE.
       ENDIF
-      srcv(jpr_tvsd)%clname = 'O_Tvsd'     ! meridional stokes tranmport
+      srcv(nmodsbc)%fld(jpr_tvsd)%clname = 'O_Tvsd'     ! meridional stokes tranmport
       IF( TRIM(sn_rcv_tvsd%cldes ) == 'coupled' )  THEN
-         srcv(jpr_tvsd)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_tvsd)%laction = .TRUE.
          cpl_tvsd = .TRUE.
       ENDIF
 
-      srcv(jpr_twox)%clname = 'O_Twox'     ! wave to ocean momentum flux in the u direction
-      srcv(jpr_twoy)%clname = 'O_Twoy'     ! wave to ocean momentum flux in the v direction
-      srcv(jpr_tawx)%clname = 'O_Tawx'     ! Net wave-supported stress in the u direction
-      srcv(jpr_tawy)%clname = 'O_Tawy'     ! Net wave-supported stress in the v direction
+      srcv(nmodsbc)%fld(jpr_twox)%clname = 'O_Twox'     ! wave to ocean momentum flux in the u direction
+      srcv(nmodsbc)%fld(jpr_twoy)%clname = 'O_Twoy'     ! wave to ocean momentum flux in the v direction
+      srcv(nmodsbc)%fld(jpr_tawx)%clname = 'O_Tawx'     ! Net wave-supported stress in the u direction
+      srcv(nmodsbc)%fld(jpr_tawy)%clname = 'O_Tawy'     ! Net wave-supported stress in the v direction
       IF( TRIM(sn_rcv_taw%cldes ) == 'coupled' )  THEN
-         srcv(jpr_twox)%laction = .TRUE.
-         srcv(jpr_twoy)%laction = .TRUE.
-         srcv(jpr_tawx)%laction = .TRUE.
-         srcv(jpr_tawy)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_twox)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_twoy)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_tawx)%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_tawy)%laction = .TRUE.
          cpl_taw = .TRUE.
       ENDIF
       !
       !                                                      ! ------------------------------- !
       !                                                      !   OCE-SAS coupling - rcv by opa !
       !                                                      ! ------------------------------- !
-      srcv(jpr_sflx)%clname = 'O_SFLX'
-      srcv(jpr_fice)%clname = 'RIceFrc'
+      srcv(nmodsbc)%fld(jpr_sflx)%clname = 'O_SFLX'
+      srcv(nmodsbc)%fld(jpr_fice)%clname = 'RIceFrc'
       !
       IF( nn_components == jp_iam_oce ) THEN    ! OCE coupled to SAS via OASIS: force received field by OCE (sent by SAS)
-         srcv(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
-         srcv(:)%clgrid  = 'T'       ! force default definition in case of opa <-> sas coupling
-         srcv(:)%nsgn    = 1.        ! force default definition in case of opa <-> sas coupling
-         srcv( (/jpr_qsroce, jpr_qnsoce, jpr_oemp, jpr_sflx, jpr_fice, jpr_otx1, jpr_oty1, jpr_taum/) )%laction = .TRUE.
-         srcv(jpr_otx1)%clgrid = 'T'        ! oce components given at T-point
-         srcv(jpr_oty1)%clgrid = 'T'        
+         srcv(nmodsbc)%fld(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
+         srcv(nmodsbc)%fld(:)%clgrid  = 'T'       ! force default definition in case of opa <-> sas coupling
+         srcv(nmodsbc)%fld(:)%nsgn    = 1.        ! force default definition in case of opa <-> sas coupling
+         srcv(nmodsbc)%fld( (/jpr_qsroce, jpr_qnsoce, jpr_oemp, jpr_sflx, jpr_fice, jpr_otx1, jpr_oty1, jpr_taum/) )%laction = .TRUE.
+         srcv(nmodsbc)%fld(jpr_otx1)%clgrid = 'T'        ! oce components given at T-point
+         srcv(nmodsbc)%fld(jpr_oty1)%clgrid = 'T'        
          ! Vectors: change of sign at north fold ONLY if on the local grid
-         srcv( (/jpr_otx1,jpr_oty1/) )%nsgn = -1.
+         srcv(nmodsbc)%fld( (/jpr_otx1,jpr_oty1/) )%nsgn = -1.
          sn_rcv_tau%clvor = 'local grid'
          sn_rcv_tau%clvref = 'spherical'
          sn_rcv_emp%cldes = 'oce only'
@@ -691,29 +688,29 @@ CONTAINS
       !                                                      ! -------------------------------- !
       !                                                      !   OCE-SAS coupling - rcv by sas  !
       !                                                      ! -------------------------------- !
-      srcv(jpr_toce  )%clname = 'I_SSTSST'
-      srcv(jpr_soce  )%clname = 'I_SSSal'
-      srcv(jpr_ocx1  )%clname = 'I_OCurx1'
-      srcv(jpr_ocy1  )%clname = 'I_OCury1'
-      srcv(jpr_ssh   )%clname = 'I_SSHght'
-      srcv(jpr_e3t1st)%clname = 'I_E3T1st'
-      srcv(jpr_fraqsr)%clname = 'I_FraQsr'
+      srcv(nmodsbc)%fld(jpr_toce  )%clname = 'I_SSTSST'
+      srcv(nmodsbc)%fld(jpr_soce  )%clname = 'I_SSSal'
+      srcv(nmodsbc)%fld(jpr_ocx1  )%clname = 'I_OCurx1'
+      srcv(nmodsbc)%fld(jpr_ocy1  )%clname = 'I_OCury1'
+      srcv(nmodsbc)%fld(jpr_ssh   )%clname = 'I_SSHght'
+      srcv(nmodsbc)%fld(jpr_e3t1st)%clname = 'I_E3T1st'
+      srcv(nmodsbc)%fld(jpr_fraqsr)%clname = 'I_FraQsr'
       !
       IF( nn_components == jp_iam_sas ) THEN
-         IF( .NOT. ln_cpl ) srcv(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
-         IF( .NOT. ln_cpl ) srcv(:)%clgrid  = 'T'       ! force default definition in case of opa <-> sas coupling
-         IF( .NOT. ln_cpl ) srcv(:)%nsgn    = 1.        ! force default definition in case of opa <-> sas coupling
-         srcv( (/jpr_toce, jpr_soce, jpr_ssh, jpr_fraqsr, jpr_ocx1, jpr_ocy1/) )%laction = .TRUE.
-         srcv( jpr_e3t1st )%laction = .NOT.lk_linssh
-         srcv(jpr_ocx1)%clgrid = 'U'        ! oce components given at U-point
-         srcv(jpr_ocy1)%clgrid = 'V'        !           and           V-point
+         IF( .NOT. ln_cpl ) srcv(nmodsbc)%fld(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
+         IF( .NOT. ln_cpl ) srcv(nmodsbc)%fld(:)%clgrid  = 'T'       ! force default definition in case of opa <-> sas coupling
+         IF( .NOT. ln_cpl ) srcv(nmodsbc)%fld(:)%nsgn    = 1.        ! force default definition in case of opa <-> sas coupling
+         srcv(nmodsbc)%fld( (/jpr_toce, jpr_soce, jpr_ssh, jpr_fraqsr, jpr_ocx1, jpr_ocy1/) )%laction = .TRUE.
+         srcv(nmodsbc)%fld( jpr_e3t1st )%laction = .NOT.lk_linssh
+         srcv(nmodsbc)%fld(jpr_ocx1)%clgrid = 'U'        ! oce components given at U-point
+         srcv(nmodsbc)%fld(jpr_ocy1)%clgrid = 'V'        !           and           V-point
          ! Vectors: change of sign at north fold ONLY if on the local grid
-         srcv(jpr_ocx1:jpr_ocy1)%nsgn = -1.
+         srcv(nmodsbc)%fld(jpr_ocx1:jpr_ocy1)%nsgn = -1.
          ! Change first letter to couple with atmosphere if already coupled OCE
          ! this is nedeed as each variable name used in the namcouple must be unique:
          ! for example O_Runoff received by OCE from SAS and therefore S_Runoff received by SAS from the Atmosphere
          DO jn = 1, jprcv
-            IF( srcv(jn)%clname(1:1) == "O" ) srcv(jn)%clname = "S"//srcv(jn)%clname(2:LEN(srcv(jn)%clname))
+            IF( srcv(nmodsbc)%fld(jn)%clname(1:1) == "O" ) srcv(nmodsbc)%fld(jn)%clname = "S"//srcv(nmodsbc)%fld(jn)%clname(2:LEN(srcv(nmodsbc)%fld(jn)%clname))
          END DO
          !
          IF(lwp) THEN                        ! control print
@@ -740,58 +737,59 @@ CONTAINS
       ! Allocate all parts of frcv used for received fields !
       ! =================================================== !
       DO jn = 1, jprcv
-         IF( srcv(jn)%laction ) ALLOCATE( frcv(jn)%z3(A2D(0),srcv(jn)%nct) )
+         IF( srcv(nmodsbc)%fld(jn)%laction ) ALLOCATE( frcv(jn)%z3(A2D(0),srcv(nmodsbc)%fld(jn)%nct) )
       END DO
       ! Allocate taum part of frcv which is used even when not received as coupling field
-      IF( .NOT. srcv(jpr_taum)%laction ) ALLOCATE( frcv(jpr_taum)%z3(A2D(0),srcv(jpr_taum)%nct) )
+      IF( .NOT. srcv(nmodsbc)%fld(jpr_taum)%laction ) ALLOCATE( frcv(jpr_taum)%z3(A2D(0),srcv(nmodsbc)%fld(jpr_taum)%nct) )
       ! Allocate w10m part of frcv which is used even when not received as coupling field
-      IF( .NOT. srcv(jpr_w10m)%laction ) ALLOCATE( frcv(jpr_w10m)%z3(A2D(0),srcv(jpr_w10m)%nct) )
+      IF( .NOT. srcv(nmodsbc)%fld(jpr_w10m)%laction ) ALLOCATE( frcv(jpr_w10m)%z3(A2D(0),srcv(nmodsbc)%fld(jpr_w10m)%nct) )
       ! Allocate jpr_otx1 part of frcv which is used even when not received as coupling field
-      IF( .NOT. srcv(jpr_otx1)%laction ) ALLOCATE( frcv(jpr_otx1)%z3(A2D(0),srcv(jpr_otx1)%nct) )
-      IF( .NOT. srcv(jpr_oty1)%laction ) ALLOCATE( frcv(jpr_oty1)%z3(A2D(0),srcv(jpr_oty1)%nct) )
-      ! Allocate itx1 and ity1 as they are used in sbc_cpl_ice_tau even if srcv(jpr_itx1)%laction = .FALSE.
+      IF( .NOT. srcv(nmodsbc)%fld(jpr_otx1)%laction ) ALLOCATE( frcv(jpr_otx1)%z3(A2D(0),srcv(nmodsbc)%fld(jpr_otx1)%nct) )
+      IF( .NOT. srcv(nmodsbc)%fld(jpr_oty1)%laction ) ALLOCATE( frcv(jpr_oty1)%z3(A2D(0),srcv(nmodsbc)%fld(jpr_oty1)%nct) )
+      ! Allocate itx1 and ity1 as they are used in sbc_cpl_ice_tau even if srcv(nmodsbc)%fld(jpr_itx1)%laction = .FALSE.
       IF( k_ice /= 0 ) THEN
-         IF( .NOT. srcv(jpr_itx1)%laction ) ALLOCATE( frcv(jpr_itx1)%z3(A2D(0),srcv(jpr_itx1)%nct) )
-         IF( .NOT. srcv(jpr_ity1)%laction ) ALLOCATE( frcv(jpr_ity1)%z3(A2D(0),srcv(jpr_ity1)%nct) )
+         IF( .NOT. srcv(nmodsbc)%fld(jpr_itx1)%laction ) ALLOCATE( frcv(jpr_itx1)%z3(A2D(0),srcv(nmodsbc)%fld(jpr_itx1)%nct) )
+         IF( .NOT. srcv(nmodsbc)%fld(jpr_ity1)%laction ) ALLOCATE( frcv(jpr_ity1)%z3(A2D(0),srcv(nmodsbc)%fld(jpr_ity1)%nct) )
       ENDIF
 
       ! ================================ !
       !     Define the send interface    !
       ! ================================ !
-      ! for each field: define the OASIS name                           (ssnd(:)%clname)
-      !                 define send or not from the namelist parameters (ssnd(:)%laction)
-      !                 define the north fold type of lbc               (ssnd(:)%nsgn)
+      ! for each field: define the OASIS name                           (ssnd(nmodsbc)%fld(:)%clname)
+      !                 define send or not from the namelist parameters (ssnd(nmodsbc)%fld(:)%laction)
+      !                 define the north fold type of lbc               (ssnd(nmodsbc)%fld(:)%nsgn)
       
       ! default definitions of nsnd
-      ALLOCATE( ssnd(jpsnd) )
-      ssnd(:)%laction = .FALSE.   ;   ssnd(:)%clgrid = 'T'   ;   ssnd(:)%nsgn = 1.  ; ssnd(:)%nct = 1
+      ALLOCATE( ssnd(nmodsbc)%fld(jpsnd) )
+      ssnd(nmodsbc)%fld(:)%laction = .FALSE.   ;   ssnd(nmodsbc)%fld(:)%clgrid = 'T'   ;   ssnd(nmodsbc)%fld(:)%nsgn = 1.
+      ssnd(nmodsbc)%fld(:)%nct = 1   ;   ssnd(nmodsbc)%fld(:)%nlvl = 1
 
       !                                                      ! ------------------------- !
       !                                                      !    Surface temperature    !
       !                                                      ! ------------------------- !
-      ssnd(jps_toce)%clname   = 'O_SSTSST'
-      ssnd(jps_tice)%clname   = 'O_TepIce'
-      ssnd(jps_ttilyr)%clname = 'O_TtiLyr'
-      ssnd(jps_tmix)%clname   = 'O_TepMix'
+      ssnd(nmodsbc)%fld(jps_toce)%clname   = 'O_SSTSST'
+      ssnd(nmodsbc)%fld(jps_tice)%clname   = 'O_TepIce'
+      ssnd(nmodsbc)%fld(jps_ttilyr)%clname = 'O_TtiLyr'
+      ssnd(nmodsbc)%fld(jps_tmix)%clname   = 'O_TepMix'
       SELECT CASE( TRIM( sn_snd_temp%cldes ) )
       CASE( 'none'                                 )       ! nothing to do
-      CASE( 'oce only'                             )   ;   ssnd( jps_toce )%laction = .TRUE.
+      CASE( 'oce only'                             )   ;   ssnd(nmodsbc)%fld( jps_toce )%laction = .TRUE.
       CASE( 'oce and ice' , 'weighted oce and ice' , 'oce and weighted ice' )
-         ssnd( (/jps_toce, jps_tice/) )%laction = .TRUE.
-         IF( TRIM( sn_snd_temp%clcat ) == 'yes' )  ssnd(jps_tice)%nct = nn_cats_cpl
-      CASE( 'mixed oce-ice'                        )   ;   ssnd( jps_tmix )%laction = .TRUE.
+         ssnd(nmodsbc)%fld( (/jps_toce, jps_tice/) )%laction = .TRUE.
+         IF( TRIM( sn_snd_temp%clcat ) == 'yes' )  ssnd(nmodsbc)%fld(jps_tice)%nct = nn_cats_cpl
+      CASE( 'mixed oce-ice'                        )   ;   ssnd(nmodsbc)%fld( jps_tmix )%laction = .TRUE.
       CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_temp%cldes' )
       END SELECT
 
       !                                                      ! ------------------------- !
       !                                                      !          Albedo           !
       !                                                      ! ------------------------- !
-      ssnd(jps_albice)%clname = 'O_AlbIce'
-      ssnd(jps_albmix)%clname = 'O_AlbMix'
+      ssnd(nmodsbc)%fld(jps_albice)%clname = 'O_AlbIce'
+      ssnd(nmodsbc)%fld(jps_albmix)%clname = 'O_AlbMix'
       SELECT CASE( TRIM( sn_snd_alb%cldes ) )
       CASE( 'none'                 )     ! nothing to do
-      CASE( 'ice' , 'weighted ice' )   ; ssnd(jps_albice)%laction = .TRUE.
-      CASE( 'mixed oce-ice'        )   ; ssnd(jps_albmix)%laction = .TRUE.
+      CASE( 'ice' , 'weighted ice' )   ; ssnd(nmodsbc)%fld(jps_albice)%laction = .TRUE.
+      CASE( 'mixed oce-ice'        )   ; ssnd(nmodsbc)%fld(jps_albmix)%laction = .TRUE.
       CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_alb%cldes' )
       END SELECT
       !
@@ -806,33 +804,33 @@ CONTAINS
       !                                                      ! ------------------------- !
       !                                                      !  Ice fraction & Thickness !
       !                                                      ! ------------------------- !
-      ssnd(jps_fice)%clname  = 'OIceFrc'
-      ssnd(jps_ficet)%clname = 'OIceFrcT'
-      ssnd(jps_hice)%clname  = 'OIceTck'
-      ssnd(jps_a_p)%clname   = 'OPndFrc'
-      ssnd(jps_ht_p)%clname  = 'OPndTck'
-      ssnd(jps_hsnw)%clname  = 'OSnwTck'
-      ssnd(jps_fice1)%clname = 'OIceFrd'
+      ssnd(nmodsbc)%fld(jps_fice)%clname  = 'OIceFrc'
+      ssnd(nmodsbc)%fld(jps_ficet)%clname = 'OIceFrcT'
+      ssnd(nmodsbc)%fld(jps_hice)%clname  = 'OIceTck'
+      ssnd(nmodsbc)%fld(jps_a_p)%clname   = 'OPndFrc'
+      ssnd(nmodsbc)%fld(jps_ht_p)%clname  = 'OPndTck'
+      ssnd(nmodsbc)%fld(jps_hsnw)%clname  = 'OSnwTck'
+      ssnd(nmodsbc)%fld(jps_fice1)%clname = 'OIceFrd'
       IF( k_ice /= 0 ) THEN
-         ssnd(jps_fice)%laction  = .TRUE.                 ! if ice treated in the ocean (even in climato case)
-         ssnd(jps_fice1)%laction = .TRUE.                 ! First-order regridded ice concentration, to be used producing atmos-to-ice fluxes (Met Office requirement)
+         ssnd(nmodsbc)%fld(jps_fice)%laction  = .TRUE.                 ! if ice treated in the ocean (even in climato case)
+         ssnd(nmodsbc)%fld(jps_fice1)%laction = .TRUE.                 ! First-order regridded ice concentration, to be used producing atmos-to-ice fluxes (Met Office requirement)
 ! Currently no namelist entry to determine sending of multi-category ice fraction so use the thickness entry for now
-         IF( TRIM( sn_snd_thick%clcat  ) == 'yes' ) ssnd(jps_fice)%nct  = nn_cats_cpl
-         IF( TRIM( sn_snd_thick1%clcat ) == 'yes' ) ssnd(jps_fice1)%nct = nn_cats_cpl
+         IF( TRIM( sn_snd_thick%clcat  ) == 'yes' ) ssnd(nmodsbc)%fld(jps_fice)%nct  = nn_cats_cpl
+         IF( TRIM( sn_snd_thick1%clcat ) == 'yes' ) ssnd(nmodsbc)%fld(jps_fice1)%nct = nn_cats_cpl
       ENDIF
 
-      IF(TRIM( sn_snd_ifrac%cldes )  == 'coupled') ssnd(jps_ficet)%laction = .TRUE.
+      IF(TRIM( sn_snd_ifrac%cldes )  == 'coupled') ssnd(nmodsbc)%fld(jps_ficet)%laction = .TRUE.
 
       SELECT CASE ( TRIM( sn_snd_thick%cldes ) )
       CASE( 'none'         )       ! nothing to do
       CASE( 'ice and snow' )
-         ssnd(jps_hice:jps_hsnw)%laction = .TRUE.
+         ssnd(nmodsbc)%fld(jps_hice:jps_hsnw)%laction = .TRUE.
          IF( TRIM( sn_snd_thick%clcat ) == 'yes' ) THEN
-            ssnd(jps_hice:jps_hsnw)%nct = nn_cats_cpl
+            ssnd(nmodsbc)%fld(jps_hice:jps_hsnw)%nct = nn_cats_cpl
          ENDIF
       CASE ( 'weighted ice and snow' )
-         ssnd(jps_hice:jps_hsnw)%laction = .TRUE.
-         IF( TRIM( sn_snd_thick%clcat ) == 'yes' ) ssnd(jps_hice:jps_hsnw)%nct = nn_cats_cpl
+         ssnd(nmodsbc)%fld(jps_hice:jps_hsnw)%laction = .TRUE.
+         IF( TRIM( sn_snd_thick%clcat ) == 'yes' ) ssnd(nmodsbc)%fld(jps_hice:jps_hsnw)%nct = nn_cats_cpl
       CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_thick%cldes' )
       END SELECT
 
@@ -840,29 +838,29 @@ CONTAINS
       !                                                      !      Ice Meltponds        !
       !                                                      ! ------------------------- !
       ! Needed by Met Office
-      ssnd(jps_a_p)%clname  = 'OPndFrc'
-      ssnd(jps_ht_p)%clname = 'OPndTck'
+      ssnd(nmodsbc)%fld(jps_a_p)%clname  = 'OPndFrc'
+      ssnd(nmodsbc)%fld(jps_ht_p)%clname = 'OPndTck'
       SELECT CASE ( TRIM( sn_snd_mpnd%cldes ) )
       CASE ( 'none' )
-         ssnd(jps_a_p)%laction  = .FALSE.
-         ssnd(jps_ht_p)%laction = .FALSE.
+         ssnd(nmodsbc)%fld(jps_a_p)%laction  = .FALSE.
+         ssnd(nmodsbc)%fld(jps_ht_p)%laction = .FALSE.
       CASE ( 'ice only' )
-         ssnd(jps_a_p)%laction  = .TRUE.
-         ssnd(jps_ht_p)%laction = .TRUE.
+         ssnd(nmodsbc)%fld(jps_a_p)%laction  = .TRUE.
+         ssnd(nmodsbc)%fld(jps_ht_p)%laction = .TRUE.
          IF( TRIM( sn_snd_mpnd%clcat ) == 'yes' ) THEN
-            ssnd(jps_a_p)%nct  = nn_cats_cpl
-            ssnd(jps_ht_p)%nct = nn_cats_cpl
+            ssnd(nmodsbc)%fld(jps_a_p)%nct  = nn_cats_cpl
+            ssnd(nmodsbc)%fld(jps_ht_p)%nct = nn_cats_cpl
          ELSE
             IF( nn_cats_cpl > 1 ) THEN
                CALL ctl_stop( 'sbc_cpl_init: use weighted ice option for sn_snd_mpnd%cldes if not exchanging category fields' )
             ENDIF
          ENDIF
       CASE ( 'weighted ice' )
-         ssnd(jps_a_p)%laction  = .TRUE.
-         ssnd(jps_ht_p)%laction = .TRUE.
+         ssnd(nmodsbc)%fld(jps_a_p)%laction  = .TRUE.
+         ssnd(nmodsbc)%fld(jps_ht_p)%laction = .TRUE.
          IF( TRIM( sn_snd_mpnd%clcat ) == 'yes' ) THEN
-            ssnd(jps_a_p)%nct  = nn_cats_cpl
-            ssnd(jps_ht_p)%nct = nn_cats_cpl
+            ssnd(nmodsbc)%fld(jps_a_p)%nct  = nn_cats_cpl
+            ssnd(nmodsbc)%fld(jps_ht_p)%nct = nn_cats_cpl
          ENDIF
       CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_mpnd%cldes; '//sn_snd_mpnd%cldes )
       END SELECT
@@ -871,57 +869,57 @@ CONTAINS
       !                                                      !      Surface current      !
       !                                                      ! ------------------------- !
       !        ocean currents              !            ice velocities
-      ssnd(jps_ocx1)%clname = 'O_OCurx1'   ;   ssnd(jps_ivx1)%clname = 'O_IVelx1'
-      ssnd(jps_ocy1)%clname = 'O_OCury1'   ;   ssnd(jps_ivy1)%clname = 'O_IVely1'
-      ssnd(jps_ocz1)%clname = 'O_OCurz1'   ;   ssnd(jps_ivz1)%clname = 'O_IVelz1'
-      ssnd(jps_ocxw)%clname = 'O_OCurxw'
-      ssnd(jps_ocyw)%clname = 'O_OCuryw'
+      ssnd(nmodsbc)%fld(jps_ocx1)%clname = 'O_OCurx1'   ;   ssnd(nmodsbc)%fld(jps_ivx1)%clname = 'O_IVelx1'
+      ssnd(nmodsbc)%fld(jps_ocy1)%clname = 'O_OCury1'   ;   ssnd(nmodsbc)%fld(jps_ivy1)%clname = 'O_IVely1'
+      ssnd(nmodsbc)%fld(jps_ocz1)%clname = 'O_OCurz1'   ;   ssnd(nmodsbc)%fld(jps_ivz1)%clname = 'O_IVelz1'
+      ssnd(nmodsbc)%fld(jps_ocxw)%clname = 'O_OCurxw'
+      ssnd(nmodsbc)%fld(jps_ocyw)%clname = 'O_OCuryw'
       !
-      ssnd(jps_ocx1:jps_ivz1)%nsgn = -1.   ! vectors: change of the sign at the north fold
+      ssnd(nmodsbc)%fld(jps_ocx1:jps_ivz1)%nsgn = -1.   ! vectors: change of the sign at the north fold
 
       IF( sn_snd_crt%clvgrd == 'U,V' ) THEN
-         ssnd(jps_ocx1)%clgrid = 'U' ; ssnd(jps_ocy1)%clgrid = 'V'
+         ssnd(nmodsbc)%fld(jps_ocx1)%clgrid = 'U' ; ssnd(nmodsbc)%fld(jps_ocy1)%clgrid = 'V'
       ELSE IF( sn_snd_crt%clvgrd /= 'T' ) THEN
          CALL ctl_stop( 'sn_snd_crt%clvgrd must be equal to T' )
       ENDIF
-      ssnd(jps_ocx1:jps_ivz1)%laction = .TRUE.   ! default: all (ocean and ice, x,y,z components) are send
-      IF( TRIM( sn_snd_crt%clvref ) == 'spherical' )   ssnd( (/jps_ocz1, jps_ivz1/) )%laction = .FALSE.
-      IF( TRIM( sn_snd_crt%clvor ) == 'eastward-northward' ) ssnd(jps_ocx1:jps_ivz1)%nsgn = 1.
+      ssnd(nmodsbc)%fld(jps_ocx1:jps_ivz1)%laction = .TRUE.   ! default: all (ocean and ice, x,y,z components) are send
+      IF( TRIM( sn_snd_crt%clvref ) == 'spherical' )   ssnd(nmodsbc)%fld( (/jps_ocz1, jps_ivz1/) )%laction = .FALSE.
+      IF( TRIM( sn_snd_crt%clvor ) == 'eastward-northward' ) ssnd(nmodsbc)%fld(jps_ocx1:jps_ivz1)%nsgn = 1.
       SELECT CASE( TRIM( sn_snd_crt%cldes ) )
-      CASE( 'none'                 )   ;   ssnd(jps_ocx1:jps_ivz1)%laction = .FALSE.
-      CASE( 'oce only'             )   ;   ssnd(jps_ivx1:jps_ivz1)%laction = .FALSE.
+      CASE( 'none'                 )   ;   ssnd(nmodsbc)%fld(jps_ocx1:jps_ivz1)%laction = .FALSE.
+      CASE( 'oce only'             )   ;   ssnd(nmodsbc)%fld(jps_ivx1:jps_ivz1)%laction = .FALSE.
       CASE( 'oce and ice'          )   !   nothing to do
       CASE( 'weighted oce and ice' )   !   nothing to do
-      CASE( 'mixed oce-ice'        )   ;   ssnd(jps_ivx1:jps_ivz1)%laction = .FALSE.
+      CASE( 'mixed oce-ice'        )   ;   ssnd(nmodsbc)%fld(jps_ivx1:jps_ivz1)%laction = .FALSE.
       CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_crt%cldes' )
       END SELECT
 
-      ssnd(jps_ocxw:jps_ocyw)%nsgn = -1.   ! vectors: change of the sign at the north fold
+      ssnd(nmodsbc)%fld(jps_ocxw:jps_ocyw)%nsgn = -1.   ! vectors: change of the sign at the north fold
 
       IF( sn_snd_crtw%clvgrd == 'U,V' ) THEN
-         ssnd(jps_ocxw)%clgrid = 'U' ; ssnd(jps_ocyw)%clgrid = 'V'
+         ssnd(nmodsbc)%fld(jps_ocxw)%clgrid = 'U' ; ssnd(nmodsbc)%fld(jps_ocyw)%clgrid = 'V'
       ELSE IF( sn_snd_crtw%clvgrd /= 'T' ) THEN
          CALL ctl_stop( 'sn_snd_crtw%clvgrd must be equal to T' )
       ENDIF
-      IF( TRIM( sn_snd_crtw%clvor ) == 'eastward-northward' ) ssnd(jps_ocxw:jps_ocyw)%nsgn = 1.
+      IF( TRIM( sn_snd_crtw%clvor ) == 'eastward-northward' ) ssnd(nmodsbc)%fld(jps_ocxw:jps_ocyw)%nsgn = 1.
       SELECT CASE( TRIM( sn_snd_crtw%cldes ) )
-         CASE( 'none'                 )   ; ssnd(jps_ocxw:jps_ocyw)%laction = .FALSE.
-         CASE( 'oce only'             )   ; ssnd(jps_ocxw:jps_ocyw)%laction = .TRUE.
+         CASE( 'none'                 )   ; ssnd(nmodsbc)%fld(jps_ocxw:jps_ocyw)%laction = .FALSE.
+         CASE( 'oce only'             )   ; ssnd(nmodsbc)%fld(jps_ocxw:jps_ocyw)%laction = .TRUE.
          CASE( 'weighted oce and ice' )   !   nothing to do
-         CASE( 'mixed oce-ice'        )   ; ssnd(jps_ivx1:jps_ivz1)%laction = .FALSE.
+         CASE( 'mixed oce-ice'        )   ; ssnd(nmodsbc)%fld(jps_ivx1:jps_ivz1)%laction = .FALSE.
          CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_crtw%cldes' )
       END SELECT
 
       !                                                      ! ------------------------- !
       !                                                      !          CO2 flux         !
       !                                                      ! ------------------------- !
-      ssnd(jps_co2)%clname = 'O_CO2FLX' ;  IF( TRIM(sn_snd_co2%cldes) == 'coupled' )    ssnd(jps_co2 )%laction = .TRUE.
+      ssnd(nmodsbc)%fld(jps_co2)%clname = 'O_CO2FLX' ;  IF( TRIM(sn_snd_co2%cldes) == 'coupled' )    ssnd(nmodsbc)%fld(jps_co2 )%laction = .TRUE.
       !
       !                                                      ! ------------------------- !
       !                                                      ! Sea surface freezing temp !
       !                                                      ! ------------------------- !
       ! needed by Met Office
-      ssnd(jps_sstfrz)%clname = 'O_SSTFrz' ; IF( TRIM(sn_snd_sstfrz%cldes) == 'coupled' )  ssnd(jps_sstfrz)%laction = .TRUE.
+      ssnd(nmodsbc)%fld(jps_sstfrz)%clname = 'O_SSTFrz' ; IF( TRIM(sn_snd_sstfrz%cldes) == 'coupled' )  ssnd(nmodsbc)%fld(jps_sstfrz)%laction = .TRUE.
       !
       !                                                      ! ------------------------- !
       !                                                      !    Ice conductivity       !
@@ -929,64 +927,64 @@ CONTAINS
       ! needed by Met Office
       ! Note that ultimately we will move to passing an ocean effective conductivity as well so there
       ! will be some changes to the parts of the code which currently relate only to ice conductivity
-      ssnd(jps_ttilyr )%clname = 'O_TtiLyr'
+      ssnd(nmodsbc)%fld(jps_ttilyr )%clname = 'O_TtiLyr'
       SELECT CASE ( TRIM( sn_snd_ttilyr%cldes ) )
       CASE ( 'none' )
-         ssnd(jps_ttilyr)%laction = .FALSE.
+         ssnd(nmodsbc)%fld(jps_ttilyr)%laction = .FALSE.
       CASE ( 'ice only' )
-         ssnd(jps_ttilyr)%laction = .TRUE.
+         ssnd(nmodsbc)%fld(jps_ttilyr)%laction = .TRUE.
          IF( TRIM( sn_snd_ttilyr%clcat ) == 'yes' ) THEN
-            ssnd(jps_ttilyr)%nct = nn_cats_cpl
+            ssnd(nmodsbc)%fld(jps_ttilyr)%nct = nn_cats_cpl
          ELSE
             IF( nn_cats_cpl > 1 ) THEN
                CALL ctl_stop( 'sbc_cpl_init: use weighted ice option for sn_snd_ttilyr%cldes if not exchanging category fields' )
             ENDIF
          ENDIF
       CASE ( 'weighted ice' )
-         ssnd(jps_ttilyr)%laction = .TRUE.
-         IF( TRIM( sn_snd_ttilyr%clcat ) == 'yes' ) ssnd(jps_ttilyr)%nct = nn_cats_cpl
+         ssnd(nmodsbc)%fld(jps_ttilyr)%laction = .TRUE.
+         IF( TRIM( sn_snd_ttilyr%clcat ) == 'yes' ) ssnd(nmodsbc)%fld(jps_ttilyr)%nct = nn_cats_cpl
       CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_ttilyr%cldes;'//sn_snd_ttilyr%cldes )
       END SELECT
 
-      ssnd(jps_kice )%clname = 'OIceKn'
+      ssnd(nmodsbc)%fld(jps_kice )%clname = 'OIceKn'
       SELECT CASE ( TRIM( sn_snd_cond%cldes ) )
       CASE ( 'none' )
-         ssnd(jps_kice)%laction = .FALSE.
+         ssnd(nmodsbc)%fld(jps_kice)%laction = .FALSE.
       CASE ( 'ice only' )
-         ssnd(jps_kice)%laction = .TRUE.
+         ssnd(nmodsbc)%fld(jps_kice)%laction = .TRUE.
          IF( TRIM( sn_snd_cond%clcat ) == 'yes' ) THEN
-            ssnd(jps_kice)%nct = nn_cats_cpl
+            ssnd(nmodsbc)%fld(jps_kice)%nct = nn_cats_cpl
          ELSE
             IF( nn_cats_cpl > 1 ) THEN
                CALL ctl_stop( 'sbc_cpl_init: use weighted ice option for sn_snd_cond%cldes if not exchanging category fields' )
             ENDIF
          ENDIF
       CASE ( 'weighted ice' )
-         ssnd(jps_kice)%laction = .TRUE.
-         IF( TRIM( sn_snd_cond%clcat ) == 'yes' ) ssnd(jps_kice)%nct = nn_cats_cpl
+         ssnd(nmodsbc)%fld(jps_kice)%laction = .TRUE.
+         IF( TRIM( sn_snd_cond%clcat ) == 'yes' ) ssnd(nmodsbc)%fld(jps_kice)%nct = nn_cats_cpl
       CASE default   ;   CALL ctl_stop( 'sbc_cpl_init: wrong definition of sn_snd_cond%cldes;'//sn_snd_cond%cldes )
       END SELECT
       !
       !                                                      ! ------------------------- !
       !                                                      !     Sea surface height    !
       !                                                      ! ------------------------- !
-      ssnd(jps_wlev)%clname = 'O_Wlevel' ;  IF( TRIM(sn_snd_wlev%cldes) == 'coupled' )   ssnd(jps_wlev)%laction = .TRUE.
+      ssnd(nmodsbc)%fld(jps_wlev)%clname = 'O_Wlevel' ;  IF( TRIM(sn_snd_wlev%cldes) == 'coupled' )   ssnd(nmodsbc)%fld(jps_wlev)%laction = .TRUE.
 
       !                                                      ! ------------------------------- !
       !                                                      !   OCE-SAS coupling - snd by opa !
       !                                                      ! ------------------------------- !
-      ssnd(jps_ssh   )%clname = 'O_SSHght'
-      ssnd(jps_soce  )%clname = 'O_SSSal'
-      ssnd(jps_e3t1st)%clname = 'O_E3T1st'
-      ssnd(jps_fraqsr)%clname = 'O_FraQsr'
+      ssnd(nmodsbc)%fld(jps_ssh   )%clname = 'O_SSHght'
+      ssnd(nmodsbc)%fld(jps_soce  )%clname = 'O_SSSal'
+      ssnd(nmodsbc)%fld(jps_e3t1st)%clname = 'O_E3T1st'
+      ssnd(nmodsbc)%fld(jps_fraqsr)%clname = 'O_FraQsr'
       !
       IF( nn_components == jp_iam_oce ) THEN
-         ssnd(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
-         ssnd( (/jps_toce, jps_soce, jps_ssh, jps_fraqsr, jps_ocx1, jps_ocy1/) )%laction = .TRUE.
-         ssnd( jps_e3t1st )%laction = .NOT.lk_linssh
+         ssnd(nmodsbc)%fld(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
+         ssnd(nmodsbc)%fld( (/jps_toce, jps_soce, jps_ssh, jps_fraqsr, jps_ocx1, jps_ocy1/) )%laction = .TRUE.
+         ssnd(nmodsbc)%fld( jps_e3t1st )%laction = .NOT.lk_linssh
          ! vector definition: not used but cleaner...
-         ssnd(jps_ocx1)%clgrid  = 'U'        ! oce components given at U-point
-         ssnd(jps_ocy1)%clgrid  = 'V'        !           and           V-point
+         ssnd(nmodsbc)%fld(jps_ocx1)%clgrid  = 'U'        ! oce components given at U-point
+         ssnd(nmodsbc)%fld(jps_ocy1)%clgrid  = 'V'        !           and           V-point
          sn_snd_crt%clvgrd = 'U,V'
          sn_snd_crt%clvor = 'local grid'
          sn_snd_crt%clvref = 'spherical'
@@ -1006,25 +1004,25 @@ CONTAINS
       !                                                      ! ------------------------------- !
       !                                                      !   OCE-SAS coupling - snd by sas !
       !                                                      ! ------------------------------- !
-      ssnd(jps_sflx  )%clname = 'I_SFLX'
-      ssnd(jps_fice2 )%clname = 'IIceFrc'
-      ssnd(jps_qsroce)%clname = 'I_QsrOce'
-      ssnd(jps_qnsoce)%clname = 'I_QnsOce'
-      ssnd(jps_oemp  )%clname = 'IOEvaMPr'
-      ssnd(jps_otx1  )%clname = 'I_OTaux1'
-      ssnd(jps_oty1  )%clname = 'I_OTauy1'
-      ssnd(jps_rnf   )%clname = 'I_Runoff'
-      ssnd(jps_taum  )%clname = 'I_TauMod'
+      ssnd(nmodsbc)%fld(jps_sflx  )%clname = 'I_SFLX'
+      ssnd(nmodsbc)%fld(jps_fice2 )%clname = 'IIceFrc'
+      ssnd(nmodsbc)%fld(jps_qsroce)%clname = 'I_QsrOce'
+      ssnd(nmodsbc)%fld(jps_qnsoce)%clname = 'I_QnsOce'
+      ssnd(nmodsbc)%fld(jps_oemp  )%clname = 'IOEvaMPr'
+      ssnd(nmodsbc)%fld(jps_otx1  )%clname = 'I_OTaux1'
+      ssnd(nmodsbc)%fld(jps_oty1  )%clname = 'I_OTauy1'
+      ssnd(nmodsbc)%fld(jps_rnf   )%clname = 'I_Runoff'
+      ssnd(nmodsbc)%fld(jps_taum  )%clname = 'I_TauMod'
       !
       IF( nn_components == jp_iam_sas ) THEN
-         IF( .NOT. ln_cpl ) ssnd(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
-         ssnd( (/jps_qsroce, jps_qnsoce, jps_oemp, jps_fice2, jps_sflx, jps_otx1, jps_oty1, jps_taum/) )%laction = .TRUE.
+         IF( .NOT. ln_cpl ) ssnd(nmodsbc)%fld(:)%laction = .FALSE.   ! force default definition in case of opa <-> sas coupling
+         ssnd(nmodsbc)%fld( (/jps_qsroce, jps_qnsoce, jps_oemp, jps_fice2, jps_sflx, jps_otx1, jps_oty1, jps_taum/) )%laction = .TRUE.
          !
          ! Change first letter to couple with atmosphere if already coupled with sea_ice
          ! this is nedeed as each variable name used in the namcouple must be unique:
          ! for example O_SSTSST sent by OCE to SAS and therefore S_SSTSST sent by SAS to the Atmosphere
          DO jn = 1, jpsnd
-            IF( ssnd(jn)%clname(1:1) == "O" ) ssnd(jn)%clname = "S"//ssnd(jn)%clname(2:LEN(ssnd(jn)%clname))
+            IF( ssnd(nmodsbc)%fld(jn)%clname(1:1) == "O" ) ssnd(nmodsbc)%fld(jn)%clname = "S"//ssnd(nmodsbc)%fld(jn)%clname(2:LEN(ssnd(nmodsbc)%fld(jn)%clname))
          END DO
          !
          IF(lwp) THEN                        ! control print
@@ -1045,20 +1043,19 @@ CONTAINS
       ENDIF
 
       !
-      ! ================================ !
-      !   initialisation of the coupler  !
-      ! ================================ !
-      CALL cpl_define(jprcv, jpsnd, nn_cplmodel)
+      ! =================================== !
+      !   define variables for the coupler  !
+      ! =================================== !
+      CALL cpl_var(jprcv, jpsnd, nn_cplmodel, nmodsbc)
 
       IF(ln_usecplmask) THEN
-         xcplmask(A2D(0),:) = 0.
          CALL iom_open( 'cplmask', inum )
-         CALL iom_get( inum, jpdom_unknown, 'cplmask', xcplmask(A2D(0),1:nn_cplmodel),   &
+         CALL iom_get( inum, jpdom_unknown, 'cplmask', xcplmask(A2D(0),1,1:nn_cplmodel),   &
             &          kstart = (/ mig(Nis0,0),mjg(Njs0,0),1 /), kcount = (/ Ni_0,Nj_0,nn_cplmodel /) )
          CALL iom_close( inum )
-         xcplmask(A2D(0),0) = 1. - SUM( xcplmask(A2D(0),1:nn_cplmodel), dim = 3 )
+         xcplmask(A2D(0),1,0) = 1. - SUM( xcplmask(A2D(0),1,1:nn_cplmodel), dim = 3 )
       ELSE
-         xcplmask(A2D(0),:) = 1.
+         xcplmask(A2D(0),1,:) = 1.
       ENDIF
       !
    END SUBROUTINE sbc_cpl_init
@@ -1131,7 +1128,8 @@ CONTAINS
       !
       IF( kt == nit000 ) THEN
       !   cannot be done in the init phase when we use agrif as cpl_freq requires that oasis_enddef is done
-         ncpl_qsr_freq = cpl_freq( 'O_QsrOce' ) + cpl_freq( 'O_QsrMix' ) + cpl_freq( 'I_QsrOce' ) + cpl_freq( 'I_QsrMix' )
+         ncpl_qsr_freq = cpl_freq( 'O_QsrOce', nmodsbc ) + cpl_freq( 'O_QsrMix', nmodsbc ) + &
+                     &   cpl_freq( 'I_QsrOce', nmodsbc ) + cpl_freq( 'I_QsrMix', nmodsbc )
          IF( ln_dm2dc .AND. ncpl_qsr_freq /= 86400 )   &
             &   CALL ctl_stop( 'sbc_cpl_rcv: diurnal cycle reconstruction (ln_dm2dc) needs daily couping for solar radiation' )
 
@@ -1141,18 +1139,18 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      IF( ln_mixcpl )   zmsk (A2D(0)) = 1. - xcplmask (A2D(0),0)
+      IF( ln_mixcpl )   zmsk (A2D(0)) = 1. - xcplmask (A2D(0),1,0)
       !
       !                                                      ! ======================================================= !
       !                                                      ! Receive all the atmos. fields (including ice information)
       !                                                      ! ======================================================= !
       isec = ( kt - nit000 ) * NINT( rn_Dt )                      ! date of exchanges
       DO jn = 1, jprcv                                          ! received fields sent by the atmosphere
-         IF( srcv(jn)%laction )   CALL cpl_rcv( jn, isec, frcv(jn)%z3, xcplmask(A2D(0),1:nn_cplmodel), nrcvinfo(jn) )
+         IF( srcv(nmodsbc)%fld(jn)%laction )   CALL cpl_rcv( nmodsbc, jn, isec, frcv(jn)%z3, nrcvinfo(jn), xcplmask(A2D(0),1:1,1:nn_cplmodel) )
       END DO
 
       !                                                      ! ========================= !
-      IF( srcv(jpr_otx1)%laction ) THEN                      !  ocean stress components  !
+      IF( srcv(nmodsbc)%fld(jpr_otx1)%laction ) THEN                      !  ocean stress components  !
          !                                                   ! ========================= !
          ! define frcv(jpr_otx1)%z3(A2D(0),1) and frcv(jpr_oty1)%z3(A2D(0),1): stress at U/V point along model grid
          ! => need to be done only when we receive the field
@@ -1190,7 +1188,7 @@ CONTAINS
       !                                                      ! ========================= !
       !                                                      !    wind stress module     !   (taum)
       !                                                      ! ========================= !
-      IF( .NOT. srcv(jpr_taum)%laction ) THEN                    ! compute wind stress module from its components if not received
+      IF( .NOT. srcv(nmodsbc)%fld(jpr_taum)%laction ) THEN                    ! compute wind stress module from its components if not received
          ! => need to be done only when otx1 was changed
          IF( llnewtx ) THEN
             DO_2D( 0, 0, 0, 0 )
@@ -1213,7 +1211,7 @@ CONTAINS
       !                                                      ! ========================= !
       !                                                      !      10 m wind speed      !   (wndm)
       !                                                      ! ========================= !
-      IF( .NOT. srcv(jpr_w10m)%laction ) THEN                    ! compute wind spreed from wind stress module if not received
+      IF( .NOT. srcv(nmodsbc)%fld(jpr_w10m)%laction ) THEN                    ! compute wind spreed from wind stress module if not received
          ! => need to be done only when taumod was changed
          IF( llnewtau ) THEN
             zcoef = 1. / ( zrhoa * zcdrag )
@@ -1230,7 +1228,7 @@ CONTAINS
 !!$
       zcloud_fra(A2D(0)) = pp_cldf   ! should be real cloud fraction instead (as in the bulk) but needs to be read from atm.
       IF( ln_mixcpl ) THEN
-         cloud_fra(A2D(0)) = cloud_fra(A2D(0)) * xcplmask(A2D(0),0) + zcloud_fra(A2D(0))* zmsk(A2D(0))
+         cloud_fra(A2D(0)) = cloud_fra(A2D(0)) * xcplmask(A2D(0),1,0) + zcloud_fra(A2D(0))* zmsk(A2D(0))
       ELSE
          cloud_fra(A2D(0)) = zcloud_fra(A2D(0))
       ENDIF
@@ -1240,10 +1238,10 @@ CONTAINS
       IF( MOD( kt-1, k_fsbc ) == 0 ) THEN
          !
          IF( ln_mixcpl ) THEN
-            utau(A2D(0)) = utau(A2D(0)) * xcplmask(A2D(0),0) + frcv(jpr_otx1)%z3(A2D(0),1) * zmsk(A2D(0))
-            vtau(A2D(0)) = vtau(A2D(0)) * xcplmask(A2D(0),0) + frcv(jpr_oty1)%z3(A2D(0),1) * zmsk(A2D(0))
-            taum(A2D(0)) = taum(A2D(0)) * xcplmask(A2D(0),0) + frcv(jpr_taum)%z3(A2D(0),1) * zmsk(A2D(0))
-            wndm(A2D(0)) = wndm(A2D(0)) * xcplmask(A2D(0),0) + frcv(jpr_w10m)%z3(A2D(0),1) * zmsk(A2D(0))
+            utau(A2D(0)) = utau(A2D(0)) * xcplmask(A2D(0),1,0) + frcv(jpr_otx1)%z3(A2D(0),1) * zmsk(A2D(0))
+            vtau(A2D(0)) = vtau(A2D(0)) * xcplmask(A2D(0),1,0) + frcv(jpr_oty1)%z3(A2D(0),1) * zmsk(A2D(0))
+            taum(A2D(0)) = taum(A2D(0)) * xcplmask(A2D(0),1,0) + frcv(jpr_taum)%z3(A2D(0),1) * zmsk(A2D(0))
+            wndm(A2D(0)) = wndm(A2D(0)) * xcplmask(A2D(0),1,0) + frcv(jpr_w10m)%z3(A2D(0),1) * zmsk(A2D(0))
          ELSE
             utau(A2D(0)) = frcv(jpr_otx1)%z3(A2D(0),1)
             vtau(A2D(0)) = frcv(jpr_oty1)%z3(A2D(0),1)
@@ -1259,12 +1257,12 @@ CONTAINS
       !                                                      ! ================== !
       !                                                      ! atmosph. CO2 (ppm) !
       !                                                      ! ================== !
-      IF( srcv(jpr_co2)%laction )   atm_co2(A2D(0)) = frcv(jpr_co2)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_co2)%laction )   atm_co2(A2D(0)) = frcv(jpr_co2)%z3(A2D(0),1)
       !
       !                                                      ! ========================= !
       !                                                      ! Mean Sea Level Pressure   !   (taum)
       !                                                      ! ========================= !
-      IF( srcv(jpr_mslp)%laction ) THEN                    ! UKMO SHELF effect of atmospheric pressure on SSH
+      IF( srcv(nmodsbc)%fld(jpr_mslp)%laction ) THEN                    ! UKMO SHELF effect of atmospheric pressure on SSH
           IF( kt /= nit000 )   ssh_ibb(A2D(0)) = ssh_ib(A2D(0))    !* Swap of ssh_ib fields
 
           r1_grau = 1.e0 / (grav * rho0)               !* constant for optimization
@@ -1279,7 +1277,7 @@ CONTAINS
       !                                                      ! ========================= !
       !                                                      !       Stokes drift        !
       !                                                      ! ========================= !
-         IF( srcv(jpr_sdrftx)%laction ) THEN
+         IF( srcv(nmodsbc)%fld(jpr_sdrftx)%laction ) THEN
             ut0sd(A2D(0)) = frcv(jpr_sdrftx)%z3(A2D(0),1)
             vt0sd(A2D(0)) = frcv(jpr_sdrfty)%z3(A2D(0),1)
             CALL lbc_lnk( 'sbccpl', ut0sd, 'T', -1.0_wp, vt0sd, 'T', -1.0_wp, ldfull = .TRUE. )
@@ -1288,7 +1286,7 @@ CONTAINS
       !                                                      ! ========================= !
       !                                                      !      Wave mean period     !
       !                                                      ! ========================= !
-         IF( srcv(jpr_wper)%laction ) THEN
+         IF( srcv(nmodsbc)%fld(jpr_wper)%laction ) THEN
             wmp(A2D(0)) = frcv(jpr_wper)%z3(A2D(0),1)
             CALL lbc_lnk( 'sbccpl', wmp, 'T', 1.0_wp, ldfull = .TRUE. )
          ENDIF
@@ -1296,7 +1294,7 @@ CONTAINS
       !                                                      ! ========================= !
       !                                                      !  Significant wave height  !
       !                                                      ! ========================= !
-         IF( srcv(jpr_hsig)%laction ) THEN
+         IF( srcv(nmodsbc)%fld(jpr_hsig)%laction ) THEN
             hsw(A2D(0)) = frcv(jpr_hsig)%z3(A2D(0),1)
             CALL lbc_lnk( 'sbccpl', hsw, 'T', 1.0_wp, ldfull = .TRUE. )
          ENDIF
@@ -1304,57 +1302,57 @@ CONTAINS
       !                                                      ! ========================= !
       !                                                      !    Vertical mixing Qiao   !
       !                                                      ! ========================= !
-         IF( srcv(jpr_wnum)%laction .AND. ln_zdfswm ) wnum(A2D(0)) = frcv(jpr_wnum)%z3(A2D(0),1)
+         IF( srcv(nmodsbc)%fld(jpr_wnum)%laction .AND. ln_zdfswm ) wnum(A2D(0)) = frcv(jpr_wnum)%z3(A2D(0),1)
 
          ! Calculate the 3D Stokes drift both in coupled and not fully uncoupled mode
-         IF( srcv(jpr_sdrftx)%laction .OR. srcv(jpr_sdrfty)%laction .OR. &
-             srcv(jpr_wper)%laction .OR. srcv(jpr_hsig)%laction )   THEN
+         IF( srcv(nmodsbc)%fld(jpr_sdrftx)%laction .OR. srcv(nmodsbc)%fld(jpr_sdrfty)%laction .OR. &
+             srcv(nmodsbc)%fld(jpr_wper)%laction .OR. srcv(nmodsbc)%fld(jpr_hsig)%laction )   THEN
             CALL sbc_stokes( Kmm )
          ENDIF
       ENDIF
       !                                                      ! ========================= !
       !                                                      ! Stress adsorbed by waves  !
       !                                                      ! ========================= !
-      IF( srcv(jpr_wstrf)%laction .AND. ln_tauoc )  tauoc_wave(A2D(0)) = frcv(jpr_wstrf)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_wstrf)%laction .AND. ln_tauoc )  tauoc_wave(A2D(0)) = frcv(jpr_wstrf)%z3(A2D(0),1)
       !
       !                                                      ! ========================= !
       !                                                      !   Wave drag coefficient   !
       !                                                      ! ========================= !
-      IF( srcv(jpr_wdrag)%laction .AND. ln_cdgw )   cdn_wave(A2D(0)) = frcv(jpr_wdrag)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_wdrag)%laction .AND. ln_cdgw )   cdn_wave(A2D(0)) = frcv(jpr_wdrag)%z3(A2D(0),1)
       !
       !                                                      ! ========================= !
       !                                                      !   Chranock coefficient    !
       !                                                      ! ========================= !
-      IF( srcv(jpr_charn)%laction .AND. ln_charn )  charn(A2D(0)) = frcv(jpr_charn)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_charn)%laction .AND. ln_charn )  charn(A2D(0)) = frcv(jpr_charn)%z3(A2D(0),1)
       !
       !                                                      ! ========================= !
       !                                                      ! net wave-supported stress !
       !                                                      ! ========================= !
-      IF( srcv(jpr_tawx)%laction .AND. ln_taw )     tawx(A2D(0)) = frcv(jpr_tawx)%z3(A2D(0),1)
-      IF( srcv(jpr_tawy)%laction .AND. ln_taw )     tawy(A2D(0)) = frcv(jpr_tawy)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_tawx)%laction .AND. ln_taw )     tawx(A2D(0)) = frcv(jpr_tawx)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_tawy)%laction .AND. ln_taw )     tawy(A2D(0)) = frcv(jpr_tawy)%z3(A2D(0),1)
       !
       !                                                      ! ========================= !
       !                                                      !wave to ocean momentum flux!
       !                                                      ! ========================= !
-      IF( srcv(jpr_twox)%laction .AND. ln_taw )     twox(A2D(0)) = frcv(jpr_twox)%z3(A2D(0),1)
-      IF( srcv(jpr_twoy)%laction .AND. ln_taw )     twoy(A2D(0)) = frcv(jpr_twoy)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_twox)%laction .AND. ln_taw )     twox(A2D(0)) = frcv(jpr_twox)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_twoy)%laction .AND. ln_taw )     twoy(A2D(0)) = frcv(jpr_twoy)%z3(A2D(0),1)
       !
       !                                                      ! ========================= !
       !                                                      !    wave TKE flux at sfc   !
       !                                                      ! ========================= !
-      IF( srcv(jpr_phioc)%laction .AND. ln_phioc )     phioc(A2D(0)) = frcv(jpr_phioc)%z3(A2D(0),1)
+      IF( srcv(nmodsbc)%fld(jpr_phioc)%laction .AND. ln_phioc )     phioc(A2D(0)) = frcv(jpr_phioc)%z3(A2D(0),1)
       !
       !                                                      ! ========================= !
       !                                                      !      Bernoulli head       !
       !                                                      ! ========================= !
-      IF( srcv(jpr_bhd)%laction .AND. ln_bern_srfc ) THEN
+      IF( srcv(nmodsbc)%fld(jpr_bhd)%laction .AND. ln_bern_srfc ) THEN
          bhd_wave(A2D(0)) = frcv(jpr_bhd)%z3(A2D(0),1)
          CALL lbc_lnk( 'sbccpl', bhd_wave, 'T', 1.0_wp, ldfull = .TRUE. )
       ENDIF
       !                                                      ! ========================= !
       !                                                      !      Stokes transport     !
       !                                                      ! ========================= !
-      IF( srcv(jpr_tusd)%laction .AND. ln_breivikFV_2016 ) THEN
+      IF( srcv(nmodsbc)%fld(jpr_tusd)%laction .AND. ln_breivikFV_2016 ) THEN
          tusd(A2D(0)) = frcv(jpr_tusd)%z3(A2D(0),1)
          tvsd(A2D(0)) = frcv(jpr_tvsd)%z3(A2D(0),1)
          CALL lbc_lnk( 'sbccpl', tusd, 'T', -1.0_wp, tvsd, 'T', -1.0_wp, ldfull = .TRUE. )
@@ -1365,7 +1363,7 @@ CONTAINS
       !                                                      ! ================== !
       !                                                      !        SSS         !
       !                                                      ! ================== !
-      IF( srcv(jpr_soce)%laction ) THEN                      ! received by sas in case of opa <-> sas coupling
+      IF( srcv(nmodsbc)%fld(jpr_soce)%laction ) THEN                      ! received by sas in case of opa <-> sas coupling
          sss_m(A2D(0)) = frcv(jpr_soce)%z3(A2D(0),1)
          CALL lbc_lnk( 'sbccpl', sss_m, 'T', 1.0_wp, ldfull = .TRUE. )
          CALL iom_put(  'sss_m', sss_m )
@@ -1374,8 +1372,8 @@ CONTAINS
       !                                                      ! ================== !
       !                                                      !        SST         !
       !                                                      ! ================== !
-      IF( srcv(jpr_toce)%laction ) THEN                      ! received by sas in case of opa <-> sas coupling
-         IF( srcv(jpr_soce)%laction .AND. l_useCT ) THEN     ! make sure that sst_m is the potential temperature
+      IF( srcv(nmodsbc)%fld(jpr_toce)%laction ) THEN                      ! received by sas in case of opa <-> sas coupling
+         IF( srcv(nmodsbc)%fld(jpr_soce)%laction .AND. l_useCT ) THEN     ! make sure that sst_m is the potential temperature
             CALL eos_pt_from_ct( frcv(jpr_toce)%z3(A2D(0),1), sss_m(A2D(0)), sst_m(A2D(0)), kbnd=0 )
          ELSE
             sst_m(A2D(0)) = frcv(jpr_toce)%z3(A2D(0),1)
@@ -1386,7 +1384,7 @@ CONTAINS
       !                                                      ! ================== !
       !                                                      !        SSH         !
       !                                                      ! ================== !
-      IF( srcv(jpr_ssh )%laction ) THEN                      ! received by sas in case of opa <-> sas coupling
+      IF( srcv(nmodsbc)%fld(jpr_ssh )%laction ) THEN                      ! received by sas in case of opa <-> sas coupling
          ssh_m(A2D(0)) = frcv(jpr_ssh )%z3(A2D(0),1)
          CALL lbc_lnk( 'sbccpl', ssh_m, 'T', 1.0_wp, ldfull = .TRUE. )
          CALL iom_put(  'ssh_m', ssh_m )
@@ -1394,14 +1392,14 @@ CONTAINS
       !                                                      ! ================== !
       !                                                      !  surface currents  !
       !                                                      ! ================== !
-      IF( srcv(jpr_ocx1)%laction ) THEN                      ! received by sas in case of opa <-> sas coupling
+      IF( srcv(nmodsbc)%fld(jpr_ocx1)%laction ) THEN                      ! received by sas in case of opa <-> sas coupling
          ssu_m(A2D(0)) = frcv(jpr_ocx1)%z3(A2D(0),1)
          CALL lbc_lnk( 'sbccpl', ssu_m, 'U', -1.0_wp, ldfull = .TRUE. )
          CALL iom_put(  'ssu_m', ssu_m )
          uu(1:jpi,1:jpj,1,Kbb) = ssu_m(1:jpi,1:jpj)          ! will be used in icestp in the call of ice_update_tau
          uu(1:jpi,1:jpj,1,Kmm) = ssu_m(1:jpi,1:jpj)          ! will be used in sbc_cpl_snd if atmosphere coupling
       ENDIF
-      IF( srcv(jpr_ocy1)%laction ) THEN
+      IF( srcv(nmodsbc)%fld(jpr_ocy1)%laction ) THEN
          ssv_m(A2D(0)) = frcv(jpr_ocy1)%z3(A2D(0),1)
          CALL lbc_lnk( 'sbccpl', ssv_m, 'V', -1.0_wp, ldfull = .TRUE. )
          CALL iom_put(  'ssv_m', ssv_m )
@@ -1411,7 +1409,7 @@ CONTAINS
       !                                                      ! ======================== !
       !                                                      !  first T level thickness !
       !                                                      ! ======================== !
-      IF( srcv(jpr_e3t1st )%laction ) THEN                   ! received by sas in case of opa <-> sas coupling
+      IF( srcv(nmodsbc)%fld(jpr_e3t1st )%laction ) THEN                   ! received by sas in case of opa <-> sas coupling
          e3t_m(A2D(0)) = frcv(jpr_e3t1st )%z3(A2D(0),1)
          CALL lbc_lnk( 'sbccpl', e3t_m, 'T', 1.0_wp, ldfull = .TRUE. )
          CALL iom_put(  'e3t_m', e3t_m )
@@ -1419,7 +1417,7 @@ CONTAINS
       !                                                      ! ================================ !
       !                                                      !  fraction of solar net radiation !
       !                                                      ! ================================ !
-      IF( srcv(jpr_fraqsr)%laction ) THEN                    ! received by sas in case of opa <-> sas coupling
+      IF( srcv(nmodsbc)%fld(jpr_fraqsr)%laction ) THEN                    ! received by sas in case of opa <-> sas coupling
          frq_m(A2D(0)) = frcv(jpr_fraqsr)%z3(A2D(0),1)
          CALL lbc_lnk( 'sbccpl', frq_m, 'T', 1.0_wp, ldfull = .TRUE. )
          CALL iom_put(  'frq_m', frq_m )
@@ -1430,7 +1428,7 @@ CONTAINS
          !                                                   ! ========================= !
          !
          !                                                       ! total freshwater fluxes over the ocean (emp)
-         IF( srcv(jpr_oemp)%laction .OR. srcv(jpr_rain)%laction ) THEN
+         IF( srcv(nmodsbc)%fld(jpr_oemp)%laction .OR. srcv(nmodsbc)%fld(jpr_rain)%laction ) THEN
             SELECT CASE( TRIM( sn_rcv_emp%cldes ) )                                    ! evaporation - precipitation
             CASE( 'conservative' )
                zemp(A2D(0)) = frcv(jpr_tevp)%z3(A2D(0),1) - ( frcv(jpr_rain)%z3(A2D(0),1) + frcv(jpr_snow)%z3(A2D(0),1) )
@@ -1444,20 +1442,20 @@ CONTAINS
          ENDIF
          !
          !                                                        ! runoffs and calving (added in emp)
-         IF( srcv(jpr_rnf)%laction )     rnf(A2D(0)) = frcv(jpr_rnf)%z3(A2D(0),1)
-         IF( srcv(jpr_cal)%laction )     zemp(A2D(0)) = zemp(A2D(0)) - frcv(jpr_cal)%z3(A2D(0),1)
+         IF( srcv(nmodsbc)%fld(jpr_rnf)%laction )     rnf(A2D(0)) = frcv(jpr_rnf)%z3(A2D(0),1)
+         IF( srcv(nmodsbc)%fld(jpr_cal)%laction )     zemp(A2D(0)) = zemp(A2D(0)) - frcv(jpr_cal)%z3(A2D(0),1)
 
-         IF( srcv(jpr_icb)%laction )  THEN
+         IF( srcv(nmodsbc)%fld(jpr_icb)%laction )  THEN
              fwficb(A2D(0)) = frcv(jpr_icb)%z3(A2D(0),1)
              rnf(A2D(0)) = rnf(A2D(0)) + fwficb(A2D(0))   ! iceberg added to runfofs
          ENDIF
          !
          ! ice shelf fwf
-         IF( srcv(jpr_isf)%laction )  THEN
+         IF( srcv(nmodsbc)%fld(jpr_isf)%laction )  THEN
             fwfisf_oasis(A2D(0)) = frcv(jpr_isf)%z3(A2D(0),1)  ! fresh water flux from the isf to the ocean ( > 0 = melting )
          END IF
 
-         IF( ln_mixcpl ) THEN   ;   emp(A2D(0)) = emp(A2D(0)) * xcplmask(A2D(0),0) + zemp(A2D(0)) * zmsk(A2D(0))
+         IF( ln_mixcpl ) THEN   ;   emp(A2D(0)) = emp(A2D(0)) * xcplmask(A2D(0),1,0) + zemp(A2D(0)) * zmsk(A2D(0))
          ELSE                   ;   emp(A2D(0)) =                                    zemp(A2D(0))
          ENDIF
          !
@@ -1468,38 +1466,38 @@ CONTAINS
          ENDIF
          !
          !                                                       ! non solar heat flux over the ocean (qns)
-         IF(      srcv(jpr_qnsoce)%laction ) THEN   ;   zqns(A2D(0)) = frcv(jpr_qnsoce)%z3(A2D(0),1)
-         ELSE IF( srcv(jpr_qnsmix)%laction ) THEN   ;   zqns(A2D(0)) = frcv(jpr_qnsmix)%z3(A2D(0),1)
+         IF(      srcv(nmodsbc)%fld(jpr_qnsoce)%laction ) THEN   ;   zqns(A2D(0)) = frcv(jpr_qnsoce)%z3(A2D(0),1)
+         ELSE IF( srcv(nmodsbc)%fld(jpr_qnsmix)%laction ) THEN   ;   zqns(A2D(0)) = frcv(jpr_qnsmix)%z3(A2D(0),1)
          ELSE                                       ;   zqns(A2D(0)) = 0._wp
          ENDIF
          ! update qns over the free ocean with:
          IF( nn_components /= jp_iam_oce ) THEN
             zqns(A2D(0)) =  zqns(A2D(0)) - zemp(A2D(0)) * sst_m(A2D(0)) * rcp      ! remove heat content due to mass flux (assumed to be at SST)
-            IF( srcv(jpr_snow  )%laction ) THEN
+            IF( srcv(nmodsbc)%fld(jpr_snow  )%laction ) THEN
                zqns(A2D(0)) = zqns(A2D(0)) - frcv(jpr_snow)%z3(A2D(0),1) * rLfus   ! energy for melting solid precipitation over the free ocean
             ENDIF
          ENDIF
          !
-         IF( srcv(jpr_icb)%laction )  zqns(A2D(0)) = zqns(A2D(0)) - frcv(jpr_icb)%z3(A2D(0),1) * rLfus ! remove heat content associated to iceberg melting
+         IF( srcv(nmodsbc)%fld(jpr_icb)%laction )  zqns(A2D(0)) = zqns(A2D(0)) - frcv(jpr_icb)%z3(A2D(0),1) * rLfus ! remove heat content associated to iceberg melting
          !
-         IF( ln_mixcpl ) THEN   ;   qns(A2D(0)) = qns(A2D(0)) * xcplmask(A2D(0),0) + zqns(A2D(0)) * zmsk(A2D(0))
+         IF( ln_mixcpl ) THEN   ;   qns(A2D(0)) = qns(A2D(0)) * xcplmask(A2D(0),1,0) + zqns(A2D(0)) * zmsk(A2D(0))
          ELSE                   ;   qns(A2D(0)) =                                    zqns(A2D(0))
          ENDIF
 
          !                                                       ! solar flux over the ocean          (qsr)
-         IF     ( srcv(jpr_qsroce)%laction ) THEN   ;   zqsr(A2D(0)) = frcv(jpr_qsroce)%z3(A2D(0),1)
-         ELSE IF( srcv(jpr_qsrmix)%laction ) then   ;   zqsr(A2D(0)) = frcv(jpr_qsrmix)%z3(A2D(0),1)
+         IF     ( srcv(nmodsbc)%fld(jpr_qsroce)%laction ) THEN   ;   zqsr(A2D(0)) = frcv(jpr_qsroce)%z3(A2D(0),1)
+         ELSE IF( srcv(nmodsbc)%fld(jpr_qsrmix)%laction ) then   ;   zqsr(A2D(0)) = frcv(jpr_qsrmix)%z3(A2D(0),1)
          ELSE                                       ;   zqsr(A2D(0)) = 0._wp
          ENDIF
          IF( ln_dm2dc .AND. ln_cpl )   zqsr(A2D(0)) = sbc_dcy( zqsr )   ! modify qsr to include the diurnal cycle
-         IF( ln_mixcpl ) THEN   ;   qsr(A2D(0)) = qsr(A2D(0)) * xcplmask(A2D(0),0) + zqsr(A2D(0)) * zmsk(A2D(0))
+         IF( ln_mixcpl ) THEN   ;   qsr(A2D(0)) = qsr(A2D(0)) * xcplmask(A2D(0),1,0) + zqsr(A2D(0)) * zmsk(A2D(0))
          ELSE                   ;   qsr(A2D(0)) =                                    zqsr(A2D(0))
          ENDIF
          !
          ! salt flux over the ocean (received by opa in case of opa <-> sas coupling)
-         IF( srcv(jpr_sflx )%laction )   sfx(A2D(0)) = frcv(jpr_sflx  )%z3(A2D(0),1)
+         IF( srcv(nmodsbc)%fld(jpr_sflx )%laction )   sfx(A2D(0)) = frcv(jpr_sflx  )%z3(A2D(0),1)
          ! Ice cover  (received by opa in case of opa <-> sas coupling)
-         IF( srcv(jpr_fice )%laction ) THEN
+         IF( srcv(nmodsbc)%fld(jpr_fice )%laction ) THEN
             fr_i(A2D(0)) = frcv(jpr_fice )%z3(A2D(0),1)
             CALL lbc_lnk( 'sbccpl', fr_i, 'T', 1.0_wp, ldfull = .TRUE. )
          ENDIF
@@ -1551,14 +1549,14 @@ CONTAINS
       !
 #if defined key_si3 || defined key_cice
       !
-      IF( srcv(jpr_itx1)%laction ) THEN   ;   itx =  jpr_itx1
+      IF( srcv(nmodsbc)%fld(jpr_itx1)%laction ) THEN   ;   itx =  jpr_itx1
       ELSE                                ;   itx =  jpr_otx1
       ENDIF
 
       ! do something only if we just received the stress from atmosphere
       IF(  nrcvinfo(itx) == OASIS_Rcv ) THEN
          !                                                      ! ======================= !
-         IF( srcv(jpr_itx1)%laction ) THEN                      !   ice stress received   !
+         IF( srcv(nmodsbc)%fld(jpr_itx1)%laction ) THEN                      !   ice stress received   !
             !                                                   ! ======================= !
             !
             IF( TRIM( sn_rcv_tau%clvref ) == 'cartesian' ) THEN            ! 2 components on the sphere
@@ -1682,7 +1680,7 @@ CONTAINS
          a_i_last_couple(:,:,:) = a_i(:,:,:)
       ENDIF
       !
-      IF( ln_mixcpl )   zmsk(A2D(0)) = 1. - xcplmask(A2D(0),0)
+      IF( ln_mixcpl )   zmsk(A2D(0)) = 1. - xcplmask(A2D(0),1,0)
       ziceld(A2D(0)) = 1._wp - picefr(A2D(0))
       zcptn (A2D(0)) = rcp * sst_m(A2D(0))
       !
@@ -1764,30 +1762,30 @@ CONTAINS
       zdevap_ice(A2D(0)) = 0._wp
 
       ! --- Continental fluxes --- !
-      IF( srcv(jpr_rnf)%laction ) THEN   ! runoffs (included in emp later on)
+      IF( srcv(nmodsbc)%fld(jpr_rnf)%laction ) THEN   ! runoffs (included in emp later on)
          rnf(A2D(0)) = frcv(jpr_rnf)%z3(A2D(0),1)
       ENDIF
-      IF( srcv(jpr_cal)%laction ) THEN   ! calving (put in emp_tot and emp_oce)
+      IF( srcv(nmodsbc)%fld(jpr_cal)%laction ) THEN   ! calving (put in emp_tot and emp_oce)
          zemp_tot(A2D(0)) = zemp_tot(A2D(0)) - frcv(jpr_cal)%z3(A2D(0),1)
          zemp_oce(A2D(0)) = zemp_oce(A2D(0)) - frcv(jpr_cal)%z3(A2D(0),1)
       ENDIF
-      IF( srcv(jpr_icb)%laction ) THEN   ! iceberg added to runoffs
+      IF( srcv(nmodsbc)%fld(jpr_icb)%laction ) THEN   ! iceberg added to runoffs
          fwficb(A2D(0)) = frcv(jpr_icb)%z3(A2D(0),1)
          rnf(A2D(0)) = rnf(A2D(0)) + fwficb(A2D(0))
       ENDIF
-      IF( srcv(jpr_isf)%laction ) THEN   ! iceshelf (fwfisf > 0 mean melting)
+      IF( srcv(nmodsbc)%fld(jpr_isf)%laction ) THEN   ! iceshelf (fwfisf > 0 mean melting)
         fwfisf_oasis(A2D(0)) = frcv(jpr_isf)%z3(A2D(0),1)
       ENDIF
 
       IF( ln_mixcpl ) THEN
-         emp_tot(A2D(0)) = emp_tot(A2D(0)) * xcplmask(A2D(0),0) + zemp_tot(A2D(0)) * zmsk(A2D(0))
-         emp_ice(A2D(0)) = emp_ice(A2D(0)) * xcplmask(A2D(0),0) + zemp_ice(A2D(0)) * zmsk(A2D(0))
-         emp_oce(A2D(0)) = emp_oce(A2D(0)) * xcplmask(A2D(0),0) + zemp_oce(A2D(0)) * zmsk(A2D(0))
-         sprecip(A2D(0)) = sprecip(A2D(0)) * xcplmask(A2D(0),0) + zsprecip(A2D(0)) * zmsk(A2D(0))
-         tprecip(A2D(0)) = tprecip(A2D(0)) * xcplmask(A2D(0),0) + ztprecip(A2D(0)) * zmsk(A2D(0))
+         emp_tot(A2D(0)) = emp_tot(A2D(0)) * xcplmask(A2D(0),1,0) + zemp_tot(A2D(0)) * zmsk(A2D(0))
+         emp_ice(A2D(0)) = emp_ice(A2D(0)) * xcplmask(A2D(0),1,0) + zemp_ice(A2D(0)) * zmsk(A2D(0))
+         emp_oce(A2D(0)) = emp_oce(A2D(0)) * xcplmask(A2D(0),1,0) + zemp_oce(A2D(0)) * zmsk(A2D(0))
+         sprecip(A2D(0)) = sprecip(A2D(0)) * xcplmask(A2D(0),1,0) + zsprecip(A2D(0)) * zmsk(A2D(0))
+         tprecip(A2D(0)) = tprecip(A2D(0)) * xcplmask(A2D(0),1,0) + ztprecip(A2D(0)) * zmsk(A2D(0))
          DO jl = 1, jpl
-            evap_ice (A2D(0),jl) = evap_ice (A2D(0),jl) * xcplmask(A2D(0),0) + zevap_ice (A2D(0),jl) * zmsk(A2D(0))
-            devap_ice(A2D(0),jl) = devap_ice(A2D(0),jl) * xcplmask(A2D(0),0) + zdevap_ice(A2D(0))    * zmsk(A2D(0))
+            evap_ice (A2D(0),jl) = evap_ice (A2D(0),jl) * xcplmask(A2D(0),1,0) + zevap_ice (A2D(0),jl) * zmsk(A2D(0))
+            devap_ice(A2D(0),jl) = devap_ice(A2D(0),jl) * xcplmask(A2D(0),1,0) + zdevap_ice(A2D(0))    * zmsk(A2D(0))
          END DO
       ELSE
          emp_tot (A2D(0))   = zemp_tot (A2D(0))
@@ -1804,17 +1802,17 @@ CONTAINS
 !! for CICE ??
 !!$      zsnw(A2D(0)) = picefr(A2D(0))
 !!$      ! --- Continental fluxes --- !
-!!$      IF( srcv(jpr_rnf)%laction ) THEN   ! runoffs (included in emp later on)
+!!$      IF( srcv(nmodsbc)%fld(jpr_rnf)%laction ) THEN   ! runoffs (included in emp later on)
 !!$         rnf(A2D(0)) = frcv(jpr_rnf)%z3(A2D(0),1)
 !!$      ENDIF
-!!$      IF( srcv(jpr_cal)%laction ) THEN   ! calving (put in emp_tot)
+!!$      IF( srcv(nmodsbc)%fld(jpr_cal)%laction ) THEN   ! calving (put in emp_tot)
 !!$         zemp_tot(A2D(0)) = zemp_tot(A2D(0)) - frcv(jpr_cal)%z3(A2D(0),1)
 !!$      ENDIF
-!!$      IF( srcv(jpr_icb)%laction ) THEN   ! iceberg added to runoffs
+!!$      IF( srcv(nmodsbc)%fld(jpr_icb)%laction ) THEN   ! iceberg added to runoffs
 !!$         fwficb(A2D(0)) = frcv(jpr_icb)%z3(A2D(0),1)
 !!$         rnf(A2D(0))    = rnf(A2D(0)) + fwficb(A2D(0))
 !!$      ENDIF
-!!$      IF( srcv(jpr_isf)%laction ) THEN   ! iceshelf (fwfisf >0 mean melting)
+!!$      IF( srcv(nmodsbc)%fld(jpr_isf)%laction ) THEN   ! iceshelf (fwfisf >0 mean melting)
 !!$        fwfisf_oasis(A2D(0)) = frcv(jpr_isf)%z3(A2D(0),1)
 !!$      ENDIF
 !!$      !
@@ -1831,8 +1829,8 @@ CONTAINS
 !!$      ENDIF
       !
       ! outputs
-      IF( srcv(jpr_cal)%laction )    CALL iom_put( 'calving_cea' , frcv(jpr_cal)%z3(A2D(0),1) * tmask(A2D(0),1)             )  ! calving
-      IF( srcv(jpr_icb)%laction )    CALL iom_put( 'iceberg_cea' , frcv(jpr_icb)%z3(A2D(0),1) * tmask(A2D(0),1)             )  ! icebergs
+      IF( srcv(nmodsbc)%fld(jpr_cal)%laction )    CALL iom_put( 'calving_cea' , frcv(jpr_cal)%z3(A2D(0),1) * tmask(A2D(0),1)             )  ! calving
+      IF( srcv(nmodsbc)%fld(jpr_icb)%laction )    CALL iom_put( 'iceberg_cea' , frcv(jpr_icb)%z3(A2D(0),1) * tmask(A2D(0),1)             )  ! icebergs
       IF( iom_use('snowpre') )       CALL iom_put( 'snowpre'     , sprecip(A2D(0))                                          )  ! Snow
       IF( iom_use('precip') )        CALL iom_put( 'precip'      , tprecip(A2D(0))                                          )  ! total  precipitation
       IF( iom_use('rain') )          CALL iom_put( 'rain'        , tprecip(A2D(0)) - sprecip(A2D(0))                           )  ! liquid precipitation
@@ -1843,8 +1841,8 @@ CONTAINS
       IF( iom_use('evap_ao_cea') )   CALL iom_put( 'evap_ao_cea' , ( frcv(jpr_tevp)%z3(A2D(0),1)  &
          &                                                         - zevap_ice_total(A2D(0)) * picefr(A2D(0)) ) * smask0(A2D(0))  )  ! ice-free oce evap (cell average)
       ! note: runoff output is done in sbcrnf (which includes icebergs too) and iceshelf output is done in sbcisf
-!!      IF( srcv(jpr_rnf)%laction )   CALL iom_put( 'runoffs' , rnf(A2D(0)) * tmask(A2D(0),1)                                 )  ! runoff
-      IF( srcv(jpr_isf)%laction )    CALL iom_put( 'iceshelf_cea', frcv(jpr_isf)%z3(A2D(0),1) * smask0(A2D(0))                 )  ! iceshelf
+!!      IF( srcv(nmodsbc)%fld(jpr_rnf)%laction )   CALL iom_put( 'runoffs' , rnf(A2D(0)) * tmask(A2D(0),1)                                 )  ! runoff
+      IF( srcv(nmodsbc)%fld(jpr_isf)%laction )    CALL iom_put( 'iceshelf_cea', frcv(jpr_isf)%z3(A2D(0),1) * smask0(A2D(0))                 )  ! iceshelf
       !
       !                                                      ! ========================= !
       SELECT CASE( TRIM( sn_rcv_iceflx%cldes ) )             !  ice topmelt and botmelt  !
@@ -1918,10 +1916,10 @@ CONTAINS
       END SELECT
       !
       ! --- calving (removed from qns_tot) --- !
-      IF( srcv(jpr_cal)%laction )   zqns_tot(A2D(0)) = zqns_tot(A2D(0)) - frcv(jpr_cal)%z3(A2D(0),1) * rLfus  ! remove latent heat of calving
+      IF( srcv(nmodsbc)%fld(jpr_cal)%laction )   zqns_tot(A2D(0)) = zqns_tot(A2D(0)) - frcv(jpr_cal)%z3(A2D(0),1) * rLfus  ! remove latent heat of calving
                                                                                                         ! we suppose it melts at 0deg, though it should be temp. of surrounding ocean
       ! --- iceberg (removed from qns_tot) --- !
-      IF( srcv(jpr_icb)%laction )   zqns_tot(A2D(0)) = zqns_tot(A2D(0)) - frcv(jpr_icb)%z3(A2D(0),1) * rLfus  ! remove latent heat of iceberg melting
+      IF( srcv(nmodsbc)%fld(jpr_icb)%laction )   zqns_tot(A2D(0)) = zqns_tot(A2D(0)) - frcv(jpr_icb)%z3(A2D(0),1) * rLfus  ! remove latent heat of iceberg melting
 
       ! --- non solar flux over ocean --- !
       !         note: ziceld cannot be = 0 since we limit the ice concentration to amax
@@ -1957,15 +1955,15 @@ CONTAINS
 
       ! --- in case both coupled/forced are active, we must mix values --- !
       IF( ln_mixcpl ) THEN
-         qns_tot(A2D(0)) = qns_tot(A2D(0)) * xcplmask(A2D(0),0) + zqns_tot(A2D(0))* zmsk(A2D(0))
-         qns_oce(A2D(0)) = qns_oce(A2D(0)) * xcplmask(A2D(0),0) + zqns_oce(A2D(0))* zmsk(A2D(0))
+         qns_tot(A2D(0)) = qns_tot(A2D(0)) * xcplmask(A2D(0),1,0) + zqns_tot(A2D(0))* zmsk(A2D(0))
+         qns_oce(A2D(0)) = qns_oce(A2D(0)) * xcplmask(A2D(0),1,0) + zqns_oce(A2D(0))* zmsk(A2D(0))
          DO jl=1,jpl
-            qns_ice  (A2D(0),jl) = qns_ice  (A2D(0),jl) * xcplmask(A2D(0),0) +  zqns_ice  (A2D(0),jl)* zmsk(A2D(0))
-            qevap_ice(A2D(0),jl) = qevap_ice(A2D(0),jl) * xcplmask(A2D(0),0) +  zqevap_ice(A2D(0),jl)* zmsk(A2D(0))
+            qns_ice  (A2D(0),jl) = qns_ice  (A2D(0),jl) * xcplmask(A2D(0),1,0) +  zqns_ice  (A2D(0),jl)* zmsk(A2D(0))
+            qevap_ice(A2D(0),jl) = qevap_ice(A2D(0),jl) * xcplmask(A2D(0),1,0) +  zqevap_ice(A2D(0),jl)* zmsk(A2D(0))
          ENDDO
-         qprec_ice(A2D(0)) = qprec_ice(A2D(0)) * xcplmask(A2D(0),0) + zqprec_ice(A2D(0))* zmsk(A2D(0))
-         qemp_oce (A2D(0)) =  qemp_oce(A2D(0)) * xcplmask(A2D(0),0) +  zqemp_oce(A2D(0))* zmsk(A2D(0))
-         qemp_ice (A2D(0)) =  qemp_ice(A2D(0)) * xcplmask(A2D(0),0) +  zqemp_ice(A2D(0))* zmsk(A2D(0))
+         qprec_ice(A2D(0)) = qprec_ice(A2D(0)) * xcplmask(A2D(0),1,0) + zqprec_ice(A2D(0))* zmsk(A2D(0))
+         qemp_oce (A2D(0)) =  qemp_oce(A2D(0)) * xcplmask(A2D(0),1,0) +  zqemp_oce(A2D(0))* zmsk(A2D(0))
+         qemp_ice (A2D(0)) =  qemp_ice(A2D(0)) * xcplmask(A2D(0),1,0) +  zqemp_ice(A2D(0))* zmsk(A2D(0))
       ELSE
          qns_tot  (A2D(0)  ) = zqns_tot  (A2D(0)  )
          qns_oce  (A2D(0)  ) = zqns_oce  (A2D(0)  )
@@ -1999,8 +1997,8 @@ CONTAINS
 !!$      ENDIF
 
       ! outputs
-      IF ( srcv(jpr_cal)%laction ) CALL iom_put('hflx_cal_cea' , - frcv(jpr_cal)%z3(A2D(0),1) * rLfus ) ! latent heat from calving
-      IF ( srcv(jpr_icb)%laction ) CALL iom_put('hflx_icb_cea' , - frcv(jpr_icb)%z3(A2D(0),1) * rLfus ) ! latent heat from icebergs melting
+      IF ( srcv(nmodsbc)%fld(jpr_cal)%laction ) CALL iom_put('hflx_cal_cea' , - frcv(jpr_cal)%z3(A2D(0),1) * rLfus ) ! latent heat from calving
+      IF ( srcv(nmodsbc)%fld(jpr_icb)%laction ) CALL iom_put('hflx_icb_cea' , - frcv(jpr_icb)%z3(A2D(0),1) * rLfus ) ! latent heat from icebergs melting
       IF (        iom_use('hflx_rain_cea') )    &                                                    ! heat flux from rain (cell average)
          &   CALL iom_put('hflx_rain_cea' , ( tprecip(A2D(0)) - sprecip(A2D(0)) ) * zcptrain(A2D(0)) )
       IF (        iom_use('hflx_evap_cea') )    &                                                    ! heat flux from evap (cell average)
@@ -2037,7 +2035,7 @@ CONTAINS
 
       IF( ln_mixcpl ) THEN
          DO jl=1,jpl
-            dqns_ice(A2D(0),jl) = dqns_ice(A2D(0),jl) * xcplmask(A2D(0),0) + zdqns_ice(A2D(0),jl) * zmsk(A2D(0))
+            dqns_ice(A2D(0),jl) = dqns_ice(A2D(0),jl) * xcplmask(A2D(0),1,0) + zdqns_ice(A2D(0),jl) * zmsk(A2D(0))
          ENDDO
       ELSE
          dqns_ice(A2D(0),:) = zdqns_ice(A2D(0),:)
@@ -2163,10 +2161,10 @@ CONTAINS
 
       IF( ln_mixcpl ) THEN
          qsr_tot(A2D(0)) = qsr(A2D(0)) * ziceld(A2D(0)) + SUM( qsr_ice(A2D(0),:) * a_i(A2D(0),:), dim=3 )   ! total flux from blk
-         qsr_tot(A2D(0)) = qsr_tot(A2D(0)) * xcplmask(A2D(0),0) + zqsr_tot(A2D(0)) * zmsk(A2D(0))
+         qsr_tot(A2D(0)) = qsr_tot(A2D(0)) * xcplmask(A2D(0),1,0) + zqsr_tot(A2D(0)) * zmsk(A2D(0))
          DO jl = 1, jpl
-            qsr_ice    (A2D(0),jl) = qsr_ice    (A2D(0),jl) * xcplmask(A2D(0),0) + zqsr_ice    (A2D(0),jl) * zmsk(A2D(0))
-            qtr_ice_top(A2D(0),jl) = qtr_ice_top(A2D(0),jl) * xcplmask(A2D(0),0) + zqtr_ice_top(A2D(0),jl) * zmsk(A2D(0))
+            qsr_ice    (A2D(0),jl) = qsr_ice    (A2D(0),jl) * xcplmask(A2D(0),1,0) + zqsr_ice    (A2D(0),jl) * zmsk(A2D(0))
+            qtr_ice_top(A2D(0),jl) = qtr_ice_top(A2D(0),jl) * xcplmask(A2D(0),1,0) + zqtr_ice_top(A2D(0),jl) * zmsk(A2D(0))
          END DO
       ELSE
          qsr_tot    (A2D(0)  ) = zqsr_tot    (A2D(0)  )
@@ -2179,14 +2177,14 @@ CONTAINS
       zqsr_oce = 0._wp
       WHERE( ziceld /= 0._wp )  zqsr_oce(A2D(0)) = ( zqsr_tot(A2D(0)) - SUM( a_i(A2D(0),:) * zqsr_ice(A2D(0),:), dim=3 ) ) / ziceld(A2D(0))
 
-      IF( ln_mixcpl ) THEN   ;   qsr_oce(A2D(0)) = qsr_oce(A2D(0)) * xcplmask(A2D(0),0) +  zqsr_oce(A2D(0))* zmsk(A2D(0))
+      IF( ln_mixcpl ) THEN   ;   qsr_oce(A2D(0)) = qsr_oce(A2D(0)) * xcplmask(A2D(0),1,0) +  zqsr_oce(A2D(0))* zmsk(A2D(0))
       ELSE                   ;   qsr_oce(A2D(0)) = zqsr_oce(A2D(0))   ;   ENDIF
 
       !                                                      ! ================== !
       !                                                      !   ice skin temp.   !
       !                                                      ! ================== !
       ! needed by Met Office
-      IF( srcv(jpr_ts_ice)%laction ) THEN
+      IF( srcv(nmodsbc)%fld(jpr_ts_ice)%laction ) THEN
          WHERE    ( frcv(jpr_ts_ice)%z3(A2D(0),:) > 0.0  )   ;   ztsu(A2D(0),:) =   0. + rt0
          ELSEWHERE( frcv(jpr_ts_ice)%z3(A2D(0),:) < -60. )   ;   ztsu(A2D(0),:) = -60. + rt0
          ELSEWHERE                                        ;   ztsu(A2D(0),:) = frcv(jpr_ts_ice)%z3(A2D(0),:) + rt0
@@ -2194,7 +2192,7 @@ CONTAINS
          !
          IF( ln_mixcpl ) THEN
             DO jl=1,jpl
-               pist(A2D(0),jl) = pist(A2D(0),jl) * xcplmask(A2D(0),0) + ztsu(A2D(0),jl) * zmsk(A2D(0))
+               pist(A2D(0),jl) = pist(A2D(0),jl) * xcplmask(A2D(0),1,0) + ztsu(A2D(0),jl) * zmsk(A2D(0))
             ENDDO
          ELSE
             pist(A2D(0),:) = ztsu(A2D(0),:)
@@ -2235,7 +2233,7 @@ CONTAINS
       !                                                      ! ------------------------- !
       !                                                      !    Surface temperature    !   in Kelvin
       !                                                      ! ------------------------- !
-      IF( ssnd(jps_toce)%laction .OR. ssnd(jps_tice)%laction .OR. ssnd(jps_tmix)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_toce)%laction .OR. ssnd(nmodsbc)%fld(jps_tice)%laction .OR. ssnd(nmodsbc)%fld(jps_tmix)%laction ) THEN
 
          IF( nn_components == jp_iam_oce ) THEN
             ztmp1(A2D(0)) = ts(A2D(0),1,jp_tem,Kmm)   ! send temperature as it is (potential or conservative) -> use of l_useCT on the received part
@@ -2289,9 +2287,9 @@ CONTAINS
             CASE default                     ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_temp%cldes' )
             END SELECT
          ENDIF
-         IF( ssnd(jps_toce)%laction )   CALL cpl_snd( jps_toce, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
-         IF( ssnd(jps_tice)%laction )   CALL cpl_snd( jps_tice, isec, ztmp3, info )
-         IF( ssnd(jps_tmix)%laction )   CALL cpl_snd( jps_tmix, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
+         IF( ssnd(nmodsbc)%fld(jps_toce)%laction )   CALL cpl_snd( nmodsbc ,jps_toce, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
+         IF( ssnd(nmodsbc)%fld(jps_tice)%laction )   CALL cpl_snd( nmodsbc ,jps_tice, isec, ztmp3, info )
+         IF( ssnd(nmodsbc)%fld(jps_tmix)%laction )   CALL cpl_snd( nmodsbc ,jps_tmix, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
       ENDIF
       !
       !                                                      ! ------------------------- !
@@ -2299,19 +2297,19 @@ CONTAINS
       !                                                      ! ------------------------- !
 #if defined key_si3
       ! needed by  Met Office
-      IF( ssnd(jps_ttilyr)%laction) THEN
+      IF( ssnd(nmodsbc)%fld(jps_ttilyr)%laction) THEN
          SELECT CASE( sn_snd_ttilyr%cldes)
          CASE ('weighted ice')
             ztmp3(A2D(0),1:jpl) = t1_ice(A2D(0),1:jpl) * a_i(A2D(0),1:jpl)
          CASE default                     ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_ttilyr%cldes' )
          END SELECT
-         IF( ssnd(jps_ttilyr)%laction )   CALL cpl_snd( jps_ttilyr, isec, ztmp3, info )
+         IF( ssnd(nmodsbc)%fld(jps_ttilyr)%laction )   CALL cpl_snd( nmodsbc ,jps_ttilyr, isec, ztmp3, info )
       ENDIF
 #endif
       !                                                      ! ------------------------- !
       !                                                      !           Albedo          !
       !                                                      ! ------------------------- !
-      IF( ssnd(jps_albice)%laction ) THEN                         ! ice
+      IF( ssnd(nmodsbc)%fld(jps_albice)%laction ) THEN                         ! ice
           SELECT CASE( sn_snd_alb%cldes )
           CASE( 'ice' )
              SELECT CASE( sn_snd_alb%clcat )
@@ -2342,30 +2340,30 @@ CONTAINS
 
          SELECT CASE( sn_snd_alb%clcat )
             CASE( 'yes' )
-               CALL cpl_snd( jps_albice, isec, ztmp3, info )      !-> MV this has never been checked in coupled mode
+               CALL cpl_snd( nmodsbc ,jps_albice, isec, ztmp3, info )      !-> MV this has never been checked in coupled mode
             CASE( 'no'  )
-               CALL cpl_snd( jps_albice, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
+               CALL cpl_snd( nmodsbc ,jps_albice, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
          END SELECT
       ENDIF
 
-      IF( ssnd(jps_albmix)%laction ) THEN                         ! mixed ice-ocean
+      IF( ssnd(nmodsbc)%fld(jps_albmix)%laction ) THEN                         ! mixed ice-ocean
          ztmp1(A2D(0)) = alb_oce_mix(A2D(0)) * zfr_l(A2D(0))
          DO jl = 1, jpl
             ztmp1(A2D(0)) = ztmp1(A2D(0)) + alb_ice(A2D(0),jl) * a_i(A2D(0),jl)
          END DO
-         CALL cpl_snd( jps_albmix, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
+         CALL cpl_snd( nmodsbc ,jps_albmix, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
       ENDIF
       !                                                      ! ------------------------- !
       !                                                      !  Ice fraction & Thickness !
       !                                                      ! ------------------------- !
       ! Send ice fraction field to atmosphere
-      IF( ssnd(jps_fice)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_fice)%laction ) THEN
          SELECT CASE( sn_snd_thick%clcat )
          CASE( 'yes' )   ;   ztmp3(A2D(0),1:jpl) =  a_i(A2D(0),1:jpl)
          CASE( 'no'  )   ;   ztmp3(A2D(0),1    ) = fr_i(A2D(0)      )
          CASE default    ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_thick%clcat' )
          END SELECT
-         CALL cpl_snd( jps_fice, isec, ztmp3, info )
+         CALL cpl_snd( nmodsbc ,jps_fice, isec, ztmp3, info )
       ENDIF
 
 #if defined key_si3 || defined key_cice
@@ -2380,23 +2378,23 @@ CONTAINS
       ENDIF
 #endif
 
-      IF( ssnd(jps_fice1)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_fice1)%laction ) THEN
          SELECT CASE( sn_snd_thick1%clcat )
          CASE( 'yes' )   ;   ztmp3(A2D(0),1:jpl) =  a_i(A2D(0),1:jpl)
          CASE( 'no'  )   ;   ztmp3(A2D(0),1    ) = fr_i(A2D(0)      )
          CASE default    ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_thick1%clcat' )
          END SELECT
-         CALL cpl_snd( jps_fice1, isec, ztmp3, info )
+         CALL cpl_snd( nmodsbc ,jps_fice1, isec, ztmp3, info )
       ENDIF
 
       ! Send ice fraction field to OCE (sent by SAS in SAS-OCE coupling)
-      IF( ssnd(jps_fice2)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_fice2)%laction ) THEN
          ztmp3(A2D(0),1) = fr_i(A2D(0))
-         IF( ssnd(jps_fice2)%laction )   CALL cpl_snd( jps_fice2, isec, ztmp3, info )
+         IF( ssnd(nmodsbc)%fld(jps_fice2)%laction )   CALL cpl_snd( nmodsbc, jps_fice2, isec, ztmp3, info )
       ENDIF
 
       ! Send ice and snow thickness field
-      IF( ssnd(jps_hice)%laction .OR. ssnd(jps_hsnw)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_hice)%laction .OR. ssnd(nmodsbc)%fld(jps_hsnw)%laction ) THEN
          SELECT CASE( sn_snd_thick%cldes)
          CASE( 'none'                  )       ! nothing to do
          CASE( 'weighted ice and snow' )
@@ -2429,8 +2427,8 @@ CONTAINS
             END SELECT
          CASE default                     ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_thick%cldes' )
          END SELECT
-         IF( ssnd(jps_hice)%laction )   CALL cpl_snd( jps_hice, isec, ztmp3, info )
-         IF( ssnd(jps_hsnw)%laction )   CALL cpl_snd( jps_hsnw, isec, ztmp4, info )
+         IF( ssnd(nmodsbc)%fld(jps_hice)%laction )   CALL cpl_snd( nmodsbc ,jps_hice, isec, ztmp3, info )
+         IF( ssnd(nmodsbc)%fld(jps_hsnw)%laction )   CALL cpl_snd( nmodsbc ,jps_hsnw, isec, ztmp4, info )
       ENDIF
 
 #if defined key_si3
@@ -2438,7 +2436,7 @@ CONTAINS
       !                                                      !      Ice melt ponds       !
       !                                                      ! ------------------------- !
       ! needed by Met Office: 1) fraction of ponded ice 2) local/actual pond depth
-      IF( ssnd(jps_a_p)%laction .OR. ssnd(jps_ht_p)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_a_p)%laction .OR. ssnd(nmodsbc)%fld(jps_ht_p)%laction ) THEN
          SELECT CASE( sn_snd_mpnd%cldes)
          CASE( 'ice only' )
             SELECT CASE( sn_snd_mpnd%clcat )
@@ -2471,15 +2469,15 @@ CONTAINS
             END SELECT
          CASE default      ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_mpnd%cldes' )
          END SELECT
-         IF( ssnd(jps_a_p)%laction  )   CALL cpl_snd( jps_a_p , isec, ztmp3, info )
-         IF( ssnd(jps_ht_p)%laction )   CALL cpl_snd( jps_ht_p, isec, ztmp4, info )
+         IF( ssnd(nmodsbc)%fld(jps_a_p)%laction  )   CALL cpl_snd( nmodsbc ,jps_a_p , isec, ztmp3, info )
+         IF( ssnd(nmodsbc)%fld(jps_ht_p)%laction )   CALL cpl_snd( nmodsbc ,jps_ht_p, isec, ztmp4, info )
       ENDIF
       !
       !                                                      ! ------------------------- !
       !                                                      !     Ice conductivity      !
       !                                                      ! ------------------------- !
       ! needed by Met Office
-      IF( ssnd(jps_kice)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_kice)%laction ) THEN
          SELECT CASE( sn_snd_cond%cldes)
          CASE( 'weighted ice' )
             SELECT CASE( sn_snd_cond%clcat )
@@ -2496,20 +2494,20 @@ CONTAINS
            ztmp3(A2D(0),1:jpl) = cnd_ice(A2D(0),1:jpl)
          CASE default      ;   CALL ctl_stop( 'sbc_cpl_snd: wrong definition of sn_snd_cond%cldes' )
          END SELECT
-         IF( ssnd(jps_kice)%laction )   CALL cpl_snd( jps_kice, isec, ztmp3, info )
+         IF( ssnd(nmodsbc)%fld(jps_kice)%laction )   CALL cpl_snd( nmodsbc ,jps_kice, isec, ztmp3, info )
       ENDIF
 #endif
 
       !                                                      ! ------------------------- !
       !                                                      !  CO2 flux from PISCES     !
       !                                                      ! ------------------------- !
-      IF( ssnd(jps_co2)%laction .AND. l_co2cpl )   THEN
+      IF( ssnd(nmodsbc)%fld(jps_co2)%laction .AND. l_co2cpl )   THEN
          ztmp1(A2D(0)) = oce_co2(A2D(0)) * 1000.  ! conversion in molC/m2/s
-         CALL cpl_snd( jps_co2, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ) , info )
+         CALL cpl_snd( nmodsbc, jps_co2, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ) , info )
       ENDIF
       !
       !                                                      ! ------------------------- !
-      IF( ssnd(jps_ocx1)%laction ) THEN                      !      Surface current      !
+      IF( ssnd(nmodsbc)%fld(jps_ocx1)%laction ) THEN                      !      Surface current      !
          !                                                   ! ------------------------- !
          !
          !                                                  j     -----V---F
@@ -2559,13 +2557,13 @@ CONTAINS
          !
          IF( TRIM( sn_snd_crt%clvor ) == 'eastward-northward' ) THEN             ! Rotation of the components
             !                                                                     ! Ocean component
-            CALL rot_rep( zotx1, zoty1, ssnd(jps_ocx1)%clgrid, 'ij->e', ztmp1 )       ! 1st component
-            CALL rot_rep( zotx1, zoty1, ssnd(jps_ocx1)%clgrid, 'ij->n', ztmp2 )       ! 2nd component
+            CALL rot_rep( zotx1, zoty1, ssnd(nmodsbc)%fld(jps_ocx1)%clgrid, 'ij->e', ztmp1 )       ! 1st component
+            CALL rot_rep( zotx1, zoty1, ssnd(nmodsbc)%fld(jps_ocx1)%clgrid, 'ij->n', ztmp2 )       ! 2nd component
             zotx1(A2D(0)) = ztmp1(A2D(0))                                                   ! overwrite the components
             zoty1(A2D(0)) = ztmp2(A2D(0))
-            IF( ssnd(jps_ivx1)%laction ) THEN                                     ! Ice component
-               CALL rot_rep( zitx1, zity1, ssnd(jps_ivx1)%clgrid, 'ij->e', ztmp1 )    ! 1st component
-               CALL rot_rep( zitx1, zity1, ssnd(jps_ivx1)%clgrid, 'ij->n', ztmp2 )    ! 2nd component
+            IF( ssnd(nmodsbc)%fld(jps_ivx1)%laction ) THEN                                     ! Ice component
+               CALL rot_rep( zitx1, zity1, ssnd(nmodsbc)%fld(jps_ivx1)%clgrid, 'ij->e', ztmp1 )    ! 1st component
+               CALL rot_rep( zitx1, zity1, ssnd(nmodsbc)%fld(jps_ivx1)%clgrid, 'ij->n', ztmp2 )    ! 2nd component
                zitx1(A2D(0)) = ztmp1(A2D(0))                                                ! overwrite the components
                zity1(A2D(0)) = ztmp2(A2D(0))
             ENDIF
@@ -2577,27 +2575,27 @@ CONTAINS
             ztmp2(A2D(0)) = zoty1(A2D(0))
             CALL oce2geo ( ztmp1, ztmp2, 'T', zotx1, zoty1, zotz1 )
             !
-            IF( ssnd(jps_ivx1)%laction ) THEN           ! ice velocities
+            IF( ssnd(nmodsbc)%fld(jps_ivx1)%laction ) THEN           ! ice velocities
                ztmp1(A2D(0)) = zitx1(A2D(0))
                ztmp1(A2D(0)) = zity1(A2D(0))
                CALL oce2geo ( ztmp1, ztmp2, 'T', zitx1, zity1, zitz1 )
             ENDIF
          ENDIF
          !
-         IF( ssnd(jps_ocx1)%laction )   CALL cpl_snd( jps_ocx1, isec, RESHAPE ( zotx1, (/Ni_0,Nj_0,1/) ), info )   ! ocean x current 1st grid
-         IF( ssnd(jps_ocy1)%laction )   CALL cpl_snd( jps_ocy1, isec, RESHAPE ( zoty1, (/Ni_0,Nj_0,1/) ), info )   ! ocean y current 1st grid
-         IF( ssnd(jps_ocz1)%laction )   CALL cpl_snd( jps_ocz1, isec, RESHAPE ( zotz1, (/Ni_0,Nj_0,1/) ), info )   ! ocean z current 1st grid
+         IF( ssnd(nmodsbc)%fld(jps_ocx1)%laction )   CALL cpl_snd( nmodsbc ,jps_ocx1, isec, RESHAPE ( zotx1, (/Ni_0,Nj_0,1/) ), info )   ! ocean x current 1st grid
+         IF( ssnd(nmodsbc)%fld(jps_ocy1)%laction )   CALL cpl_snd( nmodsbc ,jps_ocy1, isec, RESHAPE ( zoty1, (/Ni_0,Nj_0,1/) ), info )   ! ocean y current 1st grid
+         IF( ssnd(nmodsbc)%fld(jps_ocz1)%laction )   CALL cpl_snd( nmodsbc ,jps_ocz1, isec, RESHAPE ( zotz1, (/Ni_0,Nj_0,1/) ), info )   ! ocean z current 1st grid
          !
-         IF( ssnd(jps_ivx1)%laction )   CALL cpl_snd( jps_ivx1, isec, RESHAPE ( zitx1, (/Ni_0,Nj_0,1/) ), info )   ! ice   x current 1st grid
-         IF( ssnd(jps_ivy1)%laction )   CALL cpl_snd( jps_ivy1, isec, RESHAPE ( zity1, (/Ni_0,Nj_0,1/) ), info )   ! ice   y current 1st grid
-         IF( ssnd(jps_ivz1)%laction )   CALL cpl_snd( jps_ivz1, isec, RESHAPE ( zitz1, (/Ni_0,Nj_0,1/) ), info )   ! ice   z current 1st grid
+         IF( ssnd(nmodsbc)%fld(jps_ivx1)%laction )   CALL cpl_snd( nmodsbc ,jps_ivx1, isec, RESHAPE ( zitx1, (/Ni_0,Nj_0,1/) ), info )   ! ice   x current 1st grid
+         IF( ssnd(nmodsbc)%fld(jps_ivy1)%laction )   CALL cpl_snd( nmodsbc ,jps_ivy1, isec, RESHAPE ( zity1, (/Ni_0,Nj_0,1/) ), info )   ! ice   y current 1st grid
+         IF( ssnd(nmodsbc)%fld(jps_ivz1)%laction )   CALL cpl_snd( nmodsbc ,jps_ivz1, isec, RESHAPE ( zitz1, (/Ni_0,Nj_0,1/) ), info )   ! ice   z current 1st grid
          !
       ENDIF
       !
       !                                                      ! ------------------------- !
       !                                                      !  Surface current to waves !
       !                                                      ! ------------------------- !
-      IF( ssnd(jps_ocxw)%laction .OR. ssnd(jps_ocyw)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_ocxw)%laction .OR. ssnd(nmodsbc)%fld(jps_ocyw)%laction ) THEN
          !
          !                                                  j     -----V---F
          ! surface velocity always sent from T point               !       |
@@ -2631,13 +2629,13 @@ CONTAINS
          !
          IF( TRIM( sn_snd_crtw%clvor ) == 'eastward-northward' ) THEN             ! Rotation of the components
             !                                                                        ! Ocean component
-            CALL rot_rep( zotx1, zoty1, ssnd(jps_ocxw)%clgrid, 'ij->e', ztmp1 )       ! 1st component
-            CALL rot_rep( zotx1, zoty1, ssnd(jps_ocxw)%clgrid, 'ij->n', ztmp2 )       ! 2nd component
+            CALL rot_rep( zotx1, zoty1, ssnd(nmodsbc)%fld(jps_ocxw)%clgrid, 'ij->e', ztmp1 )       ! 1st component
+            CALL rot_rep( zotx1, zoty1, ssnd(nmodsbc)%fld(jps_ocxw)%clgrid, 'ij->n', ztmp2 )       ! 2nd component
             zotx1(A2D(0)) = ztmp1(A2D(0))                                                   ! overwrite the components
             zoty1(A2D(0)) = ztmp2(A2D(0))
-            IF( ssnd(jps_ivx1)%laction ) THEN                                     ! Ice component
-               CALL rot_rep( zitx1, zity1, ssnd(jps_ivx1)%clgrid, 'ij->e', ztmp1 )    ! 1st component
-               CALL rot_rep( zitx1, zity1, ssnd(jps_ivx1)%clgrid, 'ij->n', ztmp2 )    ! 2nd component
+            IF( ssnd(nmodsbc)%fld(jps_ivx1)%laction ) THEN                                     ! Ice component
+               CALL rot_rep( zitx1, zity1, ssnd(nmodsbc)%fld(jps_ivx1)%clgrid, 'ij->e', ztmp1 )    ! 1st component
+               CALL rot_rep( zitx1, zity1, ssnd(nmodsbc)%fld(jps_ivx1)%clgrid, 'ij->n', ztmp2 )    ! 2nd component
                zitx1(A2D(0)) = ztmp1(A2D(0))                                                ! overwrite the components
                zity1(A2D(0)) = ztmp2(A2D(0))
             ENDIF
@@ -2649,25 +2647,25 @@ CONTAINS
          !            ztmp2(A2D(0)) = zoty1(A2D(0))
          !            CALL oce2geo ( ztmp1, ztmp2, 'T', zotx1, zoty1, zotz1 )
          !            !
-         !            IF( ssnd(jps_ivx1)%laction ) THEN           ! ice velocities
+         !            IF( ssnd(nmodsbc)%fld(jps_ivx1)%laction ) THEN           ! ice velocities
          !               ztmp1(A2D(0)) = zitx1(A2D(0))
          !               ztmp1(A2D(0)) = zity1(A2D(0))
          !               CALL oce2geo ( ztmp1, ztmp2, 'T', zitx1, zity1, zitz1 )
          !            ENDIF
          !         ENDIF
          !
-         IF( ssnd(jps_ocxw)%laction )   CALL cpl_snd( jps_ocxw, isec, RESHAPE ( zotx1, (/Ni_0,Nj_0,1/) ), info )   ! ocean x current 1st grid
-         IF( ssnd(jps_ocyw)%laction )   CALL cpl_snd( jps_ocyw, isec, RESHAPE ( zoty1, (/Ni_0,Nj_0,1/) ), info )   ! ocean y current 1st grid
+         IF( ssnd(nmodsbc)%fld(jps_ocxw)%laction )   CALL cpl_snd( nmodsbc ,jps_ocxw, isec, RESHAPE ( zotx1, (/Ni_0,Nj_0,1/) ), info )   ! ocean x current 1st grid
+         IF( ssnd(nmodsbc)%fld(jps_ocyw)%laction )   CALL cpl_snd( nmodsbc ,jps_ocyw, isec, RESHAPE ( zoty1, (/Ni_0,Nj_0,1/) ), info )   ! ocean y current 1st grid
          !
       ENDIF
       !
-      IF( ssnd(jps_ficet)%laction ) THEN
-         CALL cpl_snd( jps_ficet, isec, RESHAPE ( fr_i(A2D(0)), (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_ficet)%laction ) THEN
+         CALL cpl_snd( nmodsbc ,jps_ficet, isec, RESHAPE ( fr_i(A2D(0)), (/Ni_0,Nj_0,1/) ), info )
       ENDIF
       !                                                      ! ------------------------- !
       !                                                      !   Water levels to waves   !
       !                                                      ! ------------------------- !
-      IF( ssnd(jps_wlev)%laction ) THEN
+      IF( ssnd(nmodsbc)%fld(jps_wlev)%laction ) THEN
          IF( ln_apr_dyn ) THEN
             IF( kt /= nit000 ) THEN
                ztmp1(A2D(0)) = ssh(A2D(0),Kbb) - 0.5 * ( ssh_ib(A2D(0)) + ssh_ibb(A2D(0)) )
@@ -2677,44 +2675,44 @@ CONTAINS
          ELSE
             ztmp1(A2D(0)) = ssh(A2D(0),Kmm)
          ENDIF
-         CALL cpl_snd( jps_wlev  , isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
+         CALL cpl_snd( nmodsbc ,jps_wlev  , isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info )
       ENDIF
       !
       !  Fields sent by OCE to SAS when doing OCE<->SAS coupling
       !                                                        ! SSH
-      IF( ssnd(jps_ssh )%laction )  THEN
+      IF( ssnd(nmodsbc)%fld(jps_ssh )%laction )  THEN
          !                          ! removed inverse barometer ssh when Patm
          !                          forcing is used (for sea-ice dynamics)
          IF( ln_apr_dyn ) THEN   ;   ztmp1(A2D(0)) = ssh(A2D(0),Kbb) - 0.5 * ( ssh_ib(A2D(0)) + ssh_ibb(A2D(0)) )
          ELSE                    ;   ztmp1(A2D(0)) = ssh(A2D(0),Kmm)
          ENDIF
-         CALL cpl_snd( jps_ssh   , isec, RESHAPE ( ztmp1 , (/Ni_0,Nj_0,1/) ), info )
+         CALL cpl_snd( nmodsbc ,jps_ssh   , isec, RESHAPE ( ztmp1 , (/Ni_0,Nj_0,1/) ), info )
 
       ENDIF
       !                                                        ! SSS
-      IF( ssnd(jps_soce  )%laction )  THEN
-         CALL cpl_snd( jps_soce  , isec, RESHAPE ( ts(A2D(0),1,jp_sal,Kmm), (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_soce  )%laction )  THEN
+         CALL cpl_snd( nmodsbc ,jps_soce  , isec, RESHAPE ( ts(A2D(0),1,jp_sal,Kmm), (/Ni_0,Nj_0,1/) ), info )
       ENDIF
       !                                                        ! first T level thickness
       ze3t_i(A2D(0),1) = e3t(Nis0:Nie0,Njs0:Nje0,1,Kmm)
-      IF( ssnd(jps_e3t1st )%laction )  THEN
-         CALL cpl_snd( jps_e3t1st, isec, RESHAPE ( ze3t_i , (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_e3t1st )%laction )  THEN
+         CALL cpl_snd( nmodsbc ,jps_e3t1st, isec, RESHAPE ( ze3t_i , (/Ni_0,Nj_0,1/) ), info )
       ENDIF
       !                                                        ! Qsr fraction
-      IF( ssnd(jps_fraqsr)%laction )  THEN
-         CALL cpl_snd( jps_fraqsr, isec, RESHAPE ( fraqsr_1lev(A2D(0)) , (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_fraqsr)%laction )  THEN
+         CALL cpl_snd( nmodsbc ,jps_fraqsr, isec, RESHAPE ( fraqsr_1lev(A2D(0)) , (/Ni_0,Nj_0,1/) ), info )
       ENDIF
       !
       !  Fields sent by SAS to OCE when OASIS coupling
       !                                                        ! Solar heat flux
-      IF( ssnd(jps_qsroce)%laction )  CALL cpl_snd( jps_qsroce, isec, RESHAPE ( qsr (A2D(0))   , (/Ni_0,Nj_0,1/) ), info )
-      IF( ssnd(jps_qnsoce)%laction )  CALL cpl_snd( jps_qnsoce, isec, RESHAPE ( qns (A2D(0))   , (/Ni_0,Nj_0,1/) ), info )
-      IF( ssnd(jps_oemp  )%laction )  CALL cpl_snd( jps_oemp  , isec, RESHAPE ( emp (A2D(0)), (/Ni_0,Nj_0,1/) ), info )
-      IF( ssnd(jps_sflx  )%laction )  CALL cpl_snd( jps_sflx  , isec, RESHAPE ( sfx (A2D(0))   , (/Ni_0,Nj_0,1/) ), info )
-      IF( ssnd(jps_otx1  )%laction )  CALL cpl_snd( jps_otx1  , isec, RESHAPE ( utau(A2D(0)), (/Ni_0,Nj_0,1/) ), info )
-      IF( ssnd(jps_oty1  )%laction )  CALL cpl_snd( jps_oty1  , isec, RESHAPE ( vtau(A2D(0)), (/Ni_0,Nj_0,1/) ), info )
-      IF( ssnd(jps_rnf   )%laction )  CALL cpl_snd( jps_rnf   , isec, RESHAPE ( rnf (A2D(0)), (/Ni_0,Nj_0,1/) ), info )
-      IF( ssnd(jps_taum  )%laction )  CALL cpl_snd( jps_taum  , isec, RESHAPE ( taum(A2D(0))   , (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_qsroce)%laction )  CALL cpl_snd( nmodsbc, jps_qsroce, isec, RESHAPE ( qsr (A2D(0))   , (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_qnsoce)%laction )  CALL cpl_snd( nmodsbc, jps_qnsoce, isec, RESHAPE ( qns (A2D(0))   , (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_oemp  )%laction )  CALL cpl_snd( nmodsbc, jps_oemp  , isec, RESHAPE ( emp (A2D(0)), (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_sflx  )%laction )  CALL cpl_snd( nmodsbc, jps_sflx  , isec, RESHAPE ( sfx (A2D(0))   , (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_otx1  )%laction )  CALL cpl_snd( nmodsbc, jps_otx1  , isec, RESHAPE ( utau(A2D(0)), (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_oty1  )%laction )  CALL cpl_snd( nmodsbc, jps_oty1  , isec, RESHAPE ( vtau(A2D(0)), (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_rnf   )%laction )  CALL cpl_snd( nmodsbc, jps_rnf   , isec, RESHAPE ( rnf (A2D(0)), (/Ni_0,Nj_0,1/) ), info )
+      IF( ssnd(nmodsbc)%fld(jps_taum  )%laction )  CALL cpl_snd( nmodsbc, jps_taum  , isec, RESHAPE ( taum(A2D(0))   , (/Ni_0,Nj_0,1/) ), info )
 
 #if defined key_si3
       !                                                      ! ------------------------- !
@@ -2723,7 +2721,7 @@ CONTAINS
       ! needed by Met Office
       CALL eos_fzp( ts(A2D(0),1,jp_sal,Kmm), sstfrz(A2D(0)), kbnd=0 )
       ztmp1(A2D(0)) = sstfrz(A2D(0)) + rt0
-      IF( ssnd(jps_sstfrz)%laction )  CALL cpl_snd( jps_sstfrz, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info)
+      IF( ssnd(nmodsbc)%fld(jps_sstfrz)%laction )  CALL cpl_snd( nmodsbc, jps_sstfrz, isec, RESHAPE ( ztmp1, (/Ni_0,Nj_0,1/) ), info)
 #endif
       !
    END SUBROUTINE sbc_cpl_snd
