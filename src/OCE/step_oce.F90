@@ -21,7 +21,9 @@ MODULE step_oce
    USE sbcwave         ! Wave intialisation
    USE tide_mod        ! tides
 
-   USE bdy_oce  , ONLY : ln_bdy
+   USE cpl_oasis3 , ONLY : lk_oasis 
+
+   USE bdy_oce    , ONLY : ln_bdy
    USE bdydta          ! open boundary condition data     (bdy_dta routine)
    USE bdytra          ! bdy cond. for tracers            (bdy_tra routine)
    USE bdydyn3d        ! bdy cond. for baroclinic vel.  (bdy_dyn3d routine)

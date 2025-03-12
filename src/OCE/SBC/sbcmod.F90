@@ -281,8 +281,8 @@ CONTAINS
       !     nn_fsbc initialization if OCE-SAS coupling via OASIS
       !     SAS time-step has to be declared in OASIS (mandatory) -> nn_fsbc has to be modified accordingly
       IF( nn_components /= jp_iam_nemo ) THEN
-         IF( nn_components == jp_iam_oce )   nn_fsbc = cpl_freq('O_SFLX') / NINT(rn_Dt)
-         IF( nn_components == jp_iam_sas )   nn_fsbc = cpl_freq('I_SFLX') / NINT(rn_Dt)
+         IF( nn_components == jp_iam_oce )   nn_fsbc = cpl_freq('O_SFLX',nmodsbc) / NINT(rn_Dt)
+         IF( nn_components == jp_iam_sas )   nn_fsbc = cpl_freq('I_SFLX',nmodsbc) / NINT(rn_Dt)
          !
          IF(lwp)THEN
             WRITE(numout,*)

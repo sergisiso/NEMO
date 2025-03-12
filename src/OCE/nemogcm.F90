@@ -369,6 +369,8 @@ CONTAINS
       ! Now we know the dimensions of the grid and numout has been set: we can allocate arrays
       CALL nemo_alloc()
 
+      IF( lk_oasis     )   CALL cpl_domain   ! Define grid for coupling
+      !
       ! Initialise time level indices
       Nbb = 1   ;   Nnn = 2   ;   Naa = 3   ;   Nrhs = Naa
 #if defined key_agrif
@@ -416,8 +418,9 @@ CONTAINS
 
       !                                      ! external forcing
                            CALL    tide_init                     ! tidal harmonics
-                           CALL     sbc_init( Nbb, Nnn, Naa )    ! surface boundary conditions (including sea-ice)
-                           CALL     bdy_init                     ! Open boundaries initialisation
+                           CALL    sbc_init( Nbb, Nnn, Naa )     ! surface boundary conditions (including sea-ice)
+                           CALL    bdy_init                      ! Open boundaries initialisation
+      IF( lk_oasis     )   CALL    cpl_define                    ! terminate coupling initialization
 
       !                                      ! Ocean physics
                            CALL zdf_phy_init( Nnn )    ! Vertical physics

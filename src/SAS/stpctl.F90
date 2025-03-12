@@ -19,10 +19,11 @@ MODULE stpctl
    USE oce             ! ocean dynamics and tracers variables
    USE dom_oce         ! ocean space and time domain variables 
 #if defined key_si3
-   USE ice      , ONLY : vt_i, u_ice, tm_i
+   USE ice         , ONLY : vt_i, u_ice, tm_i
 #endif
-   USE phycst   , ONLY : rt0
-   USE sbc_oce  , ONLY : lk_oasis, nn_ice
+   USE phycst      , ONLY : rt0
+   USE sbc_oce     , ONLY : nn_ice
+   USE cpl_oasis3  , ONLY : lk_oasis
    !
    USE diawri          ! Standard run outputs       (dia_wri_state routine)
    USE in_out_manager  ! I/O manager
