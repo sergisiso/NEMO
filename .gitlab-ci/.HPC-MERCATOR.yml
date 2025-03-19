@@ -1,0 +1,9 @@
+# SETTE 'param.cfg' file path for each HPC
+
+variables:
+  # METEO-FRANCE BELENOS (INTEL2018+INTELMPI)
+  MF_SETTE_CFG: "/home/ext/mr/smer/samsong/SRC/NEMO/branch_5.0/sette/param_${NEMO_COMPILER}.ci"
+  # ECMWF AA/B/C/D (GCC13+OPENMPI & INTEL2021+OPENMPI)
+  ECMWF_SETTE_CFG: "/home/ar0s/SRC/NEMO/branch_5.0/sette/param_${NEMO_COMPILER}.ci"
+  # MERCATOR LIR (GCC14+OPENMPI)
+  LIR_SETTE_CFG: "/home/gsamson/SRC/NEMO/branch_5.0/sette/param_${NEMO_COMPILER}.ci"

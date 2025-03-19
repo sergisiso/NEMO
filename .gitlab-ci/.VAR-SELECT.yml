@@ -1,0 +1,50 @@
+# pipelines variables that can be defined manually from https://forge.nemo-ocean.eu/nemo/nemo/-/pipelines/new
+
+variables:
+
+  NEMO_HPC:
+    # must correspond to runners tags
+    description: "Nemo HPC"   
+    value: "ecmwf"
+    options:
+      - "ecmwf"
+
+  NEMO_COMPILER:
+    description: "Nemo Fortran compiler"
+    value: "default"
+    options:
+      - "default"
+      - "intel"
+      - "gcc"
+
+  NEMO_COMPILATION:
+    description: "Nemo compilation mode"
+    value: "debug"
+    options:
+      - "debug"
+      - "normal"
+
+  NEMO_CONFIG:
+    description: "Nemo configuration(s)/testcase(s)"
+    value: "ALL"
+    options:
+      - "ALL"
+
+  SETTE_TEST:
+    description: "Sette test(s) to be executed"
+    value: ""
+    options:
+      - ""
+      - "ALL"
+      - "RESTART"
+      - "REPRO"
+      - "CORRUPT"
+      - "PHYOPTS"
+      - "TRANSFORM"
+      - "COMPARE"
+
+  NEMO_REFSHA:
+    description: "Nemo short SHA (8 digits) for results comparison (optional)"
+    value: ""
+    options:
+      - ""
