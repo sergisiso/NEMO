@@ -1,0 +1,22 @@
+# CONFIG variable is used in '.config' template to define parallel loops and in '.test' templates to define jobs dependencies.
+# If a specific configuration is selected manually, CONFIG is set here.
+
+.config:
+  variables:
+    CONFIG: [$NEMO_CONFIG]
+
+.restart:
+  variables:
+    CONFIG: [$NEMO_CONFIG]
+
+.repro:
+  variables:
+    CONFIG: [$NEMO_CONFIG]
+
+.corrupt:
+  variables:
+    CONFIG: [$NEMO_CONFIG]
+
+.phyopts:
+  variables:
+    CONFIG: [$NEMO_CONFIG]

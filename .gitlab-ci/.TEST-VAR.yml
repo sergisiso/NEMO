@@ -1,0 +1,29 @@
+# Regex patterns for each sette test to define jobs rules.
+# https://docs.gitlab.com/ci/jobs/job_rules/#store-a-regular-expression-in-a-variable
+
+variables:
+    PATTERN_RESTART: '/ORCA2_ICE_PISCES|ORCA2_OFF_PISCES|AMM12|AGRIF_DEMO|WED025|GYRE_PISCES|GYRE_GO|ORCA2_SAS_ICE|ORCA2_ICE_OBS|C1D_PAPA|SWG|ICE_AGRIF|OVERFLOW|LOCK_EXCHANGE|VORTEX|ISOMIP+|IWAVE/'
+    PATTERN_REPRO: '/ORCA2_ICE_PISCES|ORCA2_OFF_PISCES|AMM12|AGRIF_DEMO|WED025|GYRE_PISCES|GYRE_GO|ORCA2_SAS_ICE|ORCA2_ICE_OBS|SWG|ICE_AGRIF|OVERFLOW|LOCK_EXCHANGE|VORTEX|ISOMIP+|IWAVE/'
+    PATTERN_CORRUPT: '/AGRIF_DEMO/'
+    PATTERN_PHYOPTS: '/OVERFLOW|LOCK_EXCHANGE/'
+
+
+# List of configurations for each type of tests to manage job dependencies.
+# It will be overwritten in '.CFG-SELECT.yml' if a specific configuration is selected manually.
+# https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+
+.restart:
+  variables:
+    CONFIG: [ORCA2_ICE_PISCES,ORCA2_OFF_PISCES,AMM12,AGRIF_DEMO,WED025,GYRE_PISCES,GYRE_GO,ORCA2_SAS_ICE,ORCA2_ICE_OBS,C1D_PAPA,SWG,ICE_AGRIF,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+,IWAVE]
+
+.repro:
+  variables:
+    CONFIG: [ORCA2_ICE_PISCES,ORCA2_OFF_PISCES,AMM12,AGRIF_DEMO,WED025,GYRE_PISCES,GYRE_GO,ORCA2_SAS_ICE,ORCA2_ICE_OBS,SWG,ICE_AGRIF,OVERFLOW,LOCK_EXCHANGE,VORTEX,ISOMIP+,IWAVE]
+
+.corrupt:
+  variables:
+    CONFIG: [AGRIF_DEMO]
+
+.phyopts:
+  variables:
+    CONFIG: [OVERFLOW,LOCK_EXCHANGE]
