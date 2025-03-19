@@ -62,7 +62,7 @@ include:
 
 .artifact_run: &artifact_run
     paths:
-      - sette/sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - sette/sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
       - cfgs/${CONFIG}_ST/*/sette.*.out
       - cfgs/${CONFIG}_ST/*/sette.*.err
       - cfgs/${CONFIG}_ST/*/ocean.output*
@@ -119,11 +119,11 @@ sette_cmp:
     - $NEMO_HPC
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     - cd -
   artifacts:
     paths:
-      - sette/sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - sette/sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     when: always
     expire_in: 30 days
 
@@ -149,7 +149,7 @@ sette_run:RESTART:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "RESTART" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "RESTART" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     - cd -
   artifacts:
     <<: *artifact_run
@@ -176,7 +176,7 @@ sette_run:REPRO:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "REPRO" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "REPRO" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     - cd -
   artifacts:
     <<: *artifact_run
@@ -203,7 +203,7 @@ sette_run:CORRUPT:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     - cd -
   artifacts:
     <<: *artifact_run
@@ -230,7 +230,7 @@ sette_run:PHYOPTS:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "PHYOPTS" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "PHYOPTS" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     - cd -
   artifacts:
     <<: *artifact_run
@@ -254,10 +254,10 @@ sette_rpt:RESTART:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "RESTART" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "RESTART" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
   artifacts:
     paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     when: always
     expire_in: 30 days
 
@@ -280,10 +280,10 @@ sette_rpt:REPRO:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "REPRO" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "REPRO" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
   artifacts:
     paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     when: always
     expire_in: 30 days
 
@@ -306,10 +306,10 @@ sette_rpt:CORRUPT:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "CORRUPT" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "CORRUPT" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
   artifacts:
     paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     when: always
     expire_in: 30 days
 
@@ -332,10 +332,10 @@ sette_rpt:PHYOPTS:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "PHYOPTS" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "PHYOPTS" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
   artifacts:
     paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     when: always
     expire_in: 30 days
 
@@ -358,9 +358,9 @@ sette_rpt:COMPARE:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "COMPARE" ${NEMO_REFSHA:+-S ${NEMO_REFSHA}} ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "COMPARE" ${NEMO_REFSHA:+-S ${NEMO_REFSHA}} ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
   artifacts:
     paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${HPC}.log
+      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
     when: always
     expire_in: 30 days
