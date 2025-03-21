@@ -62,7 +62,7 @@ include:
 
 .artifact_run: &artifact_run
     paths:
-      - sette/sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
+      - sette/$LOG_FILE
       - cfgs/${CONFIG}_ST/*/sette.*.out
       - cfgs/${CONFIG}_ST/*/sette.*.err
       - cfgs/${CONFIG}_ST/*/ocean.output*
@@ -70,13 +70,19 @@ include:
       - tests/${CONFIG}_ST/*/sette.*.err
       - tests/${CONFIG}_ST/*/ocean.output*
     when: always
-    expire_in: 30 days
+    expire_in: 1 week
+
+.artifact_rpt: &artifact_rpt
+    paths: ['sette/$LOG_FILE']
+    when: always
+    expire_in: 1 week
 
 
 stages:
   - compile
   - run
   - check
+  - report
 
 
 before_script:
@@ -119,8 +125,7 @@ sette_cmp:
     - $NEMO_HPC
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    - cd -
+    - ./sette.sh ${SETTE_OPT} -n "${CONFIG}" -x "COMPILE" | tee -a sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
   artifacts:
     paths:
       - sette/sette_cmp_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
@@ -146,11 +151,12 @@ sette_run:RESTART:
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'RESTART'
+    LOG_FILE: 'sette_run_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "RESTART" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    - cd -
+    - ./sette.sh ${SETTE_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_run
 
@@ -173,11 +179,12 @@ sette_run:REPRO:
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'REPRO'
+    LOG_FILE: 'sette_run_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "REPRO" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    - cd -
+    - ./sette.sh ${SETTE_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_run
 
@@ -200,11 +207,12 @@ sette_run:CORRUPT:
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'CORRUPT'
+    LOG_FILE: 'sette_run_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "CORRUPT" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    - cd -
+    - ./sette.sh ${SETTE_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_run
 
@@ -227,11 +235,12 @@ sette_run:PHYOPTS:
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'PHYOPTS'
+    LOG_FILE: 'sette_run_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette.sh ${SETTE_OPT} -n ${CONFIG} -x "PHYOPTS" | tee -a sette_run_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    - cd -
+    - ./sette.sh ${SETTE_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_run
 
@@ -247,19 +256,20 @@ sette_rpt:RESTART:
     <<: *loop
   rules:             # Dependency on the 'RESTART'-test selection, and restriction to the configurations relevant for the 'RESTART' test
     - if: $SETTE_TEST =~ /ALL|RESTART/ && ($CONFIG =~ $PATTERN_RESTART || $NEMO_CONFIG =~ $PATTERN_RESTART)
+      when: delayed
+      start_in: 5 seconds
   dependencies: []   # No retrieval of previous artefacts
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'RESTART'
+    LOG_FILE: 'sette_rpt_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "RESTART" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
   artifacts:
-    paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    when: always
-    expire_in: 30 days
+    <<: *artifact_rpt
 
 
 sette_rpt:REPRO:
@@ -272,20 +282,21 @@ sette_rpt:REPRO:
   dependencies: []   # do not retrieve previous artifacts
   rules:
     - if: $SETTE_TEST =~ /ALL|REPRO/ && ($CONFIG =~ $PATTERN_REPRO || $NEMO_CONFIG =~ $PATTERN_REPRO)
+      when: delayed
+      start_in: 5 seconds
   parallel: 
     <<: *loop
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'REPRO'
+    LOG_FILE: 'sette_rpt_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "REPRO" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
   artifacts:
-    paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    when: always
-    expire_in: 30 days
+    <<: *artifact_rpt
 
 
 sette_rpt:CORRUPT:
@@ -298,20 +309,21 @@ sette_rpt:CORRUPT:
   dependencies: []   # do not retrieve previous artifacts
   rules:
     - if: $SETTE_TEST =~ /ALL|CORRUPT/ && ($CONFIG =~ $PATTERN_CORRUPT || $NEMO_CONFIG =~ $PATTERN_CORRUPT)
+      when: delayed
+      start_in: 5 seconds
   parallel: 
     <<: *loop
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'CORRUPT'
+    LOG_FILE: 'sette_rpt_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "CORRUPT" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
   artifacts:
-    paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    when: always
-    expire_in: 30 days
+    <<: *artifact_rpt
 
 
 sette_rpt:PHYOPTS:
@@ -324,20 +336,21 @@ sette_rpt:PHYOPTS:
   dependencies: []   # do not retrieve previous artifacts
   rules:
     - if: $SETTE_TEST =~ /ALL|PHYOPTS/ && ($CONFIG =~ $PATTERN_PHYOPTS || $NEMO_CONFIG =~ $PATTERN_PHYOPTS)
+      when: delayed
+      start_in: 5 seconds
   parallel: 
     <<: *loop
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'PHYOPTS'
+    LOG_FILE: 'sette_rpt_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "PHYOPTS" ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
   artifacts:
-    paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
-    when: always
-    expire_in: 30 days
+    <<: *artifact_rpt
 
 
 sette_rpt:COMPARE:
@@ -350,17 +363,35 @@ sette_rpt:COMPARE:
   dependencies: []   # do not retrieve previous artifacts
   rules:
     - if: $NEMO_REFSHA != "" && ($CONFIG =~ $PATTERN_RESTART || $NEMO_CONFIG =~ $PATTERN_RESTART)
+      when: delayed
+      start_in: 5 seconds
   parallel: 
     <<: *loop
   tags:
     - $NEMO_HPC
   variables:
+    TEST_TYPE: 'COMPARE'
+    LOG_FILE: 'sette_rpt_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "COMPARE" ${NEMO_REFSHA:+-S ${NEMO_REFSHA}} ${SETTERPT_OPT} | tee -a sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} ${NEMO_REFSHA:+-S ${NEMO_REFSHA}} | tee -a ${LOG_FILE}
   artifacts:
-    paths:
-      - sette/sette_rpt_${CONFIG}_${CI_COMMIT_SHORT_SHA}_${NEMO_HPC}.log
+    <<: *artifact_rpt
+
+
+sette_rpt:FULL:
+  stage: report
+  dependencies: []   # do not retrieve previous artifacts
+  rules:
+    - if: $SETTE_TEST == "ALL" && $NEMO_CONFIG == "ALL"
+  tags:
+    - $NEMO_HPC
+  script:
+    - cd sette
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -s ${CI_COMMIT_SHORT_SHA} > sette_rpt.log
+  artifacts:
+    expose_as: 'SETTE report'
+    paths: ['sette/sette_rpt.log']
     when: always
     expire_in: 30 days
