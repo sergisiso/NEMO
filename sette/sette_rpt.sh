@@ -730,21 +730,26 @@ function identictest(){
   if [ -z $USER_INPUT ] ; then USER_INPUT='yes' ; fi        # Default: yes => request user input on decisions.
                                                             # (but may br inherited/imported from sette.sh)
   mach=${COMPILER}
-# overwrite revision (later) or compiler
+# Processing of command-line arguments
+rev=""; sha=""
   if [ $# -gt 0 ]; then
     echo ""
-    while getopts n:r:R:S:c:x:v:V:ubh option; do
+    while getopts n:r:s:R:S:c:x:v:V:ubh option; do
        case $option in
           c) mach=$OPTARG;;
           r) rev=$OPTARG
-             echo "-v: will use ${rev} revision for current report"
+             echo "-r: will use ${rev} revision for current report"
+             echo "";;
+          s) sha=$OPTARG
+             [[ ! ${sha} =~ ^[[:alnum:]]{8}$ ]] && echo "-s: wrong SHA digits number (8 digits needed)" && exit 1
+             echo "-s: will use \"${sha}\" SHA (\"$(git show -s --format=%s ${sha})\") for current report"
              echo "";;
           R) refrev=$OPTARG
              DO_COMPARE=1
              ;;
           S) refsha=$OPTARG
              [[ ! ${refsha} =~ ^[[:alnum:]]{8}$ ]] && echo "-S: wrong SHA digits number (8 digits needed)" && exit 1
-             echo "-S: will compare current results with ${refsha} SHA (\"$(git show -s --format=%s ${refsha})\")"
+             echo "-S: will compare current results with \"${refsha}\" SHA (\"$(git show -s --format=%s ${refsha})\")"
              echo ""
              DO_COMPARE=1
              ;;
@@ -755,7 +760,8 @@ function identictest(){
              [[ ${TEST_TYPES[*]} =~ .*PHYOPTS.*   ]] && export DO_PHYOPTS=1   || DO_PHYOPTS=0
              [[ ${TEST_TYPES[*]} =~ .*TRANSFORM.* ]] && export DO_TRANSFORM=1 || DO_TRANSFORM=0
              [[ ${TEST_TYPES[*]} =~ .*COMPARE.*   ]] && export DO_COMPARE=1   || DO_COMPARE=0
-             ;;
+             echo "-x: will check ${TEST_TYPES[*]} test(s) for current report"
+             echo "";;
           v) SETTE_SUB_VAL=$OPTARG;;
           V) SETTE_SUB_VAL2=$OPTARG
              if [ -d ${NEMO_VALIDATION_DIR}/${SETTE_SUB_VAL2} ] ; then
@@ -780,6 +786,8 @@ function identictest(){
                  echo '     display result for the specified compiler'
                  echo ' -r REVISION_number :'
                  echo '     display sette results for the specified revision (set old for the latest revision available for each config)'
+                 echo ' -s commit short (8-digits) SHA :'
+                 echo '     display sette results for the specified SHA (set old for the latest revision available for each config)'
                  echo ' -R REFERENCE REVISION_number :'
                  echo '     compare sette results against the specified revision (use to over-ride value set in param.cfg)'
                  echo ' -S REFERENCE commit short (8-digits) SHA :'
@@ -858,19 +866,24 @@ fi
 # Show current revision tag and branch name
 #
 echo ""
-nemo_revision=$(git -C ${MAIN_DIR} rev-parse --short=8 HEAD 2> /dev/null)
-rev_date0=`git log -1 | grep Date | sed -e 's/.*Date: *//' -e's/ +.*$//'`
-rev_date=`${DATE_CONV}"${rev_date0}" +"%y%j"`
-revision=${rev_date}_${nemo_revision}
-localchanges=`git status --short -uno | wc -l`
-if [[ $localchanges > 0 ]] ; then
- lastchange=${revision}+
+localchanges=0
+# -r option
+if [ -n "${rev}" ]; then
+  nemo_revision=${rev}
+  lastchange=${rev}
+# -s option
+elif [ -n "${sha}" ]; then
+  nemo_revision=${sha}
+  rev_date=$(date --date=@$(git show --no-patch --format=%ct ${nemo_revision}) +"%y%j")
+  lastchange=${rev_date}_${nemo_revision}
+# current git repo SHA
 else
- lastchange=$revision
+  nemo_revision=$(git -C ${MAIN_DIR} rev-parse --short=8 HEAD 2> /dev/null)
+  rev_date=$(date --date=@$(git show --no-patch --format=%ct ${nemo_revision}) +"%y%j")
+  lastchange=${rev_date}_${nemo_revision}
+  localchanges=`git status --short -uno | wc -l`
+  if [[ $localchanges -gt 0 ]] ; then lastchange="${lastchange}+"; fi
 fi
-
-# by default use the current lastchanged revision
-lastchange=${rev:-$lastchange}
 
 echo ""
 echo "SETTE validation report generated for : "
@@ -982,6 +995,7 @@ done
 
 # error code
 SETTE_EC=$((REPRO_EC+RESTA_EC+TRANSFORM_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC+PHYOPT_EC))
+echo ""
 echo "SETTE Report Exit Code: ${SETTE_EC}"
 
 exit $SETTE_EC
