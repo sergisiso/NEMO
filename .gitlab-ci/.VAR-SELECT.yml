@@ -30,6 +30,13 @@ variables:
     options:
       - "ALL"
 
+  NEMO_TIMESTEPPING:
+    description: "Nemo time stepping"
+    value: "RK3"
+    options:
+      - "RK3"
+      - "MLF"
+
   SETTE_TEST:
     description: "Sette test(s) to be executed"
     value: ""

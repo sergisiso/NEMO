@@ -5,7 +5,7 @@
 
 workflow:
 
-  name: "SETTE : $NEMO_HPC $NEMO_COMPILER $NEMO_COMPILATION - $NEMO_CONFIG cfg(s) - $SETTE_TEST test(s)"
+  name: "SETTE : $NEMO_HPC $NEMO_COMPILER $NEMO_COMPILATION - $NEMO_CONFIG $NEMO_TIMESTEPPING cfg(s) - $SETTE_TEST test(s)"
   rules:
     - if: $CI_PIPELINE_SOURCE == 'web'
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_COMMIT_TITLE =~ /(?i).*\[ci\].*/
@@ -103,7 +103,9 @@ before_script:
   - cp -aLv ${!SETTE_CFG} sette/param.cfg
   - git config core.filemode false   # ignore git(lab) symlinks permissions changes when pushing then pulling cache ("old mode 100755 -> new mode 100644")
   - SETTE_OPT="-u -w"   # no user interaction + wait for jobs to end options
-  - if [[ ${NEMO_COMPILATION} == "debug" ]]; then SETTE_OPT="${SETTE_OPT} -b"; fi
+  - RPT_OPT="-u"        # no user interaction
+  - if [[ ${NEMO_COMPILATION} == "debug" ]]; then SETTE_OPT="${SETTE_OPT} -b"; RPT_OPT="${RPT_OPT} -b"; fi
+  - if [[ ${NEMO_TIMESTEPPING} == "MLF"  ]]; then SETTE_OPT="${SETTE_OPT} -Q"; fi
 
 
 # JOBS
@@ -267,7 +269,7 @@ sette_rpt:RESTART:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
+    - ./sette_rpt.sh ${RPT_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_rpt
 
@@ -294,7 +296,7 @@ sette_rpt:REPRO:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
+    - ./sette_rpt.sh ${RPT_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_rpt
 
@@ -321,7 +323,7 @@ sette_rpt:CORRUPT:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
+    - ./sette_rpt.sh ${RPT_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_rpt
 
@@ -348,7 +350,7 @@ sette_rpt:PHYOPTS:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
+    - ./sette_rpt.sh ${RPT_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_rpt
 
@@ -375,7 +377,7 @@ sette_rpt:COMPARE:
     GIT_STRATEGY: none
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} ${NEMO_REFSHA:+-S ${NEMO_REFSHA}} | tee -a ${LOG_FILE}
+    - ./sette_rpt.sh ${RPT_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} ${NEMO_REFSHA:+-S ${NEMO_REFSHA}} | tee -a ${LOG_FILE}
   artifacts:
     <<: *artifact_rpt
 
@@ -389,7 +391,7 @@ sette_rpt:FULL:
     - $NEMO_HPC
   script:
     - cd sette
-    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -s ${CI_COMMIT_SHORT_SHA} > sette_rpt.log
+    - ./sette_rpt.sh ${RPT_OPT} -s ${CI_COMMIT_SHORT_SHA} > sette_rpt.log
   artifacts:
     expose_as: 'SETTE report'
     paths: ['sette/sette_rpt.log']
