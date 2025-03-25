@@ -13,7 +13,7 @@
 format_field1="%-35s"
 
 # exit codes
-declare -i {REPRO_EC,RESTA_EC,TRANSFORM_EC,REFCMP_EC,CPUCMP_EC,OCEOUT_EC,AGRIF_EC,PHYOPT_EC}=0
+declare -i {REPRO_EC,RESTA_EC,TRANSFORM_EC,REFCMP_EC,CPUCMP_EC,OCEOUT_EC,AGRIF_EC,ROT_EC,PHYOPT_EC}=0
 
 function get_dorv() {
   if [ $lastchange == 'old' ] ; then
@@ -33,6 +33,182 @@ function get_ktdiff() {
 
 function get_ktdiff2() {
   ktdiff=`diff ${1} ${2} |  head -2 | tail -1l | awk '{print $2}'`
+}
+
+function rottest() { 
+#
+# Rotational symmetry checks. Expects ROT_000 and ROT_180 run directories
+#
+  vdir=$1
+  nam=$2
+  pass=$3
+#
+# get $dorv
+  get_dorv
+#
+# check if directory is here
+  if [ ! -d $vdir/$mach/$dorv/$nam ]; then
+    printf "${format_field1} %s %s\n" $nam  " directory                  MISSING : " $dorv
+    echo " please check $vdir/$mach/$dorv/$nam"
+    ROT_EC=1
+    return
+  fi
+
+  if [ -d $vdir/$mach/$dorv/$nam ]; then
+    # check ocean output
+    runtest $vdir $nam $pass ROT
+    #
+    # run restartibility test
+    f1o=$vdir/$mach/$dorv/$nam/ROT_000/ocean.output
+    f1s=$vdir/$mach/$dorv/$nam/ROT_000/run.stat
+    f1t=$vdir/$mach/$dorv/$nam/ROT_000/tracer.stat
+    f2o=$vdir/$mach/$dorv/$nam/ROT_180/ocean.output
+    f2s=$vdir/$mach/$dorv/$nam/ROT_180/run.stat
+    f2t=$vdir/$mach/$dorv/$nam/ROT_180/tracer.stat
+    f3o=$vdir/$mach/$dorv/$nam/ROT_090/ocean.output
+    f3s=$vdir/$mach/$dorv/$nam/ROT_090/run.stat
+    f3t=$vdir/$mach/$dorv/$nam/ROT_090/tracer.stat
+
+    if  [ ! -f $f1s ] &&  [ ! -f $f1t ] ; then 
+      printf "${format_field1} %s\n" $nam " incomplete test"
+      ROT_EC=1
+      return
+    fi
+    if  [ ! -f $f2s ] &&  [ ! -f $f2t ] ; then 
+      printf "${format_field1} %s\n" $nam " incomplete test"
+      ROT_EC=1
+      return
+    fi
+    if  [ ! -f $f3s ] &&  [ ! -f $f3t ] ; then 
+      printf "${format_field1} %s\n" $nam " incomplete test"
+      ROT_EC=1
+      return
+    fi
+#
+    done_oce=0
+
+    if  [  -f $f1s ] && [  -f $f2s ]; then 
+      cmp -s $f1s $f2s
+      if [ $? == 0 ]; then
+        if [ $pass == 0 ]; then 
+          printf "${format_field1} %s %s\n" $nam "run.stat    180deg  rotation  passed  :" $dorv
+        fi
+      else
+        get_ktdiff $f1s $f2s
+        printf "\e[38;5;196m${format_field1} %s %s %s %-5s %s\e[0m\n" $nam "run.stat    180deg rotation  FAILED  :" $dorv " (results are different after " $ktdiff " time steps)"
+        ROT_EC=1
+#
+# Offer view of differences on the second pass
+#
+        if [ $pass == 1 ]; then
+          echo "<return> to view run.stat differences"
+          read y
+          sdiff $f1s $f2s
+          echo "<return> to view ocean.output differences"
+          read y
+          sdiff $f1o $f2o | grep "|"
+          done_oce=1
+          echo "<return> to continue"
+          read y
+        fi
+      fi
+    fi
+
+    done_oce=0
+
+    if  [  -f $f1s ] && [  -f $f3s ]; then 
+      cmp -s $f1s $f3s
+      if [ $? == 0 ]; then
+        if [ $pass == 0 ]; then 
+          printf "${format_field1} %s %s\n" $nam "run.stat     90deg rotation  passed  :" $dorv
+        fi
+      else
+        get_ktdiff $f1s $f3s
+        printf "\e[38;5;196m${format_field1} %s %s %s %-5s %s\e[0m\n" $nam "run.stat     90deg rotation  FAILED  :" $dorv " (results are different after " $ktdiff " time steps)"
+        ROT_EC=1
+#
+# Offer view of differences on the second pass
+#
+        if [ $pass == 1 ]; then
+          echo "<return> to view run.stat differences"
+          read y
+          sdiff $f1s $f3s
+          echo "<return> to view ocean.output differences"
+          read y
+          sdiff $f1o $f3o | grep "|"
+          done_oce=1
+          echo "<return> to continue"
+          read y
+        fi
+      fi
+    fi
+
+#
+# Check tracer.stat files (if they exist)
+#
+    if  [  -f $f1t ] && [  -f $f2t ]; then
+      cmp -s $f1t $f2t
+      if [ $? == 0 ]; then
+        if [ $pass == 0 ]; then 
+          printf "${format_field1} %s %s\n" $nam "tracer.stat 180deg rotation  passed  :" $dorv
+        fi
+      else
+        get_ktdiff2 $f1t $f2t
+        printf "\e[38;5;196m${format_field1} %s %s %s %-5s %s\e[0m\n" $nam "tracer.stat 180deg rotation  FAILED  :" $dorv " (results are different after " $ktdiff " time steps)"
+        ROT_EC=1
+#
+# Offer view of differences on the second pass
+#
+        if [ $pass == 1 ]; then
+          echo "<return> to view tracer.stat differences"
+          read y
+          sdiff $f1t $f2t
+#
+# Only offer ocean.output view if it has not been viewed previously
+#
+          if [ $done_oce == 0 ]; then
+            echo "<return> to view ocean.output differences"
+            read y
+            sdiff $f1o $f2o | grep "|"
+          fi
+          echo "<return> to continue"
+          read y
+        fi
+      fi
+    fi
+
+    if  [  -f $f1t ] && [  -f $f3t ]; then
+      cmp -s $f1t $f3t
+      if [ $? == 0 ]; then
+        if [ $pass == 0 ]; then 
+          printf "${format_field1} %s %s\n" $nam "tracer.stat  90deg rotation  passed  :" $dorv
+        fi
+      else
+        get_ktdiff2 $f1t $f3t
+        printf "\e[38;5;196m${format_field1} %s %s %s %-5s %s\e[0m\n" $nam "tracer.stat  90deg rotation  FAILED  :" $dorv " (results are different after " $ktdiff " time steps)"
+        ROT_EC=1
+#
+# Offer view of differences on the second pass
+#
+        if [ $pass == 1 ]; then
+          echo "<return> to view tracer.stat differences"
+          read y
+          sdiff $f1t $f3t
+#
+# Only offer ocean.output view if it has not been viewed previously
+#
+          if [ $done_oce == 0 ]; then
+            echo "<return> to view ocean.output differences"
+            read y
+            sdiff $f1o $f3o | grep "|"
+          fi
+          echo "<return> to continue"
+          read y
+        fi
+      fi
+    fi
+
+  fi
 }
 
 function resttest() {
@@ -758,6 +934,7 @@ rev=""; sha=""
              [[ ${TEST_TYPES[*]} =~ .*REPRO.*     ]] && export DO_REPRO=1     || DO_REPRO=0
              [[ ${TEST_TYPES[*]} =~ .*CORRUPT.*   ]] && export DO_CORRUPT=1   || DO_CORRUPT=0
              [[ ${TEST_TYPES[*]} =~ .*PHYOPTS.*   ]] && export DO_PHYOPTS=1   || DO_PHYOPTS=0
+             [[ ${TEST_TYPES[*]} =~ .*ROTSYM.*    ]] && export DO_ROTSYM=1    || DO_ROTSYM=0
              [[ ${TEST_TYPES[*]} =~ .*TRANSFORM.* ]] && export DO_TRANSFORM=1 || DO_TRANSFORM=0
              [[ ${TEST_TYPES[*]} =~ .*COMPARE.*   ]] && export DO_COMPARE=1   || DO_COMPARE=0
              echo "-x: will check ${TEST_TYPES[*]} test(s) for current report"
@@ -912,6 +1089,14 @@ do
      echo "!!---------------2nd pass------------------!!"
   fi
 
+  # Rotational symmetry 
+  if [ ${DO_ROTSYM} -eq 1 ]; then
+     echo ""
+     echo "   !----Rotational symmetry----!   "
+     dir1=VORTEX
+     rottest $NEMO_VALID VORTEX $pass 
+  fi
+
   # Restartability test
   if [ ${DO_RESTART} -eq 1 ]; then
     echo ""
@@ -994,7 +1179,7 @@ do
 done
 
 # error code
-SETTE_EC=$((REPRO_EC+RESTA_EC+TRANSFORM_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC+PHYOPT_EC))
+SETTE_EC=$((REPRO_EC+RESTA_EC+TRANSFORM_EC+REFCMP_EC+CPUCMP_EC+OCEOUT_EC+AGRIF_EC+PHYOPT_EC+ROT_EC))
 echo ""
 echo "SETTE Report Exit Code: ${SETTE_EC}"
 

@@ -20,3 +20,7 @@
 .phyopts:
   variables:
     CONFIG: [$NEMO_CONFIG]
+
+.rotsym:
+  variables:
+    CONFIG: [$NEMO_CONFIG]

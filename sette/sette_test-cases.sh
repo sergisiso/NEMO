@@ -146,6 +146,7 @@ do
         DO_REPRO_1=${DO_REPRO}
         DO_REPRO_2=${DO_REPRO}
         DO_PHYOPTS_0=${DO_PHYOPTS}
+        DO_ROTSYM_0=${DO_ROTSYM}
         TRANSFORM_OPT=""
         if [[ ${DO_TRANSFORM} == "1" ]] ; then
             # Ensure reference run for TRANSFORM test
@@ -162,6 +163,7 @@ do
                 DO_REPRO_1="0"
                 DO_REPRO_2="0"
                 DO_PHYOPTS_0="0"
+                DO_ROTSYM_0="0"
             fi
         fi
 
@@ -497,7 +499,7 @@ if [ ${config} == "VORTEX" ] ;  then
 
     # Configure and submit test runs for the VORTEX SETTE configuration (if
     # any)
-    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" ] ; then
+    if [ ${DO_RESTART} == "1" -o ${DO_REPRO} == "1" -o ${DO_TRANSFORM} == "1" -o ${DO_ROTSYM} == "1" ] ; then
 
         # Default test-run configuration for the VORTEX SETTE configuration
         EXE_DIR=${CMP_DIR:-${CONFIG_DIR0}}/${SETTE_CONFIG}/EXP00
@@ -591,9 +593,45 @@ if [ ${config} == "VORTEX" ] ;  then
             . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
         done
 
-    fi
+        ## Rotational symmetry test for VORTEX
+        if [[ ${DO_ROTSYM_0} == "1" ]] ;  then
+           expts="ROT_000 ROT_090 ROT_180"
+           irot=0
+	   for name in ${expts}; do
+              export TEST_NAME=${name}
+	      cd ${MAIN_DIR}
+              cd ${SETTE_DIR}
+              . ./prepare_exe_dir.sh
+              set_valid_dir
+              clean_valid_dir
+              JOB_FILE=${EXE_DIR}/run_job.sh
+              NPROC=6
+              if [ -f ${JOB_FILE} ] ; then \rm ${JOB_FILE} ; fi
+              cd ${EXE_DIR}
+              set_namelist namelist_cfg cn_exp \"VORTEX_ROT\"
+              set_namelist namelist_cfg nn_rot ${irot} 
+              set_namelist namelist_cfg jpni 2
+              set_namelist namelist_cfg jpnj 3
 
+              #   Complexify a bit by adding isopycnal diffusion:
+              set_namelist namelist_cfg ln_traldf_OFF .false.
+              set_namelist namelist_cfg ln_traldf_lap .true.
+              set_namelist namelist_cfg ln_traldf_iso .true.
+
+              #   Set the number of fine grids to zero:    
+              sed -i "1s/.*/0/" ${EXE_DIR}/AGRIF_FixedGrids.in
+
+              set_xio_using_server iodef.xml ${USING_MPMD}
+              cd ${SETTE_DIR}
+              . ./prepare_job.sh input_EMPTY.cfg $NPROC ${TEST_NAME} ${MPIRUN_FLAG} ${JOB_FILE} ${NUM_XIOSERVERS} ${NEMO_VALID}
+              cd ${SETTE_DIR}
+              . ./fcm_job.sh $NPROC ${JOB_FILE} ${INTERACT_FLAG} ${MPIRUN_FLAG}
+              irot=$((irot+1))
+           done 
+        fi
+    fi
 fi
+
 
 # ---------
 # ICE_AGRIF

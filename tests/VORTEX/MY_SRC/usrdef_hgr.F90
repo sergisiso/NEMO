@@ -151,17 +151,10 @@ CONTAINS
       !     
       ! Horizontal scale factors (in meters)
       !                              ======
-      IF     ((nn_rot==0).OR.(nn_rot==2)) THEN
-         pe1t(:,:) = rn_dx  ;   pe2t(:,:) = rn_dy 
-         pe1u(:,:) = rn_dx  ;   pe2u(:,:) = rn_dy 
-         pe1v(:,:) = rn_dx  ;   pe2v(:,:) = rn_dy 
-         pe1f(:,:) = rn_dx  ;   pe2f(:,:) = rn_dy 
-      ELSEIF ((nn_rot==1).OR.(nn_rot==3)) THEN
-         pe1t(:,:) = rn_dy  ;   pe2t(:,:) = rn_dx 
-         pe1u(:,:) = rn_dy  ;   pe2u(:,:) = rn_dx 
-         pe1v(:,:) = rn_dy  ;   pe2v(:,:) = rn_dx 
-         pe1f(:,:) = rn_dy  ;   pe2f(:,:) = rn_dx 
-      ENDIF
+      pe1t(:,:) = rn_dx  ;   pe2t(:,:) = rn_dy 
+      pe1u(:,:) = rn_dx  ;   pe2u(:,:) = rn_dy 
+      pe1v(:,:) = rn_dx  ;   pe2v(:,:) = rn_dy 
+      pe1f(:,:) = rn_dx  ;   pe2f(:,:) = rn_dy 
       !                             ! NO reduction of grid size in some straits 
       ke1e2u_v = 0                  !    ==>> u_ & v_surfaces will be computed in dom_hgr routine
       pe1e2u(:,:) = 0._wp           !    CAUTION: set to zero to avoid error with some compilers that

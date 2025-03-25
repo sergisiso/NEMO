@@ -34,6 +34,9 @@ include:
   - local: '.gitlab-ci/.TEST-PHYOPTS.yml'
     rules:
       - if: $SETTE_TEST == "PHYOPTS"
+  - local: '.gitlab-ci/.TEST-ROTSYM.yml'
+    rules:
+      - if: $SETTE_TEST == "ROTSYM"
 
   # NEMO CONFIGURATIONS
   - local: '.gitlab-ci/.CFG-ALL.yml'
@@ -217,6 +220,34 @@ sette_run:CORRUPT:
     <<: *artifact_run
 
 
+sette_run:ROTSYM:
+  stage: run
+  needs:
+    - job: sette_cmp
+      parallel:
+        matrix:
+          - CONFIG: !reference [.rotsym, variables, CONFIG]
+  dependencies: []   # do not retrieve previous artifacts
+  rules:
+    - if: $SETTE_TEST =~ /ALL|ROTSYM/ && ($CONFIG =~ $PATTERN_ROTSYM || $NEMO_CONFIG =~ $PATTERN_ROTSYM)
+  parallel: 
+    <<: *loop
+  cache:
+    <<: *cache_CFG
+    policy: pull
+  tags:
+    - $NEMO_HPC
+  variables:
+    TEST_TYPE: 'ROTSYM'
+    LOG_FILE: 'sette_run_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
+    GIT_STRATEGY: none
+  script:
+    - cd sette
+    - ./sette.sh ${SETTE_OPT} -n "${CONFIG}" -x "${TEST_TYPE}" | tee -a ${LOG_FILE}
+  artifacts:
+    <<: *artifact_run
+
+
 sette_run:PHYOPTS:
   stage: run
   needs:
@@ -344,6 +375,33 @@ sette_rpt:PHYOPTS:
     - $NEMO_HPC
   variables:
     TEST_TYPE: 'PHYOPTS'
+    LOG_FILE: 'sette_rpt_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
+    GIT_STRATEGY: none
+  script:
+    - cd sette
+    - ./sette_rpt.sh ${SETTE_OPT/" -w"} -n "${CONFIG}" -x "${TEST_TYPE}" -s ${CI_COMMIT_SHORT_SHA} | tee -a ${LOG_FILE}
+  artifacts:
+    <<: *artifact_rpt
+
+
+sette_rpt:ROTSYM:
+  stage: check
+  needs:
+    - job: sette_run:ROTSYM
+      parallel:
+        matrix:
+          - CONFIG: !reference [.rotsym, variables, CONFIG]
+  dependencies: []   # do not retrieve previous artifacts
+  rules:
+    - if: $SETTE_TEST =~ /ALL|ROTSYM/ && ($CONFIG =~ $PATTERN_ROTSYM || $NEMO_CONFIG =~ $PATTERN_ROTSYM)
+      when: delayed
+      start_in: 5 seconds
+  parallel: 
+    <<: *loop
+  tags:
+    - $NEMO_HPC
+  variables:
+    TEST_TYPE: 'ROTSYM'
     LOG_FILE: 'sette_rpt_${TEST_TYPE}_${CONFIG}_${NEMO_HPC}_${CI_COMMIT_SHORT_SHA}.log'
     GIT_STRATEGY: none
   script:

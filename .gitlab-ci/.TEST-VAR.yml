@@ -6,6 +6,7 @@ variables:
     PATTERN_REPRO: '/ORCA2_ICE_PISCES|ORCA2_OFF_PISCES|AMM12|AGRIF_DEMO|WED025|GYRE_PISCES|GYRE_GO|ORCA2_SAS_ICE|ORCA2_ICE_OBS|SWG|ICE_AGRIF|VORTEX|ISOMIP+/'
     PATTERN_CORRUPT: '/AGRIF_DEMO/'
     PATTERN_PHYOPTS: '/OVERFLOW|LOCK_EXCHANGE/'
+    PATTERN_ROTSYM: '/VORTEX/'
 
 
 # List of configurations for each type of tests to manage job dependencies.
@@ -23,6 +24,10 @@ variables:
 .corrupt:
   variables:
     CONFIG: [AGRIF_DEMO]
+
+.rotsym:
+  variables:
+    CONFIG: [VORTEX]
 
 .phyopts:
   variables:

@@ -72,6 +72,12 @@ CONTAINS
       !
       IF( nn_rot  < 0   .OR.  nn_rot  > 3 )   CALL ctl_stop( 'bad namelist flag: nn_rot is 0, 1, 2 or 3' )
       !
+      IF     ((nn_rot==1).OR.(nn_rot==3)) THEN
+         zlx   = rn_dx
+         rn_dx = rn_dy
+         rn_dy = zlx 
+      ENDIF
+      !
 #if defined key_agrif 
       ! Domain parameters are taken from parent:
       IF( .NOT. Agrif_Root() ) THEN
@@ -92,13 +98,8 @@ CONTAINS
 #if defined key_agrif 
       IF( Agrif_Root() ) THEN       ! Global Domain size:  VORTEX global domain is  1800 km x 1800 Km x 5000 m
 #endif
-         IF     ((nn_rot==0).OR.(nn_rot==2)) THEN
-            kpi = NINT( 1800.e3  / rn_dx ) + 3  
-            kpj = NINT( 1800.e3  / rn_dy ) + 3 
-         ELSEIF ((nn_rot==1).OR.(nn_rot==3)) THEN
-            kpi = NINT( 1800.e3  / rn_dy ) + 3  
-            kpj = NINT( 1800.e3  / rn_dx ) + 3 
-         ENDIF
+         kpi = NINT( 1800.e3  / rn_dx ) + 3  
+         kpj = NINT( 1800.e3  / rn_dy ) + 3 
 #if defined key_agrif 
       ELSE                          ! Global Domain size: add nbghostcells + 1 "land" point on each side
          ! At this stage, child ghosts have not been set

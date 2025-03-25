@@ -240,17 +240,17 @@ CONTAINS
          !
          !                          !==  horizontal Shapiro filter + decrease along coastal boundaries  ==!
          DO_2D( 0, 0, 0, 0 )                                 ! rows jj=2 and =jpjm1 only
-            uslp(ji,jj,jk) = z1_16 * (      ( ( zwz(ji-1,jj-1) + zwz(ji+1,jj-1) )      &   ! need additional () for
-               &                       +      ( zwz(ji-1,jj+1) + zwz(ji+1,jj+1) ) )    &   ! reproducibility around NP
-               &                       + 2.*( ( zwz(ji  ,jj-1) + zwz(ji-1,jj  ) )      &
-               &                       +      ( zwz(ji+1,jj  ) + zwz(ji  ,jj+1) ) )    &
+            uslp(ji,jj,jk) = z1_16 * (      ( ( zwz(ji-1,jj-1) + zwz(ji+1,jj+1) )      &   ! need additional () for
+               &                       +      ( zwz(ji-1,jj+1) + zwz(ji+1,jj-1) ) )    &   ! reproducibility around NP
+               &                       + 2.*( ( zwz(ji  ,jj-1) + zwz(ji  ,jj+1  ) )    &
+               &                       +      ( zwz(ji+1,jj  ) + zwz(ji-1,jj  ) ) )    &
                &                       + 4.*    zwz(ji  ,jj  )                      )  &
                &                   * ( umask(ji,jj+1,jk) + umask(ji,jj-1,jk  ) ) * 0.5_wp   &
                &                   * ( umask(ji,jj  ,jk) + umask(ji,jj  ,jk+1) ) * 0.5_wp
-            vslp(ji,jj,jk) = z1_16 * (      ( ( zww(ji-1,jj-1) + zww(ji+1,jj-1) )      &
-               &                       +      ( zww(ji-1,jj+1) + zww(ji+1,jj+1) ) )    &
-               &                       + 2.*( ( zww(ji  ,jj-1) + zww(ji-1,jj  ) )      &
-               &                       +      ( zww(ji+1,jj  ) + zww(ji  ,jj+1) ) )    &
+            vslp(ji,jj,jk) = z1_16 * (      ( ( zww(ji-1,jj-1) + zww(ji+1,jj+1) )      &
+               &                       +      ( zww(ji-1,jj+1) + zww(ji+1,jj-1) ) )    &
+               &                       + 2.*( ( zww(ji  ,jj-1) + zww(ji  ,jj+1) )      &
+               &                       +      ( zww(ji+1,jj  ) + zww(ji-1,jj  ) ) )    &
                &                       + 4.*    zww(ji,jj    )                      )  &
                &                   * ( vmask(ji+1,jj,jk) + vmask(ji-1,jj,jk  ) ) * 0.5_wp   &
                &                   * ( vmask(ji  ,jj,jk) + vmask(ji  ,jj,jk+1) ) * 0.5_wp
@@ -301,16 +301,16 @@ CONTAINS
          DO_2D( 0, 0, 0, 0 )                             ! rows jj=2 and =jpjm1 only
             zcofw = wmask(ji,jj,jk) * z1_16 * ( umask(ji,jj,jk) + umask(ji-1,jj,jk) )   &
                &                            * ( vmask(ji,jj,jk) + vmask(ji,jj-1,jk) ) * 0.25
-            wslpi(ji,jj,jk) = (       ( ( zwz(ji-1,jj-1) + zwz(ji+1,jj-1) )     &   ! need additional () for
-                 &               +      ( zwz(ji-1,jj+1) + zwz(ji+1,jj+1) ) )   &   ! reproducibility around NP
-                 &               + 2.*( ( zwz(ji  ,jj-1) + zwz(ji-1,jj  ) )     &
-                 &               +      ( zwz(ji+1,jj  ) + zwz(ji  ,jj+1) ) )   &
+            wslpi(ji,jj,jk) = (       ( ( zwz(ji-1,jj-1) + zwz(ji+1,jj+1) )     &   ! need additional () for
+                 &               +      ( zwz(ji-1,jj+1) + zwz(ji+1,jj-1) ) )   &   ! reproducibility around NP
+                 &               + 2.*( ( zwz(ji  ,jj-1) + zwz(ji  ,jj+1) )     &
+                 &               +      ( zwz(ji+1,jj  ) + zwz(ji-1,jj  ) ) )   &
                  &               + 4.*    zwz(ji  ,jj  )                        ) * zcofw
 
-            wslpj(ji,jj,jk) = (       ( ( zww(ji-1,jj-1) + zww(ji+1,jj-1) )     &
-                 &               +      ( zww(ji-1,jj+1) + zww(ji+1,jj+1) ) )   &
-                 &               + 2.*( ( zww(ji  ,jj-1) + zww(ji-1,jj  ) )     &
-                 &               +      ( zww(ji+1,jj  ) + zww(ji  ,jj+1) ) )   &
+            wslpj(ji,jj,jk) = (       ( ( zww(ji-1,jj-1) + zww(ji+1,jj+1) )     &
+                 &               +      ( zww(ji-1,jj+1) + zww(ji+1,jj-1) ) )   &
+                 &               + 2.*( ( zww(ji  ,jj-1) + zww(ji  ,jj+1) )     &
+                 &               +      ( zww(ji+1,jj  ) + zww(ji-1,jj  ) ) )   &
                  &               + 4.*    zww(ji  ,jj  )                        ) * zcofw
          END_2D
          !
