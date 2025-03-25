@@ -353,8 +353,8 @@ CONTAINS
             END_2D
          CASE ( np_RVO )                           !* relative vorticity
             DO_2D( 0, 1, 0, 1 )
-               zwt(ji,jj) = r1_4 * (   ( zwz(ji-1,jj  ) + zwz(ji,jj  ) )      &   ! need additional () for
-                  &                  + ( zwz(ji-1,jj-1) + zwz(ji,jj-1) )  )   &   ! reproducibility around NP
+               zwt(ji,jj) = r1_4 * (   ( zwz(ji-1,jj  ) + zwz(ji,jj-1) )      &   ! need additional () for
+                  &                  + ( zwz(ji-1,jj-1) + zwz(ji,jj  ) )  )   &   ! reproducibility around NP
                   &              * e1e2t(ji,jj)*e3t(ji,jj,jk,Kmm)
             END_2D
          CASE ( np_MET )                           !* metric term
@@ -365,8 +365,8 @@ CONTAINS
             END_2D
          CASE ( np_CRV )                           !* Coriolis + relative vorticity
             DO_2D( 0, 1, 0, 1 )
-               zwt(ji,jj) = (  ff_t(ji,jj) + r1_4 * ( ( zwz(ji-1,jj  ) + zwz(ji,jj  ) )        &   ! need additional () for
-                  &                                 + ( zwz(ji-1,jj-1) + zwz(ji,jj-1) ) )  )   &   ! reproducibility around NP
+               zwt(ji,jj) = (  ff_t(ji,jj) + r1_4 * ( ( zwz(ji-1,jj  ) + zwz(ji,jj-1) )        &   ! need additional () for
+                  &                                 + ( zwz(ji-1,jj-1) + zwz(ji,jj  ) ) )  )   &   ! reproducibility around NP
                   &       * e1e2t(ji,jj)*e3t(ji,jj,jk,Kmm)
             END_2D
          CASE ( np_CME )                           !* Coriolis + metric
@@ -494,9 +494,9 @@ CONTAINS
          CASE ( 0 )                                   ! original formulation  (masked averaging of e3t divided by 4)
             DO_2D( 1, 0, 1, 0 )
                ze3f = (  ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
-                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   &   ! reproducibility around NP
                   &    + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
-                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )  )
+                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )  )
                IF( ze3f /= 0._wp ) THEN   ;   zwz(ji,jj) = zwz(ji,jj) * 4._wp / ze3f
                ELSE                       ;   zwz(ji,jj) = 0._wp
                ENDIF
@@ -504,11 +504,11 @@ CONTAINS
          CASE ( 1 )                                   ! new formulation  (masked averaging of e3t divided by the sum of mask)
             DO_2D( 1, 0, 1, 0 )
                ze3f = (   ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
-                  &     +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &     +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   &   ! reproducibility around NP
                   &     + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
-                  &     +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   )
-               zmsk = (   tmask(ji,jj+1,jk) + tmask(ji+1,jj+1,jk)   &
-                  &     + tmask(ji,jj  ,jk) + tmask(ji+1,jj  ,jk)   )
+                  &     +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   )
+               zmsk = (   (tmask(ji,jj+1,jk) + tmask(ji+1,jj  ,jk))   &
+                  &     + (tmask(ji,jj  ,jk) + tmask(ji+1,jj+1,jk))   )
                IF( ze3f /= 0._wp ) THEN   ;   zwz(ji,jj) = zwz(ji,jj) * zmsk / ze3f
                ELSE                       ;   zwz(ji,jj) = 0._wp
                ENDIF
@@ -523,12 +523,14 @@ CONTAINS
          !
          !                                   !==  compute and add the vorticity term trend  =!
          DO_2D( 0, 0, 0, 0 )
-            zy1 = zwy(ji,jj-1) + zwy(ji+1,jj-1)
-            zy2 = zwy(ji,jj  ) + zwy(ji+1,jj  )
-            zx1 = zwx(ji-1,jj) + zwx(ji-1,jj+1)
-            zx2 = zwx(ji  ,jj) + zwx(ji  ,jj+1)
-            pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + r1_4 * r1_e1u(ji,jj) * ( zwz(ji  ,jj-1) * zy1 + zwz(ji,jj) * zy2 )
-            pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) - r1_4 * r1_e2v(ji,jj) * ( zwz(ji-1,jj  ) * zx1 + zwz(ji,jj) * zx2 )
+            !zy1 = zwy(ji,jj-1) + zwy(ji+1,jj-1)
+            !zy2 = zwy(ji,jj  ) + zwy(ji+1,jj  )
+            !zx1 = zwx(ji-1,jj) + zwx(ji-1,jj+1)
+            !zx2 = zwx(ji  ,jj) + zwx(ji  ,jj+1)
+            pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + r1_4 * r1_e1u(ji,jj) * ( (zwz(ji  ,jj-1)*zwy(ji+1,jj-1) + zwz(ji,jj)*zwy(ji  ,jj  ) ) &
+                             &                                            +(zwz(ji  ,jj-1)*zwy(ji  ,jj-1) + zwz(ji,jj)*zwy(ji+1,jj  ) ) )
+            pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) - r1_4 * r1_e2v(ji,jj) * ( (zwz(ji-1,jj  )*zwx(ji-1,jj  ) + zwz(ji,jj)*zwx(ji  ,jj+1) ) &
+                             &                                            +(zwz(ji-1,jj  )*zwx(ji-1,jj+1) + zwz(ji,jj)*zwx(ji  ,jj  ) ) )
          END_2D
          !                                             ! ===============
       END DO                                           !   End of slab
@@ -627,9 +629,9 @@ CONTAINS
          CASE ( 0 )                                   ! original formulation  (masked averaging of e3t divided by 4)
             DO_2D( 1, 0, 1, 0 )
                ze3f = (  ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
-                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   &   ! reproducibility around NP
                   &    + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
-                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )  )
+                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )  )
                IF( ze3f /= 0._wp ) THEN   ;   zwz(ji,jj) = zwz(ji,jj) * 4._wp / ze3f
                ELSE                       ;   zwz(ji,jj) = 0._wp
                ENDIF
@@ -637,11 +639,11 @@ CONTAINS
          CASE ( 1 )                                   ! new formulation  (masked averaging of e3t divided by the sum of mask)
             DO_2D( 1, 0, 1, 0 )
                ze3f = (   ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
-                  &     +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &     +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   &   ! reproducibility around NP
                   &     + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
-                  &     +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   )
-               zmsk = (   tmask(ji,jj+1,jk) + tmask(ji+1,jj+1,jk)   &
-                  &     + tmask(ji,jj  ,jk) + tmask(ji+1,jj  ,jk)   )
+                  &     +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   )
+               zmsk = (   (tmask(ji,jj+1,jk) + tmask(ji+1,jj  ,jk))   &
+                  &     + (tmask(ji,jj  ,jk) + tmask(ji+1,jj+1,jk))   )
                IF( ze3f /= 0._wp ) THEN   ;   zwz(ji,jj) = zwz(ji,jj) * zmsk / ze3f
                ELSE                       ;   zwz(ji,jj) = 0._wp
                ENDIF
@@ -656,10 +658,10 @@ CONTAINS
          !
          !                                   !==  compute and add the vorticity term trend  =!
          DO_2D( 0, 0, 0, 0 )
-            zuav = r1_8 * r1_e1u(ji,jj) * (  ( zwy(ji  ,jj-1) + zwy(ji+1,jj-1) )  &   ! need additional () for
-               &                           + ( zwy(ji  ,jj  ) + zwy(ji+1,jj  ) )  )   ! reproducibility around NP
-            zvau =-r1_8 * r1_e2v(ji,jj) * (  ( zwx(ji-1,jj  ) + zwx(ji-1,jj+1) )  &
-               &                           + ( zwx(ji  ,jj  ) + zwx(ji  ,jj+1) )  )
+            zuav = r1_8 * r1_e1u(ji,jj) * (  ( zwy(ji  ,jj-1) + zwy(ji+1,jj  ) )  &   ! need additional () for
+               &                           + ( zwy(ji  ,jj  ) + zwy(ji+1,jj-1) )  )   ! reproducibility around NP
+            zvau =-r1_8 * r1_e2v(ji,jj) * (  ( zwx(ji-1,jj  ) + zwx(ji  ,jj+1) )  &
+               &                           + ( zwx(ji  ,jj  ) + zwx(ji-1,jj+1) )  )
             pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zuav * ( zwz(ji  ,jj-1) + zwz(ji,jj) )
             pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zvau * ( zwz(ji-1,jj  ) + zwz(ji,jj) )
          END_2D
@@ -723,9 +725,9 @@ CONTAINS
          CASE ( 0 )                                   ! original formulation  (masked averaging of e3t divided by 4)
             DO_2D( 1, 1, 1, 1 )
                ze3f = (  ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
-                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   &   ! reproducibility around NP
                   &    + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
-                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )  )
+                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )  )
                IF( ze3f /= 0._wp ) THEN   ;   z1_e3f(ji,jj) = 4._wp / ze3f
                ELSE                       ;   z1_e3f(ji,jj) = 0._wp
                ENDIF
@@ -733,11 +735,11 @@ CONTAINS
          CASE ( 1 )                                   ! new formulation  (masked averaging of e3t divided by the sum of mask)
             DO_2D( 1, 1, 1, 1 )
                ze3f = (  ( e3t(ji  ,jj+1,jk,Kmm)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
-                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )   &   ! reproducibility around NP
                   &    + ( e3t(ji  ,jj  ,jk,Kmm)*tmask(ji  ,jj  ,jk)     &
-                  &    +   e3t(ji+1,jj  ,jk,Kmm)*tmask(ji+1,jj  ,jk) )  )
-               zmsk = (tmask(ji,jj+1,jk) + tmask(ji+1,jj+1,jk)   &
-                  &  + tmask(ji,jj  ,jk) + tmask(ji+1,jj  ,jk)  )
+                  &    +   e3t(ji+1,jj+1,jk,Kmm)*tmask(ji+1,jj+1,jk) )  )
+               zmsk = ((tmask(ji,jj+1,jk) + tmask(ji+1,jj  ,jk))   &
+                  &  + (tmask(ji,jj  ,jk) + tmask(ji+1,jj+1,jk))  )
                IF( ze3f /= 0._wp ) THEN   ;   z1_e3f(ji,jj) = zmsk / ze3f
                ELSE                       ;   z1_e3f(ji,jj) = 0._wp
                ENDIF
@@ -801,10 +803,10 @@ CONTAINS
          END_2D
          !
          DO_2D( 0, 0, 0, 0 )   ! add () for NP repro
-            zua = + r1_12 * r1_e1u(ji,jj) * (  ( ztne(ji,jj  ) * zwy(ji  ,jj  ) + ztnw(ji+1,jj) * zwy(ji+1,jj  ) )   & ! add () for
-               &                             + ( ztse(ji,jj  ) * zwy(ji  ,jj-1) + ztsw(ji+1,jj) * zwy(ji+1,jj-1) ) )   ! NP repro
-            zva = - r1_12 * r1_e2v(ji,jj) * (  ( ztsw(ji,jj+1) * zwx(ji-1,jj+1) + ztse(ji,jj+1) * zwx(ji  ,jj+1) )   &
-               &                             + ( ztnw(ji,jj  ) * zwx(ji-1,jj  ) + ztne(ji,jj  ) * zwx(ji  ,jj  ) ) )
+            zua = + r1_12 * r1_e1u(ji,jj) * (  ( ztne(ji,jj  ) * zwy(ji  ,jj  ) + ztsw(ji+1,jj) * zwy(ji+1,jj-1) )   & ! add () for
+               &                             + ( ztse(ji,jj  ) * zwy(ji  ,jj-1) + ztnw(ji+1,jj) * zwy(ji+1,jj  ) ) )   ! NP repro
+            zva = - r1_12 * r1_e2v(ji,jj) * (  ( ztsw(ji,jj+1) * zwx(ji-1,jj+1) + ztne(ji,jj  ) * zwx(ji  ,jj  ) )   &
+               &                             + ( ztnw(ji,jj  ) * zwx(ji-1,jj  ) + ztse(ji,jj+1) * zwx(ji  ,jj+1) ) )
             pu_rhs(ji,jj,jk) = pu_rhs(ji,jj,jk) + zua
             pv_rhs(ji,jj,jk) = pv_rhs(ji,jj,jk) + zva
          END_2D
@@ -921,9 +923,9 @@ CONTAINS
          CASE ( 0 )                        ! original formulation  (masked averaging of e3t divided by 4)
             DO_3D( 0, 0, 0, 0, 1, jpk )
                e3f_0vor(ji,jj,jk) = (   ( e3t_0(ji  ,jj+1,jk)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
-                  &                   +   e3t_0(ji+1,jj+1,jk)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                  &                   +   e3t_0(ji+1,jj  ,jk)*tmask(ji+1,jj  ,jk) )   &   ! reproducibility around NP
                   &                   + ( e3t_0(ji  ,jj  ,jk)*tmask(ji  ,jj  ,jk)     &
-                  &                   +   e3t_0(ji+1,jj  ,jk)*tmask(ji+1,jj  ,jk) )   ) * 0.25_wp
+                  &                   +   e3t_0(ji+1,jj+1,jk)*tmask(ji+1,jj+1,jk) )   ) * 0.25_wp
             END_3D
          CASE ( 1 )                        ! new formulation  (masked averaging of e3t divided by the sum of mask)
             DO_3D( 0, 0, 0, 0, 1, jpk )
@@ -932,9 +934,9 @@ CONTAINS
                !
                IF( zmsk /= 0._wp ) THEN
                   e3f_0vor(ji,jj,jk) = (   ( e3t_0(ji  ,jj+1,jk)*tmask(ji  ,jj+1,jk)     &   ! need additional () for
-                     &                   +   e3t_0(ji+1,jj+1,jk)*tmask(ji+1,jj+1,jk) )   &   ! reproducibility around NP
+                     &                   +   e3t_0(ji+1,jj  ,jk)*tmask(ji+1,jj  ,jk) )   &   ! reproducibility around NP
                      &                   + ( e3t_0(ji  ,jj  ,jk)*tmask(ji  ,jj  ,jk)     &
-                     &                   +   e3t_0(ji+1,jj  ,jk)*tmask(ji+1,jj  ,jk) )   ) / zmsk
+                     &                   +   e3t_0(ji+1,jj+1,jk)*tmask(ji+1,jj+1,jk) )   ) / zmsk
                ELSE ; e3f_0vor(ji,jj,jk) = 0._wp
                ENDIF
             END_3D

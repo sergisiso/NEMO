@@ -1130,14 +1130,14 @@ CONTAINS
       !
       DO_2D( 0, 0, 0, 0 )
          zu_trd(ji,jj) = + (  (  ffu_nw(ji,jj) * pvnb(ji  ,jj  )   & 
-            &                  + ffu_ne(ji,jj) * pvnb(ji+1,jj  ) ) &
+            &                  + ffu_se(ji,jj) * pvnb(ji+1,jj-1) ) &
             &               + (  ffu_sw(ji,jj) * pvnb(ji  ,jj-1)   & 
-            &                  + ffu_se(ji,jj) * pvnb(ji+1,jj-1) ) ) 
+            &                  + ffu_ne(ji,jj) * pvnb(ji+1,jj  ) ) ) 
             !
          zv_trd(ji,jj) = - (  (  ffv_sw(ji,jj) * punb(ji-1,jj  )   & 
-            &                  + ffv_se(ji,jj) * punb(ji  ,jj  ) ) &
+            &                  + ffv_ne(ji,jj) * punb(ji  ,jj+1) ) &
             &               + (  ffv_nw(ji,jj) * punb(ji-1,jj+1)   &
-            &                  + ffv_ne(ji,jj) * punb(ji  ,jj+1) ) )
+            &                  + ffv_se(ji,jj) * punb(ji  ,jj  ) ) )
       END_2D
       !
    END SUBROUTINE dyn_cor_2D

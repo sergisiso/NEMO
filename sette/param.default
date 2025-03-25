@@ -76,13 +76,15 @@ export DO_REPRO=0
 export DO_CORRUPT=0
 export DO_PHYOPTS=0
 export DO_TRANSFORM=0
+export DO_ROTSYM=0
 export SCTRANSFORMS=()
-TEST_TYPES=(${SETTE_TEST_TYPES[@]:-"COMPILE RESTART REPRO PHYOPTS CORRUPT"})
+TEST_TYPES=(${SETTE_TEST_TYPES[@]:-"COMPILE RESTART REPRO CORRUPT PHYOPTS ROTSYM"})
 if [[ ${TEST_TYPES[*]} =~ .*COMPILE.* ]]; then export DO_COMPILE=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*RESTART.* ]]; then export DO_RESTART=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*REPRO.* ]]; then export DO_REPRO=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*CORRUPT.* ]]; then export DO_CORRUPT=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*PHYOPTS.* ]]; then export DO_PHYOPTS=1 ;fi
+if [[ ${TEST_TYPES[*]} =~ .*ROTSYM.* ]]; then export DO_ROTSYM=1 ;fi
 if [[ ${TEST_TYPES[*]} =~ .*TRANSFORM.* ]]; then export DO_TRANSFORM=1 ;fi
 # LIST OF SOURCE-CODE TRANSFORMATIONS USED FOR THE TRANSFORM TEST
 # (list of 'passthrough' and/or names of available transformations)

@@ -211,7 +211,7 @@ CONTAINS
       !                                   !==              write "run.stat" files              ==!
       !                                   !==  done only by 1st subdomain at writting timestep  ==!
       IF( ll_wrtruns ) THEN
-         WRITE(numrun,9500) kt, zmax(1:jptst)
+         WRITE(numrun,9500) kt, zmax(1), MAX(zmax(2),zmax(3)), zmax(4),zmax(5)
          IF( jpnij == 1 ) CALL FLUSH(numrun)
          DO ji = 1, jpvar - 2 * COUNT( .NOT. (/ln_zad_Aimp/) )
             istatus = NF90_PUT_VAR( nrunid, nvarid(ji), (/zmax(ji)/), (/kt/), (/1/) )
@@ -312,7 +312,7 @@ CONTAINS
          IF( .NOT. ll_colruns .AND. jpnij > 1 )   CALL ctl_stop( 'STOP' )   ! we must abort here to avoid MPI deadlock
       ENDIF
       !
-9500  FORMAT(' it :', i8, '    |ssh|_max: ', D23.16, ' |U|_max: ', D23.16, ' |V|_max: ', D23.16, ' S_min: ', D23.16,' S_max: ', D23.16)
+9500  FORMAT(' it :', i8, '    |ssh|_max: ', D23.16, ' |{U,V}|_max: ', D23.16, ' S_min: ', D23.16,' S_max: ', D23.16)
       !
       IF( ln_timing )   CALL timing_stop( 'stp_ctl' )
       !

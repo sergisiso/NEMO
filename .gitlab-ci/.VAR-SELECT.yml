@@ -40,6 +40,7 @@ variables:
       - "REPRO"
       - "CORRUPT"
       - "PHYOPTS"
+      - "ROTSYM"
       - "TRANSFORM"
       - "COMPARE"
 
