@@ -122,7 +122,7 @@ CONTAINS
          IF( .NOT.ln_dynspg_ts .AND. ( ln_tide_pot .AND. ln_tide )  ) THEN   ! N.B. added directly at sub-time-step in ts-case
             !
             ! Update tide potential at the beginning of current time step
-            zt0step = REAL(nsec_day, wp)-0.5_wp*rn_Dt
+            zt0step = REAL(nsec_day, wp) ! = nsec_day - ndt05 + ndt05
             CALL upd_tide(zt0step, Kmm)
             !
             DO_2D( 0, 0, 0, 0 )                      ! add tide potential forcing
