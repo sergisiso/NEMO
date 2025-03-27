@@ -43,8 +43,6 @@ MODULE bdytides
 !$AGRIF_END_DO_NOT_TREAT
    TYPE(OBC_DATA)  , PUBLIC, DIMENSION(jp_bdy) :: dta_bdy_s  !: bdy external data (slow component)
 
-   INTEGER ::   kt_tide
-
    !! * Substitutions
 #  include "do_loop_substitute.h90"
 #  include "read_nml_substitute.h90"
@@ -293,27 +291,26 @@ CONTAINS
 
       zt_offset = 0._wp
       IF( PRESENT(pt_offset) )   zt_offset = pt_offset
-      
-      ! Absolute time from model initialization:   
-      IF( PRESENT(kit) ) THEN  
-         z_arg = ( REAL(kt, wp) + ( REAL(kit, wp) + zt_offset - 1. ) / REAL(nn_e, wp) ) * rn_Dt
-      ELSE                              
-         z_arg = ( REAL(kt, wp) + zt_offset ) * rn_Dt
-      ENDIF
 
       ! Linear ramp on tidal component at open boundaries 
-      zramp = 1.
-      IF (ln_tide_ramp) zramp = MIN(MAX( (z_arg - REAL(nit000,wp)*rn_Dt)/(rn_tide_ramp_dt*rday),0.),1.)
+      zramp = 1._wp
+      IF (ln_tide_ramp) THEN 
+         ! Absolute time from model initialization:   
+         IF( PRESENT(kit) ) THEN  
+            z_arg = ( REAL(kt, wp) + ( REAL(kit, wp) + zt_offset - 1. ) / REAL(nn_e, wp) ) * rn_Dt
+         ELSE                              
+            z_arg = ( REAL(kt, wp) + zt_offset ) * rn_Dt
+         ENDIF
+         zramp = MIN(MAX( (z_arg - REAL(nit000,wp)*rn_Dt)/(rn_tide_ramp_dt*rday),0.),1.)
+      ENDIF
 
       DO ib_bdy = 1,nb_bdy
          !
          IF( nn_dyn2d_dta(ib_bdy) >= 2 ) THEN
             !
-            ! We refresh nodal factors every day below
-            ! This should be done somewhere else
-            IF ( ( nsec_day == NINT(0.5_wp * rn_Dt) .OR. kt==nit000 ) .AND. lk_first_btstp ) THEN
-               !
-               kt_tide = kt - NINT((REAL(nsec_day,wp) - 0.5_wp * rn_Dt)/rn_Dt)
+            ! Since astronomical angles are refreshed every day at midnight 
+            ! initialize amplitude and phases of boundary data: 
+            IF ( ( nsec_day == ndt05 .OR. kt==nit000 ) .AND. lk_first_btstp ) THEN
                !
                IF(lwp) THEN
                WRITE(numout,*)
@@ -325,7 +322,12 @@ CONTAINS
                CALL tide_init_velocities( idx=idx_bdy(ib_bdy), td=tides(ib_bdy) )
                !
             ENDIF
-            zoff = REAL(-kt_tide,wp) * rn_Dt ! time offset relative to nodal factor computation time
+            ! Time offset relative to nodal factors computation time
+            IF( PRESENT(kit) ) THEN  
+               zoff = REAL(nsec_day - ndt05, wp) + ( REAL(kit, wp) + zt_offset - 1._wp ) / REAL(nn_e, wp) * rn_Dt
+            ELSE                              
+               zoff = REAL(nsec_day - ndt05, wp) + zt_offset * rn_Dt
+            ENDIF
             !
             ! If time splitting, initialize arrays from slow varying open boundary data:
             IF ( PRESENT(kit) ) THEN           
@@ -337,7 +339,7 @@ CONTAINS
             ! Update open boundary data arrays:
             DO itide = 1, nb_harmo
                !
-               z_sarg = (z_arg + zoff) * tide_harmonics(itide)%omega
+               z_sarg = zoff  * tide_harmonics(itide)%omega
                z_cost = zramp * COS( z_sarg )
                z_sist = zramp * SIN( z_sarg )
                !

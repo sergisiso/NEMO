@@ -44,6 +44,7 @@ MODULE dynspg_ts
    USE bdydyn2d        ! open boundary conditions on barotropic variables
    USE tide_mod        !
    USE sbcwave         ! surface wave
+   USE daymod, ONLY : ndt05   ! half-length of time step
 #if defined key_agrif
    USE agrif_oce_interp ! agrif
    USE agrif_oce
@@ -315,7 +316,7 @@ CONTAINS
          IF( ln_bdy      .AND. ln_tide )   CALL bdy_dta_tides( kt, kit=jn, pt_offset= 1._wp )
          ! Update tide potential at the beginning of current time substep
          IF( ln_tide_pot .AND. ln_tide ) THEN
-            zt0substep = REAL(nsec_day, wp) - 0.5_wp*rn_Dt + (jn - 1) * rn_Dt / REAL(nn_e, wp)
+            zt0substep = REAL(nsec_day-ndt05, wp) + (jn - 0.5_wp) * rDt_e 
             CALL upd_tide(zt0substep, Kmm)
          END IF
          !
@@ -425,7 +426,7 @@ CONTAINS
          CALL agrif_ssh_ts( jn )
 #endif
          !
-         !                             ! Sum over sub-time-steps to compute advective velocities
+         !                             ! Sum dver sub-time-steps to compute advective velocities
          za2 = wgtbtp2(jn)             ! zhU, zhV hold fluxes extrapolated at jn+0.5
          DO_2D( 0, 0, 0, 0 )
             un_adv(ji,jj) = un_adv(ji,jj) + za2 * zhU(ji,jj) * r1_e2u(ji,jj)
